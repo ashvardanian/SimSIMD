@@ -15,6 +15,7 @@
 #pragma clang attribute push(__attribute__((target("avx2,bmi2,avx2vnni"))), apply_to = function)
 
 #include "numkong/types.h"
+#include "numkong/reduce/haswell.h" // nk_reduce_add_i32x8_haswell_
 
 #if defined(__cplusplus)
 extern "C" {

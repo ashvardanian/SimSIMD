@@ -84,9 +84,7 @@
 #ifndef NK_MESH_H
 #define NK_MESH_H
 
-#include "types.h"
-
-#include "reduce.h"
+#include "numkong/types.h"
 
 #if defined(__cplusplus)
 extern "C" {

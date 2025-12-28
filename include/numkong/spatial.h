@@ -116,9 +116,7 @@
 #ifndef NK_SPATIAL_H
 #define NK_SPATIAL_H
 
-#include "types.h"
-
-#include "reduce.h" // For horizontal reduction helpers
+#include "numkong/types.h"
 
 #if defined(__cplusplus)
 extern "C" {

@@ -54,7 +54,7 @@
 #ifndef NK_REDUCE_H
 #define NK_REDUCE_H
 
-#include "types.h"
+#include "numkong/types.h"
 
 #ifdef __cplusplus
 extern "C" {

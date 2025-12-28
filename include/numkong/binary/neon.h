@@ -15,7 +15,8 @@
 #pragma clang attribute push(__attribute__((target("arch=armv8-a+simd"))), apply_to = function)
 
 #include "numkong/types.h"
-#include "numkong/binary/serial.h" // `nk_popcount_b8`
+#include "numkong/reduce/neon.h"   // nk_reduce_add_u8x16_neon_
+#include "numkong/binary/serial.h" // nk_popcount_b8
 
 #if defined(__cplusplus)
 extern "C" {

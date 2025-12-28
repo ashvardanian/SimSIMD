@@ -62,8 +62,8 @@
 #ifndef NK_PROBABILITY_H
 #define NK_PROBABILITY_H
 
-#include "reduce.h" // For horizontal reduction helpers
-#include "types.h"
+#include "numkong/types.h"
+#include "numkong/reduce.h" // For horizontal reduction helpers
 
 #if defined(__cplusplus)
 extern "C" {

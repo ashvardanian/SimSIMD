@@ -39,11 +39,10 @@
 #ifndef NK_CURVED_H
 #define NK_CURVED_H
 
-#include "types.h"
-
-#include "dot.h"     // `nk_partial_load_f16x4_neon_` and friends
-#include "spatial.h" // `nk_substract_bf16x32_genoa_`
-#include "reduce.h"  // `nk_reduce_add_f16x8_neon_` and friends
+#include "numkong/types.h"
+#include "numkong/dot.h"     // nk_partial_load_f16x4_neonhalf_ and friends
+#include "numkong/spatial.h" // nk_substract_bf16x32_genoa_
+#include "numkong/reduce.h"  // nk_reduce_add_f16x8_neonhalf_ and friends
 
 #if defined(__cplusplus)
 extern "C" {

@@ -80,7 +80,7 @@
 #ifndef NK_SPARSE_H
 #define NK_SPARSE_H
 
-#include "types.h"
+#include "numkong/types.h"
 
 #if defined(__cplusplus)
 extern "C" {

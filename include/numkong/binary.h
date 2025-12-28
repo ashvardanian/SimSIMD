@@ -134,9 +134,7 @@
 #ifndef NK_BINARY_H
 #define NK_BINARY_H
 
-#include "types.h"
-
-#include "reduce.h"
+#include "numkong/types.h"
 
 #if defined(__cplusplus)
 extern "C" {

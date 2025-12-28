@@ -130,9 +130,8 @@
 #ifndef NK_DOTS_H
 #define NK_DOTS_H
 
-#include "types.h"
-
-#include "dot.h" // `nk_bf16x16_to_f32x16_skylake_`
+#include "numkong/types.h"
+#include "numkong/dot.h" // nk_bf16x16_to_f32x16_skylake_
 
 #if defined(__cplusplus)
 extern "C" {

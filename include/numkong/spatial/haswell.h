@@ -15,6 +15,7 @@
 #pragma clang attribute push(__attribute__((target("avx2,f16c,fma"))), apply_to = function)
 
 #include "numkong/types.h"
+#include "numkong/reduce/haswell.h" // nk_reduce_add_f32x8_haswell_, nk_reduce_add_i32x8_haswell_
 
 #if defined(__cplusplus)
 extern "C" {

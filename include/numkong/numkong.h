@@ -105,18 +105,18 @@
 #define NK_DYNAMIC_DISPATCH (0) // true or false
 #endif
 
-#include "binary.h"       // Hamming, Jaccard
-#include "curved.h"       // Mahalanobis, Bilinear Forms
-#include "dot.h"          // Inner (dot) product, and its conjugate
-#include "dots.h"         // GEMM-style MxN batched dot-products
-#include "elementwise.h"  // Weighted Sum, Fused-Multiply-Add
-#include "geospatial.h"   // Haversine and Vincenty
-#include "mesh.h"         // RMSD, Kabsch, Umeyama
-#include "probability.h"  // Kullback-Leibler, Jensen–Shannon
-#include "reduce.h"       // Horizontal reductions: sum, min, max
-#include "sparse.h"       // Intersect
-#include "spatial.h"      // L2, Angular
-#include "trigonometry.h" // Sin, Cos, Atan
+#include "numkong/binary.h"       // Hamming, Jaccard
+#include "numkong/curved.h"       // Mahalanobis, Bilinear Forms
+#include "numkong/dot.h"          // Inner (dot) product, and its conjugate
+#include "numkong/dots.h"         // GEMM-style MxN batched dot-products
+#include "numkong/elementwise.h"  // Weighted Sum, Fused-Multiply-Add
+#include "numkong/geospatial.h"   // Haversine and Vincenty
+#include "numkong/mesh.h"         // RMSD, Kabsch, Umeyama
+#include "numkong/probability.h"  // Kullback-Leibler, Jensen–Shannon
+#include "numkong/reduce.h"       // Horizontal reductions: sum, min, max
+#include "numkong/sparse.h"       // Intersect
+#include "numkong/spatial.h"      // L2, Angular
+#include "numkong/trigonometry.h" // Sin, Cos, Atan
 
 // On Apple Silicon, `mrs` is not allowed in user-space, so we need to use the `sysctl` API.
 #if defined(NK_DEFINED_APPLE_)

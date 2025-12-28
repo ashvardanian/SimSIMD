@@ -16,6 +16,7 @@
                              apply_to = function)
 
 #include "numkong/types.h"
+#include "numkong/reduce/skylake.h" // nk_reduce_add_f32x16_skylake_
 
 #if defined(__cplusplus)
 extern "C" {

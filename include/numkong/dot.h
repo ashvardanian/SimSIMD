@@ -100,8 +100,7 @@
 #ifndef NK_DOT_H
 #define NK_DOT_H
 
-#include "types.h"
-#include "reduce.h"
+#include "numkong/types.h"
 
 #if defined(__cplusplus)
 extern "C" {

@@ -107,9 +107,8 @@
 #ifndef NK_GEOSPATIAL_H
 #define NK_GEOSPATIAL_H
 
-#include "types.h"
-
-#include "trigonometry.h"
+#include "numkong/types.h"
+#include "numkong/trigonometry.h"
 
 /*  Earth Ellipsoid Constants
  *  The default values use the IERS-2003 standard, but can be overridden before including this header.

@@ -15,6 +15,7 @@
 #pragma clang attribute push(__attribute__((target("avx2,avx512f,avx512vl,avx512bw,bmi2"))), apply_to = function)
 
 #include "numkong/types.h"
+#include "numkong/reduce/skylake.h" // nk_reduce_add_f32x16_skylake_
 
 #if defined(__cplusplus)
 extern "C" {
