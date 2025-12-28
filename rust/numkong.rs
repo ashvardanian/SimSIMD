@@ -469,6 +469,40 @@ extern "C" {
         scale: *mut f64,
         result: *mut f64,
     );
+
+    // Geospatial distance functions
+    fn nk_haversine_f32(
+        a_lats: *const f32,
+        a_lons: *const f32,
+        b_lats: *const f32,
+        b_lons: *const f32,
+        n: u64size,
+        results: *mut f32,
+    );
+    fn nk_haversine_f64(
+        a_lats: *const f64,
+        a_lons: *const f64,
+        b_lats: *const f64,
+        b_lons: *const f64,
+        n: u64size,
+        results: *mut f64,
+    );
+    fn nk_vincenty_f32(
+        a_lats: *const f32,
+        a_lons: *const f32,
+        b_lats: *const f32,
+        b_lons: *const f32,
+        n: u64size,
+        results: *mut f32,
+    );
+    fn nk_vincenty_f64(
+        a_lats: *const f64,
+        a_lons: *const f64,
+        b_lats: *const f64,
+        b_lons: *const f64,
+        n: u64size,
+        results: *mut f64,
+    );
 }
 
 // region: f16 Type
@@ -1664,6 +1698,181 @@ impl Euclidean for i8 {
 }
 
 // endregion: Euclidean
+
+// region: Geospatial
+
+/// Computes **great-circle distances** between geographic coordinates on Earth.
+///
+/// # Formula
+///
+/// **Haversine** (fast approximation assuming spherical Earth):
+/// ```text
+/// a = sin²(Δlat/2) + cos(lat1)·cos(lat2)·sin²(Δlon/2)
+/// c = 2·atan2(√a, √(1-a))
+/// distance = R·c
+/// ```
+///
+/// # Input Format
+///
+/// Coordinates must be in **radians**, not degrees.
+/// Convert with: `radians = degrees × π/180`
+///
+/// # Output
+///
+/// Writes distances in **meters** to the provided output buffer.
+///
+/// # Returns
+///
+/// `None` if input slices have mismatched lengths.
+pub trait Haversine: Sized {
+    /// Compute Haversine (spherical) great-circle distances.
+    fn haversine(
+        a_lat: &[Self],
+        a_lon: &[Self],
+        b_lat: &[Self],
+        b_lon: &[Self],
+        result: &mut [Self],
+    ) -> Option<()>;
+}
+
+/// Computes **Vincenty geodesic distances** on the WGS84 ellipsoid.
+///
+/// More accurate than Haversine (~0.5mm accuracy vs ~0.3% error).
+///
+/// # Input Format
+///
+/// Coordinates must be in **radians**, not degrees.
+///
+/// # Output
+///
+/// Writes distances in **meters** to the provided output buffer.
+///
+/// # Returns
+///
+/// `None` if input slices have mismatched lengths.
+pub trait Vincenty: Sized {
+    /// Compute Vincenty (ellipsoidal) geodesic distances.
+    fn vincenty(
+        a_lat: &[Self],
+        a_lon: &[Self],
+        b_lat: &[Self],
+        b_lon: &[Self],
+        result: &mut [Self],
+    ) -> Option<()>;
+}
+
+/// Combined trait for all geospatial distance computations.
+pub trait Geospatial: Haversine + Vincenty {}
+
+impl Haversine for f64 {
+    fn haversine(
+        a_lat: &[Self],
+        a_lon: &[Self],
+        b_lat: &[Self],
+        b_lon: &[Self],
+        result: &mut [Self],
+    ) -> Option<()> {
+        let n = a_lat.len();
+        if a_lon.len() != n || b_lat.len() != n || b_lon.len() != n || result.len() != n {
+            return None;
+        }
+        unsafe {
+            nk_haversine_f64(
+                a_lat.as_ptr(),
+                a_lon.as_ptr(),
+                b_lat.as_ptr(),
+                b_lon.as_ptr(),
+                n as u64size,
+                result.as_mut_ptr(),
+            );
+        }
+        Some(())
+    }
+}
+
+impl Vincenty for f64 {
+    fn vincenty(
+        a_lat: &[Self],
+        a_lon: &[Self],
+        b_lat: &[Self],
+        b_lon: &[Self],
+        result: &mut [Self],
+    ) -> Option<()> {
+        let n = a_lat.len();
+        if a_lon.len() != n || b_lat.len() != n || b_lon.len() != n || result.len() != n {
+            return None;
+        }
+        unsafe {
+            nk_vincenty_f64(
+                a_lat.as_ptr(),
+                a_lon.as_ptr(),
+                b_lat.as_ptr(),
+                b_lon.as_ptr(),
+                n as u64size,
+                result.as_mut_ptr(),
+            );
+        }
+        Some(())
+    }
+}
+
+impl Geospatial for f64 {}
+
+impl Haversine for f32 {
+    fn haversine(
+        a_lat: &[Self],
+        a_lon: &[Self],
+        b_lat: &[Self],
+        b_lon: &[Self],
+        result: &mut [Self],
+    ) -> Option<()> {
+        let n = a_lat.len();
+        if a_lon.len() != n || b_lat.len() != n || b_lon.len() != n || result.len() != n {
+            return None;
+        }
+        unsafe {
+            nk_haversine_f32(
+                a_lat.as_ptr(),
+                a_lon.as_ptr(),
+                b_lat.as_ptr(),
+                b_lon.as_ptr(),
+                n as u64size,
+                result.as_mut_ptr(),
+            );
+        }
+        Some(())
+    }
+}
+
+impl Vincenty for f32 {
+    fn vincenty(
+        a_lat: &[Self],
+        a_lon: &[Self],
+        b_lat: &[Self],
+        b_lon: &[Self],
+        result: &mut [Self],
+    ) -> Option<()> {
+        let n = a_lat.len();
+        if a_lon.len() != n || b_lat.len() != n || b_lon.len() != n || result.len() != n {
+            return None;
+        }
+        unsafe {
+            nk_vincenty_f32(
+                a_lat.as_ptr(),
+                a_lon.as_ptr(),
+                b_lat.as_ptr(),
+                b_lon.as_ptr(),
+                n as u64size,
+                result.as_mut_ptr(),
+            );
+        }
+        Some(())
+    }
+}
+
+impl Geospatial for f32 {}
+
+// endregion: Geospatial
 
 // region: Hamming
 
