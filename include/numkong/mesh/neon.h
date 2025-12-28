@@ -42,18 +42,174 @@ NK_INTERNAL void nk_deinterleave_f32x4_neon_(nk_f32_t const *ptr, float32x4_t *x
  */
 NK_INTERNAL void nk_deinterleave_f64x2_neon_(nk_f64_t const *ptr, float64x2_t *x_out, float64x2_t *y_out,
                                              float64x2_t *z_out) {
-    // NEON doesn't have vld3q_f64, so we load manually
-    nk_f64_t x0 = ptr[0], x1 = ptr[3];
-    nk_f64_t y0 = ptr[1], y1 = ptr[4];
-    nk_f64_t z0 = ptr[2], z1 = ptr[5];
+    // NEON doesn't have vld3q_f64, so we use vcombine to avoid stack round-trips
+    // Load 2 xyz triplets: [x0,y0,z0, x1,y1,z1]
+    *x_out = vcombine_f64(vld1_f64(&ptr[0]), vld1_f64(&ptr[3]));
+    *y_out = vcombine_f64(vld1_f64(&ptr[1]), vld1_f64(&ptr[4]));
+    *z_out = vcombine_f64(vld1_f64(&ptr[2]), vld1_f64(&ptr[5]));
+}
 
-    nk_f64_t x_arr[2] = {x0, x1};
-    nk_f64_t y_arr[2] = {y0, y1};
-    nk_f64_t z_arr[2] = {z0, z1};
+/*  Internal helper: Compute sum of squared distances after applying rotation (and optional scale).
+ *  Used by kabsch (scale=1.0) and umeyama (scale=computed_scale).
+ *  Returns sum_squared, caller computes sqrt(sum_squared / n).
+ */
+NK_INTERNAL nk_f32_t nk_transformed_ssd_f32_neon_(nk_f32_t const *a, nk_f32_t const *b, nk_size_t n, nk_f32_t const *r,
+                                                  nk_f32_t scale, nk_f32_t centroid_a_x, nk_f32_t centroid_a_y,
+                                                  nk_f32_t centroid_a_z, nk_f32_t centroid_b_x, nk_f32_t centroid_b_y,
+                                                  nk_f32_t centroid_b_z) {
+    // Broadcast scaled rotation matrix elements
+    float32x4_t sr0_f32x4 = vdupq_n_f32(scale * r[0]), sr1_f32x4 = vdupq_n_f32(scale * r[1]),
+                sr2_f32x4 = vdupq_n_f32(scale * r[2]);
+    float32x4_t sr3_f32x4 = vdupq_n_f32(scale * r[3]), sr4_f32x4 = vdupq_n_f32(scale * r[4]),
+                sr5_f32x4 = vdupq_n_f32(scale * r[5]);
+    float32x4_t sr6_f32x4 = vdupq_n_f32(scale * r[6]), sr7_f32x4 = vdupq_n_f32(scale * r[7]),
+                sr8_f32x4 = vdupq_n_f32(scale * r[8]);
 
-    *x_out = vld1q_f64(x_arr);
-    *y_out = vld1q_f64(y_arr);
-    *z_out = vld1q_f64(z_arr);
+    // Broadcast centroids
+    float32x4_t centroid_a_x_f32x4 = vdupq_n_f32(centroid_a_x);
+    float32x4_t centroid_a_y_f32x4 = vdupq_n_f32(centroid_a_y);
+    float32x4_t centroid_a_z_f32x4 = vdupq_n_f32(centroid_a_z);
+    float32x4_t centroid_b_x_f32x4 = vdupq_n_f32(centroid_b_x);
+    float32x4_t centroid_b_y_f32x4 = vdupq_n_f32(centroid_b_y);
+    float32x4_t centroid_b_z_f32x4 = vdupq_n_f32(centroid_b_z);
+
+    float32x4_t sum_squared_f32x4 = vdupq_n_f32(0);
+    float32x4_t a_x_f32x4, a_y_f32x4, a_z_f32x4, b_x_f32x4, b_y_f32x4, b_z_f32x4;
+    nk_size_t j = 0;
+
+    for (; j + 4 <= n; j += 4) {
+        nk_deinterleave_f32x4_neon_(a + j * 3, &a_x_f32x4, &a_y_f32x4, &a_z_f32x4);
+        nk_deinterleave_f32x4_neon_(b + j * 3, &b_x_f32x4, &b_y_f32x4, &b_z_f32x4);
+
+        // Center points
+        float32x4_t pa_x_f32x4 = vsubq_f32(a_x_f32x4, centroid_a_x_f32x4);
+        float32x4_t pa_y_f32x4 = vsubq_f32(a_y_f32x4, centroid_a_y_f32x4);
+        float32x4_t pa_z_f32x4 = vsubq_f32(a_z_f32x4, centroid_a_z_f32x4);
+        float32x4_t pb_x_f32x4 = vsubq_f32(b_x_f32x4, centroid_b_x_f32x4);
+        float32x4_t pb_y_f32x4 = vsubq_f32(b_y_f32x4, centroid_b_y_f32x4);
+        float32x4_t pb_z_f32x4 = vsubq_f32(b_z_f32x4, centroid_b_z_f32x4);
+
+        // Rotate and scale: ra = scale * R * pa
+        float32x4_t ra_x_f32x4 = vfmaq_f32(vfmaq_f32(vmulq_f32(sr0_f32x4, pa_x_f32x4), sr1_f32x4, pa_y_f32x4),
+                                           sr2_f32x4, pa_z_f32x4);
+        float32x4_t ra_y_f32x4 = vfmaq_f32(vfmaq_f32(vmulq_f32(sr3_f32x4, pa_x_f32x4), sr4_f32x4, pa_y_f32x4),
+                                           sr5_f32x4, pa_z_f32x4);
+        float32x4_t ra_z_f32x4 = vfmaq_f32(vfmaq_f32(vmulq_f32(sr6_f32x4, pa_x_f32x4), sr7_f32x4, pa_y_f32x4),
+                                           sr8_f32x4, pa_z_f32x4);
+
+        // Delta and accumulate
+        float32x4_t delta_x_f32x4 = vsubq_f32(ra_x_f32x4, pb_x_f32x4);
+        float32x4_t delta_y_f32x4 = vsubq_f32(ra_y_f32x4, pb_y_f32x4);
+        float32x4_t delta_z_f32x4 = vsubq_f32(ra_z_f32x4, pb_z_f32x4);
+
+        sum_squared_f32x4 = vfmaq_f32(sum_squared_f32x4, delta_x_f32x4, delta_x_f32x4);
+        sum_squared_f32x4 = vfmaq_f32(sum_squared_f32x4, delta_y_f32x4, delta_y_f32x4);
+        sum_squared_f32x4 = vfmaq_f32(sum_squared_f32x4, delta_z_f32x4, delta_z_f32x4);
+    }
+
+    nk_f32_t sum_squared = vaddvq_f32(sum_squared_f32x4);
+
+    // Scalar tail
+    for (; j < n; ++j) {
+        nk_f32_t pa_x = a[j * 3 + 0] - centroid_a_x;
+        nk_f32_t pa_y = a[j * 3 + 1] - centroid_a_y;
+        nk_f32_t pa_z = a[j * 3 + 2] - centroid_a_z;
+        nk_f32_t pb_x = b[j * 3 + 0] - centroid_b_x;
+        nk_f32_t pb_y = b[j * 3 + 1] - centroid_b_y;
+        nk_f32_t pb_z = b[j * 3 + 2] - centroid_b_z;
+
+        nk_f32_t ra_x = scale * (r[0] * pa_x + r[1] * pa_y + r[2] * pa_z);
+        nk_f32_t ra_y = scale * (r[3] * pa_x + r[4] * pa_y + r[5] * pa_z);
+        nk_f32_t ra_z = scale * (r[6] * pa_x + r[7] * pa_y + r[8] * pa_z);
+
+        nk_f32_t delta_x = ra_x - pb_x;
+        nk_f32_t delta_y = ra_y - pb_y;
+        nk_f32_t delta_z = ra_z - pb_z;
+        sum_squared += delta_x * delta_x + delta_y * delta_y + delta_z * delta_z;
+    }
+
+    return sum_squared;
+}
+
+/*  Internal helper: Compute sum of squared distances for f64 after applying rotation (and optional scale).
+ *  Note: rotation matrix r is f32 (from SVD), scale and data are f64.
+ */
+NK_INTERNAL nk_f64_t nk_transformed_ssd_f64_neon_(nk_f64_t const *a, nk_f64_t const *b, nk_size_t n, nk_f32_t const *r,
+                                                  nk_f64_t scale, nk_f64_t centroid_a_x, nk_f64_t centroid_a_y,
+                                                  nk_f64_t centroid_a_z, nk_f64_t centroid_b_x, nk_f64_t centroid_b_y,
+                                                  nk_f64_t centroid_b_z) {
+    // Broadcast scaled rotation matrix elements (cast from f32)
+    float64x2_t sr0_f64x2 = vdupq_n_f64(scale * r[0]), sr1_f64x2 = vdupq_n_f64(scale * r[1]),
+                sr2_f64x2 = vdupq_n_f64(scale * r[2]);
+    float64x2_t sr3_f64x2 = vdupq_n_f64(scale * r[3]), sr4_f64x2 = vdupq_n_f64(scale * r[4]),
+                sr5_f64x2 = vdupq_n_f64(scale * r[5]);
+    float64x2_t sr6_f64x2 = vdupq_n_f64(scale * r[6]), sr7_f64x2 = vdupq_n_f64(scale * r[7]),
+                sr8_f64x2 = vdupq_n_f64(scale * r[8]);
+
+    // Broadcast centroids
+    float64x2_t centroid_a_x_f64x2 = vdupq_n_f64(centroid_a_x);
+    float64x2_t centroid_a_y_f64x2 = vdupq_n_f64(centroid_a_y);
+    float64x2_t centroid_a_z_f64x2 = vdupq_n_f64(centroid_a_z);
+    float64x2_t centroid_b_x_f64x2 = vdupq_n_f64(centroid_b_x);
+    float64x2_t centroid_b_y_f64x2 = vdupq_n_f64(centroid_b_y);
+    float64x2_t centroid_b_z_f64x2 = vdupq_n_f64(centroid_b_z);
+
+    float64x2_t sum_squared_f64x2 = vdupq_n_f64(0);
+    float64x2_t a_x_f64x2, a_y_f64x2, a_z_f64x2, b_x_f64x2, b_y_f64x2, b_z_f64x2;
+    nk_size_t j = 0;
+
+    for (; j + 2 <= n; j += 2) {
+        nk_deinterleave_f64x2_neon_(a + j * 3, &a_x_f64x2, &a_y_f64x2, &a_z_f64x2);
+        nk_deinterleave_f64x2_neon_(b + j * 3, &b_x_f64x2, &b_y_f64x2, &b_z_f64x2);
+
+        // Center points
+        float64x2_t pa_x_f64x2 = vsubq_f64(a_x_f64x2, centroid_a_x_f64x2);
+        float64x2_t pa_y_f64x2 = vsubq_f64(a_y_f64x2, centroid_a_y_f64x2);
+        float64x2_t pa_z_f64x2 = vsubq_f64(a_z_f64x2, centroid_a_z_f64x2);
+        float64x2_t pb_x_f64x2 = vsubq_f64(b_x_f64x2, centroid_b_x_f64x2);
+        float64x2_t pb_y_f64x2 = vsubq_f64(b_y_f64x2, centroid_b_y_f64x2);
+        float64x2_t pb_z_f64x2 = vsubq_f64(b_z_f64x2, centroid_b_z_f64x2);
+
+        // Rotate and scale: ra = scale * R * pa
+        float64x2_t ra_x_f64x2 = vfmaq_f64(vfmaq_f64(vmulq_f64(sr0_f64x2, pa_x_f64x2), sr1_f64x2, pa_y_f64x2),
+                                           sr2_f64x2, pa_z_f64x2);
+        float64x2_t ra_y_f64x2 = vfmaq_f64(vfmaq_f64(vmulq_f64(sr3_f64x2, pa_x_f64x2), sr4_f64x2, pa_y_f64x2),
+                                           sr5_f64x2, pa_z_f64x2);
+        float64x2_t ra_z_f64x2 = vfmaq_f64(vfmaq_f64(vmulq_f64(sr6_f64x2, pa_x_f64x2), sr7_f64x2, pa_y_f64x2),
+                                           sr8_f64x2, pa_z_f64x2);
+
+        // Delta and accumulate
+        float64x2_t delta_x_f64x2 = vsubq_f64(ra_x_f64x2, pb_x_f64x2);
+        float64x2_t delta_y_f64x2 = vsubq_f64(ra_y_f64x2, pb_y_f64x2);
+        float64x2_t delta_z_f64x2 = vsubq_f64(ra_z_f64x2, pb_z_f64x2);
+
+        sum_squared_f64x2 = vfmaq_f64(sum_squared_f64x2, delta_x_f64x2, delta_x_f64x2);
+        sum_squared_f64x2 = vfmaq_f64(sum_squared_f64x2, delta_y_f64x2, delta_y_f64x2);
+        sum_squared_f64x2 = vfmaq_f64(sum_squared_f64x2, delta_z_f64x2, delta_z_f64x2);
+    }
+
+    nk_f64_t sum_squared = vaddvq_f64(sum_squared_f64x2);
+
+    // Scalar tail
+    for (; j < n; ++j) {
+        nk_f64_t pa_x = a[j * 3 + 0] - centroid_a_x;
+        nk_f64_t pa_y = a[j * 3 + 1] - centroid_a_y;
+        nk_f64_t pa_z = a[j * 3 + 2] - centroid_a_z;
+        nk_f64_t pb_x = b[j * 3 + 0] - centroid_b_x;
+        nk_f64_t pb_y = b[j * 3 + 1] - centroid_b_y;
+        nk_f64_t pb_z = b[j * 3 + 2] - centroid_b_z;
+
+        nk_f64_t ra_x = scale * (r[0] * pa_x + r[1] * pa_y + r[2] * pa_z);
+        nk_f64_t ra_y = scale * (r[3] * pa_x + r[4] * pa_y + r[5] * pa_z);
+        nk_f64_t ra_z = scale * (r[6] * pa_x + r[7] * pa_y + r[8] * pa_z);
+
+        nk_f64_t delta_x = ra_x - pb_x;
+        nk_f64_t delta_y = ra_y - pb_y;
+        nk_f64_t delta_z = ra_z - pb_z;
+        sum_squared += delta_x * delta_x + delta_y * delta_y + delta_z * delta_z;
+    }
+
+    return sum_squared;
 }
 
 NK_PUBLIC void nk_rmsd_f32_neon(nk_f32_t const *a, nk_f32_t const *b, nk_size_t n, nk_f32_t *a_centroid,
@@ -403,26 +559,8 @@ NK_PUBLIC void nk_kabsch_f32_neon(nk_f32_t const *a, nk_f32_t const *b, nk_size_
     if (scale) *scale = 1.0f;
 
     // Compute RMSD after optimal rotation
-    nk_f32_t sum_squared = 0.0f;
-    for (nk_size_t j = 0; j < n; ++j) {
-        nk_f32_t pa[3], pb[3], ra[3];
-        pa[0] = a[j * 3 + 0] - centroid_a_x;
-        pa[1] = a[j * 3 + 1] - centroid_a_y;
-        pa[2] = a[j * 3 + 2] - centroid_a_z;
-        pb[0] = b[j * 3 + 0] - centroid_b_x;
-        pb[1] = b[j * 3 + 1] - centroid_b_y;
-        pb[2] = b[j * 3 + 2] - centroid_b_z;
-
-        ra[0] = r[0] * pa[0] + r[1] * pa[1] + r[2] * pa[2];
-        ra[1] = r[3] * pa[0] + r[4] * pa[1] + r[5] * pa[2];
-        ra[2] = r[6] * pa[0] + r[7] * pa[1] + r[8] * pa[2];
-
-        nk_f32_t delta_x = ra[0] - pb[0];
-        nk_f32_t delta_y = ra[1] - pb[1];
-        nk_f32_t delta_z = ra[2] - pb[2];
-        sum_squared += delta_x * delta_x + delta_y * delta_y + delta_z * delta_z;
-    }
-
+    nk_f32_t sum_squared = nk_transformed_ssd_f32_neon_(a, b, n, r, 1.0f, centroid_a_x, centroid_a_y, centroid_a_z,
+                                                        centroid_b_x, centroid_b_y, centroid_b_z);
     *result = nk_sqrt_f32_neon_(sum_squared * inv_n);
 }
 
@@ -575,27 +713,9 @@ NK_PUBLIC void nk_kabsch_f64_neon(nk_f64_t const *a, nk_f64_t const *b, nk_size_
     }
     if (scale) *scale = 1.0;
 
-    // Compute RMSD after optimal rotation (use f64 for precision)
-    nk_f64_t sum_squared = 0.0;
-    for (nk_size_t j = 0; j < n; ++j) {
-        nk_f64_t pa[3], pb[3], ra[3];
-        pa[0] = a[j * 3 + 0] - centroid_a_x;
-        pa[1] = a[j * 3 + 1] - centroid_a_y;
-        pa[2] = a[j * 3 + 2] - centroid_a_z;
-        pb[0] = b[j * 3 + 0] - centroid_b_x;
-        pb[1] = b[j * 3 + 1] - centroid_b_y;
-        pb[2] = b[j * 3 + 2] - centroid_b_z;
-
-        ra[0] = r[0] * pa[0] + r[1] * pa[1] + r[2] * pa[2];
-        ra[1] = r[3] * pa[0] + r[4] * pa[1] + r[5] * pa[2];
-        ra[2] = r[6] * pa[0] + r[7] * pa[1] + r[8] * pa[2];
-
-        nk_f64_t delta_x = ra[0] - pb[0];
-        nk_f64_t delta_y = ra[1] - pb[1];
-        nk_f64_t delta_z = ra[2] - pb[2];
-        sum_squared += delta_x * delta_x + delta_y * delta_y + delta_z * delta_z;
-    }
-
+    // Compute RMSD after optimal rotation
+    nk_f64_t sum_squared = nk_transformed_ssd_f64_neon_(a, b, n, r, 1.0, centroid_a_x, centroid_a_y, centroid_a_z,
+                                                        centroid_b_x, centroid_b_y, centroid_b_z);
     *result = nk_sqrt_f64_neon_(sum_squared * inv_n);
 }
 
@@ -761,26 +881,8 @@ NK_PUBLIC void nk_umeyama_f32_neon(nk_f32_t const *a, nk_f32_t const *b, nk_size
     if (scale) *scale = computed_scale;
 
     // Compute RMSD after transformation
-    nk_f32_t sum_squared = 0.0f;
-    for (nk_size_t j = 0; j < n; ++j) {
-        nk_f32_t pa[3], pb[3], ra[3];
-        pa[0] = a[j * 3 + 0] - centroid_a_x;
-        pa[1] = a[j * 3 + 1] - centroid_a_y;
-        pa[2] = a[j * 3 + 2] - centroid_a_z;
-        pb[0] = b[j * 3 + 0] - centroid_b_x;
-        pb[1] = b[j * 3 + 1] - centroid_b_y;
-        pb[2] = b[j * 3 + 2] - centroid_b_z;
-
-        ra[0] = computed_scale * (r[0] * pa[0] + r[1] * pa[1] + r[2] * pa[2]);
-        ra[1] = computed_scale * (r[3] * pa[0] + r[4] * pa[1] + r[5] * pa[2]);
-        ra[2] = computed_scale * (r[6] * pa[0] + r[7] * pa[1] + r[8] * pa[2]);
-
-        nk_f32_t delta_x = ra[0] - pb[0];
-        nk_f32_t delta_y = ra[1] - pb[1];
-        nk_f32_t delta_z = ra[2] - pb[2];
-        sum_squared += delta_x * delta_x + delta_y * delta_y + delta_z * delta_z;
-    }
-
+    nk_f32_t sum_squared = nk_transformed_ssd_f32_neon_(a, b, n, r, computed_scale, centroid_a_x, centroid_a_y,
+                                                        centroid_a_z, centroid_b_x, centroid_b_y, centroid_b_z);
     *result = nk_sqrt_f32_neon_(sum_squared * inv_n);
 }
 
@@ -947,26 +1049,8 @@ NK_PUBLIC void nk_umeyama_f64_neon(nk_f64_t const *a, nk_f64_t const *b, nk_size
     if (scale) *scale = computed_scale;
 
     // Compute RMSD after transformation
-    nk_f64_t sum_squared = 0.0;
-    for (nk_size_t j = 0; j < n; ++j) {
-        nk_f64_t pa[3], pb[3], ra[3];
-        pa[0] = a[j * 3 + 0] - centroid_a_x;
-        pa[1] = a[j * 3 + 1] - centroid_a_y;
-        pa[2] = a[j * 3 + 2] - centroid_a_z;
-        pb[0] = b[j * 3 + 0] - centroid_b_x;
-        pb[1] = b[j * 3 + 1] - centroid_b_y;
-        pb[2] = b[j * 3 + 2] - centroid_b_z;
-
-        ra[0] = computed_scale * (r[0] * pa[0] + r[1] * pa[1] + r[2] * pa[2]);
-        ra[1] = computed_scale * (r[3] * pa[0] + r[4] * pa[1] + r[5] * pa[2]);
-        ra[2] = computed_scale * (r[6] * pa[0] + r[7] * pa[1] + r[8] * pa[2]);
-
-        nk_f64_t delta_x = ra[0] - pb[0];
-        nk_f64_t delta_y = ra[1] - pb[1];
-        nk_f64_t delta_z = ra[2] - pb[2];
-        sum_squared += delta_x * delta_x + delta_y * delta_y + delta_z * delta_z;
-    }
-
+    nk_f64_t sum_squared = nk_transformed_ssd_f64_neon_(a, b, n, r, computed_scale, centroid_a_x, centroid_a_y,
+                                                        centroid_a_z, centroid_b_x, centroid_b_y, centroid_b_z);
     *result = nk_sqrt_f64_neon_(sum_squared * inv_n);
 }
 

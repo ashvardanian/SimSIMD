@@ -92,6 +92,171 @@ NK_INTERNAL void nk_deinterleave_f64x8_skylake_(                                
     *z_f64x8_out = _mm512_permutex2var_pd(z01_f64x8, idx_z_2_i64x8, reg2_f64x8);
 }
 
+/*  Internal helper: Compute sum of squared distances after applying rotation (and optional scale).
+ *  Used by kabsch (scale=1.0) and umeyama (scale=computed_scale).
+ *  Returns sum_squared, caller computes sqrt(sum_squared / n).
+ */
+NK_INTERNAL nk_f32_t nk_transformed_ssd_f32_skylake_(nk_f32_t const *a, nk_f32_t const *b, nk_size_t n,
+                                                     nk_f32_t const *r, nk_f32_t scale, nk_f32_t centroid_a_x,
+                                                     nk_f32_t centroid_a_y, nk_f32_t centroid_a_z,
+                                                     nk_f32_t centroid_b_x, nk_f32_t centroid_b_y,
+                                                     nk_f32_t centroid_b_z) {
+    // Broadcast scaled rotation matrix elements
+    __m512 sr0_f32x16 = _mm512_set1_ps(scale * r[0]), sr1_f32x16 = _mm512_set1_ps(scale * r[1]),
+           sr2_f32x16 = _mm512_set1_ps(scale * r[2]);
+    __m512 sr3_f32x16 = _mm512_set1_ps(scale * r[3]), sr4_f32x16 = _mm512_set1_ps(scale * r[4]),
+           sr5_f32x16 = _mm512_set1_ps(scale * r[5]);
+    __m512 sr6_f32x16 = _mm512_set1_ps(scale * r[6]), sr7_f32x16 = _mm512_set1_ps(scale * r[7]),
+           sr8_f32x16 = _mm512_set1_ps(scale * r[8]);
+
+    // Broadcast centroids
+    __m512 centroid_a_x_f32x16 = _mm512_set1_ps(centroid_a_x);
+    __m512 centroid_a_y_f32x16 = _mm512_set1_ps(centroid_a_y);
+    __m512 centroid_a_z_f32x16 = _mm512_set1_ps(centroid_a_z);
+    __m512 centroid_b_x_f32x16 = _mm512_set1_ps(centroid_b_x);
+    __m512 centroid_b_y_f32x16 = _mm512_set1_ps(centroid_b_y);
+    __m512 centroid_b_z_f32x16 = _mm512_set1_ps(centroid_b_z);
+
+    __m512 sum_squared_f32x16 = _mm512_setzero_ps();
+    __m512 a_x_f32x16, a_y_f32x16, a_z_f32x16, b_x_f32x16, b_y_f32x16, b_z_f32x16;
+    nk_size_t j = 0;
+
+    for (; j + 16 <= n; j += 16) {
+        nk_deinterleave_f32x16_skylake_(a + j * 3, &a_x_f32x16, &a_y_f32x16, &a_z_f32x16);
+        nk_deinterleave_f32x16_skylake_(b + j * 3, &b_x_f32x16, &b_y_f32x16, &b_z_f32x16);
+
+        // Center points
+        __m512 pa_x_f32x16 = _mm512_sub_ps(a_x_f32x16, centroid_a_x_f32x16);
+        __m512 pa_y_f32x16 = _mm512_sub_ps(a_y_f32x16, centroid_a_y_f32x16);
+        __m512 pa_z_f32x16 = _mm512_sub_ps(a_z_f32x16, centroid_a_z_f32x16);
+        __m512 pb_x_f32x16 = _mm512_sub_ps(b_x_f32x16, centroid_b_x_f32x16);
+        __m512 pb_y_f32x16 = _mm512_sub_ps(b_y_f32x16, centroid_b_y_f32x16);
+        __m512 pb_z_f32x16 = _mm512_sub_ps(b_z_f32x16, centroid_b_z_f32x16);
+
+        // Rotate and scale: ra = scale * R * pa
+        __m512 ra_x_f32x16 = _mm512_fmadd_ps(
+            sr2_f32x16, pa_z_f32x16, _mm512_fmadd_ps(sr1_f32x16, pa_y_f32x16, _mm512_mul_ps(sr0_f32x16, pa_x_f32x16)));
+        __m512 ra_y_f32x16 = _mm512_fmadd_ps(
+            sr5_f32x16, pa_z_f32x16, _mm512_fmadd_ps(sr4_f32x16, pa_y_f32x16, _mm512_mul_ps(sr3_f32x16, pa_x_f32x16)));
+        __m512 ra_z_f32x16 = _mm512_fmadd_ps(
+            sr8_f32x16, pa_z_f32x16, _mm512_fmadd_ps(sr7_f32x16, pa_y_f32x16, _mm512_mul_ps(sr6_f32x16, pa_x_f32x16)));
+
+        // Delta and accumulate
+        __m512 delta_x_f32x16 = _mm512_sub_ps(ra_x_f32x16, pb_x_f32x16);
+        __m512 delta_y_f32x16 = _mm512_sub_ps(ra_y_f32x16, pb_y_f32x16);
+        __m512 delta_z_f32x16 = _mm512_sub_ps(ra_z_f32x16, pb_z_f32x16);
+
+        sum_squared_f32x16 = _mm512_fmadd_ps(delta_x_f32x16, delta_x_f32x16, sum_squared_f32x16);
+        sum_squared_f32x16 = _mm512_fmadd_ps(delta_y_f32x16, delta_y_f32x16, sum_squared_f32x16);
+        sum_squared_f32x16 = _mm512_fmadd_ps(delta_z_f32x16, delta_z_f32x16, sum_squared_f32x16);
+    }
+
+    nk_f32_t sum_squared = _mm512_reduce_add_ps(sum_squared_f32x16);
+
+    // Scalar tail
+    for (; j < n; ++j) {
+        nk_f32_t pa_x = a[j * 3 + 0] - centroid_a_x;
+        nk_f32_t pa_y = a[j * 3 + 1] - centroid_a_y;
+        nk_f32_t pa_z = a[j * 3 + 2] - centroid_a_z;
+        nk_f32_t pb_x = b[j * 3 + 0] - centroid_b_x;
+        nk_f32_t pb_y = b[j * 3 + 1] - centroid_b_y;
+        nk_f32_t pb_z = b[j * 3 + 2] - centroid_b_z;
+
+        nk_f32_t ra_x = scale * (r[0] * pa_x + r[1] * pa_y + r[2] * pa_z);
+        nk_f32_t ra_y = scale * (r[3] * pa_x + r[4] * pa_y + r[5] * pa_z);
+        nk_f32_t ra_z = scale * (r[6] * pa_x + r[7] * pa_y + r[8] * pa_z);
+
+        nk_f32_t delta_x = ra_x - pb_x;
+        nk_f32_t delta_y = ra_y - pb_y;
+        nk_f32_t delta_z = ra_z - pb_z;
+        sum_squared += delta_x * delta_x + delta_y * delta_y + delta_z * delta_z;
+    }
+
+    return sum_squared;
+}
+
+/*  Internal helper: Compute sum of squared distances for f64 after applying rotation (and optional scale).
+ *  Note: rotation matrix r is f32 (from SVD), scale and data are f64.
+ */
+NK_INTERNAL nk_f64_t nk_transformed_ssd_f64_skylake_(nk_f64_t const *a, nk_f64_t const *b, nk_size_t n,
+                                                     nk_f32_t const *r, nk_f64_t scale, nk_f64_t centroid_a_x,
+                                                     nk_f64_t centroid_a_y, nk_f64_t centroid_a_z,
+                                                     nk_f64_t centroid_b_x, nk_f64_t centroid_b_y,
+                                                     nk_f64_t centroid_b_z) {
+    // Broadcast scaled rotation matrix elements (cast from f32)
+    __m512d sr0_f64x8 = _mm512_set1_pd(scale * r[0]), sr1_f64x8 = _mm512_set1_pd(scale * r[1]),
+            sr2_f64x8 = _mm512_set1_pd(scale * r[2]);
+    __m512d sr3_f64x8 = _mm512_set1_pd(scale * r[3]), sr4_f64x8 = _mm512_set1_pd(scale * r[4]),
+            sr5_f64x8 = _mm512_set1_pd(scale * r[5]);
+    __m512d sr6_f64x8 = _mm512_set1_pd(scale * r[6]), sr7_f64x8 = _mm512_set1_pd(scale * r[7]),
+            sr8_f64x8 = _mm512_set1_pd(scale * r[8]);
+
+    // Broadcast centroids
+    __m512d centroid_a_x_f64x8 = _mm512_set1_pd(centroid_a_x);
+    __m512d centroid_a_y_f64x8 = _mm512_set1_pd(centroid_a_y);
+    __m512d centroid_a_z_f64x8 = _mm512_set1_pd(centroid_a_z);
+    __m512d centroid_b_x_f64x8 = _mm512_set1_pd(centroid_b_x);
+    __m512d centroid_b_y_f64x8 = _mm512_set1_pd(centroid_b_y);
+    __m512d centroid_b_z_f64x8 = _mm512_set1_pd(centroid_b_z);
+
+    __m512d sum_squared_f64x8 = _mm512_setzero_pd();
+    __m512d a_x_f64x8, a_y_f64x8, a_z_f64x8, b_x_f64x8, b_y_f64x8, b_z_f64x8;
+    nk_size_t j = 0;
+
+    for (; j + 8 <= n; j += 8) {
+        nk_deinterleave_f64x8_skylake_(a + j * 3, &a_x_f64x8, &a_y_f64x8, &a_z_f64x8);
+        nk_deinterleave_f64x8_skylake_(b + j * 3, &b_x_f64x8, &b_y_f64x8, &b_z_f64x8);
+
+        // Center points
+        __m512d pa_x_f64x8 = _mm512_sub_pd(a_x_f64x8, centroid_a_x_f64x8);
+        __m512d pa_y_f64x8 = _mm512_sub_pd(a_y_f64x8, centroid_a_y_f64x8);
+        __m512d pa_z_f64x8 = _mm512_sub_pd(a_z_f64x8, centroid_a_z_f64x8);
+        __m512d pb_x_f64x8 = _mm512_sub_pd(b_x_f64x8, centroid_b_x_f64x8);
+        __m512d pb_y_f64x8 = _mm512_sub_pd(b_y_f64x8, centroid_b_y_f64x8);
+        __m512d pb_z_f64x8 = _mm512_sub_pd(b_z_f64x8, centroid_b_z_f64x8);
+
+        // Rotate and scale: ra = scale * R * pa
+        __m512d ra_x_f64x8 = _mm512_fmadd_pd(
+            sr2_f64x8, pa_z_f64x8, _mm512_fmadd_pd(sr1_f64x8, pa_y_f64x8, _mm512_mul_pd(sr0_f64x8, pa_x_f64x8)));
+        __m512d ra_y_f64x8 = _mm512_fmadd_pd(
+            sr5_f64x8, pa_z_f64x8, _mm512_fmadd_pd(sr4_f64x8, pa_y_f64x8, _mm512_mul_pd(sr3_f64x8, pa_x_f64x8)));
+        __m512d ra_z_f64x8 = _mm512_fmadd_pd(
+            sr8_f64x8, pa_z_f64x8, _mm512_fmadd_pd(sr7_f64x8, pa_y_f64x8, _mm512_mul_pd(sr6_f64x8, pa_x_f64x8)));
+
+        // Delta and accumulate
+        __m512d delta_x_f64x8 = _mm512_sub_pd(ra_x_f64x8, pb_x_f64x8);
+        __m512d delta_y_f64x8 = _mm512_sub_pd(ra_y_f64x8, pb_y_f64x8);
+        __m512d delta_z_f64x8 = _mm512_sub_pd(ra_z_f64x8, pb_z_f64x8);
+
+        sum_squared_f64x8 = _mm512_fmadd_pd(delta_x_f64x8, delta_x_f64x8, sum_squared_f64x8);
+        sum_squared_f64x8 = _mm512_fmadd_pd(delta_y_f64x8, delta_y_f64x8, sum_squared_f64x8);
+        sum_squared_f64x8 = _mm512_fmadd_pd(delta_z_f64x8, delta_z_f64x8, sum_squared_f64x8);
+    }
+
+    nk_f64_t sum_squared = _mm512_reduce_add_pd(sum_squared_f64x8);
+
+    // Scalar tail
+    for (; j < n; ++j) {
+        nk_f64_t pa_x = a[j * 3 + 0] - centroid_a_x;
+        nk_f64_t pa_y = a[j * 3 + 1] - centroid_a_y;
+        nk_f64_t pa_z = a[j * 3 + 2] - centroid_a_z;
+        nk_f64_t pb_x = b[j * 3 + 0] - centroid_b_x;
+        nk_f64_t pb_y = b[j * 3 + 1] - centroid_b_y;
+        nk_f64_t pb_z = b[j * 3 + 2] - centroid_b_z;
+
+        nk_f64_t ra_x = scale * (r[0] * pa_x + r[1] * pa_y + r[2] * pa_z);
+        nk_f64_t ra_y = scale * (r[3] * pa_x + r[4] * pa_y + r[5] * pa_z);
+        nk_f64_t ra_z = scale * (r[6] * pa_x + r[7] * pa_y + r[8] * pa_z);
+
+        nk_f64_t delta_x = ra_x - pb_x;
+        nk_f64_t delta_y = ra_y - pb_y;
+        nk_f64_t delta_z = ra_z - pb_z;
+        sum_squared += delta_x * delta_x + delta_y * delta_y + delta_z * delta_z;
+    }
+
+    return sum_squared;
+}
+
 NK_PUBLIC void nk_rmsd_f32_skylake(nk_f32_t const *a, nk_f32_t const *b, nk_size_t n, nk_f32_t *a_centroid,
                                    nk_f32_t *b_centroid, nk_f32_t *rotation, nk_f32_t *scale, nk_f32_t *result) {
     /* RMSD uses identity rotation and scale=1.0 */
@@ -405,85 +570,10 @@ NK_PUBLIC void nk_kabsch_f32_skylake(nk_f32_t const *a, nk_f32_t const *b, nk_si
     }
     if (scale) *scale = 1.0f;
 
-    // Step 5: Compute RMSD after rotation using shuffle-based deinterleave
-    __m512 sum_squared_f32x16 = zeros_f32x16;
-
-    __m512 r0_f32x16 = _mm512_set1_ps(r[0]), r1_f32x16 = _mm512_set1_ps(r[1]), r2_f32x16 = _mm512_set1_ps(r[2]);
-    __m512 r3_f32x16 = _mm512_set1_ps(r[3]), r4_f32x16 = _mm512_set1_ps(r[4]), r5_f32x16 = _mm512_set1_ps(r[5]);
-    __m512 r6_f32x16 = _mm512_set1_ps(r[6]), r7_f32x16 = _mm512_set1_ps(r[7]), r8_f32x16 = _mm512_set1_ps(r[8]);
-    __m512 centroid_a_x_f32x16 = _mm512_set1_ps(centroid_a_x), centroid_a_y_f32x16 = _mm512_set1_ps(centroid_a_y),
-           centroid_a_z_f32x16 = _mm512_set1_ps(centroid_a_z);
-    __m512 centroid_b_x_f32x16 = _mm512_set1_ps(centroid_b_x), centroid_b_y_f32x16 = _mm512_set1_ps(centroid_b_y),
-           centroid_b_z_f32x16 = _mm512_set1_ps(centroid_b_z);
-
-    // Main loop with shuffle-based deinterleave
-    for (i = 0; i + 16 <= n; i += 16) {
-        nk_deinterleave_f32x16_skylake_(a + i * 3, &a_x_f32x16, &a_y_f32x16, &a_z_f32x16);
-        nk_deinterleave_f32x16_skylake_(b + i * 3, &b_x_f32x16, &b_y_f32x16, &b_z_f32x16);
-
-        // Center points
-        a_x_f32x16 = _mm512_sub_ps(a_x_f32x16, centroid_a_x_f32x16);
-        a_y_f32x16 = _mm512_sub_ps(a_y_f32x16, centroid_a_y_f32x16);
-        a_z_f32x16 = _mm512_sub_ps(a_z_f32x16, centroid_a_z_f32x16);
-        b_x_f32x16 = _mm512_sub_ps(b_x_f32x16, centroid_b_x_f32x16);
-        b_y_f32x16 = _mm512_sub_ps(b_y_f32x16, centroid_b_y_f32x16);
-        b_z_f32x16 = _mm512_sub_ps(b_z_f32x16, centroid_b_z_f32x16);
-
-        // R * a_centered
-        __m512 rotated_a_x_f32x16 = _mm512_fmadd_ps(
-            r0_f32x16, a_x_f32x16, _mm512_fmadd_ps(r1_f32x16, a_y_f32x16, _mm512_mul_ps(r2_f32x16, a_z_f32x16)));
-        __m512 rotated_a_y_f32x16 = _mm512_fmadd_ps(
-            r3_f32x16, a_x_f32x16, _mm512_fmadd_ps(r4_f32x16, a_y_f32x16, _mm512_mul_ps(r5_f32x16, a_z_f32x16)));
-        __m512 rotated_a_z_f32x16 = _mm512_fmadd_ps(
-            r6_f32x16, a_x_f32x16, _mm512_fmadd_ps(r7_f32x16, a_y_f32x16, _mm512_mul_ps(r8_f32x16, a_z_f32x16)));
-
-        __m512 delta_x_f32x16 = _mm512_sub_ps(rotated_a_x_f32x16, b_x_f32x16);
-        __m512 delta_y_f32x16 = _mm512_sub_ps(rotated_a_y_f32x16, b_y_f32x16);
-        __m512 delta_z_f32x16 = _mm512_sub_ps(rotated_a_z_f32x16, b_z_f32x16);
-
-        // Accumulate in f32
-        sum_squared_f32x16 = _mm512_fmadd_ps(delta_x_f32x16, delta_x_f32x16, sum_squared_f32x16);
-        sum_squared_f32x16 = _mm512_fmadd_ps(delta_y_f32x16, delta_y_f32x16, sum_squared_f32x16);
-        sum_squared_f32x16 = _mm512_fmadd_ps(delta_z_f32x16, delta_z_f32x16, sum_squared_f32x16);
-    }
-
-    // Tail with masked gather
-    if (i < n) {
-        nk_size_t tail = n - i;
-        __mmask16 mask = (__mmask16)_bzhi_u32(0xFFFFFFFF, tail);
-        nk_f32_t const *a_tail = a + i * 3;
-        nk_f32_t const *b_tail = b + i * 3;
-        a_x_f32x16 = _mm512_mask_i32gather_ps(zeros_f32x16, mask, gather_idx_i32x16, a_tail + 0, 4);
-        a_y_f32x16 = _mm512_mask_i32gather_ps(zeros_f32x16, mask, gather_idx_i32x16, a_tail + 1, 4);
-        a_z_f32x16 = _mm512_mask_i32gather_ps(zeros_f32x16, mask, gather_idx_i32x16, a_tail + 2, 4);
-        b_x_f32x16 = _mm512_mask_i32gather_ps(zeros_f32x16, mask, gather_idx_i32x16, b_tail + 0, 4);
-        b_y_f32x16 = _mm512_mask_i32gather_ps(zeros_f32x16, mask, gather_idx_i32x16, b_tail + 1, 4);
-        b_z_f32x16 = _mm512_mask_i32gather_ps(zeros_f32x16, mask, gather_idx_i32x16, b_tail + 2, 4);
-
-        a_x_f32x16 = _mm512_sub_ps(a_x_f32x16, centroid_a_x_f32x16);
-        a_y_f32x16 = _mm512_sub_ps(a_y_f32x16, centroid_a_y_f32x16);
-        a_z_f32x16 = _mm512_sub_ps(a_z_f32x16, centroid_a_z_f32x16);
-        b_x_f32x16 = _mm512_sub_ps(b_x_f32x16, centroid_b_x_f32x16);
-        b_y_f32x16 = _mm512_sub_ps(b_y_f32x16, centroid_b_y_f32x16);
-        b_z_f32x16 = _mm512_sub_ps(b_z_f32x16, centroid_b_z_f32x16);
-
-        __m512 rotated_a_x_f32x16 = _mm512_fmadd_ps(
-            r0_f32x16, a_x_f32x16, _mm512_fmadd_ps(r1_f32x16, a_y_f32x16, _mm512_mul_ps(r2_f32x16, a_z_f32x16)));
-        __m512 rotated_a_y_f32x16 = _mm512_fmadd_ps(
-            r3_f32x16, a_x_f32x16, _mm512_fmadd_ps(r4_f32x16, a_y_f32x16, _mm512_mul_ps(r5_f32x16, a_z_f32x16)));
-        __m512 rotated_a_z_f32x16 = _mm512_fmadd_ps(
-            r6_f32x16, a_x_f32x16, _mm512_fmadd_ps(r7_f32x16, a_y_f32x16, _mm512_mul_ps(r8_f32x16, a_z_f32x16)));
-
-        __m512 delta_x_f32x16 = _mm512_sub_ps(rotated_a_x_f32x16, b_x_f32x16);
-        __m512 delta_y_f32x16 = _mm512_sub_ps(rotated_a_y_f32x16, b_y_f32x16);
-        __m512 delta_z_f32x16 = _mm512_sub_ps(rotated_a_z_f32x16, b_z_f32x16);
-
-        sum_squared_f32x16 = _mm512_fmadd_ps(delta_x_f32x16, delta_x_f32x16, sum_squared_f32x16);
-        sum_squared_f32x16 = _mm512_fmadd_ps(delta_y_f32x16, delta_y_f32x16, sum_squared_f32x16);
-        sum_squared_f32x16 = _mm512_fmadd_ps(delta_z_f32x16, delta_z_f32x16, sum_squared_f32x16);
-    }
-
-    *result = nk_sqrt_f32_haswell_(_mm512_reduce_add_ps(sum_squared_f32x16) * inv_n);
+    // Compute RMSD after optimal rotation
+    nk_f32_t sum_squared = nk_transformed_ssd_f32_skylake_(a, b, n, r, 1.0f, centroid_a_x, centroid_a_y, centroid_a_z,
+                                                           centroid_b_x, centroid_b_y, centroid_b_z);
+    *result = nk_sqrt_f32_haswell_(sum_squared * inv_n);
 }
 
 NK_PUBLIC void nk_rmsd_f64_skylake(nk_f64_t const *a, nk_f64_t const *b, nk_size_t n, nk_f64_t *a_centroid,
@@ -768,81 +858,10 @@ NK_PUBLIC void nk_kabsch_f64_skylake(nk_f64_t const *a, nk_f64_t const *b, nk_si
     }
     if (scale) *scale = 1.0;
 
-    // Compute RMSD after rotation using f64 throughout
-    __m512d sum_squared_f64x8 = zeros_f64x8;
-    __m512d r0_f64x8 = _mm512_set1_pd(r[0]), r1_f64x8 = _mm512_set1_pd(r[1]), r2_f64x8 = _mm512_set1_pd(r[2]);
-    __m512d r3_f64x8 = _mm512_set1_pd(r[3]), r4_f64x8 = _mm512_set1_pd(r[4]), r5_f64x8 = _mm512_set1_pd(r[5]);
-    __m512d r6_f64x8 = _mm512_set1_pd(r[6]), r7_f64x8 = _mm512_set1_pd(r[7]), r8_f64x8 = _mm512_set1_pd(r[8]);
-    __m512d centroid_a_x_f64x8 = _mm512_set1_pd(centroid_a_x), centroid_a_y_f64x8 = _mm512_set1_pd(centroid_a_y),
-            centroid_a_z_f64x8 = _mm512_set1_pd(centroid_a_z);
-    __m512d centroid_b_x_f64x8 = _mm512_set1_pd(centroid_b_x), centroid_b_y_f64x8 = _mm512_set1_pd(centroid_b_y),
-            centroid_b_z_f64x8 = _mm512_set1_pd(centroid_b_z);
-
-    for (i = 0; i + 8 <= n; i += 8) {
-        nk_deinterleave_f64x8_skylake_(a + i * 3, &a_x_f64x8, &a_y_f64x8, &a_z_f64x8);
-        nk_deinterleave_f64x8_skylake_(b + i * 3, &b_x_f64x8, &b_y_f64x8, &b_z_f64x8);
-
-        // Center points
-        a_x_f64x8 = _mm512_sub_pd(a_x_f64x8, centroid_a_x_f64x8),
-        a_y_f64x8 = _mm512_sub_pd(a_y_f64x8, centroid_a_y_f64x8),
-        a_z_f64x8 = _mm512_sub_pd(a_z_f64x8, centroid_a_z_f64x8);
-        b_x_f64x8 = _mm512_sub_pd(b_x_f64x8, centroid_b_x_f64x8),
-        b_y_f64x8 = _mm512_sub_pd(b_y_f64x8, centroid_b_y_f64x8),
-        b_z_f64x8 = _mm512_sub_pd(b_z_f64x8, centroid_b_z_f64x8);
-
-        // R * a_centered
-        __m512d rotated_a_x_f64x8 = _mm512_fmadd_pd(
-            r0_f64x8, a_x_f64x8, _mm512_fmadd_pd(r1_f64x8, a_y_f64x8, _mm512_mul_pd(r2_f64x8, a_z_f64x8)));
-        __m512d rotated_a_y_f64x8 = _mm512_fmadd_pd(
-            r3_f64x8, a_x_f64x8, _mm512_fmadd_pd(r4_f64x8, a_y_f64x8, _mm512_mul_pd(r5_f64x8, a_z_f64x8)));
-        __m512d rotated_a_z_f64x8 = _mm512_fmadd_pd(
-            r6_f64x8, a_x_f64x8, _mm512_fmadd_pd(r7_f64x8, a_y_f64x8, _mm512_mul_pd(r8_f64x8, a_z_f64x8)));
-
-        __m512d delta_x_f64x8 = _mm512_sub_pd(rotated_a_x_f64x8, b_x_f64x8),
-                delta_y_f64x8 = _mm512_sub_pd(rotated_a_y_f64x8, b_y_f64x8),
-                delta_z_f64x8 = _mm512_sub_pd(rotated_a_z_f64x8, b_z_f64x8);
-        sum_squared_f64x8 = _mm512_fmadd_pd(delta_x_f64x8, delta_x_f64x8, sum_squared_f64x8);
-        sum_squared_f64x8 = _mm512_fmadd_pd(delta_y_f64x8, delta_y_f64x8, sum_squared_f64x8);
-        sum_squared_f64x8 = _mm512_fmadd_pd(delta_z_f64x8, delta_z_f64x8, sum_squared_f64x8);
-    }
-
-    // Tail with masked gather
-    if (i < n) {
-        nk_size_t tail = n - i;
-        __mmask8 mask = (__mmask8)_bzhi_u32(0xFF, tail);
-        nk_f64_t const *a_tail = a + i * 3;
-        nk_f64_t const *b_tail = b + i * 3;
-
-        a_x_f64x8 = _mm512_mask_i64gather_pd(zeros_f64x8, mask, gather_idx_i64x8, a_tail + 0, 8);
-        a_y_f64x8 = _mm512_mask_i64gather_pd(zeros_f64x8, mask, gather_idx_i64x8, a_tail + 1, 8);
-        a_z_f64x8 = _mm512_mask_i64gather_pd(zeros_f64x8, mask, gather_idx_i64x8, a_tail + 2, 8);
-        b_x_f64x8 = _mm512_mask_i64gather_pd(zeros_f64x8, mask, gather_idx_i64x8, b_tail + 0, 8);
-        b_y_f64x8 = _mm512_mask_i64gather_pd(zeros_f64x8, mask, gather_idx_i64x8, b_tail + 1, 8);
-        b_z_f64x8 = _mm512_mask_i64gather_pd(zeros_f64x8, mask, gather_idx_i64x8, b_tail + 2, 8);
-
-        a_x_f64x8 = _mm512_sub_pd(a_x_f64x8, centroid_a_x_f64x8),
-        a_y_f64x8 = _mm512_sub_pd(a_y_f64x8, centroid_a_y_f64x8),
-        a_z_f64x8 = _mm512_sub_pd(a_z_f64x8, centroid_a_z_f64x8);
-        b_x_f64x8 = _mm512_sub_pd(b_x_f64x8, centroid_b_x_f64x8),
-        b_y_f64x8 = _mm512_sub_pd(b_y_f64x8, centroid_b_y_f64x8),
-        b_z_f64x8 = _mm512_sub_pd(b_z_f64x8, centroid_b_z_f64x8);
-
-        __m512d rotated_a_x_f64x8 = _mm512_fmadd_pd(
-            r0_f64x8, a_x_f64x8, _mm512_fmadd_pd(r1_f64x8, a_y_f64x8, _mm512_mul_pd(r2_f64x8, a_z_f64x8)));
-        __m512d rotated_a_y_f64x8 = _mm512_fmadd_pd(
-            r3_f64x8, a_x_f64x8, _mm512_fmadd_pd(r4_f64x8, a_y_f64x8, _mm512_mul_pd(r5_f64x8, a_z_f64x8)));
-        __m512d rotated_a_z_f64x8 = _mm512_fmadd_pd(
-            r6_f64x8, a_x_f64x8, _mm512_fmadd_pd(r7_f64x8, a_y_f64x8, _mm512_mul_pd(r8_f64x8, a_z_f64x8)));
-
-        __m512d delta_x_f64x8 = _mm512_sub_pd(rotated_a_x_f64x8, b_x_f64x8),
-                delta_y_f64x8 = _mm512_sub_pd(rotated_a_y_f64x8, b_y_f64x8),
-                delta_z_f64x8 = _mm512_sub_pd(rotated_a_z_f64x8, b_z_f64x8);
-        sum_squared_f64x8 = _mm512_fmadd_pd(delta_x_f64x8, delta_x_f64x8, sum_squared_f64x8);
-        sum_squared_f64x8 = _mm512_fmadd_pd(delta_y_f64x8, delta_y_f64x8, sum_squared_f64x8);
-        sum_squared_f64x8 = _mm512_fmadd_pd(delta_z_f64x8, delta_z_f64x8, sum_squared_f64x8);
-    }
-
-    *result = nk_sqrt_f64_haswell_(_mm512_reduce_add_pd(sum_squared_f64x8) * inv_n);
+    // Compute RMSD after optimal rotation
+    nk_f64_t sum_squared = nk_transformed_ssd_f64_skylake_(a, b, n, r, 1.0, centroid_a_x, centroid_a_y, centroid_a_z,
+                                                           centroid_b_x, centroid_b_y, centroid_b_z);
+    *result = nk_sqrt_f64_haswell_(sum_squared * inv_n);
 }
 
 NK_PUBLIC void nk_umeyama_f32_skylake(nk_f32_t const *a, nk_f32_t const *b, nk_size_t n, nk_f32_t *a_centroid,
@@ -999,86 +1018,10 @@ NK_PUBLIC void nk_umeyama_f32_skylake(nk_f32_t const *a, nk_f32_t const *b, nk_s
         for (int j = 0; j < 9; ++j) rotation[j] = r[j];
     }
 
-    // Compute RMSD with scaling using f32
-    __m512 sum_squared_f32x16 = zeros_f32x16;
-    __m512 c_f32x16 = _mm512_set1_ps(c);
-    __m512 r0_f32x16 = _mm512_set1_ps(r[0]), r1_f32x16 = _mm512_set1_ps(r[1]), r2_f32x16 = _mm512_set1_ps(r[2]);
-    __m512 r3_f32x16 = _mm512_set1_ps(r[3]), r4_f32x16 = _mm512_set1_ps(r[4]), r5_f32x16 = _mm512_set1_ps(r[5]);
-    __m512 r6_f32x16 = _mm512_set1_ps(r[6]), r7_f32x16 = _mm512_set1_ps(r[7]), r8_f32x16 = _mm512_set1_ps(r[8]);
-    __m512 centroid_a_x_f32x16 = _mm512_set1_ps(centroid_a_x), centroid_a_y_f32x16 = _mm512_set1_ps(centroid_a_y),
-           centroid_a_z_f32x16 = _mm512_set1_ps(centroid_a_z);
-    __m512 centroid_b_x_f32x16 = _mm512_set1_ps(centroid_b_x), centroid_b_y_f32x16 = _mm512_set1_ps(centroid_b_y),
-           centroid_b_z_f32x16 = _mm512_set1_ps(centroid_b_z);
-
-    for (i = 0; i + 16 <= n; i += 16) {
-        nk_deinterleave_f32x16_skylake_(a + i * 3, &a_x_f32x16, &a_y_f32x16, &a_z_f32x16);
-        nk_deinterleave_f32x16_skylake_(b + i * 3, &b_x_f32x16, &b_y_f32x16, &b_z_f32x16);
-
-        a_x_f32x16 = _mm512_sub_ps(a_x_f32x16, centroid_a_x_f32x16);
-        a_y_f32x16 = _mm512_sub_ps(a_y_f32x16, centroid_a_y_f32x16);
-        a_z_f32x16 = _mm512_sub_ps(a_z_f32x16, centroid_a_z_f32x16);
-        b_x_f32x16 = _mm512_sub_ps(b_x_f32x16, centroid_b_x_f32x16);
-        b_y_f32x16 = _mm512_sub_ps(b_y_f32x16, centroid_b_y_f32x16);
-        b_z_f32x16 = _mm512_sub_ps(b_z_f32x16, centroid_b_z_f32x16);
-
-        __m512 rotated_a_x_f32x16 = _mm512_mul_ps(
-            c_f32x16, _mm512_fmadd_ps(r0_f32x16, a_x_f32x16,
-                                      _mm512_fmadd_ps(r1_f32x16, a_y_f32x16, _mm512_mul_ps(r2_f32x16, a_z_f32x16))));
-        __m512 rotated_a_y_f32x16 = _mm512_mul_ps(
-            c_f32x16, _mm512_fmadd_ps(r3_f32x16, a_x_f32x16,
-                                      _mm512_fmadd_ps(r4_f32x16, a_y_f32x16, _mm512_mul_ps(r5_f32x16, a_z_f32x16))));
-        __m512 rotated_a_z_f32x16 = _mm512_mul_ps(
-            c_f32x16, _mm512_fmadd_ps(r6_f32x16, a_x_f32x16,
-                                      _mm512_fmadd_ps(r7_f32x16, a_y_f32x16, _mm512_mul_ps(r8_f32x16, a_z_f32x16))));
-
-        __m512 delta_x_f32x16 = _mm512_sub_ps(rotated_a_x_f32x16, b_x_f32x16);
-        __m512 delta_y_f32x16 = _mm512_sub_ps(rotated_a_y_f32x16, b_y_f32x16);
-        __m512 delta_z_f32x16 = _mm512_sub_ps(rotated_a_z_f32x16, b_z_f32x16);
-
-        sum_squared_f32x16 = _mm512_fmadd_ps(delta_x_f32x16, delta_x_f32x16, sum_squared_f32x16);
-        sum_squared_f32x16 = _mm512_fmadd_ps(delta_y_f32x16, delta_y_f32x16, sum_squared_f32x16);
-        sum_squared_f32x16 = _mm512_fmadd_ps(delta_z_f32x16, delta_z_f32x16, sum_squared_f32x16);
-    }
-
-    if (i < n) {
-        nk_size_t tail = n - i;
-        __mmask16 mask = (__mmask16)_bzhi_u32(0xFFFFFFFF, tail);
-        nk_f32_t const *a_tail = a + i * 3;
-        nk_f32_t const *b_tail = b + i * 3;
-        a_x_f32x16 = _mm512_mask_i32gather_ps(zeros_f32x16, mask, gather_idx_i32x16, a_tail + 0, 4);
-        a_y_f32x16 = _mm512_mask_i32gather_ps(zeros_f32x16, mask, gather_idx_i32x16, a_tail + 1, 4);
-        a_z_f32x16 = _mm512_mask_i32gather_ps(zeros_f32x16, mask, gather_idx_i32x16, a_tail + 2, 4);
-        b_x_f32x16 = _mm512_mask_i32gather_ps(zeros_f32x16, mask, gather_idx_i32x16, b_tail + 0, 4);
-        b_y_f32x16 = _mm512_mask_i32gather_ps(zeros_f32x16, mask, gather_idx_i32x16, b_tail + 1, 4);
-        b_z_f32x16 = _mm512_mask_i32gather_ps(zeros_f32x16, mask, gather_idx_i32x16, b_tail + 2, 4);
-
-        a_x_f32x16 = _mm512_sub_ps(a_x_f32x16, centroid_a_x_f32x16);
-        a_y_f32x16 = _mm512_sub_ps(a_y_f32x16, centroid_a_y_f32x16);
-        a_z_f32x16 = _mm512_sub_ps(a_z_f32x16, centroid_a_z_f32x16);
-        b_x_f32x16 = _mm512_sub_ps(b_x_f32x16, centroid_b_x_f32x16);
-        b_y_f32x16 = _mm512_sub_ps(b_y_f32x16, centroid_b_y_f32x16);
-        b_z_f32x16 = _mm512_sub_ps(b_z_f32x16, centroid_b_z_f32x16);
-
-        __m512 rotated_a_x_f32x16 = _mm512_mul_ps(
-            c_f32x16, _mm512_fmadd_ps(r0_f32x16, a_x_f32x16,
-                                      _mm512_fmadd_ps(r1_f32x16, a_y_f32x16, _mm512_mul_ps(r2_f32x16, a_z_f32x16))));
-        __m512 rotated_a_y_f32x16 = _mm512_mul_ps(
-            c_f32x16, _mm512_fmadd_ps(r3_f32x16, a_x_f32x16,
-                                      _mm512_fmadd_ps(r4_f32x16, a_y_f32x16, _mm512_mul_ps(r5_f32x16, a_z_f32x16))));
-        __m512 rotated_a_z_f32x16 = _mm512_mul_ps(
-            c_f32x16, _mm512_fmadd_ps(r6_f32x16, a_x_f32x16,
-                                      _mm512_fmadd_ps(r7_f32x16, a_y_f32x16, _mm512_mul_ps(r8_f32x16, a_z_f32x16))));
-
-        __m512 delta_x_f32x16 = _mm512_sub_ps(rotated_a_x_f32x16, b_x_f32x16);
-        __m512 delta_y_f32x16 = _mm512_sub_ps(rotated_a_y_f32x16, b_y_f32x16);
-        __m512 delta_z_f32x16 = _mm512_sub_ps(rotated_a_z_f32x16, b_z_f32x16);
-
-        sum_squared_f32x16 = _mm512_fmadd_ps(delta_x_f32x16, delta_x_f32x16, sum_squared_f32x16);
-        sum_squared_f32x16 = _mm512_fmadd_ps(delta_y_f32x16, delta_y_f32x16, sum_squared_f32x16);
-        sum_squared_f32x16 = _mm512_fmadd_ps(delta_z_f32x16, delta_z_f32x16, sum_squared_f32x16);
-    }
-
-    *result = nk_sqrt_f32_haswell_(_mm512_reduce_add_ps(sum_squared_f32x16) * inv_n);
+    // Compute RMSD with scaling
+    nk_f32_t sum_squared = nk_transformed_ssd_f32_skylake_(a, b, n, r, c, centroid_a_x, centroid_a_y, centroid_a_z,
+                                                           centroid_b_x, centroid_b_y, centroid_b_z);
+    *result = nk_sqrt_f32_haswell_(sum_squared * inv_n);
 }
 
 NK_PUBLIC void nk_umeyama_f64_skylake(nk_f64_t const *a, nk_f64_t const *b, nk_size_t n, nk_f64_t *a_centroid,
@@ -1228,85 +1171,9 @@ NK_PUBLIC void nk_umeyama_f64_skylake(nk_f64_t const *a, nk_f64_t const *b, nk_s
     }
 
     // Compute RMSD with scaling
-    __m512d sum_squared_f64x8 = zeros_f64x8;
-    __m512d c_f64x8 = _mm512_set1_pd(c);
-    __m512d r0_f64x8 = _mm512_set1_pd(r[0]), r1_f64x8 = _mm512_set1_pd(r[1]), r2_f64x8 = _mm512_set1_pd(r[2]);
-    __m512d r3_f64x8 = _mm512_set1_pd(r[3]), r4_f64x8 = _mm512_set1_pd(r[4]), r5_f64x8 = _mm512_set1_pd(r[5]);
-    __m512d r6_f64x8 = _mm512_set1_pd(r[6]), r7_f64x8 = _mm512_set1_pd(r[7]), r8_f64x8 = _mm512_set1_pd(r[8]);
-    __m512d centroid_a_x_f64x8 = _mm512_set1_pd(centroid_a_x), centroid_a_y_f64x8 = _mm512_set1_pd(centroid_a_y),
-            centroid_a_z_f64x8 = _mm512_set1_pd(centroid_a_z);
-    __m512d centroid_b_x_f64x8 = _mm512_set1_pd(centroid_b_x), centroid_b_y_f64x8 = _mm512_set1_pd(centroid_b_y),
-            centroid_b_z_f64x8 = _mm512_set1_pd(centroid_b_z);
-
-    for (i = 0; i + 8 <= n; i += 8) {
-        nk_deinterleave_f64x8_skylake_(a + i * 3, &a_x_f64x8, &a_y_f64x8, &a_z_f64x8);
-        nk_deinterleave_f64x8_skylake_(b + i * 3, &b_x_f64x8, &b_y_f64x8, &b_z_f64x8);
-
-        a_x_f64x8 = _mm512_sub_pd(a_x_f64x8, centroid_a_x_f64x8),
-        a_y_f64x8 = _mm512_sub_pd(a_y_f64x8, centroid_a_y_f64x8),
-        a_z_f64x8 = _mm512_sub_pd(a_z_f64x8, centroid_a_z_f64x8);
-        b_x_f64x8 = _mm512_sub_pd(b_x_f64x8, centroid_b_x_f64x8),
-        b_y_f64x8 = _mm512_sub_pd(b_y_f64x8, centroid_b_y_f64x8),
-        b_z_f64x8 = _mm512_sub_pd(b_z_f64x8, centroid_b_z_f64x8);
-
-        __m512d rotated_a_x_f64x8 = _mm512_mul_pd(
-            c_f64x8, _mm512_fmadd_pd(r0_f64x8, a_x_f64x8,
-                                     _mm512_fmadd_pd(r1_f64x8, a_y_f64x8, _mm512_mul_pd(r2_f64x8, a_z_f64x8))));
-        __m512d rotated_a_y_f64x8 = _mm512_mul_pd(
-            c_f64x8, _mm512_fmadd_pd(r3_f64x8, a_x_f64x8,
-                                     _mm512_fmadd_pd(r4_f64x8, a_y_f64x8, _mm512_mul_pd(r5_f64x8, a_z_f64x8))));
-        __m512d rotated_a_z_f64x8 = _mm512_mul_pd(
-            c_f64x8, _mm512_fmadd_pd(r6_f64x8, a_x_f64x8,
-                                     _mm512_fmadd_pd(r7_f64x8, a_y_f64x8, _mm512_mul_pd(r8_f64x8, a_z_f64x8))));
-
-        __m512d delta_x_f64x8 = _mm512_sub_pd(rotated_a_x_f64x8, b_x_f64x8),
-                delta_y_f64x8 = _mm512_sub_pd(rotated_a_y_f64x8, b_y_f64x8),
-                delta_z_f64x8 = _mm512_sub_pd(rotated_a_z_f64x8, b_z_f64x8);
-        sum_squared_f64x8 = _mm512_fmadd_pd(delta_x_f64x8, delta_x_f64x8, sum_squared_f64x8);
-        sum_squared_f64x8 = _mm512_fmadd_pd(delta_y_f64x8, delta_y_f64x8, sum_squared_f64x8);
-        sum_squared_f64x8 = _mm512_fmadd_pd(delta_z_f64x8, delta_z_f64x8, sum_squared_f64x8);
-    }
-
-    if (i < n) {
-        nk_size_t tail = n - i;
-        __mmask8 mask = (__mmask8)_bzhi_u32(0xFF, tail);
-        nk_f64_t const *a_tail = a + i * 3;
-        nk_f64_t const *b_tail = b + i * 3;
-
-        a_x_f64x8 = _mm512_mask_i64gather_pd(zeros_f64x8, mask, gather_idx_i64x8, a_tail + 0, 8);
-        a_y_f64x8 = _mm512_mask_i64gather_pd(zeros_f64x8, mask, gather_idx_i64x8, a_tail + 1, 8);
-        a_z_f64x8 = _mm512_mask_i64gather_pd(zeros_f64x8, mask, gather_idx_i64x8, a_tail + 2, 8);
-        b_x_f64x8 = _mm512_mask_i64gather_pd(zeros_f64x8, mask, gather_idx_i64x8, b_tail + 0, 8);
-        b_y_f64x8 = _mm512_mask_i64gather_pd(zeros_f64x8, mask, gather_idx_i64x8, b_tail + 1, 8);
-        b_z_f64x8 = _mm512_mask_i64gather_pd(zeros_f64x8, mask, gather_idx_i64x8, b_tail + 2, 8);
-
-        a_x_f64x8 = _mm512_sub_pd(a_x_f64x8, centroid_a_x_f64x8),
-        a_y_f64x8 = _mm512_sub_pd(a_y_f64x8, centroid_a_y_f64x8),
-        a_z_f64x8 = _mm512_sub_pd(a_z_f64x8, centroid_a_z_f64x8);
-        b_x_f64x8 = _mm512_sub_pd(b_x_f64x8, centroid_b_x_f64x8),
-        b_y_f64x8 = _mm512_sub_pd(b_y_f64x8, centroid_b_y_f64x8),
-        b_z_f64x8 = _mm512_sub_pd(b_z_f64x8, centroid_b_z_f64x8);
-
-        __m512d rotated_a_x_f64x8 = _mm512_mul_pd(
-            c_f64x8, _mm512_fmadd_pd(r0_f64x8, a_x_f64x8,
-                                     _mm512_fmadd_pd(r1_f64x8, a_y_f64x8, _mm512_mul_pd(r2_f64x8, a_z_f64x8))));
-        __m512d rotated_a_y_f64x8 = _mm512_mul_pd(
-            c_f64x8, _mm512_fmadd_pd(r3_f64x8, a_x_f64x8,
-                                     _mm512_fmadd_pd(r4_f64x8, a_y_f64x8, _mm512_mul_pd(r5_f64x8, a_z_f64x8))));
-        __m512d rotated_a_z_f64x8 = _mm512_mul_pd(
-            c_f64x8, _mm512_fmadd_pd(r6_f64x8, a_x_f64x8,
-                                     _mm512_fmadd_pd(r7_f64x8, a_y_f64x8, _mm512_mul_pd(r8_f64x8, a_z_f64x8))));
-
-        __m512d delta_x_f64x8 = _mm512_sub_pd(rotated_a_x_f64x8, b_x_f64x8),
-                delta_y_f64x8 = _mm512_sub_pd(rotated_a_y_f64x8, b_y_f64x8),
-                delta_z_f64x8 = _mm512_sub_pd(rotated_a_z_f64x8, b_z_f64x8);
-        // Use masked accumulation to avoid counting invalid tail lanes
-        sum_squared_f64x8 = _mm512_mask3_fmadd_pd(delta_x_f64x8, delta_x_f64x8, sum_squared_f64x8, mask);
-        sum_squared_f64x8 = _mm512_mask3_fmadd_pd(delta_y_f64x8, delta_y_f64x8, sum_squared_f64x8, mask);
-        sum_squared_f64x8 = _mm512_mask3_fmadd_pd(delta_z_f64x8, delta_z_f64x8, sum_squared_f64x8, mask);
-    }
-
-    *result = nk_sqrt_f64_haswell_(_mm512_reduce_add_pd(sum_squared_f64x8) * inv_n);
+    nk_f64_t sum_squared = nk_transformed_ssd_f64_skylake_(a, b, n, r, c, centroid_a_x, centroid_a_y, centroid_a_z,
+                                                           centroid_b_x, centroid_b_y, centroid_b_z);
+    *result = nk_sqrt_f64_haswell_(sum_squared * inv_n);
 }
 
 #if defined(__cplusplus)
