@@ -383,7 +383,7 @@ NK_PUBLIC void nk_dot_e5m2_neon(nk_e5m2_t const *a, nk_e5m2_t const *b, nk_size_
 
 #if NK_TARGET_NEONHALF
 /** @copydoc nk_dot_f16 */
-NK_PUBLIC void nk_dot_f16_neon(nk_f16_t const *a, nk_f16_t const *b, nk_size_t n, nk_f32_t *result);
+NK_PUBLIC void nk_dot_f16_neonhalf(nk_f16_t const *a, nk_f16_t const *b, nk_size_t n, nk_f32_t *result);
 /** @copydoc nk_dot_f16c */
 NK_PUBLIC void nk_dot_f16c_neonhalf(nk_f16c_t const *a, nk_f16c_t const *b, nk_size_t n, nk_f32c_t *result);
 /** @copydoc nk_vdot_f16c */
@@ -915,7 +915,7 @@ NK_PUBLIC void nk_dot_f16(nk_f16_t const *a, nk_f16_t const *b, nk_size_t n, nk_
 #elif NK_TARGET_NEONFHM
     nk_dot_f16_neonfhm(a, b, n, result);
 #elif NK_TARGET_NEONHALF
-    nk_dot_f16_neon(a, b, n, result);
+    nk_dot_f16_neonhalf(a, b, n, result);
 #elif NK_TARGET_SAPPHIRE
     nk_dot_f16_sapphire(a, b, n, result);
 #elif NK_TARGET_HASWELL

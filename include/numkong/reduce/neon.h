@@ -2043,6 +2043,425 @@ NK_PUBLIC void nk_reduce_max_u64_neon(                             //
     else nk_reduce_max_u64_serial(data, count, stride_bytes, max_value, max_index);
 }
 
+NK_INTERNAL void nk_reduce_add_i8_neon_contiguous_( //
+    nk_i8_t const *data, nk_size_t count, nk_i64_t *result) {
+    int32x4_t sum_i32x4 = vdupq_n_s32(0);
+    nk_size_t idx = 0;
+    for (; idx + 16 <= count; idx += 16) {
+        int8x16_t data_i8x16 = vld1q_s8(data + idx);
+        int16x8_t lo_i16x8 = vmovl_s8(vget_low_s8(data_i8x16));
+        int16x8_t hi_i16x8 = vmovl_s8(vget_high_s8(data_i8x16));
+        sum_i32x4 = vaddq_s32(sum_i32x4, vaddl_s16(vget_low_s16(lo_i16x8), vget_high_s16(lo_i16x8)));
+        sum_i32x4 = vaddq_s32(sum_i32x4, vaddl_s16(vget_low_s16(hi_i16x8), vget_high_s16(hi_i16x8)));
+    }
+    nk_i64_t sum = vaddvq_s32(sum_i32x4);
+    for (; idx < count; ++idx) sum += data[idx];
+    *result = sum;
+}
+
+NK_PUBLIC void nk_reduce_add_i8_neon(                             //
+    nk_i8_t const *data, nk_size_t count, nk_size_t stride_bytes, //
+    nk_i64_t *result) {
+    nk_size_t stride_elements = stride_bytes / sizeof(nk_i8_t);
+    int aligned = (stride_bytes % sizeof(nk_i8_t) == 0);
+    if (!aligned) nk_reduce_add_i8_serial(data, count, stride_bytes, result);
+    else if (stride_elements == 1) nk_reduce_add_i8_neon_contiguous_(data, count, result);
+    else nk_reduce_add_i8_serial(data, count, stride_bytes, result);
+}
+
+NK_INTERNAL void nk_reduce_min_i8_neon_contiguous_( //
+    nk_i8_t const *data, nk_size_t count,           //
+    nk_i8_t *min_value, nk_size_t *min_index) {
+    if (count == 0) {
+        *min_value = 0;
+        *min_index = 0;
+        return;
+    }
+    int8x16_t min_i8x16 = vdupq_n_s8(127);
+    nk_size_t idx = 0;
+    for (; idx + 16 <= count; idx += 16) {
+        int8x16_t data_i8x16 = vld1q_s8(data + idx);
+        min_i8x16 = vminq_s8(min_i8x16, data_i8x16);
+    }
+    nk_i8_t best_val = vminvq_s8(min_i8x16);
+    nk_size_t best_idx = 0;
+    for (nk_size_t i = 0; i < count; ++i) {
+        if (data[i] < best_val || (data[i] == best_val && best_idx == 0)) {
+            if (data[i] <= best_val) {
+                best_val = data[i];
+                best_idx = i;
+                break;
+            }
+        }
+    }
+    // Find first occurrence
+    for (nk_size_t i = 0; i < count; ++i) {
+        if (data[i] == best_val) {
+            best_idx = i;
+            break;
+        }
+    }
+    *min_value = best_val;
+    *min_index = best_idx;
+}
+
+NK_PUBLIC void nk_reduce_min_i8_neon(                             //
+    nk_i8_t const *data, nk_size_t count, nk_size_t stride_bytes, //
+    nk_i8_t *min_value, nk_size_t *min_index) {
+    nk_size_t stride_elements = stride_bytes / sizeof(nk_i8_t);
+    int aligned = (stride_bytes % sizeof(nk_i8_t) == 0);
+    if (!aligned) nk_reduce_min_i8_serial(data, count, stride_bytes, min_value, min_index);
+    else if (stride_elements == 1 && count >= 16) nk_reduce_min_i8_neon_contiguous_(data, count, min_value, min_index);
+    else nk_reduce_min_i8_serial(data, count, stride_bytes, min_value, min_index);
+}
+
+NK_INTERNAL void nk_reduce_max_i8_neon_contiguous_( //
+    nk_i8_t const *data, nk_size_t count,           //
+    nk_i8_t *max_value, nk_size_t *max_index) {
+    if (count == 0) {
+        *max_value = 0;
+        *max_index = 0;
+        return;
+    }
+    int8x16_t max_i8x16 = vdupq_n_s8(-128);
+    nk_size_t idx = 0;
+    for (; idx + 16 <= count; idx += 16) {
+        int8x16_t data_i8x16 = vld1q_s8(data + idx);
+        max_i8x16 = vmaxq_s8(max_i8x16, data_i8x16);
+    }
+    nk_i8_t best_val = vmaxvq_s8(max_i8x16);
+    // Find first occurrence
+    nk_size_t best_idx = 0;
+    for (nk_size_t i = 0; i < count; ++i) {
+        if (data[i] == best_val) {
+            best_idx = i;
+            break;
+        }
+    }
+    *max_value = best_val;
+    *max_index = best_idx;
+}
+
+NK_PUBLIC void nk_reduce_max_i8_neon(                             //
+    nk_i8_t const *data, nk_size_t count, nk_size_t stride_bytes, //
+    nk_i8_t *max_value, nk_size_t *max_index) {
+    nk_size_t stride_elements = stride_bytes / sizeof(nk_i8_t);
+    int aligned = (stride_bytes % sizeof(nk_i8_t) == 0);
+    if (!aligned) nk_reduce_max_i8_serial(data, count, stride_bytes, max_value, max_index);
+    else if (stride_elements == 1 && count >= 16) nk_reduce_max_i8_neon_contiguous_(data, count, max_value, max_index);
+    else nk_reduce_max_i8_serial(data, count, stride_bytes, max_value, max_index);
+}
+
+NK_INTERNAL void nk_reduce_add_u8_neon_contiguous_( //
+    nk_u8_t const *data, nk_size_t count, nk_u64_t *result) {
+    uint32x4_t sum_u32x4 = vdupq_n_u32(0);
+    nk_size_t idx = 0;
+    for (; idx + 16 <= count; idx += 16) {
+        uint8x16_t data_u8x16 = vld1q_u8(data + idx);
+        uint16x8_t lo_u16x8 = vmovl_u8(vget_low_u8(data_u8x16));
+        uint16x8_t hi_u16x8 = vmovl_u8(vget_high_u8(data_u8x16));
+        sum_u32x4 = vaddq_u32(sum_u32x4, vaddl_u16(vget_low_u16(lo_u16x8), vget_high_u16(lo_u16x8)));
+        sum_u32x4 = vaddq_u32(sum_u32x4, vaddl_u16(vget_low_u16(hi_u16x8), vget_high_u16(hi_u16x8)));
+    }
+    nk_u64_t sum = vaddvq_u32(sum_u32x4);
+    for (; idx < count; ++idx) sum += data[idx];
+    *result = sum;
+}
+
+NK_PUBLIC void nk_reduce_add_u8_neon(                             //
+    nk_u8_t const *data, nk_size_t count, nk_size_t stride_bytes, //
+    nk_u64_t *result) {
+    nk_size_t stride_elements = stride_bytes / sizeof(nk_u8_t);
+    int aligned = (stride_bytes % sizeof(nk_u8_t) == 0);
+    if (!aligned) nk_reduce_add_u8_serial(data, count, stride_bytes, result);
+    else if (stride_elements == 1) nk_reduce_add_u8_neon_contiguous_(data, count, result);
+    else nk_reduce_add_u8_serial(data, count, stride_bytes, result);
+}
+
+NK_INTERNAL void nk_reduce_min_u8_neon_contiguous_( //
+    nk_u8_t const *data, nk_size_t count,           //
+    nk_u8_t *min_value, nk_size_t *min_index) {
+    if (count == 0) {
+        *min_value = 0;
+        *min_index = 0;
+        return;
+    }
+    uint8x16_t min_u8x16 = vdupq_n_u8(255);
+    nk_size_t idx = 0;
+    for (; idx + 16 <= count; idx += 16) {
+        uint8x16_t data_u8x16 = vld1q_u8(data + idx);
+        min_u8x16 = vminq_u8(min_u8x16, data_u8x16);
+    }
+    nk_u8_t best_val = vminvq_u8(min_u8x16);
+    // Find first occurrence
+    nk_size_t best_idx = 0;
+    for (nk_size_t i = 0; i < count; ++i) {
+        if (data[i] == best_val) {
+            best_idx = i;
+            break;
+        }
+    }
+    *min_value = best_val;
+    *min_index = best_idx;
+}
+
+NK_PUBLIC void nk_reduce_min_u8_neon(                             //
+    nk_u8_t const *data, nk_size_t count, nk_size_t stride_bytes, //
+    nk_u8_t *min_value, nk_size_t *min_index) {
+    nk_size_t stride_elements = stride_bytes / sizeof(nk_u8_t);
+    int aligned = (stride_bytes % sizeof(nk_u8_t) == 0);
+    if (!aligned) nk_reduce_min_u8_serial(data, count, stride_bytes, min_value, min_index);
+    else if (stride_elements == 1 && count >= 16) nk_reduce_min_u8_neon_contiguous_(data, count, min_value, min_index);
+    else nk_reduce_min_u8_serial(data, count, stride_bytes, min_value, min_index);
+}
+
+NK_INTERNAL void nk_reduce_max_u8_neon_contiguous_( //
+    nk_u8_t const *data, nk_size_t count,           //
+    nk_u8_t *max_value, nk_size_t *max_index) {
+    if (count == 0) {
+        *max_value = 0;
+        *max_index = 0;
+        return;
+    }
+    uint8x16_t max_u8x16 = vdupq_n_u8(0);
+    nk_size_t idx = 0;
+    for (; idx + 16 <= count; idx += 16) {
+        uint8x16_t data_u8x16 = vld1q_u8(data + idx);
+        max_u8x16 = vmaxq_u8(max_u8x16, data_u8x16);
+    }
+    nk_u8_t best_val = vmaxvq_u8(max_u8x16);
+    // Find first occurrence
+    nk_size_t best_idx = 0;
+    for (nk_size_t i = 0; i < count; ++i) {
+        if (data[i] == best_val) {
+            best_idx = i;
+            break;
+        }
+    }
+    *max_value = best_val;
+    *max_index = best_idx;
+}
+
+NK_PUBLIC void nk_reduce_max_u8_neon(                             //
+    nk_u8_t const *data, nk_size_t count, nk_size_t stride_bytes, //
+    nk_u8_t *max_value, nk_size_t *max_index) {
+    nk_size_t stride_elements = stride_bytes / sizeof(nk_u8_t);
+    int aligned = (stride_bytes % sizeof(nk_u8_t) == 0);
+    if (!aligned) nk_reduce_max_u8_serial(data, count, stride_bytes, max_value, max_index);
+    else if (stride_elements == 1 && count >= 16) nk_reduce_max_u8_neon_contiguous_(data, count, max_value, max_index);
+    else nk_reduce_max_u8_serial(data, count, stride_bytes, max_value, max_index);
+}
+
+NK_INTERNAL void nk_reduce_add_i16_neon_contiguous_( //
+    nk_i16_t const *data, nk_size_t count, nk_i64_t *result) {
+    int32x4_t sum_i32x4 = vdupq_n_s32(0);
+    nk_size_t idx = 0;
+    for (; idx + 8 <= count; idx += 8) {
+        int16x8_t data_i16x8 = vld1q_s16(data + idx);
+        sum_i32x4 = vaddq_s32(sum_i32x4, vaddl_s16(vget_low_s16(data_i16x8), vget_high_s16(data_i16x8)));
+    }
+    nk_i64_t sum = vaddvq_s32(sum_i32x4);
+    for (; idx < count; ++idx) sum += data[idx];
+    *result = sum;
+}
+
+NK_PUBLIC void nk_reduce_add_i16_neon(                             //
+    nk_i16_t const *data, nk_size_t count, nk_size_t stride_bytes, //
+    nk_i64_t *result) {
+    nk_size_t stride_elements = stride_bytes / sizeof(nk_i16_t);
+    int aligned = (stride_bytes % sizeof(nk_i16_t) == 0);
+    if (!aligned) nk_reduce_add_i16_serial(data, count, stride_bytes, result);
+    else if (stride_elements == 1) nk_reduce_add_i16_neon_contiguous_(data, count, result);
+    else nk_reduce_add_i16_serial(data, count, stride_bytes, result);
+}
+
+NK_INTERNAL void nk_reduce_min_i16_neon_contiguous_( //
+    nk_i16_t const *data, nk_size_t count,           //
+    nk_i16_t *min_value, nk_size_t *min_index) {
+    if (count == 0) {
+        *min_value = 0;
+        *min_index = 0;
+        return;
+    }
+    int16x8_t min_i16x8 = vdupq_n_s16(32767);
+    nk_size_t idx = 0;
+    for (; idx + 8 <= count; idx += 8) {
+        int16x8_t data_i16x8 = vld1q_s16(data + idx);
+        min_i16x8 = vminq_s16(min_i16x8, data_i16x8);
+    }
+    nk_i16_t best_val = vminvq_s16(min_i16x8);
+    // Handle tail
+    for (; idx < count; ++idx) {
+        if (data[idx] < best_val) best_val = data[idx];
+    }
+    // Find first occurrence
+    nk_size_t best_idx = 0;
+    for (nk_size_t i = 0; i < count; ++i) {
+        if (data[i] == best_val) {
+            best_idx = i;
+            break;
+        }
+    }
+    *min_value = best_val;
+    *min_index = best_idx;
+}
+
+NK_PUBLIC void nk_reduce_min_i16_neon(                             //
+    nk_i16_t const *data, nk_size_t count, nk_size_t stride_bytes, //
+    nk_i16_t *min_value, nk_size_t *min_index) {
+    nk_size_t stride_elements = stride_bytes / sizeof(nk_i16_t);
+    int aligned = (stride_bytes % sizeof(nk_i16_t) == 0);
+    if (!aligned) nk_reduce_min_i16_serial(data, count, stride_bytes, min_value, min_index);
+    else if (stride_elements == 1 && count >= 8) nk_reduce_min_i16_neon_contiguous_(data, count, min_value, min_index);
+    else nk_reduce_min_i16_serial(data, count, stride_bytes, min_value, min_index);
+}
+
+NK_INTERNAL void nk_reduce_max_i16_neon_contiguous_( //
+    nk_i16_t const *data, nk_size_t count,           //
+    nk_i16_t *max_value, nk_size_t *max_index) {
+    if (count == 0) {
+        *max_value = 0;
+        *max_index = 0;
+        return;
+    }
+    int16x8_t max_i16x8 = vdupq_n_s16(-32768);
+    nk_size_t idx = 0;
+    for (; idx + 8 <= count; idx += 8) {
+        int16x8_t data_i16x8 = vld1q_s16(data + idx);
+        max_i16x8 = vmaxq_s16(max_i16x8, data_i16x8);
+    }
+    nk_i16_t best_val = vmaxvq_s16(max_i16x8);
+    // Handle tail
+    for (; idx < count; ++idx) {
+        if (data[idx] > best_val) best_val = data[idx];
+    }
+    // Find first occurrence
+    nk_size_t best_idx = 0;
+    for (nk_size_t i = 0; i < count; ++i) {
+        if (data[i] == best_val) {
+            best_idx = i;
+            break;
+        }
+    }
+    *max_value = best_val;
+    *max_index = best_idx;
+}
+
+NK_PUBLIC void nk_reduce_max_i16_neon(                             //
+    nk_i16_t const *data, nk_size_t count, nk_size_t stride_bytes, //
+    nk_i16_t *max_value, nk_size_t *max_index) {
+    nk_size_t stride_elements = stride_bytes / sizeof(nk_i16_t);
+    int aligned = (stride_bytes % sizeof(nk_i16_t) == 0);
+    if (!aligned) nk_reduce_max_i16_serial(data, count, stride_bytes, max_value, max_index);
+    else if (stride_elements == 1 && count >= 8) nk_reduce_max_i16_neon_contiguous_(data, count, max_value, max_index);
+    else nk_reduce_max_i16_serial(data, count, stride_bytes, max_value, max_index);
+}
+
+NK_INTERNAL void nk_reduce_add_u16_neon_contiguous_( //
+    nk_u16_t const *data, nk_size_t count, nk_u64_t *result) {
+    uint32x4_t sum_u32x4 = vdupq_n_u32(0);
+    nk_size_t idx = 0;
+    for (; idx + 8 <= count; idx += 8) {
+        uint16x8_t data_u16x8 = vld1q_u16(data + idx);
+        sum_u32x4 = vaddq_u32(sum_u32x4, vaddl_u16(vget_low_u16(data_u16x8), vget_high_u16(data_u16x8)));
+    }
+    nk_u64_t sum = vaddvq_u32(sum_u32x4);
+    for (; idx < count; ++idx) sum += data[idx];
+    *result = sum;
+}
+
+NK_PUBLIC void nk_reduce_add_u16_neon(                             //
+    nk_u16_t const *data, nk_size_t count, nk_size_t stride_bytes, //
+    nk_u64_t *result) {
+    nk_size_t stride_elements = stride_bytes / sizeof(nk_u16_t);
+    int aligned = (stride_bytes % sizeof(nk_u16_t) == 0);
+    if (!aligned) nk_reduce_add_u16_serial(data, count, stride_bytes, result);
+    else if (stride_elements == 1) nk_reduce_add_u16_neon_contiguous_(data, count, result);
+    else nk_reduce_add_u16_serial(data, count, stride_bytes, result);
+}
+
+NK_INTERNAL void nk_reduce_min_u16_neon_contiguous_( //
+    nk_u16_t const *data, nk_size_t count,           //
+    nk_u16_t *min_value, nk_size_t *min_index) {
+    if (count == 0) {
+        *min_value = 0;
+        *min_index = 0;
+        return;
+    }
+    uint16x8_t min_u16x8 = vdupq_n_u16(65535);
+    nk_size_t idx = 0;
+    for (; idx + 8 <= count; idx += 8) {
+        uint16x8_t data_u16x8 = vld1q_u16(data + idx);
+        min_u16x8 = vminq_u16(min_u16x8, data_u16x8);
+    }
+    nk_u16_t best_val = vminvq_u16(min_u16x8);
+    // Handle tail
+    for (; idx < count; ++idx) {
+        if (data[idx] < best_val) best_val = data[idx];
+    }
+    // Find first occurrence
+    nk_size_t best_idx = 0;
+    for (nk_size_t i = 0; i < count; ++i) {
+        if (data[i] == best_val) {
+            best_idx = i;
+            break;
+        }
+    }
+    *min_value = best_val;
+    *min_index = best_idx;
+}
+
+NK_PUBLIC void nk_reduce_min_u16_neon(                             //
+    nk_u16_t const *data, nk_size_t count, nk_size_t stride_bytes, //
+    nk_u16_t *min_value, nk_size_t *min_index) {
+    nk_size_t stride_elements = stride_bytes / sizeof(nk_u16_t);
+    int aligned = (stride_bytes % sizeof(nk_u16_t) == 0);
+    if (!aligned) nk_reduce_min_u16_serial(data, count, stride_bytes, min_value, min_index);
+    else if (stride_elements == 1 && count >= 8) nk_reduce_min_u16_neon_contiguous_(data, count, min_value, min_index);
+    else nk_reduce_min_u16_serial(data, count, stride_bytes, min_value, min_index);
+}
+
+NK_INTERNAL void nk_reduce_max_u16_neon_contiguous_( //
+    nk_u16_t const *data, nk_size_t count,           //
+    nk_u16_t *max_value, nk_size_t *max_index) {
+    if (count == 0) {
+        *max_value = 0;
+        *max_index = 0;
+        return;
+    }
+    uint16x8_t max_u16x8 = vdupq_n_u16(0);
+    nk_size_t idx = 0;
+    for (; idx + 8 <= count; idx += 8) {
+        uint16x8_t data_u16x8 = vld1q_u16(data + idx);
+        max_u16x8 = vmaxq_u16(max_u16x8, data_u16x8);
+    }
+    nk_u16_t best_val = vmaxvq_u16(max_u16x8);
+    // Handle tail
+    for (; idx < count; ++idx) {
+        if (data[idx] > best_val) best_val = data[idx];
+    }
+    // Find first occurrence
+    nk_size_t best_idx = 0;
+    for (nk_size_t i = 0; i < count; ++i) {
+        if (data[i] == best_val) {
+            best_idx = i;
+            break;
+        }
+    }
+    *max_value = best_val;
+    *max_index = best_idx;
+}
+
+NK_PUBLIC void nk_reduce_max_u16_neon(                             //
+    nk_u16_t const *data, nk_size_t count, nk_size_t stride_bytes, //
+    nk_u16_t *max_value, nk_size_t *max_index) {
+    nk_size_t stride_elements = stride_bytes / sizeof(nk_u16_t);
+    int aligned = (stride_bytes % sizeof(nk_u16_t) == 0);
+    if (!aligned) nk_reduce_max_u16_serial(data, count, stride_bytes, max_value, max_index);
+    else if (stride_elements == 1 && count >= 8) nk_reduce_max_u16_neon_contiguous_(data, count, max_value, max_index);
+    else nk_reduce_max_u16_serial(data, count, stride_bytes, max_value, max_index);
+}
+
 #if defined(__cplusplus)
 } // extern "C"
 #endif

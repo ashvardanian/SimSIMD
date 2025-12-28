@@ -229,6 +229,44 @@ NK_PUBLIC void nk_reduce_min_f32_neon(nk_f32_t const *data, nk_size_t count, nk_
 /** @copydoc nk_reduce_max_f32 */
 NK_PUBLIC void nk_reduce_max_f32_neon(nk_f32_t const *data, nk_size_t count, nk_size_t stride_bytes,
                                       nk_f32_t *max_value, nk_size_t *max_index);
+/** @copydoc nk_reduce_min_f64 */
+NK_PUBLIC void nk_reduce_min_f64_neon(nk_f64_t const *data, nk_size_t count, nk_size_t stride_bytes,
+                                      nk_f64_t *min_value, nk_size_t *min_index);
+/** @copydoc nk_reduce_max_f64 */
+NK_PUBLIC void nk_reduce_max_f64_neon(nk_f64_t const *data, nk_size_t count, nk_size_t stride_bytes,
+                                      nk_f64_t *max_value, nk_size_t *max_index);
+/** @brief i8 sum reduction with i64 accumulator */
+NK_PUBLIC void nk_reduce_add_i8_neon(nk_i8_t const *data, nk_size_t count, nk_size_t stride_bytes, nk_i64_t *result);
+/** @brief u8 sum reduction with u64 accumulator */
+NK_PUBLIC void nk_reduce_add_u8_neon(nk_u8_t const *data, nk_size_t count, nk_size_t stride_bytes, nk_u64_t *result);
+/** @brief i16 sum reduction with i64 accumulator */
+NK_PUBLIC void nk_reduce_add_i16_neon(nk_i16_t const *data, nk_size_t count, nk_size_t stride_bytes, nk_i64_t *result);
+/** @brief u16 sum reduction with u64 accumulator */
+NK_PUBLIC void nk_reduce_add_u16_neon(nk_u16_t const *data, nk_size_t count, nk_size_t stride_bytes, nk_u64_t *result);
+/** @brief i8 min reduction with argmin */
+NK_PUBLIC void nk_reduce_min_i8_neon(nk_i8_t const *data, nk_size_t count, nk_size_t stride_bytes, nk_i8_t *min_value,
+                                     nk_size_t *min_index);
+/** @brief i8 max reduction with argmax */
+NK_PUBLIC void nk_reduce_max_i8_neon(nk_i8_t const *data, nk_size_t count, nk_size_t stride_bytes, nk_i8_t *max_value,
+                                     nk_size_t *max_index);
+/** @brief u8 min reduction with argmin */
+NK_PUBLIC void nk_reduce_min_u8_neon(nk_u8_t const *data, nk_size_t count, nk_size_t stride_bytes, nk_u8_t *min_value,
+                                     nk_size_t *min_index);
+/** @brief u8 max reduction with argmax */
+NK_PUBLIC void nk_reduce_max_u8_neon(nk_u8_t const *data, nk_size_t count, nk_size_t stride_bytes, nk_u8_t *max_value,
+                                     nk_size_t *max_index);
+/** @brief i16 min reduction with argmin */
+NK_PUBLIC void nk_reduce_min_i16_neon(nk_i16_t const *data, nk_size_t count, nk_size_t stride_bytes,
+                                      nk_i16_t *min_value, nk_size_t *min_index);
+/** @brief i16 max reduction with argmax */
+NK_PUBLIC void nk_reduce_max_i16_neon(nk_i16_t const *data, nk_size_t count, nk_size_t stride_bytes,
+                                      nk_i16_t *max_value, nk_size_t *max_index);
+/** @brief u16 min reduction with argmin */
+NK_PUBLIC void nk_reduce_min_u16_neon(nk_u16_t const *data, nk_size_t count, nk_size_t stride_bytes,
+                                      nk_u16_t *min_value, nk_size_t *min_index);
+/** @brief u16 max reduction with argmax */
+NK_PUBLIC void nk_reduce_max_u16_neon(nk_u16_t const *data, nk_size_t count, nk_size_t stride_bytes,
+                                      nk_u16_t *max_value, nk_size_t *max_index);
 #endif // NK_TARGET_NEON
 
 #if NK_TARGET_NEONHALF
@@ -500,6 +538,8 @@ NK_PUBLIC void nk_reduce_min_f64(nk_f64_t const *data, nk_size_t count, nk_size_
     nk_reduce_min_f64_skylake(data, count, stride_bytes, min_value, min_index);
 #elif NK_TARGET_HASWELL
     nk_reduce_min_f64_haswell(data, count, stride_bytes, min_value, min_index);
+#elif NK_TARGET_NEON
+    nk_reduce_min_f64_neon(data, count, stride_bytes, min_value, min_index);
 #else
     nk_reduce_min_f64_serial(data, count, stride_bytes, min_value, min_index);
 #endif
@@ -511,6 +551,8 @@ NK_PUBLIC void nk_reduce_max_f64(nk_f64_t const *data, nk_size_t count, nk_size_
     nk_reduce_max_f64_skylake(data, count, stride_bytes, max_value, max_index);
 #elif NK_TARGET_HASWELL
     nk_reduce_max_f64_haswell(data, count, stride_bytes, max_value, max_index);
+#elif NK_TARGET_NEON
+    nk_reduce_max_f64_neon(data, count, stride_bytes, max_value, max_index);
 #else
     nk_reduce_max_f64_serial(data, count, stride_bytes, max_value, max_index);
 #endif
@@ -539,6 +581,8 @@ NK_PUBLIC void nk_reduce_add_i8(nk_i8_t const *data, nk_size_t count, nk_size_t 
     nk_reduce_add_i8_haswell(data, count, stride_bytes, result);
 #elif NK_TARGET_NEONSDOT
     nk_reduce_add_i8_neonsdot(data, count, stride_bytes, result);
+#elif NK_TARGET_NEON
+    nk_reduce_add_i8_neon(data, count, stride_bytes, result);
 #else
     nk_reduce_add_i8_serial(data, count, stride_bytes, result);
 #endif
@@ -551,6 +595,8 @@ NK_PUBLIC void nk_reduce_add_u8(nk_u8_t const *data, nk_size_t count, nk_size_t 
     nk_reduce_add_u8_haswell(data, count, stride_bytes, result);
 #elif NK_TARGET_NEONSDOT
     nk_reduce_add_u8_neonsdot(data, count, stride_bytes, result);
+#elif NK_TARGET_NEON
+    nk_reduce_add_u8_neon(data, count, stride_bytes, result);
 #else
     nk_reduce_add_u8_serial(data, count, stride_bytes, result);
 #endif
@@ -561,6 +607,8 @@ NK_PUBLIC void nk_reduce_add_i16(nk_i16_t const *data, nk_size_t count, nk_size_
     nk_reduce_add_i16_skylake(data, count, stride_bytes, result);
 #elif NK_TARGET_HASWELL
     nk_reduce_add_i16_haswell(data, count, stride_bytes, result);
+#elif NK_TARGET_NEON
+    nk_reduce_add_i16_neon(data, count, stride_bytes, result);
 #else
     nk_reduce_add_i16_serial(data, count, stride_bytes, result);
 #endif
@@ -571,6 +619,8 @@ NK_PUBLIC void nk_reduce_add_u16(nk_u16_t const *data, nk_size_t count, nk_size_
     nk_reduce_add_u16_skylake(data, count, stride_bytes, result);
 #elif NK_TARGET_HASWELL
     nk_reduce_add_u16_haswell(data, count, stride_bytes, result);
+#elif NK_TARGET_NEON
+    nk_reduce_add_u16_neon(data, count, stride_bytes, result);
 #else
     nk_reduce_add_u16_serial(data, count, stride_bytes, result);
 #endif
@@ -622,6 +672,8 @@ NK_PUBLIC void nk_reduce_min_i8(nk_i8_t const *data, nk_size_t count, nk_size_t 
     nk_reduce_min_i8_skylake(data, count, stride_bytes, min_value, min_index);
 #elif NK_TARGET_HASWELL
     nk_reduce_min_i8_haswell(data, count, stride_bytes, min_value, min_index);
+#elif NK_TARGET_NEON
+    nk_reduce_min_i8_neon(data, count, stride_bytes, min_value, min_index);
 #else
     nk_reduce_min_i8_serial(data, count, stride_bytes, min_value, min_index);
 #endif
@@ -633,6 +685,8 @@ NK_PUBLIC void nk_reduce_max_i8(nk_i8_t const *data, nk_size_t count, nk_size_t 
     nk_reduce_max_i8_skylake(data, count, stride_bytes, max_value, max_index);
 #elif NK_TARGET_HASWELL
     nk_reduce_max_i8_haswell(data, count, stride_bytes, max_value, max_index);
+#elif NK_TARGET_NEON
+    nk_reduce_max_i8_neon(data, count, stride_bytes, max_value, max_index);
 #else
     nk_reduce_max_i8_serial(data, count, stride_bytes, max_value, max_index);
 #endif
@@ -644,6 +698,8 @@ NK_PUBLIC void nk_reduce_min_u8(nk_u8_t const *data, nk_size_t count, nk_size_t 
     nk_reduce_min_u8_skylake(data, count, stride_bytes, min_value, min_index);
 #elif NK_TARGET_HASWELL
     nk_reduce_min_u8_haswell(data, count, stride_bytes, min_value, min_index);
+#elif NK_TARGET_NEON
+    nk_reduce_min_u8_neon(data, count, stride_bytes, min_value, min_index);
 #else
     nk_reduce_min_u8_serial(data, count, stride_bytes, min_value, min_index);
 #endif
@@ -655,6 +711,8 @@ NK_PUBLIC void nk_reduce_max_u8(nk_u8_t const *data, nk_size_t count, nk_size_t 
     nk_reduce_max_u8_skylake(data, count, stride_bytes, max_value, max_index);
 #elif NK_TARGET_HASWELL
     nk_reduce_max_u8_haswell(data, count, stride_bytes, max_value, max_index);
+#elif NK_TARGET_NEON
+    nk_reduce_max_u8_neon(data, count, stride_bytes, max_value, max_index);
 #else
     nk_reduce_max_u8_serial(data, count, stride_bytes, max_value, max_index);
 #endif
@@ -666,6 +724,8 @@ NK_PUBLIC void nk_reduce_min_i16(nk_i16_t const *data, nk_size_t count, nk_size_
     nk_reduce_min_i16_skylake(data, count, stride_bytes, min_value, min_index);
 #elif NK_TARGET_HASWELL
     nk_reduce_min_i16_haswell(data, count, stride_bytes, min_value, min_index);
+#elif NK_TARGET_NEON
+    nk_reduce_min_i16_neon(data, count, stride_bytes, min_value, min_index);
 #else
     nk_reduce_min_i16_serial(data, count, stride_bytes, min_value, min_index);
 #endif
@@ -677,6 +737,8 @@ NK_PUBLIC void nk_reduce_max_i16(nk_i16_t const *data, nk_size_t count, nk_size_
     nk_reduce_max_i16_skylake(data, count, stride_bytes, max_value, max_index);
 #elif NK_TARGET_HASWELL
     nk_reduce_max_i16_haswell(data, count, stride_bytes, max_value, max_index);
+#elif NK_TARGET_NEON
+    nk_reduce_max_i16_neon(data, count, stride_bytes, max_value, max_index);
 #else
     nk_reduce_max_i16_serial(data, count, stride_bytes, max_value, max_index);
 #endif
@@ -688,6 +750,8 @@ NK_PUBLIC void nk_reduce_min_u16(nk_u16_t const *data, nk_size_t count, nk_size_
     nk_reduce_min_u16_skylake(data, count, stride_bytes, min_value, min_index);
 #elif NK_TARGET_HASWELL
     nk_reduce_min_u16_haswell(data, count, stride_bytes, min_value, min_index);
+#elif NK_TARGET_NEON
+    nk_reduce_min_u16_neon(data, count, stride_bytes, min_value, min_index);
 #else
     nk_reduce_min_u16_serial(data, count, stride_bytes, min_value, min_index);
 #endif
@@ -699,6 +763,8 @@ NK_PUBLIC void nk_reduce_max_u16(nk_u16_t const *data, nk_size_t count, nk_size_
     nk_reduce_max_u16_skylake(data, count, stride_bytes, max_value, max_index);
 #elif NK_TARGET_HASWELL
     nk_reduce_max_u16_haswell(data, count, stride_bytes, max_value, max_index);
+#elif NK_TARGET_NEON
+    nk_reduce_max_u16_neon(data, count, stride_bytes, max_value, max_index);
 #else
     nk_reduce_max_u16_serial(data, count, stride_bytes, max_value, max_index);
 #endif

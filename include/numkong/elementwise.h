@@ -487,6 +487,18 @@ NK_PUBLIC void nk_fma_i64_neon(nk_i64_t const *a, nk_i64_t const *b, nk_i64_t co
 /** @copydoc nk_fma_u64 */
 NK_PUBLIC void nk_fma_u64_neon(nk_u64_t const *a, nk_u64_t const *b, nk_u64_t const *c, nk_size_t n,
                                nk_f64_t const *alpha, nk_f64_t const *beta, nk_u64_t *result);
+
+/** @copydoc nk_sum_f64 */
+NK_PUBLIC void nk_sum_f64_neon(nk_f64_t const *a, nk_f64_t const *b, nk_size_t n, nk_f64_t *result);
+/** @copydoc nk_scale_f64 */
+NK_PUBLIC void nk_scale_f64_neon(nk_f64_t const *a, nk_size_t n, nk_f64_t const *alpha, nk_f64_t const *beta,
+                                 nk_f64_t *result);
+/** @copydoc nk_wsum_f64 */
+NK_PUBLIC void nk_wsum_f64_neon(nk_f64_t const *a, nk_f64_t const *b, nk_size_t n, nk_f64_t const *alpha,
+                                nk_f64_t const *beta, nk_f64_t *result);
+/** @copydoc nk_fma_f64 */
+NK_PUBLIC void nk_fma_f64_neon(nk_f64_t const *a, nk_f64_t const *b, nk_f64_t const *c, nk_size_t n,
+                               nk_f64_t const *alpha, nk_f64_t const *beta, nk_f64_t *result);
 #endif // NK_TARGET_NEON
 
 #if NK_TARGET_NEONBFDOT
@@ -834,6 +846,8 @@ NK_PUBLIC void nk_sum_f64(nk_f64_t const *a, nk_f64_t const *b, nk_size_t n, nk_
     nk_sum_f64_skylake(a, b, n, r);
 #elif NK_TARGET_HASWELL
     nk_sum_f64_haswell(a, b, n, r);
+#elif NK_TARGET_NEON
+    nk_sum_f64_neon(a, b, n, r);
 #else
     nk_sum_f64_serial(a, b, n, r);
 #endif
@@ -972,6 +986,8 @@ NK_PUBLIC void nk_scale_f64(nk_f64_t const *a, nk_size_t n, nk_f64_t const *alph
     nk_scale_f64_skylake(a, n, alpha, beta, r);
 #elif NK_TARGET_HASWELL
     nk_scale_f64_haswell(a, n, alpha, beta, r);
+#elif NK_TARGET_NEON
+    nk_scale_f64_neon(a, n, alpha, beta, r);
 #else
     nk_scale_f64_serial(a, n, alpha, beta, r);
 #endif
@@ -1116,6 +1132,8 @@ NK_PUBLIC void nk_wsum_f64(nk_f64_t const *a, nk_f64_t const *b, nk_size_t n, nk
     nk_wsum_f64_skylake(a, b, n, alpha, beta, r);
 #elif NK_TARGET_HASWELL
     nk_wsum_f64_haswell(a, b, n, alpha, beta, r);
+#elif NK_TARGET_NEON
+    nk_wsum_f64_neon(a, b, n, alpha, beta, r);
 #else
     nk_wsum_f64_serial(a, b, n, alpha, beta, r);
 #endif
@@ -1192,6 +1210,8 @@ NK_PUBLIC void nk_fma_f64(nk_f64_t const *a, nk_f64_t const *b, nk_f64_t const *
     nk_fma_f64_skylake(a, b, c, n, alpha, beta, r);
 #elif NK_TARGET_HASWELL
     nk_fma_f64_haswell(a, b, c, n, alpha, beta, r);
+#elif NK_TARGET_NEON
+    nk_fma_f64_neon(a, b, c, n, alpha, beta, r);
 #else
     nk_fma_f64_serial(a, b, c, n, alpha, beta, r);
 #endif
