@@ -225,6 +225,30 @@ extern "C" {
         kernel(a, b, n, (void *)a_centroid, (void *)b_centroid, (void *)rotation, (void *)scale, (void *)result);  \
     }
 
+#define NK_DECLARATION_REDUCE_ADD(extension, output_type)                                                              \
+    NK_DYNAMIC void nk_reduce_add_##extension(nk_##extension##_t const *data, nk_size_t count, nk_size_t stride_bytes, \
+                                              nk_##output_type##_t *result) {                                          \
+        static nk_kernel_reduce_add_punned_t kernel = 0;                                                               \
+        if (kernel == 0) {                                                                                             \
+            nk_capability_t used_capability;                                                                           \
+            nk_find_kernel_punned(nk_kernel_reduce_add_k, nk_##extension##_k, nk_capabilities(), nk_cap_any_k,         \
+                                  (nk_kernel_punned_t *)&kernel, &used_capability);                                    \
+        }                                                                                                              \
+        kernel(data, count, stride_bytes, result);                                                                     \
+    }
+
+#define NK_DECLARATION_REDUCE_MINMAX(name, extension)                                                               \
+    NK_DYNAMIC void nk_reduce_##name##_##extension(nk_##extension##_t const *data, nk_size_t count,                 \
+                                                   nk_size_t stride_bytes, nk_##extension##_t *value,               \
+                                                   nk_size_t *index) {                                              \
+        static nk_kernel_reduce_minmax_punned_t kernel = 0;                                                         \
+        if (kernel == 0) {                                                                                          \
+            nk_capability_t used_capability;                                                                        \
+            nk_find_kernel_punned(nk_kernel_reduce_##name##_k, nk_##extension##_k, nk_capabilities(), nk_cap_any_k, \
+                                  (nk_kernel_punned_t *)&kernel, &used_capability);                                 \
+        }                                                                                                           \
+        kernel(data, count, stride_bytes, value, index);                                                            \
+    }
 
 #define NK_DECLARATION_DOTS_PACKED_SIZE(input_type, accum_type)                                                       \
     NK_DYNAMIC nk_size_t nk_dots_##input_type##input_type##accum_type##_packed_size(nk_size_t n, nk_size_t k) {       \
@@ -397,6 +421,40 @@ NK_DECLARATION_MESH(kabsch, f32, f32)
 NK_DECLARATION_MESH(kabsch, f64, f64)
 NK_DECLARATION_MESH(umeyama, f32, f32)
 NK_DECLARATION_MESH(umeyama, f64, f64)
+
+// Horizontal reductions - floating point
+NK_DECLARATION_REDUCE_ADD(f32, f64)
+NK_DECLARATION_REDUCE_ADD(f64, f64)
+NK_DECLARATION_REDUCE_MINMAX(min, f32)
+NK_DECLARATION_REDUCE_MINMAX(max, f32)
+NK_DECLARATION_REDUCE_MINMAX(min, f64)
+NK_DECLARATION_REDUCE_MINMAX(max, f64)
+// Horizontal reductions - integers (output widened for sum)
+NK_DECLARATION_REDUCE_ADD(i8, i64)
+NK_DECLARATION_REDUCE_ADD(u8, u64)
+NK_DECLARATION_REDUCE_ADD(i16, i64)
+NK_DECLARATION_REDUCE_ADD(u16, u64)
+NK_DECLARATION_REDUCE_ADD(i32, i64)
+NK_DECLARATION_REDUCE_ADD(u32, u64)
+NK_DECLARATION_REDUCE_ADD(i64, i64)
+NK_DECLARATION_REDUCE_ADD(u64, u64)
+NK_DECLARATION_REDUCE_MINMAX(min, i8)
+NK_DECLARATION_REDUCE_MINMAX(max, i8)
+NK_DECLARATION_REDUCE_MINMAX(min, u8)
+NK_DECLARATION_REDUCE_MINMAX(max, u8)
+NK_DECLARATION_REDUCE_MINMAX(min, i16)
+NK_DECLARATION_REDUCE_MINMAX(max, i16)
+NK_DECLARATION_REDUCE_MINMAX(min, u16)
+NK_DECLARATION_REDUCE_MINMAX(max, u16)
+NK_DECLARATION_REDUCE_MINMAX(min, i32)
+NK_DECLARATION_REDUCE_MINMAX(max, i32)
+NK_DECLARATION_REDUCE_MINMAX(min, u32)
+NK_DECLARATION_REDUCE_MINMAX(max, u32)
+NK_DECLARATION_REDUCE_MINMAX(min, i64)
+NK_DECLARATION_REDUCE_MINMAX(max, i64)
+NK_DECLARATION_REDUCE_MINMAX(min, u64)
+NK_DECLARATION_REDUCE_MINMAX(max, u64)
+
 // Matrix multiplications (GEMM with packed B)
 NK_DECLARATION_DOTS_PACKED_SIZE(f32, f32)
 NK_DECLARATION_DOTS_PACKED_SIZE(f64, f64)
