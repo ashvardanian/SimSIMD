@@ -1300,6 +1300,51 @@ NK_INTERNAL void nk_u64_to_bf16_(nk_u64_t const *x, nk_bf16_t *y) {
 }
 
 /**
+ *  @brief  Union for type-punned scalar values at language binding boundaries.
+ *
+ *  Used to bridge different type systems (Python, JavaScript, etc.) where
+ *  scalars arrive as f64 but need to be passed to kernels as typed pointers.
+ *  The caller fills the appropriate union member based on the target dtype,
+ *  then passes the union address as `void const *` to kernel functions.
+ */
+typedef union nk_scalar_buffer_t {
+    nk_u8_t bytes[8];
+    nk_f64_t f64;
+    nk_f32_t f32;
+    nk_f16_t f16;
+    nk_bf16_t bf16;
+    nk_i64_t i64;
+    nk_u64_t u64;
+    nk_i32_t i32;
+    nk_u32_t u32;
+    nk_i16_t i16;
+    nk_u16_t u16;
+    nk_i8_t i8;
+    nk_u8_t u8;
+} nk_scalar_buffer_t;
+
+/**
+ *  @brief  Fill scalar buffer from f64, converting to the appropriate kernel parameter type.
+ *
+ *  For elementwise operations (scale, wsum, fma), the scalar parameter type depends on
+ *  the input datatype: f64/i32/u32/i64/u64 use f64, all others use f32.
+ *
+ *  @param[out] buf     Pointer to the scalar buffer to fill.
+ *  @param[in]  value   The f64 value to convert.
+ *  @param[in]  dtype   The target datatype that determines the conversion.
+ */
+NK_INTERNAL void nk_scalar_buffer_set_f64(nk_scalar_buffer_t *buf, nk_f64_t value, nk_datatype_t dtype) {
+    switch (dtype) {
+    case nk_f64_k:
+    case nk_i32_k:
+    case nk_u32_k:
+    case nk_i64_k:
+    case nk_u64_k: buf->f64 = value; break;
+    default: buf->f32 = (nk_f32_t)value; break;
+    }
+}
+
+/**
  *  @brief  Helper structure for implementing strided matrix row lookups, with @b single-byte-level pointer math.
  */
 NK_INTERNAL void *nk_advance_by_bytes_(void *ptr, nk_size_t bytes) { return (void *)((nk_u8_t *)ptr + bytes); }

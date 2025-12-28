@@ -2295,12 +2295,6 @@ cleanup:
     return return_obj;
 }
 
-/// Geospatial distance function pointer type (4 input arrays + count + output)
-typedef void (*nk_metric_geospatial_punned_t)( //
-    void const *a_lats, void const *a_lons,    //
-    void const *b_lats, void const *b_lons,    //
-    nk_size_t n, nk_fmax_t *distances);
-
 static PyObject *implement_geospatial_metric( //
     nk_metric_kind_t metric_kind,             //
     PyObject *const *args, Py_ssize_t const positional_args_count, PyObject *args_names_tuple) {
@@ -3343,7 +3337,10 @@ static PyObject *api_fma(PyObject *self, PyObject *const *args, Py_ssize_t const
         return_obj = Py_None;
     }
 
-    metric(a_parsed.start, b_parsed.start, c_parsed.start, a_parsed.dimensions, alpha, beta, distances_start);
+    nk_scalar_buffer_t alpha_buf, beta_buf;
+    nk_scalar_buffer_set_f64(&alpha_buf, alpha, dtype);
+    nk_scalar_buffer_set_f64(&beta_buf, beta, dtype);
+    metric(a_parsed.start, b_parsed.start, c_parsed.start, a_parsed.dimensions, &alpha_buf, &beta_buf, distances_start);
 cleanup:
     PyBuffer_Release(&a_buffer);
     PyBuffer_Release(&b_buffer);
@@ -3520,7 +3517,10 @@ static PyObject *api_wsum(PyObject *self, PyObject *const *args, Py_ssize_t cons
         return_obj = Py_None;
     }
 
-    metric(a_parsed.start, b_parsed.start, a_parsed.dimensions, alpha, beta, distances_start);
+    nk_scalar_buffer_t alpha_buf, beta_buf;
+    nk_scalar_buffer_set_f64(&alpha_buf, alpha, dtype);
+    nk_scalar_buffer_set_f64(&beta_buf, beta, dtype);
+    metric(a_parsed.start, b_parsed.start, a_parsed.dimensions, &alpha_buf, &beta_buf, distances_start);
 cleanup:
     PyBuffer_Release(&a_buffer);
     PyBuffer_Release(&b_buffer);
@@ -3676,7 +3676,10 @@ static PyObject *api_add(PyObject *self, PyObject *const *args, Py_ssize_t const
         }
 
         // scale(a, n, alpha=1, beta=scalar) -> 1*a + scalar
-        scale_kernel(a_parsed.start, a_parsed.dimensions, 1.0, scalar_value, result_start);
+        nk_scalar_buffer_t alpha_buf, beta_buf;
+        nk_scalar_buffer_set_f64(&alpha_buf, 1.0, dtype);
+        nk_scalar_buffer_set_f64(&beta_buf, scalar_value, dtype);
+        scale_kernel(a_parsed.start, a_parsed.dimensions, &alpha_buf, &beta_buf, result_start);
         goto cleanup;
     }
 
@@ -3908,7 +3911,10 @@ static PyObject *api_multiply(PyObject *self, PyObject *const *args, Py_ssize_t 
         }
 
         // scale(a, n, alpha=scalar, beta=0) -> scalar*a + 0
-        scale_kernel(a_parsed.start, a_parsed.dimensions, scalar_value, 0.0, result_start);
+        nk_scalar_buffer_t alpha_buf, beta_buf;
+        nk_scalar_buffer_set_f64(&alpha_buf, scalar_value, dtype);
+        nk_scalar_buffer_set_f64(&beta_buf, 0.0, dtype);
+        scale_kernel(a_parsed.start, a_parsed.dimensions, &alpha_buf, &beta_buf, result_start);
         goto cleanup;
     }
 
@@ -3985,7 +3991,10 @@ static PyObject *api_multiply(PyObject *self, PyObject *const *args, Py_ssize_t 
 
     // fma(a, b, c, n, alpha=1, beta=0) -> 1*a*b + 0*c
     // For multiply, we use result_start as c (ignored since beta=0)
-    fma_kernel(a_parsed.start, b_parsed.start, result_start, a_parsed.dimensions, 1.0, 0.0, result_start);
+    nk_scalar_buffer_t alpha_buf, beta_buf;
+    nk_scalar_buffer_set_f64(&alpha_buf, 1.0, dtype);
+    nk_scalar_buffer_set_f64(&beta_buf, 0.0, dtype);
+    fma_kernel(a_parsed.start, b_parsed.start, result_start, a_parsed.dimensions, &alpha_buf, &beta_buf, result_start);
 
 cleanup:
     PyBuffer_Release(&a_buffer);
