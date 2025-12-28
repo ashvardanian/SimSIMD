@@ -1509,19 +1509,36 @@ static PyObject *api_enable_capability(PyObject *self, PyObject *cap_name_obj) {
         return NULL;
     }
 
+    // ARM NEON capabilities
     if (same_string(cap_name, "neon")) { static_capabilities |= nk_cap_neon_k; }
     else if (same_string(cap_name, "neonhalf")) { static_capabilities |= nk_cap_neonhalf_k; }
+    else if (same_string(cap_name, "neonfhm")) { static_capabilities |= nk_cap_neonfhm_k; }
     else if (same_string(cap_name, "neonbfdot")) { static_capabilities |= nk_cap_neonbfdot_k; }
     else if (same_string(cap_name, "neonsdot")) { static_capabilities |= nk_cap_neonsdot_k; }
+    // ARM SVE capabilities
     else if (same_string(cap_name, "sve")) { static_capabilities |= nk_cap_sve_k; }
     else if (same_string(cap_name, "svehalf")) { static_capabilities |= nk_cap_svehalf_k; }
     else if (same_string(cap_name, "svebfdot")) { static_capabilities |= nk_cap_svebfdot_k; }
     else if (same_string(cap_name, "svesdot")) { static_capabilities |= nk_cap_svesdot_k; }
+    else if (same_string(cap_name, "sve2")) { static_capabilities |= nk_cap_sve2_k; }
+    else if (same_string(cap_name, "sve2p1")) { static_capabilities |= nk_cap_sve2p1_k; }
+    // ARM SME capabilities
+    else if (same_string(cap_name, "sme")) { static_capabilities |= nk_cap_sme_k; }
+    else if (same_string(cap_name, "sme2")) { static_capabilities |= nk_cap_sme2_k; }
+    else if (same_string(cap_name, "sme2p1")) { static_capabilities |= nk_cap_sme2p1_k; }
+    else if (same_string(cap_name, "smef64")) { static_capabilities |= nk_cap_smef64_k; }
+    else if (same_string(cap_name, "smehalf")) { static_capabilities |= nk_cap_smehalf_k; }
+    else if (same_string(cap_name, "smebf16")) { static_capabilities |= nk_cap_smebf16_k; }
+    else if (same_string(cap_name, "smelut2")) { static_capabilities |= nk_cap_smelut2_k; }
+    else if (same_string(cap_name, "smefa64")) { static_capabilities |= nk_cap_smefa64_k; }
+    // x86 capabilities
     else if (same_string(cap_name, "haswell")) { static_capabilities |= nk_cap_haswell_k; }
     else if (same_string(cap_name, "skylake")) { static_capabilities |= nk_cap_skylake_k; }
     else if (same_string(cap_name, "ice")) { static_capabilities |= nk_cap_ice_k; }
     else if (same_string(cap_name, "genoa")) { static_capabilities |= nk_cap_genoa_k; }
     else if (same_string(cap_name, "sapphire")) { static_capabilities |= nk_cap_sapphire_k; }
+    else if (same_string(cap_name, "sapphire_amx")) { static_capabilities |= nk_cap_sapphire_amx_k; }
+    else if (same_string(cap_name, "granite_amx")) { static_capabilities |= nk_cap_granite_amx_k; }
     else if (same_string(cap_name, "turin")) { static_capabilities |= nk_cap_turin_k; }
     else if (same_string(cap_name, "sierra")) { static_capabilities |= nk_cap_sierra_k; }
     else if (same_string(cap_name, "serial")) {
@@ -1549,19 +1566,36 @@ static PyObject *api_disable_capability(PyObject *self, PyObject *cap_name_obj) 
         return NULL;
     }
 
+    // ARM NEON capabilities
     if (same_string(cap_name, "neon")) { static_capabilities &= ~nk_cap_neon_k; }
     else if (same_string(cap_name, "neonhalf")) { static_capabilities &= ~nk_cap_neonhalf_k; }
+    else if (same_string(cap_name, "neonfhm")) { static_capabilities &= ~nk_cap_neonfhm_k; }
     else if (same_string(cap_name, "neonbfdot")) { static_capabilities &= ~nk_cap_neonbfdot_k; }
     else if (same_string(cap_name, "neonsdot")) { static_capabilities &= ~nk_cap_neonsdot_k; }
+    // ARM SVE capabilities
     else if (same_string(cap_name, "sve")) { static_capabilities &= ~nk_cap_sve_k; }
     else if (same_string(cap_name, "svehalf")) { static_capabilities &= ~nk_cap_svehalf_k; }
     else if (same_string(cap_name, "svebfdot")) { static_capabilities &= ~nk_cap_svebfdot_k; }
     else if (same_string(cap_name, "svesdot")) { static_capabilities &= ~nk_cap_svesdot_k; }
+    else if (same_string(cap_name, "sve2")) { static_capabilities &= ~nk_cap_sve2_k; }
+    else if (same_string(cap_name, "sve2p1")) { static_capabilities &= ~nk_cap_sve2p1_k; }
+    // ARM SME capabilities
+    else if (same_string(cap_name, "sme")) { static_capabilities &= ~nk_cap_sme_k; }
+    else if (same_string(cap_name, "sme2")) { static_capabilities &= ~nk_cap_sme2_k; }
+    else if (same_string(cap_name, "sme2p1")) { static_capabilities &= ~nk_cap_sme2p1_k; }
+    else if (same_string(cap_name, "smef64")) { static_capabilities &= ~nk_cap_smef64_k; }
+    else if (same_string(cap_name, "smehalf")) { static_capabilities &= ~nk_cap_smehalf_k; }
+    else if (same_string(cap_name, "smebf16")) { static_capabilities &= ~nk_cap_smebf16_k; }
+    else if (same_string(cap_name, "smelut2")) { static_capabilities &= ~nk_cap_smelut2_k; }
+    else if (same_string(cap_name, "smefa64")) { static_capabilities &= ~nk_cap_smefa64_k; }
+    // x86 capabilities
     else if (same_string(cap_name, "haswell")) { static_capabilities &= ~nk_cap_haswell_k; }
     else if (same_string(cap_name, "skylake")) { static_capabilities &= ~nk_cap_skylake_k; }
     else if (same_string(cap_name, "ice")) { static_capabilities &= ~nk_cap_ice_k; }
     else if (same_string(cap_name, "genoa")) { static_capabilities &= ~nk_cap_genoa_k; }
     else if (same_string(cap_name, "sapphire")) { static_capabilities &= ~nk_cap_sapphire_k; }
+    else if (same_string(cap_name, "sapphire_amx")) { static_capabilities &= ~nk_cap_sapphire_amx_k; }
+    else if (same_string(cap_name, "granite_amx")) { static_capabilities &= ~nk_cap_granite_amx_k; }
     else if (same_string(cap_name, "turin")) { static_capabilities &= ~nk_cap_turin_k; }
     else if (same_string(cap_name, "sierra")) { static_capabilities &= ~nk_cap_sierra_k; }
     else if (same_string(cap_name, "serial")) {

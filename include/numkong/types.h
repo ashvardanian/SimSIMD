@@ -105,6 +105,16 @@
 #endif // defined(__ARM_NEON)
 #endif // !defined(NK_TARGET_NEONHALF) || ...
 
+// Compiling for Arm: NK_TARGET_NEONFHM (FEAT_FHM - FMLAL/FMLSL widening ops)
+#if !defined(NK_TARGET_NEONFHM) || (NK_TARGET_NEONFHM && !NK_TARGET_ARM_)
+#if defined(__ARM_NEON)
+#define NK_TARGET_NEONFHM NK_TARGET_ARM_
+#else
+#undef NK_TARGET_NEONFHM
+#define NK_TARGET_NEONFHM 0
+#endif // defined(__ARM_NEON)
+#endif // !defined(NK_TARGET_NEONFHM) || ...
+
 // Compiling for Arm: NK_TARGET_NEONBFDOT
 #if !defined(NK_TARGET_NEONBFDOT) || (NK_TARGET_NEONBFDOT && !NK_TARGET_ARM_)
 #if defined(__ARM_NEON)
@@ -164,6 +174,49 @@
 #define NK_TARGET_SVE2 0
 #endif // defined(__ARM_FEATURE_SVE)
 #endif // !defined(NK_TARGET_SVE2) || ...
+
+// Compiling for Arm: NK_TARGET_SVE2P1
+#if !defined(NK_TARGET_SVE2P1) || (NK_TARGET_SVE2P1 && !NK_TARGET_ARM_)
+#if defined(__ARM_FEATURE_SVE)
+#define NK_TARGET_SVE2P1 NK_TARGET_ARM_
+#else
+#undef NK_TARGET_SVE2P1
+#define NK_TARGET_SVE2P1 0
+#endif // defined(__ARM_FEATURE_SVE)
+#endif // !defined(NK_TARGET_SVE2P1) || ...
+
+// Compiling for Arm: NK_TARGET_SME (Scalable Matrix Extension)
+#if !defined(NK_TARGET_SME)
+#define NK_TARGET_SME 0
+#endif
+
+#if !defined(NK_TARGET_SME2)
+#define NK_TARGET_SME2 0
+#endif
+
+#if !defined(NK_TARGET_SME2P1)
+#define NK_TARGET_SME2P1 0
+#endif
+
+#if !defined(NK_TARGET_SMEF64)
+#define NK_TARGET_SMEF64 0
+#endif
+
+#if !defined(NK_TARGET_SMEHALF)
+#define NK_TARGET_SMEHALF 0
+#endif
+
+#if !defined(NK_TARGET_SMEBF16)
+#define NK_TARGET_SMEBF16 0
+#endif
+
+#if !defined(NK_TARGET_SMELUT2)
+#define NK_TARGET_SMELUT2 0
+#endif
+
+#if !defined(NK_TARGET_SMEFA64)
+#define NK_TARGET_SMEFA64 0
+#endif
 
 // Compiling for x86: NK_TARGET_HASWELL
 //
@@ -230,6 +283,14 @@
 #define NK_TARGET_SAPPHIRE_AMX 0
 #endif
 #endif // !defined(NK_TARGET_SAPPHIRE_AMX) || ...
+#if !defined(NK_TARGET_GRANITE_AMX) || (NK_TARGET_GRANITE_AMX && !NK_TARGET_X86_)
+#if defined(__AMX_TILE__) && defined(__AMX_FP16__)
+#define NK_TARGET_GRANITE_AMX 1
+#else
+#undef NK_TARGET_GRANITE_AMX
+#define NK_TARGET_GRANITE_AMX 0
+#endif
+#endif // !defined(NK_TARGET_GRANITE_AMX) || ...
 #if !defined(NK_TARGET_TURIN) || (NK_TARGET_TURIN && !NK_TARGET_X86_)
 #if defined(__AVX512VP2INTERSECT__)
 #define NK_TARGET_TURIN 1
@@ -393,6 +454,43 @@ typedef double nk_f64_t;
 typedef nk_u64_t nk_size_t;
 typedef nk_i64_t nk_ssize_t;
 typedef nk_f64_t nk_fmax_t;
+
+/**
+ *  @brief  Enumeration of supported scalar data types.
+ *
+ *  Includes complex type descriptors which in C code would use the real counterparts,
+ *  but the independent flags contain metadata to be passed between programming language
+ *  interfaces.
+ */
+typedef enum {
+    nk_datatype_unknown_k = 0, ///< Unknown data type
+    nk_b8_k = 1 << 1,          ///< Single-bit values packed into 8-bit words
+    nk_b1x8_k = nk_b8_k,       ///< Single-bit values packed into 8-bit words
+    nk_i4x2_k = 1 << 19,       ///< 4-bit signed integers packed into 8-bit words
+
+    nk_i8_k = 1 << 2,  ///< 8-bit signed integer
+    nk_i16_k = 1 << 3, ///< 16-bit signed integer
+    nk_i32_k = 1 << 4, ///< 32-bit signed integer
+    nk_i64_k = 1 << 5, ///< 64-bit signed integer
+
+    nk_u8_k = 1 << 6,  ///< 8-bit unsigned integer
+    nk_u16_k = 1 << 7, ///< 16-bit unsigned integer
+    nk_u32_k = 1 << 8, ///< 32-bit unsigned integer
+    nk_u64_k = 1 << 9, ///< 64-bit unsigned integer
+
+    nk_f64_k = 1 << 10,  ///< Double precision floating point
+    nk_f32_k = 1 << 11,  ///< Single precision floating point
+    nk_f16_k = 1 << 12,  ///< Half precision floating point
+    nk_bf16_k = 1 << 13, ///< Brain floating point
+
+    nk_e4m3_k = 1 << 14, ///< FP8 E4M3 floating point
+    nk_e5m2_k = 1 << 15, ///< FP8 E5M2 floating point
+
+    nk_f64c_k = 1 << 20,  ///< Complex double precision floating point
+    nk_f32c_k = 1 << 21,  ///< Complex single precision floating point
+    nk_f16c_k = 1 << 22,  ///< Complex half precision floating point
+    nk_bf16c_k = 1 << 23, ///< Complex brain floating point
+} nk_datatype_t;
 
 /*  @brief  Half-precision floating-point type.
  *

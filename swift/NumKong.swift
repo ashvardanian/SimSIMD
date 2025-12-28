@@ -111,14 +111,36 @@ public typealias Capabilities = nk_capability_t
 extension nk_capability_t: OptionSet, CustomStringConvertible {
   public var description: String {
     var components: [String] = []
+    // ARM NEON
     if contains(.neon) { components.append(".neon") }
+    if contains(.neonhalf) { components.append(".neonhalf") }
+    if contains(.neonfhm) { components.append(".neonfhm") }
+    if contains(.neonbfdot) { components.append(".neonbfdot") }
+    if contains(.neonsdot) { components.append(".neonsdot") }
+    // ARM SVE
     if contains(.sve) { components.append(".sve") }
+    if contains(.svehalf) { components.append(".svehalf") }
+    if contains(.svebfdot) { components.append(".svebfdot") }
+    if contains(.svesdot) { components.append(".svesdot") }
     if contains(.sve2) { components.append(".sve2") }
+    if contains(.sve2p1) { components.append(".sve2p1") }
+    // ARM SME
+    if contains(.sme) { components.append(".sme") }
+    if contains(.sme2) { components.append(".sme2") }
+    if contains(.sme2p1) { components.append(".sme2p1") }
+    if contains(.smef64) { components.append(".smef64") }
+    if contains(.smehalf) { components.append(".smehalf") }
+    if contains(.smebf16) { components.append(".smebf16") }
+    if contains(.smelut2) { components.append(".smelut2") }
+    if contains(.smefa64) { components.append(".smefa64") }
+    // x86
     if contains(.haswell) { components.append(".haswell") }
     if contains(.skylake) { components.append(".skylake") }
     if contains(.ice) { components.append(".ice") }
     if contains(.genoa) { components.append(".genoa") }
     if contains(.sapphire) { components.append(".sapphire") }
+    if contains(.sapphireAmx) { components.append(".sapphireAmx") }
+    if contains(.graniteAmx) { components.append(".graniteAmx") }
     if contains(.turin) { components.append(".turin") }
     if contains(.sierra) { components.append(".sierra") }
     return "[\(components.joined(separator: ", "))]"
@@ -127,14 +149,36 @@ extension nk_capability_t: OptionSet, CustomStringConvertible {
   public static let available = nk_capabilities()
 
   public static let any = nk_cap_any_k
+  // ARM NEON
   public static let neon = nk_cap_neon_k
+  public static let neonhalf = nk_cap_neonhalf_k
+  public static let neonfhm = nk_cap_neonfhm_k
+  public static let neonbfdot = nk_cap_neonbfdot_k
+  public static let neonsdot = nk_cap_neonsdot_k
+  // ARM SVE
   public static let sve = nk_cap_sve_k
+  public static let svehalf = nk_cap_svehalf_k
+  public static let svebfdot = nk_cap_svebfdot_k
+  public static let svesdot = nk_cap_svesdot_k
   public static let sve2 = nk_cap_sve2_k
+  public static let sve2p1 = nk_cap_sve2p1_k
+  // ARM SME
+  public static let sme = nk_cap_sme_k
+  public static let sme2 = nk_cap_sme2_k
+  public static let sme2p1 = nk_cap_sme2p1_k
+  public static let smef64 = nk_cap_smef64_k
+  public static let smehalf = nk_cap_smehalf_k
+  public static let smebf16 = nk_cap_smebf16_k
+  public static let smelut2 = nk_cap_smelut2_k
+  public static let smefa64 = nk_cap_smefa64_k
+  // x86
   public static let haswell = nk_cap_haswell_k
   public static let skylake = nk_cap_skylake_k
   public static let ice = nk_cap_ice_k
   public static let genoa = nk_cap_genoa_k
   public static let sapphire = nk_cap_sapphire_k
+  public static let sapphireAmx = nk_cap_sapphire_amx_k
+  public static let graniteAmx = nk_cap_granite_amx_k
   public static let turin = nk_cap_turin_k
   public static let sierra = nk_cap_sierra_k
 }

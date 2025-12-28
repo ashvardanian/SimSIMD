@@ -108,6 +108,17 @@ extern "C" {
     fn nk_uses_svehalf() -> i32;
     fn nk_uses_svebfdot() -> i32;
     fn nk_uses_svesdot() -> i32;
+    fn nk_uses_sve2() -> i32;
+    fn nk_uses_sve2p1() -> i32;
+    fn nk_uses_neonfhm() -> i32;
+    fn nk_uses_sme() -> i32;
+    fn nk_uses_sme2() -> i32;
+    fn nk_uses_sme2p1() -> i32;
+    fn nk_uses_smef64() -> i32;
+    fn nk_uses_smehalf() -> i32;
+    fn nk_uses_smebf16() -> i32;
+    fn nk_uses_smelut2() -> i32;
+    fn nk_uses_smefa64() -> i32;
     fn nk_uses_haswell() -> i32;
     fn nk_uses_skylake() -> i32;
     fn nk_uses_ice() -> i32;
@@ -115,8 +126,10 @@ extern "C" {
     fn nk_uses_sapphire() -> i32;
     fn nk_uses_turin() -> i32;
     fn nk_uses_sierra() -> i32;
+    fn nk_uses_sapphire_amx() -> i32;
+    fn nk_uses_granite_amx() -> i32;
 
-    fn nk_configure_thread(capabilities: u32) -> i32;
+    fn nk_configure_thread(capabilities: u64) -> i32;
     fn nk_uses_dynamic_dispatch() -> i32;
 
     fn nk_f32_to_f16(src: *const f32, dest: *mut u16);
@@ -1079,6 +1092,39 @@ pub mod capabilities {
     pub fn uses_svesdot() -> bool {
         unsafe { crate::nk_uses_svesdot() != 0 }
     }
+    pub fn uses_sve2() -> bool {
+        unsafe { crate::nk_uses_sve2() != 0 }
+    }
+    pub fn uses_sve2p1() -> bool {
+        unsafe { crate::nk_uses_sve2p1() != 0 }
+    }
+    pub fn uses_neonfhm() -> bool {
+        unsafe { crate::nk_uses_neonfhm() != 0 }
+    }
+    pub fn uses_sme() -> bool {
+        unsafe { crate::nk_uses_sme() != 0 }
+    }
+    pub fn uses_sme2() -> bool {
+        unsafe { crate::nk_uses_sme2() != 0 }
+    }
+    pub fn uses_sme2p1() -> bool {
+        unsafe { crate::nk_uses_sme2p1() != 0 }
+    }
+    pub fn uses_smef64() -> bool {
+        unsafe { crate::nk_uses_smef64() != 0 }
+    }
+    pub fn uses_smehalf() -> bool {
+        unsafe { crate::nk_uses_smehalf() != 0 }
+    }
+    pub fn uses_smebf16() -> bool {
+        unsafe { crate::nk_uses_smebf16() != 0 }
+    }
+    pub fn uses_smelut2() -> bool {
+        unsafe { crate::nk_uses_smelut2() != 0 }
+    }
+    pub fn uses_smefa64() -> bool {
+        unsafe { crate::nk_uses_smefa64() != 0 }
+    }
     pub fn uses_haswell() -> bool {
         unsafe { crate::nk_uses_haswell() != 0 }
     }
@@ -1099,6 +1145,12 @@ pub mod capabilities {
     }
     pub fn uses_sierra() -> bool {
         unsafe { crate::nk_uses_sierra() != 0 }
+    }
+    pub fn uses_sapphire_amx() -> bool {
+        unsafe { crate::nk_uses_sapphire_amx() != 0 }
+    }
+    pub fn uses_granite_amx() -> bool {
+        unsafe { crate::nk_uses_granite_amx() != 0 }
     }
 
     /// Flushes denormalized numbers to zero on the current CPU.

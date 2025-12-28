@@ -215,72 +215,328 @@ typedef enum {
 } nk_metric_kind_t;
 
 /**
- *  @brief  Enumeration of SIMD capabilities of the target architecture.
+ *  @brief  64-bit bitmask representing SIMD capabilities of the target architecture.
+ *
+ *  Each bit represents a specific hardware capability. Multiple capabilities can be
+ *  combined using bitwise OR. Use nk_capabilities() to detect available capabilities
+ *  at runtime.
  */
-typedef enum {
-    nk_cap_serial_k = 1,       ///< Serial (non-SIMD) capability
-    nk_cap_any_k = 0x7FFFFFFF, ///< Mask representing any capability with `INT_MAX`
-
-    nk_cap_haswell_k = 1 << 10,      ///< x86 AVX2 capability with FMA and F16C extensions
-    nk_cap_skylake_k = 1 << 11,      ///< x86 AVX512 baseline capability
-    nk_cap_ice_k = 1 << 12,          ///< x86 AVX512 capability with advanced integer algos
-    nk_cap_genoa_k = 1 << 13,        ///< x86 AVX512 capability with `bf16` support
-    nk_cap_sapphire_k = 1 << 14,     ///< x86 AVX512 capability with `f16` support
-    nk_cap_turin_k = 1 << 15,        ///< x86 AVX512 capability with conflict detection
-    nk_cap_sierra_k = 1 << 16,       ///< x86 AVX2+VNNI capability with `i8` dot-products
-    nk_cap_sapphire_amx_k = 1 << 17, ///< x86 AMX capability with `i8` and `bf16` support
-    nk_cap_granite_amx_k = 1 << 18,  ///< x86 AMX capability with `f16` support
-
-    nk_cap_neon_k = 1 << 20,      ///< ARM NEON baseline capability
-    nk_cap_neonhalf_k = 1 << 21,  ///< ARM NEON `f16` capability
-    nk_cap_neonfhm_k = 1 << 22,   ///< ARM NEON `f16` with FML capability
-    nk_cap_neonbfdot_k = 1 << 22, ///< ARM NEON `bf16` capability
-    nk_cap_neonsdot_k = 1 << 23,  ///< ARM NEON `i8` capability
-    nk_cap_sve_k = 1 << 24,       ///< ARM SVE baseline capability
-    nk_cap_svehalf_k = 1 << 25,   ///< ARM SVE `f16` capability
-    nk_cap_svebfdot_k = 1 << 26,  ///< ARM SVE `bf16` capability
-    nk_cap_sve2_k = 1 << 28,      ///< ARM SVE2 capability
-
-    nk_cap_sme2_k,
-    nk_cap_smedouble_k,
-} nk_capability_t;
+typedef nk_u64_t nk_capability_t;
 
 /**
- *  @brief  Enumeration of supported data types.
+ *  @brief  Serial (non-SIMD) fallback capability.
  *
- *  Includes complex type descriptors which in C code would use the real counterparts,
- *  but the independent flags contain metadata to be passed between programming language
- *  interfaces.
+ *  Always available. Used when no SIMD acceleration is possible or desired.
+ *  All kernel dispatch functions fall back to serial implementations when
+ *  no other capability matches.
  */
-typedef enum {
-    nk_datatype_unknown_k = 0, ///< Unknown data type
-    nk_b8_k = 1 << 1,          ///< Single-bit values packed into 8-bit words
-    nk_b1x8_k = nk_b8_k,       ///< Single-bit values packed into 8-bit words
-    nk_i4x2_k = 1 << 19,       ///< 4-bit signed integers packed into 8-bit words
+#define nk_cap_serial_k ((nk_capability_t)1)
 
-    nk_i8_k = 1 << 2,  ///< 8-bit signed integer
-    nk_i16_k = 1 << 3, ///< 16-bit signed integer
-    nk_i32_k = 1 << 4, ///< 32-bit signed integer
-    nk_i64_k = 1 << 5, ///< 64-bit signed integer
+/**
+ *  @brief  Mask representing any capability.
+ *
+ *  Use this to accept any available SIMD implementation in kernel dispatch.
+ */
+#define nk_cap_any_k ((nk_capability_t)UINT64_MAX)
 
-    nk_u8_k = 1 << 6,  ///< 8-bit unsigned integer
-    nk_u16_k = 1 << 7, ///< 16-bit unsigned integer
-    nk_u32_k = 1 << 8, ///< 32-bit unsigned integer
-    nk_u64_k = 1 << 9, ///< 64-bit unsigned integer
+/**
+ *  @brief  Intel Haswell (2013) / AMD Excavator (2015) - AVX2 + FMA + F16C
+ *
+ *  Instructions: VFMADD*, VCVTPH2PS, VCVTPS2PH, 256-bit integer SIMD
+ *  Used for: f32/f64 dot products, f16 conversion, integer operations
+ *
+ *  Detection: CPUID AVX2 + FMA + F16C flags
+ */
+#define nk_cap_haswell_k ((nk_capability_t)1 << 8)
 
-    nk_f64_k = 1 << 10,  ///< Double precision floating point
-    nk_f32_k = 1 << 11,  ///< Single precision floating point
-    nk_f16_k = 1 << 12,  ///< Half precision floating point
-    nk_bf16_k = 1 << 13, ///< Brain floating point
+/**
+ *  @brief  Intel Skylake-X (2017) / AMD Zen 4 (2022) - AVX-512 Foundation
+ *
+ *  Instructions: 512-bit SIMD, masked operations, VFMADD512*
+ *  Used for: All f32/f64 operations with 2x throughput vs AVX2
+ *
+ *  Detection: CPUID AVX512F + AVX512VL + AVX512BW + AVX512DQ
+ */
+#define nk_cap_skylake_k ((nk_capability_t)1 << 9)
 
-    nk_e4m3_k = 1 << 14, ///< FP8 E4M3 floating point
-    nk_e5m2_k = 1 << 15, ///< FP8 E5M2 floating point
+/**
+ *  @brief  Intel Ice Lake (2019) / AMD Zen 4 (2022) - AVX-512 VNNI + VPOPCNTDQ
+ *
+ *  Instructions: VPDPBUSD (i8 dot product), VPOPCNT (popcount)
+ *  Used for: i8/u8 dot products, binary Hamming/Jaccard distance
+ *
+ *  Detection: CPUID AVX512VNNI + AVX512VPOPCNTDQ
+ */
+#define nk_cap_ice_k ((nk_capability_t)1 << 10)
 
-    nk_f64c_k = 1 << 20,  ///< Complex double precision floating point
-    nk_f32c_k = 1 << 21,  ///< Complex single precision floating point
-    nk_f16c_k = 1 << 22,  ///< Complex half precision floating point
-    nk_bf16c_k = 1 << 23, ///< Complex brain floating point
-} nk_datatype_t;
+/**
+ *  @brief  AMD Genoa (2022) / Intel Cooper Lake (2020) - AVX-512 BF16
+ *
+ *  Instructions: VDPBF16PS (bf16 dot product to f32)
+ *  Used for: bf16 dot products, angular similarity, L2 distance
+ *
+ *  Detection: CPUID AVX512BF16
+ */
+#define nk_cap_genoa_k ((nk_capability_t)1 << 11)
+
+/**
+ *  @brief  Intel Sapphire Rapids (2023) - AVX-512 FP16
+ *
+ *  Instructions: Native f16 arithmetic (VADDPH, VMULPH, VFMADDPH)
+ *  Used for: f16 dot products, elementwise ops without f32 conversion
+ *
+ *  Detection: CPUID AVX512FP16
+ */
+#define nk_cap_sapphire_k ((nk_capability_t)1 << 12)
+
+/**
+ *  @brief  AMD Turin (2024) - AVX-512 CD (Conflict Detection)
+ *
+ *  Instructions: VPCONFLICT (conflict detection for scatter/gather)
+ *  Used for: Sparse vector operations, set intersection
+ *
+ *  Detection: CPUID AVX512CD
+ */
+#define nk_cap_turin_k ((nk_capability_t)1 << 13)
+
+/**
+ *  @brief  Intel Alder Lake (2021) - AVX2 + VNNI (no AVX-512)
+ *
+ *  Instructions: VPDPBUSD (i8 dot product) in 256-bit mode
+ *  Used for: i8/u8 dot products on hybrid CPUs without AVX-512
+ *
+ *  Detection: CPUID AVX2 + AVXVNNI (different from AVX512VNNI)
+ */
+#define nk_cap_sierra_k ((nk_capability_t)1 << 14)
+
+/**
+ *  @brief  Intel Sapphire Rapids (2023) - AMX with INT8 and BF16
+ *
+ *  Instructions: TDPBSSD (i8 matmul), TDPBF16PS (bf16 matmul)
+ *  Used for: Batch matrix multiplication (dots.h), ML inference
+ *  Tile config: 16x64 bytes per tile, 8 tiles, 1KB each
+ *
+ *  Detection: CPUID AMX-INT8 + AMX-BF16, requires OS permission (XSAVE)
+ */
+#define nk_cap_sapphire_amx_k ((nk_capability_t)1 << 15)
+
+/**
+ *  @brief  Intel Granite Rapids (2024) - AMX with FP16
+ *
+ *  Instructions: TDPFP16PS (f16 matmul to f32 accumulator)
+ *  Used for: f16 batch matrix multiplication
+ *
+ *  Detection: CPUID AMX-FP16
+ */
+#define nk_cap_granite_amx_k ((nk_capability_t)1 << 16)
+
+/* Bits 17-31: Reserved for future x86 (AVX10, APX, etc.) */
+
+/**
+ *  @brief  ARM NEON baseline (ARMv8-A) - ASIMD
+ *
+ *  Instructions: 128-bit SIMD, FMLA, LD1/ST1
+ *  Used for: f32/f64 operations, baseline ARM acceleration
+ *  Devices: All 64-bit ARM (iPhone 5S+, RPi 3+, AWS Graviton)
+ *
+ *  Detection: Always available on AArch64
+ */
+#define nk_cap_neon_k ((nk_capability_t)1 << 32)
+
+/**
+ *  @brief  ARM NEON with FP16 (ARMv8.2-A) - FEAT_FP16
+ *
+ *  Instructions: Native f16 arithmetic (FADD, FMUL, FMLA for float16x8_t)
+ *  Used for: f16 dot products, spatial metrics without f32 conversion
+ *  Devices: Cortex-A75+ (2017), Apple A11+ (2017), Graviton 2+ (2020)
+ *
+ *  Detection: ID_AA64PFR0_EL1.FP == 1, or sysctl hw.optional.arm.FEAT_FP16
+ */
+#define nk_cap_neonhalf_k ((nk_capability_t)1 << 33)
+
+/**
+ *  @brief  ARM NEON with FP16 FML (ARMv8.2-A) - FEAT_FHM
+ *
+ *  Instructions: FMLAL/FMLSL (f16*f16->f32 widening multiply-accumulate)
+ *  Used for: f16 dot products with f32 accumulator (20-48% faster than convert+FMA)
+ *  Devices: Cortex-A76+ (2018), Apple A12+ (2018), Neoverse N1+ (2019)
+ *
+ *  Detection: ID_AA64ISAR0_EL1.FHM == 1, or sysctl hw.optional.arm.FEAT_FHM
+ */
+#define nk_cap_neonfhm_k ((nk_capability_t)1 << 34)
+
+/**
+ *  @brief  ARM NEON with BF16 (ARMv8.6-A) - FEAT_BF16
+ *
+ *  Instructions: BFDOT (bf16*bf16->f32 dot product), BFCVT (f32->bf16)
+ *  Used for: bf16 dot products, ML inference with bf16 weights
+ *  Devices: Cortex-A78+ (2020), Apple M1+ (2020), Graviton 3+ (2021)
+ *
+ *  Detection: ID_AA64ISAR1_EL1.BF16 == 1, or sysctl hw.optional.arm.FEAT_BF16
+ */
+#define nk_cap_neonbfdot_k ((nk_capability_t)1 << 35)
+
+/**
+ *  @brief  ARM NEON with integer dot products (ARMv8.2-A) - FEAT_DotProd
+ *
+ *  Instructions: SDOT/UDOT (i8*i8->i32 dot product)
+ *  Used for: i8/u8 dot products, quantized ML inference
+ *  Devices: Cortex-A75+ (2017), Apple A11+ (2017), Graviton 2+ (2020)
+ *
+ *  Detection: ID_AA64ISAR0_EL1.DP == 1, or sysctl hw.optional.arm.FEAT_DotProd
+ */
+#define nk_cap_neonsdot_k ((nk_capability_t)1 << 36)
+
+/**
+ *  @brief  ARM SVE baseline (ARMv8.2-A) - Scalable Vector Extension
+ *
+ *  Instructions: Predicated ops (SVMLA, SVLD1), scalable 128-2048 bit vectors
+ *  Used for: f32/f64 operations with hardware-defined vector length
+ *  Devices: Fujitsu A64FX (512b), Graviton 3 (256b), Neoverse V1 (256b)
+ *
+ *  Detection: ID_AA64PFR0_EL1.SVE == 1, or sysctl hw.optional.arm.FEAT_SVE
+ */
+#define nk_cap_sve_k ((nk_capability_t)1 << 40)
+
+/**
+ *  @brief  ARM SVE with FP16 - FEAT_SVE + FEAT_FP16
+ *
+ *  Instructions: SVMLA_F16, SVLD1_F16 with predication
+ *  Used for: f16 operations with scalable vectors
+ *
+ *  Detection: SVE + FP16 both present
+ */
+#define nk_cap_svehalf_k ((nk_capability_t)1 << 41)
+
+/**
+ *  @brief  ARM SVE with BF16 - FEAT_SVE_BF16
+ *
+ *  Instructions: SVBFDOT (bf16 dot product with SVE predication)
+ *  Used for: bf16 angular similarity, L2 distance with SVE
+ *  Devices: Neoverse V1+ (2021), Graviton 3+ (2021)
+ *
+ *  Detection: ID_AA64ZFR0_EL1.BF16 == 1
+ */
+#define nk_cap_svebfdot_k ((nk_capability_t)1 << 42)
+
+/**
+ *  @brief  ARM SVE with integer dot products - FEAT_SVE + FEAT_DotProd
+ *
+ *  Instructions: SVSDOT/SVUDOT (i8 dot products with predication)
+ *  Used for: i8/u8 operations with SVE
+ *
+ *  Detection: SVE + DotProd both present
+ */
+#define nk_cap_svesdot_k ((nk_capability_t)1 << 43)
+
+/**
+ *  @brief  ARM SVE2 (ARMv9-A) - Scalable Vector Extension 2
+ *
+ *  Instructions: SVMATCH, SVHISTCNT (histogram), extended integer ops
+ *  Used for: Set intersection, sparse operations
+ *  Devices: Neoverse V2 (2023), Cortex-X3+ (2022), Graviton 4 (2024)
+ *
+ *  Detection: ID_AA64PFR0_EL1.SVE == 1 && ID_AA64ZFR0_EL1.SVEver >= 1
+ */
+#define nk_cap_sve2_k ((nk_capability_t)1 << 44)
+
+/**
+ *  @brief  ARM SVE2.1 (ARMv9.4-A) - SVE2 with additional instructions
+ *
+ *  Instructions: Extended predication, new gather/scatter modes
+ *  Devices: Future ARM cores (2025+)
+ *
+ *  Detection: ID_AA64ZFR0_EL1.SVEver >= 2
+ */
+#define nk_cap_sve2p1_k ((nk_capability_t)1 << 45)
+
+/**
+ *  @brief  ARM SME baseline (ARMv9.2-A) - Scalable Matrix Extension
+ *
+ *  Instructions: FMOPA (outer product), ZA tiles, streaming mode
+ *  Data types: I8I32, I16I32, F16F32, BF16F32, F32F32
+ *  Used for: Batch matmul (dots.h), ML inference
+ *  Devices: Apple M4 (2024), Cortex-X925 (2024)
+ *
+ *  Detection: ID_AA64PFR1_EL1.SME == 1
+ */
+#define nk_cap_sme_k ((nk_capability_t)1 << 48)
+
+/**
+ *  @brief  ARM SME2 (ARMv9.2-A) - Multi-vector operations, ZT0 LUT
+ *
+ *  Instructions: Multi-vector FMOPA, LUTI2/LUTI4 (weight decompression)
+ *  Used for: 2-4x outer product throughput, INT4 weight decompression
+ *  Devices: Apple M4 (2024), Cortex-X925 (2024)
+ *
+ *  Detection: ID_AA64SMFR0_EL1.SMEver >= 1
+ */
+#define nk_cap_sme2_k ((nk_capability_t)1 << 49)
+
+/**
+ *  @brief  ARM SME2.1 - Non-widening FP16/BF16, LUTv2
+ *
+ *  Instructions: FMOPA.H (f16->f16), BFMOPA non-widening
+ *  Used for: Native f16/bf16 accumulation without f32 conversion
+ *  Devices: Apple M5 (2025), future Cortex cores
+ *
+ *  Detection: ID_AA64SMFR0_EL1.SMEver >= 2
+ */
+#define nk_cap_sme2p1_k ((nk_capability_t)1 << 50)
+
+/**
+ *  @brief  ARM SME F64 - Double precision outer products (FEAT_SME_F64F64)
+ *
+ *  Instructions: FMOPA.D (f64*f64->f64 outer product)
+ *  Used for: High-precision matmul
+ *  Devices: Apple M4 (2024)
+ *
+ *  Detection: ID_AA64SMFR0_EL1.F64F64 == 1
+ */
+#define nk_cap_smef64_k ((nk_capability_t)1 << 51)
+
+/**
+ *  @brief  ARM SME F16F16 - Native f16 outer products (FEAT_SME_F16F16)
+ *
+ *  Instructions: FMOPA.H (f16*f16->f16 non-widening)
+ *  Used for: f16 matmul without f32 conversion overhead
+ *  Devices: Apple M5 (2025)
+ *
+ *  Detection: ID_AA64SMFR0_EL1.F16F16 == 1
+ */
+#define nk_cap_smehalf_k ((nk_capability_t)1 << 52)
+
+/**
+ *  @brief  ARM SME B16B16 - Native bf16 outer products (FEAT_SME_B16B16)
+ *
+ *  Instructions: BFMOPA non-widening (bf16*bf16->bf16)
+ *  Used for: bf16 matmul without f32 conversion
+ *  Devices: Apple M5 (2025)
+ *
+ *  Detection: ID_AA64SMFR0_EL1.B16B16 == 1
+ */
+#define nk_cap_smebf16_k ((nk_capability_t)1 << 53)
+
+/**
+ *  @brief  ARM SME LUTv2 - Extended lookup table (FEAT_SME_LUTv2)
+ *
+ *  Instructions: LUTI4 with 4-bit indices, 8-bit elements
+ *  Used for: INT4 weight decompression for LLM inference
+ *  Devices: Apple M5 (2025)
+ *
+ *  Detection: ID_AA64SMFR0_EL1.LUTv2 == 1
+ */
+#define nk_cap_smelut2_k ((nk_capability_t)1 << 54)
+
+/**
+ *  @brief  ARM SME FA64 - Full A64 in streaming mode (FEAT_SME_FA64)
+ *
+ *  Instructions: Enables all A64 instructions while streaming
+ *  Used for: Mixed SME + NEON/SVE code without mode switching
+ *
+ *  Detection: ID_AA64SMFR0_EL1.FA64 == 1
+ */
+#define nk_cap_smefa64_k ((nk_capability_t)1 << 55)
 
 typedef enum {
     nk_datatype_unknown_family_k = 0,
@@ -2070,6 +2326,16 @@ NK_DYNAMIC int nk_uses_svehalf(void);
 NK_DYNAMIC int nk_uses_svebfdot(void);
 NK_DYNAMIC int nk_uses_svesdot(void);
 NK_DYNAMIC int nk_uses_sve2(void);
+NK_DYNAMIC int nk_uses_sve2p1(void);
+NK_DYNAMIC int nk_uses_neonfhm(void);
+NK_DYNAMIC int nk_uses_sme(void);
+NK_DYNAMIC int nk_uses_sme2(void);
+NK_DYNAMIC int nk_uses_sme2p1(void);
+NK_DYNAMIC int nk_uses_smef64(void);
+NK_DYNAMIC int nk_uses_smehalf(void);
+NK_DYNAMIC int nk_uses_smebf16(void);
+NK_DYNAMIC int nk_uses_smelut2(void);
+NK_DYNAMIC int nk_uses_smefa64(void);
 NK_DYNAMIC int nk_uses_haswell(void);
 NK_DYNAMIC int nk_uses_skylake(void);
 NK_DYNAMIC int nk_uses_ice(void);
@@ -2077,6 +2343,8 @@ NK_DYNAMIC int nk_uses_genoa(void);
 NK_DYNAMIC int nk_uses_sapphire(void);
 NK_DYNAMIC int nk_uses_turin(void);
 NK_DYNAMIC int nk_uses_sierra(void);
+NK_DYNAMIC int nk_uses_sapphire_amx(void);
+NK_DYNAMIC int nk_uses_granite_amx(void);
 
 #else
 
@@ -2102,6 +2370,16 @@ NK_PUBLIC int nk_uses_svehalf(void) { return NK_TARGET_ARM_ && NK_TARGET_SVEHALF
 NK_PUBLIC int nk_uses_svebfdot(void) { return NK_TARGET_ARM_ && NK_TARGET_SVEBFDOT; }
 NK_PUBLIC int nk_uses_svesdot(void) { return NK_TARGET_ARM_ && NK_TARGET_SVESDOT; }
 NK_PUBLIC int nk_uses_sve2(void) { return NK_TARGET_ARM_ && NK_TARGET_SVE2; }
+NK_PUBLIC int nk_uses_sve2p1(void) { return NK_TARGET_ARM_ && NK_TARGET_SVE2P1; }
+NK_PUBLIC int nk_uses_neonfhm(void) { return NK_TARGET_ARM_ && NK_TARGET_NEONFHM; }
+NK_PUBLIC int nk_uses_sme(void) { return NK_TARGET_ARM_ && NK_TARGET_SME; }
+NK_PUBLIC int nk_uses_sme2(void) { return NK_TARGET_ARM_ && NK_TARGET_SME2; }
+NK_PUBLIC int nk_uses_sme2p1(void) { return NK_TARGET_ARM_ && NK_TARGET_SME2P1; }
+NK_PUBLIC int nk_uses_smef64(void) { return NK_TARGET_ARM_ && NK_TARGET_SMEF64; }
+NK_PUBLIC int nk_uses_smehalf(void) { return NK_TARGET_ARM_ && NK_TARGET_SMEHALF; }
+NK_PUBLIC int nk_uses_smebf16(void) { return NK_TARGET_ARM_ && NK_TARGET_SMEBF16; }
+NK_PUBLIC int nk_uses_smelut2(void) { return NK_TARGET_ARM_ && NK_TARGET_SMELUT2; }
+NK_PUBLIC int nk_uses_smefa64(void) { return NK_TARGET_ARM_ && NK_TARGET_SMEFA64; }
 NK_PUBLIC int nk_uses_haswell(void) { return NK_TARGET_X86_ && NK_TARGET_HASWELL; }
 NK_PUBLIC int nk_uses_skylake(void) { return NK_TARGET_X86_ && NK_TARGET_SKYLAKE; }
 NK_PUBLIC int nk_uses_ice(void) { return NK_TARGET_X86_ && NK_TARGET_ICE; }
@@ -2109,6 +2387,8 @@ NK_PUBLIC int nk_uses_genoa(void) { return NK_TARGET_X86_ && NK_TARGET_GENOA; }
 NK_PUBLIC int nk_uses_sapphire(void) { return NK_TARGET_X86_ && NK_TARGET_SAPPHIRE; }
 NK_PUBLIC int nk_uses_turin(void) { return NK_TARGET_X86_ && NK_TARGET_TURIN; }
 NK_PUBLIC int nk_uses_sierra(void) { return NK_TARGET_X86_ && NK_TARGET_SIERRA; }
+NK_PUBLIC int nk_uses_sapphire_amx(void) { return NK_TARGET_X86_ && NK_TARGET_SAPPHIRE_AMX; }
+NK_PUBLIC int nk_uses_granite_amx(void) { return NK_TARGET_X86_ && NK_TARGET_GRANITE_AMX; }
 NK_PUBLIC int nk_uses_dynamic_dispatch(void) { return 0; }
 NK_PUBLIC int nk_configure_thread(nk_capability_t c) { return nk_configure_thread_(c); }
 NK_PUBLIC nk_capability_t nk_capabilities(void) { return nk_capabilities_(); }
