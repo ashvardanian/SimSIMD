@@ -162,6 +162,45 @@ NK_INTERNAL void nk_load_b128_neon_(void const *src, nk_b128_vec_t *dst) {
     dst->u8x16 = vld1q_u8((nk_u8_t const *)src);
 }
 
+NK_PUBLIC void nk_dot_f64_neon(nk_f64_t const *a_scalars, nk_f64_t const *b_scalars, nk_size_t count_scalars,
+                               nk_f64_t *result) {
+    float64x2_t sum_f64x2 = vdupq_n_f64(0);
+    nk_size_t idx_scalars = 0;
+    for (; idx_scalars + 2 <= count_scalars; idx_scalars += 2) {
+        float64x2_t a_f64x2 = vld1q_f64(a_scalars + idx_scalars);
+        float64x2_t b_f64x2 = vld1q_f64(b_scalars + idx_scalars);
+        sum_f64x2 = vfmaq_f64(sum_f64x2, a_f64x2, b_f64x2);
+    }
+    nk_f64_t sum = vaddvq_f64(sum_f64x2);
+    for (; idx_scalars < count_scalars; ++idx_scalars) sum += a_scalars[idx_scalars] * b_scalars[idx_scalars];
+    *result = sum;
+}
+
+/**
+ *  @brief Running state for 128-bit dot accumulation over f64 scalars on NEON.
+ */
+typedef struct nk_dot_f64x2_state_neon_t {
+    float64x2_t sum_f64x2;
+} nk_dot_f64x2_state_neon_t;
+
+NK_INTERNAL void nk_dot_f64x2_init_neon(nk_dot_f64x2_state_neon_t *state) { state->sum_f64x2 = vdupq_n_f64(0); }
+
+NK_INTERNAL void nk_dot_f64x2_update_neon(nk_dot_f64x2_state_neon_t *state, nk_b128_vec_t a, nk_b128_vec_t b) {
+    float64x2_t sum_f64x2 = state->sum_f64x2;
+    sum_f64x2 = vfmaq_f64(sum_f64x2, vreinterpretq_f64_u64(a.u64x2), vreinterpretq_f64_u64(b.u64x2));
+    state->sum_f64x2 = sum_f64x2;
+}
+
+NK_INTERNAL void nk_dot_f64x2_finalize_neon(                                            //
+    nk_dot_f64x2_state_neon_t const *state_a, nk_dot_f64x2_state_neon_t const *state_b, //
+    nk_dot_f64x2_state_neon_t const *state_c, nk_dot_f64x2_state_neon_t const *state_d, //
+    nk_f64_t *results) {
+    results[0] = vaddvq_f64(state_a->sum_f64x2);
+    results[1] = vaddvq_f64(state_b->sum_f64x2);
+    results[2] = vaddvq_f64(state_c->sum_f64x2);
+    results[3] = vaddvq_f64(state_d->sum_f64x2);
+}
+
 #if defined(__cplusplus)
 } // extern "C"
 #endif
