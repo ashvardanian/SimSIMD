@@ -288,6 +288,30 @@ NK_PUBLIC void nk_umeyama_f64_haswell(nk_f64_t const *a, nk_f64_t const *b, nk_s
                                       nk_f64_t *b_centroid, nk_f64_t *rotation, nk_f64_t *scale, nk_f64_t *result);
 #endif // NK_TARGET_HASWELL
 
+/*  SIMD-powered backends for Arm NEON CPUs.
+ */
+#if NK_TARGET_NEON
+/** @copydoc nk_rmsd_f32 */
+NK_PUBLIC void nk_rmsd_f32_neon(nk_f32_t const *a, nk_f32_t const *b, nk_size_t n, nk_f32_t *a_centroid,
+                                nk_f32_t *b_centroid, nk_f32_t *rotation, nk_f32_t *scale, nk_f32_t *result);
+/** @copydoc nk_kabsch_f32 */
+NK_PUBLIC void nk_kabsch_f32_neon(nk_f32_t const *a, nk_f32_t const *b, nk_size_t n, nk_f32_t *a_centroid,
+                                  nk_f32_t *b_centroid, nk_f32_t *rotation, nk_f32_t *scale, nk_f32_t *result);
+/** @copydoc nk_umeyama_f32 */
+NK_PUBLIC void nk_umeyama_f32_neon(nk_f32_t const *a, nk_f32_t const *b, nk_size_t n, nk_f32_t *a_centroid,
+                                   nk_f32_t *b_centroid, nk_f32_t *rotation, nk_f32_t *scale, nk_f32_t *result);
+
+/** @copydoc nk_rmsd_f64 */
+NK_PUBLIC void nk_rmsd_f64_neon(nk_f64_t const *a, nk_f64_t const *b, nk_size_t n, nk_f64_t *a_centroid,
+                                nk_f64_t *b_centroid, nk_f64_t *rotation, nk_f64_t *scale, nk_f64_t *result);
+/** @copydoc nk_kabsch_f64 */
+NK_PUBLIC void nk_kabsch_f64_neon(nk_f64_t const *a, nk_f64_t const *b, nk_size_t n, nk_f64_t *a_centroid,
+                                  nk_f64_t *b_centroid, nk_f64_t *rotation, nk_f64_t *scale, nk_f64_t *result);
+/** @copydoc nk_umeyama_f64 */
+NK_PUBLIC void nk_umeyama_f64_neon(nk_f64_t const *a, nk_f64_t const *b, nk_size_t n, nk_f64_t *a_centroid,
+                                   nk_f64_t *b_centroid, nk_f64_t *rotation, nk_f64_t *scale, nk_f64_t *result);
+#endif // NK_TARGET_NEON
+
 #include "numkong/mesh/serial.h"
 #include "numkong/mesh/neon.h"
 #include "numkong/mesh/haswell.h"
@@ -301,6 +325,8 @@ NK_PUBLIC void nk_rmsd_f64(nk_f64_t const *a, nk_f64_t const *b, nk_size_t n, nk
     nk_rmsd_f64_skylake(a, b, n, a_centroid, b_centroid, rotation, scale, result);
 #elif NK_TARGET_HASWELL
     nk_rmsd_f64_haswell(a, b, n, a_centroid, b_centroid, rotation, scale, result);
+#elif NK_TARGET_NEON
+    nk_rmsd_f64_neon(a, b, n, a_centroid, b_centroid, rotation, scale, result);
 #else
     nk_rmsd_f64_serial(a, b, n, a_centroid, b_centroid, rotation, scale, result);
 #endif
@@ -312,6 +338,8 @@ NK_PUBLIC void nk_rmsd_f32(nk_f32_t const *a, nk_f32_t const *b, nk_size_t n, nk
     nk_rmsd_f32_skylake(a, b, n, a_centroid, b_centroid, rotation, scale, result);
 #elif NK_TARGET_HASWELL
     nk_rmsd_f32_haswell(a, b, n, a_centroid, b_centroid, rotation, scale, result);
+#elif NK_TARGET_NEON
+    nk_rmsd_f32_neon(a, b, n, a_centroid, b_centroid, rotation, scale, result);
 #else
     nk_rmsd_f32_serial(a, b, n, a_centroid, b_centroid, rotation, scale, result);
 #endif
@@ -333,6 +361,8 @@ NK_PUBLIC void nk_kabsch_f64(nk_f64_t const *a, nk_f64_t const *b, nk_size_t n, 
     nk_kabsch_f64_skylake(a, b, n, a_centroid, b_centroid, rotation, scale, result);
 #elif NK_TARGET_HASWELL
     nk_kabsch_f64_haswell(a, b, n, a_centroid, b_centroid, rotation, scale, result);
+#elif NK_TARGET_NEON
+    nk_kabsch_f64_neon(a, b, n, a_centroid, b_centroid, rotation, scale, result);
 #else
     nk_kabsch_f64_serial(a, b, n, a_centroid, b_centroid, rotation, scale, result);
 #endif
@@ -344,6 +374,8 @@ NK_PUBLIC void nk_kabsch_f32(nk_f32_t const *a, nk_f32_t const *b, nk_size_t n, 
     nk_kabsch_f32_skylake(a, b, n, a_centroid, b_centroid, rotation, scale, result);
 #elif NK_TARGET_HASWELL
     nk_kabsch_f32_haswell(a, b, n, a_centroid, b_centroid, rotation, scale, result);
+#elif NK_TARGET_NEON
+    nk_kabsch_f32_neon(a, b, n, a_centroid, b_centroid, rotation, scale, result);
 #else
     nk_kabsch_f32_serial(a, b, n, a_centroid, b_centroid, rotation, scale, result);
 #endif
@@ -365,6 +397,8 @@ NK_PUBLIC void nk_umeyama_f64(nk_f64_t const *a, nk_f64_t const *b, nk_size_t n,
     nk_umeyama_f64_skylake(a, b, n, a_centroid, b_centroid, rotation, scale, result);
 #elif NK_TARGET_HASWELL
     nk_umeyama_f64_haswell(a, b, n, a_centroid, b_centroid, rotation, scale, result);
+#elif NK_TARGET_NEON
+    nk_umeyama_f64_neon(a, b, n, a_centroid, b_centroid, rotation, scale, result);
 #else
     nk_umeyama_f64_serial(a, b, n, a_centroid, b_centroid, rotation, scale, result);
 #endif
@@ -376,6 +410,8 @@ NK_PUBLIC void nk_umeyama_f32(nk_f32_t const *a, nk_f32_t const *b, nk_size_t n,
     nk_umeyama_f32_skylake(a, b, n, a_centroid, b_centroid, rotation, scale, result);
 #elif NK_TARGET_HASWELL
     nk_umeyama_f32_haswell(a, b, n, a_centroid, b_centroid, rotation, scale, result);
+#elif NK_TARGET_NEON
+    nk_umeyama_f32_neon(a, b, n, a_centroid, b_centroid, rotation, scale, result);
 #else
     nk_umeyama_f32_serial(a, b, n, a_centroid, b_centroid, rotation, scale, result);
 #endif
