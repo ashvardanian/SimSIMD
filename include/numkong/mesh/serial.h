@@ -112,7 +112,8 @@ extern "C" {
                                                      nk_##type##_t *s31, nk_##type##_t *s32, nk_##type##_t *s33, \
                                                      nk_##type##_t *quaternion) {                                \
         quaternion[0] = 0, quaternion[1] = 0, quaternion[2] = 0, quaternion[3] = 1;                              \
-        for (int iter = 0; iter < 4; iter++) {                                                                   \
+        /* 16 iterations for better convergence with repeated eigenvalues and identity-like matrices */          \
+        for (int iter = 0; iter < 16; iter++) {                                                                  \
             nk_jacobi_conjugation__##type(0, 1, 2, s11, s21, s22, s31, s32, s33, quaternion);                    \
             nk_jacobi_conjugation__##type(1, 2, 0, s11, s21, s22, s31, s32, s33, quaternion);                    \
             nk_jacobi_conjugation__##type(2, 0, 1, s11, s21, s22, s31, s32, s33, quaternion);                    \
@@ -233,7 +234,7 @@ extern "C" {
         q[8] = (-1 + 2 * sin_half_2_sq) * (-1 + 2 * sin_half_3_sq);                                                  \
     }
 
-#define NK_MAKE_SVD3X3(type)                                                                               \
+#define NK_MAKE_SVD3X3(type, compute_sqrt)                                                                 \
     NK_INTERNAL void nk_svd3x3__##type(nk_##type##_t const *a, nk_##type##_t *svd_u, nk_##type##_t *svd_s, \
                                        nk_##type##_t *svd_v) {                                             \
         /* Compute A^T * A (symmetric) */                                                                  \
@@ -264,8 +265,18 @@ extern "C" {
         product[8] = a[6] * svd_v[2] + a[7] * svd_v[5] + a[8] * svd_v[8];                                  \
         /* Sort singular values and update V */                                                            \
         nk_sort_singular_values__##type(product, svd_v);                                                   \
-        /* QR decomposition: B = U * S */                                                                  \
-        nk_qr_decomposition__##type(product, svd_u, svd_s);                                                \
+        /* Compute singular values from column norms of sorted B (before QR orthogonalizes them) */        \
+        /* These are the true singular values: sqrt(||col_i||^2) */                                        \
+        nk_##type##_t s1_sq = product[0] * product[0] + product[3] * product[3] + product[6] * product[6]; \
+        nk_##type##_t s2_sq = product[1] * product[1] + product[4] * product[4] + product[7] * product[7]; \
+        nk_##type##_t s3_sq = product[2] * product[2] + product[5] * product[5] + product[8] * product[8]; \
+        /* QR decomposition: B = U * R (we only need U for the rotation) */                                \
+        nk_##type##_t qr_r[9];                                                                             \
+        nk_qr_decomposition__##type(product, svd_u, qr_r);                                                 \
+        /* Store singular values in diagonal of svd_s (rest is zero for compatibility) */                  \
+        svd_s[0] = compute_sqrt(s1_sq), svd_s[1] = 0, svd_s[2] = 0;                                        \
+        svd_s[3] = 0, svd_s[4] = compute_sqrt(s2_sq), svd_s[5] = 0;                                        \
+        svd_s[6] = 0, svd_s[7] = 0, svd_s[8] = compute_sqrt(s3_sq);                                        \
     }
 
 #define NK_MAKE_DET3X3(type)                                                             \
@@ -284,7 +295,7 @@ NK_MAKE_JACOBI_EIGENANALYSIS(f32, NK_F32_RSQRT)
 NK_MAKE_QR_GIVENS_QUAT(f32, NK_SVD_EPSILON_F32, NK_F32_RSQRT)
 NK_MAKE_SORT_SINGULAR_VALUES(f32)
 NK_MAKE_QR_DECOMPOSITION(f32)
-NK_MAKE_SVD3X3(f32)
+NK_MAKE_SVD3X3(f32, NK_F32_SQRT)
 NK_MAKE_DET3X3(f32)
 
 /* Generate f64 SVD helpers */
@@ -297,7 +308,7 @@ NK_MAKE_JACOBI_EIGENANALYSIS(f64, NK_F64_RSQRT)
 NK_MAKE_QR_GIVENS_QUAT(f64, NK_SVD_EPSILON_F64, NK_F64_RSQRT)
 NK_MAKE_SORT_SINGULAR_VALUES(f64)
 NK_MAKE_QR_DECOMPOSITION(f64)
-NK_MAKE_SVD3X3(f64)
+NK_MAKE_SVD3X3(f64, NK_F64_SQRT)
 NK_MAKE_DET3X3(f64)
 
 /*  RMSD (Root Mean Square Deviation) without optimal superposition.
@@ -537,7 +548,7 @@ NK_MAKE_DET3X3(f64)
         rotation_matrix[7] = svd_v[6] * svd_u[3] + svd_v[7] * svd_u[4] + svd_v[8] * svd_u[5];                         \
         rotation_matrix[8] = svd_v[6] * svd_u[6] + svd_v[7] * svd_u[7] + svd_v[8] * svd_u[8];                         \
         /* Handle reflection and compute scale: c = trace(D*S) / variance_a */                                        \
-        /* D = diag(1, 1, det(R)), singular values are svd_s[0], svd_s[4], svd_s[8] (diagonal of S) */                \
+        /* D = diag(1, 1, det(R)), svd_s contains proper positive singular values on diagonal */                      \
         nk_##svd_type##_t rotation_det = nk_det3x3__##svd_type(rotation_matrix);                                      \
         nk_##svd_type##_t sign_det = rotation_det < 0 ? (nk_##svd_type##_t) - 1.0 : (nk_##svd_type##_t)1.0;           \
         nk_##svd_type##_t trace_scaled_s = svd_s[0] + svd_s[4] + sign_det * svd_s[8];                                 \
