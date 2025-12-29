@@ -268,8 +268,8 @@ NK_PUBLIC void nk_jsd_f16_sapphire(nk_f16_t const *a, nk_f16_t const *b, nk_size
     }
 
 // Serial variants: f64 inputs → f64 output, f32 inputs → f32 output, f16/bf16 inputs → f32 output
-NK_MAKE_KLD(serial, f64, f64, nk_f64_t, nk_assign_from_to_, NK_F32_DIVISION_EPSILON, NK_F32_LOG)
-NK_MAKE_JSD(serial, f64, f64, nk_f64_t, nk_assign_from_to_, NK_F32_DIVISION_EPSILON, NK_F32_LOG, NK_F32_SQRT)
+NK_MAKE_KLD(serial, f64, f64, nk_f64_t, nk_assign_from_to_, NK_F64_DIVISION_EPSILON, NK_F64_LOG)
+NK_MAKE_JSD(serial, f64, f64, nk_f64_t, nk_assign_from_to_, NK_F64_DIVISION_EPSILON, NK_F64_LOG, NK_F64_SQRT)
 
 NK_MAKE_KLD(serial, f32, f32, nk_f32_t, nk_assign_from_to_, NK_F32_DIVISION_EPSILON, NK_F32_LOG)
 NK_MAKE_JSD(serial, f32, f32, nk_f32_t, nk_assign_from_to_, NK_F32_DIVISION_EPSILON, NK_F32_LOG, NK_F32_SQRT)
