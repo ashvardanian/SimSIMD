@@ -569,6 +569,224 @@ NK_PUBLIC void nk_reduce_add_bf16_serial(                           //
     *result = (nk_f32_t)sum;
 }
 
+NK_PUBLIC void nk_reduce_add_e4m3_serial(                           //
+    nk_e4m3_t const *data, nk_size_t count, nk_size_t stride_bytes, //
+    nk_f32_t *result) {
+    nk_f64_t sum = 0;
+    unsigned char const *ptr = (unsigned char const *)data;
+    for (nk_size_t i = 0; i < count; ++i, ptr += stride_bytes) {
+        nk_f32_t val;
+        nk_e4m3_to_f32((nk_e4m3_t const *)ptr, &val);
+        sum += val;
+    }
+    *result = (nk_f32_t)sum;
+}
+
+NK_PUBLIC void nk_reduce_add_e5m2_serial(                           //
+    nk_e5m2_t const *data, nk_size_t count, nk_size_t stride_bytes, //
+    nk_f32_t *result) {
+    nk_f64_t sum = 0;
+    unsigned char const *ptr = (unsigned char const *)data;
+    for (nk_size_t i = 0; i < count; ++i, ptr += stride_bytes) {
+        nk_f32_t val;
+        nk_e5m2_to_f32((nk_e5m2_t const *)ptr, &val);
+        sum += val;
+    }
+    *result = (nk_f32_t)sum;
+}
+
+NK_PUBLIC void nk_reduce_min_f16_serial(                           //
+    nk_f16_t const *data, nk_size_t count, nk_size_t stride_bytes, //
+    nk_f32_t *min_value, nk_size_t *min_index) {
+    if (count == 0) {
+        *min_value = 0;
+        *min_index = 0;
+        return;
+    }
+    unsigned char const *ptr = (unsigned char const *)data;
+    nk_f32_t best_value;
+    nk_f16_to_f32((nk_f16_t const *)ptr, &best_value);
+    nk_size_t best_index = 0;
+    ptr += stride_bytes;
+    for (nk_size_t i = 1; i < count; ++i, ptr += stride_bytes) {
+        nk_f32_t val;
+        nk_f16_to_f32((nk_f16_t const *)ptr, &val);
+        if (val >= best_value) continue;
+        best_value = val;
+        best_index = i;
+    }
+    *min_value = best_value;
+    *min_index = best_index;
+}
+
+NK_PUBLIC void nk_reduce_max_f16_serial(                           //
+    nk_f16_t const *data, nk_size_t count, nk_size_t stride_bytes, //
+    nk_f32_t *max_value, nk_size_t *max_index) {
+    if (count == 0) {
+        *max_value = 0;
+        *max_index = 0;
+        return;
+    }
+    unsigned char const *ptr = (unsigned char const *)data;
+    nk_f32_t best_value;
+    nk_f16_to_f32((nk_f16_t const *)ptr, &best_value);
+    nk_size_t best_index = 0;
+    ptr += stride_bytes;
+    for (nk_size_t i = 1; i < count; ++i, ptr += stride_bytes) {
+        nk_f32_t val;
+        nk_f16_to_f32((nk_f16_t const *)ptr, &val);
+        if (val <= best_value) continue;
+        best_value = val;
+        best_index = i;
+    }
+    *max_value = best_value;
+    *max_index = best_index;
+}
+
+NK_PUBLIC void nk_reduce_min_bf16_serial(                           //
+    nk_bf16_t const *data, nk_size_t count, nk_size_t stride_bytes, //
+    nk_f32_t *min_value, nk_size_t *min_index) {
+    if (count == 0) {
+        *min_value = 0;
+        *min_index = 0;
+        return;
+    }
+    unsigned char const *ptr = (unsigned char const *)data;
+    nk_f32_t best_value;
+    nk_bf16_to_f32((nk_bf16_t const *)ptr, &best_value);
+    nk_size_t best_index = 0;
+    ptr += stride_bytes;
+    for (nk_size_t i = 1; i < count; ++i, ptr += stride_bytes) {
+        nk_f32_t val;
+        nk_bf16_to_f32((nk_bf16_t const *)ptr, &val);
+        if (val >= best_value) continue;
+        best_value = val;
+        best_index = i;
+    }
+    *min_value = best_value;
+    *min_index = best_index;
+}
+
+NK_PUBLIC void nk_reduce_max_bf16_serial(                           //
+    nk_bf16_t const *data, nk_size_t count, nk_size_t stride_bytes, //
+    nk_f32_t *max_value, nk_size_t *max_index) {
+    if (count == 0) {
+        *max_value = 0;
+        *max_index = 0;
+        return;
+    }
+    unsigned char const *ptr = (unsigned char const *)data;
+    nk_f32_t best_value;
+    nk_bf16_to_f32((nk_bf16_t const *)ptr, &best_value);
+    nk_size_t best_index = 0;
+    ptr += stride_bytes;
+    for (nk_size_t i = 1; i < count; ++i, ptr += stride_bytes) {
+        nk_f32_t val;
+        nk_bf16_to_f32((nk_bf16_t const *)ptr, &val);
+        if (val <= best_value) continue;
+        best_value = val;
+        best_index = i;
+    }
+    *max_value = best_value;
+    *max_index = best_index;
+}
+
+NK_PUBLIC void nk_reduce_min_e4m3_serial(                           //
+    nk_e4m3_t const *data, nk_size_t count, nk_size_t stride_bytes, //
+    nk_f32_t *min_value, nk_size_t *min_index) {
+    if (count == 0) {
+        *min_value = 0;
+        *min_index = 0;
+        return;
+    }
+    unsigned char const *ptr = (unsigned char const *)data;
+    nk_f32_t best_value;
+    nk_e4m3_to_f32((nk_e4m3_t const *)ptr, &best_value);
+    nk_size_t best_index = 0;
+    ptr += stride_bytes;
+    for (nk_size_t i = 1; i < count; ++i, ptr += stride_bytes) {
+        nk_f32_t val;
+        nk_e4m3_to_f32((nk_e4m3_t const *)ptr, &val);
+        if (val >= best_value) continue;
+        best_value = val;
+        best_index = i;
+    }
+    *min_value = best_value;
+    *min_index = best_index;
+}
+
+NK_PUBLIC void nk_reduce_max_e4m3_serial(                           //
+    nk_e4m3_t const *data, nk_size_t count, nk_size_t stride_bytes, //
+    nk_f32_t *max_value, nk_size_t *max_index) {
+    if (count == 0) {
+        *max_value = 0;
+        *max_index = 0;
+        return;
+    }
+    unsigned char const *ptr = (unsigned char const *)data;
+    nk_f32_t best_value;
+    nk_e4m3_to_f32((nk_e4m3_t const *)ptr, &best_value);
+    nk_size_t best_index = 0;
+    ptr += stride_bytes;
+    for (nk_size_t i = 1; i < count; ++i, ptr += stride_bytes) {
+        nk_f32_t val;
+        nk_e4m3_to_f32((nk_e4m3_t const *)ptr, &val);
+        if (val <= best_value) continue;
+        best_value = val;
+        best_index = i;
+    }
+    *max_value = best_value;
+    *max_index = best_index;
+}
+
+NK_PUBLIC void nk_reduce_min_e5m2_serial(                           //
+    nk_e5m2_t const *data, nk_size_t count, nk_size_t stride_bytes, //
+    nk_f32_t *min_value, nk_size_t *min_index) {
+    if (count == 0) {
+        *min_value = 0;
+        *min_index = 0;
+        return;
+    }
+    unsigned char const *ptr = (unsigned char const *)data;
+    nk_f32_t best_value;
+    nk_e5m2_to_f32((nk_e5m2_t const *)ptr, &best_value);
+    nk_size_t best_index = 0;
+    ptr += stride_bytes;
+    for (nk_size_t i = 1; i < count; ++i, ptr += stride_bytes) {
+        nk_f32_t val;
+        nk_e5m2_to_f32((nk_e5m2_t const *)ptr, &val);
+        if (val >= best_value) continue;
+        best_value = val;
+        best_index = i;
+    }
+    *min_value = best_value;
+    *min_index = best_index;
+}
+
+NK_PUBLIC void nk_reduce_max_e5m2_serial(                           //
+    nk_e5m2_t const *data, nk_size_t count, nk_size_t stride_bytes, //
+    nk_f32_t *max_value, nk_size_t *max_index) {
+    if (count == 0) {
+        *max_value = 0;
+        *max_index = 0;
+        return;
+    }
+    unsigned char const *ptr = (unsigned char const *)data;
+    nk_f32_t best_value;
+    nk_e5m2_to_f32((nk_e5m2_t const *)ptr, &best_value);
+    nk_size_t best_index = 0;
+    ptr += stride_bytes;
+    for (nk_size_t i = 1; i < count; ++i, ptr += stride_bytes) {
+        nk_f32_t val;
+        nk_e5m2_to_f32((nk_e5m2_t const *)ptr, &val);
+        if (val <= best_value) continue;
+        best_value = val;
+        best_index = i;
+    }
+    *max_value = best_value;
+    *max_index = best_index;
+}
+
 #if defined(__cplusplus)
 } // extern "C"
 #endif

@@ -77,6 +77,8 @@ NK_MAKE_SUM(serial, f64, f64, nk_assign_from_to_, nk_assign_from_to_) // nk_sum_
 NK_MAKE_SUM(serial, f32, f32, nk_assign_from_to_, nk_assign_from_to_) // nk_sum_f32_serial
 NK_MAKE_SUM(serial, f16, f32, nk_f16_to_f32, nk_f32_to_f16)           // nk_sum_f16_serial
 NK_MAKE_SUM(serial, bf16, f32, nk_bf16_to_f32, nk_f32_to_bf16)        // nk_sum_bf16_serial
+NK_MAKE_SUM(serial, e4m3, f32, nk_e4m3_to_f32, nk_f32_to_e4m3)        // nk_sum_e4m3_serial
+NK_MAKE_SUM(serial, e5m2, f32, nk_e5m2_to_f32, nk_f32_to_e5m2)        // nk_sum_e5m2_serial
 NK_MAKE_SUM(serial, i8, i64, nk_assign_from_to_, nk_i64_to_i8_)       // nk_sum_i8_serial
 NK_MAKE_SUM(serial, u8, i64, nk_assign_from_to_, nk_i64_to_u8_)       // nk_sum_u8_serial
 NK_MAKE_SUM(serial, i16, i64, nk_assign_from_to_, nk_i64_to_i16_)     // nk_sum_i16_serial
@@ -94,6 +96,8 @@ NK_MAKE_SCALE(serial, f64, f64, nk_assign_from_to_, nk_assign_from_to_) // nk_sc
 NK_MAKE_SCALE(serial, f32, f32, nk_assign_from_to_, nk_assign_from_to_) // nk_scale_f32_serial
 NK_MAKE_SCALE(serial, f16, f32, nk_f16_to_f32, nk_f32_to_f16)           // nk_scale_f16_serial
 NK_MAKE_SCALE(serial, bf16, f32, nk_bf16_to_f32, nk_f32_to_bf16)        // nk_scale_bf16_serial
+NK_MAKE_SCALE(serial, e4m3, f32, nk_e4m3_to_f32, nk_f32_to_e4m3)        // nk_scale_e4m3_serial
+NK_MAKE_SCALE(serial, e5m2, f32, nk_e5m2_to_f32, nk_f32_to_e5m2)        // nk_scale_e5m2_serial
 NK_MAKE_SCALE(serial, i8, f32, nk_assign_from_to_, nk_f32_to_i8_)       // nk_scale_i8_serial
 NK_MAKE_SCALE(serial, u8, f32, nk_assign_from_to_, nk_f32_to_u8_)       // nk_scale_u8_serial
 NK_MAKE_SCALE(serial, i16, f32, nk_assign_from_to_, nk_f32_to_i16_)     // nk_scale_i16_serial
@@ -113,6 +117,8 @@ NK_MAKE_WSUM(serial, f64, f64, nk_assign_from_to_, nk_assign_from_to_) // nk_wsu
 NK_MAKE_WSUM(serial, f32, f32, nk_assign_from_to_, nk_assign_from_to_) // nk_wsum_f32_serial
 NK_MAKE_WSUM(serial, f16, f32, nk_f16_to_f32, nk_f32_to_f16)           // nk_wsum_f16_serial
 NK_MAKE_WSUM(serial, bf16, f32, nk_bf16_to_f32, nk_f32_to_bf16)        // nk_wsum_bf16_serial
+NK_MAKE_WSUM(serial, e4m3, f32, nk_e4m3_to_f32, nk_f32_to_e4m3)        // nk_wsum_e4m3_serial
+NK_MAKE_WSUM(serial, e5m2, f32, nk_e5m2_to_f32, nk_f32_to_e5m2)        // nk_wsum_e5m2_serial
 NK_MAKE_WSUM(serial, i8, f32, nk_assign_from_to_, nk_f32_to_i8_)       // nk_wsum_i8_serial
 NK_MAKE_WSUM(serial, u8, f32, nk_assign_from_to_, nk_f32_to_u8_)       // nk_wsum_u8_serial
 NK_MAKE_WSUM(serial, i16, f32, nk_assign_from_to_, nk_f32_to_i16_)     // nk_wsum_i16_serial
@@ -132,6 +138,8 @@ NK_MAKE_FMA(serial, f64, f64, nk_assign_from_to_, nk_assign_from_to_) // nk_fma_
 NK_MAKE_FMA(serial, f32, f32, nk_assign_from_to_, nk_assign_from_to_) // nk_fma_f32_serial
 NK_MAKE_FMA(serial, f16, f32, nk_f16_to_f32, nk_f32_to_f16)           // nk_fma_f16_serial
 NK_MAKE_FMA(serial, bf16, f32, nk_bf16_to_f32, nk_f32_to_bf16)        // nk_fma_bf16_serial
+NK_MAKE_FMA(serial, e4m3, f32, nk_e4m3_to_f32, nk_f32_to_e4m3)        // nk_fma_e4m3_serial
+NK_MAKE_FMA(serial, e5m2, f32, nk_e5m2_to_f32, nk_f32_to_e5m2)        // nk_fma_e5m2_serial
 NK_MAKE_FMA(serial, i8, f32, nk_assign_from_to_, nk_f32_to_i8_)       // nk_fma_i8_serial
 NK_MAKE_FMA(serial, u8, f32, nk_assign_from_to_, nk_f32_to_u8_)       // nk_fma_u8_serial
 NK_MAKE_FMA(serial, i16, f32, nk_assign_from_to_, nk_f32_to_i16_)     // nk_fma_i16_serial
@@ -146,6 +154,98 @@ NK_MAKE_FMA(accurate, f16, f64, nk_f16_to_f64_, nk_f64_to_f16_)         // nk_fm
 NK_MAKE_FMA(accurate, bf16, f64, nk_bf16_to_f64_, nk_f64_to_bf16_)      // nk_fma_bf16_accurate
 NK_MAKE_FMA(accurate, i8, f64, nk_assign_from_to_, nk_f64_to_i8_)       // nk_fma_i8_accurate
 NK_MAKE_FMA(accurate, u8, f64, nk_assign_from_to_, nk_f64_to_u8_)       // nk_fma_u8_accurate
+
+// ┌──────────────────────────────────────────────────────────────────────────────────────────────────┐
+// │ E4M3/E5M2 Elementwise Operations (simplified API wrappers)                                        │
+// └──────────────────────────────────────────────────────────────────────────────────────────────────┘
+
+NK_PUBLIC void nk_elementwise_sum_e4m3_serial(nk_e4m3_t const *a, nk_e4m3_t const *b, nk_e4m3_t *result,
+                                              nk_size_t count) {
+    nk_f32_t ai, bi, sum;
+    for (nk_size_t i = 0; i != count; ++i) {
+        nk_e4m3_to_f32(a + i, &ai);
+        nk_e4m3_to_f32(b + i, &bi);
+        sum = ai + bi;
+        nk_f32_to_e4m3(&sum, result + i);
+    }
+}
+
+NK_PUBLIC void nk_elementwise_sum_e5m2_serial(nk_e5m2_t const *a, nk_e5m2_t const *b, nk_e5m2_t *result,
+                                              nk_size_t count) {
+    nk_f32_t ai, bi, sum;
+    for (nk_size_t i = 0; i != count; ++i) {
+        nk_e5m2_to_f32(a + i, &ai);
+        nk_e5m2_to_f32(b + i, &bi);
+        sum = ai + bi;
+        nk_f32_to_e5m2(&sum, result + i);
+    }
+}
+
+NK_PUBLIC void nk_elementwise_scale_e4m3_serial(nk_e4m3_t const *a, nk_f32_t alpha, nk_e4m3_t *result,
+                                                nk_size_t count) {
+    nk_f32_t ai, scaled;
+    for (nk_size_t i = 0; i != count; ++i) {
+        nk_e4m3_to_f32(a + i, &ai);
+        scaled = ai * alpha;
+        nk_f32_to_e4m3(&scaled, result + i);
+    }
+}
+
+NK_PUBLIC void nk_elementwise_scale_e5m2_serial(nk_e5m2_t const *a, nk_f32_t alpha, nk_e5m2_t *result,
+                                                nk_size_t count) {
+    nk_f32_t ai, scaled;
+    for (nk_size_t i = 0; i != count; ++i) {
+        nk_e5m2_to_f32(a + i, &ai);
+        scaled = ai * alpha;
+        nk_f32_to_e5m2(&scaled, result + i);
+    }
+}
+
+NK_PUBLIC void nk_elementwise_wsum_e4m3_serial(nk_e4m3_t const *a, nk_f32_t alpha, nk_e4m3_t const *b, nk_f32_t beta,
+                                               nk_e4m3_t *result, nk_size_t count) {
+    nk_f32_t ai, bi, wsum;
+    for (nk_size_t i = 0; i != count; ++i) {
+        nk_e4m3_to_f32(a + i, &ai);
+        nk_e4m3_to_f32(b + i, &bi);
+        wsum = alpha * ai + beta * bi;
+        nk_f32_to_e4m3(&wsum, result + i);
+    }
+}
+
+NK_PUBLIC void nk_elementwise_wsum_e5m2_serial(nk_e5m2_t const *a, nk_f32_t alpha, nk_e5m2_t const *b, nk_f32_t beta,
+                                               nk_e5m2_t *result, nk_size_t count) {
+    nk_f32_t ai, bi, wsum;
+    for (nk_size_t i = 0; i != count; ++i) {
+        nk_e5m2_to_f32(a + i, &ai);
+        nk_e5m2_to_f32(b + i, &bi);
+        wsum = alpha * ai + beta * bi;
+        nk_f32_to_e5m2(&wsum, result + i);
+    }
+}
+
+NK_PUBLIC void nk_elementwise_fma_e4m3_serial(nk_e4m3_t const *a, nk_e4m3_t const *b, nk_e4m3_t const *c,
+                                              nk_e4m3_t *result, nk_size_t count) {
+    nk_f32_t ai, bi, ci, fma;
+    for (nk_size_t i = 0; i != count; ++i) {
+        nk_e4m3_to_f32(a + i, &ai);
+        nk_e4m3_to_f32(b + i, &bi);
+        nk_e4m3_to_f32(c + i, &ci);
+        fma = ai * bi + ci;
+        nk_f32_to_e4m3(&fma, result + i);
+    }
+}
+
+NK_PUBLIC void nk_elementwise_fma_e5m2_serial(nk_e5m2_t const *a, nk_e5m2_t const *b, nk_e5m2_t const *c,
+                                              nk_e5m2_t *result, nk_size_t count) {
+    nk_f32_t ai, bi, ci, fma;
+    for (nk_size_t i = 0; i != count; ++i) {
+        nk_e5m2_to_f32(a + i, &ai);
+        nk_e5m2_to_f32(b + i, &bi);
+        nk_e5m2_to_f32(c + i, &ci);
+        fma = ai * bi + ci;
+        nk_f32_to_e5m2(&fma, result + i);
+    }
+}
 
 #if defined(__cplusplus)
 } // extern "C"

@@ -214,6 +214,61 @@ NK_DYNAMIC void nk_fma_u8(nk_u8_t const *a, nk_u8_t const *b, nk_u8_t const *c, 
 /** @copydoc nk_fma_f64 */
 NK_DYNAMIC void nk_fma_i16(nk_i16_t const *a, nk_i16_t const *b, nk_i16_t const *c, nk_size_t n, nk_f32_t const *alpha,
                            nk_f32_t const *beta, nk_i16_t *result);
+
+/**
+ *  @brief Element-wise sum for FP8 E4M3: result[i] = a[i] + b[i].
+ *
+ *  @param[in] a The first input vector.
+ *  @param[in] b The second input vector.
+ *  @param[out] result The output vector.
+ *  @param[in] count The number of elements in the vectors.
+ */
+NK_PUBLIC void nk_elementwise_sum_e4m3(nk_e4m3_t const *a, nk_e4m3_t const *b, nk_e4m3_t *result, nk_size_t count);
+/** @copydoc nk_elementwise_sum_e4m3 */
+NK_PUBLIC void nk_elementwise_sum_e5m2(nk_e5m2_t const *a, nk_e5m2_t const *b, nk_e5m2_t *result, nk_size_t count);
+
+/**
+ *  @brief Element-wise scale for FP8 E4M3: result[i] = alpha * a[i].
+ *
+ *  @param[in] a The input vector.
+ *  @param[in] alpha The scaling factor.
+ *  @param[out] result The output vector.
+ *  @param[in] count The number of elements in the vector.
+ */
+NK_PUBLIC void nk_elementwise_scale_e4m3(nk_e4m3_t const *a, nk_f32_t alpha, nk_e4m3_t *result, nk_size_t count);
+/** @copydoc nk_elementwise_scale_e4m3 */
+NK_PUBLIC void nk_elementwise_scale_e5m2(nk_e5m2_t const *a, nk_f32_t alpha, nk_e5m2_t *result, nk_size_t count);
+
+/**
+ *  @brief Element-wise weighted sum for FP8 E4M3: result[i] = alpha * a[i] + beta * b[i].
+ *
+ *  @param[in] a The first input vector.
+ *  @param[in] alpha The weight for the first vector.
+ *  @param[in] b The second input vector.
+ *  @param[in] beta The weight for the second vector.
+ *  @param[out] result The output vector.
+ *  @param[in] count The number of elements in the vectors.
+ */
+NK_PUBLIC void nk_elementwise_wsum_e4m3(nk_e4m3_t const *a, nk_f32_t alpha, nk_e4m3_t const *b, nk_f32_t beta,
+                                        nk_e4m3_t *result, nk_size_t count);
+/** @copydoc nk_elementwise_wsum_e4m3 */
+NK_PUBLIC void nk_elementwise_wsum_e5m2(nk_e5m2_t const *a, nk_f32_t alpha, nk_e5m2_t const *b, nk_f32_t beta,
+                                        nk_e5m2_t *result, nk_size_t count);
+
+/**
+ *  @brief Element-wise FMA for FP8 E4M3: result[i] = a[i] * b[i] + c[i].
+ *
+ *  @param[in] a The first input vector.
+ *  @param[in] b The second input vector.
+ *  @param[in] c The third input vector.
+ *  @param[out] result The output vector.
+ *  @param[in] count The number of elements in the vectors.
+ */
+NK_PUBLIC void nk_elementwise_fma_e4m3(nk_e4m3_t const *a, nk_e4m3_t const *b, nk_e4m3_t const *c, nk_e4m3_t *result,
+                                       nk_size_t count);
+/** @copydoc nk_elementwise_fma_e4m3 */
+NK_PUBLIC void nk_elementwise_fma_e5m2(nk_e5m2_t const *a, nk_e5m2_t const *b, nk_e5m2_t const *c, nk_e5m2_t *result,
+                                       nk_size_t count);
 /** @copydoc nk_fma_f64 */
 NK_DYNAMIC void nk_fma_u16(nk_u16_t const *a, nk_u16_t const *b, nk_u16_t const *c, nk_size_t n, nk_f32_t const *alpha,
                            nk_f32_t const *beta, nk_u16_t *result);
@@ -423,6 +478,29 @@ NK_PUBLIC void nk_fma_i8_accurate(nk_i8_t const *a, nk_i8_t const *b, nk_i8_t co
 /** @copydoc nk_fma_u8 */
 NK_PUBLIC void nk_fma_u8_accurate(nk_u8_t const *a, nk_u8_t const *b, nk_u8_t const *c, nk_size_t n,
                                   nk_f64_t const *alpha, nk_f64_t const *beta, nk_u8_t *result);
+
+/** @copydoc nk_elementwise_sum_e4m3 */
+NK_PUBLIC void nk_elementwise_sum_e4m3_serial(nk_e4m3_t const *a, nk_e4m3_t const *b, nk_e4m3_t *result,
+                                              nk_size_t count);
+/** @copydoc nk_elementwise_sum_e4m3 */
+NK_PUBLIC void nk_elementwise_sum_e5m2_serial(nk_e5m2_t const *a, nk_e5m2_t const *b, nk_e5m2_t *result,
+                                              nk_size_t count);
+/** @copydoc nk_elementwise_scale_e4m3 */
+NK_PUBLIC void nk_elementwise_scale_e4m3_serial(nk_e4m3_t const *a, nk_f32_t alpha, nk_e4m3_t *result, nk_size_t count);
+/** @copydoc nk_elementwise_scale_e4m3 */
+NK_PUBLIC void nk_elementwise_scale_e5m2_serial(nk_e5m2_t const *a, nk_f32_t alpha, nk_e5m2_t *result, nk_size_t count);
+/** @copydoc nk_elementwise_wsum_e4m3 */
+NK_PUBLIC void nk_elementwise_wsum_e4m3_serial(nk_e4m3_t const *a, nk_f32_t alpha, nk_e4m3_t const *b, nk_f32_t beta,
+                                               nk_e4m3_t *result, nk_size_t count);
+/** @copydoc nk_elementwise_wsum_e4m3 */
+NK_PUBLIC void nk_elementwise_wsum_e5m2_serial(nk_e5m2_t const *a, nk_f32_t alpha, nk_e5m2_t const *b, nk_f32_t beta,
+                                               nk_e5m2_t *result, nk_size_t count);
+/** @copydoc nk_elementwise_fma_e4m3 */
+NK_PUBLIC void nk_elementwise_fma_e4m3_serial(nk_e4m3_t const *a, nk_e4m3_t const *b, nk_e4m3_t const *c,
+                                              nk_e4m3_t *result, nk_size_t count);
+/** @copydoc nk_elementwise_fma_e4m3 */
+NK_PUBLIC void nk_elementwise_fma_e5m2_serial(nk_e5m2_t const *a, nk_e5m2_t const *b, nk_e5m2_t const *c,
+                                              nk_e5m2_t *result, nk_size_t count);
 
 #if NK_TARGET_NEON
 /** @copydoc nk_scale_f32 */
