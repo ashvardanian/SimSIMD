@@ -360,6 +360,300 @@ NK_PUBLIC void nk_fma_i8_neonhalf(                        //
     }
 }
 
+/** @brief Convert 8 E4M3 values to f16x8 via bit manipulation (NEON).
+ *  E4M3 format: S EEEE MMM (bias=7). F16: sign<<15, (exp+8)<<10, mant<<7. */
+NK_INTERNAL float16x8_t nk_e4m3x8_to_f16x8_neonhalf_(uint8x8_t e4m3_u8x8) {
+    // Widen to 16-bit lanes
+    uint16x8_t v_u16x8 = vmovl_u8(e4m3_u8x8);
+
+    // Extract sign, exponent, and mantissa
+    uint16x8_t sign_u16x8 = vshlq_n_u16(vshrq_n_u16(vandq_u16(v_u16x8, vdupq_n_u16(0x80)), 7), 15);
+    uint16x8_t exp_u16x8 = vandq_u16(vshrq_n_u16(v_u16x8, 3), vdupq_n_u16(0x0F));
+    uint16x8_t mant_u16x8 = vandq_u16(v_u16x8, vdupq_n_u16(0x07));
+
+    // Build f16 representation: sign | ((exp + 8) << 10) | (mant << 7)
+    // F16 has bias=15, E4M3 has bias=7, so we add (15-7)=8 to convert exponent
+    uint16x8_t f16_exp_u16x8 = vshlq_n_u16(vaddq_u16(exp_u16x8, vdupq_n_u16(8)), 10);
+    uint16x8_t f16_mant_u16x8 = vshlq_n_u16(mant_u16x8, 7);
+    uint16x8_t f16_bits_u16x8 = vorrq_u16(sign_u16x8, vorrq_u16(f16_exp_u16x8, f16_mant_u16x8));
+
+    // Zero out denormals (when exp == 0)
+    uint16x8_t zero_mask_u16x8 = vceqq_u16(exp_u16x8, vdupq_n_u16(0));
+    f16_bits_u16x8 = vbicq_u16(f16_bits_u16x8, zero_mask_u16x8);
+
+    return vreinterpretq_f16_u16(f16_bits_u16x8);
+}
+
+/** @brief Convert f16x8 to 8 E4M3 values via bit manipulation (NEON).
+ *  F16: S EEEEE MMMMMMMMMM (bias=15). E4M3: sign<<7, (exp-8)<<3, mant>>7. */
+NK_INTERNAL uint8x8_t nk_f16x8_to_e4m3x8_neonhalf_(float16x8_t f16_f16x8) {
+    uint16x8_t v_u16x8 = vreinterpretq_u16_f16(f16_f16x8);
+
+    // Extract sign, exponent, and mantissa from f16
+    uint16x8_t sign_u16x8 = vshrq_n_u16(vandq_u16(v_u16x8, vdupq_n_u16(0x8000)), 8);
+    uint16x8_t exp_u16x8 = vandq_u16(vshrq_n_u16(v_u16x8, 10), vdupq_n_u16(0x1F));
+    uint16x8_t mant_u16x8 = vandq_u16(v_u16x8, vdupq_n_u16(0x03FF));
+
+    // Convert exponent: E4M3 has bias=7, F16 has bias=15, so subtract 8
+    // Clamp exponent to [0, 15] for E4M3 range
+    uint16x8_t exp_adj_u16x8 = vqsubq_u16(exp_u16x8, vdupq_n_u16(8));
+    exp_adj_u16x8 = vminq_u16(exp_adj_u16x8, vdupq_n_u16(15));
+
+    // Build E4M3: sign | (exp << 3) | (mant >> 7)
+    uint16x8_t e4m3_exp_u16x8 = vshlq_n_u16(exp_adj_u16x8, 3);
+    uint16x8_t e4m3_mant_u16x8 = vshrq_n_u16(mant_u16x8, 7);
+    uint16x8_t e4m3_u16x8 = vorrq_u16(sign_u16x8, vorrq_u16(e4m3_exp_u16x8, e4m3_mant_u16x8));
+
+    // Zero out when original exponent is too small (underflow to zero)
+    uint16x8_t underflow_mask_u16x8 = vcltq_u16(exp_u16x8, vdupq_n_u16(8));
+    e4m3_u16x8 = vbicq_u16(e4m3_u16x8, underflow_mask_u16x8);
+
+    // Narrow to 8-bit
+    return vmovn_u16(e4m3_u16x8);
+}
+
+/** @brief Convert 8 E5M2 values to f16x8 via bit manipulation (NEON).
+ *  E5M2 format: S EEEEE MM (bias=15). F16: sign<<15, exp<<10, mant<<8. */
+NK_INTERNAL float16x8_t nk_e5m2x8_to_f16x8_neonhalf_(uint8x8_t e5m2_u8x8) {
+    // Widen to 16-bit lanes
+    uint16x8_t v_u16x8 = vmovl_u8(e5m2_u8x8);
+
+    // Extract sign, exponent, and mantissa
+    uint16x8_t sign_u16x8 = vshlq_n_u16(vshrq_n_u16(vandq_u16(v_u16x8, vdupq_n_u16(0x80)), 7), 15);
+    uint16x8_t exp_u16x8 = vandq_u16(vshrq_n_u16(v_u16x8, 2), vdupq_n_u16(0x1F));
+    uint16x8_t mant_u16x8 = vandq_u16(v_u16x8, vdupq_n_u16(0x03));
+
+    // Build f16 representation: sign | (exp << 10) | (mant << 8)
+    // F16 has bias=15, E5M2 has bias=15, so exponent stays the same
+    uint16x8_t f16_exp_u16x8 = vshlq_n_u16(exp_u16x8, 10);
+    uint16x8_t f16_mant_u16x8 = vshlq_n_u16(mant_u16x8, 8);
+    uint16x8_t f16_bits_u16x8 = vorrq_u16(sign_u16x8, vorrq_u16(f16_exp_u16x8, f16_mant_u16x8));
+
+    // Zero out denormals (when exp == 0)
+    uint16x8_t zero_mask_u16x8 = vceqq_u16(exp_u16x8, vdupq_n_u16(0));
+    f16_bits_u16x8 = vbicq_u16(f16_bits_u16x8, zero_mask_u16x8);
+
+    return vreinterpretq_f16_u16(f16_bits_u16x8);
+}
+
+/** @brief Convert f16x8 to 8 E5M2 values via bit manipulation (NEON).
+ *  F16: S EEEEE MMMMMMMMMM (bias=15). E5M2: sign<<7, exp<<2, mant>>8. */
+NK_INTERNAL uint8x8_t nk_f16x8_to_e5m2x8_neonhalf_(float16x8_t f16_f16x8) {
+    uint16x8_t v_u16x8 = vreinterpretq_u16_f16(f16_f16x8);
+
+    // Extract sign, exponent, and mantissa from f16
+    uint16x8_t sign_u16x8 = vshrq_n_u16(vandq_u16(v_u16x8, vdupq_n_u16(0x8000)), 8);
+    uint16x8_t exp_u16x8 = vandq_u16(vshrq_n_u16(v_u16x8, 10), vdupq_n_u16(0x1F));
+    uint16x8_t mant_u16x8 = vandq_u16(v_u16x8, vdupq_n_u16(0x03FF));
+
+    // Build E5M2: sign | (exp << 2) | (mant >> 8)
+    // E5M2 has same bias as F16 (15), so exponent stays the same
+    uint16x8_t e5m2_exp_u16x8 = vshlq_n_u16(exp_u16x8, 2);
+    uint16x8_t e5m2_mant_u16x8 = vshrq_n_u16(mant_u16x8, 8);
+    uint16x8_t e5m2_u16x8 = vorrq_u16(sign_u16x8, vorrq_u16(e5m2_exp_u16x8, e5m2_mant_u16x8));
+
+    // Zero out denormals (when exp == 0)
+    uint16x8_t zero_mask_u16x8 = vceqq_u16(exp_u16x8, vdupq_n_u16(0));
+    e5m2_u16x8 = vbicq_u16(e5m2_u16x8, zero_mask_u16x8);
+
+    // Narrow to 8-bit
+    return vmovn_u16(e5m2_u16x8);
+}
+
+/*  E4M3 elementwise operations  */
+
+NK_PUBLIC void nk_sum_e4m3_neonhalf(nk_e4m3_t const *a, nk_e4m3_t const *b, nk_size_t n, nk_e4m3_t *result) {
+    nk_size_t i = 0;
+    for (; i + 8 <= n; i += 8) {
+        uint8x8_t a_e4m3x8 = vld1_u8((uint8_t const *)a + i);
+        uint8x8_t b_e4m3x8 = vld1_u8((uint8_t const *)b + i);
+        float16x8_t a_f16x8 = nk_e4m3x8_to_f16x8_neonhalf_(a_e4m3x8);
+        float16x8_t b_f16x8 = nk_e4m3x8_to_f16x8_neonhalf_(b_e4m3x8);
+        float16x8_t result_f16x8 = vaddq_f16(a_f16x8, b_f16x8);
+        uint8x8_t result_e4m3x8 = nk_f16x8_to_e4m3x8_neonhalf_(result_f16x8);
+        vst1_u8((uint8_t *)result + i, result_e4m3x8);
+    }
+    for (; i < n; ++i) {
+        nk_f32_t a_f32, b_f32, sum_f32;
+        nk_e4m3_to_f32_(a + i, &a_f32);
+        nk_e4m3_to_f32_(b + i, &b_f32);
+        sum_f32 = a_f32 + b_f32;
+        nk_f32_to_e4m3_(&sum_f32, result + i);
+    }
+}
+
+NK_PUBLIC void nk_sum_e5m2_neonhalf(nk_e5m2_t const *a, nk_e5m2_t const *b, nk_size_t n, nk_e5m2_t *result) {
+    nk_size_t i = 0;
+    for (; i + 8 <= n; i += 8) {
+        uint8x8_t a_e5m2x8 = vld1_u8((uint8_t const *)a + i);
+        uint8x8_t b_e5m2x8 = vld1_u8((uint8_t const *)b + i);
+        float16x8_t a_f16x8 = nk_e5m2x8_to_f16x8_neonhalf_(a_e5m2x8);
+        float16x8_t b_f16x8 = nk_e5m2x8_to_f16x8_neonhalf_(b_e5m2x8);
+        float16x8_t result_f16x8 = vaddq_f16(a_f16x8, b_f16x8);
+        uint8x8_t result_e5m2x8 = nk_f16x8_to_e5m2x8_neonhalf_(result_f16x8);
+        vst1_u8((uint8_t *)result + i, result_e5m2x8);
+    }
+    for (; i < n; ++i) {
+        nk_f32_t a_f32, b_f32, sum_f32;
+        nk_e5m2_to_f32_(a + i, &a_f32);
+        nk_e5m2_to_f32_(b + i, &b_f32);
+        sum_f32 = a_f32 + b_f32;
+        nk_f32_to_e5m2_(&sum_f32, result + i);
+    }
+}
+
+NK_PUBLIC void nk_scale_e4m3_neonhalf(nk_e4m3_t const *a, nk_size_t n, nk_f32_t const *alpha, nk_f32_t const *beta,
+                                      nk_e4m3_t *result) {
+    float16_t alpha_f16 = (float16_t)*alpha;
+    float16_t beta_f16 = (float16_t)*beta;
+    float16x8_t alpha_f16x8 = vdupq_n_f16(alpha_f16);
+    float16x8_t beta_f16x8 = vdupq_n_f16(beta_f16);
+    nk_size_t i = 0;
+    for (; i + 8 <= n; i += 8) {
+        uint8x8_t a_e4m3x8 = vld1_u8((uint8_t const *)a + i);
+        float16x8_t a_f16x8 = nk_e4m3x8_to_f16x8_neonhalf_(a_e4m3x8);
+        float16x8_t result_f16x8 = vfmaq_f16(beta_f16x8, a_f16x8, alpha_f16x8);
+        uint8x8_t result_e4m3x8 = nk_f16x8_to_e4m3x8_neonhalf_(result_f16x8);
+        vst1_u8((uint8_t *)result + i, result_e4m3x8);
+    }
+    for (; i < n; ++i) {
+        nk_f32_t a_f32, scaled_f32;
+        nk_e4m3_to_f32_(a + i, &a_f32);
+        scaled_f32 = *alpha * a_f32 + *beta;
+        nk_f32_to_e4m3_(&scaled_f32, result + i);
+    }
+}
+
+NK_PUBLIC void nk_scale_e5m2_neonhalf(nk_e5m2_t const *a, nk_size_t n, nk_f32_t const *alpha, nk_f32_t const *beta,
+                                      nk_e5m2_t *result) {
+    float16_t alpha_f16 = (float16_t)*alpha;
+    float16_t beta_f16 = (float16_t)*beta;
+    float16x8_t alpha_f16x8 = vdupq_n_f16(alpha_f16);
+    float16x8_t beta_f16x8 = vdupq_n_f16(beta_f16);
+    nk_size_t i = 0;
+    for (; i + 8 <= n; i += 8) {
+        uint8x8_t a_e5m2x8 = vld1_u8((uint8_t const *)a + i);
+        float16x8_t a_f16x8 = nk_e5m2x8_to_f16x8_neonhalf_(a_e5m2x8);
+        float16x8_t result_f16x8 = vfmaq_f16(beta_f16x8, a_f16x8, alpha_f16x8);
+        uint8x8_t result_e5m2x8 = nk_f16x8_to_e5m2x8_neonhalf_(result_f16x8);
+        vst1_u8((uint8_t *)result + i, result_e5m2x8);
+    }
+    for (; i < n; ++i) {
+        nk_f32_t a_f32, scaled_f32;
+        nk_e5m2_to_f32_(a + i, &a_f32);
+        scaled_f32 = *alpha * a_f32 + *beta;
+        nk_f32_to_e5m2_(&scaled_f32, result + i);
+    }
+}
+
+NK_PUBLIC void nk_wsum_e4m3_neonhalf(nk_e4m3_t const *a, nk_e4m3_t const *b, nk_size_t n, nk_f32_t const *alpha,
+                                     nk_f32_t const *beta, nk_e4m3_t *result) {
+    float16_t alpha_f16 = (float16_t)*alpha;
+    float16_t beta_f16 = (float16_t)*beta;
+    nk_size_t i = 0;
+    for (; i + 8 <= n; i += 8) {
+        uint8x8_t a_e4m3x8 = vld1_u8((uint8_t const *)a + i);
+        uint8x8_t b_e4m3x8 = vld1_u8((uint8_t const *)b + i);
+        float16x8_t a_f16x8 = nk_e4m3x8_to_f16x8_neonhalf_(a_e4m3x8);
+        float16x8_t b_f16x8 = nk_e4m3x8_to_f16x8_neonhalf_(b_e4m3x8);
+        float16x8_t a_scaled_f16x8 = vmulq_n_f16(a_f16x8, alpha_f16);
+        float16x8_t b_scaled_f16x8 = vmulq_n_f16(b_f16x8, beta_f16);
+        float16x8_t result_f16x8 = vaddq_f16(a_scaled_f16x8, b_scaled_f16x8);
+        uint8x8_t result_e4m3x8 = nk_f16x8_to_e4m3x8_neonhalf_(result_f16x8);
+        vst1_u8((uint8_t *)result + i, result_e4m3x8);
+    }
+    for (; i < n; ++i) {
+        nk_f32_t a_f32, b_f32, wsum_f32;
+        nk_e4m3_to_f32_(a + i, &a_f32);
+        nk_e4m3_to_f32_(b + i, &b_f32);
+        wsum_f32 = *alpha * a_f32 + *beta * b_f32;
+        nk_f32_to_e4m3_(&wsum_f32, result + i);
+    }
+}
+
+NK_PUBLIC void nk_wsum_e5m2_neonhalf(nk_e5m2_t const *a, nk_e5m2_t const *b, nk_size_t n, nk_f32_t const *alpha,
+                                     nk_f32_t const *beta, nk_e5m2_t *result) {
+    float16_t alpha_f16 = (float16_t)*alpha;
+    float16_t beta_f16 = (float16_t)*beta;
+    nk_size_t i = 0;
+    for (; i + 8 <= n; i += 8) {
+        uint8x8_t a_e5m2x8 = vld1_u8((uint8_t const *)a + i);
+        uint8x8_t b_e5m2x8 = vld1_u8((uint8_t const *)b + i);
+        float16x8_t a_f16x8 = nk_e5m2x8_to_f16x8_neonhalf_(a_e5m2x8);
+        float16x8_t b_f16x8 = nk_e5m2x8_to_f16x8_neonhalf_(b_e5m2x8);
+        float16x8_t a_scaled_f16x8 = vmulq_n_f16(a_f16x8, alpha_f16);
+        float16x8_t b_scaled_f16x8 = vmulq_n_f16(b_f16x8, beta_f16);
+        float16x8_t result_f16x8 = vaddq_f16(a_scaled_f16x8, b_scaled_f16x8);
+        uint8x8_t result_e5m2x8 = nk_f16x8_to_e5m2x8_neonhalf_(result_f16x8);
+        vst1_u8((uint8_t *)result + i, result_e5m2x8);
+    }
+    for (; i < n; ++i) {
+        nk_f32_t a_f32, b_f32, wsum_f32;
+        nk_e5m2_to_f32_(a + i, &a_f32);
+        nk_e5m2_to_f32_(b + i, &b_f32);
+        wsum_f32 = *alpha * a_f32 + *beta * b_f32;
+        nk_f32_to_e5m2_(&wsum_f32, result + i);
+    }
+}
+
+NK_PUBLIC void nk_fma_e4m3_neonhalf(nk_e4m3_t const *a, nk_e4m3_t const *b, nk_e4m3_t const *c, nk_size_t n,
+                                    nk_f32_t const *alpha, nk_f32_t const *beta, nk_e4m3_t *result) {
+    float16_t alpha_f16 = (float16_t)*alpha;
+    float16_t beta_f16 = (float16_t)*beta;
+    nk_size_t i = 0;
+    for (; i + 8 <= n; i += 8) {
+        uint8x8_t a_e4m3x8 = vld1_u8((uint8_t const *)a + i);
+        uint8x8_t b_e4m3x8 = vld1_u8((uint8_t const *)b + i);
+        uint8x8_t c_e4m3x8 = vld1_u8((uint8_t const *)c + i);
+        float16x8_t a_f16x8 = nk_e4m3x8_to_f16x8_neonhalf_(a_e4m3x8);
+        float16x8_t b_f16x8 = nk_e4m3x8_to_f16x8_neonhalf_(b_e4m3x8);
+        float16x8_t c_f16x8 = nk_e4m3x8_to_f16x8_neonhalf_(c_e4m3x8);
+        float16x8_t ab_f16x8 = vmulq_f16(a_f16x8, b_f16x8);
+        float16x8_t ab_scaled_f16x8 = vmulq_n_f16(ab_f16x8, alpha_f16);
+        float16x8_t c_scaled_f16x8 = vmulq_n_f16(c_f16x8, beta_f16);
+        float16x8_t result_f16x8 = vaddq_f16(ab_scaled_f16x8, c_scaled_f16x8);
+        uint8x8_t result_e4m3x8 = nk_f16x8_to_e4m3x8_neonhalf_(result_f16x8);
+        vst1_u8((uint8_t *)result + i, result_e4m3x8);
+    }
+    for (; i < n; ++i) {
+        nk_f32_t a_f32, b_f32, c_f32, fma_f32;
+        nk_e4m3_to_f32_(a + i, &a_f32);
+        nk_e4m3_to_f32_(b + i, &b_f32);
+        nk_e4m3_to_f32_(c + i, &c_f32);
+        fma_f32 = *alpha * a_f32 * b_f32 + *beta * c_f32;
+        nk_f32_to_e4m3_(&fma_f32, result + i);
+    }
+}
+
+NK_PUBLIC void nk_fma_e5m2_neonhalf(nk_e5m2_t const *a, nk_e5m2_t const *b, nk_e5m2_t const *c, nk_size_t n,
+                                    nk_f32_t const *alpha, nk_f32_t const *beta, nk_e5m2_t *result) {
+    float16_t alpha_f16 = (float16_t)*alpha;
+    float16_t beta_f16 = (float16_t)*beta;
+    nk_size_t i = 0;
+    for (; i + 8 <= n; i += 8) {
+        uint8x8_t a_e5m2x8 = vld1_u8((uint8_t const *)a + i);
+        uint8x8_t b_e5m2x8 = vld1_u8((uint8_t const *)b + i);
+        uint8x8_t c_e5m2x8 = vld1_u8((uint8_t const *)c + i);
+        float16x8_t a_f16x8 = nk_e5m2x8_to_f16x8_neonhalf_(a_e5m2x8);
+        float16x8_t b_f16x8 = nk_e5m2x8_to_f16x8_neonhalf_(b_e5m2x8);
+        float16x8_t c_f16x8 = nk_e5m2x8_to_f16x8_neonhalf_(c_e5m2x8);
+        float16x8_t ab_f16x8 = vmulq_f16(a_f16x8, b_f16x8);
+        float16x8_t ab_scaled_f16x8 = vmulq_n_f16(ab_f16x8, alpha_f16);
+        float16x8_t c_scaled_f16x8 = vmulq_n_f16(c_f16x8, beta_f16);
+        float16x8_t result_f16x8 = vaddq_f16(ab_scaled_f16x8, c_scaled_f16x8);
+        uint8x8_t result_e5m2x8 = nk_f16x8_to_e5m2x8_neonhalf_(result_f16x8);
+        vst1_u8((uint8_t *)result + i, result_e5m2x8);
+    }
+    for (; i < n; ++i) {
+        nk_f32_t a_f32, b_f32, c_f32, fma_f32;
+        nk_e5m2_to_f32_(a + i, &a_f32);
+        nk_e5m2_to_f32_(b + i, &b_f32);
+        nk_e5m2_to_f32_(c + i, &c_f32);
+        fma_f32 = *alpha * a_f32 * b_f32 + *beta * c_f32;
+        nk_f32_to_e5m2_(&fma_f32, result + i);
+    }
+}
+
 #if defined(__cplusplus)
 } // extern "C"
 #endif

@@ -20,6 +20,104 @@
 extern "C" {
 #endif
 
+/** @brief Convert 8x e4m3 to 8x f32 via bit manipulation (AVX2).
+ *  E4M3 format: S EEEE MMM (bias=7). F32: sign<<31, (exp+120)<<23, mant<<20. */
+NK_INTERNAL __m256 nk_e4m3x8_to_f32x8_haswell_(__m128i e4m3_i8x8) {
+    __m256i v_i32x8 = _mm256_cvtepu8_epi32(e4m3_i8x8);
+    __m256i sign_i32x8 = _mm256_slli_epi32(_mm256_and_si256(_mm256_srli_epi32(v_i32x8, 7), _mm256_set1_epi32(1)), 31);
+    __m256i exp_i32x8 = _mm256_and_si256(_mm256_srli_epi32(v_i32x8, 3), _mm256_set1_epi32(0x0F));
+    __m256i mant_i32x8 = _mm256_and_si256(v_i32x8, _mm256_set1_epi32(0x07));
+    __m256i f32_exp_i32x8 = _mm256_slli_epi32(_mm256_add_epi32(exp_i32x8, _mm256_set1_epi32(120)), 23);
+    __m256i f32_mant_i32x8 = _mm256_slli_epi32(mant_i32x8, 20);
+    __m256i f32_bits_i32x8 = _mm256_or_si256(sign_i32x8, _mm256_or_si256(f32_exp_i32x8, f32_mant_i32x8));
+    __m256i zero_mask_i32x8 = _mm256_cmpeq_epi32(exp_i32x8, _mm256_setzero_si256());
+    f32_bits_i32x8 = _mm256_andnot_si256(zero_mask_i32x8, f32_bits_i32x8);
+    return _mm256_castsi256_ps(f32_bits_i32x8);
+}
+
+/** @brief Convert 8x e5m2 to 8x f32 via bit manipulation (AVX2).
+ *  E5M2 format: S EEEEE MM (bias=15). F32: sign<<31, (exp+112)<<23, mant<<21. */
+NK_INTERNAL __m256 nk_e5m2x8_to_f32x8_haswell_(__m128i e5m2_i8x8) {
+    __m256i v_i32x8 = _mm256_cvtepu8_epi32(e5m2_i8x8);
+    __m256i sign_i32x8 = _mm256_slli_epi32(_mm256_and_si256(_mm256_srli_epi32(v_i32x8, 7), _mm256_set1_epi32(1)), 31);
+    __m256i exp_i32x8 = _mm256_and_si256(_mm256_srli_epi32(v_i32x8, 2), _mm256_set1_epi32(0x1F));
+    __m256i mant_i32x8 = _mm256_and_si256(v_i32x8, _mm256_set1_epi32(0x03));
+    __m256i f32_exp_i32x8 = _mm256_slli_epi32(_mm256_add_epi32(exp_i32x8, _mm256_set1_epi32(112)), 23);
+    __m256i f32_mant_i32x8 = _mm256_slli_epi32(mant_i32x8, 21);
+    __m256i f32_bits_i32x8 = _mm256_or_si256(sign_i32x8, _mm256_or_si256(f32_exp_i32x8, f32_mant_i32x8));
+    __m256i zero_mask_i32x8 = _mm256_cmpeq_epi32(exp_i32x8, _mm256_setzero_si256());
+    f32_bits_i32x8 = _mm256_andnot_si256(zero_mask_i32x8, f32_bits_i32x8);
+    return _mm256_castsi256_ps(f32_bits_i32x8);
+}
+
+/** @brief Convert 8x f32 to 8x e4m3 via bit manipulation (AVX2).
+ *  E4M3 format: S EEEE MMM (bias=7). Extract sign, rebias exponent (f32_exp - 127 + 7 = f32_exp - 120),
+ *  clamp to [0,15], take top 3 mantissa bits, handle underflow. */
+NK_INTERNAL __m128i nk_f32x8_to_e4m3x8_haswell_(__m256 f32x8) {
+    __m256i bits_i32x8 = _mm256_castps_si256(f32x8);
+    // Extract sign bit (bit 31)
+    __m256i sign_i32x8 = _mm256_srli_epi32(bits_i32x8, 31);
+    // Extract f32 exponent (bits 30:23)
+    __m256i f32_exp_i32x8 = _mm256_and_si256(_mm256_srli_epi32(bits_i32x8, 23), _mm256_set1_epi32(0xFF));
+    // Extract f32 mantissa (bits 22:0), take top 3 bits -> bits 22:20
+    __m256i f32_mant_i32x8 = _mm256_and_si256(_mm256_srli_epi32(bits_i32x8, 20), _mm256_set1_epi32(0x07));
+    // Rebias exponent: e4m3_exp = f32_exp - 120 (bias 127 -> bias 7)
+    __m256i e4m3_exp_i32x8 = _mm256_sub_epi32(f32_exp_i32x8, _mm256_set1_epi32(120));
+    // Clamp exponent to [0, 15], detect underflow (exp < 0) and overflow (exp > 15)
+    __m256i underflow_i32x8 = _mm256_cmpgt_epi32(_mm256_setzero_si256(), e4m3_exp_i32x8);
+    __m256i overflow_i32x8 = _mm256_cmpgt_epi32(e4m3_exp_i32x8, _mm256_set1_epi32(15));
+    e4m3_exp_i32x8 = _mm256_max_epi32(e4m3_exp_i32x8, _mm256_setzero_si256());
+    e4m3_exp_i32x8 = _mm256_min_epi32(e4m3_exp_i32x8, _mm256_set1_epi32(15));
+    // On overflow, saturate mantissa to max (7)
+    __m256i mant_i32x8 = _mm256_blendv_epi8(f32_mant_i32x8, _mm256_set1_epi32(0x07), overflow_i32x8);
+    // Compose e4m3: sign << 7 | exp << 3 | mant
+    __m256i e4m3_i32x8 = _mm256_or_si256(_mm256_slli_epi32(sign_i32x8, 7),
+                                         _mm256_or_si256(_mm256_slli_epi32(e4m3_exp_i32x8, 3), mant_i32x8));
+    // On underflow, set to signed zero (sign << 7)
+    e4m3_i32x8 = _mm256_blendv_epi8(e4m3_i32x8, _mm256_slli_epi32(sign_i32x8, 7), underflow_i32x8);
+    // Pack 32-bit integers to 8-bit
+    __m256i packed_i16x16 = _mm256_packs_epi32(e4m3_i32x8, _mm256_setzero_si256());
+    __m256i packed_i8x32 = _mm256_packus_epi16(packed_i16x16, _mm256_setzero_si256());
+    // Extract lower 64 bits containing 8 bytes
+    __m128i lo = _mm256_castsi256_si128(packed_i8x32);
+    __m128i hi = _mm256_extracti128_si256(packed_i8x32, 1);
+    return _mm_or_si128(lo, _mm_slli_si128(hi, 4));
+}
+
+/** @brief Convert 8x f32 to 8x e5m2 via bit manipulation (AVX2).
+ *  E5M2 format: S EEEEE MM (bias=15). Extract sign, rebias exponent (f32_exp - 127 + 15 = f32_exp - 112),
+ *  clamp to [0,31], take top 2 mantissa bits, handle underflow. */
+NK_INTERNAL __m128i nk_f32x8_to_e5m2x8_haswell_(__m256 f32x8) {
+    __m256i bits_i32x8 = _mm256_castps_si256(f32x8);
+    // Extract sign bit (bit 31)
+    __m256i sign_i32x8 = _mm256_srli_epi32(bits_i32x8, 31);
+    // Extract f32 exponent (bits 30:23)
+    __m256i f32_exp_i32x8 = _mm256_and_si256(_mm256_srli_epi32(bits_i32x8, 23), _mm256_set1_epi32(0xFF));
+    // Extract f32 mantissa (bits 22:0), take top 2 bits -> bits 22:21
+    __m256i f32_mant_i32x8 = _mm256_and_si256(_mm256_srli_epi32(bits_i32x8, 21), _mm256_set1_epi32(0x03));
+    // Rebias exponent: e5m2_exp = f32_exp - 112 (bias 127 -> bias 15)
+    __m256i e5m2_exp_i32x8 = _mm256_sub_epi32(f32_exp_i32x8, _mm256_set1_epi32(112));
+    // Clamp exponent to [0, 31], detect underflow (exp < 0) and overflow (exp > 31)
+    __m256i underflow_i32x8 = _mm256_cmpgt_epi32(_mm256_setzero_si256(), e5m2_exp_i32x8);
+    __m256i overflow_i32x8 = _mm256_cmpgt_epi32(e5m2_exp_i32x8, _mm256_set1_epi32(31));
+    e5m2_exp_i32x8 = _mm256_max_epi32(e5m2_exp_i32x8, _mm256_setzero_si256());
+    e5m2_exp_i32x8 = _mm256_min_epi32(e5m2_exp_i32x8, _mm256_set1_epi32(31));
+    // On overflow, saturate mantissa to max (3)
+    __m256i mant_i32x8 = _mm256_blendv_epi8(f32_mant_i32x8, _mm256_set1_epi32(0x03), overflow_i32x8);
+    // Compose e5m2: sign << 7 | exp << 2 | mant
+    __m256i e5m2_i32x8 = _mm256_or_si256(_mm256_slli_epi32(sign_i32x8, 7),
+                                         _mm256_or_si256(_mm256_slli_epi32(e5m2_exp_i32x8, 2), mant_i32x8));
+    // On underflow, set to signed zero (sign << 7)
+    e5m2_i32x8 = _mm256_blendv_epi8(e5m2_i32x8, _mm256_slli_epi32(sign_i32x8, 7), underflow_i32x8);
+    // Pack 32-bit integers to 8-bit
+    __m256i packed_i16x16 = _mm256_packs_epi32(e5m2_i32x8, _mm256_setzero_si256());
+    __m256i packed_i8x32 = _mm256_packus_epi16(packed_i16x16, _mm256_setzero_si256());
+    // Extract lower 64 bits containing 8 bytes
+    __m128i lo = _mm256_castsi256_si128(packed_i8x32);
+    __m128i hi = _mm256_extracti128_si256(packed_i8x32, 1);
+    return _mm_or_si128(lo, _mm_slli_si128(hi, 4));
+}
+
 NK_PUBLIC void nk_sum_f32_haswell(nk_f32_t const *a, nk_f32_t const *b, nk_size_t n, nk_f32_t *result) {
     // The main loop:
     nk_size_t i = 0;
@@ -1260,6 +1358,190 @@ NK_PUBLIC void nk_fma_u32_haswell(                                        //
         nk_f64_t ai = a[i], bi = b[i], ci = c[i];
         nk_f64_t sum = alpha_val * ai * bi + beta_val * ci;
         nk_f64_to_u32_(&sum, result + i);
+    }
+}
+
+NK_PUBLIC void nk_sum_e4m3_haswell(nk_e4m3_t const *a, nk_e4m3_t const *b, nk_size_t n, nk_e4m3_t *result) {
+    nk_size_t i = 0;
+    for (; i + 8 <= n; i += 8) {
+        __m128i a_e4m3x8 = _mm_loadl_epi64((__m128i const *)(a + i));
+        __m128i b_e4m3x8 = _mm_loadl_epi64((__m128i const *)(b + i));
+        __m256 a_f32x8 = nk_e4m3x8_to_f32x8_haswell_(a_e4m3x8);
+        __m256 b_f32x8 = nk_e4m3x8_to_f32x8_haswell_(b_e4m3x8);
+        __m256 result_f32x8 = _mm256_add_ps(a_f32x8, b_f32x8);
+        __m128i result_e4m3x8 = nk_f32x8_to_e4m3x8_haswell_(result_f32x8);
+        _mm_storel_epi64((__m128i *)(result + i), result_e4m3x8);
+    }
+    for (; i < n; ++i) {
+        nk_f32_t ai, bi;
+        nk_e4m3_to_f32(a + i, &ai);
+        nk_e4m3_to_f32(b + i, &bi);
+        nk_f32_t sum = ai + bi;
+        nk_f32_to_e4m3(&sum, result + i);
+    }
+}
+
+NK_PUBLIC void nk_sum_e5m2_haswell(nk_e5m2_t const *a, nk_e5m2_t const *b, nk_size_t n, nk_e5m2_t *result) {
+    nk_size_t i = 0;
+    for (; i + 8 <= n; i += 8) {
+        __m128i a_e5m2x8 = _mm_loadl_epi64((__m128i const *)(a + i));
+        __m128i b_e5m2x8 = _mm_loadl_epi64((__m128i const *)(b + i));
+        __m256 a_f32x8 = nk_e5m2x8_to_f32x8_haswell_(a_e5m2x8);
+        __m256 b_f32x8 = nk_e5m2x8_to_f32x8_haswell_(b_e5m2x8);
+        __m256 result_f32x8 = _mm256_add_ps(a_f32x8, b_f32x8);
+        __m128i result_e5m2x8 = nk_f32x8_to_e5m2x8_haswell_(result_f32x8);
+        _mm_storel_epi64((__m128i *)(result + i), result_e5m2x8);
+    }
+    for (; i < n; ++i) {
+        nk_f32_t ai, bi;
+        nk_e5m2_to_f32(a + i, &ai);
+        nk_e5m2_to_f32(b + i, &bi);
+        nk_f32_t sum = ai + bi;
+        nk_f32_to_e5m2(&sum, result + i);
+    }
+}
+
+NK_PUBLIC void nk_scale_e4m3_haswell(nk_e4m3_t const *a, nk_size_t n, nk_f32_t const *alpha, nk_f32_t const *beta,
+                                     nk_e4m3_t *result) {
+    __m256 alpha_f32x8 = _mm256_set1_ps(*alpha);
+    __m256 beta_f32x8 = _mm256_set1_ps(*beta);
+    nk_size_t i = 0;
+    for (; i + 8 <= n; i += 8) {
+        __m128i a_e4m3x8 = _mm_loadl_epi64((__m128i const *)(a + i));
+        __m256 a_f32x8 = nk_e4m3x8_to_f32x8_haswell_(a_e4m3x8);
+        __m256 result_f32x8 = _mm256_fmadd_ps(a_f32x8, alpha_f32x8, beta_f32x8);
+        __m128i result_e4m3x8 = nk_f32x8_to_e4m3x8_haswell_(result_f32x8);
+        _mm_storel_epi64((__m128i *)(result + i), result_e4m3x8);
+    }
+    for (; i < n; ++i) {
+        nk_f32_t ai;
+        nk_e4m3_to_f32(a + i, &ai);
+        nk_f32_t scaled = *alpha * ai + *beta;
+        nk_f32_to_e4m3(&scaled, result + i);
+    }
+}
+
+NK_PUBLIC void nk_scale_e5m2_haswell(nk_e5m2_t const *a, nk_size_t n, nk_f32_t const *alpha, nk_f32_t const *beta,
+                                     nk_e5m2_t *result) {
+    __m256 alpha_f32x8 = _mm256_set1_ps(*alpha);
+    __m256 beta_f32x8 = _mm256_set1_ps(*beta);
+    nk_size_t i = 0;
+    for (; i + 8 <= n; i += 8) {
+        __m128i a_e5m2x8 = _mm_loadl_epi64((__m128i const *)(a + i));
+        __m256 a_f32x8 = nk_e5m2x8_to_f32x8_haswell_(a_e5m2x8);
+        __m256 result_f32x8 = _mm256_fmadd_ps(a_f32x8, alpha_f32x8, beta_f32x8);
+        __m128i result_e5m2x8 = nk_f32x8_to_e5m2x8_haswell_(result_f32x8);
+        _mm_storel_epi64((__m128i *)(result + i), result_e5m2x8);
+    }
+    for (; i < n; ++i) {
+        nk_f32_t ai;
+        nk_e5m2_to_f32(a + i, &ai);
+        nk_f32_t scaled = *alpha * ai + *beta;
+        nk_f32_to_e5m2(&scaled, result + i);
+    }
+}
+
+NK_PUBLIC void nk_wsum_e4m3_haswell(nk_e4m3_t const *a, nk_e4m3_t const *b, nk_size_t n, nk_f32_t const *alpha,
+                                    nk_f32_t const *beta, nk_e4m3_t *result) {
+    __m256 alpha_f32x8 = _mm256_set1_ps(*alpha);
+    __m256 beta_f32x8 = _mm256_set1_ps(*beta);
+    nk_size_t i = 0;
+    for (; i + 8 <= n; i += 8) {
+        __m128i a_e4m3x8 = _mm_loadl_epi64((__m128i const *)(a + i));
+        __m128i b_e4m3x8 = _mm_loadl_epi64((__m128i const *)(b + i));
+        __m256 a_f32x8 = nk_e4m3x8_to_f32x8_haswell_(a_e4m3x8);
+        __m256 b_f32x8 = nk_e4m3x8_to_f32x8_haswell_(b_e4m3x8);
+        __m256 a_scaled_f32x8 = _mm256_mul_ps(a_f32x8, alpha_f32x8);
+        __m256 result_f32x8 = _mm256_fmadd_ps(b_f32x8, beta_f32x8, a_scaled_f32x8);
+        __m128i result_e4m3x8 = nk_f32x8_to_e4m3x8_haswell_(result_f32x8);
+        _mm_storel_epi64((__m128i *)(result + i), result_e4m3x8);
+    }
+    for (; i < n; ++i) {
+        nk_f32_t ai, bi;
+        nk_e4m3_to_f32(a + i, &ai);
+        nk_e4m3_to_f32(b + i, &bi);
+        nk_f32_t wsum = *alpha * ai + *beta * bi;
+        nk_f32_to_e4m3(&wsum, result + i);
+    }
+}
+
+NK_PUBLIC void nk_wsum_e5m2_haswell(nk_e5m2_t const *a, nk_e5m2_t const *b, nk_size_t n, nk_f32_t const *alpha,
+                                    nk_f32_t const *beta, nk_e5m2_t *result) {
+    __m256 alpha_f32x8 = _mm256_set1_ps(*alpha);
+    __m256 beta_f32x8 = _mm256_set1_ps(*beta);
+    nk_size_t i = 0;
+    for (; i + 8 <= n; i += 8) {
+        __m128i a_e5m2x8 = _mm_loadl_epi64((__m128i const *)(a + i));
+        __m128i b_e5m2x8 = _mm_loadl_epi64((__m128i const *)(b + i));
+        __m256 a_f32x8 = nk_e5m2x8_to_f32x8_haswell_(a_e5m2x8);
+        __m256 b_f32x8 = nk_e5m2x8_to_f32x8_haswell_(b_e5m2x8);
+        __m256 a_scaled_f32x8 = _mm256_mul_ps(a_f32x8, alpha_f32x8);
+        __m256 result_f32x8 = _mm256_fmadd_ps(b_f32x8, beta_f32x8, a_scaled_f32x8);
+        __m128i result_e5m2x8 = nk_f32x8_to_e5m2x8_haswell_(result_f32x8);
+        _mm_storel_epi64((__m128i *)(result + i), result_e5m2x8);
+    }
+    for (; i < n; ++i) {
+        nk_f32_t ai, bi;
+        nk_e5m2_to_f32(a + i, &ai);
+        nk_e5m2_to_f32(b + i, &bi);
+        nk_f32_t wsum = *alpha * ai + *beta * bi;
+        nk_f32_to_e5m2(&wsum, result + i);
+    }
+}
+
+NK_PUBLIC void nk_fma_e4m3_haswell(nk_e4m3_t const *a, nk_e4m3_t const *b, nk_e4m3_t const *c, nk_size_t n,
+                                   nk_f32_t const *alpha, nk_f32_t const *beta, nk_e4m3_t *result) {
+    __m256 alpha_f32x8 = _mm256_set1_ps(*alpha);
+    __m256 beta_f32x8 = _mm256_set1_ps(*beta);
+    nk_size_t i = 0;
+    for (; i + 8 <= n; i += 8) {
+        __m128i a_e4m3x8 = _mm_loadl_epi64((__m128i const *)(a + i));
+        __m128i b_e4m3x8 = _mm_loadl_epi64((__m128i const *)(b + i));
+        __m128i c_e4m3x8 = _mm_loadl_epi64((__m128i const *)(c + i));
+        __m256 a_f32x8 = nk_e4m3x8_to_f32x8_haswell_(a_e4m3x8);
+        __m256 b_f32x8 = nk_e4m3x8_to_f32x8_haswell_(b_e4m3x8);
+        __m256 c_f32x8 = nk_e4m3x8_to_f32x8_haswell_(c_e4m3x8);
+        __m256 ab_f32x8 = _mm256_mul_ps(a_f32x8, b_f32x8);
+        __m256 ab_scaled_f32x8 = _mm256_mul_ps(ab_f32x8, alpha_f32x8);
+        __m256 result_f32x8 = _mm256_fmadd_ps(c_f32x8, beta_f32x8, ab_scaled_f32x8);
+        __m128i result_e4m3x8 = nk_f32x8_to_e4m3x8_haswell_(result_f32x8);
+        _mm_storel_epi64((__m128i *)(result + i), result_e4m3x8);
+    }
+    for (; i < n; ++i) {
+        nk_f32_t ai, bi, ci;
+        nk_e4m3_to_f32(a + i, &ai);
+        nk_e4m3_to_f32(b + i, &bi);
+        nk_e4m3_to_f32(c + i, &ci);
+        nk_f32_t fma = *alpha * ai * bi + *beta * ci;
+        nk_f32_to_e4m3(&fma, result + i);
+    }
+}
+
+NK_PUBLIC void nk_fma_e5m2_haswell(nk_e5m2_t const *a, nk_e5m2_t const *b, nk_e5m2_t const *c, nk_size_t n,
+                                   nk_f32_t const *alpha, nk_f32_t const *beta, nk_e5m2_t *result) {
+    __m256 alpha_f32x8 = _mm256_set1_ps(*alpha);
+    __m256 beta_f32x8 = _mm256_set1_ps(*beta);
+    nk_size_t i = 0;
+    for (; i + 8 <= n; i += 8) {
+        __m128i a_e5m2x8 = _mm_loadl_epi64((__m128i const *)(a + i));
+        __m128i b_e5m2x8 = _mm_loadl_epi64((__m128i const *)(b + i));
+        __m128i c_e5m2x8 = _mm_loadl_epi64((__m128i const *)(c + i));
+        __m256 a_f32x8 = nk_e5m2x8_to_f32x8_haswell_(a_e5m2x8);
+        __m256 b_f32x8 = nk_e5m2x8_to_f32x8_haswell_(b_e5m2x8);
+        __m256 c_f32x8 = nk_e5m2x8_to_f32x8_haswell_(c_e5m2x8);
+        __m256 ab_f32x8 = _mm256_mul_ps(a_f32x8, b_f32x8);
+        __m256 ab_scaled_f32x8 = _mm256_mul_ps(ab_f32x8, alpha_f32x8);
+        __m256 result_f32x8 = _mm256_fmadd_ps(c_f32x8, beta_f32x8, ab_scaled_f32x8);
+        __m128i result_e5m2x8 = nk_f32x8_to_e5m2x8_haswell_(result_f32x8);
+        _mm_storel_epi64((__m128i *)(result + i), result_e5m2x8);
+    }
+    for (; i < n; ++i) {
+        nk_f32_t ai, bi, ci;
+        nk_e5m2_to_f32(a + i, &ai);
+        nk_e5m2_to_f32(b + i, &bi);
+        nk_e5m2_to_f32(c + i, &ci);
+        nk_f32_t fma = *alpha * ai * bi + *beta * ci;
+        nk_f32_to_e5m2(&fma, result + i);
     }
 }
 
