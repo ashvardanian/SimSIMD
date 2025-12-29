@@ -1309,6 +1309,13 @@ NK_INTERNAL void nk_u16_to_u64_(nk_u16_t const *x, nk_u64_t *y) { *y = (nk_u64_t
 NK_INTERNAL void nk_u32_to_u64_(nk_u32_t const *x, nk_u64_t *y) { *y = (nk_u64_t)*x; }
 NK_INTERNAL void nk_u64_to_u64_(nk_u64_t const *x, nk_u64_t *y) { *y = *x; }
 
+NK_INTERNAL nk_f32_t nk_abs_f32(nk_f32_t x) { return x < 0 ? -x : x; }
+NK_INTERNAL nk_f64_t nk_abs_f64(nk_f64_t x) { return x < 0 ? -x : x; }
+NK_INTERNAL nk_i32_t nk_abs_i32(nk_i32_t x) { return x < 0 ? -x : x; }
+NK_INTERNAL nk_i64_t nk_abs_i64(nk_i64_t x) { return x < 0 ? -x : x; }
+NK_INTERNAL nk_u32_t nk_abs_u32(nk_u32_t x) { return x; }
+NK_INTERNAL nk_u64_t nk_abs_u64(nk_u64_t x) { return x; }
+
 NK_INTERNAL void nk_i64_to_f16_(nk_i64_t const *x, nk_f16_t *y) {
     nk_f32_t f32 = (nk_f32_t)*x;
     nk_f32_to_f16(&f32, y);

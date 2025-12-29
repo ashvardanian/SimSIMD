@@ -14,10 +14,11 @@ extern "C" {
 #endif
 
 /**
- *  @brief Macro for L2 squared distance with Kahan compensated summation.
+ *  @brief Macro for L2 squared distance with Neumaier compensated summation.
  *
- *  Implements Kahan-Babuška algorithm to minimize floating-point rounding errors during accumulation.
- *  Achieves O(1) error growth regardless of vector dimension, compared to O(√n) for naive summation.
+ *  Implements Neumaier's improved Kahan-Babuška algorithm to minimize floating-point rounding errors.
+ *  Unlike Kahan, Neumaier correctly handles the case where the term being added is larger than the
+ *  running sum. Achieves O(1) error growth regardless of vector dimension.
  *
  *  Performance vs Accuracy Tradeoff:
  *  - Adds ~30% overhead (3 extra FP operations per iteration) compared to naive summation
@@ -25,53 +26,26 @@ extern "C" {
  *  - Benefits all floating-point types: f64, f32, f16, bf16
  *  - Integer types (i8) maintain perfect accuracy regardless
  *
- *  Error Growth Comparison (measured on serial implementations, compared to f64 baseline):
- *  @code
- *  Type    Dimension    Naive (O(√n))    Kahan (O(1))     Improvement
- *  f32     1K           1.78e-07         2.37e-08         7.5x
- *  f32     10K          5.63e-07         2.16e-08         26x
- *  f32     100K         7.08e-06         2.32e-08         305x
- *  f32     1M           ~7.0e-05 (proj)  2.21e-08         ~3,167x
+ *  Algorithm: For each term, compute t = sum + term, then:
+ *    - If |sum| >= |term|: c += (sum - t) + term  (lost low-order bits of term)
+ *    - Else:               c += (term - t) + sum  (lost low-order bits of sum)
  *
- *  bf16    1K           4.86e-07         (expected ~1e-07)
- *  bf16    100K         1.56e-05         (expected ~1e-07) 156x expected
- *
- *  f16     1K           2.38e-07         (expected ~5e-08)
- *  f16     100K         4.68e-06         (expected ~5e-08) 94x expected
- *  @endcode
- *
- *  Algorithm (Kahan-Babuška Compensated Summation):
- *  - Maintain compensation term 'c' to capture floating-point rounding errors
- *  - Each iteration: y = term - c (corrected input), t = sum + y (tentative sum)
- *  - Update: c = (t - sum) - y (new compensation), sum = t
- *  - The compensation captures the low-order bits lost during addition
- *
- *  References:
- *  - Kahan, W. (1965). "Further remarks on reducing truncation errors"
- *  - https://en.wikipedia.org/wiki/Kahan_summation_algorithm
- *
- *  @param name         Variant name (e.g., serial, accurate)
- *  @param input_type   Input element type (f32, f16, bf16, f64, i8, etc.)
- *  @param accumulator_type Type used for accumulation
- *  @param output_type  Result type
- *  @param load_and_convert Conversion macro for input elements
+ *  @see Neumaier, A. (1974). "Rundungsfehleranalyse einiger Verfahren zur Summation endlicher Summen"
  */
-#define NK_MAKE_L2SQ(name, input_type, accumulator_type, output_type, load_and_convert)                      \
-    NK_PUBLIC void nk_l2sq_##input_type##_##name(nk_##input_type##_t const *a, nk_##input_type##_t const *b, \
-                                                 nk_size_t n, nk_##output_type##_t *result) {                \
-        nk_##accumulator_type##_t distance_sq = 0, compensation = 0, a_element, b_element;                   \
-        for (nk_size_t i = 0; i != n; ++i) {                                                                 \
-            load_and_convert(a + i, &a_element);                                                             \
-            load_and_convert(b + i, &b_element);                                                             \
-            nk_##accumulator_type##_t diff = a_element - b_element;                                          \
-            nk_##accumulator_type##_t term = diff * diff;                                                    \
-            /* Kahan compensated summation: */                                                               \
-            nk_##accumulator_type##_t y = term - compensation; /* Subtract previous compensation */          \
-            nk_##accumulator_type##_t t = distance_sq + y;     /* Add corrected term */                      \
-            compensation = (t - distance_sq) - y;              /* Update compensation for next iteration */  \
-            distance_sq = t;                                                                                 \
-        }                                                                                                    \
-        *result = (nk_##output_type##_t)distance_sq;                                                         \
+#define NK_MAKE_L2SQ(name, input_type, accumulator_type, output_type, load_and_convert)                               \
+    NK_PUBLIC void nk_l2sq_##input_type##_##name(nk_##input_type##_t const *a, nk_##input_type##_t const *b,          \
+                                                 nk_size_t n, nk_##output_type##_t *result) {                         \
+        nk_##accumulator_type##_t sum = 0, compensation = 0, a_element, b_element;                                    \
+        for (nk_size_t i = 0; i != n; ++i) {                                                                          \
+            load_and_convert(a + i, &a_element);                                                                      \
+            load_and_convert(b + i, &b_element);                                                                      \
+            nk_##accumulator_type##_t diff = a_element - b_element;                                                   \
+            nk_##accumulator_type##_t term = diff * diff, t = sum + term;                                             \
+            compensation += (nk_abs_##accumulator_type(sum) >= nk_abs_##accumulator_type(term)) ? ((sum - t) + term)  \
+                                                                                                : ((term - t) + sum); \
+            sum = t;                                                                                                  \
+        }                                                                                                             \
+        *result = (nk_##output_type##_t)(sum + compensation);                                                         \
     }
 
 #define NK_MAKE_L2(name, input_type, accumulator_type, l2sq_output_type, output_type, load_and_convert, compute_sqrt) \
@@ -83,37 +57,40 @@ extern "C" {
     }
 
 /**
- *  @brief Macro for cosine/angular distance with Kahan compensated summation.
+ *  @brief Macro for cosine/angular distance with Neumaier compensated summation.
  *
- *  Uses Kahan summation for all three accumulators (dot_product, a_norm_sq, b_norm_sq).
+ *  Uses Neumaier summation for all three accumulators (dot_product, a_norm_sq, b_norm_sq).
  *  Achieves O(1) error growth regardless of vector dimension.
  *
- *  @see NK_MAKE_L2SQ for detailed documentation on Kahan summation.
+ *  @see NK_MAKE_L2SQ for detailed documentation on Neumaier summation.
  */
 #define NK_MAKE_COS(name, input_type, accumulator_type, output_type, load_and_convert, compute_rsqrt)           \
     NK_PUBLIC void nk_angular_##input_type##_##name(nk_##input_type##_t const *a, nk_##input_type##_t const *b, \
                                                     nk_size_t n, nk_##output_type##_t *result) {                \
-        nk_##accumulator_type##_t dot_product = 0, a_norm_sq = 0, b_norm_sq = 0, a_element, b_element;          \
-        nk_##accumulator_type##_t c_dot = 0, c_a = 0, c_b = 0; /* Kahan compensation terms */                   \
+        nk_##accumulator_type##_t dot_sum = 0, a_sum = 0, b_sum = 0, a_element, b_element;                      \
+        nk_##accumulator_type##_t compensation_dot = 0, compensation_a = 0, compensation_b = 0;                 \
         for (nk_size_t i = 0; i != n; ++i) {                                                                    \
             load_and_convert(a + i, &a_element);                                                                \
             load_and_convert(b + i, &b_element);                                                                \
-            /* Kahan for dot_product */                                                                         \
-            nk_##accumulator_type##_t y_dot = a_element * b_element - c_dot;                                    \
-            nk_##accumulator_type##_t t_dot = dot_product + y_dot;                                              \
-            c_dot = (t_dot - dot_product) - y_dot;                                                              \
-            dot_product = t_dot;                                                                                \
-            /* Kahan for a_norm_sq */                                                                           \
-            nk_##accumulator_type##_t y_a = a_element * a_element - c_a;                                        \
-            nk_##accumulator_type##_t t_a = a_norm_sq + y_a;                                                    \
-            c_a = (t_a - a_norm_sq) - y_a;                                                                      \
-            a_norm_sq = t_a;                                                                                    \
-            /* Kahan for b_norm_sq */                                                                           \
-            nk_##accumulator_type##_t y_b = b_element * b_element - c_b;                                        \
-            nk_##accumulator_type##_t t_b = b_norm_sq + y_b;                                                    \
-            c_b = (t_b - b_norm_sq) - y_b;                                                                      \
-            b_norm_sq = t_b;                                                                                    \
+            nk_##accumulator_type##_t term_dot = a_element * b_element, t_dot = dot_sum + term_dot;             \
+            nk_##accumulator_type##_t term_a = a_element * a_element, t_a = a_sum + term_a;                     \
+            nk_##accumulator_type##_t term_b = b_element * b_element, t_b = b_sum + term_b;                     \
+            compensation_dot += (nk_abs_##accumulator_type(dot_sum) >= nk_abs_##accumulator_type(term_dot))     \
+                                    ? ((dot_sum - t_dot) + term_dot)                                            \
+                                    : ((term_dot - t_dot) + dot_sum);                                           \
+            compensation_a += (nk_abs_##accumulator_type(a_sum) >= nk_abs_##accumulator_type(term_a))           \
+                                  ? ((a_sum - t_a) + term_a)                                                    \
+                                  : ((term_a - t_a) + a_sum);                                                   \
+            compensation_b += (nk_abs_##accumulator_type(b_sum) >= nk_abs_##accumulator_type(term_b))           \
+                                  ? ((b_sum - t_b) + term_b)                                                    \
+                                  : ((term_b - t_b) + b_sum);                                                   \
+            dot_sum = t_dot;                                                                                    \
+            a_sum = t_a;                                                                                        \
+            b_sum = t_b;                                                                                        \
         }                                                                                                       \
+        nk_##accumulator_type##_t dot_product = dot_sum + compensation_dot;                                     \
+        nk_##accumulator_type##_t a_norm_sq = a_sum + compensation_a;                                           \
+        nk_##accumulator_type##_t b_norm_sq = b_sum + compensation_b;                                           \
         if (a_norm_sq == 0 && b_norm_sq == 0) { *result = 0; }                                                  \
         else if (dot_product == 0) { *result = 1; }                                                             \
         else {                                                                                                  \

@@ -14,61 +14,83 @@ extern "C" {
 #endif
 
 /**
- *  @brief Macro for dot product with Kahan compensated summation.
+ *  @brief Macro for dot product with Neumaier compensated summation.
  *
- *  Implements Kahan-Babuška algorithm to minimize floating-point rounding errors.
- *  Achieves O(1) error growth regardless of vector dimension, compared to O(√n) for naive summation.
+ *  Implements Neumaier's improved Kahan-Babuška algorithm to minimize floating-point rounding errors.
+ *  Unlike Kahan, Neumaier correctly handles the case where the term being added is larger than the
+ *  running sum. Achieves O(1) error growth regardless of vector dimension.
  *
- *  @see NK_MAKE_L2SQ in spatial.h for detailed documentation on Kahan summation.
+ *  Algorithm: For each term, compute t = sum + term, then:
+ *    - If |sum| >= |term|: c += (sum - t) + term  (lost low-order bits of term)
+ *    - Else:               c += (term - t) + sum  (lost low-order bits of sum)
+ *
+ *  @see Neumaier, A. (1974). "Rundungsfehleranalyse einiger Verfahren zur Summation endlicher Summen"
  */
-#define NK_MAKE_DOT(name, input_type, accumulator_type, output_type, load_and_convert)                      \
-    NK_PUBLIC void nk_dot_##input_type##_##name(nk_##input_type##_t const *a, nk_##input_type##_t const *b, \
-                                                nk_size_t n, nk_##output_type##_t *result) {                \
-        nk_##accumulator_type##_t ab = 0, compensation = 0, ai, bi;                                         \
-        for (nk_size_t i = 0; i != n; ++i) {                                                                \
-            load_and_convert(a + i, &ai);                                                                   \
-            load_and_convert(b + i, &bi);                                                                   \
-            nk_##accumulator_type##_t term = ai * bi;                                                       \
-            nk_##accumulator_type##_t y = term - compensation;                                              \
-            nk_##accumulator_type##_t t = ab + y;                                                           \
-            compensation = (t - ab) - y;                                                                    \
-            ab = t;                                                                                         \
-        }                                                                                                   \
-        *result = (nk_##output_type##_t)ab;                                                                 \
+#define NK_MAKE_DOT(name, input_type, accumulator_type, output_type, load_and_convert)                                \
+    NK_PUBLIC void nk_dot_##input_type##_##name(nk_##input_type##_t const *a, nk_##input_type##_t const *b,           \
+                                                nk_size_t n, nk_##output_type##_t *result) {                          \
+        nk_##accumulator_type##_t sum = 0, compensation = 0, ai, bi;                                                  \
+        for (nk_size_t i = 0; i != n; ++i) {                                                                          \
+            load_and_convert(a + i, &ai);                                                                             \
+            load_and_convert(b + i, &bi);                                                                             \
+            nk_##accumulator_type##_t term = ai * bi, t = sum + term;                                                 \
+            compensation += (nk_abs_##accumulator_type(sum) >= nk_abs_##accumulator_type(term)) ? ((sum - t) + term)  \
+                                                                                                : ((term - t) + sum); \
+            sum = t;                                                                                                  \
+        }                                                                                                             \
+        *result = (nk_##output_type##_t)(sum + compensation);                                                         \
     }
 
-#define NK_MAKE_COMPLEX_DOT(name, input_type, accumulator_type, output_complex_type, load_and_convert)     \
-    NK_PUBLIC void nk_dot_##input_type##_##name(nk_##input_type##_t const *a_pairs,                        \
-                                                nk_##input_type##_t const *b_pairs, nk_size_t count_pairs, \
-                                                nk_##output_complex_type##_t *result) {                    \
-        nk_##accumulator_type##_t ab_real = 0, ab_imag = 0, ar, br, ai, bi;                                \
-        for (nk_size_t i = 0; i != count_pairs; ++i) {                                                     \
-            load_and_convert(&(a_pairs + i)->real, &ar);                                                   \
-            load_and_convert(&(b_pairs + i)->real, &br);                                                   \
-            load_and_convert(&(a_pairs + i)->imag, &ai);                                                   \
-            load_and_convert(&(b_pairs + i)->imag, &bi);                                                   \
-            ab_real += ar * br - ai * bi;                                                                  \
-            ab_imag += ar * bi + ai * br;                                                                  \
-        }                                                                                                  \
-        result->real = ab_real;                                                                            \
-        result->imag = ab_imag;                                                                            \
+#define NK_MAKE_COMPLEX_DOT(name, input_type, accumulator_type, output_complex_type, load_and_convert)         \
+    NK_PUBLIC void nk_dot_##input_type##_##name(nk_##input_type##_t const *a_pairs,                            \
+                                                nk_##input_type##_t const *b_pairs, nk_size_t count_pairs,     \
+                                                nk_##output_complex_type##_t *result) {                        \
+        nk_##accumulator_type##_t sum_real = 0, sum_imag = 0, compensation_real = 0, compensation_imag = 0;    \
+        nk_##accumulator_type##_t ar, br, ai, bi;                                                              \
+        for (nk_size_t i = 0; i != count_pairs; ++i) {                                                         \
+            load_and_convert(&(a_pairs + i)->real, &ar);                                                       \
+            load_and_convert(&(b_pairs + i)->real, &br);                                                       \
+            load_and_convert(&(a_pairs + i)->imag, &ai);                                                       \
+            load_and_convert(&(b_pairs + i)->imag, &bi);                                                       \
+            nk_##accumulator_type##_t term_real = ar * br - ai * bi, t_real = sum_real + term_real;            \
+            nk_##accumulator_type##_t term_imag = ar * bi + ai * br, t_imag = sum_imag + term_imag;            \
+            compensation_real += (nk_abs_##accumulator_type(sum_real) >= nk_abs_##accumulator_type(term_real)) \
+                                     ? ((sum_real - t_real) + term_real)                                       \
+                                     : ((term_real - t_real) + sum_real);                                      \
+            compensation_imag += (nk_abs_##accumulator_type(sum_imag) >= nk_abs_##accumulator_type(term_imag)) \
+                                     ? ((sum_imag - t_imag) + term_imag)                                       \
+                                     : ((term_imag - t_imag) + sum_imag);                                      \
+            sum_real = t_real;                                                                                 \
+            sum_imag = t_imag;                                                                                 \
+        }                                                                                                      \
+        result->real = sum_real + compensation_real;                                                           \
+        result->imag = sum_imag + compensation_imag;                                                           \
     }
 
-#define NK_MAKE_COMPLEX_VDOT(name, input_type, accumulator_type, output_complex_type, load_and_convert)     \
-    NK_PUBLIC void nk_vdot_##input_type##_##name(nk_##input_type##_t const *a_pairs,                        \
-                                                 nk_##input_type##_t const *b_pairs, nk_size_t count_pairs, \
-                                                 nk_##output_complex_type##_t *result) {                    \
-        nk_##accumulator_type##_t ab_real = 0, ab_imag = 0, ar, br, ai, bi;                                 \
-        for (nk_size_t i = 0; i != count_pairs; ++i) {                                                      \
-            load_and_convert(&(a_pairs + i)->real, &ar);                                                    \
-            load_and_convert(&(b_pairs + i)->real, &br);                                                    \
-            load_and_convert(&(a_pairs + i)->imag, &ai);                                                    \
-            load_and_convert(&(b_pairs + i)->imag, &bi);                                                    \
-            ab_real += ar * br + ai * bi;                                                                   \
-            ab_imag += ar * bi - ai * br;                                                                   \
-        }                                                                                                   \
-        result->real = ab_real;                                                                             \
-        result->imag = ab_imag;                                                                             \
+#define NK_MAKE_COMPLEX_VDOT(name, input_type, accumulator_type, output_complex_type, load_and_convert)        \
+    NK_PUBLIC void nk_vdot_##input_type##_##name(nk_##input_type##_t const *a_pairs,                           \
+                                                 nk_##input_type##_t const *b_pairs, nk_size_t count_pairs,    \
+                                                 nk_##output_complex_type##_t *result) {                       \
+        nk_##accumulator_type##_t sum_real = 0, sum_imag = 0, compensation_real = 0, compensation_imag = 0;    \
+        nk_##accumulator_type##_t ar, br, ai, bi;                                                              \
+        for (nk_size_t i = 0; i != count_pairs; ++i) {                                                         \
+            load_and_convert(&(a_pairs + i)->real, &ar);                                                       \
+            load_and_convert(&(b_pairs + i)->real, &br);                                                       \
+            load_and_convert(&(a_pairs + i)->imag, &ai);                                                       \
+            load_and_convert(&(b_pairs + i)->imag, &bi);                                                       \
+            nk_##accumulator_type##_t term_real = ar * br + ai * bi, t_real = sum_real + term_real;            \
+            nk_##accumulator_type##_t term_imag = ar * bi - ai * br, t_imag = sum_imag + term_imag;            \
+            compensation_real += (nk_abs_##accumulator_type(sum_real) >= nk_abs_##accumulator_type(term_real)) \
+                                     ? ((sum_real - t_real) + term_real)                                       \
+                                     : ((term_real - t_real) + sum_real);                                      \
+            compensation_imag += (nk_abs_##accumulator_type(sum_imag) >= nk_abs_##accumulator_type(term_imag)) \
+                                     ? ((sum_imag - t_imag) + term_imag)                                       \
+                                     : ((term_imag - t_imag) + sum_imag);                                      \
+            sum_real = t_real;                                                                                 \
+            sum_imag = t_imag;                                                                                 \
+        }                                                                                                      \
+        result->real = sum_real + compensation_real;                                                           \
+        result->imag = sum_imag + compensation_imag;                                                           \
     }
 
 NK_MAKE_DOT(serial, f64, f64, f64, nk_assign_from_to_)            // nk_dot_f64_serial
