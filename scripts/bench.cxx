@@ -25,21 +25,21 @@
 
 #include <benchmark/benchmark.h>
 
-#if !defined(NK_BUILD_BENCHMARKS_WITH_MKL)
-#define NK_BUILD_BENCHMARKS_WITH_MKL 0
+#if !defined(NK_COMPARE_TO_MKL)
+#define NK_COMPARE_TO_MKL 0
 #endif
-#if !defined(NK_BUILD_BENCHMARKS_WITH_CBLAS)
-#define NK_BUILD_BENCHMARKS_WITH_CBLAS 0
+#if !defined(NK_COMPARE_TO_BLAS)
+#define NK_COMPARE_TO_BLAS 0
 #endif
 
 // Include BLAS headers - MKL takes precedence if both are enabled
 // (MKL provides a superset of CBLAS functionality)
-#if NK_BUILD_BENCHMARKS_WITH_MKL
+#if NK_COMPARE_TO_MKL
 #include <mkl.h>
 // MKL provides additional GEMM routines:
 // - cblas_gemm_bf16bf16f32: BF16 inputs → F32 output
 // - cblas_hgemm: F16 GEMM (if available)
-#elif NK_BUILD_BENCHMARKS_WITH_CBLAS
+#elif NK_COMPARE_TO_BLAS
 #if defined(__APPLE__)
 // Apple Accelerate framework provides CBLAS
 #include <Accelerate/Accelerate.h>
@@ -48,13 +48,6 @@
 // OpenBLAS thread control (weak symbol to avoid link errors if not present)
 extern "C" void openblas_set_num_threads(int) __attribute__((weak));
 #endif
-#endif
-
-// Unified BLAS availability check (MKL provides CBLAS interface)
-#if NK_BUILD_BENCHMARKS_WITH_MKL || NK_BUILD_BENCHMARKS_WITH_CBLAS
-#define NK_BUILD_BENCHMARKS_WITH_BLAS 1
-#else
-#define NK_BUILD_BENCHMARKS_WITH_BLAS 0
 #endif
 
 // It's important to note, that out compression/decompression routines
@@ -1197,7 +1190,7 @@ void elementwise_with_stl(scalar_at const *ins, nk_size_t n, scalar_at *outs) {
     for (nk_size_t i = 0; i != n; ++i) outs[i] = kernel_at {}(ins[i]);
 }
 
-#if NK_BUILD_BENCHMARKS_WITH_BLAS
+#if NK_COMPARE_TO_BLAS
 
 void dot_f32_blas(nk_f32_t const *a, nk_f32_t const *b, nk_size_t n, nk_f32_t *result) {
     *result = cblas_sdot(static_cast<int>(n), a, 1, b, 1);
@@ -1331,7 +1324,7 @@ void measure_dgemm_blas(bm::State &state, std::size_t m, std::size_t n, std::siz
 
 #endif
 
-#if NK_BUILD_BENCHMARKS_WITH_MKL
+#if NK_COMPARE_TO_MKL
 
 /// Converts float to MKL_BF16 using NumKong's conversion.
 inline MKL_BF16 f32_to_bf16(float val) {
@@ -1450,10 +1443,10 @@ int main(int argc, char **argv) {
     nk_capability_t runtime_caps = nk_capabilities();
     nk_configure_thread(runtime_caps); // Also enables AMX if available
 
-#if NK_BUILD_BENCHMARKS_WITH_MKL
+#if NK_COMPARE_TO_MKL
     // Set MKL to single-threaded for fair comparison with NumKong (which is single-threaded)
     mkl_set_num_threads(1);
-#elif NK_BUILD_BENCHMARKS_WITH_CBLAS && !defined(__APPLE__)
+#elif NK_COMPARE_TO_BLAS && !defined(__APPLE__)
     // Set OpenBLAS to single-threaded for fair comparison with NumKong (which is single-threaded)
     if (openblas_set_num_threads) openblas_set_num_threads(1);
 #endif
@@ -1463,8 +1456,8 @@ int main(int argc, char **argv) {
     std::printf("Benchmarking Similarity Measures\n");
     std::printf("- Compiler used native F16: %s\n", flags[NK_NATIVE_F16]);
     std::printf("- Compiler used native BF16: %s\n", flags[NK_NATIVE_BF16]);
-    std::printf("- Benchmark against CBLAS: %s\n", flags[NK_BUILD_BENCHMARKS_WITH_CBLAS]);
-    std::printf("- Benchmark against MKL: %s\n", flags[NK_BUILD_BENCHMARKS_WITH_MKL]);
+    std::printf("- Benchmark against CBLAS: %s\n", flags[NK_COMPARE_TO_BLAS]);
+    std::printf("- Benchmark against MKL: %s\n", flags[NK_COMPARE_TO_MKL]);
     std::printf("\n");
     std::printf("Compile-time settings:\n");
     std::printf("- Arm NEON support enabled: %s\n", flags[NK_TARGET_NEON]);
@@ -1581,7 +1574,7 @@ int main(int argc, char **argv) {
     constexpr nk_kernel_kind_t scale_k = nk_kernel_scale_k;
     constexpr nk_kernel_kind_t unknown_k = nk_kernel_unknown_k;
 
-#if NK_BUILD_BENCHMARKS_WITH_BLAS
+#if NK_COMPARE_TO_BLAS
 
     dense_<f32_k, f32_k, f64_k>("dot_f32_blas", dot_f32_blas, nk_dot_f32_accurate);
     dense_<f64_k, f64_k, f64_k>("dot_f64_blas", dot_f64_blas, nk_dot_f64_serial);
@@ -1625,7 +1618,7 @@ int main(int argc, char **argv) {
 
 #endif
 
-#if NK_BUILD_BENCHMARKS_WITH_MKL
+#if NK_COMPARE_TO_MKL
     // MKL mixed-precision GEMM baselines for matmul comparison
     {
         std::string dims = std::to_string(matmul_dimension_m) + "x" + std::to_string(matmul_dimension_n) + "x" +
