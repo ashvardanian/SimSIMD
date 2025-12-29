@@ -1917,6 +1917,14 @@ NK_INTERNAL void nk_find_kernel_punned_e4m3_(nk_capability_t v, nk_kernel_kind_t
         default: break;
         }
 #endif
+#if NK_TARGET_NEONFHM
+    if (v & nk_cap_neonfhm_k) switch (k) {
+        case nk_kernel_reduce_add_k: *m = (m_t)&nk_reduce_add_e4m3_neonfhm, *c = nk_cap_neonfhm_k; return;
+        case nk_kernel_reduce_min_k: *m = (m_t)&nk_reduce_min_e4m3_neonfhm, *c = nk_cap_neonfhm_k; return;
+        case nk_kernel_reduce_max_k: *m = (m_t)&nk_reduce_max_e4m3_neonfhm, *c = nk_cap_neonfhm_k; return;
+        default: break;
+        }
+#endif
 #if NK_TARGET_NEON
     if (v & nk_cap_neon_k) switch (k) {
         case nk_kernel_dot_k: *m = (m_t)&nk_dot_e4m3_neon, *c = nk_cap_neon_k; return;
@@ -1932,11 +1940,21 @@ NK_INTERNAL void nk_find_kernel_punned_e4m3_(nk_capability_t v, nk_kernel_kind_t
 #if NK_TARGET_HASWELL
     if (v & nk_cap_haswell_k) switch (k) {
         case nk_kernel_dot_k: *m = (m_t)&nk_dot_e4m3_haswell, *c = nk_cap_haswell_k; return;
+        case nk_kernel_reduce_add_k: *m = (m_t)&nk_reduce_add_e4m3_haswell, *c = nk_cap_haswell_k; return;
+        case nk_kernel_reduce_min_k: *m = (m_t)&nk_reduce_min_e4m3_haswell, *c = nk_cap_haswell_k; return;
+        case nk_kernel_reduce_max_k: *m = (m_t)&nk_reduce_max_e4m3_haswell, *c = nk_cap_haswell_k; return;
         default: break;
         }
 #endif
     if (v & nk_cap_serial_k) switch (k) {
         case nk_kernel_dot_k: *m = (m_t)&nk_dot_e4m3_serial, *c = nk_cap_serial_k; return;
+        case nk_kernel_reduce_add_k: *m = (m_t)&nk_reduce_add_e4m3_serial, *c = nk_cap_serial_k; return;
+        case nk_kernel_reduce_min_k: *m = (m_t)&nk_reduce_min_e4m3_serial, *c = nk_cap_serial_k; return;
+        case nk_kernel_reduce_max_k: *m = (m_t)&nk_reduce_max_e4m3_serial, *c = nk_cap_serial_k; return;
+        case nk_kernel_sum_k: *m = (m_t)&nk_sum_e4m3_serial, *c = nk_cap_serial_k; return;
+        case nk_kernel_scale_k: *m = (m_t)&nk_scale_e4m3_serial, *c = nk_cap_serial_k; return;
+        case nk_kernel_wsum_k: *m = (m_t)&nk_wsum_e4m3_serial, *c = nk_cap_serial_k; return;
+        case nk_kernel_fma_k: *m = (m_t)&nk_fma_e4m3_serial, *c = nk_cap_serial_k; return;
         default: break;
         }
 }
@@ -1956,6 +1974,14 @@ NK_INTERNAL void nk_find_kernel_punned_e5m2_(nk_capability_t v, nk_kernel_kind_t
         default: break;
         }
 #endif
+#if NK_TARGET_NEONFHM
+    if (v & nk_cap_neonfhm_k) switch (k) {
+        case nk_kernel_reduce_add_k: *m = (m_t)&nk_reduce_add_e5m2_neonfhm, *c = nk_cap_neonfhm_k; return;
+        case nk_kernel_reduce_min_k: *m = (m_t)&nk_reduce_min_e5m2_neonfhm, *c = nk_cap_neonfhm_k; return;
+        case nk_kernel_reduce_max_k: *m = (m_t)&nk_reduce_max_e5m2_neonfhm, *c = nk_cap_neonfhm_k; return;
+        default: break;
+        }
+#endif
 #if NK_TARGET_NEON
     if (v & nk_cap_neon_k) switch (k) {
         case nk_kernel_dot_k: *m = (m_t)&nk_dot_e5m2_neon, *c = nk_cap_neon_k; return;
@@ -1971,11 +1997,21 @@ NK_INTERNAL void nk_find_kernel_punned_e5m2_(nk_capability_t v, nk_kernel_kind_t
 #if NK_TARGET_HASWELL
     if (v & nk_cap_haswell_k) switch (k) {
         case nk_kernel_dot_k: *m = (m_t)&nk_dot_e5m2_haswell, *c = nk_cap_haswell_k; return;
+        case nk_kernel_reduce_add_k: *m = (m_t)&nk_reduce_add_e5m2_haswell, *c = nk_cap_haswell_k; return;
+        case nk_kernel_reduce_min_k: *m = (m_t)&nk_reduce_min_e5m2_haswell, *c = nk_cap_haswell_k; return;
+        case nk_kernel_reduce_max_k: *m = (m_t)&nk_reduce_max_e5m2_haswell, *c = nk_cap_haswell_k; return;
         default: break;
         }
 #endif
     if (v & nk_cap_serial_k) switch (k) {
         case nk_kernel_dot_k: *m = (m_t)&nk_dot_e5m2_serial, *c = nk_cap_serial_k; return;
+        case nk_kernel_reduce_add_k: *m = (m_t)&nk_reduce_add_e5m2_serial, *c = nk_cap_serial_k; return;
+        case nk_kernel_reduce_min_k: *m = (m_t)&nk_reduce_min_e5m2_serial, *c = nk_cap_serial_k; return;
+        case nk_kernel_reduce_max_k: *m = (m_t)&nk_reduce_max_e5m2_serial, *c = nk_cap_serial_k; return;
+        case nk_kernel_sum_k: *m = (m_t)&nk_sum_e5m2_serial, *c = nk_cap_serial_k; return;
+        case nk_kernel_scale_k: *m = (m_t)&nk_scale_e5m2_serial, *c = nk_cap_serial_k; return;
+        case nk_kernel_wsum_k: *m = (m_t)&nk_wsum_e5m2_serial, *c = nk_cap_serial_k; return;
+        case nk_kernel_fma_k: *m = (m_t)&nk_fma_e5m2_serial, *c = nk_cap_serial_k; return;
         default: break;
         }
 }
