@@ -25,40 +25,130 @@ extern "C" {
 NK_INTERNAL void nk_partial_load_b32x8_haswell_(void const *src, nk_size_t n, nk_b256_vec_t *dst) {
     nk_u32_t const *s = (nk_u32_t const *)src;
     dst->ymm = _mm256_setzero_si256();
-    for (nk_size_t i = 0; i < n && i < 8; ++i) dst->u32s[i] = s[i];
+    switch (n) {
+    default:
+    case 8: dst->u32s[7] = s[7]; // fallthrough
+    case 7: dst->u32s[6] = s[6]; // fallthrough
+    case 6: dst->u32s[5] = s[5]; // fallthrough
+    case 5: dst->u32s[4] = s[4]; // fallthrough
+    case 4: dst->u32s[3] = s[3]; // fallthrough
+    case 3: dst->u32s[2] = s[2]; // fallthrough
+    case 2: dst->u32s[1] = s[1]; // fallthrough
+    case 1: dst->u32s[0] = s[0]; // fallthrough
+    case 0: break;
+    }
 }
 
 /** @brief Type-agnostic partial load for 16-bit elements (16 elements max) into 256-bit vector (Haswell AVX2). */
 NK_INTERNAL void nk_partial_load_b16x16_haswell_(void const *src, nk_size_t n, nk_b256_vec_t *dst) {
     nk_u16_t const *s = (nk_u16_t const *)src;
     dst->ymm = _mm256_setzero_si256();
-    for (nk_size_t i = 0; i < n && i < 16; ++i) dst->u16s[i] = s[i];
+    switch (n) {
+    default:
+    case 16: dst->u16s[15] = s[15]; // fallthrough
+    case 15: dst->u16s[14] = s[14]; // fallthrough
+    case 14: dst->u16s[13] = s[13]; // fallthrough
+    case 13: dst->u16s[12] = s[12]; // fallthrough
+    case 12: dst->u16s[11] = s[11]; // fallthrough
+    case 11: dst->u16s[10] = s[10]; // fallthrough
+    case 10: dst->u16s[9] = s[9];   // fallthrough
+    case 9: dst->u16s[8] = s[8];    // fallthrough
+    case 8: dst->u16s[7] = s[7];    // fallthrough
+    case 7: dst->u16s[6] = s[6];    // fallthrough
+    case 6: dst->u16s[5] = s[5];    // fallthrough
+    case 5: dst->u16s[4] = s[4];    // fallthrough
+    case 4: dst->u16s[3] = s[3];    // fallthrough
+    case 3: dst->u16s[2] = s[2];    // fallthrough
+    case 2: dst->u16s[1] = s[1];    // fallthrough
+    case 1: dst->u16s[0] = s[0];    // fallthrough
+    case 0: break;
+    }
 }
 
 /** @brief Type-agnostic partial load for 8-bit elements (32 elements max) into 256-bit vector (Haswell AVX2). */
 NK_INTERNAL void nk_partial_load_b8x32_haswell_(void const *src, nk_size_t n, nk_b256_vec_t *dst) {
     nk_u8_t const *s = (nk_u8_t const *)src;
     dst->ymm = _mm256_setzero_si256();
-    for (nk_size_t i = 0; i < n && i < 32; ++i) dst->u8s[i] = s[i];
+    switch (n) {
+    default:
+    case 32: dst->u8s[31] = s[31]; // fallthrough
+    case 31: dst->u8s[30] = s[30]; // fallthrough
+    case 30: dst->u8s[29] = s[29]; // fallthrough
+    case 29: dst->u8s[28] = s[28]; // fallthrough
+    case 28: dst->u8s[27] = s[27]; // fallthrough
+    case 27: dst->u8s[26] = s[26]; // fallthrough
+    case 26: dst->u8s[25] = s[25]; // fallthrough
+    case 25: dst->u8s[24] = s[24]; // fallthrough
+    case 24: dst->u8s[23] = s[23]; // fallthrough
+    case 23: dst->u8s[22] = s[22]; // fallthrough
+    case 22: dst->u8s[21] = s[21]; // fallthrough
+    case 21: dst->u8s[20] = s[20]; // fallthrough
+    case 20: dst->u8s[19] = s[19]; // fallthrough
+    case 19: dst->u8s[18] = s[18]; // fallthrough
+    case 18: dst->u8s[17] = s[17]; // fallthrough
+    case 17: dst->u8s[16] = s[16]; // fallthrough
+    case 16: dst->u8s[15] = s[15]; // fallthrough
+    case 15: dst->u8s[14] = s[14]; // fallthrough
+    case 14: dst->u8s[13] = s[13]; // fallthrough
+    case 13: dst->u8s[12] = s[12]; // fallthrough
+    case 12: dst->u8s[11] = s[11]; // fallthrough
+    case 11: dst->u8s[10] = s[10]; // fallthrough
+    case 10: dst->u8s[9] = s[9];   // fallthrough
+    case 9: dst->u8s[8] = s[8];    // fallthrough
+    case 8: dst->u8s[7] = s[7];    // fallthrough
+    case 7: dst->u8s[6] = s[6];    // fallthrough
+    case 6: dst->u8s[5] = s[5];    // fallthrough
+    case 5: dst->u8s[4] = s[4];    // fallthrough
+    case 4: dst->u8s[3] = s[3];    // fallthrough
+    case 3: dst->u8s[2] = s[2];    // fallthrough
+    case 2: dst->u8s[1] = s[1];    // fallthrough
+    case 1: dst->u8s[0] = s[0];    // fallthrough
+    case 0: break;
+    }
 }
 
 /** @brief Type-agnostic partial store for 32-bit elements (8 elements max) from 256-bit vector (Haswell AVX2). */
 NK_INTERNAL void nk_partial_store_b32x8_haswell_(nk_b256_vec_t const *src, void *dst, nk_size_t n) {
     nk_u32_t *d = (nk_u32_t *)dst;
-    for (nk_size_t i = 0; i < n && i < 8; ++i) d[i] = src->u32s[i];
+    switch (n) {
+    default:
+    case 8: d[7] = src->u32s[7]; // fallthrough
+    case 7: d[6] = src->u32s[6]; // fallthrough
+    case 6: d[5] = src->u32s[5]; // fallthrough
+    case 5: d[4] = src->u32s[4]; // fallthrough
+    case 4: d[3] = src->u32s[3]; // fallthrough
+    case 3: d[2] = src->u32s[2]; // fallthrough
+    case 2: d[1] = src->u32s[1]; // fallthrough
+    case 1: d[0] = src->u32s[0]; // fallthrough
+    case 0: break;
+    }
 }
 
 /** @brief Type-agnostic partial load for 64-bit elements (4 elements max) into 256-bit vector (Haswell AVX2). */
 NK_INTERNAL void nk_partial_load_b64x4_haswell_(void const *src, nk_size_t n, nk_b256_vec_t *dst) {
     nk_u64_t const *s = (nk_u64_t const *)src;
     dst->ymm = _mm256_setzero_si256();
-    for (nk_size_t i = 0; i < n && i < 4; ++i) dst->u64s[i] = s[i];
+    switch (n) {
+    default:
+    case 4: dst->u64s[3] = s[3]; // fallthrough
+    case 3: dst->u64s[2] = s[2]; // fallthrough
+    case 2: dst->u64s[1] = s[1]; // fallthrough
+    case 1: dst->u64s[0] = s[0]; // fallthrough
+    case 0: break;
+    }
 }
 
 /** @brief Type-agnostic partial store for 64-bit elements (4 elements max) from 256-bit vector (Haswell AVX2). */
 NK_INTERNAL void nk_partial_store_b64x4_haswell_(nk_b256_vec_t const *src, void *dst, nk_size_t n) {
     nk_u64_t *d = (nk_u64_t *)dst;
-    for (nk_size_t i = 0; i < n && i < 4; ++i) d[i] = src->u64s[i];
+    switch (n) {
+    default:
+    case 4: d[3] = src->u64s[3]; // fallthrough
+    case 3: d[2] = src->u64s[2]; // fallthrough
+    case 2: d[1] = src->u64s[1]; // fallthrough
+    case 1: d[0] = src->u64s[0]; // fallthrough
+    case 0: break;
+    }
 }
 
 /** @brief Partial load for f16 elements (up to 8) with conversion to f32 via F16C. */
@@ -99,7 +189,18 @@ NK_INTERNAL __m256 nk_e4m3x8_to_f32x8_haswell_(__m128i e4m3_i8x8) {
 NK_INTERNAL __m256 nk_partial_load_e4m3x8_to_f32x8_haswell_(nk_e4m3_t const *src, nk_size_t n) {
     nk_b256_vec_t vec;
     vec.ymm = _mm256_setzero_si256();
-    for (nk_size_t i = 0; i < n && i < 8; ++i) vec.e4m3s[i] = src[i];
+    switch (n) {
+    default:
+    case 8: vec.e4m3s[7] = src[7]; // fallthrough
+    case 7: vec.e4m3s[6] = src[6]; // fallthrough
+    case 6: vec.e4m3s[5] = src[5]; // fallthrough
+    case 5: vec.e4m3s[4] = src[4]; // fallthrough
+    case 4: vec.e4m3s[3] = src[3]; // fallthrough
+    case 3: vec.e4m3s[2] = src[2]; // fallthrough
+    case 2: vec.e4m3s[1] = src[1]; // fallthrough
+    case 1: vec.e4m3s[0] = src[0]; // fallthrough
+    case 0: break;
+    }
     return nk_e4m3x8_to_f32x8_haswell_(vec.xmms[0]);
 }
 
@@ -122,8 +223,86 @@ NK_INTERNAL __m256 nk_e5m2x8_to_f32x8_haswell_(__m128i e5m2_i8x8) {
 NK_INTERNAL __m256 nk_partial_load_e5m2x8_to_f32x8_haswell_(nk_e5m2_t const *src, nk_size_t n) {
     nk_b256_vec_t vec;
     vec.ymm = _mm256_setzero_si256();
-    for (nk_size_t i = 0; i < n && i < 8; ++i) vec.e5m2s[i] = src[i];
+    switch (n) {
+    default:
+    case 8: vec.e5m2s[7] = src[7]; // fallthrough
+    case 7: vec.e5m2s[6] = src[6]; // fallthrough
+    case 6: vec.e5m2s[5] = src[5]; // fallthrough
+    case 5: vec.e5m2s[4] = src[4]; // fallthrough
+    case 4: vec.e5m2s[3] = src[3]; // fallthrough
+    case 3: vec.e5m2s[2] = src[2]; // fallthrough
+    case 2: vec.e5m2s[1] = src[1]; // fallthrough
+    case 1: vec.e5m2s[0] = src[0]; // fallthrough
+    case 0: break;
+    }
     return nk_e5m2x8_to_f32x8_haswell_(vec.xmms[0]);
+}
+
+/** @brief Convert 8x f32 to 8x e4m3 via bit manipulation (AVX2).
+ *  E4M3 format: S EEEE MMM (bias=7). Extract sign, rebias exponent (f32_exp - 127 + 7 = f32_exp - 120),
+ *  clamp to [0,15], take top 3 mantissa bits, handle underflow. */
+NK_INTERNAL __m128i nk_f32x8_to_e4m3x8_haswell_(__m256 f32x8) {
+    __m256i bits_i32x8 = _mm256_castps_si256(f32x8);
+    // Extract sign bit (bit 31)
+    __m256i sign_i32x8 = _mm256_srli_epi32(bits_i32x8, 31);
+    // Extract f32 exponent (bits 30:23)
+    __m256i f32_exp_i32x8 = _mm256_and_si256(_mm256_srli_epi32(bits_i32x8, 23), _mm256_set1_epi32(0xFF));
+    // Extract f32 mantissa (bits 22:0), take top 3 bits -> bits 22:20
+    __m256i f32_mant_i32x8 = _mm256_and_si256(_mm256_srli_epi32(bits_i32x8, 20), _mm256_set1_epi32(0x07));
+    // Rebias exponent: e4m3_exp = f32_exp - 120 (bias 127 -> bias 7)
+    __m256i e4m3_exp_i32x8 = _mm256_sub_epi32(f32_exp_i32x8, _mm256_set1_epi32(120));
+    // Clamp exponent to [0, 15], detect underflow (exp < 0) and overflow (exp > 15)
+    __m256i underflow_i32x8 = _mm256_cmpgt_epi32(_mm256_setzero_si256(), e4m3_exp_i32x8);
+    __m256i overflow_i32x8 = _mm256_cmpgt_epi32(e4m3_exp_i32x8, _mm256_set1_epi32(15));
+    e4m3_exp_i32x8 = _mm256_max_epi32(e4m3_exp_i32x8, _mm256_setzero_si256());
+    e4m3_exp_i32x8 = _mm256_min_epi32(e4m3_exp_i32x8, _mm256_set1_epi32(15));
+    // On overflow, saturate mantissa to max (7)
+    __m256i mant_i32x8 = _mm256_blendv_epi8(f32_mant_i32x8, _mm256_set1_epi32(0x07), overflow_i32x8);
+    // Compose e4m3: sign << 7 | exp << 3 | mant
+    __m256i e4m3_i32x8 = _mm256_or_si256(_mm256_slli_epi32(sign_i32x8, 7),
+                                         _mm256_or_si256(_mm256_slli_epi32(e4m3_exp_i32x8, 3), mant_i32x8));
+    // On underflow, set to signed zero (sign << 7)
+    e4m3_i32x8 = _mm256_blendv_epi8(e4m3_i32x8, _mm256_slli_epi32(sign_i32x8, 7), underflow_i32x8);
+    // Pack 8 i32s to 8 i8s: use shuffle to collect low bytes
+    // First pack to i16: use _mm256_packs_epi32 then to i8
+    __m128i lo_i32x4 = _mm256_castsi256_si128(e4m3_i32x8);
+    __m128i hi_i32x4 = _mm256_extracti128_si256(e4m3_i32x8, 1);
+    __m128i packed_i16x8 = _mm_packs_epi32(lo_i32x4, hi_i32x4);
+    __m128i packed_i8x8 = _mm_packs_epi16(packed_i16x8, packed_i16x8);
+    return packed_i8x8;
+}
+
+/** @brief Convert 8x f32 to 8x e5m2 via bit manipulation (AVX2).
+ *  E5M2 format: S EEEEE MM (bias=15). Extract sign, rebias exponent (f32_exp - 127 + 15 = f32_exp - 112),
+ *  clamp to [0,31], take top 2 mantissa bits, handle underflow. */
+NK_INTERNAL __m128i nk_f32x8_to_e5m2x8_haswell_(__m256 f32x8) {
+    __m256i bits_i32x8 = _mm256_castps_si256(f32x8);
+    // Extract sign bit (bit 31)
+    __m256i sign_i32x8 = _mm256_srli_epi32(bits_i32x8, 31);
+    // Extract f32 exponent (bits 30:23)
+    __m256i f32_exp_i32x8 = _mm256_and_si256(_mm256_srli_epi32(bits_i32x8, 23), _mm256_set1_epi32(0xFF));
+    // Extract f32 mantissa (bits 22:0), take top 2 bits -> bits 22:21
+    __m256i f32_mant_i32x8 = _mm256_and_si256(_mm256_srli_epi32(bits_i32x8, 21), _mm256_set1_epi32(0x03));
+    // Rebias exponent: e5m2_exp = f32_exp - 112 (bias 127 -> bias 15)
+    __m256i e5m2_exp_i32x8 = _mm256_sub_epi32(f32_exp_i32x8, _mm256_set1_epi32(112));
+    // Clamp exponent to [0, 31], detect underflow (exp < 0) and overflow (exp > 31)
+    __m256i underflow_i32x8 = _mm256_cmpgt_epi32(_mm256_setzero_si256(), e5m2_exp_i32x8);
+    __m256i overflow_i32x8 = _mm256_cmpgt_epi32(e5m2_exp_i32x8, _mm256_set1_epi32(31));
+    e5m2_exp_i32x8 = _mm256_max_epi32(e5m2_exp_i32x8, _mm256_setzero_si256());
+    e5m2_exp_i32x8 = _mm256_min_epi32(e5m2_exp_i32x8, _mm256_set1_epi32(31));
+    // On overflow, saturate mantissa to max (3)
+    __m256i mant_i32x8 = _mm256_blendv_epi8(f32_mant_i32x8, _mm256_set1_epi32(0x03), overflow_i32x8);
+    // Compose e5m2: sign << 7 | exp << 2 | mant
+    __m256i e5m2_i32x8 = _mm256_or_si256(_mm256_slli_epi32(sign_i32x8, 7),
+                                         _mm256_or_si256(_mm256_slli_epi32(e5m2_exp_i32x8, 2), mant_i32x8));
+    // On underflow, set to signed zero (sign << 7)
+    e5m2_i32x8 = _mm256_blendv_epi8(e5m2_i32x8, _mm256_slli_epi32(sign_i32x8, 7), underflow_i32x8);
+    // Pack 8 i32s to 8 i8s: use shuffle to collect low bytes
+    __m128i lo_i32x4 = _mm256_castsi256_si128(e5m2_i32x8);
+    __m128i hi_i32x4 = _mm256_extracti128_si256(e5m2_i32x8, 1);
+    __m128i packed_i16x8 = _mm_packs_epi32(lo_i32x4, hi_i32x4);
+    __m128i packed_i8x8 = _mm_packs_epi16(packed_i16x8, packed_i16x8);
+    return packed_i8x8;
 }
 
 /** @brief Horizontal sum of 4 doubles in a YMM register. */
@@ -1576,6 +1755,914 @@ NK_PUBLIC void nk_reduce_max_u64_haswell(                          //
     nk_u64_t *max_value, nk_size_t *max_index) {
     if (stride_bytes == sizeof(nk_u64_t)) nk_reduce_max_u64_haswell_contiguous_(data, count, max_value, max_index);
     else nk_reduce_max_u64_serial(data, count, stride_bytes, max_value, max_index);
+}
+
+NK_INTERNAL void nk_reduce_add_f16_haswell_contiguous_( //
+    nk_f16_t const *data, nk_size_t count, nk_f32_t *result) {
+    __m256 sum_f32x8 = _mm256_setzero_ps();
+    nk_size_t idx = 0;
+    for (; idx + 8 <= count; idx += 8) {
+        __m128i data_i16x8 = _mm_loadu_si128((__m128i const *)(data + idx));
+        __m256 data_f32x8 = _mm256_cvtph_ps(data_i16x8);
+        sum_f32x8 = _mm256_add_ps(sum_f32x8, data_f32x8);
+    }
+    nk_f32_t sum = nk_reduce_add_f32x8_haswell_(sum_f32x8);
+    for (; idx < count; idx++) {
+        nk_f32_t val;
+        nk_f16_to_f32(&data[idx], &val);
+        sum += val;
+    }
+    *result = sum;
+}
+
+NK_INTERNAL void nk_reduce_add_f16_haswell_strided_(                  //
+    nk_f16_t const *data, nk_size_t count, nk_size_t stride_elements, //
+    nk_f32_t *result) {
+    __m256 sum_f32x8 = _mm256_setzero_ps();
+    nk_f16_t const *ptr = data;
+    nk_size_t idx = 0;
+    for (; idx + 8 <= count; idx += 8) {
+        nk_b256_vec_t vec;
+        vec.ymm = _mm256_setzero_si256();
+        for (nk_size_t i = 0; i < 8; ++i) {
+            vec.f16s[i] = *ptr;
+            ptr += stride_elements;
+        }
+        __m256 data_f32x8 = _mm256_cvtph_ps(vec.xmms[0]);
+        sum_f32x8 = _mm256_add_ps(sum_f32x8, data_f32x8);
+    }
+    nk_f32_t sum = nk_reduce_add_f32x8_haswell_(sum_f32x8);
+    for (; idx < count; idx++, ptr += stride_elements) {
+        nk_f32_t val;
+        nk_f16_to_f32(ptr, &val);
+        sum += val;
+    }
+    *result = sum;
+}
+
+NK_PUBLIC void nk_reduce_add_f16_haswell(                          //
+    nk_f16_t const *data, nk_size_t count, nk_size_t stride_bytes, //
+    nk_f32_t *result) {
+    nk_size_t stride_elements = stride_bytes / sizeof(nk_f16_t);
+    int aligned = (stride_bytes % sizeof(nk_f16_t) == 0);
+    if (!aligned) nk_reduce_add_f16_serial(data, count, stride_bytes, result);
+    else if (stride_elements == 1) nk_reduce_add_f16_haswell_contiguous_(data, count, result);
+    else nk_reduce_add_f16_haswell_strided_(data, count, stride_elements, result);
+}
+
+NK_INTERNAL void nk_reduce_min_f16_haswell_contiguous_( //
+    nk_f16_t const *data, nk_size_t count,              //
+    nk_f32_t *min_value, nk_size_t *min_index) {
+    if (count == 0) {
+        *min_value = 0;
+        *min_index = 0;
+        return;
+    }
+    __m256 min_f32x8 = _mm256_set1_ps(__builtin_huge_valf());
+    nk_size_t idx = 0;
+    for (; idx + 8 <= count; idx += 8) {
+        __m128i data_i16x8 = _mm_loadu_si128((__m128i const *)(data + idx));
+        __m256 data_f32x8 = _mm256_cvtph_ps(data_i16x8);
+        min_f32x8 = _mm256_min_ps(min_f32x8, data_f32x8);
+    }
+    nk_f32_t min_val = nk_reduce_min_f32x8_haswell_(min_f32x8);
+    for (; idx < count; idx++) {
+        nk_f32_t val;
+        nk_f16_to_f32(&data[idx], &val);
+        if (val < min_val) min_val = val;
+    }
+    // Second pass for index
+    for (idx = 0; idx < count; idx++) {
+        nk_f32_t val;
+        nk_f16_to_f32(&data[idx], &val);
+        if (val == min_val) {
+            *min_value = min_val;
+            *min_index = idx;
+            return;
+        }
+    }
+    *min_value = min_val;
+    *min_index = 0;
+}
+
+NK_INTERNAL void nk_reduce_min_f16_haswell_strided_(                  //
+    nk_f16_t const *data, nk_size_t count, nk_size_t stride_elements, //
+    nk_f32_t *min_value, nk_size_t *min_index) {
+    if (count == 0) {
+        *min_value = 0;
+        *min_index = 0;
+        return;
+    }
+    __m256 min_f32x8 = _mm256_set1_ps(__builtin_huge_valf());
+    nk_f16_t const *ptr = data;
+    nk_size_t idx = 0;
+    for (; idx + 8 <= count; idx += 8) {
+        nk_b256_vec_t vec;
+        vec.ymm = _mm256_setzero_si256();
+        for (nk_size_t i = 0; i < 8; ++i) {
+            vec.f16s[i] = *ptr;
+            ptr += stride_elements;
+        }
+        __m256 data_f32x8 = _mm256_cvtph_ps(vec.xmms[0]);
+        min_f32x8 = _mm256_min_ps(min_f32x8, data_f32x8);
+    }
+    nk_f32_t min_val = nk_reduce_min_f32x8_haswell_(min_f32x8);
+    for (; idx < count; idx++, ptr += stride_elements) {
+        nk_f32_t val;
+        nk_f16_to_f32(ptr, &val);
+        if (val < min_val) min_val = val;
+    }
+    // Second pass for index
+    ptr = data;
+    for (idx = 0; idx < count; idx++, ptr += stride_elements) {
+        nk_f32_t val;
+        nk_f16_to_f32(ptr, &val);
+        if (val == min_val) {
+            *min_value = min_val;
+            *min_index = idx;
+            return;
+        }
+    }
+    *min_value = min_val;
+    *min_index = 0;
+}
+
+NK_PUBLIC void nk_reduce_min_f16_haswell(                          //
+    nk_f16_t const *data, nk_size_t count, nk_size_t stride_bytes, //
+    nk_f32_t *min_value, nk_size_t *min_index) {
+    nk_size_t stride_elements = stride_bytes / sizeof(nk_f16_t);
+    int aligned = (stride_bytes % sizeof(nk_f16_t) == 0);
+    if (!aligned) nk_reduce_min_f16_serial(data, count, stride_bytes, min_value, min_index);
+    else if (stride_elements == 1) nk_reduce_min_f16_haswell_contiguous_(data, count, min_value, min_index);
+    else nk_reduce_min_f16_haswell_strided_(data, count, stride_elements, min_value, min_index);
+}
+
+NK_INTERNAL void nk_reduce_max_f16_haswell_contiguous_( //
+    nk_f16_t const *data, nk_size_t count,              //
+    nk_f32_t *max_value, nk_size_t *max_index) {
+    if (count == 0) {
+        *max_value = 0;
+        *max_index = 0;
+        return;
+    }
+    __m256 max_f32x8 = _mm256_set1_ps(-__builtin_huge_valf());
+    nk_size_t idx = 0;
+    for (; idx + 8 <= count; idx += 8) {
+        __m128i data_i16x8 = _mm_loadu_si128((__m128i const *)(data + idx));
+        __m256 data_f32x8 = _mm256_cvtph_ps(data_i16x8);
+        max_f32x8 = _mm256_max_ps(max_f32x8, data_f32x8);
+    }
+    nk_f32_t max_val = nk_reduce_max_f32x8_haswell_(max_f32x8);
+    for (; idx < count; idx++) {
+        nk_f32_t val;
+        nk_f16_to_f32(&data[idx], &val);
+        if (val > max_val) max_val = val;
+    }
+    // Second pass for index
+    for (idx = 0; idx < count; idx++) {
+        nk_f32_t val;
+        nk_f16_to_f32(&data[idx], &val);
+        if (val == max_val) {
+            *max_value = max_val;
+            *max_index = idx;
+            return;
+        }
+    }
+    *max_value = max_val;
+    *max_index = 0;
+}
+
+NK_INTERNAL void nk_reduce_max_f16_haswell_strided_(                  //
+    nk_f16_t const *data, nk_size_t count, nk_size_t stride_elements, //
+    nk_f32_t *max_value, nk_size_t *max_index) {
+    if (count == 0) {
+        *max_value = 0;
+        *max_index = 0;
+        return;
+    }
+    __m256 max_f32x8 = _mm256_set1_ps(-__builtin_huge_valf());
+    nk_f16_t const *ptr = data;
+    nk_size_t idx = 0;
+    for (; idx + 8 <= count; idx += 8) {
+        nk_b256_vec_t vec;
+        vec.ymm = _mm256_setzero_si256();
+        for (nk_size_t i = 0; i < 8; ++i) {
+            vec.f16s[i] = *ptr;
+            ptr += stride_elements;
+        }
+        __m256 data_f32x8 = _mm256_cvtph_ps(vec.xmms[0]);
+        max_f32x8 = _mm256_max_ps(max_f32x8, data_f32x8);
+    }
+    nk_f32_t max_val = nk_reduce_max_f32x8_haswell_(max_f32x8);
+    for (; idx < count; idx++, ptr += stride_elements) {
+        nk_f32_t val;
+        nk_f16_to_f32(ptr, &val);
+        if (val > max_val) max_val = val;
+    }
+    // Second pass for index
+    ptr = data;
+    for (idx = 0; idx < count; idx++, ptr += stride_elements) {
+        nk_f32_t val;
+        nk_f16_to_f32(ptr, &val);
+        if (val == max_val) {
+            *max_value = max_val;
+            *max_index = idx;
+            return;
+        }
+    }
+    *max_value = max_val;
+    *max_index = 0;
+}
+
+NK_PUBLIC void nk_reduce_max_f16_haswell(                          //
+    nk_f16_t const *data, nk_size_t count, nk_size_t stride_bytes, //
+    nk_f32_t *max_value, nk_size_t *max_index) {
+    nk_size_t stride_elements = stride_bytes / sizeof(nk_f16_t);
+    int aligned = (stride_bytes % sizeof(nk_f16_t) == 0);
+    if (!aligned) nk_reduce_max_f16_serial(data, count, stride_bytes, max_value, max_index);
+    else if (stride_elements == 1) nk_reduce_max_f16_haswell_contiguous_(data, count, max_value, max_index);
+    else nk_reduce_max_f16_haswell_strided_(data, count, stride_elements, max_value, max_index);
+}
+
+NK_INTERNAL void nk_reduce_add_bf16_haswell_contiguous_( //
+    nk_bf16_t const *data, nk_size_t count, nk_f32_t *result) {
+    __m256 sum_f32x8 = _mm256_setzero_ps();
+    nk_size_t idx = 0;
+    for (; idx + 8 <= count; idx += 8) {
+        __m128i data_i16x8 = _mm_loadu_si128((__m128i const *)(data + idx));
+        __m256 data_f32x8 = nk_bf16x8_to_f32x8_haswell_(data_i16x8);
+        sum_f32x8 = _mm256_add_ps(sum_f32x8, data_f32x8);
+    }
+    nk_f32_t sum = nk_reduce_add_f32x8_haswell_(sum_f32x8);
+    for (; idx < count; idx++) {
+        nk_f32_t val;
+        nk_bf16_to_f32(&data[idx], &val);
+        sum += val;
+    }
+    *result = sum;
+}
+
+NK_INTERNAL void nk_reduce_add_bf16_haswell_strided_(                  //
+    nk_bf16_t const *data, nk_size_t count, nk_size_t stride_elements, //
+    nk_f32_t *result) {
+    __m256 sum_f32x8 = _mm256_setzero_ps();
+    nk_bf16_t const *ptr = data;
+    nk_size_t idx = 0;
+    for (; idx + 8 <= count; idx += 8) {
+        nk_b256_vec_t vec;
+        vec.ymm = _mm256_setzero_si256();
+        for (nk_size_t i = 0; i < 8; ++i) {
+            vec.bf16s[i] = *ptr;
+            ptr += stride_elements;
+        }
+        __m256 data_f32x8 = nk_bf16x8_to_f32x8_haswell_(vec.xmms[0]);
+        sum_f32x8 = _mm256_add_ps(sum_f32x8, data_f32x8);
+    }
+    nk_f32_t sum = nk_reduce_add_f32x8_haswell_(sum_f32x8);
+    for (; idx < count; idx++, ptr += stride_elements) {
+        nk_f32_t val;
+        nk_bf16_to_f32(ptr, &val);
+        sum += val;
+    }
+    *result = sum;
+}
+
+NK_PUBLIC void nk_reduce_add_bf16_haswell(                          //
+    nk_bf16_t const *data, nk_size_t count, nk_size_t stride_bytes, //
+    nk_f32_t *result) {
+    nk_size_t stride_elements = stride_bytes / sizeof(nk_bf16_t);
+    int aligned = (stride_bytes % sizeof(nk_bf16_t) == 0);
+    if (!aligned) nk_reduce_add_bf16_serial(data, count, stride_bytes, result);
+    else if (stride_elements == 1) nk_reduce_add_bf16_haswell_contiguous_(data, count, result);
+    else nk_reduce_add_bf16_haswell_strided_(data, count, stride_elements, result);
+}
+
+NK_INTERNAL void nk_reduce_min_bf16_haswell_contiguous_( //
+    nk_bf16_t const *data, nk_size_t count,              //
+    nk_f32_t *min_value, nk_size_t *min_index) {
+    if (count == 0) {
+        *min_value = 0;
+        *min_index = 0;
+        return;
+    }
+    __m256 min_f32x8 = _mm256_set1_ps(__builtin_huge_valf());
+    nk_size_t idx = 0;
+    for (; idx + 8 <= count; idx += 8) {
+        __m128i data_i16x8 = _mm_loadu_si128((__m128i const *)(data + idx));
+        __m256 data_f32x8 = nk_bf16x8_to_f32x8_haswell_(data_i16x8);
+        min_f32x8 = _mm256_min_ps(min_f32x8, data_f32x8);
+    }
+    nk_f32_t min_val = nk_reduce_min_f32x8_haswell_(min_f32x8);
+    for (; idx < count; idx++) {
+        nk_f32_t val;
+        nk_bf16_to_f32(&data[idx], &val);
+        if (val < min_val) min_val = val;
+    }
+    // Second pass for index
+    for (idx = 0; idx < count; idx++) {
+        nk_f32_t val;
+        nk_bf16_to_f32(&data[idx], &val);
+        if (val == min_val) {
+            *min_value = min_val;
+            *min_index = idx;
+            return;
+        }
+    }
+    *min_value = min_val;
+    *min_index = 0;
+}
+
+NK_INTERNAL void nk_reduce_min_bf16_haswell_strided_(                  //
+    nk_bf16_t const *data, nk_size_t count, nk_size_t stride_elements, //
+    nk_f32_t *min_value, nk_size_t *min_index) {
+    if (count == 0) {
+        *min_value = 0;
+        *min_index = 0;
+        return;
+    }
+    __m256 min_f32x8 = _mm256_set1_ps(__builtin_huge_valf());
+    nk_bf16_t const *ptr = data;
+    nk_size_t idx = 0;
+    for (; idx + 8 <= count; idx += 8) {
+        nk_b256_vec_t vec;
+        vec.ymm = _mm256_setzero_si256();
+        for (nk_size_t i = 0; i < 8; ++i) {
+            vec.bf16s[i] = *ptr;
+            ptr += stride_elements;
+        }
+        __m256 data_f32x8 = nk_bf16x8_to_f32x8_haswell_(vec.xmms[0]);
+        min_f32x8 = _mm256_min_ps(min_f32x8, data_f32x8);
+    }
+    nk_f32_t min_val = nk_reduce_min_f32x8_haswell_(min_f32x8);
+    for (; idx < count; idx++, ptr += stride_elements) {
+        nk_f32_t val;
+        nk_bf16_to_f32(ptr, &val);
+        if (val < min_val) min_val = val;
+    }
+    // Second pass for index
+    ptr = data;
+    for (idx = 0; idx < count; idx++, ptr += stride_elements) {
+        nk_f32_t val;
+        nk_bf16_to_f32(ptr, &val);
+        if (val == min_val) {
+            *min_value = min_val;
+            *min_index = idx;
+            return;
+        }
+    }
+    *min_value = min_val;
+    *min_index = 0;
+}
+
+NK_PUBLIC void nk_reduce_min_bf16_haswell(                          //
+    nk_bf16_t const *data, nk_size_t count, nk_size_t stride_bytes, //
+    nk_f32_t *min_value, nk_size_t *min_index) {
+    nk_size_t stride_elements = stride_bytes / sizeof(nk_bf16_t);
+    int aligned = (stride_bytes % sizeof(nk_bf16_t) == 0);
+    if (!aligned) nk_reduce_min_bf16_serial(data, count, stride_bytes, min_value, min_index);
+    else if (stride_elements == 1) nk_reduce_min_bf16_haswell_contiguous_(data, count, min_value, min_index);
+    else nk_reduce_min_bf16_haswell_strided_(data, count, stride_elements, min_value, min_index);
+}
+
+NK_INTERNAL void nk_reduce_max_bf16_haswell_contiguous_( //
+    nk_bf16_t const *data, nk_size_t count,              //
+    nk_f32_t *max_value, nk_size_t *max_index) {
+    if (count == 0) {
+        *max_value = 0;
+        *max_index = 0;
+        return;
+    }
+    __m256 max_f32x8 = _mm256_set1_ps(-__builtin_huge_valf());
+    nk_size_t idx = 0;
+    for (; idx + 8 <= count; idx += 8) {
+        __m128i data_i16x8 = _mm_loadu_si128((__m128i const *)(data + idx));
+        __m256 data_f32x8 = nk_bf16x8_to_f32x8_haswell_(data_i16x8);
+        max_f32x8 = _mm256_max_ps(max_f32x8, data_f32x8);
+    }
+    nk_f32_t max_val = nk_reduce_max_f32x8_haswell_(max_f32x8);
+    for (; idx < count; idx++) {
+        nk_f32_t val;
+        nk_bf16_to_f32(&data[idx], &val);
+        if (val > max_val) max_val = val;
+    }
+    // Second pass for index
+    for (idx = 0; idx < count; idx++) {
+        nk_f32_t val;
+        nk_bf16_to_f32(&data[idx], &val);
+        if (val == max_val) {
+            *max_value = max_val;
+            *max_index = idx;
+            return;
+        }
+    }
+    *max_value = max_val;
+    *max_index = 0;
+}
+
+NK_INTERNAL void nk_reduce_max_bf16_haswell_strided_(                  //
+    nk_bf16_t const *data, nk_size_t count, nk_size_t stride_elements, //
+    nk_f32_t *max_value, nk_size_t *max_index) {
+    if (count == 0) {
+        *max_value = 0;
+        *max_index = 0;
+        return;
+    }
+    __m256 max_f32x8 = _mm256_set1_ps(-__builtin_huge_valf());
+    nk_bf16_t const *ptr = data;
+    nk_size_t idx = 0;
+    for (; idx + 8 <= count; idx += 8) {
+        nk_b256_vec_t vec;
+        vec.ymm = _mm256_setzero_si256();
+        for (nk_size_t i = 0; i < 8; ++i) {
+            vec.bf16s[i] = *ptr;
+            ptr += stride_elements;
+        }
+        __m256 data_f32x8 = nk_bf16x8_to_f32x8_haswell_(vec.xmms[0]);
+        max_f32x8 = _mm256_max_ps(max_f32x8, data_f32x8);
+    }
+    nk_f32_t max_val = nk_reduce_max_f32x8_haswell_(max_f32x8);
+    for (; idx < count; idx++, ptr += stride_elements) {
+        nk_f32_t val;
+        nk_bf16_to_f32(ptr, &val);
+        if (val > max_val) max_val = val;
+    }
+    // Second pass for index
+    ptr = data;
+    for (idx = 0; idx < count; idx++, ptr += stride_elements) {
+        nk_f32_t val;
+        nk_bf16_to_f32(ptr, &val);
+        if (val == max_val) {
+            *max_value = max_val;
+            *max_index = idx;
+            return;
+        }
+    }
+    *max_value = max_val;
+    *max_index = 0;
+}
+
+NK_PUBLIC void nk_reduce_max_bf16_haswell(                          //
+    nk_bf16_t const *data, nk_size_t count, nk_size_t stride_bytes, //
+    nk_f32_t *max_value, nk_size_t *max_index) {
+    nk_size_t stride_elements = stride_bytes / sizeof(nk_bf16_t);
+    int aligned = (stride_bytes % sizeof(nk_bf16_t) == 0);
+    if (!aligned) nk_reduce_max_bf16_serial(data, count, stride_bytes, max_value, max_index);
+    else if (stride_elements == 1) nk_reduce_max_bf16_haswell_contiguous_(data, count, max_value, max_index);
+    else nk_reduce_max_bf16_haswell_strided_(data, count, stride_elements, max_value, max_index);
+}
+
+NK_INTERNAL void nk_reduce_add_e4m3_haswell_contiguous_( //
+    nk_e4m3_t const *data, nk_size_t count, nk_f32_t *result) {
+    __m256 sum_f32x8 = _mm256_setzero_ps();
+    nk_size_t idx = 0;
+    for (; idx + 8 <= count; idx += 8) {
+        __m128i data_i8x8 = _mm_loadl_epi64((__m128i const *)(data + idx));
+        __m256 data_f32x8 = nk_e4m3x8_to_f32x8_haswell_(data_i8x8);
+        sum_f32x8 = _mm256_add_ps(sum_f32x8, data_f32x8);
+    }
+    nk_f32_t sum = nk_reduce_add_f32x8_haswell_(sum_f32x8);
+    for (; idx < count; idx++) {
+        nk_f32_t val;
+        nk_e4m3_to_f32(&data[idx], &val);
+        sum += val;
+    }
+    *result = sum;
+}
+
+NK_INTERNAL void nk_reduce_add_e4m3_haswell_strided_(                  //
+    nk_e4m3_t const *data, nk_size_t count, nk_size_t stride_elements, //
+    nk_f32_t *result) {
+    __m256 sum_f32x8 = _mm256_setzero_ps();
+    nk_e4m3_t const *ptr = data;
+    nk_size_t idx = 0;
+    for (; idx + 8 <= count; idx += 8) {
+        nk_b256_vec_t vec;
+        vec.ymm = _mm256_setzero_si256();
+        for (nk_size_t i = 0; i < 8; ++i) {
+            vec.e4m3s[i] = *ptr;
+            ptr += stride_elements;
+        }
+        __m256 data_f32x8 = nk_e4m3x8_to_f32x8_haswell_(vec.xmms[0]);
+        sum_f32x8 = _mm256_add_ps(sum_f32x8, data_f32x8);
+    }
+    nk_f32_t sum = nk_reduce_add_f32x8_haswell_(sum_f32x8);
+    for (; idx < count; idx++, ptr += stride_elements) {
+        nk_f32_t val;
+        nk_e4m3_to_f32(ptr, &val);
+        sum += val;
+    }
+    *result = sum;
+}
+
+NK_PUBLIC void nk_reduce_add_e4m3_haswell(                          //
+    nk_e4m3_t const *data, nk_size_t count, nk_size_t stride_bytes, //
+    nk_f32_t *result) {
+    nk_size_t stride_elements = stride_bytes / sizeof(nk_e4m3_t);
+    int aligned = (stride_bytes % sizeof(nk_e4m3_t) == 0);
+    if (!aligned) nk_reduce_add_e4m3_serial(data, count, stride_bytes, result);
+    else if (stride_elements == 1) nk_reduce_add_e4m3_haswell_contiguous_(data, count, result);
+    else nk_reduce_add_e4m3_haswell_strided_(data, count, stride_elements, result);
+}
+
+NK_INTERNAL void nk_reduce_min_e4m3_haswell_contiguous_( //
+    nk_e4m3_t const *data, nk_size_t count,              //
+    nk_f32_t *min_value, nk_size_t *min_index) {
+    if (count == 0) {
+        *min_value = 0;
+        *min_index = 0;
+        return;
+    }
+    __m256 min_f32x8 = _mm256_set1_ps(__builtin_huge_valf());
+    nk_size_t idx = 0;
+    for (; idx + 8 <= count; idx += 8) {
+        __m128i data_i8x8 = _mm_loadl_epi64((__m128i const *)(data + idx));
+        __m256 data_f32x8 = nk_e4m3x8_to_f32x8_haswell_(data_i8x8);
+        min_f32x8 = _mm256_min_ps(min_f32x8, data_f32x8);
+    }
+    nk_f32_t min_val = nk_reduce_min_f32x8_haswell_(min_f32x8);
+    for (; idx < count; idx++) {
+        nk_f32_t val;
+        nk_e4m3_to_f32(&data[idx], &val);
+        if (val < min_val) min_val = val;
+    }
+    // Second pass for index
+    for (idx = 0; idx < count; idx++) {
+        nk_f32_t val;
+        nk_e4m3_to_f32(&data[idx], &val);
+        if (val == min_val) {
+            *min_value = min_val;
+            *min_index = idx;
+            return;
+        }
+    }
+    *min_value = min_val;
+    *min_index = 0;
+}
+
+NK_INTERNAL void nk_reduce_min_e4m3_haswell_strided_(                  //
+    nk_e4m3_t const *data, nk_size_t count, nk_size_t stride_elements, //
+    nk_f32_t *min_value, nk_size_t *min_index) {
+    if (count == 0) {
+        *min_value = 0;
+        *min_index = 0;
+        return;
+    }
+    __m256 min_f32x8 = _mm256_set1_ps(__builtin_huge_valf());
+    nk_e4m3_t const *ptr = data;
+    nk_size_t idx = 0;
+    for (; idx + 8 <= count; idx += 8) {
+        nk_b256_vec_t vec;
+        vec.ymm = _mm256_setzero_si256();
+        for (nk_size_t i = 0; i < 8; ++i) {
+            vec.e4m3s[i] = *ptr;
+            ptr += stride_elements;
+        }
+        __m256 data_f32x8 = nk_e4m3x8_to_f32x8_haswell_(vec.xmms[0]);
+        min_f32x8 = _mm256_min_ps(min_f32x8, data_f32x8);
+    }
+    nk_f32_t min_val = nk_reduce_min_f32x8_haswell_(min_f32x8);
+    for (; idx < count; idx++, ptr += stride_elements) {
+        nk_f32_t val;
+        nk_e4m3_to_f32(ptr, &val);
+        if (val < min_val) min_val = val;
+    }
+    // Second pass for index
+    ptr = data;
+    for (idx = 0; idx < count; idx++, ptr += stride_elements) {
+        nk_f32_t val;
+        nk_e4m3_to_f32(ptr, &val);
+        if (val == min_val) {
+            *min_value = min_val;
+            *min_index = idx;
+            return;
+        }
+    }
+    *min_value = min_val;
+    *min_index = 0;
+}
+
+NK_PUBLIC void nk_reduce_min_e4m3_haswell(                          //
+    nk_e4m3_t const *data, nk_size_t count, nk_size_t stride_bytes, //
+    nk_f32_t *min_value, nk_size_t *min_index) {
+    nk_size_t stride_elements = stride_bytes / sizeof(nk_e4m3_t);
+    int aligned = (stride_bytes % sizeof(nk_e4m3_t) == 0);
+    if (!aligned) nk_reduce_min_e4m3_serial(data, count, stride_bytes, min_value, min_index);
+    else if (stride_elements == 1) nk_reduce_min_e4m3_haswell_contiguous_(data, count, min_value, min_index);
+    else nk_reduce_min_e4m3_haswell_strided_(data, count, stride_elements, min_value, min_index);
+}
+
+NK_INTERNAL void nk_reduce_max_e4m3_haswell_contiguous_( //
+    nk_e4m3_t const *data, nk_size_t count,              //
+    nk_f32_t *max_value, nk_size_t *max_index) {
+    if (count == 0) {
+        *max_value = 0;
+        *max_index = 0;
+        return;
+    }
+    __m256 max_f32x8 = _mm256_set1_ps(-__builtin_huge_valf());
+    nk_size_t idx = 0;
+    for (; idx + 8 <= count; idx += 8) {
+        __m128i data_i8x8 = _mm_loadl_epi64((__m128i const *)(data + idx));
+        __m256 data_f32x8 = nk_e4m3x8_to_f32x8_haswell_(data_i8x8);
+        max_f32x8 = _mm256_max_ps(max_f32x8, data_f32x8);
+    }
+    nk_f32_t max_val = nk_reduce_max_f32x8_haswell_(max_f32x8);
+    for (; idx < count; idx++) {
+        nk_f32_t val;
+        nk_e4m3_to_f32(&data[idx], &val);
+        if (val > max_val) max_val = val;
+    }
+    // Second pass for index
+    for (idx = 0; idx < count; idx++) {
+        nk_f32_t val;
+        nk_e4m3_to_f32(&data[idx], &val);
+        if (val == max_val) {
+            *max_value = max_val;
+            *max_index = idx;
+            return;
+        }
+    }
+    *max_value = max_val;
+    *max_index = 0;
+}
+
+NK_INTERNAL void nk_reduce_max_e4m3_haswell_strided_(                  //
+    nk_e4m3_t const *data, nk_size_t count, nk_size_t stride_elements, //
+    nk_f32_t *max_value, nk_size_t *max_index) {
+    if (count == 0) {
+        *max_value = 0;
+        *max_index = 0;
+        return;
+    }
+    __m256 max_f32x8 = _mm256_set1_ps(-__builtin_huge_valf());
+    nk_e4m3_t const *ptr = data;
+    nk_size_t idx = 0;
+    for (; idx + 8 <= count; idx += 8) {
+        nk_b256_vec_t vec;
+        vec.ymm = _mm256_setzero_si256();
+        for (nk_size_t i = 0; i < 8; ++i) {
+            vec.e4m3s[i] = *ptr;
+            ptr += stride_elements;
+        }
+        __m256 data_f32x8 = nk_e4m3x8_to_f32x8_haswell_(vec.xmms[0]);
+        max_f32x8 = _mm256_max_ps(max_f32x8, data_f32x8);
+    }
+    nk_f32_t max_val = nk_reduce_max_f32x8_haswell_(max_f32x8);
+    for (; idx < count; idx++, ptr += stride_elements) {
+        nk_f32_t val;
+        nk_e4m3_to_f32(ptr, &val);
+        if (val > max_val) max_val = val;
+    }
+    // Second pass for index
+    ptr = data;
+    for (idx = 0; idx < count; idx++, ptr += stride_elements) {
+        nk_f32_t val;
+        nk_e4m3_to_f32(ptr, &val);
+        if (val == max_val) {
+            *max_value = max_val;
+            *max_index = idx;
+            return;
+        }
+    }
+    *max_value = max_val;
+    *max_index = 0;
+}
+
+NK_PUBLIC void nk_reduce_max_e4m3_haswell(                          //
+    nk_e4m3_t const *data, nk_size_t count, nk_size_t stride_bytes, //
+    nk_f32_t *max_value, nk_size_t *max_index) {
+    nk_size_t stride_elements = stride_bytes / sizeof(nk_e4m3_t);
+    int aligned = (stride_bytes % sizeof(nk_e4m3_t) == 0);
+    if (!aligned) nk_reduce_max_e4m3_serial(data, count, stride_bytes, max_value, max_index);
+    else if (stride_elements == 1) nk_reduce_max_e4m3_haswell_contiguous_(data, count, max_value, max_index);
+    else nk_reduce_max_e4m3_haswell_strided_(data, count, stride_elements, max_value, max_index);
+}
+
+NK_INTERNAL void nk_reduce_add_e5m2_haswell_contiguous_( //
+    nk_e5m2_t const *data, nk_size_t count, nk_f32_t *result) {
+    __m256 sum_f32x8 = _mm256_setzero_ps();
+    nk_size_t idx = 0;
+    for (; idx + 8 <= count; idx += 8) {
+        __m128i data_i8x8 = _mm_loadl_epi64((__m128i const *)(data + idx));
+        __m256 data_f32x8 = nk_e5m2x8_to_f32x8_haswell_(data_i8x8);
+        sum_f32x8 = _mm256_add_ps(sum_f32x8, data_f32x8);
+    }
+    nk_f32_t sum = nk_reduce_add_f32x8_haswell_(sum_f32x8);
+    for (; idx < count; idx++) {
+        nk_f32_t val;
+        nk_e5m2_to_f32(&data[idx], &val);
+        sum += val;
+    }
+    *result = sum;
+}
+
+NK_INTERNAL void nk_reduce_add_e5m2_haswell_strided_(                  //
+    nk_e5m2_t const *data, nk_size_t count, nk_size_t stride_elements, //
+    nk_f32_t *result) {
+    __m256 sum_f32x8 = _mm256_setzero_ps();
+    nk_e5m2_t const *ptr = data;
+    nk_size_t idx = 0;
+    for (; idx + 8 <= count; idx += 8) {
+        nk_b256_vec_t vec;
+        vec.ymm = _mm256_setzero_si256();
+        for (nk_size_t i = 0; i < 8; ++i) {
+            vec.e5m2s[i] = *ptr;
+            ptr += stride_elements;
+        }
+        __m256 data_f32x8 = nk_e5m2x8_to_f32x8_haswell_(vec.xmms[0]);
+        sum_f32x8 = _mm256_add_ps(sum_f32x8, data_f32x8);
+    }
+    nk_f32_t sum = nk_reduce_add_f32x8_haswell_(sum_f32x8);
+    for (; idx < count; idx++, ptr += stride_elements) {
+        nk_f32_t val;
+        nk_e5m2_to_f32(ptr, &val);
+        sum += val;
+    }
+    *result = sum;
+}
+
+NK_PUBLIC void nk_reduce_add_e5m2_haswell(                          //
+    nk_e5m2_t const *data, nk_size_t count, nk_size_t stride_bytes, //
+    nk_f32_t *result) {
+    nk_size_t stride_elements = stride_bytes / sizeof(nk_e5m2_t);
+    int aligned = (stride_bytes % sizeof(nk_e5m2_t) == 0);
+    if (!aligned) nk_reduce_add_e5m2_serial(data, count, stride_bytes, result);
+    else if (stride_elements == 1) nk_reduce_add_e5m2_haswell_contiguous_(data, count, result);
+    else nk_reduce_add_e5m2_haswell_strided_(data, count, stride_elements, result);
+}
+
+NK_INTERNAL void nk_reduce_min_e5m2_haswell_contiguous_( //
+    nk_e5m2_t const *data, nk_size_t count,              //
+    nk_f32_t *min_value, nk_size_t *min_index) {
+    if (count == 0) {
+        *min_value = 0;
+        *min_index = 0;
+        return;
+    }
+    __m256 min_f32x8 = _mm256_set1_ps(__builtin_huge_valf());
+    nk_size_t idx = 0;
+    for (; idx + 8 <= count; idx += 8) {
+        __m128i data_i8x8 = _mm_loadl_epi64((__m128i const *)(data + idx));
+        __m256 data_f32x8 = nk_e5m2x8_to_f32x8_haswell_(data_i8x8);
+        min_f32x8 = _mm256_min_ps(min_f32x8, data_f32x8);
+    }
+    nk_f32_t min_val = nk_reduce_min_f32x8_haswell_(min_f32x8);
+    for (; idx < count; idx++) {
+        nk_f32_t val;
+        nk_e5m2_to_f32(&data[idx], &val);
+        if (val < min_val) min_val = val;
+    }
+    // Second pass for index
+    for (idx = 0; idx < count; idx++) {
+        nk_f32_t val;
+        nk_e5m2_to_f32(&data[idx], &val);
+        if (val == min_val) {
+            *min_value = min_val;
+            *min_index = idx;
+            return;
+        }
+    }
+    *min_value = min_val;
+    *min_index = 0;
+}
+
+NK_INTERNAL void nk_reduce_min_e5m2_haswell_strided_(                  //
+    nk_e5m2_t const *data, nk_size_t count, nk_size_t stride_elements, //
+    nk_f32_t *min_value, nk_size_t *min_index) {
+    if (count == 0) {
+        *min_value = 0;
+        *min_index = 0;
+        return;
+    }
+    __m256 min_f32x8 = _mm256_set1_ps(__builtin_huge_valf());
+    nk_e5m2_t const *ptr = data;
+    nk_size_t idx = 0;
+    for (; idx + 8 <= count; idx += 8) {
+        nk_b256_vec_t vec;
+        vec.ymm = _mm256_setzero_si256();
+        for (nk_size_t i = 0; i < 8; ++i) {
+            vec.e5m2s[i] = *ptr;
+            ptr += stride_elements;
+        }
+        __m256 data_f32x8 = nk_e5m2x8_to_f32x8_haswell_(vec.xmms[0]);
+        min_f32x8 = _mm256_min_ps(min_f32x8, data_f32x8);
+    }
+    nk_f32_t min_val = nk_reduce_min_f32x8_haswell_(min_f32x8);
+    for (; idx < count; idx++, ptr += stride_elements) {
+        nk_f32_t val;
+        nk_e5m2_to_f32(ptr, &val);
+        if (val < min_val) min_val = val;
+    }
+    // Second pass for index
+    ptr = data;
+    for (idx = 0; idx < count; idx++, ptr += stride_elements) {
+        nk_f32_t val;
+        nk_e5m2_to_f32(ptr, &val);
+        if (val == min_val) {
+            *min_value = min_val;
+            *min_index = idx;
+            return;
+        }
+    }
+    *min_value = min_val;
+    *min_index = 0;
+}
+
+NK_PUBLIC void nk_reduce_min_e5m2_haswell(                          //
+    nk_e5m2_t const *data, nk_size_t count, nk_size_t stride_bytes, //
+    nk_f32_t *min_value, nk_size_t *min_index) {
+    nk_size_t stride_elements = stride_bytes / sizeof(nk_e5m2_t);
+    int aligned = (stride_bytes % sizeof(nk_e5m2_t) == 0);
+    if (!aligned) nk_reduce_min_e5m2_serial(data, count, stride_bytes, min_value, min_index);
+    else if (stride_elements == 1) nk_reduce_min_e5m2_haswell_contiguous_(data, count, min_value, min_index);
+    else nk_reduce_min_e5m2_haswell_strided_(data, count, stride_elements, min_value, min_index);
+}
+
+NK_INTERNAL void nk_reduce_max_e5m2_haswell_contiguous_( //
+    nk_e5m2_t const *data, nk_size_t count,              //
+    nk_f32_t *max_value, nk_size_t *max_index) {
+    if (count == 0) {
+        *max_value = 0;
+        *max_index = 0;
+        return;
+    }
+    __m256 max_f32x8 = _mm256_set1_ps(-__builtin_huge_valf());
+    nk_size_t idx = 0;
+    for (; idx + 8 <= count; idx += 8) {
+        __m128i data_i8x8 = _mm_loadl_epi64((__m128i const *)(data + idx));
+        __m256 data_f32x8 = nk_e5m2x8_to_f32x8_haswell_(data_i8x8);
+        max_f32x8 = _mm256_max_ps(max_f32x8, data_f32x8);
+    }
+    nk_f32_t max_val = nk_reduce_max_f32x8_haswell_(max_f32x8);
+    for (; idx < count; idx++) {
+        nk_f32_t val;
+        nk_e5m2_to_f32(&data[idx], &val);
+        if (val > max_val) max_val = val;
+    }
+    // Second pass for index
+    for (idx = 0; idx < count; idx++) {
+        nk_f32_t val;
+        nk_e5m2_to_f32(&data[idx], &val);
+        if (val == max_val) {
+            *max_value = max_val;
+            *max_index = idx;
+            return;
+        }
+    }
+    *max_value = max_val;
+    *max_index = 0;
+}
+
+NK_INTERNAL void nk_reduce_max_e5m2_haswell_strided_(                  //
+    nk_e5m2_t const *data, nk_size_t count, nk_size_t stride_elements, //
+    nk_f32_t *max_value, nk_size_t *max_index) {
+    if (count == 0) {
+        *max_value = 0;
+        *max_index = 0;
+        return;
+    }
+    __m256 max_f32x8 = _mm256_set1_ps(-__builtin_huge_valf());
+    nk_e5m2_t const *ptr = data;
+    nk_size_t idx = 0;
+    for (; idx + 8 <= count; idx += 8) {
+        nk_b256_vec_t vec;
+        vec.ymm = _mm256_setzero_si256();
+        for (nk_size_t i = 0; i < 8; ++i) {
+            vec.e5m2s[i] = *ptr;
+            ptr += stride_elements;
+        }
+        __m256 data_f32x8 = nk_e5m2x8_to_f32x8_haswell_(vec.xmms[0]);
+        max_f32x8 = _mm256_max_ps(max_f32x8, data_f32x8);
+    }
+    nk_f32_t max_val = nk_reduce_max_f32x8_haswell_(max_f32x8);
+    for (; idx < count; idx++, ptr += stride_elements) {
+        nk_f32_t val;
+        nk_e5m2_to_f32(ptr, &val);
+        if (val > max_val) max_val = val;
+    }
+    // Second pass for index
+    ptr = data;
+    for (idx = 0; idx < count; idx++, ptr += stride_elements) {
+        nk_f32_t val;
+        nk_e5m2_to_f32(ptr, &val);
+        if (val == max_val) {
+            *max_value = max_val;
+            *max_index = idx;
+            return;
+        }
+    }
+    *max_value = max_val;
+    *max_index = 0;
+}
+
+NK_PUBLIC void nk_reduce_max_e5m2_haswell(                          //
+    nk_e5m2_t const *data, nk_size_t count, nk_size_t stride_bytes, //
+    nk_f32_t *max_value, nk_size_t *max_index) {
+    nk_size_t stride_elements = stride_bytes / sizeof(nk_e5m2_t);
+    int aligned = (stride_bytes % sizeof(nk_e5m2_t) == 0);
+    if (!aligned) nk_reduce_max_e5m2_serial(data, count, stride_bytes, max_value, max_index);
+    else if (stride_elements == 1) nk_reduce_max_e5m2_haswell_contiguous_(data, count, max_value, max_index);
+    else nk_reduce_max_e5m2_haswell_strided_(data, count, stride_elements, max_value, max_index);
 }
 
 #if defined(__cplusplus)
