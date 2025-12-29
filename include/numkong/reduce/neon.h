@@ -25,47 +25,247 @@ extern "C" {
 NK_INTERNAL void nk_partial_load_b32x4_neon_(void const *src, nk_size_t n, nk_b128_vec_t *dst) {
     nk_u32_t const *s = (nk_u32_t const *)src;
     dst->u32x4 = vdupq_n_u32(0);
-    for (nk_size_t i = 0; i < n && i < 4; ++i) dst->u32s[i] = s[i];
+    switch (n) {
+    default:
+    case 4: dst->u32s[3] = s[3]; // fallthrough
+    case 3: dst->u32s[2] = s[2]; // fallthrough
+    case 2: dst->u32s[1] = s[1]; // fallthrough
+    case 1: dst->u32s[0] = s[0]; // fallthrough
+    case 0: break;
+    }
 }
 
 /** @brief Type-agnostic partial load for 16-bit elements (8 elements max) into 128-bit vector (NEON). */
 NK_INTERNAL void nk_partial_load_b16x8_neon_(void const *src, nk_size_t n, nk_b128_vec_t *dst) {
     nk_u16_t const *s = (nk_u16_t const *)src;
     dst->u16x8 = vdupq_n_u16(0);
-    for (nk_size_t i = 0; i < n && i < 8; ++i) dst->u16s[i] = s[i];
+    switch (n) {
+    default:
+    case 8: dst->u16s[7] = s[7]; // fallthrough
+    case 7: dst->u16s[6] = s[6]; // fallthrough
+    case 6: dst->u16s[5] = s[5]; // fallthrough
+    case 5: dst->u16s[4] = s[4]; // fallthrough
+    case 4: dst->u16s[3] = s[3]; // fallthrough
+    case 3: dst->u16s[2] = s[2]; // fallthrough
+    case 2: dst->u16s[1] = s[1]; // fallthrough
+    case 1: dst->u16s[0] = s[0]; // fallthrough
+    case 0: break;
+    }
 }
 
 /** @brief Type-agnostic partial load for 16-bit elements (4 elements max) into 64-bit vector (NEON). */
 NK_INTERNAL void nk_partial_load_b16x4_neon_(void const *src, nk_size_t n, nk_b64_vec_t *dst) {
     nk_u16_t const *s = (nk_u16_t const *)src;
     dst->u16x4 = vdup_n_u16(0);
-    for (nk_size_t i = 0; i < n && i < 4; ++i) dst->u16s[i] = s[i];
+    switch (n) {
+    default:
+    case 4: dst->u16s[3] = s[3]; // fallthrough
+    case 3: dst->u16s[2] = s[2]; // fallthrough
+    case 2: dst->u16s[1] = s[1]; // fallthrough
+    case 1: dst->u16s[0] = s[0]; // fallthrough
+    case 0: break;
+    }
 }
 
 /** @brief Type-agnostic partial load for 8-bit elements (16 elements max) into 128-bit vector (NEON). */
 NK_INTERNAL void nk_partial_load_b8x16_neon_(void const *src, nk_size_t n, nk_b128_vec_t *dst) {
     nk_u8_t const *s = (nk_u8_t const *)src;
     dst->u8x16 = vdupq_n_u8(0);
-    for (nk_size_t i = 0; i < n && i < 16; ++i) dst->u8s[i] = s[i];
+    switch (n) {
+    default:
+    case 16: dst->u8s[15] = s[15]; // fallthrough
+    case 15: dst->u8s[14] = s[14]; // fallthrough
+    case 14: dst->u8s[13] = s[13]; // fallthrough
+    case 13: dst->u8s[12] = s[12]; // fallthrough
+    case 12: dst->u8s[11] = s[11]; // fallthrough
+    case 11: dst->u8s[10] = s[10]; // fallthrough
+    case 10: dst->u8s[9] = s[9];   // fallthrough
+    case 9: dst->u8s[8] = s[8];    // fallthrough
+    case 8: dst->u8s[7] = s[7];    // fallthrough
+    case 7: dst->u8s[6] = s[6];    // fallthrough
+    case 6: dst->u8s[5] = s[5];    // fallthrough
+    case 5: dst->u8s[4] = s[4];    // fallthrough
+    case 4: dst->u8s[3] = s[3];    // fallthrough
+    case 3: dst->u8s[2] = s[2];    // fallthrough
+    case 2: dst->u8s[1] = s[1];    // fallthrough
+    case 1: dst->u8s[0] = s[0];    // fallthrough
+    case 0: break;
+    }
 }
 
 /** @brief Type-agnostic partial store for 32-bit elements (4 elements max) from 128-bit vector (NEON). */
 NK_INTERNAL void nk_partial_store_b32x4_neon_(nk_b128_vec_t const *src, void *dst, nk_size_t n) {
     nk_u32_t *d = (nk_u32_t *)dst;
-    for (nk_size_t i = 0; i < n && i < 4; ++i) d[i] = src->u32s[i];
+    switch (n) {
+    default:
+    case 4: d[3] = src->u32s[3]; // fallthrough
+    case 3: d[2] = src->u32s[2]; // fallthrough
+    case 2: d[1] = src->u32s[1]; // fallthrough
+    case 1: d[0] = src->u32s[0]; // fallthrough
+    case 0: break;
+    }
 }
 
 /** @brief Type-agnostic partial load for 64-bit elements (2 elements max) into 128-bit vector (NEON). */
 NK_INTERNAL void nk_partial_load_b64x2_neon_(void const *src, nk_size_t n, nk_b128_vec_t *dst) {
     nk_u64_t const *s = (nk_u64_t const *)src;
     dst->u64x2 = vdupq_n_u64(0);
-    for (nk_size_t i = 0; i < n && i < 2; ++i) dst->u64s[i] = s[i];
+    switch (n) {
+    default:
+    case 2: dst->u64s[1] = s[1]; // fallthrough
+    case 1: dst->u64s[0] = s[0]; // fallthrough
+    case 0: break;
+    }
 }
 
 /** @brief Type-agnostic partial store for 64-bit elements (2 elements max) from 128-bit vector (NEON). */
 NK_INTERNAL void nk_partial_store_b64x2_neon_(nk_b128_vec_t const *src, void *dst, nk_size_t n) {
     nk_u64_t *d = (nk_u64_t *)dst;
-    for (nk_size_t i = 0; i < n && i < 2; ++i) d[i] = src->u64s[i];
+    switch (n) {
+    default:
+    case 2: d[1] = src->u64s[1]; // fallthrough
+    case 1: d[0] = src->u64s[0]; // fallthrough
+    case 0: break;
+    }
+}
+
+/** @brief Convert 4 E4M3 values to f32x4 via bit manipulation (NEON).
+ *  E4M3 format: S EEEE MMM (bias=7). F32: sign<<31, (exp+120)<<23, mant<<20. */
+NK_INTERNAL float32x4_t nk_e4m3x4_to_f32x4_neon_(nk_e4m3_t const *src) {
+    uint8x8_t e4m3_u8x8 = vcreate_u8(*(uint32_t const *)src);
+    uint16x8_t e4m3_u16x8 = vmovl_u8(e4m3_u8x8);
+    uint32x4_t v_u32x4 = vmovl_u16(vget_low_u16(e4m3_u16x8));
+    uint32x4_t sign_u32x4 = vshlq_n_u32(vshrq_n_u32(vandq_u32(v_u32x4, vdupq_n_u32(0x80)), 7), 31);
+    uint32x4_t exp_u32x4 = vandq_u32(vshrq_n_u32(v_u32x4, 3), vdupq_n_u32(0x0F));
+    uint32x4_t mant_u32x4 = vandq_u32(v_u32x4, vdupq_n_u32(0x07));
+    uint32x4_t f32_exp_u32x4 = vshlq_n_u32(vaddq_u32(exp_u32x4, vdupq_n_u32(120)), 23);
+    uint32x4_t f32_mant_u32x4 = vshlq_n_u32(mant_u32x4, 20);
+    uint32x4_t f32_bits_u32x4 = vorrq_u32(sign_u32x4, vorrq_u32(f32_exp_u32x4, f32_mant_u32x4));
+    uint32x4_t zero_mask_u32x4 = vceqq_u32(exp_u32x4, vdupq_n_u32(0));
+    f32_bits_u32x4 = vbicq_u32(f32_bits_u32x4, zero_mask_u32x4);
+    return vreinterpretq_f32_u32(f32_bits_u32x4);
+}
+
+/** @brief Partial load for E4M3 elements (up to 4) with expansion to f32x4 (NEON). */
+NK_INTERNAL float32x4_t nk_partial_load_e4m3x4_to_f32x4_neon_(nk_e4m3_t const *src, nk_size_t n) {
+    nk_u32_t buf = 0;
+    switch (n) {
+    default:
+    case 4: ((nk_u8_t *)&buf)[3] = src[3]; // fallthrough
+    case 3: ((nk_u8_t *)&buf)[2] = src[2]; // fallthrough
+    case 2: ((nk_u8_t *)&buf)[1] = src[1]; // fallthrough
+    case 1: ((nk_u8_t *)&buf)[0] = src[0]; // fallthrough
+    case 0: break;
+    }
+    uint8x8_t e4m3_u8x8 = vcreate_u8(buf);
+    uint16x8_t e4m3_u16x8 = vmovl_u8(e4m3_u8x8);
+    uint32x4_t v_u32x4 = vmovl_u16(vget_low_u16(e4m3_u16x8));
+    uint32x4_t sign_u32x4 = vshlq_n_u32(vshrq_n_u32(vandq_u32(v_u32x4, vdupq_n_u32(0x80)), 7), 31);
+    uint32x4_t exp_u32x4 = vandq_u32(vshrq_n_u32(v_u32x4, 3), vdupq_n_u32(0x0F));
+    uint32x4_t mant_u32x4 = vandq_u32(v_u32x4, vdupq_n_u32(0x07));
+    uint32x4_t f32_exp_u32x4 = vshlq_n_u32(vaddq_u32(exp_u32x4, vdupq_n_u32(120)), 23);
+    uint32x4_t f32_mant_u32x4 = vshlq_n_u32(mant_u32x4, 20);
+    uint32x4_t f32_bits_u32x4 = vorrq_u32(sign_u32x4, vorrq_u32(f32_exp_u32x4, f32_mant_u32x4));
+    uint32x4_t zero_mask_u32x4 = vceqq_u32(exp_u32x4, vdupq_n_u32(0));
+    f32_bits_u32x4 = vbicq_u32(f32_bits_u32x4, zero_mask_u32x4);
+    return vreinterpretq_f32_u32(f32_bits_u32x4);
+}
+
+/** @brief Convert 4 E5M2 values to f32x4 via bit manipulation (NEON).
+ *  E5M2 format: S EEEEE MM (bias=15). F32: sign<<31, (exp+112)<<23, mant<<21. */
+NK_INTERNAL float32x4_t nk_e5m2x4_to_f32x4_neon_(nk_e5m2_t const *src) {
+    uint8x8_t e5m2_u8x8 = vcreate_u8(*(uint32_t const *)src);
+    uint16x8_t e5m2_u16x8 = vmovl_u8(e5m2_u8x8);
+    uint32x4_t v_u32x4 = vmovl_u16(vget_low_u16(e5m2_u16x8));
+    uint32x4_t sign_u32x4 = vshlq_n_u32(vshrq_n_u32(vandq_u32(v_u32x4, vdupq_n_u32(0x80)), 7), 31);
+    uint32x4_t exp_u32x4 = vandq_u32(vshrq_n_u32(v_u32x4, 2), vdupq_n_u32(0x1F));
+    uint32x4_t mant_u32x4 = vandq_u32(v_u32x4, vdupq_n_u32(0x03));
+    uint32x4_t f32_exp_u32x4 = vshlq_n_u32(vaddq_u32(exp_u32x4, vdupq_n_u32(112)), 23);
+    uint32x4_t f32_mant_u32x4 = vshlq_n_u32(mant_u32x4, 21);
+    uint32x4_t f32_bits_u32x4 = vorrq_u32(sign_u32x4, vorrq_u32(f32_exp_u32x4, f32_mant_u32x4));
+    uint32x4_t zero_mask_u32x4 = vceqq_u32(exp_u32x4, vdupq_n_u32(0));
+    f32_bits_u32x4 = vbicq_u32(f32_bits_u32x4, zero_mask_u32x4);
+    return vreinterpretq_f32_u32(f32_bits_u32x4);
+}
+
+/** @brief Partial load for E5M2 elements (up to 4) with expansion to f32x4 (NEON). */
+NK_INTERNAL float32x4_t nk_partial_load_e5m2x4_to_f32x4_neon_(nk_e5m2_t const *src, nk_size_t n) {
+    nk_u32_t buf = 0;
+    switch (n) {
+    default:
+    case 4: ((nk_u8_t *)&buf)[3] = src[3]; // fallthrough
+    case 3: ((nk_u8_t *)&buf)[2] = src[2]; // fallthrough
+    case 2: ((nk_u8_t *)&buf)[1] = src[1]; // fallthrough
+    case 1: ((nk_u8_t *)&buf)[0] = src[0]; // fallthrough
+    case 0: break;
+    }
+    uint8x8_t e5m2_u8x8 = vcreate_u8(buf);
+    uint16x8_t e5m2_u16x8 = vmovl_u8(e5m2_u8x8);
+    uint32x4_t v_u32x4 = vmovl_u16(vget_low_u16(e5m2_u16x8));
+    uint32x4_t sign_u32x4 = vshlq_n_u32(vshrq_n_u32(vandq_u32(v_u32x4, vdupq_n_u32(0x80)), 7), 31);
+    uint32x4_t exp_u32x4 = vandq_u32(vshrq_n_u32(v_u32x4, 2), vdupq_n_u32(0x1F));
+    uint32x4_t mant_u32x4 = vandq_u32(v_u32x4, vdupq_n_u32(0x03));
+    uint32x4_t f32_exp_u32x4 = vshlq_n_u32(vaddq_u32(exp_u32x4, vdupq_n_u32(112)), 23);
+    uint32x4_t f32_mant_u32x4 = vshlq_n_u32(mant_u32x4, 21);
+    uint32x4_t f32_bits_u32x4 = vorrq_u32(sign_u32x4, vorrq_u32(f32_exp_u32x4, f32_mant_u32x4));
+    uint32x4_t zero_mask_u32x4 = vceqq_u32(exp_u32x4, vdupq_n_u32(0));
+    f32_bits_u32x4 = vbicq_u32(f32_bits_u32x4, zero_mask_u32x4);
+    return vreinterpretq_f32_u32(f32_bits_u32x4);
+}
+
+/** @brief Convert 8 E4M3 values to f16x8 via bit manipulation (NEON).
+ *  E4M3 format: S EEEE MMM (bias=7). F16: sign<<15, (exp+8)<<10, mant<<7. */
+NK_INTERNAL float16x8_t nk_e4m3x8_to_f16x8_neon_(uint8x8_t e4m3_u8x8) {
+    uint16x8_t v_u16x8 = vmovl_u8(e4m3_u8x8);
+    uint16x8_t sign_u16x8 = vshlq_n_u16(vshrq_n_u16(vandq_u16(v_u16x8, vdupq_n_u16(0x80)), 7), 15);
+    uint16x8_t exp_u16x8 = vandq_u16(vshrq_n_u16(v_u16x8, 3), vdupq_n_u16(0x0F));
+    uint16x8_t mant_u16x8 = vandq_u16(v_u16x8, vdupq_n_u16(0x07));
+    uint16x8_t f16_exp_u16x8 = vshlq_n_u16(vaddq_u16(exp_u16x8, vdupq_n_u16(8)), 10);
+    uint16x8_t f16_mant_u16x8 = vshlq_n_u16(mant_u16x8, 7);
+    uint16x8_t f16_bits_u16x8 = vorrq_u16(sign_u16x8, vorrq_u16(f16_exp_u16x8, f16_mant_u16x8));
+    uint16x8_t zero_mask_u16x8 = vceqq_u16(exp_u16x8, vdupq_n_u16(0));
+    f16_bits_u16x8 = vbicq_u16(f16_bits_u16x8, zero_mask_u16x8);
+    return vreinterpretq_f16_u16(f16_bits_u16x8);
+}
+
+/** @brief Convert 8 E5M2 values to f16x8 via bit manipulation (NEON).
+ *  E5M2 format: S EEEEE MM (bias=15). F16: sign<<15, exp<<10, mant<<8. */
+NK_INTERNAL float16x8_t nk_e5m2x8_to_f16x8_neon_(uint8x8_t e5m2_u8x8) {
+    uint16x8_t v_u16x8 = vmovl_u8(e5m2_u8x8);
+    uint16x8_t sign_u16x8 = vshlq_n_u16(vshrq_n_u16(vandq_u16(v_u16x8, vdupq_n_u16(0x80)), 7), 15);
+    uint16x8_t exp_u16x8 = vandq_u16(vshrq_n_u16(v_u16x8, 2), vdupq_n_u16(0x1F));
+    uint16x8_t mant_u16x8 = vandq_u16(v_u16x8, vdupq_n_u16(0x03));
+    uint16x8_t f16_exp_u16x8 = vshlq_n_u16(exp_u16x8, 10);
+    uint16x8_t f16_mant_u16x8 = vshlq_n_u16(mant_u16x8, 8);
+    uint16x8_t f16_bits_u16x8 = vorrq_u16(sign_u16x8, vorrq_u16(f16_exp_u16x8, f16_mant_u16x8));
+    uint16x8_t zero_mask_u16x8 = vceqq_u16(exp_u16x8, vdupq_n_u16(0));
+    f16_bits_u16x8 = vbicq_u16(f16_bits_u16x8, zero_mask_u16x8);
+    return vreinterpretq_f16_u16(f16_bits_u16x8);
+}
+
+/** @brief Convert f16x8 to 8 E4M3 values (NEON). */
+NK_INTERNAL uint8x8_t nk_f16x8_to_e4m3x8_neon_(float16x8_t f16x8) {
+    uint16x8_t bits_u16x8 = vreinterpretq_u16_f16(f16x8);
+    uint16x8_t sign_u16x8 = vshrq_n_u16(vandq_u16(bits_u16x8, vdupq_n_u16(0x8000)), 8);
+    uint16x8_t exp_u16x8 = vandq_u16(vshrq_n_u16(bits_u16x8, 10), vdupq_n_u16(0x1F));
+    uint16x8_t mant_u16x8 = vshrq_n_u16(vandq_u16(bits_u16x8, vdupq_n_u16(0x03FF)), 7);
+    int16x8_t exp_rebias_i16x8 = vsubq_s16(vreinterpretq_s16_u16(exp_u16x8), vdupq_n_s16(8));
+    exp_rebias_i16x8 = vmaxq_s16(exp_rebias_i16x8, vdupq_n_s16(0));
+    exp_rebias_i16x8 = vminq_s16(exp_rebias_i16x8, vdupq_n_s16(15));
+    uint16x8_t e4m3_u16x8 = vorrq_u16(sign_u16x8, vorrq_u16(vshlq_n_u16(vreinterpretq_u16_s16(exp_rebias_i16x8), 3),
+                                                            vandq_u16(mant_u16x8, vdupq_n_u16(0x07))));
+    return vmovn_u16(e4m3_u16x8);
+}
+
+/** @brief Convert f16x8 to 8 E5M2 values (NEON). */
+NK_INTERNAL uint8x8_t nk_f16x8_to_e5m2x8_neon_(float16x8_t f16x8) {
+    uint16x8_t bits_u16x8 = vreinterpretq_u16_f16(f16x8);
+    uint16x8_t sign_u16x8 = vshrq_n_u16(vandq_u16(bits_u16x8, vdupq_n_u16(0x8000)), 8);
+    uint16x8_t exp_u16x8 = vandq_u16(vshrq_n_u16(bits_u16x8, 10), vdupq_n_u16(0x1F));
+    uint16x8_t mant_u16x8 = vshrq_n_u16(vandq_u16(bits_u16x8, vdupq_n_u16(0x03FF)), 8);
+    uint16x8_t e5m2_u16x8 = vorrq_u16(sign_u16x8,
+                                      vorrq_u16(vshlq_n_u16(exp_u16x8, 2), vandq_u16(mant_u16x8, vdupq_n_u16(0x03))));
+    return vmovn_u16(e5m2_u16x8);
 }
 
 /** @brief Horizontal sum of 4 floats in a NEON register. */

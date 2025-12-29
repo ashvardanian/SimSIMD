@@ -273,50 +273,6 @@ NK_INTERNAL void nk_dot_f64x2_finalize_neon(                                    
     results[3] = vaddvq_f64(state_d->sum_f64x2);
 }
 
-/** @brief Convert 4 E4M3 values to f32x4 using scalar conversion. */
-NK_INTERNAL float32x4_t nk_e4m3x4_to_f32x4_neon_(nk_e4m3_t const *src) {
-    nk_f32_t f0, f1, f2, f3;
-    nk_e4m3_to_f32_(src + 0, &f0);
-    nk_e4m3_to_f32_(src + 1, &f1);
-    nk_e4m3_to_f32_(src + 2, &f2);
-    nk_e4m3_to_f32_(src + 3, &f3);
-    float32x4_t result = {f0, f1, f2, f3};
-    return result;
-}
-
-/** @brief Partial load for E4M3 elements (up to 4) with expansion to f32x4. */
-NK_INTERNAL float32x4_t nk_partial_load_e4m3x4_to_f32x4_neon_(nk_e4m3_t const *src, nk_size_t n) {
-    nk_f32_t f0 = 0, f1 = 0, f2 = 0, f3 = 0;
-    if (n > 0) nk_e4m3_to_f32_(src + 0, &f0);
-    if (n > 1) nk_e4m3_to_f32_(src + 1, &f1);
-    if (n > 2) nk_e4m3_to_f32_(src + 2, &f2);
-    if (n > 3) nk_e4m3_to_f32_(src + 3, &f3);
-    float32x4_t result = {f0, f1, f2, f3};
-    return result;
-}
-
-/** @brief Convert 4 E5M2 values to f32x4 using scalar conversion. */
-NK_INTERNAL float32x4_t nk_e5m2x4_to_f32x4_neon_(nk_e5m2_t const *src) {
-    nk_f32_t f0, f1, f2, f3;
-    nk_e5m2_to_f32_(src + 0, &f0);
-    nk_e5m2_to_f32_(src + 1, &f1);
-    nk_e5m2_to_f32_(src + 2, &f2);
-    nk_e5m2_to_f32_(src + 3, &f3);
-    float32x4_t result = {f0, f1, f2, f3};
-    return result;
-}
-
-/** @brief Partial load for E5M2 elements (up to 4) with expansion to f32x4. */
-NK_INTERNAL float32x4_t nk_partial_load_e5m2x4_to_f32x4_neon_(nk_e5m2_t const *src, nk_size_t n) {
-    nk_f32_t f0 = 0, f1 = 0, f2 = 0, f3 = 0;
-    if (n > 0) nk_e5m2_to_f32_(src + 0, &f0);
-    if (n > 1) nk_e5m2_to_f32_(src + 1, &f1);
-    if (n > 2) nk_e5m2_to_f32_(src + 2, &f2);
-    if (n > 3) nk_e5m2_to_f32_(src + 3, &f3);
-    float32x4_t result = {f0, f1, f2, f3};
-    return result;
-}
-
 NK_PUBLIC void nk_dot_e4m3_neon(nk_e4m3_t const *a_scalars, nk_e4m3_t const *b_scalars, nk_size_t count_scalars,
                                 nk_f32_t *result) {
     float32x4_t a_f32x4, b_f32x4;

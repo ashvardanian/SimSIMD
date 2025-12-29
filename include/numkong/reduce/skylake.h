@@ -22,36 +22,89 @@ extern "C" {
 
 /** @brief Type-agnostic partial load for 64-bit elements (8 elements max) into 512-bit vector (Skylake AVX-512). */
 NK_INTERNAL void nk_partial_load_b64x8_skylake_(void const *src, nk_size_t n, nk_b512_vec_t *dst) {
-    nk_u64_t const *s = (nk_u64_t const *)src;
-    dst->zmm = _mm512_setzero_si512();
-    for (nk_size_t i = 0; i < n && i < 8; ++i) dst->u64s[i] = s[i];
+    __mmask8 mask = (__mmask8)_bzhi_u32(0xFF, (unsigned int)n);
+    dst->zmm = _mm512_maskz_loadu_epi64(mask, src);
 }
 
 /** @brief Type-agnostic partial load for 32-bit elements (16 elements max) into 512-bit vector (Skylake AVX-512). */
 NK_INTERNAL void nk_partial_load_b32x16_skylake_(void const *src, nk_size_t n, nk_b512_vec_t *dst) {
-    nk_u32_t const *s = (nk_u32_t const *)src;
-    dst->zmm = _mm512_setzero_si512();
-    for (nk_size_t i = 0; i < n && i < 16; ++i) dst->u32s[i] = s[i];
+    __mmask16 mask = (__mmask16)_bzhi_u32(0xFFFF, (unsigned int)n);
+    dst->zmm = _mm512_maskz_loadu_epi32(mask, src);
 }
 
 /** @brief Type-agnostic partial load for 16-bit elements (32 elements max) into 512-bit vector (Skylake AVX-512). */
 NK_INTERNAL void nk_partial_load_b16x32_skylake_(void const *src, nk_size_t n, nk_b512_vec_t *dst) {
-    nk_u16_t const *s = (nk_u16_t const *)src;
-    dst->zmm = _mm512_setzero_si512();
-    for (nk_size_t i = 0; i < n && i < 32; ++i) dst->u16s[i] = s[i];
+    __mmask32 mask = (__mmask32)_bzhi_u32(0xFFFFFFFF, (unsigned int)n);
+    dst->zmm = _mm512_maskz_loadu_epi16(mask, src);
 }
 
 /** @brief Type-agnostic partial load for 8-bit elements (64 elements max) into 512-bit vector (Skylake AVX-512). */
 NK_INTERNAL void nk_partial_load_b8x64_skylake_(void const *src, nk_size_t n, nk_b512_vec_t *dst) {
-    nk_u8_t const *s = (nk_u8_t const *)src;
-    dst->zmm = _mm512_setzero_si512();
-    for (nk_size_t i = 0; i < n && i < 64; ++i) dst->u8s[i] = s[i];
+    __mmask64 mask = _bzhi_u64(0xFFFFFFFFFFFFFFFFULL, (unsigned int)n);
+    dst->zmm = _mm512_maskz_loadu_epi8(mask, src);
 }
 
 /** @brief Type-agnostic partial store for 32-bit elements (16 elements max) from 512-bit vector (Skylake AVX-512). */
 NK_INTERNAL void nk_partial_store_b32x16_skylake_(nk_b512_vec_t const *src, void *dst, nk_size_t n) {
-    nk_u32_t *d = (nk_u32_t *)dst;
-    for (nk_size_t i = 0; i < n && i < 16; ++i) d[i] = src->u32s[i];
+    __mmask16 mask = (__mmask16)_bzhi_u32(0xFFFF, (unsigned int)n);
+    _mm512_mask_storeu_epi32(dst, mask, src->zmm);
+}
+
+/** @brief Convert 16x bf16 values to 16x f32 values (Skylake AVX-512). */
+NK_INTERNAL __m512 nk_bf16x16_to_f32x16_skylake_(__m256i a) {
+    // Upcasting from `bf16` to `f32` is done by shifting the `bf16` values by 16 bits to the left, like:
+    return _mm512_castsi512_ps(_mm512_slli_epi32(_mm512_cvtepu16_epi32(a), 16));
+}
+
+/** @brief Convert 16x f32 values to 16x bf16 values (Skylake AVX-512). */
+NK_INTERNAL __m256i nk_f32x16_to_bf16x16_skylake_(__m512 a) {
+    // Add 2^15 and right shift 16 to do round-nearest
+    __m512i x = _mm512_srli_epi32(_mm512_add_epi32(_mm512_castps_si512(a), _mm512_set1_epi32(1 << 15)), 16);
+    return _mm512_cvtepi32_epi16(x);
+}
+
+/*  Convert 16x E4M3 values to 16x F32 values using bit manipulation.
+ *  This works on Skylake-X and later (AVX-512F only, no BF16/FP16 required).
+ *
+ *  E4M3 format: S EEEE MMM (bias=7, range: 2^-6 to 448)
+ *  F32 format:  S EEEEEEEE MMMMMMMMMMMMMMMMMMMMMMM (bias=127)
+ *  Conversion:  sign<<31, (exp+120)<<23, mant<<20
+ */
+NK_INTERNAL __m512 nk_e4m3x16_to_f32x16_skylake_(__m128i fp8) {
+    __m512i v = _mm512_cvtepu8_epi32(fp8);
+    __m512i sign = _mm512_slli_epi32(_mm512_and_si512(_mm512_srli_epi32(v, 7), _mm512_set1_epi32(1)), 31);
+    __m512i exp = _mm512_and_si512(_mm512_srli_epi32(v, 3), _mm512_set1_epi32(0x0F));
+    __m512i mant = _mm512_and_si512(v, _mm512_set1_epi32(0x07));
+    // Build F32: (exp + 120) << 23, mant << 20
+    __m512i f32_exp = _mm512_slli_epi32(_mm512_add_epi32(exp, _mm512_set1_epi32(120)), 23);
+    __m512i f32_mant = _mm512_slli_epi32(mant, 20);
+    __m512i f32_bits = _mm512_or_si512(sign, _mm512_or_si512(f32_exp, f32_mant));
+    // DAZ: use TEST to check if exp bits (bits 6-3) are nonzero - single instruction!
+    __mmask16 has_exp = _mm512_test_epi32_mask(v, _mm512_set1_epi32(0x78));
+    f32_bits = _mm512_maskz_mov_epi32(has_exp, f32_bits);
+    return _mm512_castsi512_ps(f32_bits);
+}
+
+/*  Convert 16x E5M2 values to 16x F32 values using bit manipulation.
+ *  This works on Skylake-X and later (AVX-512F only, no BF16/FP16 required).
+ *
+ *  E5M2 format: S EEEEE MM (bias=15, range: 2^-14 to 57344)
+ *  F32 format:  S EEEEEEEE MMMMMMMMMMMMMMMMMMMMMMM (bias=127)
+ *  Conversion:  sign<<31, (exp+112)<<23, mant<<21
+ */
+NK_INTERNAL __m512 nk_e5m2x16_to_f32x16_skylake_(__m128i fp8) {
+    __m512i v = _mm512_cvtepu8_epi32(fp8);
+    __m512i sign = _mm512_slli_epi32(_mm512_and_si512(_mm512_srli_epi32(v, 7), _mm512_set1_epi32(1)), 31);
+    __m512i exp = _mm512_and_si512(_mm512_srli_epi32(v, 2), _mm512_set1_epi32(0x1F));
+    __m512i mant = _mm512_and_si512(v, _mm512_set1_epi32(0x03));
+    // Build F32: (exp + 112) << 23, mant << 21
+    __m512i f32_exp = _mm512_slli_epi32(_mm512_add_epi32(exp, _mm512_set1_epi32(112)), 23);
+    __m512i f32_mant = _mm512_slli_epi32(mant, 21);
+    __m512i f32_bits = _mm512_or_si512(sign, _mm512_or_si512(f32_exp, f32_mant));
+    // DAZ: use TEST to check if exp bits (bits 6-2) are nonzero - single instruction!
+    __mmask16 has_exp = _mm512_test_epi32_mask(v, _mm512_set1_epi32(0x7C));
+    f32_bits = _mm512_maskz_mov_epi32(has_exp, f32_bits);
+    return _mm512_castsi512_ps(f32_bits);
 }
 
 /** @brief Horizontal sum of 16 floats in a ZMM register (native f32 precision). */
