@@ -1777,11 +1777,6 @@ int main(int argc, char **argv) {
 #endif
 
 #if NK_TARGET_SVE
-    dense_<f16_k, f32_k, f64_k>("dot_f16_sve", nk_dot_f16_sve, nk_dot_f16_accurate);
-    dense_<f16_k, f32_k, f64_k>("angular_f16_sve", nk_angular_f16_sve, nk_angular_f16_accurate);
-    dense_<f16_k, f32_k, f64_k>("l2sq_f16_sve", nk_l2sq_f16_sve, nk_l2sq_f16_accurate);
-    dense_<f16_k, f32_k, f64_k>("l2_f16_sve", nk_l2_f16_sve, nk_l2_bf16_accurate);
-
     dense_<f32_k, f32_k, f64_k>("dot_f32_sve", nk_dot_f32_sve, nk_dot_f32_accurate);
     dense_<f32_k, f32_k, f64_k>("angular_f32_sve", nk_angular_f32_sve, nk_angular_f32_accurate);
     dense_<f32_k, f32_k, f64_k>("l2sq_f32_sve", nk_l2sq_f32_sve, nk_l2sq_f32_accurate);
@@ -1802,18 +1797,18 @@ int main(int argc, char **argv) {
 #endif
 
 #if NK_TARGET_SVEHALF
-    dense_<f16_k, f32_k, f64_k>("dot_f16_sve", nk_dot_f16_sve, nk_dot_f16_accurate);
-    dense_<f16_k, f32_k, f64_k>("angular_f16_sve", nk_angular_f16_sve, nk_angular_f16_accurate);
-    dense_<f16_k, f32_k, f64_k>("l2sq_f16_sve", nk_l2sq_f16_sve, nk_l2sq_f16_accurate);
-    dense_<f16_k, f32_k, f64_k>("l2_f16_sve", nk_l2_f16_sve, nk_l2sq_f16_accurate);
-    dense_<f16c_k, f32c_k, f64c_k>("dot_f16c_sve", nk_dot_f16c_sve, nk_dot_f16c_accurate);
-    dense_<f16c_k, f32c_k, f64c_k>("vdot_f16c_sve", nk_vdot_f16c_sve, nk_vdot_f16c_accurate);
+    dense_<f16_k, f32_k, f64_k>("dot_f16_svehalf", nk_dot_f16_svehalf, nk_dot_f16_accurate);
+    dense_<f16_k, f32_k, f64_k>("angular_f16_svehalf", nk_angular_f16_svehalf, nk_angular_f16_accurate);
+    dense_<f16_k, f32_k, f64_k>("l2sq_f16_svehalf", nk_l2sq_f16_svehalf, nk_l2sq_f16_accurate);
+    dense_<f16_k, f32_k, f64_k>("l2_f16_svehalf", nk_l2_f16_svehalf, nk_l2sq_f16_accurate);
+    dense_<f16c_k, f32c_k, f64c_k>("dot_f16c_svehalf", nk_dot_f16c_svehalf, nk_dot_f16c_accurate);
+    dense_<f16c_k, f32c_k, f64c_k>("vdot_f16c_svehalf", nk_vdot_f16c_svehalf, nk_vdot_f16c_accurate);
 #endif
 
 #if NK_TARGET_SVEBFDOT
-    dense_<bf16_k, f32_k, f64_k>("angular_bf16_sve", nk_angular_bf16_sve, nk_angular_bf16_accurate);
-    dense_<bf16_k, f32_k, f64_k>("l2sq_bf16_sve", nk_l2sq_bf16_sve, nk_l2sq_bf16_accurate);
-    dense_<bf16_k, f32_k, f64_k>("l2_bf16_sve", nk_l2_bf16_sve, nk_l2_bf16_accurate);
+    dense_<bf16_k, f32_k, f64_k>("angular_bf16_svebfdot", nk_angular_bf16_svebfdot, nk_angular_bf16_accurate);
+    dense_<bf16_k, f32_k, f64_k>("l2sq_bf16_svebfdot", nk_l2sq_bf16_svebfdot, nk_l2sq_bf16_accurate);
+    dense_<bf16_k, f32_k, f64_k>("l2_bf16_svebfdot", nk_l2_bf16_svebfdot, nk_l2_bf16_accurate);
 #endif
 
 #if NK_TARGET_SVE2

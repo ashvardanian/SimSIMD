@@ -322,24 +322,30 @@ NK_PUBLIC void nk_l2sq_f32_sve(nk_f32_t const *a, nk_f32_t const *b, nk_size_t n
 /** @copydoc nk_angular_f64 */
 NK_PUBLIC void nk_angular_f32_sve(nk_f32_t const *a, nk_f32_t const *b, nk_size_t n, nk_f32_t *result);
 /** @copydoc nk_l2_f64 */
-NK_PUBLIC void nk_l2_f16_sve(nk_f16_t const *a, nk_f16_t const *b, nk_size_t n, nk_f32_t *result);
-/** @copydoc nk_l2sq_f64 */
-NK_PUBLIC void nk_l2sq_f16_sve(nk_f16_t const *a, nk_f16_t const *b, nk_size_t n, nk_f32_t *result);
-/** @copydoc nk_angular_f64 */
-NK_PUBLIC void nk_angular_f16_sve(nk_f16_t const *a, nk_f16_t const *b, nk_size_t n, nk_f32_t *result);
-/** @copydoc nk_l2_f64 */
-NK_PUBLIC void nk_l2_bf16_sve(nk_bf16_t const *a, nk_bf16_t const *b, nk_size_t n, nk_f32_t *result);
-/** @copydoc nk_l2sq_f64 */
-NK_PUBLIC void nk_l2sq_bf16_sve(nk_bf16_t const *a, nk_bf16_t const *b, nk_size_t n, nk_f32_t *result);
-/** @copydoc nk_angular_f64 */
-NK_PUBLIC void nk_angular_bf16_sve(nk_bf16_t const *a, nk_bf16_t const *b, nk_size_t n, nk_f32_t *result);
-/** @copydoc nk_l2_f64 */
 NK_PUBLIC void nk_l2_f64_sve(nk_f64_t const *a, nk_f64_t const *b, nk_size_t n, nk_f64_t *result);
 /** @copydoc nk_l2sq_f64 */
 NK_PUBLIC void nk_l2sq_f64_sve(nk_f64_t const *a, nk_f64_t const *b, nk_size_t n, nk_f64_t *result);
 /** @copydoc nk_angular_f64 */
 NK_PUBLIC void nk_angular_f64_sve(nk_f64_t const *a, nk_f64_t const *b, nk_size_t n, nk_f64_t *result);
 #endif // NK_TARGET_SVE
+
+#if NK_TARGET_SVEHALF
+/** @copydoc nk_l2_f64 */
+NK_PUBLIC void nk_l2_f16_svehalf(nk_f16_t const *a, nk_f16_t const *b, nk_size_t n, nk_f32_t *result);
+/** @copydoc nk_l2sq_f64 */
+NK_PUBLIC void nk_l2sq_f16_svehalf(nk_f16_t const *a, nk_f16_t const *b, nk_size_t n, nk_f32_t *result);
+/** @copydoc nk_angular_f64 */
+NK_PUBLIC void nk_angular_f16_svehalf(nk_f16_t const *a, nk_f16_t const *b, nk_size_t n, nk_f32_t *result);
+#endif // NK_TARGET_SVEHALF
+
+#if NK_TARGET_SVEBFDOT
+/** @copydoc nk_l2_f64 */
+NK_PUBLIC void nk_l2_bf16_svebfdot(nk_bf16_t const *a, nk_bf16_t const *b, nk_size_t n, nk_f32_t *result);
+/** @copydoc nk_l2sq_f64 */
+NK_PUBLIC void nk_l2sq_bf16_svebfdot(nk_bf16_t const *a, nk_bf16_t const *b, nk_size_t n, nk_f32_t *result);
+/** @copydoc nk_angular_f64 */
+NK_PUBLIC void nk_angular_bf16_svebfdot(nk_bf16_t const *a, nk_bf16_t const *b, nk_size_t n, nk_f32_t *result);
+#endif // NK_TARGET_SVEBFDOT
 
 /*  SIMD-powered backends for AVX2 CPUs of Haswell generation and newer, using 32-bit arithmetic over 256-bit words.
  *  First demonstrated in 2011, at least one Haswell-based processor was still being sold in 2022 — the Pentium G3420.
@@ -616,8 +622,8 @@ NK_PUBLIC void nk_angular_f32(nk_f32_t const *a, nk_f32_t const *b, nk_size_t n,
 }
 
 NK_PUBLIC void nk_l2_f16(nk_f16_t const *a, nk_f16_t const *b, nk_size_t n, nk_f32_t *result) {
-#if NK_TARGET_SVE
-    nk_l2_f16_sve(a, b, n, result);
+#if NK_TARGET_SVEHALF
+    nk_l2_f16_svehalf(a, b, n, result);
 #elif NK_TARGET_NEONHALF
     nk_l2_f16_neonhalf(a, b, n, result);
 #elif NK_TARGET_SAPPHIRE
@@ -630,8 +636,8 @@ NK_PUBLIC void nk_l2_f16(nk_f16_t const *a, nk_f16_t const *b, nk_size_t n, nk_f
 }
 
 NK_PUBLIC void nk_l2sq_f16(nk_f16_t const *a, nk_f16_t const *b, nk_size_t n, nk_f32_t *result) {
-#if NK_TARGET_SVE
-    nk_l2sq_f16_sve(a, b, n, result);
+#if NK_TARGET_SVEHALF
+    nk_l2sq_f16_svehalf(a, b, n, result);
 #elif NK_TARGET_NEONHALF
     nk_l2sq_f16_neonhalf(a, b, n, result);
 #elif NK_TARGET_SAPPHIRE
@@ -644,8 +650,8 @@ NK_PUBLIC void nk_l2sq_f16(nk_f16_t const *a, nk_f16_t const *b, nk_size_t n, nk
 }
 
 NK_PUBLIC void nk_angular_f16(nk_f16_t const *a, nk_f16_t const *b, nk_size_t n, nk_f32_t *result) {
-#if NK_TARGET_SVE
-    nk_angular_f16_sve(a, b, n, result);
+#if NK_TARGET_SVEHALF
+    nk_angular_f16_svehalf(a, b, n, result);
 #elif NK_TARGET_NEONHALF
     nk_angular_f16_neonhalf(a, b, n, result);
 #elif NK_TARGET_SAPPHIRE
@@ -658,8 +664,8 @@ NK_PUBLIC void nk_angular_f16(nk_f16_t const *a, nk_f16_t const *b, nk_size_t n,
 }
 
 NK_PUBLIC void nk_l2_bf16(nk_bf16_t const *a, nk_bf16_t const *b, nk_size_t n, nk_f32_t *result) {
-#if NK_TARGET_SVE
-    nk_l2_bf16_sve(a, b, n, result);
+#if NK_TARGET_SVEBFDOT
+    nk_l2_bf16_svebfdot(a, b, n, result);
 #elif NK_TARGET_NEONBFDOT
     nk_l2_bf16_neonbfdot(a, b, n, result);
 #elif NK_TARGET_GENOA
@@ -672,8 +678,8 @@ NK_PUBLIC void nk_l2_bf16(nk_bf16_t const *a, nk_bf16_t const *b, nk_size_t n, n
 }
 
 NK_PUBLIC void nk_l2sq_bf16(nk_bf16_t const *a, nk_bf16_t const *b, nk_size_t n, nk_f32_t *result) {
-#if NK_TARGET_SVE
-    nk_l2sq_bf16_sve(a, b, n, result);
+#if NK_TARGET_SVEBFDOT
+    nk_l2sq_bf16_svebfdot(a, b, n, result);
 #elif NK_TARGET_NEONBFDOT
     nk_l2sq_bf16_neonbfdot(a, b, n, result);
 #elif NK_TARGET_GENOA
@@ -686,8 +692,8 @@ NK_PUBLIC void nk_l2sq_bf16(nk_bf16_t const *a, nk_bf16_t const *b, nk_size_t n,
 }
 
 NK_PUBLIC void nk_angular_bf16(nk_bf16_t const *a, nk_bf16_t const *b, nk_size_t n, nk_f32_t *result) {
-#if NK_TARGET_SVE
-    nk_angular_bf16_sve(a, b, n, result);
+#if NK_TARGET_SVEBFDOT
+    nk_angular_bf16_svebfdot(a, b, n, result);
 #elif NK_TARGET_NEONBFDOT
     nk_angular_bf16_neonbfdot(a, b, n, result);
 #elif NK_TARGET_GENOA

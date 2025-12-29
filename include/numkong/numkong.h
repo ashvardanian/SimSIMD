@@ -1537,8 +1537,8 @@ NK_INTERNAL void nk_find_kernel_punned_f16_(nk_capability_t v, nk_kernel_kind_t 
         default: break;
         }
 #endif
-#if NK_TARGET_NEON && NK_TARGET_NEONHALF
-    if (v & nk_cap_neon_k) switch (k) {
+#if NK_TARGET_NEONHALF
+    if (v & nk_cap_neonhalf_k) switch (k) {
         case nk_kernel_dot_k: *m = (m_t)&nk_dot_f16_neonhalf, *c = nk_cap_neonhalf_k; return;
         default: break;
         }
@@ -1605,12 +1605,17 @@ NK_INTERNAL void nk_find_kernel_punned_f16_(nk_capability_t v, nk_kernel_kind_t 
 NK_INTERNAL void nk_find_kernel_punned_bf16_(nk_capability_t v, nk_kernel_kind_t k, nk_kernel_punned_t *m,
                                              nk_capability_t *c) {
     typedef nk_kernel_punned_t m_t;
+#if NK_TARGET_SVE2 && NK_TARGET_SVEBFDOT
+    if (v & nk_cap_sve2_k) switch (k) {
+        case nk_kernel_sparse_dot_k: *m = (m_t)&nk_sparse_dot_u16bf16_sve2, *c = nk_cap_sve2_k; return;
+        default: break;
+        }
+#endif
 #if NK_TARGET_SVEBFDOT
     if (v & nk_cap_svebfdot_k) switch (k) {
         case nk_kernel_angular_k: *m = (m_t)&nk_angular_bf16_svebfdot, *c = nk_cap_svebfdot_k; return;
         case nk_kernel_l2sq_k: *m = (m_t)&nk_l2sq_bf16_svebfdot, *c = nk_cap_svebfdot_k; return;
         case nk_kernel_l2_k: *m = (m_t)&nk_l2_bf16_svebfdot, *c = nk_cap_svebfdot_k; return;
-        case nk_kernel_sparse_dot_k: *m = (m_t)&nk_sparse_dot_u16bf16_sve2, *c = nk_cap_svebfdot_k; return;
         default: break;
         }
 #endif
@@ -2130,9 +2135,9 @@ NK_INTERNAL void nk_find_kernel_punned_f16c_(nk_capability_t v, nk_kernel_kind_t
                                              nk_capability_t *c) {
     typedef nk_kernel_punned_t m_t;
 #if NK_TARGET_SVEHALF
-    if (v & nk_cap_sve_k) switch (k) {
-        case nk_kernel_dot_k: *m = (m_t)&nk_dot_f16c_sve, *c = nk_cap_svehalf_k; return;
-        case nk_kernel_vdot_k: *m = (m_t)&nk_vdot_f16c_sve, *c = nk_cap_svehalf_k; return;
+    if (v & nk_cap_svehalf_k) switch (k) {
+        case nk_kernel_dot_k: *m = (m_t)&nk_dot_f16c_svehalf, *c = nk_cap_svehalf_k; return;
+        case nk_kernel_vdot_k: *m = (m_t)&nk_vdot_f16c_svehalf, *c = nk_cap_svehalf_k; return;
         default: break;
         }
 #endif

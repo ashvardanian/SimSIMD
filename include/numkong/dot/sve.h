@@ -55,8 +55,8 @@ NK_PUBLIC void nk_dot_f32c_sve(nk_f32c_t const *a_pairs, nk_f32c_t const *b_pair
         ab_imag_vec = svmla_f32_x(pg_vec, ab_imag_vec, a_imag_vec, b_real_vec);
         idx_pairs += svcntw();
     } while (idx_pairs < count_pairs);
-    results[0] = svaddv_f32(svptrue_b32(), ab_real_vec);
-    results[1] = svaddv_f32(svptrue_b32(), ab_imag_vec);
+    results->real = svaddv_f32(svptrue_b32(), ab_real_vec);
+    results->imag = svaddv_f32(svptrue_b32(), ab_imag_vec);
 }
 
 NK_PUBLIC void nk_vdot_f32c_sve(nk_f32c_t const *a_pairs, nk_f32c_t const *b_pairs, nk_size_t count_pairs,
@@ -78,8 +78,8 @@ NK_PUBLIC void nk_vdot_f32c_sve(nk_f32c_t const *a_pairs, nk_f32c_t const *b_pai
         ab_imag_vec = svmls_f32_x(pg_vec, ab_imag_vec, a_imag_vec, b_real_vec);
         idx_pairs += svcntw();
     } while (idx_pairs < count_pairs);
-    results[0] = svaddv_f32(svptrue_b32(), ab_real_vec);
-    results[1] = svaddv_f32(svptrue_b32(), ab_imag_vec);
+    results->real = svaddv_f32(svptrue_b32(), ab_real_vec);
+    results->imag = svaddv_f32(svptrue_b32(), ab_imag_vec);
 }
 
 NK_PUBLIC void nk_dot_f64_sve(nk_f64_t const *a_scalars, nk_f64_t const *b_scalars, nk_size_t count_scalars,
@@ -115,8 +115,8 @@ NK_PUBLIC void nk_dot_f64c_sve(nk_f64c_t const *a_pairs, nk_f64c_t const *b_pair
         ab_imag_vec = svmla_f64_x(pg_vec, ab_imag_vec, a_imag_vec, b_real_vec);
         idx_pairs += svcntd();
     } while (idx_pairs < count_pairs);
-    results[0] = svaddv_f64(svptrue_b64(), ab_real_vec);
-    results[1] = svaddv_f64(svptrue_b64(), ab_imag_vec);
+    results->real = svaddv_f64(svptrue_b64(), ab_real_vec);
+    results->imag = svaddv_f64(svptrue_b64(), ab_imag_vec);
 }
 
 NK_PUBLIC void nk_vdot_f64c_sve(nk_f64c_t const *a_pairs, nk_f64c_t const *b_pairs, nk_size_t count_pairs,
@@ -138,8 +138,8 @@ NK_PUBLIC void nk_vdot_f64c_sve(nk_f64c_t const *a_pairs, nk_f64c_t const *b_pai
         ab_imag_vec = svmls_f64_x(pg_vec, ab_imag_vec, a_imag_vec, b_real_vec);
         idx_pairs += svcntd();
     } while (idx_pairs < count_pairs);
-    results[0] = svaddv_f64(svptrue_b64(), ab_real_vec);
-    results[1] = svaddv_f64(svptrue_b64(), ab_imag_vec);
+    results->real = svaddv_f64(svptrue_b64(), ab_real_vec);
+    results->imag = svaddv_f64(svptrue_b64(), ab_imag_vec);
 }
 
 #if defined(__cplusplus)

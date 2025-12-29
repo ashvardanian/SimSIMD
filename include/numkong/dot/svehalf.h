@@ -56,8 +56,8 @@ NK_PUBLIC void nk_dot_f16c_svehalf(nk_f16c_t const *a_pairs, nk_f16c_t const *b_
         ab_imag_vec = svmla_f16_x(pg_vec, ab_imag_vec, a_imag_vec, b_real_vec);
         idx_pairs += svcnth();
     } while (idx_pairs < count_pairs);
-    results[0] = svaddv_f16(svptrue_b16(), ab_real_vec);
-    results[1] = svaddv_f16(svptrue_b16(), ab_imag_vec);
+    results->real = svaddv_f16(svptrue_b16(), ab_real_vec);
+    results->imag = svaddv_f16(svptrue_b16(), ab_imag_vec);
 }
 
 NK_PUBLIC void nk_vdot_f16c_svehalf(nk_f16c_t const *a_pairs, nk_f16c_t const *b_pairs, nk_size_t count_pairs,
@@ -79,8 +79,8 @@ NK_PUBLIC void nk_vdot_f16c_svehalf(nk_f16c_t const *a_pairs, nk_f16c_t const *b
         ab_imag_vec = svmls_f16_x(pg_vec, ab_imag_vec, a_imag_vec, b_real_vec);
         idx_pairs += svcnth();
     } while (idx_pairs < count_pairs);
-    results[0] = svaddv_f16(svptrue_b16(), ab_real_vec);
-    results[1] = svaddv_f16(svptrue_b16(), ab_imag_vec);
+    results->real = svaddv_f16(svptrue_b16(), ab_real_vec);
+    results->imag = svaddv_f16(svptrue_b16(), ab_imag_vec);
 }
 
 #if defined(__cplusplus)
