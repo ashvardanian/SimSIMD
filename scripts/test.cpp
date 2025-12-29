@@ -12,7 +12,7 @@
  *    NK_TEST_ULP_THRESHOLD_F32=N  - Max allowed ULP for f32 (default: 4)
  *    NK_TEST_ULP_THRESHOLD_F16=N  - Max allowed ULP for f16 (default: 32)
  *    NK_TEST_ULP_THRESHOLD_BF16=N - Max allowed ULP for bf16 (default: 256)
- *    NK_TEST_TRIALS=N             - Trials per dimension (default: 100)
+ *    NK_TEST_TIME_BUDGET_MS=N     - Time budget per kernel in ms (default: 1000)
  *    NK_TEST_SEED=N               - RNG seed (default: 12345)
  *    NK_TEST_DENSE_DIMENSION=N    - Vector dimension for dot/spatial tests (default: 1024)
  *    NK_TEST_MESH_DIMENSION=N     - Point count for mesh tests (default: 256)
@@ -26,6 +26,7 @@
 #include <algorithm>
 #include <cassert>
 #include <cfloat>
+#include <chrono>
 #include <cmath>
 #include <cstdint>
 #include <cstdio>
@@ -142,7 +143,7 @@ struct test_config_t {
     std::uint64_t ulp_threshold_f32 = 4;
     std::uint64_t ulp_threshold_f16 = 32;
     std::uint64_t ulp_threshold_bf16 = 256;
-    std::size_t trials_per_dim = 100;
+    std::size_t time_budget_ms = 1000; // Time budget per kernel in milliseconds
     std::uint32_t seed = 12345;
     char const *filter = nullptr; // Filter tests by name (substring match)
 
@@ -152,7 +153,7 @@ struct test_config_t {
         if (char const *env = std::getenv("NK_TEST_ULP_THRESHOLD_F32")) ulp_threshold_f32 = std::atoll(env);
         if (char const *env = std::getenv("NK_TEST_ULP_THRESHOLD_F16")) ulp_threshold_f16 = std::atoll(env);
         if (char const *env = std::getenv("NK_TEST_ULP_THRESHOLD_BF16")) ulp_threshold_bf16 = std::atoll(env);
-        if (char const *env = std::getenv("NK_TEST_TRIALS")) trials_per_dim = std::atoll(env);
+        if (char const *env = std::getenv("NK_TEST_TIME_BUDGET_MS")) time_budget_ms = std::atoll(env);
         if (char const *env = std::getenv("NK_TEST_SEED")) seed = std::atoll(env);
         filter = std::getenv("NK_TEST_FILTER"); // e.g., "dot", "angular", "kld"
     }
@@ -164,6 +165,17 @@ struct test_config_t {
 };
 
 static test_config_t global_config;
+
+// Helper for time-budgeted test loops
+using steady_clock = std::chrono::steady_clock;
+using time_point = steady_clock::time_point;
+
+inline time_point test_start_time() { return steady_clock::now(); }
+
+inline bool within_time_budget(time_point start) {
+    auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(steady_clock::now() - start).count();
+    return elapsed < static_cast<long long>(global_config.time_budget_ms);
+}
 
 // Global test dimensions - can be overridden via environment variables
 std::size_t dense_dimension = 1024; // For dot products, spatial metrics
@@ -807,7 +819,7 @@ error_stats_t test_reduce_add_f32(reduce_add_f32_t kernel) {
     std::mt19937 rng(global_config.seed);
     aligned_buffer<nk_f32_t> data(dense_dimension);
 
-    for (std::size_t trial = 0; trial < global_config.trials_per_dim; trial++) {
+    for (auto start = test_start_time(); within_time_budget(start);) {
         fill_random(data, rng, -10.0, 10.0);
 
         nk_f64_t result;
@@ -828,7 +840,7 @@ error_stats_t test_reduce_add_f64(reduce_add_f64_t kernel) {
     std::mt19937 rng(global_config.seed);
     aligned_buffer<nk_f64_t> data(dense_dimension);
 
-    for (std::size_t trial = 0; trial < global_config.trials_per_dim; trial++) {
+    for (auto start = test_start_time(); within_time_budget(start);) {
         fill_random(data, rng, -10.0, 10.0);
 
         nk_f64_t result;
@@ -850,7 +862,7 @@ error_stats_t test_reduce_add_i32(reduce_add_i32_t kernel) {
     aligned_buffer<nk_i32_t> data(dense_dimension);
     std::uniform_int_distribution<nk_i32_t> dist(-1000, 1000);
 
-    for (std::size_t trial = 0; trial < global_config.trials_per_dim; trial++) {
+    for (auto start = test_start_time(); within_time_budget(start);) {
         for (std::size_t i = 0; i < dense_dimension; i++) data[i] = dist(rng);
 
         nk_i64_t result;
@@ -872,7 +884,7 @@ error_stats_t test_reduce_min_f32(reduce_minmax_f32_t kernel) {
     std::mt19937 rng(global_config.seed);
     aligned_buffer<nk_f32_t> data(dense_dimension);
 
-    for (std::size_t trial = 0; trial < global_config.trials_per_dim; trial++) {
+    for (auto start = test_start_time(); within_time_budget(start);) {
         fill_random(data, rng, -10.0, 10.0);
 
         nk_f32_t min_val;
@@ -901,7 +913,7 @@ error_stats_t test_reduce_max_f32(reduce_minmax_f32_t kernel) {
     std::mt19937 rng(global_config.seed);
     aligned_buffer<nk_f32_t> data(dense_dimension);
 
-    for (std::size_t trial = 0; trial < global_config.trials_per_dim; trial++) {
+    for (auto start = test_start_time(); within_time_budget(start);) {
         fill_random(data, rng, -10.0, 10.0);
 
         nk_f32_t max_val;
@@ -930,7 +942,7 @@ error_stats_t test_reduce_add_e4m3(reduce_add_e4m3_t kernel) {
     aligned_buffer<nk_e4m3_t> data(dense_dimension);
     std::uniform_real_distribution<float> dist(-1.0f, 1.0f);
 
-    for (std::size_t trial = 0; trial < global_config.trials_per_dim; trial++) {
+    for (auto start = test_start_time(); within_time_budget(start);) {
         for (std::size_t i = 0; i < dense_dimension; i++) {
             float v = dist(rng);
             nk_f32_to_e4m3(&v, &data[i]);
@@ -961,7 +973,7 @@ error_stats_t test_reduce_add_e5m2(reduce_add_e5m2_t kernel) {
     aligned_buffer<nk_e5m2_t> data(dense_dimension);
     std::uniform_real_distribution<float> dist(-1.0f, 1.0f);
 
-    for (std::size_t trial = 0; trial < global_config.trials_per_dim; trial++) {
+    for (auto start = test_start_time(); within_time_budget(start);) {
         for (std::size_t i = 0; i < dense_dimension; i++) {
             float v = dist(rng);
             nk_f32_to_e5m2(&v, &data[i]);
@@ -992,7 +1004,7 @@ error_stats_t test_reduce_min_e4m3(reduce_minmax_e4m3_t kernel) {
     aligned_buffer<nk_e4m3_t> data(dense_dimension);
     std::uniform_real_distribution<float> dist(-10.0f, 10.0f);
 
-    for (std::size_t trial = 0; trial < global_config.trials_per_dim; trial++) {
+    for (auto start = test_start_time(); within_time_budget(start);) {
         for (std::size_t i = 0; i < dense_dimension; i++) {
             float v = dist(rng);
             nk_f32_to_e4m3(&v, &data[i]);
@@ -1026,7 +1038,7 @@ error_stats_t test_reduce_max_e4m3(reduce_minmax_e4m3_t kernel) {
     aligned_buffer<nk_e4m3_t> data(dense_dimension);
     std::uniform_real_distribution<float> dist(-10.0f, 10.0f);
 
-    for (std::size_t trial = 0; trial < global_config.trials_per_dim; trial++) {
+    for (auto start = test_start_time(); within_time_budget(start);) {
         for (std::size_t i = 0; i < dense_dimension; i++) {
             float v = dist(rng);
             nk_f32_to_e4m3(&v, &data[i]);
@@ -1060,7 +1072,7 @@ error_stats_t test_reduce_min_e5m2(reduce_minmax_e5m2_t kernel) {
     aligned_buffer<nk_e5m2_t> data(dense_dimension);
     std::uniform_real_distribution<float> dist(-10.0f, 10.0f);
 
-    for (std::size_t trial = 0; trial < global_config.trials_per_dim; trial++) {
+    for (auto start = test_start_time(); within_time_budget(start);) {
         for (std::size_t i = 0; i < dense_dimension; i++) {
             float v = dist(rng);
             nk_f32_to_e5m2(&v, &data[i]);
@@ -1094,7 +1106,7 @@ error_stats_t test_reduce_max_e5m2(reduce_minmax_e5m2_t kernel) {
     aligned_buffer<nk_e5m2_t> data(dense_dimension);
     std::uniform_real_distribution<float> dist(-10.0f, 10.0f);
 
-    for (std::size_t trial = 0; trial < global_config.trials_per_dim; trial++) {
+    for (auto start = test_start_time(); within_time_budget(start);) {
         for (std::size_t i = 0; i < dense_dimension; i++) {
             float v = dist(rng);
             nk_f32_to_e5m2(&v, &data[i]);
@@ -1212,7 +1224,7 @@ error_stats_t test_dot_f32(dot_f32_t kernel) {
         aligned_buffer<nk_f32_t> a(dense_dimension), b(dense_dimension);
 
 #pragma omp for schedule(dynamic)
-        for (std::size_t trial = 0; trial < global_config.trials_per_dim; trial++) {
+        for (auto start = test_start_time(); within_time_budget(start);) {
             fill_random(a, rng, -1.0, 1.0);
             fill_random(b, rng, -1.0, 1.0);
 
@@ -1232,7 +1244,7 @@ error_stats_t test_dot_f32(dot_f32_t kernel) {
     std::mt19937 rng(global_config.seed);
     aligned_buffer<nk_f32_t> a(dense_dimension), b(dense_dimension);
 
-    for (std::size_t trial = 0; trial < global_config.trials_per_dim; trial++) {
+    for (auto start = test_start_time(); within_time_budget(start);) {
         fill_random(a, rng, -1.0, 1.0);
         fill_random(b, rng, -1.0, 1.0);
 
@@ -1257,7 +1269,7 @@ error_stats_t test_dot_f64(dot_f64_t kernel) {
     std::mt19937 rng(global_config.seed);
     aligned_buffer<nk_f64_t> a(dense_dimension), b(dense_dimension);
 
-    for (std::size_t trial = 0; trial < global_config.trials_per_dim; trial++) {
+    for (auto start = test_start_time(); within_time_budget(start);) {
         fill_random(a, rng, -1.0, 1.0);
         fill_random(b, rng, -1.0, 1.0);
 
@@ -1287,7 +1299,7 @@ error_stats_t test_dot_i8(dot_i8_t kernel) {
     std::mt19937 rng(global_config.seed);
     aligned_buffer<nk_i8_t> a(dense_dimension), b(dense_dimension);
 
-    for (std::size_t trial = 0; trial < global_config.trials_per_dim; trial++) {
+    for (auto start = test_start_time(); within_time_budget(start);) {
         fill_random_integers(a, rng, -10, 10);
         fill_random_integers(b, rng, -10, 10);
 
@@ -1321,7 +1333,7 @@ error_stats_t test_dot_u8(dot_u8_t kernel) {
     std::mt19937 rng(global_config.seed);
     aligned_buffer<nk_u8_t> a(dense_dimension), b(dense_dimension);
 
-    for (std::size_t trial = 0; trial < global_config.trials_per_dim; trial++) {
+    for (auto start = test_start_time(); within_time_budget(start);) {
         fill_random_integers(a, rng, 0, 15);
         fill_random_integers(b, rng, 0, 15);
 
@@ -1355,7 +1367,7 @@ error_stats_t test_dot_f16(dot_f16_t kernel) {
     std::mt19937 rng(global_config.seed);
     aligned_buffer<f16_t> a(dense_dimension), b(dense_dimension);
 
-    for (std::size_t trial = 0; trial < global_config.trials_per_dim; trial++) {
+    for (auto start = test_start_time(); within_time_budget(start);) {
         fill_random(a, rng, -1.0, 1.0);
         fill_random(b, rng, -1.0, 1.0);
 
@@ -1381,7 +1393,7 @@ error_stats_t test_dot_bf16(dot_bf16_t kernel) {
     std::mt19937 rng(global_config.seed);
     aligned_buffer<bf16_t> a(dense_dimension), b(dense_dimension);
 
-    for (std::size_t trial = 0; trial < global_config.trials_per_dim; trial++) {
+    for (auto start = test_start_time(); within_time_budget(start);) {
         fill_random(a, rng, -1.0, 1.0);
         fill_random(b, rng, -1.0, 1.0);
 
@@ -1408,7 +1420,7 @@ error_stats_t test_dot_e4m3(dot_e4m3_t kernel) {
     aligned_buffer<nk_e4m3_t> a(dense_dimension), b(dense_dimension);
     std::uniform_real_distribution<float> dist(-1.0f, 1.0f);
 
-    for (std::size_t trial = 0; trial < global_config.trials_per_dim; trial++) {
+    for (auto start = test_start_time(); within_time_budget(start);) {
         // Generate random f32 values and convert to e4m3
         for (std::size_t i = 0; i < dense_dimension; i++) {
             float va = dist(rng), vb = dist(rng);
@@ -1443,7 +1455,7 @@ error_stats_t test_dot_e5m2(dot_e5m2_t kernel) {
     aligned_buffer<nk_e5m2_t> a(dense_dimension), b(dense_dimension);
     std::uniform_real_distribution<float> dist(-1.0f, 1.0f);
 
-    for (std::size_t trial = 0; trial < global_config.trials_per_dim; trial++) {
+    for (auto start = test_start_time(); within_time_budget(start);) {
         // Generate random f32 values and convert to e5m2
         for (std::size_t i = 0; i < dense_dimension; i++) {
             float va = dist(rng), vb = dist(rng);
@@ -1478,7 +1490,7 @@ error_stats_t test_dot_f32c(dot_f32c_t kernel) {
     aligned_buffer<nk_f32c_t> a(dense_dimension), b(dense_dimension);
     std::uniform_real_distribution<float> dist(-1.0f, 1.0f);
 
-    for (std::size_t trial = 0; trial < global_config.trials_per_dim; trial++) {
+    for (auto start = test_start_time(); within_time_budget(start);) {
         for (std::size_t i = 0; i < dense_dimension; i++) {
             a[i].real = dist(rng);
             a[i].imag = dist(rng);
@@ -1516,7 +1528,7 @@ error_stats_t test_vdot_f32c(vdot_f32c_t kernel) {
     aligned_buffer<nk_f32c_t> a(dense_dimension), b(dense_dimension);
     std::uniform_real_distribution<float> dist(-1.0f, 1.0f);
 
-    for (std::size_t trial = 0; trial < global_config.trials_per_dim; trial++) {
+    for (auto start = test_start_time(); within_time_budget(start);) {
         for (std::size_t i = 0; i < dense_dimension; i++) {
             a[i].real = dist(rng);
             a[i].imag = dist(rng);
@@ -1554,7 +1566,7 @@ error_stats_t test_dot_f64c(dot_f64c_t kernel) {
     aligned_buffer<nk_f64c_t> a(dense_dimension), b(dense_dimension);
     std::uniform_real_distribution<double> dist(-1.0, 1.0);
 
-    for (std::size_t trial = 0; trial < global_config.trials_per_dim; trial++) {
+    for (auto start = test_start_time(); within_time_budget(start);) {
         for (std::size_t i = 0; i < dense_dimension; i++) {
             a[i].real = dist(rng);
             a[i].imag = dist(rng);
@@ -1592,7 +1604,7 @@ error_stats_t test_vdot_f64c(vdot_f64c_t kernel) {
     aligned_buffer<nk_f64c_t> a(dense_dimension), b(dense_dimension);
     std::uniform_real_distribution<double> dist(-1.0, 1.0);
 
-    for (std::size_t trial = 0; trial < global_config.trials_per_dim; trial++) {
+    for (auto start = test_start_time(); within_time_budget(start);) {
         for (std::size_t i = 0; i < dense_dimension; i++) {
             a[i].real = dist(rng);
             a[i].imag = dist(rng);
@@ -1733,7 +1745,7 @@ error_stats_t test_l2sq_f32(l2sq_f32_t kernel) {
     std::mt19937 rng(global_config.seed);
     aligned_buffer<nk_f32_t> a(dense_dimension), b(dense_dimension);
 
-    for (std::size_t trial = 0; trial < global_config.trials_per_dim; trial++) {
+    for (auto start = test_start_time(); within_time_budget(start);) {
         fill_random(a, rng, -1.0, 1.0);
         fill_random(b, rng, -1.0, 1.0);
 
@@ -1763,7 +1775,7 @@ error_stats_t test_angular_f32(angular_f32_t kernel) {
     std::mt19937 rng(global_config.seed);
     aligned_buffer<nk_f32_t> a(dense_dimension), b(dense_dimension);
 
-    for (std::size_t trial = 0; trial < global_config.trials_per_dim; trial++) {
+    for (auto start = test_start_time(); within_time_budget(start);) {
         fill_random(a, rng, -1.0, 1.0);
         fill_random(b, rng, -1.0, 1.0);
 
@@ -1793,7 +1805,7 @@ error_stats_t test_l2sq_f64(l2sq_f64_t kernel) {
     std::mt19937 rng(global_config.seed);
     aligned_buffer<nk_f64_t> a(dense_dimension), b(dense_dimension);
 
-    for (std::size_t trial = 0; trial < global_config.trials_per_dim; trial++) {
+    for (auto start = test_start_time(); within_time_budget(start);) {
         fill_random(a, rng, -1.0, 1.0);
         fill_random(b, rng, -1.0, 1.0);
 
@@ -1817,7 +1829,7 @@ error_stats_t test_angular_f64(angular_f64_t kernel) {
     std::mt19937 rng(global_config.seed);
     aligned_buffer<nk_f64_t> a(dense_dimension), b(dense_dimension);
 
-    for (std::size_t trial = 0; trial < global_config.trials_per_dim; trial++) {
+    for (auto start = test_start_time(); within_time_budget(start);) {
         fill_random(a, rng, -1.0, 1.0);
         fill_random(b, rng, -1.0, 1.0);
 
@@ -1841,7 +1853,7 @@ error_stats_t test_l2sq_f16(l2sq_f16_t kernel) {
     std::mt19937 rng(global_config.seed);
     aligned_buffer<f16_t> a(dense_dimension), b(dense_dimension);
 
-    for (std::size_t trial = 0; trial < global_config.trials_per_dim; trial++) {
+    for (auto start = test_start_time(); within_time_budget(start);) {
         fill_random(a, rng, -1.0, 1.0);
         fill_random(b, rng, -1.0, 1.0);
 
@@ -1868,7 +1880,7 @@ error_stats_t test_angular_f16(angular_f16_t kernel) {
     std::mt19937 rng(global_config.seed);
     aligned_buffer<f16_t> a(dense_dimension), b(dense_dimension);
 
-    for (std::size_t trial = 0; trial < global_config.trials_per_dim; trial++) {
+    for (auto start = test_start_time(); within_time_budget(start);) {
         fill_random(a, rng, -1.0, 1.0);
         fill_random(b, rng, -1.0, 1.0);
 
@@ -1905,7 +1917,7 @@ error_stats_t test_l2sq_bf16(l2sq_bf16_t kernel) {
     std::mt19937 rng(global_config.seed);
     aligned_buffer<bf16_t> a(dense_dimension), b(dense_dimension);
 
-    for (std::size_t trial = 0; trial < global_config.trials_per_dim; trial++) {
+    for (auto start = test_start_time(); within_time_budget(start);) {
         fill_random(a, rng, -1.0, 1.0);
         fill_random(b, rng, -1.0, 1.0);
 
@@ -1932,7 +1944,7 @@ error_stats_t test_angular_bf16(angular_bf16_t kernel) {
     std::mt19937 rng(global_config.seed);
     aligned_buffer<bf16_t> a(dense_dimension), b(dense_dimension);
 
-    for (std::size_t trial = 0; trial < global_config.trials_per_dim; trial++) {
+    for (auto start = test_start_time(); within_time_budget(start);) {
         fill_random(a, rng, -1.0, 1.0);
         fill_random(b, rng, -1.0, 1.0);
 
@@ -2044,7 +2056,7 @@ error_stats_t test_bilinear_f32(bilinear_f32_t kernel) {
     std::size_t bilinear_dims[] = {2, 3, 4, 8, 16, 32};
 
     for (std::size_t dim : bilinear_dims) {
-        for (std::size_t trial = 0; trial < std::max<std::size_t>(1, global_config.trials_per_dim / 10); trial++) {
+        for (auto start = test_start_time(); within_time_budget(start);) {
             aligned_buffer<nk_f32_t> a(dim), b(dim), m(dim * dim);
             fill_random(a, rng, -1.0, 1.0);
             fill_random(b, rng, -1.0, 1.0);
@@ -2074,7 +2086,7 @@ error_stats_t test_bilinear_f64(bilinear_f64_t kernel) {
     std::size_t bilinear_dims[] = {2, 3, 4, 8, 16, 32};
 
     for (std::size_t dim : bilinear_dims) {
-        for (std::size_t trial = 0; trial < std::max<std::size_t>(1, global_config.trials_per_dim / 10); trial++) {
+        for (auto start = test_start_time(); within_time_budget(start);) {
             aligned_buffer<nk_f64_t> a(dim), b(dim), m(dim * dim);
             fill_random(a, rng, -1.0, 1.0);
             fill_random(b, rng, -1.0, 1.0);
@@ -2142,7 +2154,7 @@ error_stats_t test_kld_f32(kld_f32_t kernel) {
 
     for (std::size_t dim : prob_dims) {
         error_stats_t dim_stats;
-        for (std::size_t trial = 0; trial < global_config.trials_per_dim; trial++) {
+        for (auto start = test_start_time(); within_time_budget(start);) {
             aligned_buffer<nk_f32_t> p(dim), q(dim);
             fill_probability(p, rng);
             fill_probability(q, rng);
@@ -2172,7 +2184,7 @@ error_stats_t test_kld_f64(kld_f64_t kernel) {
     std::size_t prob_dims[] = {4, 8, 16, 32, 64, 128, 256};
 
     for (std::size_t dim : prob_dims) {
-        for (std::size_t trial = 0; trial < global_config.trials_per_dim; trial++) {
+        for (auto start = test_start_time(); within_time_budget(start);) {
             aligned_buffer<nk_f64_t> p(dim), q(dim);
             // Convert from f32 probability filling
             std::uniform_real_distribution<double> dist(0.01, 1.0);
@@ -2212,7 +2224,7 @@ error_stats_t test_jsd_f32(jsd_f32_t kernel) {
 
     for (std::size_t dim : prob_dims) {
         error_stats_t dim_stats;
-        for (std::size_t trial = 0; trial < global_config.trials_per_dim; trial++) {
+        for (auto start = test_start_time(); within_time_budget(start);) {
             aligned_buffer<nk_f32_t> p(dim), q(dim);
             fill_probability(p, rng);
             fill_probability(q, rng);
@@ -2242,7 +2254,7 @@ error_stats_t test_jsd_f64(jsd_f64_t kernel) {
     std::size_t prob_dims[] = {4, 8, 16, 32, 64, 128, 256};
 
     for (std::size_t dim : prob_dims) {
-        for (std::size_t trial = 0; trial < global_config.trials_per_dim; trial++) {
+        for (auto start = test_start_time(); within_time_budget(start);) {
             aligned_buffer<nk_f64_t> p(dim), q(dim);
             std::uniform_real_distribution<double> dist(0.01, 1.0);
             double sum_p = 0, sum_q = 0;
@@ -2328,7 +2340,7 @@ error_stats_t test_hamming_b8(hamming_b8_t kernel) {
     std::size_t byte_dims[] = {1, 2, 4, 8, 16, 32, 64, 128, 256};
 
     for (std::size_t n_bytes : byte_dims) {
-        for (std::size_t trial = 0; trial < global_config.trials_per_dim; trial++) {
+        for (auto start = test_start_time(); within_time_budget(start);) {
             aligned_buffer<nk_b8_t> a(n_bytes), b(n_bytes);
             std::uniform_int_distribution<int> dist(0, 255);
             for (std::size_t i = 0; i < n_bytes; i++) {
@@ -2373,7 +2385,7 @@ error_stats_t test_jaccard_b8(jaccard_b8_t kernel) {
     std::size_t byte_dims[] = {1, 2, 4, 8, 16, 32, 64, 128, 256};
 
     for (std::size_t n_bytes : byte_dims) {
-        for (std::size_t trial = 0; trial < global_config.trials_per_dim; trial++) {
+        for (auto start = test_start_time(); within_time_budget(start);) {
             aligned_buffer<nk_b8_t> a(n_bytes), b(n_bytes);
             std::uniform_int_distribution<int> dist(0, 255);
             for (std::size_t i = 0; i < n_bytes; i++) {
@@ -2454,7 +2466,7 @@ error_stats_t test_scale_f32(scale_f32_t kernel) {
     aligned_buffer<nk_f32_t> input(dense_dimension), expected(dense_dimension), result(dense_dimension);
     std::uniform_real_distribution<float> coef_dist(-5.0f, 5.0f);
 
-    for (std::size_t trial = 0; trial < std::max<std::size_t>(1, global_config.trials_per_dim / 10); trial++) {
+    for (auto start = test_start_time(); within_time_budget(start);) {
         fill_random(input, rng, -10.0, 10.0);
 
         nk_f32_t alpha = coef_dist(rng);
@@ -2489,7 +2501,7 @@ error_stats_t test_sum_f32(sum_f32_t kernel) {
     std::mt19937 rng(global_config.seed);
     aligned_buffer<nk_f32_t> a(dense_dimension), b(dense_dimension), expected(dense_dimension), result(dense_dimension);
 
-    for (std::size_t trial = 0; trial < std::max<std::size_t>(1, global_config.trials_per_dim / 10); trial++) {
+    for (auto start = test_start_time(); within_time_budget(start);) {
         fill_random(a, rng, -10.0, 10.0);
         fill_random(b, rng, -10.0, 10.0);
 
@@ -2518,7 +2530,7 @@ error_stats_t test_wsum_f32(wsum_f32_t kernel) {
     aligned_buffer<nk_f32_t> a(dense_dimension), b(dense_dimension), expected(dense_dimension), result(dense_dimension);
     std::uniform_real_distribution<float> coef_dist(-5.0f, 5.0f);
 
-    for (std::size_t trial = 0; trial < std::max<std::size_t>(1, global_config.trials_per_dim / 10); trial++) {
+    for (auto start = test_start_time(); within_time_budget(start);) {
         fill_random(a, rng, -10.0, 10.0);
         fill_random(b, rng, -10.0, 10.0);
 
@@ -2556,7 +2568,7 @@ error_stats_t test_fma_f32(fma_f32_t kernel) {
     aligned_buffer<nk_f32_t> expected(dense_dimension), result(dense_dimension);
     std::uniform_real_distribution<float> coef_dist(-2.0f, 2.0f);
 
-    for (std::size_t trial = 0; trial < std::max<std::size_t>(1, global_config.trials_per_dim / 10); trial++) {
+    for (auto start = test_start_time(); within_time_budget(start);) {
         fill_random(a, rng, -5.0, 5.0);
         fill_random(b, rng, -5.0, 5.0);
         fill_random(c, rng, -5.0, 5.0);
@@ -2594,7 +2606,7 @@ error_stats_t test_sum_e4m3(sum_e4m3_t kernel) {
     aligned_buffer<nk_e4m3_t> a(dense_dimension), b(dense_dimension), result(dense_dimension);
     std::uniform_real_distribution<float> dist(-1.0f, 1.0f);
 
-    for (std::size_t trial = 0; trial < std::max<std::size_t>(1, global_config.trials_per_dim / 10); trial++) {
+    for (auto start = test_start_time(); within_time_budget(start);) {
         for (std::size_t i = 0; i < dense_dimension; i++) {
             float va = dist(rng), vb = dist(rng);
             nk_f32_to_e4m3(&va, &a[i]);
@@ -2631,7 +2643,7 @@ error_stats_t test_sum_e5m2(sum_e5m2_t kernel) {
     aligned_buffer<nk_e5m2_t> a(dense_dimension), b(dense_dimension), result(dense_dimension);
     std::uniform_real_distribution<float> dist(-1.0f, 1.0f);
 
-    for (std::size_t trial = 0; trial < std::max<std::size_t>(1, global_config.trials_per_dim / 10); trial++) {
+    for (auto start = test_start_time(); within_time_budget(start);) {
         for (std::size_t i = 0; i < dense_dimension; i++) {
             float va = dist(rng), vb = dist(rng);
             nk_f32_to_e5m2(&va, &a[i]);
@@ -2668,7 +2680,7 @@ error_stats_t test_scale_e4m3(scale_e4m3_t kernel) {
     std::uniform_real_distribution<float> dist(-1.0f, 1.0f);
     std::uniform_real_distribution<float> alpha_dist(-2.0f, 2.0f);
 
-    for (std::size_t trial = 0; trial < std::max<std::size_t>(1, global_config.trials_per_dim / 10); trial++) {
+    for (auto start = test_start_time(); within_time_budget(start);) {
         for (std::size_t i = 0; i < dense_dimension; i++) {
             float va = dist(rng);
             nk_f32_to_e4m3(&va, &a[i]);
@@ -2706,7 +2718,7 @@ error_stats_t test_scale_e5m2(scale_e5m2_t kernel) {
     std::uniform_real_distribution<float> dist(-1.0f, 1.0f);
     std::uniform_real_distribution<float> alpha_dist(-2.0f, 2.0f);
 
-    for (std::size_t trial = 0; trial < std::max<std::size_t>(1, global_config.trials_per_dim / 10); trial++) {
+    for (auto start = test_start_time(); within_time_budget(start);) {
         for (std::size_t i = 0; i < dense_dimension; i++) {
             float va = dist(rng);
             nk_f32_to_e5m2(&va, &a[i]);
@@ -2744,7 +2756,7 @@ error_stats_t test_wsum_e4m3(wsum_e4m3_t kernel) {
     std::uniform_real_distribution<float> dist(-1.0f, 1.0f);
     std::uniform_real_distribution<float> coef_dist(-2.0f, 2.0f);
 
-    for (std::size_t trial = 0; trial < std::max<std::size_t>(1, global_config.trials_per_dim / 10); trial++) {
+    for (auto start = test_start_time(); within_time_budget(start);) {
         for (std::size_t i = 0; i < dense_dimension; i++) {
             float va = dist(rng), vb = dist(rng);
             nk_f32_to_e4m3(&va, &a[i]);
@@ -2784,7 +2796,7 @@ error_stats_t test_wsum_e5m2(wsum_e5m2_t kernel) {
     std::uniform_real_distribution<float> dist(-1.0f, 1.0f);
     std::uniform_real_distribution<float> coef_dist(-2.0f, 2.0f);
 
-    for (std::size_t trial = 0; trial < std::max<std::size_t>(1, global_config.trials_per_dim / 10); trial++) {
+    for (auto start = test_start_time(); within_time_budget(start);) {
         for (std::size_t i = 0; i < dense_dimension; i++) {
             float va = dist(rng), vb = dist(rng);
             nk_f32_to_e5m2(&va, &a[i]);
@@ -2823,7 +2835,7 @@ error_stats_t test_fma_e4m3(fma_e4m3_t kernel) {
     aligned_buffer<nk_e4m3_t> a(dense_dimension), b(dense_dimension), c(dense_dimension), result(dense_dimension);
     std::uniform_real_distribution<float> dist(-1.0f, 1.0f);
 
-    for (std::size_t trial = 0; trial < std::max<std::size_t>(1, global_config.trials_per_dim / 10); trial++) {
+    for (auto start = test_start_time(); within_time_budget(start);) {
         for (std::size_t i = 0; i < dense_dimension; i++) {
             float va = dist(rng), vb = dist(rng), vc = dist(rng);
             nk_f32_to_e4m3(&va, &a[i]);
@@ -2862,7 +2874,7 @@ error_stats_t test_fma_e5m2(fma_e5m2_t kernel) {
     aligned_buffer<nk_e5m2_t> a(dense_dimension), b(dense_dimension), c(dense_dimension), result(dense_dimension);
     std::uniform_real_distribution<float> dist(-1.0f, 1.0f);
 
-    for (std::size_t trial = 0; trial < std::max<std::size_t>(1, global_config.trials_per_dim / 10); trial++) {
+    for (auto start = test_start_time(); within_time_budget(start);) {
         for (std::size_t i = 0; i < dense_dimension; i++) {
             float va = dist(rng), vb = dist(rng), vc = dist(rng);
             nk_f32_to_e5m2(&va, &a[i]);
@@ -3150,7 +3162,7 @@ error_stats_t test_haversine_f64(haversine_f64_t kernel) {
     std::size_t geo_dims[] = {1, 4, 8, 16, 32, 64, 128};
 
     for (std::size_t dim : geo_dims) {
-        for (std::size_t trial = 0; trial < global_config.trials_per_dim; trial++) {
+        for (auto start = test_start_time(); within_time_budget(start);) {
             aligned_buffer<nk_f64_t> a_lats(dim), a_lons(dim), b_lats(dim), b_lons(dim), results(dim);
 
             for (std::size_t i = 0; i < dim; i++) {
@@ -3185,7 +3197,7 @@ error_stats_t test_haversine_f32(haversine_f32_t kernel) {
     std::size_t geo_dims[] = {1, 4, 8, 16, 32, 64, 128};
 
     for (std::size_t dim : geo_dims) {
-        for (std::size_t trial = 0; trial < global_config.trials_per_dim; trial++) {
+        for (auto start = test_start_time(); within_time_budget(start);) {
             aligned_buffer<nk_f32_t> a_lats(dim), a_lons(dim), b_lats(dim), b_lons(dim), results(dim);
 
             for (std::size_t i = 0; i < dim; i++) {
@@ -3222,7 +3234,7 @@ error_stats_t test_vincenty_f64(vincenty_f64_t kernel) {
     std::size_t geo_dims[] = {1, 4, 8, 16, 32, 64};
 
     for (std::size_t dim : geo_dims) {
-        for (std::size_t trial = 0; trial < global_config.trials_per_dim; trial++) {
+        for (auto start = test_start_time(); within_time_budget(start);) {
             aligned_buffer<nk_f64_t> a_lats(dim), a_lons(dim), b_lats(dim), b_lons(dim), results(dim);
 
             for (std::size_t i = 0; i < dim; i++) {
@@ -3370,7 +3382,7 @@ error_stats_t test_rmsd_f64(mesh_f64_t kernel) {
     aligned_buffer<nk_f64_t> a(n * 3), b(n * 3);
     aligned_buffer<f128_t> a_hp(n * 3), b_hp(n * 3);
 
-    for (std::size_t trial = 0; trial < global_config.trials_per_dim; trial++) {
+    for (auto start = test_start_time(); within_time_budget(start);) {
         // Generate random point clouds
         for (std::size_t i = 0; i < n * 3; i++) {
             double val_a = dist(rng);
@@ -3406,7 +3418,7 @@ error_stats_t test_rmsd_f32(mesh_f32_t kernel) {
     aligned_buffer<nk_f32_t> a(n * 3), b(n * 3);
     aligned_buffer<f128_t> a_hp(n * 3), b_hp(n * 3);
 
-    for (std::size_t trial = 0; trial < global_config.trials_per_dim; trial++) {
+    for (auto start = test_start_time(); within_time_budget(start);) {
         for (std::size_t i = 0; i < n * 3; i++) {
             float val_a = dist(rng);
             float val_b = dist(rng);
@@ -3440,7 +3452,7 @@ error_stats_t test_kabsch_f64(mesh_f64_t kernel) {
     std::size_t n = mesh_dimension;
     aligned_buffer<nk_f64_t> a(n * 3), b(n * 3);
 
-    for (std::size_t trial = 0; trial < global_config.trials_per_dim; trial++) {
+    for (auto start = test_start_time(); within_time_budget(start);) {
         // Generate random point cloud A
         for (std::size_t i = 0; i < n * 3; i++) { a[i] = dist(rng); }
 
@@ -3490,7 +3502,7 @@ error_stats_t test_kabsch_f32(mesh_f32_t kernel) {
     std::size_t n = mesh_dimension;
     aligned_buffer<nk_f32_t> a(n * 3), b(n * 3);
 
-    for (std::size_t trial = 0; trial < global_config.trials_per_dim; trial++) {
+    for (auto start = test_start_time(); within_time_budget(start);) {
         for (std::size_t i = 0; i < n * 3; i++) { a[i] = dist(rng); }
 
         f128_t rotation_hp[9];
@@ -3530,7 +3542,7 @@ error_stats_t test_umeyama_f64(mesh_f64_t kernel) {
     std::size_t n = mesh_dimension;
     aligned_buffer<nk_f64_t> a(n * 3), b(n * 3);
 
-    for (std::size_t trial = 0; trial < global_config.trials_per_dim; trial++) {
+    for (auto start = test_start_time(); within_time_budget(start);) {
         for (std::size_t i = 0; i < n * 3; i++) { a[i] = dist(rng); }
 
         f128_t rotation_hp[9];
@@ -3571,7 +3583,7 @@ error_stats_t test_umeyama_f32(mesh_f32_t kernel) {
     std::size_t n = mesh_dimension;
     aligned_buffer<nk_f32_t> a(n * 3), b(n * 3);
 
-    for (std::size_t trial = 0; trial < global_config.trials_per_dim; trial++) {
+    for (auto start = test_start_time(); within_time_budget(start);) {
         for (std::size_t i = 0; i < n * 3; i++) { a[i] = dist(rng); }
 
         f128_t rotation_hp[9];
@@ -3696,7 +3708,7 @@ error_stats_t test_dots_f32f32f32(dots_packed_size_t packed_size_fn, dots_f32_pa
     nk_size_t packed_size = packed_size_fn(n, k);
     aligned_buffer<char> b_packed(packed_size);
 
-    for (std::size_t trial = 0; trial < global_config.trials_per_dim; trial++) {
+    for (auto start = test_start_time(); within_time_budget(start);) {
         // Random fill A and B
         for (std::size_t i = 0; i < m * k; i++) a[i] = dist(rng);
         for (std::size_t i = 0; i < n * k; i++) b[i] = dist(rng);
@@ -3738,7 +3750,7 @@ error_stats_t test_dots_f64f64f64(dots_packed_size_t packed_size_fn, dots_f64_pa
     nk_size_t packed_size = packed_size_fn(n, k);
     aligned_buffer<char> b_packed(packed_size);
 
-    for (std::size_t trial = 0; trial < global_config.trials_per_dim; trial++) {
+    for (auto start = test_start_time(); within_time_budget(start);) {
         for (std::size_t i = 0; i < m * k; i++) a[i] = dist(rng);
         for (std::size_t i = 0; i < n * k; i++) b[i] = dist(rng);
 
@@ -3776,7 +3788,7 @@ error_stats_t test_dots_bf16bf16f32(dots_packed_size_t packed_size_fn, dots_bf16
     nk_size_t packed_size = packed_size_fn(n, k);
     aligned_buffer<char> b_packed(packed_size);
 
-    for (std::size_t trial = 0; trial < global_config.trials_per_dim; trial++) {
+    for (auto start = test_start_time(); within_time_budget(start);) {
         // Fill with bf16 values
         for (std::size_t i = 0; i < m * k; i++) a[i] = bf16_t(dist(rng)).raw;
         for (std::size_t i = 0; i < n * k; i++) b[i] = bf16_t(dist(rng)).raw;
@@ -3828,7 +3840,7 @@ error_stats_t test_dots_f16f16f32(dots_packed_size_t packed_size_fn, dots_f16_pa
     nk_size_t packed_size = packed_size_fn(n, k);
     aligned_buffer<char> b_packed(packed_size);
 
-    for (std::size_t trial = 0; trial < global_config.trials_per_dim; trial++) {
+    for (auto start = test_start_time(); within_time_budget(start);) {
         // Fill with f16 values
         for (std::size_t i = 0; i < m * k; i++) a[i] = f16_t(dist(rng)).raw;
         for (std::size_t i = 0; i < n * k; i++) b[i] = f16_t(dist(rng)).raw;
@@ -3879,7 +3891,7 @@ error_stats_t test_dots_i8i8i32(dots_packed_size_t packed_size_fn, dots_i8_pack_
     nk_size_t packed_size = packed_size_fn(n, k);
     aligned_buffer<char> b_packed(packed_size);
 
-    for (std::size_t trial = 0; trial < global_config.trials_per_dim; trial++) {
+    for (auto start = test_start_time(); within_time_budget(start);) {
         for (std::size_t i = 0; i < m * k; i++) a[i] = static_cast<nk_i8_t>(dist(rng));
         for (std::size_t i = 0; i < n * k; i++) b[i] = static_cast<nk_i8_t>(dist(rng));
 
@@ -3935,7 +3947,7 @@ error_stats_t test_dots_f32_unpacked(dots_f32_blas_t dots_fn) {
     aligned_buffer<nk_f32_t> a(m * k), b(n * k), c(m * n);
     aligned_buffer<f128_t> c_ref(m * n);
 
-    for (std::size_t trial = 0; trial < global_config.trials_per_dim; trial++) {
+    for (auto start = test_start_time(); within_time_budget(start);) {
         for (std::size_t i = 0; i < m * k; i++) a[i] = dist(rng);
         for (std::size_t i = 0; i < n * k; i++) b[i] = dist(rng);
 
@@ -3966,7 +3978,7 @@ error_stats_t test_dots_f64_unpacked(dots_f64_blas_t dots_fn) {
     aligned_buffer<nk_f64_t> a(m * k), b(n * k), c(m * n);
     aligned_buffer<f128_t> c_ref(m * n);
 
-    for (std::size_t trial = 0; trial < global_config.trials_per_dim; trial++) {
+    for (auto start = test_start_time(); within_time_budget(start);) {
         for (std::size_t i = 0; i < m * k; i++) a[i] = dist(rng);
         for (std::size_t i = 0; i < n * k; i++) b[i] = dist(rng);
 
@@ -4118,7 +4130,7 @@ error_stats_t test_intersect_u16(intersect_u16_t kernel) {
     std::size_t sparse_dims[] = {8, 16, 32, 64, 128, 256, 512};
 
     for (std::size_t dim : sparse_dims) {
-        for (std::size_t trial = 0; trial < global_config.trials_per_dim; trial++) {
+        for (auto start = test_start_time(); within_time_budget(start);) {
             aligned_buffer<nk_u16_t> a(dim), b(dim);
             fill_sorted_unique(a, rng, static_cast<nk_u16_t>(dim * 4));
             fill_sorted_unique(b, rng, static_cast<nk_u16_t>(dim * 4));
@@ -4143,7 +4155,7 @@ error_stats_t test_intersect_u32(intersect_u32_t kernel) {
     std::size_t sparse_dims[] = {8, 16, 32, 64, 128, 256, 512};
 
     for (std::size_t dim : sparse_dims) {
-        for (std::size_t trial = 0; trial < global_config.trials_per_dim; trial++) {
+        for (auto start = test_start_time(); within_time_budget(start);) {
             aligned_buffer<nk_u32_t> a(dim), b(dim);
             fill_sorted_unique(a, rng, static_cast<nk_u32_t>(dim * 4));
             fill_sorted_unique(b, rng, static_cast<nk_u32_t>(dim * 4));
@@ -4168,7 +4180,7 @@ error_stats_t test_sparse_dot_u32f32(sparse_dot_u32f32_t kernel) {
     std::size_t sparse_dims[] = {8, 16, 32, 64, 128, 256};
 
     for (std::size_t dim : sparse_dims) {
-        for (std::size_t trial = 0; trial < global_config.trials_per_dim; trial++) {
+        for (auto start = test_start_time(); within_time_budget(start);) {
             aligned_buffer<nk_u32_t> a_idx(dim), b_idx(dim);
             aligned_buffer<nk_f32_t> a_weights(dim), b_weights(dim);
 
@@ -4198,7 +4210,7 @@ error_stats_t test_sparse_dot_u16bf16(sparse_dot_u16bf16_t kernel) {
     std::size_t sparse_dims[] = {8, 16, 32, 64, 128, 256};
 
     for (std::size_t dim : sparse_dims) {
-        for (std::size_t trial = 0; trial < global_config.trials_per_dim; trial++) {
+        for (auto start = test_start_time(); within_time_budget(start);) {
             aligned_buffer<nk_u16_t> a_idx(dim), b_idx(dim);
             aligned_buffer<bf16_t> a_weights(dim), b_weights(dim);
 
@@ -4319,7 +4331,7 @@ void print_capabilities() {
     std::printf("  Assert on failure: %s\n", flags[global_config.assert_on_failure]);
     std::printf("  Verbose:           %s\n", flags[global_config.verbose]);
     std::printf("  Filter:            %s\n", global_config.filter ? global_config.filter : "(none)");
-    std::printf("  Trials per dim:    %zu\n", global_config.trials_per_dim);
+    std::printf("  Time budget (ms):  %zu\n", global_config.time_budget_ms);
     std::printf("  RNG seed:          %u\n", global_config.seed);
     std::printf("  ULP threshold f32: %llu\n", static_cast<unsigned long long>(global_config.ulp_threshold_f32));
     std::printf("  ULP threshold f16: %llu\n", static_cast<unsigned long long>(global_config.ulp_threshold_f16));
