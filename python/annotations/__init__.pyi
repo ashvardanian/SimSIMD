@@ -61,8 +61,8 @@ _ComplexType = Literal[
     "complex128",
 ]
 
-class DistancesTensor(memoryview):
-    """A tensor type returned by NumKong distance functions.
+class Tensor(memoryview):
+    """N-dimensional tensor type returned by NumKong operations.
 
     Supports NumPy-like properties and buffer protocol for interoperability.
     """
@@ -110,7 +110,7 @@ class DistancesTensor(memoryview):
         """Iterate over the first dimension."""
         ...
 
-    def __getitem__(self, key: Union[int, slice, tuple[Union[int, slice], ...]]) -> Union[float, "DistancesTensor"]:
+    def __getitem__(self, key: Union[int, slice, tuple[Union[int, slice], ...]]) -> Union[float, "Tensor"]:
         """Get an element or sub-tensor by index or slice."""
         ...
 
@@ -144,15 +144,15 @@ class DistancesTensor(memoryview):
         ...
 
     @property
-    def T(self) -> "DistancesTensor":
+    def T(self) -> "Tensor":
         """Transpose of the tensor."""
         ...
 
-    def copy(self) -> "DistancesTensor":
+    def copy(self) -> "Tensor":
         """Return a deep copy of the tensor."""
         ...
 
-    def reshape(self, *shape: int) -> "DistancesTensor":
+    def reshape(self, *shape: int) -> "Tensor":
         """Return tensor reshaped to given dimensions."""
         ...
 
@@ -191,7 +191,7 @@ def cdist(
     dtype: Optional[Union[_IntegralType, _FloatType, _ComplexType]] = None,
     out: Optional[_BufferType] = None,
     out_dtype: Optional[Union[_FloatType, _ComplexType]] = None,
-) -> Optional[Union[float, complex, DistancesTensor]]: ...
+) -> Optional[Union[float, complex, Tensor]]: ...
 
 # endregion Pairwise Distances
 
@@ -208,7 +208,7 @@ def inner(
     *,
     out: Optional[_BufferType] = None,
     out_dtype: Optional[Union[_FloatType, _ComplexType]] = None,
-) -> Optional[Union[float, complex, DistancesTensor]]: ...
+) -> Optional[Union[float, complex, Tensor]]: ...
 
 # Dot product, similar to: `numpy.dot`.
 # https://numpy.org/doc/stable/reference/generated/numpy.dot.html
@@ -220,7 +220,7 @@ def dot(
     *,
     out: Optional[_BufferType] = None,
     out_dtype: Union[_FloatType, _ComplexType] = None,
-) -> Optional[Union[float, complex, DistancesTensor]]: ...
+) -> Optional[Union[float, complex, Tensor]]: ...
 
 # Vector-vector dot product for complex conjugates, similar to: `numpy.vdot`.
 # https://numpy.org/doc/stable/reference/generated/numpy.vdot.html
@@ -230,9 +230,9 @@ def vdot(
     /,
     dtype: Optional[_ComplexType] = None,
     *,
-    out: Optional[Union[float, complex, DistancesTensor]] = None,
+    out: Optional[Union[float, complex, Tensor]] = None,
     out_dtype: Optional[_ComplexType] = None,
-) -> Optional[Union[complex, DistancesTensor]]: ...
+) -> Optional[Union[complex, Tensor]]: ...
 
 # endregion Vector Dot Products
 
@@ -250,7 +250,7 @@ def sqeuclidean(
     *,
     out: Optional[_BufferType] = None,
     out_dtype: Union[_FloatType] = None,
-) -> Optional[Union[float, DistancesTensor]]: ...
+) -> Optional[Union[float, Tensor]]: ...
 
 # Vector-vector angular distance (also known as cosine distance), similar to: `scipy.spatial.distance.cosine`.
 # https://docs.scipy.org/doc/scipy-1.11.4/reference/generated/scipy.spatial.distance.cosine.html
@@ -262,7 +262,7 @@ def angular(
     *,
     out: Optional[_BufferType] = None,
     out_dtype: Union[_FloatType] = None,
-) -> Optional[Union[float, DistancesTensor]]: ...
+) -> Optional[Union[float, Tensor]]: ...
 
 # endregion Spatial Distance Metrics
 
@@ -279,7 +279,7 @@ def hamming(
     *,
     out: Optional[_BufferType] = None,
     out_dtype: Union[_FloatType] = None,
-) -> Optional[Union[float, DistancesTensor]]: ...
+) -> Optional[Union[float, Tensor]]: ...
 
 # Vector-vector Jaccard distance, similar to: `scipy.spatial.distance.jaccard`.
 # https://docs.scipy.org/doc/scipy-1.11.4/reference/generated/scipy.spatial.distance.jaccard.html
@@ -291,7 +291,7 @@ def jaccard(
     *,
     out: Optional[_BufferType] = None,
     out_dtype: Union[_FloatType] = None,
-) -> Optional[Union[float, DistancesTensor]]: ...
+) -> Optional[Union[float, Tensor]]: ...
 
 # endregion Binary Similarity
 
@@ -308,7 +308,7 @@ def jensenshannon(
     *,
     out: Optional[_BufferType] = None,
     out_dtype: Union[_FloatType] = None,
-) -> Optional[Union[float, DistancesTensor]]: ...
+) -> Optional[Union[float, Tensor]]: ...
 def jsd(
     a: _BufferType,
     b: _BufferType,
@@ -317,7 +317,7 @@ def jsd(
     *,
     out: Optional[_BufferType] = None,
     out_dtype: Union[_FloatType] = None,
-) -> Optional[Union[float, DistancesTensor]]: ...
+) -> Optional[Union[float, Tensor]]: ...
 
 # Vector-vector Kullback-Leibler divergence, similar to: `scipy.spatial.distance.kullback_leibler`.
 # https://docs.scipy.org/doc/scipy-1.11.4/reference/generated/scipy.spatial.distance.kullback_leibler.html
@@ -329,7 +329,7 @@ def kullbackleibler(
     *,
     out: Optional[_BufferType] = None,
     out_dtype: Union[_FloatType] = None,
-) -> Optional[Union[float, DistancesTensor]]: ...
+) -> Optional[Union[float, Tensor]]: ...
 def kld(
     a: _BufferType,
     b: _BufferType,
@@ -338,7 +338,7 @@ def kld(
     *,
     out: Optional[_BufferType] = None,
     out_dtype: Union[_FloatType] = None,
-) -> Optional[Union[float, DistancesTensor]]: ...
+) -> Optional[Union[float, Tensor]]: ...
 
 # endregion Probability Distances
 
@@ -390,7 +390,7 @@ def fma(
     alpha: float = 1,
     beta: float = 1,
     out: Optional[_BufferType] = None,
-) -> Optional[DistancesTensor]: ...
+) -> Optional[Tensor]: ...
 
 # Vector-vector element-wise weighted sum.
 def wsum(
@@ -402,7 +402,7 @@ def wsum(
     alpha: float = 1,
     beta: float = 1,
     out: Optional[_BufferType] = None,
-) -> Optional[DistancesTensor]: ...
+) -> Optional[Tensor]: ...
 
 # endregion Vector Math
 
@@ -416,7 +416,7 @@ def sin(
     dtype: Optional[_FloatType] = None,
     *,
     out: Optional[_BufferType] = None,
-) -> Optional[DistancesTensor]: ...
+) -> Optional[Tensor]: ...
 
 # Element-wise trigonometric cosine.
 def cos(
@@ -425,7 +425,7 @@ def cos(
     dtype: Optional[_FloatType] = None,
     *,
     out: Optional[_BufferType] = None,
-) -> Optional[DistancesTensor]: ...
+) -> Optional[Tensor]: ...
 
 # Element-wise trigonometric arctangent.
 def atan(
@@ -434,7 +434,7 @@ def atan(
     dtype: Optional[_FloatType] = None,
     *,
     out: Optional[_BufferType] = None,
-) -> Optional[DistancesTensor]: ...
+) -> Optional[Tensor]: ...
 
 # endregion Trigonometry
 
@@ -450,7 +450,7 @@ def scale(
     alpha: float = 1,
     beta: float = 0,
     out: Optional[_BufferType] = None,
-) -> Optional[DistancesTensor]: ...
+) -> Optional[Tensor]: ...
 
 # Element-wise sum (addition).
 def sum(
@@ -460,7 +460,7 @@ def sum(
     dtype: Optional[Union[_FloatType, _IntegralType]] = None,
     *,
     out: Optional[_BufferType] = None,
-) -> Optional[DistancesTensor]: ...
+) -> Optional[Tensor]: ...
 
 # Element-wise add (NumPy-compatible with broadcasting).
 def add(
@@ -472,7 +472,7 @@ def add(
     a_dtype: Optional[Union[_FloatType, _IntegralType]] = None,
     b_dtype: Optional[Union[_FloatType, _IntegralType]] = None,
     out_dtype: Optional[Union[_FloatType, _IntegralType]] = None,
-) -> Optional[DistancesTensor]: ...
+) -> Optional[Tensor]: ...
 
 # Element-wise multiply (NumPy-compatible with broadcasting).
 def multiply(
@@ -484,7 +484,7 @@ def multiply(
     a_dtype: Optional[Union[_FloatType, _IntegralType]] = None,
     b_dtype: Optional[Union[_FloatType, _IntegralType]] = None,
     out_dtype: Optional[Union[_FloatType, _IntegralType]] = None,
-) -> Optional[DistancesTensor]: ...
+) -> Optional[Tensor]: ...
 
 # endregion Elementwise Arithmetic
 
@@ -534,6 +534,6 @@ def matmul(
     a: _BufferType,
     b: PackedMatrix,
     /,
-) -> DistancesTensor: ...
+) -> Tensor: ...
 
 # endregion Packed Matmul

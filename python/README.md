@@ -140,17 +140,17 @@ This functionality isn't natively present in NumPy or SciPy, and generally requi
 ## Many-to-Many All-Pairs Distances
 
 One can use NumKong to compute distances between all possible pairs of rows across two matrices (akin to [`scipy.spatial.distance.cdist`](https://docs.scipy.org/doc/scipy/reference/generated/scipy.spatial.distance.cdist.html)).
-The resulting object will have a type `DistancesTensor`, zero-copy compatible with NumPy and other libraries.
+The resulting object will have a type `Tensor`, zero-copy compatible with NumPy and other libraries.
 For two arrays of 10 and 1,000 entries, the resulting tensor will have 10,000 cells:
 
 ```py
 import numpy as np
-from numkong import cdist, DistancesTensor
+from numkong import cdist, Tensor
 
 matrix1 = np.random.randn(1000, 1536).astype(np.float32)
 matrix2 = np.random.randn(10, 1536).astype(np.float32)
-distances: DistancesTensor = numkong.cdist(matrix1, matrix2, metric="cosine")   # zero-copy, managed by NumKong
-distances_array: np.ndarray = np.array(distances, copy=True)                    # now managed by NumPy
+distances: Tensor = numkong.cdist(matrix1, matrix2, metric="cosine")   # zero-copy, managed by NumKong
+distances_array: np.ndarray = np.array(distances, copy=True)           # now managed by NumPy
 ```
 
 ## Element-wise Kernels

@@ -19,19 +19,11 @@ from setuptools import setup, Extension
 __lib_name__ = "numkong"
 __version__ = Path("VERSION").read_text().strip()
 
-# --------------------------------------------------------------------------- #
-# macOS developer-tools sanity check                                          #
-# --------------------------------------------------------------------------- #
 if sys.platform == "darwin":
     _bad_dev_dir = os.environ.get("DEVELOPER_DIR")
     if _bad_dev_dir and (_bad_dev_dir == "public" or not Path(_bad_dev_dir).exists()):
         print(f"[NumKong] Ignoring invalid DEVELOPER_DIR={_bad_dev_dir!r}")
         os.environ.pop("DEVELOPER_DIR", None)
-
-
-# --------------------------------------------------------------------------- #
-# Architecture detection with environment override support                     #
-# --------------------------------------------------------------------------- #
 
 
 def is_64bit_x86() -> bool:
@@ -50,11 +42,6 @@ def is_64bit_arm() -> bool:
         return override == "1"
     arch = platform.machine().lower()
     return (arch in ("arm64", "aarch64")) and (sys.maxsize > 2**32)
-
-
-# --------------------------------------------------------------------------- #
-# Per-platform build settings                                                 #
-# --------------------------------------------------------------------------- #
 
 
 def linux_settings() -> Tuple[List[str], List[str], List[Tuple[str, str]]]:
@@ -215,10 +202,6 @@ def windows_settings() -> Tuple[List[str], List[str], List[Tuple[str, str]]]:
     return compile_args, link_args, macros
 
 
-# --------------------------------------------------------------------------- #
-# Platform dispatch                                                           #
-# --------------------------------------------------------------------------- #
-
 if sys.platform == "linux":
     compile_args, link_args, macros = linux_settings()
 elif sys.platform == "darwin":
@@ -227,11 +210,6 @@ elif sys.platform == "win32":
     compile_args, link_args, macros = windows_settings()
 else:
     compile_args, link_args, macros = [], [], []
-
-
-# --------------------------------------------------------------------------- #
-# Editable install detection                                                  #
-# --------------------------------------------------------------------------- #
 
 
 def _is_editable_install() -> bool:
@@ -257,25 +235,23 @@ if _is_editable_install():
     print("[NumKong] Editable install detected - skipping bundled type stubs.")
 
 
-# --------------------------------------------------------------------------- #
-# Extension module                                                            #
-# --------------------------------------------------------------------------- #
-
 ext_modules = [
     Extension(
         "numkong",
-        sources=["python/numkong.c", "c/numkong.c"],
-        include_dirs=["include"],
+        sources=[
+            "python/numkong.c",
+            "python/numerics.c",
+            "python/tensor.c",
+            "python/scalars.c",
+            "c/numkong.c",
+        ],
+        include_dirs=["include", "python"],
         language="c",
         extra_compile_args=compile_args,
         extra_link_args=link_args,
         define_macros=macros,
     )
 ]
-
-# --------------------------------------------------------------------------- #
-# Setup                                                                       #
-# --------------------------------------------------------------------------- #
 
 setup(
     name=__lib_name__,

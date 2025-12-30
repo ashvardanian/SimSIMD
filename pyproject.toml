@@ -29,6 +29,7 @@ test-requires = ["pytest", "pytest-repeat", "tabulate"]
 test-command = """
     python -m pip install numpy --only-binary=:all: || (echo "Failed to install NumPy" && exit 0) &&
     python -m pip install scipy --only-binary=:all: || (echo "Failed to install SciPy" && exit 0) &&
+    python -m pip install ml_dtypes --only-binary=:all: || (echo "Failed to install ml_dtypes" && exit 0) &&
     python -c "import numkong; print(numkong.get_capabilities())" &&
     pytest {project}/scripts/test.py -s -x -Wd
 """
@@ -97,14 +98,12 @@ before-build = ["rd /s /q {project}\\build || echo Done"]
 [[tool.cibuildwheel.overrides]]
 select = "*win*"
 test-command = """
-    cmd /c "python -m pip install numpy pypy & if errorlevel 1 echo Failed to install NumPy... Nothing can stop me, I'm all the way up! &
+    cmd /c "python -m pip install numpy & if errorlevel 1 echo Failed to install NumPy... Nothing can stop me, I'm all the way up! &
     python -m pip install scipy & if errorlevel 1 echo Failed to install SciPy... Nothing can stop me, I'm all the way up! &
+    python -m pip install ml_dtypes & if errorlevel 1 echo Failed to install ml_dtypes... Nothing can stop me, I'm all the way up! &
     pytest {project}/scripts/test.py -s -x -Wd"
 """
 
-# --------------------------------------------------------------------------- #
-# Architecture overrides for cross-compilation                                #
-# --------------------------------------------------------------------------- #
 # These environment variables allow setup.py to detect the target architecture
 # during cross-compilation (e.g., building ARM64 wheels on x64 host).
 # The NK_TARGET_* variables override platform.machine() detection.
