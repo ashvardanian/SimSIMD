@@ -11,8 +11,8 @@
 #if NK_TARGET_X86_
 #if NK_TARGET_SIERRA
 #pragma GCC push_options
-#pragma GCC target("avx2", "bmi2", "avxvnni", "avxvnniint8")
-#pragma clang attribute push(__attribute__((target("avx2,bmi2,avxvnni,avxvnniint8"))), apply_to = function)
+#pragma GCC target("avx2", "bmi2", "f16c", "fma", "avxvnni", "avxvnniint8")
+#pragma clang attribute push(__attribute__((target("avx2,bmi2,f16c,fma,avxvnni,avxvnniint8"))), apply_to = function)
 
 #include "numkong/types.h"
 #include "numkong/reduce/haswell.h" // nk_reduce_add_i32x8_haswell_
@@ -84,6 +84,54 @@ NK_INTERNAL void nk_dot_i8x32_finalize_sierra(                                  
                                             _mm_add_epi32(sum_lane2_i32x4, sum_lane3_i32x4));
     // Store as i32
     _mm_storeu_si128((__m128i *)results, final_sum_i32x4);
+}
+
+NK_PUBLIC void nk_dot_u8_sierra(nk_u8_t const *a_scalars, nk_u8_t const *b_scalars, nk_size_t count_scalars,
+                                nk_u32_t *result) {
+    __m256i sum_i32x8 = _mm256_setzero_si256();
+    nk_size_t idx_scalars = 0;
+    for (; idx_scalars + 32 <= count_scalars; idx_scalars += 32) {
+        __m256i a_u8x32 = _mm256_lddqu_si256((__m256i const *)(a_scalars + idx_scalars));
+        __m256i b_u8x32 = _mm256_lddqu_si256((__m256i const *)(b_scalars + idx_scalars));
+        sum_i32x8 = _mm256_dpbuud_epi32(sum_i32x8, a_u8x32, b_u8x32);
+    }
+    nk_u32_t sum_u32 = (nk_u32_t)nk_reduce_add_i32x8_haswell_(sum_i32x8);
+    for (; idx_scalars < count_scalars; ++idx_scalars)
+        sum_u32 += (nk_u32_t)a_scalars[idx_scalars] * b_scalars[idx_scalars];
+    *result = sum_u32;
+}
+
+typedef struct nk_dot_u8x32_state_sierra_t {
+    __m256i sum_i32x8;
+} nk_dot_u8x32_state_sierra_t;
+
+NK_INTERNAL void nk_dot_u8x32_init_sierra(nk_dot_u8x32_state_sierra_t *state) {
+    state->sum_i32x8 = _mm256_setzero_si256();
+}
+
+NK_INTERNAL void nk_dot_u8x32_update_sierra(nk_dot_u8x32_state_sierra_t *state, nk_b256_vec_t a, nk_b256_vec_t b) {
+    __m256i sum_i32x8 = state->sum_i32x8;
+    __m256i a_u8x32 = _mm256_lddqu_si256((__m256i const *)(a.u8s));
+    __m256i b_u8x32 = _mm256_lddqu_si256((__m256i const *)(b.u8s));
+    state->sum_i32x8 = _mm256_dpbuud_epi32(sum_i32x8, a_u8x32, b_u8x32);
+}
+
+NK_INTERNAL void nk_dot_u8x32_finalize_sierra(                                              //
+    nk_dot_u8x32_state_sierra_t const *state_a, nk_dot_u8x32_state_sierra_t const *state_b, //
+    nk_dot_u8x32_state_sierra_t const *state_c, nk_dot_u8x32_state_sierra_t const *state_d, //
+    nk_u32_t *results) {
+    nk_dot_i8x32_finalize_sierra(                                                                   //
+        (nk_dot_i8x32_state_sierra_t const *)state_a, (nk_dot_i8x32_state_sierra_t const *)state_b, //
+        (nk_dot_i8x32_state_sierra_t const *)state_c, (nk_dot_i8x32_state_sierra_t const *)state_d, //
+        (nk_i32_t *)results);
+}
+
+NK_INTERNAL void nk_load_b256_sierra_(void const *src, nk_b256_vec_t *dst) {
+    dst->ymm = _mm256_loadu_si256((const __m256i *)src);
+}
+
+NK_INTERNAL void nk_partial_load_b8x32_sierra_(void const *src, nk_size_t n, nk_b256_vec_t *dst) {
+    nk_partial_load_b8x32_haswell_(src, n, dst);
 }
 
 #if defined(__cplusplus)

@@ -571,6 +571,7 @@ NK_PUBLIC void nk_reduce_add_u16_ice(nk_u16_t const *data, nk_size_t count, nk_s
 #include "numkong/reduce/haswell.h"
 #include "numkong/reduce/skylake.h"
 #include "numkong/reduce/ice.h"
+#include "numkong/reduce/sierra.h"
 
 #if !NK_DYNAMIC_DISPATCH
 
