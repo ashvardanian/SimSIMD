@@ -11,8 +11,8 @@
 #if NK_TARGET_X86_
 #if NK_TARGET_SIERRA
 #pragma GCC push_options
-#pragma GCC target("avx2", "bmi2", "avx2vnni")
-#pragma clang attribute push(__attribute__((target("avx2,bmi2,avx2vnni"))), apply_to = function)
+#pragma GCC target("avx2", "bmi2", "avxvnni")
+#pragma clang attribute push(__attribute__((target("avx2,bmi2,avxvnni"))), apply_to = function)
 
 #include "numkong/types.h"
 #include "numkong/reduce/haswell.h" // nk_reduce_add_i32x8_haswell_
