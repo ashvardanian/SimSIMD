@@ -376,6 +376,10 @@
 #define NK_F64_ABS(x) (fabs(x))
 #endif
 
+#if !defined(NK_F64_DIVISION_EPSILON)
+#define NK_F64_DIVISION_EPSILON (1e-15)
+#endif
+
 #if !defined(NK_F32_DIVISION_EPSILON)
 #define NK_F32_DIVISION_EPSILON (1e-7)
 #endif
@@ -454,6 +458,12 @@ typedef double nk_f64_t;
 typedef nk_u64_t nk_size_t;
 typedef nk_i64_t nk_ssize_t;
 typedef nk_f64_t nk_fmax_t;
+
+#define NK_F64_INF (1e999)
+#define NK_F64_MAX 1.7976931348623157e+308
+#define NK_F64_MIN (-1.7976931348623157e+308)
+#define NK_I64_MAX 9223372036854775807LL
+#define NK_I64_MIN (-9223372036854775807LL - 1LL)
 
 /**
  *  @brief  Enumeration of supported scalar data types.
