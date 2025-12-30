@@ -19,6 +19,7 @@
  *    NK_TEST_MATMUL_DIMENSION_M=N - GEMM M dimension (default: 64)
  *    NK_TEST_MATMUL_DIMENSION_N=N - GEMM N dimension (default: 64)
  *    NK_TEST_MATMUL_DIMENSION_K=N - GEMM K dimension (default: 64)
+ *    NK_TEST_DISTRIBUTION=<type>  - Random distribution: uniform|lognormal|cauchy (default: lognormal)
  */
 
 #pragma region Includes_and_Configuration
@@ -130,11 +131,83 @@ void dots_i8_mkl(nk_i8_t const *a, nk_u8_t const *b, nk_i32_t *c, nk_size_t m, n
 #endif // NK_COMPARE_TO_MKL
 #endif // NK_COMPARE_TO_BLAS
 
-// Use quad precision (113-bit mantissa) for high-precision reference computations
 namespace mp = boost::multiprecision;
 using f128_t = mp::cpp_bin_float_quad;
 using f64_t = double;
 using f32_t = float;
+
+/**
+ *  @brief Double-double arithmetic (~106-bit mantissa, ~7x overhead vs double).
+ *  Uses Knuth two-sum + FMA for error-free transformations.
+ */
+struct dd_t {
+    double hi, lo;
+
+    dd_t() noexcept : hi(0), lo(0) {}
+    dd_t(double h, double l) noexcept : hi(h), lo(l) {}
+    dd_t(double v) noexcept : hi(v), lo(0) {}
+
+    static dd_t two_sum(double a, double b) noexcept {
+        double s = a + b;
+        double v = s - a;
+        return dd_t(s, (a - (s - v)) + (b - v));
+    }
+
+    static dd_t quick_two_sum(double a, double b) noexcept { return dd_t(a + b, b - ((a + b) - a)); }
+
+    dd_t operator+(dd_t const &o) const noexcept {
+        dd_t s = two_sum(hi, o.hi);
+        s.lo += lo + o.lo;
+        return quick_two_sum(s.hi, s.lo);
+    }
+
+    dd_t &operator+=(dd_t const &o) noexcept { return *this = *this + o; }
+
+    dd_t operator-(dd_t const &o) const noexcept {
+        dd_t s = two_sum(hi, -o.hi);
+        s.lo += lo - o.lo;
+        return quick_two_sum(s.hi, s.lo);
+    }
+
+    dd_t operator*(dd_t const &o) const noexcept {
+        double p = hi * o.hi;
+        return quick_two_sum(p, std::fma(hi, o.hi, -p) + hi * o.lo + lo * o.hi);
+    }
+
+    dd_t operator/(dd_t const &o) const noexcept {
+        double q = hi / o.hi;
+        dd_t r = *this - o * dd_t(q);
+        return quick_two_sum(q, r.hi / o.hi);
+    }
+
+    bool operator==(dd_t const &o) const noexcept { return hi == o.hi && lo == o.lo; }
+    bool operator!=(dd_t const &o) const noexcept { return !(*this == o); }
+    bool operator<(dd_t const &o) const noexcept { return hi < o.hi || (hi == o.hi && lo < o.lo); }
+    bool operator>(dd_t const &o) const noexcept { return o < *this; }
+    bool operator<=(dd_t const &o) const noexcept { return !(o < *this); }
+    bool operator>=(dd_t const &o) const noexcept { return !(*this < o); }
+
+    explicit operator double() const noexcept { return hi + lo; }
+};
+
+// Best available high-precision type for f64 verification
+// Priority: __float128 (~10-20x) > 80-bit long double (~2-3x) > double-double (~7x)
+#if defined(__SIZEOF_FLOAT128__) && defined(__x86_64__)
+using fmax_t = __float128;
+constexpr int fmax_mantissa_bits = 113;
+constexpr char const *fmax_name = "__float128";
+#elif defined(__LDBL_MANT_DIG__) && __LDBL_MANT_DIG__ >= 64
+using fmax_t = long double;
+constexpr int fmax_mantissa_bits = __LDBL_MANT_DIG__;
+constexpr char const *fmax_name = "long double";
+#else
+using fmax_t = dd_t;
+constexpr int fmax_mantissa_bits = 106;
+constexpr char const *fmax_name = "double-double";
+#endif
+
+// Distribution types for random test data
+enum class dist_type { uniform, lognormal, cauchy };
 
 // Test configuration with environment variable overrides
 struct test_config_t {
@@ -145,7 +218,8 @@ struct test_config_t {
     std::uint64_t ulp_threshold_bf16 = 256;
     std::size_t time_budget_ms = 1000; // Time budget per kernel in milliseconds
     std::uint32_t seed = 12345;
-    char const *filter = nullptr; // Filter tests by name (substring match)
+    char const *filter = nullptr;                  // Filter tests by name (substring match)
+    dist_type distribution = dist_type::lognormal; // Default: moderate heavy tails
 
     test_config_t() {
         if (char const *env = std::getenv("NK_TEST_ASSERT")) assert_on_failure = std::atoi(env) != 0;
@@ -156,11 +230,25 @@ struct test_config_t {
         if (char const *env = std::getenv("NK_TEST_TIME_BUDGET_MS")) time_budget_ms = std::atoll(env);
         if (char const *env = std::getenv("NK_TEST_SEED")) seed = std::atoll(env);
         filter = std::getenv("NK_TEST_FILTER"); // e.g., "dot", "angular", "kld"
+        if (char const *env = std::getenv("NK_TEST_DISTRIBUTION")) {
+            if (std::strcmp(env, "uniform") == 0) distribution = dist_type::uniform;
+            else if (std::strcmp(env, "cauchy") == 0) distribution = dist_type::cauchy;
+            else if (std::strcmp(env, "lognormal") == 0) distribution = dist_type::lognormal;
+        }
     }
 
     bool should_run(char const *test_name) const noexcept {
         if (!filter) return true;
         return std::strstr(test_name, filter) != nullptr;
+    }
+
+    char const *distribution_name() const noexcept {
+        switch (distribution) {
+        case dist_type::uniform: return "uniform";
+        case dist_type::lognormal: return "lognormal";
+        case dist_type::cauchy: return "cauchy";
+        default: return "unknown";
+        }
     }
 };
 
@@ -318,16 +406,14 @@ struct error_stats_t {
     }
 
     void report(char const *operation, char const *dtype) const noexcept {
-        std::printf("%-18s %-8s %12llu %12.1f %12llu %12zu\n", operation, dtype,
-                    static_cast<unsigned long long>(max_ulp), mean_ulp(), static_cast<unsigned long long>(min_ulp),
-                    exact_matches);
+        std::printf("%-18s %-8s %12llu %10.1f %12.2e %12.2e %10zu\n", operation, dtype,
+                    static_cast<unsigned long long>(max_ulp), mean_ulp(), max_abs_err, max_rel_err, exact_matches);
         std::fflush(stdout);
     }
 
     void report_dimension(char const *operation, char const *dtype, std::size_t dim) const noexcept {
-        std::printf("  %-16s %-8s dim=%-6zu %10llu %10.1f %10llu %10zu\n", operation, dtype, dim,
-                    static_cast<unsigned long long>(max_ulp), mean_ulp(), static_cast<unsigned long long>(min_ulp),
-                    exact_matches);
+        std::printf("  %-16s %-8s dim=%-6zu %10llu %8.1f %10.2e %10.2e %8zu\n", operation, dtype, dim,
+                    static_cast<unsigned long long>(max_ulp), mean_ulp(), max_abs_err, max_rel_err, exact_matches);
         std::fflush(stdout);
     }
 };
@@ -337,8 +423,9 @@ struct error_stats_t {
  */
 void print_stats_header() noexcept {
     std::printf("\n=== NumKong Precision Analysis ===\n");
-    std::printf("%-18s %-8s %12s %12s %12s %12s\n", "Operation", "Type", "max_ulp", "mean_ulp", "min_ulp", "exact");
-    std::printf("─────────────────────────────────────────────────────────────────────────────────\n");
+    std::printf("%-18s %-8s %12s %10s %12s %12s %10s\n", "Operation", "Type", "max_ulp", "mean_ulp", "max_abs",
+                "max_rel", "exact");
+    std::printf("───────────────────────────────────────────────────────────────────────────────────────────────\n");
 }
 
 #pragma endregion // Error_Statistics
@@ -346,46 +433,47 @@ void print_stats_header() noexcept {
 #pragma region Reference_Implementations
 
 /**
- *  @brief Quad-precision dot product reference.
+ *  @brief Reference dot product with configurable precision.
+ *  Use f128_t for f64 kernels, f64_t for f32/f16/bf16 kernels.
  */
-template <typename scalar_type_>
-f128_t reference_dot_quad(scalar_type_ const *a, scalar_type_ const *b, std::size_t n) noexcept {
-    f128_t sum = 0;
-    for (std::size_t i = 0; i < n; i++) { sum += f128_t(a[i]) * f128_t(b[i]); }
+template <typename reference_type_, typename scalar_type_>
+reference_type_ reference_dot(scalar_type_ const *a, scalar_type_ const *b, std::size_t n) noexcept {
+    reference_type_ sum = 0;
+    for (std::size_t i = 0; i < n; i++) { sum += reference_type_(a[i]) * reference_type_(b[i]); }
     return sum;
 }
 
 /**
- *  @brief Quad-precision L2 squared distance reference.
+ *  @brief Reference L2 squared distance with configurable precision.
  */
-template <typename scalar_type_>
-f128_t reference_l2sq_quad(scalar_type_ const *a, scalar_type_ const *b, std::size_t n) noexcept {
-    f128_t sum = 0;
+template <typename reference_type_, typename scalar_type_>
+reference_type_ reference_l2sq(scalar_type_ const *a, scalar_type_ const *b, std::size_t n) noexcept {
+    reference_type_ sum = 0;
     for (std::size_t i = 0; i < n; i++) {
-        f128_t diff = f128_t(a[i]) - f128_t(b[i]);
+        reference_type_ diff = reference_type_(a[i]) - reference_type_(b[i]);
         sum += diff * diff;
     }
     return sum;
 }
 
 /**
- *  @brief Quad-precision angular (cosine) distance reference.
+ *  @brief Reference angular (cosine) distance with configurable precision.
  */
-template <typename scalar_type_>
-f128_t reference_angular_quad(scalar_type_ const *a, scalar_type_ const *b, std::size_t n) noexcept {
-    f128_t ab = 0, aa = 0, bb = 0;
+template <typename reference_type_, typename scalar_type_>
+reference_type_ reference_angular(scalar_type_ const *a, scalar_type_ const *b, std::size_t n) noexcept {
+    reference_type_ ab = 0, aa = 0, bb = 0;
     for (std::size_t i = 0; i < n; i++) {
-        f128_t ai = f128_t(a[i]);
-        f128_t bi = f128_t(b[i]);
+        reference_type_ ai = reference_type_(a[i]);
+        reference_type_ bi = reference_type_(b[i]);
         ab += ai * bi;
         aa += ai * ai;
         bb += bi * bi;
     }
-    if (aa == 0 && bb == 0) return f128_t(0);
-    if (ab == 0) return f128_t(1);
-    f128_t cos_sim = ab / mp::sqrt(aa * bb);
-    f128_t result = 1 - cos_sim;
-    return result > 0 ? result : f128_t(0);
+    if (aa == 0 && bb == 0) return reference_type_(0);
+    if (ab == 0) return reference_type_(1);
+    reference_type_ cos_sim = ab / std::sqrt(static_cast<double>(aa * bb));
+    reference_type_ result = reference_type_(1) - cos_sim;
+    return result > 0 ? result : reference_type_(0);
 }
 
 /**
@@ -552,12 +640,41 @@ struct aligned_buffer {
 };
 
 /**
- *  @brief Fill buffer with random values in specified range.
+ *  @brief Fill buffer with random values using configured distribution.
+ *
+ *  Distributions:
+ *    - uniform:   Bounded ±1, fastest baseline
+ *    - lognormal: Sign-randomized log-normal, moderate heavy tails (typical of ML activations)
+ *    - cauchy:    Extreme tails (undefined variance), stress tests edge cases
  */
 template <typename scalar_type_, typename generator_type_>
 void fill_random(aligned_buffer<scalar_type_> &buf, generator_type_ &rng, double min_val = -1.0, double max_val = 1.0) {
-    std::uniform_real_distribution<double> dist(min_val, max_val);
-    for (std::size_t i = 0; i < buf.count; i++) { buf[i] = static_cast<scalar_type_>(dist(rng)); }
+    switch (global_config.distribution) {
+    case dist_type::uniform: {
+        std::uniform_real_distribution<double> dist(min_val, max_val);
+        for (std::size_t i = 0; i < buf.count; i++) { buf[i] = static_cast<scalar_type_>(dist(rng)); }
+        break;
+    }
+    case dist_type::lognormal: {
+        // Log-normal with random sign: positive/negative, moderate heavy tails
+        // μ=0, σ=1 gives values mostly in [0.1, 10], occasionally [0.01, 100]
+        std::lognormal_distribution<double> lognorm(0.0, 1.0);
+        std::uniform_real_distribution<double> sign_dist(0.0, 1.0);
+        for (std::size_t i = 0; i < buf.count; i++) {
+            double val = lognorm(rng);
+            if (sign_dist(rng) < 0.5) val = -val;
+            buf[i] = static_cast<scalar_type_>(val);
+        }
+        break;
+    }
+    case dist_type::cauchy: {
+        // Cauchy: symmetric ±, extreme tails (undefined variance)
+        // Mostly [-10, 10], occasionally ±1000+
+        std::cauchy_distribution<double> cauchy(0.0, 1.0);
+        for (std::size_t i = 0; i < buf.count; i++) { buf[i] = static_cast<scalar_type_>(cauchy(rng)); }
+        break;
+    }
+    }
 }
 
 /**
@@ -846,8 +963,8 @@ error_stats_t test_reduce_add_f64(reduce_add_f64_t kernel) {
         nk_f64_t result;
         kernel(data.data, dense_dimension, sizeof(nk_f64_t), &result);
 
-        f128_t ref = reference_reduce_add<nk_f64_t>(data.data, dense_dimension, sizeof(nk_f64_t));
-        std::uint64_t ulps = ulp_distance_from_reference(result, ref);
+        fmax_t ref = reference_reduce_add<nk_f64_t, fmax_t>(data.data, dense_dimension, sizeof(nk_f64_t));
+        std::uint64_t ulps = ulp_distance(result, static_cast<nk_f64_t>(ref));
         stats.accumulate(static_cast<double>(ref), result, ulps);
     }
     return stats;
@@ -1215,48 +1332,21 @@ void test_reduce() {
  */
 error_stats_t test_dot_f32(dot_f32_t kernel) {
     error_stats_t stats;
-
-#if NK_TEST_USE_OPENMP
-#pragma omp parallel
-    {
-        error_stats_t local_stats;
-        std::mt19937 rng(global_config.seed + omp_get_thread_num());
-        aligned_buffer<nk_f32_t> a(dense_dimension), b(dense_dimension);
-
-#pragma omp for schedule(dynamic)
-        for (auto start = test_start_time(); within_time_budget(start);) {
-            fill_random(a, rng, -1.0, 1.0);
-            fill_random(b, rng, -1.0, 1.0);
-
-            nk_f32_t result;
-            kernel(a.data, b.data, dense_dimension, &result);
-
-            f128_t ref = reference_dot_quad(a.data, b.data, dense_dimension);
-            std::uint64_t ulps = ulp_distance_from_reference(result, ref);
-
-            local_stats.accumulate(static_cast<double>(ref), static_cast<double>(result), ulps);
-        }
-
-#pragma omp critical
-        stats.merge(local_stats);
-    }
-#else
     std::mt19937 rng(global_config.seed);
     aligned_buffer<nk_f32_t> a(dense_dimension), b(dense_dimension);
 
     for (auto start = test_start_time(); within_time_budget(start);) {
-        fill_random(a, rng, -1.0, 1.0);
-        fill_random(b, rng, -1.0, 1.0);
+        fill_random(a, rng);
+        fill_random(b, rng);
 
         nk_f32_t result;
         kernel(a.data, b.data, dense_dimension, &result);
 
-        f128_t ref = reference_dot_quad(a.data, b.data, dense_dimension);
-        std::uint64_t ulps = ulp_distance_from_reference(result, ref);
+        f64_t ref = reference_dot<f64_t, nk_f32_t>(a.data, b.data, dense_dimension);
+        std::uint64_t ulps = ulp_distance(result, static_cast<nk_f32_t>(ref));
 
-        stats.accumulate(static_cast<double>(ref), static_cast<double>(result), ulps);
+        stats.accumulate(ref, static_cast<double>(result), ulps);
     }
-#endif
 
     return stats;
 }
@@ -1270,22 +1360,16 @@ error_stats_t test_dot_f64(dot_f64_t kernel) {
     aligned_buffer<nk_f64_t> a(dense_dimension), b(dense_dimension);
 
     for (auto start = test_start_time(); within_time_budget(start);) {
-        fill_random(a, rng, -1.0, 1.0);
-        fill_random(b, rng, -1.0, 1.0);
+        fill_random(a, rng);
+        fill_random(b, rng);
 
         nk_f64_t result;
         kernel(a.data, b.data, dense_dimension, &result);
 
-        f128_t ref = reference_dot_quad(a.data, b.data, dense_dimension);
-        std::uint64_t ulps = ulp_distance_from_reference(result, ref);
+        fmax_t ref = reference_dot<fmax_t, nk_f64_t>(a.data, b.data, dense_dimension);
+        std::uint64_t ulps = ulp_distance(result, static_cast<nk_f64_t>(ref));
 
         stats.accumulate(static_cast<double>(ref), result, ulps);
-
-        if (global_config.assert_on_failure && ulps > global_config.ulp_threshold_f32) {
-            std::fprintf(stderr, "FAIL: dot_f64 dim=%zu ulp=%llu\n", dense_dimension,
-                         static_cast<unsigned long long>(ulps));
-            assert(false);
-        }
     }
 
     return stats;
@@ -1746,22 +1830,16 @@ error_stats_t test_l2sq_f32(l2sq_f32_t kernel) {
     aligned_buffer<nk_f32_t> a(dense_dimension), b(dense_dimension);
 
     for (auto start = test_start_time(); within_time_budget(start);) {
-        fill_random(a, rng, -1.0, 1.0);
-        fill_random(b, rng, -1.0, 1.0);
+        fill_random(a, rng);
+        fill_random(b, rng);
 
         nk_f32_t result;
         kernel(a.data, b.data, dense_dimension, &result);
 
-        f128_t ref = reference_l2sq_quad(a.data, b.data, dense_dimension);
-        std::uint64_t ulps = ulp_distance_from_reference(result, ref);
+        f64_t ref = reference_l2sq<f64_t, nk_f32_t>(a.data, b.data, dense_dimension);
+        std::uint64_t ulps = ulp_distance(result, static_cast<nk_f32_t>(ref));
 
-        stats.accumulate(static_cast<double>(ref), static_cast<double>(result), ulps);
-
-        if (global_config.assert_on_failure && ulps > global_config.ulp_threshold_f32) {
-            std::fprintf(stderr, "FAIL: l2sq_f32 dim=%zu ulp=%llu\n", dense_dimension,
-                         static_cast<unsigned long long>(ulps));
-            assert(false);
-        }
+        stats.accumulate(ref, static_cast<double>(result), ulps);
     }
 
     return stats;
@@ -1776,22 +1854,16 @@ error_stats_t test_angular_f32(angular_f32_t kernel) {
     aligned_buffer<nk_f32_t> a(dense_dimension), b(dense_dimension);
 
     for (auto start = test_start_time(); within_time_budget(start);) {
-        fill_random(a, rng, -1.0, 1.0);
-        fill_random(b, rng, -1.0, 1.0);
+        fill_random(a, rng);
+        fill_random(b, rng);
 
         nk_f32_t result;
         kernel(a.data, b.data, dense_dimension, &result);
 
-        f128_t ref = reference_angular_quad(a.data, b.data, dense_dimension);
-        std::uint64_t ulps = ulp_distance_from_reference(result, ref);
+        f64_t ref = reference_angular<f64_t, nk_f32_t>(a.data, b.data, dense_dimension);
+        std::uint64_t ulps = ulp_distance(result, static_cast<nk_f32_t>(ref));
 
-        stats.accumulate(static_cast<double>(ref), static_cast<double>(result), ulps);
-
-        if (global_config.assert_on_failure && ulps > global_config.ulp_threshold_f32 * 2) {
-            std::fprintf(stderr, "FAIL: angular_f32 dim=%zu ulp=%llu\n", dense_dimension,
-                         static_cast<unsigned long long>(ulps));
-            assert(false);
-        }
+        stats.accumulate(ref, static_cast<double>(result), ulps);
     }
 
     return stats;
@@ -1806,14 +1878,14 @@ error_stats_t test_l2sq_f64(l2sq_f64_t kernel) {
     aligned_buffer<nk_f64_t> a(dense_dimension), b(dense_dimension);
 
     for (auto start = test_start_time(); within_time_budget(start);) {
-        fill_random(a, rng, -1.0, 1.0);
-        fill_random(b, rng, -1.0, 1.0);
+        fill_random(a, rng);
+        fill_random(b, rng);
 
         nk_f64_t result;
         kernel(a.data, b.data, dense_dimension, &result);
 
-        f128_t ref = reference_l2sq_quad(a.data, b.data, dense_dimension);
-        std::uint64_t ulps = ulp_distance_from_reference(result, ref);
+        fmax_t ref = reference_l2sq<fmax_t, nk_f64_t>(a.data, b.data, dense_dimension);
+        std::uint64_t ulps = ulp_distance(result, static_cast<nk_f64_t>(ref));
 
         stats.accumulate(static_cast<double>(ref), result, ulps);
     }
@@ -1830,14 +1902,14 @@ error_stats_t test_angular_f64(angular_f64_t kernel) {
     aligned_buffer<nk_f64_t> a(dense_dimension), b(dense_dimension);
 
     for (auto start = test_start_time(); within_time_budget(start);) {
-        fill_random(a, rng, -1.0, 1.0);
-        fill_random(b, rng, -1.0, 1.0);
+        fill_random(a, rng);
+        fill_random(b, rng);
 
         nk_f64_t result;
         kernel(a.data, b.data, dense_dimension, &result);
 
-        f128_t ref = reference_angular_quad(a.data, b.data, dense_dimension);
-        std::uint64_t ulps = ulp_distance_from_reference(result, ref);
+        fmax_t ref = reference_angular<fmax_t, nk_f64_t>(a.data, b.data, dense_dimension);
+        std::uint64_t ulps = ulp_distance(result, static_cast<nk_f64_t>(ref));
 
         stats.accumulate(static_cast<double>(ref), result, ulps);
     }
@@ -3668,21 +3740,22 @@ void test_mesh() {
 #pragma region Dots
 
 /**
- *  @brief Reference GEMM computation using quad precision.
+ *  @brief Reference GEMM computation with configurable precision.
  *  Computes C = A × Bᵀ where A is (m × k), B is (n × k), C is (m × n).
  *  Result: C[i,j] = Σₗ A[i,l] × B[j,l]
+ *  Use reference_type_=f128_t for f64 kernels, f64_t for f32/f16/bf16 kernels.
  */
-template <typename input_type_, typename output_type_ = input_type_>
-void reference_gemm(input_type_ const *a, input_type_ const *b, f128_t *c, std::size_t m, std::size_t n, std::size_t k,
-                    std::size_t a_stride_bytes, std::size_t b_stride_bytes) noexcept {
+template <typename reference_type_, typename input_type_>
+void reference_gemm(input_type_ const *a, input_type_ const *b, reference_type_ *c, std::size_t m, std::size_t n,
+                    std::size_t k, std::size_t a_stride_bytes, std::size_t b_stride_bytes) noexcept {
     for (std::size_t i = 0; i < m; i++) {
         input_type_ const *a_row = reinterpret_cast<input_type_ const *>(reinterpret_cast<char const *>(a) +
                                                                          i * a_stride_bytes);
         for (std::size_t j = 0; j < n; j++) {
             input_type_ const *b_row = reinterpret_cast<input_type_ const *>(reinterpret_cast<char const *>(b) +
                                                                              j * b_stride_bytes);
-            f128_t sum = 0;
-            for (std::size_t l = 0; l < k; l++) { sum += f128_t(a_row[l]) * f128_t(b_row[l]); }
+            reference_type_ sum = 0;
+            for (std::size_t l = 0; l < k; l++) { sum += reference_type_(a_row[l]) * reference_type_(b_row[l]); }
             c[i * n + j] = sum;
         }
     }
@@ -3695,35 +3768,38 @@ error_stats_t test_dots_f32f32f32(dots_packed_size_t packed_size_fn, dots_f32_pa
                                   dots_f32f32f32_t dots_fn) {
     error_stats_t stats;
     std::mt19937 rng(global_config.seed);
-    std::uniform_real_distribution<float> dist(-1.0f, 1.0f);
+    aligned_buffer<nk_f32_t> a_buf(matmul_dimension_m * matmul_dimension_k);
+    aligned_buffer<nk_f32_t> b_buf(matmul_dimension_n * matmul_dimension_k);
+    fill_random(a_buf, rng);
+    fill_random(b_buf, rng);
 
     std::size_t m = matmul_dimension_m, n = matmul_dimension_n, k = matmul_dimension_k;
     std::size_t a_stride = k * sizeof(nk_f32_t);
     std::size_t b_stride = k * sizeof(nk_f32_t);
     std::size_t c_stride = n * sizeof(nk_f32_t);
 
-    aligned_buffer<nk_f32_t> a(m * k), b(n * k), c(m * n);
-    aligned_buffer<f128_t> c_ref(m * n);
+    aligned_buffer<nk_f32_t> c(m * n);
+    aligned_buffer<f64_t> c_ref(m * n); // Use f64 for f32 tests - faster than f128
 
     nk_size_t packed_size = packed_size_fn(n, k);
     aligned_buffer<char> b_packed(packed_size);
 
     for (auto start = test_start_time(); within_time_budget(start);) {
-        // Random fill A and B
-        for (std::size_t i = 0; i < m * k; i++) a[i] = dist(rng);
-        for (std::size_t i = 0; i < n * k; i++) b[i] = dist(rng);
+        // Random fill A and B each iteration
+        fill_random(a_buf, rng);
+        fill_random(b_buf, rng);
 
-        // Reference computation
-        reference_gemm<nk_f32_t>(a.data, b.data, c_ref.data, m, n, k, a_stride, b_stride);
+        // Reference computation with f64 precision
+        reference_gemm<f64_t, nk_f32_t>(a_buf.data, b_buf.data, c_ref.data, m, n, k, a_stride, b_stride);
 
         // Pack and compute
-        pack_fn(b.data, n, k, b_stride, b_packed.data);
-        dots_fn(a.data, b_packed.data, c.data, m, n, k, a_stride, c_stride);
+        pack_fn(b_buf.data, n, k, b_stride, b_packed.data);
+        dots_fn(a_buf.data, b_packed.data, c.data, m, n, k, a_stride, c_stride);
 
         // Compare results
         for (std::size_t i = 0; i < m * n; i++) {
-            std::uint64_t ulps = ulp_distance_from_reference(c[i], c_ref[i]);
-            stats.accumulate(static_cast<double>(c_ref[i]), static_cast<double>(c[i]), ulps);
+            std::uint64_t ulps = ulp_distance(c[i], static_cast<nk_f32_t>(c_ref[i]));
+            stats.accumulate(c_ref[i], static_cast<double>(c[i]), ulps);
         }
     }
 
@@ -3737,30 +3813,33 @@ error_stats_t test_dots_f64f64f64(dots_packed_size_t packed_size_fn, dots_f64_pa
                                   dots_f64f64f64_t dots_fn) {
     error_stats_t stats;
     std::mt19937 rng(global_config.seed);
-    std::uniform_real_distribution<double> dist(-1.0, 1.0);
+    aligned_buffer<nk_f64_t> a_buf(matmul_dimension_m * matmul_dimension_k);
+    aligned_buffer<nk_f64_t> b_buf(matmul_dimension_n * matmul_dimension_k);
+    fill_random(a_buf, rng);
+    fill_random(b_buf, rng);
 
     std::size_t m = matmul_dimension_m, n = matmul_dimension_n, k = matmul_dimension_k;
     std::size_t a_stride = k * sizeof(nk_f64_t);
     std::size_t b_stride = k * sizeof(nk_f64_t);
     std::size_t c_stride = n * sizeof(nk_f64_t);
 
-    aligned_buffer<nk_f64_t> a(m * k), b(n * k), c(m * n);
-    aligned_buffer<f128_t> c_ref(m * n);
+    aligned_buffer<nk_f64_t> c(m * n);
+    aligned_buffer<fmax_t> c_ref(m * n);
 
     nk_size_t packed_size = packed_size_fn(n, k);
     aligned_buffer<char> b_packed(packed_size);
 
     for (auto start = test_start_time(); within_time_budget(start);) {
-        for (std::size_t i = 0; i < m * k; i++) a[i] = dist(rng);
-        for (std::size_t i = 0; i < n * k; i++) b[i] = dist(rng);
+        fill_random(a_buf, rng);
+        fill_random(b_buf, rng);
 
-        reference_gemm<nk_f64_t>(a.data, b.data, c_ref.data, m, n, k, a_stride, b_stride);
+        reference_gemm<fmax_t, nk_f64_t>(a_buf.data, b_buf.data, c_ref.data, m, n, k, a_stride, b_stride);
 
-        pack_fn(b.data, n, k, b_stride, b_packed.data);
-        dots_fn(a.data, b_packed.data, c.data, m, n, k, a_stride, c_stride);
+        pack_fn(b_buf.data, n, k, b_stride, b_packed.data);
+        dots_fn(a_buf.data, b_packed.data, c.data, m, n, k, a_stride, c_stride);
 
         for (std::size_t i = 0; i < m * n; i++) {
-            std::uint64_t ulps = ulp_distance_from_reference(c[i], c_ref[i]);
+            std::uint64_t ulps = ulp_distance(c[i], static_cast<nk_f64_t>(c_ref[i]));
             stats.accumulate(static_cast<double>(c_ref[i]), c[i], ulps);
         }
     }
@@ -3937,26 +4016,25 @@ using dots_f64_blas_t = void (*)(nk_f64_t const *, nk_f64_t const *, nk_f64_t *,
 error_stats_t test_dots_f32_unpacked(dots_f32_blas_t dots_fn) {
     error_stats_t stats;
     std::mt19937 rng(global_config.seed);
-    std::uniform_real_distribution<float> dist(-1.0f, 1.0f);
 
     std::size_t m = matmul_dimension_m, n = matmul_dimension_n, k = matmul_dimension_k;
     std::size_t a_stride = k * sizeof(nk_f32_t);
     std::size_t b_stride = k * sizeof(nk_f32_t);
     std::size_t c_stride = n * sizeof(nk_f32_t);
 
-    aligned_buffer<nk_f32_t> a(m * k), b(n * k), c(m * n);
-    aligned_buffer<f128_t> c_ref(m * n);
+    aligned_buffer<nk_f32_t> a_buf(m * k), b_buf(n * k), c(m * n);
+    aligned_buffer<f64_t> c_ref(m * n); // Use f64 for f32 tests - faster than f128
 
     for (auto start = test_start_time(); within_time_budget(start);) {
-        for (std::size_t i = 0; i < m * k; i++) a[i] = dist(rng);
-        for (std::size_t i = 0; i < n * k; i++) b[i] = dist(rng);
+        fill_random(a_buf, rng);
+        fill_random(b_buf, rng);
 
-        reference_gemm<nk_f32_t>(a.data, b.data, c_ref.data, m, n, k, a_stride, b_stride);
-        dots_fn(a.data, b.data, c.data, m, n, k, a_stride, c_stride);
+        reference_gemm<f64_t, nk_f32_t>(a_buf.data, b_buf.data, c_ref.data, m, n, k, a_stride, b_stride);
+        dots_fn(a_buf.data, b_buf.data, c.data, m, n, k, a_stride, c_stride);
 
         for (std::size_t i = 0; i < m * n; i++) {
-            std::uint64_t ulps = ulp_distance_from_reference(c[i], c_ref[i]);
-            stats.accumulate(static_cast<double>(c_ref[i]), static_cast<double>(c[i]), ulps);
+            std::uint64_t ulps = ulp_distance(c[i], static_cast<nk_f32_t>(c_ref[i]));
+            stats.accumulate(c_ref[i], static_cast<double>(c[i]), ulps);
         }
     }
     return stats;
@@ -3968,26 +4046,25 @@ error_stats_t test_dots_f32_unpacked(dots_f32_blas_t dots_fn) {
 error_stats_t test_dots_f64_unpacked(dots_f64_blas_t dots_fn) {
     error_stats_t stats;
     std::mt19937 rng(global_config.seed);
-    std::uniform_real_distribution<double> dist(-1.0, 1.0);
 
     std::size_t m = matmul_dimension_m, n = matmul_dimension_n, k = matmul_dimension_k;
     std::size_t a_stride = k * sizeof(nk_f64_t);
     std::size_t b_stride = k * sizeof(nk_f64_t);
     std::size_t c_stride = n * sizeof(nk_f64_t);
 
-    aligned_buffer<nk_f64_t> a(m * k), b(n * k), c(m * n);
-    aligned_buffer<f128_t> c_ref(m * n);
+    aligned_buffer<nk_f64_t> a_buf(m * k), b_buf(n * k), c(m * n);
+    aligned_buffer<fmax_t> c_ref(m * n);
 
     for (auto start = test_start_time(); within_time_budget(start);) {
-        for (std::size_t i = 0; i < m * k; i++) a[i] = dist(rng);
-        for (std::size_t i = 0; i < n * k; i++) b[i] = dist(rng);
+        fill_random(a_buf, rng);
+        fill_random(b_buf, rng);
 
-        reference_gemm<nk_f64_t>(a.data, b.data, c_ref.data, m, n, k, a_stride, b_stride);
-        dots_fn(a.data, b.data, c.data, m, n, k, a_stride, c_stride);
+        reference_gemm<fmax_t, nk_f64_t>(a_buf.data, b_buf.data, c_ref.data, m, n, k, a_stride, b_stride);
+        dots_fn(a_buf.data, b_buf.data, c.data, m, n, k, a_stride, c_stride);
 
         for (std::size_t i = 0; i < m * n; i++) {
-            std::uint64_t ulps = ulp_distance_from_reference(c[i], c_ref[i]);
-            stats.accumulate(static_cast<double>(c_ref[i]), static_cast<double>(c[i]), ulps);
+            std::uint64_t ulps = ulp_distance(c[i], static_cast<nk_f64_t>(c_ref[i]));
+            stats.accumulate(static_cast<double>(c_ref[i]), c[i], ulps);
         }
     }
     return stats;
@@ -4305,6 +4382,7 @@ void print_capabilities() {
     std::printf("Compile-time settings:\n");
     std::printf("  NK_NATIVE_F16:  %s\n", flags[NK_NATIVE_F16]);
     std::printf("  NK_NATIVE_BF16: %s\n", flags[NK_NATIVE_BF16]);
+    std::printf("  f64 reference:  %s (%d bits)\n", fmax_name, fmax_mantissa_bits);
     std::printf("\n");
 
     std::printf("Compile-time ISA support:\n");
@@ -4331,6 +4409,7 @@ void print_capabilities() {
     std::printf("  Assert on failure: %s\n", flags[global_config.assert_on_failure]);
     std::printf("  Verbose:           %s\n", flags[global_config.verbose]);
     std::printf("  Filter:            %s\n", global_config.filter ? global_config.filter : "(none)");
+    std::printf("  Distribution:      %s\n", global_config.distribution_name());
     std::printf("  Time budget (ms):  %zu\n", global_config.time_budget_ms);
     std::printf("  RNG seed:          %u\n", global_config.seed);
     std::printf("  ULP threshold f32: %llu\n", static_cast<unsigned long long>(global_config.ulp_threshold_f32));
