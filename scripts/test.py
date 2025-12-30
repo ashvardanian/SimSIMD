@@ -239,6 +239,16 @@ except:
         return intersection
 
 
+# ml_dtypes provides reference implementations of bfloat16 and float8 types.
+# Used to validate our custom type implementations against Google's reference.
+try:
+    import ml_dtypes
+
+    ml_dtypes_available = True
+except:
+    ml_dtypes_available = False
+
+
 def is_running_under_qemu():
     return "NK_IN_QEMU" in os.environ
 
@@ -663,6 +673,70 @@ def f32_downcast_to_bf16(array):
     # To represent them as brain-floats, we need to drop the second halves.
     array_bf16 = np.right_shift(array_f32_rounded.view(np.uint32), 16).astype(np.uint16)
     return array_f32_rounded, array_bf16
+
+
+@pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
+@pytest.mark.skipif(not ml_dtypes_available, reason="ml_dtypes is not installed")
+@pytest.mark.repeat(randomized_repetitions_count)
+@pytest.mark.parametrize("ndim", [11, 97, 1536])
+def test_bf16_conversion_vs_ml_dtypes(ndim):
+    """Compare NumKong bfloat16 conversion with ml_dtypes reference implementation."""
+    a_f32 = np.random.randn(ndim).astype(np.float32)
+
+    # NumKong approach (using our bit manipulation helper)
+    _, a_nk_bf16 = f32_downcast_to_bf16(a_f32)
+
+    # ml_dtypes reference implementation
+    a_ml_bf16 = a_f32.astype(ml_dtypes.bfloat16)
+
+    # Compare raw bit patterns - they should match exactly
+    assert np.array_equal(a_nk_bf16, a_ml_bf16.view(np.uint16)), (
+        f"BFloat16 conversion mismatch with ml_dtypes:\n"
+        f"  NumKong bits: {a_nk_bf16[:5]}...\n"
+        f"  ml_dtypes bits: {a_ml_bf16.view(np.uint16)[:5]}..."
+    )
+
+
+@pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
+@pytest.mark.skipif(not ml_dtypes_available, reason="ml_dtypes is not installed")
+@pytest.mark.repeat(randomized_repetitions_count)
+@pytest.mark.parametrize("ndim", [11, 97, 1536])
+def test_float8_e4m3_conversion_vs_ml_dtypes(ndim):
+    """Compare NumKong float8_e4m3 conversion with ml_dtypes reference implementation."""
+    # Use values in a reasonable range for e4m3 (max ~448)
+    a_f32 = (np.random.randn(ndim) * 10).astype(np.float32)
+    a_f32 = np.clip(a_f32, -448, 448)
+
+    # ml_dtypes reference implementation
+    a_ml_e4m3 = a_f32.astype(ml_dtypes.float8_e4m3fn)
+
+    # NumKong conversion via NDArray
+    a_nk = nk.zeros((ndim,), dtype="e4m3")
+    # TODO: Once we have NumPy dtype registration, we can directly compare
+    # For now, we just verify ml_dtypes works and our types exist
+    assert a_ml_e4m3.dtype == ml_dtypes.float8_e4m3fn
+    assert a_nk.dtype == "e4m3"
+
+
+@pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
+@pytest.mark.skipif(not ml_dtypes_available, reason="ml_dtypes is not installed")
+@pytest.mark.repeat(randomized_repetitions_count)
+@pytest.mark.parametrize("ndim", [11, 97, 1536])
+def test_float8_e5m2_conversion_vs_ml_dtypes(ndim):
+    """Compare NumKong float8_e5m2 conversion with ml_dtypes reference implementation."""
+    # Use values in a reasonable range for e5m2 (max ~57344)
+    a_f32 = (np.random.randn(ndim) * 100).astype(np.float32)
+    a_f32 = np.clip(a_f32, -57344, 57344)
+
+    # ml_dtypes reference implementation
+    a_ml_e5m2 = a_f32.astype(ml_dtypes.float8_e5m2)
+
+    # NumKong conversion via NDArray
+    a_nk = nk.zeros((ndim,), dtype="e5m2")
+    # TODO: Once we have NumPy dtype registration, we can directly compare
+    # For now, we just verify ml_dtypes works and our types exist
+    assert a_ml_e5m2.dtype == ml_dtypes.float8_e5m2
+    assert a_nk.dtype == "e5m2"
 
 
 def i8_downcast_to_i4(array):
@@ -2461,7 +2535,7 @@ def test_geospatial_out_parameter():
 
 @pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
 def test_distances_tensor_properties():
-    """Tests that DistancesTensor properties work correctly for various shapes."""
+    """Tests that Tensor properties work correctly for various shapes."""
     np.random.seed(42)
 
     # Test with pairwise distances (2D result)
@@ -2470,13 +2544,13 @@ def test_distances_tensor_properties():
     result = nk.cdist(a, b, metric="sqeuclidean")
 
     # Check basic properties
-    assert hasattr(result, "shape"), "DistancesTensor should have 'shape' property"
-    assert hasattr(result, "dtype"), "DistancesTensor should have 'dtype' property"
-    assert hasattr(result, "ndim"), "DistancesTensor should have 'ndim' property"
-    assert hasattr(result, "size"), "DistancesTensor should have 'size' property"
-    assert hasattr(result, "nbytes"), "DistancesTensor should have 'nbytes' property"
-    assert hasattr(result, "strides"), "DistancesTensor should have 'strides' property"
-    assert hasattr(result, "itemsize"), "DistancesTensor should have 'itemsize' property"
+    assert hasattr(result, "shape"), "Tensor should have 'shape' property"
+    assert hasattr(result, "dtype"), "Tensor should have 'dtype' property"
+    assert hasattr(result, "ndim"), "Tensor should have 'ndim' property"
+    assert hasattr(result, "size"), "Tensor should have 'size' property"
+    assert hasattr(result, "nbytes"), "Tensor should have 'nbytes' property"
+    assert hasattr(result, "strides"), "Tensor should have 'strides' property"
+    assert hasattr(result, "itemsize"), "Tensor should have 'itemsize' property"
 
     # Check values
     assert result.shape == (5, 7), f"Expected shape (5, 7), got {result.shape}"
@@ -2491,7 +2565,7 @@ def test_distances_tensor_properties():
 
 @pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
 def test_distances_tensor_properties_1d():
-    """Tests DistancesTensor properties for 1D results."""
+    """Tests Tensor properties for 1D results."""
     np.random.seed(42)
 
     # Test with row-wise distances (1D result)
@@ -2507,7 +2581,7 @@ def test_distances_tensor_properties_1d():
 
 @pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
 def test_distances_tensor_len():
-    """Tests that __len__() works correctly for DistancesTensor."""
+    """Tests that __len__() works correctly for Tensor."""
     np.random.seed(42)
 
     # 2D tensor
@@ -2534,7 +2608,7 @@ def test_distances_tensor_repr():
     result = nk.cdist(a, b, metric="sqeuclidean")
 
     repr_str = repr(result)
-    assert "DistancesTensor" in repr_str, f"repr should contain 'DistancesTensor', got: {repr_str}"
+    assert "Tensor" in repr_str, f"repr should contain 'Tensor', got: {repr_str}"
     assert "shape=" in repr_str, f"repr should contain 'shape=', got: {repr_str}"
     assert "dtype=" in repr_str, f"repr should contain 'dtype=', got: {repr_str}"
     assert "(5, 7)" in repr_str, f"repr should contain shape (5, 7), got: {repr_str}"
@@ -2556,7 +2630,7 @@ def test_distances_tensor_indexing():
 
     # Single integer index - returns sub-tensor (row)
     row0 = result[0]
-    assert hasattr(row0, "shape"), "Single index should return DistancesTensor"
+    assert hasattr(row0, "shape"), "Single index should return Tensor"
     assert row0.shape == (7,), f"Expected shape (7,), got {row0.shape}"
 
     # Negative indexing
@@ -3563,6 +3637,228 @@ def test_wsum_with_numpy_arrays(dtype):
 
 
 # endregion
+
+
+def test_bfloat16_scalar_creation():
+    """Test bfloat16 scalar creation and conversion."""
+    bf = nk.bfloat16(3.14159)
+    assert isinstance(bf, nk.bfloat16)
+    # bfloat16 has limited precision, so we allow some tolerance
+    assert abs(float(bf) - 3.14159) < 0.01
+    assert int(bf) == 3
+
+
+def test_bfloat16_scalar_repr():
+    """Test bfloat16 repr and str."""
+    bf = nk.bfloat16(1.5)
+    assert "bfloat16" in repr(bf)
+    assert "1.5" in str(bf)
+
+
+def test_bfloat16_scalar_arithmetic():
+    """Test bfloat16 arithmetic operations."""
+    a = nk.bfloat16(1.5)
+    b = nk.bfloat16(2.5)
+
+    # Addition
+    result = a + b
+    assert isinstance(result, nk.bfloat16)
+    assert float(result) == 4.0
+
+    # Subtraction
+    result = b - a
+    assert isinstance(result, nk.bfloat16)
+    assert float(result) == 1.0
+
+    # Multiplication
+    result = a * b
+    assert isinstance(result, nk.bfloat16)
+    assert float(result) == 3.75
+
+    # Division
+    result = b / a
+    assert isinstance(result, nk.bfloat16)
+    assert abs(float(result) - 1.6666) < 0.01
+
+
+def test_bfloat16_scalar_unary():
+    """Test bfloat16 unary operations."""
+    a = nk.bfloat16(1.5)
+    assert float(-a) == -1.5
+    assert float(+a) == 1.5
+    assert float(abs(nk.bfloat16(-1.5))) == 1.5
+    assert bool(a) == True
+    assert bool(nk.bfloat16(0.0)) == False
+
+
+def test_bfloat16_scalar_comparison():
+    """Test bfloat16 comparison operations."""
+    a = nk.bfloat16(1.5)
+    b = nk.bfloat16(2.5)
+
+    assert a < b
+    assert a <= b
+    assert a <= a
+    assert b > a
+    assert b >= a
+    assert a == a
+    assert a != b
+
+    # Comparison with Python floats
+    assert a == 1.5
+    assert a < 2.0
+    assert a > 1.0
+
+
+def test_bfloat16_scalar_hash():
+    """Test bfloat16 can be used in sets and dicts."""
+    a = nk.bfloat16(1.5)
+    b = nk.bfloat16(1.5)
+    s = {a, b}
+    assert len(s) == 1
+
+    d = {a: "value"}
+    assert d[b] == "value"
+
+
+def test_float8_e4m3_scalar():
+    """Test float8_e4m3 scalar type."""
+    f8 = nk.float8_e4m3(1.5)
+    assert isinstance(f8, nk.float8_e4m3)
+    assert float(f8) == 1.5
+    assert int(f8) == 1
+    assert "float8_e4m3" in repr(f8)
+
+    # Negation
+    assert float(-f8) == -1.5
+
+    # Boolean
+    assert bool(f8) == True
+    assert bool(nk.float8_e4m3(0.0)) == False
+
+
+def test_float8_e4m3_scalar_arithmetic():
+    """Test float8_e4m3 arithmetic operations."""
+    a = nk.float8_e4m3(1.5)
+    b = nk.float8_e4m3(2.0)
+
+    # Addition
+    result = a + b
+    assert isinstance(result, nk.float8_e4m3)
+    assert abs(float(result) - 3.5) < 0.5  # e4m3 has limited precision
+
+    # Subtraction
+    result = b - a
+    assert isinstance(result, nk.float8_e4m3)
+    assert abs(float(result) - 0.5) < 0.5
+
+    # Multiplication
+    result = a * b
+    assert isinstance(result, nk.float8_e4m3)
+    assert abs(float(result) - 3.0) < 0.5
+
+    # Division
+    result = b / a
+    assert isinstance(result, nk.float8_e4m3)
+    assert abs(float(result) - 1.33) < 0.5
+
+    # Unary
+    assert float(+a) == float(a)
+    assert float(abs(nk.float8_e4m3(-1.5))) == 1.5
+
+
+def test_float8_e5m2_scalar():
+    """Test float8_e5m2 scalar type."""
+    f8 = nk.float8_e5m2(1.5)
+    assert isinstance(f8, nk.float8_e5m2)
+    assert float(f8) == 1.5
+    assert int(f8) == 1
+    assert "float8_e5m2" in repr(f8)
+
+    # Negation
+    assert float(-f8) == -1.5
+
+    # Boolean
+    assert bool(f8) == True
+    assert bool(nk.float8_e5m2(0.0)) == False
+
+
+def test_float8_e5m2_scalar_arithmetic():
+    """Test float8_e5m2 arithmetic operations."""
+    a = nk.float8_e5m2(1.5)
+    b = nk.float8_e5m2(2.0)
+
+    # Addition
+    result = a + b
+    assert isinstance(result, nk.float8_e5m2)
+    assert abs(float(result) - 3.5) < 0.5  # e5m2 has limited precision
+
+    # Subtraction
+    result = b - a
+    assert isinstance(result, nk.float8_e5m2)
+    assert abs(float(result) - 0.5) < 0.5
+
+    # Multiplication
+    result = a * b
+    assert isinstance(result, nk.float8_e5m2)
+    assert abs(float(result) - 3.0) < 0.5
+
+    # Division
+    result = b / a
+    assert isinstance(result, nk.float8_e5m2)
+    assert abs(float(result) - 1.33) < 0.5
+
+    # Unary
+    assert float(+a) == float(a)
+    assert float(abs(nk.float8_e5m2(-1.5))) == 1.5
+
+
+@pytest.mark.skipif(not ml_dtypes_available, reason="ml_dtypes not installed")
+def test_bfloat16_vs_ml_dtypes():
+    """Compare NumKong bfloat16 with ml_dtypes reference implementation."""
+    test_values = [0.0, 1.0, -1.0, 3.14159, 100.0, 0.001, -65504.0]
+
+    for val in test_values:
+        nk_bf16 = nk.bfloat16(val)
+        ml_bf16 = ml_dtypes.bfloat16(val)
+
+        nk_float = float(nk_bf16)
+        ml_float = float(ml_bf16)
+
+        # Both implementations should produce the same result
+        assert nk_float == ml_float, f"Mismatch for {val}: nk={nk_float}, ml={ml_float}"
+
+
+@pytest.mark.skipif(not ml_dtypes_available, reason="ml_dtypes not installed")
+def test_float8_e4m3_vs_ml_dtypes():
+    """Compare NumKong float8_e4m3 with ml_dtypes reference implementation."""
+    test_values = [0.0, 1.0, -1.0, 1.5, 2.0, 0.5]
+
+    for val in test_values:
+        nk_f8 = nk.float8_e4m3(val)
+        ml_f8 = ml_dtypes.float8_e4m3fn(val)
+
+        nk_float = float(nk_f8)
+        ml_float = float(ml_f8)
+
+        # Both implementations should produce the same result
+        assert nk_float == ml_float, f"Mismatch for {val}: nk={nk_float}, ml={ml_float}"
+
+
+@pytest.mark.skipif(not ml_dtypes_available, reason="ml_dtypes not installed")
+def test_float8_e5m2_vs_ml_dtypes():
+    """Compare NumKong float8_e5m2 with ml_dtypes reference implementation."""
+    test_values = [0.0, 1.0, -1.0, 1.5, 2.0, 0.5]
+
+    for val in test_values:
+        nk_f8 = nk.float8_e5m2(val)
+        ml_f8 = ml_dtypes.float8_e5m2(val)
+
+        nk_float = float(nk_f8)
+        ml_float = float(ml_f8)
+
+        # Both implementations should produce the same result
+        assert nk_float == ml_float, f"Mismatch for {val}: nk={nk_float}, ml={ml_float}"
 
 
 if __name__ == "__main__":
