@@ -670,19 +670,41 @@ NK_PUBLIC void nk_reduce_add_f32_skylake(                          //
 NK_INTERNAL void nk_reduce_add_f64_skylake_contiguous_( //
     nk_f64_t const *data, nk_size_t count, nk_f64_t *result) {
     __m512d sum_f64x8 = _mm512_setzero_pd();
+    __m512d compensation_f64x8 = _mm512_setzero_pd();
+    __m512d absolute_mask_f64x8 = _mm512_castsi512_pd(_mm512_set1_epi64(0x7FFFFFFFFFFFFFFF));
     nk_size_t idx_scalars = 0;
     for (; idx_scalars + 8 <= count; idx_scalars += 8) {
-        __m512d data_f64x8 = _mm512_loadu_pd(data + idx_scalars);
-        sum_f64x8 = _mm512_add_pd(sum_f64x8, data_f64x8);
+        __m512d term_f64x8 = _mm512_loadu_pd(data + idx_scalars);
+        __m512d tentative_f64x8 = _mm512_add_pd(sum_f64x8, term_f64x8);
+        __m512d absolute_sum_f64x8 = _mm512_and_pd(sum_f64x8, absolute_mask_f64x8);
+        __m512d absolute_term_f64x8 = _mm512_and_pd(term_f64x8, absolute_mask_f64x8);
+        __mmask8 term_bigger_m8 = _mm512_cmp_pd_mask(absolute_term_f64x8, absolute_sum_f64x8, _CMP_GT_OQ);
+        // Default: (sum - tentative) + term; where term bigger: (term - tentative) + sum
+        __m512d difference_f64x8 = _mm512_sub_pd(sum_f64x8, tentative_f64x8);
+        __m512d correction_f64x8 = _mm512_add_pd(difference_f64x8, term_f64x8);
+        difference_f64x8 = _mm512_mask_sub_pd(difference_f64x8, term_bigger_m8, term_f64x8, tentative_f64x8);
+        correction_f64x8 = _mm512_mask_add_pd(correction_f64x8, term_bigger_m8, difference_f64x8, sum_f64x8);
+        compensation_f64x8 = _mm512_add_pd(compensation_f64x8, correction_f64x8);
+        sum_f64x8 = tentative_f64x8;
     }
-    // Handle tail with masked load
+    // Handle tail with masked load + Neumaier (zeros in invalid lanes produce zero corrections)
     nk_size_t remaining = count - idx_scalars;
     if (remaining > 0) {
-        __mmask8 tail_mask = (__mmask8)_bzhi_u32(0xFF, (unsigned int)remaining);
-        __m512d tail_f64x8 = _mm512_maskz_loadu_pd(tail_mask, data + idx_scalars);
-        sum_f64x8 = _mm512_add_pd(sum_f64x8, tail_f64x8);
+        __mmask8 tail_mask_m8 = (__mmask8)_bzhi_u32(0xFF, (unsigned int)remaining);
+        __m512d term_f64x8 = _mm512_maskz_loadu_pd(tail_mask_m8, data + idx_scalars);
+        __m512d tentative_f64x8 = _mm512_add_pd(sum_f64x8, term_f64x8);
+        __m512d absolute_sum_f64x8 = _mm512_and_pd(sum_f64x8, absolute_mask_f64x8);
+        __m512d absolute_term_f64x8 = _mm512_and_pd(term_f64x8, absolute_mask_f64x8);
+        __mmask8 term_bigger_m8 = _mm512_cmp_pd_mask(absolute_term_f64x8, absolute_sum_f64x8, _CMP_GT_OQ);
+        __m512d difference_f64x8 = _mm512_sub_pd(sum_f64x8, tentative_f64x8);
+        __m512d correction_f64x8 = _mm512_add_pd(difference_f64x8, term_f64x8);
+        difference_f64x8 = _mm512_mask_sub_pd(difference_f64x8, term_bigger_m8, term_f64x8, tentative_f64x8);
+        correction_f64x8 = _mm512_mask_add_pd(correction_f64x8, term_bigger_m8, difference_f64x8, sum_f64x8);
+        compensation_f64x8 = _mm512_add_pd(compensation_f64x8, correction_f64x8);
+        sum_f64x8 = tentative_f64x8;
     }
-    *result = nk_reduce_add_f64x8_skylake_(sum_f64x8);
+    __m512d total_f64x8 = _mm512_add_pd(sum_f64x8, compensation_f64x8);
+    *result = nk_reduce_add_f64x8_skylake_(total_f64x8);
 }
 
 NK_INTERNAL void nk_reduce_add_f64_skylake_gather_(                //
@@ -692,39 +714,76 @@ NK_INTERNAL void nk_reduce_add_f64_skylake_gather_(                //
     __m256i indices_i32x8 = _mm256_mullo_epi32(_mm256_setr_epi32(0, 1, 2, 3, 4, 5, 6, 7),
                                                _mm256_set1_epi32(stride_elements));
     __m512d sum_f64x8 = _mm512_setzero_pd();
+    __m512d compensation_f64x8 = _mm512_setzero_pd();
+    __m512d absolute_mask_f64x8 = _mm512_castsi512_pd(_mm512_set1_epi64(0x7FFFFFFFFFFFFFFF));
     nk_size_t idx_scalars = 0;
     for (; idx_scalars + 8 <= count; idx_scalars += 8) {
-        __m512d gathered_f64x8 = _mm512_i32gather_pd(indices_i32x8, data + idx_scalars * stride_elements,
-                                                     sizeof(nk_f64_t));
-        sum_f64x8 = _mm512_add_pd(sum_f64x8, gathered_f64x8);
+        __m512d term_f64x8 = _mm512_i32gather_pd(indices_i32x8, data + idx_scalars * stride_elements, sizeof(nk_f64_t));
+        __m512d tentative_f64x8 = _mm512_add_pd(sum_f64x8, term_f64x8);
+        __m512d absolute_sum_f64x8 = _mm512_and_pd(sum_f64x8, absolute_mask_f64x8);
+        __m512d absolute_term_f64x8 = _mm512_and_pd(term_f64x8, absolute_mask_f64x8);
+        __mmask8 term_bigger_m8 = _mm512_cmp_pd_mask(absolute_term_f64x8, absolute_sum_f64x8, _CMP_GT_OQ);
+        __m512d difference_f64x8 = _mm512_sub_pd(sum_f64x8, tentative_f64x8);
+        __m512d correction_f64x8 = _mm512_add_pd(difference_f64x8, term_f64x8);
+        difference_f64x8 = _mm512_mask_sub_pd(difference_f64x8, term_bigger_m8, term_f64x8, tentative_f64x8);
+        correction_f64x8 = _mm512_mask_add_pd(correction_f64x8, term_bigger_m8, difference_f64x8, sum_f64x8);
+        compensation_f64x8 = _mm512_add_pd(compensation_f64x8, correction_f64x8);
+        sum_f64x8 = tentative_f64x8;
     }
-    nk_f64_t sum = nk_reduce_add_f64x8_skylake_(sum_f64x8);
+    __m512d total_f64x8 = _mm512_add_pd(sum_f64x8, compensation_f64x8);
+    nk_f64_t sum = nk_reduce_add_f64x8_skylake_(total_f64x8);
+    nk_f64_t compensation = 0;
     unsigned char const *ptr = (unsigned char const *)(data + idx_scalars * stride_elements);
-    for (; idx_scalars < count; ++idx_scalars, ptr += stride_bytes) sum += *(nk_f64_t const *)ptr;
-    *result = sum;
+    for (; idx_scalars < count; ++idx_scalars, ptr += stride_bytes) {
+        nk_f64_t term = *(nk_f64_t const *)ptr, tentative = sum + term;
+        compensation += (nk_abs_f64(sum) >= nk_abs_f64(term)) ? ((sum - tentative) + term) : ((term - tentative) + sum);
+        sum = tentative;
+    }
+    *result = sum + compensation;
 }
 
 NK_INTERNAL void nk_reduce_add_f64_skylake_strided_(                  //
     nk_f64_t const *data, nk_size_t count, nk_size_t stride_elements, //
     nk_f64_t *result) {
-    // Masked load zeros out non-stride elements; zeros don't affect the sum
+    // Masked load zeros out non-stride elements; zeros produce zero corrections
     __mmask8 stride_mask_m8 = nk_stride_mask_b64x8_(stride_elements);
     __m512d sum_f64x8 = _mm512_setzero_pd();
+    __m512d compensation_f64x8 = _mm512_setzero_pd();
+    __m512d absolute_mask_f64x8 = _mm512_castsi512_pd(_mm512_set1_epi64(0x7FFFFFFFFFFFFFFF));
     nk_size_t idx_scalars = 0;
     nk_size_t total_scalars = count * stride_elements;
     for (; idx_scalars + 8 <= total_scalars; idx_scalars += 8) {
-        __m512d data_f64x8 = _mm512_maskz_loadu_pd(stride_mask_m8, data + idx_scalars);
-        sum_f64x8 = _mm512_add_pd(sum_f64x8, data_f64x8);
+        __m512d term_f64x8 = _mm512_maskz_loadu_pd(stride_mask_m8, data + idx_scalars);
+        __m512d tentative_f64x8 = _mm512_add_pd(sum_f64x8, term_f64x8);
+        __m512d absolute_sum_f64x8 = _mm512_and_pd(sum_f64x8, absolute_mask_f64x8);
+        __m512d absolute_term_f64x8 = _mm512_and_pd(term_f64x8, absolute_mask_f64x8);
+        __mmask8 term_bigger_m8 = _mm512_cmp_pd_mask(absolute_term_f64x8, absolute_sum_f64x8, _CMP_GT_OQ);
+        __m512d difference_f64x8 = _mm512_sub_pd(sum_f64x8, tentative_f64x8);
+        __m512d correction_f64x8 = _mm512_add_pd(difference_f64x8, term_f64x8);
+        difference_f64x8 = _mm512_mask_sub_pd(difference_f64x8, term_bigger_m8, term_f64x8, tentative_f64x8);
+        correction_f64x8 = _mm512_mask_add_pd(correction_f64x8, term_bigger_m8, difference_f64x8, sum_f64x8);
+        compensation_f64x8 = _mm512_add_pd(compensation_f64x8, correction_f64x8);
+        sum_f64x8 = tentative_f64x8;
     }
     // Masked tail: combine stride mask with tail mask
     nk_size_t remaining = total_scalars - idx_scalars;
     if (remaining > 0) {
         __mmask8 tail_mask_m8 = (__mmask8)_bzhi_u32(0xFF, (unsigned int)remaining);
         __mmask8 load_mask_m8 = stride_mask_m8 & tail_mask_m8;
-        __m512d data_f64x8 = _mm512_maskz_loadu_pd(load_mask_m8, data + idx_scalars);
-        sum_f64x8 = _mm512_add_pd(sum_f64x8, data_f64x8);
+        __m512d term_f64x8 = _mm512_maskz_loadu_pd(load_mask_m8, data + idx_scalars);
+        __m512d tentative_f64x8 = _mm512_add_pd(sum_f64x8, term_f64x8);
+        __m512d absolute_sum_f64x8 = _mm512_and_pd(sum_f64x8, absolute_mask_f64x8);
+        __m512d absolute_term_f64x8 = _mm512_and_pd(term_f64x8, absolute_mask_f64x8);
+        __mmask8 term_bigger_m8 = _mm512_cmp_pd_mask(absolute_term_f64x8, absolute_sum_f64x8, _CMP_GT_OQ);
+        __m512d difference_f64x8 = _mm512_sub_pd(sum_f64x8, tentative_f64x8);
+        __m512d correction_f64x8 = _mm512_add_pd(difference_f64x8, term_f64x8);
+        difference_f64x8 = _mm512_mask_sub_pd(difference_f64x8, term_bigger_m8, term_f64x8, tentative_f64x8);
+        correction_f64x8 = _mm512_mask_add_pd(correction_f64x8, term_bigger_m8, difference_f64x8, sum_f64x8);
+        compensation_f64x8 = _mm512_add_pd(compensation_f64x8, correction_f64x8);
+        sum_f64x8 = tentative_f64x8;
     }
-    *result = nk_reduce_add_f64x8_skylake_(sum_f64x8);
+    __m512d total_f64x8 = _mm512_add_pd(sum_f64x8, compensation_f64x8);
+    *result = nk_reduce_add_f64x8_skylake_(total_f64x8);
 }
 
 NK_PUBLIC void nk_reduce_add_f64_skylake(                          //

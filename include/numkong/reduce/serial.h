@@ -25,10 +25,14 @@ NK_PUBLIC void nk_reduce_add_f32_serial(                           //
 NK_PUBLIC void nk_reduce_add_f64_serial(                           //
     nk_f64_t const *data, nk_size_t count, nk_size_t stride_bytes, //
     nk_f64_t *result) {
-    nk_f64_t sum = 0;
+    nk_f64_t sum = 0, compensation = 0;
     unsigned char const *ptr = (unsigned char const *)data;
-    for (nk_size_t i = 0; i < count; ++i, ptr += stride_bytes) sum += *(nk_f64_t const *)ptr;
-    *result = sum;
+    for (nk_size_t i = 0; i < count; ++i, ptr += stride_bytes) {
+        nk_f64_t term = *(nk_f64_t const *)ptr, tentative = sum + term;
+        compensation += (nk_abs_f64(sum) >= nk_abs_f64(term)) ? ((sum - tentative) + term) : ((term - tentative) + sum);
+        sum = tentative;
+    }
+    *result = sum + compensation;
 }
 
 NK_PUBLIC void nk_reduce_add_i8_serial(                           //

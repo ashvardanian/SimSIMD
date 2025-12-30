@@ -685,14 +685,31 @@ NK_PUBLIC void nk_reduce_add_f32_haswell(                          //
 NK_INTERNAL void nk_reduce_add_f64_haswell_contiguous_( //
     nk_f64_t const *data, nk_size_t count, nk_f64_t *result) {
     __m256d sum_f64x4 = _mm256_setzero_pd();
+    __m256d compensation_f64x4 = _mm256_setzero_pd();
+    __m256d absolute_mask_f64x4 = _mm256_castsi256_pd(_mm256_set1_epi64x(0x7FFFFFFFFFFFFFFF));
     nk_size_t idx_scalars = 0;
     for (; idx_scalars + 4 <= count; idx_scalars += 4) {
-        __m256d data_f64x4 = _mm256_loadu_pd(data + idx_scalars);
-        sum_f64x4 = _mm256_add_pd(sum_f64x4, data_f64x4);
+        __m256d term_f64x4 = _mm256_loadu_pd(data + idx_scalars);
+        __m256d tentative_f64x4 = _mm256_add_pd(sum_f64x4, term_f64x4);
+        __m256d absolute_sum_f64x4 = _mm256_and_pd(sum_f64x4, absolute_mask_f64x4);
+        __m256d absolute_term_f64x4 = _mm256_and_pd(term_f64x4, absolute_mask_f64x4);
+        __m256d sum_bigger_f64x4 = _mm256_cmp_pd(absolute_sum_f64x4, absolute_term_f64x4, _CMP_GE_OQ);
+        __m256d correction_sum_bigger_f64x4 = _mm256_add_pd(_mm256_sub_pd(sum_f64x4, tentative_f64x4), term_f64x4);
+        __m256d correction_term_bigger_f64x4 = _mm256_add_pd(_mm256_sub_pd(term_f64x4, tentative_f64x4), sum_f64x4);
+        __m256d correction_f64x4 = _mm256_blendv_pd(correction_term_bigger_f64x4, correction_sum_bigger_f64x4,
+                                                    sum_bigger_f64x4);
+        compensation_f64x4 = _mm256_add_pd(compensation_f64x4, correction_f64x4);
+        sum_f64x4 = tentative_f64x4;
     }
-    nk_f64_t sum = nk_reduce_add_f64x4_haswell_(sum_f64x4);
-    for (; idx_scalars < count; ++idx_scalars) sum += data[idx_scalars];
-    *result = sum;
+    __m256d total_f64x4 = _mm256_add_pd(sum_f64x4, compensation_f64x4);
+    nk_f64_t sum = nk_reduce_add_f64x4_haswell_(total_f64x4);
+    nk_f64_t compensation = 0;
+    for (; idx_scalars < count; ++idx_scalars) {
+        nk_f64_t term = data[idx_scalars], tentative = sum + term;
+        compensation += (nk_abs_f64(sum) >= nk_abs_f64(term)) ? ((sum - tentative) + term) : ((term - tentative) + sum);
+        sum = tentative;
+    }
+    *result = sum + compensation;
 }
 
 NK_INTERNAL void nk_reduce_add_f64_haswell_strided_(                  //
@@ -702,22 +719,39 @@ NK_INTERNAL void nk_reduce_add_f64_haswell_strided_(                  //
     __m256i blend_mask_i64x4 = nk_stride_blend_b64x4_(stride_elements);
     __m256d zero_f64x4 = _mm256_setzero_pd();
     __m256d sum_f64x4 = _mm256_setzero_pd();
+    __m256d compensation_f64x4 = _mm256_setzero_pd();
+    __m256d absolute_mask_f64x4 = _mm256_castsi256_pd(_mm256_set1_epi64x(0x7FFFFFFFFFFFFFFF));
     nk_size_t idx_scalars = 0;
     nk_size_t total_scalars = count * stride_elements;
 
     for (; idx_scalars + 4 <= total_scalars; idx_scalars += 4) {
         __m256d data_f64x4 = _mm256_loadu_pd(data + idx_scalars);
         // Blend: keep stride elements, replace others with zero
-        __m256d masked_f64x4 = _mm256_blendv_pd(zero_f64x4, data_f64x4, _mm256_castsi256_pd(blend_mask_i64x4));
-        sum_f64x4 = _mm256_add_pd(sum_f64x4, masked_f64x4);
+        __m256d term_f64x4 = _mm256_blendv_pd(zero_f64x4, data_f64x4, _mm256_castsi256_pd(blend_mask_i64x4));
+        __m256d tentative_f64x4 = _mm256_add_pd(sum_f64x4, term_f64x4);
+        __m256d absolute_sum_f64x4 = _mm256_and_pd(sum_f64x4, absolute_mask_f64x4);
+        __m256d absolute_term_f64x4 = _mm256_and_pd(term_f64x4, absolute_mask_f64x4);
+        __m256d sum_bigger_f64x4 = _mm256_cmp_pd(absolute_sum_f64x4, absolute_term_f64x4, _CMP_GE_OQ);
+        __m256d correction_sum_bigger_f64x4 = _mm256_add_pd(_mm256_sub_pd(sum_f64x4, tentative_f64x4), term_f64x4);
+        __m256d correction_term_bigger_f64x4 = _mm256_add_pd(_mm256_sub_pd(term_f64x4, tentative_f64x4), sum_f64x4);
+        __m256d correction_f64x4 = _mm256_blendv_pd(correction_term_bigger_f64x4, correction_sum_bigger_f64x4,
+                                                    sum_bigger_f64x4);
+        compensation_f64x4 = _mm256_add_pd(compensation_f64x4, correction_f64x4);
+        sum_f64x4 = tentative_f64x4;
     }
 
-    // Scalar tail
-    nk_f64_t sum = nk_reduce_add_f64x4_haswell_(sum_f64x4);
+    // Scalar tail with Neumaier
+    __m256d total_f64x4 = _mm256_add_pd(sum_f64x4, compensation_f64x4);
+    nk_f64_t sum = nk_reduce_add_f64x4_haswell_(total_f64x4);
+    nk_f64_t compensation = 0;
     nk_f64_t const *ptr = data + idx_scalars;
     nk_size_t remaining = count - idx_scalars / stride_elements;
-    for (nk_size_t i = 0; i < remaining; ++i, ptr += stride_elements) sum += *ptr;
-    *result = sum;
+    for (nk_size_t i = 0; i < remaining; ++i, ptr += stride_elements) {
+        nk_f64_t term = *ptr, tentative = sum + term;
+        compensation += (nk_abs_f64(sum) >= nk_abs_f64(term)) ? ((sum - tentative) + term) : ((term - tentative) + sum);
+        sum = tentative;
+    }
+    *result = sum + compensation;
 }
 
 NK_PUBLIC void nk_reduce_add_f64_haswell(                          //

@@ -378,14 +378,30 @@ NK_PUBLIC void nk_reduce_add_f32_neon(                             //
 NK_INTERNAL void nk_reduce_add_f64_neon_contiguous_( //
     nk_f64_t const *data, nk_size_t count, nk_f64_t *result) {
     float64x2_t sum_f64x2 = vdupq_n_f64(0);
+    float64x2_t compensation_f64x2 = vdupq_n_f64(0);
     nk_size_t idx_scalars = 0;
     for (; idx_scalars + 2 <= count; idx_scalars += 2) {
-        float64x2_t data_f64x2 = vld1q_f64(data + idx_scalars);
-        sum_f64x2 = vaddq_f64(sum_f64x2, data_f64x2);
+        float64x2_t term_f64x2 = vld1q_f64(data + idx_scalars);
+        float64x2_t tentative_f64x2 = vaddq_f64(sum_f64x2, term_f64x2);
+        float64x2_t absolute_sum_f64x2 = vabsq_f64(sum_f64x2);
+        float64x2_t absolute_term_f64x2 = vabsq_f64(term_f64x2);
+        uint64x2_t sum_bigger_u64x2 = vcgeq_f64(absolute_sum_f64x2, absolute_term_f64x2);
+        float64x2_t correction_sum_bigger_f64x2 = vaddq_f64(vsubq_f64(sum_f64x2, tentative_f64x2), term_f64x2);
+        float64x2_t correction_term_bigger_f64x2 = vaddq_f64(vsubq_f64(term_f64x2, tentative_f64x2), sum_f64x2);
+        float64x2_t correction_f64x2 = vbslq_f64(sum_bigger_u64x2, correction_sum_bigger_f64x2,
+                                                 correction_term_bigger_f64x2);
+        compensation_f64x2 = vaddq_f64(compensation_f64x2, correction_f64x2);
+        sum_f64x2 = tentative_f64x2;
     }
-    nk_f64_t sum = nk_reduce_add_f64x2_neon_(sum_f64x2);
-    for (; idx_scalars < count; ++idx_scalars) sum += data[idx_scalars];
-    *result = sum;
+    float64x2_t total_f64x2 = vaddq_f64(sum_f64x2, compensation_f64x2);
+    nk_f64_t sum = nk_reduce_add_f64x2_neon_(total_f64x2);
+    nk_f64_t compensation = 0;
+    for (; idx_scalars < count; ++idx_scalars) {
+        nk_f64_t term = data[idx_scalars], tentative = sum + term;
+        compensation += (nk_abs_f64(sum) >= nk_abs_f64(term)) ? ((sum - tentative) + term) : ((term - tentative) + sum);
+        sum = tentative;
+    }
+    *result = sum + compensation;
 }
 
 NK_INTERNAL void nk_reduce_add_f64_neon_strided_(                     //
@@ -394,34 +410,68 @@ NK_INTERNAL void nk_reduce_add_f64_neon_strided_(                     //
     // ARM NEON has native structure load instructions for strides 2, 3, and 4.
     // For f64, each 128-bit register holds only 2 doubles.
     float64x2_t sum_f64x2 = vdupq_n_f64(0);
+    float64x2_t compensation_f64x2 = vdupq_n_f64(0);
     nk_size_t idx_logical = 0;
 
     if (stride_elements == 2) {
-        // vld2q_f64 loads 4 doubles (2 pairs) and de-interleaves into two float64x2_t
         for (; idx_logical + 2 <= count; idx_logical += 2) {
             float64x2x2_t data_f64x2x2 = vld2q_f64(data + idx_logical * 2);
-            sum_f64x2 = vaddq_f64(sum_f64x2, data_f64x2x2.val[0]); // Every 2nd element
+            float64x2_t term_f64x2 = data_f64x2x2.val[0];
+            float64x2_t tentative_f64x2 = vaddq_f64(sum_f64x2, term_f64x2);
+            float64x2_t absolute_sum_f64x2 = vabsq_f64(sum_f64x2);
+            float64x2_t absolute_term_f64x2 = vabsq_f64(term_f64x2);
+            uint64x2_t sum_bigger_u64x2 = vcgeq_f64(absolute_sum_f64x2, absolute_term_f64x2);
+            float64x2_t correction_sum_bigger_f64x2 = vaddq_f64(vsubq_f64(sum_f64x2, tentative_f64x2), term_f64x2);
+            float64x2_t correction_term_bigger_f64x2 = vaddq_f64(vsubq_f64(term_f64x2, tentative_f64x2), sum_f64x2);
+            float64x2_t correction_f64x2 = vbslq_f64(sum_bigger_u64x2, correction_sum_bigger_f64x2,
+                                                     correction_term_bigger_f64x2);
+            compensation_f64x2 = vaddq_f64(compensation_f64x2, correction_f64x2);
+            sum_f64x2 = tentative_f64x2;
         }
     }
     else if (stride_elements == 3) {
-        // vld3q_f64 loads 6 doubles (2 triplets) and de-interleaves into three float64x2_t
         for (; idx_logical + 2 <= count; idx_logical += 2) {
             float64x2x3_t data_f64x2x3 = vld3q_f64(data + idx_logical * 3);
-            sum_f64x2 = vaddq_f64(sum_f64x2, data_f64x2x3.val[0]); // Every 3rd element
+            float64x2_t term_f64x2 = data_f64x2x3.val[0];
+            float64x2_t tentative_f64x2 = vaddq_f64(sum_f64x2, term_f64x2);
+            float64x2_t absolute_sum_f64x2 = vabsq_f64(sum_f64x2);
+            float64x2_t absolute_term_f64x2 = vabsq_f64(term_f64x2);
+            uint64x2_t sum_bigger_u64x2 = vcgeq_f64(absolute_sum_f64x2, absolute_term_f64x2);
+            float64x2_t correction_sum_bigger_f64x2 = vaddq_f64(vsubq_f64(sum_f64x2, tentative_f64x2), term_f64x2);
+            float64x2_t correction_term_bigger_f64x2 = vaddq_f64(vsubq_f64(term_f64x2, tentative_f64x2), sum_f64x2);
+            float64x2_t correction_f64x2 = vbslq_f64(sum_bigger_u64x2, correction_sum_bigger_f64x2,
+                                                     correction_term_bigger_f64x2);
+            compensation_f64x2 = vaddq_f64(compensation_f64x2, correction_f64x2);
+            sum_f64x2 = tentative_f64x2;
         }
     }
     else if (stride_elements == 4) {
-        // vld4q_f64 loads 8 doubles (2 quads) and de-interleaves into four float64x2_t
         for (; idx_logical + 2 <= count; idx_logical += 2) {
             float64x2x4_t data_f64x2x4 = vld4q_f64(data + idx_logical * 4);
-            sum_f64x2 = vaddq_f64(sum_f64x2, data_f64x2x4.val[0]); // Every 4th element
+            float64x2_t term_f64x2 = data_f64x2x4.val[0];
+            float64x2_t tentative_f64x2 = vaddq_f64(sum_f64x2, term_f64x2);
+            float64x2_t absolute_sum_f64x2 = vabsq_f64(sum_f64x2);
+            float64x2_t absolute_term_f64x2 = vabsq_f64(term_f64x2);
+            uint64x2_t sum_bigger_u64x2 = vcgeq_f64(absolute_sum_f64x2, absolute_term_f64x2);
+            float64x2_t correction_sum_bigger_f64x2 = vaddq_f64(vsubq_f64(sum_f64x2, tentative_f64x2), term_f64x2);
+            float64x2_t correction_term_bigger_f64x2 = vaddq_f64(vsubq_f64(term_f64x2, tentative_f64x2), sum_f64x2);
+            float64x2_t correction_f64x2 = vbslq_f64(sum_bigger_u64x2, correction_sum_bigger_f64x2,
+                                                     correction_term_bigger_f64x2);
+            compensation_f64x2 = vaddq_f64(compensation_f64x2, correction_f64x2);
+            sum_f64x2 = tentative_f64x2;
         }
     }
 
-    // Scalar tail for remaining elements
-    nk_f64_t sum = nk_reduce_add_f64x2_neon_(sum_f64x2);
-    for (; idx_logical < count; ++idx_logical) sum += data[idx_logical * stride_elements];
-    *result = sum;
+    // Scalar tail with Neumaier
+    float64x2_t total_f64x2 = vaddq_f64(sum_f64x2, compensation_f64x2);
+    nk_f64_t sum = nk_reduce_add_f64x2_neon_(total_f64x2);
+    nk_f64_t compensation = 0;
+    for (; idx_logical < count; ++idx_logical) {
+        nk_f64_t term = data[idx_logical * stride_elements], tentative = sum + term;
+        compensation += (nk_abs_f64(sum) >= nk_abs_f64(term)) ? ((sum - tentative) + term) : ((term - tentative) + sum);
+        sum = tentative;
+    }
+    *result = sum + compensation;
 }
 
 NK_PUBLIC void nk_reduce_add_f64_neon(                             //
@@ -1050,7 +1100,7 @@ NK_INTERNAL void nk_reduce_min_i32_neon_contiguous_( //
         return;
     }
 
-    int32x4_t min_i32x4 = vdupq_n_s32(INT32_MAX);
+    int32x4_t min_i32x4 = vdupq_n_s32(NK_I32_MAX);
     int32x4_t min_idx_i32x4 = vdupq_n_s32(0);
     int32x4_t idx_i32x4 = {0, 1, 2, 3};
     int32x4_t step_i32x4 = vdupq_n_s32(4);
@@ -1097,7 +1147,7 @@ NK_INTERNAL void nk_reduce_min_i32_neon_strided_(                     //
         return;
     }
 
-    int32x4_t min_i32x4 = vdupq_n_s32(INT32_MAX);
+    int32x4_t min_i32x4 = vdupq_n_s32(NK_I32_MAX);
     int32x4_t min_idx_i32x4 = vdupq_n_s32(0);
     int32x4_t idx_i32x4 = {0, 1, 2, 3};
     int32x4_t step_i32x4 = vdupq_n_s32(4);
@@ -1380,7 +1430,7 @@ NK_INTERNAL void nk_reduce_min_u32_neon_contiguous_( //
         return;
     }
 
-    uint32x4_t min_u32x4 = vdupq_n_u32(UINT32_MAX);
+    uint32x4_t min_u32x4 = vdupq_n_u32(NK_U32_MAX);
     int32x4_t min_idx_i32x4 = vdupq_n_s32(0);
     int32x4_t idx_i32x4 = {0, 1, 2, 3};
     int32x4_t step_i32x4 = vdupq_n_s32(4);
@@ -1427,7 +1477,7 @@ NK_INTERNAL void nk_reduce_min_u32_neon_strided_(                     //
         return;
     }
 
-    uint32x4_t min_u32x4 = vdupq_n_u32(UINT32_MAX);
+    uint32x4_t min_u32x4 = vdupq_n_u32(NK_U32_MAX);
     int32x4_t min_idx_i32x4 = vdupq_n_s32(0);
     int32x4_t idx_i32x4 = {0, 1, 2, 3};
     int32x4_t step_i32x4 = vdupq_n_s32(4);
@@ -1694,7 +1744,7 @@ NK_INTERNAL void nk_reduce_min_i64_neon_contiguous_( //
         return;
     }
 
-    int64x2_t min_i64x2 = vdupq_n_s64(INT64_MAX);
+    int64x2_t min_i64x2 = vdupq_n_s64(NK_I64_MAX);
     int64x2_t min_idx_i64x2 = vdupq_n_s64(0);
     int64x2_t idx_i64x2 = {0, 1};
     int64x2_t step_i64x2 = vdupq_n_s64(2);
@@ -1739,7 +1789,7 @@ NK_INTERNAL void nk_reduce_min_i64_neon_strided_(                     //
         return;
     }
 
-    int64x2_t min_i64x2 = vdupq_n_s64(INT64_MAX);
+    int64x2_t min_i64x2 = vdupq_n_s64(NK_I64_MAX);
     int64x2_t min_idx_i64x2 = vdupq_n_s64(0);
     int64x2_t idx_i64x2 = {0, 1};
     int64x2_t step_i64x2 = vdupq_n_s64(2);
@@ -2000,7 +2050,7 @@ NK_INTERNAL void nk_reduce_min_u64_neon_contiguous_( //
         return;
     }
 
-    uint64x2_t min_u64x2 = vdupq_n_u64(UINT64_MAX);
+    uint64x2_t min_u64x2 = vdupq_n_u64(NK_U64_MAX);
     int64x2_t min_idx_i64x2 = vdupq_n_s64(0);
     int64x2_t idx_i64x2 = {0, 1};
     int64x2_t step_i64x2 = vdupq_n_s64(2);
@@ -2045,7 +2095,7 @@ NK_INTERNAL void nk_reduce_min_u64_neon_strided_(                     //
         return;
     }
 
-    uint64x2_t min_u64x2 = vdupq_n_u64(UINT64_MAX);
+    uint64x2_t min_u64x2 = vdupq_n_u64(NK_U64_MAX);
     int64x2_t min_idx_i64x2 = vdupq_n_s64(0);
     int64x2_t idx_i64x2 = {0, 1};
     int64x2_t step_i64x2 = vdupq_n_s64(2);
