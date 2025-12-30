@@ -157,9 +157,9 @@ NK_PUBLIC void nk_scale_u8_sapphire(nk_u8_t const *a, nk_size_t n, nk_f32_t cons
     __m512h alpha_f16x32 = _mm512_set1_ph((_Float16)alpha_val);
     __m512h beta_f16x32 = _mm512_set1_ph((_Float16)beta_val);
     __m512i a_u8x64, result_u8x64;
-    __m512h a_f16x32_lo, a_f16x32_hi;
-    __m512h result_f16x32_lo, result_f16x32_hi;
-    __m512i result_i16x32_lo, result_i16x32_hi;
+    __m512h a_low_f16x32, a_high_f16x32;
+    __m512h result_low_f16x32, result_high_f16x32;
+    __m512i result_low_i16x32, result_high_i16x32;
 nk_scale_u8_sapphire_cycle:
     if (n < 64) {
         mask = (__mmask64)_bzhi_u64(0xFFFFFFFFFFFFFFFFull, n);
@@ -171,15 +171,15 @@ nk_scale_u8_sapphire_cycle:
         a += 64, n -= 64;
     }
     // Upcast:
-    a_f16x32_lo = _mm512_cvtepi16_ph(_mm512_unpacklo_epi8(a_u8x64, _mm512_setzero_si512()));
-    a_f16x32_hi = _mm512_cvtepi16_ph(_mm512_unpackhi_epi8(a_u8x64, _mm512_setzero_si512()));
+    a_low_f16x32 = _mm512_cvtepi16_ph(_mm512_unpacklo_epi8(a_u8x64, _mm512_setzero_si512()));
+    a_high_f16x32 = _mm512_cvtepi16_ph(_mm512_unpackhi_epi8(a_u8x64, _mm512_setzero_si512()));
     // Scale:
-    result_f16x32_lo = _mm512_fmadd_ph(a_f16x32_lo, alpha_f16x32, beta_f16x32);
-    result_f16x32_hi = _mm512_fmadd_ph(a_f16x32_hi, alpha_f16x32, beta_f16x32);
+    result_low_f16x32 = _mm512_fmadd_ph(a_low_f16x32, alpha_f16x32, beta_f16x32);
+    result_high_f16x32 = _mm512_fmadd_ph(a_high_f16x32, alpha_f16x32, beta_f16x32);
     // Downcast:
-    result_i16x32_lo = _mm512_cvtph_epi16(result_f16x32_lo);
-    result_i16x32_hi = _mm512_cvtph_epi16(result_f16x32_hi);
-    result_u8x64 = _mm512_packus_epi16(result_i16x32_lo, result_i16x32_hi);
+    result_low_i16x32 = _mm512_cvtph_epi16(result_low_f16x32);
+    result_high_i16x32 = _mm512_cvtph_epi16(result_high_f16x32);
+    result_u8x64 = _mm512_packus_epi16(result_low_i16x32, result_high_i16x32);
     _mm512_mask_storeu_epi8(result, mask, result_u8x64);
     result += 64;
     if (n) goto nk_scale_u8_sapphire_cycle;
@@ -213,9 +213,9 @@ NK_PUBLIC void nk_wsum_u8_sapphire(                  //
     __m512h alpha_f16x32 = _mm512_set1_ph((_Float16)alpha_val);
     __m512h beta_f16x32 = _mm512_set1_ph((_Float16)beta_val);
     __m512i a_u8x64, b_u8x64, result_u8x64;
-    __m512h a_f16x32_lo, a_f16x32_hi, b_f16x32_lo, b_f16x32_hi;
-    __m512h a_scaled_f16x32_lo, a_scaled_f16x32_hi, result_f16x32_lo, result_f16x32_hi;
-    __m512i result_i16x32_lo, result_i16x32_hi;
+    __m512h a_low_f16x32, a_high_f16x32, b_low_f16x32, b_high_f16x32;
+    __m512h a_scaled_low_f16x32, a_scaled_high_f16x32, result_low_f16x32, result_high_f16x32;
+    __m512i result_low_i16x32, result_high_i16x32;
 nk_wsum_u8_sapphire_cycle:
     if (n < 64) {
         mask = (__mmask64)_bzhi_u64(0xFFFFFFFFFFFFFFFFull, n);
@@ -229,20 +229,20 @@ nk_wsum_u8_sapphire_cycle:
         a += 64, b += 64, n -= 64;
     }
     // Upcast:
-    a_f16x32_lo = _mm512_cvtepi16_ph(_mm512_unpacklo_epi8(a_u8x64, _mm512_setzero_si512()));
-    a_f16x32_hi = _mm512_cvtepi16_ph(_mm512_unpackhi_epi8(a_u8x64, _mm512_setzero_si512()));
-    b_f16x32_lo = _mm512_cvtepi16_ph(_mm512_unpacklo_epi8(b_u8x64, _mm512_setzero_si512()));
-    b_f16x32_hi = _mm512_cvtepi16_ph(_mm512_unpackhi_epi8(b_u8x64, _mm512_setzero_si512()));
+    a_low_f16x32 = _mm512_cvtepi16_ph(_mm512_unpacklo_epi8(a_u8x64, _mm512_setzero_si512()));
+    a_high_f16x32 = _mm512_cvtepi16_ph(_mm512_unpackhi_epi8(a_u8x64, _mm512_setzero_si512()));
+    b_low_f16x32 = _mm512_cvtepi16_ph(_mm512_unpacklo_epi8(b_u8x64, _mm512_setzero_si512()));
+    b_high_f16x32 = _mm512_cvtepi16_ph(_mm512_unpackhi_epi8(b_u8x64, _mm512_setzero_si512()));
     // Scale:
-    a_scaled_f16x32_lo = _mm512_mul_ph(a_f16x32_lo, alpha_f16x32);
-    a_scaled_f16x32_hi = _mm512_mul_ph(a_f16x32_hi, alpha_f16x32);
+    a_scaled_low_f16x32 = _mm512_mul_ph(a_low_f16x32, alpha_f16x32);
+    a_scaled_high_f16x32 = _mm512_mul_ph(a_high_f16x32, alpha_f16x32);
     // Add:
-    result_f16x32_lo = _mm512_fmadd_ph(b_f16x32_lo, beta_f16x32, a_scaled_f16x32_lo);
-    result_f16x32_hi = _mm512_fmadd_ph(b_f16x32_hi, beta_f16x32, a_scaled_f16x32_hi);
+    result_low_f16x32 = _mm512_fmadd_ph(b_low_f16x32, beta_f16x32, a_scaled_low_f16x32);
+    result_high_f16x32 = _mm512_fmadd_ph(b_high_f16x32, beta_f16x32, a_scaled_high_f16x32);
     // Downcast:
-    result_i16x32_lo = _mm512_cvtph_epi16(result_f16x32_lo);
-    result_i16x32_hi = _mm512_cvtph_epi16(result_f16x32_hi);
-    result_u8x64 = _mm512_packus_epi16(result_i16x32_lo, result_i16x32_hi);
+    result_low_i16x32 = _mm512_cvtph_epi16(result_low_f16x32);
+    result_high_i16x32 = _mm512_cvtph_epi16(result_high_f16x32);
+    result_u8x64 = _mm512_packus_epi16(result_low_i16x32, result_high_i16x32);
     _mm512_mask_storeu_epi8(result, mask, result_u8x64);
     result += 64;
     if (n) goto nk_wsum_u8_sapphire_cycle;
@@ -255,31 +255,37 @@ NK_PUBLIC void nk_scale_i8_sapphire(nk_i8_t const *a, nk_size_t n, nk_f32_t cons
     __mmask64 mask = 0xFFFFFFFFFFFFFFFFull;
     __m512h alpha_f16x32 = _mm512_set1_ph((_Float16)alpha_val);
     __m512h beta_f16x32 = _mm512_set1_ph((_Float16)beta_val);
-    __m512i a_i8x64, result_i8x64;
-    __m512h a_f16x32_lo, a_f16x32_hi;
-    __m512h result_f16x32_lo, result_f16x32_hi;
-    __m512i result_i16x32_lo, result_i16x32_hi;
+    __m256i a_low_i8x32, a_high_i8x32;
+    __m512i result_i8x64;
+    __m512h a_low_f16x32, a_high_f16x32;
+    __m512h result_low_f16x32, result_high_f16x32;
+    __m512i result_low_i16x32, result_high_i16x32;
 nk_scale_i8_sapphire_cycle:
     if (n < 64) {
+        // Tail: use masked 512-bit load and extract (runs once)
         mask = (__mmask64)_bzhi_u64(0xFFFFFFFFFFFFFFFFull, n);
-        a_i8x64 = _mm512_maskz_loadu_epi8(mask, a);
+        __m512i a_i8x64 = _mm512_maskz_loadu_epi8(mask, a);
+        a_low_i8x32 = _mm512_castsi512_si256(a_i8x64);
+        a_high_i8x32 = _mm512_extracti64x4_epi64(a_i8x64, 1);
         n = 0;
     }
     else {
-        a_i8x64 = _mm512_loadu_epi8(a);
+        // Hot path: 2×256-bit loads to avoid VEXTRACTI64X4 (Port 5)
+        a_low_i8x32 = _mm256_loadu_epi8(a);
+        a_high_i8x32 = _mm256_loadu_epi8(a + 32);
         a += 64, n -= 64;
     }
-    // Upcast:
-    a_f16x32_lo = _mm512_cvtepi16_ph(_mm512_cvtepi8_epi16(_mm512_castsi512_si256(a_i8x64)));
-    a_f16x32_hi = _mm512_cvtepi16_ph(_mm512_cvtepi8_epi16(_mm512_extracti64x4_epi64(a_i8x64, 1)));
+    // Upcast from 256-bit halves:
+    a_low_f16x32 = _mm512_cvtepi16_ph(_mm512_cvtepi8_epi16(a_low_i8x32));
+    a_high_f16x32 = _mm512_cvtepi16_ph(_mm512_cvtepi8_epi16(a_high_i8x32));
     // Scale:
-    result_f16x32_lo = _mm512_fmadd_ph(a_f16x32_lo, alpha_f16x32, beta_f16x32);
-    result_f16x32_hi = _mm512_fmadd_ph(a_f16x32_hi, alpha_f16x32, beta_f16x32);
+    result_low_f16x32 = _mm512_fmadd_ph(a_low_f16x32, alpha_f16x32, beta_f16x32);
+    result_high_f16x32 = _mm512_fmadd_ph(a_high_f16x32, alpha_f16x32, beta_f16x32);
     // Downcast:
-    result_i16x32_lo = _mm512_cvtph_epi16(result_f16x32_lo);
-    result_i16x32_hi = _mm512_cvtph_epi16(result_f16x32_hi);
-    result_i8x64 = _mm512_inserti64x4(_mm512_castsi256_si512(_mm512_cvtsepi16_epi8(result_i16x32_lo)),
-                                      _mm512_cvtsepi16_epi8(result_i16x32_hi), 1);
+    result_low_i16x32 = _mm512_cvtph_epi16(result_low_f16x32);
+    result_high_i16x32 = _mm512_cvtph_epi16(result_high_f16x32);
+    result_i8x64 = _mm512_inserti64x4(_mm512_castsi256_si512(_mm512_cvtsepi16_epi8(result_low_i16x32)),
+                                      _mm512_cvtsepi16_epi8(result_high_i16x32), 1);
     _mm512_mask_storeu_epi8(result, mask, result_i8x64);
     result += 64;
     if (n) goto nk_scale_i8_sapphire_cycle;
@@ -312,38 +318,47 @@ NK_PUBLIC void nk_wsum_i8_sapphire(                  //
     __mmask64 mask = 0xFFFFFFFFFFFFFFFFull;
     __m512h alpha_f16x32 = _mm512_set1_ph((_Float16)alpha_val);
     __m512h beta_f16x32 = _mm512_set1_ph((_Float16)beta_val);
-    __m512i a_i8x64, b_i8x64, result_i8x64;
-    __m512h a_f16x32_lo, a_f16x32_hi, b_f16x32_lo, b_f16x32_hi;
-    __m512h a_scaled_f16x32_lo, a_scaled_f16x32_hi, result_f16x32_lo, result_f16x32_hi;
-    __m512i result_i16x32_lo, result_i16x32_hi;
+    __m256i a_low_i8x32, a_high_i8x32, b_low_i8x32, b_high_i8x32;
+    __m512i result_i8x64;
+    __m512h a_low_f16x32, a_high_f16x32, b_low_f16x32, b_high_f16x32;
+    __m512h a_scaled_low_f16x32, a_scaled_high_f16x32, result_low_f16x32, result_high_f16x32;
+    __m512i result_low_i16x32, result_high_i16x32;
 nk_wsum_i8_sapphire_cycle:
     if (n < 64) {
+        // Tail: use masked 512-bit loads and extract (runs once)
         mask = (__mmask64)_bzhi_u64(0xFFFFFFFFFFFFFFFFull, n);
-        a_i8x64 = _mm512_maskz_loadu_epi8(mask, a);
-        b_i8x64 = _mm512_maskz_loadu_epi8(mask, b);
+        __m512i a_i8x64 = _mm512_maskz_loadu_epi8(mask, a);
+        __m512i b_i8x64 = _mm512_maskz_loadu_epi8(mask, b);
+        a_low_i8x32 = _mm512_castsi512_si256(a_i8x64);
+        a_high_i8x32 = _mm512_extracti64x4_epi64(a_i8x64, 1);
+        b_low_i8x32 = _mm512_castsi512_si256(b_i8x64);
+        b_high_i8x32 = _mm512_extracti64x4_epi64(b_i8x64, 1);
         n = 0;
     }
     else {
-        a_i8x64 = _mm512_loadu_epi8(a);
-        b_i8x64 = _mm512_loadu_epi8(b);
+        // Hot path: 2×256-bit loads per vector to avoid VEXTRACTI64X4 (Port 5)
+        a_low_i8x32 = _mm256_loadu_epi8(a);
+        a_high_i8x32 = _mm256_loadu_epi8(a + 32);
+        b_low_i8x32 = _mm256_loadu_epi8(b);
+        b_high_i8x32 = _mm256_loadu_epi8(b + 32);
         a += 64, b += 64, n -= 64;
     }
-    // Upcast:
-    a_f16x32_lo = _mm512_cvtepi16_ph(_mm512_cvtepi8_epi16(_mm512_castsi512_si256(a_i8x64)));
-    a_f16x32_hi = _mm512_cvtepi16_ph(_mm512_cvtepi8_epi16(_mm512_extracti64x4_epi64(a_i8x64, 1)));
-    b_f16x32_lo = _mm512_cvtepi16_ph(_mm512_cvtepi8_epi16(_mm512_castsi512_si256(b_i8x64)));
-    b_f16x32_hi = _mm512_cvtepi16_ph(_mm512_cvtepi8_epi16(_mm512_extracti64x4_epi64(b_i8x64, 1)));
+    // Upcast from 256-bit halves:
+    a_low_f16x32 = _mm512_cvtepi16_ph(_mm512_cvtepi8_epi16(a_low_i8x32));
+    a_high_f16x32 = _mm512_cvtepi16_ph(_mm512_cvtepi8_epi16(a_high_i8x32));
+    b_low_f16x32 = _mm512_cvtepi16_ph(_mm512_cvtepi8_epi16(b_low_i8x32));
+    b_high_f16x32 = _mm512_cvtepi16_ph(_mm512_cvtepi8_epi16(b_high_i8x32));
     // Scale:
-    a_scaled_f16x32_lo = _mm512_mul_ph(a_f16x32_lo, alpha_f16x32);
-    a_scaled_f16x32_hi = _mm512_mul_ph(a_f16x32_hi, alpha_f16x32);
+    a_scaled_low_f16x32 = _mm512_mul_ph(a_low_f16x32, alpha_f16x32);
+    a_scaled_high_f16x32 = _mm512_mul_ph(a_high_f16x32, alpha_f16x32);
     // Add:
-    result_f16x32_lo = _mm512_fmadd_ph(b_f16x32_lo, beta_f16x32, a_scaled_f16x32_lo);
-    result_f16x32_hi = _mm512_fmadd_ph(b_f16x32_hi, beta_f16x32, a_scaled_f16x32_hi);
+    result_low_f16x32 = _mm512_fmadd_ph(b_low_f16x32, beta_f16x32, a_scaled_low_f16x32);
+    result_high_f16x32 = _mm512_fmadd_ph(b_high_f16x32, beta_f16x32, a_scaled_high_f16x32);
     // Downcast:
-    result_i16x32_lo = _mm512_cvtph_epi16(result_f16x32_lo);
-    result_i16x32_hi = _mm512_cvtph_epi16(result_f16x32_hi);
-    result_i8x64 = _mm512_inserti64x4(_mm512_castsi256_si512(_mm512_cvtsepi16_epi8(result_i16x32_lo)),
-                                      _mm512_cvtsepi16_epi8(result_i16x32_hi), 1);
+    result_low_i16x32 = _mm512_cvtph_epi16(result_low_f16x32);
+    result_high_i16x32 = _mm512_cvtph_epi16(result_high_f16x32);
+    result_i8x64 = _mm512_inserti64x4(_mm512_castsi256_si512(_mm512_cvtsepi16_epi8(result_low_i16x32)),
+                                      _mm512_cvtsepi16_epi8(result_high_i16x32), 1);
     _mm512_mask_storeu_epi8(result, mask, result_i8x64);
     result += 64;
     if (n) goto nk_wsum_i8_sapphire_cycle;
@@ -358,53 +373,65 @@ NK_PUBLIC void nk_fma_i8_sapphire(                                     //
     __mmask64 mask = 0xFFFFFFFFFFFFFFFF;
     __m512h alpha_f16x32 = _mm512_set1_ph((_Float16)alpha_val);
     __m512h beta_f16x32 = _mm512_set1_ph((_Float16)beta_val);
-    __m512i a_i8x64, b_i8x64, c_i8x64, result_i8x64;
-    __m512h a_f16x32_lo, a_f16x32_hi, b_f16x32_lo, b_f16x32_hi;
-    __m512h c_f16x32_lo, c_f16x32_hi, ab_f16x32_lo, ab_f16x32_hi;
-    __m512h ab_scaled_f16x32_lo, ab_scaled_f16x32_hi, result_f16x32_lo, result_f16x32_hi;
-    __m512i result_i16x32_lo, result_i16x32_hi;
+    __m256i a_low_i8x32, a_high_i8x32, b_low_i8x32, b_high_i8x32, c_low_i8x32, c_high_i8x32;
+    __m512i result_i8x64;
+    __m512h a_low_f16x32, a_high_f16x32, b_low_f16x32, b_high_f16x32;
+    __m512h c_low_f16x32, c_high_f16x32, ab_low_f16x32, ab_high_f16x32;
+    __m512h ab_scaled_low_f16x32, ab_scaled_high_f16x32, result_low_f16x32, result_high_f16x32;
+    __m512i result_low_i16x32, result_high_i16x32;
     __m512h min_f16x32 = _mm512_cvtepi16_ph(_mm512_set1_epi16(-128));
     __m512h max_f16x32 = _mm512_cvtepi16_ph(_mm512_set1_epi16(127));
 
 nk_fma_i8_sapphire_cycle:
     if (n < 64) {
+        // Tail: use masked 512-bit loads and extract (runs once)
         mask = (__mmask64)_bzhi_u64(0xFFFFFFFFFFFFFFFFull, n);
-        a_i8x64 = _mm512_maskz_loadu_epi8(mask, a);
-        b_i8x64 = _mm512_maskz_loadu_epi8(mask, b);
-        c_i8x64 = _mm512_maskz_loadu_epi8(mask, c);
+        __m512i a_i8x64 = _mm512_maskz_loadu_epi8(mask, a);
+        __m512i b_i8x64 = _mm512_maskz_loadu_epi8(mask, b);
+        __m512i c_i8x64 = _mm512_maskz_loadu_epi8(mask, c);
+        a_low_i8x32 = _mm512_castsi512_si256(a_i8x64);
+        a_high_i8x32 = _mm512_extracti64x4_epi64(a_i8x64, 1);
+        b_low_i8x32 = _mm512_castsi512_si256(b_i8x64);
+        b_high_i8x32 = _mm512_extracti64x4_epi64(b_i8x64, 1);
+        c_low_i8x32 = _mm512_castsi512_si256(c_i8x64);
+        c_high_i8x32 = _mm512_extracti64x4_epi64(c_i8x64, 1);
         n = 0;
     }
     else {
-        a_i8x64 = _mm512_loadu_epi8(a);
-        b_i8x64 = _mm512_loadu_epi8(b);
-        c_i8x64 = _mm512_loadu_epi8(c);
+        // Hot path: 2×256-bit loads per vector to avoid VEXTRACTI64X4 (Port 5)
+        a_low_i8x32 = _mm256_loadu_epi8(a);
+        a_high_i8x32 = _mm256_loadu_epi8(a + 32);
+        b_low_i8x32 = _mm256_loadu_epi8(b);
+        b_high_i8x32 = _mm256_loadu_epi8(b + 32);
+        c_low_i8x32 = _mm256_loadu_epi8(c);
+        c_high_i8x32 = _mm256_loadu_epi8(c + 32);
         a += 64, b += 64, c += 64, n -= 64;
     }
-    // Upcast:
-    a_f16x32_lo = _mm512_cvtepi16_ph(_mm512_cvtepi8_epi16(_mm512_castsi512_si256(a_i8x64)));
-    a_f16x32_hi = _mm512_cvtepi16_ph(_mm512_cvtepi8_epi16(_mm512_extracti64x4_epi64(a_i8x64, 1)));
-    b_f16x32_lo = _mm512_cvtepi16_ph(_mm512_cvtepi8_epi16(_mm512_castsi512_si256(b_i8x64)));
-    b_f16x32_hi = _mm512_cvtepi16_ph(_mm512_cvtepi8_epi16(_mm512_extracti64x4_epi64(b_i8x64, 1)));
-    c_f16x32_lo = _mm512_cvtepi16_ph(_mm512_cvtepi8_epi16(_mm512_castsi512_si256(c_i8x64)));
-    c_f16x32_hi = _mm512_cvtepi16_ph(_mm512_cvtepi8_epi16(_mm512_extracti64x4_epi64(c_i8x64, 1)));
+    // Upcast from 256-bit halves:
+    a_low_f16x32 = _mm512_cvtepi16_ph(_mm512_cvtepi8_epi16(a_low_i8x32));
+    a_high_f16x32 = _mm512_cvtepi16_ph(_mm512_cvtepi8_epi16(a_high_i8x32));
+    b_low_f16x32 = _mm512_cvtepi16_ph(_mm512_cvtepi8_epi16(b_low_i8x32));
+    b_high_f16x32 = _mm512_cvtepi16_ph(_mm512_cvtepi8_epi16(b_high_i8x32));
+    c_low_f16x32 = _mm512_cvtepi16_ph(_mm512_cvtepi8_epi16(c_low_i8x32));
+    c_high_f16x32 = _mm512_cvtepi16_ph(_mm512_cvtepi8_epi16(c_high_i8x32));
     // Multiply:
-    ab_f16x32_lo = _mm512_mul_ph(a_f16x32_lo, b_f16x32_lo);
-    ab_f16x32_hi = _mm512_mul_ph(a_f16x32_hi, b_f16x32_hi);
+    ab_low_f16x32 = _mm512_mul_ph(a_low_f16x32, b_low_f16x32);
+    ab_high_f16x32 = _mm512_mul_ph(a_high_f16x32, b_high_f16x32);
     // Scale:
-    ab_scaled_f16x32_lo = _mm512_mul_ph(ab_f16x32_lo, alpha_f16x32);
-    ab_scaled_f16x32_hi = _mm512_mul_ph(ab_f16x32_hi, alpha_f16x32);
+    ab_scaled_low_f16x32 = _mm512_mul_ph(ab_low_f16x32, alpha_f16x32);
+    ab_scaled_high_f16x32 = _mm512_mul_ph(ab_high_f16x32, alpha_f16x32);
     // Add:
-    result_f16x32_lo = _mm512_fmadd_ph(c_f16x32_lo, beta_f16x32, ab_scaled_f16x32_lo);
-    result_f16x32_hi = _mm512_fmadd_ph(c_f16x32_hi, beta_f16x32, ab_scaled_f16x32_hi);
+    result_low_f16x32 = _mm512_fmadd_ph(c_low_f16x32, beta_f16x32, ab_scaled_low_f16x32);
+    result_high_f16x32 = _mm512_fmadd_ph(c_high_f16x32, beta_f16x32, ab_scaled_high_f16x32);
     // Clip the 16-bit result to 8-bit:
-    result_f16x32_lo = _mm512_max_ph(_mm512_min_ph(result_f16x32_lo, max_f16x32), min_f16x32);
-    result_f16x32_hi = _mm512_max_ph(_mm512_min_ph(result_f16x32_hi, max_f16x32), min_f16x32);
+    result_low_f16x32 = _mm512_max_ph(_mm512_min_ph(result_low_f16x32, max_f16x32), min_f16x32);
+    result_high_f16x32 = _mm512_max_ph(_mm512_min_ph(result_high_f16x32, max_f16x32), min_f16x32);
     // Downcast:
-    result_i16x32_lo = _mm512_cvtph_epi16(result_f16x32_lo);
-    result_i16x32_hi = _mm512_cvtph_epi16(result_f16x32_hi);
+    result_low_i16x32 = _mm512_cvtph_epi16(result_low_f16x32);
+    result_high_i16x32 = _mm512_cvtph_epi16(result_high_f16x32);
     // Merge back:
-    result_i8x64 = _mm512_inserti64x4(_mm512_castsi256_si512(_mm512_cvtsepi16_epi8(result_i16x32_lo)),
-                                      _mm512_cvtsepi16_epi8(result_i16x32_hi), 1);
+    result_i8x64 = _mm512_inserti64x4(_mm512_castsi256_si512(_mm512_cvtsepi16_epi8(result_low_i16x32)),
+                                      _mm512_cvtsepi16_epi8(result_high_i16x32), 1);
     _mm512_mask_storeu_epi8(result, mask, result_i8x64);
     result += 64;
     if (n) goto nk_fma_i8_sapphire_cycle;
@@ -420,10 +447,10 @@ NK_PUBLIC void nk_fma_u8_sapphire(                                     //
     __m512h alpha_f16x32 = _mm512_set1_ph((_Float16)alpha_val);
     __m512h beta_f16x32 = _mm512_set1_ph((_Float16)beta_val);
     __m512i a_u8x64, b_u8x64, c_u8x64, result_u8x64;
-    __m512h a_f16x32_lo, a_f16x32_hi, b_f16x32_lo, b_f16x32_hi;
-    __m512h c_f16x32_lo, c_f16x32_hi, ab_f16x32_lo, ab_f16x32_hi;
-    __m512h ab_scaled_f16x32_lo, ab_scaled_f16x32_hi, result_f16x32_lo, result_f16x32_hi;
-    __m512i result_i16x32_lo, result_i16x32_hi;
+    __m512h a_low_f16x32, a_high_f16x32, b_low_f16x32, b_high_f16x32;
+    __m512h c_low_f16x32, c_high_f16x32, ab_low_f16x32, ab_high_f16x32;
+    __m512h ab_scaled_low_f16x32, ab_scaled_high_f16x32, result_low_f16x32, result_high_f16x32;
+    __m512i result_low_i16x32, result_high_i16x32;
     __m512h min_f16x32 = _mm512_cvtepi16_ph(_mm512_set1_epi16(0));
     __m512h max_f16x32 = _mm512_cvtepi16_ph(_mm512_set1_epi16(255));
 
@@ -442,29 +469,29 @@ nk_fma_u8_sapphire_cycle:
         a += 64, b += 64, c += 64, n -= 64;
     }
     // Upcast:
-    a_f16x32_lo = _mm512_cvtepi16_ph(_mm512_unpacklo_epi8(a_u8x64, _mm512_setzero_si512()));
-    a_f16x32_hi = _mm512_cvtepi16_ph(_mm512_unpackhi_epi8(a_u8x64, _mm512_setzero_si512()));
-    b_f16x32_lo = _mm512_cvtepi16_ph(_mm512_unpacklo_epi8(b_u8x64, _mm512_setzero_si512()));
-    b_f16x32_hi = _mm512_cvtepi16_ph(_mm512_unpackhi_epi8(b_u8x64, _mm512_setzero_si512()));
-    c_f16x32_lo = _mm512_cvtepi16_ph(_mm512_unpacklo_epi8(c_u8x64, _mm512_setzero_si512()));
-    c_f16x32_hi = _mm512_cvtepi16_ph(_mm512_unpackhi_epi8(c_u8x64, _mm512_setzero_si512()));
+    a_low_f16x32 = _mm512_cvtepi16_ph(_mm512_unpacklo_epi8(a_u8x64, _mm512_setzero_si512()));
+    a_high_f16x32 = _mm512_cvtepi16_ph(_mm512_unpackhi_epi8(a_u8x64, _mm512_setzero_si512()));
+    b_low_f16x32 = _mm512_cvtepi16_ph(_mm512_unpacklo_epi8(b_u8x64, _mm512_setzero_si512()));
+    b_high_f16x32 = _mm512_cvtepi16_ph(_mm512_unpackhi_epi8(b_u8x64, _mm512_setzero_si512()));
+    c_low_f16x32 = _mm512_cvtepi16_ph(_mm512_unpacklo_epi8(c_u8x64, _mm512_setzero_si512()));
+    c_high_f16x32 = _mm512_cvtepi16_ph(_mm512_unpackhi_epi8(c_u8x64, _mm512_setzero_si512()));
     // Multiply:
-    ab_f16x32_lo = _mm512_mul_ph(a_f16x32_lo, b_f16x32_lo);
-    ab_f16x32_hi = _mm512_mul_ph(a_f16x32_hi, b_f16x32_hi);
+    ab_low_f16x32 = _mm512_mul_ph(a_low_f16x32, b_low_f16x32);
+    ab_high_f16x32 = _mm512_mul_ph(a_high_f16x32, b_high_f16x32);
     // Scale:
-    ab_scaled_f16x32_lo = _mm512_mul_ph(ab_f16x32_lo, alpha_f16x32);
-    ab_scaled_f16x32_hi = _mm512_mul_ph(ab_f16x32_hi, alpha_f16x32);
+    ab_scaled_low_f16x32 = _mm512_mul_ph(ab_low_f16x32, alpha_f16x32);
+    ab_scaled_high_f16x32 = _mm512_mul_ph(ab_high_f16x32, alpha_f16x32);
     // Add:
-    result_f16x32_lo = _mm512_fmadd_ph(c_f16x32_lo, beta_f16x32, ab_scaled_f16x32_lo);
-    result_f16x32_hi = _mm512_fmadd_ph(c_f16x32_hi, beta_f16x32, ab_scaled_f16x32_hi);
+    result_low_f16x32 = _mm512_fmadd_ph(c_low_f16x32, beta_f16x32, ab_scaled_low_f16x32);
+    result_high_f16x32 = _mm512_fmadd_ph(c_high_f16x32, beta_f16x32, ab_scaled_high_f16x32);
     // Clip the 16-bit result to 8-bit:
-    result_f16x32_lo = _mm512_max_ph(_mm512_min_ph(result_f16x32_lo, max_f16x32), min_f16x32);
-    result_f16x32_hi = _mm512_max_ph(_mm512_min_ph(result_f16x32_hi, max_f16x32), min_f16x32);
+    result_low_f16x32 = _mm512_max_ph(_mm512_min_ph(result_low_f16x32, max_f16x32), min_f16x32);
+    result_high_f16x32 = _mm512_max_ph(_mm512_min_ph(result_high_f16x32, max_f16x32), min_f16x32);
     // Downcast:
-    result_i16x32_lo = _mm512_cvtph_epi16(result_f16x32_lo);
-    result_i16x32_hi = _mm512_cvtph_epi16(result_f16x32_hi);
+    result_low_i16x32 = _mm512_cvtph_epi16(result_low_f16x32);
+    result_high_i16x32 = _mm512_cvtph_epi16(result_high_f16x32);
     // Merge back:
-    result_u8x64 = _mm512_packus_epi16(result_i16x32_lo, result_i16x32_hi);
+    result_u8x64 = _mm512_packus_epi16(result_low_i16x32, result_high_i16x32);
     _mm512_mask_storeu_epi8(result, mask, result_u8x64);
     result += 64;
     if (n) goto nk_fma_u8_sapphire_cycle;

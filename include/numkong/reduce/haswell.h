@@ -623,26 +623,31 @@ NK_INTERNAL void nk_reduce_add_f32_haswell_contiguous_( //
 NK_INTERNAL void nk_reduce_add_f32_haswell_strided_(                  //
     nk_f32_t const *data, nk_size_t count, nk_size_t stride_elements, //
     nk_f64_t *result) {
-    // Blend-based strided access: load full register, blend with zero, sum all
+    // Blend-based strided access: load chunks, blend with zero, sum all.
+    // Use 2×128-bit loads with 128-bit blends to avoid per-iteration VEXTRACTF128.
+    // Extract blend mask halves once outside loop, dual accumulators for ILP.
     __m256i blend_mask_i32x8 = nk_stride_blend_b32x8_(stride_elements);
-    __m256 zero_f32x8 = _mm256_setzero_ps();
-    __m256d sum_f64x4 = _mm256_setzero_pd();
+    __m128 blend_mask_low_f32x4 = _mm_castsi128_ps(_mm256_castsi256_si128(blend_mask_i32x8));
+    __m128 blend_mask_high_f32x4 = _mm_castsi128_ps(_mm256_extracti128_si256(blend_mask_i32x8, 1));
+    __m128 zero_f32x4 = _mm_setzero_ps();
+    __m256d sum_low_f64x4 = _mm256_setzero_pd();
+    __m256d sum_high_f64x4 = _mm256_setzero_pd();
     nk_size_t idx_scalars = 0;
     nk_size_t total_scalars = count * stride_elements;
 
     for (; idx_scalars + 8 <= total_scalars; idx_scalars += 8) {
-        __m256 data_f32x8 = _mm256_loadu_ps(data + idx_scalars);
+        __m128 low_f32x4 = _mm_loadu_ps(data + idx_scalars);
+        __m128 high_f32x4 = _mm_loadu_ps(data + idx_scalars + 4);
         // Blend: keep stride elements, replace others with zero
-        __m256 masked_f32x8 = _mm256_blendv_ps(zero_f32x8, data_f32x8, _mm256_castsi256_ps(blend_mask_i32x8));
+        __m128 masked_low_f32x4 = _mm_blendv_ps(zero_f32x4, low_f32x4, blend_mask_low_f32x4);
+        __m128 masked_high_f32x4 = _mm_blendv_ps(zero_f32x4, high_f32x4, blend_mask_high_f32x4);
         // Sum all - zeros don't contribute
-        __m128 lo_f32x4 = _mm256_castps256_ps128(masked_f32x8);
-        __m128 hi_f32x4 = _mm256_extractf128_ps(masked_f32x8, 1);
-        sum_f64x4 = _mm256_add_pd(sum_f64x4, _mm256_cvtps_pd(lo_f32x4));
-        sum_f64x4 = _mm256_add_pd(sum_f64x4, _mm256_cvtps_pd(hi_f32x4));
+        sum_low_f64x4 = _mm256_add_pd(sum_low_f64x4, _mm256_cvtps_pd(masked_low_f32x4));
+        sum_high_f64x4 = _mm256_add_pd(sum_high_f64x4, _mm256_cvtps_pd(masked_high_f32x4));
     }
 
     // Scalar tail
-    nk_f64_t sum = nk_reduce_add_f64x4_haswell_(sum_f64x4);
+    nk_f64_t sum = nk_reduce_add_f64x4_haswell_(_mm256_add_pd(sum_low_f64x4, sum_high_f64x4));
     nk_f32_t const *ptr = data + idx_scalars;
     nk_size_t remaining = count - idx_scalars / stride_elements;
     for (nk_size_t i = 0; i < remaining; ++i, ptr += stride_elements) sum += *ptr;
@@ -1060,42 +1065,45 @@ NK_PUBLIC void nk_reduce_max_f64_haswell(                          //
 
 NK_INTERNAL void nk_reduce_add_i8_haswell_contiguous_( //
     nk_i8_t const *data, nk_size_t count, nk_i64_t *result) {
-    __m256i sum_i64x4 = _mm256_setzero_si256();
+    // Use 2×128-bit loads instead of 256-bit + VEXTRACTI128 to reduce Port 5 pressure.
+    // Dual accumulators break dependency chain for better ILP.
+    __m256i sum_low_i64x4 = _mm256_setzero_si256();
+    __m256i sum_high_i64x4 = _mm256_setzero_si256();
     nk_size_t idx = 0;
     for (; idx + 32 <= count; idx += 32) {
-        __m256i data_i8x32 = _mm256_loadu_si256((__m256i const *)(data + idx));
+        // Two 128-bit loads instead of 256-bit + extract
+        __m128i low_i8x16 = _mm_loadu_si128((__m128i const *)(data + idx));
+        __m128i high_i8x16 = _mm_loadu_si128((__m128i const *)(data + idx + 16));
         // Widen lower 16 bytes: i8 -> i16 -> i32 -> i64
-        __m128i lo_i8x16 = _mm256_castsi256_si128(data_i8x32);
-        __m256i lo_i16x16 = _mm256_cvtepi8_epi16(lo_i8x16);
-        __m128i lo_lo_i16x8 = _mm256_castsi256_si128(lo_i16x16);
-        __m128i lo_hi_i16x8 = _mm256_extracti128_si256(lo_i16x16, 1);
-        __m256i lo_lo_i32x8 = _mm256_cvtepi16_epi32(lo_lo_i16x8);
-        __m256i lo_hi_i32x8 = _mm256_cvtepi16_epi32(lo_hi_i16x8);
-        __m128i a_i32x4 = _mm256_castsi256_si128(lo_lo_i32x8);
-        __m128i b_i32x4 = _mm256_extracti128_si256(lo_lo_i32x8, 1);
-        __m128i c_i32x4 = _mm256_castsi256_si128(lo_hi_i32x8);
-        __m128i d_i32x4 = _mm256_extracti128_si256(lo_hi_i32x8, 1);
-        sum_i64x4 = _mm256_add_epi64(sum_i64x4, _mm256_cvtepi32_epi64(a_i32x4));
-        sum_i64x4 = _mm256_add_epi64(sum_i64x4, _mm256_cvtepi32_epi64(b_i32x4));
-        sum_i64x4 = _mm256_add_epi64(sum_i64x4, _mm256_cvtepi32_epi64(c_i32x4));
-        sum_i64x4 = _mm256_add_epi64(sum_i64x4, _mm256_cvtepi32_epi64(d_i32x4));
+        __m256i low_i16x16 = _mm256_cvtepi8_epi16(low_i8x16);
+        __m128i low_low_i16x8 = _mm256_castsi256_si128(low_i16x16);
+        __m128i low_high_i16x8 = _mm256_extracti128_si256(low_i16x16, 1);
+        __m256i low_low_i32x8 = _mm256_cvtepi16_epi32(low_low_i16x8);
+        __m256i low_high_i32x8 = _mm256_cvtepi16_epi32(low_high_i16x8);
+        __m128i a_i32x4 = _mm256_castsi256_si128(low_low_i32x8);
+        __m128i b_i32x4 = _mm256_extracti128_si256(low_low_i32x8, 1);
+        __m128i c_i32x4 = _mm256_castsi256_si128(low_high_i32x8);
+        __m128i d_i32x4 = _mm256_extracti128_si256(low_high_i32x8, 1);
+        sum_low_i64x4 = _mm256_add_epi64(sum_low_i64x4, _mm256_cvtepi32_epi64(a_i32x4));
+        sum_low_i64x4 = _mm256_add_epi64(sum_low_i64x4, _mm256_cvtepi32_epi64(b_i32x4));
+        sum_low_i64x4 = _mm256_add_epi64(sum_low_i64x4, _mm256_cvtepi32_epi64(c_i32x4));
+        sum_low_i64x4 = _mm256_add_epi64(sum_low_i64x4, _mm256_cvtepi32_epi64(d_i32x4));
         // Widen upper 16 bytes
-        __m128i hi_i8x16 = _mm256_extracti128_si256(data_i8x32, 1);
-        __m256i hi_i16x16 = _mm256_cvtepi8_epi16(hi_i8x16);
-        __m128i hi_lo_i16x8 = _mm256_castsi256_si128(hi_i16x16);
-        __m128i hi_hi_i16x8 = _mm256_extracti128_si256(hi_i16x16, 1);
-        __m256i hi_lo_i32x8 = _mm256_cvtepi16_epi32(hi_lo_i16x8);
-        __m256i hi_hi_i32x8 = _mm256_cvtepi16_epi32(hi_hi_i16x8);
-        __m128i e_i32x4 = _mm256_castsi256_si128(hi_lo_i32x8);
-        __m128i f_i32x4 = _mm256_extracti128_si256(hi_lo_i32x8, 1);
-        __m128i g_i32x4 = _mm256_castsi256_si128(hi_hi_i32x8);
-        __m128i h_i32x4 = _mm256_extracti128_si256(hi_hi_i32x8, 1);
-        sum_i64x4 = _mm256_add_epi64(sum_i64x4, _mm256_cvtepi32_epi64(e_i32x4));
-        sum_i64x4 = _mm256_add_epi64(sum_i64x4, _mm256_cvtepi32_epi64(f_i32x4));
-        sum_i64x4 = _mm256_add_epi64(sum_i64x4, _mm256_cvtepi32_epi64(g_i32x4));
-        sum_i64x4 = _mm256_add_epi64(sum_i64x4, _mm256_cvtepi32_epi64(h_i32x4));
+        __m256i high_i16x16 = _mm256_cvtepi8_epi16(high_i8x16);
+        __m128i high_low_i16x8 = _mm256_castsi256_si128(high_i16x16);
+        __m128i high_high_i16x8 = _mm256_extracti128_si256(high_i16x16, 1);
+        __m256i high_low_i32x8 = _mm256_cvtepi16_epi32(high_low_i16x8);
+        __m256i high_high_i32x8 = _mm256_cvtepi16_epi32(high_high_i16x8);
+        __m128i e_i32x4 = _mm256_castsi256_si128(high_low_i32x8);
+        __m128i f_i32x4 = _mm256_extracti128_si256(high_low_i32x8, 1);
+        __m128i g_i32x4 = _mm256_castsi256_si128(high_high_i32x8);
+        __m128i h_i32x4 = _mm256_extracti128_si256(high_high_i32x8, 1);
+        sum_high_i64x4 = _mm256_add_epi64(sum_high_i64x4, _mm256_cvtepi32_epi64(e_i32x4));
+        sum_high_i64x4 = _mm256_add_epi64(sum_high_i64x4, _mm256_cvtepi32_epi64(f_i32x4));
+        sum_high_i64x4 = _mm256_add_epi64(sum_high_i64x4, _mm256_cvtepi32_epi64(g_i32x4));
+        sum_high_i64x4 = _mm256_add_epi64(sum_high_i64x4, _mm256_cvtepi32_epi64(h_i32x4));
     }
-    nk_i64_t sum = nk_reduce_add_i64x4_haswell_(sum_i64x4);
+    nk_i64_t sum = nk_reduce_add_i64x4_haswell_(_mm256_add_epi64(sum_low_i64x4, sum_high_i64x4));
     for (; idx < count; ++idx) sum += data[idx];
     *result = sum;
 }

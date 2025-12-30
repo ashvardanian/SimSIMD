@@ -192,14 +192,18 @@ NK_PUBLIC void nk_dot_i8_haswell(nk_i8_t const *a_scalars, nk_i8_t const *b_scal
     __m256i sum_low_i32x8 = _mm256_setzero_si256();
     __m256i sum_high_i32x8 = _mm256_setzero_si256();
     nk_size_t idx_scalars = 0;
+    // Use two 128-bit loads instead of 256-bit load + extract to avoid Port 5 contention.
+    // VEXTRACTI128 uses Port 5; two smaller loads use Port 2/3 (2 ports available).
     for (; idx_scalars + 32 <= count_scalars; idx_scalars += 32) {
-        __m256i a_i8x32 = _mm256_lddqu_si256((__m256i const *)(a_scalars + idx_scalars));
-        __m256i b_i8x32 = _mm256_lddqu_si256((__m256i const *)(b_scalars + idx_scalars));
-        // Upcast `int8` to `int16`
-        __m256i a_low_i16x16 = _mm256_cvtepi8_epi16(_mm256_extracti128_si256(a_i8x32, 0));
-        __m256i a_high_i16x16 = _mm256_cvtepi8_epi16(_mm256_extracti128_si256(a_i8x32, 1));
-        __m256i b_low_i16x16 = _mm256_cvtepi8_epi16(_mm256_extracti128_si256(b_i8x32, 0));
-        __m256i b_high_i16x16 = _mm256_cvtepi8_epi16(_mm256_extracti128_si256(b_i8x32, 1));
+        __m128i a_low_i8x16 = _mm_lddqu_si128((__m128i const *)(a_scalars + idx_scalars));
+        __m128i a_high_i8x16 = _mm_lddqu_si128((__m128i const *)(a_scalars + idx_scalars + 16));
+        __m128i b_low_i8x16 = _mm_lddqu_si128((__m128i const *)(b_scalars + idx_scalars));
+        __m128i b_high_i8x16 = _mm_lddqu_si128((__m128i const *)(b_scalars + idx_scalars + 16));
+        // Upcast `int8` to `int16` - no extracts needed
+        __m256i a_low_i16x16 = _mm256_cvtepi8_epi16(a_low_i8x16);
+        __m256i a_high_i16x16 = _mm256_cvtepi8_epi16(a_high_i8x16);
+        __m256i b_low_i16x16 = _mm256_cvtepi8_epi16(b_low_i8x16);
+        __m256i b_high_i16x16 = _mm256_cvtepi8_epi16(b_high_i8x16);
         // Multiply and accumulate at `int16` level, accumulate at `int32` level
         sum_low_i32x8 = _mm256_add_epi32(sum_low_i32x8, _mm256_madd_epi16(a_low_i16x16, b_low_i16x16));
         sum_high_i32x8 = _mm256_add_epi32(sum_high_i32x8, _mm256_madd_epi16(a_high_i16x16, b_high_i16x16));
@@ -493,16 +497,17 @@ NK_INTERNAL void nk_dot_i8x32_init_haswell(nk_dot_i8x32_state_haswell_t *state) 
 NK_INTERNAL void nk_dot_i8x32_update_haswell(nk_dot_i8x32_state_haswell_t *state, nk_b256_vec_t a, nk_b256_vec_t b) {
     __m256i sum_i32x8_low = state->sum_i32x8_low;
     __m256i sum_i32x8_high = state->sum_i32x8_high;
-
-    __m256i a_i8x32 = _mm256_lddqu_si256((__m256i const *)(a.i8s + 0));
-    __m256i b_i8x32 = _mm256_lddqu_si256((__m256i const *)(b.i8s + 0));
-    __m256i a_i16x16_low = _mm256_cvtepi8_epi16(_mm256_extracti128_si256(a_i8x32, 0));
-    __m256i a_i16x16_high = _mm256_cvtepi8_epi16(_mm256_extracti128_si256(a_i8x32, 1));
-    __m256i b_i16x16_low = _mm256_cvtepi8_epi16(_mm256_extracti128_si256(b_i8x32, 0));
-    __m256i b_i16x16_high = _mm256_cvtepi8_epi16(_mm256_extracti128_si256(b_i8x32, 1));
+    // Use two 128-bit loads instead of 256-bit load + extract to avoid Port 5 contention.
+    __m128i a_low_i8x16 = _mm_lddqu_si128((__m128i const *)(a.i8s + 0));
+    __m128i a_high_i8x16 = _mm_lddqu_si128((__m128i const *)(a.i8s + 16));
+    __m128i b_low_i8x16 = _mm_lddqu_si128((__m128i const *)(b.i8s + 0));
+    __m128i b_high_i8x16 = _mm_lddqu_si128((__m128i const *)(b.i8s + 16));
+    __m256i a_i16x16_low = _mm256_cvtepi8_epi16(a_low_i8x16);
+    __m256i a_i16x16_high = _mm256_cvtepi8_epi16(a_high_i8x16);
+    __m256i b_i16x16_low = _mm256_cvtepi8_epi16(b_low_i8x16);
+    __m256i b_i16x16_high = _mm256_cvtepi8_epi16(b_high_i8x16);
     sum_i32x8_low = _mm256_add_epi32(sum_i32x8_low, _mm256_madd_epi16(a_i16x16_low, b_i16x16_low));
     sum_i32x8_high = _mm256_add_epi32(sum_i32x8_high, _mm256_madd_epi16(a_i16x16_high, b_i16x16_high));
-
     state->sum_i32x8_low = sum_i32x8_low;
     state->sum_i32x8_high = sum_i32x8_high;
 }
