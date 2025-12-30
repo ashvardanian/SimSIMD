@@ -178,6 +178,14 @@ NK_DYNAMIC void nk_jsd_f64(nk_f64_t const *a, nk_f64_t const *b, nk_size_t n, nk
 NK_PUBLIC void nk_kld_f64_serial(nk_f64_t const *a, nk_f64_t const *b, nk_size_t n, nk_f64_t *result);
 /** @copydoc nk_jsd_f64 */
 NK_PUBLIC void nk_jsd_f64_serial(nk_f64_t const *a, nk_f64_t const *b, nk_size_t n, nk_f64_t *result);
+/** @copydoc nk_kld_f64 */
+NK_PUBLIC void nk_kld_f64_haswell(nk_f64_t const *a, nk_f64_t const *b, nk_size_t n, nk_f64_t *result);
+/** @copydoc nk_jsd_f64 */
+NK_PUBLIC void nk_jsd_f64_haswell(nk_f64_t const *a, nk_f64_t const *b, nk_size_t n, nk_f64_t *result);
+/** @copydoc nk_kld_f64 */
+NK_PUBLIC void nk_kld_f64_skylake(nk_f64_t const *a, nk_f64_t const *b, nk_size_t n, nk_f64_t *result);
+/** @copydoc nk_jsd_f64 */
+NK_PUBLIC void nk_jsd_f64_skylake(nk_f64_t const *a, nk_f64_t const *b, nk_size_t n, nk_f64_t *result);
 /** @copydoc nk_kld_f32 */
 NK_PUBLIC void nk_kld_f32_serial(nk_f32_t const *a, nk_f32_t const *b, nk_size_t n, nk_f32_t *result);
 /** @copydoc nk_jsd_f32 */
@@ -565,6 +573,14 @@ nk_jsd_f16_haswell_cycle:
     *result = sum > 0 ? nk_sqrt_f32_haswell_(sum) : 0;
 }
 
+NK_PUBLIC void nk_kld_f64_haswell(nk_f64_t const *a, nk_f64_t const *b, nk_size_t n, nk_f64_t *result) {
+    nk_kld_f64_serial(a, b, n, result);
+}
+
+NK_PUBLIC void nk_jsd_f64_haswell(nk_f64_t const *a, nk_f64_t const *b, nk_size_t n, nk_f64_t *result) {
+    nk_jsd_f64_serial(a, b, n, result);
+}
+
 #pragma clang attribute pop
 #pragma GCC pop_options
 #endif // NK_TARGET_HASWELL
@@ -658,9 +674,93 @@ nk_jsd_f32_skylake_cycle:
     *result = sum > 0 ? nk_sqrt_f32_haswell_(sum) : 0;
 }
 
+NK_INTERNAL __m512d nk_log2_f64_skylake_(__m512d x) {
+    // Extract the exponent and mantissa
+    __m512d one_f64x8 = _mm512_set1_pd(1.0);
+    __m512d exponent_f64x8 = _mm512_getexp_pd(x);
+    __m512d mantissa_f64x8 = _mm512_getmant_pd(x, _MM_MANT_NORM_1_2, _MM_MANT_SIGN_src);
+
+    // Compute the polynomial using Horner's method (same coefficients as f32 version)
+    __m512d poly_f64x8 = _mm512_set1_pd(-3.4436006e-2);
+    poly_f64x8 = _mm512_fmadd_pd(mantissa_f64x8, poly_f64x8, _mm512_set1_pd(3.1821337e-1));
+    poly_f64x8 = _mm512_fmadd_pd(mantissa_f64x8, poly_f64x8, _mm512_set1_pd(-1.2315303));
+    poly_f64x8 = _mm512_fmadd_pd(mantissa_f64x8, poly_f64x8, _mm512_set1_pd(2.5988452));
+    poly_f64x8 = _mm512_fmadd_pd(mantissa_f64x8, poly_f64x8, _mm512_set1_pd(-3.3241990));
+    poly_f64x8 = _mm512_fmadd_pd(mantissa_f64x8, poly_f64x8, _mm512_set1_pd(3.1157899));
+
+    return _mm512_add_pd(_mm512_mul_pd(poly_f64x8, _mm512_sub_pd(mantissa_f64x8, one_f64x8)), exponent_f64x8);
+}
+
+NK_PUBLIC void nk_kld_f64_skylake(nk_f64_t const *a, nk_f64_t const *b, nk_size_t n, nk_f64_t *result) {
+    __m512d sum_f64x8 = _mm512_setzero_pd();
+    nk_f64_t epsilon = NK_F64_DIVISION_EPSILON;
+    __m512d epsilon_f64x8 = _mm512_set1_pd(epsilon);
+    __m512d a_f64x8, b_f64x8;
+
+nk_kld_f64_skylake_cycle:
+    if (n < 8) {
+        __mmask8 mask = (__mmask8)_bzhi_u32(0xFF, n);
+        a_f64x8 = _mm512_add_pd(_mm512_maskz_loadu_pd(mask, a), epsilon_f64x8);
+        b_f64x8 = _mm512_add_pd(_mm512_maskz_loadu_pd(mask, b), epsilon_f64x8);
+        n = 0;
+    }
+    else {
+        a_f64x8 = _mm512_add_pd(_mm512_loadu_pd(a), epsilon_f64x8);
+        b_f64x8 = _mm512_add_pd(_mm512_loadu_pd(b), epsilon_f64x8);
+        a += 8, b += 8, n -= 8;
+    }
+    __m512d ratio_f64x8 = _mm512_div_pd(a_f64x8, b_f64x8);
+    __m512d log_ratio_f64x8 = nk_log2_f64_skylake_(ratio_f64x8);
+    __m512d contribution_f64x8 = _mm512_mul_pd(a_f64x8, log_ratio_f64x8);
+    sum_f64x8 = _mm512_add_pd(sum_f64x8, contribution_f64x8);
+    if (n) goto nk_kld_f64_skylake_cycle;
+
+    nk_f64_t log2_normalizer = 0.6931471805599453;
+    *result = _mm512_reduce_add_pd(sum_f64x8) * log2_normalizer;
+}
+
+NK_PUBLIC void nk_jsd_f64_skylake(nk_f64_t const *a, nk_f64_t const *b, nk_size_t n, nk_f64_t *result) {
+    __m512d sum_a_f64x8 = _mm512_setzero_pd();
+    __m512d sum_b_f64x8 = _mm512_setzero_pd();
+    nk_f64_t epsilon = NK_F64_DIVISION_EPSILON;
+    __m512d epsilon_f64x8 = _mm512_set1_pd(epsilon);
+    __m512d a_f64x8, b_f64x8;
+
+nk_jsd_f64_skylake_cycle:
+    if (n < 8) {
+        __mmask8 mask = (__mmask8)_bzhi_u32(0xFF, n);
+        a_f64x8 = _mm512_maskz_loadu_pd(mask, a);
+        b_f64x8 = _mm512_maskz_loadu_pd(mask, b);
+        n = 0;
+    }
+    else {
+        a_f64x8 = _mm512_loadu_pd(a);
+        b_f64x8 = _mm512_loadu_pd(b);
+        a += 8, b += 8, n -= 8;
+    }
+    __m512d mean_f64x8 = _mm512_mul_pd(_mm512_add_pd(a_f64x8, b_f64x8), _mm512_set1_pd(0.5));
+    __mmask8 nonzero_mask_a = _mm512_cmp_pd_mask(a_f64x8, epsilon_f64x8, _CMP_GE_OQ);
+    __mmask8 nonzero_mask_b = _mm512_cmp_pd_mask(b_f64x8, epsilon_f64x8, _CMP_GE_OQ);
+    __mmask8 nonzero_mask = nonzero_mask_a & nonzero_mask_b;
+    __m512d mean_with_epsilon_f64x8 = _mm512_add_pd(mean_f64x8, epsilon_f64x8);
+    __m512d mean_recip_approx_f64x8 = _mm512_rcp14_pd(mean_with_epsilon_f64x8);
+    __m512d ratio_a_f64x8 = _mm512_mul_pd(_mm512_add_pd(a_f64x8, epsilon_f64x8), mean_recip_approx_f64x8);
+    __m512d ratio_b_f64x8 = _mm512_mul_pd(_mm512_add_pd(b_f64x8, epsilon_f64x8), mean_recip_approx_f64x8);
+    __m512d log_ratio_a_f64x8 = nk_log2_f64_skylake_(ratio_a_f64x8);
+    __m512d log_ratio_b_f64x8 = nk_log2_f64_skylake_(ratio_b_f64x8);
+    sum_a_f64x8 = _mm512_mask3_fmadd_pd(a_f64x8, log_ratio_a_f64x8, sum_a_f64x8, nonzero_mask);
+    sum_b_f64x8 = _mm512_mask3_fmadd_pd(b_f64x8, log_ratio_b_f64x8, sum_b_f64x8, nonzero_mask);
+    if (n) goto nk_jsd_f64_skylake_cycle;
+
+    nk_f64_t log2_normalizer = 0.6931471805599453;
+    nk_f64_t sum = _mm512_reduce_add_pd(_mm512_add_pd(sum_a_f64x8, sum_b_f64x8));
+    sum *= log2_normalizer / 2;
+    *result = sum > 0 ? nk_sqrt_f64_haswell_(sum) : 0;
+}
+
 #pragma clang attribute pop
 #pragma GCC pop_options
-#endif // NK_TARGET_HASWELL
+#endif // NK_TARGET_SKYLAKE
 
 #if NK_TARGET_SAPPHIRE
 #pragma GCC push_options
@@ -781,7 +881,13 @@ NK_PUBLIC void nk_kld_f32(nk_f32_t const *a, nk_f32_t const *b, nk_size_t n, nk_
 }
 
 NK_PUBLIC void nk_kld_f64(nk_f64_t const *a, nk_f64_t const *b, nk_size_t n, nk_f64_t *result) {
+#if NK_TARGET_SKYLAKE
+    nk_kld_f64_skylake(a, b, n, result);
+#elif NK_TARGET_HASWELL
+    nk_kld_f64_haswell(a, b, n, result);
+#else
     nk_kld_f64_serial(a, b, n, result);
+#endif
 }
 
 NK_PUBLIC void nk_jsd_f16(nk_f16_t const *a, nk_f16_t const *b, nk_size_t n, nk_f32_t *result) {
@@ -809,7 +915,13 @@ NK_PUBLIC void nk_jsd_f32(nk_f32_t const *a, nk_f32_t const *b, nk_size_t n, nk_
 }
 
 NK_PUBLIC void nk_jsd_f64(nk_f64_t const *a, nk_f64_t const *b, nk_size_t n, nk_f64_t *result) {
+#if NK_TARGET_SKYLAKE
+    nk_jsd_f64_skylake(a, b, n, result);
+#elif NK_TARGET_HASWELL
+    nk_jsd_f64_haswell(a, b, n, result);
+#else
     nk_jsd_f64_serial(a, b, n, result);
+#endif
 }
 
 #endif // !NK_DYNAMIC_DISPATCH

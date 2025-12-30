@@ -1285,6 +1285,8 @@ NK_INTERNAL void nk_find_kernel_punned_f64_(nk_capability_t v, nk_kernel_kind_t 
         case nk_kernel_reduce_max_k: *m = (m_t)&nk_reduce_max_f64_skylake, *c = nk_cap_skylake_k; return;
         case nk_kernel_bilinear_k: *m = (m_t)&nk_bilinear_f64_skylake, *c = nk_cap_skylake_k; return;
         case nk_kernel_mahalanobis_k: *m = (m_t)&nk_mahalanobis_f64_skylake, *c = nk_cap_skylake_k; return;
+        case nk_kernel_kld_k: *m = (m_t)&nk_kld_f64_skylake, *c = nk_cap_skylake_k; return;
+        case nk_kernel_jsd_k: *m = (m_t)&nk_jsd_f64_skylake, *c = nk_cap_skylake_k; return;
         default: break;
         }
 #endif
@@ -1309,6 +1311,8 @@ NK_INTERNAL void nk_find_kernel_punned_f64_(nk_capability_t v, nk_kernel_kind_t 
         case nk_kernel_sin_k: *m = (m_t)&nk_sin_f64_haswell, *c = nk_cap_haswell_k; return;
         case nk_kernel_cos_k: *m = (m_t)&nk_cos_f64_haswell, *c = nk_cap_haswell_k; return;
         case nk_kernel_atan_k: *m = (m_t)&nk_atan_f64_haswell, *c = nk_cap_haswell_k; return;
+        case nk_kernel_kld_k: *m = (m_t)&nk_kld_f64_haswell, *c = nk_cap_haswell_k; return;
+        case nk_kernel_jsd_k: *m = (m_t)&nk_jsd_f64_haswell, *c = nk_cap_haswell_k; return;
         default: break;
         }
 #endif
