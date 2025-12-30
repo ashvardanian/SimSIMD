@@ -44,6 +44,17 @@
 extern "C" {
 #endif
 
+/*  AMX-specific packed buffer header (64-byte aligned).
+ *  Different from nk_dots_amx_packed_header_t as AMX uses tile-based layout.
+ */
+typedef struct {
+    nk_u32_t full_n_tiles;  // Number of full N tiles (16 rows each)
+    nk_u32_t full_k_tiles;  // Number of K tiles (32 cols for BF16, 64 for I8)
+    nk_u32_t n_edge_rows;   // Remaining rows after full tiles (0-15)
+    nk_u32_t n_edge_offset; // Byte offset to edge data region
+    nk_u32_t reserved[12];  // Padding to 64 bytes
+} nk_dots_amx_packed_header_t;
+
 /*  Morton Z-curve encoding for cache-friendly tile traversal.
  *  Uses BMI2 PDEP instruction for fast (2-3 cycle) bit interleaving.
  *  Interleaves bits of (tile_row, tile_col) to produce Z-curve index.
@@ -253,7 +264,7 @@ NK_PUBLIC nk_size_t nk_dots_bf16bf16f32_packed_size_sapphire_amx(nk_size_t n, nk
     nk_size_t const n_edge_rows = n - full_n_tiles * tile_rows;
 
     // Header (64 bytes aligned)
-    nk_size_t size = sizeof(nk_dots_packed_header_t);
+    nk_size_t size = sizeof(nk_dots_amx_packed_header_t);
 
     // All tiles for full N rows (Morton-ordered, pair-interleaved, K remainder zero-padded)
     size += full_n_tiles * tiles_along_k * tile_bytes;
@@ -276,7 +287,7 @@ NK_PUBLIC nk_size_t nk_dots_i8i8i32_packed_size_sapphire_amx(nk_size_t n, nk_siz
     nk_size_t const n_edge_rows = n - full_n_tiles * tile_rows;
 
     // Header (64 bytes aligned)
-    nk_size_t size = sizeof(nk_dots_packed_header_t);
+    nk_size_t size = sizeof(nk_dots_amx_packed_header_t);
 
     // All tiles for full N rows (Morton-ordered, quad-interleaved, K remainder zero-padded)
     size += full_n_tiles * tiles_along_k * tile_bytes;
@@ -318,13 +329,13 @@ NK_PUBLIC void nk_dots_bf16bf16f32_pack_sapphire_amx( //
     nk_size_t const total_tiles = num_n_tiles * num_k_tiles;
 
     // Write header with layout metadata
-    nk_dots_packed_header_t *header = (nk_dots_packed_header_t *)b_packed;
+    nk_dots_amx_packed_header_t *header = (nk_dots_amx_packed_header_t *)b_packed;
     header->full_n_tiles = (nk_u32_t)num_n_tiles;
     header->full_k_tiles = (nk_u32_t)num_k_tiles;
     header->n_edge_rows = (nk_u32_t)n_remainder_rows;
 
     // Compute memory region offsets
-    nk_size_t const tiles_offset = sizeof(nk_dots_packed_header_t);
+    nk_size_t const tiles_offset = sizeof(nk_dots_amx_packed_header_t);
     nk_size_t const n_edge_offset = tiles_offset + total_tiles * tile_bytes;
     header->n_edge_offset = (nk_u32_t)n_edge_offset;
 
@@ -403,13 +414,13 @@ NK_PUBLIC void nk_dots_i8i8i32_pack_sapphire_amx( //
     nk_size_t const total_tiles = num_n_tiles * num_k_tiles;
 
     // Write header with layout metadata
-    nk_dots_packed_header_t *header = (nk_dots_packed_header_t *)b_packed;
+    nk_dots_amx_packed_header_t *header = (nk_dots_amx_packed_header_t *)b_packed;
     header->full_n_tiles = (nk_u32_t)num_n_tiles;
     header->full_k_tiles = (nk_u32_t)num_k_tiles;
     header->n_edge_rows = (nk_u32_t)n_remainder_rows;
 
     // Compute memory region offsets
-    nk_size_t const tiles_offset = sizeof(nk_dots_packed_header_t);
+    nk_size_t const tiles_offset = sizeof(nk_dots_amx_packed_header_t);
     nk_size_t const n_edge_offset = tiles_offset + total_tiles * tile_bytes;
     header->n_edge_offset = (nk_u32_t)n_edge_offset;
 
@@ -476,13 +487,13 @@ NK_INTERNAL void nk_dots_bf16bf16f32_sapphire_aligned_(    //
     nk_size_t a_stride, nk_size_t c_stride) {
 
     // Read packed B header
-    nk_dots_packed_header_t const *header = (nk_dots_packed_header_t const *)b_packed;
+    nk_dots_amx_packed_header_t const *header = (nk_dots_amx_packed_header_t const *)b_packed;
     nk_size_t const num_n_tiles = header->full_n_tiles;
     nk_size_t const num_k_tiles = header->full_k_tiles;
     nk_size_t const n_remainder_rows = header->n_edge_rows;
 
     // Pointers to packed data regions
-    nk_bf16_t const *b_tiles = (nk_bf16_t const *)((char const *)b_packed + sizeof(nk_dots_packed_header_t));
+    nk_bf16_t const *b_tiles = (nk_bf16_t const *)((char const *)b_packed + sizeof(nk_dots_amx_packed_header_t));
     nk_bf16_t const *n_edge_ptr = (nk_bf16_t const *)((char const *)b_packed + header->n_edge_offset);
 
     // Constants for BF16 AMX tiles
@@ -682,12 +693,12 @@ NK_INTERNAL void nk_dots_bf16bf16f32_sapphire_misaligned_( //
     nk_size_t a_stride, nk_size_t c_stride) {
 
     // Read header for hybrid layout
-    nk_dots_packed_header_t const *header = (nk_dots_packed_header_t const *)b_packed;
+    nk_dots_amx_packed_header_t const *header = (nk_dots_amx_packed_header_t const *)b_packed;
     nk_size_t const full_n_tiles = header->full_n_tiles;
     nk_size_t const full_k_tiles = header->full_k_tiles;
     nk_size_t const n_edge_rows = header->n_edge_rows;
 
-    nk_bf16_t const *tiles_ptr = (nk_bf16_t const *)((char const *)b_packed + sizeof(nk_dots_packed_header_t));
+    nk_bf16_t const *tiles_ptr = (nk_bf16_t const *)((char const *)b_packed + sizeof(nk_dots_amx_packed_header_t));
     nk_bf16_t const *n_edge_ptr = (nk_bf16_t const *)((char const *)b_packed + header->n_edge_offset);
 
     nk_size_t const tile_cols_bf16 = 32;
@@ -934,11 +945,11 @@ NK_INTERNAL void nk_dots_i8i8i32_sapphire_aligned_(      //
     nk_size_t a_stride, nk_size_t c_stride) {
 
     // Parse packed B header
-    nk_dots_packed_header_t const *header = (nk_dots_packed_header_t const *)b_packed;
-    nk_size_t const num_n_tiles = header->full_n_tiles;    // Number of 16-column N tiles
-    nk_size_t const num_k_tiles = header->full_k_tiles;    // Number of 64-element K tiles
+    nk_dots_amx_packed_header_t const *header = (nk_dots_amx_packed_header_t const *)b_packed;
+    nk_size_t const num_n_tiles = header->full_n_tiles;        // Number of 16-column N tiles
+    nk_size_t const num_k_tiles = header->full_k_tiles;           // Number of 64-element K tiles
     nk_size_t const n_edge_cols = header->n_edge_rows;     // Columns in N edge (0-15)
-    nk_size_t const n_edge_offset = header->n_edge_offset; // Byte offset to N edge data
+    nk_size_t const n_edge_offset = header->n_edge_offset;   // Byte offset to N edge data
 
     // AMX I8 tile dimensions: 16 rows × 64 columns = 1024 I8 elements = 1KB
     nk_size_t const tile_k_elements = 64;  // K elements per tile
@@ -1137,7 +1148,7 @@ NK_INTERNAL void nk_dots_i8i8i32_sapphire_misaligned_(   //
     nk_size_t m, nk_size_t n, nk_size_t k,               //
     nk_size_t a_stride, nk_size_t c_stride) {
 
-    nk_dots_packed_header_t const *header = (nk_dots_packed_header_t const *)b_packed;
+    nk_dots_amx_packed_header_t const *header = (nk_dots_amx_packed_header_t const *)b_packed;
     nk_size_t const full_n_tiles = header->full_n_tiles;
     nk_size_t const full_k_tiles = header->full_k_tiles;
     nk_size_t const n_edge_rows = header->n_edge_rows;

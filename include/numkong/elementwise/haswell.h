@@ -15,108 +15,11 @@
 #pragma clang attribute push(__attribute__((target("avx2,f16c,fma"))), apply_to = function)
 
 #include "numkong/types.h"
+#include "numkong/reduce/haswell.h" // nk_e4m3x8_to_f32x8_haswell_, nk_e5m2x8_to_f32x8_haswell_
 
 #if defined(__cplusplus)
 extern "C" {
 #endif
-
-/** @brief Convert 8x e4m3 to 8x f32 via bit manipulation (AVX2).
- *  E4M3 format: S EEEE MMM (bias=7). F32: sign<<31, (exp+120)<<23, mant<<20. */
-NK_INTERNAL __m256 nk_e4m3x8_to_f32x8_haswell_(__m128i e4m3_i8x8) {
-    __m256i v_i32x8 = _mm256_cvtepu8_epi32(e4m3_i8x8);
-    __m256i sign_i32x8 = _mm256_slli_epi32(_mm256_and_si256(_mm256_srli_epi32(v_i32x8, 7), _mm256_set1_epi32(1)), 31);
-    __m256i exp_i32x8 = _mm256_and_si256(_mm256_srli_epi32(v_i32x8, 3), _mm256_set1_epi32(0x0F));
-    __m256i mant_i32x8 = _mm256_and_si256(v_i32x8, _mm256_set1_epi32(0x07));
-    __m256i f32_exp_i32x8 = _mm256_slli_epi32(_mm256_add_epi32(exp_i32x8, _mm256_set1_epi32(120)), 23);
-    __m256i f32_mant_i32x8 = _mm256_slli_epi32(mant_i32x8, 20);
-    __m256i f32_bits_i32x8 = _mm256_or_si256(sign_i32x8, _mm256_or_si256(f32_exp_i32x8, f32_mant_i32x8));
-    __m256i zero_mask_i32x8 = _mm256_cmpeq_epi32(exp_i32x8, _mm256_setzero_si256());
-    f32_bits_i32x8 = _mm256_andnot_si256(zero_mask_i32x8, f32_bits_i32x8);
-    return _mm256_castsi256_ps(f32_bits_i32x8);
-}
-
-/** @brief Convert 8x e5m2 to 8x f32 via bit manipulation (AVX2).
- *  E5M2 format: S EEEEE MM (bias=15). F32: sign<<31, (exp+112)<<23, mant<<21. */
-NK_INTERNAL __m256 nk_e5m2x8_to_f32x8_haswell_(__m128i e5m2_i8x8) {
-    __m256i v_i32x8 = _mm256_cvtepu8_epi32(e5m2_i8x8);
-    __m256i sign_i32x8 = _mm256_slli_epi32(_mm256_and_si256(_mm256_srli_epi32(v_i32x8, 7), _mm256_set1_epi32(1)), 31);
-    __m256i exp_i32x8 = _mm256_and_si256(_mm256_srli_epi32(v_i32x8, 2), _mm256_set1_epi32(0x1F));
-    __m256i mant_i32x8 = _mm256_and_si256(v_i32x8, _mm256_set1_epi32(0x03));
-    __m256i f32_exp_i32x8 = _mm256_slli_epi32(_mm256_add_epi32(exp_i32x8, _mm256_set1_epi32(112)), 23);
-    __m256i f32_mant_i32x8 = _mm256_slli_epi32(mant_i32x8, 21);
-    __m256i f32_bits_i32x8 = _mm256_or_si256(sign_i32x8, _mm256_or_si256(f32_exp_i32x8, f32_mant_i32x8));
-    __m256i zero_mask_i32x8 = _mm256_cmpeq_epi32(exp_i32x8, _mm256_setzero_si256());
-    f32_bits_i32x8 = _mm256_andnot_si256(zero_mask_i32x8, f32_bits_i32x8);
-    return _mm256_castsi256_ps(f32_bits_i32x8);
-}
-
-/** @brief Convert 8x f32 to 8x e4m3 via bit manipulation (AVX2).
- *  E4M3 format: S EEEE MMM (bias=7). Extract sign, rebias exponent (f32_exp - 127 + 7 = f32_exp - 120),
- *  clamp to [0,15], take top 3 mantissa bits, handle underflow. */
-NK_INTERNAL __m128i nk_f32x8_to_e4m3x8_haswell_(__m256 f32x8) {
-    __m256i bits_i32x8 = _mm256_castps_si256(f32x8);
-    // Extract sign bit (bit 31)
-    __m256i sign_i32x8 = _mm256_srli_epi32(bits_i32x8, 31);
-    // Extract f32 exponent (bits 30:23)
-    __m256i f32_exp_i32x8 = _mm256_and_si256(_mm256_srli_epi32(bits_i32x8, 23), _mm256_set1_epi32(0xFF));
-    // Extract f32 mantissa (bits 22:0), take top 3 bits -> bits 22:20
-    __m256i f32_mant_i32x8 = _mm256_and_si256(_mm256_srli_epi32(bits_i32x8, 20), _mm256_set1_epi32(0x07));
-    // Rebias exponent: e4m3_exp = f32_exp - 120 (bias 127 -> bias 7)
-    __m256i e4m3_exp_i32x8 = _mm256_sub_epi32(f32_exp_i32x8, _mm256_set1_epi32(120));
-    // Clamp exponent to [0, 15], detect underflow (exp < 0) and overflow (exp > 15)
-    __m256i underflow_i32x8 = _mm256_cmpgt_epi32(_mm256_setzero_si256(), e4m3_exp_i32x8);
-    __m256i overflow_i32x8 = _mm256_cmpgt_epi32(e4m3_exp_i32x8, _mm256_set1_epi32(15));
-    e4m3_exp_i32x8 = _mm256_max_epi32(e4m3_exp_i32x8, _mm256_setzero_si256());
-    e4m3_exp_i32x8 = _mm256_min_epi32(e4m3_exp_i32x8, _mm256_set1_epi32(15));
-    // On overflow, saturate mantissa to max (7)
-    __m256i mant_i32x8 = _mm256_blendv_epi8(f32_mant_i32x8, _mm256_set1_epi32(0x07), overflow_i32x8);
-    // Compose e4m3: sign << 7 | exp << 3 | mant
-    __m256i e4m3_i32x8 = _mm256_or_si256(_mm256_slli_epi32(sign_i32x8, 7),
-                                         _mm256_or_si256(_mm256_slli_epi32(e4m3_exp_i32x8, 3), mant_i32x8));
-    // On underflow, set to signed zero (sign << 7)
-    e4m3_i32x8 = _mm256_blendv_epi8(e4m3_i32x8, _mm256_slli_epi32(sign_i32x8, 7), underflow_i32x8);
-    // Pack 32-bit integers to 8-bit
-    __m256i packed_i16x16 = _mm256_packs_epi32(e4m3_i32x8, _mm256_setzero_si256());
-    __m256i packed_i8x32 = _mm256_packus_epi16(packed_i16x16, _mm256_setzero_si256());
-    // Extract lower 64 bits containing 8 bytes
-    __m128i lo = _mm256_castsi256_si128(packed_i8x32);
-    __m128i hi = _mm256_extracti128_si256(packed_i8x32, 1);
-    return _mm_or_si128(lo, _mm_slli_si128(hi, 4));
-}
-
-/** @brief Convert 8x f32 to 8x e5m2 via bit manipulation (AVX2).
- *  E5M2 format: S EEEEE MM (bias=15). Extract sign, rebias exponent (f32_exp - 127 + 15 = f32_exp - 112),
- *  clamp to [0,31], take top 2 mantissa bits, handle underflow. */
-NK_INTERNAL __m128i nk_f32x8_to_e5m2x8_haswell_(__m256 f32x8) {
-    __m256i bits_i32x8 = _mm256_castps_si256(f32x8);
-    // Extract sign bit (bit 31)
-    __m256i sign_i32x8 = _mm256_srli_epi32(bits_i32x8, 31);
-    // Extract f32 exponent (bits 30:23)
-    __m256i f32_exp_i32x8 = _mm256_and_si256(_mm256_srli_epi32(bits_i32x8, 23), _mm256_set1_epi32(0xFF));
-    // Extract f32 mantissa (bits 22:0), take top 2 bits -> bits 22:21
-    __m256i f32_mant_i32x8 = _mm256_and_si256(_mm256_srli_epi32(bits_i32x8, 21), _mm256_set1_epi32(0x03));
-    // Rebias exponent: e5m2_exp = f32_exp - 112 (bias 127 -> bias 15)
-    __m256i e5m2_exp_i32x8 = _mm256_sub_epi32(f32_exp_i32x8, _mm256_set1_epi32(112));
-    // Clamp exponent to [0, 31], detect underflow (exp < 0) and overflow (exp > 31)
-    __m256i underflow_i32x8 = _mm256_cmpgt_epi32(_mm256_setzero_si256(), e5m2_exp_i32x8);
-    __m256i overflow_i32x8 = _mm256_cmpgt_epi32(e5m2_exp_i32x8, _mm256_set1_epi32(31));
-    e5m2_exp_i32x8 = _mm256_max_epi32(e5m2_exp_i32x8, _mm256_setzero_si256());
-    e5m2_exp_i32x8 = _mm256_min_epi32(e5m2_exp_i32x8, _mm256_set1_epi32(31));
-    // On overflow, saturate mantissa to max (3)
-    __m256i mant_i32x8 = _mm256_blendv_epi8(f32_mant_i32x8, _mm256_set1_epi32(0x03), overflow_i32x8);
-    // Compose e5m2: sign << 7 | exp << 2 | mant
-    __m256i e5m2_i32x8 = _mm256_or_si256(_mm256_slli_epi32(sign_i32x8, 7),
-                                         _mm256_or_si256(_mm256_slli_epi32(e5m2_exp_i32x8, 2), mant_i32x8));
-    // On underflow, set to signed zero (sign << 7)
-    e5m2_i32x8 = _mm256_blendv_epi8(e5m2_i32x8, _mm256_slli_epi32(sign_i32x8, 7), underflow_i32x8);
-    // Pack 32-bit integers to 8-bit
-    __m256i packed_i16x16 = _mm256_packs_epi32(e5m2_i32x8, _mm256_setzero_si256());
-    __m256i packed_i8x32 = _mm256_packus_epi16(packed_i16x16, _mm256_setzero_si256());
-    // Extract lower 64 bits containing 8 bytes
-    __m128i lo = _mm256_castsi256_si128(packed_i8x32);
-    __m128i hi = _mm256_extracti128_si256(packed_i8x32, 1);
-    return _mm_or_si128(lo, _mm_slli_si128(hi, 4));
-}
 
 NK_PUBLIC void nk_sum_f32_haswell(nk_f32_t const *a, nk_f32_t const *b, nk_size_t n, nk_f32_t *result) {
     // The main loop:

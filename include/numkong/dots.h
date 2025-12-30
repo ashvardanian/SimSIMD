@@ -405,6 +405,7 @@ NK_PUBLIC void nk_dots_i8i8i8_sapphire_amx(void *c, nk_size_t m, nk_size_t n, nk
 #include "numkong/dots/serial.h"
 #include "numkong/dots/haswell.h"
 #include "numkong/dots/skylake.h"
+#include "numkong/dots/ice.h"
 #include "numkong/dots/genoa.h"
 #include "numkong/dots/sapphire.h"
 #include "numkong/dots/sapphire_amx.h"

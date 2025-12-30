@@ -92,7 +92,7 @@ typedef struct {
  *  Calculates buffer size needed for packed B matrix: header + N_groups * group_size * K.
  *  Edge rows are zero-padded to full group size for uniform SIMD loads.
  */
-#define NK_MAKE_DOTS_PACK_SIZE(suffix, input_type, output_type)                                             \
+#define NK_MAKE_DOTS_PACK_SIZE(suffix, input_type, output_type)                                              \
     NK_PUBLIC nk_size_t nk_dots_##input_type##input_type##output_type##_packed_size_##suffix(nk_size_t n,   \
                                                                                              nk_size_t k) { \
         nk_size_t const group_size = NK_DOTS_GROUP_SIZE_;                                                   \

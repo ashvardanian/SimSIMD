@@ -462,8 +462,24 @@ typedef nk_f64_t nk_fmax_t;
 #define NK_F64_INF (1e999)
 #define NK_F64_MAX 1.7976931348623157e+308
 #define NK_F64_MIN (-1.7976931348623157e+308)
+#define NK_F32_MAX 3.402823466e+38f
+#define NK_F32_MIN (-3.402823466e+38f)
+
 #define NK_I64_MAX 9223372036854775807LL
 #define NK_I64_MIN (-9223372036854775807LL - 1LL)
+#define NK_U64_MAX 18446744073709551615ULL
+
+#define NK_I32_MAX 2147483647
+#define NK_I32_MIN (-2147483647 - 1)
+#define NK_U32_MAX 4294967295U
+
+#define NK_I16_MAX 32767
+#define NK_I16_MIN (-32767 - 1)
+#define NK_U16_MAX 65535U
+
+#define NK_I8_MAX 127
+#define NK_I8_MIN (-127 - 1)
+#define NK_U8_MAX 255U
 
 /**
  *  @brief  Enumeration of supported scalar data types.

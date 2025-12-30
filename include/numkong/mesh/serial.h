@@ -234,9 +234,9 @@ extern "C" {
         q[8] = (-1 + 2 * sin_half_2_sq) * (-1 + 2 * sin_half_3_sq);                                                  \
     }
 
-#define NK_MAKE_SVD3X3(type, compute_sqrt)                                                                 \
-    NK_INTERNAL void nk_svd3x3__##type(nk_##type##_t const *a, nk_##type##_t *svd_u, nk_##type##_t *svd_s, \
-                                       nk_##type##_t *svd_v) {                                             \
+#define NK_MAKE_SVD3X3(type, compute_sqrt)                                                                  \
+    NK_INTERNAL void nk_svd3x3_##type##_(nk_##type##_t const *a, nk_##type##_t *svd_u, nk_##type##_t *svd_s, \
+                                         nk_##type##_t *svd_v) {                                             \
         /* Compute A^T * A (symmetric) */                                                                  \
         nk_##type##_t ata[9];                                                                              \
         ata[0] = a[0] * a[0] + a[3] * a[3] + a[6] * a[6];                                                  \
@@ -279,8 +279,8 @@ extern "C" {
         svd_s[6] = 0, svd_s[7] = 0, svd_s[8] = compute_sqrt(s3_sq);                                        \
     }
 
-#define NK_MAKE_DET3X3(type)                                                             \
-    NK_INTERNAL nk_##type##_t nk_det3x3__##type(nk_##type##_t const *m) {                \
+#define NK_MAKE_DET3X3(type)                                                              \
+    NK_INTERNAL nk_##type##_t nk_det3x3_##type##_(nk_##type##_t const *m) {                \
         return m[0] * (m[4] * m[8] - m[5] * m[7]) - m[1] * (m[3] * m[8] - m[5] * m[6]) + \
                m[2] * (m[3] * m[7] - m[4] * m[6]);                                       \
     }
@@ -419,7 +419,7 @@ NK_MAKE_DET3X3(f64)
         for (int j = 0; j < 9; ++j) cross_covariance[j] = (nk_##svd_type##_t)h[j];                                   \
         /* Step 3: SVD of H = U * S * V^T */                                                                         \
         nk_##svd_type##_t svd_u[9], svd_s[9], svd_v[9];                                                              \
-        nk_svd3x3__##svd_type(cross_covariance, svd_u, svd_s, svd_v);                                                \
+        nk_svd3x3_##svd_type##_(cross_covariance, svd_u, svd_s, svd_v);                                                \
         /* Step 4: R = V * U^T */                                                                                    \
         nk_##svd_type##_t rotation_matrix[9];                                                                        \
         rotation_matrix[0] = svd_v[0] * svd_u[0] + svd_v[1] * svd_u[1] + svd_v[2] * svd_u[2];                        \
@@ -432,7 +432,7 @@ NK_MAKE_DET3X3(f64)
         rotation_matrix[7] = svd_v[6] * svd_u[3] + svd_v[7] * svd_u[4] + svd_v[8] * svd_u[5];                        \
         rotation_matrix[8] = svd_v[6] * svd_u[6] + svd_v[7] * svd_u[7] + svd_v[8] * svd_u[8];                        \
         /* Handle reflection: if det(R) < 0, negate third column of V and recompute R */                             \
-        nk_##svd_type##_t rotation_det = nk_det3x3__##svd_type(rotation_matrix);                                     \
+        nk_##svd_type##_t rotation_det = nk_det3x3_##svd_type##_(rotation_matrix);                                     \
         if (rotation_det < 0) {                                                                                      \
             svd_v[2] = -svd_v[2], svd_v[5] = -svd_v[5], svd_v[8] = -svd_v[8];                                        \
             rotation_matrix[0] = svd_v[0] * svd_u[0] + svd_v[1] * svd_u[1] + svd_v[2] * svd_u[2];                    \
@@ -535,7 +535,7 @@ NK_MAKE_DET3X3(f64)
         for (int j = 0; j < 9; ++j) cross_covariance[j] = (nk_##svd_type##_t)h[j];                                    \
         /* Step 3: SVD of H = U * S * V^T */                                                                          \
         nk_##svd_type##_t svd_u[9], svd_s[9], svd_v[9];                                                               \
-        nk_svd3x3__##svd_type(cross_covariance, svd_u, svd_s, svd_v);                                                 \
+        nk_svd3x3_##svd_type##_(cross_covariance, svd_u, svd_s, svd_v);                                                 \
         /* Step 4: R = V * U^T */                                                                                     \
         nk_##svd_type##_t rotation_matrix[9];                                                                         \
         rotation_matrix[0] = svd_v[0] * svd_u[0] + svd_v[1] * svd_u[1] + svd_v[2] * svd_u[2];                         \
@@ -549,7 +549,7 @@ NK_MAKE_DET3X3(f64)
         rotation_matrix[8] = svd_v[6] * svd_u[6] + svd_v[7] * svd_u[7] + svd_v[8] * svd_u[8];                         \
         /* Handle reflection and compute scale: c = trace(D*S) / variance_a */                                        \
         /* D = diag(1, 1, det(R)), svd_s contains proper positive singular values on diagonal */                      \
-        nk_##svd_type##_t rotation_det = nk_det3x3__##svd_type(rotation_matrix);                                      \
+        nk_##svd_type##_t rotation_det = nk_det3x3_##svd_type##_(rotation_matrix);                                      \
         nk_##svd_type##_t sign_det = rotation_det < 0 ? (nk_##svd_type##_t) - 1.0 : (nk_##svd_type##_t)1.0;           \
         nk_##svd_type##_t trace_scaled_s = svd_s[0] + svd_s[4] + sign_det * svd_s[8];                                 \
         nk_##accumulator_type##_t scale_factor = (nk_##accumulator_type##_t)trace_scaled_s /                          \

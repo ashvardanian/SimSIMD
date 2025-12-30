@@ -695,7 +695,7 @@ NK_PUBLIC void nk_kabsch_f32_neon(nk_f32_t const *a, nk_f32_t const *b, nk_size_
     // Compute SVD and optimal rotation
     nk_f32_t cross_covariance[9] = {h00, h01, h02, h10, h11, h12, h20, h21, h22};
     nk_f32_t svd_u[9], svd_s[3], svd_v[9];
-    nk_svd3x3__f32(cross_covariance, svd_u, svd_s, svd_v);
+    nk_svd3x3_f32_(cross_covariance, svd_u, svd_s, svd_v);
 
     // R = V * U^T
     nk_f32_t r[9];
@@ -710,7 +710,7 @@ NK_PUBLIC void nk_kabsch_f32_neon(nk_f32_t const *a, nk_f32_t const *b, nk_size_
     r[8] = svd_v[6] * svd_u[6] + svd_v[7] * svd_u[7] + svd_v[8] * svd_u[8];
 
     // Handle reflection: if det(R) < 0, negate third column of V and recompute R
-    if (nk_det3x3__f32(r) < 0) {
+    if (nk_det3x3_f32_(r) < 0) {
         svd_v[2] = -svd_v[2];
         svd_v[5] = -svd_v[5];
         svd_v[8] = -svd_v[8];
@@ -911,7 +911,7 @@ NK_PUBLIC void nk_kabsch_f64_neon(nk_f64_t const *a, nk_f64_t const *b, nk_size_
     nk_f32_t cross_covariance[9] = {(nk_f32_t)h00, (nk_f32_t)h01, (nk_f32_t)h02, (nk_f32_t)h10, (nk_f32_t)h11,
                                     (nk_f32_t)h12, (nk_f32_t)h20, (nk_f32_t)h21, (nk_f32_t)h22};
     nk_f32_t svd_u[9], svd_s[3], svd_v[9];
-    nk_svd3x3__f32(cross_covariance, svd_u, svd_s, svd_v);
+    nk_svd3x3_f32_(cross_covariance, svd_u, svd_s, svd_v);
 
     // R = V * U^T
     nk_f32_t r[9];
@@ -926,7 +926,7 @@ NK_PUBLIC void nk_kabsch_f64_neon(nk_f64_t const *a, nk_f64_t const *b, nk_size_
     r[8] = svd_v[6] * svd_u[6] + svd_v[7] * svd_u[7] + svd_v[8] * svd_u[8];
 
     // Handle reflection: if det(R) < 0, negate third column of V and recompute R
-    if (nk_det3x3__f32(r) < 0) {
+    if (nk_det3x3_f32_(r) < 0) {
         svd_v[2] = -svd_v[2];
         svd_v[5] = -svd_v[5];
         svd_v[8] = -svd_v[8];
@@ -1143,7 +1143,7 @@ NK_PUBLIC void nk_umeyama_f32_neon(nk_f32_t const *a, nk_f32_t const *b, nk_size
     // Compute SVD
     nk_f32_t cross_covariance[9] = {h00, h01, h02, h10, h11, h12, h20, h21, h22};
     nk_f32_t svd_u[9], svd_s[3], svd_v[9];
-    nk_svd3x3__f32(cross_covariance, svd_u, svd_s, svd_v);
+    nk_svd3x3_f32_(cross_covariance, svd_u, svd_s, svd_v);
 
     // R = V * U^T
     nk_f32_t r[9];
@@ -1158,7 +1158,7 @@ NK_PUBLIC void nk_umeyama_f32_neon(nk_f32_t const *a, nk_f32_t const *b, nk_size
     r[8] = svd_v[6] * svd_u[6] + svd_v[7] * svd_u[7] + svd_v[8] * svd_u[8];
 
     // Handle reflection and compute scale
-    nk_f32_t det = nk_det3x3__f32(r);
+    nk_f32_t det = nk_det3x3_f32_(r);
     nk_f32_t trace_d_s = svd_s[0] + svd_s[1] + (det < 0 ? -svd_s[2] : svd_s[2]);
     nk_f32_t computed_scale = trace_d_s / (n * var_a);
 
@@ -1379,7 +1379,7 @@ NK_PUBLIC void nk_umeyama_f64_neon(nk_f64_t const *a, nk_f64_t const *b, nk_size
     nk_f32_t cross_covariance[9] = {(nk_f32_t)h00, (nk_f32_t)h01, (nk_f32_t)h02, (nk_f32_t)h10, (nk_f32_t)h11,
                                     (nk_f32_t)h12, (nk_f32_t)h20, (nk_f32_t)h21, (nk_f32_t)h22};
     nk_f32_t svd_u[9], svd_s[3], svd_v[9];
-    nk_svd3x3__f32(cross_covariance, svd_u, svd_s, svd_v);
+    nk_svd3x3_f32_(cross_covariance, svd_u, svd_s, svd_v);
 
     // R = V * U^T
     nk_f32_t r[9];
@@ -1394,7 +1394,7 @@ NK_PUBLIC void nk_umeyama_f64_neon(nk_f64_t const *a, nk_f64_t const *b, nk_size
     r[8] = svd_v[6] * svd_u[6] + svd_v[7] * svd_u[7] + svd_v[8] * svd_u[8];
 
     // Handle reflection and compute scale
-    nk_f32_t det = nk_det3x3__f32(r);
+    nk_f32_t det = nk_det3x3_f32_(r);
     nk_f64_t trace_d_s = svd_s[0] + svd_s[1] + (det < 0 ? -svd_s[2] : svd_s[2]);
     nk_f64_t computed_scale = trace_d_s / (n * var_a);
 

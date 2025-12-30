@@ -235,7 +235,7 @@ typedef nk_u64_t nk_capability_t;
  *
  *  Use this to accept any available SIMD implementation in kernel dispatch.
  */
-#define nk_cap_any_k ((nk_capability_t)UINT64_MAX)
+#define nk_cap_any_k ((nk_capability_t)NK_U64_MAX)
 
 /**
  *  @brief  Intel Haswell (2013) / AMD Excavator (2015) - AVX2 + FMA + F16C

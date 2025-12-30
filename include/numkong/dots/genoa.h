@@ -22,24 +22,24 @@ extern "C" {
 #endif
 
 // BF16 GEMM: k_tile=32 (32 bf16s = 64 bytes = 1 cache line)
-NK_MAKE_DOTS_PACK_SIZE(genoa, bf16, f32, NK_DOTS_SERIAL_TILE_K_BF16)
-NK_MAKE_DOTS_PACK(genoa, bf16, f32, NK_DOTS_SERIAL_TILE_K_BF16)
+NK_MAKE_DOTS_PACK_SIZE(genoa, bf16, f32)
+NK_MAKE_DOTS_PACK(genoa, bf16, f32)
 NK_MAKE_DOTS_VECTORS(bf16bf16f32_genoa, bf16, f32, nk_b512_vec_t, nk_dot_bf16x32_state_genoa_t,
                      nk_dot_bf16x32_init_genoa, nk_load_b512_skylake_, nk_partial_load_b16x32_skylake_,
                      nk_dot_bf16x32_update_genoa, nk_dot_bf16x32_finalize_genoa,
                      /*k_tile=*/32, /*k_unroll=*/1, /*MR=*/4, /*MC=*/128, /*NC=*/2048, /*KC=*/256)
 
 // E4M3 GEMM: k_tile=64 (64 e4m3s = 64 bytes = 1 cache line), F32 accumulator
-NK_MAKE_DOTS_PACK_SIZE(genoa, e4m3, f32, NK_DOTS_SERIAL_TILE_K_I8)
-NK_MAKE_DOTS_PACK(genoa, e4m3, f32, NK_DOTS_SERIAL_TILE_K_I8)
+NK_MAKE_DOTS_PACK_SIZE(genoa, e4m3, f32)
+NK_MAKE_DOTS_PACK(genoa, e4m3, f32)
 NK_MAKE_DOTS_VECTORS(e4m3e4m3f32_genoa, e4m3, f32, nk_b512_vec_t, nk_dot_e4m3x64_state_genoa_t,
                      nk_dot_e4m3x64_init_genoa, nk_load_b512_skylake_, nk_partial_load_b8x64_skylake_,
                      nk_dot_e4m3x64_update_genoa, nk_dot_e4m3x64_finalize_genoa,
                      /*k_tile=*/64, /*k_unroll=*/1, /*MR=*/4, /*MC=*/128, /*NC=*/2048, /*KC=*/256)
 
 // E5M2 GEMM: k_tile=64 (64 e5m2s = 64 bytes = 1 cache line), F32 accumulator
-NK_MAKE_DOTS_PACK_SIZE(genoa, e5m2, f32, NK_DOTS_SERIAL_TILE_K_I8)
-NK_MAKE_DOTS_PACK(genoa, e5m2, f32, NK_DOTS_SERIAL_TILE_K_I8)
+NK_MAKE_DOTS_PACK_SIZE(genoa, e5m2, f32)
+NK_MAKE_DOTS_PACK(genoa, e5m2, f32)
 NK_MAKE_DOTS_VECTORS(e5m2e5m2f32_genoa, e5m2, f32, nk_b512_vec_t, nk_dot_e5m2x64_state_genoa_t,
                      nk_dot_e5m2x64_init_genoa, nk_load_b512_skylake_, nk_partial_load_b8x64_skylake_,
                      nk_dot_e5m2x64_update_genoa, nk_dot_e5m2x64_finalize_genoa,

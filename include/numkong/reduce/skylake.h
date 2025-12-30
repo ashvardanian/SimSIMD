@@ -565,19 +565,6 @@ NK_INTERNAL nk_u64_t nk_reduce_max_u64x8_skylake_(__m512i max_u64x8) {
     return (nk_u64_t)_mm_cvtsi128_si64(final_u64);
 }
 
-/** @brief Horizontal sum of 8 signed i64s in a ZMM register. */
-NK_INTERNAL nk_i64_t nk_reduce_add_i64x8_skylake_(__m512i sum_i64x8) {
-    __m256i lo_i64x4 = _mm512_castsi512_si256(sum_i64x8);
-    __m256i hi_i64x4 = _mm512_extracti64x4_epi64(sum_i64x8, 1);
-    __m256i sum_i64x4 = _mm256_add_epi64(lo_i64x4, hi_i64x4);
-    __m128i lo_i64x2 = _mm256_castsi256_si128(sum_i64x4);
-    __m128i hi_i64x2 = _mm256_extracti128_si256(sum_i64x4, 1);
-    __m128i sum_i64x2 = _mm_add_epi64(lo_i64x2, hi_i64x2);
-    __m128i hi_lane_i64 = _mm_unpackhi_epi64(sum_i64x2, sum_i64x2);
-    __m128i final_i64 = _mm_add_epi64(sum_i64x2, hi_lane_i64);
-    return _mm_cvtsi128_si64(final_i64);
-}
-
 /** @brief Horizontal sum of 8 unsigned u64s in a ZMM register. */
 NK_INTERNAL nk_u64_t nk_reduce_add_u64x8_skylake_(__m512i sum_u64x8) {
     __m256i lo_u64x4 = _mm512_castsi512_si256(sum_u64x8);

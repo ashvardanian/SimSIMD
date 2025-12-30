@@ -2513,10 +2513,10 @@ void test_binary() {
     test_jaccard_b8(nk_jaccard_b8_haswell).report("jaccard_haswell", "b8");
 #endif // NK_TARGET_HASWELL
 
-#if NK_TARGET_SKYLAKE
-    test_hamming_b8(nk_hamming_b8_skylake).report("hamming_skylake", "b8");
-    test_jaccard_b8(nk_jaccard_b8_skylake).report("jaccard_skylake", "b8");
-#endif // NK_TARGET_SKYLAKE
+#if NK_TARGET_ICE
+    test_hamming_b8(nk_hamming_b8_ice).report("hamming_ice", "b8");
+    test_jaccard_b8(nk_jaccard_b8_ice).report("jaccard_ice", "b8");
+#endif // NK_TARGET_ICE
 
     // Serial always runs - baseline test
     test_hamming_b8(nk_hamming_b8_serial).report("hamming_serial", "b8");
