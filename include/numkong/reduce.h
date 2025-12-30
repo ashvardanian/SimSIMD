@@ -208,74 +208,74 @@ NK_PUBLIC void nk_reduce_add_f32_serial(nk_f32_t const *data, nk_size_t count, n
 /** @copydoc nk_reduce_add_f64 */
 NK_PUBLIC void nk_reduce_add_f64_serial(nk_f64_t const *data, nk_size_t count, nk_size_t stride_bytes,
                                         nk_f64_t *result);
-/** @copydoc nk_reduce_add_f32 but for i8 input with i64 output */
+/** @copydoc nk_reduce_add_i8 */
 NK_PUBLIC void nk_reduce_add_i8_serial(nk_i8_t const *data, nk_size_t count, nk_size_t stride_bytes, nk_i64_t *result);
-/** @copydoc nk_reduce_add_f32 but for u8 input with u64 output */
+/** @copydoc nk_reduce_add_u8 */
 NK_PUBLIC void nk_reduce_add_u8_serial(nk_u8_t const *data, nk_size_t count, nk_size_t stride_bytes, nk_u64_t *result);
-/** @copydoc nk_reduce_add_f32 but for i16 input with i64 output */
+/** @copydoc nk_reduce_add_i16 */
 NK_PUBLIC void nk_reduce_add_i16_serial(nk_i16_t const *data, nk_size_t count, nk_size_t stride_bytes,
                                         nk_i64_t *result);
-/** @copydoc nk_reduce_add_f32 but for u16 input with u64 output */
+/** @copydoc nk_reduce_add_u16 */
 NK_PUBLIC void nk_reduce_add_u16_serial(nk_u16_t const *data, nk_size_t count, nk_size_t stride_bytes,
                                         nk_u64_t *result);
-/** @copydoc nk_reduce_add_f32 but for i32 input with i64 output */
+/** @copydoc nk_reduce_add_i32 */
 NK_PUBLIC void nk_reduce_add_i32_serial(nk_i32_t const *data, nk_size_t count, nk_size_t stride_bytes,
                                         nk_i64_t *result);
-/** @copydoc nk_reduce_add_f32 but for u32 input with u64 output */
+/** @copydoc nk_reduce_add_u32 */
 NK_PUBLIC void nk_reduce_add_u32_serial(nk_u32_t const *data, nk_size_t count, nk_size_t stride_bytes,
                                         nk_u64_t *result);
-/** @copydoc nk_reduce_add_f64 but for i64 input */
+/** @copydoc nk_reduce_add_i64 */
 NK_PUBLIC void nk_reduce_add_i64_serial(nk_i64_t const *data, nk_size_t count, nk_size_t stride_bytes,
                                         nk_i64_t *result);
-/** @copydoc nk_reduce_add_f64 but for u64 input */
+/** @copydoc nk_reduce_add_u64 */
 NK_PUBLIC void nk_reduce_add_u64_serial(nk_u64_t const *data, nk_size_t count, nk_size_t stride_bytes,
                                         nk_u64_t *result);
-/** @copydoc nk_reduce_min_f32 but for i8 */
+/** @copydoc nk_reduce_min_i8 */
 NK_PUBLIC void nk_reduce_min_i8_serial(nk_i8_t const *data, nk_size_t count, nk_size_t stride_bytes, nk_i8_t *min_value,
                                        nk_size_t *min_index);
-/** @copydoc nk_reduce_max_f32 but for i8 */
+/** @copydoc nk_reduce_max_i8 */
 NK_PUBLIC void nk_reduce_max_i8_serial(nk_i8_t const *data, nk_size_t count, nk_size_t stride_bytes, nk_i8_t *max_value,
                                        nk_size_t *max_index);
-/** @copydoc nk_reduce_min_f32 but for u8 */
+/** @copydoc nk_reduce_min_u8 */
 NK_PUBLIC void nk_reduce_min_u8_serial(nk_u8_t const *data, nk_size_t count, nk_size_t stride_bytes, nk_u8_t *min_value,
                                        nk_size_t *min_index);
-/** @copydoc nk_reduce_max_f32 but for u8 */
+/** @copydoc nk_reduce_max_u8 */
 NK_PUBLIC void nk_reduce_max_u8_serial(nk_u8_t const *data, nk_size_t count, nk_size_t stride_bytes, nk_u8_t *max_value,
                                        nk_size_t *max_index);
-/** @copydoc nk_reduce_min_f32 but for i16 */
+/** @copydoc nk_reduce_min_i16 */
 NK_PUBLIC void nk_reduce_min_i16_serial(nk_i16_t const *data, nk_size_t count, nk_size_t stride_bytes,
                                         nk_i16_t *min_value, nk_size_t *min_index);
-/** @copydoc nk_reduce_max_f32 but for i16 */
+/** @copydoc nk_reduce_max_i16 */
 NK_PUBLIC void nk_reduce_max_i16_serial(nk_i16_t const *data, nk_size_t count, nk_size_t stride_bytes,
                                         nk_i16_t *max_value, nk_size_t *max_index);
-/** @copydoc nk_reduce_min_f32 but for u16 */
+/** @copydoc nk_reduce_min_u16 */
 NK_PUBLIC void nk_reduce_min_u16_serial(nk_u16_t const *data, nk_size_t count, nk_size_t stride_bytes,
                                         nk_u16_t *min_value, nk_size_t *min_index);
-/** @copydoc nk_reduce_max_f32 but for u16 */
+/** @copydoc nk_reduce_max_u16 */
 NK_PUBLIC void nk_reduce_max_u16_serial(nk_u16_t const *data, nk_size_t count, nk_size_t stride_bytes,
                                         nk_u16_t *max_value, nk_size_t *max_index);
-/** @copydoc nk_reduce_min_f32 but for i32 */
+/** @copydoc nk_reduce_min_i32 */
 NK_PUBLIC void nk_reduce_min_i32_serial(nk_i32_t const *data, nk_size_t count, nk_size_t stride_bytes,
                                         nk_i32_t *min_value, nk_size_t *min_index);
-/** @copydoc nk_reduce_max_f32 but for i32 */
+/** @copydoc nk_reduce_max_i32 */
 NK_PUBLIC void nk_reduce_max_i32_serial(nk_i32_t const *data, nk_size_t count, nk_size_t stride_bytes,
                                         nk_i32_t *max_value, nk_size_t *max_index);
-/** @copydoc nk_reduce_min_f32 but for u32 */
+/** @copydoc nk_reduce_min_u32 */
 NK_PUBLIC void nk_reduce_min_u32_serial(nk_u32_t const *data, nk_size_t count, nk_size_t stride_bytes,
                                         nk_u32_t *min_value, nk_size_t *min_index);
-/** @copydoc nk_reduce_max_f32 but for u32 */
+/** @copydoc nk_reduce_max_u32 */
 NK_PUBLIC void nk_reduce_max_u32_serial(nk_u32_t const *data, nk_size_t count, nk_size_t stride_bytes,
                                         nk_u32_t *max_value, nk_size_t *max_index);
-/** @copydoc nk_reduce_min_f64 but for i64 */
+/** @copydoc nk_reduce_min_i64 */
 NK_PUBLIC void nk_reduce_min_i64_serial(nk_i64_t const *data, nk_size_t count, nk_size_t stride_bytes,
                                         nk_i64_t *min_value, nk_size_t *min_index);
-/** @copydoc nk_reduce_max_f64 but for i64 */
+/** @copydoc nk_reduce_max_i64 */
 NK_PUBLIC void nk_reduce_max_i64_serial(nk_i64_t const *data, nk_size_t count, nk_size_t stride_bytes,
                                         nk_i64_t *max_value, nk_size_t *max_index);
-/** @copydoc nk_reduce_min_f64 but for u64 */
+/** @copydoc nk_reduce_min_u64 */
 NK_PUBLIC void nk_reduce_min_u64_serial(nk_u64_t const *data, nk_size_t count, nk_size_t stride_bytes,
                                         nk_u64_t *min_value, nk_size_t *min_index);
-/** @copydoc nk_reduce_max_f64 but for u64 */
+/** @copydoc nk_reduce_max_u64 */
 NK_PUBLIC void nk_reduce_max_u64_serial(nk_u64_t const *data, nk_size_t count, nk_size_t stride_bytes,
                                         nk_u64_t *max_value, nk_size_t *max_index);
 /** @copydoc nk_reduce_min_f32 */
@@ -290,10 +290,10 @@ NK_PUBLIC void nk_reduce_min_f64_serial(nk_f64_t const *data, nk_size_t count, n
 /** @copydoc nk_reduce_max_f64 */
 NK_PUBLIC void nk_reduce_max_f64_serial(nk_f64_t const *data, nk_size_t count, nk_size_t stride_bytes,
                                         nk_f64_t *max_value, nk_size_t *max_index);
-/** @brief f16 sum reduction with f32 accumulator */
+/** @copydoc nk_reduce_add_f16 */
 NK_PUBLIC void nk_reduce_add_f16_serial(nk_f16_t const *data, nk_size_t count, nk_size_t stride_bytes,
                                         nk_f32_t *result);
-/** @brief bf16 sum reduction with f32 accumulator */
+/** @copydoc nk_reduce_add_bf16 */
 NK_PUBLIC void nk_reduce_add_bf16_serial(nk_bf16_t const *data, nk_size_t count, nk_size_t stride_bytes,
                                          nk_f32_t *result);
 
@@ -314,57 +314,57 @@ NK_PUBLIC void nk_reduce_min_f64_neon(nk_f64_t const *data, nk_size_t count, nk_
 /** @copydoc nk_reduce_max_f64 */
 NK_PUBLIC void nk_reduce_max_f64_neon(nk_f64_t const *data, nk_size_t count, nk_size_t stride_bytes,
                                       nk_f64_t *max_value, nk_size_t *max_index);
-/** @brief i8 sum reduction with i64 accumulator */
+/** @copydoc nk_reduce_add_i8 */
 NK_PUBLIC void nk_reduce_add_i8_neon(nk_i8_t const *data, nk_size_t count, nk_size_t stride_bytes, nk_i64_t *result);
-/** @brief u8 sum reduction with u64 accumulator */
+/** @copydoc nk_reduce_add_u8 */
 NK_PUBLIC void nk_reduce_add_u8_neon(nk_u8_t const *data, nk_size_t count, nk_size_t stride_bytes, nk_u64_t *result);
-/** @brief i16 sum reduction with i64 accumulator */
+/** @copydoc nk_reduce_add_i16 */
 NK_PUBLIC void nk_reduce_add_i16_neon(nk_i16_t const *data, nk_size_t count, nk_size_t stride_bytes, nk_i64_t *result);
-/** @brief u16 sum reduction with u64 accumulator */
+/** @copydoc nk_reduce_add_u16 */
 NK_PUBLIC void nk_reduce_add_u16_neon(nk_u16_t const *data, nk_size_t count, nk_size_t stride_bytes, nk_u64_t *result);
-/** @brief i8 min reduction with argmin */
+/** @copydoc nk_reduce_min_i8 */
 NK_PUBLIC void nk_reduce_min_i8_neon(nk_i8_t const *data, nk_size_t count, nk_size_t stride_bytes, nk_i8_t *min_value,
                                      nk_size_t *min_index);
-/** @brief i8 max reduction with argmax */
+/** @copydoc nk_reduce_max_i8 */
 NK_PUBLIC void nk_reduce_max_i8_neon(nk_i8_t const *data, nk_size_t count, nk_size_t stride_bytes, nk_i8_t *max_value,
                                      nk_size_t *max_index);
-/** @brief u8 min reduction with argmin */
+/** @copydoc nk_reduce_min_u8 */
 NK_PUBLIC void nk_reduce_min_u8_neon(nk_u8_t const *data, nk_size_t count, nk_size_t stride_bytes, nk_u8_t *min_value,
                                      nk_size_t *min_index);
-/** @brief u8 max reduction with argmax */
+/** @copydoc nk_reduce_max_u8 */
 NK_PUBLIC void nk_reduce_max_u8_neon(nk_u8_t const *data, nk_size_t count, nk_size_t stride_bytes, nk_u8_t *max_value,
                                      nk_size_t *max_index);
-/** @brief i16 min reduction with argmin */
+/** @copydoc nk_reduce_min_i16 */
 NK_PUBLIC void nk_reduce_min_i16_neon(nk_i16_t const *data, nk_size_t count, nk_size_t stride_bytes,
                                       nk_i16_t *min_value, nk_size_t *min_index);
-/** @brief i16 max reduction with argmax */
+/** @copydoc nk_reduce_max_i16 */
 NK_PUBLIC void nk_reduce_max_i16_neon(nk_i16_t const *data, nk_size_t count, nk_size_t stride_bytes,
                                       nk_i16_t *max_value, nk_size_t *max_index);
-/** @brief u16 min reduction with argmin */
+/** @copydoc nk_reduce_min_u16 */
 NK_PUBLIC void nk_reduce_min_u16_neon(nk_u16_t const *data, nk_size_t count, nk_size_t stride_bytes,
                                       nk_u16_t *min_value, nk_size_t *min_index);
-/** @brief u16 max reduction with argmax */
+/** @copydoc nk_reduce_max_u16 */
 NK_PUBLIC void nk_reduce_max_u16_neon(nk_u16_t const *data, nk_size_t count, nk_size_t stride_bytes,
                                       nk_u16_t *max_value, nk_size_t *max_index);
 #endif // NK_TARGET_NEON
 
 #if NK_TARGET_NEONHALF
-/** @brief f16 sum using native f16 arithmetic, result widened to f32 */
+/** @copydoc nk_reduce_add_f16 */
 NK_PUBLIC void nk_reduce_add_f16_neonhalf(nk_f16_t const *data, nk_size_t count, nk_size_t stride_bytes,
                                           nk_f32_t *result);
 #endif // NK_TARGET_NEONHALF
 
 #if NK_TARGET_NEONBFDOT
-/** @brief bf16 sum using vbfdotq_f32, result widened to f32 */
+/** @copydoc nk_reduce_add_bf16 */
 NK_PUBLIC void nk_reduce_add_bf16_neonbfdot(nk_bf16_t const *data, nk_size_t count, nk_size_t stride_bytes,
                                             nk_f32_t *result);
 #endif // NK_TARGET_NEONBFDOT
 
 #if NK_TARGET_NEONSDOT
-/** @brief i8 sum using vdotq_s32, result widened to i64 */
+/** @copydoc nk_reduce_add_i8 */
 NK_PUBLIC void nk_reduce_add_i8_neonsdot(nk_i8_t const *data, nk_size_t count, nk_size_t stride_bytes,
                                          nk_i64_t *result);
-/** @brief u8 sum using vdotq_u32, result widened to u64 */
+/** @copydoc nk_reduce_add_u8 */
 NK_PUBLIC void nk_reduce_add_u8_neonsdot(nk_u8_t const *data, nk_size_t count, nk_size_t stride_bytes,
                                          nk_u64_t *result);
 #endif // NK_TARGET_NEONSDOT
@@ -388,74 +388,74 @@ NK_PUBLIC void nk_reduce_min_f64_haswell(nk_f64_t const *data, nk_size_t count, 
 /** @copydoc nk_reduce_max_f64 */
 NK_PUBLIC void nk_reduce_max_f64_haswell(nk_f64_t const *data, nk_size_t count, nk_size_t stride_bytes,
                                          nk_f64_t *max_value, nk_size_t *max_index);
-/** @brief i8 sum reduction with i64 accumulator */
+/** @copydoc nk_reduce_add_i8 */
 NK_PUBLIC void nk_reduce_add_i8_haswell(nk_i8_t const *data, nk_size_t count, nk_size_t stride_bytes, nk_i64_t *result);
-/** @brief u8 sum reduction with u64 accumulator */
+/** @copydoc nk_reduce_add_u8 */
 NK_PUBLIC void nk_reduce_add_u8_haswell(nk_u8_t const *data, nk_size_t count, nk_size_t stride_bytes, nk_u64_t *result);
-/** @brief i16 sum reduction with i64 accumulator */
+/** @copydoc nk_reduce_add_i16 */
 NK_PUBLIC void nk_reduce_add_i16_haswell(nk_i16_t const *data, nk_size_t count, nk_size_t stride_bytes,
                                          nk_i64_t *result);
-/** @brief u16 sum reduction with u64 accumulator */
+/** @copydoc nk_reduce_add_u16 */
 NK_PUBLIC void nk_reduce_add_u16_haswell(nk_u16_t const *data, nk_size_t count, nk_size_t stride_bytes,
                                          nk_u64_t *result);
-/** @brief i32 sum reduction with i64 accumulator */
+/** @copydoc nk_reduce_add_i32 */
 NK_PUBLIC void nk_reduce_add_i32_haswell(nk_i32_t const *data, nk_size_t count, nk_size_t stride_bytes,
                                          nk_i64_t *result);
-/** @brief u32 sum reduction with u64 accumulator */
+/** @copydoc nk_reduce_add_u32 */
 NK_PUBLIC void nk_reduce_add_u32_haswell(nk_u32_t const *data, nk_size_t count, nk_size_t stride_bytes,
                                          nk_u64_t *result);
-/** @brief i64 sum reduction */
+/** @copydoc nk_reduce_add_i64 */
 NK_PUBLIC void nk_reduce_add_i64_haswell(nk_i64_t const *data, nk_size_t count, nk_size_t stride_bytes,
                                          nk_i64_t *result);
-/** @brief u64 sum reduction */
+/** @copydoc nk_reduce_add_u64 */
 NK_PUBLIC void nk_reduce_add_u64_haswell(nk_u64_t const *data, nk_size_t count, nk_size_t stride_bytes,
                                          nk_u64_t *result);
-/** @brief i8 min reduction with argmin */
+/** @copydoc nk_reduce_min_i8 */
 NK_PUBLIC void nk_reduce_min_i8_haswell(nk_i8_t const *data, nk_size_t count, nk_size_t stride_bytes,
                                         nk_i8_t *min_value, nk_size_t *min_index);
-/** @brief i8 max reduction with argmax */
+/** @copydoc nk_reduce_max_i8 */
 NK_PUBLIC void nk_reduce_max_i8_haswell(nk_i8_t const *data, nk_size_t count, nk_size_t stride_bytes,
                                         nk_i8_t *max_value, nk_size_t *max_index);
-/** @brief u8 min reduction with argmin */
+/** @copydoc nk_reduce_min_u8 */
 NK_PUBLIC void nk_reduce_min_u8_haswell(nk_u8_t const *data, nk_size_t count, nk_size_t stride_bytes,
                                         nk_u8_t *min_value, nk_size_t *min_index);
-/** @brief u8 max reduction with argmax */
+/** @copydoc nk_reduce_max_u8 */
 NK_PUBLIC void nk_reduce_max_u8_haswell(nk_u8_t const *data, nk_size_t count, nk_size_t stride_bytes,
                                         nk_u8_t *max_value, nk_size_t *max_index);
-/** @brief i16 min reduction with argmin */
+/** @copydoc nk_reduce_min_i16 */
 NK_PUBLIC void nk_reduce_min_i16_haswell(nk_i16_t const *data, nk_size_t count, nk_size_t stride_bytes,
                                          nk_i16_t *min_value, nk_size_t *min_index);
-/** @brief i16 max reduction with argmax */
+/** @copydoc nk_reduce_max_i16 */
 NK_PUBLIC void nk_reduce_max_i16_haswell(nk_i16_t const *data, nk_size_t count, nk_size_t stride_bytes,
                                          nk_i16_t *max_value, nk_size_t *max_index);
-/** @brief u16 min reduction with argmin */
+/** @copydoc nk_reduce_min_u16 */
 NK_PUBLIC void nk_reduce_min_u16_haswell(nk_u16_t const *data, nk_size_t count, nk_size_t stride_bytes,
                                          nk_u16_t *min_value, nk_size_t *min_index);
-/** @brief u16 max reduction with argmax */
+/** @copydoc nk_reduce_max_u16 */
 NK_PUBLIC void nk_reduce_max_u16_haswell(nk_u16_t const *data, nk_size_t count, nk_size_t stride_bytes,
                                          nk_u16_t *max_value, nk_size_t *max_index);
-/** @brief i32 min reduction with argmin */
+/** @copydoc nk_reduce_min_i32 */
 NK_PUBLIC void nk_reduce_min_i32_haswell(nk_i32_t const *data, nk_size_t count, nk_size_t stride_bytes,
                                          nk_i32_t *min_value, nk_size_t *min_index);
-/** @brief i32 max reduction with argmax */
+/** @copydoc nk_reduce_max_i32 */
 NK_PUBLIC void nk_reduce_max_i32_haswell(nk_i32_t const *data, nk_size_t count, nk_size_t stride_bytes,
                                          nk_i32_t *max_value, nk_size_t *max_index);
-/** @brief u32 min reduction with argmin */
+/** @copydoc nk_reduce_min_u32 */
 NK_PUBLIC void nk_reduce_min_u32_haswell(nk_u32_t const *data, nk_size_t count, nk_size_t stride_bytes,
                                          nk_u32_t *min_value, nk_size_t *min_index);
-/** @brief u32 max reduction with argmax */
+/** @copydoc nk_reduce_max_u32 */
 NK_PUBLIC void nk_reduce_max_u32_haswell(nk_u32_t const *data, nk_size_t count, nk_size_t stride_bytes,
                                          nk_u32_t *max_value, nk_size_t *max_index);
-/** @brief i64 min reduction with argmin */
+/** @copydoc nk_reduce_min_i64 */
 NK_PUBLIC void nk_reduce_min_i64_haswell(nk_i64_t const *data, nk_size_t count, nk_size_t stride_bytes,
                                          nk_i64_t *min_value, nk_size_t *min_index);
-/** @brief i64 max reduction with argmax */
+/** @copydoc nk_reduce_max_i64 */
 NK_PUBLIC void nk_reduce_max_i64_haswell(nk_i64_t const *data, nk_size_t count, nk_size_t stride_bytes,
                                          nk_i64_t *max_value, nk_size_t *max_index);
-/** @brief u64 min reduction with argmin */
+/** @copydoc nk_reduce_min_u64 */
 NK_PUBLIC void nk_reduce_min_u64_haswell(nk_u64_t const *data, nk_size_t count, nk_size_t stride_bytes,
                                          nk_u64_t *min_value, nk_size_t *min_index);
-/** @brief u64 max reduction with argmax */
+/** @copydoc nk_reduce_max_u64 */
 NK_PUBLIC void nk_reduce_max_u64_haswell(nk_u64_t const *data, nk_size_t count, nk_size_t stride_bytes,
                                          nk_u64_t *max_value, nk_size_t *max_index);
 #endif // NK_TARGET_HASWELL
@@ -479,82 +479,86 @@ NK_PUBLIC void nk_reduce_min_f64_skylake(nk_f64_t const *data, nk_size_t count, 
 /** @copydoc nk_reduce_max_f64 */
 NK_PUBLIC void nk_reduce_max_f64_skylake(nk_f64_t const *data, nk_size_t count, nk_size_t stride_bytes,
                                          nk_f64_t *max_value, nk_size_t *max_index);
-/** @brief i8 sum reduction with i64 accumulator */
+/** @copydoc nk_reduce_add_i8 */
 NK_PUBLIC void nk_reduce_add_i8_skylake(nk_i8_t const *data, nk_size_t count, nk_size_t stride_bytes, nk_i64_t *result);
-/** @brief u8 sum reduction with u64 accumulator */
+/** @copydoc nk_reduce_add_u8 */
 NK_PUBLIC void nk_reduce_add_u8_skylake(nk_u8_t const *data, nk_size_t count, nk_size_t stride_bytes, nk_u64_t *result);
-/** @brief i16 sum reduction with i64 accumulator */
+/** @copydoc nk_reduce_add_i16 */
 NK_PUBLIC void nk_reduce_add_i16_skylake(nk_i16_t const *data, nk_size_t count, nk_size_t stride_bytes,
                                          nk_i64_t *result);
-/** @brief u16 sum reduction with u64 accumulator */
+/** @copydoc nk_reduce_add_u16 */
 NK_PUBLIC void nk_reduce_add_u16_skylake(nk_u16_t const *data, nk_size_t count, nk_size_t stride_bytes,
                                          nk_u64_t *result);
-/** @brief i32 sum reduction with i64 accumulator */
+/** @copydoc nk_reduce_add_i32 */
 NK_PUBLIC void nk_reduce_add_i32_skylake(nk_i32_t const *data, nk_size_t count, nk_size_t stride_bytes,
                                          nk_i64_t *result);
-/** @brief u32 sum reduction with u64 accumulator */
+/** @copydoc nk_reduce_add_u32 */
 NK_PUBLIC void nk_reduce_add_u32_skylake(nk_u32_t const *data, nk_size_t count, nk_size_t stride_bytes,
                                          nk_u64_t *result);
-/** @brief i64 sum reduction */
+/** @copydoc nk_reduce_add_i64 */
 NK_PUBLIC void nk_reduce_add_i64_skylake(nk_i64_t const *data, nk_size_t count, nk_size_t stride_bytes,
                                          nk_i64_t *result);
-/** @brief u64 sum reduction */
+/** @copydoc nk_reduce_add_u64 */
 NK_PUBLIC void nk_reduce_add_u64_skylake(nk_u64_t const *data, nk_size_t count, nk_size_t stride_bytes,
                                          nk_u64_t *result);
-/** @brief i8 min reduction with argmin */
+/** @copydoc nk_reduce_min_i8 */
 NK_PUBLIC void nk_reduce_min_i8_skylake(nk_i8_t const *data, nk_size_t count, nk_size_t stride_bytes,
                                         nk_i8_t *min_value, nk_size_t *min_index);
-/** @brief i8 max reduction with argmax */
+/** @copydoc nk_reduce_max_i8 */
 NK_PUBLIC void nk_reduce_max_i8_skylake(nk_i8_t const *data, nk_size_t count, nk_size_t stride_bytes,
                                         nk_i8_t *max_value, nk_size_t *max_index);
-/** @brief u8 min reduction with argmin */
+/** @copydoc nk_reduce_min_u8 */
 NK_PUBLIC void nk_reduce_min_u8_skylake(nk_u8_t const *data, nk_size_t count, nk_size_t stride_bytes,
                                         nk_u8_t *min_value, nk_size_t *min_index);
-/** @brief u8 max reduction with argmax */
+/** @copydoc nk_reduce_max_u8 */
 NK_PUBLIC void nk_reduce_max_u8_skylake(nk_u8_t const *data, nk_size_t count, nk_size_t stride_bytes,
                                         nk_u8_t *max_value, nk_size_t *max_index);
-/** @brief i16 min reduction with argmin */
+/** @copydoc nk_reduce_min_i16 */
 NK_PUBLIC void nk_reduce_min_i16_skylake(nk_i16_t const *data, nk_size_t count, nk_size_t stride_bytes,
                                          nk_i16_t *min_value, nk_size_t *min_index);
-/** @brief i16 max reduction with argmax */
+/** @copydoc nk_reduce_max_i16 */
 NK_PUBLIC void nk_reduce_max_i16_skylake(nk_i16_t const *data, nk_size_t count, nk_size_t stride_bytes,
                                          nk_i16_t *max_value, nk_size_t *max_index);
-/** @brief u16 min reduction with argmin */
+/** @copydoc nk_reduce_min_u16 */
 NK_PUBLIC void nk_reduce_min_u16_skylake(nk_u16_t const *data, nk_size_t count, nk_size_t stride_bytes,
                                          nk_u16_t *min_value, nk_size_t *min_index);
-/** @brief u16 max reduction with argmax */
+/** @copydoc nk_reduce_max_u16 */
 NK_PUBLIC void nk_reduce_max_u16_skylake(nk_u16_t const *data, nk_size_t count, nk_size_t stride_bytes,
                                          nk_u16_t *max_value, nk_size_t *max_index);
-/** @brief i32 min reduction with argmin */
+/** @copydoc nk_reduce_min_i32 */
 NK_PUBLIC void nk_reduce_min_i32_skylake(nk_i32_t const *data, nk_size_t count, nk_size_t stride_bytes,
                                          nk_i32_t *min_value, nk_size_t *min_index);
-/** @brief i32 max reduction with argmax */
+/** @copydoc nk_reduce_max_i32 */
 NK_PUBLIC void nk_reduce_max_i32_skylake(nk_i32_t const *data, nk_size_t count, nk_size_t stride_bytes,
                                          nk_i32_t *max_value, nk_size_t *max_index);
-/** @brief u32 min reduction with argmin */
+/** @copydoc nk_reduce_min_u32 */
 NK_PUBLIC void nk_reduce_min_u32_skylake(nk_u32_t const *data, nk_size_t count, nk_size_t stride_bytes,
                                          nk_u32_t *min_value, nk_size_t *min_index);
-/** @brief u32 max reduction with argmax */
+/** @copydoc nk_reduce_max_u32 */
 NK_PUBLIC void nk_reduce_max_u32_skylake(nk_u32_t const *data, nk_size_t count, nk_size_t stride_bytes,
                                          nk_u32_t *max_value, nk_size_t *max_index);
-/** @brief i64 min reduction with argmin */
+/** @copydoc nk_reduce_min_i64 */
 NK_PUBLIC void nk_reduce_min_i64_skylake(nk_i64_t const *data, nk_size_t count, nk_size_t stride_bytes,
                                          nk_i64_t *min_value, nk_size_t *min_index);
-/** @brief i64 max reduction with argmax */
+/** @copydoc nk_reduce_max_i64 */
 NK_PUBLIC void nk_reduce_max_i64_skylake(nk_i64_t const *data, nk_size_t count, nk_size_t stride_bytes,
                                          nk_i64_t *max_value, nk_size_t *max_index);
-/** @brief u64 min reduction with argmin */
+/** @copydoc nk_reduce_min_u64 */
 NK_PUBLIC void nk_reduce_min_u64_skylake(nk_u64_t const *data, nk_size_t count, nk_size_t stride_bytes,
                                          nk_u64_t *min_value, nk_size_t *min_index);
-/** @brief u64 max reduction with argmax */
+/** @copydoc nk_reduce_max_u64 */
 NK_PUBLIC void nk_reduce_max_u64_skylake(nk_u64_t const *data, nk_size_t count, nk_size_t stride_bytes,
                                          nk_u64_t *max_value, nk_size_t *max_index);
 #endif // NK_TARGET_SKYLAKE
 
 #if NK_TARGET_ICE
+/** @copydoc nk_reduce_add_i8 */
 NK_PUBLIC void nk_reduce_add_i8_ice(nk_i8_t const *data, nk_size_t count, nk_size_t stride_bytes, nk_i64_t *result);
+/** @copydoc nk_reduce_add_u8 */
 NK_PUBLIC void nk_reduce_add_u8_ice(nk_u8_t const *data, nk_size_t count, nk_size_t stride_bytes, nk_u64_t *result);
+/** @copydoc nk_reduce_add_i16 */
 NK_PUBLIC void nk_reduce_add_i16_ice(nk_i16_t const *data, nk_size_t count, nk_size_t stride_bytes, nk_i64_t *result);
+/** @copydoc nk_reduce_add_u16 */
 NK_PUBLIC void nk_reduce_add_u16_ice(nk_u16_t const *data, nk_size_t count, nk_size_t stride_bytes, nk_u64_t *result);
 #endif // NK_TARGET_ICE
 
