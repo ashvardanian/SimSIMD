@@ -1290,6 +1290,7 @@ NK_INTERNAL void nk_find_kernel_punned_f64_(nk_capability_t v, nk_kernel_kind_t 
 #endif
 #if NK_TARGET_HASWELL
     if (v & nk_cap_haswell_k) switch (k) {
+        case nk_kernel_dot_k: *m = (m_t)&nk_dot_f64_haswell, *c = nk_cap_haswell_k; return;
         case nk_kernel_angular_k: *m = (m_t)&nk_angular_f64_haswell, *c = nk_cap_haswell_k; return;
         case nk_kernel_l2sq_k: *m = (m_t)&nk_l2sq_f64_haswell, *c = nk_cap_haswell_k; return;
         case nk_kernel_l2_k: *m = (m_t)&nk_l2_f64_haswell, *c = nk_cap_haswell_k; return;
@@ -1560,6 +1561,12 @@ NK_INTERNAL void nk_find_kernel_punned_f16_(nk_capability_t v, nk_kernel_kind_t 
         default: break;
         }
 #endif
+#if NK_TARGET_SKYLAKE
+    if (v & nk_cap_skylake_k) switch (k) {
+        case nk_kernel_dot_k: *m = (m_t)&nk_dot_f16_skylake, *c = nk_cap_skylake_k; return;
+        default: break;
+        }
+#endif
 #if NK_TARGET_HASWELL
     if (v & nk_cap_haswell_k) switch (k) {
         case nk_kernel_dot_k: *m = (m_t)&nk_dot_f16_haswell, *c = nk_cap_haswell_k; return;
@@ -1659,6 +1666,7 @@ NK_INTERNAL void nk_find_kernel_punned_bf16_(nk_capability_t v, nk_kernel_kind_t
 #endif
 #if NK_TARGET_SKYLAKE
     if (v & nk_cap_skylake_k) switch (k) {
+        case nk_kernel_dot_k: *m = (m_t)&nk_dot_bf16_skylake, *c = nk_cap_skylake_k; return;
         case nk_kernel_fma_k: *m = (m_t)&nk_fma_bf16_skylake, *c = nk_cap_skylake_k; return;
         case nk_kernel_wsum_k: *m = (m_t)&nk_wsum_bf16_skylake, *c = nk_cap_skylake_k; return;
         case nk_kernel_scale_k: *m = (m_t)&nk_scale_bf16_skylake, *c = nk_cap_skylake_k; return;
@@ -1768,6 +1776,7 @@ NK_INTERNAL void nk_find_kernel_punned_i8_(nk_capability_t v, nk_kernel_kind_t k
 #endif
 #if NK_TARGET_SKYLAKE
     if (v & nk_cap_skylake_k) switch (k) {
+        case nk_kernel_dot_k: *m = (m_t)&nk_dot_i8_skylake, *c = nk_cap_skylake_k; return;
         case nk_kernel_fma_k: *m = (m_t)&nk_fma_i8_skylake, *c = nk_cap_skylake_k; return;
         case nk_kernel_scale_k: *m = (m_t)&nk_scale_i8_skylake, *c = nk_cap_skylake_k; return;
         case nk_kernel_reduce_add_k: *m = (m_t)&nk_reduce_add_i8_skylake, *c = nk_cap_skylake_k; return;
@@ -1869,6 +1878,17 @@ NK_INTERNAL void nk_find_kernel_punned_u8_(nk_capability_t v, nk_kernel_kind_t k
         case nk_kernel_l2sq_k: *m = (m_t)&nk_l2sq_u8_ice, *c = nk_cap_ice_k; return;
         case nk_kernel_l2_k: *m = (m_t)&nk_l2_u8_ice, *c = nk_cap_ice_k; return;
         case nk_kernel_sum_k: *m = (m_t)&nk_sum_u8_ice, *c = nk_cap_ice_k; return;
+        default: break;
+        }
+#endif
+#if NK_TARGET_SKYLAKE
+    if (v & nk_cap_skylake_k) switch (k) {
+        case nk_kernel_dot_k: *m = (m_t)&nk_dot_u8_skylake, *c = nk_cap_skylake_k; return;
+        case nk_kernel_fma_k: *m = (m_t)&nk_fma_u8_skylake, *c = nk_cap_skylake_k; return;
+        case nk_kernel_scale_k: *m = (m_t)&nk_scale_u8_skylake, *c = nk_cap_skylake_k; return;
+        case nk_kernel_reduce_add_k: *m = (m_t)&nk_reduce_add_u8_skylake, *c = nk_cap_skylake_k; return;
+        case nk_kernel_reduce_min_k: *m = (m_t)&nk_reduce_min_u8_skylake, *c = nk_cap_skylake_k; return;
+        case nk_kernel_reduce_max_k: *m = (m_t)&nk_reduce_max_u8_skylake, *c = nk_cap_skylake_k; return;
         default: break;
         }
 #endif

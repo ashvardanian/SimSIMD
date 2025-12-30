@@ -36,6 +36,20 @@ NK_PUBLIC void nk_dot_f32_haswell(nk_f32_t const *a_scalars, nk_f32_t const *b_s
     *result = sum;
 }
 
+NK_PUBLIC void nk_dot_f64_haswell(nk_f64_t const *a_scalars, nk_f64_t const *b_scalars, nk_size_t count_scalars,
+                                  nk_f64_t *result) {
+    __m256d sum_f64x4 = _mm256_setzero_pd();
+    nk_size_t idx_scalars = 0;
+    for (; idx_scalars + 4 <= count_scalars; idx_scalars += 4) {
+        __m256d a_f64x4 = _mm256_loadu_pd(a_scalars + idx_scalars);
+        __m256d b_f64x4 = _mm256_loadu_pd(b_scalars + idx_scalars);
+        sum_f64x4 = _mm256_fmadd_pd(a_f64x4, b_f64x4, sum_f64x4);
+    }
+    nk_f64_t sum = nk_reduce_add_f64x4_haswell_(sum_f64x4);
+    for (; idx_scalars < count_scalars; ++idx_scalars) sum += a_scalars[idx_scalars] * b_scalars[idx_scalars];
+    *result = sum;
+}
+
 NK_PUBLIC void nk_dot_f32c_haswell(nk_f32c_t const *a_pairs, nk_f32c_t const *b_pairs, nk_size_t count_pairs,
                                    nk_f32c_t *result) {
     // Using XOR to flip sign bits is cheaper than separate FMA/FMS. Throughput doubles from 2.5 GB/s to 5 GB/s.

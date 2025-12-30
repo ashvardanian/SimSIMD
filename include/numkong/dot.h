@@ -488,6 +488,8 @@ NK_PUBLIC void nk_vdot_f16c_svehalf(nk_f16c_t const *a, nk_f16c_t const *b, nk_s
 #if NK_TARGET_HASWELL
 /** @copydoc nk_dot_f32 */
 NK_PUBLIC void nk_dot_f32_haswell(nk_f32_t const *a, nk_f32_t const *b, nk_size_t n, nk_f32_t *result);
+/** @copydoc nk_dot_f64 */
+NK_PUBLIC void nk_dot_f64_haswell(nk_f64_t const *a, nk_f64_t const *b, nk_size_t n, nk_f64_t *result);
 /** @copydoc nk_dot_f32c */
 NK_PUBLIC void nk_dot_f32c_haswell(nk_f32c_t const *a, nk_f32c_t const *b, nk_size_t n, nk_f32c_t *result);
 /** @copydoc nk_vdot_f32c */
@@ -624,10 +626,20 @@ NK_PUBLIC void nk_dot_f32c_skylake(nk_f32c_t const *a, nk_f32c_t const *b, nk_si
 /** @copydoc nk_vdot_f32c */
 NK_PUBLIC void nk_vdot_f32c_skylake(nk_f32c_t const *a, nk_f32c_t const *b, nk_size_t n, nk_f32c_t *result);
 
+/** @copydoc nk_dot_f16 */
+NK_PUBLIC void nk_dot_f16_skylake(nk_f16_t const *a, nk_f16_t const *b, nk_size_t n, nk_f32_t *result);
+/** @copydoc nk_dot_bf16 */
+NK_PUBLIC void nk_dot_bf16_skylake(nk_bf16_t const *a, nk_bf16_t const *b, nk_size_t n, nk_f32_t *result);
+
 /** @copydoc nk_dot_e4m3 */
 NK_PUBLIC void nk_dot_e4m3_skylake(nk_e4m3_t const *a, nk_e4m3_t const *b, nk_size_t n, nk_f32_t *result);
 /** @copydoc nk_dot_e5m2 */
 NK_PUBLIC void nk_dot_e5m2_skylake(nk_e5m2_t const *a, nk_e5m2_t const *b, nk_size_t n, nk_f32_t *result);
+
+/** @copydoc nk_dot_i8 */
+NK_PUBLIC void nk_dot_i8_skylake(nk_i8_t const *a, nk_i8_t const *b, nk_size_t n, nk_i32_t *result);
+/** @copydoc nk_dot_u8 */
+NK_PUBLIC void nk_dot_u8_skylake(nk_u8_t const *a, nk_u8_t const *b, nk_size_t n, nk_u32_t *result);
 
 /**
  *  @brief Running state for 512-bit dot accumulation over f64 scalars on Skylake.
@@ -895,6 +907,8 @@ NK_PUBLIC void nk_dot_i8(nk_i8_t const *a, nk_i8_t const *b, nk_size_t n, nk_i32
     nk_dot_i8_neonsdot(a, b, n, result);
 #elif NK_TARGET_ICE
     nk_dot_i8_ice(a, b, n, result);
+#elif NK_TARGET_SKYLAKE
+    nk_dot_i8_skylake(a, b, n, result);
 #elif NK_TARGET_HASWELL
     nk_dot_i8_haswell(a, b, n, result);
 #else
@@ -906,6 +920,8 @@ NK_PUBLIC void nk_dot_u8(nk_u8_t const *a, nk_u8_t const *b, nk_size_t n, nk_u32
     nk_dot_u8_neonsdot(a, b, n, result);
 #elif NK_TARGET_ICE
     nk_dot_u8_ice(a, b, n, result);
+#elif NK_TARGET_SKYLAKE
+    nk_dot_u8_skylake(a, b, n, result);
 #elif NK_TARGET_HASWELL
     nk_dot_u8_haswell(a, b, n, result);
 #else
@@ -921,6 +937,8 @@ NK_PUBLIC void nk_dot_f16(nk_f16_t const *a, nk_f16_t const *b, nk_size_t n, nk_
     nk_dot_f16_neonhalf(a, b, n, result);
 #elif NK_TARGET_SAPPHIRE
     nk_dot_f16_sapphire(a, b, n, result);
+#elif NK_TARGET_SKYLAKE
+    nk_dot_f16_skylake(a, b, n, result);
 #elif NK_TARGET_HASWELL
     nk_dot_f16_haswell(a, b, n, result);
 #else
@@ -930,6 +948,8 @@ NK_PUBLIC void nk_dot_f16(nk_f16_t const *a, nk_f16_t const *b, nk_size_t n, nk_
 NK_PUBLIC void nk_dot_bf16(nk_bf16_t const *a, nk_bf16_t const *b, nk_size_t n, nk_f32_t *result) {
 #if NK_TARGET_GENOA
     nk_dot_bf16_genoa(a, b, n, result);
+#elif NK_TARGET_SKYLAKE
+    nk_dot_bf16_skylake(a, b, n, result);
 #elif NK_TARGET_HASWELL
     nk_dot_bf16_haswell(a, b, n, result);
 #elif NK_TARGET_NEONBFDOT
@@ -988,6 +1008,8 @@ NK_PUBLIC void nk_dot_f64(nk_f64_t const *a, nk_f64_t const *b, nk_size_t n, nk_
     nk_dot_f64_neon(a, b, n, result);
 #elif NK_TARGET_SKYLAKE
     nk_dot_f64_skylake(a, b, n, result);
+#elif NK_TARGET_HASWELL
+    nk_dot_f64_haswell(a, b, n, result);
 #else
     nk_dot_f64_serial(a, b, n, result);
 #endif

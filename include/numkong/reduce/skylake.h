@@ -256,6 +256,34 @@ NK_INTERNAL __mmask16 nk_stride_mask_b32x16_(nk_size_t stride) {
 }
 
 /**
+ *  @brief Returns AVX-512 mask for strided access of 16-bit elements (32-element register).
+ *
+ *  For column extraction from row-major matrices: stride N means every Nth element.
+ *  Example: stride 4 extracts column 0 from a 4-column int16 matrix.
+ *  Mask bits set to 1 where (position % stride == 0).
+ */
+NK_INTERNAL __mmask32 nk_stride_mask_b16x32_(nk_size_t stride) {
+    switch (stride) {
+    case 2: return (__mmask32)0x55555555;  // 16 elems
+    case 3: return (__mmask32)0x09249249;  // 11 elems
+    case 4: return (__mmask32)0x11111111;  // 8 elems
+    case 5: return (__mmask32)0x01084210;  // 6 elems
+    case 6: return (__mmask32)0x01041041;  // 5 elems
+    case 7: return (__mmask32)0x00408102;  // 4 elems
+    case 8: return (__mmask32)0x01010101;  // 4 elems
+    case 9: return (__mmask32)0x00802008;  // 3 elems
+    case 10: return (__mmask32)0x00401004; // 3 elems
+    case 11: return (__mmask32)0x00200802; // 3 elems
+    case 12: return (__mmask32)0x00100401; // 2 elems
+    case 13: return (__mmask32)0x00080200; // 2 elems
+    case 14: return (__mmask32)0x00040100; // 2 elems
+    case 15: return (__mmask32)0x00020080; // 2 elems
+    case 16: return (__mmask32)0x00010001; // 2 elems
+    default: return (__mmask32)0;
+    }
+}
+
+/**
  *  @brief Returns AVX-512 mask for strided access of 64-bit elements (8-element register).
  *
  *  For column extraction from row-major matrices: stride N means every Nth element.
@@ -1207,6 +1235,843 @@ NK_PUBLIC void nk_reduce_max_f64_skylake(                          //
     else if (stride_elements >= 2 && stride_elements <= 8)
         nk_reduce_max_f64_skylake_strided_(data, count, stride_elements, max_value, max_index);
     else nk_reduce_max_f64_serial(data, count, stride_bytes, max_value, max_index);
+}
+
+NK_INTERNAL void nk_reduce_add_i8_skylake_contiguous_( //
+    nk_i8_t const *data, nk_size_t count, nk_i64_t *result) {
+    __m512i sum_i64x8 = _mm512_setzero_si512();
+    nk_size_t idx = 0;
+    for (; idx + 64 <= count; idx += 64) {
+        __m512i data_i8x64 = _mm512_loadu_si512(data + idx);
+        // Widen lower 32 bytes: i8 -> i16 -> i32 -> i64
+        __m256i lo_i8x32 = _mm512_castsi512_si256(data_i8x64);
+        __m256i hi_i8x32 = _mm512_extracti64x4_epi64(data_i8x64, 1);
+        // Process lo_i8x32
+        __m512i lo_i16x32 = _mm512_cvtepi8_epi16(lo_i8x32);
+        __m256i lo_lo_i16x16 = _mm512_castsi512_si256(lo_i16x32);
+        __m256i lo_hi_i16x16 = _mm512_extracti64x4_epi64(lo_i16x32, 1);
+        __m512i lo_lo_i32x16 = _mm512_cvtepi16_epi32(lo_lo_i16x16);
+        __m512i lo_hi_i32x16 = _mm512_cvtepi16_epi32(lo_hi_i16x16);
+        __m256i a_i32x8 = _mm512_castsi512_si256(lo_lo_i32x16);
+        __m256i b_i32x8 = _mm512_extracti64x4_epi64(lo_lo_i32x16, 1);
+        __m256i c_i32x8 = _mm512_castsi512_si256(lo_hi_i32x16);
+        __m256i d_i32x8 = _mm512_extracti64x4_epi64(lo_hi_i32x16, 1);
+        sum_i64x8 = _mm512_add_epi64(sum_i64x8, _mm512_cvtepi32_epi64(a_i32x8));
+        sum_i64x8 = _mm512_add_epi64(sum_i64x8, _mm512_cvtepi32_epi64(b_i32x8));
+        sum_i64x8 = _mm512_add_epi64(sum_i64x8, _mm512_cvtepi32_epi64(c_i32x8));
+        sum_i64x8 = _mm512_add_epi64(sum_i64x8, _mm512_cvtepi32_epi64(d_i32x8));
+        // Process hi_i8x32
+        __m512i hi_i16x32 = _mm512_cvtepi8_epi16(hi_i8x32);
+        __m256i hi_lo_i16x16 = _mm512_castsi512_si256(hi_i16x32);
+        __m256i hi_hi_i16x16 = _mm512_extracti64x4_epi64(hi_i16x32, 1);
+        __m512i hi_lo_i32x16 = _mm512_cvtepi16_epi32(hi_lo_i16x16);
+        __m512i hi_hi_i32x16 = _mm512_cvtepi16_epi32(hi_hi_i16x16);
+        __m256i e_i32x8 = _mm512_castsi512_si256(hi_lo_i32x16);
+        __m256i f_i32x8 = _mm512_extracti64x4_epi64(hi_lo_i32x16, 1);
+        __m256i g_i32x8 = _mm512_castsi512_si256(hi_hi_i32x16);
+        __m256i h_i32x8 = _mm512_extracti64x4_epi64(hi_hi_i32x16, 1);
+        sum_i64x8 = _mm512_add_epi64(sum_i64x8, _mm512_cvtepi32_epi64(e_i32x8));
+        sum_i64x8 = _mm512_add_epi64(sum_i64x8, _mm512_cvtepi32_epi64(f_i32x8));
+        sum_i64x8 = _mm512_add_epi64(sum_i64x8, _mm512_cvtepi32_epi64(g_i32x8));
+        sum_i64x8 = _mm512_add_epi64(sum_i64x8, _mm512_cvtepi32_epi64(h_i32x8));
+    }
+    nk_i64_t sum = nk_reduce_add_i64x8_skylake_(sum_i64x8);
+    for (; idx < count; ++idx) sum += data[idx];
+    *result = sum;
+}
+
+NK_INTERNAL void nk_reduce_add_u8_skylake_contiguous_( //
+    nk_u8_t const *data, nk_size_t count, nk_u64_t *result) {
+    __m512i sum_u64x8 = _mm512_setzero_si512();
+    nk_size_t idx = 0;
+    for (; idx + 64 <= count; idx += 64) {
+        __m512i data_u8x64 = _mm512_loadu_si512(data + idx);
+        __m256i lo_u8x32 = _mm512_castsi512_si256(data_u8x64);
+        __m256i hi_u8x32 = _mm512_extracti64x4_epi64(data_u8x64, 1);
+        // Process lo_u8x32
+        __m512i lo_u16x32 = _mm512_cvtepu8_epi16(lo_u8x32);
+        __m256i lo_lo_u16x16 = _mm512_castsi512_si256(lo_u16x32);
+        __m256i lo_hi_u16x16 = _mm512_extracti64x4_epi64(lo_u16x32, 1);
+        __m512i lo_lo_u32x16 = _mm512_cvtepu16_epi32(lo_lo_u16x16);
+        __m512i lo_hi_u32x16 = _mm512_cvtepu16_epi32(lo_hi_u16x16);
+        __m256i a_u32x8 = _mm512_castsi512_si256(lo_lo_u32x16);
+        __m256i b_u32x8 = _mm512_extracti64x4_epi64(lo_lo_u32x16, 1);
+        __m256i c_u32x8 = _mm512_castsi512_si256(lo_hi_u32x16);
+        __m256i d_u32x8 = _mm512_extracti64x4_epi64(lo_hi_u32x16, 1);
+        sum_u64x8 = _mm512_add_epi64(sum_u64x8, _mm512_cvtepu32_epi64(a_u32x8));
+        sum_u64x8 = _mm512_add_epi64(sum_u64x8, _mm512_cvtepu32_epi64(b_u32x8));
+        sum_u64x8 = _mm512_add_epi64(sum_u64x8, _mm512_cvtepu32_epi64(c_u32x8));
+        sum_u64x8 = _mm512_add_epi64(sum_u64x8, _mm512_cvtepu32_epi64(d_u32x8));
+        // Process hi_u8x32
+        __m512i hi_u16x32 = _mm512_cvtepu8_epi16(hi_u8x32);
+        __m256i hi_lo_u16x16 = _mm512_castsi512_si256(hi_u16x32);
+        __m256i hi_hi_u16x16 = _mm512_extracti64x4_epi64(hi_u16x32, 1);
+        __m512i hi_lo_u32x16 = _mm512_cvtepu16_epi32(hi_lo_u16x16);
+        __m512i hi_hi_u32x16 = _mm512_cvtepu16_epi32(hi_hi_u16x16);
+        __m256i e_u32x8 = _mm512_castsi512_si256(hi_lo_u32x16);
+        __m256i f_u32x8 = _mm512_extracti64x4_epi64(hi_lo_u32x16, 1);
+        __m256i g_u32x8 = _mm512_castsi512_si256(hi_hi_u32x16);
+        __m256i h_u32x8 = _mm512_extracti64x4_epi64(hi_hi_u32x16, 1);
+        sum_u64x8 = _mm512_add_epi64(sum_u64x8, _mm512_cvtepu32_epi64(e_u32x8));
+        sum_u64x8 = _mm512_add_epi64(sum_u64x8, _mm512_cvtepu32_epi64(f_u32x8));
+        sum_u64x8 = _mm512_add_epi64(sum_u64x8, _mm512_cvtepu32_epi64(g_u32x8));
+        sum_u64x8 = _mm512_add_epi64(sum_u64x8, _mm512_cvtepu32_epi64(h_u32x8));
+    }
+    nk_u64_t sum = nk_reduce_add_u64x8_skylake_(sum_u64x8);
+    for (; idx < count; ++idx) sum += data[idx];
+    *result = sum;
+}
+
+NK_INTERNAL void nk_reduce_add_i16_skylake_contiguous_( //
+    nk_i16_t const *data, nk_size_t count, nk_i64_t *result) {
+    __m512i sum_i64x8 = _mm512_setzero_si512();
+    nk_size_t idx = 0;
+    for (; idx + 32 <= count; idx += 32) {
+        __m512i data_i16x32 = _mm512_loadu_si512(data + idx);
+        __m256i lo_i16x16 = _mm512_castsi512_si256(data_i16x32);
+        __m256i hi_i16x16 = _mm512_extracti64x4_epi64(data_i16x32, 1);
+        __m512i lo_i32x16 = _mm512_cvtepi16_epi32(lo_i16x16);
+        __m512i hi_i32x16 = _mm512_cvtepi16_epi32(hi_i16x16);
+        __m256i a_i32x8 = _mm512_castsi512_si256(lo_i32x16);
+        __m256i b_i32x8 = _mm512_extracti64x4_epi64(lo_i32x16, 1);
+        __m256i c_i32x8 = _mm512_castsi512_si256(hi_i32x16);
+        __m256i d_i32x8 = _mm512_extracti64x4_epi64(hi_i32x16, 1);
+        sum_i64x8 = _mm512_add_epi64(sum_i64x8, _mm512_cvtepi32_epi64(a_i32x8));
+        sum_i64x8 = _mm512_add_epi64(sum_i64x8, _mm512_cvtepi32_epi64(b_i32x8));
+        sum_i64x8 = _mm512_add_epi64(sum_i64x8, _mm512_cvtepi32_epi64(c_i32x8));
+        sum_i64x8 = _mm512_add_epi64(sum_i64x8, _mm512_cvtepi32_epi64(d_i32x8));
+    }
+    nk_i64_t sum = nk_reduce_add_i64x8_skylake_(sum_i64x8);
+    for (; idx < count; ++idx) sum += data[idx];
+    *result = sum;
+}
+
+NK_INTERNAL void nk_reduce_add_u16_skylake_contiguous_( //
+    nk_u16_t const *data, nk_size_t count, nk_u64_t *result) {
+    __m512i sum_u64x8 = _mm512_setzero_si512();
+    nk_size_t idx = 0;
+    for (; idx + 32 <= count; idx += 32) {
+        __m512i data_u16x32 = _mm512_loadu_si512(data + idx);
+        __m256i lo_u16x16 = _mm512_castsi512_si256(data_u16x32);
+        __m256i hi_u16x16 = _mm512_extracti64x4_epi64(data_u16x32, 1);
+        __m512i lo_u32x16 = _mm512_cvtepu16_epi32(lo_u16x16);
+        __m512i hi_u32x16 = _mm512_cvtepu16_epi32(hi_u16x16);
+        __m256i a_u32x8 = _mm512_castsi512_si256(lo_u32x16);
+        __m256i b_u32x8 = _mm512_extracti64x4_epi64(lo_u32x16, 1);
+        __m256i c_u32x8 = _mm512_castsi512_si256(hi_u32x16);
+        __m256i d_u32x8 = _mm512_extracti64x4_epi64(hi_u32x16, 1);
+        sum_u64x8 = _mm512_add_epi64(sum_u64x8, _mm512_cvtepu32_epi64(a_u32x8));
+        sum_u64x8 = _mm512_add_epi64(sum_u64x8, _mm512_cvtepu32_epi64(b_u32x8));
+        sum_u64x8 = _mm512_add_epi64(sum_u64x8, _mm512_cvtepu32_epi64(c_u32x8));
+        sum_u64x8 = _mm512_add_epi64(sum_u64x8, _mm512_cvtepu32_epi64(d_u32x8));
+    }
+    nk_u64_t sum = nk_reduce_add_u64x8_skylake_(sum_u64x8);
+    for (; idx < count; ++idx) sum += data[idx];
+    *result = sum;
+}
+
+NK_INTERNAL void nk_reduce_add_i8_skylake_strided_(                  //
+    nk_i8_t const *data, nk_size_t count, nk_size_t stride_elements, //
+    nk_i64_t *result) {
+    // Masked load zeros out non-stride elements; zeros don't affect sum
+    __mmask64 stride_mask_m64 = nk_stride_mask_b8x64_(stride_elements);
+    __m512i sum_i64x8 = _mm512_setzero_si512();
+    nk_size_t idx_scalars = 0;
+    nk_size_t total_scalars = count * stride_elements;
+    for (; idx_scalars + 64 <= total_scalars; idx_scalars += 64) {
+        __m512i data_i8x64 = _mm512_maskz_loadu_epi8(stride_mask_m64, data + idx_scalars);
+        // Widen with sign extension: i8 -> i16 -> i32 -> i64
+        __m256i lo_i8x32 = _mm512_castsi512_si256(data_i8x64);
+        __m256i hi_i8x32 = _mm512_extracti64x4_epi64(data_i8x64, 1);
+        __m512i lo_i16x32 = _mm512_cvtepi8_epi16(lo_i8x32);
+        __m512i hi_i16x32 = _mm512_cvtepi8_epi16(hi_i8x32);
+        // Sum all 64 values via widening to i64
+        __m256i a_i16x16 = _mm512_castsi512_si256(lo_i16x32);
+        __m256i b_i16x16 = _mm512_extracti64x4_epi64(lo_i16x32, 1);
+        __m256i c_i16x16 = _mm512_castsi512_si256(hi_i16x32);
+        __m256i d_i16x16 = _mm512_extracti64x4_epi64(hi_i16x32, 1);
+        __m512i a_i32x16 = _mm512_cvtepi16_epi32(a_i16x16);
+        __m512i b_i32x16 = _mm512_cvtepi16_epi32(b_i16x16);
+        __m512i c_i32x16 = _mm512_cvtepi16_epi32(c_i16x16);
+        __m512i d_i32x16 = _mm512_cvtepi16_epi32(d_i16x16);
+        // Pairwise add i32x16 -> i32x16 (horizontal), then widen to i64
+        __m512i ab_i32x16 = _mm512_add_epi32(a_i32x16, b_i32x16);
+        __m512i cd_i32x16 = _mm512_add_epi32(c_i32x16, d_i32x16);
+        __m512i abcd_i32x16 = _mm512_add_epi32(ab_i32x16, cd_i32x16);
+        __m256i lo_i32x8 = _mm512_castsi512_si256(abcd_i32x16);
+        __m256i hi_i32x8 = _mm512_extracti64x4_epi64(abcd_i32x16, 1);
+        sum_i64x8 = _mm512_add_epi64(sum_i64x8, _mm512_cvtepi32_epi64(lo_i32x8));
+        sum_i64x8 = _mm512_add_epi64(sum_i64x8, _mm512_cvtepi32_epi64(hi_i32x8));
+    }
+    // Scalar tail for remaining elements
+    nk_i64_t sum = nk_reduce_add_i64x8_skylake_(sum_i64x8);
+    nk_i8_t const *ptr = data + idx_scalars;
+    nk_size_t remaining = count - idx_scalars / stride_elements;
+    for (nk_size_t i = 0; i < remaining; ++i, ptr += stride_elements) sum += *ptr;
+    *result = sum;
+}
+
+NK_INTERNAL void nk_reduce_add_u8_skylake_strided_(                  //
+    nk_u8_t const *data, nk_size_t count, nk_size_t stride_elements, //
+    nk_u64_t *result) {
+    __mmask64 stride_mask_m64 = nk_stride_mask_b8x64_(stride_elements);
+    __m512i sum_u64x8 = _mm512_setzero_si512();
+    nk_size_t idx_scalars = 0;
+    nk_size_t total_scalars = count * stride_elements;
+    for (; idx_scalars + 64 <= total_scalars; idx_scalars += 64) {
+        __m512i data_u8x64 = _mm512_maskz_loadu_epi8(stride_mask_m64, data + idx_scalars);
+        // Widen with zero extension: u8 -> u16 -> u32 -> u64
+        __m256i lo_u8x32 = _mm512_castsi512_si256(data_u8x64);
+        __m256i hi_u8x32 = _mm512_extracti64x4_epi64(data_u8x64, 1);
+        __m512i lo_u16x32 = _mm512_cvtepu8_epi16(lo_u8x32);
+        __m512i hi_u16x32 = _mm512_cvtepu8_epi16(hi_u8x32);
+        __m256i a_u16x16 = _mm512_castsi512_si256(lo_u16x32);
+        __m256i b_u16x16 = _mm512_extracti64x4_epi64(lo_u16x32, 1);
+        __m256i c_u16x16 = _mm512_castsi512_si256(hi_u16x32);
+        __m256i d_u16x16 = _mm512_extracti64x4_epi64(hi_u16x32, 1);
+        __m512i a_u32x16 = _mm512_cvtepu16_epi32(a_u16x16);
+        __m512i b_u32x16 = _mm512_cvtepu16_epi32(b_u16x16);
+        __m512i c_u32x16 = _mm512_cvtepu16_epi32(c_u16x16);
+        __m512i d_u32x16 = _mm512_cvtepu16_epi32(d_u16x16);
+        __m512i ab_u32x16 = _mm512_add_epi32(a_u32x16, b_u32x16);
+        __m512i cd_u32x16 = _mm512_add_epi32(c_u32x16, d_u32x16);
+        __m512i abcd_u32x16 = _mm512_add_epi32(ab_u32x16, cd_u32x16);
+        __m256i lo_u32x8 = _mm512_castsi512_si256(abcd_u32x16);
+        __m256i hi_u32x8 = _mm512_extracti64x4_epi64(abcd_u32x16, 1);
+        sum_u64x8 = _mm512_add_epi64(sum_u64x8, _mm512_cvtepu32_epi64(lo_u32x8));
+        sum_u64x8 = _mm512_add_epi64(sum_u64x8, _mm512_cvtepu32_epi64(hi_u32x8));
+    }
+    nk_u64_t sum = nk_reduce_add_u64x8_skylake_(sum_u64x8);
+    nk_u8_t const *ptr = data + idx_scalars;
+    nk_size_t remaining = count - idx_scalars / stride_elements;
+    for (nk_size_t i = 0; i < remaining; ++i, ptr += stride_elements) sum += *ptr;
+    *result = sum;
+}
+
+NK_INTERNAL void nk_reduce_add_i16_skylake_strided_(                  //
+    nk_i16_t const *data, nk_size_t count, nk_size_t stride_elements, //
+    nk_i64_t *result) {
+    __mmask32 stride_mask_m32 = nk_stride_mask_b16x32_(stride_elements);
+    __m512i sum_i64x8 = _mm512_setzero_si512();
+    nk_size_t idx_scalars = 0;
+    nk_size_t total_scalars = count * stride_elements;
+    for (; idx_scalars + 32 <= total_scalars; idx_scalars += 32) {
+        __m512i data_i16x32 = _mm512_maskz_loadu_epi16(stride_mask_m32, data + idx_scalars);
+        __m256i lo_i16x16 = _mm512_castsi512_si256(data_i16x32);
+        __m256i hi_i16x16 = _mm512_extracti64x4_epi64(data_i16x32, 1);
+        __m512i lo_i32x16 = _mm512_cvtepi16_epi32(lo_i16x16);
+        __m512i hi_i32x16 = _mm512_cvtepi16_epi32(hi_i16x16);
+        __m512i sum_i32x16 = _mm512_add_epi32(lo_i32x16, hi_i32x16);
+        __m256i lo_i32x8 = _mm512_castsi512_si256(sum_i32x16);
+        __m256i hi_i32x8 = _mm512_extracti64x4_epi64(sum_i32x16, 1);
+        sum_i64x8 = _mm512_add_epi64(sum_i64x8, _mm512_cvtepi32_epi64(lo_i32x8));
+        sum_i64x8 = _mm512_add_epi64(sum_i64x8, _mm512_cvtepi32_epi64(hi_i32x8));
+    }
+    nk_i64_t sum = nk_reduce_add_i64x8_skylake_(sum_i64x8);
+    nk_i16_t const *ptr = data + idx_scalars;
+    nk_size_t remaining = count - idx_scalars / stride_elements;
+    for (nk_size_t i = 0; i < remaining; ++i, ptr += stride_elements) sum += *ptr;
+    *result = sum;
+}
+
+NK_INTERNAL void nk_reduce_add_u16_skylake_strided_(                  //
+    nk_u16_t const *data, nk_size_t count, nk_size_t stride_elements, //
+    nk_u64_t *result) {
+    __mmask32 stride_mask_m32 = nk_stride_mask_b16x32_(stride_elements);
+    __m512i sum_u64x8 = _mm512_setzero_si512();
+    nk_size_t idx_scalars = 0;
+    nk_size_t total_scalars = count * stride_elements;
+    for (; idx_scalars + 32 <= total_scalars; idx_scalars += 32) {
+        __m512i data_u16x32 = _mm512_maskz_loadu_epi16(stride_mask_m32, data + idx_scalars);
+        __m256i lo_u16x16 = _mm512_castsi512_si256(data_u16x32);
+        __m256i hi_u16x16 = _mm512_extracti64x4_epi64(data_u16x32, 1);
+        __m512i lo_u32x16 = _mm512_cvtepu16_epi32(lo_u16x16);
+        __m512i hi_u32x16 = _mm512_cvtepu16_epi32(hi_u16x16);
+        __m512i sum_u32x16 = _mm512_add_epi32(lo_u32x16, hi_u32x16);
+        __m256i lo_u32x8 = _mm512_castsi512_si256(sum_u32x16);
+        __m256i hi_u32x8 = _mm512_extracti64x4_epi64(sum_u32x16, 1);
+        sum_u64x8 = _mm512_add_epi64(sum_u64x8, _mm512_cvtepu32_epi64(lo_u32x8));
+        sum_u64x8 = _mm512_add_epi64(sum_u64x8, _mm512_cvtepu32_epi64(hi_u32x8));
+    }
+    nk_u64_t sum = nk_reduce_add_u64x8_skylake_(sum_u64x8);
+    nk_u16_t const *ptr = data + idx_scalars;
+    nk_size_t remaining = count - idx_scalars / stride_elements;
+    for (nk_size_t i = 0; i < remaining; ++i, ptr += stride_elements) sum += *ptr;
+    *result = sum;
+}
+
+NK_INTERNAL void nk_reduce_add_i32_skylake_contiguous_( //
+    nk_i32_t const *data, nk_size_t count, nk_i64_t *result) {
+    __m512i sum_i64x8 = _mm512_setzero_si512();
+    nk_size_t idx = 0;
+    for (; idx + 16 <= count; idx += 16) {
+        __m512i data_i32x16 = _mm512_loadu_si512(data + idx);
+        __m256i lo_i32x8 = _mm512_castsi512_si256(data_i32x16);
+        __m256i hi_i32x8 = _mm512_extracti64x4_epi64(data_i32x16, 1);
+        sum_i64x8 = _mm512_add_epi64(sum_i64x8, _mm512_cvtepi32_epi64(lo_i32x8));
+        sum_i64x8 = _mm512_add_epi64(sum_i64x8, _mm512_cvtepi32_epi64(hi_i32x8));
+    }
+    nk_i64_t sum = nk_reduce_add_i64x8_skylake_(sum_i64x8);
+    for (; idx < count; ++idx) sum += data[idx];
+    *result = sum;
+}
+
+NK_INTERNAL void nk_reduce_add_u32_skylake_contiguous_( //
+    nk_u32_t const *data, nk_size_t count, nk_u64_t *result) {
+    __m512i sum_u64x8 = _mm512_setzero_si512();
+    nk_size_t idx = 0;
+    for (; idx + 16 <= count; idx += 16) {
+        __m512i data_u32x16 = _mm512_loadu_si512(data + idx);
+        __m256i lo_u32x8 = _mm512_castsi512_si256(data_u32x16);
+        __m256i hi_u32x8 = _mm512_extracti64x4_epi64(data_u32x16, 1);
+        sum_u64x8 = _mm512_add_epi64(sum_u64x8, _mm512_cvtepu32_epi64(lo_u32x8));
+        sum_u64x8 = _mm512_add_epi64(sum_u64x8, _mm512_cvtepu32_epi64(hi_u32x8));
+    }
+    nk_u64_t sum = nk_reduce_add_u64x8_skylake_(sum_u64x8);
+    for (; idx < count; ++idx) sum += data[idx];
+    *result = sum;
+}
+
+NK_INTERNAL void nk_reduce_add_i64_skylake_contiguous_( //
+    nk_i64_t const *data, nk_size_t count, nk_i64_t *result) {
+    __m512i sum_i64x8 = _mm512_setzero_si512();
+    nk_size_t idx = 0;
+    for (; idx + 8 <= count; idx += 8) {
+        __m512i data_i64x8 = _mm512_loadu_si512(data + idx);
+        sum_i64x8 = _mm512_add_epi64(sum_i64x8, data_i64x8);
+    }
+    nk_i64_t sum = nk_reduce_add_i64x8_skylake_(sum_i64x8);
+    for (; idx < count; ++idx) sum += data[idx];
+    *result = sum;
+}
+
+NK_INTERNAL void nk_reduce_add_u64_skylake_contiguous_( //
+    nk_u64_t const *data, nk_size_t count, nk_u64_t *result) {
+    __m512i sum_u64x8 = _mm512_setzero_si512();
+    nk_size_t idx = 0;
+    for (; idx + 8 <= count; idx += 8) {
+        __m512i data_u64x8 = _mm512_loadu_si512(data + idx);
+        sum_u64x8 = _mm512_add_epi64(sum_u64x8, data_u64x8);
+    }
+    nk_u64_t sum = nk_reduce_add_u64x8_skylake_(sum_u64x8);
+    for (; idx < count; ++idx) sum += data[idx];
+    *result = sum;
+}
+
+NK_INTERNAL void nk_reduce_min_i8_skylake_contiguous_( //
+    nk_i8_t const *data, nk_size_t count, nk_i8_t *min_value, nk_size_t *min_index) {
+    __m512i min_i8x64 = _mm512_set1_epi8(127);
+    nk_size_t idx = 0;
+    for (; idx + 64 <= count; idx += 64) {
+        __m512i data_i8x64 = _mm512_loadu_si512(data + idx);
+        min_i8x64 = _mm512_min_epi8(min_i8x64, data_i8x64);
+    }
+    nk_i8_t min_val = nk_reduce_min_i8x64_skylake_(min_i8x64);
+    for (; idx < count; ++idx) min_val = data[idx] < min_val ? data[idx] : min_val;
+    for (idx = 0; idx < count; ++idx) {
+        if (data[idx] == min_val) {
+            *min_value = min_val;
+            *min_index = idx;
+            return;
+        }
+    }
+    *min_value = min_val;
+    *min_index = 0;
+}
+
+NK_INTERNAL void nk_reduce_max_i8_skylake_contiguous_( //
+    nk_i8_t const *data, nk_size_t count, nk_i8_t *max_value, nk_size_t *max_index) {
+    __m512i max_i8x64 = _mm512_set1_epi8(-128);
+    nk_size_t idx = 0;
+    for (; idx + 64 <= count; idx += 64) {
+        __m512i data_i8x64 = _mm512_loadu_si512(data + idx);
+        max_i8x64 = _mm512_max_epi8(max_i8x64, data_i8x64);
+    }
+    nk_i8_t max_val = nk_reduce_max_i8x64_skylake_(max_i8x64);
+    for (; idx < count; ++idx) max_val = data[idx] > max_val ? data[idx] : max_val;
+    for (idx = 0; idx < count; ++idx) {
+        if (data[idx] == max_val) {
+            *max_value = max_val;
+            *max_index = idx;
+            return;
+        }
+    }
+    *max_value = max_val;
+    *max_index = 0;
+}
+
+NK_INTERNAL void nk_reduce_min_u8_skylake_contiguous_( //
+    nk_u8_t const *data, nk_size_t count, nk_u8_t *min_value, nk_size_t *min_index) {
+    __m512i min_u8x64 = _mm512_set1_epi8((char)255);
+    nk_size_t idx = 0;
+    for (; idx + 64 <= count; idx += 64) {
+        __m512i data_u8x64 = _mm512_loadu_si512(data + idx);
+        min_u8x64 = _mm512_min_epu8(min_u8x64, data_u8x64);
+    }
+    nk_u8_t min_val = nk_reduce_min_u8x64_skylake_(min_u8x64);
+    for (; idx < count; ++idx) min_val = data[idx] < min_val ? data[idx] : min_val;
+    for (idx = 0; idx < count; ++idx) {
+        if (data[idx] == min_val) {
+            *min_value = min_val;
+            *min_index = idx;
+            return;
+        }
+    }
+    *min_value = min_val;
+    *min_index = 0;
+}
+
+NK_INTERNAL void nk_reduce_max_u8_skylake_contiguous_( //
+    nk_u8_t const *data, nk_size_t count, nk_u8_t *max_value, nk_size_t *max_index) {
+    __m512i max_u8x64 = _mm512_setzero_si512();
+    nk_size_t idx = 0;
+    for (; idx + 64 <= count; idx += 64) {
+        __m512i data_u8x64 = _mm512_loadu_si512(data + idx);
+        max_u8x64 = _mm512_max_epu8(max_u8x64, data_u8x64);
+    }
+    nk_u8_t max_val = nk_reduce_max_u8x64_skylake_(max_u8x64);
+    for (; idx < count; ++idx) max_val = data[idx] > max_val ? data[idx] : max_val;
+    for (idx = 0; idx < count; ++idx) {
+        if (data[idx] == max_val) {
+            *max_value = max_val;
+            *max_index = idx;
+            return;
+        }
+    }
+    *max_value = max_val;
+    *max_index = 0;
+}
+
+NK_INTERNAL void nk_reduce_min_i16_skylake_contiguous_( //
+    nk_i16_t const *data, nk_size_t count, nk_i16_t *min_value, nk_size_t *min_index) {
+    __m512i min_i16x32 = _mm512_set1_epi16(32767);
+    nk_size_t idx = 0;
+    for (; idx + 32 <= count; idx += 32) {
+        __m512i data_i16x32 = _mm512_loadu_si512(data + idx);
+        min_i16x32 = _mm512_min_epi16(min_i16x32, data_i16x32);
+    }
+    nk_i16_t min_val = nk_reduce_min_i16x32_skylake_(min_i16x32);
+    for (; idx < count; ++idx) min_val = data[idx] < min_val ? data[idx] : min_val;
+    for (idx = 0; idx < count; ++idx) {
+        if (data[idx] == min_val) {
+            *min_value = min_val;
+            *min_index = idx;
+            return;
+        }
+    }
+    *min_value = min_val;
+    *min_index = 0;
+}
+
+NK_INTERNAL void nk_reduce_max_i16_skylake_contiguous_( //
+    nk_i16_t const *data, nk_size_t count, nk_i16_t *max_value, nk_size_t *max_index) {
+    __m512i max_i16x32 = _mm512_set1_epi16(-32768);
+    nk_size_t idx = 0;
+    for (; idx + 32 <= count; idx += 32) {
+        __m512i data_i16x32 = _mm512_loadu_si512(data + idx);
+        max_i16x32 = _mm512_max_epi16(max_i16x32, data_i16x32);
+    }
+    nk_i16_t max_val = nk_reduce_max_i16x32_skylake_(max_i16x32);
+    for (; idx < count; ++idx) max_val = data[idx] > max_val ? data[idx] : max_val;
+    for (idx = 0; idx < count; ++idx) {
+        if (data[idx] == max_val) {
+            *max_value = max_val;
+            *max_index = idx;
+            return;
+        }
+    }
+    *max_value = max_val;
+    *max_index = 0;
+}
+
+NK_INTERNAL void nk_reduce_min_u16_skylake_contiguous_( //
+    nk_u16_t const *data, nk_size_t count, nk_u16_t *min_value, nk_size_t *min_index) {
+    __m512i min_u16x32 = _mm512_set1_epi16((short)65535);
+    nk_size_t idx = 0;
+    for (; idx + 32 <= count; idx += 32) {
+        __m512i data_u16x32 = _mm512_loadu_si512(data + idx);
+        min_u16x32 = _mm512_min_epu16(min_u16x32, data_u16x32);
+    }
+    nk_u16_t min_val = nk_reduce_min_u16x32_skylake_(min_u16x32);
+    for (; idx < count; ++idx) min_val = data[idx] < min_val ? data[idx] : min_val;
+    for (idx = 0; idx < count; ++idx) {
+        if (data[idx] == min_val) {
+            *min_value = min_val;
+            *min_index = idx;
+            return;
+        }
+    }
+    *min_value = min_val;
+    *min_index = 0;
+}
+
+NK_INTERNAL void nk_reduce_max_u16_skylake_contiguous_( //
+    nk_u16_t const *data, nk_size_t count, nk_u16_t *max_value, nk_size_t *max_index) {
+    __m512i max_u16x32 = _mm512_setzero_si512();
+    nk_size_t idx = 0;
+    for (; idx + 32 <= count; idx += 32) {
+        __m512i data_u16x32 = _mm512_loadu_si512(data + idx);
+        max_u16x32 = _mm512_max_epu16(max_u16x32, data_u16x32);
+    }
+    nk_u16_t max_val = nk_reduce_max_u16x32_skylake_(max_u16x32);
+    for (; idx < count; ++idx) max_val = data[idx] > max_val ? data[idx] : max_val;
+    for (idx = 0; idx < count; ++idx) {
+        if (data[idx] == max_val) {
+            *max_value = max_val;
+            *max_index = idx;
+            return;
+        }
+    }
+    *max_value = max_val;
+    *max_index = 0;
+}
+
+NK_INTERNAL void nk_reduce_min_i32_skylake_contiguous_( //
+    nk_i32_t const *data, nk_size_t count, nk_i32_t *min_value, nk_size_t *min_index) {
+    __m512i min_i32x16 = _mm512_set1_epi32(NK_I32_MAX);
+    nk_size_t idx = 0;
+    for (; idx + 16 <= count; idx += 16) {
+        __m512i data_i32x16 = _mm512_loadu_si512(data + idx);
+        min_i32x16 = _mm512_min_epi32(min_i32x16, data_i32x16);
+    }
+    nk_i32_t min_val = nk_reduce_min_i32x16_skylake_(min_i32x16);
+    for (; idx < count; ++idx) min_val = data[idx] < min_val ? data[idx] : min_val;
+    for (idx = 0; idx < count; ++idx) {
+        if (data[idx] == min_val) {
+            *min_value = min_val;
+            *min_index = idx;
+            return;
+        }
+    }
+    *min_value = min_val;
+    *min_index = 0;
+}
+
+NK_INTERNAL void nk_reduce_max_i32_skylake_contiguous_( //
+    nk_i32_t const *data, nk_size_t count, nk_i32_t *max_value, nk_size_t *max_index) {
+    __m512i max_i32x16 = _mm512_set1_epi32(NK_I32_MIN);
+    nk_size_t idx = 0;
+    for (; idx + 16 <= count; idx += 16) {
+        __m512i data_i32x16 = _mm512_loadu_si512(data + idx);
+        max_i32x16 = _mm512_max_epi32(max_i32x16, data_i32x16);
+    }
+    nk_i32_t max_val = nk_reduce_max_i32x16_skylake_(max_i32x16);
+    for (; idx < count; ++idx) max_val = data[idx] > max_val ? data[idx] : max_val;
+    for (idx = 0; idx < count; ++idx) {
+        if (data[idx] == max_val) {
+            *max_value = max_val;
+            *max_index = idx;
+            return;
+        }
+    }
+    *max_value = max_val;
+    *max_index = 0;
+}
+
+NK_INTERNAL void nk_reduce_min_u32_skylake_contiguous_( //
+    nk_u32_t const *data, nk_size_t count, nk_u32_t *min_value, nk_size_t *min_index) {
+    __m512i min_u32x16 = _mm512_set1_epi32((nk_i32_t)NK_U32_MAX);
+    nk_size_t idx = 0;
+    for (; idx + 16 <= count; idx += 16) {
+        __m512i data_u32x16 = _mm512_loadu_si512(data + idx);
+        min_u32x16 = _mm512_min_epu32(min_u32x16, data_u32x16);
+    }
+    nk_u32_t min_val = nk_reduce_min_u32x16_skylake_(min_u32x16);
+    for (; idx < count; ++idx) min_val = data[idx] < min_val ? data[idx] : min_val;
+    for (idx = 0; idx < count; ++idx) {
+        if (data[idx] == min_val) {
+            *min_value = min_val;
+            *min_index = idx;
+            return;
+        }
+    }
+    *min_value = min_val;
+    *min_index = 0;
+}
+
+NK_INTERNAL void nk_reduce_max_u32_skylake_contiguous_( //
+    nk_u32_t const *data, nk_size_t count, nk_u32_t *max_value, nk_size_t *max_index) {
+    __m512i max_u32x16 = _mm512_setzero_si512();
+    nk_size_t idx = 0;
+    for (; idx + 16 <= count; idx += 16) {
+        __m512i data_u32x16 = _mm512_loadu_si512(data + idx);
+        max_u32x16 = _mm512_max_epu32(max_u32x16, data_u32x16);
+    }
+    nk_u32_t max_val = nk_reduce_max_u32x16_skylake_(max_u32x16);
+    for (; idx < count; ++idx) max_val = data[idx] > max_val ? data[idx] : max_val;
+    for (idx = 0; idx < count; ++idx) {
+        if (data[idx] == max_val) {
+            *max_value = max_val;
+            *max_index = idx;
+            return;
+        }
+    }
+    *max_value = max_val;
+    *max_index = 0;
+}
+
+NK_INTERNAL void nk_reduce_min_i64_skylake_contiguous_( //
+    nk_i64_t const *data, nk_size_t count, nk_i64_t *min_value, nk_size_t *min_index) {
+    __m512i min_i64x8 = _mm512_set1_epi64(NK_I64_MAX);
+    nk_size_t idx = 0;
+    for (; idx + 8 <= count; idx += 8) {
+        __m512i data_i64x8 = _mm512_loadu_si512(data + idx);
+        min_i64x8 = _mm512_min_epi64(min_i64x8, data_i64x8);
+    }
+    nk_i64_t min_val = nk_reduce_min_i64x8_skylake_(min_i64x8);
+    for (; idx < count; ++idx) min_val = data[idx] < min_val ? data[idx] : min_val;
+    for (idx = 0; idx < count; ++idx) {
+        if (data[idx] == min_val) {
+            *min_value = min_val;
+            *min_index = idx;
+            return;
+        }
+    }
+    *min_value = min_val;
+    *min_index = 0;
+}
+
+NK_INTERNAL void nk_reduce_max_i64_skylake_contiguous_( //
+    nk_i64_t const *data, nk_size_t count, nk_i64_t *max_value, nk_size_t *max_index) {
+    __m512i max_i64x8 = _mm512_set1_epi64(NK_I64_MIN);
+    nk_size_t idx = 0;
+    for (; idx + 8 <= count; idx += 8) {
+        __m512i data_i64x8 = _mm512_loadu_si512(data + idx);
+        max_i64x8 = _mm512_max_epi64(max_i64x8, data_i64x8);
+    }
+    nk_i64_t max_val = nk_reduce_max_i64x8_skylake_(max_i64x8);
+    for (; idx < count; ++idx) max_val = data[idx] > max_val ? data[idx] : max_val;
+    for (idx = 0; idx < count; ++idx) {
+        if (data[idx] == max_val) {
+            *max_value = max_val;
+            *max_index = idx;
+            return;
+        }
+    }
+    *max_value = max_val;
+    *max_index = 0;
+}
+
+NK_INTERNAL void nk_reduce_min_u64_skylake_contiguous_( //
+    nk_u64_t const *data, nk_size_t count, nk_u64_t *min_value, nk_size_t *min_index) {
+    __m512i min_u64x8 = _mm512_set1_epi64((nk_i64_t)NK_U64_MAX);
+    nk_size_t idx = 0;
+    for (; idx + 8 <= count; idx += 8) {
+        __m512i data_u64x8 = _mm512_loadu_si512(data + idx);
+        min_u64x8 = _mm512_min_epu64(min_u64x8, data_u64x8);
+    }
+    nk_u64_t min_val = nk_reduce_min_u64x8_skylake_(min_u64x8);
+    for (; idx < count; ++idx) min_val = data[idx] < min_val ? data[idx] : min_val;
+    for (idx = 0; idx < count; ++idx) {
+        if (data[idx] == min_val) {
+            *min_value = min_val;
+            *min_index = idx;
+            return;
+        }
+    }
+    *min_value = min_val;
+    *min_index = 0;
+}
+
+NK_INTERNAL void nk_reduce_max_u64_skylake_contiguous_( //
+    nk_u64_t const *data, nk_size_t count, nk_u64_t *max_value, nk_size_t *max_index) {
+    __m512i max_u64x8 = _mm512_setzero_si512();
+    nk_size_t idx = 0;
+    for (; idx + 8 <= count; idx += 8) {
+        __m512i data_u64x8 = _mm512_loadu_si512(data + idx);
+        max_u64x8 = _mm512_max_epu64(max_u64x8, data_u64x8);
+    }
+    nk_u64_t max_val = nk_reduce_max_u64x8_skylake_(max_u64x8);
+    for (; idx < count; ++idx) max_val = data[idx] > max_val ? data[idx] : max_val;
+    for (idx = 0; idx < count; ++idx) {
+        if (data[idx] == max_val) {
+            *max_value = max_val;
+            *max_index = idx;
+            return;
+        }
+    }
+    *max_value = max_val;
+    *max_index = 0;
+}
+
+NK_PUBLIC void nk_reduce_add_i8_skylake(                          //
+    nk_i8_t const *data, nk_size_t count, nk_size_t stride_bytes, //
+    nk_i64_t *result) {
+    nk_size_t stride_elements = stride_bytes / sizeof(nk_i8_t);
+    if (stride_bytes == sizeof(nk_i8_t)) nk_reduce_add_i8_skylake_contiguous_(data, count, result);
+    else if (stride_bytes % sizeof(nk_i8_t) == 0 && stride_elements >= 2 && stride_elements <= 16)
+        nk_reduce_add_i8_skylake_strided_(data, count, stride_elements, result);
+    else nk_reduce_add_i8_serial(data, count, stride_bytes, result);
+}
+
+NK_PUBLIC void nk_reduce_add_u8_skylake(                          //
+    nk_u8_t const *data, nk_size_t count, nk_size_t stride_bytes, //
+    nk_u64_t *result) {
+    nk_size_t stride_elements = stride_bytes / sizeof(nk_u8_t);
+    if (stride_bytes == sizeof(nk_u8_t)) nk_reduce_add_u8_skylake_contiguous_(data, count, result);
+    else if (stride_bytes % sizeof(nk_u8_t) == 0 && stride_elements >= 2 && stride_elements <= 16)
+        nk_reduce_add_u8_skylake_strided_(data, count, stride_elements, result);
+    else nk_reduce_add_u8_serial(data, count, stride_bytes, result);
+}
+
+NK_PUBLIC void nk_reduce_add_i16_skylake(                          //
+    nk_i16_t const *data, nk_size_t count, nk_size_t stride_bytes, //
+    nk_i64_t *result) {
+    nk_size_t stride_elements = stride_bytes / sizeof(nk_i16_t);
+    if (stride_bytes == sizeof(nk_i16_t)) nk_reduce_add_i16_skylake_contiguous_(data, count, result);
+    else if (stride_bytes % sizeof(nk_i16_t) == 0 && stride_elements >= 2 && stride_elements <= 16)
+        nk_reduce_add_i16_skylake_strided_(data, count, stride_elements, result);
+    else nk_reduce_add_i16_serial(data, count, stride_bytes, result);
+}
+
+NK_PUBLIC void nk_reduce_add_u16_skylake(                          //
+    nk_u16_t const *data, nk_size_t count, nk_size_t stride_bytes, //
+    nk_u64_t *result) {
+    nk_size_t stride_elements = stride_bytes / sizeof(nk_u16_t);
+    if (stride_bytes == sizeof(nk_u16_t)) nk_reduce_add_u16_skylake_contiguous_(data, count, result);
+    else if (stride_bytes % sizeof(nk_u16_t) == 0 && stride_elements >= 2 && stride_elements <= 16)
+        nk_reduce_add_u16_skylake_strided_(data, count, stride_elements, result);
+    else nk_reduce_add_u16_serial(data, count, stride_bytes, result);
+}
+
+NK_PUBLIC void nk_reduce_add_i32_skylake(                          //
+    nk_i32_t const *data, nk_size_t count, nk_size_t stride_bytes, //
+    nk_i64_t *result) {
+    if (stride_bytes == sizeof(nk_i32_t)) nk_reduce_add_i32_skylake_contiguous_(data, count, result);
+    else nk_reduce_add_i32_serial(data, count, stride_bytes, result);
+}
+
+NK_PUBLIC void nk_reduce_add_u32_skylake(                          //
+    nk_u32_t const *data, nk_size_t count, nk_size_t stride_bytes, //
+    nk_u64_t *result) {
+    if (stride_bytes == sizeof(nk_u32_t)) nk_reduce_add_u32_skylake_contiguous_(data, count, result);
+    else nk_reduce_add_u32_serial(data, count, stride_bytes, result);
+}
+
+NK_PUBLIC void nk_reduce_add_i64_skylake(                          //
+    nk_i64_t const *data, nk_size_t count, nk_size_t stride_bytes, //
+    nk_i64_t *result) {
+    if (stride_bytes == sizeof(nk_i64_t)) nk_reduce_add_i64_skylake_contiguous_(data, count, result);
+    else nk_reduce_add_i64_serial(data, count, stride_bytes, result);
+}
+
+NK_PUBLIC void nk_reduce_add_u64_skylake(                          //
+    nk_u64_t const *data, nk_size_t count, nk_size_t stride_bytes, //
+    nk_u64_t *result) {
+    if (stride_bytes == sizeof(nk_u64_t)) nk_reduce_add_u64_skylake_contiguous_(data, count, result);
+    else nk_reduce_add_u64_serial(data, count, stride_bytes, result);
+}
+
+NK_PUBLIC void nk_reduce_min_i8_skylake(                          //
+    nk_i8_t const *data, nk_size_t count, nk_size_t stride_bytes, //
+    nk_i8_t *min_value, nk_size_t *min_index) {
+    if (stride_bytes == sizeof(nk_i8_t)) nk_reduce_min_i8_skylake_contiguous_(data, count, min_value, min_index);
+    else nk_reduce_min_i8_serial(data, count, stride_bytes, min_value, min_index);
+}
+
+NK_PUBLIC void nk_reduce_max_i8_skylake(                          //
+    nk_i8_t const *data, nk_size_t count, nk_size_t stride_bytes, //
+    nk_i8_t *max_value, nk_size_t *max_index) {
+    if (stride_bytes == sizeof(nk_i8_t)) nk_reduce_max_i8_skylake_contiguous_(data, count, max_value, max_index);
+    else nk_reduce_max_i8_serial(data, count, stride_bytes, max_value, max_index);
+}
+
+NK_PUBLIC void nk_reduce_min_u8_skylake(                          //
+    nk_u8_t const *data, nk_size_t count, nk_size_t stride_bytes, //
+    nk_u8_t *min_value, nk_size_t *min_index) {
+    if (stride_bytes == sizeof(nk_u8_t)) nk_reduce_min_u8_skylake_contiguous_(data, count, min_value, min_index);
+    else nk_reduce_min_u8_serial(data, count, stride_bytes, min_value, min_index);
+}
+
+NK_PUBLIC void nk_reduce_max_u8_skylake(                          //
+    nk_u8_t const *data, nk_size_t count, nk_size_t stride_bytes, //
+    nk_u8_t *max_value, nk_size_t *max_index) {
+    if (stride_bytes == sizeof(nk_u8_t)) nk_reduce_max_u8_skylake_contiguous_(data, count, max_value, max_index);
+    else nk_reduce_max_u8_serial(data, count, stride_bytes, max_value, max_index);
+}
+
+NK_PUBLIC void nk_reduce_min_i16_skylake(                          //
+    nk_i16_t const *data, nk_size_t count, nk_size_t stride_bytes, //
+    nk_i16_t *min_value, nk_size_t *min_index) {
+    if (stride_bytes == sizeof(nk_i16_t)) nk_reduce_min_i16_skylake_contiguous_(data, count, min_value, min_index);
+    else nk_reduce_min_i16_serial(data, count, stride_bytes, min_value, min_index);
+}
+
+NK_PUBLIC void nk_reduce_max_i16_skylake(                          //
+    nk_i16_t const *data, nk_size_t count, nk_size_t stride_bytes, //
+    nk_i16_t *max_value, nk_size_t *max_index) {
+    if (stride_bytes == sizeof(nk_i16_t)) nk_reduce_max_i16_skylake_contiguous_(data, count, max_value, max_index);
+    else nk_reduce_max_i16_serial(data, count, stride_bytes, max_value, max_index);
+}
+
+NK_PUBLIC void nk_reduce_min_u16_skylake(                          //
+    nk_u16_t const *data, nk_size_t count, nk_size_t stride_bytes, //
+    nk_u16_t *min_value, nk_size_t *min_index) {
+    if (stride_bytes == sizeof(nk_u16_t)) nk_reduce_min_u16_skylake_contiguous_(data, count, min_value, min_index);
+    else nk_reduce_min_u16_serial(data, count, stride_bytes, min_value, min_index);
+}
+
+NK_PUBLIC void nk_reduce_max_u16_skylake(                          //
+    nk_u16_t const *data, nk_size_t count, nk_size_t stride_bytes, //
+    nk_u16_t *max_value, nk_size_t *max_index) {
+    if (stride_bytes == sizeof(nk_u16_t)) nk_reduce_max_u16_skylake_contiguous_(data, count, max_value, max_index);
+    else nk_reduce_max_u16_serial(data, count, stride_bytes, max_value, max_index);
+}
+
+NK_PUBLIC void nk_reduce_min_i32_skylake(                          //
+    nk_i32_t const *data, nk_size_t count, nk_size_t stride_bytes, //
+    nk_i32_t *min_value, nk_size_t *min_index) {
+    if (stride_bytes == sizeof(nk_i32_t)) nk_reduce_min_i32_skylake_contiguous_(data, count, min_value, min_index);
+    else nk_reduce_min_i32_serial(data, count, stride_bytes, min_value, min_index);
+}
+
+NK_PUBLIC void nk_reduce_max_i32_skylake(                          //
+    nk_i32_t const *data, nk_size_t count, nk_size_t stride_bytes, //
+    nk_i32_t *max_value, nk_size_t *max_index) {
+    if (stride_bytes == sizeof(nk_i32_t)) nk_reduce_max_i32_skylake_contiguous_(data, count, max_value, max_index);
+    else nk_reduce_max_i32_serial(data, count, stride_bytes, max_value, max_index);
+}
+
+NK_PUBLIC void nk_reduce_min_u32_skylake(                          //
+    nk_u32_t const *data, nk_size_t count, nk_size_t stride_bytes, //
+    nk_u32_t *min_value, nk_size_t *min_index) {
+    if (stride_bytes == sizeof(nk_u32_t)) nk_reduce_min_u32_skylake_contiguous_(data, count, min_value, min_index);
+    else nk_reduce_min_u32_serial(data, count, stride_bytes, min_value, min_index);
+}
+
+NK_PUBLIC void nk_reduce_max_u32_skylake(                          //
+    nk_u32_t const *data, nk_size_t count, nk_size_t stride_bytes, //
+    nk_u32_t *max_value, nk_size_t *max_index) {
+    if (stride_bytes == sizeof(nk_u32_t)) nk_reduce_max_u32_skylake_contiguous_(data, count, max_value, max_index);
+    else nk_reduce_max_u32_serial(data, count, stride_bytes, max_value, max_index);
+}
+
+NK_PUBLIC void nk_reduce_min_i64_skylake(                          //
+    nk_i64_t const *data, nk_size_t count, nk_size_t stride_bytes, //
+    nk_i64_t *min_value, nk_size_t *min_index) {
+    if (stride_bytes == sizeof(nk_i64_t)) nk_reduce_min_i64_skylake_contiguous_(data, count, min_value, min_index);
+    else nk_reduce_min_i64_serial(data, count, stride_bytes, min_value, min_index);
+}
+
+NK_PUBLIC void nk_reduce_max_i64_skylake(                          //
+    nk_i64_t const *data, nk_size_t count, nk_size_t stride_bytes, //
+    nk_i64_t *max_value, nk_size_t *max_index) {
+    if (stride_bytes == sizeof(nk_i64_t)) nk_reduce_max_i64_skylake_contiguous_(data, count, max_value, max_index);
+    else nk_reduce_max_i64_serial(data, count, stride_bytes, max_value, max_index);
+}
+
+NK_PUBLIC void nk_reduce_min_u64_skylake(                          //
+    nk_u64_t const *data, nk_size_t count, nk_size_t stride_bytes, //
+    nk_u64_t *min_value, nk_size_t *min_index) {
+    if (stride_bytes == sizeof(nk_u64_t)) nk_reduce_min_u64_skylake_contiguous_(data, count, min_value, min_index);
+    else nk_reduce_min_u64_serial(data, count, stride_bytes, min_value, min_index);
+}
+
+NK_PUBLIC void nk_reduce_max_u64_skylake(                          //
+    nk_u64_t const *data, nk_size_t count, nk_size_t stride_bytes, //
+    nk_u64_t *max_value, nk_size_t *max_index) {
+    if (stride_bytes == sizeof(nk_u64_t)) nk_reduce_max_u64_skylake_contiguous_(data, count, max_value, max_index);
+    else nk_reduce_max_u64_serial(data, count, stride_bytes, max_value, max_index);
 }
 
 #if defined(__cplusplus)

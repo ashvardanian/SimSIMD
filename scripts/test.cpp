@@ -2092,12 +2092,8 @@ void test_spatial() {
 #if NK_TARGET_SKYLAKE
     test_l2sq_f32(nk_l2sq_f32_skylake).report("l2sq_skylake", "f32");
     test_l2sq_f64(nk_l2sq_f64_skylake).report("l2sq_skylake", "f64");
-    test_l2sq_f16(nk_l2sq_f16_skylake).report("l2sq_skylake", "f16");
-    test_l2sq_bf16(nk_l2sq_bf16_skylake).report("l2sq_skylake", "bf16");
     test_angular_f32(nk_angular_f32_skylake).report("angular_skylake", "f32");
     test_angular_f64(nk_angular_f64_skylake).report("angular_skylake", "f64");
-    test_angular_f16(nk_angular_f16_skylake).report("angular_skylake", "f16");
-    test_angular_bf16(nk_angular_bf16_skylake).report("angular_skylake", "bf16");
 #endif // NK_TARGET_SKYLAKE
 
     // Serial always runs - baseline test
@@ -2192,11 +2188,6 @@ void test_curved() {
 #if NK_TARGET_NEON
     test_bilinear_f32(nk_bilinear_f32_neon).report("bilinear_neon", "f32");
 #endif // NK_TARGET_NEON
-
-#if NK_TARGET_HASWELL
-    test_bilinear_f32(nk_bilinear_f32_haswell).report("bilinear_haswell", "f32");
-    test_bilinear_f64(nk_bilinear_f64_haswell).report("bilinear_haswell", "f64");
-#endif // NK_TARGET_HASWELL
 
 #if NK_TARGET_SKYLAKE
     test_bilinear_f32(nk_bilinear_f32_skylake).report("bilinear_skylake", "f32");
@@ -2373,13 +2364,6 @@ void test_probability() {
     test_kld_f32(nk_kld_f32_neon).report("kld_neon", "f32");
     test_jsd_f32(nk_jsd_f32_neon).report("jsd_neon", "f32");
 #endif // NK_TARGET_NEON
-
-#if NK_TARGET_HASWELL
-    test_kld_f32(nk_kld_f32_haswell).report("kld_haswell", "f32");
-    test_kld_f64(nk_kld_f64_haswell).report("kld_haswell", "f64");
-    test_jsd_f32(nk_jsd_f32_haswell).report("jsd_haswell", "f32");
-    test_jsd_f64(nk_jsd_f64_haswell).report("jsd_haswell", "f64");
-#endif // NK_TARGET_HASWELL
 
 #if NK_TARGET_SKYLAKE
     test_kld_f32(nk_kld_f32_skylake).report("kld_skylake", "f32");

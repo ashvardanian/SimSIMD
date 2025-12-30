@@ -220,6 +220,56 @@ nk_vdot_f64c_skylake_cycle:
     result->imag = _mm512_reduce_add_pd(sum_imag_f64x8);
 }
 
+NK_PUBLIC void nk_dot_f16_skylake(nk_f16_t const *a_scalars, nk_f16_t const *b_scalars, nk_size_t count_scalars,
+                                  nk_f32_t *result) {
+    __m256i a_f16x16, b_f16x16;
+    __m512 sum_f32x16 = _mm512_setzero_ps();
+
+nk_dot_f16_skylake_cycle:
+    if (count_scalars < 16) {
+        __mmask16 mask = (__mmask16)_bzhi_u32(0xFFFF, count_scalars);
+        a_f16x16 = _mm256_maskz_loadu_epi16(mask, a_scalars);
+        b_f16x16 = _mm256_maskz_loadu_epi16(mask, b_scalars);
+        count_scalars = 0;
+    }
+    else {
+        a_f16x16 = _mm256_loadu_si256((__m256i const *)a_scalars);
+        b_f16x16 = _mm256_loadu_si256((__m256i const *)b_scalars);
+        a_scalars += 16, b_scalars += 16, count_scalars -= 16;
+    }
+    __m512 a_f32x16 = _mm512_cvtph_ps(a_f16x16);
+    __m512 b_f32x16 = _mm512_cvtph_ps(b_f16x16);
+    sum_f32x16 = _mm512_fmadd_ps(a_f32x16, b_f32x16, sum_f32x16);
+    if (count_scalars) goto nk_dot_f16_skylake_cycle;
+
+    *result = nk_reduce_add_f32x16_skylake_(sum_f32x16);
+}
+
+NK_PUBLIC void nk_dot_bf16_skylake(nk_bf16_t const *a_scalars, nk_bf16_t const *b_scalars, nk_size_t count_scalars,
+                                   nk_f32_t *result) {
+    __m256i a_bf16x16, b_bf16x16;
+    __m512 sum_f32x16 = _mm512_setzero_ps();
+
+nk_dot_bf16_skylake_cycle:
+    if (count_scalars < 16) {
+        __mmask16 mask = (__mmask16)_bzhi_u32(0xFFFF, count_scalars);
+        a_bf16x16 = _mm256_maskz_loadu_epi16(mask, a_scalars);
+        b_bf16x16 = _mm256_maskz_loadu_epi16(mask, b_scalars);
+        count_scalars = 0;
+    }
+    else {
+        a_bf16x16 = _mm256_loadu_si256((__m256i const *)a_scalars);
+        b_bf16x16 = _mm256_loadu_si256((__m256i const *)b_scalars);
+        a_scalars += 16, b_scalars += 16, count_scalars -= 16;
+    }
+    __m512 a_f32x16 = nk_bf16x16_to_f32x16_skylake_(a_bf16x16);
+    __m512 b_f32x16 = nk_bf16x16_to_f32x16_skylake_(b_bf16x16);
+    sum_f32x16 = _mm512_fmadd_ps(a_f32x16, b_f32x16, sum_f32x16);
+    if (count_scalars) goto nk_dot_bf16_skylake_cycle;
+
+    *result = nk_reduce_add_f32x16_skylake_(sum_f32x16);
+}
+
 NK_PUBLIC void nk_dot_e4m3_skylake(nk_e4m3_t const *a_scalars, nk_e4m3_t const *b_scalars, nk_size_t count_scalars,
                                    nk_f32_t *result) {
     __m128i a_e4m3x16, b_e4m3x16;
@@ -268,6 +318,42 @@ nk_dot_e5m2_skylake_cycle:
     if (count_scalars) goto nk_dot_e5m2_skylake_cycle;
 
     *result = nk_reduce_add_f32x16_skylake_(sum_f32x16);
+}
+
+NK_PUBLIC void nk_dot_i8_skylake(nk_i8_t const *a_scalars, nk_i8_t const *b_scalars, nk_size_t count_scalars,
+                                 nk_i32_t *result) {
+    __m512i sum_i32x16 = _mm512_setzero_si512();
+    nk_size_t idx_scalars = 0;
+    for (; idx_scalars + 32 <= count_scalars; idx_scalars += 32) {
+        // Load 32 bytes at a time and widen to i16
+        __m256i a_i8x32 = _mm256_loadu_si256((__m256i const *)(a_scalars + idx_scalars));
+        __m256i b_i8x32 = _mm256_loadu_si256((__m256i const *)(b_scalars + idx_scalars));
+        __m512i a_i16x32 = _mm512_cvtepi8_epi16(a_i8x32);
+        __m512i b_i16x32 = _mm512_cvtepi8_epi16(b_i8x32);
+        // _mm512_madd_epi16: multiply adjacent pairs of i16, add pairs to produce i32
+        sum_i32x16 = _mm512_add_epi32(sum_i32x16, _mm512_madd_epi16(a_i16x32, b_i16x32));
+    }
+    nk_i32_t sum = _mm512_reduce_add_epi32(sum_i32x16);
+    for (; idx_scalars < count_scalars; ++idx_scalars) sum += (nk_i32_t)a_scalars[idx_scalars] * b_scalars[idx_scalars];
+    *result = sum;
+}
+
+NK_PUBLIC void nk_dot_u8_skylake(nk_u8_t const *a_scalars, nk_u8_t const *b_scalars, nk_size_t count_scalars,
+                                 nk_u32_t *result) {
+    __m512i sum_i32x16 = _mm512_setzero_si512();
+    nk_size_t idx_scalars = 0;
+    for (; idx_scalars + 32 <= count_scalars; idx_scalars += 32) {
+        // Load 32 bytes and zero-extend to i16 (u8 -> u16 via zero-extension)
+        __m256i a_u8x32 = _mm256_loadu_si256((__m256i const *)(a_scalars + idx_scalars));
+        __m256i b_u8x32 = _mm256_loadu_si256((__m256i const *)(b_scalars + idx_scalars));
+        __m512i a_u16x32 = _mm512_cvtepu8_epi16(a_u8x32);
+        __m512i b_u16x32 = _mm512_cvtepu8_epi16(b_u8x32);
+        // _mm512_madd_epi16: multiply adjacent pairs, add pairs to produce i32
+        sum_i32x16 = _mm512_add_epi32(sum_i32x16, _mm512_madd_epi16(a_u16x32, b_u16x32));
+    }
+    nk_u32_t sum = (nk_u32_t)_mm512_reduce_add_epi32(sum_i32x16);
+    for (; idx_scalars < count_scalars; ++idx_scalars) sum += (nk_u32_t)a_scalars[idx_scalars] * b_scalars[idx_scalars];
+    *result = sum;
 }
 
 typedef struct nk_dot_f64x8_state_skylake_t {
