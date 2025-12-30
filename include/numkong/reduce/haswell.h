@@ -567,6 +567,53 @@ NK_INTERNAL nk_f64_t nk_reduce_max_f64x4_haswell_(__m256d max_f64x4) {
 }
 
 /**
+ *  @brief Returns AVX2 blend mask for strided access of 8-bit elements (32-element register).
+ *
+ *  For column extraction from row-major matrices: stride N means every Nth element.
+ *  Returns -1 (all bits set) for positions to keep, 0 for positions to AND away.
+ *  Use with _mm256_and_si256(data, mask) to zero out non-stride positions.
+ */
+NK_INTERNAL __m256i nk_stride_blend_b8x32_(nk_size_t stride) {
+    switch (stride) {
+    case 2: return _mm256_setr_epi8(-1, 0, -1, 0, -1, 0, -1, 0, -1, 0, -1, 0, -1, 0, -1, 0,
+                                    -1, 0, -1, 0, -1, 0, -1, 0, -1, 0, -1, 0, -1, 0, -1, 0);
+    case 3: return _mm256_setr_epi8(-1, 0, 0, -1, 0, 0, -1, 0, 0, -1, 0, 0, -1, 0, 0, -1,
+                                    0, 0, -1, 0, 0, -1, 0, 0, -1, 0, 0, -1, 0, 0, -1, 0);
+    case 4: return _mm256_setr_epi8(-1, 0, 0, 0, -1, 0, 0, 0, -1, 0, 0, 0, -1, 0, 0, 0,
+                                    -1, 0, 0, 0, -1, 0, 0, 0, -1, 0, 0, 0, -1, 0, 0, 0);
+    case 5: return _mm256_setr_epi8(-1, 0, 0, 0, 0, -1, 0, 0, 0, 0, -1, 0, 0, 0, 0, -1,
+                                    0, 0, 0, 0, -1, 0, 0, 0, 0, -1, 0, 0, 0, 0, -1, 0);
+    case 6: return _mm256_setr_epi8(-1, 0, 0, 0, 0, 0, -1, 0, 0, 0, 0, 0, -1, 0, 0, 0,
+                                    0, 0, -1, 0, 0, 0, 0, 0, -1, 0, 0, 0, 0, 0, -1, 0);
+    case 7: return _mm256_setr_epi8(-1, 0, 0, 0, 0, 0, 0, -1, 0, 0, 0, 0, 0, 0, -1, 0,
+                                    0, 0, 0, 0, 0, -1, 0, 0, 0, 0, 0, 0, -1, 0, 0, 0);
+    case 8: return _mm256_setr_epi8(-1, 0, 0, 0, 0, 0, 0, 0, -1, 0, 0, 0, 0, 0, 0, 0,
+                                    -1, 0, 0, 0, 0, 0, 0, 0, -1, 0, 0, 0, 0, 0, 0, 0);
+    default: return _mm256_setzero_si256();
+    }
+}
+
+/**
+ *  @brief Returns AVX2 blend mask for strided access of 16-bit elements (16-element register).
+ *
+ *  For column extraction from row-major matrices: stride N means every Nth element.
+ *  Returns -1 (all bits set) for positions to keep, 0 for positions to AND away.
+ *  Use with _mm256_and_si256(data, mask) to zero out non-stride positions.
+ */
+NK_INTERNAL __m256i nk_stride_blend_b16x16_(nk_size_t stride) {
+    switch (stride) {
+    case 2: return _mm256_setr_epi16(-1, 0, -1, 0, -1, 0, -1, 0, -1, 0, -1, 0, -1, 0, -1, 0);
+    case 3: return _mm256_setr_epi16(-1, 0, 0, -1, 0, 0, -1, 0, 0, -1, 0, 0, -1, 0, 0, -1);
+    case 4: return _mm256_setr_epi16(-1, 0, 0, 0, -1, 0, 0, 0, -1, 0, 0, 0, -1, 0, 0, 0);
+    case 5: return _mm256_setr_epi16(-1, 0, 0, 0, 0, -1, 0, 0, 0, 0, -1, 0, 0, 0, 0, -1);
+    case 6: return _mm256_setr_epi16(-1, 0, 0, 0, 0, 0, -1, 0, 0, 0, 0, 0, -1, 0, 0, 0);
+    case 7: return _mm256_setr_epi16(-1, 0, 0, 0, 0, 0, 0, -1, 0, 0, 0, 0, 0, 0, -1, 0);
+    case 8: return _mm256_setr_epi16(-1, 0, 0, 0, 0, 0, 0, 0, -1, 0, 0, 0, 0, 0, 0, 0);
+    default: return _mm256_setzero_si256();
+    }
+}
+
+/**
  *  @brief Returns AVX2 blend mask for strided access of 32-bit elements (8-element register).
  *
  *  For column extraction from row-major matrices: stride N means every Nth element.
