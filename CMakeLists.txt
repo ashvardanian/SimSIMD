@@ -24,10 +24,10 @@ if (CMAKE_CURRENT_SOURCE_DIR STREQUAL CMAKE_SOURCE_DIR)
 endif ()
 
 option(NK_BUILD_SHARED "Compile a dynamic library" ${NK_IS_MAIN_PROJECT})
-option(NK_BUILD_TESTS "Small compilation tests compile-time and run-time dispatch" OFF)
+option(NK_BUILD_TESTS "Compile precision tests with ULP-based error analysis" OFF)
 option(NK_BUILD_BENCHMARKS "Compile micro-benchmarks for current ISA" OFF)
-option(NK_BUILD_BENCHMARKS_WITH_CBLAS "Include OpenBLAS in micro-kernel benchmarks" OFF)
-option(NK_BUILD_BENCHMARKS_WITH_MKL "Include Intel MKL in micro-kernel benchmarks" OFF)
+option(NK_COMPARE_TO_BLAS "Include BLAS (OpenBLAS/Accelerate) in tests and benchmarks" OFF)
+option(NK_COMPARE_TO_MKL "Include Intel MKL in tests and benchmarks" OFF)
 
 # Default to Release build type if not set
 if (NOT CMAKE_BUILD_TYPE)
@@ -94,7 +94,59 @@ else ()
 endif ()
 
 
-# Build benchmarks if required
+# BLAS/MKL detection (shared by tests and benchmarks)
+set(NK_BLAS_FOUND FALSE)
+set(NK_MKL_FOUND FALSE)
+
+if (NK_COMPARE_TO_MKL)
+    # Use environment variable MKLROOT or standard MKL paths
+    if (DEFINED ENV{MKLROOT})
+        set(MKL_ROOT $ENV{MKLROOT})
+    else ()
+        # Try common installation paths
+        if (EXISTS "/opt/intel/oneapi/mkl/latest")
+            set(MKL_ROOT "/opt/intel/oneapi/mkl/latest")
+        elseif (EXISTS "/opt/intel/mkl")
+            set(MKL_ROOT "/opt/intel/mkl")
+        endif ()
+    endif ()
+
+    if (MKL_ROOT)
+        message(STATUS "MKL found at: ${MKL_ROOT}")
+        set(NK_MKL_FOUND TRUE)
+        set(NK_MKL_INCLUDE_DIRS ${MKL_ROOT}/include)
+        set(NK_MKL_LIBRARIES
+            ${MKL_ROOT}/lib/intel64/libmkl_intel_lp64.a
+            ${MKL_ROOT}/lib/intel64/libmkl_sequential.a
+            ${MKL_ROOT}/lib/intel64/libmkl_core.a
+            pthread m dl)
+    else ()
+        message(FATAL_ERROR "MKL not found. Set MKLROOT environment variable or install Intel oneAPI.")
+    endif ()
+endif ()
+
+if (NK_COMPARE_TO_BLAS)
+    if (APPLE)
+        # Use Apple Accelerate framework
+        message(STATUS "Using Apple Accelerate framework for BLAS")
+        set(NK_BLAS_FOUND TRUE)
+        set(NK_BLAS_LIBRARIES "-framework Accelerate")
+        set(NK_BLAS_INCLUDE_DIRS "")
+    else ()
+        find_package(BLAS REQUIRED)
+        if (BLAS_FOUND)
+            message(STATUS "BLAS found: ${BLAS_LIBRARIES}")
+            set(NK_BLAS_FOUND TRUE)
+            set(NK_BLAS_LIBRARIES ${BLAS_LIBRARIES})
+            set(NK_BLAS_INCLUDE_DIRS ${BLAS_INCLUDE_DIRS})
+        else ()
+            message(FATAL_ERROR "BLAS not found")
+        endif ()
+    endif ()
+endif ()
+
+
+# Build benchmarks
 if (NK_BUILD_BENCHMARKS)
     # Fetch external dependencies
     include(FetchContent)
@@ -124,54 +176,31 @@ if (NK_BUILD_BENCHMARKS)
     add_executable(nk_bench scripts/bench.cxx)
     target_link_libraries(nk_bench numkong Threads::Threads benchmark)
 
+    # Accuracy/throughput tradeoff benchmark
+    add_executable(nk_bench_accuracy scripts/bench_accuracy.cxx)
+    target_link_libraries(nk_bench_accuracy numkong Threads::Threads benchmark)
+
     if (OpenMP_FOUND)
         target_compile_options(nk_bench PRIVATE ${OpenMP_CXX_FLAGS})
         target_link_libraries(nk_bench OpenMP::OpenMP_CXX)
     endif ()
 
-    if (NK_BUILD_BENCHMARKS_WITH_CBLAS)
-        find_package(BLAS REQUIRED)
-        if (BLAS_FOUND)
-            message(STATUS "BLAS found: ${BLAS_LIBRARIES}")
-            include_directories(${BLAS_INCLUDE_DIRS})
-            target_include_directories(nk_bench PRIVATE ${BLAS_INCLUDE_DIRS})
-            target_link_libraries(nk_bench ${BLAS_LIBRARIES})
-            target_compile_definitions(nk_bench PRIVATE NK_BUILD_BENCHMARKS_WITH_CBLAS=1)
-        else ()
-            message(FATAL_ERROR "BLAS not found")
-        endif ()
+    if (NK_BLAS_FOUND)
+        target_compile_definitions(nk_bench PRIVATE NK_COMPARE_TO_BLAS=1)
+        target_include_directories(nk_bench PRIVATE ${NK_BLAS_INCLUDE_DIRS})
+        target_link_libraries(nk_bench ${NK_BLAS_LIBRARIES})
     endif ()
 
-    if (NK_BUILD_BENCHMARKS_WITH_MKL)
-        # Use environment variable MKLROOT or standard MKL paths
-        if (DEFINED ENV{MKLROOT})
-            set(MKL_ROOT $ENV{MKLROOT})
-        else ()
-            # Try common installation paths
-            if (EXISTS "/opt/intel/oneapi/mkl/latest")
-                set(MKL_ROOT "/opt/intel/oneapi/mkl/latest")
-            elseif (EXISTS "/opt/intel/mkl")
-                set(MKL_ROOT "/opt/intel/mkl")
-            endif ()
-        endif ()
-
-        if (MKL_ROOT)
-            message(STATUS "MKL found at: ${MKL_ROOT}")
-            target_include_directories(nk_bench PRIVATE ${MKL_ROOT}/include)
-            # Link against sequential MKL (single-threaded) for fair comparison
-            target_link_libraries(nk_bench
-                ${MKL_ROOT}/lib/intel64/libmkl_intel_lp64.a
-                ${MKL_ROOT}/lib/intel64/libmkl_sequential.a
-                ${MKL_ROOT}/lib/intel64/libmkl_core.a
-                pthread m dl)
-            target_compile_definitions(nk_bench PRIVATE NK_BUILD_BENCHMARKS_WITH_MKL=1)
-        else ()
-            message(FATAL_ERROR "MKL not found. Set MKLROOT environment variable or install Intel oneAPI.")
-        endif ()
+    if (NK_MKL_FOUND)
+        target_compile_definitions(nk_bench PRIVATE NK_COMPARE_TO_MKL=1)
+        target_include_directories(nk_bench PRIVATE ${NK_MKL_INCLUDE_DIRS})
+        target_link_libraries(nk_bench ${NK_MKL_LIBRARIES})
     endif ()
 
 endif ()
 
+
+# Build tests
 if (NK_BUILD_TESTS)
     # Fetch Boost for high-precision reference computations
     include(FetchContent)
@@ -189,7 +218,6 @@ if (NK_BUILD_TESTS)
 
     # C++ precision test (ULP-based error analysis)
     add_executable(nk_test scripts/test.cpp c/numkong.c)
-    target_compile_definitions(nk_test PRIVATE NK_DYNAMIC_DISPATCH=1)
     target_include_directories(nk_test PRIVATE
         ${boost_multiprecision_SOURCE_DIR}/include
         ${boost_config_SOURCE_DIR}/include
@@ -202,10 +230,24 @@ if (NK_BUILD_TESTS)
         target_compile_definitions(nk_test PRIVATE NK_TEST_USE_OPENMP=1)
     endif ()
 
+    if (NK_BLAS_FOUND)
+        target_compile_definitions(nk_test PRIVATE NK_COMPARE_TO_BLAS=1)
+        target_include_directories(nk_test PRIVATE ${NK_BLAS_INCLUDE_DIRS})
+        target_link_libraries(nk_test ${NK_BLAS_LIBRARIES})
+    endif ()
+
+    if (NK_MKL_FOUND)
+        target_compile_definitions(nk_test PRIVATE NK_COMPARE_TO_MKL=1)
+        target_include_directories(nk_test PRIVATE ${NK_MKL_INCLUDE_DIRS})
+        target_link_libraries(nk_test ${NK_MKL_LIBRARIES})
+    endif ()
+
     add_test(NAME nk_test COMMAND nk_test)
     enable_testing()
 endif ()
 
+
+# Shared library
 if (NK_BUILD_SHARED)
     set(NK_SOURCES ${NK_SOURCES} c/numkong.c)
     add_library(nk_shared SHARED ${NK_SOURCES})
