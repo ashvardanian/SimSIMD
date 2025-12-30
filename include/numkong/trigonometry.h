@@ -11,13 +11,14 @@
  *
  *  For datatypes:
  *
- *  - 32-bit IEEE-754 floating point
  *  - 64-bit IEEE-754 floating point
+ *  - 32-bit IEEE-754 floating point
+ *  - 16-bit IEEE-754 floating point
  *
  *  For hardware architectures:
  *
  *  - Arm: NEON
- *  - x86: Haswell, Skylake
+ *  - x86: Haswell, Skylake, Sapphire Rapids
  *
  *  Those functions partially complement the `elementwise.h` module, and are necessary for
  *  the `geospatial.h` module, among others. Both Haversine and Vincenty's formulas require
@@ -171,6 +172,33 @@ NK_DYNAMIC void nk_cos_f32(nk_f32_t const *ins, nk_size_t n, nk_f32_t *outs);
  */
 NK_DYNAMIC void nk_atan_f32(nk_f32_t const *ins, nk_size_t n, nk_f32_t *outs);
 
+/**
+ *  @brief Element-wise sine over f16 inputs in radians.
+ *
+ *  @param[in] ins Input array of angles in radians.
+ *  @param[in] n Number of elements in the input/output arrays.
+ *  @param[out] outs Output array of sine values.
+ */
+NK_DYNAMIC void nk_sin_f16(nk_f16_t const *ins, nk_size_t n, nk_f16_t *outs);
+
+/**
+ *  @brief Element-wise cosine over f16 inputs in radians.
+ *
+ *  @param[in] ins Input array of angles in radians.
+ *  @param[in] n Number of elements in the input/output arrays.
+ *  @param[out] outs Output array of cosine values.
+ */
+NK_DYNAMIC void nk_cos_f16(nk_f16_t const *ins, nk_size_t n, nk_f16_t *outs);
+
+/**
+ *  @brief Element-wise arc-tangent over f16 inputs.
+ *
+ *  @param[in] ins Input array of input values.
+ *  @param[in] n Number of elements in the input/output arrays.
+ *  @param[out] outs Output array of arc-tangent values.
+ */
+NK_DYNAMIC void nk_atan_f16(nk_f16_t const *ins, nk_size_t n, nk_f16_t *outs);
+
 /** @copydoc nk_sin_f64 */
 NK_PUBLIC void nk_sin_f64_serial(nk_f64_t const *ins, nk_size_t n, nk_f64_t *outs);
 /** @copydoc nk_cos_f64 */
@@ -183,6 +211,12 @@ NK_PUBLIC void nk_sin_f32_serial(nk_f32_t const *ins, nk_size_t n, nk_f32_t *out
 NK_PUBLIC void nk_cos_f32_serial(nk_f32_t const *ins, nk_size_t n, nk_f32_t *outs);
 /** @copydoc nk_atan_f32 */
 NK_PUBLIC void nk_atan_f32_serial(nk_f32_t const *ins, nk_size_t n, nk_f32_t *outs);
+/** @copydoc nk_sin_f16 */
+NK_PUBLIC void nk_sin_f16_serial(nk_f16_t const *ins, nk_size_t n, nk_f16_t *outs);
+/** @copydoc nk_cos_f16 */
+NK_PUBLIC void nk_cos_f16_serial(nk_f16_t const *ins, nk_size_t n, nk_f16_t *outs);
+/** @copydoc nk_atan_f16 */
+NK_PUBLIC void nk_atan_f16_serial(nk_f16_t const *ins, nk_size_t n, nk_f16_t *outs);
 
 #if NK_TARGET_NEON
 /** @copydoc nk_sin_f64 */
@@ -238,10 +272,23 @@ NK_PUBLIC void nk_cos_f32_skylake(nk_f32_t const *ins, nk_size_t n, nk_f32_t *ou
 NK_PUBLIC void nk_atan_f32_skylake(nk_f32_t const *ins, nk_size_t n, nk_f32_t *outs);
 #endif // NK_TARGET_SKYLAKE
 
+/*  SIMD-powered backends for Sapphire Rapids with native FP16 arithmetic.
+ *  Processes 32 FP16 values per 512-bit register using AVX-512 FP16 instructions.
+ */
+#if NK_TARGET_SAPPHIRE
+/** @copydoc nk_sin_f16 */
+NK_PUBLIC void nk_sin_f16_sapphire(nk_f16_t const *ins, nk_size_t n, nk_f16_t *outs);
+/** @copydoc nk_cos_f16 */
+NK_PUBLIC void nk_cos_f16_sapphire(nk_f16_t const *ins, nk_size_t n, nk_f16_t *outs);
+/** @copydoc nk_atan_f16 */
+NK_PUBLIC void nk_atan_f16_sapphire(nk_f16_t const *ins, nk_size_t n, nk_f16_t *outs);
+#endif // NK_TARGET_SAPPHIRE
+
 #include "numkong/trigonometry/serial.h"
 #include "numkong/trigonometry/neon.h"
 #include "numkong/trigonometry/haswell.h"
 #include "numkong/trigonometry/skylake.h"
+#include "numkong/trigonometry/sapphire.h"
 
 #if !NK_DYNAMIC_DISPATCH
 
@@ -314,6 +361,30 @@ NK_PUBLIC void nk_atan_f32(nk_f32_t const *ins, nk_size_t n, nk_f32_t *outs) {
     nk_atan_f32_haswell(ins, n, outs);
 #else
     nk_atan_f32_serial(ins, n, outs);
+#endif
+}
+
+NK_PUBLIC void nk_sin_f16(nk_f16_t const *ins, nk_size_t n, nk_f16_t *outs) {
+#if NK_TARGET_SAPPHIRE
+    nk_sin_f16_sapphire(ins, n, outs);
+#else
+    nk_sin_f16_serial(ins, n, outs);
+#endif
+}
+
+NK_PUBLIC void nk_cos_f16(nk_f16_t const *ins, nk_size_t n, nk_f16_t *outs) {
+#if NK_TARGET_SAPPHIRE
+    nk_cos_f16_sapphire(ins, n, outs);
+#else
+    nk_cos_f16_serial(ins, n, outs);
+#endif
+}
+
+NK_PUBLIC void nk_atan_f16(nk_f16_t const *ins, nk_size_t n, nk_f16_t *outs) {
+#if NK_TARGET_SAPPHIRE
+    nk_atan_f16_sapphire(ins, n, outs);
+#else
+    nk_atan_f16_serial(ins, n, outs);
 #endif
 }
 
