@@ -28,6 +28,14 @@ NK_MAKE_DOTS_VECTORS(f32f32f32_haswell, f32, f32, nk_b256_vec_t, nk_dot_f32x8_st
                      nk_dot_f32x8_update_haswell, nk_dot_f32x8_finalize_haswell,
                      /*k_tile=*/8, /*k_unroll=*/1, /*MR=*/4, /*MC=*/128, /*NC=*/2048, /*KC=*/256)
 
+// F64 GEMM: k_tile=4 (4 f64s = 32 bytes = AVX2 register width)
+NK_MAKE_DOTS_PACK_SIZE(haswell, f64, f64)
+NK_MAKE_DOTS_PACK(haswell, f64, f64)
+NK_MAKE_DOTS_VECTORS(f64f64f64_haswell, f64, f64, nk_b256_vec_t, nk_dot_f64x4_state_haswell_t,
+                     nk_dot_f64x4_init_haswell, nk_load_b256_haswell_, nk_partial_load_b64x4_haswell_,
+                     nk_dot_f64x4_update_haswell, nk_dot_f64x4_finalize_haswell,
+                     /*k_tile=*/4, /*k_unroll=*/1, /*MR=*/4, /*MC=*/128, /*NC=*/2048, /*KC=*/256)
+
 // F16 GEMM: k_tile=16 (16 f16s = 32 bytes = AVX2 register width)
 NK_MAKE_DOTS_PACK_SIZE(haswell, f16, f32)
 NK_MAKE_DOTS_PACK(haswell, f16, f32)
