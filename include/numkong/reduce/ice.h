@@ -51,44 +51,60 @@ NK_INTERNAL __mmask32 nk_stride_mask_b16x32_ice_(nk_size_t stride) {
 NK_INTERNAL void nk_reduce_add_i16_ice_contiguous_( //
     nk_i16_t const *data, nk_size_t count, nk_i64_t *result) {
     __m512i ones_i16x32 = _mm512_set1_epi16(1);
-    __m512i sum_i32x16 = _mm512_setzero_si512();
+    nk_i64_t sum_i64 = 0;
     nk_size_t idx = 0;
+    nk_size_t const chunk_elements = 1024 * 32;
 
+    while (idx + chunk_elements <= count) {
+        __m512i sum_i32x16 = _mm512_setzero_si512();
+        for (nk_size_t end = idx + chunk_elements; idx < end; idx += 32) {
+            __m512i data_i16x32 = _mm512_loadu_si512(data + idx);
+            sum_i32x16 = _mm512_dpwssd_epi32(sum_i32x16, data_i16x32, ones_i16x32);
+        }
+        sum_i64 += _mm512_reduce_add_epi32(sum_i32x16);
+    }
+
+    __m512i sum_i32x16 = _mm512_setzero_si512();
     for (; idx + 32 <= count; idx += 32) {
         __m512i data_i16x32 = _mm512_loadu_si512(data + idx);
         sum_i32x16 = _mm512_dpwssd_epi32(sum_i32x16, data_i16x32, ones_i16x32);
     }
-
-    // Handle tail with masked load
     if (idx < count) {
         __mmask32 mask = (__mmask32)_bzhi_u32(0xFFFFFFFF, count - idx);
         __m512i data_i16x32 = _mm512_maskz_loadu_epi16(mask, data + idx);
         sum_i32x16 = _mm512_dpwssd_epi32(sum_i32x16, data_i16x32, ones_i16x32);
     }
-
-    *result = _mm512_reduce_add_epi32(sum_i32x16);
+    *result = sum_i64 + _mm512_reduce_add_epi32(sum_i32x16);
 }
 
 NK_INTERNAL void nk_reduce_add_i16_ice_strided_(                      //
     nk_i16_t const *data, nk_size_t count, nk_size_t stride_elements, //
     nk_i64_t *result) {
-    // Masked load zeros out non-stride elements; dpwssd with ones sums only stride positions
     __mmask32 stride_mask_m32 = nk_stride_mask_b16x32_ice_(stride_elements);
     __m512i ones_i16x32 = _mm512_set1_epi16(1);
-    __m512i sum_i32x16 = _mm512_setzero_si512();
+    nk_i64_t sum_i64 = 0;
     nk_size_t idx_scalars = 0;
     nk_size_t total_scalars = count * stride_elements;
+    nk_size_t const chunk_scalars = 1024 * 32;
 
+    while (idx_scalars + chunk_scalars <= total_scalars) {
+        __m512i sum_i32x16 = _mm512_setzero_si512();
+        for (nk_size_t end = idx_scalars + chunk_scalars; idx_scalars < end; idx_scalars += 32) {
+            __m512i data_i16x32 = _mm512_maskz_loadu_epi16(stride_mask_m32, data + idx_scalars);
+            sum_i32x16 = _mm512_dpwssd_epi32(sum_i32x16, data_i16x32, ones_i16x32);
+        }
+        sum_i64 += _mm512_reduce_add_epi32(sum_i32x16);
+    }
+
+    __m512i sum_i32x16 = _mm512_setzero_si512();
     for (; idx_scalars + 32 <= total_scalars; idx_scalars += 32) {
         __m512i data_i16x32 = _mm512_maskz_loadu_epi16(stride_mask_m32, data + idx_scalars);
         sum_i32x16 = _mm512_dpwssd_epi32(sum_i32x16, data_i16x32, ones_i16x32);
     }
+    sum_i64 += _mm512_reduce_add_epi32(sum_i32x16);
+    for (nk_size_t idx = idx_scalars / stride_elements; idx < count; ++idx) sum_i64 += data[idx * stride_elements];
 
-    // Scalar tail
-    nk_i64_t sum = _mm512_reduce_add_epi32(sum_i32x16);
-    for (nk_size_t idx = idx_scalars / stride_elements; idx < count; ++idx) sum += data[idx * stride_elements];
-
-    *result = sum;
+    *result = sum_i64;
 }
 
 NK_PUBLIC void nk_reduce_add_i16_ice(                              //
@@ -105,21 +121,30 @@ NK_PUBLIC void nk_reduce_add_i16_ice(                              //
 NK_INTERNAL void nk_reduce_add_u16_ice_contiguous_( //
     nk_u16_t const *data, nk_size_t count, nk_u64_t *result) {
     __m512i ones_i16x32 = _mm512_set1_epi16(1);
-    __m512i sum_i32x16 = _mm512_setzero_si512();
+    nk_u64_t sum_u64 = 0;
     nk_size_t idx = 0;
+    nk_size_t const chunk_elements = 1024 * 32;
 
+    while (idx + chunk_elements <= count) {
+        __m512i sum_i32x16 = _mm512_setzero_si512();
+        for (nk_size_t end = idx + chunk_elements; idx < end; idx += 32) {
+            __m512i data_u16x32 = _mm512_loadu_si512(data + idx);
+            sum_i32x16 = _mm512_dpwssd_epi32(sum_i32x16, data_u16x32, ones_i16x32);
+        }
+        sum_u64 += (nk_u64_t)_mm512_reduce_add_epi32(sum_i32x16);
+    }
+
+    __m512i sum_i32x16 = _mm512_setzero_si512();
     for (; idx + 32 <= count; idx += 32) {
         __m512i data_u16x32 = _mm512_loadu_si512(data + idx);
         sum_i32x16 = _mm512_dpwssd_epi32(sum_i32x16, data_u16x32, ones_i16x32);
     }
-
     if (idx < count) {
         __mmask32 mask = (__mmask32)_bzhi_u32(0xFFFFFFFF, count - idx);
         __m512i data_u16x32 = _mm512_maskz_loadu_epi16(mask, data + idx);
         sum_i32x16 = _mm512_dpwssd_epi32(sum_i32x16, data_u16x32, ones_i16x32);
     }
-
-    *result = (nk_u64_t)_mm512_reduce_add_epi32(sum_i32x16);
+    *result = sum_u64 + (nk_u64_t)_mm512_reduce_add_epi32(sum_i32x16);
 }
 
 NK_INTERNAL void nk_reduce_add_u16_ice_strided_(                      //
@@ -127,19 +152,29 @@ NK_INTERNAL void nk_reduce_add_u16_ice_strided_(                      //
     nk_u64_t *result) {
     __mmask32 stride_mask_m32 = nk_stride_mask_b16x32_ice_(stride_elements);
     __m512i ones_i16x32 = _mm512_set1_epi16(1);
-    __m512i sum_i32x16 = _mm512_setzero_si512();
+    nk_u64_t sum_u64 = 0;
     nk_size_t idx_scalars = 0;
     nk_size_t total_scalars = count * stride_elements;
+    nk_size_t const chunk_scalars = 1024 * 32;
 
+    while (idx_scalars + chunk_scalars <= total_scalars) {
+        __m512i sum_i32x16 = _mm512_setzero_si512();
+        for (nk_size_t end = idx_scalars + chunk_scalars; idx_scalars < end; idx_scalars += 32) {
+            __m512i data_u16x32 = _mm512_maskz_loadu_epi16(stride_mask_m32, data + idx_scalars);
+            sum_i32x16 = _mm512_dpwssd_epi32(sum_i32x16, data_u16x32, ones_i16x32);
+        }
+        sum_u64 += (nk_u64_t)_mm512_reduce_add_epi32(sum_i32x16);
+    }
+
+    __m512i sum_i32x16 = _mm512_setzero_si512();
     for (; idx_scalars + 32 <= total_scalars; idx_scalars += 32) {
         __m512i data_u16x32 = _mm512_maskz_loadu_epi16(stride_mask_m32, data + idx_scalars);
         sum_i32x16 = _mm512_dpwssd_epi32(sum_i32x16, data_u16x32, ones_i16x32);
     }
+    sum_u64 += (nk_u64_t)_mm512_reduce_add_epi32(sum_i32x16);
+    for (nk_size_t idx = idx_scalars / stride_elements; idx < count; ++idx) sum_u64 += data[idx * stride_elements];
 
-    nk_u64_t sum = (nk_u64_t)_mm512_reduce_add_epi32(sum_i32x16);
-    for (nk_size_t idx = idx_scalars / stride_elements; idx < count; ++idx) sum += data[idx * stride_elements];
-
-    *result = sum;
+    *result = sum_u64;
 }
 
 NK_PUBLIC void nk_reduce_add_u16_ice(                              //
