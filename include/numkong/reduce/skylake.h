@@ -593,24 +593,27 @@ NK_INTERNAL nk_u64_t nk_reduce_add_u64x8_skylake_(__m512i sum_u64x8) {
 
 NK_INTERNAL void nk_reduce_add_f32_skylake_contiguous_( //
     nk_f32_t const *data, nk_size_t count, nk_f64_t *result) {
-    __m512d sum_f64x8 = _mm512_setzero_pd();
+    // Use dual accumulators to hide VADDPD latency (4 cycles) and two 256-bit
+    // loads instead of 512-bit load + VEXTRACTF32X8 to reduce Port 5 pressure.
+    __m512d sum_low_f64x8 = _mm512_setzero_pd();
+    __m512d sum_high_f64x8 = _mm512_setzero_pd();
     nk_size_t idx_scalars = 0;
     for (; idx_scalars + 16 <= count; idx_scalars += 16) {
-        __m512 data_f32x16 = _mm512_loadu_ps(data + idx_scalars);
-        __m256 lo_f32x8 = _mm512_castps512_ps256(data_f32x16);
-        __m256 hi_f32x8 = _mm512_extractf32x8_ps(data_f32x16, 1);
-        sum_f64x8 = _mm512_add_pd(sum_f64x8, _mm512_cvtps_pd(lo_f32x8));
-        sum_f64x8 = _mm512_add_pd(sum_f64x8, _mm512_cvtps_pd(hi_f32x8));
+        __m256 low_f32x8 = _mm256_loadu_ps(data + idx_scalars);
+        __m256 high_f32x8 = _mm256_loadu_ps(data + idx_scalars + 8);
+        sum_low_f64x8 = _mm512_add_pd(sum_low_f64x8, _mm512_cvtps_pd(low_f32x8));
+        sum_high_f64x8 = _mm512_add_pd(sum_high_f64x8, _mm512_cvtps_pd(high_f32x8));
     }
-    // Handle tail with masked load
+    __m512d sum_f64x8 = _mm512_add_pd(sum_low_f64x8, sum_high_f64x8);
+    // Handle tail with masked load (keep 512-bit + extract for correct masking)
     nk_size_t remaining = count - idx_scalars;
     if (remaining > 0) {
         __mmask16 tail_mask = (__mmask16)_bzhi_u32(0xFFFF, (unsigned int)remaining);
         __m512 tail_f32x16 = _mm512_maskz_loadu_ps(tail_mask, data + idx_scalars);
-        __m256 lo_f32x8 = _mm512_castps512_ps256(tail_f32x16);
-        __m256 hi_f32x8 = _mm512_extractf32x8_ps(tail_f32x16, 1);
-        sum_f64x8 = _mm512_add_pd(sum_f64x8, _mm512_cvtps_pd(lo_f32x8));
-        if (remaining > 8) sum_f64x8 = _mm512_add_pd(sum_f64x8, _mm512_cvtps_pd(hi_f32x8));
+        __m256 low_f32x8 = _mm512_castps512_ps256(tail_f32x16);
+        __m256 high_f32x8 = _mm512_extractf32x8_ps(tail_f32x16, 1);
+        sum_f64x8 = _mm512_add_pd(sum_f64x8, _mm512_cvtps_pd(low_f32x8));
+        if (remaining > 8) sum_f64x8 = _mm512_add_pd(sum_f64x8, _mm512_cvtps_pd(high_f32x8));
     }
     *result = nk_reduce_add_f64x8_skylake_(sum_f64x8);
 }

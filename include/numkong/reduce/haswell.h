@@ -604,17 +604,18 @@ NK_INTERNAL __m256i nk_stride_blend_b64x4_(nk_size_t stride) {
 
 NK_INTERNAL void nk_reduce_add_f32_haswell_contiguous_( //
     nk_f32_t const *data, nk_size_t count, nk_f64_t *result) {
-    // Accumulate in f64 for precision
-    __m256d sum_f64x4 = _mm256_setzero_pd();
+    // Use dual accumulators to hide VADDPD latency (3 cycles on Haswell) and two
+    // 128-bit loads instead of 256-bit load + VEXTRACTF128 to reduce Port 5 pressure.
+    __m256d sum_low_f64x4 = _mm256_setzero_pd();
+    __m256d sum_high_f64x4 = _mm256_setzero_pd();
     nk_size_t idx_scalars = 0;
     for (; idx_scalars + 8 <= count; idx_scalars += 8) {
-        __m256 data_f32x8 = _mm256_loadu_ps(data + idx_scalars);
-        __m128 lo_f32x4 = _mm256_castps256_ps128(data_f32x8);
-        __m128 hi_f32x4 = _mm256_extractf128_ps(data_f32x8, 1);
-        sum_f64x4 = _mm256_add_pd(sum_f64x4, _mm256_cvtps_pd(lo_f32x4));
-        sum_f64x4 = _mm256_add_pd(sum_f64x4, _mm256_cvtps_pd(hi_f32x4));
+        __m128 low_f32x4 = _mm_loadu_ps(data + idx_scalars);
+        __m128 high_f32x4 = _mm_loadu_ps(data + idx_scalars + 4);
+        sum_low_f64x4 = _mm256_add_pd(sum_low_f64x4, _mm256_cvtps_pd(low_f32x4));
+        sum_high_f64x4 = _mm256_add_pd(sum_high_f64x4, _mm256_cvtps_pd(high_f32x4));
     }
-    nk_f64_t sum = nk_reduce_add_f64x4_haswell_(sum_f64x4);
+    nk_f64_t sum = nk_reduce_add_f64x4_haswell_(_mm256_add_pd(sum_low_f64x4, sum_high_f64x4));
     for (; idx_scalars < count; ++idx_scalars) sum += data[idx_scalars];
     *result = sum;
 }
