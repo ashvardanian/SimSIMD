@@ -1,14 +1,25 @@
 /**
- *  NumKong C++ Benchmark Suite
+ *  @file   bench.cpp
+ *  @brief  NumKong C++ Benchmark Suite using Google Benchmark.
  *
  *  Comprehensive benchmarks comparing NumKong SIMD-optimized functions against
- *  baseline implementations using Google Benchmark framework. Run with:
+ *  baseline implementations. Run with:
  *
  *  ```bash
  *  cmake -B build_release -D NK_BUILD_BENCHMARKS=1
  *  cmake --build build_release
  *  build_release/nk_bench
  *  ```
+ *
+ *  Environment Variables:
+ *    NK_BENCH_FILTER=<pattern>       - Filter benchmarks by name regex (default: run all)
+ *    NK_BENCH_DENSE_DIMENSION=N      - Vector dimension for dot/spatial benchmarks (default: 1536)
+ *    NK_BENCH_CURVED_DIMENSION=N     - Vector dimension for curved benchmarks (default: 8)
+ *    NK_BENCH_MESH_DIMENSION=N       - Point count for mesh benchmarks (default: 1000)
+ *    NK_BENCH_MATMUL_DIMENSION_M=N   - GEMM M dimension (default: 128)
+ *    NK_BENCH_MATMUL_DIMENSION_N=N   - GEMM N dimension (default: 512)
+ *    NK_BENCH_MATMUL_DIMENSION_K=N   - GEMM K dimension (default: 256)
+ *    NK_BENCH_SEED=N                 - RNG seed (default: 42)
  */
 
 #include <array>         // `std::array`
@@ -63,19 +74,19 @@ constexpr std::size_t default_threads = 1;
 constexpr nk_fmax_t signaling_distance = std::numeric_limits<nk_fmax_t>::signaling_NaN();
 
 /// For sub-byte data types
-/// Can be overridden at runtime via `NK_BENCH_DENSE_DIMENSIONS` environment variable
-std::size_t dense_dimensions = 1536;
+/// Can be overridden at runtime via `NK_BENCH_DENSE_DIMENSION` environment variable
+std::size_t dense_dimension = 1536;
 /// Has quadratic impact on the number of operations
-/// Can be overridden at runtime via `NK_BENCH_CURVED_DIMENSIONS` environment variable
-std::size_t curved_dimensions = 8;
+/// Can be overridden at runtime via `NK_BENCH_CURVED_DIMENSION` environment variable
+std::size_t curved_dimension = 8;
 /// Number of 3D points for mesh metrics (RMSD, Kabsch)
-/// Can be overridden at runtime via `NK_BENCH_MESH_DIMENSIONS` environment variable
-std::size_t mesh_dimensions = 1000;
+/// Can be overridden at runtime via `NK_BENCH_MESH_DIMENSION` environment variable
+std::size_t mesh_dimension = 1000;
 /// Matrix multiplication benchmark globals
 /// Can be overridden at runtime via `NK_BENCH_MATMUL_DIMENSION_M/N/K` environment variables
 std::size_t matmul_dimension_m = 128, matmul_dimension_n = 512, matmul_dimension_k = 256;
 /// Random seed for reproducible benchmarks
-/// Can be overridden at runtime via `NK_BENCH_RANDOM_SEED` environment variable
+/// Can be overridden at runtime via `NK_BENCH_SEED` environment variable
 std::uint32_t random_seed = 42;
 
 namespace bm = benchmark;
@@ -872,11 +883,11 @@ template <nk_datatype_t datatype_ak, nk_datatype_t test_output_datatype_ak, nk_d
           typename test_metric_type_ = void, typename baseline_metric_type_ = void>
 void dense_(std::string name, test_metric_type_ *distance_func, baseline_metric_type_ *baseline_func) {
     using pair_t = vectors_pair<datatype_ak>;
-    std::string bench_name = name + "<" + std::to_string(dense_dimensions) + "d>";
+    std::string bench_name = name + "<" + std::to_string(dense_dimension) + "d>";
     bm::RegisterBenchmark(bench_name.c_str(),
                           measure_dense<pair_t, test_output_datatype_ak, baseline_output_datatype_ak,
                                         test_metric_type_ *, baseline_metric_type_ *>,
-                          distance_func, baseline_func, dense_dimensions)
+                          distance_func, baseline_func, dense_dimension)
         ->MinTime(default_seconds)
         ->Threads(default_threads);
 }
@@ -890,12 +901,12 @@ template <nk_datatype_t datatype_ak, nk_kernel_kind_t kernel_ak = nk_kernel_unkn
 void elementwise_(std::string name, test_kernel_type_ *kernel_func, baseline_kernel_type_ *baseline_func,
                   l2_metric_type_ *l2_metric_func) {
     using pair_t = vectors_pair<datatype_ak>;
-    std::string bench_name = name + "<" + std::to_string(dense_dimensions) + "d>";
+    std::string bench_name = name + "<" + std::to_string(dense_dimension) + "d>";
     bm::RegisterBenchmark(bench_name.c_str(),
                           measure_elementwise<pair_t, kernel_ak, test_output_datatype_ak, baseline_output_datatype_ak,
                                               test_alpha_datatype_ak, baseline_alpha_datatype_ak, test_kernel_type_ *,
                                               baseline_kernel_type_ *, l2_metric_type_ *>,
-                          kernel_func, baseline_func, l2_metric_func, dense_dimensions)
+                          kernel_func, baseline_func, l2_metric_func, dense_dimension)
         ->MinTime(default_seconds)
         ->Threads(default_threads);
 }
@@ -905,11 +916,11 @@ template <nk_datatype_t datatype_ak, nk_datatype_t test_output_datatype_ak, nk_d
 void geospatial_(std::string name, test_kernel_type_ *kernel_func, baseline_kernel_type_ *baseline_func,
                  l2_metric_type_ *l2_metric_func) {
     using pair_t = vectors_pair<datatype_ak>;
-    std::string bench_name = name + "<" + std::to_string(dense_dimensions) + "d>";
+    std::string bench_name = name + "<" + std::to_string(dense_dimension) + "d>";
     bm::RegisterBenchmark(bench_name.c_str(),
                           measure_geospatial<pair_t, test_output_datatype_ak, baseline_output_datatype_ak,
                                              test_kernel_type_ *, baseline_kernel_type_ *, l2_metric_type_ *>,
-                          kernel_func, baseline_func, l2_metric_func, dense_dimensions)
+                          kernel_func, baseline_func, l2_metric_func, dense_dimension)
         ->MinTime(default_seconds)
         ->Threads(default_threads);
 }
@@ -947,11 +958,11 @@ template <nk_datatype_t datatype_ak, nk_datatype_t test_output_datatype_ak, nk_d
 void curved_(std::string name, test_metric_type_ *distance_func, baseline_metric_type_ *baseline_func) {
 
     using pair_t = vectors_pair<datatype_ak>;
-    std::string bench_name = name + "<" + std::to_string(curved_dimensions) + "d>";
+    std::string bench_name = name + "<" + std::to_string(curved_dimension) + "d>";
     bm::RegisterBenchmark(bench_name.c_str(),
                           measure_curved<pair_t, test_output_datatype_ak, baseline_output_datatype_ak,
                                          test_metric_type_ *, baseline_metric_type_ *>,
-                          distance_func, baseline_func, curved_dimensions)
+                          distance_func, baseline_func, curved_dimension)
         ->MinTime(default_seconds)
         ->Threads(default_threads);
 }
@@ -961,11 +972,11 @@ template <nk_datatype_t datatype_ak, nk_datatype_t test_output_datatype_ak, nk_d
 void mesh_(std::string name, test_metric_type_ *distance_func, baseline_metric_type_ *baseline_func) {
 
     using pair_t = mesh_pair<datatype_ak>;
-    std::string bench_name = name + "<" + std::to_string(mesh_dimensions) + "pts>";
+    std::string bench_name = name + "<" + std::to_string(mesh_dimension) + "pts>";
     bm::RegisterBenchmark(bench_name.c_str(),
                           measure_mesh<pair_t, test_output_datatype_ak, baseline_output_datatype_ak,
                                        test_metric_type_ *, baseline_metric_type_ *>,
-                          distance_func, baseline_func, mesh_dimensions)
+                          distance_func, baseline_func, mesh_dimension)
         ->MinTime(default_seconds)
         ->Threads(default_threads);
 }
@@ -1010,11 +1021,7 @@ void measure_matmul_packed(                                                     
         ++iterations;
     }
 
-    // Report FLOPS: 2*m*n*k operations per matmul (multiply + add)
-    double flops_per_call = 2.0 * m * n * k;
-    state.counters["flops"] = bm::Counter(iterations * flops_per_call, bm::Counter::kIsRate);
-    state.counters["bytes_a"] = bm::Counter(iterations * m * k * sizeof(input_type_), bm::Counter::kIsRate);
-    state.counters["bytes_c"] = bm::Counter(iterations * m * n * sizeof(output_type_), bm::Counter::kIsRate);
+    state.counters["tops"] = bm::Counter(iterations * 2.0 * m * n * k, bm::Counter::kIsRate);
 }
 
 template <typename input_type_, typename output_type_>
@@ -1283,42 +1290,39 @@ void wsum_f64_blas(nk_f64_t const *a, nk_f64_t const *b, nk_size_t n, nk_f64_t c
     if (*beta != 0) cblas_daxpy(ni, *beta, b, 1, result, 1);
 }
 
-void measure_sgemm_blas(bm::State &state, std::size_t m, std::size_t n, std::size_t k) {
-    std::vector<float> a(m * k), b(n * k), c(m * n);
+template <typename scalar_type_, typename gemm_type_>
+void measure_gemm_blas(bm::State &state, std::size_t m, std::size_t n, std::size_t k, gemm_type_ gemm_fn) {
+    std::vector<scalar_type_> a(m * k), b(n * k), c(m * n);
     auto gen = make_random_engine();
-    std::uniform_real_distribution<float> dis(-1.0f, 1.0f);
+    std::uniform_real_distribution<scalar_type_> dis(-1.0, 1.0);
     for (auto &v : a) v = dis(gen);
     for (auto &v : b) v = dis(gen);
 
     std::size_t iterations = 0;
     for (auto _ : state) {
         bm::DoNotOptimize(c.data());
-        cblas_sgemm(CblasRowMajor, CblasNoTrans, CblasTrans, static_cast<int>(m), static_cast<int>(n),
-                    static_cast<int>(k), 1.0f, a.data(), static_cast<int>(k), b.data(), static_cast<int>(k), 0.0f,
-                    c.data(), static_cast<int>(n));
+        gemm_fn(a.data(), b.data(), c.data(), m, n, k);
         ++iterations;
     }
-
-    state.counters["flops"] = bm::Counter(iterations * 2.0 * m * n * k, bm::Counter::kIsRate);
+    state.counters["tops"] = bm::Counter(iterations * 2.0 * m * n * k, bm::Counter::kIsRate);
 }
 
-void measure_dgemm_blas(bm::State &state, std::size_t m, std::size_t n, std::size_t k) {
-    std::vector<double> a(m * k), b(n * k), c(m * n);
-    auto gen = make_random_engine();
-    std::uniform_real_distribution<double> dis(-1.0, 1.0);
-    for (auto &v : a) v = dis(gen);
-    for (auto &v : b) v = dis(gen);
+void measure_dots_f32f32f32_blas(bm::State &state, std::size_t m, std::size_t n, std::size_t k) {
+    measure_gemm_blas<float>(state, m, n, k,
+                             [](float *a, float *b, float *c, std::size_t m, std::size_t n, std::size_t k) {
+                                 cblas_sgemm(CblasRowMajor, CblasNoTrans, CblasTrans, static_cast<int>(m),
+                                             static_cast<int>(n), static_cast<int>(k), 1.0f, a, static_cast<int>(k), b,
+                                             static_cast<int>(k), 0.0f, c, static_cast<int>(n));
+                             });
+}
 
-    std::size_t iterations = 0;
-    for (auto _ : state) {
-        bm::DoNotOptimize(c.data());
-        cblas_dgemm(CblasRowMajor, CblasNoTrans, CblasTrans, static_cast<int>(m), static_cast<int>(n),
-                    static_cast<int>(k), 1.0, a.data(), static_cast<int>(k), b.data(), static_cast<int>(k), 0.0,
-                    c.data(), static_cast<int>(n));
-        ++iterations;
-    }
-
-    state.counters["flops"] = bm::Counter(iterations * 2.0 * m * n * k, bm::Counter::kIsRate);
+void measure_dots_f64f64f64_blas(bm::State &state, std::size_t m, std::size_t n, std::size_t k) {
+    measure_gemm_blas<double>(state, m, n, k,
+                              [](double *a, double *b, double *c, std::size_t m, std::size_t n, std::size_t k) {
+                                  cblas_dgemm(CblasRowMajor, CblasNoTrans, CblasTrans, static_cast<int>(m),
+                                              static_cast<int>(n), static_cast<int>(k), 1.0, a, static_cast<int>(k), b,
+                                              static_cast<int>(k), 0.0, c, static_cast<int>(n));
+                              });
 }
 
 #endif // NK_COMPARE_TO_BLAS || NK_COMPARE_TO_MKL
@@ -1364,7 +1368,7 @@ void measure_gemm_mkl(bm::State &state, std::size_t m, std::size_t n, std::size_
         gemm_fn(a.data(), b.data(), c.data(), m, n, k);
         ++iterations;
     }
-    state.counters["ops"] = bm::Counter(iterations * 2.0 * m * n * k, bm::Counter::kIsRate);
+    state.counters["tops"] = bm::Counter(iterations * 2.0 * m * n * k, bm::Counter::kIsRate);
 }
 
 /// Overload for integer types - uses int distribution instead of float.
@@ -1385,10 +1389,10 @@ void measure_gemm_mkl_int(bm::State &state, std::size_t m, std::size_t n, std::s
         gemm_fn(a.data(), b.data(), c.data(), m, n, k);
         ++iterations;
     }
-    state.counters["ops"] = bm::Counter(iterations * 2.0 * m * n * k, bm::Counter::kIsRate);
+    state.counters["tops"] = bm::Counter(iterations * 2.0 * m * n * k, bm::Counter::kIsRate);
 }
 
-void measure_sgemm_mkl(bm::State &state, std::size_t m, std::size_t n, std::size_t k) {
+void measure_dots_f32f32f32_mkl(bm::State &state, std::size_t m, std::size_t n, std::size_t k) {
     auto identity = [](float v) { return v; };
     measure_gemm_mkl<float, float, float>(
         state, m, n, k, identity, identity,
@@ -1398,7 +1402,7 @@ void measure_sgemm_mkl(bm::State &state, std::size_t m, std::size_t n, std::size
         });
 }
 
-void measure_bf16gemm_mkl(bm::State &state, std::size_t m, std::size_t n, std::size_t k) {
+void measure_dots_bf16bf16f32_mkl(bm::State &state, std::size_t m, std::size_t n, std::size_t k) {
     measure_gemm_mkl<MKL_BF16, MKL_BF16, float>(
         state, m, n, k, f32_to_bf16, f32_to_bf16,
         [](MKL_BF16 *a, MKL_BF16 *b, float *c, std::size_t m, std::size_t n, std::size_t k) {
@@ -1407,7 +1411,7 @@ void measure_bf16gemm_mkl(bm::State &state, std::size_t m, std::size_t n, std::s
         });
 }
 
-void measure_f16gemm_mkl(bm::State &state, std::size_t m, std::size_t n, std::size_t k) {
+void measure_dots_f16f16f32_mkl(bm::State &state, std::size_t m, std::size_t n, std::size_t k) {
     measure_gemm_mkl<MKL_F16, MKL_F16, float>(
         state, m, n, k, f32_to_f16, f32_to_f16,
         [](MKL_F16 *a, MKL_F16 *b, float *c, std::size_t m, std::size_t n, std::size_t k) {
@@ -1416,7 +1420,7 @@ void measure_f16gemm_mkl(bm::State &state, std::size_t m, std::size_t n, std::si
         });
 }
 
-void measure_s8u8s32gemm_mkl(bm::State &state, std::size_t m, std::size_t n, std::size_t k) {
+void measure_dots_u8i8i32_mkl(bm::State &state, std::size_t m, std::size_t n, std::size_t k) {
     measure_gemm_mkl_int<std::uint8_t, std::int8_t, std::int32_t>(
         state, m, n, k,
         [](std::uint8_t *a, std::int8_t *b, std::int32_t *c, std::size_t m, std::size_t n, std::size_t k) {
@@ -1426,7 +1430,7 @@ void measure_s8u8s32gemm_mkl(bm::State &state, std::size_t m, std::size_t n, std
         });
 }
 
-void measure_s16s16s32gemm_mkl(bm::State &state, std::size_t m, std::size_t n, std::size_t k) {
+void measure_dots_i16i16i32_mkl(bm::State &state, std::size_t m, std::size_t n, std::size_t k) {
     measure_gemm_mkl_int<std::int16_t, std::int16_t, std::int32_t>(
         state, m, n, k,
         [](std::int16_t *a, std::int16_t *b, std::int32_t *c, std::size_t m, std::size_t n, std::size_t k) {
@@ -1452,7 +1456,7 @@ int main(int argc, char **argv) {
 
     // Log supported functionality
     char const *flags[2] = {"false", "true"};
-    std::printf("NumKong benchmarksing suite\n");
+    std::printf("NumKong benchmarking suite\n");
     std::printf("- Compiler used native F16: %s\n", flags[NK_NATIVE_F16]);
     std::printf("- Compiler used native BF16: %s\n", flags[NK_NATIVE_BF16]);
     std::printf("- Benchmark against CBLAS: %s\n", flags[NK_COMPARE_TO_BLAS]);
@@ -1500,29 +1504,29 @@ int main(int argc, char **argv) {
     std::printf("\n");
 
     // Override dimensions from environment variables if provided
-    if (char const *env_dense = std::getenv("NK_BENCH_DENSE_DIMENSIONS")) {
-        std::size_t parsed_dense = std::atoi(env_dense);
+    if (char const *env_dense = std::getenv("NK_BENCH_DENSE_DIMENSION")) {
+        std::size_t parsed_dense = static_cast<std::size_t>(std::atoll(env_dense));
         if (parsed_dense > 0) {
-            dense_dimensions = parsed_dense;
-            std::printf("Overriding `dense_dimensions` to %zu from NK_BENCH_DENSE_DIMENSIONS\n", dense_dimensions);
+            dense_dimension = parsed_dense;
+            std::printf("Overriding `dense_dimension` to %zu from NK_BENCH_DENSE_DIMENSION\n", dense_dimension);
         }
     }
-    if (char const *env_curved = std::getenv("NK_BENCH_CURVED_DIMENSIONS")) {
-        std::size_t parsed_curved = std::atoi(env_curved);
+    if (char const *env_curved = std::getenv("NK_BENCH_CURVED_DIMENSION")) {
+        std::size_t parsed_curved = static_cast<std::size_t>(std::atoll(env_curved));
         if (parsed_curved > 0) {
-            curved_dimensions = parsed_curved;
-            std::printf("Overriding `curved_dimensions` to %zu from NK_BENCH_CURVED_DIMENSIONS\n", curved_dimensions);
+            curved_dimension = parsed_curved;
+            std::printf("Overriding `curved_dimension` to %zu from NK_BENCH_CURVED_DIMENSION\n", curved_dimension);
         }
     }
-    if (char const *env_mesh = std::getenv("NK_BENCH_MESH_DIMENSIONS")) {
-        std::size_t parsed_mesh = std::atoi(env_mesh);
+    if (char const *env_mesh = std::getenv("NK_BENCH_MESH_DIMENSION")) {
+        std::size_t parsed_mesh = static_cast<std::size_t>(std::atoll(env_mesh));
         if (parsed_mesh > 0) {
-            mesh_dimensions = parsed_mesh;
-            std::printf("Overriding `mesh_dimensions` to %zu from NK_BENCH_MESH_DIMENSIONS\n", mesh_dimensions);
+            mesh_dimension = parsed_mesh;
+            std::printf("Overriding `mesh_dimension` to %zu from NK_BENCH_MESH_DIMENSION\n", mesh_dimension);
         }
     }
     if (char const *env_matmul_dimension_m = std::getenv("NK_BENCH_MATMUL_DIMENSION_M")) {
-        std::size_t parsed = std::atoi(env_matmul_dimension_m);
+        std::size_t parsed = static_cast<std::size_t>(std::atoll(env_matmul_dimension_m));
         if (parsed > 0) {
             matmul_dimension_m = parsed;
             std::printf("Overriding `matmul_dimension_m` to %zu from NK_BENCH_MATMUL_DIMENSION_M\n",
@@ -1530,7 +1534,7 @@ int main(int argc, char **argv) {
         }
     }
     if (char const *env_matmul_dimension_n = std::getenv("NK_BENCH_MATMUL_DIMENSION_N")) {
-        std::size_t parsed = std::atoi(env_matmul_dimension_n);
+        std::size_t parsed = static_cast<std::size_t>(std::atoll(env_matmul_dimension_n));
         if (parsed > 0) {
             matmul_dimension_n = parsed;
             std::printf("Overriding `matmul_dimension_n` to %zu from NK_BENCH_MATMUL_DIMENSION_N\n",
@@ -1538,23 +1542,34 @@ int main(int argc, char **argv) {
         }
     }
     if (char const *env_matmul_dimension_k = std::getenv("NK_BENCH_MATMUL_DIMENSION_K")) {
-        std::size_t parsed = std::atoi(env_matmul_dimension_k);
+        std::size_t parsed = static_cast<std::size_t>(std::atoll(env_matmul_dimension_k));
         if (parsed > 0) {
             matmul_dimension_k = parsed;
             std::printf("Overriding `matmul_dimension_k` to %zu from NK_BENCH_MATMUL_DIMENSION_K\n",
                         matmul_dimension_k);
         }
     }
-    if (char const *env_random_seed = std::getenv("NK_BENCH_RANDOM_SEED")) {
-        std::uint32_t parsed = static_cast<std::uint32_t>(std::atoi(env_random_seed));
+    if (char const *env_seed = std::getenv("NK_BENCH_SEED")) {
+        std::uint32_t parsed = static_cast<std::uint32_t>(std::atoll(env_seed));
         random_seed = parsed;
-        std::printf("Overriding `random_seed` to %u from NK_BENCH_RANDOM_SEED\n", random_seed);
+        std::printf("Overriding `random_seed` to %u from NK_BENCH_SEED\n", random_seed);
     }
     std::printf("\n");
 
+    // Handle NK_BENCH_FILTER environment variable by injecting --benchmark_filter argument
+    std::vector<char *> modified_argv(argv, argv + argc);
+    std::string filter_arg;
+    if (char const *env_filter = std::getenv("NK_BENCH_FILTER")) {
+        filter_arg = std::string("--benchmark_filter=") + env_filter;
+        modified_argv.push_back(const_cast<char *>(filter_arg.c_str()));
+        std::printf("Applying benchmark filter from NK_BENCH_FILTER: %s\n\n", env_filter);
+    }
+    int modified_argc = static_cast<int>(modified_argv.size());
+    char **modified_argv_ptr = modified_argv.data();
+
     // Run the benchmarks
-    bm::Initialize(&argc, argv);
-    if (bm::ReportUnrecognizedArguments(argc, argv)) return 1;
+    bm::Initialize(&modified_argc, modified_argv_ptr);
+    if (bm::ReportUnrecognizedArguments(modified_argc, modified_argv_ptr)) return 1;
 
     constexpr nk_datatype_t b8_k = nk_b8_k;
     constexpr nk_datatype_t i4x2_k = nk_i4x2_k;
@@ -1607,21 +1622,16 @@ int main(int argc, char **argv) {
     curved_<f32_k, f32_k, f64_k>("bilinear_f32_blas", bilinear_f32_blas, nk_bilinear_f32_accurate);
     curved_<f32c_k, f32c_k, f64c_k>("bilinear_f32c_blas", bilinear_f32c_blas, nk_bilinear_f32c_accurate);
 
-    // SGEMM baseline for matmul comparison (FP32, same layout as NumKong: A×Bᵀ)
+    // BLAS GEMM baselines for matmul comparison (same layout as NumKong: A×Bᵀ)
     {
-        std::string bench_name = "sgemm_blas<" + std::to_string(matmul_dimension_m) + "x" +
-                                 std::to_string(matmul_dimension_n) + "x" + std::to_string(matmul_dimension_k) + ">";
-        bm::RegisterBenchmark(bench_name.c_str(), measure_sgemm_blas, matmul_dimension_m, matmul_dimension_n,
-                              matmul_dimension_k)
+        std::string dims = std::to_string(matmul_dimension_m) + "x" + std::to_string(matmul_dimension_n) + "x" +
+                           std::to_string(matmul_dimension_k);
+        bm::RegisterBenchmark(("dots_f32f32f32_blas<" + dims + ">").c_str(), measure_dots_f32f32f32_blas,
+                              matmul_dimension_m, matmul_dimension_n, matmul_dimension_k)
             ->MinTime(default_seconds)
             ->Threads(1);
-    }
-    // DGEMM baseline for matmul comparison (FP64, same layout as NumKong: A×Bᵀ)
-    {
-        std::string bench_name = "dgemm_blas<" + std::to_string(matmul_dimension_m) + "x" +
-                                 std::to_string(matmul_dimension_n) + "x" + std::to_string(matmul_dimension_k) + ">";
-        bm::RegisterBenchmark(bench_name.c_str(), measure_dgemm_blas, matmul_dimension_m, matmul_dimension_n,
-                              matmul_dimension_k)
+        bm::RegisterBenchmark(("dots_f64f64f64_blas<" + dims + ">").c_str(), measure_dots_f64f64f64_blas,
+                              matmul_dimension_m, matmul_dimension_n, matmul_dimension_k)
             ->MinTime(default_seconds)
             ->Threads(1);
     }
@@ -1629,27 +1639,27 @@ int main(int argc, char **argv) {
 #endif // NK_COMPARE_TO_BLAS || NK_COMPARE_TO_MKL
 
 #if NK_COMPARE_TO_MKL
-    // MKL mixed-precision GEMM baselines for matmul comparison
+    // MKL GEMM baselines for matmul comparison
     {
         std::string dims = std::to_string(matmul_dimension_m) + "x" + std::to_string(matmul_dimension_n) + "x" +
                            std::to_string(matmul_dimension_k);
-        bm::RegisterBenchmark(("sgemm_mkl<" + dims + ">").c_str(), measure_sgemm_mkl, matmul_dimension_m,
+        bm::RegisterBenchmark(("dots_f32f32f32_mkl<" + dims + ">").c_str(), measure_dots_f32f32f32_mkl,
+                              matmul_dimension_m, matmul_dimension_n, matmul_dimension_k)
+            ->MinTime(default_seconds)
+            ->Threads(1);
+        bm::RegisterBenchmark(("dots_bf16bf16f32_mkl<" + dims + ">").c_str(), measure_dots_bf16bf16f32_mkl,
+                              matmul_dimension_m, matmul_dimension_n, matmul_dimension_k)
+            ->MinTime(default_seconds)
+            ->Threads(1);
+        bm::RegisterBenchmark(("dots_f16f16f32_mkl<" + dims + ">").c_str(), measure_dots_f16f16f32_mkl,
+                              matmul_dimension_m, matmul_dimension_n, matmul_dimension_k)
+            ->MinTime(default_seconds)
+            ->Threads(1);
+        bm::RegisterBenchmark(("dots_u8i8i32_mkl<" + dims + ">").c_str(), measure_dots_u8i8i32_mkl, matmul_dimension_m,
                               matmul_dimension_n, matmul_dimension_k)
             ->MinTime(default_seconds)
             ->Threads(1);
-        bm::RegisterBenchmark(("bf16gemm_mkl<" + dims + ">").c_str(), measure_bf16gemm_mkl, matmul_dimension_m,
-                              matmul_dimension_n, matmul_dimension_k)
-            ->MinTime(default_seconds)
-            ->Threads(1);
-        bm::RegisterBenchmark(("f16gemm_mkl<" + dims + ">").c_str(), measure_f16gemm_mkl, matmul_dimension_m,
-                              matmul_dimension_n, matmul_dimension_k)
-            ->MinTime(default_seconds)
-            ->Threads(1);
-        bm::RegisterBenchmark(("s8u8s32gemm_mkl<" + dims + ">").c_str(), measure_s8u8s32gemm_mkl, matmul_dimension_m,
-                              matmul_dimension_n, matmul_dimension_k)
-            ->MinTime(default_seconds)
-            ->Threads(1);
-        bm::RegisterBenchmark(("s16s16s32gemm_mkl<" + dims + ">").c_str(), measure_s16s16s32gemm_mkl,
+        bm::RegisterBenchmark(("dots_i16i16i32_mkl<" + dims + ">").c_str(), measure_dots_i16i16i32_mkl,
                               matmul_dimension_m, matmul_dimension_n, matmul_dimension_k)
             ->MinTime(default_seconds)
             ->Threads(1);
