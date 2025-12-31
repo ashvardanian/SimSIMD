@@ -218,38 +218,54 @@ std::size_t matmul_dimension_m = 64, matmul_dimension_n = 64, matmul_dimension_k
  *
  *  ULP distance is the number of representable floating-point numbers between a and b.
  *  This is the gold standard for comparing floating-point implementations.
+ *
+ *  Uses the XOR transformation from Bruce Dawson's algorithm to handle all sign combinations:
+ *  @see https://randomascii.wordpress.com/2012/02/25/comparing-floating-point-numbers-2012-edition/
+ *  @see https://en.wikipedia.org/wiki/Unit_in_the_last_place
  */
 template <typename scalar_type_>
 std::uint64_t ulp_distance(scalar_type_ a, scalar_type_ b) noexcept {
     // Handle special cases
     if (std::isnan(a) || std::isnan(b)) return std::numeric_limits<std::uint64_t>::max();
-    if (a == b) return 0;
+    if (a == b) return 0; // Also handles +0 == -0
     if (std::isinf(a) || std::isinf(b)) return std::numeric_limits<std::uint64_t>::max();
 
-    // For different signs, we need special handling
-    if ((a < 0) != (b < 0)) {
-        // Count ULPs from a to 0, plus from 0 to b
-        return ulp_distance(a, scalar_type_(0)) + ulp_distance(scalar_type_(0), b);
-    }
-
-    // Same sign: compute bit distance
+    // Use the XOR transformation from Bruce Dawson's "Comparing Floating Point Numbers"
+    // This transforms float bit patterns to an ordered integer representation where
+    // the integer difference equals the ULP distance.
     if constexpr (sizeof(scalar_type_) == 4) {
-        std::uint32_t ai, bi;
-        std::memcpy(&ai, &a, sizeof(ai));
-        std::memcpy(&bi, &b, sizeof(bi));
-        // Clear sign bit for comparison
-        ai &= 0x7FFFFFFF;
-        bi &= 0x7FFFFFFF;
-        return ai > bi ? ai - bi : bi - ai;
+        std::int32_t ia, ib;
+        std::memcpy(&ia, &a, sizeof(ia));
+        std::memcpy(&ib, &b, sizeof(ib));
+
+        // Transform negative floats: flip all bits except sign to reverse their ordering
+        // This makes the integer representation monotonically ordered with float value
+        if (ia < 0) ia ^= 0x7FFFFFFF;
+        if (ib < 0) ib ^= 0x7FFFFFFF;
+
+        // Compute absolute difference using 64-bit arithmetic to avoid overflow
+        std::int64_t diff = static_cast<std::int64_t>(ia) - static_cast<std::int64_t>(ib);
+        return static_cast<std::uint64_t>(diff < 0 ? -diff : diff);
     }
     else if constexpr (sizeof(scalar_type_) == 8) {
-        std::uint64_t ai, bi;
-        std::memcpy(&ai, &a, sizeof(ai));
-        std::memcpy(&bi, &b, sizeof(bi));
-        // Clear sign bit for comparison
-        ai &= 0x7FFFFFFFFFFFFFFFULL;
-        bi &= 0x7FFFFFFFFFFFFFFFULL;
-        return ai > bi ? ai - bi : bi - ai;
+        std::int64_t ia, ib;
+        std::memcpy(&ia, &a, sizeof(ia));
+        std::memcpy(&ib, &b, sizeof(ib));
+
+        if (ia < 0) ia ^= 0x7FFFFFFFFFFFFFFFLL;
+        if (ib < 0) ib ^= 0x7FFFFFFFFFFFFFFFLL;
+
+        // For 64-bit, handle potential overflow in subtraction when signs differ
+        if ((ia >= 0) != (ib >= 0)) {
+            // Different signs after transformation: distance = |ia| + |ib|
+            // Safe negation that handles INT64_MIN
+            auto safe_abs = [](std::int64_t x) -> std::uint64_t {
+                return x < 0 ? static_cast<std::uint64_t>(~x) + 1 : static_cast<std::uint64_t>(x);
+            };
+            return safe_abs(ia) + safe_abs(ib);
+        }
+        // Same sign: simple subtraction (no overflow possible)
+        return ia >= ib ? static_cast<std::uint64_t>(ia - ib) : static_cast<std::uint64_t>(ib - ia);
     }
     else {
         // For f16/bf16, convert to f32 and compute there
