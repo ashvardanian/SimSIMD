@@ -2075,6 +2075,16 @@ int main(int argc, char **argv) {
     curved_<f16_k, f32_k, f64_k>("mahalanobis_f16_sapphire", nk_mahalanobis_f16_sapphire, nk_mahalanobis_f16_accurate);
     curved_<f16c_k, f32c_k, f64c_k>("bilinear_f16c_sapphire", nk_bilinear_f16c_sapphire, nk_bilinear_f16c_accurate);
 
+    elementwise_<f16_k, nk_kernel_unknown_k, f32_k, f32_k, f32_k, f32_k>(
+        "sin_f16_sapphire", nk_sin_f16_sapphire, elementwise_with_stl<nk_f16_t, sin_with_stl<nk_f64_t>>,
+        nk_l2_f16_accurate);
+    elementwise_<f16_k, nk_kernel_unknown_k, f32_k, f32_k, f32_k, f32_k>(
+        "cos_f16_sapphire", nk_cos_f16_sapphire, elementwise_with_stl<nk_f16_t, cos_with_stl<nk_f64_t>>,
+        nk_l2_f16_accurate);
+    elementwise_<f16_k, nk_kernel_unknown_k, f32_k, f32_k, f32_k, f32_k>(
+        "atan_f16_sapphire", nk_atan_f16_sapphire, elementwise_with_stl<nk_f16_t, atan_with_stl<nk_f64_t>>,
+        nk_l2_f16_accurate);
+
     matmul_<nk_bf16_t, nk_f32_t>("dots_bf16bf16f32_sapphire_amx", nk_dots_bf16bf16f32_packed_size_sapphire_amx,
                                  nk_dots_bf16bf16f32_pack_sapphire_amx, nk_dots_bf16bf16f32_sapphire_amx);
     matmul_<nk_i8_t, nk_i32_t>("dots_i8i8i32_sapphire_amx", nk_dots_i8i8i32_packed_size_sapphire_amx,
@@ -2199,6 +2209,17 @@ int main(int argc, char **argv) {
     elementwise_<f64_k, nk_kernel_unknown_k, f64_k, f64_k, f64_k, f64_k>(
         "atan_f64_serial", nk_atan_f64_serial, elementwise_with_stl<nk_f64_t, atan_with_stl<nk_f64_t>>,
         l2_with_stl<nk_f64_t>);
+
+    // f16 trigonometry serial (via f32 upcast)
+    elementwise_<f16_k, nk_kernel_unknown_k, f32_k, f32_k, f32_k, f32_k>(
+        "sin_f16_serial", nk_sin_f16_serial, elementwise_with_stl<nk_f16_t, sin_with_stl<nk_f64_t>>,
+        nk_l2_f16_accurate);
+    elementwise_<f16_k, nk_kernel_unknown_k, f32_k, f32_k, f32_k, f32_k>(
+        "cos_f16_serial", nk_cos_f16_serial, elementwise_with_stl<nk_f16_t, cos_with_stl<nk_f64_t>>,
+        nk_l2_f16_accurate);
+    elementwise_<f16_k, nk_kernel_unknown_k, f32_k, f32_k, f32_k, f32_k>(
+        "atan_f16_serial", nk_atan_f16_serial, elementwise_with_stl<nk_f16_t, atan_with_stl<nk_f64_t>>,
+        nk_l2_f16_accurate);
 
     elementwise_<f16_k, nk_kernel_fma_k, f32_k, f64_k, f32_k, f64_k>("fma_f16_serial", nk_fma_f16_serial,
                                                                      nk_fma_f16_accurate, nk_l2_f16_accurate);

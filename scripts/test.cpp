@@ -806,6 +806,9 @@ using fma_f32_t = void (*)(nk_f32_t const *, nk_f32_t const *, nk_f32_t const *,
                            nk_f32_t const *, nk_f32_t *);
 
 // Trigonometry kernels
+using sin_f16_t = void (*)(nk_f16_t const *, nk_size_t, nk_f16_t *);
+using cos_f16_t = void (*)(nk_f16_t const *, nk_size_t, nk_f16_t *);
+using atan_f16_t = void (*)(nk_f16_t const *, nk_size_t, nk_f16_t *);
 using sin_f32_t = void (*)(nk_f32_t const *, nk_size_t, nk_f32_t *);
 using cos_f32_t = void (*)(nk_f32_t const *, nk_size_t, nk_f32_t *);
 using sin_f64_t = void (*)(nk_f64_t const *, nk_size_t, nk_f64_t *);
@@ -3137,6 +3140,90 @@ error_stats_t test_cos_f64(cos_f64_t kernel) {
     return stats;
 }
 
+/**
+ *  @brief Test sin approximation precision for f16.
+ */
+error_stats_t test_sin_f16(sin_f16_t kernel) {
+    error_stats_t stats;
+
+    constexpr float pi = 3.14159265358979323846f;
+    constexpr std::size_t n_samples = 10000;
+
+    aligned_buffer<nk_f16_t> inputs(n_samples), outputs(n_samples);
+    for (std::size_t i = 0; i < n_samples; i++) {
+        inputs[i] = static_cast<nk_f16_t>(-2 * pi + (4 * pi * i) / n_samples);
+    }
+
+    kernel(inputs.data, n_samples, outputs.data);
+
+    for (std::size_t i = 0; i < n_samples; i++) {
+        f128_t ref = mp::sin(f128_t(static_cast<float>(inputs[i])));
+        // For f16, convert to f32 for ULP calculation (f16 has only 10 mantissa bits)
+        float output_f32 = static_cast<float>(outputs[i]);
+        float ref_f32 = static_cast<float>(ref);
+        std::uint64_t ulps = ulp_distance(output_f32, ref_f32);
+        // Scale ULP by 2^13 to approximate f16 ULPs (f32 has 23 mantissa bits, f16 has 10)
+        ulps = ulps >> 13;
+        stats.accumulate(static_cast<double>(ref), static_cast<double>(outputs[i]), ulps);
+    }
+
+    return stats;
+}
+
+/**
+ *  @brief Test cos approximation precision for f16.
+ */
+error_stats_t test_cos_f16(cos_f16_t kernel) {
+    error_stats_t stats;
+
+    constexpr float pi = 3.14159265358979323846f;
+    constexpr std::size_t n_samples = 10000;
+
+    aligned_buffer<nk_f16_t> inputs(n_samples), outputs(n_samples);
+    for (std::size_t i = 0; i < n_samples; i++) {
+        inputs[i] = static_cast<nk_f16_t>(-2 * pi + (4 * pi * i) / n_samples);
+    }
+
+    kernel(inputs.data, n_samples, outputs.data);
+
+    for (std::size_t i = 0; i < n_samples; i++) {
+        f128_t ref = mp::cos(f128_t(static_cast<float>(inputs[i])));
+        float output_f32 = static_cast<float>(outputs[i]);
+        float ref_f32 = static_cast<float>(ref);
+        std::uint64_t ulps = ulp_distance(output_f32, ref_f32);
+        ulps = ulps >> 13;
+        stats.accumulate(static_cast<double>(ref), static_cast<double>(outputs[i]), ulps);
+    }
+
+    return stats;
+}
+
+/**
+ *  @brief Test atan approximation precision for f16.
+ */
+error_stats_t test_atan_f16(atan_f16_t kernel) {
+    error_stats_t stats;
+
+    constexpr std::size_t n_samples = 10000;
+
+    aligned_buffer<nk_f16_t> inputs(n_samples), outputs(n_samples);
+    // Test range [-10, 10] for atan
+    for (std::size_t i = 0; i < n_samples; i++) { inputs[i] = static_cast<nk_f16_t>(-10.0f + (20.0f * i) / n_samples); }
+
+    kernel(inputs.data, n_samples, outputs.data);
+
+    for (std::size_t i = 0; i < n_samples; i++) {
+        f128_t ref = mp::atan(f128_t(static_cast<float>(inputs[i])));
+        float output_f32 = static_cast<float>(outputs[i]);
+        float ref_f32 = static_cast<float>(ref);
+        std::uint64_t ulps = ulp_distance(output_f32, ref_f32);
+        ulps = ulps >> 13;
+        stats.accumulate(static_cast<double>(ref), static_cast<double>(outputs[i]), ulps);
+    }
+
+    return stats;
+}
+
 void test_trigonometry() {
     if (!global_config.should_run("trig") && !global_config.should_run("sin") && !global_config.should_run("cos"))
         return;
@@ -3172,11 +3259,20 @@ void test_trigonometry() {
     test_cos_f64(nk_cos_f64_skylake).report("cos_skylake", "f64");
 #endif // NK_TARGET_SKYLAKE
 
+#if NK_TARGET_SAPPHIRE
+    test_sin_f16(nk_sin_f16_sapphire).report("sin_sapphire", "f16");
+    test_cos_f16(nk_cos_f16_sapphire).report("cos_sapphire", "f16");
+    test_atan_f16(nk_atan_f16_sapphire).report("atan_sapphire", "f16");
+#endif // NK_TARGET_SAPPHIRE
+
     // Serial always runs - baseline test
     test_sin_f32(nk_sin_f32_serial).report("sin_serial", "f32");
     test_cos_f32(nk_cos_f32_serial).report("cos_serial", "f32");
     test_sin_f64(nk_sin_f64_serial).report("sin_serial", "f64");
     test_cos_f64(nk_cos_f64_serial).report("cos_serial", "f64");
+    test_sin_f16(nk_sin_f16_serial).report("sin_serial", "f16");
+    test_cos_f16(nk_cos_f16_serial).report("cos_serial", "f16");
+    test_atan_f16(nk_atan_f16_serial).report("atan_serial", "f16");
 
 #endif // NK_DYNAMIC_DISPATCH
 }
@@ -4082,6 +4178,9 @@ void test_dots() {
     test_dots_f32f32f32(nk_dots_f32f32f32_packed_size_haswell, nk_dots_f32f32f32_pack_haswell,
                         nk_dots_f32f32f32_haswell)
         .report("dots_haswell", "f32f32f32");
+    test_dots_f64f64f64(nk_dots_f64f64f64_packed_size_haswell, nk_dots_f64f64f64_pack_haswell,
+                        nk_dots_f64f64f64_haswell)
+        .report("dots_haswell", "f64f64f64");
 #endif // NK_TARGET_HASWELL
 
 #if NK_TARGET_SKYLAKE
