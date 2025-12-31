@@ -19,7 +19,7 @@
  *    NK_TEST_MATMUL_DIMENSION_M=N - GEMM M dimension (default: 64)
  *    NK_TEST_MATMUL_DIMENSION_N=N - GEMM N dimension (default: 64)
  *    NK_TEST_MATMUL_DIMENSION_K=N - GEMM K dimension (default: 64)
- *    NK_TEST_DISTRIBUTION=<type>  - Random distribution: uniform|lognormal|cauchy (default: lognormal)
+ *    NK_TEST_DISTRIBUTION=<type>  - Random distribution: uniform_k|lognormal_k|cauchy_k (default: lognormal_k)
  */
 
 #pragma region Includes_and_Configuration
@@ -38,99 +38,36 @@
 #include <regex>
 #include <vector>
 
+#include <boost/multiprecision/cpp_bin_float.hpp>
+
 #if NK_TEST_USE_OPENMP
 #include <omp.h>
 #endif
 
-#include <boost/multiprecision/cpp_bin_float.hpp>
+// Optional BLAS/MKL integration for precision comparison
+#ifndef NK_COMPARE_TO_BLAS
+#define NK_COMPARE_TO_BLAS 0
+#endif
+#ifndef NK_COMPARE_TO_MKL
+#define NK_COMPARE_TO_MKL 0
+#endif
 
-#define NK_NATIVE_F16  0
-#define NK_NATIVE_BF16 0
-#include <numkong/numkong.h>
-
-// Optional BLAS integration for precision comparison
-#if NK_COMPARE_TO_BLAS
+#if NK_COMPARE_TO_MKL
+#include <mkl.h> // MKL includes its own CBLAS interface
+#elif NK_COMPARE_TO_BLAS
 #ifdef __APPLE__
 #include <Accelerate/Accelerate.h>
 #else
 #include <cblas.h>
 #endif
-
-#if NK_COMPARE_TO_MKL
-#include <mkl.h>
 #endif
 
-void dot_f32_blas(nk_f32_t const *a, nk_f32_t const *b, nk_size_t n, nk_f32_t *result) {
-    *result = cblas_sdot(static_cast<int>(n), a, 1, b, 1);
-}
+#define NK_NATIVE_F16  0
+#define NK_NATIVE_BF16 0
+#include <numkong/numkong.h>
 
-void dot_f64_blas(nk_f64_t const *a, nk_f64_t const *b, nk_size_t n, nk_f64_t *result) {
-    *result = cblas_ddot(static_cast<int>(n), a, 1, b, 1);
-}
-
-void dot_f32c_blas(nk_f32c_t const *a, nk_f32c_t const *b, nk_size_t n, nk_f32c_t *result) {
-    cblas_cdotu_sub(static_cast<int>(n), a, 1, b, 1, result);
-}
-
-void vdot_f32c_blas(nk_f32c_t const *a, nk_f32c_t const *b, nk_size_t n, nk_f32c_t *result) {
-    cblas_cdotc_sub(static_cast<int>(n), a, 1, b, 1, result); // conjugated
-}
-
-void dot_f64c_blas(nk_f64c_t const *a, nk_f64c_t const *b, nk_size_t n, nk_f64c_t *result) {
-    cblas_zdotu_sub(static_cast<int>(n), a, 1, b, 1, result);
-}
-
-void vdot_f64c_blas(nk_f64c_t const *a, nk_f64c_t const *b, nk_size_t n, nk_f64c_t *result) {
-    cblas_zdotc_sub(static_cast<int>(n), a, 1, b, 1, result); // conjugated
-}
-
-void dots_f32_blas(nk_f32_t const *a, nk_f32_t const *b, nk_f32_t *c, nk_size_t m, nk_size_t n, nk_size_t k,
-                   nk_size_t a_stride, nk_size_t c_stride) {
-    (void)a_stride;
-    (void)c_stride;
-    cblas_sgemm(CblasRowMajor, CblasNoTrans, CblasTrans, static_cast<int>(m), static_cast<int>(n), static_cast<int>(k),
-                1.0f, a, static_cast<int>(k), b, static_cast<int>(k), 0.0f, c, static_cast<int>(n));
-}
-
-void dots_f64_blas(nk_f64_t const *a, nk_f64_t const *b, nk_f64_t *c, nk_size_t m, nk_size_t n, nk_size_t k,
-                   nk_size_t a_stride, nk_size_t c_stride) {
-    (void)a_stride;
-    (void)c_stride;
-    cblas_dgemm(CblasRowMajor, CblasNoTrans, CblasTrans, static_cast<int>(m), static_cast<int>(n), static_cast<int>(k),
-                1.0, a, static_cast<int>(k), b, static_cast<int>(k), 0.0, c, static_cast<int>(n));
-}
-
-#if NK_COMPARE_TO_MKL
-void dots_bf16_mkl(nk_bf16_t const *a, nk_bf16_t const *b, nk_f32_t *c, nk_size_t m, nk_size_t n, nk_size_t k,
-                   nk_size_t a_stride, nk_size_t c_stride) {
-    (void)a_stride;
-    (void)c_stride;
-    cblas_gemm_bf16bf16f32(CblasRowMajor, CblasNoTrans, CblasTrans, static_cast<MKL_INT>(m), static_cast<MKL_INT>(n),
-                           static_cast<MKL_INT>(k), 1.0f, a, static_cast<MKL_INT>(k), b, static_cast<MKL_INT>(k), 0.0f,
-                           c, static_cast<MKL_INT>(n));
-}
-
-void dots_f16_mkl(nk_f16_t const *a, nk_f16_t const *b, nk_f32_t *c, nk_size_t m, nk_size_t n, nk_size_t k,
-                  nk_size_t a_stride, nk_size_t c_stride) {
-    (void)a_stride;
-    (void)c_stride;
-    cblas_gemm_f16f16f32(CblasRowMajor, CblasNoTrans, CblasTrans, static_cast<MKL_INT>(m), static_cast<MKL_INT>(n),
-                         static_cast<MKL_INT>(k), 1.0f, reinterpret_cast<MKL_F16 const *>(a), static_cast<MKL_INT>(k),
-                         reinterpret_cast<MKL_F16 const *>(b), static_cast<MKL_INT>(k), 0.0f, c,
-                         static_cast<MKL_INT>(n));
-}
-
-void dots_i8_mkl(nk_i8_t const *a, nk_u8_t const *b, nk_i32_t *c, nk_size_t m, nk_size_t n, nk_size_t k,
-                 nk_size_t a_stride, nk_size_t c_stride) {
-    (void)a_stride;
-    (void)c_stride;
-    MKL_INT32 c_offset = 0;
-    cblas_gemm_s8u8s32(CblasRowMajor, CblasNoTrans, CblasTrans, CblasFixOffset, static_cast<MKL_INT>(m),
-                       static_cast<MKL_INT>(n), static_cast<MKL_INT>(k), 1.0f, a, static_cast<MKL_INT>(k), 0, b,
-                       static_cast<MKL_INT>(k), 0, 0.0f, c, static_cast<MKL_INT>(n), &c_offset);
-}
-#endif // NK_COMPARE_TO_MKL
-#endif // NK_COMPARE_TO_BLAS
+using steady_clock = std::chrono::steady_clock;
+using time_point = steady_clock::time_point;
 
 namespace mp = boost::multiprecision;
 using f128_t = mp::cpp_bin_float_quad;
@@ -138,79 +75,80 @@ using f64_t = double;
 using f32_t = float;
 
 /**
- *  @brief Double-double arithmetic (~106-bit mantissa, ~7x overhead vs double).
- *  Uses Knuth two-sum + FMA for error-free transformations.
+ *  @brief Double-double arithmetic with ~106-bit mantissa.
+ *  Uses Knuth two-sum + FMA for lower-error transformations.
+ *
+ *      Type                        Speed  Mantissa  Notes
+ *      double                      1.0x   53-bit    Hardware
+ *      long double                 1.5x   64-bit    x87 hardware
+ *      double_double_t             11x    ~106-bit  Software, FMA-based
+ *      __float128                  88x    113-bit   libquadmath
+ *      boost::float128             91x    113-bit   Wrapper around `__float128`
+ *      boost::cpp_bin_float_quad   200x   113-bit   Pure C++ (slowest!)
+ *      boost::cpp_bin_float_50     237x   ~166-bit  50 decimal digits
  */
-struct dd_t {
+struct double_double_t {
     double hi, lo;
 
-    dd_t() noexcept : hi(0), lo(0) {}
-    dd_t(double h, double l) noexcept : hi(h), lo(l) {}
-    dd_t(double v) noexcept : hi(v), lo(0) {}
+    inline double_double_t() noexcept : hi(0), lo(0) {}
+    inline double_double_t(double h, double l) noexcept : hi(h), lo(l) {}
+    inline double_double_t(double v) noexcept : hi(v), lo(0) {}
 
-    static dd_t two_sum(double a, double b) noexcept {
-        double s = a + b;
-        double v = s - a;
-        return dd_t(s, (a - (s - v)) + (b - v));
+    inline explicit double_double_t(f128_t const &v) noexcept {
+        hi = static_cast<double>(v);
+        lo = static_cast<double>(v - f128_t(hi));
     }
 
-    static dd_t quick_two_sum(double a, double b) noexcept { return dd_t(a + b, b - ((a + b) - a)); }
+    inline static double_double_t two_sum(double a, double b) noexcept {
+        double s = a + b;
+        double v = s - a;
+        return double_double_t(s, (a - (s - v)) + (b - v));
+    }
 
-    dd_t operator+(dd_t const &o) const noexcept {
-        dd_t s = two_sum(hi, o.hi);
+    inline static double_double_t quick_two_sum(double a, double b) noexcept {
+        return double_double_t(a + b, b - ((a + b) - a));
+    }
+
+    inline double_double_t operator+(double_double_t const &o) const noexcept {
+        double_double_t s = two_sum(hi, o.hi);
         s.lo += lo + o.lo;
         return quick_two_sum(s.hi, s.lo);
     }
 
-    dd_t &operator+=(dd_t const &o) noexcept { return *this = *this + o; }
+    inline double_double_t &operator+=(double_double_t const &o) noexcept { return *this = *this + o; }
 
-    dd_t operator-(dd_t const &o) const noexcept {
-        dd_t s = two_sum(hi, -o.hi);
+    inline double_double_t operator-(double_double_t const &o) const noexcept {
+        double_double_t s = two_sum(hi, -o.hi);
         s.lo += lo - o.lo;
         return quick_two_sum(s.hi, s.lo);
     }
 
-    dd_t operator*(dd_t const &o) const noexcept {
+    inline double_double_t operator*(double_double_t const &o) const noexcept {
         double p = hi * o.hi;
         return quick_two_sum(p, std::fma(hi, o.hi, -p) + hi * o.lo + lo * o.hi);
     }
 
-    dd_t operator/(dd_t const &o) const noexcept {
+    inline double_double_t operator/(double_double_t const &o) const noexcept {
         double q = hi / o.hi;
-        dd_t r = *this - o * dd_t(q);
+        double_double_t r = *this - o * double_double_t(q);
         return quick_two_sum(q, r.hi / o.hi);
     }
 
-    bool operator==(dd_t const &o) const noexcept { return hi == o.hi && lo == o.lo; }
-    bool operator!=(dd_t const &o) const noexcept { return !(*this == o); }
-    bool operator<(dd_t const &o) const noexcept { return hi < o.hi || (hi == o.hi && lo < o.lo); }
-    bool operator>(dd_t const &o) const noexcept { return o < *this; }
-    bool operator<=(dd_t const &o) const noexcept { return !(o < *this); }
-    bool operator>=(dd_t const &o) const noexcept { return !(*this < o); }
+    inline bool operator==(double_double_t const &o) const noexcept { return hi == o.hi && lo == o.lo; }
+    inline bool operator!=(double_double_t const &o) const noexcept { return !(*this == o); }
+    inline bool operator<(double_double_t const &o) const noexcept { return hi < o.hi || (hi == o.hi && lo < o.lo); }
+    inline bool operator>(double_double_t const &o) const noexcept { return o < *this; }
+    inline bool operator<=(double_double_t const &o) const noexcept { return !(o < *this); }
+    inline bool operator>=(double_double_t const &o) const noexcept { return !(*this < o); }
 
-    explicit operator double() const noexcept { return hi + lo; }
+    inline explicit operator double() const noexcept { return hi + lo; }
+    inline explicit operator f128_t() const noexcept { return f128_t(hi) + f128_t(lo); }
 };
 
-// Best available high-precision type for f64 verification
-// Priority: __float128 (~10-20x) > 80-bit long double (~2-3x) > double-double (~7x)
-#if defined(__SIZEOF_FLOAT128__) && defined(__x86_64__)
-using fmax_t = __float128;
-constexpr int fmax_mantissa_bits = 113;
-constexpr char const *fmax_name = "__float128";
-#elif defined(__LDBL_MANT_DIG__) && __LDBL_MANT_DIG__ >= 64
-using fmax_t = long double;
-constexpr int fmax_mantissa_bits = __LDBL_MANT_DIG__;
-constexpr char const *fmax_name = "long double";
-#else
-using fmax_t = dd_t;
-constexpr int fmax_mantissa_bits = 106;
-constexpr char const *fmax_name = "double-double";
-#endif
+using fmax_t = double_double_t;
 
-// Distribution types for random test data
-enum class dist_type { uniform, lognormal, cauchy };
+enum class random_distribution_kind_t { uniform_k, lognormal_k, cauchy_k };
 
-// Test configuration with environment variable overrides
 struct test_config_t {
     bool assert_on_failure = false;
     bool verbose = false; // Show per-dimension stats
@@ -219,24 +157,8 @@ struct test_config_t {
     std::uint64_t ulp_threshold_bf16 = 256;
     std::size_t time_budget_ms = 1000; // Time budget per kernel in milliseconds
     std::uint32_t seed = 12345;
-    char const *filter = nullptr;                  // Filter tests by name (substring match)
-    dist_type distribution = dist_type::lognormal; // Default: moderate heavy tails
-
-    test_config_t() {
-        if (char const *env = std::getenv("NK_TEST_ASSERT")) assert_on_failure = std::atoi(env) != 0;
-        if (char const *env = std::getenv("NK_TEST_VERBOSE")) verbose = std::atoi(env) != 0;
-        if (char const *env = std::getenv("NK_TEST_ULP_THRESHOLD_F32")) ulp_threshold_f32 = std::atoll(env);
-        if (char const *env = std::getenv("NK_TEST_ULP_THRESHOLD_F16")) ulp_threshold_f16 = std::atoll(env);
-        if (char const *env = std::getenv("NK_TEST_ULP_THRESHOLD_BF16")) ulp_threshold_bf16 = std::atoll(env);
-        if (char const *env = std::getenv("NK_TEST_TIME_BUDGET_MS")) time_budget_ms = std::atoll(env);
-        if (char const *env = std::getenv("NK_TEST_SEED")) seed = std::atoll(env);
-        filter = std::getenv("NK_TEST_FILTER"); // e.g., "dot", "angular", "kld"
-        if (char const *env = std::getenv("NK_TEST_DISTRIBUTION")) {
-            if (std::strcmp(env, "uniform") == 0) distribution = dist_type::uniform;
-            else if (std::strcmp(env, "cauchy") == 0) distribution = dist_type::cauchy;
-            else if (std::strcmp(env, "lognormal") == 0) distribution = dist_type::lognormal;
-        }
-    }
+    char const *filter = nullptr; // Filter tests by name (substring match)
+    random_distribution_kind_t distribution = random_distribution_kind_t::lognormal_k; // Default: moderate heavy tails
 
     bool should_run(char const *test_name) const {
         if (!filter) return true;
@@ -252,9 +174,9 @@ struct test_config_t {
 
     char const *distribution_name() const noexcept {
         switch (distribution) {
-        case dist_type::uniform: return "uniform";
-        case dist_type::lognormal: return "lognormal";
-        case dist_type::cauchy: return "cauchy";
+        case random_distribution_kind_t::uniform_k: return "uniform";
+        case random_distribution_kind_t::lognormal_k: return "lognormal";
+        case random_distribution_kind_t::cauchy_k: return "cauchy";
         default: return "unknown";
         }
     }
@@ -262,9 +184,18 @@ struct test_config_t {
 
 static test_config_t global_config;
 
-// Helper for time-budgeted test loops
-using steady_clock = std::chrono::steady_clock;
-using time_point = steady_clock::time_point;
+/**
+ *  @brief Run a test only if its full name matches the filter.
+ *  @param name The test name (e.g., "dot_blas", "l2sq_haswell")
+ *  @param type The type signature (e.g., "f32", "bf16")
+ *  @param test_fn The test function that returns error_stats_t
+ *  @param args Variadic arguments to forward to the test function
+ */
+template <typename test_function_type_, typename... args_types_>
+void run_if_matches(char const *name, char const *type, test_function_type_ test_fn, args_types_ &&...args) {
+    std::string full_name = std::string(name) + "_" + type;
+    if (global_config.should_run(full_name.c_str())) { test_fn(std::forward<args_types_>(args)...).report(name, type); }
+}
 
 inline time_point test_start_time() { return steady_clock::now(); }
 
@@ -651,19 +582,19 @@ struct aligned_buffer {
  *  @brief Fill buffer with random values using configured distribution.
  *
  *  Distributions:
- *    - uniform:   Bounded ±1, fastest baseline
- *    - lognormal: Sign-randomized log-normal, moderate heavy tails (typical of ML activations)
- *    - cauchy:    Extreme tails (undefined variance), stress tests edge cases
+ *    - uniform_k:   Bounded ±1, fastest baseline
+ *    - lognormal_k: Sign-randomized log-normal, moderate heavy tails (typical of ML activations)
+ *    - cauchy_k:    Extreme tails (undefined variance), stress tests edge cases
  */
 template <typename scalar_type_, typename generator_type_>
 void fill_random(aligned_buffer<scalar_type_> &buf, generator_type_ &rng, double min_val = -1.0, double max_val = 1.0) {
     switch (global_config.distribution) {
-    case dist_type::uniform: {
+    case random_distribution_kind_t::uniform_k: {
         std::uniform_real_distribution<double> dist(min_val, max_val);
         for (std::size_t i = 0; i < buf.count; i++) { buf[i] = static_cast<scalar_type_>(dist(rng)); }
         break;
     }
-    case dist_type::lognormal: {
+    case random_distribution_kind_t::lognormal_k: {
         // Log-normal with random sign: positive/negative, moderate heavy tails
         // μ=0, σ=1 gives values mostly in [0.1, 10], occasionally [0.01, 100]
         std::lognormal_distribution<double> lognorm(0.0, 1.0);
@@ -675,11 +606,11 @@ void fill_random(aligned_buffer<scalar_type_> &buf, generator_type_ &rng, double
         }
         break;
     }
-    case dist_type::cauchy: {
+    case random_distribution_kind_t::cauchy_k: {
         // Cauchy: symmetric ±, extreme tails (undefined variance)
         // Mostly [-10, 10], occasionally ±1000+
-        std::cauchy_distribution<double> cauchy(0.0, 1.0);
-        for (std::size_t i = 0; i < buf.count; i++) { buf[i] = static_cast<scalar_type_>(cauchy(rng)); }
+        std::cauchy_distribution<double> cauchy_k(0.0, 1.0);
+        for (std::size_t i = 0; i < buf.count; i++) { buf[i] = static_cast<scalar_type_>(cauchy_k(rng)); }
         break;
     }
     }
@@ -762,6 +693,85 @@ struct bf16_t {
 };
 
 #pragma endregion // Test_Harness_Templates
+
+#pragma region BLAS_Baselines
+
+#if NK_COMPARE_TO_BLAS || NK_COMPARE_TO_MKL
+
+void dot_f32_blas(nk_f32_t const *a, nk_f32_t const *b, nk_size_t n, nk_f32_t *result) {
+    *result = cblas_sdot(static_cast<int>(n), a, 1, b, 1);
+}
+
+void dot_f64_blas(nk_f64_t const *a, nk_f64_t const *b, nk_size_t n, nk_f64_t *result) {
+    *result = cblas_ddot(static_cast<int>(n), a, 1, b, 1);
+}
+
+void dot_f32c_blas(nk_f32c_t const *a, nk_f32c_t const *b, nk_size_t n, nk_f32c_t *result) {
+    cblas_cdotu_sub(static_cast<int>(n), a, 1, b, 1, result);
+}
+
+void vdot_f32c_blas(nk_f32c_t const *a, nk_f32c_t const *b, nk_size_t n, nk_f32c_t *result) {
+    cblas_cdotc_sub(static_cast<int>(n), a, 1, b, 1, result); // conjugated
+}
+
+void dot_f64c_blas(nk_f64c_t const *a, nk_f64c_t const *b, nk_size_t n, nk_f64c_t *result) {
+    cblas_zdotu_sub(static_cast<int>(n), a, 1, b, 1, result);
+}
+
+void vdot_f64c_blas(nk_f64c_t const *a, nk_f64c_t const *b, nk_size_t n, nk_f64c_t *result) {
+    cblas_zdotc_sub(static_cast<int>(n), a, 1, b, 1, result); // conjugated
+}
+
+void dots_f32_blas(nk_f32_t const *a, nk_f32_t const *b, nk_f32_t *c, nk_size_t m, nk_size_t n, nk_size_t k,
+                   nk_size_t a_stride, nk_size_t c_stride) {
+    (void)a_stride;
+    (void)c_stride;
+    cblas_sgemm(CblasRowMajor, CblasNoTrans, CblasTrans, static_cast<int>(m), static_cast<int>(n), static_cast<int>(k),
+                1.0f, a, static_cast<int>(k), b, static_cast<int>(k), 0.0f, c, static_cast<int>(n));
+}
+
+void dots_f64_blas(nk_f64_t const *a, nk_f64_t const *b, nk_f64_t *c, nk_size_t m, nk_size_t n, nk_size_t k,
+                   nk_size_t a_stride, nk_size_t c_stride) {
+    (void)a_stride;
+    (void)c_stride;
+    cblas_dgemm(CblasRowMajor, CblasNoTrans, CblasTrans, static_cast<int>(m), static_cast<int>(n), static_cast<int>(k),
+                1.0, a, static_cast<int>(k), b, static_cast<int>(k), 0.0, c, static_cast<int>(n));
+}
+#endif // NK_COMPARE_TO_BLAS || NK_COMPARE_TO_MKL
+
+#if NK_COMPARE_TO_MKL
+void dots_bf16_mkl(nk_bf16_t const *a, nk_bf16_t const *b, nk_f32_t *c, nk_size_t m, nk_size_t n, nk_size_t k,
+                   nk_size_t a_stride, nk_size_t c_stride) {
+    (void)a_stride;
+    (void)c_stride;
+    cblas_gemm_bf16bf16f32(CblasRowMajor, CblasNoTrans, CblasTrans, static_cast<MKL_INT>(m), static_cast<MKL_INT>(n),
+                           static_cast<MKL_INT>(k), 1.0f, a, static_cast<MKL_INT>(k), b, static_cast<MKL_INT>(k), 0.0f,
+                           c, static_cast<MKL_INT>(n));
+}
+
+void dots_f16_mkl(nk_f16_t const *a, nk_f16_t const *b, nk_f32_t *c, nk_size_t m, nk_size_t n, nk_size_t k,
+                  nk_size_t a_stride, nk_size_t c_stride) {
+    (void)a_stride;
+    (void)c_stride;
+    cblas_gemm_f16f16f32(CblasRowMajor, CblasNoTrans, CblasTrans, static_cast<MKL_INT>(m), static_cast<MKL_INT>(n),
+                         static_cast<MKL_INT>(k), 1.0f, reinterpret_cast<MKL_F16 const *>(a), static_cast<MKL_INT>(k),
+                         reinterpret_cast<MKL_F16 const *>(b), static_cast<MKL_INT>(k), 0.0f, c,
+                         static_cast<MKL_INT>(n));
+}
+
+void dots_i8_mkl(nk_i8_t const *a, nk_u8_t const *b, nk_i32_t *c, nk_size_t m, nk_size_t n, nk_size_t k,
+                 nk_size_t a_stride, nk_size_t c_stride) {
+    (void)a_stride;
+    (void)c_stride;
+    MKL_INT32 c_offset = 0;
+    cblas_gemm_s8u8s32(CblasRowMajor, CblasNoTrans, CblasTrans, CblasFixOffset, static_cast<MKL_INT>(m),
+                       static_cast<MKL_INT>(n), static_cast<MKL_INT>(k), 1.0f, a, static_cast<MKL_INT>(k), 0, b,
+                       static_cast<MKL_INT>(k), 0, 0.0f, c, static_cast<MKL_INT>(n), &c_offset);
+}
+
+#endif // NK_COMPARE_TO_MKL
+
+#pragma endregion // BLAS_Baselines
 
 #pragma region Kernel_Types
 
@@ -1260,76 +1270,75 @@ error_stats_t test_reduce_max_e5m2(reduce_minmax_e5m2_t kernel) {
 }
 
 void test_reduce() {
-    if (!global_config.should_run("reduce")) return;
     std::printf("Testing reductions...\n");
 
 #if NK_DYNAMIC_DISPATCH
     // Dynamic dispatch - only test the dispatcher itself
-    test_reduce_add_f32(nk_reduce_add_f32).report("reduce_add", "f32");
-    test_reduce_add_f64(nk_reduce_add_f64).report("reduce_add", "f64");
-    test_reduce_add_i32(nk_reduce_add_i32).report("reduce_add", "i32");
-    test_reduce_add_e4m3(nk_reduce_add_e4m3).report("reduce_add", "e4m3");
-    test_reduce_add_e5m2(nk_reduce_add_e5m2).report("reduce_add", "e5m2");
-    test_reduce_min_f32(nk_reduce_min_f32).report("reduce_min", "f32");
-    test_reduce_max_f32(nk_reduce_max_f32).report("reduce_max", "f32");
-    test_reduce_min_e4m3(nk_reduce_min_e4m3).report("reduce_min", "e4m3");
-    test_reduce_max_e4m3(nk_reduce_max_e4m3).report("reduce_max", "e4m3");
-    test_reduce_min_e5m2(nk_reduce_min_e5m2).report("reduce_min", "e5m2");
-    test_reduce_max_e5m2(nk_reduce_max_e5m2).report("reduce_max", "e5m2");
+    run_if_matches("reduce_add", "f32", test_reduce_add_f32, nk_reduce_add_f32);
+    run_if_matches("reduce_add", "f64", test_reduce_add_f64, nk_reduce_add_f64);
+    run_if_matches("reduce_add", "i32", test_reduce_add_i32, nk_reduce_add_i32);
+    run_if_matches("reduce_add", "e4m3", test_reduce_add_e4m3, nk_reduce_add_e4m3);
+    run_if_matches("reduce_add", "e5m2", test_reduce_add_e5m2, nk_reduce_add_e5m2);
+    run_if_matches("reduce_min", "f32", test_reduce_min_f32, nk_reduce_min_f32);
+    run_if_matches("reduce_max", "f32", test_reduce_max_f32, nk_reduce_max_f32);
+    run_if_matches("reduce_min", "e4m3", test_reduce_min_e4m3, nk_reduce_min_e4m3);
+    run_if_matches("reduce_max", "e4m3", test_reduce_max_e4m3, nk_reduce_max_e4m3);
+    run_if_matches("reduce_min", "e5m2", test_reduce_min_e5m2, nk_reduce_min_e5m2);
+    run_if_matches("reduce_max", "e5m2", test_reduce_max_e5m2, nk_reduce_max_e5m2);
 #else
     // Static compilation - test all available ISA variants
 
 #if NK_TARGET_NEON
-    test_reduce_add_f32(nk_reduce_add_f32_neon).report("reduce_add_neon", "f32");
-    test_reduce_add_f64(nk_reduce_add_f64_neon).report("reduce_add_neon", "f64");
-    test_reduce_add_i32(nk_reduce_add_i32_neon).report("reduce_add_neon", "i32");
-    test_reduce_min_f32(nk_reduce_min_f32_neon).report("reduce_min_neon", "f32");
-    test_reduce_max_f32(nk_reduce_max_f32_neon).report("reduce_max_neon", "f32");
+    run_if_matches("reduce_add_neon", "f32", test_reduce_add_f32, nk_reduce_add_f32_neon);
+    run_if_matches("reduce_add_neon", "f64", test_reduce_add_f64, nk_reduce_add_f64_neon);
+    run_if_matches("reduce_add_neon", "i32", test_reduce_add_i32, nk_reduce_add_i32_neon);
+    run_if_matches("reduce_min_neon", "f32", test_reduce_min_f32, nk_reduce_min_f32_neon);
+    run_if_matches("reduce_max_neon", "f32", test_reduce_max_f32, nk_reduce_max_f32_neon);
 #endif // NK_TARGET_NEON
 
 #if NK_TARGET_NEONFHM
-    test_reduce_add_e4m3(nk_reduce_add_e4m3_neonfhm).report("reduce_add_neonfhm", "e4m3");
-    test_reduce_add_e5m2(nk_reduce_add_e5m2_neonfhm).report("reduce_add_neonfhm", "e5m2");
-    test_reduce_min_e4m3(nk_reduce_min_e4m3_neonfhm).report("reduce_min_neonfhm", "e4m3");
-    test_reduce_max_e4m3(nk_reduce_max_e4m3_neonfhm).report("reduce_max_neonfhm", "e4m3");
-    test_reduce_min_e5m2(nk_reduce_min_e5m2_neonfhm).report("reduce_min_neonfhm", "e5m2");
-    test_reduce_max_e5m2(nk_reduce_max_e5m2_neonfhm).report("reduce_max_neonfhm", "e5m2");
+    run_if_matches("reduce_add_neonfhm", "e4m3", test_reduce_add_e4m3, nk_reduce_add_e4m3_neonfhm);
+    run_if_matches("reduce_add_neonfhm", "e5m2", test_reduce_add_e5m2, nk_reduce_add_e5m2_neonfhm);
+    run_if_matches("reduce_min_neonfhm", "e4m3", test_reduce_min_e4m3, nk_reduce_min_e4m3_neonfhm);
+    run_if_matches("reduce_max_neonfhm", "e4m3", test_reduce_max_e4m3, nk_reduce_max_e4m3_neonfhm);
+    run_if_matches("reduce_min_neonfhm", "e5m2", test_reduce_min_e5m2, nk_reduce_min_e5m2_neonfhm);
+    run_if_matches("reduce_max_neonfhm", "e5m2", test_reduce_max_e5m2, nk_reduce_max_e5m2_neonfhm);
 #endif // NK_TARGET_NEONFHM
 
 #if NK_TARGET_HASWELL
-    test_reduce_add_f32(nk_reduce_add_f32_haswell).report("reduce_add_haswell", "f32");
-    test_reduce_add_f64(nk_reduce_add_f64_haswell).report("reduce_add_haswell", "f64");
-    test_reduce_add_i32(nk_reduce_add_i32_haswell).report("reduce_add_haswell", "i32");
-    test_reduce_add_e4m3(nk_reduce_add_e4m3_haswell).report("reduce_add_haswell", "e4m3");
-    test_reduce_add_e5m2(nk_reduce_add_e5m2_haswell).report("reduce_add_haswell", "e5m2");
-    test_reduce_min_f32(nk_reduce_min_f32_haswell).report("reduce_min_haswell", "f32");
-    test_reduce_max_f32(nk_reduce_max_f32_haswell).report("reduce_max_haswell", "f32");
-    test_reduce_min_e4m3(nk_reduce_min_e4m3_haswell).report("reduce_min_haswell", "e4m3");
-    test_reduce_max_e4m3(nk_reduce_max_e4m3_haswell).report("reduce_max_haswell", "e4m3");
-    test_reduce_min_e5m2(nk_reduce_min_e5m2_haswell).report("reduce_min_haswell", "e5m2");
-    test_reduce_max_e5m2(nk_reduce_max_e5m2_haswell).report("reduce_max_haswell", "e5m2");
+    run_if_matches("reduce_add_haswell", "f32", test_reduce_add_f32, nk_reduce_add_f32_haswell);
+    run_if_matches("reduce_add_haswell", "f64", test_reduce_add_f64, nk_reduce_add_f64_haswell);
+    run_if_matches("reduce_add_haswell", "i32", test_reduce_add_i32, nk_reduce_add_i32_haswell);
+    run_if_matches("reduce_add_haswell", "e4m3", test_reduce_add_e4m3, nk_reduce_add_e4m3_haswell);
+    run_if_matches("reduce_add_haswell", "e5m2", test_reduce_add_e5m2, nk_reduce_add_e5m2_haswell);
+    run_if_matches("reduce_min_haswell", "f32", test_reduce_min_f32, nk_reduce_min_f32_haswell);
+    run_if_matches("reduce_max_haswell", "f32", test_reduce_max_f32, nk_reduce_max_f32_haswell);
+    run_if_matches("reduce_min_haswell", "e4m3", test_reduce_min_e4m3, nk_reduce_min_e4m3_haswell);
+    run_if_matches("reduce_max_haswell", "e4m3", test_reduce_max_e4m3, nk_reduce_max_e4m3_haswell);
+    run_if_matches("reduce_min_haswell", "e5m2", test_reduce_min_e5m2, nk_reduce_min_e5m2_haswell);
+    run_if_matches("reduce_max_haswell", "e5m2", test_reduce_max_e5m2, nk_reduce_max_e5m2_haswell);
 #endif // NK_TARGET_HASWELL
 
 #if NK_TARGET_SKYLAKE
-    test_reduce_add_f32(nk_reduce_add_f32_skylake).report("reduce_add_skylake", "f32");
-    test_reduce_add_f64(nk_reduce_add_f64_skylake).report("reduce_add_skylake", "f64");
-    test_reduce_add_i32(nk_reduce_add_i32_skylake).report("reduce_add_skylake", "i32");
-    test_reduce_min_f32(nk_reduce_min_f32_skylake).report("reduce_min_skylake", "f32");
-    test_reduce_max_f32(nk_reduce_max_f32_skylake).report("reduce_max_skylake", "f32");
+    run_if_matches("reduce_add_skylake", "f32", test_reduce_add_f32, nk_reduce_add_f32_skylake);
+    run_if_matches("reduce_add_skylake", "f64", test_reduce_add_f64, nk_reduce_add_f64_skylake);
+    run_if_matches("reduce_add_skylake", "i32", test_reduce_add_i32, nk_reduce_add_i32_skylake);
+    run_if_matches("reduce_min_skylake", "f32", test_reduce_min_f32, nk_reduce_min_f32_skylake);
+    run_if_matches("reduce_max_skylake", "f32", test_reduce_max_f32, nk_reduce_max_f32_skylake);
 #endif // NK_TARGET_SKYLAKE
 
     // Serial always runs - baseline test
-    test_reduce_add_f32(nk_reduce_add_f32_serial).report("reduce_add_serial", "f32");
-    test_reduce_add_f64(nk_reduce_add_f64_serial).report("reduce_add_serial", "f64");
-    test_reduce_add_i32(nk_reduce_add_i32_serial).report("reduce_add_serial", "i32");
-    test_reduce_add_e4m3(nk_reduce_add_e4m3_serial).report("reduce_add_serial", "e4m3");
-    test_reduce_add_e5m2(nk_reduce_add_e5m2_serial).report("reduce_add_serial", "e5m2");
-    test_reduce_min_f32(nk_reduce_min_f32_serial).report("reduce_min_serial", "f32");
-    test_reduce_max_f32(nk_reduce_max_f32_serial).report("reduce_max_serial", "f32");
-    test_reduce_min_e4m3(nk_reduce_min_e4m3_serial).report("reduce_min_serial", "e4m3");
-    test_reduce_max_e4m3(nk_reduce_max_e4m3_serial).report("reduce_max_serial", "e4m3");
-    test_reduce_min_e5m2(nk_reduce_min_e5m2_serial).report("reduce_min_serial", "e5m2");
-    test_reduce_max_e5m2(nk_reduce_max_e5m2_serial).report("reduce_max_serial", "e5m2");
+    run_if_matches("reduce_add_serial", "f32", test_reduce_add_f32, nk_reduce_add_f32_serial);
+    run_if_matches("reduce_add_serial", "f64", test_reduce_add_f64, nk_reduce_add_f64_serial);
+    run_if_matches("reduce_add_serial", "i32", test_reduce_add_i32, nk_reduce_add_i32_serial);
+    run_if_matches("reduce_add_serial", "e4m3", test_reduce_add_e4m3, nk_reduce_add_e4m3_serial);
+    run_if_matches("reduce_add_serial", "e5m2", test_reduce_add_e5m2, nk_reduce_add_e5m2_serial);
+    run_if_matches("reduce_min_serial", "f32", test_reduce_min_f32, nk_reduce_min_f32_serial);
+    run_if_matches("reduce_max_serial", "f32", test_reduce_max_f32, nk_reduce_max_f32_serial);
+    run_if_matches("reduce_min_serial", "e4m3", test_reduce_min_e4m3, nk_reduce_min_e4m3_serial);
+    run_if_matches("reduce_max_serial", "e4m3", test_reduce_max_e4m3, nk_reduce_max_e4m3_serial);
+    run_if_matches("reduce_min_serial", "e5m2", test_reduce_min_e5m2, nk_reduce_min_e5m2_serial);
+    run_if_matches("reduce_max_serial", "e5m2", test_reduce_max_e5m2, nk_reduce_max_e5m2_serial);
 
 #endif // NK_DYNAMIC_DISPATCH
 }
@@ -1729,103 +1738,102 @@ error_stats_t test_vdot_f64c(vdot_f64c_t kernel) {
 }
 
 void test_dot() {
-    if (!global_config.should_run("dot")) return;
     std::printf("Testing dot products...\n");
 
 #if NK_DYNAMIC_DISPATCH
     // Dynamic dispatch - only test the dispatcher itself
-    test_dot_f32(nk_dot_f32).report("dot", "f32");
-    test_dot_f64(nk_dot_f64).report("dot", "f64");
-    test_dot_f16(nk_dot_f16).report("dot", "f16");
-    test_dot_bf16(nk_dot_bf16).report("dot", "bf16");
-    test_dot_e4m3(nk_dot_e4m3).report("dot", "e4m3");
-    test_dot_e5m2(nk_dot_e5m2).report("dot", "e5m2");
-    test_dot_i8(nk_dot_i8).report("dot", "i8");
-    test_dot_u8(nk_dot_u8).report("dot", "u8");
-    test_dot_f32c(nk_dot_f32c).report("dot", "f32c");
-    test_vdot_f32c(nk_vdot_f32c).report("vdot", "f32c");
-    test_dot_f64c(nk_dot_f64c).report("dot", "f64c");
-    test_vdot_f64c(nk_vdot_f64c).report("vdot", "f64c");
+    run_if_matches("dot", "f32", test_dot_f32, nk_dot_f32);
+    run_if_matches("dot", "f64", test_dot_f64, nk_dot_f64);
+    run_if_matches("dot", "f16", test_dot_f16, nk_dot_f16);
+    run_if_matches("dot", "bf16", test_dot_bf16, nk_dot_bf16);
+    run_if_matches("dot", "e4m3", test_dot_e4m3, nk_dot_e4m3);
+    run_if_matches("dot", "e5m2", test_dot_e5m2, nk_dot_e5m2);
+    run_if_matches("dot", "i8", test_dot_i8, nk_dot_i8);
+    run_if_matches("dot", "u8", test_dot_u8, nk_dot_u8);
+    run_if_matches("dot", "f32c", test_dot_f32c, nk_dot_f32c);
+    run_if_matches("vdot", "f32c", test_vdot_f32c, nk_vdot_f32c);
+    run_if_matches("dot", "f64c", test_dot_f64c, nk_dot_f64c);
+    run_if_matches("vdot", "f64c", test_vdot_f64c, nk_vdot_f64c);
 #else
     // Static compilation - test all available ISA variants
 
 #if NK_TARGET_NEON
-    test_dot_f32(nk_dot_f32_neon).report("dot_neon", "f32");
-    test_dot_f64(nk_dot_f64_neon).report("dot_neon", "f64");
-    test_dot_e4m3(nk_dot_e4m3_neon).report("dot_neon", "e4m3");
-    test_dot_e5m2(nk_dot_e5m2_neon).report("dot_neon", "e5m2");
-    test_dot_f32c(nk_dot_f32c_neon).report("dot_neon", "f32c");
-    test_vdot_f32c(nk_vdot_f32c_neon).report("vdot_neon", "f32c");
-    test_dot_f64c(nk_dot_f64c_neon).report("dot_neon", "f64c");
-    test_vdot_f64c(nk_vdot_f64c_neon).report("vdot_neon", "f64c");
+    run_if_matches("dot_neon", "f32", test_dot_f32, nk_dot_f32_neon);
+    run_if_matches("dot_neon", "f64", test_dot_f64, nk_dot_f64_neon);
+    run_if_matches("dot_neon", "e4m3", test_dot_e4m3, nk_dot_e4m3_neon);
+    run_if_matches("dot_neon", "e5m2", test_dot_e5m2, nk_dot_e5m2_neon);
+    run_if_matches("dot_neon", "f32c", test_dot_f32c, nk_dot_f32c_neon);
+    run_if_matches("vdot_neon", "f32c", test_vdot_f32c, nk_vdot_f32c_neon);
+    run_if_matches("dot_neon", "f64c", test_dot_f64c, nk_dot_f64c_neon);
+    run_if_matches("vdot_neon", "f64c", test_vdot_f64c, nk_vdot_f64c_neon);
 #endif // NK_TARGET_NEON
 
 #if NK_TARGET_NEONHALF
-    test_dot_f16(nk_dot_f16_neonhalf).report("dot_neonhalf", "f16");
+    run_if_matches("dot_neonhalf", "f16", test_dot_f16, nk_dot_f16_neonhalf);
 #endif // NK_TARGET_NEONHALF
 
 #if NK_TARGET_NEONBFDOT
-    test_dot_bf16(nk_dot_bf16_neonbfdot).report("dot_neonbfdot", "bf16");
+    run_if_matches("dot_neonbfdot", "bf16", test_dot_bf16, nk_dot_bf16_neonbfdot);
 #endif // NK_TARGET_NEONBFDOT
 
 #if NK_TARGET_NEONSDOT
-    test_dot_i8(nk_dot_i8_neonsdot).report("dot_neonsdot", "i8");
-    test_dot_u8(nk_dot_u8_neonsdot).report("dot_neonsdot", "u8");
+    run_if_matches("dot_neonsdot", "i8", test_dot_i8, nk_dot_i8_neonsdot);
+    run_if_matches("dot_neonsdot", "u8", test_dot_u8, nk_dot_u8_neonsdot);
 #endif // NK_TARGET_NEONSDOT
 
 #if NK_TARGET_HASWELL
-    test_dot_f32(nk_dot_f32_haswell).report("dot_haswell", "f32");
-    test_dot_f64(nk_dot_f64_haswell).report("dot_haswell", "f64");
-    test_dot_f16(nk_dot_f16_haswell).report("dot_haswell", "f16");
-    test_dot_bf16(nk_dot_bf16_haswell).report("dot_haswell", "bf16");
-    test_dot_e4m3(nk_dot_e4m3_haswell).report("dot_haswell", "e4m3");
-    test_dot_e5m2(nk_dot_e5m2_haswell).report("dot_haswell", "e5m2");
-    test_dot_i8(nk_dot_i8_haswell).report("dot_haswell", "i8");
-    test_dot_u8(nk_dot_u8_haswell).report("dot_haswell", "u8");
-    test_dot_f32c(nk_dot_f32c_haswell).report("dot_haswell", "f32c");
-    test_vdot_f32c(nk_vdot_f32c_haswell).report("vdot_haswell", "f32c");
+    run_if_matches("dot_haswell", "f32", test_dot_f32, nk_dot_f32_haswell);
+    run_if_matches("dot_haswell", "f64", test_dot_f64, nk_dot_f64_haswell);
+    run_if_matches("dot_haswell", "f16", test_dot_f16, nk_dot_f16_haswell);
+    run_if_matches("dot_haswell", "bf16", test_dot_bf16, nk_dot_bf16_haswell);
+    run_if_matches("dot_haswell", "e4m3", test_dot_e4m3, nk_dot_e4m3_haswell);
+    run_if_matches("dot_haswell", "e5m2", test_dot_e5m2, nk_dot_e5m2_haswell);
+    run_if_matches("dot_haswell", "i8", test_dot_i8, nk_dot_i8_haswell);
+    run_if_matches("dot_haswell", "u8", test_dot_u8, nk_dot_u8_haswell);
+    run_if_matches("dot_haswell", "f32c", test_dot_f32c, nk_dot_f32c_haswell);
+    run_if_matches("vdot_haswell", "f32c", test_vdot_f32c, nk_vdot_f32c_haswell);
 #endif // NK_TARGET_HASWELL
 
 #if NK_TARGET_SKYLAKE
-    test_dot_f32(nk_dot_f32_skylake).report("dot_skylake", "f32");
-    test_dot_f64(nk_dot_f64_skylake).report("dot_skylake", "f64");
-    test_dot_f16(nk_dot_f16_skylake).report("dot_skylake", "f16");
-    test_dot_bf16(nk_dot_bf16_skylake).report("dot_skylake", "bf16");
-    test_dot_e4m3(nk_dot_e4m3_skylake).report("dot_skylake", "e4m3");
-    test_dot_e5m2(nk_dot_e5m2_skylake).report("dot_skylake", "e5m2");
-    test_dot_i8(nk_dot_i8_skylake).report("dot_skylake", "i8");
-    test_dot_u8(nk_dot_u8_skylake).report("dot_skylake", "u8");
-    test_dot_f32c(nk_dot_f32c_skylake).report("dot_skylake", "f32c");
-    test_vdot_f32c(nk_vdot_f32c_skylake).report("vdot_skylake", "f32c");
-    test_dot_f64c(nk_dot_f64c_skylake).report("dot_skylake", "f64c");
-    test_vdot_f64c(nk_vdot_f64c_skylake).report("vdot_skylake", "f64c");
+    run_if_matches("dot_skylake", "f32", test_dot_f32, nk_dot_f32_skylake);
+    run_if_matches("dot_skylake", "f64", test_dot_f64, nk_dot_f64_skylake);
+    run_if_matches("dot_skylake", "f16", test_dot_f16, nk_dot_f16_skylake);
+    run_if_matches("dot_skylake", "bf16", test_dot_bf16, nk_dot_bf16_skylake);
+    run_if_matches("dot_skylake", "e4m3", test_dot_e4m3, nk_dot_e4m3_skylake);
+    run_if_matches("dot_skylake", "e5m2", test_dot_e5m2, nk_dot_e5m2_skylake);
+    run_if_matches("dot_skylake", "i8", test_dot_i8, nk_dot_i8_skylake);
+    run_if_matches("dot_skylake", "u8", test_dot_u8, nk_dot_u8_skylake);
+    run_if_matches("dot_skylake", "f32c", test_dot_f32c, nk_dot_f32c_skylake);
+    run_if_matches("vdot_skylake", "f32c", test_vdot_f32c, nk_vdot_f32c_skylake);
+    run_if_matches("dot_skylake", "f64c", test_dot_f64c, nk_dot_f64c_skylake);
+    run_if_matches("vdot_skylake", "f64c", test_vdot_f64c, nk_vdot_f64c_skylake);
 #endif // NK_TARGET_SKYLAKE
 
     // Serial always runs - baseline test
-    test_dot_f32(nk_dot_f32_serial).report("dot_serial", "f32");
-    test_dot_f64(nk_dot_f64_serial).report("dot_serial", "f64");
-    test_dot_f16(nk_dot_f16_serial).report("dot_serial", "f16");
-    test_dot_bf16(nk_dot_bf16_serial).report("dot_serial", "bf16");
-    test_dot_e4m3(nk_dot_e4m3_serial).report("dot_serial", "e4m3");
-    test_dot_e5m2(nk_dot_e5m2_serial).report("dot_serial", "e5m2");
-    test_dot_i8(nk_dot_i8_serial).report("dot_serial", "i8");
-    test_dot_u8(nk_dot_u8_serial).report("dot_serial", "u8");
-    test_dot_f32c(nk_dot_f32c_serial).report("dot_serial", "f32c");
-    test_vdot_f32c(nk_vdot_f32c_serial).report("vdot_serial", "f32c");
-    test_dot_f64c(nk_dot_f64c_serial).report("dot_serial", "f64c");
-    test_vdot_f64c(nk_vdot_f64c_serial).report("vdot_serial", "f64c");
+    run_if_matches("dot_serial", "f32", test_dot_f32, nk_dot_f32_serial);
+    run_if_matches("dot_serial", "f64", test_dot_f64, nk_dot_f64_serial);
+    run_if_matches("dot_serial", "f16", test_dot_f16, nk_dot_f16_serial);
+    run_if_matches("dot_serial", "bf16", test_dot_bf16, nk_dot_bf16_serial);
+    run_if_matches("dot_serial", "e4m3", test_dot_e4m3, nk_dot_e4m3_serial);
+    run_if_matches("dot_serial", "e5m2", test_dot_e5m2, nk_dot_e5m2_serial);
+    run_if_matches("dot_serial", "i8", test_dot_i8, nk_dot_i8_serial);
+    run_if_matches("dot_serial", "u8", test_dot_u8, nk_dot_u8_serial);
+    run_if_matches("dot_serial", "f32c", test_dot_f32c, nk_dot_f32c_serial);
+    run_if_matches("vdot_serial", "f32c", test_vdot_f32c, nk_vdot_f32c_serial);
+    run_if_matches("dot_serial", "f64c", test_dot_f64c, nk_dot_f64c_serial);
+    run_if_matches("vdot_serial", "f64c", test_vdot_f64c, nk_vdot_f64c_serial);
 
 #endif // NK_DYNAMIC_DISPATCH
 
-#if NK_COMPARE_TO_BLAS
-    // BLAS/Accelerate precision comparison
-    test_dot_f32(dot_f32_blas).report("dot_blas", "f32");
-    test_dot_f64(dot_f64_blas).report("dot_blas", "f64");
-    test_dot_f32c(dot_f32c_blas).report("dot_blas", "f32c");
-    test_vdot_f32c(vdot_f32c_blas).report("vdot_blas", "f32c");
-    test_dot_f64c(dot_f64c_blas).report("dot_blas", "f64c");
-    test_vdot_f64c(vdot_f64c_blas).report("vdot_blas", "f64c");
-#endif // NK_COMPARE_TO_BLAS
+#if NK_COMPARE_TO_BLAS || NK_COMPARE_TO_MKL
+    // BLAS/MKL precision comparison
+    run_if_matches("dot_blas", "f32", test_dot_f32, dot_f32_blas);
+    run_if_matches("dot_blas", "f64", test_dot_f64, dot_f64_blas);
+    run_if_matches("dot_blas", "f32c", test_dot_f32c, dot_f32c_blas);
+    run_if_matches("vdot_blas", "f32c", test_vdot_f32c, vdot_f32c_blas);
+    run_if_matches("dot_blas", "f64c", test_dot_f64c, dot_f64c_blas);
+    run_if_matches("vdot_blas", "f64c", test_vdot_f64c, vdot_f64c_blas);
+#endif // NK_COMPARE_TO_BLAS || NK_COMPARE_TO_MKL
 }
 
 #pragma endregion // Dot
@@ -2055,67 +2063,65 @@ error_stats_t test_angular_bf16(angular_bf16_t kernel) {
 }
 
 void test_spatial() {
-    if (!global_config.should_run("spatial") && !global_config.should_run("l2") && !global_config.should_run("angular"))
-        return;
     std::printf("Testing spatial distances...\n");
 
 #if NK_DYNAMIC_DISPATCH
     // Dynamic dispatch - only test the dispatcher itself
-    test_l2sq_f32(nk_l2sq_f32).report("l2sq", "f32");
-    test_l2sq_f64(nk_l2sq_f64).report("l2sq", "f64");
-    test_l2sq_f16(nk_l2sq_f16).report("l2sq", "f16");
-    test_l2sq_bf16(nk_l2sq_bf16).report("l2sq", "bf16");
-    test_angular_f32(nk_angular_f32).report("angular", "f32");
-    test_angular_f64(nk_angular_f64).report("angular", "f64");
-    test_angular_f16(nk_angular_f16).report("angular", "f16");
-    test_angular_bf16(nk_angular_bf16).report("angular", "bf16");
+    run_if_matches("l2sq", "f32", test_l2sq_f32, nk_l2sq_f32);
+    run_if_matches("l2sq", "f64", test_l2sq_f64, nk_l2sq_f64);
+    run_if_matches("l2sq", "f16", test_l2sq_f16, nk_l2sq_f16);
+    run_if_matches("l2sq", "bf16", test_l2sq_bf16, nk_l2sq_bf16);
+    run_if_matches("angular", "f32", test_angular_f32, nk_angular_f32);
+    run_if_matches("angular", "f64", test_angular_f64, nk_angular_f64);
+    run_if_matches("angular", "f16", test_angular_f16, nk_angular_f16);
+    run_if_matches("angular", "bf16", test_angular_bf16, nk_angular_bf16);
 #else
     // Static compilation - test all available ISA variants
 
 #if NK_TARGET_NEON
-    test_l2sq_f32(nk_l2sq_f32_neon).report("l2sq_neon", "f32");
-    test_l2sq_f64(nk_l2sq_f64_neon).report("l2sq_neon", "f64");
-    test_angular_f32(nk_angular_f32_neon).report("angular_neon", "f32");
-    test_angular_f64(nk_angular_f64_neon).report("angular_neon", "f64");
+    run_if_matches("l2sq_neon", "f32", test_l2sq_f32, nk_l2sq_f32_neon);
+    run_if_matches("l2sq_neon", "f64", test_l2sq_f64, nk_l2sq_f64_neon);
+    run_if_matches("angular_neon", "f32", test_angular_f32, nk_angular_f32_neon);
+    run_if_matches("angular_neon", "f64", test_angular_f64, nk_angular_f64_neon);
 #endif // NK_TARGET_NEON
 
 #if NK_TARGET_NEONHALF
-    test_l2sq_f16(nk_l2sq_f16_neonhalf).report("l2sq_neonhalf", "f16");
-    test_angular_f16(nk_angular_f16_neonhalf).report("angular_neonhalf", "f16");
+    run_if_matches("l2sq_neonhalf", "f16", test_l2sq_f16, nk_l2sq_f16_neonhalf);
+    run_if_matches("angular_neonhalf", "f16", test_angular_f16, nk_angular_f16_neonhalf);
 #endif // NK_TARGET_NEONHALF
 
 #if NK_TARGET_NEONBFDOT
-    test_l2sq_bf16(nk_l2sq_bf16_neonbfdot).report("l2sq_neonbfdot", "bf16");
-    test_angular_bf16(nk_angular_bf16_neonbfdot).report("angular_neonbfdot", "bf16");
+    run_if_matches("l2sq_neonbfdot", "bf16", test_l2sq_bf16, nk_l2sq_bf16_neonbfdot);
+    run_if_matches("angular_neonbfdot", "bf16", test_angular_bf16, nk_angular_bf16_neonbfdot);
 #endif // NK_TARGET_NEONBFDOT
 
 #if NK_TARGET_HASWELL
-    test_l2sq_f32(nk_l2sq_f32_haswell).report("l2sq_haswell", "f32");
-    test_l2sq_f64(nk_l2sq_f64_haswell).report("l2sq_haswell", "f64");
-    test_l2sq_f16(nk_l2sq_f16_haswell).report("l2sq_haswell", "f16");
-    test_l2sq_bf16(nk_l2sq_bf16_haswell).report("l2sq_haswell", "bf16");
-    test_angular_f32(nk_angular_f32_haswell).report("angular_haswell", "f32");
-    test_angular_f64(nk_angular_f64_haswell).report("angular_haswell", "f64");
-    test_angular_f16(nk_angular_f16_haswell).report("angular_haswell", "f16");
-    test_angular_bf16(nk_angular_bf16_haswell).report("angular_haswell", "bf16");
+    run_if_matches("l2sq_haswell", "f32", test_l2sq_f32, nk_l2sq_f32_haswell);
+    run_if_matches("l2sq_haswell", "f64", test_l2sq_f64, nk_l2sq_f64_haswell);
+    run_if_matches("l2sq_haswell", "f16", test_l2sq_f16, nk_l2sq_f16_haswell);
+    run_if_matches("l2sq_haswell", "bf16", test_l2sq_bf16, nk_l2sq_bf16_haswell);
+    run_if_matches("angular_haswell", "f32", test_angular_f32, nk_angular_f32_haswell);
+    run_if_matches("angular_haswell", "f64", test_angular_f64, nk_angular_f64_haswell);
+    run_if_matches("angular_haswell", "f16", test_angular_f16, nk_angular_f16_haswell);
+    run_if_matches("angular_haswell", "bf16", test_angular_bf16, nk_angular_bf16_haswell);
 #endif // NK_TARGET_HASWELL
 
 #if NK_TARGET_SKYLAKE
-    test_l2sq_f32(nk_l2sq_f32_skylake).report("l2sq_skylake", "f32");
-    test_l2sq_f64(nk_l2sq_f64_skylake).report("l2sq_skylake", "f64");
-    test_angular_f32(nk_angular_f32_skylake).report("angular_skylake", "f32");
-    test_angular_f64(nk_angular_f64_skylake).report("angular_skylake", "f64");
+    run_if_matches("l2sq_skylake", "f32", test_l2sq_f32, nk_l2sq_f32_skylake);
+    run_if_matches("l2sq_skylake", "f64", test_l2sq_f64, nk_l2sq_f64_skylake);
+    run_if_matches("angular_skylake", "f32", test_angular_f32, nk_angular_f32_skylake);
+    run_if_matches("angular_skylake", "f64", test_angular_f64, nk_angular_f64_skylake);
 #endif // NK_TARGET_SKYLAKE
 
     // Serial always runs - baseline test
-    test_l2sq_f32(nk_l2sq_f32_serial).report("l2sq_serial", "f32");
-    test_l2sq_f64(nk_l2sq_f64_serial).report("l2sq_serial", "f64");
-    test_l2sq_f16(nk_l2sq_f16_serial).report("l2sq_serial", "f16");
-    test_l2sq_bf16(nk_l2sq_bf16_serial).report("l2sq_serial", "bf16");
-    test_angular_f32(nk_angular_f32_serial).report("angular_serial", "f32");
-    test_angular_f64(nk_angular_f64_serial).report("angular_serial", "f64");
-    test_angular_f16(nk_angular_f16_serial).report("angular_serial", "f16");
-    test_angular_bf16(nk_angular_bf16_serial).report("angular_serial", "bf16");
+    run_if_matches("l2sq_serial", "f32", test_l2sq_f32, nk_l2sq_f32_serial);
+    run_if_matches("l2sq_serial", "f64", test_l2sq_f64, nk_l2sq_f64_serial);
+    run_if_matches("l2sq_serial", "f16", test_l2sq_f16, nk_l2sq_f16_serial);
+    run_if_matches("l2sq_serial", "bf16", test_l2sq_bf16, nk_l2sq_bf16_serial);
+    run_if_matches("angular_serial", "f32", test_angular_f32, nk_angular_f32_serial);
+    run_if_matches("angular_serial", "f64", test_angular_f64, nk_angular_f64_serial);
+    run_if_matches("angular_serial", "f16", test_angular_f16, nk_angular_f16_serial);
+    run_if_matches("angular_serial", "bf16", test_angular_bf16, nk_angular_bf16_serial);
 
 #endif // NK_DYNAMIC_DISPATCH
 }
@@ -2186,28 +2192,27 @@ error_stats_t test_bilinear_f64(bilinear_f64_t kernel) {
 }
 
 void test_curved() {
-    if (!global_config.should_run("curved") && !global_config.should_run("bilinear")) return;
     std::printf("Testing curved/bilinear forms...\n");
 
 #if NK_DYNAMIC_DISPATCH
     // Dynamic dispatch - only test the dispatcher itself
-    test_bilinear_f32(nk_bilinear_f32).report("bilinear", "f32");
-    test_bilinear_f64(nk_bilinear_f64).report("bilinear", "f64");
+    run_if_matches("bilinear", "f32", test_bilinear_f32, nk_bilinear_f32);
+    run_if_matches("bilinear", "f64", test_bilinear_f64, nk_bilinear_f64);
 #else
     // Static compilation - test all available ISA variants
 
 #if NK_TARGET_NEON
-    test_bilinear_f32(nk_bilinear_f32_neon).report("bilinear_neon", "f32");
+    run_if_matches("bilinear_neon", "f32", test_bilinear_f32, nk_bilinear_f32_neon);
 #endif // NK_TARGET_NEON
 
 #if NK_TARGET_SKYLAKE
-    test_bilinear_f32(nk_bilinear_f32_skylake).report("bilinear_skylake", "f32");
-    test_bilinear_f64(nk_bilinear_f64_skylake).report("bilinear_skylake", "f64");
+    run_if_matches("bilinear_skylake", "f32", test_bilinear_f32, nk_bilinear_f32_skylake);
+    run_if_matches("bilinear_skylake", "f64", test_bilinear_f64, nk_bilinear_f64_skylake);
 #endif // NK_TARGET_SKYLAKE
 
     // Serial always runs - baseline test
-    test_bilinear_f32(nk_bilinear_f32_serial).report("bilinear_serial", "f32");
-    test_bilinear_f64(nk_bilinear_f64_serial).report("bilinear_serial", "f64");
+    run_if_matches("bilinear_serial", "f32", test_bilinear_f32, nk_bilinear_f32_serial);
+    run_if_matches("bilinear_serial", "f64", test_bilinear_f64, nk_bilinear_f64_serial);
 
 #endif // NK_DYNAMIC_DISPATCH
 }
@@ -2357,37 +2362,34 @@ error_stats_t test_jsd_f64(jsd_f64_t kernel) {
 }
 
 void test_probability() {
-    if (!global_config.should_run("probability") && !global_config.should_run("kld") &&
-        !global_config.should_run("jsd"))
-        return;
     std::printf("Testing probability divergences...\n");
 
 #if NK_DYNAMIC_DISPATCH
     // Dynamic dispatch - only test the dispatcher itself
-    test_kld_f32(nk_kld_f32).report("kld", "f32");
-    test_kld_f64(nk_kld_f64).report("kld", "f64");
-    test_jsd_f32(nk_jsd_f32).report("jsd", "f32");
-    test_jsd_f64(nk_jsd_f64).report("jsd", "f64");
+    run_if_matches("kld", "f32", test_kld_f32, nk_kld_f32);
+    run_if_matches("kld", "f64", test_kld_f64, nk_kld_f64);
+    run_if_matches("jsd", "f32", test_jsd_f32, nk_jsd_f32);
+    run_if_matches("jsd", "f64", test_jsd_f64, nk_jsd_f64);
 #else
     // Static compilation - test all available ISA variants
 
 #if NK_TARGET_NEON
-    test_kld_f32(nk_kld_f32_neon).report("kld_neon", "f32");
-    test_jsd_f32(nk_jsd_f32_neon).report("jsd_neon", "f32");
+    run_if_matches("kld_neon", "f32", test_kld_f32, nk_kld_f32_neon);
+    run_if_matches("jsd_neon", "f32", test_jsd_f32, nk_jsd_f32_neon);
 #endif // NK_TARGET_NEON
 
 #if NK_TARGET_SKYLAKE
-    test_kld_f32(nk_kld_f32_skylake).report("kld_skylake", "f32");
-    test_kld_f64(nk_kld_f64_skylake).report("kld_skylake", "f64");
-    test_jsd_f32(nk_jsd_f32_skylake).report("jsd_skylake", "f32");
-    test_jsd_f64(nk_jsd_f64_skylake).report("jsd_skylake", "f64");
+    run_if_matches("kld_skylake", "f32", test_kld_f32, nk_kld_f32_skylake);
+    run_if_matches("kld_skylake", "f64", test_kld_f64, nk_kld_f64_skylake);
+    run_if_matches("jsd_skylake", "f32", test_jsd_f32, nk_jsd_f32_skylake);
+    run_if_matches("jsd_skylake", "f64", test_jsd_f64, nk_jsd_f64_skylake);
 #endif // NK_TARGET_SKYLAKE
 
     // Serial always runs - baseline test
-    test_kld_f32(nk_kld_f32_serial).report("kld_serial", "f32");
-    test_kld_f64(nk_kld_f64_serial).report("kld_serial", "f64");
-    test_jsd_f32(nk_jsd_f32_serial).report("jsd_serial", "f32");
-    test_jsd_f64(nk_jsd_f64_serial).report("jsd_serial", "f64");
+    run_if_matches("kld_serial", "f32", test_kld_f32, nk_kld_f32_serial);
+    run_if_matches("kld_serial", "f64", test_kld_f64, nk_kld_f64_serial);
+    run_if_matches("jsd_serial", "f32", test_jsd_f32, nk_jsd_f32_serial);
+    run_if_matches("jsd_serial", "f64", test_jsd_f64, nk_jsd_f64_serial);
 
 #endif // NK_DYNAMIC_DISPATCH
 }
@@ -2486,36 +2488,33 @@ error_stats_t test_jaccard_b8(jaccard_b8_t kernel) {
 }
 
 void test_binary() {
-    if (!global_config.should_run("binary") && !global_config.should_run("hamming") &&
-        !global_config.should_run("jaccard"))
-        return;
     std::printf("Testing binary distances...\n");
 
 #if NK_DYNAMIC_DISPATCH
     // Dynamic dispatch - only test the dispatcher itself
-    test_hamming_b8(nk_hamming_b8).report("hamming", "b8");
-    test_jaccard_b8(nk_jaccard_b8).report("jaccard", "b8");
+    run_if_matches("hamming", "b8", test_hamming_b8, nk_hamming_b8);
+    run_if_matches("jaccard", "b8", test_jaccard_b8, nk_jaccard_b8);
 #else
     // Static compilation - test all available ISA variants
 
 #if NK_TARGET_NEON
-    test_hamming_b8(nk_hamming_b8_neon).report("hamming_neon", "b8");
-    test_jaccard_b8(nk_jaccard_b8_neon).report("jaccard_neon", "b8");
+    run_if_matches("hamming_neon", "b8", test_hamming_b8, nk_hamming_b8_neon);
+    run_if_matches("jaccard_neon", "b8", test_jaccard_b8, nk_jaccard_b8_neon);
 #endif // NK_TARGET_NEON
 
 #if NK_TARGET_HASWELL
-    test_hamming_b8(nk_hamming_b8_haswell).report("hamming_haswell", "b8");
-    test_jaccard_b8(nk_jaccard_b8_haswell).report("jaccard_haswell", "b8");
+    run_if_matches("hamming_haswell", "b8", test_hamming_b8, nk_hamming_b8_haswell);
+    run_if_matches("jaccard_haswell", "b8", test_jaccard_b8, nk_jaccard_b8_haswell);
 #endif // NK_TARGET_HASWELL
 
 #if NK_TARGET_ICE
-    test_hamming_b8(nk_hamming_b8_ice).report("hamming_ice", "b8");
-    test_jaccard_b8(nk_jaccard_b8_ice).report("jaccard_ice", "b8");
+    run_if_matches("hamming_ice", "b8", test_hamming_b8, nk_hamming_b8_ice);
+    run_if_matches("jaccard_ice", "b8", test_jaccard_b8, nk_jaccard_b8_ice);
 #endif // NK_TARGET_ICE
 
     // Serial always runs - baseline test
-    test_hamming_b8(nk_hamming_b8_serial).report("hamming_serial", "b8");
-    test_jaccard_b8(nk_jaccard_b8_serial).report("jaccard_serial", "b8");
+    run_if_matches("hamming_serial", "b8", test_hamming_b8, nk_hamming_b8_serial);
+    run_if_matches("jaccard_serial", "b8", test_jaccard_b8, nk_jaccard_b8_serial);
 
 #endif // NK_DYNAMIC_DISPATCH
 }
@@ -2972,81 +2971,78 @@ error_stats_t test_fma_e5m2(fma_e5m2_t kernel) {
 }
 
 void test_elementwise() {
-    if (!global_config.should_run("elementwise") && !global_config.should_run("scale") &&
-        !global_config.should_run("sum") && !global_config.should_run("wsum") && !global_config.should_run("fma"))
-        return;
     std::printf("Testing elementwise operations...\n");
 
 #if NK_DYNAMIC_DISPATCH
     // Dynamic dispatch - only test the dispatcher itself
-    test_scale_f32(nk_scale_f32).report("scale", "f32");
-    test_sum_f32(nk_sum_f32).report("sum", "f32");
-    test_wsum_f32(nk_wsum_f32).report("wsum", "f32");
-    test_fma_f32(nk_fma_f32).report("fma", "f32");
-    test_scale_e4m3(nk_scale_e4m3).report("scale", "e4m3");
-    test_scale_e5m2(nk_scale_e5m2).report("scale", "e5m2");
-    test_sum_e4m3(nk_sum_e4m3).report("sum", "e4m3");
-    test_sum_e5m2(nk_sum_e5m2).report("sum", "e5m2");
-    test_wsum_e4m3(nk_wsum_e4m3).report("wsum", "e4m3");
-    test_wsum_e5m2(nk_wsum_e5m2).report("wsum", "e5m2");
-    test_fma_e4m3(nk_fma_e4m3).report("fma", "e4m3");
-    test_fma_e5m2(nk_fma_e5m2).report("fma", "e5m2");
+    run_if_matches("scale", "f32", test_scale_f32, nk_scale_f32);
+    run_if_matches("sum", "f32", test_sum_f32, nk_sum_f32);
+    run_if_matches("wsum", "f32", test_wsum_f32, nk_wsum_f32);
+    run_if_matches("fma", "f32", test_fma_f32, nk_fma_f32);
+    run_if_matches("scale", "e4m3", test_scale_e4m3, nk_scale_e4m3);
+    run_if_matches("scale", "e5m2", test_scale_e5m2, nk_scale_e5m2);
+    run_if_matches("sum", "e4m3", test_sum_e4m3, nk_sum_e4m3);
+    run_if_matches("sum", "e5m2", test_sum_e5m2, nk_sum_e5m2);
+    run_if_matches("wsum", "e4m3", test_wsum_e4m3, nk_wsum_e4m3);
+    run_if_matches("wsum", "e5m2", test_wsum_e5m2, nk_wsum_e5m2);
+    run_if_matches("fma", "e4m3", test_fma_e4m3, nk_fma_e4m3);
+    run_if_matches("fma", "e5m2", test_fma_e5m2, nk_fma_e5m2);
 #else
     // Static compilation - test all available ISA variants
 
 #if NK_TARGET_NEON
-    test_scale_f32(nk_scale_f32_neon).report("scale_neon", "f32");
-    test_sum_f32(nk_sum_f32_neon).report("sum_neon", "f32");
-    test_wsum_f32(nk_wsum_f32_neon).report("wsum_neon", "f32");
-    test_fma_f32(nk_fma_f32_neon).report("fma_neon", "f32");
+    run_if_matches("scale_neon", "f32", test_scale_f32, nk_scale_f32_neon);
+    run_if_matches("sum_neon", "f32", test_sum_f32, nk_sum_f32_neon);
+    run_if_matches("wsum_neon", "f32", test_wsum_f32, nk_wsum_f32_neon);
+    run_if_matches("fma_neon", "f32", test_fma_f32, nk_fma_f32_neon);
 #endif // NK_TARGET_NEON
 
 #if NK_TARGET_NEONHALF
-    test_scale_e4m3(nk_scale_e4m3_neonhalf).report("scale_neonhalf", "e4m3");
-    test_scale_e5m2(nk_scale_e5m2_neonhalf).report("scale_neonhalf", "e5m2");
-    test_sum_e4m3(nk_sum_e4m3_neonhalf).report("sum_neonhalf", "e4m3");
-    test_sum_e5m2(nk_sum_e5m2_neonhalf).report("sum_neonhalf", "e5m2");
-    test_wsum_e4m3(nk_wsum_e4m3_neonhalf).report("wsum_neonhalf", "e4m3");
-    test_wsum_e5m2(nk_wsum_e5m2_neonhalf).report("wsum_neonhalf", "e5m2");
-    test_fma_e4m3(nk_fma_e4m3_neonhalf).report("fma_neonhalf", "e4m3");
-    test_fma_e5m2(nk_fma_e5m2_neonhalf).report("fma_neonhalf", "e5m2");
+    run_if_matches("scale_neonhalf", "e4m3", test_scale_e4m3, nk_scale_e4m3_neonhalf);
+    run_if_matches("scale_neonhalf", "e5m2", test_scale_e5m2, nk_scale_e5m2_neonhalf);
+    run_if_matches("sum_neonhalf", "e4m3", test_sum_e4m3, nk_sum_e4m3_neonhalf);
+    run_if_matches("sum_neonhalf", "e5m2", test_sum_e5m2, nk_sum_e5m2_neonhalf);
+    run_if_matches("wsum_neonhalf", "e4m3", test_wsum_e4m3, nk_wsum_e4m3_neonhalf);
+    run_if_matches("wsum_neonhalf", "e5m2", test_wsum_e5m2, nk_wsum_e5m2_neonhalf);
+    run_if_matches("fma_neonhalf", "e4m3", test_fma_e4m3, nk_fma_e4m3_neonhalf);
+    run_if_matches("fma_neonhalf", "e5m2", test_fma_e5m2, nk_fma_e5m2_neonhalf);
 #endif // NK_TARGET_NEONHALF
 
 #if NK_TARGET_HASWELL
-    test_scale_f32(nk_scale_f32_haswell).report("scale_haswell", "f32");
-    test_sum_f32(nk_sum_f32_haswell).report("sum_haswell", "f32");
-    test_wsum_f32(nk_wsum_f32_haswell).report("wsum_haswell", "f32");
-    test_fma_f32(nk_fma_f32_haswell).report("fma_haswell", "f32");
-    test_scale_e4m3(nk_scale_e4m3_haswell).report("scale_haswell", "e4m3");
-    test_scale_e5m2(nk_scale_e5m2_haswell).report("scale_haswell", "e5m2");
-    test_sum_e4m3(nk_sum_e4m3_haswell).report("sum_haswell", "e4m3");
-    test_sum_e5m2(nk_sum_e5m2_haswell).report("sum_haswell", "e5m2");
-    test_wsum_e4m3(nk_wsum_e4m3_haswell).report("wsum_haswell", "e4m3");
-    test_wsum_e5m2(nk_wsum_e5m2_haswell).report("wsum_haswell", "e5m2");
-    test_fma_e4m3(nk_fma_e4m3_haswell).report("fma_haswell", "e4m3");
-    test_fma_e5m2(nk_fma_e5m2_haswell).report("fma_haswell", "e5m2");
+    run_if_matches("scale_haswell", "f32", test_scale_f32, nk_scale_f32_haswell);
+    run_if_matches("sum_haswell", "f32", test_sum_f32, nk_sum_f32_haswell);
+    run_if_matches("wsum_haswell", "f32", test_wsum_f32, nk_wsum_f32_haswell);
+    run_if_matches("fma_haswell", "f32", test_fma_f32, nk_fma_f32_haswell);
+    run_if_matches("scale_haswell", "e4m3", test_scale_e4m3, nk_scale_e4m3_haswell);
+    run_if_matches("scale_haswell", "e5m2", test_scale_e5m2, nk_scale_e5m2_haswell);
+    run_if_matches("sum_haswell", "e4m3", test_sum_e4m3, nk_sum_e4m3_haswell);
+    run_if_matches("sum_haswell", "e5m2", test_sum_e5m2, nk_sum_e5m2_haswell);
+    run_if_matches("wsum_haswell", "e4m3", test_wsum_e4m3, nk_wsum_e4m3_haswell);
+    run_if_matches("wsum_haswell", "e5m2", test_wsum_e5m2, nk_wsum_e5m2_haswell);
+    run_if_matches("fma_haswell", "e4m3", test_fma_e4m3, nk_fma_e4m3_haswell);
+    run_if_matches("fma_haswell", "e5m2", test_fma_e5m2, nk_fma_e5m2_haswell);
 #endif // NK_TARGET_HASWELL
 
 #if NK_TARGET_SKYLAKE
-    test_scale_f32(nk_scale_f32_skylake).report("scale_skylake", "f32");
-    test_sum_f32(nk_sum_f32_skylake).report("sum_skylake", "f32");
-    test_wsum_f32(nk_wsum_f32_skylake).report("wsum_skylake", "f32");
-    test_fma_f32(nk_fma_f32_skylake).report("fma_skylake", "f32");
+    run_if_matches("scale_skylake", "f32", test_scale_f32, nk_scale_f32_skylake);
+    run_if_matches("sum_skylake", "f32", test_sum_f32, nk_sum_f32_skylake);
+    run_if_matches("wsum_skylake", "f32", test_wsum_f32, nk_wsum_f32_skylake);
+    run_if_matches("fma_skylake", "f32", test_fma_f32, nk_fma_f32_skylake);
 #endif // NK_TARGET_SKYLAKE
 
     // Serial always runs - baseline test
-    test_scale_f32(nk_scale_f32_serial).report("scale_serial", "f32");
-    test_sum_f32(nk_sum_f32_serial).report("sum_serial", "f32");
-    test_wsum_f32(nk_wsum_f32_serial).report("wsum_serial", "f32");
-    test_fma_f32(nk_fma_f32_serial).report("fma_serial", "f32");
-    test_scale_e4m3(nk_scale_e4m3_serial).report("scale_serial", "e4m3");
-    test_scale_e5m2(nk_scale_e5m2_serial).report("scale_serial", "e5m2");
-    test_sum_e4m3(nk_sum_e4m3_serial).report("sum_serial", "e4m3");
-    test_sum_e5m2(nk_sum_e5m2_serial).report("sum_serial", "e5m2");
-    test_wsum_e4m3(nk_wsum_e4m3_serial).report("wsum_serial", "e4m3");
-    test_wsum_e5m2(nk_wsum_e5m2_serial).report("wsum_serial", "e5m2");
-    test_fma_e4m3(nk_fma_e4m3_serial).report("fma_serial", "e4m3");
-    test_fma_e5m2(nk_fma_e5m2_serial).report("fma_serial", "e5m2");
+    run_if_matches("scale_serial", "f32", test_scale_f32, nk_scale_f32_serial);
+    run_if_matches("sum_serial", "f32", test_sum_f32, nk_sum_f32_serial);
+    run_if_matches("wsum_serial", "f32", test_wsum_f32, nk_wsum_f32_serial);
+    run_if_matches("fma_serial", "f32", test_fma_f32, nk_fma_f32_serial);
+    run_if_matches("scale_serial", "e4m3", test_scale_e4m3, nk_scale_e4m3_serial);
+    run_if_matches("scale_serial", "e5m2", test_scale_e5m2, nk_scale_e5m2_serial);
+    run_if_matches("sum_serial", "e4m3", test_sum_e4m3, nk_sum_e4m3_serial);
+    run_if_matches("sum_serial", "e5m2", test_sum_e5m2, nk_sum_e5m2_serial);
+    run_if_matches("wsum_serial", "e4m3", test_wsum_e4m3, nk_wsum_e4m3_serial);
+    run_if_matches("wsum_serial", "e5m2", test_wsum_e5m2, nk_wsum_e5m2_serial);
+    run_if_matches("fma_serial", "e4m3", test_fma_e4m3, nk_fma_e4m3_serial);
+    run_if_matches("fma_serial", "e5m2", test_fma_e5m2, nk_fma_e5m2_serial);
 
 #endif // NK_DYNAMIC_DISPATCH
 }
@@ -3233,54 +3229,52 @@ error_stats_t test_atan_f16(atan_f16_t kernel) {
 }
 
 void test_trigonometry() {
-    if (!global_config.should_run("trig") && !global_config.should_run("sin") && !global_config.should_run("cos"))
-        return;
     std::printf("Testing trigonometry...\n");
 
 #if NK_DYNAMIC_DISPATCH
     // Dynamic dispatch - only test the dispatcher itself
-    test_sin_f32(nk_sin_f32).report("sin", "f32");
-    test_cos_f32(nk_cos_f32).report("cos", "f32");
-    test_sin_f64(nk_sin_f64).report("sin", "f64");
-    test_cos_f64(nk_cos_f64).report("cos", "f64");
+    run_if_matches("sin", "f32", test_sin_f32, nk_sin_f32);
+    run_if_matches("cos", "f32", test_cos_f32, nk_cos_f32);
+    run_if_matches("sin", "f64", test_sin_f64, nk_sin_f64);
+    run_if_matches("cos", "f64", test_cos_f64, nk_cos_f64);
 #else
     // Static compilation - test all available ISA variants
 
 #if NK_TARGET_NEON
-    test_sin_f32(nk_sin_f32_neon).report("sin_neon", "f32");
-    test_cos_f32(nk_cos_f32_neon).report("cos_neon", "f32");
-    test_sin_f64(nk_sin_f64_neon).report("sin_neon", "f64");
-    test_cos_f64(nk_cos_f64_neon).report("cos_neon", "f64");
+    run_if_matches("sin_neon", "f32", test_sin_f32, nk_sin_f32_neon);
+    run_if_matches("cos_neon", "f32", test_cos_f32, nk_cos_f32_neon);
+    run_if_matches("sin_neon", "f64", test_sin_f64, nk_sin_f64_neon);
+    run_if_matches("cos_neon", "f64", test_cos_f64, nk_cos_f64_neon);
 #endif // NK_TARGET_NEON
 
 #if NK_TARGET_HASWELL
-    test_sin_f32(nk_sin_f32_haswell).report("sin_haswell", "f32");
-    test_cos_f32(nk_cos_f32_haswell).report("cos_haswell", "f32");
-    test_sin_f64(nk_sin_f64_haswell).report("sin_haswell", "f64");
-    test_cos_f64(nk_cos_f64_haswell).report("cos_haswell", "f64");
+    run_if_matches("sin_haswell", "f32", test_sin_f32, nk_sin_f32_haswell);
+    run_if_matches("cos_haswell", "f32", test_cos_f32, nk_cos_f32_haswell);
+    run_if_matches("sin_haswell", "f64", test_sin_f64, nk_sin_f64_haswell);
+    run_if_matches("cos_haswell", "f64", test_cos_f64, nk_cos_f64_haswell);
 #endif // NK_TARGET_HASWELL
 
 #if NK_TARGET_SKYLAKE
-    test_sin_f32(nk_sin_f32_skylake).report("sin_skylake", "f32");
-    test_cos_f32(nk_cos_f32_skylake).report("cos_skylake", "f32");
-    test_sin_f64(nk_sin_f64_skylake).report("sin_skylake", "f64");
-    test_cos_f64(nk_cos_f64_skylake).report("cos_skylake", "f64");
+    run_if_matches("sin_skylake", "f32", test_sin_f32, nk_sin_f32_skylake);
+    run_if_matches("cos_skylake", "f32", test_cos_f32, nk_cos_f32_skylake);
+    run_if_matches("sin_skylake", "f64", test_sin_f64, nk_sin_f64_skylake);
+    run_if_matches("cos_skylake", "f64", test_cos_f64, nk_cos_f64_skylake);
 #endif // NK_TARGET_SKYLAKE
 
 #if NK_TARGET_SAPPHIRE
-    test_sin_f16(nk_sin_f16_sapphire).report("sin_sapphire", "f16");
-    test_cos_f16(nk_cos_f16_sapphire).report("cos_sapphire", "f16");
-    test_atan_f16(nk_atan_f16_sapphire).report("atan_sapphire", "f16");
+    run_if_matches("sin_sapphire", "f16", test_sin_f16, nk_sin_f16_sapphire);
+    run_if_matches("cos_sapphire", "f16", test_cos_f16, nk_cos_f16_sapphire);
+    run_if_matches("atan_sapphire", "f16", test_atan_f16, nk_atan_f16_sapphire);
 #endif // NK_TARGET_SAPPHIRE
 
     // Serial always runs - baseline test
-    test_sin_f32(nk_sin_f32_serial).report("sin_serial", "f32");
-    test_cos_f32(nk_cos_f32_serial).report("cos_serial", "f32");
-    test_sin_f64(nk_sin_f64_serial).report("sin_serial", "f64");
-    test_cos_f64(nk_cos_f64_serial).report("cos_serial", "f64");
-    test_sin_f16(nk_sin_f16_serial).report("sin_serial", "f16");
-    test_cos_f16(nk_cos_f16_serial).report("cos_serial", "f16");
-    test_atan_f16(nk_atan_f16_serial).report("atan_serial", "f16");
+    run_if_matches("sin_serial", "f32", test_sin_f32, nk_sin_f32_serial);
+    run_if_matches("cos_serial", "f32", test_cos_f32, nk_cos_f32_serial);
+    run_if_matches("sin_serial", "f64", test_sin_f64, nk_sin_f64_serial);
+    run_if_matches("cos_serial", "f64", test_cos_f64, nk_cos_f64_serial);
+    run_if_matches("sin_serial", "f16", test_sin_f16, nk_sin_f16_serial);
+    run_if_matches("cos_serial", "f16", test_cos_f16, nk_cos_f16_serial);
+    run_if_matches("atan_serial", "f16", test_atan_f16, nk_atan_f16_serial);
 
 #endif // NK_DYNAMIC_DISPATCH
 }
@@ -3427,41 +3421,38 @@ error_stats_t test_vincenty_f64(vincenty_f64_t kernel) {
 }
 
 void test_geospatial() {
-    if (!global_config.should_run("geo") && !global_config.should_run("haversine") &&
-        !global_config.should_run("vincenty"))
-        return;
     std::printf("Testing geospatial functions...\n");
 
 #if NK_DYNAMIC_DISPATCH
     // Dynamic dispatch - only test the dispatcher itself
-    test_haversine_f64(nk_haversine_f64).report("haversine", "f64");
-    test_haversine_f32(nk_haversine_f32).report("haversine", "f32");
-    test_vincenty_f64(nk_vincenty_f64).report("vincenty", "f64");
+    run_if_matches("haversine", "f64", test_haversine_f64, nk_haversine_f64);
+    run_if_matches("haversine", "f32", test_haversine_f32, nk_haversine_f32);
+    run_if_matches("vincenty", "f64", test_vincenty_f64, nk_vincenty_f64);
 #else
     // Static compilation - test all available ISA variants
 
 #if NK_TARGET_NEON
-    test_haversine_f64(nk_haversine_f64_neon).report("haversine_neon", "f64");
-    test_haversine_f32(nk_haversine_f32_neon).report("haversine_neon", "f32");
-    test_vincenty_f64(nk_vincenty_f64_neon).report("vincenty_neon", "f64");
+    run_if_matches("haversine_neon", "f64", test_haversine_f64, nk_haversine_f64_neon);
+    run_if_matches("haversine_neon", "f32", test_haversine_f32, nk_haversine_f32_neon);
+    run_if_matches("vincenty_neon", "f64", test_vincenty_f64, nk_vincenty_f64_neon);
 #endif // NK_TARGET_NEON
 
 #if NK_TARGET_HASWELL
-    test_haversine_f64(nk_haversine_f64_haswell).report("haversine_haswell", "f64");
-    test_haversine_f32(nk_haversine_f32_haswell).report("haversine_haswell", "f32");
-    test_vincenty_f64(nk_vincenty_f64_haswell).report("vincenty_haswell", "f64");
+    run_if_matches("haversine_haswell", "f64", test_haversine_f64, nk_haversine_f64_haswell);
+    run_if_matches("haversine_haswell", "f32", test_haversine_f32, nk_haversine_f32_haswell);
+    run_if_matches("vincenty_haswell", "f64", test_vincenty_f64, nk_vincenty_f64_haswell);
 #endif // NK_TARGET_HASWELL
 
 #if NK_TARGET_SKYLAKE
-    test_haversine_f64(nk_haversine_f64_skylake).report("haversine_skylake", "f64");
-    test_haversine_f32(nk_haversine_f32_skylake).report("haversine_skylake", "f32");
-    test_vincenty_f64(nk_vincenty_f64_skylake).report("vincenty_skylake", "f64");
+    run_if_matches("haversine_skylake", "f64", test_haversine_f64, nk_haversine_f64_skylake);
+    run_if_matches("haversine_skylake", "f32", test_haversine_f32, nk_haversine_f32_skylake);
+    run_if_matches("vincenty_skylake", "f64", test_vincenty_f64, nk_vincenty_f64_skylake);
 #endif // NK_TARGET_SKYLAKE
 
     // Serial always runs - baseline test
-    test_haversine_f64(nk_haversine_f64_serial).report("haversine_serial", "f64");
-    test_haversine_f32(nk_haversine_f32_serial).report("haversine_serial", "f32");
-    test_vincenty_f64(nk_vincenty_f64_serial).report("vincenty_serial", "f64");
+    run_if_matches("haversine_serial", "f64", test_haversine_f64, nk_haversine_f64_serial);
+    run_if_matches("haversine_serial", "f32", test_haversine_f32, nk_haversine_f32_serial);
+    run_if_matches("vincenty_serial", "f64", test_vincenty_f64, nk_vincenty_f64_serial);
 
 #endif // NK_DYNAMIC_DISPATCH
 }
@@ -3771,54 +3762,51 @@ error_stats_t test_umeyama_f32(mesh_f32_t kernel) {
 }
 
 void test_mesh() {
-    if (!global_config.should_run("mesh") && !global_config.should_run("rmsd") && !global_config.should_run("kabsch") &&
-        !global_config.should_run("umeyama"))
-        return;
     std::printf("Testing mesh operations...\n");
 
 #if NK_DYNAMIC_DISPATCH
-    test_rmsd_f64(nk_rmsd_f64).report("rmsd", "f64");
-    test_rmsd_f32(nk_rmsd_f32).report("rmsd", "f32");
-    test_kabsch_f64(nk_kabsch_f64).report("kabsch", "f64");
-    test_kabsch_f32(nk_kabsch_f32).report("kabsch", "f32");
-    test_umeyama_f64(nk_umeyama_f64).report("umeyama", "f64");
-    test_umeyama_f32(nk_umeyama_f32).report("umeyama", "f32");
+    run_if_matches("rmsd", "f64", test_rmsd_f64, nk_rmsd_f64);
+    run_if_matches("rmsd", "f32", test_rmsd_f32, nk_rmsd_f32);
+    run_if_matches("kabsch", "f64", test_kabsch_f64, nk_kabsch_f64);
+    run_if_matches("kabsch", "f32", test_kabsch_f32, nk_kabsch_f32);
+    run_if_matches("umeyama", "f64", test_umeyama_f64, nk_umeyama_f64);
+    run_if_matches("umeyama", "f32", test_umeyama_f32, nk_umeyama_f32);
 #else
 
 #if NK_TARGET_NEON
-    test_rmsd_f64(nk_rmsd_f64_neon).report("rmsd_neon", "f64");
-    test_rmsd_f32(nk_rmsd_f32_neon).report("rmsd_neon", "f32");
-    test_kabsch_f64(nk_kabsch_f64_neon).report("kabsch_neon", "f64");
-    test_kabsch_f32(nk_kabsch_f32_neon).report("kabsch_neon", "f32");
-    test_umeyama_f64(nk_umeyama_f64_neon).report("umeyama_neon", "f64");
-    test_umeyama_f32(nk_umeyama_f32_neon).report("umeyama_neon", "f32");
+    run_if_matches("rmsd_neon", "f64", test_rmsd_f64, nk_rmsd_f64_neon);
+    run_if_matches("rmsd_neon", "f32", test_rmsd_f32, nk_rmsd_f32_neon);
+    run_if_matches("kabsch_neon", "f64", test_kabsch_f64, nk_kabsch_f64_neon);
+    run_if_matches("kabsch_neon", "f32", test_kabsch_f32, nk_kabsch_f32_neon);
+    run_if_matches("umeyama_neon", "f64", test_umeyama_f64, nk_umeyama_f64_neon);
+    run_if_matches("umeyama_neon", "f32", test_umeyama_f32, nk_umeyama_f32_neon);
 #endif // NK_TARGET_NEON
 
 #if NK_TARGET_HASWELL
-    test_rmsd_f64(nk_rmsd_f64_haswell).report("rmsd_haswell", "f64");
-    test_rmsd_f32(nk_rmsd_f32_haswell).report("rmsd_haswell", "f32");
-    test_kabsch_f64(nk_kabsch_f64_haswell).report("kabsch_haswell", "f64");
-    test_kabsch_f32(nk_kabsch_f32_haswell).report("kabsch_haswell", "f32");
-    test_umeyama_f64(nk_umeyama_f64_haswell).report("umeyama_haswell", "f64");
-    test_umeyama_f32(nk_umeyama_f32_haswell).report("umeyama_haswell", "f32");
+    run_if_matches("rmsd_haswell", "f64", test_rmsd_f64, nk_rmsd_f64_haswell);
+    run_if_matches("rmsd_haswell", "f32", test_rmsd_f32, nk_rmsd_f32_haswell);
+    run_if_matches("kabsch_haswell", "f64", test_kabsch_f64, nk_kabsch_f64_haswell);
+    run_if_matches("kabsch_haswell", "f32", test_kabsch_f32, nk_kabsch_f32_haswell);
+    run_if_matches("umeyama_haswell", "f64", test_umeyama_f64, nk_umeyama_f64_haswell);
+    run_if_matches("umeyama_haswell", "f32", test_umeyama_f32, nk_umeyama_f32_haswell);
 #endif // NK_TARGET_HASWELL
 
 #if NK_TARGET_SKYLAKE
-    test_rmsd_f64(nk_rmsd_f64_skylake).report("rmsd_skylake", "f64");
-    test_rmsd_f32(nk_rmsd_f32_skylake).report("rmsd_skylake", "f32");
-    test_kabsch_f64(nk_kabsch_f64_skylake).report("kabsch_skylake", "f64");
-    test_kabsch_f32(nk_kabsch_f32_skylake).report("kabsch_skylake", "f32");
-    test_umeyama_f64(nk_umeyama_f64_skylake).report("umeyama_skylake", "f64");
-    test_umeyama_f32(nk_umeyama_f32_skylake).report("umeyama_skylake", "f32");
+    run_if_matches("rmsd_skylake", "f64", test_rmsd_f64, nk_rmsd_f64_skylake);
+    run_if_matches("rmsd_skylake", "f32", test_rmsd_f32, nk_rmsd_f32_skylake);
+    run_if_matches("kabsch_skylake", "f64", test_kabsch_f64, nk_kabsch_f64_skylake);
+    run_if_matches("kabsch_skylake", "f32", test_kabsch_f32, nk_kabsch_f32_skylake);
+    run_if_matches("umeyama_skylake", "f64", test_umeyama_f64, nk_umeyama_f64_skylake);
+    run_if_matches("umeyama_skylake", "f32", test_umeyama_f32, nk_umeyama_f32_skylake);
 #endif // NK_TARGET_SKYLAKE
 
     // Serial always runs - baseline test
-    test_rmsd_f64(nk_rmsd_f64_serial).report("rmsd_serial", "f64");
-    test_rmsd_f32(nk_rmsd_f32_serial).report("rmsd_serial", "f32");
-    test_kabsch_f64(nk_kabsch_f64_serial).report("kabsch_serial", "f64");
-    test_kabsch_f32(nk_kabsch_f32_serial).report("kabsch_serial", "f32");
-    test_umeyama_f64(nk_umeyama_f64_serial).report("umeyama_serial", "f64");
-    test_umeyama_f32(nk_umeyama_f32_serial).report("umeyama_serial", "f32");
+    run_if_matches("rmsd_serial", "f64", test_rmsd_f64, nk_rmsd_f64_serial);
+    run_if_matches("rmsd_serial", "f32", test_rmsd_f32, nk_rmsd_f32_serial);
+    run_if_matches("kabsch_serial", "f64", test_kabsch_f64, nk_kabsch_f64_serial);
+    run_if_matches("kabsch_serial", "f32", test_kabsch_f32, nk_kabsch_f32_serial);
+    run_if_matches("umeyama_serial", "f64", test_umeyama_f64, nk_umeyama_f64_serial);
+    run_if_matches("umeyama_serial", "f32", test_umeyama_f32, nk_umeyama_f32_serial);
 
 #endif // NK_DYNAMIC_DISPATCH
 }
@@ -4091,7 +4079,7 @@ error_stats_t test_dots_i8i8i32(dots_packed_size_t packed_size_fn, dots_i8_pack_
     return stats;
 }
 
-#if NK_COMPARE_TO_BLAS
+#if NK_COMPARE_TO_BLAS || NK_COMPARE_TO_MKL
 // BLAS GEMM kernel type (unpacked B matrix)
 using dots_f32_blas_t = void (*)(nk_f32_t const *, nk_f32_t const *, nk_f32_t *, nk_size_t, nk_size_t, nk_size_t,
                                  nk_size_t, nk_size_t);
@@ -4157,69 +4145,64 @@ error_stats_t test_dots_f64_unpacked(dots_f64_blas_t dots_fn) {
     }
     return stats;
 }
-#endif // NK_COMPARE_TO_BLAS
+#endif // NK_COMPARE_TO_BLAS || NK_COMPARE_TO_MKL
 
 void test_dots() {
-    if (!global_config.should_run("dots") && !global_config.should_run("gemm")) return;
     std::printf("Testing batch dot products (GEMM)...\n");
 
 #if NK_DYNAMIC_DISPATCH
-    test_dots_f32f32f32(nk_dots_f32f32f32_packed_size, nk_dots_f32f32f32_pack, nk_dots_f32f32f32)
-        .report("dots", "f32f32f32");
-    test_dots_f64f64f64(nk_dots_f64f64f64_packed_size, nk_dots_f64f64f64_pack, nk_dots_f64f64f64)
-        .report("dots", "f64f64f64");
-    test_dots_bf16bf16f32(nk_dots_bf16bf16f32_packed_size, nk_dots_bf16bf16f32_pack, nk_dots_bf16bf16f32)
-        .report("dots", "bf16bf16f32");
-    test_dots_f16f16f32(nk_dots_f16f16f32_packed_size, nk_dots_f16f16f32_pack, nk_dots_f16f16f32)
-        .report("dots", "f16f16f32");
-    test_dots_i8i8i32(nk_dots_i8i8i32_packed_size, nk_dots_i8i8i32_pack, nk_dots_i8i8i32).report("dots", "i8i8i32");
+    run_if_matches("dots", "f32f32f32", test_dots_f32f32f32, nk_dots_f32f32f32_packed_size, nk_dots_f32f32f32_pack,
+                   nk_dots_f32f32f32);
+    run_if_matches("dots", "f64f64f64", test_dots_f64f64f64, nk_dots_f64f64f64_packed_size, nk_dots_f64f64f64_pack,
+                   nk_dots_f64f64f64);
+    run_if_matches("dots", "bf16bf16f32", test_dots_bf16bf16f32, nk_dots_bf16bf16f32_packed_size,
+                   nk_dots_bf16bf16f32_pack, nk_dots_bf16bf16f32);
+    run_if_matches("dots", "f16f16f32", test_dots_f16f16f32, nk_dots_f16f16f32_packed_size, nk_dots_f16f16f32_pack,
+                   nk_dots_f16f16f32);
+    run_if_matches("dots", "i8i8i32", test_dots_i8i8i32, nk_dots_i8i8i32_packed_size, nk_dots_i8i8i32_pack,
+                   nk_dots_i8i8i32);
 #else
 
 #if NK_TARGET_NEON
-    test_dots_f32f32f32(nk_dots_f32f32f32_packed_size_neon, nk_dots_f32f32f32_pack_neon, nk_dots_f32f32f32_neon)
-        .report("dots_neon", "f32f32f32");
-    test_dots_f64f64f64(nk_dots_f64f64f64_packed_size_neon, nk_dots_f64f64f64_pack_neon, nk_dots_f64f64f64_neon)
-        .report("dots_neon", "f64f64f64");
+    run_if_matches("dots_neon", "f32f32f32", test_dots_f32f32f32, nk_dots_f32f32f32_packed_size_neon,
+                   nk_dots_f32f32f32_pack_neon, nk_dots_f32f32f32_neon);
+    run_if_matches("dots_neon", "f64f64f64", test_dots_f64f64f64, nk_dots_f64f64f64_packed_size_neon,
+                   nk_dots_f64f64f64_pack_neon, nk_dots_f64f64f64_neon);
 #endif // NK_TARGET_NEON
 
 #if NK_TARGET_HASWELL
-    test_dots_f32f32f32(nk_dots_f32f32f32_packed_size_haswell, nk_dots_f32f32f32_pack_haswell,
-                        nk_dots_f32f32f32_haswell)
-        .report("dots_haswell", "f32f32f32");
-    test_dots_f64f64f64(nk_dots_f64f64f64_packed_size_haswell, nk_dots_f64f64f64_pack_haswell,
-                        nk_dots_f64f64f64_haswell)
-        .report("dots_haswell", "f64f64f64");
+    run_if_matches("dots_haswell", "f32f32f32", test_dots_f32f32f32, nk_dots_f32f32f32_packed_size_haswell,
+                   nk_dots_f32f32f32_pack_haswell, nk_dots_f32f32f32_haswell);
+    run_if_matches("dots_haswell", "f64f64f64", test_dots_f64f64f64, nk_dots_f64f64f64_packed_size_haswell,
+                   nk_dots_f64f64f64_pack_haswell, nk_dots_f64f64f64_haswell);
 #endif // NK_TARGET_HASWELL
 
 #if NK_TARGET_SKYLAKE
-    test_dots_f32f32f32(nk_dots_f32f32f32_packed_size_skylake, nk_dots_f32f32f32_pack_skylake,
-                        nk_dots_f32f32f32_skylake)
-        .report("dots_skylake", "f32f32f32");
-    test_dots_f64f64f64(nk_dots_f64f64f64_packed_size_skylake, nk_dots_f64f64f64_pack_skylake,
-                        nk_dots_f64f64f64_skylake)
-        .report("dots_skylake", "f64f64f64");
+    run_if_matches("dots_skylake", "f32f32f32", test_dots_f32f32f32, nk_dots_f32f32f32_packed_size_skylake,
+                   nk_dots_f32f32f32_pack_skylake, nk_dots_f32f32f32_skylake);
+    run_if_matches("dots_skylake", "f64f64f64", test_dots_f64f64f64, nk_dots_f64f64f64_packed_size_skylake,
+                   nk_dots_f64f64f64_pack_skylake, nk_dots_f64f64f64_skylake);
 #endif // NK_TARGET_SKYLAKE
 
     // Serial always runs - baseline test
-    test_dots_f32f32f32(nk_dots_f32f32f32_packed_size_serial, nk_dots_f32f32f32_pack_serial, nk_dots_f32f32f32_serial)
-        .report("dots_serial", "f32f32f32");
-    test_dots_f64f64f64(nk_dots_f64f64f64_packed_size_serial, nk_dots_f64f64f64_pack_serial, nk_dots_f64f64f64_serial)
-        .report("dots_serial", "f64f64f64");
-    test_dots_bf16bf16f32(nk_dots_bf16bf16f32_packed_size_serial, nk_dots_bf16bf16f32_pack_serial,
-                          nk_dots_bf16bf16f32_serial)
-        .report("dots_serial", "bf16bf16f32");
-    test_dots_f16f16f32(nk_dots_f16f16f32_packed_size_serial, nk_dots_f16f16f32_pack_serial, nk_dots_f16f16f32_serial)
-        .report("dots_serial", "f16f16f32");
-    test_dots_i8i8i32(nk_dots_i8i8i32_packed_size_serial, nk_dots_i8i8i32_pack_serial, nk_dots_i8i8i32_serial)
-        .report("dots_serial", "i8i8i32");
+    run_if_matches("dots_serial", "f32f32f32", test_dots_f32f32f32, nk_dots_f32f32f32_packed_size_serial,
+                   nk_dots_f32f32f32_pack_serial, nk_dots_f32f32f32_serial);
+    run_if_matches("dots_serial", "f64f64f64", test_dots_f64f64f64, nk_dots_f64f64f64_packed_size_serial,
+                   nk_dots_f64f64f64_pack_serial, nk_dots_f64f64f64_serial);
+    run_if_matches("dots_serial", "bf16bf16f32", test_dots_bf16bf16f32, nk_dots_bf16bf16f32_packed_size_serial,
+                   nk_dots_bf16bf16f32_pack_serial, nk_dots_bf16bf16f32_serial);
+    run_if_matches("dots_serial", "f16f16f32", test_dots_f16f16f32, nk_dots_f16f16f32_packed_size_serial,
+                   nk_dots_f16f16f32_pack_serial, nk_dots_f16f16f32_serial);
+    run_if_matches("dots_serial", "i8i8i32", test_dots_i8i8i32, nk_dots_i8i8i32_packed_size_serial,
+                   nk_dots_i8i8i32_pack_serial, nk_dots_i8i8i32_serial);
 
 #endif // NK_DYNAMIC_DISPATCH
 
-#if NK_COMPARE_TO_BLAS
-    // BLAS/Accelerate GEMM precision comparison
-    test_dots_f32_unpacked(dots_f32_blas).report("dots_blas", "f32");
-    test_dots_f64_unpacked(dots_f64_blas).report("dots_blas", "f64");
-#endif
+#if NK_COMPARE_TO_BLAS || NK_COMPARE_TO_MKL
+    // BLAS/MKL GEMM precision comparison
+    run_if_matches("dots_blas", "f32", test_dots_f32_unpacked, dots_f32_blas);
+    run_if_matches("dots_blas", "f64", test_dots_f64_unpacked, dots_f64_blas);
+#endif // NK_COMPARE_TO_BLAS || NK_COMPARE_TO_MKL
 }
 
 #pragma endregion // Dots
@@ -4412,68 +4395,116 @@ error_stats_t test_sparse_dot_u16bf16(sparse_dot_u16bf16_t kernel) {
 }
 
 void test_sparse() {
-    if (!global_config.should_run("sparse") && !global_config.should_run("intersect")) return;
     std::printf("Testing sparse operations...\n");
 
 #if NK_DYNAMIC_DISPATCH
-    test_intersect_u16(nk_intersect_u16).report("intersect", "u16");
-    test_intersect_u32(nk_intersect_u32).report("intersect", "u32");
-    test_sparse_dot_u32f32(nk_sparse_dot_u32f32).report("sparse_dot", "u32f32");
-    test_sparse_dot_u16bf16(nk_sparse_dot_u16bf16).report("sparse_dot", "u16bf16");
+    run_if_matches("intersect", "u16", test_intersect_u16, nk_intersect_u16);
+    run_if_matches("intersect", "u32", test_intersect_u32, nk_intersect_u32);
+    run_if_matches("sparse_dot", "u32f32", test_sparse_dot_u32f32, nk_sparse_dot_u32f32);
+    run_if_matches("sparse_dot", "u16bf16", test_sparse_dot_u16bf16, nk_sparse_dot_u16bf16);
 #else
 
 #if NK_TARGET_NEON
-    test_intersect_u16(nk_intersect_u16_neon).report("intersect_neon", "u16");
-    test_intersect_u32(nk_intersect_u32_neon).report("intersect_neon", "u32");
+    run_if_matches("intersect_neon", "u16", test_intersect_u16, nk_intersect_u16_neon);
+    run_if_matches("intersect_neon", "u32", test_intersect_u32, nk_intersect_u32_neon);
 #endif // NK_TARGET_NEON
 
 #if NK_TARGET_SVE
-    test_intersect_u16(nk_intersect_u16_sve2).report("intersect_sve2", "u16");
-    test_intersect_u32(nk_intersect_u32_sve2).report("intersect_sve2", "u32");
-    test_sparse_dot_u32f32(nk_sparse_dot_u32f32_sve2).report("sparse_dot_sve2", "u32f32");
-    test_sparse_dot_u16bf16(nk_sparse_dot_u16bf16_sve2).report("sparse_dot_sve2", "u16bf16");
+    run_if_matches("intersect_sve2", "u16", test_intersect_u16, nk_intersect_u16_sve2);
+    run_if_matches("intersect_sve2", "u32", test_intersect_u32, nk_intersect_u32_sve2);
+    run_if_matches("sparse_dot_sve2", "u32f32", test_sparse_dot_u32f32, nk_sparse_dot_u32f32_sve2);
+    run_if_matches("sparse_dot_sve2", "u16bf16", test_sparse_dot_u16bf16, nk_sparse_dot_u16bf16_sve2);
 #endif // NK_TARGET_SVE
 
 #if NK_TARGET_ICE
-    test_intersect_u16(nk_intersect_u16_ice).report("intersect_ice", "u16");
-    test_intersect_u32(nk_intersect_u32_ice).report("intersect_ice", "u32");
-    test_sparse_dot_u32f32(nk_sparse_dot_u32f32_ice).report("sparse_dot_ice", "u32f32");
+    run_if_matches("intersect_ice", "u16", test_intersect_u16, nk_intersect_u16_ice);
+    run_if_matches("intersect_ice", "u32", test_intersect_u32, nk_intersect_u32_ice);
+    run_if_matches("sparse_dot_ice", "u32f32", test_sparse_dot_u32f32, nk_sparse_dot_u32f32_ice);
 #endif // NK_TARGET_ICE
 
 #if NK_TARGET_TURIN
-    test_intersect_u16(nk_intersect_u16_turin).report("intersect_turin", "u16");
-    test_intersect_u32(nk_intersect_u32_turin).report("intersect_turin", "u32");
-    test_sparse_dot_u32f32(nk_sparse_dot_u32f32_turin).report("sparse_dot_turin", "u32f32");
-    test_sparse_dot_u16bf16(nk_sparse_dot_u16bf16_turin).report("sparse_dot_turin", "u16bf16");
+    run_if_matches("intersect_turin", "u16", test_intersect_u16, nk_intersect_u16_turin);
+    run_if_matches("intersect_turin", "u32", test_intersect_u32, nk_intersect_u32_turin);
+    run_if_matches("sparse_dot_turin", "u32f32", test_sparse_dot_u32f32, nk_sparse_dot_u32f32_turin);
+    run_if_matches("sparse_dot_turin", "u16bf16", test_sparse_dot_u16bf16, nk_sparse_dot_u16bf16_turin);
 #endif // NK_TARGET_TURIN
 
     // Serial always runs - baseline test
-    test_intersect_u16(nk_intersect_u16_serial).report("intersect_serial", "u16");
-    test_intersect_u32(nk_intersect_u32_serial).report("intersect_serial", "u32");
-    test_sparse_dot_u32f32(nk_sparse_dot_u32f32_serial).report("sparse_dot_serial", "u32f32");
-    test_sparse_dot_u16bf16(nk_sparse_dot_u16bf16_serial).report("sparse_dot_serial", "u16bf16");
+    run_if_matches("intersect_serial", "u16", test_intersect_u16, nk_intersect_u16_serial);
+    run_if_matches("intersect_serial", "u32", test_intersect_u32, nk_intersect_u32_serial);
+    run_if_matches("sparse_dot_serial", "u32f32", test_sparse_dot_u32f32, nk_sparse_dot_u32f32_serial);
+    run_if_matches("sparse_dot_serial", "u16bf16", test_sparse_dot_u16bf16, nk_sparse_dot_u16bf16_serial);
 
 #endif // NK_DYNAMIC_DISPATCH
 }
 
 #pragma endregion // Sparse
 
-#pragma region Capabilities
+int main(int argc, char **argv) {
+    (void)argc;
+    (void)argv;
 
-/**
- *  @brief Print CPU capabilities detected at compile-time and runtime.
- */
-void print_capabilities() {
+    if (char const *env = std::getenv("NK_TEST_ASSERT")) global_config.assert_on_failure = std::atoi(env) != 0;
+    if (char const *env = std::getenv("NK_TEST_VERBOSE")) global_config.verbose = std::atoi(env) != 0;
+    if (char const *env = std::getenv("NK_TEST_ULP_THRESHOLD_F32")) global_config.ulp_threshold_f32 = std::atoll(env);
+    if (char const *env = std::getenv("NK_TEST_ULP_THRESHOLD_F16")) global_config.ulp_threshold_f16 = std::atoll(env);
+    if (char const *env = std::getenv("NK_TEST_ULP_THRESHOLD_BF16")) global_config.ulp_threshold_bf16 = std::atoll(env);
+    if (char const *env = std::getenv("NK_TEST_TIME_BUDGET_MS")) global_config.time_budget_ms = std::atoll(env);
+    if (char const *env = std::getenv("NK_TEST_SEED")) global_config.seed = std::atoll(env);
+    global_config.filter = std::getenv("NK_TEST_FILTER"); // e.g., "dot", "angular", "kld"
+    if (char const *env = std::getenv("NK_TEST_DISTRIBUTION")) {
+        if (std::strcmp(env, "uniform_k") == 0) global_config.distribution = random_distribution_kind_t::uniform_k;
+        else if (std::strcmp(env, "cauchy_k") == 0) global_config.distribution = random_distribution_kind_t::cauchy_k;
+        else if (std::strcmp(env, "lognormal_k") == 0)
+            global_config.distribution = random_distribution_kind_t::lognormal_k;
+    }
+
+    // Parse dimension overrides from environment variables
+    if (char const *env = std::getenv("NK_TEST_DENSE_DIMENSION")) {
+        std::size_t val = static_cast<std::size_t>(std::atoll(env));
+        if (val > 0) {
+            dense_dimension = val;
+            std::printf("Using NK_TEST_DENSE_DIMENSION=%zu\n", dense_dimension);
+        }
+    }
+    if (char const *env = std::getenv("NK_TEST_MESH_DIMENSION")) {
+        std::size_t val = static_cast<std::size_t>(std::atoll(env));
+        if (val > 0) {
+            mesh_dimension = val;
+            std::printf("Using NK_TEST_MESH_DIMENSION=%zu\n", mesh_dimension);
+        }
+    }
+    if (char const *env = std::getenv("NK_TEST_MATMUL_DIMENSION_M")) {
+        std::size_t val = static_cast<std::size_t>(std::atoll(env));
+        if (val > 0) {
+            matmul_dimension_m = val;
+            std::printf("Using NK_TEST_MATMUL_DIMENSION_M=%zu\n", matmul_dimension_m);
+        }
+    }
+    if (char const *env = std::getenv("NK_TEST_MATMUL_DIMENSION_N")) {
+        std::size_t val = static_cast<std::size_t>(std::atoll(env));
+        if (val > 0) {
+            matmul_dimension_n = val;
+            std::printf("Using NK_TEST_MATMUL_DIMENSION_N=%zu\n", matmul_dimension_n);
+        }
+    }
+    if (char const *env = std::getenv("NK_TEST_MATMUL_DIMENSION_K")) {
+        std::size_t val = static_cast<std::size_t>(std::atoll(env));
+        if (val > 0) {
+            matmul_dimension_k = val;
+            std::printf("Using NK_TEST_MATMUL_DIMENSION_K=%zu\n", matmul_dimension_k);
+        }
+    }
+
     nk_capability_t runtime_caps = nk_capabilities();
+    nk_configure_thread(runtime_caps); // Also enables AMX if available
 
+    std::printf("NumKong precision testing suite\n");
     char const *flags[2] = {"false", "true"};
-    std::printf("NumKong Precision Test Suite\n");
-    std::printf("============================\n\n");
-
-    std::printf("Compile-time settings:\n");
-    std::printf("  NK_NATIVE_F16:  %s\n", flags[NK_NATIVE_F16]);
-    std::printf("  NK_NATIVE_BF16: %s\n", flags[NK_NATIVE_BF16]);
-    std::printf("  f64 reference:  %s (%d bits)\n", fmax_name, fmax_mantissa_bits);
+    std::printf("- Compiler used native F16: %s\n", flags[NK_NATIVE_F16]);
+    std::printf("- Compiler used native BF16: %s\n", flags[NK_NATIVE_BF16]);
+    std::printf("- Benchmark against CBLAS: %s\n", flags[NK_COMPARE_TO_BLAS]);
+    std::printf("- Benchmark against MKL: %s\n", flags[NK_COMPARE_TO_MKL]);
     std::printf("\n");
 
     std::printf("Compile-time ISA support:\n");
@@ -4534,52 +4565,6 @@ void print_capabilities() {
     std::printf("  OpenMP:            disabled\n");
 #endif
     std::printf("\n");
-}
-
-#pragma endregion // Capabilities
-
-int main(int argc, char **argv) {
-    (void)argc;
-    (void)argv;
-
-    // Parse dimension overrides from environment variables
-    if (char const *env = std::getenv("NK_TEST_DENSE_DIMENSION")) {
-        std::size_t val = static_cast<std::size_t>(std::atoll(env));
-        if (val > 0) {
-            dense_dimension = val;
-            std::printf("Using NK_TEST_DENSE_DIMENSION=%zu\n", dense_dimension);
-        }
-    }
-    if (char const *env = std::getenv("NK_TEST_MESH_DIMENSION")) {
-        std::size_t val = static_cast<std::size_t>(std::atoll(env));
-        if (val > 0) {
-            mesh_dimension = val;
-            std::printf("Using NK_TEST_MESH_DIMENSION=%zu\n", mesh_dimension);
-        }
-    }
-    if (char const *env = std::getenv("NK_TEST_MATMUL_DIMENSION_M")) {
-        std::size_t val = static_cast<std::size_t>(std::atoll(env));
-        if (val > 0) {
-            matmul_dimension_m = val;
-            std::printf("Using NK_TEST_MATMUL_DIMENSION_M=%zu\n", matmul_dimension_m);
-        }
-    }
-    if (char const *env = std::getenv("NK_TEST_MATMUL_DIMENSION_N")) {
-        std::size_t val = static_cast<std::size_t>(std::atoll(env));
-        if (val > 0) {
-            matmul_dimension_n = val;
-            std::printf("Using NK_TEST_MATMUL_DIMENSION_N=%zu\n", matmul_dimension_n);
-        }
-    }
-    if (char const *env = std::getenv("NK_TEST_MATMUL_DIMENSION_K")) {
-        std::size_t val = static_cast<std::size_t>(std::atoll(env));
-        if (val > 0) {
-            matmul_dimension_k = val;
-            std::printf("Using NK_TEST_MATMUL_DIMENSION_K=%zu\n", matmul_dimension_k);
-        }
-    }
-
-    print_capabilities();
 
     // Type conversion tests
     test_fp8_conversions();

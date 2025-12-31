@@ -84,26 +84,26 @@ namespace bm = benchmark;
 inline std::mt19937 make_random_engine() { return std::mt19937(random_seed); }
 
 // clang-format off
-template <nk_datatype_t> struct datatype_enum_to_type_gt { using value_t = void; using scalar_t = void; static constexpr std::size_t components_k = 1; };
-template <> struct datatype_enum_to_type_gt<nk_f64_k> { using value_t = nk_f64_t; using scalar_t = nk_f64_t; static constexpr std::size_t components_k = 1; };
-template <> struct datatype_enum_to_type_gt<nk_f32_k> { using value_t = nk_f32_t; using scalar_t = nk_f32_t; static constexpr std::size_t components_k = 1; };
-template <> struct datatype_enum_to_type_gt<nk_f16_k> { using value_t = nk_f16_t; using scalar_t = nk_f16_t; static constexpr std::size_t components_k = 1; };
-template <> struct datatype_enum_to_type_gt<nk_bf16_k> { using value_t = nk_bf16_t; using scalar_t = nk_bf16_t; static constexpr std::size_t components_k = 1; };
-template <> struct datatype_enum_to_type_gt<nk_e4m3_k> { using value_t = nk_e4m3_t; using scalar_t = nk_e4m3_t; static constexpr std::size_t components_k = 1; };
-template <> struct datatype_enum_to_type_gt<nk_e5m2_k> { using value_t = nk_e5m2_t; using scalar_t = nk_e5m2_t; static constexpr std::size_t components_k = 1; };
-template <> struct datatype_enum_to_type_gt<nk_f64c_k> { using value_t = nk_f64c_t; using scalar_t = nk_f64_t; static constexpr std::size_t components_k = 2; };
-template <> struct datatype_enum_to_type_gt<nk_f32c_k> { using value_t = nk_f32c_t; using scalar_t = nk_f32_t; static constexpr std::size_t components_k = 2; };
-template <> struct datatype_enum_to_type_gt<nk_f16c_k> { using value_t = nk_f16c_t; using scalar_t = nk_f16_t; static constexpr std::size_t components_k = 2; };
-template <> struct datatype_enum_to_type_gt<nk_bf16c_k> { using value_t = nk_bf16c_t; using scalar_t = nk_bf16_t; static constexpr std::size_t components_k = 2; };
-template <> struct datatype_enum_to_type_gt<nk_b8_k> { using value_t = nk_b8_t; using scalar_t = nk_b8_t; static constexpr std::size_t components_k = 1; };
-template <> struct datatype_enum_to_type_gt<nk_i8_k> { using value_t = nk_i8_t; using scalar_t = nk_i8_t; static constexpr std::size_t components_k = 1; };
-template <> struct datatype_enum_to_type_gt<nk_u8_k> { using value_t = nk_u8_t; using scalar_t = nk_u8_t; static constexpr std::size_t components_k = 1; };
-template <> struct datatype_enum_to_type_gt<nk_i16_k> { using value_t = nk_i16_t; using scalar_t = nk_i16_t; static constexpr std::size_t components_k = 1; };
-template <> struct datatype_enum_to_type_gt<nk_u16_k> { using value_t = nk_u16_t; using scalar_t = nk_u16_t; static constexpr std::size_t components_k = 1; };
-template <> struct datatype_enum_to_type_gt<nk_i32_k> { using value_t = nk_i32_t; using scalar_t = nk_i32_t; static constexpr std::size_t components_k = 1; };
-template <> struct datatype_enum_to_type_gt<nk_u32_k> { using value_t = nk_u32_t; using scalar_t = nk_u32_t; static constexpr std::size_t components_k = 1; };
-template <> struct datatype_enum_to_type_gt<nk_i64_k> { using value_t = nk_i64_t; using scalar_t = nk_i64_t; static constexpr std::size_t components_k = 1; };
-template <> struct datatype_enum_to_type_gt<nk_u64_k> { using value_t = nk_u64_t; using scalar_t = nk_u64_t; static constexpr std::size_t components_k = 1; };
+template <nk_datatype_t> struct datatype_enum_to_type { using value_t = void; using scalar_t = void; static constexpr std::size_t components_k = 1; };
+template <> struct datatype_enum_to_type<nk_f64_k> { using value_t = nk_f64_t; using scalar_t = nk_f64_t; static constexpr std::size_t components_k = 1; };
+template <> struct datatype_enum_to_type<nk_f32_k> { using value_t = nk_f32_t; using scalar_t = nk_f32_t; static constexpr std::size_t components_k = 1; };
+template <> struct datatype_enum_to_type<nk_f16_k> { using value_t = nk_f16_t; using scalar_t = nk_f16_t; static constexpr std::size_t components_k = 1; };
+template <> struct datatype_enum_to_type<nk_bf16_k> { using value_t = nk_bf16_t; using scalar_t = nk_bf16_t; static constexpr std::size_t components_k = 1; };
+template <> struct datatype_enum_to_type<nk_e4m3_k> { using value_t = nk_e4m3_t; using scalar_t = nk_e4m3_t; static constexpr std::size_t components_k = 1; };
+template <> struct datatype_enum_to_type<nk_e5m2_k> { using value_t = nk_e5m2_t; using scalar_t = nk_e5m2_t; static constexpr std::size_t components_k = 1; };
+template <> struct datatype_enum_to_type<nk_f64c_k> { using value_t = nk_f64c_t; using scalar_t = nk_f64_t; static constexpr std::size_t components_k = 2; };
+template <> struct datatype_enum_to_type<nk_f32c_k> { using value_t = nk_f32c_t; using scalar_t = nk_f32_t; static constexpr std::size_t components_k = 2; };
+template <> struct datatype_enum_to_type<nk_f16c_k> { using value_t = nk_f16c_t; using scalar_t = nk_f16_t; static constexpr std::size_t components_k = 2; };
+template <> struct datatype_enum_to_type<nk_bf16c_k> { using value_t = nk_bf16c_t; using scalar_t = nk_bf16_t; static constexpr std::size_t components_k = 2; };
+template <> struct datatype_enum_to_type<nk_b8_k> { using value_t = nk_b8_t; using scalar_t = nk_b8_t; static constexpr std::size_t components_k = 1; };
+template <> struct datatype_enum_to_type<nk_i8_k> { using value_t = nk_i8_t; using scalar_t = nk_i8_t; static constexpr std::size_t components_k = 1; };
+template <> struct datatype_enum_to_type<nk_u8_k> { using value_t = nk_u8_t; using scalar_t = nk_u8_t; static constexpr std::size_t components_k = 1; };
+template <> struct datatype_enum_to_type<nk_i16_k> { using value_t = nk_i16_t; using scalar_t = nk_i16_t; static constexpr std::size_t components_k = 1; };
+template <> struct datatype_enum_to_type<nk_u16_k> { using value_t = nk_u16_t; using scalar_t = nk_u16_t; static constexpr std::size_t components_k = 1; };
+template <> struct datatype_enum_to_type<nk_i32_k> { using value_t = nk_i32_t; using scalar_t = nk_i32_t; static constexpr std::size_t components_k = 1; };
+template <> struct datatype_enum_to_type<nk_u32_k> { using value_t = nk_u32_t; using scalar_t = nk_u32_t; static constexpr std::size_t components_k = 1; };
+template <> struct datatype_enum_to_type<nk_i64_k> { using value_t = nk_i64_t; using scalar_t = nk_i64_t; static constexpr std::size_t components_k = 1; };
+template <> struct datatype_enum_to_type<nk_u64_k> { using value_t = nk_u64_t; using scalar_t = nk_u64_t; static constexpr std::size_t components_k = 1; };
 // clang-format on
 
 template <std::size_t multiple>
@@ -116,8 +116,8 @@ constexpr std::size_t divide_round_up(std::size_t n) {
  *  @tparam datatype_ak The data type of the vector elements, represented as a `nk_datatype_t`.
  */
 template <nk_datatype_t datatype_ak>
-struct vector_gt {
-    using datatype_reflection_t = datatype_enum_to_type_gt<datatype_ak>;
+struct vector {
+    using datatype_reflection_t = datatype_enum_to_type<datatype_ak>;
     using scalar_t = typename datatype_reflection_t::scalar_t;
     using value_t = typename datatype_reflection_t::value_t;
     static constexpr std::size_t components_k = datatype_reflection_t::components_k;
@@ -132,20 +132,20 @@ struct vector_gt {
     value_t *values_ptr_ = nullptr;
     std::size_t values_count_ = 0;
 
-    vector_gt() = default;
-    vector_gt(std::size_t values_count) noexcept(false)
+    vector() = default;
+    vector(std::size_t values_count) noexcept(false)
         : values_count_(values_count),
           values_ptr_(static_cast<value_t *>(std::aligned_alloc(
               cacheline_length, divide_round_up<cacheline_length>(values_count * sizeof(value_t))))) {
         if (!values_ptr_) throw std::bad_alloc();
     }
 
-    ~vector_gt() noexcept { std::free(values_ptr_); }
+    ~vector() noexcept { std::free(values_ptr_); }
 
-    vector_gt(vector_gt const &other) : vector_gt(other.size()) {
+    vector(vector const &other) : vector(other.size()) {
         std::memcpy(values_ptr_, other.values_ptr_, divide_round_up<cacheline_length>(values_count_ * sizeof(value_t)));
     }
-    vector_gt &operator=(vector_gt const &other) {
+    vector &operator=(vector const &other) {
         if (this != &other) {
             if (values_count_ != other.size()) {
                 std::free(values_ptr_);
@@ -277,19 +277,19 @@ struct vector_gt {
 };
 
 template <nk_datatype_t datatype_ak>
-struct vectors_pair_gt {
-    using vector_t = vector_gt<datatype_ak>;
+struct vectors_pair {
+    using vector_t = vector<datatype_ak>;
     using scalar_t = typename vector_t::scalar_t;
     static constexpr bool is_integral = vector_t::is_integral;
 
     vector_t a;
     vector_t b;
 
-    vectors_pair_gt() noexcept = default;
-    vectors_pair_gt(std::size_t dimensions) noexcept : a(dimensions), b(dimensions) {}
-    vectors_pair_gt(std::size_t size_a, std::size_t size_b) noexcept : a(size_a), b(size_b) {}
-    vectors_pair_gt(vectors_pair_gt const &other) noexcept(false) : a(other.a), b(other.b) {}
-    vectors_pair_gt &operator=(vectors_pair_gt const &other) noexcept(false) {
+    vectors_pair() noexcept = default;
+    vectors_pair(std::size_t dimensions) noexcept : a(dimensions), b(dimensions) {}
+    vectors_pair(std::size_t size_a, std::size_t size_b) noexcept : a(size_a), b(size_b) {}
+    vectors_pair(vectors_pair const &other) noexcept(false) : a(other.a), b(other.b) {}
+    vectors_pair &operator=(vectors_pair const &other) noexcept(false) {
         if (this != &other) a = other.a, b = other.b;
         return *this;
     }
@@ -297,26 +297,26 @@ struct vectors_pair_gt {
 
 /**
  *  @brief Measures the performance of a @b dense metric function against a baseline using Google Benchmark.
- *  @tparam pair_at The type representing the vector pair used in the measurement.
+ *  @tparam pair_type_ The type representing the vector pair used in the measurement.
  *  @tparam output_datatype_ak The datatype of the output (e.g., f32_k, f64_k, u32_k).
- *  @tparam test_metric_at The type of the test metric function.
- *  @tparam baseline_metric_at The type of the baseline metric function.
+ *  @tparam test_metric_type_ The type of the test metric function.
+ *  @tparam baseline_metric_type_ The type of the baseline metric function.
  *  @param state The benchmark state object provided by Google Benchmark.
  *  @param metric The metric function to benchmark.
  *  @param baseline The baseline function to compare against.
  *  @param dimensions The number of dimensions in the vectors.
  */
-template <typename pair_at, nk_datatype_t test_output_datatype_ak, nk_datatype_t baseline_output_datatype_ak,
-          typename test_metric_at = void, typename baseline_metric_at = void>
-void measure_dense(bm::State &state, test_metric_at metric, baseline_metric_at baseline, std::size_t dimensions) {
+template <typename pair_type_, nk_datatype_t test_output_datatype_ak, nk_datatype_t baseline_output_datatype_ak,
+          typename test_metric_type_ = void, typename baseline_metric_type_ = void>
+void measure_dense(bm::State &state, test_metric_type_ metric, baseline_metric_type_ baseline, std::size_t dimensions) {
 
-    using pair_t = pair_at;
-    using vector_t = typename pair_at::vector_t;
+    using pair_t = pair_type_;
+    using vector_t = typename pair_type_::vector_t;
     using value_t = typename vector_t::value_t;
 
     // Determine result types from explicit datatype parameters
-    using test_result_t = typename datatype_enum_to_type_gt<test_output_datatype_ak>::value_t;
-    using baseline_result_t = typename datatype_enum_to_type_gt<baseline_output_datatype_ak>::value_t;
+    using test_result_t = typename datatype_enum_to_type<test_output_datatype_ak>::value_t;
+    using baseline_result_t = typename datatype_enum_to_type<baseline_output_datatype_ak>::value_t;
 
     auto call_baseline = [&](pair_t &pair) -> double {
         // Baseline (accurate) always uses f64 output (real or complex)
@@ -326,7 +326,6 @@ void measure_dense(bm::State &state, test_metric_at metric, baseline_metric_at b
         else { return static_cast<double>(results_f64[0]); }
     };
     auto call_contender = [&](pair_t &pair) -> double {
-        // Test function output type determined by test_output_type_gt
         test_result_t results[2] = {{0}, {0}};
         metric(pair.a.data(), pair.b.data(), pair.a.size(), &results[0]);
         if constexpr (std::is_same_v<test_result_t, nk_f32c_t> || std::is_same_v<test_result_t, nk_f64c_t>) {
@@ -375,26 +374,27 @@ void measure_dense(bm::State &state, test_metric_at metric, baseline_metric_at b
 
 /**
  *  @brief Measures the performance of a @b curved metric function against a baseline using Google Benchmark.
- *  @tparam pair_at The type representing the vector pair used in the measurement.
+ *  @tparam pair_type_ The type representing the vector pair used in the measurement.
  *  @tparam output_datatype_ak The datatype of the output (e.g., f32_k, f64_k).
- *  @tparam test_metric_at The type of the test metric function.
- *  @tparam baseline_metric_at The type of the baseline metric function.
+ *  @tparam test_metric_type_ The type of the test metric function.
+ *  @tparam baseline_metric_type_ The type of the baseline metric function.
  *  @param state The benchmark state object provided by Google Benchmark.
  *  @param metric The metric function to benchmark.
  *  @param baseline The baseline function to compare against.
  *  @param dimensions The number of dimensions in the vectors.
  */
-template <typename pair_at, nk_datatype_t test_output_datatype_ak, nk_datatype_t baseline_output_datatype_ak,
-          typename test_metric_at = void, typename baseline_metric_at = void>
-void measure_curved(bm::State &state, test_metric_at metric, baseline_metric_at baseline, std::size_t dimensions) {
+template <typename pair_type_, nk_datatype_t test_output_datatype_ak, nk_datatype_t baseline_output_datatype_ak,
+          typename test_metric_type_ = void, typename baseline_metric_type_ = void>
+void measure_curved(bm::State &state, test_metric_type_ metric, baseline_metric_type_ baseline,
+                    std::size_t dimensions) {
 
-    using pair_t = pair_at;
-    using vector_t = typename pair_at::vector_t;
+    using pair_t = pair_type_;
+    using vector_t = typename pair_type_::vector_t;
     using value_t = typename vector_t::value_t;
 
     // Determine result types from explicit datatype parameters
-    using test_result_t = typename datatype_enum_to_type_gt<test_output_datatype_ak>::value_t;
-    using baseline_result_t = typename datatype_enum_to_type_gt<baseline_output_datatype_ak>::value_t;
+    using test_result_t = typename datatype_enum_to_type<test_output_datatype_ak>::value_t;
+    using baseline_result_t = typename datatype_enum_to_type<baseline_output_datatype_ak>::value_t;
 
     auto call_baseline = [&](pair_t const &pair, vector_t const &tensor) -> double {
         // Baseline (accurate) always uses f64 output (real or complex)
@@ -407,7 +407,6 @@ void measure_curved(bm::State &state, test_metric_at metric, baseline_metric_at 
         else { return static_cast<double>(results[0] + results[1]); }
     };
     auto call_contender = [&](pair_t const &pair, vector_t const &tensor) -> double {
-        // Test function output type determined by test_output_type_gt
         test_result_t results[2] = {{0}, {0}};
         metric(pair.a.data(), pair.b.data(), tensor.data(), pair.a.size(), &results[0]);
         if constexpr (test_output_datatype_ak == nk_f32c_k || test_output_datatype_ak == nk_f64c_k ||
@@ -462,8 +461,8 @@ void measure_curved(bm::State &state, test_metric_at metric, baseline_metric_at 
 
 /**
  *  @brief Measures the performance of a @b sparse metric function against a baseline using Google Benchmark.
- *  @tparam pair_at The type representing the vector pair used in the measurement.
- *  @tparam metric_at The type of the metric function (default is void).
+ *  @tparam pair_type_ The type representing the vector pair used in the measurement.
+ *  @tparam metric_type_ The type of the metric function (default is void).
  *  @param state The benchmark state object provided by Google Benchmark.
  *  @param metric The metric function to benchmark.
  *  @param baseline The baseline function to compare against.
@@ -471,16 +470,16 @@ void measure_curved(bm::State &state, test_metric_at metric, baseline_metric_at 
  *  @param size_b The number of elements in the larger vector.
  *  @param intersection_size The expected number of common scalars between the vectors.
  */
-template <typename pair_at, nk_datatype_t test_output_datatype_ak, nk_datatype_t baseline_output_datatype_ak,
-          typename test_metric_at = void, typename baseline_metric_at = void>
-void measure_sparse(bm::State &state, test_metric_at metric, baseline_metric_at baseline, std::size_t size_a,
+template <typename pair_type_, nk_datatype_t test_output_datatype_ak, nk_datatype_t baseline_output_datatype_ak,
+          typename test_metric_type_ = void, typename baseline_metric_type_ = void>
+void measure_sparse(bm::State &state, test_metric_type_ metric, baseline_metric_type_ baseline, std::size_t size_a,
                     std::size_t size_b, std::size_t intersection_size) {
 
-    using pair_t = pair_at;
-    using vector_t = typename pair_at::vector_t;
+    using pair_t = pair_type_;
+    using vector_t = typename pair_type_::vector_t;
     using scalar_t = typename vector_t::scalar_t;
-    using test_result_t = typename datatype_enum_to_type_gt<test_output_datatype_ak>::scalar_t;
-    using baseline_result_t = typename datatype_enum_to_type_gt<baseline_output_datatype_ak>::scalar_t;
+    using test_result_t = typename datatype_enum_to_type<test_output_datatype_ak>::scalar_t;
+    using baseline_result_t = typename datatype_enum_to_type<baseline_output_datatype_ak>::scalar_t;
 
     auto call_baseline = [&](pair_t &pair) -> double {
         baseline_result_t result = std::numeric_limits<baseline_result_t>::signaling_NaN();
@@ -572,18 +571,18 @@ void measure_sparse(bm::State &state, test_metric_at metric, baseline_metric_at 
  *  Each point cloud contains n 3D points stored as [x0,y0,z0,x1,y1,z1,...].
  */
 template <nk_datatype_t datatype_ak>
-struct mesh_pair_gt {
-    using vector_t = vector_gt<datatype_ak>;
+struct mesh_pair {
+    using vector_t = vector<datatype_ak>;
     using scalar_t = typename vector_t::scalar_t;
 
     vector_t a;
     vector_t b;
     std::size_t num_points;
 
-    mesh_pair_gt() noexcept = default;
-    mesh_pair_gt(std::size_t points) noexcept : a(points * 3), b(points * 3), num_points(points) {}
-    mesh_pair_gt(mesh_pair_gt const &other) noexcept(false) : a(other.a), b(other.b), num_points(other.num_points) {}
-    mesh_pair_gt &operator=(mesh_pair_gt const &other) noexcept(false) {
+    mesh_pair() noexcept = default;
+    mesh_pair(std::size_t points) noexcept : a(points * 3), b(points * 3), num_points(points) {}
+    mesh_pair(mesh_pair const &other) noexcept(false) : a(other.a), b(other.b), num_points(other.num_points) {}
+    mesh_pair &operator=(mesh_pair const &other) noexcept(false) {
         if (this != &other) a = other.a, b = other.b, num_points = other.num_points;
         return *this;
     }
@@ -591,22 +590,22 @@ struct mesh_pair_gt {
 
 /**
  *  @brief Measures the performance of a @b mesh metric function (RMSD/Kabsch) against a baseline.
- *  @tparam pair_at The type representing the point cloud pair.
- *  @tparam metric_at The type of the metric function.
+ *  @tparam pair_type_ The type representing the point cloud pair.
+ *  @tparam metric_type_ The type of the metric function.
  *  @param state The benchmark state object provided by Google Benchmark.
  *  @param metric The metric function to benchmark.
  *  @param baseline The baseline function to compare against.
  *  @param num_points The number of 3D points in each point cloud.
  */
-template <typename pair_at, nk_datatype_t test_output_datatype_ak, nk_datatype_t baseline_output_datatype_ak,
-          typename test_metric_at = void, typename baseline_metric_at = void>
-void measure_mesh(bm::State &state, test_metric_at metric, baseline_metric_at baseline, std::size_t num_points) {
+template <typename pair_type_, nk_datatype_t test_output_datatype_ak, nk_datatype_t baseline_output_datatype_ak,
+          typename test_metric_type_ = void, typename baseline_metric_type_ = void>
+void measure_mesh(bm::State &state, test_metric_type_ metric, baseline_metric_type_ baseline, std::size_t num_points) {
 
-    using pair_t = pair_at;
-    using vector_t = typename pair_at::vector_t;
+    using pair_t = pair_type_;
+    using vector_t = typename pair_type_::vector_t;
     using scalar_t = typename vector_t::scalar_t;
-    using test_result_t = typename datatype_enum_to_type_gt<test_output_datatype_ak>::scalar_t;
-    using baseline_result_t = typename datatype_enum_to_type_gt<baseline_output_datatype_ak>::scalar_t;
+    using test_result_t = typename datatype_enum_to_type<test_output_datatype_ak>::scalar_t;
+    using baseline_result_t = typename datatype_enum_to_type<baseline_output_datatype_ak>::scalar_t;
 
     auto call_baseline = [&](pair_t &pair) -> double {
         baseline_result_t result = std::numeric_limits<baseline_result_t>::signaling_NaN(), scale = 0;
@@ -661,28 +660,28 @@ void measure_mesh(bm::State &state, test_metric_at metric, baseline_metric_at ba
 
 /**
  *  @brief Measures the performance of a vector-vector @b FMA function against a baseline using Google Benchmark.
- *  @tparam pair_at The type representing the vector pair used in the measurement.
- *  @tparam kernel_at The type of the kernel function (default is void).
+ *  @tparam pair_type_ The type representing the vector pair used in the measurement.
+ *  @tparam kernel_type_ The type of the kernel function (default is void).
  *  @param state The benchmark state object provided by Google Benchmark.
  *  @param kernel The kernel function to benchmark.
  *  @param baseline The baseline function to compare against.
  *  @param l2_metric The L2 metric function to compute the error
  *  @param dimensions The number of dimensions in the vectors.
  */
-template <typename pair_at, nk_kernel_kind_t kernel_ak, nk_datatype_t test_output_datatype_ak,
+template <typename pair_type_, nk_kernel_kind_t kernel_ak, nk_datatype_t test_output_datatype_ak,
           nk_datatype_t baseline_output_datatype_ak, nk_datatype_t test_alpha_datatype_ak,
-          nk_datatype_t baseline_alpha_datatype_ak, typename test_kernel_at = void, typename baseline_kernel_at = void,
-          typename l2_metric_at = void>
-void measure_elementwise(bm::State &state, test_kernel_at kernel, baseline_kernel_at baseline, l2_metric_at l2_metric,
-                         std::size_t dimensions) {
+          nk_datatype_t baseline_alpha_datatype_ak, typename test_kernel_type_ = void,
+          typename baseline_kernel_type_ = void, typename l2_metric_type_ = void>
+void measure_elementwise(bm::State &state, test_kernel_type_ kernel, baseline_kernel_type_ baseline,
+                         l2_metric_type_ l2_metric, std::size_t dimensions) {
 
-    using pair_t = pair_at;
-    using vector_t = typename pair_at::vector_t;
-    using scalar_t = typename pair_at::scalar_t;
+    using pair_t = pair_type_;
+    using vector_t = typename pair_type_::vector_t;
+    using scalar_t = typename pair_type_::scalar_t;
 
     // Determine alpha/beta types from explicit datatype parameters
-    using test_alpha_t = typename datatype_enum_to_type_gt<test_alpha_datatype_ak>::scalar_t;
-    using baseline_alpha_t = typename datatype_enum_to_type_gt<baseline_alpha_datatype_ak>::scalar_t;
+    using test_alpha_t = typename datatype_enum_to_type<test_alpha_datatype_ak>::scalar_t;
+    using baseline_alpha_t = typename datatype_enum_to_type<baseline_alpha_datatype_ak>::scalar_t;
 
     // Alpha and beta parameters
     test_alpha_t alpha = 0.2;
@@ -774,28 +773,28 @@ void measure_elementwise(bm::State &state, test_kernel_at kernel, baseline_kerne
 
 /**
  *  @brief Measures the performance of a geospatial operations between 4 arrays: 2 latitudes, 2 longitudes.
- *  @tparam pair_at The type representing the vector pair used in the measurement.
- *  @tparam kernel_at The type of the kernel function (default is void).
+ *  @tparam pair_type_ The type representing the vector pair used in the measurement.
+ *  @tparam kernel_type_ The type of the kernel function (default is void).
  *  @param state The benchmark state object provided by Google Benchmark.
  *  @param kernel The kernel function to benchmark.
  *  @param baseline The baseline function to compare against.
  *  @param l2_metric The L2 metric function to compute the error
  *  @param dimensions The number of dimensions in the vectors.
  */
-template <typename pair_at, nk_datatype_t test_output_datatype_ak, nk_datatype_t baseline_output_datatype_ak,
-          typename test_kernel_at = void, typename baseline_kernel_at = void, typename l2_metric_at = void>
-void measure_geospatial(bm::State &state, test_kernel_at kernel, baseline_kernel_at baseline, l2_metric_at l2_metric,
-                        std::size_t dimensions) {
+template <typename pair_type_, nk_datatype_t test_output_datatype_ak, nk_datatype_t baseline_output_datatype_ak,
+          typename test_kernel_type_ = void, typename baseline_kernel_type_ = void, typename l2_metric_type_ = void>
+void measure_geospatial(bm::State &state, test_kernel_type_ kernel, baseline_kernel_type_ baseline,
+                        l2_metric_type_ l2_metric, std::size_t dimensions) {
 
-    using pair_t = pair_at;
-    using vector_t = typename pair_at::vector_t;
+    using pair_t = pair_type_;
+    using vector_t = typename pair_type_::vector_t;
     using scalar_t = typename vector_t::scalar_t;
     struct quad_t {
         vector_t lat1, lon1, lat2, lon2;
     };
 
-    using test_distances_t = vector_gt<test_output_datatype_ak>;
-    using baseline_distances_t = vector_gt<baseline_output_datatype_ak>;
+    using test_distances_t = vector<test_output_datatype_ak>;
+    using baseline_distances_t = vector<baseline_output_datatype_ak>;
     auto call_baseline = [&](quad_t const &quad, baseline_distances_t &d) {
         baseline(quad.lat1.data(), quad.lon1.data(), quad.lat2.data(), quad.lon2.data(), quad.lat1.size(), d.data());
     };
@@ -870,13 +869,13 @@ void measure_geospatial(bm::State &state, test_kernel_at kernel, baseline_kernel
 }
 
 template <nk_datatype_t datatype_ak, nk_datatype_t test_output_datatype_ak, nk_datatype_t baseline_output_datatype_ak,
-          typename test_metric_at = void, typename baseline_metric_at = void>
-void dense_(std::string name, test_metric_at *distance_func, baseline_metric_at *baseline_func) {
-    using pair_t = vectors_pair_gt<datatype_ak>;
+          typename test_metric_type_ = void, typename baseline_metric_type_ = void>
+void dense_(std::string name, test_metric_type_ *distance_func, baseline_metric_type_ *baseline_func) {
+    using pair_t = vectors_pair<datatype_ak>;
     std::string bench_name = name + "<" + std::to_string(dense_dimensions) + "d>";
     bm::RegisterBenchmark(bench_name.c_str(),
-                          measure_dense<pair_t, test_output_datatype_ak, baseline_output_datatype_ak, test_metric_at *,
-                                        baseline_metric_at *>,
+                          measure_dense<pair_t, test_output_datatype_ak, baseline_output_datatype_ak,
+                                        test_metric_type_ *, baseline_metric_type_ *>,
                           distance_func, baseline_func, dense_dimensions)
         ->MinTime(default_seconds)
         ->Threads(default_threads);
@@ -886,40 +885,40 @@ template <nk_datatype_t datatype_ak, nk_kernel_kind_t kernel_ak = nk_kernel_unkn
           nk_datatype_t test_output_datatype_ak = nk_datatype_unknown_k,
           nk_datatype_t baseline_output_datatype_ak = nk_datatype_unknown_k,
           nk_datatype_t test_alpha_datatype_ak = nk_datatype_unknown_k,
-          nk_datatype_t baseline_alpha_datatype_ak = nk_datatype_unknown_k, typename test_kernel_at = void,
-          typename baseline_kernel_at = void, typename l2_metric_at = void>
-void elementwise_(std::string name, test_kernel_at *kernel_func, baseline_kernel_at *baseline_func,
-                  l2_metric_at *l2_metric_func) {
-    using pair_t = vectors_pair_gt<datatype_ak>;
+          nk_datatype_t baseline_alpha_datatype_ak = nk_datatype_unknown_k, typename test_kernel_type_ = void,
+          typename baseline_kernel_type_ = void, typename l2_metric_type_ = void>
+void elementwise_(std::string name, test_kernel_type_ *kernel_func, baseline_kernel_type_ *baseline_func,
+                  l2_metric_type_ *l2_metric_func) {
+    using pair_t = vectors_pair<datatype_ak>;
     std::string bench_name = name + "<" + std::to_string(dense_dimensions) + "d>";
     bm::RegisterBenchmark(bench_name.c_str(),
                           measure_elementwise<pair_t, kernel_ak, test_output_datatype_ak, baseline_output_datatype_ak,
-                                              test_alpha_datatype_ak, baseline_alpha_datatype_ak, test_kernel_at *,
-                                              baseline_kernel_at *, l2_metric_at *>,
+                                              test_alpha_datatype_ak, baseline_alpha_datatype_ak, test_kernel_type_ *,
+                                              baseline_kernel_type_ *, l2_metric_type_ *>,
                           kernel_func, baseline_func, l2_metric_func, dense_dimensions)
         ->MinTime(default_seconds)
         ->Threads(default_threads);
 }
 
 template <nk_datatype_t datatype_ak, nk_datatype_t test_output_datatype_ak, nk_datatype_t baseline_output_datatype_ak,
-          typename test_kernel_at = void, typename baseline_kernel_at = void, typename l2_metric_at = void>
-void geospatial_(std::string name, test_kernel_at *kernel_func, baseline_kernel_at *baseline_func,
-                 l2_metric_at *l2_metric_func) {
-    using pair_t = vectors_pair_gt<datatype_ak>;
+          typename test_kernel_type_ = void, typename baseline_kernel_type_ = void, typename l2_metric_type_ = void>
+void geospatial_(std::string name, test_kernel_type_ *kernel_func, baseline_kernel_type_ *baseline_func,
+                 l2_metric_type_ *l2_metric_func) {
+    using pair_t = vectors_pair<datatype_ak>;
     std::string bench_name = name + "<" + std::to_string(dense_dimensions) + "d>";
     bm::RegisterBenchmark(bench_name.c_str(),
                           measure_geospatial<pair_t, test_output_datatype_ak, baseline_output_datatype_ak,
-                                             test_kernel_at *, baseline_kernel_at *, l2_metric_at *>,
+                                             test_kernel_type_ *, baseline_kernel_type_ *, l2_metric_type_ *>,
                           kernel_func, baseline_func, l2_metric_func, dense_dimensions)
         ->MinTime(default_seconds)
         ->Threads(default_threads);
 }
 
 template <nk_datatype_t datatype_ak, nk_datatype_t test_output_datatype_ak, nk_datatype_t baseline_output_datatype_ak,
-          typename test_metric_at = void, typename baseline_metric_at = void>
-void sparse_(std::string name, test_metric_at *distance_func, baseline_metric_at *baseline_func) {
+          typename test_metric_type_ = void, typename baseline_metric_type_ = void>
+void sparse_(std::string name, test_metric_type_ *distance_func, baseline_metric_type_ *baseline_func) {
 
-    using pair_t = vectors_pair_gt<datatype_ak>;
+    using pair_t = vectors_pair<datatype_ak>;
 
     // Register different lengths, intersection sizes, and distributions
     // 2 first lengths * 3 second length multipliers * 4 intersection grades = 24 benchmarks for each metric.
@@ -934,7 +933,7 @@ void sparse_(std::string name, test_metric_at *distance_func, baseline_metric_at
                 if (second_len > 8192) continue;
                 bm::RegisterBenchmark(bench_name.c_str(),
                                       measure_sparse<pair_t, test_output_datatype_ak, baseline_output_datatype_ak,
-                                                     test_metric_at *, baseline_metric_at *>,
+                                                     test_metric_type_ *, baseline_metric_type_ *>,
                                       distance_func, baseline_func, first_len, second_len, intersection_size)
                     ->MinTime(default_seconds)
                     ->Threads(default_threads);
@@ -944,96 +943,96 @@ void sparse_(std::string name, test_metric_at *distance_func, baseline_metric_at
 }
 
 template <nk_datatype_t datatype_ak, nk_datatype_t test_output_datatype_ak, nk_datatype_t baseline_output_datatype_ak,
-          typename test_metric_at = void, typename baseline_metric_at = void>
-void curved_(std::string name, test_metric_at *distance_func, baseline_metric_at *baseline_func) {
+          typename test_metric_type_ = void, typename baseline_metric_type_ = void>
+void curved_(std::string name, test_metric_type_ *distance_func, baseline_metric_type_ *baseline_func) {
 
-    using pair_t = vectors_pair_gt<datatype_ak>;
+    using pair_t = vectors_pair<datatype_ak>;
     std::string bench_name = name + "<" + std::to_string(curved_dimensions) + "d>";
     bm::RegisterBenchmark(bench_name.c_str(),
-                          measure_curved<pair_t, test_output_datatype_ak, baseline_output_datatype_ak, test_metric_at *,
-                                         baseline_metric_at *>,
+                          measure_curved<pair_t, test_output_datatype_ak, baseline_output_datatype_ak,
+                                         test_metric_type_ *, baseline_metric_type_ *>,
                           distance_func, baseline_func, curved_dimensions)
         ->MinTime(default_seconds)
         ->Threads(default_threads);
 }
 
 template <nk_datatype_t datatype_ak, nk_datatype_t test_output_datatype_ak, nk_datatype_t baseline_output_datatype_ak,
-          typename test_metric_at = void, typename baseline_metric_at = void>
-void mesh_(std::string name, test_metric_at *distance_func, baseline_metric_at *baseline_func) {
+          typename test_metric_type_ = void, typename baseline_metric_type_ = void>
+void mesh_(std::string name, test_metric_type_ *distance_func, baseline_metric_type_ *baseline_func) {
 
-    using pair_t = mesh_pair_gt<datatype_ak>;
+    using pair_t = mesh_pair<datatype_ak>;
     std::string bench_name = name + "<" + std::to_string(mesh_dimensions) + "pts>";
     bm::RegisterBenchmark(bench_name.c_str(),
-                          measure_mesh<pair_t, test_output_datatype_ak, baseline_output_datatype_ak, test_metric_at *,
-                                       baseline_metric_at *>,
+                          measure_mesh<pair_t, test_output_datatype_ak, baseline_output_datatype_ak,
+                                       test_metric_type_ *, baseline_metric_type_ *>,
                           distance_func, baseline_func, mesh_dimensions)
         ->MinTime(default_seconds)
         ->Threads(default_threads);
 }
 
 //  Matmul measurement for packed B matrix API
-template <typename input_at, typename output_at>
-void measure_matmul_packed(bm::State &state,                                                         //
-                           nk_size_t (*packed_size_fn)(nk_size_t, nk_size_t),                        //
-                           void (*pack_fn)(input_at const *, nk_size_t, nk_size_t, nk_size_t,        //
-                                           void *),                                                  //
-                           void (*matmul_fn)(input_at const *, void const *, output_at *, nk_size_t, //
-                                             nk_size_t, nk_size_t, nk_size_t, nk_size_t),            //
-                           std::size_t m, std::size_t n, std::size_t k) {
+template <typename input_type_, typename output_type_>
+void measure_matmul_packed(                                                        //
+    bm::State &state,                                                              //
+    nk_size_t (*packed_size_fn)(nk_size_t, nk_size_t),                             //
+    void (*pack_fn)(input_type_ const *, nk_size_t, nk_size_t, nk_size_t, void *), //
+    void (*matmul_fn)(input_type_ const *, void const *, output_type_ *, nk_size_t, nk_size_t, nk_size_t, nk_size_t,
+                      nk_size_t), //
+    std::size_t m, std::size_t n, std::size_t k) {
 
     // Allocate matrices
-    std::vector<input_at> a(m * k);
-    std::vector<input_at> b(n * k);
+    std::vector<input_type_> a(m * k);
+    std::vector<input_type_> b(n * k);
     nk_size_t packed_bytes = packed_size_fn(n, k);
     std::vector<char> b_packed(packed_bytes, 0);
-    std::vector<output_at> c(m * n);
+    std::vector<output_type_> c(m * n);
 
     // Initialize with small random values
     auto gen = make_random_engine();
-    if constexpr (std::is_integral<input_at>::value) {
+    if constexpr (std::is_integral<input_type_>::value) {
         std::uniform_int_distribution<int> dis(-10, 10);
-        for (auto &v : a) v = static_cast<input_at>(dis(gen));
-        for (auto &v : b) v = static_cast<input_at>(dis(gen));
+        for (auto &v : a) v = static_cast<input_type_>(dis(gen));
+        for (auto &v : b) v = static_cast<input_type_>(dis(gen));
     }
     else {
         std::uniform_real_distribution<float> dis(-1.0f, 1.0f);
-        for (std::size_t i = 0; i < a.size(); ++i) a[i] = static_cast<input_at>(dis(gen));
-        for (std::size_t i = 0; i < b.size(); ++i) b[i] = static_cast<input_at>(dis(gen));
+        for (std::size_t i = 0; i < a.size(); ++i) a[i] = static_cast<input_type_>(dis(gen));
+        for (std::size_t i = 0; i < b.size(); ++i) b[i] = static_cast<input_type_>(dis(gen));
     }
 
     // Pack B matrix once (amortized cost for repeated inference)
-    pack_fn(b.data(), n, k, k * sizeof(input_at), b_packed.data());
+    pack_fn(b.data(), n, k, k * sizeof(input_type_), b_packed.data());
 
     std::size_t iterations = 0;
     for (auto _ : state) {
         bm::DoNotOptimize(c.data());
-        matmul_fn(a.data(), b_packed.data(), c.data(), m, n, k, k * sizeof(input_at), n * sizeof(output_at));
+        matmul_fn(a.data(), b_packed.data(), c.data(), m, n, k, k * sizeof(input_type_), n * sizeof(output_type_));
         ++iterations;
     }
 
     // Report FLOPS: 2*m*n*k operations per matmul (multiply + add)
     double flops_per_call = 2.0 * m * n * k;
     state.counters["flops"] = bm::Counter(iterations * flops_per_call, bm::Counter::kIsRate);
-    state.counters["bytes_a"] = bm::Counter(iterations * m * k * sizeof(input_at), bm::Counter::kIsRate);
-    state.counters["bytes_c"] = bm::Counter(iterations * m * n * sizeof(output_at), bm::Counter::kIsRate);
+    state.counters["bytes_a"] = bm::Counter(iterations * m * k * sizeof(input_type_), bm::Counter::kIsRate);
+    state.counters["bytes_c"] = bm::Counter(iterations * m * n * sizeof(output_type_), bm::Counter::kIsRate);
 }
 
-template <typename input_at, typename output_at>
-void matmul_(std::string name,                                                                    //
-             nk_size_t (*packed_size_fn)(nk_size_t, nk_size_t),                                   //
-             void (*pack_fn)(input_at const *, nk_size_t, nk_size_t, nk_size_t, void *),          //
-             void (*matmul_fn)(input_at const *, void const *, output_at *, nk_size_t, nk_size_t, //
-                               nk_size_t, nk_size_t, nk_size_t)) {                                //
+template <typename input_type_, typename output_type_>
+void matmul_(std::string name,                                                                          //
+             nk_size_t (*packed_size_fn)(nk_size_t, nk_size_t),                                         //
+             void (*pack_fn)(input_type_ const *, nk_size_t, nk_size_t, nk_size_t, void *),             //
+             void (*matmul_fn)(input_type_ const *, void const *, output_type_ *, nk_size_t, nk_size_t, //
+                               nk_size_t, nk_size_t, nk_size_t)) {                                      //
     std::string bench_name = name + "<" + std::to_string(matmul_dimension_m) + "x" +
                              std::to_string(matmul_dimension_n) + "x" + std::to_string(matmul_dimension_k) + ">";
-    bm::RegisterBenchmark(bench_name.c_str(), measure_matmul_packed<input_at, output_at>, packed_size_fn, pack_fn,
+    bm::RegisterBenchmark(bench_name.c_str(), measure_matmul_packed<input_type_, output_type_>, packed_size_fn, pack_fn,
                           matmul_fn, matmul_dimension_m, matmul_dimension_n, matmul_dimension_k)
         ->MinTime(default_seconds)
         ->Threads(1); // Single-threaded for packed matmul
 }
 
-template <typename scalar_at>
-void l2_with_stl(scalar_at const *a, scalar_at const *b, nk_size_t n, nk_fmax_t *result) {
+template <typename scalar_type_>
+void l2_with_stl(scalar_type_ const *a, scalar_type_ const *b, nk_size_t n, nk_fmax_t *result) {
     nk_fmax_t sum = 0;
     for (nk_size_t i = 0; i != n; ++i) {
         nk_fmax_t delta = (nk_fmax_t)a[i] - (nk_fmax_t)b[i];
@@ -1042,68 +1041,68 @@ void l2_with_stl(scalar_at const *a, scalar_at const *b, nk_size_t n, nk_fmax_t 
     *result = std::sqrt(sum);
 }
 
-template <typename scalar_at, typename accumulator_at = scalar_at>
-nk_fmax_t haversine_one_with_stl(scalar_at lat1, scalar_at lon1, scalar_at lat2, scalar_at lon2) {
+template <typename scalar_type_, typename accumulator_type_ = scalar_type_>
+nk_fmax_t haversine_one_with_stl(scalar_type_ lat1, scalar_type_ lon1, scalar_type_ lat2, scalar_type_ lon2) {
     // Convert angle to radians:
     // lat1 *= M_PI / 180, lon1 *= M_PI / 180;
     // lat2 *= M_PI / 180, lon2 *= M_PI / 180;
-    accumulator_at dlat = lat2 - lat1;
-    accumulator_at dlon = lon2 - lon1;
-    accumulator_at a = //
+    accumulator_type_ dlat = lat2 - lat1;
+    accumulator_type_ dlon = lon2 - lon1;
+    accumulator_type_ a = //
         std::sin(dlat / 2) * std::sin(dlat / 2) +
         std::cos(lat1) * std::cos(lat2) * std::sin(dlon / 2) * std::sin(dlon / 2);
-    accumulator_at c = 2 * std::atan2(std::sqrt(a), std::sqrt(1 - a));
+    accumulator_type_ c = 2 * std::atan2(std::sqrt(a), std::sqrt(1 - a));
     return c;
 }
 
-template <typename scalar_at, typename accumulator_at = scalar_at>
-void haversine_with_stl(                              //
-    scalar_at const *a_lats, scalar_at const *a_lons, //
-    scalar_at const *b_lats, scalar_at const *b_lons, //
+template <typename scalar_type_, typename accumulator_type_ = scalar_type_>
+void haversine_with_stl(                                    //
+    scalar_type_ const *a_lats, scalar_type_ const *a_lons, //
+    scalar_type_ const *b_lats, scalar_type_ const *b_lons, //
     nk_size_t n, nk_fmax_t *results) {
     for (nk_size_t i = 0; i != n; ++i) {
-        scalar_at lat1 = a_lats[i], lon1 = a_lons[i];
-        scalar_at lat2 = b_lats[i], lon2 = b_lons[i];
-        results[i] = haversine_one_with_stl<scalar_at, accumulator_at>(lat1, lon1, lat2, lon2);
+        scalar_type_ lat1 = a_lats[i], lon1 = a_lons[i];
+        scalar_type_ lat2 = b_lats[i], lon2 = b_lons[i];
+        results[i] = haversine_one_with_stl<scalar_type_, accumulator_type_>(lat1, lon1, lat2, lon2);
     }
 }
 
-template <typename scalar_at, typename accumulator_at = scalar_at>
-void vincenty_with_stl(                               //
-    scalar_at const *a_lats, scalar_at const *a_lons, //
-    scalar_at const *b_lats, scalar_at const *b_lons, //
+template <typename scalar_type_, typename accumulator_type_ = scalar_type_>
+void vincenty_with_stl(                                     //
+    scalar_type_ const *a_lats, scalar_type_ const *a_lons, //
+    scalar_type_ const *b_lats, scalar_type_ const *b_lons, //
     nk_size_t n, nk_fmax_t *results) {
     // Simplified Vincenty baseline - uses same iterative algorithm as serial implementation
-    constexpr accumulator_at equatorial_radius = 6378136.6;
-    constexpr accumulator_at polar_radius = 6356751.9;
-    constexpr accumulator_at flattening = 1.0 / 298.25642;
-    constexpr accumulator_at convergence_threshold = 1e-12;
+    constexpr accumulator_type_ equatorial_radius = 6378136.6;
+    constexpr accumulator_type_ polar_radius = 6356751.9;
+    constexpr accumulator_type_ flattening = 1.0 / 298.25642;
+    constexpr accumulator_type_ convergence_threshold = 1e-12;
     constexpr int max_iterations = 100;
 
     for (nk_size_t i = 0; i != n; ++i) {
-        accumulator_at lat1 = a_lats[i], lon1 = a_lons[i];
-        accumulator_at lat2 = b_lats[i], lon2 = b_lons[i];
-        accumulator_at longitude_diff = lon2 - lon1;
+        accumulator_type_ lat1 = a_lats[i], lon1 = a_lons[i];
+        accumulator_type_ lat2 = b_lats[i], lon2 = b_lons[i];
+        accumulator_type_ longitude_diff = lon2 - lon1;
 
         // Reduced latitudes
-        accumulator_at tan_reduced_lat_1 = (1.0 - flattening) * std::tan(lat1);
-        accumulator_at tan_reduced_lat_2 = (1.0 - flattening) * std::tan(lat2);
-        accumulator_at cos_reduced_lat_1 = 1.0 / std::sqrt(1.0 + tan_reduced_lat_1 * tan_reduced_lat_1);
-        accumulator_at sin_reduced_lat_1 = tan_reduced_lat_1 * cos_reduced_lat_1;
-        accumulator_at cos_reduced_lat_2 = 1.0 / std::sqrt(1.0 + tan_reduced_lat_2 * tan_reduced_lat_2);
-        accumulator_at sin_reduced_lat_2 = tan_reduced_lat_2 * cos_reduced_lat_2;
+        accumulator_type_ tan_reduced_lat_1 = (1.0 - flattening) * std::tan(lat1);
+        accumulator_type_ tan_reduced_lat_2 = (1.0 - flattening) * std::tan(lat2);
+        accumulator_type_ cos_reduced_lat_1 = 1.0 / std::sqrt(1.0 + tan_reduced_lat_1 * tan_reduced_lat_1);
+        accumulator_type_ sin_reduced_lat_1 = tan_reduced_lat_1 * cos_reduced_lat_1;
+        accumulator_type_ cos_reduced_lat_2 = 1.0 / std::sqrt(1.0 + tan_reduced_lat_2 * tan_reduced_lat_2);
+        accumulator_type_ sin_reduced_lat_2 = tan_reduced_lat_2 * cos_reduced_lat_2;
 
-        accumulator_at lambda_longitude = longitude_diff, lambda_previous;
-        accumulator_at sin_sigma, cos_sigma, sigma, sin_alpha, cos_squared_azimuth, cos_twice_sigma_midpoint;
+        accumulator_type_ lambda_longitude = longitude_diff, lambda_previous;
+        accumulator_type_ sin_sigma, cos_sigma, sigma, sin_alpha, cos_squared_azimuth, cos_twice_sigma_midpoint;
         int iteration_count = 0;
         bool points_are_coincident = false;
 
         do {
-            accumulator_at sin_lambda = std::sin(lambda_longitude);
-            accumulator_at cos_lambda = std::cos(lambda_longitude);
-            accumulator_at sin_sigma_term_a = cos_reduced_lat_2 * sin_lambda;
-            accumulator_at sin_sigma_term_b = cos_reduced_lat_1 * sin_reduced_lat_2 -
-                                              sin_reduced_lat_1 * cos_reduced_lat_2 * cos_lambda;
+            accumulator_type_ sin_lambda = std::sin(lambda_longitude);
+            accumulator_type_ cos_lambda = std::cos(lambda_longitude);
+            accumulator_type_ sin_sigma_term_a = cos_reduced_lat_2 * sin_lambda;
+            accumulator_type_ sin_sigma_term_b = cos_reduced_lat_1 * sin_reduced_lat_2 -
+                                                 sin_reduced_lat_1 * cos_reduced_lat_2 * cos_lambda;
             sin_sigma = std::sqrt(sin_sigma_term_a * sin_sigma_term_a + sin_sigma_term_b * sin_sigma_term_b);
 
             if (sin_sigma == 0.0) {
@@ -1119,8 +1118,8 @@ void vincenty_with_stl(                               //
                                            ? cos_sigma -
                                                  2.0 * sin_reduced_lat_1 * sin_reduced_lat_2 / cos_squared_azimuth
                                            : 0.0;
-            accumulator_at longitude_correction_coeff = flattening / 16.0 * cos_squared_azimuth *
-                                                        (4.0 + flattening * (4.0 - 3.0 * cos_squared_azimuth));
+            accumulator_type_ longitude_correction_coeff = flattening / 16.0 * cos_squared_azimuth *
+                                                           (4.0 + flattening * (4.0 - 3.0 * cos_squared_azimuth));
 
             lambda_previous = lambda_longitude;
             lambda_longitude = longitude_diff +
@@ -1138,14 +1137,14 @@ void vincenty_with_stl(                               //
             continue;
         }
 
-        accumulator_at u_squared = cos_squared_azimuth *
-                                   (equatorial_radius * equatorial_radius - polar_radius * polar_radius) /
-                                   (polar_radius * polar_radius);
-        accumulator_at geodesic_length_coeff =
+        accumulator_type_ u_squared = cos_squared_azimuth *
+                                      (equatorial_radius * equatorial_radius - polar_radius * polar_radius) /
+                                      (polar_radius * polar_radius);
+        accumulator_type_ geodesic_length_coeff =
             1.0 + u_squared / 16384.0 * (4096.0 + u_squared * (-768.0 + u_squared * (320.0 - 175.0 * u_squared)));
-        accumulator_at delta_sigma_coeff = u_squared / 1024.0 *
-                                           (256.0 + u_squared * (-128.0 + u_squared * (74.0 - 47.0 * u_squared)));
-        accumulator_at delta_sigma =
+        accumulator_type_ delta_sigma_coeff = u_squared / 1024.0 *
+                                              (256.0 + u_squared * (-128.0 + u_squared * (74.0 - 47.0 * u_squared)));
+        accumulator_type_ delta_sigma =
             delta_sigma_coeff * sin_sigma *
             (cos_twice_sigma_midpoint +
              delta_sigma_coeff / 4.0 *
@@ -1157,17 +1156,17 @@ void vincenty_with_stl(                               //
     }
 }
 
-template <typename scalar_at>
+template <typename scalar_type_>
 struct sin_with_stl {
-    scalar_at operator()(scalar_at x) const { return std::sin(x); }
+    scalar_type_ operator()(scalar_type_ x) const { return std::sin(x); }
 };
-template <typename scalar_at>
+template <typename scalar_type_>
 struct cos_with_stl {
-    scalar_at operator()(scalar_at x) const { return std::cos(x); }
+    scalar_type_ operator()(scalar_type_ x) const { return std::cos(x); }
 };
-template <typename scalar_at>
+template <typename scalar_type_>
 struct atan_with_stl {
-    scalar_at operator()(scalar_at x) const { return std::atan(x); }
+    scalar_type_ operator()(scalar_type_ x) const { return std::atan(x); }
 };
 
 namespace av::numkong {
@@ -1185,12 +1184,12 @@ struct atan {
 };
 } // namespace av::numkong
 
-template <typename scalar_at, typename kernel_at>
-void elementwise_with_stl(scalar_at const *ins, nk_size_t n, scalar_at *outs) {
-    for (nk_size_t i = 0; i != n; ++i) outs[i] = kernel_at {}(ins[i]);
+template <typename scalar_type_, typename kernel_type_>
+void elementwise_with_stl(scalar_type_ const *ins, nk_size_t n, scalar_type_ *outs) {
+    for (nk_size_t i = 0; i != n; ++i) outs[i] = kernel_type_ {}(ins[i]);
 }
 
-#if NK_COMPARE_TO_BLAS
+#if NK_COMPARE_TO_BLAS || NK_COMPARE_TO_MKL
 
 void dot_f32_blas(nk_f32_t const *a, nk_f32_t const *b, nk_size_t n, nk_f32_t *result) {
     *result = cblas_sdot(static_cast<int>(n), a, 1, b, 1);
@@ -1322,7 +1321,7 @@ void measure_dgemm_blas(bm::State &state, std::size_t m, std::size_t n, std::siz
     state.counters["flops"] = bm::Counter(iterations * 2.0 * m * n * k, bm::Counter::kIsRate);
 }
 
-#endif
+#endif // NK_COMPARE_TO_BLAS || NK_COMPARE_TO_MKL
 
 #if NK_COMPARE_TO_MKL
 
@@ -1346,13 +1345,13 @@ inline MKL_F16 f32_to_f16(float val) {
 
 /// Generic MKL GEMM benchmark template - reduces duplication across precision variants.
 /// Pattern follows measure_matmul_packed but adds init functors for type-specific conversion.
-template <typename input_a_at, typename input_b_at, typename output_at, //
-          typename init_a_at, typename init_b_at, typename gemm_at>
+template <typename input_a_type_, typename input_b_type_, typename output_type_, //
+          typename init_a_type_, typename init_b_type_, typename gemm_type_>
 void measure_gemm_mkl(bm::State &state, std::size_t m, std::size_t n, std::size_t k, //
-                      init_a_at init_a, init_b_at init_b, gemm_at gemm_fn) {
-    std::vector<input_a_at> a(m * k);
-    std::vector<input_b_at> b(n * k);
-    std::vector<output_at> c(m * n);
+                      init_a_type_ init_a, init_b_type_ init_b, gemm_type_ gemm_fn) {
+    std::vector<input_a_type_> a(m * k);
+    std::vector<input_b_type_> b(n * k);
+    std::vector<output_type_> c(m * n);
     auto gen = make_random_engine();
     std::uniform_real_distribution<float> dis(-1.0f, 1.0f);
 
@@ -1369,16 +1368,16 @@ void measure_gemm_mkl(bm::State &state, std::size_t m, std::size_t n, std::size_
 }
 
 /// Overload for integer types - uses int distribution instead of float.
-template <typename input_a_at, typename input_b_at, typename output_at, typename gemm_at>
-void measure_gemm_mkl_int(bm::State &state, std::size_t m, std::size_t n, std::size_t k, gemm_at gemm_fn) {
-    std::vector<input_a_at> a(m * k);
-    std::vector<input_b_at> b(n * k);
-    std::vector<output_at> c(m * n);
+template <typename input_a_type_, typename input_b_type_, typename output_type_, typename gemm_type_>
+void measure_gemm_mkl_int(bm::State &state, std::size_t m, std::size_t n, std::size_t k, gemm_type_ gemm_fn) {
+    std::vector<input_a_type_> a(m * k);
+    std::vector<input_b_type_> b(n * k);
+    std::vector<output_type_> c(m * n);
     auto gen = make_random_engine();
     std::uniform_int_distribution<int> dis(-64, 63);
 
-    for (auto &v : a) v = static_cast<input_a_at>(dis(gen));
-    for (auto &v : b) v = static_cast<input_b_at>(dis(gen));
+    for (auto &v : a) v = static_cast<input_a_type_>(dis(gen));
+    for (auto &v : b) v = static_cast<input_b_type_>(dis(gen));
 
     std::size_t iterations = 0;
     for (auto _ : state) {
@@ -1453,7 +1452,7 @@ int main(int argc, char **argv) {
 
     // Log supported functionality
     char const *flags[2] = {"false", "true"};
-    std::printf("Benchmarking Similarity Measures\n");
+    std::printf("NumKong benchmarksing suite\n");
     std::printf("- Compiler used native F16: %s\n", flags[NK_NATIVE_F16]);
     std::printf("- Compiler used native BF16: %s\n", flags[NK_NATIVE_BF16]);
     std::printf("- Benchmark against CBLAS: %s\n", flags[NK_COMPARE_TO_BLAS]);
@@ -1585,7 +1584,7 @@ int main(int argc, char **argv) {
     constexpr nk_kernel_kind_t scale_k = nk_kernel_scale_k;
     constexpr nk_kernel_kind_t unknown_k = nk_kernel_unknown_k;
 
-#if NK_COMPARE_TO_BLAS
+#if NK_COMPARE_TO_BLAS || NK_COMPARE_TO_MKL
 
     dense_<f32_k, f32_k, f64_k>("dot_f32_blas", dot_f32_blas, nk_dot_f32_accurate);
     dense_<f64_k, f64_k, f64_k>("dot_f64_blas", dot_f64_blas, nk_dot_f64_serial);
@@ -1627,7 +1626,7 @@ int main(int argc, char **argv) {
             ->Threads(1);
     }
 
-#endif
+#endif // NK_COMPARE_TO_BLAS || NK_COMPARE_TO_MKL
 
 #if NK_COMPARE_TO_MKL
     // MKL mixed-precision GEMM baselines for matmul comparison

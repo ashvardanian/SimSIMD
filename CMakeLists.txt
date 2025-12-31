@@ -26,8 +26,12 @@ endif ()
 option(NK_BUILD_SHARED "Compile a dynamic library" ${NK_IS_MAIN_PROJECT})
 option(NK_BUILD_TESTS "Compile precision tests with ULP-based error analysis" OFF)
 option(NK_BUILD_BENCHMARKS "Compile micro-benchmarks for current ISA" OFF)
-option(NK_COMPARE_TO_BLAS "Include BLAS (OpenBLAS/Accelerate) in tests and benchmarks (AUTO=detect)" AUTO)
-option(NK_COMPARE_TO_MKL "Include Intel MKL in tests and benchmarks (AUTO=detect)" AUTO)
+
+# BLAS/MKL options: ON (require), OFF (disable), AUTO (detect if available)
+set(NK_COMPARE_TO_BLAS "AUTO" CACHE STRING "Include BLAS (OpenBLAS/Accelerate) in tests and benchmarks")
+set(NK_COMPARE_TO_MKL "AUTO" CACHE STRING "Include Intel MKL in tests and benchmarks")
+set_property(CACHE NK_COMPARE_TO_BLAS PROPERTY STRINGS "AUTO" "ON" "OFF")
+set_property(CACHE NK_COMPARE_TO_MKL PROPERTY STRINGS "AUTO" "ON" "OFF")
 
 # Default to Release build type if not set
 if (NOT CMAKE_BUILD_TYPE)
@@ -117,18 +121,30 @@ if (NK_BUILD_TESTS OR NK_BUILD_BENCHMARKS)
         endif ()
 
         if (MKL_ROOT)
-            # Verify the libraries actually exist
-            if (EXISTS "${MKL_ROOT}/lib/intel64/libmkl_intel_lp64.a")
+            # Verify the libraries actually exist (prefer shared libraries for simpler linking)
+            if (EXISTS "${MKL_ROOT}/lib/libmkl_intel_lp64.so")
                 message(STATUS "MKL found at: ${MKL_ROOT}")
                 set(NK_MKL_FOUND TRUE)
                 set(NK_MKL_INCLUDE_DIRS ${MKL_ROOT}/include)
                 set(NK_MKL_LIBRARIES
+                    ${MKL_ROOT}/lib/libmkl_intel_lp64.so
+                    ${MKL_ROOT}/lib/libmkl_sequential.so
+                    ${MKL_ROOT}/lib/libmkl_core.so
+                    pthread m dl)
+            elseif (EXISTS "${MKL_ROOT}/lib/intel64/libmkl_intel_lp64.a")
+                # Fallback to static libraries
+                message(STATUS "MKL found at: ${MKL_ROOT} (static)")
+                set(NK_MKL_FOUND TRUE)
+                set(NK_MKL_INCLUDE_DIRS ${MKL_ROOT}/include)
+                set(NK_MKL_LIBRARIES
+                    -Wl,--start-group
                     ${MKL_ROOT}/lib/intel64/libmkl_intel_lp64.a
                     ${MKL_ROOT}/lib/intel64/libmkl_sequential.a
                     ${MKL_ROOT}/lib/intel64/libmkl_core.a
+                    -Wl,--end-group
                     pthread m dl)
             elseif (NK_COMPARE_TO_MKL STREQUAL "ON")
-                message(FATAL_ERROR "MKL libraries not found at ${MKL_ROOT}/lib/intel64/")
+                message(FATAL_ERROR "MKL libraries not found at ${MKL_ROOT}/lib/")
             else ()
                 message(STATUS "MKL directory found but libraries missing, skipping MKL")
             endif ()
@@ -139,9 +155,11 @@ if (NK_BUILD_TESTS OR NK_BUILD_BENCHMARKS)
         endif ()
     endif ()
 
-    # BLAS detection
+    # BLAS detection (skip if MKL found in AUTO mode, since MKL provides BLAS)
     if (NOT NK_COMPARE_TO_BLAS STREQUAL "OFF")
-        if (APPLE)
+        if (NK_MKL_FOUND AND NOT NK_COMPARE_TO_BLAS STREQUAL "ON")
+            message(STATUS "BLAS: Using MKL (skipping separate BLAS detection)")
+        elseif (APPLE)
             # Apple Accelerate is always available on macOS
             message(STATUS "Using Apple Accelerate framework for BLAS")
             set(NK_BLAS_FOUND TRUE)
