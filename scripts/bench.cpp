@@ -1930,6 +1930,11 @@ int main(int argc, char **argv) {
         "atan_f64_haswell", nk_atan_f64_haswell, elementwise_with_stl<nk_f64_t, atan_with_stl<nk_f64_t>>,
         l2_with_stl<nk_f64_t>);
 
+    matmul_<nk_f32_t, nk_f32_t>("dots_f32f32f32_haswell", nk_dots_f32f32f32_packed_size_haswell,
+                                nk_dots_f32f32f32_pack_haswell, nk_dots_f32f32f32_haswell);
+    matmul_<nk_f64_t, nk_f64_t>("dots_f64f64f64_haswell", nk_dots_f64f64f64_packed_size_haswell,
+                                nk_dots_f64f64f64_pack_haswell, nk_dots_f64f64f64_haswell);
+
 #endif
 
 #if NK_TARGET_SKYLAKE
@@ -1999,6 +2004,8 @@ int main(int argc, char **argv) {
 
     matmul_<nk_f32_t, nk_f32_t>("dots_f32f32f32_skylake", nk_dots_f32f32f32_packed_size_skylake,
                                 nk_dots_f32f32f32_pack_skylake, nk_dots_f32f32f32_skylake);
+    matmul_<nk_f64_t, nk_f64_t>("dots_f64f64f64_skylake", nk_dots_f64f64f64_packed_size_skylake,
+                                nk_dots_f64f64f64_pack_skylake, nk_dots_f64f64f64_skylake);
 
 #endif
 

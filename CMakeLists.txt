@@ -173,12 +173,8 @@ if (NK_BUILD_BENCHMARKS)
     endif ()
 
     find_package(Threads REQUIRED)
-    add_executable(nk_bench scripts/bench.cxx)
+    add_executable(nk_bench scripts/bench.cpp)
     target_link_libraries(nk_bench numkong Threads::Threads benchmark)
-
-    # Accuracy/throughput tradeoff benchmark
-    add_executable(nk_bench_accuracy scripts/bench_accuracy.cxx)
-    target_link_libraries(nk_bench_accuracy numkong Threads::Threads benchmark)
 
     if (OpenMP_FOUND)
         target_compile_options(nk_bench PRIVATE ${OpenMP_CXX_FLAGS})
