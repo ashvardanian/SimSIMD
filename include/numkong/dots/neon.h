@@ -20,21 +20,21 @@
 extern "C" {
 #endif
 
-// F32 GEMM: simd_width=4 (4 f32s = 16 bytes = NEON register width)
-NK_MAKE_DOTS_PACK_SIZE(neon, f32, f32)
-NK_MAKE_DOTS_PACK(neon, f32, f32)
-NK_MAKE_DOTS_VECTORS(f32f32f32_neon, f32, f32, nk_b128_vec_t, nk_dot_f32x4_state_neon_t, nk_dot_f32x4_init_neon,
-                     nk_load_b128_neon_, nk_partial_load_b32x4_neon_, nk_dot_f32x4_update_neon,
-                     nk_dot_f32x4_finalize_neon,
-                     /*simd_width=*/4, /*k_unroll=*/1, /*MR=*/4, /*MC=*/64, /*NC=*/1024, /*KC=*/256)
+// F32 GEMM: k_tile=2 (2 f32s = 8 bytes = 64-bit input for f64 upcast accumulation)
+nk_make_dots_pack_size_(neon, f32, f32)
+nk_make_dots_pack_(neon, f32, f32)
+nk_make_dots_inner_vectors_(f32f32f32_neon, f32, f32, nk_b64_vec_t, nk_dot_f32x2_state_neon_t, nk_b128_vec_t,
+                            nk_dot_f32x2_init_neon, nk_load_b64_neon_, nk_partial_load_b32x2_neon_,
+                            nk_dot_f32x2_update_neon, nk_dot_f32x2_finalize_neon, nk_partial_store_b32x4_neon_,
+                            /*k_tile=*/2)
 
 // F64 GEMM: simd_width=2 (2 f64s = 16 bytes = NEON register width)
-NK_MAKE_DOTS_PACK_SIZE(neon, f64, f64)
-NK_MAKE_DOTS_PACK(neon, f64, f64)
-NK_MAKE_DOTS_VECTORS(f64f64f64_neon, f64, f64, nk_b128_vec_t, nk_dot_f64x2_state_neon_t, nk_dot_f64x2_init_neon,
-                     nk_load_b128_neon_, nk_partial_load_b64x2_neon_, nk_dot_f64x2_update_neon,
-                     nk_dot_f64x2_finalize_neon,
-                     /*simd_width=*/2, /*k_unroll=*/1, /*MR=*/4, /*MC=*/64, /*NC=*/1024, /*KC=*/256)
+nk_make_dots_pack_size_(neon, f64, f64)
+nk_make_dots_pack_(neon, f64, f64)
+nk_make_dots_inner_vectors_(f64f64f64_neon, f64, f64, nk_b128_vec_t, nk_dot_f64x2_state_neon_t, nk_b256_vec_t,
+                            nk_dot_f64x2_init_neon, nk_load_b128_neon_, nk_partial_load_b64x2_neon_,
+                            nk_dot_f64x2_update_neon, nk_dot_f64x2_finalize_neon, nk_partial_store_b64x4_neon_,
+                            /*k_tile=*/2)
 
 #if defined(__cplusplus)
 } // extern "C"

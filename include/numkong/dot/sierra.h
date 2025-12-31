@@ -50,16 +50,13 @@ NK_INTERNAL void nk_dot_i8x32_init_sierra(nk_dot_i8x32_state_sierra_t *state) {
 }
 
 NK_INTERNAL void nk_dot_i8x32_update_sierra(nk_dot_i8x32_state_sierra_t *state, nk_b256_vec_t a, nk_b256_vec_t b) {
-    __m256i sum_i32x8 = state->sum_i32x8;
-    __m256i a_i8x32 = _mm256_lddqu_si256((__m256i const *)(a.i8s));
-    __m256i b_i8x32 = _mm256_lddqu_si256((__m256i const *)(b.i8s));
-    state->sum_i32x8 = _mm256_dpbssds_epi32(sum_i32x8, a_i8x32, b_i8x32);
+    state->sum_i32x8 = _mm256_dpbssds_epi32(state->sum_i32x8, a.ymm, b.ymm);
 }
 
 NK_INTERNAL void nk_dot_i8x32_finalize_sierra(                                              //
     nk_dot_i8x32_state_sierra_t const *state_a, nk_dot_i8x32_state_sierra_t const *state_b, //
     nk_dot_i8x32_state_sierra_t const *state_c, nk_dot_i8x32_state_sierra_t const *state_d, //
-    nk_i32_t *results) {
+    nk_b128_vec_t *result) {
     // ILP-optimized 4-way horizontal reduction for i32 in AVX2 (8 elements -> 1 scalar each)
     // Step 1: 8->4 for all 4 states (extract high 128-bit half and add to low half)
     __m128i sum_i32x4_a = _mm_add_epi32(_mm256_castsi256_si128(state_a->sum_i32x8),
@@ -82,8 +79,7 @@ NK_INTERNAL void nk_dot_i8x32_finalize_sierra(                                  
     // Step 3: Vertical sum - each lane becomes the final i32 result for one state
     __m128i final_sum_i32x4 = _mm_add_epi32(_mm_add_epi32(sum_lane0_i32x4, sum_lane1_i32x4),
                                             _mm_add_epi32(sum_lane2_i32x4, sum_lane3_i32x4));
-    // Store as i32
-    _mm_storeu_si128((__m128i *)results, final_sum_i32x4);
+    result->xmm = final_sum_i32x4;
 }
 
 NK_PUBLIC void nk_dot_u8_sierra(nk_u8_t const *a_scalars, nk_u8_t const *b_scalars, nk_size_t count_scalars,
@@ -110,20 +106,17 @@ NK_INTERNAL void nk_dot_u8x32_init_sierra(nk_dot_u8x32_state_sierra_t *state) {
 }
 
 NK_INTERNAL void nk_dot_u8x32_update_sierra(nk_dot_u8x32_state_sierra_t *state, nk_b256_vec_t a, nk_b256_vec_t b) {
-    __m256i sum_i32x8 = state->sum_i32x8;
-    __m256i a_u8x32 = _mm256_lddqu_si256((__m256i const *)(a.u8s));
-    __m256i b_u8x32 = _mm256_lddqu_si256((__m256i const *)(b.u8s));
-    state->sum_i32x8 = _mm256_dpbuud_epi32(sum_i32x8, a_u8x32, b_u8x32);
+    state->sum_i32x8 = _mm256_dpbuud_epi32(state->sum_i32x8, a.ymm, b.ymm);
 }
 
 NK_INTERNAL void nk_dot_u8x32_finalize_sierra(                                              //
     nk_dot_u8x32_state_sierra_t const *state_a, nk_dot_u8x32_state_sierra_t const *state_b, //
     nk_dot_u8x32_state_sierra_t const *state_c, nk_dot_u8x32_state_sierra_t const *state_d, //
-    nk_u32_t *results) {
+    nk_b128_vec_t *result) {
     nk_dot_i8x32_finalize_sierra(                                                                   //
         (nk_dot_i8x32_state_sierra_t const *)state_a, (nk_dot_i8x32_state_sierra_t const *)state_b, //
         (nk_dot_i8x32_state_sierra_t const *)state_c, (nk_dot_i8x32_state_sierra_t const *)state_d, //
-        (nk_i32_t *)results);
+        result);
 }
 
 NK_INTERNAL void nk_load_b256_sierra_(void const *src, nk_b256_vec_t *dst) {

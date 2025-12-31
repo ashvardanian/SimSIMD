@@ -14,19 +14,19 @@
 #pragma GCC target("arch=armv8.2-a+simd+fp16")
 #pragma clang attribute push(__attribute__((target("arch=armv8.2-a+simd+fp16"))), apply_to = function)
 
-#include "numkong/types.h"
+#include "numkong/dot/neonhalf.h"
 
 #if defined(__cplusplus)
 extern "C" {
 #endif
 
-// F16 GEMM: simd_width=8 (8 f16s = 16 bytes = NEON register width)
-NK_MAKE_DOTS_PACK_SIZE(neonhalf, f16, f32)
-NK_MAKE_DOTS_PACK(neonhalf, f16, f32)
-NK_MAKE_DOTS_VECTORS(f16f16f32_neonhalf, f16, f32, nk_b128_vec_t, nk_dot_f16x8_state_neonhalf_t,
-                     nk_dot_f16x8_init_neonhalf, nk_load_b128_neon_, nk_partial_load_b16x8_neon_,
-                     nk_dot_f16x8_update_neonhalf, nk_dot_f16x8_finalize_neonhalf,
-                     /*simd_width=*/8, /*k_unroll=*/1, /*MR=*/4, /*MC=*/64, /*NC=*/1024, /*KC=*/256)
+// F16 GEMM: k_tile=4 (4 f16s = 8 bytes = 64-bit input for direct f32 conversion)
+nk_make_dots_pack_size_(neonhalf, f16, f32)
+nk_make_dots_pack_(neonhalf, f16, f32)
+nk_make_dots_inner_vectors_(f16f16f32_neonhalf, f16, f32, nk_b64_vec_t, nk_dot_f16x4_state_neonhalf_t, nk_b128_vec_t,
+                            nk_dot_f16x4_init_neonhalf, nk_load_b64_neon_, nk_partial_load_b16x4_neon_,
+                            nk_dot_f16x4_update_neonhalf, nk_dot_f16x4_finalize_neonhalf, nk_partial_store_b32x4_neon_,
+                            /*k_tile=*/4)
 
 #if defined(__cplusplus)
 } // extern "C"

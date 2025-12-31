@@ -21,6 +21,39 @@
 extern "C" {
 #endif
 
+/** @brief Type-agnostic 128-bit full load (NEON). */
+NK_INTERNAL void nk_load_b128_neon_(void const *src, nk_b128_vec_t *dst) {
+    dst->u8x16 = vld1q_u8((nk_u8_t const *)src);
+}
+
+/** @brief Type-agnostic 64-bit full load (NEON). */
+NK_INTERNAL void nk_load_b64_neon_(void const *src, nk_b64_vec_t *dst) { dst->u8x8 = vld1_u8((nk_u8_t const *)src); }
+
+/** @brief Type-agnostic partial load for 32-bit elements (2 elements max) into 64-bit vector (NEON). */
+NK_INTERNAL void nk_partial_load_b32x2_neon_(void const *src, nk_size_t n, nk_b64_vec_t *dst) {
+    nk_u32_t const *s = (nk_u32_t const *)src;
+    dst->u32x2 = vdup_n_u32(0);
+    switch (n) {
+    default:
+    case 2: dst->u32s[1] = s[1]; // fallthrough
+    case 1: dst->u32s[0] = s[0]; // fallthrough
+    case 0: break;
+    }
+}
+
+/** @brief Type-agnostic partial store for 32-bit elements (4 elements max) from 128-bit vector (NEON). */
+NK_INTERNAL void nk_partial_store_b32x4_neon_(nk_b128_vec_t const *src, nk_size_t n, void *dst) {
+    nk_u32_t *d = (nk_u32_t *)dst;
+    switch (n) {
+    default:
+    case 4: d[3] = src->u32s[3]; // fallthrough
+    case 3: d[2] = src->u32s[2]; // fallthrough
+    case 2: d[1] = src->u32s[1]; // fallthrough
+    case 1: d[0] = src->u32s[0]; // fallthrough
+    case 0: break;
+    }
+}
+
 /** @brief Type-agnostic partial load for 32-bit elements (4 elements max) into 128-bit vector (NEON). */
 NK_INTERNAL void nk_partial_load_b32x4_neon_(void const *src, nk_size_t n, nk_b128_vec_t *dst) {
     nk_u32_t const *s = (nk_u32_t const *)src;
@@ -123,6 +156,19 @@ NK_INTERNAL void nk_partial_store_b64x2_neon_(nk_b128_vec_t const *src, void *ds
     nk_u64_t *d = (nk_u64_t *)dst;
     switch (n) {
     default:
+    case 2: d[1] = src->u64s[1]; // fallthrough
+    case 1: d[0] = src->u64s[0]; // fallthrough
+    case 0: break;
+    }
+}
+
+/** @brief Type-agnostic partial store for 64-bit elements (4 elements max) from 256-bit vector (NEON). */
+NK_INTERNAL void nk_partial_store_b64x4_neon_(nk_b256_vec_t const *src, void *dst, nk_size_t n) {
+    nk_u64_t *d = (nk_u64_t *)dst;
+    switch (n) {
+    default:
+    case 4: d[3] = src->u64s[3]; // fallthrough
+    case 3: d[2] = src->u64s[2]; // fallthrough
     case 2: d[1] = src->u64s[1]; // fallthrough
     case 1: d[0] = src->u64s[0]; // fallthrough
     case 0: break;

@@ -408,7 +408,6 @@ NK_PUBLIC void nk_dots_i8i8i8_sapphire_amx(void *c, nk_size_t m, nk_size_t n, nk
 #include "numkong/dots/ice.h"
 #include "numkong/dots/sierra.h"
 #include "numkong/dots/genoa.h"
-#include "numkong/dots/sapphire.h"
 #include "numkong/dots/sapphire_amx.h"
 #include "numkong/dots/neon.h"
 #include "numkong/dots/neonsdot.h"
@@ -458,6 +457,8 @@ NK_PUBLIC void nk_dots_f32f32f32(nk_f32_t const *a, void const *b_packed, nk_f32
 NK_PUBLIC nk_size_t nk_dots_f64f64f64_packed_size(nk_size_t n, nk_size_t k) {
 #if NK_TARGET_SKYLAKE
     return nk_dots_f64f64f64_packed_size_skylake(n, k);
+#elif NK_TARGET_HASWELL
+    return nk_dots_f64f64f64_packed_size_haswell(n, k);
 #elif NK_TARGET_NEON
     return nk_dots_f64f64f64_packed_size_neon(n, k);
 #else
@@ -468,6 +469,8 @@ NK_PUBLIC nk_size_t nk_dots_f64f64f64_packed_size(nk_size_t n, nk_size_t k) {
 NK_PUBLIC void nk_dots_f64f64f64_pack(nk_f64_t const *b, nk_size_t n, nk_size_t k, nk_size_t b_stride, void *b_packed) {
 #if NK_TARGET_SKYLAKE
     nk_dots_f64f64f64_pack_skylake(b, n, k, b_stride, b_packed);
+#elif NK_TARGET_HASWELL
+    nk_dots_f64f64f64_pack_haswell(b, n, k, b_stride, b_packed);
 #elif NK_TARGET_NEON
     nk_dots_f64f64f64_pack_neon(b, n, k, b_stride, b_packed);
 #else
@@ -479,6 +482,8 @@ NK_PUBLIC void nk_dots_f64f64f64(nk_f64_t const *a, void const *b_packed, nk_f64
                                  nk_size_t k, nk_size_t a_stride, nk_size_t c_stride) {
 #if NK_TARGET_SKYLAKE
     nk_dots_f64f64f64_skylake(a, b_packed, c, m, n, k, a_stride, c_stride);
+#elif NK_TARGET_HASWELL
+    nk_dots_f64f64f64_haswell(a, b_packed, c, m, n, k, a_stride, c_stride);
 #elif NK_TARGET_NEON
     nk_dots_f64f64f64_neon(a, b_packed, c, m, n, k, a_stride, c_stride);
 #else

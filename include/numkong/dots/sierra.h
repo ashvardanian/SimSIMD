@@ -18,29 +18,29 @@
 #pragma GCC target("avx2", "bmi2", "f16c", "fma", "avxvnni", "avxvnniint8")
 #pragma clang attribute push(__attribute__((target("avx2,bmi2,f16c,fma,avxvnni,avxvnniint8"))), apply_to = function)
 
-#include "numkong/dot/sierra.h"   // Sierra-specific dot product helpers
-#include "numkong/dot/haswell.h"  // Haswell partial load functions
-#include "numkong/dots/serial.h"  // GEMM macro definitions
+#include "numkong/dot/sierra.h"  // Sierra-specific dot product helpers
+#include "numkong/dot/haswell.h" // Haswell partial load functions
+#include "numkong/dots/serial.h" // GEMM macro definitions
 
 #if defined(__cplusplus)
 extern "C" {
 #endif
 
 // I8 GEMM: k_tile=32 (32 i8s = 32 bytes = AVX2 register width)
-NK_MAKE_DOTS_PACK_SIZE(sierra, i8, i32)
-NK_MAKE_DOTS_PACK(sierra, i8, i32)
-NK_MAKE_DOTS_VECTORS(i8i8i32_sierra, i8, i32, nk_b256_vec_t, nk_dot_i8x32_state_sierra_t, nk_dot_i8x32_init_sierra,
-                     nk_load_b256_sierra_, nk_partial_load_b8x32_sierra_, nk_dot_i8x32_update_sierra,
-                     nk_dot_i8x32_finalize_sierra,
-                     /*k_tile=*/32, /*k_unroll=*/1, /*MR=*/4, /*MC=*/128, /*NC=*/2048, /*KC=*/256)
+nk_make_dots_pack_size_(sierra, i8, i32)
+nk_make_dots_pack_(sierra, i8, i32)
+nk_make_dots_inner_vectors_(i8i8i32_sierra, i8, i32, nk_b256_vec_t, nk_dot_i8x32_state_sierra_t, nk_b128_vec_t,
+                            nk_dot_i8x32_init_sierra, nk_load_b256_sierra_, nk_partial_load_b8x32_sierra_,
+                            nk_dot_i8x32_update_sierra, nk_dot_i8x32_finalize_sierra, nk_partial_store_b32x4_haswell_,
+                            /*k_tile=*/32)
 
 // U8 GEMM: k_tile=32 (32 u8s = 32 bytes = AVX2 register width)
-NK_MAKE_DOTS_PACK_SIZE(sierra, u8, i32)
-NK_MAKE_DOTS_PACK(sierra, u8, i32)
-NK_MAKE_DOTS_VECTORS(u8u8i32_sierra, u8, u32, nk_b256_vec_t, nk_dot_u8x32_state_sierra_t, nk_dot_u8x32_init_sierra,
-                     nk_load_b256_sierra_, nk_partial_load_b8x32_sierra_, nk_dot_u8x32_update_sierra,
-                     nk_dot_u8x32_finalize_sierra,
-                     /*k_tile=*/32, /*k_unroll=*/1, /*MR=*/4, /*MC=*/128, /*NC=*/2048, /*KC=*/256)
+nk_make_dots_pack_size_(sierra, u8, u32)
+nk_make_dots_pack_(sierra, u8, u32)
+nk_make_dots_inner_vectors_(u8u8i32_sierra, u8, u32, nk_b256_vec_t, nk_dot_u8x32_state_sierra_t, nk_b128_vec_t,
+                            nk_dot_u8x32_init_sierra, nk_load_b256_sierra_, nk_partial_load_b8x32_sierra_,
+                            nk_dot_u8x32_update_sierra, nk_dot_u8x32_finalize_sierra, nk_partial_store_b32x4_haswell_,
+                            /*k_tile=*/32)
 
 #if defined(__cplusplus)
 } // extern "C"

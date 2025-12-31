@@ -66,11 +66,10 @@ NK_INTERNAL void nk_dot_i8x16_update_neonsdot(nk_dot_i8x16_state_neonsdot_t *sta
 NK_INTERNAL void nk_dot_i8x16_finalize_neonsdot(                                                //
     nk_dot_i8x16_state_neonsdot_t const *state_a, nk_dot_i8x16_state_neonsdot_t const *state_b, //
     nk_dot_i8x16_state_neonsdot_t const *state_c, nk_dot_i8x16_state_neonsdot_t const *state_d, //
-    nk_i32_t *results) {
-    results[0] = (nk_i32_t)vaddvq_s32(state_a->sum_i32x4);
-    results[1] = (nk_i32_t)vaddvq_s32(state_b->sum_i32x4);
-    results[2] = (nk_i32_t)vaddvq_s32(state_c->sum_i32x4);
-    results[3] = (nk_i32_t)vaddvq_s32(state_d->sum_i32x4);
+    nk_b128_vec_t *result) {
+    int32x4_t sums = {vaddvq_s32(state_a->sum_i32x4), vaddvq_s32(state_b->sum_i32x4), vaddvq_s32(state_c->sum_i32x4),
+                      vaddvq_s32(state_d->sum_i32x4)};
+    result->u32x4 = vreinterpretq_u32_s32(sums);
 }
 
 /**
@@ -91,11 +90,10 @@ NK_INTERNAL void nk_dot_u8x16_update_neonsdot(nk_dot_u8x16_state_neonsdot_t *sta
 NK_INTERNAL void nk_dot_u8x16_finalize_neonsdot(                                                //
     nk_dot_u8x16_state_neonsdot_t const *state_a, nk_dot_u8x16_state_neonsdot_t const *state_b, //
     nk_dot_u8x16_state_neonsdot_t const *state_c, nk_dot_u8x16_state_neonsdot_t const *state_d, //
-    nk_u32_t *results) {
-    results[0] = (nk_u32_t)vaddvq_u32(state_a->sum_u32x4);
-    results[1] = (nk_u32_t)vaddvq_u32(state_b->sum_u32x4);
-    results[2] = (nk_u32_t)vaddvq_u32(state_c->sum_u32x4);
-    results[3] = (nk_u32_t)vaddvq_u32(state_d->sum_u32x4);
+    nk_b128_vec_t *result) {
+    uint32x4_t sums = {vaddvq_u32(state_a->sum_u32x4), vaddvq_u32(state_b->sum_u32x4), vaddvq_u32(state_c->sum_u32x4),
+                       vaddvq_u32(state_d->sum_u32x4)};
+    result->u32x4 = sums;
 }
 
 #if defined(__cplusplus)

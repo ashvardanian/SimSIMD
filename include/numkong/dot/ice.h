@@ -52,9 +52,8 @@ nk_dot_i8_ice_cycle:
 NK_PUBLIC void nk_dot_u8_ice(nk_u8_t const *a_scalars, nk_u8_t const *b_scalars, nk_size_t count_scalars,
                              nk_u32_t *result) {
     __m512i a_u8x64, b_u8x64;
-    __m512i a_i16x32_low, a_i16x32_high, b_i16x32_low, b_i16x32_high;
-    __m512i sum_i32x16_low = _mm512_setzero_si512();
-    __m512i sum_i32x16_high = _mm512_setzero_si512();
+    __m512i a_low_i16x32, a_high_i16x32, b_low_i16x32, b_high_i16x32;
+    __m512i sum_i32x16 = _mm512_setzero_si512();
     __m512i const zeros_i8x64 = _mm512_setzero_si512();
 
 nk_dot_u8_ice_cycle:
@@ -72,62 +71,58 @@ nk_dot_u8_ice_cycle:
 
     // Upcast `uint8` to `int16`. Unlike the signed version, we can use the unpacking
     // instructions instead of extracts, as they are much faster and more efficient.
-    a_i16x32_low = _mm512_unpacklo_epi8(a_u8x64, zeros_i8x64);
-    a_i16x32_high = _mm512_unpackhi_epi8(a_u8x64, zeros_i8x64);
-    b_i16x32_low = _mm512_unpacklo_epi8(b_u8x64, zeros_i8x64);
-    b_i16x32_high = _mm512_unpackhi_epi8(b_u8x64, zeros_i8x64);
+    a_low_i16x32 = _mm512_unpacklo_epi8(a_u8x64, zeros_i8x64);
+    a_high_i16x32 = _mm512_unpackhi_epi8(a_u8x64, zeros_i8x64);
+    b_low_i16x32 = _mm512_unpacklo_epi8(b_u8x64, zeros_i8x64);
+    b_high_i16x32 = _mm512_unpackhi_epi8(b_u8x64, zeros_i8x64);
     // Unfortunately we can't use the `_mm512_dpbusd_epi32` intrinsics here either,
     // as it's asymmetric with respect to the sign of the input arguments:
     //      Signed(ZeroExtend16(a.byte[4*j]) * SignExtend16(b.byte[4*j]))
     // So we have to use the `_mm512_dpwssd_epi32` intrinsics instead, upcasting
     // to 16-bit beforehand.
-    sum_i32x16_low = _mm512_dpwssd_epi32(sum_i32x16_low, a_i16x32_low, b_i16x32_low);
-    sum_i32x16_high = _mm512_dpwssd_epi32(sum_i32x16_high, a_i16x32_high, b_i16x32_high);
+    sum_i32x16 = _mm512_dpwssd_epi32(sum_i32x16, a_low_i16x32, b_low_i16x32);
+    sum_i32x16 = _mm512_dpwssd_epi32(sum_i32x16, a_high_i16x32, b_high_i16x32);
     if (count_scalars) goto nk_dot_u8_ice_cycle;
 
-    *result = (nk_u32_t)_mm512_reduce_add_epi32(_mm512_add_epi32(sum_i32x16_low, sum_i32x16_high));
+    *result = (nk_u32_t)_mm512_reduce_add_epi32(sum_i32x16);
 }
 
-typedef struct nk_dot_i8x64_state_ice_t {
+typedef struct nk_dot_i8x32_state_ice_t {
     __m512i sum_i32x16;
-} nk_dot_i8x64_state_ice_t;
+} nk_dot_i8x32_state_ice_t;
 
-NK_INTERNAL void nk_dot_i8x64_init_ice(nk_dot_i8x64_state_ice_t *state) { state->sum_i32x16 = _mm512_setzero_si512(); }
+NK_INTERNAL void nk_dot_i8x32_init_ice(nk_dot_i8x32_state_ice_t *state) { state->sum_i32x16 = _mm512_setzero_si512(); }
 
-NK_INTERNAL void nk_dot_i8x64_update_ice(nk_dot_i8x64_state_ice_t *state, nk_b512_vec_t a, nk_b512_vec_t b) {
-    __m512i sum_i32x16 = state->sum_i32x16;
-    __m512i a_i16x32 = _mm512_cvtepi8_epi16(_mm256_lddqu_si256((__m256i const *)(a.i8s + 0)));
-    __m512i b_i16x32 = _mm512_cvtepi8_epi16(_mm256_lddqu_si256((__m256i const *)(b.i8s + 0)));
-    sum_i32x16 = _mm512_dpwssd_epi32(sum_i32x16, a_i16x32, b_i16x32);
-    a_i16x32 = _mm512_cvtepi8_epi16(_mm256_lddqu_si256((__m256i const *)(a.i8s + 32)));
-    b_i16x32 = _mm512_cvtepi8_epi16(_mm256_lddqu_si256((__m256i const *)(b.i8s + 32)));
-    state->sum_i32x16 = _mm512_dpwssd_epi32(sum_i32x16, a_i16x32, b_i16x32);
+NK_INTERNAL void nk_dot_i8x32_update_ice(nk_dot_i8x32_state_ice_t *state, nk_b256_vec_t a, nk_b256_vec_t b) {
+    __m512i a_i16x32 = _mm512_cvtepi8_epi16(a.ymm);
+    __m512i b_i16x32 = _mm512_cvtepi8_epi16(b.ymm);
+    state->sum_i32x16 = _mm512_dpwssd_epi32(state->sum_i32x16, a_i16x32, b_i16x32);
 }
 
-NK_INTERNAL void nk_dot_i8x64_finalize_ice(                                           //
-    nk_dot_i8x64_state_ice_t const *state_a, nk_dot_i8x64_state_ice_t const *state_b, //
-    nk_dot_i8x64_state_ice_t const *state_c, nk_dot_i8x64_state_ice_t const *state_d, //
+NK_INTERNAL void nk_dot_i8x32_finalize_ice(                                           //
+    nk_dot_i8x32_state_ice_t const *state_a, nk_dot_i8x32_state_ice_t const *state_b, //
+    nk_dot_i8x32_state_ice_t const *state_c, nk_dot_i8x32_state_ice_t const *state_d, //
     nk_i32_t *results) {
     // ILP-optimized 4-way horizontal reduction for i32
     // Step 1: 16->8 for all 4 states (extract high 256-bit half and add to low half)
-    __m256i sum_i32x8_a = _mm256_add_epi32(_mm512_castsi512_si256(state_a->sum_i32x16),
+    __m256i sum_a_i32x8 = _mm256_add_epi32(_mm512_castsi512_si256(state_a->sum_i32x16),
                                            _mm512_extracti32x8_epi32(state_a->sum_i32x16, 1));
-    __m256i sum_i32x8_b = _mm256_add_epi32(_mm512_castsi512_si256(state_b->sum_i32x16),
+    __m256i sum_b_i32x8 = _mm256_add_epi32(_mm512_castsi512_si256(state_b->sum_i32x16),
                                            _mm512_extracti32x8_epi32(state_b->sum_i32x16, 1));
-    __m256i sum_i32x8_c = _mm256_add_epi32(_mm512_castsi512_si256(state_c->sum_i32x16),
+    __m256i sum_c_i32x8 = _mm256_add_epi32(_mm512_castsi512_si256(state_c->sum_i32x16),
                                            _mm512_extracti32x8_epi32(state_c->sum_i32x16, 1));
-    __m256i sum_i32x8_d = _mm256_add_epi32(_mm512_castsi512_si256(state_d->sum_i32x16),
+    __m256i sum_d_i32x8 = _mm256_add_epi32(_mm512_castsi512_si256(state_d->sum_i32x16),
                                            _mm512_extracti32x8_epi32(state_d->sum_i32x16, 1));
     // Step 2: 8->4 for all 4 states (extract high 128-bit half and add to low half)
-    __m128i sum_i32x4_a = _mm_add_epi32(_mm256_castsi256_si128(sum_i32x8_a), _mm256_extracti128_si256(sum_i32x8_a, 1));
-    __m128i sum_i32x4_b = _mm_add_epi32(_mm256_castsi256_si128(sum_i32x8_b), _mm256_extracti128_si256(sum_i32x8_b, 1));
-    __m128i sum_i32x4_c = _mm_add_epi32(_mm256_castsi256_si128(sum_i32x8_c), _mm256_extracti128_si256(sum_i32x8_c, 1));
-    __m128i sum_i32x4_d = _mm_add_epi32(_mm256_castsi256_si128(sum_i32x8_d), _mm256_extracti128_si256(sum_i32x8_d, 1));
+    __m128i sum_a_i32x4 = _mm_add_epi32(_mm256_castsi256_si128(sum_a_i32x8), _mm256_extracti128_si256(sum_a_i32x8, 1));
+    __m128i sum_b_i32x4 = _mm_add_epi32(_mm256_castsi256_si128(sum_b_i32x8), _mm256_extracti128_si256(sum_b_i32x8, 1));
+    __m128i sum_c_i32x4 = _mm_add_epi32(_mm256_castsi256_si128(sum_c_i32x8), _mm256_extracti128_si256(sum_c_i32x8, 1));
+    __m128i sum_d_i32x4 = _mm_add_epi32(_mm256_castsi256_si128(sum_d_i32x8), _mm256_extracti128_si256(sum_d_i32x8, 1));
     // Step 3: Transpose 4x4 matrix of partial sums using integer shuffles
-    __m128i transpose_ab_low_i32x4 = _mm_unpacklo_epi32(sum_i32x4_a, sum_i32x4_b);
-    __m128i transpose_cd_low_i32x4 = _mm_unpacklo_epi32(sum_i32x4_c, sum_i32x4_d);
-    __m128i transpose_ab_high_i32x4 = _mm_unpackhi_epi32(sum_i32x4_a, sum_i32x4_b);
-    __m128i transpose_cd_high_i32x4 = _mm_unpackhi_epi32(sum_i32x4_c, sum_i32x4_d);
+    __m128i transpose_ab_low_i32x4 = _mm_unpacklo_epi32(sum_a_i32x4, sum_b_i32x4);
+    __m128i transpose_cd_low_i32x4 = _mm_unpacklo_epi32(sum_c_i32x4, sum_d_i32x4);
+    __m128i transpose_ab_high_i32x4 = _mm_unpackhi_epi32(sum_a_i32x4, sum_b_i32x4);
+    __m128i transpose_cd_high_i32x4 = _mm_unpackhi_epi32(sum_c_i32x4, sum_d_i32x4);
     __m128i sum_lane0_i32x4 = _mm_unpacklo_epi64(transpose_ab_low_i32x4, transpose_cd_low_i32x4);
     __m128i sum_lane1_i32x4 = _mm_unpackhi_epi64(transpose_ab_low_i32x4, transpose_cd_low_i32x4);
     __m128i sum_lane2_i32x4 = _mm_unpacklo_epi64(transpose_ab_high_i32x4, transpose_cd_high_i32x4);
@@ -140,62 +135,56 @@ NK_INTERNAL void nk_dot_i8x64_finalize_ice(                                     
 }
 
 typedef struct nk_dot_u8x64_state_ice_t {
-    __m512i sum_i32x16_low;
-    __m512i sum_i32x16_high;
+    __m512i sum_i32x16;
 } nk_dot_u8x64_state_ice_t;
 
-NK_INTERNAL void nk_dot_u8x64_init_ice(nk_dot_u8x64_state_ice_t *state) {
-    state->sum_i32x16_low = _mm512_setzero_si512();
-    state->sum_i32x16_high = _mm512_setzero_si512();
-}
+NK_INTERNAL void nk_dot_u8x64_init_ice(nk_dot_u8x64_state_ice_t *state) { state->sum_i32x16 = _mm512_setzero_si512(); }
 
 NK_INTERNAL void nk_dot_u8x64_update_ice(nk_dot_u8x64_state_ice_t *state, nk_b512_vec_t a, nk_b512_vec_t b) {
-    __m512i sum_i32x16_low = state->sum_i32x16_low;
-    __m512i sum_i32x16_high = state->sum_i32x16_high;
+    __m512i sum_i32x16 = state->sum_i32x16;
     __m512i const zeros_i8x64 = _mm512_setzero_si512();
 
     __m512i a_u8x64 = _mm512_loadu_si512(a.u8s);
     __m512i b_u8x64 = _mm512_loadu_si512(b.u8s);
-    __m512i a_i16x32_low = _mm512_unpacklo_epi8(a_u8x64, zeros_i8x64);
-    __m512i a_i16x32_high = _mm512_unpackhi_epi8(a_u8x64, zeros_i8x64);
-    __m512i b_i16x32_low = _mm512_unpacklo_epi8(b_u8x64, zeros_i8x64);
-    __m512i b_i16x32_high = _mm512_unpackhi_epi8(b_u8x64, zeros_i8x64);
-    sum_i32x16_low = _mm512_dpwssd_epi32(sum_i32x16_low, a_i16x32_low, b_i16x32_low);
-    sum_i32x16_high = _mm512_dpwssd_epi32(sum_i32x16_high, a_i16x32_high, b_i16x32_high);
-
-    state->sum_i32x16_low = sum_i32x16_low;
-    state->sum_i32x16_high = sum_i32x16_high;
+    // Upcast `uint8` to `int16`. Unlike the signed version, we can use the unpacking
+    // instructions instead of extracts, as they are much faster and more efficient.
+    __m512i a_low_i16x32 = _mm512_unpacklo_epi8(a_u8x64, zeros_i8x64);
+    __m512i a_high_i16x32 = _mm512_unpackhi_epi8(a_u8x64, zeros_i8x64);
+    __m512i b_low_i16x32 = _mm512_unpacklo_epi8(b_u8x64, zeros_i8x64);
+    __m512i b_high_i16x32 = _mm512_unpackhi_epi8(b_u8x64, zeros_i8x64);
+    // Unfortunately we can't use the `_mm512_dpbusd_epi32` intrinsics here either,
+    // as it's asymmetric with respect to the sign of the input arguments:
+    //      Signed(ZeroExtend16(a.byte[4*j]) * SignExtend16(b.byte[4*j]))
+    // So we have to use the `_mm512_dpwssd_epi32` intrinsics instead, upcasting
+    // to 16-bit beforehand.
+    sum_i32x16 = _mm512_dpwssd_epi32(sum_i32x16, a_low_i16x32, b_low_i16x32);
+    state->sum_i32x16 = _mm512_dpwssd_epi32(sum_i32x16, a_high_i16x32, b_high_i16x32);
 }
 
 NK_INTERNAL void nk_dot_u8x64_finalize_ice(                                           //
     nk_dot_u8x64_state_ice_t const *state_a, nk_dot_u8x64_state_ice_t const *state_b, //
     nk_dot_u8x64_state_ice_t const *state_c, nk_dot_u8x64_state_ice_t const *state_d, //
     nk_u32_t *results) {
-    // First, combine the low and high accumulators for each state
-    __m512i sum_i32x16_a = _mm512_add_epi32(state_a->sum_i32x16_low, state_a->sum_i32x16_high);
-    __m512i sum_i32x16_b = _mm512_add_epi32(state_b->sum_i32x16_low, state_b->sum_i32x16_high);
-    __m512i sum_i32x16_c = _mm512_add_epi32(state_c->sum_i32x16_low, state_c->sum_i32x16_high);
-    __m512i sum_i32x16_d = _mm512_add_epi32(state_d->sum_i32x16_low, state_d->sum_i32x16_high);
     // ILP-optimized 4-way horizontal reduction for u32
     // Step 1: 16->8 for all 4 states
-    __m256i sum_i32x8_a = _mm256_add_epi32(_mm512_castsi512_si256(sum_i32x16_a),
-                                           _mm512_extracti32x8_epi32(sum_i32x16_a, 1));
-    __m256i sum_i32x8_b = _mm256_add_epi32(_mm512_castsi512_si256(sum_i32x16_b),
-                                           _mm512_extracti32x8_epi32(sum_i32x16_b, 1));
-    __m256i sum_i32x8_c = _mm256_add_epi32(_mm512_castsi512_si256(sum_i32x16_c),
-                                           _mm512_extracti32x8_epi32(sum_i32x16_c, 1));
-    __m256i sum_i32x8_d = _mm256_add_epi32(_mm512_castsi512_si256(sum_i32x16_d),
-                                           _mm512_extracti32x8_epi32(sum_i32x16_d, 1));
+    __m256i sum_a_i32x8 = _mm256_add_epi32(_mm512_castsi512_si256(state_a->sum_i32x16),
+                                           _mm512_extracti32x8_epi32(state_a->sum_i32x16, 1));
+    __m256i sum_b_i32x8 = _mm256_add_epi32(_mm512_castsi512_si256(state_b->sum_i32x16),
+                                           _mm512_extracti32x8_epi32(state_b->sum_i32x16, 1));
+    __m256i sum_c_i32x8 = _mm256_add_epi32(_mm512_castsi512_si256(state_c->sum_i32x16),
+                                           _mm512_extracti32x8_epi32(state_c->sum_i32x16, 1));
+    __m256i sum_d_i32x8 = _mm256_add_epi32(_mm512_castsi512_si256(state_d->sum_i32x16),
+                                           _mm512_extracti32x8_epi32(state_d->sum_i32x16, 1));
     // Step 2: 8->4 for all 4 states
-    __m128i sum_i32x4_a = _mm_add_epi32(_mm256_castsi256_si128(sum_i32x8_a), _mm256_extracti128_si256(sum_i32x8_a, 1));
-    __m128i sum_i32x4_b = _mm_add_epi32(_mm256_castsi256_si128(sum_i32x8_b), _mm256_extracti128_si256(sum_i32x8_b, 1));
-    __m128i sum_i32x4_c = _mm_add_epi32(_mm256_castsi256_si128(sum_i32x8_c), _mm256_extracti128_si256(sum_i32x8_c, 1));
-    __m128i sum_i32x4_d = _mm_add_epi32(_mm256_castsi256_si128(sum_i32x8_d), _mm256_extracti128_si256(sum_i32x8_d, 1));
+    __m128i sum_a_i32x4 = _mm_add_epi32(_mm256_castsi256_si128(sum_a_i32x8), _mm256_extracti128_si256(sum_a_i32x8, 1));
+    __m128i sum_b_i32x4 = _mm_add_epi32(_mm256_castsi256_si128(sum_b_i32x8), _mm256_extracti128_si256(sum_b_i32x8, 1));
+    __m128i sum_c_i32x4 = _mm_add_epi32(_mm256_castsi256_si128(sum_c_i32x8), _mm256_extracti128_si256(sum_c_i32x8, 1));
+    __m128i sum_d_i32x4 = _mm_add_epi32(_mm256_castsi256_si128(sum_d_i32x8), _mm256_extracti128_si256(sum_d_i32x8, 1));
     // Step 3: Transpose 4x4 matrix
-    __m128i transpose_ab_low_i32x4 = _mm_unpacklo_epi32(sum_i32x4_a, sum_i32x4_b);
-    __m128i transpose_cd_low_i32x4 = _mm_unpacklo_epi32(sum_i32x4_c, sum_i32x4_d);
-    __m128i transpose_ab_high_i32x4 = _mm_unpackhi_epi32(sum_i32x4_a, sum_i32x4_b);
-    __m128i transpose_cd_high_i32x4 = _mm_unpackhi_epi32(sum_i32x4_c, sum_i32x4_d);
+    __m128i transpose_ab_low_i32x4 = _mm_unpacklo_epi32(sum_a_i32x4, sum_b_i32x4);
+    __m128i transpose_cd_low_i32x4 = _mm_unpacklo_epi32(sum_c_i32x4, sum_d_i32x4);
+    __m128i transpose_ab_high_i32x4 = _mm_unpackhi_epi32(sum_a_i32x4, sum_b_i32x4);
+    __m128i transpose_cd_high_i32x4 = _mm_unpackhi_epi32(sum_c_i32x4, sum_d_i32x4);
     __m128i sum_lane0_i32x4 = _mm_unpacklo_epi64(transpose_ab_low_i32x4, transpose_cd_low_i32x4);
     __m128i sum_lane1_i32x4 = _mm_unpackhi_epi64(transpose_ab_low_i32x4, transpose_cd_low_i32x4);
     __m128i sum_lane2_i32x4 = _mm_unpacklo_epi64(transpose_ab_high_i32x4, transpose_cd_high_i32x4);

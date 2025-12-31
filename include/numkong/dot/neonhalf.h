@@ -95,31 +95,32 @@ NK_PUBLIC void nk_vdot_f16c_neonhalf(nk_f16c_t const *a_pairs, nk_f16c_t const *
     result->imag = tail_result.imag + vaddvq_f32(sum_imag_f32x4);
 }
 
-typedef struct nk_dot_f16x8_state_neonhalf_t {
+/**
+ *  @brief Running state for 64-bit dot accumulation over f16 scalars on NEON with FP16 extension.
+ *
+ *  Processes 4 f16 values at a time (64 bits), converting directly to f32 without
+ *  the overhead of vget_low/vget_high operations on 128-bit vectors.
+ */
+typedef struct nk_dot_f16x4_state_neonhalf_t {
     float32x4_t sum_f32x4;
-} nk_dot_f16x8_state_neonhalf_t;
+} nk_dot_f16x4_state_neonhalf_t;
 
-NK_INTERNAL void nk_dot_f16x8_init_neonhalf(nk_dot_f16x8_state_neonhalf_t *state) { state->sum_f32x4 = vdupq_n_f32(0); }
+NK_INTERNAL void nk_dot_f16x4_init_neonhalf(nk_dot_f16x4_state_neonhalf_t *state) { state->sum_f32x4 = vdupq_n_f32(0); }
 
-NK_INTERNAL void nk_dot_f16x8_update_neonhalf(nk_dot_f16x8_state_neonhalf_t *state, nk_b128_vec_t a, nk_b128_vec_t b) {
-    float32x4_t sum_f32x4 = state->sum_f32x4;
-    nk_f16_t const *a_scalars = a.f16s;
-    nk_f16_t const *b_scalars = b.f16s;
-    sum_f32x4 = vfmaq_f32(sum_f32x4, vcvt_f32_f16(vld1_f16((nk_f16_for_arm_simd_t const *)(a_scalars + 0))),
-                          vcvt_f32_f16(vld1_f16((nk_f16_for_arm_simd_t const *)(b_scalars + 0))));
-    sum_f32x4 = vfmaq_f32(sum_f32x4, vcvt_f32_f16(vld1_f16((nk_f16_for_arm_simd_t const *)(a_scalars + 4))),
-                          vcvt_f32_f16(vld1_f16((nk_f16_for_arm_simd_t const *)(b_scalars + 4))));
-    state->sum_f32x4 = sum_f32x4;
+NK_INTERNAL void nk_dot_f16x4_update_neonhalf(nk_dot_f16x4_state_neonhalf_t *state, nk_b64_vec_t a, nk_b64_vec_t b) {
+    // 4 f16s = 64 bits, direct conversion without low/high split
+    float16x4_t a_f16x4 = vreinterpret_f16_u16(a.u16x4);
+    float16x4_t b_f16x4 = vreinterpret_f16_u16(b.u16x4);
+    state->sum_f32x4 = vfmaq_f32(state->sum_f32x4, vcvt_f32_f16(a_f16x4), vcvt_f32_f16(b_f16x4));
 }
 
-NK_INTERNAL void nk_dot_f16x8_finalize_neonhalf(                                                //
-    nk_dot_f16x8_state_neonhalf_t const *state_a, nk_dot_f16x8_state_neonhalf_t const *state_b, //
-    nk_dot_f16x8_state_neonhalf_t const *state_c, nk_dot_f16x8_state_neonhalf_t const *state_d, //
-    nk_f32_t *results) {
-    results[0] = vaddvq_f32(state_a->sum_f32x4);
-    results[1] = vaddvq_f32(state_b->sum_f32x4);
-    results[2] = vaddvq_f32(state_c->sum_f32x4);
-    results[3] = vaddvq_f32(state_d->sum_f32x4);
+NK_INTERNAL void nk_dot_f16x4_finalize_neonhalf(                                                //
+    nk_dot_f16x4_state_neonhalf_t const *state_a, nk_dot_f16x4_state_neonhalf_t const *state_b, //
+    nk_dot_f16x4_state_neonhalf_t const *state_c, nk_dot_f16x4_state_neonhalf_t const *state_d, //
+    nk_b128_vec_t *result) {
+    float32x4_t sums_f32x4 = {vaddvq_f32(state_a->sum_f32x4), vaddvq_f32(state_b->sum_f32x4),
+                              vaddvq_f32(state_c->sum_f32x4), vaddvq_f32(state_d->sum_f32x4)};
+    result->u32x4 = vreinterpretq_u32_f32(sums_f32x4);
 }
 
 #if defined(__cplusplus)

@@ -20,6 +20,14 @@
 extern "C" {
 #endif
 
+/** @brief Type-agnostic 256-bit full load (Skylake AVX-512). */
+NK_INTERNAL void nk_load_b256_skylake_(void const *src, nk_b256_vec_t *dst) {
+    dst->ymm = _mm256_loadu_si256((const __m256i *)src);
+}
+
+/** @brief Type-agnostic 512-bit full load (Skylake AVX-512). */
+NK_INTERNAL void nk_load_b512_skylake_(void const *src, nk_b512_vec_t *dst) { dst->zmm = _mm512_loadu_si512(src); }
+
 /** @brief Type-agnostic partial load for 64-bit elements (8 elements max) into 512-bit vector (Skylake AVX-512). */
 NK_INTERNAL void nk_partial_load_b64x8_skylake_(void const *src, nk_size_t n, nk_b512_vec_t *dst) {
     __mmask8 mask = (__mmask8)_bzhi_u32(0xFF, (unsigned int)n);
@@ -44,10 +52,28 @@ NK_INTERNAL void nk_partial_load_b8x64_skylake_(void const *src, nk_size_t n, nk
     dst->zmm = _mm512_maskz_loadu_epi8(mask, src);
 }
 
+/** @brief Type-agnostic partial load for 32-bit elements (8 elements max) into 256-bit vector (Skylake AVX-512). */
+NK_INTERNAL void nk_partial_load_b32x8_skylake_(void const *src, nk_size_t n, nk_b256_vec_t *dst) {
+    __mmask8 mask = (__mmask8)_bzhi_u32(0xFF, (unsigned int)n);
+    dst->ymm = _mm256_maskz_loadu_epi32(mask, src);
+}
+
 /** @brief Type-agnostic partial store for 32-bit elements (16 elements max) from 512-bit vector (Skylake AVX-512). */
 NK_INTERNAL void nk_partial_store_b32x16_skylake_(nk_b512_vec_t const *src, void *dst, nk_size_t n) {
     __mmask16 mask = (__mmask16)_bzhi_u32(0xFFFF, (unsigned int)n);
     _mm512_mask_storeu_epi32(dst, mask, src->zmm);
+}
+
+/** @brief Type-agnostic partial store for 32-bit elements (4 elements max) from 128-bit vector (Skylake AVX-512). */
+NK_INTERNAL void nk_partial_store_b32x4_skylake_(nk_b128_vec_t const *src, void *dst, nk_size_t n) {
+    __mmask8 mask = (__mmask8)_bzhi_u32(0xF, (unsigned int)n);
+    _mm_mask_storeu_epi32(dst, mask, src->xmm);
+}
+
+/** @brief Type-agnostic partial store for 64-bit elements (4 elements max) from 256-bit vector (Skylake AVX-512). */
+NK_INTERNAL void nk_partial_store_b64x4_skylake_(nk_b256_vec_t const *src, void *dst, nk_size_t n) {
+    __mmask8 mask = (__mmask8)_bzhi_u32(0xF, (unsigned int)n);
+    _mm256_mask_storeu_epi64(dst, mask, src->ymm);
 }
 
 /** @brief Convert 16x bf16 values to 16x f32 values (Skylake AVX-512). */
