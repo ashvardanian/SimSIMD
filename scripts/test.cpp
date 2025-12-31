@@ -8,7 +8,7 @@
  *  Environment Variables:
  *    NK_TEST_ASSERT=1             - Assert on ULP threshold violations (default: 0)
  *    NK_TEST_VERBOSE=1            - Show per-dimension ULP breakdown (default: 0)
- *    NK_TEST_FILTER=<pattern>     - Filter tests by name substring (default: run all)
+ *    NK_TEST_FILTER=<pattern>     - Filter tests by name RegEx (default: run all)
  *    NK_TEST_ULP_THRESHOLD_F32=N  - Max allowed ULP for f32 (default: 4)
  *    NK_TEST_ULP_THRESHOLD_F16=N  - Max allowed ULP for f16 (default: 32)
  *    NK_TEST_ULP_THRESHOLD_BF16=N - Max allowed ULP for bf16 (default: 256)
@@ -35,6 +35,7 @@
 #include <cstring>
 #include <limits>
 #include <random>
+#include <regex>
 #include <vector>
 
 #if NK_TEST_USE_OPENMP
@@ -237,9 +238,16 @@ struct test_config_t {
         }
     }
 
-    bool should_run(char const *test_name) const noexcept {
+    bool should_run(char const *test_name) const {
         if (!filter) return true;
-        return std::strstr(test_name, filter) != nullptr;
+        try {
+            std::regex pattern(filter);
+            return std::regex_search(test_name, pattern);
+        }
+        catch (std::regex_error const &) {
+            // Fallback to substring match if regex is invalid
+            return std::strstr(test_name, filter) != nullptr;
+        }
     }
 
     char const *distribution_name() const noexcept {
@@ -4476,6 +4484,10 @@ void print_capabilities() {
     std::printf("  Ice Lake: %s\n", flags[NK_TARGET_ICE]);
     std::printf("  Genoa:    %s\n", flags[NK_TARGET_GENOA]);
     std::printf("  Sapphire: %s\n", flags[NK_TARGET_SAPPHIRE]);
+    std::printf("  Sapphire AMX: %s\n", flags[NK_TARGET_SAPPHIRE_AMX]);
+    std::printf("  Granite AMX: %s\n", flags[NK_TARGET_GRANITE_AMX]);
+    std::printf("  Turin: %s\n", flags[NK_TARGET_TURIN]);
+    std::printf("  Sierra: %s\n", flags[NK_TARGET_SIERRA]);
     std::printf("\n");
 
     std::printf("Runtime ISA detection:\n");
