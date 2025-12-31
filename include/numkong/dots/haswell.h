@@ -20,69 +20,72 @@
 extern "C" {
 #endif
 
-// F32 GEMM: k_tile=8 (8 f32s = 32 bytes = AVX2 register width)
-NK_MAKE_DOTS_PACK_SIZE(haswell, f32, f32)
-NK_MAKE_DOTS_PACK(haswell, f32, f32)
-NK_MAKE_DOTS_VECTORS(f32f32f32_haswell, f32, f32, nk_b256_vec_t, nk_dot_f32x8_state_haswell_t,
-                     nk_dot_f32x8_init_haswell, nk_load_b256_haswell_, nk_partial_load_b32x8_haswell_,
-                     nk_dot_f32x8_update_haswell, nk_dot_f32x8_finalize_haswell,
-                     /*k_tile=*/8, /*k_unroll=*/1, /*MR=*/4, /*MC=*/128, /*NC=*/2048, /*KC=*/256)
+// F32 GEMM: k_tile=4 (4 f32s = 16 bytes for f32->f64 upcast accumulation)
+nk_make_dots_pack_size_(haswell, f32, f32)
+nk_make_dots_pack_(haswell, f32, f32)
+nk_make_dots_inner_vectors_(f32f32f32_haswell, f32, f32, nk_b128_vec_t, nk_dot_f32x4_state_haswell_t, nk_b128_vec_t,
+                            nk_dot_f32x4_init_haswell, nk_load_b128_haswell_, nk_partial_load_b32x4_haswell_,
+                            nk_dot_f32x4_update_haswell, nk_dot_f32x4_finalize_haswell, nk_partial_store_b32x4_haswell_,
+                            /*k_tile=*/4)
 
 // F64 GEMM: k_tile=4 (4 f64s = 32 bytes = AVX2 register width)
-NK_MAKE_DOTS_PACK_SIZE(haswell, f64, f64)
-NK_MAKE_DOTS_PACK(haswell, f64, f64)
-NK_MAKE_DOTS_VECTORS(f64f64f64_haswell, f64, f64, nk_b256_vec_t, nk_dot_f64x4_state_haswell_t,
-                     nk_dot_f64x4_init_haswell, nk_load_b256_haswell_, nk_partial_load_b64x4_haswell_,
-                     nk_dot_f64x4_update_haswell, nk_dot_f64x4_finalize_haswell,
-                     /*k_tile=*/4, /*k_unroll=*/1, /*MR=*/4, /*MC=*/128, /*NC=*/2048, /*KC=*/256)
+nk_make_dots_pack_size_(haswell, f64, f64)
+nk_make_dots_pack_(haswell, f64, f64)
+nk_make_dots_inner_vectors_(f64f64f64_haswell, f64, f64, nk_b256_vec_t, nk_dot_f64x4_state_haswell_t, nk_b256_vec_t,
+                            nk_dot_f64x4_init_haswell, nk_load_b256_haswell_, nk_partial_load_b64x4_haswell_,
+                            nk_dot_f64x4_update_haswell, nk_dot_f64x4_finalize_haswell, nk_partial_store_b64x4_haswell_,
+                            /*k_tile=*/4)
 
-// F16 GEMM: k_tile=16 (16 f16s = 32 bytes = AVX2 register width)
-NK_MAKE_DOTS_PACK_SIZE(haswell, f16, f32)
-NK_MAKE_DOTS_PACK(haswell, f16, f32)
-NK_MAKE_DOTS_VECTORS(f16f16f32_haswell, f16, f32, nk_b256_vec_t, nk_dot_f16x16_state_haswell_t,
-                     nk_dot_f16x16_init_haswell, nk_load_b256_haswell_, nk_partial_load_b16x16_haswell_,
-                     nk_dot_f16x16_update_haswell, nk_dot_f16x16_finalize_haswell,
-                     /*k_tile=*/16, /*k_unroll=*/1, /*MR=*/4, /*MC=*/128, /*NC=*/2048, /*KC=*/256)
+// F16 GEMM: k_tile=8 (8 f16s = 16 bytes = 128-bit input)
+nk_make_dots_pack_size_(haswell, f16, f32)
+nk_make_dots_pack_(haswell, f16, f32)
+nk_make_dots_inner_vectors_(f16f16f32_haswell, f16, f32, nk_b128_vec_t, nk_dot_f16x8_state_haswell_t, nk_b128_vec_t,
+                            nk_dot_f16x8_init_haswell, nk_load_b128_haswell_, nk_partial_load_b16x8_haswell_,
+                            nk_dot_f16x8_update_haswell, nk_dot_f16x8_finalize_haswell, nk_partial_store_b32x4_haswell_,
+                            /*k_tile=*/8)
 
-// BF16 GEMM: k_tile=16 (16 bf16s = 32 bytes = AVX2 register width)
-NK_MAKE_DOTS_PACK_SIZE(haswell, bf16, f32)
-NK_MAKE_DOTS_PACK(haswell, bf16, f32)
-NK_MAKE_DOTS_VECTORS(bf16bf16f32_haswell, bf16, f32, nk_b256_vec_t, nk_dot_bf16x16_state_haswell_t,
-                     nk_dot_bf16x16_init_haswell, nk_load_b256_haswell_, nk_partial_load_b16x16_haswell_,
-                     nk_dot_bf16x16_update_haswell, nk_dot_bf16x16_finalize_haswell,
-                     /*k_tile=*/16, /*k_unroll=*/1, /*MR=*/4, /*MC=*/128, /*NC=*/2048, /*KC=*/256)
+// BF16 GEMM: k_tile=8 (8 bf16s = 16 bytes = 128-bit input)
+nk_make_dots_pack_size_(haswell, bf16, f32)
+nk_make_dots_pack_(haswell, bf16, f32)
+nk_make_dots_inner_vectors_(bf16bf16f32_haswell, bf16, f32, nk_b128_vec_t, nk_dot_bf16x8_state_haswell_t, nk_b128_vec_t,
+                            nk_dot_bf16x8_init_haswell, nk_load_b128_haswell_, nk_partial_load_b16x8_haswell_,
+                            nk_dot_bf16x8_update_haswell, nk_dot_bf16x8_finalize_haswell,
+                            nk_partial_store_b32x4_haswell_,
+                            /*k_tile=*/8)
 
-// E4M3 GEMM: k_tile=32 (32 e4m3s = 32 bytes = AVX2 register width)
-NK_MAKE_DOTS_PACK_SIZE(haswell, e4m3, f32)
-NK_MAKE_DOTS_PACK(haswell, e4m3, f32)
-NK_MAKE_DOTS_VECTORS(e4m3e4m3f32_haswell, e4m3, f32, nk_b256_vec_t, nk_dot_e4m3x32_state_haswell_t,
-                     nk_dot_e4m3x32_init_haswell, nk_load_b256_haswell_, nk_partial_load_b8x32_haswell_,
-                     nk_dot_e4m3x32_update_haswell, nk_dot_e4m3x32_finalize_haswell,
-                     /*k_tile=*/32, /*k_unroll=*/1, /*MR=*/4, /*MC=*/128, /*NC=*/2048, /*KC=*/256)
+// E4M3 GEMM: k_tile=16 (16 e4m3s = 16 bytes = 128-bit input)
+nk_make_dots_pack_size_(haswell, e4m3, f32)
+nk_make_dots_pack_(haswell, e4m3, f32)
+nk_make_dots_inner_vectors_(e4m3e4m3f32_haswell, e4m3, f32, nk_b128_vec_t, nk_dot_e4m3x16_state_haswell_t,
+                            nk_b128_vec_t, nk_dot_e4m3x16_init_haswell, nk_load_b128_haswell_,
+                            nk_partial_load_b8x16_haswell_, nk_dot_e4m3x16_update_haswell,
+                            nk_dot_e4m3x16_finalize_haswell, nk_partial_store_b32x4_haswell_,
+                            /*k_tile=*/16)
 
-// E5M2 GEMM: k_tile=32 (32 e5m2s = 32 bytes = AVX2 register width)
-NK_MAKE_DOTS_PACK_SIZE(haswell, e5m2, f32)
-NK_MAKE_DOTS_PACK(haswell, e5m2, f32)
-NK_MAKE_DOTS_VECTORS(e5m2e5m2f32_haswell, e5m2, f32, nk_b256_vec_t, nk_dot_e5m2x32_state_haswell_t,
-                     nk_dot_e5m2x32_init_haswell, nk_load_b256_haswell_, nk_partial_load_b8x32_haswell_,
-                     nk_dot_e5m2x32_update_haswell, nk_dot_e5m2x32_finalize_haswell,
-                     /*k_tile=*/32, /*k_unroll=*/1, /*MR=*/4, /*MC=*/128, /*NC=*/2048, /*KC=*/256)
+// E5M2 GEMM: k_tile=16 (16 e5m2s = 16 bytes = 128-bit input)
+nk_make_dots_pack_size_(haswell, e5m2, f32)
+nk_make_dots_pack_(haswell, e5m2, f32)
+nk_make_dots_inner_vectors_(e5m2e5m2f32_haswell, e5m2, f32, nk_b128_vec_t, nk_dot_e5m2x16_state_haswell_t,
+                            nk_b128_vec_t, nk_dot_e5m2x16_init_haswell, nk_load_b128_haswell_,
+                            nk_partial_load_b8x16_haswell_, nk_dot_e5m2x16_update_haswell,
+                            nk_dot_e5m2x16_finalize_haswell, nk_partial_store_b32x4_haswell_,
+                            /*k_tile=*/16)
 
-// I8 GEMM: k_tile=32 (32 i8s = 32 bytes = AVX2 register width)
-NK_MAKE_DOTS_PACK_SIZE(haswell, i8, i32)
-NK_MAKE_DOTS_PACK(haswell, i8, i32)
-NK_MAKE_DOTS_VECTORS(i8i8i32_haswell, i8, i32, nk_b256_vec_t, nk_dot_i8x32_state_haswell_t, nk_dot_i8x32_init_haswell,
-                     nk_load_b256_haswell_, nk_partial_load_b8x32_haswell_, nk_dot_i8x32_update_haswell,
-                     nk_dot_i8x32_finalize_haswell,
-                     /*k_tile=*/32, /*k_unroll=*/1, /*MR=*/4, /*MC=*/128, /*NC=*/2048, /*KC=*/256)
+// I8 GEMM: k_tile=16 (16 i8s = 16 bytes = 128-bit input)
+nk_make_dots_pack_size_(haswell, i8, i32)
+nk_make_dots_pack_(haswell, i8, i32)
+nk_make_dots_inner_vectors_(i8i8i32_haswell, i8, i32, nk_b128_vec_t, nk_dot_i8x16_state_haswell_t, nk_b128_vec_t,
+                            nk_dot_i8x16_init_haswell, nk_load_b128_haswell_, nk_partial_load_b8x16_haswell_,
+                            nk_dot_i8x16_update_haswell, nk_dot_i8x16_finalize_haswell, nk_partial_store_b32x4_haswell_,
+                            /*k_tile=*/16)
 
-// U8 GEMM: k_tile=32 (32 u8s = 32 bytes = AVX2 register width)
-NK_MAKE_DOTS_PACK_SIZE(haswell, u8, i32)
-NK_MAKE_DOTS_PACK(haswell, u8, i32)
-NK_MAKE_DOTS_VECTORS(u8u8i32_haswell, u8, u32, nk_b256_vec_t, nk_dot_u8x32_state_haswell_t, nk_dot_u8x32_init_haswell,
-                     nk_load_b256_haswell_, nk_partial_load_b8x32_haswell_, nk_dot_u8x32_update_haswell,
-                     nk_dot_u8x32_finalize_haswell,
-                     /*k_tile=*/32, /*k_unroll=*/1, /*MR=*/4, /*MC=*/128, /*NC=*/2048, /*KC=*/256)
+// U8 GEMM: k_tile=16 (16 u8s = 16 bytes = 128-bit input)
+nk_make_dots_pack_size_(haswell, u8, u32)
+nk_make_dots_pack_(haswell, u8, u32)
+nk_make_dots_inner_vectors_(u8u8i32_haswell, u8, u32, nk_b128_vec_t, nk_dot_u8x16_state_haswell_t, nk_b128_vec_t,
+                            nk_dot_u8x16_init_haswell, nk_load_b128_haswell_, nk_partial_load_b8x16_haswell_,
+                            nk_dot_u8x16_update_haswell, nk_dot_u8x16_finalize_haswell, nk_partial_store_b32x4_haswell_,
+                            /*k_tile=*/16)
 
 #if defined(__cplusplus)
 } // extern "C"

@@ -228,7 +228,7 @@ NK_INTERNAL void nk_dot_f64x2_update_serial(nk_dot_f64x2_state_serial_t *state, 
 NK_INTERNAL void nk_dot_f64x2_finalize_serial(nk_dot_f64x2_state_serial_t const *state_a,
                                               nk_dot_f64x2_state_serial_t const *state_b,
                                               nk_dot_f64x2_state_serial_t const *state_c,
-                                              nk_dot_f64x2_state_serial_t const *state_d, nk_f64_t *results);
+                                              nk_dot_f64x2_state_serial_t const *state_d, nk_b256_vec_t *result);
 
 /**
  *  @brief Running state for 128-bit dot accumulation over f32 scalars.
@@ -242,7 +242,7 @@ NK_INTERNAL void nk_dot_f32x4_update_serial(nk_dot_f32x4_state_serial_t *state, 
 NK_INTERNAL void nk_dot_f32x4_finalize_serial(nk_dot_f32x4_state_serial_t const *state_a,
                                               nk_dot_f32x4_state_serial_t const *state_b,
                                               nk_dot_f32x4_state_serial_t const *state_c,
-                                              nk_dot_f32x4_state_serial_t const *state_d, nk_f32_t *results);
+                                              nk_dot_f32x4_state_serial_t const *state_d, nk_b128_vec_t *result);
 
 /**
  *  @brief Running state for 128-bit dot accumulation over f16 scalars.
@@ -256,7 +256,7 @@ NK_INTERNAL void nk_dot_f16x8_update_serial(nk_dot_f16x8_state_serial_t *state, 
 NK_INTERNAL void nk_dot_f16x8_finalize_serial(nk_dot_f16x8_state_serial_t const *state_a,
                                               nk_dot_f16x8_state_serial_t const *state_b,
                                               nk_dot_f16x8_state_serial_t const *state_c,
-                                              nk_dot_f16x8_state_serial_t const *state_d, nk_f32_t *results);
+                                              nk_dot_f16x8_state_serial_t const *state_d, nk_b128_vec_t *result);
 
 /**
  *  @brief Running state for 128-bit dot accumulation over bf16 scalars.
@@ -270,7 +270,7 @@ NK_INTERNAL void nk_dot_bf16x8_update_serial(nk_dot_bf16x8_state_serial_t *state
 NK_INTERNAL void nk_dot_bf16x8_finalize_serial(nk_dot_bf16x8_state_serial_t const *state_a,
                                                nk_dot_bf16x8_state_serial_t const *state_b,
                                                nk_dot_bf16x8_state_serial_t const *state_c,
-                                               nk_dot_bf16x8_state_serial_t const *state_d, nk_f32_t *results);
+                                               nk_dot_bf16x8_state_serial_t const *state_d, nk_b128_vec_t *result);
 
 /**
  *  @brief Running state for 128-bit dot accumulation over i8 scalars.
@@ -284,7 +284,7 @@ NK_INTERNAL void nk_dot_i8x16_update_serial(nk_dot_i8x16_state_serial_t *state, 
 NK_INTERNAL void nk_dot_i8x16_finalize_serial(nk_dot_i8x16_state_serial_t const *state_a,
                                               nk_dot_i8x16_state_serial_t const *state_b,
                                               nk_dot_i8x16_state_serial_t const *state_c,
-                                              nk_dot_i8x16_state_serial_t const *state_d, nk_i32_t *results);
+                                              nk_dot_i8x16_state_serial_t const *state_d, nk_b128_vec_t *result);
 
 /**
  *  @brief Running state for 128-bit dot accumulation over u8 scalars.
@@ -298,7 +298,7 @@ NK_INTERNAL void nk_dot_u8x16_update_serial(nk_dot_u8x16_state_serial_t *state, 
 NK_INTERNAL void nk_dot_u8x16_finalize_serial(nk_dot_u8x16_state_serial_t const *state_a,
                                               nk_dot_u8x16_state_serial_t const *state_b,
                                               nk_dot_u8x16_state_serial_t const *state_c,
-                                              nk_dot_u8x16_state_serial_t const *state_d, nk_u32_t *results);
+                                              nk_dot_u8x16_state_serial_t const *state_d, nk_b128_vec_t *result);
 
 /**
  *  @brief Running state for 128-bit dot accumulation over e4m3 scalars.
@@ -312,7 +312,7 @@ NK_INTERNAL void nk_dot_e4m3x16_update_serial(nk_dot_e4m3x16_state_serial_t *sta
 NK_INTERNAL void nk_dot_e4m3x16_finalize_serial(nk_dot_e4m3x16_state_serial_t const *state_a,
                                                 nk_dot_e4m3x16_state_serial_t const *state_b,
                                                 nk_dot_e4m3x16_state_serial_t const *state_c,
-                                                nk_dot_e4m3x16_state_serial_t const *state_d, nk_f32_t *results);
+                                                nk_dot_e4m3x16_state_serial_t const *state_d, nk_b128_vec_t *result);
 
 /**
  *  @brief Running state for 128-bit dot accumulation over e5m2 scalars.
@@ -326,7 +326,7 @@ NK_INTERNAL void nk_dot_e5m2x16_update_serial(nk_dot_e5m2x16_state_serial_t *sta
 NK_INTERNAL void nk_dot_e5m2x16_finalize_serial(nk_dot_e5m2x16_state_serial_t const *state_a,
                                                 nk_dot_e5m2x16_state_serial_t const *state_b,
                                                 nk_dot_e5m2x16_state_serial_t const *state_c,
-                                                nk_dot_e5m2x16_state_serial_t const *state_d, nk_f32_t *results);
+                                                nk_dot_e5m2x16_state_serial_t const *state_d, nk_b128_vec_t *result);
 
 /** @copydoc nk_dot_f32 */
 NK_PUBLIC void nk_dot_f32_accurate(nk_f32_t const *a, nk_f32_t const *b, nk_size_t n, nk_f64_t *result);
@@ -366,7 +366,7 @@ NK_INTERNAL void nk_dot_f32x4_update_neon(nk_dot_f32x4_state_neon_t *state, nk_b
 NK_INTERNAL void nk_dot_f32x4_finalize_neon(nk_dot_f32x4_state_neon_t const *state_a,
                                             nk_dot_f32x4_state_neon_t const *state_b,
                                             nk_dot_f32x4_state_neon_t const *state_c,
-                                            nk_dot_f32x4_state_neon_t const *state_d, nk_f32_t *results);
+                                            nk_dot_f32x4_state_neon_t const *state_d, nk_b128_vec_t *result);
 
 /** @copydoc nk_dot_f64 */
 NK_PUBLIC void nk_dot_f64_neon(nk_f64_t const *a, nk_f64_t const *b, nk_size_t n, nk_f64_t *result);
@@ -409,7 +409,7 @@ NK_INTERNAL void nk_dot_f16x8_update_neon(nk_dot_f16x8_state_neon_t *state, nk_b
 NK_INTERNAL void nk_dot_f16x8_finalize_neon(nk_dot_f16x8_state_neon_t const *state_a,
                                             nk_dot_f16x8_state_neon_t const *state_b,
                                             nk_dot_f16x8_state_neon_t const *state_c,
-                                            nk_dot_f16x8_state_neon_t const *state_d, nk_f32_t *results);
+                                            nk_dot_f16x8_state_neon_t const *state_d, nk_b128_vec_t *result);
 #endif // NK_TARGET_NEONHALF
 
 #if NK_TARGET_NEONSDOT
@@ -427,7 +427,7 @@ NK_INTERNAL void nk_dot_i8x16_update_neon(nk_dot_i8x16_state_neon_t *state, nk_b
 NK_INTERNAL void nk_dot_i8x16_finalize_neon(nk_dot_i8x16_state_neon_t const *state_a,
                                             nk_dot_i8x16_state_neon_t const *state_b,
                                             nk_dot_i8x16_state_neon_t const *state_c,
-                                            nk_dot_i8x16_state_neon_t const *state_d, nk_i32_t *results);
+                                            nk_dot_i8x16_state_neon_t const *state_d, nk_b128_vec_t *result);
 
 typedef struct nk_dot_u8x16_state_neon_t nk_dot_u8x16_state_neon_t;
 /** @copydoc nk_dot_u8x16_state_neon_t */
@@ -438,7 +438,7 @@ NK_INTERNAL void nk_dot_u8x16_update_neon(nk_dot_u8x16_state_neon_t *state, nk_b
 NK_INTERNAL void nk_dot_u8x16_finalize_neon(nk_dot_u8x16_state_neon_t const *state_a,
                                             nk_dot_u8x16_state_neon_t const *state_b,
                                             nk_dot_u8x16_state_neon_t const *state_c,
-                                            nk_dot_u8x16_state_neon_t const *state_d, nk_u32_t *results);
+                                            nk_dot_u8x16_state_neon_t const *state_d, nk_b128_vec_t *result);
 #endif // NK_TARGET_NEONSDOT
 
 #if NK_TARGET_NEONBFDOT
@@ -458,7 +458,7 @@ NK_INTERNAL void nk_dot_bf16x8_update_neon(nk_dot_bf16x8_state_neon_t *state, nk
 NK_INTERNAL void nk_dot_bf16x8_finalize_neon(nk_dot_bf16x8_state_neon_t const *state_a,
                                              nk_dot_bf16x8_state_neon_t const *state_b,
                                              nk_dot_bf16x8_state_neon_t const *state_c,
-                                             nk_dot_bf16x8_state_neon_t const *state_d, nk_f32_t *results);
+                                             nk_dot_bf16x8_state_neon_t const *state_d, nk_b128_vec_t *result);
 #endif // NK_TARGET_NEONBFDOT
 
 #if NK_TARGET_SVE
@@ -516,18 +516,19 @@ NK_PUBLIC void nk_dot_i8_haswell(nk_i8_t const *a, nk_i8_t const *b, nk_size_t n
 NK_PUBLIC void nk_dot_u8_haswell(nk_u8_t const *a, nk_u8_t const *b, nk_size_t n, nk_u32_t *result);
 
 /**
- *  @brief Running state for 256-bit dot accumulation over f32 scalars on Haswell.
+ *  @brief Running state for f32 dot accumulation using f64 for high precision on Haswell.
+ *  Processes 4 f32 values at a time, upcasting to f64.
  */
-typedef struct nk_dot_f32x8_state_haswell_t nk_dot_f32x8_state_haswell_t;
-/** @copydoc nk_dot_f32x8_state_haswell_t */
-NK_INTERNAL void nk_dot_f32x8_init_haswell(nk_dot_f32x8_state_haswell_t *state);
-/** @copydoc nk_dot_f32x8_state_haswell_t */
-NK_INTERNAL void nk_dot_f32x8_update_haswell(nk_dot_f32x8_state_haswell_t *state, nk_b256_vec_t a, nk_b256_vec_t b);
-/** @copydoc nk_dot_f32x8_state_haswell_t */
-NK_INTERNAL void nk_dot_f32x8_finalize_haswell(nk_dot_f32x8_state_haswell_t const *state_a,
-                                               nk_dot_f32x8_state_haswell_t const *state_b,
-                                               nk_dot_f32x8_state_haswell_t const *state_c,
-                                               nk_dot_f32x8_state_haswell_t const *state_d, nk_f32_t *results);
+typedef struct nk_dot_f32x4_state_haswell_t nk_dot_f32x4_state_haswell_t;
+/** @copydoc nk_dot_f32x4_state_haswell_t */
+NK_INTERNAL void nk_dot_f32x4_init_haswell(nk_dot_f32x4_state_haswell_t *state);
+/** @copydoc nk_dot_f32x4_state_haswell_t */
+NK_INTERNAL void nk_dot_f32x4_update_haswell(nk_dot_f32x4_state_haswell_t *state, nk_b128_vec_t a, nk_b128_vec_t b);
+/** @copydoc nk_dot_f32x4_state_haswell_t */
+NK_INTERNAL void nk_dot_f32x4_finalize_haswell(nk_dot_f32x4_state_haswell_t const *state_a,
+                                               nk_dot_f32x4_state_haswell_t const *state_b,
+                                               nk_dot_f32x4_state_haswell_t const *state_c,
+                                               nk_dot_f32x4_state_haswell_t const *state_d, nk_b128_vec_t *result);
 
 /**
  *  @brief Running state for 256-bit dot accumulation over f16 scalars on Haswell.
@@ -541,7 +542,7 @@ NK_INTERNAL void nk_dot_f16x16_update_haswell(nk_dot_f16x16_state_haswell_t *sta
 NK_INTERNAL void nk_dot_f16x16_finalize_haswell(nk_dot_f16x16_state_haswell_t const *state_a,
                                                 nk_dot_f16x16_state_haswell_t const *state_b,
                                                 nk_dot_f16x16_state_haswell_t const *state_c,
-                                                nk_dot_f16x16_state_haswell_t const *state_d, nk_f32_t *results);
+                                                nk_dot_f16x16_state_haswell_t const *state_d, nk_b128_vec_t *result);
 
 /**
  *  @brief Running state for 256-bit dot accumulation over bf16 scalars on Haswell.
@@ -555,7 +556,7 @@ NK_INTERNAL void nk_dot_bf16x16_update_haswell(nk_dot_bf16x16_state_haswell_t *s
 NK_INTERNAL void nk_dot_bf16x16_finalize_haswell(nk_dot_bf16x16_state_haswell_t const *state_a,
                                                  nk_dot_bf16x16_state_haswell_t const *state_b,
                                                  nk_dot_bf16x16_state_haswell_t const *state_c,
-                                                 nk_dot_bf16x16_state_haswell_t const *state_d, nk_f32_t *results);
+                                                 nk_dot_bf16x16_state_haswell_t const *state_d, nk_b128_vec_t *result);
 
 /**
  *  @brief Running state for 256-bit dot accumulation over e4m3 scalars on Haswell.
@@ -569,7 +570,7 @@ NK_INTERNAL void nk_dot_e4m3x32_update_haswell(nk_dot_e4m3x32_state_haswell_t *s
 NK_INTERNAL void nk_dot_e4m3x32_finalize_haswell(nk_dot_e4m3x32_state_haswell_t const *state_a,
                                                  nk_dot_e4m3x32_state_haswell_t const *state_b,
                                                  nk_dot_e4m3x32_state_haswell_t const *state_c,
-                                                 nk_dot_e4m3x32_state_haswell_t const *state_d, nk_f32_t *results);
+                                                 nk_dot_e4m3x32_state_haswell_t const *state_d, nk_b128_vec_t *result);
 
 /**
  *  @brief Running state for 256-bit dot accumulation over e5m2 scalars on Haswell.
@@ -583,7 +584,7 @@ NK_INTERNAL void nk_dot_e5m2x32_update_haswell(nk_dot_e5m2x32_state_haswell_t *s
 NK_INTERNAL void nk_dot_e5m2x32_finalize_haswell(nk_dot_e5m2x32_state_haswell_t const *state_a,
                                                  nk_dot_e5m2x32_state_haswell_t const *state_b,
                                                  nk_dot_e5m2x32_state_haswell_t const *state_c,
-                                                 nk_dot_e5m2x32_state_haswell_t const *state_d, nk_f32_t *results);
+                                                 nk_dot_e5m2x32_state_haswell_t const *state_d, nk_b128_vec_t *result);
 
 typedef struct nk_dot_i8x32_state_haswell_t nk_dot_i8x32_state_haswell_t;
 /** @copydoc nk_dot_i8x32_state_haswell_t */
@@ -594,7 +595,7 @@ NK_INTERNAL void nk_dot_i8x32_update_haswell(nk_dot_i8x32_state_haswell_t *state
 NK_INTERNAL void nk_dot_i8x32_finalize_haswell(nk_dot_i8x32_state_haswell_t const *state_a,
                                                nk_dot_i8x32_state_haswell_t const *state_b,
                                                nk_dot_i8x32_state_haswell_t const *state_c,
-                                               nk_dot_i8x32_state_haswell_t const *state_d, nk_i32_t *results);
+                                               nk_dot_i8x32_state_haswell_t const *state_d, nk_b128_vec_t *result);
 
 /**
  *  @brief Running state for 256-bit dot accumulation over u8 scalars on Haswell.
@@ -608,7 +609,7 @@ NK_INTERNAL void nk_dot_u8x32_update_haswell(nk_dot_u8x32_state_haswell_t *state
 NK_INTERNAL void nk_dot_u8x32_finalize_haswell(nk_dot_u8x32_state_haswell_t const *state_a,
                                                nk_dot_u8x32_state_haswell_t const *state_b,
                                                nk_dot_u8x32_state_haswell_t const *state_c,
-                                               nk_dot_u8x32_state_haswell_t const *state_d, nk_u32_t *results);
+                                               nk_dot_u8x32_state_haswell_t const *state_d, nk_b128_vec_t *result);
 #endif // NK_TARGET_HASWELL
 
 #if NK_TARGET_SKYLAKE
@@ -653,21 +654,22 @@ NK_INTERNAL void nk_dot_f64x8_update_skylake(nk_dot_f64x8_state_skylake_t *state
 NK_INTERNAL void nk_dot_f64x8_finalize_skylake(nk_dot_f64x8_state_skylake_t const *state_a,
                                                nk_dot_f64x8_state_skylake_t const *state_b,
                                                nk_dot_f64x8_state_skylake_t const *state_c,
-                                               nk_dot_f64x8_state_skylake_t const *state_d, nk_f64_t *results);
+                                               nk_dot_f64x8_state_skylake_t const *state_d, nk_b256_vec_t *result);
 
 /**
- *  @brief Running state for 512-bit dot accumulation over f32 scalars on Skylake.
+ *  @brief Running state for f32 dot accumulation using f64 for high precision on Skylake.
+ *  Processes 8 f32 values at a time, upcasting to f64.
  */
-typedef struct nk_dot_f32x16_state_skylake_t nk_dot_f32x16_state_skylake_t;
-/** @copydoc nk_dot_f32x16_state_skylake_t */
-NK_INTERNAL void nk_dot_f32x16_init_skylake(nk_dot_f32x16_state_skylake_t *state);
-/** @copydoc nk_dot_f32x16_state_skylake_t */
-NK_INTERNAL void nk_dot_f32x16_update_skylake(nk_dot_f32x16_state_skylake_t *state, nk_b512_vec_t a, nk_b512_vec_t b);
-/** @copydoc nk_dot_f32x16_state_skylake_t */
-NK_INTERNAL void nk_dot_f32x16_finalize_skylake(nk_dot_f32x16_state_skylake_t const *state_a,
-                                                nk_dot_f32x16_state_skylake_t const *state_b,
-                                                nk_dot_f32x16_state_skylake_t const *state_c,
-                                                nk_dot_f32x16_state_skylake_t const *state_d, nk_f32_t *results);
+typedef struct nk_dot_f32x8_state_skylake_t nk_dot_f32x8_state_skylake_t;
+/** @copydoc nk_dot_f32x8_state_skylake_t */
+NK_INTERNAL void nk_dot_f32x8_init_skylake(nk_dot_f32x8_state_skylake_t *state);
+/** @copydoc nk_dot_f32x8_state_skylake_t */
+NK_INTERNAL void nk_dot_f32x8_update_skylake(nk_dot_f32x8_state_skylake_t *state, nk_b256_vec_t a, nk_b256_vec_t b);
+/** @copydoc nk_dot_f32x8_state_skylake_t */
+NK_INTERNAL void nk_dot_f32x8_finalize_skylake(nk_dot_f32x8_state_skylake_t const *state_a,
+                                               nk_dot_f32x8_state_skylake_t const *state_b,
+                                               nk_dot_f32x8_state_skylake_t const *state_c,
+                                               nk_dot_f32x8_state_skylake_t const *state_d, nk_b128_vec_t *result);
 
 /**
  *  @brief Running state for 512-bit dot accumulation over e4m3 scalars on Skylake.
@@ -681,7 +683,7 @@ NK_INTERNAL void nk_dot_e4m3x64_update_skylake(nk_dot_e4m3x64_state_skylake_t *s
 NK_INTERNAL void nk_dot_e4m3x64_finalize_skylake(nk_dot_e4m3x64_state_skylake_t const *state_a,
                                                  nk_dot_e4m3x64_state_skylake_t const *state_b,
                                                  nk_dot_e4m3x64_state_skylake_t const *state_c,
-                                                 nk_dot_e4m3x64_state_skylake_t const *state_d, nk_f32_t *results);
+                                                 nk_dot_e4m3x64_state_skylake_t const *state_d, nk_b128_vec_t *result);
 
 /**
  *  @brief Running state for 512-bit dot accumulation over e5m2 scalars on Skylake.
@@ -695,7 +697,7 @@ NK_INTERNAL void nk_dot_e5m2x64_update_skylake(nk_dot_e5m2x64_state_skylake_t *s
 NK_INTERNAL void nk_dot_e5m2x64_finalize_skylake(nk_dot_e5m2x64_state_skylake_t const *state_a,
                                                  nk_dot_e5m2x64_state_skylake_t const *state_b,
                                                  nk_dot_e5m2x64_state_skylake_t const *state_c,
-                                                 nk_dot_e5m2x64_state_skylake_t const *state_d, nk_f32_t *results);
+                                                 nk_dot_e5m2x64_state_skylake_t const *state_d, nk_b128_vec_t *result);
 #endif // NK_TARGET_SKYLAKE
 
 #if NK_TARGET_ICE
@@ -716,7 +718,7 @@ NK_INTERNAL void nk_dot_i8x64_update_ice(nk_dot_i8x64_state_ice_t *state, nk_b51
 NK_INTERNAL void nk_dot_i8x64_finalize_ice(nk_dot_i8x64_state_ice_t const *state_a,
                                            nk_dot_i8x64_state_ice_t const *state_b,
                                            nk_dot_i8x64_state_ice_t const *state_c,
-                                           nk_dot_i8x64_state_ice_t const *state_d, nk_i32_t *results);
+                                           nk_dot_i8x64_state_ice_t const *state_d, nk_b128_vec_t *result);
 
 /**
  *  @brief Running state for 64-element dot accumulation over u8 scalars on Ice Lake.
@@ -730,7 +732,7 @@ NK_INTERNAL void nk_dot_u8x64_update_ice(nk_dot_u8x64_state_ice_t *state, nk_b51
 NK_INTERNAL void nk_dot_u8x64_finalize_ice(nk_dot_u8x64_state_ice_t const *state_a,
                                            nk_dot_u8x64_state_ice_t const *state_b,
                                            nk_dot_u8x64_state_ice_t const *state_c,
-                                           nk_dot_u8x64_state_ice_t const *state_d, nk_u32_t *results);
+                                           nk_dot_u8x64_state_ice_t const *state_d, nk_b128_vec_t *result);
 #endif // NK_TARGET_ICE
 
 #if NK_TARGET_GENOA
@@ -758,7 +760,7 @@ NK_INTERNAL void nk_dot_bf16x32_update_genoa(nk_dot_bf16x32_state_genoa_t *state
 NK_INTERNAL void nk_dot_bf16x32_finalize_genoa(nk_dot_bf16x32_state_genoa_t const *state_a,
                                                nk_dot_bf16x32_state_genoa_t const *state_b,
                                                nk_dot_bf16x32_state_genoa_t const *state_c,
-                                               nk_dot_bf16x32_state_genoa_t const *state_d, nk_f32_t *results);
+                                               nk_dot_bf16x32_state_genoa_t const *state_d, nk_b128_vec_t *result);
 
 /**
  *  @brief Running state for 512-bit dot accumulation over e4m3 scalars on Genoa.
@@ -772,7 +774,7 @@ NK_INTERNAL void nk_dot_e4m3x64_update_genoa(nk_dot_e4m3x64_state_genoa_t *state
 NK_INTERNAL void nk_dot_e4m3x64_finalize_genoa(nk_dot_e4m3x64_state_genoa_t const *state_a,
                                                nk_dot_e4m3x64_state_genoa_t const *state_b,
                                                nk_dot_e4m3x64_state_genoa_t const *state_c,
-                                               nk_dot_e4m3x64_state_genoa_t const *state_d, nk_f32_t *results);
+                                               nk_dot_e4m3x64_state_genoa_t const *state_d, nk_b128_vec_t *result);
 
 /**
  *  @brief Running state for 512-bit dot accumulation over e5m2 scalars on Genoa.
@@ -786,7 +788,7 @@ NK_INTERNAL void nk_dot_e5m2x64_update_genoa(nk_dot_e5m2x64_state_genoa_t *state
 NK_INTERNAL void nk_dot_e5m2x64_finalize_genoa(nk_dot_e5m2x64_state_genoa_t const *state_a,
                                                nk_dot_e5m2x64_state_genoa_t const *state_b,
                                                nk_dot_e5m2x64_state_genoa_t const *state_c,
-                                               nk_dot_e5m2x64_state_genoa_t const *state_d, nk_f32_t *results);
+                                               nk_dot_e5m2x64_state_genoa_t const *state_d, nk_b128_vec_t *result);
 #endif // NK_TARGET_GENOA
 
 #if NK_TARGET_SAPPHIRE
@@ -816,7 +818,7 @@ NK_INTERNAL void nk_dot_f16x32_update_sapphire(nk_dot_f16x32_state_sapphire_t *s
 NK_INTERNAL void nk_dot_f16x32_finalize_sapphire(nk_dot_f16x32_state_sapphire_t const *state_a,
                                                  nk_dot_f16x32_state_sapphire_t const *state_b,
                                                  nk_dot_f16x32_state_sapphire_t const *state_c,
-                                                 nk_dot_f16x32_state_sapphire_t const *state_d, nk_f32_t *results);
+                                                 nk_dot_f16x32_state_sapphire_t const *state_d, nk_b128_vec_t *result);
 
 /**
  *  @brief Running state for 64-element dot accumulation over e4m3 scalars on Sapphire.
@@ -831,7 +833,8 @@ NK_INTERNAL void nk_dot_e4m3x64_update_sapphire(nk_dot_e4m3x64_state_sapphire_t 
 NK_INTERNAL void nk_dot_e4m3x64_finalize_sapphire(nk_dot_e4m3x64_state_sapphire_t const *state_a,
                                                   nk_dot_e4m3x64_state_sapphire_t const *state_b,
                                                   nk_dot_e4m3x64_state_sapphire_t const *state_c,
-                                                  nk_dot_e4m3x64_state_sapphire_t const *state_d, nk_f32_t *results);
+                                                  nk_dot_e4m3x64_state_sapphire_t const *state_d,
+                                                  nk_b128_vec_t *result);
 
 /**
  *  @brief Running state for 64-element dot accumulation over e5m2 scalars on Sapphire.
@@ -846,7 +849,8 @@ NK_INTERNAL void nk_dot_e5m2x64_update_sapphire(nk_dot_e5m2x64_state_sapphire_t 
 NK_INTERNAL void nk_dot_e5m2x64_finalize_sapphire(nk_dot_e5m2x64_state_sapphire_t const *state_a,
                                                   nk_dot_e5m2x64_state_sapphire_t const *state_b,
                                                   nk_dot_e5m2x64_state_sapphire_t const *state_c,
-                                                  nk_dot_e5m2x64_state_sapphire_t const *state_d, nk_f32_t *results);
+                                                  nk_dot_e5m2x64_state_sapphire_t const *state_d,
+                                                  nk_b128_vec_t *result);
 #endif // NK_TARGET_SAPPHIRE
 
 #if NK_TARGET_SIERRA
@@ -865,7 +869,7 @@ NK_INTERNAL void nk_dot_i8x32_update_sierra(nk_dot_i8x32_state_sierra_t *state, 
 NK_INTERNAL void nk_dot_i8x32_finalize_sierra(nk_dot_i8x32_state_sierra_t const *state_a,
                                               nk_dot_i8x32_state_sierra_t const *state_b,
                                               nk_dot_i8x32_state_sierra_t const *state_c,
-                                              nk_dot_i8x32_state_sierra_t const *state_d, nk_i32_t *results);
+                                              nk_dot_i8x32_state_sierra_t const *state_d, nk_b128_vec_t *result);
 #endif // NK_TARGET_SIERRA
 
 /**

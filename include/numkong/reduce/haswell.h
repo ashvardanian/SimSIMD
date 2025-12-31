@@ -21,6 +21,16 @@
 extern "C" {
 #endif
 
+/** @brief Type-agnostic 256-bit full load (Haswell AVX2). */
+NK_INTERNAL void nk_load_b256_haswell_(void const *src, nk_b256_vec_t *dst) {
+    dst->ymm = _mm256_loadu_si256((const __m256i *)src);
+}
+
+/** @brief Type-agnostic 128-bit full load (Haswell AVX2). */
+NK_INTERNAL void nk_load_b128_haswell_(void const *src, nk_b128_vec_t *dst) {
+    dst->xmm = _mm_loadu_si128((const __m128i *)src);
+}
+
 /** @brief Type-agnostic partial load for 32-bit elements (8 elements max) into 256-bit vector (Haswell AVX2). */
 NK_INTERNAL void nk_partial_load_b32x8_haswell_(void const *src, nk_size_t n, nk_b256_vec_t *dst) {
     nk_u32_t const *s = (nk_u32_t const *)src;
@@ -35,6 +45,64 @@ NK_INTERNAL void nk_partial_load_b32x8_haswell_(void const *src, nk_size_t n, nk
     case 3: dst->u32s[2] = s[2]; // fallthrough
     case 2: dst->u32s[1] = s[1]; // fallthrough
     case 1: dst->u32s[0] = s[0]; // fallthrough
+    case 0: break;
+    }
+}
+
+/** @brief Type-agnostic partial load for 32-bit elements (4 elements max) into 128-bit vector (Haswell AVX2). */
+NK_INTERNAL void nk_partial_load_b32x4_haswell_(void const *src, nk_size_t n, nk_b128_vec_t *dst) {
+    nk_u32_t const *s = (nk_u32_t const *)src;
+    dst->xmm = _mm_setzero_si128();
+    switch (n) {
+    default:
+    case 4: dst->u32s[3] = s[3]; // fallthrough
+    case 3: dst->u32s[2] = s[2]; // fallthrough
+    case 2: dst->u32s[1] = s[1]; // fallthrough
+    case 1: dst->u32s[0] = s[0]; // fallthrough
+    case 0: break;
+    }
+}
+
+/** @brief Type-agnostic partial load for 16-bit elements (8 elements max) into 128-bit vector (Haswell AVX2). */
+NK_INTERNAL void nk_partial_load_b16x8_haswell_(void const *src, nk_size_t n, nk_b128_vec_t *dst) {
+    nk_u16_t const *s = (nk_u16_t const *)src;
+    dst->xmm = _mm_setzero_si128();
+    switch (n) {
+    default:
+    case 8: dst->u16s[7] = s[7]; // fallthrough
+    case 7: dst->u16s[6] = s[6]; // fallthrough
+    case 6: dst->u16s[5] = s[5]; // fallthrough
+    case 5: dst->u16s[4] = s[4]; // fallthrough
+    case 4: dst->u16s[3] = s[3]; // fallthrough
+    case 3: dst->u16s[2] = s[2]; // fallthrough
+    case 2: dst->u16s[1] = s[1]; // fallthrough
+    case 1: dst->u16s[0] = s[0]; // fallthrough
+    case 0: break;
+    }
+}
+
+/** @brief Type-agnostic partial load for 8-bit elements (16 elements max) into 128-bit vector (Haswell AVX2). */
+NK_INTERNAL void nk_partial_load_b8x16_haswell_(void const *src, nk_size_t n, nk_b128_vec_t *dst) {
+    nk_u8_t const *s = (nk_u8_t const *)src;
+    dst->xmm = _mm_setzero_si128();
+    switch (n) {
+    default:
+    case 16: dst->u8s[15] = s[15]; // fallthrough
+    case 15: dst->u8s[14] = s[14]; // fallthrough
+    case 14: dst->u8s[13] = s[13]; // fallthrough
+    case 13: dst->u8s[12] = s[12]; // fallthrough
+    case 12: dst->u8s[11] = s[11]; // fallthrough
+    case 11: dst->u8s[10] = s[10]; // fallthrough
+    case 10: dst->u8s[9] = s[9];   // fallthrough
+    case 9: dst->u8s[8] = s[8];    // fallthrough
+    case 8: dst->u8s[7] = s[7];    // fallthrough
+    case 7: dst->u8s[6] = s[6];    // fallthrough
+    case 6: dst->u8s[5] = s[5];    // fallthrough
+    case 5: dst->u8s[4] = s[4];    // fallthrough
+    case 4: dst->u8s[3] = s[3];    // fallthrough
+    case 3: dst->u8s[2] = s[2];    // fallthrough
+    case 2: dst->u8s[1] = s[1];    // fallthrough
+    case 1: dst->u8s[0] = s[0];    // fallthrough
     case 0: break;
     }
 }
@@ -116,6 +184,19 @@ NK_INTERNAL void nk_partial_store_b32x8_haswell_(nk_b256_vec_t const *src, void 
     case 7: d[6] = src->u32s[6]; // fallthrough
     case 6: d[5] = src->u32s[5]; // fallthrough
     case 5: d[4] = src->u32s[4]; // fallthrough
+    case 4: d[3] = src->u32s[3]; // fallthrough
+    case 3: d[2] = src->u32s[2]; // fallthrough
+    case 2: d[1] = src->u32s[1]; // fallthrough
+    case 1: d[0] = src->u32s[0]; // fallthrough
+    case 0: break;
+    }
+}
+
+/** @brief Type-agnostic partial store for 32-bit elements (4 elements max) from 128-bit vector (Haswell AVX2). */
+NK_INTERNAL void nk_partial_store_b32x4_haswell_(nk_b128_vec_t const *src, void *dst, nk_size_t n) {
+    nk_u32_t *d = (nk_u32_t *)dst;
+    switch (n) {
+    default:
     case 4: d[3] = src->u32s[3]; // fallthrough
     case 3: d[2] = src->u32s[2]; // fallthrough
     case 2: d[1] = src->u32s[1]; // fallthrough
@@ -575,20 +656,27 @@ NK_INTERNAL nk_f64_t nk_reduce_max_f64x4_haswell_(__m256d max_f64x4) {
  */
 NK_INTERNAL __m256i nk_stride_blend_b8x32_(nk_size_t stride) {
     switch (stride) {
-    case 2: return _mm256_setr_epi8(-1, 0, -1, 0, -1, 0, -1, 0, -1, 0, -1, 0, -1, 0, -1, 0,
-                                    -1, 0, -1, 0, -1, 0, -1, 0, -1, 0, -1, 0, -1, 0, -1, 0);
-    case 3: return _mm256_setr_epi8(-1, 0, 0, -1, 0, 0, -1, 0, 0, -1, 0, 0, -1, 0, 0, -1,
-                                    0, 0, -1, 0, 0, -1, 0, 0, -1, 0, 0, -1, 0, 0, -1, 0);
-    case 4: return _mm256_setr_epi8(-1, 0, 0, 0, -1, 0, 0, 0, -1, 0, 0, 0, -1, 0, 0, 0,
-                                    -1, 0, 0, 0, -1, 0, 0, 0, -1, 0, 0, 0, -1, 0, 0, 0);
-    case 5: return _mm256_setr_epi8(-1, 0, 0, 0, 0, -1, 0, 0, 0, 0, -1, 0, 0, 0, 0, -1,
-                                    0, 0, 0, 0, -1, 0, 0, 0, 0, -1, 0, 0, 0, 0, -1, 0);
-    case 6: return _mm256_setr_epi8(-1, 0, 0, 0, 0, 0, -1, 0, 0, 0, 0, 0, -1, 0, 0, 0,
-                                    0, 0, -1, 0, 0, 0, 0, 0, -1, 0, 0, 0, 0, 0, -1, 0);
-    case 7: return _mm256_setr_epi8(-1, 0, 0, 0, 0, 0, 0, -1, 0, 0, 0, 0, 0, 0, -1, 0,
-                                    0, 0, 0, 0, 0, -1, 0, 0, 0, 0, 0, 0, -1, 0, 0, 0);
-    case 8: return _mm256_setr_epi8(-1, 0, 0, 0, 0, 0, 0, 0, -1, 0, 0, 0, 0, 0, 0, 0,
-                                    -1, 0, 0, 0, 0, 0, 0, 0, -1, 0, 0, 0, 0, 0, 0, 0);
+    case 2:
+        return _mm256_setr_epi8(-1, 0, -1, 0, -1, 0, -1, 0, -1, 0, -1, 0, -1, 0, -1, 0, -1, 0, -1, 0, -1, 0, -1, 0, -1,
+                                0, -1, 0, -1, 0, -1, 0);
+    case 3:
+        return _mm256_setr_epi8(-1, 0, 0, -1, 0, 0, -1, 0, 0, -1, 0, 0, -1, 0, 0, -1, 0, 0, -1, 0, 0, -1, 0, 0, -1, 0,
+                                0, -1, 0, 0, -1, 0);
+    case 4:
+        return _mm256_setr_epi8(-1, 0, 0, 0, -1, 0, 0, 0, -1, 0, 0, 0, -1, 0, 0, 0, -1, 0, 0, 0, -1, 0, 0, 0, -1, 0, 0,
+                                0, -1, 0, 0, 0);
+    case 5:
+        return _mm256_setr_epi8(-1, 0, 0, 0, 0, -1, 0, 0, 0, 0, -1, 0, 0, 0, 0, -1, 0, 0, 0, 0, -1, 0, 0, 0, 0, -1, 0,
+                                0, 0, 0, -1, 0);
+    case 6:
+        return _mm256_setr_epi8(-1, 0, 0, 0, 0, 0, -1, 0, 0, 0, 0, 0, -1, 0, 0, 0, 0, 0, -1, 0, 0, 0, 0, 0, -1, 0, 0, 0,
+                                0, 0, -1, 0);
+    case 7:
+        return _mm256_setr_epi8(-1, 0, 0, 0, 0, 0, 0, -1, 0, 0, 0, 0, 0, 0, -1, 0, 0, 0, 0, 0, 0, -1, 0, 0, 0, 0, 0, 0,
+                                -1, 0, 0, 0);
+    case 8:
+        return _mm256_setr_epi8(-1, 0, 0, 0, 0, 0, 0, 0, -1, 0, 0, 0, 0, 0, 0, 0, -1, 0, 0, 0, 0, 0, 0, 0, -1, 0, 0, 0,
+                                0, 0, 0, 0);
     default: return _mm256_setzero_si256();
     }
 }

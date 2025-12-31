@@ -148,11 +148,11 @@ NK_INTERNAL void nk_dot_f64x2_update_serial(nk_dot_f64x2_state_serial_t *state, 
 NK_INTERNAL void nk_dot_f64x2_finalize_serial(                                              //
     nk_dot_f64x2_state_serial_t const *state_a, nk_dot_f64x2_state_serial_t const *state_b, //
     nk_dot_f64x2_state_serial_t const *state_c, nk_dot_f64x2_state_serial_t const *state_d, //
-    nk_f64_t *results) {
-    results[0] = state_a->sums[0] + state_a->sums[1];
-    results[1] = state_b->sums[0] + state_b->sums[1];
-    results[2] = state_c->sums[0] + state_c->sums[1];
-    results[3] = state_d->sums[0] + state_d->sums[1];
+    nk_b256_vec_t *result) {
+    result->f64s[0] = state_a->sums[0] + state_a->sums[1];
+    result->f64s[1] = state_b->sums[0] + state_b->sums[1];
+    result->f64s[2] = state_c->sums[0] + state_c->sums[1];
+    result->f64s[3] = state_d->sums[0] + state_d->sums[1];
 }
 
 typedef struct nk_dot_f32x4_state_serial_t {
@@ -181,11 +181,11 @@ NK_INTERNAL void nk_dot_f32x4_update_serial(nk_dot_f32x4_state_serial_t *state, 
 NK_INTERNAL void nk_dot_f32x4_finalize_serial(                                              //
     nk_dot_f32x4_state_serial_t const *state_a, nk_dot_f32x4_state_serial_t const *state_b, //
     nk_dot_f32x4_state_serial_t const *state_c, nk_dot_f32x4_state_serial_t const *state_d, //
-    nk_f32_t *results) {
-    results[0] = state_a->sums[0] + state_a->sums[1] + state_a->sums[2] + state_a->sums[3];
-    results[1] = state_b->sums[0] + state_b->sums[1] + state_b->sums[2] + state_b->sums[3];
-    results[2] = state_c->sums[0] + state_c->sums[1] + state_c->sums[2] + state_c->sums[3];
-    results[3] = state_d->sums[0] + state_d->sums[1] + state_d->sums[2] + state_d->sums[3];
+    nk_b128_vec_t *result) {
+    result->f32s[0] = state_a->sums[0] + state_a->sums[1] + state_a->sums[2] + state_a->sums[3];
+    result->f32s[1] = state_b->sums[0] + state_b->sums[1] + state_b->sums[2] + state_b->sums[3];
+    result->f32s[2] = state_c->sums[0] + state_c->sums[1] + state_c->sums[2] + state_c->sums[3];
+    result->f32s[3] = state_d->sums[0] + state_d->sums[1] + state_d->sums[2] + state_d->sums[3];
 }
 
 typedef struct nk_dot_f16x8_state_serial_t {
@@ -218,11 +218,11 @@ NK_INTERNAL void nk_dot_f16x8_update_serial(nk_dot_f16x8_state_serial_t *state, 
 NK_INTERNAL void nk_dot_f16x8_finalize_serial(                                              //
     nk_dot_f16x8_state_serial_t const *state_a, nk_dot_f16x8_state_serial_t const *state_b, //
     nk_dot_f16x8_state_serial_t const *state_c, nk_dot_f16x8_state_serial_t const *state_d, //
-    nk_f32_t *results) {
-    results[0] = state_a->sums[0] + state_a->sums[1] + state_a->sums[2] + state_a->sums[3];
-    results[1] = state_b->sums[0] + state_b->sums[1] + state_b->sums[2] + state_b->sums[3];
-    results[2] = state_c->sums[0] + state_c->sums[1] + state_c->sums[2] + state_c->sums[3];
-    results[3] = state_d->sums[0] + state_d->sums[1] + state_d->sums[2] + state_d->sums[3];
+    nk_b128_vec_t *result) {
+    result->f32s[0] = state_a->sums[0] + state_a->sums[1] + state_a->sums[2] + state_a->sums[3];
+    result->f32s[1] = state_b->sums[0] + state_b->sums[1] + state_b->sums[2] + state_b->sums[3];
+    result->f32s[2] = state_c->sums[0] + state_c->sums[1] + state_c->sums[2] + state_c->sums[3];
+    result->f32s[3] = state_d->sums[0] + state_d->sums[1] + state_d->sums[2] + state_d->sums[3];
 }
 
 typedef struct nk_dot_bf16x8_state_serial_t {
@@ -255,11 +255,11 @@ NK_INTERNAL void nk_dot_bf16x8_update_serial(nk_dot_bf16x8_state_serial_t *state
 NK_INTERNAL void nk_dot_bf16x8_finalize_serial(                                               //
     nk_dot_bf16x8_state_serial_t const *state_a, nk_dot_bf16x8_state_serial_t const *state_b, //
     nk_dot_bf16x8_state_serial_t const *state_c, nk_dot_bf16x8_state_serial_t const *state_d, //
-    nk_f32_t *results) {
-    results[0] = state_a->sums[0] + state_a->sums[1] + state_a->sums[2] + state_a->sums[3];
-    results[1] = state_b->sums[0] + state_b->sums[1] + state_b->sums[2] + state_b->sums[3];
-    results[2] = state_c->sums[0] + state_c->sums[1] + state_c->sums[2] + state_c->sums[3];
-    results[3] = state_d->sums[0] + state_d->sums[1] + state_d->sums[2] + state_d->sums[3];
+    nk_b128_vec_t *result) {
+    result->f32s[0] = state_a->sums[0] + state_a->sums[1] + state_a->sums[2] + state_a->sums[3];
+    result->f32s[1] = state_b->sums[0] + state_b->sums[1] + state_b->sums[2] + state_b->sums[3];
+    result->f32s[2] = state_c->sums[0] + state_c->sums[1] + state_c->sums[2] + state_c->sums[3];
+    result->f32s[3] = state_d->sums[0] + state_d->sums[1] + state_d->sums[2] + state_d->sums[3];
 }
 
 typedef struct nk_dot_i8x16_state_serial_t {
@@ -290,11 +290,11 @@ NK_INTERNAL void nk_dot_i8x16_update_serial(nk_dot_i8x16_state_serial_t *state, 
 NK_INTERNAL void nk_dot_i8x16_finalize_serial(                                              //
     nk_dot_i8x16_state_serial_t const *state_a, nk_dot_i8x16_state_serial_t const *state_b, //
     nk_dot_i8x16_state_serial_t const *state_c, nk_dot_i8x16_state_serial_t const *state_d, //
-    nk_i32_t *results) {
-    results[0] = (nk_i32_t)(state_a->sums[0] + state_a->sums[1]);
-    results[1] = (nk_i32_t)(state_b->sums[0] + state_b->sums[1]);
-    results[2] = (nk_i32_t)(state_c->sums[0] + state_c->sums[1]);
-    results[3] = (nk_i32_t)(state_d->sums[0] + state_d->sums[1]);
+    nk_b128_vec_t *result) {
+    result->i32s[0] = (nk_i32_t)(state_a->sums[0] + state_a->sums[1]);
+    result->i32s[1] = (nk_i32_t)(state_b->sums[0] + state_b->sums[1]);
+    result->i32s[2] = (nk_i32_t)(state_c->sums[0] + state_c->sums[1]);
+    result->i32s[3] = (nk_i32_t)(state_d->sums[0] + state_d->sums[1]);
 }
 
 typedef struct nk_dot_u8x16_state_serial_t {
@@ -325,11 +325,11 @@ NK_INTERNAL void nk_dot_u8x16_update_serial(nk_dot_u8x16_state_serial_t *state, 
 NK_INTERNAL void nk_dot_u8x16_finalize_serial(                                              //
     nk_dot_u8x16_state_serial_t const *state_a, nk_dot_u8x16_state_serial_t const *state_b, //
     nk_dot_u8x16_state_serial_t const *state_c, nk_dot_u8x16_state_serial_t const *state_d, //
-    nk_u32_t *results) {
-    results[0] = (nk_u32_t)(state_a->sums[0] + state_a->sums[1]);
-    results[1] = (nk_u32_t)(state_b->sums[0] + state_b->sums[1]);
-    results[2] = (nk_u32_t)(state_c->sums[0] + state_c->sums[1]);
-    results[3] = (nk_u32_t)(state_d->sums[0] + state_d->sums[1]);
+    nk_b128_vec_t *result) {
+    result->u32s[0] = (nk_u32_t)(state_a->sums[0] + state_a->sums[1]);
+    result->u32s[1] = (nk_u32_t)(state_b->sums[0] + state_b->sums[1]);
+    result->u32s[2] = (nk_u32_t)(state_c->sums[0] + state_c->sums[1]);
+    result->u32s[3] = (nk_u32_t)(state_d->sums[0] + state_d->sums[1]);
 }
 
 typedef struct nk_dot_e4m3x16_state_serial_t {
@@ -367,11 +367,11 @@ NK_INTERNAL void nk_dot_e4m3x16_update_serial(nk_dot_e4m3x16_state_serial_t *sta
 NK_INTERNAL void nk_dot_e4m3x16_finalize_serial(                                                //
     nk_dot_e4m3x16_state_serial_t const *state_a, nk_dot_e4m3x16_state_serial_t const *state_b, //
     nk_dot_e4m3x16_state_serial_t const *state_c, nk_dot_e4m3x16_state_serial_t const *state_d, //
-    nk_f32_t *results) {
-    results[0] = state_a->sums[0] + state_a->sums[1] + state_a->sums[2] + state_a->sums[3];
-    results[1] = state_b->sums[0] + state_b->sums[1] + state_b->sums[2] + state_b->sums[3];
-    results[2] = state_c->sums[0] + state_c->sums[1] + state_c->sums[2] + state_c->sums[3];
-    results[3] = state_d->sums[0] + state_d->sums[1] + state_d->sums[2] + state_d->sums[3];
+    nk_b128_vec_t *result) {
+    result->f32s[0] = state_a->sums[0] + state_a->sums[1] + state_a->sums[2] + state_a->sums[3];
+    result->f32s[1] = state_b->sums[0] + state_b->sums[1] + state_b->sums[2] + state_b->sums[3];
+    result->f32s[2] = state_c->sums[0] + state_c->sums[1] + state_c->sums[2] + state_c->sums[3];
+    result->f32s[3] = state_d->sums[0] + state_d->sums[1] + state_d->sums[2] + state_d->sums[3];
 }
 
 typedef struct nk_dot_e5m2x16_state_serial_t {
@@ -409,11 +409,11 @@ NK_INTERNAL void nk_dot_e5m2x16_update_serial(nk_dot_e5m2x16_state_serial_t *sta
 NK_INTERNAL void nk_dot_e5m2x16_finalize_serial(                                                //
     nk_dot_e5m2x16_state_serial_t const *state_a, nk_dot_e5m2x16_state_serial_t const *state_b, //
     nk_dot_e5m2x16_state_serial_t const *state_c, nk_dot_e5m2x16_state_serial_t const *state_d, //
-    nk_f32_t *results) {
-    results[0] = state_a->sums[0] + state_a->sums[1] + state_a->sums[2] + state_a->sums[3];
-    results[1] = state_b->sums[0] + state_b->sums[1] + state_b->sums[2] + state_b->sums[3];
-    results[2] = state_c->sums[0] + state_c->sums[1] + state_c->sums[2] + state_c->sums[3];
-    results[3] = state_d->sums[0] + state_d->sums[1] + state_d->sums[2] + state_d->sums[3];
+    nk_b128_vec_t *result) {
+    result->f32s[0] = state_a->sums[0] + state_a->sums[1] + state_a->sums[2] + state_a->sums[3];
+    result->f32s[1] = state_b->sums[0] + state_b->sums[1] + state_b->sums[2] + state_b->sums[3];
+    result->f32s[2] = state_c->sums[0] + state_c->sums[1] + state_c->sums[2] + state_c->sums[3];
+    result->f32s[3] = state_d->sums[0] + state_d->sums[1] + state_d->sums[2] + state_d->sums[3];
 }
 
 #if defined(__cplusplus)
