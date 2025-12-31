@@ -26,8 +26,8 @@ endif ()
 option(NK_BUILD_SHARED "Compile a dynamic library" ${NK_IS_MAIN_PROJECT})
 option(NK_BUILD_TESTS "Compile precision tests with ULP-based error analysis" OFF)
 option(NK_BUILD_BENCHMARKS "Compile micro-benchmarks for current ISA" OFF)
-option(NK_COMPARE_TO_BLAS "Include BLAS (OpenBLAS/Accelerate) in tests and benchmarks" OFF)
-option(NK_COMPARE_TO_MKL "Include Intel MKL in tests and benchmarks" OFF)
+option(NK_COMPARE_TO_BLAS "Include BLAS (OpenBLAS/Accelerate) in tests and benchmarks (AUTO=detect)" AUTO)
+option(NK_COMPARE_TO_MKL "Include Intel MKL in tests and benchmarks (AUTO=detect)" AUTO)
 
 # Default to Release build type if not set
 if (NOT CMAKE_BUILD_TYPE)
@@ -95,54 +95,79 @@ endif ()
 
 
 # BLAS/MKL detection (shared by tests and benchmarks)
+# Options can be: ON (require), OFF (disable), AUTO (detect if available)
 set(NK_BLAS_FOUND FALSE)
 set(NK_MKL_FOUND FALSE)
 
-if (NK_COMPARE_TO_MKL)
-    # Use environment variable MKLROOT or standard MKL paths
-    if (DEFINED ENV{MKLROOT})
-        set(MKL_ROOT $ENV{MKLROOT})
-    else ()
-        # Try common installation paths
-        if (EXISTS "/opt/intel/oneapi/mkl/latest")
-            set(MKL_ROOT "/opt/intel/oneapi/mkl/latest")
-        elseif (EXISTS "/opt/intel/mkl")
-            set(MKL_ROOT "/opt/intel/mkl")
-        endif ()
-    endif ()
+# Only attempt detection if building tests or benchmarks
+if (NK_BUILD_TESTS OR NK_BUILD_BENCHMARKS)
 
-    if (MKL_ROOT)
-        message(STATUS "MKL found at: ${MKL_ROOT}")
-        set(NK_MKL_FOUND TRUE)
-        set(NK_MKL_INCLUDE_DIRS ${MKL_ROOT}/include)
-        set(NK_MKL_LIBRARIES
-            ${MKL_ROOT}/lib/intel64/libmkl_intel_lp64.a
-            ${MKL_ROOT}/lib/intel64/libmkl_sequential.a
-            ${MKL_ROOT}/lib/intel64/libmkl_core.a
-            pthread m dl)
-    else ()
-        message(FATAL_ERROR "MKL not found. Set MKLROOT environment variable or install Intel oneAPI.")
-    endif ()
-endif ()
-
-if (NK_COMPARE_TO_BLAS)
-    if (APPLE)
-        # Use Apple Accelerate framework
-        message(STATUS "Using Apple Accelerate framework for BLAS")
-        set(NK_BLAS_FOUND TRUE)
-        set(NK_BLAS_LIBRARIES "-framework Accelerate")
-        set(NK_BLAS_INCLUDE_DIRS "")
-    else ()
-        find_package(BLAS REQUIRED)
-        if (BLAS_FOUND)
-            message(STATUS "BLAS found: ${BLAS_LIBRARIES}")
-            set(NK_BLAS_FOUND TRUE)
-            set(NK_BLAS_LIBRARIES ${BLAS_LIBRARIES})
-            set(NK_BLAS_INCLUDE_DIRS ${BLAS_INCLUDE_DIRS})
+    # MKL detection
+    if (NOT NK_COMPARE_TO_MKL STREQUAL "OFF")
+        # Use environment variable MKLROOT or standard MKL paths
+        if (DEFINED ENV{MKLROOT})
+            set(MKL_ROOT $ENV{MKLROOT})
         else ()
-            message(FATAL_ERROR "BLAS not found")
+            # Try common installation paths
+            if (EXISTS "/opt/intel/oneapi/mkl/latest")
+                set(MKL_ROOT "/opt/intel/oneapi/mkl/latest")
+            elseif (EXISTS "/opt/intel/mkl")
+                set(MKL_ROOT "/opt/intel/mkl")
+            endif ()
+        endif ()
+
+        if (MKL_ROOT)
+            # Verify the libraries actually exist
+            if (EXISTS "${MKL_ROOT}/lib/intel64/libmkl_intel_lp64.a")
+                message(STATUS "MKL found at: ${MKL_ROOT}")
+                set(NK_MKL_FOUND TRUE)
+                set(NK_MKL_INCLUDE_DIRS ${MKL_ROOT}/include)
+                set(NK_MKL_LIBRARIES
+                    ${MKL_ROOT}/lib/intel64/libmkl_intel_lp64.a
+                    ${MKL_ROOT}/lib/intel64/libmkl_sequential.a
+                    ${MKL_ROOT}/lib/intel64/libmkl_core.a
+                    pthread m dl)
+            elseif (NK_COMPARE_TO_MKL STREQUAL "ON")
+                message(FATAL_ERROR "MKL libraries not found at ${MKL_ROOT}/lib/intel64/")
+            else ()
+                message(STATUS "MKL directory found but libraries missing, skipping MKL")
+            endif ()
+        elseif (NK_COMPARE_TO_MKL STREQUAL "ON")
+            message(FATAL_ERROR "MKL not found. Set MKLROOT environment variable or install Intel oneAPI.")
+        else ()
+            message(STATUS "MKL not found (auto-detection), skipping MKL benchmarks")
         endif ()
     endif ()
+
+    # BLAS detection
+    if (NOT NK_COMPARE_TO_BLAS STREQUAL "OFF")
+        if (APPLE)
+            # Apple Accelerate is always available on macOS
+            message(STATUS "Using Apple Accelerate framework for BLAS")
+            set(NK_BLAS_FOUND TRUE)
+            set(NK_BLAS_LIBRARIES "-framework Accelerate")
+            set(NK_BLAS_INCLUDE_DIRS "")
+        else ()
+            # Try to find BLAS without REQUIRED flag for auto-detection
+            find_package(BLAS QUIET)
+            if (BLAS_FOUND)
+                message(STATUS "BLAS found: ${BLAS_LIBRARIES}")
+                set(NK_BLAS_FOUND TRUE)
+                set(NK_BLAS_LIBRARIES ${BLAS_LIBRARIES})
+                set(NK_BLAS_INCLUDE_DIRS ${BLAS_INCLUDE_DIRS})
+            elseif (NK_COMPARE_TO_BLAS STREQUAL "ON")
+                message(FATAL_ERROR "BLAS not found. Install OpenBLAS or set NK_COMPARE_TO_BLAS=OFF")
+            else ()
+                message(STATUS "BLAS not found (auto-detection), skipping BLAS benchmarks")
+            endif ()
+        endif ()
+    endif ()
+
+    # Summary
+    if (NK_BLAS_FOUND OR NK_MKL_FOUND)
+        message(STATUS "Comparison libraries: BLAS=${NK_BLAS_FOUND}, MKL=${NK_MKL_FOUND}")
+    endif ()
+
 endif ()
 
 
