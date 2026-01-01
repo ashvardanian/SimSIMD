@@ -595,72 +595,6 @@ struct aligned_buffer {
 };
 
 /**
- *  @brief Fill buffer with random values using configured distribution.
- *
- *  Distributions:
- *    - uniform_k:   Bounded ±1, fastest baseline
- *    - lognormal_k: Sign-randomized log-normal, moderate heavy tails (typical of ML activations)
- *    - cauchy_k:    Extreme tails (undefined variance), stress tests edge cases
- */
-template <typename scalar_type_, typename generator_type_>
-void fill_random(aligned_buffer<scalar_type_> &buf, generator_type_ &rng, double min_val = -1.0, double max_val = 1.0) {
-    switch (global_config.distribution) {
-    case random_distribution_kind_t::uniform_k: {
-        std::uniform_real_distribution<double> dist(min_val, max_val);
-        for (std::size_t i = 0; i < buf.count; i++) { buf[i] = static_cast<scalar_type_>(dist(rng)); }
-        break;
-    }
-    case random_distribution_kind_t::lognormal_k: {
-        // Log-normal with random sign: positive/negative, moderate heavy tails
-        // μ=0, σ=1 gives values mostly in [0.1, 10], occasionally [0.01, 100]
-        std::lognormal_distribution<double> lognorm(0.0, 1.0);
-        std::uniform_real_distribution<double> sign_dist(0.0, 1.0);
-        for (std::size_t i = 0; i < buf.count; i++) {
-            double val = lognorm(rng);
-            if (sign_dist(rng) < 0.5) val = -val;
-            buf[i] = static_cast<scalar_type_>(val);
-        }
-        break;
-    }
-    case random_distribution_kind_t::cauchy_k: {
-        // Cauchy: symmetric ±, extreme tails (undefined variance)
-        // Mostly [-10, 10], occasionally ±1000+
-        std::cauchy_distribution<double> cauchy_k(0.0, 1.0);
-        for (std::size_t i = 0; i < buf.count; i++) { buf[i] = static_cast<scalar_type_>(cauchy_k(rng)); }
-        break;
-    }
-    }
-}
-
-/**
- *  @brief Fill buffer with random probability distribution (sums to ~1).
- */
-template <typename scalar_type_, typename generator_type_>
-void fill_probability(aligned_buffer<scalar_type_> &buf, generator_type_ &rng) {
-    std::uniform_real_distribution<double> dist(0.01, 1.0);
-    double sum = 0;
-    for (std::size_t i = 0; i < buf.count; i++) {
-        double v = dist(rng);
-        buf[i] = static_cast<scalar_type_>(v);
-        sum += v;
-    }
-    // Normalize
-    for (std::size_t i = 0; i < buf.count; i++) {
-        buf[i] = static_cast<scalar_type_>(static_cast<double>(buf[i]) / sum);
-    }
-}
-
-/**
- *  @brief Fill buffer with random integers in specified range.
- */
-template <typename scalar_type_, typename generator_type_>
-void fill_random_integers(aligned_buffer<scalar_type_> &buf, generator_type_ &rng, int min_val = -100,
-                          int max_val = 100) {
-    std::uniform_int_distribution<int> dist(min_val, max_val);
-    for (std::size_t i = 0; i < buf.count; i++) { buf[i] = static_cast<scalar_type_>(dist(rng)); }
-}
-
-/**
  *  @brief Wrapper for nk_f16_t enabling implicit float conversions.
  */
 struct f16_t {
@@ -707,6 +641,195 @@ struct bf16_t {
         return v;
     }
 };
+
+/**
+ *  @brief Wrapper for nk_e4m3_t enabling implicit float conversions.
+ */
+struct e4m3_t {
+    nk_e4m3_t raw;
+    e4m3_t() noexcept : raw(0) {}
+    e4m3_t(float v) noexcept { nk_f32_to_e4m3(&v, &raw); }
+    operator float() const noexcept {
+        float r;
+        nk_e4m3_to_f32(&raw, &r);
+        return r;
+    }
+    float to_f32() const noexcept {
+        float r;
+        nk_e4m3_to_f32(&raw, &r);
+        return r;
+    }
+    static e4m3_t from_raw(nk_e4m3_t r) noexcept {
+        e4m3_t v;
+        v.raw = r;
+        return v;
+    }
+};
+
+/**
+ *  @brief Wrapper for nk_e5m2_t enabling implicit float conversions.
+ */
+struct e5m2_t {
+    nk_e5m2_t raw;
+    e5m2_t() noexcept : raw(0) {}
+    e5m2_t(float v) noexcept { nk_f32_to_e5m2(&v, &raw); }
+    operator float() const noexcept {
+        float r;
+        nk_e5m2_to_f32(&raw, &r);
+        return r;
+    }
+    float to_f32() const noexcept {
+        float r;
+        nk_e5m2_to_f32(&raw, &r);
+        return r;
+    }
+    static e5m2_t from_raw(nk_e5m2_t r) noexcept {
+        e5m2_t v;
+        v.raw = r;
+        return v;
+    }
+};
+
+/**
+ *  @brief Numeric traits for low-precision types.
+ *
+ *  Provides type-specific limits for test range generation:
+ *  - max_finite(): Largest representable finite value
+ *  - safe_max(): Conservative range for accumulation operations (avoids overflow in dot products)
+ *  - mantissa_bits(): Precision bits (for ULP scaling)
+ *
+ *  The "safe" range is designed for N-dimensional dot products where N <= 4096:
+ *  With safe_max S, worst-case sum is N * S^2, which must fit in f32 (~3.4e38).
+ */
+template <typename T>
+struct nk_numeric_traits {
+    // Default: assume f32-like range
+    static constexpr double max_finite() { return 3.4e38; }
+    static constexpr double safe_max() { return 1.0; }
+    static constexpr int mantissa_bits() { return 23; }
+};
+
+// Standard types
+template <>
+struct nk_numeric_traits<float> {
+    static constexpr double max_finite() { return 3.4e38; }
+    static constexpr double safe_max() { return 1e6; }
+    static constexpr int mantissa_bits() { return 23; }
+};
+template <>
+struct nk_numeric_traits<double> {
+    static constexpr double max_finite() { return 1.7e308; }
+    static constexpr double safe_max() { return 1e6; }
+    static constexpr int mantissa_bits() { return 52; }
+};
+
+// F16: 5 exp bits, 10 mantissa bits, max ~65504
+template <>
+struct nk_numeric_traits<f16_t> {
+    static constexpr double max_finite() { return 65504.0; }
+    static constexpr double safe_max() { return 100.0; }
+    static constexpr int mantissa_bits() { return 10; }
+};
+
+// BF16: 8 exp bits, 7 mantissa bits, same range as f32
+template <>
+struct nk_numeric_traits<bf16_t> {
+    static constexpr double max_finite() { return 3.4e38; }
+    static constexpr double safe_max() { return 100.0; }
+    static constexpr int mantissa_bits() { return 7; }
+};
+
+// E4M3: 4 exp bits, 3 mantissa bits, max 448
+template <>
+struct nk_numeric_traits<e4m3_t> {
+    static constexpr double max_finite() { return 448.0; }
+    static constexpr double safe_max() { return 1.0; }
+    static constexpr int mantissa_bits() { return 3; }
+};
+
+// E5M2: 5 exp bits, 2 mantissa bits, max 57344
+template <>
+struct nk_numeric_traits<e5m2_t> {
+    static constexpr double max_finite() { return 57344.0; }
+    static constexpr double safe_max() { return 3.0; }
+    static constexpr int mantissa_bits() { return 2; }
+};
+
+/**
+ *  @brief Fill buffer with random values using configured distribution.
+ *
+ *  Distributions:
+ *    - uniform_k:   Bounded within safe range, fastest baseline
+ *    - lognormal_k: Sign-randomized log-normal, compressed to safe range
+ *    - cauchy_k:    Compressed extreme tails, fits within safe range
+ *
+ *  Range defaults to [-safe_max, +safe_max] from nk_numeric_traits<T>.
+ */
+template <typename scalar_type_, typename generator_type_>
+void fill_random(aligned_buffer<scalar_type_> &buf, generator_type_ &rng,
+                 double min_val = -nk_numeric_traits<scalar_type_>::safe_max(),
+                 double max_val = nk_numeric_traits<scalar_type_>::safe_max()) {
+    double range = max_val - min_val;
+    double mid = (max_val + min_val) / 2.0;
+
+    switch (global_config.distribution) {
+    case random_distribution_kind_t::uniform_k: {
+        std::uniform_real_distribution<double> dist(min_val, max_val);
+        for (std::size_t i = 0; i < buf.count; i++) { buf[i] = static_cast<scalar_type_>(dist(rng)); }
+        break;
+    }
+    case random_distribution_kind_t::lognormal_k: {
+        // Log-normal with random sign, compressed to [min_val, max_val]
+        std::lognormal_distribution<double> lognorm(0.0, 0.5);
+        std::uniform_real_distribution<double> sign_dist(0.0, 1.0);
+        for (std::size_t i = 0; i < buf.count; i++) {
+            double val = lognorm(rng);
+            double compressed = 2.0 / (1.0 + std::exp(-val)) - 1.0;
+            if (sign_dist(rng) < 0.5) compressed = -compressed;
+            buf[i] = static_cast<scalar_type_>(mid + compressed * (range / 2.0));
+        }
+        break;
+    }
+    case random_distribution_kind_t::cauchy_k: {
+        // Cauchy compressed via atan to [min_val, max_val]
+        std::cauchy_distribution<double> cauchy_k(0.0, 1.0);
+        for (std::size_t i = 0; i < buf.count; i++) {
+            double val = cauchy_k(rng);
+            double compressed = (2.0 / M_PI) * std::atan(val);
+            buf[i] = static_cast<scalar_type_>(mid + compressed * (range / 2.0));
+        }
+        break;
+    }
+    }
+}
+
+/**
+ *  @brief Fill buffer with random probability distribution (sums to ~1).
+ */
+template <typename scalar_type_, typename generator_type_>
+void fill_probability(aligned_buffer<scalar_type_> &buf, generator_type_ &rng) {
+    std::uniform_real_distribution<double> dist(0.01, 1.0);
+    double sum = 0;
+    for (std::size_t i = 0; i < buf.count; i++) {
+        double v = dist(rng);
+        buf[i] = static_cast<scalar_type_>(v);
+        sum += v;
+    }
+    // Normalize
+    for (std::size_t i = 0; i < buf.count; i++) {
+        buf[i] = static_cast<scalar_type_>(static_cast<double>(buf[i]) / sum);
+    }
+}
+
+/**
+ *  @brief Fill buffer with random integers in specified range.
+ */
+template <typename scalar_type_, typename generator_type_>
+void fill_random_integers(aligned_buffer<scalar_type_> &buf, generator_type_ &rng, int min_val = -100,
+                          int max_val = 100) {
+    std::uniform_int_distribution<int> dist(min_val, max_val);
+    for (std::size_t i = 0; i < buf.count; i++) { buf[i] = static_cast<scalar_type_>(dist(rng)); }
+}
 
 #pragma endregion // Test_Harness_Templates
 
