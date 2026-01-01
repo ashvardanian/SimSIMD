@@ -141,6 +141,10 @@ NK_DYNAMIC void nk_l2_f16(nk_f16_t const *a, nk_f16_t const *b, nk_size_t n, nk_
 /** @copydoc nk_l2_f64 */
 NK_DYNAMIC void nk_l2_bf16(nk_bf16_t const *a, nk_bf16_t const *b, nk_size_t n, nk_f32_t *result);
 /** @copydoc nk_l2_f64 */
+NK_DYNAMIC void nk_l2_e4m3(nk_e4m3_t const *a, nk_e4m3_t const *b, nk_size_t n, nk_f32_t *result);
+/** @copydoc nk_l2_f64 */
+NK_DYNAMIC void nk_l2_e5m2(nk_e5m2_t const *a, nk_e5m2_t const *b, nk_size_t n, nk_f32_t *result);
+/** @copydoc nk_l2_f64 */
 NK_DYNAMIC void nk_l2_i8(nk_i8_t const *a, nk_i8_t const *b, nk_size_t n, nk_f32_t *result);
 /** @copydoc nk_l2_f64 */
 NK_DYNAMIC void nk_l2_u8(nk_u8_t const *a, nk_u8_t const *b, nk_size_t n, nk_f32_t *result);
@@ -164,6 +168,10 @@ NK_DYNAMIC void nk_l2sq_f16(nk_f16_t const *a, nk_f16_t const *b, nk_size_t n, n
 /** @copydoc nk_l2sq_f64 */
 NK_DYNAMIC void nk_l2sq_bf16(nk_bf16_t const *a, nk_bf16_t const *b, nk_size_t n, nk_f32_t *result);
 /** @copydoc nk_l2sq_f64 */
+NK_DYNAMIC void nk_l2sq_e4m3(nk_e4m3_t const *a, nk_e4m3_t const *b, nk_size_t n, nk_f32_t *result);
+/** @copydoc nk_l2sq_f64 */
+NK_DYNAMIC void nk_l2sq_e5m2(nk_e5m2_t const *a, nk_e5m2_t const *b, nk_size_t n, nk_f32_t *result);
+/** @copydoc nk_l2sq_f64 */
 NK_DYNAMIC void nk_l2sq_i8(nk_i8_t const *a, nk_i8_t const *b, nk_size_t n, nk_u32_t *result);
 /** @copydoc nk_l2sq_f64 */
 NK_DYNAMIC void nk_l2sq_u8(nk_u8_t const *a, nk_u8_t const *b, nk_size_t n, nk_u32_t *result);
@@ -186,6 +194,10 @@ NK_DYNAMIC void nk_angular_f32(nk_f32_t const *a, nk_f32_t const *b, nk_size_t n
 NK_DYNAMIC void nk_angular_f16(nk_f16_t const *a, nk_f16_t const *b, nk_size_t n, nk_f32_t *result);
 /** @copydoc nk_angular_f64 */
 NK_DYNAMIC void nk_angular_bf16(nk_bf16_t const *a, nk_bf16_t const *b, nk_size_t n, nk_f32_t *result);
+/** @copydoc nk_angular_f64 */
+NK_DYNAMIC void nk_angular_e4m3(nk_e4m3_t const *a, nk_e4m3_t const *b, nk_size_t n, nk_f32_t *result);
+/** @copydoc nk_angular_f64 */
+NK_DYNAMIC void nk_angular_e5m2(nk_e5m2_t const *a, nk_e5m2_t const *b, nk_size_t n, nk_f32_t *result);
 /** @copydoc nk_angular_f64 */
 NK_DYNAMIC void nk_angular_i8(nk_i8_t const *a, nk_i8_t const *b, nk_size_t n, nk_f32_t *result);
 /** @copydoc nk_angular_f64 */
@@ -219,6 +231,18 @@ NK_PUBLIC void nk_l2_bf16_serial(nk_bf16_t const *a, nk_bf16_t const *b, nk_size
 NK_PUBLIC void nk_l2sq_bf16_serial(nk_bf16_t const *a, nk_bf16_t const *b, nk_size_t n, nk_f32_t *result);
 /** @copydoc nk_angular_f64 */
 NK_PUBLIC void nk_angular_bf16_serial(nk_bf16_t const *a, nk_bf16_t const *b, nk_size_t n, nk_f32_t *result);
+/** @copydoc nk_l2_f64 */
+NK_PUBLIC void nk_l2_e4m3_serial(nk_e4m3_t const *a, nk_e4m3_t const *b, nk_size_t n, nk_f32_t *result);
+/** @copydoc nk_l2sq_f64 */
+NK_PUBLIC void nk_l2sq_e4m3_serial(nk_e4m3_t const *a, nk_e4m3_t const *b, nk_size_t n, nk_f32_t *result);
+/** @copydoc nk_angular_f64 */
+NK_PUBLIC void nk_angular_e4m3_serial(nk_e4m3_t const *a, nk_e4m3_t const *b, nk_size_t n, nk_f32_t *result);
+/** @copydoc nk_l2_f64 */
+NK_PUBLIC void nk_l2_e5m2_serial(nk_e5m2_t const *a, nk_e5m2_t const *b, nk_size_t n, nk_f32_t *result);
+/** @copydoc nk_l2sq_f64 */
+NK_PUBLIC void nk_l2sq_e5m2_serial(nk_e5m2_t const *a, nk_e5m2_t const *b, nk_size_t n, nk_f32_t *result);
+/** @copydoc nk_angular_f64 */
+NK_PUBLIC void nk_angular_e5m2_serial(nk_e5m2_t const *a, nk_e5m2_t const *b, nk_size_t n, nk_f32_t *result);
 /** @copydoc nk_l2_f64 */
 NK_PUBLIC void nk_l2_i8_serial(nk_i8_t const *a, nk_i8_t const *b, nk_size_t n, nk_f32_t *result);
 /** @copydoc nk_l2_f64 */
@@ -420,6 +444,24 @@ NK_PUBLIC void nk_l2_f64_skylake(nk_f64_t const *a, nk_f64_t const *b, nk_size_t
 NK_PUBLIC void nk_l2sq_f64_skylake(nk_f64_t const *a, nk_f64_t const *b, nk_size_t n, nk_f64_t *result);
 /** @copydoc nk_angular_f64 */
 NK_PUBLIC void nk_angular_f64_skylake(nk_f64_t const *a, nk_f64_t const *b, nk_size_t n, nk_f64_t *result);
+/** @copydoc nk_l2_f64 */
+NK_PUBLIC void nk_l2_f16_skylake(nk_f16_t const *a, nk_f16_t const *b, nk_size_t n, nk_f32_t *result);
+/** @copydoc nk_l2sq_f64 */
+NK_PUBLIC void nk_l2sq_f16_skylake(nk_f16_t const *a, nk_f16_t const *b, nk_size_t n, nk_f32_t *result);
+/** @copydoc nk_angular_f64 */
+NK_PUBLIC void nk_angular_f16_skylake(nk_f16_t const *a, nk_f16_t const *b, nk_size_t n, nk_f32_t *result);
+/** @copydoc nk_l2_f64 */
+NK_PUBLIC void nk_l2_e4m3_skylake(nk_e4m3_t const *a, nk_e4m3_t const *b, nk_size_t n, nk_f32_t *result);
+/** @copydoc nk_l2sq_f64 */
+NK_PUBLIC void nk_l2sq_e4m3_skylake(nk_e4m3_t const *a, nk_e4m3_t const *b, nk_size_t n, nk_f32_t *result);
+/** @copydoc nk_angular_f64 */
+NK_PUBLIC void nk_angular_e4m3_skylake(nk_e4m3_t const *a, nk_e4m3_t const *b, nk_size_t n, nk_f32_t *result);
+/** @copydoc nk_l2_f64 */
+NK_PUBLIC void nk_l2_e5m2_skylake(nk_e5m2_t const *a, nk_e5m2_t const *b, nk_size_t n, nk_f32_t *result);
+/** @copydoc nk_l2sq_f64 */
+NK_PUBLIC void nk_l2sq_e5m2_skylake(nk_e5m2_t const *a, nk_e5m2_t const *b, nk_size_t n, nk_f32_t *result);
+/** @copydoc nk_angular_f64 */
+NK_PUBLIC void nk_angular_e5m2_skylake(nk_e5m2_t const *a, nk_e5m2_t const *b, nk_size_t n, nk_f32_t *result);
 #endif // NK_TARGET_SKYLAKE
 
 /*  SIMD-powered backends for AVX512 CPUs of Ice Lake generation and newer, using mixed arithmetic over 512-bit words.
@@ -455,15 +497,25 @@ NK_PUBLIC void nk_l2_bf16_genoa(nk_bf16_t const *a, nk_bf16_t const *b, nk_size_
 NK_PUBLIC void nk_l2sq_bf16_genoa(nk_bf16_t const *a, nk_bf16_t const *b, nk_size_t n, nk_f32_t *result);
 /** @copydoc nk_angular_f64 */
 NK_PUBLIC void nk_angular_bf16_genoa(nk_bf16_t const *a, nk_bf16_t const *b, nk_size_t n, nk_f32_t *result);
+/** @copydoc nk_l2_f64 */
+NK_PUBLIC void nk_l2_e4m3_genoa(nk_e4m3_t const *a, nk_e4m3_t const *b, nk_size_t n, nk_f32_t *result);
+/** @copydoc nk_l2sq_f64 */
+NK_PUBLIC void nk_l2sq_e4m3_genoa(nk_e4m3_t const *a, nk_e4m3_t const *b, nk_size_t n, nk_f32_t *result);
+/** @copydoc nk_angular_f64 */
+NK_PUBLIC void nk_angular_e4m3_genoa(nk_e4m3_t const *a, nk_e4m3_t const *b, nk_size_t n, nk_f32_t *result);
+/** @copydoc nk_l2_f64 */
+NK_PUBLIC void nk_l2_e5m2_genoa(nk_e5m2_t const *a, nk_e5m2_t const *b, nk_size_t n, nk_f32_t *result);
+/** @copydoc nk_l2sq_f64 */
+NK_PUBLIC void nk_l2sq_e5m2_genoa(nk_e5m2_t const *a, nk_e5m2_t const *b, nk_size_t n, nk_f32_t *result);
+/** @copydoc nk_angular_f64 */
+NK_PUBLIC void nk_angular_e5m2_genoa(nk_e5m2_t const *a, nk_e5m2_t const *b, nk_size_t n, nk_f32_t *result);
 #endif // NK_TARGET_GENOA
 
 #if NK_TARGET_SAPPHIRE
-/** @copydoc nk_l2_f64 */
-NK_PUBLIC void nk_l2_f16_sapphire(nk_f16_t const *a, nk_f16_t const *b, nk_size_t n, nk_f32_t *result);
-/** @copydoc nk_l2sq_f64 */
-NK_PUBLIC void nk_l2sq_f16_sapphire(nk_f16_t const *a, nk_f16_t const *b, nk_size_t n, nk_f32_t *result);
-/** @copydoc nk_angular_f64 */
-NK_PUBLIC void nk_angular_f16_sapphire(nk_f16_t const *a, nk_f16_t const *b, nk_size_t n, nk_f32_t *result);
+/** @copydoc nk_l2_e4m3 */
+NK_PUBLIC void nk_l2_e4m3_sapphire(nk_e4m3_t const *a, nk_e4m3_t const *b, nk_size_t n, nk_f32_t *result);
+/** @copydoc nk_l2sq_e4m3 */
+NK_PUBLIC void nk_l2sq_e4m3_sapphire(nk_e4m3_t const *a, nk_e4m3_t const *b, nk_size_t n, nk_f32_t *result);
 #endif // NK_TARGET_SAPPHIRE
 
 /*  SIMD-powered backends for AVX-INT8-VNNI extensions on Xeon 6 CPUs, including Sierra Forest and Granite Rapids.
@@ -626,8 +678,6 @@ NK_PUBLIC void nk_l2_f16(nk_f16_t const *a, nk_f16_t const *b, nk_size_t n, nk_f
     nk_l2_f16_svehalf(a, b, n, result);
 #elif NK_TARGET_NEONHALF
     nk_l2_f16_neonhalf(a, b, n, result);
-#elif NK_TARGET_SAPPHIRE
-    nk_l2_f16_sapphire(a, b, n, result);
 #elif NK_TARGET_HASWELL
     nk_l2_f16_haswell(a, b, n, result);
 #else
@@ -640,8 +690,6 @@ NK_PUBLIC void nk_l2sq_f16(nk_f16_t const *a, nk_f16_t const *b, nk_size_t n, nk
     nk_l2sq_f16_svehalf(a, b, n, result);
 #elif NK_TARGET_NEONHALF
     nk_l2sq_f16_neonhalf(a, b, n, result);
-#elif NK_TARGET_SAPPHIRE
-    nk_l2sq_f16_sapphire(a, b, n, result);
 #elif NK_TARGET_HASWELL
     nk_l2sq_f16_haswell(a, b, n, result);
 #else
@@ -654,8 +702,6 @@ NK_PUBLIC void nk_angular_f16(nk_f16_t const *a, nk_f16_t const *b, nk_size_t n,
     nk_angular_f16_svehalf(a, b, n, result);
 #elif NK_TARGET_NEONHALF
     nk_angular_f16_neonhalf(a, b, n, result);
-#elif NK_TARGET_SAPPHIRE
-    nk_angular_f16_sapphire(a, b, n, result);
 #elif NK_TARGET_HASWELL
     nk_angular_f16_haswell(a, b, n, result);
 #else
@@ -702,6 +748,70 @@ NK_PUBLIC void nk_angular_bf16(nk_bf16_t const *a, nk_bf16_t const *b, nk_size_t
     nk_angular_bf16_haswell(a, b, n, result);
 #else
     nk_angular_bf16_serial(a, b, n, result);
+#endif
+}
+
+NK_PUBLIC void nk_l2_e4m3(nk_e4m3_t const *a, nk_e4m3_t const *b, nk_size_t n, nk_f32_t *result) {
+#if NK_TARGET_GENOA
+    nk_l2_e4m3_genoa(a, b, n, result);
+#elif NK_TARGET_SAPPHIRE
+    nk_l2_e4m3_sapphire(a, b, n, result);
+#elif NK_TARGET_SKYLAKE
+    nk_l2_e4m3_skylake(a, b, n, result);
+#else
+    nk_l2_e4m3_serial(a, b, n, result);
+#endif
+}
+
+NK_PUBLIC void nk_l2sq_e4m3(nk_e4m3_t const *a, nk_e4m3_t const *b, nk_size_t n, nk_f32_t *result) {
+#if NK_TARGET_GENOA
+    nk_l2sq_e4m3_genoa(a, b, n, result);
+#elif NK_TARGET_SAPPHIRE
+    nk_l2sq_e4m3_sapphire(a, b, n, result);
+#elif NK_TARGET_SKYLAKE
+    nk_l2sq_e4m3_skylake(a, b, n, result);
+#else
+    nk_l2sq_e4m3_serial(a, b, n, result);
+#endif
+}
+
+NK_PUBLIC void nk_angular_e4m3(nk_e4m3_t const *a, nk_e4m3_t const *b, nk_size_t n, nk_f32_t *result) {
+#if NK_TARGET_GENOA
+    nk_angular_e4m3_genoa(a, b, n, result);
+#elif NK_TARGET_SKYLAKE
+    nk_angular_e4m3_skylake(a, b, n, result);
+#else
+    nk_angular_e4m3_serial(a, b, n, result);
+#endif
+}
+
+NK_PUBLIC void nk_l2_e5m2(nk_e5m2_t const *a, nk_e5m2_t const *b, nk_size_t n, nk_f32_t *result) {
+#if NK_TARGET_GENOA
+    nk_l2_e5m2_genoa(a, b, n, result);
+#elif NK_TARGET_SKYLAKE
+    nk_l2_e5m2_skylake(a, b, n, result);
+#else
+    nk_l2_e5m2_serial(a, b, n, result);
+#endif
+}
+
+NK_PUBLIC void nk_l2sq_e5m2(nk_e5m2_t const *a, nk_e5m2_t const *b, nk_size_t n, nk_f32_t *result) {
+#if NK_TARGET_GENOA
+    nk_l2sq_e5m2_genoa(a, b, n, result);
+#elif NK_TARGET_SKYLAKE
+    nk_l2sq_e5m2_skylake(a, b, n, result);
+#else
+    nk_l2sq_e5m2_serial(a, b, n, result);
+#endif
+}
+
+NK_PUBLIC void nk_angular_e5m2(nk_e5m2_t const *a, nk_e5m2_t const *b, nk_size_t n, nk_f32_t *result) {
+#if NK_TARGET_GENOA
+    nk_angular_e5m2_genoa(a, b, n, result);
+#elif NK_TARGET_SKYLAKE
+    nk_angular_e5m2_skylake(a, b, n, result);
+#else
+    nk_angular_e5m2_serial(a, b, n, result);
 #endif
 }
 

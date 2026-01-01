@@ -2076,18 +2076,10 @@ int main(int argc, char **argv) {
 #endif
 
 #if NK_TARGET_SAPPHIRE
-    dense_<f16_k, f32_k, f64_k>("dot_f16_sapphire", nk_dot_f16_sapphire, nk_dot_f16_accurate);
-    dense_<f16_k, f32_k, f64_k>("angular_f16_sapphire", nk_angular_f16_sapphire, nk_angular_f16_accurate);
-    dense_<f16_k, f32_k, f64_k>("l2sq_f16_sapphire", nk_l2sq_f16_sapphire, nk_l2sq_f16_accurate);
-    dense_<f16_k, f32_k, f64_k>("l2_f16_sapphire", nk_l2_f16_sapphire, nk_l2_f16_accurate);
     dense_<f16_k, f32_k, f64_k>("kld_f16_sapphire", nk_kld_f16_sapphire, nk_kld_f16_accurate);
     dense_<f16_k, f32_k, f64_k>("jsd_f16_sapphire", nk_jsd_f16_sapphire, nk_jsd_f16_accurate);
-
-    dense_<f16c_k, f32c_k, f64c_k>("dot_f16c_sapphire", nk_dot_f16c_sapphire, nk_dot_f16c_accurate);
-    dense_<f16c_k, f32c_k, f64c_k>("vdot_f16c_sapphire", nk_vdot_f16c_sapphire, nk_vdot_f16c_accurate);
-
-    dense_<e4m3_k, f32_k, f32_k>("dot_e4m3_sapphire", nk_dot_e4m3_sapphire, nk_dot_e4m3_serial);
-    dense_<e5m2_k, f32_k, f32_k>("dot_e5m2_sapphire", nk_dot_e5m2_sapphire, nk_dot_e5m2_serial);
+    dense_<e4m3_k, f32_k, f32_k>("l2_e4m3_sapphire", nk_l2_e4m3_sapphire, nk_l2_e4m3_serial);
+    dense_<e4m3_k, f32_k, f32_k>("l2sq_e4m3_sapphire", nk_l2sq_e4m3_sapphire, nk_l2sq_e4m3_serial);
 
     elementwise_<u8_k, nk_kernel_fma_k, f32_k, f32_k, f32_k, f32_k>("fma_u8_sapphire", nk_fma_u8_sapphire,
                                                                     nk_fma_u8_serial, nk_l2_u8_accurate);

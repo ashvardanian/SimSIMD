@@ -721,7 +721,7 @@ NK_INTERNAL void nk_dot_i8x32_update_ice(nk_dot_i8x32_state_ice_t *state, nk_b25
 NK_INTERNAL void nk_dot_i8x32_finalize_ice(nk_dot_i8x32_state_ice_t const *state_a,
                                            nk_dot_i8x32_state_ice_t const *state_b,
                                            nk_dot_i8x32_state_ice_t const *state_c,
-                                           nk_dot_i8x32_state_ice_t const *state_d, nk_i32_t *results);
+                                           nk_dot_i8x32_state_ice_t const *state_d, nk_b128_vec_t *results);
 
 /**
  *  @brief Running state for 64-element dot accumulation over u8 scalars on Ice Lake.
@@ -735,7 +735,7 @@ NK_INTERNAL void nk_dot_u8x64_update_ice(nk_dot_u8x64_state_ice_t *state, nk_b51
 NK_INTERNAL void nk_dot_u8x64_finalize_ice(nk_dot_u8x64_state_ice_t const *state_a,
                                            nk_dot_u8x64_state_ice_t const *state_b,
                                            nk_dot_u8x64_state_ice_t const *state_c,
-                                           nk_dot_u8x64_state_ice_t const *state_d, nk_u32_t *results);
+                                           nk_dot_u8x64_state_ice_t const *state_d, nk_b128_vec_t *results);
 #endif // NK_TARGET_ICE
 
 #if NK_TARGET_GENOA

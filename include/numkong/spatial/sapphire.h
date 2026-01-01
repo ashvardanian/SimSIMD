@@ -4,6 +4,12 @@
  *  @sa include/numkong/spatial.h
  *  @author Ash Vardanian
  *  @date December 27, 2025
+ *
+ *  Sapphire Rapids adds native FP16 support via AVX-512 FP16 extension.
+ *  For e4m3 L2 distance, we can leverage F16 for the subtraction step:
+ *  - e4m3 differences fit in F16 (max |a-b| = 896 < 65504)
+ *  - But squared differences overflow F16 (896² = 802816 > 65504)
+ *  - So: subtract in F16, convert to F32, then square and accumulate
  */
 #ifndef NK_SPATIAL_SAPPHIRE_H
 #define NK_SPATIAL_SAPPHIRE_H
@@ -21,146 +27,70 @@
 extern "C" {
 #endif
 
-NK_PUBLIC void nk_l2_f16_sapphire(nk_f16_t const *a, nk_f16_t const *b, nk_size_t n, nk_f32_t *result) {
-    nk_l2sq_f16_sapphire(a, b, n, result);
+/*  Convert 32x E4M3 values to 32x F16 values.
+ *  Uses optimized path with bias adjustment.
+ *  Denormals (exp=0) are flushed to zero (DAZ behavior).
+ *
+ *  E4M3 format: S EEEE  MMM        (bias=7)
+ *  F16 format:  S EEEEE MMMMMMMMMM (bias=15)
+ */
+NK_INTERNAL __m512h nk_e4m3x32_to_f16x32_sapphire_(__m256i e4m3_i8x32) {
+    __m512i e4m3_i16x32 = _mm512_cvtepu8_epi16(e4m3_i8x32);
+    // Sign: bit 7 -> bit 15
+    __m512i sign_i16x32 = _mm512_and_si512(_mm512_slli_epi16(e4m3_i16x32, 8), _mm512_set1_epi16((short)0x8000));
+    // Exp+mant (7 bits) shifted left 7, then add bias adjustment (8<<10 = 0x2000)
+    __m512i exp_mant_7bit_i16x32 = _mm512_and_si512(e4m3_i16x32, _mm512_set1_epi16(0x7F));
+    __m512i exp_mant_biased_i16x32 = _mm512_add_epi16(_mm512_slli_epi16(exp_mant_7bit_i16x32, 7),
+                                                      _mm512_set1_epi16(0x2000));
+    // DAZ: use TEST to check if exp bits (bits 6-3) are nonzero
+    __mmask32 nonzero_exp_mask = _mm512_test_epi16_mask(e4m3_i16x32, _mm512_set1_epi16(0x78));
+    __m512i exp_mant_daz_i16x32 = _mm512_maskz_mov_epi16(nonzero_exp_mask, exp_mant_biased_i16x32);
+    return _mm512_castsi512_ph(_mm512_or_si512(sign_i16x32, exp_mant_daz_i16x32));
+}
+
+NK_PUBLIC void nk_l2sq_e4m3_sapphire(nk_e4m3_t const *a_scalars, nk_e4m3_t const *b_scalars, nk_size_t count_scalars,
+                                     nk_f32_t *result) {
+    __m256i a_e4m3x32, b_e4m3x32;
+    __m512 sum_f32x16 = _mm512_setzero_ps();
+
+nk_l2sq_e4m3_sapphire_cycle:
+    if (count_scalars < 32) {
+        __mmask32 mask = (__mmask32)_bzhi_u32(0xFFFFFFFF, count_scalars);
+        a_e4m3x32 = _mm256_maskz_loadu_epi8(mask, a_scalars);
+        b_e4m3x32 = _mm256_maskz_loadu_epi8(mask, b_scalars);
+        count_scalars = 0;
+    }
+    else {
+        a_e4m3x32 = _mm256_loadu_epi8(a_scalars);
+        b_e4m3x32 = _mm256_loadu_epi8(b_scalars);
+        a_scalars += 32, b_scalars += 32, count_scalars -= 32;
+    }
+
+    // Convert e4m3 -> f16
+    __m512h a_f16x32 = nk_e4m3x32_to_f16x32_sapphire_(a_e4m3x32);
+    __m512h b_f16x32 = nk_e4m3x32_to_f16x32_sapphire_(b_e4m3x32);
+
+    // Subtract in F16 - differences fit (max 896 < 65504)
+    __m512h diff_f16x32 = _mm512_sub_ph(a_f16x32, b_f16x32);
+
+    // Convert to F32 before squaring (896² = 802816 overflows F16!)
+    __m512 diff_lo_f32x16 = _mm512_cvtph_ps(_mm512_castsi512_si256(_mm512_castph_si512(diff_f16x32)));
+    __m512 diff_hi_f32x16 = _mm512_cvtph_ps(
+        _mm256_castpd_si256(_mm512_extractf64x4_pd(_mm512_castph_pd(diff_f16x32), 1)));
+
+    // Square and accumulate in F32
+    sum_f32x16 = _mm512_fmadd_ps(diff_lo_f32x16, diff_lo_f32x16, sum_f32x16);
+    sum_f32x16 = _mm512_fmadd_ps(diff_hi_f32x16, diff_hi_f32x16, sum_f32x16);
+
+    if (count_scalars) goto nk_l2sq_e4m3_sapphire_cycle;
+
+    *result = _mm512_reduce_add_ps(sum_f32x16);
+}
+
+NK_PUBLIC void nk_l2_e4m3_sapphire(nk_e4m3_t const *a_scalars, nk_e4m3_t const *b_scalars, nk_size_t count_scalars,
+                                   nk_f32_t *result) {
+    nk_l2sq_e4m3_sapphire(a_scalars, b_scalars, count_scalars, result);
     *result = nk_sqrt_f32_haswell_(*result);
-}
-NK_PUBLIC void nk_l2sq_f16_sapphire(nk_f16_t const *a, nk_f16_t const *b, nk_size_t n, nk_f32_t *result) {
-    __m512h distance_sq_f16x32 = _mm512_setzero_ph();
-    __m512i a_f16x32, b_f16x32;
-
-nk_l2sq_f16_sapphire_cycle:
-    if (n < 32) {
-        __mmask32 mask = (__mmask32)_bzhi_u32(0xFFFFFFFF, n);
-        a_f16x32 = _mm512_maskz_loadu_epi16(mask, a);
-        b_f16x32 = _mm512_maskz_loadu_epi16(mask, b);
-        n = 0;
-    }
-    else {
-        a_f16x32 = _mm512_loadu_epi16(a);
-        b_f16x32 = _mm512_loadu_epi16(b);
-        a += 32, b += 32, n -= 32;
-    }
-    __m512h diff_f16x32 = _mm512_sub_ph(_mm512_castsi512_ph(a_f16x32), _mm512_castsi512_ph(b_f16x32));
-    distance_sq_f16x32 = _mm512_fmadd_ph(diff_f16x32, diff_f16x32, distance_sq_f16x32);
-    if (n) goto nk_l2sq_f16_sapphire_cycle;
-
-    *result = _mm512_reduce_add_ph(distance_sq_f16x32);
-}
-
-NK_PUBLIC void nk_angular_f16_sapphire(nk_f16_t const *a, nk_f16_t const *b, nk_size_t n, nk_f32_t *result) {
-    __m512h dot_product_f16x32 = _mm512_setzero_ph();
-    __m512h a_norm_sq_f16x32 = _mm512_setzero_ph();
-    __m512h b_norm_sq_f16x32 = _mm512_setzero_ph();
-    __m512i a_f16x32, b_f16x32;
-
-nk_angular_f16_sapphire_cycle:
-    if (n < 32) {
-        __mmask32 mask = (__mmask32)_bzhi_u32(0xFFFFFFFF, n);
-        a_f16x32 = _mm512_maskz_loadu_epi16(mask, a);
-        b_f16x32 = _mm512_maskz_loadu_epi16(mask, b);
-        n = 0;
-    }
-    else {
-        a_f16x32 = _mm512_loadu_epi16(a);
-        b_f16x32 = _mm512_loadu_epi16(b);
-        a += 32, b += 32, n -= 32;
-    }
-    dot_product_f16x32 = _mm512_fmadd_ph(_mm512_castsi512_ph(a_f16x32), _mm512_castsi512_ph(b_f16x32),
-                                         dot_product_f16x32);
-    a_norm_sq_f16x32 = _mm512_fmadd_ph(_mm512_castsi512_ph(a_f16x32), _mm512_castsi512_ph(a_f16x32), a_norm_sq_f16x32);
-    b_norm_sq_f16x32 = _mm512_fmadd_ph(_mm512_castsi512_ph(b_f16x32), _mm512_castsi512_ph(b_f16x32), b_norm_sq_f16x32);
-    if (n) goto nk_angular_f16_sapphire_cycle;
-
-    nk_f32_t dot_product_f32 = _mm512_reduce_add_ph(dot_product_f16x32);
-    nk_f32_t a_norm_sq_f32 = _mm512_reduce_add_ph(a_norm_sq_f16x32);
-    nk_f32_t b_norm_sq_f32 = _mm512_reduce_add_ph(b_norm_sq_f16x32);
-    *result = nk_angular_normalize_f32_haswell_(dot_product_f32, a_norm_sq_f32, b_norm_sq_f32);
-}
-
-typedef nk_dot_f16x32_state_sapphire_t nk_angular_f16x32_state_sapphire_t;
-NK_INTERNAL void nk_angular_f16x32_init_sapphire(nk_angular_f16x32_state_sapphire_t *state) {
-    nk_dot_f16x32_init_sapphire(state);
-}
-NK_INTERNAL void nk_angular_f16x32_update_sapphire(nk_angular_f16x32_state_sapphire_t *state, nk_b512_vec_t a,
-                                                   nk_b512_vec_t b) {
-    nk_dot_f16x32_update_sapphire(state, a, b);
-}
-NK_INTERNAL void nk_angular_f16x32_finalize_sapphire(nk_angular_f16x32_state_sapphire_t const *state_a,
-                                                     nk_angular_f16x32_state_sapphire_t const *state_b,
-                                                     nk_angular_f16x32_state_sapphire_t const *state_c,
-                                                     nk_angular_f16x32_state_sapphire_t const *state_d,
-                                                     nk_f32_t query_norm, nk_f32_t target_norm_a,
-                                                     nk_f32_t target_norm_b, nk_f32_t target_norm_c,
-                                                     nk_f32_t target_norm_d, nk_f32_t *results) {
-    // Extract all 4 dot products with single ILP-optimized call
-    nk_f32_t dots[4];
-    nk_dot_f16x32_finalize_sapphire(state_a, state_b, state_c, state_d, dots);
-
-    // Build 128-bit F32 vectors for parallel processing
-    __m128 dots_f32x4 = _mm_loadu_ps(dots);
-    __m128 query_norm_f32x4 = _mm_set1_ps(query_norm);
-    __m128 target_norms_f32x4 = _mm_set_ps(target_norm_d, target_norm_c, target_norm_b, target_norm_a);
-
-    // Compute products = query_norm * target_norm for all 4
-    __m128 products_f32x4 = _mm_mul_ps(query_norm_f32x4, target_norms_f32x4);
-
-    // Vectorized rsqrt with Newton-Raphson refinement
-    __m128 rsqrt_f32x4 = _mm_rsqrt_ps(products_f32x4);
-    __m128 half_f32x4 = _mm_set1_ps(0.5f);
-    __m128 three_f32x4 = _mm_set1_ps(3.0f);
-    __m128 nr_f32x4 = _mm_mul_ps(products_f32x4, rsqrt_f32x4);
-    nr_f32x4 = _mm_mul_ps(nr_f32x4, rsqrt_f32x4);
-    nr_f32x4 = _mm_sub_ps(three_f32x4, nr_f32x4);
-    rsqrt_f32x4 = _mm_mul_ps(_mm_mul_ps(half_f32x4, rsqrt_f32x4), nr_f32x4);
-
-    // Compute angular: 1 - dot * rsqrt(product)
-    __m128 normalized_f32x4 = _mm_mul_ps(dots_f32x4, rsqrt_f32x4);
-    __m128 ones_f32x4 = _mm_set1_ps(1.0f);
-    __m128 angular_f32x4 = _mm_sub_ps(ones_f32x4, normalized_f32x4);
-
-    // Store results
-    _mm_storeu_ps(results, angular_f32x4);
-}
-
-typedef nk_dot_f16x32_state_sapphire_t nk_l2_f16x32_state_sapphire_t;
-NK_INTERNAL void nk_l2_f16x32_init_sapphire(nk_l2_f16x32_state_sapphire_t *state) {
-    nk_dot_f16x32_init_sapphire(state);
-}
-NK_INTERNAL void nk_l2_f16x32_update_sapphire(nk_l2_f16x32_state_sapphire_t *state, nk_b512_vec_t a, nk_b512_vec_t b) {
-    nk_dot_f16x32_update_sapphire(state, a, b);
-}
-NK_INTERNAL void nk_l2_f16x32_finalize_sapphire(nk_l2_f16x32_state_sapphire_t const *state_a,
-                                                nk_l2_f16x32_state_sapphire_t const *state_b,
-                                                nk_l2_f16x32_state_sapphire_t const *state_c,
-                                                nk_l2_f16x32_state_sapphire_t const *state_d, nk_f32_t query_norm,
-                                                nk_f32_t target_norm_a, nk_f32_t target_norm_b, nk_f32_t target_norm_c,
-                                                nk_f32_t target_norm_d, nk_f32_t *results) {
-    // Extract all 4 dot products with single ILP-optimized call
-    nk_f32_t dots[4];
-    nk_dot_f16x32_finalize_sapphire(state_a, state_b, state_c, state_d, dots);
-
-    // Build 128-bit F32 vectors for parallel L2 distance: sqrt(q² + t² - 2*dot)
-    __m128 dots_f32x4 = _mm_loadu_ps(dots);
-    __m128 query_norm_f32x4 = _mm_set1_ps(query_norm);
-    __m128 target_norms_f32x4 = _mm_set_ps(target_norm_d, target_norm_c, target_norm_b, target_norm_a);
-
-    // Compute squared norms in parallel
-    __m128 query_sq_f32x4 = _mm_mul_ps(query_norm_f32x4, query_norm_f32x4);
-    __m128 target_sq_f32x4 = _mm_mul_ps(target_norms_f32x4, target_norms_f32x4);
-
-    // Compute distance squared: q² + t² - 2*dot using FMA
-    __m128 two_f32x4 = _mm_set1_ps(2.0f);
-    __m128 sum_sq_f32x4 = _mm_add_ps(query_sq_f32x4, target_sq_f32x4);
-    __m128 dist_sq_f32x4 = _mm_fnmadd_ps(two_f32x4, dots_f32x4, sum_sq_f32x4);
-
-    // Clamp negative to zero, then sqrt
-    __m128 zeros_f32x4 = _mm_setzero_ps();
-    __m128 clamped_f32x4 = _mm_max_ps(dist_sq_f32x4, zeros_f32x4);
-    __m128 dist_f32x4 = _mm_sqrt_ps(clamped_f32x4);
-
-    // Store results
-    _mm_storeu_ps(results, dist_f32x4);
 }
 
 #if defined(__cplusplus)

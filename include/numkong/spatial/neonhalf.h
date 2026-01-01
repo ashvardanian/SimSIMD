@@ -16,6 +16,7 @@
 
 #include "numkong/types.h"
 #include "numkong/reduce/neonhalf.h" // nk_partial_load_f16x4_to_f32x4_neonhalf_
+#include "numkong/spatial/neon.h"    // nk_angular_f32x4_finalize_neon_, nk_l2_f32x4_finalize_neon_
 
 #if defined(__cplusplus)
 extern "C" {
@@ -87,39 +88,10 @@ NK_INTERNAL void nk_angular_f16x8_finalize_neonhalf(nk_angular_f16x8_state_neonh
                                                     nk_angular_f16x8_state_neonhalf_t const *state_d,
                                                     nk_f32_t query_norm, nk_f32_t target_norm_a, nk_f32_t target_norm_b,
                                                     nk_f32_t target_norm_c, nk_f32_t target_norm_d, nk_f32_t *results) {
-    // Extract all 4 dot products with single call
-    nk_f32_t dots[4];
-    nk_dot_f16x8_finalize_neonhalf(state_a, state_b, state_c, state_d, dots);
-
-    // Build F32 vectors for parallel processing
-    float32x4_t dots_vec = vld1q_f32(dots);
-    float32x4_t query_sq = vdupq_n_f32(query_norm * query_norm);
-    float32x4_t target_norms = {target_norm_a, target_norm_b, target_norm_c, target_norm_d};
-    float32x4_t target_sq = vmulq_f32(target_norms, target_norms);
-
-    // Compute products for normalization: query_sq * target_sq
-    float32x4_t products = vmulq_f32(query_sq, target_sq);
-
-    // Vectorized rsqrt with Newton-Raphson (2 iterations)
-    float32x4_t rsqrt_vec = vrsqrteq_f32(products);
-    rsqrt_vec = vmulq_f32(rsqrt_vec, vrsqrtsq_f32(vmulq_f32(products, rsqrt_vec), rsqrt_vec));
-    rsqrt_vec = vmulq_f32(rsqrt_vec, vrsqrtsq_f32(vmulq_f32(products, rsqrt_vec), rsqrt_vec));
-
-    // Compute angular distance = 1 - dot * rsqrt(product)
-    float32x4_t ones = vdupq_n_f32(1.0f);
-    float32x4_t zeros = vdupq_n_f32(0.0f);
-    float32x4_t result_vec = vsubq_f32(ones, vmulq_f32(dots_vec, rsqrt_vec));
-
-    // Clamp to [0, inf) and handle edge cases
-    result_vec = vmaxq_f32(result_vec, zeros);
-    uint32x4_t products_zero = vceqq_f32(products, zeros);
-    uint32x4_t dots_zero = vceqq_f32(dots_vec, zeros);
-    uint32x4_t both_zero = vandq_u32(products_zero, dots_zero);
-    result_vec = vbslq_f32(both_zero, zeros, result_vec);
-    uint32x4_t prod_zero_dot_nonzero = vandq_u32(products_zero, vmvnq_u32(dots_zero));
-    result_vec = vbslq_f32(prod_zero_dot_nonzero, ones, result_vec);
-
-    vst1q_f32(results, result_vec);
+    nk_b128_vec_t dots_vec;
+    nk_dot_f16x8_finalize_neonhalf(state_a, state_b, state_c, state_d, dots_vec.f32s);
+    nk_angular_f32x4_finalize_neon_f32_(dots_vec.f32x4, query_norm, target_norm_a, target_norm_b, target_norm_c,
+                                        target_norm_d, results);
 }
 
 typedef nk_dot_f16x8_state_neonhalf_t nk_l2_f16x8_state_neonhalf_t;
@@ -133,27 +105,10 @@ NK_INTERNAL void nk_l2_f16x8_finalize_neonhalf(nk_l2_f16x8_state_neonhalf_t cons
                                                nk_l2_f16x8_state_neonhalf_t const *state_d, nk_f32_t query_norm,
                                                nk_f32_t target_norm_a, nk_f32_t target_norm_b, nk_f32_t target_norm_c,
                                                nk_f32_t target_norm_d, nk_f32_t *results) {
-    // Extract all 4 dot products
-    nk_f32_t dots[4];
-    nk_dot_f16x8_finalize_neonhalf(state_a, state_b, state_c, state_d, dots);
-
-    // Build F32 vectors
-    float32x4_t dots_vec = vld1q_f32(dots);
-    float32x4_t query_sq = vdupq_n_f32(query_norm * query_norm);
-    float32x4_t target_norms = {target_norm_a, target_norm_b, target_norm_c, target_norm_d};
-    float32x4_t target_sq = vmulq_f32(target_norms, target_norms);
-
-    // Compute dist_sq = query_sq + target_sq - 2*dot using FMA
-    float32x4_t neg_two = vdupq_n_f32(-2.0f);
-    float32x4_t sum_sq = vaddq_f32(query_sq, target_sq);
-    float32x4_t dist_sq = vfmaq_f32(sum_sq, neg_two, dots_vec);
-
-    // Clamp and sqrt
-    float32x4_t zeros = vdupq_n_f32(0.0f);
-    dist_sq = vmaxq_f32(dist_sq, zeros);
-    float32x4_t dist_vec = vsqrtq_f32(dist_sq);
-
-    vst1q_f32(results, dist_vec);
+    nk_b128_vec_t dots_vec;
+    nk_dot_f16x8_finalize_neonhalf(state_a, state_b, state_c, state_d, dots_vec.f32s);
+    nk_l2_f32x4_finalize_neon_f32_(dots_vec.f32x4, query_norm, target_norm_a, target_norm_b, target_norm_c,
+                                   target_norm_d, results);
 }
 
 #if defined(__cplusplus)

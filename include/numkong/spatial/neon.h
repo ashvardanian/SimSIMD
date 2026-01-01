@@ -68,39 +68,47 @@ NK_PUBLIC void nk_l2_f32_neon(nk_f32_t const *a, nk_f32_t const *b, nk_size_t n,
     *result = nk_sqrt_f32_neon_(*result);
 }
 NK_PUBLIC void nk_l2sq_f32_neon(nk_f32_t const *a, nk_f32_t const *b, nk_size_t n, nk_f32_t *result) {
-    float32x4_t sum_vec = vdupq_n_f32(0);
+    // Accumulate in f64 for numerical stability (2 f32s per iteration, avoids slow vget_low/high)
+    float64x2_t sum_f64x2 = vdupq_n_f64(0);
     nk_size_t i = 0;
-    for (; i + 4 <= n; i += 4) {
-        float32x4_t a_vec = vld1q_f32(a + i);
-        float32x4_t b_vec = vld1q_f32(b + i);
-        float32x4_t diff_vec = vsubq_f32(a_vec, b_vec);
-        sum_vec = vfmaq_f32(sum_vec, diff_vec, diff_vec);
+    for (; i + 2 <= n; i += 2) {
+        float32x2_t a_f32x2 = vld1_f32(a + i);
+        float32x2_t b_f32x2 = vld1_f32(b + i);
+        float32x2_t diff_f32x2 = vsub_f32(a_f32x2, b_f32x2);
+        float64x2_t diff_f64x2 = vcvt_f64_f32(diff_f32x2);
+        sum_f64x2 = vfmaq_f64(sum_f64x2, diff_f64x2, diff_f64x2);
     }
-    nk_f32_t sum = vaddvq_f32(sum_vec);
+    nk_f64_t sum_f64 = vaddvq_f64(sum_f64x2);
     for (; i < n; ++i) {
-        nk_f32_t diff = a[i] - b[i];
-        sum += diff * diff;
+        nk_f64_t diff_f64 = (nk_f64_t)a[i] - (nk_f64_t)b[i];
+        sum_f64 += diff_f64 * diff_f64;
     }
-    *result = sum;
+    *result = (nk_f32_t)sum_f64;
 }
 
 NK_PUBLIC void nk_angular_f32_neon(nk_f32_t const *a, nk_f32_t const *b, nk_size_t n, nk_f32_t *result) {
-    float32x4_t ab_vec = vdupq_n_f32(0), a2_vec = vdupq_n_f32(0), b2_vec = vdupq_n_f32(0);
+    // Accumulate in f64 for numerical stability (2 f32s per iteration, avoids slow vget_low/high)
+    float64x2_t ab_f64x2 = vdupq_n_f64(0);
+    float64x2_t a2_f64x2 = vdupq_n_f64(0);
+    float64x2_t b2_f64x2 = vdupq_n_f64(0);
     nk_size_t i = 0;
-    for (; i + 4 <= n; i += 4) {
-        float32x4_t a_vec = vld1q_f32(a + i);
-        float32x4_t b_vec = vld1q_f32(b + i);
-        ab_vec = vfmaq_f32(ab_vec, a_vec, b_vec);
-        a2_vec = vfmaq_f32(a2_vec, a_vec, a_vec);
-        b2_vec = vfmaq_f32(b2_vec, b_vec, b_vec);
+    for (; i + 2 <= n; i += 2) {
+        float32x2_t a_f32x2 = vld1_f32(a + i);
+        float32x2_t b_f32x2 = vld1_f32(b + i);
+        float64x2_t a_f64x2 = vcvt_f64_f32(a_f32x2);
+        float64x2_t b_f64x2 = vcvt_f64_f32(b_f32x2);
+        ab_f64x2 = vfmaq_f64(ab_f64x2, a_f64x2, b_f64x2);
+        a2_f64x2 = vfmaq_f64(a2_f64x2, a_f64x2, a_f64x2);
+        b2_f64x2 = vfmaq_f64(b2_f64x2, b_f64x2, b_f64x2);
     }
-    nk_f32_t ab = vaddvq_f32(ab_vec), a2 = vaddvq_f32(a2_vec), b2 = vaddvq_f32(b2_vec);
+    nk_f64_t ab_f64 = vaddvq_f64(ab_f64x2);
+    nk_f64_t a2_f64 = vaddvq_f64(a2_f64x2);
+    nk_f64_t b2_f64 = vaddvq_f64(b2_f64x2);
     for (; i < n; ++i) {
-        nk_f32_t ai = a[i], bi = b[i];
-        ab += ai * bi, a2 += ai * ai, b2 += bi * bi;
+        nk_f64_t ai = (nk_f64_t)a[i], bi = (nk_f64_t)b[i];
+        ab_f64 += ai * bi, a2_f64 += ai * ai, b2_f64 += bi * bi;
     }
-
-    *result = (nk_f32_t)nk_angular_normalize_f64_neon_(ab, a2, b2);
+    *result = (nk_f32_t)nk_angular_normalize_f64_neon_(ab_f64, a2_f64, b2_f64);
 }
 
 NK_PUBLIC void nk_l2_f64_neon(nk_f64_t const *a, nk_f64_t const *b, nk_size_t n, nk_f64_t *result) {
@@ -108,39 +116,210 @@ NK_PUBLIC void nk_l2_f64_neon(nk_f64_t const *a, nk_f64_t const *b, nk_size_t n,
     *result = nk_sqrt_f64_neon_(*result);
 }
 NK_PUBLIC void nk_l2sq_f64_neon(nk_f64_t const *a, nk_f64_t const *b, nk_size_t n, nk_f64_t *result) {
-    float64x2_t sum_vec = vdupq_n_f64(0);
+    // Neumaier compensated summation for numerical stability
+    float64x2_t sum_f64x2 = vdupq_n_f64(0);
+    float64x2_t compensation_f64x2 = vdupq_n_f64(0);
     nk_size_t i = 0;
     for (; i + 2 <= n; i += 2) {
-        float64x2_t a_vec = vld1q_f64(a + i);
-        float64x2_t b_vec = vld1q_f64(b + i);
-        float64x2_t diff_vec = vsubq_f64(a_vec, b_vec);
-        sum_vec = vfmaq_f64(sum_vec, diff_vec, diff_vec);
+        float64x2_t a_f64x2 = vld1q_f64(a + i);
+        float64x2_t b_f64x2 = vld1q_f64(b + i);
+        float64x2_t diff_f64x2 = vsubq_f64(a_f64x2, b_f64x2);
+        float64x2_t diff_sq_f64x2 = vmulq_f64(diff_f64x2, diff_f64x2);
+        // Neumaier: t = sum + x
+        float64x2_t t_f64x2 = vaddq_f64(sum_f64x2, diff_sq_f64x2);
+        float64x2_t abs_sum_f64x2 = vabsq_f64(sum_f64x2);
+        // diff_sq is already non-negative (it's a square), so vabsq is unnecessary
+        uint64x2_t sum_ge_x_u64x2 = vcgeq_f64(abs_sum_f64x2, diff_sq_f64x2);
+        // When |sum| >= |x|: comp += (sum - t) + x; when |x| > |sum|: comp += (x - t) + sum
+        float64x2_t comp_sum_large_f64x2 = vaddq_f64(vsubq_f64(sum_f64x2, t_f64x2), diff_sq_f64x2);
+        float64x2_t comp_x_large_f64x2 = vaddq_f64(vsubq_f64(diff_sq_f64x2, t_f64x2), sum_f64x2);
+        float64x2_t comp_update_f64x2 = vbslq_f64(sum_ge_x_u64x2, comp_sum_large_f64x2, comp_x_large_f64x2);
+        compensation_f64x2 = vaddq_f64(compensation_f64x2, comp_update_f64x2);
+        sum_f64x2 = t_f64x2;
     }
-    nk_f64_t sum = vaddvq_f64(sum_vec);
+    nk_f64_t sum_f64 = vaddvq_f64(vaddq_f64(sum_f64x2, compensation_f64x2));
     for (; i < n; ++i) {
-        nk_f64_t diff = a[i] - b[i];
-        sum += diff * diff;
+        nk_f64_t diff_f64 = a[i] - b[i];
+        sum_f64 += diff_f64 * diff_f64;
     }
-    *result = sum;
+    *result = sum_f64;
 }
 
 NK_PUBLIC void nk_angular_f64_neon(nk_f64_t const *a, nk_f64_t const *b, nk_size_t n, nk_f64_t *result) {
-    float64x2_t ab_vec = vdupq_n_f64(0), a2_vec = vdupq_n_f64(0), b2_vec = vdupq_n_f64(0);
+    // Dot2 (Ogita-Rump-Oishi) for cross-product ab (may have cancellation),
+    // simple FMA for self-products a2/b2 (all positive, no cancellation)
+    float64x2_t ab_sum_f64x2 = vdupq_n_f64(0);
+    float64x2_t ab_compensation_f64x2 = vdupq_n_f64(0);
+    float64x2_t a2_f64x2 = vdupq_n_f64(0);
+    float64x2_t b2_f64x2 = vdupq_n_f64(0);
     nk_size_t i = 0;
     for (; i + 2 <= n; i += 2) {
-        float64x2_t a_vec = vld1q_f64(a + i);
-        float64x2_t b_vec = vld1q_f64(b + i);
-        ab_vec = vfmaq_f64(ab_vec, a_vec, b_vec);
-        a2_vec = vfmaq_f64(a2_vec, a_vec, a_vec);
-        b2_vec = vfmaq_f64(b2_vec, b_vec, b_vec);
+        float64x2_t a_f64x2 = vld1q_f64(a + i);
+        float64x2_t b_f64x2 = vld1q_f64(b + i);
+        // TwoProd for ab: product = a*b, error = fma(a,b,-product)
+        float64x2_t product_f64x2 = vmulq_f64(a_f64x2, b_f64x2);
+        float64x2_t product_error_f64x2 = vnegq_f64(vfmsq_f64(product_f64x2, a_f64x2, b_f64x2));
+        // TwoSum: (t, q) = TwoSum(sum, product)
+        float64x2_t t_f64x2 = vaddq_f64(ab_sum_f64x2, product_f64x2);
+        float64x2_t z_f64x2 = vsubq_f64(t_f64x2, ab_sum_f64x2);
+        float64x2_t sum_error_f64x2 = vaddq_f64(vsubq_f64(ab_sum_f64x2, vsubq_f64(t_f64x2, z_f64x2)),
+                                                vsubq_f64(product_f64x2, z_f64x2));
+        ab_sum_f64x2 = t_f64x2;
+        ab_compensation_f64x2 = vaddq_f64(ab_compensation_f64x2, vaddq_f64(sum_error_f64x2, product_error_f64x2));
+        // Simple FMA for self-products (no cancellation)
+        a2_f64x2 = vfmaq_f64(a2_f64x2, a_f64x2, a_f64x2);
+        b2_f64x2 = vfmaq_f64(b2_f64x2, b_f64x2, b_f64x2);
     }
-    nk_f64_t ab = vaddvq_f64(ab_vec), a2 = vaddvq_f64(a2_vec), b2 = vaddvq_f64(b2_vec);
+    nk_f64_t ab_f64 = vaddvq_f64(vaddq_f64(ab_sum_f64x2, ab_compensation_f64x2));
+    nk_f64_t a2_f64 = vaddvq_f64(a2_f64x2);
+    nk_f64_t b2_f64 = vaddvq_f64(b2_f64x2);
     for (; i < n; ++i) {
         nk_f64_t ai = a[i], bi = b[i];
-        ab += ai * bi, a2 += ai * ai, b2 += bi * bi;
+        ab_f64 += ai * bi, a2_f64 += ai * ai, b2_f64 += bi * bi;
     }
+    *result = nk_angular_normalize_f64_neon_(ab_f64, a2_f64, b2_f64);
+}
 
-    *result = nk_angular_normalize_f64_neon_(ab, a2, b2);
+/** @brief Angular distance finalize: computes 1 - dot/sqrt(query_norm*target_norm) for 4 pairs in f64. */
+NK_INTERNAL void nk_angular_f32x4_finalize_neon_(float32x4_t dots_f32x4, nk_f32_t query_norm, nk_f32_t target_norm_a,
+                                                 nk_f32_t target_norm_b, nk_f32_t target_norm_c, nk_f32_t target_norm_d,
+                                                 nk_f32_t *results) {
+    // Build F64 vectors for parallel processing (2x float64x2_t for precision)
+    float64x2_t dots_ab_f64x2 = vcvt_f64_f32(vget_low_f32(dots_f32x4));
+    float64x2_t dots_cd_f64x2 = vcvt_f64_f32(vget_high_f32(dots_f32x4));
+
+    nk_f64_t query_norm_sq = (nk_f64_t)query_norm * (nk_f64_t)query_norm;
+    float64x2_t query_sq_f64x2 = vdupq_n_f64(query_norm_sq);
+
+    float64x2_t target_norms_ab_f64x2 = {(nk_f64_t)target_norm_a, (nk_f64_t)target_norm_b};
+    float64x2_t target_norms_cd_f64x2 = {(nk_f64_t)target_norm_c, (nk_f64_t)target_norm_d};
+    float64x2_t target_sq_ab_f64x2 = vmulq_f64(target_norms_ab_f64x2, target_norms_ab_f64x2);
+    float64x2_t target_sq_cd_f64x2 = vmulq_f64(target_norms_cd_f64x2, target_norms_cd_f64x2);
+
+    // products = query_sq * target_sq
+    float64x2_t products_ab_f64x2 = vmulq_f64(query_sq_f64x2, target_sq_ab_f64x2);
+    float64x2_t products_cd_f64x2 = vmulq_f64(query_sq_f64x2, target_sq_cd_f64x2);
+
+    // rsqrt with Newton-Raphson (2 iterations for ~48-bit precision)
+    float64x2_t rsqrt_ab_f64x2 = vrsqrteq_f64(products_ab_f64x2);
+    float64x2_t rsqrt_cd_f64x2 = vrsqrteq_f64(products_cd_f64x2);
+    rsqrt_ab_f64x2 = vmulq_f64(rsqrt_ab_f64x2,
+                               vrsqrtsq_f64(vmulq_f64(products_ab_f64x2, rsqrt_ab_f64x2), rsqrt_ab_f64x2));
+    rsqrt_cd_f64x2 = vmulq_f64(rsqrt_cd_f64x2,
+                               vrsqrtsq_f64(vmulq_f64(products_cd_f64x2, rsqrt_cd_f64x2), rsqrt_cd_f64x2));
+    rsqrt_ab_f64x2 = vmulq_f64(rsqrt_ab_f64x2,
+                               vrsqrtsq_f64(vmulq_f64(products_ab_f64x2, rsqrt_ab_f64x2), rsqrt_ab_f64x2));
+    rsqrt_cd_f64x2 = vmulq_f64(rsqrt_cd_f64x2,
+                               vrsqrtsq_f64(vmulq_f64(products_cd_f64x2, rsqrt_cd_f64x2), rsqrt_cd_f64x2));
+
+    // angular = 1 - dot * rsqrt(product)
+    float64x2_t ones_f64x2 = vdupq_n_f64(1.0);
+    float64x2_t zeros_f64x2 = vdupq_n_f64(0.0);
+    float64x2_t result_ab_f64x2 = vsubq_f64(ones_f64x2, vmulq_f64(dots_ab_f64x2, rsqrt_ab_f64x2));
+    float64x2_t result_cd_f64x2 = vsubq_f64(ones_f64x2, vmulq_f64(dots_cd_f64x2, rsqrt_cd_f64x2));
+
+    // Clamp to [0, inf)
+    result_ab_f64x2 = vmaxq_f64(result_ab_f64x2, zeros_f64x2);
+    result_cd_f64x2 = vmaxq_f64(result_cd_f64x2, zeros_f64x2);
+
+    // Handle edge cases with vectorized selects
+    uint64x2_t products_zero_ab_u64x2 = vceqq_f64(products_ab_f64x2, zeros_f64x2);
+    uint64x2_t products_zero_cd_u64x2 = vceqq_f64(products_cd_f64x2, zeros_f64x2);
+    uint64x2_t dots_zero_ab_u64x2 = vceqq_f64(dots_ab_f64x2, zeros_f64x2);
+    uint64x2_t dots_zero_cd_u64x2 = vceqq_f64(dots_cd_f64x2, zeros_f64x2);
+
+    // Both zero -> result = 0; products zero but dots nonzero -> result = 1
+    uint64x2_t both_zero_ab_u64x2 = vandq_u64(products_zero_ab_u64x2, dots_zero_ab_u64x2);
+    uint64x2_t both_zero_cd_u64x2 = vandq_u64(products_zero_cd_u64x2, dots_zero_cd_u64x2);
+    result_ab_f64x2 = vbslq_f64(both_zero_ab_u64x2, zeros_f64x2, result_ab_f64x2);
+    result_cd_f64x2 = vbslq_f64(both_zero_cd_u64x2, zeros_f64x2, result_cd_f64x2);
+
+    uint64x2_t prod_zero_dot_nonzero_ab_u64x2 = vandq_u64(
+        products_zero_ab_u64x2, vreinterpretq_u64_u32(vmvnq_u32(vreinterpretq_u32_u64(dots_zero_ab_u64x2))));
+    uint64x2_t prod_zero_dot_nonzero_cd_u64x2 = vandq_u64(
+        products_zero_cd_u64x2, vreinterpretq_u64_u32(vmvnq_u32(vreinterpretq_u32_u64(dots_zero_cd_u64x2))));
+    result_ab_f64x2 = vbslq_f64(prod_zero_dot_nonzero_ab_u64x2, ones_f64x2, result_ab_f64x2);
+    result_cd_f64x2 = vbslq_f64(prod_zero_dot_nonzero_cd_u64x2, ones_f64x2, result_cd_f64x2);
+
+    // Convert to F32 and store
+    float32x2_t result_ab_f32x2 = vcvt_f32_f64(result_ab_f64x2);
+    float32x2_t result_cd_f32x2 = vcvt_f32_f64(result_cd_f64x2);
+    vst1q_f32(results, vcombine_f32(result_ab_f32x2, result_cd_f32x2));
+}
+
+/** @brief L2 distance finalize: computes sqrt(query²+target²-2*dot) for 4 pairs in f64. */
+NK_INTERNAL void nk_l2_f32x4_finalize_neon_(float32x4_t dots_f32x4, nk_f32_t query_norm, nk_f32_t target_norm_a,
+                                            nk_f32_t target_norm_b, nk_f32_t target_norm_c, nk_f32_t target_norm_d,
+                                            nk_f32_t *results) {
+    // Build F64 vectors
+    float64x2_t dots_ab_f64x2 = vcvt_f64_f32(vget_low_f32(dots_f32x4));
+    float64x2_t dots_cd_f64x2 = vcvt_f64_f32(vget_high_f32(dots_f32x4));
+
+    nk_f64_t query_norm_sq = (nk_f64_t)query_norm * (nk_f64_t)query_norm;
+    float64x2_t query_sq_f64x2 = vdupq_n_f64(query_norm_sq);
+
+    float64x2_t target_norms_ab_f64x2 = {(nk_f64_t)target_norm_a, (nk_f64_t)target_norm_b};
+    float64x2_t target_norms_cd_f64x2 = {(nk_f64_t)target_norm_c, (nk_f64_t)target_norm_d};
+    float64x2_t target_sq_ab_f64x2 = vmulq_f64(target_norms_ab_f64x2, target_norms_ab_f64x2);
+    float64x2_t target_sq_cd_f64x2 = vmulq_f64(target_norms_cd_f64x2, target_norms_cd_f64x2);
+
+    // dist_sq = query_sq + target_sq - 2*dot
+    float64x2_t neg_two_f64x2 = vdupq_n_f64(-2.0);
+    float64x2_t sum_sq_ab_f64x2 = vaddq_f64(query_sq_f64x2, target_sq_ab_f64x2);
+    float64x2_t sum_sq_cd_f64x2 = vaddq_f64(query_sq_f64x2, target_sq_cd_f64x2);
+    float64x2_t dist_sq_ab_f64x2 = vfmaq_f64(sum_sq_ab_f64x2, neg_two_f64x2, dots_ab_f64x2);
+    float64x2_t dist_sq_cd_f64x2 = vfmaq_f64(sum_sq_cd_f64x2, neg_two_f64x2, dots_cd_f64x2);
+
+    // Clamp and sqrt in f64
+    float64x2_t zeros_f64x2 = vdupq_n_f64(0.0);
+    dist_sq_ab_f64x2 = vmaxq_f64(dist_sq_ab_f64x2, zeros_f64x2);
+    dist_sq_cd_f64x2 = vmaxq_f64(dist_sq_cd_f64x2, zeros_f64x2);
+    float64x2_t dist_ab_f64x2 = vsqrtq_f64(dist_sq_ab_f64x2);
+    float64x2_t dist_cd_f64x2 = vsqrtq_f64(dist_sq_cd_f64x2);
+
+    // Convert to F32 and store
+    float32x2_t dist_ab_f32x2 = vcvt_f32_f64(dist_ab_f64x2);
+    float32x2_t dist_cd_f32x2 = vcvt_f32_f64(dist_cd_f64x2);
+    vst1q_f32(results, vcombine_f32(dist_ab_f32x2, dist_cd_f32x2));
+}
+
+/** @brief Angular finalize with f32 numerics (for low-precision inputs f16/bf16/i8/u8). */
+NK_INTERNAL void nk_angular_f32x4_finalize_neon_f32_(float32x4_t dots_f32x4, nk_f32_t query_norm,
+                                                     nk_f32_t target_norm_a, nk_f32_t target_norm_b,
+                                                     nk_f32_t target_norm_c, nk_f32_t target_norm_d,
+                                                     nk_f32_t *results) {
+    float32x4_t query_norm_f32x4 = vdupq_n_f32(query_norm);
+    float32x4_t target_norms_f32x4 = {target_norm_a, target_norm_b, target_norm_c, target_norm_d};
+    float32x4_t products_f32x4 = vmulq_f32(query_norm_f32x4, target_norms_f32x4);
+
+    // rsqrt with Newton-Raphson refinement (2 iterations)
+    float32x4_t rsqrt_f32x4 = vrsqrteq_f32(products_f32x4);
+    rsqrt_f32x4 = vmulq_f32(rsqrt_f32x4, vrsqrtsq_f32(vmulq_f32(products_f32x4, rsqrt_f32x4), rsqrt_f32x4));
+    rsqrt_f32x4 = vmulq_f32(rsqrt_f32x4, vrsqrtsq_f32(vmulq_f32(products_f32x4, rsqrt_f32x4), rsqrt_f32x4));
+
+    float32x4_t normalized_f32x4 = vmulq_f32(dots_f32x4, rsqrt_f32x4);
+    float32x4_t result_f32x4 = vsubq_f32(vdupq_n_f32(1.0f), normalized_f32x4);
+
+    // Clamp to [0, inf)
+    result_f32x4 = vmaxq_f32(result_f32x4, vdupq_n_f32(0.0f));
+    vst1q_f32(results, result_f32x4);
+}
+
+/** @brief L2 finalize with f32 numerics (for low-precision inputs f16/bf16/i8/u8). */
+NK_INTERNAL void nk_l2_f32x4_finalize_neon_f32_(float32x4_t dots_f32x4, nk_f32_t query_norm, nk_f32_t target_norm_a,
+                                                nk_f32_t target_norm_b, nk_f32_t target_norm_c, nk_f32_t target_norm_d,
+                                                nk_f32_t *results) {
+    float32x4_t query_norm_f32x4 = vdupq_n_f32(query_norm);
+    float32x4_t target_norms_f32x4 = {target_norm_a, target_norm_b, target_norm_c, target_norm_d};
+    float32x4_t query_sq_f32x4 = vmulq_f32(query_norm_f32x4, query_norm_f32x4);
+    float32x4_t target_sq_f32x4 = vmulq_f32(target_norms_f32x4, target_norms_f32x4);
+    float32x4_t sum_sq_f32x4 = vaddq_f32(query_sq_f32x4, target_sq_f32x4);
+    // dist_sq = sum_sq - 2*dot
+    float32x4_t dist_sq_f32x4 = vfmsq_f32(sum_sq_f32x4, vdupq_n_f32(2.0f), dots_f32x4);
+    // Clamp and sqrt
+    dist_sq_f32x4 = vmaxq_f32(dist_sq_f32x4, vdupq_n_f32(0.0f));
+    float32x4_t dist_f32x4 = vsqrtq_f32(dist_sq_f32x4);
+    vst1q_f32(results, dist_f32x4);
 }
 
 typedef nk_dot_f32x4_state_neon_t nk_angular_f32x4_state_neon_t;
@@ -154,68 +333,10 @@ NK_INTERNAL void nk_angular_f32x4_finalize_neon(nk_angular_f32x4_state_neon_t co
                                                 nk_angular_f32x4_state_neon_t const *state_d, nk_f32_t query_norm,
                                                 nk_f32_t target_norm_a, nk_f32_t target_norm_b, nk_f32_t target_norm_c,
                                                 nk_f32_t target_norm_d, nk_f32_t *results) {
-    // Extract all 4 dot products with single vectorized call
-    nk_f32_t dots[4];
-    nk_dot_f32x4_finalize_neon(state_a, state_b, state_c, state_d, dots);
-
-    // Build F64 vectors for parallel processing (2x float64x2_t for precision)
-    float64x2_t dots_ab = {(nk_f64_t)dots[0], (nk_f64_t)dots[1]};
-    float64x2_t dots_cd = {(nk_f64_t)dots[2], (nk_f64_t)dots[3]};
-
-    nk_f64_t query_norm_sq = (nk_f64_t)query_norm * (nk_f64_t)query_norm;
-    float64x2_t query_sq = vdupq_n_f64(query_norm_sq);
-
-    float64x2_t target_norms_ab = {(nk_f64_t)target_norm_a, (nk_f64_t)target_norm_b};
-    float64x2_t target_norms_cd = {(nk_f64_t)target_norm_c, (nk_f64_t)target_norm_d};
-    float64x2_t target_sq_ab = vmulq_f64(target_norms_ab, target_norms_ab);
-    float64x2_t target_sq_cd = vmulq_f64(target_norms_cd, target_norms_cd);
-
-    // Compute products for normalization: query_sq * target_sq
-    float64x2_t products_ab = vmulq_f64(query_sq, target_sq_ab);
-    float64x2_t products_cd = vmulq_f64(query_sq, target_sq_cd);
-
-    // Vectorized rsqrt with Newton-Raphson (2 iterations for ~48-bit precision)
-    float64x2_t rsqrt_ab = vrsqrteq_f64(products_ab);
-    float64x2_t rsqrt_cd = vrsqrteq_f64(products_cd);
-    rsqrt_ab = vmulq_f64(rsqrt_ab, vrsqrtsq_f64(vmulq_f64(products_ab, rsqrt_ab), rsqrt_ab));
-    rsqrt_cd = vmulq_f64(rsqrt_cd, vrsqrtsq_f64(vmulq_f64(products_cd, rsqrt_cd), rsqrt_cd));
-    rsqrt_ab = vmulq_f64(rsqrt_ab, vrsqrtsq_f64(vmulq_f64(products_ab, rsqrt_ab), rsqrt_ab));
-    rsqrt_cd = vmulq_f64(rsqrt_cd, vrsqrtsq_f64(vmulq_f64(products_cd, rsqrt_cd), rsqrt_cd));
-
-    // Compute angular distance = 1 - dot * rsqrt(product)
-    float64x2_t ones = vdupq_n_f64(1.0);
-    float64x2_t zeros = vdupq_n_f64(0.0);
-    float64x2_t result_ab = vsubq_f64(ones, vmulq_f64(dots_ab, rsqrt_ab));
-    float64x2_t result_cd = vsubq_f64(ones, vmulq_f64(dots_cd, rsqrt_cd));
-
-    // Clamp to [0, inf)
-    result_ab = vmaxq_f64(result_ab, zeros);
-    result_cd = vmaxq_f64(result_cd, zeros);
-
-    // Handle edge cases with vectorized selects
-    uint64x2_t products_zero_ab = vceqq_f64(products_ab, zeros);
-    uint64x2_t products_zero_cd = vceqq_f64(products_cd, zeros);
-    uint64x2_t dots_zero_ab = vceqq_f64(dots_ab, zeros);
-    uint64x2_t dots_zero_cd = vceqq_f64(dots_cd, zeros);
-
-    // Both zero -> result = 0; products zero but dots nonzero -> result = 1
-    uint64x2_t both_zero_ab = vandq_u64(products_zero_ab, dots_zero_ab);
-    uint64x2_t both_zero_cd = vandq_u64(products_zero_cd, dots_zero_cd);
-    result_ab = vbslq_f64(both_zero_ab, zeros, result_ab);
-    result_cd = vbslq_f64(both_zero_cd, zeros, result_cd);
-
-    uint64x2_t prod_zero_dot_nonzero_ab = vandq_u64(
-        products_zero_ab, vreinterpretq_u64_u32(vmvnq_u32(vreinterpretq_u32_u64(dots_zero_ab))));
-    uint64x2_t prod_zero_dot_nonzero_cd = vandq_u64(
-        products_zero_cd, vreinterpretq_u64_u32(vmvnq_u32(vreinterpretq_u32_u64(dots_zero_cd))));
-    result_ab = vbslq_f64(prod_zero_dot_nonzero_ab, ones, result_ab);
-    result_cd = vbslq_f64(prod_zero_dot_nonzero_cd, ones, result_cd);
-
-    // Convert to F32 and store
-    float32x2_t result_ab_f32 = vcvt_f32_f64(result_ab);
-    float32x2_t result_cd_f32 = vcvt_f32_f64(result_cd);
-    float32x4_t result_vec = vcombine_f32(result_ab_f32, result_cd_f32);
-    vst1q_f32(results, result_vec);
+    nk_b128_vec_t dots;
+    nk_dot_f32x4_finalize_neon(state_a, state_b, state_c, state_d, dots.f32s);
+    nk_angular_f32x4_finalize_neon_(dots.f32x4, query_norm, target_norm_a, target_norm_b, target_norm_c, target_norm_d,
+                                    results);
 }
 
 typedef nk_dot_f32x4_state_neon_t nk_l2_f32x4_state_neon_t;
@@ -229,43 +350,10 @@ NK_INTERNAL void nk_l2_f32x4_finalize_neon(nk_l2_f32x4_state_neon_t const *state
                                            nk_l2_f32x4_state_neon_t const *state_d, nk_f32_t query_norm,
                                            nk_f32_t target_norm_a, nk_f32_t target_norm_b, nk_f32_t target_norm_c,
                                            nk_f32_t target_norm_d, nk_f32_t *results) {
-    // Extract all 4 dot products
-    nk_f32_t dots[4];
-    nk_dot_f32x4_finalize_neon(state_a, state_b, state_c, state_d, dots);
-
-    // Build F64 vectors (for precision as in original)
-    float64x2_t dots_ab = {(nk_f64_t)dots[0], (nk_f64_t)dots[1]};
-    float64x2_t dots_cd = {(nk_f64_t)dots[2], (nk_f64_t)dots[3]};
-
-    nk_f64_t query_norm_sq = (nk_f64_t)query_norm * (nk_f64_t)query_norm;
-    float64x2_t query_sq = vdupq_n_f64(query_norm_sq);
-
-    float64x2_t target_norms_ab = {(nk_f64_t)target_norm_a, (nk_f64_t)target_norm_b};
-    float64x2_t target_norms_cd = {(nk_f64_t)target_norm_c, (nk_f64_t)target_norm_d};
-    float64x2_t target_sq_ab = vmulq_f64(target_norms_ab, target_norms_ab);
-    float64x2_t target_sq_cd = vmulq_f64(target_norms_cd, target_norms_cd);
-
-    // Compute dist_sq = query_sq + target_sq - 2*dot using FMA
-    float64x2_t neg_two = vdupq_n_f64(-2.0);
-    float64x2_t sum_sq_ab = vaddq_f64(query_sq, target_sq_ab);
-    float64x2_t sum_sq_cd = vaddq_f64(query_sq, target_sq_cd);
-    float64x2_t dist_sq_ab = vfmaq_f64(sum_sq_ab, neg_two, dots_ab);
-    float64x2_t dist_sq_cd = vfmaq_f64(sum_sq_cd, neg_two, dots_cd);
-
-    // Clamp negative values to zero (numerical stability)
-    float64x2_t zeros = vdupq_n_f64(0.0);
-    dist_sq_ab = vmaxq_f64(dist_sq_ab, zeros);
-    dist_sq_cd = vmaxq_f64(dist_sq_cd, zeros);
-
-    // Compute sqrt using hardware vsqrtq_f64
-    float64x2_t dist_ab = vsqrtq_f64(dist_sq_ab);
-    float64x2_t dist_cd = vsqrtq_f64(dist_sq_cd);
-
-    // Convert to F32 and store
-    float32x2_t dist_ab_f32 = vcvt_f32_f64(dist_ab);
-    float32x2_t dist_cd_f32 = vcvt_f32_f64(dist_cd);
-    float32x4_t dist_vec = vcombine_f32(dist_ab_f32, dist_cd_f32);
-    vst1q_f32(results, dist_vec);
+    nk_b128_vec_t dots;
+    nk_dot_f32x4_finalize_neon(state_a, state_b, state_c, state_d, dots.f32s);
+    nk_l2_f32x4_finalize_neon_(dots.f32x4, query_norm, target_norm_a, target_norm_b, target_norm_c, target_norm_d,
+                               results);
 }
 
 #if defined(__cplusplus)

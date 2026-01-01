@@ -102,9 +102,8 @@ NK_INTERNAL void nk_dot_i8x32_update_ice(nk_dot_i8x32_state_ice_t *state, nk_b25
 NK_INTERNAL void nk_dot_i8x32_finalize_ice(                                           //
     nk_dot_i8x32_state_ice_t const *state_a, nk_dot_i8x32_state_ice_t const *state_b, //
     nk_dot_i8x32_state_ice_t const *state_c, nk_dot_i8x32_state_ice_t const *state_d, //
-    nk_i32_t *results) {
+    nk_b128_vec_t *results) {
     // ILP-optimized 4-way horizontal reduction for i32
-    // Step 1: 16->8 for all 4 states (extract high 256-bit half and add to low half)
     __m256i sum_a_i32x8 = _mm256_add_epi32(_mm512_castsi512_si256(state_a->sum_i32x16),
                                            _mm512_extracti32x8_epi32(state_a->sum_i32x16, 1));
     __m256i sum_b_i32x8 = _mm256_add_epi32(_mm512_castsi512_si256(state_b->sum_i32x16),
@@ -113,12 +112,10 @@ NK_INTERNAL void nk_dot_i8x32_finalize_ice(                                     
                                            _mm512_extracti32x8_epi32(state_c->sum_i32x16, 1));
     __m256i sum_d_i32x8 = _mm256_add_epi32(_mm512_castsi512_si256(state_d->sum_i32x16),
                                            _mm512_extracti32x8_epi32(state_d->sum_i32x16, 1));
-    // Step 2: 8->4 for all 4 states (extract high 128-bit half and add to low half)
     __m128i sum_a_i32x4 = _mm_add_epi32(_mm256_castsi256_si128(sum_a_i32x8), _mm256_extracti128_si256(sum_a_i32x8, 1));
     __m128i sum_b_i32x4 = _mm_add_epi32(_mm256_castsi256_si128(sum_b_i32x8), _mm256_extracti128_si256(sum_b_i32x8, 1));
     __m128i sum_c_i32x4 = _mm_add_epi32(_mm256_castsi256_si128(sum_c_i32x8), _mm256_extracti128_si256(sum_c_i32x8, 1));
     __m128i sum_d_i32x4 = _mm_add_epi32(_mm256_castsi256_si128(sum_d_i32x8), _mm256_extracti128_si256(sum_d_i32x8, 1));
-    // Step 3: Transpose 4x4 matrix of partial sums using integer shuffles
     __m128i transpose_ab_low_i32x4 = _mm_unpacklo_epi32(sum_a_i32x4, sum_b_i32x4);
     __m128i transpose_cd_low_i32x4 = _mm_unpacklo_epi32(sum_c_i32x4, sum_d_i32x4);
     __m128i transpose_ab_high_i32x4 = _mm_unpackhi_epi32(sum_a_i32x4, sum_b_i32x4);
@@ -127,11 +124,8 @@ NK_INTERNAL void nk_dot_i8x32_finalize_ice(                                     
     __m128i sum_lane1_i32x4 = _mm_unpackhi_epi64(transpose_ab_low_i32x4, transpose_cd_low_i32x4);
     __m128i sum_lane2_i32x4 = _mm_unpacklo_epi64(transpose_ab_high_i32x4, transpose_cd_high_i32x4);
     __m128i sum_lane3_i32x4 = _mm_unpackhi_epi64(transpose_ab_high_i32x4, transpose_cd_high_i32x4);
-    // Step 4: Vertical sum - each lane becomes the final i32 result for one state
-    __m128i final_sum_i32x4 = _mm_add_epi32(_mm_add_epi32(sum_lane0_i32x4, sum_lane1_i32x4),
-                                            _mm_add_epi32(sum_lane2_i32x4, sum_lane3_i32x4));
-    // Store as i32
-    _mm_storeu_si128((__m128i *)results, final_sum_i32x4);
+    results->xmm = _mm_add_epi32(_mm_add_epi32(sum_lane0_i32x4, sum_lane1_i32x4),
+                                 _mm_add_epi32(sum_lane2_i32x4, sum_lane3_i32x4));
 }
 
 typedef struct nk_dot_u8x64_state_ice_t {
@@ -164,9 +158,8 @@ NK_INTERNAL void nk_dot_u8x64_update_ice(nk_dot_u8x64_state_ice_t *state, nk_b51
 NK_INTERNAL void nk_dot_u8x64_finalize_ice(                                           //
     nk_dot_u8x64_state_ice_t const *state_a, nk_dot_u8x64_state_ice_t const *state_b, //
     nk_dot_u8x64_state_ice_t const *state_c, nk_dot_u8x64_state_ice_t const *state_d, //
-    nk_u32_t *results) {
+    nk_b128_vec_t *results) {
     // ILP-optimized 4-way horizontal reduction for u32
-    // Step 1: 16->8 for all 4 states
     __m256i sum_a_i32x8 = _mm256_add_epi32(_mm512_castsi512_si256(state_a->sum_i32x16),
                                            _mm512_extracti32x8_epi32(state_a->sum_i32x16, 1));
     __m256i sum_b_i32x8 = _mm256_add_epi32(_mm512_castsi512_si256(state_b->sum_i32x16),
@@ -175,12 +168,10 @@ NK_INTERNAL void nk_dot_u8x64_finalize_ice(                                     
                                            _mm512_extracti32x8_epi32(state_c->sum_i32x16, 1));
     __m256i sum_d_i32x8 = _mm256_add_epi32(_mm512_castsi512_si256(state_d->sum_i32x16),
                                            _mm512_extracti32x8_epi32(state_d->sum_i32x16, 1));
-    // Step 2: 8->4 for all 4 states
     __m128i sum_a_i32x4 = _mm_add_epi32(_mm256_castsi256_si128(sum_a_i32x8), _mm256_extracti128_si256(sum_a_i32x8, 1));
     __m128i sum_b_i32x4 = _mm_add_epi32(_mm256_castsi256_si128(sum_b_i32x8), _mm256_extracti128_si256(sum_b_i32x8, 1));
     __m128i sum_c_i32x4 = _mm_add_epi32(_mm256_castsi256_si128(sum_c_i32x8), _mm256_extracti128_si256(sum_c_i32x8, 1));
     __m128i sum_d_i32x4 = _mm_add_epi32(_mm256_castsi256_si128(sum_d_i32x8), _mm256_extracti128_si256(sum_d_i32x8, 1));
-    // Step 3: Transpose 4x4 matrix
     __m128i transpose_ab_low_i32x4 = _mm_unpacklo_epi32(sum_a_i32x4, sum_b_i32x4);
     __m128i transpose_cd_low_i32x4 = _mm_unpacklo_epi32(sum_c_i32x4, sum_d_i32x4);
     __m128i transpose_ab_high_i32x4 = _mm_unpackhi_epi32(sum_a_i32x4, sum_b_i32x4);
@@ -189,10 +180,8 @@ NK_INTERNAL void nk_dot_u8x64_finalize_ice(                                     
     __m128i sum_lane1_i32x4 = _mm_unpackhi_epi64(transpose_ab_low_i32x4, transpose_cd_low_i32x4);
     __m128i sum_lane2_i32x4 = _mm_unpacklo_epi64(transpose_ab_high_i32x4, transpose_cd_high_i32x4);
     __m128i sum_lane3_i32x4 = _mm_unpackhi_epi64(transpose_ab_high_i32x4, transpose_cd_high_i32x4);
-    // Step 4: Vertical sum and store as u32
-    __m128i final_sum_i32x4 = _mm_add_epi32(_mm_add_epi32(sum_lane0_i32x4, sum_lane1_i32x4),
-                                            _mm_add_epi32(sum_lane2_i32x4, sum_lane3_i32x4));
-    _mm_storeu_si128((__m128i *)results, final_sum_i32x4);
+    results->xmm = _mm_add_epi32(_mm_add_epi32(sum_lane0_i32x4, sum_lane1_i32x4),
+                                 _mm_add_epi32(sum_lane2_i32x4, sum_lane3_i32x4));
 }
 
 #if defined(__cplusplus)

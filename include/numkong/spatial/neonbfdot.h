@@ -15,7 +15,8 @@
 #pragma clang attribute push(__attribute__((target("arch=armv8.6-a+simd+bf16"))), apply_to = function)
 
 #include "numkong/types.h"
-#include "numkong/reduce/neon.h" // nk_partial_load_b16x8_neon_
+#include "numkong/reduce/neon.h"  // nk_partial_load_b16x8_neon_
+#include "numkong/spatial/neon.h" // nk_angular_f32x4_finalize_neon_f32_, nk_l2_f32x4_finalize_neon_f32_
 
 #if defined(__cplusplus)
 extern "C" {
@@ -94,32 +95,29 @@ nk_angular_bf16_neonbfdot_cycle:
 }
 
 NK_PUBLIC void nk_l2sq_bf16_neonbfdot(nk_bf16_t const *a, nk_bf16_t const *b, nk_size_t n, nk_f32_t *result) {
-    float32x4_t diff_high_f32x4, diff_low_f32x4;
-    float32x4_t distance_sq_high_f32x4 = vdupq_n_f32(0), distance_sq_low_f32x4 = vdupq_n_f32(0);
-
-nk_l2sq_bf16_neonbfdot_cycle:
-    if (n < 8) {
-        nk_b128_vec_t a_vec, b_vec;
-        nk_partial_load_b16x8_neon_(a, n, &a_vec);
-        nk_partial_load_b16x8_neon_(b, n, &b_vec);
-        bfloat16x8_t a_bf16x8 = vreinterpretq_bf16_u16(a_vec.u16x8);
-        bfloat16x8_t b_bf16x8 = vreinterpretq_bf16_u16(b_vec.u16x8);
-        diff_high_f32x4 = vsubq_f32(vcvt_f32_bf16(vget_high_bf16(a_bf16x8)), vcvt_f32_bf16(vget_high_bf16(b_bf16x8)));
-        diff_low_f32x4 = vsubq_f32(vcvt_f32_bf16(vget_low_bf16(a_bf16x8)), vcvt_f32_bf16(vget_low_bf16(b_bf16x8)));
-        n = 0;
+    // Process 4 bf16s per iteration with 64-bit loads (avoids slow vget_low/high_bf16)
+    // Accumulate in f64 for numerical stability
+    float64x2_t sum_f64x2 = vdupq_n_f64(0);
+    nk_size_t i = 0;
+    for (; i + 4 <= n; i += 4) {
+        bfloat16x4_t a_bf16x4 = vld1_bf16((nk_bf16_for_arm_simd_t const *)(a + i));
+        bfloat16x4_t b_bf16x4 = vld1_bf16((nk_bf16_for_arm_simd_t const *)(b + i));
+        float32x4_t a_f32x4 = vcvt_f32_bf16(a_bf16x4);
+        float32x4_t b_f32x4 = vcvt_f32_bf16(b_bf16x4);
+        float32x4_t diff_f32x4 = vsubq_f32(a_f32x4, b_f32x4);
+        // Upcast to f64 for accumulation: process 2+2 elements
+        float64x2_t diff_low_f64x2 = vcvt_f64_f32(vget_low_f32(diff_f32x4));
+        float64x2_t diff_high_f64x2 = vcvt_f64_f32(vget_high_f32(diff_f32x4));
+        sum_f64x2 = vfmaq_f64(sum_f64x2, diff_low_f64x2, diff_low_f64x2);
+        sum_f64x2 = vfmaq_f64(sum_f64x2, diff_high_f64x2, diff_high_f64x2);
     }
-    else {
-        bfloat16x8_t a_bf16x8 = vld1q_bf16((nk_bf16_for_arm_simd_t const *)a);
-        bfloat16x8_t b_bf16x8 = vld1q_bf16((nk_bf16_for_arm_simd_t const *)b);
-        diff_high_f32x4 = vsubq_f32(vcvt_f32_bf16(vget_high_bf16(a_bf16x8)), vcvt_f32_bf16(vget_high_bf16(b_bf16x8)));
-        diff_low_f32x4 = vsubq_f32(vcvt_f32_bf16(vget_low_bf16(a_bf16x8)), vcvt_f32_bf16(vget_low_bf16(b_bf16x8)));
-        n -= 8, a += 8, b += 8;
+    nk_f64_t sum_f64 = vaddvq_f64(sum_f64x2);
+    // Tail handling
+    for (; i < n; ++i) {
+        nk_f64_t diff_f64 = (nk_f64_t)nk_bf16_to_f32(a[i]) - (nk_f64_t)nk_bf16_to_f32(b[i]);
+        sum_f64 += diff_f64 * diff_f64;
     }
-    distance_sq_high_f32x4 = vfmaq_f32(distance_sq_high_f32x4, diff_high_f32x4, diff_high_f32x4);
-    distance_sq_low_f32x4 = vfmaq_f32(distance_sq_low_f32x4, diff_low_f32x4, diff_low_f32x4);
-    if (n) goto nk_l2sq_bf16_neonbfdot_cycle;
-
-    *result = vaddvq_f32(vaddq_f32(distance_sq_high_f32x4, distance_sq_low_f32x4));
+    *result = (nk_f32_t)sum_f64;
 }
 NK_PUBLIC void nk_l2_bf16_neonbfdot(nk_bf16_t const *a, nk_bf16_t const *b, nk_size_t n, nk_f32_t *result) {
     nk_l2sq_bf16_neonbfdot(a, b, n, result);
@@ -141,36 +139,10 @@ NK_INTERNAL void nk_angular_bf16x8_finalize_neonbfdot(nk_angular_bf16x8_state_ne
                                                       nk_f32_t query_norm, nk_f32_t target_norm_a,
                                                       nk_f32_t target_norm_b, nk_f32_t target_norm_c,
                                                       nk_f32_t target_norm_d, nk_f32_t *results) {
-    // Extract all 4 dot products with single call
-    nk_f32_t dots[4];
-    nk_dot_bf16x8_finalize_neonbfdot(state_a, state_b, state_c, state_d, dots);
-
-    // Build F32 vectors for parallel processing
-    float32x4_t dots_vec = vld1q_f32(dots);
-    float32x4_t query_sq = vdupq_n_f32(query_norm * query_norm);
-    float32x4_t target_norms = {target_norm_a, target_norm_b, target_norm_c, target_norm_d};
-    float32x4_t target_sq = vmulq_f32(target_norms, target_norms);
-    float32x4_t products = vmulq_f32(query_sq, target_sq);
-
-    // Vectorized rsqrt with Newton-Raphson
-    float32x4_t rsqrt_vec = vrsqrteq_f32(products);
-    rsqrt_vec = vmulq_f32(rsqrt_vec, vrsqrtsq_f32(vmulq_f32(products, rsqrt_vec), rsqrt_vec));
-    rsqrt_vec = vmulq_f32(rsqrt_vec, vrsqrtsq_f32(vmulq_f32(products, rsqrt_vec), rsqrt_vec));
-
-    // Compute angular distance and handle edge cases
-    float32x4_t ones = vdupq_n_f32(1.0f);
-    float32x4_t zeros = vdupq_n_f32(0.0f);
-    float32x4_t result_vec = vsubq_f32(ones, vmulq_f32(dots_vec, rsqrt_vec));
-    result_vec = vmaxq_f32(result_vec, zeros);
-
-    uint32x4_t products_zero = vceqq_f32(products, zeros);
-    uint32x4_t dots_zero = vceqq_f32(dots_vec, zeros);
-    uint32x4_t both_zero = vandq_u32(products_zero, dots_zero);
-    result_vec = vbslq_f32(both_zero, zeros, result_vec);
-    uint32x4_t prod_zero_dot_nonzero = vandq_u32(products_zero, vmvnq_u32(dots_zero));
-    result_vec = vbslq_f32(prod_zero_dot_nonzero, ones, result_vec);
-
-    vst1q_f32(results, result_vec);
+    nk_b128_vec_t dots_vec;
+    nk_dot_bf16x8_finalize_neonbfdot(state_a, state_b, state_c, state_d, dots_vec.f32s);
+    nk_angular_f32x4_finalize_neon_f32_(dots_vec.f32x4, query_norm, target_norm_a, target_norm_b, target_norm_c,
+                                        target_norm_d, results);
 }
 
 typedef nk_dot_bf16x8_state_neonbfdot_t nk_l2_bf16x8_state_neonbfdot_t;
@@ -187,27 +159,10 @@ NK_INTERNAL void nk_l2_bf16x8_finalize_neonbfdot(nk_l2_bf16x8_state_neonbfdot_t 
                                                  nk_l2_bf16x8_state_neonbfdot_t const *state_d, nk_f32_t query_norm,
                                                  nk_f32_t target_norm_a, nk_f32_t target_norm_b, nk_f32_t target_norm_c,
                                                  nk_f32_t target_norm_d, nk_f32_t *results) {
-    // Extract all 4 dot products
-    nk_f32_t dots[4];
-    nk_dot_bf16x8_finalize_neonbfdot(state_a, state_b, state_c, state_d, dots);
-
-    // Build F32 vectors
-    float32x4_t dots_vec = vld1q_f32(dots);
-    float32x4_t query_sq = vdupq_n_f32(query_norm * query_norm);
-    float32x4_t target_norms = {target_norm_a, target_norm_b, target_norm_c, target_norm_d};
-    float32x4_t target_sq = vmulq_f32(target_norms, target_norms);
-
-    // Compute dist_sq = query_sq + target_sq - 2*dot using FMA
-    float32x4_t neg_two = vdupq_n_f32(-2.0f);
-    float32x4_t sum_sq = vaddq_f32(query_sq, target_sq);
-    float32x4_t dist_sq = vfmaq_f32(sum_sq, neg_two, dots_vec);
-
-    // Clamp and sqrt
-    float32x4_t zeros = vdupq_n_f32(0.0f);
-    dist_sq = vmaxq_f32(dist_sq, zeros);
-    float32x4_t dist_vec = vsqrtq_f32(dist_sq);
-
-    vst1q_f32(results, dist_vec);
+    nk_b128_vec_t dots_vec;
+    nk_dot_bf16x8_finalize_neonbfdot(state_a, state_b, state_c, state_d, dots_vec.f32s);
+    nk_l2_f32x4_finalize_neon_f32_(dots_vec.f32x4, query_norm, target_norm_a, target_norm_b, target_norm_c,
+                                   target_norm_d, results);
 }
 
 #if defined(__cplusplus)

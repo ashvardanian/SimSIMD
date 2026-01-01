@@ -116,17 +116,6 @@ NK_INTERNAL nk_f32_t nk_angular_normalize_f32_haswell_(nk_f32_t ab, nk_f32_t a2,
     return result > 0 ? result : 0;
 }
 
-#pragma clang attribute pop
-#pragma GCC pop_options
-#endif // NK_TARGET_HASWELL
-#endif // NK_TARGET_X86_
-
-#if NK_TARGET_X86_
-#if NK_TARGET_HASWELL
-#pragma GCC push_options
-#pragma GCC target("avx2", "f16c", "fma")
-#pragma clang attribute push(__attribute__((target("avx2,f16c,fma"))), apply_to = function)
-
 NK_PUBLIC void nk_l2sq_f16_haswell(nk_f16_t const *a, nk_f16_t const *b, nk_size_t n, nk_f32_t *result) {
     __m256 a_f32x8, b_f32x8;
     __m256 distance_sq_f32x8 = _mm256_setzero_ps();
@@ -509,17 +498,20 @@ NK_PUBLIC void nk_l2sq_f64_haswell(nk_f64_t const *a, nk_f64_t const *b, nk_size
         __m256d a_f64x4 = _mm256_loadu_pd(a + i);
         __m256d b_f64x4 = _mm256_loadu_pd(b + i);
         __m256d diff_f64x4 = _mm256_sub_pd(a_f64x4, b_f64x4);
-        __m256d diff_sq_f64x4 = _mm256_mul_pd(diff_f64x4, diff_f64x4);
-        // Neumaier: t = sum + x, then compensation based on |sum| vs |x|
-        __m256d t_f64x4 = _mm256_add_pd(sum_f64x4, diff_sq_f64x4);
+        __m256d x_f64x4 = _mm256_mul_pd(diff_f64x4, diff_f64x4); // x = diff², always >= 0
+        // Neumaier TwoSum: t = sum + x
+        __m256d t_f64x4 = _mm256_add_pd(sum_f64x4, x_f64x4);
+        // Compare |sum| vs x (x is already non-negative, skip abs)
         __m256d abs_sum_f64x4 = _mm256_andnot_pd(sign_mask_f64x4, sum_f64x4);
-        __m256d abs_diff_sq_f64x4 = _mm256_andnot_pd(sign_mask_f64x4, diff_sq_f64x4);
-        __m256d sum_ge_x_f64x4 = _mm256_cmp_pd(abs_sum_f64x4, abs_diff_sq_f64x4, _CMP_GE_OQ);
-        // When |sum| >= |x|: (sum - t) + x; when |x| > |sum|: (x - t) + sum
-        __m256d comp_sum_large_f64x4 = _mm256_add_pd(_mm256_sub_pd(sum_f64x4, t_f64x4), diff_sq_f64x4);
-        __m256d comp_x_large_f64x4 = _mm256_add_pd(_mm256_sub_pd(diff_sq_f64x4, t_f64x4), sum_f64x4);
-        __m256d comp_update_f64x4 = _mm256_blendv_pd(comp_x_large_f64x4, comp_sum_large_f64x4, sum_ge_x_f64x4);
-        compensation_f64x4 = _mm256_add_pd(compensation_f64x4, comp_update_f64x4);
+        __m256d sum_ge_x_f64x4 = _mm256_cmp_pd(abs_sum_f64x4, x_f64x4, _CMP_GE_OQ);
+        // z = t - larger, error = smaller - z (using blendv for selection)
+        __m256d z_sum_large_f64x4 = _mm256_sub_pd(t_f64x4, sum_f64x4);
+        __m256d z_x_large_f64x4 = _mm256_sub_pd(t_f64x4, x_f64x4);
+        __m256d z_f64x4 = _mm256_blendv_pd(z_x_large_f64x4, z_sum_large_f64x4, sum_ge_x_f64x4);
+        __m256d err_sum_large_f64x4 = _mm256_sub_pd(x_f64x4, z_f64x4);
+        __m256d err_x_large_f64x4 = _mm256_sub_pd(sum_f64x4, z_f64x4);
+        __m256d error_f64x4 = _mm256_blendv_pd(err_x_large_f64x4, err_sum_large_f64x4, sum_ge_x_f64x4);
+        compensation_f64x4 = _mm256_add_pd(compensation_f64x4, error_f64x4);
         sum_f64x4 = t_f64x4;
     }
 
@@ -540,6 +532,8 @@ NK_PUBLIC void nk_l2_f64_haswell(nk_f64_t const *a, nk_f64_t const *b, nk_size_t
 NK_PUBLIC void nk_angular_f64_haswell(nk_f64_t const *a, nk_f64_t const *b, nk_size_t n, nk_f64_t *result) {
     // Dot2 (Ogita-Rump-Oishi 2005) for cross-product a·b only - it may have cancellation.
     // Self-products ||a||² and ||b||² use simple FMA - all terms are non-negative, no cancellation.
+    // Note: For cross-product we use Knuth TwoSum (6 ops) rather than Neumaier with blends (10 ops)
+    // since products can be signed and Knuth handles any operand ordering efficiently.
     __m256d dot_sum_f64x4 = _mm256_setzero_pd();
     __m256d dot_compensation_f64x4 = _mm256_setzero_pd();
     __m256d a_norm_sq_f64x4 = _mm256_setzero_pd();
@@ -548,14 +542,14 @@ NK_PUBLIC void nk_angular_f64_haswell(nk_f64_t const *a, nk_f64_t const *b, nk_s
     for (; i + 4 <= n; i += 4) {
         __m256d a_f64x4 = _mm256_loadu_pd(a + i);
         __m256d b_f64x4 = _mm256_loadu_pd(b + i);
-        // TwoProd for cross-product: product = a * b, error = fma(a, b, -product)
-        __m256d product_f64x4 = _mm256_mul_pd(a_f64x4, b_f64x4);
-        __m256d product_error_f64x4 = _mm256_fmsub_pd(a_f64x4, b_f64x4, product_f64x4);
-        // TwoSum: (t, q) = TwoSum(sum, product)
-        __m256d t_f64x4 = _mm256_add_pd(dot_sum_f64x4, product_f64x4);
+        // TwoProd: product = a * b, error = fma(a, b, -product)
+        __m256d x_f64x4 = _mm256_mul_pd(a_f64x4, b_f64x4);
+        __m256d product_error_f64x4 = _mm256_fmsub_pd(a_f64x4, b_f64x4, x_f64x4);
+        // Knuth TwoSum: error = (sum - (t - z)) + (x - z) where z = t - sum
+        __m256d t_f64x4 = _mm256_add_pd(dot_sum_f64x4, x_f64x4);
         __m256d z_f64x4 = _mm256_sub_pd(t_f64x4, dot_sum_f64x4);
         __m256d sum_error_f64x4 = _mm256_add_pd(_mm256_sub_pd(dot_sum_f64x4, _mm256_sub_pd(t_f64x4, z_f64x4)),
-                                                _mm256_sub_pd(product_f64x4, z_f64x4));
+                                                _mm256_sub_pd(x_f64x4, z_f64x4));
         dot_sum_f64x4 = t_f64x4;
         dot_compensation_f64x4 = _mm256_add_pd(dot_compensation_f64x4,
                                                _mm256_add_pd(sum_error_f64x4, product_error_f64x4));

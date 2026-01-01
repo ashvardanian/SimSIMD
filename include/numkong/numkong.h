@@ -1550,10 +1550,6 @@ NK_INTERNAL void nk_find_kernel_punned_f16_(nk_capability_t v, nk_kernel_kind_t 
 #endif
 #if NK_TARGET_SAPPHIRE
     if (v & nk_cap_sapphire_k) switch (k) {
-        case nk_kernel_dot_k: *m = (m_t)&nk_dot_f16_sapphire, *c = nk_cap_sapphire_k; return;
-        case nk_kernel_angular_k: *m = (m_t)&nk_angular_f16_sapphire, *c = nk_cap_sapphire_k; return;
-        case nk_kernel_l2sq_k: *m = (m_t)&nk_l2sq_f16_sapphire, *c = nk_cap_sapphire_k; return;
-        case nk_kernel_l2_k: *m = (m_t)&nk_l2_f16_sapphire, *c = nk_cap_sapphire_k; return;
         case nk_kernel_jsd_k: *m = (m_t)&nk_jsd_f16_sapphire, *c = nk_cap_sapphire_k; return;
         case nk_kernel_kld_k: *m = (m_t)&nk_kld_f16_sapphire, *c = nk_cap_sapphire_k; return;
         case nk_kernel_bilinear_k: *m = (m_t)&nk_bilinear_f16_sapphire, *c = nk_cap_sapphire_k; return;
@@ -1568,6 +1564,9 @@ NK_INTERNAL void nk_find_kernel_punned_f16_(nk_capability_t v, nk_kernel_kind_t 
 #if NK_TARGET_SKYLAKE
     if (v & nk_cap_skylake_k) switch (k) {
         case nk_kernel_dot_k: *m = (m_t)&nk_dot_f16_skylake, *c = nk_cap_skylake_k; return;
+        case nk_kernel_l2_k: *m = (m_t)&nk_l2_f16_skylake, *c = nk_cap_skylake_k; return;
+        case nk_kernel_l2sq_k: *m = (m_t)&nk_l2sq_f16_skylake, *c = nk_cap_skylake_k; return;
+        case nk_kernel_angular_k: *m = (m_t)&nk_angular_f16_skylake, *c = nk_cap_skylake_k; return;
         default: break;
         }
 #endif
@@ -1936,13 +1935,17 @@ NK_INTERNAL void nk_find_kernel_punned_e4m3_(nk_capability_t v, nk_kernel_kind_t
     typedef nk_kernel_punned_t m_t;
 #if NK_TARGET_SAPPHIRE
     if (v & nk_cap_sapphire_k) switch (k) {
-        case nk_kernel_dot_k: *m = (m_t)&nk_dot_e4m3_sapphire, *c = nk_cap_sapphire_k; return;
+        case nk_kernel_l2_k: *m = (m_t)&nk_l2_e4m3_sapphire, *c = nk_cap_sapphire_k; return;
+        case nk_kernel_l2sq_k: *m = (m_t)&nk_l2sq_e4m3_sapphire, *c = nk_cap_sapphire_k; return;
         default: break;
         }
 #endif
 #if NK_TARGET_GENOA
     if (v & nk_cap_genoa_k) switch (k) {
         case nk_kernel_dot_k: *m = (m_t)&nk_dot_e4m3_genoa, *c = nk_cap_genoa_k; return;
+        case nk_kernel_l2_k: *m = (m_t)&nk_l2_e4m3_genoa, *c = nk_cap_genoa_k; return;
+        case nk_kernel_l2sq_k: *m = (m_t)&nk_l2sq_e4m3_genoa, *c = nk_cap_genoa_k; return;
+        case nk_kernel_angular_k: *m = (m_t)&nk_angular_e4m3_genoa, *c = nk_cap_genoa_k; return;
         default: break;
         }
 #endif
@@ -1963,6 +1966,9 @@ NK_INTERNAL void nk_find_kernel_punned_e4m3_(nk_capability_t v, nk_kernel_kind_t
 #if NK_TARGET_SKYLAKE
     if (v & nk_cap_skylake_k) switch (k) {
         case nk_kernel_dot_k: *m = (m_t)&nk_dot_e4m3_skylake, *c = nk_cap_skylake_k; return;
+        case nk_kernel_l2_k: *m = (m_t)&nk_l2_e4m3_skylake, *c = nk_cap_skylake_k; return;
+        case nk_kernel_l2sq_k: *m = (m_t)&nk_l2sq_e4m3_skylake, *c = nk_cap_skylake_k; return;
+        case nk_kernel_angular_k: *m = (m_t)&nk_angular_e4m3_skylake, *c = nk_cap_skylake_k; return;
         default: break;
         }
 #endif
@@ -1977,6 +1983,9 @@ NK_INTERNAL void nk_find_kernel_punned_e4m3_(nk_capability_t v, nk_kernel_kind_t
 #endif
     if (v & nk_cap_serial_k) switch (k) {
         case nk_kernel_dot_k: *m = (m_t)&nk_dot_e4m3_serial, *c = nk_cap_serial_k; return;
+        case nk_kernel_l2_k: *m = (m_t)&nk_l2_e4m3_serial, *c = nk_cap_serial_k; return;
+        case nk_kernel_l2sq_k: *m = (m_t)&nk_l2sq_e4m3_serial, *c = nk_cap_serial_k; return;
+        case nk_kernel_angular_k: *m = (m_t)&nk_angular_e4m3_serial, *c = nk_cap_serial_k; return;
         case nk_kernel_reduce_add_k: *m = (m_t)&nk_reduce_add_e4m3_serial, *c = nk_cap_serial_k; return;
         case nk_kernel_reduce_min_k: *m = (m_t)&nk_reduce_min_e4m3_serial, *c = nk_cap_serial_k; return;
         case nk_kernel_reduce_max_k: *m = (m_t)&nk_reduce_max_e4m3_serial, *c = nk_cap_serial_k; return;
@@ -1991,15 +2000,12 @@ NK_INTERNAL void nk_find_kernel_punned_e4m3_(nk_capability_t v, nk_kernel_kind_t
 NK_INTERNAL void nk_find_kernel_punned_e5m2_(nk_capability_t v, nk_kernel_kind_t k, nk_kernel_punned_t *m,
                                              nk_capability_t *c) {
     typedef nk_kernel_punned_t m_t;
-#if NK_TARGET_SAPPHIRE
-    if (v & nk_cap_sapphire_k) switch (k) {
-        case nk_kernel_dot_k: *m = (m_t)&nk_dot_e5m2_sapphire, *c = nk_cap_sapphire_k; return;
-        default: break;
-        }
-#endif
 #if NK_TARGET_GENOA
     if (v & nk_cap_genoa_k) switch (k) {
         case nk_kernel_dot_k: *m = (m_t)&nk_dot_e5m2_genoa, *c = nk_cap_genoa_k; return;
+        case nk_kernel_l2_k: *m = (m_t)&nk_l2_e5m2_genoa, *c = nk_cap_genoa_k; return;
+        case nk_kernel_l2sq_k: *m = (m_t)&nk_l2sq_e5m2_genoa, *c = nk_cap_genoa_k; return;
+        case nk_kernel_angular_k: *m = (m_t)&nk_angular_e5m2_genoa, *c = nk_cap_genoa_k; return;
         default: break;
         }
 #endif
@@ -2020,6 +2026,9 @@ NK_INTERNAL void nk_find_kernel_punned_e5m2_(nk_capability_t v, nk_kernel_kind_t
 #if NK_TARGET_SKYLAKE
     if (v & nk_cap_skylake_k) switch (k) {
         case nk_kernel_dot_k: *m = (m_t)&nk_dot_e5m2_skylake, *c = nk_cap_skylake_k; return;
+        case nk_kernel_l2_k: *m = (m_t)&nk_l2_e5m2_skylake, *c = nk_cap_skylake_k; return;
+        case nk_kernel_l2sq_k: *m = (m_t)&nk_l2sq_e5m2_skylake, *c = nk_cap_skylake_k; return;
+        case nk_kernel_angular_k: *m = (m_t)&nk_angular_e5m2_skylake, *c = nk_cap_skylake_k; return;
         default: break;
         }
 #endif
@@ -2034,6 +2043,9 @@ NK_INTERNAL void nk_find_kernel_punned_e5m2_(nk_capability_t v, nk_kernel_kind_t
 #endif
     if (v & nk_cap_serial_k) switch (k) {
         case nk_kernel_dot_k: *m = (m_t)&nk_dot_e5m2_serial, *c = nk_cap_serial_k; return;
+        case nk_kernel_l2_k: *m = (m_t)&nk_l2_e5m2_serial, *c = nk_cap_serial_k; return;
+        case nk_kernel_l2sq_k: *m = (m_t)&nk_l2sq_e5m2_serial, *c = nk_cap_serial_k; return;
+        case nk_kernel_angular_k: *m = (m_t)&nk_angular_e5m2_serial, *c = nk_cap_serial_k; return;
         case nk_kernel_reduce_add_k: *m = (m_t)&nk_reduce_add_e5m2_serial, *c = nk_cap_serial_k; return;
         case nk_kernel_reduce_min_k: *m = (m_t)&nk_reduce_min_e5m2_serial, *c = nk_cap_serial_k; return;
         case nk_kernel_reduce_max_k: *m = (m_t)&nk_reduce_max_e5m2_serial, *c = nk_cap_serial_k; return;
@@ -2182,8 +2194,6 @@ NK_INTERNAL void nk_find_kernel_punned_f16c_(nk_capability_t v, nk_kernel_kind_t
 #endif
 #if NK_TARGET_SAPPHIRE
     if (v & nk_cap_sapphire_k) switch (k) {
-        case nk_kernel_dot_k: *m = (m_t)&nk_dot_f16c_sapphire, *c = nk_cap_sapphire_k; return;
-        case nk_kernel_vdot_k: *m = (m_t)&nk_vdot_f16c_sapphire, *c = nk_cap_sapphire_k; return;
         case nk_kernel_bilinear_k: *m = (m_t)&nk_bilinear_f16c_sapphire, *c = nk_cap_sapphire_k; return;
         default: break;
         }

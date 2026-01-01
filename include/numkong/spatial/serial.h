@@ -116,17 +116,25 @@ NK_MAKE_COS(serial, bf16, f32, f32, nk_bf16_to_f32, NK_F32_RSQRT)    // nk_angul
 NK_MAKE_L2SQ(serial, bf16, f32, f32, nk_bf16_to_f32)                 // nk_l2sq_bf16_serial
 NK_MAKE_L2(serial, bf16, f32, f32, f32, nk_bf16_to_f32, NK_F32_SQRT) // nk_l2_bf16_serial
 
+NK_MAKE_COS(serial, e4m3, f32, f32, nk_e4m3_to_f32, NK_F32_RSQRT)    // nk_angular_e4m3_serial
+NK_MAKE_L2SQ(serial, e4m3, f32, f32, nk_e4m3_to_f32)                 // nk_l2sq_e4m3_serial
+NK_MAKE_L2(serial, e4m3, f32, f32, f32, nk_e4m3_to_f32, NK_F32_SQRT) // nk_l2_e4m3_serial
+
+NK_MAKE_COS(serial, e5m2, f32, f32, nk_e5m2_to_f32, NK_F32_RSQRT)    // nk_angular_e5m2_serial
+NK_MAKE_L2SQ(serial, e5m2, f32, f32, nk_e5m2_to_f32)                 // nk_l2sq_e5m2_serial
+NK_MAKE_L2(serial, e5m2, f32, f32, f32, nk_e5m2_to_f32, NK_F32_SQRT) // nk_l2_e5m2_serial
+
 NK_MAKE_COS(serial, i8, i32, f32, nk_assign_from_to_, NK_F32_RSQRT)      // nk_angular_i8_serial
 NK_MAKE_L2SQ(serial, i8, i32, u32, nk_assign_from_to_)                   // nk_l2sq_i8_serial
 NK_MAKE_L2SQ(accurate, i8, i32, u32, nk_assign_from_to_)                 // nk_l2sq_i8_accurate
 NK_MAKE_L2(serial, i8, i32, u32, f32, nk_assign_from_to_, NK_F32_SQRT)   // nk_l2_i8_serial
 NK_MAKE_L2(accurate, i8, i32, u32, f64, nk_assign_from_to_, NK_F64_SQRT) // nk_l2_i8_accurate
 
-NK_MAKE_COS(serial, u8, i32, f32, nk_assign_from_to_, NK_F32_RSQRT)      // nk_angular_u8_serial
-NK_MAKE_L2SQ(serial, u8, i32, u32, nk_assign_from_to_)                   // nk_l2sq_u8_serial
-NK_MAKE_L2SQ(accurate, u8, i32, u32, nk_assign_from_to_)                 // nk_l2sq_u8_accurate
-NK_MAKE_L2(serial, u8, i32, u32, f32, nk_assign_from_to_, NK_F32_SQRT)   // nk_l2_u8_serial
-NK_MAKE_L2(accurate, u8, i32, u32, f64, nk_assign_from_to_, NK_F64_SQRT) // nk_l2_u8_accurate
+NK_MAKE_COS(serial, u8, u32, f32, nk_assign_from_to_, NK_F32_RSQRT)      // nk_angular_u8_serial
+NK_MAKE_L2SQ(serial, u8, u32, u32, nk_assign_from_to_)                   // nk_l2sq_u8_serial
+NK_MAKE_L2SQ(accurate, u8, u32, u32, nk_assign_from_to_)                 // nk_l2sq_u8_accurate
+NK_MAKE_L2(serial, u8, u32, u32, f32, nk_assign_from_to_, NK_F32_SQRT)   // nk_l2_u8_serial
+NK_MAKE_L2(accurate, u8, u32, u32, f64, nk_assign_from_to_, NK_F64_SQRT) // nk_l2_u8_accurate
 
 NK_MAKE_COS(accurate, f32, f64, f64, nk_assign_from_to_, NK_F64_RSQRT)    // nk_angular_f32_accurate
 NK_MAKE_L2SQ(accurate, f32, f64, f64, nk_assign_from_to_)                 // nk_l2sq_f32_accurate
@@ -234,8 +242,9 @@ NK_INTERNAL void nk_angular_f32x4_finalize_serial(nk_angular_f32x4_state_serial_
                                                   nk_angular_f32x4_state_serial_t const *state_d, nk_f32_t query_norm,
                                                   nk_f32_t target_norm_a, nk_f32_t target_norm_b,
                                                   nk_f32_t target_norm_c, nk_f32_t target_norm_d, nk_f32_t *results) {
-    nk_f32_t dots[4];
-    nk_dot_f32x4_finalize_serial(state_a, state_b, state_c, state_d, dots);
+    nk_b128_vec_t dots_vec;
+    nk_dot_f32x4_finalize_serial(state_a, state_b, state_c, state_d, &dots_vec);
+    nk_f32_t dots[4] = {dots_vec.f32s[0], dots_vec.f32s[1], dots_vec.f32s[2], dots_vec.f32s[3]};
 
     nk_f32_t dot_product_a = dots[0], dot_product_b = dots[1];
     nk_f32_t dot_product_c = dots[2], dot_product_d = dots[3];
@@ -279,8 +288,9 @@ NK_INTERNAL void nk_l2_f32x4_finalize_serial(nk_l2_f32x4_state_serial_t const *s
                                              nk_l2_f32x4_state_serial_t const *state_d, nk_f32_t query_norm,
                                              nk_f32_t target_norm_a, nk_f32_t target_norm_b, nk_f32_t target_norm_c,
                                              nk_f32_t target_norm_d, nk_f32_t *results) {
-    nk_f32_t dots[4];
-    nk_dot_f32x4_finalize_serial(state_a, state_b, state_c, state_d, dots);
+    nk_b128_vec_t dots_vec;
+    nk_dot_f32x4_finalize_serial(state_a, state_b, state_c, state_d, &dots_vec);
+    nk_f32_t dots[4] = {dots_vec.f32s[0], dots_vec.f32s[1], dots_vec.f32s[2], dots_vec.f32s[3]};
 
     nk_f32_t dot_product_a = dots[0], dot_product_b = dots[1];
     nk_f32_t dot_product_c = dots[2], dot_product_d = dots[3];

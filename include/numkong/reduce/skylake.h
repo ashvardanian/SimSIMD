@@ -20,11 +20,6 @@
 extern "C" {
 #endif
 
-/** @brief Type-agnostic 256-bit full load (Skylake AVX-512). */
-NK_INTERNAL void nk_load_b256_skylake_(void const *src, nk_b256_vec_t *dst) {
-    dst->ymm = _mm256_loadu_si256((const __m256i *)src);
-}
-
 /** @brief Type-agnostic 512-bit full load (Skylake AVX-512). */
 NK_INTERNAL void nk_load_b512_skylake_(void const *src, nk_b512_vec_t *dst) { dst->zmm = _mm512_loadu_si512(src); }
 
