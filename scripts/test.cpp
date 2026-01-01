@@ -2616,7 +2616,7 @@ error_stats_t test_jaccard_b8(jaccard_b8_t kernel) {
                 }
             }
 
-            f128_t ref = (union_count > 0) ? (f128_t(1) - f128_t(intersection) / f128_t(union_count)) : f128_t(0);
+            f128_t ref = (union_count > 0) ? (f128_t(1) - f128_t(intersection) / f128_t(union_count)) : f128_t(1);
             std::uint64_t ulps = ulp_distance_from_reference(result, ref);
 
             stats.accumulate(static_cast<double>(ref), static_cast<double>(result), ulps);
@@ -3618,14 +3618,25 @@ void reference_centroid(f128_t const *points, std::size_t n, f128_t *centroid) {
 
 /**
  *  @brief Compute RMSD between two 3D point clouds using high precision.
- *  RMSD = sqrt(1/n * sum ||a_i - b_i||^2)
+ *  RMSD = sqrt(1/n * sum ||(a_i - centroid_a) - (b_i - centroid_b)||^2)
+ *  Note: We center both point clouds first to match the kernel behavior.
  */
 f128_t reference_rmsd(f128_t const *a, f128_t const *b, std::size_t n) {
+    // Compute centroids
+    f128_t ca[3] = {0, 0, 0}, cb[3] = {0, 0, 0};
+    for (std::size_t i = 0; i < n; i++) {
+        ca[0] += a[i * 3 + 0], ca[1] += a[i * 3 + 1], ca[2] += a[i * 3 + 2];
+        cb[0] += b[i * 3 + 0], cb[1] += b[i * 3 + 1], cb[2] += b[i * 3 + 2];
+    }
+    ca[0] /= n, ca[1] /= n, ca[2] /= n;
+    cb[0] /= n, cb[1] /= n, cb[2] /= n;
+
+    // Compute centered RMSD
     f128_t sum_sq = 0;
     for (std::size_t i = 0; i < n; i++) {
-        f128_t dx = a[i * 3 + 0] - b[i * 3 + 0];
-        f128_t dy = a[i * 3 + 1] - b[i * 3 + 1];
-        f128_t dz = a[i * 3 + 2] - b[i * 3 + 2];
+        f128_t dx = (a[i * 3 + 0] - ca[0]) - (b[i * 3 + 0] - cb[0]);
+        f128_t dy = (a[i * 3 + 1] - ca[1]) - (b[i * 3 + 1] - cb[1]);
+        f128_t dz = (a[i * 3 + 2] - ca[2]) - (b[i * 3 + 2] - cb[2]);
         sum_sq += dx * dx + dy * dy + dz * dz;
     }
     return mp::sqrt(sum_sq / f128_t(n));
