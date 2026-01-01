@@ -33,11 +33,11 @@ extern "C" {
  */
 NK_INTERNAL __m512h nk_f16x32_sin_sapphire_(__m512h const angles_radians) {
     // Constants for argument reduction (FP16 precision)
-    __m512h const pi = _mm512_set1_ph((_Float16)3.14159265f);
-    __m512h const pi_reciprocal = _mm512_set1_ph((_Float16)0.31830989f);
-    __m512h const coeff_5 = _mm512_set1_ph((_Float16)-0.00019f); // ~-1/5! adjusted for FP16
-    __m512h const coeff_3 = _mm512_set1_ph((_Float16)+0.00833f); // ~1/3! adjusted
-    __m512h const coeff_1 = _mm512_set1_ph((_Float16)-0.16667f); // ~-1/3! adjusted
+    __m512h const pi = _mm512_castsi512_ph(_mm512_set1_epi16(0x4248));             // 3.14159265
+    __m512h const pi_reciprocal = _mm512_castsi512_ph(_mm512_set1_epi16(0x3518));  // 0.31830989
+    __m512h const coeff_5 = _mm512_castsi512_ph(_mm512_set1_epi16((short)0x8A3A)); // -0.00019 (~-1/5!)
+    __m512h const coeff_3 = _mm512_castsi512_ph(_mm512_set1_epi16(0x2044));        // +0.00833 (~1/3!)
+    __m512h const coeff_1 = _mm512_castsi512_ph(_mm512_set1_epi16((short)0xB155)); // -0.16667 (~-1/3!)
 
     // Compute (multiples_of_pi) = round(angle / π)
     __m512h quotients = _mm512_mul_ph(angles_radians, pi_reciprocal);
@@ -68,15 +68,16 @@ NK_INTERNAL __m512h nk_f16x32_sin_sapphire_(__m512h const angles_radians) {
  */
 NK_INTERNAL __m512h nk_f16x32_cos_sapphire_(__m512h const angles_radians) {
     // Constants for argument reduction
-    __m512h const pi = _mm512_set1_ph((_Float16)3.14159265f);
-    __m512h const pi_half = _mm512_set1_ph((_Float16)1.57079633f);
-    __m512h const pi_reciprocal = _mm512_set1_ph((_Float16)0.31830989f);
-    __m512h const coeff_5 = _mm512_set1_ph((_Float16)-0.00019f);
-    __m512h const coeff_3 = _mm512_set1_ph((_Float16)+0.00833f);
-    __m512h const coeff_1 = _mm512_set1_ph((_Float16)-0.16667f);
+    __m512h const pi = _mm512_castsi512_ph(_mm512_set1_epi16(0x4248));             // 3.14159265
+    __m512h const pi_half = _mm512_castsi512_ph(_mm512_set1_epi16(0x3E48));        // 1.57079633
+    __m512h const pi_reciprocal = _mm512_castsi512_ph(_mm512_set1_epi16(0x3518));  // 0.31830989
+    __m512h const coeff_5 = _mm512_castsi512_ph(_mm512_set1_epi16((short)0x8A3A)); // -0.00019
+    __m512h const coeff_3 = _mm512_castsi512_ph(_mm512_set1_epi16(0x2044));        // +0.00833
+    __m512h const coeff_1 = _mm512_castsi512_ph(_mm512_set1_epi16((short)0xB155)); // -0.16667
+    __m512h const half = _mm512_castsi512_ph(_mm512_set1_epi16(0x3800));           // 0.5
 
     // Compute (multiples_of_pi) = round((angle / π) - 0.5)
-    __m512h quotients = _mm512_fmsub_ph(angles_radians, pi_reciprocal, _mm512_set1_ph((_Float16)0.5f));
+    __m512h quotients = _mm512_fmsub_ph(angles_radians, pi_reciprocal, half);
     __m512h rounded_quotients = _mm512_roundscale_ph(quotients, _MM_FROUND_TO_NEAREST_INT | _MM_FROUND_NO_EXC);
     __m512i multiples_of_pi = _mm512_cvtph_epi16(rounded_quotients);
 
@@ -104,12 +105,12 @@ NK_INTERNAL __m512h nk_f16x32_cos_sapphire_(__m512h const angles_radians) {
  */
 NK_INTERNAL __m512h nk_f16x32_atan_sapphire_(__m512h const inputs) {
     // Polynomial coefficients (reduced precision for FP16)
-    __m512h const coeff_4 = _mm512_set1_ph((_Float16)-0.333f);
-    __m512h const coeff_3 = _mm512_set1_ph((_Float16)+0.200f);
-    __m512h const coeff_2 = _mm512_set1_ph((_Float16)-0.142f);
-    __m512h const coeff_1 = _mm512_set1_ph((_Float16)+0.106f);
-    __m512h const pi_half = _mm512_set1_ph((_Float16)1.5708f);
-    __m512h const one = _mm512_set1_ph((_Float16)1.0f);
+    __m512h const coeff_4 = _mm512_castsi512_ph(_mm512_set1_epi16((short)0xB554)); // -0.333
+    __m512h const coeff_3 = _mm512_castsi512_ph(_mm512_set1_epi16(0x3266));        // +0.200
+    __m512h const coeff_2 = _mm512_castsi512_ph(_mm512_set1_epi16((short)0xB08B)); // -0.142
+    __m512h const coeff_1 = _mm512_castsi512_ph(_mm512_set1_epi16(0x2EC9));        // +0.106
+    __m512h const pi_half = _mm512_castsi512_ph(_mm512_set1_epi16(0x3E48));        // 1.5708
+    __m512h const one = _mm512_castsi512_ph(_mm512_set1_epi16(0x3C00));            // 1.0
 
     // Quadrant adjustments
     __m512h values = inputs;

@@ -21,6 +21,11 @@
 extern "C" {
 #endif
 
+/** @brief Convert f32 scalar to f16 bit pattern using AVX512FP16. Returns i32 with f16 in lower 16 bits. */
+NK_INTERNAL nk_i32_t nk_f32_to_f16_as_i16_sapphire_(nk_f32_t val) {
+    return _mm_cvtsi128_si32(_mm_castph_si128(_mm_cvtss_sh(_mm_setzero_ph(), _mm_set_ss(val))));
+}
+
 #if defined(__cplusplus)
 } // extern "C"
 #endif

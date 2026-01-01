@@ -21,6 +21,11 @@
 extern "C" {
 #endif
 
+/** @brief Convert f32 scalar to f16 bit pattern using F16C. Returns i32 with f16 in lower 16 bits. */
+NK_INTERNAL nk_i32_t nk_f32_to_f16_as_i16_haswell_(nk_f32_t val) {
+    return _mm_cvtsi128_si32(_mm_cvtps_ph(_mm_set_ss(val), _MM_FROUND_TO_NEAREST_INT));
+}
+
 /** @brief Type-agnostic 256-bit full load (Haswell AVX2). */
 NK_INTERNAL void nk_load_b256_haswell_(void const *src, nk_b256_vec_t *dst) {
     dst->ymm = _mm256_loadu_si256((const __m256i *)src);
