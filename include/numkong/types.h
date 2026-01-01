@@ -867,10 +867,20 @@ NK_INTERNAL nk_f32_t nk_f32_approximate_log(nk_f32_t number) {
 }
 
 /**
- *  @brief  For compilers that don't natively support the `_Float16` type,
- *          upcasts contents into a more conventional `float`.
+ *  @brief  Expands an `f16` (IEEE-754 16-bit) to a `float`.
  *
- *  @warning  This function won't handle boundary conditions well.
+ *  Handles all IEEE-754 edge cases:
+ *
+ *       Input        F16 Hex   F32 Hex       Description
+ *       +0           0x0000    0x00000000    Positive zero
+ *       -0           0x8000    0x80000000    Negative zero
+ *       +inf         0x7C00    0x7F800000    Positive infinity
+ *       -inf         0xFC00    0xFF800000    Negative infinity
+ *       NaN          0x7E00    0x7FC00000    Quiet NaN (payload preserved)
+ *       Min normal   0x0400    0x38800000    2^-14
+ *       Max normal   0x7BFF    0x477FE000    65504
+ *       Min denorm   0x0001    0x33800000    2^-24
+ *       Max denorm   0x03FF    0x387FC000    2^-14 - 2^-24
  *
  *  https://stackoverflow.com/a/60047308
  *  https://gist.github.com/milhidaka/95863906fe828198f47991c813dbe233
@@ -882,22 +892,56 @@ NK_INTERNAL void nk_f16_to_f32_(nk_f16_t const *src, nk_f32_t *dest) {
 #else
     unsigned short x;
     nk_copy_bytes_(&x, src, 2);
-    unsigned int exponent = (x & 0x7C00) >> 10;
-    unsigned int mantissa = (x & 0x03FF) << 13;
-    nk_fui32_t mantissa_conv;
-    mantissa_conv.f = (float)mantissa;
-    unsigned int v = (mantissa_conv.u) >> 23;
+
+    unsigned int sign = (x >> 15) & 1;
+    unsigned int exponent = (x >> 10) & 0x1F;
+    unsigned int mantissa = x & 0x03FF;
+
     nk_fui32_t conv;
-    conv.u = (x & 0x8000) << 16 | (exponent != 0) * ((exponent + 112) << 23 | mantissa) |
-             ((exponent == 0) & (mantissa != 0)) * ((v - 37) << 23 | ((mantissa << (150 - v)) & 0x007FE000));
+
+    if (exponent == 0) {
+        if (mantissa == 0) {
+            // Zero (preserve sign)
+            conv.u = sign << 31;
+        }
+        else {
+            // Denormal: value = mantissa * 2^-24
+            // Use FPU normalization, then subtract 24 from exponent
+            nk_fui32_t temp;
+            temp.f = (float)mantissa;
+            conv.u = (sign << 31) | (temp.u - 0x0C000000);
+        }
+    }
+    else if (exponent == 31) {
+        // Infinity (mantissa=0) or NaN (mantissa!=0)
+        conv.u = (sign << 31) | 0x7F800000 | (mantissa << 13);
+    }
+    else {
+        // Normal: rebias exponent (127-15=112), shift mantissa
+        conv.u = (sign << 31) | ((exponent + 112) << 23) | (mantissa << 13);
+    }
+
     *dest = conv.f;
 #endif
 }
 
 /**
- *  @brief  Compresses a `float` to an `f16` representation (IEEE-754 16-bit floating-point format).
+ *  @brief  Compresses a `float` to an `f16` (IEEE-754 16-bit).
  *
- *  @warning  This function won't handle boundary conditions well.
+ *  Handles all IEEE-754 edge cases with round-to-nearest:
+ *
+ *      Input           F32 Hex       F16 Hex   Description
+ *      +0              0x00000000    0x0000    Positive zero
+ *      -0              0x80000000    0x8000    Negative zero
+ *      +inf            0x7F800000    0x7C00    Positive infinity
+ *      -inf            0xFF800000    0xFC00    Negative infinity
+ *      NaN             0x7FC00000    0x7E00    Quiet NaN (payload truncated)
+ *      1.0             0x3F800000    0x3C00    Normal number
+ *      65504           0x477FE000    0x7BFF    Max f16 normal
+ *      65520+          >0x477FE000   0x7C00    Overflow -> infinity
+ *      2^-14           0x38800000    0x0400    Min f16 normal
+ *      2^-24           0x33800000    0x0001    Min f16 denormal
+ *      <2^-25          <0x33000000   0x0000    Underflow -> zero
  *
  *  https://stackoverflow.com/a/60047308
  *  https://gist.github.com/milhidaka/95863906fe828198f47991c813dbe233
@@ -909,12 +953,52 @@ NK_INTERNAL void nk_f32_to_f16_(nk_f32_t const *src, nk_f16_t *dest) {
 #else
     nk_fui32_t conv;
     conv.f = *src;
-    unsigned int b = conv.u + 0x00001000;
-    unsigned int e = (b & 0x7F800000) >> 23;
-    unsigned int m = b & 0x007FFFFF;
-    unsigned short result = ((b & 0x80000000) >> 16) | (e > 112) * ((((e - 112) << 10) & 0x7C00) | (m >> 13)) |
-                            ((e < 113) & (e > 101)) * ((((0x007FF000 + m) >> (125 - e)) + 1) >> 1) |
-                            ((e > 143) * 0x7FFF);
+
+    unsigned int sign = (conv.u >> 31) & 1;
+    unsigned int exponent = (conv.u >> 23) & 0xFF;
+    unsigned int mantissa = conv.u & 0x007FFFFF;
+
+    unsigned short result;
+
+    if (exponent == 0) {
+        // Zero or f32 denormal -> f16 zero
+        result = (unsigned short)(sign << 15);
+    }
+    else if (exponent == 255) {
+        // Infinity or NaN
+        unsigned short payload = (unsigned short)(mantissa >> 13);
+        if (mantissa != 0 && payload == 0) payload = 1; // Preserve NaN-ness
+        result = (unsigned short)((sign << 15) | 0x7C00 | payload);
+    }
+    else if (exponent < 103) {
+        // Too small for f16 denormal -> zero
+        result = (unsigned short)(sign << 15);
+    }
+    else if (exponent < 113) {
+        // F16 denormal range
+        unsigned int shift = 113 - exponent;
+        unsigned int mant = (0x00800000 | mantissa) >> (shift + 13);
+        result = (unsigned short)((sign << 15) | mant);
+    }
+    else if (exponent < 143) {
+        // Normal f16 range with rounding
+        unsigned int f16_exp = exponent - 112;
+        unsigned int f16_mant = mantissa >> 13;
+        if (mantissa & 0x1000) { // Round to nearest
+            f16_mant++;
+            if (f16_mant > 0x3FF) {
+                f16_mant = 0;
+                f16_exp++;
+            }
+        }
+        if (f16_exp > 30) result = (unsigned short)((sign << 15) | 0x7C00);
+        else result = (unsigned short)((sign << 15) | (f16_exp << 10) | f16_mant);
+    }
+    else {
+        // Overflow -> infinity
+        result = (unsigned short)((sign << 15) | 0x7C00);
+    }
+
     nk_copy_bytes_(dest, &result, 2);
 #endif
 }

@@ -139,17 +139,17 @@ nk_vdot_bf16c_genoa_cycle:
  *  BF16 format: S EEEEEEEE MMMMMMM (bias=127)
  *  Conversion: sign<<8, (exp+120)<<7, mant<<4
  */
-NK_INTERNAL __m512i nk_e4m3_to_bf16_genoa_(__m256i fp8) {
-    __m512i v = _mm512_cvtepu8_epi16(fp8);
+NK_INTERNAL __m512i nk_e4m3x32_to_bf16x32_genoa_(__m256i e4m3x32) {
+    __m512i e4m3_i16x32 = _mm512_cvtepu8_epi16(e4m3x32);
     // Sign: shift bit 7 to bit 15
-    __m512i sign = _mm512_and_si512(_mm512_slli_epi16(v, 8), _mm512_set1_epi16((short)0x8000));
+    __m512i sign_i16x32 = _mm512_and_si512(_mm512_slli_epi16(e4m3_i16x32, 8), _mm512_set1_epi16((short)0x8000));
     // Lower 7 bits contain exp (4) and mant (3): shift left 4 and add bias
-    __m512i low7 = _mm512_and_si512(v, _mm512_set1_epi16(0x7F));
-    __m512i exp_mant = _mm512_add_epi16(_mm512_slli_epi16(low7, 4), _mm512_set1_epi16(0x3C00)); // 120<<7 = 0x3C00
-    // DAZ: use TEST to check if exp bits (bits 6-3) are nonzero - single instruction!
-    __mmask32 has_exp = _mm512_test_epi16_mask(v, _mm512_set1_epi16(0x78));
-    __m512i masked_exp_mant = _mm512_maskz_mov_epi16(has_exp, exp_mant);
-    return _mm512_or_si512(sign, masked_exp_mant);
+    __m512i low7_i16x32 = _mm512_and_si512(e4m3_i16x32, _mm512_set1_epi16(0x7F));
+    __m512i exp_mant_i16x32 = _mm512_add_epi16(_mm512_slli_epi16(low7_i16x32, 4), _mm512_set1_epi16(0x3C00));
+    // DAZ: use TEST to check if exp bits (bits 6-3) are nonzero
+    __mmask32 has_exp_mask = _mm512_test_epi16_mask(e4m3_i16x32, _mm512_set1_epi16(0x78));
+    __m512i masked_exp_mant_i16x32 = _mm512_maskz_mov_epi16(has_exp_mask, exp_mant_i16x32);
+    return _mm512_or_si512(sign_i16x32, masked_exp_mant_i16x32);
 }
 
 /**
@@ -162,16 +162,16 @@ NK_INTERNAL __m512i nk_e4m3_to_bf16_genoa_(__m256i fp8) {
  *  BF16 format: S EEEEEEEE MMMMMMM (bias=127)
  *  Conversion: sign<<8, (exp+112)<<7, mant<<5
  */
-NK_INTERNAL __m512i nk_e5m2_to_bf16_genoa_(__m256i fp8) {
-    __m512i v = _mm512_cvtepu8_epi16(fp8);
-    __m512i sign = _mm512_and_si512(_mm512_slli_epi16(v, 8), _mm512_set1_epi16((short)0x8000));
+NK_INTERNAL __m512i nk_e5m2x32_to_bf16x32_genoa_(__m256i e5m2x32) {
+    __m512i e5m2_i16x32 = _mm512_cvtepu8_epi16(e5m2x32);
+    __m512i sign_i16x32 = _mm512_and_si512(_mm512_slli_epi16(e5m2_i16x32, 8), _mm512_set1_epi16((short)0x8000));
     // Lower 7 bits: exp(5) + mant(2), shift left 5 and add bias
-    __m512i low7 = _mm512_and_si512(v, _mm512_set1_epi16(0x7F));
-    __m512i exp_mant = _mm512_add_epi16(_mm512_slli_epi16(low7, 5), _mm512_set1_epi16(0x3800)); // 112<<7 = 0x3800
-    // DAZ: use TEST to check if exp bits (bits 6-2) are nonzero - single instruction!
-    __mmask32 has_exp = _mm512_test_epi16_mask(v, _mm512_set1_epi16(0x7C));
-    __m512i masked_exp_mant = _mm512_maskz_mov_epi16(has_exp, exp_mant);
-    return _mm512_or_si512(sign, masked_exp_mant);
+    __m512i low7_i16x32 = _mm512_and_si512(e5m2_i16x32, _mm512_set1_epi16(0x7F));
+    __m512i exp_mant_i16x32 = _mm512_add_epi16(_mm512_slli_epi16(low7_i16x32, 5), _mm512_set1_epi16(0x3800));
+    // DAZ: use TEST to check if exp bits (bits 6-2) are nonzero
+    __mmask32 has_exp_mask = _mm512_test_epi16_mask(e5m2_i16x32, _mm512_set1_epi16(0x7C));
+    __m512i masked_exp_mant_i16x32 = _mm512_maskz_mov_epi16(has_exp_mask, exp_mant_i16x32);
+    return _mm512_or_si512(sign_i16x32, masked_exp_mant_i16x32);
 }
 
 NK_PUBLIC void nk_dot_e4m3_genoa(nk_e4m3_t const *a_scalars, nk_e4m3_t const *b_scalars, nk_size_t count_scalars,
@@ -192,8 +192,8 @@ nk_dot_e4m3_genoa_cycle:
         a_scalars += 32, b_scalars += 32, count_scalars -= 32;
     }
     // Convert E4M3 to BF16 and compute dot product
-    __m512i a_bf16x32 = nk_e4m3_to_bf16_genoa_(a_e4m3x32);
-    __m512i b_bf16x32 = nk_e4m3_to_bf16_genoa_(b_e4m3x32);
+    __m512i a_bf16x32 = nk_e4m3x32_to_bf16x32_genoa_(a_e4m3x32);
+    __m512i b_bf16x32 = nk_e4m3x32_to_bf16x32_genoa_(b_e4m3x32);
     sum_f32x16 = _mm512_dpbf16_ps(sum_f32x16, (__m512bh)(a_bf16x32), (__m512bh)(b_bf16x32));
     if (count_scalars) goto nk_dot_e4m3_genoa_cycle;
 
@@ -218,8 +218,8 @@ nk_dot_e5m2_genoa_cycle:
         a_scalars += 32, b_scalars += 32, count_scalars -= 32;
     }
     // Convert E5M2 to BF16 and compute dot product
-    __m512i a_bf16x32 = nk_e5m2_to_bf16_genoa_(a_e5m2x32);
-    __m512i b_bf16x32 = nk_e5m2_to_bf16_genoa_(b_e5m2x32);
+    __m512i a_bf16x32 = nk_e5m2x32_to_bf16x32_genoa_(a_e5m2x32);
+    __m512i b_bf16x32 = nk_e5m2x32_to_bf16x32_genoa_(b_e5m2x32);
     sum_f32x16 = _mm512_dpbf16_ps(sum_f32x16, (__m512bh)(a_bf16x32), (__m512bh)(b_bf16x32));
     if (count_scalars) goto nk_dot_e5m2_genoa_cycle;
 
@@ -255,8 +255,8 @@ NK_INTERNAL void nk_dot_e4m3x32_init_genoa(nk_dot_e4m3x32_state_genoa_t *state) 
 }
 
 NK_INTERNAL void nk_dot_e4m3x32_update_genoa(nk_dot_e4m3x32_state_genoa_t *state, nk_b256_vec_t a, nk_b256_vec_t b) {
-    __m512i a_bf16x32 = nk_e4m3_to_bf16_genoa_(a.ymm);
-    __m512i b_bf16x32 = nk_e4m3_to_bf16_genoa_(b.ymm);
+    __m512i a_bf16x32 = nk_e4m3x32_to_bf16x32_genoa_(a.ymm);
+    __m512i b_bf16x32 = nk_e4m3x32_to_bf16x32_genoa_(b.ymm);
     state->sum_f32x16 = _mm512_dpbf16_ps(state->sum_f32x16, (__m512bh)(a_bf16x32), (__m512bh)(b_bf16x32));
 }
 
@@ -277,8 +277,8 @@ NK_INTERNAL void nk_dot_e5m2x32_init_genoa(nk_dot_e5m2x32_state_genoa_t *state) 
 }
 
 NK_INTERNAL void nk_dot_e5m2x32_update_genoa(nk_dot_e5m2x32_state_genoa_t *state, nk_b256_vec_t a, nk_b256_vec_t b) {
-    __m512i a_bf16x32 = nk_e5m2_to_bf16_genoa_(a.ymm);
-    __m512i b_bf16x32 = nk_e5m2_to_bf16_genoa_(b.ymm);
+    __m512i a_bf16x32 = nk_e5m2x32_to_bf16x32_genoa_(a.ymm);
+    __m512i b_bf16x32 = nk_e5m2x32_to_bf16x32_genoa_(b.ymm);
     state->sum_f32x16 = _mm512_dpbf16_ps(state->sum_f32x16, (__m512bh)(a_bf16x32), (__m512bh)(b_bf16x32));
 }
 
