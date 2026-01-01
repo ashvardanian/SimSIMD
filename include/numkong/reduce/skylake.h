@@ -91,19 +91,24 @@ NK_INTERNAL __m256i nk_f32x16_to_bf16x16_skylake_(__m512 a) {
  *  F32 format:  S EEEEEEEE MMMMMMMMMMMMMMMMMMMMMMM (bias=127)
  *  Conversion:  sign<<31, (exp+120)<<23, mant<<20
  */
-NK_INTERNAL __m512 nk_e4m3x16_to_f32x16_skylake_(__m128i fp8) {
-    __m512i v = _mm512_cvtepu8_epi32(fp8);
-    __m512i sign = _mm512_slli_epi32(_mm512_and_si512(_mm512_srli_epi32(v, 7), _mm512_set1_epi32(1)), 31);
-    __m512i exp = _mm512_and_si512(_mm512_srli_epi32(v, 3), _mm512_set1_epi32(0x0F));
-    __m512i mant = _mm512_and_si512(v, _mm512_set1_epi32(0x07));
-    // Build F32: (exp + 120) << 23, mant << 20
-    __m512i f32_exp = _mm512_slli_epi32(_mm512_add_epi32(exp, _mm512_set1_epi32(120)), 23);
-    __m512i f32_mant = _mm512_slli_epi32(mant, 20);
-    __m512i f32_bits = _mm512_or_si512(sign, _mm512_or_si512(f32_exp, f32_mant));
-    // DAZ: use TEST to check if exp bits (bits 6-3) are nonzero - single instruction!
-    __mmask16 has_exp = _mm512_test_epi32_mask(v, _mm512_set1_epi32(0x78));
-    f32_bits = _mm512_maskz_mov_epi32(has_exp, f32_bits);
-    return _mm512_castsi512_ps(f32_bits);
+NK_INTERNAL __m512 nk_e4m3x16_to_f32x16_skylake_(__m128i e4m3_i8x16) {
+    __m512i e4m3_i32x16 = _mm512_cvtepu8_epi32(e4m3_i8x16);
+
+    // DAZ: check if exp bits (bits 6-3) are nonzero
+    __mmask16 has_exp_mask = _mm512_test_epi32_mask(e4m3_i32x16, _mm512_set1_epi32(0x78));
+
+    // Extract fields
+    __m512i exp_i32x16 = _mm512_and_si512(_mm512_srli_epi32(e4m3_i32x16, 3), _mm512_set1_epi32(0x0F));
+    __m512i mant_i32x16 = _mm512_and_si512(e4m3_i32x16, _mm512_set1_epi32(0x07));
+
+    // Build F32 with masked shifts (zero if denormal)
+    __m512i f32_sign_i32x16 = _mm512_maskz_slli_epi32(has_exp_mask, _mm512_srli_epi32(e4m3_i32x16, 7), 31);
+    __m512i f32_exp_i32x16 = _mm512_maskz_slli_epi32(has_exp_mask, _mm512_add_epi32(exp_i32x16, _mm512_set1_epi32(120)),
+                                                     23);
+    __m512i f32_mant_i32x16 = _mm512_maskz_slli_epi32(has_exp_mask, mant_i32x16, 20);
+
+    // Combine using ternlog: sign | exp | mant
+    return _mm512_castsi512_ps(_mm512_ternarylogic_epi32(f32_sign_i32x16, f32_exp_i32x16, f32_mant_i32x16, 0xFE));
 }
 
 /*  Convert 16x E5M2 values to 16x F32 values using bit manipulation.
@@ -113,19 +118,24 @@ NK_INTERNAL __m512 nk_e4m3x16_to_f32x16_skylake_(__m128i fp8) {
  *  F32 format:  S EEEEEEEE MMMMMMMMMMMMMMMMMMMMMMM (bias=127)
  *  Conversion:  sign<<31, (exp+112)<<23, mant<<21
  */
-NK_INTERNAL __m512 nk_e5m2x16_to_f32x16_skylake_(__m128i fp8) {
-    __m512i v = _mm512_cvtepu8_epi32(fp8);
-    __m512i sign = _mm512_slli_epi32(_mm512_and_si512(_mm512_srli_epi32(v, 7), _mm512_set1_epi32(1)), 31);
-    __m512i exp = _mm512_and_si512(_mm512_srli_epi32(v, 2), _mm512_set1_epi32(0x1F));
-    __m512i mant = _mm512_and_si512(v, _mm512_set1_epi32(0x03));
-    // Build F32: (exp + 112) << 23, mant << 21
-    __m512i f32_exp = _mm512_slli_epi32(_mm512_add_epi32(exp, _mm512_set1_epi32(112)), 23);
-    __m512i f32_mant = _mm512_slli_epi32(mant, 21);
-    __m512i f32_bits = _mm512_or_si512(sign, _mm512_or_si512(f32_exp, f32_mant));
-    // DAZ: use TEST to check if exp bits (bits 6-2) are nonzero - single instruction!
-    __mmask16 has_exp = _mm512_test_epi32_mask(v, _mm512_set1_epi32(0x7C));
-    f32_bits = _mm512_maskz_mov_epi32(has_exp, f32_bits);
-    return _mm512_castsi512_ps(f32_bits);
+NK_INTERNAL __m512 nk_e5m2x16_to_f32x16_skylake_(__m128i e5m2_i8x16) {
+    __m512i e5m2_i32x16 = _mm512_cvtepu8_epi32(e5m2_i8x16);
+
+    // DAZ: check if exp bits (bits 6-2) are nonzero
+    __mmask16 has_exp_mask = _mm512_test_epi32_mask(e5m2_i32x16, _mm512_set1_epi32(0x7C));
+
+    // Extract fields
+    __m512i exp_i32x16 = _mm512_and_si512(_mm512_srli_epi32(e5m2_i32x16, 2), _mm512_set1_epi32(0x1F));
+    __m512i mant_i32x16 = _mm512_and_si512(e5m2_i32x16, _mm512_set1_epi32(0x03));
+
+    // Build F32 with masked shifts (zero if denormal)
+    __m512i f32_sign_i32x16 = _mm512_maskz_slli_epi32(has_exp_mask, _mm512_srli_epi32(e5m2_i32x16, 7), 31);
+    __m512i f32_exp_i32x16 = _mm512_maskz_slli_epi32(has_exp_mask, _mm512_add_epi32(exp_i32x16, _mm512_set1_epi32(112)),
+                                                     23);
+    __m512i f32_mant_i32x16 = _mm512_maskz_slli_epi32(has_exp_mask, mant_i32x16, 21);
+
+    // Combine using ternlog: sign | exp | mant
+    return _mm512_castsi512_ps(_mm512_ternarylogic_epi32(f32_sign_i32x16, f32_exp_i32x16, f32_mant_i32x16, 0xFE));
 }
 
 /** @brief Horizontal sum of 16 floats in a ZMM register (native f32 precision). */
