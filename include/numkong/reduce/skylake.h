@@ -84,58 +84,50 @@ NK_INTERNAL __m256i nk_f32x16_to_bf16x16_skylake_(__m512 a) {
     return _mm512_cvtepi32_epi16(x);
 }
 
-/*  Convert 16x E4M3 values to 16x F32 values using bit manipulation.
- *  This works on Skylake-X and later (AVX-512F only, no BF16/FP16 required).
- *
- *  E4M3 format: S EEEE MMM (bias=7, range: 2^-6 to 448)
- *  F32 format:  S EEEEEEEE MMMMMMMMMMMMMMMMMMMMMMM (bias=127)
- *  Conversion:  sign<<31, (exp+120)<<23, mant<<20
- */
+/** @brief Convert 16x e4m3 to 16x f32 via bit manipulation (AVX-512).
+ *  E4M3 format: S EEEE MMM (bias=7). F32: sign<<31, (exp+120)<<23, mantissa<<20.
+ *  Subnormals (exp=0): value = mantissa * 2^(1-7) * 2^(-3) = mantissa / 512. */
 NK_INTERNAL __m512 nk_e4m3x16_to_f32x16_skylake_(__m128i e4m3_i8x16) {
     __m512i e4m3_i32x16 = _mm512_cvtepu8_epi32(e4m3_i8x16);
 
-    // DAZ: check if exp bits (bits 6-3) are nonzero
-    __mmask16 has_exp_mask = _mm512_test_epi32_mask(e4m3_i32x16, _mm512_set1_epi32(0x78));
-
     // Extract fields
     __m512i exp_i32x16 = _mm512_and_si512(_mm512_srli_epi32(e4m3_i32x16, 3), _mm512_set1_epi32(0x0F));
-    __m512i mant_i32x16 = _mm512_and_si512(e4m3_i32x16, _mm512_set1_epi32(0x07));
+    __m512i mantissa_i32x16 = _mm512_and_si512(e4m3_i32x16, _mm512_set1_epi32(0x07));
+    __m512i sign_i32x16 = _mm512_slli_epi32(_mm512_srli_epi32(e4m3_i32x16, 7), 31);
 
-    // Build F32 with masked shifts (zero if denormal)
-    __m512i f32_sign_i32x16 = _mm512_maskz_slli_epi32(has_exp_mask, _mm512_srli_epi32(e4m3_i32x16, 7), 31);
-    __m512i f32_exp_i32x16 = _mm512_maskz_slli_epi32(has_exp_mask, _mm512_add_epi32(exp_i32x16, _mm512_set1_epi32(120)),
-                                                     23);
-    __m512i f32_mant_i32x16 = _mm512_maskz_slli_epi32(has_exp_mask, mant_i32x16, 20);
+    // Normal path: sign | ((exp+120)<<23) | (mantissa<<20)
+    __m512i f32_exp_i32x16 = _mm512_slli_epi32(_mm512_add_epi32(exp_i32x16, _mm512_set1_epi32(120)), 23);
+    __m512i f32_mantissa_i32x16 = _mm512_slli_epi32(mantissa_i32x16, 20);
+    __m512 result_f32x16 = _mm512_castsi512_ps(
+        _mm512_ternarylogic_epi32(sign_i32x16, f32_exp_i32x16, f32_mantissa_i32x16, 0xFE));
 
-    // Combine using ternlog: sign | exp | mant
-    return _mm512_castsi512_ps(_mm512_ternarylogic_epi32(f32_sign_i32x16, f32_exp_i32x16, f32_mant_i32x16, 0xFE));
+    // Subnormal fix: for exp==0 lanes, replace with (mantissa / 512) | sign using masked OR
+    __mmask16 is_subnormal = _mm512_testn_epi32_mask(e4m3_i32x16, _mm512_set1_epi32(0x78));
+    __m512 subnorm_abs_f32x16 = _mm512_mul_ps(_mm512_cvtepi32_ps(mantissa_i32x16), _mm512_set1_ps(1.0f / 512.0f));
+    return _mm512_mask_or_ps(result_f32x16, is_subnormal, subnorm_abs_f32x16, _mm512_castsi512_ps(sign_i32x16));
 }
 
-/*  Convert 16x E5M2 values to 16x F32 values using bit manipulation.
- *  This works on Skylake-X and later (AVX-512F only, no BF16/FP16 required).
- *
- *  E5M2 format: S EEEEE MM (bias=15, range: 2^-14 to 57344)
- *  F32 format:  S EEEEEEEE MMMMMMMMMMMMMMMMMMMMMMM (bias=127)
- *  Conversion:  sign<<31, (exp+112)<<23, mant<<21
- */
+/** @brief Convert 16x e5m2 to 16x f32 via bit manipulation (AVX-512).
+ *  E5M2 format: S EEEEE MM (bias=15). F32: sign<<31, (exp+112)<<23, mantissa<<21.
+ *  Subnormals (exp=0): value = mantissa * 2^(1-15) * 2^(-2) = mantissa / 65536. */
 NK_INTERNAL __m512 nk_e5m2x16_to_f32x16_skylake_(__m128i e5m2_i8x16) {
     __m512i e5m2_i32x16 = _mm512_cvtepu8_epi32(e5m2_i8x16);
 
-    // DAZ: check if exp bits (bits 6-2) are nonzero
-    __mmask16 has_exp_mask = _mm512_test_epi32_mask(e5m2_i32x16, _mm512_set1_epi32(0x7C));
-
     // Extract fields
     __m512i exp_i32x16 = _mm512_and_si512(_mm512_srli_epi32(e5m2_i32x16, 2), _mm512_set1_epi32(0x1F));
-    __m512i mant_i32x16 = _mm512_and_si512(e5m2_i32x16, _mm512_set1_epi32(0x03));
+    __m512i mantissa_i32x16 = _mm512_and_si512(e5m2_i32x16, _mm512_set1_epi32(0x03));
+    __m512i sign_i32x16 = _mm512_slli_epi32(_mm512_srli_epi32(e5m2_i32x16, 7), 31);
 
-    // Build F32 with masked shifts (zero if denormal)
-    __m512i f32_sign_i32x16 = _mm512_maskz_slli_epi32(has_exp_mask, _mm512_srli_epi32(e5m2_i32x16, 7), 31);
-    __m512i f32_exp_i32x16 = _mm512_maskz_slli_epi32(has_exp_mask, _mm512_add_epi32(exp_i32x16, _mm512_set1_epi32(112)),
-                                                     23);
-    __m512i f32_mant_i32x16 = _mm512_maskz_slli_epi32(has_exp_mask, mant_i32x16, 21);
+    // Normal path: sign | ((exp+112)<<23) | (mantissa<<21)
+    __m512i f32_exp_i32x16 = _mm512_slli_epi32(_mm512_add_epi32(exp_i32x16, _mm512_set1_epi32(112)), 23);
+    __m512i f32_mantissa_i32x16 = _mm512_slli_epi32(mantissa_i32x16, 21);
+    __m512 result_f32x16 = _mm512_castsi512_ps(
+        _mm512_ternarylogic_epi32(sign_i32x16, f32_exp_i32x16, f32_mantissa_i32x16, 0xFE));
 
-    // Combine using ternlog: sign | exp | mant
-    return _mm512_castsi512_ps(_mm512_ternarylogic_epi32(f32_sign_i32x16, f32_exp_i32x16, f32_mant_i32x16, 0xFE));
+    // Subnormal fix: for exp==0 lanes, replace with (mantissa / 65536) | sign using masked OR
+    __mmask16 is_subnormal = _mm512_testn_epi32_mask(e5m2_i32x16, _mm512_set1_epi32(0x7C));
+    __m512 subnorm_abs_f32x16 = _mm512_mul_ps(_mm512_cvtepi32_ps(mantissa_i32x16), _mm512_set1_ps(1.0f / 65536.0f));
+    return _mm512_mask_or_ps(result_f32x16, is_subnormal, subnorm_abs_f32x16, _mm512_castsi512_ps(sign_i32x16));
 }
 
 /** @brief Horizontal sum of 16 floats in a ZMM register (native f32 precision). */

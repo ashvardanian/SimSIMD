@@ -344,69 +344,119 @@ NK_INTERNAL __m256 nk_partial_load_e5m2x8_to_f32x8_haswell_(nk_e5m2_t const *src
 }
 
 /** @brief Convert 8x f32 to 8x e4m3 via bit manipulation (AVX2).
- *  E4M3 format: S EEEE MMM (bias=7). Extract sign, rebias exponent (f32_exp - 127 + 7 = f32_exp - 120),
- *  clamp to [0,15], take top 3 mantissa bits, handle underflow. */
+ *  E4M3 format: S EEEE MMM (bias=7). Handles normal, subnormal, and overflow cases.
+ *  Subnormals (f32_exp <= 120): mantissa = round(abs_f32 * 512), clamped to [0,7]. */
 NK_INTERNAL __m128i nk_f32x8_to_e4m3x8_haswell_(__m256 f32x8) {
     __m256i bits_i32x8 = _mm256_castps_si256(f32x8);
-    // Extract sign bit (bit 31)
     __m256i sign_i32x8 = _mm256_srli_epi32(bits_i32x8, 31);
-    // Extract f32 exponent (bits 30:23)
     __m256i f32_exp_i32x8 = _mm256_and_si256(_mm256_srli_epi32(bits_i32x8, 23), _mm256_set1_epi32(0xFF));
-    // Extract f32 mantissa (bits 22:0), take top 3 bits -> bits 22:20
-    __m256i f32_mant_i32x8 = _mm256_and_si256(_mm256_srli_epi32(bits_i32x8, 20), _mm256_set1_epi32(0x07));
-    // Rebias exponent: e4m3_exp = f32_exp - 120 (bias 127 -> bias 7)
-    __m256i e4m3_exp_i32x8 = _mm256_sub_epi32(f32_exp_i32x8, _mm256_set1_epi32(120));
-    // Clamp exponent to [0, 15], detect underflow (exp < 0) and overflow (exp > 15)
-    __m256i underflow_i32x8 = _mm256_cmpgt_epi32(_mm256_setzero_si256(), e4m3_exp_i32x8);
+
+    // Round mantissa from 23 to 3 bits using RNE (round to nearest, ties to even)
+    // RNE trick: add (half - 1 + lsb) where lsb is the bit that will become the new lsb after shift
+    __m256i significand_i32x8 = _mm256_or_si256(_mm256_and_si256(bits_i32x8, _mm256_set1_epi32(0x007FFFFF)),
+                                                 _mm256_set1_epi32(0x00800000)); // Add implicit 1 bit
+    __m256i lsb_i32x8 = _mm256_and_si256(_mm256_srli_epi32(significand_i32x8, 20), _mm256_set1_epi32(1));
+    __m256i rounding_bias_i32x8 = _mm256_add_epi32(_mm256_set1_epi32(0x0007FFFF), lsb_i32x8);
+    __m256i rounded_sig_i32x8 = _mm256_add_epi32(significand_i32x8, rounding_bias_i32x8);
+    __m256i carry_i32x8 = _mm256_srli_epi32(rounded_sig_i32x8, 24); // Carry into exponent if bit 24 set
+    __m256i f32_mantissa_i32x8 = _mm256_and_si256(_mm256_srli_epi32(rounded_sig_i32x8, 20), _mm256_set1_epi32(0x07));
+    // If carry, mantissa becomes 0 (we rounded up to next power of 2)
+    f32_mantissa_i32x8 = _mm256_andnot_si256(_mm256_slli_epi32(carry_i32x8, 31), f32_mantissa_i32x8);
+    __m256i e4m3_exp_i32x8 = _mm256_sub_epi32(_mm256_add_epi32(f32_exp_i32x8, carry_i32x8), _mm256_set1_epi32(120));
+
+    // Detect underflow (exp <= 0, maps to subnormal/zero) and overflow (exp > 15)
+    __m256i is_subnormal_i32x8 = _mm256_cmpgt_epi32(_mm256_set1_epi32(1), e4m3_exp_i32x8);
     __m256i overflow_i32x8 = _mm256_cmpgt_epi32(e4m3_exp_i32x8, _mm256_set1_epi32(15));
-    e4m3_exp_i32x8 = _mm256_max_epi32(e4m3_exp_i32x8, _mm256_setzero_si256());
-    e4m3_exp_i32x8 = _mm256_min_epi32(e4m3_exp_i32x8, _mm256_set1_epi32(15));
-    // On overflow, saturate mantissa to max (7)
-    __m256i mant_i32x8 = _mm256_blendv_epi8(f32_mant_i32x8, _mm256_set1_epi32(0x07), overflow_i32x8);
-    // Compose e4m3: sign << 7 | exp << 3 | mant
-    __m256i e4m3_i32x8 = _mm256_or_si256(_mm256_slli_epi32(sign_i32x8, 7),
-                                         _mm256_or_si256(_mm256_slli_epi32(e4m3_exp_i32x8, 3), mant_i32x8));
-    // On underflow, set to signed zero (sign << 7)
-    e4m3_i32x8 = _mm256_blendv_epi8(e4m3_i32x8, _mm256_slli_epi32(sign_i32x8, 7), underflow_i32x8);
-    // Pack 8 i32s to 8 i8s: use shuffle to collect low bytes
-    // First pack to i16: use _mm256_packs_epi32 then to i8
-    __m128i lo_i32x4 = _mm256_castsi256_si128(e4m3_i32x8);
-    __m128i hi_i32x4 = _mm256_extracti128_si256(e4m3_i32x8, 1);
-    __m128i packed_i16x8 = _mm_packs_epi32(lo_i32x4, hi_i32x4);
-    __m128i packed_i8x8 = _mm_packs_epi16(packed_i16x8, packed_i16x8);
+
+    // Normal path: clamp exp to [1,15], extract mantissa bits
+    // e4m3FN quirk: exp=15 with mantissa=7 is NaN (0x7F), so clamp mantissa to 6 when exp=15.
+    __m256i clamped_exp_i32x8 = _mm256_max_epi32(e4m3_exp_i32x8, _mm256_set1_epi32(1));
+    clamped_exp_i32x8 = _mm256_min_epi32(clamped_exp_i32x8, _mm256_set1_epi32(15));
+    __m256i is_max_exp_i32x8 = _mm256_cmpeq_epi32(clamped_exp_i32x8, _mm256_set1_epi32(15));
+    __m256i max_mantissa_i32x8 = _mm256_blendv_epi8(_mm256_set1_epi32(7), _mm256_set1_epi32(6), is_max_exp_i32x8);
+    __m256i normal_mantissa_i32x8 = _mm256_min_epi32(f32_mantissa_i32x8, max_mantissa_i32x8);
+    normal_mantissa_i32x8 = _mm256_blendv_epi8(normal_mantissa_i32x8, _mm256_set1_epi32(0x06), overflow_i32x8);
+    __m256i normal_e4m3_i32x8 = _mm256_or_si256(_mm256_slli_epi32(sign_i32x8, 7),
+        _mm256_or_si256(_mm256_slli_epi32(clamped_exp_i32x8, 3), normal_mantissa_i32x8));
+
+    // Subnormal path: mantissa = round(abs_f32 * 512)
+    // If mantissa rounds to 8 or higher, promote to first normal (exp_field=1, mantissa=0) = 0x08
+    __m256 abs_f32x8 = _mm256_and_ps(f32x8, _mm256_castsi256_ps(_mm256_set1_epi32(0x7FFFFFFF)));
+    __m256 scaled_f32x8 = _mm256_mul_ps(abs_f32x8, _mm256_set1_ps(512.0f));
+    __m256i subnorm_mantissa_i32x8 = _mm256_cvtps_epi32(scaled_f32x8);
+    __m256i promotes_to_normal_i32x8 = _mm256_cmpgt_epi32(subnorm_mantissa_i32x8, _mm256_set1_epi32(7));
+    subnorm_mantissa_i32x8 = _mm256_min_epi32(subnorm_mantissa_i32x8, _mm256_set1_epi32(7));
+    subnorm_mantissa_i32x8 = _mm256_max_epi32(subnorm_mantissa_i32x8, _mm256_setzero_si256());
+    __m256i subnorm_e4m3_i32x8 = _mm256_or_si256(_mm256_slli_epi32(sign_i32x8, 7), subnorm_mantissa_i32x8);
+    // When mantissa rounds to 8, use first normal value (0x08) instead of clamped subnormal
+    __m256i first_normal_e4m3_i32x8 = _mm256_or_si256(_mm256_slli_epi32(sign_i32x8, 7), _mm256_set1_epi32(0x08));
+    subnorm_e4m3_i32x8 = _mm256_blendv_epi8(subnorm_e4m3_i32x8, first_normal_e4m3_i32x8, promotes_to_normal_i32x8);
+
+    // Blend: use subnormal result when exp <= 0, else normal
+    __m256i e4m3_i32x8 = _mm256_blendv_epi8(normal_e4m3_i32x8, subnorm_e4m3_i32x8, is_subnormal_i32x8);
+
+    // Pack 8 i32s to 8 unsigned i8s (use unsigned saturation to preserve values 128-255)
+    __m128i low_i32x4 = _mm256_castsi256_si128(e4m3_i32x8);
+    __m128i high_i32x4 = _mm256_extracti128_si256(e4m3_i32x8, 1);
+    __m128i packed_i16x8 = _mm_packus_epi32(low_i32x4, high_i32x4);
+    __m128i packed_i8x8 = _mm_packus_epi16(packed_i16x8, packed_i16x8);
     return packed_i8x8;
 }
 
 /** @brief Convert 8x f32 to 8x e5m2 via bit manipulation (AVX2).
- *  E5M2 format: S EEEEE MM (bias=15). Extract sign, rebias exponent (f32_exp - 127 + 15 = f32_exp - 112),
- *  clamp to [0,31], take top 2 mantissa bits, handle underflow. */
+ *  E5M2 format: S EEEEE MM (bias=15). Handles normal, subnormal, and overflow cases.
+ *  Uses RNE (round to nearest even) for mantissa rounding. */
 NK_INTERNAL __m128i nk_f32x8_to_e5m2x8_haswell_(__m256 f32x8) {
     __m256i bits_i32x8 = _mm256_castps_si256(f32x8);
-    // Extract sign bit (bit 31)
     __m256i sign_i32x8 = _mm256_srli_epi32(bits_i32x8, 31);
-    // Extract f32 exponent (bits 30:23)
     __m256i f32_exp_i32x8 = _mm256_and_si256(_mm256_srli_epi32(bits_i32x8, 23), _mm256_set1_epi32(0xFF));
-    // Extract f32 mantissa (bits 22:0), take top 2 bits -> bits 22:21
-    __m256i f32_mant_i32x8 = _mm256_and_si256(_mm256_srli_epi32(bits_i32x8, 21), _mm256_set1_epi32(0x03));
-    // Rebias exponent: e5m2_exp = f32_exp - 112 (bias 127 -> bias 15)
-    __m256i e5m2_exp_i32x8 = _mm256_sub_epi32(f32_exp_i32x8, _mm256_set1_epi32(112));
-    // Clamp exponent to [0, 31], detect underflow (exp < 0) and overflow (exp > 31)
-    __m256i underflow_i32x8 = _mm256_cmpgt_epi32(_mm256_setzero_si256(), e5m2_exp_i32x8);
+
+    // Round mantissa from 23 to 2 bits using RNE (round to nearest, ties to even)
+    // RNE trick: add (half - 1 + lsb) where lsb is the bit that will become the new lsb after shift
+    __m256i significand_i32x8 = _mm256_or_si256(_mm256_and_si256(bits_i32x8, _mm256_set1_epi32(0x007FFFFF)),
+                                                 _mm256_set1_epi32(0x00800000)); // Add implicit 1 bit
+    __m256i lsb_i32x8 = _mm256_and_si256(_mm256_srli_epi32(significand_i32x8, 21), _mm256_set1_epi32(1));
+    __m256i rounding_bias_i32x8 = _mm256_add_epi32(_mm256_set1_epi32(0x000FFFFF), lsb_i32x8); // half = 0x100000
+    __m256i rounded_sig_i32x8 = _mm256_add_epi32(significand_i32x8, rounding_bias_i32x8);
+    __m256i carry_i32x8 = _mm256_srli_epi32(rounded_sig_i32x8, 24); // Carry into exponent if bit 24 set
+    __m256i f32_mantissa_i32x8 = _mm256_and_si256(_mm256_srli_epi32(rounded_sig_i32x8, 21), _mm256_set1_epi32(0x03));
+    // If carry, mantissa becomes 0 (we rounded up to next power of 2)
+    f32_mantissa_i32x8 = _mm256_andnot_si256(_mm256_slli_epi32(carry_i32x8, 31), f32_mantissa_i32x8);
+    __m256i e5m2_exp_i32x8 = _mm256_sub_epi32(_mm256_add_epi32(f32_exp_i32x8, carry_i32x8), _mm256_set1_epi32(112));
+
+    // Detect subnormal (exp <= 0) and overflow (exp > 31)
+    __m256i is_subnormal_i32x8 = _mm256_cmpgt_epi32(_mm256_set1_epi32(1), e5m2_exp_i32x8);
     __m256i overflow_i32x8 = _mm256_cmpgt_epi32(e5m2_exp_i32x8, _mm256_set1_epi32(31));
-    e5m2_exp_i32x8 = _mm256_max_epi32(e5m2_exp_i32x8, _mm256_setzero_si256());
-    e5m2_exp_i32x8 = _mm256_min_epi32(e5m2_exp_i32x8, _mm256_set1_epi32(31));
-    // On overflow, saturate mantissa to max (3)
-    __m256i mant_i32x8 = _mm256_blendv_epi8(f32_mant_i32x8, _mm256_set1_epi32(0x03), overflow_i32x8);
-    // Compose e5m2: sign << 7 | exp << 2 | mant
-    __m256i e5m2_i32x8 = _mm256_or_si256(_mm256_slli_epi32(sign_i32x8, 7),
-                                         _mm256_or_si256(_mm256_slli_epi32(e5m2_exp_i32x8, 2), mant_i32x8));
-    // On underflow, set to signed zero (sign << 7)
-    e5m2_i32x8 = _mm256_blendv_epi8(e5m2_i32x8, _mm256_slli_epi32(sign_i32x8, 7), underflow_i32x8);
-    // Pack 8 i32s to 8 i8s: use shuffle to collect low bytes
-    __m128i lo_i32x4 = _mm256_castsi256_si128(e5m2_i32x8);
-    __m128i hi_i32x4 = _mm256_extracti128_si256(e5m2_i32x8, 1);
-    __m128i packed_i16x8 = _mm_packs_epi32(lo_i32x4, hi_i32x4);
-    __m128i packed_i8x8 = _mm_packs_epi16(packed_i16x8, packed_i16x8);
+
+    // Normal path: clamp exp to [1,31], on overflow return infinity (exp=31, mantissa=0 = 0x7C)
+    __m256i clamped_exp_i32x8 = _mm256_max_epi32(e5m2_exp_i32x8, _mm256_set1_epi32(1));
+    clamped_exp_i32x8 = _mm256_min_epi32(clamped_exp_i32x8, _mm256_set1_epi32(31));
+    __m256i normal_mantissa_i32x8 = _mm256_blendv_epi8(f32_mantissa_i32x8, _mm256_setzero_si256(), overflow_i32x8);
+    __m256i normal_e5m2_i32x8 = _mm256_or_si256(_mm256_slli_epi32(sign_i32x8, 7),
+                                                _mm256_or_si256(_mm256_slli_epi32(clamped_exp_i32x8, 2),
+                                                                normal_mantissa_i32x8));
+
+    // Subnormal path: mantissa = round(abs_f32 * 65536)
+    // If mantissa rounds to 4 or higher, promote to first normal (exp_field=1, mantissa=0) = 0x04
+    __m256 abs_f32x8 = _mm256_and_ps(f32x8, _mm256_castsi256_ps(_mm256_set1_epi32(0x7FFFFFFF)));
+    __m256 scaled_f32x8 = _mm256_mul_ps(abs_f32x8, _mm256_set1_ps(65536.0f));
+    __m256i subnorm_mantissa_i32x8 = _mm256_cvtps_epi32(scaled_f32x8);
+    __m256i promotes_to_normal_i32x8 = _mm256_cmpgt_epi32(subnorm_mantissa_i32x8, _mm256_set1_epi32(3));
+    subnorm_mantissa_i32x8 = _mm256_min_epi32(subnorm_mantissa_i32x8, _mm256_set1_epi32(3));
+    subnorm_mantissa_i32x8 = _mm256_max_epi32(subnorm_mantissa_i32x8, _mm256_setzero_si256());
+    __m256i subnorm_e5m2_i32x8 = _mm256_or_si256(_mm256_slli_epi32(sign_i32x8, 7), subnorm_mantissa_i32x8);
+    // When mantissa rounds to 4, use first normal value (0x04) instead of clamped subnormal
+    __m256i first_normal_e5m2_i32x8 = _mm256_or_si256(_mm256_slli_epi32(sign_i32x8, 7), _mm256_set1_epi32(0x04));
+    subnorm_e5m2_i32x8 = _mm256_blendv_epi8(subnorm_e5m2_i32x8, first_normal_e5m2_i32x8, promotes_to_normal_i32x8);
+
+    // Blend: use subnormal result when exp <= 0
+    __m256i e5m2_i32x8 = _mm256_blendv_epi8(normal_e5m2_i32x8, subnorm_e5m2_i32x8, is_subnormal_i32x8);
+
+    // Pack 8 i32s to 8 unsigned i8s (use unsigned saturation to preserve values 128-255)
+    __m128i low_i32x4 = _mm256_castsi256_si128(e5m2_i32x8);
+    __m128i high_i32x4 = _mm256_extracti128_si256(e5m2_i32x8, 1);
+    __m128i packed_i16x8 = _mm_packus_epi32(low_i32x4, high_i32x4);
+    __m128i packed_i8x8 = _mm_packus_epi16(packed_i16x8, packed_i16x8);
     return packed_i8x8;
 }
 

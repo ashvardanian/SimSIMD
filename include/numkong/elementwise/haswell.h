@@ -1312,6 +1312,8 @@ NK_PUBLIC void nk_scale_e4m3_haswell(nk_e4m3_t const *a, nk_size_t n, nk_f32_t c
     for (; i + 8 <= n; i += 8) {
         __m128i a_e4m3x8 = _mm_loadl_epi64((__m128i const *)(a + i));
         __m256 a_f32x8 = nk_e4m3x8_to_f32x8_haswell_(a_e4m3x8);
+        // FP8 rounding note: FMA is acceptable here because scale computes (a * alpha + beta),
+        // a single multiply-add operation where single-rounding preserves accuracy.
         __m256 result_f32x8 = _mm256_fmadd_ps(a_f32x8, alpha_f32x8, beta_f32x8);
         __m128i result_e4m3x8 = nk_f32x8_to_e4m3x8_haswell_(result_f32x8);
         _mm_storel_epi64((__m128i *)(result + i), result_e4m3x8);
@@ -1332,6 +1334,8 @@ NK_PUBLIC void nk_scale_e5m2_haswell(nk_e5m2_t const *a, nk_size_t n, nk_f32_t c
     for (; i + 8 <= n; i += 8) {
         __m128i a_e5m2x8 = _mm_loadl_epi64((__m128i const *)(a + i));
         __m256 a_f32x8 = nk_e5m2x8_to_f32x8_haswell_(a_e5m2x8);
+        // FP8 rounding note: FMA is acceptable here because scale computes (a * alpha + beta),
+        // a single multiply-add operation where single-rounding preserves accuracy.
         __m256 result_f32x8 = _mm256_fmadd_ps(a_f32x8, alpha_f32x8, beta_f32x8);
         __m128i result_e5m2x8 = nk_f32x8_to_e5m2x8_haswell_(result_f32x8);
         _mm_storel_epi64((__m128i *)(result + i), result_e5m2x8);
@@ -1354,8 +1358,12 @@ NK_PUBLIC void nk_wsum_e4m3_haswell(nk_e4m3_t const *a, nk_e4m3_t const *b, nk_s
         __m128i b_e4m3x8 = _mm_loadl_epi64((__m128i const *)(b + i));
         __m256 a_f32x8 = nk_e4m3x8_to_f32x8_haswell_(a_e4m3x8);
         __m256 b_f32x8 = nk_e4m3x8_to_f32x8_haswell_(b_e4m3x8);
+        // FP8 rounding note: Using separate multiply and add operations ensures intermediate
+        // rounding matches scalar reference. FMA would produce different results near FP8
+        // representable boundaries due to single-rounding vs double-rounding behavior.
         __m256 a_scaled_f32x8 = _mm256_mul_ps(a_f32x8, alpha_f32x8);
-        __m256 result_f32x8 = _mm256_fmadd_ps(b_f32x8, beta_f32x8, a_scaled_f32x8);
+        __m256 b_scaled_f32x8 = _mm256_mul_ps(b_f32x8, beta_f32x8);
+        __m256 result_f32x8 = _mm256_add_ps(a_scaled_f32x8, b_scaled_f32x8);
         __m128i result_e4m3x8 = nk_f32x8_to_e4m3x8_haswell_(result_f32x8);
         _mm_storel_epi64((__m128i *)(result + i), result_e4m3x8);
     }
@@ -1378,8 +1386,12 @@ NK_PUBLIC void nk_wsum_e5m2_haswell(nk_e5m2_t const *a, nk_e5m2_t const *b, nk_s
         __m128i b_e5m2x8 = _mm_loadl_epi64((__m128i const *)(b + i));
         __m256 a_f32x8 = nk_e5m2x8_to_f32x8_haswell_(a_e5m2x8);
         __m256 b_f32x8 = nk_e5m2x8_to_f32x8_haswell_(b_e5m2x8);
+        // FP8 rounding note: Using separate multiply and add operations ensures intermediate
+        // rounding matches scalar reference. FMA would produce different results near FP8
+        // representable boundaries due to single-rounding vs double-rounding behavior.
         __m256 a_scaled_f32x8 = _mm256_mul_ps(a_f32x8, alpha_f32x8);
-        __m256 result_f32x8 = _mm256_fmadd_ps(b_f32x8, beta_f32x8, a_scaled_f32x8);
+        __m256 b_scaled_f32x8 = _mm256_mul_ps(b_f32x8, beta_f32x8);
+        __m256 result_f32x8 = _mm256_add_ps(a_scaled_f32x8, b_scaled_f32x8);
         __m128i result_e5m2x8 = nk_f32x8_to_e5m2x8_haswell_(result_f32x8);
         _mm_storel_epi64((__m128i *)(result + i), result_e5m2x8);
     }
@@ -1404,6 +1416,9 @@ NK_PUBLIC void nk_fma_e4m3_haswell(nk_e4m3_t const *a, nk_e4m3_t const *b, nk_e4
         __m256 a_f32x8 = nk_e4m3x8_to_f32x8_haswell_(a_e4m3x8);
         __m256 b_f32x8 = nk_e4m3x8_to_f32x8_haswell_(b_e4m3x8);
         __m256 c_f32x8 = nk_e4m3x8_to_f32x8_haswell_(c_e4m3x8);
+        // FP8 rounding note: Hybrid approach - use separate MUL for (a*b) and (a*b*alpha) to
+        // preserve intermediate rounding, then FMA for final addition since it matches scalar
+        // semantics of (alpha*a*b + beta*c) when the multiply term is already computed.
         __m256 ab_f32x8 = _mm256_mul_ps(a_f32x8, b_f32x8);
         __m256 ab_scaled_f32x8 = _mm256_mul_ps(ab_f32x8, alpha_f32x8);
         __m256 result_f32x8 = _mm256_fmadd_ps(c_f32x8, beta_f32x8, ab_scaled_f32x8);
@@ -1432,6 +1447,9 @@ NK_PUBLIC void nk_fma_e5m2_haswell(nk_e5m2_t const *a, nk_e5m2_t const *b, nk_e5
         __m256 a_f32x8 = nk_e5m2x8_to_f32x8_haswell_(a_e5m2x8);
         __m256 b_f32x8 = nk_e5m2x8_to_f32x8_haswell_(b_e5m2x8);
         __m256 c_f32x8 = nk_e5m2x8_to_f32x8_haswell_(c_e5m2x8);
+        // FP8 rounding note: Hybrid approach - use separate MUL for (a*b) and (a*b*alpha) to
+        // preserve intermediate rounding, then FMA for final addition since it matches scalar
+        // semantics of (alpha*a*b + beta*c) when the multiply term is already computed.
         __m256 ab_f32x8 = _mm256_mul_ps(a_f32x8, b_f32x8);
         __m256 ab_scaled_f32x8 = _mm256_mul_ps(ab_f32x8, alpha_f32x8);
         __m256 result_f32x8 = _mm256_fmadd_ps(c_f32x8, beta_f32x8, ab_scaled_f32x8);

@@ -675,20 +675,42 @@ nk_jsd_f32_skylake_cycle:
 }
 
 NK_INTERNAL __m512d nk_log2_f64_skylake_(__m512d x) {
-    // Extract the exponent and mantissa
+    // Extract the exponent and mantissa: x = 2^exp * m, m in [1, 2)
     __m512d one_f64x8 = _mm512_set1_pd(1.0);
+    __m512d two_f64x8 = _mm512_set1_pd(2.0);
     __m512d exponent_f64x8 = _mm512_getexp_pd(x);
     __m512d mantissa_f64x8 = _mm512_getmant_pd(x, _MM_MANT_NORM_1_2, _MM_MANT_SIGN_src);
 
-    // Compute the polynomial using Horner's method (same coefficients as f32 version)
-    __m512d poly_f64x8 = _mm512_set1_pd(-3.4436006e-2);
-    poly_f64x8 = _mm512_fmadd_pd(mantissa_f64x8, poly_f64x8, _mm512_set1_pd(3.1821337e-1));
-    poly_f64x8 = _mm512_fmadd_pd(mantissa_f64x8, poly_f64x8, _mm512_set1_pd(-1.2315303));
-    poly_f64x8 = _mm512_fmadd_pd(mantissa_f64x8, poly_f64x8, _mm512_set1_pd(2.5988452));
-    poly_f64x8 = _mm512_fmadd_pd(mantissa_f64x8, poly_f64x8, _mm512_set1_pd(-3.3241990));
-    poly_f64x8 = _mm512_fmadd_pd(mantissa_f64x8, poly_f64x8, _mm512_set1_pd(3.1157899));
+    // Compute log2(m) using the s-series: s = (m-1)/(m+1), s in [0, 1/3] for m in [1, 2)
+    // ln(m) = 2*s*(1 + s^2/3 + s^4/5 + s^6/7 + ...) converges fast since s^2 <= 1/9
+    // log2(m) = ln(m) * log2(e)
+    __m512d s_f64x8 = _mm512_div_pd(_mm512_sub_pd(mantissa_f64x8, one_f64x8), _mm512_add_pd(mantissa_f64x8, one_f64x8));
+    __m512d s2_f64x8 = _mm512_mul_pd(s_f64x8, s_f64x8);
 
-    return _mm512_add_pd(_mm512_mul_pd(poly_f64x8, _mm512_sub_pd(mantissa_f64x8, one_f64x8)), exponent_f64x8);
+    // Polynomial P(s^2) = 1 + s^2/3 + s^4/5 + ... using Horner's method
+    // 14 terms (k=0..13) achieves ~1 ULP accuracy for f64
+    __m512d poly_f64x8 = _mm512_set1_pd(1.0 / 27.0); // 1/(2*13+1)
+    poly_f64x8 = _mm512_fmadd_pd(s2_f64x8, poly_f64x8, _mm512_set1_pd(1.0 / 25.0));
+    poly_f64x8 = _mm512_fmadd_pd(s2_f64x8, poly_f64x8, _mm512_set1_pd(1.0 / 23.0));
+    poly_f64x8 = _mm512_fmadd_pd(s2_f64x8, poly_f64x8, _mm512_set1_pd(1.0 / 21.0));
+    poly_f64x8 = _mm512_fmadd_pd(s2_f64x8, poly_f64x8, _mm512_set1_pd(1.0 / 19.0));
+    poly_f64x8 = _mm512_fmadd_pd(s2_f64x8, poly_f64x8, _mm512_set1_pd(1.0 / 17.0));
+    poly_f64x8 = _mm512_fmadd_pd(s2_f64x8, poly_f64x8, _mm512_set1_pd(1.0 / 15.0));
+    poly_f64x8 = _mm512_fmadd_pd(s2_f64x8, poly_f64x8, _mm512_set1_pd(1.0 / 13.0));
+    poly_f64x8 = _mm512_fmadd_pd(s2_f64x8, poly_f64x8, _mm512_set1_pd(1.0 / 11.0));
+    poly_f64x8 = _mm512_fmadd_pd(s2_f64x8, poly_f64x8, _mm512_set1_pd(1.0 / 9.0));
+    poly_f64x8 = _mm512_fmadd_pd(s2_f64x8, poly_f64x8, _mm512_set1_pd(1.0 / 7.0));
+    poly_f64x8 = _mm512_fmadd_pd(s2_f64x8, poly_f64x8, _mm512_set1_pd(1.0 / 5.0));
+    poly_f64x8 = _mm512_fmadd_pd(s2_f64x8, poly_f64x8, _mm512_set1_pd(1.0 / 3.0));
+    poly_f64x8 = _mm512_fmadd_pd(s2_f64x8, poly_f64x8, _mm512_set1_pd(1.0));
+
+    // ln(m) = 2 * s * P(s^2), then log2(m) = ln(m) * log2(e)
+    __m512d ln_m_f64x8 = _mm512_mul_pd(_mm512_mul_pd(two_f64x8, s_f64x8), poly_f64x8);
+    __m512d log2e_f64x8 = _mm512_set1_pd(1.4426950408889634); // 1/ln(2)
+    __m512d log2_m_f64x8 = _mm512_mul_pd(ln_m_f64x8, log2e_f64x8);
+
+    // log2(x) = exponent + log2(m)
+    return _mm512_add_pd(exponent_f64x8, log2_m_f64x8);
 }
 
 NK_PUBLIC void nk_kld_f64_skylake(nk_f64_t const *a, nk_f64_t const *b, nk_size_t n, nk_f64_t *result) {
@@ -743,9 +765,9 @@ nk_jsd_f64_skylake_cycle:
     __mmask8 nonzero_mask_b = _mm512_cmp_pd_mask(b_f64x8, epsilon_f64x8, _CMP_GE_OQ);
     __mmask8 nonzero_mask = nonzero_mask_a & nonzero_mask_b;
     __m512d mean_with_epsilon_f64x8 = _mm512_add_pd(mean_f64x8, epsilon_f64x8);
-    __m512d mean_recip_approx_f64x8 = _mm512_rcp14_pd(mean_with_epsilon_f64x8);
-    __m512d ratio_a_f64x8 = _mm512_mul_pd(_mm512_add_pd(a_f64x8, epsilon_f64x8), mean_recip_approx_f64x8);
-    __m512d ratio_b_f64x8 = _mm512_mul_pd(_mm512_add_pd(b_f64x8, epsilon_f64x8), mean_recip_approx_f64x8);
+    // Use full precision division (not rcp14 approximate which only has 14 bits)
+    __m512d ratio_a_f64x8 = _mm512_div_pd(_mm512_add_pd(a_f64x8, epsilon_f64x8), mean_with_epsilon_f64x8);
+    __m512d ratio_b_f64x8 = _mm512_div_pd(_mm512_add_pd(b_f64x8, epsilon_f64x8), mean_with_epsilon_f64x8);
     __m512d log_ratio_a_f64x8 = nk_log2_f64_skylake_(ratio_a_f64x8);
     __m512d log_ratio_b_f64x8 = nk_log2_f64_skylake_(ratio_b_f64x8);
     sum_a_f64x8 = _mm512_mask3_fmadd_pd(a_f64x8, log_ratio_a_f64x8, sum_a_f64x8, nonzero_mask);

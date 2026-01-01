@@ -1044,6 +1044,30 @@ NK_INTERNAL void nk_f32_to_bf16_(nk_f32_t const *src, nk_bf16_t *dest) {
 #endif
 }
 
+/**
+ *  @brief  Convert FP8 E4M3 to IEEE 754 single-precision float.
+ *
+ *  E4M3 (FP8) format: 1 sign bit, 4 exponent bits (bias=7), 3 mantissa bits.
+ *  Range: [-448, +448], no infinity, only two NaN encodings (0x7F, 0xFF).
+ *  Subnormal values: (-1)^S * mantissa * 2^(-9) = mantissa / 512.
+ *
+ *  Special value mappings (E4M3 -> F32):
+ *      Input        E4M3 Hex  F32 Hex       Description
+ *      +0           0x00      0x00000000    Positive zero
+ *      -0           0x80      0x80000000    Negative zero
+ *      +NaN         0x7F      0x7FC00000    Quiet NaN (exp=15, mant!=0)
+ *      -NaN         0xFF      0xFFC00000    Quiet NaN (signed)
+ *      +448 (max)   0x7E      0x43E00000    Max normal = 448
+ *      -448         0xFE      0xC3E00000    Min normal = -448
+ *      1.0          0x38      0x3F800000    Normal (exp=7, mant=0)
+ *      Min denorm   0x01      0x3B000000    1/512 = 2^(-9)
+ *      Max denorm   0x07      0x3BE00000    7/512 = 7 * 2^(-9)
+ *
+ *  References:
+ *      https://arxiv.org/pdf/2209.05433 (NVIDIA/Intel/Arm FP8 paper)
+ *      https://www.opencompute.org/documents/ocp-8-bit-floating-point-specification-ofp8-revision-1-0-2023-12-01-pdf-1
+ *      https://onnx.ai/onnx/technical/float8.html
+ */
 NK_INTERNAL void nk_e4m3_to_f32_(nk_e4m3_t const *src, nk_f32_t *dest) {
     nk_u8_t raw = *src;
     nk_u32_t sign = (nk_u32_t)(raw & 0x80) << 24;
@@ -1074,6 +1098,31 @@ NK_INTERNAL void nk_e4m3_to_f32_(nk_e4m3_t const *src, nk_f32_t *dest) {
     *dest = conv.f;
 }
 
+/**
+ *  @brief  Convert IEEE 754 single-precision float to FP8 E4M3.
+ *
+ *  E4M3 (FP8) format: 1 sign bit, 4 exponent bits (bias=7), 3 mantissa bits.
+ *  Range: [-448, +448], no infinity, only two NaN encodings.
+ *  Rounding: RNE (Round to Nearest Even) per IEEE 754 / OCP FP8 spec.
+ *  Subnormal threshold: values with |x| < 2^(-6) use subnormal encoding.
+ *
+ *  Special value mappings (F32 -> E4M3):
+ *      Input        F32 Hex       E4M3 Hex  Description
+ *      +0           0x00000000    0x00      Positive zero
+ *      -0           0x80000000    0x80      Negative zero
+ *      +inf         0x7F800000    0x7E      Saturates to max (+448)
+ *      -inf         0xFF800000    0xFE      Saturates to min (-448)
+ *      NaN          0x7FC00000    0x7F      Quiet NaN
+ *      1.0          0x3F800000    0x38      Normal (exp=7, mant=0)
+ *      448+         >0x43E00000   0x7E      Overflow -> max
+ *      2^(-6)       0x3E800000    0x08      Min normal
+ *      <2^(-12.5)   <0x39800000   0x00      Underflow -> zero (RNE boundary)
+ *
+ *  References:
+ *      https://arxiv.org/pdf/2209.05433 (NVIDIA/Intel/Arm FP8 paper)
+ *      https://www.opencompute.org/documents/ocp-8-bit-floating-point-specification-ofp8-revision-1-0-2023-12-01-pdf-1
+ *      https://onnx.ai/onnx/technical/float8.html
+ */
 NK_INTERNAL void nk_f32_to_e4m3_(nk_f32_t const *src, nk_e4m3_t *dest) {
     nk_f32_t x = *src;
     nk_fui32_t conv;
@@ -1095,17 +1144,18 @@ NK_INTERNAL void nk_f32_to_e4m3_(nk_f32_t const *src, nk_e4m3_t *dest) {
 
     nk_f32_t abs_x = sign_bit ? -x : x;
 
-    if (abs_x < (1.0f / 512.0f)) {
-        *dest = (nk_e4m3_t)sign;
-        return;
-    }
-
+    // Subnormal range: [0, 1/64). Use RNE rounding via scaled * 512.
+    // The RNE boundary between 0 and 1/512 is at 0.5/512, not 1/512.
     if (abs_x < (1.0f / 64.0f)) {
         nk_f32_t scaled = abs_x * 512.0f;
         nk_i32_t mant = (nk_i32_t)scaled;
         nk_f32_t frac = scaled - (nk_f32_t)mant;
         if (frac > 0.5f || (frac == 0.5f && (mant & 1))) { ++mant; }
-        if (mant > 7) { mant = 7; }
+        // If rounds to 8, promote to first normal (exp_field=1, mantissa=0)
+        if (mant > 7) {
+            *dest = (nk_e4m3_t)(sign | 0x08u);
+            return;
+        }
         if (mant == 0) { *dest = (nk_e4m3_t)sign; }
         else { *dest = (nk_e4m3_t)(sign | (nk_u8_t)mant); }
         return;
@@ -1124,8 +1174,9 @@ NK_INTERNAL void nk_f32_to_e4m3_(nk_f32_t const *src, nk_e4m3_t *dest) {
         significand_rounded >>= 1;
         ++exp;
     }
-    if (exp > 7) {
-        *dest = (nk_e4m3_t)(sign | 0x78u);
+    if (exp > 8) {
+        // Saturate to max value 448 = 0x7E (exp=15, mantissa=6). Note: 0x7F is NaN in e4m3FN.
+        *dest = (nk_e4m3_t)(sign | 0x7Eu);
         return;
     }
     if (exp < -6) {
@@ -1133,7 +1184,11 @@ NK_INTERNAL void nk_f32_to_e4m3_(nk_f32_t const *src, nk_e4m3_t *dest) {
         nk_i32_t mant = (nk_i32_t)scaled;
         nk_f32_t frac = scaled - (nk_f32_t)mant;
         if (frac > 0.5f || (frac == 0.5f && (mant & 1))) { ++mant; }
-        if (mant > 7) { mant = 7; }
+        // If rounds to 8, promote to first normal (exp_field=1, mantissa=0)
+        if (mant > 7) {
+            *dest = (nk_e4m3_t)(sign | 0x08u);
+            return;
+        }
         if (mant == 0) { *dest = (nk_e4m3_t)sign; }
         else { *dest = (nk_e4m3_t)(sign | (nk_u8_t)mant); }
         return;
@@ -1141,9 +1196,36 @@ NK_INTERNAL void nk_f32_to_e4m3_(nk_f32_t const *src, nk_e4m3_t *dest) {
 
     nk_u8_t exp_field = (nk_u8_t)(exp + 7);
     nk_u8_t mant_field = (nk_u8_t)(significand_rounded & 0x07u);
+    // For exp_field=15, clamp mantissa to 6 to avoid NaN encoding (0x7F in e4m3FN)
+    if (exp_field == 15 && mant_field > 6) { mant_field = 6; }
     *dest = (nk_e4m3_t)(sign | (exp_field << 3) | mant_field);
 }
 
+/**
+ *  @brief  Convert FP8 E5M2 to IEEE 754 single-precision float.
+ *
+ *  E5M2 (FP8) format: 1 sign bit, 5 exponent bits (bias=15), 2 mantissa bits.
+ *  Range: [-57344, +57344], supports infinity and NaN (IEEE 754 compatible).
+ *  Subnormal values: (-1)^S * mantissa * 2^(-16) = mantissa / 65536.
+ *
+ *  Special value mappings (E5M2 -> F32):
+ *      Input        E5M2 Hex  F32 Hex       Description
+ *      +0           0x00      0x00000000    Positive zero
+ *      -0           0x80      0x80000000    Negative zero
+ *      +inf         0x7C      0x7F800000    Positive infinity
+ *      -inf         0xFC      0xFF800000    Negative infinity
+ *      +NaN         0x7D-7F   0x7FC00000    Quiet NaN (exp=31, mant!=0)
+ *      -NaN         0xFD-FF   0xFFC00000    Quiet NaN (signed)
+ *      +57344 (max) 0x7B      0x47600000    Max normal
+ *      1.0          0x3C      0x3F800000    Normal (exp=15, mant=0)
+ *      Min denorm   0x01      0x37800000    1/65536 = 2^(-16)
+ *      Max denorm   0x03      0x38000000    3/65536 = 3 * 2^(-16)
+ *
+ *  References:
+ *      https://arxiv.org/pdf/2209.05433 (NVIDIA/Intel/Arm FP8 paper)
+ *      https://www.opencompute.org/documents/ocp-8-bit-floating-point-specification-ofp8-revision-1-0-2023-12-01-pdf-1
+ *      https://onnx.ai/onnx/technical/float8.html
+ */
 NK_INTERNAL void nk_e5m2_to_f32_(nk_e5m2_t const *src, nk_f32_t *dest) {
     nk_u8_t raw = *src;
     nk_u32_t sign = (nk_u32_t)(raw & 0x80) << 24;
@@ -1174,6 +1256,31 @@ NK_INTERNAL void nk_e5m2_to_f32_(nk_e5m2_t const *src, nk_f32_t *dest) {
     *dest = conv.f;
 }
 
+/**
+ *  @brief  Convert IEEE 754 single-precision float to FP8 E5M2.
+ *
+ *  E5M2 (FP8) format: 1 sign bit, 5 exponent bits (bias=15), 2 mantissa bits.
+ *  Range: [-57344, +57344], supports infinity and NaN (IEEE 754 compatible).
+ *  Rounding: RNE (Round to Nearest Even) per IEEE 754 / OCP FP8 spec.
+ *  Subnormal threshold: values with |x| < 2^(-14) use subnormal encoding.
+ *
+ *  Special value mappings (F32 -> E5M2):
+ *      Input        F32 Hex       E5M2 Hex  Description
+ *      +0           0x00000000    0x00      Positive zero
+ *      -0           0x80000000    0x80      Negative zero
+ *      +inf         0x7F800000    0x7C      Positive infinity
+ *      -inf         0xFF800000    0xFC      Negative infinity
+ *      NaN          0x7FC00000    0x7D      Quiet NaN
+ *      1.0          0x3F800000    0x3C      Normal (exp=15, mant=0)
+ *      57344+       >0x47600000   0x7C      Overflow -> infinity
+ *      2^(-14)      0x38800000    0x04      Min normal
+ *      <2^(-17.5)   <0x36800000   0x00      Underflow -> zero (RNE boundary)
+ *
+ *  References:
+ *      https://arxiv.org/pdf/2209.05433 (NVIDIA/Intel/Arm FP8 paper)
+ *      https://www.opencompute.org/documents/ocp-8-bit-floating-point-specification-ofp8-revision-1-0-2023-12-01-pdf-1
+ *      https://onnx.ai/onnx/technical/float8.html
+ */
 NK_INTERNAL void nk_f32_to_e5m2_(nk_f32_t const *src, nk_e5m2_t *dest) {
     nk_f32_t x = *src;
     nk_fui32_t conv;
@@ -1195,17 +1302,18 @@ NK_INTERNAL void nk_f32_to_e5m2_(nk_f32_t const *src, nk_e5m2_t *dest) {
 
     nk_f32_t abs_x = sign_bit ? -x : x;
 
-    if (abs_x < (1.0f / 65536.0f)) {
-        *dest = (nk_e5m2_t)sign;
-        return;
-    }
-
+    // Subnormal range: [0, 1/16384). Use RNE rounding via scaled * 65536.
+    // The RNE boundary between 0 and 1/65536 is at 0.5/65536, not 1/65536.
     if (abs_x < (1.0f / 16384.0f)) {
         nk_f32_t scaled = abs_x * 65536.0f;
         nk_i32_t mant = (nk_i32_t)scaled;
         nk_f32_t frac = scaled - (nk_f32_t)mant;
         if (frac > 0.5f || (frac == 0.5f && (mant & 1))) { ++mant; }
-        if (mant > 3) { mant = 3; }
+        // If rounds to 4, promote to first normal (exp_field=1, mantissa=0)
+        if (mant > 3) {
+            *dest = (nk_e5m2_t)(sign | 0x04u);
+            return;
+        }
         if (mant == 0) { *dest = (nk_e5m2_t)sign; }
         else { *dest = (nk_e5m2_t)(sign | (nk_u8_t)mant); }
         return;
@@ -1233,7 +1341,11 @@ NK_INTERNAL void nk_f32_to_e5m2_(nk_f32_t const *src, nk_e5m2_t *dest) {
         nk_i32_t mant = (nk_i32_t)scaled;
         nk_f32_t frac = scaled - (nk_f32_t)mant;
         if (frac > 0.5f || (frac == 0.5f && (mant & 1))) { ++mant; }
-        if (mant > 3) { mant = 3; }
+        // If rounds to 4, promote to first normal (exp_field=1, mantissa=0)
+        if (mant > 3) {
+            *dest = (nk_e5m2_t)(sign | 0x04u);
+            return;
+        }
         if (mant == 0) { *dest = (nk_e5m2_t)sign; }
         else { *dest = (nk_e5m2_t)(sign | (nk_u8_t)mant); }
         return;

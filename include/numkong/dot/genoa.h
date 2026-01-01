@@ -129,49 +129,77 @@ nk_vdot_bf16c_genoa_cycle:
     result->imag = nk_reduce_add_f32x16_skylake_(sum_imag_f32x16);
 }
 
-/**
- *  @brief Convert 32x E4M3 values to 32x BF16 values.
- *
- *  Uses optimized path with fused exp+mant extraction.
- *  Denormals (exp=0, mant!=0) are flushed to zero (DAZ behavior).
- *
- *  E4M3 format: S EEEE MMM (bias=7, range: 2^-6 to 448)
- *  BF16 format: S EEEEEEEE MMMMMMM (bias=127)
- *  Conversion: sign<<8, (exp+120)<<7, mant<<4
- */
+/** @brief Convert 32x e4m3 to 32x bf16 via bit manipulation (AVX-512BW).
+ *  E4M3 format: S EEEE MMM (bias=7). BF16: S EEEEEEEE MMMMMMM (bias=127).
+ *  Normal: sign | ((lower7<<4) + 0x3C00).
+ *  Subnormals (exp=0): value = mantissa / 512, computed via f32 then truncated. */
 NK_INTERNAL __m512i nk_e4m3x32_to_bf16x32_genoa_(__m256i e4m3x32) {
     __m512i e4m3_i16x32 = _mm512_cvtepu8_epi16(e4m3x32);
-    // Sign: shift bit 7 to bit 15
+
+    // Extract fields
+    __m512i mantissa_i16x32 = _mm512_and_si512(e4m3_i16x32, _mm512_set1_epi16(0x07));
     __m512i sign_i16x32 = _mm512_and_si512(_mm512_slli_epi16(e4m3_i16x32, 8), _mm512_set1_epi16((short)0x8000));
-    // Lower 7 bits contain exp (4) and mant (3): shift left 4 and add bias
-    __m512i low7_i16x32 = _mm512_and_si512(e4m3_i16x32, _mm512_set1_epi16(0x7F));
-    __m512i exp_mant_i16x32 = _mm512_add_epi16(_mm512_slli_epi16(low7_i16x32, 4), _mm512_set1_epi16(0x3C00));
-    // DAZ: use TEST to check if exp bits (bits 6-3) are nonzero
-    __mmask32 has_exp_mask = _mm512_test_epi16_mask(e4m3_i16x32, _mm512_set1_epi16(0x78));
-    __m512i masked_exp_mant_i16x32 = _mm512_maskz_mov_epi16(has_exp_mask, exp_mant_i16x32);
-    return _mm512_or_si512(sign_i16x32, masked_exp_mant_i16x32);
+
+    // Normal path: (lower7<<4) + bias, then OR sign
+    __m512i lower7_i16x32 = _mm512_and_si512(e4m3_i16x32, _mm512_set1_epi16(0x7F));
+    __m512i exp_mantissa_i16x32 = _mm512_add_epi16(_mm512_slli_epi16(lower7_i16x32, 4), _mm512_set1_epi16(0x3C00));
+    __m512i normal_i16x32 = _mm512_or_si512(sign_i16x32, exp_mantissa_i16x32);
+
+    // Subnormal path: compute mantissa / 512 as f32, then truncate to bf16
+    __m512i mantissa_low_i32x16 = _mm512_cvtepu16_epi32(_mm512_castsi512_si256(mantissa_i16x32));
+    __m512i mantissa_high_i32x16 = _mm512_cvtepu16_epi32(_mm512_extracti32x8_epi32(mantissa_i16x32, 1));
+    __m512 subnorm_low_f32x16 = _mm512_mul_ps(_mm512_cvtepi32_ps(mantissa_low_i32x16), _mm512_set1_ps(1.0f / 512.0f));
+    __m512 subnorm_high_f32x16 = _mm512_mul_ps(_mm512_cvtepi32_ps(mantissa_high_i32x16), _mm512_set1_ps(1.0f / 512.0f));
+    // f32 to bf16: (bits + 0x8000) >> 16
+    __m512i sub_low_i32x16 = _mm512_srli_epi32(
+        _mm512_add_epi32(_mm512_castps_si512(subnorm_low_f32x16), _mm512_set1_epi32(1 << 15)), 16);
+    __m512i sub_high_i32x16 = _mm512_srli_epi32(
+        _mm512_add_epi32(_mm512_castps_si512(subnorm_high_f32x16), _mm512_set1_epi32(1 << 15)), 16);
+    __m256i sub_low_i16x16 = _mm512_cvtepi32_epi16(sub_low_i32x16);
+    __m256i sub_high_i16x16 = _mm512_cvtepi32_epi16(sub_high_i32x16);
+    __m512i subnorm_abs_i16x32 = _mm512_inserti64x4(_mm512_castsi256_si512(sub_low_i16x16), sub_high_i16x16, 1);
+
+    // Blend: for subnormal lanes, use (subnorm_abs | sign); else keep normal
+    __mmask32 is_subnormal = _mm512_testn_epi16_mask(e4m3_i16x32, _mm512_set1_epi16(0x78));
+    __m512i subnorm_signed_i16x32 = _mm512_or_si512(subnorm_abs_i16x32, sign_i16x32);
+    return _mm512_mask_blend_epi16(is_subnormal, normal_i16x32, subnorm_signed_i16x32);
 }
 
-/**
- *  @brief Convert 32x E5M2 values to 32x BF16 values.
- *
- *  Uses optimized path with fused exp+mant extraction.
- *  Denormals (exp=0, mant!=0) are flushed to zero (DAZ behavior).
- *
- *  E5M2 format: S EEEEE MM (bias=15, range: 2^-14 to 57344)
- *  BF16 format: S EEEEEEEE MMMMMMM (bias=127)
- *  Conversion: sign<<8, (exp+112)<<7, mant<<5
- */
+/** @brief Convert 32x e5m2 to 32x bf16 via bit manipulation (AVX-512BW).
+ *  E5M2 format: S EEEEE MM (bias=15). BF16: S EEEEEEEE MMMMMMM (bias=127).
+ *  Normal: sign | ((lower7<<5) + 0x3800).
+ *  Subnormals (exp=0): value = mantissa / 65536, computed via f32 then truncated. */
 NK_INTERNAL __m512i nk_e5m2x32_to_bf16x32_genoa_(__m256i e5m2x32) {
     __m512i e5m2_i16x32 = _mm512_cvtepu8_epi16(e5m2x32);
+
+    // Extract fields
+    __m512i mantissa_i16x32 = _mm512_and_si512(e5m2_i16x32, _mm512_set1_epi16(0x03));
     __m512i sign_i16x32 = _mm512_and_si512(_mm512_slli_epi16(e5m2_i16x32, 8), _mm512_set1_epi16((short)0x8000));
-    // Lower 7 bits: exp(5) + mant(2), shift left 5 and add bias
-    __m512i low7_i16x32 = _mm512_and_si512(e5m2_i16x32, _mm512_set1_epi16(0x7F));
-    __m512i exp_mant_i16x32 = _mm512_add_epi16(_mm512_slli_epi16(low7_i16x32, 5), _mm512_set1_epi16(0x3800));
-    // DAZ: use TEST to check if exp bits (bits 6-2) are nonzero
-    __mmask32 has_exp_mask = _mm512_test_epi16_mask(e5m2_i16x32, _mm512_set1_epi16(0x7C));
-    __m512i masked_exp_mant_i16x32 = _mm512_maskz_mov_epi16(has_exp_mask, exp_mant_i16x32);
-    return _mm512_or_si512(sign_i16x32, masked_exp_mant_i16x32);
+
+    // Normal path: (lower7<<5) + bias, then OR sign
+    __m512i lower7_i16x32 = _mm512_and_si512(e5m2_i16x32, _mm512_set1_epi16(0x7F));
+    __m512i exp_mantissa_i16x32 = _mm512_add_epi16(_mm512_slli_epi16(lower7_i16x32, 5), _mm512_set1_epi16(0x3800));
+    __m512i normal_i16x32 = _mm512_or_si512(sign_i16x32, exp_mantissa_i16x32);
+
+    // Subnormal path: compute mantissa / 65536 as f32, then truncate to bf16
+    __m512i mantissa_low_i32x16 = _mm512_cvtepu16_epi32(_mm512_castsi512_si256(mantissa_i16x32));
+    __m512i mantissa_high_i32x16 = _mm512_cvtepu16_epi32(_mm512_extracti32x8_epi32(mantissa_i16x32, 1));
+    __m512 subnorm_low_f32x16 = _mm512_mul_ps(_mm512_cvtepi32_ps(mantissa_low_i32x16), _mm512_set1_ps(1.0f / 65536.0f));
+    __m512 subnorm_high_f32x16 = _mm512_mul_ps(_mm512_cvtepi32_ps(mantissa_high_i32x16),
+                                               _mm512_set1_ps(1.0f / 65536.0f));
+    // f32 to bf16: (bits + 0x8000) >> 16
+    __m512i sub_low_i32x16 = _mm512_srli_epi32(
+        _mm512_add_epi32(_mm512_castps_si512(subnorm_low_f32x16), _mm512_set1_epi32(1 << 15)), 16);
+    __m512i sub_high_i32x16 = _mm512_srli_epi32(
+        _mm512_add_epi32(_mm512_castps_si512(subnorm_high_f32x16), _mm512_set1_epi32(1 << 15)), 16);
+    __m256i sub_low_i16x16 = _mm512_cvtepi32_epi16(sub_low_i32x16);
+    __m256i sub_high_i16x16 = _mm512_cvtepi32_epi16(sub_high_i32x16);
+    __m512i subnorm_abs_i16x32 = _mm512_inserti64x4(_mm512_castsi256_si512(sub_low_i16x16), sub_high_i16x16, 1);
+
+    // Blend: for subnormal lanes, use (subnorm_abs | sign); else keep normal
+    __mmask32 is_subnormal = _mm512_testn_epi16_mask(e5m2_i16x32, _mm512_set1_epi16(0x7C));
+    __m512i subnorm_signed_i16x32 = _mm512_or_si512(subnorm_abs_i16x32, sign_i16x32);
+    return _mm512_mask_blend_epi16(is_subnormal, normal_i16x32, subnorm_signed_i16x32);
 }
 
 NK_PUBLIC void nk_dot_e4m3_genoa(nk_e4m3_t const *a_scalars, nk_e4m3_t const *b_scalars, nk_size_t count_scalars,

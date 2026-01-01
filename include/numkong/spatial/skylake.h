@@ -299,7 +299,7 @@ NK_INTERNAL void nk_angular_f32x8_update_skylake(nk_angular_f32x8_state_skylake_
 NK_INTERNAL void nk_angular_f32x8_finalize_skylake(nk_angular_f32x8_state_skylake_t const *state_a,
                                                    nk_angular_f32x8_state_skylake_t const *state_b,
                                                    nk_angular_f32x8_state_skylake_t const *state_c,
-                                                   nk_angular_f32x8_state_skylake_t const *state_d,
+                                                   nk_angular_f32x8_state_skylake_t const *state_d, //
                                                    nk_f32_t query_norm, nk_f32_t target_norm_a, nk_f32_t target_norm_b,
                                                    nk_f32_t target_norm_c, nk_f32_t target_norm_d, nk_f32_t *results) {
     // Extract all 4 dot products with single ILP-optimized call

@@ -38,6 +38,9 @@ extern "C" {
         }                                                                                                   \
     }
 
+// FP8 rounding note: This macro uses separate multiply and add operations to ensure intermediate
+// rounding matches what scalar code would produce. For FP8 types (e4m3/e5m2), using FMA would
+// produce different results near representable boundaries due to single-rounding vs double-rounding.
 #define NK_MAKE_WSUM(name, input_type, accumulator_type, load_and_convert, convert_and_store)                          \
     NK_PUBLIC void nk_wsum_##input_type##_##name(nk_##input_type##_t const *a, nk_##input_type##_t const *b,           \
                                                  nk_size_t n, nk_##accumulator_type##_t const *alpha,                  \
@@ -55,6 +58,9 @@ extern "C" {
         }                                                                                                              \
     }
 
+// FP8 rounding note: Despite the "FMA" name, this macro uses separate operations for FP8 accuracy.
+// For FP8 types (e4m3/e5m2), we compute (a*b*alpha) and (c*beta) separately, then add them.
+// This preserves intermediate rounding that matches scalar reference behavior.
 #define NK_MAKE_FMA(name, input_type, accumulator_type, load_and_convert, convert_and_store)                          \
     NK_PUBLIC void nk_fma_##input_type##_##name(                                                                      \
         nk_##input_type##_t const *a, nk_##input_type##_t const *b, nk_##input_type##_t const *c, nk_size_t n,        \

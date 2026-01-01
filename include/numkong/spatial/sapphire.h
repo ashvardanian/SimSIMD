@@ -27,30 +27,28 @@
 extern "C" {
 #endif
 
-/*  Convert 16x E4M3 values to 16x F16 values.
- *  Uses optimized path with bias adjustment.
- *  Denormals (exp=0) are flushed to zero (DAZ behavior).
- *
- *  E4M3 format: S EEEE  MMM        (bias=7)
- *  F16 format:  S EEEEE MMMMMMMMMM (bias=15)
- */
+/** @brief Convert 16x e4m3 to 16x f16 via bit manipulation (AVX-512 FP16).
+ *  E4M3 format: S EEEE MMM (bias=7). F16: S EEEEE MMMMMMMMMM (bias=15).
+ *  Normal: sign | ((exp+8)<<10) | (mant<<7).
+ *  Subnormals (exp=0): value = mantissa / 512, computed via f16 arithmetic. */
 NK_INTERNAL __m256h nk_e4m3x16_to_f16x16_sapphire_(__m128i e4m3_i8x16) {
     __m256i e4m3_i16x16 = _mm256_cvtepu8_epi16(e4m3_i8x16);
 
-    // DAZ: check if exp bits (bits 6-3) are nonzero
-    __mmask16 nonzero_exp_mask = _mm256_test_epi16_mask(e4m3_i16x16, _mm256_set1_epi16(0x78));
+    // Extract fields
+    __m256i mantissa_i16x16 = _mm256_and_si256(e4m3_i16x16, _mm256_set1_epi16(0x07));
+    __m256i sign_i16x16 = _mm256_and_si256(_mm256_slli_epi16(e4m3_i16x16, 8), _mm256_set1_epi16((short)0x8000));
 
-    // Sign: bit 7 -> bit 15
-    __m256i sign_i16x16 = _mm256_slli_epi16(e4m3_i16x16, 8);
+    // Normal path: sign | ((exp+8)<<10) | (mantissa<<7) via single shift + bias add
+    __m256i exp_mantissa_i16x16 = _mm256_slli_epi16(_mm256_and_si256(e4m3_i16x16, _mm256_set1_epi16(0x7F)), 7);
+    __m256i exp_mantissa_biased_i16x16 = _mm256_add_epi16(exp_mantissa_i16x16, _mm256_set1_epi16(0x2000));
+    __m256i normal_i16x16 = _mm256_or_si256(sign_i16x16, exp_mantissa_biased_i16x16);
 
-    // Exp+mant (7 bits) shifted left 7, add bias (8<<10 = 0x2000), zero if denormal
-    __m256i exp_mant_i16x16 = _mm256_slli_epi16(_mm256_and_si256(e4m3_i16x16, _mm256_set1_epi16(0x7F)), 7);
-    __m256i exp_mant_daz_i16x16 = _mm256_mask_add_epi16(_mm256_setzero_si256(), nonzero_exp_mask, exp_mant_i16x16,
-                                                        _mm256_set1_epi16(0x2000));
-
-    // Combine: (sign & 0x8000) | exp_mant_daz using ternlog
-    return _mm256_castsi256_ph(
-        _mm256_ternarylogic_epi32(sign_i16x16, _mm256_set1_epi16((short)0x8000), exp_mant_daz_i16x16, 0xEA));
+    // Subnormal fix: for exp==0 lanes, use (subnorm_abs | sign); else keep normal
+    __mmask16 is_subnormal = _mm256_testn_epi16_mask(e4m3_i16x16, _mm256_set1_epi16(0x78));
+    __m256h subnorm_abs_f16x16 = _mm256_mul_ph(_mm256_cvtepi16_ph(mantissa_i16x16),
+                                               _mm256_set1_ph((_Float16)(1.0f / 512.0f)));
+    __m256i subnorm_signed_i16x16 = _mm256_or_si256(_mm256_castph_si256(subnorm_abs_f16x16), sign_i16x16);
+    return _mm256_castsi256_ph(_mm256_mask_blend_epi16(is_subnormal, normal_i16x16, subnorm_signed_i16x16));
 }
 
 NK_PUBLIC void nk_l2sq_e4m3_sapphire(nk_e4m3_t const *a_scalars, nk_e4m3_t const *b_scalars, nk_size_t count_scalars,
