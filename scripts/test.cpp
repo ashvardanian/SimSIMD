@@ -3299,8 +3299,8 @@ void test_trigonometry() {
 
 #pragma region Geospatial
 
-// Earth's radius in meters (mean radius)
-static f128_t const EARTH_RADIUS_M = f128_t("6371000.0");
+/** Earth's radius in meters - matches `NK_EARTH_MEDIATORIAL_RADIUS` */
+static f128_t const EARTH_RADIUS_M = f128_t("6335439.0");
 
 /**
  *  @brief Reference Haversine distance in high precision.

@@ -338,6 +338,10 @@ NK_PUBLIC void nk_haversine_f32_serial(             //
                                   cos_first_latitude * cos_second_latitude * sin_longitude_delta_half *
                                       sin_longitude_delta_half;
 
+        // Clamp to [0, 1] to avoid NaN from sqrt of negative numbers (due to floating point errors)
+        if (haversine_term < 0.0f) haversine_term = 0.0f;
+        if (haversine_term > 1.0f) haversine_term = 1.0f;
+
         // Central angle: c = 2 * atan2(sqrt(a), sqrt(1-a))
         nk_f32_t sqrt_haversine = NK_F32_SQRT(haversine_term);
         nk_f32_t sqrt_complement = NK_F32_SQRT(1.0f - haversine_term);
@@ -590,11 +594,10 @@ NK_INTERNAL float64x2_t nk_haversine_f64x2_neon_(              //
     float64x2_t haversine_term = vaddq_f64(sin_squared_latitude_delta_half,
                                            vmulq_f64(cos_latitude_product, sin_squared_longitude_delta_half));
 
-    // Central angle: c = 2 * atan2(sqrt(a), sqrt(1-a)) = 2 * atan(sqrt(a/(1-a)))
+    // Central angle: c = 2 * atan2(sqrt(a), sqrt(1-a))
     float64x2_t sqrt_haversine = vsqrtq_f64(haversine_term);
     float64x2_t sqrt_complement = vsqrtq_f64(vsubq_f64(one, haversine_term));
-    float64x2_t ratio = vdivq_f64(sqrt_haversine, sqrt_complement);
-    float64x2_t central_angle = vmulq_f64(two, nk_f64x2_atan_neon_(ratio));
+    float64x2_t central_angle = vmulq_f64(two, nk_f64x2_atan2_neon_(sqrt_haversine, sqrt_complement));
 
     return vmulq_f64(earth_radius, central_angle);
 }
@@ -659,6 +662,10 @@ NK_INTERNAL float32x4_t nk_haversine_f32x4_neon_(              //
     // a = sin^2(dlat/2) + cos(lat1) * cos(lat2) * sin^2(dlon/2)
     float32x4_t haversine_term = vaddq_f32(sin_squared_latitude_delta_half,
                                            vmulq_f32(cos_latitude_product, sin_squared_longitude_delta_half));
+
+    // Clamp to [0, 1] to avoid NaN from sqrt of negative numbers (due to floating point errors)
+    float32x4_t zero = vdupq_n_f32(0.0f);
+    haversine_term = vmaxq_f32(zero, vminq_f32(one, haversine_term));
 
     // Central angle: c = 2 * atan2(sqrt(a), sqrt(1-a))
     float32x4_t sqrt_haversine = vsqrtq_f32(haversine_term);
@@ -1116,11 +1123,10 @@ NK_INTERNAL __m256d nk_haversine_f64x4_haswell_(       //
     __m256d haversine_term = _mm256_add_pd(sin_squared_latitude_delta_half,
                                            _mm256_mul_pd(cos_latitude_product, sin_squared_longitude_delta_half));
 
-    // Central angle: c = 2 * atan2(sqrt(a), sqrt(1-a)) = 2 * atan(sqrt(a/(1-a)))
+    // Central angle: c = 2 * atan2(sqrt(a), sqrt(1-a))
     __m256d sqrt_haversine = _mm256_sqrt_pd(haversine_term);
     __m256d sqrt_complement = _mm256_sqrt_pd(_mm256_sub_pd(one, haversine_term));
-    __m256d ratio = _mm256_div_pd(sqrt_haversine, sqrt_complement);
-    __m256d central_angle = _mm256_mul_pd(two, nk_f64x4_atan_haswell_(ratio));
+    __m256d central_angle = _mm256_mul_pd(two, nk_f64x4_atan2_haswell_(sqrt_haversine, sqrt_complement));
 
     return _mm256_mul_pd(earth_radius, central_angle);
 }
@@ -1185,6 +1191,10 @@ NK_INTERNAL __m256 nk_haversine_f32x8_haswell_(      //
     // a = sin^2(dlat/2) + cos(lat1) * cos(lat2) * sin^2(dlon/2)
     __m256 haversine_term = _mm256_add_ps(sin_squared_latitude_delta_half,
                                           _mm256_mul_ps(cos_latitude_product, sin_squared_longitude_delta_half));
+
+    // Clamp to [0, 1] to avoid NaN from sqrt of negative numbers (due to floating point errors)
+    __m256 zero = _mm256_setzero_ps();
+    haversine_term = _mm256_max_ps(zero, _mm256_min_ps(one, haversine_term));
 
     // Central angle: c = 2 * atan2(sqrt(a), sqrt(1-a))
     __m256 sqrt_haversine = _mm256_sqrt_ps(haversine_term);
@@ -1657,11 +1667,10 @@ NK_INTERNAL __m512d nk_haversine_f64x8_skylake_(       //
     __m512d haversine_term = _mm512_add_pd(sin_squared_latitude_delta_half,
                                            _mm512_mul_pd(cos_latitude_product, sin_squared_longitude_delta_half));
 
-    // Central angle: c = 2 * atan2(sqrt(a), sqrt(1-a)) = 2 * atan(sqrt(a/(1-a)))
+    // Central angle: c = 2 * atan2(sqrt(a), sqrt(1-a))
     __m512d sqrt_haversine = _mm512_sqrt_pd(haversine_term);
     __m512d sqrt_complement = _mm512_sqrt_pd(_mm512_sub_pd(one, haversine_term));
-    __m512d ratio = _mm512_div_pd(sqrt_haversine, sqrt_complement);
-    __m512d central_angle = _mm512_mul_pd(two, nk_f64x8_atan_skylake_(ratio));
+    __m512d central_angle = _mm512_mul_pd(two, nk_f64x8_atan2_skylake_(sqrt_haversine, sqrt_complement));
 
     return _mm512_mul_pd(earth_radius, central_angle);
 }
@@ -1912,6 +1921,10 @@ NK_INTERNAL __m512 nk_haversine_f32x16_skylake_(     //
     // a = sin^2(dlat/2) + cos(lat1) * cos(lat2) * sin^2(dlon/2)
     __m512 haversine_term = _mm512_add_ps(sin_squared_latitude_delta_half,
                                           _mm512_mul_ps(cos_latitude_product, sin_squared_longitude_delta_half));
+
+    // Clamp to [0, 1] to avoid NaN from sqrt of negative numbers (due to floating point errors)
+    __m512 zero = _mm512_setzero_ps();
+    haversine_term = _mm512_max_ps(zero, _mm512_min_ps(one, haversine_term));
 
     // Central angle: c = 2 * atan2(sqrt(a), sqrt(1-a))
     __m512 sqrt_haversine = _mm512_sqrt_ps(haversine_term);
