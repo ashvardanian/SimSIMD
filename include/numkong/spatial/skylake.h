@@ -60,33 +60,22 @@ NK_INTERNAL nk_f64_t nk_angular_normalize_f64_skylake_(nk_f64_t ab, nk_f64_t a2,
     // the division is illformed, and the result is 1.
     else if (ab == 0) return 1;
 
-    // We want to avoid the `nk_f32_approximate_inverse_square_root` due to high latency:
+    // Design note: We use exact `_mm_sqrt_pd` instead of `_mm_rsqrt14_pd` approximation.
+    // The AVX-512 `_mm_rsqrt14_pd` has max relative error of 2^-14 (~14 bits precision).
+    // Even with Newton-Raphson refinement (doubles precision to ~28 bits), this is
+    // insufficient for f64's 52-bit mantissa, causing ULP errors in the tens of millions.
+    // The `_mm_sqrt_pd` instruction provides full f64 precision.
+    //
+    // Precision comparison for 1536-dimensional vectors:
+    //      DType     rsqrt14+NR Error     Exact sqrt Error
+    //      float64   1.35e-11 ± 1.85e-11  ~0 (2 ULP max)
+    //
     // https://web.archive.org/web/20210208132927/http://assemblyrequired.crashworks.org/timing-square-root/
-    // The maximum relative error for this approximation is less than 2^-14, which is 6x lower than
-    // for single-precision floats in the `nk_angular_normalize_f64_haswell_` implementation.
-    // Mysteriously, MSVC has no `_mm_rsqrt14_pd` intrinsic, but has its masked variants,
-    // so let's use `_mm_maskz_rsqrt14_pd(0xFF, ...)` instead.
-    __m128d squares = _mm_set_pd(a2, b2);
-    __m128d rsqrts = _mm_maskz_rsqrt14_pd(0xFF, squares);
-
-    // Let's implement a single Newton-Raphson iteration to refine the result.
-    // This is how it affects downstream applications for 1536-dimensional vectors:
-    //
-    //      DType     Baseline Error       Old NumKong Error    New NumKong Error
-    //      bfloat16  1.89e-08 ± 1.59e-08  3.07e-07 ± 3.09e-07  3.53e-09 ± 2.70e-09
-    //      float16   1.67e-02 ± 1.44e-02  2.68e-05 ± 1.95e-05  2.02e-05 ± 1.39e-05
-    //      float32   2.21e-08 ± 1.65e-08  3.47e-07 ± 3.49e-07  3.77e-09 ± 2.84e-09
-    //      float64   0.00e+00 ± 0.00e+00  3.80e-07 ± 4.50e-07  1.35e-11 ± 1.85e-11
-    //      int8      0.00e+00 ± 0.00e+00  4.60e-04 ± 3.36e-04  4.20e-04 ± 4.88e-04
-    //
-    // https://en.wikipedia.org/wiki/Newton%27s_method
-    rsqrts = _mm_add_pd( //
-        _mm_mul_pd(_mm_set1_pd(1.5), rsqrts),
-        _mm_mul_pd(_mm_mul_pd(_mm_mul_pd(squares, _mm_set1_pd(-0.5)), rsqrts), _mm_mul_pd(rsqrts, rsqrts)));
-
-    nk_f64_t a2_reciprocal = _mm_cvtsd_f64(_mm_unpackhi_pd(rsqrts, rsqrts));
-    nk_f64_t b2_reciprocal = _mm_cvtsd_f64(rsqrts);
-    nk_f64_t result = 1 - ab * a2_reciprocal * b2_reciprocal;
+    __m128d squares_f64x2 = _mm_set_pd(a2, b2);
+    __m128d sqrts_f64x2 = _mm_sqrt_pd(squares_f64x2);
+    nk_f64_t a_sqrt = _mm_cvtsd_f64(_mm_unpackhi_pd(sqrts_f64x2, sqrts_f64x2));
+    nk_f64_t b_sqrt = _mm_cvtsd_f64(sqrts_f64x2);
+    nk_f64_t result = 1 - ab / (a_sqrt * b_sqrt);
     return result > 0 ? result : 0;
 }
 

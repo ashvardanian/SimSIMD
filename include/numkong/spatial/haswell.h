@@ -67,22 +67,18 @@ NK_INTERNAL nk_f64_t nk_angular_normalize_f64_haswell_(nk_f64_t ab, nk_f64_t a2,
     // If any one of the vectors is 0, the square root of the product is 0,
     // the division is illformed, and the result is 1.
     else if (ab == 0) return 1;
-    // We want to avoid the `nk_f32_approximate_inverse_square_root` due to high latency:
-    // https://web.archive.org/web/20210208132927/http://assemblyrequired.crashworks.org/timing-square-root/
-    // The latency of the native instruction is 4 cycles and it's broadly supported.
-    // For single-precision floats it has a maximum relative error of 1.5*2^-12.
-    // Higher precision isn't implemented on older CPUs. See `nk_angular_normalize_f64_skylake_` for that.
-    __m128d squares = _mm_set_pd(a2, b2);
-    __m128d rsqrts = _mm_cvtps_pd(_mm_rsqrt_ps(_mm_cvtpd_ps(squares)));
-    // Newton-Raphson iteration for reciprocal square root:
-    // https://en.wikipedia.org/wiki/Newton%27s_method
-    rsqrts = _mm_add_pd( //
-        _mm_mul_pd(_mm_set1_pd(1.5), rsqrts),
-        _mm_mul_pd(_mm_mul_pd(_mm_mul_pd(squares, _mm_set1_pd(-0.5)), rsqrts), _mm_mul_pd(rsqrts, rsqrts)));
 
-    nk_f64_t a2_reciprocal = _mm_cvtsd_f64(_mm_unpackhi_pd(rsqrts, rsqrts));
-    nk_f64_t b2_reciprocal = _mm_cvtsd_f64(rsqrts);
-    nk_f64_t result = 1 - ab * a2_reciprocal * b2_reciprocal;
+    // Design note: We use exact `_mm_sqrt_pd` instead of fast rsqrt approximation.
+    // The f32 `_mm_rsqrt_ps` has max relative error of 1.5*2^-12 (~11 bits precision).
+    // Even with Newton-Raphson refinement (doubles precision to ~22-24 bits), this is
+    // insufficient for f64's 52-bit mantissa, causing ULP errors in the hundreds of millions.
+    // The `_mm_sqrt_pd` instruction has ~13 cycle latency but provides full f64 precision.
+    // https://web.archive.org/web/20210208132927/http://assemblyrequired.crashworks.org/timing-square-root/
+    __m128d squares_f64x2 = _mm_set_pd(a2, b2);
+    __m128d sqrts_f64x2 = _mm_sqrt_pd(squares_f64x2);
+    nk_f64_t a_sqrt = _mm_cvtsd_f64(_mm_unpackhi_pd(sqrts_f64x2, sqrts_f64x2));
+    nk_f64_t b_sqrt = _mm_cvtsd_f64(sqrts_f64x2);
+    nk_f64_t result = 1 - ab / (a_sqrt * b_sqrt);
     return result > 0 ? result : 0;
 }
 
