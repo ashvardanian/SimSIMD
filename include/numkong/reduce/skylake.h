@@ -852,7 +852,7 @@ NK_INTERNAL void nk_reduce_min_f32_skylake_contiguous_( //
     // Single-pass: track both min value and index in SIMD
     __m512 min_f32x16 = _mm512_loadu_ps(data);
     __m512i min_idx_i32x16 = _mm512_setr_epi32(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15);
-    __m512i current_idx_i32x16 = _mm512_set1_epi32(16);
+    __m512i current_idx_i32x16 = _mm512_setr_epi32(16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31);
     __m512i step_i32x16 = _mm512_set1_epi32(16);
 
     nk_size_t idx_scalars = 16;
@@ -957,7 +957,7 @@ NK_INTERNAL void nk_reduce_max_f32_skylake_contiguous_( //
     // Single-pass: track both max value and index in SIMD
     __m512 max_f32x16 = _mm512_loadu_ps(data);
     __m512i max_idx_i32x16 = _mm512_setr_epi32(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15);
-    __m512i current_idx_i32x16 = _mm512_set1_epi32(16);
+    __m512i current_idx_i32x16 = _mm512_setr_epi32(16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31);
     __m512i step_i32x16 = _mm512_set1_epi32(16);
 
     nk_size_t idx_scalars = 16;
@@ -1062,7 +1062,7 @@ NK_INTERNAL void nk_reduce_min_f64_skylake_contiguous_( //
     // Single-pass: track both min value and index in SIMD
     __m512d min_f64x8 = _mm512_loadu_pd(data);
     __m512i min_idx_i64x8 = _mm512_setr_epi64(0, 1, 2, 3, 4, 5, 6, 7);
-    __m512i current_idx_i64x8 = _mm512_set1_epi64(8);
+    __m512i current_idx_i64x8 = _mm512_setr_epi64(8, 9, 10, 11, 12, 13, 14, 15);
     __m512i step_i64x8 = _mm512_set1_epi64(8);
 
     nk_size_t idx_scalars = 8;
@@ -1163,7 +1163,7 @@ NK_INTERNAL void nk_reduce_max_f64_skylake_contiguous_( //
     // Single-pass: track both max value and index in SIMD
     __m512d max_f64x8 = _mm512_loadu_pd(data);
     __m512i max_idx_i64x8 = _mm512_setr_epi64(0, 1, 2, 3, 4, 5, 6, 7);
-    __m512i current_idx_i64x8 = _mm512_set1_epi64(8);
+    __m512i current_idx_i64x8 = _mm512_setr_epi64(8, 9, 10, 11, 12, 13, 14, 15);
     __m512i step_i64x8 = _mm512_set1_epi64(8);
 
     nk_size_t idx_scalars = 8;
