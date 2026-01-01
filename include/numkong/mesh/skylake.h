@@ -176,14 +176,14 @@ NK_INTERNAL nk_f32_t nk_transformed_ssd_f32_skylake_(nk_f32_t const *a, nk_f32_t
 }
 
 /*  Internal helper: Compute sum of squared distances for f64 after applying rotation (and optional scale).
- *  Note: rotation matrix r is f32 (from SVD), scale and data are f64.
+ *  Rotation matrix, scale and data are all f64 for full precision.
  */
 NK_INTERNAL nk_f64_t nk_transformed_ssd_f64_skylake_(nk_f64_t const *a, nk_f64_t const *b, nk_size_t n,
-                                                     nk_f32_t const *r, nk_f64_t scale, nk_f64_t centroid_a_x,
+                                                     nk_f64_t const *r, nk_f64_t scale, nk_f64_t centroid_a_x,
                                                      nk_f64_t centroid_a_y, nk_f64_t centroid_a_z,
                                                      nk_f64_t centroid_b_x, nk_f64_t centroid_b_y,
                                                      nk_f64_t centroid_b_z) {
-    // Broadcast scaled rotation matrix elements (cast from f32)
+    // Broadcast scaled rotation matrix elements
     __m512d sr0_f64x8 = _mm512_set1_pd(scale * r[0]), sr1_f64x8 = _mm512_set1_pd(scale * r[1]),
             sr2_f64x8 = _mm512_set1_pd(scale * r[2]);
     __m512d sr3_f64x8 = _mm512_set1_pd(scale * r[3]), sr4_f64x8 = _mm512_set1_pd(scale * r[4]),
@@ -811,23 +811,23 @@ NK_PUBLIC void nk_kabsch_f64_skylake(nk_f64_t const *a, nk_f64_t const *b, nk_si
     if (b_centroid) b_centroid[0] = centroid_b_x, b_centroid[1] = centroid_b_y, b_centroid[2] = centroid_b_z;
 
     // Compute centered covariance matrix: H_ij = sum(a_i*b_j) - sum_a_i * sum_b_j / n
-    nk_f32_t cross_covariance[9];
-    cross_covariance[0] = (nk_f32_t)(_mm512_reduce_add_pd(cov_xx_f64x8) - sum_a_x * sum_b_x * inv_n);
-    cross_covariance[1] = (nk_f32_t)(_mm512_reduce_add_pd(cov_xy_f64x8) - sum_a_x * sum_b_y * inv_n);
-    cross_covariance[2] = (nk_f32_t)(_mm512_reduce_add_pd(cov_xz_f64x8) - sum_a_x * sum_b_z * inv_n);
-    cross_covariance[3] = (nk_f32_t)(_mm512_reduce_add_pd(cov_yx_f64x8) - sum_a_y * sum_b_x * inv_n);
-    cross_covariance[4] = (nk_f32_t)(_mm512_reduce_add_pd(cov_yy_f64x8) - sum_a_y * sum_b_y * inv_n);
-    cross_covariance[5] = (nk_f32_t)(_mm512_reduce_add_pd(cov_yz_f64x8) - sum_a_y * sum_b_z * inv_n);
-    cross_covariance[6] = (nk_f32_t)(_mm512_reduce_add_pd(cov_zx_f64x8) - sum_a_z * sum_b_x * inv_n);
-    cross_covariance[7] = (nk_f32_t)(_mm512_reduce_add_pd(cov_zy_f64x8) - sum_a_z * sum_b_y * inv_n);
-    cross_covariance[8] = (nk_f32_t)(_mm512_reduce_add_pd(cov_zz_f64x8) - sum_a_z * sum_b_z * inv_n);
+    nk_f64_t cross_covariance[9];
+    cross_covariance[0] = _mm512_reduce_add_pd(cov_xx_f64x8) - sum_a_x * sum_b_x * inv_n;
+    cross_covariance[1] = _mm512_reduce_add_pd(cov_xy_f64x8) - sum_a_x * sum_b_y * inv_n;
+    cross_covariance[2] = _mm512_reduce_add_pd(cov_xz_f64x8) - sum_a_x * sum_b_z * inv_n;
+    cross_covariance[3] = _mm512_reduce_add_pd(cov_yx_f64x8) - sum_a_y * sum_b_x * inv_n;
+    cross_covariance[4] = _mm512_reduce_add_pd(cov_yy_f64x8) - sum_a_y * sum_b_y * inv_n;
+    cross_covariance[5] = _mm512_reduce_add_pd(cov_yz_f64x8) - sum_a_y * sum_b_z * inv_n;
+    cross_covariance[6] = _mm512_reduce_add_pd(cov_zx_f64x8) - sum_a_z * sum_b_x * inv_n;
+    cross_covariance[7] = _mm512_reduce_add_pd(cov_zy_f64x8) - sum_a_z * sum_b_y * inv_n;
+    cross_covariance[8] = _mm512_reduce_add_pd(cov_zz_f64x8) - sum_a_z * sum_b_z * inv_n;
 
-    // SVD (f32 is sufficient for rotation matrix)
-    nk_f32_t svd_u[9], svd_s[9], svd_v[9];
-    nk_svd3x3_f32_(cross_covariance, svd_u, svd_s, svd_v);
+    // SVD using f64 for full precision
+    nk_f64_t svd_u[9], svd_s[3], svd_v[9];
+    nk_svd3x3_f64_(cross_covariance, svd_u, svd_s, svd_v);
 
     // R = V * U^T
-    nk_f32_t r[9];
+    nk_f64_t r[9];
     r[0] = svd_v[0] * svd_u[0] + svd_v[1] * svd_u[1] + svd_v[2] * svd_u[2];
     r[1] = svd_v[0] * svd_u[3] + svd_v[1] * svd_u[4] + svd_v[2] * svd_u[5];
     r[2] = svd_v[0] * svd_u[6] + svd_v[1] * svd_u[7] + svd_v[2] * svd_u[8];
@@ -839,7 +839,7 @@ NK_PUBLIC void nk_kabsch_f64_skylake(nk_f64_t const *a, nk_f64_t const *b, nk_si
     r[8] = svd_v[6] * svd_u[6] + svd_v[7] * svd_u[7] + svd_v[8] * svd_u[8];
 
     // Handle reflection
-    if (nk_det3x3_f32_(r) < 0) {
+    if (nk_det3x3_f64_(r) < 0) {
         svd_v[2] = -svd_v[2], svd_v[5] = -svd_v[5], svd_v[8] = -svd_v[8];
         r[0] = svd_v[0] * svd_u[0] + svd_v[1] * svd_u[1] + svd_v[2] * svd_u[2];
         r[1] = svd_v[0] * svd_u[3] + svd_v[1] * svd_u[4] + svd_v[2] * svd_u[5];
@@ -1117,23 +1117,24 @@ NK_PUBLIC void nk_umeyama_f64_skylake(nk_f64_t const *a, nk_f64_t const *b, nk_s
     nk_f64_t variance_a = variance_a_sum * inv_n -
                           (centroid_a_x * centroid_a_x + centroid_a_y * centroid_a_y + centroid_a_z * centroid_a_z);
 
-    nk_f32_t cross_covariance[9];
-    cross_covariance[0] = (nk_f32_t)(_mm512_reduce_add_pd(cov_xx_f64x8) - sum_a_x * sum_b_x * inv_n);
-    cross_covariance[1] = (nk_f32_t)(_mm512_reduce_add_pd(cov_xy_f64x8) - sum_a_x * sum_b_y * inv_n);
-    cross_covariance[2] = (nk_f32_t)(_mm512_reduce_add_pd(cov_xz_f64x8) - sum_a_x * sum_b_z * inv_n);
-    cross_covariance[3] = (nk_f32_t)(_mm512_reduce_add_pd(cov_yx_f64x8) - sum_a_y * sum_b_x * inv_n);
-    cross_covariance[4] = (nk_f32_t)(_mm512_reduce_add_pd(cov_yy_f64x8) - sum_a_y * sum_b_y * inv_n);
-    cross_covariance[5] = (nk_f32_t)(_mm512_reduce_add_pd(cov_yz_f64x8) - sum_a_y * sum_b_z * inv_n);
-    cross_covariance[6] = (nk_f32_t)(_mm512_reduce_add_pd(cov_zx_f64x8) - sum_a_z * sum_b_x * inv_n);
-    cross_covariance[7] = (nk_f32_t)(_mm512_reduce_add_pd(cov_zy_f64x8) - sum_a_z * sum_b_y * inv_n);
-    cross_covariance[8] = (nk_f32_t)(_mm512_reduce_add_pd(cov_zz_f64x8) - sum_a_z * sum_b_z * inv_n);
+    // Compute centered covariance matrix: H_ij = sum(a_i*b_j) - sum_a_i * sum_b_j / n
+    nk_f64_t cross_covariance[9];
+    cross_covariance[0] = _mm512_reduce_add_pd(cov_xx_f64x8) - sum_a_x * sum_b_x * inv_n;
+    cross_covariance[1] = _mm512_reduce_add_pd(cov_xy_f64x8) - sum_a_x * sum_b_y * inv_n;
+    cross_covariance[2] = _mm512_reduce_add_pd(cov_xz_f64x8) - sum_a_x * sum_b_z * inv_n;
+    cross_covariance[3] = _mm512_reduce_add_pd(cov_yx_f64x8) - sum_a_y * sum_b_x * inv_n;
+    cross_covariance[4] = _mm512_reduce_add_pd(cov_yy_f64x8) - sum_a_y * sum_b_y * inv_n;
+    cross_covariance[5] = _mm512_reduce_add_pd(cov_yz_f64x8) - sum_a_y * sum_b_z * inv_n;
+    cross_covariance[6] = _mm512_reduce_add_pd(cov_zx_f64x8) - sum_a_z * sum_b_x * inv_n;
+    cross_covariance[7] = _mm512_reduce_add_pd(cov_zy_f64x8) - sum_a_z * sum_b_y * inv_n;
+    cross_covariance[8] = _mm512_reduce_add_pd(cov_zz_f64x8) - sum_a_z * sum_b_z * inv_n;
 
-    // SVD
-    nk_f32_t svd_u[9], svd_s[9], svd_v[9];
-    nk_svd3x3_f32_(cross_covariance, svd_u, svd_s, svd_v);
+    // SVD using f64 for full precision
+    nk_f64_t svd_u[9], svd_s[3], svd_v[9];
+    nk_svd3x3_f64_(cross_covariance, svd_u, svd_s, svd_v);
 
     // R = V * U^T
-    nk_f32_t r[9];
+    nk_f64_t r[9];
     r[0] = svd_v[0] * svd_u[0] + svd_v[1] * svd_u[1] + svd_v[2] * svd_u[2];
     r[1] = svd_v[0] * svd_u[3] + svd_v[1] * svd_u[4] + svd_v[2] * svd_u[5];
     r[2] = svd_v[0] * svd_u[6] + svd_v[1] * svd_u[7] + svd_v[2] * svd_u[8];
@@ -1145,10 +1146,10 @@ NK_PUBLIC void nk_umeyama_f64_skylake(nk_f64_t const *a, nk_f64_t const *b, nk_s
     r[8] = svd_v[6] * svd_u[6] + svd_v[7] * svd_u[7] + svd_v[8] * svd_u[8];
 
     // Scale factor: c = trace(D*S) / (n * variance_a)
-    nk_f32_t det = nk_det3x3_f32_(r);
-    nk_f32_t d3 = det < 0 ? -1.0f : 1.0f;
-    nk_f32_t trace_ds = svd_s[0] + svd_s[4] + d3 * svd_s[8];
-    nk_f64_t c = (nk_f64_t)trace_ds / (n * variance_a);
+    nk_f64_t det = nk_det3x3_f64_(r);
+    nk_f64_t d3 = det < 0 ? -1.0 : 1.0;
+    nk_f64_t trace_ds = svd_s[0] + svd_s[1] + d3 * svd_s[2];
+    nk_f64_t c = trace_ds / (n * variance_a);
     if (scale) *scale = c;
 
     // Handle reflection
