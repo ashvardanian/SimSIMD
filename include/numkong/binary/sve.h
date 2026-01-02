@@ -16,6 +16,7 @@
 
 #include "numkong/types.h"
 #include "numkong/binary/serial.h" // `nk_popcount_b8`
+#include "numkong/binary/neon.h"   // `nk_hamming_b8_neon`, `nk_jaccard_b8_neon`
 #include "numkong/reduce/neon.h"   // `nk_reduce_add_u8x16_neon_`
 
 #if defined(__cplusplus)

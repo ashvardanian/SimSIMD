@@ -15,15 +15,12 @@
 #pragma clang attribute push(__attribute__((target("arch=armv8.2-a+sve"))), apply_to = function)
 
 #include "numkong/types.h"
+#include "numkong/spatial/neon.h" // For nk_sqrt_f32_neon_, nk_angular_normalize_f64_neon_
 
 #if defined(__cplusplus)
 extern "C" {
 #endif
 
-NK_PUBLIC void nk_l2_f32_sve(nk_f32_t const *a, nk_f32_t const *b, nk_size_t n, nk_f32_t *result) {
-    nk_l2sq_f32_sve(a, b, n, result);
-    *result = nk_sqrt_f32_neon_(*result);
-}
 NK_PUBLIC void nk_l2sq_f32_sve(nk_f32_t const *a, nk_f32_t const *b, nk_size_t n, nk_f32_t *result) {
     nk_size_t i = 0;
     svfloat32_t d2_vec = svdupq_n_f32(0.f, 0.f, 0.f, 0.f);
@@ -37,6 +34,11 @@ NK_PUBLIC void nk_l2sq_f32_sve(nk_f32_t const *a, nk_f32_t const *b, nk_size_t n
     } while (i < n);
     nk_f32_t d2 = svaddv_f32(svptrue_b32(), d2_vec);
     *result = d2;
+}
+
+NK_PUBLIC void nk_l2_f32_sve(nk_f32_t const *a, nk_f32_t const *b, nk_size_t n, nk_f32_t *result) {
+    nk_l2sq_f32_sve(a, b, n, result);
+    *result = nk_sqrt_f32_neon_(*result);
 }
 
 NK_PUBLIC void nk_angular_f32_sve(nk_f32_t const *a, nk_f32_t const *b, nk_size_t n, nk_f32_t *result) {
@@ -60,10 +62,6 @@ NK_PUBLIC void nk_angular_f32_sve(nk_f32_t const *a, nk_f32_t const *b, nk_size_
     *result = (nk_f32_t)nk_angular_normalize_f64_neon_(ab, a2, b2);
 }
 
-NK_PUBLIC void nk_l2_f64_sve(nk_f64_t const *a, nk_f64_t const *b, nk_size_t n, nk_f64_t *result) {
-    nk_l2sq_f64_sve(a, b, n, result);
-    *result = nk_sqrt_f64_neon_(*result);
-}
 NK_PUBLIC void nk_l2sq_f64_sve(nk_f64_t const *a, nk_f64_t const *b, nk_size_t n, nk_f64_t *result) {
     nk_size_t i = 0;
     svfloat64_t d2_vec = svdupq_n_f64(0.0, 0.0);
@@ -77,6 +75,11 @@ NK_PUBLIC void nk_l2sq_f64_sve(nk_f64_t const *a, nk_f64_t const *b, nk_size_t n
     } while (i < n);
     nk_f64_t d2 = svaddv_f64(svptrue_b32(), d2_vec);
     *result = d2;
+}
+
+NK_PUBLIC void nk_l2_f64_sve(nk_f64_t const *a, nk_f64_t const *b, nk_size_t n, nk_f64_t *result) {
+    nk_l2sq_f64_sve(a, b, n, result);
+    *result = nk_sqrt_f64_neon_(*result);
 }
 
 NK_PUBLIC void nk_angular_f64_sve(nk_f64_t const *a, nk_f64_t const *b, nk_size_t n, nk_f64_t *result) {

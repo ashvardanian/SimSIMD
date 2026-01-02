@@ -15,6 +15,7 @@
 #pragma clang attribute push(__attribute__((target("arch=armv8.2-a+sve+bf16"))), apply_to = function)
 
 #include "numkong/types.h"
+#include "numkong/spatial/neon.h" // For nk_sqrt_f32_neon_, nk_angular_normalize_f32_neon_
 
 #if defined(__cplusplus)
 extern "C" {
