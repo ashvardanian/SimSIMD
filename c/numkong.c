@@ -566,6 +566,7 @@ NK_DYNAMIC nk_capability_t nk_capabilities(void) {
     largest_scalar_t dummy_input[1];
     void *x = &dummy_input[0];
     nk_f64_t dummy_alpha = 1, dummy_beta = 1;
+    nk_size_t dummy_index;
 
     // Dense:
     nk_dot_i8((nk_i8_t *)x, (nk_i8_t *)x, 0, dummy_results);
@@ -574,6 +575,8 @@ NK_DYNAMIC nk_capability_t nk_capabilities(void) {
     nk_dot_bf16((nk_bf16_t *)x, (nk_bf16_t *)x, 0, dummy_results);
     nk_dot_f32((nk_f32_t *)x, (nk_f32_t *)x, 0, dummy_results);
     nk_dot_f64((nk_f64_t *)x, (nk_f64_t *)x, 0, dummy_results);
+    nk_dot_e4m3((nk_e4m3_t *)x, (nk_e4m3_t *)x, 0, dummy_results);
+    nk_dot_e5m2((nk_e5m2_t *)x, (nk_e5m2_t *)x, 0, dummy_results);
 
     nk_dot_f16c((nk_f16c_t *)x, (nk_f16c_t *)x, 0, dummy_results);
     nk_dot_bf16c((nk_bf16c_t *)x, (nk_bf16c_t *)x, 0, dummy_results);
@@ -590,6 +593,8 @@ NK_DYNAMIC nk_capability_t nk_capabilities(void) {
     nk_angular_bf16((nk_bf16_t *)x, (nk_bf16_t *)x, 0, dummy_results);
     nk_angular_f32((nk_f32_t *)x, (nk_f32_t *)x, 0, dummy_results);
     nk_angular_f64((nk_f64_t *)x, (nk_f64_t *)x, 0, dummy_results);
+    nk_angular_e4m3((nk_e4m3_t *)x, (nk_e4m3_t *)x, 0, dummy_results);
+    nk_angular_e5m2((nk_e5m2_t *)x, (nk_e5m2_t *)x, 0, dummy_results);
 
     nk_l2sq_i8((nk_i8_t *)x, (nk_i8_t *)x, 0, dummy_results);
     nk_l2sq_u8((nk_u8_t *)x, (nk_u8_t *)x, 0, dummy_results);
@@ -597,6 +602,8 @@ NK_DYNAMIC nk_capability_t nk_capabilities(void) {
     nk_l2sq_bf16((nk_bf16_t *)x, (nk_bf16_t *)x, 0, dummy_results);
     nk_l2sq_f32((nk_f32_t *)x, (nk_f32_t *)x, 0, dummy_results);
     nk_l2sq_f64((nk_f64_t *)x, (nk_f64_t *)x, 0, dummy_results);
+    nk_l2sq_e4m3((nk_e4m3_t *)x, (nk_e4m3_t *)x, 0, dummy_results);
+    nk_l2sq_e5m2((nk_e5m2_t *)x, (nk_e5m2_t *)x, 0, dummy_results);
 
     nk_l2_i8((nk_i8_t *)x, (nk_i8_t *)x, 0, dummy_results);
     nk_l2_i8((nk_i8_t *)x, (nk_i8_t *)x, 0, dummy_results);
@@ -605,6 +612,8 @@ NK_DYNAMIC nk_capability_t nk_capabilities(void) {
     nk_l2_bf16((nk_bf16_t *)x, (nk_bf16_t *)x, 0, dummy_results);
     nk_l2_f32((nk_f32_t *)x, (nk_f32_t *)x, 0, dummy_results);
     nk_l2_f64((nk_f64_t *)x, (nk_f64_t *)x, 0, dummy_results);
+    nk_l2_e4m3((nk_e4m3_t *)x, (nk_e4m3_t *)x, 0, dummy_results);
+    nk_l2_e5m2((nk_e5m2_t *)x, (nk_e5m2_t *)x, 0, dummy_results);
 
     nk_haversine_f64((nk_f64_t *)x, (nk_f64_t *)x, (nk_f64_t *)x, (nk_f64_t *)x, 0, dummy_results);
     nk_haversine_f32((nk_f32_t *)x, (nk_f32_t *)x, (nk_f32_t *)x, (nk_f32_t *)x, 0, dummy_results);
@@ -636,6 +645,10 @@ NK_DYNAMIC nk_capability_t nk_capabilities(void) {
     nk_mahalanobis_f16((nk_f16_t *)x, (nk_f16_t *)x, (nk_f16_t *)x, 0, dummy_results);
     nk_bilinear_bf16((nk_bf16_t *)x, (nk_bf16_t *)x, (nk_bf16_t *)x, 0, dummy_results);
     nk_mahalanobis_bf16((nk_bf16_t *)x, (nk_bf16_t *)x, (nk_bf16_t *)x, 0, dummy_results);
+    nk_bilinear_f64c((nk_f64c_t *)x, (nk_f64c_t *)x, (nk_f64c_t *)x, 0, dummy_results);
+    nk_bilinear_f32c((nk_f32c_t *)x, (nk_f32c_t *)x, (nk_f32c_t *)x, 0, dummy_results);
+    nk_bilinear_f16c((nk_f16c_t *)x, (nk_f16c_t *)x, (nk_f16c_t *)x, 0, dummy_results);
+    nk_bilinear_bf16c((nk_bf16c_t *)x, (nk_bf16c_t *)x, (nk_bf16c_t *)x, 0, dummy_results);
 
     // Elementwise
     nk_wsum_f64((nk_f64_t *)x, (nk_f64_t *)x, 0, &dummy_alpha, &dummy_beta, (nk_f64_t *)x);
@@ -655,6 +668,139 @@ NK_DYNAMIC nk_capability_t nk_capabilities(void) {
               (nk_i8_t *)x);
     nk_fma_u8((nk_u8_t *)x, (nk_u8_t *)x, (nk_u8_t *)x, 0, (nk_f32_t *)&dummy_alpha, (nk_f32_t *)&dummy_beta,
               (nk_u8_t *)x);
+
+    // Sparse dot products
+    nk_jaccard_u32((nk_u32_t *)x, (nk_u32_t *)x, 0, dummy_results);
+    nk_sparse_dot_u16bf16((nk_u16_t *)x, (nk_u16_t *)x, (nk_bf16_t *)x, (nk_bf16_t *)x, 0, 0, dummy_results);
+    nk_sparse_dot_u32f32((nk_u32_t *)x, (nk_u32_t *)x, (nk_f32_t *)x, (nk_f32_t *)x, 0, 0, dummy_results);
+
+    // Trigonometry
+    nk_sin_f32((nk_f32_t *)x, 0, (nk_f32_t *)x);
+    nk_sin_f64((nk_f64_t *)x, 0, (nk_f64_t *)x);
+    nk_cos_f32((nk_f32_t *)x, 0, (nk_f32_t *)x);
+    nk_cos_f64((nk_f64_t *)x, 0, (nk_f64_t *)x);
+    nk_atan_f32((nk_f32_t *)x, 0, (nk_f32_t *)x);
+    nk_atan_f64((nk_f64_t *)x, 0, (nk_f64_t *)x);
+
+    // Mesh alignment
+    nk_rmsd_f32((nk_f32_t *)x, (nk_f32_t *)x, 0, (nk_f32_t *)x, (nk_f32_t *)x, (nk_f32_t *)x, (nk_f32_t *)x,
+                (nk_f32_t *)x);
+    nk_rmsd_f64((nk_f64_t *)x, (nk_f64_t *)x, 0, (nk_f64_t *)x, (nk_f64_t *)x, (nk_f64_t *)x, (nk_f64_t *)x,
+                (nk_f64_t *)x);
+    nk_kabsch_f32((nk_f32_t *)x, (nk_f32_t *)x, 0, (nk_f32_t *)x, (nk_f32_t *)x, (nk_f32_t *)x, (nk_f32_t *)x,
+                  (nk_f32_t *)x);
+    nk_kabsch_f64((nk_f64_t *)x, (nk_f64_t *)x, 0, (nk_f64_t *)x, (nk_f64_t *)x, (nk_f64_t *)x, (nk_f64_t *)x,
+                  (nk_f64_t *)x);
+    nk_umeyama_f32((nk_f32_t *)x, (nk_f32_t *)x, 0, (nk_f32_t *)x, (nk_f32_t *)x, (nk_f32_t *)x, (nk_f32_t *)x,
+                   (nk_f32_t *)x);
+    nk_umeyama_f64((nk_f64_t *)x, (nk_f64_t *)x, 0, (nk_f64_t *)x, (nk_f64_t *)x, (nk_f64_t *)x, (nk_f64_t *)x,
+                   (nk_f64_t *)x);
+
+    // Scale
+    nk_scale_f64((nk_f64_t *)x, 0, &dummy_alpha, &dummy_beta, (nk_f64_t *)x);
+    nk_scale_f32((nk_f32_t *)x, 0, (nk_f32_t *)&dummy_alpha, (nk_f32_t *)&dummy_beta, (nk_f32_t *)x);
+    nk_scale_f16((nk_f16_t *)x, 0, (nk_f32_t *)&dummy_alpha, (nk_f32_t *)&dummy_beta, (nk_f16_t *)x);
+    nk_scale_bf16((nk_bf16_t *)x, 0, (nk_f32_t *)&dummy_alpha, (nk_f32_t *)&dummy_beta, (nk_bf16_t *)x);
+    nk_scale_i8((nk_i8_t *)x, 0, (nk_f32_t *)&dummy_alpha, (nk_f32_t *)&dummy_beta, (nk_i8_t *)x);
+    nk_scale_u8((nk_u8_t *)x, 0, (nk_f32_t *)&dummy_alpha, (nk_f32_t *)&dummy_beta, (nk_u8_t *)x);
+    nk_scale_i16((nk_i16_t *)x, 0, (nk_f32_t *)&dummy_alpha, (nk_f32_t *)&dummy_beta, (nk_i16_t *)x);
+    nk_scale_u16((nk_u16_t *)x, 0, (nk_f32_t *)&dummy_alpha, (nk_f32_t *)&dummy_beta, (nk_u16_t *)x);
+    nk_scale_i32((nk_i32_t *)x, 0, &dummy_alpha, &dummy_beta, (nk_i32_t *)x);
+    nk_scale_u32((nk_u32_t *)x, 0, &dummy_alpha, &dummy_beta, (nk_u32_t *)x);
+    nk_scale_i64((nk_i64_t *)x, 0, &dummy_alpha, &dummy_beta, (nk_i64_t *)x);
+    nk_scale_u64((nk_u64_t *)x, 0, &dummy_alpha, &dummy_beta, (nk_u64_t *)x);
+    nk_scale_e4m3((nk_e4m3_t *)x, 0, (nk_f32_t *)&dummy_alpha, (nk_f32_t *)&dummy_beta, (nk_e4m3_t *)x);
+    nk_scale_e5m2((nk_e5m2_t *)x, 0, (nk_f32_t *)&dummy_alpha, (nk_f32_t *)&dummy_beta, (nk_e5m2_t *)x);
+
+    // Sum
+    nk_sum_f64((nk_f64_t *)x, (nk_f64_t *)x, 0, (nk_f64_t *)x);
+    nk_sum_f32((nk_f32_t *)x, (nk_f32_t *)x, 0, (nk_f32_t *)x);
+    nk_sum_f16((nk_f16_t *)x, (nk_f16_t *)x, 0, (nk_f16_t *)x);
+    nk_sum_bf16((nk_bf16_t *)x, (nk_bf16_t *)x, 0, (nk_bf16_t *)x);
+    nk_sum_i8((nk_i8_t *)x, (nk_i8_t *)x, 0, (nk_i8_t *)x);
+    nk_sum_u8((nk_u8_t *)x, (nk_u8_t *)x, 0, (nk_u8_t *)x);
+    nk_sum_i16((nk_i16_t *)x, (nk_i16_t *)x, 0, (nk_i16_t *)x);
+    nk_sum_u16((nk_u16_t *)x, (nk_u16_t *)x, 0, (nk_u16_t *)x);
+    nk_sum_i32((nk_i32_t *)x, (nk_i32_t *)x, 0, (nk_i32_t *)x);
+    nk_sum_u32((nk_u32_t *)x, (nk_u32_t *)x, 0, (nk_u32_t *)x);
+    nk_sum_i64((nk_i64_t *)x, (nk_i64_t *)x, 0, (nk_i64_t *)x);
+    nk_sum_u64((nk_u64_t *)x, (nk_u64_t *)x, 0, (nk_u64_t *)x);
+    nk_sum_e4m3((nk_e4m3_t *)x, (nk_e4m3_t *)x, 0, (nk_e4m3_t *)x);
+    nk_sum_e5m2((nk_e5m2_t *)x, (nk_e5m2_t *)x, 0, (nk_e5m2_t *)x);
+
+    // FP8 wsum/fma
+    nk_wsum_e4m3((nk_e4m3_t *)x, (nk_e4m3_t *)x, 0, (nk_f32_t *)&dummy_alpha, (nk_f32_t *)&dummy_beta, (nk_e4m3_t *)x);
+    nk_wsum_e5m2((nk_e5m2_t *)x, (nk_e5m2_t *)x, 0, (nk_f32_t *)&dummy_alpha, (nk_f32_t *)&dummy_beta, (nk_e5m2_t *)x);
+    nk_fma_e4m3((nk_e4m3_t *)x, (nk_e4m3_t *)x, (nk_e4m3_t *)x, 0, (nk_f32_t *)&dummy_alpha, (nk_f32_t *)&dummy_beta,
+                (nk_e4m3_t *)x);
+    nk_fma_e5m2((nk_e5m2_t *)x, (nk_e5m2_t *)x, (nk_e5m2_t *)x, 0, (nk_f32_t *)&dummy_alpha, (nk_f32_t *)&dummy_beta,
+                (nk_e5m2_t *)x);
+
+    // Reduce add
+    nk_reduce_add_f32((nk_f32_t *)x, 0, 0, (nk_f64_t *)x);
+    nk_reduce_add_f64((nk_f64_t *)x, 0, 0, (nk_f64_t *)x);
+    nk_reduce_add_i8((nk_i8_t *)x, 0, 0, (nk_i64_t *)x);
+    nk_reduce_add_u8((nk_u8_t *)x, 0, 0, (nk_u64_t *)x);
+    nk_reduce_add_i16((nk_i16_t *)x, 0, 0, (nk_i64_t *)x);
+    nk_reduce_add_u16((nk_u16_t *)x, 0, 0, (nk_u64_t *)x);
+    nk_reduce_add_i32((nk_i32_t *)x, 0, 0, (nk_i64_t *)x);
+    nk_reduce_add_u32((nk_u32_t *)x, 0, 0, (nk_u64_t *)x);
+    nk_reduce_add_i64((nk_i64_t *)x, 0, 0, (nk_i64_t *)x);
+    nk_reduce_add_u64((nk_u64_t *)x, 0, 0, (nk_u64_t *)x);
+    nk_reduce_add_f16((nk_f16_t *)x, 0, 0, (nk_f32_t *)x);
+    nk_reduce_add_bf16((nk_bf16_t *)x, 0, 0, (nk_f32_t *)x);
+    nk_reduce_add_e4m3((nk_e4m3_t *)x, 0, 0, (nk_f32_t *)x);
+    nk_reduce_add_e5m2((nk_e5m2_t *)x, 0, 0, (nk_f32_t *)x);
+
+    // Reduce min/max
+    nk_reduce_min_f32((nk_f32_t *)x, 0, 0, (nk_f32_t *)x, &dummy_index);
+    nk_reduce_max_f32((nk_f32_t *)x, 0, 0, (nk_f32_t *)x, &dummy_index);
+    nk_reduce_min_f64((nk_f64_t *)x, 0, 0, (nk_f64_t *)x, &dummy_index);
+    nk_reduce_max_f64((nk_f64_t *)x, 0, 0, (nk_f64_t *)x, &dummy_index);
+    nk_reduce_min_i8((nk_i8_t *)x, 0, 0, (nk_i8_t *)x, &dummy_index);
+    nk_reduce_max_i8((nk_i8_t *)x, 0, 0, (nk_i8_t *)x, &dummy_index);
+    nk_reduce_min_u8((nk_u8_t *)x, 0, 0, (nk_u8_t *)x, &dummy_index);
+    nk_reduce_max_u8((nk_u8_t *)x, 0, 0, (nk_u8_t *)x, &dummy_index);
+    nk_reduce_min_i16((nk_i16_t *)x, 0, 0, (nk_i16_t *)x, &dummy_index);
+    nk_reduce_max_i16((nk_i16_t *)x, 0, 0, (nk_i16_t *)x, &dummy_index);
+    nk_reduce_min_u16((nk_u16_t *)x, 0, 0, (nk_u16_t *)x, &dummy_index);
+    nk_reduce_max_u16((nk_u16_t *)x, 0, 0, (nk_u16_t *)x, &dummy_index);
+    nk_reduce_min_i32((nk_i32_t *)x, 0, 0, (nk_i32_t *)x, &dummy_index);
+    nk_reduce_max_i32((nk_i32_t *)x, 0, 0, (nk_i32_t *)x, &dummy_index);
+    nk_reduce_min_u32((nk_u32_t *)x, 0, 0, (nk_u32_t *)x, &dummy_index);
+    nk_reduce_max_u32((nk_u32_t *)x, 0, 0, (nk_u32_t *)x, &dummy_index);
+    nk_reduce_min_i64((nk_i64_t *)x, 0, 0, (nk_i64_t *)x, &dummy_index);
+    nk_reduce_max_i64((nk_i64_t *)x, 0, 0, (nk_i64_t *)x, &dummy_index);
+    nk_reduce_min_u64((nk_u64_t *)x, 0, 0, (nk_u64_t *)x, &dummy_index);
+    nk_reduce_max_u64((nk_u64_t *)x, 0, 0, (nk_u64_t *)x, &dummy_index);
+    nk_reduce_min_f16((nk_f16_t *)x, 0, 0, (nk_f32_t *)x, &dummy_index);
+    nk_reduce_max_f16((nk_f16_t *)x, 0, 0, (nk_f32_t *)x, &dummy_index);
+    nk_reduce_min_bf16((nk_bf16_t *)x, 0, 0, (nk_f32_t *)x, &dummy_index);
+    nk_reduce_max_bf16((nk_bf16_t *)x, 0, 0, (nk_f32_t *)x, &dummy_index);
+    nk_reduce_min_e4m3((nk_e4m3_t *)x, 0, 0, (nk_f32_t *)x, &dummy_index);
+    nk_reduce_max_e4m3((nk_e4m3_t *)x, 0, 0, (nk_f32_t *)x, &dummy_index);
+    nk_reduce_min_e5m2((nk_e5m2_t *)x, 0, 0, (nk_f32_t *)x, &dummy_index);
+    nk_reduce_max_e5m2((nk_e5m2_t *)x, 0, 0, (nk_f32_t *)x, &dummy_index);
+
+    // Matrix multiplications (dots)
+    nk_dots_f32f32f32_packed_size(0, 0);
+    nk_dots_f64f64f64_packed_size(0, 0);
+    nk_dots_f16f32f32_packed_size(0, 0);
+    nk_dots_bf16f32f32_packed_size(0, 0);
+    nk_dots_i8i32i32_packed_size(0, 0);
+    nk_dots_u8u32u32_packed_size(0, 0);
+    nk_dots_f32f32f32_pack((nk_f32_t *)x, 0, 0, 0, x);
+    nk_dots_f64f64f64_pack((nk_f64_t *)x, 0, 0, 0, x);
+    nk_dots_f16f32f32_pack((nk_f16_t *)x, 0, 0, 0, x);
+    nk_dots_bf16f32f32_pack((nk_bf16_t *)x, 0, 0, 0, x);
+    nk_dots_i8i32i32_pack((nk_i8_t *)x, 0, 0, 0, x);
+    nk_dots_u8u32u32_pack((nk_u8_t *)x, 0, 0, 0, x);
+    nk_dots_f32f32f32((nk_f32_t *)x, x, (nk_f32_t *)x, 0, 0, 0, 0, 0);
+    nk_dots_f64f64f64((nk_f64_t *)x, x, (nk_f64_t *)x, 0, 0, 0, 0, 0);
+    nk_dots_f16f32f32((nk_f16_t *)x, x, (nk_f32_t *)x, 0, 0, 0, 0, 0);
+    nk_dots_bf16f32f32((nk_bf16_t *)x, x, (nk_f32_t *)x, 0, 0, 0, 0, 0);
+    nk_dots_i8i32i32((nk_i8_t *)x, x, (nk_i32_t *)x, 0, 0, 0, 0, 0);
+    nk_dots_u8u32u32((nk_u8_t *)x, x, (nk_u32_t *)x, 0, 0, 0, 0, 0);
 
     return static_capabilities;
 }
