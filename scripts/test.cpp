@@ -51,15 +51,17 @@
 #ifndef NK_COMPARE_TO_MKL
 #define NK_COMPARE_TO_MKL 0
 #endif
+#ifndef NK_COMPARE_TO_ACCELERATE
+#define NK_COMPARE_TO_ACCELERATE 0
+#endif
 
+// Include reference library headers - MKL, Accelerate, or generic CBLAS
 #if NK_COMPARE_TO_MKL
 #include <mkl.h> // MKL includes its own CBLAS interface
+#elif NK_COMPARE_TO_ACCELERATE
+#include <Accelerate/Accelerate.h> // Apple Accelerate framework
 #elif NK_COMPARE_TO_BLAS
-#ifdef __APPLE__
-#include <Accelerate/Accelerate.h>
-#else
-#include <cblas.h>
-#endif
+#include <cblas.h> // Generic CBLAS (OpenBLAS, etc.)
 #endif
 
 #define NK_NATIVE_F16  0
@@ -835,7 +837,7 @@ void fill_random_integers(aligned_buffer<scalar_type_> &buf, generator_type_ &rn
 
 #pragma region BLAS_Baselines
 
-#if NK_COMPARE_TO_BLAS || NK_COMPARE_TO_MKL
+#if NK_COMPARE_TO_BLAS || NK_COMPARE_TO_MKL || NK_COMPARE_TO_ACCELERATE
 
 void dot_f32_blas(nk_f32_t const *a, nk_f32_t const *b, nk_size_t n, nk_f32_t *result) {
     *result = cblas_sdot(static_cast<int>(n), a, 1, b, 1);
@@ -876,7 +878,7 @@ void dots_f64_blas(nk_f64_t const *a, nk_f64_t const *b, nk_f64_t *c, nk_size_t 
     cblas_dgemm(CblasRowMajor, CblasNoTrans, CblasTrans, static_cast<int>(m), static_cast<int>(n), static_cast<int>(k),
                 1.0, a, static_cast<int>(k), b, static_cast<int>(k), 0.0, c, static_cast<int>(n));
 }
-#endif // NK_COMPARE_TO_BLAS || NK_COMPARE_TO_MKL
+#endif // NK_COMPARE_TO_BLAS || NK_COMPARE_TO_MKL || NK_COMPARE_TO_ACCELERATE
 
 #if NK_COMPARE_TO_MKL
 void dots_bf16_mkl(nk_bf16_t const *a, nk_bf16_t const *b, nk_f32_t *c, nk_size_t m, nk_size_t n, nk_size_t k,
@@ -1964,15 +1966,15 @@ void test_dot() {
 
 #endif // NK_DYNAMIC_DISPATCH
 
-#if NK_COMPARE_TO_BLAS || NK_COMPARE_TO_MKL
-    // BLAS/MKL precision comparison
+#if NK_COMPARE_TO_BLAS || NK_COMPARE_TO_MKL || NK_COMPARE_TO_ACCELERATE
+    // BLAS/MKL/Accelerate precision comparison
     run_if_matches("dot_blas", "f32", test_dot_f32, dot_f32_blas);
     run_if_matches("dot_blas", "f64", test_dot_f64, dot_f64_blas);
     run_if_matches("dot_blas", "f32c", test_dot_f32c, dot_f32c_blas);
     run_if_matches("vdot_blas", "f32c", test_vdot_f32c, vdot_f32c_blas);
     run_if_matches("dot_blas", "f64c", test_dot_f64c, dot_f64c_blas);
     run_if_matches("vdot_blas", "f64c", test_vdot_f64c, vdot_f64c_blas);
-#endif // NK_COMPARE_TO_BLAS || NK_COMPARE_TO_MKL
+#endif // NK_COMPARE_TO_BLAS || NK_COMPARE_TO_MKL || NK_COMPARE_TO_ACCELERATE
 }
 
 #pragma endregion // Dot
@@ -4229,7 +4231,7 @@ error_stats_t test_dots_i8i8i32(dots_packed_size_t packed_size_fn, dots_i8_pack_
     return stats;
 }
 
-#if NK_COMPARE_TO_BLAS || NK_COMPARE_TO_MKL
+#if NK_COMPARE_TO_BLAS || NK_COMPARE_TO_MKL || NK_COMPARE_TO_ACCELERATE
 // BLAS GEMM kernel type (unpacked B matrix)
 using dots_f32_blas_t = void (*)(nk_f32_t const *, nk_f32_t const *, nk_f32_t *, nk_size_t, nk_size_t, nk_size_t,
                                  nk_size_t, nk_size_t);
@@ -4295,7 +4297,7 @@ error_stats_t test_dots_f64_unpacked(dots_f64_blas_t dots_fn) {
     }
     return stats;
 }
-#endif // NK_COMPARE_TO_BLAS || NK_COMPARE_TO_MKL
+#endif // NK_COMPARE_TO_BLAS || NK_COMPARE_TO_MKL || NK_COMPARE_TO_ACCELERATE
 
 void test_dots() {
     std::printf("Testing batch dot products (GEMM)...\n");
@@ -4348,11 +4350,11 @@ void test_dots() {
 
 #endif // NK_DYNAMIC_DISPATCH
 
-#if NK_COMPARE_TO_BLAS || NK_COMPARE_TO_MKL
-    // BLAS/MKL GEMM precision comparison
+#if NK_COMPARE_TO_BLAS || NK_COMPARE_TO_MKL || NK_COMPARE_TO_ACCELERATE
+    // BLAS/MKL/Accelerate GEMM precision comparison
     run_if_matches("dots_blas", "f32", test_dots_f32_unpacked, dots_f32_blas);
     run_if_matches("dots_blas", "f64", test_dots_f64_unpacked, dots_f64_blas);
-#endif // NK_COMPARE_TO_BLAS || NK_COMPARE_TO_MKL
+#endif // NK_COMPARE_TO_BLAS || NK_COMPARE_TO_MKL || NK_COMPARE_TO_ACCELERATE
 }
 
 #pragma endregion // Dots
@@ -4655,6 +4657,7 @@ int main(int argc, char **argv) {
     std::printf("- Compiler used native BF16: %s\n", flags[NK_NATIVE_BF16]);
     std::printf("- Benchmark against CBLAS: %s\n", flags[NK_COMPARE_TO_BLAS]);
     std::printf("- Benchmark against MKL: %s\n", flags[NK_COMPARE_TO_MKL]);
+    std::printf("- Benchmark against Accelerate: %s\n", flags[NK_COMPARE_TO_ACCELERATE]);
     std::printf("\n");
 
     std::printf("Compile-time ISA support:\n");

@@ -42,23 +42,21 @@
 #if !defined(NK_COMPARE_TO_BLAS)
 #define NK_COMPARE_TO_BLAS 0
 #endif
+#if !defined(NK_COMPARE_TO_ACCELERATE)
+#define NK_COMPARE_TO_ACCELERATE 0
+#endif
 
-// Include BLAS headers - MKL takes precedence if both are enabled
-// (MKL provides a superset of CBLAS functionality)
 #if NK_COMPARE_TO_MKL
 #include <mkl.h>
 // MKL provides additional GEMM routines:
 // - cblas_gemm_bf16bf16f32: BF16 inputs → F32 output
 // - cblas_hgemm: F16 GEMM (if available)
+#elif NK_COMPARE_TO_ACCELERATE
+#include <Accelerate/Accelerate.h> // Apple Accelerate framework
 #elif NK_COMPARE_TO_BLAS
-#if defined(__APPLE__)
-// Apple Accelerate framework provides CBLAS
-#include <Accelerate/Accelerate.h>
-#else
-#include <cblas.h>
+#include <cblas.h> // Generic CBLAS (OpenBLAS, etc.)
 // OpenBLAS thread control (weak symbol to avoid link errors if not present)
 extern "C" void openblas_set_num_threads(int) __attribute__((weak));
-#endif
 #endif
 
 // It's important to note, that out compression/decompression routines
@@ -1196,7 +1194,7 @@ void elementwise_with_stl(scalar_type_ const *ins, nk_size_t n, scalar_type_ *ou
     for (nk_size_t i = 0; i != n; ++i) outs[i] = kernel_type_ {}(ins[i]);
 }
 
-#if NK_COMPARE_TO_BLAS || NK_COMPARE_TO_MKL
+#if NK_COMPARE_TO_BLAS || NK_COMPARE_TO_MKL || NK_COMPARE_TO_ACCELERATE
 
 void dot_f32_blas(nk_f32_t const *a, nk_f32_t const *b, nk_size_t n, nk_f32_t *result) {
     *result = cblas_sdot(static_cast<int>(n), a, 1, b, 1);
@@ -1325,7 +1323,7 @@ void measure_dots_f64f64f64_blas(bm::State &state, std::size_t m, std::size_t n,
                               });
 }
 
-#endif // NK_COMPARE_TO_BLAS || NK_COMPARE_TO_MKL
+#endif // NK_COMPARE_TO_BLAS || NK_COMPARE_TO_MKL || NK_COMPARE_TO_ACCELERATE
 
 #if NK_COMPARE_TO_MKL
 
@@ -1449,10 +1447,11 @@ int main(int argc, char **argv) {
 #if NK_COMPARE_TO_MKL
     // Set MKL to single-threaded for fair comparison with NumKong (which is single-threaded)
     mkl_set_num_threads(1);
-#elif NK_COMPARE_TO_BLAS && !defined(__APPLE__)
+#elif NK_COMPARE_TO_BLAS
     // Set OpenBLAS to single-threaded for fair comparison with NumKong (which is single-threaded)
     if (openblas_set_num_threads) openblas_set_num_threads(1);
 #endif
+    // Note: Apple Accelerate is typically single-threaded by default for vecLib/BLAS routines
 
     // Log supported functionality
     char const *flags[2] = {"false", "true"};
@@ -1461,6 +1460,7 @@ int main(int argc, char **argv) {
     std::printf("- Compiler used native BF16: %s\n", flags[NK_NATIVE_BF16]);
     std::printf("- Benchmark against CBLAS: %s\n", flags[NK_COMPARE_TO_BLAS]);
     std::printf("- Benchmark against MKL: %s\n", flags[NK_COMPARE_TO_MKL]);
+    std::printf("- Benchmark against Accelerate: %s\n", flags[NK_COMPARE_TO_ACCELERATE]);
     std::printf("\n");
     std::printf("Compile-time ISA support:\n");
     std::printf("  Arm NEON:         %s\n", flags[NK_TARGET_NEON]);
@@ -1599,7 +1599,7 @@ int main(int argc, char **argv) {
     constexpr nk_kernel_kind_t scale_k = nk_kernel_scale_k;
     constexpr nk_kernel_kind_t unknown_k = nk_kernel_unknown_k;
 
-#if NK_COMPARE_TO_BLAS || NK_COMPARE_TO_MKL
+#if NK_COMPARE_TO_BLAS || NK_COMPARE_TO_MKL || NK_COMPARE_TO_ACCELERATE
 
     dense_<f32_k, f32_k, f64_k>("dot_f32_blas", dot_f32_blas, nk_dot_f32_accurate);
     dense_<f64_k, f64_k, f64_k>("dot_f64_blas", dot_f64_blas, nk_dot_f64_serial);
@@ -1636,7 +1636,7 @@ int main(int argc, char **argv) {
             ->Threads(1);
     }
 
-#endif // NK_COMPARE_TO_BLAS || NK_COMPARE_TO_MKL
+#endif // NK_COMPARE_TO_BLAS || NK_COMPARE_TO_MKL || NK_COMPARE_TO_ACCELERATE
 
 #if NK_COMPARE_TO_MKL
     // MKL GEMM baselines for matmul comparison
