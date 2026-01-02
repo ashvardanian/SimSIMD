@@ -42,7 +42,7 @@ NK_INTERNAL void nk_partial_load_b32x2_neon_(void const *src, nk_size_t n, nk_b6
 }
 
 /** @brief Type-agnostic partial store for 32-bit elements (4 elements max) from 128-bit vector (NEON). */
-NK_INTERNAL void nk_partial_store_b32x4_neon_(nk_b128_vec_t const *src, nk_size_t n, void *dst) {
+NK_INTERNAL void nk_partial_store_b32x4_neon_(nk_b128_vec_t const *src, void *dst, nk_size_t n) {
     nk_u32_t *d = (nk_u32_t *)dst;
     switch (n) {
     default:
@@ -122,19 +122,6 @@ NK_INTERNAL void nk_partial_load_b8x16_neon_(void const *src, nk_size_t n, nk_b1
     case 3: dst->u8s[2] = s[2];    // fallthrough
     case 2: dst->u8s[1] = s[1];    // fallthrough
     case 1: dst->u8s[0] = s[0];    // fallthrough
-    case 0: break;
-    }
-}
-
-/** @brief Type-agnostic partial store for 32-bit elements (4 elements max) from 128-bit vector (NEON). */
-NK_INTERNAL void nk_partial_store_b32x4_neon_(nk_b128_vec_t const *src, void *dst, nk_size_t n) {
-    nk_u32_t *d = (nk_u32_t *)dst;
-    switch (n) {
-    default:
-    case 4: d[3] = src->u32s[3]; // fallthrough
-    case 3: d[2] = src->u32s[2]; // fallthrough
-    case 2: d[1] = src->u32s[1]; // fallthrough
-    case 1: d[0] = src->u32s[0]; // fallthrough
     case 0: break;
     }
 }
