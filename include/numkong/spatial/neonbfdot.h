@@ -113,7 +113,10 @@ NK_PUBLIC void nk_l2sq_bf16_neonbfdot(nk_bf16_t const *a, nk_bf16_t const *b, nk
     nk_f64_t sum_f64 = vaddvq_f64(sum_f64x2);
     // Tail handling
     for (; i < n; ++i) {
-        nk_f64_t diff_f64 = (nk_f64_t)nk_bf16_to_f32(a[i]) - (nk_f64_t)nk_bf16_to_f32(b[i]);
+        nk_f32_t a_f32, b_f32;
+        nk_bf16_to_f32(&a[i], &a_f32);
+        nk_bf16_to_f32(&b[i], &b_f32);
+        nk_f64_t diff_f64 = (nk_f64_t)a_f32 - (nk_f64_t)b_f32;
         sum_f64 += diff_f64 * diff_f64;
     }
     *result = (nk_f32_t)sum_f64;
@@ -139,7 +142,7 @@ NK_INTERNAL void nk_angular_bf16x8_finalize_neonbfdot(nk_angular_bf16x8_state_ne
                                                       nk_f32_t target_norm_b, nk_f32_t target_norm_c,
                                                       nk_f32_t target_norm_d, nk_f32_t *results) {
     nk_b128_vec_t dots_vec;
-    nk_dot_bf16x8_finalize_neonbfdot(state_a, state_b, state_c, state_d, dots_vec.f32s);
+    nk_dot_bf16x8_finalize_neonbfdot(state_a, state_b, state_c, state_d, &dots_vec);
     nk_angular_f32x4_finalize_neon_f32_(dots_vec.f32x4, query_norm, target_norm_a, target_norm_b, target_norm_c,
                                         target_norm_d, results);
 }
@@ -159,7 +162,7 @@ NK_INTERNAL void nk_l2_bf16x8_finalize_neonbfdot(nk_l2_bf16x8_state_neonbfdot_t 
                                                  nk_f32_t target_norm_a, nk_f32_t target_norm_b, nk_f32_t target_norm_c,
                                                  nk_f32_t target_norm_d, nk_f32_t *results) {
     nk_b128_vec_t dots_vec;
-    nk_dot_bf16x8_finalize_neonbfdot(state_a, state_b, state_c, state_d, dots_vec.f32s);
+    nk_dot_bf16x8_finalize_neonbfdot(state_a, state_b, state_c, state_d, &dots_vec);
     nk_l2_f32x4_finalize_neon_f32_(dots_vec.f32x4, query_norm, target_norm_a, target_norm_b, target_norm_c,
                                    target_norm_d, results);
 }

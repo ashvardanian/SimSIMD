@@ -33,6 +33,7 @@
 #include <type_traits>   // `std::numeric_limits`
 #include <unordered_set> // `std::unordered_set`
 #include <vector>        // `std::vector`
+#include <complex>       // `std::complex`
 
 #include <benchmark/benchmark.h>
 
@@ -42,23 +43,21 @@
 #if !defined(NK_COMPARE_TO_BLAS)
 #define NK_COMPARE_TO_BLAS 0
 #endif
+#if !defined(NK_COMPARE_TO_ACCELERATE)
+#define NK_COMPARE_TO_ACCELERATE 0
+#endif
 
-// Include BLAS headers - MKL takes precedence if both are enabled
-// (MKL provides a superset of CBLAS functionality)
 #if NK_COMPARE_TO_MKL
 #include <mkl.h>
 // MKL provides additional GEMM routines:
 // - cblas_gemm_bf16bf16f32: BF16 inputs → F32 output
 // - cblas_hgemm: F16 GEMM (if available)
+#elif NK_COMPARE_TO_ACCELERATE
+#include <Accelerate/Accelerate.h> // Apple Accelerate framework
 #elif NK_COMPARE_TO_BLAS
-#if defined(__APPLE__)
-// Apple Accelerate framework provides CBLAS
-#include <Accelerate/Accelerate.h>
-#else
-#include <cblas.h>
+#include <cblas.h> // Generic CBLAS (OpenBLAS, etc.)
 // OpenBLAS thread control (weak symbol to avoid link errors if not present)
 extern "C" void openblas_set_num_threads(int) __attribute__((weak));
-#endif
 #endif
 
 // It's important to note, that out compression/decompression routines
@@ -1196,7 +1195,7 @@ void elementwise_with_stl(scalar_type_ const *ins, nk_size_t n, scalar_type_ *ou
     for (nk_size_t i = 0; i != n; ++i) outs[i] = kernel_type_ {}(ins[i]);
 }
 
-#if NK_COMPARE_TO_BLAS || NK_COMPARE_TO_MKL
+#if NK_COMPARE_TO_BLAS || NK_COMPARE_TO_MKL || NK_COMPARE_TO_ACCELERATE
 
 void dot_f32_blas(nk_f32_t const *a, nk_f32_t const *b, nk_size_t n, nk_f32_t *result) {
     *result = cblas_sdot(static_cast<int>(n), a, 1, b, 1);
@@ -1207,23 +1206,48 @@ void dot_f64_blas(nk_f64_t const *a, nk_f64_t const *b, nk_size_t n, nk_f64_t *r
 }
 
 void dot_f32c_blas(nk_f32c_t const *a, nk_f32c_t const *b, nk_size_t n, nk_f32c_t *result) {
+#if NK_COMPARE_TO_ACCELERATE
+    // Apple Accelerate uses __LAPACK_float_complex which is std::complex<float>
+    cblas_cdotu_sub(static_cast<int>(n), reinterpret_cast<std::complex<float> const *>(a), 1,
+                    reinterpret_cast<std::complex<float> const *>(b), 1,
+                    reinterpret_cast<std::complex<float> *>(result));
+#else
     cblas_cdotu_sub(static_cast<int>(n), reinterpret_cast<nk_f32_t const *>(a), 1,
                     reinterpret_cast<nk_f32_t const *>(b), 1, reinterpret_cast<nk_f32_t *>(result));
+#endif
 }
 
 void dot_f64c_blas(nk_f64c_t const *a, nk_f64c_t const *b, nk_size_t n, nk_f64c_t *result) {
+#if NK_COMPARE_TO_ACCELERATE
+    cblas_zdotu_sub(static_cast<int>(n), reinterpret_cast<std::complex<double> const *>(a), 1,
+                    reinterpret_cast<std::complex<double> const *>(b), 1,
+                    reinterpret_cast<std::complex<double> *>(result));
+#else
     cblas_zdotu_sub(static_cast<int>(n), reinterpret_cast<nk_f64_t const *>(a), 1,
                     reinterpret_cast<nk_f64_t const *>(b), 1, reinterpret_cast<nk_f64_t *>(result));
+#endif
 }
 
 void vdot_f32c_blas(nk_f32c_t const *a, nk_f32c_t const *b, nk_size_t n, nk_f32c_t *result) {
+#if NK_COMPARE_TO_ACCELERATE
+    cblas_cdotc_sub(static_cast<int>(n), reinterpret_cast<std::complex<float> const *>(a), 1,
+                    reinterpret_cast<std::complex<float> const *>(b), 1,
+                    reinterpret_cast<std::complex<float> *>(result));
+#else
     cblas_cdotc_sub(static_cast<int>(n), reinterpret_cast<nk_f32_t const *>(a), 1,
                     reinterpret_cast<nk_f32_t const *>(b), 1, reinterpret_cast<nk_f32_t *>(result));
+#endif
 }
 
 void vdot_f64c_blas(nk_f64c_t const *a, nk_f64c_t const *b, nk_size_t n, nk_f64c_t *result) {
+#if NK_COMPARE_TO_ACCELERATE
+    cblas_zdotc_sub(static_cast<int>(n), reinterpret_cast<std::complex<double> const *>(a), 1,
+                    reinterpret_cast<std::complex<double> const *>(b), 1,
+                    reinterpret_cast<std::complex<double> *>(result));
+#else
     cblas_zdotc_sub(static_cast<int>(n), reinterpret_cast<nk_f64_t const *>(a), 1,
                     reinterpret_cast<nk_f64_t const *>(b), 1, reinterpret_cast<nk_f64_t *>(result));
+#endif
 }
 
 void bilinear_f32_blas(nk_f32_t const *a, nk_f32_t const *b, nk_f32_t const *c, nk_size_t n, nk_f32_t *result) {
@@ -1246,20 +1270,42 @@ void bilinear_f32c_blas(nk_f32c_t const *a, nk_f32c_t const *b, nk_f32c_t const 
     static thread_local std::vector<nk_f32c_t> intermediate;
     if (intermediate.size() < n) intermediate.resize(n);
     int const ni = static_cast<int>(n);
+#if NK_COMPARE_TO_ACCELERATE
+    std::complex<float> alpha = {1.0f, 0.0f}, beta = {0.0f, 0.0f};
+    cblas_cgemv(CblasRowMajor, CblasNoTrans, ni, ni, &alpha,
+                reinterpret_cast<std::complex<float> const *>(c), ni,
+                reinterpret_cast<std::complex<float> const *>(b), 1, &beta,
+                reinterpret_cast<std::complex<float> *>(intermediate.data()), 1);
+    cblas_cdotu_sub(ni, reinterpret_cast<std::complex<float> const *>(a), 1,
+                    reinterpret_cast<std::complex<float> const *>(intermediate.data()), 1,
+                    reinterpret_cast<std::complex<float> *>(results));
+#else
     nk_f32c_t alpha = {1.0f, 0.0f}, beta = {0.0f, 0.0f};
     cblas_cgemv(CblasRowMajor, CblasNoTrans, ni, ni, &alpha, c, ni, b, 1, &beta, intermediate.data(), 1);
     cblas_cdotu_sub(ni, reinterpret_cast<nk_f32_t const *>(a), 1,
                     reinterpret_cast<nk_f32_t const *>(intermediate.data()), 1, reinterpret_cast<nk_f32_t *>(results));
+#endif
 }
 
 void bilinear_f64c_blas(nk_f64c_t const *a, nk_f64c_t const *b, nk_f64c_t const *c, nk_size_t n, nk_f64c_t *results) {
     static thread_local std::vector<nk_f64c_t> intermediate;
     if (intermediate.size() < n) intermediate.resize(n);
     int const ni = static_cast<int>(n);
+#if NK_COMPARE_TO_ACCELERATE
+    std::complex<double> alpha = {1.0, 0.0}, beta = {0.0, 0.0};
+    cblas_zgemv(CblasRowMajor, CblasNoTrans, ni, ni, &alpha,
+                reinterpret_cast<std::complex<double> const *>(c), ni,
+                reinterpret_cast<std::complex<double> const *>(b), 1, &beta,
+                reinterpret_cast<std::complex<double> *>(intermediate.data()), 1);
+    cblas_zdotu_sub(ni, reinterpret_cast<std::complex<double> const *>(a), 1,
+                    reinterpret_cast<std::complex<double> const *>(intermediate.data()), 1,
+                    reinterpret_cast<std::complex<double> *>(results));
+#else
     nk_f64c_t alpha = {1.0, 0.0}, beta = {0.0, 0.0};
     cblas_zgemv(CblasRowMajor, CblasNoTrans, ni, ni, &alpha, c, ni, b, 1, &beta, intermediate.data(), 1);
     cblas_zdotu_sub(ni, reinterpret_cast<nk_f64_t const *>(a), 1,
                     reinterpret_cast<nk_f64_t const *>(intermediate.data()), 1, reinterpret_cast<nk_f64_t *>(results));
+#endif
 }
 
 void sum_f32_blas(nk_f32_t const *a, nk_f32_t const *b, nk_size_t n, nk_f32_t *result) {
@@ -1325,7 +1371,7 @@ void measure_dots_f64f64f64_blas(bm::State &state, std::size_t m, std::size_t n,
                               });
 }
 
-#endif // NK_COMPARE_TO_BLAS || NK_COMPARE_TO_MKL
+#endif // NK_COMPARE_TO_BLAS || NK_COMPARE_TO_MKL || NK_COMPARE_TO_ACCELERATE
 
 #if NK_COMPARE_TO_MKL
 
@@ -1449,10 +1495,11 @@ int main(int argc, char **argv) {
 #if NK_COMPARE_TO_MKL
     // Set MKL to single-threaded for fair comparison with NumKong (which is single-threaded)
     mkl_set_num_threads(1);
-#elif NK_COMPARE_TO_BLAS && !defined(__APPLE__)
+#elif NK_COMPARE_TO_BLAS
     // Set OpenBLAS to single-threaded for fair comparison with NumKong (which is single-threaded)
     if (openblas_set_num_threads) openblas_set_num_threads(1);
 #endif
+    // Note: Apple Accelerate is typically single-threaded by default for vecLib/BLAS routines
 
     // Log supported functionality
     char const *flags[2] = {"false", "true"};
@@ -1461,6 +1508,7 @@ int main(int argc, char **argv) {
     std::printf("- Compiler used native BF16: %s\n", flags[NK_NATIVE_BF16]);
     std::printf("- Benchmark against CBLAS: %s\n", flags[NK_COMPARE_TO_BLAS]);
     std::printf("- Benchmark against MKL: %s\n", flags[NK_COMPARE_TO_MKL]);
+    std::printf("- Benchmark against Accelerate: %s\n", flags[NK_COMPARE_TO_ACCELERATE]);
     std::printf("\n");
     std::printf("Compile-time ISA support:\n");
     std::printf("  Arm NEON:         %s\n", flags[NK_TARGET_NEON]);
@@ -1599,7 +1647,7 @@ int main(int argc, char **argv) {
     constexpr nk_kernel_kind_t scale_k = nk_kernel_scale_k;
     constexpr nk_kernel_kind_t unknown_k = nk_kernel_unknown_k;
 
-#if NK_COMPARE_TO_BLAS || NK_COMPARE_TO_MKL
+#if NK_COMPARE_TO_BLAS || NK_COMPARE_TO_MKL || NK_COMPARE_TO_ACCELERATE
 
     dense_<f32_k, f32_k, f64_k>("dot_f32_blas", dot_f32_blas, nk_dot_f32_accurate);
     dense_<f64_k, f64_k, f64_k>("dot_f64_blas", dot_f64_blas, nk_dot_f64_serial);
@@ -1636,7 +1684,7 @@ int main(int argc, char **argv) {
             ->Threads(1);
     }
 
-#endif // NK_COMPARE_TO_BLAS || NK_COMPARE_TO_MKL
+#endif // NK_COMPARE_TO_BLAS || NK_COMPARE_TO_MKL || NK_COMPARE_TO_ACCELERATE
 
 #if NK_COMPARE_TO_MKL
     // MKL GEMM baselines for matmul comparison

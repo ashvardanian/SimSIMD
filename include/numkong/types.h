@@ -399,9 +399,9 @@ typedef signed short nk_i16_t;
 typedef unsigned short nk_u16_t;
 typedef signed int nk_i32_t;
 typedef unsigned int nk_u32_t;
-// On ARM64 (LP64), NEON intrinsics expect `long*` not `long long*`.
-// Both are 64-bit, but they're distinct types and cause pointer incompatibility.
-#if NK_TARGET_ARM_
+// On ARM64 (LP64), both `long` and `long long` are 64-bit but distinct types.
+// Apple's NEON intrinsics expect `long long*`, while Linux ARM64 expects `long*`.
+#if NK_TARGET_ARM_ && !defined(NK_DEFINED_APPLE_)
 typedef signed long nk_i64_t;
 typedef unsigned long nk_u64_t;
 #else

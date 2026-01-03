@@ -156,15 +156,19 @@ if (NK_BUILD_TESTS OR NK_BUILD_BENCHMARKS)
     endif ()
 
     # BLAS detection (skip if MKL found in AUTO mode, since MKL provides BLAS)
+    # We differentiate between:
+    # - NK_MKL_FOUND: Intel MKL
+    # - NK_ACCELERATE_FOUND: Apple Accelerate framework
+    # - NK_BLAS_FOUND: Generic CBLAS (OpenBLAS, etc.)
     if (NOT NK_COMPARE_TO_BLAS STREQUAL "OFF")
         if (NK_MKL_FOUND AND NOT NK_COMPARE_TO_BLAS STREQUAL "ON")
             message(STATUS "BLAS: Using MKL (skipping separate BLAS detection)")
         elseif (APPLE)
             # Apple Accelerate is always available on macOS
-            message(STATUS "Using Apple Accelerate framework for BLAS")
-            set(NK_BLAS_FOUND TRUE)
-            set(NK_BLAS_LIBRARIES "-framework Accelerate")
-            set(NK_BLAS_INCLUDE_DIRS "")
+            message(STATUS "Using Apple Accelerate framework")
+            set(NK_ACCELERATE_FOUND TRUE)
+            set(NK_ACCELERATE_LIBRARIES "-framework Accelerate")
+            set(NK_ACCELERATE_INCLUDE_DIRS "")
         else ()
             # Try to find BLAS without REQUIRED flag for auto-detection
             find_package(BLAS QUIET)
@@ -182,8 +186,8 @@ if (NK_BUILD_TESTS OR NK_BUILD_BENCHMARKS)
     endif ()
 
     # Summary
-    if (NK_BLAS_FOUND OR NK_MKL_FOUND)
-        message(STATUS "Comparison libraries: BLAS=${NK_BLAS_FOUND}, MKL=${NK_MKL_FOUND}")
+    if (NK_BLAS_FOUND OR NK_MKL_FOUND OR NK_ACCELERATE_FOUND)
+        message(STATUS "Comparison libraries: BLAS=${NK_BLAS_FOUND}, MKL=${NK_MKL_FOUND}, Accelerate=${NK_ACCELERATE_FOUND}")
     endif ()
 
 endif ()
@@ -230,6 +234,12 @@ if (NK_BUILD_BENCHMARKS)
         target_link_libraries(nk_bench ${NK_BLAS_LIBRARIES})
     endif ()
 
+    if (NK_ACCELERATE_FOUND)
+        target_compile_definitions(nk_bench PRIVATE NK_COMPARE_TO_ACCELERATE=1 ACCELERATE_NEW_LAPACK)
+        target_include_directories(nk_bench PRIVATE ${NK_ACCELERATE_INCLUDE_DIRS})
+        target_link_libraries(nk_bench ${NK_ACCELERATE_LIBRARIES})
+    endif ()
+
     if (NK_MKL_FOUND)
         target_compile_definitions(nk_bench PRIVATE NK_COMPARE_TO_MKL=1)
         target_include_directories(nk_bench PRIVATE ${NK_MKL_INCLUDE_DIRS})
@@ -273,6 +283,12 @@ if (NK_BUILD_TESTS)
         target_compile_definitions(nk_test PRIVATE NK_COMPARE_TO_BLAS=1)
         target_include_directories(nk_test PRIVATE ${NK_BLAS_INCLUDE_DIRS})
         target_link_libraries(nk_test ${NK_BLAS_LIBRARIES})
+    endif ()
+
+    if (NK_ACCELERATE_FOUND)
+        target_compile_definitions(nk_test PRIVATE NK_COMPARE_TO_ACCELERATE=1 ACCELERATE_NEW_LAPACK)
+        target_include_directories(nk_test PRIVATE ${NK_ACCELERATE_INCLUDE_DIRS})
+        target_link_libraries(nk_test ${NK_ACCELERATE_LIBRARIES})
     endif ()
 
     if (NK_MKL_FOUND)
