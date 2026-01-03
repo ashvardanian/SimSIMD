@@ -609,13 +609,13 @@ NK_MAKE_RMSD(serial, f32, f32, f32, nk_assign_from_to_, nk_f32_sqrt_serial)     
 NK_MAKE_KABSCH(serial, f32, f32, f32, f32, nk_assign_from_to_, nk_f32_sqrt_serial)  // nk_kabsch_f32_serial
 NK_MAKE_UMEYAMA(serial, f32, f32, f32, f32, nk_assign_from_to_, nk_f32_sqrt_serial) // nk_umeyama_f32_serial
 
-NK_MAKE_RMSD(serial, f16, f32, f32, nk_f16_to_f32, nk_f32_sqrt_serial)         // nk_rmsd_f16_serial
-NK_MAKE_KABSCH(serial, f16, f32, f32, f32, nk_f16_to_f32, nk_f32_sqrt_serial)  // nk_kabsch_f16_serial
-NK_MAKE_UMEYAMA(serial, f16, f32, f32, f32, nk_f16_to_f32, nk_f32_sqrt_serial) // nk_umeyama_f16_serial
+NK_MAKE_RMSD(serial, f16, f32, f32, nk_f16_to_f32_serial, nk_f32_sqrt_serial)         // nk_rmsd_f16_serial
+NK_MAKE_KABSCH(serial, f16, f32, f32, f32, nk_f16_to_f32_serial, nk_f32_sqrt_serial)  // nk_kabsch_f16_serial
+NK_MAKE_UMEYAMA(serial, f16, f32, f32, f32, nk_f16_to_f32_serial, nk_f32_sqrt_serial) // nk_umeyama_f16_serial
 
-NK_MAKE_RMSD(serial, bf16, f32, f32, nk_bf16_to_f32, nk_f32_sqrt_serial)         // nk_rmsd_bf16_serial
-NK_MAKE_KABSCH(serial, bf16, f32, f32, f32, nk_bf16_to_f32, nk_f32_sqrt_serial)  // nk_kabsch_bf16_serial
-NK_MAKE_UMEYAMA(serial, bf16, f32, f32, f32, nk_bf16_to_f32, nk_f32_sqrt_serial) // nk_umeyama_bf16_serial
+NK_MAKE_RMSD(serial, bf16, f32, f32, nk_bf16_to_f32_serial, nk_f32_sqrt_serial)         // nk_rmsd_bf16_serial
+NK_MAKE_KABSCH(serial, bf16, f32, f32, f32, nk_bf16_to_f32_serial, nk_f32_sqrt_serial)  // nk_kabsch_bf16_serial
+NK_MAKE_UMEYAMA(serial, bf16, f32, f32, f32, nk_bf16_to_f32_serial, nk_f32_sqrt_serial) // nk_umeyama_bf16_serial
 
 NK_MAKE_RMSD(accurate, f32, f64, f64, nk_assign_from_to_, nk_f64_sqrt_serial)        // nk_rmsd_f32_accurate
 NK_MAKE_KABSCH(accurate, f32, f64, f64, f64, nk_assign_from_to_, nk_f64_sqrt_serial) // nk_kabsch_f32_accurate

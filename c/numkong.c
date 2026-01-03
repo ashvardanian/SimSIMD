@@ -7,12 +7,6 @@
 #define NK_NATIVE_F16       0
 #define NK_NATIVE_BF16      0
 
-/*  Override the primary serial operations to avoid the LibC dependency.
- */
-#define NK_F32_SQRT(x)  nk_f32_approximate_square_root(x)
-#define NK_F32_RSQRT(x) nk_f32_approximate_inverse_square_root(x)
-#define NK_F32_LOG(x)   nk_f32_approximate_log(x)
-
 /*  Depending on the Operating System, the following intrinsics are available
  *  on recent compiler toolchains:
  *
@@ -539,12 +533,12 @@ NK_DYNAMIC int nk_uses_dynamic_dispatch(void) { return 1; }
 NK_DYNAMIC int nk_configure_thread(nk_capability_t c) { return nk_configure_thread_(c); }
 
 NK_DYNAMIC void nk_f16_to_f32(nk_f16_t const *src, nk_f32_t *dest) { nk_f16_to_f32_serial(src, dest); }
-NK_DYNAMIC void nk_f32_to_f16(nk_f32_t const *src, nk_f16_t *dest) { nk_f32_to_f16_serial(src, dest); }
 NK_DYNAMIC void nk_bf16_to_f32(nk_bf16_t const *src, nk_f32_t *dest) { nk_bf16_to_f32_serial(src, dest); }
-NK_DYNAMIC void nk_f32_to_bf16(nk_f32_t const *src, nk_bf16_t *dest) { nk_f32_to_bf16_serial(src, dest); }
 NK_DYNAMIC void nk_e4m3_to_f32(nk_e4m3_t const *src, nk_f32_t *dest) { nk_e4m3_to_f32_serial(src, dest); }
-NK_DYNAMIC void nk_f32_to_e4m3(nk_f32_t const *src, nk_e4m3_t *dest) { nk_f32_to_e4m3_serial(src, dest); }
 NK_DYNAMIC void nk_e5m2_to_f32(nk_e5m2_t const *src, nk_f32_t *dest) { nk_e5m2_to_f32_serial(src, dest); }
+NK_DYNAMIC void nk_f32_to_f16(nk_f32_t const *src, nk_f16_t *dest) { nk_f32_to_f16_serial(src, dest); }
+NK_DYNAMIC void nk_f32_to_bf16(nk_f32_t const *src, nk_bf16_t *dest) { nk_f32_to_bf16_serial(src, dest); }
+NK_DYNAMIC void nk_f32_to_e4m3(nk_f32_t const *src, nk_e4m3_t *dest) { nk_f32_to_e4m3_serial(src, dest); }
 NK_DYNAMIC void nk_f32_to_e5m2(nk_f32_t const *src, nk_e5m2_t *dest) { nk_f32_to_e5m2_serial(src, dest); }
 
 NK_DYNAMIC nk_capability_t nk_capabilities(void) {

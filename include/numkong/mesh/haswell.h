@@ -1231,12 +1231,12 @@ NK_INTERNAL nk_f32_t nk_transformed_ssd_f16_haswell_(nk_f16_t const *a, nk_f16_t
     // Scalar tail
     for (; j < n; ++j) {
         nk_f32_t a_x_f32, a_y_f32, a_z_f32, b_x_f32, b_y_f32, b_z_f32;
-        nk_f16_to_f32(&a[j * 3 + 0], &a_x_f32);
-        nk_f16_to_f32(&a[j * 3 + 1], &a_y_f32);
-        nk_f16_to_f32(&a[j * 3 + 2], &a_z_f32);
-        nk_f16_to_f32(&b[j * 3 + 0], &b_x_f32);
-        nk_f16_to_f32(&b[j * 3 + 1], &b_y_f32);
-        nk_f16_to_f32(&b[j * 3 + 2], &b_z_f32);
+        nk_f16_to_f32_haswell(&a[j * 3 + 0], &a_x_f32);
+        nk_f16_to_f32_haswell(&a[j * 3 + 1], &a_y_f32);
+        nk_f16_to_f32_haswell(&a[j * 3 + 2], &a_z_f32);
+        nk_f16_to_f32_haswell(&b[j * 3 + 0], &b_x_f32);
+        nk_f16_to_f32_haswell(&b[j * 3 + 1], &b_y_f32);
+        nk_f16_to_f32_haswell(&b[j * 3 + 2], &b_z_f32);
 
         nk_f32_t pa_x = a_x_f32 - centroid_a_x;
         nk_f32_t pa_y = a_y_f32 - centroid_a_y;
@@ -1322,12 +1322,12 @@ NK_INTERNAL nk_f32_t nk_transformed_ssd_bf16_haswell_(nk_bf16_t const *a, nk_bf1
     // Scalar tail
     for (; j < n; ++j) {
         nk_f32_t a_x_f32, a_y_f32, a_z_f32, b_x_f32, b_y_f32, b_z_f32;
-        nk_bf16_to_f32(&a[j * 3 + 0], &a_x_f32);
-        nk_bf16_to_f32(&a[j * 3 + 1], &a_y_f32);
-        nk_bf16_to_f32(&a[j * 3 + 2], &a_z_f32);
-        nk_bf16_to_f32(&b[j * 3 + 0], &b_x_f32);
-        nk_bf16_to_f32(&b[j * 3 + 1], &b_y_f32);
-        nk_bf16_to_f32(&b[j * 3 + 2], &b_z_f32);
+        nk_bf16_to_f32_serial(&a[j * 3 + 0], &a_x_f32);
+        nk_bf16_to_f32_serial(&a[j * 3 + 1], &a_y_f32);
+        nk_bf16_to_f32_serial(&a[j * 3 + 2], &a_z_f32);
+        nk_bf16_to_f32_serial(&b[j * 3 + 0], &b_x_f32);
+        nk_bf16_to_f32_serial(&b[j * 3 + 1], &b_y_f32);
+        nk_bf16_to_f32_serial(&b[j * 3 + 2], &b_z_f32);
 
         nk_f32_t pa_x = a_x_f32 - centroid_a_x;
         nk_f32_t pa_y = a_y_f32 - centroid_a_y;
@@ -1404,12 +1404,12 @@ NK_PUBLIC void nk_rmsd_f16_haswell(nk_f16_t const *a, nk_f16_t const *b, nk_size
     // Scalar tail
     for (; i < n; ++i) {
         nk_f32_t ax, ay, az, bx, by, bz;
-        nk_f16_to_f32(&a[i * 3 + 0], &ax);
-        nk_f16_to_f32(&a[i * 3 + 1], &ay);
-        nk_f16_to_f32(&a[i * 3 + 2], &az);
-        nk_f16_to_f32(&b[i * 3 + 0], &bx);
-        nk_f16_to_f32(&b[i * 3 + 1], &by);
-        nk_f16_to_f32(&b[i * 3 + 2], &bz);
+        nk_f16_to_f32_haswell(&a[i * 3 + 0], &ax);
+        nk_f16_to_f32_haswell(&a[i * 3 + 1], &ay);
+        nk_f16_to_f32_haswell(&a[i * 3 + 2], &az);
+        nk_f16_to_f32_haswell(&b[i * 3 + 0], &bx);
+        nk_f16_to_f32_haswell(&b[i * 3 + 1], &by);
+        nk_f16_to_f32_haswell(&b[i * 3 + 2], &bz);
         total_ax += ax;
         total_ay += ay;
         total_az += az;
@@ -1507,12 +1507,12 @@ NK_PUBLIC void nk_rmsd_bf16_haswell(nk_bf16_t const *a, nk_bf16_t const *b, nk_s
     // Scalar tail
     for (; i < n; ++i) {
         nk_f32_t ax, ay, az, bx, by, bz;
-        nk_bf16_to_f32(&a[i * 3 + 0], &ax);
-        nk_bf16_to_f32(&a[i * 3 + 1], &ay);
-        nk_bf16_to_f32(&a[i * 3 + 2], &az);
-        nk_bf16_to_f32(&b[i * 3 + 0], &bx);
-        nk_bf16_to_f32(&b[i * 3 + 1], &by);
-        nk_bf16_to_f32(&b[i * 3 + 2], &bz);
+        nk_bf16_to_f32_serial(&a[i * 3 + 0], &ax);
+        nk_bf16_to_f32_serial(&a[i * 3 + 1], &ay);
+        nk_bf16_to_f32_serial(&a[i * 3 + 2], &az);
+        nk_bf16_to_f32_serial(&b[i * 3 + 0], &bx);
+        nk_bf16_to_f32_serial(&b[i * 3 + 1], &by);
+        nk_bf16_to_f32_serial(&b[i * 3 + 2], &bz);
         total_ax += ax;
         total_ay += ay;
         total_az += az;
@@ -1617,12 +1617,12 @@ NK_PUBLIC void nk_kabsch_f16_haswell(nk_f16_t const *a, nk_f16_t const *b, nk_si
     // Scalar tail
     for (; i < n; ++i) {
         nk_f32_t ax, ay, az, bx, by, bz;
-        nk_f16_to_f32(&a[i * 3 + 0], &ax);
-        nk_f16_to_f32(&a[i * 3 + 1], &ay);
-        nk_f16_to_f32(&a[i * 3 + 2], &az);
-        nk_f16_to_f32(&b[i * 3 + 0], &bx);
-        nk_f16_to_f32(&b[i * 3 + 1], &by);
-        nk_f16_to_f32(&b[i * 3 + 2], &bz);
+        nk_f16_to_f32_haswell(&a[i * 3 + 0], &ax);
+        nk_f16_to_f32_haswell(&a[i * 3 + 1], &ay);
+        nk_f16_to_f32_haswell(&a[i * 3 + 2], &az);
+        nk_f16_to_f32_haswell(&b[i * 3 + 0], &bx);
+        nk_f16_to_f32_haswell(&b[i * 3 + 1], &by);
+        nk_f16_to_f32_haswell(&b[i * 3 + 2], &bz);
         sum_a_x += ax;
         sum_a_y += ay;
         sum_a_z += az;
@@ -1778,12 +1778,12 @@ NK_PUBLIC void nk_kabsch_bf16_haswell(nk_bf16_t const *a, nk_bf16_t const *b, nk
     // Scalar tail
     for (; i < n; ++i) {
         nk_f32_t ax, ay, az, bx, by, bz;
-        nk_bf16_to_f32(&a[i * 3 + 0], &ax);
-        nk_bf16_to_f32(&a[i * 3 + 1], &ay);
-        nk_bf16_to_f32(&a[i * 3 + 2], &az);
-        nk_bf16_to_f32(&b[i * 3 + 0], &bx);
-        nk_bf16_to_f32(&b[i * 3 + 1], &by);
-        nk_bf16_to_f32(&b[i * 3 + 2], &bz);
+        nk_bf16_to_f32_serial(&a[i * 3 + 0], &ax);
+        nk_bf16_to_f32_serial(&a[i * 3 + 1], &ay);
+        nk_bf16_to_f32_serial(&a[i * 3 + 2], &az);
+        nk_bf16_to_f32_serial(&b[i * 3 + 0], &bx);
+        nk_bf16_to_f32_serial(&b[i * 3 + 1], &by);
+        nk_bf16_to_f32_serial(&b[i * 3 + 2], &bz);
         sum_a_x += ax;
         sum_a_y += ay;
         sum_a_z += az;
@@ -1942,12 +1942,12 @@ NK_PUBLIC void nk_umeyama_f16_haswell(nk_f16_t const *a, nk_f16_t const *b, nk_s
     // Scalar tail
     for (; i < n; ++i) {
         nk_f32_t ax, ay, az, bx, by, bz;
-        nk_f16_to_f32(&a[i * 3 + 0], &ax);
-        nk_f16_to_f32(&a[i * 3 + 1], &ay);
-        nk_f16_to_f32(&a[i * 3 + 2], &az);
-        nk_f16_to_f32(&b[i * 3 + 0], &bx);
-        nk_f16_to_f32(&b[i * 3 + 1], &by);
-        nk_f16_to_f32(&b[i * 3 + 2], &bz);
+        nk_f16_to_f32_haswell(&a[i * 3 + 0], &ax);
+        nk_f16_to_f32_haswell(&a[i * 3 + 1], &ay);
+        nk_f16_to_f32_haswell(&a[i * 3 + 2], &az);
+        nk_f16_to_f32_haswell(&b[i * 3 + 0], &bx);
+        nk_f16_to_f32_haswell(&b[i * 3 + 1], &by);
+        nk_f16_to_f32_haswell(&b[i * 3 + 2], &bz);
         sum_a_x += ax;
         sum_a_y += ay;
         sum_a_z += az;
@@ -2104,12 +2104,12 @@ NK_PUBLIC void nk_umeyama_bf16_haswell(nk_bf16_t const *a, nk_bf16_t const *b, n
     // Scalar tail
     for (; i < n; ++i) {
         nk_f32_t ax, ay, az, bx, by, bz;
-        nk_bf16_to_f32(&a[i * 3 + 0], &ax);
-        nk_bf16_to_f32(&a[i * 3 + 1], &ay);
-        nk_bf16_to_f32(&a[i * 3 + 2], &az);
-        nk_bf16_to_f32(&b[i * 3 + 0], &bx);
-        nk_bf16_to_f32(&b[i * 3 + 1], &by);
-        nk_bf16_to_f32(&b[i * 3 + 2], &bz);
+        nk_bf16_to_f32_serial(&a[i * 3 + 0], &ax);
+        nk_bf16_to_f32_serial(&a[i * 3 + 1], &ay);
+        nk_bf16_to_f32_serial(&a[i * 3 + 2], &az);
+        nk_bf16_to_f32_serial(&b[i * 3 + 0], &bx);
+        nk_bf16_to_f32_serial(&b[i * 3 + 1], &by);
+        nk_bf16_to_f32_serial(&b[i * 3 + 2], &bz);
         sum_a_x += ax;
         sum_a_y += ay;
         sum_a_z += az;

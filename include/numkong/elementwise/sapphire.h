@@ -46,11 +46,12 @@ nk_sum_f16_sapphire_cycle:
 
 NK_PUBLIC void nk_scale_f16_sapphire(nk_f16_t const *a, nk_size_t n, nk_f32_t const *alpha, nk_f32_t const *beta,
                                      nk_f16_t *result) {
-    nk_f32_t alpha_val = *alpha;
-    nk_f32_t beta_val = *beta;
+    short alpha_short, beta_short;
+    nk_f32_to_f16_sapphire(alpha, (nk_f16_t *)&alpha_short);
+    nk_f32_to_f16_sapphire(beta, (nk_f16_t *)&beta_short);
     __mmask32 mask = 0xFFFFFFFF;
-    __m512h alpha_f16x32 = _mm512_castsi512_ph(_mm512_set1_epi16((short)nk_f32_to_f16_sapphire(alpha_val)));
-    __m512h beta_f16x32 = _mm512_castsi512_ph(_mm512_set1_epi16((short)nk_f32_to_f16_sapphire(beta_val)));
+    __m512h alpha_f16x32 = _mm512_castsi512_ph(_mm512_set1_epi16(alpha_short));
+    __m512h beta_f16x32 = _mm512_castsi512_ph(_mm512_set1_epi16(beta_short));
     __m512h a_f16x32;
     __m512h result_f16x32;
 nk_scale_f16_sapphire_cycle:
@@ -93,9 +94,12 @@ NK_PUBLIC void nk_wsum_f16_sapphire(                   //
     }
 
     // The general case.
+    short alpha_short, beta_short;
+    nk_f32_to_f16_sapphire(&alpha_val, (nk_f16_t *)&alpha_short);
+    nk_f32_to_f16_sapphire(&beta_val, (nk_f16_t *)&beta_short);
     __mmask32 mask = 0xFFFFFFFF;
-    __m512h alpha_f16x32 = _mm512_castsi512_ph(_mm512_set1_epi16((short)nk_f32_to_f16_sapphire(alpha_val)));
-    __m512h beta_f16x32 = _mm512_castsi512_ph(_mm512_set1_epi16((short)nk_f32_to_f16_sapphire(beta_val)));
+    __m512h alpha_f16x32 = _mm512_castsi512_ph(_mm512_set1_epi16(alpha_short));
+    __m512h beta_f16x32 = _mm512_castsi512_ph(_mm512_set1_epi16(beta_short));
     __m512h a_f16x32, b_f16x32;
     __m512h a_scaled_f16x32, result_f16x32;
 nk_wsum_f16_sapphire_cycle:
@@ -121,11 +125,12 @@ NK_PUBLIC void nk_fma_f16_sapphire(                                       //
     nk_f16_t const *a, nk_f16_t const *b, nk_f16_t const *c, nk_size_t n, //
     nk_f32_t const *alpha, nk_f32_t const *beta, nk_f16_t *result) {
 
-    nk_f32_t alpha_val = *alpha;
-    nk_f32_t beta_val = *beta;
+    short alpha_short, beta_short;
+    nk_f32_to_f16_sapphire(alpha, (nk_f16_t *)&alpha_short);
+    nk_f32_to_f16_sapphire(beta, (nk_f16_t *)&beta_short);
     __mmask32 mask = 0xFFFFFFFF;
-    __m512h alpha_f16x32 = _mm512_castsi512_ph(_mm512_set1_epi16((short)nk_f32_to_f16_sapphire(alpha_val)));
-    __m512h beta_f16x32 = _mm512_castsi512_ph(_mm512_set1_epi16((short)nk_f32_to_f16_sapphire(beta_val)));
+    __m512h alpha_f16x32 = _mm512_castsi512_ph(_mm512_set1_epi16(alpha_short));
+    __m512h beta_f16x32 = _mm512_castsi512_ph(_mm512_set1_epi16(beta_short));
     __m512h a_f16x32, b_f16x32, c_f16x32;
     __m512h ab_f16x32, ab_scaled_f16x32, result_f16x32;
 nk_fma_f16_sapphire_cycle:
@@ -152,11 +157,12 @@ nk_fma_f16_sapphire_cycle:
 
 NK_PUBLIC void nk_scale_u8_sapphire(nk_u8_t const *a, nk_size_t n, nk_f32_t const *alpha, nk_f32_t const *beta,
                                     nk_u8_t *result) {
-    nk_f32_t alpha_val = *alpha;
-    nk_f32_t beta_val = *beta;
+    short alpha_short, beta_short;
+    nk_f32_to_f16_sapphire(alpha, (nk_f16_t *)&alpha_short);
+    nk_f32_to_f16_sapphire(beta, (nk_f16_t *)&beta_short);
     __mmask64 mask = 0xFFFFFFFFFFFFFFFFull;
-    __m512h alpha_f16x32 = _mm512_castsi512_ph(_mm512_set1_epi16((short)nk_f32_to_f16_sapphire(alpha_val)));
-    __m512h beta_f16x32 = _mm512_castsi512_ph(_mm512_set1_epi16((short)nk_f32_to_f16_sapphire(beta_val)));
+    __m512h alpha_f16x32 = _mm512_castsi512_ph(_mm512_set1_epi16(alpha_short));
+    __m512h beta_f16x32 = _mm512_castsi512_ph(_mm512_set1_epi16(beta_short));
     __m512i a_u8x64, result_u8x64;
     __m512h a_low_f16x32, a_high_f16x32;
     __m512h result_low_f16x32, result_high_f16x32;
@@ -210,9 +216,12 @@ NK_PUBLIC void nk_wsum_u8_sapphire(                  //
     }
 
     // The general case.
+    short alpha_short, beta_short;
+    nk_f32_to_f16_sapphire(&alpha_val, (nk_f16_t *)&alpha_short);
+    nk_f32_to_f16_sapphire(&beta_val, (nk_f16_t *)&beta_short);
     __mmask64 mask = 0xFFFFFFFFFFFFFFFFull;
-    __m512h alpha_f16x32 = _mm512_castsi512_ph(_mm512_set1_epi16((short)nk_f32_to_f16_sapphire(alpha_val)));
-    __m512h beta_f16x32 = _mm512_castsi512_ph(_mm512_set1_epi16((short)nk_f32_to_f16_sapphire(beta_val)));
+    __m512h alpha_f16x32 = _mm512_castsi512_ph(_mm512_set1_epi16(alpha_short));
+    __m512h beta_f16x32 = _mm512_castsi512_ph(_mm512_set1_epi16(beta_short));
     __m512i a_u8x64, b_u8x64, result_u8x64;
     __m512h a_low_f16x32, a_high_f16x32, b_low_f16x32, b_high_f16x32;
     __m512h a_scaled_low_f16x32, a_scaled_high_f16x32, result_low_f16x32, result_high_f16x32;
@@ -251,11 +260,12 @@ nk_wsum_u8_sapphire_cycle:
 
 NK_PUBLIC void nk_scale_i8_sapphire(nk_i8_t const *a, nk_size_t n, nk_f32_t const *alpha, nk_f32_t const *beta,
                                     nk_i8_t *result) {
-    nk_f32_t alpha_val = *alpha;
-    nk_f32_t beta_val = *beta;
+    short alpha_short, beta_short;
+    nk_f32_to_f16_sapphire(alpha, (nk_f16_t *)&alpha_short);
+    nk_f32_to_f16_sapphire(beta, (nk_f16_t *)&beta_short);
     __mmask64 mask = 0xFFFFFFFFFFFFFFFFull;
-    __m512h alpha_f16x32 = _mm512_castsi512_ph(_mm512_set1_epi16((short)nk_f32_to_f16_sapphire(alpha_val)));
-    __m512h beta_f16x32 = _mm512_castsi512_ph(_mm512_set1_epi16((short)nk_f32_to_f16_sapphire(beta_val)));
+    __m512h alpha_f16x32 = _mm512_castsi512_ph(_mm512_set1_epi16(alpha_short));
+    __m512h beta_f16x32 = _mm512_castsi512_ph(_mm512_set1_epi16(beta_short));
     __m256i a_low_i8x32, a_high_i8x32;
     __m512i result_i8x64;
     __m512h a_low_f16x32, a_high_f16x32;
@@ -316,9 +326,12 @@ NK_PUBLIC void nk_wsum_i8_sapphire(                  //
     }
 
     // The general case.
+    short alpha_short, beta_short;
+    nk_f32_to_f16_sapphire(&alpha_val, (nk_f16_t *)&alpha_short);
+    nk_f32_to_f16_sapphire(&beta_val, (nk_f16_t *)&beta_short);
     __mmask64 mask = 0xFFFFFFFFFFFFFFFFull;
-    __m512h alpha_f16x32 = _mm512_castsi512_ph(_mm512_set1_epi16((short)nk_f32_to_f16_sapphire(alpha_val)));
-    __m512h beta_f16x32 = _mm512_castsi512_ph(_mm512_set1_epi16((short)nk_f32_to_f16_sapphire(beta_val)));
+    __m512h alpha_f16x32 = _mm512_castsi512_ph(_mm512_set1_epi16(alpha_short));
+    __m512h beta_f16x32 = _mm512_castsi512_ph(_mm512_set1_epi16(beta_short));
     __m256i a_low_i8x32, a_high_i8x32, b_low_i8x32, b_high_i8x32;
     __m512i result_i8x64;
     __m512h a_low_f16x32, a_high_f16x32, b_low_f16x32, b_high_f16x32;
@@ -369,11 +382,12 @@ NK_PUBLIC void nk_fma_i8_sapphire(                                     //
     nk_i8_t const *a, nk_i8_t const *b, nk_i8_t const *c, nk_size_t n, //
     nk_f32_t const *alpha, nk_f32_t const *beta, nk_i8_t *result) {
 
-    nk_f32_t alpha_val = *alpha;
-    nk_f32_t beta_val = *beta;
+    short alpha_short, beta_short;
+    nk_f32_to_f16_sapphire(alpha, (nk_f16_t *)&alpha_short);
+    nk_f32_to_f16_sapphire(beta, (nk_f16_t *)&beta_short);
     __mmask64 mask = 0xFFFFFFFFFFFFFFFF;
-    __m512h alpha_f16x32 = _mm512_castsi512_ph(_mm512_set1_epi16((short)nk_f32_to_f16_sapphire(alpha_val)));
-    __m512h beta_f16x32 = _mm512_castsi512_ph(_mm512_set1_epi16((short)nk_f32_to_f16_sapphire(beta_val)));
+    __m512h alpha_f16x32 = _mm512_castsi512_ph(_mm512_set1_epi16(alpha_short));
+    __m512h beta_f16x32 = _mm512_castsi512_ph(_mm512_set1_epi16(beta_short));
     __m256i a_low_i8x32, a_high_i8x32, b_low_i8x32, b_high_i8x32, c_low_i8x32, c_high_i8x32;
     __m512i result_i8x64;
     __m512h a_low_f16x32, a_high_f16x32, b_low_f16x32, b_high_f16x32;
@@ -442,11 +456,12 @@ NK_PUBLIC void nk_fma_u8_sapphire(                                     //
     nk_u8_t const *a, nk_u8_t const *b, nk_u8_t const *c, nk_size_t n, //
     nk_f32_t const *alpha, nk_f32_t const *beta, nk_u8_t *result) {
 
-    nk_f32_t alpha_val = *alpha;
-    nk_f32_t beta_val = *beta;
+    short alpha_short, beta_short;
+    nk_f32_to_f16_sapphire(alpha, (nk_f16_t *)&alpha_short);
+    nk_f32_to_f16_sapphire(beta, (nk_f16_t *)&beta_short);
     __mmask64 mask = 0xFFFFFFFFFFFFFFFF;
-    __m512h alpha_f16x32 = _mm512_castsi512_ph(_mm512_set1_epi16((short)nk_f32_to_f16_sapphire(alpha_val)));
-    __m512h beta_f16x32 = _mm512_castsi512_ph(_mm512_set1_epi16((short)nk_f32_to_f16_sapphire(beta_val)));
+    __m512h alpha_f16x32 = _mm512_castsi512_ph(_mm512_set1_epi16(alpha_short));
+    __m512h beta_f16x32 = _mm512_castsi512_ph(_mm512_set1_epi16(beta_short));
     __m512i a_u8x64, b_u8x64, c_u8x64, result_u8x64;
     __m512h a_low_f16x32, a_high_f16x32, b_low_f16x32, b_high_f16x32;
     __m512h c_low_f16x32, c_high_f16x32, ab_low_f16x32, ab_high_f16x32;

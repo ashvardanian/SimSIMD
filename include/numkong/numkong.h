@@ -105,6 +105,7 @@
 #define NK_DYNAMIC_DISPATCH (0) // true or false
 #endif
 
+#include "numkong/cast.h"         // Type Conversions
 #include "numkong/binary.h"       // Hamming, Jaccard
 #include "numkong/curved.h"       // Mahalanobis, Bilinear Forms
 #include "numkong/dot.h"          // Inner (dot) product, and its conjugate
