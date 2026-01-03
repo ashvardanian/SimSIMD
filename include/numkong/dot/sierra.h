@@ -119,14 +119,6 @@ NK_INTERNAL void nk_dot_u8x32_finalize_sierra(                                  
         result);
 }
 
-NK_INTERNAL void nk_load_b256_sierra_(void const *src, nk_b256_vec_t *dst) {
-    dst->ymm = _mm256_loadu_si256((const __m256i *)src);
-}
-
-NK_INTERNAL void nk_partial_load_b8x32_sierra_(void const *src, nk_size_t n, nk_b256_vec_t *dst) {
-    nk_partial_load_b8x32_haswell_(src, n, dst);
-}
-
 #if defined(__cplusplus)
 } // extern "C"
 #endif

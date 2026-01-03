@@ -20,32 +20,6 @@
 extern "C" {
 #endif
 
-NK_INTERNAL float32x4_t nk_partial_load_f32x4_neon_(nk_f32_t const *x, nk_size_t n) {
-    nk_b128_vec_t result;
-    result.u32x4 = vdupq_n_u32(0);
-    nk_size_t i = 0;
-    for (; i < n; ++i) result.f32s[i] = x[i];
-    return vreinterpretq_f32_u32(result.u32x4);
-}
-
-NK_INTERNAL void nk_partial_store_f32x4_neon_(float32x4_t vec, nk_f32_t *x, nk_size_t n) {
-    nk_b128_vec_t u;
-    u.u32x4 = vreinterpretq_u32_f32(vec);
-    if (n > 0) x[0] = u.f32s[0];
-    if (n > 1) x[1] = u.f32s[1];
-    if (n > 2) x[2] = u.f32s[2];
-    if (n > 3) x[3] = u.f32s[3];
-}
-
-NK_INTERNAL void nk_partial_store_i32x4_neon_(int32x4_t vec, nk_i32_t *x, nk_size_t n) {
-    nk_b128_vec_t u;
-    u.u32x4 = vreinterpretq_u32_s32(vec);
-    if (n > 0) x[0] = u.i32s[0];
-    if (n > 1) x[1] = u.i32s[1];
-    if (n > 2) x[2] = u.i32s[2];
-    if (n > 3) x[3] = u.i32s[3];
-}
-
 NK_PUBLIC void nk_dot_f32_neon(nk_f32_t const *a_scalars, nk_f32_t const *b_scalars, nk_size_t count_scalars,
                                nk_f32_t *result) {
     // Upcast f32 to f64 for accumulation (2 f32s per iteration, avoids slow vget_low/high)

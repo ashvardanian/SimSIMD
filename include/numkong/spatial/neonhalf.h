@@ -46,7 +46,7 @@ nk_l2sq_f16_neonhalf_cycle:
 }
 NK_PUBLIC void nk_l2_f16_neonhalf(nk_f16_t const *a, nk_f16_t const *b, nk_size_t n, nk_f32_t *result) {
     nk_l2sq_f16_neonhalf(a, b, n, result);
-    *result = nk_sqrt_f32_neon_(*result);
+    *result = nk_f32_sqrt_neon(*result);
 }
 
 NK_PUBLIC void nk_angular_f16_neonhalf(nk_f16_t const *a, nk_f16_t const *b, nk_size_t n, nk_f32_t *result) {

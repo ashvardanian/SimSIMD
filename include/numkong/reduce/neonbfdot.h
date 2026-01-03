@@ -36,7 +36,7 @@ NK_INTERNAL void nk_reduce_add_bf16_neonbfdot_contiguous_( //
     // Handle tail with type-agnostic partial load
     if (idx < count) {
         nk_b128_vec_t tail_vec;
-        nk_partial_load_b16x8_neon_(data + idx, count - idx, &tail_vec);
+        nk_partial_load_b16x8_serial_(data + idx, count - idx, &tail_vec);
         bfloat16x8_t data_bf16x8 = vreinterpretq_bf16_u16(tail_vec.u16x8);
         sum_f32x4 = vbfdotq_f32(sum_f32x4, data_bf16x8, ones_bf16x8);
     }
@@ -80,7 +80,7 @@ NK_INTERNAL void nk_reduce_add_bf16_neonbfdot_strided_(                //
     nk_f32_t sum = vaddvq_f32(sum_f32x4);
     for (; idx < count; ++idx) {
         nk_f32_t val;
-        nk_bf16_to_f32_(&data[idx * stride_elements], &val);
+        nk_bf16_to_f32_serial(&data[idx * stride_elements], &val);
         sum += val;
     }
 
@@ -142,7 +142,7 @@ NK_INTERNAL void nk_reduce_min_bf16_neonbfdot_contiguous_( //
     // Scalar tail
     for (; idx < count; ++idx) {
         nk_f32_t val;
-        nk_bf16_to_f32_(&data[idx], &val);
+        nk_bf16_to_f32_serial(&data[idx], &val);
         if (val < best_val) {
             best_val = val;
             best_idx = idx;
@@ -219,7 +219,7 @@ NK_INTERNAL void nk_reduce_min_bf16_neonbfdot_strided_(                //
     // Scalar tail
     for (; idx < count; ++idx) {
         nk_f32_t val;
-        nk_bf16_to_f32_(&data[idx * stride_elements], &val);
+        nk_bf16_to_f32_serial(&data[idx * stride_elements], &val);
         if (val < best_val) {
             best_val = val;
             best_idx = idx;
@@ -286,7 +286,7 @@ NK_INTERNAL void nk_reduce_max_bf16_neonbfdot_contiguous_( //
     // Scalar tail
     for (; idx < count; ++idx) {
         nk_f32_t val;
-        nk_bf16_to_f32_(&data[idx], &val);
+        nk_bf16_to_f32_serial(&data[idx], &val);
         if (val > best_val) {
             best_val = val;
             best_idx = idx;
@@ -363,7 +363,7 @@ NK_INTERNAL void nk_reduce_max_bf16_neonbfdot_strided_(                //
     // Scalar tail
     for (; idx < count; ++idx) {
         nk_f32_t val;
-        nk_bf16_to_f32_(&data[idx * stride_elements], &val);
+        nk_bf16_to_f32_serial(&data[idx * stride_elements], &val);
         if (val > best_val) {
             best_val = val;
             best_idx = idx;

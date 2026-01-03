@@ -7,7 +7,9 @@
  */
 #ifndef NK_REDUCE_SERIAL_H
 #define NK_REDUCE_SERIAL_H
+
 #include "numkong/types.h"
+#include "numkong/cast/serial.h"
 
 #if defined(__cplusplus)
 extern "C" {
@@ -29,7 +31,8 @@ NK_PUBLIC void nk_reduce_add_f64_serial(                           //
     unsigned char const *ptr = (unsigned char const *)data;
     for (nk_size_t i = 0; i < count; ++i, ptr += stride_bytes) {
         nk_f64_t term = *(nk_f64_t const *)ptr, tentative = sum + term;
-        compensation += (nk_abs_f64(sum) >= nk_abs_f64(term)) ? ((sum - tentative) + term) : ((term - tentative) + sum);
+        compensation += (nk_f64_abs_(sum) >= nk_f64_abs_(term)) ? ((sum - tentative) + term)
+                                                                : ((term - tentative) + sum);
         sum = tentative;
     }
     *result = sum + compensation;
@@ -554,7 +557,7 @@ NK_PUBLIC void nk_reduce_add_f16_serial(                           //
     unsigned char const *ptr = (unsigned char const *)data;
     for (nk_size_t i = 0; i < count; ++i, ptr += stride_bytes) {
         nk_f32_t val;
-        nk_f16_to_f32((nk_f16_t const *)ptr, &val);
+        nk_f16_to_f32_serial((nk_f16_t const *)ptr, &val);
         sum += val;
     }
     *result = sum;
@@ -567,7 +570,7 @@ NK_PUBLIC void nk_reduce_add_bf16_serial(                           //
     unsigned char const *ptr = (unsigned char const *)data;
     for (nk_size_t i = 0; i < count; ++i, ptr += stride_bytes) {
         nk_f32_t val;
-        nk_bf16_to_f32((nk_bf16_t const *)ptr, &val);
+        nk_bf16_to_f32_serial((nk_bf16_t const *)ptr, &val);
         sum += val;
     }
     *result = sum;
@@ -580,7 +583,7 @@ NK_PUBLIC void nk_reduce_add_e4m3_serial(                           //
     unsigned char const *ptr = (unsigned char const *)data;
     for (nk_size_t i = 0; i < count; ++i, ptr += stride_bytes) {
         nk_f32_t val;
-        nk_e4m3_to_f32((nk_e4m3_t const *)ptr, &val);
+        nk_e4m3_to_f32_serial((nk_e4m3_t const *)ptr, &val);
         sum += val;
     }
     *result = sum;
@@ -593,7 +596,7 @@ NK_PUBLIC void nk_reduce_add_e5m2_serial(                           //
     unsigned char const *ptr = (unsigned char const *)data;
     for (nk_size_t i = 0; i < count; ++i, ptr += stride_bytes) {
         nk_f32_t val;
-        nk_e5m2_to_f32((nk_e5m2_t const *)ptr, &val);
+        nk_e5m2_to_f32_serial((nk_e5m2_t const *)ptr, &val);
         sum += val;
     }
     *result = sum;
@@ -609,12 +612,12 @@ NK_PUBLIC void nk_reduce_min_f16_serial(                           //
     }
     unsigned char const *ptr = (unsigned char const *)data;
     nk_f32_t best_value;
-    nk_f16_to_f32((nk_f16_t const *)ptr, &best_value);
+    nk_f16_to_f32_serial((nk_f16_t const *)ptr, &best_value);
     nk_size_t best_index = 0;
     ptr += stride_bytes;
     for (nk_size_t i = 1; i < count; ++i, ptr += stride_bytes) {
         nk_f32_t val;
-        nk_f16_to_f32((nk_f16_t const *)ptr, &val);
+        nk_f16_to_f32_serial((nk_f16_t const *)ptr, &val);
         if (val >= best_value) continue;
         best_value = val;
         best_index = i;
@@ -633,12 +636,12 @@ NK_PUBLIC void nk_reduce_max_f16_serial(                           //
     }
     unsigned char const *ptr = (unsigned char const *)data;
     nk_f32_t best_value;
-    nk_f16_to_f32((nk_f16_t const *)ptr, &best_value);
+    nk_f16_to_f32_serial((nk_f16_t const *)ptr, &best_value);
     nk_size_t best_index = 0;
     ptr += stride_bytes;
     for (nk_size_t i = 1; i < count; ++i, ptr += stride_bytes) {
         nk_f32_t val;
-        nk_f16_to_f32((nk_f16_t const *)ptr, &val);
+        nk_f16_to_f32_serial((nk_f16_t const *)ptr, &val);
         if (val <= best_value) continue;
         best_value = val;
         best_index = i;
@@ -657,12 +660,12 @@ NK_PUBLIC void nk_reduce_min_bf16_serial(                           //
     }
     unsigned char const *ptr = (unsigned char const *)data;
     nk_f32_t best_value;
-    nk_bf16_to_f32((nk_bf16_t const *)ptr, &best_value);
+    nk_bf16_to_f32_serial((nk_bf16_t const *)ptr, &best_value);
     nk_size_t best_index = 0;
     ptr += stride_bytes;
     for (nk_size_t i = 1; i < count; ++i, ptr += stride_bytes) {
         nk_f32_t val;
-        nk_bf16_to_f32((nk_bf16_t const *)ptr, &val);
+        nk_bf16_to_f32_serial((nk_bf16_t const *)ptr, &val);
         if (val >= best_value) continue;
         best_value = val;
         best_index = i;
@@ -681,12 +684,12 @@ NK_PUBLIC void nk_reduce_max_bf16_serial(                           //
     }
     unsigned char const *ptr = (unsigned char const *)data;
     nk_f32_t best_value;
-    nk_bf16_to_f32((nk_bf16_t const *)ptr, &best_value);
+    nk_bf16_to_f32_serial((nk_bf16_t const *)ptr, &best_value);
     nk_size_t best_index = 0;
     ptr += stride_bytes;
     for (nk_size_t i = 1; i < count; ++i, ptr += stride_bytes) {
         nk_f32_t val;
-        nk_bf16_to_f32((nk_bf16_t const *)ptr, &val);
+        nk_bf16_to_f32_serial((nk_bf16_t const *)ptr, &val);
         if (val <= best_value) continue;
         best_value = val;
         best_index = i;
@@ -705,12 +708,12 @@ NK_PUBLIC void nk_reduce_min_e4m3_serial(                           //
     }
     unsigned char const *ptr = (unsigned char const *)data;
     nk_f32_t best_value;
-    nk_e4m3_to_f32((nk_e4m3_t const *)ptr, &best_value);
+    nk_e4m3_to_f32_serial((nk_e4m3_t const *)ptr, &best_value);
     nk_size_t best_index = 0;
     ptr += stride_bytes;
     for (nk_size_t i = 1; i < count; ++i, ptr += stride_bytes) {
         nk_f32_t val;
-        nk_e4m3_to_f32((nk_e4m3_t const *)ptr, &val);
+        nk_e4m3_to_f32_serial((nk_e4m3_t const *)ptr, &val);
         if (val >= best_value) continue;
         best_value = val;
         best_index = i;
@@ -729,12 +732,12 @@ NK_PUBLIC void nk_reduce_max_e4m3_serial(                           //
     }
     unsigned char const *ptr = (unsigned char const *)data;
     nk_f32_t best_value;
-    nk_e4m3_to_f32((nk_e4m3_t const *)ptr, &best_value);
+    nk_e4m3_to_f32_serial((nk_e4m3_t const *)ptr, &best_value);
     nk_size_t best_index = 0;
     ptr += stride_bytes;
     for (nk_size_t i = 1; i < count; ++i, ptr += stride_bytes) {
         nk_f32_t val;
-        nk_e4m3_to_f32((nk_e4m3_t const *)ptr, &val);
+        nk_e4m3_to_f32_serial((nk_e4m3_t const *)ptr, &val);
         if (val <= best_value) continue;
         best_value = val;
         best_index = i;
@@ -753,12 +756,12 @@ NK_PUBLIC void nk_reduce_min_e5m2_serial(                           //
     }
     unsigned char const *ptr = (unsigned char const *)data;
     nk_f32_t best_value;
-    nk_e5m2_to_f32((nk_e5m2_t const *)ptr, &best_value);
+    nk_e5m2_to_f32_serial((nk_e5m2_t const *)ptr, &best_value);
     nk_size_t best_index = 0;
     ptr += stride_bytes;
     for (nk_size_t i = 1; i < count; ++i, ptr += stride_bytes) {
         nk_f32_t val;
-        nk_e5m2_to_f32((nk_e5m2_t const *)ptr, &val);
+        nk_e5m2_to_f32_serial((nk_e5m2_t const *)ptr, &val);
         if (val >= best_value) continue;
         best_value = val;
         best_index = i;
@@ -777,12 +780,12 @@ NK_PUBLIC void nk_reduce_max_e5m2_serial(                           //
     }
     unsigned char const *ptr = (unsigned char const *)data;
     nk_f32_t best_value;
-    nk_e5m2_to_f32((nk_e5m2_t const *)ptr, &best_value);
+    nk_e5m2_to_f32_serial((nk_e5m2_t const *)ptr, &best_value);
     nk_size_t best_index = 0;
     ptr += stride_bytes;
     for (nk_size_t i = 1; i < count; ++i, ptr += stride_bytes) {
         nk_f32_t val;
-        nk_e5m2_to_f32((nk_e5m2_t const *)ptr, &val);
+        nk_e5m2_to_f32_serial((nk_e5m2_t const *)ptr, &val);
         if (val <= best_value) continue;
         best_value = val;
         best_index = i;

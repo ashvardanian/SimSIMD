@@ -15,6 +15,7 @@
 #pragma clang attribute push(__attribute__((target("arch=armv8-a+simd"))), apply_to = function)
 
 #include "numkong/types.h"
+#include "numkong/cast/serial.h" // nk_f32_to_i8_serial
 
 #if defined(__cplusplus)
 extern "C" {
@@ -148,7 +149,7 @@ NK_PUBLIC void nk_scale_i16_neon(nk_i16_t const *a, nk_size_t n, nk_f32_t const 
     // The tail:
     for (; i < n; ++i) {
         nk_f32_t sum = alpha_f32 * a[i] + beta_f32;
-        nk_f32_to_i16_(&sum, result + i);
+        nk_f32_to_i16_serial(&sum, result + i);
     }
 }
 
@@ -177,7 +178,7 @@ NK_PUBLIC void nk_fma_i16_neon(                              //
     // The tail:
     for (; i < n; ++i) {
         nk_f32_t sum = alpha_f32 * a[i] * b[i] + beta_f32 * c[i];
-        nk_f32_to_i16_(&sum, result + i);
+        nk_f32_to_i16_serial(&sum, result + i);
     }
 }
 
@@ -215,7 +216,7 @@ NK_PUBLIC void nk_scale_u16_neon(nk_u16_t const *a, nk_size_t n, nk_f32_t const 
     // The tail:
     for (; i < n; ++i) {
         nk_f32_t sum = alpha_f32 * a[i] + beta_f32;
-        nk_f32_to_u16_(&sum, result + i);
+        nk_f32_to_u16_serial(&sum, result + i);
     }
 }
 
@@ -244,7 +245,7 @@ NK_PUBLIC void nk_fma_u16_neon(                              //
     // The tail:
     for (; i < n; ++i) {
         nk_f32_t sum = alpha_f32 * a[i] * b[i] + beta_f32 * c[i];
-        nk_f32_to_u16_(&sum, result + i);
+        nk_f32_to_u16_serial(&sum, result + i);
     }
 }
 
@@ -282,7 +283,7 @@ NK_PUBLIC void nk_scale_i32_neon(nk_i32_t const *a, nk_size_t n, nk_f64_t const 
     // The tail:
     for (; i < n; ++i) {
         nk_f64_t sum = alpha_val * a[i] + beta_val;
-        nk_f64_to_i32_(&sum, result + i);
+        nk_f64_to_i32_serial(&sum, result + i);
     }
 }
 
@@ -311,7 +312,7 @@ NK_PUBLIC void nk_fma_i32_neon(                              //
     // The tail:
     for (; i < n; ++i) {
         nk_f64_t sum = alpha_val * a[i] * b[i] + beta_val * c[i];
-        nk_f64_to_i32_(&sum, result + i);
+        nk_f64_to_i32_serial(&sum, result + i);
     }
 }
 
@@ -349,7 +350,7 @@ NK_PUBLIC void nk_scale_u32_neon(nk_u32_t const *a, nk_size_t n, nk_f64_t const 
     // The tail:
     for (; i < n; ++i) {
         nk_f64_t sum = alpha_val * a[i] + beta_val;
-        nk_f64_to_u32_(&sum, result + i);
+        nk_f64_to_u32_serial(&sum, result + i);
     }
 }
 
@@ -378,7 +379,7 @@ NK_PUBLIC void nk_fma_u32_neon(                              //
     // The tail:
     for (; i < n; ++i) {
         nk_f64_t sum = alpha_val * a[i] * b[i] + beta_val * c[i];
-        nk_f64_to_u32_(&sum, result + i);
+        nk_f64_to_u32_serial(&sum, result + i);
     }
 }
 
@@ -416,7 +417,7 @@ NK_PUBLIC void nk_scale_i64_neon(nk_i64_t const *a, nk_size_t n, nk_f64_t const 
     // The tail:
     for (; i < n; ++i) {
         nk_f64_t sum = alpha_val * a[i] + beta_val;
-        nk_f64_to_i64_(&sum, result + i);
+        nk_f64_to_i64_serial(&sum, result + i);
     }
 }
 
@@ -445,7 +446,7 @@ NK_PUBLIC void nk_fma_i64_neon(                              //
     // The tail:
     for (; i < n; ++i) {
         nk_f64_t sum = alpha_val * a[i] * b[i] + beta_val * c[i];
-        nk_f64_to_i64_(&sum, result + i);
+        nk_f64_to_i64_serial(&sum, result + i);
     }
 }
 
@@ -483,7 +484,7 @@ NK_PUBLIC void nk_scale_u64_neon(nk_u64_t const *a, nk_size_t n, nk_f64_t const 
     // The tail:
     for (; i < n; ++i) {
         nk_f64_t sum = alpha_val * a[i] + beta_val;
-        nk_f64_to_u64_(&sum, result + i);
+        nk_f64_to_u64_serial(&sum, result + i);
     }
 }
 
@@ -512,7 +513,7 @@ NK_PUBLIC void nk_fma_u64_neon(                              //
     // The tail:
     for (; i < n; ++i) {
         nk_f64_t sum = alpha_val * a[i] * b[i] + beta_val * c[i];
-        nk_f64_to_u64_(&sum, result + i);
+        nk_f64_to_u64_serial(&sum, result + i);
     }
 }
 

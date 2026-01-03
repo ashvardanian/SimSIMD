@@ -480,10 +480,10 @@ NK_PUBLIC void nk_sin_f32_neon(nk_f32_t const *ins, nk_size_t n, nk_f32_t *outs)
     if (i < n) {
         nk_size_t remaining = n - i;
         nk_b128_vec_t angles_vec;
-        nk_partial_load_b32x4_neon_(ins + i, remaining, &angles_vec);
+        nk_partial_load_b32x4_serial_(ins + i, remaining, &angles_vec);
         nk_b128_vec_t results_vec;
         results_vec.f32x4 = nk_f32x4_sin_neon_(angles_vec.f32x4);
-        nk_partial_store_b32x4_neon_(&results_vec, outs + i, remaining);
+        nk_partial_store_b32x4_serial_(&results_vec, outs + i, remaining);
     }
 }
 
@@ -497,10 +497,10 @@ NK_PUBLIC void nk_cos_f32_neon(nk_f32_t const *ins, nk_size_t n, nk_f32_t *outs)
     if (i < n) {
         nk_size_t remaining = n - i;
         nk_b128_vec_t angles_vec;
-        nk_partial_load_b32x4_neon_(ins + i, remaining, &angles_vec);
+        nk_partial_load_b32x4_serial_(ins + i, remaining, &angles_vec);
         nk_b128_vec_t results_vec;
         results_vec.f32x4 = nk_f32x4_cos_neon_(angles_vec.f32x4);
-        nk_partial_store_b32x4_neon_(&results_vec, outs + i, remaining);
+        nk_partial_store_b32x4_serial_(&results_vec, outs + i, remaining);
     }
 }
 
@@ -514,10 +514,10 @@ NK_PUBLIC void nk_atan_f32_neon(nk_f32_t const *ins, nk_size_t n, nk_f32_t *outs
     if (i < n) {
         nk_size_t remaining = n - i;
         nk_b128_vec_t values_vec;
-        nk_partial_load_b32x4_neon_(ins + i, remaining, &values_vec);
+        nk_partial_load_b32x4_serial_(ins + i, remaining, &values_vec);
         nk_b128_vec_t results_vec;
         results_vec.f32x4 = nk_f32x4_atan_neon_(values_vec.f32x4);
-        nk_partial_store_b32x4_neon_(&results_vec, outs + i, remaining);
+        nk_partial_store_b32x4_serial_(&results_vec, outs + i, remaining);
     }
 }
 
@@ -531,10 +531,10 @@ NK_PUBLIC void nk_sin_f64_neon(nk_f64_t const *ins, nk_size_t n, nk_f64_t *outs)
     if (i < n) {
         nk_size_t remaining = n - i;
         nk_b128_vec_t angles_vec;
-        nk_partial_load_b64x2_neon_(ins + i, remaining, &angles_vec);
+        nk_partial_load_b64x2_serial_(ins + i, remaining, &angles_vec);
         nk_b128_vec_t results_vec;
         results_vec.f64x2 = nk_f64x2_sin_neon_(angles_vec.f64x2);
-        nk_partial_store_b64x2_neon_(&results_vec, outs + i, remaining);
+        nk_partial_store_b64x2_serial_(&results_vec, outs + i, remaining);
     }
 }
 
@@ -548,10 +548,10 @@ NK_PUBLIC void nk_cos_f64_neon(nk_f64_t const *ins, nk_size_t n, nk_f64_t *outs)
     if (i < n) {
         nk_size_t remaining = n - i;
         nk_b128_vec_t angles_vec;
-        nk_partial_load_b64x2_neon_(ins + i, remaining, &angles_vec);
+        nk_partial_load_b64x2_serial_(ins + i, remaining, &angles_vec);
         nk_b128_vec_t results_vec;
         results_vec.f64x2 = nk_f64x2_cos_neon_(angles_vec.f64x2);
-        nk_partial_store_b64x2_neon_(&results_vec, outs + i, remaining);
+        nk_partial_store_b64x2_serial_(&results_vec, outs + i, remaining);
     }
 }
 
@@ -565,10 +565,10 @@ NK_PUBLIC void nk_atan_f64_neon(nk_f64_t const *ins, nk_size_t n, nk_f64_t *outs
     if (i < n) {
         nk_size_t remaining = n - i;
         nk_b128_vec_t values_vec;
-        nk_partial_load_b64x2_neon_(ins + i, remaining, &values_vec);
+        nk_partial_load_b64x2_serial_(ins + i, remaining, &values_vec);
         nk_b128_vec_t results_vec;
         results_vec.f64x2 = nk_f64x2_atan_neon_(values_vec.f64x2);
-        nk_partial_store_b64x2_neon_(&results_vec, outs + i, remaining);
+        nk_partial_store_b64x2_serial_(&results_vec, outs + i, remaining);
     }
 }
 

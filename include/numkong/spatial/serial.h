@@ -32,20 +32,21 @@ extern "C" {
  *
  *  @see Neumaier, A. (1974). "Rundungsfehleranalyse einiger Verfahren zur Summation endlicher Summen"
  */
-#define NK_MAKE_L2SQ(name, input_type, accumulator_type, output_type, load_and_convert)                               \
-    NK_PUBLIC void nk_l2sq_##input_type##_##name(nk_##input_type##_t const *a, nk_##input_type##_t const *b,          \
-                                                 nk_size_t n, nk_##output_type##_t *result) {                         \
-        nk_##accumulator_type##_t sum = 0, compensation = 0, a_element, b_element;                                    \
-        for (nk_size_t i = 0; i != n; ++i) {                                                                          \
-            load_and_convert(a + i, &a_element);                                                                      \
-            load_and_convert(b + i, &b_element);                                                                      \
-            nk_##accumulator_type##_t diff = a_element - b_element;                                                   \
-            nk_##accumulator_type##_t term = diff * diff, t = sum + term;                                             \
-            compensation += (nk_abs_##accumulator_type(sum) >= nk_abs_##accumulator_type(term)) ? ((sum - t) + term)  \
-                                                                                                : ((term - t) + sum); \
-            sum = t;                                                                                                  \
-        }                                                                                                             \
-        *result = (nk_##output_type##_t)(sum + compensation);                                                         \
+#define NK_MAKE_L2SQ(name, input_type, accumulator_type, output_type, load_and_convert)                      \
+    NK_PUBLIC void nk_l2sq_##input_type##_##name(nk_##input_type##_t const *a, nk_##input_type##_t const *b, \
+                                                 nk_size_t n, nk_##output_type##_t *result) {                \
+        nk_##accumulator_type##_t sum = 0, compensation = 0, a_element, b_element;                           \
+        for (nk_size_t i = 0; i != n; ++i) {                                                                 \
+            load_and_convert(a + i, &a_element);                                                             \
+            load_and_convert(b + i, &b_element);                                                             \
+            nk_##accumulator_type##_t diff = a_element - b_element;                                          \
+            nk_##accumulator_type##_t term = diff * diff, t = sum + term;                                    \
+            compensation += (nk_##accumulator_type##_abs_(sum) >= nk_##accumulator_type##_abs_(term))        \
+                                ? ((sum - t) + term)                                                         \
+                                : ((term - t) + sum);                                                        \
+            sum = t;                                                                                         \
+        }                                                                                                    \
+        *result = (nk_##output_type##_t)(sum + compensation);                                                \
     }
 
 #define NK_MAKE_L2(name, input_type, accumulator_type, l2sq_output_type, output_type, load_and_convert, compute_sqrt) \
@@ -64,98 +65,171 @@ extern "C" {
  *
  *  @see NK_MAKE_L2SQ for detailed documentation on Neumaier summation.
  */
-#define NK_MAKE_COS(name, input_type, accumulator_type, output_type, load_and_convert, compute_rsqrt)           \
-    NK_PUBLIC void nk_angular_##input_type##_##name(nk_##input_type##_t const *a, nk_##input_type##_t const *b, \
-                                                    nk_size_t n, nk_##output_type##_t *result) {                \
-        nk_##accumulator_type##_t dot_sum = 0, a_sum = 0, b_sum = 0, a_element, b_element;                      \
-        nk_##accumulator_type##_t compensation_dot = 0, compensation_a = 0, compensation_b = 0;                 \
-        for (nk_size_t i = 0; i != n; ++i) {                                                                    \
-            load_and_convert(a + i, &a_element);                                                                \
-            load_and_convert(b + i, &b_element);                                                                \
-            nk_##accumulator_type##_t term_dot = a_element * b_element, t_dot = dot_sum + term_dot;             \
-            nk_##accumulator_type##_t term_a = a_element * a_element, t_a = a_sum + term_a;                     \
-            nk_##accumulator_type##_t term_b = b_element * b_element, t_b = b_sum + term_b;                     \
-            compensation_dot += (nk_abs_##accumulator_type(dot_sum) >= nk_abs_##accumulator_type(term_dot))     \
-                                    ? ((dot_sum - t_dot) + term_dot)                                            \
-                                    : ((term_dot - t_dot) + dot_sum);                                           \
-            compensation_a += (nk_abs_##accumulator_type(a_sum) >= nk_abs_##accumulator_type(term_a))           \
-                                  ? ((a_sum - t_a) + term_a)                                                    \
-                                  : ((term_a - t_a) + a_sum);                                                   \
-            compensation_b += (nk_abs_##accumulator_type(b_sum) >= nk_abs_##accumulator_type(term_b))           \
-                                  ? ((b_sum - t_b) + term_b)                                                    \
-                                  : ((term_b - t_b) + b_sum);                                                   \
-            dot_sum = t_dot;                                                                                    \
-            a_sum = t_a;                                                                                        \
-            b_sum = t_b;                                                                                        \
-        }                                                                                                       \
-        nk_##accumulator_type##_t dot_product = dot_sum + compensation_dot;                                     \
-        nk_##accumulator_type##_t a_norm_sq = a_sum + compensation_a;                                           \
-        nk_##accumulator_type##_t b_norm_sq = b_sum + compensation_b;                                           \
-        if (a_norm_sq == 0 && b_norm_sq == 0) { *result = 0; }                                                  \
-        else if (dot_product == 0) { *result = 1; }                                                             \
-        else {                                                                                                  \
-            nk_##output_type##_t unclipped_distance = 1 - dot_product * compute_rsqrt(a_norm_sq) *              \
-                                                              compute_rsqrt(b_norm_sq);                         \
-            *result = unclipped_distance > 0 ? unclipped_distance : 0;                                          \
-        }                                                                                                       \
+#define NK_MAKE_COS(name, input_type, accumulator_type, output_type, load_and_convert, compute_rsqrt)             \
+    NK_PUBLIC void nk_angular_##input_type##_##name(nk_##input_type##_t const *a, nk_##input_type##_t const *b,   \
+                                                    nk_size_t n, nk_##output_type##_t *result) {                  \
+        nk_##accumulator_type##_t dot_sum = 0, a_sum = 0, b_sum = 0, a_element, b_element;                        \
+        nk_##accumulator_type##_t compensation_dot = 0, compensation_a = 0, compensation_b = 0;                   \
+        for (nk_size_t i = 0; i != n; ++i) {                                                                      \
+            load_and_convert(a + i, &a_element);                                                                  \
+            load_and_convert(b + i, &b_element);                                                                  \
+            nk_##accumulator_type##_t term_dot = a_element * b_element, t_dot = dot_sum + term_dot;               \
+            nk_##accumulator_type##_t term_a = a_element * a_element, t_a = a_sum + term_a;                       \
+            nk_##accumulator_type##_t term_b = b_element * b_element, t_b = b_sum + term_b;                       \
+            compensation_dot += (nk_##accumulator_type##_abs_(dot_sum) >= nk_##accumulator_type##_abs_(term_dot)) \
+                                    ? ((dot_sum - t_dot) + term_dot)                                              \
+                                    : ((term_dot - t_dot) + dot_sum);                                             \
+            compensation_a += (nk_##accumulator_type##_abs_(a_sum) >= nk_##accumulator_type##_abs_(term_a))       \
+                                  ? ((a_sum - t_a) + term_a)                                                      \
+                                  : ((term_a - t_a) + a_sum);                                                     \
+            compensation_b += (nk_##accumulator_type##_abs_(b_sum) >= nk_##accumulator_type##_abs_(term_b))       \
+                                  ? ((b_sum - t_b) + term_b)                                                      \
+                                  : ((term_b - t_b) + b_sum);                                                     \
+            dot_sum = t_dot;                                                                                      \
+            a_sum = t_a;                                                                                          \
+            b_sum = t_b;                                                                                          \
+        }                                                                                                         \
+        nk_##accumulator_type##_t dot_product = dot_sum + compensation_dot;                                       \
+        nk_##accumulator_type##_t a_norm_sq = a_sum + compensation_a;                                             \
+        nk_##accumulator_type##_t b_norm_sq = b_sum + compensation_b;                                             \
+        if (a_norm_sq == 0 && b_norm_sq == 0) { *result = 0; }                                                    \
+        else if (dot_product == 0) { *result = 1; }                                                               \
+        else {                                                                                                    \
+            nk_##output_type##_t unclipped_distance = 1 - dot_product * compute_rsqrt(a_norm_sq) *                \
+                                                              compute_rsqrt(b_norm_sq);                           \
+            *result = unclipped_distance > 0 ? unclipped_distance : 0;                                            \
+        }                                                                                                         \
     }
 
-NK_MAKE_COS(serial, f64, f64, f64, nk_assign_from_to_, NK_F64_RSQRT)    // nk_angular_f64_serial
-NK_MAKE_L2SQ(serial, f64, f64, f64, nk_assign_from_to_)                 // nk_l2sq_f64_serial
-NK_MAKE_L2(serial, f64, f64, f64, f64, nk_assign_from_to_, NK_F64_SQRT) // nk_l2_f64_serial
+/**
+ *  @brief  Computes `1/sqrt(x)` using the trick from Quake 3,
+ *          with two Newton-Raphson iterations for improved accuracy.
+ *
+ *  The initial guess uses bit manipulation exploiting IEEE 754 float representation.
+ *  The magic constant `0x5F375A86` is an improved version of Lomont's constant.
+ *  Two Newton-Raphson refinement steps reduce the maximum relative error to ~0.0005%,
+ *  roughly 140x more accurate than a single iteration.
+ *
+ *  Subsequent additions by hardware manufacturers have made this algorithm redundant for the most part.
+ *  For example, on x86, Intel introduced the SSE instruction `rsqrtss` in 1999. In a 2009 benchmark on
+ *  the Intel Core 2, this instruction took 0.85ns per float compared to 3.54ns for the fast inverse
+ *  square root algorithm, and had less error. Carmack's Magic Number `rsqrt` had an average error
+ *  of 0.0990%, while SSE `rsqrtss` had 0.0094%, a 10x improvement.
+ *
+ *  https://web.archive.org/web/20210208132927/http://assemblyrequired.crashworks.org/timing-square-root/
+ *  https://stackoverflow.com/a/41460625/2766161
+ */
+NK_INTERNAL nk_f32_t nk_f32_rsqrt_serial(nk_f32_t number) {
+    nk_fui32_t conv;
+    conv.f = number;
+    conv.u = 0x5F375A86 - (conv.u >> 1);
+    nk_f32_t y = conv.f;
+    y = y * (1.5f - 0.5f * number * y * y);
+    y = y * (1.5f - 0.5f * number * y * y);
+    return y;
+}
 
-NK_MAKE_COS(serial, f32, f32, f32, nk_assign_from_to_, NK_F32_RSQRT)    // nk_angular_f32_serial
-NK_MAKE_L2SQ(serial, f32, f32, f32, nk_assign_from_to_)                 // nk_l2sq_f32_serial
-NK_MAKE_L2(serial, f32, f32, f32, f32, nk_assign_from_to_, NK_F32_SQRT) // nk_l2_f32_serial
+/**
+ *  @brief  Approximates `sqrt(x)` using the identity `sqrt(x) = x * rsqrt(x)`.
+ *
+ *  Leverages the fast inverse square root approximation and multiplies by `number`.
+ *  Inherits the ~0.0005% maximum relative error from the underlying `rsqrt` implementation.
+ *  This technique is useful where `sqrt` approximation is needed in performance-critical code,
+ *  though modern hardware provides optimized alternatives like SSE `sqrtss`.
+ */
+NK_INTERNAL nk_f32_t nk_f32_sqrt_serial(nk_f32_t number) { return number * nk_f32_rsqrt_serial(number); }
 
-NK_MAKE_COS(serial, f16, f32, f32, nk_f16_to_f32, NK_F32_RSQRT)    // nk_angular_f16_serial
-NK_MAKE_L2SQ(serial, f16, f32, f32, nk_f16_to_f32)                 // nk_l2sq_f16_serial
-NK_MAKE_L2(serial, f16, f32, f32, f32, nk_f16_to_f32, NK_F32_SQRT) // nk_l2_f16_serial
+/**
+ *  @brief  Computes `1/sqrt(x)` for double precision using the Quake 3 trick,
+ *          with three Newton-Raphson iterations for full f64 accuracy.
+ *
+ *  The initial guess uses bit manipulation exploiting IEEE 754 double representation.
+ *  The magic constant `0x5FE6EB50C7B537A9` is the 64-bit analog of Lomont's constant,
+ *  derived using the same methodology but adjusted for the 11-bit exponent and 52-bit
+ *  mantissa of doubles. Three Newton-Raphson iterations are required to achieve
+ *  near-full precision (~0.00000001% max relative error).
+ *
+ *  For modern x86, the `sqrtsd` instruction followed by division, or `_mm_cvtsd_f64(_mm_rsqrt14_sd(...))`
+ *  with AVX-512, may be preferable for production use.
+ */
+NK_INTERNAL nk_f64_t nk_f64_rsqrt_serial(nk_f64_t number) {
+    nk_fui64_t conv;
+    conv.f = number;
+    conv.u = 0x5FE6EB50C7B537A9ULL - (conv.u >> 1);
+    nk_f64_t y = conv.f;
+    y = y * (1.5 - 0.5 * number * y * y);
+    y = y * (1.5 - 0.5 * number * y * y);
+    y = y * (1.5 - 0.5 * number * y * y);
+    return y;
+}
 
-NK_MAKE_COS(serial, bf16, f32, f32, nk_bf16_to_f32, NK_F32_RSQRT)    // nk_angular_bf16_serial
-NK_MAKE_L2SQ(serial, bf16, f32, f32, nk_bf16_to_f32)                 // nk_l2sq_bf16_serial
-NK_MAKE_L2(serial, bf16, f32, f32, f32, nk_bf16_to_f32, NK_F32_SQRT) // nk_l2_bf16_serial
+/**
+ *  @brief  Approximates `sqrt(x)` for double precision using `sqrt(x) = x * rsqrt(x)`.
+ *
+ *  Leverages the fast inverse square root approximation and multiplies by `number`.
+ *  Inherits near-full f64 precision from the underlying `rsqrt` implementation.
+ */
+NK_INTERNAL nk_f64_t nk_f64_sqrt_serial(nk_f64_t number) { return number * nk_f64_rsqrt_serial(number); }
 
-NK_MAKE_COS(serial, e4m3, f32, f32, nk_e4m3_to_f32, NK_F32_RSQRT)    // nk_angular_e4m3_serial
-NK_MAKE_L2SQ(serial, e4m3, f32, f32, nk_e4m3_to_f32)                 // nk_l2sq_e4m3_serial
-NK_MAKE_L2(serial, e4m3, f32, f32, f32, nk_e4m3_to_f32, NK_F32_SQRT) // nk_l2_e4m3_serial
+NK_MAKE_COS(serial, f64, f64, f64, nk_assign_from_to_, nk_f64_rsqrt_serial)    // nk_angular_f64_serial
+NK_MAKE_L2SQ(serial, f64, f64, f64, nk_assign_from_to_)                        // nk_l2sq_f64_serial
+NK_MAKE_L2(serial, f64, f64, f64, f64, nk_assign_from_to_, nk_f64_sqrt_serial) // nk_l2_f64_serial
 
-NK_MAKE_COS(serial, e5m2, f32, f32, nk_e5m2_to_f32, NK_F32_RSQRT)    // nk_angular_e5m2_serial
-NK_MAKE_L2SQ(serial, e5m2, f32, f32, nk_e5m2_to_f32)                 // nk_l2sq_e5m2_serial
-NK_MAKE_L2(serial, e5m2, f32, f32, f32, nk_e5m2_to_f32, NK_F32_SQRT) // nk_l2_e5m2_serial
+NK_MAKE_COS(serial, f32, f32, f32, nk_assign_from_to_, nk_f32_rsqrt_serial)    // nk_angular_f32_serial
+NK_MAKE_L2SQ(serial, f32, f32, f32, nk_assign_from_to_)                        // nk_l2sq_f32_serial
+NK_MAKE_L2(serial, f32, f32, f32, f32, nk_assign_from_to_, nk_f32_sqrt_serial) // nk_l2_f32_serial
 
-NK_MAKE_COS(serial, i8, i32, f32, nk_assign_from_to_, NK_F32_RSQRT)      // nk_angular_i8_serial
-NK_MAKE_L2SQ(serial, i8, i32, u32, nk_assign_from_to_)                   // nk_l2sq_i8_serial
-NK_MAKE_L2SQ(accurate, i8, i32, u32, nk_assign_from_to_)                 // nk_l2sq_i8_accurate
-NK_MAKE_L2(serial, i8, i32, u32, f32, nk_assign_from_to_, NK_F32_SQRT)   // nk_l2_i8_serial
-NK_MAKE_L2(accurate, i8, i32, u32, f64, nk_assign_from_to_, NK_F64_SQRT) // nk_l2_i8_accurate
+NK_MAKE_COS(serial, f16, f32, f32, nk_f16_to_f32_serial, nk_f32_rsqrt_serial)    // nk_angular_f16_serial
+NK_MAKE_L2SQ(serial, f16, f32, f32, nk_f16_to_f32_serial)                        // nk_l2sq_f16_serial
+NK_MAKE_L2(serial, f16, f32, f32, f32, nk_f16_to_f32_serial, nk_f32_sqrt_serial) // nk_l2_f16_serial
 
-NK_MAKE_COS(serial, u8, u32, f32, nk_assign_from_to_, NK_F32_RSQRT)      // nk_angular_u8_serial
-NK_MAKE_L2SQ(serial, u8, u32, u32, nk_assign_from_to_)                   // nk_l2sq_u8_serial
-NK_MAKE_L2SQ(accurate, u8, u32, u32, nk_assign_from_to_)                 // nk_l2sq_u8_accurate
-NK_MAKE_L2(serial, u8, u32, u32, f32, nk_assign_from_to_, NK_F32_SQRT)   // nk_l2_u8_serial
-NK_MAKE_L2(accurate, u8, u32, u32, f64, nk_assign_from_to_, NK_F64_SQRT) // nk_l2_u8_accurate
+NK_MAKE_COS(serial, bf16, f32, f32, nk_bf16_to_f32_serial, nk_f32_rsqrt_serial)    // nk_angular_bf16_serial
+NK_MAKE_L2SQ(serial, bf16, f32, f32, nk_bf16_to_f32_serial)                        // nk_l2sq_bf16_serial
+NK_MAKE_L2(serial, bf16, f32, f32, f32, nk_bf16_to_f32_serial, nk_f32_sqrt_serial) // nk_l2_bf16_serial
 
-NK_MAKE_COS(accurate, f32, f64, f64, nk_assign_from_to_, NK_F64_RSQRT)    // nk_angular_f32_accurate
-NK_MAKE_L2SQ(accurate, f32, f64, f64, nk_assign_from_to_)                 // nk_l2sq_f32_accurate
-NK_MAKE_L2(accurate, f32, f64, f64, f64, nk_assign_from_to_, NK_F64_SQRT) // nk_l2_f32_accurate
+NK_MAKE_COS(serial, e4m3, f32, f32, nk_e4m3_to_f32_serial, nk_f32_rsqrt_serial)    // nk_angular_e4m3_serial
+NK_MAKE_L2SQ(serial, e4m3, f32, f32, nk_e4m3_to_f32_serial)                        // nk_l2sq_e4m3_serial
+NK_MAKE_L2(serial, e4m3, f32, f32, f32, nk_e4m3_to_f32_serial, nk_f32_sqrt_serial) // nk_l2_e4m3_serial
 
-NK_MAKE_COS(accurate, f16, f64, f64, nk_f16_to_f64, NK_F64_RSQRT)    // nk_angular_f16_accurate
-NK_MAKE_L2SQ(accurate, f16, f64, f64, nk_f16_to_f64)                 // nk_l2sq_f16_accurate
-NK_MAKE_L2(accurate, f16, f64, f64, f64, nk_f16_to_f64, NK_F64_SQRT) // nk_l2_f16_accurate
+NK_MAKE_COS(serial, e5m2, f32, f32, nk_e5m2_to_f32_serial, nk_f32_rsqrt_serial)    // nk_angular_e5m2_serial
+NK_MAKE_L2SQ(serial, e5m2, f32, f32, nk_e5m2_to_f32_serial)                        // nk_l2sq_e5m2_serial
+NK_MAKE_L2(serial, e5m2, f32, f32, f32, nk_e5m2_to_f32_serial, nk_f32_sqrt_serial) // nk_l2_e5m2_serial
 
-NK_MAKE_COS(accurate, bf16, f64, f64, nk_bf16_to_f64, NK_F64_RSQRT)    // nk_angular_bf16_accurate
-NK_MAKE_L2SQ(accurate, bf16, f64, f64, nk_bf16_to_f64)                 // nk_l2sq_bf16_accurate
-NK_MAKE_L2(accurate, bf16, f64, f64, f64, nk_bf16_to_f64, NK_F64_SQRT) // nk_l2_bf16_accurate
+NK_MAKE_COS(serial, i8, i32, f32, nk_assign_from_to_, nk_f32_rsqrt_serial)      // nk_angular_i8_serial
+NK_MAKE_L2SQ(serial, i8, i32, u32, nk_assign_from_to_)                          // nk_l2sq_i8_serial
+NK_MAKE_L2SQ(accurate, i8, i32, u32, nk_assign_from_to_)                        // nk_l2sq_i8_accurate
+NK_MAKE_L2(serial, i8, i32, u32, f32, nk_assign_from_to_, nk_f32_sqrt_serial)   // nk_l2_i8_serial
+NK_MAKE_L2(accurate, i8, i32, u32, f64, nk_assign_from_to_, nk_f64_sqrt_serial) // nk_l2_i8_accurate
+
+NK_MAKE_COS(serial, u8, u32, f32, nk_assign_from_to_, nk_f32_rsqrt_serial)      // nk_angular_u8_serial
+NK_MAKE_L2SQ(serial, u8, u32, u32, nk_assign_from_to_)                          // nk_l2sq_u8_serial
+NK_MAKE_L2SQ(accurate, u8, u32, u32, nk_assign_from_to_)                        // nk_l2sq_u8_accurate
+NK_MAKE_L2(serial, u8, u32, u32, f32, nk_assign_from_to_, nk_f32_sqrt_serial)   // nk_l2_u8_serial
+NK_MAKE_L2(accurate, u8, u32, u32, f64, nk_assign_from_to_, nk_f64_sqrt_serial) // nk_l2_u8_accurate
+
+NK_MAKE_COS(accurate, f32, f64, f64, nk_assign_from_to_, nk_f64_rsqrt_serial)    // nk_angular_f32_accurate
+NK_MAKE_L2SQ(accurate, f32, f64, f64, nk_assign_from_to_)                        // nk_l2sq_f32_accurate
+NK_MAKE_L2(accurate, f32, f64, f64, f64, nk_assign_from_to_, nk_f64_sqrt_serial) // nk_l2_f32_accurate
+
+NK_MAKE_COS(accurate, f16, f64, f64, nk_f16_to_f64_, nk_f64_rsqrt_serial)    // nk_angular_f16_accurate
+NK_MAKE_L2SQ(accurate, f16, f64, f64, nk_f16_to_f64_)                        // nk_l2sq_f16_accurate
+NK_MAKE_L2(accurate, f16, f64, f64, f64, nk_f16_to_f64_, nk_f64_sqrt_serial) // nk_l2_f16_accurate
+
+NK_MAKE_COS(accurate, bf16, f64, f64, nk_bf16_to_f64_, nk_f64_rsqrt_serial)    // nk_angular_bf16_accurate
+NK_MAKE_L2SQ(accurate, bf16, f64, f64, nk_bf16_to_f64_)                        // nk_l2sq_bf16_accurate
+NK_MAKE_L2(accurate, bf16, f64, f64, f64, nk_bf16_to_f64_, nk_f64_sqrt_serial) // nk_l2_bf16_accurate
 
 typedef nk_dot_f64x2_state_serial_t nk_angular_f64x2_state_serial_t;
+
 NK_INTERNAL void nk_angular_f64x2_init_serial(nk_angular_f64x2_state_serial_t *state) {
     nk_dot_f64x2_init_serial(state);
 }
+
 NK_INTERNAL void nk_angular_f64x2_update_serial(nk_angular_f64x2_state_serial_t *state, nk_b128_vec_t a,
                                                 nk_b128_vec_t b) {
     nk_dot_f64x2_update_serial(state, a, b);
 }
+
 NK_INTERNAL void nk_angular_f64x2_finalize_serial(nk_angular_f64x2_state_serial_t const *state_a,
                                                   nk_angular_f64x2_state_serial_t const *state_b,
                                                   nk_angular_f64x2_state_serial_t const *state_c,
@@ -174,11 +248,11 @@ NK_INTERNAL void nk_angular_f64x2_finalize_serial(nk_angular_f64x2_state_serial_
     nk_f64_t target_norm_sq_d = target_norm_d * target_norm_d;
 
     // Precompute query rsqrt once (was computed 4x before)
-    nk_f64_t query_rsqrt = query_norm_sq > 0 ? NK_F64_RSQRT(query_norm_sq) : 0;
-    nk_f64_t target_rsqrt_a = target_norm_sq_a > 0 ? NK_F64_RSQRT(target_norm_sq_a) : 0;
-    nk_f64_t target_rsqrt_b = target_norm_sq_b > 0 ? NK_F64_RSQRT(target_norm_sq_b) : 0;
-    nk_f64_t target_rsqrt_c = target_norm_sq_c > 0 ? NK_F64_RSQRT(target_norm_sq_c) : 0;
-    nk_f64_t target_rsqrt_d = target_norm_sq_d > 0 ? NK_F64_RSQRT(target_norm_sq_d) : 0;
+    nk_f64_t query_rsqrt = query_norm_sq > 0 ? nk_f64_rsqrt_serial(query_norm_sq) : 0;
+    nk_f64_t target_rsqrt_a = target_norm_sq_a > 0 ? nk_f64_rsqrt_serial(target_norm_sq_a) : 0;
+    nk_f64_t target_rsqrt_b = target_norm_sq_b > 0 ? nk_f64_rsqrt_serial(target_norm_sq_b) : 0;
+    nk_f64_t target_rsqrt_c = target_norm_sq_c > 0 ? nk_f64_rsqrt_serial(target_norm_sq_c) : 0;
+    nk_f64_t target_rsqrt_d = target_norm_sq_d > 0 ? nk_f64_rsqrt_serial(target_norm_sq_d) : 0;
 
     nk_f64_t unclipped_distance_a = 1 - dot_product_a * query_rsqrt * target_rsqrt_a;
     nk_f64_t unclipped_distance_b = 1 - dot_product_b * query_rsqrt * target_rsqrt_b;
@@ -196,10 +270,13 @@ NK_INTERNAL void nk_angular_f64x2_finalize_serial(nk_angular_f64x2_state_serial_
 }
 
 typedef nk_dot_f64x2_state_serial_t nk_l2_f64x2_state_serial_t;
+
 NK_INTERNAL void nk_l2_f64x2_init_serial(nk_l2_f64x2_state_serial_t *state) { nk_dot_f64x2_init_serial(state); }
+
 NK_INTERNAL void nk_l2_f64x2_update_serial(nk_l2_f64x2_state_serial_t *state, nk_b128_vec_t a, nk_b128_vec_t b) {
     nk_dot_f64x2_update_serial(state, a, b);
 }
+
 NK_INTERNAL void nk_l2_f64x2_finalize_serial(nk_l2_f64x2_state_serial_t const *state_a,
                                              nk_l2_f64x2_state_serial_t const *state_b,
                                              nk_l2_f64x2_state_serial_t const *state_c,
@@ -222,20 +299,23 @@ NK_INTERNAL void nk_l2_f64x2_finalize_serial(nk_l2_f64x2_state_serial_t const *s
     nk_f64_t distance_sq_c = query_norm_sq + target_norm_sq_c - 2 * dot_product_c;
     nk_f64_t distance_sq_d = query_norm_sq + target_norm_sq_d - 2 * dot_product_d;
 
-    results[0] = distance_sq_a > 0 ? NK_F64_SQRT(distance_sq_a) : 0;
-    results[1] = distance_sq_b > 0 ? NK_F64_SQRT(distance_sq_b) : 0;
-    results[2] = distance_sq_c > 0 ? NK_F64_SQRT(distance_sq_c) : 0;
-    results[3] = distance_sq_d > 0 ? NK_F64_SQRT(distance_sq_d) : 0;
+    results[0] = distance_sq_a > 0 ? nk_f64_sqrt_serial(distance_sq_a) : 0;
+    results[1] = distance_sq_b > 0 ? nk_f64_sqrt_serial(distance_sq_b) : 0;
+    results[2] = distance_sq_c > 0 ? nk_f64_sqrt_serial(distance_sq_c) : 0;
+    results[3] = distance_sq_d > 0 ? nk_f64_sqrt_serial(distance_sq_d) : 0;
 }
 
 typedef nk_dot_f32x4_state_serial_t nk_angular_f32x4_state_serial_t;
+
 NK_INTERNAL void nk_angular_f32x4_init_serial(nk_angular_f32x4_state_serial_t *state) {
     nk_dot_f32x4_init_serial(state);
 }
+
 NK_INTERNAL void nk_angular_f32x4_update_serial(nk_angular_f32x4_state_serial_t *state, nk_b128_vec_t a,
                                                 nk_b128_vec_t b) {
     nk_dot_f32x4_update_serial(state, a, b);
 }
+
 NK_INTERNAL void nk_angular_f32x4_finalize_serial(nk_angular_f32x4_state_serial_t const *state_a,
                                                   nk_angular_f32x4_state_serial_t const *state_b,
                                                   nk_angular_f32x4_state_serial_t const *state_c,
@@ -256,11 +336,11 @@ NK_INTERNAL void nk_angular_f32x4_finalize_serial(nk_angular_f32x4_state_serial_
     nk_f32_t target_norm_sq_d = target_norm_d * target_norm_d;
 
     // Precompute query rsqrt once (was computed 4x before)
-    nk_f32_t query_rsqrt = query_norm_sq > 0 ? NK_F32_RSQRT(query_norm_sq) : 0;
-    nk_f32_t target_rsqrt_a = target_norm_sq_a > 0 ? NK_F32_RSQRT(target_norm_sq_a) : 0;
-    nk_f32_t target_rsqrt_b = target_norm_sq_b > 0 ? NK_F32_RSQRT(target_norm_sq_b) : 0;
-    nk_f32_t target_rsqrt_c = target_norm_sq_c > 0 ? NK_F32_RSQRT(target_norm_sq_c) : 0;
-    nk_f32_t target_rsqrt_d = target_norm_sq_d > 0 ? NK_F32_RSQRT(target_norm_sq_d) : 0;
+    nk_f32_t query_rsqrt = query_norm_sq > 0 ? nk_f32_rsqrt_serial(query_norm_sq) : 0;
+    nk_f32_t target_rsqrt_a = target_norm_sq_a > 0 ? nk_f32_rsqrt_serial(target_norm_sq_a) : 0;
+    nk_f32_t target_rsqrt_b = target_norm_sq_b > 0 ? nk_f32_rsqrt_serial(target_norm_sq_b) : 0;
+    nk_f32_t target_rsqrt_c = target_norm_sq_c > 0 ? nk_f32_rsqrt_serial(target_norm_sq_c) : 0;
+    nk_f32_t target_rsqrt_d = target_norm_sq_d > 0 ? nk_f32_rsqrt_serial(target_norm_sq_d) : 0;
 
     nk_f32_t unclipped_distance_a = 1 - dot_product_a * query_rsqrt * target_rsqrt_a;
     nk_f32_t unclipped_distance_b = 1 - dot_product_b * query_rsqrt * target_rsqrt_b;
@@ -278,10 +358,13 @@ NK_INTERNAL void nk_angular_f32x4_finalize_serial(nk_angular_f32x4_state_serial_
 }
 
 typedef nk_dot_f32x4_state_serial_t nk_l2_f32x4_state_serial_t;
+
 NK_INTERNAL void nk_l2_f32x4_init_serial(nk_l2_f32x4_state_serial_t *state) { nk_dot_f32x4_init_serial(state); }
+
 NK_INTERNAL void nk_l2_f32x4_update_serial(nk_l2_f32x4_state_serial_t *state, nk_b128_vec_t a, nk_b128_vec_t b) {
     nk_dot_f32x4_update_serial(state, a, b);
 }
+
 NK_INTERNAL void nk_l2_f32x4_finalize_serial(nk_l2_f32x4_state_serial_t const *state_a,
                                              nk_l2_f32x4_state_serial_t const *state_b,
                                              nk_l2_f32x4_state_serial_t const *state_c,
@@ -306,20 +389,23 @@ NK_INTERNAL void nk_l2_f32x4_finalize_serial(nk_l2_f32x4_state_serial_t const *s
     nk_f32_t distance_sq_c = query_norm_sq + target_norm_sq_c - 2 * dot_product_c;
     nk_f32_t distance_sq_d = query_norm_sq + target_norm_sq_d - 2 * dot_product_d;
 
-    results[0] = distance_sq_a > 0 ? NK_F32_SQRT(distance_sq_a) : 0;
-    results[1] = distance_sq_b > 0 ? NK_F32_SQRT(distance_sq_b) : 0;
-    results[2] = distance_sq_c > 0 ? NK_F32_SQRT(distance_sq_c) : 0;
-    results[3] = distance_sq_d > 0 ? NK_F32_SQRT(distance_sq_d) : 0;
+    results[0] = distance_sq_a > 0 ? nk_f32_sqrt_serial(distance_sq_a) : 0;
+    results[1] = distance_sq_b > 0 ? nk_f32_sqrt_serial(distance_sq_b) : 0;
+    results[2] = distance_sq_c > 0 ? nk_f32_sqrt_serial(distance_sq_c) : 0;
+    results[3] = distance_sq_d > 0 ? nk_f32_sqrt_serial(distance_sq_d) : 0;
 }
 
 typedef nk_dot_f16x8_state_serial_t nk_angular_f16x8_state_serial_t;
+
 NK_INTERNAL void nk_angular_f16x8_init_serial(nk_angular_f16x8_state_serial_t *state) {
     nk_dot_f16x8_init_serial(state);
 }
+
 NK_INTERNAL void nk_angular_f16x8_update_serial(nk_angular_f16x8_state_serial_t *state, nk_b128_vec_t a,
                                                 nk_b128_vec_t b) {
     nk_dot_f16x8_update_serial(state, a, b);
 }
+
 NK_INTERNAL void nk_angular_f16x8_finalize_serial(nk_angular_f16x8_state_serial_t const *state_a,
                                                   nk_angular_f16x8_state_serial_t const *state_b,
                                                   nk_angular_f16x8_state_serial_t const *state_c,
@@ -345,37 +431,40 @@ NK_INTERNAL void nk_angular_f16x8_finalize_serial(nk_angular_f16x8_state_serial_
     if (query_norm_sq == 0 && target_norm_sq_a == 0) results[0] = 0;
     else if (dot_a == 0) results[0] = 1;
     else {
-        unclipped_a = 1 - dot_a * NK_F32_RSQRT(query_norm_sq) * NK_F32_RSQRT(target_norm_sq_a);
+        unclipped_a = 1 - dot_a * nk_f32_rsqrt_serial(query_norm_sq) * nk_f32_rsqrt_serial(target_norm_sq_a);
         results[0] = unclipped_a > 0 ? unclipped_a : 0;
     }
 
     if (query_norm_sq == 0 && target_norm_sq_b == 0) results[1] = 0;
     else if (dot_b == 0) results[1] = 1;
     else {
-        unclipped_b = 1 - dot_b * NK_F32_RSQRT(query_norm_sq) * NK_F32_RSQRT(target_norm_sq_b);
+        unclipped_b = 1 - dot_b * nk_f32_rsqrt_serial(query_norm_sq) * nk_f32_rsqrt_serial(target_norm_sq_b);
         results[1] = unclipped_b > 0 ? unclipped_b : 0;
     }
 
     if (query_norm_sq == 0 && target_norm_sq_c == 0) results[2] = 0;
     else if (dot_c == 0) results[2] = 1;
     else {
-        unclipped_c = 1 - dot_c * NK_F32_RSQRT(query_norm_sq) * NK_F32_RSQRT(target_norm_sq_c);
+        unclipped_c = 1 - dot_c * nk_f32_rsqrt_serial(query_norm_sq) * nk_f32_rsqrt_serial(target_norm_sq_c);
         results[2] = unclipped_c > 0 ? unclipped_c : 0;
     }
 
     if (query_norm_sq == 0 && target_norm_sq_d == 0) results[3] = 0;
     else if (dot_d == 0) results[3] = 1;
     else {
-        unclipped_d = 1 - dot_d * NK_F32_RSQRT(query_norm_sq) * NK_F32_RSQRT(target_norm_sq_d);
+        unclipped_d = 1 - dot_d * nk_f32_rsqrt_serial(query_norm_sq) * nk_f32_rsqrt_serial(target_norm_sq_d);
         results[3] = unclipped_d > 0 ? unclipped_d : 0;
     }
 }
 
 typedef nk_dot_f16x8_state_serial_t nk_l2_f16x8_state_serial_t;
+
 NK_INTERNAL void nk_l2_f16x8_init_serial(nk_l2_f16x8_state_serial_t *state) { nk_dot_f16x8_init_serial(state); }
+
 NK_INTERNAL void nk_l2_f16x8_update_serial(nk_l2_f16x8_state_serial_t *state, nk_b128_vec_t a, nk_b128_vec_t b) {
     nk_dot_f16x8_update_serial(state, a, b);
 }
+
 NK_INTERNAL void nk_l2_f16x8_finalize_serial(nk_l2_f16x8_state_serial_t const *state_a,
                                              nk_l2_f16x8_state_serial_t const *state_b,
                                              nk_l2_f16x8_state_serial_t const *state_c,
@@ -401,20 +490,23 @@ NK_INTERNAL void nk_l2_f16x8_finalize_serial(nk_l2_f16x8_state_serial_t const *s
     nk_f32_t dist_sq_d = query_norm_sq + target_norm_sq_d - 2 * dot_d;
 
     // Final sqrt (loop-unrolled)
-    results[0] = dist_sq_a > 0 ? NK_F32_SQRT(dist_sq_a) : 0;
-    results[1] = dist_sq_b > 0 ? NK_F32_SQRT(dist_sq_b) : 0;
-    results[2] = dist_sq_c > 0 ? NK_F32_SQRT(dist_sq_c) : 0;
-    results[3] = dist_sq_d > 0 ? NK_F32_SQRT(dist_sq_d) : 0;
+    results[0] = dist_sq_a > 0 ? nk_f32_sqrt_serial(dist_sq_a) : 0;
+    results[1] = dist_sq_b > 0 ? nk_f32_sqrt_serial(dist_sq_b) : 0;
+    results[2] = dist_sq_c > 0 ? nk_f32_sqrt_serial(dist_sq_c) : 0;
+    results[3] = dist_sq_d > 0 ? nk_f32_sqrt_serial(dist_sq_d) : 0;
 }
 
 typedef nk_dot_bf16x8_state_serial_t nk_angular_bf16x8_state_serial_t;
+
 NK_INTERNAL void nk_angular_bf16x8_init_serial(nk_angular_bf16x8_state_serial_t *state) {
     nk_dot_bf16x8_init_serial(state);
 }
+
 NK_INTERNAL void nk_angular_bf16x8_update_serial(nk_angular_bf16x8_state_serial_t *state, nk_b128_vec_t a,
                                                  nk_b128_vec_t b) {
     nk_dot_bf16x8_update_serial(state, a, b);
 }
+
 NK_INTERNAL void nk_angular_bf16x8_finalize_serial(nk_angular_bf16x8_state_serial_t const *state_a,
                                                    nk_angular_bf16x8_state_serial_t const *state_b,
                                                    nk_angular_bf16x8_state_serial_t const *state_c,
@@ -440,37 +532,40 @@ NK_INTERNAL void nk_angular_bf16x8_finalize_serial(nk_angular_bf16x8_state_seria
     if (query_norm_sq == 0 && target_norm_sq_a == 0) results[0] = 0;
     else if (dot_a == 0) results[0] = 1;
     else {
-        unclipped_a = 1 - dot_a * NK_F32_RSQRT(query_norm_sq) * NK_F32_RSQRT(target_norm_sq_a);
+        unclipped_a = 1 - dot_a * nk_f32_rsqrt_serial(query_norm_sq) * nk_f32_rsqrt_serial(target_norm_sq_a);
         results[0] = unclipped_a > 0 ? unclipped_a : 0;
     }
 
     if (query_norm_sq == 0 && target_norm_sq_b == 0) results[1] = 0;
     else if (dot_b == 0) results[1] = 1;
     else {
-        unclipped_b = 1 - dot_b * NK_F32_RSQRT(query_norm_sq) * NK_F32_RSQRT(target_norm_sq_b);
+        unclipped_b = 1 - dot_b * nk_f32_rsqrt_serial(query_norm_sq) * nk_f32_rsqrt_serial(target_norm_sq_b);
         results[1] = unclipped_b > 0 ? unclipped_b : 0;
     }
 
     if (query_norm_sq == 0 && target_norm_sq_c == 0) results[2] = 0;
     else if (dot_c == 0) results[2] = 1;
     else {
-        unclipped_c = 1 - dot_c * NK_F32_RSQRT(query_norm_sq) * NK_F32_RSQRT(target_norm_sq_c);
+        unclipped_c = 1 - dot_c * nk_f32_rsqrt_serial(query_norm_sq) * nk_f32_rsqrt_serial(target_norm_sq_c);
         results[2] = unclipped_c > 0 ? unclipped_c : 0;
     }
 
     if (query_norm_sq == 0 && target_norm_sq_d == 0) results[3] = 0;
     else if (dot_d == 0) results[3] = 1;
     else {
-        unclipped_d = 1 - dot_d * NK_F32_RSQRT(query_norm_sq) * NK_F32_RSQRT(target_norm_sq_d);
+        unclipped_d = 1 - dot_d * nk_f32_rsqrt_serial(query_norm_sq) * nk_f32_rsqrt_serial(target_norm_sq_d);
         results[3] = unclipped_d > 0 ? unclipped_d : 0;
     }
 }
 
 typedef nk_dot_bf16x8_state_serial_t nk_l2_bf16x8_state_serial_t;
+
 NK_INTERNAL void nk_l2_bf16x8_init_serial(nk_l2_bf16x8_state_serial_t *state) { nk_dot_bf16x8_init_serial(state); }
+
 NK_INTERNAL void nk_l2_bf16x8_update_serial(nk_l2_bf16x8_state_serial_t *state, nk_b128_vec_t a, nk_b128_vec_t b) {
     nk_dot_bf16x8_update_serial(state, a, b);
 }
+
 NK_INTERNAL void nk_l2_bf16x8_finalize_serial(nk_l2_bf16x8_state_serial_t const *state_a,
                                               nk_l2_bf16x8_state_serial_t const *state_b,
                                               nk_l2_bf16x8_state_serial_t const *state_c,
@@ -496,20 +591,23 @@ NK_INTERNAL void nk_l2_bf16x8_finalize_serial(nk_l2_bf16x8_state_serial_t const 
     nk_f32_t dist_sq_d = query_norm_sq + target_norm_sq_d - 2 * dot_d;
 
     // Final sqrt (loop-unrolled)
-    results[0] = dist_sq_a > 0 ? NK_F32_SQRT(dist_sq_a) : 0;
-    results[1] = dist_sq_b > 0 ? NK_F32_SQRT(dist_sq_b) : 0;
-    results[2] = dist_sq_c > 0 ? NK_F32_SQRT(dist_sq_c) : 0;
-    results[3] = dist_sq_d > 0 ? NK_F32_SQRT(dist_sq_d) : 0;
+    results[0] = dist_sq_a > 0 ? nk_f32_sqrt_serial(dist_sq_a) : 0;
+    results[1] = dist_sq_b > 0 ? nk_f32_sqrt_serial(dist_sq_b) : 0;
+    results[2] = dist_sq_c > 0 ? nk_f32_sqrt_serial(dist_sq_c) : 0;
+    results[3] = dist_sq_d > 0 ? nk_f32_sqrt_serial(dist_sq_d) : 0;
 }
 
 typedef nk_dot_i8x16_state_serial_t nk_angular_i8x16_state_serial_t;
+
 NK_INTERNAL void nk_angular_i8x16_init_serial(nk_angular_i8x16_state_serial_t *state) {
     nk_dot_i8x16_init_serial(state);
 }
+
 NK_INTERNAL void nk_angular_i8x16_update_serial(nk_angular_i8x16_state_serial_t *state, nk_b128_vec_t a,
                                                 nk_b128_vec_t b) {
     nk_dot_i8x16_update_serial(state, a, b);
 }
+
 NK_INTERNAL void nk_angular_i8x16_finalize_serial(nk_angular_i8x16_state_serial_t const *state_a,
                                                   nk_angular_i8x16_state_serial_t const *state_b,
                                                   nk_angular_i8x16_state_serial_t const *state_c,
@@ -535,37 +633,40 @@ NK_INTERNAL void nk_angular_i8x16_finalize_serial(nk_angular_i8x16_state_serial_
     if (query_norm_sq == 0 && target_norm_sq_a == 0) results[0] = 0;
     else if (dot_a == 0) results[0] = 1;
     else {
-        unclipped_a = 1 - dot_a * NK_F32_RSQRT(query_norm_sq) * NK_F32_RSQRT(target_norm_sq_a);
+        unclipped_a = 1 - dot_a * nk_f32_rsqrt_serial(query_norm_sq) * nk_f32_rsqrt_serial(target_norm_sq_a);
         results[0] = unclipped_a > 0 ? unclipped_a : 0;
     }
 
     if (query_norm_sq == 0 && target_norm_sq_b == 0) results[1] = 0;
     else if (dot_b == 0) results[1] = 1;
     else {
-        unclipped_b = 1 - dot_b * NK_F32_RSQRT(query_norm_sq) * NK_F32_RSQRT(target_norm_sq_b);
+        unclipped_b = 1 - dot_b * nk_f32_rsqrt_serial(query_norm_sq) * nk_f32_rsqrt_serial(target_norm_sq_b);
         results[1] = unclipped_b > 0 ? unclipped_b : 0;
     }
 
     if (query_norm_sq == 0 && target_norm_sq_c == 0) results[2] = 0;
     else if (dot_c == 0) results[2] = 1;
     else {
-        unclipped_c = 1 - dot_c * NK_F32_RSQRT(query_norm_sq) * NK_F32_RSQRT(target_norm_sq_c);
+        unclipped_c = 1 - dot_c * nk_f32_rsqrt_serial(query_norm_sq) * nk_f32_rsqrt_serial(target_norm_sq_c);
         results[2] = unclipped_c > 0 ? unclipped_c : 0;
     }
 
     if (query_norm_sq == 0 && target_norm_sq_d == 0) results[3] = 0;
     else if (dot_d == 0) results[3] = 1;
     else {
-        unclipped_d = 1 - dot_d * NK_F32_RSQRT(query_norm_sq) * NK_F32_RSQRT(target_norm_sq_d);
+        unclipped_d = 1 - dot_d * nk_f32_rsqrt_serial(query_norm_sq) * nk_f32_rsqrt_serial(target_norm_sq_d);
         results[3] = unclipped_d > 0 ? unclipped_d : 0;
     }
 }
 
 typedef nk_dot_i8x16_state_serial_t nk_l2_i8x16_state_serial_t;
+
 NK_INTERNAL void nk_l2_i8x16_init_serial(nk_l2_i8x16_state_serial_t *state) { nk_dot_i8x16_init_serial(state); }
+
 NK_INTERNAL void nk_l2_i8x16_update_serial(nk_l2_i8x16_state_serial_t *state, nk_b128_vec_t a, nk_b128_vec_t b) {
     nk_dot_i8x16_update_serial(state, a, b);
 }
+
 NK_INTERNAL void nk_l2_i8x16_finalize_serial(nk_l2_i8x16_state_serial_t const *state_a,
                                              nk_l2_i8x16_state_serial_t const *state_b,
                                              nk_l2_i8x16_state_serial_t const *state_c,
@@ -591,20 +692,23 @@ NK_INTERNAL void nk_l2_i8x16_finalize_serial(nk_l2_i8x16_state_serial_t const *s
     nk_f32_t dist_sq_d = query_norm_sq + target_norm_sq_d - 2 * dot_d;
 
     // Final sqrt (loop-unrolled)
-    results[0] = dist_sq_a > 0 ? NK_F32_SQRT(dist_sq_a) : 0;
-    results[1] = dist_sq_b > 0 ? NK_F32_SQRT(dist_sq_b) : 0;
-    results[2] = dist_sq_c > 0 ? NK_F32_SQRT(dist_sq_c) : 0;
-    results[3] = dist_sq_d > 0 ? NK_F32_SQRT(dist_sq_d) : 0;
+    results[0] = dist_sq_a > 0 ? nk_f32_sqrt_serial(dist_sq_a) : 0;
+    results[1] = dist_sq_b > 0 ? nk_f32_sqrt_serial(dist_sq_b) : 0;
+    results[2] = dist_sq_c > 0 ? nk_f32_sqrt_serial(dist_sq_c) : 0;
+    results[3] = dist_sq_d > 0 ? nk_f32_sqrt_serial(dist_sq_d) : 0;
 }
 
 typedef nk_dot_u8x16_state_serial_t nk_angular_u8x16_state_serial_t;
+
 NK_INTERNAL void nk_angular_u8x16_init_serial(nk_angular_u8x16_state_serial_t *state) {
     nk_dot_u8x16_init_serial(state);
 }
+
 NK_INTERNAL void nk_angular_u8x16_update_serial(nk_angular_u8x16_state_serial_t *state, nk_b128_vec_t a,
                                                 nk_b128_vec_t b) {
     nk_dot_u8x16_update_serial(state, a, b);
 }
+
 NK_INTERNAL void nk_angular_u8x16_finalize_serial(nk_angular_u8x16_state_serial_t const *state_a,
                                                   nk_angular_u8x16_state_serial_t const *state_b,
                                                   nk_angular_u8x16_state_serial_t const *state_c,
@@ -630,37 +734,40 @@ NK_INTERNAL void nk_angular_u8x16_finalize_serial(nk_angular_u8x16_state_serial_
     if (query_norm_sq == 0 && target_norm_sq_a == 0) results[0] = 0;
     else if (dot_a == 0) results[0] = 1;
     else {
-        unclipped_a = 1 - dot_a * NK_F32_RSQRT(query_norm_sq) * NK_F32_RSQRT(target_norm_sq_a);
+        unclipped_a = 1 - dot_a * nk_f32_rsqrt_serial(query_norm_sq) * nk_f32_rsqrt_serial(target_norm_sq_a);
         results[0] = unclipped_a > 0 ? unclipped_a : 0;
     }
 
     if (query_norm_sq == 0 && target_norm_sq_b == 0) results[1] = 0;
     else if (dot_b == 0) results[1] = 1;
     else {
-        unclipped_b = 1 - dot_b * NK_F32_RSQRT(query_norm_sq) * NK_F32_RSQRT(target_norm_sq_b);
+        unclipped_b = 1 - dot_b * nk_f32_rsqrt_serial(query_norm_sq) * nk_f32_rsqrt_serial(target_norm_sq_b);
         results[1] = unclipped_b > 0 ? unclipped_b : 0;
     }
 
     if (query_norm_sq == 0 && target_norm_sq_c == 0) results[2] = 0;
     else if (dot_c == 0) results[2] = 1;
     else {
-        unclipped_c = 1 - dot_c * NK_F32_RSQRT(query_norm_sq) * NK_F32_RSQRT(target_norm_sq_c);
+        unclipped_c = 1 - dot_c * nk_f32_rsqrt_serial(query_norm_sq) * nk_f32_rsqrt_serial(target_norm_sq_c);
         results[2] = unclipped_c > 0 ? unclipped_c : 0;
     }
 
     if (query_norm_sq == 0 && target_norm_sq_d == 0) results[3] = 0;
     else if (dot_d == 0) results[3] = 1;
     else {
-        unclipped_d = 1 - dot_d * NK_F32_RSQRT(query_norm_sq) * NK_F32_RSQRT(target_norm_sq_d);
+        unclipped_d = 1 - dot_d * nk_f32_rsqrt_serial(query_norm_sq) * nk_f32_rsqrt_serial(target_norm_sq_d);
         results[3] = unclipped_d > 0 ? unclipped_d : 0;
     }
 }
 
 typedef nk_dot_u8x16_state_serial_t nk_l2_u8x16_state_serial_t;
+
 NK_INTERNAL void nk_l2_u8x16_init_serial(nk_l2_u8x16_state_serial_t *state) { nk_dot_u8x16_init_serial(state); }
+
 NK_INTERNAL void nk_l2_u8x16_update_serial(nk_l2_u8x16_state_serial_t *state, nk_b128_vec_t a, nk_b128_vec_t b) {
     nk_dot_u8x16_update_serial(state, a, b);
 }
+
 NK_INTERNAL void nk_l2_u8x16_finalize_serial(nk_l2_u8x16_state_serial_t const *state_a,
                                              nk_l2_u8x16_state_serial_t const *state_b,
                                              nk_l2_u8x16_state_serial_t const *state_c,
@@ -686,10 +793,10 @@ NK_INTERNAL void nk_l2_u8x16_finalize_serial(nk_l2_u8x16_state_serial_t const *s
     nk_f32_t dist_sq_d = query_norm_sq + target_norm_sq_d - 2 * dot_d;
 
     // Final sqrt (loop-unrolled)
-    results[0] = dist_sq_a > 0 ? NK_F32_SQRT(dist_sq_a) : 0;
-    results[1] = dist_sq_b > 0 ? NK_F32_SQRT(dist_sq_b) : 0;
-    results[2] = dist_sq_c > 0 ? NK_F32_SQRT(dist_sq_c) : 0;
-    results[3] = dist_sq_d > 0 ? NK_F32_SQRT(dist_sq_d) : 0;
+    results[0] = dist_sq_a > 0 ? nk_f32_sqrt_serial(dist_sq_a) : 0;
+    results[1] = dist_sq_b > 0 ? nk_f32_sqrt_serial(dist_sq_b) : 0;
+    results[2] = dist_sq_c > 0 ? nk_f32_sqrt_serial(dist_sq_c) : 0;
+    results[3] = dist_sq_d > 0 ? nk_f32_sqrt_serial(dist_sq_d) : 0;
 }
 
 #if defined(__cplusplus)

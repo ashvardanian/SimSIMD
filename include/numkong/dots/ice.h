@@ -25,7 +25,7 @@ extern "C" {
 nk_make_dots_pack_size_(ice, i8, i32)
 nk_make_dots_pack_(ice, i8, i32)
 nk_make_dots_inner_vectors_(i8i8i32_ice, i8, i32, nk_b256_vec_t, nk_dot_i8x32_state_ice_t, nk_b128_vec_t,
-                            nk_dot_i8x32_init_ice, nk_load_b256_haswell_, nk_partial_load_b8x32_haswell_,
+                            nk_dot_i8x32_init_ice, nk_load_b256_haswell_, nk_partial_load_b8x32_serial_,
                             nk_dot_i8x32_update_ice, nk_dot_i8x32_finalize_ice, nk_partial_store_b32x4_skylake_,
                             /*k_tile=*/32)
 

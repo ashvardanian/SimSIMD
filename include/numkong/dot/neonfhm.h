@@ -18,7 +18,7 @@
 #pragma clang attribute push(__attribute__((target("arch=armv8.2-a+simd+fp16+fp16fml"))), apply_to = function)
 
 #include "numkong/types.h"
-#include "numkong/reduce/neon.h" // nk_partial_load_b16x8_neon_
+#include "numkong/reduce/neon.h" // nk_partial_load_b16x8_serial_
 
 #if defined(__cplusplus)
 extern "C" {
@@ -43,8 +43,8 @@ NK_PUBLIC void nk_dot_f16_neonfhm(nk_f16_t const *a_scalars, nk_f16_t const *b_s
     if (idx < count_scalars) {
         nk_size_t remaining = count_scalars - idx;
         nk_b128_vec_t a_vec, b_vec;
-        nk_partial_load_b16x8_neon_(a_scalars + idx, remaining, &a_vec);
-        nk_partial_load_b16x8_neon_(b_scalars + idx, remaining, &b_vec);
+        nk_partial_load_b16x8_serial_(a_scalars + idx, remaining, &a_vec);
+        nk_partial_load_b16x8_serial_(b_scalars + idx, remaining, &b_vec);
         float16x8_t a_f16x8 = vreinterpretq_f16_u16(a_vec.u16x8);
         float16x8_t b_f16x8 = vreinterpretq_f16_u16(b_vec.u16x8);
         sum_f32x4 = vfmlalq_low_f16(sum_f32x4, a_f16x8, b_f16x8);

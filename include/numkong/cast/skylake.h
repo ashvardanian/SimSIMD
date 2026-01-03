@@ -1,0 +1,275 @@
+/**
+ *  @brief SIMD-accelerated horizontal reduction operations for Intel Skylake-X CPUs.
+ *  @file include/numkong/cast/skylake.h
+ *  @sa include/numkong/cast.h
+ *  @author Ash Vardanian
+ *  @date December 27, 2025
+ */
+#ifndef NK_CAST_SKYLAKE_H
+#define NK_CAST_SKYLAKE_H
+
+#if NK_TARGET_X86_
+#if NK_TARGET_SKYLAKE
+#pragma GCC push_options
+#pragma GCC target("avx2", "avx512f", "avx512vl", "avx512bw", "bmi2")
+#pragma clang attribute push(__attribute__((target("avx2,avx512f,avx512vl,avx512bw,bmi2"))), apply_to = function)
+
+#include "numkong/types.h"
+
+#if defined(__cplusplus)
+extern "C" {
+#endif
+
+#pragma region - Type Punned Loads and Stores
+
+/** @brief Type-agnostic 512-bit full load (Skylake AVX-512). */
+NK_INTERNAL void nk_load_b512_skylake_(void const *src, nk_b512_vec_t *dst) { dst->zmm = _mm512_loadu_si512(src); }
+
+/** @brief Type-agnostic partial load for 64-bit elements (8 elements max) into 512-bit vector (Skylake AVX-512). */
+NK_INTERNAL void nk_partial_load_b64x8_skylake_(void const *src, nk_b512_vec_t *dst, nk_size_t n) {
+    __mmask8 mask = (__mmask8)_bzhi_u32(0xFF, (unsigned int)n);
+    dst->zmm = _mm512_maskz_loadu_epi64(mask, src);
+}
+
+/** @brief Type-agnostic partial load for 32-bit elements (16 elements max) into 512-bit vector (Skylake AVX-512). */
+NK_INTERNAL void nk_partial_load_b32x16_skylake_(void const *src, nk_b512_vec_t *dst, nk_size_t n) {
+    __mmask16 mask = (__mmask16)_bzhi_u32(0xFFFF, (unsigned int)n);
+    dst->zmm = _mm512_maskz_loadu_epi32(mask, src);
+}
+
+/** @brief Type-agnostic partial load for 16-bit elements (32 elements max) into 512-bit vector (Skylake AVX-512). */
+NK_INTERNAL void nk_partial_load_b16x32_skylake_(void const *src, nk_b512_vec_t *dst, nk_size_t n) {
+    __mmask32 mask = (__mmask32)_bzhi_u32(0xFFFFFFFF, (unsigned int)n);
+    dst->zmm = _mm512_maskz_loadu_epi16(mask, src);
+}
+
+/** @brief Type-agnostic partial load for 8-bit elements (64 elements max) into 512-bit vector (Skylake AVX-512). */
+NK_INTERNAL void nk_partial_load_b8x64_skylake_(void const *src, nk_b512_vec_t *dst, nk_size_t n) {
+    __mmask64 mask = _bzhi_u64(0xFFFFFFFFFFFFFFFFULL, (unsigned int)n);
+    dst->zmm = _mm512_maskz_loadu_epi8(mask, src);
+}
+
+/** @brief Type-agnostic partial load for 32-bit elements (8 elements max) into 256-bit vector (Skylake AVX-512). */
+NK_INTERNAL void nk_partial_load_b32x8_skylake_(void const *src, nk_b256_vec_t *dst, nk_size_t n) {
+    __mmask8 mask = (__mmask8)_bzhi_u32(0xFF, (unsigned int)n);
+    dst->ymm = _mm256_maskz_loadu_epi32(mask, src);
+}
+
+/** @brief Type-agnostic partial load for 8-bit elements (16 elements max) into 128-bit vector (Skylake AVX-512). */
+NK_INTERNAL void nk_partial_load_b8x16_skylake_(void const *src, nk_b128_vec_t *dst, nk_size_t n) {
+    __mmask16 mask = (__mmask16)_bzhi_u32(0xFFFF, (unsigned int)n);
+    dst->xmm = _mm_maskz_loadu_epi8(mask, src);
+}
+
+/** @brief Type-agnostic partial store for 32-bit elements (16 elements max) from 512-bit vector (Skylake AVX-512). */
+NK_INTERNAL void nk_partial_store_b32x16_skylake_(nk_b512_vec_t const *src, void *dst, nk_size_t n) {
+    __mmask16 mask = (__mmask16)_bzhi_u32(0xFFFF, (unsigned int)n);
+    _mm512_mask_storeu_epi32(dst, mask, src->zmm);
+}
+
+/** @brief Type-agnostic partial store for 32-bit elements (4 elements max) from 128-bit vector (Skylake AVX-512). */
+NK_INTERNAL void nk_partial_store_b32x4_skylake_(nk_b128_vec_t const *src, void *dst, nk_size_t n) {
+    __mmask8 mask = (__mmask8)_bzhi_u32(0xF, (unsigned int)n);
+    _mm_mask_storeu_epi32(dst, mask, src->xmm);
+}
+
+/** @brief Type-agnostic partial store for 64-bit elements (4 elements max) from 256-bit vector (Skylake AVX-512). */
+NK_INTERNAL void nk_partial_store_b64x4_skylake_(nk_b256_vec_t const *src, void *dst, nk_size_t n) {
+    __mmask8 mask = (__mmask8)_bzhi_u32(0xF, (unsigned int)n);
+    _mm256_mask_storeu_epi64(dst, mask, src->ymm);
+}
+
+#pragma endregion - Type Punned Loads and Stores
+
+#pragma region - Vectorized Conversions
+
+/** @brief Convert 16x bf16 values to 16x f32 values (Skylake AVX-512). */
+NK_INTERNAL __m512 nk_bf16x16_to_f32x16_skylake_(__m256i a) {
+    // Upcasting from `bf16` to `f32` is done by shifting the `bf16` values by 16 bits to the left, like:
+    return _mm512_castsi512_ps(_mm512_slli_epi32(_mm512_cvtepu16_epi32(a), 16));
+}
+
+/** @brief Convert 16x f32 values to 16x bf16 values (Skylake AVX-512). */
+NK_INTERNAL __m256i nk_f32x16_to_bf16x16_skylake_(__m512 a) {
+    // Add 2^15 and right shift 16 to do round-nearest
+    __m512i x = _mm512_srli_epi32(_mm512_add_epi32(_mm512_castps_si512(a), _mm512_set1_epi32(1 << 15)), 16);
+    return _mm512_cvtepi32_epi16(x);
+}
+
+/** @brief Convert 16x e4m3 to 16x f32 via bit manipulation (AVX-512).
+ *  E4M3 format: S EEEE MMM (bias=7). F32: sign<<31, (exp+120)<<23, mantissa<<20.
+ *  Subnormals (exp=0): value = mantissa * 2^(1-7) * 2^(-3) = mantissa / 512. */
+NK_INTERNAL __m512 nk_e4m3x16_to_f32x16_skylake_(__m128i e4m3_i8x16) {
+    __m512i e4m3_i32x16 = _mm512_cvtepu8_epi32(e4m3_i8x16);
+
+    // Extract fields
+    __m512i exp_i32x16 = _mm512_and_si512(_mm512_srli_epi32(e4m3_i32x16, 3), _mm512_set1_epi32(0x0F));
+    __m512i mantissa_i32x16 = _mm512_and_si512(e4m3_i32x16, _mm512_set1_epi32(0x07));
+    __m512i sign_i32x16 = _mm512_slli_epi32(_mm512_srli_epi32(e4m3_i32x16, 7), 31);
+
+    // Normal path: sign | ((exp+120)<<23) | (mantissa<<20)
+    __m512i f32_exp_i32x16 = _mm512_slli_epi32(_mm512_add_epi32(exp_i32x16, _mm512_set1_epi32(120)), 23);
+    __m512i f32_mantissa_i32x16 = _mm512_slli_epi32(mantissa_i32x16, 20);
+    __m512 result_f32x16 = _mm512_castsi512_ps(
+        _mm512_ternarylogic_epi32(sign_i32x16, f32_exp_i32x16, f32_mantissa_i32x16, 0xFE));
+
+    // Subnormal fix: for exp==0 lanes, replace with (mantissa / 512) | sign using masked OR
+    __mmask16 is_subnormal = _mm512_testn_epi32_mask(e4m3_i32x16, _mm512_set1_epi32(0x78));
+    __m512 subnorm_abs_f32x16 = _mm512_mul_ps(_mm512_cvtepi32_ps(mantissa_i32x16), _mm512_set1_ps(1.0f / 512.0f));
+    return _mm512_mask_or_ps(result_f32x16, is_subnormal, subnorm_abs_f32x16, _mm512_castsi512_ps(sign_i32x16));
+}
+
+/** @brief Convert 16x e5m2 to 16x f32 via bit manipulation (AVX-512).
+ *  E5M2 format: S EEEEE MM (bias=15). F32: sign<<31, (exp+112)<<23, mantissa<<21.
+ *  Subnormals (exp=0): value = mantissa * 2^(1-15) * 2^(-2) = mantissa / 65536. */
+NK_INTERNAL __m512 nk_e5m2x16_to_f32x16_skylake_(__m128i e5m2_i8x16) {
+    __m512i e5m2_i32x16 = _mm512_cvtepu8_epi32(e5m2_i8x16);
+
+    // Extract fields
+    __m512i exp_i32x16 = _mm512_and_si512(_mm512_srli_epi32(e5m2_i32x16, 2), _mm512_set1_epi32(0x1F));
+    __m512i mantissa_i32x16 = _mm512_and_si512(e5m2_i32x16, _mm512_set1_epi32(0x03));
+    __m512i sign_i32x16 = _mm512_slli_epi32(_mm512_srli_epi32(e5m2_i32x16, 7), 31);
+
+    // Normal path: sign | ((exp+112)<<23) | (mantissa<<21)
+    __m512i f32_exp_i32x16 = _mm512_slli_epi32(_mm512_add_epi32(exp_i32x16, _mm512_set1_epi32(112)), 23);
+    __m512i f32_mantissa_i32x16 = _mm512_slli_epi32(mantissa_i32x16, 21);
+    __m512 result_f32x16 = _mm512_castsi512_ps(
+        _mm512_ternarylogic_epi32(sign_i32x16, f32_exp_i32x16, f32_mantissa_i32x16, 0xFE));
+
+    // Subnormal fix: for exp==0 lanes, replace with (mantissa / 65536) | sign using masked OR
+    __mmask16 is_subnormal = _mm512_testn_epi32_mask(e5m2_i32x16, _mm512_set1_epi32(0x7C));
+    __m512 subnorm_abs_f32x16 = _mm512_mul_ps(_mm512_cvtepi32_ps(mantissa_i32x16), _mm512_set1_ps(1.0f / 65536.0f));
+    return _mm512_mask_or_ps(result_f32x16, is_subnormal, subnorm_abs_f32x16, _mm512_castsi512_ps(sign_i32x16));
+}
+
+/** @brief Convert 16x f32 to 16x e4m3 via bit manipulation (AVX-512).
+ *  E4M3 format: S EEEE MMM (bias=7). Handles normal, subnormal, and overflow cases.
+ *  Subnormals (f32_exp <= 120): mantissa = round(abs_f32 * 512), clamped to [0,7]. */
+NK_INTERNAL __m128i nk_f32x16_to_e4m3x16_skylake_(__m512 f32x16) {
+    __m512i bits_i32x16 = _mm512_castps_si512(f32x16);
+    __m512i sign_i32x16 = _mm512_srli_epi32(bits_i32x16, 31);
+    __m512i f32_exp_i32x16 = _mm512_and_si512(_mm512_srli_epi32(bits_i32x16, 23), _mm512_set1_epi32(0xFF));
+
+    // Round mantissa from 23 to 3 bits using RNE (round to nearest, ties to even)
+    // RNE trick: add (half - 1 + lsb) where lsb is the bit that will become the new lsb after shift
+    __m512i significand_i32x16 = _mm512_or_si512(_mm512_and_si512(bits_i32x16, _mm512_set1_epi32(0x007FFFFF)),
+                                                 _mm512_set1_epi32(0x00800000)); // (a & mask) | implicit_one
+    __m512i lsb_i32x16 = _mm512_and_si512(_mm512_srli_epi32(significand_i32x16, 20), _mm512_set1_epi32(1));
+    __m512i rounding_bias_i32x16 = _mm512_add_epi32(_mm512_set1_epi32(0x0007FFFF), lsb_i32x16);
+    __m512i rounded_sig_i32x16 = _mm512_add_epi32(significand_i32x16, rounding_bias_i32x16);
+    __m512i carry_i32x16 = _mm512_srli_epi32(rounded_sig_i32x16, 24); // Carry into exponent if bit 24 set
+    __m512i f32_mantissa_i32x16 = _mm512_and_si512(_mm512_srli_epi32(rounded_sig_i32x16, 20), _mm512_set1_epi32(0x07));
+    // If carry, mantissa becomes 0 (we rounded up to next power of 2)
+    f32_mantissa_i32x16 = _mm512_andnot_si512(_mm512_slli_epi32(carry_i32x16, 31), f32_mantissa_i32x16);
+    __m512i e4m3_exp_i32x16 = _mm512_sub_epi32(_mm512_add_epi32(f32_exp_i32x16, carry_i32x16), _mm512_set1_epi32(120));
+
+    // Detect underflow (exp <= 0, maps to subnormal/zero) and overflow (exp > 15)
+    __mmask16 is_subnormal = _mm512_cmpgt_epi32_mask(_mm512_set1_epi32(1), e4m3_exp_i32x16);
+    __mmask16 overflow = _mm512_cmpgt_epi32_mask(e4m3_exp_i32x16, _mm512_set1_epi32(15));
+
+    // Normal path: clamp exp to [1,15], extract mantissa bits
+    // e4m3FN quirk: exp=15 with mantissa=7 is NaN (0x7F), so clamp mantissa to 6 when exp=15.
+    __m512i clamped_exp_i32x16 = _mm512_max_epi32(e4m3_exp_i32x16, _mm512_set1_epi32(1));
+    clamped_exp_i32x16 = _mm512_min_epi32(clamped_exp_i32x16, _mm512_set1_epi32(15));
+    __mmask16 is_max_exp = _mm512_cmpeq_epi32_mask(clamped_exp_i32x16, _mm512_set1_epi32(15));
+    __m512i max_mantissa_i32x16 = _mm512_mask_blend_epi32(is_max_exp, _mm512_set1_epi32(7), _mm512_set1_epi32(6));
+    __m512i normal_mantissa_i32x16 = _mm512_min_epi32(f32_mantissa_i32x16, max_mantissa_i32x16);
+    normal_mantissa_i32x16 = _mm512_mask_blend_epi32(overflow, normal_mantissa_i32x16, _mm512_set1_epi32(0x06));
+    __m512i normal_e4m3_i32x16 = _mm512_ternarylogic_epi32(_mm512_slli_epi32(sign_i32x16, 7),
+                                                           _mm512_slli_epi32(clamped_exp_i32x16, 3),
+                                                           normal_mantissa_i32x16, 0xFE); // a | b | c
+
+    // Subnormal path: mantissa = round(abs_f32 * 512)
+    // If mantissa rounds to 8 or higher, promote to first normal (exp_field=1, mantissa=0) = 0x08
+    __m512 abs_f32x16 = _mm512_and_ps(f32x16, _mm512_castsi512_ps(_mm512_set1_epi32(0x7FFFFFFF)));
+    __m512 scaled_f32x16 = _mm512_mul_ps(abs_f32x16, _mm512_set1_ps(512.0f));
+    __m512i subnorm_mantissa_i32x16 = _mm512_cvtps_epi32(scaled_f32x16);
+    __mmask16 promotes_to_normal = _mm512_cmpgt_epi32_mask(subnorm_mantissa_i32x16, _mm512_set1_epi32(7));
+    subnorm_mantissa_i32x16 = _mm512_min_epi32(subnorm_mantissa_i32x16, _mm512_set1_epi32(7));
+    subnorm_mantissa_i32x16 = _mm512_max_epi32(subnorm_mantissa_i32x16, _mm512_setzero_si512());
+    __m512i subnorm_e4m3_i32x16 = _mm512_or_si512(_mm512_slli_epi32(sign_i32x16, 7), subnorm_mantissa_i32x16);
+    // When mantissa rounds to 8, use first normal value (0x08) instead of clamped subnormal
+    __m512i first_normal_e4m3_i32x16 = _mm512_or_si512(_mm512_slli_epi32(sign_i32x16, 7), _mm512_set1_epi32(0x08));
+    subnorm_e4m3_i32x16 = _mm512_mask_blend_epi32(promotes_to_normal, subnorm_e4m3_i32x16, first_normal_e4m3_i32x16);
+
+    // Blend: use subnormal result when exp <= 0, else normal
+    __m512i e4m3_i32x16 = _mm512_mask_blend_epi32(is_subnormal, normal_e4m3_i32x16, subnorm_e4m3_i32x16);
+
+    // Pack 16 i32s to 16 unsigned i8s via AVX-512 cvtepi32_epi8
+    return _mm512_cvtepi32_epi8(e4m3_i32x16);
+}
+
+/** @brief Convert 16x f32 to 16x e5m2 via bit manipulation (AVX-512).
+ *  E5M2 format: S EEEEE MM (bias=15). Handles normal, subnormal, and overflow cases.
+ *  Uses RNE (round to nearest even) for mantissa rounding. */
+NK_INTERNAL __m128i nk_f32x16_to_e5m2x16_skylake_(__m512 f32x16) {
+    __m512i bits_i32x16 = _mm512_castps_si512(f32x16);
+    __m512i sign_i32x16 = _mm512_srli_epi32(bits_i32x16, 31);
+    __m512i f32_exp_i32x16 = _mm512_and_si512(_mm512_srli_epi32(bits_i32x16, 23), _mm512_set1_epi32(0xFF));
+
+    // Round mantissa from 23 to 2 bits using RNE (round to nearest, ties to even)
+    // RNE trick: add (half - 1 + lsb) where lsb is the bit that will become the new lsb after shift
+    __m512i significand_i32x16 = _mm512_or_si512(_mm512_and_si512(bits_i32x16, _mm512_set1_epi32(0x007FFFFF)),
+                                                 _mm512_set1_epi32(0x00800000)); // (a & mask) | implicit_one
+    __m512i lsb_i32x16 = _mm512_and_si512(_mm512_srli_epi32(significand_i32x16, 21), _mm512_set1_epi32(1));
+    __m512i rounding_bias_i32x16 = _mm512_add_epi32(_mm512_set1_epi32(0x000FFFFF), lsb_i32x16); // half = 0x100000
+    __m512i rounded_sig_i32x16 = _mm512_add_epi32(significand_i32x16, rounding_bias_i32x16);
+    __m512i carry_i32x16 = _mm512_srli_epi32(rounded_sig_i32x16, 24); // Carry into exponent if bit 24 set
+    __m512i f32_mantissa_i32x16 = _mm512_and_si512(_mm512_srli_epi32(rounded_sig_i32x16, 21), _mm512_set1_epi32(0x03));
+    // If carry, mantissa becomes 0 (we rounded up to next power of 2)
+    f32_mantissa_i32x16 = _mm512_andnot_si512(_mm512_slli_epi32(carry_i32x16, 31), f32_mantissa_i32x16);
+    __m512i e5m2_exp_i32x16 = _mm512_sub_epi32(_mm512_add_epi32(f32_exp_i32x16, carry_i32x16), _mm512_set1_epi32(112));
+
+    // Detect subnormal (exp <= 0) and overflow (exp > 31)
+    __mmask16 is_subnormal = _mm512_cmpgt_epi32_mask(_mm512_set1_epi32(1), e5m2_exp_i32x16);
+    __mmask16 overflow = _mm512_cmpgt_epi32_mask(e5m2_exp_i32x16, _mm512_set1_epi32(31));
+
+    // Normal path: clamp exp to [1,31], on overflow return infinity (exp=31, mantissa=0 = 0x7C)
+    __m512i clamped_exp_i32x16 = _mm512_max_epi32(e5m2_exp_i32x16, _mm512_set1_epi32(1));
+    clamped_exp_i32x16 = _mm512_min_epi32(clamped_exp_i32x16, _mm512_set1_epi32(31));
+    __m512i normal_mantissa_i32x16 = _mm512_mask_blend_epi32(overflow, f32_mantissa_i32x16, _mm512_setzero_si512());
+    __m512i normal_e5m2_i32x16 = _mm512_ternarylogic_epi32(_mm512_slli_epi32(sign_i32x16, 7),
+                                                           _mm512_slli_epi32(clamped_exp_i32x16, 2),
+                                                           normal_mantissa_i32x16, 0xFE); // a | b | c
+
+    // Subnormal path: mantissa = round(abs_f32 * 65536)
+    // If mantissa rounds to 4 or higher, promote to first normal (exp_field=1, mantissa=0) = 0x04
+    __m512 abs_f32x16 = _mm512_and_ps(f32x16, _mm512_castsi512_ps(_mm512_set1_epi32(0x7FFFFFFF)));
+    __m512 scaled_f32x16 = _mm512_mul_ps(abs_f32x16, _mm512_set1_ps(65536.0f));
+    __m512i subnorm_mantissa_i32x16 = _mm512_cvtps_epi32(scaled_f32x16);
+    __mmask16 promotes_to_normal = _mm512_cmpgt_epi32_mask(subnorm_mantissa_i32x16, _mm512_set1_epi32(3));
+    subnorm_mantissa_i32x16 = _mm512_min_epi32(subnorm_mantissa_i32x16, _mm512_set1_epi32(3));
+    subnorm_mantissa_i32x16 = _mm512_max_epi32(subnorm_mantissa_i32x16, _mm512_setzero_si512());
+    __m512i subnorm_e5m2_i32x16 = _mm512_or_si512(_mm512_slli_epi32(sign_i32x16, 7), subnorm_mantissa_i32x16);
+    // When mantissa rounds to 4, use first normal value (0x04) instead of clamped subnormal
+    __m512i first_normal_e5m2_i32x16 = _mm512_or_si512(_mm512_slli_epi32(sign_i32x16, 7), _mm512_set1_epi32(0x04));
+    subnorm_e5m2_i32x16 = _mm512_mask_blend_epi32(promotes_to_normal, subnorm_e5m2_i32x16, first_normal_e5m2_i32x16);
+
+    // Blend: use subnormal result when exp <= 0
+    __m512i e5m2_i32x16 = _mm512_mask_blend_epi32(is_subnormal, normal_e5m2_i32x16, subnorm_e5m2_i32x16);
+
+    // Pack 16 i32s to 16 unsigned i8s via AVX-512 cvtepi32_epi8
+    return _mm512_cvtepi32_epi8(e5m2_i32x16);
+}
+
+#pragma endregion - Vectorized Conversions
+
+#pragma region - Public API
+
+NK_PUBLIC void nk_cast_skylake(void const *from, nk_datatype_t from_type, nk_size_t n, void *to,
+                               nk_datatype_t to_type) {
+    return nk_cast_serial(from, from_type, n, to, to_type);
+}
+
+#pragma endregion - Public API
+
+#if defined(__cplusplus)
+} // extern "C"
+#endif
+
+#pragma clang attribute pop
+#pragma GCC pop_options
+#endif // NK_TARGET_SKYLAKE
+#endif // NK_TARGET_X86_
+
+#endif // NK_CAST_SKYLAKE_H

@@ -304,8 +304,8 @@ NK_PUBLIC void nk_haversine_f64_serial(             //
                                       sin_longitude_delta_half;
 
         // Central angle: c = 2 * atan2(sqrt(a), sqrt(1-a))
-        nk_f64_t sqrt_haversine = NK_F64_SQRT(haversine_term);
-        nk_f64_t sqrt_complement = NK_F64_SQRT(1.0 - haversine_term);
+        nk_f64_t sqrt_haversine = nk_f64_sqrt_serial(haversine_term);
+        nk_f64_t sqrt_complement = nk_f64_sqrt_serial(1.0 - haversine_term);
         nk_f64_t central_angle = 2.0 * nk_f64_atan2(sqrt_haversine, sqrt_complement);
 
         results[i] = earth_radius * central_angle;
@@ -343,8 +343,8 @@ NK_PUBLIC void nk_haversine_f32_serial(             //
         if (haversine_term > 1.0f) haversine_term = 1.0f;
 
         // Central angle: c = 2 * atan2(sqrt(a), sqrt(1-a))
-        nk_f32_t sqrt_haversine = NK_F32_SQRT(haversine_term);
-        nk_f32_t sqrt_complement = NK_F32_SQRT(1.0f - haversine_term);
+        nk_f32_t sqrt_haversine = nk_f32_sqrt_serial(haversine_term);
+        nk_f32_t sqrt_complement = nk_f32_sqrt_serial(1.0f - haversine_term);
         nk_f32_t central_angle = 2.0f * nk_f32_atan2(sqrt_haversine, sqrt_complement);
 
         results[i] = earth_radius * central_angle;
@@ -366,11 +366,11 @@ NK_PUBLIC void nk_vincenty_f64_serial(              //
         nk_f64_t longitude_difference = b_lons[i] - a_lons[i];
 
         // Reduced latitudes on the auxiliary sphere
-        nk_f64_t tan_reduced_first = (1.0 - flattening) * NK_F64_TAN(first_latitude);
-        nk_f64_t tan_reduced_second = (1.0 - flattening) * NK_F64_TAN(second_latitude);
-        nk_f64_t cos_reduced_first = 1.0 / NK_F64_SQRT(1.0 + tan_reduced_first * tan_reduced_first);
+        nk_f64_t tan_reduced_first = (1.0 - flattening) * nk_f64_tan(first_latitude);
+        nk_f64_t tan_reduced_second = (1.0 - flattening) * nk_f64_tan(second_latitude);
+        nk_f64_t cos_reduced_first = 1.0 / nk_f64_sqrt_serial(1.0 + tan_reduced_first * tan_reduced_first);
         nk_f64_t sin_reduced_first = tan_reduced_first * cos_reduced_first;
-        nk_f64_t cos_reduced_second = 1.0 / NK_F64_SQRT(1.0 + tan_reduced_second * tan_reduced_second);
+        nk_f64_t cos_reduced_second = 1.0 / nk_f64_sqrt_serial(1.0 + tan_reduced_second * tan_reduced_second);
         nk_f64_t sin_reduced_second = tan_reduced_second * cos_reduced_second;
 
         // Iterative convergence of lambda (difference in longitude on auxiliary sphere)
@@ -389,7 +389,7 @@ NK_PUBLIC void nk_vincenty_f64_serial(              //
             nk_f64_t cross_term = cos_reduced_second * sin_lambda;
             nk_f64_t mixed_term = cos_reduced_first * sin_reduced_second -
                                   sin_reduced_first * cos_reduced_second * cos_lambda;
-            sin_angular_distance = NK_F64_SQRT(cross_term * cross_term + mixed_term * mixed_term);
+            sin_angular_distance = nk_f64_sqrt_serial(cross_term * cross_term + mixed_term * mixed_term);
 
             if (sin_angular_distance == 0.0) {
                 coincident = 1;
@@ -421,7 +421,7 @@ NK_PUBLIC void nk_vincenty_f64_serial(              //
                                                                                          cos_double_angular_midpoint)));
 
             iteration++;
-        } while (NK_F64_ABS(lambda - lambda_previous) > NK_VINCENTY_CONVERGENCE_THRESHOLD &&
+        } while (nk_f64_abs_(lambda - lambda_previous) > NK_VINCENTY_CONVERGENCE_THRESHOLD &&
                  iteration < NK_VINCENTY_MAX_ITERATIONS);
 
         if (coincident) {
@@ -466,11 +466,11 @@ NK_PUBLIC void nk_vincenty_f32_serial(              //
         nk_f32_t longitude_difference = b_lons[i] - a_lons[i];
 
         // Reduced latitudes on the auxiliary sphere
-        nk_f32_t tan_reduced_first = (1.0f - flattening) * NK_F32_TAN(first_latitude);
-        nk_f32_t tan_reduced_second = (1.0f - flattening) * NK_F32_TAN(second_latitude);
-        nk_f32_t cos_reduced_first = 1.0f / NK_F32_SQRT(1.0f + tan_reduced_first * tan_reduced_first);
+        nk_f32_t tan_reduced_first = (1.0f - flattening) * nk_f32_tan(first_latitude);
+        nk_f32_t tan_reduced_second = (1.0f - flattening) * nk_f32_tan(second_latitude);
+        nk_f32_t cos_reduced_first = 1.0f / nk_f32_sqrt_serial(1.0f + tan_reduced_first * tan_reduced_first);
         nk_f32_t sin_reduced_first = tan_reduced_first * cos_reduced_first;
-        nk_f32_t cos_reduced_second = 1.0f / NK_F32_SQRT(1.0f + tan_reduced_second * tan_reduced_second);
+        nk_f32_t cos_reduced_second = 1.0f / nk_f32_sqrt_serial(1.0f + tan_reduced_second * tan_reduced_second);
         nk_f32_t sin_reduced_second = tan_reduced_second * cos_reduced_second;
 
         // Iterative convergence of lambda (difference in longitude on auxiliary sphere)
@@ -489,7 +489,7 @@ NK_PUBLIC void nk_vincenty_f32_serial(              //
             nk_f32_t cross_term = cos_reduced_second * sin_lambda;
             nk_f32_t mixed_term = cos_reduced_first * sin_reduced_second -
                                   sin_reduced_first * cos_reduced_second * cos_lambda;
-            sin_angular_distance = NK_F32_SQRT(cross_term * cross_term + mixed_term * mixed_term);
+            sin_angular_distance = nk_f32_sqrt_serial(cross_term * cross_term + mixed_term * mixed_term);
 
             if (sin_angular_distance == 0.0f) {
                 coincident = 1;
@@ -522,7 +522,7 @@ NK_PUBLIC void nk_vincenty_f32_serial(              //
                                    (-1.0f + 2.0f * cos_double_angular_midpoint * cos_double_angular_midpoint)));
 
             iteration++;
-        } while (NK_F32_ABS(lambda - lambda_previous) > convergence_threshold &&
+        } while (nk_f32_abs_(lambda - lambda_previous) > convergence_threshold &&
                  iteration < NK_VINCENTY_MAX_ITERATIONS);
 
         if (coincident) {
@@ -623,14 +623,14 @@ NK_PUBLIC void nk_haversine_f64_neon(               //
     // Handle tail with partial loads (n can only be 0 or 1 here)
     if (n > 0) {
         nk_b128_vec_t a_lat_vec, a_lon_vec, b_lat_vec, b_lon_vec, result_vec;
-        nk_partial_load_b64x2_neon_(a_lats, n, &a_lat_vec);
-        nk_partial_load_b64x2_neon_(a_lons, n, &a_lon_vec);
-        nk_partial_load_b64x2_neon_(b_lats, n, &b_lat_vec);
-        nk_partial_load_b64x2_neon_(b_lons, n, &b_lon_vec);
+        nk_partial_load_b64x2_serial_(a_lats, &a_lat_vec, n);
+        nk_partial_load_b64x2_serial_(a_lons, &a_lon_vec, n);
+        nk_partial_load_b64x2_serial_(b_lats, &b_lat_vec, n);
+        nk_partial_load_b64x2_serial_(b_lons, &b_lon_vec, n);
         float64x2_t distances = nk_haversine_f64x2_neon_(a_lat_vec.f64x2, a_lon_vec.f64x2, b_lat_vec.f64x2,
                                                          b_lon_vec.f64x2);
         result_vec.f64x2 = distances;
-        nk_partial_store_b64x2_neon_(&result_vec, results, n);
+        nk_partial_store_b64x2_serial_(&result_vec, results, n);
     }
 }
 
@@ -696,14 +696,14 @@ NK_PUBLIC void nk_haversine_f32_neon(               //
     // Handle tail with partial loads (n can be 0-3 here)
     if (n > 0) {
         nk_b128_vec_t a_lat_vec, a_lon_vec, b_lat_vec, b_lon_vec, result_vec;
-        nk_partial_load_b32x4_neon_(a_lats, n, &a_lat_vec);
-        nk_partial_load_b32x4_neon_(a_lons, n, &a_lon_vec);
-        nk_partial_load_b32x4_neon_(b_lats, n, &b_lat_vec);
-        nk_partial_load_b32x4_neon_(b_lons, n, &b_lon_vec);
+        nk_partial_load_b32x4_serial_(a_lats, &a_lat_vec, n);
+        nk_partial_load_b32x4_serial_(a_lons, &a_lon_vec, n);
+        nk_partial_load_b32x4_serial_(b_lats, &b_lat_vec, n);
+        nk_partial_load_b32x4_serial_(b_lons, &b_lon_vec, n);
         float32x4_t distances = nk_haversine_f32x4_neon_(a_lat_vec.f32x4, a_lon_vec.f32x4, b_lat_vec.f32x4,
                                                          b_lon_vec.f32x4);
         result_vec.f32x4 = distances;
-        nk_partial_store_b32x4_neon_(&result_vec, results, n);
+        nk_partial_store_b32x4_serial_(&result_vec, results, n);
     }
 }
 
@@ -885,14 +885,14 @@ NK_PUBLIC void nk_vincenty_f64_neon(                //
     // Handle remaining elements with partial loads (n can only be 0 or 1 here)
     if (n > 0) {
         nk_b128_vec_t a_lat_vec, a_lon_vec, b_lat_vec, b_lon_vec, result_vec;
-        nk_partial_load_b64x2_neon_(a_lats, n, &a_lat_vec);
-        nk_partial_load_b64x2_neon_(a_lons, n, &a_lon_vec);
-        nk_partial_load_b64x2_neon_(b_lats, n, &b_lat_vec);
-        nk_partial_load_b64x2_neon_(b_lons, n, &b_lon_vec);
+        nk_partial_load_b64x2_serial_(a_lats, &a_lat_vec, n);
+        nk_partial_load_b64x2_serial_(a_lons, &a_lon_vec, n);
+        nk_partial_load_b64x2_serial_(b_lats, &b_lat_vec, n);
+        nk_partial_load_b64x2_serial_(b_lons, &b_lon_vec, n);
         float64x2_t distances = nk_vincenty_f64x2_neon_(a_lat_vec.f64x2, a_lon_vec.f64x2, b_lat_vec.f64x2,
                                                         b_lon_vec.f64x2);
         result_vec.f64x2 = distances;
-        nk_partial_store_b64x2_neon_(&result_vec, results, n);
+        nk_partial_store_b64x2_serial_(&result_vec, results, n);
     }
 }
 
@@ -1068,14 +1068,14 @@ NK_PUBLIC void nk_vincenty_f32_neon(                //
     // Handle remaining elements with partial loads (n can be 1-3 here)
     if (n > 0) {
         nk_b128_vec_t a_lat_vec, a_lon_vec, b_lat_vec, b_lon_vec, result_vec;
-        nk_partial_load_b32x4_neon_(a_lats, n, &a_lat_vec);
-        nk_partial_load_b32x4_neon_(a_lons, n, &a_lon_vec);
-        nk_partial_load_b32x4_neon_(b_lats, n, &b_lat_vec);
-        nk_partial_load_b32x4_neon_(b_lons, n, &b_lon_vec);
+        nk_partial_load_b32x4_serial_(a_lats, &a_lat_vec, n);
+        nk_partial_load_b32x4_serial_(a_lons, &a_lon_vec, n);
+        nk_partial_load_b32x4_serial_(b_lats, &b_lat_vec, n);
+        nk_partial_load_b32x4_serial_(b_lons, &b_lon_vec, n);
         float32x4_t distances = nk_vincenty_f32x4_neon_(a_lat_vec.f32x4, a_lon_vec.f32x4, b_lat_vec.f32x4,
                                                         b_lon_vec.f32x4);
         result_vec.f32x4 = distances;
-        nk_partial_store_b32x4_neon_(&result_vec, results, n);
+        nk_partial_store_b32x4_serial_(&result_vec, results, n);
     }
 }
 
@@ -1152,14 +1152,14 @@ NK_PUBLIC void nk_haversine_f64_haswell(            //
     // Handle remaining elements with partial loads (n can be 1-3 here)
     if (n > 0) {
         nk_b256_vec_t a_lat_vec, a_lon_vec, b_lat_vec, b_lon_vec, result_vec;
-        nk_partial_load_b64x4_haswell_(a_lats, n, &a_lat_vec);
-        nk_partial_load_b64x4_haswell_(a_lons, n, &a_lon_vec);
-        nk_partial_load_b64x4_haswell_(b_lats, n, &b_lat_vec);
-        nk_partial_load_b64x4_haswell_(b_lons, n, &b_lon_vec);
+        nk_partial_load_b64x4_serial_(a_lats, &a_lat_vec, n);
+        nk_partial_load_b64x4_serial_(a_lons, &a_lon_vec, n);
+        nk_partial_load_b64x4_serial_(b_lats, &b_lat_vec, n);
+        nk_partial_load_b64x4_serial_(b_lons, &b_lon_vec, n);
         __m256d distances = nk_haversine_f64x4_haswell_(a_lat_vec.ymm_pd, a_lon_vec.ymm_pd, b_lat_vec.ymm_pd,
                                                         b_lon_vec.ymm_pd);
         result_vec.ymm_pd = distances;
-        nk_partial_store_b64x4_haswell_(&result_vec, results, n);
+        nk_partial_store_b64x4_serial_(&result_vec, results, n);
     }
 }
 
@@ -1225,14 +1225,14 @@ NK_PUBLIC void nk_haversine_f32_haswell(            //
     // Handle remaining elements with partial loads (n can be 1-7 here)
     if (n > 0) {
         nk_b256_vec_t a_lat_vec, a_lon_vec, b_lat_vec, b_lon_vec, result_vec;
-        nk_partial_load_b32x8_haswell_(a_lats, n, &a_lat_vec);
-        nk_partial_load_b32x8_haswell_(a_lons, n, &a_lon_vec);
-        nk_partial_load_b32x8_haswell_(b_lats, n, &b_lat_vec);
-        nk_partial_load_b32x8_haswell_(b_lons, n, &b_lon_vec);
+        nk_partial_load_b32x8_serial_(a_lats, &a_lat_vec, n);
+        nk_partial_load_b32x8_serial_(a_lons, &a_lon_vec, n);
+        nk_partial_load_b32x8_serial_(b_lats, &b_lat_vec, n);
+        nk_partial_load_b32x8_serial_(b_lons, &b_lon_vec, n);
         __m256 distances = nk_haversine_f32x8_haswell_(a_lat_vec.ymm_ps, a_lon_vec.ymm_ps, b_lat_vec.ymm_ps,
                                                        b_lon_vec.ymm_ps);
         result_vec.ymm_ps = distances;
-        nk_partial_store_b32x8_haswell_(&result_vec, results, n);
+        nk_partial_store_b32x8_serial_(&result_vec, results, n);
     }
 }
 
@@ -1421,14 +1421,14 @@ NK_PUBLIC void nk_vincenty_f64_haswell(             //
     // Handle remaining elements with partial loads (n can be 1-3 here)
     if (n > 0) {
         nk_b256_vec_t a_lat_vec, a_lon_vec, b_lat_vec, b_lon_vec, result_vec;
-        nk_partial_load_b64x4_haswell_(a_lats, n, &a_lat_vec);
-        nk_partial_load_b64x4_haswell_(a_lons, n, &a_lon_vec);
-        nk_partial_load_b64x4_haswell_(b_lats, n, &b_lat_vec);
-        nk_partial_load_b64x4_haswell_(b_lons, n, &b_lon_vec);
+        nk_partial_load_b64x4_serial_(a_lats, &a_lat_vec, n);
+        nk_partial_load_b64x4_serial_(a_lons, &a_lon_vec, n);
+        nk_partial_load_b64x4_serial_(b_lats, &b_lat_vec, n);
+        nk_partial_load_b64x4_serial_(b_lons, &b_lon_vec, n);
         __m256d distances = nk_vincenty_f64x4_haswell_(a_lat_vec.ymm_pd, a_lon_vec.ymm_pd, b_lat_vec.ymm_pd,
                                                        b_lon_vec.ymm_pd);
         result_vec.ymm_pd = distances;
-        nk_partial_store_b64x4_haswell_(&result_vec, results, n);
+        nk_partial_store_b64x4_serial_(&result_vec, results, n);
     }
 }
 
@@ -1616,14 +1616,14 @@ NK_PUBLIC void nk_vincenty_f32_haswell(             //
     // Handle remaining elements with partial loads (n can be 1-7 here)
     if (n > 0) {
         nk_b256_vec_t a_lat_vec, a_lon_vec, b_lat_vec, b_lon_vec, result_vec;
-        nk_partial_load_b32x8_haswell_(a_lats, n, &a_lat_vec);
-        nk_partial_load_b32x8_haswell_(a_lons, n, &a_lon_vec);
-        nk_partial_load_b32x8_haswell_(b_lats, n, &b_lat_vec);
-        nk_partial_load_b32x8_haswell_(b_lons, n, &b_lon_vec);
+        nk_partial_load_b32x8_serial_(a_lats, &a_lat_vec, n);
+        nk_partial_load_b32x8_serial_(a_lons, &a_lon_vec, n);
+        nk_partial_load_b32x8_serial_(b_lats, &b_lat_vec, n);
+        nk_partial_load_b32x8_serial_(b_lons, &b_lon_vec, n);
         __m256 distances = nk_vincenty_f32x8_haswell_(a_lat_vec.ymm_ps, a_lon_vec.ymm_ps, b_lat_vec.ymm_ps,
                                                       b_lon_vec.ymm_ps);
         result_vec.ymm_ps = distances;
-        nk_partial_store_b32x8_haswell_(&result_vec, results, n);
+        nk_partial_store_b32x8_serial_(&result_vec, results, n);
     }
 }
 

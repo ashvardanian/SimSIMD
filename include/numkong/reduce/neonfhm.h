@@ -24,54 +24,6 @@
 extern "C" {
 #endif
 
-/** @brief Convert 8 E4M3 values to f16x8 via bit manipulation (NEON).
- *  E4M3 format: S EEEE MMM (bias=7). F16: sign<<15, (exp+8)<<10, mant<<7. */
-NK_INTERNAL float16x8_t nk_e4m3x8_to_f16x8_neonfhm_(uint8x8_t e4m3_u8x8) {
-    // Widen to 16-bit lanes
-    uint16x8_t v_u16x8 = vmovl_u8(e4m3_u8x8);
-
-    // Extract sign, exponent, and mantissa
-    uint16x8_t sign_u16x8 = vshlq_n_u16(vshrq_n_u16(vandq_u16(v_u16x8, vdupq_n_u16(0x80)), 7), 15);
-    uint16x8_t exp_u16x8 = vandq_u16(vshrq_n_u16(v_u16x8, 3), vdupq_n_u16(0x0F));
-    uint16x8_t mant_u16x8 = vandq_u16(v_u16x8, vdupq_n_u16(0x07));
-
-    // Build f16 representation: sign | ((exp + 8) << 10) | (mant << 7)
-    // F16 has bias=15, E4M3 has bias=7, so we add (15-7)=8 to convert exponent
-    uint16x8_t f16_exp_u16x8 = vshlq_n_u16(vaddq_u16(exp_u16x8, vdupq_n_u16(8)), 10);
-    uint16x8_t f16_mant_u16x8 = vshlq_n_u16(mant_u16x8, 7);
-    uint16x8_t f16_bits_u16x8 = vorrq_u16(sign_u16x8, vorrq_u16(f16_exp_u16x8, f16_mant_u16x8));
-
-    // Zero out denormals (when exp == 0)
-    uint16x8_t zero_mask_u16x8 = vceqq_u16(exp_u16x8, vdupq_n_u16(0));
-    f16_bits_u16x8 = vbicq_u16(f16_bits_u16x8, zero_mask_u16x8);
-
-    return vreinterpretq_f16_u16(f16_bits_u16x8);
-}
-
-/** @brief Convert 8 E5M2 values to f16x8 via bit manipulation (NEON).
- *  E5M2 format: S EEEEE MM (bias=15). F16: sign<<15, exp<<10, mant<<8. */
-NK_INTERNAL float16x8_t nk_e5m2x8_to_f16x8_neonfhm_(uint8x8_t e5m2_u8x8) {
-    // Widen to 16-bit lanes
-    uint16x8_t v_u16x8 = vmovl_u8(e5m2_u8x8);
-
-    // Extract sign, exponent, and mantissa
-    uint16x8_t sign_u16x8 = vshlq_n_u16(vshrq_n_u16(vandq_u16(v_u16x8, vdupq_n_u16(0x80)), 7), 15);
-    uint16x8_t exp_u16x8 = vandq_u16(vshrq_n_u16(v_u16x8, 2), vdupq_n_u16(0x1F));
-    uint16x8_t mant_u16x8 = vandq_u16(v_u16x8, vdupq_n_u16(0x03));
-
-    // Build f16 representation: sign | (exp << 10) | (mant << 8)
-    // F16 has bias=15, E5M2 has bias=15, so exponent stays the same
-    uint16x8_t f16_exp_u16x8 = vshlq_n_u16(exp_u16x8, 10);
-    uint16x8_t f16_mant_u16x8 = vshlq_n_u16(mant_u16x8, 8);
-    uint16x8_t f16_bits_u16x8 = vorrq_u16(sign_u16x8, vorrq_u16(f16_exp_u16x8, f16_mant_u16x8));
-
-    // Zero out denormals (when exp == 0)
-    uint16x8_t zero_mask_u16x8 = vceqq_u16(exp_u16x8, vdupq_n_u16(0));
-    f16_bits_u16x8 = vbicq_u16(f16_bits_u16x8, zero_mask_u16x8);
-
-    return vreinterpretq_f16_u16(f16_bits_u16x8);
-}
-
 NK_INTERNAL void nk_reduce_add_e4m3_neonfhm_contiguous_( //
     nk_e4m3_t const *data, nk_size_t count, nk_f32_t *result) {
     float32x4_t sum_f32x4 = vdupq_n_f32(0);

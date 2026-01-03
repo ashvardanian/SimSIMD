@@ -16,7 +16,7 @@
                              apply_to = function)
 
 #include "numkong/types.h"
-#include "numkong/reduce/sapphire.h" // nk_f32_to_f16_as_i16_sapphire_
+#include "numkong/cast/sapphire.h" // nk_f32_to_f16_sapphire, nk_e4m3x16_to_f16x16_sapphire_
 
 #if defined(__cplusplus)
 extern "C" {
@@ -49,8 +49,8 @@ NK_PUBLIC void nk_scale_f16_sapphire(nk_f16_t const *a, nk_size_t n, nk_f32_t co
     nk_f32_t alpha_val = *alpha;
     nk_f32_t beta_val = *beta;
     __mmask32 mask = 0xFFFFFFFF;
-    __m512h alpha_f16x32 = _mm512_castsi512_ph(_mm512_set1_epi16((short)nk_f32_to_f16_as_i16_sapphire_(alpha_val)));
-    __m512h beta_f16x32 = _mm512_castsi512_ph(_mm512_set1_epi16((short)nk_f32_to_f16_as_i16_sapphire_(beta_val)));
+    __m512h alpha_f16x32 = _mm512_castsi512_ph(_mm512_set1_epi16((short)nk_f32_to_f16_sapphire(alpha_val)));
+    __m512h beta_f16x32 = _mm512_castsi512_ph(_mm512_set1_epi16((short)nk_f32_to_f16_sapphire(beta_val)));
     __m512h a_f16x32;
     __m512h result_f16x32;
 nk_scale_f16_sapphire_cycle:
@@ -94,8 +94,8 @@ NK_PUBLIC void nk_wsum_f16_sapphire(                   //
 
     // The general case.
     __mmask32 mask = 0xFFFFFFFF;
-    __m512h alpha_f16x32 = _mm512_castsi512_ph(_mm512_set1_epi16((short)nk_f32_to_f16_as_i16_sapphire_(alpha_val)));
-    __m512h beta_f16x32 = _mm512_castsi512_ph(_mm512_set1_epi16((short)nk_f32_to_f16_as_i16_sapphire_(beta_val)));
+    __m512h alpha_f16x32 = _mm512_castsi512_ph(_mm512_set1_epi16((short)nk_f32_to_f16_sapphire(alpha_val)));
+    __m512h beta_f16x32 = _mm512_castsi512_ph(_mm512_set1_epi16((short)nk_f32_to_f16_sapphire(beta_val)));
     __m512h a_f16x32, b_f16x32;
     __m512h a_scaled_f16x32, result_f16x32;
 nk_wsum_f16_sapphire_cycle:
@@ -124,8 +124,8 @@ NK_PUBLIC void nk_fma_f16_sapphire(                                       //
     nk_f32_t alpha_val = *alpha;
     nk_f32_t beta_val = *beta;
     __mmask32 mask = 0xFFFFFFFF;
-    __m512h alpha_f16x32 = _mm512_castsi512_ph(_mm512_set1_epi16((short)nk_f32_to_f16_as_i16_sapphire_(alpha_val)));
-    __m512h beta_f16x32 = _mm512_castsi512_ph(_mm512_set1_epi16((short)nk_f32_to_f16_as_i16_sapphire_(beta_val)));
+    __m512h alpha_f16x32 = _mm512_castsi512_ph(_mm512_set1_epi16((short)nk_f32_to_f16_sapphire(alpha_val)));
+    __m512h beta_f16x32 = _mm512_castsi512_ph(_mm512_set1_epi16((short)nk_f32_to_f16_sapphire(beta_val)));
     __m512h a_f16x32, b_f16x32, c_f16x32;
     __m512h ab_f16x32, ab_scaled_f16x32, result_f16x32;
 nk_fma_f16_sapphire_cycle:
@@ -155,8 +155,8 @@ NK_PUBLIC void nk_scale_u8_sapphire(nk_u8_t const *a, nk_size_t n, nk_f32_t cons
     nk_f32_t alpha_val = *alpha;
     nk_f32_t beta_val = *beta;
     __mmask64 mask = 0xFFFFFFFFFFFFFFFFull;
-    __m512h alpha_f16x32 = _mm512_castsi512_ph(_mm512_set1_epi16((short)nk_f32_to_f16_as_i16_sapphire_(alpha_val)));
-    __m512h beta_f16x32 = _mm512_castsi512_ph(_mm512_set1_epi16((short)nk_f32_to_f16_as_i16_sapphire_(beta_val)));
+    __m512h alpha_f16x32 = _mm512_castsi512_ph(_mm512_set1_epi16((short)nk_f32_to_f16_sapphire(alpha_val)));
+    __m512h beta_f16x32 = _mm512_castsi512_ph(_mm512_set1_epi16((short)nk_f32_to_f16_sapphire(beta_val)));
     __m512i a_u8x64, result_u8x64;
     __m512h a_low_f16x32, a_high_f16x32;
     __m512h result_low_f16x32, result_high_f16x32;
@@ -211,8 +211,8 @@ NK_PUBLIC void nk_wsum_u8_sapphire(                  //
 
     // The general case.
     __mmask64 mask = 0xFFFFFFFFFFFFFFFFull;
-    __m512h alpha_f16x32 = _mm512_castsi512_ph(_mm512_set1_epi16((short)nk_f32_to_f16_as_i16_sapphire_(alpha_val)));
-    __m512h beta_f16x32 = _mm512_castsi512_ph(_mm512_set1_epi16((short)nk_f32_to_f16_as_i16_sapphire_(beta_val)));
+    __m512h alpha_f16x32 = _mm512_castsi512_ph(_mm512_set1_epi16((short)nk_f32_to_f16_sapphire(alpha_val)));
+    __m512h beta_f16x32 = _mm512_castsi512_ph(_mm512_set1_epi16((short)nk_f32_to_f16_sapphire(beta_val)));
     __m512i a_u8x64, b_u8x64, result_u8x64;
     __m512h a_low_f16x32, a_high_f16x32, b_low_f16x32, b_high_f16x32;
     __m512h a_scaled_low_f16x32, a_scaled_high_f16x32, result_low_f16x32, result_high_f16x32;
@@ -254,8 +254,8 @@ NK_PUBLIC void nk_scale_i8_sapphire(nk_i8_t const *a, nk_size_t n, nk_f32_t cons
     nk_f32_t alpha_val = *alpha;
     nk_f32_t beta_val = *beta;
     __mmask64 mask = 0xFFFFFFFFFFFFFFFFull;
-    __m512h alpha_f16x32 = _mm512_castsi512_ph(_mm512_set1_epi16((short)nk_f32_to_f16_as_i16_sapphire_(alpha_val)));
-    __m512h beta_f16x32 = _mm512_castsi512_ph(_mm512_set1_epi16((short)nk_f32_to_f16_as_i16_sapphire_(beta_val)));
+    __m512h alpha_f16x32 = _mm512_castsi512_ph(_mm512_set1_epi16((short)nk_f32_to_f16_sapphire(alpha_val)));
+    __m512h beta_f16x32 = _mm512_castsi512_ph(_mm512_set1_epi16((short)nk_f32_to_f16_sapphire(beta_val)));
     __m256i a_low_i8x32, a_high_i8x32;
     __m512i result_i8x64;
     __m512h a_low_f16x32, a_high_f16x32;
@@ -317,8 +317,8 @@ NK_PUBLIC void nk_wsum_i8_sapphire(                  //
 
     // The general case.
     __mmask64 mask = 0xFFFFFFFFFFFFFFFFull;
-    __m512h alpha_f16x32 = _mm512_castsi512_ph(_mm512_set1_epi16((short)nk_f32_to_f16_as_i16_sapphire_(alpha_val)));
-    __m512h beta_f16x32 = _mm512_castsi512_ph(_mm512_set1_epi16((short)nk_f32_to_f16_as_i16_sapphire_(beta_val)));
+    __m512h alpha_f16x32 = _mm512_castsi512_ph(_mm512_set1_epi16((short)nk_f32_to_f16_sapphire(alpha_val)));
+    __m512h beta_f16x32 = _mm512_castsi512_ph(_mm512_set1_epi16((short)nk_f32_to_f16_sapphire(beta_val)));
     __m256i a_low_i8x32, a_high_i8x32, b_low_i8x32, b_high_i8x32;
     __m512i result_i8x64;
     __m512h a_low_f16x32, a_high_f16x32, b_low_f16x32, b_high_f16x32;
@@ -372,8 +372,8 @@ NK_PUBLIC void nk_fma_i8_sapphire(                                     //
     nk_f32_t alpha_val = *alpha;
     nk_f32_t beta_val = *beta;
     __mmask64 mask = 0xFFFFFFFFFFFFFFFF;
-    __m512h alpha_f16x32 = _mm512_castsi512_ph(_mm512_set1_epi16((short)nk_f32_to_f16_as_i16_sapphire_(alpha_val)));
-    __m512h beta_f16x32 = _mm512_castsi512_ph(_mm512_set1_epi16((short)nk_f32_to_f16_as_i16_sapphire_(beta_val)));
+    __m512h alpha_f16x32 = _mm512_castsi512_ph(_mm512_set1_epi16((short)nk_f32_to_f16_sapphire(alpha_val)));
+    __m512h beta_f16x32 = _mm512_castsi512_ph(_mm512_set1_epi16((short)nk_f32_to_f16_sapphire(beta_val)));
     __m256i a_low_i8x32, a_high_i8x32, b_low_i8x32, b_high_i8x32, c_low_i8x32, c_high_i8x32;
     __m512i result_i8x64;
     __m512h a_low_f16x32, a_high_f16x32, b_low_f16x32, b_high_f16x32;
@@ -445,8 +445,8 @@ NK_PUBLIC void nk_fma_u8_sapphire(                                     //
     nk_f32_t alpha_val = *alpha;
     nk_f32_t beta_val = *beta;
     __mmask64 mask = 0xFFFFFFFFFFFFFFFF;
-    __m512h alpha_f16x32 = _mm512_castsi512_ph(_mm512_set1_epi16((short)nk_f32_to_f16_as_i16_sapphire_(alpha_val)));
-    __m512h beta_f16x32 = _mm512_castsi512_ph(_mm512_set1_epi16((short)nk_f32_to_f16_as_i16_sapphire_(beta_val)));
+    __m512h alpha_f16x32 = _mm512_castsi512_ph(_mm512_set1_epi16((short)nk_f32_to_f16_sapphire(alpha_val)));
+    __m512h beta_f16x32 = _mm512_castsi512_ph(_mm512_set1_epi16((short)nk_f32_to_f16_sapphire(beta_val)));
     __m512i a_u8x64, b_u8x64, c_u8x64, result_u8x64;
     __m512h a_low_f16x32, a_high_f16x32, b_low_f16x32, b_high_f16x32;
     __m512h c_low_f16x32, c_high_f16x32, ab_low_f16x32, ab_high_f16x32;
@@ -496,6 +496,46 @@ nk_fma_u8_sapphire_cycle:
     _mm512_mask_storeu_epi8(result, mask, result_u8x64);
     result += 64;
     if (n) goto nk_fma_u8_sapphire_cycle;
+}
+
+NK_PUBLIC void nk_sum_e4m3_sapphire(nk_e4m3_t const *a, nk_e4m3_t const *b, nk_size_t n, nk_e4m3_t *result) {
+    __m256i a_e4m3x32, b_e4m3x32;
+    __m256h a_lo_f16x16, a_hi_f16x16, b_lo_f16x16, b_hi_f16x16;
+    __m256h sum_lo_f16x16, sum_hi_f16x16;
+    __m128i result_lo_e4m3x16, result_hi_e4m3x16;
+    __mmask32 mask = 0xFFFFFFFF;
+nk_sum_e4m3_sapphire_cycle:
+    if (n < 32) {
+        mask = (__mmask32)_bzhi_u32(0xFFFFFFFF, (unsigned int)n);
+        a_e4m3x32 = _mm256_maskz_loadu_epi8(mask, a);
+        b_e4m3x32 = _mm256_maskz_loadu_epi8(mask, b);
+        n = 0;
+    }
+    else {
+        a_e4m3x32 = _mm256_loadu_si256((__m256i const *)a);
+        b_e4m3x32 = _mm256_loadu_si256((__m256i const *)b);
+        a += 32, b += 32, n -= 32;
+    }
+
+    // Convert e4m3x16 -> f16x16 (two halves)
+    a_lo_f16x16 = nk_e4m3x16_to_f16x16_sapphire_(_mm256_castsi256_si128(a_e4m3x32));
+    a_hi_f16x16 = nk_e4m3x16_to_f16x16_sapphire_(_mm256_extracti128_si256(a_e4m3x32, 1));
+    b_lo_f16x16 = nk_e4m3x16_to_f16x16_sapphire_(_mm256_castsi256_si128(b_e4m3x32));
+    b_hi_f16x16 = nk_e4m3x16_to_f16x16_sapphire_(_mm256_extracti128_si256(b_e4m3x32, 1));
+
+    // Add in F16 - e4m3 sum is safe (max 896 < 65504)
+    sum_lo_f16x16 = _mm256_add_ph(a_lo_f16x16, b_lo_f16x16);
+    sum_hi_f16x16 = _mm256_add_ph(a_hi_f16x16, b_hi_f16x16);
+
+    // Convert f16x16 -> e4m3x16
+    result_lo_e4m3x16 = nk_f16x16_to_e4m3x16_sapphire_(sum_lo_f16x16);
+    result_hi_e4m3x16 = nk_f16x16_to_e4m3x16_sapphire_(sum_hi_f16x16);
+
+    // Pack and store
+    __m256i result_e4m3x32 = _mm256_inserti128_si256(_mm256_castsi128_si256(result_lo_e4m3x16), result_hi_e4m3x16, 1);
+    _mm256_mask_storeu_epi8(result, mask, result_e4m3x32);
+    result += 32;
+    if (n) goto nk_sum_e4m3_sapphire_cycle;
 }
 
 #if defined(__cplusplus)

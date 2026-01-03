@@ -27,8 +27,8 @@ extern "C" {
 nk_make_dots_pack_size_(neonfhm, f16, f32)
 nk_make_dots_pack_(neonfhm, f16, f32)
 nk_make_dots_inner_vectors_(f16f16f32_neonfhm, f16, f32, nk_b128_vec_t, nk_dot_f16x8_state_neonfhm_t, nk_b128_vec_t,
-                            nk_dot_f16x8_init_neonfhm, nk_load_b128_neon_, nk_partial_load_b16x8_neon_,
-                            nk_dot_f16x8_update_neonfhm, nk_dot_f16x8_finalize_neonfhm, nk_partial_store_b32x4_neon_,
+                            nk_dot_f16x8_init_neonfhm, nk_load_b128_neon_, nk_partial_load_b16x8_serial_,
+                            nk_dot_f16x8_update_neonfhm, nk_dot_f16x8_finalize_neonfhm, nk_partial_store_b32x4_serial_,
                             /*k_tile=*/8)
 
 #if defined(__cplusplus)

@@ -29,13 +29,13 @@ extern "C" {
  *  - If parent != NULL: view into parent's memory, `data` points there
  */
 typedef struct Tensor {
-    PyObject_HEAD nk_datatype_t datatype;    ///< Logical datatype (f32, f64, bf16, etc.)
-    size_t rank;                             ///< Number of dimensions (0 for scalar)
-    Py_ssize_t shape[NK_NDARRAY_MAX_RANK];   ///< Extent along each dimension
-    Py_ssize_t strides[NK_NDARRAY_MAX_RANK]; ///< Stride in bytes for each dimension
-    PyObject *parent;                        ///< Reference to parent (NULL if owns data)
-    char *data;                              ///< Data pointer (start[] if owns, parent's if view)
-    char start[];                            ///< Variable-length inline data storage
+    PyObject_HEAD nk_datatype_t datatype;   ///< Logical datatype (f32, f64, bf16, etc.)
+    size_t rank;                            ///< Number of dimensions (0 for scalar)
+    Py_ssize_t shape[NK_TENSOR_MAX_RANK];   ///< Extent along each dimension
+    Py_ssize_t strides[NK_TENSOR_MAX_RANK]; ///< Stride in bytes for each dimension
+    PyObject *parent;                       ///< Reference to parent (NULL if owns data)
+    char *data;                             ///< Data pointer (start[] if owns, parent's if view)
+    char start[];                           ///< Variable-length inline data storage
 } Tensor;
 
 /**

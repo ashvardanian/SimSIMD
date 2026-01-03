@@ -3167,7 +3167,19 @@ void test_elementwise() {
     run_if_matches("sum_skylake", "f32", test_sum_f32, nk_sum_f32_skylake);
     run_if_matches("wsum_skylake", "f32", test_wsum_f32, nk_wsum_f32_skylake);
     run_if_matches("fma_skylake", "f32", test_fma_f32, nk_fma_f32_skylake);
+    run_if_matches("scale_skylake", "e4m3", test_scale_e4m3, nk_scale_e4m3_skylake);
+    run_if_matches("scale_skylake", "e5m2", test_scale_e5m2, nk_scale_e5m2_skylake);
+    run_if_matches("sum_skylake", "e4m3", test_sum_e4m3, nk_sum_e4m3_skylake);
+    run_if_matches("sum_skylake", "e5m2", test_sum_e5m2, nk_sum_e5m2_skylake);
+    run_if_matches("wsum_skylake", "e4m3", test_wsum_e4m3, nk_wsum_e4m3_skylake);
+    run_if_matches("wsum_skylake", "e5m2", test_wsum_e5m2, nk_wsum_e5m2_skylake);
+    run_if_matches("fma_skylake", "e4m3", test_fma_e4m3, nk_fma_e4m3_skylake);
+    run_if_matches("fma_skylake", "e5m2", test_fma_e5m2, nk_fma_e5m2_skylake);
 #endif // NK_TARGET_SKYLAKE
+
+#if NK_TARGET_SAPPHIRE
+    run_if_matches("sum_sapphire", "e4m3", test_sum_e4m3, nk_sum_e4m3_sapphire);
+#endif // NK_TARGET_SAPPHIRE
 
     // Serial always runs - baseline test
     run_if_matches("scale_serial", "f32", test_scale_f32, nk_scale_f32_serial);

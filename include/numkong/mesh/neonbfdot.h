@@ -15,7 +15,7 @@
 #pragma clang attribute push(__attribute__((target("arch=armv8.6-a+simd+bf16"))), apply_to = function)
 
 #include "numkong/types.h"
-#include "numkong/spatial/neon.h" // nk_sqrt_f32_neon_
+#include "numkong/spatial/neon.h" // `nk_f32_sqrt_neon`
 
 #if defined(__cplusplus)
 extern "C" {
@@ -295,7 +295,7 @@ NK_PUBLIC void nk_rmsd_bf16_neonbfdot(nk_bf16_t const *a, nk_bf16_t const *b, nk
     nk_f32_t sum_squared = total_squared_x + total_squared_y + total_squared_z;
     nk_f32_t mean_diff_sq = mean_diff_x * mean_diff_x + mean_diff_y * mean_diff_y + mean_diff_z * mean_diff_z;
 
-    *result = nk_sqrt_f32_neon_(sum_squared * inv_n - mean_diff_sq);
+    *result = nk_f32_sqrt_neon(sum_squared * inv_n - mean_diff_sq);
 }
 
 NK_PUBLIC void nk_kabsch_bf16_neonbfdot(nk_bf16_t const *a, nk_bf16_t const *b, nk_size_t n, nk_f32_t *a_centroid,
@@ -515,7 +515,7 @@ NK_PUBLIC void nk_kabsch_bf16_neonbfdot(nk_bf16_t const *a, nk_bf16_t const *b, 
     // Compute RMSD after optimal rotation
     nk_f32_t sum_squared = nk_transformed_ssd_bf16_neonbfdot_(a, b, n, r, 1.0f, centroid_a_x, centroid_a_y,
                                                               centroid_a_z, centroid_b_x, centroid_b_y, centroid_b_z);
-    *result = nk_sqrt_f32_neon_(sum_squared * inv_n);
+    *result = nk_f32_sqrt_neon(sum_squared * inv_n);
 }
 
 NK_PUBLIC void nk_umeyama_bf16_neonbfdot(nk_bf16_t const *a, nk_bf16_t const *b, nk_size_t n, nk_f32_t *a_centroid,
@@ -764,7 +764,7 @@ NK_PUBLIC void nk_umeyama_bf16_neonbfdot(nk_bf16_t const *a, nk_bf16_t const *b,
     // Compute RMSD after similarity transform: ||c*R*a - b||
     nk_f32_t sum_squared = nk_transformed_ssd_bf16_neonbfdot_(a, b, n, r, c, centroid_a_x, centroid_a_y, centroid_a_z,
                                                               centroid_b_x, centroid_b_y, centroid_b_z);
-    *result = nk_sqrt_f32_neon_(sum_squared * inv_n);
+    *result = nk_f32_sqrt_neon(sum_squared * inv_n);
 }
 
 #if defined(__cplusplus)

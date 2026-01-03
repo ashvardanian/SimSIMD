@@ -21,8 +21,9 @@
 extern "C" {
 #endif
 
-NK_INTERNAL nk_f32_t nk_sqrt_f32_neon_(nk_f32_t x) { return vget_lane_f32(vsqrt_f32(vdup_n_f32(x)), 0); }
-NK_INTERNAL nk_f64_t nk_sqrt_f64_neon_(nk_f64_t x) { return vget_lane_f64(vsqrt_f64(vdup_n_f64(x)), 0); }
+NK_PUBLIC nk_f32_t nk_f32_sqrt_neon(nk_f32_t x) { return vget_lane_f32(vsqrt_f32(vdup_n_f32(x)), 0); }
+NK_PUBLIC nk_f64_t nk_f64_sqrt_neon(nk_f64_t x) { return vget_lane_f64(vsqrt_f64(vdup_n_f64(x)), 0); }
+
 NK_INTERNAL nk_f32_t nk_angular_normalize_f32_neon_(nk_f32_t ab, nk_f32_t a2, nk_f32_t b2) {
     if (a2 == 0 && b2 == 0) return 0;
     if (ab == 0) return 1;
@@ -85,7 +86,7 @@ NK_PUBLIC void nk_l2sq_f32_neon(nk_f32_t const *a, nk_f32_t const *b, nk_size_t 
 
 NK_PUBLIC void nk_l2_f32_neon(nk_f32_t const *a, nk_f32_t const *b, nk_size_t n, nk_f32_t *result) {
     nk_l2sq_f32_neon(a, b, n, result);
-    *result = nk_sqrt_f32_neon_(*result);
+    *result = nk_f32_sqrt_neon(*result);
 }
 
 NK_PUBLIC void nk_angular_f32_neon(nk_f32_t const *a, nk_f32_t const *b, nk_size_t n, nk_f32_t *result) {
@@ -145,7 +146,7 @@ NK_PUBLIC void nk_l2sq_f64_neon(nk_f64_t const *a, nk_f64_t const *b, nk_size_t 
 
 NK_PUBLIC void nk_l2_f64_neon(nk_f64_t const *a, nk_f64_t const *b, nk_size_t n, nk_f64_t *result) {
     nk_l2sq_f64_neon(a, b, n, result);
-    *result = nk_sqrt_f64_neon_(*result);
+    *result = nk_f64_sqrt_neon(*result);
 }
 
 NK_PUBLIC void nk_angular_f64_neon(nk_f64_t const *a, nk_f64_t const *b, nk_size_t n, nk_f64_t *result) {

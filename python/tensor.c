@@ -158,8 +158,8 @@ static void Tensor_dealloc(PyObject *self) {
 }
 
 Tensor *Tensor_new(nk_datatype_t datatype, size_t rank, Py_ssize_t const *shape) {
-    if (rank > NK_NDARRAY_MAX_RANK) {
-        PyErr_Format(PyExc_ValueError, "Tensor rank %zu exceeds maximum %d", rank, NK_NDARRAY_MAX_RANK);
+    if (rank > NK_TENSOR_MAX_RANK) {
+        PyErr_Format(PyExc_ValueError, "Tensor rank %zu exceeds maximum %d", rank, NK_TENSOR_MAX_RANK);
         return NULL;
     }
 
@@ -177,7 +177,7 @@ Tensor *Tensor_new(nk_datatype_t datatype, size_t rank, Py_ssize_t const *shape)
     tensor->datatype = datatype;
     tensor->rank = rank;
 
-    for (size_t i = 0; i < NK_NDARRAY_MAX_RANK; i++) {
+    for (size_t i = 0; i < NK_TENSOR_MAX_RANK; i++) {
         tensor->shape[i] = (i < rank) ? shape[i] : 0;
         tensor->strides[i] = 0;
     }
@@ -195,8 +195,8 @@ Tensor *Tensor_new(nk_datatype_t datatype, size_t rank, Py_ssize_t const *shape)
 
 Tensor *Tensor_view(Tensor *parent, char *data_ptr, nk_datatype_t datatype, size_t rank, Py_ssize_t const *shape,
                     Py_ssize_t const *strides) {
-    if (rank > NK_NDARRAY_MAX_RANK) {
-        PyErr_Format(PyExc_ValueError, "View rank %zu exceeds maximum %d", rank, NK_NDARRAY_MAX_RANK);
+    if (rank > NK_TENSOR_MAX_RANK) {
+        PyErr_Format(PyExc_ValueError, "View rank %zu exceeds maximum %d", rank, NK_TENSOR_MAX_RANK);
         return NULL;
     }
 
@@ -209,7 +209,7 @@ Tensor *Tensor_view(Tensor *parent, char *data_ptr, nk_datatype_t datatype, size
     view->datatype = datatype;
     view->rank = rank;
 
-    for (size_t i = 0; i < NK_NDARRAY_MAX_RANK; i++) {
+    for (size_t i = 0; i < NK_TENSOR_MAX_RANK; i++) {
         view->shape[i] = (i < rank) ? shape[i] : 0;
         view->strides[i] = (i < rank) ? strides[i] : 0;
     }
@@ -232,7 +232,7 @@ static Tensor *Tensor_scalar(nk_datatype_t datatype, void const *value) {
 
     tensor->datatype = datatype;
     tensor->rank = 0;
-    for (size_t i = 0; i < NK_NDARRAY_MAX_RANK; i++) {
+    for (size_t i = 0; i < NK_TENSOR_MAX_RANK; i++) {
         tensor->shape[i] = 0;
         tensor->strides[i] = 0;
     }
@@ -546,8 +546,8 @@ static PyObject *Tensor_get_T(PyObject *self, void *closure) {
     }
 
     // Reverse shape and strides
-    Py_ssize_t new_shape[NK_NDARRAY_MAX_RANK];
-    Py_ssize_t new_strides[NK_NDARRAY_MAX_RANK];
+    Py_ssize_t new_shape[NK_TENSOR_MAX_RANK];
+    Py_ssize_t new_strides[NK_TENSOR_MAX_RANK];
     for (size_t i = 0; i < tensor->rank; i++) {
         new_shape[i] = tensor->shape[tensor->rank - 1 - i];
         new_strides[i] = tensor->strides[tensor->rank - 1 - i];
@@ -643,7 +643,7 @@ PyObject *Tensor_copy(PyObject *self, PyObject *args) {
         result->strides[i - 1] = stride;
         stride *= tensor->shape[i - 1];
     }
-    for (size_t i = tensor->rank; i < NK_NDARRAY_MAX_RANK; i++) {
+    for (size_t i = tensor->rank; i < NK_TENSOR_MAX_RANK; i++) {
         result->shape[i] = 0;
         result->strides[i] = 0;
     }
@@ -668,14 +668,14 @@ PyObject *Tensor_copy(PyObject *self, PyObject *args) {
 PyObject *Tensor_reshape(PyObject *self, PyObject *args) {
     Tensor *tensor = (Tensor *)self;
 
-    Py_ssize_t new_shape[NK_NDARRAY_MAX_RANK];
+    Py_ssize_t new_shape[NK_TENSOR_MAX_RANK];
     size_t new_rank = 0;
 
     if (PyTuple_GET_SIZE(args) == 1 && PyTuple_Check(PyTuple_GET_ITEM(args, 0))) {
         PyObject *shape_tuple = PyTuple_GET_ITEM(args, 0);
         new_rank = PyTuple_GET_SIZE(shape_tuple);
-        if (new_rank > NK_NDARRAY_MAX_RANK) {
-            PyErr_Format(PyExc_ValueError, "reshape: too many dimensions (%zu > %d)", new_rank, NK_NDARRAY_MAX_RANK);
+        if (new_rank > NK_TENSOR_MAX_RANK) {
+            PyErr_Format(PyExc_ValueError, "reshape: too many dimensions (%zu > %d)", new_rank, NK_TENSOR_MAX_RANK);
             return NULL;
         }
         for (size_t i = 0; i < new_rank; i++) {
@@ -693,8 +693,8 @@ PyObject *Tensor_reshape(PyObject *self, PyObject *args) {
     }
     else {
         new_rank = PyTuple_GET_SIZE(args);
-        if (new_rank > NK_NDARRAY_MAX_RANK) {
-            PyErr_Format(PyExc_ValueError, "reshape: too many dimensions (%zu > %d)", new_rank, NK_NDARRAY_MAX_RANK);
+        if (new_rank > NK_TENSOR_MAX_RANK) {
+            PyErr_Format(PyExc_ValueError, "reshape: too many dimensions (%zu > %d)", new_rank, NK_TENSOR_MAX_RANK);
             return NULL;
         }
         for (size_t i = 0; i < new_rank; i++) {
@@ -726,7 +726,7 @@ PyObject *Tensor_reshape(PyObject *self, PyObject *args) {
     size_t item_size = bytes_per_datatype(tensor->datatype);
 
     if (tensor_is_c_contig(tensor, item_size)) {
-        Py_ssize_t new_strides[NK_NDARRAY_MAX_RANK];
+        Py_ssize_t new_strides[NK_TENSOR_MAX_RANK];
         Py_ssize_t stride = item_size;
         for (size_t i = new_rank; i > 0; i--) {
             new_strides[i - 1] = stride;
@@ -751,7 +751,7 @@ PyObject *Tensor_reshape(PyObject *self, PyObject *args) {
         result->strides[i - 1] = stride;
         stride *= new_shape[i - 1];
     }
-    for (size_t i = new_rank; i < NK_NDARRAY_MAX_RANK; i++) {
+    for (size_t i = new_rank; i < NK_TENSOR_MAX_RANK; i++) {
         result->shape[i] = 0;
         result->strides[i] = 0;
     }
@@ -997,8 +997,8 @@ static PyObject *Tensor_subscript(PyObject *self, PyObject *key) {
         Py_ssize_t start, stop, step, slice_len;
         if (parse_slice(key, tensor->shape[0], &start, &stop, &step, &slice_len) < 0) return NULL;
 
-        Py_ssize_t new_shape[NK_NDARRAY_MAX_RANK];
-        Py_ssize_t new_strides[NK_NDARRAY_MAX_RANK];
+        Py_ssize_t new_shape[NK_TENSOR_MAX_RANK];
+        Py_ssize_t new_strides[NK_TENSOR_MAX_RANK];
 
         new_shape[0] = slice_len;
         new_strides[0] = tensor->strides[0] * step;
@@ -1329,8 +1329,8 @@ static PyObject *Tensor_matmul(PyObject *self, PyObject *other) {
 
     // Only support Tensor @ MatrixMultiplier for now
     if (!PyObject_TypeCheck(other, &MatrixMultiplierType)) {
-        PyErr_SetString(PyExc_TypeError, "matmul requires MatrixMultiplier as right operand "
-                                         "(use nk.pack_matmul_argument() first)");
+        PyErr_SetString(PyExc_TypeError,
+                        "matmul requires MatrixMultiplier as right operand " "(use nk.pack_matmul_argument() first)");
         return NULL;
     }
 
@@ -1445,8 +1445,8 @@ static int parse_shape(PyObject *shape_obj, Py_ssize_t *shape, size_t *rank) {
         return 0;
     }
     Py_ssize_t ndim = PyTuple_Size(shape_obj);
-    if (ndim > NK_NDARRAY_MAX_RANK) {
-        PyErr_Format(PyExc_ValueError, "Shape has %zd dimensions, max is %d", ndim, NK_NDARRAY_MAX_RANK);
+    if (ndim > NK_TENSOR_MAX_RANK) {
+        PyErr_Format(PyExc_ValueError, "Shape has %zd dimensions, max is %d", ndim, NK_TENSOR_MAX_RANK);
         return 0;
     }
     for (Py_ssize_t i = 0; i < ndim; i++) {
@@ -1493,7 +1493,7 @@ PyObject *api_empty(PyObject *self, PyObject *const *args, Py_ssize_t const narg
         }
     }
 
-    Py_ssize_t shape[NK_NDARRAY_MAX_RANK];
+    Py_ssize_t shape[NK_TENSOR_MAX_RANK];
     size_t rank;
     if (!parse_shape(shape_obj, shape, &rank)) return NULL;
 
@@ -1538,7 +1538,7 @@ PyObject *api_zeros(PyObject *self, PyObject *const *args, Py_ssize_t const narg
         }
     }
 
-    Py_ssize_t shape[NK_NDARRAY_MAX_RANK];
+    Py_ssize_t shape[NK_TENSOR_MAX_RANK];
     size_t rank;
     if (!parse_shape(shape_obj, shape, &rank)) return NULL;
 
@@ -1590,7 +1590,7 @@ PyObject *api_ones(PyObject *self, PyObject *const *args, Py_ssize_t const nargs
         }
     }
 
-    Py_ssize_t shape[NK_NDARRAY_MAX_RANK];
+    Py_ssize_t shape[NK_TENSOR_MAX_RANK];
     size_t rank;
     if (!parse_shape(shape_obj, shape, &rank)) return NULL;
 
@@ -1671,7 +1671,7 @@ PyObject *api_full(PyObject *self, PyObject *const *args, Py_ssize_t const nargs
         return NULL;
     }
 
-    Py_ssize_t shape[NK_NDARRAY_MAX_RANK];
+    Py_ssize_t shape[NK_TENSOR_MAX_RANK];
     size_t rank;
     if (!parse_shape(shape_obj, shape, &rank)) return NULL;
 

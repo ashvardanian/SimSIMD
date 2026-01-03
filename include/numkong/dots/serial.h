@@ -571,16 +571,16 @@ typedef struct {
                         /* Handle remainder k positions with partial loads */                                        \
                         if (remainder_depth > 0) {                                                                   \
                             /* Load next few elements from 4 rows from A */                                          \
-                            partial_load_fn(a_first + aligned_depth, remainder_depth, &a_first_vec);                 \
-                            partial_load_fn(a_second + aligned_depth, remainder_depth, &a_second_vec);               \
-                            partial_load_fn(a_third + aligned_depth, remainder_depth, &a_third_vec);                 \
-                            partial_load_fn(a_fourth + aligned_depth, remainder_depth, &a_fourth_vec);               \
+                            partial_load_fn(a_first + aligned_depth, &a_first_vec, remainder_depth);                 \
+                            partial_load_fn(a_second + aligned_depth, &a_second_vec, remainder_depth);               \
+                            partial_load_fn(a_third + aligned_depth, &a_third_vec, remainder_depth);                 \
+                            partial_load_fn(a_fourth + aligned_depth, &a_fourth_vec, remainder_depth);               \
                                                                                                                      \
                             /* Load next few elements from 4 rows from B */                                          \
-                            partial_load_fn(b_first + aligned_depth, remainder_depth, &b_first_vec);                 \
-                            partial_load_fn(b_second + aligned_depth, remainder_depth, &b_second_vec);               \
-                            partial_load_fn(b_third + aligned_depth, remainder_depth, &b_third_vec);                 \
-                            partial_load_fn(b_fourth + aligned_depth, remainder_depth, &b_fourth_vec);               \
+                            partial_load_fn(b_first + aligned_depth, &b_first_vec, remainder_depth);                 \
+                            partial_load_fn(b_second + aligned_depth, &b_second_vec, remainder_depth);               \
+                            partial_load_fn(b_third + aligned_depth, &b_third_vec, remainder_depth);                 \
+                            partial_load_fn(b_fourth + aligned_depth, &b_fourth_vec, remainder_depth);               \
                                                                                                                      \
                             /* 16 FMAs: 4 A rows x 4 B columns */                                                    \
                             update_fn(&accumulators[0][0], a_first_vec, b_first_vec);                                \
@@ -775,36 +775,29 @@ typedef struct {
         }                                                                                                           \
     }
 
-// Helper conversion functions for serial GEMM
-NK_INTERNAL void nk_serial_copy_f32(nk_f32_t const *src, nk_f32_t *dst) { *dst = *src; }
-NK_INTERNAL void nk_serial_copy_f64(nk_f64_t const *src, nk_f64_t *dst) { *dst = *src; }
-NK_INTERNAL void nk_serial_copy_i8_to_i32(nk_i8_t const *src, nk_i32_t *dst) { *dst = (nk_i32_t)(*src); }
-NK_INTERNAL void nk_serial_copy_u8_to_u32(nk_u8_t const *src, nk_u32_t *dst) { *dst = (nk_u32_t)(*src); }
-
-// Serial implementations
 nk_make_dots_pack_size_(serial, f32, f32)
 nk_make_dots_pack_(serial, f32, f32)
-nk_make_dots_outer_scalars_(serial, f32, f32, f32, nk_serial_copy_f32)
+nk_make_dots_outer_scalars_(serial, f32, f32, f32, nk_assign_from_to_)
 
 nk_make_dots_pack_size_(serial, f64, f64)
 nk_make_dots_pack_(serial, f64, f64)
-nk_make_dots_outer_scalars_(serial, f64, f64, f64, nk_serial_copy_f64)
+nk_make_dots_outer_scalars_(serial, f64, f64, f64, nk_assign_from_to_)
 
 nk_make_dots_pack_size_(serial, f16, f32)
 nk_make_dots_pack_(serial, f16, f32)
-nk_make_dots_outer_scalars_(serial, f16, f32, f32, nk_f16_to_f32)
+nk_make_dots_outer_scalars_(serial, f16, f32, f32, nk_f16_to_f32_serial)
 
 nk_make_dots_pack_size_(serial, bf16, f32)
 nk_make_dots_pack_(serial, bf16, f32)
-nk_make_dots_outer_scalars_(serial, bf16, f32, f32, nk_bf16_to_f32)
+nk_make_dots_outer_scalars_(serial, bf16, f32, f32, nk_bf16_to_f32_serial)
 
 nk_make_dots_pack_size_(serial, i8, i32)
 nk_make_dots_pack_(serial, i8, i32)
-nk_make_dots_outer_scalars_(serial, i8, i32, i32, nk_serial_copy_i8_to_i32)
+nk_make_dots_outer_scalars_(serial, i8, i32, i32, nk_assign_from_to_)
 
 nk_make_dots_pack_size_(serial, u8, u32)
 nk_make_dots_pack_(serial, u8, u32)
-nk_make_dots_outer_scalars_(serial, u8, u32, u32, nk_serial_copy_u8_to_u32)
+nk_make_dots_outer_scalars_(serial, u8, u32, u32, nk_assign_from_to_)
 
 /*  BF16 compact: truncate F32 -> BF16 in-place.
  *  Reads F32 matrix with c_stride, writes BF16 tightly packed (stride = n * sizeof(bf16)).
@@ -817,7 +810,7 @@ NK_PUBLIC void nk_dots_bf16bf16bf16_serial(void *c, nk_size_t m, nk_size_t n, nk
     for (nk_size_t row = 0; row < m; row++) {
         nk_f32_t const *src_row = c_f32 + row * c_stride_f32;
         nk_bf16_t *dst_row = c_bf16 + row * n;
-        for (nk_size_t col = 0; col < n; col++) { nk_f32_to_bf16(src_row + col, dst_row + col); }
+        for (nk_size_t col = 0; col < n; col++) { nk_f32_to_bf16_serial(src_row + col, dst_row + col); }
     }
 }
 
@@ -836,11 +829,11 @@ NK_PUBLIC void nk_dots_i8i8i8_serial(void *c, nk_size_t m, nk_size_t n, nk_size_
         nk_i8_t *dst_row = c_i8 + row * n;
 
         nk_f32_t a_norm_f32 = (nk_f32_t)a_squared_norms[row];
-        nk_f32_t a_rsqrt = (a_norm_f32 > 0) ? (1.0f / NK_F32_SQRT(a_norm_f32)) : 0.0f;
+        nk_f32_t a_rsqrt = (a_norm_f32 > 0) ? (1.0f / nk_f32_sqrt_serial(a_norm_f32)) : 0.0f;
 
         for (nk_size_t col = 0; col < n; col++) {
             nk_f32_t b_norm_f32 = (nk_f32_t)b_squared_norms[col];
-            nk_f32_t b_rsqrt = (b_norm_f32 > 0) ? (1.0f / NK_F32_SQRT(b_norm_f32)) : 0.0f;
+            nk_f32_t b_rsqrt = (b_norm_f32 > 0) ? (1.0f / nk_f32_sqrt_serial(b_norm_f32)) : 0.0f;
 
             nk_f32_t normalized = (nk_f32_t)src_row[col] * 127.0f * a_rsqrt * b_rsqrt;
             nk_i32_t clamped = (nk_i32_t)normalized;

@@ -493,10 +493,10 @@ NK_PUBLIC void nk_sin_f32_haswell(nk_f32_t const *ins, nk_size_t n, nk_f32_t *ou
     if (i < n) {
         nk_size_t remaining = n - i;
         nk_b256_vec_t angles_vec;
-        nk_partial_load_b32x8_haswell_(ins + i, remaining, &angles_vec);
+        nk_partial_load_b32x8_serial_(ins + i, &angles_vec, remaining);
         nk_b256_vec_t results_vec;
         results_vec.ymm_ps = nk_f32x8_sin_haswell_(angles_vec.ymm_ps);
-        nk_partial_store_b32x8_haswell_(&results_vec, outs + i, remaining);
+        nk_partial_store_b32x8_serial_(&results_vec, outs + i, remaining);
     }
 }
 
@@ -510,10 +510,10 @@ NK_PUBLIC void nk_cos_f32_haswell(nk_f32_t const *ins, nk_size_t n, nk_f32_t *ou
     if (i < n) {
         nk_size_t remaining = n - i;
         nk_b256_vec_t angles_vec;
-        nk_partial_load_b32x8_haswell_(ins + i, remaining, &angles_vec);
+        nk_partial_load_b32x8_serial_(ins + i, &angles_vec, remaining);
         nk_b256_vec_t results_vec;
         results_vec.ymm_ps = nk_f32x8_cos_haswell_(angles_vec.ymm_ps);
-        nk_partial_store_b32x8_haswell_(&results_vec, outs + i, remaining);
+        nk_partial_store_b32x8_serial_(&results_vec, outs + i, remaining);
     }
 }
 
@@ -527,10 +527,10 @@ NK_PUBLIC void nk_atan_f32_haswell(nk_f32_t const *ins, nk_size_t n, nk_f32_t *o
     if (i < n) {
         nk_size_t remaining = n - i;
         nk_b256_vec_t values_vec;
-        nk_partial_load_b32x8_haswell_(ins + i, remaining, &values_vec);
+        nk_partial_load_b32x8_serial_(ins + i, &values_vec, remaining);
         nk_b256_vec_t results_vec;
         results_vec.ymm_ps = nk_f32x8_atan_haswell_(values_vec.ymm_ps);
-        nk_partial_store_b32x8_haswell_(&results_vec, outs + i, remaining);
+        nk_partial_store_b32x8_serial_(&results_vec, outs + i, remaining);
     }
 }
 
@@ -544,10 +544,10 @@ NK_PUBLIC void nk_sin_f64_haswell(nk_f64_t const *ins, nk_size_t n, nk_f64_t *ou
     if (i < n) {
         nk_size_t remaining = n - i;
         nk_b256_vec_t angles_vec;
-        nk_partial_load_b64x4_haswell_(ins + i, remaining, &angles_vec);
+        nk_partial_load_b64x4_serial_(ins + i, &angles_vec, remaining);
         nk_b256_vec_t results_vec;
         results_vec.ymm_pd = nk_f64x4_sin_haswell_(angles_vec.ymm_pd);
-        nk_partial_store_b64x4_haswell_(&results_vec, outs + i, remaining);
+        nk_partial_store_b64x4_serial_(&results_vec, outs + i, remaining);
     }
 }
 
@@ -561,10 +561,10 @@ NK_PUBLIC void nk_cos_f64_haswell(nk_f64_t const *ins, nk_size_t n, nk_f64_t *ou
     if (i < n) {
         nk_size_t remaining = n - i;
         nk_b256_vec_t angles_vec;
-        nk_partial_load_b64x4_haswell_(ins + i, remaining, &angles_vec);
+        nk_partial_load_b64x4_serial_(ins + i, &angles_vec, remaining);
         nk_b256_vec_t results_vec;
         results_vec.ymm_pd = nk_f64x4_cos_haswell_(angles_vec.ymm_pd);
-        nk_partial_store_b64x4_haswell_(&results_vec, outs + i, remaining);
+        nk_partial_store_b64x4_serial_(&results_vec, outs + i, remaining);
     }
 }
 
@@ -578,10 +578,10 @@ NK_PUBLIC void nk_atan_f64_haswell(nk_f64_t const *ins, nk_size_t n, nk_f64_t *o
     if (i < n) {
         nk_size_t remaining = n - i;
         nk_b256_vec_t values_vec;
-        nk_partial_load_b64x4_haswell_(ins + i, remaining, &values_vec);
+        nk_partial_load_b64x4_serial_(ins + i, &values_vec, remaining);
         nk_b256_vec_t results_vec;
         results_vec.ymm_pd = nk_f64x4_atan_haswell_(values_vec.ymm_pd);
-        nk_partial_store_b64x4_haswell_(&results_vec, outs + i, remaining);
+        nk_partial_store_b64x4_serial_(&results_vec, outs + i, remaining);
     }
 }
 

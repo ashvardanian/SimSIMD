@@ -321,12 +321,12 @@ NK_MAKE_INTERSECT_LINEAR(accurate, u32, size) // nk_intersect_u32_accurate
         *count = (nk_u32_t)intersection_size;                                                                      \
     }
 
-NK_MAKE_INTERSECT_GALLOPING(serial, u16, size)                // nk_intersect_u16_serial
-NK_MAKE_INTERSECT_GALLOPING(serial, u32, size)                // nk_intersect_u32_serial
-NK_MAKE_SPARSE_DOT(serial, u16, bf16, f32, nk_bf16_to_f32)    // nk_sparse_dot_u16bf16_serial
-NK_MAKE_SPARSE_DOT(serial, u32, f32, f32, nk_assign_from_to_) // nk_sparse_dot_u32f32_serial
-NK_MAKE_SPARSE_DOT(accurate, u16, bf16, f64, nk_bf16_to_f64_) // nk_sparse_dot_u16bf16_accurate
-NK_MAKE_SPARSE_DOT(accurate, u32, f32, f64, nk_f32_to_f64_)   // nk_sparse_dot_u32f32_accurate
+NK_MAKE_INTERSECT_GALLOPING(serial, u16, size)                      // nk_intersect_u16_serial
+NK_MAKE_INTERSECT_GALLOPING(serial, u32, size)                      // nk_intersect_u32_serial
+NK_MAKE_SPARSE_DOT(serial, u16, bf16, f32, nk_bf16_to_f32_serial)   // nk_sparse_dot_u16bf16_serial
+NK_MAKE_SPARSE_DOT(serial, u32, f32, f32, nk_assign_from_to_)       // nk_sparse_dot_u32f32_serial
+NK_MAKE_SPARSE_DOT(accurate, u16, bf16, f64, nk_bf16_to_f64_serial) // nk_sparse_dot_u16bf16_accurate
+NK_MAKE_SPARSE_DOT(accurate, u32, f32, f64, nk_assign_from_to_)     // nk_sparse_dot_u32f32_accurate
 
 /*  The AVX-512 implementations are inspired by the "Faster-Than-Native Alternatives
  *  for x86 VP2INTERSECT Instructions" paper by Guille Diez-Canas, 2022.

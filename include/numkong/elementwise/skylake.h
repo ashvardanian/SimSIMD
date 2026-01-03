@@ -15,6 +15,7 @@
 #pragma clang attribute push(__attribute__((target("avx2,avx512f,avx512vl,avx512bw,bmi2"))), apply_to = function)
 
 #include "numkong/types.h"
+#include "numkong/cast/skylake.h" // nk_e4m3x16_to_f32x16_skylake_
 
 #if defined(__cplusplus)
 extern "C" {
@@ -986,6 +987,248 @@ nk_fma_u64_skylake_cycle:
     _mm512_mask_storeu_epi64(result, mask, result_u64x8);
     result += 8;
     if (n) goto nk_fma_u64_skylake_cycle;
+}
+
+NK_PUBLIC void nk_sum_e4m3_skylake(nk_e4m3_t const *a, nk_e4m3_t const *b, nk_size_t n, nk_e4m3_t *result) {
+    __m128i a_e4m3x16, b_e4m3x16, result_e4m3x16;
+    __m512 a_f32x16, b_f32x16, result_f32x16;
+    __mmask16 mask = 0xFFFF;
+nk_sum_e4m3_skylake_cycle:
+    if (n < 16) {
+        mask = (__mmask16)_bzhi_u32(0xFFFF, (unsigned int)n);
+        a_e4m3x16 = _mm_maskz_loadu_epi8(mask, a);
+        b_e4m3x16 = _mm_maskz_loadu_epi8(mask, b);
+        n = 0;
+    }
+    else {
+        a_e4m3x16 = _mm_loadu_si128((__m128i const *)a);
+        b_e4m3x16 = _mm_loadu_si128((__m128i const *)b);
+        a += 16, b += 16, n -= 16;
+    }
+    a_f32x16 = nk_e4m3x16_to_f32x16_skylake_(a_e4m3x16);
+    b_f32x16 = nk_e4m3x16_to_f32x16_skylake_(b_e4m3x16);
+    result_f32x16 = _mm512_add_ps(a_f32x16, b_f32x16);
+    result_e4m3x16 = nk_f32x16_to_e4m3x16_skylake_(result_f32x16);
+    _mm_mask_storeu_epi8(result, mask, result_e4m3x16);
+    result += 16;
+    if (n) goto nk_sum_e4m3_skylake_cycle;
+}
+
+NK_PUBLIC void nk_sum_e5m2_skylake(nk_e5m2_t const *a, nk_e5m2_t const *b, nk_size_t n, nk_e5m2_t *result) {
+    __m128i a_e5m2x16, b_e5m2x16, result_e5m2x16;
+    __m512 a_f32x16, b_f32x16, result_f32x16;
+    __mmask16 mask = 0xFFFF;
+nk_sum_e5m2_skylake_cycle:
+    if (n < 16) {
+        mask = (__mmask16)_bzhi_u32(0xFFFF, (unsigned int)n);
+        a_e5m2x16 = _mm_maskz_loadu_epi8(mask, a);
+        b_e5m2x16 = _mm_maskz_loadu_epi8(mask, b);
+        n = 0;
+    }
+    else {
+        a_e5m2x16 = _mm_loadu_si128((__m128i const *)a);
+        b_e5m2x16 = _mm_loadu_si128((__m128i const *)b);
+        a += 16, b += 16, n -= 16;
+    }
+    a_f32x16 = nk_e5m2x16_to_f32x16_skylake_(a_e5m2x16);
+    b_f32x16 = nk_e5m2x16_to_f32x16_skylake_(b_e5m2x16);
+    result_f32x16 = _mm512_add_ps(a_f32x16, b_f32x16);
+    result_e5m2x16 = nk_f32x16_to_e5m2x16_skylake_(result_f32x16);
+    _mm_mask_storeu_epi8(result, mask, result_e5m2x16);
+    result += 16;
+    if (n) goto nk_sum_e5m2_skylake_cycle;
+}
+
+NK_PUBLIC void nk_scale_e4m3_skylake(nk_e4m3_t const *a, nk_size_t n, nk_f32_t const *alpha, nk_f32_t const *beta,
+                                     nk_e4m3_t *result) {
+    __m512 alpha_f32x16 = _mm512_set1_ps(*alpha);
+    __m512 beta_f32x16 = _mm512_set1_ps(*beta);
+    __m128i a_e4m3x16, result_e4m3x16;
+    __m512 a_f32x16, result_f32x16;
+    __mmask16 mask = 0xFFFF;
+nk_scale_e4m3_skylake_cycle:
+    if (n < 16) {
+        mask = (__mmask16)_bzhi_u32(0xFFFF, (unsigned int)n);
+        a_e4m3x16 = _mm_maskz_loadu_epi8(mask, a);
+        n = 0;
+    }
+    else {
+        a_e4m3x16 = _mm_loadu_si128((__m128i const *)a);
+        a += 16, n -= 16;
+    }
+    a_f32x16 = nk_e4m3x16_to_f32x16_skylake_(a_e4m3x16);
+    // FP8 rounding note: FMA is acceptable here because scale computes (a * alpha + beta),
+    // a single multiply-add operation where single-rounding preserves accuracy.
+    result_f32x16 = _mm512_fmadd_ps(a_f32x16, alpha_f32x16, beta_f32x16);
+    result_e4m3x16 = nk_f32x16_to_e4m3x16_skylake_(result_f32x16);
+    _mm_mask_storeu_epi8(result, mask, result_e4m3x16);
+    result += 16;
+    if (n) goto nk_scale_e4m3_skylake_cycle;
+}
+
+NK_PUBLIC void nk_scale_e5m2_skylake(nk_e5m2_t const *a, nk_size_t n, nk_f32_t const *alpha, nk_f32_t const *beta,
+                                     nk_e5m2_t *result) {
+    __m512 alpha_f32x16 = _mm512_set1_ps(*alpha);
+    __m512 beta_f32x16 = _mm512_set1_ps(*beta);
+    __m128i a_e5m2x16, result_e5m2x16;
+    __m512 a_f32x16, result_f32x16;
+    __mmask16 mask = 0xFFFF;
+nk_scale_e5m2_skylake_cycle:
+    if (n < 16) {
+        mask = (__mmask16)_bzhi_u32(0xFFFF, (unsigned int)n);
+        a_e5m2x16 = _mm_maskz_loadu_epi8(mask, a);
+        n = 0;
+    }
+    else {
+        a_e5m2x16 = _mm_loadu_si128((__m128i const *)a);
+        a += 16, n -= 16;
+    }
+    a_f32x16 = nk_e5m2x16_to_f32x16_skylake_(a_e5m2x16);
+    // FP8 rounding note: FMA is acceptable here because scale computes (a * alpha + beta),
+    // a single multiply-add operation where single-rounding preserves accuracy.
+    result_f32x16 = _mm512_fmadd_ps(a_f32x16, alpha_f32x16, beta_f32x16);
+    result_e5m2x16 = nk_f32x16_to_e5m2x16_skylake_(result_f32x16);
+    _mm_mask_storeu_epi8(result, mask, result_e5m2x16);
+    result += 16;
+    if (n) goto nk_scale_e5m2_skylake_cycle;
+}
+
+NK_PUBLIC void nk_wsum_e4m3_skylake(nk_e4m3_t const *a, nk_e4m3_t const *b, nk_size_t n, nk_f32_t const *alpha,
+                                    nk_f32_t const *beta, nk_e4m3_t *result) {
+    __m512 alpha_f32x16 = _mm512_set1_ps(*alpha);
+    __m512 beta_f32x16 = _mm512_set1_ps(*beta);
+    __m128i a_e4m3x16, b_e4m3x16, result_e4m3x16;
+    __m512 a_f32x16, b_f32x16, a_scaled_f32x16, b_scaled_f32x16, result_f32x16;
+    __mmask16 mask = 0xFFFF;
+nk_wsum_e4m3_skylake_cycle:
+    if (n < 16) {
+        mask = (__mmask16)_bzhi_u32(0xFFFF, (unsigned int)n);
+        a_e4m3x16 = _mm_maskz_loadu_epi8(mask, a);
+        b_e4m3x16 = _mm_maskz_loadu_epi8(mask, b);
+        n = 0;
+    }
+    else {
+        a_e4m3x16 = _mm_loadu_si128((__m128i const *)a);
+        b_e4m3x16 = _mm_loadu_si128((__m128i const *)b);
+        a += 16, b += 16, n -= 16;
+    }
+    a_f32x16 = nk_e4m3x16_to_f32x16_skylake_(a_e4m3x16);
+    b_f32x16 = nk_e4m3x16_to_f32x16_skylake_(b_e4m3x16);
+    // FP8 rounding note: Using separate multiply and add operations ensures intermediate
+    // rounding matches scalar reference. FMA would produce different results near FP8
+    // representable boundaries due to single-rounding vs double-rounding behavior.
+    a_scaled_f32x16 = _mm512_mul_ps(a_f32x16, alpha_f32x16);
+    b_scaled_f32x16 = _mm512_mul_ps(b_f32x16, beta_f32x16);
+    result_f32x16 = _mm512_add_ps(a_scaled_f32x16, b_scaled_f32x16);
+    result_e4m3x16 = nk_f32x16_to_e4m3x16_skylake_(result_f32x16);
+    _mm_mask_storeu_epi8(result, mask, result_e4m3x16);
+    result += 16;
+    if (n) goto nk_wsum_e4m3_skylake_cycle;
+}
+
+NK_PUBLIC void nk_wsum_e5m2_skylake(nk_e5m2_t const *a, nk_e5m2_t const *b, nk_size_t n, nk_f32_t const *alpha,
+                                    nk_f32_t const *beta, nk_e5m2_t *result) {
+    __m512 alpha_f32x16 = _mm512_set1_ps(*alpha);
+    __m512 beta_f32x16 = _mm512_set1_ps(*beta);
+    __m128i a_e5m2x16, b_e5m2x16, result_e5m2x16;
+    __m512 a_f32x16, b_f32x16, a_scaled_f32x16, b_scaled_f32x16, result_f32x16;
+    __mmask16 mask = 0xFFFF;
+nk_wsum_e5m2_skylake_cycle:
+    if (n < 16) {
+        mask = (__mmask16)_bzhi_u32(0xFFFF, (unsigned int)n);
+        a_e5m2x16 = _mm_maskz_loadu_epi8(mask, a);
+        b_e5m2x16 = _mm_maskz_loadu_epi8(mask, b);
+        n = 0;
+    }
+    else {
+        a_e5m2x16 = _mm_loadu_si128((__m128i const *)a);
+        b_e5m2x16 = _mm_loadu_si128((__m128i const *)b);
+        a += 16, b += 16, n -= 16;
+    }
+    a_f32x16 = nk_e5m2x16_to_f32x16_skylake_(a_e5m2x16);
+    b_f32x16 = nk_e5m2x16_to_f32x16_skylake_(b_e5m2x16);
+    // FP8 rounding note: Using separate multiply and add operations ensures intermediate
+    // rounding matches scalar reference. FMA would produce different results near FP8
+    // representable boundaries due to single-rounding vs double-rounding behavior.
+    a_scaled_f32x16 = _mm512_mul_ps(a_f32x16, alpha_f32x16);
+    b_scaled_f32x16 = _mm512_mul_ps(b_f32x16, beta_f32x16);
+    result_f32x16 = _mm512_add_ps(a_scaled_f32x16, b_scaled_f32x16);
+    result_e5m2x16 = nk_f32x16_to_e5m2x16_skylake_(result_f32x16);
+    _mm_mask_storeu_epi8(result, mask, result_e5m2x16);
+    result += 16;
+    if (n) goto nk_wsum_e5m2_skylake_cycle;
+}
+
+NK_PUBLIC void nk_fma_e4m3_skylake(nk_e4m3_t const *a, nk_e4m3_t const *b, nk_e4m3_t const *c, nk_size_t n,
+                                   nk_f32_t const *alpha, nk_f32_t const *beta, nk_e4m3_t *result) {
+    __m512 alpha_f32x16 = _mm512_set1_ps(*alpha);
+    __m512 beta_f32x16 = _mm512_set1_ps(*beta);
+    __m128i a_e4m3x16, b_e4m3x16, c_e4m3x16, result_e4m3x16;
+    __m512 a_f32x16, b_f32x16, c_f32x16, ab_f32x16, ab_scaled_f32x16, result_f32x16;
+    __mmask16 mask = 0xFFFF;
+nk_fma_e4m3_skylake_cycle:
+    if (n < 16) {
+        mask = (__mmask16)_bzhi_u32(0xFFFF, (unsigned int)n);
+        a_e4m3x16 = _mm_maskz_loadu_epi8(mask, a);
+        b_e4m3x16 = _mm_maskz_loadu_epi8(mask, b);
+        c_e4m3x16 = _mm_maskz_loadu_epi8(mask, c);
+        n = 0;
+    }
+    else {
+        a_e4m3x16 = _mm_loadu_si128((__m128i const *)a);
+        b_e4m3x16 = _mm_loadu_si128((__m128i const *)b);
+        c_e4m3x16 = _mm_loadu_si128((__m128i const *)c);
+        a += 16, b += 16, c += 16, n -= 16;
+    }
+    a_f32x16 = nk_e4m3x16_to_f32x16_skylake_(a_e4m3x16);
+    b_f32x16 = nk_e4m3x16_to_f32x16_skylake_(b_e4m3x16);
+    c_f32x16 = nk_e4m3x16_to_f32x16_skylake_(c_e4m3x16);
+    // FP8 rounding note: Hybrid approach - use separate MUL for (a*b) and (a*b*alpha) to
+    // preserve intermediate rounding, then FMA for final addition since it matches scalar
+    // semantics of (alpha*a*b + beta*c) when the multiply term is already computed.
+    ab_f32x16 = _mm512_mul_ps(a_f32x16, b_f32x16);
+    ab_scaled_f32x16 = _mm512_mul_ps(ab_f32x16, alpha_f32x16);
+    result_f32x16 = _mm512_fmadd_ps(c_f32x16, beta_f32x16, ab_scaled_f32x16);
+    result_e4m3x16 = nk_f32x16_to_e4m3x16_skylake_(result_f32x16);
+    _mm_mask_storeu_epi8(result, mask, result_e4m3x16);
+    result += 16;
+    if (n) goto nk_fma_e4m3_skylake_cycle;
+}
+
+NK_PUBLIC void nk_fma_e5m2_skylake(nk_e5m2_t const *a, nk_e5m2_t const *b, nk_e5m2_t const *c, nk_size_t n,
+                                   nk_f32_t const *alpha, nk_f32_t const *beta, nk_e5m2_t *result) {
+    __m512 alpha_f32x16 = _mm512_set1_ps(*alpha);
+    __m512 beta_f32x16 = _mm512_set1_ps(*beta);
+    __m128i a_e5m2x16, b_e5m2x16, c_e5m2x16, result_e5m2x16;
+    __m512 a_f32x16, b_f32x16, c_f32x16, ab_f32x16, ab_scaled_f32x16, result_f32x16;
+    __mmask16 mask = 0xFFFF;
+nk_fma_e5m2_skylake_cycle:
+    if (n < 16) {
+        mask = (__mmask16)_bzhi_u32(0xFFFF, (unsigned int)n);
+        a_e5m2x16 = _mm_maskz_loadu_epi8(mask, a);
+        b_e5m2x16 = _mm_maskz_loadu_epi8(mask, b);
+        c_e5m2x16 = _mm_maskz_loadu_epi8(mask, c);
+        n = 0;
+    }
+    else {
+        a_e5m2x16 = _mm_loadu_si128((__m128i const *)a);
+        b_e5m2x16 = _mm_loadu_si128((__m128i const *)b);
+        c_e5m2x16 = _mm_loadu_si128((__m128i const *)c);
+        a += 16, b += 16, c += 16, n -= 16;
+    }
+    a_f32x16 = nk_e5m2x16_to_f32x16_skylake_(a_e5m2x16);
+    b_f32x16 = nk_e5m2x16_to_f32x16_skylake_(b_e5m2x16);
+    c_f32x16 = nk_e5m2x16_to_f32x16_skylake_(c_e5m2x16);
+    // FP8 rounding note: Hybrid approach - use separate MUL for (a*b) and (a*b*alpha) to
+    // preserve intermediate rounding, then FMA for final addition since it matches scalar
+    // semantics of (alpha*a*b + beta*c) when the multiply term is already computed.
+    ab_f32x16 = _mm512_mul_ps(a_f32x16, b_f32x16);
+    ab_scaled_f32x16 = _mm512_mul_ps(ab_f32x16, alpha_f32x16);
+    result_f32x16 = _mm512_fmadd_ps(c_f32x16, beta_f32x16, ab_scaled_f32x16);
+    result_e5m2x16 = nk_f32x16_to_e5m2x16_skylake_(result_f32x16);
+    _mm_mask_storeu_epi8(result, mask, result_e5m2x16);
+    result += 16;
+    if (n) goto nk_fma_e5m2_skylake_cycle;
 }
 
 #if defined(__cplusplus)

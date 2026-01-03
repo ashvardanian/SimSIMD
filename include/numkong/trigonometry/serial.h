@@ -543,27 +543,27 @@ NK_PUBLIC void nk_atan_f64_serial(nk_f64_t const *ins, nk_size_t n, nk_f64_t *ou
 NK_PUBLIC void nk_sin_f16_serial(nk_f16_t const *ins, nk_size_t n, nk_f16_t *outs) {
     for (nk_size_t i = 0; i != n; ++i) {
         nk_f32_t angle_f32;
-        nk_f16_to_f32_(&ins[i], &angle_f32);
+        nk_f16_to_f32_serial(&ins[i], &angle_f32);
         nk_f32_t const result_f32 = nk_f32_sin(angle_f32);
-        nk_f32_to_f16_(&result_f32, &outs[i]);
+        nk_f32_to_f16_serial(&result_f32, &outs[i]);
     }
 }
 
 NK_PUBLIC void nk_cos_f16_serial(nk_f16_t const *ins, nk_size_t n, nk_f16_t *outs) {
     for (nk_size_t i = 0; i != n; ++i) {
         nk_f32_t angle_f32;
-        nk_f16_to_f32_(&ins[i], &angle_f32);
+        nk_f16_to_f32_serial(&ins[i], &angle_f32);
         nk_f32_t const result_f32 = nk_f32_cos(angle_f32);
-        nk_f32_to_f16_(&result_f32, &outs[i]);
+        nk_f32_to_f16_serial(&result_f32, &outs[i]);
     }
 }
 
 NK_PUBLIC void nk_atan_f16_serial(nk_f16_t const *ins, nk_size_t n, nk_f16_t *outs) {
     for (nk_size_t i = 0; i != n; ++i) {
         nk_f32_t value_f32;
-        nk_f16_to_f32_(&ins[i], &value_f32);
+        nk_f16_to_f32_serial(&ins[i], &value_f32);
         nk_f32_t const result_f32 = nk_f32_atan(value_f32);
-        nk_f32_to_f16_(&result_f32, &outs[i]);
+        nk_f32_to_f16_serial(&result_f32, &outs[i]);
     }
 }
 
