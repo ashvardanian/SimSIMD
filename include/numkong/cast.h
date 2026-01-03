@@ -1,0 +1,146 @@
+/**
+ *  @brief SIMD-accelerated type-casting operations.
+ *  @file include/numkong/cast.h
+ *  @author Ash Vardanian
+ *  @date January 2, 2026
+ *
+ *  This file focuses on numeric types not uniformly supported across platforms, prioritizing:
+ *
+ *  - `e5m2` & `e4m3` ↔ `f16` & `bf16` - used for low-precision dot-products on modern CPUs,
+ *  - `e5m2` & `e4m3` ↔ `f32` - used for low-precision dot-products on older CPUs,
+ *  - `f16` & `bf16` ↔ `f32` - often used for half-precision dot-products on older CPUs,
+ *
+ *  Unlike most operation classes in NumKong, these are dependent on two input types: "from" & "to".
+ *  It contains scalar helpers named like `nk_f16_to_f32_serial_` as well as buffer-to-buffer
+ *  `memcpy`-like vectorized operations, such as `nk_cast_f16_to_f32` with `nk_cast_f16_to_f32_serial`,
+ *  `nk_cast_f16_to_f32_neon`, `nk_cast_f16_to_f32_skylake`, and other platform-specific variants.
+ *
+ *  It also includes "partial load" and "partial store" type-punned helper functions for handling
+ *  IO between memory and registers, that are extensively reused in reductions, elementwise ops, and
+ *  dot-products.
+ *
+ *  Assuming the overal breadth and sparsity of our type system, its clear, that not all type conversions
+ *  have equivalent relevance. With ~16 numeric types we'd be looking at 16x16=256 conversions for:
+ *
+ *      e4m3    e5m2    bf16    f16     f32     f64
+ *                      bf16c   f16c    f32c    f64c
+ *      i4x2    i8              i16     i32     i64
+ *      b1x8    u8              u16     u32     u64
+ *
+ *  To simplify the design and make it more broadly applicable in AI workloads, we implement a slower
+ *  @b "hub-and-spoke" design to guiding most conversions through an intermediate type, like `f64` or `i64`.
+ *
+ */
+#ifndef NK_CAST_H
+#define NK_CAST_H
+
+#include "numkong/types.h"
+
+#if defined(__cplusplus)
+extern "C" {
+#endif
+
+/**
+ *  @brief Elementwise type-casting for arrays of entries.
+ *
+ *  @param[in] from The immutable input source array containing `n` elements of `from_type` type.
+ *  @param[in] from_type The type of elements in the immutable source array.
+ *  @param[in] n The number of elements in both input and output arrays.
+ *  @param[in] to The mutable output array containing `n` elements of `to_type` type.
+ *  @param[in] to_type The type of elements in the mutable target array.
+ */
+NK_DYNAMIC void nk_cast(void const *from, nk_datatype_t from_type, nk_size_t n, void *to, nk_datatype_t to_type);
+
+/** @copydoc nk_cast */
+NK_PUBLIC void nk_cast_serial(void const *from, nk_datatype_t from_type, nk_size_t n, void *to, nk_datatype_t to_type);
+
+#if NK_TARGET_NEON
+/** @copydoc nk_cast */
+NK_PUBLIC void nk_cast_neon(void const *from, nk_datatype_t from_type, nk_size_t n, void *to, nk_datatype_t to_type);
+#endif // NK_TARGET_NEON
+
+#if NK_TARGET_HASWELL
+/** @copydoc nk_cast */
+NK_PUBLIC void nk_cast_haswell(void const *from, nk_datatype_t from_type, nk_size_t n, void *to, nk_datatype_t to_type);
+#endif // NK_TARGET_HASWELL
+
+#if NK_TARGET_SKYLAKE
+/** @copydoc nk_cast */
+NK_PUBLIC void nk_cast_skylake(void const *from, nk_datatype_t from_type, nk_size_t n, void *to, nk_datatype_t to_type);
+#endif // NK_TARGET_SKYLAKE
+
+#if NK_TARGET_ICE
+/** @copydoc nk_cast */
+NK_PUBLIC void nk_cast_ice(void const *from, nk_datatype_t from_type, nk_size_t n, void *to, nk_datatype_t to_type);
+#endif // NK_TARGET_ICE
+
+#if NK_TARGET_SAPPHIRE
+/** @copydoc nk_cast */
+NK_PUBLIC void nk_cast_sapphire(void const *from, nk_datatype_t from_type, nk_size_t n, void *to,
+                                nk_datatype_t to_type);
+#endif // NK_TARGET_SAPPHIRE
+
+#include "numkong/cast/serial.h"
+#include "numkong/cast/neon.h"
+#include "numkong/cast/haswell.h"
+#include "numkong/cast/skylake.h"
+#include "numkong/cast/ice.h"
+#include "numkong/cast/sapphire.h"
+
+#if !NK_DYNAMIC_DISPATCH
+
+NK_PUBLIC void nk_cast(void const *from, nk_datatype_t from_type, nk_size_t n, void *to, nk_datatype_t to_type) {
+#if NK_TARGET_SAPPHIRE
+    nk_cast_sapphire(from, from_type, n, to, to_type);
+#elif NK_TARGET_ICE
+    nk_cast_ice(from, from_type, n, to, to_type);
+#elif NK_TARGET_SKYLAKE
+    nk_cast_skylake(from, from_type, n, to, to_type);
+#elif NK_TARGET_HASWELL
+    nk_cast_haswell(from, from_type, n, to, to_type);
+#elif NK_TARGET_NEON
+    nk_cast_neon(from, from_type, n, to, to_type);
+#else
+    nk_cast_serial(from, from_type, n, to, to_type);
+#endif
+}
+
+NK_PUBLIC void nk_f16_to_f32(nk_f16_t const *src, nk_f32_t *dest) {
+#if NK_TARGET_SAPPHIRE
+    nk_f16_to_f32_sapphire(src, dest);
+#elif NK_TARGET_HASWELL
+    nk_f16_to_f32_haswell(src, dest);
+#elif NK_TARGET_NEON
+    nk_f16_to_f32_neon(src, dest);
+#else
+    nk_f16_to_f32_serial(src, dest);
+#endif
+}
+
+NK_PUBLIC void nk_bf16_to_f32(nk_bf16_t const *src, nk_f32_t *dest) { nk_bf16_to_f32_serial(src, dest); }
+NK_PUBLIC void nk_e4m3_to_f32(nk_e4m3_t const *src, nk_f32_t *dest) { nk_e4m3_to_f32_serial(src, dest); }
+NK_PUBLIC void nk_e5m2_to_f32(nk_e5m2_t const *src, nk_f32_t *dest) { nk_e5m2_to_f32_serial(src, dest); }
+
+NK_PUBLIC void nk_f32_to_f16(nk_f32_t const *src, nk_f16_t *dest) {
+#if NK_TARGET_SAPPHIRE
+    nk_f32_to_f16_sapphire(src, dest);
+#elif NK_TARGET_HASWELL
+    nk_f32_to_f16_haswell(src, dest);
+#elif NK_TARGET_NEON
+    nk_f32_to_f16_neon(src, dest);
+#else
+    nk_f32_to_f16_serial(src, dest);
+#endif
+}
+
+NK_PUBLIC void nk_f32_to_bf16(nk_f32_t const *src, nk_bf16_t *dest) { nk_f32_to_bf16_serial(src, dest); }
+NK_PUBLIC void nk_f32_to_e4m3(nk_f32_t const *src, nk_e4m3_t *dest) { nk_f32_to_e4m3_serial(src, dest); }
+NK_PUBLIC void nk_f32_to_e5m2(nk_f32_t const *src, nk_e5m2_t *dest) { nk_f32_to_e5m2_serial(src, dest); }
+
+#endif // !NK_DYNAMIC_DISPATCH
+
+#if defined(__cplusplus)
+}
+#endif
+
+#endif // NK_CAST_H

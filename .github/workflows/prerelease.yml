@@ -36,11 +36,11 @@ jobs:
             package.json:"version": "(\d+\.\d+\.\d+)"
             CMakeLists.txt:VERSION (\d+\.\d+\.\d+)
           update-major-version-in: |
-            include/simsimd/simsimd.h:^#define SIMSIMD_VERSION_MAJOR (\d+)
+            include/numkong/numkong.h:^#define NK_VERSION_MAJOR (\d+)
           update-minor-version-in: |
-            include/simsimd/simsimd.h:^#define SIMSIMD_VERSION_MINOR (\d+)
+            include/numkong/numkong.h:^#define NK_VERSION_MINOR (\d+)
           update-patch-version-in: |
-            include/simsimd/simsimd.h:^#define SIMSIMD_VERSION_PATCH (\d+)
+            include/numkong/numkong.h:^#define NK_VERSION_PATCH (\d+)
           dry-run: "true"
 
   test_c:
@@ -57,11 +57,11 @@ jobs:
 
       - name: Build locally
         run: |
-          cmake -D CMAKE_BUILD_TYPE=Release -D SIMSIMD_BUILD_TESTS=1 -D SIMSIMD_BUILD_BENCHMARKS=1 -D SIMSIMD_BUILD_BENCHMARKS_WITH_CBLAS=1 -B build_release
+          cmake -D CMAKE_BUILD_TYPE=Release -D NK_BUILD_TESTS=1 -D NK_BUILD_BENCHMARKS=1 -D NK_BUILD_BENCHMARKS_WITH_CBLAS=1 -B build_release
           cmake --build build_release --config Release
 
       - name: Test
-        run: build_release/simsimd_test_run_time
+        run: build_release/nk_test_run_time
 
   test_python:
     name: Test Python ${{ matrix.python-version }} on ${{ matrix.architecture }} ${{ matrix.os }}
@@ -103,7 +103,7 @@ jobs:
 
       - name: Test with PyTest
         run: |
-          python -c "import simsimd; print(simsimd.get_capabilities())"
+          python -c "import numkong; print(numkong.get_capabilities())"
           pytest scripts/test.py -s -x -Wd -v
 
   test_nodejs:

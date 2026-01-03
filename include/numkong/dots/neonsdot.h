@@ -1,0 +1,50 @@
+/**
+ *  @brief SIMD-accelerated Dot Products for Real and Complex Numbers optimized for Arm NEON-capable CPUs.
+ *  @file include/numkong/dots/neonsdot.h
+ *  @sa include/numkong/dots.h
+ *  @author Ash Vardanian
+ *  @date December 27, 2025
+ */
+#ifndef NK_DOTS_NEONSDOT_H
+#define NK_DOTS_NEONSDOT_H
+
+#if NK_TARGET_ARM_
+#if NK_TARGET_NEONSDOT
+#pragma GCC push_options
+#pragma GCC target("arch=armv8.2-a+dotprod")
+#pragma clang attribute push(__attribute__((target("arch=armv8.2-a+dotprod"))), apply_to = function)
+
+#include "numkong/types.h"
+
+#if defined(__cplusplus)
+extern "C" {
+#endif
+
+// I8 GEMM: simd_width=16 (16 i8s = 16 bytes = NEON register width)
+nk_make_dots_pack_size_(neonsdot, i8, i32)
+nk_make_dots_pack_(neonsdot, i8, i32)
+nk_make_dots_inner_vectors_(i8i8i32_neonsdot, i8, i32, nk_b128_vec_t, nk_dot_i8x16_state_neonsdot_t, nk_b128_vec_t,
+                            nk_dot_i8x16_init_neonsdot, nk_load_b128_neon_, nk_partial_load_b8x16_serial_,
+                            nk_dot_i8x16_update_neonsdot, nk_dot_i8x16_finalize_neonsdot,
+                            nk_partial_store_b32x4_serial_,
+                            /*k_tile=*/16)
+
+// U8 GEMM: simd_width=16 (16 u8s = 16 bytes = NEON register width)
+nk_make_dots_pack_size_(neonsdot, u8, u32)
+nk_make_dots_pack_(neonsdot, u8, u32)
+nk_make_dots_inner_vectors_(u8u8u32_neonsdot, u8, u32, nk_b128_vec_t, nk_dot_u8x16_state_neonsdot_t, nk_b128_vec_t,
+                            nk_dot_u8x16_init_neonsdot, nk_load_b128_neon_, nk_partial_load_b8x16_serial_,
+                            nk_dot_u8x16_update_neonsdot, nk_dot_u8x16_finalize_neonsdot,
+                            nk_partial_store_b32x4_serial_,
+                            /*k_tile=*/16)
+
+#if defined(__cplusplus)
+} // extern "C"
+#endif
+
+#pragma clang attribute pop
+#pragma GCC pop_options
+#endif // NK_TARGET_NEONSDOT
+#endif // NK_TARGET_ARM_
+
+#endif // NK_DOTS_NEONSDOT_H

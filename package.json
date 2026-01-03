@@ -1,8 +1,8 @@
 {
-  "name": "simsimd",
+  "name": "numkong",
   "version": "6.5.12",
   "description": "Portable mixed-precision BLAS-like vector math library for x86 and ARM",
-  "homepage": "https://github.com/ashvardanian/simsimd",
+  "homepage": "https://github.com/ashvardanian/numkong",
   "author": "Ash Vardanian",
   "license": "Apache 2.0",
   "keywords": [
@@ -30,12 +30,12 @@
     "test": "node --test ./scripts/test.mjs",
     "bench": "node ./scripts/bench.js"
   },
-  "main": "javascript/dist/cjs/simsimd.js",
-  "module": "javascript/dist/esm/simsimd.js",
+  "main": "javascript/dist/cjs/numkong.js",
+  "module": "javascript/dist/esm/numkong.js",
   "exports": {
     ".": {
-      "import": "./javascript/dist/esm/simsimd.js",
-      "require": "./javascript/dist/cjs/simsimd.js"
+      "import": "./javascript/dist/esm/numkong.js",
+      "require": "./javascript/dist/cjs/numkong.js"
     }
   },
   "engines": {

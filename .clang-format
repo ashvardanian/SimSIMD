@@ -17,7 +17,7 @@ AllowAllArgumentsOnNextLine: false
 AllowAllConstructorInitializersOnNextLine: true
 AllowAllParametersOfDeclarationOnNextLine: true
 AllowShortBlocksOnASingleLine: Always
-AllowShortIfStatementsOnASingleLine: Always
+AllowShortIfStatementsOnASingleLine: AllIfsAndElse
 AllowShortCaseLabelsOnASingleLine: true
 AllowShortFunctionsOnASingleLine: true
 AllowShortLambdasOnASingleLine: true
@@ -27,6 +27,7 @@ AlwaysBreakAfterReturnType: None
 PenaltyReturnTypeOnItsOwnLine: 200
 
 BreakBeforeBraces: Custom
+BreakAdjacentStringLiterals: false
 BraceWrapping:
   AfterCaseLabel: false
   AfterClass: false
@@ -44,7 +45,7 @@ BraceWrapping:
   SplitEmptyNamespace: false
   IndentBraces: false
 
-SortIncludes: true
+SortIncludes: false
 SortUsingDeclarations: true
 
 SpaceAfterCStyleCast: false
@@ -66,4 +67,54 @@ SpacesInSquareBrackets: false
 
 BinPackArguments: true
 BinPackParameters: true
+BinPackLongBracedList: true
 PenaltyBreakBeforeFirstCallParameter: 1
+
+# Macros treated as attributes (Python C API + NumKong visibility)
+AttributeMacros:
+  - PyObject_HEAD
+  - PyObject_VAR_HEAD
+  - NK_PUBLIC
+  - NK_INTERNAL
+  - NK_DYNAMIC
+StatementMacros:
+  - nk_make_dots_pack_size_
+  - nk_make_dots_pack_
+  - nk_make_dots_vectors_
+  - nk_make_dots_inner_vectors_
+  - nk_make_dots_outer_scalars_
+  - nk_make_dots_inner_4x4_vectors_aligned_
+  - nk_make_dots_inner_1x8_vectors_aligned_
+  - nk_declare_dense_
+  - nk_declare_sparse_
+  - nk_declare_sparse_dot_
+  - nk_declare_curved_
+  - nk_declare_geospatial_
+  - nk_declare_fma_
+  - nk_declare_wsum_
+  - nk_declare_scale_
+  - nk_declare_sum_
+  - nk_declare_trigonometry_
+  - nk_declare_mesh_
+  - nk_declare_reduce_add_
+  - nk_declare_reduce_minmax_
+  - nk_declare_dots_packed_size_
+  - nk_declare_dots_pack_
+  - nk_declare_dots_
+
+# Align consecutive macro definitions (useful for NK_TARGET_* flags)
+AlignConsecutiveMacros:
+  Enabled: true
+  AcrossEmptyLines: false
+  AcrossComments: false
+
+# Preprocessor directive indentation: None (flat), AfterHash (#  if), BeforeHash (  #if)
+IndentPPDirectives: None
+
+# Keep pointer alignment consistent: nk_f32_t const *a
+PointerAlignment: Right
+DerivePointerAlignment: false
+
+# Preserve user line breaks in intrinsic-heavy code
+BreakBeforeBinaryOperators: None
+PenaltyBreakAssignment: 50

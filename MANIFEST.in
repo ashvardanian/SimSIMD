@@ -1,4 +1,4 @@
-include include/simsimd/*.h
+include include/numkong/*.h
 include include/*
 include scripts/test.py
 include VERSION
