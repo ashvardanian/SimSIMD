@@ -887,8 +887,8 @@ NK_PUBLIC void nk_bilinear_f16_haswell(nk_f16_t const *a, nk_f16_t const *b, nk_
         __m256 a_f32x8 = _mm256_cvtph_ps(_mm_set1_epi16(*(short const *)(a + i)));
         __m256 cb_j_f32x8 = _mm256_setzero_ps();
         for (nk_size_t j = 0; j + 8 <= n; j += 8) {
-            __m256 b_f32x8 = _mm256_cvtph_ps(_mm_lddqu_si128((__m128i const *)(b + j)));
-            __m256 c_f32x8 = _mm256_cvtph_ps(_mm_lddqu_si128((__m128i const *)(c + i * n + j)));
+            __m256 b_f32x8 = _mm256_cvtph_ps(_mm_loadu_si128((__m128i const *)(b + j)));
+            __m256 c_f32x8 = _mm256_cvtph_ps(_mm_loadu_si128((__m128i const *)(c + i * n + j)));
             cb_j_f32x8 = _mm256_fmadd_ps(b_f32x8, c_f32x8, cb_j_f32x8);
         }
         sum_f32x8 = _mm256_fmadd_ps(a_f32x8, cb_j_f32x8, sum_f32x8);
@@ -921,9 +921,9 @@ NK_PUBLIC void nk_mahalanobis_f16_haswell(nk_f16_t const *a, nk_f16_t const *b, 
         __m256 cdiff_j_f32x8 = _mm256_setzero_ps();
         for (nk_size_t j = 0; j + 8 <= n; j += 8) {
             __m256 diff_j_f32x8 = _mm256_sub_ps( //
-                _mm256_cvtph_ps(_mm_lddqu_si128((__m128i const *)(a + j))),
-                _mm256_cvtph_ps(_mm_lddqu_si128((__m128i const *)(b + j))));
-            __m256 c_f32x8 = _mm256_cvtph_ps(_mm_lddqu_si128((__m128i const *)(c + i * n + j)));
+                _mm256_cvtph_ps(_mm_loadu_si128((__m128i const *)(a + j))),
+                _mm256_cvtph_ps(_mm_loadu_si128((__m128i const *)(b + j))));
+            __m256 c_f32x8 = _mm256_cvtph_ps(_mm_loadu_si128((__m128i const *)(c + i * n + j)));
             cdiff_j_f32x8 = _mm256_fmadd_ps(diff_j_f32x8, c_f32x8, cdiff_j_f32x8);
         }
         sum_f32x8 = _mm256_fmadd_ps(diff_i_f32x8, cdiff_j_f32x8, sum_f32x8);
@@ -960,8 +960,8 @@ NK_PUBLIC void nk_bilinear_bf16_haswell(nk_bf16_t const *a, nk_bf16_t const *b, 
         __m256 a_f32x8 = _mm256_set1_ps(a_f32);
         __m256 cb_j_f32x8 = _mm256_setzero_ps();
         for (nk_size_t j = 0; j + 8 <= n; j += 8) {
-            __m256 b_f32x8 = nk_bf16x8_to_f32x8_haswell_(_mm_lddqu_si128((__m128i const *)(b + j)));
-            __m256 c_f32x8 = nk_bf16x8_to_f32x8_haswell_(_mm_lddqu_si128((__m128i const *)(c + i * n + j)));
+            __m256 b_f32x8 = nk_bf16x8_to_f32x8_haswell_(_mm_loadu_si128((__m128i const *)(b + j)));
+            __m256 c_f32x8 = nk_bf16x8_to_f32x8_haswell_(_mm_loadu_si128((__m128i const *)(c + i * n + j)));
             cb_j_f32x8 = _mm256_fmadd_ps(b_f32x8, c_f32x8, cb_j_f32x8);
         }
         sum_f32x8 = _mm256_fmadd_ps(a_f32x8, cb_j_f32x8, sum_f32x8);
@@ -998,9 +998,9 @@ NK_PUBLIC void nk_mahalanobis_bf16_haswell(nk_bf16_t const *a, nk_bf16_t const *
         __m256 cdiff_j_f32x8 = _mm256_setzero_ps();
         for (nk_size_t j = 0; j + 8 <= n; j += 8) {
             __m256 diff_j_f32x8 = _mm256_sub_ps(                                        //
-                nk_bf16x8_to_f32x8_haswell_(_mm_lddqu_si128((__m128i const *)(a + j))), //
-                nk_bf16x8_to_f32x8_haswell_(_mm_lddqu_si128((__m128i const *)(b + j))));
-            __m256 c_f32x8 = nk_bf16x8_to_f32x8_haswell_(_mm_lddqu_si128((__m128i const *)(c + i * n + j)));
+                nk_bf16x8_to_f32x8_haswell_(_mm_loadu_si128((__m128i const *)(a + j))), //
+                nk_bf16x8_to_f32x8_haswell_(_mm_loadu_si128((__m128i const *)(b + j))));
+            __m256 c_f32x8 = nk_bf16x8_to_f32x8_haswell_(_mm_loadu_si128((__m128i const *)(c + i * n + j)));
             cdiff_j_f32x8 = _mm256_fmadd_ps(diff_j_f32x8, c_f32x8, cdiff_j_f32x8);
         }
         sum_f32x8 = _mm256_fmadd_ps(diff_i_f32x8, cdiff_j_f32x8, sum_f32x8);

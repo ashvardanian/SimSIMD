@@ -425,7 +425,7 @@ nk_scale_i8_skylake_cycle:
         n = 0;
     }
     else {
-        a_i8x16 = _mm_lddqu_si128((__m128i *)a);
+        a_i8x16 = _mm_loadu_si128((__m128i *)a);
         a += 16, n -= 16;
     }
     a_f32x16 = _mm512_cvtepi32_ps(_mm512_cvtepi8_epi32(a_i8x16));
@@ -462,9 +462,9 @@ nk_fma_i8_skylake_cycle:
         n = 0;
     }
     else {
-        a_i8x16 = _mm_lddqu_si128((__m128i *)a);
-        b_i8x16 = _mm_lddqu_si128((__m128i *)b);
-        c_i8x16 = _mm_lddqu_si128((__m128i *)c);
+        a_i8x16 = _mm_loadu_si128((__m128i *)a);
+        b_i8x16 = _mm_loadu_si128((__m128i *)b);
+        c_i8x16 = _mm_loadu_si128((__m128i *)c);
         a += 16, b += 16, c += 16, n -= 16;
     }
     a_f32x16 = _mm512_cvtepi32_ps(_mm512_cvtepi8_epi32(a_i8x16));
@@ -502,7 +502,7 @@ nk_scale_u8_skylake_cycle:
         n = 0;
     }
     else {
-        a_u8x16 = _mm_lddqu_si128((__m128i *)a);
+        a_u8x16 = _mm_loadu_si128((__m128i *)a);
         a += 16, n -= 16;
     }
     a_f32x16 = _mm512_cvtepi32_ps(_mm512_cvtepu8_epi32(a_u8x16));
@@ -539,9 +539,9 @@ nk_fma_u8_skylake_cycle:
         n = 0;
     }
     else {
-        a_u8x16 = _mm_lddqu_si128((__m128i *)a);
-        b_u8x16 = _mm_lddqu_si128((__m128i *)b);
-        c_u8x16 = _mm_lddqu_si128((__m128i *)c);
+        a_u8x16 = _mm_loadu_si128((__m128i *)a);
+        b_u8x16 = _mm_loadu_si128((__m128i *)b);
+        c_u8x16 = _mm_loadu_si128((__m128i *)c);
         a += 16, b += 16, c += 16, n -= 16;
     }
     a_f32x16 = _mm512_cvtepi32_ps(_mm512_cvtepu8_epi32(a_u8x16));
@@ -579,7 +579,7 @@ nk_scale_i16_skylake_cycle:
         n = 0;
     }
     else {
-        a_i16x16 = _mm256_lddqu_si256((__m256i *)a);
+        a_i16x16 = _mm256_loadu_si256((__m256i *)a);
         a += 16, n -= 16;
     }
     a_f32x16 = _mm512_cvtepi32_ps(_mm512_cvtepi16_epi32(a_i16x16));
@@ -616,9 +616,9 @@ nk_fma_i16_skylake_cycle:
         n = 0;
     }
     else {
-        a_i16x16 = _mm256_lddqu_si256((__m256i *)a);
-        b_i16x16 = _mm256_lddqu_si256((__m256i *)b);
-        c_i16x16 = _mm256_lddqu_si256((__m256i *)c);
+        a_i16x16 = _mm256_loadu_si256((__m256i *)a);
+        b_i16x16 = _mm256_loadu_si256((__m256i *)b);
+        c_i16x16 = _mm256_loadu_si256((__m256i *)c);
         a += 16, b += 16, c += 16, n -= 16;
     }
     a_f32x16 = _mm512_cvtepi32_ps(_mm512_cvtepi16_epi32(a_i16x16));
@@ -656,7 +656,7 @@ nk_scale_u16_skylake_cycle:
         n = 0;
     }
     else {
-        a_u16x16 = _mm256_lddqu_si256((__m256i *)a);
+        a_u16x16 = _mm256_loadu_si256((__m256i *)a);
         a += 16, n -= 16;
     }
     a_f32x16 = _mm512_cvtepi32_ps(_mm512_cvtepu16_epi32(a_u16x16));
@@ -693,9 +693,9 @@ nk_fma_u16_skylake_cycle:
         n = 0;
     }
     else {
-        a_u16x16 = _mm256_lddqu_si256((__m256i *)a);
-        b_u16x16 = _mm256_lddqu_si256((__m256i *)b);
-        c_u16x16 = _mm256_lddqu_si256((__m256i *)c);
+        a_u16x16 = _mm256_loadu_si256((__m256i *)a);
+        b_u16x16 = _mm256_loadu_si256((__m256i *)b);
+        c_u16x16 = _mm256_loadu_si256((__m256i *)c);
         a += 16, b += 16, c += 16, n -= 16;
     }
     a_f32x16 = _mm512_cvtepi32_ps(_mm512_cvtepu16_epi32(a_u16x16));
@@ -732,7 +732,7 @@ nk_scale_i32_skylake_cycle:
         n = 0;
     }
     else {
-        a_i32x8 = _mm256_lddqu_si256((__m256i *)a);
+        a_i32x8 = _mm256_loadu_si256((__m256i *)a);
         a += 8, n -= 8;
     }
     a_f64x8 = _mm512_cvtepi32_pd(a_i32x8);
@@ -767,9 +767,9 @@ nk_fma_i32_skylake_cycle:
         n = 0;
     }
     else {
-        a_i32x8 = _mm256_lddqu_si256((__m256i *)a);
-        b_i32x8 = _mm256_lddqu_si256((__m256i *)b);
-        c_i32x8 = _mm256_lddqu_si256((__m256i *)c);
+        a_i32x8 = _mm256_loadu_si256((__m256i *)a);
+        b_i32x8 = _mm256_loadu_si256((__m256i *)b);
+        c_i32x8 = _mm256_loadu_si256((__m256i *)c);
         a += 8, b += 8, c += 8, n -= 8;
     }
     a_f64x8 = _mm512_cvtepi32_pd(a_i32x8);
@@ -805,7 +805,7 @@ nk_scale_u32_skylake_cycle:
         n = 0;
     }
     else {
-        a_u32x8 = _mm256_lddqu_si256((__m256i *)a);
+        a_u32x8 = _mm256_loadu_si256((__m256i *)a);
         a += 8, n -= 8;
     }
     a_f64x8 = _mm512_cvtepu32_pd(a_u32x8);
@@ -840,9 +840,9 @@ nk_fma_u32_skylake_cycle:
         n = 0;
     }
     else {
-        a_u32x8 = _mm256_lddqu_si256((__m256i *)a);
-        b_u32x8 = _mm256_lddqu_si256((__m256i *)b);
-        c_u32x8 = _mm256_lddqu_si256((__m256i *)c);
+        a_u32x8 = _mm256_loadu_si256((__m256i *)a);
+        b_u32x8 = _mm256_loadu_si256((__m256i *)b);
+        c_u32x8 = _mm256_loadu_si256((__m256i *)c);
         a += 8, b += 8, c += 8, n -= 8;
     }
     a_f64x8 = _mm512_cvtepu32_pd(a_u32x8);

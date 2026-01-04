@@ -34,8 +34,8 @@ nk_dot_i8_ice_cycle:
         count_scalars = 0;
     }
     else {
-        a_i16x32 = _mm512_cvtepi8_epi16(_mm256_lddqu_si256((__m256i const *)a_scalars));
-        b_i16x32 = _mm512_cvtepi8_epi16(_mm256_lddqu_si256((__m256i const *)b_scalars));
+        a_i16x32 = _mm512_cvtepi8_epi16(_mm256_loadu_si256((__m256i const *)a_scalars));
+        b_i16x32 = _mm512_cvtepi8_epi16(_mm256_loadu_si256((__m256i const *)b_scalars));
         a_scalars += 32, b_scalars += 32, count_scalars -= 32;
     }
     // Unfortunately we can't use the `_mm512_dpbusd_epi32` intrinsics here either,

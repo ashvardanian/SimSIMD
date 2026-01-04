@@ -670,8 +670,8 @@ NK_PUBLIC void nk_intersect_u16_turin(      //
     // Broadcast index for last element (hoisted outside loop)
     __m256i const last_idx = _mm256_set1_epi16(15);
     while (a + 16 <= a_end && b + 16 <= b_end) {
-        a_vec.ymm = _mm256_lddqu_si256((__m256i const *)a);
-        b_vec.ymm = _mm256_lddqu_si256((__m256i const *)b);
+        a_vec.ymm = _mm256_loadu_si256((__m256i const *)a);
+        b_vec.ymm = _mm256_loadu_si256((__m256i const *)b);
 
         // Intersect the registers
         __m512i a_i32x16 = _mm512_cvtepu16_epi32(a_vec.ymm);
@@ -759,8 +759,8 @@ NK_PUBLIC void nk_sparse_dot_u16bf16_turin(                 //
     // Broadcast index for last element (hoisted outside loop)
     __m256i const last_idx = _mm256_set1_epi16(15);
     while (a + 16 <= a_end && b + 16 <= b_end) {
-        a_vec.ymm = _mm256_lddqu_si256((__m256i const *)a);
-        b_vec.ymm = _mm256_lddqu_si256((__m256i const *)b);
+        a_vec.ymm = _mm256_loadu_si256((__m256i const *)a);
+        b_vec.ymm = _mm256_loadu_si256((__m256i const *)b);
 
         // Intersecting registers with `_mm512_2intersect_epi16_mask` involves a lot of shuffling
         // and comparisons, so we want to avoid it if the slices don't overlap at all..
@@ -772,13 +772,13 @@ NK_PUBLIC void nk_sparse_dot_u16bf16_turin(                 //
         // If the slices don't overlap, advance the appropriate pointer
         while (a_max < b_min && a + 32 <= a_end) {
             a += 16, a_weights += 16;
-            a_vec.ymm = _mm256_lddqu_si256((__m256i const *)a);
+            a_vec.ymm = _mm256_loadu_si256((__m256i const *)a);
             a_max = a_vec.u16s[15];
         }
         a_min = a_vec.u16s[0];
         while (b_max < a_min && b + 32 <= b_end) {
             b += 16, b_weights += 16;
-            b_vec.ymm = _mm256_lddqu_si256((__m256i const *)b);
+            b_vec.ymm = _mm256_loadu_si256((__m256i const *)b);
             b_max = b_vec.u16s[15];
         }
         b_min = b_vec.u16s[0];
@@ -791,9 +791,9 @@ NK_PUBLIC void nk_sparse_dot_u16bf16_turin(                 //
 
         // Load and shift all the relevant weights to the start of the vector before doing the dot product
         if (a_matches_any_in_b) {
-            __m256i a_weights_bf16x16 = _mm256_lddqu_si256((__m256i const *)a_weights);
+            __m256i a_weights_bf16x16 = _mm256_loadu_si256((__m256i const *)a_weights);
             a_weights_bf16x16 = _mm256_maskz_compress_epi16(a_matches_any_in_b, a_weights_bf16x16);
-            __m256i b_weights_bf16x16 = _mm256_lddqu_si256((__m256i const *)b_weights);
+            __m256i b_weights_bf16x16 = _mm256_loadu_si256((__m256i const *)b_weights);
             b_weights_bf16x16 = _mm256_maskz_compress_epi16(b_matches_any_in_a, b_weights_bf16x16);
             product_f32x8 = _mm256_dpbf16_ps(product_f32x8, (__m256bh)a_weights_bf16x16, (__m256bh)b_weights_bf16x16);
         }

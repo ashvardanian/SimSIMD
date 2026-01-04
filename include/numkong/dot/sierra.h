@@ -27,8 +27,8 @@ NK_PUBLIC void nk_dot_i8_sierra(nk_i8_t const *a_scalars, nk_i8_t const *b_scala
     __m256i sum_i32x8 = _mm256_setzero_si256();
     nk_size_t idx_scalars = 0;
     for (; idx_scalars + 32 <= count_scalars; idx_scalars += 32) {
-        __m256i a_i8x32 = _mm256_lddqu_si256((__m256i const *)(a_scalars + idx_scalars));
-        __m256i b_i8x32 = _mm256_lddqu_si256((__m256i const *)(b_scalars + idx_scalars));
+        __m256i a_i8x32 = _mm256_loadu_si256((__m256i const *)(a_scalars + idx_scalars));
+        __m256i b_i8x32 = _mm256_loadu_si256((__m256i const *)(b_scalars + idx_scalars));
         sum_i32x8 = _mm256_dpbssds_epi32(sum_i32x8, a_i8x32, b_i8x32);
     }
 
@@ -87,8 +87,8 @@ NK_PUBLIC void nk_dot_u8_sierra(nk_u8_t const *a_scalars, nk_u8_t const *b_scala
     __m256i sum_i32x8 = _mm256_setzero_si256();
     nk_size_t idx_scalars = 0;
     for (; idx_scalars + 32 <= count_scalars; idx_scalars += 32) {
-        __m256i a_u8x32 = _mm256_lddqu_si256((__m256i const *)(a_scalars + idx_scalars));
-        __m256i b_u8x32 = _mm256_lddqu_si256((__m256i const *)(b_scalars + idx_scalars));
+        __m256i a_u8x32 = _mm256_loadu_si256((__m256i const *)(a_scalars + idx_scalars));
+        __m256i b_u8x32 = _mm256_loadu_si256((__m256i const *)(b_scalars + idx_scalars));
         sum_i32x8 = _mm256_dpbuud_epi32(sum_i32x8, a_u8x32, b_u8x32);
     }
     nk_u32_t sum_u32 = (nk_u32_t)nk_reduce_add_i32x8_haswell_(sum_i32x8);

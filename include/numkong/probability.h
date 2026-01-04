@@ -596,8 +596,8 @@ nk_kld_f16_haswell_cycle:
         n = 0;
     }
     else {
-        a_f32x8 = _mm256_cvtph_ps(_mm_lddqu_si128((__m128i const *)a));
-        b_f32x8 = _mm256_cvtph_ps(_mm_lddqu_si128((__m128i const *)b));
+        a_f32x8 = _mm256_cvtph_ps(_mm_loadu_si128((__m128i const *)a));
+        b_f32x8 = _mm256_cvtph_ps(_mm_loadu_si128((__m128i const *)b));
         n -= 8, a += 8, b += 8;
     }
     a_f32x8 = _mm256_add_ps(a_f32x8, epsilon_f32x8);
@@ -627,8 +627,8 @@ nk_jsd_f16_haswell_cycle:
         n = 0;
     }
     else {
-        a_f32x8 = _mm256_cvtph_ps(_mm_lddqu_si128((__m128i const *)a));
-        b_f32x8 = _mm256_cvtph_ps(_mm_lddqu_si128((__m128i const *)b));
+        a_f32x8 = _mm256_cvtph_ps(_mm_loadu_si128((__m128i const *)a));
+        b_f32x8 = _mm256_cvtph_ps(_mm_loadu_si128((__m128i const *)b));
         n -= 8, a += 8, b += 8;
     }
     __m256 mean_f32x8 = _mm256_mul_ps(_mm256_add_ps(a_f32x8, b_f32x8), _mm256_set1_ps(0.5f)); // M = (P + Q) / 2

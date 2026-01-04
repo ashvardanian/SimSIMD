@@ -123,8 +123,8 @@ nk_l2sq_f16_haswell_cycle:
         n = 0;
     }
     else {
-        a_f32x8 = _mm256_cvtph_ps(_mm_lddqu_si128((__m128i const *)a));
-        b_f32x8 = _mm256_cvtph_ps(_mm_lddqu_si128((__m128i const *)b));
+        a_f32x8 = _mm256_cvtph_ps(_mm_loadu_si128((__m128i const *)a));
+        b_f32x8 = _mm256_cvtph_ps(_mm_loadu_si128((__m128i const *)b));
         n -= 8, a += 8, b += 8;
     }
     __m256 diff_f32x8 = _mm256_sub_ps(a_f32x8, b_f32x8);
@@ -151,8 +151,8 @@ nk_angular_f16_haswell_cycle:
         n = 0;
     }
     else {
-        a_f32x8 = _mm256_cvtph_ps(_mm_lddqu_si128((__m128i const *)a));
-        b_f32x8 = _mm256_cvtph_ps(_mm_lddqu_si128((__m128i const *)b));
+        a_f32x8 = _mm256_cvtph_ps(_mm_loadu_si128((__m128i const *)a));
+        b_f32x8 = _mm256_cvtph_ps(_mm_loadu_si128((__m128i const *)b));
         n -= 8, a += 8, b += 8;
     }
     dot_product_f32x8 = _mm256_fmadd_ps(a_f32x8, b_f32x8, dot_product_f32x8);
@@ -177,8 +177,8 @@ nk_l2sq_bf16_haswell_cycle:
         n = 0;
     }
     else {
-        a_f32x8 = nk_bf16x8_to_f32x8_haswell_(_mm_lddqu_si128((__m128i const *)a));
-        b_f32x8 = nk_bf16x8_to_f32x8_haswell_(_mm_lddqu_si128((__m128i const *)b));
+        a_f32x8 = nk_bf16x8_to_f32x8_haswell_(_mm_loadu_si128((__m128i const *)a));
+        b_f32x8 = nk_bf16x8_to_f32x8_haswell_(_mm_loadu_si128((__m128i const *)b));
         n -= 8, a += 8, b += 8;
     }
     __m256 diff_f32x8 = _mm256_sub_ps(a_f32x8, b_f32x8);
@@ -205,8 +205,8 @@ nk_angular_bf16_haswell_cycle:
         n = 0;
     }
     else {
-        a_f32x8 = nk_bf16x8_to_f32x8_haswell_(_mm_lddqu_si128((__m128i const *)a));
-        b_f32x8 = nk_bf16x8_to_f32x8_haswell_(_mm_lddqu_si128((__m128i const *)b));
+        a_f32x8 = nk_bf16x8_to_f32x8_haswell_(_mm_loadu_si128((__m128i const *)a));
+        b_f32x8 = nk_bf16x8_to_f32x8_haswell_(_mm_loadu_si128((__m128i const *)b));
         n -= 8, a += 8, b += 8;
     }
     dot_product_f32x8 = _mm256_fmadd_ps(a_f32x8, b_f32x8, dot_product_f32x8);
@@ -227,8 +227,8 @@ NK_PUBLIC void nk_l2sq_i8_haswell(nk_i8_t const *a, nk_i8_t const *b, nk_size_t 
     // Process 16 elements per iteration with direct 128-bit loads (no extract needed)
     nk_size_t i = 0;
     for (; i + 16 <= n; i += 16) {
-        __m128i a_i8x16 = _mm_lddqu_si128((__m128i const *)(a + i));
-        __m128i b_i8x16 = _mm_lddqu_si128((__m128i const *)(b + i));
+        __m128i a_i8x16 = _mm_loadu_si128((__m128i const *)(a + i));
+        __m128i b_i8x16 = _mm_loadu_si128((__m128i const *)(b + i));
 
         // Sign extend i8 → i16 directly (128-bit → 256-bit, no port 5 pressure)
         __m256i a_i16x16 = _mm256_cvtepi8_epi16(a_i8x16);
@@ -277,8 +277,8 @@ NK_PUBLIC void nk_angular_i8_haswell(nk_i8_t const *a, nk_i8_t const *b, nk_size
     // This can easily lead to noticeable numerical errors in the final result.
     nk_size_t i = 0;
     for (; i + 16 <= n; i += 16) {
-        __m128i a_i8x16 = _mm_lddqu_si128((__m128i const *)(a + i));
-        __m128i b_i8x16 = _mm_lddqu_si128((__m128i const *)(b + i));
+        __m128i a_i8x16 = _mm_loadu_si128((__m128i const *)(a + i));
+        __m128i b_i8x16 = _mm_loadu_si128((__m128i const *)(b + i));
 
         // Sign extend i8 → i16 directly (128-bit → 256-bit, no port 5 pressure)
         __m256i a_i16x16 = _mm256_cvtepi8_epi16(a_i8x16);
@@ -314,8 +314,8 @@ NK_PUBLIC void nk_l2sq_u8_haswell(nk_u8_t const *a, nk_u8_t const *b, nk_size_t 
 
     nk_size_t i = 0;
     for (; i + 32 <= n; i += 32) {
-        __m256i a_u8x32 = _mm256_lddqu_si256((__m256i const *)(a + i));
-        __m256i b_u8x32 = _mm256_lddqu_si256((__m256i const *)(b + i));
+        __m256i a_u8x32 = _mm256_loadu_si256((__m256i const *)(a + i));
+        __m256i b_u8x32 = _mm256_loadu_si256((__m256i const *)(b + i));
 
         // Substracting unsigned vectors in AVX2 is done by saturating subtraction:
         __m256i diff_u8x32 = _mm256_or_si256(_mm256_subs_epu8(a_u8x32, b_u8x32), _mm256_subs_epu8(b_u8x32, a_u8x32));
@@ -375,8 +375,8 @@ NK_PUBLIC void nk_angular_u8_haswell(nk_u8_t const *a, nk_u8_t const *b, nk_size
     // This can easily lead to noticeable numerical errors in the final result.
     nk_size_t i = 0;
     for (; i + 32 <= n; i += 32) {
-        __m256i a_u8x32 = _mm256_lddqu_si256((__m256i const *)(a + i));
-        __m256i b_u8x32 = _mm256_lddqu_si256((__m256i const *)(b + i));
+        __m256i a_u8x32 = _mm256_loadu_si256((__m256i const *)(a + i));
+        __m256i b_u8x32 = _mm256_loadu_si256((__m256i const *)(b + i));
 
         // Upcast `uint8` to `int16`. Unlike the signed version, we can use the unpacking
         // instructions instead of extracts, as they are much faster and more efficient.
