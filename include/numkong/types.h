@@ -390,6 +390,7 @@ extern "C" {
 
 typedef unsigned char nk_b8_t;   /// ? Eight boolean values packed in one byte
 typedef unsigned char nk_i4x2_t; /// ? Two 4-bit signed integers packed in one byte
+typedef unsigned char nk_u4x2_t; /// ? Two 4-bit unsigned integers packed in one byte
 typedef unsigned char nk_e4m3_t; /// ? FP8 E4M3 value encoded into one byte
 typedef unsigned char nk_e5m2_t; /// ? FP8 E5M2 value encoded into one byte
 
@@ -580,6 +581,7 @@ typedef unsigned short nk_bf16_t;
 #define NK_STATIC_ASSERT(cond, msg) typedef char static_assertion_##msg[(cond) ? 1 : -1]
 NK_STATIC_ASSERT(sizeof(nk_b8_t) == 1, nk_b8_t_must_be_1_byte);
 NK_STATIC_ASSERT(sizeof(nk_i4x2_t) == 1, nk_i4x2_t_must_be_1_byte);
+NK_STATIC_ASSERT(sizeof(nk_u4x2_t) == 1, nk_u4x2_t_must_be_1_byte);
 NK_STATIC_ASSERT(sizeof(nk_e4m3_t) == 1, nk_e4m3_t_must_be_1_byte);
 NK_STATIC_ASSERT(sizeof(nk_e5m2_t) == 1, nk_e5m2_t_must_be_1_byte);
 NK_STATIC_ASSERT(sizeof(nk_i8_t) == 1, nk_i8_t_must_be_1_byte);
