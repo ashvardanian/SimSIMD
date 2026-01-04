@@ -481,22 +481,24 @@ nk_angular_u4_ice_cycle:
     ab_i32x16 = _mm512_dpbusd_epi32(ab_i32x16, a_low_u8x64, b_low_u8x64);
     ab_i32x16 = _mm512_dpbusd_epi32(ab_i32x16, a_high_u8x64, b_high_u8x64);
 
-    // Squared norms: compute a² per nibble pair using lookup table for efficiency
+    // Squared norms: compute a² per nibble using lookup table for efficiency
     // Squares lookup: 0->0, 1->1, 2->4, ..., 15->225
     __m512i const u4_squares_lookup_u8x64 = _mm512_set_epi8(
-        (char)225, (char)196, (char)169, (char)144, 121, 100, 81, 64, 49, 36, 25, 16, 9, 4, 1, 0, (char)225, (char)196,
-        (char)169, (char)144, 121, 100, 81, 64, 49, 36, 25, 16, 9, 4, 1, 0, (char)225, (char)196, (char)169, (char)144,
-        121, 100, 81, 64, 49, 36, 25, 16, 9, 4, 1, 0, (char)225, (char)196, (char)169, (char)144, 121, 100, 81, 64, 49,
-        36, 25, 16, 9, 4, 1, 0);
+        (char)225, (char)196, (char)169, (char)144, 121, 100, 81, 64, 49, 36, 25, 16, 9, 4, 1, 0, //
+        (char)225, (char)196, (char)169, (char)144, 121, 100, 81, 64, 49, 36, 25, 16, 9, 4, 1, 0, //
+        (char)225, (char)196, (char)169, (char)144, 121, 100, 81, 64, 49, 36, 25, 16, 9, 4, 1, 0, //
+        (char)225, (char)196, (char)169, (char)144, 121, 100, 81, 64, 49, 36, 25, 16, 9, 4, 1, 0);
 
-    __m512i a2_u8x64 = _mm512_add_epi8(_mm512_shuffle_epi8(u4_squares_lookup_u8x64, a_low_u8x64),
-                                       _mm512_shuffle_epi8(u4_squares_lookup_u8x64, a_high_u8x64));
-    __m512i b2_u8x64 = _mm512_add_epi8(_mm512_shuffle_epi8(u4_squares_lookup_u8x64, b_low_u8x64),
-                                       _mm512_shuffle_epi8(u4_squares_lookup_u8x64, b_high_u8x64));
+    __m512i a2_lo_u8x64 = _mm512_shuffle_epi8(u4_squares_lookup_u8x64, a_low_u8x64);
+    __m512i a2_hi_u8x64 = _mm512_shuffle_epi8(u4_squares_lookup_u8x64, a_high_u8x64);
+    __m512i b2_lo_u8x64 = _mm512_shuffle_epi8(u4_squares_lookup_u8x64, b_low_u8x64);
+    __m512i b2_hi_u8x64 = _mm512_shuffle_epi8(u4_squares_lookup_u8x64, b_high_u8x64);
 
-    // Accumulate using SAD for efficient horizontal sum
-    a2_i64x8 = _mm512_add_epi64(a2_i64x8, _mm512_sad_epu8(a2_u8x64, zeros_i8x64));
-    b2_i64x8 = _mm512_add_epi64(b2_i64x8, _mm512_sad_epu8(b2_u8x64, zeros_i8x64));
+    // Accumulate low and high squares separately using SAD to avoid u8 overflow
+    a2_i64x8 = _mm512_add_epi64(a2_i64x8, _mm512_sad_epu8(a2_lo_u8x64, zeros_i8x64));
+    a2_i64x8 = _mm512_add_epi64(a2_i64x8, _mm512_sad_epu8(a2_hi_u8x64, zeros_i8x64));
+    b2_i64x8 = _mm512_add_epi64(b2_i64x8, _mm512_sad_epu8(b2_lo_u8x64, zeros_i8x64));
+    b2_i64x8 = _mm512_add_epi64(b2_i64x8, _mm512_sad_epu8(b2_hi_u8x64, zeros_i8x64));
     if (n_bytes) goto nk_angular_u4_ice_cycle;
 
     nk_i32_t ab = _mm512_reduce_add_epi32(ab_i32x16);
