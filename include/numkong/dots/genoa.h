@@ -33,7 +33,7 @@ nk_make_dots_inner_vectors_(bf16bf16f32_genoa, bf16, f32, nk_b512_vec_t, nk_dot_
 nk_make_dots_pack_size_(genoa, e4m3, f32)
 nk_make_dots_pack_(genoa, e4m3, f32)
 nk_make_dots_inner_vectors_(e4m3e4m3f32_genoa, e4m3, f32, nk_b256_vec_t, nk_dot_e4m3x32_state_genoa_t, nk_b128_vec_t,
-                            nk_dot_e4m3x32_init_genoa, nk_load_b256_haswell_, nk_partial_load_b8x32_serial_,
+                            nk_dot_e4m3x32_init_genoa, nk_load_b256_haswell_, nk_partial_load_u1x32_serial_,
                             nk_dot_e4m3x32_update_genoa, nk_dot_e4m3x32_finalize_genoa, nk_partial_store_b32x4_skylake_,
                             /*k_tile=*/32)
 
@@ -41,7 +41,7 @@ nk_make_dots_inner_vectors_(e4m3e4m3f32_genoa, e4m3, f32, nk_b256_vec_t, nk_dot_
 nk_make_dots_pack_size_(genoa, e5m2, f32)
 nk_make_dots_pack_(genoa, e5m2, f32)
 nk_make_dots_inner_vectors_(e5m2e5m2f32_genoa, e5m2, f32, nk_b256_vec_t, nk_dot_e5m2x32_state_genoa_t, nk_b128_vec_t,
-                            nk_dot_e5m2x32_init_genoa, nk_load_b256_haswell_, nk_partial_load_b8x32_serial_,
+                            nk_dot_e5m2x32_init_genoa, nk_load_b256_haswell_, nk_partial_load_u1x32_serial_,
                             nk_dot_e5m2x32_update_genoa, nk_dot_e5m2x32_finalize_genoa, nk_partial_store_b32x4_skylake_,
                             /*k_tile=*/32)
 

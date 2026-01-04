@@ -13,7 +13,7 @@
 extern "C" {
 #endif
 
-NK_PUBLIC unsigned char nk_popcount_b8(nk_b8_t x) {
+NK_PUBLIC unsigned char nk_popcount_u1(nk_u1x8_t x) {
     static unsigned char lookup_table[] = {
         0, 1, 1, 2, 1, 2, 2, 3, 1, 2, 2, 3, 2, 3, 3, 4, 1, 2, 2, 3, 2, 3, 3, 4, 2, 3, 3, 4, 3, 4, 4, 5, //
         1, 2, 2, 3, 2, 3, 3, 4, 2, 3, 3, 4, 3, 4, 4, 5, 2, 3, 3, 4, 3, 4, 4, 5, 3, 4, 4, 5, 4, 5, 5, 6,
@@ -26,16 +26,18 @@ NK_PUBLIC unsigned char nk_popcount_b8(nk_b8_t x) {
     return lookup_table[x];
 }
 
-NK_PUBLIC void nk_hamming_b8_serial(nk_b8_t const *a, nk_b8_t const *b, nk_size_t n_words, nk_u32_t *result) {
+NK_PUBLIC void nk_hamming_u1_serial(nk_u1x8_t const *a, nk_u1x8_t const *b, nk_size_t n, nk_u32_t *result) {
+    nk_size_t n_bytes = nk_size_divide_round_up_to_multiple_(n, NK_BITS_PER_BYTE);
     nk_u32_t differences = 0;
-    for (nk_size_t i = 0; i != n_words; ++i) differences += nk_popcount_b8(a[i] ^ b[i]);
+    for (nk_size_t i = 0; i != n_bytes; ++i) differences += nk_popcount_u1(a[i] ^ b[i]);
     *result = differences;
 }
 
-NK_PUBLIC void nk_jaccard_b8_serial(nk_b8_t const *a, nk_b8_t const *b, nk_size_t n_words, nk_f32_t *result) {
+NK_PUBLIC void nk_jaccard_u1_serial(nk_u1x8_t const *a, nk_u1x8_t const *b, nk_size_t n, nk_f32_t *result) {
+    nk_size_t n_bytes = nk_size_divide_round_up_to_multiple_(n, NK_BITS_PER_BYTE);
     nk_u32_t intersection_count = 0, union_count = 0;
-    for (nk_size_t i = 0; i != n_words; ++i)
-        intersection_count += nk_popcount_b8(a[i] & b[i]), union_count += nk_popcount_b8(a[i] | b[i]);
+    for (nk_size_t i = 0; i != n_bytes; ++i)
+        intersection_count += nk_popcount_u1(a[i] & b[i]), union_count += nk_popcount_u1(a[i] | b[i]);
     *result = (union_count != 0) ? 1.0f - (nk_f32_t)intersection_count / (nk_f32_t)union_count : 1.0f;
 }
 

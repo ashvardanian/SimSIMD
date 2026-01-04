@@ -55,20 +55,20 @@ extern "C" {
 // If no metric is found, it returns NaN. We can obtain NaN by dividing 0.0 by 0.0, but that annoys
 // the MSVC compiler. Instead we can directly write-in the signaling NaN (0x7FF0000000000001)
 // or the qNaN (0x7FF8000000000000).
-#define nk_declare_dense_(name, extension, output_type)                                                            \
-    NK_DYNAMIC void nk_##name##_##extension(nk_##extension##_t const *a, nk_##extension##_t const *b, nk_size_t n, \
-                                            nk_##output_type##_t *results) {                                       \
-        static nk_metric_dense_punned_t metric = 0;                                                                \
-        if (metric == 0) {                                                                                         \
-            nk_capability_t used_capability;                                                                       \
-            nk_find_kernel_punned(nk_kernel_##name##_k, nk_##extension##_k, nk_capabilities(), nk_cap_any_k,       \
-                                  (nk_kernel_punned_t *)&metric, &used_capability);                                \
-            if (!metric) {                                                                                         \
-                *(nk_u64_t *)results = 0x7FF0000000000001ull;                                                      \
-                return;                                                                                            \
-            }                                                                                                      \
-        }                                                                                                          \
-        metric(a, b, n, (void *)results);                                                                          \
+#define nk_declare_dense_(name, extension, input_type, output_type)                                                  \
+    NK_DYNAMIC void nk_##name##_##extension(nk_##input_type##_t const *a, nk_##input_type##_t const *b, nk_size_t n, \
+                                            nk_##output_type##_t *results) {                                         \
+        static nk_metric_dense_punned_t metric = 0;                                                                  \
+        if (metric == 0) {                                                                                           \
+            nk_capability_t used_capability;                                                                         \
+            nk_find_kernel_punned(nk_kernel_##name##_k, nk_##extension##_k, nk_capabilities(), nk_cap_any_k,         \
+                                  (nk_kernel_punned_t *)&metric, &used_capability);                                  \
+            if (!metric) {                                                                                           \
+                *(nk_u64_t *)results = 0x7FF0000000000001ull;                                                        \
+                return;                                                                                              \
+            }                                                                                                        \
+        }                                                                                                            \
+        metric(a, b, n, (void *)results);                                                                            \
     }
 
 #define nk_declare_sparse_(name, extension, type, output_type)                                                      \
@@ -284,48 +284,56 @@ extern "C" {
     }
 
 // Dot products
-nk_declare_dense_(dot, i8, i32)
-nk_declare_dense_(dot, u8, u32)
-nk_declare_dense_(dot, f16, f32)
-nk_declare_dense_(dot, bf16, f32)
-nk_declare_dense_(dot, f32, f32)
-nk_declare_dense_(dot, f64, f64)
-nk_declare_dense_(dot, f16c, f32c)
-nk_declare_dense_(dot, bf16c, f32c)
-nk_declare_dense_(dot, f32c, f32c)
-nk_declare_dense_(dot, f64c, f64c)
-nk_declare_dense_(dot, e4m3, f32)
-nk_declare_dense_(dot, e5m2, f32)
-nk_declare_dense_(vdot, f16c, f32c)
-nk_declare_dense_(vdot, bf16c, f32c)
-nk_declare_dense_(vdot, f32c, f32c)
-nk_declare_dense_(vdot, f64c, f64c)
+nk_declare_dense_(dot, i8, i8, i32)
+nk_declare_dense_(dot, u8, u8, u32)
+nk_declare_dense_(dot, i4, i4x2, i32)
+nk_declare_dense_(dot, u4, u4x2, u32)
+nk_declare_dense_(dot, f16, f16, f32)
+nk_declare_dense_(dot, bf16, bf16, f32)
+nk_declare_dense_(dot, f32, f32, f32)
+nk_declare_dense_(dot, f64, f64, f64)
+nk_declare_dense_(dot, f16c, f16c, f32c)
+nk_declare_dense_(dot, bf16c, bf16c, f32c)
+nk_declare_dense_(dot, f32c, f32c, f32c)
+nk_declare_dense_(dot, f64c, f64c, f64c)
+nk_declare_dense_(dot, e4m3, e4m3, f32)
+nk_declare_dense_(dot, e5m2, e5m2, f32)
+nk_declare_dense_(vdot, f16c, f16c, f32c)
+nk_declare_dense_(vdot, bf16c, bf16c, f32c)
+nk_declare_dense_(vdot, f32c, f32c, f32c)
+nk_declare_dense_(vdot, f64c, f64c, f64c)
 
 // Spatial distances
-nk_declare_dense_(angular, i8, f32)
-nk_declare_dense_(angular, u8, f32)
-nk_declare_dense_(angular, f16, f32)
-nk_declare_dense_(angular, bf16, f32)
-nk_declare_dense_(angular, f32, f32)
-nk_declare_dense_(angular, f64, f64)
-nk_declare_dense_(angular, e4m3, f32)
-nk_declare_dense_(angular, e5m2, f32)
-nk_declare_dense_(l2sq, i8, u32)
-nk_declare_dense_(l2sq, u8, u32)
-nk_declare_dense_(l2sq, f16, f32)
-nk_declare_dense_(l2sq, bf16, f32)
-nk_declare_dense_(l2sq, f32, f32)
-nk_declare_dense_(l2sq, f64, f64)
-nk_declare_dense_(l2sq, e4m3, f32)
-nk_declare_dense_(l2sq, e5m2, f32)
-nk_declare_dense_(l2, i8, f32)
-nk_declare_dense_(l2, u8, f32)
-nk_declare_dense_(l2, f16, f32)
-nk_declare_dense_(l2, bf16, f32)
-nk_declare_dense_(l2, f32, f32)
-nk_declare_dense_(l2, f64, f64)
-nk_declare_dense_(l2, e4m3, f32)
-nk_declare_dense_(l2, e5m2, f32)
+nk_declare_dense_(angular, i8, i8, f32)
+nk_declare_dense_(angular, u8, u8, f32)
+nk_declare_dense_(angular, i4, i4x2, f32)
+nk_declare_dense_(angular, u4, u4x2, f32)
+nk_declare_dense_(angular, f16, f16, f32)
+nk_declare_dense_(angular, bf16, bf16, f32)
+nk_declare_dense_(angular, f32, f32, f32)
+nk_declare_dense_(angular, f64, f64, f64)
+nk_declare_dense_(angular, e4m3, e4m3, f32)
+nk_declare_dense_(angular, e5m2, e5m2, f32)
+nk_declare_dense_(l2sq, i8, i8, u32)
+nk_declare_dense_(l2sq, u8, u8, u32)
+nk_declare_dense_(l2sq, i4, i4x2, u32)
+nk_declare_dense_(l2sq, u4, u4x2, u32)
+nk_declare_dense_(l2sq, f16, f16, f32)
+nk_declare_dense_(l2sq, bf16, bf16, f32)
+nk_declare_dense_(l2sq, f32, f32, f32)
+nk_declare_dense_(l2sq, f64, f64, f64)
+nk_declare_dense_(l2sq, e4m3, e4m3, f32)
+nk_declare_dense_(l2sq, e5m2, e5m2, f32)
+nk_declare_dense_(l2, i8, i8, f32)
+nk_declare_dense_(l2, u8, u8, f32)
+nk_declare_dense_(l2, i4, i4x2, f32)
+nk_declare_dense_(l2, u4, u4x2, f32)
+nk_declare_dense_(l2, f16, f16, f32)
+nk_declare_dense_(l2, bf16, bf16, f32)
+nk_declare_dense_(l2, f32, f32, f32)
+nk_declare_dense_(l2, f64, f64, f64)
+nk_declare_dense_(l2, e4m3, e4m3, f32)
+nk_declare_dense_(l2, e5m2, e5m2, f32)
 
 // Geospatial distances
 nk_declare_geospatial_(haversine, f64, f64)
@@ -334,19 +342,19 @@ nk_declare_geospatial_(vincenty, f64, f64)
 nk_declare_geospatial_(vincenty, f32, f32)
 
 // Binary distances
-nk_declare_dense_(hamming, b8, u32)
-nk_declare_dense_(jaccard, b8, f32)
-nk_declare_dense_(jaccard, u32, f32)
+nk_declare_dense_(hamming, u1, u1x8, u32)
+nk_declare_dense_(jaccard, u1, u1x8, f32)
+nk_declare_dense_(jaccard, u32, u32, f32)
 
 // Probability distributions
-nk_declare_dense_(kld, f16, f32)
-nk_declare_dense_(kld, bf16, f32)
-nk_declare_dense_(kld, f32, f32)
-nk_declare_dense_(kld, f64, f64)
-nk_declare_dense_(jsd, f16, f32)
-nk_declare_dense_(jsd, bf16, f32)
-nk_declare_dense_(jsd, f32, f32)
-nk_declare_dense_(jsd, f64, f64)
+nk_declare_dense_(kld, f16, f16, f32)
+nk_declare_dense_(kld, bf16, bf16, f32)
+nk_declare_dense_(kld, f32, f32, f32)
+nk_declare_dense_(kld, f64, f64, f64)
+nk_declare_dense_(jsd, f16, f16, f32)
+nk_declare_dense_(jsd, bf16, bf16, f32)
+nk_declare_dense_(jsd, f32, f32, f32)
+nk_declare_dense_(jsd, f64, f64, f64)
 
 // Sparse sets
 nk_declare_sparse_(intersect, u16, u16, u32)
@@ -565,6 +573,8 @@ NK_DYNAMIC nk_capability_t nk_capabilities(void) {
     // Dense:
     nk_dot_i8((nk_i8_t *)x, (nk_i8_t *)x, 0, dummy_results);
     nk_dot_u8((nk_u8_t *)x, (nk_u8_t *)x, 0, dummy_results);
+    nk_dot_i4((nk_i4x2_t *)x, (nk_i4x2_t *)x, 0, dummy_results);
+    nk_dot_u4((nk_u4x2_t *)x, (nk_u4x2_t *)x, 0, dummy_results);
     nk_dot_f16((nk_f16_t *)x, (nk_f16_t *)x, 0, dummy_results);
     nk_dot_bf16((nk_bf16_t *)x, (nk_bf16_t *)x, 0, dummy_results);
     nk_dot_f32((nk_f32_t *)x, (nk_f32_t *)x, 0, dummy_results);
@@ -583,6 +593,8 @@ NK_DYNAMIC nk_capability_t nk_capabilities(void) {
 
     nk_angular_i8((nk_i8_t *)x, (nk_i8_t *)x, 0, dummy_results);
     nk_angular_u8((nk_u8_t *)x, (nk_u8_t *)x, 0, dummy_results);
+    nk_angular_i4((nk_i4x2_t *)x, (nk_i4x2_t *)x, 0, dummy_results);
+    nk_angular_u4((nk_u4x2_t *)x, (nk_u4x2_t *)x, 0, dummy_results);
     nk_angular_f16((nk_f16_t *)x, (nk_f16_t *)x, 0, dummy_results);
     nk_angular_bf16((nk_bf16_t *)x, (nk_bf16_t *)x, 0, dummy_results);
     nk_angular_f32((nk_f32_t *)x, (nk_f32_t *)x, 0, dummy_results);
@@ -592,6 +604,8 @@ NK_DYNAMIC nk_capability_t nk_capabilities(void) {
 
     nk_l2sq_i8((nk_i8_t *)x, (nk_i8_t *)x, 0, dummy_results);
     nk_l2sq_u8((nk_u8_t *)x, (nk_u8_t *)x, 0, dummy_results);
+    nk_l2sq_i4((nk_i4x2_t *)x, (nk_i4x2_t *)x, 0, dummy_results);
+    nk_l2sq_u4((nk_u4x2_t *)x, (nk_u4x2_t *)x, 0, dummy_results);
     nk_l2sq_f16((nk_f16_t *)x, (nk_f16_t *)x, 0, dummy_results);
     nk_l2sq_bf16((nk_bf16_t *)x, (nk_bf16_t *)x, 0, dummy_results);
     nk_l2sq_f32((nk_f32_t *)x, (nk_f32_t *)x, 0, dummy_results);
@@ -600,8 +614,9 @@ NK_DYNAMIC nk_capability_t nk_capabilities(void) {
     nk_l2sq_e5m2((nk_e5m2_t *)x, (nk_e5m2_t *)x, 0, dummy_results);
 
     nk_l2_i8((nk_i8_t *)x, (nk_i8_t *)x, 0, dummy_results);
-    nk_l2_i8((nk_i8_t *)x, (nk_i8_t *)x, 0, dummy_results);
     nk_l2_u8((nk_u8_t *)x, (nk_u8_t *)x, 0, dummy_results);
+    nk_l2_i4((nk_i4x2_t *)x, (nk_i4x2_t *)x, 0, dummy_results);
+    nk_l2_u4((nk_u4x2_t *)x, (nk_u4x2_t *)x, 0, dummy_results);
     nk_l2_f16((nk_f16_t *)x, (nk_f16_t *)x, 0, dummy_results);
     nk_l2_bf16((nk_bf16_t *)x, (nk_bf16_t *)x, 0, dummy_results);
     nk_l2_f32((nk_f32_t *)x, (nk_f32_t *)x, 0, dummy_results);
@@ -614,8 +629,8 @@ NK_DYNAMIC nk_capability_t nk_capabilities(void) {
     nk_vincenty_f64((nk_f64_t *)x, (nk_f64_t *)x, (nk_f64_t *)x, (nk_f64_t *)x, 0, dummy_results);
     nk_vincenty_f32((nk_f32_t *)x, (nk_f32_t *)x, (nk_f32_t *)x, (nk_f32_t *)x, 0, dummy_results);
 
-    nk_hamming_b8((nk_b8_t *)x, (nk_b8_t *)x, 0, dummy_results);
-    nk_jaccard_b8((nk_b8_t *)x, (nk_b8_t *)x, 0, dummy_results);
+    nk_hamming_u1((nk_u1x8_t *)x, (nk_u1x8_t *)x, 0, dummy_results);
+    nk_jaccard_u1((nk_u1x8_t *)x, (nk_u1x8_t *)x, 0, dummy_results);
 
     nk_kld_f16((nk_f16_t *)x, (nk_f16_t *)x, 0, dummy_results);
     nk_kld_bf16((nk_bf16_t *)x, (nk_bf16_t *)x, 0, dummy_results);
@@ -779,34 +794,34 @@ NK_DYNAMIC nk_capability_t nk_capabilities(void) {
     // Matrix multiplications (dots)
     nk_dots_f32f32f32_packed_size(0, 0);
     nk_dots_f64f64f64_packed_size(0, 0);
-    nk_dots_f16f32f32_packed_size(0, 0);
-    nk_dots_bf16f32f32_packed_size(0, 0);
-    nk_dots_i8i32i32_packed_size(0, 0);
-    nk_dots_u8u32u32_packed_size(0, 0);
+    nk_dots_f16f16f32_packed_size(0, 0);
+    nk_dots_bf16bf16f32_packed_size(0, 0);
+    nk_dots_i8i8i32_packed_size(0, 0);
+    nk_dots_u8u8u32_packed_size(0, 0);
     nk_dots_f32f32f32_pack((nk_f32_t *)x, 0, 0, 0, x);
     nk_dots_f64f64f64_pack((nk_f64_t *)x, 0, 0, 0, x);
-    nk_dots_f16f32f32_pack((nk_f16_t *)x, 0, 0, 0, x);
-    nk_dots_bf16f32f32_pack((nk_bf16_t *)x, 0, 0, 0, x);
-    nk_dots_i8i32i32_pack((nk_i8_t *)x, 0, 0, 0, x);
-    nk_dots_u8u32u32_pack((nk_u8_t *)x, 0, 0, 0, x);
+    nk_dots_f16f16f32_pack((nk_f16_t *)x, 0, 0, 0, x);
+    nk_dots_bf16bf16f32_pack((nk_bf16_t *)x, 0, 0, 0, x);
+    nk_dots_i8i8i32_pack((nk_i8_t *)x, 0, 0, 0, x);
+    nk_dots_u8u8u32_pack((nk_u8_t *)x, 0, 0, 0, x);
     nk_dots_f32f32f32((nk_f32_t *)x, x, (nk_f32_t *)x, 0, 0, 0, 0, 0);
     nk_dots_f64f64f64((nk_f64_t *)x, x, (nk_f64_t *)x, 0, 0, 0, 0, 0);
-    nk_dots_f16f32f32((nk_f16_t *)x, x, (nk_f32_t *)x, 0, 0, 0, 0, 0);
-    nk_dots_bf16f32f32((nk_bf16_t *)x, x, (nk_f32_t *)x, 0, 0, 0, 0, 0);
-    nk_dots_i8i32i32((nk_i8_t *)x, x, (nk_i32_t *)x, 0, 0, 0, 0, 0);
-    nk_dots_u8u32u32((nk_u8_t *)x, x, (nk_u32_t *)x, 0, 0, 0, 0, 0);
+    nk_dots_f16f16f32((nk_f16_t *)x, x, (nk_f32_t *)x, 0, 0, 0, 0, 0);
+    nk_dots_bf16bf16f32((nk_bf16_t *)x, x, (nk_f32_t *)x, 0, 0, 0, 0, 0);
+    nk_dots_i8i8i32((nk_i8_t *)x, x, (nk_i32_t *)x, 0, 0, 0, 0, 0);
+    nk_dots_u8u8u32((nk_u8_t *)x, x, (nk_u32_t *)x, 0, 0, 0, 0, 0);
 
     return static_capabilities;
 }
 
 NK_DYNAMIC void nk_find_kernel_punned( //
     nk_kernel_kind_t kind,             //
-    nk_datatype_t datatype,            //
+    nk_dtype_t dtype,                  //
     nk_capability_t supported,         //
     nk_capability_t allowed,           //
     nk_kernel_punned_t *kernel_output, //
     nk_capability_t *capability_output) {
-    nk_find_kernel_punned_(kind, datatype, supported, allowed, kernel_output, capability_output);
+    nk_find_kernel_punned_(kind, dtype, supported, allowed, kernel_output, capability_output);
 }
 
 #ifdef __cplusplus

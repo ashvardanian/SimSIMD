@@ -16,22 +16,23 @@
 
 #include "numkong/types.h"
 #include "numkong/reduce/neon.h"   // nk_reduce_add_u8x16_neon_
-#include "numkong/binary/serial.h" // nk_popcount_b8
+#include "numkong/binary/serial.h" // nk_popcount_u1
 
 #if defined(__cplusplus)
 extern "C" {
 #endif
 
-NK_PUBLIC void nk_hamming_b8_neon(nk_b8_t const *a, nk_b8_t const *b, nk_size_t n_words, nk_u32_t *result) {
+NK_PUBLIC void nk_hamming_u1_neon(nk_u1x8_t const *a, nk_u1x8_t const *b, nk_size_t n, nk_u32_t *result) {
+    nk_size_t n_bytes = nk_size_divide_round_up_to_multiple_(n, NK_BITS_PER_BYTE);
     nk_u32_t differences = 0;
     nk_size_t i = 0;
     // In each 8-bit word we may have up to 8 differences.
     // So for up-to 31 cycles (31 * 16 = 496 word-dimensions = 3968 bits)
     // we can aggregate the differences into a `uint8x16_t` vector,
     // where each component will be up-to 255.
-    while (i + 16 <= n_words) {
+    while (i + 16 <= n_bytes) {
         uint8x16_t popcount_u8x16 = vdupq_n_u8(0);
-        for (nk_size_t cycle = 0; cycle < 31 && i + 16 <= n_words; ++cycle, i += 16) {
+        for (nk_size_t cycle = 0; cycle < 31 && i + 16 <= n_bytes; ++cycle, i += 16) {
             uint8x16_t a_u8x16 = vld1q_u8(a + i);
             uint8x16_t b_u8x16 = vld1q_u8(b + i);
             uint8x16_t xor_popcount_u8x16 = vcntq_u8(veorq_u8(a_u8x16, b_u8x16));
@@ -40,21 +41,22 @@ NK_PUBLIC void nk_hamming_b8_neon(nk_b8_t const *a, nk_b8_t const *b, nk_size_t 
         differences += nk_reduce_add_u8x16_neon_(popcount_u8x16);
     }
     // Handle the tail
-    for (; i != n_words; ++i) differences += nk_popcount_b8(a[i] ^ b[i]);
+    for (; i != n_bytes; ++i) differences += nk_popcount_u1(a[i] ^ b[i]);
     *result = differences;
 }
 
-NK_PUBLIC void nk_jaccard_b8_neon(nk_b8_t const *a, nk_b8_t const *b, nk_size_t n_words, nk_f32_t *result) {
+NK_PUBLIC void nk_jaccard_u1_neon(nk_u1x8_t const *a, nk_u1x8_t const *b, nk_size_t n, nk_f32_t *result) {
+    nk_size_t n_bytes = nk_size_divide_round_up_to_multiple_(n, NK_BITS_PER_BYTE);
     nk_u32_t intersection_count = 0, union_count = 0;
     nk_size_t i = 0;
     // In each 8-bit word we may have up to 8 intersections/unions.
     // So for up-to 31 cycles (31 * 16 = 496 word-dimensions = 3968 bits)
     // we can aggregate the intersections/unions into a `uint8x16_t` vector,
     // where each component will be up-to 255.
-    while (i + 16 <= n_words) {
+    while (i + 16 <= n_bytes) {
         uint8x16_t intersection_popcount_u8x16 = vdupq_n_u8(0);
         uint8x16_t union_popcount_u8x16 = vdupq_n_u8(0);
-        for (nk_size_t cycle = 0; cycle < 31 && i + 16 <= n_words; ++cycle, i += 16) {
+        for (nk_size_t cycle = 0; cycle < 31 && i + 16 <= n_bytes; ++cycle, i += 16) {
             uint8x16_t a_u8x16 = vld1q_u8(a + i);
             uint8x16_t b_u8x16 = vld1q_u8(b + i);
             intersection_popcount_u8x16 = vaddq_u8(intersection_popcount_u8x16, vcntq_u8(vandq_u8(a_u8x16, b_u8x16)));
@@ -64,8 +66,8 @@ NK_PUBLIC void nk_jaccard_b8_neon(nk_b8_t const *a, nk_b8_t const *b, nk_size_t 
         union_count += nk_reduce_add_u8x16_neon_(union_popcount_u8x16);
     }
     // Handle the tail
-    for (; i != n_words; ++i)
-        intersection_count += nk_popcount_b8(a[i] & b[i]), union_count += nk_popcount_b8(a[i] | b[i]);
+    for (; i != n_bytes; ++i)
+        intersection_count += nk_popcount_u1(a[i] & b[i]), union_count += nk_popcount_u1(a[i] | b[i]);
     *result = (union_count != 0) ? 1.0f - (nk_f32_t)intersection_count / (nk_f32_t)union_count : 1.0f;
 }
 

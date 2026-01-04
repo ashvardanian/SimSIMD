@@ -9,7 +9,7 @@
  *  - Kullback-Leibler Divergence (KLD)
  *  - Jensen-Shannon Divergence (JSD)
  *
- *  For datatypes:
+ *  For dtypes:
  *
  *  - 64-bit floating point numbers → 64-bit
  *  - 32-bit floating point numbers → 32-bit

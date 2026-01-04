@@ -138,7 +138,7 @@ NK_INTERNAL float32x4_t nk_partial_load_e5m2x4_to_f32x4_neon_(nk_e5m2_t const *s
 
 #pragma region - Public API
 
-NK_PUBLIC void nk_cast_neon(void const *from, nk_datatype_t from_type, nk_size_t n, void *to, nk_datatype_t to_type) {
+NK_PUBLIC void nk_cast_neon(void const *from, nk_dtype_t from_type, nk_size_t n, void *to, nk_dtype_t to_type) {
     return nk_cast_serial(from, from_type, n, to, to_type);
 }
 

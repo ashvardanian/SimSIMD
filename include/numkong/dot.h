@@ -9,7 +9,7 @@
  *  - Dot Product for Real and Complex vectors
  *  - Conjugate Dot Product for Complex vectors
  *
- *  For datatypes:
+ *  For dtypes:
  *
  *  - 64-bit IEEE floating point numbers → 64-bit floats
  *  - 32-bit IEEE floating point numbers → 32-bit floats
@@ -130,6 +130,10 @@ NK_DYNAMIC void nk_dot_i8(nk_i8_t const *a, nk_i8_t const *b, nk_size_t n, nk_i3
 /** @copydoc nk_dot_f32 */
 NK_DYNAMIC void nk_dot_u8(nk_u8_t const *a, nk_u8_t const *b, nk_size_t n, nk_u32_t *result);
 /** @copydoc nk_dot_f32 */
+NK_DYNAMIC void nk_dot_i4(nk_i4x2_t const *a, nk_i4x2_t const *b, nk_size_t n, nk_i32_t *result);
+/** @copydoc nk_dot_f32 */
+NK_DYNAMIC void nk_dot_u4(nk_u4x2_t const *a, nk_u4x2_t const *b, nk_size_t n, nk_u32_t *result);
+/** @copydoc nk_dot_f32 */
 NK_DYNAMIC void nk_dot_e4m3(nk_e4m3_t const *a, nk_e4m3_t const *b, nk_size_t n, nk_f32_t *result);
 /** @copydoc nk_dot_f32 */
 NK_DYNAMIC void nk_dot_e5m2(nk_e5m2_t const *a, nk_e5m2_t const *b, nk_size_t n, nk_f32_t *result);
@@ -210,6 +214,10 @@ NK_PUBLIC void nk_vdot_bf16c_serial(nk_bf16c_t const *a, nk_bf16c_t const *b, nk
 NK_PUBLIC void nk_dot_i8_serial(nk_i8_t const *a, nk_i8_t const *b, nk_size_t n, nk_i32_t *result);
 /** @copydoc nk_dot_u8 */
 NK_PUBLIC void nk_dot_u8_serial(nk_u8_t const *a, nk_u8_t const *b, nk_size_t n, nk_u32_t *result);
+/** @copydoc nk_dot_i4 */
+NK_PUBLIC void nk_dot_i4_serial(nk_i4x2_t const *a, nk_i4x2_t const *b, nk_size_t n, nk_i32_t *result);
+/** @copydoc nk_dot_u4 */
+NK_PUBLIC void nk_dot_u4_serial(nk_u4x2_t const *a, nk_u4x2_t const *b, nk_size_t n, nk_u32_t *result);
 
 /** @copydoc nk_dot_e4m3 */
 NK_PUBLIC void nk_dot_e4m3_serial(nk_e4m3_t const *a, nk_e4m3_t const *b, nk_size_t n, nk_f32_t *result);
@@ -708,6 +716,10 @@ NK_INTERNAL void nk_dot_e5m2x16_finalize_skylake(nk_dot_e5m2x16_state_skylake_t 
 NK_PUBLIC void nk_dot_i8_ice(nk_i8_t const *a, nk_i8_t const *b, nk_size_t n, nk_i32_t *result);
 /** @copydoc nk_dot_u8 */
 NK_PUBLIC void nk_dot_u8_ice(nk_u8_t const *a, nk_u8_t const *b, nk_size_t n, nk_u32_t *result);
+/** @copydoc nk_dot_i8 */
+NK_PUBLIC void nk_dot_i4_ice(nk_i4x2_t const *a, nk_i4x2_t const *b, nk_size_t n, nk_i32_t *result);
+/** @copydoc nk_dot_u8 */
+NK_PUBLIC void nk_dot_u4_ice(nk_u4x2_t const *a, nk_u4x2_t const *b, nk_size_t n, nk_u32_t *result);
 
 /**
  *  @brief Running state for 32-element dot accumulation over i8 scalars on Ice Lake.
@@ -814,9 +826,9 @@ NK_INTERNAL void nk_dot_i8x32_finalize_sierra(nk_dot_i8x32_state_sierra_t const 
 #endif // NK_TARGET_SIERRA
 
 /**
- *  @brief  Returns the output datatype for dot products.
+ *  @brief  Returns the output dtype for dot products.
  */
-NK_INTERNAL nk_datatype_t nk_dot_output_datatype(nk_datatype_t dtype) {
+NK_INTERNAL nk_dtype_t nk_dot_output_dtype(nk_dtype_t dtype) {
     switch (dtype) {
     case nk_f64_k: return nk_f64_k;
     case nk_f32_k: return nk_f32_k;
@@ -826,7 +838,9 @@ NK_INTERNAL nk_datatype_t nk_dot_output_datatype(nk_datatype_t dtype) {
     case nk_e5m2_k: return nk_f32_k;
     case nk_i8_k: return nk_i32_k;
     case nk_u8_k: return nk_u32_k;
-    default: return nk_datatype_unknown_k;
+    case nk_i4_k: return nk_i32_k;
+    case nk_u4_k: return nk_u32_k;
+    default: return nk_dtype_unknown_k;
     }
 }
 
@@ -870,6 +884,20 @@ NK_PUBLIC void nk_dot_u8(nk_u8_t const *a, nk_u8_t const *b, nk_size_t n, nk_u32
     nk_dot_u8_haswell(a, b, n, result);
 #else
     nk_dot_u8_serial(a, b, n, result);
+#endif
+}
+NK_PUBLIC void nk_dot_i4(nk_i4x2_t const *a, nk_i4x2_t const *b, nk_size_t n, nk_i32_t *result) {
+#if NK_TARGET_ICE
+    nk_dot_i4_ice(a, b, n, result);
+#else
+    nk_dot_i4_serial(a, b, n, result);
+#endif
+}
+NK_PUBLIC void nk_dot_u4(nk_u4x2_t const *a, nk_u4x2_t const *b, nk_size_t n, nk_u32_t *result) {
+#if NK_TARGET_ICE
+    nk_dot_u4_ice(a, b, n, result);
+#else
+    nk_dot_u4_serial(a, b, n, result);
 #endif
 }
 NK_PUBLIC void nk_dot_f16(nk_f16_t const *a, nk_f16_t const *b, nk_size_t n, nk_f32_t *result) {

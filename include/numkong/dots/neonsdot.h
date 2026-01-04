@@ -24,7 +24,7 @@ extern "C" {
 nk_make_dots_pack_size_(neonsdot, i8, i32)
 nk_make_dots_pack_(neonsdot, i8, i32)
 nk_make_dots_inner_vectors_(i8i8i32_neonsdot, i8, i32, nk_b128_vec_t, nk_dot_i8x16_state_neonsdot_t, nk_b128_vec_t,
-                            nk_dot_i8x16_init_neonsdot, nk_load_b128_neon_, nk_partial_load_b8x16_serial_,
+                            nk_dot_i8x16_init_neonsdot, nk_load_b128_neon_, nk_partial_load_u1x16_serial_,
                             nk_dot_i8x16_update_neonsdot, nk_dot_i8x16_finalize_neonsdot,
                             nk_partial_store_b32x4_serial_,
                             /*k_tile=*/16)
@@ -33,7 +33,7 @@ nk_make_dots_inner_vectors_(i8i8i32_neonsdot, i8, i32, nk_b128_vec_t, nk_dot_i8x
 nk_make_dots_pack_size_(neonsdot, u8, u32)
 nk_make_dots_pack_(neonsdot, u8, u32)
 nk_make_dots_inner_vectors_(u8u8u32_neonsdot, u8, u32, nk_b128_vec_t, nk_dot_u8x16_state_neonsdot_t, nk_b128_vec_t,
-                            nk_dot_u8x16_init_neonsdot, nk_load_b128_neon_, nk_partial_load_b8x16_serial_,
+                            nk_dot_u8x16_init_neonsdot, nk_load_b128_neon_, nk_partial_load_u1x16_serial_,
                             nk_dot_u8x16_update_neonsdot, nk_dot_u8x16_finalize_neonsdot,
                             nk_partial_store_b32x4_serial_,
                             /*k_tile=*/16)

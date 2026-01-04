@@ -173,7 +173,7 @@ fn main() {
 
 The "brain-float-16" is a popular machine learning format.
 It's broadly supported in hardware and is very machine-friendly, but software support is still lagging behind.
-[Unlike NumPy](https://github.com/numpy/numpy/issues/19808), you can already use `bf16` datatype in NumKong.
+[Unlike NumPy](https://github.com/numpy/numpy/issues/19808), you can already use `bf16` dtype in NumKong.
 NumKong provides a `bf16` type with built-in conversion methods and direct bit access.
 
 ```rust

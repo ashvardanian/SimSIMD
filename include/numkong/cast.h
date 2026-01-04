@@ -20,12 +20,12 @@
  *  dot-products.
  *
  *  Assuming the overal breadth and sparsity of our type system, its clear, that not all type conversions
- *  have equivalent relevance. With ~16 numeric types we'd be looking at 16x16=256 conversions for:
+ *  have equivalent relevance. With ~16 numeric types we'd be looking at 21x21=441 conversions for:
  *
- *      e4m3    e5m2    bf16    f16     f32     f64
- *                      bf16c   f16c    f32c    f64c
- *      i4x2    i8              i16     i32     i64
- *      b1x8    u8              u16     u32     u64
+ *              e4m3    e5m2    bf16    f16     f32     f64
+ *                              bf16c   f16c    f32c    f64c
+ *              i4      i8              i16     i32     i64
+ *      u1      u4      u8              u16     u32     u64
  *
  *  To simplify the design and make it more broadly applicable in AI workloads, we implement a slower
  *  @b "hub-and-spoke" design to guiding most conversions through an intermediate type, like `f64` or `i64`.
@@ -49,35 +49,34 @@ extern "C" {
  *  @param[in] to The mutable output array containing `n` elements of `to_type` type.
  *  @param[in] to_type The type of elements in the mutable target array.
  */
-NK_DYNAMIC void nk_cast(void const *from, nk_datatype_t from_type, nk_size_t n, void *to, nk_datatype_t to_type);
+NK_DYNAMIC void nk_cast(void const *from, nk_dtype_t from_type, nk_size_t n, void *to, nk_dtype_t to_type);
 
 /** @copydoc nk_cast */
-NK_PUBLIC void nk_cast_serial(void const *from, nk_datatype_t from_type, nk_size_t n, void *to, nk_datatype_t to_type);
+NK_PUBLIC void nk_cast_serial(void const *from, nk_dtype_t from_type, nk_size_t n, void *to, nk_dtype_t to_type);
 
 #if NK_TARGET_NEON
 /** @copydoc nk_cast */
-NK_PUBLIC void nk_cast_neon(void const *from, nk_datatype_t from_type, nk_size_t n, void *to, nk_datatype_t to_type);
+NK_PUBLIC void nk_cast_neon(void const *from, nk_dtype_t from_type, nk_size_t n, void *to, nk_dtype_t to_type);
 #endif // NK_TARGET_NEON
 
 #if NK_TARGET_HASWELL
 /** @copydoc nk_cast */
-NK_PUBLIC void nk_cast_haswell(void const *from, nk_datatype_t from_type, nk_size_t n, void *to, nk_datatype_t to_type);
+NK_PUBLIC void nk_cast_haswell(void const *from, nk_dtype_t from_type, nk_size_t n, void *to, nk_dtype_t to_type);
 #endif // NK_TARGET_HASWELL
 
 #if NK_TARGET_SKYLAKE
 /** @copydoc nk_cast */
-NK_PUBLIC void nk_cast_skylake(void const *from, nk_datatype_t from_type, nk_size_t n, void *to, nk_datatype_t to_type);
+NK_PUBLIC void nk_cast_skylake(void const *from, nk_dtype_t from_type, nk_size_t n, void *to, nk_dtype_t to_type);
 #endif // NK_TARGET_SKYLAKE
 
 #if NK_TARGET_ICE
 /** @copydoc nk_cast */
-NK_PUBLIC void nk_cast_ice(void const *from, nk_datatype_t from_type, nk_size_t n, void *to, nk_datatype_t to_type);
+NK_PUBLIC void nk_cast_ice(void const *from, nk_dtype_t from_type, nk_size_t n, void *to, nk_dtype_t to_type);
 #endif // NK_TARGET_ICE
 
 #if NK_TARGET_SAPPHIRE
 /** @copydoc nk_cast */
-NK_PUBLIC void nk_cast_sapphire(void const *from, nk_datatype_t from_type, nk_size_t n, void *to,
-                                nk_datatype_t to_type);
+NK_PUBLIC void nk_cast_sapphire(void const *from, nk_dtype_t from_type, nk_size_t n, void *to, nk_dtype_t to_type);
 #endif // NK_TARGET_SAPPHIRE
 
 #include "numkong/cast/serial.h"
@@ -89,7 +88,7 @@ NK_PUBLIC void nk_cast_sapphire(void const *from, nk_datatype_t from_type, nk_si
 
 #if !NK_DYNAMIC_DISPATCH
 
-NK_PUBLIC void nk_cast(void const *from, nk_datatype_t from_type, nk_size_t n, void *to, nk_datatype_t to_type) {
+NK_PUBLIC void nk_cast(void const *from, nk_dtype_t from_type, nk_size_t n, void *to, nk_dtype_t to_type) {
 #if NK_TARGET_SAPPHIRE
     nk_cast_sapphire(from, from_type, n, to, to_type);
 #elif NK_TARGET_ICE

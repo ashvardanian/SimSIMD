@@ -92,8 +92,8 @@ extern "C" {
     fn nk_l2_f32(a: *const f32, b: *const f32, c: u64size, d: *mut f32);
     fn nk_l2_f64(a: *const f64, b: *const f64, c: u64size, d: *mut f64);
 
-    fn nk_hamming_b8(a: *const u8, b: *const u8, c: u64size, d: *mut u32);
-    fn nk_jaccard_b8(a: *const u8, b: *const u8, c: u64size, d: *mut f32);
+    fn nk_hamming_u1(a: *const u8, b: *const u8, c: u64size, d: *mut u32);
+    fn nk_jaccard_u1(a: *const u8, b: *const u8, c: u64size, d: *mut f32);
 
     // Probability distribution distances/divergences
     fn nk_jsd_f16(a: *const u16, b: *const u16, c: u64size, d: *mut f32);
@@ -1052,7 +1052,7 @@ impl Hamming for u8 {
             return None;
         }
         let mut result: Self::Output = 0;
-        unsafe { nk_hamming_b8(a.as_ptr(), b.as_ptr(), a.len() as u64size, &mut result) };
+        unsafe { nk_hamming_u1(a.as_ptr(), b.as_ptr(), a.len() as u64size, &mut result) };
         Some(result)
     }
 }
@@ -1074,7 +1074,7 @@ impl Jaccard for u8 {
             return None;
         }
         let mut result: Self::Output = 0.0;
-        unsafe { nk_jaccard_b8(a.as_ptr(), b.as_ptr(), a.len() as u64size, &mut result) };
+        unsafe { nk_jaccard_u1(a.as_ptr(), b.as_ptr(), a.len() as u64size, &mut result) };
         Some(result)
     }
 }

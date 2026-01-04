@@ -52,7 +52,7 @@ NK_INTERNAL void nk_reduce_add_i16_sierra_contiguous_( //
     *result = sum_i64;
 }
 
-NK_INTERNAL void nk_reduce_add_i16_sierra_strided_(                       //
+NK_INTERNAL void nk_reduce_add_i16_sierra_strided_( //
     nk_i16_t const *data, nk_size_t count, nk_size_t stride_elements, nk_i64_t *result) {
     __m256i stride_mask_i16x16 = nk_stride_blend_b16x16_(stride_elements);
     __m256i ones_i16x16 = _mm256_set1_epi16(1);
@@ -82,7 +82,7 @@ NK_INTERNAL void nk_reduce_add_i16_sierra_strided_(                       //
     *result = sum_i64;
 }
 
-NK_PUBLIC void nk_reduce_add_i16_sierra(                              //
+NK_PUBLIC void nk_reduce_add_i16_sierra( //
     nk_i16_t const *data, nk_size_t count, nk_size_t stride_bytes, nk_i64_t *result) {
     nk_size_t stride_elements = stride_bytes / sizeof(nk_i16_t);
     int aligned = (stride_bytes % sizeof(nk_i16_t) == 0);
@@ -118,7 +118,7 @@ NK_INTERNAL void nk_reduce_add_u16_sierra_contiguous_( //
     *result = sum_u64;
 }
 
-NK_INTERNAL void nk_reduce_add_u16_sierra_strided_(                       //
+NK_INTERNAL void nk_reduce_add_u16_sierra_strided_( //
     nk_u16_t const *data, nk_size_t count, nk_size_t stride_elements, nk_u64_t *result) {
     __m256i stride_mask_i16x16 = nk_stride_blend_b16x16_(stride_elements);
     __m256i ones_i16x16 = _mm256_set1_epi16(1);
@@ -148,7 +148,7 @@ NK_INTERNAL void nk_reduce_add_u16_sierra_strided_(                       //
     *result = sum_u64;
 }
 
-NK_PUBLIC void nk_reduce_add_u16_sierra(                              //
+NK_PUBLIC void nk_reduce_add_u16_sierra( //
     nk_u16_t const *data, nk_size_t count, nk_size_t stride_bytes, nk_u64_t *result) {
     nk_size_t stride_elements = stride_bytes / sizeof(nk_u16_t);
     int aligned = (stride_bytes % sizeof(nk_u16_t) == 0);
@@ -184,9 +184,9 @@ NK_INTERNAL void nk_reduce_add_i8_sierra_contiguous_( //
     *result = sum_i64;
 }
 
-NK_INTERNAL void nk_reduce_add_i8_sierra_strided_(                       //
+NK_INTERNAL void nk_reduce_add_i8_sierra_strided_( //
     nk_i8_t const *data, nk_size_t count, nk_size_t stride_elements, nk_i64_t *result) {
-    __m256i stride_mask_i8x32 = nk_stride_blend_b8x32_(stride_elements);
+    __m256i stride_mask_i8x32 = nk_stride_blend_u1x32_(stride_elements);
     __m256i ones_i8x32 = _mm256_set1_epi8(1);
     nk_i64_t sum_i64 = 0;
     nk_size_t idx_scalars = 0;
@@ -214,7 +214,7 @@ NK_INTERNAL void nk_reduce_add_i8_sierra_strided_(                       //
     *result = sum_i64;
 }
 
-NK_PUBLIC void nk_reduce_add_i8_sierra(                              //
+NK_PUBLIC void nk_reduce_add_i8_sierra( //
     nk_i8_t const *data, nk_size_t count, nk_size_t stride_bytes, nk_i64_t *result) {
     nk_size_t stride_elements = stride_bytes / sizeof(nk_i8_t);
     int aligned = (stride_bytes % sizeof(nk_i8_t) == 0);
@@ -250,9 +250,9 @@ NK_INTERNAL void nk_reduce_add_u8_sierra_contiguous_( //
     *result = sum_u64;
 }
 
-NK_INTERNAL void nk_reduce_add_u8_sierra_strided_(                       //
+NK_INTERNAL void nk_reduce_add_u8_sierra_strided_( //
     nk_u8_t const *data, nk_size_t count, nk_size_t stride_elements, nk_u64_t *result) {
-    __m256i stride_mask_i8x32 = nk_stride_blend_b8x32_(stride_elements);
+    __m256i stride_mask_i8x32 = nk_stride_blend_u1x32_(stride_elements);
     __m256i ones_i8x32 = _mm256_set1_epi8(1);
     nk_u64_t sum_u64 = 0;
     nk_size_t idx_scalars = 0;
@@ -280,7 +280,7 @@ NK_INTERNAL void nk_reduce_add_u8_sierra_strided_(                       //
     *result = sum_u64;
 }
 
-NK_PUBLIC void nk_reduce_add_u8_sierra(                              //
+NK_PUBLIC void nk_reduce_add_u8_sierra( //
     nk_u8_t const *data, nk_size_t count, nk_size_t stride_bytes, nk_u64_t *result) {
     nk_size_t stride_elements = stride_bytes / sizeof(nk_u8_t);
     int aligned = (stride_bytes % sizeof(nk_u8_t) == 0);

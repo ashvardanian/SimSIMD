@@ -30,7 +30,7 @@ extern "C" {
 nk_make_dots_pack_size_(sierra, i8, i32)
 nk_make_dots_pack_(sierra, i8, i32)
 nk_make_dots_inner_vectors_(i8i8i32_sierra, i8, i32, nk_b256_vec_t, nk_dot_i8x32_state_sierra_t, nk_b128_vec_t,
-                            nk_dot_i8x32_init_sierra, nk_load_b256_haswell_, nk_partial_load_b8x32_serial_,
+                            nk_dot_i8x32_init_sierra, nk_load_b256_haswell_, nk_partial_load_u1x32_serial_,
                             nk_dot_i8x32_update_sierra, nk_dot_i8x32_finalize_sierra, nk_partial_store_b32x4_serial_,
                             /*k_tile=*/32)
 
@@ -38,7 +38,7 @@ nk_make_dots_inner_vectors_(i8i8i32_sierra, i8, i32, nk_b256_vec_t, nk_dot_i8x32
 nk_make_dots_pack_size_(sierra, u8, u32)
 nk_make_dots_pack_(sierra, u8, u32)
 nk_make_dots_inner_vectors_(u8u8i32_sierra, u8, u32, nk_b256_vec_t, nk_dot_u8x32_state_sierra_t, nk_b128_vec_t,
-                            nk_dot_u8x32_init_sierra, nk_load_b256_haswell_, nk_partial_load_b8x32_serial_,
+                            nk_dot_u8x32_init_sierra, nk_load_b256_haswell_, nk_partial_load_u1x32_serial_,
                             nk_dot_u8x32_update_sierra, nk_dot_u8x32_finalize_sierra, nk_partial_store_b32x4_serial_,
                             /*k_tile=*/32)
 

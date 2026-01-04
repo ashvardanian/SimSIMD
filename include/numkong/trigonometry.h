@@ -9,7 +9,7 @@
  *  - Sine and Cosine approximations: fast for `f32` vs accurate for `f64`
  *  - Tangent and the 2-argument arctangent: fast for `f32` vs accurate for `f64`
  *
- *  For datatypes:
+ *  For dtypes:
  *
  *  - 64-bit IEEE-754 floating point
  *  - 32-bit IEEE-754 floating point

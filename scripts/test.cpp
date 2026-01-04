@@ -929,6 +929,8 @@ using dot_f16_t = void (*)(nk_f16_t const *, nk_f16_t const *, nk_size_t, nk_f32
 using dot_bf16_t = void (*)(nk_bf16_t const *, nk_bf16_t const *, nk_size_t, nk_f32_t *);
 using dot_i8_t = void (*)(nk_i8_t const *, nk_i8_t const *, nk_size_t, nk_i32_t *);
 using dot_u8_t = void (*)(nk_u8_t const *, nk_u8_t const *, nk_size_t, nk_u32_t *);
+using dot_i4_t = void (*)(nk_i4x2_t const *, nk_i4x2_t const *, nk_size_t, nk_i32_t *);
+using dot_u4_t = void (*)(nk_u4x2_t const *, nk_u4x2_t const *, nk_size_t, nk_u32_t *);
 using dot_f32c_t = void (*)(nk_f32c_t const *, nk_f32c_t const *, nk_size_t, nk_f32c_t *);
 using vdot_f32c_t = void (*)(nk_f32c_t const *, nk_f32c_t const *, nk_size_t, nk_f32c_t *);
 using dot_f64c_t = void (*)(nk_f64c_t const *, nk_f64c_t const *, nk_size_t, nk_f64c_t *);
@@ -943,6 +945,10 @@ using angular_f32_t = void (*)(nk_f32_t const *, nk_f32_t const *, nk_size_t, nk
 using angular_f64_t = void (*)(nk_f64_t const *, nk_f64_t const *, nk_size_t, nk_f64_t *);
 using angular_f16_t = void (*)(nk_f16_t const *, nk_f16_t const *, nk_size_t, nk_f32_t *);
 using angular_bf16_t = void (*)(nk_bf16_t const *, nk_bf16_t const *, nk_size_t, nk_f32_t *);
+using l2sq_i4_t = void (*)(nk_i4x2_t const *, nk_i4x2_t const *, nk_size_t, nk_u32_t *);
+using l2sq_u4_t = void (*)(nk_u4x2_t const *, nk_u4x2_t const *, nk_size_t, nk_u32_t *);
+using angular_i4_t = void (*)(nk_i4x2_t const *, nk_i4x2_t const *, nk_size_t, nk_f32_t *);
+using angular_u4_t = void (*)(nk_u4x2_t const *, nk_u4x2_t const *, nk_size_t, nk_f32_t *);
 
 // Curved kernels (bilinear, kld, jsd)
 using bilinear_f32_t = void (*)(nk_f32_t const *, nk_f32_t const *, nk_f32_t const *, nk_size_t, nk_f32_t *);
@@ -953,8 +959,8 @@ using jsd_f32_t = void (*)(nk_f32_t const *, nk_f32_t const *, nk_size_t, nk_f32
 using jsd_f64_t = void (*)(nk_f64_t const *, nk_f64_t const *, nk_size_t, nk_f64_t *);
 
 // Binary kernels
-using hamming_b8_t = void (*)(nk_b8_t const *, nk_b8_t const *, nk_size_t, nk_u32_t *);
-using jaccard_b8_t = void (*)(nk_b8_t const *, nk_b8_t const *, nk_size_t, nk_f32_t *);
+using hamming_u1_t = void (*)(nk_u1x8_t const *, nk_u1x8_t const *, nk_size_t, nk_u32_t *);
+using jaccard_u1_t = void (*)(nk_u1x8_t const *, nk_u1x8_t const *, nk_size_t, nk_f32_t *);
 
 // Elementwise kernels
 using scale_f32_t = void (*)(nk_f32_t const *, nk_size_t, nk_f32_t const *, nk_f32_t const *, nk_f32_t *);
@@ -1605,6 +1611,105 @@ error_stats_t test_dot_u8(dot_u8_t kernel) {
 }
 
 /**
+ *  @brief Test dot product precision for i4 (exact match required).
+ *  i4 values are packed as nibbles: two 4-bit signed values per byte.
+ *  Sign extension: (nibble ^ 8) - 8 maps [0,15] to [-8,7]
+ */
+error_stats_t test_dot_i4(dot_i4_t kernel) {
+    error_stats_t stats;
+    std::mt19937 rng(global_config.seed);
+    std::size_t n_bytes = (dense_dimension + 1) / 2;
+    aligned_buffer<nk_i4x2_t> a(n_bytes), b(n_bytes);
+    std::uniform_int_distribution<int> dist(0, 255); // Random bytes
+
+    for (auto start = test_start_time(); within_time_budget(start);) {
+        for (std::size_t i = 0; i < n_bytes; i++) {
+            a[i] = static_cast<nk_i4x2_t>(dist(rng));
+            b[i] = static_cast<nk_i4x2_t>(dist(rng));
+        }
+
+        nk_i32_t result;
+        kernel(a.data, b.data, dense_dimension, &result);
+
+        // Reference: exact integer computation with nibble extraction
+        std::int64_t ref = 0;
+        for (std::size_t i = 0; i < n_bytes; i++) {
+            // Extract low nibbles and sign-extend
+            std::int32_t a_lo = static_cast<std::int32_t>((a[i] & 0x0F) ^ 8) - 8;
+            std::int32_t b_lo = static_cast<std::int32_t>((b[i] & 0x0F) ^ 8) - 8;
+            ref += a_lo * b_lo;
+
+            // Extract high nibbles - skip if n is odd and this is last byte
+            if (2 * i + 1 < dense_dimension) {
+                std::int32_t a_hi = static_cast<std::int32_t>(((a[i] >> 4) & 0x0F) ^ 8) - 8;
+                std::int32_t b_hi = static_cast<std::int32_t>(((b[i] >> 4) & 0x0F) ^ 8) - 8;
+                ref += a_hi * b_hi;
+            }
+        }
+
+        std::uint64_t ulps = (result == static_cast<nk_i32_t>(ref)) ? 0 : std::numeric_limits<std::uint64_t>::max();
+        stats.accumulate_ulp(ulps);
+
+        if (global_config.assert_on_failure && result != static_cast<nk_i32_t>(ref)) {
+            std::fprintf(stderr, "FAIL: dot_i4 dim=%zu expected=%lld got=%d\n", dense_dimension,
+                         static_cast<long long>(ref), result);
+            assert(false);
+        }
+    }
+
+    return stats;
+}
+
+/**
+ *  @brief Test dot product precision for u4 (exact match required).
+ *  u4 values are packed as nibbles: two 4-bit unsigned values per byte.
+ */
+error_stats_t test_dot_u4(dot_u4_t kernel) {
+    error_stats_t stats;
+    std::mt19937 rng(global_config.seed);
+    std::size_t n_bytes = (dense_dimension + 1) / 2;
+    aligned_buffer<nk_u4x2_t> a(n_bytes), b(n_bytes);
+    std::uniform_int_distribution<int> dist(0, 255); // Random bytes
+
+    for (auto start = test_start_time(); within_time_budget(start);) {
+        for (std::size_t i = 0; i < n_bytes; i++) {
+            a[i] = static_cast<nk_u4x2_t>(dist(rng));
+            b[i] = static_cast<nk_u4x2_t>(dist(rng));
+        }
+
+        nk_u32_t result;
+        kernel(a.data, b.data, dense_dimension, &result);
+
+        // Reference: exact integer computation with nibble extraction
+        std::uint64_t ref = 0;
+        for (std::size_t i = 0; i < n_bytes; i++) {
+            // Extract low nibbles
+            std::uint32_t a_lo = static_cast<std::uint32_t>(a[i] & 0x0F);
+            std::uint32_t b_lo = static_cast<std::uint32_t>(b[i] & 0x0F);
+            ref += a_lo * b_lo;
+
+            // Extract high nibbles - skip if n is odd and this is last byte
+            if (2 * i + 1 < dense_dimension) {
+                std::uint32_t a_hi = static_cast<std::uint32_t>((a[i] >> 4) & 0x0F);
+                std::uint32_t b_hi = static_cast<std::uint32_t>((b[i] >> 4) & 0x0F);
+                ref += a_hi * b_hi;
+            }
+        }
+
+        std::uint64_t ulps = (result == static_cast<nk_u32_t>(ref)) ? 0 : std::numeric_limits<std::uint64_t>::max();
+        stats.accumulate_ulp(ulps);
+
+        if (global_config.assert_on_failure && result != static_cast<nk_u32_t>(ref)) {
+            std::fprintf(stderr, "FAIL: dot_u4 dim=%zu expected=%llu got=%u\n", dense_dimension,
+                         static_cast<unsigned long long>(ref), result);
+            assert(false);
+        }
+    }
+
+    return stats;
+}
+
+/**
  *  @brief Test dot product precision for f16.
  */
 error_stats_t test_dot_f16(dot_f16_t kernel) {
@@ -1891,6 +1996,8 @@ void test_dot() {
     run_if_matches("dot", "e5m2", test_dot_e5m2, nk_dot_e5m2);
     run_if_matches("dot", "i8", test_dot_i8, nk_dot_i8);
     run_if_matches("dot", "u8", test_dot_u8, nk_dot_u8);
+    run_if_matches("dot", "i4", test_dot_i4, nk_dot_i4);
+    run_if_matches("dot", "u4", test_dot_u4, nk_dot_u4);
     run_if_matches("dot", "f32c", test_dot_f32c, nk_dot_f32c);
     run_if_matches("vdot", "f32c", test_vdot_f32c, nk_vdot_f32c);
     run_if_matches("dot", "f64c", test_dot_f64c, nk_dot_f64c);
@@ -1950,6 +2057,11 @@ void test_dot() {
     run_if_matches("vdot_skylake", "f64c", test_vdot_f64c, nk_vdot_f64c_skylake);
 #endif // NK_TARGET_SKYLAKE
 
+#if NK_TARGET_ICE
+    run_if_matches("dot_ice", "i4", test_dot_i4, nk_dot_i4_ice);
+    run_if_matches("dot_ice", "u4", test_dot_u4, nk_dot_u4_ice);
+#endif // NK_TARGET_ICE
+
     // Serial always runs - baseline test
     run_if_matches("dot_serial", "f32", test_dot_f32, nk_dot_f32_serial);
     run_if_matches("dot_serial", "f64", test_dot_f64, nk_dot_f64_serial);
@@ -1959,6 +2071,8 @@ void test_dot() {
     run_if_matches("dot_serial", "e5m2", test_dot_e5m2, nk_dot_e5m2_serial);
     run_if_matches("dot_serial", "i8", test_dot_i8, nk_dot_i8_serial);
     run_if_matches("dot_serial", "u8", test_dot_u8, nk_dot_u8_serial);
+    run_if_matches("dot_serial", "i4", test_dot_i4, nk_dot_i4_serial);
+    run_if_matches("dot_serial", "u4", test_dot_u4, nk_dot_u4_serial);
     run_if_matches("dot_serial", "f32c", test_dot_f32c, nk_dot_f32c_serial);
     run_if_matches("vdot_serial", "f32c", test_vdot_f32c, nk_vdot_f32c_serial);
     run_if_matches("dot_serial", "f64c", test_dot_f64c, nk_dot_f64c_serial);
@@ -2203,6 +2317,188 @@ error_stats_t test_angular_bf16(angular_bf16_t kernel) {
     return stats;
 }
 
+/**
+ *  @brief Test L2 squared distance for i4 (exact match required).
+ */
+error_stats_t test_l2sq_i4(l2sq_i4_t kernel) {
+    error_stats_t stats;
+    std::mt19937 rng(global_config.seed);
+    std::size_t n_bytes = (dense_dimension + 1) / 2;
+    aligned_buffer<nk_i4x2_t> a(n_bytes), b(n_bytes);
+    std::uniform_int_distribution<int> dist(0, 255);
+
+    for (auto start = test_start_time(); within_time_budget(start);) {
+        for (std::size_t i = 0; i < n_bytes; i++) {
+            a[i] = static_cast<nk_i4x2_t>(dist(rng));
+            b[i] = static_cast<nk_i4x2_t>(dist(rng));
+        }
+
+        nk_u32_t result;
+        kernel(a.data, b.data, dense_dimension, &result);
+
+        // Reference: exact integer computation with nibble extraction
+        std::int64_t ref = 0;
+        for (std::size_t i = 0; i < n_bytes; i++) {
+            std::int32_t a_lo = static_cast<std::int32_t>((a[i] & 0x0F) ^ 8) - 8;
+            std::int32_t b_lo = static_cast<std::int32_t>((b[i] & 0x0F) ^ 8) - 8;
+            std::int32_t diff_lo = a_lo - b_lo;
+            ref += diff_lo * diff_lo;
+
+            if (2 * i + 1 < dense_dimension) {
+                std::int32_t a_hi = static_cast<std::int32_t>(((a[i] >> 4) & 0x0F) ^ 8) - 8;
+                std::int32_t b_hi = static_cast<std::int32_t>(((b[i] >> 4) & 0x0F) ^ 8) - 8;
+                std::int32_t diff_hi = a_hi - b_hi;
+                ref += diff_hi * diff_hi;
+            }
+        }
+
+        std::uint64_t ulps = (result == static_cast<nk_u32_t>(ref)) ? 0 : std::numeric_limits<std::uint64_t>::max();
+        stats.accumulate_ulp(ulps);
+    }
+    return stats;
+}
+
+/**
+ *  @brief Test angular distance for i4.
+ */
+error_stats_t test_angular_i4(angular_i4_t kernel) {
+    error_stats_t stats;
+    std::mt19937 rng(global_config.seed);
+    std::size_t n_bytes = (dense_dimension + 1) / 2;
+    aligned_buffer<nk_i4x2_t> a(n_bytes), b(n_bytes);
+    std::uniform_int_distribution<int> dist(0, 255);
+
+    for (auto start = test_start_time(); within_time_budget(start);) {
+        for (std::size_t i = 0; i < n_bytes; i++) {
+            a[i] = static_cast<nk_i4x2_t>(dist(rng));
+            b[i] = static_cast<nk_i4x2_t>(dist(rng));
+        }
+
+        nk_f32_t result;
+        kernel(a.data, b.data, dense_dimension, &result);
+
+        // Reference: compute cosine distance
+        std::int64_t dot_sum = 0, a_norm_sq = 0, b_norm_sq = 0;
+        for (std::size_t i = 0; i < n_bytes; i++) {
+            std::int32_t a_lo = static_cast<std::int32_t>((a[i] & 0x0F) ^ 8) - 8;
+            std::int32_t b_lo = static_cast<std::int32_t>((b[i] & 0x0F) ^ 8) - 8;
+            dot_sum += a_lo * b_lo;
+            a_norm_sq += a_lo * a_lo;
+            b_norm_sq += b_lo * b_lo;
+
+            if (2 * i + 1 < dense_dimension) {
+                std::int32_t a_hi = static_cast<std::int32_t>(((a[i] >> 4) & 0x0F) ^ 8) - 8;
+                std::int32_t b_hi = static_cast<std::int32_t>(((b[i] >> 4) & 0x0F) ^ 8) - 8;
+                dot_sum += a_hi * b_hi;
+                a_norm_sq += a_hi * a_hi;
+                b_norm_sq += b_hi * b_hi;
+            }
+        }
+
+        f128_t ref = 0;
+        if (a_norm_sq != 0 && b_norm_sq != 0 && dot_sum != 0) {
+            f128_t cos_sim = f128_t(dot_sum) / mp::sqrt(f128_t(a_norm_sq) * f128_t(b_norm_sq));
+            ref = 1 - cos_sim;
+            if (ref < 0) ref = 0;
+        }
+
+        std::uint64_t ulps = ulp_distance_from_reference(result, ref);
+        stats.accumulate(static_cast<double>(ref), static_cast<double>(result), ulps);
+    }
+    return stats;
+}
+
+/**
+ *  @brief Test L2 squared distance for u4 (exact match required).
+ */
+error_stats_t test_l2sq_u4(l2sq_u4_t kernel) {
+    error_stats_t stats;
+    std::mt19937 rng(global_config.seed);
+    std::size_t n_bytes = (dense_dimension + 1) / 2;
+    aligned_buffer<nk_u4x2_t> a(n_bytes), b(n_bytes);
+    std::uniform_int_distribution<int> dist(0, 255);
+
+    for (auto start = test_start_time(); within_time_budget(start);) {
+        for (std::size_t i = 0; i < n_bytes; i++) {
+            a[i] = static_cast<nk_u4x2_t>(dist(rng));
+            b[i] = static_cast<nk_u4x2_t>(dist(rng));
+        }
+
+        nk_u32_t result;
+        kernel(a.data, b.data, dense_dimension, &result);
+
+        // Reference: exact integer computation with nibble extraction
+        std::uint64_t ref = 0;
+        for (std::size_t i = 0; i < n_bytes; i++) {
+            std::int32_t a_lo = static_cast<std::int32_t>(a[i] & 0x0F);
+            std::int32_t b_lo = static_cast<std::int32_t>(b[i] & 0x0F);
+            std::int32_t diff_lo = a_lo - b_lo;
+            ref += static_cast<std::uint64_t>(diff_lo * diff_lo);
+
+            if (2 * i + 1 < dense_dimension) {
+                std::int32_t a_hi = static_cast<std::int32_t>((a[i] >> 4) & 0x0F);
+                std::int32_t b_hi = static_cast<std::int32_t>((b[i] >> 4) & 0x0F);
+                std::int32_t diff_hi = a_hi - b_hi;
+                ref += static_cast<std::uint64_t>(diff_hi * diff_hi);
+            }
+        }
+
+        std::uint64_t ulps = (result == static_cast<nk_u32_t>(ref)) ? 0 : std::numeric_limits<std::uint64_t>::max();
+        stats.accumulate_ulp(ulps);
+    }
+    return stats;
+}
+
+/**
+ *  @brief Test angular distance for u4.
+ */
+error_stats_t test_angular_u4(angular_u4_t kernel) {
+    error_stats_t stats;
+    std::mt19937 rng(global_config.seed);
+    std::size_t n_bytes = (dense_dimension + 1) / 2;
+    aligned_buffer<nk_u4x2_t> a(n_bytes), b(n_bytes);
+    std::uniform_int_distribution<int> dist(0, 255);
+
+    for (auto start = test_start_time(); within_time_budget(start);) {
+        for (std::size_t i = 0; i < n_bytes; i++) {
+            a[i] = static_cast<nk_u4x2_t>(dist(rng));
+            b[i] = static_cast<nk_u4x2_t>(dist(rng));
+        }
+
+        nk_f32_t result;
+        kernel(a.data, b.data, dense_dimension, &result);
+
+        // Reference: compute cosine distance
+        std::uint64_t dot_sum = 0, a_norm_sq = 0, b_norm_sq = 0;
+        for (std::size_t i = 0; i < n_bytes; i++) {
+            std::uint32_t a_lo = static_cast<std::uint32_t>(a[i] & 0x0F);
+            std::uint32_t b_lo = static_cast<std::uint32_t>(b[i] & 0x0F);
+            dot_sum += a_lo * b_lo;
+            a_norm_sq += a_lo * a_lo;
+            b_norm_sq += b_lo * b_lo;
+
+            if (2 * i + 1 < dense_dimension) {
+                std::uint32_t a_hi = static_cast<std::uint32_t>((a[i] >> 4) & 0x0F);
+                std::uint32_t b_hi = static_cast<std::uint32_t>((b[i] >> 4) & 0x0F);
+                dot_sum += a_hi * b_hi;
+                a_norm_sq += a_hi * a_hi;
+                b_norm_sq += b_hi * b_hi;
+            }
+        }
+
+        f128_t ref = 0;
+        if (a_norm_sq != 0 && b_norm_sq != 0 && dot_sum != 0) {
+            f128_t cos_sim = f128_t(dot_sum) / mp::sqrt(f128_t(a_norm_sq) * f128_t(b_norm_sq));
+            ref = 1 - cos_sim;
+            if (ref < 0) ref = 0;
+        }
+
+        std::uint64_t ulps = ulp_distance_from_reference(result, ref);
+        stats.accumulate(static_cast<double>(ref), static_cast<double>(result), ulps);
+    }
+    return stats;
+}
+
 void test_spatial() {
     std::printf("Testing spatial distances...\n");
 
@@ -2216,6 +2512,10 @@ void test_spatial() {
     run_if_matches("angular", "f64", test_angular_f64, nk_angular_f64);
     run_if_matches("angular", "f16", test_angular_f16, nk_angular_f16);
     run_if_matches("angular", "bf16", test_angular_bf16, nk_angular_bf16);
+    run_if_matches("l2sq", "i4", test_l2sq_i4, nk_l2sq_i4);
+    run_if_matches("l2sq", "u4", test_l2sq_u4, nk_l2sq_u4);
+    run_if_matches("angular", "i4", test_angular_i4, nk_angular_i4);
+    run_if_matches("angular", "u4", test_angular_u4, nk_angular_u4);
 #else
     // Static compilation - test all available ISA variants
 
@@ -2254,6 +2554,13 @@ void test_spatial() {
     run_if_matches("angular_skylake", "f64", test_angular_f64, nk_angular_f64_skylake);
 #endif // NK_TARGET_SKYLAKE
 
+#if NK_TARGET_ICE
+    run_if_matches("l2sq_ice", "i4", test_l2sq_i4, nk_l2sq_i4_ice);
+    run_if_matches("l2sq_ice", "u4", test_l2sq_u4, nk_l2sq_u4_ice);
+    run_if_matches("angular_ice", "i4", test_angular_i4, nk_angular_i4_ice);
+    run_if_matches("angular_ice", "u4", test_angular_u4, nk_angular_u4_ice);
+#endif // NK_TARGET_ICE
+
     // Serial always runs - baseline test
     run_if_matches("l2sq_serial", "f32", test_l2sq_f32, nk_l2sq_f32_serial);
     run_if_matches("l2sq_serial", "f64", test_l2sq_f64, nk_l2sq_f64_serial);
@@ -2263,6 +2570,10 @@ void test_spatial() {
     run_if_matches("angular_serial", "f64", test_angular_f64, nk_angular_f64_serial);
     run_if_matches("angular_serial", "f16", test_angular_f16, nk_angular_f16_serial);
     run_if_matches("angular_serial", "bf16", test_angular_bf16, nk_angular_bf16_serial);
+    run_if_matches("l2sq_serial", "i4", test_l2sq_i4, nk_l2sq_i4_serial);
+    run_if_matches("l2sq_serial", "u4", test_l2sq_u4, nk_l2sq_u4_serial);
+    run_if_matches("angular_serial", "i4", test_angular_i4, nk_angular_i4_serial);
+    run_if_matches("angular_serial", "u4", test_angular_u4, nk_angular_u4_serial);
 
 #endif // NK_DYNAMIC_DISPATCH
 }
@@ -2542,7 +2853,7 @@ void test_probability() {
 /**
  *  @brief Test Hamming distance (exact match required).
  */
-error_stats_t test_hamming_b8(hamming_b8_t kernel) {
+error_stats_t test_hamming_u1(hamming_u1_t kernel) {
     error_stats_t stats;
     std::mt19937 rng(global_config.seed);
 
@@ -2551,15 +2862,15 @@ error_stats_t test_hamming_b8(hamming_b8_t kernel) {
 
     for (std::size_t n_bytes : byte_dims) {
         for (auto start = test_start_time(); within_time_budget(start);) {
-            aligned_buffer<nk_b8_t> a(n_bytes), b(n_bytes);
+            aligned_buffer<nk_u1x8_t> a(n_bytes), b(n_bytes);
             std::uniform_int_distribution<int> dist(0, 255);
             for (std::size_t i = 0; i < n_bytes; i++) {
-                a[i] = static_cast<nk_b8_t>(dist(rng));
-                b[i] = static_cast<nk_b8_t>(dist(rng));
+                a[i] = static_cast<nk_u1x8_t>(dist(rng));
+                b[i] = static_cast<nk_u1x8_t>(dist(rng));
             }
 
             nk_u32_t result;
-            kernel(a.data, b.data, n_bytes, &result);
+            kernel(a.data, b.data, n_bytes * 8, &result);
 
             // Reference: count differing bits
             std::uint32_t ref = 0;
@@ -2576,7 +2887,7 @@ error_stats_t test_hamming_b8(hamming_b8_t kernel) {
             stats.accumulate_ulp(ulps);
 
             if (global_config.assert_on_failure && result != ref) {
-                std::fprintf(stderr, "FAIL: hamming_b8 n_bytes=%zu expected=%u got=%u\n", n_bytes, ref, result);
+                std::fprintf(stderr, "FAIL: hamming_u1 n_bits=%zu expected=%u got=%u\n", n_bytes * 8, ref, result);
                 assert(false);
             }
         }
@@ -2588,7 +2899,7 @@ error_stats_t test_hamming_b8(hamming_b8_t kernel) {
 /**
  *  @brief Test Jaccard distance for binary vectors.
  */
-error_stats_t test_jaccard_b8(jaccard_b8_t kernel) {
+error_stats_t test_jaccard_u1(jaccard_u1_t kernel) {
     error_stats_t stats;
     std::mt19937 rng(global_config.seed);
 
@@ -2596,15 +2907,15 @@ error_stats_t test_jaccard_b8(jaccard_b8_t kernel) {
 
     for (std::size_t n_bytes : byte_dims) {
         for (auto start = test_start_time(); within_time_budget(start);) {
-            aligned_buffer<nk_b8_t> a(n_bytes), b(n_bytes);
+            aligned_buffer<nk_u1x8_t> a(n_bytes), b(n_bytes);
             std::uniform_int_distribution<int> dist(0, 255);
             for (std::size_t i = 0; i < n_bytes; i++) {
-                a[i] = static_cast<nk_b8_t>(dist(rng));
-                b[i] = static_cast<nk_b8_t>(dist(rng));
+                a[i] = static_cast<nk_u1x8_t>(dist(rng));
+                b[i] = static_cast<nk_u1x8_t>(dist(rng));
             }
 
             nk_f32_t result;
-            kernel(a.data, b.data, n_bytes, &result);
+            kernel(a.data, b.data, n_bytes * 8, &result);
 
             // Reference: Jaccard = 1 - |intersection| / |union|
             std::uint32_t intersection = 0, union_count = 0;
@@ -2633,29 +2944,29 @@ void test_binary() {
 
 #if NK_DYNAMIC_DISPATCH
     // Dynamic dispatch - only test the dispatcher itself
-    run_if_matches("hamming", "b8", test_hamming_b8, nk_hamming_b8);
-    run_if_matches("jaccard", "b8", test_jaccard_b8, nk_jaccard_b8);
+    run_if_matches("hamming", "u1", test_hamming_u1, nk_hamming_u1);
+    run_if_matches("jaccard", "u1", test_jaccard_u1, nk_jaccard_u1);
 #else
     // Static compilation - test all available ISA variants
 
 #if NK_TARGET_NEON
-    run_if_matches("hamming_neon", "b8", test_hamming_b8, nk_hamming_b8_neon);
-    run_if_matches("jaccard_neon", "b8", test_jaccard_b8, nk_jaccard_b8_neon);
+    run_if_matches("hamming_neon", "u1", test_hamming_u1, nk_hamming_u1_neon);
+    run_if_matches("jaccard_neon", "u1", test_jaccard_u1, nk_jaccard_u1_neon);
 #endif // NK_TARGET_NEON
 
 #if NK_TARGET_HASWELL
-    run_if_matches("hamming_haswell", "b8", test_hamming_b8, nk_hamming_b8_haswell);
-    run_if_matches("jaccard_haswell", "b8", test_jaccard_b8, nk_jaccard_b8_haswell);
+    run_if_matches("hamming_haswell", "u1", test_hamming_u1, nk_hamming_u1_haswell);
+    run_if_matches("jaccard_haswell", "u1", test_jaccard_u1, nk_jaccard_u1_haswell);
 #endif // NK_TARGET_HASWELL
 
 #if NK_TARGET_ICE
-    run_if_matches("hamming_ice", "b8", test_hamming_b8, nk_hamming_b8_ice);
-    run_if_matches("jaccard_ice", "b8", test_jaccard_b8, nk_jaccard_b8_ice);
+    run_if_matches("hamming_ice", "u1", test_hamming_u1, nk_hamming_u1_ice);
+    run_if_matches("jaccard_ice", "u1", test_jaccard_u1, nk_jaccard_u1_ice);
 #endif // NK_TARGET_ICE
 
     // Serial always runs - baseline test
-    run_if_matches("hamming_serial", "b8", test_hamming_b8, nk_hamming_b8_serial);
-    run_if_matches("jaccard_serial", "b8", test_jaccard_b8, nk_jaccard_b8_serial);
+    run_if_matches("hamming_serial", "u1", test_hamming_u1, nk_hamming_u1_serial);
+    run_if_matches("jaccard_serial", "u1", test_jaccard_u1, nk_jaccard_u1_serial);
 
 #endif // NK_DYNAMIC_DISPATCH
 }

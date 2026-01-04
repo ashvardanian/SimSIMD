@@ -203,12 +203,15 @@ nk_angular_u8_ice_cycle:
     *result = nk_angular_normalize_f32_haswell_(dot_product_i32, a_norm_sq_i32, b_norm_sq_i32);
 }
 
-NK_PUBLIC void nk_l2_i4x2_ice(nk_i4x2_t const *a, nk_i4x2_t const *b, nk_size_t n_words, nk_f32_t *result) {
+NK_PUBLIC void nk_l2_i4_ice(nk_i4x2_t const *a, nk_i4x2_t const *b, nk_size_t n, nk_f32_t *result) {
     nk_u32_t d2;
-    nk_l2sq_i4x2_ice(a, b, n_words, &d2);
+    nk_l2sq_i4_ice(a, b, n, &d2);
     *result = nk_sqrt_f32_haswell_((nk_f32_t)d2);
 }
-NK_PUBLIC void nk_l2sq_i4x2_ice(nk_i4x2_t const *a, nk_i4x2_t const *b, nk_size_t n_words, nk_u32_t *result) {
+NK_PUBLIC void nk_l2sq_i4_ice(nk_i4x2_t const *a, nk_i4x2_t const *b, nk_size_t n, nk_u32_t *result) {
+    // i4 values are packed as nibbles: two 4-bit signed values per byte.
+    // Parameter `n` is the number of 4-bit values (dimensions), not bytes.
+    nk_size_t n_bytes = nk_size_divide_round_up_to_multiple_(n, 2);
 
     // While `int8_t` covers the range [-128, 127], `int4_t` covers only [-8, 7].
     // The absolute difference between two 4-bit integers is at most 15 and fits in `uint4_t`.
@@ -228,31 +231,31 @@ NK_PUBLIC void nk_l2sq_i4x2_ice(nk_i4x2_t const *a, nk_i4x2_t const *b, nk_size_
     __m512i const nibble_mask_u8x64 = _mm512_set1_epi8(0x0F);
     __m512i const eight_i8x64 = _mm512_set1_epi8(8);
 
-    __m512i a_i4x2_vec, b_i4x2_vec;
+    __m512i a_i4_vec, b_i4_vec;
     __m512i a_low_u8x64, a_high_u8x64, b_low_u8x64, b_high_u8x64;
     __m512i a_low_i8x64, a_high_i8x64, b_low_i8x64, b_high_i8x64;
     __m512i diff_low_u8x64, diff_high_u8x64;
     __m512i d2_i32x16 = _mm512_setzero_si512();
 
-nk_l2sq_i4x2_ice_cycle:
-    if (n_words < 64) {
-        __mmask64 mask = (__mmask64)_bzhi_u64(0xFFFFFFFFFFFFFFFF, n_words);
-        a_i4x2_vec = _mm512_maskz_loadu_epi8(mask, a);
-        b_i4x2_vec = _mm512_maskz_loadu_epi8(mask, b);
-        n_words = 0;
+nk_l2sq_i4_ice_cycle:
+    if (n_bytes < 64) {
+        __mmask64 mask = (__mmask64)_bzhi_u64(0xFFFFFFFFFFFFFFFF, n_bytes);
+        a_i4_vec = _mm512_maskz_loadu_epi8(mask, a);
+        b_i4_vec = _mm512_maskz_loadu_epi8(mask, b);
+        n_bytes = 0;
     }
     else {
-        a_i4x2_vec = _mm512_loadu_epi8(a);
-        b_i4x2_vec = _mm512_loadu_epi8(b);
-        a += 64, b += 64, n_words -= 64;
+        a_i4_vec = _mm512_loadu_epi8(a);
+        b_i4_vec = _mm512_loadu_epi8(b);
+        a += 64, b += 64, n_bytes -= 64;
     }
 
     // Extract nibbles as unsigned [0,15]. VPSHUFB ignores high 4 bits of index,
     // so no AND needed for low nibbles when used with lookup, but we need it here.
-    a_low_u8x64 = _mm512_and_si512(a_i4x2_vec, nibble_mask_u8x64);
-    a_high_u8x64 = _mm512_and_si512(_mm512_srli_epi16(a_i4x2_vec, 4), nibble_mask_u8x64);
-    b_low_u8x64 = _mm512_and_si512(b_i4x2_vec, nibble_mask_u8x64);
-    b_high_u8x64 = _mm512_and_si512(_mm512_srli_epi16(b_i4x2_vec, 4), nibble_mask_u8x64);
+    a_low_u8x64 = _mm512_and_si512(a_i4_vec, nibble_mask_u8x64);
+    a_high_u8x64 = _mm512_and_si512(_mm512_srli_epi16(a_i4_vec, 4), nibble_mask_u8x64);
+    b_low_u8x64 = _mm512_and_si512(b_i4_vec, nibble_mask_u8x64);
+    b_high_u8x64 = _mm512_and_si512(_mm512_srli_epi16(b_i4_vec, 4), nibble_mask_u8x64);
 
     // Sign extend using XOR trick: signed = (nibble ^ 8) - 8
     a_low_i8x64 = _mm512_sub_epi8(_mm512_xor_si512(a_low_u8x64, eight_i8x64), eight_i8x64);
@@ -269,11 +272,14 @@ nk_l2sq_i4x2_ice_cycle:
     // Since diff is in [0,15], it's safe for both u8 and i8 interpretation.
     d2_i32x16 = _mm512_dpbusd_epi32(d2_i32x16, diff_low_u8x64, diff_low_u8x64);
     d2_i32x16 = _mm512_dpbusd_epi32(d2_i32x16, diff_high_u8x64, diff_high_u8x64);
-    if (n_words) goto nk_l2sq_i4x2_ice_cycle;
+    if (n_bytes) goto nk_l2sq_i4_ice_cycle;
 
     *result = (nk_u32_t)_mm512_reduce_add_epi32(d2_i32x16);
 }
-NK_PUBLIC void nk_angular_i4x2_ice(nk_i4x2_t const *a, nk_i4x2_t const *b, nk_size_t n_words, nk_f32_t *result) {
+NK_PUBLIC void nk_angular_i4_ice(nk_i4x2_t const *a, nk_i4x2_t const *b, nk_size_t n, nk_f32_t *result) {
+    // i4 values are packed as nibbles: two 4-bit signed values per byte.
+    // Parameter `n` is the number of 4-bit values (dimensions), not bytes.
+    nk_size_t n_bytes = nk_size_divide_round_up_to_multiple_(n, 2);
 
     // Angular distance for signed 4-bit integers requires computing:
     //   1. Dot product: sum(a[i] * b[i])
@@ -297,7 +303,7 @@ NK_PUBLIC void nk_angular_i4x2_ice(nk_i4x2_t const *a, nk_i4x2_t const *b, nk_si
     __m512i const eight_i8x64 = _mm512_set1_epi8(8);
     __m512i const zeros_i8x64 = _mm512_setzero_si512();
 
-    __m512i a_i4x2_vec, b_i4x2_vec;
+    __m512i a_i4_vec, b_i4_vec;
     __m512i a_low_u8x64, a_high_u8x64, b_low_u8x64, b_high_u8x64;
     __m512i ax_low_u8x64, ax_high_u8x64, bx_low_u8x64, bx_high_u8x64;
     __m512i a_low_i8x64, a_high_i8x64, b_low_i8x64, b_high_i8x64;
@@ -309,28 +315,25 @@ NK_PUBLIC void nk_angular_i4x2_ice(nk_i4x2_t const *a, nk_i4x2_t const *b, nk_si
     // Accumulators for squared norms
     __m512i a2_i32x16 = zeros_i8x64;
     __m512i b2_i32x16 = zeros_i8x64;
-    nk_size_t total_nibbles = 0;
 
-nk_angular_i4x2_ice_cycle:
-    if (n_words < 64) {
-        __mmask64 mask = (__mmask64)_bzhi_u64(0xFFFFFFFFFFFFFFFF, n_words);
-        a_i4x2_vec = _mm512_maskz_loadu_epi8(mask, a);
-        b_i4x2_vec = _mm512_maskz_loadu_epi8(mask, b);
-        total_nibbles += n_words * 2;
-        n_words = 0;
+nk_angular_i4_ice_cycle:
+    if (n_bytes < 64) {
+        __mmask64 mask = (__mmask64)_bzhi_u64(0xFFFFFFFFFFFFFFFF, n_bytes);
+        a_i4_vec = _mm512_maskz_loadu_epi8(mask, a);
+        b_i4_vec = _mm512_maskz_loadu_epi8(mask, b);
+        n_bytes = 0;
     }
     else {
-        a_i4x2_vec = _mm512_loadu_epi8(a);
-        b_i4x2_vec = _mm512_loadu_epi8(b);
-        total_nibbles += 128;
-        a += 64, b += 64, n_words -= 64;
+        a_i4_vec = _mm512_loadu_epi8(a);
+        b_i4_vec = _mm512_loadu_epi8(b);
+        a += 64, b += 64, n_bytes -= 64;
     }
 
     // Extract nibbles as unsigned [0,15]
-    a_low_u8x64 = _mm512_and_si512(a_i4x2_vec, nibble_mask_u8x64);
-    a_high_u8x64 = _mm512_and_si512(_mm512_srli_epi16(a_i4x2_vec, 4), nibble_mask_u8x64);
-    b_low_u8x64 = _mm512_and_si512(b_i4x2_vec, nibble_mask_u8x64);
-    b_high_u8x64 = _mm512_and_si512(_mm512_srli_epi16(b_i4x2_vec, 4), nibble_mask_u8x64);
+    a_low_u8x64 = _mm512_and_si512(a_i4_vec, nibble_mask_u8x64);
+    a_high_u8x64 = _mm512_and_si512(_mm512_srli_epi16(a_i4_vec, 4), nibble_mask_u8x64);
+    b_low_u8x64 = _mm512_and_si512(b_i4_vec, nibble_mask_u8x64);
+    b_high_u8x64 = _mm512_and_si512(_mm512_srli_epi16(b_i4_vec, 4), nibble_mask_u8x64);
 
     // Compute biased values: ax = a ^ 8 (still in [0,15], just reordered)
     ax_low_u8x64 = _mm512_xor_si512(a_low_u8x64, eight_i8x64);
@@ -364,21 +367,24 @@ nk_angular_i4x2_ice_cycle:
     a2_i32x16 = _mm512_dpbusd_epi32(a2_i32x16, a_high_abs_u8x64, a_high_abs_u8x64);
     b2_i32x16 = _mm512_dpbusd_epi32(b2_i32x16, b_low_abs_u8x64, b_low_abs_u8x64);
     b2_i32x16 = _mm512_dpbusd_epi32(b2_i32x16, b_high_abs_u8x64, b_high_abs_u8x64);
-    if (n_words) goto nk_angular_i4x2_ice_cycle;
+    if (n_bytes) goto nk_angular_i4_ice_cycle;
 
     // Apply algebraic correction for signed dot product:
     // signed_dot = DPBUSD(ax, bx) - 8*(sum(ax) + sum(bx)) + 64*n
     nk_i64_t ax_sum = _mm512_reduce_add_epi64(ax_sum_i64x8);
     nk_i64_t bx_sum = _mm512_reduce_add_epi64(bx_sum_i64x8);
     nk_i32_t ab_raw = _mm512_reduce_add_epi32(ab_i32x16);
-    nk_i32_t ab = ab_raw - 8 * (nk_i32_t)(ax_sum + bx_sum) + 64 * (nk_i32_t)total_nibbles;
+    nk_i32_t ab = ab_raw - 8 * (nk_i32_t)(ax_sum + bx_sum) + 64 * (nk_i32_t)n;
 
     nk_i32_t a2 = _mm512_reduce_add_epi32(a2_i32x16);
     nk_i32_t b2 = _mm512_reduce_add_epi32(b2_i32x16);
     *result = nk_angular_normalize_f32_haswell_(ab, (nk_f32_t)a2, (nk_f32_t)b2);
 }
 
-NK_PUBLIC void nk_l2sq_u4x2_ice(nk_u4x2_t const *a, nk_u4x2_t const *b, nk_size_t n_words, nk_u32_t *result) {
+NK_PUBLIC void nk_l2sq_u4_ice(nk_u4x2_t const *a, nk_u4x2_t const *b, nk_size_t n, nk_u32_t *result) {
+    // u4 values are packed as nibbles: two 4-bit unsigned values per byte.
+    // Parameter `n` is the number of 4-bit values (dimensions), not bytes.
+    nk_size_t n_bytes = nk_size_divide_round_up_to_multiple_(n, 2);
 
     // For unsigned 4-bit integers in [0, 15], the L2 squared distance is straightforward:
     //   1. Extract nibbles as u8 values
@@ -388,29 +394,29 @@ NK_PUBLIC void nk_l2sq_u4x2_ice(nk_u4x2_t const *a, nk_u4x2_t const *b, nk_size_
     // No sign extension needed since values are unsigned.
     __m512i const nibble_mask_u8x64 = _mm512_set1_epi8(0x0F);
 
-    __m512i a_u4x2_vec, b_u4x2_vec;
+    __m512i a_u4_vec, b_u4_vec;
     __m512i a_low_u8x64, a_high_u8x64, b_low_u8x64, b_high_u8x64;
     __m512i diff_low_u8x64, diff_high_u8x64;
     __m512i d2_i32x16 = _mm512_setzero_si512();
 
-nk_l2sq_u4x2_ice_cycle:
-    if (n_words < 64) {
-        __mmask64 mask = (__mmask64)_bzhi_u64(0xFFFFFFFFFFFFFFFF, n_words);
-        a_u4x2_vec = _mm512_maskz_loadu_epi8(mask, a);
-        b_u4x2_vec = _mm512_maskz_loadu_epi8(mask, b);
-        n_words = 0;
+nk_l2sq_u4_ice_cycle:
+    if (n_bytes < 64) {
+        __mmask64 mask = (__mmask64)_bzhi_u64(0xFFFFFFFFFFFFFFFF, n_bytes);
+        a_u4_vec = _mm512_maskz_loadu_epi8(mask, a);
+        b_u4_vec = _mm512_maskz_loadu_epi8(mask, b);
+        n_bytes = 0;
     }
     else {
-        a_u4x2_vec = _mm512_loadu_epi8(a);
-        b_u4x2_vec = _mm512_loadu_epi8(b);
-        a += 64, b += 64, n_words -= 64;
+        a_u4_vec = _mm512_loadu_epi8(a);
+        b_u4_vec = _mm512_loadu_epi8(b);
+        a += 64, b += 64, n_bytes -= 64;
     }
 
     // Extract nibbles as unsigned [0,15]
-    a_low_u8x64 = _mm512_and_si512(a_u4x2_vec, nibble_mask_u8x64);
-    a_high_u8x64 = _mm512_and_si512(_mm512_srli_epi16(a_u4x2_vec, 4), nibble_mask_u8x64);
-    b_low_u8x64 = _mm512_and_si512(b_u4x2_vec, nibble_mask_u8x64);
-    b_high_u8x64 = _mm512_and_si512(_mm512_srli_epi16(b_u4x2_vec, 4), nibble_mask_u8x64);
+    a_low_u8x64 = _mm512_and_si512(a_u4_vec, nibble_mask_u8x64);
+    a_high_u8x64 = _mm512_and_si512(_mm512_srli_epi16(a_u4_vec, 4), nibble_mask_u8x64);
+    b_low_u8x64 = _mm512_and_si512(b_u4_vec, nibble_mask_u8x64);
+    b_high_u8x64 = _mm512_and_si512(_mm512_srli_epi16(b_u4_vec, 4), nibble_mask_u8x64);
 
     // Absolute difference for unsigned: |a-b| = (a ⊖ b) | (b ⊖ a) where ⊖ is saturating sub
     diff_low_u8x64 = _mm512_or_si512(_mm512_subs_epu8(a_low_u8x64, b_low_u8x64),
@@ -421,17 +427,20 @@ nk_l2sq_u4x2_ice_cycle:
     // Square and accumulate using DPBUSD
     d2_i32x16 = _mm512_dpbusd_epi32(d2_i32x16, diff_low_u8x64, diff_low_u8x64);
     d2_i32x16 = _mm512_dpbusd_epi32(d2_i32x16, diff_high_u8x64, diff_high_u8x64);
-    if (n_words) goto nk_l2sq_u4x2_ice_cycle;
+    if (n_bytes) goto nk_l2sq_u4_ice_cycle;
 
     *result = (nk_u32_t)_mm512_reduce_add_epi32(d2_i32x16);
 }
-NK_PUBLIC void nk_l2_u4x2_ice(nk_u4x2_t const *a, nk_u4x2_t const *b, nk_size_t n_words, nk_f32_t *result) {
+NK_PUBLIC void nk_l2_u4_ice(nk_u4x2_t const *a, nk_u4x2_t const *b, nk_size_t n, nk_f32_t *result) {
     nk_u32_t d2;
-    nk_l2sq_u4x2_ice(a, b, n_words, &d2);
+    nk_l2sq_u4_ice(a, b, n, &d2);
     *result = nk_sqrt_f32_haswell_((nk_f32_t)d2);
 }
 
-NK_PUBLIC void nk_angular_u4x2_ice(nk_u4x2_t const *a, nk_u4x2_t const *b, nk_size_t n_words, nk_f32_t *result) {
+NK_PUBLIC void nk_angular_u4_ice(nk_u4x2_t const *a, nk_u4x2_t const *b, nk_size_t n, nk_f32_t *result) {
+    // u4 values are packed as nibbles: two 4-bit unsigned values per byte.
+    // Parameter `n` is the number of 4-bit values (dimensions), not bytes.
+    nk_size_t n_bytes = nk_size_divide_round_up_to_multiple_(n, 2);
 
     // Angular distance for unsigned 4-bit integers in [0, 15].
     // Since values are unsigned and small, we can use DPBUSD directly for both
@@ -442,31 +451,31 @@ NK_PUBLIC void nk_angular_u4x2_ice(nk_u4x2_t const *a, nk_u4x2_t const *b, nk_si
     __m512i const nibble_mask_u8x64 = _mm512_set1_epi8(0x0F);
     __m512i const zeros_i8x64 = _mm512_setzero_si512();
 
-    __m512i a_u4x2_vec, b_u4x2_vec;
+    __m512i a_u4_vec, b_u4_vec;
     __m512i a_low_u8x64, a_high_u8x64, b_low_u8x64, b_high_u8x64;
 
     __m512i ab_i32x16 = zeros_i8x64;
     __m512i a2_i64x8 = zeros_i8x64;
     __m512i b2_i64x8 = zeros_i8x64;
 
-nk_angular_u4x2_ice_cycle:
-    if (n_words < 64) {
-        __mmask64 mask = (__mmask64)_bzhi_u64(0xFFFFFFFFFFFFFFFF, n_words);
-        a_u4x2_vec = _mm512_maskz_loadu_epi8(mask, a);
-        b_u4x2_vec = _mm512_maskz_loadu_epi8(mask, b);
-        n_words = 0;
+nk_angular_u4_ice_cycle:
+    if (n_bytes < 64) {
+        __mmask64 mask = (__mmask64)_bzhi_u64(0xFFFFFFFFFFFFFFFF, n_bytes);
+        a_u4_vec = _mm512_maskz_loadu_epi8(mask, a);
+        b_u4_vec = _mm512_maskz_loadu_epi8(mask, b);
+        n_bytes = 0;
     }
     else {
-        a_u4x2_vec = _mm512_loadu_epi8(a);
-        b_u4x2_vec = _mm512_loadu_epi8(b);
-        a += 64, b += 64, n_words -= 64;
+        a_u4_vec = _mm512_loadu_epi8(a);
+        b_u4_vec = _mm512_loadu_epi8(b);
+        a += 64, b += 64, n_bytes -= 64;
     }
 
     // Extract nibbles as unsigned [0,15]
-    a_low_u8x64 = _mm512_and_si512(a_u4x2_vec, nibble_mask_u8x64);
-    a_high_u8x64 = _mm512_and_si512(_mm512_srli_epi16(a_u4x2_vec, 4), nibble_mask_u8x64);
-    b_low_u8x64 = _mm512_and_si512(b_u4x2_vec, nibble_mask_u8x64);
-    b_high_u8x64 = _mm512_and_si512(_mm512_srli_epi16(b_u4x2_vec, 4), nibble_mask_u8x64);
+    a_low_u8x64 = _mm512_and_si512(a_u4_vec, nibble_mask_u8x64);
+    a_high_u8x64 = _mm512_and_si512(_mm512_srli_epi16(a_u4_vec, 4), nibble_mask_u8x64);
+    b_low_u8x64 = _mm512_and_si512(b_u4_vec, nibble_mask_u8x64);
+    b_high_u8x64 = _mm512_and_si512(_mm512_srli_epi16(b_u4_vec, 4), nibble_mask_u8x64);
 
     // Dot product with DPBUSD (safe for unsigned [0,15])
     ab_i32x16 = _mm512_dpbusd_epi32(ab_i32x16, a_low_u8x64, b_low_u8x64);
@@ -488,7 +497,7 @@ nk_angular_u4x2_ice_cycle:
     // Accumulate using SAD for efficient horizontal sum
     a2_i64x8 = _mm512_add_epi64(a2_i64x8, _mm512_sad_epu8(a2_u8x64, zeros_i8x64));
     b2_i64x8 = _mm512_add_epi64(b2_i64x8, _mm512_sad_epu8(b2_u8x64, zeros_i8x64));
-    if (n_words) goto nk_angular_u4x2_ice_cycle;
+    if (n_bytes) goto nk_angular_u4_ice_cycle;
 
     nk_i32_t ab = _mm512_reduce_add_epi32(ab_i32x16);
     nk_i64_t a2 = _mm512_reduce_add_epi64(a2_i64x8);

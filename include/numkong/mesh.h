@@ -10,7 +10,7 @@
  *  - Kabsch algorithm for optimal rigid body alignment (rotation only)
  *  - Umeyama algorithm for similarity transform (rotation + uniform scaling)
  *
- *  For datatypes:
+ *  For dtypes:
  *
  *  - 64-bit IEEE-754 floating point → 64-bit
  *  - 32-bit IEEE-754 floating point → 32-bit
@@ -359,35 +359,35 @@ NK_PUBLIC void nk_umeyama_bf16_neonbfdot(nk_bf16_t const *a, nk_bf16_t const *b,
 #endif // NK_TARGET_NEONBFDOT
 
 /**
- *  @brief  Returns the output datatype for RMSD.
+ *  @brief  Returns the output dtype for RMSD.
  */
-NK_INTERNAL nk_datatype_t nk_rmsd_output_datatype(nk_datatype_t dtype) {
+NK_INTERNAL nk_dtype_t nk_rmsd_output_dtype(nk_dtype_t dtype) {
     switch (dtype) {
     case nk_f64_k: return nk_f64_k;
     case nk_f32_k: return nk_f32_k;
-    default: return nk_datatype_unknown_k;
+    default: return nk_dtype_unknown_k;
     }
 }
 
 /**
- *  @brief  Returns the output datatype for Kabsch alignment.
+ *  @brief  Returns the output dtype for Kabsch alignment.
  */
-NK_INTERNAL nk_datatype_t nk_kabsch_output_datatype(nk_datatype_t dtype) {
+NK_INTERNAL nk_dtype_t nk_kabsch_output_dtype(nk_dtype_t dtype) {
     switch (dtype) {
     case nk_f64_k: return nk_f64_k;
     case nk_f32_k: return nk_f32_k;
-    default: return nk_datatype_unknown_k;
+    default: return nk_dtype_unknown_k;
     }
 }
 
 /**
- *  @brief  Returns the output datatype for Umeyama alignment.
+ *  @brief  Returns the output dtype for Umeyama alignment.
  */
-NK_INTERNAL nk_datatype_t nk_umeyama_output_datatype(nk_datatype_t dtype) {
+NK_INTERNAL nk_dtype_t nk_umeyama_output_dtype(nk_dtype_t dtype) {
     switch (dtype) {
     case nk_f64_k: return nk_f64_k;
     case nk_f32_k: return nk_f32_k;
-    default: return nk_datatype_unknown_k;
+    default: return nk_dtype_unknown_k;
     }
 }
 

@@ -25,27 +25,11 @@
 #include "numkong/types.h"
 #include "numkong/dot/serial.h"
 #include "numkong/reduce/haswell.h"
+#include "numkong/cast/haswell.h" // `nk_f32x8_to_bf16x8_haswell_`
 
 #if defined(__cplusplus)
 extern "C" {
 #endif
-
-NK_INTERNAL __m128i nk_f32x8_to_bf16x8_haswell_(__m256 f32x8) {
-    // Add rounding bias (0x8000 = 2^15) before truncation for round-to-nearest
-    __m256i rounded_i32x8 = _mm256_add_epi32(_mm256_castps_si256(f32x8), _mm256_set1_epi32(0x8000));
-    // Pack the 32-bit integers into 16-bit integers.
-    // This is less trivial than unpacking: https://stackoverflow.com/a/77781241/2766161
-    // The best approach is to shuffle within lanes first: https://stackoverflow.com/a/49723746/2766161
-    // Our shuffling mask will drop the low 2-bytes from every 4-byte word.
-    __m256i trunc_i32x8 = _mm256_shuffle_epi8(                          //
-        rounded_i32x8,                                                  //
-        _mm256_set_epi8(                                                //
-            -1, -1, -1, -1, -1, -1, -1, -1, 15, 14, 11, 10, 7, 6, 3, 2, //
-            -1, -1, -1, -1, -1, -1, -1, -1, 15, 14, 11, 10, 7, 6, 3, 2  //
-            ));
-    __m256i ordered_i32x8 = _mm256_permute4x64_epi64(trunc_i32x8, 0x58);
-    return _mm256_castsi256_si128(ordered_i32x8);
-}
 
 /**
  *  @brief Internal helper for f32x8-based finalize (used by f16, bf16, e4m3, e5m2 kernels).

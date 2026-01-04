@@ -115,6 +115,50 @@ NK_MAKE_COMPLEX_VDOT(serial, bf16c, f32, f32c, nk_bf16_to_f32_serial) // nk_vdot
 NK_MAKE_DOT(serial, i8, i64, i32, nk_assign_from_to_) // nk_dot_i8_serial
 NK_MAKE_DOT(serial, u8, u64, u32, nk_assign_from_to_) // nk_dot_u8_serial
 
+NK_PUBLIC void nk_dot_i4_serial(nk_i4x2_t const *a, nk_i4x2_t const *b, nk_size_t n, nk_i32_t *result) {
+    // i4 values are packed as nibbles: two 4-bit signed values per byte.
+    // Parameter `n` is the number of 4-bit values (dimensions), not bytes.
+    // Sign extension: (nibble ^ 8) - 8 maps [0,15] to [-8,7]
+    nk_size_t n_bytes = (n + 1) / 2;
+    nk_i32_t sum = 0;
+    for (nk_size_t i = 0; i < n_bytes; ++i) {
+        // Extract low nibbles
+        nk_i32_t a_lo = (nk_i32_t)((a[i] & 0x0F) ^ 8) - 8;
+        nk_i32_t b_lo = (nk_i32_t)((b[i] & 0x0F) ^ 8) - 8;
+        sum += a_lo * b_lo;
+
+        // Extract high nibbles - skip if n is odd and this is last byte
+        if (2 * i + 1 < n) {
+            nk_i32_t a_hi = (nk_i32_t)(((a[i] >> 4) & 0x0F) ^ 8) - 8;
+            nk_i32_t b_hi = (nk_i32_t)(((b[i] >> 4) & 0x0F) ^ 8) - 8;
+            sum += a_hi * b_hi;
+        }
+    }
+    *result = sum;
+}
+
+NK_PUBLIC void nk_dot_u4_serial(nk_u4x2_t const *a, nk_u4x2_t const *b, nk_size_t n, nk_u32_t *result) {
+    // u4 values are packed as nibbles: two 4-bit unsigned values per byte.
+    // Parameter `n` is the number of 4-bit values (dimensions), not bytes.
+    // No sign extension needed - values are in [0,15].
+    nk_size_t n_bytes = (n + 1) / 2;
+    nk_u32_t sum = 0;
+    for (nk_size_t i = 0; i < n_bytes; ++i) {
+        // Extract low nibbles
+        nk_u32_t a_lo = (nk_u32_t)(a[i] & 0x0F);
+        nk_u32_t b_lo = (nk_u32_t)(b[i] & 0x0F);
+        sum += a_lo * b_lo;
+
+        // Extract high nibbles - skip if n is odd and this is last byte
+        if (2 * i + 1 < n) {
+            nk_u32_t a_hi = (nk_u32_t)((a[i] >> 4) & 0x0F);
+            nk_u32_t b_hi = (nk_u32_t)((b[i] >> 4) & 0x0F);
+            sum += a_hi * b_hi;
+        }
+    }
+    *result = sum;
+}
+
 NK_MAKE_DOT(serial, e4m3, f32, f32, nk_e4m3_to_f32_serial) // nk_dot_e4m3_serial
 NK_MAKE_DOT(serial, e5m2, f32, f32, nk_e5m2_to_f32_serial) // nk_dot_e5m2_serial
 

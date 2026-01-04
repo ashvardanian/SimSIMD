@@ -70,7 +70,8 @@ Implemented distance functions include:
 Moreover, NumKong...
 
 - handles `float64`, `float32`, `float16`, and `bfloat16` real & complex vectors.
-- handles `int8` integral, `int4` sub-byte, and `b8` binary vectors.
+- handles `float8_e4m3`, `float8_e5m2`, and other esotheric AI datatypes.
+- handles `int8` integral, `int4` sub-byte, and `uint1` binary vectors.
 - handles sparse `uint32` and `uint16` sets, and weighted sparse vectors.
 - is a zero-dependency [header-only C 99](#using-numkong-in-c) library.
 - has [Python](#using-numkong-in-python), [Rust](#using-numkong-in-rust), [JS](#using-numkong-in-javascript), and [Swift](#using-numkong-in-swift) bindings.
@@ -636,7 +637,7 @@ That's handy for testing and benchmarking, but also in case you want to dispatch
 All of the function names follow the same pattern: `nk_{function}_{type}_{backend}`.
 
 - The backend can be `serial`, `haswell`, `skylake`, `ice`, `genoa`, `sapphire`, `turin`, `neon`, or `sve`.
-- The type can be `f64`, `f32`, `f16`, `bf16`, `f64c`, `f32c`, `f16c`, `bf16c`, `i8`, or `b8`.
+- The type can be `f64`, `f32`, `f16`, `bf16`, `f64c`, `f32c`, `f16c`, `bf16c`, `i8`, or `u1`.
 - The function can be `dot`, `vdot`, `cos`, `l2sq`, `hamming`, `jaccard`, `kl`, `js`, or `intersect`.
 
 To avoid hard-coding the backend, you can use the `nk_kernel_punned_t` to pun the function pointer and the `nk_capabilities` function to get the available backends at runtime.
@@ -650,16 +651,16 @@ On Linux, you can use the following command to list all unique functions:
 
 ```sh
 $ grep -oP 'NK_PUBLIC void nk_\w+_\w+_\w+\(' include/numkong/*.h | sort | uniq
-> include/numkong/binary.h:NK_PUBLIC void nk_hamming_b8_haswell(
-> include/numkong/binary.h:NK_PUBLIC void nk_hamming_b8_ice(
-> include/numkong/binary.h:NK_PUBLIC void nk_hamming_b8_neon(
-> include/numkong/binary.h:NK_PUBLIC void nk_hamming_b8_serial(
-> include/numkong/binary.h:NK_PUBLIC void nk_hamming_b8_sve(
-> include/numkong/binary.h:NK_PUBLIC void nk_jaccard_b8_haswell(
-> include/numkong/binary.h:NK_PUBLIC void nk_jaccard_b8_ice(
-> include/numkong/binary.h:NK_PUBLIC void nk_jaccard_b8_neon(
-> include/numkong/binary.h:NK_PUBLIC void nk_jaccard_b8_serial(
-> include/numkong/binary.h:NK_PUBLIC void nk_jaccard_b8_sve(
+> include/numkong/binary.h:NK_PUBLIC void nk_hamming_u1_haswell(
+> include/numkong/binary.h:NK_PUBLIC void nk_hamming_u1_ice(
+> include/numkong/binary.h:NK_PUBLIC void nk_hamming_u1_neon(
+> include/numkong/binary.h:NK_PUBLIC void nk_hamming_u1_serial(
+> include/numkong/binary.h:NK_PUBLIC void nk_hamming_u1_sve(
+> include/numkong/binary.h:NK_PUBLIC void nk_jaccard_u1_haswell(
+> include/numkong/binary.h:NK_PUBLIC void nk_jaccard_u1_ice(
+> include/numkong/binary.h:NK_PUBLIC void nk_jaccard_u1_neon(
+> include/numkong/binary.h:NK_PUBLIC void nk_jaccard_u1_serial(
+> include/numkong/binary.h:NK_PUBLIC void nk_jaccard_u1_sve(
 ```
 
 ## License

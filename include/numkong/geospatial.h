@@ -12,7 +12,7 @@
  *
  *  All outputs are in meters, and the input coordinates are in radians.
  *
- *  For datatypes:
+ *  For dtypes:
  *
  *  - 64-bit IEEE-754 floating point → 64-bit
  *  - 32-bit IEEE-754 floating point → 32-bit
@@ -2157,24 +2157,24 @@ NK_PUBLIC void nk_vincenty_f32_skylake(             //
 #endif // NK_TARGET_SKYLAKE
 
 /**
- *  @brief  Returns the output datatype for Haversine distance.
+ *  @brief  Returns the output dtype for Haversine distance.
  */
-NK_INTERNAL nk_datatype_t nk_haversine_output_datatype(nk_datatype_t dtype) {
+NK_INTERNAL nk_dtype_t nk_haversine_output_dtype(nk_dtype_t dtype) {
     switch (dtype) {
     case nk_f64_k: return nk_f64_k;
     case nk_f32_k: return nk_f32_k;
-    default: return nk_datatype_unknown_k;
+    default: return nk_dtype_unknown_k;
     }
 }
 
 /**
- *  @brief  Returns the output datatype for Vincenty distance.
+ *  @brief  Returns the output dtype for Vincenty distance.
  */
-NK_INTERNAL nk_datatype_t nk_vincenty_output_datatype(nk_datatype_t dtype) {
+NK_INTERNAL nk_dtype_t nk_vincenty_output_dtype(nk_dtype_t dtype) {
     switch (dtype) {
     case nk_f64_k: return nk_f64_k;
     case nk_f32_k: return nk_f32_k;
-    default: return nk_datatype_unknown_k;
+    default: return nk_dtype_unknown_k;
     }
 }
 

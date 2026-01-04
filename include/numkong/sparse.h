@@ -9,7 +9,7 @@
  *  - Set intersection for sorted unique arrays → u32 count
  *  - Sparse dot products for weighted sparse vectors → f32 product
  *
- *  For datatypes:
+ *  For dtypes:
  *
  *  - `u16`: indices for vocabularies under 64 thousand tokens
  *  - `u32`: indices for vocabularies under 4 billion tokens

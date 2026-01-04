@@ -799,6 +799,124 @@ NK_INTERNAL void nk_l2_u8x16_finalize_serial(nk_l2_u8x16_state_serial_t const *s
     results[3] = dist_sq_d > 0 ? nk_f32_sqrt_serial(dist_sq_d) : 0;
 }
 
+NK_PUBLIC void nk_l2sq_i4_serial(nk_i4x2_t const *a, nk_i4x2_t const *b, nk_size_t n, nk_u32_t *result) {
+    // i4 values are packed as nibbles: two 4-bit signed values per byte.
+    // Parameter `n` is the number of 4-bit values (dimensions), not bytes.
+    // Sign extension: (nibble ^ 8) - 8 maps [0,15] to [-8,7]
+    nk_size_t n_bytes = (n + 1) / 2;
+    nk_i32_t sum = 0;
+    for (nk_size_t i = 0; i < n_bytes; ++i) {
+        // Extract low nibbles (first dimension of pair)
+        nk_i32_t a_lo = (nk_i32_t)((a[i] & 0x0F) ^ 8) - 8;
+        nk_i32_t b_lo = (nk_i32_t)((b[i] & 0x0F) ^ 8) - 8;
+        nk_i32_t diff_lo = a_lo - b_lo;
+        sum += diff_lo * diff_lo;
+
+        // Extract high nibbles (second dimension of pair) - skip if n is odd and this is last byte
+        if (2 * i + 1 < n) {
+            nk_i32_t a_hi = (nk_i32_t)(((a[i] >> 4) & 0x0F) ^ 8) - 8;
+            nk_i32_t b_hi = (nk_i32_t)(((b[i] >> 4) & 0x0F) ^ 8) - 8;
+            nk_i32_t diff_hi = a_hi - b_hi;
+            sum += diff_hi * diff_hi;
+        }
+    }
+    *result = (nk_u32_t)sum;
+}
+
+NK_PUBLIC void nk_l2_i4_serial(nk_i4x2_t const *a, nk_i4x2_t const *b, nk_size_t n, nk_f32_t *result) {
+    nk_u32_t distance_sq;
+    nk_l2sq_i4_serial(a, b, n, &distance_sq);
+    *result = nk_f32_sqrt_serial((nk_f32_t)distance_sq);
+}
+
+NK_PUBLIC void nk_angular_i4_serial(nk_i4x2_t const *a, nk_i4x2_t const *b, nk_size_t n, nk_f32_t *result) {
+    nk_size_t n_bytes = (n + 1) / 2;
+    nk_i32_t dot_sum = 0, a_norm_sq = 0, b_norm_sq = 0;
+    for (nk_size_t i = 0; i < n_bytes; ++i) {
+        // Extract low nibbles
+        nk_i32_t a_lo = (nk_i32_t)((a[i] & 0x0F) ^ 8) - 8;
+        nk_i32_t b_lo = (nk_i32_t)((b[i] & 0x0F) ^ 8) - 8;
+        dot_sum += a_lo * b_lo;
+        a_norm_sq += a_lo * a_lo;
+        b_norm_sq += b_lo * b_lo;
+
+        // Extract high nibbles - skip if n is odd and this is last byte
+        if (2 * i + 1 < n) {
+            nk_i32_t a_hi = (nk_i32_t)(((a[i] >> 4) & 0x0F) ^ 8) - 8;
+            nk_i32_t b_hi = (nk_i32_t)(((b[i] >> 4) & 0x0F) ^ 8) - 8;
+            dot_sum += a_hi * b_hi;
+            a_norm_sq += a_hi * a_hi;
+            b_norm_sq += b_hi * b_hi;
+        }
+    }
+    if (a_norm_sq == 0 && b_norm_sq == 0) { *result = 0; }
+    else if (dot_sum == 0) { *result = 1; }
+    else {
+        nk_f32_t unclipped = 1.0f - (nk_f32_t)dot_sum * nk_f32_rsqrt_serial((nk_f32_t)a_norm_sq) *
+                                        nk_f32_rsqrt_serial((nk_f32_t)b_norm_sq);
+        *result = unclipped > 0 ? unclipped : 0;
+    }
+}
+
+NK_PUBLIC void nk_l2sq_u4_serial(nk_u4x2_t const *a, nk_u4x2_t const *b, nk_size_t n, nk_u32_t *result) {
+    // u4 values are packed as nibbles: two 4-bit unsigned values per byte.
+    // Parameter `n` is the number of 4-bit values (dimensions), not bytes.
+    // No sign extension needed - values are in [0,15].
+    nk_size_t n_bytes = (n + 1) / 2;
+    nk_u32_t sum = 0;
+    for (nk_size_t i = 0; i < n_bytes; ++i) {
+        // Extract low nibbles
+        nk_i32_t a_lo = (nk_i32_t)(a[i] & 0x0F);
+        nk_i32_t b_lo = (nk_i32_t)(b[i] & 0x0F);
+        nk_i32_t diff_lo = a_lo - b_lo;
+        sum += (nk_u32_t)(diff_lo * diff_lo);
+
+        // Extract high nibbles - skip if n is odd and this is last byte
+        if (2 * i + 1 < n) {
+            nk_i32_t a_hi = (nk_i32_t)((a[i] >> 4) & 0x0F);
+            nk_i32_t b_hi = (nk_i32_t)((b[i] >> 4) & 0x0F);
+            nk_i32_t diff_hi = a_hi - b_hi;
+            sum += (nk_u32_t)(diff_hi * diff_hi);
+        }
+    }
+    *result = sum;
+}
+
+NK_PUBLIC void nk_l2_u4_serial(nk_u4x2_t const *a, nk_u4x2_t const *b, nk_size_t n, nk_f32_t *result) {
+    nk_u32_t distance_sq;
+    nk_l2sq_u4_serial(a, b, n, &distance_sq);
+    *result = nk_f32_sqrt_serial((nk_f32_t)distance_sq);
+}
+
+NK_PUBLIC void nk_angular_u4_serial(nk_u4x2_t const *a, nk_u4x2_t const *b, nk_size_t n, nk_f32_t *result) {
+    nk_size_t n_bytes = (n + 1) / 2;
+    nk_u32_t dot_sum = 0, a_norm_sq = 0, b_norm_sq = 0;
+    for (nk_size_t i = 0; i < n_bytes; ++i) {
+        // Extract low nibbles
+        nk_u32_t a_lo = (nk_u32_t)(a[i] & 0x0F);
+        nk_u32_t b_lo = (nk_u32_t)(b[i] & 0x0F);
+        dot_sum += a_lo * b_lo;
+        a_norm_sq += a_lo * a_lo;
+        b_norm_sq += b_lo * b_lo;
+
+        // Extract high nibbles - skip if n is odd and this is last byte
+        if (2 * i + 1 < n) {
+            nk_u32_t a_hi = (nk_u32_t)((a[i] >> 4) & 0x0F);
+            nk_u32_t b_hi = (nk_u32_t)((b[i] >> 4) & 0x0F);
+            dot_sum += a_hi * b_hi;
+            a_norm_sq += a_hi * a_hi;
+            b_norm_sq += b_hi * b_hi;
+        }
+    }
+    if (a_norm_sq == 0 && b_norm_sq == 0) { *result = 0; }
+    else if (dot_sum == 0) { *result = 1; }
+    else {
+        nk_f32_t unclipped = 1.0f - (nk_f32_t)dot_sum * nk_f32_rsqrt_serial((nk_f32_t)a_norm_sq) *
+                                        nk_f32_rsqrt_serial((nk_f32_t)b_norm_sq);
+        *result = unclipped > 0 ? unclipped : 0;
+    }
+}
+
 #if defined(__cplusplus)
 } // extern "C"
 #endif

@@ -186,9 +186,8 @@ NK_INTERNAL __m128i nk_f16x16_to_e5m2x16_sapphire_(__m256h f16x16) {
 
 #pragma region - Public API
 
-NK_PUBLIC void nk_cast_sapphire(void const *from, nk_datatype_t from_type, nk_size_t n, void *to,
-                                nk_datatype_t to_type) {
-    return nk_cast_serial(from, from_type, n, to, to_type);
+NK_PUBLIC void nk_cast_sapphire(void const *from, nk_dtype_t from_type, nk_size_t n, void *to, nk_dtype_t to_type) {
+    nk_cast_ice(from, from_type, n, to, to_type);
 }
 
 #pragma endregion - Public API

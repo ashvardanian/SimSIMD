@@ -29,7 +29,7 @@ extern "C" {
  *  - If parent != NULL: view into parent's memory, `data` points there
  */
 typedef struct Tensor {
-    PyObject_HEAD nk_datatype_t datatype;   ///< Logical datatype (f32, f64, bf16, etc.)
+    PyObject_HEAD nk_dtype_t dtype;         ///< Logical dtype (f32, f64, bf16, etc.)
     size_t rank;                            ///< Number of dimensions (0 for scalar)
     Py_ssize_t shape[NK_TENSOR_MAX_RANK];   ///< Extent along each dimension
     Py_ssize_t strides[NK_TENSOR_MAX_RANK]; ///< Stride in bytes for each dimension
@@ -62,10 +62,10 @@ typedef struct TensorIter {
  *  Supported dtypes: bfloat16, int8
  */
 typedef struct MatrixMultiplier {
-    PyObject_HEAD nk_datatype_t dtype; ///< Packed datatype (bf16 or i8)
-    nk_size_t n;                       ///< Number of rows in original matrix
-    nk_size_t k;                       ///< Number of columns in original matrix
-    char start[];                      ///< Variable-length packed data
+    PyObject_HEAD nk_dtype_t dtype; ///< Packed dtype (bf16 or i8)
+    nk_size_t n;                    ///< Number of rows in original matrix
+    nk_size_t k;                    ///< Number of columns in original matrix
+    char start[];                   ///< Variable-length packed data
 } MatrixMultiplier;
 
 #pragma endregion // MatrixMultiplier Type
@@ -87,12 +87,12 @@ extern PyTypeObject MatrixMultiplierType;
 
 /**
  *  @brief Allocate a new Tensor with uninitialized data.
- *  @param[in] datatype Logical datatype for elements.
+ *  @param[in] dtype Logical dtype for elements.
  *  @param[in] rank Number of dimensions.
  *  @param[in] shape Array of dimension sizes.
  *  @return New Tensor, or NULL on allocation failure.
  */
-Tensor *Tensor_new(nk_datatype_t datatype, size_t rank, Py_ssize_t const *shape);
+Tensor *Tensor_new(nk_dtype_t dtype, size_t rank, Py_ssize_t const *shape);
 
 /**
  *  @brief Create a view into an existing Tensor.
@@ -101,13 +101,13 @@ Tensor *Tensor_new(nk_datatype_t datatype, size_t rank, Py_ssize_t const *shape)
  *
  *  @param[in] parent Parent Tensor (reference count incremented).
  *  @param[in] data Pointer to first element of view.
- *  @param[in] datatype Logical datatype (usually same as parent).
+ *  @param[in] dtype Logical dtype (usually same as parent).
  *  @param[in] rank Number of dimensions.
  *  @param[in] shape Array of dimension sizes.
  *  @param[in] strides Array of byte strides.
  *  @return New Tensor view, or NULL on failure.
  */
-Tensor *Tensor_view(Tensor *parent, char *data, nk_datatype_t datatype, size_t rank, Py_ssize_t const *shape,
+Tensor *Tensor_view(Tensor *parent, char *data, nk_dtype_t dtype, size_t rank, Py_ssize_t const *shape,
                     Py_ssize_t const *strides);
 
 #pragma endregion // Tensor Factory Functions

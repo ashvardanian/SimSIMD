@@ -127,7 +127,7 @@ NK_INTERNAL nk_i64_t nk_reduce_add_i64x8_skylake_(__m512i sum_i64x8) {
  *  With 64 elements per register, useful for strides 2-16 (yielding 4+ elements per load).
  *  Mask bits set to 1 where (position % stride == 0).
  */
-NK_INTERNAL __mmask64 nk_stride_mask_b8x64_(nk_size_t stride) {
+NK_INTERNAL __mmask64 nk_stride_mask_u1x64_(nk_size_t stride) {
     switch (stride) {
     case 2: return (__mmask64)0x5555555555555555ull;  // 32 elems
     case 3: return (__mmask64)0x1249249249249249ull;  // 21 elems
@@ -1288,7 +1288,7 @@ NK_INTERNAL void nk_reduce_add_i8_skylake_strided_(                  //
     nk_i8_t const *data, nk_size_t count, nk_size_t stride_elements, //
     nk_i64_t *result) {
     // Masked load zeros out non-stride elements; zeros don't affect sum
-    __mmask64 stride_mask_m64 = nk_stride_mask_b8x64_(stride_elements);
+    __mmask64 stride_mask_m64 = nk_stride_mask_u1x64_(stride_elements);
     __m512i sum_i64x8 = _mm512_setzero_si512();
     nk_size_t idx_scalars = 0;
     nk_size_t total_scalars = count * stride_elements;
@@ -1328,7 +1328,7 @@ NK_INTERNAL void nk_reduce_add_i8_skylake_strided_(                  //
 NK_INTERNAL void nk_reduce_add_u8_skylake_strided_(                  //
     nk_u8_t const *data, nk_size_t count, nk_size_t stride_elements, //
     nk_u64_t *result) {
-    __mmask64 stride_mask_m64 = nk_stride_mask_b8x64_(stride_elements);
+    __mmask64 stride_mask_m64 = nk_stride_mask_u1x64_(stride_elements);
     __m512i sum_u64x8 = _mm512_setzero_si512();
     nk_size_t idx_scalars = 0;
     nk_size_t total_scalars = count * stride_elements;

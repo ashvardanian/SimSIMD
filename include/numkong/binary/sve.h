@@ -15,20 +15,21 @@
 #pragma clang attribute push(__attribute__((target("arch=armv8.2-a+sve"))), apply_to = function)
 
 #include "numkong/types.h"
-#include "numkong/binary/serial.h" // `nk_popcount_b8`
-#include "numkong/binary/neon.h"   // `nk_hamming_b8_neon`, `nk_jaccard_b8_neon`
+#include "numkong/binary/serial.h" // `nk_popcount_u1`
+#include "numkong/binary/neon.h"   // `nk_hamming_u1_neon`, `nk_jaccard_u1_neon`
 #include "numkong/reduce/neon.h"   // `nk_reduce_add_u8x16_neon_`
 
 #if defined(__cplusplus)
 extern "C" {
 #endif
 
-NK_PUBLIC void nk_hamming_b8_sve(nk_b8_t const *a, nk_b8_t const *b, nk_size_t n_words, nk_u32_t *result) {
+NK_PUBLIC void nk_hamming_u1_sve(nk_u1x8_t const *a, nk_u1x8_t const *b, nk_size_t n, nk_u32_t *result) {
+    nk_size_t n_bytes = nk_size_divide_round_up_to_multiple_(n, NK_BITS_PER_BYTE);
 
     // On very small register sizes, NEON is at least as fast as SVE.
     nk_size_t const words_per_register = svcntb();
     if (words_per_register <= 32) {
-        nk_hamming_b8_neon(a, b, n_words, result);
+        nk_hamming_u1_neon(a, b, n, result);
         return;
     }
 
@@ -36,17 +37,17 @@ NK_PUBLIC void nk_hamming_b8_sve(nk_b8_t const *a, nk_b8_t const *b, nk_size_t n
     nk_size_t i = 0, cycle = 0;
     nk_u32_t differences = 0;
     svuint8_t popcount_u8 = svdup_n_u8(0);
-    svbool_t const all_predicate = svptrue_b8();
-    while (i < n_words) {
+    svbool_t const all_predicate = svptrue_u1();
+    while (i < n_bytes) {
         do {
-            svbool_t active_predicate = svwhilelt_b8((unsigned int)i, (unsigned int)n_words);
+            svbool_t active_predicate = svwhilelt_u1((unsigned int)i, (unsigned int)n_bytes);
             svuint8_t a_u8 = svld1_u8(active_predicate, a + i);
             svuint8_t b_u8 = svld1_u8(active_predicate, b + i);
             popcount_u8 = svadd_u8_z(all_predicate, popcount_u8,
                                      svcnt_u8_x(all_predicate, sveor_u8_m(all_predicate, a_u8, b_u8)));
             i += words_per_register;
             ++cycle;
-        } while (i < n_words && cycle < 31);
+        } while (i < n_bytes && cycle < 31);
         differences += svaddv_u8(all_predicate, popcount_u8);
         popcount_u8 = svdup_n_u8(0);
         cycle = 0; // Reset the cycle counter.
@@ -55,12 +56,13 @@ NK_PUBLIC void nk_hamming_b8_sve(nk_b8_t const *a, nk_b8_t const *b, nk_size_t n
     *result = differences;
 }
 
-NK_PUBLIC void nk_jaccard_b8_sve(nk_b8_t const *a, nk_b8_t const *b, nk_size_t n_words, nk_f32_t *result) {
+NK_PUBLIC void nk_jaccard_u1_sve(nk_u1x8_t const *a, nk_u1x8_t const *b, nk_size_t n, nk_f32_t *result) {
+    nk_size_t n_bytes = nk_size_divide_round_up_to_multiple_(n, NK_BITS_PER_BYTE);
 
     // On very small register sizes, NEON is at least as fast as SVE.
     nk_size_t const words_per_register = svcntb();
     if (words_per_register <= 32) {
-        nk_jaccard_b8_neon(a, b, n_words, result);
+        nk_jaccard_u1_neon(a, b, n, result);
         return;
     }
 
@@ -69,10 +71,10 @@ NK_PUBLIC void nk_jaccard_b8_sve(nk_b8_t const *a, nk_b8_t const *b, nk_size_t n
     nk_u32_t intersection_count = 0, union_count = 0;
     svuint8_t intersection_popcount_u8 = svdup_n_u8(0);
     svuint8_t union_popcount_u8 = svdup_n_u8(0);
-    svbool_t const all_predicate = svptrue_b8();
-    while (i < n_words) {
+    svbool_t const all_predicate = svptrue_u1();
+    while (i < n_bytes) {
         do {
-            svbool_t active_predicate = svwhilelt_b8((unsigned int)i, (unsigned int)n_words);
+            svbool_t active_predicate = svwhilelt_u1((unsigned int)i, (unsigned int)n_bytes);
             svuint8_t a_u8 = svld1_u8(active_predicate, a + i);
             svuint8_t b_u8 = svld1_u8(active_predicate, b + i);
             intersection_popcount_u8 = svadd_u8_z(all_predicate, intersection_popcount_u8,
@@ -81,7 +83,7 @@ NK_PUBLIC void nk_jaccard_b8_sve(nk_b8_t const *a, nk_b8_t const *b, nk_size_t n
                                            svcnt_u8_x(all_predicate, svorr_u8_m(all_predicate, a_u8, b_u8)));
             i += words_per_register;
             ++cycle;
-        } while (i < n_words && cycle < 31);
+        } while (i < n_bytes && cycle < 31);
         intersection_count += svaddv_u8(all_predicate, intersection_popcount_u8);
         intersection_popcount_u8 = svdup_n_u8(0);
         union_count += svaddv_u8(all_predicate, union_popcount_u8);

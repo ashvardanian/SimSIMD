@@ -388,7 +388,7 @@
 extern "C" {
 #endif
 
-typedef unsigned char nk_b8_t;   /// ? Eight boolean values packed in one byte
+typedef unsigned char nk_u1x8_t; /// ? Eight boolean values packed in one byte
 typedef unsigned char nk_i4x2_t; /// ? Two 4-bit signed integers packed in one byte
 typedef unsigned char nk_u4x2_t; /// ? Two 4-bit unsigned integers packed in one byte
 typedef unsigned char nk_e4m3_t; /// ? FP8 E4M3 value encoded into one byte
@@ -439,6 +439,8 @@ typedef nk_f64_t nk_fmax_t;
 #define NK_I8_MIN (-127 - 1)
 #define NK_U8_MAX 255U
 
+#define NK_BITS_PER_BYTE 8
+
 /**
  *  @brief  Enumeration of supported scalar data types.
  *
@@ -447,10 +449,8 @@ typedef nk_f64_t nk_fmax_t;
  *  interfaces.
  */
 typedef enum {
-    nk_datatype_unknown_k = 0, ///< Unknown data type
-    nk_b8_k = 1 << 1,          ///< Single-bit values packed into 8-bit words
-    nk_b1x8_k = nk_b8_k,       ///< Single-bit values packed into 8-bit words
-    nk_i4x2_k = 1 << 19,       ///< 4-bit signed integers packed into 8-bit words
+    nk_dtype_unknown_k = 0, ///< Unknown data type
+    nk_u1_k = 1 << 1,       ///< Single-bit values packed into 8-bit words
 
     nk_i8_k = 1 << 2,  ///< 8-bit signed integer
     nk_i16_k = 1 << 3, ///< 16-bit signed integer
@@ -469,19 +469,84 @@ typedef enum {
 
     nk_e4m3_k = 1 << 14, ///< FP8 E4M3 floating point
     nk_e5m2_k = 1 << 15, ///< FP8 E5M2 floating point
+    nk_i4_k = 1 << 16,   ///< 4-bit signed integers packed into 8-bit words
+    nk_u4_k = 1 << 17,   ///< 4-bit unsigned integers packed into 8-bit words
 
     nk_f64c_k = 1 << 20,  ///< Complex double precision floating point
     nk_f32c_k = 1 << 21,  ///< Complex single precision floating point
     nk_f16c_k = 1 << 22,  ///< Complex half precision floating point
     nk_bf16c_k = 1 << 23, ///< Complex brain floating point
-} nk_datatype_t;
+} nk_dtype_t;
+
+typedef enum {
+    nk_dtype_family_unknown_k = 0,
+    nk_dtype_family_float_k,
+    nk_dtype_family_complex_float_k,
+    nk_dtype_family_int_k,
+    nk_dtype_family_uint_k,
+} nk_dtype_family_k;
+
+/** @brief Classifies the family of the dtype. */
+NK_PUBLIC nk_dtype_family_k nk_dtype_family(nk_dtype_t dtype) {
+    switch (dtype) {
+    case nk_f64_k: return nk_dtype_family_float_k;
+    case nk_f32_k: return nk_dtype_family_float_k;
+    case nk_f16_k: return nk_dtype_family_float_k;
+    case nk_bf16_k: return nk_dtype_family_float_k;
+    case nk_e4m3_k: return nk_dtype_family_float_k;
+    case nk_e5m2_k: return nk_dtype_family_float_k;
+    case nk_f64c_k: return nk_dtype_family_complex_float_k;
+    case nk_f32c_k: return nk_dtype_family_complex_float_k;
+    case nk_f16c_k: return nk_dtype_family_complex_float_k;
+    case nk_bf16c_k: return nk_dtype_family_complex_float_k;
+    case nk_u1_k: return nk_dtype_family_uint_k;
+    case nk_u4_k: return nk_dtype_family_uint_k;
+    case nk_u8_k: return nk_dtype_family_uint_k;
+    case nk_u16_k: return nk_dtype_family_uint_k;
+    case nk_u32_k: return nk_dtype_family_uint_k;
+    case nk_u64_k: return nk_dtype_family_uint_k;
+    case nk_i4_k: return nk_dtype_family_int_k;
+    case nk_i8_k: return nk_dtype_family_int_k;
+    case nk_i16_k: return nk_dtype_family_int_k;
+    case nk_i32_k: return nk_dtype_family_int_k;
+    case nk_i64_k: return nk_dtype_family_int_k;
+    default: return nk_dtype_family_unknown_k;
+    }
+}
+
+/** @brief Returns the number of bits in a single scalar of a given type. */
+NK_PUBLIC nk_size_t nk_dtype_bits(nk_dtype_t dtype) {
+    switch (dtype) {
+    case nk_f64_k: return 64;
+    case nk_f32_k: return 32;
+    case nk_f16_k: return 16;
+    case nk_bf16_k: return 16;
+    case nk_e4m3_k: return 8;
+    case nk_e5m2_k: return 8;
+    case nk_f64c_k: return 128;
+    case nk_f32c_k: return 64;
+    case nk_f16c_k: return 32;
+    case nk_bf16c_k: return 32;
+    case nk_u1_k: return 1;
+    case nk_u4_k: return 4;
+    case nk_u8_k: return 8;
+    case nk_u16_k: return 16;
+    case nk_u32_k: return 32;
+    case nk_u64_k: return 64;
+    case nk_i4_k: return 4;
+    case nk_i8_k: return 8;
+    case nk_i16_k: return 16;
+    case nk_i32_k: return 32;
+    case nk_i64_k: return 64;
+    default: return 0;
+    }
+}
 
 /*  @brief  Half-precision floating-point type.
  *
  *  - GCC or Clang on 64-bit Arm: `__fp16`, may require `-mfp16-format` option.
  *  - GCC or Clang on 64-bit x86: `_Float16`.
  *  - Default: `unsigned short`.
- *
  */
 #if !defined(NK_NATIVE_F16) || NK_NATIVE_F16
 #if (defined(__GNUC__) || defined(__clang__)) && (defined(__ARM_ARCH) || defined(__aarch64__)) && \
@@ -579,9 +644,9 @@ typedef unsigned short nk_bf16_t;
  *  In C the `_Static_assert` is only available with C11 and later.
  */
 #define NK_STATIC_ASSERT(cond, msg) typedef char static_assertion_##msg[(cond) ? 1 : -1]
-NK_STATIC_ASSERT(sizeof(nk_b8_t) == 1, nk_b8_t_must_be_1_byte);
-NK_STATIC_ASSERT(sizeof(nk_i4x2_t) == 1, nk_i4x2_t_must_be_1_byte);
-NK_STATIC_ASSERT(sizeof(nk_u4x2_t) == 1, nk_u4x2_t_must_be_1_byte);
+NK_STATIC_ASSERT(sizeof(nk_u1x8_t) == 1, nk_u1x8_t_must_be_1_byte);
+NK_STATIC_ASSERT(sizeof(nk_i4x2_t) == 1, nk_i4_t_must_be_1_byte);
+NK_STATIC_ASSERT(sizeof(nk_u4x2_t) == 1, nk_u4_t_must_be_1_byte);
 NK_STATIC_ASSERT(sizeof(nk_e4m3_t) == 1, nk_e4m3_t_must_be_1_byte);
 NK_STATIC_ASSERT(sizeof(nk_e5m2_t) == 1, nk_e5m2_t_must_be_1_byte);
 NK_STATIC_ASSERT(sizeof(nk_i8_t) == 1, nk_i8_t_must_be_1_byte);
@@ -695,7 +760,6 @@ typedef union nk_b128_vec_t {
     nk_e5m2_t e5m2s[16];
     nk_f32_t f32s[4];
     nk_f64_t f64s[2];
-    nk_b8_t b8s[16];
 } nk_b128_vec_t;
 
 /** @brief  Small 32-byte memory slice viewable as different types. */
@@ -732,7 +796,6 @@ typedef union nk_b256_vec_t {
     nk_e5m2_t e5m2s[32];
     nk_f32_t f32s[8];
     nk_f64_t f64s[4];
-    nk_b8_t b8s[32];
 } nk_b256_vec_t;
 
 /** @brief  Small 64-byte memory slice viewable as different types.
@@ -776,7 +839,6 @@ typedef union nk_b512_vec_t {
     nk_f64_t f64s[8];
     nk_e4m3_t e4m3s[64];
     nk_e5m2_t e5m2s[64];
-    nk_b8_t b8s[64];
 } nk_b512_vec_t;
 
 /**
@@ -857,7 +919,7 @@ NK_PUBLIC void nk_tensor_position_init(nk_tensor_position_t *tensor_position) {
  *  If the tensor is sparse, consider using a different data structure or a different memory layout.
  *
  *  Most NumKong algorithms don't work with the entire structure, but expect the fields to be passed separately.
- *  It would also require storing the @b start-pointer and the @b datatype/item-size separately, as it's not
+ *  It would also require storing the @b start-pointer and the @b dtype/item-size separately, as it's not
  *  stored inside the structure.
  */
 typedef struct nk_tensor_shape_t {
@@ -1008,6 +1070,11 @@ NK_INTERNAL void nk_i64_smul_(nk_i64_t const *a, nk_i64_t const *b, nk_i64_t *r)
         nk_u64_t result = (hi_lo << 32) + (lo_hi << 32) + lo_lo;
         *r = (sign < 0) ? -((nk_i64_t)result) : (nk_i64_t)result;
     }
+}
+
+/** @brief Divides the number rounding up to the next multiple of the given divisor. */
+NK_INTERNAL nk_size_t nk_size_divide_round_up_to_multiple_(nk_size_t number, nk_size_t divisor) {
+    return (number + divisor - 1) / divisor;
 }
 
 NK_INTERNAL nk_f64_t nk_f32_abs_(nk_f64_t x) { return x < 0 ? -x : x; }

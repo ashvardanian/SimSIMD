@@ -10,7 +10,7 @@
  *  - Bilinear form multiplication
  *  - Bilinear form multiplication over complex numbers
  *
- *  For datatypes:
+ *  For dtypes:
  *
  *  - 64-bit floating point numbers → 64-bit floats
  *  - 32-bit floating point numbers → 32-bit floats

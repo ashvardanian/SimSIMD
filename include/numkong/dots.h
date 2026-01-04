@@ -14,7 +14,7 @@
  *  - Embedding similarity matrices
  *  - k-means clustering, DBSCAN, hierarchical clustering
  *
- *  For datatypes (MKL-style naming: input×input→output):
+ *  For dtypes (MKL-style naming: input×input→output):
  *  - bf16bf16f32: BF16 inputs accumulating to F32
  *  - i8i8i32: INT8 inputs accumulating to INT32
  *  - f32f32f32: F32 inputs accumulating to F32
