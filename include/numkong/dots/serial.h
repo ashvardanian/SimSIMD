@@ -146,11 +146,11 @@ typedef struct {
  *  Computes C[M, N] = A[M, K] @ B[K, N] where B is pre-packed as B_T[N, K].
  *
  *  Loop structure (GotoBLAS 5-loop design):
- *    Loop 1: NC columns at a time (L3 blocking)
- *      Loop 2: KC depth at a time (L1 blocking)
- *        Loop 3: MC rows at a time (L2 blocking)
- *          Loop 4: NR=4 columns (register tile)
- *            Loop 5: MR rows (register tile)
+ *    Loop 1: col_block columns at a time (L3 blocking)
+ *      Loop 2: depth_block depth at a time (L1 blocking)
+ *        Loop 3: row_block rows at a time (L2 blocking)
+ *          Loop 4: register_cols columns (register tile)
+ *            Loop 5: register_rows rows (register tile)
  *              Loop 6: k elements (SIMD accumulation) - tight inner loop
  *
  *  Inner loop structure (after B pointer setup outside k-loop):
@@ -176,10 +176,11 @@ typedef struct {
         nk_##input_type##_t const *b_packed = (nk_##input_type##_t const *)((char const *)b_packed_void +            \
                                                                             sizeof(nk_dots_packed_header_t));        \
                                                                                                                      \
-        /* Cache blocking parameters (no KC blocking - full depth accumulated per tile) */                           \
-        nk_size_t const mc_size = 128;                     /* L2 cache blocking over rows */                         \
-        nk_size_t const nc_size = 2048;                    /* L3 cache blocking over columns */                      \
-        nk_size_t const register_tile_columns = 4;         /* NR: columns per finalize batch */                      \
+        /* Cache blocking parameters (no depth_block blocking - full depth accumulated per tile) */                  \
+        nk_size_t const row_block = 128;                   /* L2 cache blocking over rows */                         \
+        nk_size_t const col_block = 2048;                  /* L3 cache blocking over columns */                      \
+        nk_size_t const register_rows = 4;                 /* Rows per register tile */                              \
+        nk_size_t const register_cols = 4;                 /* Columns per register tile */                           \
         nk_size_t const group_size = NK_DOTS_GROUP_SIZE_;  /* Columns per packed group */                            \
         nk_size_t const group_stride = group_size * depth; /* Elements per group */                                  \
         nk_size_t const aligned_depth = (depth / simd_width) * simd_width;                                           \
@@ -191,22 +192,22 @@ typedef struct {
         }                                                                                                            \
                                                                                                                      \
         /* Loop 1: L3 cache blocking over columns */                                                                 \
-        for (nk_size_t column_block_start = 0; column_block_start < column_count; column_block_start += nc_size) {   \
-            nk_size_t column_block_end = column_block_start + nc_size;                                               \
-            if (column_block_end > column_count) column_block_end = column_count;                                    \
+        for (nk_size_t col_block_start = 0; col_block_start < column_count; col_block_start += col_block) {          \
+            nk_size_t col_block_end = col_block_start + col_block;                                                   \
+            if (col_block_end > column_count) col_block_end = column_count;                                          \
                                                                                                                      \
             /* Loop 2: L2 cache blocking over rows */                                                                \
-            for (nk_size_t row_block_start = 0; row_block_start < row_count; row_block_start += mc_size) {           \
-                nk_size_t row_block_end = row_block_start + mc_size;                                                 \
+            for (nk_size_t row_block_start = 0; row_block_start < row_count; row_block_start += row_block) {         \
+                nk_size_t row_block_end = row_block_start + row_block;                                               \
                 if (row_block_end > row_count) row_block_end = row_count;                                            \
                                                                                                                      \
-                /* Loop 3: Register tiling over columns (4 columns per batch) */                                     \
-                for (nk_size_t tile_column_start = column_block_start; tile_column_start < column_block_end;         \
-                     tile_column_start += register_tile_columns) {                                                   \
+                /* Loop 3: Register tiling over columns (register_cols columns per batch) */                         \
+                for (nk_size_t tile_col_start = col_block_start; tile_col_start < col_block_end;                     \
+                     tile_col_start += register_cols) {                                                              \
                                                                                                                      \
                     /* Compute B pointers once per column tile (outside row and k loops) */                          \
-                    nk_size_t const group = tile_column_start / group_size;                                          \
-                    nk_size_t const j_in_group = tile_column_start % group_size;                                     \
+                    nk_size_t const group = tile_col_start / group_size;                                             \
+                    nk_size_t const j_in_group = tile_col_start % group_size;                                        \
                     nk_##input_type##_t const *group_base = b_packed + group * group_stride;                         \
                                                                                                                      \
                     nk_##input_type##_t const *b_first = group_base + (j_in_group + 0) * depth;                      \
@@ -214,11 +215,11 @@ typedef struct {
                     nk_##input_type##_t const *b_third = group_base + (j_in_group + 2) * depth;                      \
                     nk_##input_type##_t const *b_fourth = group_base + (j_in_group + 3) * depth;                     \
                                                                                                                      \
-                    /* Loop 4: Register tiling over rows (MR rows per tile) */                                       \
+                    /* Loop 4: Register tiling over rows (register_rows rows per tile) */                            \
                     for (nk_size_t tile_row_start = row_block_start; tile_row_start < row_block_end;                 \
-                         tile_row_start += 4) {                                                                      \
+                         tile_row_start += register_rows) {                                                          \
                                                                                                                      \
-                        /* Initialize MR x 4 accumulator states */                                                   \
+                        /* Initialize register_rows x register_cols accumulator states */                            \
                         state_type accumulators[4][4];                                                               \
                         init_fn(&accumulators[0][0]), init_fn(&accumulators[0][1]), init_fn(&accumulators[0][2]),    \
                             init_fn(&accumulators[0][3]);                                                            \
@@ -273,28 +274,28 @@ typedef struct {
                             update_fn(&accumulators[3][2], a_fourth_vec, b_third_vec);                               \
                             update_fn(&accumulators[3][3], a_fourth_vec, b_fourth_vec);                              \
                         }                                                                                            \
-                        /* Finalize and store MR x 4 results using batched 4-way reduction */                        \
+                        /* Finalize and store register_rows x register_cols results using batched 4-way reduction */ \
                         result_vec_type result_vec;                                                                  \
                         nk_##output_type##_t *c_first = (nk_##output_type##_t *)((char *)c_matrix +                  \
                                                                                  (tile_row_start + 0) * c_stride);   \
                         finalize_fn(&accumulators[0][0], &accumulators[0][1], &accumulators[0][2],                   \
                                     &accumulators[0][3], &result_vec);                                               \
-                        partial_store_fn(&result_vec, c_first + tile_column_start, 4);                               \
+                        partial_store_fn(&result_vec, c_first + tile_col_start, 4);                                  \
                         nk_##output_type##_t *c_second = (nk_##output_type##_t *)((char *)c_matrix +                 \
                                                                                   (tile_row_start + 1) * c_stride);  \
                         finalize_fn(&accumulators[1][0], &accumulators[1][1], &accumulators[1][2],                   \
                                     &accumulators[1][3], &result_vec);                                               \
-                        partial_store_fn(&result_vec, c_second + tile_column_start, 4);                              \
+                        partial_store_fn(&result_vec, c_second + tile_col_start, 4);                                 \
                         nk_##output_type##_t *c_third = (nk_##output_type##_t *)((char *)c_matrix +                  \
                                                                                  (tile_row_start + 2) * c_stride);   \
                         finalize_fn(&accumulators[2][0], &accumulators[2][1], &accumulators[2][2],                   \
                                     &accumulators[2][3], &result_vec);                                               \
-                        partial_store_fn(&result_vec, c_third + tile_column_start, 4);                               \
+                        partial_store_fn(&result_vec, c_third + tile_col_start, 4);                                  \
                         nk_##output_type##_t *c_fourth = (nk_##output_type##_t *)((char *)c_matrix +                 \
                                                                                   (tile_row_start + 3) * c_stride);  \
                         finalize_fn(&accumulators[3][0], &accumulators[3][1], &accumulators[3][2],                   \
                                     &accumulators[3][3], &result_vec);                                               \
-                        partial_store_fn(&result_vec, c_fourth + tile_column_start, 4);                              \
+                        partial_store_fn(&result_vec, c_fourth + tile_col_start, 4);                                 \
                     }                                                                                                \
                 }                                                                                                    \
             }                                                                                                        \
@@ -317,13 +318,15 @@ typedef struct {
         nk_##input_type##_t const *b_packed = (nk_##input_type##_t const *)((char const *)b_packed_void +              \
                                                                             sizeof(nk_dots_packed_header_t));          \
                                                                                                                        \
-        /* Cache blocking parameters (no KC blocking - full depth accumulated per tile) */                             \
-        nk_size_t const mc_size = 128;                     /* L2 cache blocking over rows */                           \
-        nk_size_t const nc_size = 2048;                    /* L3 cache blocking over columns */                        \
-        nk_size_t const register_tile_columns = 8;         /* NR: columns per finalize batch (2x4) */                  \
+        /* Cache blocking parameters (no depth_block blocking - full depth accumulated per tile) */                    \
+        nk_size_t const row_block = 128;                   /* L2 cache blocking over rows */                           \
+        nk_size_t const col_block = 2048;                  /* L3 cache blocking over columns */                        \
+        nk_size_t const register_rows = 1;                 /* Rows per register tile */                                \
+        nk_size_t const register_cols = 8;                 /* Columns per register tile (2x4) */                       \
         nk_size_t const group_size = NK_DOTS_GROUP_SIZE_;  /* Columns per packed group */                              \
         nk_size_t const group_stride = group_size * depth; /* Elements per group */                                    \
         nk_size_t const aligned_depth = (depth / simd_width) * simd_width;                                             \
+        (void)register_rows; /* Used in comments, loop uses 1 directly */                                              \
                                                                                                                        \
         /* Zero output matrix */                                                                                       \
         for (nk_size_t row_idx = 0; row_idx < row_count; ++row_idx) {                                                  \
@@ -332,22 +335,22 @@ typedef struct {
         }                                                                                                              \
                                                                                                                        \
         /* Loop 1: L3 cache blocking over columns */                                                                   \
-        for (nk_size_t column_block_start = 0; column_block_start < column_count; column_block_start += nc_size) {     \
-            nk_size_t column_block_end = column_block_start + nc_size;                                                 \
-            if (column_block_end > column_count) column_block_end = column_count;                                      \
+        for (nk_size_t col_block_start = 0; col_block_start < column_count; col_block_start += col_block) {            \
+            nk_size_t col_block_end = col_block_start + col_block;                                                     \
+            if (col_block_end > column_count) col_block_end = column_count;                                            \
                                                                                                                        \
             /* Loop 2: L2 cache blocking over rows */                                                                  \
-            for (nk_size_t row_block_start = 0; row_block_start < row_count; row_block_start += mc_size) {             \
-                nk_size_t const row_block_end = row_block_start + mc_size < row_count ? row_block_start + mc_size      \
-                                                                                      : row_count;                     \
+            for (nk_size_t row_block_start = 0; row_block_start < row_count; row_block_start += row_block) {           \
+                nk_size_t const row_block_end = row_block_start + row_block < row_count ? row_block_start + row_block  \
+                                                                                        : row_count;                   \
                                                                                                                        \
-                /* Loop 3: Register tiling over columns (8 columns per batch) */                                       \
-                for (nk_size_t tile_column_start = column_block_start; tile_column_start < column_block_end;           \
-                     tile_column_start += register_tile_columns) {                                                     \
+                /* Loop 3: Register tiling over columns (register_cols columns per batch) */                           \
+                for (nk_size_t tile_col_start = col_block_start; tile_col_start < col_block_end;                       \
+                     tile_col_start += register_cols) {                                                                \
                                                                                                                        \
                     /* Compute B pointers once per column tile (outside row and k loops) */                            \
-                    nk_size_t const group = tile_column_start / group_size;                                            \
-                    nk_size_t const j_in_group = tile_column_start % group_size;                                       \
+                    nk_size_t const group = tile_col_start / group_size;                                               \
+                    nk_size_t const j_in_group = tile_col_start % group_size;                                          \
                     nk_##input_type##_t const *group_base = b_packed + group * group_stride;                           \
                                                                                                                        \
                     nk_##input_type##_t const *b_col0 = group_base + (j_in_group + 0) * depth;                         \
@@ -410,10 +413,10 @@ typedef struct {
                         nk_##output_type##_t *c_row = (nk_##output_type##_t *)((char *)c_matrix + row_idx * c_stride); \
                         /* First 4 columns */                                                                          \
                         finalize_fn(&acc0, &acc1, &acc2, &acc3, &result_vec);                                          \
-                        partial_store_fn(&result_vec, c_row + tile_column_start, 4);                                   \
+                        partial_store_fn(&result_vec, c_row + tile_col_start, 4);                                      \
                         /* Second 4 columns */                                                                         \
                         finalize_fn(&acc4, &acc5, &acc6, &acc7, &result_vec);                                          \
-                        partial_store_fn(&result_vec, c_row + tile_column_start + 4, 4);                               \
+                        partial_store_fn(&result_vec, c_row + tile_col_start + 4, 4);                                  \
                     }                                                                                                  \
                 }                                                                                                      \
             }                                                                                                          \
@@ -421,200 +424,198 @@ typedef struct {
     }
 
 /* Generate both aligned kernel variants for each platform */
-#define nk_make_dots_inner_vectors_(suffix, input_type, output_type, vec_type, state_type, result_vec_type, init_fn, \
-                                    load_fn, partial_load_fn, update_fn, finalize_fn, partial_store_fn, simd_width)  \
-    /* Generate 4x4 aligned kernel */                                                                                \
-    nk_make_dots_inner_4x4_vectors_aligned_(suffix, input_type, output_type, vec_type, state_type, result_vec_type,  \
-                                            init_fn, load_fn, partial_load_fn, update_fn, finalize_fn,               \
-                                            partial_store_fn, simd_width)                                            \
-    /* Generate 1x8 aligned kernel */                                                                                \
-    nk_make_dots_inner_1x8_vectors_aligned_(suffix, input_type, output_type, vec_type, state_type, result_vec_type,  \
-                                            init_fn, load_fn, partial_load_fn, update_fn, finalize_fn,               \
-                                            partial_store_fn, simd_width)                                            \
-                                                                                                                     \
-    NK_PUBLIC void nk_dots_##suffix(nk_##input_type##_t const *a_matrix, void const *b_packed_void,                  \
-                                    nk_##output_type##_t *c_matrix, nk_size_t row_count, nk_size_t column_count,     \
-                                    nk_size_t depth, nk_size_t a_stride, nk_size_t c_stride) {                       \
-        /* Cache blocking parameters (hardcoded for optimal L1/L2/L3 utilization) */                                 \
-        nk_size_t const mc_size = 128;                     /* L2 cache blocking over rows */                         \
-        nk_size_t const nc_size = 2048;                    /* L3 cache blocking over columns */                      \
-        nk_size_t const register_tile_columns = 4;         /* NR: columns per finalize batch */                      \
-        nk_size_t const group_size = NK_DOTS_GROUP_SIZE_;  /* Columns per packed group */                            \
-        nk_size_t const group_stride = group_size * depth; /* Elements per group */                                  \
-        (void)register_tile_columns;                                                                                 \
-        (void)group_stride; /* Suppress unused warnings */                                                           \
-        /* Use 1x8 kernel when columns are aligned to 8 and many columns relative to rows */                         \
-        if (column_count % 8 == 0 && column_count >= row_count * 2 && depth % simd_width == 0) {                     \
-            nk_dots_##suffix##_1x8_aligned_(a_matrix, b_packed_void, c_matrix, row_count, column_count, depth,       \
-                                            a_stride, c_stride);                                                     \
-            return;                                                                                                  \
-        }                                                                                                            \
-        /* Use 4x4 kernel when dimensions are 4-aligned */                                                           \
-        if (row_count % 4 == 0 && column_count % 4 == 0 && depth % simd_width == 0) {                                \
-            nk_dots_##suffix##_aligned_(a_matrix, b_packed_void, c_matrix, row_count, column_count, depth, a_stride, \
-                                        c_stride);                                                                   \
-            return;                                                                                                  \
-        }                                                                                                            \
-                                                                                                                     \
-        /* Zero output matrix */                                                                                     \
-        for (nk_size_t row_idx = 0; row_idx < row_count; ++row_idx) {                                                \
-            nk_##output_type##_t *c_row = (nk_##output_type##_t *)((char *)c_matrix + row_idx * c_stride);           \
-            for (nk_size_t col_idx = 0; col_idx < column_count; ++col_idx) c_row[col_idx] = 0;                       \
-        }                                                                                                            \
-                                                                                                                     \
-        /* Compute aligned/remainder depth for partial loads */                                                      \
-        nk_size_t const aligned_depth = (depth / simd_width) * simd_width;                                           \
-        nk_size_t const remainder_depth = depth - aligned_depth;                                                     \
-                                                                                                                     \
-        /* Loop 1: L3 cache blocking over columns */                                                                 \
-        nk_##input_type##_t const *b_packed = (nk_##input_type##_t const *)((char const *)b_packed_void +            \
-                                                                            sizeof(nk_dots_packed_header_t));        \
-        for (nk_size_t column_block_start = 0; column_block_start < column_count; column_block_start += nc_size) {   \
-            nk_size_t column_block_end = column_block_start + nc_size;                                               \
-            if (column_block_end > column_count) column_block_end = column_count;                                    \
-                                                                                                                     \
-            /* Loop 2: L2 cache blocking over rows */                                                                \
-            for (nk_size_t row_block_start = 0; row_block_start < row_count; row_block_start += mc_size) {           \
-                nk_size_t row_block_end = row_block_start + mc_size;                                                 \
-                if (row_block_end > row_count) row_block_end = row_count;                                            \
-                                                                                                                     \
-                /* Loop 4: Register tiling over columns (4 columns per batch) */                                     \
-                for (nk_size_t tile_column_start = column_block_start; tile_column_start < column_block_end;         \
-                     tile_column_start += register_tile_columns) {                                                   \
-                    nk_size_t tile_column_count = register_tile_columns;                                             \
-                    if (tile_column_start + tile_column_count > column_block_end)                                    \
-                        tile_column_count = column_block_end - tile_column_start;                                    \
-                                                                                                                     \
-                    /* Compute B pointers once per column tile (outside row and k loops) */                          \
-                    nk_size_t const group = tile_column_start / group_size;                                          \
-                    nk_size_t const j_in_group = tile_column_start % group_size;                                     \
-                    nk_##input_type##_t const *group_base = b_packed + group * group_stride;                         \
-                                                                                                                     \
-                    nk_##input_type##_t const *b_first = group_base + (j_in_group + 0) * depth;                      \
-                    nk_##input_type##_t const *b_second = (tile_column_count > 1)                                    \
-                                                              ? group_base + (j_in_group + 1) * depth                \
-                                                              : b_first;                                             \
-                    nk_##input_type##_t const *b_third = (tile_column_count > 2)                                     \
-                                                             ? group_base + (j_in_group + 2) * depth                 \
-                                                             : b_first;                                              \
-                    nk_##input_type##_t const *b_fourth = (tile_column_count > 3)                                    \
-                                                              ? group_base + (j_in_group + 3) * depth                \
-                                                              : b_first;                                             \
-                                                                                                                     \
-                    /* Loop 5: Register tiling over rows (4 rows per tile, fixed) */                                 \
-                    for (nk_size_t tile_row_start = row_block_start; tile_row_start < row_block_end;                 \
-                         tile_row_start += 4) {                                                                      \
-                        nk_size_t tile_row_count = 4; /* MR: fixed by 4x4 register tile structure */                 \
-                        if (tile_row_start + tile_row_count > row_block_end)                                         \
-                            tile_row_count = row_block_end - tile_row_start;                                         \
-                                                                                                                     \
-                        /* Initialize 4x4 accumulator states */                                                      \
-                        state_type accumulators[4][4];                                                               \
-                        for (nk_size_t r = 0; r < tile_row_count; ++r) {                                             \
-                            init_fn(&accumulators[r][0]);                                                            \
-                            init_fn(&accumulators[r][1]);                                                            \
-                            init_fn(&accumulators[r][2]);                                                            \
-                            init_fn(&accumulators[r][3]);                                                            \
-                        }                                                                                            \
-                                                                                                                     \
-                        /* A row pointers */                                                                         \
-                        nk_##input_type##_t const *a_first =                                                         \
-                            (nk_##input_type##_t const *)((char const *)a_matrix + (tile_row_start + 0) * a_stride); \
-                        nk_##input_type##_t const *a_second =                                                        \
-                            (tile_row_count > 1) ? (nk_##input_type##_t const *)((char const *)a_matrix +            \
-                                                                                 (tile_row_start + 1) * a_stride)    \
-                                                 : a_first;                                                          \
-                        nk_##input_type##_t const *a_third =                                                         \
-                            (tile_row_count > 2) ? (nk_##input_type##_t const *)((char const *)a_matrix +            \
-                                                                                 (tile_row_start + 2) * a_stride)    \
-                                                 : a_first;                                                          \
-                        nk_##input_type##_t const *a_fourth =                                                        \
-                            (tile_row_count > 3) ? (nk_##input_type##_t const *)((char const *)a_matrix +            \
-                                                                                 (tile_row_start + 3) * a_stride)    \
-                                                 : a_first;                                                          \
-                                                                                                                     \
-                        /* Tight inner loop: k elements with simple ptr+k addressing */                              \
-                        vec_type a_first_vec, a_second_vec, a_third_vec, a_fourth_vec;                               \
-                        vec_type b_first_vec, b_second_vec, b_third_vec, b_fourth_vec;                               \
-                        for (nk_size_t k = 0; k < aligned_depth; k += simd_width) {                                  \
-                            /* Load next few elements from 4 rows from A */                                          \
-                            load_fn(a_first + k, &a_first_vec);                                                      \
-                            load_fn(a_second + k, &a_second_vec);                                                    \
-                            load_fn(a_third + k, &a_third_vec);                                                      \
-                            load_fn(a_fourth + k, &a_fourth_vec);                                                    \
-                                                                                                                     \
-                            /* Load next few elements from 4 rows from B */                                          \
-                            load_fn(b_first + k, &b_first_vec);                                                      \
-                            load_fn(b_second + k, &b_second_vec);                                                    \
-                            load_fn(b_third + k, &b_third_vec);                                                      \
-                            load_fn(b_fourth + k, &b_fourth_vec);                                                    \
-                                                                                                                     \
-                            /* 16 FMAs: 4 A rows x 4 B columns */                                                    \
-                            update_fn(&accumulators[0][0], a_first_vec, b_first_vec);                                \
-                            update_fn(&accumulators[0][1], a_first_vec, b_second_vec);                               \
-                            update_fn(&accumulators[0][2], a_first_vec, b_third_vec);                                \
-                            update_fn(&accumulators[0][3], a_first_vec, b_fourth_vec);                               \
-                            update_fn(&accumulators[1][0], a_second_vec, b_first_vec);                               \
-                            update_fn(&accumulators[1][1], a_second_vec, b_second_vec);                              \
-                            update_fn(&accumulators[1][2], a_second_vec, b_third_vec);                               \
-                            update_fn(&accumulators[1][3], a_second_vec, b_fourth_vec);                              \
-                            update_fn(&accumulators[2][0], a_third_vec, b_first_vec);                                \
-                            update_fn(&accumulators[2][1], a_third_vec, b_second_vec);                               \
-                            update_fn(&accumulators[2][2], a_third_vec, b_third_vec);                                \
-                            update_fn(&accumulators[2][3], a_third_vec, b_fourth_vec);                               \
-                            update_fn(&accumulators[3][0], a_fourth_vec, b_first_vec);                               \
-                            update_fn(&accumulators[3][1], a_fourth_vec, b_second_vec);                              \
-                            update_fn(&accumulators[3][2], a_fourth_vec, b_third_vec);                               \
-                            update_fn(&accumulators[3][3], a_fourth_vec, b_fourth_vec);                              \
-                        }                                                                                            \
-                                                                                                                     \
-                        /* Handle remainder k positions with partial loads */                                        \
-                        if (remainder_depth > 0) {                                                                   \
-                            /* Load next few elements from 4 rows from A */                                          \
-                            partial_load_fn(a_first + aligned_depth, &a_first_vec, remainder_depth);                 \
-                            partial_load_fn(a_second + aligned_depth, &a_second_vec, remainder_depth);               \
-                            partial_load_fn(a_third + aligned_depth, &a_third_vec, remainder_depth);                 \
-                            partial_load_fn(a_fourth + aligned_depth, &a_fourth_vec, remainder_depth);               \
-                                                                                                                     \
-                            /* Load next few elements from 4 rows from B */                                          \
-                            partial_load_fn(b_first + aligned_depth, &b_first_vec, remainder_depth);                 \
-                            partial_load_fn(b_second + aligned_depth, &b_second_vec, remainder_depth);               \
-                            partial_load_fn(b_third + aligned_depth, &b_third_vec, remainder_depth);                 \
-                            partial_load_fn(b_fourth + aligned_depth, &b_fourth_vec, remainder_depth);               \
-                                                                                                                     \
-                            /* 16 FMAs: 4 A rows x 4 B columns */                                                    \
-                            update_fn(&accumulators[0][0], a_first_vec, b_first_vec);                                \
-                            update_fn(&accumulators[0][1], a_first_vec, b_second_vec);                               \
-                            update_fn(&accumulators[0][2], a_first_vec, b_third_vec);                                \
-                            update_fn(&accumulators[0][3], a_first_vec, b_fourth_vec);                               \
-                            update_fn(&accumulators[1][0], a_second_vec, b_first_vec);                               \
-                            update_fn(&accumulators[1][1], a_second_vec, b_second_vec);                              \
-                            update_fn(&accumulators[1][2], a_second_vec, b_third_vec);                               \
-                            update_fn(&accumulators[1][3], a_second_vec, b_fourth_vec);                              \
-                            update_fn(&accumulators[2][0], a_third_vec, b_first_vec);                                \
-                            update_fn(&accumulators[2][1], a_third_vec, b_second_vec);                               \
-                            update_fn(&accumulators[2][2], a_third_vec, b_third_vec);                                \
-                            update_fn(&accumulators[2][3], a_third_vec, b_fourth_vec);                               \
-                            update_fn(&accumulators[3][0], a_fourth_vec, b_first_vec);                               \
-                            update_fn(&accumulators[3][1], a_fourth_vec, b_second_vec);                              \
-                            update_fn(&accumulators[3][2], a_fourth_vec, b_third_vec);                               \
-                            update_fn(&accumulators[3][3], a_fourth_vec, b_fourth_vec);                              \
-                        }                                                                                            \
-                                                                                                                     \
-                        /* Finalize and store MR x 4 results using batched 4-way reduction */                        \
-                        for (nk_size_t r = 0; r < tile_row_count; ++r) {                                             \
-                            result_vec_type result_vec;                                                              \
-                            finalize_fn(&accumulators[r][0], &accumulators[r][1], &accumulators[r][2],               \
-                                        &accumulators[r][3], &result_vec);                                           \
-                                                                                                                     \
-                            nk_##output_type##_t *c_row = (nk_##output_type##_t *)((char *)c_matrix +                \
-                                                                                   (tile_row_start + r) * c_stride); \
-                            partial_store_fn(&result_vec, c_row + tile_column_start, tile_column_count);             \
-                        }                                                                                            \
-                    }                                                                                                \
-                }                                                                                                    \
-            }                                                                                                        \
-        }                                                                                                            \
+#define nk_make_dots_inner_vectors_(suffix, input_type, output_type, vec_type, state_type, result_vec_type, init_fn,   \
+                                    load_fn, partial_load_fn, update_fn, finalize_fn, partial_store_fn, simd_width)    \
+    /* Generate 4x4 aligned kernel */                                                                                  \
+    nk_make_dots_inner_4x4_vectors_aligned_(suffix, input_type, output_type, vec_type, state_type, result_vec_type,    \
+                                            init_fn, load_fn, partial_load_fn, update_fn, finalize_fn,                 \
+                                            partial_store_fn, simd_width)                                              \
+    /* Generate 1x8 aligned kernel */                                                                                  \
+    nk_make_dots_inner_1x8_vectors_aligned_(suffix, input_type, output_type, vec_type, state_type, result_vec_type,    \
+                                            init_fn, load_fn, partial_load_fn, update_fn, finalize_fn,                 \
+                                            partial_store_fn, simd_width)                                              \
+                                                                                                                       \
+    NK_PUBLIC void nk_dots_##suffix(nk_##input_type##_t const *a_matrix, void const *b_packed_void,                    \
+                                    nk_##output_type##_t *c_matrix, nk_size_t row_count, nk_size_t column_count,       \
+                                    nk_size_t depth, nk_size_t a_stride, nk_size_t c_stride) {                         \
+        /* Cache blocking parameters (hardcoded for optimal L1/L2/L3 utilization) */                                   \
+        nk_size_t const row_block = 128;                   /* L2 cache blocking over rows */                           \
+        nk_size_t const col_block = 2048;                  /* L3 cache blocking over columns */                        \
+        nk_size_t const register_rows = 4;                 /* Rows per register tile */                                \
+        nk_size_t const register_cols = 4;                 /* Columns per register tile */                             \
+        nk_size_t const group_size = NK_DOTS_GROUP_SIZE_;  /* Columns per packed group */                              \
+        nk_size_t const group_stride = group_size * depth; /* Elements per group */                                    \
+        (void)register_cols;                                                                                           \
+        (void)group_stride; /* Suppress unused warnings */                                                             \
+        /* Use 1x8 kernel when columns are aligned to 8 and many columns relative to rows */                           \
+        if (column_count % 8 == 0 && column_count >= row_count * 2 && depth % simd_width == 0) {                       \
+            nk_dots_##suffix##_1x8_aligned_(a_matrix, b_packed_void, c_matrix, row_count, column_count, depth,         \
+                                            a_stride, c_stride);                                                       \
+            return;                                                                                                    \
+        }                                                                                                              \
+        /* Use 4x4 kernel when dimensions are 4-aligned */                                                             \
+        if (row_count % 4 == 0 && column_count % 4 == 0 && depth % simd_width == 0) {                                  \
+            nk_dots_##suffix##_aligned_(a_matrix, b_packed_void, c_matrix, row_count, column_count, depth, a_stride,   \
+                                        c_stride);                                                                     \
+            return;                                                                                                    \
+        }                                                                                                              \
+                                                                                                                       \
+        /* Zero output matrix */                                                                                       \
+        for (nk_size_t row_idx = 0; row_idx < row_count; ++row_idx) {                                                  \
+            nk_##output_type##_t *c_row = (nk_##output_type##_t *)((char *)c_matrix + row_idx * c_stride);             \
+            for (nk_size_t col_idx = 0; col_idx < column_count; ++col_idx) c_row[col_idx] = 0;                         \
+        }                                                                                                              \
+                                                                                                                       \
+        /* Compute aligned/remainder depth for partial loads */                                                        \
+        nk_size_t const aligned_depth = (depth / simd_width) * simd_width;                                             \
+        nk_size_t const remainder_depth = depth - aligned_depth;                                                       \
+                                                                                                                       \
+        /* Loop 1: L3 cache blocking over columns */                                                                   \
+        nk_##input_type##_t const *b_packed = (nk_##input_type##_t const *)((char const *)b_packed_void +              \
+                                                                            sizeof(nk_dots_packed_header_t));          \
+        for (nk_size_t col_block_start = 0; col_block_start < column_count; col_block_start += col_block) {            \
+            nk_size_t col_block_end = col_block_start + col_block;                                                     \
+            if (col_block_end > column_count) col_block_end = column_count;                                            \
+                                                                                                                       \
+            /* Loop 2: L2 cache blocking over rows */                                                                  \
+            for (nk_size_t row_block_start = 0; row_block_start < row_count; row_block_start += row_block) {           \
+                nk_size_t row_block_end = row_block_start + row_block;                                                 \
+                if (row_block_end > row_count) row_block_end = row_count;                                              \
+                                                                                                                       \
+                /* Loop 4: Register tiling over columns (register_cols columns per batch) */                           \
+                for (nk_size_t tile_col_start = col_block_start; tile_col_start < col_block_end;                       \
+                     tile_col_start += register_cols) {                                                                \
+                    nk_size_t tile_col_count = register_cols;                                                          \
+                    if (tile_col_start + tile_col_count > col_block_end)                                               \
+                        tile_col_count = col_block_end - tile_col_start;                                               \
+                                                                                                                       \
+                    /* Compute B pointers once per column tile (outside row and k loops) */                            \
+                    nk_size_t const group = tile_col_start / group_size;                                               \
+                    nk_size_t const j_in_group = tile_col_start % group_size;                                          \
+                    nk_##input_type##_t const *group_base = b_packed + group * group_stride;                           \
+                                                                                                                       \
+                    nk_##input_type##_t const *b_first = group_base + (j_in_group + 0) * depth;                        \
+                    nk_##input_type##_t const *b_second = (tile_col_count > 1) ? group_base + (j_in_group + 1) * depth \
+                                                                               : b_first;                              \
+                    nk_##input_type##_t const *b_third = (tile_col_count > 2) ? group_base + (j_in_group + 2) * depth  \
+                                                                              : b_first;                               \
+                    nk_##input_type##_t const *b_fourth = (tile_col_count > 3) ? group_base + (j_in_group + 3) * depth \
+                                                                               : b_first;                              \
+                                                                                                                       \
+                    /* Loop 5: Register tiling over rows (register_rows rows per tile) */                              \
+                    for (nk_size_t tile_row_start = row_block_start; tile_row_start < row_block_end;                   \
+                         tile_row_start += register_rows) {                                                            \
+                        nk_size_t tile_row_count = register_rows;                                                      \
+                        if (tile_row_start + tile_row_count > row_block_end)                                           \
+                            tile_row_count = row_block_end - tile_row_start;                                           \
+                                                                                                                       \
+                        /* Initialize register_rows x register_cols accumulator states */                              \
+                        state_type accumulators[4][4];                                                                 \
+                        for (nk_size_t r = 0; r < tile_row_count; ++r) {                                               \
+                            init_fn(&accumulators[r][0]);                                                              \
+                            init_fn(&accumulators[r][1]);                                                              \
+                            init_fn(&accumulators[r][2]);                                                              \
+                            init_fn(&accumulators[r][3]);                                                              \
+                        }                                                                                              \
+                                                                                                                       \
+                        /* A row pointers */                                                                           \
+                        nk_##input_type##_t const *a_first =                                                           \
+                            (nk_##input_type##_t const *)((char const *)a_matrix + (tile_row_start + 0) * a_stride);   \
+                        nk_##input_type##_t const *a_second =                                                          \
+                            (tile_row_count > 1) ? (nk_##input_type##_t const *)((char const *)a_matrix +              \
+                                                                                 (tile_row_start + 1) * a_stride)      \
+                                                 : a_first;                                                            \
+                        nk_##input_type##_t const *a_third =                                                           \
+                            (tile_row_count > 2) ? (nk_##input_type##_t const *)((char const *)a_matrix +              \
+                                                                                 (tile_row_start + 2) * a_stride)      \
+                                                 : a_first;                                                            \
+                        nk_##input_type##_t const *a_fourth =                                                          \
+                            (tile_row_count > 3) ? (nk_##input_type##_t const *)((char const *)a_matrix +              \
+                                                                                 (tile_row_start + 3) * a_stride)      \
+                                                 : a_first;                                                            \
+                                                                                                                       \
+                        /* Tight inner loop: k elements with simple ptr+k addressing */                                \
+                        vec_type a_first_vec, a_second_vec, a_third_vec, a_fourth_vec;                                 \
+                        vec_type b_first_vec, b_second_vec, b_third_vec, b_fourth_vec;                                 \
+                        for (nk_size_t k = 0; k < aligned_depth; k += simd_width) {                                    \
+                            /* Load next few elements from 4 rows from A */                                            \
+                            load_fn(a_first + k, &a_first_vec);                                                        \
+                            load_fn(a_second + k, &a_second_vec);                                                      \
+                            load_fn(a_third + k, &a_third_vec);                                                        \
+                            load_fn(a_fourth + k, &a_fourth_vec);                                                      \
+                                                                                                                       \
+                            /* Load next few elements from 4 rows from B */                                            \
+                            load_fn(b_first + k, &b_first_vec);                                                        \
+                            load_fn(b_second + k, &b_second_vec);                                                      \
+                            load_fn(b_third + k, &b_third_vec);                                                        \
+                            load_fn(b_fourth + k, &b_fourth_vec);                                                      \
+                                                                                                                       \
+                            /* 16 FMAs: 4 A rows x 4 B columns */                                                      \
+                            update_fn(&accumulators[0][0], a_first_vec, b_first_vec);                                  \
+                            update_fn(&accumulators[0][1], a_first_vec, b_second_vec);                                 \
+                            update_fn(&accumulators[0][2], a_first_vec, b_third_vec);                                  \
+                            update_fn(&accumulators[0][3], a_first_vec, b_fourth_vec);                                 \
+                            update_fn(&accumulators[1][0], a_second_vec, b_first_vec);                                 \
+                            update_fn(&accumulators[1][1], a_second_vec, b_second_vec);                                \
+                            update_fn(&accumulators[1][2], a_second_vec, b_third_vec);                                 \
+                            update_fn(&accumulators[1][3], a_second_vec, b_fourth_vec);                                \
+                            update_fn(&accumulators[2][0], a_third_vec, b_first_vec);                                  \
+                            update_fn(&accumulators[2][1], a_third_vec, b_second_vec);                                 \
+                            update_fn(&accumulators[2][2], a_third_vec, b_third_vec);                                  \
+                            update_fn(&accumulators[2][3], a_third_vec, b_fourth_vec);                                 \
+                            update_fn(&accumulators[3][0], a_fourth_vec, b_first_vec);                                 \
+                            update_fn(&accumulators[3][1], a_fourth_vec, b_second_vec);                                \
+                            update_fn(&accumulators[3][2], a_fourth_vec, b_third_vec);                                 \
+                            update_fn(&accumulators[3][3], a_fourth_vec, b_fourth_vec);                                \
+                        }                                                                                              \
+                                                                                                                       \
+                        /* Handle remainder k positions with partial loads */                                          \
+                        if (remainder_depth > 0) {                                                                     \
+                            /* Load next few elements from 4 rows from A */                                            \
+                            partial_load_fn(a_first + aligned_depth, &a_first_vec, remainder_depth);                   \
+                            partial_load_fn(a_second + aligned_depth, &a_second_vec, remainder_depth);                 \
+                            partial_load_fn(a_third + aligned_depth, &a_third_vec, remainder_depth);                   \
+                            partial_load_fn(a_fourth + aligned_depth, &a_fourth_vec, remainder_depth);                 \
+                                                                                                                       \
+                            /* Load next few elements from 4 rows from B */                                            \
+                            partial_load_fn(b_first + aligned_depth, &b_first_vec, remainder_depth);                   \
+                            partial_load_fn(b_second + aligned_depth, &b_second_vec, remainder_depth);                 \
+                            partial_load_fn(b_third + aligned_depth, &b_third_vec, remainder_depth);                   \
+                            partial_load_fn(b_fourth + aligned_depth, &b_fourth_vec, remainder_depth);                 \
+                                                                                                                       \
+                            /* 16 FMAs: 4 A rows x 4 B columns */                                                      \
+                            update_fn(&accumulators[0][0], a_first_vec, b_first_vec);                                  \
+                            update_fn(&accumulators[0][1], a_first_vec, b_second_vec);                                 \
+                            update_fn(&accumulators[0][2], a_first_vec, b_third_vec);                                  \
+                            update_fn(&accumulators[0][3], a_first_vec, b_fourth_vec);                                 \
+                            update_fn(&accumulators[1][0], a_second_vec, b_first_vec);                                 \
+                            update_fn(&accumulators[1][1], a_second_vec, b_second_vec);                                \
+                            update_fn(&accumulators[1][2], a_second_vec, b_third_vec);                                 \
+                            update_fn(&accumulators[1][3], a_second_vec, b_fourth_vec);                                \
+                            update_fn(&accumulators[2][0], a_third_vec, b_first_vec);                                  \
+                            update_fn(&accumulators[2][1], a_third_vec, b_second_vec);                                 \
+                            update_fn(&accumulators[2][2], a_third_vec, b_third_vec);                                  \
+                            update_fn(&accumulators[2][3], a_third_vec, b_fourth_vec);                                 \
+                            update_fn(&accumulators[3][0], a_fourth_vec, b_first_vec);                                 \
+                            update_fn(&accumulators[3][1], a_fourth_vec, b_second_vec);                                \
+                            update_fn(&accumulators[3][2], a_fourth_vec, b_third_vec);                                 \
+                            update_fn(&accumulators[3][3], a_fourth_vec, b_fourth_vec);                                \
+                        }                                                                                              \
+                                                                                                                       \
+                        /* Finalize and store register_rows x register_cols results using batched 4-way reduction */   \
+                        for (nk_size_t r = 0; r < tile_row_count; ++r) {                                               \
+                            result_vec_type result_vec;                                                                \
+                            finalize_fn(&accumulators[r][0], &accumulators[r][1], &accumulators[r][2],                 \
+                                        &accumulators[r][3], &result_vec);                                             \
+                                                                                                                       \
+                            nk_##output_type##_t *c_row = (nk_##output_type##_t *)((char *)c_matrix +                  \
+                                                                                   (tile_row_start + r) * c_stride);   \
+                            partial_store_fn(&result_vec, c_row + tile_col_start, tile_col_count);                     \
+                        }                                                                                              \
+                    }                                                                                                  \
+                }                                                                                                      \
+            }                                                                                                          \
+        }                                                                                                              \
     }
 
 /**
@@ -632,9 +633,9 @@ typedef struct {
         nk_##input_type##_t const *a, void const *b_packed_void, nk_##output_type##_t *c, nk_size_t m, nk_size_t n, \
         nk_size_t k, nk_size_t a_stride, nk_size_t c_stride) {                                                      \
                                                                                                                     \
-        nk_size_t const mr_size = 4;  /* Rows per micro-kernel */                                                   \
-        nk_size_t const nr_size = 4;  /* Columns per micro-kernel */                                                \
-        nk_size_t const k_unroll = 4; /* K elements per unrolled iteration */                                       \
+        nk_size_t const register_rows = 4; /* Rows per micro-kernel */                                              \
+        nk_size_t const register_cols = 4; /* Columns per micro-kernel */                                           \
+        nk_size_t const k_unroll = 4;      /* K elements per unrolled iteration */                                  \
         nk_size_t const group_size = NK_DOTS_GROUP_SIZE_;                                                           \
         nk_size_t const group_stride = group_size * k;                                                              \
                                                                                                                     \
@@ -647,10 +648,10 @@ typedef struct {
             for (nk_size_t ni = 0; ni < n; ++ni) c_row[ni] = 0;                                                     \
         }                                                                                                           \
                                                                                                                     \
-        /* Process columns in groups of NR */                                                                       \
-        for (nk_size_t j_block = 0; j_block < n; j_block += nr_size) {                                              \
-            nk_size_t const nr_end = (j_block + nr_size < n) ? (j_block + nr_size) : n;                             \
-            nk_size_t const nr_len = nr_end - j_block;                                                              \
+        /* Process columns in groups of register_cols */                                                            \
+        for (nk_size_t j_block = 0; j_block < n; j_block += register_cols) {                                        \
+            nk_size_t const col_end = (j_block + register_cols < n) ? (j_block + register_cols) : n;                \
+            nk_size_t const col_len = col_end - j_block;                                                            \
                                                                                                                     \
             /* Compute B pointers once per column block */                                                          \
             nk_size_t const group = j_block / group_size;                                                           \
@@ -658,14 +659,14 @@ typedef struct {
             nk_##input_type##_t const *group_base = packed + group * group_stride;                                  \
                                                                                                                     \
             nk_##input_type##_t const *b_first = group_base + (j_in_group + 0) * k;                                 \
-            nk_##input_type##_t const *b_second = (nr_len > 1) ? group_base + (j_in_group + 1) * k : b_first;       \
-            nk_##input_type##_t const *b_third = (nr_len > 2) ? group_base + (j_in_group + 2) * k : b_first;        \
-            nk_##input_type##_t const *b_fourth = (nr_len > 3) ? group_base + (j_in_group + 3) * k : b_first;       \
+            nk_##input_type##_t const *b_second = (col_len > 1) ? group_base + (j_in_group + 1) * k : b_first;      \
+            nk_##input_type##_t const *b_third = (col_len > 2) ? group_base + (j_in_group + 2) * k : b_first;       \
+            nk_##input_type##_t const *b_fourth = (col_len > 3) ? group_base + (j_in_group + 3) * k : b_first;      \
                                                                                                                     \
-            /* Process rows in blocks of MR */                                                                      \
-            for (nk_size_t i_block = 0; i_block < m; i_block += mr_size) {                                          \
-                nk_size_t const mr_end = (i_block + mr_size < m) ? (i_block + mr_size) : m;                         \
-                nk_size_t const mr_len = mr_end - i_block;                                                          \
+            /* Process rows in blocks of register_rows */                                                           \
+            for (nk_size_t i_block = 0; i_block < m; i_block += register_rows) {                                    \
+                nk_size_t const row_end = (i_block + register_rows < m) ? (i_block + register_rows) : m;            \
+                nk_size_t const row_len = row_end - i_block;                                                        \
                                                                                                                     \
                 /* 4x4 accumulator block */                                                                         \
                 nk_##accumulator_type##_t acc00 = 0, acc01 = 0, acc02 = 0, acc03 = 0;                               \
@@ -677,14 +678,14 @@ typedef struct {
                 nk_##input_type##_t const *a_first = (nk_##input_type##_t const *)((char const *)a +                \
                                                                                    i_block * a_stride);             \
                 nk_##input_type##_t const *a_second =                                                               \
-                    (mr_len > 1) ? (nk_##input_type##_t const *)((char const *)a + (i_block + 1) * a_stride)        \
-                                 : a_first;                                                                         \
+                    (row_len > 1) ? (nk_##input_type##_t const *)((char const *)a + (i_block + 1) * a_stride)       \
+                                  : a_first;                                                                        \
                 nk_##input_type##_t const *a_third =                                                                \
-                    (mr_len > 2) ? (nk_##input_type##_t const *)((char const *)a + (i_block + 2) * a_stride)        \
-                                 : a_first;                                                                         \
+                    (row_len > 2) ? (nk_##input_type##_t const *)((char const *)a + (i_block + 2) * a_stride)       \
+                                  : a_first;                                                                        \
                 nk_##input_type##_t const *a_fourth =                                                               \
-                    (mr_len > 3) ? (nk_##input_type##_t const *)((char const *)a + (i_block + 3) * a_stride)        \
-                                 : a_first;                                                                         \
+                    (row_len > 3) ? (nk_##input_type##_t const *)((char const *)a + (i_block + 3) * a_stride)       \
+                                  : a_first;                                                                        \
                                                                                                                     \
                 /* Main k-loop with 4x unrolling */                                                                 \
                 nk_size_t ki = 0;                                                                                   \
@@ -745,31 +746,31 @@ typedef struct {
                                                                                                                     \
                 /* Store accumulated results */                                                                     \
                 nk_##output_type##_t *c_row0 = (nk_##output_type##_t *)((char *)c + i_block * c_stride);            \
-                if (nr_len > 0) c_row0[j_block] += (nk_##output_type##_t)acc00;                                     \
-                if (nr_len > 1) c_row0[j_block + 1] += (nk_##output_type##_t)acc01;                                 \
-                if (nr_len > 2) c_row0[j_block + 2] += (nk_##output_type##_t)acc02;                                 \
-                if (nr_len > 3) c_row0[j_block + 3] += (nk_##output_type##_t)acc03;                                 \
+                if (col_len > 0) c_row0[j_block] += (nk_##output_type##_t)acc00;                                    \
+                if (col_len > 1) c_row0[j_block + 1] += (nk_##output_type##_t)acc01;                                \
+                if (col_len > 2) c_row0[j_block + 2] += (nk_##output_type##_t)acc02;                                \
+                if (col_len > 3) c_row0[j_block + 3] += (nk_##output_type##_t)acc03;                                \
                                                                                                                     \
-                if (mr_len > 1) {                                                                                   \
+                if (row_len > 1) {                                                                                  \
                     nk_##output_type##_t *c_row1 = (nk_##output_type##_t *)((char *)c + (i_block + 1) * c_stride);  \
-                    if (nr_len > 0) c_row1[j_block] += (nk_##output_type##_t)acc10;                                 \
-                    if (nr_len > 1) c_row1[j_block + 1] += (nk_##output_type##_t)acc11;                             \
-                    if (nr_len > 2) c_row1[j_block + 2] += (nk_##output_type##_t)acc12;                             \
-                    if (nr_len > 3) c_row1[j_block + 3] += (nk_##output_type##_t)acc13;                             \
+                    if (col_len > 0) c_row1[j_block] += (nk_##output_type##_t)acc10;                                \
+                    if (col_len > 1) c_row1[j_block + 1] += (nk_##output_type##_t)acc11;                            \
+                    if (col_len > 2) c_row1[j_block + 2] += (nk_##output_type##_t)acc12;                            \
+                    if (col_len > 3) c_row1[j_block + 3] += (nk_##output_type##_t)acc13;                            \
                 }                                                                                                   \
-                if (mr_len > 2) {                                                                                   \
+                if (row_len > 2) {                                                                                  \
                     nk_##output_type##_t *c_row2 = (nk_##output_type##_t *)((char *)c + (i_block + 2) * c_stride);  \
-                    if (nr_len > 0) c_row2[j_block] += (nk_##output_type##_t)acc20;                                 \
-                    if (nr_len > 1) c_row2[j_block + 1] += (nk_##output_type##_t)acc21;                             \
-                    if (nr_len > 2) c_row2[j_block + 2] += (nk_##output_type##_t)acc22;                             \
-                    if (nr_len > 3) c_row2[j_block + 3] += (nk_##output_type##_t)acc23;                             \
+                    if (col_len > 0) c_row2[j_block] += (nk_##output_type##_t)acc20;                                \
+                    if (col_len > 1) c_row2[j_block + 1] += (nk_##output_type##_t)acc21;                            \
+                    if (col_len > 2) c_row2[j_block + 2] += (nk_##output_type##_t)acc22;                            \
+                    if (col_len > 3) c_row2[j_block + 3] += (nk_##output_type##_t)acc23;                            \
                 }                                                                                                   \
-                if (mr_len > 3) {                                                                                   \
+                if (row_len > 3) {                                                                                  \
                     nk_##output_type##_t *c_row3 = (nk_##output_type##_t *)((char *)c + (i_block + 3) * c_stride);  \
-                    if (nr_len > 0) c_row3[j_block] += (nk_##output_type##_t)acc30;                                 \
-                    if (nr_len > 1) c_row3[j_block + 1] += (nk_##output_type##_t)acc31;                             \
-                    if (nr_len > 2) c_row3[j_block + 2] += (nk_##output_type##_t)acc32;                             \
-                    if (nr_len > 3) c_row3[j_block + 3] += (nk_##output_type##_t)acc33;                             \
+                    if (col_len > 0) c_row3[j_block] += (nk_##output_type##_t)acc30;                                \
+                    if (col_len > 1) c_row3[j_block + 1] += (nk_##output_type##_t)acc31;                            \
+                    if (col_len > 2) c_row3[j_block + 2] += (nk_##output_type##_t)acc32;                            \
+                    if (col_len > 3) c_row3[j_block + 3] += (nk_##output_type##_t)acc33;                            \
                 }                                                                                                   \
             }                                                                                                       \
         }                                                                                                           \

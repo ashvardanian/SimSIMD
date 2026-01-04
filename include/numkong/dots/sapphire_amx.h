@@ -255,13 +255,13 @@ NK_INTERNAL void nk_dots_i8i8i32_avx512_edge_(            //
  *    - N edge (remaining rows) stored row-major for simple AVX-512 edge kernel
  */
 NK_PUBLIC nk_size_t nk_dots_bf16bf16f32_packed_size_sapphire_amx(nk_size_t n, nk_size_t k) {
-    nk_size_t const tile_rows = 16;
-    nk_size_t const tile_cols = 32;
+    nk_size_t const tmm_rows = 16;
+    nk_size_t const tmm_cols = 32;
     nk_size_t const tile_bytes = 512 * sizeof(nk_bf16_t); // 16×32×2 = 1KB
 
-    nk_size_t const full_n_tiles = n / tile_rows;
-    nk_size_t const tiles_along_k = (k + tile_cols - 1) / tile_cols; // Ceiling division
-    nk_size_t const n_edge_rows = n - full_n_tiles * tile_rows;
+    nk_size_t const full_n_tiles = n / tmm_rows;
+    nk_size_t const tiles_along_k = (k + tmm_cols - 1) / tmm_cols; // Ceiling division
+    nk_size_t const n_edge_rows = n - full_n_tiles * tmm_rows;
 
     // Header (64 bytes aligned)
     nk_size_t size = sizeof(nk_dots_amx_packed_header_t);
@@ -278,13 +278,13 @@ NK_PUBLIC nk_size_t nk_dots_bf16bf16f32_packed_size_sapphire_amx(nk_size_t n, nk
 /*  I8 packed buffer size: header + all tiles for full N rows + N edge.
  */
 NK_PUBLIC nk_size_t nk_dots_i8i8i32_packed_size_sapphire_amx(nk_size_t n, nk_size_t k) {
-    nk_size_t const tile_rows = 16;
-    nk_size_t const tile_cols = 64;
+    nk_size_t const tmm_rows = 16;
+    nk_size_t const tmm_cols = 64;
     nk_size_t const tile_bytes = 1024 * sizeof(nk_i8_t); // 16×64×1 = 1KB
 
-    nk_size_t const full_n_tiles = n / tile_rows;
-    nk_size_t const tiles_along_k = (k + tile_cols - 1) / tile_cols; // Ceiling division
-    nk_size_t const n_edge_rows = n - full_n_tiles * tile_rows;
+    nk_size_t const full_n_tiles = n / tmm_rows;
+    nk_size_t const tiles_along_k = (k + tmm_cols - 1) / tmm_cols; // Ceiling division
+    nk_size_t const n_edge_rows = n - full_n_tiles * tmm_rows;
 
     // Header (64 bytes aligned)
     nk_size_t size = sizeof(nk_dots_amx_packed_header_t);
@@ -316,16 +316,16 @@ NK_PUBLIC void nk_dots_bf16bf16f32_pack_sapphire_amx( //
     nk_size_t b_stride, void *b_packed) {
 
     // AMX BF16 tile dimensions: 16 rows × 32 columns (512 BF16 elements = 1KB)
-    nk_size_t const tile_rows = 16;
-    nk_size_t const tile_cols = 32;
+    nk_size_t const tmm_rows = 16;
+    nk_size_t const tmm_cols = 32;
     nk_size_t const tile_elements = 512;
     nk_size_t const tile_bytes = tile_elements * sizeof(nk_bf16_t);
     nk_size_t const b_stride_elements = b_stride / sizeof(nk_bf16_t);
 
     // Compute layout dimensions
-    nk_size_t const num_n_tiles = n / tile_rows;
-    nk_size_t const num_k_tiles = (k + tile_cols - 1) / tile_cols;
-    nk_size_t const n_remainder_rows = n - num_n_tiles * tile_rows;
+    nk_size_t const num_n_tiles = n / tmm_rows;
+    nk_size_t const num_k_tiles = (k + tmm_cols - 1) / tmm_cols;
+    nk_size_t const n_remainder_rows = n - num_n_tiles * tmm_rows;
     nk_size_t const total_tiles = num_n_tiles * num_k_tiles;
 
     // Write header with layout metadata
@@ -357,14 +357,14 @@ NK_PUBLIC void nk_dots_bf16bf16f32_pack_sapphire_amx( //
             nk_bf16_t *tile_output = tiles_ptr + tile_index * tile_elements;
 
             // Source coordinates in original B matrix
-            nk_size_t const src_row_start = n_tile * tile_rows;
-            nk_size_t const src_col_start = k_tile * tile_cols;
-            nk_size_t const cols_to_pack = (src_col_start + tile_cols <= k) ? tile_cols : (k - src_col_start);
+            nk_size_t const src_row_start = n_tile * tmm_rows;
+            nk_size_t const src_col_start = k_tile * tmm_cols;
+            nk_size_t const cols_to_pack = (src_col_start + tmm_cols <= k) ? tmm_cols : (k - src_col_start);
 
             // Pack with pair-interleaving as required by TDPBF16PS instruction.
             // AMX expects: [col0_row0, col1_row0, col0_row1, col1_row1, col2_row0, col3_row0, ...]
             // Formula: packed_idx = (col / 2) * 32 + row * 2 + (col % 2)
-            for (nk_size_t row = 0; row < tile_rows; row++) {
+            for (nk_size_t row = 0; row < tmm_rows; row++) {
                 for (nk_size_t col = 0; col < cols_to_pack; col++) {
                     nk_size_t const src_idx = (src_row_start + row) * b_stride_elements + src_col_start + col;
                     nk_size_t const dst_idx = (col / 2) * 32 + row * 2 + (col % 2);
@@ -376,7 +376,7 @@ NK_PUBLIC void nk_dots_bf16bf16f32_pack_sapphire_amx( //
 
     // Pack N-remainder rows in simple row-major format (for AVX-512 fallback)
     if (n_remainder_rows > 0) {
-        nk_size_t const remainder_start_row = num_n_tiles * tile_rows;
+        nk_size_t const remainder_start_row = num_n_tiles * tmm_rows;
         for (nk_size_t row = 0; row < n_remainder_rows; row++) {
             for (nk_size_t col = 0; col < k; col++) {
                 n_edge_ptr[row * k + col] = b[(remainder_start_row + row) * b_stride_elements + col];
@@ -402,15 +402,15 @@ NK_PUBLIC void nk_dots_i8i8i32_pack_sapphire_amx( //
     nk_size_t b_stride, void *b_packed) {
 
     // AMX I8 tile dimensions: 16 rows × 64 columns (1024 I8 elements = 1KB)
-    nk_size_t const tile_rows = 16;
-    nk_size_t const tile_cols = 64;
+    nk_size_t const tmm_rows = 16;
+    nk_size_t const tmm_cols = 64;
     nk_size_t const tile_elements = 1024;
     nk_size_t const tile_bytes = tile_elements * sizeof(nk_i8_t);
 
     // Compute layout dimensions
-    nk_size_t const num_n_tiles = n / tile_rows;
-    nk_size_t const num_k_tiles = (k + tile_cols - 1) / tile_cols;
-    nk_size_t const n_remainder_rows = n - num_n_tiles * tile_rows;
+    nk_size_t const num_n_tiles = n / tmm_rows;
+    nk_size_t const num_k_tiles = (k + tmm_cols - 1) / tmm_cols;
+    nk_size_t const n_remainder_rows = n - num_n_tiles * tmm_rows;
     nk_size_t const total_tiles = num_n_tiles * num_k_tiles;
 
     // Write header with layout metadata
@@ -441,14 +441,14 @@ NK_PUBLIC void nk_dots_i8i8i32_pack_sapphire_amx( //
             nk_i8_t *tile_output = tiles_ptr + tile_index * tile_elements;
 
             // Source coordinates in original B matrix
-            nk_size_t const src_row_start = n_tile * tile_rows;
-            nk_size_t const src_col_start = k_tile * tile_cols;
-            nk_size_t const cols_to_pack = (src_col_start + tile_cols <= k) ? tile_cols : (k - src_col_start);
+            nk_size_t const src_row_start = n_tile * tmm_rows;
+            nk_size_t const src_col_start = k_tile * tmm_cols;
+            nk_size_t const cols_to_pack = (src_col_start + tmm_cols <= k) ? tmm_cols : (k - src_col_start);
 
             // Pack with quad-interleaving as required by TDPBSSD instruction.
             // AMX expects: [col0_row0, col1_row0, col2_row0, col3_row0, col0_row1, ...]
             // Formula: packed_idx = (col / 4) * 64 + row * 4 + (col % 4)
-            for (nk_size_t row = 0; row < tile_rows; row++) {
+            for (nk_size_t row = 0; row < tmm_rows; row++) {
                 for (nk_size_t col = 0; col < cols_to_pack; col++) {
                     nk_size_t const src_idx = (src_row_start + row) * b_stride + src_col_start + col;
                     nk_size_t const dst_idx = (col / 4) * 64 + row * 4 + (col % 4);
@@ -460,7 +460,7 @@ NK_PUBLIC void nk_dots_i8i8i32_pack_sapphire_amx( //
 
     // Pack N-remainder rows in simple row-major format (for AVX-512 fallback)
     if (n_remainder_rows > 0) {
-        nk_size_t const remainder_start_row = num_n_tiles * tile_rows;
+        nk_size_t const remainder_start_row = num_n_tiles * tmm_rows;
         for (nk_size_t row = 0; row < n_remainder_rows; row++) {
             for (nk_size_t col = 0; col < k; col++) {
                 n_edge_ptr[row * k + col] = b[(remainder_start_row + row) * b_stride + col];
@@ -701,7 +701,7 @@ NK_INTERNAL void nk_dots_bf16bf16f32_sapphire_misaligned_( //
     nk_bf16_t const *tiles_ptr = (nk_bf16_t const *)((char const *)b_packed + sizeof(nk_dots_amx_packed_header_t));
     nk_bf16_t const *n_edge_ptr = (nk_bf16_t const *)((char const *)b_packed + header->n_edge_offset);
 
-    nk_size_t const tile_cols_bf16 = 32;
+    nk_size_t const tmm_cols_bf16 = 32;
     nk_size_t const tile_elements_bf16 = 512;
 
     nk_size_t const a_stride_elements = a_stride / sizeof(nk_bf16_t);
@@ -720,27 +720,27 @@ NK_INTERNAL void nk_dots_bf16bf16f32_sapphire_misaligned_( //
     if (full_m_blocks > 0 && full_n_blocks > 0 && full_k_tiles > 0) {
         nk_amx_tile_configure_sapphire_amx_();
 
-        for (nk_size_t bi = 0; bi < full_m_blocks; bi++) {
-            nk_size_t const row_block = bi * 32;
+        for (nk_size_t row_block_idx = 0; row_block_idx < full_m_blocks; row_block_idx++) {
+            nk_size_t const row_offset = row_block_idx * 32;
 
-            for (nk_size_t bj = 0; bj < full_n_blocks; bj++) {
-                nk_size_t const col_block = bj * 32;
+            for (nk_size_t col_block_idx = 0; col_block_idx < full_n_blocks; col_block_idx++) {
+                nk_size_t const col_offset = col_block_idx * 32;
 
                 _tile_zero(4);
                 _tile_zero(5);
                 _tile_zero(6);
                 _tile_zero(7);
 
-                nk_size_t const b_tile_n0 = bj * 2;
-                nk_size_t const b_tile_n1 = bj * 2 + 1;
+                nk_size_t const b_tile_n0 = col_block_idx * 2;
+                nk_size_t const b_tile_n1 = col_block_idx * 2 + 1;
 
-                for (nk_size_t bk = 0; bk < full_k_tiles; bk++) {
-                    nk_size_t const k_offset = bk * tile_cols_bf16;
+                for (nk_size_t depth_block_idx = 0; depth_block_idx < full_k_tiles; depth_block_idx++) {
+                    nk_size_t const k_offset = depth_block_idx * tmm_cols_bf16;
 
                     // Load A through buffers using AVX-512
                     for (nk_size_t r = 0; r < 16; r++) {
-                        nk_bf16_t const *src_upper = a + (row_block + r) * a_stride_elements + k_offset;
-                        nk_bf16_t const *src_lower = a + (row_block + 16 + r) * a_stride_elements + k_offset;
+                        nk_bf16_t const *src_upper = a + (row_offset + r) * a_stride_elements + k_offset;
+                        nk_bf16_t const *src_lower = a + (row_offset + 16 + r) * a_stride_elements + k_offset;
                         __m512i upper_row = _mm512_loadu_si512((__m512i const *)src_upper);
                         __m512i lower_row = _mm512_loadu_si512((__m512i const *)src_lower);
                         _mm512_store_si512((__m512i *)a_buf_upper[r], upper_row);
@@ -752,12 +752,14 @@ NK_INTERNAL void nk_dots_bf16bf16f32_sapphire_misaligned_( //
                     _tile_loadd(1, a_buf_lower, 64);
 
                     // B tiles via Morton indexing
-                    nk_size_t morton_idx0 = nk_morton_encode_sapphire_amx_((nk_u32_t)b_tile_n0, (nk_u32_t)bk);
-                    if (morton_idx0 >= total_full_tiles) morton_idx0 = b_tile_n0 * full_k_tiles + bk;
+                    nk_size_t morton_idx0 = nk_morton_encode_sapphire_amx_((nk_u32_t)b_tile_n0,
+                                                                           (nk_u32_t)depth_block_idx);
+                    if (morton_idx0 >= total_full_tiles) morton_idx0 = b_tile_n0 * full_k_tiles + depth_block_idx;
                     nk_bf16_t const *b_tile_ptr0 = tiles_ptr + morton_idx0 * tile_elements_bf16;
 
-                    nk_size_t morton_idx1 = nk_morton_encode_sapphire_amx_((nk_u32_t)b_tile_n1, (nk_u32_t)bk);
-                    if (morton_idx1 >= total_full_tiles) morton_idx1 = b_tile_n1 * full_k_tiles + bk;
+                    nk_size_t morton_idx1 = nk_morton_encode_sapphire_amx_((nk_u32_t)b_tile_n1,
+                                                                           (nk_u32_t)depth_block_idx);
+                    if (morton_idx1 >= total_full_tiles) morton_idx1 = b_tile_n1 * full_k_tiles + depth_block_idx;
                     nk_bf16_t const *b_tile_ptr1 = tiles_ptr + morton_idx1 * tile_elements_bf16;
 
                     _tile_loadd(2, b_tile_ptr0, 64);
@@ -773,25 +775,25 @@ NK_INTERNAL void nk_dots_bf16bf16f32_sapphire_misaligned_( //
                 _tile_stored(4, c_buf, 64);
                 for (nk_size_t r = 0; r < 16; r++) {
                     __m512 row = _mm512_load_ps(c_buf[r]);
-                    _mm512_storeu_ps(c + (row_block + r) * c_stride_elements + col_block, row);
+                    _mm512_storeu_ps(c + (row_offset + r) * c_stride_elements + col_offset, row);
                 }
 
                 _tile_stored(5, c_buf, 64);
                 for (nk_size_t r = 0; r < 16; r++) {
                     __m512 row = _mm512_load_ps(c_buf[r]);
-                    _mm512_storeu_ps(c + (row_block + r) * c_stride_elements + col_block + 16, row);
+                    _mm512_storeu_ps(c + (row_offset + r) * c_stride_elements + col_offset + 16, row);
                 }
 
                 _tile_stored(6, c_buf, 64);
                 for (nk_size_t r = 0; r < 16; r++) {
                     __m512 row = _mm512_load_ps(c_buf[r]);
-                    _mm512_storeu_ps(c + (row_block + 16 + r) * c_stride_elements + col_block, row);
+                    _mm512_storeu_ps(c + (row_offset + 16 + r) * c_stride_elements + col_offset, row);
                 }
 
                 _tile_stored(7, c_buf, 64);
                 for (nk_size_t r = 0; r < 16; r++) {
                     __m512 row = _mm512_load_ps(c_buf[r]);
-                    _mm512_storeu_ps(c + (row_block + 16 + r) * c_stride_elements + col_block + 16, row);
+                    _mm512_storeu_ps(c + (row_offset + 16 + r) * c_stride_elements + col_offset + 16, row);
                 }
             }
         }
@@ -813,7 +815,7 @@ NK_INTERNAL void nk_dots_bf16bf16f32_sapphire_misaligned_( //
         nk_amx_tile_configure_sapphire_amx_();
 
         for (nk_size_t tj = 0; tj < full_n_tiles; tj++) {
-            nk_size_t const col_block = tj * 16;
+            nk_size_t const col_offset = tj * 16;
             nk_size_t const b_tile_n0 = tj;
 
             _tile_zero(4);
@@ -828,9 +830,9 @@ NK_INTERNAL void nk_dots_bf16bf16f32_sapphire_misaligned_( //
             nk_size_t const rows_upper = (m_edge_rows > 16) ? 16 : m_edge_rows;
             nk_size_t const rows_lower = (m_edge_rows > 16) ? m_edge_rows - 16 : 0;
 
-            for (nk_size_t bk = 0; bk < full_k_tiles; bk++) {
-                nk_size_t const k_offset = bk * tile_cols_bf16;
-                nk_size_t const k_valid = (k_offset + tile_cols_bf16 <= k) ? tile_cols_bf16 : (k - k_offset);
+            for (nk_size_t depth_block_idx = 0; depth_block_idx < full_k_tiles; depth_block_idx++) {
+                nk_size_t const k_offset = depth_block_idx * tmm_cols_bf16;
+                nk_size_t const k_valid = (k_offset + tmm_cols_bf16 <= k) ? tmm_cols_bf16 : (k - k_offset);
 
                 nk_load_a_tile_bf16_masked_(a + m_edge_start * a_stride_elements + k_offset, a_stride_elements,
                                             rows_upper, k_valid, (nk_bf16_t *)a_buf_upper);
@@ -842,8 +844,8 @@ NK_INTERNAL void nk_dots_bf16bf16f32_sapphire_misaligned_( //
                 _tile_loadd(0, a_buf_upper, 64);
                 _tile_loadd(1, a_buf_lower, 64);
 
-                nk_size_t morton_idx0 = nk_morton_encode_sapphire_amx_((nk_u32_t)b_tile_n0, (nk_u32_t)bk);
-                if (morton_idx0 >= total_full_tiles) morton_idx0 = b_tile_n0 * full_k_tiles + bk;
+                nk_size_t morton_idx0 = nk_morton_encode_sapphire_amx_((nk_u32_t)b_tile_n0, (nk_u32_t)depth_block_idx);
+                if (morton_idx0 >= total_full_tiles) morton_idx0 = b_tile_n0 * full_k_tiles + depth_block_idx;
                 nk_bf16_t const *b_tile_ptr0 = tiles_ptr + morton_idx0 * tile_elements_bf16;
 
                 _tile_loadd(2, b_tile_ptr0, 64);
@@ -853,12 +855,12 @@ NK_INTERNAL void nk_dots_bf16bf16f32_sapphire_misaligned_( //
             }
 
             _tile_stored(4, c_buf, 64);
-            nk_store_c_tile_f32_masked_((nk_f32_t *)c_buf, c + m_edge_start * c_stride_elements + col_block,
+            nk_store_c_tile_f32_masked_((nk_f32_t *)c_buf, c + m_edge_start * c_stride_elements + col_offset,
                                         c_stride_elements, rows_upper, 16);
 
             if (rows_lower > 0) {
                 _tile_stored(6, c_buf, 64);
-                nk_store_c_tile_f32_masked_((nk_f32_t *)c_buf, c + (m_edge_start + 16) * c_stride_elements + col_block,
+                nk_store_c_tile_f32_masked_((nk_f32_t *)c_buf, c + (m_edge_start + 16) * c_stride_elements + col_offset,
                                             c_stride_elements, rows_lower, 16);
             }
         }
@@ -946,10 +948,10 @@ NK_INTERNAL void nk_dots_i8i8i32_sapphire_aligned_(      //
 
     // Parse packed B header
     nk_dots_amx_packed_header_t const *header = (nk_dots_amx_packed_header_t const *)b_packed;
-    nk_size_t const num_n_tiles = header->full_n_tiles;        // Number of 16-column N tiles
-    nk_size_t const num_k_tiles = header->full_k_tiles;           // Number of 64-element K tiles
+    nk_size_t const num_n_tiles = header->full_n_tiles;    // Number of 16-column N tiles
+    nk_size_t const num_k_tiles = header->full_k_tiles;    // Number of 64-element K tiles
     nk_size_t const n_edge_cols = header->n_edge_rows;     // Columns in N edge (0-15)
-    nk_size_t const n_edge_offset = header->n_edge_offset;   // Byte offset to N edge data
+    nk_size_t const n_edge_offset = header->n_edge_offset; // Byte offset to N edge data
 
     // AMX I8 tile dimensions: 16 rows × 64 columns = 1024 I8 elements = 1KB
     nk_size_t const tile_k_elements = 64;  // K elements per tile
@@ -1154,7 +1156,7 @@ NK_INTERNAL void nk_dots_i8i8i32_sapphire_misaligned_(   //
     nk_size_t const n_edge_rows = header->n_edge_rows;
     nk_size_t const n_edge_offset = header->n_edge_offset;
 
-    nk_size_t const tile_cols_i8 = 64;
+    nk_size_t const tmm_cols_i8 = 64;
     nk_size_t const tile_elements_i8 = 1024;
 
     nk_i8_t const *tiles_ptr = (nk_i8_t const *)((char const *)b_packed + 64);
@@ -1175,27 +1177,27 @@ NK_INTERNAL void nk_dots_i8i8i32_sapphire_misaligned_(   //
     if (full_m_blocks > 0 && full_n_blocks > 0 && full_k_tiles > 0) {
         nk_amx_tile_configure_sapphire_amx_();
 
-        for (nk_size_t bi = 0; bi < full_m_blocks; bi++) {
-            nk_size_t const row_block = bi * 32;
+        for (nk_size_t row_block_idx = 0; row_block_idx < full_m_blocks; row_block_idx++) {
+            nk_size_t const row_offset = row_block_idx * 32;
 
-            for (nk_size_t bj = 0; bj < full_n_blocks; bj++) {
-                nk_size_t const col_block = bj * 32;
+            for (nk_size_t col_block_idx = 0; col_block_idx < full_n_blocks; col_block_idx++) {
+                nk_size_t const col_offset = col_block_idx * 32;
 
                 _tile_zero(4);
                 _tile_zero(5);
                 _tile_zero(6);
                 _tile_zero(7);
 
-                nk_size_t const b_tile_n0 = bj * 2;
-                nk_size_t const b_tile_n1 = bj * 2 + 1;
+                nk_size_t const b_tile_n0 = col_block_idx * 2;
+                nk_size_t const b_tile_n1 = col_block_idx * 2 + 1;
 
-                for (nk_size_t bk = 0; bk < full_k_tiles; bk++) {
-                    nk_size_t const k_offset = bk * 64;
+                for (nk_size_t depth_block_idx = 0; depth_block_idx < full_k_tiles; depth_block_idx++) {
+                    nk_size_t const k_offset = depth_block_idx * 64;
 
                     // Load A through buffers using AVX-512
                     for (nk_size_t r = 0; r < 16; r++) {
-                        nk_i8_t const *src_upper = a + (row_block + r) * a_stride + k_offset;
-                        nk_i8_t const *src_lower = a + (row_block + 16 + r) * a_stride + k_offset;
+                        nk_i8_t const *src_upper = a + (row_offset + r) * a_stride + k_offset;
+                        nk_i8_t const *src_lower = a + (row_offset + 16 + r) * a_stride + k_offset;
                         __m512i upper_row = _mm512_loadu_si512((__m512i const *)src_upper);
                         __m512i lower_row = _mm512_loadu_si512((__m512i const *)src_lower);
                         _mm512_store_si512((__m512i *)a_buf_upper[r], upper_row);
@@ -1206,12 +1208,14 @@ NK_INTERNAL void nk_dots_i8i8i32_sapphire_misaligned_(   //
                     _tile_loadd(0, a_buf_upper, 64);
                     _tile_loadd(1, a_buf_lower, 64);
 
-                    nk_size_t morton_idx0 = nk_morton_encode_sapphire_amx_((nk_u32_t)b_tile_n0, (nk_u32_t)bk);
-                    if (morton_idx0 >= total_full_tiles) morton_idx0 = b_tile_n0 * full_k_tiles + bk;
+                    nk_size_t morton_idx0 = nk_morton_encode_sapphire_amx_((nk_u32_t)b_tile_n0,
+                                                                           (nk_u32_t)depth_block_idx);
+                    if (morton_idx0 >= total_full_tiles) morton_idx0 = b_tile_n0 * full_k_tiles + depth_block_idx;
                     nk_i8_t const *b_tile_ptr0 = tiles_ptr + morton_idx0 * tile_elements_i8;
 
-                    nk_size_t morton_idx1 = nk_morton_encode_sapphire_amx_((nk_u32_t)b_tile_n1, (nk_u32_t)bk);
-                    if (morton_idx1 >= total_full_tiles) morton_idx1 = b_tile_n1 * full_k_tiles + bk;
+                    nk_size_t morton_idx1 = nk_morton_encode_sapphire_amx_((nk_u32_t)b_tile_n1,
+                                                                           (nk_u32_t)depth_block_idx);
+                    if (morton_idx1 >= total_full_tiles) morton_idx1 = b_tile_n1 * full_k_tiles + depth_block_idx;
                     nk_i8_t const *b_tile_ptr1 = tiles_ptr + morton_idx1 * tile_elements_i8;
 
                     _tile_loadd(2, b_tile_ptr0, 64);
@@ -1227,25 +1231,25 @@ NK_INTERNAL void nk_dots_i8i8i32_sapphire_misaligned_(   //
                 _tile_stored(4, c_buf, 64);
                 for (nk_size_t r = 0; r < 16; r++) {
                     __m512i row = _mm512_load_si512((__m512i const *)c_buf[r]);
-                    _mm512_storeu_si512((__m512i *)(c + (row_block + r) * c_stride_elements + col_block), row);
+                    _mm512_storeu_si512((__m512i *)(c + (row_offset + r) * c_stride_elements + col_offset), row);
                 }
 
                 _tile_stored(5, c_buf, 64);
                 for (nk_size_t r = 0; r < 16; r++) {
                     __m512i row = _mm512_load_si512((__m512i const *)c_buf[r]);
-                    _mm512_storeu_si512((__m512i *)(c + (row_block + r) * c_stride_elements + col_block + 16), row);
+                    _mm512_storeu_si512((__m512i *)(c + (row_offset + r) * c_stride_elements + col_offset + 16), row);
                 }
 
                 _tile_stored(6, c_buf, 64);
                 for (nk_size_t r = 0; r < 16; r++) {
                     __m512i row = _mm512_load_si512((__m512i const *)c_buf[r]);
-                    _mm512_storeu_si512((__m512i *)(c + (row_block + 16 + r) * c_stride_elements + col_block), row);
+                    _mm512_storeu_si512((__m512i *)(c + (row_offset + 16 + r) * c_stride_elements + col_offset), row);
                 }
 
                 _tile_stored(7, c_buf, 64);
                 for (nk_size_t r = 0; r < 16; r++) {
                     __m512i row = _mm512_load_si512((__m512i const *)c_buf[r]);
-                    _mm512_storeu_si512((__m512i *)(c + (row_block + 16 + r) * c_stride_elements + col_block + 16),
+                    _mm512_storeu_si512((__m512i *)(c + (row_offset + 16 + r) * c_stride_elements + col_offset + 16),
                                         row);
                 }
             }
@@ -1262,7 +1266,7 @@ NK_INTERNAL void nk_dots_i8i8i32_sapphire_misaligned_(   //
         nk_amx_tile_configure_sapphire_amx_();
 
         for (nk_size_t tj = 0; tj < full_n_tiles; tj++) {
-            nk_size_t const col_block = tj * 16;
+            nk_size_t const col_offset = tj * 16;
             nk_size_t const b_tile_n0 = tj;
 
             _tile_zero(4);
@@ -1277,9 +1281,9 @@ NK_INTERNAL void nk_dots_i8i8i32_sapphire_misaligned_(   //
             nk_size_t const rows_upper = (m_edge_rows > 16) ? 16 : m_edge_rows;
             nk_size_t const rows_lower = (m_edge_rows > 16) ? m_edge_rows - 16 : 0;
 
-            for (nk_size_t bk = 0; bk < full_k_tiles; bk++) {
-                nk_size_t const k_offset = bk * tile_cols_i8;
-                nk_size_t const k_valid = (k_offset + tile_cols_i8 <= k) ? tile_cols_i8 : (k - k_offset);
+            for (nk_size_t depth_block_idx = 0; depth_block_idx < full_k_tiles; depth_block_idx++) {
+                nk_size_t const k_offset = depth_block_idx * tmm_cols_i8;
+                nk_size_t const k_valid = (k_offset + tmm_cols_i8 <= k) ? tmm_cols_i8 : (k - k_offset);
 
                 nk_load_a_tile_i8_masked_(a + m_edge_start * a_stride + k_offset, a_stride, rows_upper, k_valid,
                                           (nk_i8_t *)a_buf_upper);
@@ -1291,8 +1295,8 @@ NK_INTERNAL void nk_dots_i8i8i32_sapphire_misaligned_(   //
                 _tile_loadd(0, a_buf_upper, 64);
                 _tile_loadd(1, a_buf_lower, 64);
 
-                nk_size_t morton_idx0 = nk_morton_encode_sapphire_amx_((nk_u32_t)b_tile_n0, (nk_u32_t)bk);
-                if (morton_idx0 >= total_full_tiles) morton_idx0 = b_tile_n0 * full_k_tiles + bk;
+                nk_size_t morton_idx0 = nk_morton_encode_sapphire_amx_((nk_u32_t)b_tile_n0, (nk_u32_t)depth_block_idx);
+                if (morton_idx0 >= total_full_tiles) morton_idx0 = b_tile_n0 * full_k_tiles + depth_block_idx;
                 nk_i8_t const *b_tile_ptr0 = tiles_ptr + morton_idx0 * tile_elements_i8;
 
                 _tile_loadd(2, b_tile_ptr0, 64);
@@ -1302,12 +1306,12 @@ NK_INTERNAL void nk_dots_i8i8i32_sapphire_misaligned_(   //
             }
 
             _tile_stored(4, c_buf, 64);
-            nk_store_c_tile_i32_masked_((nk_i32_t *)c_buf, c + m_edge_start * c_stride_elements + col_block,
+            nk_store_c_tile_i32_masked_((nk_i32_t *)c_buf, c + m_edge_start * c_stride_elements + col_offset,
                                         c_stride_elements, rows_upper, 16);
 
             if (rows_lower > 0) {
                 _tile_stored(6, c_buf, 64);
-                nk_store_c_tile_i32_masked_((nk_i32_t *)c_buf, c + (m_edge_start + 16) * c_stride_elements + col_block,
+                nk_store_c_tile_i32_masked_((nk_i32_t *)c_buf, c + (m_edge_start + 16) * c_stride_elements + col_offset,
                                             c_stride_elements, rows_lower, 16);
             }
         }
