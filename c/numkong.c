@@ -537,6 +537,10 @@ NK_DYNAMIC int nk_uses_sapphire_amx(void) { return (nk_capabilities() & nk_cap_s
 NK_DYNAMIC int nk_uses_granite_amx(void) { return (nk_capabilities() & nk_cap_granite_amx_k) != 0; }
 NK_DYNAMIC int nk_uses_turin(void) { return (nk_capabilities() & nk_cap_turin_k) != 0; }
 NK_DYNAMIC int nk_uses_sierra(void) { return (nk_capabilities() & nk_cap_sierra_k) != 0; }
+// RISC-V capabilities
+NK_DYNAMIC int nk_uses_spacemit(void) { return (nk_capabilities() & nk_cap_spacemit_k) != 0; }
+NK_DYNAMIC int nk_uses_sifive(void) { return (nk_capabilities() & nk_cap_sifive_k) != 0; }
+NK_DYNAMIC int nk_uses_xuantie(void) { return (nk_capabilities() & nk_cap_xuantie_k) != 0; }
 NK_DYNAMIC int nk_uses_dynamic_dispatch(void) { return 1; }
 NK_DYNAMIC int nk_configure_thread(nk_capability_t c) { return nk_configure_thread_(c); }
 

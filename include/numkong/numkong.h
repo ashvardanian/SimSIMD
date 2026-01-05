@@ -142,9 +142,11 @@
 #include <unistd.h>      // `syscall`
 #endif
 
-// On Linux RISC-V, we use getauxval for capability detection
+// On Linux RISC-V, we use getauxval and hwprobe syscall for capability detection
 #if defined(NK_DEFINED_LINUX_) && NK_TARGET_RISCV_
-#include <sys/auxv.h> // `getauxval`, `AT_HWCAP`
+#include <sys/auxv.h>    // `getauxval`, `AT_HWCAP`
+#include <sys/syscall.h> // `syscall`
+#include <unistd.h>      // `syscall`
 #endif
 
 // On Windows ARM, we use IsProcessorFeaturePresent API for capability detection
@@ -1177,7 +1179,39 @@ NK_PUBLIC nk_capability_t nk_capabilities_arm_(void) {
 #pragma clang attribute pop
 #pragma GCC pop_options
 
+#endif // NK_TARGET_ARM_
+
+#if NK_TARGET_RISCV_
+
+/**
+ *  @brief  Function to determine the SIMD capabilities of the current 64-bit RISC-V machine at @b runtime.
+ *  @return A bitmask of the SIMD capabilities represented as a `nk_capability_t` enum value.
+ */
+NK_PUBLIC nk_capability_t nk_capabilities_riscv_(void) {
+#if defined(NK_DEFINED_LINUX_)
+    // Base V extension from AT_HWCAP (bit 21 = 'V' - 'A')
+    unsigned long hwcap = getauxval(AT_HWCAP);
+    nk_capability_t caps = nk_cap_serial_k;
+    if (hwcap & (1UL << 21)) {
+        caps |= nk_cap_spacemit_k;
+        // hwprobe() syscall for Zvfh/Zvfbfwma (Linux 6.4+)
+        // syscall 258, key 4 = IMA_EXT_0, bit 30 = ZVFH, bit 54 = ZVFBFWMA
+        struct {
+            long key;
+            unsigned long value;
+        } pairs[1] = {{4, 0}};
+        if (syscall(258, pairs, 1, 0, (void *)0, 0) == 0) {
+            if (pairs[0].value & (1ULL << 30)) caps |= nk_cap_sifive_k;
+            if (pairs[0].value & (1ULL << 54)) caps |= nk_cap_xuantie_k;
+        }
+    }
+    return caps;
+#else
+    return nk_cap_serial_k;
 #endif
+}
+
+#endif // NK_TARGET_RISCV_
 
 /**
  *  @brief  Function to flush @b denormalized numbers to zero to avoid performance penalties.
@@ -1210,6 +1244,9 @@ NK_PUBLIC nk_capability_t nk_capabilities_(void) {
 #if NK_TARGET_ARM_
     return nk_capabilities_arm_();
 #endif // NK_TARGET_ARM_
+#if NK_TARGET_RISCV_
+    return nk_capabilities_riscv_();
+#endif // NK_TARGET_RISCV_
     return nk_cap_serial_k;
 }
 
@@ -2882,6 +2919,9 @@ NK_PUBLIC int nk_uses_turin(void) { return NK_TARGET_X86_ && NK_TARGET_TURIN; }
 NK_PUBLIC int nk_uses_sierra(void) { return NK_TARGET_X86_ && NK_TARGET_SIERRA; }
 NK_PUBLIC int nk_uses_sapphire_amx(void) { return NK_TARGET_X86_ && NK_TARGET_SAPPHIRE_AMX; }
 NK_PUBLIC int nk_uses_granite_amx(void) { return NK_TARGET_X86_ && NK_TARGET_GRANITE_AMX; }
+NK_PUBLIC int nk_uses_spacemit(void) { return NK_TARGET_RISCV_ && NK_TARGET_SPACEMIT; }
+NK_PUBLIC int nk_uses_sifive(void) { return NK_TARGET_RISCV_ && NK_TARGET_SIFIVE; }
+NK_PUBLIC int nk_uses_xuantie(void) { return NK_TARGET_RISCV_ && NK_TARGET_XUANTIE; }
 NK_PUBLIC int nk_uses_dynamic_dispatch(void) { return 0; }
 NK_PUBLIC int nk_configure_thread(nk_capability_t c) { return nk_configure_thread_(c); }
 NK_PUBLIC nk_capability_t nk_capabilities(void) { return nk_capabilities_(); }

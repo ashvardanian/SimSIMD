@@ -51,6 +51,9 @@ extern "C" {
     fn nk_uses_sierra() -> i32;
     fn nk_uses_sapphire_amx() -> i32;
     fn nk_uses_granite_amx() -> i32;
+    fn nk_uses_spacemit() -> i32;
+    fn nk_uses_sifive() -> i32;
+    fn nk_uses_xuantie() -> i32;
     fn nk_configure_thread(capabilities: u64) -> i32;
     fn nk_uses_dynamic_dispatch() -> i32;
 
@@ -524,6 +527,15 @@ pub mod capabilities {
     }
     pub fn uses_granite_amx() -> bool {
         unsafe { super::nk_uses_granite_amx() != 0 }
+    }
+    pub fn uses_spacemit() -> bool {
+        unsafe { super::nk_uses_spacemit() != 0 }
+    }
+    pub fn uses_sifive() -> bool {
+        unsafe { super::nk_uses_sifive() != 0 }
+    }
+    pub fn uses_xuantie() -> bool {
+        unsafe { super::nk_uses_xuantie() != 0 }
     }
 
     /// Flushes denormalized numbers to zero on the current CPU.
