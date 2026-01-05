@@ -552,8 +552,8 @@ nk_jsd_f16_neonhalf_cycle:
 #if NK_TARGET_X86_
 #if NK_TARGET_HASWELL
 #pragma GCC push_options
-#pragma GCC target("avx2", "f16c", "fma")
-#pragma clang attribute push(__attribute__((target("avx2,f16c,fma"))), apply_to = function)
+#pragma GCC target("avx2", "f16c", "fma", "bmi", "bmi2")
+#pragma clang attribute push(__attribute__((target("avx2,f16c,fma,bmi,bmi2"))), apply_to = function)
 
 NK_INTERNAL __m256 nk_log2_f32_haswell_(__m256 x) {
     // Extracting the exponent
@@ -664,8 +664,10 @@ NK_PUBLIC void nk_jsd_f64_haswell(nk_f64_t const *a, nk_f64_t const *b, nk_size_
 
 #if NK_TARGET_SKYLAKE
 #pragma GCC push_options
-#pragma GCC target("avx2", "avx512f", "avx512vl", "bmi2")
-#pragma clang attribute push(__attribute__((target("avx2,avx512f,avx512vl,bmi2"))), apply_to = function)
+#pragma GCC target("avx2", "avx512f", "avx512vl", "avx512bw", "avx512dq", "avx512bf16", "f16c", "fma", "bmi", "bmi2")
+#pragma clang attribute push(                                                                        \
+    __attribute__((target("avx2,avx512f,avx512vl,avx512bw,avx512dq,avx512bf16,f16c,fma,bmi,bmi2"))), \
+    apply_to = function)
 
 NK_INTERNAL __m512 nk_log2_f32_skylake_(__m512 x) {
     // Extract the exponent and mantissa
@@ -863,8 +865,9 @@ nk_jsd_f64_skylake_cycle:
 
 #if NK_TARGET_SAPPHIRE
 #pragma GCC push_options
-#pragma GCC target("avx2", "avx512f", "avx512vl", "bmi2", "avx512fp16")
-#pragma clang attribute push(__attribute__((target("avx2,avx512f,avx512vl,bmi2,avx512fp16"))), apply_to = function)
+#pragma GCC target("avx2", "avx512f", "avx512vl", "avx512bw", "avx512fp16", "f16c", "fma", "bmi", "bmi2")
+#pragma clang attribute push(__attribute__((target("avx2,avx512f,avx512vl,avx512bw,avx512fp16,f16c,fma,bmi,bmi2"))), \
+                             apply_to = function)
 
 NK_INTERNAL __m512h nk_log2_f16_sapphire_(__m512h x) {
     // Extract the exponent and mantissa

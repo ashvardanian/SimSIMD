@@ -31,7 +31,7 @@ extern "C" {
  *  Uses f16 difference, then widening square to f32.
  */
 NK_PUBLIC void nk_l2sq_f16_sifive(nk_f16_t const *a_scalars, nk_f16_t const *b_scalars, nk_size_t count_scalars,
-                                nk_f32_t *result) {
+                                  nk_f32_t *result) {
     vfloat32m1_t sum_f32x1 = __riscv_vfmv_v_f_f32m1(0.0f, 1);
     for (size_t vl; count_scalars > 0; count_scalars -= vl, a_scalars += vl, b_scalars += vl) {
         vl = __riscv_vsetvl_e16m1(count_scalars);
@@ -51,7 +51,7 @@ NK_PUBLIC void nk_l2sq_f16_sifive(nk_f16_t const *a_scalars, nk_f16_t const *b_s
  *  @brief  L2 distance of two f16 vectors on SiFive.
  */
 NK_PUBLIC void nk_l2_f16_sifive(nk_f16_t const *a_scalars, nk_f16_t const *b_scalars, nk_size_t count_scalars,
-                              nk_f32_t *result) {
+                                nk_f32_t *result) {
     nk_f32_t l2sq;
     nk_l2sq_f16_sifive(a_scalars, b_scalars, count_scalars, &l2sq);
     *result = sqrtf(l2sq);
@@ -64,7 +64,7 @@ NK_PUBLIC void nk_l2_f16_sifive(nk_f16_t const *a_scalars, nk_f16_t const *b_sca
  *  Uses f32 accumulation for dot product and norms.
  */
 NK_PUBLIC void nk_angular_f16_sifive(nk_f16_t const *a_scalars, nk_f16_t const *b_scalars, nk_size_t count_scalars,
-                                   nk_f32_t *result) {
+                                     nk_f32_t *result) {
     vfloat32m1_t dot_f32x1 = __riscv_vfmv_v_f_f32m1(0.0f, 1);
     vfloat32m1_t a_sq_f32x1 = __riscv_vfmv_v_f_f32m1(0.0f, 1);
     vfloat32m1_t b_sq_f32x1 = __riscv_vfmv_v_f_f32m1(0.0f, 1);

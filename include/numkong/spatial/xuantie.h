@@ -34,10 +34,10 @@ extern "C" {
  *  Uses vfwmaccbf16 for all bf16 multiply-accumulate operations.
  */
 NK_PUBLIC void nk_l2sq_bf16_xuantie(nk_bf16_t const *a_scalars, nk_bf16_t const *b_scalars, nk_size_t count_scalars,
-                                 nk_f32_t *result) {
+                                    nk_f32_t *result) {
     // Accumulate a² + b² and a*b separately
-    vfloat32m1_t sq_sum_f32x1 = __riscv_vfmv_v_f_f32m1(0.0f, 1);  // a² + b²
-    vfloat32m1_t ab_sum_f32x1 = __riscv_vfmv_v_f_f32m1(0.0f, 1);  // a*b
+    vfloat32m1_t sq_sum_f32x1 = __riscv_vfmv_v_f_f32m1(0.0f, 1); // a² + b²
+    vfloat32m1_t ab_sum_f32x1 = __riscv_vfmv_v_f_f32m1(0.0f, 1); // a*b
 
     for (size_t vl; count_scalars > 0; count_scalars -= vl, a_scalars += vl, b_scalars += vl) {
         vl = __riscv_vsetvl_e16m1(count_scalars);
@@ -70,7 +70,7 @@ NK_PUBLIC void nk_l2sq_bf16_xuantie(nk_bf16_t const *a_scalars, nk_bf16_t const 
  *  @brief  L2 distance of two bf16 vectors on XuanTie.
  */
 NK_PUBLIC void nk_l2_bf16_xuantie(nk_bf16_t const *a_scalars, nk_bf16_t const *b_scalars, nk_size_t count_scalars,
-                               nk_f32_t *result) {
+                                  nk_f32_t *result) {
     nk_f32_t l2sq;
     nk_l2sq_bf16_xuantie(a_scalars, b_scalars, count_scalars, &l2sq);
     // Handle potential negative values from floating point errors
@@ -84,7 +84,7 @@ NK_PUBLIC void nk_l2_bf16_xuantie(nk_bf16_t const *a_scalars, nk_bf16_t const *b
  *  Uses vfwmaccbf16 for all bf16 multiply-accumulate operations.
  */
 NK_PUBLIC void nk_angular_bf16_xuantie(nk_bf16_t const *a_scalars, nk_bf16_t const *b_scalars, nk_size_t count_scalars,
-                                    nk_f32_t *result) {
+                                       nk_f32_t *result) {
     vfloat32m1_t dot_f32x1 = __riscv_vfmv_v_f_f32m1(0.0f, 1);
     vfloat32m1_t a_sq_f32x1 = __riscv_vfmv_v_f_f32m1(0.0f, 1);
     vfloat32m1_t b_sq_f32x1 = __riscv_vfmv_v_f_f32m1(0.0f, 1);

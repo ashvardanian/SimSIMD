@@ -11,8 +11,8 @@
 #if NK_TARGET_X86_
 #if NK_TARGET_HASWELL
 #pragma GCC push_options
-#pragma GCC target("avx2", "f16c", "fma")
-#pragma clang attribute push(__attribute__((target("avx2,f16c,fma"))), apply_to = function)
+#pragma GCC target("avx2", "f16c", "fma", "bmi", "bmi2")
+#pragma clang attribute push(__attribute__((target("avx2,f16c,fma,bmi,bmi2"))), apply_to = function)
 
 #include "numkong/types.h"
 #include "numkong/reduce/haswell.h" // nk_reduce_add_f32x8_haswell_, nk_reduce_add_i32x8_haswell_

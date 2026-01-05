@@ -768,6 +768,12 @@ typedef void (*nk_dots_punned_t)(void const *a, void const *b_packed, void *c, n
                                  nk_size_t a_stride, nk_size_t c_stride);
 
 /**
+ *  @brief  Type-punned function pointer for type casting operations.
+ */
+typedef void (*nk_kernel_cast_punned_t)(void const *from, nk_dtype_t from_type, nk_size_t n, void *to,
+                                        nk_dtype_t to_type);
+
+/**
  *  @brief  Type-punned function pointer for a NumKong public interface.
  *
  *  Can be a `nk_metric_dense_punned_t`, `nk_sparse_intersect_punned_t`, `nk_metric_curved_punned_t`,
@@ -2715,9 +2721,33 @@ NK_INTERNAL void nk_find_kernel_punned_u64_(nk_capability_t v, nk_kernel_kind_t 
 NK_INTERNAL void nk_find_kernel_punned_unkown_(nk_capability_t v, nk_kernel_kind_t k, nk_kernel_punned_t *m,
                                                nk_capability_t *c) {
     typedef nk_kernel_punned_t m_t;
+#if NK_TARGET_SAPPHIRE
+    if (v & nk_cap_sapphire_k) switch (k) {
+        case nk_kernel_cast_k: *m = (m_t)&nk_cast_sapphire, *c = nk_cap_sapphire_k; return;
+        default: break;
+        }
+#endif
 #if NK_TARGET_ICE
     if (v & nk_cap_ice_k) switch (k) {
         case nk_kernel_cast_k: *m = (m_t)&nk_cast_ice, *c = nk_cap_ice_k; return;
+        default: break;
+        }
+#endif
+#if NK_TARGET_SKYLAKE
+    if (v & nk_cap_skylake_k) switch (k) {
+        case nk_kernel_cast_k: *m = (m_t)&nk_cast_skylake, *c = nk_cap_skylake_k; return;
+        default: break;
+        }
+#endif
+#if NK_TARGET_HASWELL
+    if (v & nk_cap_haswell_k) switch (k) {
+        case nk_kernel_cast_k: *m = (m_t)&nk_cast_haswell, *c = nk_cap_haswell_k; return;
+        default: break;
+        }
+#endif
+#if NK_TARGET_NEON
+    if (v & nk_cap_neon_k) switch (k) {
+        case nk_kernel_cast_k: *m = (m_t)&nk_cast_neon, *c = nk_cap_neon_k; return;
         default: break;
         }
 #endif

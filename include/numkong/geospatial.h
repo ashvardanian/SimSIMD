@@ -1087,8 +1087,8 @@ NK_PUBLIC void nk_vincenty_f32_neon(                //
 #if NK_TARGET_X86_
 #if NK_TARGET_HASWELL
 #pragma GCC push_options
-#pragma GCC target("avx2", "f16c", "fma")
-#pragma clang attribute push(__attribute__((target("avx2,f16c,fma"))), apply_to = function)
+#pragma GCC target("avx2", "f16c", "fma", "bmi", "bmi2")
+#pragma clang attribute push(__attribute__((target("avx2,f16c,fma,bmi,bmi2"))), apply_to = function)
 
 /*  Haswell AVX2 implementations using 4-wide f64 and 8-wide f32 SIMD.
  *  These require AVX2 trigonometric kernels from trigonometry.h.
@@ -1634,9 +1634,10 @@ NK_PUBLIC void nk_vincenty_f32_haswell(             //
 
 #if NK_TARGET_SKYLAKE
 #pragma GCC push_options
-#pragma GCC target("avx2", "avx512f", "avx512vl", "avx512bw", "avx512dq", "bmi2")
-#pragma clang attribute push(__attribute__((target("avx2,avx512f,avx512vl,avx512bw,avx512dq,bmi2"))), \
-                             apply_to = function)
+#pragma GCC target("avx2", "avx512f", "avx512vl", "avx512bw", "avx512dq", "avx512bf16", "f16c", "fma", "bmi", "bmi2")
+#pragma clang attribute push(                                                                        \
+    __attribute__((target("avx2,avx512f,avx512vl,avx512bw,avx512dq,avx512bf16,f16c,fma,bmi,bmi2"))), \
+    apply_to = function)
 
 NK_INTERNAL __m512d nk_haversine_f64x8_skylake_(       //
     __m512d first_latitudes, __m512d first_longitudes, //

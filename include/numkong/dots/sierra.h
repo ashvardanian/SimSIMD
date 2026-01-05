@@ -15,8 +15,8 @@
 #if NK_TARGET_X86_
 #if NK_TARGET_SIERRA
 #pragma GCC push_options
-#pragma GCC target("avx2", "bmi2", "f16c", "fma", "avxvnni", "avxvnniint8")
-#pragma clang attribute push(__attribute__((target("avx2,bmi2,f16c,fma,avxvnni,avxvnniint8"))), apply_to = function)
+#pragma GCC target("avx2", "f16c", "fma", "bmi", "bmi2", "avxvnni", "avxvnniint8")
+#pragma clang attribute push(__attribute__((target("avx2,f16c,fma,bmi,bmi2,avxvnni,avxvnniint8"))), apply_to = function)
 
 #include "numkong/dot/sierra.h"  // Sierra-specific dot product helpers
 #include "numkong/dot/haswell.h" // Haswell partial load functions

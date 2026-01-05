@@ -37,7 +37,7 @@ extern "C" {
  *  VL-based loop handles all tail elements automatically.
  */
 NK_PUBLIC void nk_dot_i8_spacemit(nk_i8_t const *a_scalars, nk_i8_t const *b_scalars, nk_size_t count_scalars,
-                                   nk_i32_t *result) {
+                                  nk_i32_t *result) {
     vint32m1_t sum_i32x1 = __riscv_vmv_v_x_i32m1(0, 1);
     for (size_t vl; count_scalars > 0; count_scalars -= vl, a_scalars += vl, b_scalars += vl) {
         vl = __riscv_vsetvl_e8m1(count_scalars);
@@ -55,7 +55,7 @@ NK_PUBLIC void nk_dot_i8_spacemit(nk_i8_t const *a_scalars, nk_i8_t const *b_sca
  *  @brief  Dot product of two u8 vectors with u32 accumulation on SpacemiT.
  */
 NK_PUBLIC void nk_dot_u8_spacemit(nk_u8_t const *a_scalars, nk_u8_t const *b_scalars, nk_size_t count_scalars,
-                                   nk_u32_t *result) {
+                                  nk_u32_t *result) {
     vuint32m1_t sum_u32x1 = __riscv_vmv_v_x_u32m1(0, 1);
     for (size_t vl; count_scalars > 0; count_scalars -= vl, a_scalars += vl, b_scalars += vl) {
         vl = __riscv_vsetvl_e8m1(count_scalars);
@@ -76,7 +76,7 @@ NK_PUBLIC void nk_dot_u8_spacemit(nk_u8_t const *a_scalars, nk_u8_t const *b_sca
  *  This matches the Skylake strategy for avoiding catastrophic cancellation.
  */
 NK_PUBLIC void nk_dot_f32_spacemit(nk_f32_t const *a_scalars, nk_f32_t const *b_scalars, nk_size_t count_scalars,
-                                    nk_f32_t *result) {
+                                   nk_f32_t *result) {
     vfloat64m1_t sum_f64x1 = __riscv_vfmv_v_f_f64m1(0.0, 1);
     for (size_t vl; count_scalars > 0; count_scalars -= vl, a_scalars += vl, b_scalars += vl) {
         vl = __riscv_vsetvl_e32m1(count_scalars);
@@ -97,7 +97,7 @@ NK_PUBLIC void nk_dot_f32_spacemit(nk_f32_t const *a_scalars, nk_f32_t const *b_
  *  Uses fused multiply-accumulate for efficiency, followed by horizontal reduction.
  */
 NK_PUBLIC void nk_dot_f64_spacemit(nk_f64_t const *a_scalars, nk_f64_t const *b_scalars, nk_size_t count_scalars,
-                                    nk_f64_t *result) {
+                                   nk_f64_t *result) {
     // Accumulate partial sums into vector lanes, then one final horizontal reduction
     size_t vlmax = __riscv_vsetvlmax_e64m1();
     vfloat64m1_t sum_f64x1 = __riscv_vfmv_v_f_f64m1(0.0, vlmax);

@@ -129,10 +129,18 @@ NK_INTERNAL uint8x8_t nk_f16x8_to_e5m2x8_neon_(float16x8_t f16x8) {
 #pragma region - Converting Loads and Stores
 
 /** @brief Partial load for E4M3 elements (up to 4) with expansion to f32x4 (NEON). */
-NK_INTERNAL float32x4_t nk_partial_load_e4m3x4_to_f32x4_neon_(nk_e4m3_t const *src, nk_size_t n) {}
+NK_INTERNAL float32x4_t nk_partial_load_e4m3x4_to_f32x4_neon_(nk_e4m3_t const *src, nk_size_t n) {
+    (void)src;
+    (void)n;
+    return vdupq_n_f32(0); // TODO: implement e4m3 partial load for NEON
+}
 
 /** @brief Partial load for E5M2 elements (up to 4) with expansion to f32x4 (NEON). */
-NK_INTERNAL float32x4_t nk_partial_load_e5m2x4_to_f32x4_neon_(nk_e5m2_t const *src, nk_size_t n) {}
+NK_INTERNAL float32x4_t nk_partial_load_e5m2x4_to_f32x4_neon_(nk_e5m2_t const *src, nk_size_t n) {
+    (void)src;
+    (void)n;
+    return vdupq_n_f32(0); // TODO: implement e5m2 partial load for NEON
+}
 
 #pragma endregion - Converting Loads and Stores
 
