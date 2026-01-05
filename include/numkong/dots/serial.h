@@ -6,7 +6,7 @@
  *
  *  This file provides two macro families for generating GEMM kernels:
  *
- *  - nk_make_dots_inner_vectors_: SIMD kernels using platform-specific vector intrinsics
+ *  - nk_make_dots_packed_vectors_: SIMD kernels using platform-specific vector intrinsics
  *  - nk_make_dots_outer_scalars_: Portable scalar kernels for any CPU
  *
  *  Both use the same B packing format (see below), enabling pack-once-use-anywhere.
@@ -95,13 +95,12 @@ typedef struct {
  *  Calculates buffer size needed for packed B matrix: header + column_groups_count × group_size × depth.
  *  Edge rows are zero-padded to full group size for uniform SIMD loads.
  */
-#define nk_make_dots_pack_size_(suffix, input_type, output_type)                                                     \
-    NK_PUBLIC nk_size_t nk_dots_##input_type##input_type##output_type##_packed_size_##suffix(nk_size_t column_count, \
-                                                                                             nk_size_t depth) {      \
-        nk_size_t const group_size = NK_DOTS_GROUP_SIZE_;                                                            \
-        nk_size_t const column_groups_count = (column_count + group_size - 1) / group_size;                          \
-        return sizeof(nk_dots_packed_buffer_header_t) +                                                              \
-               column_groups_count * group_size * depth * sizeof(nk_##input_type##_t);                               \
+#define nk_make_dots_pack_size_(suffix, input_type, output_type)                                               \
+    NK_PUBLIC nk_size_t nk_dots_packed_size_##input_type##_##suffix(nk_size_t column_count, nk_size_t depth) { \
+        nk_size_t const group_size = NK_DOTS_GROUP_SIZE_;                                                      \
+        nk_size_t const column_groups_count = (column_count + group_size - 1) / group_size;                    \
+        return sizeof(nk_dots_packed_buffer_header_t) +                                                        \
+               column_groups_count * group_size * depth * sizeof(nk_##input_type##_t);                         \
     }
 
 /**
@@ -113,9 +112,9 @@ typedef struct {
  *  Edge groups are zero-padded to full group_size.
  */
 #define nk_make_dots_pack_(suffix, input_type, output_type)                                                          \
-    NK_PUBLIC void nk_dots_##input_type##input_type##output_type##_pack_##suffix(                                    \
-        nk_##input_type##_t const *b, nk_size_t column_count, nk_size_t depth, nk_size_t b_stride_in_bytes,          \
-        void *b_packed) {                                                                                            \
+    NK_PUBLIC void nk_dots_pack_##input_type##_##suffix(nk_##input_type##_t const *b, nk_size_t column_count,        \
+                                                        nk_size_t depth, nk_size_t b_stride_in_bytes,                \
+                                                        void *b_packed) {                                            \
                                                                                                                      \
         nk_size_t const group_size = NK_DOTS_GROUP_SIZE_;                                                            \
         nk_size_t const column_groups_count = (column_count + group_size - 1) / group_size;                          \
@@ -177,9 +176,9 @@ typedef struct {
  *          // ... 16 FMAs for 4 × 4 register tile
  *      }
  */
-#define nk_make_dots_inner_4x4_vectors_aligned_(suffix, input_type, output_type, vec_type, state_type,                \
-                                                result_vec_type, init_fn, load_fn, partial_load_fn, update_fn,        \
-                                                finalize_fn, partial_store_fn, simd_width)                            \
+#define nk_make_dots_packed_4x4_vectors_aligned_(suffix, input_type, output_type, vec_type, state_type,               \
+                                                 result_vec_type, init_fn, load_fn, partial_load_fn, update_fn,       \
+                                                 finalize_fn, partial_store_fn, simd_width)                           \
                                                                                                                       \
     NK_PUBLIC void nk_dots_##suffix##_aligned_(nk_##input_type##_t const *a_matrix, void const *b_packed_buffer,      \
                                                nk_##output_type##_t *c_matrix, nk_size_t row_count,                   \
@@ -234,7 +233,7 @@ typedef struct {
                     for (nk_size_t tile_row_start_index = row_block_start_index;                                      \
                          tile_row_start_index < row_block_end_index; tile_row_start_index += register_row_count) {    \
                                                                                                                       \
-                        /* Initialize register_row_count × register_column_count accumulator states */               \
+                        /* Initialize register_row_count × register_column_count accumulator states */                \
                         state_type accumulator_tiles[4][4];                                                           \
                         init_fn(&accumulator_tiles[0][0]), init_fn(&accumulator_tiles[0][1]),                         \
                             init_fn(&accumulator_tiles[0][2]), init_fn(&accumulator_tiles[0][3]);                     \
@@ -275,7 +274,7 @@ typedef struct {
                             load_fn(b_depth_ptr_2 + depth_index, &b_vector_2);                                        \
                             load_fn(b_depth_ptr_3 + depth_index, &b_vector_3);                                        \
                                                                                                                       \
-                            /* 16 FMAs: 4 A rows × 4 B columns */                                                    \
+                            /* 16 FMAs: 4 A rows × 4 B columns */                                                     \
                             update_fn(&accumulator_tiles[0][0], a_vector_0, b_vector_0);                              \
                             update_fn(&accumulator_tiles[0][1], a_vector_0, b_vector_1);                              \
                             update_fn(&accumulator_tiles[0][2], a_vector_0, b_vector_2);                              \
@@ -331,9 +330,9 @@ typedef struct {
  *  Optimized for cases where M is small relative to N (few rows, many columns).
  *  Uses same finalize function twice (for columns 0-3 and 4-7).
  */
-#define nk_make_dots_inner_1x8_vectors_aligned_(suffix, input_type, output_type, vec_type, state_type,                \
-                                                result_vec_type, init_fn, load_fn, partial_load_fn, update_fn,        \
-                                                finalize_fn, partial_store_fn, simd_width)                            \
+#define nk_make_dots_packed_1x8_vectors_aligned_(suffix, input_type, output_type, vec_type, state_type,               \
+                                                 result_vec_type, init_fn, load_fn, partial_load_fn, update_fn,       \
+                                                 finalize_fn, partial_store_fn, simd_width)                           \
                                                                                                                       \
     NK_PUBLIC void nk_dots_##suffix##_1x8_aligned_(nk_##input_type##_t const *a_matrix, void const *b_packed_buffer,  \
                                                    nk_##output_type##_t *c_matrix, nk_size_t row_count,               \
@@ -346,7 +345,7 @@ typedef struct {
         nk_size_t const row_block_size = 128;              /* L2 cache blocking over rows */                          \
         nk_size_t const column_block_size = 2048;          /* L3 cache blocking over columns */                       \
         nk_size_t const register_row_count = 1;            /* Rows per register tile */                               \
-        nk_size_t const register_column_count = 8;         /* Columns per register tile (2 × 4) */                   \
+        nk_size_t const register_column_count = 8;         /* Columns per register tile (2 × 4) */                    \
         nk_size_t const group_size = NK_DOTS_GROUP_SIZE_;  /* Columns per packed group */                             \
         nk_size_t const group_stride = group_size * depth; /* Elements per group */                                   \
         nk_size_t const aligned_depth = (depth / simd_width) * simd_width;                                            \
@@ -393,7 +392,7 @@ typedef struct {
                     /* Loop 4: Process 1 row at a time */                                                             \
                     for (nk_size_t row_index = row_block_start_index; row_index < row_block_end_index; ++row_index) { \
                                                                                                                       \
-                        /* Initialize 1 × 8 accumulator states */                                                    \
+                        /* Initialize 1 × 8 accumulator states */                                                     \
                         state_type accumulator_0, accumulator_1, accumulator_2, accumulator_3, accumulator_4,         \
                             accumulator_5, accumulator_6, accumulator_7;                                              \
                         init_fn(&accumulator_0);                                                                      \
@@ -427,7 +426,7 @@ typedef struct {
                             load_fn(b_depth_ptr_6 + depth_index, &b_vector_6);                                        \
                             load_fn(b_depth_ptr_7 + depth_index, &b_vector_7);                                        \
                                                                                                                       \
-                            /* 8 FMAs: 1 A row × 8 B columns */                                                      \
+                            /* 8 FMAs: 1 A row × 8 B columns */                                                       \
                             update_fn(&accumulator_0, a_vector, b_vector_0);                                          \
                             update_fn(&accumulator_1, a_vector, b_vector_1);                                          \
                             update_fn(&accumulator_2, a_vector, b_vector_2);                                          \
@@ -438,7 +437,7 @@ typedef struct {
                             update_fn(&accumulator_7, a_vector, b_vector_7);                                          \
                         }                                                                                             \
                                                                                                                       \
-                        /* Finalize and store 1 × 8 results using two 4-way reductions */                            \
+                        /* Finalize and store 1 × 8 results using two 4-way reductions */                             \
                         result_vec_type result_vector;                                                                \
                         nk_##output_type##_t *c_row_ptr = (nk_##output_type##_t *)((char *)c_matrix +                 \
                                                                                    row_index * c_stride_in_bytes);    \
@@ -455,20 +454,20 @@ typedef struct {
     }
 
 /* Generate both aligned kernel variants for each platform */
-#define nk_make_dots_inner_vectors_(suffix, input_type, output_type, vec_type, state_type, result_vec_type, init_fn,  \
-                                    load_fn, partial_load_fn, update_fn, finalize_fn, partial_store_fn, simd_width)   \
-    /* Generate 4 × 4 aligned kernel */                                                                              \
-    nk_make_dots_inner_4x4_vectors_aligned_(suffix, input_type, output_type, vec_type, state_type, result_vec_type,   \
-                                            init_fn, load_fn, partial_load_fn, update_fn, finalize_fn,                \
-                                            partial_store_fn, simd_width)                                             \
-    /* Generate 1 × 8 aligned kernel */                                                                              \
-    nk_make_dots_inner_1x8_vectors_aligned_(suffix, input_type, output_type, vec_type, state_type, result_vec_type,   \
-                                            init_fn, load_fn, partial_load_fn, update_fn, finalize_fn,                \
-                                            partial_store_fn, simd_width)                                             \
+#define nk_make_dots_packed_vectors_(suffix, input_type, output_type, vec_type, state_type, result_vec_type, init_fn, \
+                                     load_fn, partial_load_fn, update_fn, finalize_fn, partial_store_fn, simd_width)  \
+    /* Generate 4 × 4 aligned kernel */                                                                               \
+    nk_make_dots_packed_4x4_vectors_aligned_(suffix, input_type, output_type, vec_type, state_type, result_vec_type,  \
+                                             init_fn, load_fn, partial_load_fn, update_fn, finalize_fn,               \
+                                             partial_store_fn, simd_width) /* Generate 1 × 8 aligned kernel */        \
+    nk_make_dots_packed_1x8_vectors_aligned_(suffix, input_type, output_type, vec_type, state_type, result_vec_type,  \
+                                             init_fn, load_fn, partial_load_fn, update_fn, finalize_fn,               \
+                                             partial_store_fn, simd_width)                                            \
                                                                                                                       \
-    NK_PUBLIC void nk_dots_##suffix(nk_##input_type##_t const *a_matrix, void const *b_packed_buffer,                 \
-                                    nk_##output_type##_t *c_matrix, nk_size_t row_count, nk_size_t column_count,      \
-                                    nk_size_t depth, nk_size_t a_stride_in_bytes, nk_size_t c_stride_in_bytes) {      \
+    NK_PUBLIC void nk_dots_packed_##suffix(nk_##input_type##_t const *a_matrix, void const *b_packed_buffer,          \
+                                           nk_##output_type##_t *c_matrix, nk_size_t row_count,                       \
+                                           nk_size_t column_count, nk_size_t depth, nk_size_t a_stride_in_bytes,      \
+                                           nk_size_t c_stride_in_bytes) {                                             \
         /* Cache blocking parameters (hardcoded for optimal L1/L2/L3 utilization) */                                  \
         nk_size_t const row_block_size = 128;              /* L2 cache blocking over rows */                          \
         nk_size_t const column_block_size = 2048;          /* L3 cache blocking over columns */                       \
@@ -478,13 +477,13 @@ typedef struct {
         nk_size_t const group_stride = group_size * depth; /* Elements per group */                                   \
         (void)register_column_count;                                                                                  \
         (void)group_stride; /* Suppress unused warnings */                                                            \
-        /* Use 1 × 8 kernel when columns are aligned to 8 and many columns relative to rows */                       \
+        /* Use 1 × 8 kernel when columns are aligned to 8 and many columns relative to rows */                        \
         if (column_count % 8 == 0 && column_count >= row_count * 2 && depth % simd_width == 0) {                      \
             nk_dots_##suffix##_1x8_aligned_(a_matrix, b_packed_buffer, c_matrix, row_count, column_count, depth,      \
                                             a_stride_in_bytes, c_stride_in_bytes);                                    \
             return;                                                                                                   \
         }                                                                                                             \
-        /* Use 4 × 4 kernel when dimensions are 4-aligned */                                                         \
+        /* Use 4 × 4 kernel when dimensions are 4-aligned */                                                          \
         if (row_count % 4 == 0 && column_count % 4 == 0 && depth % simd_width == 0) {                                 \
             nk_dots_##suffix##_aligned_(a_matrix, b_packed_buffer, c_matrix, row_count, column_count, depth,          \
                                         a_stride_in_bytes, c_stride_in_bytes);                                        \
@@ -594,7 +593,7 @@ typedef struct {
                             load_fn(b_depth_ptr_2 + k, &b_third_vec);                                                 \
                             load_fn(b_depth_ptr_3 + k, &b_fourth_vec);                                                \
                                                                                                                       \
-                            /* 16 FMAs: 4 A rows × 4 B columns */                                                    \
+                            /* 16 FMAs: 4 A rows × 4 B columns */                                                     \
                             update_fn(&accumulator_tiles[0][0], a_first_vec, b_first_vec);                            \
                             update_fn(&accumulator_tiles[0][1], a_first_vec, b_second_vec);                           \
                             update_fn(&accumulator_tiles[0][2], a_first_vec, b_third_vec);                            \
@@ -627,7 +626,7 @@ typedef struct {
                             partial_load_fn(b_depth_ptr_2 + aligned_depth, &b_third_vec, remainder_depth);            \
                             partial_load_fn(b_depth_ptr_3 + aligned_depth, &b_fourth_vec, remainder_depth);           \
                                                                                                                       \
-                            /* 16 FMAs: 4 A rows × 4 B columns */                                                    \
+                            /* 16 FMAs: 4 A rows × 4 B columns */                                                     \
                             update_fn(&accumulator_tiles[0][0], a_first_vec, b_first_vec);                            \
                             update_fn(&accumulator_tiles[0][1], a_first_vec, b_second_vec);                           \
                             update_fn(&accumulator_tiles[0][2], a_first_vec, b_third_vec);                            \
@@ -666,8 +665,8 @@ typedef struct {
 /**
  *  @brief Scalar GEMM macro with 4 × 4 register blocking.
  *
- *  Computes C[row_count, column_count] = A[row_count, depth] × B[depth, column_count] where B is pre-packed as
- * Bᵀ[column_count, depth].
+ *  Computes C[row_count, column_count] = A[row_count, depth] × B[depth, column_count] where
+ *  B is pre-packed as Bᵀ[column_count, depth].
  *
  *  Optimizations:
  *    1. Register blocking (4 × 4): 16 scalar accumulators stay in registers across depth-loop
@@ -675,7 +674,7 @@ typedef struct {
  *    3. A-row caching: load 4 A values once, reuse for 4 B columns
  */
 #define nk_make_dots_outer_scalars_(suffix, input_type, accumulator_type, output_type, load_and_convert)               \
-    NK_PUBLIC void nk_dots_##input_type##input_type##output_type##_##suffix(                                           \
+    NK_PUBLIC void nk_dots_packed_##input_type##_##suffix(                                                             \
         nk_##input_type##_t const *a, void const *b_packed_buffer, nk_##output_type##_t *c, nk_size_t row_count,       \
         nk_size_t column_count, nk_size_t depth, nk_size_t a_stride_in_bytes, nk_size_t c_stride_in_bytes) {           \
                                                                                                                        \
@@ -726,7 +725,7 @@ typedef struct {
                                                           : row_count;                                                 \
                 nk_size_t const row_block_length = row_block_end_index - row_block_start_index;                        \
                                                                                                                        \
-                /* 4 × 4 accumulator block */                                                                         \
+                /* 4 × 4 accumulator block */                                                                          \
                 nk_##accumulator_type##_t accumulator_0_0 = 0, accumulator_0_1 = 0, accumulator_0_2 = 0,               \
                                           accumulator_0_3 = 0;                                                         \
                 nk_##accumulator_type##_t accumulator_1_0 = 0, accumulator_1_1 = 0, accumulator_1_2 = 0,               \
@@ -755,7 +754,7 @@ typedef struct {
                                                         (row_block_start_index + 3) * a_stride_in_bytes)               \
                         : a_row_ptr_0;                                                                                 \
                                                                                                                        \
-                /* Main depth-loop with 4 × unrolling */                                                              \
+                /* Main depth-loop with 4 × unrolling */                                                               \
                 nk_size_t depth_index = 0;                                                                             \
                 nk_##accumulator_type##_t a_value_0, a_value_1, a_value_2, a_value_3, b_value_0, b_value_1, b_value_2, \
                     b_value_3;                                                                                         \
@@ -929,10 +928,18 @@ nk_make_dots_pack_size_(serial, u8, u32)
 nk_make_dots_pack_(serial, u8, u32)
 nk_make_dots_outer_scalars_(serial, u8, u32, u32, nk_assign_from_to_)
 
+nk_make_dots_pack_size_(serial, e4m3, f32)
+nk_make_dots_pack_(serial, e4m3, f32)
+nk_make_dots_outer_scalars_(serial, e4m3, f32, f32, nk_e4m3_to_f32_serial)
+
+nk_make_dots_pack_size_(serial, e5m2, f32)
+nk_make_dots_pack_(serial, e5m2, f32)
+nk_make_dots_outer_scalars_(serial, e5m2, f32, f32, nk_e5m2_to_f32_serial)
+
 /*  BF16 compact: truncate F32 → BF16 in-place.
  *  Reads F32 matrix with c_stride_in_bytes, writes BF16 tightly packed (stride_in_bytes = column_count × sizeof(bf16)).
  */
-NK_PUBLIC void nk_dots_bf16bf16bf16_serial(void *c, nk_size_t row_count, nk_size_t column_count,
+NK_PUBLIC void nk_dots_compact_bf16_serial(void *c, nk_size_t row_count, nk_size_t column_count,
                                            nk_size_t c_stride_in_bytes) {
     nk_size_t const c_stride_in_elements = c_stride_in_bytes / sizeof(nk_f32_t);
     nk_f32_t const *c_f32 = (nk_f32_t const *)c;
@@ -951,8 +958,9 @@ NK_PUBLIC void nk_dots_bf16bf16bf16_serial(void *c, nk_size_t row_count, nk_size
  *  Formula: c_i8[i][j] = c_i32[i][j] × 127 / sqrt(a_norm[i] × b_norm[j])
  *  Output is tightly packed (stride_in_bytes = column_count × sizeof(i8)).
  */
-NK_PUBLIC void nk_dots_i8i8i8_serial(void *c, nk_size_t row_count, nk_size_t column_count, nk_size_t c_stride_in_bytes,
-                                     nk_i32_t const *a_squared_norms, nk_i32_t const *b_squared_norms) {
+NK_PUBLIC void nk_dots_compact_i8_serial(void *c, nk_size_t row_count, nk_size_t column_count,
+                                         nk_size_t c_stride_in_bytes, nk_i32_t const *a_squared_norms,
+                                         nk_i32_t const *b_squared_norms) {
     nk_size_t const c_stride_in_elements = c_stride_in_bytes / sizeof(nk_i32_t);
     nk_i32_t const *c_i32 = (nk_i32_t const *)c;
     nk_i8_t *c_i8 = (nk_i8_t *)c;

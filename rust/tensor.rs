@@ -36,15 +36,9 @@ type u64size = u64;
 extern "C" {
     // Matrix multiplication (GEMM) with packed B matrix
     // F32: C[m×n] = A[m×k] × B[n×k]ᵀ
-    fn nk_dots_f32f32f32_packed_size(n: u64size, k: u64size) -> u64size;
-    fn nk_dots_f32f32f32_pack(
-        b: *const f32,
-        n: u64size,
-        k: u64size,
-        b_stride: u64size,
-        packed: *mut u8,
-    );
-    fn nk_dots_f32f32f32(
+    fn nk_dots_packed_size_f32(n: u64size, k: u64size) -> u64size;
+    fn nk_dots_pack_f32(b: *const f32, n: u64size, k: u64size, b_stride: u64size, packed: *mut u8);
+    fn nk_dots_packed_f32(
         a: *const f32,
         packed: *const u8,
         c: *mut f32,
@@ -56,15 +50,9 @@ extern "C" {
     );
 
     // F64 GEMM
-    fn nk_dots_f64f64f64_packed_size(n: u64size, k: u64size) -> u64size;
-    fn nk_dots_f64f64f64_pack(
-        b: *const f64,
-        n: u64size,
-        k: u64size,
-        b_stride: u64size,
-        packed: *mut u8,
-    );
-    fn nk_dots_f64f64f64(
+    fn nk_dots_packed_size_f64(n: u64size, k: u64size) -> u64size;
+    fn nk_dots_pack_f64(b: *const f64, n: u64size, k: u64size, b_stride: u64size, packed: *mut u8);
+    fn nk_dots_packed_f64(
         a: *const f64,
         packed: *const u8,
         c: *mut f64,
@@ -76,15 +64,9 @@ extern "C" {
     );
 
     // F16 GEMM (accumulates to F32)
-    fn nk_dots_f16f16f32_packed_size(n: u64size, k: u64size) -> u64size;
-    fn nk_dots_f16f16f32_pack(
-        b: *const u16,
-        n: u64size,
-        k: u64size,
-        b_stride: u64size,
-        packed: *mut u8,
-    );
-    fn nk_dots_f16f16f32(
+    fn nk_dots_packed_size_f16(n: u64size, k: u64size) -> u64size;
+    fn nk_dots_pack_f16(b: *const u16, n: u64size, k: u64size, b_stride: u64size, packed: *mut u8);
+    fn nk_dots_packed_f16(
         a: *const u16,
         packed: *const u8,
         c: *mut f32,
@@ -96,15 +78,9 @@ extern "C" {
     );
 
     // BF16 GEMM (accumulates to F32)
-    fn nk_dots_bf16bf16f32_packed_size(n: u64size, k: u64size) -> u64size;
-    fn nk_dots_bf16bf16f32_pack(
-        b: *const u16,
-        n: u64size,
-        k: u64size,
-        b_stride: u64size,
-        packed: *mut u8,
-    );
-    fn nk_dots_bf16bf16f32(
+    fn nk_dots_packed_size_bf16(n: u64size, k: u64size) -> u64size;
+    fn nk_dots_pack_bf16(b: *const u16, n: u64size, k: u64size, b_stride: u64size, packed: *mut u8);
+    fn nk_dots_packed_bf16(
         a: *const u16,
         packed: *const u8,
         c: *mut f32,
@@ -116,15 +92,9 @@ extern "C" {
     );
 
     // I8 GEMM (accumulates to I32)
-    fn nk_dots_i8i8i32_packed_size(n: u64size, k: u64size) -> u64size;
-    fn nk_dots_i8i8i32_pack(
-        b: *const i8,
-        n: u64size,
-        k: u64size,
-        b_stride: u64size,
-        packed: *mut u8,
-    );
-    fn nk_dots_i8i8i32(
+    fn nk_dots_packed_size_i8(n: u64size, k: u64size) -> u64size;
+    fn nk_dots_pack_i8(b: *const i8, n: u64size, k: u64size, b_stride: u64size, packed: *mut u8);
+    fn nk_dots_packed_i8(
         a: *const i8,
         packed: *const u8,
         c: *mut i32,
@@ -136,15 +106,9 @@ extern "C" {
     );
 
     // U8 GEMM (accumulates to U32)
-    fn nk_dots_u8u8u32_packed_size(n: u64size, k: u64size) -> u64size;
-    fn nk_dots_u8u8u32_pack(
-        b: *const u8,
-        n: u64size,
-        k: u64size,
-        b_stride: u64size,
-        packed: *mut u8,
-    );
-    fn nk_dots_u8u8u32(
+    fn nk_dots_packed_size_u8(n: u64size, k: u64size) -> u64size;
+    fn nk_dots_pack_u8(b: *const u8, n: u64size, k: u64size, b_stride: u64size, packed: *mut u8);
+    fn nk_dots_packed_u8(
         a: *const u8,
         packed: *const u8,
         c: *mut u32,
@@ -352,11 +316,11 @@ impl Dots for f32 {
     type Accumulator = f32;
 
     fn dots_packed_size(n: usize, k: usize) -> usize {
-        unsafe { nk_dots_f32f32f32_packed_size(n as u64size, k as u64size) as usize }
+        unsafe { nk_dots_packed_size_f32(n as u64size, k as u64size) as usize }
     }
 
     unsafe fn dots_pack(b: *const Self, n: usize, k: usize, b_stride: usize, packed: *mut u8) {
-        nk_dots_f32f32f32_pack(b, n as u64size, k as u64size, b_stride as u64size, packed)
+        nk_dots_pack_f32(b, n as u64size, k as u64size, b_stride as u64size, packed)
     }
 
     unsafe fn dots(
@@ -369,7 +333,7 @@ impl Dots for f32 {
         a_stride: usize,
         c_stride: usize,
     ) {
-        nk_dots_f32f32f32(
+        nk_dots_packed_f32(
             a,
             packed,
             c,
@@ -386,11 +350,11 @@ impl Dots for f64 {
     type Accumulator = f64;
 
     fn dots_packed_size(n: usize, k: usize) -> usize {
-        unsafe { nk_dots_f64f64f64_packed_size(n as u64size, k as u64size) as usize }
+        unsafe { nk_dots_packed_size_f64(n as u64size, k as u64size) as usize }
     }
 
     unsafe fn dots_pack(b: *const Self, n: usize, k: usize, b_stride: usize, packed: *mut u8) {
-        nk_dots_f64f64f64_pack(b, n as u64size, k as u64size, b_stride as u64size, packed)
+        nk_dots_pack_f64(b, n as u64size, k as u64size, b_stride as u64size, packed)
     }
 
     unsafe fn dots(
@@ -403,7 +367,7 @@ impl Dots for f64 {
         a_stride: usize,
         c_stride: usize,
     ) {
-        nk_dots_f64f64f64(
+        nk_dots_packed_f64(
             a,
             packed,
             c,
@@ -420,11 +384,11 @@ impl Dots for f16 {
     type Accumulator = f32;
 
     fn dots_packed_size(n: usize, k: usize) -> usize {
-        unsafe { nk_dots_f16f16f32_packed_size(n as u64size, k as u64size) as usize }
+        unsafe { nk_dots_packed_size_f16(n as u64size, k as u64size) as usize }
     }
 
     unsafe fn dots_pack(b: *const Self, n: usize, k: usize, b_stride: usize, packed: *mut u8) {
-        nk_dots_f16f16f32_pack(
+        nk_dots_pack_f16(
             b as *const u16,
             n as u64size,
             k as u64size,
@@ -443,7 +407,7 @@ impl Dots for f16 {
         a_stride: usize,
         c_stride: usize,
     ) {
-        nk_dots_f16f16f32(
+        nk_dots_packed_f16(
             a as *const u16,
             packed,
             c,
@@ -460,11 +424,11 @@ impl Dots for bf16 {
     type Accumulator = f32;
 
     fn dots_packed_size(n: usize, k: usize) -> usize {
-        unsafe { nk_dots_bf16bf16f32_packed_size(n as u64size, k as u64size) as usize }
+        unsafe { nk_dots_packed_size_bf16(n as u64size, k as u64size) as usize }
     }
 
     unsafe fn dots_pack(b: *const Self, n: usize, k: usize, b_stride: usize, packed: *mut u8) {
-        nk_dots_bf16bf16f32_pack(
+        nk_dots_pack_bf16(
             b as *const u16,
             n as u64size,
             k as u64size,
@@ -483,7 +447,7 @@ impl Dots for bf16 {
         a_stride: usize,
         c_stride: usize,
     ) {
-        nk_dots_bf16bf16f32(
+        nk_dots_packed_bf16(
             a as *const u16,
             packed,
             c,
@@ -500,11 +464,11 @@ impl Dots for i8 {
     type Accumulator = i32;
 
     fn dots_packed_size(n: usize, k: usize) -> usize {
-        unsafe { nk_dots_i8i8i32_packed_size(n as u64size, k as u64size) as usize }
+        unsafe { nk_dots_packed_size_i8(n as u64size, k as u64size) as usize }
     }
 
     unsafe fn dots_pack(b: *const Self, n: usize, k: usize, b_stride: usize, packed: *mut u8) {
-        nk_dots_i8i8i32_pack(b, n as u64size, k as u64size, b_stride as u64size, packed)
+        nk_dots_pack_i8(b, n as u64size, k as u64size, b_stride as u64size, packed)
     }
 
     unsafe fn dots(
@@ -517,7 +481,7 @@ impl Dots for i8 {
         a_stride: usize,
         c_stride: usize,
     ) {
-        nk_dots_i8i8i32(
+        nk_dots_packed_i8(
             a,
             packed,
             c,
@@ -534,11 +498,11 @@ impl Dots for u8 {
     type Accumulator = u32;
 
     fn dots_packed_size(n: usize, k: usize) -> usize {
-        unsafe { nk_dots_u8u8u32_packed_size(n as u64size, k as u64size) as usize }
+        unsafe { nk_dots_packed_size_u8(n as u64size, k as u64size) as usize }
     }
 
     unsafe fn dots_pack(b: *const Self, n: usize, k: usize, b_stride: usize, packed: *mut u8) {
-        nk_dots_u8u8u32_pack(b, n as u64size, k as u64size, b_stride as u64size, packed)
+        nk_dots_pack_u8(b, n as u64size, k as u64size, b_stride as u64size, packed)
     }
 
     unsafe fn dots(
@@ -551,7 +515,7 @@ impl Dots for u8 {
         a_stride: usize,
         c_stride: usize,
     ) {
-        nk_dots_u8u8u32(
+        nk_dots_packed_u8(
             a,
             packed,
             c,

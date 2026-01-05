@@ -1141,12 +1141,12 @@ static void MatrixMultiplier_dealloc(PyObject *self) { Py_TYPE(self)->tp_free(se
 
 static size_t MatrixMultiplier_compute_packed_size(MatrixMultiplier *mm) {
     switch (mm->dtype) {
-    case nk_bf16_k: return nk_dots_bf16bf16f32_packed_size(mm->n, mm->k);
-    case nk_i8_k: return nk_dots_i8i8i32_packed_size(mm->n, mm->k);
-    case nk_f32_k: return nk_dots_f32f32f32_packed_size(mm->n, mm->k);
-    case nk_f64_k: return nk_dots_f64f64f64_packed_size(mm->n, mm->k);
-    case nk_f16_k: return nk_dots_f16f16f32_packed_size(mm->n, mm->k);
-    case nk_u8_k: return nk_dots_u8u8u32_packed_size(mm->n, mm->k);
+    case nk_bf16_k: return nk_dots_packed_size_bf16(mm->n, mm->k);
+    case nk_i8_k: return nk_dots_packed_size_i8(mm->n, mm->k);
+    case nk_f32_k: return nk_dots_packed_size_f32(mm->n, mm->k);
+    case nk_f64_k: return nk_dots_packed_size_f64(mm->n, mm->k);
+    case nk_f16_k: return nk_dots_packed_size_f16(mm->n, mm->k);
+    case nk_u8_k: return nk_dots_packed_size_u8(mm->n, mm->k);
     default: return 0;
     }
 }
@@ -1411,12 +1411,12 @@ static PyObject *Tensor_matmul(PyObject *self, PyObject *other) {
 
     // Dispatch based on packed dtype
     switch (packed->dtype) {
-    case nk_bf16_k: DO_TENSOR_MATMUL(nk_bf16_k, nk_bf16_t, nk_f32_t, convert_row_to_bf16, nk_dots_bf16bf16f32); break;
-    case nk_i8_k: DO_TENSOR_MATMUL(nk_i8_k, nk_i8_t, nk_i32_t, convert_row_to_i8, nk_dots_i8i8i32); break;
-    case nk_f32_k: DO_TENSOR_MATMUL(nk_f32_k, nk_f32_t, nk_f32_t, convert_row_to_f32, nk_dots_f32f32f32); break;
-    case nk_f64_k: DO_TENSOR_MATMUL(nk_f64_k, nk_f64_t, nk_f64_t, convert_row_to_f64, nk_dots_f64f64f64); break;
-    case nk_f16_k: DO_TENSOR_MATMUL(nk_f16_k, nk_f16_t, nk_f32_t, convert_row_to_f16, nk_dots_f16f16f32); break;
-    case nk_u8_k: DO_TENSOR_MATMUL(nk_u8_k, nk_u8_t, nk_u32_t, convert_row_to_u8, nk_dots_u8u8u32); break;
+    case nk_bf16_k: DO_TENSOR_MATMUL(nk_bf16_k, nk_bf16_t, nk_f32_t, convert_row_to_bf16, nk_dots_packed_bf16); break;
+    case nk_i8_k: DO_TENSOR_MATMUL(nk_i8_k, nk_i8_t, nk_i32_t, convert_row_to_i8, nk_dots_packed_i8); break;
+    case nk_f32_k: DO_TENSOR_MATMUL(nk_f32_k, nk_f32_t, nk_f32_t, convert_row_to_f32, nk_dots_packed_f32); break;
+    case nk_f64_k: DO_TENSOR_MATMUL(nk_f64_k, nk_f64_t, nk_f64_t, convert_row_to_f64, nk_dots_packed_f64); break;
+    case nk_f16_k: DO_TENSOR_MATMUL(nk_f16_k, nk_f16_t, nk_f32_t, convert_row_to_f16, nk_dots_packed_f16); break;
+    case nk_u8_k: DO_TENSOR_MATMUL(nk_u8_k, nk_u8_t, nk_u32_t, convert_row_to_u8, nk_dots_packed_u8); break;
     default:
         Py_DECREF(result);
         PyErr_SetString(PyExc_ValueError, "Unsupported packed matrix dtype");
@@ -1875,12 +1875,12 @@ PyObject *api_pack_matmul_argument(PyObject *self, PyObject *const *args, Py_ssi
     // Calculate the packed size based on target dtype
     nk_size_t packed_size;
     switch (target_dtype) {
-    case nk_bf16_k: packed_size = nk_dots_bf16bf16f32_packed_size(n, k); break;
-    case nk_i8_k: packed_size = nk_dots_i8i8i32_packed_size(n, k); break;
-    case nk_f32_k: packed_size = nk_dots_f32f32f32_packed_size(n, k); break;
-    case nk_f64_k: packed_size = nk_dots_f64f64f64_packed_size(n, k); break;
-    case nk_f16_k: packed_size = nk_dots_f16f16f32_packed_size(n, k); break;
-    case nk_u8_k: packed_size = nk_dots_u8u8u32_packed_size(n, k); break;
+    case nk_bf16_k: packed_size = nk_dots_packed_size_bf16(n, k); break;
+    case nk_i8_k: packed_size = nk_dots_packed_size_i8(n, k); break;
+    case nk_f32_k: packed_size = nk_dots_packed_size_f32(n, k); break;
+    case nk_f64_k: packed_size = nk_dots_packed_size_f64(n, k); break;
+    case nk_f16_k: packed_size = nk_dots_packed_size_f16(n, k); break;
+    case nk_u8_k: packed_size = nk_dots_packed_size_u8(n, k); break;
     default:
         PyBuffer_Release(&b_buffer);
         PyErr_SetString(PyExc_ValueError, "Internal error: unsupported target dtype");
@@ -1931,12 +1931,12 @@ PyObject *api_pack_matmul_argument(PyObject *self, PyObject *const *args, Py_ssi
 
     // Pack based on target dtype
     switch (target_dtype) {
-    case nk_bf16_k: PACK_MATRIX(nk_bf16_k, nk_bf16_t, convert_row_to_bf16, nk_dots_bf16bf16f32_pack); break;
-    case nk_i8_k: PACK_MATRIX(nk_i8_k, nk_i8_t, convert_row_to_i8, nk_dots_i8i8i32_pack); break;
-    case nk_f32_k: PACK_MATRIX(nk_f32_k, nk_f32_t, convert_row_to_f32, nk_dots_f32f32f32_pack); break;
-    case nk_f64_k: PACK_MATRIX(nk_f64_k, nk_f64_t, convert_row_to_f64, nk_dots_f64f64f64_pack); break;
-    case nk_f16_k: PACK_MATRIX(nk_f16_k, nk_f16_t, convert_row_to_f16, nk_dots_f16f16f32_pack); break;
-    case nk_u8_k: PACK_MATRIX(nk_u8_k, nk_u8_t, convert_row_to_u8, nk_dots_u8u8u32_pack); break;
+    case nk_bf16_k: PACK_MATRIX(nk_bf16_k, nk_bf16_t, convert_row_to_bf16, nk_dots_pack_bf16); break;
+    case nk_i8_k: PACK_MATRIX(nk_i8_k, nk_i8_t, convert_row_to_i8, nk_dots_pack_i8); break;
+    case nk_f32_k: PACK_MATRIX(nk_f32_k, nk_f32_t, convert_row_to_f32, nk_dots_pack_f32); break;
+    case nk_f64_k: PACK_MATRIX(nk_f64_k, nk_f64_t, convert_row_to_f64, nk_dots_pack_f64); break;
+    case nk_f16_k: PACK_MATRIX(nk_f16_k, nk_f16_t, convert_row_to_f16, nk_dots_pack_f16); break;
+    case nk_u8_k: PACK_MATRIX(nk_u8_k, nk_u8_t, convert_row_to_u8, nk_dots_pack_u8); break;
     default: break; // Already handled above
     }
 
@@ -2122,12 +2122,12 @@ PyObject *api_matmul(PyObject *self, PyObject *const *args, Py_ssize_t nargs, Py
 
     // Dispatch based on packed dtype
     switch (packed->dtype) {
-    case nk_bf16_k: DO_MATMUL(nk_bf16_k, nk_bf16_t, nk_f32_t, convert_row_to_bf16, nk_dots_bf16bf16f32); break;
-    case nk_i8_k: DO_MATMUL(nk_i8_k, nk_i8_t, nk_i32_t, convert_row_to_i8, nk_dots_i8i8i32); break;
-    case nk_f32_k: DO_MATMUL(nk_f32_k, nk_f32_t, nk_f32_t, convert_row_to_f32, nk_dots_f32f32f32); break;
-    case nk_f64_k: DO_MATMUL(nk_f64_k, nk_f64_t, nk_f64_t, convert_row_to_f64, nk_dots_f64f64f64); break;
-    case nk_f16_k: DO_MATMUL(nk_f16_k, nk_f16_t, nk_f32_t, convert_row_to_f16, nk_dots_f16f16f32); break;
-    case nk_u8_k: DO_MATMUL(nk_u8_k, nk_u8_t, nk_u32_t, convert_row_to_u8, nk_dots_u8u8u32); break;
+    case nk_bf16_k: DO_MATMUL(nk_bf16_k, nk_bf16_t, nk_f32_t, convert_row_to_bf16, nk_dots_packed_bf16); break;
+    case nk_i8_k: DO_MATMUL(nk_i8_k, nk_i8_t, nk_i32_t, convert_row_to_i8, nk_dots_packed_i8); break;
+    case nk_f32_k: DO_MATMUL(nk_f32_k, nk_f32_t, nk_f32_t, convert_row_to_f32, nk_dots_packed_f32); break;
+    case nk_f64_k: DO_MATMUL(nk_f64_k, nk_f64_t, nk_f64_t, convert_row_to_f64, nk_dots_packed_f64); break;
+    case nk_f16_k: DO_MATMUL(nk_f16_k, nk_f16_t, nk_f32_t, convert_row_to_f16, nk_dots_packed_f16); break;
+    case nk_u8_k: DO_MATMUL(nk_u8_k, nk_u8_t, nk_u32_t, convert_row_to_u8, nk_dots_packed_u8); break;
     default:
         if (owns_result) Py_DECREF(result);
         PyBuffer_Release(&a_buffer);

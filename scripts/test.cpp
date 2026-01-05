@@ -1146,19 +1146,18 @@ void dots_bf16_mkl(nk_bf16_t const *a, nk_bf16_t const *b, nk_f32_t *c, nk_size_
                    nk_size_t a_stride, nk_size_t c_stride) {
     (void)a_stride;
     (void)c_stride;
-    cblas_gemm_bf16bf16f32(CblasRowMajor, CblasNoTrans, CblasTrans, static_cast<MKL_INT>(m), static_cast<MKL_INT>(n),
-                           static_cast<MKL_INT>(k), 1.0f, a, static_cast<MKL_INT>(k), b, static_cast<MKL_INT>(k), 0.0f,
-                           c, static_cast<MKL_INT>(n));
+    cblas_gemm_bf16(CblasRowMajor, CblasNoTrans, CblasTrans, static_cast<MKL_INT>(m), static_cast<MKL_INT>(n),
+                    static_cast<MKL_INT>(k), 1.0f, a, static_cast<MKL_INT>(k), b, static_cast<MKL_INT>(k), 0.0f, c,
+                    static_cast<MKL_INT>(n));
 }
 
 void dots_f16_mkl(nk_f16_t const *a, nk_f16_t const *b, nk_f32_t *c, nk_size_t m, nk_size_t n, nk_size_t k,
                   nk_size_t a_stride, nk_size_t c_stride) {
     (void)a_stride;
     (void)c_stride;
-    cblas_gemm_f16f16f32(CblasRowMajor, CblasNoTrans, CblasTrans, static_cast<MKL_INT>(m), static_cast<MKL_INT>(n),
-                         static_cast<MKL_INT>(k), 1.0f, reinterpret_cast<MKL_F16 const *>(a), static_cast<MKL_INT>(k),
-                         reinterpret_cast<MKL_F16 const *>(b), static_cast<MKL_INT>(k), 0.0f, c,
-                         static_cast<MKL_INT>(n));
+    cblas_gemm_f16(CblasRowMajor, CblasNoTrans, CblasTrans, static_cast<MKL_INT>(m), static_cast<MKL_INT>(n),
+                   static_cast<MKL_INT>(k), 1.0f, reinterpret_cast<MKL_F16 const *>(a), static_cast<MKL_INT>(k),
+                   reinterpret_cast<MKL_F16 const *>(b), static_cast<MKL_INT>(k), 0.0f, c, static_cast<MKL_INT>(n));
 }
 
 void dots_i8_mkl(nk_i8_t const *a, nk_u8_t const *b, nk_i32_t *c, nk_size_t m, nk_size_t n, nk_size_t k,
@@ -1229,16 +1228,16 @@ using sparse_dot_u16bf16_t = void (*)(nk_u16_t const *, nk_u16_t const *, nk_bf1
                                       nk_size_t, nk_size_t, nk_f32_t *);
 
 // Matrix multiplication kernels
-using dots_f32f32f32_t = void (*)(nk_f32_t const *, void const *, nk_f32_t *, nk_size_t, nk_size_t, nk_size_t,
-                                  nk_size_t, nk_size_t);
-using dots_f64f64f64_t = void (*)(nk_f64_t const *, void const *, nk_f64_t *, nk_size_t, nk_size_t, nk_size_t,
-                                  nk_size_t, nk_size_t);
-using dots_bf16bf16f32_t = void (*)(nk_bf16_t const *, void const *, nk_f32_t *, nk_size_t, nk_size_t, nk_size_t,
-                                    nk_size_t, nk_size_t);
-using dots_f16f16f32_t = void (*)(nk_f16_t const *, void const *, nk_f32_t *, nk_size_t, nk_size_t, nk_size_t,
-                                  nk_size_t, nk_size_t);
-using dots_i8i8i32_t = void (*)(nk_i8_t const *, void const *, nk_i32_t *, nk_size_t, nk_size_t, nk_size_t, nk_size_t,
-                                nk_size_t);
+using dots_f32_t = void (*)(nk_f32_t const *, void const *, nk_f32_t *, nk_size_t, nk_size_t, nk_size_t, nk_size_t,
+                            nk_size_t);
+using dots_f64_t = void (*)(nk_f64_t const *, void const *, nk_f64_t *, nk_size_t, nk_size_t, nk_size_t, nk_size_t,
+                            nk_size_t);
+using dots_bf16_t = void (*)(nk_bf16_t const *, void const *, nk_f32_t *, nk_size_t, nk_size_t, nk_size_t, nk_size_t,
+                             nk_size_t);
+using dots_f16_t = void (*)(nk_f16_t const *, void const *, nk_f32_t *, nk_size_t, nk_size_t, nk_size_t, nk_size_t,
+                            nk_size_t);
+using dots_i8_t = void (*)(nk_i8_t const *, void const *, nk_i32_t *, nk_size_t, nk_size_t, nk_size_t, nk_size_t,
+                           nk_size_t);
 using dots_f32_pack_t = void (*)(nk_f32_t const *, nk_size_t, nk_size_t, nk_size_t, void *);
 using dots_f64_pack_t = void (*)(nk_f64_t const *, nk_size_t, nk_size_t, nk_size_t, void *);
 using dots_bf16_pack_t = void (*)(nk_bf16_t const *, nk_size_t, nk_size_t, nk_size_t, void *);
@@ -3425,10 +3424,9 @@ void reference_gemm(input_type_ const *a, input_type_ const *b, reference_type_ 
 }
 
 /**
- *  @brief Test GEMM for f32f32f32 (single precision).
+ *  @brief Test GEMM for f32 (single precision).
  */
-error_stats_t test_dots_f32f32f32(dots_packed_size_t packed_size_fn, dots_f32_pack_t pack_fn,
-                                  dots_f32f32f32_t dots_fn) {
+error_stats_t test_dots_f32(dots_packed_size_t packed_size_fn, dots_f32_pack_t pack_fn, dots_f32_t dots_fn) {
     error_stats_t stats;
     std::mt19937 rng(global_config.seed);
     aligned_buffer<nk_f32_t> a_buf(matmul_dimension_m * matmul_dimension_k);
@@ -3470,10 +3468,9 @@ error_stats_t test_dots_f32f32f32(dots_packed_size_t packed_size_fn, dots_f32_pa
 }
 
 /**
- *  @brief Test GEMM for f64f64f64 (double precision).
+ *  @brief Test GEMM for f64 (double precision).
  */
-error_stats_t test_dots_f64f64f64(dots_packed_size_t packed_size_fn, dots_f64_pack_t pack_fn,
-                                  dots_f64f64f64_t dots_fn) {
+error_stats_t test_dots_f64(dots_packed_size_t packed_size_fn, dots_f64_pack_t pack_fn, dots_f64_t dots_fn) {
     error_stats_t stats;
     std::mt19937 rng(global_config.seed);
     aligned_buffer<nk_f64_t> a_buf(matmul_dimension_m * matmul_dimension_k);
@@ -3510,10 +3507,9 @@ error_stats_t test_dots_f64f64f64(dots_packed_size_t packed_size_fn, dots_f64_pa
 }
 
 /**
- *  @brief Test GEMM for bf16bf16f32 (bfloat16 inputs, f32 accumulator).
+ *  @brief Test GEMM for bf16 (bfloat16 inputs, f32 accumulator).
  */
-error_stats_t test_dots_bf16bf16f32(dots_packed_size_t packed_size_fn, dots_bf16_pack_t pack_fn,
-                                    dots_bf16bf16f32_t dots_fn) {
+error_stats_t test_dots_bf16(dots_packed_size_t packed_size_fn, dots_bf16_pack_t pack_fn, dots_bf16_t dots_fn) {
     error_stats_t stats;
     std::mt19937 rng(global_config.seed);
     std::uniform_real_distribution<float> dist(-1.0f, 1.0f);
@@ -3562,10 +3558,9 @@ error_stats_t test_dots_bf16bf16f32(dots_packed_size_t packed_size_fn, dots_bf16
 }
 
 /**
- *  @brief Test GEMM for f16f16f32 (float16 inputs, f32 accumulator).
+ *  @brief Test GEMM for f16 (float16 inputs, f32 accumulator).
  */
-error_stats_t test_dots_f16f16f32(dots_packed_size_t packed_size_fn, dots_f16_pack_t pack_fn,
-                                  dots_f16f16f32_t dots_fn) {
+error_stats_t test_dots_f16(dots_packed_size_t packed_size_fn, dots_f16_pack_t pack_fn, dots_f16_t dots_fn) {
     error_stats_t stats;
     std::mt19937 rng(global_config.seed);
     std::uniform_real_distribution<float> dist(-1.0f, 1.0f);
@@ -3614,9 +3609,9 @@ error_stats_t test_dots_f16f16f32(dots_packed_size_t packed_size_fn, dots_f16_pa
 }
 
 /**
- *  @brief Test GEMM for i8i8i32 (int8 inputs, int32 accumulator).
+ *  @brief Test GEMM for i8 (int8 inputs, int32 accumulator).
  */
-error_stats_t test_dots_i8i8i32(dots_packed_size_t packed_size_fn, dots_i8_pack_t pack_fn, dots_i8i8i32_t dots_fn) {
+error_stats_t test_dots_i8(dots_packed_size_t packed_size_fn, dots_i8_pack_t pack_fn, dots_i8_t dots_fn) {
     error_stats_t stats;
     std::mt19937 rng(global_config.seed);
     std::uniform_int_distribution<int> dist(-127, 127);
@@ -3738,50 +3733,45 @@ void test_dots() {
     std::printf("Testing batch dot products (GEMM)...\n");
 
 #if NK_DYNAMIC_DISPATCH
-    run_if_matches("dots", "f32f32f32", test_dots_f32f32f32, nk_dots_f32f32f32_packed_size, nk_dots_f32f32f32_pack,
-                   nk_dots_f32f32f32);
-    run_if_matches("dots", "f64f64f64", test_dots_f64f64f64, nk_dots_f64f64f64_packed_size, nk_dots_f64f64f64_pack,
-                   nk_dots_f64f64f64);
-    run_if_matches("dots", "bf16bf16f32", test_dots_bf16bf16f32, nk_dots_bf16bf16f32_packed_size,
-                   nk_dots_bf16bf16f32_pack, nk_dots_bf16bf16f32);
-    run_if_matches("dots", "f16f16f32", test_dots_f16f16f32, nk_dots_f16f16f32_packed_size, nk_dots_f16f16f32_pack,
-                   nk_dots_f16f16f32);
-    run_if_matches("dots", "i8i8i32", test_dots_i8i8i32, nk_dots_i8i8i32_packed_size, nk_dots_i8i8i32_pack,
-                   nk_dots_i8i8i32);
+    run_if_matches("dots", "f32", test_dots_f32, nk_dots_packed_size_f32, nk_dots_pack_f32, nk_dots_packed_f32);
+    run_if_matches("dots", "f64", test_dots_f64, nk_dots_packed_size_f64, nk_dots_pack_f64, nk_dots_packed_f64);
+    run_if_matches("dots", "bf16", test_dots_bf16, nk_dots_packed_size_bf16, nk_dots_pack_bf16, nk_dots_packed_bf16);
+    run_if_matches("dots", "f16", test_dots_f16, nk_dots_packed_size_f16, nk_dots_pack_f16, nk_dots_packed_f16);
+    run_if_matches("dots", "i8", test_dots_i8, nk_dots_packed_size_i8, nk_dots_pack_i8, nk_dots_packed_i8);
 #else
 
 #if NK_TARGET_NEON
-    run_if_matches("dots_neon", "f32f32f32", test_dots_f32f32f32, nk_dots_f32f32f32_packed_size_neon,
-                   nk_dots_f32f32f32_pack_neon, nk_dots_f32f32f32_neon);
-    run_if_matches("dots_neon", "f64f64f64", test_dots_f64f64f64, nk_dots_f64f64f64_packed_size_neon,
-                   nk_dots_f64f64f64_pack_neon, nk_dots_f64f64f64_neon);
+    run_if_matches("dots_neon", "f32", test_dots_f32, nk_dots_packed_size_f32_neon, nk_dots_pack_f32_neon,
+                   nk_dots_packed_f32_neon);
+    run_if_matches("dots_neon", "f64", test_dots_f64, nk_dots_packed_size_f64_neon, nk_dots_pack_f64_neon,
+                   nk_dots_packed_f64_neon);
 #endif // NK_TARGET_NEON
 
 #if NK_TARGET_HASWELL
-    run_if_matches("dots_haswell", "f32f32f32", test_dots_f32f32f32, nk_dots_f32f32f32_packed_size_haswell,
-                   nk_dots_f32f32f32_pack_haswell, nk_dots_f32f32f32_haswell);
-    run_if_matches("dots_haswell", "f64f64f64", test_dots_f64f64f64, nk_dots_f64f64f64_packed_size_haswell,
-                   nk_dots_f64f64f64_pack_haswell, nk_dots_f64f64f64_haswell);
+    run_if_matches("dots_haswell", "f32", test_dots_f32, nk_dots_packed_size_f32_haswell, nk_dots_pack_f32_haswell,
+                   nk_dots_packed_f32_haswell);
+    run_if_matches("dots_haswell", "f64", test_dots_f64, nk_dots_packed_size_f64_haswell, nk_dots_pack_f64_haswell,
+                   nk_dots_packed_f64_haswell);
 #endif // NK_TARGET_HASWELL
 
 #if NK_TARGET_SKYLAKE
-    run_if_matches("dots_skylake", "f32f32f32", test_dots_f32f32f32, nk_dots_f32f32f32_packed_size_skylake,
-                   nk_dots_f32f32f32_pack_skylake, nk_dots_f32f32f32_skylake);
-    run_if_matches("dots_skylake", "f64f64f64", test_dots_f64f64f64, nk_dots_f64f64f64_packed_size_skylake,
-                   nk_dots_f64f64f64_pack_skylake, nk_dots_f64f64f64_skylake);
+    run_if_matches("dots_skylake", "f32", test_dots_f32, nk_dots_packed_size_f32_skylake, nk_dots_pack_f32_skylake,
+                   nk_dots_packed_f32_skylake);
+    run_if_matches("dots_skylake", "f64", test_dots_f64, nk_dots_packed_size_f64_skylake, nk_dots_pack_f64_skylake,
+                   nk_dots_packed_f64_skylake);
 #endif // NK_TARGET_SKYLAKE
 
     // Serial always runs - baseline test
-    run_if_matches("dots_serial", "f32f32f32", test_dots_f32f32f32, nk_dots_f32f32f32_packed_size_serial,
-                   nk_dots_f32f32f32_pack_serial, nk_dots_f32f32f32_serial);
-    run_if_matches("dots_serial", "f64f64f64", test_dots_f64f64f64, nk_dots_f64f64f64_packed_size_serial,
-                   nk_dots_f64f64f64_pack_serial, nk_dots_f64f64f64_serial);
-    run_if_matches("dots_serial", "bf16bf16f32", test_dots_bf16bf16f32, nk_dots_bf16bf16f32_packed_size_serial,
-                   nk_dots_bf16bf16f32_pack_serial, nk_dots_bf16bf16f32_serial);
-    run_if_matches("dots_serial", "f16f16f32", test_dots_f16f16f32, nk_dots_f16f16f32_packed_size_serial,
-                   nk_dots_f16f16f32_pack_serial, nk_dots_f16f16f32_serial);
-    run_if_matches("dots_serial", "i8i8i32", test_dots_i8i8i32, nk_dots_i8i8i32_packed_size_serial,
-                   nk_dots_i8i8i32_pack_serial, nk_dots_i8i8i32_serial);
+    run_if_matches("dots_serial", "f32", test_dots_f32, nk_dots_packed_size_f32_serial, nk_dots_pack_f32_serial,
+                   nk_dots_packed_f32_serial);
+    run_if_matches("dots_serial", "f64", test_dots_f64, nk_dots_packed_size_f64_serial, nk_dots_pack_f64_serial,
+                   nk_dots_packed_f64_serial);
+    run_if_matches("dots_serial", "bf16", test_dots_bf16, nk_dots_packed_size_bf16_serial, nk_dots_pack_bf16_serial,
+                   nk_dots_packed_bf16_serial);
+    run_if_matches("dots_serial", "f16", test_dots_f16, nk_dots_packed_size_f16_serial, nk_dots_pack_f16_serial,
+                   nk_dots_packed_f16_serial);
+    run_if_matches("dots_serial", "i8", test_dots_i8, nk_dots_packed_size_i8_serial, nk_dots_pack_i8_serial,
+                   nk_dots_packed_i8_serial);
 
 #endif // NK_DYNAMIC_DISPATCH
 
