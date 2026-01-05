@@ -623,6 +623,210 @@ impl core::cmp::PartialOrd for e5m2 {
 
 // endregion: e5m2 Type
 
+// region: u1x8 Type
+
+/// A packed 8-bit vector representing 8 binary (1-bit) values.
+///
+/// Used for Hamming and Jaccard distance on binary vectors.
+/// Each `u1x8` holds 8 bits packed into a single byte (b0 = LSB, b7 = MSB).
+#[repr(transparent)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub struct u1x8(pub u8);
+
+impl u1x8 {
+    /// Create from raw packed bits.
+    #[inline(always)]
+    pub const fn new(bits: u8) -> Self {
+        u1x8(bits)
+    }
+
+    /// Get the raw packed bits.
+    #[inline(always)]
+    pub const fn bits(self) -> u8 {
+        self.0
+    }
+
+    /// Construct from 8 booleans (b0 = LSB, b7 = MSB).
+    #[inline(always)]
+    pub const fn from_bools(
+        b0: bool,
+        b1: bool,
+        b2: bool,
+        b3: bool,
+        b4: bool,
+        b5: bool,
+        b6: bool,
+        b7: bool,
+    ) -> Self {
+        u1x8(
+            (b0 as u8)
+                | ((b1 as u8) << 1)
+                | ((b2 as u8) << 2)
+                | ((b3 as u8) << 3)
+                | ((b4 as u8) << 4)
+                | ((b5 as u8) << 5)
+                | ((b6 as u8) << 6)
+                | ((b7 as u8) << 7),
+        )
+    }
+
+    /// Extract to 8 booleans (b0 = LSB, b7 = MSB).
+    #[inline(always)]
+    pub const fn to_bools(self) -> (bool, bool, bool, bool, bool, bool, bool, bool) {
+        (
+            (self.0 & 1) != 0,
+            (self.0 & 2) != 0,
+            (self.0 & 4) != 0,
+            (self.0 & 8) != 0,
+            (self.0 & 16) != 0,
+            (self.0 & 32) != 0,
+            (self.0 & 64) != 0,
+            (self.0 & 128) != 0,
+        )
+    }
+}
+
+impl From<(bool, bool, bool, bool, bool, bool, bool, bool)> for u1x8 {
+    #[inline(always)]
+    fn from(b: (bool, bool, bool, bool, bool, bool, bool, bool)) -> Self {
+        u1x8::from_bools(b.0, b.1, b.2, b.3, b.4, b.5, b.6, b.7)
+    }
+}
+
+impl From<u1x8> for (bool, bool, bool, bool, bool, bool, bool, bool) {
+    #[inline(always)]
+    fn from(v: u1x8) -> Self {
+        v.to_bools()
+    }
+}
+
+// endregion: u1x8 Type
+
+// region: u4x2 Type
+
+/// A packed byte containing two unsigned 4-bit values (0..15).
+///
+/// Used for dot products and spatial distances on 4-bit quantized vectors.
+/// Layout: low nibble = first element, high nibble = second element.
+#[repr(transparent)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub struct u4x2(pub u8);
+
+impl u4x2 {
+    /// Create from raw packed byte.
+    #[inline(always)]
+    pub const fn new(packed: u8) -> Self {
+        u4x2(packed)
+    }
+
+    /// Get the raw packed byte.
+    #[inline(always)]
+    pub const fn packed(self) -> u8 {
+        self.0
+    }
+
+    /// Construct from two u8 values with saturation to 0..15.
+    #[inline(always)]
+    pub const fn from_u8s(lo: u8, hi: u8) -> Self {
+        let lo_sat = if lo > 15 { 15 } else { lo };
+        let hi_sat = if hi > 15 { 15 } else { hi };
+        u4x2(lo_sat | (hi_sat << 4))
+    }
+
+    /// Extract to two u8 values (0..15 each).
+    #[inline(always)]
+    pub const fn to_u8s(self) -> (u8, u8) {
+        (self.0 & 0x0F, self.0 >> 4)
+    }
+}
+
+impl From<(u8, u8)> for u4x2 {
+    #[inline(always)]
+    fn from(v: (u8, u8)) -> Self {
+        u4x2::from_u8s(v.0, v.1)
+    }
+}
+
+impl From<u4x2> for (u8, u8) {
+    #[inline(always)]
+    fn from(v: u4x2) -> Self {
+        v.to_u8s()
+    }
+}
+
+// endregion: u4x2 Type
+
+// region: i4x2 Type
+
+/// A packed byte containing two signed 4-bit values (-8..7).
+///
+/// Used for dot products and spatial distances on 4-bit quantized vectors.
+/// Layout: low nibble = first element, high nibble = second element (two's complement).
+#[repr(transparent)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub struct i4x2(pub u8);
+
+impl i4x2 {
+    /// Create from raw packed byte.
+    #[inline(always)]
+    pub const fn new(packed: u8) -> Self {
+        i4x2(packed)
+    }
+
+    /// Get the raw packed byte.
+    #[inline(always)]
+    pub const fn packed(self) -> u8 {
+        self.0
+    }
+
+    /// Construct from two i8 values with saturation to -8..7.
+    #[inline(always)]
+    pub const fn from_i8s(lo: i8, hi: i8) -> Self {
+        let lo_sat = if lo < -8 {
+            -8
+        } else if lo > 7 {
+            7
+        } else {
+            lo
+        };
+        let hi_sat = if hi < -8 {
+            -8
+        } else if hi > 7 {
+            7
+        } else {
+            hi
+        };
+        i4x2(((lo_sat as u8) & 0x0F) | (((hi_sat as u8) & 0x0F) << 4))
+    }
+
+    /// Extract to two i8 values (sign-extended from 4 bits).
+    #[inline(always)]
+    pub const fn to_i8s(self) -> (i8, i8) {
+        let lo = (self.0 & 0x0F) as i8;
+        let hi = ((self.0 >> 4) & 0x0F) as i8;
+        // Sign extend from 4 bits: if bit 3 is set, fill upper bits with 1s
+        let lo = if lo & 0x08 != 0 { lo | (!0x0Fi8) } else { lo };
+        let hi = if hi & 0x08 != 0 { hi | (!0x0Fi8) } else { hi };
+        (lo, hi)
+    }
+}
+
+impl From<(i8, i8)> for i4x2 {
+    #[inline(always)]
+    fn from(v: (i8, i8)) -> Self {
+        i4x2::from_i8s(v.0, v.1)
+    }
+}
+
+impl From<i4x2> for (i8, i8) {
+    #[inline(always)]
+    fn from(v: i4x2) -> Self {
+        v.to_i8s()
+    }
+}
+
+// endregion: i4x2 Type
+
 #[cfg(test)]
 mod tests {
     use super::*;

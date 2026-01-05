@@ -12,7 +12,7 @@
 //! - **Mesh alignment**: [`MeshAlignment`]
 //! - **Sparse sets**: [`Sparse`]
 
-use crate::scalars::{bf16, e4m3, e5m2, f16};
+use crate::scalars::{bf16, e4m3, e5m2, f16, i4x2, u1x8, u4x2};
 
 pub type ComplexProductF32 = (f32, f32);
 pub type ComplexProductF64 = (f64, f64);
@@ -94,6 +94,16 @@ extern "C" {
 
     fn nk_hamming_u1(a: *const u8, b: *const u8, c: u64size, d: *mut u32);
     fn nk_jaccard_u1(a: *const u8, b: *const u8, c: u64size, d: *mut f32);
+
+    // 4-bit integer kernels
+    fn nk_dot_i4(a: *const u8, b: *const u8, n: u64size, result: *mut i32);
+    fn nk_dot_u4(a: *const u8, b: *const u8, n: u64size, result: *mut u32);
+    fn nk_l2sq_i4(a: *const u8, b: *const u8, n: u64size, result: *mut u32);
+    fn nk_l2sq_u4(a: *const u8, b: *const u8, n: u64size, result: *mut u32);
+    fn nk_l2_i4(a: *const u8, b: *const u8, n: u64size, result: *mut f32);
+    fn nk_l2_u4(a: *const u8, b: *const u8, n: u64size, result: *mut f32);
+    fn nk_angular_i4(a: *const u8, b: *const u8, n: u64size, result: *mut f32);
+    fn nk_angular_u4(a: *const u8, b: *const u8, n: u64size, result: *mut f32);
 
     // Probability distribution distances/divergences
     fn nk_jsd_f16(a: *const u16, b: *const u16, c: u64size, d: *mut f32);
@@ -416,6 +426,15 @@ extern "C" {
         n: u64size,
         results: *mut f64,
     );
+
+    // Batch type casting
+    fn nk_cast(
+        from: *const core::ffi::c_void,
+        from_type: u32,
+        n: u64size,
+        to: *mut core::ffi::c_void,
+        to_type: u32,
+    );
 }
 
 // region: Capabilities
@@ -519,6 +538,164 @@ pub mod capabilities {
 }
 
 // endregion: Capabilities
+
+// region: dtype (internal)
+
+/// Internal dtype codes matching `nk_dtype_t` from C.
+/// Not exposed to users.
+mod dtype {
+    pub(crate) const F64: u32 = 1 << 10;
+    pub(crate) const F32: u32 = 1 << 11;
+    pub(crate) const F16: u32 = 1 << 12;
+    pub(crate) const BF16: u32 = 1 << 13;
+    pub(crate) const E4M3: u32 = 1 << 14;
+    pub(crate) const E5M2: u32 = 1 << 15;
+    pub(crate) const I8: u32 = 1 << 2;
+    pub(crate) const I16: u32 = 1 << 3;
+    pub(crate) const I32: u32 = 1 << 4;
+    pub(crate) const I64: u32 = 1 << 5;
+    pub(crate) const U8: u32 = 1 << 6;
+    pub(crate) const U16: u32 = 1 << 7;
+    pub(crate) const U32: u32 = 1 << 8;
+    pub(crate) const U64: u32 = 1 << 9;
+}
+
+// Sealed trait pattern to prevent external implementations
+mod private {
+    pub trait Sealed {}
+    impl Sealed for f64 {}
+    impl Sealed for f32 {}
+    impl Sealed for super::f16 {}
+    impl Sealed for super::bf16 {}
+    impl Sealed for super::e4m3 {}
+    impl Sealed for super::e5m2 {}
+    impl Sealed for i8 {}
+    impl Sealed for i16 {}
+    impl Sealed for i32 {}
+    impl Sealed for i64 {}
+    impl Sealed for u8 {}
+    impl Sealed for u16 {}
+    impl Sealed for u32 {}
+    impl Sealed for u64 {}
+}
+
+/// Trait for types that can participate in cast operations.
+///
+/// This trait is sealed - users cannot implement it for their own types.
+pub trait CastDtype: private::Sealed {
+    #[doc(hidden)]
+    fn dtype_code() -> u32;
+}
+
+impl CastDtype for f64 {
+    fn dtype_code() -> u32 {
+        dtype::F64
+    }
+}
+impl CastDtype for f32 {
+    fn dtype_code() -> u32 {
+        dtype::F32
+    }
+}
+impl CastDtype for f16 {
+    fn dtype_code() -> u32 {
+        dtype::F16
+    }
+}
+impl CastDtype for bf16 {
+    fn dtype_code() -> u32 {
+        dtype::BF16
+    }
+}
+impl CastDtype for e4m3 {
+    fn dtype_code() -> u32 {
+        dtype::E4M3
+    }
+}
+impl CastDtype for e5m2 {
+    fn dtype_code() -> u32 {
+        dtype::E5M2
+    }
+}
+impl CastDtype for i8 {
+    fn dtype_code() -> u32 {
+        dtype::I8
+    }
+}
+impl CastDtype for i16 {
+    fn dtype_code() -> u32 {
+        dtype::I16
+    }
+}
+impl CastDtype for i32 {
+    fn dtype_code() -> u32 {
+        dtype::I32
+    }
+}
+impl CastDtype for i64 {
+    fn dtype_code() -> u32 {
+        dtype::I64
+    }
+}
+impl CastDtype for u8 {
+    fn dtype_code() -> u32 {
+        dtype::U8
+    }
+}
+impl CastDtype for u16 {
+    fn dtype_code() -> u32 {
+        dtype::U16
+    }
+}
+impl CastDtype for u32 {
+    fn dtype_code() -> u32 {
+        dtype::U32
+    }
+}
+impl CastDtype for u64 {
+    fn dtype_code() -> u32 {
+        dtype::U64
+    }
+}
+
+/// Cast source slice elements to destination slice.
+///
+/// Converts elements from source type `S` to destination type `D` using
+/// hardware-accelerated SIMD operations when available.
+///
+/// # Arguments
+/// * `source` - Source slice of elements to cast
+/// * `dest` - Destination slice to receive cast elements (must be same length as source)
+///
+/// # Returns
+/// * `Some(())` if successful
+/// * `None` if slices have different lengths
+///
+/// # Example
+/// ```ignore
+/// use numkong::{f16, cast};
+///
+/// let f16_data: Vec<f16> = vec![f16::from_f32(1.0), f16::from_f32(2.0)];
+/// let mut f32_data: Vec<f32> = vec![0.0; f16_data.len()];
+/// cast(&f16_data, &mut f32_data);
+/// ```
+pub fn cast<S: CastDtype, D: CastDtype>(source: &[S], dest: &mut [D]) -> Option<()> {
+    if source.len() != dest.len() {
+        return None;
+    }
+    unsafe {
+        nk_cast(
+            source.as_ptr() as *const core::ffi::c_void,
+            S::dtype_code(),
+            source.len() as u64size,
+            dest.as_mut_ptr() as *mut core::ffi::c_void,
+            D::dtype_code(),
+        );
+    }
+    Some(())
+}
+
+// endregion: dtype (internal)
 
 // region: Dot
 
@@ -645,6 +822,46 @@ impl Dot for e5m2 {
     }
 }
 
+impl Dot for i4x2 {
+    type Output = i32;
+    fn dot(a: &[Self], b: &[Self]) -> Option<Self::Output> {
+        if a.len() != b.len() {
+            return None;
+        }
+        let mut result: Self::Output = 0;
+        let n = (a.len() * 2) as u64size; // Each i4x2 contains 2 elements
+        unsafe {
+            nk_dot_i4(
+                a.as_ptr() as *const u8,
+                b.as_ptr() as *const u8,
+                n,
+                &mut result,
+            )
+        };
+        Some(result)
+    }
+}
+
+impl Dot for u4x2 {
+    type Output = u32;
+    fn dot(a: &[Self], b: &[Self]) -> Option<Self::Output> {
+        if a.len() != b.len() {
+            return None;
+        }
+        let mut result: Self::Output = 0;
+        let n = (a.len() * 2) as u64size; // Each u4x2 contains 2 elements
+        unsafe {
+            nk_dot_u4(
+                a.as_ptr() as *const u8,
+                b.as_ptr() as *const u8,
+                n,
+                &mut result,
+            )
+        };
+        Some(result)
+    }
+}
+
 // endregion: Dot
 
 // region: Angular
@@ -730,6 +947,46 @@ impl Angular for i8 {
         }
         let mut result: Self::Output = 0.0;
         unsafe { nk_angular_i8(a.as_ptr(), b.as_ptr(), a.len() as u64size, &mut result) };
+        Some(result)
+    }
+}
+
+impl Angular for i4x2 {
+    type Output = f32;
+    fn angular(a: &[Self], b: &[Self]) -> Option<Self::Output> {
+        if a.len() != b.len() {
+            return None;
+        }
+        let mut result: Self::Output = 0.0;
+        let n = (a.len() * 2) as u64size; // Each i4x2 contains 2 elements
+        unsafe {
+            nk_angular_i4(
+                a.as_ptr() as *const u8,
+                b.as_ptr() as *const u8,
+                n,
+                &mut result,
+            )
+        };
+        Some(result)
+    }
+}
+
+impl Angular for u4x2 {
+    type Output = f32;
+    fn angular(a: &[Self], b: &[Self]) -> Option<Self::Output> {
+        if a.len() != b.len() {
+            return None;
+        }
+        let mut result: Self::Output = 0.0;
+        let n = (a.len() * 2) as u64size; // Each u4x2 contains 2 elements
+        unsafe {
+            nk_angular_u4(
+                a.as_ptr() as *const u8,
+                b.as_ptr() as *const u8,
+                n,
+                &mut result,
+            )
+        };
         Some(result)
     }
 }
@@ -898,6 +1155,84 @@ impl Euclidean for i8 {
     }
 }
 
+impl Euclidean for i4x2 {
+    type L2sqOutput = u32;
+    type L2Output = f32;
+
+    fn l2sq(a: &[Self], b: &[Self]) -> Option<Self::L2sqOutput> {
+        if a.len() != b.len() {
+            return None;
+        }
+        let mut result: Self::L2sqOutput = 0;
+        let n = (a.len() * 2) as u64size; // Each i4x2 contains 2 elements
+        unsafe {
+            nk_l2sq_i4(
+                a.as_ptr() as *const u8,
+                b.as_ptr() as *const u8,
+                n,
+                &mut result,
+            )
+        };
+        Some(result)
+    }
+
+    fn l2(a: &[Self], b: &[Self]) -> Option<Self::L2Output> {
+        if a.len() != b.len() {
+            return None;
+        }
+        let mut result: Self::L2Output = 0.0;
+        let n = (a.len() * 2) as u64size; // Each i4x2 contains 2 elements
+        unsafe {
+            nk_l2_i4(
+                a.as_ptr() as *const u8,
+                b.as_ptr() as *const u8,
+                n,
+                &mut result,
+            )
+        };
+        Some(result)
+    }
+}
+
+impl Euclidean for u4x2 {
+    type L2sqOutput = u32;
+    type L2Output = f32;
+
+    fn l2sq(a: &[Self], b: &[Self]) -> Option<Self::L2sqOutput> {
+        if a.len() != b.len() {
+            return None;
+        }
+        let mut result: Self::L2sqOutput = 0;
+        let n = (a.len() * 2) as u64size; // Each u4x2 contains 2 elements
+        unsafe {
+            nk_l2sq_u4(
+                a.as_ptr() as *const u8,
+                b.as_ptr() as *const u8,
+                n,
+                &mut result,
+            )
+        };
+        Some(result)
+    }
+
+    fn l2(a: &[Self], b: &[Self]) -> Option<Self::L2Output> {
+        if a.len() != b.len() {
+            return None;
+        }
+        let mut result: Self::L2Output = 0.0;
+        let n = (a.len() * 2) as u64size; // Each u4x2 contains 2 elements
+        unsafe {
+            nk_l2_u4(
+                a.as_ptr() as *const u8,
+                b.as_ptr() as *const u8,
+                n,
+                &mut result,
+            )
+        };
+        Some(result)
+    }
+}
+
 // endregion: Euclidean
 
 // region: Geospatial
@@ -1045,14 +1380,22 @@ pub trait Hamming: Sized {
     fn hamming(a: &[Self], b: &[Self]) -> Option<Self::Output>;
 }
 
-impl Hamming for u8 {
+impl Hamming for u1x8 {
     type Output = u32;
     fn hamming(a: &[Self], b: &[Self]) -> Option<Self::Output> {
         if a.len() != b.len() {
             return None;
         }
         let mut result: Self::Output = 0;
-        unsafe { nk_hamming_u1(a.as_ptr(), b.as_ptr(), a.len() as u64size, &mut result) };
+        let n_bits = (a.len() * 8) as u64size; // Each u1x8 contains 8 bits
+        unsafe {
+            nk_hamming_u1(
+                a.as_ptr() as *const u8,
+                b.as_ptr() as *const u8,
+                n_bits,
+                &mut result,
+            )
+        };
         Some(result)
     }
 }
@@ -1067,14 +1410,22 @@ pub trait Jaccard: Sized {
     fn jaccard(a: &[Self], b: &[Self]) -> Option<Self::Output>;
 }
 
-impl Jaccard for u8 {
+impl Jaccard for u1x8 {
     type Output = f32;
     fn jaccard(a: &[Self], b: &[Self]) -> Option<Self::Output> {
         if a.len() != b.len() {
             return None;
         }
         let mut result: Self::Output = 0.0;
-        unsafe { nk_jaccard_u1(a.as_ptr(), b.as_ptr(), a.len() as u64size, &mut result) };
+        let n_bits = (a.len() * 8) as u64size; // Each u1x8 contains 8 bits
+        unsafe {
+            nk_jaccard_u1(
+                a.as_ptr() as *const u8,
+                b.as_ptr() as *const u8,
+                n_bits,
+                &mut result,
+            )
+        };
         Some(result)
     }
 }
@@ -2661,18 +3012,18 @@ mod tests {
     }
 
     #[test]
-    fn hamming_u8() {
-        let a = vec![0b11110000u8, 0b10101010];
-        let b = vec![0b00001111u8, 0b01010101];
-        let result = u8::hamming(&a, &b).unwrap();
+    fn hamming_u1x8() {
+        let a = vec![u1x8(0b11110000), u1x8(0b10101010)];
+        let b = vec![u1x8(0b00001111), u1x8(0b01010101)];
+        let result = u1x8::hamming(&a, &b).unwrap();
         assert_eq!(result, 16);
     }
 
     #[test]
-    fn jaccard_u8() {
-        let a = vec![0b11110000u8, 0b10101010];
-        let b = vec![0b11110000u8, 0b10101010];
-        let result = u8::jaccard(&a, &b).unwrap();
+    fn jaccard_u1x8() {
+        let a = vec![u1x8(0b11110000), u1x8(0b10101010)];
+        let b = vec![u1x8(0b11110000), u1x8(0b10101010)];
+        let result = u1x8::jaccard(&a, &b).unwrap();
         assert!((result - 0.0).abs() < 0.01);
     }
 

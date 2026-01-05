@@ -91,7 +91,7 @@ pub mod scalars;
 pub mod tensor;
 
 // Re-export scalar types at crate root
-pub use scalars::{bf16, e4m3, e5m2, f16};
+pub use scalars::{bf16, e4m3, e5m2, f16, i4x2, u1x8, u4x2};
 
 // Re-export complex product types
 pub use numerics::{ComplexProductF32, ComplexProductF64};
@@ -103,6 +103,9 @@ pub use numerics::{
     MeshAlignment, MeshAlignmentResult, ProbabilitySimilarity, Scale, Sin, Sparse,
     SpatialSimilarity, Sum, Trigonometry, Vincenty, WSum, FMA,
 };
+
+// Re-export cast operations
+pub use numerics::{cast, CastDtype};
 
 // Re-export capabilities module
 pub use numerics::capabilities;
@@ -386,19 +389,19 @@ mod tests {
 
     // Binary similarity tests
     #[test]
-    fn hamming_u8() {
-        let a = &[0b01010101_u8, 0b11110000, 0b10101010];
-        let b = &[0b01010101_u8, 0b11110000, 0b10101010];
-        if let Some(result) = u8::hamming(a, b) {
+    fn hamming_u1x8() {
+        let a = &[u1x8(0b01010101), u1x8(0b11110000), u1x8(0b10101010)];
+        let b = &[u1x8(0b01010101), u1x8(0b11110000), u1x8(0b10101010)];
+        if let Some(result) = u1x8::hamming(a, b) {
             assert_almost_equal(0.0, result, 0.01);
         }
     }
 
     #[test]
-    fn jaccard_u8() {
-        let a = &[0b11110000_u8, 0b00001111, 0b10101010];
-        let b = &[0b11110000_u8, 0b00001111, 0b01010101];
-        if let Some(result) = u8::jaccard(a, b) {
+    fn jaccard_u1x8() {
+        let a = &[u1x8(0b11110000), u1x8(0b00001111), u1x8(0b10101010)];
+        let b = &[u1x8(0b11110000), u1x8(0b00001111), u1x8(0b01010101)];
+        if let Some(result) = u1x8::jaccard(a, b) {
             assert_almost_equal(0.5, result, 0.01);
         }
     }
@@ -774,6 +777,54 @@ mod tests {
                 assert_eq!(roundtrip, 0.0);
             }
         }
+    }
+
+    // Cast smoke tests with known hex values
+    #[test]
+    fn cast_f16_f32() {
+        let src = [f16(0x3C00), f16(0xBC00)]; // 1.0, -1.0
+        let mut dst = [0.0f32; 2];
+        cast(&src, &mut dst).unwrap();
+        assert_eq!(dst, [1.0, -1.0]);
+    }
+
+    #[test]
+    fn cast_bf16_f32() {
+        let src = [bf16(0x3F80), bf16(0xBF80)]; // 1.0, -1.0
+        let mut dst = [0.0f32; 2];
+        cast(&src, &mut dst).unwrap();
+        assert_eq!(dst, [1.0, -1.0]);
+    }
+
+    #[test]
+    fn cast_e4m3_f32() {
+        let src = [e4m3(0x38), e4m3(0xB8)]; // 1.0, -1.0
+        let mut dst = [0.0f32; 2];
+        cast(&src, &mut dst).unwrap();
+        assert_eq!(dst, [1.0, -1.0]);
+    }
+
+    #[test]
+    fn cast_e5m2_f32() {
+        let src = [e5m2(0x3C), e5m2(0xBC)]; // 1.0, -1.0
+        let mut dst = [0.0f32; 2];
+        cast(&src, &mut dst).unwrap();
+        assert_eq!(dst, [1.0, -1.0]);
+    }
+
+    #[test]
+    fn cast_f32_to_f16() {
+        let src = [1.0f32, -1.0];
+        let mut dst = [f16(0); 2];
+        cast(&src, &mut dst).unwrap();
+        assert_eq!([dst[0].0, dst[1].0], [0x3C00, 0xBC00]);
+    }
+
+    #[test]
+    fn cast_length_mismatch() {
+        let src = [f16(0x3C00)];
+        let mut dst = [0.0f32; 2];
+        assert!(cast(&src, &mut dst).is_none());
     }
 
     // Trigonometry tests
