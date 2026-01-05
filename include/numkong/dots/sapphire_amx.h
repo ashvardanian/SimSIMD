@@ -55,6 +55,64 @@ typedef struct {
     nk_u32_t reserved[12];  // Padding to 64 bytes
 } nk_dots_amx_packed_header_t;
 
+/*  Composable tile structures for AMX operations.
+ *  These enable reusable primitives and cross-correlation (A×Aᵀ) use cases.
+ */
+
+/*  BF16 A tile: 16 rows × 32 K-elements, row-major layout.
+ *  Loaded from source matrix, used as left operand in AMX multiply.
+ */
+typedef struct {
+    NK_ALIGN64 nk_bf16_t data[16][32]; // 16 rows × 32 cols = 1KB
+} nk_dots_bf16bf16f32_a16x32_sapphire_amx_t;
+
+/*  BF16 B tile: 32 K × 16 N, pair-interleaved for TDPBF16PS.
+ *  Access pattern: data[k/2][n][k%2] for logical B[k,n].
+ *  Pre-packed from column-major or transposed source.
+ */
+typedef struct {
+    NK_ALIGN64 nk_bf16_t data[16][16][2]; // 16 K-groups × 16 N × 2 = 1KB
+} nk_dots_bf16bf16f32_b32x16_sapphire_amx_t;
+
+/*  BF16 output state: 16×16 F32 accumulator tile.
+ *  Holds partial sums during K-dimension accumulation.
+ */
+typedef struct {
+    NK_ALIGN64 nk_f32_t data[16][16]; // 16×16 = 1KB
+} nk_dots_bf16bf16f32_state_sapphire_amx_t;
+
+/*  INT8 A tile: 16 rows × 64 K-elements, row-major layout.
+ */
+typedef struct {
+    NK_ALIGN64 nk_i8_t data[16][64]; // 16 rows × 64 cols = 1KB
+} nk_dots_i8i8i32_a16x64_sapphire_amx_t;
+
+/*  INT8 B tile: 64 K × 16 N, quad-interleaved for TDPBSSD.
+ *  Access pattern: data[k/4][n][k%4] for logical B[k,n].
+ */
+typedef struct {
+    NK_ALIGN64 nk_i8_t data[16][16][4]; // 16 K-groups × 16 N × 4 = 1KB
+} nk_dots_i8i8i32_b64x16_sapphire_amx_t;
+
+/*  INT8 output state: 16×16 I32 accumulator tile.
+ */
+typedef struct {
+    NK_ALIGN64 nk_i32_t data[16][16]; // 16×16 = 1KB
+} nk_dots_i8i8i32_state_sapphire_amx_t;
+
+/*  BF16 2×2 output state: 32×32 F32 output (4 accumulator tiles).
+ *  Used for GEMM's 2×2 output blocking pattern.
+ */
+typedef struct {
+    nk_dots_bf16bf16f32_state_sapphire_amx_t c[2][2]; // 4KB total
+} nk_dots_bf16bf16f32_state2x2_sapphire_amx_t;
+
+/*  INT8 2×2 output state: 32×32 I32 output (4 accumulator tiles).
+ */
+typedef struct {
+    nk_dots_i8i8i32_state_sapphire_amx_t c[2][2]; // 4KB total
+} nk_dots_i8i8i32_state2x2_sapphire_amx_t;
+
 /*  Morton Z-curve encoding for cache-friendly tile traversal.
  *  Uses BMI2 PDEP instruction for fast (2-3 cycle) bit interleaving.
  *  Interleaves bits of (tile_row, tile_col) to produce Z-curve index.
@@ -92,13 +150,23 @@ NK_INTERNAL void nk_amx_tile_configure_sapphire_amx_(void) {
  */
 NK_INTERNAL void nk_compiler_barrier_sapphire_amx_(void) { __asm__ volatile("" ::: "memory"); }
 
-/*  AVX-512 masked load for A tile (BF16): loads up to 16 rows × 32 cols into aligned buffer.
- *  Uses masked loads to handle edge tiles without element-wise loops.
- *  Includes memory barrier to ensure stores complete before subsequent _tile_loadd.
+/* ============================================================================
+ *  Composable Tile Primitives - BF16
+ * ============================================================================ */
+
+/*  Initialize BF16 output state to zero.
  */
-NK_INTERNAL void nk_load_a_tile_bf16_masked_(            //
-    nk_bf16_t const *src, nk_size_t src_stride_elements, //
-    nk_size_t valid_rows, nk_size_t valid_cols, nk_bf16_t *dst /*[16][32]*/) {
+NK_INTERNAL void nk_dots_bf16bf16f32_init_sapphire_amx(nk_dots_bf16bf16f32_state_sapphire_amx_t *state) {
+    __m512 zero = _mm512_setzero_ps();
+    for (nk_size_t r = 0; r < 16; r++) { _mm512_store_ps(state->data[r], zero); }
+}
+
+/*  Load A tile from row-major source with masking for edge tiles.
+ */
+NK_INTERNAL void nk_dots_bf16bf16f32_load_a_sapphire_amx( //
+    nk_dots_bf16bf16f32_a16x32_sapphire_amx_t *a_tile,    //
+    nk_bf16_t const *src, nk_size_t src_stride_elements,  //
+    nk_size_t valid_rows, nk_size_t valid_cols) {
 
     __mmask32 col_mask = (valid_cols >= 32) ? 0xFFFFFFFF : ((__mmask32)1 << valid_cols) - 1;
     __m512i zero = _mm512_setzero_si512();
@@ -106,19 +174,85 @@ NK_INTERNAL void nk_load_a_tile_bf16_masked_(            //
     for (nk_size_t r = 0; r < 16; r++) {
         if (r < valid_rows) {
             __m512i row = _mm512_maskz_loadu_epi16(col_mask, src + r * src_stride_elements);
-            _mm512_store_si512((__m512i *)(dst + r * 32), row);
+            _mm512_store_si512((__m512i *)a_tile->data[r], row);
         }
-        else { _mm512_store_si512((__m512i *)(dst + r * 32), zero); }
+        else { _mm512_store_si512((__m512i *)a_tile->data[r], zero); }
     }
     nk_compiler_barrier_sapphire_amx_();
 }
 
-/*  AVX-512 masked load for A tile (I8): loads up to 16 rows × 64 cols into aligned buffer.
- *  Includes memory barrier to ensure stores complete before subsequent _tile_loadd.
+/*  Store state to output matrix with masking for edge tiles.
  */
-NK_INTERNAL void nk_load_a_tile_i8_masked_(   //
-    nk_i8_t const *src, nk_size_t src_stride, //
-    nk_size_t valid_rows, nk_size_t valid_cols, nk_i8_t *dst /*[16][64]*/) {
+NK_INTERNAL void nk_dots_bf16bf16f32_store_sapphire_amx(   //
+    nk_dots_bf16bf16f32_state_sapphire_amx_t const *state, //
+    nk_f32_t *dst, nk_size_t dst_stride_elements,          //
+    nk_size_t valid_rows, nk_size_t valid_cols) {
+
+    __mmask16 col_mask = (valid_cols >= 16) ? 0xFFFF : ((__mmask16)1 << valid_cols) - 1;
+
+    for (nk_size_t r = 0; r < valid_rows; r++) {
+        __m512 row = _mm512_load_ps(state->data[r]);
+        _mm512_mask_storeu_ps(dst + r * dst_stride_elements, col_mask, row);
+    }
+}
+
+/*  Accumulate 3 A×B tile pairs into state using AMX TDPBF16PS.
+ *  Processes K=96 per call (3 × 32 BF16 elements).
+ *  For indivisible K, pad unused tiles with zeros.
+ *
+ *  Register allocation (uses 7 of 8 TMM registers):
+ *    TMM0: accumulator (C)
+ *    TMM1-3: A tiles (a0, a1, a2)
+ *    TMM4-6: B tiles (b0, b1, b2)
+ *    TMM7: spare
+ *
+ *  Based on empirical testing, single-accumulator design achieves ~100% of
+ *  multi-accumulator throughput due to AMX internal pipelining.
+ */
+NK_INTERNAL void nk_dots_bf16bf16f32_update_sapphire_amx( //
+    nk_dots_bf16bf16f32_state_sapphire_amx_t *state,      //
+    nk_dots_bf16bf16f32_a16x32_sapphire_amx_t const *a0,  //
+    nk_dots_bf16bf16f32_a16x32_sapphire_amx_t const *a1,  //
+    nk_dots_bf16bf16f32_a16x32_sapphire_amx_t const *a2,  //
+    nk_dots_bf16bf16f32_b32x16_sapphire_amx_t const *b0,  //
+    nk_dots_bf16bf16f32_b32x16_sapphire_amx_t const *b1,  //
+    nk_dots_bf16bf16f32_b32x16_sapphire_amx_t const *b2) {
+
+    // Load all tiles into registers
+    _tile_loadd(0, state->data, 64); // C accumulator
+    _tile_loadd(1, a0->data, 64);    // A0
+    _tile_loadd(2, a1->data, 64);    // A1
+    _tile_loadd(3, a2->data, 64);    // A2
+    _tile_loadd(4, b0->data, 64);    // B0
+    _tile_loadd(5, b1->data, 64);    // B1
+    _tile_loadd(6, b2->data, 64);    // B2
+
+    // Accumulate: C += A0×B0 + A1×B1 + A2×B2
+    _tile_dpbf16ps(0, 1, 4); // C += A0 × B0
+    _tile_dpbf16ps(0, 2, 5); // C += A1 × B1
+    _tile_dpbf16ps(0, 3, 6); // C += A2 × B2
+
+    // Store result
+    _tile_stored(0, state->data, 64);
+}
+
+/* ============================================================================
+ *  Composable Tile Primitives - INT8
+ * ============================================================================ */
+
+/*  Initialize INT8 output state to zero.
+ */
+NK_INTERNAL void nk_dots_i8i8i32_init_sapphire_amx(nk_dots_i8i8i32_state_sapphire_amx_t *state) {
+    __m512i zero = _mm512_setzero_si512();
+    for (nk_size_t r = 0; r < 16; r++) { _mm512_store_si512((__m512i *)state->data[r], zero); }
+}
+
+/*  Load A tile from row-major source with masking for edge tiles.
+ */
+NK_INTERNAL void nk_dots_i8i8i32_load_a_sapphire_amx( //
+    nk_dots_i8i8i32_a16x64_sapphire_amx_t *a_tile,    //
+    nk_i8_t const *src, nk_size_t src_stride,         //
+    nk_size_t valid_rows, nk_size_t valid_cols) {
 
     __mmask64 col_mask = (valid_cols >= 64) ? 0xFFFFFFFFFFFFFFFFULL : ((__mmask64)1 << valid_cols) - 1;
     __m512i zero = _mm512_setzero_si512();
@@ -126,39 +260,574 @@ NK_INTERNAL void nk_load_a_tile_i8_masked_(   //
     for (nk_size_t r = 0; r < 16; r++) {
         if (r < valid_rows) {
             __m512i row = _mm512_maskz_loadu_epi8(col_mask, src + r * src_stride);
-            _mm512_store_si512((__m512i *)(dst + r * 64), row);
+            _mm512_store_si512((__m512i *)a_tile->data[r], row);
         }
-        else { _mm512_store_si512((__m512i *)(dst + r * 64), zero); }
+        else { _mm512_store_si512((__m512i *)a_tile->data[r], zero); }
     }
     nk_compiler_barrier_sapphire_amx_();
 }
 
-/*  AVX-512 masked store for C tile (F32): stores up to 16 rows × 16 cols from aligned buffer.
+/*  Store state to output matrix with masking for edge tiles.
  */
-NK_INTERNAL void nk_store_c_tile_f32_masked_(                              //
-    nk_f32_t const *src /*[16][16]*/, nk_f32_t *dst, nk_size_t dst_stride, //
+NK_INTERNAL void nk_dots_i8i8i32_store_sapphire_amx(   //
+    nk_dots_i8i8i32_state_sapphire_amx_t const *state, //
+    nk_i32_t *dst, nk_size_t dst_stride_elements,      //
     nk_size_t valid_rows, nk_size_t valid_cols) {
 
     __mmask16 col_mask = (valid_cols >= 16) ? 0xFFFF : ((__mmask16)1 << valid_cols) - 1;
 
     for (nk_size_t r = 0; r < valid_rows; r++) {
-        __m512 row = _mm512_load_ps(src + r * 16);
-        _mm512_mask_storeu_ps(dst + r * dst_stride, col_mask, row);
+        __m512i row = _mm512_load_si512((__m512i const *)state->data[r]);
+        _mm512_mask_storeu_epi32(dst + r * dst_stride_elements, col_mask, row);
     }
 }
 
-/*  AVX-512 masked store for C tile (I32): stores up to 16 rows × 16 cols from aligned buffer.
+/*  Accumulate 3 A×B tile pairs into state using AMX TDPBSSD.
+ *  Processes K=192 per call (3 × 64 INT8 elements).
+ *  For indivisible K, pad unused tiles with zeros.
+ *
+ *  Register allocation (uses 7 of 8 TMM registers):
+ *    TMM0: accumulator (C)
+ *    TMM1-3: A tiles (a0, a1, a2)
+ *    TMM4-6: B tiles (b0, b1, b2)
+ *    TMM7: spare
  */
-NK_INTERNAL void nk_store_c_tile_i32_masked_(                              //
-    nk_i32_t const *src /*[16][16]*/, nk_i32_t *dst, nk_size_t dst_stride, //
+NK_INTERNAL void nk_dots_i8i8i32_update_sapphire_amx( //
+    nk_dots_i8i8i32_state_sapphire_amx_t *state,      //
+    nk_dots_i8i8i32_a16x64_sapphire_amx_t const *a0,  //
+    nk_dots_i8i8i32_a16x64_sapphire_amx_t const *a1,  //
+    nk_dots_i8i8i32_a16x64_sapphire_amx_t const *a2,  //
+    nk_dots_i8i8i32_b64x16_sapphire_amx_t const *b0,  //
+    nk_dots_i8i8i32_b64x16_sapphire_amx_t const *b1,  //
+    nk_dots_i8i8i32_b64x16_sapphire_amx_t const *b2) {
+
+    // Load all tiles into registers
+    _tile_loadd(0, state->data, 64); // C accumulator
+    _tile_loadd(1, a0->data, 64);    // A0
+    _tile_loadd(2, a1->data, 64);    // A1
+    _tile_loadd(3, a2->data, 64);    // A2
+    _tile_loadd(4, b0->data, 64);    // B0
+    _tile_loadd(5, b1->data, 64);    // B1
+    _tile_loadd(6, b2->data, 64);    // B2
+
+    // Accumulate: C += A0×B0 + A1×B1 + A2×B2
+    _tile_dpbssd(0, 1, 4); // C += A0 × B0
+    _tile_dpbssd(0, 2, 5); // C += A1 × B1
+    _tile_dpbssd(0, 3, 6); // C += A2 × B2
+
+    // Store result
+    _tile_stored(0, state->data, 64);
+}
+
+/* ============================================================================
+ *  Register-Resident 2×2 Update Primitives for GEMM
+ *
+ *  These keep C accumulators in TMM4-7 across the entire K-loop, avoiding
+ *  4KB of load+store per K iteration. Usage pattern:
+ *
+ *    nk_dots_bf16bf16f32_zero2x2_sapphire_amx();
+ *    for (k_tile = 0; k_tile < num_k_tiles; k_tile++) {
+ *        // prepare a0, a1, b0, b1
+ *        nk_dots_bf16bf16f32_update2x2_sapphire_amx(&a0, &a1, &b0, &b1);
+ *    }
+ *    nk_dots_bf16bf16f32_store2x2_sapphire_amx(&state);
+ *
+ *  Register allocation:
+ *    TMM0-1: A tiles (rows 0-15 and 16-31)
+ *    TMM2-3: B tiles (cols 0-15 and 16-31)
+ *    TMM4-7: C accumulators (2×2 output grid, kept in registers)
+ * ============================================================================ */
+
+/*  Zero BF16 2×2 C accumulators in TMM4-7 (call once before K-loop).
+ */
+NK_INTERNAL void nk_dots_bf16bf16f32_zero2x2_sapphire_amx(void) {
+    _tile_zero(4); // C[0,0]
+    _tile_zero(5); // C[0,1]
+    _tile_zero(6); // C[1,0]
+    _tile_zero(7); // C[1,1]
+}
+
+/*  Accumulate BF16 2×2 output: C[i,j] += A[i] × B[j] for i,j in {0,1}.
+ *  Assumes C accumulators already in TMM4-7 from previous zero2x2 or update2x2.
+ *  Processes K=32 per call (1 tile pair along K dimension).
+ */
+NK_INTERNAL void nk_dots_bf16bf16f32_update2x2_sapphire_amx( //
+    nk_dots_bf16bf16f32_a16x32_sapphire_amx_t const *a0,     //
+    nk_dots_bf16bf16f32_a16x32_sapphire_amx_t const *a1,     //
+    nk_dots_bf16bf16f32_b32x16_sapphire_amx_t const *b0,     //
+    nk_dots_bf16bf16f32_b32x16_sapphire_amx_t const *b1) {
+
+    // Load A tiles (rows 0-15 and 16-31)
+    _tile_loadd(0, a0->data, 64);
+    _tile_loadd(1, a1->data, 64);
+
+    // Load B tiles (cols 0-15 and 16-31)
+    _tile_loadd(2, b0->data, 64);
+    _tile_loadd(3, b1->data, 64);
+
+    // Compute 2×2 outer product, accumulating into C registers
+    _tile_dpbf16ps(4, 0, 2); // C[0,0] += A0 × B0
+    _tile_dpbf16ps(5, 0, 3); // C[0,1] += A0 × B1
+    _tile_dpbf16ps(6, 1, 2); // C[1,0] += A1 × B0
+    _tile_dpbf16ps(7, 1, 3); // C[1,1] += A1 × B1
+}
+
+/*  Accumulate BF16 2×2 with DIRECT A load from source matrix.
+ *  Use this for full interior tiles to avoid buffer copy overhead.
+ *  a0_ptr/a1_ptr point directly to source rows, a_stride is in bytes.
+ */
+NK_INTERNAL void nk_dots_bf16bf16f32_update2x2_direct_sapphire_amx(       //
+    nk_bf16_t const *a0_ptr, nk_bf16_t const *a1_ptr, nk_size_t a_stride, //
+    nk_dots_bf16bf16f32_b32x16_sapphire_amx_t const *b0,                  //
+    nk_dots_bf16bf16f32_b32x16_sapphire_amx_t const *b1) {
+
+    // Load A tiles directly from source (no buffer copy!)
+    _tile_loadd(0, a0_ptr, a_stride);
+    _tile_loadd(1, a1_ptr, a_stride);
+
+    // Load B tiles (already packed)
+    _tile_loadd(2, b0->data, 64);
+    _tile_loadd(3, b1->data, 64);
+
+    // Compute 2×2 outer product
+    _tile_dpbf16ps(4, 0, 2);
+    _tile_dpbf16ps(5, 0, 3);
+    _tile_dpbf16ps(6, 1, 2);
+    _tile_dpbf16ps(7, 1, 3);
+}
+
+/*  Store BF16 2×2 C accumulators from TMM4-7 to state buffer (for masked output).
+ */
+NK_INTERNAL void nk_dots_bf16bf16f32_store2x2_sapphire_amx( //
+    nk_dots_bf16bf16f32_state2x2_sapphire_amx_t *state) {
+    _tile_stored(4, state->c[0][0].data, 64);
+    _tile_stored(5, state->c[0][1].data, 64);
+    _tile_stored(6, state->c[1][0].data, 64);
+    _tile_stored(7, state->c[1][1].data, 64);
+}
+
+/*  Store BF16 2×2 C accumulators DIRECTLY to output matrix (no intermediate buffer).
+ *  Use for full interior tiles. c_stride is in bytes.
+ */
+NK_INTERNAL void nk_dots_bf16bf16f32_store2x2_direct_sapphire_amx( //
+    nk_f32_t *c, nk_size_t c_stride) {
+    _tile_stored(4, c, c_stride);
+    _tile_stored(5, c + 16, c_stride);
+    _tile_stored(6, (nk_f32_t *)((char *)c + 16 * c_stride), c_stride);
+    _tile_stored(7, (nk_f32_t *)((char *)c + 16 * c_stride) + 16, c_stride);
+}
+
+/*  Zero INT8 2×2 C accumulators in TMM4-7 (call once before K-loop).
+ */
+NK_INTERNAL void nk_dots_i8i8i32_zero2x2_sapphire_amx(void) {
+    _tile_zero(4);
+    _tile_zero(5);
+    _tile_zero(6);
+    _tile_zero(7);
+}
+
+/*  Accumulate INT8 2×2 output: C[i,j] += A[i] × B[j] for i,j in {0,1}.
+ *  Assumes C accumulators already in TMM4-7.
+ *  Processes K=64 per call (1 tile pair along K dimension).
+ */
+NK_INTERNAL void nk_dots_i8i8i32_update2x2_sapphire_amx( //
+    nk_dots_i8i8i32_a16x64_sapphire_amx_t const *a0,     //
+    nk_dots_i8i8i32_a16x64_sapphire_amx_t const *a1,     //
+    nk_dots_i8i8i32_b64x16_sapphire_amx_t const *b0,     //
+    nk_dots_i8i8i32_b64x16_sapphire_amx_t const *b1) {
+
+    _tile_loadd(0, a0->data, 64);
+    _tile_loadd(1, a1->data, 64);
+    _tile_loadd(2, b0->data, 64);
+    _tile_loadd(3, b1->data, 64);
+
+    _tile_dpbssd(4, 0, 2);
+    _tile_dpbssd(5, 0, 3);
+    _tile_dpbssd(6, 1, 2);
+    _tile_dpbssd(7, 1, 3);
+}
+
+/*  Accumulate INT8 2×2 with DIRECT A load from source matrix.
+ *  Use this for full interior tiles to avoid buffer copy overhead.
+ */
+NK_INTERNAL void nk_dots_i8i8i32_update2x2_direct_sapphire_amx(       //
+    nk_i8_t const *a0_ptr, nk_i8_t const *a1_ptr, nk_size_t a_stride, //
+    nk_dots_i8i8i32_b64x16_sapphire_amx_t const *b0,                  //
+    nk_dots_i8i8i32_b64x16_sapphire_amx_t const *b1) {
+
+    _tile_loadd(0, a0_ptr, a_stride);
+    _tile_loadd(1, a1_ptr, a_stride);
+    _tile_loadd(2, b0->data, 64);
+    _tile_loadd(3, b1->data, 64);
+
+    _tile_dpbssd(4, 0, 2);
+    _tile_dpbssd(5, 0, 3);
+    _tile_dpbssd(6, 1, 2);
+    _tile_dpbssd(7, 1, 3);
+}
+
+/*  Store INT8 2×2 C accumulators from TMM4-7 to state buffer (for masked output).
+ */
+NK_INTERNAL void nk_dots_i8i8i32_store2x2_sapphire_amx( //
+    nk_dots_i8i8i32_state2x2_sapphire_amx_t *state) {
+    _tile_stored(4, state->c[0][0].data, 64);
+    _tile_stored(5, state->c[0][1].data, 64);
+    _tile_stored(6, state->c[1][0].data, 64);
+    _tile_stored(7, state->c[1][1].data, 64);
+}
+
+/*  Store INT8 2×2 C accumulators DIRECTLY to output matrix (no intermediate buffer).
+ *  Use for full interior tiles. c_stride is in bytes.
+ */
+NK_INTERNAL void nk_dots_i8i8i32_store2x2_direct_sapphire_amx( //
+    nk_i32_t *c, nk_size_t c_stride) {
+    _tile_stored(4, c, c_stride);
+    _tile_stored(5, c + 16, c_stride);
+    _tile_stored(6, (nk_i32_t *)((char *)c + 16 * c_stride), c_stride);
+    _tile_stored(7, (nk_i32_t *)((char *)c + 16 * c_stride) + 16, c_stride);
+}
+
+/* ============================================================================
+ *  Store 2×2 State to Output Matrix with Masking
+ * ============================================================================ */
+
+/*  Store BF16 2×2 state to output matrix with masking for edge tiles.
+ *  Handles any combination of valid_rows (0-32) and valid_cols (0-32).
+ */
+NK_INTERNAL void nk_dots_bf16bf16f32_output2x2_sapphire_amx(  //
+    nk_dots_bf16bf16f32_state2x2_sapphire_amx_t const *state, //
+    nk_f32_t *dst, nk_size_t dst_stride_elements,             //
     nk_size_t valid_rows, nk_size_t valid_cols) {
 
-    __mmask16 col_mask = (valid_cols >= 16) ? 0xFFFF : ((__mmask16)1 << valid_cols) - 1;
+    // Rows 0-15
+    nk_size_t const rows_upper = (valid_rows > 16) ? 16 : valid_rows;
+    nk_size_t const cols_left = (valid_cols > 16) ? 16 : valid_cols;
+    nk_size_t const cols_right = (valid_cols > 16) ? valid_cols - 16 : 0;
 
-    for (nk_size_t r = 0; r < valid_rows; r++) {
-        __m512i row = _mm512_load_si512((__m512i const *)(src + r * 16));
-        _mm512_mask_storeu_epi32(dst + r * dst_stride, col_mask, row);
+    if (rows_upper > 0 && cols_left > 0)
+        nk_dots_bf16bf16f32_store_sapphire_amx(&state->c[0][0], dst, dst_stride_elements, rows_upper, cols_left);
+    if (rows_upper > 0 && cols_right > 0)
+        nk_dots_bf16bf16f32_store_sapphire_amx(&state->c[0][1], dst + 16, dst_stride_elements, rows_upper, cols_right);
+
+    // Rows 16-31
+    if (valid_rows > 16) {
+        nk_size_t const rows_lower = valid_rows - 16;
+        nk_f32_t *dst_lower = dst + 16 * dst_stride_elements;
+        if (cols_left > 0)
+            nk_dots_bf16bf16f32_store_sapphire_amx(&state->c[1][0], dst_lower, dst_stride_elements, rows_lower,
+                                                   cols_left);
+        if (cols_right > 0)
+            nk_dots_bf16bf16f32_store_sapphire_amx(&state->c[1][1], dst_lower + 16, dst_stride_elements, rows_lower,
+                                                   cols_right);
     }
+}
+
+/*  Store INT8 2×2 state to output matrix with masking for edge tiles.
+ */
+NK_INTERNAL void nk_dots_i8i8i32_output2x2_sapphire_amx(  //
+    nk_dots_i8i8i32_state2x2_sapphire_amx_t const *state, //
+    nk_i32_t *dst, nk_size_t dst_stride_elements,         //
+    nk_size_t valid_rows, nk_size_t valid_cols) {
+
+    nk_size_t const rows_upper = (valid_rows > 16) ? 16 : valid_rows;
+    nk_size_t const cols_left = (valid_cols > 16) ? 16 : valid_cols;
+    nk_size_t const cols_right = (valid_cols > 16) ? valid_cols - 16 : 0;
+
+    if (rows_upper > 0 && cols_left > 0)
+        nk_dots_i8i8i32_store_sapphire_amx(&state->c[0][0], dst, dst_stride_elements, rows_upper, cols_left);
+    if (rows_upper > 0 && cols_right > 0)
+        nk_dots_i8i8i32_store_sapphire_amx(&state->c[0][1], dst + 16, dst_stride_elements, rows_upper, cols_right);
+
+    if (valid_rows > 16) {
+        nk_size_t const rows_lower = valid_rows - 16;
+        nk_i32_t *dst_lower = dst + 16 * dst_stride_elements;
+        if (cols_left > 0)
+            nk_dots_i8i8i32_store_sapphire_amx(&state->c[1][0], dst_lower, dst_stride_elements, rows_lower, cols_left);
+        if (cols_right > 0)
+            nk_dots_i8i8i32_store_sapphire_amx(&state->c[1][1], dst_lower + 16, dst_stride_elements, rows_lower,
+                                               cols_right);
+    }
+}
+
+/* ============================================================================
+ *  Pack Transposed - for cross-correlation (A × Aᵀ)
+ * ============================================================================ */
+
+/*  Pack A transposed into B format for BF16.
+ *  Converts A[n][k] -> B[k][n] with pair-interleaving for TDPBF16PS.
+ *  Used for cross-correlation: load vectors into A, pack to B, compute A×B.
+ *
+ *  Uses vectorized 16×32 transpose with YMM operations:
+ *  - Process 2 K-columns at a time (one k_group)
+ *  - Each column has 16 elements (strided in A)
+ *  - Interleave pairs and store contiguously to B
+ */
+NK_INTERNAL void nk_dots_bf16bf16f32_pack_transposed_sapphire_amx( //
+    nk_dots_bf16bf16f32_a16x32_sapphire_amx_t const *a_tile,       //
+    nk_dots_bf16bf16f32_b32x16_sapphire_amx_t *b_tile) {
+
+    // Process 2 K-columns at a time (forming one k_group in output)
+    for (nk_size_t k_group = 0; k_group < 16; k_group++) {
+        nk_size_t k0 = k_group * 2;
+        nk_size_t k1 = k_group * 2 + 1;
+
+        // Load 2 columns from A (16 elements each) using gather-like pattern
+        // A.data[n][k] has stride 32 elements between rows
+        // Use YMM for 16 × 16-bit = 256 bits
+
+        // Extract columns k0 and k1 from all 16 rows
+        __m256i col0, col1;
+        {
+            // Gather column k0: elements at A.data[0][k0], A.data[1][k0], ..., A.data[15][k0]
+            // Load 8 rows at a time using 32-bit gather (gets 2 BF16 per element)
+            __m256i idx_lo = _mm256_setr_epi32(0, 32, 64, 96, 128, 160, 192, 224);
+            __m256i idx_hi = _mm256_setr_epi32(256, 288, 320, 352, 384, 416, 448, 480);
+
+            // Gather 32-bit elements containing pairs of BF16
+            nk_bf16_t const *base0 = &a_tile->data[0][k0];
+            __m256i gather_lo = _mm256_i32gather_epi32((int const *)base0, idx_lo, 2);
+            __m256i gather_hi = _mm256_i32gather_epi32((int const *)base0, idx_hi, 2);
+
+            // Extract the low 16-bit from each 32-bit gather result
+            // gather_lo has [a[0][k0:k0+1], a[1][k0:k0+1], ..., a[7][k0:k0+1]]
+            // We want just the k0 values (low 16 bits of each 32-bit word)
+            __m256i mask_lo16 = _mm256_set1_epi32(0x0000FFFF);
+            __m256i col0_lo_32 = _mm256_and_si256(gather_lo, mask_lo16);
+            __m256i col0_hi_32 = _mm256_and_si256(gather_hi, mask_lo16);
+
+            // Pack 8×32-bit -> 8×16-bit for each half
+            col0 = _mm256_packus_epi32(col0_lo_32, col0_hi_32);
+            // packus interleaves lanes, need to permute
+            col0 = _mm256_permute4x64_epi64(col0, 0xD8); // [0,2,1,3]
+
+            // Extract k1 values (high 16 bits of each 32-bit word)
+            __m256i col1_lo_32 = _mm256_srli_epi32(gather_lo, 16);
+            __m256i col1_hi_32 = _mm256_srli_epi32(gather_hi, 16);
+            col1 = _mm256_packus_epi32(col1_lo_32, col1_hi_32);
+            col1 = _mm256_permute4x64_epi64(col1, 0xD8);
+        }
+
+        // Interleave col0 and col1 to get pair-interleaved output
+        // Want: [col0[0], col1[0], col0[1], col1[1], ...]
+        __m256i interleaved_lo = _mm256_unpacklo_epi16(col0, col1);
+        __m256i interleaved_hi = _mm256_unpackhi_epi16(col0, col1);
+
+        // Fix lane ordering after unpack (operates within 128-bit lanes)
+        // interleaved_lo has [0-3, 8-11] in lanes, interleaved_hi has [4-7, 12-15]
+        __m256i out0 = _mm256_permute2x128_si256(interleaved_lo, interleaved_hi, 0x20);
+        __m256i out1 = _mm256_permute2x128_si256(interleaved_lo, interleaved_hi, 0x31);
+
+        // Store to B.data[k_group][0..15][0..1]
+        // B.data[k_group] is 16×2 = 32 BF16 = 64 bytes
+        _mm256_store_si256((__m256i *)&b_tile->data[k_group][0][0], out0);
+        _mm256_store_si256((__m256i *)&b_tile->data[k_group][8][0], out1);
+    }
+    nk_compiler_barrier_sapphire_amx_();
+}
+
+/*  Pack A transposed into B format for INT8.
+ *  Converts A[n][k] -> B[k][n] with quad-interleaving for TDPBSSD.
+ *
+ *  Uses vectorized 16×64 transpose with ZMM operations:
+ *  - Process 4 K-columns at a time (one k_group)
+ *  - Each column has 16 elements (strided in A)
+ *  - Interleave quads and store contiguously to B
+ */
+NK_INTERNAL void nk_dots_i8i8i32_pack_transposed_sapphire_amx( //
+    nk_dots_i8i8i32_a16x64_sapphire_amx_t const *a_tile,       //
+    nk_dots_i8i8i32_b64x16_sapphire_amx_t *b_tile) {
+
+    // Process 4 K-columns at a time (forming one k_group in output)
+    for (nk_size_t k_group = 0; k_group < 16; k_group++) {
+        nk_size_t k0 = k_group * 4;
+
+        // For INT8, A.data[n][k] has stride 64 bytes between rows
+        // Load 4 consecutive columns from all 16 rows
+
+        // Use XMM for column extraction (16 × 8-bit = 128 bits per column)
+        __m128i col0, col1, col2, col3;
+
+        // Gather columns k0..k3 using 32-bit gather (gets 4 I8 per element)
+        {
+            __m128i idx = _mm_setr_epi32(0, 64, 128, 192);
+            nk_i8_t const *base = &a_tile->data[0][k0];
+
+            // Gather 4 rows at a time
+            __m128i g0 = _mm_i32gather_epi32((int const *)base, idx, 1);
+            __m128i g1 = _mm_i32gather_epi32((int const *)(base + 4 * 64), idx, 1);
+            __m128i g2 = _mm_i32gather_epi32((int const *)(base + 8 * 64), idx, 1);
+            __m128i g3 = _mm_i32gather_epi32((int const *)(base + 12 * 64), idx, 1);
+
+            // g0 contains [a[0][k0:k0+3], a[1][k0:k0+3], a[2][k0:k0+3], a[3][k0:k0+3]]
+            // Each 32-bit element has 4 I8 values for columns k0,k1,k2,k3
+
+            // Extract column k0 (byte 0 from each 32-bit word)
+            __m128i mask_byte0 = _mm_set1_epi32(0x000000FF);
+            __m128i c0_0 = _mm_and_si128(g0, mask_byte0);
+            __m128i c0_1 = _mm_and_si128(g1, mask_byte0);
+            __m128i c0_2 = _mm_and_si128(g2, mask_byte0);
+            __m128i c0_3 = _mm_and_si128(g3, mask_byte0);
+
+            // Pack into bytes
+            __m128i c0_01 = _mm_packus_epi32(c0_0, c0_1);
+            __m128i c0_23 = _mm_packus_epi32(c0_2, c0_3);
+            col0 = _mm_packus_epi16(c0_01, c0_23);
+
+            // Extract columns k1, k2, k3 similarly
+            __m128i c1_0 = _mm_and_si128(_mm_srli_epi32(g0, 8), mask_byte0);
+            __m128i c1_1 = _mm_and_si128(_mm_srli_epi32(g1, 8), mask_byte0);
+            __m128i c1_2 = _mm_and_si128(_mm_srli_epi32(g2, 8), mask_byte0);
+            __m128i c1_3 = _mm_and_si128(_mm_srli_epi32(g3, 8), mask_byte0);
+            __m128i c1_01 = _mm_packus_epi32(c1_0, c1_1);
+            __m128i c1_23 = _mm_packus_epi32(c1_2, c1_3);
+            col1 = _mm_packus_epi16(c1_01, c1_23);
+
+            __m128i c2_0 = _mm_and_si128(_mm_srli_epi32(g0, 16), mask_byte0);
+            __m128i c2_1 = _mm_and_si128(_mm_srli_epi32(g1, 16), mask_byte0);
+            __m128i c2_2 = _mm_and_si128(_mm_srli_epi32(g2, 16), mask_byte0);
+            __m128i c2_3 = _mm_and_si128(_mm_srli_epi32(g3, 16), mask_byte0);
+            __m128i c2_01 = _mm_packus_epi32(c2_0, c2_1);
+            __m128i c2_23 = _mm_packus_epi32(c2_2, c2_3);
+            col2 = _mm_packus_epi16(c2_01, c2_23);
+
+            __m128i c3_0 = _mm_srli_epi32(g0, 24);
+            __m128i c3_1 = _mm_srli_epi32(g1, 24);
+            __m128i c3_2 = _mm_srli_epi32(g2, 24);
+            __m128i c3_3 = _mm_srli_epi32(g3, 24);
+            __m128i c3_01 = _mm_packus_epi32(c3_0, c3_1);
+            __m128i c3_23 = _mm_packus_epi32(c3_2, c3_3);
+            col3 = _mm_packus_epi16(c3_01, c3_23);
+        }
+
+        // Quad-interleave: [col0[0], col1[0], col2[0], col3[0], col0[1], ...]
+        // Stage 1: byte interleave pairs
+        __m128i p01_lo = _mm_unpacklo_epi8(col0, col1);
+        __m128i p01_hi = _mm_unpackhi_epi8(col0, col1);
+        __m128i p23_lo = _mm_unpacklo_epi8(col2, col3);
+        __m128i p23_hi = _mm_unpackhi_epi8(col2, col3);
+
+        // Stage 2: word interleave to quads
+        __m128i q0 = _mm_unpacklo_epi16(p01_lo, p23_lo); // rows 0-3
+        __m128i q1 = _mm_unpackhi_epi16(p01_lo, p23_lo); // rows 4-7
+        __m128i q2 = _mm_unpacklo_epi16(p01_hi, p23_hi); // rows 8-11
+        __m128i q3 = _mm_unpackhi_epi16(p01_hi, p23_hi); // rows 12-15
+
+        // Store to B.data[k_group][0..15][0..3]
+        // B.data[k_group] is 16×4 = 64 I8 = 64 bytes
+        _mm_store_si128((__m128i *)&b_tile->data[k_group][0][0], q0);
+        _mm_store_si128((__m128i *)&b_tile->data[k_group][4][0], q1);
+        _mm_store_si128((__m128i *)&b_tile->data[k_group][8][0], q2);
+        _mm_store_si128((__m128i *)&b_tile->data[k_group][12][0], q3);
+    }
+    nk_compiler_barrier_sapphire_amx_();
+}
+
+/* ============================================================================
+ *  Cross-Correlation API (A × Aᵀ)
+ * ============================================================================ */
+
+/*  Compute self cross-correlation for up to 16 BF16 vectors.
+ *  Result[i,j] = dot(vectors[i], vectors[j])
+ *
+ *  @param vectors   Row-major array of n_vectors, each of dimension k
+ *  @param n_vectors Number of vectors (1-16, padded internally if < 16)
+ *  @param k         Vector dimension (padded to multiple of 96 internally)
+ *  @param stride    Byte stride between vectors
+ *  @param result    Output n_vectors × n_vectors matrix
+ *  @param result_stride Byte stride between result rows
+ */
+NK_PUBLIC void nk_cross_bf16bf16f32_sapphire_amx(               //
+    nk_bf16_t const *vectors, nk_size_t n_vectors, nk_size_t k, //
+    nk_size_t stride, nk_f32_t *result, nk_size_t result_stride) {
+
+    nk_size_t const stride_elements = stride / sizeof(nk_bf16_t);
+    nk_size_t const result_stride_elements = result_stride / sizeof(nk_f32_t);
+
+    // Round K up to multiple of 96 (3 tiles × 32 elements)
+    nk_size_t const k_tiles = (k + 31) / 32;
+    nk_size_t const k_tile_groups = (k_tiles + 2) / 3; // Groups of 3 tiles
+
+    // Allocate tile buffers (3 A tiles + 3 B tiles per group)
+    nk_dots_bf16bf16f32_a16x32_sapphire_amx_t a_tiles[3];
+    nk_dots_bf16bf16f32_b32x16_sapphire_amx_t b_tiles[3];
+    nk_dots_bf16bf16f32_state_sapphire_amx_t state;
+
+    // Configure AMX tiles
+    nk_amx_tile_configure_sapphire_amx_();
+
+    // Initialize output state
+    nk_dots_bf16bf16f32_init_sapphire_amx(&state);
+
+    // Process K dimension in groups of 96 (3 tiles)
+    for (nk_size_t kg = 0; kg < k_tile_groups; kg++) {
+        nk_size_t k_base = kg * 96;
+
+        // Load 3 A tiles from vectors
+        for (int t = 0; t < 3; t++) {
+            nk_size_t k_start = k_base + t * 32;
+            nk_size_t valid_cols = (k_start + 32 <= k) ? 32 : (k > k_start ? k - k_start : 0);
+            nk_bf16_t const *src = vectors + k_start;
+            nk_dots_bf16bf16f32_load_a_sapphire_amx(&a_tiles[t], src, stride_elements, n_vectors, valid_cols);
+        }
+
+        // Pack A transposed into B tiles
+        for (int t = 0; t < 3; t++) { nk_dots_bf16bf16f32_pack_transposed_sapphire_amx(&a_tiles[t], &b_tiles[t]); }
+
+        // Accumulate: state += A × B
+        nk_dots_bf16bf16f32_update_sapphire_amx(&state, &a_tiles[0], &a_tiles[1], &a_tiles[2], &b_tiles[0], &b_tiles[1],
+                                                &b_tiles[2]);
+    }
+
+    // Store result
+    nk_dots_bf16bf16f32_store_sapphire_amx(&state, result, result_stride_elements, n_vectors, n_vectors);
+}
+
+/*  Compute self cross-correlation for up to 16 INT8 vectors.
+ *  Result[i,j] = dot(vectors[i], vectors[j])
+ */
+NK_PUBLIC void nk_cross_i8i8i32_sapphire_amx(                 //
+    nk_i8_t const *vectors, nk_size_t n_vectors, nk_size_t k, //
+    nk_size_t stride, nk_i32_t *result, nk_size_t result_stride) {
+
+    nk_size_t const result_stride_elements = result_stride / sizeof(nk_i32_t);
+
+    // Round K up to multiple of 192 (3 tiles × 64 elements)
+    nk_size_t const k_tiles = (k + 63) / 64;
+    nk_size_t const k_tile_groups = (k_tiles + 2) / 3;
+
+    // Allocate tile buffers
+    nk_dots_i8i8i32_a16x64_sapphire_amx_t a_tiles[3];
+    nk_dots_i8i8i32_b64x16_sapphire_amx_t b_tiles[3];
+    nk_dots_i8i8i32_state_sapphire_amx_t state;
+
+    // Configure AMX tiles
+    nk_amx_tile_configure_sapphire_amx_();
+
+    // Initialize output state
+    nk_dots_i8i8i32_init_sapphire_amx(&state);
+
+    // Process K dimension in groups of 192 (3 tiles)
+    for (nk_size_t kg = 0; kg < k_tile_groups; kg++) {
+        nk_size_t k_base = kg * 192;
+
+        // Load 3 A tiles from vectors
+        for (int t = 0; t < 3; t++) {
+            nk_size_t k_start = k_base + t * 64;
+            nk_size_t valid_cols = (k_start + 64 <= k) ? 64 : (k > k_start ? k - k_start : 0);
+            nk_i8_t const *src = vectors + k_start;
+            nk_dots_i8i8i32_load_a_sapphire_amx(&a_tiles[t], src, stride, n_vectors, valid_cols);
+        }
+
+        // Pack A transposed into B tiles
+        for (int t = 0; t < 3; t++) { nk_dots_i8i8i32_pack_transposed_sapphire_amx(&a_tiles[t], &b_tiles[t]); }
+
+        // Accumulate: state += A × B
+        nk_dots_i8i8i32_update_sapphire_amx(&state, &a_tiles[0], &a_tiles[1], &a_tiles[2], &b_tiles[0], &b_tiles[1],
+                                            &b_tiles[2]);
+    }
+
+    // Store result
+    nk_dots_i8i8i32_store_sapphire_amx(&state, result, result_stride_elements, n_vectors, n_vectors);
 }
 
 /*  AVX-512 edge matmul for BF16 → F32.
@@ -469,419 +1138,15 @@ NK_PUBLIC void nk_dots_i8i8i32_pack_sapphire_amx( //
     }
 }
 
-/*  BF16 → F32 matmul (aligned path): Direct tile loads/stores when stride >= 64 bytes.
- *
- *  Optimized with:
- *  - Nc=2 panel blocking: process 2 N-blocks (64 columns) at a time to maximize B-tile reuse
- *  - Software pipelining: overlap tile loads with compute operations
- *  - Linear B indexing: sequential memory access along K dimension
- *
- *  AMX tile usage:
- *    TMM0-1: A tiles (2 rows of 16×32 from current M-block)
- *    TMM2-3: B tiles (2 tiles from current N-block)
- *    TMM4-7: C accumulators (2×2 = 4 output tiles of 16×16 each)
- */
-NK_INTERNAL void nk_dots_bf16bf16f32_sapphire_aligned_(    //
-    nk_bf16_t const *a, void const *b_packed, nk_f32_t *c, //
-    nk_size_t m, nk_size_t n, nk_size_t k,                 //
-    nk_size_t a_stride, nk_size_t c_stride) {
-
-    // Read packed B header
-    nk_dots_amx_packed_header_t const *header = (nk_dots_amx_packed_header_t const *)b_packed;
-    nk_size_t const num_n_tiles = header->full_n_tiles;
-    nk_size_t const num_k_tiles = header->full_k_tiles;
-    nk_size_t const n_remainder_rows = header->n_edge_rows;
-
-    // Pointers to packed data regions
-    nk_bf16_t const *b_tiles = (nk_bf16_t const *)((char const *)b_packed + sizeof(nk_dots_amx_packed_header_t));
-    nk_bf16_t const *n_edge_ptr = (nk_bf16_t const *)((char const *)b_packed + header->n_edge_offset);
-
-    // Constants for BF16 AMX tiles
-    nk_size_t const tile_k_cols = 32;    // K-dimension of one tile
-    nk_size_t const tile_elements = 512; // 16 rows × 32 cols
-
-    // Stride conversions
-    nk_size_t const a_stride_bf16 = a_stride / sizeof(nk_bf16_t);
-    nk_size_t const c_stride_f32 = c_stride / sizeof(nk_f32_t);
-
-    // Block dimensions
-    nk_size_t const num_m_blocks = m / 32;          // Each M-block = 32 rows (2 tiles)
-    nk_size_t const num_n_blocks = num_n_tiles / 2; // Each N-block = 32 cols (2 tiles)
-    nk_size_t const full_n_cols = num_n_tiles * 16;
-
-    // Nc=2 panel size: process 2 N-blocks (64 columns) per outer iteration
-    // This keeps B tiles hot in L2 while streaming through A rows
-    nk_size_t const panel_size = 2;
-
-    // AMX: Full 32×32 output blocks with Nc=2 blocking and software pipelining
-    if (num_m_blocks > 0 && num_n_blocks > 0 && num_k_tiles > 0) {
-        nk_amx_tile_configure_sapphire_amx_();
-
-        // Outer loop: N-panels of size Nc=2
-        for (nk_size_t n_panel_start = 0; n_panel_start < num_n_blocks; n_panel_start += panel_size) {
-            nk_size_t const n_panel_end = (n_panel_start + panel_size < num_n_blocks) ? (n_panel_start + panel_size)
-                                                                                      : num_n_blocks;
-
-            // Middle loop: all M-blocks (B tiles stay hot for each M-block)
-            for (nk_size_t m_block = 0; m_block < num_m_blocks; m_block++) {
-                nk_size_t const m_row = m_block * 32;
-
-                // A tile base addresses for this M-block
-                nk_bf16_t const *a_row0 = a + m_row * a_stride_bf16;
-                nk_bf16_t const *a_row1 = a + (m_row + 16) * a_stride_bf16;
-
-                // Inner loop: N-blocks within current panel
-                for (nk_size_t n_block = n_panel_start; n_block < n_panel_end; n_block++) {
-                    nk_size_t const n_col = n_block * 32;
-
-                    // B tile base indices for this N-block (linear layout)
-                    nk_size_t const b_n0_base = (n_block * 2) * num_k_tiles;     // First N-tile
-                    nk_size_t const b_n1_base = (n_block * 2 + 1) * num_k_tiles; // Second N-tile
-
-                    // Zero accumulators
-                    _tile_zero(4);
-                    _tile_zero(5);
-                    _tile_zero(6);
-                    _tile_zero(7);
-
-                    // Software-pipelined K-loop
-                    if (num_k_tiles > 1) {
-                        // Prologue: load first tiles
-                        _tile_loadd(0, a_row0, (int)a_stride);
-                        _tile_loadd(2, b_tiles + b_n0_base * tile_elements, 64);
-
-                        // Main loop: compute current, load next
-                        for (nk_size_t k_tile = 0; k_tile < num_k_tiles - 1; k_tile++) {
-                            nk_size_t const k_offset = k_tile * tile_k_cols;
-                            nk_size_t const next_k_offset = (k_tile + 1) * tile_k_cols;
-
-                            // Compute A0×B0, load A1 and B1
-                            _tile_dpbf16ps(4, 0, 2);
-                            _tile_loadd(1, a_row1 + k_offset, (int)a_stride);
-                            _tile_loadd(3, b_tiles + (b_n1_base + k_tile) * tile_elements, 64);
-
-                            // Compute A1×B0, A0×B1, A1×B1
-                            _tile_dpbf16ps(6, 1, 2);
-                            _tile_dpbf16ps(5, 0, 3);
-                            _tile_dpbf16ps(7, 1, 3);
-
-                            // Load next iteration's A0 and B0
-                            _tile_loadd(0, a_row0 + next_k_offset, (int)a_stride);
-                            _tile_loadd(2, b_tiles + (b_n0_base + k_tile + 1) * tile_elements, 64);
-                        }
-
-                        // Epilogue: last K iteration
-                        nk_size_t const last_k = num_k_tiles - 1;
-                        nk_size_t const last_k_offset = last_k * tile_k_cols;
-
-                        _tile_dpbf16ps(4, 0, 2);
-                        _tile_loadd(1, a_row1 + last_k_offset, (int)a_stride);
-                        _tile_dpbf16ps(6, 1, 2);
-                        _tile_loadd(3, b_tiles + (b_n1_base + last_k) * tile_elements, 64);
-                        _tile_dpbf16ps(5, 0, 3);
-                        _tile_dpbf16ps(7, 1, 3);
-                    }
-                    else {
-                        // Single K-tile: no pipelining needed
-                        _tile_loadd(0, a_row0, (int)a_stride);
-                        _tile_loadd(1, a_row1, (int)a_stride);
-                        _tile_loadd(2, b_tiles + b_n0_base * tile_elements, 64);
-                        _tile_loadd(3, b_tiles + b_n1_base * tile_elements, 64);
-                        _tile_dpbf16ps(4, 0, 2);
-                        _tile_dpbf16ps(5, 0, 3);
-                        _tile_dpbf16ps(6, 1, 2);
-                        _tile_dpbf16ps(7, 1, 3);
-                    }
-
-                    // Store 2×2 output block directly to C
-                    nk_f32_t *c_block = c + m_row * c_stride_f32 + n_col;
-                    _tile_stored(4, c_block, (int)c_stride);
-                    _tile_stored(5, c_block + 16, (int)c_stride);
-                    _tile_stored(6, c_block + 16 * c_stride_f32, (int)c_stride);
-                    _tile_stored(7, c_block + 16 * c_stride_f32 + 16, (int)c_stride);
-                }
-            }
-        }
-
-        _tile_release();
-    }
-
-    // AVX-512: N-remainder rows (rows beyond full N-tiles)
-    if (n_remainder_rows > 0) {
-        nk_dots_bf16bf16f32_avx512_edge_(a, n_edge_ptr, c + full_n_cols, m, n_remainder_rows, k, a_stride_bf16, k,
-                                         c_stride_f32);
-    }
-
-    // AMX: M-remainder rows (rows beyond full M-blocks) for full N-tiles
-    if (m > num_m_blocks * 32 && num_n_tiles > 0) {
-        nk_size_t const m_remainder_start = num_m_blocks * 32;
-        nk_size_t const m_remainder_count = m - m_remainder_start;
-
-        nk_amx_tile_configure_sapphire_amx_();
-
-        // Process each N-tile individually for M-remainder
-        for (nk_size_t n_tile = 0; n_tile < num_n_tiles; n_tile++) {
-            nk_size_t const n_col = n_tile * 16;
-
-            _tile_zero(4);
-            _tile_zero(6);
-
-            // Staging buffers for partial A tiles
-            NK_ALIGN64 nk_bf16_t a_tile_upper[16][32] = {{0}};
-            NK_ALIGN64 nk_bf16_t a_tile_lower[16][32] = {{0}};
-
-            nk_size_t const rows_upper = (m_remainder_count > 16) ? 16 : m_remainder_count;
-            nk_size_t const rows_lower = (m_remainder_count > 16) ? m_remainder_count - 16 : 0;
-
-            for (nk_size_t k_tile = 0; k_tile < num_k_tiles; k_tile++) {
-                nk_size_t const k_offset = k_tile * tile_k_cols;
-                nk_size_t const k_valid = (k_offset + tile_k_cols <= k) ? tile_k_cols : (k - k_offset);
-
-                // Load partial A tiles with masking
-                nk_load_a_tile_bf16_masked_(a + m_remainder_start * a_stride_bf16 + k_offset, a_stride_bf16, rows_upper,
-                                            k_valid, (nk_bf16_t *)a_tile_upper);
-                if (rows_lower > 0) {
-                    nk_load_a_tile_bf16_masked_(a + (m_remainder_start + 16) * a_stride_bf16 + k_offset, a_stride_bf16,
-                                                rows_lower, k_valid, (nk_bf16_t *)a_tile_lower);
-                }
-
-                _tile_loadd(0, a_tile_upper, 64);
-                _tile_loadd(1, a_tile_lower, 64);
-
-                // Linear B tile index
-                nk_size_t const b_tile_idx = n_tile * num_k_tiles + k_tile;
-                _tile_loadd(2, b_tiles + b_tile_idx * tile_elements, 64);
-
-                _tile_dpbf16ps(4, 0, 2);
-                _tile_dpbf16ps(6, 1, 2);
-            }
-
-            // Store with masking for partial rows
-            NK_ALIGN64 nk_f32_t c_tile_buf[16][16];
-
-            _tile_stored(4, c_tile_buf, 64);
-            nk_store_c_tile_f32_masked_((nk_f32_t *)c_tile_buf, c + m_remainder_start * c_stride_f32 + n_col,
-                                        c_stride_f32, rows_upper, 16);
-
-            if (rows_lower > 0) {
-                _tile_stored(6, c_tile_buf, 64);
-                nk_store_c_tile_f32_masked_((nk_f32_t *)c_tile_buf, c + (m_remainder_start + 16) * c_stride_f32 + n_col,
-                                            c_stride_f32, rows_lower, 16);
-            }
-        }
-
-        _tile_release();
-    }
-
-    // AVX-512: M-remainder × N-remainder corner
-    if (m > num_m_blocks * 32 && n_remainder_rows > 0) {
-        nk_size_t const m_remainder_start = num_m_blocks * 32;
-        nk_size_t const m_remainder_count = m - m_remainder_start;
-
-        nk_dots_bf16bf16f32_avx512_edge_(a + m_remainder_start * a_stride_bf16, n_edge_ptr,
-                                         c + m_remainder_start * c_stride_f32 + full_n_cols, m_remainder_count,
-                                         n_remainder_rows, k, a_stride_bf16, k, c_stride_f32);
-    }
-}
-
-/*  BF16 → F32 matmul (misaligned path): All I/O through aligned buffers with AVX-512.
- *  Used when stride < 64 bytes (can't use direct tile loads/stores).
- */
-NK_INTERNAL void nk_dots_bf16bf16f32_sapphire_misaligned_( //
-    nk_bf16_t const *a, void const *b_packed, nk_f32_t *c, //
-    nk_size_t m, nk_size_t n, nk_size_t k,                 //
-    nk_size_t a_stride, nk_size_t c_stride) {
-
-    // Read header for hybrid layout
-    nk_dots_amx_packed_header_t const *header = (nk_dots_amx_packed_header_t const *)b_packed;
-    nk_size_t const full_n_tiles = header->full_n_tiles;
-    nk_size_t const full_k_tiles = header->full_k_tiles;
-    nk_size_t const n_edge_rows = header->n_edge_rows;
-
-    nk_bf16_t const *tiles_ptr = (nk_bf16_t const *)((char const *)b_packed + sizeof(nk_dots_amx_packed_header_t));
-    nk_bf16_t const *n_edge_ptr = (nk_bf16_t const *)((char const *)b_packed + header->n_edge_offset);
-
-    nk_size_t const tmm_cols_bf16 = 32;
-    nk_size_t const tile_elements_bf16 = 512;
-
-    nk_size_t const a_stride_elements = a_stride / sizeof(nk_bf16_t);
-    nk_size_t const c_stride_elements = c_stride / sizeof(nk_f32_t);
-    nk_size_t const full_n = full_n_tiles * 16;
-    nk_size_t const full_m_blocks = m / 32;
-    nk_size_t const full_n_blocks = full_n_tiles / 2;
-    nk_size_t const total_full_tiles = full_n_tiles * full_k_tiles;
-
-    // Stack buffers for tile I/O
-    NK_ALIGN64 nk_bf16_t a_buf_upper[16][32];
-    NK_ALIGN64 nk_bf16_t a_buf_lower[16][32];
-    NK_ALIGN64 nk_f32_t c_buf[16][16];
-
-    // AMX: Full 32×32 blocks through buffers
-    if (full_m_blocks > 0 && full_n_blocks > 0 && full_k_tiles > 0) {
-        nk_amx_tile_configure_sapphire_amx_();
-
-        for (nk_size_t row_block_idx = 0; row_block_idx < full_m_blocks; row_block_idx++) {
-            nk_size_t const row_offset = row_block_idx * 32;
-
-            for (nk_size_t col_block_idx = 0; col_block_idx < full_n_blocks; col_block_idx++) {
-                nk_size_t const col_offset = col_block_idx * 32;
-
-                _tile_zero(4);
-                _tile_zero(5);
-                _tile_zero(6);
-                _tile_zero(7);
-
-                nk_size_t const b_tile_n0 = col_block_idx * 2;
-                nk_size_t const b_tile_n1 = col_block_idx * 2 + 1;
-
-                for (nk_size_t depth_block_idx = 0; depth_block_idx < full_k_tiles; depth_block_idx++) {
-                    nk_size_t const k_offset = depth_block_idx * tmm_cols_bf16;
-
-                    // Load A through buffers using AVX-512
-                    for (nk_size_t r = 0; r < 16; r++) {
-                        nk_bf16_t const *src_upper = a + (row_offset + r) * a_stride_elements + k_offset;
-                        nk_bf16_t const *src_lower = a + (row_offset + 16 + r) * a_stride_elements + k_offset;
-                        __m512i upper_row = _mm512_loadu_si512((__m512i const *)src_upper);
-                        __m512i lower_row = _mm512_loadu_si512((__m512i const *)src_lower);
-                        _mm512_store_si512((__m512i *)a_buf_upper[r], upper_row);
-                        _mm512_store_si512((__m512i *)a_buf_lower[r], lower_row);
-                    }
-                    __asm__ volatile("" ::: "memory");
-
-                    _tile_loadd(0, a_buf_upper, 64);
-                    _tile_loadd(1, a_buf_lower, 64);
-
-                    // B tiles via Morton indexing
-                    nk_size_t morton_idx0 = nk_morton_encode_sapphire_amx_((nk_u32_t)b_tile_n0,
-                                                                           (nk_u32_t)depth_block_idx);
-                    if (morton_idx0 >= total_full_tiles) morton_idx0 = b_tile_n0 * full_k_tiles + depth_block_idx;
-                    nk_bf16_t const *b_tile_ptr0 = tiles_ptr + morton_idx0 * tile_elements_bf16;
-
-                    nk_size_t morton_idx1 = nk_morton_encode_sapphire_amx_((nk_u32_t)b_tile_n1,
-                                                                           (nk_u32_t)depth_block_idx);
-                    if (morton_idx1 >= total_full_tiles) morton_idx1 = b_tile_n1 * full_k_tiles + depth_block_idx;
-                    nk_bf16_t const *b_tile_ptr1 = tiles_ptr + morton_idx1 * tile_elements_bf16;
-
-                    _tile_loadd(2, b_tile_ptr0, 64);
-                    _tile_loadd(3, b_tile_ptr1, 64);
-
-                    _tile_dpbf16ps(4, 0, 2);
-                    _tile_dpbf16ps(5, 0, 3);
-                    _tile_dpbf16ps(6, 1, 2);
-                    _tile_dpbf16ps(7, 1, 3);
-                }
-
-                // Store C through buffers using AVX-512
-                _tile_stored(4, c_buf, 64);
-                for (nk_size_t r = 0; r < 16; r++) {
-                    __m512 row = _mm512_load_ps(c_buf[r]);
-                    _mm512_storeu_ps(c + (row_offset + r) * c_stride_elements + col_offset, row);
-                }
-
-                _tile_stored(5, c_buf, 64);
-                for (nk_size_t r = 0; r < 16; r++) {
-                    __m512 row = _mm512_load_ps(c_buf[r]);
-                    _mm512_storeu_ps(c + (row_offset + r) * c_stride_elements + col_offset + 16, row);
-                }
-
-                _tile_stored(6, c_buf, 64);
-                for (nk_size_t r = 0; r < 16; r++) {
-                    __m512 row = _mm512_load_ps(c_buf[r]);
-                    _mm512_storeu_ps(c + (row_offset + 16 + r) * c_stride_elements + col_offset, row);
-                }
-
-                _tile_stored(7, c_buf, 64);
-                for (nk_size_t r = 0; r < 16; r++) {
-                    __m512 row = _mm512_load_ps(c_buf[r]);
-                    _mm512_storeu_ps(c + (row_offset + 16 + r) * c_stride_elements + col_offset + 16, row);
-                }
-            }
-        }
-
-        _tile_release();
-    }
-
-    // AVX-512: N edge rows
-    if (n_edge_rows > 0) {
-        nk_dots_bf16bf16f32_avx512_edge_(a, n_edge_ptr, c + full_n, m, n_edge_rows, k, a_stride_elements, k,
-                                         c_stride_elements);
-    }
-
-    // AMX: M edge rows for full N tiles (through buffers)
-    if (m > full_m_blocks * 32 && full_n_tiles > 0) {
-        nk_size_t const m_edge_start = full_m_blocks * 32;
-        nk_size_t const m_edge_rows = m - m_edge_start;
-
-        nk_amx_tile_configure_sapphire_amx_();
-
-        for (nk_size_t tj = 0; tj < full_n_tiles; tj++) {
-            nk_size_t const col_offset = tj * 16;
-            nk_size_t const b_tile_n0 = tj;
-
-            _tile_zero(4);
-            _tile_zero(6);
-
-            // Zero buffers for edge
-            for (nk_size_t r = 0; r < 16; r++) {
-                _mm512_store_si512((__m512i *)a_buf_upper[r], _mm512_setzero_si512());
-                _mm512_store_si512((__m512i *)a_buf_lower[r], _mm512_setzero_si512());
-            }
-
-            nk_size_t const rows_upper = (m_edge_rows > 16) ? 16 : m_edge_rows;
-            nk_size_t const rows_lower = (m_edge_rows > 16) ? m_edge_rows - 16 : 0;
-
-            for (nk_size_t depth_block_idx = 0; depth_block_idx < full_k_tiles; depth_block_idx++) {
-                nk_size_t const k_offset = depth_block_idx * tmm_cols_bf16;
-                nk_size_t const k_valid = (k_offset + tmm_cols_bf16 <= k) ? tmm_cols_bf16 : (k - k_offset);
-
-                nk_load_a_tile_bf16_masked_(a + m_edge_start * a_stride_elements + k_offset, a_stride_elements,
-                                            rows_upper, k_valid, (nk_bf16_t *)a_buf_upper);
-                if (rows_lower > 0) {
-                    nk_load_a_tile_bf16_masked_(a + (m_edge_start + 16) * a_stride_elements + k_offset,
-                                                a_stride_elements, rows_lower, k_valid, (nk_bf16_t *)a_buf_lower);
-                }
-
-                _tile_loadd(0, a_buf_upper, 64);
-                _tile_loadd(1, a_buf_lower, 64);
-
-                nk_size_t morton_idx0 = nk_morton_encode_sapphire_amx_((nk_u32_t)b_tile_n0, (nk_u32_t)depth_block_idx);
-                if (morton_idx0 >= total_full_tiles) morton_idx0 = b_tile_n0 * full_k_tiles + depth_block_idx;
-                nk_bf16_t const *b_tile_ptr0 = tiles_ptr + morton_idx0 * tile_elements_bf16;
-
-                _tile_loadd(2, b_tile_ptr0, 64);
-
-                _tile_dpbf16ps(4, 0, 2);
-                _tile_dpbf16ps(6, 1, 2);
-            }
-
-            _tile_stored(4, c_buf, 64);
-            nk_store_c_tile_f32_masked_((nk_f32_t *)c_buf, c + m_edge_start * c_stride_elements + col_offset,
-                                        c_stride_elements, rows_upper, 16);
-
-            if (rows_lower > 0) {
-                _tile_stored(6, c_buf, 64);
-                nk_store_c_tile_f32_masked_((nk_f32_t *)c_buf, c + (m_edge_start + 16) * c_stride_elements + col_offset,
-                                            c_stride_elements, rows_lower, 16);
-            }
-        }
-
-        _tile_release();
-    }
-
-    // AVX-512: M edge × N edge corner
-    if (m > full_m_blocks * 32 && n_edge_rows > 0) {
-        nk_size_t const m_edge_start = full_m_blocks * 32;
-        nk_size_t const m_edge_count = m - m_edge_start;
-
-        nk_dots_bf16bf16f32_avx512_edge_(a + m_edge_start * a_stride_elements, n_edge_ptr,
-                                         c + m_edge_start * c_stride_elements + full_n, m_edge_count, n_edge_rows, k,
-                                         a_stride_elements, k, c_stride_elements);
-    }
-}
-
 /*  BF16 → F32 matmul: C[m×n] = A[m×k] × B[n×k]ᵀ
  *
- *  Dispatcher that selects aligned or misaligned path based on stride.
+ *  Unified implementation using composable tile primitives.
+ *  All I/O goes through aligned tile buffers for consistent behavior.
+ *
+ *  Uses register-resident 2×2 update pattern:
+ *  - TMM4-7 hold C accumulators across entire K-loop (no redundant load/store)
+ *  - 32×32 output blocks processed per M×N iteration
+ *
  *  Single-threaded. For parallel execution, partition A rows across threads.
  */
 NK_PUBLIC void nk_dots_bf16bf16f32_sapphire_amx(           //
@@ -889,10 +1154,188 @@ NK_PUBLIC void nk_dots_bf16bf16f32_sapphire_amx(           //
     nk_size_t m, nk_size_t n, nk_size_t k,                 //
     nk_size_t a_stride, nk_size_t c_stride) {
 
-    // Check if strides allow direct tile operations (need 64 bytes = 32 BF16 or 16 F32)
-    int const can_direct = (a_stride >= 64) && (c_stride >= 64);
-    if (can_direct) nk_dots_bf16bf16f32_sapphire_aligned_(a, b_packed, c, m, n, k, a_stride, c_stride);
-    else nk_dots_bf16bf16f32_sapphire_misaligned_(a, b_packed, c, m, n, k, a_stride, c_stride);
+    // Parse packed B header
+    nk_dots_amx_packed_header_t const *header = (nk_dots_amx_packed_header_t const *)b_packed;
+    nk_size_t const num_n_tiles = header->full_n_tiles;
+    nk_size_t const num_k_tiles = header->full_k_tiles;
+    nk_size_t const n_edge_rows = header->n_edge_rows;
+
+    // Packed B data regions
+    nk_bf16_t const *b_tiles = (nk_bf16_t const *)((char const *)b_packed + sizeof(nk_dots_amx_packed_header_t));
+    nk_bf16_t const *n_edge_ptr = (nk_bf16_t const *)((char const *)b_packed + header->n_edge_offset);
+
+    // Stride conversions
+    nk_size_t const a_stride_elements = a_stride / sizeof(nk_bf16_t);
+    nk_size_t const c_stride_elements = c_stride / sizeof(nk_f32_t);
+
+    // Tile dimensions
+    nk_size_t const tile_k = 32;     // K elements per BF16 tile
+    nk_size_t const tile_size = 512; // Elements per packed tile
+    nk_size_t const full_n = num_n_tiles * 16;
+
+    // Block counts (32×32 output blocks = 2×2 tiles)
+    nk_size_t const num_m_blocks = (m + 31) / 32; // Ceiling division
+    nk_size_t const num_n_blocks = num_n_tiles / 2;
+
+    if (num_k_tiles == 0) return;
+
+    // Tile buffers for A (only used for edge tiles)
+    nk_dots_bf16bf16f32_a16x32_sapphire_amx_t a0, a1;
+    nk_dots_bf16bf16f32_state2x2_sapphire_amx_t c_state;
+
+    // Precompute: number of full K-tiles (no masking needed)
+    nk_size_t const num_full_k_tiles = k / tile_k;
+    nk_size_t const k_remainder = k % tile_k;
+
+    nk_amx_tile_configure_sapphire_amx_();
+
+    // Process all 32×32 M×N blocks (including partial edge blocks)
+    for (nk_size_t m_block = 0; m_block < num_m_blocks; m_block++) {
+        nk_size_t const m_row = m_block * 32;
+        nk_size_t const rows_valid = (m_row + 32 <= m) ? 32 : (m - m_row);
+        nk_size_t const is_full_m_block = (rows_valid == 32);
+
+        // Process full N-blocks (pairs of 16-column tiles = 32 columns)
+        for (nk_size_t n_block = 0; n_block < num_n_blocks; n_block++) {
+            nk_size_t const n_col = n_block * 32;
+
+            // B tile base indices (linear layout: n_tile * num_k_tiles + k_tile)
+            nk_size_t const b_n0_base = (n_block * 2) * num_k_tiles;
+            nk_size_t const b_n1_base = (n_block * 2 + 1) * num_k_tiles;
+
+            // Zero accumulators in registers
+            nk_dots_bf16bf16f32_zero2x2_sapphire_amx();
+
+            // FAST PATH: Full M-block with full K-tiles → direct A load
+            if (is_full_m_block) {
+                // Process full K-tiles with direct load
+                for (nk_size_t k_tile = 0; k_tile < num_full_k_tiles; k_tile++) {
+                    nk_size_t const k_off = k_tile * tile_k;
+
+                    nk_dots_bf16bf16f32_b32x16_sapphire_amx_t const *b0 =
+                        (nk_dots_bf16bf16f32_b32x16_sapphire_amx_t const *)(b_tiles + (b_n0_base + k_tile) * tile_size);
+                    nk_dots_bf16bf16f32_b32x16_sapphire_amx_t const *b1 =
+                        (nk_dots_bf16bf16f32_b32x16_sapphire_amx_t const *)(b_tiles + (b_n1_base + k_tile) * tile_size);
+
+                    // Direct load from source - no buffer copy!
+                    nk_dots_bf16bf16f32_update2x2_direct_sapphire_amx(a + m_row * a_stride_elements + k_off,
+                                                                      a + (m_row + 16) * a_stride_elements + k_off,
+                                                                      a_stride, b0, b1);
+                }
+
+                // Handle partial K-tile (if any) with buffered load
+                if (k_remainder > 0) {
+                    nk_size_t const k_tile = num_full_k_tiles;
+                    nk_size_t const k_off = k_tile * tile_k;
+
+                    nk_dots_bf16bf16f32_load_a_sapphire_amx(&a0, a + m_row * a_stride_elements + k_off,
+                                                            a_stride_elements, 16, k_remainder);
+                    nk_dots_bf16bf16f32_load_a_sapphire_amx(&a1, a + (m_row + 16) * a_stride_elements + k_off,
+                                                            a_stride_elements, 16, k_remainder);
+
+                    nk_dots_bf16bf16f32_b32x16_sapphire_amx_t const *b0 =
+                        (nk_dots_bf16bf16f32_b32x16_sapphire_amx_t const *)(b_tiles + (b_n0_base + k_tile) * tile_size);
+                    nk_dots_bf16bf16f32_b32x16_sapphire_amx_t const *b1 =
+                        (nk_dots_bf16bf16f32_b32x16_sapphire_amx_t const *)(b_tiles + (b_n1_base + k_tile) * tile_size);
+
+                    nk_dots_bf16bf16f32_update2x2_sapphire_amx(&a0, &a1, b0, b1);
+                }
+            }
+            // SLOW PATH: Edge M-block → always use buffered load with masking
+            else {
+                nk_size_t const rows0 = (rows_valid > 16) ? 16 : rows_valid;
+                nk_size_t const rows1 = (rows_valid > 16) ? rows_valid - 16 : 0;
+
+                for (nk_size_t k_tile = 0; k_tile < num_k_tiles; k_tile++) {
+                    nk_size_t const k_off = k_tile * tile_k;
+                    nk_size_t const k_valid = (k_tile < num_full_k_tiles) ? tile_k : k_remainder;
+
+                    nk_dots_bf16bf16f32_load_a_sapphire_amx(&a0, a + m_row * a_stride_elements + k_off,
+                                                            a_stride_elements, rows0, k_valid);
+                    if (rows1 > 0) {
+                        nk_dots_bf16bf16f32_load_a_sapphire_amx(&a1, a + (m_row + 16) * a_stride_elements + k_off,
+                                                                a_stride_elements, rows1, k_valid);
+                    }
+
+                    nk_dots_bf16bf16f32_b32x16_sapphire_amx_t const *b0 =
+                        (nk_dots_bf16bf16f32_b32x16_sapphire_amx_t const *)(b_tiles + (b_n0_base + k_tile) * tile_size);
+                    nk_dots_bf16bf16f32_b32x16_sapphire_amx_t const *b1 =
+                        (nk_dots_bf16bf16f32_b32x16_sapphire_amx_t const *)(b_tiles + (b_n1_base + k_tile) * tile_size);
+
+                    nk_dots_bf16bf16f32_update2x2_sapphire_amx(&a0, &a1, b0, b1);
+                }
+            }
+
+            // Store accumulators to output
+            if (is_full_m_block) {
+                // FAST PATH: Direct store to C - no intermediate buffer!
+                nk_dots_bf16bf16f32_store2x2_direct_sapphire_amx(c + m_row * c_stride_elements + n_col, c_stride);
+            }
+            else {
+                // SLOW PATH: Edge M-block needs masked output
+                nk_dots_bf16bf16f32_store2x2_sapphire_amx(&c_state);
+                nk_dots_bf16bf16f32_output2x2_sapphire_amx(&c_state, c + m_row * c_stride_elements + n_col,
+                                                           c_stride_elements, rows_valid, 32);
+            }
+        }
+
+        // Handle odd N-tile (single 16-column tile if num_n_tiles is odd)
+        if (num_n_tiles % 2 == 1) {
+            nk_size_t const n_tile = num_n_tiles - 1;
+            nk_size_t const n_col = n_tile * 16;
+            nk_size_t const b_n_base = n_tile * num_k_tiles;
+            nk_size_t const rows0 = (rows_valid > 16) ? 16 : rows_valid;
+            nk_size_t const rows1 = (rows_valid > 16) ? rows_valid - 16 : 0;
+
+            // Use 1×1 blocking for single N-tile
+            nk_dots_bf16bf16f32_state_sapphire_amx_t c0_state, c1_state;
+            nk_dots_bf16bf16f32_init_sapphire_amx(&c0_state);
+            nk_dots_bf16bf16f32_init_sapphire_amx(&c1_state);
+
+            _tile_zero(4);
+            _tile_zero(6);
+
+            for (nk_size_t k_tile = 0; k_tile < num_k_tiles; k_tile++) {
+                nk_size_t const k_off = k_tile * tile_k;
+                nk_size_t const k_valid = (k_tile < num_full_k_tiles) ? tile_k : k_remainder;
+
+                nk_dots_bf16bf16f32_load_a_sapphire_amx(&a0, a + m_row * a_stride_elements + k_off, a_stride_elements,
+                                                        rows0, k_valid);
+                if (rows1 > 0) {
+                    nk_dots_bf16bf16f32_load_a_sapphire_amx(&a1, a + (m_row + 16) * a_stride_elements + k_off,
+                                                            a_stride_elements, rows1, k_valid);
+                }
+
+                nk_dots_bf16bf16f32_b32x16_sapphire_amx_t const *b0 =
+                    (nk_dots_bf16bf16f32_b32x16_sapphire_amx_t const *)(b_tiles + (b_n_base + k_tile) * tile_size);
+
+                _tile_loadd(0, a0.data, 64);
+                _tile_loadd(1, a1.data, 64);
+                _tile_loadd(2, b0->data, 64);
+
+                _tile_dpbf16ps(4, 0, 2);
+                _tile_dpbf16ps(6, 1, 2);
+            }
+
+            _tile_stored(4, c0_state.data, 64);
+            _tile_stored(6, c1_state.data, 64);
+
+            nk_dots_bf16bf16f32_store_sapphire_amx(&c0_state, c + m_row * c_stride_elements + n_col, c_stride_elements,
+                                                   rows0, 16);
+            if (rows1 > 0) {
+                nk_dots_bf16bf16f32_store_sapphire_amx(&c1_state, c + (m_row + 16) * c_stride_elements + n_col,
+                                                       c_stride_elements, rows1, 16);
+            }
+        }
+    }
+
+    _tile_release();
+
+    // AVX-512 fallback for N-edge rows (unpacked, row-major in b_packed)
+    if (n_edge_rows > 0) {
+        nk_dots_bf16bf16f32_avx512_edge_(a, n_edge_ptr, c + full_n, m, n_edge_rows, k, a_stride_elements, k,
+                                         c_stride_elements);
+    }
 }
 
 /*  BF16 compact: truncate F32 → BF16 in-place using AVX512.
@@ -930,414 +1373,15 @@ NK_PUBLIC void nk_dots_bf16bf16bf16_sapphire_amx( //
     }
 }
 
-/*  I8 → I32 matmul (aligned path): Direct tile loads/stores when stride >= 64 bytes.
- *  This is the fast path - no intermediate buffers for A or C.
- *
- *  Optimization strategy:
- *  - Nc=2 panel blocking: Process 2 N-blocks (64 columns) per outer iteration
- *    to maximize B tile reuse across M-blocks
- *  - Linear B indexing: tile_index = n_tile * num_k_tiles + k_tile for sequential
- *    memory access when streaming along K dimension
- *  - Software pipelining: Overlap tile loads with compute operations
- *  - 2×2 output blocking: 4 accumulator tiles (TMM4-7) for each 32×32 C block
- */
-NK_INTERNAL void nk_dots_i8i8i32_sapphire_aligned_(      //
-    nk_i8_t const *a, void const *b_packed, nk_i32_t *c, //
-    nk_size_t m, nk_size_t n, nk_size_t k,               //
-    nk_size_t a_stride, nk_size_t c_stride) {
-
-    // Parse packed B header
-    nk_dots_amx_packed_header_t const *header = (nk_dots_amx_packed_header_t const *)b_packed;
-    nk_size_t const num_n_tiles = header->full_n_tiles;    // Number of 16-column N tiles
-    nk_size_t const num_k_tiles = header->full_k_tiles;    // Number of 64-element K tiles
-    nk_size_t const n_edge_cols = header->n_edge_rows;     // Columns in N edge (0-15)
-    nk_size_t const n_edge_offset = header->n_edge_offset; // Byte offset to N edge data
-
-    // AMX I8 tile dimensions: 16 rows × 64 columns = 1024 I8 elements = 1KB
-    nk_size_t const tile_k_elements = 64;  // K elements per tile
-    nk_size_t const tile_byte_size = 1024; // Total bytes per packed tile
-
-    // Pointer to packed B tiles (after 64-byte header)
-    nk_i8_t const *b_tiles = (nk_i8_t const *)((char const *)b_packed + 64);
-    nk_i8_t const *n_edge_tiles = (n_edge_offset > 0) ? (nk_i8_t const *)((char const *)b_packed + n_edge_offset)
-                                                      : NULL;
-
-    // Dimension calculations
-    nk_size_t const c_stride_i32 = c_stride / sizeof(nk_i32_t); // C stride in elements
-    nk_size_t const num_m_blocks = m / 32;                      // Number of 32-row M blocks
-    nk_size_t const num_n_blocks = n / 32;                      // Number of 32-column N blocks (each = 2 N tiles)
-    nk_size_t const full_n_cols = num_n_tiles * 16;             // Total columns covered by full N tiles
-
-    // Nc=2 panel size: process 2 N-blocks (64 columns) per outer iteration
-    // This keeps 2 × 2 × num_k_tiles B tiles hot in L2 cache
-    nk_size_t const panel_size = 2;
-
-    // AMX: Full 32×32 blocks with direct I/O
-    if (num_m_blocks > 0 && num_n_blocks > 0 && num_k_tiles > 0) {
-        nk_amx_tile_configure_sapphire_amx_();
-
-        // Outer loop: N-panels of size Nc=2
-        for (nk_size_t n_panel_start = 0; n_panel_start < num_n_blocks; n_panel_start += panel_size) {
-            nk_size_t const n_panel_end = (n_panel_start + panel_size < num_n_blocks) ? (n_panel_start + panel_size)
-                                                                                      : num_n_blocks;
-
-            // Middle loop: all M-blocks (B tiles stay hot for each M-block)
-            for (nk_size_t m_block = 0; m_block < num_m_blocks; m_block++) {
-                nk_size_t const m_row = m_block * 32; // Starting row in A and C
-
-                // Pointer to A rows for this M-block
-                nk_i8_t const *a_row0 = a + m_row * a_stride;        // Upper 16 rows
-                nk_i8_t const *a_row1 = a + (m_row + 16) * a_stride; // Lower 16 rows
-
-                // Inner loop: N-blocks within current panel
-                for (nk_size_t n_block = n_panel_start; n_block < n_panel_end; n_block++) {
-                    nk_size_t const n_col = n_block * 32; // Starting column in C
-
-                    // Initialize accumulator tiles
-                    _tile_zero(4); // C[row0:row0+16, col:col+16]
-                    _tile_zero(5); // C[row0:row0+16, col+16:col+32]
-                    _tile_zero(6); // C[row0+16:row0+32, col:col+16]
-                    _tile_zero(7); // C[row0+16:row0+32, col+16:col+32]
-
-                    // B tile base indices in packed buffer (linear layout)
-                    // Linear: tile_index = n_tile * num_k_tiles + k_tile
-                    nk_size_t const b_n0_base = (n_block * 2) * num_k_tiles;     // Left B column
-                    nk_size_t const b_n1_base = (n_block * 2 + 1) * num_k_tiles; // Right B column
-
-                    // Software-pipelined K-loop
-                    if (num_k_tiles > 1) {
-                        // Prologue: Load first A and B tiles
-                        _tile_loadd(0, a_row0, (int)a_stride);
-                        _tile_loadd(2, b_tiles + b_n0_base * tile_byte_size, 64);
-
-                        // Main loop: compute current tiles while loading next
-                        for (nk_size_t k_tile = 0; k_tile < num_k_tiles - 1; k_tile++) {
-                            nk_size_t const k_offset = k_tile * tile_k_elements;
-                            nk_size_t const next_k_offset = (k_tile + 1) * tile_k_elements;
-
-                            // Compute: A0 × B0 → C[0,0]
-                            _tile_dpbssd(4, 0, 2);
-
-                            // Load: A1 (lower rows), B1 (right column)
-                            _tile_loadd(1, a_row1 + k_offset, (int)a_stride);
-                            _tile_loadd(3, b_tiles + (b_n1_base + k_tile) * tile_byte_size, 64);
-
-                            // Compute: A1 × B0 → C[1,0], A0 × B1 → C[0,1], A1 × B1 → C[1,1]
-                            _tile_dpbssd(6, 1, 2);
-                            _tile_dpbssd(5, 0, 3);
-                            _tile_dpbssd(7, 1, 3);
-
-                            // Load next iteration: A0, B0
-                            _tile_loadd(0, a_row0 + next_k_offset, (int)a_stride);
-                            _tile_loadd(2, b_tiles + (b_n0_base + k_tile + 1) * tile_byte_size, 64);
-                        }
-
-                        // Epilogue: Process last K tile
-                        nk_size_t const last_k = num_k_tiles - 1;
-                        nk_size_t const last_k_offset = last_k * tile_k_elements;
-
-                        _tile_dpbssd(4, 0, 2);
-                        _tile_loadd(1, a_row1 + last_k_offset, (int)a_stride);
-                        _tile_loadd(3, b_tiles + (b_n1_base + last_k) * tile_byte_size, 64);
-                        _tile_dpbssd(6, 1, 2);
-                        _tile_dpbssd(5, 0, 3);
-                        _tile_dpbssd(7, 1, 3);
-                    }
-                    else {
-                        // Single K tile: no pipelining needed
-                        _tile_loadd(0, a_row0, (int)a_stride);
-                        _tile_loadd(1, a_row1, (int)a_stride);
-                        _tile_loadd(2, b_tiles + b_n0_base * tile_byte_size, 64);
-                        _tile_loadd(3, b_tiles + b_n1_base * tile_byte_size, 64);
-
-                        _tile_dpbssd(4, 0, 2);
-                        _tile_dpbssd(5, 0, 3);
-                        _tile_dpbssd(6, 1, 2);
-                        _tile_dpbssd(7, 1, 3);
-                    }
-
-                    // Store C tiles directly (aligned path)
-                    nk_i32_t *c_block = c + m_row * c_stride_i32 + n_col;
-                    _tile_stored(4, c_block, (int)c_stride);
-                    _tile_stored(5, c_block + 16, (int)c_stride);
-                    _tile_stored(6, c_block + 16 * c_stride_i32, (int)c_stride);
-                    _tile_stored(7, c_block + 16 * c_stride_i32 + 16, (int)c_stride);
-                }
-            }
-        }
-
-        _tile_release();
-    }
-
-    // AMX: M edge rows for full N tiles (rows that don't fill a complete 32-row block)
-    if (m > num_m_blocks * 32 && num_n_tiles > 0) {
-        nk_size_t const m_edge_start = num_m_blocks * 32;
-        nk_size_t const m_edge_rows = m - m_edge_start;
-
-        nk_amx_tile_configure_sapphire_amx_();
-
-        for (nk_size_t n_tile = 0; n_tile < num_n_tiles; n_tile++) {
-            nk_size_t const n_col = n_tile * 16;
-
-            _tile_zero(4);
-            _tile_zero(6);
-
-            NK_ALIGN64 nk_i8_t a_tile_upper[16][64] = {{0}};
-            NK_ALIGN64 nk_i8_t a_tile_lower[16][64] = {{0}};
-
-            nk_size_t const rows_upper = (m_edge_rows > 16) ? 16 : m_edge_rows;
-            nk_size_t const rows_lower = (m_edge_rows > 16) ? m_edge_rows - 16 : 0;
-
-            for (nk_size_t k_tile = 0; k_tile < num_k_tiles; k_tile++) {
-                nk_size_t const k_offset = k_tile * tile_k_elements;
-                nk_size_t const k_valid = (k_offset + tile_k_elements <= k) ? tile_k_elements : (k - k_offset);
-
-                nk_load_a_tile_i8_masked_(a + m_edge_start * a_stride + k_offset, a_stride, rows_upper, k_valid,
-                                          (nk_i8_t *)a_tile_upper);
-                if (rows_lower > 0) {
-                    nk_load_a_tile_i8_masked_(a + (m_edge_start + 16) * a_stride + k_offset, a_stride, rows_lower,
-                                              k_valid, (nk_i8_t *)a_tile_lower);
-                }
-
-                _tile_loadd(0, a_tile_upper, 64);
-                _tile_loadd(1, a_tile_lower, 64);
-
-                // Linear B tile index
-                nk_size_t const b_tile_idx = n_tile * num_k_tiles + k_tile;
-                _tile_loadd(2, b_tiles + b_tile_idx * tile_byte_size, 64);
-
-                _tile_dpbssd(4, 0, 2);
-                _tile_dpbssd(6, 1, 2);
-            }
-
-            NK_ALIGN64 nk_i32_t c_tile[16][16];
-
-            _tile_stored(4, c_tile, 64);
-            nk_store_c_tile_i32_masked_((nk_i32_t *)c_tile, c + m_edge_start * c_stride_i32 + n_col, c_stride_i32,
-                                        rows_upper, 16);
-
-            if (rows_lower > 0) {
-                _tile_stored(6, c_tile, 64);
-                nk_store_c_tile_i32_masked_((nk_i32_t *)c_tile, c + (m_edge_start + 16) * c_stride_i32 + n_col,
-                                            c_stride_i32, rows_lower, 16);
-            }
-        }
-
-        _tile_release();
-    }
-
-    // AVX-512: N edge columns (columns that don't fill a complete 16-column tile)
-    if (n_edge_cols > 0 && n_edge_tiles != NULL) {
-        nk_dots_i8i8i32_avx512_edge_(a, n_edge_tiles, c + full_n_cols, m, n_edge_cols, k, a_stride, k, c_stride_i32);
-    }
-
-    // AVX-512: M edge × N edge corner
-    if (m > num_m_blocks * 32 && n_edge_cols > 0 && n_edge_tiles != NULL) {
-        nk_size_t const m_edge_start = num_m_blocks * 32;
-        nk_size_t const m_edge_rows = m - m_edge_start;
-
-        nk_dots_i8i8i32_avx512_edge_(a + m_edge_start * a_stride, n_edge_tiles,
-                                     c + m_edge_start * c_stride_i32 + full_n_cols, m_edge_rows, n_edge_cols, k,
-                                     a_stride, k, c_stride_i32);
-    }
-}
-
-/*  I8 → I32 matmul (misaligned path): All I/O through aligned buffers with AVX-512.
- *  Used when stride < 64 bytes (can't use direct tile loads/stores).
- */
-NK_INTERNAL void nk_dots_i8i8i32_sapphire_misaligned_(   //
-    nk_i8_t const *a, void const *b_packed, nk_i32_t *c, //
-    nk_size_t m, nk_size_t n, nk_size_t k,               //
-    nk_size_t a_stride, nk_size_t c_stride) {
-
-    nk_dots_amx_packed_header_t const *header = (nk_dots_amx_packed_header_t const *)b_packed;
-    nk_size_t const full_n_tiles = header->full_n_tiles;
-    nk_size_t const full_k_tiles = header->full_k_tiles;
-    nk_size_t const n_edge_rows = header->n_edge_rows;
-    nk_size_t const n_edge_offset = header->n_edge_offset;
-
-    nk_size_t const tmm_cols_i8 = 64;
-    nk_size_t const tile_elements_i8 = 1024;
-
-    nk_i8_t const *tiles_ptr = (nk_i8_t const *)((char const *)b_packed + 64);
-    nk_i8_t const *n_edge_ptr = (n_edge_offset > 0) ? (nk_i8_t const *)((char const *)b_packed + n_edge_offset) : NULL;
-
-    nk_size_t const c_stride_elements = c_stride / sizeof(nk_i32_t);
-    nk_size_t const full_m_blocks = m / 32;
-    nk_size_t const full_n_blocks = n / 32;
-    nk_size_t const full_n = full_n_tiles * 16;
-    nk_size_t const total_full_tiles = full_n_tiles * full_k_tiles;
-
-    // Stack buffers for tile I/O
-    NK_ALIGN64 nk_i8_t a_buf_upper[16][64];
-    NK_ALIGN64 nk_i8_t a_buf_lower[16][64];
-    NK_ALIGN64 nk_i32_t c_buf[16][16];
-
-    // AMX: Full 32×32 blocks through buffers
-    if (full_m_blocks > 0 && full_n_blocks > 0 && full_k_tiles > 0) {
-        nk_amx_tile_configure_sapphire_amx_();
-
-        for (nk_size_t row_block_idx = 0; row_block_idx < full_m_blocks; row_block_idx++) {
-            nk_size_t const row_offset = row_block_idx * 32;
-
-            for (nk_size_t col_block_idx = 0; col_block_idx < full_n_blocks; col_block_idx++) {
-                nk_size_t const col_offset = col_block_idx * 32;
-
-                _tile_zero(4);
-                _tile_zero(5);
-                _tile_zero(6);
-                _tile_zero(7);
-
-                nk_size_t const b_tile_n0 = col_block_idx * 2;
-                nk_size_t const b_tile_n1 = col_block_idx * 2 + 1;
-
-                for (nk_size_t depth_block_idx = 0; depth_block_idx < full_k_tiles; depth_block_idx++) {
-                    nk_size_t const k_offset = depth_block_idx * 64;
-
-                    // Load A through buffers using AVX-512
-                    for (nk_size_t r = 0; r < 16; r++) {
-                        nk_i8_t const *src_upper = a + (row_offset + r) * a_stride + k_offset;
-                        nk_i8_t const *src_lower = a + (row_offset + 16 + r) * a_stride + k_offset;
-                        __m512i upper_row = _mm512_loadu_si512((__m512i const *)src_upper);
-                        __m512i lower_row = _mm512_loadu_si512((__m512i const *)src_lower);
-                        _mm512_store_si512((__m512i *)a_buf_upper[r], upper_row);
-                        _mm512_store_si512((__m512i *)a_buf_lower[r], lower_row);
-                    }
-                    __asm__ volatile("" ::: "memory");
-
-                    _tile_loadd(0, a_buf_upper, 64);
-                    _tile_loadd(1, a_buf_lower, 64);
-
-                    nk_size_t morton_idx0 = nk_morton_encode_sapphire_amx_((nk_u32_t)b_tile_n0,
-                                                                           (nk_u32_t)depth_block_idx);
-                    if (morton_idx0 >= total_full_tiles) morton_idx0 = b_tile_n0 * full_k_tiles + depth_block_idx;
-                    nk_i8_t const *b_tile_ptr0 = tiles_ptr + morton_idx0 * tile_elements_i8;
-
-                    nk_size_t morton_idx1 = nk_morton_encode_sapphire_amx_((nk_u32_t)b_tile_n1,
-                                                                           (nk_u32_t)depth_block_idx);
-                    if (morton_idx1 >= total_full_tiles) morton_idx1 = b_tile_n1 * full_k_tiles + depth_block_idx;
-                    nk_i8_t const *b_tile_ptr1 = tiles_ptr + morton_idx1 * tile_elements_i8;
-
-                    _tile_loadd(2, b_tile_ptr0, 64);
-                    _tile_loadd(3, b_tile_ptr1, 64);
-
-                    _tile_dpbssd(4, 0, 2);
-                    _tile_dpbssd(5, 0, 3);
-                    _tile_dpbssd(6, 1, 2);
-                    _tile_dpbssd(7, 1, 3);
-                }
-
-                // Store C through buffers using AVX-512
-                _tile_stored(4, c_buf, 64);
-                for (nk_size_t r = 0; r < 16; r++) {
-                    __m512i row = _mm512_load_si512((__m512i const *)c_buf[r]);
-                    _mm512_storeu_si512((__m512i *)(c + (row_offset + r) * c_stride_elements + col_offset), row);
-                }
-
-                _tile_stored(5, c_buf, 64);
-                for (nk_size_t r = 0; r < 16; r++) {
-                    __m512i row = _mm512_load_si512((__m512i const *)c_buf[r]);
-                    _mm512_storeu_si512((__m512i *)(c + (row_offset + r) * c_stride_elements + col_offset + 16), row);
-                }
-
-                _tile_stored(6, c_buf, 64);
-                for (nk_size_t r = 0; r < 16; r++) {
-                    __m512i row = _mm512_load_si512((__m512i const *)c_buf[r]);
-                    _mm512_storeu_si512((__m512i *)(c + (row_offset + 16 + r) * c_stride_elements + col_offset), row);
-                }
-
-                _tile_stored(7, c_buf, 64);
-                for (nk_size_t r = 0; r < 16; r++) {
-                    __m512i row = _mm512_load_si512((__m512i const *)c_buf[r]);
-                    _mm512_storeu_si512((__m512i *)(c + (row_offset + 16 + r) * c_stride_elements + col_offset + 16),
-                                        row);
-                }
-            }
-        }
-
-        _tile_release();
-    }
-
-    // AMX: M edge rows for full N tiles (through buffers)
-    if (m > full_m_blocks * 32 && full_n_tiles > 0) {
-        nk_size_t const m_edge_start = full_m_blocks * 32;
-        nk_size_t const m_edge_rows = m - m_edge_start;
-
-        nk_amx_tile_configure_sapphire_amx_();
-
-        for (nk_size_t tj = 0; tj < full_n_tiles; tj++) {
-            nk_size_t const col_offset = tj * 16;
-            nk_size_t const b_tile_n0 = tj;
-
-            _tile_zero(4);
-            _tile_zero(6);
-
-            // Zero buffers for edge
-            for (nk_size_t r = 0; r < 16; r++) {
-                _mm512_store_si512((__m512i *)a_buf_upper[r], _mm512_setzero_si512());
-                _mm512_store_si512((__m512i *)a_buf_lower[r], _mm512_setzero_si512());
-            }
-
-            nk_size_t const rows_upper = (m_edge_rows > 16) ? 16 : m_edge_rows;
-            nk_size_t const rows_lower = (m_edge_rows > 16) ? m_edge_rows - 16 : 0;
-
-            for (nk_size_t depth_block_idx = 0; depth_block_idx < full_k_tiles; depth_block_idx++) {
-                nk_size_t const k_offset = depth_block_idx * tmm_cols_i8;
-                nk_size_t const k_valid = (k_offset + tmm_cols_i8 <= k) ? tmm_cols_i8 : (k - k_offset);
-
-                nk_load_a_tile_i8_masked_(a + m_edge_start * a_stride + k_offset, a_stride, rows_upper, k_valid,
-                                          (nk_i8_t *)a_buf_upper);
-                if (rows_lower > 0) {
-                    nk_load_a_tile_i8_masked_(a + (m_edge_start + 16) * a_stride + k_offset, a_stride, rows_lower,
-                                              k_valid, (nk_i8_t *)a_buf_lower);
-                }
-
-                _tile_loadd(0, a_buf_upper, 64);
-                _tile_loadd(1, a_buf_lower, 64);
-
-                nk_size_t morton_idx0 = nk_morton_encode_sapphire_amx_((nk_u32_t)b_tile_n0, (nk_u32_t)depth_block_idx);
-                if (morton_idx0 >= total_full_tiles) morton_idx0 = b_tile_n0 * full_k_tiles + depth_block_idx;
-                nk_i8_t const *b_tile_ptr0 = tiles_ptr + morton_idx0 * tile_elements_i8;
-
-                _tile_loadd(2, b_tile_ptr0, 64);
-
-                _tile_dpbssd(4, 0, 2);
-                _tile_dpbssd(6, 1, 2);
-            }
-
-            _tile_stored(4, c_buf, 64);
-            nk_store_c_tile_i32_masked_((nk_i32_t *)c_buf, c + m_edge_start * c_stride_elements + col_offset,
-                                        c_stride_elements, rows_upper, 16);
-
-            if (rows_lower > 0) {
-                _tile_stored(6, c_buf, 64);
-                nk_store_c_tile_i32_masked_((nk_i32_t *)c_buf, c + (m_edge_start + 16) * c_stride_elements + col_offset,
-                                            c_stride_elements, rows_lower, 16);
-            }
-        }
-
-        _tile_release();
-    }
-
-    // AVX-512: N edge rows
-    if (n_edge_rows > 0 && n_edge_ptr != NULL) {
-        nk_dots_i8i8i32_avx512_edge_(a, n_edge_ptr, c + full_n, m, n_edge_rows, k, a_stride, k, c_stride_elements);
-    }
-
-    // AVX-512: M edge × N edge corner
-    if (m > full_m_blocks * 32 && n_edge_rows > 0 && n_edge_ptr != NULL) {
-        nk_size_t const m_edge_start = full_m_blocks * 32;
-        nk_size_t const m_edge_rows = m - m_edge_start;
-
-        nk_dots_i8i8i32_avx512_edge_(a + m_edge_start * a_stride, n_edge_ptr,
-                                     c + m_edge_start * c_stride_elements + full_n, m_edge_rows, n_edge_rows, k,
-                                     a_stride, k, c_stride_elements);
-    }
-}
-
 /*  I8 → I32 matmul: C[m×n] = A[m×k] × B[n×k]ᵀ
  *
- *  Dispatcher that selects aligned or misaligned path based on stride.
+ *  Unified implementation using composable tile primitives.
+ *  All I/O goes through aligned tile buffers for consistent behavior.
+ *
+ *  Uses register-resident 2×2 update pattern:
+ *  - TMM4-7 hold C accumulators across entire K-loop (no redundant load/store)
+ *  - 32×32 output blocks processed per M×N iteration
+ *
  *  Single-threaded. For parallel execution, partition A rows across threads.
  */
 NK_PUBLIC void nk_dots_i8i8i32_sapphire_amx(             //
@@ -1345,10 +1389,182 @@ NK_PUBLIC void nk_dots_i8i8i32_sapphire_amx(             //
     nk_size_t m, nk_size_t n, nk_size_t k,               //
     nk_size_t a_stride, nk_size_t c_stride) {
 
-    // Check if strides allow direct tile operations (need 64 bytes for I8 A tile row and I32 C tile row)
-    int const can_direct = (a_stride >= 64) && (c_stride >= 64);
-    if (can_direct) nk_dots_i8i8i32_sapphire_aligned_(a, b_packed, c, m, n, k, a_stride, c_stride);
-    else nk_dots_i8i8i32_sapphire_misaligned_(a, b_packed, c, m, n, k, a_stride, c_stride);
+    // Parse packed B header
+    nk_dots_amx_packed_header_t const *header = (nk_dots_amx_packed_header_t const *)b_packed;
+    nk_size_t const num_n_tiles = header->full_n_tiles;
+    nk_size_t const num_k_tiles = header->full_k_tiles;
+    nk_size_t const n_edge_rows = header->n_edge_rows;
+
+    // Packed B data regions
+    nk_i8_t const *b_tiles = (nk_i8_t const *)((char const *)b_packed + sizeof(nk_dots_amx_packed_header_t));
+    nk_i8_t const *n_edge_ptr = (nk_i8_t const *)((char const *)b_packed + header->n_edge_offset);
+
+    // Stride conversions
+    nk_size_t const c_stride_elements = c_stride / sizeof(nk_i32_t);
+
+    // Tile dimensions
+    nk_size_t const tile_k = 64;      // K elements per INT8 tile
+    nk_size_t const tile_size = 1024; // Bytes per packed tile
+    nk_size_t const full_n = num_n_tiles * 16;
+
+    // Block counts (32×32 output blocks = 2×2 tiles)
+    nk_size_t const num_m_blocks = (m + 31) / 32; // Ceiling division
+    nk_size_t const num_n_blocks = num_n_tiles / 2;
+
+    if (num_k_tiles == 0) return;
+
+    // Tile buffers for A (only used for edge tiles)
+    nk_dots_i8i8i32_a16x64_sapphire_amx_t a0, a1;
+    nk_dots_i8i8i32_state2x2_sapphire_amx_t c_state;
+
+    // Precompute: number of full K-tiles (no masking needed)
+    nk_size_t const num_full_k_tiles = k / tile_k;
+    nk_size_t const k_remainder = k % tile_k;
+
+    nk_amx_tile_configure_sapphire_amx_();
+
+    // Process all 32×32 M×N blocks (including partial edge blocks)
+    for (nk_size_t m_block = 0; m_block < num_m_blocks; m_block++) {
+        nk_size_t const m_row = m_block * 32;
+        nk_size_t const rows_valid = (m_row + 32 <= m) ? 32 : (m - m_row);
+        nk_size_t const is_full_m_block = (rows_valid == 32);
+
+        // Process full N-blocks (pairs of 16-column tiles = 32 columns)
+        for (nk_size_t n_block = 0; n_block < num_n_blocks; n_block++) {
+            nk_size_t const n_col = n_block * 32;
+
+            // B tile base indices (linear layout: n_tile * num_k_tiles + k_tile)
+            nk_size_t const b_n0_base = (n_block * 2) * num_k_tiles;
+            nk_size_t const b_n1_base = (n_block * 2 + 1) * num_k_tiles;
+
+            // Zero accumulators in registers
+            nk_dots_i8i8i32_zero2x2_sapphire_amx();
+
+            // FAST PATH: Full M-block with full K-tiles → direct A load
+            if (is_full_m_block) {
+                // Process full K-tiles with direct load
+                for (nk_size_t k_tile = 0; k_tile < num_full_k_tiles; k_tile++) {
+                    nk_size_t const k_off = k_tile * tile_k;
+
+                    nk_dots_i8i8i32_b64x16_sapphire_amx_t const *b0 =
+                        (nk_dots_i8i8i32_b64x16_sapphire_amx_t const *)(b_tiles + (b_n0_base + k_tile) * tile_size);
+                    nk_dots_i8i8i32_b64x16_sapphire_amx_t const *b1 =
+                        (nk_dots_i8i8i32_b64x16_sapphire_amx_t const *)(b_tiles + (b_n1_base + k_tile) * tile_size);
+
+                    // Direct load from source - no buffer copy!
+                    nk_dots_i8i8i32_update2x2_direct_sapphire_amx(
+                        a + m_row * a_stride + k_off, a + (m_row + 16) * a_stride + k_off, a_stride, b0, b1);
+                }
+
+                // Handle partial K-tile (if any) with buffered load
+                if (k_remainder > 0) {
+                    nk_size_t const k_tile = num_full_k_tiles;
+                    nk_size_t const k_off = k_tile * tile_k;
+
+                    nk_dots_i8i8i32_load_a_sapphire_amx(&a0, a + m_row * a_stride + k_off, a_stride, 16, k_remainder);
+                    nk_dots_i8i8i32_load_a_sapphire_amx(&a1, a + (m_row + 16) * a_stride + k_off, a_stride, 16,
+                                                        k_remainder);
+
+                    nk_dots_i8i8i32_b64x16_sapphire_amx_t const *b0 =
+                        (nk_dots_i8i8i32_b64x16_sapphire_amx_t const *)(b_tiles + (b_n0_base + k_tile) * tile_size);
+                    nk_dots_i8i8i32_b64x16_sapphire_amx_t const *b1 =
+                        (nk_dots_i8i8i32_b64x16_sapphire_amx_t const *)(b_tiles + (b_n1_base + k_tile) * tile_size);
+
+                    nk_dots_i8i8i32_update2x2_sapphire_amx(&a0, &a1, b0, b1);
+                }
+            }
+            // SLOW PATH: Edge M-block → always use buffered load with masking
+            else {
+                nk_size_t const rows0 = (rows_valid > 16) ? 16 : rows_valid;
+                nk_size_t const rows1 = (rows_valid > 16) ? rows_valid - 16 : 0;
+
+                for (nk_size_t k_tile = 0; k_tile < num_k_tiles; k_tile++) {
+                    nk_size_t const k_off = k_tile * tile_k;
+                    nk_size_t const k_valid = (k_tile < num_full_k_tiles) ? tile_k : k_remainder;
+
+                    nk_dots_i8i8i32_load_a_sapphire_amx(&a0, a + m_row * a_stride + k_off, a_stride, rows0, k_valid);
+                    if (rows1 > 0) {
+                        nk_dots_i8i8i32_load_a_sapphire_amx(&a1, a + (m_row + 16) * a_stride + k_off, a_stride, rows1,
+                                                            k_valid);
+                    }
+
+                    nk_dots_i8i8i32_b64x16_sapphire_amx_t const *b0 =
+                        (nk_dots_i8i8i32_b64x16_sapphire_amx_t const *)(b_tiles + (b_n0_base + k_tile) * tile_size);
+                    nk_dots_i8i8i32_b64x16_sapphire_amx_t const *b1 =
+                        (nk_dots_i8i8i32_b64x16_sapphire_amx_t const *)(b_tiles + (b_n1_base + k_tile) * tile_size);
+
+                    nk_dots_i8i8i32_update2x2_sapphire_amx(&a0, &a1, b0, b1);
+                }
+            }
+
+            // Store accumulators to output
+            if (is_full_m_block) {
+                // FAST PATH: Direct store to C - no intermediate buffer!
+                nk_dots_i8i8i32_store2x2_direct_sapphire_amx(c + m_row * c_stride_elements + n_col, c_stride);
+            }
+            else {
+                // SLOW PATH: Edge M-block needs masked output
+                nk_dots_i8i8i32_store2x2_sapphire_amx(&c_state);
+                nk_dots_i8i8i32_output2x2_sapphire_amx(&c_state, c + m_row * c_stride_elements + n_col,
+                                                       c_stride_elements, rows_valid, 32);
+            }
+        }
+
+        // Handle odd N-tile (single 16-column tile if num_n_tiles is odd)
+        if (num_n_tiles % 2 == 1) {
+            nk_size_t const n_tile = num_n_tiles - 1;
+            nk_size_t const n_col = n_tile * 16;
+            nk_size_t const b_n_base = n_tile * num_k_tiles;
+            nk_size_t const rows0 = (rows_valid > 16) ? 16 : rows_valid;
+            nk_size_t const rows1 = (rows_valid > 16) ? rows_valid - 16 : 0;
+
+            // Use 1×1 blocking for single N-tile
+            nk_dots_i8i8i32_state_sapphire_amx_t c0_state, c1_state;
+            nk_dots_i8i8i32_init_sapphire_amx(&c0_state);
+            nk_dots_i8i8i32_init_sapphire_amx(&c1_state);
+
+            _tile_zero(4);
+            _tile_zero(6);
+
+            for (nk_size_t k_tile = 0; k_tile < num_k_tiles; k_tile++) {
+                nk_size_t const k_off = k_tile * tile_k;
+                nk_size_t const k_valid = (k_tile < num_full_k_tiles) ? tile_k : k_remainder;
+
+                nk_dots_i8i8i32_load_a_sapphire_amx(&a0, a + m_row * a_stride + k_off, a_stride, rows0, k_valid);
+                if (rows1 > 0) {
+                    nk_dots_i8i8i32_load_a_sapphire_amx(&a1, a + (m_row + 16) * a_stride + k_off, a_stride, rows1,
+                                                        k_valid);
+                }
+
+                nk_dots_i8i8i32_b64x16_sapphire_amx_t const *b0 =
+                    (nk_dots_i8i8i32_b64x16_sapphire_amx_t const *)(b_tiles + (b_n_base + k_tile) * tile_size);
+
+                _tile_loadd(0, a0.data, 64);
+                _tile_loadd(1, a1.data, 64);
+                _tile_loadd(2, b0->data, 64);
+
+                _tile_dpbssd(4, 0, 2);
+                _tile_dpbssd(6, 1, 2);
+            }
+
+            _tile_stored(4, c0_state.data, 64);
+            _tile_stored(6, c1_state.data, 64);
+
+            nk_dots_i8i8i32_store_sapphire_amx(&c0_state, c + m_row * c_stride_elements + n_col, c_stride_elements,
+                                               rows0, 16);
+            if (rows1 > 0) {
+                nk_dots_i8i8i32_store_sapphire_amx(&c1_state, c + (m_row + 16) * c_stride_elements + n_col,
+                                                   c_stride_elements, rows1, 16);
+            }
+        }
+    }
+
+    _tile_release();
+
+    // AVX-512 fallback for N-edge rows (unpacked, row-major in b_packed)
+    if (n_edge_rows > 0) {
+        nk_dots_i8i8i32_avx512_edge_(a, n_edge_ptr, c + full_n, m, n_edge_rows, k, a_stride, k, c_stride_elements);
+    }
 }
 
 /*  I8 compact: re-normalize I32 → I8 using precomputed squared norms.
