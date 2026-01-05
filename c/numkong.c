@@ -544,14 +544,71 @@ NK_DYNAMIC int nk_uses_xuantie(void) { return (nk_capabilities() & nk_cap_xuanti
 NK_DYNAMIC int nk_uses_dynamic_dispatch(void) { return 1; }
 NK_DYNAMIC int nk_configure_thread(nk_capability_t c) { return nk_configure_thread_(c); }
 
-NK_DYNAMIC void nk_f16_to_f32(nk_f16_t const *src, nk_f32_t *dest) { nk_f16_to_f32_serial(src, dest); }
+NK_DYNAMIC void nk_f16_to_f32(nk_f16_t const *src, nk_f32_t *dest) {
+#if NK_TARGET_SAPPHIRE
+    if (nk_uses_sapphire()) {
+        nk_f16_to_f32_sapphire(src, dest);
+        return;
+    }
+#endif
+#if NK_TARGET_HASWELL
+    if (nk_uses_haswell()) {
+        nk_f16_to_f32_haswell(src, dest);
+        return;
+    }
+#endif
+#if NK_TARGET_NEON
+    if (nk_uses_neon()) {
+        nk_f16_to_f32_neon(src, dest);
+        return;
+    }
+#endif
+    nk_f16_to_f32_serial(src, dest);
+}
+
+NK_DYNAMIC void nk_f32_to_f16(nk_f32_t const *src, nk_f16_t *dest) {
+#if NK_TARGET_SAPPHIRE
+    if (nk_uses_sapphire()) {
+        nk_f32_to_f16_sapphire(src, dest);
+        return;
+    }
+#endif
+#if NK_TARGET_HASWELL
+    if (nk_uses_haswell()) {
+        nk_f32_to_f16_haswell(src, dest);
+        return;
+    }
+#endif
+#if NK_TARGET_NEON
+    if (nk_uses_neon()) {
+        nk_f32_to_f16_neon(src, dest);
+        return;
+    }
+#endif
+    nk_f32_to_f16_serial(src, dest);
+}
+
+// bf16, e4m3, e5m2 scalar conversions - serial only (no ISA-specific variants)
 NK_DYNAMIC void nk_bf16_to_f32(nk_bf16_t const *src, nk_f32_t *dest) { nk_bf16_to_f32_serial(src, dest); }
 NK_DYNAMIC void nk_e4m3_to_f32(nk_e4m3_t const *src, nk_f32_t *dest) { nk_e4m3_to_f32_serial(src, dest); }
 NK_DYNAMIC void nk_e5m2_to_f32(nk_e5m2_t const *src, nk_f32_t *dest) { nk_e5m2_to_f32_serial(src, dest); }
-NK_DYNAMIC void nk_f32_to_f16(nk_f32_t const *src, nk_f16_t *dest) { nk_f32_to_f16_serial(src, dest); }
 NK_DYNAMIC void nk_f32_to_bf16(nk_f32_t const *src, nk_bf16_t *dest) { nk_f32_to_bf16_serial(src, dest); }
 NK_DYNAMIC void nk_f32_to_e4m3(nk_f32_t const *src, nk_e4m3_t *dest) { nk_f32_to_e4m3_serial(src, dest); }
 NK_DYNAMIC void nk_f32_to_e5m2(nk_f32_t const *src, nk_e5m2_t *dest) { nk_f32_to_e5m2_serial(src, dest); }
+
+NK_DYNAMIC void nk_cast(void const *from, nk_dtype_t from_type, nk_size_t n, void *to, nk_dtype_t to_type) {
+    static nk_kernel_cast_punned_t kernel = 0;
+    if (kernel == 0) {
+        nk_capability_t used_capability;
+        nk_find_kernel_punned(nk_kernel_cast_k, nk_dtype_unknown_k, nk_capabilities(), nk_cap_any_k,
+                              (nk_kernel_punned_t *)&kernel, &used_capability);
+        if (!kernel) {
+            nk_cast_serial(from, from_type, n, to, to_type);
+            return;
+        }
+    }
+    kernel(from, from_type, n, to, to_type);
+}
 
 NK_DYNAMIC nk_capability_t nk_capabilities(void) {
     //! The latency of the CPUID instruction can be over 100 cycles, so we cache the result.
