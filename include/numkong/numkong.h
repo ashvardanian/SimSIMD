@@ -142,6 +142,11 @@
 #include <unistd.h>      // `syscall`
 #endif
 
+// On Linux RISC-V, we use getauxval for capability detection
+#if defined(NK_DEFINED_LINUX_) && NK_TARGET_RISCV_
+#include <sys/auxv.h> // `getauxval`, `AT_HWCAP`
+#endif
+
 // On Windows ARM, we use IsProcessorFeaturePresent API for capability detection
 #if defined(NK_DEFINED_WINDOWS_) && NK_TARGET_ARM_
 #include <processthreadsapi.h> // `IsProcessorFeaturePresent`
@@ -539,6 +544,36 @@ typedef nk_u64_t nk_capability_t;
  *  Detection: ID_AA64SMFR0_EL1.FA64 == 1
  */
 #define nk_cap_smefa64_k ((nk_capability_t)1 << 55)
+
+/**
+ *  @brief Capability flag for RISC-V Vector Extension (RVV 1.0).
+ *
+ *  Instructions: vsetvl, vle*, vse*, vwmul, vfwmul, vredsum, etc.
+ *  Used for: Vector length agnostic SIMD with automatic tail handling.
+ *
+ *  Detection: getauxval(AT_HWCAP) & COMPAT_HWCAP_ISA_V
+ */
+#define nk_cap_spacemit_k ((nk_capability_t)1 << 56)
+
+/**
+ *  @brief  Capability of the RISC-V Vector Zvfh extension (vector half-precision f16).
+ *
+ *  Instructions: vle16 (f16), vfwmul.vv (f16→f32), vfredusum, etc.
+ *  Used for: Half-precision floating point vector operations.
+ *
+ *  Detection: Compile-time via __riscv_zvfh. Runtime detection requires parsing /proc/cpuinfo or HWCAP2.
+ */
+#define nk_cap_sifive_k ((nk_capability_t)1 << 57)
+
+/**
+ *  @brief  Capability of the RISC-V Vector Zvfbfwma extension (bf16 widening FMA).
+ *
+ *  Instructions: vfwmaccbf16.vv (f32 += bf16 * bf16), etc.
+ *  Used for: BFloat16 AI/ML workloads with widening FMA for dot products.
+ *
+ *  Detection: Compile-time via __riscv_zvfbfwma. Runtime detection requires parsing /proc/cpuinfo or HWCAP2.
+ */
+#define nk_cap_xuantie_k ((nk_capability_t)1 << 58)
 
 /**
  *  @brief  Type-punned function pointer for dense vector representations and simplest similarity measures.
@@ -1165,7 +1200,7 @@ NK_PUBLIC int nk_configure_thread_(nk_capability_t capabilities) {
 }
 
 /**
- *  @brief  Function to determine the SIMD capabilities of the current 64-bit x86 machine at @b runtime.
+ *  @brief  Function to determine the SIMD capabilities of the current machine at @b runtime.
  *  @return A bitmask of the SIMD capabilities represented as a `nk_capability_t` enum value.
  */
 NK_PUBLIC nk_capability_t nk_capabilities_(void) {
@@ -1191,6 +1226,15 @@ NK_PUBLIC nk_capability_t nk_capabilities_(void) {
 NK_INTERNAL void nk_find_kernel_punned_f64_(nk_capability_t v, nk_kernel_kind_t k, nk_kernel_punned_t *m,
                                             nk_capability_t *c) {
     typedef nk_kernel_punned_t m_t;
+#if NK_TARGET_SPACEMIT
+    if (v & nk_cap_spacemit_k) switch (k) {
+        case nk_kernel_dot_k: *m = (m_t)&nk_dot_f64_spacemit, *c = nk_cap_spacemit_k; return;
+        case nk_kernel_angular_k: *m = (m_t)&nk_angular_f64_spacemit, *c = nk_cap_spacemit_k; return;
+        case nk_kernel_l2sq_k: *m = (m_t)&nk_l2sq_f64_spacemit, *c = nk_cap_spacemit_k; return;
+        case nk_kernel_l2_k: *m = (m_t)&nk_l2_f64_spacemit, *c = nk_cap_spacemit_k; return;
+        default: break;
+        }
+#endif
 #if NK_TARGET_SVE
     if (v & nk_cap_sve_k) switch (k) {
         case nk_kernel_dot_k: *m = (m_t)&nk_dot_f64_sve, *c = nk_cap_sve_k; return;
@@ -1317,6 +1361,15 @@ NK_INTERNAL void nk_find_kernel_punned_f64_(nk_capability_t v, nk_kernel_kind_t 
 NK_INTERNAL void nk_find_kernel_punned_f32_(nk_capability_t v, nk_kernel_kind_t k, nk_kernel_punned_t *m,
                                             nk_capability_t *c) {
     typedef nk_kernel_punned_t m_t;
+#if NK_TARGET_SPACEMIT
+    if (v & nk_cap_spacemit_k) switch (k) {
+        case nk_kernel_dot_k: *m = (m_t)&nk_dot_f32_spacemit, *c = nk_cap_spacemit_k; return;
+        case nk_kernel_angular_k: *m = (m_t)&nk_angular_f32_spacemit, *c = nk_cap_spacemit_k; return;
+        case nk_kernel_l2sq_k: *m = (m_t)&nk_l2sq_f32_spacemit, *c = nk_cap_spacemit_k; return;
+        case nk_kernel_l2_k: *m = (m_t)&nk_l2_f32_spacemit, *c = nk_cap_spacemit_k; return;
+        default: break;
+        }
+#endif
 #if NK_TARGET_SVE2
     if (v & nk_cap_sve2_k) switch (k) {
         case nk_kernel_sparse_dot_k: *m = (m_t)&nk_sparse_dot_u32f32_sve2, *c = nk_cap_sve2_k; return;
@@ -1464,6 +1517,15 @@ NK_INTERNAL void nk_find_kernel_punned_f32_(nk_capability_t v, nk_kernel_kind_t 
 NK_INTERNAL void nk_find_kernel_punned_f16_(nk_capability_t v, nk_kernel_kind_t k, nk_kernel_punned_t *m,
                                             nk_capability_t *c) {
     typedef nk_kernel_punned_t m_t;
+#if NK_TARGET_SIFIVE
+    if (v & nk_cap_sifive_k) switch (k) {
+        case nk_kernel_dot_k: *m = (m_t)&nk_dot_f16_sifive, *c = nk_cap_sifive_k; return;
+        case nk_kernel_angular_k: *m = (m_t)&nk_angular_f16_sifive, *c = nk_cap_sifive_k; return;
+        case nk_kernel_l2sq_k: *m = (m_t)&nk_l2sq_f16_sifive, *c = nk_cap_sifive_k; return;
+        case nk_kernel_l2_k: *m = (m_t)&nk_l2_f16_sifive, *c = nk_cap_sifive_k; return;
+        default: break;
+        }
+#endif
 #if NK_TARGET_SVEHALF
     if (v & nk_cap_svehalf_k) switch (k) {
         case nk_kernel_dot_k: *m = (m_t)&nk_dot_f16_svehalf, *c = nk_cap_svehalf_k; return;
@@ -1580,6 +1642,15 @@ NK_INTERNAL void nk_find_kernel_punned_f16_(nk_capability_t v, nk_kernel_kind_t 
 NK_INTERNAL void nk_find_kernel_punned_bf16_(nk_capability_t v, nk_kernel_kind_t k, nk_kernel_punned_t *m,
                                              nk_capability_t *c) {
     typedef nk_kernel_punned_t m_t;
+#if NK_TARGET_XUANTIE
+    if (v & nk_cap_xuantie_k) switch (k) {
+        case nk_kernel_dot_k: *m = (m_t)&nk_dot_bf16_xuantie, *c = nk_cap_xuantie_k; return;
+        case nk_kernel_angular_k: *m = (m_t)&nk_angular_bf16_xuantie, *c = nk_cap_xuantie_k; return;
+        case nk_kernel_l2sq_k: *m = (m_t)&nk_l2sq_bf16_xuantie, *c = nk_cap_xuantie_k; return;
+        case nk_kernel_l2_k: *m = (m_t)&nk_l2_bf16_xuantie, *c = nk_cap_xuantie_k; return;
+        default: break;
+        }
+#endif
 #if NK_TARGET_SVE2 && NK_TARGET_SVEBFDOT
     if (v & nk_cap_sve2_k) switch (k) {
         case nk_kernel_sparse_dot_k: *m = (m_t)&nk_sparse_dot_u16bf16_sve2, *c = nk_cap_sve2_k; return;
@@ -1686,6 +1757,15 @@ NK_INTERNAL void nk_find_kernel_punned_bf16_(nk_capability_t v, nk_kernel_kind_t
 NK_INTERNAL void nk_find_kernel_punned_i8_(nk_capability_t v, nk_kernel_kind_t k, nk_kernel_punned_t *m,
                                            nk_capability_t *c) {
     typedef nk_kernel_punned_t m_t;
+#if NK_TARGET_SPACEMIT
+    if (v & nk_cap_spacemit_k) switch (k) {
+        case nk_kernel_dot_k: *m = (m_t)&nk_dot_i8_spacemit, *c = nk_cap_spacemit_k; return;
+        case nk_kernel_angular_k: *m = (m_t)&nk_angular_i8_spacemit, *c = nk_cap_spacemit_k; return;
+        case nk_kernel_l2sq_k: *m = (m_t)&nk_l2sq_i8_spacemit, *c = nk_cap_spacemit_k; return;
+        case nk_kernel_l2_k: *m = (m_t)&nk_l2_i8_spacemit, *c = nk_cap_spacemit_k; return;
+        default: break;
+        }
+#endif
 #if NK_TARGET_NEONSDOT
     if (v & nk_cap_neonsdot_k) switch (k) {
         case nk_kernel_dot_k: *m = (m_t)&nk_dot_i8_neonsdot, *c = nk_cap_neonsdot_k; return;
@@ -1790,6 +1870,15 @@ NK_INTERNAL void nk_find_kernel_punned_i8_(nk_capability_t v, nk_kernel_kind_t k
 NK_INTERNAL void nk_find_kernel_punned_u8_(nk_capability_t v, nk_kernel_kind_t k, nk_kernel_punned_t *m,
                                            nk_capability_t *c) {
     typedef nk_kernel_punned_t m_t;
+#if NK_TARGET_SPACEMIT
+    if (v & nk_cap_spacemit_k) switch (k) {
+        case nk_kernel_dot_k: *m = (m_t)&nk_dot_u8_spacemit, *c = nk_cap_spacemit_k; return;
+        case nk_kernel_angular_k: *m = (m_t)&nk_angular_u8_spacemit, *c = nk_cap_spacemit_k; return;
+        case nk_kernel_l2sq_k: *m = (m_t)&nk_l2sq_u8_spacemit, *c = nk_cap_spacemit_k; return;
+        case nk_kernel_l2_k: *m = (m_t)&nk_l2_u8_spacemit, *c = nk_cap_spacemit_k; return;
+        default: break;
+        }
+#endif
 #if NK_TARGET_NEONSDOT
     if (v & nk_cap_neonsdot_k) switch (k) {
         case nk_kernel_dot_k: *m = (m_t)&nk_dot_u8_neonsdot, *c = nk_cap_neonsdot_k; return;

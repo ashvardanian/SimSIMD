@@ -1917,6 +1917,21 @@ void test_dot() {
     run_if_matches("dot_ice", "u4", test_dot_u4, nk_dot_u4_ice);
 #endif // NK_TARGET_ICE
 
+#if NK_TARGET_SPACEMIT
+    run_if_matches("dot_spacemit", "i8", test_dot_int<i8_t>, nk_dot_i8_spacemit);
+    run_if_matches("dot_spacemit", "u8", test_dot_int<u8_t>, nk_dot_u8_spacemit);
+    run_if_matches("dot_spacemit", "f32", test_dot<f32_t>, nk_dot_f32_spacemit);
+    run_if_matches("dot_spacemit", "f64", test_dot<f64_t>, nk_dot_f64_spacemit);
+#endif // NK_TARGET_SPACEMIT
+
+#if NK_TARGET_SIFIVE
+    run_if_matches("dot_sifive", "f16", test_dot<f16_t>, nk_dot_f16_sifive);
+#endif // NK_TARGET_SIFIVE
+
+#if NK_TARGET_XUANTIE
+    run_if_matches("dot_xuantie", "bf16", test_dot<bf16_t>, nk_dot_bf16_xuantie);
+#endif // NK_TARGET_XUANTIE
+
     // Serial always runs - baseline test
     run_if_matches("dot_serial", "f32", test_dot<f32_t>, nk_dot_f32_serial);
     run_if_matches("dot_serial", "f64", test_dot<f64_t>, nk_dot_f64_serial);
@@ -2271,6 +2286,23 @@ void test_spatial() {
     run_if_matches("angular_ice", "i4", test_angular_i4, nk_angular_i4_ice);
     run_if_matches("angular_ice", "u4", test_angular_u4, nk_angular_u4_ice);
 #endif // NK_TARGET_ICE
+
+#if NK_TARGET_SPACEMIT
+    run_if_matches("l2sq_spacemit", "f32", test_l2sq<f32_t>, nk_l2sq_f32_spacemit);
+    run_if_matches("l2sq_spacemit", "f64", test_l2sq<f64_t>, nk_l2sq_f64_spacemit);
+    run_if_matches("angular_spacemit", "f32", test_angular<f32_t>, nk_angular_f32_spacemit);
+    run_if_matches("angular_spacemit", "f64", test_angular<f64_t>, nk_angular_f64_spacemit);
+#endif // NK_TARGET_SPACEMIT
+
+#if NK_TARGET_SIFIVE
+    run_if_matches("l2sq_sifive", "f16", test_l2sq<f16_t>, nk_l2sq_f16_sifive);
+    run_if_matches("angular_sifive", "f16", test_angular<f16_t>, nk_angular_f16_sifive);
+#endif // NK_TARGET_SIFIVE
+
+#if NK_TARGET_XUANTIE
+    run_if_matches("l2sq_xuantie", "bf16", test_l2sq<bf16_t>, nk_l2sq_bf16_xuantie);
+    run_if_matches("angular_xuantie", "bf16", test_angular<bf16_t>, nk_angular_bf16_xuantie);
+#endif // NK_TARGET_XUANTIE
 
     // Serial always runs - baseline test
     run_if_matches("l2sq_serial", "f32", test_l2sq<f32_t>, nk_l2sq_f32_serial);

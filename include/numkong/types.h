@@ -75,6 +75,47 @@
 #endif // defined(__x86_64__) || defined(_M_X64)
 #endif // !defined(NK_TARGET_X86_)
 
+// Compiling for RISC-V: NK_TARGET_RISCV_
+#if !defined(NK_TARGET_RISCV_)
+#if defined(__riscv) && (__riscv_xlen == 64)
+#define NK_TARGET_RISCV_ 1
+#else
+#define NK_TARGET_RISCV_ 0
+#endif // defined(__riscv) && (__riscv_xlen == 64)
+#endif // !defined(NK_TARGET_RISCV_)
+
+// Compiling for RISC-V Vector: NK_TARGET_SPACEMIT
+#if !defined(NK_TARGET_SPACEMIT) || (NK_TARGET_SPACEMIT && !NK_TARGET_RISCV_)
+#if defined(__riscv_v) && (__riscv_v >= 1000000)
+#define NK_TARGET_SPACEMIT NK_TARGET_RISCV_
+#else
+#undef NK_TARGET_SPACEMIT
+#define NK_TARGET_SPACEMIT 0
+#endif // defined(__riscv_v) && (__riscv_v >= 1000000)
+#endif // !defined(NK_TARGET_SPACEMIT) || ...
+
+// Compiling for RISC-V Vector with Zvfh (f16): NK_TARGET_SIFIVE
+// Requires GCC 14+ or Clang 18+ for full intrinsic support
+#if !defined(NK_TARGET_SIFIVE) || (NK_TARGET_SIFIVE && !NK_TARGET_SPACEMIT)
+#if defined(__riscv_zvfh) && (__riscv_zvfh > 0)
+#define NK_TARGET_SIFIVE NK_TARGET_SPACEMIT
+#else
+#undef NK_TARGET_SIFIVE
+#define NK_TARGET_SIFIVE 0
+#endif // defined(__riscv_zvfh) && (__riscv_zvfh > 0)
+#endif // !defined(NK_TARGET_SIFIVE) || ...
+
+// Compiling for RISC-V Vector with Zvfbfwma (bf16 widening FMA): NK_TARGET_XUANTIE
+// Requires GCC 14+ or Clang 18+ for full intrinsic support
+#if !defined(NK_TARGET_XUANTIE) || (NK_TARGET_XUANTIE && !NK_TARGET_SPACEMIT)
+#if defined(__riscv_zvfbfwma) && (__riscv_zvfbfwma > 0)
+#define NK_TARGET_XUANTIE NK_TARGET_SPACEMIT
+#else
+#undef NK_TARGET_XUANTIE
+#define NK_TARGET_XUANTIE 0
+#endif // defined(__riscv_zvfbfwma) && (__riscv_zvfbfwma > 0)
+#endif // !defined(NK_TARGET_XUANTIE) || ...
+
 // Compiling for Arm: NK_TARGET_NEON
 #if !defined(NK_TARGET_NEON) || (NK_TARGET_NEON && !NK_TARGET_ARM_)
 #if defined(__ARM_NEON)
@@ -324,6 +365,8 @@
 #include <arm_sve.h>
 #elif NK_TARGET_HASWELL || NK_TARGET_SKYLAKE
 #include <immintrin.h>
+#elif NK_TARGET_SPACEMIT
+#include <riscv_vector.h>
 #endif
 
 #if !defined(NK_F64_DIVISION_EPSILON)
@@ -637,6 +680,14 @@ typedef unsigned short nk_bf16_t;
 #define nk_f16_for_arm_simd_t  float16_t
 #define nk_bf16_for_arm_simd_t bfloat16_t
 #endif
+#endif
+
+/**
+ *  RISC-V Vector (RVV) intrinsics use `_Float16` for half-precision floats.
+ *  This is the standard C23 type, also available in GCC/Clang with RVV extensions.
+ */
+#if NK_TARGET_RISCV_
+#define nk_f16_for_rvv_intrinsics_t _Float16
 #endif
 
 /*

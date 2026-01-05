@@ -857,11 +857,16 @@ NK_INTERNAL nk_dtype_t nk_dot_output_dtype(nk_dtype_t dtype) {
 #include "numkong/dot/ice.h"
 #include "numkong/dot/genoa.h"
 #include "numkong/dot/sierra.h"
+#include "numkong/dot/spacemit.h"
+#include "numkong/dot/sifive.h"
+#include "numkong/dot/xuantie.h"
 
 #if !NK_DYNAMIC_DISPATCH
 
 NK_PUBLIC void nk_dot_i8(nk_i8_t const *a, nk_i8_t const *b, nk_size_t n, nk_i32_t *result) {
-#if NK_TARGET_NEONSDOT
+#if NK_TARGET_SPACEMIT
+    nk_dot_i8_spacemit(a, b, n, result);
+#elif NK_TARGET_NEONSDOT
     nk_dot_i8_neonsdot(a, b, n, result);
 #elif NK_TARGET_ICE
     nk_dot_i8_ice(a, b, n, result);
@@ -874,7 +879,9 @@ NK_PUBLIC void nk_dot_i8(nk_i8_t const *a, nk_i8_t const *b, nk_size_t n, nk_i32
 #endif
 }
 NK_PUBLIC void nk_dot_u8(nk_u8_t const *a, nk_u8_t const *b, nk_size_t n, nk_u32_t *result) {
-#if NK_TARGET_NEONSDOT
+#if NK_TARGET_SPACEMIT
+    nk_dot_u8_spacemit(a, b, n, result);
+#elif NK_TARGET_NEONSDOT
     nk_dot_u8_neonsdot(a, b, n, result);
 #elif NK_TARGET_ICE
     nk_dot_u8_ice(a, b, n, result);
@@ -901,7 +908,9 @@ NK_PUBLIC void nk_dot_u4(nk_u4x2_t const *a, nk_u4x2_t const *b, nk_size_t n, nk
 #endif
 }
 NK_PUBLIC void nk_dot_f16(nk_f16_t const *a, nk_f16_t const *b, nk_size_t n, nk_f32_t *result) {
-#if NK_TARGET_SVEHALF
+#if NK_TARGET_SIFIVE
+    nk_dot_f16_sifive(a, b, n, result);
+#elif NK_TARGET_SVEHALF
     nk_dot_f16_svehalf(a, b, n, result);
 #elif NK_TARGET_NEONFHM
     nk_dot_f16_neonfhm(a, b, n, result);
@@ -955,7 +964,9 @@ NK_PUBLIC void nk_dot_e5m2(nk_e5m2_t const *a, nk_e5m2_t const *b, nk_size_t n, 
 #endif
 }
 NK_PUBLIC void nk_dot_f32(nk_f32_t const *a, nk_f32_t const *b, nk_size_t n, nk_f32_t *result) {
-#if NK_TARGET_SVE
+#if NK_TARGET_SPACEMIT
+    nk_dot_f32_spacemit(a, b, n, result);
+#elif NK_TARGET_SVE
     nk_dot_f32_sve(a, b, n, result);
 #elif NK_TARGET_NEON
     nk_dot_f32_neon(a, b, n, result);
@@ -968,7 +979,9 @@ NK_PUBLIC void nk_dot_f32(nk_f32_t const *a, nk_f32_t const *b, nk_size_t n, nk_
 #endif
 }
 NK_PUBLIC void nk_dot_f64(nk_f64_t const *a, nk_f64_t const *b, nk_size_t n, nk_f64_t *result) {
-#if NK_TARGET_SVE
+#if NK_TARGET_SPACEMIT
+    nk_dot_f64_spacemit(a, b, n, result);
+#elif NK_TARGET_SVE
     nk_dot_f64_sve(a, b, n, result);
 #elif NK_TARGET_NEON
     nk_dot_f64_neon(a, b, n, result);
