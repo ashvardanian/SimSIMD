@@ -2350,6 +2350,10 @@ int main(int argc, char **argv) {
                                  nk_dots_bf16bf16f32_pack_sapphire_amx, nk_dots_bf16bf16f32_sapphire_amx);
     matmul_<nk_i8_t, nk_i32_t>("dots_i8i8i32_sapphire_amx", nk_dots_i8i8i32_packed_size_sapphire_amx,
                                nk_dots_i8i8i32_pack_sapphire_amx, nk_dots_i8i8i32_sapphire_amx);
+    matmul_<nk_e4m3_t, nk_f32_t>("dots_e4m3e4m3f32_sapphire_amx", nk_dots_e4m3e4m3f32_packed_size_sapphire_amx,
+                                 nk_dots_e4m3e4m3f32_pack_sapphire_amx, nk_dots_e4m3e4m3f32_sapphire_amx);
+    matmul_<nk_e5m2_t, nk_f32_t>("dots_e5m2e5m2f32_sapphire_amx", nk_dots_e5m2e5m2f32_packed_size_sapphire_amx,
+                                 nk_dots_e5m2e5m2f32_pack_sapphire_amx, nk_dots_e5m2e5m2f32_sapphire_amx);
 
 #endif
 
