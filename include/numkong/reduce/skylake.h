@@ -1157,7 +1157,7 @@ NK_INTERNAL void nk_reduce_add_i8_skylake_contiguous_( //
     nk_size_t idx = 0;
     for (; idx + 64 <= count; idx += 64) {
         __m512i data_i8x64 = _mm512_loadu_si512(data + idx);
-        // Widen lower 32 bytes: i8 -> i16 -> i32 -> i64
+        // Widen lower 32 bytes: i8 → i16 → i32 → i64
         __m256i lo_i8x32 = _mm512_castsi512_si256(data_i8x64);
         __m256i hi_i8x32 = _mm512_extracti64x4_epi64(data_i8x64, 1);
         // Process lo_i8x32
@@ -1294,7 +1294,7 @@ NK_INTERNAL void nk_reduce_add_i8_skylake_strided_(                  //
     nk_size_t total_scalars = count * stride_elements;
     for (; idx_scalars + 64 <= total_scalars; idx_scalars += 64) {
         __m512i data_i8x64 = _mm512_maskz_loadu_epi8(stride_mask_m64, data + idx_scalars);
-        // Widen with sign extension: i8 -> i16 -> i32 -> i64
+        // Widen with sign extension: i8 → i16 → i32 → i64
         __m256i lo_i8x32 = _mm512_castsi512_si256(data_i8x64);
         __m256i hi_i8x32 = _mm512_extracti64x4_epi64(data_i8x64, 1);
         __m512i lo_i16x32 = _mm512_cvtepi8_epi16(lo_i8x32);
@@ -1308,7 +1308,7 @@ NK_INTERNAL void nk_reduce_add_i8_skylake_strided_(                  //
         __m512i b_i32x16 = _mm512_cvtepi16_epi32(b_i16x16);
         __m512i c_i32x16 = _mm512_cvtepi16_epi32(c_i16x16);
         __m512i d_i32x16 = _mm512_cvtepi16_epi32(d_i16x16);
-        // Pairwise add i32x16 -> i32x16 (horizontal), then widen to i64
+        // Pairwise add i32x16 → i32x16 (horizontal), then widen to i64
         __m512i ab_i32x16 = _mm512_add_epi32(a_i32x16, b_i32x16);
         __m512i cd_i32x16 = _mm512_add_epi32(c_i32x16, d_i32x16);
         __m512i abcd_i32x16 = _mm512_add_epi32(ab_i32x16, cd_i32x16);
@@ -1334,7 +1334,7 @@ NK_INTERNAL void nk_reduce_add_u8_skylake_strided_(                  //
     nk_size_t total_scalars = count * stride_elements;
     for (; idx_scalars + 64 <= total_scalars; idx_scalars += 64) {
         __m512i data_u8x64 = _mm512_maskz_loadu_epi8(stride_mask_m64, data + idx_scalars);
-        // Widen with zero extension: u8 -> u16 -> u32 -> u64
+        // Widen with zero extension: u8 → u16 → u32 → u64
         __m256i lo_u8x32 = _mm512_castsi512_si256(data_u8x64);
         __m256i hi_u8x32 = _mm512_extracti64x4_epi64(data_u8x64, 1);
         __m512i lo_u16x32 = _mm512_cvtepu8_epi16(lo_u8x32);

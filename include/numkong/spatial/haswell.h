@@ -69,7 +69,7 @@ NK_INTERNAL nk_f64_t nk_angular_normalize_f64_haswell_(nk_f64_t ab, nk_f64_t a2,
     else if (ab == 0) return 1;
 
     // Design note: We use exact `_mm_sqrt_pd` instead of fast rsqrt approximation.
-    // The f32 `_mm_rsqrt_ps` has max relative error of 1.5*2^-12 (~11 bits precision).
+    // The f32 `_mm_rsqrt_ps` has max relative error of 1.5×2⁻¹² (~11 bits precision).
     // Even with Newton-Raphson refinement (doubles precision to ~22-24 bits), this is
     // insufficient for f64's 52-bit mantissa, causing ULP errors in the hundreds of millions.
     // The `_mm_sqrt_pd` instruction has ~13 cycle latency but provides full f64 precision.
@@ -527,7 +527,7 @@ NK_PUBLIC void nk_l2_f64_haswell(nk_f64_t const *a, nk_f64_t const *b, nk_size_t
 
 NK_PUBLIC void nk_angular_f64_haswell(nk_f64_t const *a, nk_f64_t const *b, nk_size_t n, nk_f64_t *result) {
     // Dot2 (Ogita-Rump-Oishi 2005) for cross-product a·b only - it may have cancellation.
-    // Self-products ||a||² and ||b||² use simple FMA - all terms are non-negative, no cancellation.
+    // Self-products ‖a‖² and ‖b‖² use simple FMA - all terms are non-negative, no cancellation.
     // Note: For cross-product we use Knuth TwoSum (6 ops) rather than Neumaier with blends (10 ops)
     // since products can be signed and Knuth handles any operand ordering efficiently.
     __m256d dot_sum_f64x4 = _mm256_setzero_pd();

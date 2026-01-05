@@ -84,22 +84,22 @@ NK_INTERNAL void nk_partial_store_b64x4_skylake_(nk_b256_vec_t const *src, void 
 
 #pragma region - Vectorized Conversions
 
-/** @brief Convert 16x bf16 values to 16x f32 values (Skylake AVX-512). */
+/** @brief Convert 16× bf16 → 16× f32 (Skylake AVX-512). */
 NK_INTERNAL __m512 nk_bf16x16_to_f32x16_skylake_(__m256i a) {
     // Upcasting from `bf16` to `f32` is done by shifting the `bf16` values by 16 bits to the left, like:
     return _mm512_castsi512_ps(_mm512_slli_epi32(_mm512_cvtepu16_epi32(a), 16));
 }
 
-/** @brief Convert 16x f32 values to 16x bf16 values (Skylake AVX-512). */
+/** @brief Convert 16× f32 → 16× bf16 (Skylake AVX-512). */
 NK_INTERNAL __m256i nk_f32x16_to_bf16x16_skylake_(__m512 a) {
-    // Add 2^15 and right shift 16 to do round-nearest
+    // Add 2¹⁵ and right shift 16 to do round-nearest
     __m512i x = _mm512_srli_epi32(_mm512_add_epi32(_mm512_castps_si512(a), _mm512_set1_epi32(1 << 15)), 16);
     return _mm512_cvtepi32_epi16(x);
 }
 
-/** @brief Convert 16x e4m3 to 16x f32 via bit manipulation (AVX-512).
+/** @brief Convert 16× e4m3 → 16× f32 via bit manipulation (AVX-512).
  *  E4M3 format: S EEEE MMM (bias=7). F32: sign<<31, (exp+120)<<23, mantissa<<20.
- *  Subnormals (exp=0): value = mantissa * 2^(1-7) * 2^(-3) = mantissa / 512. */
+ *  Subnormals (exp=0): value = mantissa × 2⁽¹⁻⁷⁾ × 2⁻³ = mantissa / 512. */
 NK_INTERNAL __m512 nk_e4m3x16_to_f32x16_skylake_(__m128i e4m3_i8x16) {
     __m512i e4m3_i32x16 = _mm512_cvtepu8_epi32(e4m3_i8x16);
 
@@ -120,9 +120,9 @@ NK_INTERNAL __m512 nk_e4m3x16_to_f32x16_skylake_(__m128i e4m3_i8x16) {
     return _mm512_mask_or_ps(result_f32x16, is_subnormal, subnorm_abs_f32x16, _mm512_castsi512_ps(sign_i32x16));
 }
 
-/** @brief Convert 16x e5m2 to 16x f32 via bit manipulation (AVX-512).
+/** @brief Convert 16× e5m2 → 16× f32 via bit manipulation (AVX-512).
  *  E5M2 format: S EEEEE MM (bias=15). F32: sign<<31, (exp+112)<<23, mantissa<<21.
- *  Subnormals (exp=0): value = mantissa * 2^(1-15) * 2^(-2) = mantissa / 65536. */
+ *  Subnormals (exp=0): value = mantissa × 2⁽¹⁻¹⁵⁾ × 2⁻² = mantissa / 65536. */
 NK_INTERNAL __m512 nk_e5m2x16_to_f32x16_skylake_(__m128i e5m2_i8x16) {
     __m512i e5m2_i32x16 = _mm512_cvtepu8_epi32(e5m2_i8x16);
 
@@ -143,7 +143,7 @@ NK_INTERNAL __m512 nk_e5m2x16_to_f32x16_skylake_(__m128i e5m2_i8x16) {
     return _mm512_mask_or_ps(result_f32x16, is_subnormal, subnorm_abs_f32x16, _mm512_castsi512_ps(sign_i32x16));
 }
 
-/** @brief Convert 16x f32 to 16x e4m3 via bit manipulation (AVX-512).
+/** @brief Convert 16× f32 → 16× e4m3 via bit manipulation (AVX-512).
  *  E4M3 format: S EEEE MMM (bias=7). Handles normal, subnormal, and overflow cases.
  *  Subnormals (f32_exp <= 120): mantissa = round(abs_f32 * 512), clamped to [0,7]. */
 NK_INTERNAL __m128i nk_f32x16_to_e4m3x16_skylake_(__m512 f32x16) {
@@ -200,7 +200,7 @@ NK_INTERNAL __m128i nk_f32x16_to_e4m3x16_skylake_(__m512 f32x16) {
     return _mm512_cvtepi32_epi8(e4m3_i32x16);
 }
 
-/** @brief Convert 16x f32 to 16x e5m2 via bit manipulation (AVX-512).
+/** @brief Convert 16× f32 → 16× e5m2 via bit manipulation (AVX-512).
  *  E5M2 format: S EEEEE MM (bias=15). Handles normal, subnormal, and overflow cases.
  *  Uses RNE (round to nearest even) for mantissa rounding. */
 NK_INTERNAL __m128i nk_f32x16_to_e5m2x16_skylake_(__m512 f32x16) {

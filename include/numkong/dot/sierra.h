@@ -57,8 +57,8 @@ NK_INTERNAL void nk_dot_i8x32_finalize_sierra(                                  
     nk_dot_i8x32_state_sierra_t const *state_a, nk_dot_i8x32_state_sierra_t const *state_b, //
     nk_dot_i8x32_state_sierra_t const *state_c, nk_dot_i8x32_state_sierra_t const *state_d, //
     nk_b128_vec_t *result) {
-    // ILP-optimized 4-way horizontal reduction for i32 in AVX2 (8 elements -> 1 scalar each)
-    // Step 1: 8->4 for all 4 states (extract high 128-bit half and add to low half)
+    // ILP-optimized 4-way horizontal reduction for i32 in AVX2 (8 elements → 1 scalar each)
+    // Step 1: 8 → 4 for all 4 states (extract high 128-bit half and add to low half)
     __m128i sum_i32x4_a = _mm_add_epi32(_mm256_castsi256_si128(state_a->sum_i32x8),
                                         _mm256_extracti128_si256(state_a->sum_i32x8, 1));
     __m128i sum_i32x4_b = _mm_add_epi32(_mm256_castsi256_si128(state_b->sum_i32x8),
@@ -67,7 +67,7 @@ NK_INTERNAL void nk_dot_i8x32_finalize_sierra(                                  
                                         _mm256_extracti128_si256(state_c->sum_i32x8, 1));
     __m128i sum_i32x4_d = _mm_add_epi32(_mm256_castsi256_si128(state_d->sum_i32x8),
                                         _mm256_extracti128_si256(state_d->sum_i32x8, 1));
-    // Step 2: Transpose 4x4 matrix of partial sums using integer shuffles
+    // Step 2: Transpose 4×4 matrix of partial sums using integer shuffles
     __m128i transpose_ab_low_i32x4 = _mm_unpacklo_epi32(sum_i32x4_a, sum_i32x4_b);
     __m128i transpose_cd_low_i32x4 = _mm_unpacklo_epi32(sum_i32x4_c, sum_i32x4_d);
     __m128i transpose_ab_high_i32x4 = _mm_unpackhi_epi32(sum_i32x4_a, sum_i32x4_b);

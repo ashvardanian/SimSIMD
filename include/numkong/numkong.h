@@ -674,14 +674,14 @@ typedef void (*nk_kernel_trigonometry_punned_t)(void const *x, nk_size_t n, void
  *  @brief  Type-punned function pointer for mesh superposition metrics (RMSD, Kabsch, Umeyama).
  *          All mesh functions share a unified signature with rotation matrix and scale factor.
  *
- *  The transformation aligns point cloud A to B: a'_i = scale * R * (a_i - a_centroid) + b_centroid
+ *  The transformation aligns point cloud A to B: a′ᵢ = scale × R × (aᵢ - ā) + b̄
  *
  *  @param[in] a            Pointer to first point cloud (source, interleaved xyz coordinates).
  *  @param[in] b            Pointer to second point cloud (target, interleaved xyz coordinates).
  *  @param[in] n            Number of 3D points in each cloud.
  *  @param[out] a_centroid  Output centroid of first cloud (3 values), or NULL.
  *  @param[out] b_centroid  Output centroid of second cloud (3 values), or NULL.
- *  @param[out] rotation    Output 3x3 rotation matrix (9 values, row-major), or NULL.
+ *  @param[out] rotation    Output 3×3 rotation matrix (9 values, row-major), or NULL.
  *  @param[out] scale       Output scale factor (1.0 for RMSD/Kabsch), or NULL.
  *  @param[out] d           Output RMSD value as a double-precision float.
  */

@@ -43,20 +43,20 @@ NK_INTERNAL void nk_deinterleave_f32x16_skylake_(                               
     __m512 reg1_f32x16 = _mm512_loadu_ps(ptr + 16);
     __m512 reg2_f32x16 = _mm512_loadu_ps(ptr + 32);
 
-    // X: reg0[0,3,6,9,12,15] + reg1[2,5,8,11,14] -> 11 elements, then + reg2[1,4,7,10,13] -> 16 elements
+    // X: reg0[0,3,6,9,12,15] + reg1[2,5,8,11,14] → 11 elements, then + reg2[1,4,7,10,13] → 16 elements
     // Indices for permutex2var: 0-15 = from first operand, 16-31 = from second operand
     __m512i idx_x_01_i32x16 = _mm512_setr_epi32(0, 3, 6, 9, 12, 15, 18, 21, 24, 27, 30, 0, 0, 0, 0, 0);
     __m512i idx_x_2_i32x16 = _mm512_setr_epi32(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 17, 20, 23, 26, 29);
     __m512 x01_f32x16 = _mm512_permutex2var_ps(reg0_f32x16, idx_x_01_i32x16, reg1_f32x16);
     *x_f32x16_out = _mm512_permutex2var_ps(x01_f32x16, idx_x_2_i32x16, reg2_f32x16);
 
-    // Y: reg0[1,4,7,10,13] + reg1[0,3,6,9,12,15] -> 11 elements, then + reg2[2,5,8,11,14] -> 16 elements
+    // Y: reg0[1,4,7,10,13] + reg1[0,3,6,9,12,15] → 11 elements, then + reg2[2,5,8,11,14] → 16 elements
     __m512i idx_y_01_i32x16 = _mm512_setr_epi32(1, 4, 7, 10, 13, 16, 19, 22, 25, 28, 31, 0, 0, 0, 0, 0);
     __m512i idx_y_2_i32x16 = _mm512_setr_epi32(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 18, 21, 24, 27, 30);
     __m512 y01_f32x16 = _mm512_permutex2var_ps(reg0_f32x16, idx_y_01_i32x16, reg1_f32x16);
     *y_f32x16_out = _mm512_permutex2var_ps(y01_f32x16, idx_y_2_i32x16, reg2_f32x16);
 
-    // Z: reg0[2,5,8,11,14] + reg1[1,4,7,10,13] -> 10 elements, then + reg2[0,3,6,9,12,15] -> 16 elements
+    // Z: reg0[2,5,8,11,14] + reg1[1,4,7,10,13] → 10 elements, then + reg2[0,3,6,9,12,15] → 16 elements
     __m512i idx_z_01_i32x16 = _mm512_setr_epi32(2, 5, 8, 11, 14, 17, 20, 23, 26, 29, 0, 0, 0, 0, 0, 0);
     __m512i idx_z_2_i32x16 = _mm512_setr_epi32(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 16, 19, 22, 25, 28, 31);
     __m512 z01_f32x16 = _mm512_permutex2var_ps(reg0_f32x16, idx_z_01_i32x16, reg1_f32x16);
@@ -73,19 +73,19 @@ NK_INTERNAL void nk_deinterleave_f64x8_skylake_(                                
     __m512d reg1_f64x8 = _mm512_loadu_pd(ptr + 8);                                           // elements 8-15
     __m512d reg2_f64x8 = _mm512_loadu_pd(ptr + 16);                                          // elements 16-23
 
-    // X: positions 0,3,6,9,12,15,18,21 -> reg0[0,3,6] + reg1[1,4,7] + reg2[2,5]
+    // X: positions 0,3,6,9,12,15,18,21 → reg0[0,3,6] + reg1[1,4,7] + reg2[2,5]
     __m512i idx_x_01_i64x8 = _mm512_setr_epi64(0, 3, 6, 9, 12, 15, 0, 0);
     __m512i idx_x_2_i64x8 = _mm512_setr_epi64(0, 1, 2, 3, 4, 5, 10, 13);
     __m512d x01_f64x8 = _mm512_permutex2var_pd(reg0_f64x8, idx_x_01_i64x8, reg1_f64x8);
     *x_f64x8_out = _mm512_permutex2var_pd(x01_f64x8, idx_x_2_i64x8, reg2_f64x8);
 
-    // Y: positions 1,4,7,10,13,16,19,22 -> reg0[1,4,7] + reg1[2,5] + reg2[0,3,6]
+    // Y: positions 1,4,7,10,13,16,19,22 → reg0[1,4,7] + reg1[2,5] + reg2[0,3,6]
     __m512i idx_y_01_i64x8 = _mm512_setr_epi64(1, 4, 7, 10, 13, 0, 0, 0);
     __m512i idx_y_2_i64x8 = _mm512_setr_epi64(0, 1, 2, 3, 4, 8, 11, 14);
     __m512d y01_f64x8 = _mm512_permutex2var_pd(reg0_f64x8, idx_y_01_i64x8, reg1_f64x8);
     *y_f64x8_out = _mm512_permutex2var_pd(y01_f64x8, idx_y_2_i64x8, reg2_f64x8);
 
-    // Z: positions 2,5,8,11,14,17,20,23 -> reg0[2,5] + reg1[0,3,6] + reg2[1,4,7]
+    // Z: positions 2,5,8,11,14,17,20,23 → reg0[2,5] + reg1[0,3,6] + reg2[1,4,7]
     __m512i idx_z_01_i64x8 = _mm512_setr_epi64(2, 5, 8, 11, 14, 0, 0, 0);
     __m512i idx_z_2_i64x8 = _mm512_setr_epi64(0, 1, 2, 3, 4, 9, 12, 15);
     __m512d z01_f64x8 = _mm512_permutex2var_pd(reg0_f64x8, idx_z_01_i64x8, reg1_f64x8);
@@ -94,7 +94,7 @@ NK_INTERNAL void nk_deinterleave_f64x8_skylake_(                                
 
 /*  Internal helper: Compute sum of squared distances after applying rotation (and optional scale).
  *  Used by kabsch (scale=1.0) and umeyama (scale=computed_scale).
- *  Returns sum_squared, caller computes sqrt(sum_squared / n).
+ *  Returns sum_squared, caller computes √(sum_squared / n).
  */
 NK_INTERNAL nk_f32_t nk_transformed_ssd_f32_skylake_(nk_f32_t const *a, nk_f32_t const *b, nk_size_t n,
                                                      nk_f32_t const *r, nk_f32_t scale, nk_f32_t centroid_a_x,
@@ -274,8 +274,8 @@ NK_PUBLIC void nk_rmsd_f32_skylake(nk_f32_t const *a, nk_f32_t const *b, nk_size
     if (scale) *scale = 1.0;
     // Optimized fused single-pass implementation.
     // Computes centroids and squared differences in one pass using the identity:
-    //   RMSD = sqrt(E[(a-mean_a) - (b-mean_b)]^2)
-    //        = sqrt(E[(a-b)^2] - (mean_a - mean_b)^2)
+    //   RMSD = √(E[(a-ā) - (b-b̄)]²)
+    //        = √(E[(a-b)²] - (ā - b̄)²)
     __m512i const gather_idx_i32x16 = _mm512_setr_epi32(0, 3, 6, 9, 12, 15, 18, 21, 24, 27, 30, 33, 36, 39, 42, 45);
     __m512 const zeros_f32x16 = _mm512_setzero_ps();
 
@@ -402,7 +402,7 @@ NK_PUBLIC void nk_rmsd_f32_skylake(nk_f32_t const *a, nk_f32_t const *b, nk_size
     }
 
     // Compute RMSD using the formula:
-    // RMSD = sqrt(E[(a-b)^2] - (mean_a - mean_b)^2)
+    // RMSD = √(E[(a-b)²] - (ā - b̄)²)
     nk_f32_t mean_diff_x = centroid_a_x - centroid_b_x;
     nk_f32_t mean_diff_y = centroid_a_y - centroid_b_y;
     nk_f32_t mean_diff_z = centroid_a_z - centroid_b_z;
@@ -419,8 +419,8 @@ NK_PUBLIC void nk_kabsch_f32_skylake(nk_f32_t const *a, nk_f32_t const *b, nk_si
                                      nk_f32_t *b_centroid, nk_f32_t *rotation, nk_f32_t *scale, nk_f32_t *result) {
     // Optimized fused single-pass implementation using f32 accumulators.
     // Computes centroids and covariance matrix in one pass using the identity:
-    //   H_ij = sum((a_i - mean_a) * (b_j - mean_b))
-    //        = sum(a_i * b_j) - sum(a_i) * sum(b_j) / n
+    //   Hᵢⱼ = Σ((aᵢ - ā) × (bⱼ - b̄))
+    //       = Σ(aᵢ × bⱼ) - Σaᵢ × Σbⱼ / n
     __m512i const gather_idx_i32x16 = _mm512_setr_epi32(0, 3, 6, 9, 12, 15, 18, 21, 24, 27, 30, 33, 36, 39, 42, 45);
     __m512 const zeros_f32x16 = _mm512_setzero_ps();
 
@@ -519,7 +519,7 @@ NK_PUBLIC void nk_kabsch_f32_skylake(nk_f32_t const *a, nk_f32_t const *b, nk_si
         b_centroid[2] = centroid_b_z;
     }
 
-    // Compute centered covariance matrix: H_ij = sum(a_i*b_j) - sum_a_i * sum_b_j / n
+    // Compute centered covariance matrix: Hᵢⱼ = Σ(aᵢ×bⱼ) - Σaᵢ × Σbⱼ / n
     nk_f32_t cross_covariance[9];
     cross_covariance[0] = _mm512_reduce_add_ps(cov_xx_f32x16) - sum_a_x * sum_b_x * inv_n;
     cross_covariance[1] = _mm512_reduce_add_ps(cov_xy_f32x16) - sum_a_x * sum_b_y * inv_n;
@@ -535,7 +535,7 @@ NK_PUBLIC void nk_kabsch_f32_skylake(nk_f32_t const *a, nk_f32_t const *b, nk_si
     nk_f32_t svd_u[9], svd_s[9], svd_v[9];
     nk_svd3x3_f32_(cross_covariance, svd_u, svd_s, svd_v);
 
-    // Step 4: R = V * U^T
+    // Step 4: R = V * Uᵀ
     nk_f32_t r[9];
     r[0] = svd_v[0] * svd_u[0] + svd_v[1] * svd_u[1] + svd_v[2] * svd_u[2];
     r[1] = svd_v[0] * svd_u[3] + svd_v[1] * svd_u[4] + svd_v[2] * svd_u[5];
@@ -593,8 +593,8 @@ NK_PUBLIC void nk_rmsd_f64_skylake(nk_f64_t const *a, nk_f64_t const *b, nk_size
     if (scale) *scale = 1.0;
     // Optimized fused single-pass implementation for f64.
     // Computes centroids and squared differences in one pass using the identity:
-    //   RMSD = sqrt(E[(a-mean_a) - (b-mean_b)]^2)
-    //        = sqrt(E[(a-b)^2] - (mean_a - mean_b)^2)
+    //   RMSD = √(E[(a-ā) - (b-b̄)]²)
+    //        = √(E[(a-b)²] - (ā - b̄)²)
     __m512i const gather_idx_i64x8 = _mm512_setr_epi64(0, 3, 6, 9, 12, 15, 18, 21);
     __m512d const zeros_f64x8 = _mm512_setzero_pd();
 
@@ -708,7 +708,7 @@ NK_PUBLIC void nk_rmsd_f64_skylake(nk_f64_t const *a, nk_f64_t const *b, nk_size
     if (b_centroid) b_centroid[0] = centroid_b_x, b_centroid[1] = centroid_b_y, b_centroid[2] = centroid_b_z;
 
     // Compute RMSD using the formula:
-    // RMSD = sqrt(E[(a-b)^2] - (mean_a - mean_b)^2)
+    // RMSD = √(E[(a-b)²] - (ā - b̄)²)
     nk_f64_t mean_diff_x = centroid_a_x - centroid_b_x, mean_diff_y = centroid_a_y - centroid_b_y,
              mean_diff_z = centroid_a_z - centroid_b_z;
     __m512d sum_squared_total_f64x8 = _mm512_add_pd(sum_squared_x_f64x8,
@@ -723,8 +723,8 @@ NK_PUBLIC void nk_kabsch_f64_skylake(nk_f64_t const *a, nk_f64_t const *b, nk_si
                                      nk_f64_t *b_centroid, nk_f64_t *rotation, nk_f64_t *scale, nk_f64_t *result) {
     // Optimized fused single-pass implementation for f64.
     // Computes centroids and covariance matrix in one pass using the identity:
-    //   H_ij = sum((a_i - mean_a) * (b_j - mean_b))
-    //        = sum(a_i * b_j) - sum(a_i) * sum(b_j) / n
+    //   Hᵢⱼ = Σ((aᵢ - ā) × (bⱼ - b̄))
+    //       = Σ(aᵢ × bⱼ) - Σaᵢ × Σbⱼ / n
     __m512i const gather_idx_i64x8 = _mm512_setr_epi64(0, 3, 6, 9, 12, 15, 18, 21);
     __m512d const zeros_f64x8 = _mm512_setzero_pd();
 
@@ -810,7 +810,7 @@ NK_PUBLIC void nk_kabsch_f64_skylake(nk_f64_t const *a, nk_f64_t const *b, nk_si
     if (a_centroid) a_centroid[0] = centroid_a_x, a_centroid[1] = centroid_a_y, a_centroid[2] = centroid_a_z;
     if (b_centroid) b_centroid[0] = centroid_b_x, b_centroid[1] = centroid_b_y, b_centroid[2] = centroid_b_z;
 
-    // Compute centered covariance matrix: H_ij = sum(a_i*b_j) - sum_a_i * sum_b_j / n
+    // Compute centered covariance matrix: Hᵢⱼ = Σ(aᵢ×bⱼ) - Σaᵢ × Σbⱼ / n
     nk_f64_t cross_covariance[9];
     cross_covariance[0] = _mm512_reduce_add_pd(cov_xx_f64x8) - sum_a_x * sum_b_x * inv_n;
     cross_covariance[1] = _mm512_reduce_add_pd(cov_xy_f64x8) - sum_a_x * sum_b_y * inv_n;
@@ -826,7 +826,7 @@ NK_PUBLIC void nk_kabsch_f64_skylake(nk_f64_t const *a, nk_f64_t const *b, nk_si
     nk_f64_t svd_u[9], svd_s[3], svd_v[9];
     nk_svd3x3_f64_(cross_covariance, svd_u, svd_s, svd_v);
 
-    // R = V * U^T
+    // R = V * Uᵀ
     nk_f64_t r[9];
     r[0] = svd_v[0] * svd_u[0] + svd_v[1] * svd_u[1] + svd_v[2] * svd_u[2];
     r[1] = svd_v[0] * svd_u[3] + svd_v[1] * svd_u[4] + svd_v[2] * svd_u[5];
@@ -980,7 +980,7 @@ NK_PUBLIC void nk_umeyama_f32_skylake(nk_f32_t const *a, nk_f32_t const *b, nk_s
     nk_f32_t svd_u[9], svd_s[9], svd_v[9];
     nk_svd3x3_f32_(cross_covariance, svd_u, svd_s, svd_v);
 
-    // R = V * U^T
+    // R = V * Uᵀ
     nk_f32_t r[9];
     r[0] = svd_v[0] * svd_u[0] + svd_v[1] * svd_u[1] + svd_v[2] * svd_u[2];
     r[1] = svd_v[0] * svd_u[3] + svd_v[1] * svd_u[4] + svd_v[2] * svd_u[5];
@@ -1117,7 +1117,7 @@ NK_PUBLIC void nk_umeyama_f64_skylake(nk_f64_t const *a, nk_f64_t const *b, nk_s
     nk_f64_t variance_a = variance_a_sum * inv_n -
                           (centroid_a_x * centroid_a_x + centroid_a_y * centroid_a_y + centroid_a_z * centroid_a_z);
 
-    // Compute centered covariance matrix: H_ij = sum(a_i*b_j) - sum_a_i * sum_b_j / n
+    // Compute centered covariance matrix: Hᵢⱼ = Σ(aᵢ×bⱼ) - Σaᵢ × Σbⱼ / n
     nk_f64_t cross_covariance[9];
     cross_covariance[0] = _mm512_reduce_add_pd(cov_xx_f64x8) - sum_a_x * sum_b_x * inv_n;
     cross_covariance[1] = _mm512_reduce_add_pd(cov_xy_f64x8) - sum_a_x * sum_b_y * inv_n;
@@ -1133,7 +1133,7 @@ NK_PUBLIC void nk_umeyama_f64_skylake(nk_f64_t const *a, nk_f64_t const *b, nk_s
     nk_f64_t svd_u[9], svd_s[3], svd_v[9];
     nk_svd3x3_f64_(cross_covariance, svd_u, svd_s, svd_v);
 
-    // R = V * U^T
+    // R = V * Uᵀ
     nk_f64_t r[9];
     r[0] = svd_v[0] * svd_u[0] + svd_v[1] * svd_u[1] + svd_v[2] * svd_u[2];
     r[1] = svd_v[0] * svd_u[3] + svd_v[1] * svd_u[4] + svd_v[2] * svd_u[5];

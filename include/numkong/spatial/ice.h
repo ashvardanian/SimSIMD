@@ -220,7 +220,7 @@ NK_PUBLIC void nk_l2sq_i4_ice(nk_i4x2_t const *a, nk_i4x2_t const *b, nk_size_t 
     // Instead of using lookup tables for sign extension and squaring, we use arithmetic:
     //
     //  1. XOR trick for sign extension: `signed = (nibble ^ 8) - 8`
-    //     Maps [0,7] -> [0,7] (positive) and [8,15] -> [-8,-1] (negative).
+    //     Maps [0,7] → [0,7] (positive) and [8,15] → [-8,-1] (negative).
     //
     //  2. For L2 squared: |a-b|² = diff * diff, using `_mm512_dpbusd_epi32`.
     //     After computing signed difference and taking abs, the result fits in [0,15].
@@ -287,7 +287,7 @@ NK_PUBLIC void nk_angular_i4_ice(nk_i4x2_t const *a, nk_i4x2_t const *b, nk_size
     //
     // For signed i4 values in [-8, 7], we use DPBUSD for everything by leveraging
     // an algebraic identity. Define x = a ^ 8 (XOR with 8), which maps:
-    //   [0,7] -> [8,15] and [8,15] -> [0,7]
+    //   [0,7] → [8,15] and [8,15] → [0,7]
     //
     // The signed value is: a_signed = x - 8
     //
@@ -297,7 +297,7 @@ NK_PUBLIC void nk_angular_i4_ice(nk_i4x2_t const *a, nk_i4x2_t const *b, nk_size
     // Therefore:
     //   dot(a_signed, b_signed) = DPBUSD(ax, bx) - 8*(sum(ax) + sum(bx)) + 64*n
     //
-    // This avoids all i8->i16 upcasts and uses DPBUSD directly on byte values!
+    // This avoids all i8 → i16 upcasts and uses DPBUSD directly on byte values!
     // For norms, we use |x|² = x², computing abs then squaring with DPBUSD.
     __m512i const nibble_mask_u8x64 = _mm512_set1_epi8(0x0F);
     __m512i const eight_i8x64 = _mm512_set1_epi8(8);
@@ -482,7 +482,7 @@ nk_angular_u4_ice_cycle:
     ab_i32x16 = _mm512_dpbusd_epi32(ab_i32x16, a_high_u8x64, b_high_u8x64);
 
     // Squared norms: compute a² per nibble using lookup table for efficiency
-    // Squares lookup: 0->0, 1->1, 2->4, ..., 15->225
+    // Squares lookup: 0 → 0, 1->1, 2->4, ..., 15 → 225
     __m512i const u4_squares_lookup_u8x64 = _mm512_set_epi8(
         (char)225, (char)196, (char)169, (char)144, 121, 100, 81, 64, 49, 36, 25, 16, 9, 4, 1, 0, //
         (char)225, (char)196, (char)169, (char)144, 121, 100, 81, 64, 49, 36, 25, 16, 9, 4, 1, 0, //

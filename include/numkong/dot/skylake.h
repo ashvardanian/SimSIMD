@@ -459,7 +459,7 @@ NK_PUBLIC void nk_dot_u8_skylake(nk_u8_t const *a_scalars, nk_u8_t const *b_scal
     __m512i sum_i32x16 = _mm512_setzero_si512();
     nk_size_t idx_scalars = 0;
     for (; idx_scalars + 32 <= count_scalars; idx_scalars += 32) {
-        // Load 32 bytes and zero-extend to i16 (u8 -> u16 via zero-extension)
+        // Load 32 bytes and zero-extend to i16 (u8 → u16 via zero-extension)
         __m256i a_u8x32 = _mm256_loadu_si256((__m256i const *)(a_scalars + idx_scalars));
         __m256i b_u8x32 = _mm256_loadu_si256((__m256i const *)(b_scalars + idx_scalars));
         __m512i a_u16x32 = _mm512_cvtepu8_epi16(a_u8x32);

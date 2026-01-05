@@ -35,7 +35,7 @@ NK_INTERNAL void nk_load_b64_neon_(void const *src, nk_b64_vec_t *dst) { dst->u8
 
 #pragma region - Vectorized Conversions
 
-/** @brief Convert 4 E4M3 values to f32x4 via bit manipulation (NEON).
+/** @brief Convert 4× e4m3 → f32x4 via bit manipulation (NEON).
  *  E4M3 format: S EEEE MMM (bias=7). F32: sign<<31, (exp+120)<<23, mant<<20. */
 NK_INTERNAL float32x4_t nk_e4m3x4_to_f32x4_neon_(nk_e4m3_t const *src) {
     uint8x8_t e4m3_u8x8 = vcreate_u8(*(uint32_t const *)src);
@@ -52,7 +52,7 @@ NK_INTERNAL float32x4_t nk_e4m3x4_to_f32x4_neon_(nk_e4m3_t const *src) {
     return vreinterpretq_f32_u32(f32_bits_u32x4);
 }
 
-/** @brief Convert 4 E5M2 values to f32x4 via bit manipulation (NEON).
+/** @brief Convert 4× e5m2 → f32x4 via bit manipulation (NEON).
  *  E5M2 format: S EEEEE MM (bias=15). F32: sign<<31, (exp+112)<<23, mant<<21. */
 NK_INTERNAL float32x4_t nk_e5m2x4_to_f32x4_neon_(nk_e5m2_t const *src) {
     uint8x8_t e5m2_u8x8 = vcreate_u8(*(uint32_t const *)src);
@@ -69,7 +69,7 @@ NK_INTERNAL float32x4_t nk_e5m2x4_to_f32x4_neon_(nk_e5m2_t const *src) {
     return vreinterpretq_f32_u32(f32_bits_u32x4);
 }
 
-/** @brief Convert 8 E4M3 values to f16x8 via bit manipulation (NEON).
+/** @brief Convert 8× e4m3 → f16x8 via bit manipulation (NEON).
  *  E4M3 format: S EEEE MMM (bias=7). F16: sign<<15, (exp+8)<<10, mant<<7. */
 NK_INTERNAL float16x8_t nk_e4m3x8_to_f16x8_neon_(uint8x8_t e4m3_u8x8) {
     uint16x8_t v_u16x8 = vmovl_u8(e4m3_u8x8);
@@ -84,7 +84,7 @@ NK_INTERNAL float16x8_t nk_e4m3x8_to_f16x8_neon_(uint8x8_t e4m3_u8x8) {
     return vreinterpretq_f16_u16(f16_bits_u16x8);
 }
 
-/** @brief Convert 8 E5M2 values to f16x8 via bit manipulation (NEON).
+/** @brief Convert 8× e5m2 → f16x8 via bit manipulation (NEON).
  *  E5M2 format: S EEEEE MM (bias=15). F16: sign<<15, exp<<10, mant<<8. */
 NK_INTERNAL float16x8_t nk_e5m2x8_to_f16x8_neon_(uint8x8_t e5m2_u8x8) {
     uint16x8_t v_u16x8 = vmovl_u8(e5m2_u8x8);
@@ -99,7 +99,7 @@ NK_INTERNAL float16x8_t nk_e5m2x8_to_f16x8_neon_(uint8x8_t e5m2_u8x8) {
     return vreinterpretq_f16_u16(f16_bits_u16x8);
 }
 
-/** @brief Convert f16x8 to 8 E4M3 values (NEON). */
+/** @brief Convert f16x8 → 8× e4m3 (NEON). */
 NK_INTERNAL uint8x8_t nk_f16x8_to_e4m3x8_neon_(float16x8_t f16x8) {
     uint16x8_t bits_u16x8 = vreinterpretq_u16_f16(f16x8);
     uint16x8_t sign_u16x8 = vshrq_n_u16(vandq_u16(bits_u16x8, vdupq_n_u16(0x8000)), 8);
@@ -113,7 +113,7 @@ NK_INTERNAL uint8x8_t nk_f16x8_to_e4m3x8_neon_(float16x8_t f16x8) {
     return vmovn_u16(e4m3_u16x8);
 }
 
-/** @brief Convert f16x8 to 8 E5M2 values (NEON). */
+/** @brief Convert f16x8 → 8× e5m2 (NEON). */
 NK_INTERNAL uint8x8_t nk_f16x8_to_e5m2x8_neon_(float16x8_t f16x8) {
     uint16x8_t bits_u16x8 = vreinterpretq_u16_f16(f16x8);
     uint16x8_t sign_u16x8 = vshrq_n_u16(vandq_u16(bits_u16x8, vdupq_n_u16(0x8000)), 8);

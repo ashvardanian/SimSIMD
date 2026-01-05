@@ -8,8 +8,8 @@
  *  with row-major inputs, optimized for ML inference and similarity workloads.
  *
  *  Primary Use Cases (1-to-N focus):
- *  - k-NN search: ||a-b||² = ||a||² + ||b||² - 2(a·b)
- *  - Cosine similarity: (a·b) / (||a||·||b||)
+ *  - k-NN search: ‖a-b‖² = ‖a‖² + ‖b‖² - 2(a·b)
+ *  - Cosine similarity: (a·b) / (‖a‖·‖b‖)
  *  - Sparse attention patterns
  *  - Embedding similarity matrices
  *  - k-means clustering, DBSCAN, hierarchical clustering

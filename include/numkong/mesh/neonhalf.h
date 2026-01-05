@@ -336,8 +336,8 @@ NK_PUBLIC void nk_kabsch_f16_neonhalf(nk_f16_t const *a, nk_f16_t const *b, nk_s
         b_centroid[2] = centroid_b_z;
     }
 
-    // Compute centered covariance: H = (A - centroid_A)^T * (B - centroid_B)
-    // H = sum(a*b^T) - n * centroid_a * centroid_b^T
+    // Compute centered covariance: H = (A - centroid_A)ᵀ * (B - centroid_B)
+    // H = sum(a × bᵀ) - n * centroid_a * centroid_bᵀ
     nk_f32_t h[9];
     h[0] = h00 - n * centroid_a_x * centroid_b_x;
     h[1] = h01 - n * centroid_a_x * centroid_b_y;
@@ -349,11 +349,11 @@ NK_PUBLIC void nk_kabsch_f16_neonhalf(nk_f16_t const *a, nk_f16_t const *b, nk_s
     h[7] = h21 - n * centroid_a_z * centroid_b_y;
     h[8] = h22 - n * centroid_a_z * centroid_b_z;
 
-    // SVD of H = U * S * V^T
+    // SVD of H = U * S * Vᵀ
     nk_f32_t svd_u[9], svd_s[9], svd_v[9];
     nk_svd3x3_f32_(h, svd_u, svd_s, svd_v);
 
-    // R = V * U^T
+    // R = V * Uᵀ
     nk_f32_t r[9];
     r[0] = svd_v[0] * svd_u[0] + svd_v[1] * svd_u[1] + svd_v[2] * svd_u[2];
     r[1] = svd_v[0] * svd_u[3] + svd_v[1] * svd_u[4] + svd_v[2] * svd_u[5];
@@ -509,11 +509,11 @@ NK_PUBLIC void nk_umeyama_f16_neonhalf(nk_f16_t const *a, nk_f16_t const *b, nk_
     h[7] = h21 - n * centroid_a_z * centroid_b_y;
     h[8] = h22 - n * centroid_a_z * centroid_b_z;
 
-    // SVD of H = U * S * V^T
+    // SVD of H = U * S * Vᵀ
     nk_f32_t svd_u[9], svd_s[9], svd_v[9];
     nk_svd3x3_f32_(h, svd_u, svd_s, svd_v);
 
-    // R = V * U^T
+    // R = V * Uᵀ
     nk_f32_t r[9];
     r[0] = svd_v[0] * svd_u[0] + svd_v[1] * svd_u[1] + svd_v[2] * svd_u[2];
     r[1] = svd_v[0] * svd_u[3] + svd_v[1] * svd_u[4] + svd_v[2] * svd_u[5];

@@ -100,11 +100,11 @@ NK_INTERNAL void nk_jaccard_b128_update_neon(nk_jaccard_b128_state_neon_t *state
     // Uses vector accumulation - horizontal sum deferred to finalize.
     //
     // ARM NEON instruction characteristics:
-    //   `vandq_u8`:   Bitwise AND, 1 cycle latency
-    //   `vcntq_u8`:   Byte popcount (16 bytes -> 16 popcounts), 1-2 cycles
-    //   `vpaddlq_u8`: Pairwise widening add u8->u16, 1 cycle
-    //   `vpaddlq_u16`: Pairwise widening add u16->u32, 1 cycle
-    //   `vaddq_u32`:  Vector add u32x4, 1 cycle
+    //   `vandq_u8`:    Bitwise AND, 1 cycle latency
+    //   `vcntq_u8`:    Byte popcount (16 bytes → 16 popcounts), 1-2 cycles
+    //   `vpaddlq_u8`:  Pairwise widening add u8 → u16, 1 cycle
+    //   `vpaddlq_u16`: Pairwise widening add u16 → u32, 1 cycle
+    //   `vaddq_u32`:   Vector add u32x4, 1 cycle
     // Total: ~5-6 cycles per 128-bit chunk (no horizontal sum penalty per update)
 
     // Step 1: Compute intersection bits (A AND B)
@@ -114,9 +114,9 @@ NK_INTERNAL void nk_jaccard_b128_update_neon(nk_jaccard_b128_state_neon_t *state
     uint8x16_t popcount_u8x16 = vcntq_u8(intersection_u8x16);
 
     // Step 3: Pairwise widening reduction chain
-    // u8x16 -> u16x8: pairs of adjacent bytes summed into 16-bit
+    // u8x16 → u16x8: pairs of adjacent bytes summed into 16-bit
     uint16x8_t popcount_u16x8 = vpaddlq_u8(popcount_u8x16);
-    // u16x8 -> u32x4: pairs of 16-bit values summed into 32-bit
+    // u16x8 → u32x4: pairs of 16-bit values summed into 32-bit
     uint32x4_t popcount_u32x4 = vpaddlq_u16(popcount_u16x8);
 
     // Step 4: Vector accumulation (defers horizontal sum to finalize)
@@ -144,7 +144,7 @@ NK_INTERNAL void nk_jaccard_b128_finalize_neon(nk_jaccard_b128_state_neon_t cons
                                                target_popcount_d};
     float32x4_t union_f32x4 = vsubq_f32(vaddq_f32(query_f32x4, targets_f32x4), intersection_f32x4);
 
-    // Handle zero-union edge case (empty vectors -> distance = 1.0)
+    // Handle zero-union edge case (empty vectors → distance = 1.0)
     float32x4_t one_f32x4 = vdupq_n_f32(1.0f);
     uint32x4_t zero_union_mask = vceqq_f32(union_f32x4, vdupq_n_f32(0.0f));
     float32x4_t safe_union_f32x4 = vbslq_f32(zero_union_mask, one_f32x4, union_f32x4);

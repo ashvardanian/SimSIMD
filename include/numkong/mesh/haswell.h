@@ -604,7 +604,7 @@ NK_PUBLIC void nk_kabsch_f32_haswell(nk_f32_t const *a, nk_f32_t const *b, nk_si
         b_centroid[2] = centroid_b_z;
     }
 
-    // Apply centering correction: H_centered = H - n * centroid_a * centroid_b^T
+    // Apply centering correction: H_centered = H - n * centroid_a * centroid_bᵀ
     h00 -= n * centroid_a_x * centroid_b_x;
     h01 -= n * centroid_a_x * centroid_b_y;
     h02 -= n * centroid_a_x * centroid_b_z;
@@ -620,7 +620,7 @@ NK_PUBLIC void nk_kabsch_f32_haswell(nk_f32_t const *a, nk_f32_t const *b, nk_si
     nk_f32_t svd_u[9], svd_s[3], svd_v[9];
     nk_svd3x3_f32_(cross_covariance, svd_u, svd_s, svd_v);
 
-    // R = V * U^T
+    // R = V * Uᵀ
     nk_f32_t r[9];
     r[0] = svd_v[0] * svd_u[0] + svd_v[1] * svd_u[1] + svd_v[2] * svd_u[2];
     r[1] = svd_v[0] * svd_u[3] + svd_v[1] * svd_u[4] + svd_v[2] * svd_u[5];
@@ -758,7 +758,7 @@ NK_PUBLIC void nk_kabsch_f64_haswell(nk_f64_t const *a, nk_f64_t const *b, nk_si
         b_centroid[2] = centroid_b_z;
     }
 
-    // Apply centering correction: H_centered = H - n * centroid_a * centroid_b^T
+    // Apply centering correction: H_centered = H - n * centroid_a * centroid_bᵀ
     H00 -= n * centroid_a_x * centroid_b_x;
     H01 -= n * centroid_a_x * centroid_b_y;
     H02 -= n * centroid_a_x * centroid_b_z;
@@ -774,7 +774,7 @@ NK_PUBLIC void nk_kabsch_f64_haswell(nk_f64_t const *a, nk_f64_t const *b, nk_si
     nk_f64_t svd_u[9], svd_s[3], svd_v[9];
     nk_svd3x3_f64_(cross_covariance, svd_u, svd_s, svd_v);
 
-    // R = V * U^T
+    // R = V * Uᵀ
     nk_f64_t r[9];
     r[0] = svd_v[0] * svd_u[0] + svd_v[1] * svd_u[1] + svd_v[2] * svd_u[2];
     r[1] = svd_v[0] * svd_u[3] + svd_v[1] * svd_u[4] + svd_v[2] * svd_u[5];
@@ -927,7 +927,7 @@ NK_PUBLIC void nk_umeyama_f32_haswell(nk_f32_t const *a, nk_f32_t const *b, nk_s
     nk_f32_t svd_u[9], svd_s[9], svd_v[9];
     nk_svd3x3_f32_(cross_covariance, svd_u, svd_s, svd_v);
 
-    // R = V * U^T
+    // R = V * Uᵀ
     nk_f32_t r[9];
     r[0] = svd_v[0] * svd_u[0] + svd_v[1] * svd_u[1] + svd_v[2] * svd_u[2];
     r[1] = svd_v[0] * svd_u[3] + svd_v[1] * svd_u[4] + svd_v[2] * svd_u[5];
@@ -1079,7 +1079,7 @@ NK_PUBLIC void nk_umeyama_f64_haswell(nk_f64_t const *a, nk_f64_t const *b, nk_s
     nk_f64_t svd_u[9], svd_s[3], svd_v[9];
     nk_svd3x3_f64_(cross_covariance, svd_u, svd_s, svd_v);
 
-    // R = V * U^T
+    // R = V * Uᵀ
     nk_f64_t r[9];
     r[0] = svd_v[0] * svd_u[0] + svd_v[1] * svd_u[1] + svd_v[2] * svd_u[2];
     r[1] = svd_v[0] * svd_u[3] + svd_v[1] * svd_u[4] + svd_v[2] * svd_u[5];
@@ -1660,7 +1660,7 @@ NK_PUBLIC void nk_kabsch_f16_haswell(nk_f16_t const *a, nk_f16_t const *b, nk_si
         b_centroid[2] = centroid_b_z;
     }
 
-    // Apply centering correction: H_centered = H - n * centroid_a * centroid_b^T
+    // Apply centering correction: H_centered = H - n * centroid_a * centroid_bᵀ
     h00 -= n * centroid_a_x * centroid_b_x;
     h01 -= n * centroid_a_x * centroid_b_y;
     h02 -= n * centroid_a_x * centroid_b_z;
@@ -1676,7 +1676,7 @@ NK_PUBLIC void nk_kabsch_f16_haswell(nk_f16_t const *a, nk_f16_t const *b, nk_si
     nk_f32_t svd_u[9], svd_s[9], svd_v[9];
     nk_svd3x3_f32_(cross_covariance, svd_u, svd_s, svd_v);
 
-    // R = V * U^T
+    // R = V * Uᵀ
     nk_f32_t r[9];
     r[0] = svd_v[0] * svd_u[0] + svd_v[1] * svd_u[1] + svd_v[2] * svd_u[2];
     r[1] = svd_v[0] * svd_u[3] + svd_v[1] * svd_u[4] + svd_v[2] * svd_u[5];
@@ -1821,7 +1821,7 @@ NK_PUBLIC void nk_kabsch_bf16_haswell(nk_bf16_t const *a, nk_bf16_t const *b, nk
         b_centroid[2] = centroid_b_z;
     }
 
-    // Apply centering correction: H_centered = H - n * centroid_a * centroid_b^T
+    // Apply centering correction: H_centered = H - n * centroid_a * centroid_bᵀ
     h00 -= n * centroid_a_x * centroid_b_x;
     h01 -= n * centroid_a_x * centroid_b_y;
     h02 -= n * centroid_a_x * centroid_b_z;
@@ -1837,7 +1837,7 @@ NK_PUBLIC void nk_kabsch_bf16_haswell(nk_bf16_t const *a, nk_bf16_t const *b, nk
     nk_f32_t svd_u[9], svd_s[9], svd_v[9];
     nk_svd3x3_f32_(cross_covariance, svd_u, svd_s, svd_v);
 
-    // R = V * U^T
+    // R = V * Uᵀ
     nk_f32_t r[9];
     r[0] = svd_v[0] * svd_u[0] + svd_v[1] * svd_u[1] + svd_v[2] * svd_u[2];
     r[1] = svd_v[0] * svd_u[3] + svd_v[1] * svd_u[4] + svd_v[2] * svd_u[5];
@@ -1995,7 +1995,7 @@ NK_PUBLIC void nk_umeyama_f16_haswell(nk_f16_t const *a, nk_f16_t const *b, nk_s
     nk_f32_t svd_u[9], svd_s[9], svd_v[9];
     nk_svd3x3_f32_(cross_covariance, svd_u, svd_s, svd_v);
 
-    // R = V * U^T
+    // R = V * Uᵀ
     nk_f32_t r[9];
     r[0] = svd_v[0] * svd_u[0] + svd_v[1] * svd_u[1] + svd_v[2] * svd_u[2];
     r[1] = svd_v[0] * svd_u[3] + svd_v[1] * svd_u[4] + svd_v[2] * svd_u[5];
@@ -2157,7 +2157,7 @@ NK_PUBLIC void nk_umeyama_bf16_haswell(nk_bf16_t const *a, nk_bf16_t const *b, n
     nk_f32_t svd_u[9], svd_s[9], svd_v[9];
     nk_svd3x3_f32_(cross_covariance, svd_u, svd_s, svd_v);
 
-    // R = V * U^T
+    // R = V * Uᵀ
     nk_f32_t r[9];
     r[0] = svd_v[0] * svd_u[0] + svd_v[1] * svd_u[1] + svd_v[2] * svd_u[2];
     r[1] = svd_v[0] * svd_u[3] + svd_v[1] * svd_u[4] + svd_v[2] * svd_u[5];

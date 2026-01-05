@@ -923,7 +923,7 @@ NK_INTERNAL void nk_reduce_add_i8_haswell_contiguous_( //
         // Two 128-bit loads instead of 256-bit + extract
         __m128i low_i8x16 = _mm_loadu_si128((__m128i const *)(data + idx));
         __m128i high_i8x16 = _mm_loadu_si128((__m128i const *)(data + idx + 16));
-        // Widen lower 16 bytes: i8 -> i16 -> i32 -> i64
+        // Widen lower 16 bytes: i8 → i16 → i32 → i64
         __m256i low_i16x16 = _mm256_cvtepi8_epi16(low_i8x16);
         __m128i low_low_i16x8 = _mm256_castsi256_si128(low_i16x16);
         __m128i low_high_i16x8 = _mm256_extracti128_si256(low_i16x16, 1);

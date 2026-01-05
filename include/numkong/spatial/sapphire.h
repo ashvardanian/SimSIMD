@@ -46,7 +46,7 @@ nk_l2sq_e4m3_sapphire_cycle:
         a_scalars += 16, b_scalars += 16, count_scalars -= 16;
     }
 
-    // Convert e4m3 -> f16
+    // Convert e4m3 → f16
     __m256h a_f16x16 = nk_e4m3x16_to_f16x16_sapphire_(a_e4m3x16);
     __m256h b_f16x16 = nk_e4m3x16_to_f16x16_sapphire_(b_e4m3x16);
 

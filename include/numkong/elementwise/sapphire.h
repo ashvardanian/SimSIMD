@@ -77,7 +77,7 @@ NK_PUBLIC void nk_wsum_f16_sapphire(                   //
     nk_f32_t alpha_val = *alpha;
     nk_f32_t beta_val = *beta;
 
-    // There are are several special cases we may want to implement:
+    // There are several special cases we may want to implement:
     // 1. Simple addition, when both weights are equal to 1.0.
     if (alpha_val == 1 && beta_val == 1) {
         // In this case we can avoid expensive multiplications.
@@ -199,7 +199,7 @@ NK_PUBLIC void nk_wsum_u8_sapphire(                  //
     nk_f32_t alpha_val = *alpha;
     nk_f32_t beta_val = *beta;
 
-    // There are are several special cases we may want to implement:
+    // There are several special cases we may want to implement:
     // 1. Simple addition, when both weights are equal to 1.0.
     if (alpha_val == 1 && beta_val == 1) {
         // In this case we can avoid expensive multiplications.
@@ -309,7 +309,7 @@ NK_PUBLIC void nk_wsum_i8_sapphire(                  //
     nk_f32_t alpha_val = *alpha;
     nk_f32_t beta_val = *beta;
 
-    // There are are several special cases we may want to implement:
+    // There are several special cases we may want to implement:
     // 1. Simple addition, when both weights are equal to 1.0.
     if (alpha_val == 1 && beta_val == 1) {
         // In this case we can avoid expensive multiplications.
@@ -532,7 +532,7 @@ nk_sum_e4m3_sapphire_cycle:
         a += 32, b += 32, n -= 32;
     }
 
-    // Convert e4m3x16 -> f16x16 (two halves)
+    // Convert e4m3x16 → f16x16 (two halves)
     a_lo_f16x16 = nk_e4m3x16_to_f16x16_sapphire_(_mm256_castsi256_si128(a_e4m3x32));
     a_hi_f16x16 = nk_e4m3x16_to_f16x16_sapphire_(_mm256_extracti128_si256(a_e4m3x32, 1));
     b_lo_f16x16 = nk_e4m3x16_to_f16x16_sapphire_(_mm256_castsi256_si128(b_e4m3x32));
@@ -542,7 +542,7 @@ nk_sum_e4m3_sapphire_cycle:
     sum_lo_f16x16 = _mm256_add_ph(a_lo_f16x16, b_lo_f16x16);
     sum_hi_f16x16 = _mm256_add_ph(a_hi_f16x16, b_hi_f16x16);
 
-    // Convert f16x16 -> e4m3x16
+    // Convert f16x16 → e4m3x16
     result_lo_e4m3x16 = nk_f16x16_to_e4m3x16_sapphire_(sum_lo_f16x16);
     result_hi_e4m3x16 = nk_f16x16_to_e4m3x16_sapphire_(sum_hi_f16x16);
 

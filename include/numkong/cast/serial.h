@@ -24,10 +24,10 @@ extern "C" {
  *       +inf         0x7C00    0x7F800000    Positive infinity
  *       -inf         0xFC00    0xFF800000    Negative infinity
  *       NaN          0x7E00    0x7FC00000    Quiet NaN (payload preserved)
- *       Min normal   0x0400    0x38800000    2^-14
+ *       Min normal   0x0400    0x38800000    2⁻¹⁴
  *       Max normal   0x7BFF    0x477FE000    65504
- *       Min denorm   0x0001    0x33800000    2^-24
- *       Max denorm   0x03FF    0x387FC000    2^-14 - 2^-24
+ *       Min denorm   0x0001    0x33800000    2⁻²⁴
+ *       Max denorm   0x03FF    0x387FC000    2⁻¹⁴ - 2⁻²⁴
  *
  *  https://stackoverflow.com/a/60047308
  *  https://gist.github.com/milhidaka/95863906fe828198f47991c813dbe233
@@ -52,7 +52,7 @@ NK_INTERNAL void nk_f16_to_f32_serial(nk_f16_t const *src, nk_f32_t *dest) {
             conv.u = sign << 31;
         }
         else {
-            // Denormal: value = mantissa * 2^-24
+            // Denormal: value = mantissa × 2⁻²⁴
             // Use FPU normalization, then subtract 24 from exponent
             nk_fui32_t temp;
             temp.f = (float)mantissa;
@@ -85,10 +85,10 @@ NK_INTERNAL void nk_f16_to_f32_serial(nk_f16_t const *src, nk_f32_t *dest) {
  *      NaN             0x7FC00000    0x7E00    Quiet NaN (payload truncated)
  *      1.0             0x3F800000    0x3C00    Normal number
  *      65504           0x477FE000    0x7BFF    Max f16 normal
- *      65520+          >0x477FE000   0x7C00    Overflow -> infinity
- *      2^-14           0x38800000    0x0400    Min f16 normal
- *      2^-24           0x33800000    0x0001    Min f16 denormal
- *      <2^-25          <0x33000000   0x0000    Underflow -> zero
+ *      65520+          >0x477FE000   0x7C00    Overflow → infinity
+ *      2⁻¹⁴           0x38800000    0x0400    Min f16 normal
+ *      2⁻²⁴           0x33800000    0x0001    Min f16 denormal
+ *      <2⁻²⁵          <0x33000000   0x0000    Underflow → zero
  *
  *  https://stackoverflow.com/a/60047308
  *  https://gist.github.com/milhidaka/95863906fe828198f47991c813dbe233
@@ -108,7 +108,7 @@ NK_INTERNAL void nk_f32_to_f16_serial(nk_f32_t const *src, nk_f16_t *dest) {
     unsigned short result;
 
     if (exponent == 0) {
-        // Zero or f32 denormal -> f16 zero
+        // Zero or f32 denormal → f16 zero
         result = (unsigned short)(sign << 15);
     }
     else if (exponent == 255) {
@@ -118,7 +118,7 @@ NK_INTERNAL void nk_f32_to_f16_serial(nk_f32_t const *src, nk_f16_t *dest) {
         result = (unsigned short)((sign << 15) | 0x7C00 | payload);
     }
     else if (exponent < 103) {
-        // Too small for f16 denormal -> zero
+        // Too small for f16 denormal → zero
         result = (unsigned short)(sign << 15);
     }
     else if (exponent < 113) {
@@ -142,7 +142,7 @@ NK_INTERNAL void nk_f32_to_f16_serial(nk_f32_t const *src, nk_f16_t *dest) {
         else result = (unsigned short)((sign << 15) | (f16_exp << 10) | f16_mant);
     }
     else {
-        // Overflow -> infinity
+        // Overflow → infinity
         result = (unsigned short)((sign << 15) | 0x7C00);
     }
 
@@ -196,9 +196,9 @@ NK_INTERNAL void nk_f32_to_bf16_serial(nk_f32_t const *src, nk_bf16_t *dest) {
  *
  *  E4M3 (FP8) format: 1 sign bit, 4 exponent bits (bias=7), 3 mantissa bits.
  *  Range: [-448, +448], no infinity, only two NaN encodings (0x7F, 0xFF).
- *  Subnormal values: (-1)^S * mantissa * 2^(-9) = mantissa / 512.
+ *  Subnormal values: (-1)ˢ × mantissa × 2⁻⁹ = mantissa / 512.
  *
- *  Special value mappings (E4M3 -> F32):
+ *  Special value mappings (E4M3 → F32):
  *      Input        E4M3 Hex  F32 Hex       Description
  *      +0           0x00      0x00000000    Positive zero
  *      -0           0x80      0x80000000    Negative zero
@@ -207,8 +207,8 @@ NK_INTERNAL void nk_f32_to_bf16_serial(nk_f32_t const *src, nk_bf16_t *dest) {
  *      +448 (max)   0x7E      0x43E00000    Max normal = 448
  *      -448         0xFE      0xC3E00000    Min normal = -448
  *      1.0          0x38      0x3F800000    Normal (exp=7, mant=0)
- *      Min denorm   0x01      0x3B000000    1/512 = 2^(-9)
- *      Max denorm   0x07      0x3BE00000    7/512 = 7 * 2^(-9)
+ *      Min denorm   0x01      0x3B000000    1/512 = 2⁻⁹
+ *      Max denorm   0x07      0x3BE00000    7/512 = 7 × 2⁻⁹
  *
  *  References:
  *      https://arxiv.org/pdf/2209.05433 (NVIDIA/Intel/Arm FP8 paper)
@@ -251,9 +251,9 @@ NK_INTERNAL void nk_e4m3_to_f32_serial(nk_e4m3_t const *src, nk_f32_t *dest) {
  *  E4M3 (FP8) format: 1 sign bit, 4 exponent bits (bias=7), 3 mantissa bits.
  *  Range: [-448, +448], no infinity, only two NaN encodings.
  *  Rounding: RNE (Round to Nearest Even) per IEEE 754 / OCP FP8 spec.
- *  Subnormal threshold: values with |x| < 2^(-6) use subnormal encoding.
+ *  Subnormal threshold: values with |x| < 2⁻⁶ use subnormal encoding.
  *
- *  Special value mappings (F32 -> E4M3):
+ *  Special value mappings (F32 → E4M3):
  *      Input        F32 Hex       E4M3 Hex  Description
  *      +0           0x00000000    0x00      Positive zero
  *      -0           0x80000000    0x80      Negative zero
@@ -261,9 +261,9 @@ NK_INTERNAL void nk_e4m3_to_f32_serial(nk_e4m3_t const *src, nk_f32_t *dest) {
  *      -inf         0xFF800000    0xFE      Saturates to min (-448)
  *      NaN          0x7FC00000    0x7F      Quiet NaN
  *      1.0          0x3F800000    0x38      Normal (exp=7, mant=0)
- *      448+         >0x43E00000   0x7E      Overflow -> max
- *      2^(-6)       0x3E800000    0x08      Min normal
- *      <2^(-12.5)   <0x39800000   0x00      Underflow -> zero (RNE boundary)
+ *      448+         >0x43E00000   0x7E      Overflow → max
+ *      2⁻⁶         0x3E800000    0x08      Min normal
+ *      <2⁻¹²·⁵     <0x39800000   0x00      Underflow → zero (RNE boundary)
  *
  *  References:
  *      https://arxiv.org/pdf/2209.05433 (NVIDIA/Intel/Arm FP8 paper)
@@ -353,9 +353,9 @@ NK_INTERNAL void nk_f32_to_e4m3_serial(nk_f32_t const *src, nk_e4m3_t *dest) {
  *
  *  E5M2 (FP8) format: 1 sign bit, 5 exponent bits (bias=15), 2 mantissa bits.
  *  Range: [-57344, +57344], supports infinity and NaN (IEEE 754 compatible).
- *  Subnormal values: (-1)^S * mantissa * 2^(-16) = mantissa / 65536.
+ *  Subnormal values: (-1)ˢ × mantissa × 2⁻¹⁶ = mantissa / 65536.
  *
- *  Special value mappings (E5M2 -> F32):
+ *  Special value mappings (E5M2 → F32):
  *      Input        E5M2 Hex  F32 Hex       Description
  *      +0           0x00      0x00000000    Positive zero
  *      -0           0x80      0x80000000    Negative zero
@@ -365,8 +365,8 @@ NK_INTERNAL void nk_f32_to_e4m3_serial(nk_f32_t const *src, nk_e4m3_t *dest) {
  *      -NaN         0xFD-FF   0xFFC00000    Quiet NaN (signed)
  *      +57344 (max) 0x7B      0x47600000    Max normal
  *      1.0          0x3C      0x3F800000    Normal (exp=15, mant=0)
- *      Min denorm   0x01      0x37800000    1/65536 = 2^(-16)
- *      Max denorm   0x03      0x38000000    3/65536 = 3 * 2^(-16)
+ *      Min denorm   0x01      0x37800000    1/65536 = 2⁻¹⁶
+ *      Max denorm   0x03      0x38000000    3/65536 = 3 × 2⁻¹⁶
  *
  *  References:
  *      https://arxiv.org/pdf/2209.05433 (NVIDIA/Intel/Arm FP8 paper)
@@ -409,9 +409,9 @@ NK_INTERNAL void nk_e5m2_to_f32_serial(nk_e5m2_t const *src, nk_f32_t *dest) {
  *  E5M2 (FP8) format: 1 sign bit, 5 exponent bits (bias=15), 2 mantissa bits.
  *  Range: [-57344, +57344], supports infinity and NaN (IEEE 754 compatible).
  *  Rounding: RNE (Round to Nearest Even) per IEEE 754 / OCP FP8 spec.
- *  Subnormal threshold: values with |x| < 2^(-14) use subnormal encoding.
+ *  Subnormal threshold: values with |x| < 2⁻¹⁴ use subnormal encoding.
  *
- *  Special value mappings (F32 -> E5M2):
+ *  Special value mappings (F32 → E5M2):
  *      Input        F32 Hex       E5M2 Hex  Description
  *      +0           0x00000000    0x00      Positive zero
  *      -0           0x80000000    0x80      Negative zero
@@ -419,9 +419,9 @@ NK_INTERNAL void nk_e5m2_to_f32_serial(nk_e5m2_t const *src, nk_f32_t *dest) {
  *      -inf         0xFF800000    0xFC      Negative infinity
  *      NaN          0x7FC00000    0x7D      Quiet NaN
  *      1.0          0x3F800000    0x3C      Normal (exp=15, mant=0)
- *      57344+       >0x47600000   0x7C      Overflow -> infinity
- *      2^(-14)      0x38800000    0x04      Min normal
- *      <2^(-17.5)   <0x36800000   0x00      Underflow -> zero (RNE boundary)
+ *      57344+       >0x47600000   0x7C      Overflow → infinity
+ *      2⁻¹⁴        0x38800000    0x04      Min normal
+ *      <2⁻¹⁷·⁵     <0x36800000   0x00      Underflow → zero (RNE boundary)
  *
  *  References:
  *      https://arxiv.org/pdf/2209.05433 (NVIDIA/Intel/Arm FP8 paper)

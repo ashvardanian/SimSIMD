@@ -71,7 +71,7 @@ NK_PUBLIC void nk_wsum_bf16_neonbfdot(                   //
     nk_f32_t alpha_val = *alpha;
     nk_f32_t beta_val = *beta;
 
-    // There are are several special cases we may want to implement:
+    // There are several special cases we may want to implement:
     // 1. Simple addition, when both weights are equal to 1.0.
     if (alpha_val == 1 && beta_val == 1) {
         // In this case we can avoid expensive multiplications.

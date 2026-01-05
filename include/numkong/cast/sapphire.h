@@ -31,7 +31,7 @@ NK_PUBLIC void nk_f16_to_f32_sapphire(nk_f16_t const *from, nk_f32_t *to) {
 
 #pragma region - Vectorized Conversions
 
-/** @brief Convert 16x e4m3 to 16x f16 via bit manipulation (AVX-512 FP16).
+/** @brief Convert 16× e4m3 → 16× f16 via bit manipulation (AVX-512 FP16).
  *  E4M3 format: S EEEE MMM (bias=7). F16: S EEEEE MMMMMMMMMM (bias=15).
  *  Normal: sign | ((exp+8)<<10) | (mant<<7).
  *  Subnormals (exp=0): value = mantissa / 512, computed via f16 arithmetic. */
@@ -55,7 +55,7 @@ NK_INTERNAL __m256h nk_e4m3x16_to_f16x16_sapphire_(__m128i e4m3_i8x16) {
     return _mm256_castsi256_ph(_mm256_mask_blend_epi16(is_subnormal, normal_i16x16, subnorm_signed_i16x16));
 }
 
-/** @brief Convert 16x e5m2 to 16x f16 via bit manipulation (AVX-512 FP16).
+/** @brief Convert 16× e5m2 → 16× f16 via bit manipulation (AVX-512 FP16).
  *  E5M2 format: S EEEEE MM (bias=15). F16: S EEEEE MMMMMMMMMM (bias=15).
  *  Normal: sign | (exp<<10) | (mant<<8) (same exponent bias).
  *  Subnormals (exp=0): value = mantissa / 65536, computed via f16 arithmetic. */
@@ -78,7 +78,7 @@ NK_INTERNAL __m256h nk_e5m2x16_to_f16x16_sapphire_(__m128i e5m2_i8x16) {
     return _mm256_castsi256_ph(_mm256_mask_blend_epi16(is_subnormal, normal_i16x16, subnorm_signed_i16x16));
 }
 
-/** @brief Convert 16x f16 to 16x e4m3 via bit manipulation (AVX-512 FP16).
+/** @brief Convert 16× f16 → 16× e4m3 via bit manipulation (AVX-512 FP16).
  *  F16: S EEEEE MMMMMMMMMM (bias=15). E4M3: S EEEE MMM (bias=7).
  *  Handles normal, subnormal, and overflow cases with RNE rounding. */
 NK_INTERNAL __m128i nk_f16x16_to_e4m3x16_sapphire_(__m256h f16x16) {
@@ -132,7 +132,7 @@ NK_INTERNAL __m128i nk_f16x16_to_e4m3x16_sapphire_(__m256h f16x16) {
     return _mm256_cvtepi16_epi8(e4m3_i16x16);
 }
 
-/** @brief Convert 16x f16 to 16x e5m2 via bit manipulation (AVX-512 FP16).
+/** @brief Convert 16× f16 → 16× e5m2 via bit manipulation (AVX-512 FP16).
  *  F16: S EEEEE MMMMMMMMMM (bias=15). E5M2: S EEEEE MM (bias=15).
  *  Same exponent bias, so just round mantissa from 10 to 2 bits. */
 NK_INTERNAL __m128i nk_f16x16_to_e5m2x16_sapphire_(__m256h f16x16) {

@@ -51,7 +51,7 @@ NK_INTERNAL void nk_deinterleave_f64x2_neon_(nk_f64_t const *ptr, float64x2_t *x
 
 /*  Internal helper: Compute sum of squared distances after applying rotation (and optional scale).
  *  Used by kabsch (scale=1.0) and umeyama (scale=computed_scale).
- *  Returns sum_squared, caller computes sqrt(sum_squared / n).
+ *  Returns sum_squared, caller computes √(sum_squared / n).
  *
  *  Optimization: 2x loop unrolling with multiple accumulators hides FMA latency (3-7 cycles).
  */
@@ -681,7 +681,7 @@ NK_PUBLIC void nk_kabsch_f32_neon(nk_f32_t const *a, nk_f32_t const *b, nk_size_
         b_centroid[2] = centroid_b_z;
     }
 
-    // Apply centering correction: H_centered = H - n * centroid_a * centroid_b^T
+    // Apply centering correction: H_centered = H - n * centroid_a * centroid_bᵀ
     h00 -= n * centroid_a_x * centroid_b_x;
     h01 -= n * centroid_a_x * centroid_b_y;
     h02 -= n * centroid_a_x * centroid_b_z;
@@ -697,7 +697,7 @@ NK_PUBLIC void nk_kabsch_f32_neon(nk_f32_t const *a, nk_f32_t const *b, nk_size_
     nk_f32_t svd_u[9], svd_s[3], svd_v[9];
     nk_svd3x3_f32_(cross_covariance, svd_u, svd_s, svd_v);
 
-    // R = V * U^T
+    // R = V * Uᵀ
     nk_f32_t r[9];
     r[0] = svd_v[0] * svd_u[0] + svd_v[1] * svd_u[1] + svd_v[2] * svd_u[2];
     r[1] = svd_v[0] * svd_u[3] + svd_v[1] * svd_u[4] + svd_v[2] * svd_u[5];
@@ -896,7 +896,7 @@ NK_PUBLIC void nk_kabsch_f64_neon(nk_f64_t const *a, nk_f64_t const *b, nk_size_
         b_centroid[2] = centroid_b_z;
     }
 
-    // Apply centering correction: H_centered = H - n * centroid_a * centroid_b^T
+    // Apply centering correction: H_centered = H - n * centroid_a * centroid_bᵀ
     h00 -= n * centroid_a_x * centroid_b_x;
     h01 -= n * centroid_a_x * centroid_b_y;
     h02 -= n * centroid_a_x * centroid_b_z;
@@ -913,7 +913,7 @@ NK_PUBLIC void nk_kabsch_f64_neon(nk_f64_t const *a, nk_f64_t const *b, nk_size_
     nk_f32_t svd_u[9], svd_s[3], svd_v[9];
     nk_svd3x3_f32_(cross_covariance, svd_u, svd_s, svd_v);
 
-    // R = V * U^T
+    // R = V * Uᵀ
     nk_f32_t r[9];
     r[0] = svd_v[0] * svd_u[0] + svd_v[1] * svd_u[1] + svd_v[2] * svd_u[2];
     r[1] = svd_v[0] * svd_u[3] + svd_v[1] * svd_u[4] + svd_v[2] * svd_u[5];
@@ -1129,7 +1129,7 @@ NK_PUBLIC void nk_umeyama_f32_neon(nk_f32_t const *a, nk_f32_t const *b, nk_size
     nk_f32_t centroid_sq = centroid_a_x * centroid_a_x + centroid_a_y * centroid_a_y + centroid_a_z * centroid_a_z;
     nk_f32_t var_a = sum_sq_a * inv_n - centroid_sq;
 
-    // Apply centering correction: H_centered = H - n * centroid_a * centroid_b^T
+    // Apply centering correction: H_centered = H - n * centroid_a * centroid_bᵀ
     h00 -= n * centroid_a_x * centroid_b_x;
     h01 -= n * centroid_a_x * centroid_b_y;
     h02 -= n * centroid_a_x * centroid_b_z;
@@ -1145,7 +1145,7 @@ NK_PUBLIC void nk_umeyama_f32_neon(nk_f32_t const *a, nk_f32_t const *b, nk_size
     nk_f32_t svd_u[9], svd_s[3], svd_v[9];
     nk_svd3x3_f32_(cross_covariance, svd_u, svd_s, svd_v);
 
-    // R = V * U^T
+    // R = V * Uᵀ
     nk_f32_t r[9];
     r[0] = svd_v[0] * svd_u[0] + svd_v[1] * svd_u[1] + svd_v[2] * svd_u[2];
     r[1] = svd_v[0] * svd_u[3] + svd_v[1] * svd_u[4] + svd_v[2] * svd_u[5];
@@ -1364,7 +1364,7 @@ NK_PUBLIC void nk_umeyama_f64_neon(nk_f64_t const *a, nk_f64_t const *b, nk_size
     nk_f64_t centroid_sq = centroid_a_x * centroid_a_x + centroid_a_y * centroid_a_y + centroid_a_z * centroid_a_z;
     nk_f64_t var_a = sum_sq_a * inv_n - centroid_sq;
 
-    // Apply centering correction: H_centered = H - n * centroid_a * centroid_b^T
+    // Apply centering correction: H_centered = H - n * centroid_a * centroid_bᵀ
     h00 -= n * centroid_a_x * centroid_b_x;
     h01 -= n * centroid_a_x * centroid_b_y;
     h02 -= n * centroid_a_x * centroid_b_z;
@@ -1381,7 +1381,7 @@ NK_PUBLIC void nk_umeyama_f64_neon(nk_f64_t const *a, nk_f64_t const *b, nk_size
     nk_f32_t svd_u[9], svd_s[3], svd_v[9];
     nk_svd3x3_f32_(cross_covariance, svd_u, svd_s, svd_v);
 
-    // R = V * U^T
+    // R = V * Uᵀ
     nk_f32_t r[9];
     r[0] = svd_v[0] * svd_u[0] + svd_v[1] * svd_u[1] + svd_v[2] * svd_u[2];
     r[1] = svd_v[0] * svd_u[3] + svd_v[1] * svd_u[4] + svd_v[2] * svd_u[5];

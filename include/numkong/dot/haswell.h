@@ -477,20 +477,20 @@ NK_INTERNAL void nk_dot_f32x4_finalize_haswell(                                 
     nk_dot_f32x4_state_haswell_t const *state_a, nk_dot_f32x4_state_haswell_t const *state_b, //
     nk_dot_f32x4_state_haswell_t const *state_c, nk_dot_f32x4_state_haswell_t const *state_d, //
     nk_b128_vec_t *result) {
-    // Horizontal reduction: 4 f64s -> 1 f64 for each state
+    // Horizontal reduction: 4 f64s → 1 f64 for each state
     // Then downcast final f64 results to f32
     __m256d sum_a_f64x4 = state_a->sum_f64x4;
     __m256d sum_b_f64x4 = state_b->sum_f64x4;
     __m256d sum_c_f64x4 = state_c->sum_f64x4;
     __m256d sum_d_f64x4 = state_d->sum_f64x4;
 
-    // 4 -> 2: add high 128-bit lane to low lane
+    // 4 → 2: add high 128-bit lane to low lane
     __m128d sum_a_f64x2 = _mm_add_pd(_mm256_castpd256_pd128(sum_a_f64x4), _mm256_extractf128_pd(sum_a_f64x4, 1));
     __m128d sum_b_f64x2 = _mm_add_pd(_mm256_castpd256_pd128(sum_b_f64x4), _mm256_extractf128_pd(sum_b_f64x4, 1));
     __m128d sum_c_f64x2 = _mm_add_pd(_mm256_castpd256_pd128(sum_c_f64x4), _mm256_extractf128_pd(sum_c_f64x4, 1));
     __m128d sum_d_f64x2 = _mm_add_pd(_mm256_castpd256_pd128(sum_d_f64x4), _mm256_extractf128_pd(sum_d_f64x4, 1));
 
-    // 2 -> 1: horizontal add
+    // 2 → 1: horizontal add
     __m128d sum_ab_f64x2 = _mm_hadd_pd(sum_a_f64x2, sum_b_f64x2); // [sum_a, sum_b]
     __m128d sum_cd_f64x2 = _mm_hadd_pd(sum_c_f64x2, sum_d_f64x2); // [sum_c, sum_d]
 
@@ -633,7 +633,7 @@ NK_INTERNAL void nk_dot_i8x16_finalize_haswell(                                 
                                         _mm256_extracti128_si256(state_c->sum_i32x8, 1));
     __m128i sum_d_i32x4 = _mm_add_epi32(_mm256_castsi256_si128(state_d->sum_i32x8),
                                         _mm256_extracti128_si256(state_d->sum_i32x8, 1));
-    // Step 2: Transpose 4x4 matrix
+    // Step 2: Transpose 4×4 matrix
     __m128i transpose_ab_low_i32x4 = _mm_unpacklo_epi32(sum_a_i32x4, sum_b_i32x4);
     __m128i transpose_cd_low_i32x4 = _mm_unpacklo_epi32(sum_c_i32x4, sum_d_i32x4);
     __m128i transpose_ab_high_i32x4 = _mm_unpackhi_epi32(sum_a_i32x4, sum_b_i32x4);

@@ -293,7 +293,7 @@ NK_PUBLIC void nk_haversine_f64_serial(             //
         nk_f64_t latitude_delta = second_latitude - first_latitude;
         nk_f64_t longitude_delta = second_longitude - first_longitude;
 
-        // Haversine formula: a = sin^2(dlat/2) + cos(lat1)*cos(lat2)*sin^2(dlon/2)
+        // Haversine formula: a = sin²(Δlat/2) + cos(lat1)×cos(lat2)×sin²(Δlon/2)
         nk_f64_t sin_latitude_delta_half = nk_f64_sin(latitude_delta * 0.5);
         nk_f64_t sin_longitude_delta_half = nk_f64_sin(longitude_delta * 0.5);
         nk_f64_t cos_first_latitude = nk_f64_cos(first_latitude);
@@ -328,7 +328,7 @@ NK_PUBLIC void nk_haversine_f32_serial(             //
         nk_f32_t latitude_delta = second_latitude - first_latitude;
         nk_f32_t longitude_delta = second_longitude - first_longitude;
 
-        // Haversine formula: a = sin^2(dlat/2) + cos(lat1)*cos(lat2)*sin^2(dlon/2)
+        // Haversine formula: a = sin²(Δlat/2) + cos(lat1)×cos(lat2)×sin²(Δlon/2)
         nk_f32_t sin_latitude_delta_half = nk_f32_sin(latitude_delta * 0.5f);
         nk_f32_t sin_longitude_delta_half = nk_f32_sin(longitude_delta * 0.5f);
         nk_f32_t cos_first_latitude = nk_f32_cos(first_latitude);
@@ -577,7 +577,7 @@ NK_INTERNAL float64x2_t nk_haversine_f64x2_neon_(              //
     float64x2_t latitude_delta = vsubq_f64(second_latitudes, first_latitudes);
     float64x2_t longitude_delta = vsubq_f64(second_longitudes, first_longitudes);
 
-    // Haversine terms: sin^2(delta/2)
+    // Haversine terms: sin²(Δ/2)
     float64x2_t latitude_delta_half = vmulq_f64(latitude_delta, half);
     float64x2_t longitude_delta_half = vmulq_f64(longitude_delta, half);
     float64x2_t sin_latitude_delta_half = nk_f64x2_sin_neon_(latitude_delta_half);
@@ -590,7 +590,7 @@ NK_INTERNAL float64x2_t nk_haversine_f64x2_neon_(              //
     float64x2_t cos_second_latitude = nk_f64x2_cos_neon_(second_latitudes);
     float64x2_t cos_latitude_product = vmulq_f64(cos_first_latitude, cos_second_latitude);
 
-    // a = sin^2(dlat/2) + cos(lat1) * cos(lat2) * sin^2(dlon/2)
+    // a = sin²(Δlat/2) + cos(lat1) × cos(lat2) × sin²(Δlon/2)
     float64x2_t haversine_term = vaddq_f64(sin_squared_latitude_delta_half,
                                            vmulq_f64(cos_latitude_product, sin_squared_longitude_delta_half));
 
@@ -646,7 +646,7 @@ NK_INTERNAL float32x4_t nk_haversine_f32x4_neon_(              //
     float32x4_t latitude_delta = vsubq_f32(second_latitudes, first_latitudes);
     float32x4_t longitude_delta = vsubq_f32(second_longitudes, first_longitudes);
 
-    // Haversine terms: sin^2(delta/2)
+    // Haversine terms: sin²(Δ/2)
     float32x4_t latitude_delta_half = vmulq_f32(latitude_delta, half);
     float32x4_t longitude_delta_half = vmulq_f32(longitude_delta, half);
     float32x4_t sin_latitude_delta_half = nk_f32x4_sin_neon_(latitude_delta_half);
@@ -659,7 +659,7 @@ NK_INTERNAL float32x4_t nk_haversine_f32x4_neon_(              //
     float32x4_t cos_second_latitude = nk_f32x4_cos_neon_(second_latitudes);
     float32x4_t cos_latitude_product = vmulq_f32(cos_first_latitude, cos_second_latitude);
 
-    // a = sin^2(dlat/2) + cos(lat1) * cos(lat2) * sin^2(dlon/2)
+    // a = sin²(Δlat/2) + cos(lat1) × cos(lat2) × sin²(Δlon/2)
     float32x4_t haversine_term = vaddq_f32(sin_squared_latitude_delta_half,
                                            vmulq_f32(cos_latitude_product, sin_squared_longitude_delta_half));
 
@@ -1106,7 +1106,7 @@ NK_INTERNAL __m256d nk_haversine_f64x4_haswell_(       //
     __m256d latitude_delta = _mm256_sub_pd(second_latitudes, first_latitudes);
     __m256d longitude_delta = _mm256_sub_pd(second_longitudes, first_longitudes);
 
-    // Haversine terms: sin^2(delta/2)
+    // Haversine terms: sin²(Δ/2)
     __m256d latitude_delta_half = _mm256_mul_pd(latitude_delta, half);
     __m256d longitude_delta_half = _mm256_mul_pd(longitude_delta, half);
     __m256d sin_latitude_delta_half = nk_f64x4_sin_haswell_(latitude_delta_half);
@@ -1119,7 +1119,7 @@ NK_INTERNAL __m256d nk_haversine_f64x4_haswell_(       //
     __m256d cos_second_latitude = nk_f64x4_cos_haswell_(second_latitudes);
     __m256d cos_latitude_product = _mm256_mul_pd(cos_first_latitude, cos_second_latitude);
 
-    // a = sin^2(dlat/2) + cos(lat1) * cos(lat2) * sin^2(dlon/2)
+    // a = sin²(Δlat/2) + cos(lat1) × cos(lat2) × sin²(Δlon/2)
     __m256d haversine_term = _mm256_add_pd(sin_squared_latitude_delta_half,
                                            _mm256_mul_pd(cos_latitude_product, sin_squared_longitude_delta_half));
 
@@ -1175,7 +1175,7 @@ NK_INTERNAL __m256 nk_haversine_f32x8_haswell_(      //
     __m256 latitude_delta = _mm256_sub_ps(second_latitudes, first_latitudes);
     __m256 longitude_delta = _mm256_sub_ps(second_longitudes, first_longitudes);
 
-    // Haversine terms: sin^2(delta/2)
+    // Haversine terms: sin²(Δ/2)
     __m256 latitude_delta_half = _mm256_mul_ps(latitude_delta, half);
     __m256 longitude_delta_half = _mm256_mul_ps(longitude_delta, half);
     __m256 sin_latitude_delta_half = nk_f32x8_sin_haswell_(latitude_delta_half);
@@ -1188,7 +1188,7 @@ NK_INTERNAL __m256 nk_haversine_f32x8_haswell_(      //
     __m256 cos_second_latitude = nk_f32x8_cos_haswell_(second_latitudes);
     __m256 cos_latitude_product = _mm256_mul_ps(cos_first_latitude, cos_second_latitude);
 
-    // a = sin^2(dlat/2) + cos(lat1) * cos(lat2) * sin^2(dlon/2)
+    // a = sin²(Δlat/2) + cos(lat1) × cos(lat2) × sin²(Δlon/2)
     __m256 haversine_term = _mm256_add_ps(sin_squared_latitude_delta_half,
                                           _mm256_mul_ps(cos_latitude_product, sin_squared_longitude_delta_half));
 
@@ -1650,7 +1650,7 @@ NK_INTERNAL __m512d nk_haversine_f64x8_skylake_(       //
     __m512d latitude_delta = _mm512_sub_pd(second_latitudes, first_latitudes);
     __m512d longitude_delta = _mm512_sub_pd(second_longitudes, first_longitudes);
 
-    // Haversine terms: sin^2(delta/2)
+    // Haversine terms: sin²(Δ/2)
     __m512d latitude_delta_half = _mm512_mul_pd(latitude_delta, half);
     __m512d longitude_delta_half = _mm512_mul_pd(longitude_delta, half);
     __m512d sin_latitude_delta_half = nk_f64x8_sin_skylake_(latitude_delta_half);
@@ -1663,7 +1663,7 @@ NK_INTERNAL __m512d nk_haversine_f64x8_skylake_(       //
     __m512d cos_second_latitude = nk_f64x8_cos_skylake_(second_latitudes);
     __m512d cos_latitude_product = _mm512_mul_pd(cos_first_latitude, cos_second_latitude);
 
-    // a = sin^2(dlat/2) + cos(lat1) * cos(lat2) * sin^2(dlon/2)
+    // a = sin²(Δlat/2) + cos(lat1) × cos(lat2) × sin²(Δlon/2)
     __m512d haversine_term = _mm512_add_pd(sin_squared_latitude_delta_half,
                                            _mm512_mul_pd(cos_latitude_product, sin_squared_longitude_delta_half));
 
@@ -1905,7 +1905,7 @@ NK_INTERNAL __m512 nk_haversine_f32x16_skylake_(     //
     __m512 latitude_delta = _mm512_sub_ps(second_latitudes, first_latitudes);
     __m512 longitude_delta = _mm512_sub_ps(second_longitudes, first_longitudes);
 
-    // Haversine terms: sin^2(delta/2)
+    // Haversine terms: sin²(Δ/2)
     __m512 latitude_delta_half = _mm512_mul_ps(latitude_delta, half);
     __m512 longitude_delta_half = _mm512_mul_ps(longitude_delta, half);
     __m512 sin_latitude_delta_half = nk_f32x16_sin_skylake_(latitude_delta_half);
@@ -1918,7 +1918,7 @@ NK_INTERNAL __m512 nk_haversine_f32x16_skylake_(     //
     __m512 cos_second_latitude = nk_f32x16_cos_skylake_(second_latitudes);
     __m512 cos_latitude_product = _mm512_mul_ps(cos_first_latitude, cos_second_latitude);
 
-    // a = sin^2(dlat/2) + cos(lat1) * cos(lat2) * sin^2(dlon/2)
+    // a = sin²(Δlat/2) + cos(lat1) × cos(lat2) × sin²(Δlon/2)
     __m512 haversine_term = _mm512_add_ps(sin_squared_latitude_delta_half,
                                           _mm512_mul_ps(cos_latitude_product, sin_squared_longitude_delta_half));
 
