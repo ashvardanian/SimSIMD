@@ -71,13 +71,16 @@ set(CMAKE_C_FLAGS_RELEASE "-O3")
 
 # Compiler-specific flags
 if (CMAKE_CXX_COMPILER_ID MATCHES "^(Apple)?Clang$")
-    if (NOT APPLE)
+    if (NOT APPLE AND NOT CMAKE_CROSSCOMPILING)
         add_compile_options(-march=native)
     endif ()
 
     add_compile_options(-pedantic -ferror-limit=1)
 elseif (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
-    add_compile_options(-march=native -pedantic -fmax-errors=1 -Wno-tautological-constant-compare)
+    if (NOT CMAKE_CROSSCOMPILING)
+        add_compile_options(-march=native)
+    endif ()
+    add_compile_options(-pedantic -fmax-errors=1 -Wno-tautological-constant-compare)
 elseif (CMAKE_CXX_COMPILER_ID STREQUAL "IntelLLVM")
     add_compile_options(-w -ferror-limit=1)
 endif ()
