@@ -166,6 +166,18 @@ struct dtype_enum_to_type<nk_u1_k> {
     static constexpr std::size_t components_k = 1;
 };
 template <>
+struct dtype_enum_to_type<nk_i4_k> {
+    using value_t = nk_i4x2_t;
+    using scalar_t = nk_u8_t; // Packed byte unit
+    static constexpr std::size_t components_k = 1;
+};
+template <>
+struct dtype_enum_to_type<nk_u4_k> {
+    using value_t = nk_u4x2_t;
+    using scalar_t = nk_u8_t; // Packed byte unit
+    static constexpr std::size_t components_k = 1;
+};
+template <>
 struct dtype_enum_to_type<nk_i8_k> {
     using value_t = nk_i8_t;
     using scalar_t = nk_i8_t;
@@ -1588,6 +1600,55 @@ void measure_dots_i16i16i32_mkl(bm::State &state, std::size_t m, std::size_t n, 
 
 #endif
 
+using cast_kernel_t = void (*)(void const *, nk_dtype_t, nk_size_t, void *, nk_dtype_t);
+
+template <nk_dtype_t from_dtype_, nk_dtype_t to_dtype_>
+void measure_cast(bm::State &state, cast_kernel_t kernel, std::size_t n) {
+    using from_t = typename dtype_enum_to_type<from_dtype_>::scalar_t;
+    using to_t = typename dtype_enum_to_type<to_dtype_>::scalar_t;
+
+    constexpr std::size_t alignment = 64;
+    std::size_t from_bytes = ((n * sizeof(from_t) + alignment - 1) / alignment) * alignment;
+    std::size_t to_bytes = ((n * sizeof(to_t) + alignment - 1) / alignment) * alignment;
+
+    from_t *src = static_cast<from_t *>(std::aligned_alloc(alignment, from_bytes));
+    to_t *dst = static_cast<to_t *>(std::aligned_alloc(alignment, to_bytes));
+
+    // Initialize source with small random values
+    auto gen = make_random_engine();
+    std::uniform_real_distribution<float> dis(-8.0f, 8.0f);
+    for (std::size_t i = 0; i < n; ++i) {
+        float val = dis(gen);
+        if constexpr (std::is_same_v<from_t, nk_f64_t>) { src[i] = val; }
+        else if constexpr (std::is_same_v<from_t, nk_f32_t>) { src[i] = val; }
+        else if constexpr (std::is_same_v<from_t, nk_f16_t>) { nk_f32_to_f16(&val, &src[i]); }
+        else if constexpr (std::is_same_v<from_t, nk_bf16_t>) { nk_f32_to_bf16(&val, &src[i]); }
+        else if constexpr (std::is_same_v<from_t, nk_e4m3_t>) { nk_f32_to_e4m3(&val, &src[i]); }
+        else if constexpr (std::is_same_v<from_t, nk_e5m2_t>) { nk_f32_to_e5m2(&val, &src[i]); }
+    }
+
+    std::size_t bytes_processed = 0;
+    for (auto _ : state) {
+        kernel(src, from_dtype_, n, dst, to_dtype_);
+        bytes_processed += n * sizeof(from_t) + n * sizeof(to_t);
+        bm::ClobberMemory();
+    }
+
+    state.SetBytesProcessed(static_cast<std::int64_t>(bytes_processed));
+    state.SetItemsProcessed(static_cast<std::int64_t>(state.iterations() * n));
+
+    std::free(src);
+    std::free(dst);
+}
+
+template <nk_dtype_t from_dtype_, nk_dtype_t to_dtype_>
+void cast_(std::string name, cast_kernel_t kernel) {
+    std::string bench_name = name + "<" + std::to_string(dense_dimension) + "d>";
+    bm::RegisterBenchmark(bench_name.c_str(), measure_cast<from_dtype_, to_dtype_>, kernel, dense_dimension)
+        ->MinTime(default_seconds)
+        ->Threads(default_threads);
+}
+
 int main(int argc, char **argv) {
     nk_capability_t runtime_caps = nk_capabilities();
     nk_configure_thread(runtime_caps); // Also enables AMX if available
@@ -2175,6 +2236,22 @@ int main(int argc, char **argv) {
                                 nk_dots_f32f32f32_pack_skylake, nk_dots_f32f32f32_skylake);
     matmul_<nk_f64_t, nk_f64_t>("dots_f64f64f64_skylake", nk_dots_f64f64f64_packed_size_skylake,
                                 nk_dots_f64f64f64_pack_skylake, nk_dots_f64f64f64_skylake);
+    // KC-blocked and 4x8 tile variants (not yet implemented)
+    // matmul_<nk_f32_t, nk_f32_t>("dots_f32f32f32_skylake_kc", ...);
+    // matmul_<nk_f64_t, nk_f64_t>("dots_f64f64f64_skylake_kc", ...);
+    // matmul_<nk_f32_t, nk_f32_t>("dots_f32f32f32_skylake_4x8", ...);
+    // matmul_<nk_f64_t, nk_f64_t>("dots_f64f64f64_skylake_4x8", ...);
+    // E4M3 GEMM (FP8 with F32 accumulator)
+    matmul_<nk_e4m3_t, nk_f32_t>("dots_e4m3e4m3f32_skylake", nk_dots_e4m3e4m3f32_packed_size_skylake,
+                                 nk_dots_e4m3e4m3f32_pack_skylake, nk_dots_e4m3e4m3f32_skylake);
+    // E5M2 GEMM (FP8 with F32 accumulator)
+    matmul_<nk_e5m2_t, nk_f32_t>("dots_e5m2e5m2f32_skylake", nk_dots_e5m2e5m2f32_packed_size_skylake,
+                                 nk_dots_e5m2e5m2f32_pack_skylake, nk_dots_e5m2e5m2f32_skylake);
+    // 4x8 and KC-buffered variants (not yet implemented)
+    // matmul_<nk_e4m3_t, nk_f32_t>("dots_e4m3e4m3f32_skylake_4x8", ...);
+    // matmul_<nk_e5m2_t, nk_f32_t>("dots_e5m2e5m2f32_skylake_4x8", ...);
+    // matmul_<nk_e4m3_t, nk_f32_t>("dots_e4m3e4m3f32_skylake_kc_buf", ...);
+    // matmul_<nk_e5m2_t, nk_f32_t>("dots_e5m2e5m2f32_skylake_kc_buf", ...);
 
 #endif
 
@@ -2231,6 +2308,12 @@ int main(int argc, char **argv) {
 
     matmul_<nk_bf16_t, nk_f32_t>("dots_bf16bf16f32_genoa", nk_dots_bf16bf16f32_packed_size_genoa,
                                  nk_dots_bf16bf16f32_pack_genoa, nk_dots_bf16bf16f32_genoa);
+
+    // FP8 GEMM variants
+    matmul_<nk_e4m3_t, nk_f32_t>("dots_e4m3e4m3f32_genoa", nk_dots_e4m3e4m3f32_packed_size_genoa,
+                                 nk_dots_e4m3e4m3f32_pack_genoa, nk_dots_e4m3e4m3f32_genoa);
+    matmul_<nk_e5m2_t, nk_f32_t>("dots_e5m2e5m2f32_genoa", nk_dots_e5m2e5m2f32_packed_size_genoa,
+                                 nk_dots_e5m2e5m2f32_pack_genoa, nk_dots_e5m2e5m2f32_genoa);
 
 #endif
 
@@ -2437,6 +2520,52 @@ int main(int argc, char **argv) {
                                nk_dots_i8i8i32_serial);
     matmul_<nk_f32_t, nk_f32_t>("dots_f32f32f32_serial", nk_dots_f32f32f32_packed_size_serial,
                                 nk_dots_f32f32f32_pack_serial, nk_dots_f32f32f32_serial);
+
+    // Cast benchmarks - core float conversions
+    cast_<nk_f32_k, nk_f16_k>("cast_f32_to_f16_serial", nk_cast_serial);
+    cast_<nk_f16_k, nk_f32_k>("cast_f16_to_f32_serial", nk_cast_serial);
+    cast_<nk_f32_k, nk_bf16_k>("cast_f32_to_bf16_serial", nk_cast_serial);
+    cast_<nk_bf16_k, nk_f32_k>("cast_bf16_to_f32_serial", nk_cast_serial);
+    cast_<nk_f32_k, nk_e4m3_k>("cast_f32_to_e4m3_serial", nk_cast_serial);
+    cast_<nk_e4m3_k, nk_f32_k>("cast_e4m3_to_f32_serial", nk_cast_serial);
+    cast_<nk_f32_k, nk_e5m2_k>("cast_f32_to_e5m2_serial", nk_cast_serial);
+    cast_<nk_e5m2_k, nk_f32_k>("cast_e5m2_to_f32_serial", nk_cast_serial);
+    cast_<nk_f64_k, nk_f32_k>("cast_f64_to_f32_serial", nk_cast_serial);
+    cast_<nk_f32_k, nk_f64_k>("cast_f32_to_f64_serial", nk_cast_serial);
+
+#if NK_TARGET_HASWELL
+    cast_<nk_f32_k, nk_f16_k>("cast_f32_to_f16_haswell", nk_cast_haswell);
+    cast_<nk_f16_k, nk_f32_k>("cast_f16_to_f32_haswell", nk_cast_haswell);
+    cast_<nk_f32_k, nk_bf16_k>("cast_f32_to_bf16_haswell", nk_cast_haswell);
+    cast_<nk_bf16_k, nk_f32_k>("cast_bf16_to_f32_haswell", nk_cast_haswell);
+    cast_<nk_f32_k, nk_e4m3_k>("cast_f32_to_e4m3_haswell", nk_cast_haswell);
+    cast_<nk_e4m3_k, nk_f32_k>("cast_e4m3_to_f32_haswell", nk_cast_haswell);
+    cast_<nk_f32_k, nk_e5m2_k>("cast_f32_to_e5m2_haswell", nk_cast_haswell);
+    cast_<nk_e5m2_k, nk_f32_k>("cast_e5m2_to_f32_haswell", nk_cast_haswell);
+#endif
+
+#if NK_TARGET_SKYLAKE
+    cast_<nk_f32_k, nk_f16_k>("cast_f32_to_f16_skylake", nk_cast_skylake);
+    cast_<nk_f16_k, nk_f32_k>("cast_f16_to_f32_skylake", nk_cast_skylake);
+    cast_<nk_f32_k, nk_bf16_k>("cast_f32_to_bf16_skylake", nk_cast_skylake);
+    cast_<nk_bf16_k, nk_f32_k>("cast_bf16_to_f32_skylake", nk_cast_skylake);
+    cast_<nk_f32_k, nk_e4m3_k>("cast_f32_to_e4m3_skylake", nk_cast_skylake);
+    cast_<nk_e4m3_k, nk_f32_k>("cast_e4m3_to_f32_skylake", nk_cast_skylake);
+    cast_<nk_f32_k, nk_e5m2_k>("cast_f32_to_e5m2_skylake", nk_cast_skylake);
+    cast_<nk_e5m2_k, nk_f32_k>("cast_e5m2_to_f32_skylake", nk_cast_skylake);
+#endif
+
+#if NK_TARGET_ICE
+    cast_<nk_f32_k, nk_f16_k>("cast_f32_to_f16_ice", nk_cast_ice);
+    cast_<nk_f16_k, nk_f32_k>("cast_f16_to_f32_ice", nk_cast_ice);
+    cast_<nk_f32_k, nk_e4m3_k>("cast_f32_to_e4m3_ice", nk_cast_ice);
+    cast_<nk_e4m3_k, nk_f32_k>("cast_e4m3_to_f32_ice", nk_cast_ice);
+#endif
+
+#if NK_TARGET_SAPPHIRE
+    cast_<nk_f32_k, nk_f16_k>("cast_f32_to_f16_sapphire", nk_cast_sapphire);
+    cast_<nk_f16_k, nk_f32_k>("cast_f16_to_f32_sapphire", nk_cast_sapphire);
+#endif
 
     bm::RunSpecifiedBenchmarks();
     bm::Shutdown();
