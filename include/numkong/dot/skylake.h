@@ -33,12 +33,12 @@ NK_INTERNAL void nk_dot_f32x16_finalize_skylake_wout_compensation_( //
     nk_b128_vec_t *result) {
 
     // ILP-optimized 4-way horizontal reduction for f32x16 in AVX-512
-    // Step 1: 16→8 for all 4 states (extract high 256-bit half and add to low half)
+    // Step 1: 16 → 8 for all 4 states (extract high 256-bit half and add to low half)
     __m256 sum_a_f32x8 = _mm256_add_ps(_mm512_castps512_ps256(sum_a_f32x16), _mm512_extractf32x8_ps(sum_a_f32x16, 1));
     __m256 sum_b_f32x8 = _mm256_add_ps(_mm512_castps512_ps256(sum_b_f32x16), _mm512_extractf32x8_ps(sum_b_f32x16, 1));
     __m256 sum_c_f32x8 = _mm256_add_ps(_mm512_castps512_ps256(sum_c_f32x16), _mm512_extractf32x8_ps(sum_c_f32x16, 1));
     __m256 sum_d_f32x8 = _mm256_add_ps(_mm512_castps512_ps256(sum_d_f32x16), _mm512_extractf32x8_ps(sum_d_f32x16, 1));
-    // Step 2: 8→4 for all 4 states (extract high 128-bit half and add to low half)
+    // Step 2: 8 → 4 for all 4 states (extract high 128-bit half and add to low half)
     __m128 sum_a_f32x4 = _mm_add_ps(_mm256_castps256_ps128(sum_a_f32x8), _mm256_extractf128_ps(sum_a_f32x8, 1));
     __m128 sum_b_f32x4 = _mm_add_ps(_mm256_castps256_ps128(sum_b_f32x8), _mm256_extractf128_ps(sum_b_f32x8, 1));
     __m128 sum_c_f32x4 = _mm_add_ps(_mm256_castps256_ps128(sum_c_f32x8), _mm256_extractf128_ps(sum_c_f32x8, 1));

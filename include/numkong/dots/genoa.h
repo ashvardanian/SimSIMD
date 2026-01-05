@@ -45,9 +45,9 @@ nk_make_dots_inner_vectors_(e5m2e5m2f32_genoa, e5m2, f32, nk_b256_vec_t, nk_dot_
                             nk_dot_e5m2x32_update_genoa, nk_dot_e5m2x32_finalize_genoa, nk_partial_store_b32x4_skylake_,
                             /*k_tile=*/32)
 
-// Compact function: F32→BF16 conversion (reuses serial implementation logic)
-NK_PUBLIC void nk_dots_bf16bf16bf16_genoa(void *c, nk_size_t m, nk_size_t n, nk_size_t c_stride) {
-    nk_dots_bf16bf16bf16_serial(c, m, n, c_stride);
+// Compact function: F32 → BF16 conversion (reuses serial implementation logic)
+NK_PUBLIC void nk_dots_bf16bf16bf16_genoa(void *c, nk_size_t row_count, nk_size_t column_count, nk_size_t c_stride) {
+    nk_dots_bf16bf16bf16_serial(c, row_count, column_count, c_stride);
 }
 
 #if defined(__cplusplus)

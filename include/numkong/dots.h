@@ -4,7 +4,7 @@
  *  @author Ash Vardanian
  *  @date September 14, 2024
  *
- *  Implements batch dot-product kernels computing C[m×n] = A[m×k] × B[n×k]ᵀ
+ *  Implements batch dot-product kernels computing C[m × n] = A[m × k] × B[n × k]ᵀ
  *  with row-major inputs, optimized for ML inference and similarity workloads.
  *
  *  Primary Use Cases (1-to-N focus):
@@ -14,7 +14,7 @@
  *  - Embedding similarity matrices
  *  - k-means clustering, DBSCAN, hierarchical clustering
  *
- *  For dtypes (MKL-style naming: input×input→output):
+ *  For dtypes (MKL-style naming: input × input → output):
  *  - bf16bf16f32: BF16 inputs accumulating to F32
  *  - i8i8i32: INT8 inputs accumulating to INT32
  *  - f32f32f32: F32 inputs accumulating to F32
@@ -41,7 +41,7 @@
  *  To compute standard A × B (where B is k × n), pass Bᵀ to the packing function:
  *
  *  @code{.c}
- *  // Standard matmul: C[m×n] = A[m×k] × B[k×n]
+ *  // Standard matmul: C[m × n] = A[m × k] × B[k × n]
  *  // B is stored row-major as k rows of n elements
  *  // Treat it as Bᵀ: n rows of k elements with stride = sizeof(element)
  *  nk_dots_bf16bf16f32_pack(b, n, k, sizeof(nk_bf16_t), b_packed);
@@ -56,7 +56,7 @@
  *  is often static, we provide a two-phase API: pack once, multiply many times.
  *
  *  @code{.c}
- *  // Similarity search: C[m×n] = queries[m×k] × database[n×k]ᵀ
+ *  // Similarity search: C[m × n] = queries[m × k] × database[n × k]ᵀ
  *  // Both matrices stored row-major, each row is one vector of dimension k
  *  nk_size_t packed_bytes = nk_dots_bf16bf16f32_packed_size(n, k);
  *  void *b_packed = malloc(packed_bytes);
@@ -65,7 +65,7 @@
  *  // Result: C[i,j] = dot(query i, database vector j)
  *  @endcode
  *
- *  The packed format is opaque and backend-specific. AMX expects (16×32) tiles with interleaved
+ *  The packed format is opaque and backend-specific. AMX expects (16 × 32) tiles with interleaved
  *  pairs, while NEON/SVE use arrangements optimized for their vector lengths.
  *
  *  @section why_int8 Why INT8 and Not UINT8?
@@ -374,7 +374,7 @@ NK_PUBLIC void nk_dots_bf16bf16bf16_genoa(void *c, nk_size_t m, nk_size_t n, nk_
 
 /*  Sapphire Rapids backends using Intel AMX (Advanced Matrix Extensions).
  *  AMX provides 8 tile registers (TMM0-TMM7), each holding up to 1KB of data.
- *  Tiles are configured as 16 rows × 64 bytes, enabling (16×32) BF16 or (16×64) INT8 tiles.
+ *  Tiles are configured as 16 rows × 64 bytes, enabling (16 × 32) BF16 or (16 × 64) INT8 tiles.
  *  Packing arranges data into AMX-native tile layout with pair interleaving for TDPBF16PS.
  */
 #if NK_TARGET_SAPPHIRE_AMX
