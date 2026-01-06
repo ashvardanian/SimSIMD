@@ -18,7 +18,7 @@
 #endif
 
 #include "numkong/types.h"
-#include "numkong/cast/serial.h" // nk_f32_to_i8_serial
+#include "numkong/cast/serial.h" // `nk_f32_to_i8_serial`
 
 #if defined(__cplusplus)
 extern "C" {

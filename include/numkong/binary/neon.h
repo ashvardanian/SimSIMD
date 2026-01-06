@@ -136,15 +136,20 @@ NK_INTERNAL void nk_jaccard_b128_finalize_neon(nk_jaccard_b128_state_neon_t cons
 
     // Horizontal sum each state's vector accumulator via `vaddvq_u32` (ARMv8.1+, 2-3 cycles)
     // This is done once at finalize, not per-update, for better throughput.
-    uint32x4_t intersection_u32x4 = (uint32x4_t) {
-        vaddvq_u32(state_a->intersection_count_u32x4), vaddvq_u32(state_b->intersection_count_u32x4),
-        vaddvq_u32(state_c->intersection_count_u32x4), vaddvq_u32(state_d->intersection_count_u32x4)};
+    nk_b128_vec_t intersection_vec;
+    intersection_vec.u32s[0] = vaddvq_u32(state_a->intersection_count_u32x4),
+    intersection_vec.u32s[1] = vaddvq_u32(state_b->intersection_count_u32x4),
+    intersection_vec.u32s[2] = vaddvq_u32(state_c->intersection_count_u32x4),
+    intersection_vec.u32s[3] = vaddvq_u32(state_d->intersection_count_u32x4);
+    uint32x4_t intersection_u32x4 = intersection_vec.u32x4;
     float32x4_t intersection_f32x4 = vcvtq_f32_u32(intersection_u32x4);
 
     // Compute union using |A OR B| = |A| + |B| - |A AND B|
     float32x4_t query_f32x4 = vdupq_n_f32(query_popcount);
-    float32x4_t targets_f32x4 = (float32x4_t) {target_popcount_a, target_popcount_b, target_popcount_c,
-                                               target_popcount_d};
+    nk_b128_vec_t targets_vec;
+    targets_vec.f32s[0] = target_popcount_a, targets_vec.f32s[1] = target_popcount_b,
+    targets_vec.f32s[2] = target_popcount_c, targets_vec.f32s[3] = target_popcount_d;
+    float32x4_t targets_f32x4 = targets_vec.f32x4;
     float32x4_t union_f32x4 = vsubq_f32(vaddq_f32(query_f32x4, targets_f32x4), intersection_f32x4);
 
     // Handle zero-union edge case (empty vectors → distance = 1.0)

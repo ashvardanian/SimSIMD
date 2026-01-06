@@ -233,7 +233,7 @@ typedef struct {
                     for (nk_size_t tile_row_start_index = row_block_start_index;                                      \
                          tile_row_start_index < row_block_end_index; tile_row_start_index += register_row_count) {    \
                                                                                                                       \
-                        /* Initialize register_row_count × register_column_count accumulator states */               \
+                        /* Initialize register_row_count × register_column_count accumulator states */                \
                         state_type accumulator_tiles[4][4];                                                           \
                         init_fn(&accumulator_tiles[0][0]), init_fn(&accumulator_tiles[0][1]),                         \
                             init_fn(&accumulator_tiles[0][2]), init_fn(&accumulator_tiles[0][3]);                     \
@@ -274,7 +274,7 @@ typedef struct {
                             load_fn(b_depth_ptr_2 + depth_index, &b_vector_2);                                        \
                             load_fn(b_depth_ptr_3 + depth_index, &b_vector_3);                                        \
                                                                                                                       \
-                            /* 16 FMAs: 4 A rows × 4 B columns */                                                    \
+                            /* 16 FMAs: 4 A rows × 4 B columns */                                                     \
                             update_fn(&accumulator_tiles[0][0], a_vector_0, b_vector_0);                              \
                             update_fn(&accumulator_tiles[0][1], a_vector_0, b_vector_1);                              \
                             update_fn(&accumulator_tiles[0][2], a_vector_0, b_vector_2);                              \
@@ -345,7 +345,7 @@ typedef struct {
         nk_size_t const row_block_size = 128;              /* L2 cache blocking over rows */                          \
         nk_size_t const column_block_size = 2048;          /* L3 cache blocking over columns */                       \
         nk_size_t const register_row_count = 1;            /* Rows per register tile */                               \
-        nk_size_t const register_column_count = 8;         /* Columns per register tile (2 × 4) */                   \
+        nk_size_t const register_column_count = 8;         /* Columns per register tile (2 × 4) */                    \
         nk_size_t const group_size = NK_DOTS_GROUP_SIZE_;  /* Columns per packed group */                             \
         nk_size_t const group_stride = group_size * depth; /* Elements per group */                                   \
         nk_size_t const aligned_depth = (depth / simd_width) * simd_width;                                            \
@@ -392,7 +392,7 @@ typedef struct {
                     /* Loop 4: Process 1 row at a time */                                                             \
                     for (nk_size_t row_index = row_block_start_index; row_index < row_block_end_index; ++row_index) { \
                                                                                                                       \
-                        /* Initialize 1 × 8 accumulator states */                                                    \
+                        /* Initialize 1 × 8 accumulator states */                                                     \
                         state_type accumulator_0, accumulator_1, accumulator_2, accumulator_3, accumulator_4,         \
                             accumulator_5, accumulator_6, accumulator_7;                                              \
                         init_fn(&accumulator_0);                                                                      \
@@ -426,7 +426,7 @@ typedef struct {
                             load_fn(b_depth_ptr_6 + depth_index, &b_vector_6);                                        \
                             load_fn(b_depth_ptr_7 + depth_index, &b_vector_7);                                        \
                                                                                                                       \
-                            /* 8 FMAs: 1 A row × 8 B columns */                                                      \
+                            /* 8 FMAs: 1 A row × 8 B columns */                                                       \
                             update_fn(&accumulator_0, a_vector, b_vector_0);                                          \
                             update_fn(&accumulator_1, a_vector, b_vector_1);                                          \
                             update_fn(&accumulator_2, a_vector, b_vector_2);                                          \
@@ -437,7 +437,7 @@ typedef struct {
                             update_fn(&accumulator_7, a_vector, b_vector_7);                                          \
                         }                                                                                             \
                                                                                                                       \
-                        /* Finalize and store 1 × 8 results using two 4-way reductions */                            \
+                        /* Finalize and store 1 × 8 results using two 4-way reductions */                             \
                         result_vec_type result_vector;                                                                \
                         nk_##output_type##_t *c_row_ptr = (nk_##output_type##_t *)((char *)c_matrix +                 \
                                                                                    row_index * c_stride_in_bytes);    \
@@ -456,10 +456,10 @@ typedef struct {
 /* Generate both aligned kernel variants for each platform */
 #define nk_make_dots_packed_vectors_(suffix, input_type, output_type, vec_type, state_type, result_vec_type, init_fn, \
                                      load_fn, partial_load_fn, update_fn, finalize_fn, partial_store_fn, simd_width)  \
-    /* Generate 4 × 4 aligned kernel */                                                                              \
+    /* Generate 4 × 4 aligned kernel */                                                                               \
     nk_make_dots_packed_4x4_vectors_aligned_(suffix, input_type, output_type, vec_type, state_type, result_vec_type,  \
                                              init_fn, load_fn, partial_load_fn, update_fn, finalize_fn,               \
-                                             partial_store_fn, simd_width) /* Generate 1 × 8 aligned kernel */       \
+                                             partial_store_fn, simd_width) /* Generate 1 × 8 aligned kernel */        \
     nk_make_dots_packed_1x8_vectors_aligned_(suffix, input_type, output_type, vec_type, state_type, result_vec_type,  \
                                              init_fn, load_fn, partial_load_fn, update_fn, finalize_fn,               \
                                              partial_store_fn, simd_width)                                            \
@@ -477,13 +477,13 @@ typedef struct {
         nk_size_t const group_stride = group_size * depth; /* Elements per group */                                   \
         (void)register_column_count;                                                                                  \
         (void)group_stride; /* Suppress unused warnings */                                                            \
-        /* Use 1 × 8 kernel when columns are aligned to 8 and many columns relative to rows */                       \
+        /* Use 1 × 8 kernel when columns are aligned to 8 and many columns relative to rows */                        \
         if (column_count % 8 == 0 && column_count >= row_count * 2 && depth % simd_width == 0) {                      \
             nk_dots_##suffix##_1x8_aligned_(a_matrix, b_packed_buffer, c_matrix, row_count, column_count, depth,      \
                                             a_stride_in_bytes, c_stride_in_bytes);                                    \
             return;                                                                                                   \
         }                                                                                                             \
-        /* Use 4 × 4 kernel when dimensions are 4-aligned */                                                         \
+        /* Use 4 × 4 kernel when dimensions are 4-aligned */                                                          \
         if (row_count % 4 == 0 && column_count % 4 == 0 && depth % simd_width == 0) {                                 \
             nk_dots_##suffix##_aligned_(a_matrix, b_packed_buffer, c_matrix, row_count, column_count, depth,          \
                                         a_stride_in_bytes, c_stride_in_bytes);                                        \
@@ -593,7 +593,7 @@ typedef struct {
                             load_fn(b_depth_ptr_2 + k, &b_third_vec);                                                 \
                             load_fn(b_depth_ptr_3 + k, &b_fourth_vec);                                                \
                                                                                                                       \
-                            /* 16 FMAs: 4 A rows × 4 B columns */                                                    \
+                            /* 16 FMAs: 4 A rows × 4 B columns */                                                     \
                             update_fn(&accumulator_tiles[0][0], a_first_vec, b_first_vec);                            \
                             update_fn(&accumulator_tiles[0][1], a_first_vec, b_second_vec);                           \
                             update_fn(&accumulator_tiles[0][2], a_first_vec, b_third_vec);                            \
@@ -626,7 +626,7 @@ typedef struct {
                             partial_load_fn(b_depth_ptr_2 + aligned_depth, &b_third_vec, remainder_depth);            \
                             partial_load_fn(b_depth_ptr_3 + aligned_depth, &b_fourth_vec, remainder_depth);           \
                                                                                                                       \
-                            /* 16 FMAs: 4 A rows × 4 B columns */                                                    \
+                            /* 16 FMAs: 4 A rows × 4 B columns */                                                     \
                             update_fn(&accumulator_tiles[0][0], a_first_vec, b_first_vec);                            \
                             update_fn(&accumulator_tiles[0][1], a_first_vec, b_second_vec);                           \
                             update_fn(&accumulator_tiles[0][2], a_first_vec, b_third_vec);                            \
@@ -725,7 +725,7 @@ typedef struct {
                                                           : row_count;                                                 \
                 nk_size_t const row_block_length = row_block_end_index - row_block_start_index;                        \
                                                                                                                        \
-                /* 4 × 4 accumulator block */                                                                         \
+                /* 4 × 4 accumulator block */                                                                          \
                 nk_##accumulator_type##_t accumulator_0_0 = 0, accumulator_0_1 = 0, accumulator_0_2 = 0,               \
                                           accumulator_0_3 = 0;                                                         \
                 nk_##accumulator_type##_t accumulator_1_0 = 0, accumulator_1_1 = 0, accumulator_1_2 = 0,               \
@@ -754,7 +754,7 @@ typedef struct {
                                                         (row_block_start_index + 3) * a_stride_in_bytes)               \
                         : a_row_ptr_0;                                                                                 \
                                                                                                                        \
-                /* Main depth-loop with 4 × unrolling */                                                              \
+                /* Main depth-loop with 4 × unrolling */                                                               \
                 nk_size_t depth_index = 0;                                                                             \
                 nk_##accumulator_type##_t a_value_0, a_value_1, a_value_2, a_value_3, b_value_0, b_value_1, b_value_2, \
                     b_value_3;                                                                                         \

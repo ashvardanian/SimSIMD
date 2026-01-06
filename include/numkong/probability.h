@@ -419,8 +419,11 @@ NK_PUBLIC void nk_kld_f32_neon(nk_f32_t const *a, nk_f32_t const *b, nk_size_t n
 
 nk_kld_f32_neon_cycle:
     if (n < 4) {
-        a_f32x4 = nk_partial_load_b32x4_serial_(a, n);
-        b_f32x4 = nk_partial_load_b32x4_serial_(b, n);
+        nk_b128_vec_t a_vec, b_vec;
+        nk_partial_load_b32x4_serial_(a, &a_vec, n);
+        nk_partial_load_b32x4_serial_(b, &b_vec, n);
+        a_f32x4 = a_vec.f32x4;
+        b_f32x4 = b_vec.f32x4;
         n = 0;
     }
     else {
@@ -448,8 +451,11 @@ NK_PUBLIC void nk_jsd_f32_neon(nk_f32_t const *a, nk_f32_t const *b, nk_size_t n
 
 nk_jsd_f32_neon_cycle:
     if (n < 4) {
-        a_f32x4 = nk_partial_load_b32x4_serial_(a, n);
-        b_f32x4 = nk_partial_load_b32x4_serial_(b, n);
+        nk_b128_vec_t a_vec, b_vec;
+        nk_partial_load_b32x4_serial_(a, &a_vec, n);
+        nk_partial_load_b32x4_serial_(b, &b_vec, n);
+        a_f32x4 = a_vec.f32x4;
+        b_f32x4 = b_vec.f32x4;
         n = 0;
     }
     else {
@@ -489,7 +495,7 @@ nk_jsd_f32_neon_cycle:
 #pragma GCC target("arch=armv8.2-a+simd+fp16")
 #endif
 
-#include "numkong/reduce/neonhalf.h" // nk_partial_load_f16x4_to_f32x4_neonhalf_
+#include "numkong/cast/serial.h" // nk_partial_load_b16x4_serial_
 
 NK_PUBLIC void nk_kld_f16_neonhalf(nk_f16_t const *a, nk_f16_t const *b, nk_size_t n, nk_f32_t *result) {
     float32x4_t sum_f32x4 = vdupq_n_f32(0);
@@ -499,8 +505,11 @@ NK_PUBLIC void nk_kld_f16_neonhalf(nk_f16_t const *a, nk_f16_t const *b, nk_size
 
 nk_kld_f16_neonhalf_cycle:
     if (n < 4) {
-        nk_partial_load_f16x4_to_f32x4_neonhalf_(a, n, &a_f32x4);
-        nk_partial_load_f16x4_to_f32x4_neonhalf_(b, n, &b_f32x4);
+        nk_b64_vec_t a_vec, b_vec;
+        nk_partial_load_b16x4_serial_(a, &a_vec, n);
+        nk_partial_load_b16x4_serial_(b, &b_vec, n);
+        a_f32x4 = vcvt_f32_f16(vreinterpret_f16_u16(a_vec.u16x4));
+        b_f32x4 = vcvt_f32_f16(vreinterpret_f16_u16(b_vec.u16x4));
         n = 0;
     }
     else {
@@ -528,8 +537,11 @@ NK_PUBLIC void nk_jsd_f16_neonhalf(nk_f16_t const *a, nk_f16_t const *b, nk_size
 
 nk_jsd_f16_neonhalf_cycle:
     if (n < 4) {
-        nk_partial_load_f16x4_to_f32x4_neonhalf_(a, n, &a_f32x4);
-        nk_partial_load_f16x4_to_f32x4_neonhalf_(b, n, &b_f32x4);
+        nk_b64_vec_t a_vec, b_vec;
+        nk_partial_load_b16x4_serial_(a, &a_vec, n);
+        nk_partial_load_b16x4_serial_(b, &b_vec, n);
+        a_f32x4 = vcvt_f32_f16(vreinterpret_f16_u16(a_vec.u16x4));
+        b_f32x4 = vcvt_f32_f16(vreinterpret_f16_u16(b_vec.u16x4));
         n = 0;
     }
     else {

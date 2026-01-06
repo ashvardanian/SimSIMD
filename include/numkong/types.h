@@ -669,10 +669,7 @@ typedef __bf16 nk_bf16_t;
 typedef __bfloat16 nk_bf16_t;
 #undef NK_NATIVE_BF16
 #define NK_NATIVE_BF16 1
-#else                                       // Unknown compiler or architecture
-#if defined(__GNUC__) || defined(__clang__) // Some compilers don't support warning pragmas
-#warning "Unknown compiler or architecture for bfloat16."
-#endif
+#else // Unknown compiler or architecture
 #undef NK_NATIVE_BF16
 #define NK_NATIVE_BF16 0
 #endif // Unknown compiler or architecture

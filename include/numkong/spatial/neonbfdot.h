@@ -74,8 +74,8 @@ NK_PUBLIC void nk_angular_bf16_neonbfdot(nk_bf16_t const *a, nk_bf16_t const *b,
 nk_angular_bf16_neonbfdot_cycle:
     if (n < 8) {
         nk_b128_vec_t a_vec, b_vec;
-        nk_partial_load_b16x8_serial_(a, n, &a_vec);
-        nk_partial_load_b16x8_serial_(b, n, &b_vec);
+        nk_partial_load_b16x8_serial_(a, &a_vec, n);
+        nk_partial_load_b16x8_serial_(b, &b_vec, n);
         a_bf16x8 = vreinterpretq_bf16_u16(a_vec.u16x8);
         b_bf16x8 = vreinterpretq_bf16_u16(b_vec.u16x8);
         n = 0;

@@ -572,9 +572,13 @@ NK_PUBLIC void nk_bilinear_f16_neonhalf(nk_f16_t const *a, nk_f16_t const *b, nk
     if (tail_length) {
         for (nk_size_t i = 0; i != n; ++i) {
             float32x4_t a_i_f32x4, b_f32x4, c_f32x4;
-            nk_partial_load_f16x4_to_f32x4_neonhalf_(a + i, 1, &a_i_f32x4);
-            nk_partial_load_f16x4_to_f32x4_neonhalf_(b + tail_start, tail_length, &b_f32x4);
-            nk_partial_load_f16x4_to_f32x4_neonhalf_(c + i * n + tail_start, tail_length, &c_f32x4);
+            nk_b64_vec_t a_i_vec, b_vec, c_vec;
+            nk_partial_load_b16x4_serial_(a + i, &a_i_vec, 1);
+            nk_partial_load_b16x4_serial_(b + tail_start, &b_vec, tail_length);
+            nk_partial_load_b16x4_serial_(c + i * n + tail_start, &c_vec, tail_length);
+            a_i_f32x4 = vcvt_f32_f16(vreinterpret_f16_u16(a_i_vec.u16x4));
+            b_f32x4 = vcvt_f32_f16(vreinterpret_f16_u16(b_vec.u16x4));
+            c_f32x4 = vcvt_f32_f16(vreinterpret_f16_u16(c_vec.u16x4));
             nk_f32_t a_i = vaddvq_f32(a_i_f32x4);
             nk_f32_t cb_j = vaddvq_f32(vmulq_f32(b_f32x4, c_f32x4));
             sum += a_i * cb_j;
@@ -610,15 +614,21 @@ NK_PUBLIC void nk_mahalanobis_f16_neonhalf(nk_f16_t const *a, nk_f16_t const *b,
     if (tail_length) {
         for (nk_size_t i = 0; i != n; ++i) {
             float32x4_t a_i_f32x4, b_i_f32x4, a_j_f32x4, b_j_f32x4, c_f32x4;
-            nk_partial_load_f16x4_to_f32x4_neonhalf_(a + i, 1, &a_i_f32x4);
-            nk_partial_load_f16x4_to_f32x4_neonhalf_(b + i, 1, &b_i_f32x4);
+            nk_b64_vec_t a_i_vec, b_i_vec, a_j_vec, b_j_vec, c_vec;
+            nk_partial_load_b16x4_serial_(a + i, &a_i_vec, 1);
+            nk_partial_load_b16x4_serial_(b + i, &b_i_vec, 1);
+            a_i_f32x4 = vcvt_f32_f16(vreinterpret_f16_u16(a_i_vec.u16x4));
+            b_i_f32x4 = vcvt_f32_f16(vreinterpret_f16_u16(b_i_vec.u16x4));
             nk_f32_t a_i = vaddvq_f32(a_i_f32x4);
             nk_f32_t b_i = vaddvq_f32(b_i_f32x4);
             nk_f32_t diff_i = a_i - b_i;
-            nk_partial_load_f16x4_to_f32x4_neonhalf_(a + tail_start, tail_length, &a_j_f32x4);
-            nk_partial_load_f16x4_to_f32x4_neonhalf_(b + tail_start, tail_length, &b_j_f32x4);
+            nk_partial_load_b16x4_serial_(a + tail_start, &a_j_vec, tail_length);
+            nk_partial_load_b16x4_serial_(b + tail_start, &b_j_vec, tail_length);
+            a_j_f32x4 = vcvt_f32_f16(vreinterpret_f16_u16(a_j_vec.u16x4));
+            b_j_f32x4 = vcvt_f32_f16(vreinterpret_f16_u16(b_j_vec.u16x4));
             float32x4_t diff_j_f32x4 = vsubq_f32(a_j_f32x4, b_j_f32x4);
-            nk_partial_load_f16x4_to_f32x4_neonhalf_(c + i * n + tail_start, tail_length, &c_f32x4);
+            nk_partial_load_b16x4_serial_(c + i * n + tail_start, &c_vec, tail_length);
+            c_f32x4 = vcvt_f32_f16(vreinterpret_f16_u16(c_vec.u16x4));
             nk_f32_t cdiff_j = vaddvq_f32(vmulq_f32(diff_j_f32x4, c_f32x4));
             sum += diff_i * cdiff_j;
         }
@@ -733,8 +743,8 @@ NK_PUBLIC void nk_bilinear_bf16_neonbfdot(nk_bf16_t const *a, nk_bf16_t const *b
             nk_f32_t a_i;
             nk_bf16_to_f32_serial(a + i, &a_i);
             nk_b128_vec_t b_vec, c_vec;
-            nk_partial_load_b16x8_neon_(b + tail_start, tail_length, &b_vec);
-            nk_partial_load_b16x8_neon_(c + i * n + tail_start, tail_length, &c_vec);
+            nk_partial_load_b16x8_neon_(b + tail_start, &b_vec, tail_length);
+            nk_partial_load_b16x8_neon_(c + i * n + tail_start, &c_vec, tail_length);
             bfloat16x8_t b_bf16x8 = vreinterpretq_bf16_u16(b_vec.u16x8);
             bfloat16x8_t c_bf16x8 = vreinterpretq_bf16_u16(c_vec.u16x8);
             nk_f32_t cb_j = vaddvq_f32(vbfdotq_f32(vdupq_n_f32(0), b_bf16x8, c_bf16x8));
@@ -787,8 +797,8 @@ NK_PUBLIC void nk_mahalanobis_bf16_neonbfdot(nk_bf16_t const *a, nk_bf16_t const
             nk_bf16_to_f32_serial(b + i, &b_i);
             nk_f32_t diff_i = a_i - b_i;
             nk_b128_vec_t a_j_vec, b_j_vec, c_vec;
-            nk_partial_load_b16x8_neon_(a + tail_start, tail_length, &a_j_vec);
-            nk_partial_load_b16x8_neon_(b + tail_start, tail_length, &b_j_vec);
+            nk_partial_load_b16x8_neon_(a + tail_start, &a_j_vec, tail_length);
+            nk_partial_load_b16x8_neon_(b + tail_start, &b_j_vec, tail_length);
             bfloat16x8_t a_j_bf16x8 = vreinterpretq_bf16_u16(a_j_vec.u16x8);
             bfloat16x8_t b_j_bf16x8 = vreinterpretq_bf16_u16(b_j_vec.u16x8);
 
@@ -802,7 +812,7 @@ NK_PUBLIC void nk_mahalanobis_bf16_neonbfdot(nk_bf16_t const *a, nk_bf16_t const
             bfloat16x8_t diff_j_bf16x8 = vcombine_bf16(vcvt_bf16_f32(diff_j_low_f32x4),
                                                        vcvt_bf16_f32(diff_j_high_f32x4));
 
-            nk_partial_load_b16x8_neon_(c + i * n + tail_start, tail_length, &c_vec);
+            nk_partial_load_b16x8_neon_(c + i * n + tail_start, &c_vec, tail_length);
             bfloat16x8_t c_bf16x8 = vreinterpretq_bf16_u16(c_vec.u16x8);
             nk_f32_t cdiff_j = vaddvq_f32(vbfdotq_f32(vdupq_n_f32(0), diff_j_bf16x8, c_bf16x8));
             sum += diff_i * cdiff_j;

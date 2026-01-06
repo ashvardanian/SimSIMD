@@ -1267,9 +1267,10 @@ NK_PUBLIC nk_capability_t nk_capabilities_(void) {
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wcast-function-type"
 
-#ifdef __cplusplus //! option "-Wvolatile" is valid for C++/ObjC++ but not for C
+#ifdef __cplusplus //! option "-Wvolatile" is valid for C++/ObjC++ but not for C/Clang
+#if defined(__GNUC__) && !defined(__clang__)
 #pragma GCC diagnostic ignored "-Wvolatile"
-#pragma clang diagnostic ignored "-Wvolatile"
+#endif
 #endif
 
 NK_INTERNAL void nk_find_kernel_punned_f64_(nk_capability_t v, nk_kernel_kind_t k, nk_kernel_punned_t *m,

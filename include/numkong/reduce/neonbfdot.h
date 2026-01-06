@@ -39,7 +39,7 @@ NK_INTERNAL void nk_reduce_add_bf16_neonbfdot_contiguous_( //
     // Handle tail with type-agnostic partial load
     if (idx < count) {
         nk_b128_vec_t tail_vec;
-        nk_partial_load_b16x8_serial_(data + idx, count - idx, &tail_vec);
+        nk_partial_load_b16x8_serial_(data + idx, &tail_vec, count - idx);
         bfloat16x8_t data_bf16x8 = vreinterpretq_bf16_u16(tail_vec.u16x8);
         sum_f32x4 = vbfdotq_f32(sum_f32x4, data_bf16x8, ones_bf16x8);
     }

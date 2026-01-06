@@ -36,6 +36,143 @@ NK_INTERNAL void nk_load_b64_neon_(void const *src, nk_b64_vec_t *dst) { dst->u8
 
 #pragma endregion - Type Punned Loads and Stores
 
+#pragma region - Partial Loads and Stores
+
+/** @brief Type-agnostic partial load for 32-bit elements (2 elements max) into 64-bit vector (NEON). */
+NK_INTERNAL void nk_partial_load_b32x2_neon_(void const *src, nk_b64_vec_t *dst, nk_size_t n) {
+    nk_u32_t const *s = (nk_u32_t const *)src;
+    dst->u32x2 = vdup_n_u32(0);
+    switch (n) {
+    default:
+    case 2: dst->u32s[1] = s[1]; // fallthrough
+    case 1: dst->u32s[0] = s[0]; // fallthrough
+    case 0: break;
+    }
+}
+
+/** @brief Type-agnostic partial load for 32-bit elements (4 elements max) into 128-bit vector (NEON). */
+NK_INTERNAL void nk_partial_load_b32x4_neon_(void const *src, nk_b128_vec_t *dst, nk_size_t n) {
+    nk_u32_t const *s = (nk_u32_t const *)src;
+    dst->u32x4 = vdupq_n_u32(0);
+    switch (n) {
+    default:
+    case 4: dst->u32s[3] = s[3]; // fallthrough
+    case 3: dst->u32s[2] = s[2]; // fallthrough
+    case 2: dst->u32s[1] = s[1]; // fallthrough
+    case 1: dst->u32s[0] = s[0]; // fallthrough
+    case 0: break;
+    }
+}
+
+/** @brief Type-agnostic partial load for 16-bit elements (8 elements max) into 128-bit vector (NEON). */
+NK_INTERNAL void nk_partial_load_b16x8_neon_(void const *src, nk_b128_vec_t *dst, nk_size_t n) {
+    nk_u16_t const *s = (nk_u16_t const *)src;
+    dst->u16x8 = vdupq_n_u16(0);
+    switch (n) {
+    default:
+    case 8: dst->u16s[7] = s[7]; // fallthrough
+    case 7: dst->u16s[6] = s[6]; // fallthrough
+    case 6: dst->u16s[5] = s[5]; // fallthrough
+    case 5: dst->u16s[4] = s[4]; // fallthrough
+    case 4: dst->u16s[3] = s[3]; // fallthrough
+    case 3: dst->u16s[2] = s[2]; // fallthrough
+    case 2: dst->u16s[1] = s[1]; // fallthrough
+    case 1: dst->u16s[0] = s[0]; // fallthrough
+    case 0: break;
+    }
+}
+
+/** @brief Type-agnostic partial load for 16-bit elements (4 elements max) into 64-bit vector (NEON). */
+NK_INTERNAL void nk_partial_load_b16x4_neon_(void const *src, nk_b64_vec_t *dst, nk_size_t n) {
+    nk_u16_t const *s = (nk_u16_t const *)src;
+    dst->u16x4 = vdup_n_u16(0);
+    switch (n) {
+    default:
+    case 4: dst->u16s[3] = s[3]; // fallthrough
+    case 3: dst->u16s[2] = s[2]; // fallthrough
+    case 2: dst->u16s[1] = s[1]; // fallthrough
+    case 1: dst->u16s[0] = s[0]; // fallthrough
+    case 0: break;
+    }
+}
+
+/** @brief Type-agnostic partial load for 8-bit elements (16 elements max) into 128-bit vector (NEON). */
+NK_INTERNAL void nk_partial_load_b8x16_neon_(void const *src, nk_b128_vec_t *dst, nk_size_t n) {
+    nk_u8_t const *s = (nk_u8_t const *)src;
+    dst->u8x16 = vdupq_n_u8(0);
+    switch (n) {
+    default:
+    case 16: dst->u8s[15] = s[15]; // fallthrough
+    case 15: dst->u8s[14] = s[14]; // fallthrough
+    case 14: dst->u8s[13] = s[13]; // fallthrough
+    case 13: dst->u8s[12] = s[12]; // fallthrough
+    case 12: dst->u8s[11] = s[11]; // fallthrough
+    case 11: dst->u8s[10] = s[10]; // fallthrough
+    case 10: dst->u8s[9] = s[9];   // fallthrough
+    case 9: dst->u8s[8] = s[8];    // fallthrough
+    case 8: dst->u8s[7] = s[7];    // fallthrough
+    case 7: dst->u8s[6] = s[6];    // fallthrough
+    case 6: dst->u8s[5] = s[5];    // fallthrough
+    case 5: dst->u8s[4] = s[4];    // fallthrough
+    case 4: dst->u8s[3] = s[3];    // fallthrough
+    case 3: dst->u8s[2] = s[2];    // fallthrough
+    case 2: dst->u8s[1] = s[1];    // fallthrough
+    case 1: dst->u8s[0] = s[0];    // fallthrough
+    case 0: break;
+    }
+}
+
+/** @brief Type-agnostic partial load for 64-bit elements (2 elements max) into 128-bit vector (NEON). */
+NK_INTERNAL void nk_partial_load_b64x2_neon_(void const *src, nk_b128_vec_t *dst, nk_size_t n) {
+    nk_u64_t const *s = (nk_u64_t const *)src;
+    dst->u64x2 = vdupq_n_u64(0);
+    switch (n) {
+    default:
+    case 2: dst->u64s[1] = s[1]; // fallthrough
+    case 1: dst->u64s[0] = s[0]; // fallthrough
+    case 0: break;
+    }
+}
+
+/** @brief Type-agnostic partial store for 32-bit elements (4 elements max) from 128-bit vector (NEON). */
+NK_INTERNAL void nk_partial_store_b32x4_neon_(nk_b128_vec_t const *src, void *dst, nk_size_t n) {
+    nk_u32_t *d = (nk_u32_t *)dst;
+    switch (n) {
+    default:
+    case 4: d[3] = src->u32s[3]; // fallthrough
+    case 3: d[2] = src->u32s[2]; // fallthrough
+    case 2: d[1] = src->u32s[1]; // fallthrough
+    case 1: d[0] = src->u32s[0]; // fallthrough
+    case 0: break;
+    }
+}
+
+/** @brief Type-agnostic partial store for 64-bit elements (2 elements max) from 128-bit vector (NEON). */
+NK_INTERNAL void nk_partial_store_b64x2_neon_(nk_b128_vec_t const *src, void *dst, nk_size_t n) {
+    nk_u64_t *d = (nk_u64_t *)dst;
+    switch (n) {
+    default:
+    case 2: d[1] = src->u64s[1]; // fallthrough
+    case 1: d[0] = src->u64s[0]; // fallthrough
+    case 0: break;
+    }
+}
+
+/** @brief Type-agnostic partial store for 64-bit elements (4 elements max) from 256-bit vector (NEON). */
+NK_INTERNAL void nk_partial_store_b64x4_neon_(nk_b256_vec_t const *src, void *dst, nk_size_t n) {
+    nk_u64_t *d = (nk_u64_t *)dst;
+    switch (n) {
+    default:
+    case 4: d[3] = src->u64s[3]; // fallthrough
+    case 3: d[2] = src->u64s[2]; // fallthrough
+    case 2: d[1] = src->u64s[1]; // fallthrough
+    case 1: d[0] = src->u64s[0]; // fallthrough
+    case 0: break;
+    }
+}
+
+#pragma endregion - Partial Loads and Stores
+
 #pragma region - Vectorized Conversions
 
 /** @brief Convert 4× e4m3 → f32x4 via bit manipulation (NEON).

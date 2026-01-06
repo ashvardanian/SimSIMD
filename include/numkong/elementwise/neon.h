@@ -622,14 +622,14 @@ NK_PUBLIC void nk_sum_e4m3_neon(nk_e4m3_t const *a, nk_e4m3_t const *b, nk_size_
         float32x4_t result_f32x4 = vaddq_f32(a_f32x4, b_f32x4);
         nk_f32_t results[4];
         vst1q_f32(results, result_f32x4);
-        for (int j = 0; j < 4; ++j) nk_f32_to_e4m3_(&results[j], result + i + j);
+        for (int j = 0; j < 4; ++j) nk_f32_to_e4m3_serial(&results[j], result + i + j);
     }
     for (; i < n; ++i) {
         nk_f32_t ai, bi, sum;
-        nk_e4m3_to_f32_(a + i, &ai);
-        nk_e4m3_to_f32_(b + i, &bi);
+        nk_e4m3_to_f32_serial(a + i, &ai);
+        nk_e4m3_to_f32_serial(b + i, &bi);
         sum = ai + bi;
-        nk_f32_to_e4m3_(&sum, result + i);
+        nk_f32_to_e4m3_serial(&sum, result + i);
     }
 }
 
@@ -641,14 +641,14 @@ NK_PUBLIC void nk_sum_e5m2_neon(nk_e5m2_t const *a, nk_e5m2_t const *b, nk_size_
         float32x4_t result_f32x4 = vaddq_f32(a_f32x4, b_f32x4);
         nk_f32_t results[4];
         vst1q_f32(results, result_f32x4);
-        for (int j = 0; j < 4; ++j) nk_f32_to_e5m2_(&results[j], result + i + j);
+        for (int j = 0; j < 4; ++j) nk_f32_to_e5m2_serial(&results[j], result + i + j);
     }
     for (; i < n; ++i) {
         nk_f32_t ai, bi, sum;
-        nk_e5m2_to_f32_(a + i, &ai);
-        nk_e5m2_to_f32_(b + i, &bi);
+        nk_e5m2_to_f32_serial(a + i, &ai);
+        nk_e5m2_to_f32_serial(b + i, &bi);
         sum = ai + bi;
-        nk_f32_to_e5m2_(&sum, result + i);
+        nk_f32_to_e5m2_serial(&sum, result + i);
     }
 }
 
@@ -662,13 +662,13 @@ NK_PUBLIC void nk_scale_e4m3_neon(nk_e4m3_t const *a, nk_size_t n, nk_f32_t cons
         float32x4_t result_f32x4 = vfmaq_f32(beta_f32x4, a_f32x4, alpha_f32x4);
         nk_f32_t results[4];
         vst1q_f32(results, result_f32x4);
-        for (int j = 0; j < 4; ++j) nk_f32_to_e4m3_(&results[j], result + i + j);
+        for (int j = 0; j < 4; ++j) nk_f32_to_e4m3_serial(&results[j], result + i + j);
     }
     for (; i < n; ++i) {
         nk_f32_t ai, scaled;
-        nk_e4m3_to_f32_(a + i, &ai);
+        nk_e4m3_to_f32_serial(a + i, &ai);
         scaled = *alpha * ai + *beta;
-        nk_f32_to_e4m3_(&scaled, result + i);
+        nk_f32_to_e4m3_serial(&scaled, result + i);
     }
 }
 
@@ -682,13 +682,13 @@ NK_PUBLIC void nk_scale_e5m2_neon(nk_e5m2_t const *a, nk_size_t n, nk_f32_t cons
         float32x4_t result_f32x4 = vfmaq_f32(beta_f32x4, a_f32x4, alpha_f32x4);
         nk_f32_t results[4];
         vst1q_f32(results, result_f32x4);
-        for (int j = 0; j < 4; ++j) nk_f32_to_e5m2_(&results[j], result + i + j);
+        for (int j = 0; j < 4; ++j) nk_f32_to_e5m2_serial(&results[j], result + i + j);
     }
     for (; i < n; ++i) {
         nk_f32_t ai, scaled;
-        nk_e5m2_to_f32_(a + i, &ai);
+        nk_e5m2_to_f32_serial(a + i, &ai);
         scaled = *alpha * ai + *beta;
-        nk_f32_to_e5m2_(&scaled, result + i);
+        nk_f32_to_e5m2_serial(&scaled, result + i);
     }
 }
 
@@ -705,14 +705,14 @@ NK_PUBLIC void nk_wsum_e4m3_neon(nk_e4m3_t const *a, nk_e4m3_t const *b, nk_size
         float32x4_t result_f32x4 = vaddq_f32(a_scaled_f32x4, b_scaled_f32x4);
         nk_f32_t results[4];
         vst1q_f32(results, result_f32x4);
-        for (int j = 0; j < 4; ++j) nk_f32_to_e4m3_(&results[j], result + i + j);
+        for (int j = 0; j < 4; ++j) nk_f32_to_e4m3_serial(&results[j], result + i + j);
     }
     for (; i < n; ++i) {
         nk_f32_t ai, bi, wsum;
-        nk_e4m3_to_f32_(a + i, &ai);
-        nk_e4m3_to_f32_(b + i, &bi);
+        nk_e4m3_to_f32_serial(a + i, &ai);
+        nk_e4m3_to_f32_serial(b + i, &bi);
         wsum = *alpha * ai + *beta * bi;
-        nk_f32_to_e4m3_(&wsum, result + i);
+        nk_f32_to_e4m3_serial(&wsum, result + i);
     }
 }
 
@@ -729,14 +729,14 @@ NK_PUBLIC void nk_wsum_e5m2_neon(nk_e5m2_t const *a, nk_e5m2_t const *b, nk_size
         float32x4_t result_f32x4 = vaddq_f32(a_scaled_f32x4, b_scaled_f32x4);
         nk_f32_t results[4];
         vst1q_f32(results, result_f32x4);
-        for (int j = 0; j < 4; ++j) nk_f32_to_e5m2_(&results[j], result + i + j);
+        for (int j = 0; j < 4; ++j) nk_f32_to_e5m2_serial(&results[j], result + i + j);
     }
     for (; i < n; ++i) {
         nk_f32_t ai, bi, wsum;
-        nk_e5m2_to_f32_(a + i, &ai);
-        nk_e5m2_to_f32_(b + i, &bi);
+        nk_e5m2_to_f32_serial(a + i, &ai);
+        nk_e5m2_to_f32_serial(b + i, &bi);
         wsum = *alpha * ai + *beta * bi;
-        nk_f32_to_e5m2_(&wsum, result + i);
+        nk_f32_to_e5m2_serial(&wsum, result + i);
     }
 }
 
@@ -754,15 +754,15 @@ NK_PUBLIC void nk_fma_e4m3_neon(nk_e4m3_t const *a, nk_e4m3_t const *b, nk_e4m3_
         float32x4_t result_f32x4 = vfmaq_f32(ab_scaled_f32x4, c_f32x4, beta_f32x4);
         nk_f32_t results[4];
         vst1q_f32(results, result_f32x4);
-        for (int j = 0; j < 4; ++j) nk_f32_to_e4m3_(&results[j], result + i + j);
+        for (int j = 0; j < 4; ++j) nk_f32_to_e4m3_serial(&results[j], result + i + j);
     }
     for (; i < n; ++i) {
         nk_f32_t ai, bi, ci, fma;
-        nk_e4m3_to_f32_(a + i, &ai);
-        nk_e4m3_to_f32_(b + i, &bi);
-        nk_e4m3_to_f32_(c + i, &ci);
+        nk_e4m3_to_f32_serial(a + i, &ai);
+        nk_e4m3_to_f32_serial(b + i, &bi);
+        nk_e4m3_to_f32_serial(c + i, &ci);
         fma = *alpha * ai * bi + *beta * ci;
-        nk_f32_to_e4m3_(&fma, result + i);
+        nk_f32_to_e4m3_serial(&fma, result + i);
     }
 }
 
@@ -780,15 +780,15 @@ NK_PUBLIC void nk_fma_e5m2_neon(nk_e5m2_t const *a, nk_e5m2_t const *b, nk_e5m2_
         float32x4_t result_f32x4 = vfmaq_f32(ab_scaled_f32x4, c_f32x4, beta_f32x4);
         nk_f32_t results[4];
         vst1q_f32(results, result_f32x4);
-        for (int j = 0; j < 4; ++j) nk_f32_to_e5m2_(&results[j], result + i + j);
+        for (int j = 0; j < 4; ++j) nk_f32_to_e5m2_serial(&results[j], result + i + j);
     }
     for (; i < n; ++i) {
         nk_f32_t ai, bi, ci, fma;
-        nk_e5m2_to_f32_(a + i, &ai);
-        nk_e5m2_to_f32_(b + i, &bi);
-        nk_e5m2_to_f32_(c + i, &ci);
+        nk_e5m2_to_f32_serial(a + i, &ai);
+        nk_e5m2_to_f32_serial(b + i, &bi);
+        nk_e5m2_to_f32_serial(c + i, &ci);
         fma = *alpha * ai * bi + *beta * ci;
-        nk_f32_to_e5m2_(&fma, result + i);
+        nk_f32_to_e5m2_serial(&fma, result + i);
     }
 }
 

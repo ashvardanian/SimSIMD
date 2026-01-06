@@ -237,7 +237,7 @@ extern "C" {
 #define NK_MAKE_SVD3X3(type, compute_sqrt)                                                                   \
     NK_INTERNAL void nk_svd3x3_##type##_(nk_##type##_t const *a, nk_##type##_t *svd_u, nk_##type##_t *svd_s, \
                                          nk_##type##_t *svd_v) {                                             \
-        /* Compute Aᵀ * A (symmetric) */                                                                   \
+        /* Compute Aᵀ * A (symmetric) */                                                                     \
         nk_##type##_t ata[9];                                                                                \
         ata[0] = a[0] * a[0] + a[3] * a[3] + a[6] * a[6];                                                    \
         ata[1] = a[0] * a[1] + a[3] * a[4] + a[6] * a[7];                                                    \
@@ -248,7 +248,7 @@ extern "C" {
         ata[6] = ata[2];                                                                                     \
         ata[7] = ata[5];                                                                                     \
         ata[8] = a[2] * a[2] + a[5] * a[5] + a[8] * a[8];                                                    \
-        /* Jacobi eigenanalysis of Aᵀ * A */                                                               \
+        /* Jacobi eigenanalysis of Aᵀ * A */                                                                 \
         nk_##type##_t quaternion[4];                                                                         \
         nk_jacobi_eigenanalysis__##type(&ata[0], &ata[1], &ata[4], &ata[2], &ata[5], &ata[8], quaternion);   \
         nk_quat_to_mat3__##type(quaternion, svd_v);                                                          \
@@ -266,7 +266,7 @@ extern "C" {
         /* Sort singular values and update V */                                                              \
         nk_sort_singular_values__##type(product, svd_v);                                                     \
         /* Compute singular values from column norms of sorted B (before QR orthogonalizes them) */          \
-        /* These are the true singular values: √(‖colᵢ‖²) */                                        \
+        /* These are the true singular values: √(‖colᵢ‖²) */                                                 \
         nk_##type##_t s1_sq = product[0] * product[0] + product[3] * product[3] + product[6] * product[6];   \
         nk_##type##_t s2_sq = product[1] * product[1] + product[4] * product[4] + product[7] * product[7];   \
         nk_##type##_t s3_sq = product[2] * product[2] + product[5] * product[5] + product[8] * product[8];   \
@@ -402,7 +402,7 @@ NK_MAKE_DET3X3(f64)
             b_centroid[1] = (nk_##output_type##_t)centroid_b_y;                                                      \
             b_centroid[2] = (nk_##output_type##_t)centroid_b_z;                                                      \
         }                                                                                                            \
-        /* Step 2: Build 3×3 covariance matrix H = (A - Ā)ᵀ × (B - B̄) */                                      \
+        /* Step 2: Build 3×3 covariance matrix H = (A - Ā)ᵀ × (B - B̄) */                                             \
         nk_##accumulator_type##_t h[9] = {0, 0, 0, 0, 0, 0, 0, 0, 0};                                                \
         for (nk_size_t i = 0; i < n; ++i) {                                                                          \
             load_and_convert(a + i * 3 + 0, &val_a_x), load_and_convert(b + i * 3 + 0, &val_b_x);                    \
@@ -417,10 +417,10 @@ NK_MAKE_DET3X3(f64)
         /* Convert to svd_type for SVD */                                                                            \
         nk_##svd_type##_t cross_covariance[9];                                                                       \
         for (int j = 0; j < 9; ++j) cross_covariance[j] = (nk_##svd_type##_t)h[j];                                   \
-        /* Step 3: SVD of H = U * S * Vᵀ */                                                                        \
+        /* Step 3: SVD of H = U * S * Vᵀ */                                                                          \
         nk_##svd_type##_t svd_u[9], svd_s[9], svd_v[9];                                                              \
         nk_svd3x3_##svd_type##_(cross_covariance, svd_u, svd_s, svd_v);                                              \
-        /* Step 4: R = V * Uᵀ */                                                                                   \
+        /* Step 4: R = V * Uᵀ */                                                                                     \
         nk_##svd_type##_t rotation_matrix[9];                                                                        \
         rotation_matrix[0] = svd_v[0] * svd_u[0] + svd_v[1] * svd_u[1] + svd_v[2] * svd_u[2];                        \
         rotation_matrix[1] = svd_v[0] * svd_u[3] + svd_v[1] * svd_u[4] + svd_v[2] * svd_u[5];                        \
@@ -533,10 +533,10 @@ NK_MAKE_DET3X3(f64)
         /* Convert to svd_type for SVD */                                                                             \
         nk_##svd_type##_t cross_covariance[9];                                                                        \
         for (int j = 0; j < 9; ++j) cross_covariance[j] = (nk_##svd_type##_t)h[j];                                    \
-        /* Step 3: SVD of H = U * S * Vᵀ */                                                                         \
+        /* Step 3: SVD of H = U * S * Vᵀ */                                                                           \
         nk_##svd_type##_t svd_u[9], svd_s[9], svd_v[9];                                                               \
         nk_svd3x3_##svd_type##_(cross_covariance, svd_u, svd_s, svd_v);                                               \
-        /* Step 4: R = V * Uᵀ */                                                                                    \
+        /* Step 4: R = V * Uᵀ */                                                                                      \
         nk_##svd_type##_t rotation_matrix[9];                                                                         \
         rotation_matrix[0] = svd_v[0] * svd_u[0] + svd_v[1] * svd_u[1] + svd_v[2] * svd_u[2];                         \
         rotation_matrix[1] = svd_v[0] * svd_u[3] + svd_v[1] * svd_u[4] + svd_v[2] * svd_u[5];                         \

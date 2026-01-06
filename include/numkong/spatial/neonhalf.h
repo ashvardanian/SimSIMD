@@ -18,9 +18,9 @@
 #endif
 
 #include "numkong/types.h"
-#include "numkong/reduce/neonhalf.h" // nk_partial_load_f16x4_to_f32x4_neonhalf_
-#include "numkong/spatial/neon.h"    // nk_angular_f32x4_finalize_neon_, nk_l2_f32x4_finalize_neon_
-#include "numkong/dot/neonhalf.h"    // nk_dot_f16x4_state_neonhalf_t
+#include "numkong/cast/serial.h"  // `nk_partial_load_b16x4_serial_`
+#include "numkong/spatial/neon.h" // `nk_angular_f32x4_finalize_neon_`
+#include "numkong/dot/neonhalf.h" // `nk_dot_f16x4_state_neonhalf_t`
 
 #if defined(__cplusplus)
 extern "C" {
@@ -32,8 +32,11 @@ NK_PUBLIC void nk_l2sq_f16_neonhalf(nk_f16_t const *a, nk_f16_t const *b, nk_siz
 
 nk_l2sq_f16_neonhalf_cycle:
     if (n < 4) {
-        nk_partial_load_f16x4_to_f32x4_neonhalf_(a, n, &a_f32x4);
-        nk_partial_load_f16x4_to_f32x4_neonhalf_(b, n, &b_f32x4);
+        nk_b64_vec_t a_vec, b_vec;
+        nk_partial_load_b16x4_serial_(a, &a_vec, n);
+        nk_partial_load_b16x4_serial_(b, &b_vec, n);
+        a_f32x4 = vcvt_f32_f16(vreinterpret_f16_u16(a_vec.u16x4));
+        b_f32x4 = vcvt_f32_f16(vreinterpret_f16_u16(b_vec.u16x4));
         n = 0;
     }
     else {
@@ -58,8 +61,11 @@ NK_PUBLIC void nk_angular_f16_neonhalf(nk_f16_t const *a, nk_f16_t const *b, nk_
 
 nk_angular_f16_neonhalf_cycle:
     if (n < 4) {
-        nk_partial_load_f16x4_to_f32x4_neonhalf_(a, n, &a_f32x4);
-        nk_partial_load_f16x4_to_f32x4_neonhalf_(b, n, &b_f32x4);
+        nk_b64_vec_t a_vec, b_vec;
+        nk_partial_load_b16x4_serial_(a, &a_vec, n);
+        nk_partial_load_b16x4_serial_(b, &b_vec, n);
+        a_f32x4 = vcvt_f32_f16(vreinterpret_f16_u16(a_vec.u16x4));
+        b_f32x4 = vcvt_f32_f16(vreinterpret_f16_u16(b_vec.u16x4));
         n = 0;
     }
     else {
