@@ -48,10 +48,13 @@
 
 #if NK_TARGET_X86_
 #if NK_TARGET_SAPPHIRE_AMX
-#pragma GCC push_options
-#pragma GCC target("avx2", "avx512f", "avx512vl", "bmi2", "avx512bw", "avx512fp16", "avx512bf16")
+#if defined(__clang__)
 #pragma clang attribute push(__attribute__((target("avx2,avx512f,avx512vl,bmi2,avx512bw,avx512fp16,avx512bf16"))), \
                              apply_to = function)
+#elif defined(__GNUC__)
+#pragma GCC push_options
+#pragma GCC target("avx2", "avx512f", "avx512vl", "bmi2", "avx512bw", "avx512fp16", "avx512bf16")
+#endif
 
 #include "numkong/types.h"
 #include "numkong/dots/sapphire_amx.h"
@@ -1452,8 +1455,11 @@ NK_PUBLIC void nk_attention_causal_bf16_sapphire_amx(nk_bf16_t const *q, void co
 } // extern "C"
 #endif
 
+#if defined(__clang__)
 #pragma clang attribute pop
+#elif defined(__GNUC__)
 #pragma GCC pop_options
+#endif
 #endif // NK_TARGET_SAPPHIRE_AMX
 #endif // NK_TARGET_X86_
 #endif // NK_ATTENTION_SAPPHIRE_AMX_H

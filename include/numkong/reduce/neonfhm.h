@@ -13,9 +13,12 @@
 
 #if NK_TARGET_ARM_
 #if NK_TARGET_NEONFHM
+#if defined(__clang__)
+#pragma clang attribute push(__attribute__((target("arch=armv8.2-a+simd+fp16+fp16fml"))), apply_to = function)
+#elif defined(__GNUC__)
 #pragma GCC push_options
 #pragma GCC target("arch=armv8.2-a+simd+fp16+fp16fml")
-#pragma clang attribute push(__attribute__((target("arch=armv8.2-a+simd+fp16+fp16fml"))), apply_to = function)
+#endif
 
 #include "numkong/types.h"
 #include "numkong/reduce/serial.h"
@@ -754,8 +757,11 @@ NK_PUBLIC void nk_reduce_max_e5m2_neonfhm(                          //
 } // extern "C"
 #endif
 
+#if defined(__clang__)
 #pragma clang attribute pop
+#elif defined(__GNUC__)
 #pragma GCC pop_options
+#endif
 #endif // NK_TARGET_NEONFHM
 #endif // NK_TARGET_ARM_
 

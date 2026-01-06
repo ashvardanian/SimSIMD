@@ -10,9 +10,12 @@
 
 #if NK_TARGET_ARM_
 #if NK_TARGET_NEONSDOT
+#if defined(__clang__)
+#pragma clang attribute push(__attribute__((target("arch=armv8.2-a+dotprod"))), apply_to = function)
+#elif defined(__GNUC__)
 #pragma GCC push_options
 #pragma GCC target("arch=armv8.2-a+dotprod")
-#pragma clang attribute push(__attribute__((target("arch=armv8.2-a+dotprod"))), apply_to = function)
+#endif
 
 #include "numkong/types.h"
 
@@ -29,8 +32,8 @@ nk_make_dots_packed_vectors_(i8_neonsdot, i8, i32, nk_b128_vec_t, nk_dot_i8x16_s
                              nk_partial_store_b32x4_serial_,
                              /*k_tile=*/16)
 
-    // U8 GEMM: simd_width=16 (16 u8s = 16 bytes = NEON register width)
-    nk_make_dots_pack_size_(neonsdot, u8, u32)
+// U8 GEMM: simd_width=16 (16 u8s = 16 bytes = NEON register width)
+nk_make_dots_pack_size_(neonsdot, u8, u32)
 nk_make_dots_pack_(neonsdot, u8, u32)
 nk_make_dots_packed_vectors_(u8_neonsdot, u8, u32, nk_b128_vec_t, nk_dot_u8x16_state_neonsdot_t, nk_b128_vec_t,
                              nk_dot_u8x16_init_neonsdot, nk_load_b128_neon_, nk_partial_load_u1x16_serial_,
@@ -42,8 +45,11 @@ nk_make_dots_packed_vectors_(u8_neonsdot, u8, u32, nk_b128_vec_t, nk_dot_u8x16_s
 } // extern "C"
 #endif
 
+#if defined(__clang__)
 #pragma clang attribute pop
+#elif defined(__GNUC__)
 #pragma GCC pop_options
+#endif
 #endif // NK_TARGET_NEONSDOT
 #endif // NK_TARGET_ARM_
 

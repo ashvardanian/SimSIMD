@@ -953,9 +953,12 @@ NK_PUBLIC nk_capability_t nk_capabilities_x86_(void) {
  * 'id_aa64zfr0_el1'. Suppressing assembler errors is very complicated, so when dealing with older ARM CPUs it's
  * simpler to compile this function targeting newer ones.
  */
+#if defined(__clang__)
+#pragma clang attribute push(__attribute__((target("arch=armv8.5-a+sve"))), apply_to = function)
+#elif defined(__GNUC__)
 #pragma GCC push_options
 #pragma GCC target("arch=armv8.5-a+sve")
-#pragma clang attribute push(__attribute__((target("arch=armv8.5-a+sve"))), apply_to = function)
+#endif
 
 #if NK_HAS_POSIX_EXTENSIONS_
 /** @brief SIGILL handler for `mrs` instruction testing on Linux ARM */
@@ -1182,8 +1185,11 @@ NK_PUBLIC nk_capability_t nk_capabilities_arm_(void) {
 #endif
 }
 
+#if defined(__clang__)
 #pragma clang attribute pop
+#elif defined(__GNUC__)
 #pragma GCC pop_options
+#endif
 
 #endif // NK_TARGET_ARM_
 

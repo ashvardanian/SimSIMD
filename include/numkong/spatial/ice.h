@@ -10,10 +10,14 @@
 
 #if NK_TARGET_X86_
 #if NK_TARGET_ICE
+#if defined(__clang__)
+#pragma clang attribute push(                                                                        \
+    __attribute__((target("avx2,avx512f,avx512vl,avx512bw,avx512dq,avx512vnni,f16c,fma,bmi,bmi2"))), \
+    apply_to = function)
+#elif defined(__GNUC__)
 #pragma GCC push_options
 #pragma GCC target("avx2", "avx512f", "avx512vl", "avx512bw", "avx512dq", "avx512vnni", "f16c", "fma", "bmi", "bmi2")
-#pragma clang attribute push(__attribute__((target("avx2,avx512f,avx512vl,avx512bw,avx512dq,avx512vnni,f16c,fma,bmi,bmi2"))), \
-                             apply_to = function)
+#endif
 
 #include "numkong/types.h"
 
@@ -579,8 +583,11 @@ NK_INTERNAL void nk_l2_u8x64_finalize_ice(nk_l2_u8x64_state_ice_t const *state_a
 } // extern "C"
 #endif
 
+#if defined(__clang__)
 #pragma clang attribute pop
+#elif defined(__GNUC__)
 #pragma GCC pop_options
+#endif
 #endif // NK_TARGET_ICE
 #endif // NK_TARGET_X86_
 

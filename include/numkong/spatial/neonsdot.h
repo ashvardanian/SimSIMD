@@ -10,9 +10,12 @@
 
 #if NK_TARGET_ARM_
 #if NK_TARGET_NEONSDOT
+#if defined(__clang__)
+#pragma clang attribute push(__attribute__((target("arch=armv8.2-a+dotprod"))), apply_to = function)
+#elif defined(__GNUC__)
 #pragma GCC push_options
 #pragma GCC target("arch=armv8.2-a+dotprod")
-#pragma clang attribute push(__attribute__((target("arch=armv8.2-a+dotprod"))), apply_to = function)
+#endif
 
 #include "numkong/types.h"
 #include "numkong/spatial/neon.h" // nk_angular_f32x4_finalize_neon_f32_, nk_l2_f32x4_finalize_neon_f32_
@@ -302,8 +305,11 @@ NK_INTERNAL void nk_l2_u8x16_finalize_neonsdot(nk_l2_u8x16_state_neonsdot_t cons
 } // extern "C"
 #endif
 
+#if defined(__clang__)
 #pragma clang attribute pop
+#elif defined(__GNUC__)
 #pragma GCC pop_options
+#endif
 #endif // NK_TARGET_NEONSDOT
 #endif // NK_TARGET_ARM_
 

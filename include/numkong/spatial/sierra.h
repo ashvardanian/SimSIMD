@@ -10,9 +10,12 @@
 
 #if NK_TARGET_X86_
 #if NK_TARGET_SIERRA
+#if defined(__clang__)
+#pragma clang attribute push(__attribute__((target("avx2,f16c,fma,bmi,bmi2,avxvnni,avxvnniint8"))), apply_to = function)
+#elif defined(__GNUC__)
 #pragma GCC push_options
 #pragma GCC target("avx2", "f16c", "fma", "bmi", "bmi2", "avxvnni", "avxvnniint8")
-#pragma clang attribute push(__attribute__((target("avx2,f16c,fma,bmi,bmi2,avxvnni,avxvnniint8"))), apply_to = function)
+#endif
 
 #include "numkong/types.h"
 #include "numkong/reduce/haswell.h" // nk_reduce_add_i32x8_haswell_
@@ -93,8 +96,11 @@ NK_INTERNAL void nk_l2_i8x32_finalize_sierra(nk_l2_i8x32_state_sierra_t const *s
 } // extern "C"
 #endif
 
+#if defined(__clang__)
 #pragma clang attribute pop
+#elif defined(__GNUC__)
 #pragma GCC pop_options
+#endif
 #endif // NK_TARGET_SIERRA
 #endif // NK_TARGET_X86_
 

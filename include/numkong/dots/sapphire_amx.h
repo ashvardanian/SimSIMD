@@ -41,13 +41,16 @@
 
 #if NK_TARGET_X86_
 #if NK_TARGET_SAPPHIRE_AMX
-#pragma GCC push_options
-#pragma GCC target("avx2", "avx512f", "avx512vl", "avx512bw", "avx512dq", "avx512fp16", "f16c", "fma", "bmi", "bmi2", \
-                   "amx-tile", "amx-bf16", "amx-int8")
+#if defined(__clang__)
 #pragma clang attribute push(                                                                                        \
     __attribute__((                                                                                                  \
         target("avx2,avx512f,avx512vl,avx512bw,avx512dq,avx512fp16,f16c,fma,bmi,bmi2,amx-tile,amx-bf16,amx-int8"))), \
     apply_to = function)
+#elif defined(__GNUC__)
+#pragma GCC push_options
+#pragma GCC target("avx2", "avx512f", "avx512vl", "avx512bw", "avx512dq", "avx512fp16", "f16c", "fma", "bmi", "bmi2", \
+                   "amx-tile", "amx-bf16", "amx-int8")
+#endif
 
 #include "numkong/types.h"
 #include "numkong/cast/ice.h" // For FP8 ↔ BF16 conversions
@@ -3030,8 +3033,11 @@ NK_PUBLIC void nk_dots_compact_i8_sapphire_amx( //
 } // extern "C"
 #endif
 
+#if defined(__clang__)
 #pragma clang attribute pop
+#elif defined(__GNUC__)
 #pragma GCC pop_options
+#endif
 #endif // NK_TARGET_SAPPHIRE_AMX
 #endif // NK_TARGET_X86_
 

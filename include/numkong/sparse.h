@@ -343,10 +343,13 @@ NK_MAKE_SPARSE_DOT(accurate, u32, f32, f64, nk_assign_from_to_)     // nk_sparse
  */
 #if NK_TARGET_X86_
 #if NK_TARGET_ICE
-#pragma GCC push_options
-#pragma GCC target("avx2", "avx512f", "avx512vl", "bmi2", "lzcnt", "popcnt", "avx512bw", "avx512vbmi2")
+#if defined(__clang__)
 #pragma clang attribute push(__attribute__((target("avx2,avx512f,avx512vl,bmi2,lzcnt,popcnt,avx512bw,avx512vbmi2"))), \
                              apply_to = function)
+#elif defined(__GNUC__)
+#pragma GCC push_options
+#pragma GCC target("avx2", "avx512f", "avx512vl", "bmi2", "lzcnt", "popcnt", "avx512bw", "avx512vbmi2")
+#endif
 
 /**
  *  @brief  Analogous to `_mm512_2intersect_epi16_mask`, but compatible with Ice Lake CPUs,
@@ -641,18 +644,24 @@ NK_PUBLIC void nk_sparse_dot_u32f32_ice(                  //
     *product = _mm512_reduce_add_ps(product_f32x16) + tail_product;
 }
 
+#if defined(__clang__)
 #pragma clang attribute pop
+#elif defined(__GNUC__)
 #pragma GCC pop_options
+#endif
 #endif // NK_TARGET_ICE
 
 #if NK_TARGET_TURIN
-#pragma GCC push_options
-#pragma GCC target("avx2", "avx512f", "avx512vl", "bmi", "bmi2", "lzcnt", "popcnt", "avx512bw", "avx512vbmi2", \
-                   "avx512bf16", "avx512vnni", "avx512vp2intersect", "avx512dq")
+#if defined(__clang__)
 #pragma clang attribute push(                                                                                                    \
     __attribute__((target(                                                                                                       \
         "avx2,avx512f,avx512vl,bmi,bmi2,lzcnt,popcnt,avx512bw,avx512vbmi2,avx512bf16,avx512vnni,avx512vp2intersect,avx512dq"))), \
     apply_to = function)
+#elif defined(__GNUC__)
+#pragma GCC push_options
+#pragma GCC target("avx2", "avx512f", "avx512vl", "bmi", "bmi2", "lzcnt", "popcnt", "avx512bw", "avx512vbmi2", \
+                   "avx512bf16", "avx512vnni", "avx512vp2intersect", "avx512dq")
+#endif
 
 NK_PUBLIC void nk_intersect_u16_turin(      //
     nk_u16_t const *a, nk_u16_t const *b,   //
@@ -882,16 +891,22 @@ NK_PUBLIC void nk_sparse_dot_u32f32_turin(                //
     *product = _mm512_reduce_add_ps(product_f32x16) + tail_product;
 }
 
+#if defined(__clang__)
 #pragma clang attribute pop
+#elif defined(__GNUC__)
 #pragma GCC pop_options
+#endif
 #endif // NK_TARGET_TURIN
 #endif // NK_TARGET_X86_
 
 #if NK_TARGET_ARM_
 #if NK_TARGET_NEON
+#if defined(__clang__)
+#pragma clang attribute push(__attribute__((target("arch=armv8-a"))), apply_to = function)
+#elif defined(__GNUC__)
 #pragma GCC push_options
 #pragma GCC target("arch=armv8-a")
-#pragma clang attribute push(__attribute__((target("arch=armv8-a"))), apply_to = function)
+#endif
 
 /**
  *  @brief  Uses `vshrn` to produce a bitmask, similar to `movemask` in SSE.
@@ -1094,8 +1109,11 @@ NK_PUBLIC void nk_intersect_u32_neon(       //
     *count = tail_count + vaddvq_u32(c_counts_u32x4);
 }
 
+#if defined(__clang__)
 #pragma clang attribute pop
+#elif defined(__GNUC__)
 #pragma GCC pop_options
+#endif
 #endif // NK_TARGET_NEON
 
 /*  SVE2 introduces many new integer-oriented instructions, extending some of the NEON functionality
@@ -1121,9 +1139,12 @@ NK_PUBLIC void nk_intersect_u32_neon(       //
  *    https://gist.github.com/zingaburga/805669eb891c820bd220418ee3f0d6bd
  */
 #if NK_TARGET_SVE2
+#if defined(__clang__)
+#pragma clang attribute push(__attribute__((target("arch=armv8.2-a+sve+sve2"))), apply_to = function)
+#elif defined(__GNUC__)
 #pragma GCC push_options
 #pragma GCC target("arch=armv8.2-a+sve+sve2")
-#pragma clang attribute push(__attribute__((target("arch=armv8.2-a+sve+sve2"))), apply_to = function)
+#endif
 
 NK_PUBLIC void nk_intersect_u16_sve2(     //
     nk_u16_t const *a, nk_u16_t const *b, //
@@ -1369,14 +1390,20 @@ NK_PUBLIC void nk_sparse_dot_u32f32_sve2(                 //
     *product = svaddv_f32(svptrue_b32(), product_f32_sve);
 }
 
+#if defined(__clang__)
 #pragma clang attribute pop
+#elif defined(__GNUC__)
 #pragma GCC pop_options
+#endif
 #endif // NK_TARGET_SVE2
 
 #if NK_TARGET_SVE2 && NK_TARGET_SVEBFDOT
+#if defined(__clang__)
+#pragma clang attribute push(__attribute__((target("arch=armv8.6-a+sve+sve2+bf16"))), apply_to = function)
+#elif defined(__GNUC__)
 #pragma GCC push_options
 #pragma GCC target("arch=armv8.6-a+sve+sve2+bf16")
-#pragma clang attribute push(__attribute__((target("arch=armv8.6-a+sve+sve2+bf16"))), apply_to = function)
+#endif
 
 NK_PUBLIC void nk_sparse_dot_u16bf16_sve2(                  //
     nk_u16_t const *a, nk_u16_t const *b,                   //
@@ -1453,8 +1480,11 @@ NK_PUBLIC void nk_sparse_dot_u16bf16_sve2(                  //
     *product = svaddv_f32(svptrue_b32(), product_vec);
 }
 
+#if defined(__clang__)
 #pragma clang attribute pop
+#elif defined(__GNUC__)
 #pragma GCC pop_options
+#endif
 #endif // NK_TARGET_SVE2 && NK_TARGET_SVEBFDOT
 #endif // NK_TARGET_ARM_
 
