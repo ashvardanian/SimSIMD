@@ -1034,10 +1034,9 @@ NK_PUBLIC void nk_mahalanobis_bf16_haswell(nk_bf16_t const *a, nk_bf16_t const *
 
 #if NK_TARGET_SKYLAKE
 #pragma GCC push_options
-#pragma GCC target("avx2", "avx512f", "avx512vl", "avx512bw", "avx512dq", "avx512bf16", "f16c", "fma", "bmi", "bmi2")
-#pragma clang attribute push(                                                                        \
-    __attribute__((target("avx2,avx512f,avx512vl,avx512bw,avx512dq,avx512bf16,f16c,fma,bmi,bmi2"))), \
-    apply_to = function)
+#pragma GCC target("avx2", "avx512f", "avx512vl", "avx512bw", "avx512dq", "f16c", "fma", "bmi", "bmi2")
+#pragma clang attribute push(__attribute__((target("avx2,avx512f,avx512vl,avx512bw,avx512dq,f16c,fma,bmi,bmi2"))), \
+                             apply_to = function)
 
 NK_PUBLIC void nk_bilinear_f32_skylake_under16unrolled(nk_f32_t const *a, nk_f32_t const *b, nk_f32_t const *c,
                                                        nk_size_t n, nk_f32_t *result) {

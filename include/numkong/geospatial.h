@@ -1634,10 +1634,9 @@ NK_PUBLIC void nk_vincenty_f32_haswell(             //
 
 #if NK_TARGET_SKYLAKE
 #pragma GCC push_options
-#pragma GCC target("avx2", "avx512f", "avx512vl", "avx512bw", "avx512dq", "avx512bf16", "f16c", "fma", "bmi", "bmi2")
-#pragma clang attribute push(                                                                        \
-    __attribute__((target("avx2,avx512f,avx512vl,avx512bw,avx512dq,avx512bf16,f16c,fma,bmi,bmi2"))), \
-    apply_to = function)
+#pragma GCC target("avx2", "avx512f", "avx512vl", "avx512bw", "avx512dq", "f16c", "fma", "bmi", "bmi2")
+#pragma clang attribute push(__attribute__((target("avx2,avx512f,avx512vl,avx512bw,avx512dq,f16c,fma,bmi,bmi2"))), \
+                             apply_to = function)
 
 NK_INTERNAL __m512d nk_haversine_f64x8_skylake_(       //
     __m512d first_latitudes, __m512d first_longitudes, //
