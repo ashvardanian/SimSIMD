@@ -27,24 +27,17 @@ use core::marker::PhantomData;
 use core::ptr::NonNull;
 
 use crate::numerics::{ATan, Cos, Dot, Scale, Sin, Sum, WSum, FMA};
-use crate::scalars::{bf16, f16};
+use crate::scalars::{bf16, e4m3, e5m2, f16};
 
 /// Size type used in C FFI to match `nk_size_t` which is always `uint64_t`.
 type u64size = u64;
 
 #[link(name = "numkong")]
 extern "C" {
-    // Matrix multiplication (GEMM) with packed B matrix
-    // F32: C[m×n] = A[m×k] × B[n×k]ᵀ
-    fn nk_dots_f32f32f32_packed_size(n: u64size, k: u64size) -> u64size;
-    fn nk_dots_f32f32f32_pack(
-        b: *const f32,
-        n: u64size,
-        k: u64size,
-        b_stride: u64size,
-        packed: *mut u8,
-    );
-    fn nk_dots_f32f32f32(
+
+    fn nk_dots_packed_size_f32(n: u64size, k: u64size) -> u64size;
+    fn nk_dots_pack_f32(b: *const f32, n: u64size, k: u64size, b_stride: u64size, packed: *mut u8);
+    fn nk_dots_packed_f32(
         a: *const f32,
         packed: *const u8,
         c: *mut f32,
@@ -55,16 +48,9 @@ extern "C" {
         c_stride: u64size,
     );
 
-    // F64 GEMM
-    fn nk_dots_f64f64f64_packed_size(n: u64size, k: u64size) -> u64size;
-    fn nk_dots_f64f64f64_pack(
-        b: *const f64,
-        n: u64size,
-        k: u64size,
-        b_stride: u64size,
-        packed: *mut u8,
-    );
-    fn nk_dots_f64f64f64(
+    fn nk_dots_packed_size_f64(n: u64size, k: u64size) -> u64size;
+    fn nk_dots_pack_f64(b: *const f64, n: u64size, k: u64size, b_stride: u64size, packed: *mut u8);
+    fn nk_dots_packed_f64(
         a: *const f64,
         packed: *const u8,
         c: *mut f64,
@@ -75,16 +61,9 @@ extern "C" {
         c_stride: u64size,
     );
 
-    // F16 GEMM (accumulates to F32)
-    fn nk_dots_f16f16f32_packed_size(n: u64size, k: u64size) -> u64size;
-    fn nk_dots_f16f16f32_pack(
-        b: *const u16,
-        n: u64size,
-        k: u64size,
-        b_stride: u64size,
-        packed: *mut u8,
-    );
-    fn nk_dots_f16f16f32(
+    fn nk_dots_packed_size_f16(n: u64size, k: u64size) -> u64size;
+    fn nk_dots_pack_f16(b: *const u16, n: u64size, k: u64size, b_stride: u64size, packed: *mut u8);
+    fn nk_dots_packed_f16(
         a: *const u16,
         packed: *const u8,
         c: *mut f32,
@@ -95,16 +74,9 @@ extern "C" {
         c_stride: u64size,
     );
 
-    // BF16 GEMM (accumulates to F32)
-    fn nk_dots_bf16bf16f32_packed_size(n: u64size, k: u64size) -> u64size;
-    fn nk_dots_bf16bf16f32_pack(
-        b: *const u16,
-        n: u64size,
-        k: u64size,
-        b_stride: u64size,
-        packed: *mut u8,
-    );
-    fn nk_dots_bf16bf16f32(
+    fn nk_dots_packed_size_bf16(n: u64size, k: u64size) -> u64size;
+    fn nk_dots_pack_bf16(b: *const u16, n: u64size, k: u64size, b_stride: u64size, packed: *mut u8);
+    fn nk_dots_packed_bf16(
         a: *const u16,
         packed: *const u8,
         c: *mut f32,
@@ -115,16 +87,9 @@ extern "C" {
         c_stride: u64size,
     );
 
-    // I8 GEMM (accumulates to I32)
-    fn nk_dots_i8i8i32_packed_size(n: u64size, k: u64size) -> u64size;
-    fn nk_dots_i8i8i32_pack(
-        b: *const i8,
-        n: u64size,
-        k: u64size,
-        b_stride: u64size,
-        packed: *mut u8,
-    );
-    fn nk_dots_i8i8i32(
+    fn nk_dots_packed_size_i8(n: u64size, k: u64size) -> u64size;
+    fn nk_dots_pack_i8(b: *const i8, n: u64size, k: u64size, b_stride: u64size, packed: *mut u8);
+    fn nk_dots_packed_i8(
         a: *const i8,
         packed: *const u8,
         c: *mut i32,
@@ -135,19 +100,38 @@ extern "C" {
         c_stride: u64size,
     );
 
-    // U8 GEMM (accumulates to U32)
-    fn nk_dots_u8u8u32_packed_size(n: u64size, k: u64size) -> u64size;
-    fn nk_dots_u8u8u32_pack(
-        b: *const u8,
-        n: u64size,
-        k: u64size,
-        b_stride: u64size,
-        packed: *mut u8,
-    );
-    fn nk_dots_u8u8u32(
+    fn nk_dots_packed_size_u8(n: u64size, k: u64size) -> u64size;
+    fn nk_dots_pack_u8(b: *const u8, n: u64size, k: u64size, b_stride: u64size, packed: *mut u8);
+    fn nk_dots_packed_u8(
         a: *const u8,
         packed: *const u8,
         c: *mut u32,
+        m: u64size,
+        n: u64size,
+        k: u64size,
+        a_stride: u64size,
+        c_stride: u64size,
+    );
+
+    fn nk_dots_packed_size_e4m3(n: u64size, k: u64size) -> u64size;
+    fn nk_dots_pack_e4m3(b: *const u8, n: u64size, k: u64size, b_stride: u64size, packed: *mut u8);
+    fn nk_dots_packed_e4m3(
+        a: *const u8,
+        packed: *const u8,
+        c: *mut f32,
+        m: u64size,
+        n: u64size,
+        k: u64size,
+        a_stride: u64size,
+        c_stride: u64size,
+    );
+
+    fn nk_dots_packed_size_e5m2(n: u64size, k: u64size) -> u64size;
+    fn nk_dots_pack_e5m2(b: *const u8, n: u64size, k: u64size, b_stride: u64size, packed: *mut u8);
+    fn nk_dots_packed_e5m2(
+        a: *const u8,
+        packed: *const u8,
+        c: *mut f32,
         m: u64size,
         n: u64size,
         k: u64size,
@@ -352,11 +336,11 @@ impl Dots for f32 {
     type Accumulator = f32;
 
     fn dots_packed_size(n: usize, k: usize) -> usize {
-        unsafe { nk_dots_f32f32f32_packed_size(n as u64size, k as u64size) as usize }
+        unsafe { nk_dots_packed_size_f32(n as u64size, k as u64size) as usize }
     }
 
     unsafe fn dots_pack(b: *const Self, n: usize, k: usize, b_stride: usize, packed: *mut u8) {
-        nk_dots_f32f32f32_pack(b, n as u64size, k as u64size, b_stride as u64size, packed)
+        nk_dots_pack_f32(b, n as u64size, k as u64size, b_stride as u64size, packed)
     }
 
     unsafe fn dots(
@@ -369,7 +353,7 @@ impl Dots for f32 {
         a_stride: usize,
         c_stride: usize,
     ) {
-        nk_dots_f32f32f32(
+        nk_dots_packed_f32(
             a,
             packed,
             c,
@@ -386,11 +370,11 @@ impl Dots for f64 {
     type Accumulator = f64;
 
     fn dots_packed_size(n: usize, k: usize) -> usize {
-        unsafe { nk_dots_f64f64f64_packed_size(n as u64size, k as u64size) as usize }
+        unsafe { nk_dots_packed_size_f64(n as u64size, k as u64size) as usize }
     }
 
     unsafe fn dots_pack(b: *const Self, n: usize, k: usize, b_stride: usize, packed: *mut u8) {
-        nk_dots_f64f64f64_pack(b, n as u64size, k as u64size, b_stride as u64size, packed)
+        nk_dots_pack_f64(b, n as u64size, k as u64size, b_stride as u64size, packed)
     }
 
     unsafe fn dots(
@@ -403,7 +387,7 @@ impl Dots for f64 {
         a_stride: usize,
         c_stride: usize,
     ) {
-        nk_dots_f64f64f64(
+        nk_dots_packed_f64(
             a,
             packed,
             c,
@@ -420,11 +404,11 @@ impl Dots for f16 {
     type Accumulator = f32;
 
     fn dots_packed_size(n: usize, k: usize) -> usize {
-        unsafe { nk_dots_f16f16f32_packed_size(n as u64size, k as u64size) as usize }
+        unsafe { nk_dots_packed_size_f16(n as u64size, k as u64size) as usize }
     }
 
     unsafe fn dots_pack(b: *const Self, n: usize, k: usize, b_stride: usize, packed: *mut u8) {
-        nk_dots_f16f16f32_pack(
+        nk_dots_pack_f16(
             b as *const u16,
             n as u64size,
             k as u64size,
@@ -443,7 +427,7 @@ impl Dots for f16 {
         a_stride: usize,
         c_stride: usize,
     ) {
-        nk_dots_f16f16f32(
+        nk_dots_packed_f16(
             a as *const u16,
             packed,
             c,
@@ -460,11 +444,11 @@ impl Dots for bf16 {
     type Accumulator = f32;
 
     fn dots_packed_size(n: usize, k: usize) -> usize {
-        unsafe { nk_dots_bf16bf16f32_packed_size(n as u64size, k as u64size) as usize }
+        unsafe { nk_dots_packed_size_bf16(n as u64size, k as u64size) as usize }
     }
 
     unsafe fn dots_pack(b: *const Self, n: usize, k: usize, b_stride: usize, packed: *mut u8) {
-        nk_dots_bf16bf16f32_pack(
+        nk_dots_pack_bf16(
             b as *const u16,
             n as u64size,
             k as u64size,
@@ -483,7 +467,7 @@ impl Dots for bf16 {
         a_stride: usize,
         c_stride: usize,
     ) {
-        nk_dots_bf16bf16f32(
+        nk_dots_packed_bf16(
             a as *const u16,
             packed,
             c,
@@ -500,11 +484,11 @@ impl Dots for i8 {
     type Accumulator = i32;
 
     fn dots_packed_size(n: usize, k: usize) -> usize {
-        unsafe { nk_dots_i8i8i32_packed_size(n as u64size, k as u64size) as usize }
+        unsafe { nk_dots_packed_size_i8(n as u64size, k as u64size) as usize }
     }
 
     unsafe fn dots_pack(b: *const Self, n: usize, k: usize, b_stride: usize, packed: *mut u8) {
-        nk_dots_i8i8i32_pack(b, n as u64size, k as u64size, b_stride as u64size, packed)
+        nk_dots_pack_i8(b, n as u64size, k as u64size, b_stride as u64size, packed)
     }
 
     unsafe fn dots(
@@ -517,7 +501,7 @@ impl Dots for i8 {
         a_stride: usize,
         c_stride: usize,
     ) {
-        nk_dots_i8i8i32(
+        nk_dots_packed_i8(
             a,
             packed,
             c,
@@ -534,11 +518,11 @@ impl Dots for u8 {
     type Accumulator = u32;
 
     fn dots_packed_size(n: usize, k: usize) -> usize {
-        unsafe { nk_dots_u8u8u32_packed_size(n as u64size, k as u64size) as usize }
+        unsafe { nk_dots_packed_size_u8(n as u64size, k as u64size) as usize }
     }
 
     unsafe fn dots_pack(b: *const Self, n: usize, k: usize, b_stride: usize, packed: *mut u8) {
-        nk_dots_u8u8u32_pack(b, n as u64size, k as u64size, b_stride as u64size, packed)
+        nk_dots_pack_u8(b, n as u64size, k as u64size, b_stride as u64size, packed)
     }
 
     unsafe fn dots(
@@ -551,8 +535,88 @@ impl Dots for u8 {
         a_stride: usize,
         c_stride: usize,
     ) {
-        nk_dots_u8u8u32(
+        nk_dots_packed_u8(
             a,
+            packed,
+            c,
+            m as u64size,
+            n as u64size,
+            k as u64size,
+            a_stride as u64size,
+            c_stride as u64size,
+        )
+    }
+}
+
+impl Dots for e4m3 {
+    type Accumulator = f32;
+
+    fn dots_packed_size(n: usize, k: usize) -> usize {
+        unsafe { nk_dots_packed_size_e4m3(n as u64size, k as u64size) as usize }
+    }
+
+    unsafe fn dots_pack(b: *const Self, n: usize, k: usize, b_stride: usize, packed: *mut u8) {
+        nk_dots_pack_e4m3(
+            b as *const u8,
+            n as u64size,
+            k as u64size,
+            b_stride as u64size,
+            packed,
+        )
+    }
+
+    unsafe fn dots(
+        a: *const Self,
+        packed: *const u8,
+        c: *mut Self::Accumulator,
+        m: usize,
+        n: usize,
+        k: usize,
+        a_stride: usize,
+        c_stride: usize,
+    ) {
+        nk_dots_packed_e4m3(
+            a as *const u8,
+            packed,
+            c,
+            m as u64size,
+            n as u64size,
+            k as u64size,
+            a_stride as u64size,
+            c_stride as u64size,
+        )
+    }
+}
+
+impl Dots for e5m2 {
+    type Accumulator = f32;
+
+    fn dots_packed_size(n: usize, k: usize) -> usize {
+        unsafe { nk_dots_packed_size_e5m2(n as u64size, k as u64size) as usize }
+    }
+
+    unsafe fn dots_pack(b: *const Self, n: usize, k: usize, b_stride: usize, packed: *mut u8) {
+        nk_dots_pack_e5m2(
+            b as *const u8,
+            n as u64size,
+            k as u64size,
+            b_stride as u64size,
+            packed,
+        )
+    }
+
+    unsafe fn dots(
+        a: *const Self,
+        packed: *const u8,
+        c: *mut Self::Accumulator,
+        m: usize,
+        n: usize,
+        k: usize,
+        a_stride: usize,
+        c_stride: usize,
+    ) {
+        nk_dots_packed_e5m2(
+            a as *const u8,
             packed,
             c,
             m as u64size,
@@ -1840,6 +1904,138 @@ impl<T: Dots, A: Allocator, const MAX_RANK: usize> Tensor<T, A, MAX_RANK> {
     }
 }
 
+// Parallel matmul implementations, if Fork Union is available
+#[cfg(feature = "parallel")]
+impl<T: Dots + Clone + Send + Sync, A: Allocator + Clone, const MAX_RANK: usize>
+    Tensor<T, A, MAX_RANK>
+where
+    T::Accumulator: Clone + Default + Send + Sync,
+{
+    /// Parallel matrix multiply into pre-allocated output.
+    ///
+    /// Distributes rows of A across threads; each computes its portion of C.
+    /// This is a non-allocating interface - you provide the output tensor.
+    ///
+    /// # Arguments
+    /// * `packed_b` - Pre-packed B matrix from `MatrixMultiplier::try_pack[_transposed]`
+    /// * `c` - Pre-allocated output tensor (m × n)
+    /// * `pool` - Pre-constructed thread pool
+    ///
+    /// # Example
+    /// ```ignore
+    /// use numkong::{Tensor, MatrixMultiplier};
+    /// use fork_union::ThreadPool;
+    ///
+    /// let mut pool = ThreadPool::try_spawn(4).unwrap();
+    /// let a = Tensor::<f32>::try_new(&[1024, 512], 1.0).unwrap();
+    /// let b = Tensor::<f32>::try_new(&[256, 512], 1.0).unwrap();
+    /// let packed_b = MatrixMultiplier::try_pack(&b).unwrap();
+    /// let mut c = Tensor::<f32>::try_new(&[1024, 256], 0.0).unwrap();
+    /// a.try_matmul_parallel_into(&packed_b, &mut c, &mut pool).unwrap();
+    /// ```
+    pub fn try_matmul_parallel_into<BA: Allocator, CA: Allocator, const CA_MAX_RANK: usize>(
+        &self,
+        packed_b: &MatrixMultiplier<T, BA>,
+        c: &mut Tensor<T::Accumulator, CA, CA_MAX_RANK>,
+        pool: &mut fork_union::ThreadPool,
+    ) -> Result<(), TensorError> {
+        if self.ndim() != 2 {
+            return Err(TensorError::DimensionMismatch {
+                expected: 2,
+                got: self.ndim(),
+            });
+        }
+        if !self.has_contiguous_rows() {
+            return Err(TensorError::NonContiguousRows);
+        }
+        let (m, k) = (self.shape()[0], self.shape()[1]);
+        let (n, packed_k) = packed_b.dims();
+        if k != packed_k {
+            return Err(TensorError::ShapeMismatch {
+                expected: ShapeDescriptor::from_slice(&[m, packed_k]),
+                got: ShapeDescriptor::from_slice(&[m, k]),
+            });
+        }
+        if c.shape() != &[m, n] {
+            return Err(TensorError::ShapeMismatch {
+                expected: ShapeDescriptor::from_slice(&[m, n]),
+                got: ShapeDescriptor::from_slice(c.shape()),
+            });
+        }
+        if !c.has_contiguous_rows() {
+            return Err(TensorError::NonContiguousRows);
+        }
+
+        let a_ptr = fork_union::SyncConstPtr::new(self.as_ptr());
+        let c_ptr = fork_union::SyncMutPtr::new(c.as_mut_ptr());
+        let packed_ptr = fork_union::SyncConstPtr::new(packed_b.as_ptr());
+        let a_stride = self.stride(0);
+        let c_stride = c.stride(0);
+
+        // Get actual thread count from pool
+        let num_threads = pool.threads().max(1);
+        let rows_per_thread = (m + num_threads - 1) / num_threads;
+
+        // Distribute rows across threads using fork_union
+        // Safety: Each thread writes to disjoint rows of C, so no data races.
+        pool.for_threads(move |thread_idx, _colocation_idx| {
+            // Configure each worker thread for optimal SIMD (including AMX)
+            // This is idempotent and safe to call multiple times
+            crate::capabilities::configure_thread();
+
+            let row_start = thread_idx * rows_per_thread;
+            let row_end = (row_start + rows_per_thread).min(m);
+
+            if row_start < m {
+                unsafe {
+                    T::dots(
+                        a_ptr.as_ptr().add(row_start * k),
+                        packed_ptr.as_ptr(),
+                        c_ptr.as_ptr().add(row_start * n),
+                        row_end - row_start,
+                        n,
+                        k,
+                        a_stride,
+                        c_stride,
+                    );
+                }
+            }
+        })
+        .join();
+
+        Ok(())
+    }
+
+    /// Parallel matrix multiply with allocation.
+    ///
+    /// Convenience wrapper that allocates the output tensor.
+    /// Prefer `try_matmul_parallel_into` for performance-critical code.
+    pub fn try_matmul_parallel<BA: Allocator>(
+        &self,
+        packed_b: &MatrixMultiplier<T, BA>,
+        pool: &mut fork_union::ThreadPool,
+    ) -> Result<Tensor<T::Accumulator, Global, MAX_RANK>, TensorError> {
+        let m = self.shape()[0];
+        let (n, _) = packed_b.dims();
+        let mut c = Tensor::<T::Accumulator, Global, MAX_RANK>::try_new(
+            &[m, n],
+            T::Accumulator::default(),
+        )?;
+        self.try_matmul_parallel_into(packed_b, &mut c, pool)?;
+        Ok(c)
+    }
+
+    /// Convenience method that panics on error.
+    pub fn matmul_parallel<BA: Allocator>(
+        &self,
+        packed_b: &MatrixMultiplier<T, BA>,
+        pool: &mut fork_union::ThreadPool,
+    ) -> Tensor<T::Accumulator, Global, MAX_RANK> {
+        self.try_matmul_parallel(packed_b, pool)
+            .expect("parallel matmul failed")
+    }
+}
+
 // endregion: Tensor GEMM
 
 // region: Tensor Elementwise Operations
@@ -2203,6 +2399,226 @@ mod tests {
 
         let err = TensorError::TooManyRanks { got: 10 };
         assert_eq!(format!("{}", err), "too many ranks: 10");
+    }
+
+    #[test]
+    fn matmul_f32_pack() {
+        // A[4×8] × B[16×8]ᵀ = C[4×16]
+        let a = Tensor::<f32>::try_new(&[4, 8], 1.0f32).unwrap();
+        let b = Tensor::<f32>::try_new(&[16, 8], 1.0f32).unwrap();
+
+        let packed_b = MatrixMultiplier::try_pack(&b).unwrap();
+        let c = a.matmul(&packed_b);
+
+        assert_eq!(c.shape(), &[4, 16]);
+        // Each element = dot(row_a, row_b) = sum(1.0 * 1.0) * 8 = 8.0
+        assert!((c.as_slice()[0] - 8.0).abs() < 1e-5);
+    }
+
+    #[test]
+    fn matmul_f32_pack_transposed() {
+        // A[4×8], B[8×16] (standard k×n layout) → C[4×16]
+        let a = Tensor::<f32>::try_new(&[4, 8], 1.0f32).unwrap();
+        let b_transposed = Tensor::<f32>::try_new(&[8, 16], 1.0f32).unwrap(); // k × n
+
+        let packed_b = MatrixMultiplier::try_pack_transposed(&b_transposed).unwrap();
+        let c = a.matmul(&packed_b);
+
+        assert_eq!(c.shape(), &[4, 16]);
+        assert!((c.as_slice()[0] - 8.0).abs() < 1e-5);
+    }
+
+    #[test]
+    fn matmul_f32_into() {
+        let a = Tensor::<f32>::try_new(&[4, 8], 1.0f32).unwrap();
+        let b = Tensor::<f32>::try_new(&[16, 8], 1.0f32).unwrap();
+        let mut c = Tensor::<f32>::try_new(&[4, 16], 0.0f32).unwrap();
+
+        let packed_b = MatrixMultiplier::try_pack(&b).unwrap();
+        a.try_matmul_into(&packed_b, &mut c).unwrap();
+
+        assert!((c.as_slice()[0] - 8.0).abs() < 1e-5);
+    }
+
+    #[test]
+    fn matmul_f64_pack() {
+        let a = Tensor::<f64>::try_new(&[4, 8], 1.0f64).unwrap();
+        let b = Tensor::<f64>::try_new(&[16, 8], 1.0f64).unwrap();
+
+        let packed_b = MatrixMultiplier::try_pack(&b).unwrap();
+        let c = a.matmul(&packed_b);
+
+        assert_eq!(c.shape(), &[4, 16]);
+        assert!((c.as_slice()[0] - 8.0).abs() < 1e-10);
+    }
+
+    #[test]
+    fn matmul_bf16_pack() {
+        let a = Tensor::<bf16>::try_new(&[4, 8], bf16::from_f32(1.0)).unwrap();
+        let b = Tensor::<bf16>::try_new(&[16, 8], bf16::from_f32(1.0)).unwrap();
+
+        let packed_b = MatrixMultiplier::try_pack(&b).unwrap();
+        let c = a.matmul(&packed_b);
+
+        assert_eq!(c.shape(), &[4, 16]);
+        assert!((c.as_slice()[0] - 8.0).abs() < 0.1);
+    }
+
+    #[test]
+    fn matmul_f16_pack() {
+        let a = Tensor::<f16>::try_new(&[4, 8], f16::from_f32(1.0)).unwrap();
+        let b = Tensor::<f16>::try_new(&[16, 8], f16::from_f32(1.0)).unwrap();
+
+        let packed_b = MatrixMultiplier::try_pack(&b).unwrap();
+        let c = a.matmul(&packed_b);
+
+        assert_eq!(c.shape(), &[4, 16]);
+        assert!((c.as_slice()[0] - 8.0).abs() < 0.1);
+    }
+
+    #[test]
+    fn matmul_i8_pack() {
+        let a = Tensor::<i8>::try_new(&[4, 8], 1i8).unwrap();
+        let b = Tensor::<i8>::try_new(&[16, 8], 1i8).unwrap();
+
+        let packed_b = MatrixMultiplier::try_pack(&b).unwrap();
+        let c = a.matmul(&packed_b);
+
+        assert_eq!(c.shape(), &[4, 16]);
+        assert_eq!(c.as_slice()[0], 8);
+    }
+
+    #[test]
+    fn matmul_u8_pack() {
+        let a = Tensor::<u8>::try_new(&[4, 8], 1u8).unwrap();
+        let b = Tensor::<u8>::try_new(&[16, 8], 1u8).unwrap();
+
+        let packed_b = MatrixMultiplier::try_pack(&b).unwrap();
+        let c = a.matmul(&packed_b);
+
+        assert_eq!(c.shape(), &[4, 16]);
+        assert_eq!(c.as_slice()[0], 8);
+    }
+
+    #[test]
+    fn matmul_e4m3_pack() {
+        let a = Tensor::<e4m3>::try_new(&[4, 8], e4m3::ONE).unwrap();
+        let b = Tensor::<e4m3>::try_new(&[16, 8], e4m3::ONE).unwrap();
+
+        let packed_b = MatrixMultiplier::try_pack(&b).unwrap();
+        let c = a.matmul(&packed_b);
+
+        assert_eq!(c.shape(), &[4, 16]);
+        assert!((c.as_slice()[0] - 8.0).abs() < 0.5);
+    }
+
+    #[test]
+    fn matmul_e4m3_pack_transposed() {
+        let a = Tensor::<e4m3>::try_new(&[4, 8], e4m3::ONE).unwrap();
+        let b_t = Tensor::<e4m3>::try_new(&[8, 16], e4m3::ONE).unwrap();
+
+        let packed_b = MatrixMultiplier::try_pack_transposed(&b_t).unwrap();
+        let c = a.matmul(&packed_b);
+
+        assert_eq!(c.shape(), &[4, 16]);
+        assert!((c.as_slice()[0] - 8.0).abs() < 0.5);
+    }
+
+    #[test]
+    fn matmul_e5m2_pack() {
+        let a = Tensor::<e5m2>::try_new(&[4, 8], e5m2::ONE).unwrap();
+        let b = Tensor::<e5m2>::try_new(&[16, 8], e5m2::ONE).unwrap();
+
+        let packed_b = MatrixMultiplier::try_pack(&b).unwrap();
+        let c = a.matmul(&packed_b);
+
+        assert_eq!(c.shape(), &[4, 16]);
+        assert!((c.as_slice()[0] - 8.0).abs() < 0.5);
+    }
+
+    #[test]
+    fn matmul_e5m2_pack_transposed() {
+        let a = Tensor::<e5m2>::try_new(&[4, 8], e5m2::ONE).unwrap();
+        let b_t = Tensor::<e5m2>::try_new(&[8, 16], e5m2::ONE).unwrap();
+
+        let packed_b = MatrixMultiplier::try_pack_transposed(&b_t).unwrap();
+        let c = a.matmul(&packed_b);
+
+        assert_eq!(c.shape(), &[4, 16]);
+        assert!((c.as_slice()[0] - 8.0).abs() < 0.5);
+    }
+
+    #[test]
+    fn matmul_f32_single_row() {
+        let a = Tensor::<f32>::try_new(&[1, 8], 1.0f32).unwrap();
+        let b = Tensor::<f32>::try_new(&[4, 8], 1.0f32).unwrap();
+
+        let packed_b = MatrixMultiplier::try_pack(&b).unwrap();
+        let c = a.matmul(&packed_b);
+
+        assert_eq!(c.shape(), &[1, 4]);
+        assert!((c.as_slice()[0] - 8.0).abs() < 1e-5);
+    }
+
+    #[test]
+    fn matmul_f32_single_col() {
+        let a = Tensor::<f32>::try_new(&[4, 8], 1.0f32).unwrap();
+        let b = Tensor::<f32>::try_new(&[1, 8], 1.0f32).unwrap();
+
+        let packed_b = MatrixMultiplier::try_pack(&b).unwrap();
+        let c = a.matmul(&packed_b);
+
+        assert_eq!(c.shape(), &[4, 1]);
+        assert!((c.as_slice()[0] - 8.0).abs() < 1e-5);
+    }
+
+    #[test]
+    #[cfg(feature = "parallel")]
+    fn matmul_f32_parallel() {
+        let mut pool = fork_union::ThreadPool::try_spawn(4).unwrap();
+        let a = Tensor::<f32>::try_new(&[64, 128], 1.0f32).unwrap();
+        let b = Tensor::<f32>::try_new(&[32, 128], 1.0f32).unwrap();
+
+        let packed_b = MatrixMultiplier::try_pack(&b).unwrap();
+        let c = a.matmul_parallel(&packed_b, &mut pool);
+
+        assert_eq!(c.shape(), &[64, 32]);
+        // Each element = sum of 128 products of 1.0 * 1.0 = 128.0
+        assert!((c.as_slice()[0] - 128.0).abs() < 1e-5);
+    }
+
+    #[test]
+    #[cfg(feature = "parallel")]
+    fn matmul_f32_parallel_into() {
+        let mut pool = fork_union::ThreadPool::try_spawn(4).unwrap();
+        let a = Tensor::<f32>::try_new(&[64, 128], 1.0f32).unwrap();
+        let b = Tensor::<f32>::try_new(&[32, 128], 1.0f32).unwrap();
+        let mut c = Tensor::<f32>::try_new(&[64, 32], 0.0f32).unwrap();
+
+        let packed_b = MatrixMultiplier::try_pack(&b).unwrap();
+        a.try_matmul_parallel_into(&packed_b, &mut c, &mut pool)
+            .unwrap();
+
+        // Verify against serial
+        let c_serial = a.matmul(&packed_b);
+        for (p, s) in c.as_slice().iter().zip(c_serial.as_slice().iter()) {
+            assert!((p - s).abs() < 1e-5);
+        }
+    }
+
+    #[test]
+    #[cfg(feature = "parallel")]
+    fn matmul_bf16_parallel() {
+        let mut pool = fork_union::ThreadPool::try_spawn(4).unwrap();
+        let a = Tensor::<bf16>::try_new(&[32, 64], bf16::from_f32(1.0)).unwrap();
+        let b = Tensor::<bf16>::try_new(&[16, 64], bf16::from_f32(1.0)).unwrap();
+
+        let packed_b = MatrixMultiplier::try_pack(&b).unwrap();
+        let c = a.matmul_parallel(&packed_b, &mut pool);
+
+        assert_eq!(c.shape(), &[32, 16]);
+        // Each element = sum of 64 products = 64.0
+        assert!((c.as_slice()[0] - 64.0).abs() < 1.0);
     }
 }
 

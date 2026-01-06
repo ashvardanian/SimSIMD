@@ -12,7 +12,7 @@
  *
  *  All outputs are in meters, and the input coordinates are in radians.
  *
- *  For datatypes:
+ *  For dtypes:
  *
  *  - 64-bit IEEE-754 floating point → 64-bit
  *  - 32-bit IEEE-754 floating point → 32-bit
@@ -293,7 +293,7 @@ NK_PUBLIC void nk_haversine_f64_serial(             //
         nk_f64_t latitude_delta = second_latitude - first_latitude;
         nk_f64_t longitude_delta = second_longitude - first_longitude;
 
-        // Haversine formula: a = sin^2(dlat/2) + cos(lat1)*cos(lat2)*sin^2(dlon/2)
+        // Haversine formula: a = sin²(Δlat/2) + cos(lat1)×cos(lat2)×sin²(Δlon/2)
         nk_f64_t sin_latitude_delta_half = nk_f64_sin(latitude_delta * 0.5);
         nk_f64_t sin_longitude_delta_half = nk_f64_sin(longitude_delta * 0.5);
         nk_f64_t cos_first_latitude = nk_f64_cos(first_latitude);
@@ -304,8 +304,8 @@ NK_PUBLIC void nk_haversine_f64_serial(             //
                                       sin_longitude_delta_half;
 
         // Central angle: c = 2 * atan2(sqrt(a), sqrt(1-a))
-        nk_f64_t sqrt_haversine = NK_F64_SQRT(haversine_term);
-        nk_f64_t sqrt_complement = NK_F64_SQRT(1.0 - haversine_term);
+        nk_f64_t sqrt_haversine = nk_f64_sqrt_serial(haversine_term);
+        nk_f64_t sqrt_complement = nk_f64_sqrt_serial(1.0 - haversine_term);
         nk_f64_t central_angle = 2.0 * nk_f64_atan2(sqrt_haversine, sqrt_complement);
 
         results[i] = earth_radius * central_angle;
@@ -328,7 +328,7 @@ NK_PUBLIC void nk_haversine_f32_serial(             //
         nk_f32_t latitude_delta = second_latitude - first_latitude;
         nk_f32_t longitude_delta = second_longitude - first_longitude;
 
-        // Haversine formula: a = sin^2(dlat/2) + cos(lat1)*cos(lat2)*sin^2(dlon/2)
+        // Haversine formula: a = sin²(Δlat/2) + cos(lat1)×cos(lat2)×sin²(Δlon/2)
         nk_f32_t sin_latitude_delta_half = nk_f32_sin(latitude_delta * 0.5f);
         nk_f32_t sin_longitude_delta_half = nk_f32_sin(longitude_delta * 0.5f);
         nk_f32_t cos_first_latitude = nk_f32_cos(first_latitude);
@@ -343,8 +343,8 @@ NK_PUBLIC void nk_haversine_f32_serial(             //
         if (haversine_term > 1.0f) haversine_term = 1.0f;
 
         // Central angle: c = 2 * atan2(sqrt(a), sqrt(1-a))
-        nk_f32_t sqrt_haversine = NK_F32_SQRT(haversine_term);
-        nk_f32_t sqrt_complement = NK_F32_SQRT(1.0f - haversine_term);
+        nk_f32_t sqrt_haversine = nk_f32_sqrt_serial(haversine_term);
+        nk_f32_t sqrt_complement = nk_f32_sqrt_serial(1.0f - haversine_term);
         nk_f32_t central_angle = 2.0f * nk_f32_atan2(sqrt_haversine, sqrt_complement);
 
         results[i] = earth_radius * central_angle;
@@ -366,11 +366,11 @@ NK_PUBLIC void nk_vincenty_f64_serial(              //
         nk_f64_t longitude_difference = b_lons[i] - a_lons[i];
 
         // Reduced latitudes on the auxiliary sphere
-        nk_f64_t tan_reduced_first = (1.0 - flattening) * NK_F64_TAN(first_latitude);
-        nk_f64_t tan_reduced_second = (1.0 - flattening) * NK_F64_TAN(second_latitude);
-        nk_f64_t cos_reduced_first = 1.0 / NK_F64_SQRT(1.0 + tan_reduced_first * tan_reduced_first);
+        nk_f64_t tan_reduced_first = (1.0 - flattening) * nk_f64_tan(first_latitude);
+        nk_f64_t tan_reduced_second = (1.0 - flattening) * nk_f64_tan(second_latitude);
+        nk_f64_t cos_reduced_first = 1.0 / nk_f64_sqrt_serial(1.0 + tan_reduced_first * tan_reduced_first);
         nk_f64_t sin_reduced_first = tan_reduced_first * cos_reduced_first;
-        nk_f64_t cos_reduced_second = 1.0 / NK_F64_SQRT(1.0 + tan_reduced_second * tan_reduced_second);
+        nk_f64_t cos_reduced_second = 1.0 / nk_f64_sqrt_serial(1.0 + tan_reduced_second * tan_reduced_second);
         nk_f64_t sin_reduced_second = tan_reduced_second * cos_reduced_second;
 
         // Iterative convergence of lambda (difference in longitude on auxiliary sphere)
@@ -389,7 +389,7 @@ NK_PUBLIC void nk_vincenty_f64_serial(              //
             nk_f64_t cross_term = cos_reduced_second * sin_lambda;
             nk_f64_t mixed_term = cos_reduced_first * sin_reduced_second -
                                   sin_reduced_first * cos_reduced_second * cos_lambda;
-            sin_angular_distance = NK_F64_SQRT(cross_term * cross_term + mixed_term * mixed_term);
+            sin_angular_distance = nk_f64_sqrt_serial(cross_term * cross_term + mixed_term * mixed_term);
 
             if (sin_angular_distance == 0.0) {
                 coincident = 1;
@@ -421,7 +421,7 @@ NK_PUBLIC void nk_vincenty_f64_serial(              //
                                                                                          cos_double_angular_midpoint)));
 
             iteration++;
-        } while (NK_F64_ABS(lambda - lambda_previous) > NK_VINCENTY_CONVERGENCE_THRESHOLD &&
+        } while (nk_f64_abs_(lambda - lambda_previous) > NK_VINCENTY_CONVERGENCE_THRESHOLD &&
                  iteration < NK_VINCENTY_MAX_ITERATIONS);
 
         if (coincident) {
@@ -466,11 +466,11 @@ NK_PUBLIC void nk_vincenty_f32_serial(              //
         nk_f32_t longitude_difference = b_lons[i] - a_lons[i];
 
         // Reduced latitudes on the auxiliary sphere
-        nk_f32_t tan_reduced_first = (1.0f - flattening) * NK_F32_TAN(first_latitude);
-        nk_f32_t tan_reduced_second = (1.0f - flattening) * NK_F32_TAN(second_latitude);
-        nk_f32_t cos_reduced_first = 1.0f / NK_F32_SQRT(1.0f + tan_reduced_first * tan_reduced_first);
+        nk_f32_t tan_reduced_first = (1.0f - flattening) * nk_f32_tan(first_latitude);
+        nk_f32_t tan_reduced_second = (1.0f - flattening) * nk_f32_tan(second_latitude);
+        nk_f32_t cos_reduced_first = 1.0f / nk_f32_sqrt_serial(1.0f + tan_reduced_first * tan_reduced_first);
         nk_f32_t sin_reduced_first = tan_reduced_first * cos_reduced_first;
-        nk_f32_t cos_reduced_second = 1.0f / NK_F32_SQRT(1.0f + tan_reduced_second * tan_reduced_second);
+        nk_f32_t cos_reduced_second = 1.0f / nk_f32_sqrt_serial(1.0f + tan_reduced_second * tan_reduced_second);
         nk_f32_t sin_reduced_second = tan_reduced_second * cos_reduced_second;
 
         // Iterative convergence of lambda (difference in longitude on auxiliary sphere)
@@ -489,7 +489,7 @@ NK_PUBLIC void nk_vincenty_f32_serial(              //
             nk_f32_t cross_term = cos_reduced_second * sin_lambda;
             nk_f32_t mixed_term = cos_reduced_first * sin_reduced_second -
                                   sin_reduced_first * cos_reduced_second * cos_lambda;
-            sin_angular_distance = NK_F32_SQRT(cross_term * cross_term + mixed_term * mixed_term);
+            sin_angular_distance = nk_f32_sqrt_serial(cross_term * cross_term + mixed_term * mixed_term);
 
             if (sin_angular_distance == 0.0f) {
                 coincident = 1;
@@ -522,7 +522,7 @@ NK_PUBLIC void nk_vincenty_f32_serial(              //
                                    (-1.0f + 2.0f * cos_double_angular_midpoint * cos_double_angular_midpoint)));
 
             iteration++;
-        } while (NK_F32_ABS(lambda - lambda_previous) > convergence_threshold &&
+        } while (nk_f32_abs_(lambda - lambda_previous) > convergence_threshold &&
                  iteration < NK_VINCENTY_MAX_ITERATIONS);
 
         if (coincident) {
@@ -554,9 +554,12 @@ NK_PUBLIC void nk_vincenty_f32_serial(              //
 
 #if NK_TARGET_ARM_
 #if NK_TARGET_NEON
+#if defined(__clang__)
+#pragma clang attribute push(__attribute__((target("arch=armv8-a+simd"))), apply_to = function)
+#elif defined(__GNUC__)
 #pragma GCC push_options
 #pragma GCC target("arch=armv8-a+simd")
-#pragma clang attribute push(__attribute__((target("arch=armv8-a+simd"))), apply_to = function)
+#endif
 
 #include "numkong/trigonometry/neon.h"
 #include "numkong/reduce/neon.h" // Partial load/store helpers
@@ -577,7 +580,7 @@ NK_INTERNAL float64x2_t nk_haversine_f64x2_neon_(              //
     float64x2_t latitude_delta = vsubq_f64(second_latitudes, first_latitudes);
     float64x2_t longitude_delta = vsubq_f64(second_longitudes, first_longitudes);
 
-    // Haversine terms: sin^2(delta/2)
+    // Haversine terms: sin²(Δ/2)
     float64x2_t latitude_delta_half = vmulq_f64(latitude_delta, half);
     float64x2_t longitude_delta_half = vmulq_f64(longitude_delta, half);
     float64x2_t sin_latitude_delta_half = nk_f64x2_sin_neon_(latitude_delta_half);
@@ -590,7 +593,7 @@ NK_INTERNAL float64x2_t nk_haversine_f64x2_neon_(              //
     float64x2_t cos_second_latitude = nk_f64x2_cos_neon_(second_latitudes);
     float64x2_t cos_latitude_product = vmulq_f64(cos_first_latitude, cos_second_latitude);
 
-    // a = sin^2(dlat/2) + cos(lat1) * cos(lat2) * sin^2(dlon/2)
+    // a = sin²(Δlat/2) + cos(lat1) × cos(lat2) × sin²(Δlon/2)
     float64x2_t haversine_term = vaddq_f64(sin_squared_latitude_delta_half,
                                            vmulq_f64(cos_latitude_product, sin_squared_longitude_delta_half));
 
@@ -623,14 +626,14 @@ NK_PUBLIC void nk_haversine_f64_neon(               //
     // Handle tail with partial loads (n can only be 0 or 1 here)
     if (n > 0) {
         nk_b128_vec_t a_lat_vec, a_lon_vec, b_lat_vec, b_lon_vec, result_vec;
-        nk_partial_load_b64x2_neon_(a_lats, n, &a_lat_vec);
-        nk_partial_load_b64x2_neon_(a_lons, n, &a_lon_vec);
-        nk_partial_load_b64x2_neon_(b_lats, n, &b_lat_vec);
-        nk_partial_load_b64x2_neon_(b_lons, n, &b_lon_vec);
+        nk_partial_load_b64x2_serial_(a_lats, &a_lat_vec, n);
+        nk_partial_load_b64x2_serial_(a_lons, &a_lon_vec, n);
+        nk_partial_load_b64x2_serial_(b_lats, &b_lat_vec, n);
+        nk_partial_load_b64x2_serial_(b_lons, &b_lon_vec, n);
         float64x2_t distances = nk_haversine_f64x2_neon_(a_lat_vec.f64x2, a_lon_vec.f64x2, b_lat_vec.f64x2,
                                                          b_lon_vec.f64x2);
         result_vec.f64x2 = distances;
-        nk_partial_store_b64x2_neon_(&result_vec, results, n);
+        nk_partial_store_b64x2_serial_(&result_vec, results, n);
     }
 }
 
@@ -646,7 +649,7 @@ NK_INTERNAL float32x4_t nk_haversine_f32x4_neon_(              //
     float32x4_t latitude_delta = vsubq_f32(second_latitudes, first_latitudes);
     float32x4_t longitude_delta = vsubq_f32(second_longitudes, first_longitudes);
 
-    // Haversine terms: sin^2(delta/2)
+    // Haversine terms: sin²(Δ/2)
     float32x4_t latitude_delta_half = vmulq_f32(latitude_delta, half);
     float32x4_t longitude_delta_half = vmulq_f32(longitude_delta, half);
     float32x4_t sin_latitude_delta_half = nk_f32x4_sin_neon_(latitude_delta_half);
@@ -659,7 +662,7 @@ NK_INTERNAL float32x4_t nk_haversine_f32x4_neon_(              //
     float32x4_t cos_second_latitude = nk_f32x4_cos_neon_(second_latitudes);
     float32x4_t cos_latitude_product = vmulq_f32(cos_first_latitude, cos_second_latitude);
 
-    // a = sin^2(dlat/2) + cos(lat1) * cos(lat2) * sin^2(dlon/2)
+    // a = sin²(Δlat/2) + cos(lat1) × cos(lat2) × sin²(Δlon/2)
     float32x4_t haversine_term = vaddq_f32(sin_squared_latitude_delta_half,
                                            vmulq_f32(cos_latitude_product, sin_squared_longitude_delta_half));
 
@@ -696,14 +699,14 @@ NK_PUBLIC void nk_haversine_f32_neon(               //
     // Handle tail with partial loads (n can be 0-3 here)
     if (n > 0) {
         nk_b128_vec_t a_lat_vec, a_lon_vec, b_lat_vec, b_lon_vec, result_vec;
-        nk_partial_load_b32x4_neon_(a_lats, n, &a_lat_vec);
-        nk_partial_load_b32x4_neon_(a_lons, n, &a_lon_vec);
-        nk_partial_load_b32x4_neon_(b_lats, n, &b_lat_vec);
-        nk_partial_load_b32x4_neon_(b_lons, n, &b_lon_vec);
+        nk_partial_load_b32x4_serial_(a_lats, &a_lat_vec, n);
+        nk_partial_load_b32x4_serial_(a_lons, &a_lon_vec, n);
+        nk_partial_load_b32x4_serial_(b_lats, &b_lat_vec, n);
+        nk_partial_load_b32x4_serial_(b_lons, &b_lon_vec, n);
         float32x4_t distances = nk_haversine_f32x4_neon_(a_lat_vec.f32x4, a_lon_vec.f32x4, b_lat_vec.f32x4,
                                                          b_lon_vec.f32x4);
         result_vec.f32x4 = distances;
-        nk_partial_store_b32x4_neon_(&result_vec, results, n);
+        nk_partial_store_b32x4_serial_(&result_vec, results, n);
     }
 }
 
@@ -885,14 +888,14 @@ NK_PUBLIC void nk_vincenty_f64_neon(                //
     // Handle remaining elements with partial loads (n can only be 0 or 1 here)
     if (n > 0) {
         nk_b128_vec_t a_lat_vec, a_lon_vec, b_lat_vec, b_lon_vec, result_vec;
-        nk_partial_load_b64x2_neon_(a_lats, n, &a_lat_vec);
-        nk_partial_load_b64x2_neon_(a_lons, n, &a_lon_vec);
-        nk_partial_load_b64x2_neon_(b_lats, n, &b_lat_vec);
-        nk_partial_load_b64x2_neon_(b_lons, n, &b_lon_vec);
+        nk_partial_load_b64x2_serial_(a_lats, &a_lat_vec, n);
+        nk_partial_load_b64x2_serial_(a_lons, &a_lon_vec, n);
+        nk_partial_load_b64x2_serial_(b_lats, &b_lat_vec, n);
+        nk_partial_load_b64x2_serial_(b_lons, &b_lon_vec, n);
         float64x2_t distances = nk_vincenty_f64x2_neon_(a_lat_vec.f64x2, a_lon_vec.f64x2, b_lat_vec.f64x2,
                                                         b_lon_vec.f64x2);
         result_vec.f64x2 = distances;
-        nk_partial_store_b64x2_neon_(&result_vec, results, n);
+        nk_partial_store_b64x2_serial_(&result_vec, results, n);
     }
 }
 
@@ -1068,27 +1071,33 @@ NK_PUBLIC void nk_vincenty_f32_neon(                //
     // Handle remaining elements with partial loads (n can be 1-3 here)
     if (n > 0) {
         nk_b128_vec_t a_lat_vec, a_lon_vec, b_lat_vec, b_lon_vec, result_vec;
-        nk_partial_load_b32x4_neon_(a_lats, n, &a_lat_vec);
-        nk_partial_load_b32x4_neon_(a_lons, n, &a_lon_vec);
-        nk_partial_load_b32x4_neon_(b_lats, n, &b_lat_vec);
-        nk_partial_load_b32x4_neon_(b_lons, n, &b_lon_vec);
+        nk_partial_load_b32x4_serial_(a_lats, &a_lat_vec, n);
+        nk_partial_load_b32x4_serial_(a_lons, &a_lon_vec, n);
+        nk_partial_load_b32x4_serial_(b_lats, &b_lat_vec, n);
+        nk_partial_load_b32x4_serial_(b_lons, &b_lon_vec, n);
         float32x4_t distances = nk_vincenty_f32x4_neon_(a_lat_vec.f32x4, a_lon_vec.f32x4, b_lat_vec.f32x4,
                                                         b_lon_vec.f32x4);
         result_vec.f32x4 = distances;
-        nk_partial_store_b32x4_neon_(&result_vec, results, n);
+        nk_partial_store_b32x4_serial_(&result_vec, results, n);
     }
 }
 
+#if defined(__clang__)
 #pragma clang attribute pop
+#elif defined(__GNUC__)
 #pragma GCC pop_options
+#endif
 #endif // NK_TARGET_NEON
 #endif // NK_TARGET_ARM_
 
 #if NK_TARGET_X86_
 #if NK_TARGET_HASWELL
+#if defined(__clang__)
+#pragma clang attribute push(__attribute__((target("avx2,f16c,fma,bmi,bmi2"))), apply_to = function)
+#elif defined(__GNUC__)
 #pragma GCC push_options
-#pragma GCC target("avx2", "f16c", "fma")
-#pragma clang attribute push(__attribute__((target("avx2,f16c,fma"))), apply_to = function)
+#pragma GCC target("avx2", "f16c", "fma", "bmi", "bmi2")
+#endif
 
 /*  Haswell AVX2 implementations using 4-wide f64 and 8-wide f32 SIMD.
  *  These require AVX2 trigonometric kernels from trigonometry.h.
@@ -1106,7 +1115,7 @@ NK_INTERNAL __m256d nk_haversine_f64x4_haswell_(       //
     __m256d latitude_delta = _mm256_sub_pd(second_latitudes, first_latitudes);
     __m256d longitude_delta = _mm256_sub_pd(second_longitudes, first_longitudes);
 
-    // Haversine terms: sin^2(delta/2)
+    // Haversine terms: sin²(Δ/2)
     __m256d latitude_delta_half = _mm256_mul_pd(latitude_delta, half);
     __m256d longitude_delta_half = _mm256_mul_pd(longitude_delta, half);
     __m256d sin_latitude_delta_half = nk_f64x4_sin_haswell_(latitude_delta_half);
@@ -1119,7 +1128,7 @@ NK_INTERNAL __m256d nk_haversine_f64x4_haswell_(       //
     __m256d cos_second_latitude = nk_f64x4_cos_haswell_(second_latitudes);
     __m256d cos_latitude_product = _mm256_mul_pd(cos_first_latitude, cos_second_latitude);
 
-    // a = sin^2(dlat/2) + cos(lat1) * cos(lat2) * sin^2(dlon/2)
+    // a = sin²(Δlat/2) + cos(lat1) × cos(lat2) × sin²(Δlon/2)
     __m256d haversine_term = _mm256_add_pd(sin_squared_latitude_delta_half,
                                            _mm256_mul_pd(cos_latitude_product, sin_squared_longitude_delta_half));
 
@@ -1152,14 +1161,14 @@ NK_PUBLIC void nk_haversine_f64_haswell(            //
     // Handle remaining elements with partial loads (n can be 1-3 here)
     if (n > 0) {
         nk_b256_vec_t a_lat_vec, a_lon_vec, b_lat_vec, b_lon_vec, result_vec;
-        nk_partial_load_b64x4_haswell_(a_lats, n, &a_lat_vec);
-        nk_partial_load_b64x4_haswell_(a_lons, n, &a_lon_vec);
-        nk_partial_load_b64x4_haswell_(b_lats, n, &b_lat_vec);
-        nk_partial_load_b64x4_haswell_(b_lons, n, &b_lon_vec);
+        nk_partial_load_b64x4_serial_(a_lats, &a_lat_vec, n);
+        nk_partial_load_b64x4_serial_(a_lons, &a_lon_vec, n);
+        nk_partial_load_b64x4_serial_(b_lats, &b_lat_vec, n);
+        nk_partial_load_b64x4_serial_(b_lons, &b_lon_vec, n);
         __m256d distances = nk_haversine_f64x4_haswell_(a_lat_vec.ymm_pd, a_lon_vec.ymm_pd, b_lat_vec.ymm_pd,
                                                         b_lon_vec.ymm_pd);
         result_vec.ymm_pd = distances;
-        nk_partial_store_b64x4_haswell_(&result_vec, results, n);
+        nk_partial_store_b64x4_serial_(&result_vec, results, n);
     }
 }
 
@@ -1175,7 +1184,7 @@ NK_INTERNAL __m256 nk_haversine_f32x8_haswell_(      //
     __m256 latitude_delta = _mm256_sub_ps(second_latitudes, first_latitudes);
     __m256 longitude_delta = _mm256_sub_ps(second_longitudes, first_longitudes);
 
-    // Haversine terms: sin^2(delta/2)
+    // Haversine terms: sin²(Δ/2)
     __m256 latitude_delta_half = _mm256_mul_ps(latitude_delta, half);
     __m256 longitude_delta_half = _mm256_mul_ps(longitude_delta, half);
     __m256 sin_latitude_delta_half = nk_f32x8_sin_haswell_(latitude_delta_half);
@@ -1188,7 +1197,7 @@ NK_INTERNAL __m256 nk_haversine_f32x8_haswell_(      //
     __m256 cos_second_latitude = nk_f32x8_cos_haswell_(second_latitudes);
     __m256 cos_latitude_product = _mm256_mul_ps(cos_first_latitude, cos_second_latitude);
 
-    // a = sin^2(dlat/2) + cos(lat1) * cos(lat2) * sin^2(dlon/2)
+    // a = sin²(Δlat/2) + cos(lat1) × cos(lat2) × sin²(Δlon/2)
     __m256 haversine_term = _mm256_add_ps(sin_squared_latitude_delta_half,
                                           _mm256_mul_ps(cos_latitude_product, sin_squared_longitude_delta_half));
 
@@ -1225,14 +1234,14 @@ NK_PUBLIC void nk_haversine_f32_haswell(            //
     // Handle remaining elements with partial loads (n can be 1-7 here)
     if (n > 0) {
         nk_b256_vec_t a_lat_vec, a_lon_vec, b_lat_vec, b_lon_vec, result_vec;
-        nk_partial_load_b32x8_haswell_(a_lats, n, &a_lat_vec);
-        nk_partial_load_b32x8_haswell_(a_lons, n, &a_lon_vec);
-        nk_partial_load_b32x8_haswell_(b_lats, n, &b_lat_vec);
-        nk_partial_load_b32x8_haswell_(b_lons, n, &b_lon_vec);
+        nk_partial_load_b32x8_serial_(a_lats, &a_lat_vec, n);
+        nk_partial_load_b32x8_serial_(a_lons, &a_lon_vec, n);
+        nk_partial_load_b32x8_serial_(b_lats, &b_lat_vec, n);
+        nk_partial_load_b32x8_serial_(b_lons, &b_lon_vec, n);
         __m256 distances = nk_haversine_f32x8_haswell_(a_lat_vec.ymm_ps, a_lon_vec.ymm_ps, b_lat_vec.ymm_ps,
                                                        b_lon_vec.ymm_ps);
         result_vec.ymm_ps = distances;
-        nk_partial_store_b32x8_haswell_(&result_vec, results, n);
+        nk_partial_store_b32x8_serial_(&result_vec, results, n);
     }
 }
 
@@ -1421,14 +1430,14 @@ NK_PUBLIC void nk_vincenty_f64_haswell(             //
     // Handle remaining elements with partial loads (n can be 1-3 here)
     if (n > 0) {
         nk_b256_vec_t a_lat_vec, a_lon_vec, b_lat_vec, b_lon_vec, result_vec;
-        nk_partial_load_b64x4_haswell_(a_lats, n, &a_lat_vec);
-        nk_partial_load_b64x4_haswell_(a_lons, n, &a_lon_vec);
-        nk_partial_load_b64x4_haswell_(b_lats, n, &b_lat_vec);
-        nk_partial_load_b64x4_haswell_(b_lons, n, &b_lon_vec);
+        nk_partial_load_b64x4_serial_(a_lats, &a_lat_vec, n);
+        nk_partial_load_b64x4_serial_(a_lons, &a_lon_vec, n);
+        nk_partial_load_b64x4_serial_(b_lats, &b_lat_vec, n);
+        nk_partial_load_b64x4_serial_(b_lons, &b_lon_vec, n);
         __m256d distances = nk_vincenty_f64x4_haswell_(a_lat_vec.ymm_pd, a_lon_vec.ymm_pd, b_lat_vec.ymm_pd,
                                                        b_lon_vec.ymm_pd);
         result_vec.ymm_pd = distances;
-        nk_partial_store_b64x4_haswell_(&result_vec, results, n);
+        nk_partial_store_b64x4_serial_(&result_vec, results, n);
     }
 }
 
@@ -1616,27 +1625,33 @@ NK_PUBLIC void nk_vincenty_f32_haswell(             //
     // Handle remaining elements with partial loads (n can be 1-7 here)
     if (n > 0) {
         nk_b256_vec_t a_lat_vec, a_lon_vec, b_lat_vec, b_lon_vec, result_vec;
-        nk_partial_load_b32x8_haswell_(a_lats, n, &a_lat_vec);
-        nk_partial_load_b32x8_haswell_(a_lons, n, &a_lon_vec);
-        nk_partial_load_b32x8_haswell_(b_lats, n, &b_lat_vec);
-        nk_partial_load_b32x8_haswell_(b_lons, n, &b_lon_vec);
+        nk_partial_load_b32x8_serial_(a_lats, &a_lat_vec, n);
+        nk_partial_load_b32x8_serial_(a_lons, &a_lon_vec, n);
+        nk_partial_load_b32x8_serial_(b_lats, &b_lat_vec, n);
+        nk_partial_load_b32x8_serial_(b_lons, &b_lon_vec, n);
         __m256 distances = nk_vincenty_f32x8_haswell_(a_lat_vec.ymm_ps, a_lon_vec.ymm_ps, b_lat_vec.ymm_ps,
                                                       b_lon_vec.ymm_ps);
         result_vec.ymm_ps = distances;
-        nk_partial_store_b32x8_haswell_(&result_vec, results, n);
+        nk_partial_store_b32x8_serial_(&result_vec, results, n);
     }
 }
 
+#if defined(__clang__)
 #pragma clang attribute pop
+#elif defined(__GNUC__)
 #pragma GCC pop_options
+#endif
 #endif // NK_TARGET_HASWELL
 #endif // NK_TARGET_X86_
 
 #if NK_TARGET_SKYLAKE
-#pragma GCC push_options
-#pragma GCC target("avx2", "avx512f", "avx512vl", "avx512bw", "avx512dq", "bmi2")
-#pragma clang attribute push(__attribute__((target("avx2,avx512f,avx512vl,avx512bw,avx512dq,bmi2"))), \
+#if defined(__clang__)
+#pragma clang attribute push(__attribute__((target("avx2,avx512f,avx512vl,avx512bw,avx512dq,f16c,fma,bmi,bmi2"))), \
                              apply_to = function)
+#elif defined(__GNUC__)
+#pragma GCC push_options
+#pragma GCC target("avx2", "avx512f", "avx512vl", "avx512bw", "avx512dq", "f16c", "fma", "bmi", "bmi2")
+#endif
 
 NK_INTERNAL __m512d nk_haversine_f64x8_skylake_(       //
     __m512d first_latitudes, __m512d first_longitudes, //
@@ -1650,7 +1665,7 @@ NK_INTERNAL __m512d nk_haversine_f64x8_skylake_(       //
     __m512d latitude_delta = _mm512_sub_pd(second_latitudes, first_latitudes);
     __m512d longitude_delta = _mm512_sub_pd(second_longitudes, first_longitudes);
 
-    // Haversine terms: sin^2(delta/2)
+    // Haversine terms: sin²(Δ/2)
     __m512d latitude_delta_half = _mm512_mul_pd(latitude_delta, half);
     __m512d longitude_delta_half = _mm512_mul_pd(longitude_delta, half);
     __m512d sin_latitude_delta_half = nk_f64x8_sin_skylake_(latitude_delta_half);
@@ -1663,7 +1678,7 @@ NK_INTERNAL __m512d nk_haversine_f64x8_skylake_(       //
     __m512d cos_second_latitude = nk_f64x8_cos_skylake_(second_latitudes);
     __m512d cos_latitude_product = _mm512_mul_pd(cos_first_latitude, cos_second_latitude);
 
-    // a = sin^2(dlat/2) + cos(lat1) * cos(lat2) * sin^2(dlon/2)
+    // a = sin²(Δlat/2) + cos(lat1) × cos(lat2) × sin²(Δlon/2)
     __m512d haversine_term = _mm512_add_pd(sin_squared_latitude_delta_half,
                                            _mm512_mul_pd(cos_latitude_product, sin_squared_longitude_delta_half));
 
@@ -1905,7 +1920,7 @@ NK_INTERNAL __m512 nk_haversine_f32x16_skylake_(     //
     __m512 latitude_delta = _mm512_sub_ps(second_latitudes, first_latitudes);
     __m512 longitude_delta = _mm512_sub_ps(second_longitudes, first_longitudes);
 
-    // Haversine terms: sin^2(delta/2)
+    // Haversine terms: sin²(Δ/2)
     __m512 latitude_delta_half = _mm512_mul_ps(latitude_delta, half);
     __m512 longitude_delta_half = _mm512_mul_ps(longitude_delta, half);
     __m512 sin_latitude_delta_half = nk_f32x16_sin_skylake_(latitude_delta_half);
@@ -1918,7 +1933,7 @@ NK_INTERNAL __m512 nk_haversine_f32x16_skylake_(     //
     __m512 cos_second_latitude = nk_f32x16_cos_skylake_(second_latitudes);
     __m512 cos_latitude_product = _mm512_mul_ps(cos_first_latitude, cos_second_latitude);
 
-    // a = sin^2(dlat/2) + cos(lat1) * cos(lat2) * sin^2(dlon/2)
+    // a = sin²(Δlat/2) + cos(lat1) × cos(lat2) × sin²(Δlon/2)
     __m512 haversine_term = _mm512_add_ps(sin_squared_latitude_delta_half,
                                           _mm512_mul_ps(cos_latitude_product, sin_squared_longitude_delta_half));
 
@@ -2152,29 +2167,32 @@ NK_PUBLIC void nk_vincenty_f32_skylake(             //
     }
 }
 
+#if defined(__clang__)
 #pragma clang attribute pop
+#elif defined(__GNUC__)
 #pragma GCC pop_options
+#endif
 #endif // NK_TARGET_SKYLAKE
 
 /**
- *  @brief  Returns the output datatype for Haversine distance.
+ *  @brief  Returns the output dtype for Haversine distance.
  */
-NK_INTERNAL nk_datatype_t nk_haversine_output_datatype(nk_datatype_t dtype) {
+NK_INTERNAL nk_dtype_t nk_haversine_output_dtype(nk_dtype_t dtype) {
     switch (dtype) {
     case nk_f64_k: return nk_f64_k;
     case nk_f32_k: return nk_f32_k;
-    default: return nk_datatype_unknown_k;
+    default: return nk_dtype_unknown_k;
     }
 }
 
 /**
- *  @brief  Returns the output datatype for Vincenty distance.
+ *  @brief  Returns the output dtype for Vincenty distance.
  */
-NK_INTERNAL nk_datatype_t nk_vincenty_output_datatype(nk_datatype_t dtype) {
+NK_INTERNAL nk_dtype_t nk_vincenty_output_dtype(nk_dtype_t dtype) {
     switch (dtype) {
     case nk_f64_k: return nk_f64_k;
     case nk_f32_k: return nk_f32_k;
-    default: return nk_datatype_unknown_k;
+    default: return nk_dtype_unknown_k;
     }
 }
 

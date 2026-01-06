@@ -18,34 +18,21 @@
 
 #if NK_TARGET_X86_
 #if NK_TARGET_HASWELL
+#if defined(__clang__)
+#pragma clang attribute push(__attribute__((target("avx2,f16c,fma,bmi,bmi2"))), apply_to = function)
+#elif defined(__GNUC__)
 #pragma GCC push_options
-#pragma GCC target("avx2", "f16c", "fma")
-#pragma clang attribute push(__attribute__((target("avx2,f16c,fma"))), apply_to = function)
+#pragma GCC target("avx2", "f16c", "fma", "bmi", "bmi2")
+#endif
 
 #include "numkong/types.h"
 #include "numkong/dot/serial.h"
 #include "numkong/reduce/haswell.h"
+#include "numkong/cast/haswell.h" // `nk_f32x8_to_bf16x8_haswell_`
 
 #if defined(__cplusplus)
 extern "C" {
 #endif
-
-NK_INTERNAL __m128i nk_f32x8_to_bf16x8_haswell_(__m256 f32x8) {
-    // Add rounding bias (0x8000 = 2^15) before truncation for round-to-nearest
-    __m256i rounded_i32x8 = _mm256_add_epi32(_mm256_castps_si256(f32x8), _mm256_set1_epi32(0x8000));
-    // Pack the 32-bit integers into 16-bit integers.
-    // This is less trivial than unpacking: https://stackoverflow.com/a/77781241/2766161
-    // The best approach is to shuffle within lanes first: https://stackoverflow.com/a/49723746/2766161
-    // Our shuffling mask will drop the low 2-bytes from every 4-byte word.
-    __m256i trunc_i32x8 = _mm256_shuffle_epi8(                          //
-        rounded_i32x8,                                                  //
-        _mm256_set_epi8(                                                //
-            -1, -1, -1, -1, -1, -1, -1, -1, 15, 14, 11, 10, 7, 6, 3, 2, //
-            -1, -1, -1, -1, -1, -1, -1, -1, 15, 14, 11, 10, 7, 6, 3, 2  //
-            ));
-    __m256i ordered_i32x8 = _mm256_permute4x64_epi64(trunc_i32x8, 0x58);
-    return _mm256_castsi256_si128(ordered_i32x8);
-}
 
 /**
  *  @brief Internal helper for f32x8-based finalize (used by f16, bf16, e4m3, e5m2 kernels).
@@ -298,8 +285,8 @@ nk_dot_f16_haswell_cycle:
         count_scalars = 0;
     }
     else {
-        a_f32x8 = _mm256_cvtph_ps(_mm_lddqu_si128((__m128i const *)a_scalars));
-        b_f32x8 = _mm256_cvtph_ps(_mm_lddqu_si128((__m128i const *)b_scalars));
+        a_f32x8 = _mm256_cvtph_ps(_mm_loadu_si128((__m128i const *)a_scalars));
+        b_f32x8 = _mm256_cvtph_ps(_mm_loadu_si128((__m128i const *)b_scalars));
         count_scalars -= 8, a_scalars += 8, b_scalars += 8;
     }
     sum_f32x8 = _mm256_fmadd_ps(a_f32x8, b_f32x8, sum_f32x8);
@@ -315,8 +302,8 @@ NK_PUBLIC void nk_dot_f16c_haswell(nk_f16c_t const *a_pairs, nk_f16c_t const *b_
     __m256i swap_adjacent_i8x32 = _mm256_set_epi8( //
         11, 10, 9, 8, 15, 14, 13, 12, 3, 2, 1, 0, 7, 6, 5, 4, 11, 10, 9, 8, 15, 14, 13, 12, 3, 2, 1, 0, 7, 6, 5, 4);
     while (count_pairs >= 4) {
-        __m256 a_f32x8 = _mm256_cvtph_ps(_mm_lddqu_si128((__m128i const *)a_pairs));
-        __m256 b_f32x8 = _mm256_cvtph_ps(_mm_lddqu_si128((__m128i const *)b_pairs));
+        __m256 a_f32x8 = _mm256_cvtph_ps(_mm_loadu_si128((__m128i const *)a_pairs));
+        __m256 b_f32x8 = _mm256_cvtph_ps(_mm_loadu_si128((__m128i const *)b_pairs));
         __m256 b_swapped_f32x8 = _mm256_castsi256_ps(
             _mm256_shuffle_epi8(_mm256_castps_si256(b_f32x8), swap_adjacent_i8x32));
         sum_real_f32x8 = _mm256_fmadd_ps(a_f32x8, b_f32x8, sum_real_f32x8);
@@ -339,8 +326,8 @@ NK_PUBLIC void nk_vdot_f16c_haswell(nk_f16c_t const *a_pairs, nk_f16c_t const *b
     __m256i swap_adjacent_i8x32 = _mm256_set_epi8( //
         11, 10, 9, 8, 15, 14, 13, 12, 3, 2, 1, 0, 7, 6, 5, 4, 11, 10, 9, 8, 15, 14, 13, 12, 3, 2, 1, 0, 7, 6, 5, 4);
     while (count_pairs >= 4) {
-        __m256 a_f32x8 = _mm256_cvtph_ps(_mm_lddqu_si128((__m128i const *)a_pairs));
-        __m256 b_f32x8 = _mm256_cvtph_ps(_mm_lddqu_si128((__m128i const *)b_pairs));
+        __m256 a_f32x8 = _mm256_cvtph_ps(_mm_loadu_si128((__m128i const *)a_pairs));
+        __m256 b_f32x8 = _mm256_cvtph_ps(_mm_loadu_si128((__m128i const *)b_pairs));
         sum_real_f32x8 = _mm256_fmadd_ps(a_f32x8, b_f32x8, sum_real_f32x8);
         b_f32x8 = _mm256_castsi256_ps(_mm256_shuffle_epi8(_mm256_castps_si256(b_f32x8), swap_adjacent_i8x32));
         sum_imag_f32x8 = _mm256_fmadd_ps(a_f32x8, b_f32x8, sum_imag_f32x8);
@@ -362,10 +349,10 @@ NK_PUBLIC void nk_dot_i8_haswell(nk_i8_t const *a_scalars, nk_i8_t const *b_scal
     // Use two 128-bit loads instead of 256-bit load + extract to avoid Port 5 contention.
     // VEXTRACTI128 uses Port 5; two smaller loads use Port 2/3 (2 ports available).
     for (; idx_scalars + 32 <= count_scalars; idx_scalars += 32) {
-        __m128i a_low_i8x16 = _mm_lddqu_si128((__m128i const *)(a_scalars + idx_scalars));
-        __m128i a_high_i8x16 = _mm_lddqu_si128((__m128i const *)(a_scalars + idx_scalars + 16));
-        __m128i b_low_i8x16 = _mm_lddqu_si128((__m128i const *)(b_scalars + idx_scalars));
-        __m128i b_high_i8x16 = _mm_lddqu_si128((__m128i const *)(b_scalars + idx_scalars + 16));
+        __m128i a_low_i8x16 = _mm_loadu_si128((__m128i const *)(a_scalars + idx_scalars));
+        __m128i a_high_i8x16 = _mm_loadu_si128((__m128i const *)(a_scalars + idx_scalars + 16));
+        __m128i b_low_i8x16 = _mm_loadu_si128((__m128i const *)(b_scalars + idx_scalars));
+        __m128i b_high_i8x16 = _mm_loadu_si128((__m128i const *)(b_scalars + idx_scalars + 16));
         // Upcast `int8` to `int16` - no extracts needed
         __m256i a_low_i16x16 = _mm256_cvtepi8_epi16(a_low_i8x16);
         __m256i a_high_i16x16 = _mm256_cvtepi8_epi16(a_high_i8x16);
@@ -387,8 +374,8 @@ NK_PUBLIC void nk_dot_u8_haswell(nk_u8_t const *a_scalars, nk_u8_t const *b_scal
     __m256i const zeros_i8x32 = _mm256_setzero_si256();
     nk_size_t idx_scalars = 0;
     for (; idx_scalars + 32 <= count_scalars; idx_scalars += 32) {
-        __m256i a_u8x32 = _mm256_lddqu_si256((__m256i const *)(a_scalars + idx_scalars));
-        __m256i b_u8x32 = _mm256_lddqu_si256((__m256i const *)(b_scalars + idx_scalars));
+        __m256i a_u8x32 = _mm256_loadu_si256((__m256i const *)(a_scalars + idx_scalars));
+        __m256i b_u8x32 = _mm256_loadu_si256((__m256i const *)(b_scalars + idx_scalars));
         // Upcast `uint8` to `int16`. Unpacking is faster than extracts.
         __m256i a_low_i16x16 = _mm256_unpacklo_epi8(a_u8x32, zeros_i8x32);
         __m256i a_high_i16x16 = _mm256_unpackhi_epi8(a_u8x32, zeros_i8x32);
@@ -410,15 +397,15 @@ NK_PUBLIC void nk_dot_bf16_haswell(nk_bf16_t const *a_scalars, nk_bf16_t const *
 nk_dot_bf16_haswell_cycle:
     if (count_scalars < 8) {
         nk_b256_vec_t a_vec, b_vec;
-        nk_partial_load_b16x16_haswell_(a_scalars, count_scalars, &a_vec);
-        nk_partial_load_b16x16_haswell_(b_scalars, count_scalars, &b_vec);
+        nk_partial_load_b16x16_serial_(a_scalars, &a_vec, count_scalars);
+        nk_partial_load_b16x16_serial_(b_scalars, &b_vec, count_scalars);
         a_bf16x8 = a_vec.xmms[0];
         b_bf16x8 = b_vec.xmms[0];
         count_scalars = 0;
     }
     else {
-        a_bf16x8 = _mm_lddqu_si128((__m128i const *)a_scalars);
-        b_bf16x8 = _mm_lddqu_si128((__m128i const *)b_scalars);
+        a_bf16x8 = _mm_loadu_si128((__m128i const *)a_scalars);
+        b_bf16x8 = _mm_loadu_si128((__m128i const *)b_scalars);
         a_scalars += 8, b_scalars += 8, count_scalars -= 8;
     }
     sum_f32x8 = _mm256_fmadd_ps(nk_bf16x8_to_f32x8_haswell_(a_bf16x8), nk_bf16x8_to_f32x8_haswell_(b_bf16x8),
@@ -493,20 +480,20 @@ NK_INTERNAL void nk_dot_f32x4_finalize_haswell(                                 
     nk_dot_f32x4_state_haswell_t const *state_a, nk_dot_f32x4_state_haswell_t const *state_b, //
     nk_dot_f32x4_state_haswell_t const *state_c, nk_dot_f32x4_state_haswell_t const *state_d, //
     nk_b128_vec_t *result) {
-    // Horizontal reduction: 4 f64s -> 1 f64 for each state
+    // Horizontal reduction: 4 f64s → 1 f64 for each state
     // Then downcast final f64 results to f32
     __m256d sum_a_f64x4 = state_a->sum_f64x4;
     __m256d sum_b_f64x4 = state_b->sum_f64x4;
     __m256d sum_c_f64x4 = state_c->sum_f64x4;
     __m256d sum_d_f64x4 = state_d->sum_f64x4;
 
-    // 4 -> 2: add high 128-bit lane to low lane
+    // 4 → 2: add high 128-bit lane to low lane
     __m128d sum_a_f64x2 = _mm_add_pd(_mm256_castpd256_pd128(sum_a_f64x4), _mm256_extractf128_pd(sum_a_f64x4, 1));
     __m128d sum_b_f64x2 = _mm_add_pd(_mm256_castpd256_pd128(sum_b_f64x4), _mm256_extractf128_pd(sum_b_f64x4, 1));
     __m128d sum_c_f64x2 = _mm_add_pd(_mm256_castpd256_pd128(sum_c_f64x4), _mm256_extractf128_pd(sum_c_f64x4, 1));
     __m128d sum_d_f64x2 = _mm_add_pd(_mm256_castpd256_pd128(sum_d_f64x4), _mm256_extractf128_pd(sum_d_f64x4, 1));
 
-    // 2 -> 1: horizontal add
+    // 2 → 1: horizontal add
     __m128d sum_ab_f64x2 = _mm_hadd_pd(sum_a_f64x2, sum_b_f64x2); // [sum_a, sum_b]
     __m128d sum_cd_f64x2 = _mm_hadd_pd(sum_c_f64x2, sum_d_f64x2); // [sum_c, sum_d]
 
@@ -649,7 +636,7 @@ NK_INTERNAL void nk_dot_i8x16_finalize_haswell(                                 
                                         _mm256_extracti128_si256(state_c->sum_i32x8, 1));
     __m128i sum_d_i32x4 = _mm_add_epi32(_mm256_castsi256_si128(state_d->sum_i32x8),
                                         _mm256_extracti128_si256(state_d->sum_i32x8, 1));
-    // Step 2: Transpose 4x4 matrix
+    // Step 2: Transpose 4×4 matrix
     __m128i transpose_ab_low_i32x4 = _mm_unpacklo_epi32(sum_a_i32x4, sum_b_i32x4);
     __m128i transpose_cd_low_i32x4 = _mm_unpacklo_epi32(sum_c_i32x4, sum_d_i32x4);
     __m128i transpose_ab_high_i32x4 = _mm_unpackhi_epi32(sum_a_i32x4, sum_b_i32x4);
@@ -752,8 +739,11 @@ NK_INTERNAL void nk_dot_f64x4_finalize_haswell(                                 
 } // extern "C"
 #endif
 
+#if defined(__clang__)
 #pragma clang attribute pop
+#elif defined(__GNUC__)
 #pragma GCC pop_options
+#endif
 #endif // NK_TARGET_HASWELL
 #endif // NK_TARGET_X86_
 

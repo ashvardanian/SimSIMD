@@ -187,7 +187,7 @@ fn baseline_cos_unrolled(a: &[f32], b: &[f32]) -> f64 {
                 *a.get_unchecked(i + 6),
                 *a.get_unchecked(i + 7),
             ];
-            let [b1, b2, b3, b4, b5, b6, b7, b8] = [
+            let [b1, b2, b3, b4, b5, b6, b7, u1] = [
                 *b.get_unchecked(i),
                 *b.get_unchecked(i + 1),
                 *b.get_unchecked(i + 2),
@@ -205,7 +205,7 @@ fn baseline_cos_unrolled(a: &[f32], b: &[f32]) -> f64 {
             acc[4] += a5 * b5;
             acc[5] += a6 * b6;
             acc[6] += a7 * b7;
-            acc[7] += a8 * b8;
+            acc[7] += a8 * u1;
             norm_a[0] += a1 * a1;
             norm_a[1] += a2 * a2;
             norm_a[2] += a3 * a3;
@@ -221,7 +221,7 @@ fn baseline_cos_unrolled(a: &[f32], b: &[f32]) -> f64 {
             norm_b[4] += b5 * b5;
             norm_b[5] += b6 * b6;
             norm_b[6] += b7 * b7;
-            norm_b[7] += b8 * b8;
+            norm_b[7] += u1 * u1;
             i += 8;
         }
         while i < a.len() {
@@ -279,7 +279,7 @@ fn baseline_l2sq_unrolled(a: &[f32], b: &[f32]) -> f64 {
                 *a.get_unchecked(i + 6),
                 *a.get_unchecked(i + 7),
             ];
-            let [b1, b2, b3, b4, b5, b6, b7, b8] = [
+            let [b1, b2, b3, b4, b5, b6, b7, u1] = [
                 *b.get_unchecked(i),
                 *b.get_unchecked(i + 1),
                 *b.get_unchecked(i + 2),
@@ -298,7 +298,7 @@ fn baseline_l2sq_unrolled(a: &[f32], b: &[f32]) -> f64 {
                 a5 - b5,
                 a6 - b6,
                 a7 - b7,
-                a8 - b8,
+                a8 - u1,
             ];
             acc[0] += d1 * d1;
             acc[1] += d2 * d2;
@@ -353,7 +353,7 @@ fn baseline_dot_unrolled(a: &[f32], b: &[f32]) -> f64 {
                 *a.get_unchecked(i + 6),
                 *a.get_unchecked(i + 7),
             ];
-            let [b1, b2, b3, b4, b5, b6, b7, b8] = [
+            let [b1, b2, b3, b4, b5, b6, b7, u1] = [
                 *b.get_unchecked(i),
                 *b.get_unchecked(i + 1),
                 *b.get_unchecked(i + 2),
@@ -371,7 +371,7 @@ fn baseline_dot_unrolled(a: &[f32], b: &[f32]) -> f64 {
             acc[4] += a5 * b5;
             acc[5] += a6 * b6;
             acc[6] += a7 * b7;
-            acc[7] += a8 * b8;
+            acc[7] += a8 * u1;
             i += 8;
         }
         while i < a.len() {

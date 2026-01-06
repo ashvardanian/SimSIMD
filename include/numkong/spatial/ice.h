@@ -10,10 +10,14 @@
 
 #if NK_TARGET_X86_
 #if NK_TARGET_ICE
+#if defined(__clang__)
+#pragma clang attribute push(                                                                        \
+    __attribute__((target("avx2,avx512f,avx512vl,avx512bw,avx512dq,avx512vnni,f16c,fma,bmi,bmi2"))), \
+    apply_to = function)
+#elif defined(__GNUC__)
 #pragma GCC push_options
-#pragma GCC target("avx2", "avx512f", "avx512vl", "bmi2", "avx512bw", "avx512vnni")
-#pragma clang attribute push(__attribute__((target("avx2,avx512f,avx512vl,bmi2,avx512bw,avx512vnni"))), \
-                             apply_to = function)
+#pragma GCC target("avx2", "avx512f", "avx512vl", "avx512bw", "avx512dq", "avx512vnni", "f16c", "fma", "bmi", "bmi2")
+#endif
 
 #include "numkong/types.h"
 
@@ -38,8 +42,8 @@ nk_l2sq_i8_ice_cycle:
         n = 0;
     }
     else {
-        a_i16x32 = _mm512_cvtepi8_epi16(_mm256_lddqu_si256((__m256i const *)a));
-        b_i16x32 = _mm512_cvtepi8_epi16(_mm256_lddqu_si256((__m256i const *)b));
+        a_i16x32 = _mm512_cvtepi8_epi16(_mm256_loadu_si256((__m256i const *)a));
+        b_i16x32 = _mm512_cvtepi8_epi16(_mm256_loadu_si256((__m256i const *)b));
         a += 32, b += 32, n -= 32;
     }
     diff_i16x32 = _mm512_sub_epi16(a_i16x32, b_i16x32);
@@ -63,8 +67,8 @@ nk_angular_i8_ice_cycle:
         n = 0;
     }
     else {
-        a_i16x32 = _mm512_cvtepi8_epi16(_mm256_lddqu_si256((__m256i const *)a));
-        b_i16x32 = _mm512_cvtepi8_epi16(_mm256_lddqu_si256((__m256i const *)b));
+        a_i16x32 = _mm512_cvtepi8_epi16(_mm256_loadu_si256((__m256i const *)a));
+        b_i16x32 = _mm512_cvtepi8_epi16(_mm256_loadu_si256((__m256i const *)b));
         a += 32, b += 32, n -= 32;
     }
 
@@ -203,229 +207,308 @@ nk_angular_u8_ice_cycle:
     *result = nk_angular_normalize_f32_haswell_(dot_product_i32, a_norm_sq_i32, b_norm_sq_i32);
 }
 
-NK_PUBLIC void nk_l2_i4x2_ice(nk_i4x2_t const *a, nk_i4x2_t const *b, nk_size_t n_words, nk_f32_t *result) {
+NK_PUBLIC void nk_l2_i4_ice(nk_i4x2_t const *a, nk_i4x2_t const *b, nk_size_t n, nk_f32_t *result) {
     nk_u32_t d2;
-    nk_l2sq_i4x2_ice(a, b, n_words, &d2);
+    nk_l2sq_i4_ice(a, b, n, &d2);
     *result = nk_sqrt_f32_haswell_((nk_f32_t)d2);
 }
-NK_PUBLIC void nk_l2sq_i4x2_ice(nk_i4x2_t const *a, nk_i4x2_t const *b, nk_size_t n_words, nk_u32_t *result) {
+NK_PUBLIC void nk_l2sq_i4_ice(nk_i4x2_t const *a, nk_i4x2_t const *b, nk_size_t n, nk_u32_t *result) {
+    // i4 values are packed as nibbles: two 4-bit signed values per byte.
+    // Parameter `n` is the number of 4-bit values (dimensions), not bytes.
+    nk_size_t n_bytes = nk_size_divide_round_up_to_multiple_(n, 2);
 
     // While `int8_t` covers the range [-128, 127], `int4_t` covers only [-8, 7].
-    // The absolute difference between two 4-bit integers is at most 15 and it is always a `uint4_t` value!
-    // Moreover, it's square is at most 225, which fits into `uint8_t` and can be computed with a single
-    // lookup table. Accumulating those values is similar to checksumming, a piece of cake for SIMD!
-    __m512i const i4_to_i8_lookup_vec = _mm512_set_epi8(        //
-        -1, -2, -3, -4, -5, -6, -7, -8, 7, 6, 5, 4, 3, 2, 1, 0, //
-        -1, -2, -3, -4, -5, -6, -7, -8, 7, 6, 5, 4, 3, 2, 1, 0, //
-        -1, -2, -3, -4, -5, -6, -7, -8, 7, 6, 5, 4, 3, 2, 1, 0, //
-        -1, -2, -3, -4, -5, -6, -7, -8, 7, 6, 5, 4, 3, 2, 1, 0);
-    __m512i const u4_squares_lookup_vec = _mm512_set_epi8(                                        //
+    // The absolute difference between two 4-bit integers is at most 15 and fits in `uint4_t`.
+    // Moreover, its square is at most 225, which fits into `uint8_t`.
+    //
+    // Instead of using lookup tables for sign extension and squaring, we use arithmetic:
+    //
+    //  1. XOR trick for sign extension: `signed = (nibble ^ 8) - 8`
+    //     Maps [0,7] → [0,7] (positive) and [8,15] → [-8,-1] (negative).
+    //
+    //  2. For L2 squared: |a-b|² = diff * diff, using `_mm512_dpbusd_epi32`.
+    //     After computing signed difference and taking abs, the result fits in [0,15].
+    //     We can then use DPBUSD to compute diff² efficiently without lookup tables.
+    //
+    // This approach avoids 8x VPSHUFB operations per iteration, replacing them with
+    // arithmetic operations that distribute better across execution ports.
+    __m512i const nibble_mask_u8x64 = _mm512_set1_epi8(0x0F);
+    __m512i const eight_i8x64 = _mm512_set1_epi8(8);
+
+    __m512i a_i4_vec, b_i4_vec;
+    __m512i a_low_u8x64, a_high_u8x64, b_low_u8x64, b_high_u8x64;
+    __m512i a_low_i8x64, a_high_i8x64, b_low_i8x64, b_high_i8x64;
+    __m512i diff_low_u8x64, diff_high_u8x64;
+    __m512i d2_i32x16 = _mm512_setzero_si512();
+
+nk_l2sq_i4_ice_cycle:
+    if (n_bytes < 64) {
+        __mmask64 mask = (__mmask64)_bzhi_u64(0xFFFFFFFFFFFFFFFF, n_bytes);
+        a_i4_vec = _mm512_maskz_loadu_epi8(mask, a);
+        b_i4_vec = _mm512_maskz_loadu_epi8(mask, b);
+        n_bytes = 0;
+    }
+    else {
+        a_i4_vec = _mm512_loadu_epi8(a);
+        b_i4_vec = _mm512_loadu_epi8(b);
+        a += 64, b += 64, n_bytes -= 64;
+    }
+
+    // Extract nibbles as unsigned [0,15]. VPSHUFB ignores high 4 bits of index,
+    // so no AND needed for low nibbles when used with lookup, but we need it here.
+    a_low_u8x64 = _mm512_and_si512(a_i4_vec, nibble_mask_u8x64);
+    a_high_u8x64 = _mm512_and_si512(_mm512_srli_epi16(a_i4_vec, 4), nibble_mask_u8x64);
+    b_low_u8x64 = _mm512_and_si512(b_i4_vec, nibble_mask_u8x64);
+    b_high_u8x64 = _mm512_and_si512(_mm512_srli_epi16(b_i4_vec, 4), nibble_mask_u8x64);
+
+    // Sign extend using XOR trick: signed = (nibble ^ 8) - 8
+    a_low_i8x64 = _mm512_sub_epi8(_mm512_xor_si512(a_low_u8x64, eight_i8x64), eight_i8x64);
+    a_high_i8x64 = _mm512_sub_epi8(_mm512_xor_si512(a_high_u8x64, eight_i8x64), eight_i8x64);
+    b_low_i8x64 = _mm512_sub_epi8(_mm512_xor_si512(b_low_u8x64, eight_i8x64), eight_i8x64);
+    b_high_i8x64 = _mm512_sub_epi8(_mm512_xor_si512(b_high_u8x64, eight_i8x64), eight_i8x64);
+
+    // Compute |a - b| for each nibble pair. Result is unsigned in [0, 15].
+    diff_low_u8x64 = _mm512_abs_epi8(_mm512_sub_epi8(a_low_i8x64, b_low_i8x64));
+    diff_high_u8x64 = _mm512_abs_epi8(_mm512_sub_epi8(a_high_i8x64, b_high_i8x64));
+
+    // Square and accumulate using DPBUSD: diff² = diff * diff.
+    // DPBUSD computes u8*i8 products and sums groups of 4 into i32.
+    // Since diff is in [0,15], it's safe for both u8 and i8 interpretation.
+    d2_i32x16 = _mm512_dpbusd_epi32(d2_i32x16, diff_low_u8x64, diff_low_u8x64);
+    d2_i32x16 = _mm512_dpbusd_epi32(d2_i32x16, diff_high_u8x64, diff_high_u8x64);
+    if (n_bytes) goto nk_l2sq_i4_ice_cycle;
+
+    *result = (nk_u32_t)_mm512_reduce_add_epi32(d2_i32x16);
+}
+NK_PUBLIC void nk_angular_i4_ice(nk_i4x2_t const *a, nk_i4x2_t const *b, nk_size_t n, nk_f32_t *result) {
+    // i4 values are packed as nibbles: two 4-bit signed values per byte.
+    // Parameter `n` is the number of 4-bit values (dimensions), not bytes.
+    nk_size_t n_bytes = nk_size_divide_round_up_to_multiple_(n, 2);
+
+    // Angular distance for signed 4-bit integers requires computing:
+    //   1. Dot product: sum(a[i] * b[i])
+    //   2. Squared norms: sum(a[i]²) and sum(b[i]²)
+    //
+    // For signed i4 values in [-8, 7], we use DPBUSD for everything by leveraging
+    // an algebraic identity. Define x = a ^ 8 (XOR with 8), which maps:
+    //   [0,7] → [8,15] and [8,15] → [0,7]
+    //
+    // The signed value is: a_signed = x - 8
+    //
+    // For two signed values:
+    //   a_signed * b_signed = (ax - 8)(bx - 8) = ax*bx - 8*ax - 8*bx + 64
+    //
+    // Therefore:
+    //   dot(a_signed, b_signed) = DPBUSD(ax, bx) - 8*(sum(ax) + sum(bx)) + 64*n
+    //
+    // This avoids all i8 → i16 upcasts and uses DPBUSD directly on byte values!
+    // For norms, we use |x|² = x², computing abs then squaring with DPBUSD.
+    __m512i const nibble_mask_u8x64 = _mm512_set1_epi8(0x0F);
+    __m512i const eight_i8x64 = _mm512_set1_epi8(8);
+    __m512i const zeros_i8x64 = _mm512_setzero_si512();
+
+    __m512i a_i4_vec, b_i4_vec;
+    __m512i a_low_u8x64, a_high_u8x64, b_low_u8x64, b_high_u8x64;
+    __m512i ax_low_u8x64, ax_high_u8x64, bx_low_u8x64, bx_high_u8x64;
+    __m512i a_low_i8x64, a_high_i8x64, b_low_i8x64, b_high_i8x64;
+
+    // Accumulators for dot product (using biased values) and correction sums
+    __m512i ab_i32x16 = zeros_i8x64;
+    __m512i ax_sum_i64x8 = zeros_i8x64;
+    __m512i bx_sum_i64x8 = zeros_i8x64;
+    // Accumulators for squared norms
+    __m512i a2_i32x16 = zeros_i8x64;
+    __m512i b2_i32x16 = zeros_i8x64;
+
+nk_angular_i4_ice_cycle:
+    if (n_bytes < 64) {
+        __mmask64 mask = (__mmask64)_bzhi_u64(0xFFFFFFFFFFFFFFFF, n_bytes);
+        a_i4_vec = _mm512_maskz_loadu_epi8(mask, a);
+        b_i4_vec = _mm512_maskz_loadu_epi8(mask, b);
+        n_bytes = 0;
+    }
+    else {
+        a_i4_vec = _mm512_loadu_epi8(a);
+        b_i4_vec = _mm512_loadu_epi8(b);
+        a += 64, b += 64, n_bytes -= 64;
+    }
+
+    // Extract nibbles as unsigned [0,15]
+    a_low_u8x64 = _mm512_and_si512(a_i4_vec, nibble_mask_u8x64);
+    a_high_u8x64 = _mm512_and_si512(_mm512_srli_epi16(a_i4_vec, 4), nibble_mask_u8x64);
+    b_low_u8x64 = _mm512_and_si512(b_i4_vec, nibble_mask_u8x64);
+    b_high_u8x64 = _mm512_and_si512(_mm512_srli_epi16(b_i4_vec, 4), nibble_mask_u8x64);
+
+    // Compute biased values: ax = a ^ 8 (still in [0,15], just reordered)
+    ax_low_u8x64 = _mm512_xor_si512(a_low_u8x64, eight_i8x64);
+    ax_high_u8x64 = _mm512_xor_si512(a_high_u8x64, eight_i8x64);
+    bx_low_u8x64 = _mm512_xor_si512(b_low_u8x64, eight_i8x64);
+    bx_high_u8x64 = _mm512_xor_si512(b_high_u8x64, eight_i8x64);
+
+    // Dot product using DPBUSD on biased values (correction applied at end)
+    ab_i32x16 = _mm512_dpbusd_epi32(ab_i32x16, ax_low_u8x64, bx_low_u8x64);
+    ab_i32x16 = _mm512_dpbusd_epi32(ab_i32x16, ax_high_u8x64, bx_high_u8x64);
+
+    // Track sums for correction using SAD (sum of absolute differences with zero)
+    ax_sum_i64x8 = _mm512_add_epi64(ax_sum_i64x8, _mm512_sad_epu8(ax_low_u8x64, zeros_i8x64));
+    ax_sum_i64x8 = _mm512_add_epi64(ax_sum_i64x8, _mm512_sad_epu8(ax_high_u8x64, zeros_i8x64));
+    bx_sum_i64x8 = _mm512_add_epi64(bx_sum_i64x8, _mm512_sad_epu8(bx_low_u8x64, zeros_i8x64));
+    bx_sum_i64x8 = _mm512_add_epi64(bx_sum_i64x8, _mm512_sad_epu8(bx_high_u8x64, zeros_i8x64));
+
+    // For norms: convert to signed, take abs, then square with DPBUSD
+    a_low_i8x64 = _mm512_sub_epi8(ax_low_u8x64, eight_i8x64);
+    a_high_i8x64 = _mm512_sub_epi8(ax_high_u8x64, eight_i8x64);
+    b_low_i8x64 = _mm512_sub_epi8(bx_low_u8x64, eight_i8x64);
+    b_high_i8x64 = _mm512_sub_epi8(bx_high_u8x64, eight_i8x64);
+
+    __m512i a_low_abs_u8x64 = _mm512_abs_epi8(a_low_i8x64);
+    __m512i a_high_abs_u8x64 = _mm512_abs_epi8(a_high_i8x64);
+    __m512i b_low_abs_u8x64 = _mm512_abs_epi8(b_low_i8x64);
+    __m512i b_high_abs_u8x64 = _mm512_abs_epi8(b_high_i8x64);
+
+    // Squared norms: |x|² = x², use DPBUSD for efficient squaring
+    a2_i32x16 = _mm512_dpbusd_epi32(a2_i32x16, a_low_abs_u8x64, a_low_abs_u8x64);
+    a2_i32x16 = _mm512_dpbusd_epi32(a2_i32x16, a_high_abs_u8x64, a_high_abs_u8x64);
+    b2_i32x16 = _mm512_dpbusd_epi32(b2_i32x16, b_low_abs_u8x64, b_low_abs_u8x64);
+    b2_i32x16 = _mm512_dpbusd_epi32(b2_i32x16, b_high_abs_u8x64, b_high_abs_u8x64);
+    if (n_bytes) goto nk_angular_i4_ice_cycle;
+
+    // Apply algebraic correction for signed dot product:
+    // signed_dot = DPBUSD(ax, bx) - 8*(sum(ax) + sum(bx)) + 64*n
+    nk_i64_t ax_sum = _mm512_reduce_add_epi64(ax_sum_i64x8);
+    nk_i64_t bx_sum = _mm512_reduce_add_epi64(bx_sum_i64x8);
+    nk_i32_t ab_raw = _mm512_reduce_add_epi32(ab_i32x16);
+    nk_i32_t ab = ab_raw - 8 * (nk_i32_t)(ax_sum + bx_sum) + 64 * (nk_i32_t)n;
+
+    nk_i32_t a2 = _mm512_reduce_add_epi32(a2_i32x16);
+    nk_i32_t b2 = _mm512_reduce_add_epi32(b2_i32x16);
+    *result = nk_angular_normalize_f32_haswell_(ab, (nk_f32_t)a2, (nk_f32_t)b2);
+}
+
+NK_PUBLIC void nk_l2sq_u4_ice(nk_u4x2_t const *a, nk_u4x2_t const *b, nk_size_t n, nk_u32_t *result) {
+    // u4 values are packed as nibbles: two 4-bit unsigned values per byte.
+    // Parameter `n` is the number of 4-bit values (dimensions), not bytes.
+    nk_size_t n_bytes = nk_size_divide_round_up_to_multiple_(n, 2);
+
+    // For unsigned 4-bit integers in [0, 15], the L2 squared distance is straightforward:
+    //   1. Extract nibbles as u8 values
+    //   2. Compute |a - b| using saturating subtraction: max(a,b) - min(a,b) = (a ⊖ b) | (b ⊖ a)
+    //   3. Square with DPBUSD: diff * diff
+    //
+    // No sign extension needed since values are unsigned.
+    __m512i const nibble_mask_u8x64 = _mm512_set1_epi8(0x0F);
+
+    __m512i a_u4_vec, b_u4_vec;
+    __m512i a_low_u8x64, a_high_u8x64, b_low_u8x64, b_high_u8x64;
+    __m512i diff_low_u8x64, diff_high_u8x64;
+    __m512i d2_i32x16 = _mm512_setzero_si512();
+
+nk_l2sq_u4_ice_cycle:
+    if (n_bytes < 64) {
+        __mmask64 mask = (__mmask64)_bzhi_u64(0xFFFFFFFFFFFFFFFF, n_bytes);
+        a_u4_vec = _mm512_maskz_loadu_epi8(mask, a);
+        b_u4_vec = _mm512_maskz_loadu_epi8(mask, b);
+        n_bytes = 0;
+    }
+    else {
+        a_u4_vec = _mm512_loadu_epi8(a);
+        b_u4_vec = _mm512_loadu_epi8(b);
+        a += 64, b += 64, n_bytes -= 64;
+    }
+
+    // Extract nibbles as unsigned [0,15]
+    a_low_u8x64 = _mm512_and_si512(a_u4_vec, nibble_mask_u8x64);
+    a_high_u8x64 = _mm512_and_si512(_mm512_srli_epi16(a_u4_vec, 4), nibble_mask_u8x64);
+    b_low_u8x64 = _mm512_and_si512(b_u4_vec, nibble_mask_u8x64);
+    b_high_u8x64 = _mm512_and_si512(_mm512_srli_epi16(b_u4_vec, 4), nibble_mask_u8x64);
+
+    // Absolute difference for unsigned: |a-b| = (a ⊖ b) | (b ⊖ a) where ⊖ is saturating sub
+    diff_low_u8x64 = _mm512_or_si512(_mm512_subs_epu8(a_low_u8x64, b_low_u8x64),
+                                     _mm512_subs_epu8(b_low_u8x64, a_low_u8x64));
+    diff_high_u8x64 = _mm512_or_si512(_mm512_subs_epu8(a_high_u8x64, b_high_u8x64),
+                                      _mm512_subs_epu8(b_high_u8x64, a_high_u8x64));
+
+    // Square and accumulate using DPBUSD
+    d2_i32x16 = _mm512_dpbusd_epi32(d2_i32x16, diff_low_u8x64, diff_low_u8x64);
+    d2_i32x16 = _mm512_dpbusd_epi32(d2_i32x16, diff_high_u8x64, diff_high_u8x64);
+    if (n_bytes) goto nk_l2sq_u4_ice_cycle;
+
+    *result = (nk_u32_t)_mm512_reduce_add_epi32(d2_i32x16);
+}
+NK_PUBLIC void nk_l2_u4_ice(nk_u4x2_t const *a, nk_u4x2_t const *b, nk_size_t n, nk_f32_t *result) {
+    nk_u32_t d2;
+    nk_l2sq_u4_ice(a, b, n, &d2);
+    *result = nk_sqrt_f32_haswell_((nk_f32_t)d2);
+}
+
+NK_PUBLIC void nk_angular_u4_ice(nk_u4x2_t const *a, nk_u4x2_t const *b, nk_size_t n, nk_f32_t *result) {
+    // u4 values are packed as nibbles: two 4-bit unsigned values per byte.
+    // Parameter `n` is the number of 4-bit values (dimensions), not bytes.
+    nk_size_t n_bytes = nk_size_divide_round_up_to_multiple_(n, 2);
+
+    // Angular distance for unsigned 4-bit integers in [0, 15].
+    // Since values are unsigned and small, we can use DPBUSD directly for both
+    // dot product and norms without any sign handling.
+    //
+    // DPBUSD computes: ZeroExtend(a) * SignExtend(b), but for values in [0, 15],
+    // sign extension is identity (no high bit set), so it works correctly.
+    __m512i const nibble_mask_u8x64 = _mm512_set1_epi8(0x0F);
+    __m512i const zeros_i8x64 = _mm512_setzero_si512();
+
+    __m512i a_u4_vec, b_u4_vec;
+    __m512i a_low_u8x64, a_high_u8x64, b_low_u8x64, b_high_u8x64;
+
+    __m512i ab_i32x16 = zeros_i8x64;
+    __m512i a2_i64x8 = zeros_i8x64;
+    __m512i b2_i64x8 = zeros_i8x64;
+
+nk_angular_u4_ice_cycle:
+    if (n_bytes < 64) {
+        __mmask64 mask = (__mmask64)_bzhi_u64(0xFFFFFFFFFFFFFFFF, n_bytes);
+        a_u4_vec = _mm512_maskz_loadu_epi8(mask, a);
+        b_u4_vec = _mm512_maskz_loadu_epi8(mask, b);
+        n_bytes = 0;
+    }
+    else {
+        a_u4_vec = _mm512_loadu_epi8(a);
+        b_u4_vec = _mm512_loadu_epi8(b);
+        a += 64, b += 64, n_bytes -= 64;
+    }
+
+    // Extract nibbles as unsigned [0,15]
+    a_low_u8x64 = _mm512_and_si512(a_u4_vec, nibble_mask_u8x64);
+    a_high_u8x64 = _mm512_and_si512(_mm512_srli_epi16(a_u4_vec, 4), nibble_mask_u8x64);
+    b_low_u8x64 = _mm512_and_si512(b_u4_vec, nibble_mask_u8x64);
+    b_high_u8x64 = _mm512_and_si512(_mm512_srli_epi16(b_u4_vec, 4), nibble_mask_u8x64);
+
+    // Dot product with DPBUSD (safe for unsigned [0,15])
+    ab_i32x16 = _mm512_dpbusd_epi32(ab_i32x16, a_low_u8x64, b_low_u8x64);
+    ab_i32x16 = _mm512_dpbusd_epi32(ab_i32x16, a_high_u8x64, b_high_u8x64);
+
+    // Squared norms: compute a² per nibble using lookup table for efficiency
+    // Squares lookup: 0 → 0, 1->1, 2->4, ..., 15 → 225
+    __m512i const u4_squares_lookup_u8x64 = _mm512_set_epi8(
         (char)225, (char)196, (char)169, (char)144, 121, 100, 81, 64, 49, 36, 25, 16, 9, 4, 1, 0, //
         (char)225, (char)196, (char)169, (char)144, 121, 100, 81, 64, 49, 36, 25, 16, 9, 4, 1, 0, //
         (char)225, (char)196, (char)169, (char)144, 121, 100, 81, 64, 49, 36, 25, 16, 9, 4, 1, 0, //
         (char)225, (char)196, (char)169, (char)144, 121, 100, 81, 64, 49, 36, 25, 16, 9, 4, 1, 0);
 
-    /// The mask used to take the low nibble of each byte.
-    __m512i const i4_nibble_vec = _mm512_set1_epi8(0x0F);
+    __m512i a2_lo_u8x64 = _mm512_shuffle_epi8(u4_squares_lookup_u8x64, a_low_u8x64);
+    __m512i a2_hi_u8x64 = _mm512_shuffle_epi8(u4_squares_lookup_u8x64, a_high_u8x64);
+    __m512i b2_lo_u8x64 = _mm512_shuffle_epi8(u4_squares_lookup_u8x64, b_low_u8x64);
+    __m512i b2_hi_u8x64 = _mm512_shuffle_epi8(u4_squares_lookup_u8x64, b_high_u8x64);
 
-    // Temporaries:
-    __m512i a_i4x2_vec, b_i4x2_vec;
-    __m512i a_i8_low_vec, a_i8_high_vec, b_i8_low_vec, b_i8_high_vec;
-    __m512i d_u8_low_vec, d_u8_high_vec; //! Only the low 4 bits are actually used
-    __m512i d2_u8_low_vec, d2_u8_high_vec;
-    __m512i d2_u16_low_vec, d2_u16_high_vec;
+    // Accumulate low and high squares separately using SAD to avoid u8 overflow
+    a2_i64x8 = _mm512_add_epi64(a2_i64x8, _mm512_sad_epu8(a2_lo_u8x64, zeros_i8x64));
+    a2_i64x8 = _mm512_add_epi64(a2_i64x8, _mm512_sad_epu8(a2_hi_u8x64, zeros_i8x64));
+    b2_i64x8 = _mm512_add_epi64(b2_i64x8, _mm512_sad_epu8(b2_lo_u8x64, zeros_i8x64));
+    b2_i64x8 = _mm512_add_epi64(b2_i64x8, _mm512_sad_epu8(b2_hi_u8x64, zeros_i8x64));
+    if (n_bytes) goto nk_angular_u4_ice_cycle;
 
-    // Accumulators:
-    __m512i d2_u32_vec = _mm512_setzero_si512();
-
-nk_l2sq_i4x2_ice_cycle:
-    if (n_words < 64) {
-        __mmask64 mask = (__mmask64)_bzhi_u64(0xFFFFFFFFFFFFFFFF, n_words);
-        a_i4x2_vec = _mm512_maskz_loadu_epi8(mask, a);
-        b_i4x2_vec = _mm512_maskz_loadu_epi8(mask, b);
-        n_words = 0;
-    }
-    else {
-        a_i4x2_vec = _mm512_loadu_epi8(a);
-        b_i4x2_vec = _mm512_loadu_epi8(b);
-        a += 64, b += 64, n_words -= 64;
-    }
-
-    // Unpack the 4-bit values into 8-bit values with an empty top nibble.
-    a_i8_low_vec = _mm512_and_si512(a_i4x2_vec, i4_nibble_vec);
-    a_i8_high_vec = _mm512_and_si512(_mm512_srli_epi64(a_i4x2_vec, 4), i4_nibble_vec);
-    b_i8_low_vec = _mm512_and_si512(b_i4x2_vec, i4_nibble_vec);
-    b_i8_high_vec = _mm512_and_si512(_mm512_srli_epi64(b_i4x2_vec, 4), i4_nibble_vec);
-    a_i8_low_vec = _mm512_shuffle_epi8(i4_to_i8_lookup_vec, a_i8_low_vec);
-    a_i8_high_vec = _mm512_shuffle_epi8(i4_to_i8_lookup_vec, a_i8_high_vec);
-    b_i8_low_vec = _mm512_shuffle_epi8(i4_to_i8_lookup_vec, b_i8_low_vec);
-    b_i8_high_vec = _mm512_shuffle_epi8(i4_to_i8_lookup_vec, b_i8_high_vec);
-
-    // We can implement subtraction with a lookup table, or using `_mm512_sub_epi8`.
-    d_u8_low_vec = _mm512_abs_epi8(_mm512_sub_epi8(a_i8_low_vec, b_i8_low_vec));
-    d_u8_high_vec = _mm512_abs_epi8(_mm512_sub_epi8(a_i8_high_vec, b_i8_high_vec));
-
-    // Now we can use the lookup table to compute the squares of the 4-bit unsigned integers
-    // in the low nibbles of the `d_u8_low_vec` and `d_u8_high_vec` vectors.
-    d2_u8_low_vec = _mm512_shuffle_epi8(u4_squares_lookup_vec, d_u8_low_vec);
-    d2_u8_high_vec = _mm512_shuffle_epi8(u4_squares_lookup_vec, d_u8_high_vec);
-
-    // Aggregating into 16-bit integers, we need to first upcast our 8-bit values to 16 bits.
-    // After that, we will perform one more operation, upcasting further into 32-bit integers.
-    d2_u16_low_vec =      //
-        _mm512_add_epi16( //
-            _mm512_unpacklo_epi8(d2_u8_low_vec, _mm512_setzero_si512()),
-            _mm512_unpackhi_epi8(d2_u8_low_vec, _mm512_setzero_si512()));
-    d2_u16_high_vec =     //
-        _mm512_add_epi16( //
-            _mm512_unpacklo_epi8(d2_u8_high_vec, _mm512_setzero_si512()),
-            _mm512_unpackhi_epi8(d2_u8_high_vec, _mm512_setzero_si512()));
-    d2_u32_vec = _mm512_add_epi32(d2_u32_vec, _mm512_unpacklo_epi16(d2_u16_low_vec, _mm512_setzero_si512()));
-    d2_u32_vec = _mm512_add_epi32(d2_u32_vec, _mm512_unpacklo_epi16(d2_u16_high_vec, _mm512_setzero_si512()));
-    if (n_words) goto nk_l2sq_i4x2_ice_cycle;
-
-    // Finally, we can reduce the 16-bit integers to 32-bit integers and sum them up.
-    int d2 = _mm512_reduce_add_epi32(d2_u32_vec);
-    *result = d2;
-}
-NK_PUBLIC void nk_angular_i4x2_ice(nk_i4x2_t const *a, nk_i4x2_t const *b, nk_size_t n_words, nk_f32_t *result) {
-
-    // We need to compose a lookup table for all the scalar products of 4-bit integers.
-    // While `int8_t` covers the range [-128, 127], `int4_t` covers only [-8, 7].
-    // Practically speaking, the product of two 4-bit signed integers is a 7-bit integer,
-    // as the maximum absolute value of the product is `abs(-8 * -8) == 64`.
-    //
-    // To store 128 possible values of 2^7 bits we only need 128 single-byte scalars,
-    // or just 2x ZMM registers. In that case our lookup will only take `vpermi2b` instruction,
-    // easily inokable with `_mm512_permutex2var_epi8` intrinsic with latency of 6 on Sapphire Rapids.
-    // The problem is converting 2d indices of our symmetric matrix into 1d offsets in the dense array.
-    //
-    // Alternatively, we can take the entire symmetric (16 x 16) matrix of products,
-    // put into 4x ZMM registers, and use it with `_mm512_shuffle_epi8`, remembering
-    // that it can only lookup with 128-bit lanes (16x 8-bit values).
-    // That intrinsic has latency 1, but will need to be repeated and combined with
-    // multiple iterations of `_mm512_shuffle_i64x2` that has latency 3.
-    //
-    // Altenatively, we can get down to 3 cycles per lookup with `vpermb` and `_mm512_permutexvar_epi8` intrinsics.
-    // For that we can split our (16 x 16) matrix into 4x (8 x 8) submatrices, and use 4x ZMM registers.
-    //
-    // Still, all of those solutions are quite heavy compared to two parallel calls to `_mm512_dpbusds_epi32`
-    // for the dot product. But we can still use the `_mm512_permutexvar_epi8` to compute the squares of the
-    // 16 possible `int4_t` values faster.
-    //
-    // Here is how our `int4_t` range looks:
-    //
-    //      dec:     0   1   2   3   4   5   6   7  -8  -7  -6  -5  -4  -3  -2  -1
-    //      hex:     0   1   2   3   4   5   6   7   8   9   A   B   C   D   E   F
-    //
-    // Squared:
-    //
-    //      dec2:    0   1   4   9  16  25  36  49  64  49  36  25  16   9   4   1
-    //      hex2:    0   1   4   9  10  19  24  31  40  31  24  19  10   9   4   1
-    //
-    // Broadcast it to every lane, so that: `square(x) == _mm512_shuffle_epi8(i4_squares_lookup_vec, x)`.
-    __m512i const i4_to_i8_lookup_vec = _mm512_set_epi8(        //
-        -1, -2, -3, -4, -5, -6, -7, -8, 7, 6, 5, 4, 3, 2, 1, 0, //
-        -1, -2, -3, -4, -5, -6, -7, -8, 7, 6, 5, 4, 3, 2, 1, 0, //
-        -1, -2, -3, -4, -5, -6, -7, -8, 7, 6, 5, 4, 3, 2, 1, 0, //
-        -1, -2, -3, -4, -5, -6, -7, -8, 7, 6, 5, 4, 3, 2, 1, 0);
-    __m512i const i4_squares_lookup_vec = _mm512_set_epi8(       //
-        1, 4, 9, 16, 25, 36, 49, 64, 49, 36, 25, 16, 9, 4, 1, 0, //
-        1, 4, 9, 16, 25, 36, 49, 64, 49, 36, 25, 16, 9, 4, 1, 0, //
-        1, 4, 9, 16, 25, 36, 49, 64, 49, 36, 25, 16, 9, 4, 1, 0, //
-        1, 4, 9, 16, 25, 36, 49, 64, 49, 36, 25, 16, 9, 4, 1, 0);
-
-    /// The mask used to take the low nibble of each byte.
-    __m512i const i4_nibble_vec = _mm512_set1_epi8(0x0F);
-
-    // Temporaries:
-    __m512i a_i4x2_vec, b_i4x2_vec;
-    __m512i a_i8_low_vec, a_i8_high_vec, b_i8_low_vec, b_i8_high_vec;
-    __m512i a2_u8_vec, b2_u8_vec;
-
-    // Accumulators:
-    __m512i a2_u16_low_vec = _mm512_setzero_si512();
-    __m512i a2_u16_high_vec = _mm512_setzero_si512();
-    __m512i b2_u16_low_vec = _mm512_setzero_si512();
-    __m512i b2_u16_high_vec = _mm512_setzero_si512();
-    __m512i ab_i32_low_vec = _mm512_setzero_si512();
-    __m512i ab_i32_high_vec = _mm512_setzero_si512();
-
-nk_angular_i4x2_ice_cycle:
-    if (n_words < 64) {
-        __mmask64 mask = (__mmask64)_bzhi_u64(0xFFFFFFFFFFFFFFFF, n_words);
-        a_i4x2_vec = _mm512_maskz_loadu_epi8(mask, a);
-        b_i4x2_vec = _mm512_maskz_loadu_epi8(mask, b);
-        n_words = 0;
-    }
-    else {
-        a_i4x2_vec = _mm512_loadu_epi8(a);
-        b_i4x2_vec = _mm512_loadu_epi8(b);
-        a += 64, b += 64, n_words -= 64;
-    }
-
-    // Unpack the 4-bit values into 8-bit values with an empty top nibble.
-    // For now, they are not really 8-bit integers, as they are not sign-extended.
-    // That part will come later, using the `i4_to_i8_lookup_vec` lookup.
-    a_i8_low_vec = _mm512_and_si512(a_i4x2_vec, i4_nibble_vec);
-    a_i8_high_vec = _mm512_and_si512(_mm512_srli_epi64(a_i4x2_vec, 4), i4_nibble_vec);
-    b_i8_low_vec = _mm512_and_si512(b_i4x2_vec, i4_nibble_vec);
-    b_i8_high_vec = _mm512_and_si512(_mm512_srli_epi64(b_i4x2_vec, 4), i4_nibble_vec);
-
-    // Compute the squares of the 4-bit integers.
-    // For symmetry we could have used 4 registers, aka "a2_i8_low_vec", "a2_i8_high_vec", "b2_i8_low_vec",
-    // "b2_i8_high_vec". But the largest square value is just 64, so we can safely aggregate into 8-bit unsigned values.
-    a2_u8_vec = _mm512_add_epi8(_mm512_shuffle_epi8(i4_squares_lookup_vec, a_i8_low_vec),
-                                _mm512_shuffle_epi8(i4_squares_lookup_vec, a_i8_high_vec));
-    b2_u8_vec = _mm512_add_epi8(_mm512_shuffle_epi8(i4_squares_lookup_vec, b_i8_low_vec),
-                                _mm512_shuffle_epi8(i4_squares_lookup_vec, b_i8_high_vec));
-
-    // We can safely aggregate into just 16-bit sums without overflow, if the vectors have less than:
-    //      (2 scalars / byte) * (64 bytes / register) * (256 non-overflowing 8-bit additions in 16-bit intesgers)
-    //      = 32'768 dimensions.
-    //
-    // We use saturated addition here to clearly inform in case of overflow.
-    a2_u16_low_vec = _mm512_adds_epu16(a2_u16_low_vec, _mm512_cvtepu8_epi16(_mm512_castsi512_si256(a2_u8_vec)));
-    a2_u16_high_vec = _mm512_adds_epu16(a2_u16_high_vec, _mm512_cvtepu8_epi16(_mm512_extracti64x4_epi64(a2_u8_vec, 1)));
-    b2_u16_low_vec = _mm512_adds_epu16(b2_u16_low_vec, _mm512_cvtepu8_epi16(_mm512_castsi512_si256(a2_u8_vec)));
-    b2_u16_high_vec = _mm512_adds_epu16(b2_u16_high_vec, _mm512_cvtepu8_epi16(_mm512_extracti64x4_epi64(a2_u8_vec, 1)));
-
-    // Time to perform the proper sign extension of the 4-bit integers to 8-bit integers.
-    a_i8_low_vec = _mm512_shuffle_epi8(i4_to_i8_lookup_vec, a_i8_low_vec);
-    a_i8_high_vec = _mm512_shuffle_epi8(i4_to_i8_lookup_vec, a_i8_high_vec);
-    b_i8_low_vec = _mm512_shuffle_epi8(i4_to_i8_lookup_vec, b_i8_low_vec);
-    b_i8_high_vec = _mm512_shuffle_epi8(i4_to_i8_lookup_vec, b_i8_high_vec);
-
-    // The same trick won't work for the primary dot-product, as the signs vector
-    // components may differ significantly. So we have to use two `_mm512_dpwssds_epi32`
-    // intrinsics instead, upcasting four chunks to 16-bit integers beforehand!
-    // Alternatively, we can flip the signs of the second argument and use `_mm512_dpbusds_epi32`,
-    // but it ends up taking more instructions.
-    ab_i32_low_vec = _mm512_dpwssds_epi32(                          //
-        ab_i32_low_vec,                                             //
-        _mm512_cvtepi8_epi16(_mm512_castsi512_si256(a_i8_low_vec)), //
-        _mm512_cvtepi8_epi16(_mm512_castsi512_si256(b_i8_low_vec)));
-    ab_i32_low_vec = _mm512_dpwssds_epi32(                                //
-        ab_i32_low_vec,                                                   //
-        _mm512_cvtepi8_epi16(_mm512_extracti64x4_epi64(a_i8_low_vec, 1)), //
-        _mm512_cvtepi8_epi16(_mm512_extracti64x4_epi64(b_i8_low_vec, 1)));
-    ab_i32_high_vec = _mm512_dpwssds_epi32(                          //
-        ab_i32_high_vec,                                             //
-        _mm512_cvtepi8_epi16(_mm512_castsi512_si256(a_i8_high_vec)), //
-        _mm512_cvtepi8_epi16(_mm512_castsi512_si256(b_i8_high_vec)));
-    ab_i32_high_vec = _mm512_dpwssds_epi32(                                //
-        ab_i32_high_vec,                                                   //
-        _mm512_cvtepi8_epi16(_mm512_extracti64x4_epi64(a_i8_high_vec, 1)), //
-        _mm512_cvtepi8_epi16(_mm512_extracti64x4_epi64(b_i8_high_vec, 1)));
-    if (n_words) goto nk_angular_i4x2_ice_cycle;
-
-    int ab = _mm512_reduce_add_epi32(_mm512_add_epi32(ab_i32_low_vec, ab_i32_high_vec));
-    unsigned short a2_u16[32], b2_u16[32];
-    _mm512_storeu_si512(a2_u16, _mm512_add_epi16(a2_u16_low_vec, a2_u16_high_vec));
-    _mm512_storeu_si512(b2_u16, _mm512_add_epi16(b2_u16_low_vec, b2_u16_high_vec));
-    unsigned int a2 = 0, b2 = 0;
-    for (int i = 0; i < 32; ++i) a2 += a2_u16[i], b2 += b2_u16[i];
-    *result = nk_angular_normalize_f32_haswell_(ab, a2, b2);
+    nk_i32_t ab = _mm512_reduce_add_epi32(ab_i32x16);
+    nk_i64_t a2 = _mm512_reduce_add_epi64(a2_i64x8);
+    nk_i64_t b2 = _mm512_reduce_add_epi64(b2_i64x8);
+    *result = nk_angular_normalize_f32_haswell_(ab, (nk_f32_t)a2, (nk_f32_t)b2);
 }
 
 typedef nk_dot_i8x32_state_ice_t nk_angular_i8x32_state_ice_t;
@@ -500,8 +583,11 @@ NK_INTERNAL void nk_l2_u8x64_finalize_ice(nk_l2_u8x64_state_ice_t const *state_a
 } // extern "C"
 #endif
 
+#if defined(__clang__)
 #pragma clang attribute pop
+#elif defined(__GNUC__)
 #pragma GCC pop_options
+#endif
 #endif // NK_TARGET_ICE
 #endif // NK_TARGET_X86_
 

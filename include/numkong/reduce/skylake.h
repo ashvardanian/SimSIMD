@@ -10,125 +10,19 @@
 
 #if NK_TARGET_X86_
 #if NK_TARGET_SKYLAKE
+#if defined(__clang__)
+#pragma clang attribute push(__attribute__((target("avx2,avx512f,avx512vl,avx512bw,avx512dq,f16c,fma,bmi,bmi2"))), \
+                             apply_to = function)
+#elif defined(__GNUC__)
 #pragma GCC push_options
-#pragma GCC target("avx2", "avx512f", "avx512vl", "avx512bw", "bmi2")
-#pragma clang attribute push(__attribute__((target("avx2,avx512f,avx512vl,avx512bw,bmi2"))), apply_to = function)
+#pragma GCC target("avx2", "avx512f", "avx512vl", "avx512bw", "avx512dq", "f16c", "fma", "bmi", "bmi2")
+#endif
 
 #include "numkong/types.h"
 
 #if defined(__cplusplus)
 extern "C" {
 #endif
-
-/** @brief Type-agnostic 512-bit full load (Skylake AVX-512). */
-NK_INTERNAL void nk_load_b512_skylake_(void const *src, nk_b512_vec_t *dst) { dst->zmm = _mm512_loadu_si512(src); }
-
-/** @brief Type-agnostic partial load for 64-bit elements (8 elements max) into 512-bit vector (Skylake AVX-512). */
-NK_INTERNAL void nk_partial_load_b64x8_skylake_(void const *src, nk_size_t n, nk_b512_vec_t *dst) {
-    __mmask8 mask = (__mmask8)_bzhi_u32(0xFF, (unsigned int)n);
-    dst->zmm = _mm512_maskz_loadu_epi64(mask, src);
-}
-
-/** @brief Type-agnostic partial load for 32-bit elements (16 elements max) into 512-bit vector (Skylake AVX-512). */
-NK_INTERNAL void nk_partial_load_b32x16_skylake_(void const *src, nk_size_t n, nk_b512_vec_t *dst) {
-    __mmask16 mask = (__mmask16)_bzhi_u32(0xFFFF, (unsigned int)n);
-    dst->zmm = _mm512_maskz_loadu_epi32(mask, src);
-}
-
-/** @brief Type-agnostic partial load for 16-bit elements (32 elements max) into 512-bit vector (Skylake AVX-512). */
-NK_INTERNAL void nk_partial_load_b16x32_skylake_(void const *src, nk_size_t n, nk_b512_vec_t *dst) {
-    __mmask32 mask = (__mmask32)_bzhi_u32(0xFFFFFFFF, (unsigned int)n);
-    dst->zmm = _mm512_maskz_loadu_epi16(mask, src);
-}
-
-/** @brief Type-agnostic partial load for 8-bit elements (64 elements max) into 512-bit vector (Skylake AVX-512). */
-NK_INTERNAL void nk_partial_load_b8x64_skylake_(void const *src, nk_size_t n, nk_b512_vec_t *dst) {
-    __mmask64 mask = _bzhi_u64(0xFFFFFFFFFFFFFFFFULL, (unsigned int)n);
-    dst->zmm = _mm512_maskz_loadu_epi8(mask, src);
-}
-
-/** @brief Type-agnostic partial load for 32-bit elements (8 elements max) into 256-bit vector (Skylake AVX-512). */
-NK_INTERNAL void nk_partial_load_b32x8_skylake_(void const *src, nk_size_t n, nk_b256_vec_t *dst) {
-    __mmask8 mask = (__mmask8)_bzhi_u32(0xFF, (unsigned int)n);
-    dst->ymm = _mm256_maskz_loadu_epi32(mask, src);
-}
-
-/** @brief Type-agnostic partial store for 32-bit elements (16 elements max) from 512-bit vector (Skylake AVX-512). */
-NK_INTERNAL void nk_partial_store_b32x16_skylake_(nk_b512_vec_t const *src, void *dst, nk_size_t n) {
-    __mmask16 mask = (__mmask16)_bzhi_u32(0xFFFF, (unsigned int)n);
-    _mm512_mask_storeu_epi32(dst, mask, src->zmm);
-}
-
-/** @brief Type-agnostic partial store for 32-bit elements (4 elements max) from 128-bit vector (Skylake AVX-512). */
-NK_INTERNAL void nk_partial_store_b32x4_skylake_(nk_b128_vec_t const *src, void *dst, nk_size_t n) {
-    __mmask8 mask = (__mmask8)_bzhi_u32(0xF, (unsigned int)n);
-    _mm_mask_storeu_epi32(dst, mask, src->xmm);
-}
-
-/** @brief Type-agnostic partial store for 64-bit elements (4 elements max) from 256-bit vector (Skylake AVX-512). */
-NK_INTERNAL void nk_partial_store_b64x4_skylake_(nk_b256_vec_t const *src, void *dst, nk_size_t n) {
-    __mmask8 mask = (__mmask8)_bzhi_u32(0xF, (unsigned int)n);
-    _mm256_mask_storeu_epi64(dst, mask, src->ymm);
-}
-
-/** @brief Convert 16x bf16 values to 16x f32 values (Skylake AVX-512). */
-NK_INTERNAL __m512 nk_bf16x16_to_f32x16_skylake_(__m256i a) {
-    // Upcasting from `bf16` to `f32` is done by shifting the `bf16` values by 16 bits to the left, like:
-    return _mm512_castsi512_ps(_mm512_slli_epi32(_mm512_cvtepu16_epi32(a), 16));
-}
-
-/** @brief Convert 16x f32 values to 16x bf16 values (Skylake AVX-512). */
-NK_INTERNAL __m256i nk_f32x16_to_bf16x16_skylake_(__m512 a) {
-    // Add 2^15 and right shift 16 to do round-nearest
-    __m512i x = _mm512_srli_epi32(_mm512_add_epi32(_mm512_castps_si512(a), _mm512_set1_epi32(1 << 15)), 16);
-    return _mm512_cvtepi32_epi16(x);
-}
-
-/** @brief Convert 16x e4m3 to 16x f32 via bit manipulation (AVX-512).
- *  E4M3 format: S EEEE MMM (bias=7). F32: sign<<31, (exp+120)<<23, mantissa<<20.
- *  Subnormals (exp=0): value = mantissa * 2^(1-7) * 2^(-3) = mantissa / 512. */
-NK_INTERNAL __m512 nk_e4m3x16_to_f32x16_skylake_(__m128i e4m3_i8x16) {
-    __m512i e4m3_i32x16 = _mm512_cvtepu8_epi32(e4m3_i8x16);
-
-    // Extract fields
-    __m512i exp_i32x16 = _mm512_and_si512(_mm512_srli_epi32(e4m3_i32x16, 3), _mm512_set1_epi32(0x0F));
-    __m512i mantissa_i32x16 = _mm512_and_si512(e4m3_i32x16, _mm512_set1_epi32(0x07));
-    __m512i sign_i32x16 = _mm512_slli_epi32(_mm512_srli_epi32(e4m3_i32x16, 7), 31);
-
-    // Normal path: sign | ((exp+120)<<23) | (mantissa<<20)
-    __m512i f32_exp_i32x16 = _mm512_slli_epi32(_mm512_add_epi32(exp_i32x16, _mm512_set1_epi32(120)), 23);
-    __m512i f32_mantissa_i32x16 = _mm512_slli_epi32(mantissa_i32x16, 20);
-    __m512 result_f32x16 = _mm512_castsi512_ps(
-        _mm512_ternarylogic_epi32(sign_i32x16, f32_exp_i32x16, f32_mantissa_i32x16, 0xFE));
-
-    // Subnormal fix: for exp==0 lanes, replace with (mantissa / 512) | sign using masked OR
-    __mmask16 is_subnormal = _mm512_testn_epi32_mask(e4m3_i32x16, _mm512_set1_epi32(0x78));
-    __m512 subnorm_abs_f32x16 = _mm512_mul_ps(_mm512_cvtepi32_ps(mantissa_i32x16), _mm512_set1_ps(1.0f / 512.0f));
-    return _mm512_mask_or_ps(result_f32x16, is_subnormal, subnorm_abs_f32x16, _mm512_castsi512_ps(sign_i32x16));
-}
-
-/** @brief Convert 16x e5m2 to 16x f32 via bit manipulation (AVX-512).
- *  E5M2 format: S EEEEE MM (bias=15). F32: sign<<31, (exp+112)<<23, mantissa<<21.
- *  Subnormals (exp=0): value = mantissa * 2^(1-15) * 2^(-2) = mantissa / 65536. */
-NK_INTERNAL __m512 nk_e5m2x16_to_f32x16_skylake_(__m128i e5m2_i8x16) {
-    __m512i e5m2_i32x16 = _mm512_cvtepu8_epi32(e5m2_i8x16);
-
-    // Extract fields
-    __m512i exp_i32x16 = _mm512_and_si512(_mm512_srli_epi32(e5m2_i32x16, 2), _mm512_set1_epi32(0x1F));
-    __m512i mantissa_i32x16 = _mm512_and_si512(e5m2_i32x16, _mm512_set1_epi32(0x03));
-    __m512i sign_i32x16 = _mm512_slli_epi32(_mm512_srli_epi32(e5m2_i32x16, 7), 31);
-
-    // Normal path: sign | ((exp+112)<<23) | (mantissa<<21)
-    __m512i f32_exp_i32x16 = _mm512_slli_epi32(_mm512_add_epi32(exp_i32x16, _mm512_set1_epi32(112)), 23);
-    __m512i f32_mantissa_i32x16 = _mm512_slli_epi32(mantissa_i32x16, 21);
-    __m512 result_f32x16 = _mm512_castsi512_ps(
-        _mm512_ternarylogic_epi32(sign_i32x16, f32_exp_i32x16, f32_mantissa_i32x16, 0xFE));
-
-    // Subnormal fix: for exp==0 lanes, replace with (mantissa / 65536) | sign using masked OR
-    __mmask16 is_subnormal = _mm512_testn_epi32_mask(e5m2_i32x16, _mm512_set1_epi32(0x7C));
-    __m512 subnorm_abs_f32x16 = _mm512_mul_ps(_mm512_cvtepi32_ps(mantissa_i32x16), _mm512_set1_ps(1.0f / 65536.0f));
-    return _mm512_mask_or_ps(result_f32x16, is_subnormal, subnorm_abs_f32x16, _mm512_castsi512_ps(sign_i32x16));
-}
 
 /** @brief Horizontal sum of 16 floats in a ZMM register (native f32 precision). */
 NK_INTERNAL nk_f32_t nk_reduce_add_f32x16_skylake_(__m512 sum_f32x16) {
@@ -237,7 +131,7 @@ NK_INTERNAL nk_i64_t nk_reduce_add_i64x8_skylake_(__m512i sum_i64x8) {
  *  With 64 elements per register, useful for strides 2-16 (yielding 4+ elements per load).
  *  Mask bits set to 1 where (position % stride == 0).
  */
-NK_INTERNAL __mmask64 nk_stride_mask_b8x64_(nk_size_t stride) {
+NK_INTERNAL __mmask64 nk_stride_mask_u1x64_(nk_size_t stride) {
     switch (stride) {
     case 2: return (__mmask64)0x5555555555555555ull;  // 32 elems
     case 3: return (__mmask64)0x1249249249249249ull;  // 21 elems
@@ -787,7 +681,8 @@ NK_INTERNAL void nk_reduce_add_f64_skylake_gather_(                //
     unsigned char const *ptr = (unsigned char const *)(data + idx_scalars * stride_elements);
     for (; idx_scalars < count; ++idx_scalars, ptr += stride_bytes) {
         nk_f64_t term = *(nk_f64_t const *)ptr, tentative = sum + term;
-        compensation += (nk_abs_f64(sum) >= nk_abs_f64(term)) ? ((sum - tentative) + term) : ((term - tentative) + sum);
+        compensation += (nk_f64_abs_(sum) >= nk_f64_abs_(term)) ? ((sum - tentative) + term)
+                                                                : ((term - tentative) + sum);
         sum = tentative;
     }
     *result = sum + compensation;
@@ -945,7 +840,8 @@ NK_PUBLIC void nk_reduce_min_f32_skylake(                          //
     nk_f32_t *min_value, nk_size_t *min_index) {
     nk_size_t stride_elements = stride_bytes / sizeof(nk_f32_t);
     int aligned = (stride_bytes % sizeof(nk_f32_t) == 0);
-    if (!aligned) nk_reduce_min_f32_serial(data, count, stride_bytes, min_value, min_index);
+    if (count == 0) *min_value = NK_F32_MAX, *min_index = count;
+    else if (!aligned) nk_reduce_min_f32_serial(data, count, stride_bytes, min_value, min_index);
     else if (stride_elements == 1 && count >= 16)
         nk_reduce_min_f32_skylake_contiguous_(data, count, min_value, min_index);
     else if (stride_elements >= 2 && stride_elements <= 8)
@@ -1050,7 +946,8 @@ NK_PUBLIC void nk_reduce_max_f32_skylake(                          //
     nk_f32_t *max_value, nk_size_t *max_index) {
     nk_size_t stride_elements = stride_bytes / sizeof(nk_f32_t);
     int aligned = (stride_bytes % sizeof(nk_f32_t) == 0);
-    if (!aligned) nk_reduce_max_f32_serial(data, count, stride_bytes, max_value, max_index);
+    if (count == 0) *max_value = NK_F32_MIN, *max_index = count;
+    else if (!aligned) nk_reduce_max_f32_serial(data, count, stride_bytes, max_value, max_index);
     else if (stride_elements == 1 && count >= 16)
         nk_reduce_max_f32_skylake_contiguous_(data, count, max_value, max_index);
     else if (stride_elements >= 2 && stride_elements <= 8)
@@ -1151,7 +1048,8 @@ NK_PUBLIC void nk_reduce_min_f64_skylake(                          //
     nk_f64_t *min_value, nk_size_t *min_index) {
     nk_size_t stride_elements = stride_bytes / sizeof(nk_f64_t);
     int aligned = (stride_bytes % sizeof(nk_f64_t) == 0);
-    if (!aligned) nk_reduce_min_f64_serial(data, count, stride_bytes, min_value, min_index);
+    if (count == 0) *min_value = NK_F64_MAX, *min_index = count;
+    else if (!aligned) nk_reduce_min_f64_serial(data, count, stride_bytes, min_value, min_index);
     else if (stride_elements == 1 && count >= 8)
         nk_reduce_min_f64_skylake_contiguous_(data, count, min_value, min_index);
     else if (stride_elements >= 2 && stride_elements <= 8)
@@ -1252,7 +1150,8 @@ NK_PUBLIC void nk_reduce_max_f64_skylake(                          //
     nk_f64_t *max_value, nk_size_t *max_index) {
     nk_size_t stride_elements = stride_bytes / sizeof(nk_f64_t);
     int aligned = (stride_bytes % sizeof(nk_f64_t) == 0);
-    if (!aligned) nk_reduce_max_f64_serial(data, count, stride_bytes, max_value, max_index);
+    if (count == 0) *max_value = NK_F64_MIN, *max_index = count;
+    else if (!aligned) nk_reduce_max_f64_serial(data, count, stride_bytes, max_value, max_index);
     else if (stride_elements == 1 && count >= 8)
         nk_reduce_max_f64_skylake_contiguous_(data, count, max_value, max_index);
     else if (stride_elements >= 2 && stride_elements <= 8)
@@ -1266,7 +1165,7 @@ NK_INTERNAL void nk_reduce_add_i8_skylake_contiguous_( //
     nk_size_t idx = 0;
     for (; idx + 64 <= count; idx += 64) {
         __m512i data_i8x64 = _mm512_loadu_si512(data + idx);
-        // Widen lower 32 bytes: i8 -> i16 -> i32 -> i64
+        // Widen lower 32 bytes: i8 → i16 → i32 → i64
         __m256i lo_i8x32 = _mm512_castsi512_si256(data_i8x64);
         __m256i hi_i8x32 = _mm512_extracti64x4_epi64(data_i8x64, 1);
         // Process lo_i8x32
@@ -1397,13 +1296,13 @@ NK_INTERNAL void nk_reduce_add_i8_skylake_strided_(                  //
     nk_i8_t const *data, nk_size_t count, nk_size_t stride_elements, //
     nk_i64_t *result) {
     // Masked load zeros out non-stride elements; zeros don't affect sum
-    __mmask64 stride_mask_m64 = nk_stride_mask_b8x64_(stride_elements);
+    __mmask64 stride_mask_m64 = nk_stride_mask_u1x64_(stride_elements);
     __m512i sum_i64x8 = _mm512_setzero_si512();
     nk_size_t idx_scalars = 0;
     nk_size_t total_scalars = count * stride_elements;
     for (; idx_scalars + 64 <= total_scalars; idx_scalars += 64) {
         __m512i data_i8x64 = _mm512_maskz_loadu_epi8(stride_mask_m64, data + idx_scalars);
-        // Widen with sign extension: i8 -> i16 -> i32 -> i64
+        // Widen with sign extension: i8 → i16 → i32 → i64
         __m256i lo_i8x32 = _mm512_castsi512_si256(data_i8x64);
         __m256i hi_i8x32 = _mm512_extracti64x4_epi64(data_i8x64, 1);
         __m512i lo_i16x32 = _mm512_cvtepi8_epi16(lo_i8x32);
@@ -1417,7 +1316,7 @@ NK_INTERNAL void nk_reduce_add_i8_skylake_strided_(                  //
         __m512i b_i32x16 = _mm512_cvtepi16_epi32(b_i16x16);
         __m512i c_i32x16 = _mm512_cvtepi16_epi32(c_i16x16);
         __m512i d_i32x16 = _mm512_cvtepi16_epi32(d_i16x16);
-        // Pairwise add i32x16 -> i32x16 (horizontal), then widen to i64
+        // Pairwise add i32x16 → i32x16 (horizontal), then widen to i64
         __m512i ab_i32x16 = _mm512_add_epi32(a_i32x16, b_i32x16);
         __m512i cd_i32x16 = _mm512_add_epi32(c_i32x16, d_i32x16);
         __m512i abcd_i32x16 = _mm512_add_epi32(ab_i32x16, cd_i32x16);
@@ -1437,13 +1336,13 @@ NK_INTERNAL void nk_reduce_add_i8_skylake_strided_(                  //
 NK_INTERNAL void nk_reduce_add_u8_skylake_strided_(                  //
     nk_u8_t const *data, nk_size_t count, nk_size_t stride_elements, //
     nk_u64_t *result) {
-    __mmask64 stride_mask_m64 = nk_stride_mask_b8x64_(stride_elements);
+    __mmask64 stride_mask_m64 = nk_stride_mask_u1x64_(stride_elements);
     __m512i sum_u64x8 = _mm512_setzero_si512();
     nk_size_t idx_scalars = 0;
     nk_size_t total_scalars = count * stride_elements;
     for (; idx_scalars + 64 <= total_scalars; idx_scalars += 64) {
         __m512i data_u8x64 = _mm512_maskz_loadu_epi8(stride_mask_m64, data + idx_scalars);
-        // Widen with zero extension: u8 -> u16 -> u32 -> u64
+        // Widen with zero extension: u8 → u16 → u32 → u64
         __m256i lo_u8x32 = _mm512_castsi512_si256(data_u8x64);
         __m256i hi_u8x32 = _mm512_extracti64x4_epi64(data_u8x64, 1);
         __m512i lo_u16x32 = _mm512_cvtepu8_epi16(lo_u8x32);
@@ -1988,112 +1887,128 @@ NK_PUBLIC void nk_reduce_add_u64_skylake(                          //
 NK_PUBLIC void nk_reduce_min_i8_skylake(                          //
     nk_i8_t const *data, nk_size_t count, nk_size_t stride_bytes, //
     nk_i8_t *min_value, nk_size_t *min_index) {
-    if (stride_bytes == sizeof(nk_i8_t)) nk_reduce_min_i8_skylake_contiguous_(data, count, min_value, min_index);
+    if (count == 0) *min_value = NK_I8_MAX, *min_index = count;
+    else if (stride_bytes == sizeof(nk_i8_t)) nk_reduce_min_i8_skylake_contiguous_(data, count, min_value, min_index);
     else nk_reduce_min_i8_serial(data, count, stride_bytes, min_value, min_index);
 }
 
 NK_PUBLIC void nk_reduce_max_i8_skylake(                          //
     nk_i8_t const *data, nk_size_t count, nk_size_t stride_bytes, //
     nk_i8_t *max_value, nk_size_t *max_index) {
-    if (stride_bytes == sizeof(nk_i8_t)) nk_reduce_max_i8_skylake_contiguous_(data, count, max_value, max_index);
+    if (count == 0) *max_value = NK_I8_MIN, *max_index = count;
+    else if (stride_bytes == sizeof(nk_i8_t)) nk_reduce_max_i8_skylake_contiguous_(data, count, max_value, max_index);
     else nk_reduce_max_i8_serial(data, count, stride_bytes, max_value, max_index);
 }
 
 NK_PUBLIC void nk_reduce_min_u8_skylake(                          //
     nk_u8_t const *data, nk_size_t count, nk_size_t stride_bytes, //
     nk_u8_t *min_value, nk_size_t *min_index) {
-    if (stride_bytes == sizeof(nk_u8_t)) nk_reduce_min_u8_skylake_contiguous_(data, count, min_value, min_index);
+    if (count == 0) *min_value = NK_U8_MAX, *min_index = count;
+    else if (stride_bytes == sizeof(nk_u8_t)) nk_reduce_min_u8_skylake_contiguous_(data, count, min_value, min_index);
     else nk_reduce_min_u8_serial(data, count, stride_bytes, min_value, min_index);
 }
 
 NK_PUBLIC void nk_reduce_max_u8_skylake(                          //
     nk_u8_t const *data, nk_size_t count, nk_size_t stride_bytes, //
     nk_u8_t *max_value, nk_size_t *max_index) {
-    if (stride_bytes == sizeof(nk_u8_t)) nk_reduce_max_u8_skylake_contiguous_(data, count, max_value, max_index);
+    if (count == 0) *max_value = NK_U8_MIN, *max_index = count;
+    else if (stride_bytes == sizeof(nk_u8_t)) nk_reduce_max_u8_skylake_contiguous_(data, count, max_value, max_index);
     else nk_reduce_max_u8_serial(data, count, stride_bytes, max_value, max_index);
 }
 
 NK_PUBLIC void nk_reduce_min_i16_skylake(                          //
     nk_i16_t const *data, nk_size_t count, nk_size_t stride_bytes, //
     nk_i16_t *min_value, nk_size_t *min_index) {
-    if (stride_bytes == sizeof(nk_i16_t)) nk_reduce_min_i16_skylake_contiguous_(data, count, min_value, min_index);
+    if (count == 0) *min_value = NK_I16_MAX, *min_index = count;
+    else if (stride_bytes == sizeof(nk_i16_t)) nk_reduce_min_i16_skylake_contiguous_(data, count, min_value, min_index);
     else nk_reduce_min_i16_serial(data, count, stride_bytes, min_value, min_index);
 }
 
 NK_PUBLIC void nk_reduce_max_i16_skylake(                          //
     nk_i16_t const *data, nk_size_t count, nk_size_t stride_bytes, //
     nk_i16_t *max_value, nk_size_t *max_index) {
-    if (stride_bytes == sizeof(nk_i16_t)) nk_reduce_max_i16_skylake_contiguous_(data, count, max_value, max_index);
+    if (count == 0) *max_value = NK_I16_MIN, *max_index = count;
+    else if (stride_bytes == sizeof(nk_i16_t)) nk_reduce_max_i16_skylake_contiguous_(data, count, max_value, max_index);
     else nk_reduce_max_i16_serial(data, count, stride_bytes, max_value, max_index);
 }
 
 NK_PUBLIC void nk_reduce_min_u16_skylake(                          //
     nk_u16_t const *data, nk_size_t count, nk_size_t stride_bytes, //
     nk_u16_t *min_value, nk_size_t *min_index) {
-    if (stride_bytes == sizeof(nk_u16_t)) nk_reduce_min_u16_skylake_contiguous_(data, count, min_value, min_index);
+    if (count == 0) *min_value = NK_U16_MAX, *min_index = count;
+    else if (stride_bytes == sizeof(nk_u16_t)) nk_reduce_min_u16_skylake_contiguous_(data, count, min_value, min_index);
     else nk_reduce_min_u16_serial(data, count, stride_bytes, min_value, min_index);
 }
 
 NK_PUBLIC void nk_reduce_max_u16_skylake(                          //
     nk_u16_t const *data, nk_size_t count, nk_size_t stride_bytes, //
     nk_u16_t *max_value, nk_size_t *max_index) {
-    if (stride_bytes == sizeof(nk_u16_t)) nk_reduce_max_u16_skylake_contiguous_(data, count, max_value, max_index);
+    if (count == 0) *max_value = NK_U16_MIN, *max_index = count;
+    else if (stride_bytes == sizeof(nk_u16_t)) nk_reduce_max_u16_skylake_contiguous_(data, count, max_value, max_index);
     else nk_reduce_max_u16_serial(data, count, stride_bytes, max_value, max_index);
 }
 
 NK_PUBLIC void nk_reduce_min_i32_skylake(                          //
     nk_i32_t const *data, nk_size_t count, nk_size_t stride_bytes, //
     nk_i32_t *min_value, nk_size_t *min_index) {
-    if (stride_bytes == sizeof(nk_i32_t)) nk_reduce_min_i32_skylake_contiguous_(data, count, min_value, min_index);
+    if (count == 0) *min_value = NK_I32_MAX, *min_index = count;
+    else if (stride_bytes == sizeof(nk_i32_t)) nk_reduce_min_i32_skylake_contiguous_(data, count, min_value, min_index);
     else nk_reduce_min_i32_serial(data, count, stride_bytes, min_value, min_index);
 }
 
 NK_PUBLIC void nk_reduce_max_i32_skylake(                          //
     nk_i32_t const *data, nk_size_t count, nk_size_t stride_bytes, //
     nk_i32_t *max_value, nk_size_t *max_index) {
-    if (stride_bytes == sizeof(nk_i32_t)) nk_reduce_max_i32_skylake_contiguous_(data, count, max_value, max_index);
+    if (count == 0) *max_value = NK_I32_MIN, *max_index = count;
+    else if (stride_bytes == sizeof(nk_i32_t)) nk_reduce_max_i32_skylake_contiguous_(data, count, max_value, max_index);
     else nk_reduce_max_i32_serial(data, count, stride_bytes, max_value, max_index);
 }
 
 NK_PUBLIC void nk_reduce_min_u32_skylake(                          //
     nk_u32_t const *data, nk_size_t count, nk_size_t stride_bytes, //
     nk_u32_t *min_value, nk_size_t *min_index) {
-    if (stride_bytes == sizeof(nk_u32_t)) nk_reduce_min_u32_skylake_contiguous_(data, count, min_value, min_index);
+    if (count == 0) *min_value = NK_U32_MAX, *min_index = count;
+    else if (stride_bytes == sizeof(nk_u32_t)) nk_reduce_min_u32_skylake_contiguous_(data, count, min_value, min_index);
     else nk_reduce_min_u32_serial(data, count, stride_bytes, min_value, min_index);
 }
 
 NK_PUBLIC void nk_reduce_max_u32_skylake(                          //
     nk_u32_t const *data, nk_size_t count, nk_size_t stride_bytes, //
     nk_u32_t *max_value, nk_size_t *max_index) {
-    if (stride_bytes == sizeof(nk_u32_t)) nk_reduce_max_u32_skylake_contiguous_(data, count, max_value, max_index);
+    if (count == 0) *max_value = NK_U32_MIN, *max_index = count;
+    else if (stride_bytes == sizeof(nk_u32_t)) nk_reduce_max_u32_skylake_contiguous_(data, count, max_value, max_index);
     else nk_reduce_max_u32_serial(data, count, stride_bytes, max_value, max_index);
 }
 
 NK_PUBLIC void nk_reduce_min_i64_skylake(                          //
     nk_i64_t const *data, nk_size_t count, nk_size_t stride_bytes, //
     nk_i64_t *min_value, nk_size_t *min_index) {
-    if (stride_bytes == sizeof(nk_i64_t)) nk_reduce_min_i64_skylake_contiguous_(data, count, min_value, min_index);
+    if (count == 0) *min_value = NK_I64_MAX, *min_index = count;
+    else if (stride_bytes == sizeof(nk_i64_t)) nk_reduce_min_i64_skylake_contiguous_(data, count, min_value, min_index);
     else nk_reduce_min_i64_serial(data, count, stride_bytes, min_value, min_index);
 }
 
 NK_PUBLIC void nk_reduce_max_i64_skylake(                          //
     nk_i64_t const *data, nk_size_t count, nk_size_t stride_bytes, //
     nk_i64_t *max_value, nk_size_t *max_index) {
-    if (stride_bytes == sizeof(nk_i64_t)) nk_reduce_max_i64_skylake_contiguous_(data, count, max_value, max_index);
+    if (count == 0) *max_value = NK_I64_MIN, *max_index = count;
+    else if (stride_bytes == sizeof(nk_i64_t)) nk_reduce_max_i64_skylake_contiguous_(data, count, max_value, max_index);
     else nk_reduce_max_i64_serial(data, count, stride_bytes, max_value, max_index);
 }
 
 NK_PUBLIC void nk_reduce_min_u64_skylake(                          //
     nk_u64_t const *data, nk_size_t count, nk_size_t stride_bytes, //
     nk_u64_t *min_value, nk_size_t *min_index) {
-    if (stride_bytes == sizeof(nk_u64_t)) nk_reduce_min_u64_skylake_contiguous_(data, count, min_value, min_index);
+    if (count == 0) *min_value = NK_U64_MAX, *min_index = count;
+    else if (stride_bytes == sizeof(nk_u64_t)) nk_reduce_min_u64_skylake_contiguous_(data, count, min_value, min_index);
     else nk_reduce_min_u64_serial(data, count, stride_bytes, min_value, min_index);
 }
 
 NK_PUBLIC void nk_reduce_max_u64_skylake(                          //
     nk_u64_t const *data, nk_size_t count, nk_size_t stride_bytes, //
     nk_u64_t *max_value, nk_size_t *max_index) {
-    if (stride_bytes == sizeof(nk_u64_t)) nk_reduce_max_u64_skylake_contiguous_(data, count, max_value, max_index);
+    if (count == 0) *max_value = NK_U64_MIN, *max_index = count;
+    else if (stride_bytes == sizeof(nk_u64_t)) nk_reduce_max_u64_skylake_contiguous_(data, count, max_value, max_index);
     else nk_reduce_max_u64_serial(data, count, stride_bytes, max_value, max_index);
 }
 
@@ -2101,8 +2016,11 @@ NK_PUBLIC void nk_reduce_max_u64_skylake(                          //
 } // extern "C"
 #endif
 
+#if defined(__clang__)
 #pragma clang attribute pop
+#elif defined(__GNUC__)
 #pragma GCC pop_options
+#endif
 #endif // NK_TARGET_SKYLAKE
 #endif // NK_TARGET_X86_
 

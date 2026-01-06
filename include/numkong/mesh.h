@@ -10,7 +10,7 @@
  *  - Kabsch algorithm for optimal rigid body alignment (rotation only)
  *  - Umeyama algorithm for similarity transform (rotation + uniform scaling)
  *
- *  For datatypes:
+ *  For dtypes:
  *
  *  - 64-bit IEEE-754 floating point → 64-bit
  *  - 32-bit IEEE-754 floating point → 32-bit
@@ -35,26 +35,26 @@
  *  All functions compute a transformation that aligns the FIRST point cloud (a) to the SECOND (b).
  *  The transformation to apply is:
  *
- *      a'_i = scale * R * (a_i - a_centroid) + b_centroid
+ *      a′ᵢ = scale × R × (aᵢ - ā) + b̄
  *
  *  Where:
  *
- *  - R is a 3x3 rotation matrix (row-major, 9 values)
+ *  - R is a 3×3 rotation matrix (row-major, 9 values)
  *  - scale is a uniform scaling factor (1.0 for RMSD and Kabsch)
- *  - a_centroid, b_centroid are the centroids of the respective point clouds
+ *  - ā, b̄ are the centroids of the respective point clouds
  *
  *  @section algorithm_overview Algorithm Overview
  *
  *  - RMSD: Simple root mean square deviation without alignment. R = identity, scale = 1.0
- *  - Kabsch: Finds optimal rotation R minimizing ||R*(a - a_centroid) - (b - b_centroid)||. scale = 1.0
- *  - Umeyama: Finds optimal rotation R and scale c minimizing ||c*R*(a - a_centroid) - (b - b_centroid)||
+ *  - Kabsch: Finds optimal rotation R minimizing ‖R × (a - ā) - (b - b̄)‖. scale = 1.0
+ *  - Umeyama: Finds optimal rotation R and scale c minimizing ‖c × R × (a - ā) - (b - b̄)‖
  *
- *  Kabsch and Umeyama compute a 3x3 cross-covariance matrix H = sum (a_i - a_c)(b_i - b_c)^T
+ *  Kabsch and Umeyama compute a 3×3 cross-covariance matrix H = Σ(aᵢ - ā)(bᵢ - b̄)ᵀ
  *  and recover R from the SVD of H. Umeyama additionally estimates a uniform scale from the
  *  singular values and the variance of the centered source points.
  *
- *  The 3x3 SVD implementation is based on the McAdams et al. paper:
- *  "Computing the Singular Value Decomposition of 3x3 matrices with minimal branching
+ *  The 3×3 SVD implementation is based on the McAdams et al. paper:
+ *  "Computing the Singular Value Decomposition of 3×3 matrices with minimal branching
  *  and elementary floating point operations", University of Wisconsin - Madison TR1690, 2011.
  *
  *  @section numerical_notes Numerical Notes
@@ -93,14 +93,14 @@ extern "C" {
 /**
  *  @brief RMSD mesh superposition function.
  *
- *  The transformation aligns a to b: a'_i = scale * R * (a_i - a_centroid) + b_centroid
+ *  The transformation aligns a to b: a′ᵢ = scale × R × (aᵢ - ā) + b̄
  *
  *  @param[in] a First point cloud (source), n×3 interleaved [x0,y0,z0, x1,y1,z1, ...].
  *  @param[in] b Second point cloud (target), n×3 interleaved [x0,y0,z0, x1,y1,z1, ...].
  *  @param[in] n Number of 3D points in each cloud.
  *  @param[out] a_centroid Centroid of first cloud (3 values). Can be NULL.
  *  @param[out] b_centroid Centroid of second cloud (3 values). Can be NULL.
- *  @param[out] rotation Row-major 3x3 rotation matrix (9 values), always identity. Can be NULL.
+ *  @param[out] rotation Row-major 3×3 rotation matrix (9 values), always identity. Can be NULL.
  *  @param[out] scale Scale factor applied, always 1. Can be NULL.
  *  @param[out] result RMSD after applying the transformation.
  */
@@ -119,14 +119,14 @@ NK_DYNAMIC void nk_rmsd_bf16(nk_bf16_t const *a, nk_bf16_t const *b, nk_size_t n
 /**
  *  @brief Kabsch mesh superposition function.
  *
- *  The transformation aligns a to b: a'_i = scale * R * (a_i - a_centroid) + b_centroid
+ *  The transformation aligns a to b: a′ᵢ = scale × R × (aᵢ - ā) + b̄
  *
  *  @param[in] a First point cloud (source), n×3 interleaved [x0,y0,z0, x1,y1,z1, ...].
  *  @param[in] b Second point cloud (target), n×3 interleaved [x0,y0,z0, x1,y1,z1, ...].
  *  @param[in] n Number of 3D points in each cloud.
  *  @param[out] a_centroid Centroid of first cloud (3 values). Can be NULL.
  *  @param[out] b_centroid Centroid of second cloud (3 values). Can be NULL.
- *  @param[out] rotation Row-major 3x3 rotation matrix (9 values). Can be NULL.
+ *  @param[out] rotation Row-major 3×3 rotation matrix (9 values). Can be NULL.
  *  @param[out] scale Scale factor applied, always 1. Can be NULL.
  *  @param[out] result RMSD after applying the transformation.
  */
@@ -145,14 +145,14 @@ NK_DYNAMIC void nk_kabsch_bf16(nk_bf16_t const *a, nk_bf16_t const *b, nk_size_t
 /**
  *  @brief Umeyama mesh superposition function.
  *
- *  The transformation aligns a to b: a'_i = scale * R * (a_i - a_centroid) + b_centroid
+ *  The transformation aligns a to b: a′ᵢ = scale × R × (aᵢ - ā) + b̄
  *
  *  @param[in] a First point cloud (source), n×3 interleaved [x0,y0,z0, x1,y1,z1, ...].
  *  @param[in] b Second point cloud (target), n×3 interleaved [x0,y0,z0, x1,y1,z1, ...].
  *  @param[in] n Number of 3D points in each cloud.
  *  @param[out] a_centroid Centroid of first cloud (3 values). Can be NULL.
  *  @param[out] b_centroid Centroid of second cloud (3 values). Can be NULL.
- *  @param[out] rotation Row-major 3x3 rotation matrix (9 values). Can be NULL.
+ *  @param[out] rotation Row-major 3×3 rotation matrix (9 values). Can be NULL.
  *  @param[out] scale Scale factor applied. Can be NULL.
  *  @param[out] result RMSD after applying the transformation.
  */
@@ -359,35 +359,35 @@ NK_PUBLIC void nk_umeyama_bf16_neonbfdot(nk_bf16_t const *a, nk_bf16_t const *b,
 #endif // NK_TARGET_NEONBFDOT
 
 /**
- *  @brief  Returns the output datatype for RMSD.
+ *  @brief  Returns the output dtype for RMSD.
  */
-NK_INTERNAL nk_datatype_t nk_rmsd_output_datatype(nk_datatype_t dtype) {
+NK_INTERNAL nk_dtype_t nk_rmsd_output_dtype(nk_dtype_t dtype) {
     switch (dtype) {
     case nk_f64_k: return nk_f64_k;
     case nk_f32_k: return nk_f32_k;
-    default: return nk_datatype_unknown_k;
+    default: return nk_dtype_unknown_k;
     }
 }
 
 /**
- *  @brief  Returns the output datatype for Kabsch alignment.
+ *  @brief  Returns the output dtype for Kabsch alignment.
  */
-NK_INTERNAL nk_datatype_t nk_kabsch_output_datatype(nk_datatype_t dtype) {
+NK_INTERNAL nk_dtype_t nk_kabsch_output_dtype(nk_dtype_t dtype) {
     switch (dtype) {
     case nk_f64_k: return nk_f64_k;
     case nk_f32_k: return nk_f32_k;
-    default: return nk_datatype_unknown_k;
+    default: return nk_dtype_unknown_k;
     }
 }
 
 /**
- *  @brief  Returns the output datatype for Umeyama alignment.
+ *  @brief  Returns the output dtype for Umeyama alignment.
  */
-NK_INTERNAL nk_datatype_t nk_umeyama_output_datatype(nk_datatype_t dtype) {
+NK_INTERNAL nk_dtype_t nk_umeyama_output_dtype(nk_dtype_t dtype) {
     switch (dtype) {
     case nk_f64_k: return nk_f64_k;
     case nk_f32_k: return nk_f32_k;
-    default: return nk_datatype_unknown_k;
+    default: return nk_dtype_unknown_k;
     }
 }
 

@@ -10,26 +10,19 @@
 
 #if NK_TARGET_ARM_
 #if NK_TARGET_NEONHALF
+#if defined(__clang__)
+#pragma clang attribute push(__attribute__((target("arch=armv8.2-a+simd+fp16"))), apply_to = function)
+#elif defined(__GNUC__)
 #pragma GCC push_options
 #pragma GCC target("arch=armv8.2-a+simd+fp16")
-#pragma clang attribute push(__attribute__((target("arch=armv8.2-a+simd+fp16"))), apply_to = function)
+#endif
 
 #include "numkong/types.h"
-#include "numkong/reduce/neon.h" // nk_partial_load_b16x4_neon_
+#include "numkong/cast/neon.h"
 
 #if defined(__cplusplus)
 extern "C" {
 #endif
-
-/**
- *  @brief Partial load for f16 elements (up to 4) with conversion to f32x4.
- *  Uses generic 64-bit byte load internally and converts to f32.
- */
-NK_INTERNAL void nk_partial_load_f16x4_to_f32x4_neonhalf_(nk_f16_t const *x, nk_size_t n, float32x4_t *result) {
-    nk_b64_vec_t vec;
-    nk_partial_load_b16x4_neon_(x, n, &vec);
-    *result = vcvt_f32_f16(vec.f16x4);
-}
 
 /** @brief Horizontal sum of 8 f16s in a NEON register, returning f32. */
 NK_INTERNAL nk_f32_t nk_reduce_add_f16x8_neonhalf_(float16x8_t sum_f16x8) {
@@ -57,7 +50,7 @@ NK_INTERNAL void nk_reduce_add_f16_neonhalf_contiguous_( //
     // Scalar tail - convert to f32
     for (; idx < count; ++idx) {
         nk_f32_t val;
-        nk_f16_to_f32_(&data[idx], &val);
+        nk_f16_to_f32_serial(&data[idx], &val);
         sum += val;
     }
 
@@ -95,7 +88,7 @@ NK_INTERNAL void nk_reduce_add_f16_neonhalf_strided_(                 //
     nk_f32_t sum = nk_reduce_add_f16x8_neonhalf_(sum_f16x8);
     for (; idx < count; ++idx) {
         nk_f32_t val;
-        nk_f16_to_f32_(&data[idx * stride_elements], &val);
+        nk_f16_to_f32_serial(&data[idx * stride_elements], &val);
         sum += val;
     }
 
@@ -116,11 +109,6 @@ NK_PUBLIC void nk_reduce_add_f16_neonhalf(                         //
 NK_INTERNAL void nk_reduce_min_f16_neonhalf_contiguous_( //
     nk_f16_t const *data, nk_size_t count,               //
     nk_f32_t *min_value, nk_size_t *min_index) {
-    if (count == 0) {
-        *min_value = 0;
-        *min_index = 0;
-        return;
-    }
 
     // Track min values in native f16, indices in 2x int32x4 (for 8 lanes)
     float16x8_t min_f16x8 = vdupq_n_f16(__builtin_huge_valf());
@@ -173,7 +161,7 @@ NK_INTERNAL void nk_reduce_min_f16_neonhalf_contiguous_( //
     // Scalar tail - convert to f32
     for (; idx < count; ++idx) {
         nk_f32_t val;
-        nk_f16_to_f32_(&data[idx], &val);
+        nk_f16_to_f32_serial(&data[idx], &val);
         if (val < best_val) {
             best_val = val;
             best_idx = idx;
@@ -187,11 +175,6 @@ NK_INTERNAL void nk_reduce_min_f16_neonhalf_contiguous_( //
 NK_INTERNAL void nk_reduce_min_f16_neonhalf_strided_(                 //
     nk_f16_t const *data, nk_size_t count, nk_size_t stride_elements, //
     nk_f32_t *min_value, nk_size_t *min_index) {
-    if (count == 0) {
-        *min_value = 0;
-        *min_index = 0;
-        return;
-    }
 
     float16x8_t min_f16x8 = vdupq_n_f16(__builtin_huge_valf());
     int32x4_t min_idx_lo_i32x4 = vdupq_n_s32(0);
@@ -277,7 +260,7 @@ NK_INTERNAL void nk_reduce_min_f16_neonhalf_strided_(                 //
     // Scalar tail
     for (; idx < count; ++idx) {
         nk_f32_t val;
-        nk_f16_to_f32_(&data[idx * stride_elements], &val);
+        nk_f16_to_f32_serial(&data[idx * stride_elements], &val);
         if (val < best_val) {
             best_val = val;
             best_idx = idx;
@@ -293,7 +276,7 @@ NK_PUBLIC void nk_reduce_min_f16_neonhalf(                         //
     nk_f32_t *min_value, nk_size_t *min_index) {
     nk_size_t stride_elements = stride_bytes / sizeof(nk_f16_t);
     int aligned = (stride_bytes % sizeof(nk_f16_t) == 0);
-    if (!aligned) nk_reduce_min_f16_serial(data, count, stride_bytes, min_value, min_index);
+    if (count == 0 || !aligned) nk_reduce_min_f16_serial(data, count, stride_bytes, min_value, min_index);
     else if (stride_elements == 1) nk_reduce_min_f16_neonhalf_contiguous_(data, count, min_value, min_index);
     else if (stride_elements <= 4)
         nk_reduce_min_f16_neonhalf_strided_(data, count, stride_elements, min_value, min_index);
@@ -303,11 +286,6 @@ NK_PUBLIC void nk_reduce_min_f16_neonhalf(                         //
 NK_INTERNAL void nk_reduce_max_f16_neonhalf_contiguous_( //
     nk_f16_t const *data, nk_size_t count,               //
     nk_f32_t *max_value, nk_size_t *max_index) {
-    if (count == 0) {
-        *max_value = 0;
-        *max_index = 0;
-        return;
-    }
 
     // Track max values in native f16, indices in 2x int32x4 (for 8 lanes)
     float16x8_t max_f16x8 = vdupq_n_f16(-__builtin_huge_valf());
@@ -360,7 +338,7 @@ NK_INTERNAL void nk_reduce_max_f16_neonhalf_contiguous_( //
     // Scalar tail - convert to f32
     for (; idx < count; ++idx) {
         nk_f32_t val;
-        nk_f16_to_f32_(&data[idx], &val);
+        nk_f16_to_f32_serial(&data[idx], &val);
         if (val > best_val) {
             best_val = val;
             best_idx = idx;
@@ -374,11 +352,6 @@ NK_INTERNAL void nk_reduce_max_f16_neonhalf_contiguous_( //
 NK_INTERNAL void nk_reduce_max_f16_neonhalf_strided_(                 //
     nk_f16_t const *data, nk_size_t count, nk_size_t stride_elements, //
     nk_f32_t *max_value, nk_size_t *max_index) {
-    if (count == 0) {
-        *max_value = 0;
-        *max_index = 0;
-        return;
-    }
 
     float16x8_t max_f16x8 = vdupq_n_f16(-__builtin_huge_valf());
     int32x4_t max_idx_lo_i32x4 = vdupq_n_s32(0);
@@ -464,7 +437,7 @@ NK_INTERNAL void nk_reduce_max_f16_neonhalf_strided_(                 //
     // Scalar tail
     for (; idx < count; ++idx) {
         nk_f32_t val;
-        nk_f16_to_f32_(&data[idx * stride_elements], &val);
+        nk_f16_to_f32_serial(&data[idx * stride_elements], &val);
         if (val > best_val) {
             best_val = val;
             best_idx = idx;
@@ -480,7 +453,7 @@ NK_PUBLIC void nk_reduce_max_f16_neonhalf(                         //
     nk_f32_t *max_value, nk_size_t *max_index) {
     nk_size_t stride_elements = stride_bytes / sizeof(nk_f16_t);
     int aligned = (stride_bytes % sizeof(nk_f16_t) == 0);
-    if (!aligned) nk_reduce_max_f16_serial(data, count, stride_bytes, max_value, max_index);
+    if (count == 0 || !aligned) nk_reduce_max_f16_serial(data, count, stride_bytes, max_value, max_index);
     else if (stride_elements == 1) nk_reduce_max_f16_neonhalf_contiguous_(data, count, max_value, max_index);
     else if (stride_elements <= 4)
         nk_reduce_max_f16_neonhalf_strided_(data, count, stride_elements, max_value, max_index);
@@ -491,8 +464,11 @@ NK_PUBLIC void nk_reduce_max_f16_neonhalf(                         //
 } // extern "C"
 #endif
 
+#if defined(__clang__)
 #pragma clang attribute pop
+#elif defined(__GNUC__)
 #pragma GCC pop_options
+#endif
 #endif // NK_TARGET_NEONHALF
 #endif // NK_TARGET_ARM_
 

@@ -10,18 +10,21 @@
 
 #if NK_TARGET_ARM_
 #if NK_TARGET_NEONBFDOT
+#if defined(__clang__)
+#pragma clang attribute push(__attribute__((target("arch=armv8.6-a+simd+bf16"))), apply_to = function)
+#elif defined(__GNUC__)
 #pragma GCC push_options
 #pragma GCC target("arch=armv8.6-a+simd+bf16")
-#pragma clang attribute push(__attribute__((target("arch=armv8.6-a+simd+bf16"))), apply_to = function)
+#endif
 
 #include "numkong/types.h"
-#include "numkong/spatial/neon.h" // nk_sqrt_f32_neon_
+#include "numkong/spatial/neon.h" // `nk_f32_sqrt_neon`
 
 #if defined(__cplusplus)
 extern "C" {
 #endif
 
-/*  Internal helper: Load 4 bf16 xyz points (12 bf16 values) -> 3x float32x4_t.
+/*  Internal helper: Load 4 bf16 xyz points (12 bf16 values) → 3x float32x4_t.
  *  Uses vld3_u16 to de-interleave xyz triplets, then converts bf16 to f32.
  *
  *  Input: 12 contiguous bf16 [x0,y0,z0, x1,y1,z1, x2,y2,z2, x3,y3,z3]
@@ -295,7 +298,7 @@ NK_PUBLIC void nk_rmsd_bf16_neonbfdot(nk_bf16_t const *a, nk_bf16_t const *b, nk
     nk_f32_t sum_squared = total_squared_x + total_squared_y + total_squared_z;
     nk_f32_t mean_diff_sq = mean_diff_x * mean_diff_x + mean_diff_y * mean_diff_y + mean_diff_z * mean_diff_z;
 
-    *result = nk_sqrt_f32_neon_(sum_squared * inv_n - mean_diff_sq);
+    *result = nk_f32_sqrt_neon(sum_squared * inv_n - mean_diff_sq);
 }
 
 NK_PUBLIC void nk_kabsch_bf16_neonbfdot(nk_bf16_t const *a, nk_bf16_t const *b, nk_size_t n, nk_f32_t *a_centroid,
@@ -462,7 +465,7 @@ NK_PUBLIC void nk_kabsch_bf16_neonbfdot(nk_bf16_t const *a, nk_bf16_t const *b, 
         b_centroid[2] = centroid_b_z;
     }
 
-    // Apply centering correction: H_centered = H - n * centroid_a * centroid_b^T
+    // Apply centering correction: H_centered = H - n * centroid_a * centroid_bᵀ
     h00 -= n * centroid_a_x * centroid_b_x;
     h01 -= n * centroid_a_x * centroid_b_y;
     h02 -= n * centroid_a_x * centroid_b_z;
@@ -478,7 +481,7 @@ NK_PUBLIC void nk_kabsch_bf16_neonbfdot(nk_bf16_t const *a, nk_bf16_t const *b, 
     nk_f32_t svd_u[9], svd_s[9], svd_v[9];
     nk_svd3x3_f32_(cross_covariance, svd_u, svd_s, svd_v);
 
-    // R = V * U^T
+    // R = V * Uᵀ
     nk_f32_t r[9];
     r[0] = svd_v[0] * svd_u[0] + svd_v[1] * svd_u[1] + svd_v[2] * svd_u[2];
     r[1] = svd_v[0] * svd_u[3] + svd_v[1] * svd_u[4] + svd_v[2] * svd_u[5];
@@ -515,7 +518,7 @@ NK_PUBLIC void nk_kabsch_bf16_neonbfdot(nk_bf16_t const *a, nk_bf16_t const *b, 
     // Compute RMSD after optimal rotation
     nk_f32_t sum_squared = nk_transformed_ssd_bf16_neonbfdot_(a, b, n, r, 1.0f, centroid_a_x, centroid_a_y,
                                                               centroid_a_z, centroid_b_x, centroid_b_y, centroid_b_z);
-    *result = nk_sqrt_f32_neon_(sum_squared * inv_n);
+    *result = nk_f32_sqrt_neon(sum_squared * inv_n);
 }
 
 NK_PUBLIC void nk_umeyama_bf16_neonbfdot(nk_bf16_t const *a, nk_bf16_t const *b, nk_size_t n, nk_f32_t *a_centroid,
@@ -705,7 +708,7 @@ NK_PUBLIC void nk_umeyama_bf16_neonbfdot(nk_bf16_t const *a, nk_bf16_t const *b,
     nk_f32_t variance_a = variance_a_sum * inv_n -
                           (centroid_a_x * centroid_a_x + centroid_a_y * centroid_a_y + centroid_a_z * centroid_a_z);
 
-    // Apply centering correction: H_centered = H - n * centroid_a * centroid_b^T
+    // Apply centering correction: H_centered = H - n * centroid_a * centroid_bᵀ
     h00 -= n * centroid_a_x * centroid_b_x;
     h01 -= n * centroid_a_x * centroid_b_y;
     h02 -= n * centroid_a_x * centroid_b_z;
@@ -721,7 +724,7 @@ NK_PUBLIC void nk_umeyama_bf16_neonbfdot(nk_bf16_t const *a, nk_bf16_t const *b,
     nk_f32_t svd_u[9], svd_s[9], svd_v[9];
     nk_svd3x3_f32_(cross_covariance, svd_u, svd_s, svd_v);
 
-    // R = V * U^T
+    // R = V * Uᵀ
     nk_f32_t r[9];
     r[0] = svd_v[0] * svd_u[0] + svd_v[1] * svd_u[1] + svd_v[2] * svd_u[2];
     r[1] = svd_v[0] * svd_u[3] + svd_v[1] * svd_u[4] + svd_v[2] * svd_u[5];
@@ -764,15 +767,18 @@ NK_PUBLIC void nk_umeyama_bf16_neonbfdot(nk_bf16_t const *a, nk_bf16_t const *b,
     // Compute RMSD after similarity transform: ||c*R*a - b||
     nk_f32_t sum_squared = nk_transformed_ssd_bf16_neonbfdot_(a, b, n, r, c, centroid_a_x, centroid_a_y, centroid_a_z,
                                                               centroid_b_x, centroid_b_y, centroid_b_z);
-    *result = nk_sqrt_f32_neon_(sum_squared * inv_n);
+    *result = nk_f32_sqrt_neon(sum_squared * inv_n);
 }
 
 #if defined(__cplusplus)
 } // extern "C"
 #endif
 
+#if defined(__clang__)
 #pragma clang attribute pop
+#elif defined(__GNUC__)
 #pragma GCC pop_options
+#endif
 #endif // NK_TARGET_NEONBFDOT
 #endif // NK_TARGET_ARM_
 

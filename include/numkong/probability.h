@@ -6,10 +6,10 @@
  *
  *  Contains following similarity measures:
  *
- *  - Kullback-Leibler divergence
- *  - Jensen-Shannon divergence
+ *  - Kullback-Leibler Divergence (KLD)
+ *  - Jensen-Shannon Divergence (JSD)
  *
- *  For datatypes:
+ *  For dtypes:
  *
  *  - 64-bit floating point numbers → 64-bit
  *  - 32-bit floating point numbers → 32-bit
@@ -247,6 +247,9 @@ NK_PUBLIC void nk_kld_f16_sapphire(nk_f16_t const *a, nk_f16_t const *b, nk_size
 NK_PUBLIC void nk_jsd_f16_sapphire(nk_f16_t const *a, nk_f16_t const *b, nk_size_t n, nk_f32_t *result);
 #endif // NK_TARGET_SAPPHIRE
 
+#include "numkong/cast/serial.h"    // `nk_f16_to_f64_serial`
+#include "numkong/spatial/serial.h" // `nk_f32_sqrt_serial`
+
 #define NK_MAKE_KLD(name, input_type, accumulator_type, output_type, load_and_convert, epsilon, compute_log) \
     NK_PUBLIC void nk_kld_##input_type##_##name(nk_##input_type##_t const *a, nk_##input_type##_t const *b,  \
                                                 nk_size_t n, output_type *result) {                          \
@@ -275,34 +278,111 @@ NK_PUBLIC void nk_jsd_f16_sapphire(nk_f16_t const *a, nk_f16_t const *b, nk_size
         *result = d_half > 0 ? compute_sqrt(d_half) : 0;                                                     \
     }
 
+/**
+ *  @brief  Computes `log(x)` for any positive float using IEEE 754 bit extraction
+ *          and a fast-converging series expansion.
+ *
+ *  Exploits the IEEE 754 representation to extract the exponent and mantissa:
+ *  `log(x) = log(2) * exponent + log(mantissa)`. The mantissa is reduced to the
+ *  range `[sqrt(2)/2, sqrt(2)]` for optimal convergence. Uses the transformation
+ *  `u = (m-1)/(m+1)` which converges much faster than the classic Mercator series,
+ *  since `u` is bounded to approximately `[-0.17, 0.17]` after range reduction.
+ *
+ *  Maximum relative error is approximately 0.00001% across all positive floats,
+ *  roughly 300,000x more accurate than the 3-term Mercator series (which also
+ *  only converges for inputs in `(0, 2)`).
+ *
+ *  https://en.wikipedia.org/wiki/Logarithm#Power_series
+ */
+NK_INTERNAL nk_f32_t nk_f32_log_serial_(nk_f32_t x) {
+    nk_fui32_t conv;
+    conv.f = x;
+    int exp = ((conv.u >> 23) & 0xFF) - 127;
+    conv.u = (conv.u & 0x007FFFFF) | 0x3F800000; // mantissa in [1, 2)
+    nk_f32_t m = conv.f;
+    // Range reduction: if m > sqrt(2), halve it and increment exponent
+    if (m > 1.41421356f) m *= 0.5f, exp++;
+    // Use (m-1)/(m+1) transformation for faster convergence
+    nk_f32_t u = (m - 1.0f) / (m + 1.0f);
+    nk_f32_t u2 = u * u;
+    // log(m) = 2 * (u + u^3/3 + u^5/5 + u^7/7)
+    nk_f32_t log_m = 2.0f * u * (1.0f + u2 * (0.3333333333f + u2 * (0.2f + u2 * 0.142857143f)));
+    return (nk_f32_t)exp * 0.6931471805599453f + log_m;
+}
+
+/**
+ *  @brief  Computes `log(x)` for any positive double using IEEE 754 bit extraction
+ *          and a fast-converging series expansion.
+ *
+ *  Exploits the IEEE 754 representation to extract the 11-bit exponent and 52-bit mantissa:
+ *  `log(x) = log(2) * exponent + log(mantissa)`. The mantissa is reduced to the
+ *  range `[sqrt(2)/2, sqrt(2)]` for optimal convergence. Uses the transformation
+ *  `u = (m-1)/(m+1)` which converges much faster than the classic Mercator series,
+ *  since `u` is bounded to approximately `[-0.17, 0.17]` after range reduction.
+ *
+ *  Uses more series terms than the f32 version to achieve near-full f64 precision,
+ *  with maximum relative error approximately 0.0000000001% across all positive doubles.
+ *
+ *  https://en.wikipedia.org/wiki/Logarithm#Power_series
+ */
+NK_INTERNAL nk_f64_t nk_f64_log_serial_(nk_f64_t x) {
+    nk_fui64_t conv;
+    conv.f = x;
+    int exp = ((conv.u >> 52) & 0x7FF) - 1023;
+    conv.u = (conv.u & 0x000FFFFFFFFFFFFFULL) | 0x3FF0000000000000ULL; // mantissa in [1, 2)
+    nk_f64_t m = conv.f;
+    // Range reduction: if m > sqrt(2), halve it and increment exponent
+    if (m > 1.4142135623730950488) m *= 0.5, exp++;
+    // Use (m-1)/(m+1) transformation for faster convergence
+    nk_f64_t u = (m - 1.0) / (m + 1.0);
+    nk_f64_t u2 = u * u;
+    // log(m) = 2 * (u + u^3/3 + u^5/5 + u^7/7 + u^9/9 + u^11/11 + u^13/13)
+    nk_f64_t log_m = 2.0 * u *
+                     (1.0 + u2 * (0.3333333333333333 +
+                                  u2 * (0.2 + u2 * (0.14285714285714285 +
+                                                    u2 * (0.1111111111111111 +
+                                                          u2 * (0.09090909090909091 + u2 * 0.07692307692307693))))));
+    return (nk_f64_t)exp * 0.6931471805599453 + log_m;
+}
+
 // Serial variants: f64 inputs → f64 output, f32 inputs → f32 output, f16/bf16 inputs → f32 output
-NK_MAKE_KLD(serial, f64, f64, nk_f64_t, nk_assign_from_to_, NK_F64_DIVISION_EPSILON, NK_F64_LOG)
-NK_MAKE_JSD(serial, f64, f64, nk_f64_t, nk_assign_from_to_, NK_F64_DIVISION_EPSILON, NK_F64_LOG, NK_F64_SQRT)
+NK_MAKE_KLD(serial, f64, f64, nk_f64_t, nk_assign_from_to_, NK_F64_DIVISION_EPSILON, nk_f64_log_serial_)
+NK_MAKE_JSD(serial, f64, f64, nk_f64_t, nk_assign_from_to_, NK_F64_DIVISION_EPSILON, nk_f64_log_serial_,
+            nk_f64_sqrt_serial)
 
-NK_MAKE_KLD(serial, f32, f32, nk_f32_t, nk_assign_from_to_, NK_F32_DIVISION_EPSILON, NK_F32_LOG)
-NK_MAKE_JSD(serial, f32, f32, nk_f32_t, nk_assign_from_to_, NK_F32_DIVISION_EPSILON, NK_F32_LOG, NK_F32_SQRT)
+NK_MAKE_KLD(serial, f32, f32, nk_f32_t, nk_assign_from_to_, NK_F32_DIVISION_EPSILON, nk_f32_log_serial_)
+NK_MAKE_JSD(serial, f32, f32, nk_f32_t, nk_assign_from_to_, NK_F32_DIVISION_EPSILON, nk_f32_log_serial_,
+            nk_f32_sqrt_serial)
 
-NK_MAKE_KLD(serial, f16, f32, nk_f32_t, nk_f16_to_f32, NK_F32_DIVISION_EPSILON, NK_F32_LOG)
-NK_MAKE_JSD(serial, f16, f32, nk_f32_t, nk_f16_to_f32, NK_F32_DIVISION_EPSILON, NK_F32_LOG, NK_F32_SQRT)
+NK_MAKE_KLD(serial, f16, f32, nk_f32_t, nk_f16_to_f32_serial, NK_F32_DIVISION_EPSILON, nk_f32_log_serial_)
+NK_MAKE_JSD(serial, f16, f32, nk_f32_t, nk_f16_to_f32_serial, NK_F32_DIVISION_EPSILON, nk_f32_log_serial_,
+            nk_f32_sqrt_serial)
 
-NK_MAKE_KLD(serial, bf16, f32, nk_f32_t, nk_bf16_to_f32, NK_F32_DIVISION_EPSILON, NK_F32_LOG)
-NK_MAKE_JSD(serial, bf16, f32, nk_f32_t, nk_bf16_to_f32, NK_F32_DIVISION_EPSILON, NK_F32_LOG, NK_F32_SQRT)
+NK_MAKE_KLD(serial, bf16, f32, nk_f32_t, nk_bf16_to_f32_serial, NK_F32_DIVISION_EPSILON, nk_f32_log_serial_)
+NK_MAKE_JSD(serial, bf16, f32, nk_f32_t, nk_bf16_to_f32_serial, NK_F32_DIVISION_EPSILON, nk_f32_log_serial_,
+            nk_f32_sqrt_serial)
 
 // Accurate variants: use f64 math and always f64 output (internal use for numerical verification)
-NK_MAKE_KLD(accurate, f32, f64, nk_f64_t, nk_assign_from_to_, NK_F32_DIVISION_EPSILON, NK_F64_LOG)
-NK_MAKE_JSD(accurate, f32, f64, nk_f64_t, nk_assign_from_to_, NK_F32_DIVISION_EPSILON, NK_F64_LOG, NK_F64_SQRT)
+NK_MAKE_KLD(accurate, f32, f64, nk_f64_t, nk_assign_from_to_, NK_F32_DIVISION_EPSILON, nk_f64_log_serial_)
+NK_MAKE_JSD(accurate, f32, f64, nk_f64_t, nk_assign_from_to_, NK_F32_DIVISION_EPSILON, nk_f64_log_serial_,
+            nk_f64_sqrt_serial)
 
-NK_MAKE_KLD(accurate, f16, f64, nk_f64_t, nk_f16_to_f64, NK_F32_DIVISION_EPSILON, NK_F64_LOG)
-NK_MAKE_JSD(accurate, f16, f64, nk_f64_t, nk_f16_to_f64, NK_F32_DIVISION_EPSILON, NK_F64_LOG, NK_F64_SQRT)
+NK_MAKE_KLD(accurate, f16, f64, nk_f64_t, nk_f16_to_f64_serial, NK_F32_DIVISION_EPSILON, nk_f64_log_serial_)
+NK_MAKE_JSD(accurate, f16, f64, nk_f64_t, nk_f16_to_f64_serial, NK_F32_DIVISION_EPSILON, nk_f64_log_serial_,
+            nk_f64_sqrt_serial)
 
-NK_MAKE_KLD(accurate, bf16, f64, nk_f64_t, nk_bf16_to_f64, NK_F32_DIVISION_EPSILON, NK_F64_LOG)
-NK_MAKE_JSD(accurate, bf16, f64, nk_f64_t, nk_bf16_to_f64, NK_F32_DIVISION_EPSILON, NK_F64_LOG, NK_F64_SQRT)
+NK_MAKE_KLD(accurate, bf16, f64, nk_f64_t, nk_bf16_to_f64_serial, NK_F32_DIVISION_EPSILON, nk_f64_log_serial_)
+NK_MAKE_JSD(accurate, bf16, f64, nk_f64_t, nk_bf16_to_f64_serial, NK_F32_DIVISION_EPSILON, nk_f64_log_serial_,
+            nk_f64_sqrt_serial)
 
 #if NK_TARGET_ARM_
 #if NK_TARGET_NEON
+#if defined(__clang__)
+#pragma clang attribute push(__attribute__((target("arch=armv8.2-a+simd"))), apply_to = function)
+#elif defined(__GNUC__)
 #pragma GCC push_options
 #pragma GCC target("arch=armv8.2-a+simd")
-#pragma clang attribute push(__attribute__((target("arch=armv8.2-a+simd"))), apply_to = function)
+#endif
 
 NK_PUBLIC float32x4_t nk_log2_f32_neon_(float32x4_t x) {
     // Extracting the exponent
@@ -339,8 +419,8 @@ NK_PUBLIC void nk_kld_f32_neon(nk_f32_t const *a, nk_f32_t const *b, nk_size_t n
 
 nk_kld_f32_neon_cycle:
     if (n < 4) {
-        a_f32x4 = nk_partial_load_f32x4_neon_(a, n);
-        b_f32x4 = nk_partial_load_f32x4_neon_(b, n);
+        a_f32x4 = nk_partial_load_b32x4_serial_(a, n);
+        b_f32x4 = nk_partial_load_b32x4_serial_(b, n);
         n = 0;
     }
     else {
@@ -368,8 +448,8 @@ NK_PUBLIC void nk_jsd_f32_neon(nk_f32_t const *a, nk_f32_t const *b, nk_size_t n
 
 nk_jsd_f32_neon_cycle:
     if (n < 4) {
-        a_f32x4 = nk_partial_load_f32x4_neon_(a, n);
-        b_f32x4 = nk_partial_load_f32x4_neon_(b, n);
+        a_f32x4 = nk_partial_load_b32x4_serial_(a, n);
+        b_f32x4 = nk_partial_load_b32x4_serial_(b, n);
         n = 0;
     }
     else {
@@ -391,17 +471,23 @@ nk_jsd_f32_neon_cycle:
 
     nk_f32_t log2_normalizer = 0.693147181f;
     nk_f32_t sum = vaddvq_f32(sum_f32x4) * log2_normalizer / 2;
-    *result = sum > 0 ? nk_sqrt_f32_neon_(sum) : 0;
+    *result = sum > 0 ? nk_f32_sqrt_neon(sum) : 0;
 }
 
+#if defined(__clang__)
 #pragma clang attribute pop
+#elif defined(__GNUC__)
 #pragma GCC pop_options
+#endif
 #endif // NK_TARGET_NEON
 
 #if NK_TARGET_NEONHALF
+#if defined(__clang__)
+#pragma clang attribute push(__attribute__((target("arch=armv8.2-a+simd+fp16"))), apply_to = function)
+#elif defined(__GNUC__)
 #pragma GCC push_options
 #pragma GCC target("arch=armv8.2-a+simd+fp16")
-#pragma clang attribute push(__attribute__((target("arch=armv8.2-a+simd+fp16"))), apply_to = function)
+#endif
 
 #include "numkong/reduce/neonhalf.h" // nk_partial_load_f16x4_to_f32x4_neonhalf_
 
@@ -464,19 +550,25 @@ nk_jsd_f16_neonhalf_cycle:
 
     nk_f32_t log2_normalizer = 0.693147181f;
     nk_f32_t sum = vaddvq_f32(sum_f32x4) * log2_normalizer / 2;
-    *result = sum > 0 ? nk_sqrt_f32_neon_(sum) : 0;
+    *result = sum > 0 ? nk_f32_sqrt_neon(sum) : 0;
 }
 
+#if defined(__clang__)
 #pragma clang attribute pop
+#elif defined(__GNUC__)
 #pragma GCC pop_options
+#endif
 #endif // NK_TARGET_NEONHALF
 #endif // NK_TARGET_ARM_
 
 #if NK_TARGET_X86_
 #if NK_TARGET_HASWELL
+#if defined(__clang__)
+#pragma clang attribute push(__attribute__((target("avx2,f16c,fma,bmi,bmi2"))), apply_to = function)
+#elif defined(__GNUC__)
 #pragma GCC push_options
-#pragma GCC target("avx2", "f16c", "fma")
-#pragma clang attribute push(__attribute__((target("avx2,f16c,fma"))), apply_to = function)
+#pragma GCC target("avx2", "f16c", "fma", "bmi", "bmi2")
+#endif
 
 NK_INTERNAL __m256 nk_log2_f32_haswell_(__m256 x) {
     // Extracting the exponent
@@ -519,8 +611,8 @@ nk_kld_f16_haswell_cycle:
         n = 0;
     }
     else {
-        a_f32x8 = _mm256_cvtph_ps(_mm_lddqu_si128((__m128i const *)a));
-        b_f32x8 = _mm256_cvtph_ps(_mm_lddqu_si128((__m128i const *)b));
+        a_f32x8 = _mm256_cvtph_ps(_mm_loadu_si128((__m128i const *)a));
+        b_f32x8 = _mm256_cvtph_ps(_mm_loadu_si128((__m128i const *)b));
         n -= 8, a += 8, b += 8;
     }
     a_f32x8 = _mm256_add_ps(a_f32x8, epsilon_f32x8);
@@ -550,8 +642,8 @@ nk_jsd_f16_haswell_cycle:
         n = 0;
     }
     else {
-        a_f32x8 = _mm256_cvtph_ps(_mm_lddqu_si128((__m128i const *)a));
-        b_f32x8 = _mm256_cvtph_ps(_mm_lddqu_si128((__m128i const *)b));
+        a_f32x8 = _mm256_cvtph_ps(_mm_loadu_si128((__m128i const *)a));
+        b_f32x8 = _mm256_cvtph_ps(_mm_loadu_si128((__m128i const *)b));
         n -= 8, a += 8, b += 8;
     }
     __m256 mean_f32x8 = _mm256_mul_ps(_mm256_add_ps(a_f32x8, b_f32x8), _mm256_set1_ps(0.5f)); // M = (P + Q) / 2
@@ -581,14 +673,21 @@ NK_PUBLIC void nk_jsd_f64_haswell(nk_f64_t const *a, nk_f64_t const *b, nk_size_
     nk_jsd_f64_serial(a, b, n, result);
 }
 
+#if defined(__clang__)
 #pragma clang attribute pop
+#elif defined(__GNUC__)
 #pragma GCC pop_options
+#endif
 #endif // NK_TARGET_HASWELL
 
 #if NK_TARGET_SKYLAKE
+#if defined(__clang__)
+#pragma clang attribute push(__attribute__((target("avx2,avx512f,avx512vl,avx512bw,avx512dq,f16c,fma,bmi,bmi2"))), \
+                             apply_to = function)
+#elif defined(__GNUC__)
 #pragma GCC push_options
-#pragma GCC target("avx2", "avx512f", "avx512vl", "bmi2")
-#pragma clang attribute push(__attribute__((target("avx2,avx512f,avx512vl,bmi2"))), apply_to = function)
+#pragma GCC target("avx2", "avx512f", "avx512vl", "avx512bw", "avx512dq", "f16c", "fma", "bmi", "bmi2")
+#endif
 
 NK_INTERNAL __m512 nk_log2_f32_skylake_(__m512 x) {
     // Extract the exponent and mantissa
@@ -780,14 +879,21 @@ nk_jsd_f64_skylake_cycle:
     *result = sum > 0 ? nk_sqrt_f64_haswell_(sum) : 0;
 }
 
+#if defined(__clang__)
 #pragma clang attribute pop
+#elif defined(__GNUC__)
 #pragma GCC pop_options
+#endif
 #endif // NK_TARGET_SKYLAKE
 
 #if NK_TARGET_SAPPHIRE
+#if defined(__clang__)
+#pragma clang attribute push(__attribute__((target("avx2,avx512f,avx512vl,avx512bw,avx512fp16,f16c,fma,bmi,bmi2"))), \
+                             apply_to = function)
+#elif defined(__GNUC__)
 #pragma GCC push_options
-#pragma GCC target("avx2", "avx512f", "avx512vl", "bmi2", "avx512fp16")
-#pragma clang attribute push(__attribute__((target("avx2,avx512f,avx512vl,bmi2,avx512fp16"))), apply_to = function)
+#pragma GCC target("avx2", "avx512f", "avx512vl", "avx512bw", "avx512fp16", "f16c", "fma", "bmi", "bmi2")
+#endif
 
 NK_INTERNAL __m512h nk_log2_f16_sapphire_(__m512h x) {
     // Extract the exponent and mantissa
@@ -871,8 +977,11 @@ nk_jsd_f16_sapphire_cycle:
     *result = sum > 0 ? nk_sqrt_f32_haswell_(sum) : 0;
 }
 
+#if defined(__clang__)
 #pragma clang attribute pop
+#elif defined(__GNUC__)
 #pragma GCC pop_options
+#endif
 #endif // NK_TARGET_SAPPHIRE
 #endif // NK_TARGET_X86_
 

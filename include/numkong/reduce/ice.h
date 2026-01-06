@@ -10,10 +10,14 @@
 
 #if NK_TARGET_X86_
 #if NK_TARGET_ICE
+#if defined(__clang__)
+#pragma clang attribute push(                                                                        \
+    __attribute__((target("avx2,avx512f,avx512vl,avx512bw,avx512dq,avx512vnni,f16c,fma,bmi,bmi2"))), \
+    apply_to = function)
+#elif defined(__GNUC__)
 #pragma GCC push_options
-#pragma GCC target("avx2", "avx512f", "avx512vl", "bmi2", "avx512bw", "avx512vnni")
-#pragma clang attribute push(__attribute__((target("avx2,avx512f,avx512vl,bmi2,avx512bw,avx512vnni"))), \
-                             apply_to = function)
+#pragma GCC target("avx2", "avx512f", "avx512vl", "avx512bw", "avx512dq", "avx512vnni", "f16c", "fma", "bmi", "bmi2")
+#endif
 
 #include "numkong/types.h"
 #include "numkong/reduce/serial.h"
@@ -22,7 +26,7 @@
 extern "C" {
 #endif
 
-NK_INTERNAL __mmask64 nk_stride_mask_b8x64_ice_(nk_size_t stride) {
+NK_INTERNAL __mmask64 nk_stride_mask_u1x64_ice_(nk_size_t stride) {
     switch (stride) {
     case 2: return (__mmask64)0x5555555555555555ull;
     case 3: return (__mmask64)0x1249249249249249ull;
@@ -211,7 +215,7 @@ NK_INTERNAL void nk_reduce_add_i8_ice_contiguous_( //
 NK_INTERNAL void nk_reduce_add_i8_ice_strided_(                      //
     nk_i8_t const *data, nk_size_t count, nk_size_t stride_elements, //
     nk_i64_t *result) {
-    __mmask64 stride_mask_m64 = nk_stride_mask_b8x64_ice_(stride_elements);
+    __mmask64 stride_mask_m64 = nk_stride_mask_u1x64_ice_(stride_elements);
     __m512i ones_i16x32 = _mm512_set1_epi16(1);
     __m512i sum_i32x16 = _mm512_setzero_si512();
     nk_size_t idx_scalars = 0;
@@ -277,7 +281,7 @@ NK_INTERNAL void nk_reduce_add_u8_ice_contiguous_( //
 NK_INTERNAL void nk_reduce_add_u8_ice_strided_(                      //
     nk_u8_t const *data, nk_size_t count, nk_size_t stride_elements, //
     nk_u64_t *result) {
-    __mmask64 stride_mask_m64 = nk_stride_mask_b8x64_ice_(stride_elements);
+    __mmask64 stride_mask_m64 = nk_stride_mask_u1x64_ice_(stride_elements);
     __m512i ones_i16x32 = _mm512_set1_epi16(1);
     __m512i sum_i32x16 = _mm512_setzero_si512();
     nk_size_t idx_scalars = 0;
@@ -314,8 +318,11 @@ NK_PUBLIC void nk_reduce_add_u8_ice(                              //
 } // extern "C"
 #endif
 
+#if defined(__clang__)
 #pragma clang attribute pop
+#elif defined(__GNUC__)
 #pragma GCC pop_options
+#endif
 #endif // NK_TARGET_ICE
 #endif // NK_TARGET_X86_
 

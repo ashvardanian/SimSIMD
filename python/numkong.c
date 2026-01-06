@@ -100,13 +100,13 @@
 /**
  *  @brief  Get the kernel's native output dtype for a given metric and input dtype.
  */
-static nk_datatype_t metric_kernel_output_dtype(nk_kernel_kind_t kind, nk_datatype_t input) {
+static nk_dtype_t metric_kernel_output_dtype(nk_kernel_kind_t kind, nk_dtype_t input) {
     switch (kind) {
     case nk_kernel_dot_k:
-    case nk_kernel_vdot_k: return nk_dot_output_datatype(input);
-    case nk_kernel_l2_k: return nk_l2_output_datatype(input);
-    case nk_kernel_l2sq_k: return nk_l2sq_output_datatype(input);
-    case nk_kernel_angular_k: return nk_angular_output_datatype(input);
+    case nk_kernel_vdot_k: return nk_dot_output_dtype(input);
+    case nk_kernel_l2_k: return nk_l2_output_dtype(input);
+    case nk_kernel_l2sq_k: return nk_l2sq_output_dtype(input);
+    case nk_kernel_angular_k: return nk_angular_output_dtype(input);
     default: return nk_f64_k;
     }
 }
@@ -133,7 +133,7 @@ nk_dtype_info_t const nk_dtype_table[] = {
     {nk_f32c_k, "complex64", "Zf", "<c8", sizeof(nk_f32_t) * 2, 1},
     {nk_f16c_k, "complex32", "Ze", "|V4", sizeof(nk_f16_t) * 2, 1},
     {nk_bf16c_k, "bfloat16c", "bcomplex32", "|V4", sizeof(nk_bf16_t) * 2, 1},
-    {nk_b8_k, "bin8", "?", "|V1", sizeof(nk_b8_t), 0},
+    {nk_u1_k, "bin8", "?", "|V1", sizeof(nk_u1x8_t), 0},
     {nk_i8_k, "int8", "b", "|i1", sizeof(nk_i8_t), 0},
     {nk_u8_k, "uint8", "B", "|u1", sizeof(nk_u8_t), 0},
     {nk_i16_k, "int16", "h", "<i2", sizeof(nk_i16_t), 0},
@@ -150,41 +150,41 @@ size_t const nk_dtype_table_size = sizeof(nk_dtype_table) / sizeof(nk_dtype_tabl
 
 #pragma region Datatype Utilities
 
-nk_dtype_info_t const *datatype_info(nk_datatype_t dtype) {
+nk_dtype_info_t const *dtype_info(nk_dtype_t dtype) {
     for (size_t i = 0; i < nk_dtype_table_size; i++) {
         if (nk_dtype_table[i].dtype == dtype) return &nk_dtype_table[i];
     }
     return NULL;
 }
 
-size_t bytes_per_datatype(nk_datatype_t dtype) {
-    nk_dtype_info_t const *info = datatype_info(dtype);
+size_t bytes_per_dtype(nk_dtype_t dtype) {
+    nk_dtype_info_t const *info = dtype_info(dtype);
     return info ? info->item_size : 0;
 }
 
-char const *datatype_to_string(nk_datatype_t dtype) {
-    nk_dtype_info_t const *info = datatype_info(dtype);
+char const *dtype_to_string(nk_dtype_t dtype) {
+    nk_dtype_info_t const *info = dtype_info(dtype);
     return info ? info->name : "unknown";
 }
 
-char const *datatype_to_array_typestr(nk_datatype_t dtype) {
-    nk_dtype_info_t const *info = datatype_info(dtype);
+char const *dtype_to_array_typestr(nk_dtype_t dtype) {
+    nk_dtype_info_t const *info = dtype_info(dtype);
     return info ? info->array_typestr : "|V1";
 }
 
-char const *datatype_to_python_string(nk_datatype_t dtype) {
-    nk_dtype_info_t const *info = datatype_info(dtype);
+char const *dtype_to_python_string(nk_dtype_t dtype) {
+    nk_dtype_info_t const *info = dtype_info(dtype);
     return info ? info->buffer_format : "unknown";
 }
 
 int same_string(char const *a, char const *b) { return strcmp(a, b) == 0; }
 
-int is_complex(nk_datatype_t datatype) {
-    nk_dtype_info_t const *info = datatype_info(datatype);
+int is_complex(nk_dtype_t dtype) {
+    nk_dtype_info_t const *info = dtype_info(dtype);
     return info ? info->is_complex : 0;
 }
 
-nk_datatype_t python_string_to_datatype(char const *name) {
+nk_dtype_t python_string_to_dtype(char const *name) {
     // Floating-point numbers:
     if (same_string(name, "float32") || same_string(name, "f4") || same_string(name, "<f4") || same_string(name, "f") ||
         same_string(name, "<f"))
@@ -215,7 +215,7 @@ nk_datatype_t python_string_to_datatype(char const *name) {
         return nk_bf16c_k;
 
     // Boolean values:
-    else if (same_string(name, "bin8") || same_string(name, "?")) return nk_b8_k;
+    else if (same_string(name, "bin8") || same_string(name, "?")) return nk_u1_k;
 
     // Signed integers:
     else if (same_string(name, "int8") || same_string(name, "i1") || same_string(name, "|i1") ||
@@ -266,7 +266,7 @@ nk_datatype_t python_string_to_datatype(char const *name) {
         return nk_u64_k;
 #endif
 
-    else return nk_datatype_unknown_k;
+    else return nk_dtype_unknown_k;
 }
 
 nk_kernel_kind_t python_string_to_metric_kind(char const *name) {
@@ -284,7 +284,7 @@ nk_kernel_kind_t python_string_to_metric_kind(char const *name) {
     else return nk_kernel_unknown_k;
 }
 
-int cast_distance(nk_fmax_t distance, nk_datatype_t target_dtype, void *target_ptr, size_t offset) {
+int cast_distance(nk_fmax_t distance, nk_dtype_t target_dtype, void *target_ptr, size_t offset) {
     nk_f32_t f32_val;
     switch (target_dtype) {
     case nk_f64c_k: ((nk_f64_t *)target_ptr)[offset] = (nk_f64_t)distance; return 1;
@@ -352,9 +352,9 @@ int parse_tensor(PyObject *tensor, Py_buffer *buffer, TensorArgument *parsed) {
     }
 
     parsed->start = buffer->buf;
-    parsed->datatype = python_string_to_datatype(buffer->format);
-    if (parsed->datatype == nk_datatype_unknown_k) {
-        PyErr_Format(PyExc_ValueError, "Unsupported '%s' datatype specifier", buffer->format);
+    parsed->dtype = python_string_to_dtype(buffer->format);
+    if (parsed->dtype == nk_dtype_unknown_k) {
+        PyErr_Format(PyExc_ValueError, "Unsupported '%s' dtype specifier", buffer->format);
         PyBuffer_Release(buffer);
         return 0;
     }
@@ -392,10 +392,7 @@ int parse_tensor(PyObject *tensor, Py_buffer *buffer, TensorArgument *parsed) {
 #pragma endregion // Buffer Protocol Helpers
 
 static char const doc_enable_capability[] = //
-    "Enable a specific SIMD kernel family.\n\n"
-    "Parameters:\n"
-    "    capability : str\n"
-    "        Name of the SIMD feature to enable (for example, 'haswell').";
+    "Enable a specific SIMD kernel family.\n\n" "Parameters:\n" "    capability : str\n" "        Name of the SIMD " "f" "e" "a" "t" "u" "r" "e" " " "t" "o" " " "e" "n" "a" "b" "l" "e" " " "(" "f" "o" "r" " " "example, 'haswell').";
 
 static PyObject *api_enable_capability(PyObject *self, PyObject *cap_name_obj) {
     char const *cap_name = PyUnicode_AsUTF8(cap_name_obj);
@@ -449,10 +446,7 @@ static PyObject *api_enable_capability(PyObject *self, PyObject *cap_name_obj) {
 }
 
 static char const doc_disable_capability[] = //
-    "Disable a specific SIMD kernel family.\n\n"
-    "Parameters:\n"
-    "    capability : str\n"
-    "        Name of the SIMD feature to disable (for example, 'haswell').";
+    "Disable a specific SIMD kernel family.\n\n" "Parameters:\n" "    capability : str\n" "        Name of the SIMD " "feature to disable (for " "example, 'haswell').";
 
 static PyObject *api_disable_capability(PyObject *self, PyObject *cap_name_obj) {
     char const *cap_name = PyUnicode_AsUTF8(cap_name_obj);
@@ -506,9 +500,7 @@ static PyObject *api_disable_capability(PyObject *self, PyObject *cap_name_obj) 
 }
 
 static char const doc_get_capabilities[] = //
-    "Get the current hardware SIMD capabilities as a dictionary of feature flags.\n"
-    "On x86 it includes: 'serial', 'haswell', 'skylake', 'ice', 'genoa', 'sapphire', 'turin'.\n"
-    "On Arm it includes: 'serial', 'neon', 'sve', 'sve2', and their extensions.\n";
+    "Get the current hardware SIMD capabilities as a dictionary of feature flags.\n" "On x86 it includes: 'serial', " "'haswell', 'skylake', 'ice', " "'genoa', 'sapphire', 'turin'.\n" "On Arm it includes: 'serial', 'neon', 'sve', 'sve2', and their extensions.\n";
 
 static PyObject *api_get_capabilities(PyObject *self) {
     nk_capability_t caps = static_capabilities;
@@ -554,7 +546,7 @@ static PyObject *implement_dense_metric( //
 
     // Once parsed, the arguments will be stored in these variables:
     char const *dtype_str = NULL, *out_dtype_str = NULL;
-    nk_datatype_t dtype = nk_datatype_unknown_k, out_dtype = nk_datatype_unknown_k;
+    nk_dtype_t dtype = nk_dtype_unknown_k, out_dtype = nk_dtype_unknown_k;
     Py_buffer a_buffer, b_buffer, out_buffer;
     TensorArgument a_parsed, b_parsed, out_parsed;
     memset(&a_buffer, 0, sizeof(Py_buffer));
@@ -601,8 +593,8 @@ static PyObject *implement_dense_metric( //
             PyErr_SetString(PyExc_TypeError, "Expected 'dtype' to be a string");
             return NULL;
         }
-        dtype = python_string_to_datatype(dtype_str);
-        if (dtype == nk_datatype_unknown_k) {
+        dtype = python_string_to_dtype(dtype_str);
+        if (dtype == nk_dtype_unknown_k) {
             PyErr_SetString(PyExc_ValueError, "Unsupported 'dtype'");
             return NULL;
         }
@@ -615,8 +607,8 @@ static PyObject *implement_dense_metric( //
             PyErr_SetString(PyExc_TypeError, "Expected 'out_dtype' to be a string");
             return NULL;
         }
-        out_dtype = python_string_to_datatype(out_dtype_str);
-        if (out_dtype == nk_datatype_unknown_k) {
+        out_dtype = python_string_to_dtype(out_dtype_str);
+        if (out_dtype == nk_dtype_unknown_k) {
             PyErr_SetString(PyExc_ValueError, "Unsupported 'out_dtype'");
             return NULL;
         }
@@ -641,38 +633,36 @@ static PyObject *implement_dense_metric( //
     }
 
     // Check data types
-    if (a_parsed.datatype != b_parsed.datatype || //
-        a_parsed.datatype == nk_datatype_unknown_k || b_parsed.datatype == nk_datatype_unknown_k) {
-        PyErr_SetString(PyExc_TypeError,
-                        "Input tensors must have matching datatypes, check with `X.__array_interface__`");
+    if (a_parsed.dtype != b_parsed.dtype || //
+        a_parsed.dtype == nk_dtype_unknown_k || b_parsed.dtype == nk_dtype_unknown_k) {
+        PyErr_SetString(PyExc_TypeError, "Input tensors must have matching dtypes, check with `X.__array_interface__`");
         goto cleanup;
     }
-    if (dtype == nk_datatype_unknown_k) dtype = a_parsed.datatype;
+    if (dtype == nk_dtype_unknown_k) dtype = a_parsed.dtype;
 
     // Inference order for the output type:
     // 1. `out_dtype` named argument, if defined
     // 2. `out.dtype` attribute, if `out` is passed
     // 3. double precision float (or its complex variant)
-    if (out_dtype == nk_datatype_unknown_k) {
-        if (out_obj) { out_dtype = out_parsed.datatype; }
+    if (out_dtype == nk_dtype_unknown_k) {
+        if (out_obj) { out_dtype = out_parsed.dtype; }
         else { out_dtype = is_complex(dtype) ? nk_f64c_k : nk_f64_k; }
     }
 
-    // Make sure the return datatype is complex if the input datatype is complex, and the same for real numbers
-    if (out_dtype != nk_datatype_unknown_k) {
+    // Make sure the return dtype is complex if the input dtype is complex, and the same for real numbers
+    if (out_dtype != nk_dtype_unknown_k) {
         if (is_complex(dtype) != is_complex(out_dtype)) {
-            PyErr_SetString(
-                PyExc_ValueError,
-                "If the input datatype is complex, the return datatype must be complex, and same for real.");
+            PyErr_SetString(PyExc_ValueError,
+                            "If the input dtype is complex, the return dtype must be complex, and same for real.");
             goto cleanup;
         }
     }
 
-    // Check if the downcasting to provided datatype is supported
+    // Check if the downcasting to provided dtype is supported
     {
         char returned_buffer_example[8];
         if (!cast_distance(0, out_dtype, &returned_buffer_example, 0)) {
-            PyErr_SetString(PyExc_ValueError, "Exporting to the provided datatype is not supported");
+            PyErr_SetString(PyExc_ValueError, "Exporting to the provided dtype is not supported");
             goto cleanup;
         }
     }
@@ -685,18 +675,17 @@ static PyObject *implement_dense_metric( //
     if (!metric) {
         PyErr_Format( //
             PyExc_LookupError,
-            "Unsupported metric '%c' and datatype combination across vectors ('%s'/'%s' and '%s'/'%s') and "
-            "`dtype` override ('%s'/'%s')",
-            metric_kind,                                                                             //
-            a_buffer.format ? a_buffer.format : "nil", datatype_to_python_string(a_parsed.datatype), //
-            b_buffer.format ? b_buffer.format : "nil", datatype_to_python_string(b_parsed.datatype), //
-            dtype_str ? dtype_str : "nil", datatype_to_python_string(dtype));
+            "Unsupported metric '%c' and dtype combination across vectors ('%s'/'%s' and '%s'/'%s') and " "`dtype` " "o" "v" "e" "r" "r" "i" "d" "e" " " "('%s'/" "'%s')",
+            metric_kind,                                                                       //
+            a_buffer.format ? a_buffer.format : "nil", dtype_to_python_string(a_parsed.dtype), //
+            b_buffer.format ? b_buffer.format : "nil", dtype_to_python_string(b_parsed.dtype), //
+            dtype_str ? dtype_str : "nil", dtype_to_python_string(dtype));
         goto cleanup;
     }
 
     // If the distance is computed between two vectors, rather than matrices, return a scalar
     int const dtype_is_complex = is_complex(dtype);
-    nk_datatype_t const kernel_out_dtype = metric_kernel_output_dtype(metric_kind, dtype);
+    nk_dtype_t const kernel_out_dtype = metric_kernel_output_dtype(metric_kind, dtype);
     if (a_parsed.rank == 1 && b_parsed.rank == 1) {
         nk_scalar_buffer_t distances[2];
         metric(a_parsed.start, b_parsed.start, a_parsed.dimensions, distances);
@@ -723,18 +712,18 @@ static PyObject *implement_dense_metric( //
 
     // Allocate the output matrix if it wasn't provided
     if (!out_obj) {
-        Tensor *distances_obj = PyObject_NewVar(Tensor, &TensorType, count_components * bytes_per_datatype(out_dtype));
+        Tensor *distances_obj = PyObject_NewVar(Tensor, &TensorType, count_components * bytes_per_dtype(out_dtype));
         if (!distances_obj) {
             PyErr_NoMemory();
             goto cleanup;
         }
 
         // Initialize the object
-        distances_obj->datatype = out_dtype;
+        distances_obj->dtype = out_dtype;
         distances_obj->rank = 1;
         distances_obj->shape[0] = count_pairs;
         distances_obj->shape[1] = 0;
-        distances_obj->strides[0] = bytes_per_datatype(out_dtype);
+        distances_obj->strides[0] = bytes_per_dtype(out_dtype);
         distances_obj->strides[1] = 0;
         distances_obj->parent = NULL;
         distances_obj->data = distances_obj->start;
@@ -743,12 +732,12 @@ static PyObject *implement_dense_metric( //
         distances_stride_bytes = distances_obj->strides[0];
     }
     else {
-        if (bytes_per_datatype(out_parsed.datatype) != bytes_per_datatype(out_dtype)) {
+        if (bytes_per_dtype(out_parsed.dtype) != bytes_per_dtype(out_dtype)) {
             PyErr_Format( //
                 PyExc_LookupError,
                 "Output tensor scalar type must be compatible with the output type ('%s' and '%s'/'%s')",
-                datatype_to_python_string(out_dtype), out_buffer.format ? out_buffer.format : "nil",
-                datatype_to_python_string(out_parsed.datatype));
+                dtype_to_python_string(out_dtype), out_buffer.format ? out_buffer.format : "nil",
+                dtype_to_python_string(out_parsed.dtype));
             goto cleanup;
         }
         distances_start = (char *)&out_parsed.start[0];
@@ -801,7 +790,7 @@ static PyObject *implement_curved_metric( //
 
     // Once parsed, the arguments will be stored in these variables:
     char const *dtype_str = NULL;
-    nk_datatype_t dtype = nk_datatype_unknown_k;
+    nk_dtype_t dtype = nk_dtype_unknown_k;
     Py_buffer a_buffer, b_buffer, c_buffer;
     TensorArgument a_parsed, b_parsed, c_parsed;
     memset(&a_buffer, 0, sizeof(Py_buffer));
@@ -847,8 +836,8 @@ static PyObject *implement_curved_metric( //
             PyErr_SetString(PyExc_TypeError, "Expected 'dtype' to be a string");
             return NULL;
         }
-        dtype = python_string_to_datatype(dtype_str);
-        if (dtype == nk_datatype_unknown_k) {
+        dtype = python_string_to_dtype(dtype_str);
+        if (dtype == nk_dtype_unknown_k) {
             PyErr_SetString(PyExc_ValueError, "Unsupported 'dtype'");
             return NULL;
         }
@@ -878,14 +867,12 @@ static PyObject *implement_curved_metric( //
     }
 
     // Check data types
-    if (a_parsed.datatype != b_parsed.datatype || a_parsed.datatype != c_parsed.datatype ||
-        a_parsed.datatype == nk_datatype_unknown_k || b_parsed.datatype == nk_datatype_unknown_k ||
-        c_parsed.datatype == nk_datatype_unknown_k) {
-        PyErr_SetString(PyExc_TypeError,
-                        "Input tensors must have matching datatypes, check with `X.__array_interface__`");
+    if (a_parsed.dtype != b_parsed.dtype || a_parsed.dtype != c_parsed.dtype || a_parsed.dtype == nk_dtype_unknown_k ||
+        b_parsed.dtype == nk_dtype_unknown_k || c_parsed.dtype == nk_dtype_unknown_k) {
+        PyErr_SetString(PyExc_TypeError, "Input tensors must have matching dtypes, check with `X.__array_interface__`");
         goto cleanup;
     }
-    if (dtype == nk_datatype_unknown_k) dtype = a_parsed.datatype;
+    if (dtype == nk_dtype_unknown_k) dtype = a_parsed.dtype;
 
     // Look up the metric and the capability
     nk_metric_curved_punned_t metric = NULL;
@@ -895,13 +882,12 @@ static PyObject *implement_curved_metric( //
     if (!metric) {
         PyErr_Format( //
             PyExc_LookupError,
-            "Unsupported metric '%c' and datatype combination across vectors ('%s'/'%s' and '%s'/'%s'), "
-            "tensor ('%s'/'%s'), and `dtype` override ('%s'/'%s')",
-            metric_kind,                                                                             //
-            a_buffer.format ? a_buffer.format : "nil", datatype_to_python_string(a_parsed.datatype), //
-            b_buffer.format ? b_buffer.format : "nil", datatype_to_python_string(b_parsed.datatype), //
-            c_buffer.format ? c_buffer.format : "nil", datatype_to_python_string(c_parsed.datatype), //
-            dtype_str ? dtype_str : "nil", datatype_to_python_string(dtype));
+            "Unsupported metric '%c' and dtype combination across vectors ('%s'/'%s' and '%s'/'%s'), " "tensor " "('%s'" "/" "'" "%" "s" "'" ")" "," " " "a" "n" "d" " " "`dtype` " "override " "('%s'/'%s')",
+            metric_kind,                                                                       //
+            a_buffer.format ? a_buffer.format : "nil", dtype_to_python_string(a_parsed.dtype), //
+            b_buffer.format ? b_buffer.format : "nil", dtype_to_python_string(b_parsed.dtype), //
+            c_buffer.format ? c_buffer.format : "nil", dtype_to_python_string(c_parsed.dtype), //
+            dtype_str ? dtype_str : "nil", dtype_to_python_string(dtype));
         goto cleanup;
     }
 
@@ -937,7 +923,7 @@ static PyObject *implement_geospatial_metric( //
 
     // Once parsed, the arguments will be stored in these variables:
     char const *dtype_str = NULL;
-    nk_datatype_t dtype = nk_datatype_unknown_k;
+    nk_dtype_t dtype = nk_dtype_unknown_k;
     Py_buffer a_lats_buffer, a_lons_buffer, b_lats_buffer, b_lons_buffer, out_buffer;
     TensorArgument a_lats_parsed, a_lons_parsed, b_lats_parsed, b_lons_parsed, out_parsed;
     memset(&a_lats_buffer, 0, sizeof(Py_buffer));
@@ -987,8 +973,8 @@ static PyObject *implement_geospatial_metric( //
             PyErr_SetString(PyExc_TypeError, "Expected 'dtype' to be a string");
             return NULL;
         }
-        dtype = python_string_to_datatype(dtype_str);
-        if (dtype == nk_datatype_unknown_k) {
+        dtype = python_string_to_dtype(dtype_str);
+        if (dtype == nk_dtype_unknown_k) {
             PyErr_SetString(PyExc_ValueError, "Unsupported 'dtype'");
             return NULL;
         }
@@ -1019,12 +1005,12 @@ static PyObject *implement_geospatial_metric( //
     }
 
     // Check data types: all must match
-    if (a_lats_parsed.datatype != a_lons_parsed.datatype || a_lats_parsed.datatype != b_lats_parsed.datatype ||
-        a_lats_parsed.datatype != b_lons_parsed.datatype || a_lats_parsed.datatype == nk_datatype_unknown_k) {
-        PyErr_SetString(PyExc_TypeError, "All coordinate arrays must have the same datatype");
+    if (a_lats_parsed.dtype != a_lons_parsed.dtype || a_lats_parsed.dtype != b_lats_parsed.dtype ||
+        a_lats_parsed.dtype != b_lons_parsed.dtype || a_lats_parsed.dtype == nk_dtype_unknown_k) {
+        PyErr_SetString(PyExc_TypeError, "All coordinate arrays must have the same dtype");
         goto cleanup;
     }
-    if (dtype == nk_datatype_unknown_k) dtype = a_lats_parsed.datatype;
+    if (dtype == nk_dtype_unknown_k) dtype = a_lats_parsed.dtype;
 
     // Look up the metric kernel
     nk_metric_geospatial_punned_t metric = NULL;
@@ -1032,14 +1018,14 @@ static PyObject *implement_geospatial_metric( //
     nk_find_kernel_punned(metric_kind, dtype, static_capabilities, nk_cap_any_k, (nk_kernel_punned_t *)&metric,
                           &capability);
     if (!metric) {
-        PyErr_Format(PyExc_LookupError, "Unsupported metric '%c' and datatype '%s'", metric_kind,
-                     datatype_to_python_string(dtype));
+        PyErr_Format(PyExc_LookupError, "Unsupported metric '%c' and dtype '%s'", metric_kind,
+                     dtype_to_python_string(dtype));
         goto cleanup;
     }
 
     // Allocate output or use provided
     // Output dtype must match input dtype (f32 kernel writes f32, f64 kernel writes f64)
-    size_t const item_size = bytes_per_datatype(dtype);
+    size_t const item_size = bytes_per_dtype(dtype);
     void *distances_start = NULL;
     if (!out_obj) {
         Tensor *distances_obj = PyObject_NewVar(Tensor, &TensorType, n * item_size);
@@ -1047,7 +1033,7 @@ static PyObject *implement_geospatial_metric( //
             PyErr_NoMemory();
             goto cleanup;
         }
-        distances_obj->datatype = dtype;
+        distances_obj->dtype = dtype;
         distances_obj->rank = 1;
         distances_obj->shape[0] = n;
         distances_obj->shape[1] = 0;
@@ -1102,24 +1088,23 @@ static PyObject *implement_sparse_metric( //
     }
 
     // Check data types
-    if (a_parsed.datatype != b_parsed.datatype && a_parsed.datatype != nk_datatype_unknown_k &&
-        b_parsed.datatype != nk_datatype_unknown_k) {
-        PyErr_SetString(PyExc_TypeError,
-                        "Input tensors must have matching datatypes, check with `X.__array_interface__`");
+    if (a_parsed.dtype != b_parsed.dtype && a_parsed.dtype != nk_dtype_unknown_k &&
+        b_parsed.dtype != nk_dtype_unknown_k) {
+        PyErr_SetString(PyExc_TypeError, "Input tensors must have matching dtypes, check with `X.__array_interface__`");
         goto cleanup;
     }
 
-    nk_datatype_t dtype = a_parsed.datatype;
+    nk_dtype_t dtype = a_parsed.dtype;
     nk_sparse_intersect_punned_t metric = NULL;
     nk_capability_t capability = nk_cap_serial_k;
     nk_find_kernel_punned(metric_kind, dtype, static_capabilities, nk_cap_any_k, (nk_kernel_punned_t *)&metric,
                           &capability);
     if (!metric) {
         PyErr_Format( //
-            PyExc_LookupError, "Unsupported metric '%c' and datatype combination ('%s'/'%s' and '%s'/'%s')",
-            metric_kind,                                                                             //
-            a_buffer.format ? a_buffer.format : "nil", datatype_to_python_string(a_parsed.datatype), //
-            b_buffer.format ? b_buffer.format : "nil", datatype_to_python_string(b_parsed.datatype));
+            PyExc_LookupError, "Unsupported metric '%c' and dtype combination ('%s'/'%s' and '%s'/'%s')",
+            metric_kind,                                                                       //
+            a_buffer.format ? a_buffer.format : "nil", dtype_to_python_string(a_parsed.dtype), //
+            b_buffer.format ? b_buffer.format : "nil", dtype_to_python_string(b_parsed.dtype));
         goto cleanup;
     }
 
@@ -1136,7 +1121,7 @@ cleanup:
 static PyObject *implement_cdist(                        //
     PyObject *a_obj, PyObject *b_obj, PyObject *out_obj, //
     nk_kernel_kind_t metric_kind, size_t threads,        //
-    nk_datatype_t dtype, nk_datatype_t out_dtype) {
+    nk_dtype_t dtype, nk_dtype_t out_dtype) {
 
     PyObject *return_obj = NULL;
 
@@ -1167,38 +1152,36 @@ static PyObject *implement_cdist(                        //
     }
 
     // Check data types
-    if (a_parsed.datatype != b_parsed.datatype || //
-        a_parsed.datatype == nk_datatype_unknown_k || b_parsed.datatype == nk_datatype_unknown_k) {
-        PyErr_SetString(PyExc_TypeError,
-                        "Input tensors must have matching datatypes, check with `X.__array_interface__`");
+    if (a_parsed.dtype != b_parsed.dtype || //
+        a_parsed.dtype == nk_dtype_unknown_k || b_parsed.dtype == nk_dtype_unknown_k) {
+        PyErr_SetString(PyExc_TypeError, "Input tensors must have matching dtypes, check with `X.__array_interface__`");
         goto cleanup;
     }
-    if (dtype == nk_datatype_unknown_k) dtype = a_parsed.datatype;
+    if (dtype == nk_dtype_unknown_k) dtype = a_parsed.dtype;
 
     // Inference order for the output type:
     // 1. `out_dtype` named argument, if defined
     // 2. `out.dtype` attribute, if `out` is passed
     // 3. double precision float (or its complex variant)
-    if (out_dtype == nk_datatype_unknown_k) {
-        if (out_obj) { out_dtype = out_parsed.datatype; }
+    if (out_dtype == nk_dtype_unknown_k) {
+        if (out_obj) { out_dtype = out_parsed.dtype; }
         else { out_dtype = is_complex(dtype) ? nk_f64c_k : nk_f64_k; }
     }
 
-    // Make sure the return datatype is complex if the input datatype is complex, and the same for real numbers
-    if (out_dtype != nk_datatype_unknown_k) {
+    // Make sure the return dtype is complex if the input dtype is complex, and the same for real numbers
+    if (out_dtype != nk_dtype_unknown_k) {
         if (is_complex(dtype) != is_complex(out_dtype)) {
-            PyErr_SetString(
-                PyExc_ValueError,
-                "If the input datatype is complex, the return datatype must be complex, and same for real.");
+            PyErr_SetString(PyExc_ValueError,
+                            "If the input dtype is complex, the return dtype must be complex, and same for real.");
             goto cleanup;
         }
     }
 
-    // Check if the downcasting to provided datatype is supported
+    // Check if the downcasting to provided dtype is supported
     {
         char returned_buffer_example[8];
         if (!cast_distance(0, out_dtype, &returned_buffer_example, 0)) {
-            PyErr_SetString(PyExc_ValueError, "Exporting to the provided datatype is not supported");
+            PyErr_SetString(PyExc_ValueError, "Exporting to the provided dtype is not supported");
             goto cleanup;
         }
     }
@@ -1210,10 +1193,10 @@ static PyObject *implement_cdist(                        //
                           &capability);
     if (!metric) {
         PyErr_Format( //
-            PyExc_LookupError, "Unsupported metric '%c' and datatype combination ('%s'/'%s' and '%s'/'%s')",
-            metric_kind,                                                                             //
-            a_buffer.format ? a_buffer.format : "nil", datatype_to_python_string(a_parsed.datatype), //
-            b_buffer.format ? b_buffer.format : "nil", datatype_to_python_string(b_parsed.datatype));
+            PyExc_LookupError, "Unsupported metric '%c' and dtype combination ('%s'/'%s' and '%s'/'%s')",
+            metric_kind,                                                                       //
+            a_buffer.format ? a_buffer.format : "nil", dtype_to_python_string(a_parsed.dtype), //
+            b_buffer.format ? b_buffer.format : "nil", dtype_to_python_string(b_parsed.dtype));
         goto cleanup;
     }
 
@@ -1246,19 +1229,19 @@ static PyObject *implement_cdist(                        //
     // Allocate the output matrix if it wasn't provided
     if (!out_obj) {
 
-        Tensor *distances_obj = PyObject_NewVar(Tensor, &TensorType, count_components * bytes_per_datatype(out_dtype));
+        Tensor *distances_obj = PyObject_NewVar(Tensor, &TensorType, count_components * bytes_per_dtype(out_dtype));
         if (!distances_obj) {
             PyErr_NoMemory();
             goto cleanup;
         }
 
         // Initialize the object
-        distances_obj->datatype = out_dtype;
+        distances_obj->dtype = out_dtype;
         distances_obj->rank = 2;
         distances_obj->shape[0] = a_parsed.count;
         distances_obj->shape[1] = b_parsed.count;
-        distances_obj->strides[0] = b_parsed.count * bytes_per_datatype(distances_obj->datatype);
-        distances_obj->strides[1] = bytes_per_datatype(distances_obj->datatype);
+        distances_obj->strides[0] = b_parsed.count * bytes_per_dtype(distances_obj->dtype);
+        distances_obj->strides[1] = bytes_per_dtype(distances_obj->dtype);
         distances_obj->parent = NULL;
         distances_obj->data = distances_obj->start;
         return_obj = (PyObject *)distances_obj;
@@ -1267,12 +1250,12 @@ static PyObject *implement_cdist(                        //
         distances_cols_stride_bytes = distances_obj->strides[1];
     }
     else {
-        if (bytes_per_datatype(out_parsed.datatype) != bytes_per_datatype(out_dtype)) {
+        if (bytes_per_dtype(out_parsed.dtype) != bytes_per_dtype(out_dtype)) {
             PyErr_Format( //
                 PyExc_LookupError,
                 "Output tensor scalar type must be compatible with the output type ('%s' and '%s'/'%s')",
-                datatype_to_python_string(out_dtype), out_buffer.format ? out_buffer.format : "nil",
-                datatype_to_python_string(out_parsed.datatype));
+                dtype_to_python_string(out_dtype), out_buffer.format ? out_buffer.format : "nil",
+                dtype_to_python_string(out_parsed.dtype));
             goto cleanup;
         }
         distances_start = (char *)&out_parsed.start[0];
@@ -1335,15 +1318,15 @@ static PyObject *implement_pointer_access(nk_kernel_kind_t metric_kind, PyObject
         return NULL;
     }
 
-    nk_datatype_t datatype = python_string_to_datatype(dtype_name);
-    if (!datatype) { // Check the actual variable here instead of dtype_name.
+    nk_dtype_t dtype = python_string_to_dtype(dtype_name);
+    if (!dtype) { // Check the actual variable here instead of dtype_name.
         PyErr_SetString(PyExc_ValueError, "Unsupported type");
         return NULL;
     }
 
     nk_kernel_punned_t metric = NULL;
     nk_capability_t capability = nk_cap_serial_k;
-    nk_find_kernel_punned(metric_kind, datatype, static_capabilities, nk_cap_any_k, &metric, &capability);
+    nk_find_kernel_punned(metric_kind, dtype, static_capabilities, nk_cap_any_k, &metric, &capability);
     if (metric == NULL) {
         PyErr_SetString(PyExc_LookupError, "No such metric");
         return NULL;
@@ -1353,20 +1336,7 @@ static PyObject *implement_pointer_access(nk_kernel_kind_t metric_kind, PyObject
 }
 
 static char const doc_cdist[] = //
-    "Compute pairwise distances between two input sets.\n\n"
-    "Parameters:\n"
-    "    a (Tensor): First matrix.\n"
-    "    b (Tensor): Second matrix.\n"
-    "    metric (str, optional): Distance metric to use (e.g., 'sqeuclidean', 'cosine').\n"
-    "    out (Tensor, optional): Output matrix to store the result.\n"
-    "    dtype (Union[IntegralType, FloatType, ComplexType], optional): Override the presumed input type name.\n"
-    "    out_dtype (Union[FloatType, ComplexType], optional): Result type, default is 'float64'.\n"
-    "    threads (int, optional): Number of threads to use (default is 1).\n\n"
-    "Returns:\n"
-    "    Tensor: Pairwise distances between all inputs.\n\n"
-    "Equivalent to: `scipy.spatial.distance.cdist`.\n"
-    "Signature:\n"
-    "    >>> def cdist(a, b, /, metric, *, dtype, out, out_dtype, threads) -> Optional[Tensor]: ...";
+    "Compute pairwise distances between two input sets.\n\n" "Parameters:\n" "    a (Tensor): First matrix.\n" "    b " "(Tensor" "): " "Second " "matrix." "\n" "  " "  " "me" "tr" "ic" " (" "st" "r," " o" "pt" "io" "na" "l)" ": " "Di" "st" "an" "ce" " m" "et" "ri" "c " "to" " u" "se" " (" "e." "g." ", " "'s" "qe" "uc" "li" "de" "an" "'," " '" "co" "si" "ne" "')" "." "\n" "    out (Tensor, optional): Output matrix to store the result.\n" "    dtype (Union[IntegralType, FloatType, ComplexType], optional): Override the presumed input type name.\n" "    out_dtype (Union[FloatType, ComplexType], optional): Result type, default is 'float64'.\n" "    threads (int, optional): Number of threads to use (default is 1).\n\n" "Returns:\n" "    Tensor: Pairwise distances between all inputs.\n\n" "Equivalent to: `scipy.spatial.distance.cdist`.\n" "Signature:\n" "    >>> def cdist(a, b, /, metric, *, dtype, out, out_dtype, threads) -> Optional[Tensor]: ...";
 
 static PyObject *api_cdist( //
     PyObject *self, PyObject *const *args, Py_ssize_t const positional_args_count, PyObject *args_names_tuple) {
@@ -1384,7 +1354,7 @@ static PyObject *api_cdist( //
     // Once parsed, the arguments will be stored in these variables:
     unsigned long long threads = 1;
     char const *dtype_str = NULL, *out_dtype_str = NULL;
-    nk_datatype_t dtype = nk_datatype_unknown_k, out_dtype = nk_datatype_unknown_k;
+    nk_dtype_t dtype = nk_dtype_unknown_k, out_dtype = nk_dtype_unknown_k;
 
     /// Same default as in SciPy:
     /// https://docs.scipy.org/doc/scipy-1.11.4/reference/generated/scipy.spatial.distance.cdist.html
@@ -1454,8 +1424,8 @@ static PyObject *api_cdist( //
             PyErr_SetString(PyExc_TypeError, "Expected 'dtype' to be a string");
             return NULL;
         }
-        dtype = python_string_to_datatype(dtype_str);
-        if (dtype == nk_datatype_unknown_k) {
+        dtype = python_string_to_dtype(dtype_str);
+        if (dtype == nk_dtype_unknown_k) {
             PyErr_SetString(PyExc_ValueError, "Unsupported 'dtype'");
             return NULL;
         }
@@ -1468,8 +1438,8 @@ static PyObject *api_cdist( //
             PyErr_SetString(PyExc_TypeError, "Expected 'out_dtype' to be a string");
             return NULL;
         }
-        out_dtype = python_string_to_datatype(out_dtype_str);
-        if (out_dtype == nk_datatype_unknown_k) {
+        out_dtype = python_string_to_dtype(out_dtype_str);
+        if (out_dtype == nk_dtype_unknown_k) {
             PyErr_SetString(PyExc_ValueError, "Unsupported 'out_dtype'");
             return NULL;
         }
@@ -1516,19 +1486,7 @@ static PyObject *api_jaccard_pointer(PyObject *self, PyObject *dtype_obj) {
 }
 
 static char const doc_l2[] = //
-    "Compute Euclidean (L2) distances between two matrices.\n\n"
-    "Parameters:\n"
-    "    a (Tensor): First matrix or vector.\n"
-    "    b (Tensor): Second matrix or vector.\n"
-    "    dtype (Union[IntegralType, FloatType], optional): Override the presumed input type name.\n"
-    "    out (Tensor, optional): Vector for resulting distances. Allocates a new tensor by default.\n"
-    "    out_dtype (FloatType, optional): Result type, default is 'float64'.\n\n"
-    "Returns:\n"
-    "    Tensor: The distances if `out` is not provided.\n"
-    "    None: If `out` is provided. Operation will be performed in-place.\n\n"
-    "Equivalent to: `scipy.spatial.distance.euclidean`.\n"
-    "Signature:\n"
-    "    >>> def euclidean(a, b, /, dtype, *, out, out_dtype) -> Optional[Tensor]: ...";
+    "Compute Euclidean (L2) distances between two matrices.\n\n" "Parameters:\n" "    a (Tensor): First matrix or " "ve" "ct" "or" "." "\n" "    b (Tensor): Second " "matrix or vector.\n" "   " " dt" "ype" " (" "Uni" "on[" "Int" "egr" "alT" "ype" ", " "Flo" "atT" "ype" "], " "opt" "ion" "al)" ": " "Ove" "rri" "de " "the" " pr" "esu" "med" " in" "put" " ty" "pe " "nam" "e." "\n" "    out (Tensor, optional): Vector for resulting distances. Allocates a new tensor by default.\n" "    out_dtype (FloatType, optional): Result type, default is 'float64'.\n\n" "Returns:\n" "    Tensor: The distances if `out` is not provided.\n" "    None: If `out` is provided. Operation will be performed in-place.\n\n" "Equivalent to: `scipy.spatial.distance.euclidean`.\n" "Signature:\n" "    >>> def euclidean(a, b, /, dtype, *, out, out_dtype) -> Optional[Tensor]: ...";
 
 static PyObject *api_l2(PyObject *self, PyObject *const *args, Py_ssize_t const positional_args_count,
                         PyObject *args_names_tuple) {
@@ -1536,19 +1494,7 @@ static PyObject *api_l2(PyObject *self, PyObject *const *args, Py_ssize_t const 
 }
 
 static char const doc_l2sq[] = //
-    "Compute squared Euclidean (L2) distances between two matrices.\n\n"
-    "Parameters:\n"
-    "    a (Tensor): First matrix or vector.\n"
-    "    b (Tensor): Second matrix or vector.\n"
-    "    dtype (Union[IntegralType, FloatType], optional): Override the presumed input type name.\n"
-    "    out (Tensor, optional): Vector for resulting distances. Allocates a new tensor by default.\n"
-    "    out_dtype (FloatType, optional): Result type, default is 'float64'.\n\n"
-    "Returns:\n"
-    "    Tensor: The distances if `out` is not provided.\n"
-    "    None: If `out` is provided. Operation will be performed in-place.\n\n"
-    "Equivalent to: `scipy.spatial.distance.sqeuclidean`.\n"
-    "Signature:\n"
-    "    >>> def sqeuclidean(a, b, /, dtype, *, out, out_dtype) -> Optional[Tensor]: ...";
+    "Compute squared Euclidean (L2) distances between two matrices.\n\n" "Parameters:\n" "    a (Tensor): First matrix " "or vector.\n" "    b " "(Tensor): " "Second matrix " "or vector.\n" "    dtype (Union[IntegralType, FloatType], optional): Override the presumed input type name.\n" "    out (Tensor, optional): Vector for resulting distances. Allocates a new tensor by default.\n" "    out_dtype (FloatType, optional): Result type, default is 'float64'.\n\n" "Returns:\n" "    Tensor: The distances if `out` is not provided.\n" "    None: If `out` is provided. Operation will be performed in-place.\n\n" "Equivalent to: `scipy.spatial.distance.sqeuclidean`.\n" "Signature:\n" "    >>> def sqeuclidean(a, b, /, dtype, *, out, out_dtype) -> Optional[Tensor]: ...";
 
 static PyObject *api_l2sq(PyObject *self, PyObject *const *args, Py_ssize_t const positional_args_count,
                           PyObject *args_names_tuple) {
@@ -1556,19 +1502,7 @@ static PyObject *api_l2sq(PyObject *self, PyObject *const *args, Py_ssize_t cons
 }
 
 static char const doc_angular[] = //
-    "Compute angular distances between two matrices.\n\n"
-    "Parameters:\n"
-    "    a (Tensor): First matrix or vector.\n"
-    "    b (Tensor): Second matrix or vector.\n"
-    "    dtype (Union[IntegralType, FloatType], optional): Override the presumed input type name.\n"
-    "    out (Tensor, optional): Vector for resulting distances. Allocates a new tensor by default.\n"
-    "    out_dtype (FloatType, optional): Result type, default is 'float64'.\n\n"
-    "Returns:\n"
-    "    Tensor: The distances if `out` is not provided.\n"
-    "    None: If `out` is provided. Operation will be performed in-place.\n\n"
-    "Equivalent to: `scipy.spatial.distance.cosine`.\n"
-    "Signature:\n"
-    "    >>> def angular(a, b, /, dtype, *, out, out_dtype) -> Optional[Tensor]: ...";
+    "Compute angular distances between two matrices.\n\n" "Parameters:\n" "    a (Tensor): First matrix or vector.\n" "    b (Tensor): Second matrix or vector.\n" "    dtype (Union[IntegralType, FloatType], optional): Override the presumed input type name.\n" "    out (Tensor, optional): Vector for resulting distances. Allocates a new tensor by default.\n" "    out_dtype (FloatType, optional): Result type, default is 'float64'.\n\n" "Returns:\n" "    Tensor: The distances if `out` is not provided.\n" "    None: If `out` is provided. Operation will be performed in-place.\n\n" "Equivalent to: `scipy.spatial.distance.cosine`.\n" "Signature:\n" "    >>> def angular(a, b, /, dtype, *, out, out_dtype) -> Optional[Tensor]: ...";
 
 static PyObject *api_angular(PyObject *self, PyObject *const *args, Py_ssize_t const positional_args_count,
                              PyObject *args_names_tuple) {
@@ -1576,19 +1510,7 @@ static PyObject *api_angular(PyObject *self, PyObject *const *args, Py_ssize_t c
 }
 
 static char const doc_dot[] = //
-    "Compute the inner (dot) product between two matrices (real or complex).\n\n"
-    "Parameters:\n"
-    "    a (Tensor): First matrix or vector.\n"
-    "    b (Tensor): Second matrix or vector.\n"
-    "    dtype (Union[IntegralType, FloatType, ComplexType], optional): Override the presumed input type name.\n"
-    "    out (Tensor, optional): Vector for resulting distances. Allocates a new tensor by default.\n"
-    "    out_dtype (Union[FloatType, ComplexType], optional): Result type, default is 'float64'.\n\n"
-    "Returns:\n"
-    "    Tensor: The distances if `out` is not provided.\n"
-    "    None: If `out` is provided. Operation will be performed in-place.\n\n"
-    "Equivalent to: `numpy.inner`.\n"
-    "Signature:\n"
-    "    >>> def dot(a, b, /, dtype, *, out, out_dtype) -> Optional[Tensor]: ...";
+    "Compute the inner (dot) product between two matrices (real or complex).\n\n" "Parameters:\n" "    a (Tensor): " "F" "i" "r" "s" "t" " " "m" "a" "t" "r" "i" "x" " " "o" "r" " " "vector.\n" "    b " "(Tensor)" ": " "Second " "matrix " "or " "vector." "\n" "   " " dt" "ype" " (" "Uni" "on[" "Int" "egr" "alT" "ype" ", " "Flo" "atT" "ype" ", " "Com" "ple" "xTy" "pe]" ", " "opt" "ion" "al)" ": " "Ove" "rri" "de " "the" " pr" "esu" "med" " in" "put" " ty" "pe " "nam" "e." "\n" "    out (Tensor, optional): Vector for resulting distances. Allocates a new tensor by default.\n" "    out_dtype (Union[FloatType, ComplexType], optional): Result type, default is 'float64'.\n\n" "Returns:\n" "    Tensor: The distances if `out` is not provided.\n" "    None: If `out` is provided. Operation will be performed in-place.\n\n" "Equivalent to: `numpy.inner`.\n" "Signature:\n" "    >>> def dot(a, b, /, dtype, *, out, out_dtype) -> Optional[Tensor]: ...";
 
 static PyObject *api_dot(PyObject *self, PyObject *const *args, Py_ssize_t const positional_args_count,
                          PyObject *args_names_tuple) {
@@ -1596,19 +1518,7 @@ static PyObject *api_dot(PyObject *self, PyObject *const *args, Py_ssize_t const
 }
 
 static char const doc_vdot[] = //
-    "Compute the conjugate dot product between two complex matrices.\n\n"
-    "Parameters:\n"
-    "    a (Tensor): First complex matrix or vector.\n"
-    "    b (Tensor): Second complex matrix or vector.\n"
-    "    dtype (ComplexType, optional): Override the presumed input type name.\n"
-    "    out (Tensor, optional): Vector for resulting distances. Allocates a new tensor by default.\n"
-    "    out_dtype (Union[ComplexType], optional): Result type, default is 'float64'.\n\n"
-    "Returns:\n"
-    "    Tensor: The distances if `out` is not provided.\n"
-    "    None: If `out` is provided. Operation will be performed in-place.\n\n"
-    "Equivalent to: `numpy.vdot`.\n"
-    "Signature:\n"
-    "    >>> def vdot(a, b, /, dtype, *, out, out_dtype) -> Optional[Tensor]: ...";
+    "Compute the conjugate dot product between two complex matrices.\n\n" "Parameters:\n" "    a (Tensor): First " "com" "ple" "x " "mat" "rix" " or" " ve" "cto" "r." "\n" "    b (Tensor): Second complex matrix or vector.\n" "    dtype (ComplexType, optional): Override the presumed input type name.\n" "    out (Tensor, optional): Vector for resulting distances. Allocates a new tensor by default.\n" "    out_dtype (Union[ComplexType], optional): Result type, default is 'float64'.\n\n" "Returns:\n" "    Tensor: The distances if `out` is not provided.\n" "    None: If `out` is provided. Operation will be performed in-place.\n\n" "Equivalent to: `numpy.vdot`.\n" "Signature:\n" "    >>> def vdot(a, b, /, dtype, *, out, out_dtype) -> Optional[Tensor]: ...";
 
 static PyObject *api_vdot(PyObject *self, PyObject *const *args, Py_ssize_t const positional_args_count,
                           PyObject *args_names_tuple) {
@@ -1616,19 +1526,7 @@ static PyObject *api_vdot(PyObject *self, PyObject *const *args, Py_ssize_t cons
 }
 
 static char const doc_kld[] = //
-    "Compute Kullback-Leibler divergences between two matrices.\n\n"
-    "Parameters:\n"
-    "    a (Tensor): First floating-point matrix or vector.\n"
-    "    b (Tensor): Second floating-point matrix or vector.\n"
-    "    dtype (FloatType, optional): Override the presumed input type name.\n"
-    "    out (Tensor, optional): Vector for resulting distances. Allocates a new tensor by default.\n"
-    "    out_dtype (FloatType, optional): Result type, default is 'float64'.\n\n"
-    "Returns:\n"
-    "    Tensor: The distances if `out` is not provided.\n"
-    "    None: If `out` is provided. Operation will be performed in-place.\n\n"
-    "Equivalent to: `scipy.special.kl_div`.\n"
-    "Signature:\n"
-    "    >>> def kld(a, b, /, dtype, *, out, out_dtype) -> Optional[Tensor]: ...";
+    "Compute Kullback-Leibler divergences between two matrices.\n\n" "Parameters:\n" "    a (Tensor): First " "floating" "-point " "matrix " "or " "ve" "ct" "or" "." "\n" "    b (Tensor): " "Second " "floating-point " "matrix or vector.\n" "    dtype (FloatType, optional): Override the presumed input type name.\n" "    out (Tensor, optional): Vector for resulting distances. Allocates a new tensor by default.\n" "    out_dtype (FloatType, optional): Result type, default is 'float64'.\n\n" "Returns:\n" "    Tensor: The distances if `out` is not provided.\n" "    None: If `out` is provided. Operation will be performed in-place.\n\n" "Equivalent to: `scipy.special.kl_div`.\n" "Signature:\n" "    >>> def kld(a, b, /, dtype, *, out, out_dtype) -> Optional[Tensor]: ...";
 
 static PyObject *api_kld(PyObject *self, PyObject *const *args, Py_ssize_t const positional_args_count,
                          PyObject *args_names_tuple) {
@@ -1636,19 +1534,7 @@ static PyObject *api_kld(PyObject *self, PyObject *const *args, Py_ssize_t const
 }
 
 static char const doc_jsd[] = //
-    "Compute Jensen-Shannon divergences between two matrices.\n\n"
-    "Parameters:\n"
-    "    a (Tensor): First floating-point matrix or vector.\n"
-    "    b (Tensor): Second floating-point matrix or vector.\n"
-    "    dtype (Union[IntegralType, FloatType], optional): Override the presumed input type name.\n"
-    "    out (Tensor, optional): Vector for resulting distances. Allocates a new tensor by default.\n"
-    "    out_dtype (FloatType, optional): Result type, default is 'float64'.\n\n"
-    "Returns:\n"
-    "    Tensor: The distances if `out` is not provided.\n"
-    "    None: If `out` is provided. Operation will be performed in-place.\n\n"
-    "Equivalent to: `scipy.spatial.distance.jensenshannon`.\n"
-    "Signature:\n"
-    "    >>> def jsd(a, b, /, dtype, *, out, out_dtype) -> Optional[Tensor]: ...";
+    "Compute Jensen-Shannon divergences between two matrices.\n\n" "Parameters:\n" "    a (Tensor): First " "floating-" "point " "matrix or " "vector.\n" "    b (Tensor): Second floating-point matrix or vector.\n" "    dtype (Union[IntegralType, FloatType], optional): Override the presumed input type name.\n" "    out (Tensor, optional): Vector for resulting distances. Allocates a new tensor by default.\n" "    out_dtype (FloatType, optional): Result type, default is 'float64'.\n\n" "Returns:\n" "    Tensor: The distances if `out` is not provided.\n" "    None: If `out` is provided. Operation will be performed in-place.\n\n" "Equivalent to: `scipy.spatial.distance.jensenshannon`.\n" "Signature:\n" "    >>> def jsd(a, b, /, dtype, *, out, out_dtype) -> Optional[Tensor]: ...";
 
 static PyObject *api_jsd(PyObject *self, PyObject *const *args, Py_ssize_t const positional_args_count,
                          PyObject *args_names_tuple) {
@@ -1656,19 +1542,7 @@ static PyObject *api_jsd(PyObject *self, PyObject *const *args, Py_ssize_t const
 }
 
 static char const doc_hamming[] = //
-    "Compute Hamming distances between two matrices.\n\n"
-    "Parameters:\n"
-    "    a (Tensor): First binary matrix or vector.\n"
-    "    b (Tensor): Second binary matrix or vector.\n"
-    "    dtype (IntegralType, optional): Override the presumed input type name.\n"
-    "    out (Tensor, optional): Vector for resulting distances. Allocates a new tensor by default.\n"
-    "    out_dtype (FloatType, optional): Result type, default is 'float64'.\n\n"
-    "Returns:\n"
-    "    Tensor: The distances if `out` is not provided.\n"
-    "    None: If `out` is provided. Operation will be performed in-place.\n\n"
-    "Similar to: `scipy.spatial.distance.hamming`.\n"
-    "Signature:\n"
-    "    >>> def hamming(a, b, /, dtype, *, out, out_dtype) -> Optional[Tensor]: ...";
+    "Compute Hamming distances between two matrices.\n\n" "Parameters:\n" "    a (Tensor): First binary matrix or " "ve" "ct" "or" "." "\n" "    b (Tensor): Second binary " "matrix or vector.\n" "    dtype " "(IntegralT" "ype, " "optional):" " Override " "the " "presumed " "input " "type " "name.\n" "    out (Tensor, optional): Vector for resulting distances. Allocates a new tensor by default.\n" "    out_dtype (FloatType, optional): Result type, default is 'float64'.\n\n" "Returns:\n" "    Tensor: The distances if `out` is not provided.\n" "    None: If `out` is provided. Operation will be performed in-place.\n\n" "Similar to: `scipy.spatial.distance.hamming`.\n" "Signature:\n" "    >>> def hamming(a, b, /, dtype, *, out, out_dtype) -> Optional[Tensor]: ...";
 
 static PyObject *api_hamming(PyObject *self, PyObject *const *args, Py_ssize_t const positional_args_count,
                              PyObject *args_names_tuple) {
@@ -1676,19 +1550,7 @@ static PyObject *api_hamming(PyObject *self, PyObject *const *args, Py_ssize_t c
 }
 
 static char const doc_jaccard[] = //
-    "Compute Jaccard distances (bitwise Tanimoto) between two matrices.\n\n"
-    "Parameters:\n"
-    "    a (Tensor): First binary matrix or vector.\n"
-    "    b (Tensor): Second binary matrix or vector.\n"
-    "    dtype (IntegralType, optional): Override the presumed input type name.\n"
-    "    out (Tensor, optional): Vector for resulting distances. Allocates a new tensor by default.\n"
-    "    out_dtype (FloatType, optional): Result type, default is 'float64'.\n\n"
-    "Returns:\n"
-    "    Tensor: The distances if `out` is not provided.\n"
-    "    None: If `out` is provided. Operation will be performed in-place.\n\n"
-    "Similar to: `scipy.spatial.distance.jaccard`.\n"
-    "Signature:\n"
-    "    >>> def jaccard(a, b, /, dtype, *, out, out_dtype) -> Optional[Tensor]: ...";
+    "Compute Jaccard distances (bitwise Tanimoto) between two matrices.\n\n" "Parameters:\n" "    a (Tensor): First " "binary matrix or " "vector.\n" "    b " "(Tensor): " "Second " "binary " "matrix or " "vector.\n" " " " " " " " " "d" "t" "y" "p" "e" " " "(" "I" "n" "t" "e" "g" "r" "a" "l" "T" "y" "p" "e" "," " " "o" "p" "t" "i" "o" "n" "a" "l" ")" ":" " " "O" "v" "e" "r" "r" "i" "d" "e" " " "t" "h" "e" " " "p" "r" "e" "s" "u" "m" "e" "d" " " "i" "n" "p" "u" "t" " " "t" "y" "p" "e" " " "n" "a" "m" "e" "." "\n" "    out (Tensor, optional): Vector for resulting distances. Allocates a new tensor by default.\n" "    out_dtype (FloatType, optional): Result type, default is 'float64'.\n\n" "Returns:\n" "    Tensor: The distances if `out` is not provided.\n" "    None: If `out` is provided. Operation will be performed in-place.\n\n" "Similar to: `scipy.spatial.distance.jaccard`.\n" "Signature:\n" "    >>> def jaccard(a, b, /, dtype, *, out, out_dtype) -> Optional[Tensor]: ...";
 
 static PyObject *api_jaccard(PyObject *self, PyObject *const *args, Py_ssize_t const positional_args_count,
                              PyObject *args_names_tuple) {
@@ -1696,17 +1558,7 @@ static PyObject *api_jaccard(PyObject *self, PyObject *const *args, Py_ssize_t c
 }
 
 static char const doc_bilinear[] = //
-    "Compute the bilinear form between two vectors given a metric tensor.\n\n"
-    "Parameters:\n"
-    "    a (Tensor): First vector.\n"
-    "    b (Tensor): Second vector.\n"
-    "    metric_tensor (Tensor): The metric tensor defining the bilinear form.\n"
-    "    dtype (FloatType, optional): Override the presumed input type name.\n\n"
-    "Returns:\n"
-    "    float: The bilinear form.\n\n"
-    "Equivalent to: `numpy.dot` with a metric tensor.\n"
-    "Signature:\n"
-    "    >>> def bilinear(a, b, metric_tensor, /, dtype) -> float: ...";
+    "Compute the bilinear form between two vectors given a metric tensor.\n\n" "Parameters:\n" "    a (Tensor): First " "vector.\n" "    b " "(Tensor): " "Second " "vector.\n" "    metric_tensor (Tensor): The metric tensor defining the bilinear form.\n" "    dtype (FloatType, optional): Override the presumed input type name.\n\n" "Returns:\n" "    float: The bilinear form.\n\n" "Equivalent to: `numpy.dot` with a metric tensor.\n" "Signature:\n" "    >>> def bilinear(a, b, metric_tensor, /, dtype) -> float: ...";
 
 static PyObject *api_bilinear(PyObject *self, PyObject *const *args, Py_ssize_t const positional_args_count,
                               PyObject *args_names_tuple) {
@@ -1714,17 +1566,7 @@ static PyObject *api_bilinear(PyObject *self, PyObject *const *args, Py_ssize_t 
 }
 
 static char const doc_mahalanobis[] = //
-    "Compute the Mahalanobis distance between two vectors given an inverse covariance matrix.\n\n"
-    "Parameters:\n"
-    "    a (Tensor): First vector.\n"
-    "    b (Tensor): Second vector.\n"
-    "    inverse_covariance (Tensor): The inverse of the covariance matrix.\n"
-    "    dtype (FloatType, optional): Override the presumed input type name.\n\n"
-    "Returns:\n"
-    "    float: The Mahalanobis distance.\n\n"
-    "Equivalent to: `scipy.spatial.distance.mahalanobis`.\n"
-    "Signature:\n"
-    "    >>> def mahalanobis(a, b, inverse_covariance, /, dtype) -> float: ...";
+    "Compute the Mahalanobis distance between two vectors given an inverse covariance matrix.\n\n" "Parameters:\n" "   " " a " "(Te" "nso" "r):" " Fi" "rst" " ve" "cto" "r." "\n" "    b (Tensor): Second vector.\n" "    inverse_covariance (Tensor): The inverse of the covariance matrix.\n" "    dtype (FloatType, optional): Override the presumed input type name.\n\n" "Returns:\n" "    float: The Mahalanobis distance.\n\n" "Equivalent to: `scipy.spatial.distance.mahalanobis`.\n" "Signature:\n" "    >>> def mahalanobis(a, b, inverse_covariance, /, dtype) -> float: ...";
 
 static PyObject *api_mahalanobis(PyObject *self, PyObject *const *args, Py_ssize_t const positional_args_count,
                                  PyObject *args_names_tuple) {
@@ -1732,20 +1574,7 @@ static PyObject *api_mahalanobis(PyObject *self, PyObject *const *args, Py_ssize
 }
 
 static char const doc_haversine[] = //
-    "Compute the Haversine (great-circle) distance between coordinate pairs.\n\n"
-    "Parameters:\n"
-    "    a_lats (Tensor): Latitudes of first points in radians.\n"
-    "    a_lons (Tensor): Longitudes of first points in radians.\n"
-    "    b_lats (Tensor): Latitudes of second points in radians.\n"
-    "    b_lons (Tensor): Longitudes of second points in radians.\n"
-    "    dtype (FloatType, optional): Override the presumed input type name.\n"
-    "    out (Tensor, optional): Pre-allocated output array for distances.\n\n"
-    "Returns:\n"
-    "    Tensor: Distances in meters (using mean Earth radius).\n"
-    "    None: If `out` is provided.\n\n"
-    "Note: Input coordinates must be in radians. Uses spherical Earth model.\n"
-    "Signature:\n"
-    "    >>> def haversine(a_lats, a_lons, b_lats, b_lons, /, dtype, *, out) -> Optional[Tensor]: ...";
+    "Compute the Haversine (great-circle) distance between coordinate pairs.\n\n" "Parameters:\n" "    a_lats " "(Tenso" "r): " "Latitu" "des " "of first points in " "radians.\n" "    " "a_lons " "(Tensor" "): " "Longitu" "des of " "first " "points " "in " "radians" ".\n" " " " " " " " " "b" "_" "l" "a" "t" "s" " " "(" "T" "e" "n" "s" "o" "r" ")" ":" " " "L" "a" "t" "i" "t" "u" "d" "e" "s" " " "o" "f" " " "s" "e" "c" "o" "n" "d" " " "p" "o" "i" "n" "t" "s" " " "i" "n" " " "r" "a" "d" "i" "a" "n" "s" "." "\n" "    b_lons (Tensor): Longitudes of second points in radians.\n" "    dtype (FloatType, optional): Override the presumed input type name.\n" "    out (Tensor, optional): Pre-allocated output array for distances.\n\n" "Returns:\n" "    Tensor: Distances in meters (using mean Earth radius).\n" "    None: If `out` is provided.\n\n" "Note: Input coordinates must be in radians. Uses spherical Earth model.\n" "Signature:\n" "    >>> def haversine(a_lats, a_lons, b_lats, b_lons, /, dtype, *, out) -> Optional[Tensor]: ...";
 
 static PyObject *api_haversine(PyObject *self, PyObject *const *args, Py_ssize_t const positional_args_count,
                                PyObject *args_names_tuple) {
@@ -1753,20 +1582,7 @@ static PyObject *api_haversine(PyObject *self, PyObject *const *args, Py_ssize_t
 }
 
 static char const doc_vincenty[] = //
-    "Compute the Vincenty (ellipsoidal geodesic) distance between coordinate pairs.\n\n"
-    "Parameters:\n"
-    "    a_lats (Tensor): Latitudes of first points in radians.\n"
-    "    a_lons (Tensor): Longitudes of first points in radians.\n"
-    "    b_lats (Tensor): Latitudes of second points in radians.\n"
-    "    b_lons (Tensor): Longitudes of second points in radians.\n"
-    "    dtype (FloatType, optional): Override the presumed input type name.\n"
-    "    out (Tensor, optional): Pre-allocated output array for distances.\n\n"
-    "Returns:\n"
-    "    Tensor: Distances in meters (using WGS84 ellipsoid).\n"
-    "    None: If `out` is provided.\n\n"
-    "Note: Input coordinates must be in radians. Uses iterative algorithm for accuracy.\n"
-    "Signature:\n"
-    "    >>> def vincenty(a_lats, a_lons, b_lats, b_lons, /, dtype, *, out) -> Optional[Tensor]: ...";
+    "Compute the Vincenty (ellipsoidal geodesic) distance between coordinate pairs.\n\n" "Parameters:\n" "    a_lats " "(Tensor): " "Latitudes of " "first points " "in radians.\n" "    a_lons (Tensor): Longitudes of first points in radians.\n" "    b_lats (Tensor): Latitudes of second points in radians.\n" "    b_lons (Tensor): Longitudes of second points in radians.\n" "    dtype (FloatType, optional): Override the presumed input type name.\n" "    out (Tensor, optional): Pre-allocated output array for distances.\n\n" "Returns:\n" "    Tensor: Distances in meters (using WGS84 ellipsoid).\n" "    None: If `out` is provided.\n\n" "Note: Input coordinates must be in radians. Uses iterative algorithm for accuracy.\n" "Signature:\n" "    >>> def vincenty(a_lats, a_lons, b_lats, b_lons, /, dtype, *, out) -> Optional[Tensor]: ...";
 
 static PyObject *api_vincenty(PyObject *self, PyObject *const *args, Py_ssize_t const positional_args_count,
                               PyObject *args_names_tuple) {
@@ -1774,36 +1590,14 @@ static PyObject *api_vincenty(PyObject *self, PyObject *const *args, Py_ssize_t 
 }
 
 static char const doc_intersect[] = //
-    "Compute the intersection of two sorted integer arrays.\n\n"
-    "Parameters:\n"
-    "    a (Tensor): First sorted integer array.\n"
-    "    b (Tensor): Second sorted integer array.\n\n"
-    "Returns:\n"
-    "    float: The number of intersecting elements.\n\n"
-    "Similar to: `numpy.intersect1d`."
-    "Signature:\n"
-    "    >>> def intersect(a, b, /) -> float: ...";
+    "Compute the intersection of two sorted integer arrays.\n\n" "Parameters:\n" "    a (Tensor): First sorted integer " "array.\n" "    b (Tensor): Second " "sorted integer array.\n\n" "Returns:\n" "    float: The number of intersecting elements.\n\n" "Similar to: `numpy.intersect1d`." "Signature:\n" "    >>> def intersect(a, b, /) -> float: ...";
 
 static PyObject *api_intersect(PyObject *self, PyObject *const *args, Py_ssize_t nargs) {
     return implement_sparse_metric(nk_kernel_sparse_intersect_k, args, nargs);
 }
 
 static char const doc_fma[] = //
-    "Fused-Multiply-Add between 3 input vectors.\n\n"
-    "Parameters:\n"
-    "    a (Tensor): First vector.\n"
-    "    b (Tensor): Second vector.\n"
-    "    c (Tensor): Third vector.\n"
-    "    dtype (Union[IntegralType, FloatType], optional): Override the presumed numeric type name.\n"
-    "    alpha (float, optional): First scale, 1.0 by default.\n"
-    "    beta (float, optional): Second scale, 1.0 by default.\n"
-    "    out (Tensor, optional): Vector for resulting distances.\n\n"
-    "Returns:\n"
-    "    Tensor: The distances if `out` is not provided.\n"
-    "    None: If `out` is provided. Operation will be performed in-place.\n\n"
-    "Equivalent to: `alpha * a * b + beta * c`.\n"
-    "Signature:\n"
-    "    >>> def fma(a, b, c, /, dtype, *, alpha, beta, out) -> Optional[Tensor]: ...";
+    "Fused-Multiply-Add between 3 input vectors.\n\n" "Parameters:\n" "    a (Tensor): First vector.\n" "    b " "(Tens" "or): " "Second " "vector.\n" "  " "  " "c " "(T" "en" "so" "r)" ": " "Th" "ir" "d " "ve" "ct" "or" "." "\n" "    dtype (Union[IntegralType, FloatType], optional): Override the presumed numeric type name.\n" "    alpha (float, optional): First scale, 1.0 by default.\n" "    beta (float, optional): Second scale, 1.0 by default.\n" "    out (Tensor, optional): Vector for resulting distances.\n\n" "Returns:\n" "    Tensor: The distances if `out` is not provided.\n" "    None: If `out` is provided. Operation will be performed in-place.\n\n" "Equivalent to: `alpha * a * b + beta * c`.\n" "Signature:\n" "    >>> def fma(a, b, c, /, dtype, *, alpha, beta, out) -> Optional[Tensor]: ...";
 
 static PyObject *api_fma(PyObject *self, PyObject *const *args, Py_ssize_t const positional_args_count,
                          PyObject *args_names_tuple) {
@@ -1821,7 +1615,7 @@ static PyObject *api_fma(PyObject *self, PyObject *const *args, Py_ssize_t const
 
     // Once parsed, the arguments will be stored in these variables:
     char const *dtype_str = NULL;
-    nk_datatype_t dtype = nk_datatype_unknown_k;
+    nk_dtype_t dtype = nk_dtype_unknown_k;
     nk_fmax_t alpha = 1, beta = 1;
 
     Py_buffer a_buffer, b_buffer, c_buffer, out_buffer;
@@ -1872,8 +1666,8 @@ static PyObject *api_fma(PyObject *self, PyObject *const *args, Py_ssize_t const
             PyErr_SetString(PyExc_TypeError, "Expected 'dtype' to be a string");
             return NULL;
         }
-        dtype = python_string_to_datatype(dtype_str);
-        if (dtype == nk_datatype_unknown_k) {
+        dtype = python_string_to_dtype(dtype_str);
+        if (dtype == nk_dtype_unknown_k) {
             PyErr_SetString(PyExc_ValueError, "Unsupported 'dtype'");
             return NULL;
         }
@@ -1905,14 +1699,13 @@ static PyObject *api_fma(PyObject *self, PyObject *const *args, Py_ssize_t const
     }
 
     // Check data types
-    if (a_parsed.datatype != b_parsed.datatype || a_parsed.datatype == nk_datatype_unknown_k ||
-        b_parsed.datatype == nk_datatype_unknown_k || c_parsed.datatype == nk_datatype_unknown_k ||
-        (out_obj && out_parsed.datatype == nk_datatype_unknown_k)) {
-        PyErr_SetString(PyExc_TypeError,
-                        "Input tensors must have matching datatypes, check with `X.__array_interface__`");
+    if (a_parsed.dtype != b_parsed.dtype || a_parsed.dtype == nk_dtype_unknown_k ||
+        b_parsed.dtype == nk_dtype_unknown_k || c_parsed.dtype == nk_dtype_unknown_k ||
+        (out_obj && out_parsed.dtype == nk_dtype_unknown_k)) {
+        PyErr_SetString(PyExc_TypeError, "Input tensors must have matching dtypes, check with `X.__array_interface__`");
         goto cleanup;
     }
-    if (dtype == nk_datatype_unknown_k) dtype = a_parsed.datatype;
+    if (dtype == nk_dtype_unknown_k) dtype = a_parsed.dtype;
 
     // Look up the metric and the capability
     nk_kernel_fma_punned_t metric = NULL;
@@ -1923,11 +1716,10 @@ static PyObject *api_fma(PyObject *self, PyObject *const *args, Py_ssize_t const
     if (!metric) {
         PyErr_Format( //
             PyExc_LookupError,
-            "Unsupported metric '%c' and datatype combination across vectors ('%s'/'%s') and "
-            "`dtype` override ('%s'/'%s')",
-            metric_kind,                                                                             //
-            a_buffer.format ? a_buffer.format : "nil", datatype_to_python_string(a_parsed.datatype), //
-            dtype_str ? dtype_str : "nil", datatype_to_python_string(dtype));
+            "Unsupported metric '%c' and dtype combination across vectors ('%s'/'%s') and " "`dtype` override " "('%s'/" "'%s')",
+            metric_kind,                                                                       //
+            a_buffer.format ? a_buffer.format : "nil", dtype_to_python_string(a_parsed.dtype), //
+            dtype_str ? dtype_str : "nil", dtype_to_python_string(dtype));
         goto cleanup;
     }
 
@@ -1936,18 +1728,18 @@ static PyObject *api_fma(PyObject *self, PyObject *const *args, Py_ssize_t const
 
     // Allocate the output matrix if it wasn't provided
     if (!out_obj) {
-        Tensor *distances_obj = PyObject_NewVar(Tensor, &TensorType, a_parsed.dimensions * bytes_per_datatype(dtype));
+        Tensor *distances_obj = PyObject_NewVar(Tensor, &TensorType, a_parsed.dimensions * bytes_per_dtype(dtype));
         if (!distances_obj) {
             PyErr_NoMemory();
             goto cleanup;
         }
 
         // Initialize the object
-        distances_obj->datatype = dtype;
+        distances_obj->dtype = dtype;
         distances_obj->rank = 1;
         distances_obj->shape[0] = a_parsed.dimensions;
         distances_obj->shape[1] = 0;
-        distances_obj->strides[0] = bytes_per_datatype(dtype);
+        distances_obj->strides[0] = bytes_per_dtype(dtype);
         distances_obj->strides[1] = 0;
         distances_obj->parent = NULL;
         distances_obj->data = distances_obj->start;
@@ -1976,20 +1768,7 @@ cleanup:
 }
 
 static char const doc_wsum[] = //
-    "Weighted Sum of 2 input vectors.\n\n"
-    "Parameters:\n"
-    "    a (Tensor): First vector.\n"
-    "    b (Tensor): Second vector.\n"
-    "    dtype (Union[IntegralType, FloatType], optional): Override the presumed numeric type name.\n"
-    "    alpha (float, optional): First scale, 1.0 by default.\n"
-    "    beta (float, optional): Second scale, 1.0 by default.\n"
-    "    out (Tensor, optional): Vector for resulting distances.\n\n"
-    "Returns:\n"
-    "    Tensor: The distances if `out` is not provided.\n"
-    "    None: If `out` is provided. Operation will be performed in-place.\n\n"
-    "Equivalent to: `alpha * a + beta * b`.\n"
-    "Signature:\n"
-    "    >>> def wsum(a, b, /, dtype, *, alpha, beta, out) -> Optional[Tensor]: ...";
+    "Weighted Sum of 2 input vectors.\n\n" "Parameters:\n" "    a (Tensor): First vector.\n" "    b (Tensor): Second " "vector.\n" "    dtype " "(Union[" "IntegralType," " FloatType], " "optional): " "Override the " "presumed " "numeric type " "name.\n" "   " " al" "pha" " (" "flo" "at," " op" "tio" "nal" "): " "Fir" "st " "sca" "le," " 1." "0 " "by " "def" "aul" "t." "\n" "    beta (float, optional): Second scale, 1.0 by default.\n" "    out (Tensor, optional): Vector for resulting distances.\n\n" "Returns:\n" "    Tensor: The distances if `out` is not provided.\n" "    None: If `out` is provided. Operation will be performed in-place.\n\n" "Equivalent to: `alpha * a + beta * b`.\n" "Signature:\n" "    >>> def wsum(a, b, /, dtype, *, alpha, beta, out) -> Optional[Tensor]: ...";
 
 static PyObject *api_wsum(PyObject *self, PyObject *const *args, Py_ssize_t const positional_args_count,
                           PyObject *args_names_tuple) {
@@ -2006,7 +1785,7 @@ static PyObject *api_wsum(PyObject *self, PyObject *const *args, Py_ssize_t cons
 
     // Once parsed, the arguments will be stored in these variables:
     char const *dtype_str = NULL;
-    nk_datatype_t dtype = nk_datatype_unknown_k;
+    nk_dtype_t dtype = nk_dtype_unknown_k;
     nk_fmax_t alpha = 1, beta = 1;
 
     Py_buffer a_buffer, b_buffer, out_buffer;
@@ -2055,8 +1834,8 @@ static PyObject *api_wsum(PyObject *self, PyObject *const *args, Py_ssize_t cons
             PyErr_SetString(PyExc_TypeError, "Expected 'dtype' to be a string");
             return NULL;
         }
-        dtype = python_string_to_datatype(dtype_str);
-        if (dtype == nk_datatype_unknown_k) {
+        dtype = python_string_to_dtype(dtype_str);
+        if (dtype == nk_dtype_unknown_k) {
             PyErr_SetString(PyExc_ValueError, "Unsupported 'dtype'");
             return NULL;
         }
@@ -2085,13 +1864,12 @@ static PyObject *api_wsum(PyObject *self, PyObject *const *args, Py_ssize_t cons
     }
 
     // Check data types
-    if (a_parsed.datatype != b_parsed.datatype || a_parsed.datatype == nk_datatype_unknown_k ||
-        b_parsed.datatype == nk_datatype_unknown_k || (out_obj && out_parsed.datatype == nk_datatype_unknown_k)) {
-        PyErr_SetString(PyExc_TypeError,
-                        "Input tensors must have matching datatypes, check with `X.__array_interface__`");
+    if (a_parsed.dtype != b_parsed.dtype || a_parsed.dtype == nk_dtype_unknown_k ||
+        b_parsed.dtype == nk_dtype_unknown_k || (out_obj && out_parsed.dtype == nk_dtype_unknown_k)) {
+        PyErr_SetString(PyExc_TypeError, "Input tensors must have matching dtypes, check with `X.__array_interface__`");
         goto cleanup;
     }
-    if (dtype == nk_datatype_unknown_k) dtype = a_parsed.datatype;
+    if (dtype == nk_dtype_unknown_k) dtype = a_parsed.dtype;
 
     // Look up the metric and the capability
     nk_kernel_wsum_punned_t metric = NULL;
@@ -2102,11 +1880,10 @@ static PyObject *api_wsum(PyObject *self, PyObject *const *args, Py_ssize_t cons
     if (!metric) {
         PyErr_Format( //
             PyExc_LookupError,
-            "Unsupported metric '%c' and datatype combination across vectors ('%s'/'%s') and "
-            "`dtype` override ('%s'/'%s')",
-            metric_kind,                                                                             //
-            a_buffer.format ? a_buffer.format : "nil", datatype_to_python_string(a_parsed.datatype), //
-            dtype_str ? dtype_str : "nil", datatype_to_python_string(dtype));
+            "Unsupported metric '%c' and dtype combination across vectors ('%s'/'%s') and " "`dtype` override " "('%s'/" "'%s')",
+            metric_kind,                                                                       //
+            a_buffer.format ? a_buffer.format : "nil", dtype_to_python_string(a_parsed.dtype), //
+            dtype_str ? dtype_str : "nil", dtype_to_python_string(dtype));
         goto cleanup;
     }
 
@@ -2115,18 +1892,18 @@ static PyObject *api_wsum(PyObject *self, PyObject *const *args, Py_ssize_t cons
 
     // Allocate the output matrix if it wasn't provided
     if (!out_obj) {
-        Tensor *distances_obj = PyObject_NewVar(Tensor, &TensorType, a_parsed.dimensions * bytes_per_datatype(dtype));
+        Tensor *distances_obj = PyObject_NewVar(Tensor, &TensorType, a_parsed.dimensions * bytes_per_dtype(dtype));
         if (!distances_obj) {
             PyErr_NoMemory();
             goto cleanup;
         }
 
         // Initialize the object
-        distances_obj->datatype = dtype;
+        distances_obj->dtype = dtype;
         distances_obj->rank = 1;
         distances_obj->shape[0] = a_parsed.dimensions;
         distances_obj->shape[1] = 0;
-        distances_obj->strides[0] = bytes_per_datatype(dtype);
+        distances_obj->strides[0] = bytes_per_dtype(dtype);
         distances_obj->strides[1] = 0;
         distances_obj->parent = NULL;
         distances_obj->data = distances_obj->start;
@@ -2157,20 +1934,7 @@ cleanup:
 // endregion
 
 static char const doc_add[] = //
-    "Element-wise addition of two vectors or a vector and a scalar.\n\n"
-    "Parameters:\n"
-    "    a (Union[Tensor, float, int]): First operand (vector or scalar).\n"
-    "    b (Union[Tensor, float, int]): Second operand (vector or scalar).\n"
-    "    out (Tensor, optional): Output buffer for the result.\n"
-    "    a_dtype (Union[IntegralType, FloatType], optional): Override dtype for `a`.\n"
-    "    b_dtype (Union[IntegralType, FloatType], optional): Override dtype for `b`.\n"
-    "    out_dtype (Union[IntegralType, FloatType], optional): Override dtype for output.\n\n"
-    "Returns:\n"
-    "    Tensor: The sum if `out` is not provided.\n"
-    "    None: If `out` is provided (in-place operation).\n\n"
-    "Equivalent to: `a + b`.\n"
-    "Signature:\n"
-    "    >>> def add(a, b, /, *, out, a_dtype, b_dtype, out_dtype) -> Optional[Tensor]: ...";
+    "Element-wise addition of two vectors or a vector and a scalar.\n\n" "Parameters:\n" "    a (Union[Tensor, float, " "int]): First operand (vector " "or scalar).\n" "    b " "(Union[" "Tensor, " "float, " "int]): " "Second " "operand " "(vector or " "scalar).\n" "    out (Tensor, optional): Output buffer for the result.\n" "    a_dtype (Union[IntegralType, FloatType], optional): Override dtype for `a`.\n" "    b_dtype (Union[IntegralType, FloatType], optional): Override dtype for `b`.\n" "    out_dtype (Union[IntegralType, FloatType], optional): Override dtype for output.\n\n" "Returns:\n" "    Tensor: The sum if `out` is not provided.\n" "    None: If `out` is provided (in-place operation).\n\n" "Equivalent to: `a + b`.\n" "Signature:\n" "    >>> def add(a, b, /, *, out, a_dtype, b_dtype, out_dtype) -> Optional[Tensor]: ...";
 
 static PyObject *api_add(PyObject *self, PyObject *const *args, Py_ssize_t const positional_args_count,
                          PyObject *args_names_tuple) {
@@ -2185,7 +1949,7 @@ static PyObject *api_add(PyObject *self, PyObject *const *args, Py_ssize_t const
     PyObject *b_dtype_obj = NULL;   // Optional, "b_dtype" keyword-only
     PyObject *out_dtype_obj = NULL; // Optional, "out_dtype" keyword-only
 
-    nk_datatype_t dtype = nk_datatype_unknown_k;
+    nk_dtype_t dtype = nk_dtype_unknown_k;
 
     Py_buffer a_buffer, b_buffer, out_buffer;
     TensorArgument a_parsed, b_parsed, out_parsed;
@@ -2260,12 +2024,12 @@ static PyObject *api_add(PyObject *self, PyObject *const *args, Py_ssize_t const
         if (out_dtype_obj) {
             char const *dtype_str = PyUnicode_AsUTF8(out_dtype_obj);
             if (!dtype_str) { goto cleanup; }
-            dtype = python_string_to_datatype(dtype_str);
+            dtype = python_string_to_dtype(dtype_str);
         }
-        else { dtype = a_parsed.datatype; }
+        else { dtype = a_parsed.dtype; }
 
-        if (dtype == nk_datatype_unknown_k) {
-            PyErr_SetString(PyExc_ValueError, "Unsupported datatype");
+        if (dtype == nk_dtype_unknown_k) {
+            PyErr_SetString(PyExc_ValueError, "Unsupported dtype");
             goto cleanup;
         }
 
@@ -2275,22 +2039,22 @@ static PyObject *api_add(PyObject *self, PyObject *const *args, Py_ssize_t const
         nk_find_kernel_punned(nk_kernel_scale_k, dtype, static_capabilities, nk_cap_any_k,
                               (nk_kernel_punned_t *)&scale_kernel, &capability);
         if (!scale_kernel) {
-            PyErr_Format(PyExc_LookupError, "No scale kernel for dtype '%s'", datatype_to_string(dtype));
+            PyErr_Format(PyExc_LookupError, "No scale kernel for dtype '%s'", dtype_to_string(dtype));
             goto cleanup;
         }
 
         char *result_start = NULL;
         if (!out_obj) {
-            Tensor *result_obj = PyObject_NewVar(Tensor, &TensorType, a_parsed.dimensions * bytes_per_datatype(dtype));
+            Tensor *result_obj = PyObject_NewVar(Tensor, &TensorType, a_parsed.dimensions * bytes_per_dtype(dtype));
             if (!result_obj) {
                 PyErr_NoMemory();
                 goto cleanup;
             }
-            result_obj->datatype = dtype;
+            result_obj->dtype = dtype;
             result_obj->rank = 1;
             result_obj->shape[0] = a_parsed.dimensions;
             result_obj->shape[1] = 0;
-            result_obj->strides[0] = bytes_per_datatype(dtype);
+            result_obj->strides[0] = bytes_per_dtype(dtype);
             result_obj->strides[1] = 0;
             result_obj->parent = NULL;
             result_obj->data = result_obj->start;
@@ -2328,9 +2092,9 @@ static PyObject *api_add(PyObject *self, PyObject *const *args, Py_ssize_t const
         goto cleanup;
     }
 
-    // Check datatypes match
-    if (a_parsed.datatype != b_parsed.datatype) {
-        PyErr_SetString(PyExc_TypeError, "Input arrays must have matching datatypes");
+    // Check dtypes match
+    if (a_parsed.dtype != b_parsed.dtype) {
+        PyErr_SetString(PyExc_TypeError, "Input arrays must have matching dtypes");
         goto cleanup;
     }
 
@@ -2338,12 +2102,12 @@ static PyObject *api_add(PyObject *self, PyObject *const *args, Py_ssize_t const
     if (out_dtype_obj) {
         char const *dtype_str = PyUnicode_AsUTF8(out_dtype_obj);
         if (!dtype_str) { goto cleanup; }
-        dtype = python_string_to_datatype(dtype_str);
+        dtype = python_string_to_dtype(dtype_str);
     }
-    else { dtype = a_parsed.datatype; }
+    else { dtype = a_parsed.dtype; }
 
-    if (dtype == nk_datatype_unknown_k) {
-        PyErr_SetString(PyExc_ValueError, "Unsupported datatype");
+    if (dtype == nk_dtype_unknown_k) {
+        PyErr_SetString(PyExc_ValueError, "Unsupported dtype");
         goto cleanup;
     }
 
@@ -2353,22 +2117,22 @@ static PyObject *api_add(PyObject *self, PyObject *const *args, Py_ssize_t const
     nk_find_kernel_punned(nk_kernel_sum_k, dtype, static_capabilities, nk_cap_any_k, (nk_kernel_punned_t *)&sum_kernel,
                           &capability);
     if (!sum_kernel) {
-        PyErr_Format(PyExc_LookupError, "No sum kernel for dtype '%s'", datatype_to_string(dtype));
+        PyErr_Format(PyExc_LookupError, "No sum kernel for dtype '%s'", dtype_to_string(dtype));
         goto cleanup;
     }
 
     char *result_start = NULL;
     if (!out_obj) {
-        Tensor *result_obj = PyObject_NewVar(Tensor, &TensorType, a_parsed.dimensions * bytes_per_datatype(dtype));
+        Tensor *result_obj = PyObject_NewVar(Tensor, &TensorType, a_parsed.dimensions * bytes_per_dtype(dtype));
         if (!result_obj) {
             PyErr_NoMemory();
             goto cleanup;
         }
-        result_obj->datatype = dtype;
+        result_obj->dtype = dtype;
         result_obj->rank = 1;
         result_obj->shape[0] = a_parsed.dimensions;
         result_obj->shape[1] = 0;
-        result_obj->strides[0] = bytes_per_datatype(dtype);
+        result_obj->strides[0] = bytes_per_dtype(dtype);
         result_obj->strides[1] = 0;
         result_obj->parent = NULL;
         result_obj->data = result_obj->start;
@@ -2390,20 +2154,7 @@ cleanup:
 }
 
 static char const doc_multiply[] = //
-    "Element-wise multiplication of two vectors or a vector and a scalar.\n\n"
-    "Parameters:\n"
-    "    a (Union[Tensor, float, int]): First operand (vector or scalar).\n"
-    "    b (Union[Tensor, float, int]): Second operand (vector or scalar).\n"
-    "    out (Tensor, optional): Output buffer for the result.\n"
-    "    a_dtype (Union[IntegralType, FloatType], optional): Override dtype for `a`.\n"
-    "    b_dtype (Union[IntegralType, FloatType], optional): Override dtype for `b`.\n"
-    "    out_dtype (Union[IntegralType, FloatType], optional): Override dtype for output.\n\n"
-    "Returns:\n"
-    "    Tensor: The product if `out` is not provided.\n"
-    "    None: If `out` is provided (in-place operation).\n\n"
-    "Equivalent to: `a * b`.\n"
-    "Signature:\n"
-    "    >>> def multiply(a, b, /, *, out, a_dtype, b_dtype, out_dtype) -> Optional[Tensor]: ...";
+    "Element-wise multiplication of two vectors or a vector and a scalar.\n\n" "Parameters:\n" "    a (Union[Tensor, " "float, int]): First " "operand (vector or " "scalar).\n" "    b " "(Union[" "Tensor, " "float, " "int]): " "Second " "operand " "(vector " "or " "scalar).\n" "    out (Tensor, optional): Output buffer for the result.\n" "    a_dtype (Union[IntegralType, FloatType], optional): Override dtype for `a`.\n" "    b_dtype (Union[IntegralType, FloatType], optional): Override dtype for `b`.\n" "    out_dtype (Union[IntegralType, FloatType], optional): Override dtype for output.\n\n" "Returns:\n" "    Tensor: The product if `out` is not provided.\n" "    None: If `out` is provided (in-place operation).\n\n" "Equivalent to: `a * b`.\n" "Signature:\n" "    >>> def multiply(a, b, /, *, out, a_dtype, b_dtype, out_dtype) -> Optional[Tensor]: ...";
 
 static PyObject *api_multiply(PyObject *self, PyObject *const *args, Py_ssize_t const positional_args_count,
                               PyObject *args_names_tuple) {
@@ -2418,7 +2169,7 @@ static PyObject *api_multiply(PyObject *self, PyObject *const *args, Py_ssize_t 
     PyObject *b_dtype_obj = NULL;   // Optional, "b_dtype" keyword-only
     PyObject *out_dtype_obj = NULL; // Optional, "out_dtype" keyword-only
 
-    nk_datatype_t dtype = nk_datatype_unknown_k;
+    nk_dtype_t dtype = nk_dtype_unknown_k;
 
     Py_buffer a_buffer, b_buffer, out_buffer;
     TensorArgument a_parsed, b_parsed, out_parsed;
@@ -2493,12 +2244,12 @@ static PyObject *api_multiply(PyObject *self, PyObject *const *args, Py_ssize_t 
         if (out_dtype_obj) {
             char const *dtype_str = PyUnicode_AsUTF8(out_dtype_obj);
             if (!dtype_str) { goto cleanup; }
-            dtype = python_string_to_datatype(dtype_str);
+            dtype = python_string_to_dtype(dtype_str);
         }
-        else { dtype = a_parsed.datatype; }
+        else { dtype = a_parsed.dtype; }
 
-        if (dtype == nk_datatype_unknown_k) {
-            PyErr_SetString(PyExc_ValueError, "Unsupported datatype");
+        if (dtype == nk_dtype_unknown_k) {
+            PyErr_SetString(PyExc_ValueError, "Unsupported dtype");
             goto cleanup;
         }
 
@@ -2508,22 +2259,22 @@ static PyObject *api_multiply(PyObject *self, PyObject *const *args, Py_ssize_t 
         nk_find_kernel_punned(nk_kernel_scale_k, dtype, static_capabilities, nk_cap_any_k,
                               (nk_kernel_punned_t *)&scale_kernel, &capability);
         if (!scale_kernel) {
-            PyErr_Format(PyExc_LookupError, "No scale kernel for dtype '%s'", datatype_to_string(dtype));
+            PyErr_Format(PyExc_LookupError, "No scale kernel for dtype '%s'", dtype_to_string(dtype));
             goto cleanup;
         }
 
         char *result_start = NULL;
         if (!out_obj) {
-            Tensor *result_obj = PyObject_NewVar(Tensor, &TensorType, a_parsed.dimensions * bytes_per_datatype(dtype));
+            Tensor *result_obj = PyObject_NewVar(Tensor, &TensorType, a_parsed.dimensions * bytes_per_dtype(dtype));
             if (!result_obj) {
                 PyErr_NoMemory();
                 goto cleanup;
             }
-            result_obj->datatype = dtype;
+            result_obj->dtype = dtype;
             result_obj->rank = 1;
             result_obj->shape[0] = a_parsed.dimensions;
             result_obj->shape[1] = 0;
-            result_obj->strides[0] = bytes_per_datatype(dtype);
+            result_obj->strides[0] = bytes_per_dtype(dtype);
             result_obj->strides[1] = 0;
             result_obj->parent = NULL;
             result_obj->data = result_obj->start;
@@ -2561,9 +2312,9 @@ static PyObject *api_multiply(PyObject *self, PyObject *const *args, Py_ssize_t 
         goto cleanup;
     }
 
-    // Check datatypes match
-    if (a_parsed.datatype != b_parsed.datatype) {
-        PyErr_SetString(PyExc_TypeError, "Input arrays must have matching datatypes");
+    // Check dtypes match
+    if (a_parsed.dtype != b_parsed.dtype) {
+        PyErr_SetString(PyExc_TypeError, "Input arrays must have matching dtypes");
         goto cleanup;
     }
 
@@ -2571,12 +2322,12 @@ static PyObject *api_multiply(PyObject *self, PyObject *const *args, Py_ssize_t 
     if (out_dtype_obj) {
         char const *dtype_str = PyUnicode_AsUTF8(out_dtype_obj);
         if (!dtype_str) { goto cleanup; }
-        dtype = python_string_to_datatype(dtype_str);
+        dtype = python_string_to_dtype(dtype_str);
     }
-    else { dtype = a_parsed.datatype; }
+    else { dtype = a_parsed.dtype; }
 
-    if (dtype == nk_datatype_unknown_k) {
-        PyErr_SetString(PyExc_ValueError, "Unsupported datatype");
+    if (dtype == nk_dtype_unknown_k) {
+        PyErr_SetString(PyExc_ValueError, "Unsupported dtype");
         goto cleanup;
     }
 
@@ -2586,22 +2337,22 @@ static PyObject *api_multiply(PyObject *self, PyObject *const *args, Py_ssize_t 
     nk_find_kernel_punned(nk_kernel_fma_k, dtype, static_capabilities, nk_cap_any_k, (nk_kernel_punned_t *)&fma_kernel,
                           &capability);
     if (!fma_kernel) {
-        PyErr_Format(PyExc_LookupError, "No fma kernel for dtype '%s'", datatype_to_string(dtype));
+        PyErr_Format(PyExc_LookupError, "No fma kernel for dtype '%s'", dtype_to_string(dtype));
         goto cleanup;
     }
 
     char *result_start = NULL;
     if (!out_obj) {
-        Tensor *result_obj = PyObject_NewVar(Tensor, &TensorType, a_parsed.dimensions * bytes_per_datatype(dtype));
+        Tensor *result_obj = PyObject_NewVar(Tensor, &TensorType, a_parsed.dimensions * bytes_per_dtype(dtype));
         if (!result_obj) {
             PyErr_NoMemory();
             goto cleanup;
         }
-        result_obj->datatype = dtype;
+        result_obj->dtype = dtype;
         result_obj->rank = 1;
         result_obj->shape[0] = a_parsed.dimensions;
         result_obj->shape[1] = 0;
-        result_obj->strides[0] = bytes_per_datatype(dtype);
+        result_obj->strides[0] = bytes_per_dtype(dtype);
         result_obj->strides[1] = 0;
         result_obj->parent = NULL;
         result_obj->data = result_obj->start;
@@ -2628,40 +2379,13 @@ cleanup:
 }
 
 static char const doc_sin[] = //
-    "Element-wise trigonometric sine.\n\n"
-    "Parameters:\n"
-    "    a (Tensor): Input vector of angles in radians.\n"
-    "    dtype (Union[IntegralType, FloatType], optional): Override the presumed numeric type name.\n"
-    "    out (Tensor, optional): Vector for resulting values.\n\n"
-    "Returns:\n"
-    "    Tensor: The sine values if `out` is not provided.\n"
-    "    None: If `out` is provided.\n\n"
-    "Signature:\n"
-    "    >>> def sin(a, /, dtype, *, out) -> Optional[Tensor]: ...";
+    "Element-wise trigonometric sine.\n\n" "Parameters:\n" "    a (Tensor): Input vector of angles in radians.\n" "    " "dtyp" "e " "(Uni" "on[" "Inte" "gral" "Type" ", " "Floa" "tTyp" "e], " "opti" "onal" "): " "Over" "ride" " the" " pre" "sume" "d " "nume" "ric " "type" " nam" "e.\n" "    out (Tensor, optional): Vector for resulting values.\n\n" "Returns:\n" "    Tensor: The sine values if `out` is not provided.\n" "    None: If `out` is provided.\n\n" "Signature:\n" "    >>> def sin(a, /, dtype, *, out) -> Optional[Tensor]: ...";
 
 static char const doc_cos[] = //
-    "Element-wise trigonometric cosine.\n\n"
-    "Parameters:\n"
-    "    a (Tensor): Input vector of angles in radians.\n"
-    "    dtype (Union[IntegralType, FloatType], optional): Override the presumed numeric type name.\n"
-    "    out (Tensor, optional): Vector for resulting values.\n\n"
-    "Returns:\n"
-    "    Tensor: The cosine values if `out` is not provided.\n"
-    "    None: If `out` is provided.\n\n"
-    "Signature:\n"
-    "    >>> def cos(a, /, dtype, *, out) -> Optional[Tensor]: ...";
+    "Element-wise trigonometric cosine.\n\n" "Parameters:\n" "    a (Tensor): Input vector of angles in radians.\n" "  " "  " "dt" "yp" "e " "(U" "ni" "on" "[I" "nt" "eg" "ra" "lT" "yp" "e," " F" "lo" "at" "Ty" "pe" "]," " o" "pt" "io" "na" "l)" ": " "Ov" "er" "ri" "de" " t" "he" " p" "re" "su" "me" "d " "nu" "me" "ri" "c " "ty" "pe" " n" "am" "e." "\n" "    out (Tensor, optional): Vector for resulting values.\n\n" "Returns:\n" "    Tensor: The cosine values if `out` is not provided.\n" "    None: If `out` is provided.\n\n" "Signature:\n" "    >>> def cos(a, /, dtype, *, out) -> Optional[Tensor]: ...";
 
 static char const doc_atan[] = //
-    "Element-wise trigonometric arctangent.\n\n"
-    "Parameters:\n"
-    "    a (Tensor): Input vector of values.\n"
-    "    dtype (Union[IntegralType, FloatType], optional): Override the presumed numeric type name.\n"
-    "    out (Tensor, optional): Vector for resulting angles in radians.\n\n"
-    "Returns:\n"
-    "    Tensor: The arctangent values if `out` is not provided.\n"
-    "    None: If `out` is provided.\n\n"
-    "Signature:\n"
-    "    >>> def atan(a, /, dtype, *, out) -> Optional[Tensor]: ...";
+    "Element-wise trigonometric arctangent.\n\n" "Parameters:\n" "    a (Tensor): Input vector of values.\n" "    " "dt" "yp" "e " "(Union[" "IntegralT" "ype, " "FloatType" "], " "optional)" ": " "Override " "the " "presumed " "numeric " "type " "name.\n" "    out (Tensor, optional): Vector for resulting angles in radians.\n\n" "Returns:\n" "    Tensor: The arctangent values if `out` is not provided.\n" "    None: If `out` is provided.\n\n" "Signature:\n" "    >>> def atan(a, /, dtype, *, out) -> Optional[Tensor]: ...";
 
 static PyObject *implement_trigonometry(nk_kernel_kind_t metric_kind, PyObject *const *args,
                                         Py_ssize_t const positional_args_count, PyObject *args_names_tuple) {
@@ -2675,7 +2399,7 @@ static PyObject *implement_trigonometry(nk_kernel_kind_t metric_kind, PyObject *
 
     // Once parsed, the arguments will be stored in these variables:
     char const *dtype_str = NULL;
-    nk_datatype_t dtype = nk_datatype_unknown_k;
+    nk_dtype_t dtype = nk_dtype_unknown_k;
 
     Py_buffer a_buffer, out_buffer;
     TensorArgument a_parsed, out_parsed;
@@ -2719,8 +2443,8 @@ static PyObject *implement_trigonometry(nk_kernel_kind_t metric_kind, PyObject *
             PyErr_SetString(PyExc_TypeError, "Expected 'dtype' to be a string");
             return NULL;
         }
-        dtype = python_string_to_datatype(dtype_str);
-        if (dtype == nk_datatype_unknown_k) {
+        dtype = python_string_to_dtype(dtype_str);
+        if (dtype == nk_dtype_unknown_k) {
             PyErr_SetString(PyExc_ValueError, "Unsupported 'dtype'");
             return NULL;
         }
@@ -2741,11 +2465,11 @@ static PyObject *implement_trigonometry(nk_kernel_kind_t metric_kind, PyObject *
     }
 
     // Check data types
-    if (a_parsed.datatype == nk_datatype_unknown_k || (out_obj && out_parsed.datatype == nk_datatype_unknown_k)) {
-        PyErr_SetString(PyExc_TypeError, "Input tensor must have a known datatype, check with `X.__array_interface__`");
+    if (a_parsed.dtype == nk_dtype_unknown_k || (out_obj && out_parsed.dtype == nk_dtype_unknown_k)) {
+        PyErr_SetString(PyExc_TypeError, "Input tensor must have a known dtype, check with `X.__array_interface__`");
         goto cleanup;
     }
-    if (dtype == nk_datatype_unknown_k) dtype = a_parsed.datatype;
+    if (dtype == nk_dtype_unknown_k) dtype = a_parsed.dtype;
 
     // Look up the kernel and the capability
     nk_kernel_trigonometry_punned_t kernel = NULL;
@@ -2755,10 +2479,10 @@ static PyObject *implement_trigonometry(nk_kernel_kind_t metric_kind, PyObject *
     if (!kernel) {
         PyErr_Format( //
             PyExc_LookupError,
-            "Unsupported metric '%c' and datatype combination ('%s'/'%s') and `dtype` override ('%s'/'%s')",
-            metric_kind,                                                                             //
-            a_buffer.format ? a_buffer.format : "nil", datatype_to_python_string(a_parsed.datatype), //
-            dtype_str ? dtype_str : "nil", datatype_to_python_string(dtype));
+            "Unsupported metric '%c' and dtype combination ('%s'/'%s') and `dtype` override ('%s'/'%s')",
+            metric_kind,                                                                       //
+            a_buffer.format ? a_buffer.format : "nil", dtype_to_python_string(a_parsed.dtype), //
+            dtype_str ? dtype_str : "nil", dtype_to_python_string(dtype));
         goto cleanup;
     }
 
@@ -2766,18 +2490,18 @@ static PyObject *implement_trigonometry(nk_kernel_kind_t metric_kind, PyObject *
 
     // Allocate the output array if it wasn't provided
     if (!out_obj) {
-        Tensor *output_obj = PyObject_NewVar(Tensor, &TensorType, a_parsed.dimensions * bytes_per_datatype(dtype));
+        Tensor *output_obj = PyObject_NewVar(Tensor, &TensorType, a_parsed.dimensions * bytes_per_dtype(dtype));
         if (!output_obj) {
             PyErr_NoMemory();
             goto cleanup;
         }
 
         // Initialize the object
-        output_obj->datatype = dtype;
+        output_obj->dtype = dtype;
         output_obj->rank = 1;
         output_obj->shape[0] = a_parsed.dimensions;
         output_obj->shape[1] = 0;
-        output_obj->strides[0] = bytes_per_datatype(dtype);
+        output_obj->strides[0] = bytes_per_dtype(dtype);
         output_obj->strides[1] = 0;
         output_obj->parent = NULL;
         output_obj->data = output_obj->start;
@@ -2820,52 +2544,13 @@ static PyObject *api_atan(PyObject *self, PyObject *const *args, Py_ssize_t cons
 //   - b_centroid: centroid of second point cloud
 
 static char const doc_kabsch[] = //
-    "Compute optimal rigid transformation (Kabsch algorithm) between two point clouds.\n\n"
-    "Finds the optimal rotation matrix that minimizes RMSD between point clouds.\n"
-    "The transformation aligns point cloud A to point cloud B:\n"
-    "    a'_i = scale * R * (a_i - a_centroid) + b_centroid\n\n"
-    "Supports both single-pair and batched inputs:\n"
-    "    - Single pair: (N, 3) -> rotation (3,3), scale (), rmsd (), centroids (3,)\n"
-    "    - Batched: (B, N, 3) -> rotation (B,3,3), scale (B,), rmsd (B,), centroids (B,3)\n\n"
-    "Parameters:\n"
-    "    a (Tensor): First point cloud(s), shape (N, 3) or (B, N, 3), float32 or float64.\n"
-    "    b (Tensor): Second point cloud(s), shape (N, 3) or (B, N, 3), same dtype as a.\n\n"
-    "Returns:\n"
-    "    tuple: (rotation, scale, rmsd, a_centroid, b_centroid) - all Tensor.\n\n"
-    "Example:\n"
-    "    >>> rot, scale, rmsd, a_c, b_c = numkong.kabsch(a, b)\n"
-    "    >>> np.asarray(rot)  # (3, 3) rotation matrix\n"
-    "    >>> float(scale)     # scale factor (always 1.0 for Kabsch)\n";
+    "Compute optimal rigid transformation (Kabsch algorithm) between two point clouds.\n\n" "Finds the optimal " "rotat" "ion " "matri" "x " "that " "minimizes RMSD between " "point clouds.\n" "The " "transfor" "mation " "aligns " "point " "cloud A " "to " "point " "cloud " "B:\n" " " " " " " " " "a" "'" "_" "i" " " "=" " " "s" "c" "a" "l" "e" " " "*" " " "R" " " "*" " " "(" "a" "_" "i" " " "-" " " "a" "_" "c" "e" "n" "t" "r" "o" "i" "d" ")" " " "+" " " "b" "_" "c" "e" "n" "t" "r" "o" "i" "d" "\n\n" "Supports both single-pair and batched inputs:\n" "    - Single pair: (N, 3) -> rotation (3,3), scale (), rmsd (), centroids (3,)\n" "    - Batched: (B, N, 3) -> rotation (B,3,3), scale (B,), rmsd (B,), centroids (B,3)\n\n" "Parameters:\n" "    a (Tensor): First point cloud(s), shape (N, 3) or (B, N, 3), float32 or float64.\n" "    b (Tensor): Second point cloud(s), shape (N, 3) or (B, N, 3), same dtype as a.\n\n" "Returns:\n" "    tuple: (rotation, scale, rmsd, a_centroid, b_centroid) - all Tensor.\n\n" "Example:\n" "    >>> rot, scale, rmsd, a_c, b_c = numkong.kabsch(a, b)\n" "    >>> np.asarray(rot)  # (3, 3) rotation matrix\n" "    >>> float(scale)     # scale factor (always 1.0 for Kabsch)\n";
 
 static char const doc_umeyama[] = //
-    "Compute optimal similarity transformation (Umeyama algorithm) between two point clouds.\n\n"
-    "Finds the optimal rotation matrix and uniform scaling factor that minimize RMSD.\n"
-    "The transformation aligns point cloud A to point cloud B:\n"
-    "    a'_i = scale * R * (a_i - a_centroid) + b_centroid\n\n"
-    "Supports both single-pair and batched inputs:\n"
-    "    - Single pair: (N, 3) -> rotation (3,3), scale (), rmsd (), centroids (3,)\n"
-    "    - Batched: (B, N, 3) -> rotation (B,3,3), scale (B,), rmsd (B,), centroids (B,3)\n\n"
-    "Parameters:\n"
-    "    a (Tensor): First point cloud(s), shape (N, 3) or (B, N, 3), float32 or float64.\n"
-    "    b (Tensor): Second point cloud(s), shape (N, 3) or (B, N, 3), same dtype as a.\n\n"
-    "Returns:\n"
-    "    tuple: (rotation, scale, rmsd, a_centroid, b_centroid) - all Tensor.\n\n"
-    "Example:\n"
-    "    >>> rot, scale, rmsd, a_c, b_c = numkong.umeyama(a, b)\n"
-    "    >>> float(scale)  # Will differ from 1.0 if point clouds have different scales\n";
+    "Compute optimal similarity transformation (Umeyama algorithm) between two point clouds.\n\n" "Finds the optimal " "rotation matrix and " "uniform scaling " "factor that " "minimize RMSD.\n" "T" "h" "e" " " "t" "r" "a" "n" "s" "f" "o" "r" "m" "a" "t" "i" "o" "n" " " "a" "l" "i" "g" "n" "s" " " "p" "o" "i" "n" "t" " " "c" "l" "o" "u" "d" " " "A" " " "t" "o" " " "p" "o" "i" "n" "t" " " "c" "l" "o" "u" "d" " " "B" ":" "\n" "    a'_i = scale * R * (a_i - a_centroid) + b_centroid\n\n" "Supports both single-pair and batched inputs:\n" "    - Single pair: (N, 3) -> rotation (3,3), scale (), rmsd (), centroids (3,)\n" "    - Batched: (B, N, 3) -> rotation (B,3,3), scale (B,), rmsd (B,), centroids (B,3)\n\n" "Parameters:\n" "    a (Tensor): First point cloud(s), shape (N, 3) or (B, N, 3), float32 or float64.\n" "    b (Tensor): Second point cloud(s), shape (N, 3) or (B, N, 3), same dtype as a.\n\n" "Returns:\n" "    tuple: (rotation, scale, rmsd, a_centroid, b_centroid) - all Tensor.\n\n" "Example:\n" "    >>> rot, scale, rmsd, a_c, b_c = numkong.umeyama(a, b)\n" "    >>> float(scale)  # Will differ from 1.0 if point clouds have different scales\n";
 
 static char const doc_rmsd[] = //
-    "Compute RMSD between two point clouds without alignment optimization.\n\n"
-    "Computes root mean square deviation after centering both clouds.\n"
-    "Returns identity rotation and scale=1.0.\n\n"
-    "Supports both single-pair and batched inputs:\n"
-    "    - Single pair: (N, 3) -> rotation (3,3), scale (), rmsd (), centroids (3,)\n"
-    "    - Batched: (B, N, 3) -> rotation (B,3,3), scale (B,), rmsd (B,), centroids (B,3)\n\n"
-    "Parameters:\n"
-    "    a (Tensor): First point cloud(s), shape (N, 3) or (B, N, 3), float32 or float64.\n"
-    "    b (Tensor): Second point cloud(s), shape (N, 3) or (B, N, 3), same dtype as a.\n\n"
-    "Returns:\n"
-    "    tuple: (rotation, scale, rmsd, a_centroid, b_centroid) - all Tensor.\n";
+    "Compute RMSD between two point clouds without alignment optimization.\n\n" "Computes root mean square deviation " "after centering both clouds.\n" "Retur" "ns " "ident" "ity " "rotat" "ion " "and " "scale" "=1.0." "\n\n" "Supports both single-pair and batched inputs:\n" "    - Single pair: (N, 3) -> rotation (3,3), scale (), rmsd (), centroids (3,)\n" "    - Batched: (B, N, 3) -> rotation (B,3,3), scale (B,), rmsd (B,), centroids (B,3)\n\n" "Parameters:\n" "    a (Tensor): First point cloud(s), shape (N, 3) or (B, N, 3), float32 or float64.\n" "    b (Tensor): Second point cloud(s), shape (N, 3) or (B, N, 3), same dtype as a.\n\n" "Returns:\n" "    tuple: (rotation, scale, rmsd, a_centroid, b_centroid) - all Tensor.\n";
 
 static PyObject *implement_mesh_alignment(nk_kernel_kind_t metric_kind, PyObject *const *args,
                                           Py_ssize_t positional_args_count) {
@@ -2945,8 +2630,8 @@ static PyObject *implement_mesh_alignment(nk_kernel_kind_t metric_kind, PyObject
     }
 
     // Check data types and get kernel
-    nk_datatype_t datatype = python_string_to_datatype(a_buffer.format);
-    if (datatype != nk_f32_k && datatype != nk_f64_k) {
+    nk_dtype_t dtype = python_string_to_dtype(a_buffer.format);
+    if (dtype != nk_f32_k && dtype != nk_f64_k) {
         PyErr_SetString(PyExc_TypeError, "Point clouds must be float32 or float64");
         goto cleanup;
     }
@@ -2954,7 +2639,7 @@ static PyObject *implement_mesh_alignment(nk_kernel_kind_t metric_kind, PyObject
     // Find the appropriate kernel
     nk_metric_mesh_punned_t kernel = NULL;
     nk_capability_t capability = nk_cap_serial_k;
-    nk_find_kernel_punned(metric_kind, datatype, static_capabilities, nk_cap_any_k, (nk_kernel_punned_t *)&kernel,
+    nk_find_kernel_punned(metric_kind, dtype, static_capabilities, nk_cap_any_k, (nk_kernel_punned_t *)&kernel,
                           &capability);
     if (!kernel) {
         PyErr_SetString(PyExc_RuntimeError, "No suitable mesh kernel found for this data type");
@@ -2962,7 +2647,7 @@ static PyObject *implement_mesh_alignment(nk_kernel_kind_t metric_kind, PyObject
     }
 
     // Check contiguity - we need row-major contiguous data for the innermost 2 dimensions
-    Py_ssize_t const elem_size = (datatype == nk_f32_k ? 4 : 8);
+    Py_ssize_t const elem_size = (dtype == nk_f32_k ? 4 : 8);
     Py_ssize_t const inner_stride_a = is_batched ? a_buffer.strides[2] : a_buffer.strides[1];
     Py_ssize_t const inner_stride_b = is_batched ? b_buffer.strides[2] : b_buffer.strides[1];
     if (inner_stride_a != elem_size || inner_stride_b != elem_size) {
@@ -2976,24 +2661,24 @@ static PyObject *implement_mesh_alignment(nk_kernel_kind_t metric_kind, PyObject
     nk_size_t n = (nk_size_t)n_points;
 
     // Output dtype for scale/rmsd is always f64 (nk_fmax_t)
-    nk_datatype_t out_dtype = nk_f64_k;
+    nk_dtype_t out_dtype = nk_f64_k;
 
     if (!is_batched) {
         // Single pair case - return 0D scalars for scale/rmsd, (3,3) for rotation, (3,) for centroids
         Py_ssize_t rot_shape[2] = {3, 3};
         Py_ssize_t cent_shape[1] = {3};
 
-        rot_tensor = Tensor_new(datatype, 2, rot_shape);
+        rot_tensor = Tensor_new(dtype, 2, rot_shape);
         scale_tensor = Tensor_new(out_dtype, 0, NULL);
         rmsd_tensor = Tensor_new(out_dtype, 0, NULL);
-        a_cent_tensor = Tensor_new(datatype, 1, cent_shape);
-        b_cent_tensor = Tensor_new(datatype, 1, cent_shape);
+        a_cent_tensor = Tensor_new(dtype, 1, cent_shape);
+        b_cent_tensor = Tensor_new(dtype, 1, cent_shape);
 
         if (!rot_tensor || !scale_tensor || !rmsd_tensor || !a_cent_tensor || !b_cent_tensor) goto cleanup;
 
         nk_fmax_t scale = 0.0, rmsd_result = 0.0;
 
-        if (datatype == nk_f64_k) {
+        if (dtype == nk_f64_k) {
             nk_f64_t *a_centroid = (nk_f64_t *)a_cent_tensor->data;
             nk_f64_t *b_centroid = (nk_f64_t *)b_cent_tensor->data;
             nk_f64_t *rotation = (nk_f64_t *)rot_tensor->data;
@@ -3016,11 +2701,11 @@ static PyObject *implement_mesh_alignment(nk_kernel_kind_t metric_kind, PyObject
         Py_ssize_t scalar_shape[1] = {batch_size};
         Py_ssize_t cent_shape[2] = {batch_size, 3};
 
-        rot_tensor = Tensor_new(datatype, 3, rot_shape);
+        rot_tensor = Tensor_new(dtype, 3, rot_shape);
         scale_tensor = Tensor_new(out_dtype, 1, scalar_shape);
         rmsd_tensor = Tensor_new(out_dtype, 1, scalar_shape);
-        a_cent_tensor = Tensor_new(datatype, 2, cent_shape);
-        b_cent_tensor = Tensor_new(datatype, 2, cent_shape);
+        a_cent_tensor = Tensor_new(dtype, 2, cent_shape);
+        b_cent_tensor = Tensor_new(dtype, 2, cent_shape);
 
         if (!rot_tensor || !scale_tensor || !rmsd_tensor || !a_cent_tensor || !b_cent_tensor) goto cleanup;
 
@@ -3030,7 +2715,7 @@ static PyObject *implement_mesh_alignment(nk_kernel_kind_t metric_kind, PyObject
         for (Py_ssize_t batch_idx = 0; batch_idx < batch_size; ++batch_idx) {
             nk_fmax_t scale = 0.0, rmsd_result = 0.0;
 
-            if (datatype == nk_f64_k) {
+            if (dtype == nk_f64_k) {
                 nk_f64_t *a_centroid = (nk_f64_t *)(a_cent_tensor->data + batch_idx * 3 * sizeof(nk_f64_t));
                 nk_f64_t *b_centroid = (nk_f64_t *)(b_cent_tensor->data + batch_idx * 3 * sizeof(nk_f64_t));
                 nk_f64_t *rotation = (nk_f64_t *)(rot_tensor->data + batch_idx * 9 * sizeof(nk_f64_t));
@@ -3180,36 +2865,7 @@ static PyMethodDef nk_methods[] = {
     {NULL, NULL, 0, NULL}};
 
 static char const doc_module[] = //
-    "Portable mixed-precision BLAS-like vector math library for x86 and Arm.\n"
-    "\n"
-    "Performance Recommendations:\n"
-    " - Avoid converting to NumPy arrays. NumKong works with any tensor implementation\n"
-    "   compatible with the Python buffer protocol, including PyTorch and TensorFlow.\n"
-    " - In low-latency environments, provide the output array with the `out=` parameter\n"
-    "   to avoid expensive memory allocations on the hot path.\n"
-    " - On modern CPUs, when the application allows, prefer low-precision numeric types.\n"
-    "   Whenever possible, use 'bf16' and 'f16' over 'f32'. Consider quantizing to 'i8'\n"
-    "   and 'u8' for highest hardware compatibility and performance.\n"
-    " - If you only need relative proximity rather than absolute distance, prefer simpler\n"
-    "   kernels such as squared Euclidean distance over Euclidean distance.\n"
-    " - Use row-major contiguous matrix representations. Strides between rows do not have\n"
-    "   a significant impact on performance, but most modern HPC packages explicitly ban\n"
-    "   non-contiguous rows where nearby cells within a row have multi-byte gaps.\n"
-    " - The CPython runtime has noticeable overhead for function calls, so consider batching\n"
-    "   kernel invocations. Many kernels compute 1-to-1 distances between vectors, as well as\n"
-    "   1-to-N and N-to-N distances between batches of vectors packed into matrices.\n"
-    "\n"
-    "Example:\n"
-    "    >>> import numkong\n"
-    "    >>> numkong.l2(a, b)\n"
-    "\n"
-    "Mixed-precision 1-to-N example with numeric types missing in NumPy, but present in PyTorch:\n"
-    "    >>> import numkong\n"
-    "    >>> import torch\n"
-    "    >>> a = torch.randn(1536, dtype=torch.bfloat16)\n"
-    "    >>> b = torch.randn((100, 1536), dtype=torch.bfloat16)\n"
-    "    >>> c = torch.zeros(100, dtype=torch.float32)\n"
-    "    >>> numkong.l2(a, b, dtype='bfloat16', out=c)\n";
+    "Portable mixed-precision BLAS-like vector math library for x86 and Arm.\n" "\n" "Performance Recommendations:\n" " - Avoid converting to NumPy arrays. NumKong works with any tensor implementation\n" "   compatible with the Python buffer protocol, including PyTorch and TensorFlow.\n" " - In low-latency environments, provide the output array with the `out=` parameter\n" "   to avoid expensive memory allocations on the hot path.\n" " - On modern CPUs, when the application allows, prefer low-precision numeric types.\n" "   Whenever possible, use 'bf16' and 'f16' over 'f32'. Consider quantizing to 'i8'\n" "   and 'u8' for highest hardware compatibility and performance.\n" " - If you only need relative proximity rather than absolute distance, prefer simpler\n" "   kernels such as squared Euclidean distance over Euclidean distance.\n" " - Use row-major contiguous matrix representations. Strides between rows do not have\n" "   a significant impact on performance, but most modern HPC packages explicitly ban\n" "   non-contiguous rows where nearby cells within a row have multi-byte gaps.\n" " - The CPython runtime has noticeable overhead for function calls, so consider batching\n" "   kernel invocations. Many kernels compute 1-to-1 distances between vectors, as well as\n" "   1-to-N and N-to-N distances between batches of vectors packed into matrices.\n" "\n" "Example:\n" "    >>> import numkong\n" "    >>> numkong.l2(a, b)\n" "\n" "Mixed-precision 1-to-N example with numeric types missing in NumPy, but present in PyTorch:\n" "    >>> import numkong\n" "    >>> import torch\n" "    >>> a = torch.randn(1536, dtype=torch.bfloat16)\n" "    >>> b = torch.randn((100, 1536), dtype=torch.bfloat16)\n" "    >>> c = torch.zeros(100, dtype=torch.float32)\n" "    >>> numkong.l2(a, b, dtype='bfloat16', out=c)\n";
 
 static PyModuleDef nk_module = {
     PyModuleDef_HEAD_INIT, .m_name = "NumKong", .m_doc = doc_module, .m_size = -1, .m_methods = nk_methods,

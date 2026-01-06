@@ -13,9 +13,9 @@
 extern "C" {
 #endif
 
-/*  Constants for the McAdams 3x3 SVD algorithm.
- *  gamma = (sqrt(8) + 3)^2 / 4 = 5.828427124
- *  cstar = cos(pi/8), sstar = sin(pi/8)
+/*  Constants for the McAdams 3×3 SVD algorithm.
+ *  γ = (√8 + 3)² / 4 = 5.828427124
+ *  cstar = cos(π/8), sstar = sin(π/8)
  */
 #define NK_SVD_GAMMA_F32   5.828427124f
 #define NK_SVD_CSTAR_F32   0.923879532f
@@ -234,53 +234,53 @@ extern "C" {
         q[8] = (-1 + 2 * sin_half_2_sq) * (-1 + 2 * sin_half_3_sq);                                                  \
     }
 
-#define NK_MAKE_SVD3X3(type, compute_sqrt)                                                                  \
+#define NK_MAKE_SVD3X3(type, compute_sqrt)                                                                   \
     NK_INTERNAL void nk_svd3x3_##type##_(nk_##type##_t const *a, nk_##type##_t *svd_u, nk_##type##_t *svd_s, \
                                          nk_##type##_t *svd_v) {                                             \
-        /* Compute A^T * A (symmetric) */                                                                  \
-        nk_##type##_t ata[9];                                                                              \
-        ata[0] = a[0] * a[0] + a[3] * a[3] + a[6] * a[6];                                                  \
-        ata[1] = a[0] * a[1] + a[3] * a[4] + a[6] * a[7];                                                  \
-        ata[2] = a[0] * a[2] + a[3] * a[5] + a[6] * a[8];                                                  \
-        ata[3] = ata[1];                                                                                   \
-        ata[4] = a[1] * a[1] + a[4] * a[4] + a[7] * a[7];                                                  \
-        ata[5] = a[1] * a[2] + a[4] * a[5] + a[7] * a[8];                                                  \
-        ata[6] = ata[2];                                                                                   \
-        ata[7] = ata[5];                                                                                   \
-        ata[8] = a[2] * a[2] + a[5] * a[5] + a[8] * a[8];                                                  \
-        /* Jacobi eigenanalysis of A^T * A */                                                              \
-        nk_##type##_t quaternion[4];                                                                       \
-        nk_jacobi_eigenanalysis__##type(&ata[0], &ata[1], &ata[4], &ata[2], &ata[5], &ata[8], quaternion); \
-        nk_quat_to_mat3__##type(quaternion, svd_v);                                                        \
-        /* B = A * V */                                                                                    \
-        nk_##type##_t product[9];                                                                          \
-        product[0] = a[0] * svd_v[0] + a[1] * svd_v[3] + a[2] * svd_v[6];                                  \
-        product[1] = a[0] * svd_v[1] + a[1] * svd_v[4] + a[2] * svd_v[7];                                  \
-        product[2] = a[0] * svd_v[2] + a[1] * svd_v[5] + a[2] * svd_v[8];                                  \
-        product[3] = a[3] * svd_v[0] + a[4] * svd_v[3] + a[5] * svd_v[6];                                  \
-        product[4] = a[3] * svd_v[1] + a[4] * svd_v[4] + a[5] * svd_v[7];                                  \
-        product[5] = a[3] * svd_v[2] + a[4] * svd_v[5] + a[5] * svd_v[8];                                  \
-        product[6] = a[6] * svd_v[0] + a[7] * svd_v[3] + a[8] * svd_v[6];                                  \
-        product[7] = a[6] * svd_v[1] + a[7] * svd_v[4] + a[8] * svd_v[7];                                  \
-        product[8] = a[6] * svd_v[2] + a[7] * svd_v[5] + a[8] * svd_v[8];                                  \
-        /* Sort singular values and update V */                                                            \
-        nk_sort_singular_values__##type(product, svd_v);                                                   \
-        /* Compute singular values from column norms of sorted B (before QR orthogonalizes them) */        \
-        /* These are the true singular values: sqrt(||col_i||^2) */                                        \
-        nk_##type##_t s1_sq = product[0] * product[0] + product[3] * product[3] + product[6] * product[6]; \
-        nk_##type##_t s2_sq = product[1] * product[1] + product[4] * product[4] + product[7] * product[7]; \
-        nk_##type##_t s3_sq = product[2] * product[2] + product[5] * product[5] + product[8] * product[8]; \
-        /* QR decomposition: B = U * R (we only need U for the rotation) */                                \
-        nk_##type##_t qr_r[9];                                                                             \
-        nk_qr_decomposition__##type(product, svd_u, qr_r);                                                 \
-        /* Store singular values in diagonal of svd_s (rest is zero for compatibility) */                  \
-        svd_s[0] = compute_sqrt(s1_sq), svd_s[1] = 0, svd_s[2] = 0;                                        \
-        svd_s[3] = 0, svd_s[4] = compute_sqrt(s2_sq), svd_s[5] = 0;                                        \
-        svd_s[6] = 0, svd_s[7] = 0, svd_s[8] = compute_sqrt(s3_sq);                                        \
+        /* Compute Aᵀ * A (symmetric) */                                                                   \
+        nk_##type##_t ata[9];                                                                                \
+        ata[0] = a[0] * a[0] + a[3] * a[3] + a[6] * a[6];                                                    \
+        ata[1] = a[0] * a[1] + a[3] * a[4] + a[6] * a[7];                                                    \
+        ata[2] = a[0] * a[2] + a[3] * a[5] + a[6] * a[8];                                                    \
+        ata[3] = ata[1];                                                                                     \
+        ata[4] = a[1] * a[1] + a[4] * a[4] + a[7] * a[7];                                                    \
+        ata[5] = a[1] * a[2] + a[4] * a[5] + a[7] * a[8];                                                    \
+        ata[6] = ata[2];                                                                                     \
+        ata[7] = ata[5];                                                                                     \
+        ata[8] = a[2] * a[2] + a[5] * a[5] + a[8] * a[8];                                                    \
+        /* Jacobi eigenanalysis of Aᵀ * A */                                                               \
+        nk_##type##_t quaternion[4];                                                                         \
+        nk_jacobi_eigenanalysis__##type(&ata[0], &ata[1], &ata[4], &ata[2], &ata[5], &ata[8], quaternion);   \
+        nk_quat_to_mat3__##type(quaternion, svd_v);                                                          \
+        /* B = A * V */                                                                                      \
+        nk_##type##_t product[9];                                                                            \
+        product[0] = a[0] * svd_v[0] + a[1] * svd_v[3] + a[2] * svd_v[6];                                    \
+        product[1] = a[0] * svd_v[1] + a[1] * svd_v[4] + a[2] * svd_v[7];                                    \
+        product[2] = a[0] * svd_v[2] + a[1] * svd_v[5] + a[2] * svd_v[8];                                    \
+        product[3] = a[3] * svd_v[0] + a[4] * svd_v[3] + a[5] * svd_v[6];                                    \
+        product[4] = a[3] * svd_v[1] + a[4] * svd_v[4] + a[5] * svd_v[7];                                    \
+        product[5] = a[3] * svd_v[2] + a[4] * svd_v[5] + a[5] * svd_v[8];                                    \
+        product[6] = a[6] * svd_v[0] + a[7] * svd_v[3] + a[8] * svd_v[6];                                    \
+        product[7] = a[6] * svd_v[1] + a[7] * svd_v[4] + a[8] * svd_v[7];                                    \
+        product[8] = a[6] * svd_v[2] + a[7] * svd_v[5] + a[8] * svd_v[8];                                    \
+        /* Sort singular values and update V */                                                              \
+        nk_sort_singular_values__##type(product, svd_v);                                                     \
+        /* Compute singular values from column norms of sorted B (before QR orthogonalizes them) */          \
+        /* These are the true singular values: √(‖colᵢ‖²) */                                        \
+        nk_##type##_t s1_sq = product[0] * product[0] + product[3] * product[3] + product[6] * product[6];   \
+        nk_##type##_t s2_sq = product[1] * product[1] + product[4] * product[4] + product[7] * product[7];   \
+        nk_##type##_t s3_sq = product[2] * product[2] + product[5] * product[5] + product[8] * product[8];   \
+        /* QR decomposition: B = U * R (we only need U for the rotation) */                                  \
+        nk_##type##_t qr_r[9];                                                                               \
+        nk_qr_decomposition__##type(product, svd_u, qr_r);                                                   \
+        /* Store singular values in diagonal of svd_s (rest is zero for compatibility) */                    \
+        svd_s[0] = compute_sqrt(s1_sq), svd_s[1] = 0, svd_s[2] = 0;                                          \
+        svd_s[3] = 0, svd_s[4] = compute_sqrt(s2_sq), svd_s[5] = 0;                                          \
+        svd_s[6] = 0, svd_s[7] = 0, svd_s[8] = compute_sqrt(s3_sq);                                          \
     }
 
-#define NK_MAKE_DET3X3(type)                                                              \
-    NK_INTERNAL nk_##type##_t nk_det3x3_##type##_(nk_##type##_t const *m) {                \
+#define NK_MAKE_DET3X3(type)                                                             \
+    NK_INTERNAL nk_##type##_t nk_det3x3_##type##_(nk_##type##_t const *m) {              \
         return m[0] * (m[4] * m[8] - m[5] * m[7]) - m[1] * (m[3] * m[8] - m[5] * m[6]) + \
                m[2] * (m[3] * m[7] - m[4] * m[6]);                                       \
     }
@@ -288,27 +288,27 @@ extern "C" {
 /* Generate f32 SVD helpers */
 NK_MAKE_COND_SWAP(f32)
 NK_MAKE_COND_NEG_SWAP(f32)
-NK_MAKE_APPROX_GIVENS_QUAT(f32, NK_SVD_GAMMA_F32, NK_SVD_CSTAR_F32, NK_SVD_SSTAR_F32, NK_F32_RSQRT)
+NK_MAKE_APPROX_GIVENS_QUAT(f32, NK_SVD_GAMMA_F32, NK_SVD_CSTAR_F32, NK_SVD_SSTAR_F32, nk_f32_rsqrt_serial)
 NK_MAKE_JACOBI_CONJUGATION(f32)
 NK_MAKE_QUAT_TO_MAT3(f32)
-NK_MAKE_JACOBI_EIGENANALYSIS(f32, NK_F32_RSQRT)
-NK_MAKE_QR_GIVENS_QUAT(f32, NK_SVD_EPSILON_F32, NK_F32_RSQRT)
+NK_MAKE_JACOBI_EIGENANALYSIS(f32, nk_f32_rsqrt_serial)
+NK_MAKE_QR_GIVENS_QUAT(f32, NK_SVD_EPSILON_F32, nk_f32_rsqrt_serial)
 NK_MAKE_SORT_SINGULAR_VALUES(f32)
 NK_MAKE_QR_DECOMPOSITION(f32)
-NK_MAKE_SVD3X3(f32, NK_F32_SQRT)
+NK_MAKE_SVD3X3(f32, nk_f32_sqrt_serial)
 NK_MAKE_DET3X3(f32)
 
 /* Generate f64 SVD helpers */
 NK_MAKE_COND_SWAP(f64)
 NK_MAKE_COND_NEG_SWAP(f64)
-NK_MAKE_APPROX_GIVENS_QUAT(f64, NK_SVD_GAMMA_F64, NK_SVD_CSTAR_F64, NK_SVD_SSTAR_F64, NK_F64_RSQRT)
+NK_MAKE_APPROX_GIVENS_QUAT(f64, NK_SVD_GAMMA_F64, NK_SVD_CSTAR_F64, NK_SVD_SSTAR_F64, nk_f64_rsqrt_serial)
 NK_MAKE_JACOBI_CONJUGATION(f64)
 NK_MAKE_QUAT_TO_MAT3(f64)
-NK_MAKE_JACOBI_EIGENANALYSIS(f64, NK_F64_RSQRT)
-NK_MAKE_QR_GIVENS_QUAT(f64, NK_SVD_EPSILON_F64, NK_F64_RSQRT)
+NK_MAKE_JACOBI_EIGENANALYSIS(f64, nk_f64_rsqrt_serial)
+NK_MAKE_QR_GIVENS_QUAT(f64, NK_SVD_EPSILON_F64, nk_f64_rsqrt_serial)
 NK_MAKE_SORT_SINGULAR_VALUES(f64)
 NK_MAKE_QR_DECOMPOSITION(f64)
-NK_MAKE_SVD3X3(f64, NK_F64_SQRT)
+NK_MAKE_SVD3X3(f64, nk_f64_sqrt_serial)
 NK_MAKE_DET3X3(f64)
 
 /*  RMSD (Root Mean Square Deviation) without optimal superposition.
@@ -402,7 +402,7 @@ NK_MAKE_DET3X3(f64)
             b_centroid[1] = (nk_##output_type##_t)centroid_b_y;                                                      \
             b_centroid[2] = (nk_##output_type##_t)centroid_b_z;                                                      \
         }                                                                                                            \
-        /* Step 2: Build 3x3 covariance matrix H = (A - centroid_A)^T * (B - centroid_B) */                          \
+        /* Step 2: Build 3×3 covariance matrix H = (A - Ā)ᵀ × (B - B̄) */                                      \
         nk_##accumulator_type##_t h[9] = {0, 0, 0, 0, 0, 0, 0, 0, 0};                                                \
         for (nk_size_t i = 0; i < n; ++i) {                                                                          \
             load_and_convert(a + i * 3 + 0, &val_a_x), load_and_convert(b + i * 3 + 0, &val_b_x);                    \
@@ -417,10 +417,10 @@ NK_MAKE_DET3X3(f64)
         /* Convert to svd_type for SVD */                                                                            \
         nk_##svd_type##_t cross_covariance[9];                                                                       \
         for (int j = 0; j < 9; ++j) cross_covariance[j] = (nk_##svd_type##_t)h[j];                                   \
-        /* Step 3: SVD of H = U * S * V^T */                                                                         \
+        /* Step 3: SVD of H = U * S * Vᵀ */                                                                        \
         nk_##svd_type##_t svd_u[9], svd_s[9], svd_v[9];                                                              \
-        nk_svd3x3_##svd_type##_(cross_covariance, svd_u, svd_s, svd_v);                                                \
-        /* Step 4: R = V * U^T */                                                                                    \
+        nk_svd3x3_##svd_type##_(cross_covariance, svd_u, svd_s, svd_v);                                              \
+        /* Step 4: R = V * Uᵀ */                                                                                   \
         nk_##svd_type##_t rotation_matrix[9];                                                                        \
         rotation_matrix[0] = svd_v[0] * svd_u[0] + svd_v[1] * svd_u[1] + svd_v[2] * svd_u[2];                        \
         rotation_matrix[1] = svd_v[0] * svd_u[3] + svd_v[1] * svd_u[4] + svd_v[2] * svd_u[5];                        \
@@ -432,7 +432,7 @@ NK_MAKE_DET3X3(f64)
         rotation_matrix[7] = svd_v[6] * svd_u[3] + svd_v[7] * svd_u[4] + svd_v[8] * svd_u[5];                        \
         rotation_matrix[8] = svd_v[6] * svd_u[6] + svd_v[7] * svd_u[7] + svd_v[8] * svd_u[8];                        \
         /* Handle reflection: if det(R) < 0, negate third column of V and recompute R */                             \
-        nk_##svd_type##_t rotation_det = nk_det3x3_##svd_type##_(rotation_matrix);                                     \
+        nk_##svd_type##_t rotation_det = nk_det3x3_##svd_type##_(rotation_matrix);                                   \
         if (rotation_det < 0) {                                                                                      \
             svd_v[2] = -svd_v[2], svd_v[5] = -svd_v[5], svd_v[8] = -svd_v[8];                                        \
             rotation_matrix[0] = svd_v[0] * svd_u[0] + svd_v[1] * svd_u[1] + svd_v[2] * svd_u[2];                    \
@@ -533,10 +533,10 @@ NK_MAKE_DET3X3(f64)
         /* Convert to svd_type for SVD */                                                                             \
         nk_##svd_type##_t cross_covariance[9];                                                                        \
         for (int j = 0; j < 9; ++j) cross_covariance[j] = (nk_##svd_type##_t)h[j];                                    \
-        /* Step 3: SVD of H = U * S * V^T */                                                                          \
+        /* Step 3: SVD of H = U * S * Vᵀ */                                                                         \
         nk_##svd_type##_t svd_u[9], svd_s[9], svd_v[9];                                                               \
-        nk_svd3x3_##svd_type##_(cross_covariance, svd_u, svd_s, svd_v);                                                 \
-        /* Step 4: R = V * U^T */                                                                                     \
+        nk_svd3x3_##svd_type##_(cross_covariance, svd_u, svd_s, svd_v);                                               \
+        /* Step 4: R = V * Uᵀ */                                                                                    \
         nk_##svd_type##_t rotation_matrix[9];                                                                         \
         rotation_matrix[0] = svd_v[0] * svd_u[0] + svd_v[1] * svd_u[1] + svd_v[2] * svd_u[2];                         \
         rotation_matrix[1] = svd_v[0] * svd_u[3] + svd_v[1] * svd_u[4] + svd_v[2] * svd_u[5];                         \
@@ -549,7 +549,7 @@ NK_MAKE_DET3X3(f64)
         rotation_matrix[8] = svd_v[6] * svd_u[6] + svd_v[7] * svd_u[7] + svd_v[8] * svd_u[8];                         \
         /* Handle reflection and compute scale: c = trace(D*S) / variance_a */                                        \
         /* D = diag(1, 1, det(R)), svd_s contains proper positive singular values on diagonal */                      \
-        nk_##svd_type##_t rotation_det = nk_det3x3_##svd_type##_(rotation_matrix);                                      \
+        nk_##svd_type##_t rotation_det = nk_det3x3_##svd_type##_(rotation_matrix);                                    \
         nk_##svd_type##_t sign_det = rotation_det < 0 ? (nk_##svd_type##_t) - 1.0 : (nk_##svd_type##_t)1.0;           \
         nk_##svd_type##_t trace_scaled_s = svd_s[0] + svd_s[4] + sign_det * svd_s[8];                                 \
         nk_##accumulator_type##_t scale_factor = (nk_##accumulator_type##_t)trace_scaled_s /                          \
@@ -601,36 +601,36 @@ NK_MAKE_DET3X3(f64)
         *result = compute_sqrt(sum_squared * inv_n);                                                                  \
     }
 
-NK_MAKE_RMSD(serial, f64, f64, f64, nk_assign_from_to_, NK_F64_SQRT)         // nk_rmsd_f64_serial
-NK_MAKE_KABSCH(serial, f64, f64, f64, f64, nk_assign_from_to_, NK_F64_SQRT)  // nk_kabsch_f64_serial
-NK_MAKE_UMEYAMA(serial, f64, f64, f64, f64, nk_assign_from_to_, NK_F64_SQRT) // nk_umeyama_f64_serial
+NK_MAKE_RMSD(serial, f64, f64, f64, nk_assign_from_to_, nk_f64_sqrt_serial)         // nk_rmsd_f64_serial
+NK_MAKE_KABSCH(serial, f64, f64, f64, f64, nk_assign_from_to_, nk_f64_sqrt_serial)  // nk_kabsch_f64_serial
+NK_MAKE_UMEYAMA(serial, f64, f64, f64, f64, nk_assign_from_to_, nk_f64_sqrt_serial) // nk_umeyama_f64_serial
 
-NK_MAKE_RMSD(serial, f32, f32, f32, nk_assign_from_to_, NK_F32_SQRT)         // nk_rmsd_f32_serial
-NK_MAKE_KABSCH(serial, f32, f32, f32, f32, nk_assign_from_to_, NK_F32_SQRT)  // nk_kabsch_f32_serial
-NK_MAKE_UMEYAMA(serial, f32, f32, f32, f32, nk_assign_from_to_, NK_F32_SQRT) // nk_umeyama_f32_serial
+NK_MAKE_RMSD(serial, f32, f32, f32, nk_assign_from_to_, nk_f32_sqrt_serial)         // nk_rmsd_f32_serial
+NK_MAKE_KABSCH(serial, f32, f32, f32, f32, nk_assign_from_to_, nk_f32_sqrt_serial)  // nk_kabsch_f32_serial
+NK_MAKE_UMEYAMA(serial, f32, f32, f32, f32, nk_assign_from_to_, nk_f32_sqrt_serial) // nk_umeyama_f32_serial
 
-NK_MAKE_RMSD(serial, f16, f32, f32, nk_f16_to_f32, NK_F32_SQRT)         // nk_rmsd_f16_serial
-NK_MAKE_KABSCH(serial, f16, f32, f32, f32, nk_f16_to_f32, NK_F32_SQRT)  // nk_kabsch_f16_serial
-NK_MAKE_UMEYAMA(serial, f16, f32, f32, f32, nk_f16_to_f32, NK_F32_SQRT) // nk_umeyama_f16_serial
+NK_MAKE_RMSD(serial, f16, f32, f32, nk_f16_to_f32_serial, nk_f32_sqrt_serial)         // nk_rmsd_f16_serial
+NK_MAKE_KABSCH(serial, f16, f32, f32, f32, nk_f16_to_f32_serial, nk_f32_sqrt_serial)  // nk_kabsch_f16_serial
+NK_MAKE_UMEYAMA(serial, f16, f32, f32, f32, nk_f16_to_f32_serial, nk_f32_sqrt_serial) // nk_umeyama_f16_serial
 
-NK_MAKE_RMSD(serial, bf16, f32, f32, nk_bf16_to_f32, NK_F32_SQRT)         // nk_rmsd_bf16_serial
-NK_MAKE_KABSCH(serial, bf16, f32, f32, f32, nk_bf16_to_f32, NK_F32_SQRT)  // nk_kabsch_bf16_serial
-NK_MAKE_UMEYAMA(serial, bf16, f32, f32, f32, nk_bf16_to_f32, NK_F32_SQRT) // nk_umeyama_bf16_serial
+NK_MAKE_RMSD(serial, bf16, f32, f32, nk_bf16_to_f32_serial, nk_f32_sqrt_serial)         // nk_rmsd_bf16_serial
+NK_MAKE_KABSCH(serial, bf16, f32, f32, f32, nk_bf16_to_f32_serial, nk_f32_sqrt_serial)  // nk_kabsch_bf16_serial
+NK_MAKE_UMEYAMA(serial, bf16, f32, f32, f32, nk_bf16_to_f32_serial, nk_f32_sqrt_serial) // nk_umeyama_bf16_serial
 
-NK_MAKE_RMSD(accurate, f32, f64, f64, nk_f32_to_f64_, NK_F64_SQRT)        // nk_rmsd_f32_accurate
-NK_MAKE_KABSCH(accurate, f32, f64, f64, f64, nk_f32_to_f64_, NK_F64_SQRT) // nk_kabsch_f32_accurate
-NK_MAKE_UMEYAMA(accurate, f32, f64, f64, f64, nk_f32_to_f64_,
-                NK_F64_SQRT) // nk_umeyama_f32_accurate
+NK_MAKE_RMSD(accurate, f32, f64, f64, nk_assign_from_to_, nk_f64_sqrt_serial)        // nk_rmsd_f32_accurate
+NK_MAKE_KABSCH(accurate, f32, f64, f64, f64, nk_assign_from_to_, nk_f64_sqrt_serial) // nk_kabsch_f32_accurate
+NK_MAKE_UMEYAMA(accurate, f32, f64, f64, f64, nk_assign_from_to_,
+                nk_f64_sqrt_serial) // nk_umeyama_f32_accurate
 
-NK_MAKE_RMSD(accurate, f16, f64, f64, nk_f16_to_f64, NK_F64_SQRT)         // nk_rmsd_f16_accurate
-NK_MAKE_KABSCH(accurate, f16, f64, f64, f64, nk_f16_to_f64, NK_F64_SQRT)  // nk_kabsch_f16_accurate
-NK_MAKE_UMEYAMA(accurate, f16, f64, f64, f64, nk_f16_to_f64, NK_F64_SQRT) // nk_umeyama_f16_accurate
+NK_MAKE_RMSD(accurate, f16, f64, f64, nk_f16_to_f64_, nk_f64_sqrt_serial)         // nk_rmsd_f16_accurate
+NK_MAKE_KABSCH(accurate, f16, f64, f64, f64, nk_f16_to_f64_, nk_f64_sqrt_serial)  // nk_kabsch_f16_accurate
+NK_MAKE_UMEYAMA(accurate, f16, f64, f64, f64, nk_f16_to_f64_, nk_f64_sqrt_serial) // nk_umeyama_f16_accurate
 
-NK_MAKE_RMSD(accurate, bf16, f64, f64, nk_bf16_to_f64, NK_F64_SQRT) // nk_rmsd_bf16_accurate
-NK_MAKE_KABSCH(accurate, bf16, f64, f64, f64, nk_bf16_to_f64,
-               NK_F64_SQRT) // nk_kabsch_bf16_accurate
-NK_MAKE_UMEYAMA(accurate, bf16, f64, f64, f64, nk_bf16_to_f64,
-                NK_F64_SQRT) // nk_umeyama_bf16_accurate
+NK_MAKE_RMSD(accurate, bf16, f64, f64, nk_bf16_to_f64_, nk_f64_sqrt_serial) // nk_rmsd_bf16_accurate
+NK_MAKE_KABSCH(accurate, bf16, f64, f64, f64, nk_bf16_to_f64_,
+               nk_f64_sqrt_serial) // nk_kabsch_bf16_accurate
+NK_MAKE_UMEYAMA(accurate, bf16, f64, f64, f64, nk_bf16_to_f64_,
+                nk_f64_sqrt_serial) // nk_umeyama_bf16_accurate
 
 #if defined(__cplusplus)
 } // extern "C"

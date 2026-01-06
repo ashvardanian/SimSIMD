@@ -26,9 +26,9 @@ int main() {
     nk_f32_t vector_a[1536];
     nk_f32_t vector_b[1536];
     nk_kernel_punned_t metric_punned = nk_metric_punned(
-        nk_metric_angular_k, // Metric kind, like the angular distance
-        nk_datatype_f32_k,   // Data type, like: f16, f32, f64, i8, b8, and complex variants
-        nk_cap_any_k);       // Which CPU capabilities are we allowed to use
+        nk_metric_angular_k,    // Metric kind, like the angular distance
+        nk_dtype_f32_k,         // Data type, like: f16, f32, f64, i8, u1, and complex variants
+        nk_cap_any_k);          // Which CPU capabilities are we allowed to use
     nk_fmax_t distance;
     nk_metric_dense_punned_t metric = (nk_metric_dense_punned_t)metric_punned;
     metric(vector_a, vector_b, 1536, &distance);
@@ -146,10 +146,10 @@ int main() {
 #include <numkong/numkong.h>
 
 int main() {
-    nk_b8_t b8s[1536 / 8]; // 8 bits per word
+    nk_u1x8_t u1x8s[1536 / 8]; // 8 bits per word
     nk_fmax_t distance;
-    nk_hamming_b8(b8s, b8s, 1536 / 8, &distance);
-    nk_jaccard_b8(b8s, b8s, 1536 / 8, &distance);
+    nk_hamming_u1(u1x8s, u1x8s, 1536 / 8, &distance);
+    nk_jaccard_u1(u1x8s, u1x8s, 1536 / 8, &distance);
     return 0;
 }
 ```
@@ -205,10 +205,3 @@ For x86: `NK_TARGET_HASWELL`, `NK_TARGET_SKYLAKE`, `NK_TARGET_ICE`, `NK_TARGET_G
 > In some cases, you may want to explicitly disable some of the kernels.
 > Most often it's due to compiler support issues, like the lack of some recent intrinsics or low-precision numeric types.
 > In other cases, you may want to disable some kernels to speed up the compilation process and trim the binary size.
-
-For single-precision math operations: `NK_F32_SQRT`, `NK_F32_RSQRT`, `NK_F32_LOG`, `NK_F32_TAN`, `NK_F32_ABS`.
-For double-precision math operations: `NK_F64_SQRT`, `NK_F64_RSQRT`, `NK_F64_LOG`, `NK_F64_TAN`, `NK_F64_ABS`.
-
-> By default, for __non__-SIMD backends, NumKong may use `libc` functions like `sqrt` and `log`.
-> Those are generally very accurate, but slow, and introduce a dependency on the C standard library.
-> To avoid that you can override those definitions with your custom implementations, like: `#define NK_F32_RSQRT(x) (1 / sqrt(x))`.

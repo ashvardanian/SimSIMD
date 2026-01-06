@@ -10,11 +10,15 @@
 
 #if NK_TARGET_X86_
 #if NK_TARGET_HASWELL
+#if defined(__clang__)
+#pragma clang attribute push(__attribute__((target("avx2,f16c,fma,bmi,bmi2"))), apply_to = function)
+#elif defined(__GNUC__)
 #pragma GCC push_options
-#pragma GCC target("avx2", "f16c", "fma")
-#pragma clang attribute push(__attribute__((target("avx2,f16c,fma"))), apply_to = function)
+#pragma GCC target("avx2", "f16c", "fma", "bmi", "bmi2")
+#endif
 
 #include "numkong/types.h"
+#include "numkong/cast/serial.h"    // nk_f32_to_i8_serial
 #include "numkong/reduce/haswell.h" // nk_e4m3x8_to_f32x8_haswell_, nk_e5m2x8_to_f32x8_haswell_
 
 #if defined(__cplusplus)
@@ -60,7 +64,7 @@ NK_PUBLIC void nk_wsum_f32_haswell(                    //
     nk_f32_t alpha_val = *alpha;
     nk_f32_t beta_val = *beta;
 
-    // There are are several special cases we may want to implement:
+    // There are several special cases we may want to implement:
     // 1. Simple addition, when both weights are equal to 1.0.
     if (alpha_val == 1 && beta_val == 1) {
         // In this case we can avoid expensive multiplications.
@@ -133,7 +137,7 @@ NK_PUBLIC void nk_wsum_f64_haswell(                    //
     nk_f64_t alpha_val = *alpha;
     nk_f64_t beta_val = *beta;
 
-    // There are are several special cases we may want to implement:
+    // There are several special cases we may want to implement:
     // 1. Simple addition, when both weights are equal to 1.0.
     if (alpha_val == 1 && beta_val == 1) {
         // In this case we can avoid expensive multiplications.
@@ -172,8 +176,8 @@ NK_PUBLIC void nk_sum_f16_haswell(nk_f16_t const *a, nk_f16_t const *b, nk_size_
     // The main loop:
     nk_size_t i = 0;
     for (; i + 8 <= n; i += 8) {
-        __m128i a_f16x8 = _mm_lddqu_si128((__m128i const *)(a + i));
-        __m128i b_f16x8 = _mm_lddqu_si128((__m128i const *)(b + i));
+        __m128i a_f16x8 = _mm_loadu_si128((__m128i const *)(a + i));
+        __m128i b_f16x8 = _mm_loadu_si128((__m128i const *)(b + i));
         __m256 a_f32x8 = _mm256_cvtph_ps(a_f16x8);
         __m256 b_f32x8 = _mm256_cvtph_ps(b_f16x8);
         __m256 result_f32x8 = _mm256_add_ps(a_f32x8, b_f32x8);
@@ -184,10 +188,10 @@ NK_PUBLIC void nk_sum_f16_haswell(nk_f16_t const *a, nk_f16_t const *b, nk_size_
     // The tail:
     for (; i < n; ++i) {
         nk_f32_t ai, bi;
-        nk_f16_to_f32(a + i, &ai);
-        nk_f16_to_f32(b + i, &bi);
+        nk_f16_to_f32_haswell(a + i, &ai);
+        nk_f16_to_f32_haswell(b + i, &bi);
         nk_f32_t sum = ai + bi;
-        nk_f32_to_f16(&sum, result + i);
+        nk_f32_to_f16_haswell(&sum, result + i);
     }
 }
 
@@ -201,7 +205,7 @@ NK_PUBLIC void nk_scale_f16_haswell(nk_f16_t const *a, nk_size_t n, nk_f32_t con
     // The main loop:
     nk_size_t i = 0;
     for (; i + 8 <= n; i += 8) {
-        __m128i a_f16x8 = _mm_lddqu_si128((__m128i const *)(a + i));
+        __m128i a_f16x8 = _mm_loadu_si128((__m128i const *)(a + i));
         __m256 a_f32x8 = _mm256_cvtph_ps(a_f16x8);
         __m256 result_f32x8 = _mm256_fmadd_ps(a_f32x8, alpha_f32x8, beta_f32x8);
         __m128i result_f16x8 = _mm256_cvtps_ph(result_f32x8, _MM_FROUND_TO_NEAREST_INT | _MM_FROUND_NO_EXC);
@@ -211,9 +215,9 @@ NK_PUBLIC void nk_scale_f16_haswell(nk_f16_t const *a, nk_size_t n, nk_f32_t con
     // The tail:
     for (; i < n; ++i) {
         nk_f32_t ai;
-        nk_f16_to_f32(a + i, &ai);
+        nk_f16_to_f32_haswell(a + i, &ai);
         nk_f32_t sum = alpha_val * ai + beta_val;
-        nk_f32_to_f16(&sum, result + i);
+        nk_f32_to_f16_haswell(&sum, result + i);
     }
 }
 
@@ -223,7 +227,7 @@ NK_PUBLIC void nk_wsum_f16_haswell(                    //
     nk_f32_t alpha_val = *alpha;
     nk_f32_t beta_val = *beta;
 
-    // There are are several special cases we may want to implement:
+    // There are several special cases we may want to implement:
     // 1. Simple addition, when both weights are equal to 1.0.
     if (alpha_val == 1 && beta_val == 1) {
         // In this case we can avoid expensive multiplications.
@@ -246,8 +250,8 @@ NK_PUBLIC void nk_wsum_f16_haswell(                    //
     // The main loop:
     nk_size_t i = 0;
     for (; i + 8 <= n; i += 8) {
-        __m128i a_f16x8 = _mm_lddqu_si128((__m128i const *)(a + i));
-        __m128i b_f16x8 = _mm_lddqu_si128((__m128i const *)(b + i));
+        __m128i a_f16x8 = _mm_loadu_si128((__m128i const *)(a + i));
+        __m128i b_f16x8 = _mm_loadu_si128((__m128i const *)(b + i));
         __m256 a_f32x8 = _mm256_cvtph_ps(a_f16x8);
         __m256 b_f32x8 = _mm256_cvtph_ps(b_f16x8);
         __m256 ab_f32x8 = _mm256_mul_ps(a_f32x8, alpha_f32x8);
@@ -259,10 +263,10 @@ NK_PUBLIC void nk_wsum_f16_haswell(                    //
     // The tail:
     for (; i < n; ++i) {
         nk_f32_t ai, bi;
-        nk_f16_to_f32(a + i, &ai);
-        nk_f16_to_f32(b + i, &bi);
+        nk_f16_to_f32_haswell(a + i, &ai);
+        nk_f16_to_f32_haswell(b + i, &bi);
         nk_f32_t sum = alpha_val * ai + beta_val * bi;
-        nk_f32_to_f16(&sum, result + i);
+        nk_f32_to_f16_haswell(&sum, result + i);
     }
 }
 
@@ -270,8 +274,8 @@ NK_PUBLIC void nk_sum_bf16_haswell(nk_bf16_t const *a, nk_bf16_t const *b, nk_si
     // The main loop:
     nk_size_t i = 0;
     for (; i + 8 <= n; i += 8) {
-        __m128i a_bf16x8 = _mm_lddqu_si128((__m128i const *)(a + i));
-        __m128i b_bf16x8 = _mm_lddqu_si128((__m128i const *)(b + i));
+        __m128i a_bf16x8 = _mm_loadu_si128((__m128i const *)(a + i));
+        __m128i b_bf16x8 = _mm_loadu_si128((__m128i const *)(b + i));
         __m256 a_f32x8 = nk_bf16x8_to_f32x8_haswell_(a_bf16x8);
         __m256 b_f32x8 = nk_bf16x8_to_f32x8_haswell_(b_bf16x8);
         __m256 result_f32x8 = _mm256_add_ps(a_f32x8, b_f32x8);
@@ -282,10 +286,10 @@ NK_PUBLIC void nk_sum_bf16_haswell(nk_bf16_t const *a, nk_bf16_t const *b, nk_si
     // The tail:
     for (; i < n; ++i) {
         nk_f32_t ai, bi;
-        nk_bf16_to_f32(a + i, &ai);
-        nk_bf16_to_f32(b + i, &bi);
+        nk_bf16_to_f32_serial(a + i, &ai);
+        nk_bf16_to_f32_serial(b + i, &bi);
         nk_f32_t sum = ai + bi;
-        nk_f32_to_bf16(&sum, result + i);
+        nk_f32_to_bf16_serial(&sum, result + i);
     }
 }
 
@@ -299,7 +303,7 @@ NK_PUBLIC void nk_scale_bf16_haswell(nk_bf16_t const *a, nk_size_t n, nk_f32_t c
     // The main loop:
     nk_size_t i = 0;
     for (; i + 8 <= n; i += 8) {
-        __m128i a_bf16x8 = _mm_lddqu_si128((__m128i const *)(a + i));
+        __m128i a_bf16x8 = _mm_loadu_si128((__m128i const *)(a + i));
         __m256 a_f32x8 = nk_bf16x8_to_f32x8_haswell_(a_bf16x8);
         __m256 result_f32x8 = _mm256_fmadd_ps(a_f32x8, alpha_f32x8, beta_f32x8);
         __m128i result_bf16x8 = nk_f32x8_to_bf16x8_haswell_(result_f32x8);
@@ -309,9 +313,9 @@ NK_PUBLIC void nk_scale_bf16_haswell(nk_bf16_t const *a, nk_size_t n, nk_f32_t c
     // The tail:
     for (; i < n; ++i) {
         nk_f32_t ai;
-        nk_bf16_to_f32(a + i, &ai);
+        nk_bf16_to_f32_serial(a + i, &ai);
         nk_f32_t sum = alpha_val * ai + beta_val;
-        nk_f32_to_bf16(&sum, result + i);
+        nk_f32_to_bf16_serial(&sum, result + i);
     }
 }
 
@@ -321,7 +325,7 @@ NK_PUBLIC void nk_wsum_bf16_haswell(                     //
     nk_f32_t alpha_val = *alpha;
     nk_f32_t beta_val = *beta;
 
-    // There are are several special cases we may want to implement:
+    // There are several special cases we may want to implement:
     // 1. Simple addition, when both weights are equal to 1.0.
     if (alpha_val == 1 && beta_val == 1) {
         // In this case we can avoid expensive multiplications.
@@ -344,8 +348,8 @@ NK_PUBLIC void nk_wsum_bf16_haswell(                     //
     // The main loop:
     nk_size_t i = 0;
     for (; i + 8 <= n; i += 8) {
-        __m128i a_bf16x8 = _mm_lddqu_si128((__m128i const *)(a + i));
-        __m128i b_bf16x8 = _mm_lddqu_si128((__m128i const *)(b + i));
+        __m128i a_bf16x8 = _mm_loadu_si128((__m128i const *)(a + i));
+        __m128i b_bf16x8 = _mm_loadu_si128((__m128i const *)(b + i));
         __m256 a_f32x8 = nk_bf16x8_to_f32x8_haswell_(a_bf16x8);
         __m256 b_f32x8 = nk_bf16x8_to_f32x8_haswell_(b_bf16x8);
         __m256 ab_f32x8 = _mm256_mul_ps(a_f32x8, alpha_f32x8);
@@ -357,10 +361,10 @@ NK_PUBLIC void nk_wsum_bf16_haswell(                     //
     // The tail:
     for (; i < n; ++i) {
         nk_f32_t ai, bi;
-        nk_bf16_to_f32(a + i, &ai);
-        nk_bf16_to_f32(b + i, &bi);
+        nk_bf16_to_f32_serial(a + i, &ai);
+        nk_bf16_to_f32_serial(b + i, &bi);
         nk_f32_t sum = alpha_val * ai + beta_val * bi;
-        nk_f32_to_bf16(&sum, result + i);
+        nk_f32_to_bf16_serial(&sum, result + i);
     }
 }
 
@@ -423,9 +427,9 @@ NK_PUBLIC void nk_fma_f16_haswell(                           //
     // The main loop:
     nk_size_t i = 0;
     for (; i + 8 <= n; i += 8) {
-        __m128i a_f16x8 = _mm_lddqu_si128((__m128i const *)(a + i));
-        __m128i b_f16x8 = _mm_lddqu_si128((__m128i const *)(b + i));
-        __m128i c_f16x8 = _mm_lddqu_si128((__m128i const *)(c + i));
+        __m128i a_f16x8 = _mm_loadu_si128((__m128i const *)(a + i));
+        __m128i b_f16x8 = _mm_loadu_si128((__m128i const *)(b + i));
+        __m128i c_f16x8 = _mm_loadu_si128((__m128i const *)(c + i));
         __m256 a_f32x8 = _mm256_cvtph_ps(a_f16x8);
         __m256 b_f32x8 = _mm256_cvtph_ps(b_f16x8);
         __m256 c_f32x8 = _mm256_cvtph_ps(c_f16x8);
@@ -439,11 +443,11 @@ NK_PUBLIC void nk_fma_f16_haswell(                           //
     // The tail:
     for (; i < n; ++i) {
         nk_f32_t ai, bi, ci;
-        nk_f16_to_f32(a + i, &ai);
-        nk_f16_to_f32(b + i, &bi);
-        nk_f16_to_f32(c + i, &ci);
+        nk_f16_to_f32_haswell(a + i, &ai);
+        nk_f16_to_f32_haswell(b + i, &bi);
+        nk_f16_to_f32_haswell(c + i, &ci);
         nk_f32_t sum = alpha_val * ai * bi + beta_val * ci;
-        nk_f32_to_f16(&sum, result + i);
+        nk_f32_to_f16_haswell(&sum, result + i);
     }
 }
 
@@ -458,9 +462,9 @@ NK_PUBLIC void nk_fma_bf16_haswell(                             //
     // The main loop:
     nk_size_t i = 0;
     for (; i + 8 <= n; i += 8) {
-        __m128i a_bf16x8 = _mm_lddqu_si128((__m128i const *)(a + i));
-        __m128i b_bf16x8 = _mm_lddqu_si128((__m128i const *)(b + i));
-        __m128i c_bf16x8 = _mm_lddqu_si128((__m128i const *)(c + i));
+        __m128i a_bf16x8 = _mm_loadu_si128((__m128i const *)(a + i));
+        __m128i b_bf16x8 = _mm_loadu_si128((__m128i const *)(b + i));
+        __m128i c_bf16x8 = _mm_loadu_si128((__m128i const *)(c + i));
         __m256 a_f32x8 = nk_bf16x8_to_f32x8_haswell_(a_bf16x8);
         __m256 b_f32x8 = nk_bf16x8_to_f32x8_haswell_(b_bf16x8);
         __m256 c_f32x8 = nk_bf16x8_to_f32x8_haswell_(c_bf16x8);
@@ -474,11 +478,11 @@ NK_PUBLIC void nk_fma_bf16_haswell(                             //
     // The tail:
     for (; i < n; ++i) {
         nk_f32_t ai, bi, ci;
-        nk_bf16_to_f32(a + i, &ai);
-        nk_bf16_to_f32(b + i, &bi);
-        nk_bf16_to_f32(c + i, &ci);
+        nk_bf16_to_f32_serial(a + i, &ai);
+        nk_bf16_to_f32_serial(b + i, &bi);
+        nk_bf16_to_f32_serial(c + i, &ci);
         nk_f32_t sum = alpha_val * ai * bi + beta_val * ci;
-        nk_f32_to_bf16(&sum, result + i);
+        nk_f32_to_bf16_serial(&sum, result + i);
     }
 }
 
@@ -486,8 +490,8 @@ NK_PUBLIC void nk_sum_i8_haswell(nk_i8_t const *a, nk_i8_t const *b, nk_size_t n
     // The main loop:
     nk_size_t i = 0;
     for (; i + 32 <= n; i += 32) {
-        __m256i a_i8x32 = _mm256_lddqu_si256((__m256i *)(a + i));
-        __m256i b_i8x32 = _mm256_lddqu_si256((__m256i *)(b + i));
+        __m256i a_i8x32 = _mm256_loadu_si256((__m256i *)(a + i));
+        __m256i b_i8x32 = _mm256_loadu_si256((__m256i *)(b + i));
         __m256i result_i8x32 = _mm256_adds_epi8(a_i8x32, b_i8x32);
         _mm256_storeu_si256((__m256i *)(result + i), result_i8x32);
     }
@@ -496,7 +500,7 @@ NK_PUBLIC void nk_sum_i8_haswell(nk_i8_t const *a, nk_i8_t const *b, nk_size_t n
     for (; i < n; ++i) {
         nk_f32_t ai = a[i], bi = b[i];
         nk_f32_t sum = ai + bi;
-        nk_f32_to_i8_(&sum, result + i);
+        nk_f32_to_i8_serial(&sum, result + i);
     }
 }
 
@@ -517,10 +521,10 @@ NK_PUBLIC void nk_scale_i8_haswell(nk_i8_t const *a, nk_size_t n, nk_f32_t const
             a_i32s[4] = a[i + 4], a_i32s[5] = a[i + 5], a_i32s[6] = a[i + 6], a_i32s[7] = a[i + 7];
         //! This can be done at least 50% faster if we convert 8-bit integers to floats instead
         //! of relying on the slow `_mm256_cvtepi32_ps` instruction.
-        __m256 a_f32x8 = _mm256_cvtepi32_ps(_mm256_lddqu_si256((__m256i *)a_i32s));
+        __m256 a_f32x8 = _mm256_cvtepi32_ps(_mm256_loadu_si256((__m256i *)a_i32s));
         // The normal part.
         __m256 result_f32x8 = _mm256_fmadd_ps(a_f32x8, alpha_f32x8, beta_f32x8);
-        // Instead of serial calls to expensive `nk_f32_to_u8_`, convert and clip with SIMD.
+        // Instead of serial calls to expensive `nk_f32_to_u8_serial`, convert and clip with SIMD.
         __m256i result_i32x8 = _mm256_cvtps_epi32(result_f32x8);
         result_i32x8 = _mm256_max_epi32(result_i32x8, _mm256_set1_epi32(-128));
         result_i32x8 = _mm256_min_epi32(result_i32x8, _mm256_set1_epi32(127));
@@ -540,7 +544,7 @@ NK_PUBLIC void nk_scale_i8_haswell(nk_i8_t const *a, nk_size_t n, nk_f32_t const
     for (; i < n; ++i) {
         nk_f32_t ai = a[i];
         nk_f32_t sum = alpha_val * ai + beta_val;
-        nk_f32_to_i8_(&sum, result + i);
+        nk_f32_to_i8_serial(&sum, result + i);
     }
 }
 
@@ -550,7 +554,7 @@ NK_PUBLIC void nk_wsum_i8_haswell(                   //
     nk_f32_t alpha_val = *alpha;
     nk_f32_t beta_val = *beta;
 
-    // There are are several special cases we may want to implement:
+    // There are several special cases we may want to implement:
     // 1. Simple addition, when both weights are equal to 1.0.
     if (alpha_val == 1 && beta_val == 1) {
         // In this case we can avoid expensive multiplications.
@@ -582,12 +586,12 @@ NK_PUBLIC void nk_wsum_i8_haswell(                   //
             b_i32s[4] = b[i + 4], b_i32s[5] = b[i + 5], b_i32s[6] = b[i + 6], b_i32s[7] = b[i + 7];
         //! This can be done at least 50% faster if we convert 8-bit integers to floats instead
         //! of relying on the slow `_mm256_cvtepi32_ps` instruction.
-        __m256 a_f32x8 = _mm256_cvtepi32_ps(_mm256_lddqu_si256((__m256i *)a_i32s));
-        __m256 b_f32x8 = _mm256_cvtepi32_ps(_mm256_lddqu_si256((__m256i *)b_i32s));
+        __m256 a_f32x8 = _mm256_cvtepi32_ps(_mm256_loadu_si256((__m256i *)a_i32s));
+        __m256 b_f32x8 = _mm256_cvtepi32_ps(_mm256_loadu_si256((__m256i *)b_i32s));
         // The normal part.
         __m256 ab_f32x8 = _mm256_mul_ps(a_f32x8, alpha_f32x8);
         __m256 result_f32x8 = _mm256_fmadd_ps(b_f32x8, beta_f32x8, ab_f32x8);
-        // Instead of serial calls to expensive `nk_f32_to_u8_`, convert and clip with SIMD.
+        // Instead of serial calls to expensive `nk_f32_to_u8_serial`, convert and clip with SIMD.
         __m256i result_i32x8 = _mm256_cvtps_epi32(result_f32x8);
         result_i32x8 = _mm256_max_epi32(result_i32x8, _mm256_set1_epi32(-128));
         result_i32x8 = _mm256_min_epi32(result_i32x8, _mm256_set1_epi32(127));
@@ -607,7 +611,7 @@ NK_PUBLIC void nk_wsum_i8_haswell(                   //
     for (; i < n; ++i) {
         nk_f32_t ai = a[i], bi = b[i];
         nk_f32_t sum = alpha_val * ai + beta_val * bi;
-        nk_f32_to_i8_(&sum, result + i);
+        nk_f32_to_i8_serial(&sum, result + i);
     }
 }
 
@@ -615,8 +619,8 @@ NK_PUBLIC void nk_sum_u8_haswell(nk_u8_t const *a, nk_u8_t const *b, nk_size_t n
     // The main loop:
     nk_size_t i = 0;
     for (; i + 32 <= n; i += 32) {
-        __m256i a_u8x32 = _mm256_lddqu_si256((__m256i *)(a + i));
-        __m256i b_u8x32 = _mm256_lddqu_si256((__m256i *)(b + i));
+        __m256i a_u8x32 = _mm256_loadu_si256((__m256i *)(a + i));
+        __m256i b_u8x32 = _mm256_loadu_si256((__m256i *)(b + i));
         __m256i result_u8x32 = _mm256_adds_epu8(a_u8x32, b_u8x32);
         _mm256_storeu_si256((__m256i *)(result + i), result_u8x32);
     }
@@ -625,7 +629,7 @@ NK_PUBLIC void nk_sum_u8_haswell(nk_u8_t const *a, nk_u8_t const *b, nk_size_t n
     for (; i < n; ++i) {
         nk_f32_t ai = a[i], bi = b[i];
         nk_f32_t sum = ai + bi;
-        nk_f32_to_u8_(&sum, result + i);
+        nk_f32_to_u8_serial(&sum, result + i);
     }
 }
 
@@ -646,10 +650,10 @@ NK_PUBLIC void nk_scale_u8_haswell(nk_u8_t const *a, nk_size_t n, nk_f32_t const
             a_i32s[4] = a[i + 4], a_i32s[5] = a[i + 5], a_i32s[6] = a[i + 6], a_i32s[7] = a[i + 7];
         //! This can be done at least 50% faster if we convert 8-bit integers to floats instead
         //! of relying on the slow `_mm256_cvtepi32_ps` instruction.
-        __m256 a_f32x8 = _mm256_cvtepi32_ps(_mm256_lddqu_si256((__m256i *)a_i32s));
+        __m256 a_f32x8 = _mm256_cvtepi32_ps(_mm256_loadu_si256((__m256i *)a_i32s));
         // The normal part.
         __m256 result_f32x8 = _mm256_fmadd_ps(a_f32x8, alpha_f32x8, beta_f32x8);
-        // Instead of serial calls to expensive `nk_f32_to_u8_`, convert and clip with SIMD.
+        // Instead of serial calls to expensive `nk_f32_to_u8_serial`, convert and clip with SIMD.
         __m256i result_i32x8 = _mm256_cvtps_epi32(result_f32x8);
         result_i32x8 = _mm256_max_epi32(result_i32x8, _mm256_set1_epi32(0));
         result_i32x8 = _mm256_min_epi32(result_i32x8, _mm256_set1_epi32(255));
@@ -669,7 +673,7 @@ NK_PUBLIC void nk_scale_u8_haswell(nk_u8_t const *a, nk_size_t n, nk_f32_t const
     for (; i < n; ++i) {
         nk_f32_t ai = a[i];
         nk_f32_t sum = alpha_val * ai + beta_val;
-        nk_f32_to_u8_(&sum, result + i);
+        nk_f32_to_u8_serial(&sum, result + i);
     }
 }
 
@@ -679,7 +683,7 @@ NK_PUBLIC void nk_wsum_u8_haswell(                   //
     nk_f32_t alpha_val = *alpha;
     nk_f32_t beta_val = *beta;
 
-    // There are are several special cases we may want to implement:
+    // There are several special cases we may want to implement:
     // 1. Simple addition, when both weights are equal to 1.0.
     if (alpha_val == 1 && beta_val == 1) {
         // In this case we can avoid expensive multiplications.
@@ -711,12 +715,12 @@ NK_PUBLIC void nk_wsum_u8_haswell(                   //
             b_i32s[4] = b[i + 4], b_i32s[5] = b[i + 5], b_i32s[6] = b[i + 6], b_i32s[7] = b[i + 7];
         //! This can be done at least 50% faster if we convert 8-bit integers to floats instead
         //! of relying on the slow `_mm256_cvtepi32_ps` instruction.
-        __m256 a_f32x8 = _mm256_cvtepi32_ps(_mm256_lddqu_si256((__m256i *)a_i32s));
-        __m256 b_f32x8 = _mm256_cvtepi32_ps(_mm256_lddqu_si256((__m256i *)b_i32s));
+        __m256 a_f32x8 = _mm256_cvtepi32_ps(_mm256_loadu_si256((__m256i *)a_i32s));
+        __m256 b_f32x8 = _mm256_cvtepi32_ps(_mm256_loadu_si256((__m256i *)b_i32s));
         // The normal part.
         __m256 ab_f32x8 = _mm256_mul_ps(a_f32x8, alpha_f32x8);
         __m256 result_f32x8 = _mm256_fmadd_ps(b_f32x8, beta_f32x8, ab_f32x8);
-        // Instead of serial calls to expensive `nk_f32_to_u8_`, convert and clip with SIMD.
+        // Instead of serial calls to expensive `nk_f32_to_u8_serial`, convert and clip with SIMD.
         __m256i result_i32x8 = _mm256_cvtps_epi32(result_f32x8);
         result_i32x8 = _mm256_max_epi32(result_i32x8, _mm256_set1_epi32(0));
         result_i32x8 = _mm256_min_epi32(result_i32x8, _mm256_set1_epi32(255));
@@ -736,7 +740,7 @@ NK_PUBLIC void nk_wsum_u8_haswell(                   //
     for (; i < n; ++i) {
         nk_f32_t ai = a[i], bi = b[i];
         nk_f32_t sum = alpha_val * ai + beta_val * bi;
-        nk_f32_to_u8_(&sum, result + i);
+        nk_f32_to_u8_serial(&sum, result + i);
     }
 }
 
@@ -762,14 +766,14 @@ NK_PUBLIC void nk_fma_i8_haswell(                                      //
             c_i32s[4] = c[i + 4], c_i32s[5] = c[i + 5], c_i32s[6] = c[i + 6], c_i32s[7] = c[i + 7];
         //! This can be done at least 50% faster if we convert 8-bit integers to floats instead
         //! of relying on the slow `_mm256_cvtepi32_ps` instruction.
-        __m256 a_f32x8 = _mm256_cvtepi32_ps(_mm256_lddqu_si256((__m256i *)a_i32s));
-        __m256 b_f32x8 = _mm256_cvtepi32_ps(_mm256_lddqu_si256((__m256i *)b_i32s));
-        __m256 c_f32x8 = _mm256_cvtepi32_ps(_mm256_lddqu_si256((__m256i *)c_i32s));
+        __m256 a_f32x8 = _mm256_cvtepi32_ps(_mm256_loadu_si256((__m256i *)a_i32s));
+        __m256 b_f32x8 = _mm256_cvtepi32_ps(_mm256_loadu_si256((__m256i *)b_i32s));
+        __m256 c_f32x8 = _mm256_cvtepi32_ps(_mm256_loadu_si256((__m256i *)c_i32s));
         // The normal part.
         __m256 ab_f32x8 = _mm256_mul_ps(a_f32x8, b_f32x8);
         __m256 abc_f32x8 = _mm256_mul_ps(ab_f32x8, alpha_f32x8);
         __m256 result_f32x8 = _mm256_fmadd_ps(c_f32x8, beta_f32x8, abc_f32x8);
-        // Instead of serial calls to expensive `nk_f32_to_u8_`, convert and clip with SIMD.
+        // Instead of serial calls to expensive `nk_f32_to_u8_serial`, convert and clip with SIMD.
         __m256i result_i32x8 = _mm256_cvtps_epi32(result_f32x8);
         result_i32x8 = _mm256_max_epi32(result_i32x8, _mm256_set1_epi32(-128));
         result_i32x8 = _mm256_min_epi32(result_i32x8, _mm256_set1_epi32(127));
@@ -789,7 +793,7 @@ NK_PUBLIC void nk_fma_i8_haswell(                                      //
     for (; i < n; ++i) {
         nk_f32_t ai = a[i], bi = b[i], ci = c[i];
         nk_f32_t sum = alpha_val * ai * bi + beta_val * ci;
-        nk_f32_to_i8_(&sum, result + i);
+        nk_f32_to_i8_serial(&sum, result + i);
     }
 }
 
@@ -815,14 +819,14 @@ NK_PUBLIC void nk_fma_u8_haswell(                                      //
             c_i32s[4] = c[i + 4], c_i32s[5] = c[i + 5], c_i32s[6] = c[i + 6], c_i32s[7] = c[i + 7];
         //! This can be done at least 50% faster if we convert 8-bit integers to floats instead
         //! of relying on the slow `_mm256_cvtepi32_ps` instruction.
-        __m256 a_f32x8 = _mm256_cvtepi32_ps(_mm256_lddqu_si256((__m256i *)a_i32s));
-        __m256 b_f32x8 = _mm256_cvtepi32_ps(_mm256_lddqu_si256((__m256i *)b_i32s));
-        __m256 c_f32x8 = _mm256_cvtepi32_ps(_mm256_lddqu_si256((__m256i *)c_i32s));
+        __m256 a_f32x8 = _mm256_cvtepi32_ps(_mm256_loadu_si256((__m256i *)a_i32s));
+        __m256 b_f32x8 = _mm256_cvtepi32_ps(_mm256_loadu_si256((__m256i *)b_i32s));
+        __m256 c_f32x8 = _mm256_cvtepi32_ps(_mm256_loadu_si256((__m256i *)c_i32s));
         // The normal part.
         __m256 ab_f32x8 = _mm256_mul_ps(a_f32x8, b_f32x8);
         __m256 abc_f32x8 = _mm256_mul_ps(ab_f32x8, alpha_f32x8);
         __m256 result_f32x8 = _mm256_fmadd_ps(c_f32x8, beta_f32x8, abc_f32x8);
-        // Instead of serial calls to expensive `nk_f32_to_u8_`, convert and clip with SIMD.
+        // Instead of serial calls to expensive `nk_f32_to_u8_serial`, convert and clip with SIMD.
         __m256i result_i32x8 = _mm256_cvtps_epi32(result_f32x8);
         result_i32x8 = _mm256_max_epi32(result_i32x8, _mm256_set1_epi32(0));
         result_i32x8 = _mm256_min_epi32(result_i32x8, _mm256_set1_epi32(255));
@@ -842,7 +846,7 @@ NK_PUBLIC void nk_fma_u8_haswell(                                      //
     for (; i < n; ++i) {
         nk_f32_t ai = a[i], bi = b[i], ci = c[i];
         nk_f32_t sum = alpha_val * ai * bi + beta_val * ci;
-        nk_f32_to_u8_(&sum, result + i);
+        nk_f32_to_u8_serial(&sum, result + i);
     }
 }
 
@@ -850,8 +854,8 @@ NK_PUBLIC void nk_sum_i16_haswell(nk_i16_t const *a, nk_i16_t const *b, nk_size_
     // The main loop:
     nk_size_t i = 0;
     for (; i + 16 <= n; i += 16) {
-        __m256i a_vec = _mm256_lddqu_si256((__m256i *)(a + i));
-        __m256i b_vec = _mm256_lddqu_si256((__m256i *)(b + i));
+        __m256i a_vec = _mm256_loadu_si256((__m256i *)(a + i));
+        __m256i b_vec = _mm256_loadu_si256((__m256i *)(b + i));
         __m256i sum_vec = _mm256_adds_epi16(a_vec, b_vec);
         _mm256_storeu_si256((__m256i *)(result + i), sum_vec);
     }
@@ -860,7 +864,7 @@ NK_PUBLIC void nk_sum_i16_haswell(nk_i16_t const *a, nk_i16_t const *b, nk_size_
     for (; i < n; ++i) {
         nk_i64_t ai = a[i], bi = b[i];
         nk_i64_t sum = ai + bi;
-        nk_i64_to_i16_(&sum, result + i);
+        nk_i64_to_i16_serial(&sum, result + i);
     }
 }
 
@@ -876,7 +880,7 @@ NK_PUBLIC void nk_scale_i16_haswell(nk_i16_t const *a, nk_size_t n, nk_f32_t con
     // The main loop:
     nk_size_t i = 0;
     for (; i + 8 <= n; i += 8) {
-        __m256 a_f32x8 = _mm256_cvtepi32_ps(_mm256_cvtepi16_epi32(_mm_lddqu_si128((__m128i *)(a + i))));
+        __m256 a_f32x8 = _mm256_cvtepi32_ps(_mm256_cvtepi16_epi32(_mm_loadu_si128((__m128i *)(a + i))));
         __m256 result_f32x8 = _mm256_fmadd_ps(a_f32x8, alpha_f32x8, beta_f32x8);
         result_f32x8 = _mm256_max_ps(result_f32x8, min_f32x8);
         result_f32x8 = _mm256_min_ps(result_f32x8, max_f32x8);
@@ -891,7 +895,7 @@ NK_PUBLIC void nk_scale_i16_haswell(nk_i16_t const *a, nk_size_t n, nk_f32_t con
     for (; i < n; ++i) {
         nk_f32_t ai = a[i];
         nk_f32_t sum = alpha_f32 * ai + beta_f32;
-        nk_f32_to_i16_(&sum, result + i);
+        nk_f32_to_i16_serial(&sum, result + i);
     }
 }
 
@@ -908,9 +912,9 @@ NK_PUBLIC void nk_fma_i16_haswell(                                        //
     // The main loop:
     nk_size_t i = 0;
     for (; i + 8 <= n; i += 8) {
-        __m256 a_f32x8 = _mm256_cvtepi32_ps(_mm256_cvtepi16_epi32(_mm_lddqu_si128((__m128i *)(a + i))));
-        __m256 b_f32x8 = _mm256_cvtepi32_ps(_mm256_cvtepi16_epi32(_mm_lddqu_si128((__m128i *)(b + i))));
-        __m256 c_f32x8 = _mm256_cvtepi32_ps(_mm256_cvtepi16_epi32(_mm_lddqu_si128((__m128i *)(c + i))));
+        __m256 a_f32x8 = _mm256_cvtepi32_ps(_mm256_cvtepi16_epi32(_mm_loadu_si128((__m128i *)(a + i))));
+        __m256 b_f32x8 = _mm256_cvtepi32_ps(_mm256_cvtepi16_epi32(_mm_loadu_si128((__m128i *)(b + i))));
+        __m256 c_f32x8 = _mm256_cvtepi32_ps(_mm256_cvtepi16_epi32(_mm_loadu_si128((__m128i *)(c + i))));
         __m256 ab_f32x8 = _mm256_mul_ps(a_f32x8, b_f32x8);
         __m256 abc_f32x8 = _mm256_mul_ps(ab_f32x8, alpha_f32x8);
         __m256 result_f32x8 = _mm256_fmadd_ps(c_f32x8, beta_f32x8, abc_f32x8);
@@ -927,7 +931,7 @@ NK_PUBLIC void nk_fma_i16_haswell(                                        //
     for (; i < n; ++i) {
         nk_f32_t ai = a[i], bi = b[i], ci = c[i];
         nk_f32_t sum = alpha_f32 * ai * bi + beta_f32 * ci;
-        nk_f32_to_i16_(&sum, result + i);
+        nk_f32_to_i16_serial(&sum, result + i);
     }
 }
 
@@ -935,8 +939,8 @@ NK_PUBLIC void nk_sum_u16_haswell(nk_u16_t const *a, nk_u16_t const *b, nk_size_
     // The main loop:
     nk_size_t i = 0;
     for (; i + 16 <= n; i += 16) {
-        __m256i a_vec = _mm256_lddqu_si256((__m256i *)(a + i));
-        __m256i b_vec = _mm256_lddqu_si256((__m256i *)(b + i));
+        __m256i a_vec = _mm256_loadu_si256((__m256i *)(a + i));
+        __m256i b_vec = _mm256_loadu_si256((__m256i *)(b + i));
         __m256i sum_vec = _mm256_adds_epu16(a_vec, b_vec);
         _mm256_storeu_si256((__m256i *)(result + i), sum_vec);
     }
@@ -945,7 +949,7 @@ NK_PUBLIC void nk_sum_u16_haswell(nk_u16_t const *a, nk_u16_t const *b, nk_size_
     for (; i < n; ++i) {
         nk_u64_t ai = a[i], bi = b[i];
         nk_u64_t sum = ai + bi;
-        nk_u64_to_u16_(&sum, result + i);
+        nk_u64_to_u16_serial(&sum, result + i);
     }
 }
 
@@ -961,7 +965,7 @@ NK_PUBLIC void nk_scale_u16_haswell(nk_u16_t const *a, nk_size_t n, nk_f32_t con
     // The main loop:
     nk_size_t i = 0;
     for (; i + 8 <= n; i += 8) {
-        __m256 a_f32x8 = _mm256_cvtepi32_ps(_mm256_cvtepu16_epi32(_mm_lddqu_si128((__m128i *)(a + i))));
+        __m256 a_f32x8 = _mm256_cvtepi32_ps(_mm256_cvtepu16_epi32(_mm_loadu_si128((__m128i *)(a + i))));
         __m256 result_f32x8 = _mm256_fmadd_ps(a_f32x8, alpha_f32x8, beta_f32x8);
         result_f32x8 = _mm256_max_ps(result_f32x8, min_f32x8);
         result_f32x8 = _mm256_min_ps(result_f32x8, max_f32x8);
@@ -976,7 +980,7 @@ NK_PUBLIC void nk_scale_u16_haswell(nk_u16_t const *a, nk_size_t n, nk_f32_t con
     for (; i < n; ++i) {
         nk_f32_t ai = a[i];
         nk_f32_t sum = alpha_f32 * ai + beta_f32;
-        nk_f32_to_u16_(&sum, result + i);
+        nk_f32_to_u16_serial(&sum, result + i);
     }
 }
 
@@ -993,9 +997,9 @@ NK_PUBLIC void nk_fma_u16_haswell(                                        //
     // The main loop:
     nk_size_t i = 0;
     for (; i + 8 <= n; i += 8) {
-        __m256 a_f32x8 = _mm256_cvtepi32_ps(_mm256_cvtepu16_epi32(_mm_lddqu_si128((__m128i *)(a + i))));
-        __m256 b_f32x8 = _mm256_cvtepi32_ps(_mm256_cvtepu16_epi32(_mm_lddqu_si128((__m128i *)(b + i))));
-        __m256 c_f32x8 = _mm256_cvtepi32_ps(_mm256_cvtepu16_epi32(_mm_lddqu_si128((__m128i *)(c + i))));
+        __m256 a_f32x8 = _mm256_cvtepi32_ps(_mm256_cvtepu16_epi32(_mm_loadu_si128((__m128i *)(a + i))));
+        __m256 b_f32x8 = _mm256_cvtepi32_ps(_mm256_cvtepu16_epi32(_mm_loadu_si128((__m128i *)(b + i))));
+        __m256 c_f32x8 = _mm256_cvtepi32_ps(_mm256_cvtepu16_epi32(_mm_loadu_si128((__m128i *)(c + i))));
         __m256 ab_f32x8 = _mm256_mul_ps(a_f32x8, b_f32x8);
         __m256 abc_f32x8 = _mm256_mul_ps(ab_f32x8, alpha_f32x8);
         __m256 result_f32x8 = _mm256_fmadd_ps(c_f32x8, beta_f32x8, abc_f32x8);
@@ -1012,7 +1016,7 @@ NK_PUBLIC void nk_fma_u16_haswell(                                        //
     for (; i < n; ++i) {
         nk_f32_t ai = a[i], bi = b[i], ci = c[i];
         nk_f32_t sum = alpha_f32 * ai * bi + beta_f32 * ci;
-        nk_f32_to_u16_(&sum, result + i);
+        nk_f32_to_u16_serial(&sum, result + i);
     }
 }
 
@@ -1041,8 +1045,8 @@ NK_PUBLIC void nk_sum_i32_haswell(nk_i32_t const *a, nk_i32_t const *b, nk_size_
     // The main loop:
     nk_size_t i = 0;
     for (; i + 8 <= n; i += 8) {
-        __m256i a_vec = _mm256_lddqu_si256((__m256i *)(a + i));
-        __m256i b_vec = _mm256_lddqu_si256((__m256i *)(b + i));
+        __m256i a_vec = _mm256_loadu_si256((__m256i *)(a + i));
+        __m256i b_vec = _mm256_loadu_si256((__m256i *)(b + i));
         __m256i sum_vec = _mm256_adds_epi32_haswell(a_vec, b_vec);
         _mm256_storeu_si256((__m256i *)(result + i), sum_vec);
     }
@@ -1051,7 +1055,7 @@ NK_PUBLIC void nk_sum_i32_haswell(nk_i32_t const *a, nk_i32_t const *b, nk_size_
     for (; i < n; ++i) {
         nk_i64_t ai = a[i], bi = b[i];
         nk_i64_t sum = ai + bi;
-        nk_i64_to_i32_(&sum, result + i);
+        nk_i64_to_i32_serial(&sum, result + i);
     }
 }
 
@@ -1067,7 +1071,7 @@ NK_PUBLIC void nk_scale_i32_haswell(nk_i32_t const *a, nk_size_t n, nk_f64_t con
     // The main loop:
     nk_size_t i = 0;
     for (; i + 4 <= n; i += 4) {
-        __m256d a_f64x4 = _mm256_cvtepi32_pd(_mm_lddqu_si128((__m128i *)(a + i)));
+        __m256d a_f64x4 = _mm256_cvtepi32_pd(_mm_loadu_si128((__m128i *)(a + i)));
         __m256d result_f64x4 = _mm256_fmadd_pd(a_f64x4, alpha_f64x4, beta_f64x4);
         // Clip to the largest values representable by 32-bit integers.
         result_f64x4 = _mm256_max_pd(result_f64x4, min_f64x4);
@@ -1080,7 +1084,7 @@ NK_PUBLIC void nk_scale_i32_haswell(nk_i32_t const *a, nk_size_t n, nk_f64_t con
     for (; i < n; ++i) {
         nk_f64_t ai = a[i];
         nk_f64_t sum = alpha_val * ai + beta_val;
-        nk_f64_to_i32_(&sum, result + i);
+        nk_f64_to_i32_serial(&sum, result + i);
     }
 }
 
@@ -1097,9 +1101,9 @@ NK_PUBLIC void nk_fma_i32_haswell(                                        //
     // The main loop:
     nk_size_t i = 0;
     for (; i + 4 <= n; i += 4) {
-        __m256d a_f64x4 = _mm256_cvtepi32_pd(_mm_lddqu_si128((__m128i *)(a + i)));
-        __m256d b_f64x4 = _mm256_cvtepi32_pd(_mm_lddqu_si128((__m128i *)(b + i)));
-        __m256d c_f64x4 = _mm256_cvtepi32_pd(_mm_lddqu_si128((__m128i *)(c + i)));
+        __m256d a_f64x4 = _mm256_cvtepi32_pd(_mm_loadu_si128((__m128i *)(a + i)));
+        __m256d b_f64x4 = _mm256_cvtepi32_pd(_mm_loadu_si128((__m128i *)(b + i)));
+        __m256d c_f64x4 = _mm256_cvtepi32_pd(_mm_loadu_si128((__m128i *)(c + i)));
         __m256d ab_f64x4 = _mm256_mul_pd(a_f64x4, b_f64x4);
         __m256d ab_scaled_f64x4 = _mm256_mul_pd(ab_f64x4, alpha_f64x4);
         __m256d result_f64x4 = _mm256_fmadd_pd(c_f64x4, beta_f64x4, ab_scaled_f64x4);
@@ -1114,7 +1118,7 @@ NK_PUBLIC void nk_fma_i32_haswell(                                        //
     for (; i < n; ++i) {
         nk_f64_t ai = a[i], bi = b[i], ci = c[i];
         nk_f64_t sum = alpha_val * ai * bi + beta_val * ci;
-        nk_f64_to_i32_(&sum, result + i);
+        nk_f64_to_i32_serial(&sum, result + i);
     }
 }
 
@@ -1180,15 +1184,15 @@ NK_INTERNAL __m128i _mm256_cvtpd_epu32_haswell(__m256d a) {
     to[1] = (nk_u32_t)from[1];
     to[2] = (nk_u32_t)from[2];
     to[3] = (nk_u32_t)from[3];
-    return _mm_lddqu_si128((__m128i *)to);
+    return _mm_loadu_si128((__m128i *)to);
 }
 
 NK_PUBLIC void nk_sum_u32_haswell(nk_u32_t const *a, nk_u32_t const *b, nk_size_t n, nk_u32_t *result) {
     // The main loop:
     nk_size_t i = 0;
     for (; i + 8 <= n; i += 8) {
-        __m256i a_vec = _mm256_lddqu_si256((__m256i *)(a + i));
-        __m256i b_vec = _mm256_lddqu_si256((__m256i *)(b + i));
+        __m256i a_vec = _mm256_loadu_si256((__m256i *)(a + i));
+        __m256i b_vec = _mm256_loadu_si256((__m256i *)(b + i));
         __m256i sum_vec = _mm256_adds_epu32_haswell(a_vec, b_vec);
         _mm256_storeu_si256((__m256i *)(result + i), sum_vec);
     }
@@ -1197,7 +1201,7 @@ NK_PUBLIC void nk_sum_u32_haswell(nk_u32_t const *a, nk_u32_t const *b, nk_size_
     for (; i < n; ++i) {
         nk_i64_t ai = a[i], bi = b[i];
         nk_i64_t sum = ai + bi;
-        nk_i64_to_u32_(&sum, result + i);
+        nk_i64_to_u32_serial(&sum, result + i);
     }
 }
 
@@ -1213,7 +1217,7 @@ NK_PUBLIC void nk_scale_u32_haswell(nk_u32_t const *a, nk_size_t n, nk_f64_t con
     // The main loop:
     nk_size_t i = 0;
     for (; i + 4 <= n; i += 4) {
-        __m256d a_f64x4 = _mm256_cvtepu32_pd_haswell(_mm_lddqu_si128((__m128i *)(a + i)));
+        __m256d a_f64x4 = _mm256_cvtepu32_pd_haswell(_mm_loadu_si128((__m128i *)(a + i)));
         __m256d result_f64x4 = _mm256_fmadd_pd(a_f64x4, alpha_f64x4, beta_f64x4);
         // Clip to the largest values representable by 32-bit integers.
         result_f64x4 = _mm256_max_pd(result_f64x4, min_f64x4);
@@ -1226,7 +1230,7 @@ NK_PUBLIC void nk_scale_u32_haswell(nk_u32_t const *a, nk_size_t n, nk_f64_t con
     for (; i < n; ++i) {
         nk_f64_t ai = a[i];
         nk_f64_t sum = alpha_val * ai + beta_val;
-        nk_f64_to_u32_(&sum, result + i);
+        nk_f64_to_u32_serial(&sum, result + i);
     }
 }
 
@@ -1243,9 +1247,9 @@ NK_PUBLIC void nk_fma_u32_haswell(                                        //
     // The main loop:
     nk_size_t i = 0;
     for (; i + 4 <= n; i += 4) {
-        __m256d a_f64x4 = _mm256_cvtepu32_pd_haswell(_mm_lddqu_si128((__m128i *)(a + i)));
-        __m256d b_f64x4 = _mm256_cvtepu32_pd_haswell(_mm_lddqu_si128((__m128i *)(b + i)));
-        __m256d c_f64x4 = _mm256_cvtepu32_pd_haswell(_mm_lddqu_si128((__m128i *)(c + i)));
+        __m256d a_f64x4 = _mm256_cvtepu32_pd_haswell(_mm_loadu_si128((__m128i *)(a + i)));
+        __m256d b_f64x4 = _mm256_cvtepu32_pd_haswell(_mm_loadu_si128((__m128i *)(b + i)));
+        __m256d c_f64x4 = _mm256_cvtepu32_pd_haswell(_mm_loadu_si128((__m128i *)(c + i)));
         __m256d ab_f64x4 = _mm256_mul_pd(a_f64x4, b_f64x4);
         __m256d ab_scaled_f64x4 = _mm256_mul_pd(ab_f64x4, alpha_f64x4);
         __m256d result_f64x4 = _mm256_fmadd_pd(c_f64x4, beta_f64x4, ab_scaled_f64x4);
@@ -1260,7 +1264,7 @@ NK_PUBLIC void nk_fma_u32_haswell(                                        //
     for (; i < n; ++i) {
         nk_f64_t ai = a[i], bi = b[i], ci = c[i];
         nk_f64_t sum = alpha_val * ai * bi + beta_val * ci;
-        nk_f64_to_u32_(&sum, result + i);
+        nk_f64_to_u32_serial(&sum, result + i);
     }
 }
 
@@ -1277,10 +1281,10 @@ NK_PUBLIC void nk_sum_e4m3_haswell(nk_e4m3_t const *a, nk_e4m3_t const *b, nk_si
     }
     for (; i < n; ++i) {
         nk_f32_t ai, bi;
-        nk_e4m3_to_f32(a + i, &ai);
-        nk_e4m3_to_f32(b + i, &bi);
+        nk_e4m3_to_f32_serial(a + i, &ai);
+        nk_e4m3_to_f32_serial(b + i, &bi);
         nk_f32_t sum = ai + bi;
-        nk_f32_to_e4m3(&sum, result + i);
+        nk_f32_to_e4m3_serial(&sum, result + i);
     }
 }
 
@@ -1297,10 +1301,10 @@ NK_PUBLIC void nk_sum_e5m2_haswell(nk_e5m2_t const *a, nk_e5m2_t const *b, nk_si
     }
     for (; i < n; ++i) {
         nk_f32_t ai, bi;
-        nk_e5m2_to_f32(a + i, &ai);
-        nk_e5m2_to_f32(b + i, &bi);
+        nk_e5m2_to_f32_serial(a + i, &ai);
+        nk_e5m2_to_f32_serial(b + i, &bi);
         nk_f32_t sum = ai + bi;
-        nk_f32_to_e5m2(&sum, result + i);
+        nk_f32_to_e5m2_serial(&sum, result + i);
     }
 }
 
@@ -1320,9 +1324,9 @@ NK_PUBLIC void nk_scale_e4m3_haswell(nk_e4m3_t const *a, nk_size_t n, nk_f32_t c
     }
     for (; i < n; ++i) {
         nk_f32_t ai;
-        nk_e4m3_to_f32(a + i, &ai);
+        nk_e4m3_to_f32_serial(a + i, &ai);
         nk_f32_t scaled = *alpha * ai + *beta;
-        nk_f32_to_e4m3(&scaled, result + i);
+        nk_f32_to_e4m3_serial(&scaled, result + i);
     }
 }
 
@@ -1342,9 +1346,9 @@ NK_PUBLIC void nk_scale_e5m2_haswell(nk_e5m2_t const *a, nk_size_t n, nk_f32_t c
     }
     for (; i < n; ++i) {
         nk_f32_t ai;
-        nk_e5m2_to_f32(a + i, &ai);
+        nk_e5m2_to_f32_serial(a + i, &ai);
         nk_f32_t scaled = *alpha * ai + *beta;
-        nk_f32_to_e5m2(&scaled, result + i);
+        nk_f32_to_e5m2_serial(&scaled, result + i);
     }
 }
 
@@ -1369,10 +1373,10 @@ NK_PUBLIC void nk_wsum_e4m3_haswell(nk_e4m3_t const *a, nk_e4m3_t const *b, nk_s
     }
     for (; i < n; ++i) {
         nk_f32_t ai, bi;
-        nk_e4m3_to_f32(a + i, &ai);
-        nk_e4m3_to_f32(b + i, &bi);
+        nk_e4m3_to_f32_serial(a + i, &ai);
+        nk_e4m3_to_f32_serial(b + i, &bi);
         nk_f32_t wsum = *alpha * ai + *beta * bi;
-        nk_f32_to_e4m3(&wsum, result + i);
+        nk_f32_to_e4m3_serial(&wsum, result + i);
     }
 }
 
@@ -1397,10 +1401,10 @@ NK_PUBLIC void nk_wsum_e5m2_haswell(nk_e5m2_t const *a, nk_e5m2_t const *b, nk_s
     }
     for (; i < n; ++i) {
         nk_f32_t ai, bi;
-        nk_e5m2_to_f32(a + i, &ai);
-        nk_e5m2_to_f32(b + i, &bi);
+        nk_e5m2_to_f32_serial(a + i, &ai);
+        nk_e5m2_to_f32_serial(b + i, &bi);
         nk_f32_t wsum = *alpha * ai + *beta * bi;
-        nk_f32_to_e5m2(&wsum, result + i);
+        nk_f32_to_e5m2_serial(&wsum, result + i);
     }
 }
 
@@ -1427,11 +1431,11 @@ NK_PUBLIC void nk_fma_e4m3_haswell(nk_e4m3_t const *a, nk_e4m3_t const *b, nk_e4
     }
     for (; i < n; ++i) {
         nk_f32_t ai, bi, ci;
-        nk_e4m3_to_f32(a + i, &ai);
-        nk_e4m3_to_f32(b + i, &bi);
-        nk_e4m3_to_f32(c + i, &ci);
+        nk_e4m3_to_f32_serial(a + i, &ai);
+        nk_e4m3_to_f32_serial(b + i, &bi);
+        nk_e4m3_to_f32_serial(c + i, &ci);
         nk_f32_t fma = *alpha * ai * bi + *beta * ci;
-        nk_f32_to_e4m3(&fma, result + i);
+        nk_f32_to_e4m3_serial(&fma, result + i);
     }
 }
 
@@ -1458,11 +1462,11 @@ NK_PUBLIC void nk_fma_e5m2_haswell(nk_e5m2_t const *a, nk_e5m2_t const *b, nk_e5
     }
     for (; i < n; ++i) {
         nk_f32_t ai, bi, ci;
-        nk_e5m2_to_f32(a + i, &ai);
-        nk_e5m2_to_f32(b + i, &bi);
-        nk_e5m2_to_f32(c + i, &ci);
+        nk_e5m2_to_f32_serial(a + i, &ai);
+        nk_e5m2_to_f32_serial(b + i, &bi);
+        nk_e5m2_to_f32_serial(c + i, &ci);
         nk_f32_t fma = *alpha * ai * bi + *beta * ci;
-        nk_f32_to_e5m2(&fma, result + i);
+        nk_f32_to_e5m2_serial(&fma, result + i);
     }
 }
 
@@ -1470,8 +1474,11 @@ NK_PUBLIC void nk_fma_e5m2_haswell(nk_e5m2_t const *a, nk_e5m2_t const *b, nk_e5
 } // extern "C"
 #endif
 
+#if defined(__clang__)
 #pragma clang attribute pop
+#elif defined(__GNUC__)
 #pragma GCC pop_options
+#endif
 #endif // NK_TARGET_HASWELL
 #endif // NK_TARGET_X86_
 

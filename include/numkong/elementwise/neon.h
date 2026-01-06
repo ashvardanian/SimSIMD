@@ -10,12 +10,15 @@
 
 #if NK_TARGET_ARM_
 #if NK_TARGET_NEON
+#if defined(__clang__)
+#pragma clang attribute push(__attribute__((target("arch=armv8-a+simd"))), apply_to = function)
+#elif defined(__GNUC__)
 #pragma GCC push_options
 #pragma GCC target("arch=armv8-a+simd")
-#pragma clang attribute push(__attribute__((target("arch=armv8-a+simd"))), apply_to = function)
+#endif
 
 #include "numkong/types.h"
-#include "numkong/reduce/neon.h"
+#include "numkong/cast/neon.h"
 
 #if defined(__cplusplus)
 extern "C" {
@@ -61,7 +64,7 @@ NK_PUBLIC void nk_wsum_f32_neon(                       //
     nk_f32_t alpha_val = *alpha;
     nk_f32_t beta_val = *beta;
 
-    // There are are several special cases we may want to implement:
+    // There are several special cases we may want to implement:
     // 1. Simple addition, when both weights are equal to 1.0.
     if (alpha_val == 1 && beta_val == 1) {
         // In this case we can avoid expensive multiplications.
@@ -149,7 +152,7 @@ NK_PUBLIC void nk_scale_i16_neon(nk_i16_t const *a, nk_size_t n, nk_f32_t const 
     // The tail:
     for (; i < n; ++i) {
         nk_f32_t sum = alpha_f32 * a[i] + beta_f32;
-        nk_f32_to_i16_(&sum, result + i);
+        nk_f32_to_i16_serial(&sum, result + i);
     }
 }
 
@@ -178,7 +181,7 @@ NK_PUBLIC void nk_fma_i16_neon(                              //
     // The tail:
     for (; i < n; ++i) {
         nk_f32_t sum = alpha_f32 * a[i] * b[i] + beta_f32 * c[i];
-        nk_f32_to_i16_(&sum, result + i);
+        nk_f32_to_i16_serial(&sum, result + i);
     }
 }
 
@@ -216,7 +219,7 @@ NK_PUBLIC void nk_scale_u16_neon(nk_u16_t const *a, nk_size_t n, nk_f32_t const 
     // The tail:
     for (; i < n; ++i) {
         nk_f32_t sum = alpha_f32 * a[i] + beta_f32;
-        nk_f32_to_u16_(&sum, result + i);
+        nk_f32_to_u16_serial(&sum, result + i);
     }
 }
 
@@ -245,7 +248,7 @@ NK_PUBLIC void nk_fma_u16_neon(                              //
     // The tail:
     for (; i < n; ++i) {
         nk_f32_t sum = alpha_f32 * a[i] * b[i] + beta_f32 * c[i];
-        nk_f32_to_u16_(&sum, result + i);
+        nk_f32_to_u16_serial(&sum, result + i);
     }
 }
 
@@ -283,7 +286,7 @@ NK_PUBLIC void nk_scale_i32_neon(nk_i32_t const *a, nk_size_t n, nk_f64_t const 
     // The tail:
     for (; i < n; ++i) {
         nk_f64_t sum = alpha_val * a[i] + beta_val;
-        nk_f64_to_i32_(&sum, result + i);
+        nk_f64_to_i32_serial(&sum, result + i);
     }
 }
 
@@ -312,7 +315,7 @@ NK_PUBLIC void nk_fma_i32_neon(                              //
     // The tail:
     for (; i < n; ++i) {
         nk_f64_t sum = alpha_val * a[i] * b[i] + beta_val * c[i];
-        nk_f64_to_i32_(&sum, result + i);
+        nk_f64_to_i32_serial(&sum, result + i);
     }
 }
 
@@ -350,7 +353,7 @@ NK_PUBLIC void nk_scale_u32_neon(nk_u32_t const *a, nk_size_t n, nk_f64_t const 
     // The tail:
     for (; i < n; ++i) {
         nk_f64_t sum = alpha_val * a[i] + beta_val;
-        nk_f64_to_u32_(&sum, result + i);
+        nk_f64_to_u32_serial(&sum, result + i);
     }
 }
 
@@ -379,7 +382,7 @@ NK_PUBLIC void nk_fma_u32_neon(                              //
     // The tail:
     for (; i < n; ++i) {
         nk_f64_t sum = alpha_val * a[i] * b[i] + beta_val * c[i];
-        nk_f64_to_u32_(&sum, result + i);
+        nk_f64_to_u32_serial(&sum, result + i);
     }
 }
 
@@ -417,7 +420,7 @@ NK_PUBLIC void nk_scale_i64_neon(nk_i64_t const *a, nk_size_t n, nk_f64_t const 
     // The tail:
     for (; i < n; ++i) {
         nk_f64_t sum = alpha_val * a[i] + beta_val;
-        nk_f64_to_i64_(&sum, result + i);
+        nk_f64_to_i64_serial(&sum, result + i);
     }
 }
 
@@ -446,7 +449,7 @@ NK_PUBLIC void nk_fma_i64_neon(                              //
     // The tail:
     for (; i < n; ++i) {
         nk_f64_t sum = alpha_val * a[i] * b[i] + beta_val * c[i];
-        nk_f64_to_i64_(&sum, result + i);
+        nk_f64_to_i64_serial(&sum, result + i);
     }
 }
 
@@ -484,7 +487,7 @@ NK_PUBLIC void nk_scale_u64_neon(nk_u64_t const *a, nk_size_t n, nk_f64_t const 
     // The tail:
     for (; i < n; ++i) {
         nk_f64_t sum = alpha_val * a[i] + beta_val;
-        nk_f64_to_u64_(&sum, result + i);
+        nk_f64_to_u64_serial(&sum, result + i);
     }
 }
 
@@ -513,7 +516,7 @@ NK_PUBLIC void nk_fma_u64_neon(                              //
     // The tail:
     for (; i < n; ++i) {
         nk_f64_t sum = alpha_val * a[i] * b[i] + beta_val * c[i];
-        nk_f64_to_u64_(&sum, result + i);
+        nk_f64_to_u64_serial(&sum, result + i);
     }
 }
 
@@ -557,7 +560,7 @@ NK_PUBLIC void nk_wsum_f64_neon(                       //
     nk_f64_t alpha_val = *alpha;
     nk_f64_t beta_val = *beta;
 
-    // There are are several special cases we may want to implement:
+    // There are several special cases we may want to implement:
     // 1. Simple addition, when both weights are equal to 1.0.
     if (alpha_val == 1 && beta_val == 1) {
         // In this case we can avoid expensive multiplications.
@@ -793,8 +796,11 @@ NK_PUBLIC void nk_fma_e5m2_neon(nk_e5m2_t const *a, nk_e5m2_t const *b, nk_e5m2_
 } // extern "C"
 #endif
 
+#if defined(__clang__)
 #pragma clang attribute pop
+#elif defined(__GNUC__)
 #pragma GCC pop_options
+#endif
 #endif // NK_TARGET_NEON
 #endif // NK_TARGET_ARM_
 

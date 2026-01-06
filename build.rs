@@ -31,23 +31,36 @@ fn build_simsimd() -> HashMap<String, bool> {
         build.flag_if_supported("-mpreferred-stack-boundary=4");
     }
 
-    // Set architecture-specific macros explicitly (like StringZilla)
+    // Set architecture-specific macros explicitly
     let target_bits = env::var("CARGO_CFG_TARGET_POINTER_WIDTH").unwrap_or_default();
     if target_arch == "x86_64" && target_bits == "64" {
         build.define("NK_IS_64BIT_X86", "1");
         build.define("NK_IS_64BIT_ARM", "0");
+        build.define("NK_IS_64BIT_RISCV", "0");
         flags.insert("NK_IS_64BIT_X86".to_string(), true);
         flags.insert("NK_IS_64BIT_ARM".to_string(), false);
+        flags.insert("NK_IS_64BIT_RISCV".to_string(), false);
     } else if target_arch == "aarch64" && target_bits == "64" {
         build.define("NK_IS_64BIT_X86", "0");
         build.define("NK_IS_64BIT_ARM", "1");
+        build.define("NK_IS_64BIT_RISCV", "0");
         flags.insert("NK_IS_64BIT_X86".to_string(), false);
         flags.insert("NK_IS_64BIT_ARM".to_string(), true);
+        flags.insert("NK_IS_64BIT_RISCV".to_string(), false);
+    } else if target_arch == "riscv64" && target_bits == "64" {
+        build.define("NK_IS_64BIT_X86", "0");
+        build.define("NK_IS_64BIT_ARM", "0");
+        build.define("NK_IS_64BIT_RISCV", "1");
+        flags.insert("NK_IS_64BIT_X86".to_string(), false);
+        flags.insert("NK_IS_64BIT_ARM".to_string(), false);
+        flags.insert("NK_IS_64BIT_RISCV".to_string(), true);
     } else {
         build.define("NK_IS_64BIT_X86", "0");
         build.define("NK_IS_64BIT_ARM", "0");
+        build.define("NK_IS_64BIT_RISCV", "0");
         flags.insert("NK_IS_64BIT_X86".to_string(), false);
         flags.insert("NK_IS_64BIT_ARM".to_string(), false);
+        flags.insert("NK_IS_64BIT_RISCV".to_string(), false);
     }
 
     // Determine which backends to try based on target architecture.
@@ -85,6 +98,12 @@ fn build_simsimd() -> HashMap<String, bool> {
             "NK_TARGET_ICE",
             "NK_TARGET_SKYLAKE",
             "NK_TARGET_HASWELL",
+        ],
+        "riscv64" => vec![
+            // Most advanced first
+            "NK_TARGET_XUANTIE",
+            "NK_TARGET_SIFIVE",
+            "NK_TARGET_SPACEMIT",
         ],
         _ => vec![],
     };
@@ -170,6 +189,9 @@ fn build_simsimd() -> HashMap<String, bool> {
     println!("cargo:rerun-if-changed=include/numkong/dot/neonfhm.h");
     println!("cargo:rerun-if-changed=include/numkong/dot/sve.h");
     println!("cargo:rerun-if-changed=include/numkong/dot/svehalf.h");
+    println!("cargo:rerun-if-changed=include/numkong/dot/spacemit.h");
+    println!("cargo:rerun-if-changed=include/numkong/dot/sifive.h");
+    println!("cargo:rerun-if-changed=include/numkong/dot/xuantie.h");
     // dots/
     println!("cargo:rerun-if-changed=include/numkong/dots/haswell.h");
     println!("cargo:rerun-if-changed=include/numkong/dots/skylake.h");
@@ -234,6 +256,9 @@ fn build_simsimd() -> HashMap<String, bool> {
     println!("cargo:rerun-if-changed=include/numkong/spatial/sve.h");
     println!("cargo:rerun-if-changed=include/numkong/spatial/svehalf.h");
     println!("cargo:rerun-if-changed=include/numkong/spatial/svebfdot.h");
+    println!("cargo:rerun-if-changed=include/numkong/spatial/spacemit.h");
+    println!("cargo:rerun-if-changed=include/numkong/spatial/sifive.h");
+    println!("cargo:rerun-if-changed=include/numkong/spatial/xuantie.h");
     // trigonometry/
     println!("cargo:rerun-if-changed=include/numkong/trigonometry/serial.h");
     println!("cargo:rerun-if-changed=include/numkong/trigonometry/haswell.h");

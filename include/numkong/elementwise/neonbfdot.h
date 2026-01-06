@@ -10,9 +10,12 @@
 
 #if NK_TARGET_ARM_
 #if NK_TARGET_NEONBFDOT
+#if defined(__clang__)
+#pragma clang attribute push(__attribute__((target("arch=armv8.6-a+simd+bf16"))), apply_to = function)
+#elif defined(__GNUC__)
 #pragma GCC push_options
 #pragma GCC target("arch=armv8.6-a+simd+bf16")
-#pragma clang attribute push(__attribute__((target("arch=armv8.6-a+simd+bf16"))), apply_to = function)
+#endif
 
 #include "numkong/types.h"
 
@@ -71,7 +74,7 @@ NK_PUBLIC void nk_wsum_bf16_neonbfdot(                   //
     nk_f32_t alpha_val = *alpha;
     nk_f32_t beta_val = *beta;
 
-    // There are are several special cases we may want to implement:
+    // There are several special cases we may want to implement:
     // 1. Simple addition, when both weights are equal to 1.0.
     if (alpha_val == 1 && beta_val == 1) {
         // In this case we can avoid expensive multiplications.
@@ -142,8 +145,11 @@ NK_PUBLIC void nk_fma_bf16_neonbfdot(                           //
 } // extern "C"
 #endif
 
+#if defined(__clang__)
 #pragma clang attribute pop
+#elif defined(__GNUC__)
 #pragma GCC pop_options
+#endif
 #endif // NK_TARGET_NEONBFDOT
 #endif // NK_TARGET_ARM_
 

@@ -10,12 +10,15 @@
 
 #if NK_TARGET_ARM_
 #if NK_TARGET_NEON
+#if defined(__clang__)
+#pragma clang attribute push(__attribute__((target("arch=armv8-a+simd"))), apply_to = function)
+#elif defined(__GNUC__)
 #pragma GCC push_options
 #pragma GCC target("arch=armv8-a+simd")
-#pragma clang attribute push(__attribute__((target("arch=armv8-a+simd"))), apply_to = function)
+#endif
 
 #include "numkong/types.h"
-#include "numkong/reduce/serial.h" // Serial fallbacks
+#include "numkong/reduce/serial.h"
 
 #if defined(__cplusplus)
 extern "C" {
@@ -367,7 +370,8 @@ NK_INTERNAL void nk_reduce_add_f64_neon_contiguous_( //
     nk_f64_t compensation = 0;
     for (; idx_scalars < count; ++idx_scalars) {
         nk_f64_t term = data[idx_scalars], tentative = sum + term;
-        compensation += (nk_abs_f64(sum) >= nk_abs_f64(term)) ? ((sum - tentative) + term) : ((term - tentative) + sum);
+        compensation += (nk_f64_abs_(sum) >= nk_f64_abs_(term)) ? ((sum - tentative) + term)
+                                                                : ((term - tentative) + sum);
         sum = tentative;
     }
     *result = sum + compensation;
@@ -437,7 +441,8 @@ NK_INTERNAL void nk_reduce_add_f64_neon_strided_(                     //
     nk_f64_t compensation = 0;
     for (; idx_logical < count; ++idx_logical) {
         nk_f64_t term = data[idx_logical * stride_elements], tentative = sum + term;
-        compensation += (nk_abs_f64(sum) >= nk_abs_f64(term)) ? ((sum - tentative) + term) : ((term - tentative) + sum);
+        compensation += (nk_f64_abs_(sum) >= nk_f64_abs_(term)) ? ((sum - tentative) + term)
+                                                                : ((term - tentative) + sum);
         sum = tentative;
     }
     *result = sum + compensation;
@@ -457,11 +462,6 @@ NK_PUBLIC void nk_reduce_add_f64_neon(                             //
 NK_INTERNAL void nk_reduce_min_f32_neon_contiguous_( //
     nk_f32_t const *data, nk_size_t count,           //
     nk_f32_t *min_value, nk_size_t *min_index) {
-    if (count == 0) {
-        *min_value = 0;
-        *min_index = 0;
-        return;
-    }
 
     // Single-pass: track both min value and index in SIMD
     float32x4_t min_f32x4 = vdupq_n_f32(__builtin_huge_valf());
@@ -507,11 +507,6 @@ NK_INTERNAL void nk_reduce_min_f32_neon_contiguous_( //
 NK_INTERNAL void nk_reduce_min_f32_neon_strided_(                     //
     nk_f32_t const *data, nk_size_t count, nk_size_t stride_elements, //
     nk_f32_t *min_value, nk_size_t *min_index) {
-    if (count == 0) {
-        *min_value = 0;
-        *min_index = 0;
-        return;
-    }
 
     // Single-pass: track both min value and index in SIMD
     float32x4_t min_f32x4 = vdupq_n_f32(__builtin_huge_valf());
@@ -583,7 +578,7 @@ NK_PUBLIC void nk_reduce_min_f32_neon(                             //
     nk_f32_t *min_value, nk_size_t *min_index) {
     nk_size_t stride_elements = stride_bytes / sizeof(nk_f32_t);
     int aligned = (stride_bytes % sizeof(nk_f32_t) == 0);
-    if (!aligned) nk_reduce_min_f32_serial(data, count, stride_bytes, min_value, min_index);
+    if (count == 0 || !aligned) nk_reduce_min_f32_serial(data, count, stride_bytes, min_value, min_index);
     else if (stride_elements == 1 && count >= 4) nk_reduce_min_f32_neon_contiguous_(data, count, min_value, min_index);
     else if (stride_elements >= 2 && stride_elements <= 4)
         nk_reduce_min_f32_neon_strided_(data, count, stride_elements, min_value, min_index);
@@ -593,11 +588,6 @@ NK_PUBLIC void nk_reduce_min_f32_neon(                             //
 NK_INTERNAL void nk_reduce_max_f32_neon_contiguous_( //
     nk_f32_t const *data, nk_size_t count,           //
     nk_f32_t *max_value, nk_size_t *max_index) {
-    if (count == 0) {
-        *max_value = 0;
-        *max_index = 0;
-        return;
-    }
 
     // Single-pass: track both max value and index in SIMD
     float32x4_t max_f32x4 = vdupq_n_f32(-__builtin_huge_valf());
@@ -643,11 +633,6 @@ NK_INTERNAL void nk_reduce_max_f32_neon_contiguous_( //
 NK_INTERNAL void nk_reduce_max_f32_neon_strided_(                     //
     nk_f32_t const *data, nk_size_t count, nk_size_t stride_elements, //
     nk_f32_t *max_value, nk_size_t *max_index) {
-    if (count == 0) {
-        *max_value = 0;
-        *max_index = 0;
-        return;
-    }
 
     // Single-pass: track both max value and index in SIMD
     float32x4_t max_f32x4 = vdupq_n_f32(-__builtin_huge_valf());
@@ -719,7 +704,7 @@ NK_PUBLIC void nk_reduce_max_f32_neon(                             //
     nk_f32_t *max_value, nk_size_t *max_index) {
     nk_size_t stride_elements = stride_bytes / sizeof(nk_f32_t);
     int aligned = (stride_bytes % sizeof(nk_f32_t) == 0);
-    if (!aligned) nk_reduce_max_f32_serial(data, count, stride_bytes, max_value, max_index);
+    if (count == 0 || !aligned) nk_reduce_max_f32_serial(data, count, stride_bytes, max_value, max_index);
     else if (stride_elements == 1 && count >= 4) nk_reduce_max_f32_neon_contiguous_(data, count, max_value, max_index);
     else if (stride_elements >= 2 && stride_elements <= 4)
         nk_reduce_max_f32_neon_strided_(data, count, stride_elements, max_value, max_index);
@@ -729,11 +714,6 @@ NK_PUBLIC void nk_reduce_max_f32_neon(                             //
 NK_INTERNAL void nk_reduce_min_f64_neon_contiguous_( //
     nk_f64_t const *data, nk_size_t count,           //
     nk_f64_t *min_value, nk_size_t *min_index) {
-    if (count == 0) {
-        *min_value = 0;
-        *min_index = 0;
-        return;
-    }
 
     // Single-pass: track both min value and index in SIMD
     float64x2_t min_f64x2 = vdupq_n_f64(__builtin_huge_val());
@@ -777,11 +757,6 @@ NK_INTERNAL void nk_reduce_min_f64_neon_contiguous_( //
 NK_INTERNAL void nk_reduce_min_f64_neon_strided_(                     //
     nk_f64_t const *data, nk_size_t count, nk_size_t stride_elements, //
     nk_f64_t *min_value, nk_size_t *min_index) {
-    if (count == 0) {
-        *min_value = 0;
-        *min_index = 0;
-        return;
-    }
 
     // Single-pass: track both min value and index in SIMD
     float64x2_t min_f64x2 = vdupq_n_f64(__builtin_huge_val());
@@ -851,7 +826,7 @@ NK_PUBLIC void nk_reduce_min_f64_neon(                             //
     nk_f64_t *min_value, nk_size_t *min_index) {
     nk_size_t stride_elements = stride_bytes / sizeof(nk_f64_t);
     int aligned = (stride_bytes % sizeof(nk_f64_t) == 0);
-    if (!aligned) nk_reduce_min_f64_serial(data, count, stride_bytes, min_value, min_index);
+    if (count == 0 || !aligned) nk_reduce_min_f64_serial(data, count, stride_bytes, min_value, min_index);
     else if (stride_elements == 1 && count >= 2) nk_reduce_min_f64_neon_contiguous_(data, count, min_value, min_index);
     else if (stride_elements >= 2 && stride_elements <= 4)
         nk_reduce_min_f64_neon_strided_(data, count, stride_elements, min_value, min_index);
@@ -861,11 +836,6 @@ NK_PUBLIC void nk_reduce_min_f64_neon(                             //
 NK_INTERNAL void nk_reduce_max_f64_neon_contiguous_( //
     nk_f64_t const *data, nk_size_t count,           //
     nk_f64_t *max_value, nk_size_t *max_index) {
-    if (count == 0) {
-        *max_value = 0;
-        *max_index = 0;
-        return;
-    }
 
     // Single-pass: track both max value and index in SIMD
     float64x2_t max_f64x2 = vdupq_n_f64(-__builtin_huge_val());
@@ -909,11 +879,6 @@ NK_INTERNAL void nk_reduce_max_f64_neon_contiguous_( //
 NK_INTERNAL void nk_reduce_max_f64_neon_strided_(                     //
     nk_f64_t const *data, nk_size_t count, nk_size_t stride_elements, //
     nk_f64_t *max_value, nk_size_t *max_index) {
-    if (count == 0) {
-        *max_value = 0;
-        *max_index = 0;
-        return;
-    }
 
     // Single-pass: track both max value and index in SIMD
     float64x2_t max_f64x2 = vdupq_n_f64(-__builtin_huge_val());
@@ -983,7 +948,7 @@ NK_PUBLIC void nk_reduce_max_f64_neon(                             //
     nk_f64_t *max_value, nk_size_t *max_index) {
     nk_size_t stride_elements = stride_bytes / sizeof(nk_f64_t);
     int aligned = (stride_bytes % sizeof(nk_f64_t) == 0);
-    if (!aligned) nk_reduce_max_f64_serial(data, count, stride_bytes, max_value, max_index);
+    if (count == 0 || !aligned) nk_reduce_max_f64_serial(data, count, stride_bytes, max_value, max_index);
     else if (stride_elements == 1 && count >= 2) nk_reduce_max_f64_neon_contiguous_(data, count, max_value, max_index);
     else if (stride_elements >= 2 && stride_elements <= 4)
         nk_reduce_max_f64_neon_strided_(data, count, stride_elements, max_value, max_index);
@@ -1063,11 +1028,6 @@ NK_PUBLIC void nk_reduce_add_i32_neon(                             //
 NK_INTERNAL void nk_reduce_min_i32_neon_contiguous_( //
     nk_i32_t const *data, nk_size_t count,           //
     nk_i32_t *min_value, nk_size_t *min_index) {
-    if (count == 0) {
-        *min_value = 0;
-        *min_index = 0;
-        return;
-    }
 
     int32x4_t min_i32x4 = vdupq_n_s32(NK_I32_MAX);
     int32x4_t min_idx_i32x4 = vdupq_n_s32(0);
@@ -1110,11 +1070,6 @@ NK_INTERNAL void nk_reduce_min_i32_neon_contiguous_( //
 NK_INTERNAL void nk_reduce_min_i32_neon_strided_(                     //
     nk_i32_t const *data, nk_size_t count, nk_size_t stride_elements, //
     nk_i32_t *min_value, nk_size_t *min_index) {
-    if (count == 0) {
-        *min_value = 0;
-        *min_index = 0;
-        return;
-    }
 
     int32x4_t min_i32x4 = vdupq_n_s32(NK_I32_MAX);
     int32x4_t min_idx_i32x4 = vdupq_n_s32(0);
@@ -1183,7 +1138,7 @@ NK_PUBLIC void nk_reduce_min_i32_neon(                             //
     nk_i32_t *min_value, nk_size_t *min_index) {
     nk_size_t stride_elements = stride_bytes / sizeof(nk_i32_t);
     int aligned = (stride_bytes % sizeof(nk_i32_t) == 0);
-    if (!aligned) nk_reduce_min_i32_serial(data, count, stride_bytes, min_value, min_index);
+    if (count == 0 || !aligned) nk_reduce_min_i32_serial(data, count, stride_bytes, min_value, min_index);
     else if (stride_elements == 1 && count >= 4) nk_reduce_min_i32_neon_contiguous_(data, count, min_value, min_index);
     else if (stride_elements >= 2 && stride_elements <= 4)
         nk_reduce_min_i32_neon_strided_(data, count, stride_elements, min_value, min_index);
@@ -1193,11 +1148,6 @@ NK_PUBLIC void nk_reduce_min_i32_neon(                             //
 NK_INTERNAL void nk_reduce_max_i32_neon_contiguous_( //
     nk_i32_t const *data, nk_size_t count,           //
     nk_i32_t *max_value, nk_size_t *max_index) {
-    if (count == 0) {
-        *max_value = 0;
-        *max_index = 0;
-        return;
-    }
 
     int32x4_t max_i32x4 = vdupq_n_s32(INT32_MIN);
     int32x4_t max_idx_i32x4 = vdupq_n_s32(0);
@@ -1240,11 +1190,6 @@ NK_INTERNAL void nk_reduce_max_i32_neon_contiguous_( //
 NK_INTERNAL void nk_reduce_max_i32_neon_strided_(                     //
     nk_i32_t const *data, nk_size_t count, nk_size_t stride_elements, //
     nk_i32_t *max_value, nk_size_t *max_index) {
-    if (count == 0) {
-        *max_value = 0;
-        *max_index = 0;
-        return;
-    }
 
     int32x4_t max_i32x4 = vdupq_n_s32(INT32_MIN);
     int32x4_t max_idx_i32x4 = vdupq_n_s32(0);
@@ -1313,7 +1258,7 @@ NK_PUBLIC void nk_reduce_max_i32_neon(                             //
     nk_i32_t *max_value, nk_size_t *max_index) {
     nk_size_t stride_elements = stride_bytes / sizeof(nk_i32_t);
     int aligned = (stride_bytes % sizeof(nk_i32_t) == 0);
-    if (!aligned) nk_reduce_max_i32_serial(data, count, stride_bytes, max_value, max_index);
+    if (count == 0 || !aligned) nk_reduce_max_i32_serial(data, count, stride_bytes, max_value, max_index);
     else if (stride_elements == 1 && count >= 4) nk_reduce_max_i32_neon_contiguous_(data, count, max_value, max_index);
     else if (stride_elements >= 2 && stride_elements <= 4)
         nk_reduce_max_i32_neon_strided_(data, count, stride_elements, max_value, max_index);
@@ -1393,11 +1338,6 @@ NK_PUBLIC void nk_reduce_add_u32_neon(                             //
 NK_INTERNAL void nk_reduce_min_u32_neon_contiguous_( //
     nk_u32_t const *data, nk_size_t count,           //
     nk_u32_t *min_value, nk_size_t *min_index) {
-    if (count == 0) {
-        *min_value = 0;
-        *min_index = 0;
-        return;
-    }
 
     uint32x4_t min_u32x4 = vdupq_n_u32(NK_U32_MAX);
     int32x4_t min_idx_i32x4 = vdupq_n_s32(0);
@@ -1440,11 +1380,6 @@ NK_INTERNAL void nk_reduce_min_u32_neon_contiguous_( //
 NK_INTERNAL void nk_reduce_min_u32_neon_strided_(                     //
     nk_u32_t const *data, nk_size_t count, nk_size_t stride_elements, //
     nk_u32_t *min_value, nk_size_t *min_index) {
-    if (count == 0) {
-        *min_value = 0;
-        *min_index = 0;
-        return;
-    }
 
     uint32x4_t min_u32x4 = vdupq_n_u32(NK_U32_MAX);
     int32x4_t min_idx_i32x4 = vdupq_n_s32(0);
@@ -1513,7 +1448,7 @@ NK_PUBLIC void nk_reduce_min_u32_neon(                             //
     nk_u32_t *min_value, nk_size_t *min_index) {
     nk_size_t stride_elements = stride_bytes / sizeof(nk_u32_t);
     int aligned = (stride_bytes % sizeof(nk_u32_t) == 0);
-    if (!aligned) nk_reduce_min_u32_serial(data, count, stride_bytes, min_value, min_index);
+    if (count == 0 || !aligned) nk_reduce_min_u32_serial(data, count, stride_bytes, min_value, min_index);
     else if (stride_elements == 1 && count >= 4) nk_reduce_min_u32_neon_contiguous_(data, count, min_value, min_index);
     else if (stride_elements >= 2 && stride_elements <= 4)
         nk_reduce_min_u32_neon_strided_(data, count, stride_elements, min_value, min_index);
@@ -1523,11 +1458,6 @@ NK_PUBLIC void nk_reduce_min_u32_neon(                             //
 NK_INTERNAL void nk_reduce_max_u32_neon_contiguous_( //
     nk_u32_t const *data, nk_size_t count,           //
     nk_u32_t *max_value, nk_size_t *max_index) {
-    if (count == 0) {
-        *max_value = 0;
-        *max_index = 0;
-        return;
-    }
 
     uint32x4_t max_u32x4 = vdupq_n_u32(0);
     int32x4_t max_idx_i32x4 = vdupq_n_s32(0);
@@ -1570,11 +1500,6 @@ NK_INTERNAL void nk_reduce_max_u32_neon_contiguous_( //
 NK_INTERNAL void nk_reduce_max_u32_neon_strided_(                     //
     nk_u32_t const *data, nk_size_t count, nk_size_t stride_elements, //
     nk_u32_t *max_value, nk_size_t *max_index) {
-    if (count == 0) {
-        *max_value = 0;
-        *max_index = 0;
-        return;
-    }
 
     uint32x4_t max_u32x4 = vdupq_n_u32(0);
     int32x4_t max_idx_i32x4 = vdupq_n_s32(0);
@@ -1643,7 +1568,7 @@ NK_PUBLIC void nk_reduce_max_u32_neon(                             //
     nk_u32_t *max_value, nk_size_t *max_index) {
     nk_size_t stride_elements = stride_bytes / sizeof(nk_u32_t);
     int aligned = (stride_bytes % sizeof(nk_u32_t) == 0);
-    if (!aligned) nk_reduce_max_u32_serial(data, count, stride_bytes, max_value, max_index);
+    if (count == 0 || !aligned) nk_reduce_max_u32_serial(data, count, stride_bytes, max_value, max_index);
     else if (stride_elements == 1 && count >= 4) nk_reduce_max_u32_neon_contiguous_(data, count, max_value, max_index);
     else if (stride_elements >= 2 && stride_elements <= 4)
         nk_reduce_max_u32_neon_strided_(data, count, stride_elements, max_value, max_index);
@@ -1707,11 +1632,6 @@ NK_PUBLIC void nk_reduce_add_i64_neon(                             //
 NK_INTERNAL void nk_reduce_min_i64_neon_contiguous_( //
     nk_i64_t const *data, nk_size_t count,           //
     nk_i64_t *min_value, nk_size_t *min_index) {
-    if (count == 0) {
-        *min_value = 0;
-        *min_index = 0;
-        return;
-    }
 
     int64x2_t min_i64x2 = vdupq_n_s64(NK_I64_MAX);
     int64x2_t min_idx_i64x2 = vdupq_n_s64(0);
@@ -1752,11 +1672,6 @@ NK_INTERNAL void nk_reduce_min_i64_neon_contiguous_( //
 NK_INTERNAL void nk_reduce_min_i64_neon_strided_(                     //
     nk_i64_t const *data, nk_size_t count, nk_size_t stride_elements, //
     nk_i64_t *min_value, nk_size_t *min_index) {
-    if (count == 0) {
-        *min_value = 0;
-        *min_index = 0;
-        return;
-    }
 
     int64x2_t min_i64x2 = vdupq_n_s64(NK_I64_MAX);
     int64x2_t min_idx_i64x2 = vdupq_n_s64(0);
@@ -1823,7 +1738,7 @@ NK_PUBLIC void nk_reduce_min_i64_neon(                             //
     nk_i64_t *min_value, nk_size_t *min_index) {
     nk_size_t stride_elements = stride_bytes / sizeof(nk_i64_t);
     int aligned = (stride_bytes % sizeof(nk_i64_t) == 0);
-    if (!aligned) nk_reduce_min_i64_serial(data, count, stride_bytes, min_value, min_index);
+    if (count == 0 || !aligned) nk_reduce_min_i64_serial(data, count, stride_bytes, min_value, min_index);
     else if (stride_elements == 1 && count >= 2) nk_reduce_min_i64_neon_contiguous_(data, count, min_value, min_index);
     else if (stride_elements >= 2 && stride_elements <= 4)
         nk_reduce_min_i64_neon_strided_(data, count, stride_elements, min_value, min_index);
@@ -1833,11 +1748,6 @@ NK_PUBLIC void nk_reduce_min_i64_neon(                             //
 NK_INTERNAL void nk_reduce_max_i64_neon_contiguous_( //
     nk_i64_t const *data, nk_size_t count,           //
     nk_i64_t *max_value, nk_size_t *max_index) {
-    if (count == 0) {
-        *max_value = 0;
-        *max_index = 0;
-        return;
-    }
 
     int64x2_t max_i64x2 = vdupq_n_s64(INT64_MIN);
     int64x2_t max_idx_i64x2 = vdupq_n_s64(0);
@@ -1878,11 +1788,6 @@ NK_INTERNAL void nk_reduce_max_i64_neon_contiguous_( //
 NK_INTERNAL void nk_reduce_max_i64_neon_strided_(                     //
     nk_i64_t const *data, nk_size_t count, nk_size_t stride_elements, //
     nk_i64_t *max_value, nk_size_t *max_index) {
-    if (count == 0) {
-        *max_value = 0;
-        *max_index = 0;
-        return;
-    }
 
     int64x2_t max_i64x2 = vdupq_n_s64(INT64_MIN);
     int64x2_t max_idx_i64x2 = vdupq_n_s64(0);
@@ -1949,7 +1854,7 @@ NK_PUBLIC void nk_reduce_max_i64_neon(                             //
     nk_i64_t *max_value, nk_size_t *max_index) {
     nk_size_t stride_elements = stride_bytes / sizeof(nk_i64_t);
     int aligned = (stride_bytes % sizeof(nk_i64_t) == 0);
-    if (!aligned) nk_reduce_max_i64_serial(data, count, stride_bytes, max_value, max_index);
+    if (count == 0 || !aligned) nk_reduce_max_i64_serial(data, count, stride_bytes, max_value, max_index);
     else if (stride_elements == 1 && count >= 2) nk_reduce_max_i64_neon_contiguous_(data, count, max_value, max_index);
     else if (stride_elements >= 2 && stride_elements <= 4)
         nk_reduce_max_i64_neon_strided_(data, count, stride_elements, max_value, max_index);
@@ -2013,11 +1918,6 @@ NK_PUBLIC void nk_reduce_add_u64_neon(                             //
 NK_INTERNAL void nk_reduce_min_u64_neon_contiguous_( //
     nk_u64_t const *data, nk_size_t count,           //
     nk_u64_t *min_value, nk_size_t *min_index) {
-    if (count == 0) {
-        *min_value = 0;
-        *min_index = 0;
-        return;
-    }
 
     uint64x2_t min_u64x2 = vdupq_n_u64(NK_U64_MAX);
     int64x2_t min_idx_i64x2 = vdupq_n_s64(0);
@@ -2058,11 +1958,6 @@ NK_INTERNAL void nk_reduce_min_u64_neon_contiguous_( //
 NK_INTERNAL void nk_reduce_min_u64_neon_strided_(                     //
     nk_u64_t const *data, nk_size_t count, nk_size_t stride_elements, //
     nk_u64_t *min_value, nk_size_t *min_index) {
-    if (count == 0) {
-        *min_value = 0;
-        *min_index = 0;
-        return;
-    }
 
     uint64x2_t min_u64x2 = vdupq_n_u64(NK_U64_MAX);
     int64x2_t min_idx_i64x2 = vdupq_n_s64(0);
@@ -2129,7 +2024,7 @@ NK_PUBLIC void nk_reduce_min_u64_neon(                             //
     nk_u64_t *min_value, nk_size_t *min_index) {
     nk_size_t stride_elements = stride_bytes / sizeof(nk_u64_t);
     int aligned = (stride_bytes % sizeof(nk_u64_t) == 0);
-    if (!aligned) nk_reduce_min_u64_serial(data, count, stride_bytes, min_value, min_index);
+    if (count == 0 || !aligned) nk_reduce_min_u64_serial(data, count, stride_bytes, min_value, min_index);
     else if (stride_elements == 1 && count >= 2) nk_reduce_min_u64_neon_contiguous_(data, count, min_value, min_index);
     else if (stride_elements >= 2 && stride_elements <= 4)
         nk_reduce_min_u64_neon_strided_(data, count, stride_elements, min_value, min_index);
@@ -2139,11 +2034,6 @@ NK_PUBLIC void nk_reduce_min_u64_neon(                             //
 NK_INTERNAL void nk_reduce_max_u64_neon_contiguous_( //
     nk_u64_t const *data, nk_size_t count,           //
     nk_u64_t *max_value, nk_size_t *max_index) {
-    if (count == 0) {
-        *max_value = 0;
-        *max_index = 0;
-        return;
-    }
 
     uint64x2_t max_u64x2 = vdupq_n_u64(0);
     int64x2_t max_idx_i64x2 = vdupq_n_s64(0);
@@ -2184,11 +2074,6 @@ NK_INTERNAL void nk_reduce_max_u64_neon_contiguous_( //
 NK_INTERNAL void nk_reduce_max_u64_neon_strided_(                     //
     nk_u64_t const *data, nk_size_t count, nk_size_t stride_elements, //
     nk_u64_t *max_value, nk_size_t *max_index) {
-    if (count == 0) {
-        *max_value = 0;
-        *max_index = 0;
-        return;
-    }
 
     uint64x2_t max_u64x2 = vdupq_n_u64(0);
     int64x2_t max_idx_i64x2 = vdupq_n_s64(0);
@@ -2255,7 +2140,7 @@ NK_PUBLIC void nk_reduce_max_u64_neon(                             //
     nk_u64_t *max_value, nk_size_t *max_index) {
     nk_size_t stride_elements = stride_bytes / sizeof(nk_u64_t);
     int aligned = (stride_bytes % sizeof(nk_u64_t) == 0);
-    if (!aligned) nk_reduce_max_u64_serial(data, count, stride_bytes, max_value, max_index);
+    if (count == 0 || !aligned) nk_reduce_max_u64_serial(data, count, stride_bytes, max_value, max_index);
     else if (stride_elements == 1 && count >= 2) nk_reduce_max_u64_neon_contiguous_(data, count, max_value, max_index);
     else if (stride_elements >= 2 && stride_elements <= 4)
         nk_reduce_max_u64_neon_strided_(data, count, stride_elements, max_value, max_index);
@@ -2291,11 +2176,6 @@ NK_PUBLIC void nk_reduce_add_i8_neon(                             //
 NK_INTERNAL void nk_reduce_min_i8_neon_contiguous_( //
     nk_i8_t const *data, nk_size_t count,           //
     nk_i8_t *min_value, nk_size_t *min_index) {
-    if (count == 0) {
-        *min_value = 0;
-        *min_index = 0;
-        return;
-    }
     int8x16_t min_i8x16 = vdupq_n_s8(127);
     nk_size_t idx = 0;
     for (; idx + 16 <= count; idx += 16) {
@@ -2329,7 +2209,7 @@ NK_PUBLIC void nk_reduce_min_i8_neon(                             //
     nk_i8_t *min_value, nk_size_t *min_index) {
     nk_size_t stride_elements = stride_bytes / sizeof(nk_i8_t);
     int aligned = (stride_bytes % sizeof(nk_i8_t) == 0);
-    if (!aligned) nk_reduce_min_i8_serial(data, count, stride_bytes, min_value, min_index);
+    if (count == 0 || !aligned) nk_reduce_min_i8_serial(data, count, stride_bytes, min_value, min_index);
     else if (stride_elements == 1 && count >= 16) nk_reduce_min_i8_neon_contiguous_(data, count, min_value, min_index);
     else nk_reduce_min_i8_serial(data, count, stride_bytes, min_value, min_index);
 }
@@ -2337,11 +2217,6 @@ NK_PUBLIC void nk_reduce_min_i8_neon(                             //
 NK_INTERNAL void nk_reduce_max_i8_neon_contiguous_( //
     nk_i8_t const *data, nk_size_t count,           //
     nk_i8_t *max_value, nk_size_t *max_index) {
-    if (count == 0) {
-        *max_value = 0;
-        *max_index = 0;
-        return;
-    }
     int8x16_t max_i8x16 = vdupq_n_s8(-128);
     nk_size_t idx = 0;
     for (; idx + 16 <= count; idx += 16) {
@@ -2366,7 +2241,7 @@ NK_PUBLIC void nk_reduce_max_i8_neon(                             //
     nk_i8_t *max_value, nk_size_t *max_index) {
     nk_size_t stride_elements = stride_bytes / sizeof(nk_i8_t);
     int aligned = (stride_bytes % sizeof(nk_i8_t) == 0);
-    if (!aligned) nk_reduce_max_i8_serial(data, count, stride_bytes, max_value, max_index);
+    if (count == 0 || !aligned) nk_reduce_max_i8_serial(data, count, stride_bytes, max_value, max_index);
     else if (stride_elements == 1 && count >= 16) nk_reduce_max_i8_neon_contiguous_(data, count, max_value, max_index);
     else nk_reduce_max_i8_serial(data, count, stride_bytes, max_value, max_index);
 }
@@ -2400,11 +2275,6 @@ NK_PUBLIC void nk_reduce_add_u8_neon(                             //
 NK_INTERNAL void nk_reduce_min_u8_neon_contiguous_( //
     nk_u8_t const *data, nk_size_t count,           //
     nk_u8_t *min_value, nk_size_t *min_index) {
-    if (count == 0) {
-        *min_value = 0;
-        *min_index = 0;
-        return;
-    }
     uint8x16_t min_u8x16 = vdupq_n_u8(255);
     nk_size_t idx = 0;
     for (; idx + 16 <= count; idx += 16) {
@@ -2429,7 +2299,7 @@ NK_PUBLIC void nk_reduce_min_u8_neon(                             //
     nk_u8_t *min_value, nk_size_t *min_index) {
     nk_size_t stride_elements = stride_bytes / sizeof(nk_u8_t);
     int aligned = (stride_bytes % sizeof(nk_u8_t) == 0);
-    if (!aligned) nk_reduce_min_u8_serial(data, count, stride_bytes, min_value, min_index);
+    if (count == 0 || !aligned) nk_reduce_min_u8_serial(data, count, stride_bytes, min_value, min_index);
     else if (stride_elements == 1 && count >= 16) nk_reduce_min_u8_neon_contiguous_(data, count, min_value, min_index);
     else nk_reduce_min_u8_serial(data, count, stride_bytes, min_value, min_index);
 }
@@ -2437,11 +2307,6 @@ NK_PUBLIC void nk_reduce_min_u8_neon(                             //
 NK_INTERNAL void nk_reduce_max_u8_neon_contiguous_( //
     nk_u8_t const *data, nk_size_t count,           //
     nk_u8_t *max_value, nk_size_t *max_index) {
-    if (count == 0) {
-        *max_value = 0;
-        *max_index = 0;
-        return;
-    }
     uint8x16_t max_u8x16 = vdupq_n_u8(0);
     nk_size_t idx = 0;
     for (; idx + 16 <= count; idx += 16) {
@@ -2466,7 +2331,7 @@ NK_PUBLIC void nk_reduce_max_u8_neon(                             //
     nk_u8_t *max_value, nk_size_t *max_index) {
     nk_size_t stride_elements = stride_bytes / sizeof(nk_u8_t);
     int aligned = (stride_bytes % sizeof(nk_u8_t) == 0);
-    if (!aligned) nk_reduce_max_u8_serial(data, count, stride_bytes, max_value, max_index);
+    if (count == 0 || !aligned) nk_reduce_max_u8_serial(data, count, stride_bytes, max_value, max_index);
     else if (stride_elements == 1 && count >= 16) nk_reduce_max_u8_neon_contiguous_(data, count, max_value, max_index);
     else nk_reduce_max_u8_serial(data, count, stride_bytes, max_value, max_index);
 }
@@ -2497,11 +2362,6 @@ NK_PUBLIC void nk_reduce_add_i16_neon(                             //
 NK_INTERNAL void nk_reduce_min_i16_neon_contiguous_( //
     nk_i16_t const *data, nk_size_t count,           //
     nk_i16_t *min_value, nk_size_t *min_index) {
-    if (count == 0) {
-        *min_value = 0;
-        *min_index = 0;
-        return;
-    }
     int16x8_t min_i16x8 = vdupq_n_s16(32767);
     nk_size_t idx = 0;
     for (; idx + 8 <= count; idx += 8) {
@@ -2530,7 +2390,7 @@ NK_PUBLIC void nk_reduce_min_i16_neon(                             //
     nk_i16_t *min_value, nk_size_t *min_index) {
     nk_size_t stride_elements = stride_bytes / sizeof(nk_i16_t);
     int aligned = (stride_bytes % sizeof(nk_i16_t) == 0);
-    if (!aligned) nk_reduce_min_i16_serial(data, count, stride_bytes, min_value, min_index);
+    if (count == 0 || !aligned) nk_reduce_min_i16_serial(data, count, stride_bytes, min_value, min_index);
     else if (stride_elements == 1 && count >= 8) nk_reduce_min_i16_neon_contiguous_(data, count, min_value, min_index);
     else nk_reduce_min_i16_serial(data, count, stride_bytes, min_value, min_index);
 }
@@ -2538,11 +2398,6 @@ NK_PUBLIC void nk_reduce_min_i16_neon(                             //
 NK_INTERNAL void nk_reduce_max_i16_neon_contiguous_( //
     nk_i16_t const *data, nk_size_t count,           //
     nk_i16_t *max_value, nk_size_t *max_index) {
-    if (count == 0) {
-        *max_value = 0;
-        *max_index = 0;
-        return;
-    }
     int16x8_t max_i16x8 = vdupq_n_s16(-32768);
     nk_size_t idx = 0;
     for (; idx + 8 <= count; idx += 8) {
@@ -2571,7 +2426,7 @@ NK_PUBLIC void nk_reduce_max_i16_neon(                             //
     nk_i16_t *max_value, nk_size_t *max_index) {
     nk_size_t stride_elements = stride_bytes / sizeof(nk_i16_t);
     int aligned = (stride_bytes % sizeof(nk_i16_t) == 0);
-    if (!aligned) nk_reduce_max_i16_serial(data, count, stride_bytes, max_value, max_index);
+    if (count == 0 || !aligned) nk_reduce_max_i16_serial(data, count, stride_bytes, max_value, max_index);
     else if (stride_elements == 1 && count >= 8) nk_reduce_max_i16_neon_contiguous_(data, count, max_value, max_index);
     else nk_reduce_max_i16_serial(data, count, stride_bytes, max_value, max_index);
 }
@@ -2602,11 +2457,6 @@ NK_PUBLIC void nk_reduce_add_u16_neon(                             //
 NK_INTERNAL void nk_reduce_min_u16_neon_contiguous_( //
     nk_u16_t const *data, nk_size_t count,           //
     nk_u16_t *min_value, nk_size_t *min_index) {
-    if (count == 0) {
-        *min_value = 0;
-        *min_index = 0;
-        return;
-    }
     uint16x8_t min_u16x8 = vdupq_n_u16(65535);
     nk_size_t idx = 0;
     for (; idx + 8 <= count; idx += 8) {
@@ -2635,7 +2485,7 @@ NK_PUBLIC void nk_reduce_min_u16_neon(                             //
     nk_u16_t *min_value, nk_size_t *min_index) {
     nk_size_t stride_elements = stride_bytes / sizeof(nk_u16_t);
     int aligned = (stride_bytes % sizeof(nk_u16_t) == 0);
-    if (!aligned) nk_reduce_min_u16_serial(data, count, stride_bytes, min_value, min_index);
+    if (count == 0 || !aligned) nk_reduce_min_u16_serial(data, count, stride_bytes, min_value, min_index);
     else if (stride_elements == 1 && count >= 8) nk_reduce_min_u16_neon_contiguous_(data, count, min_value, min_index);
     else nk_reduce_min_u16_serial(data, count, stride_bytes, min_value, min_index);
 }
@@ -2643,11 +2493,6 @@ NK_PUBLIC void nk_reduce_min_u16_neon(                             //
 NK_INTERNAL void nk_reduce_max_u16_neon_contiguous_( //
     nk_u16_t const *data, nk_size_t count,           //
     nk_u16_t *max_value, nk_size_t *max_index) {
-    if (count == 0) {
-        *max_value = 0;
-        *max_index = 0;
-        return;
-    }
     uint16x8_t max_u16x8 = vdupq_n_u16(0);
     nk_size_t idx = 0;
     for (; idx + 8 <= count; idx += 8) {
@@ -2676,7 +2521,7 @@ NK_PUBLIC void nk_reduce_max_u16_neon(                             //
     nk_u16_t *max_value, nk_size_t *max_index) {
     nk_size_t stride_elements = stride_bytes / sizeof(nk_u16_t);
     int aligned = (stride_bytes % sizeof(nk_u16_t) == 0);
-    if (!aligned) nk_reduce_max_u16_serial(data, count, stride_bytes, max_value, max_index);
+    if (count == 0 || !aligned) nk_reduce_max_u16_serial(data, count, stride_bytes, max_value, max_index);
     else if (stride_elements == 1 && count >= 8) nk_reduce_max_u16_neon_contiguous_(data, count, max_value, max_index);
     else nk_reduce_max_u16_serial(data, count, stride_bytes, max_value, max_index);
 }
@@ -2685,8 +2530,11 @@ NK_PUBLIC void nk_reduce_max_u16_neon(                             //
 } // extern "C"
 #endif
 
+#if defined(__clang__)
 #pragma clang attribute pop
+#elif defined(__GNUC__)
 #pragma GCC pop_options
+#endif
 #endif // NK_TARGET_NEON
 #endif // NK_TARGET_ARM_
 

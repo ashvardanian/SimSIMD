@@ -50,7 +50,7 @@
 #if NK_COMPARE_TO_MKL
 #include <mkl.h>
 // MKL provides additional GEMM routines:
-// - cblas_gemm_bf16bf16f32: BF16 inputs → F32 output
+// - cblas_gemm_bf16: BF16 inputs → F32 output
 // - cblas_hgemm: F16 GEMM (if available)
 #elif NK_COMPARE_TO_ACCELERATE
 #include <Accelerate/Accelerate.h> // Apple Accelerate framework
@@ -93,28 +93,138 @@ namespace bm = benchmark;
 /// Returns a new random engine seeded with the global random_seed.
 inline std::mt19937 make_random_engine() { return std::mt19937(random_seed); }
 
-// clang-format off
-template <nk_datatype_t> struct datatype_enum_to_type { using value_t = void; using scalar_t = void; static constexpr std::size_t components_k = 1; };
-template <> struct datatype_enum_to_type<nk_f64_k> { using value_t = nk_f64_t; using scalar_t = nk_f64_t; static constexpr std::size_t components_k = 1; };
-template <> struct datatype_enum_to_type<nk_f32_k> { using value_t = nk_f32_t; using scalar_t = nk_f32_t; static constexpr std::size_t components_k = 1; };
-template <> struct datatype_enum_to_type<nk_f16_k> { using value_t = nk_f16_t; using scalar_t = nk_f16_t; static constexpr std::size_t components_k = 1; };
-template <> struct datatype_enum_to_type<nk_bf16_k> { using value_t = nk_bf16_t; using scalar_t = nk_bf16_t; static constexpr std::size_t components_k = 1; };
-template <> struct datatype_enum_to_type<nk_e4m3_k> { using value_t = nk_e4m3_t; using scalar_t = nk_e4m3_t; static constexpr std::size_t components_k = 1; };
-template <> struct datatype_enum_to_type<nk_e5m2_k> { using value_t = nk_e5m2_t; using scalar_t = nk_e5m2_t; static constexpr std::size_t components_k = 1; };
-template <> struct datatype_enum_to_type<nk_f64c_k> { using value_t = nk_f64c_t; using scalar_t = nk_f64_t; static constexpr std::size_t components_k = 2; };
-template <> struct datatype_enum_to_type<nk_f32c_k> { using value_t = nk_f32c_t; using scalar_t = nk_f32_t; static constexpr std::size_t components_k = 2; };
-template <> struct datatype_enum_to_type<nk_f16c_k> { using value_t = nk_f16c_t; using scalar_t = nk_f16_t; static constexpr std::size_t components_k = 2; };
-template <> struct datatype_enum_to_type<nk_bf16c_k> { using value_t = nk_bf16c_t; using scalar_t = nk_bf16_t; static constexpr std::size_t components_k = 2; };
-template <> struct datatype_enum_to_type<nk_b8_k> { using value_t = nk_b8_t; using scalar_t = nk_b8_t; static constexpr std::size_t components_k = 1; };
-template <> struct datatype_enum_to_type<nk_i8_k> { using value_t = nk_i8_t; using scalar_t = nk_i8_t; static constexpr std::size_t components_k = 1; };
-template <> struct datatype_enum_to_type<nk_u8_k> { using value_t = nk_u8_t; using scalar_t = nk_u8_t; static constexpr std::size_t components_k = 1; };
-template <> struct datatype_enum_to_type<nk_i16_k> { using value_t = nk_i16_t; using scalar_t = nk_i16_t; static constexpr std::size_t components_k = 1; };
-template <> struct datatype_enum_to_type<nk_u16_k> { using value_t = nk_u16_t; using scalar_t = nk_u16_t; static constexpr std::size_t components_k = 1; };
-template <> struct datatype_enum_to_type<nk_i32_k> { using value_t = nk_i32_t; using scalar_t = nk_i32_t; static constexpr std::size_t components_k = 1; };
-template <> struct datatype_enum_to_type<nk_u32_k> { using value_t = nk_u32_t; using scalar_t = nk_u32_t; static constexpr std::size_t components_k = 1; };
-template <> struct datatype_enum_to_type<nk_i64_k> { using value_t = nk_i64_t; using scalar_t = nk_i64_t; static constexpr std::size_t components_k = 1; };
-template <> struct datatype_enum_to_type<nk_u64_k> { using value_t = nk_u64_t; using scalar_t = nk_u64_t; static constexpr std::size_t components_k = 1; };
-// clang-format on
+template <nk_dtype_t>
+struct dtype_enum_to_type {
+    using value_t = void;
+    using scalar_t = void;
+    static constexpr std::size_t components_k = 1;
+};
+template <>
+struct dtype_enum_to_type<nk_f64_k> {
+    using value_t = nk_f64_t;
+    using scalar_t = nk_f64_t;
+    static constexpr std::size_t components_k = 1;
+};
+template <>
+struct dtype_enum_to_type<nk_f32_k> {
+    using value_t = nk_f32_t;
+    using scalar_t = nk_f32_t;
+    static constexpr std::size_t components_k = 1;
+};
+template <>
+struct dtype_enum_to_type<nk_f16_k> {
+    using value_t = nk_f16_t;
+    using scalar_t = nk_f16_t;
+    static constexpr std::size_t components_k = 1;
+};
+template <>
+struct dtype_enum_to_type<nk_bf16_k> {
+    using value_t = nk_bf16_t;
+    using scalar_t = nk_bf16_t;
+    static constexpr std::size_t components_k = 1;
+};
+template <>
+struct dtype_enum_to_type<nk_e4m3_k> {
+    using value_t = nk_e4m3_t;
+    using scalar_t = nk_e4m3_t;
+    static constexpr std::size_t components_k = 1;
+};
+template <>
+struct dtype_enum_to_type<nk_e5m2_k> {
+    using value_t = nk_e5m2_t;
+    using scalar_t = nk_e5m2_t;
+    static constexpr std::size_t components_k = 1;
+};
+template <>
+struct dtype_enum_to_type<nk_f64c_k> {
+    using value_t = nk_f64c_t;
+    using scalar_t = nk_f64_t;
+    static constexpr std::size_t components_k = 2;
+};
+template <>
+struct dtype_enum_to_type<nk_f32c_k> {
+    using value_t = nk_f32c_t;
+    using scalar_t = nk_f32_t;
+    static constexpr std::size_t components_k = 2;
+};
+template <>
+struct dtype_enum_to_type<nk_f16c_k> {
+    using value_t = nk_f16c_t;
+    using scalar_t = nk_f16_t;
+    static constexpr std::size_t components_k = 2;
+};
+template <>
+struct dtype_enum_to_type<nk_bf16c_k> {
+    using value_t = nk_bf16c_t;
+    using scalar_t = nk_bf16_t;
+    static constexpr std::size_t components_k = 2;
+};
+template <>
+struct dtype_enum_to_type<nk_u1_k> {
+    using value_t = nk_u1x8_t;
+    using scalar_t = nk_u1x8_t;
+    static constexpr std::size_t components_k = 1;
+};
+template <>
+struct dtype_enum_to_type<nk_i4_k> {
+    using value_t = nk_i4x2_t;
+    using scalar_t = nk_u8_t; // Packed byte unit
+    static constexpr std::size_t components_k = 1;
+};
+template <>
+struct dtype_enum_to_type<nk_u4_k> {
+    using value_t = nk_u4x2_t;
+    using scalar_t = nk_u8_t; // Packed byte unit
+    static constexpr std::size_t components_k = 1;
+};
+template <>
+struct dtype_enum_to_type<nk_i8_k> {
+    using value_t = nk_i8_t;
+    using scalar_t = nk_i8_t;
+    static constexpr std::size_t components_k = 1;
+};
+template <>
+struct dtype_enum_to_type<nk_u8_k> {
+    using value_t = nk_u8_t;
+    using scalar_t = nk_u8_t;
+    static constexpr std::size_t components_k = 1;
+};
+template <>
+struct dtype_enum_to_type<nk_i16_k> {
+    using value_t = nk_i16_t;
+    using scalar_t = nk_i16_t;
+    static constexpr std::size_t components_k = 1;
+};
+template <>
+struct dtype_enum_to_type<nk_u16_k> {
+    using value_t = nk_u16_t;
+    using scalar_t = nk_u16_t;
+    static constexpr std::size_t components_k = 1;
+};
+template <>
+struct dtype_enum_to_type<nk_i32_k> {
+    using value_t = nk_i32_t;
+    using scalar_t = nk_i32_t;
+    static constexpr std::size_t components_k = 1;
+};
+template <>
+struct dtype_enum_to_type<nk_u32_k> {
+    using value_t = nk_u32_t;
+    using scalar_t = nk_u32_t;
+    static constexpr std::size_t components_k = 1;
+};
+template <>
+struct dtype_enum_to_type<nk_i64_k> {
+    using value_t = nk_i64_t;
+    using scalar_t = nk_i64_t;
+    static constexpr std::size_t components_k = 1;
+};
+template <>
+struct dtype_enum_to_type<nk_u64_k> {
+    using value_t = nk_u64_t;
+    using scalar_t = nk_u64_t;
+    static constexpr std::size_t components_k = 1;
+};
 
 template <std::size_t multiple>
 constexpr std::size_t divide_round_up(std::size_t n) {
@@ -123,20 +233,20 @@ constexpr std::size_t divide_round_up(std::size_t n) {
 
 /**
  *  @brief Vector-like fixed capacity buffer, ensuring cache-line alignment.
- *  @tparam datatype_ak The data type of the vector elements, represented as a `nk_datatype_t`.
+ *  @tparam dtype_ The data type of the vector elements, represented as a `nk_dtype_t`.
  */
-template <nk_datatype_t datatype_ak>
+template <nk_dtype_t dtype_>
 struct vector {
-    using datatype_reflection_t = datatype_enum_to_type<datatype_ak>;
-    using scalar_t = typename datatype_reflection_t::scalar_t;
-    using value_t = typename datatype_reflection_t::value_t;
-    static constexpr std::size_t components_k = datatype_reflection_t::components_k;
+    using dtype_reflection_t = dtype_enum_to_type<dtype_>;
+    using scalar_t = typename dtype_reflection_t::scalar_t;
+    using value_t = typename dtype_reflection_t::value_t;
+    static constexpr std::size_t components_k = dtype_reflection_t::components_k;
 
-    static constexpr bool is_integral =                       //
-        datatype_ak == nk_b8_k ||                             //
-        datatype_ak == nk_i8_k || datatype_ak == nk_u8_k ||   //
-        datatype_ak == nk_i16_k || datatype_ak == nk_u16_k || //
-        datatype_ak == nk_i32_k || datatype_ak == nk_u32_k || datatype_ak == nk_i64_k || datatype_ak == nk_u64_k;
+    static constexpr bool is_integral =                                //
+        dtype_ == nk_u1_k || dtype_ == nk_u4_k || dtype_ == nk_i4_k || //
+        dtype_ == nk_i8_k || dtype_ == nk_u8_k ||                      //
+        dtype_ == nk_i16_k || dtype_ == nk_u16_k ||                    //
+        dtype_ == nk_i32_k || dtype_ == nk_u32_k || dtype_ == nk_i64_k || dtype_ == nk_u64_k;
     static constexpr std::size_t cacheline_length = 64;
 
     value_t *values_ptr_ = nullptr;
@@ -205,7 +315,7 @@ struct vector {
             0b011111111110000000000000000000000000000000000000000000000000000;
 
 #if !NK_NATIVE_BF16
-        if constexpr (datatype_ak == nk_bf16_k || datatype_ak == nk_bf16c_k) {
+        if constexpr (dtype_ == nk_bf16_k || dtype_ == nk_bf16c_k) {
             nk_f32_t f32 = static_cast<nk_f32_t>(from);
             nk_f32_to_bf16(&f32, &to);
             if ((to & exponent_mask_bf16) == exponent_mask_bf16) to = 0;
@@ -214,7 +324,7 @@ struct vector {
         }
 #endif
 #if !NK_NATIVE_F16
-        if constexpr (datatype_ak == nk_f16_k || datatype_ak == nk_f16c_k) {
+        if constexpr (dtype_ == nk_f16_k || dtype_ == nk_f16c_k) {
             nk_f32_t f32 = static_cast<nk_f32_t>(from);
             nk_f32_to_f16(&f32, &to);
             if ((to & exponent_mask_f16) == exponent_mask_f16) to = 0;
@@ -232,14 +342,14 @@ struct vector {
      */
     static double uncompress(scalar_t const &from) noexcept {
 #if !NK_NATIVE_BF16
-        if constexpr (datatype_ak == nk_bf16_k || datatype_ak == nk_bf16c_k) {
+        if constexpr (dtype_ == nk_bf16_k || dtype_ == nk_bf16c_k) {
             nk_f32_t f32;
             nk_bf16_to_f32((nk_bf16_t const *)&from, &f32);
             return f32;
         }
 #endif
 #if !NK_NATIVE_F16
-        if constexpr (datatype_ak == nk_f16_k || datatype_ak == nk_f16c_k) {
+        if constexpr (dtype_ == nk_f16_k || dtype_ == nk_f16c_k) {
             nk_f32_t f32;
             nk_f16_to_f32((nk_f16_t const *)&from, &f32);
             return f32;
@@ -286,9 +396,9 @@ struct vector {
     }
 };
 
-template <nk_datatype_t datatype_ak>
+template <nk_dtype_t dtype_>
 struct vectors_pair {
-    using vector_t = vector<datatype_ak>;
+    using vector_t = vector<dtype_>;
     using scalar_t = typename vector_t::scalar_t;
     static constexpr bool is_integral = vector_t::is_integral;
 
@@ -308,7 +418,7 @@ struct vectors_pair {
 /**
  *  @brief Measures the performance of a @b dense metric function against a baseline using Google Benchmark.
  *  @tparam pair_type_ The type representing the vector pair used in the measurement.
- *  @tparam output_datatype_ak The datatype of the output (e.g., f32_k, f64_k, u32_k).
+ *  @tparam output_dtype_ The dtype of the output (e.g., f32_k, f64_k, u32_k).
  *  @tparam test_metric_type_ The type of the test metric function.
  *  @tparam baseline_metric_type_ The type of the baseline metric function.
  *  @param state The benchmark state object provided by Google Benchmark.
@@ -316,7 +426,7 @@ struct vectors_pair {
  *  @param baseline The baseline function to compare against.
  *  @param dimensions The number of dimensions in the vectors.
  */
-template <typename pair_type_, nk_datatype_t test_output_datatype_ak, nk_datatype_t baseline_output_datatype_ak,
+template <typename pair_type_, nk_dtype_t test_output_dtype_, nk_dtype_t baseline_output_dtype_,
           typename test_metric_type_ = void, typename baseline_metric_type_ = void>
 void measure_dense(bm::State &state, test_metric_type_ metric, baseline_metric_type_ baseline, std::size_t dimensions) {
 
@@ -324,20 +434,27 @@ void measure_dense(bm::State &state, test_metric_type_ metric, baseline_metric_t
     using vector_t = typename pair_type_::vector_t;
     using value_t = typename vector_t::value_t;
 
-    // Determine result types from explicit datatype parameters
-    using test_result_t = typename datatype_enum_to_type<test_output_datatype_ak>::value_t;
-    using baseline_result_t = typename datatype_enum_to_type<baseline_output_datatype_ak>::value_t;
+    // Determine result types from explicit dtype parameters
+    using test_result_t = typename dtype_enum_to_type<test_output_dtype_>::value_t;
+    using baseline_result_t = typename dtype_enum_to_type<baseline_output_dtype_>::value_t;
+
+    // For u1 type, dimensions are bits but size() returns bytes, so multiply by 8
+    constexpr bool is_binary = std::is_same_v<value_t, nk_u1x8_t>;
+    auto get_dimensions = [](pair_t &pair) -> std::size_t {
+        if constexpr (is_binary) return pair.a.size() * 8;
+        else return pair.a.size();
+    };
 
     auto call_baseline = [&](pair_t &pair) -> double {
         // Baseline (accurate) always uses f64 output (real or complex)
         baseline_result_t results_f64[2] = {{0}, {0}};
-        baseline(pair.a.data(), pair.b.data(), pair.a.size(), &results_f64[0]);
+        baseline(pair.a.data(), pair.b.data(), get_dimensions(pair), &results_f64[0]);
         if constexpr (std::is_same_v<baseline_result_t, nk_f64c_t>) { return static_cast<double>(results_f64[0].real); }
         else { return static_cast<double>(results_f64[0]); }
     };
     auto call_contender = [&](pair_t &pair) -> double {
         test_result_t results[2] = {{0}, {0}};
-        metric(pair.a.data(), pair.b.data(), pair.a.size(), &results[0]);
+        metric(pair.a.data(), pair.b.data(), get_dimensions(pair), &results[0]);
         if constexpr (std::is_same_v<test_result_t, nk_f32c_t> || std::is_same_v<test_result_t, nk_f64c_t>) {
             return static_cast<double>(results[0].real);
         }
@@ -385,7 +502,7 @@ void measure_dense(bm::State &state, test_metric_type_ metric, baseline_metric_t
 /**
  *  @brief Measures the performance of a @b curved metric function against a baseline using Google Benchmark.
  *  @tparam pair_type_ The type representing the vector pair used in the measurement.
- *  @tparam output_datatype_ak The datatype of the output (e.g., f32_k, f64_k).
+ *  @tparam output_dtype_ The dtype of the output (e.g., f32_k, f64_k).
  *  @tparam test_metric_type_ The type of the test metric function.
  *  @tparam baseline_metric_type_ The type of the baseline metric function.
  *  @param state The benchmark state object provided by Google Benchmark.
@@ -393,7 +510,7 @@ void measure_dense(bm::State &state, test_metric_type_ metric, baseline_metric_t
  *  @param baseline The baseline function to compare against.
  *  @param dimensions The number of dimensions in the vectors.
  */
-template <typename pair_type_, nk_datatype_t test_output_datatype_ak, nk_datatype_t baseline_output_datatype_ak,
+template <typename pair_type_, nk_dtype_t test_output_dtype_, nk_dtype_t baseline_output_dtype_,
           typename test_metric_type_ = void, typename baseline_metric_type_ = void>
 void measure_curved(bm::State &state, test_metric_type_ metric, baseline_metric_type_ baseline,
                     std::size_t dimensions) {
@@ -402,16 +519,16 @@ void measure_curved(bm::State &state, test_metric_type_ metric, baseline_metric_
     using vector_t = typename pair_type_::vector_t;
     using value_t = typename vector_t::value_t;
 
-    // Determine result types from explicit datatype parameters
-    using test_result_t = typename datatype_enum_to_type<test_output_datatype_ak>::value_t;
-    using baseline_result_t = typename datatype_enum_to_type<baseline_output_datatype_ak>::value_t;
+    // Determine result types from explicit dtype parameters
+    using test_result_t = typename dtype_enum_to_type<test_output_dtype_>::value_t;
+    using baseline_result_t = typename dtype_enum_to_type<baseline_output_dtype_>::value_t;
 
     auto call_baseline = [&](pair_t const &pair, vector_t const &tensor) -> double {
         // Baseline (accurate) always uses f64 output (real or complex)
         baseline_result_t results[2] = {{0}, {0}};
         baseline(pair.a.data(), pair.b.data(), tensor.data(), pair.a.size(), &results[0]);
-        if constexpr (baseline_output_datatype_ak == nk_f32c_k || baseline_output_datatype_ak == nk_f64c_k ||
-                      baseline_output_datatype_ak == nk_f16c_k || baseline_output_datatype_ak == nk_bf16c_k) {
+        if constexpr (baseline_output_dtype_ == nk_f32c_k || baseline_output_dtype_ == nk_f64c_k ||
+                      baseline_output_dtype_ == nk_f16c_k || baseline_output_dtype_ == nk_bf16c_k) {
             return static_cast<double>(results[0].real + results[1].real);
         }
         else { return static_cast<double>(results[0] + results[1]); }
@@ -419,8 +536,8 @@ void measure_curved(bm::State &state, test_metric_type_ metric, baseline_metric_
     auto call_contender = [&](pair_t const &pair, vector_t const &tensor) -> double {
         test_result_t results[2] = {{0}, {0}};
         metric(pair.a.data(), pair.b.data(), tensor.data(), pair.a.size(), &results[0]);
-        if constexpr (test_output_datatype_ak == nk_f32c_k || test_output_datatype_ak == nk_f64c_k ||
-                      test_output_datatype_ak == nk_f16c_k || test_output_datatype_ak == nk_bf16c_k) {
+        if constexpr (test_output_dtype_ == nk_f32c_k || test_output_dtype_ == nk_f64c_k ||
+                      test_output_dtype_ == nk_f16c_k || test_output_dtype_ == nk_bf16c_k) {
             return static_cast<double>(results[0].real + results[1].real);
         }
         else { return static_cast<double>(results[0] + results[1]); }
@@ -480,7 +597,7 @@ void measure_curved(bm::State &state, test_metric_type_ metric, baseline_metric_
  *  @param size_b The number of elements in the larger vector.
  *  @param intersection_size The expected number of common scalars between the vectors.
  */
-template <typename pair_type_, nk_datatype_t test_output_datatype_ak, nk_datatype_t baseline_output_datatype_ak,
+template <typename pair_type_, nk_dtype_t test_output_dtype_, nk_dtype_t baseline_output_dtype_,
           typename test_metric_type_ = void, typename baseline_metric_type_ = void>
 void measure_sparse(bm::State &state, test_metric_type_ metric, baseline_metric_type_ baseline, std::size_t size_a,
                     std::size_t size_b, std::size_t intersection_size) {
@@ -488,8 +605,8 @@ void measure_sparse(bm::State &state, test_metric_type_ metric, baseline_metric_
     using pair_t = pair_type_;
     using vector_t = typename pair_type_::vector_t;
     using scalar_t = typename vector_t::scalar_t;
-    using test_result_t = typename datatype_enum_to_type<test_output_datatype_ak>::scalar_t;
-    using baseline_result_t = typename datatype_enum_to_type<baseline_output_datatype_ak>::scalar_t;
+    using test_result_t = typename dtype_enum_to_type<test_output_dtype_>::scalar_t;
+    using baseline_result_t = typename dtype_enum_to_type<baseline_output_dtype_>::scalar_t;
 
     auto call_baseline = [&](pair_t &pair) -> double {
         baseline_result_t result = std::numeric_limits<baseline_result_t>::signaling_NaN();
@@ -580,9 +697,9 @@ void measure_sparse(bm::State &state, test_metric_type_ metric, baseline_metric_
  *  @brief Point cloud pair for mesh metrics (RMSD, Kabsch).
  *  Each point cloud contains n 3D points stored as [x0,y0,z0,x1,y1,z1,...].
  */
-template <nk_datatype_t datatype_ak>
+template <nk_dtype_t dtype_>
 struct mesh_pair {
-    using vector_t = vector<datatype_ak>;
+    using vector_t = vector<dtype_>;
     using scalar_t = typename vector_t::scalar_t;
 
     vector_t a;
@@ -607,15 +724,15 @@ struct mesh_pair {
  *  @param baseline The baseline function to compare against.
  *  @param num_points The number of 3D points in each point cloud.
  */
-template <typename pair_type_, nk_datatype_t test_output_datatype_ak, nk_datatype_t baseline_output_datatype_ak,
+template <typename pair_type_, nk_dtype_t test_output_dtype_, nk_dtype_t baseline_output_dtype_,
           typename test_metric_type_ = void, typename baseline_metric_type_ = void>
 void measure_mesh(bm::State &state, test_metric_type_ metric, baseline_metric_type_ baseline, std::size_t num_points) {
 
     using pair_t = pair_type_;
     using vector_t = typename pair_type_::vector_t;
     using scalar_t = typename vector_t::scalar_t;
-    using test_result_t = typename datatype_enum_to_type<test_output_datatype_ak>::scalar_t;
-    using baseline_result_t = typename datatype_enum_to_type<baseline_output_datatype_ak>::scalar_t;
+    using test_result_t = typename dtype_enum_to_type<test_output_dtype_>::scalar_t;
+    using baseline_result_t = typename dtype_enum_to_type<baseline_output_dtype_>::scalar_t;
 
     auto call_baseline = [&](pair_t &pair) -> double {
         baseline_result_t result = std::numeric_limits<baseline_result_t>::signaling_NaN(), scale = 0;
@@ -678,10 +795,9 @@ void measure_mesh(bm::State &state, test_metric_type_ metric, baseline_metric_ty
  *  @param l2_metric The L2 metric function to compute the error
  *  @param dimensions The number of dimensions in the vectors.
  */
-template <typename pair_type_, nk_kernel_kind_t kernel_ak, nk_datatype_t test_output_datatype_ak,
-          nk_datatype_t baseline_output_datatype_ak, nk_datatype_t test_alpha_datatype_ak,
-          nk_datatype_t baseline_alpha_datatype_ak, typename test_kernel_type_ = void,
-          typename baseline_kernel_type_ = void, typename l2_metric_type_ = void>
+template <typename pair_type_, nk_kernel_kind_t kernel_, nk_dtype_t test_output_dtype_,
+          nk_dtype_t baseline_output_dtype_, nk_dtype_t test_alpha_dtype_, nk_dtype_t baseline_alpha_dtype_,
+          typename test_kernel_type_ = void, typename baseline_kernel_type_ = void, typename l2_metric_type_ = void>
 void measure_elementwise(bm::State &state, test_kernel_type_ kernel, baseline_kernel_type_ baseline,
                          l2_metric_type_ l2_metric, std::size_t dimensions) {
 
@@ -689,9 +805,9 @@ void measure_elementwise(bm::State &state, test_kernel_type_ kernel, baseline_ke
     using vector_t = typename pair_type_::vector_t;
     using scalar_t = typename pair_type_::scalar_t;
 
-    // Determine alpha/beta types from explicit datatype parameters
-    using test_alpha_t = typename datatype_enum_to_type<test_alpha_datatype_ak>::scalar_t;
-    using baseline_alpha_t = typename datatype_enum_to_type<baseline_alpha_datatype_ak>::scalar_t;
+    // Determine alpha/beta types from explicit dtype parameters
+    using test_alpha_t = typename dtype_enum_to_type<test_alpha_dtype_>::scalar_t;
+    using baseline_alpha_t = typename dtype_enum_to_type<baseline_alpha_dtype_>::scalar_t;
 
     // Alpha and beta parameters
     test_alpha_t alpha = 0.2;
@@ -700,25 +816,25 @@ void measure_elementwise(bm::State &state, test_kernel_type_ kernel, baseline_ke
     baseline_alpha_t beta_baseline = 0.3;
 
     auto call_baseline = [&](vector_t const &a, vector_t const &b, vector_t const &c, vector_t &d) {
-        if constexpr (kernel_ak == nk_kernel_wsum_k) {
+        if constexpr (kernel_ == nk_kernel_wsum_k) {
             baseline(a.data(), c.data(), a.size(), &alpha_baseline, &beta_baseline, d.data());
         }
-        else if constexpr (kernel_ak == nk_kernel_fma_k) {
+        else if constexpr (kernel_ == nk_kernel_fma_k) {
             baseline(a.data(), b.data(), c.data(), a.size(), &alpha_baseline, &beta_baseline, d.data());
         }
-        else if constexpr (kernel_ak == nk_kernel_sum_k) { baseline(a.data(), c.data(), a.size(), d.data()); }
-        else if constexpr (kernel_ak == nk_kernel_scale_k) {
+        else if constexpr (kernel_ == nk_kernel_sum_k) { baseline(a.data(), c.data(), a.size(), d.data()); }
+        else if constexpr (kernel_ == nk_kernel_scale_k) {
             baseline(a.data(), a.size(), &alpha_baseline, &beta_baseline, d.data());
         }
         else { baseline(a.data(), a.size(), d.data()); }
     };
     auto call_contender = [&](vector_t const &a, vector_t const &b, vector_t const &c, vector_t &d) {
-        if constexpr (kernel_ak == nk_kernel_wsum_k) { kernel(a.data(), c.data(), a.size(), &alpha, &beta, d.data()); }
-        else if constexpr (kernel_ak == nk_kernel_fma_k) {
+        if constexpr (kernel_ == nk_kernel_wsum_k) { kernel(a.data(), c.data(), a.size(), &alpha, &beta, d.data()); }
+        else if constexpr (kernel_ == nk_kernel_fma_k) {
             kernel(a.data(), b.data(), c.data(), a.size(), &alpha, &beta, d.data());
         }
-        else if constexpr (kernel_ak == nk_kernel_sum_k) { kernel(a.data(), c.data(), a.size(), d.data()); }
-        else if constexpr (kernel_ak == nk_kernel_scale_k) { kernel(a.data(), a.size(), &alpha, &beta, d.data()); }
+        else if constexpr (kernel_ == nk_kernel_sum_k) { kernel(a.data(), c.data(), a.size(), d.data()); }
+        else if constexpr (kernel_ == nk_kernel_scale_k) { kernel(a.data(), a.size(), &alpha, &beta, d.data()); }
         else { kernel(a.data(), a.size(), d.data()); }
     };
 
@@ -769,10 +885,10 @@ void measure_elementwise(bm::State &state, test_kernel_type_ kernel, baseline_ke
     }
 
     std::size_t bytes_per_call = quads[0].a.size_bytes();
-    if constexpr (kernel_ak == nk_kernel_wsum_k) { bytes_per_call *= 2; }
-    else if constexpr (kernel_ak == nk_kernel_fma_k) { bytes_per_call *= 3; }
-    else if constexpr (kernel_ak == nk_kernel_sum_k) { bytes_per_call *= 2; }
-    else if constexpr (kernel_ak == nk_kernel_scale_k) { bytes_per_call *= 1; }
+    if constexpr (kernel_ == nk_kernel_wsum_k) { bytes_per_call *= 2; }
+    else if constexpr (kernel_ == nk_kernel_fma_k) { bytes_per_call *= 3; }
+    else if constexpr (kernel_ == nk_kernel_sum_k) { bytes_per_call *= 2; }
+    else if constexpr (kernel_ == nk_kernel_scale_k) { bytes_per_call *= 1; }
 
     // Measure the mean absolute delta and relative error.
     state.counters["abs_delta"] = mean_delta;
@@ -791,7 +907,7 @@ void measure_elementwise(bm::State &state, test_kernel_type_ kernel, baseline_ke
  *  @param l2_metric The L2 metric function to compute the error
  *  @param dimensions The number of dimensions in the vectors.
  */
-template <typename pair_type_, nk_datatype_t test_output_datatype_ak, nk_datatype_t baseline_output_datatype_ak,
+template <typename pair_type_, nk_dtype_t test_output_dtype_, nk_dtype_t baseline_output_dtype_,
           typename test_kernel_type_ = void, typename baseline_kernel_type_ = void, typename l2_metric_type_ = void>
 void measure_geospatial(bm::State &state, test_kernel_type_ kernel, baseline_kernel_type_ baseline,
                         l2_metric_type_ l2_metric, std::size_t dimensions) {
@@ -803,8 +919,8 @@ void measure_geospatial(bm::State &state, test_kernel_type_ kernel, baseline_ker
         vector_t lat1, lon1, lat2, lon2;
     };
 
-    using test_distances_t = vector<test_output_datatype_ak>;
-    using baseline_distances_t = vector<baseline_output_datatype_ak>;
+    using test_distances_t = vector<test_output_dtype_>;
+    using baseline_distances_t = vector<baseline_output_dtype_>;
     auto call_baseline = [&](quad_t const &quad, baseline_distances_t &d) {
         baseline(quad.lat1.data(), quad.lon1.data(), quad.lat2.data(), quad.lon2.data(), quad.lat1.size(), d.data());
     };
@@ -878,57 +994,55 @@ void measure_geospatial(bm::State &state, test_kernel_type_ kernel, baseline_ker
     state.counters["pairs"] = bm::Counter(iterations * dimensions, bm::Counter::kIsRate);
 }
 
-template <nk_datatype_t datatype_ak, nk_datatype_t test_output_datatype_ak, nk_datatype_t baseline_output_datatype_ak,
+template <nk_dtype_t dtype_, nk_dtype_t test_output_dtype_, nk_dtype_t baseline_output_dtype_,
           typename test_metric_type_ = void, typename baseline_metric_type_ = void>
 void dense_(std::string name, test_metric_type_ *distance_func, baseline_metric_type_ *baseline_func) {
-    using pair_t = vectors_pair<datatype_ak>;
+    using pair_t = vectors_pair<dtype_>;
     std::string bench_name = name + "<" + std::to_string(dense_dimension) + "d>";
-    bm::RegisterBenchmark(bench_name.c_str(),
-                          measure_dense<pair_t, test_output_datatype_ak, baseline_output_datatype_ak,
-                                        test_metric_type_ *, baseline_metric_type_ *>,
-                          distance_func, baseline_func, dense_dimension)
+    bm::RegisterBenchmark(
+        bench_name.c_str(),
+        measure_dense<pair_t, test_output_dtype_, baseline_output_dtype_, test_metric_type_ *, baseline_metric_type_ *>,
+        distance_func, baseline_func, dense_dimension)
         ->MinTime(default_seconds)
         ->Threads(default_threads);
 }
 
-template <nk_datatype_t datatype_ak, nk_kernel_kind_t kernel_ak = nk_kernel_unknown_k,
-          nk_datatype_t test_output_datatype_ak = nk_datatype_unknown_k,
-          nk_datatype_t baseline_output_datatype_ak = nk_datatype_unknown_k,
-          nk_datatype_t test_alpha_datatype_ak = nk_datatype_unknown_k,
-          nk_datatype_t baseline_alpha_datatype_ak = nk_datatype_unknown_k, typename test_kernel_type_ = void,
-          typename baseline_kernel_type_ = void, typename l2_metric_type_ = void>
+template <nk_dtype_t dtype_, nk_kernel_kind_t kernel_ = nk_kernel_unknown_k,
+          nk_dtype_t test_output_dtype_ = nk_dtype_unknown_k, nk_dtype_t baseline_output_dtype_ = nk_dtype_unknown_k,
+          nk_dtype_t test_alpha_dtype_ = nk_dtype_unknown_k, nk_dtype_t baseline_alpha_dtype_ = nk_dtype_unknown_k,
+          typename test_kernel_type_ = void, typename baseline_kernel_type_ = void, typename l2_metric_type_ = void>
 void elementwise_(std::string name, test_kernel_type_ *kernel_func, baseline_kernel_type_ *baseline_func,
                   l2_metric_type_ *l2_metric_func) {
-    using pair_t = vectors_pair<datatype_ak>;
+    using pair_t = vectors_pair<dtype_>;
     std::string bench_name = name + "<" + std::to_string(dense_dimension) + "d>";
-    bm::RegisterBenchmark(bench_name.c_str(),
-                          measure_elementwise<pair_t, kernel_ak, test_output_datatype_ak, baseline_output_datatype_ak,
-                                              test_alpha_datatype_ak, baseline_alpha_datatype_ak, test_kernel_type_ *,
-                                              baseline_kernel_type_ *, l2_metric_type_ *>,
-                          kernel_func, baseline_func, l2_metric_func, dense_dimension)
+    bm::RegisterBenchmark(
+        bench_name.c_str(),
+        measure_elementwise<pair_t, kernel_, test_output_dtype_, baseline_output_dtype_, test_alpha_dtype_,
+                            baseline_alpha_dtype_, test_kernel_type_ *, baseline_kernel_type_ *, l2_metric_type_ *>,
+        kernel_func, baseline_func, l2_metric_func, dense_dimension)
         ->MinTime(default_seconds)
         ->Threads(default_threads);
 }
 
-template <nk_datatype_t datatype_ak, nk_datatype_t test_output_datatype_ak, nk_datatype_t baseline_output_datatype_ak,
+template <nk_dtype_t dtype_, nk_dtype_t test_output_dtype_, nk_dtype_t baseline_output_dtype_,
           typename test_kernel_type_ = void, typename baseline_kernel_type_ = void, typename l2_metric_type_ = void>
 void geospatial_(std::string name, test_kernel_type_ *kernel_func, baseline_kernel_type_ *baseline_func,
                  l2_metric_type_ *l2_metric_func) {
-    using pair_t = vectors_pair<datatype_ak>;
+    using pair_t = vectors_pair<dtype_>;
     std::string bench_name = name + "<" + std::to_string(dense_dimension) + "d>";
     bm::RegisterBenchmark(bench_name.c_str(),
-                          measure_geospatial<pair_t, test_output_datatype_ak, baseline_output_datatype_ak,
-                                             test_kernel_type_ *, baseline_kernel_type_ *, l2_metric_type_ *>,
+                          measure_geospatial<pair_t, test_output_dtype_, baseline_output_dtype_, test_kernel_type_ *,
+                                             baseline_kernel_type_ *, l2_metric_type_ *>,
                           kernel_func, baseline_func, l2_metric_func, dense_dimension)
         ->MinTime(default_seconds)
         ->Threads(default_threads);
 }
 
-template <nk_datatype_t datatype_ak, nk_datatype_t test_output_datatype_ak, nk_datatype_t baseline_output_datatype_ak,
+template <nk_dtype_t dtype_, nk_dtype_t test_output_dtype_, nk_dtype_t baseline_output_dtype_,
           typename test_metric_type_ = void, typename baseline_metric_type_ = void>
 void sparse_(std::string name, test_metric_type_ *distance_func, baseline_metric_type_ *baseline_func) {
 
-    using pair_t = vectors_pair<datatype_ak>;
+    using pair_t = vectors_pair<dtype_>;
 
     // Register different lengths, intersection sizes, and distributions
     // 2 first lengths * 3 second length multipliers * 4 intersection grades = 24 benchmarks for each metric.
@@ -942,7 +1056,7 @@ void sparse_(std::string name, test_metric_type_ *distance_func, baseline_metric
                                          ",|A∩B|=" + std::to_string(intersection_size) + ">";
                 if (second_len > 8192) continue;
                 bm::RegisterBenchmark(bench_name.c_str(),
-                                      measure_sparse<pair_t, test_output_datatype_ak, baseline_output_datatype_ak,
+                                      measure_sparse<pair_t, test_output_dtype_, baseline_output_dtype_,
                                                      test_metric_type_ *, baseline_metric_type_ *>,
                                       distance_func, baseline_func, first_len, second_len, intersection_size)
                     ->MinTime(default_seconds)
@@ -952,30 +1066,30 @@ void sparse_(std::string name, test_metric_type_ *distance_func, baseline_metric
     }
 }
 
-template <nk_datatype_t datatype_ak, nk_datatype_t test_output_datatype_ak, nk_datatype_t baseline_output_datatype_ak,
+template <nk_dtype_t dtype_, nk_dtype_t test_output_dtype_, nk_dtype_t baseline_output_dtype_,
           typename test_metric_type_ = void, typename baseline_metric_type_ = void>
 void curved_(std::string name, test_metric_type_ *distance_func, baseline_metric_type_ *baseline_func) {
 
-    using pair_t = vectors_pair<datatype_ak>;
+    using pair_t = vectors_pair<dtype_>;
     std::string bench_name = name + "<" + std::to_string(curved_dimension) + "d>";
     bm::RegisterBenchmark(bench_name.c_str(),
-                          measure_curved<pair_t, test_output_datatype_ak, baseline_output_datatype_ak,
-                                         test_metric_type_ *, baseline_metric_type_ *>,
+                          measure_curved<pair_t, test_output_dtype_, baseline_output_dtype_, test_metric_type_ *,
+                                         baseline_metric_type_ *>,
                           distance_func, baseline_func, curved_dimension)
         ->MinTime(default_seconds)
         ->Threads(default_threads);
 }
 
-template <nk_datatype_t datatype_ak, nk_datatype_t test_output_datatype_ak, nk_datatype_t baseline_output_datatype_ak,
+template <nk_dtype_t dtype_, nk_dtype_t test_output_dtype_, nk_dtype_t baseline_output_dtype_,
           typename test_metric_type_ = void, typename baseline_metric_type_ = void>
 void mesh_(std::string name, test_metric_type_ *distance_func, baseline_metric_type_ *baseline_func) {
 
-    using pair_t = mesh_pair<datatype_ak>;
+    using pair_t = mesh_pair<dtype_>;
     std::string bench_name = name + "<" + std::to_string(mesh_dimension) + "pts>";
-    bm::RegisterBenchmark(bench_name.c_str(),
-                          measure_mesh<pair_t, test_output_datatype_ak, baseline_output_datatype_ak,
-                                       test_metric_type_ *, baseline_metric_type_ *>,
-                          distance_func, baseline_func, mesh_dimension)
+    bm::RegisterBenchmark(
+        bench_name.c_str(),
+        measure_mesh<pair_t, test_output_dtype_, baseline_output_dtype_, test_metric_type_ *, baseline_metric_type_ *>,
+        distance_func, baseline_func, mesh_dimension)
         ->MinTime(default_seconds)
         ->Threads(default_threads);
 }
@@ -1272,8 +1386,7 @@ void bilinear_f32c_blas(nk_f32c_t const *a, nk_f32c_t const *b, nk_f32c_t const 
     int const ni = static_cast<int>(n);
 #if NK_COMPARE_TO_ACCELERATE
     std::complex<float> alpha = {1.0f, 0.0f}, beta = {0.0f, 0.0f};
-    cblas_cgemv(CblasRowMajor, CblasNoTrans, ni, ni, &alpha,
-                reinterpret_cast<std::complex<float> const *>(c), ni,
+    cblas_cgemv(CblasRowMajor, CblasNoTrans, ni, ni, &alpha, reinterpret_cast<std::complex<float> const *>(c), ni,
                 reinterpret_cast<std::complex<float> const *>(b), 1, &beta,
                 reinterpret_cast<std::complex<float> *>(intermediate.data()), 1);
     cblas_cdotu_sub(ni, reinterpret_cast<std::complex<float> const *>(a), 1,
@@ -1293,8 +1406,7 @@ void bilinear_f64c_blas(nk_f64c_t const *a, nk_f64c_t const *b, nk_f64c_t const 
     int const ni = static_cast<int>(n);
 #if NK_COMPARE_TO_ACCELERATE
     std::complex<double> alpha = {1.0, 0.0}, beta = {0.0, 0.0};
-    cblas_zgemv(CblasRowMajor, CblasNoTrans, ni, ni, &alpha,
-                reinterpret_cast<std::complex<double> const *>(c), ni,
+    cblas_zgemv(CblasRowMajor, CblasNoTrans, ni, ni, &alpha, reinterpret_cast<std::complex<double> const *>(c), ni,
                 reinterpret_cast<std::complex<double> const *>(b), 1, &beta,
                 reinterpret_cast<std::complex<double> *>(intermediate.data()), 1);
     cblas_zdotu_sub(ni, reinterpret_cast<std::complex<double> const *>(a), 1,
@@ -1353,7 +1465,7 @@ void measure_gemm_blas(bm::State &state, std::size_t m, std::size_t n, std::size
     state.counters["tops"] = bm::Counter(iterations * 2.0 * m * n * k, bm::Counter::kIsRate);
 }
 
-void measure_dots_f32f32f32_blas(bm::State &state, std::size_t m, std::size_t n, std::size_t k) {
+void measure_dots_f32_blas(bm::State &state, std::size_t m, std::size_t n, std::size_t k) {
     measure_gemm_blas<float>(state, m, n, k,
                              [](float *a, float *b, float *c, std::size_t m, std::size_t n, std::size_t k) {
                                  cblas_sgemm(CblasRowMajor, CblasNoTrans, CblasTrans, static_cast<int>(m),
@@ -1362,7 +1474,7 @@ void measure_dots_f32f32f32_blas(bm::State &state, std::size_t m, std::size_t n,
                              });
 }
 
-void measure_dots_f64f64f64_blas(bm::State &state, std::size_t m, std::size_t n, std::size_t k) {
+void measure_dots_f64_blas(bm::State &state, std::size_t m, std::size_t n, std::size_t k) {
     measure_gemm_blas<double>(state, m, n, k,
                               [](double *a, double *b, double *c, std::size_t m, std::size_t n, std::size_t k) {
                                   cblas_dgemm(CblasRowMajor, CblasNoTrans, CblasTrans, static_cast<int>(m),
@@ -1438,7 +1550,7 @@ void measure_gemm_mkl_int(bm::State &state, std::size_t m, std::size_t n, std::s
     state.counters["tops"] = bm::Counter(iterations * 2.0 * m * n * k, bm::Counter::kIsRate);
 }
 
-void measure_dots_f32f32f32_mkl(bm::State &state, std::size_t m, std::size_t n, std::size_t k) {
+void measure_dots_f32_mkl(bm::State &state, std::size_t m, std::size_t n, std::size_t k) {
     auto identity = [](float v) { return v; };
     measure_gemm_mkl<float, float, float>(
         state, m, n, k, identity, identity,
@@ -1448,21 +1560,21 @@ void measure_dots_f32f32f32_mkl(bm::State &state, std::size_t m, std::size_t n, 
         });
 }
 
-void measure_dots_bf16bf16f32_mkl(bm::State &state, std::size_t m, std::size_t n, std::size_t k) {
+void measure_dots_bf16_mkl(bm::State &state, std::size_t m, std::size_t n, std::size_t k) {
     measure_gemm_mkl<MKL_BF16, MKL_BF16, float>(
         state, m, n, k, f32_to_bf16, f32_to_bf16,
         [](MKL_BF16 *a, MKL_BF16 *b, float *c, std::size_t m, std::size_t n, std::size_t k) {
-            cblas_gemm_bf16bf16f32(CblasRowMajor, CblasNoTrans, CblasTrans, (MKL_INT)m, (MKL_INT)n, (MKL_INT)k, 1.0f, a,
-                                   (MKL_INT)k, b, (MKL_INT)k, 0.0f, c, (MKL_INT)n);
+            cblas_gemm_bf16(CblasRowMajor, CblasNoTrans, CblasTrans, (MKL_INT)m, (MKL_INT)n, (MKL_INT)k, 1.0f, a,
+                            (MKL_INT)k, b, (MKL_INT)k, 0.0f, c, (MKL_INT)n);
         });
 }
 
-void measure_dots_f16f16f32_mkl(bm::State &state, std::size_t m, std::size_t n, std::size_t k) {
+void measure_dots_f16_mkl(bm::State &state, std::size_t m, std::size_t n, std::size_t k) {
     measure_gemm_mkl<MKL_F16, MKL_F16, float>(
         state, m, n, k, f32_to_f16, f32_to_f16,
         [](MKL_F16 *a, MKL_F16 *b, float *c, std::size_t m, std::size_t n, std::size_t k) {
-            cblas_gemm_f16f16f32(CblasRowMajor, CblasNoTrans, CblasTrans, (MKL_INT)m, (MKL_INT)n, (MKL_INT)k, 1.0f, a,
-                                 (MKL_INT)k, b, (MKL_INT)k, 0.0f, c, (MKL_INT)n);
+            cblas_gemm_f16(CblasRowMajor, CblasNoTrans, CblasTrans, (MKL_INT)m, (MKL_INT)n, (MKL_INT)k, 1.0f, a,
+                           (MKL_INT)k, b, (MKL_INT)k, 0.0f, c, (MKL_INT)n);
         });
 }
 
@@ -1487,6 +1599,55 @@ void measure_dots_i16i16i32_mkl(bm::State &state, std::size_t m, std::size_t n, 
 }
 
 #endif
+
+using cast_kernel_t = void (*)(void const *, nk_dtype_t, nk_size_t, void *, nk_dtype_t);
+
+template <nk_dtype_t from_dtype_, nk_dtype_t to_dtype_>
+void measure_cast(bm::State &state, cast_kernel_t kernel, std::size_t n) {
+    using from_t = typename dtype_enum_to_type<from_dtype_>::scalar_t;
+    using to_t = typename dtype_enum_to_type<to_dtype_>::scalar_t;
+
+    constexpr std::size_t alignment = 64;
+    std::size_t from_bytes = ((n * sizeof(from_t) + alignment - 1) / alignment) * alignment;
+    std::size_t to_bytes = ((n * sizeof(to_t) + alignment - 1) / alignment) * alignment;
+
+    from_t *src = static_cast<from_t *>(std::aligned_alloc(alignment, from_bytes));
+    to_t *dst = static_cast<to_t *>(std::aligned_alloc(alignment, to_bytes));
+
+    // Initialize source with small random values
+    auto gen = make_random_engine();
+    std::uniform_real_distribution<float> dis(-8.0f, 8.0f);
+    for (std::size_t i = 0; i < n; ++i) {
+        float val = dis(gen);
+        if constexpr (std::is_same_v<from_t, nk_f64_t>) { src[i] = val; }
+        else if constexpr (std::is_same_v<from_t, nk_f32_t>) { src[i] = val; }
+        else if constexpr (std::is_same_v<from_t, nk_f16_t>) { nk_f32_to_f16(&val, &src[i]); }
+        else if constexpr (std::is_same_v<from_t, nk_bf16_t>) { nk_f32_to_bf16(&val, &src[i]); }
+        else if constexpr (std::is_same_v<from_t, nk_e4m3_t>) { nk_f32_to_e4m3(&val, &src[i]); }
+        else if constexpr (std::is_same_v<from_t, nk_e5m2_t>) { nk_f32_to_e5m2(&val, &src[i]); }
+    }
+
+    std::size_t bytes_processed = 0;
+    for (auto _ : state) {
+        kernel(src, from_dtype_, n, dst, to_dtype_);
+        bytes_processed += n * sizeof(from_t) + n * sizeof(to_t);
+        bm::ClobberMemory();
+    }
+
+    state.SetBytesProcessed(static_cast<std::int64_t>(bytes_processed));
+    state.SetItemsProcessed(static_cast<std::int64_t>(state.iterations() * n));
+
+    std::free(src);
+    std::free(dst);
+}
+
+template <nk_dtype_t from_dtype_, nk_dtype_t to_dtype_>
+void cast_(std::string name, cast_kernel_t kernel) {
+    std::string bench_name = name + "<" + std::to_string(dense_dimension) + "d>";
+    bm::RegisterBenchmark(bench_name.c_str(), measure_cast<from_dtype_, to_dtype_>, kernel, dense_dimension)
+        ->MinTime(default_seconds)
+        ->Threads(default_threads);
+}
 
 int main(int argc, char **argv) {
     nk_capability_t runtime_caps = nk_capabilities();
@@ -1619,26 +1780,27 @@ int main(int argc, char **argv) {
     bm::Initialize(&modified_argc, modified_argv_ptr);
     if (bm::ReportUnrecognizedArguments(modified_argc, modified_argv_ptr)) return 1;
 
-    constexpr nk_datatype_t b8_k = nk_b8_k;
-    constexpr nk_datatype_t i4x2_k = nk_i4x2_k;
-    constexpr nk_datatype_t i8_k = nk_i8_k;
-    constexpr nk_datatype_t i16_k = nk_i16_k;
-    constexpr nk_datatype_t i32_k = nk_i32_k;
-    constexpr nk_datatype_t i64_k = nk_i64_k;
-    constexpr nk_datatype_t u8_k = nk_u8_k;
-    constexpr nk_datatype_t u16_k = nk_u16_k;
-    constexpr nk_datatype_t u32_k = nk_u32_k;
-    constexpr nk_datatype_t u64_k = nk_u64_k;
-    constexpr nk_datatype_t f64_k = nk_f64_k;
-    constexpr nk_datatype_t f32_k = nk_f32_k;
-    constexpr nk_datatype_t f16_k = nk_f16_k;
-    constexpr nk_datatype_t bf16_k = nk_bf16_k;
-    constexpr nk_datatype_t e4m3_k = nk_e4m3_k;
-    constexpr nk_datatype_t e5m2_k = nk_e5m2_k;
-    constexpr nk_datatype_t f64c_k = nk_f64c_k;
-    constexpr nk_datatype_t f32c_k = nk_f32c_k;
-    constexpr nk_datatype_t f16c_k = nk_f16c_k;
-    constexpr nk_datatype_t bf16c_k = nk_bf16c_k;
+    constexpr nk_dtype_t u1_k = nk_u1_k;
+    constexpr nk_dtype_t i4_k = nk_i4_k;
+    constexpr nk_dtype_t u4_k = nk_u4_k;
+    constexpr nk_dtype_t i8_k = nk_i8_k;
+    constexpr nk_dtype_t i16_k = nk_i16_k;
+    constexpr nk_dtype_t i32_k = nk_i32_k;
+    constexpr nk_dtype_t i64_k = nk_i64_k;
+    constexpr nk_dtype_t u8_k = nk_u8_k;
+    constexpr nk_dtype_t u16_k = nk_u16_k;
+    constexpr nk_dtype_t u32_k = nk_u32_k;
+    constexpr nk_dtype_t u64_k = nk_u64_k;
+    constexpr nk_dtype_t f64_k = nk_f64_k;
+    constexpr nk_dtype_t f32_k = nk_f32_k;
+    constexpr nk_dtype_t f16_k = nk_f16_k;
+    constexpr nk_dtype_t bf16_k = nk_bf16_k;
+    constexpr nk_dtype_t e4m3_k = nk_e4m3_k;
+    constexpr nk_dtype_t e5m2_k = nk_e5m2_k;
+    constexpr nk_dtype_t f64c_k = nk_f64c_k;
+    constexpr nk_dtype_t f32c_k = nk_f32c_k;
+    constexpr nk_dtype_t f16c_k = nk_f16c_k;
+    constexpr nk_dtype_t bf16c_k = nk_bf16c_k;
 
     // Metric kind aliases for readability
     constexpr nk_kernel_kind_t fma_k = nk_kernel_fma_k;
@@ -1674,12 +1836,12 @@ int main(int argc, char **argv) {
     {
         std::string dims = std::to_string(matmul_dimension_m) + "x" + std::to_string(matmul_dimension_n) + "x" +
                            std::to_string(matmul_dimension_k);
-        bm::RegisterBenchmark(("dots_f32f32f32_blas<" + dims + ">").c_str(), measure_dots_f32f32f32_blas,
-                              matmul_dimension_m, matmul_dimension_n, matmul_dimension_k)
+        bm::RegisterBenchmark(("dots_f32_blas<" + dims + ">").c_str(), measure_dots_f32_blas, matmul_dimension_m,
+                              matmul_dimension_n, matmul_dimension_k)
             ->MinTime(default_seconds)
             ->Threads(1);
-        bm::RegisterBenchmark(("dots_f64f64f64_blas<" + dims + ">").c_str(), measure_dots_f64f64f64_blas,
-                              matmul_dimension_m, matmul_dimension_n, matmul_dimension_k)
+        bm::RegisterBenchmark(("dots_f64_blas<" + dims + ">").c_str(), measure_dots_f64_blas, matmul_dimension_m,
+                              matmul_dimension_n, matmul_dimension_k)
             ->MinTime(default_seconds)
             ->Threads(1);
     }
@@ -1691,16 +1853,16 @@ int main(int argc, char **argv) {
     {
         std::string dims = std::to_string(matmul_dimension_m) + "x" + std::to_string(matmul_dimension_n) + "x" +
                            std::to_string(matmul_dimension_k);
-        bm::RegisterBenchmark(("dots_f32f32f32_mkl<" + dims + ">").c_str(), measure_dots_f32f32f32_mkl,
-                              matmul_dimension_m, matmul_dimension_n, matmul_dimension_k)
+        bm::RegisterBenchmark(("dots_f32_mkl<" + dims + ">").c_str(), measure_dots_f32_mkl, matmul_dimension_m,
+                              matmul_dimension_n, matmul_dimension_k)
             ->MinTime(default_seconds)
             ->Threads(1);
-        bm::RegisterBenchmark(("dots_bf16bf16f32_mkl<" + dims + ">").c_str(), measure_dots_bf16bf16f32_mkl,
-                              matmul_dimension_m, matmul_dimension_n, matmul_dimension_k)
+        bm::RegisterBenchmark(("dots_bf16_mkl<" + dims + ">").c_str(), measure_dots_bf16_mkl, matmul_dimension_m,
+                              matmul_dimension_n, matmul_dimension_k)
             ->MinTime(default_seconds)
             ->Threads(1);
-        bm::RegisterBenchmark(("dots_f16f16f32_mkl<" + dims + ">").c_str(), measure_dots_f16f16f32_mkl,
-                              matmul_dimension_m, matmul_dimension_n, matmul_dimension_k)
+        bm::RegisterBenchmark(("dots_f16_mkl<" + dims + ">").c_str(), measure_dots_f16_mkl, matmul_dimension_m,
+                              matmul_dimension_n, matmul_dimension_k)
             ->MinTime(default_seconds)
             ->Threads(1);
         bm::RegisterBenchmark(("dots_u8i8i32_mkl<" + dims + ">").c_str(), measure_dots_u8i8i32_mkl, matmul_dimension_m,
@@ -1726,8 +1888,8 @@ int main(int argc, char **argv) {
     dense_<f64_k, f64_k, f64_k>("l2sq_f64_neon", nk_l2sq_f64_neon, nk_l2sq_f64_serial);
     dense_<f64_k, f64_k, f64_k>("l2_f64_neon", nk_l2_f64_neon, nk_l2_f64_serial);
 
-    dense_<b8_k, u32_k, u32_k>("hamming_b8_neon", nk_hamming_b8_neon, nk_hamming_b8_serial);
-    dense_<b8_k, f32_k, f32_k>("jaccard_b8_neon", nk_jaccard_b8_neon, nk_jaccard_b8_serial);
+    dense_<u1_k, u32_k, u32_k>("hamming_u1_neon", nk_hamming_u1_neon, nk_hamming_u1_serial);
+    dense_<u1_k, f32_k, f32_k>("jaccard_u1_neon", nk_jaccard_u1_neon, nk_jaccard_u1_serial);
 
     dense_<f32c_k, f32c_k, f64c_k>("dot_f32c_neon", nk_dot_f32c_neon, nk_dot_f32c_accurate);
     dense_<f32c_k, f32c_k, f64c_k>("vdot_f32c_neon", nk_vdot_f32c_neon, nk_vdot_f32c_accurate);
@@ -1748,10 +1910,10 @@ int main(int argc, char **argv) {
     elementwise_<f32_k, nk_kernel_wsum_k, f32_k, f64_k, f32_k, f64_k>("wsum_f32_serial", nk_wsum_f32_serial,
                                                                       nk_wsum_f32_accurate, nk_l2_f32_accurate);
 
-    matmul_<nk_f32_t, nk_f32_t>("dots_f32f32f32_neon", nk_dots_f32f32f32_packed_size_neon, nk_dots_f32f32f32_pack_neon,
-                                nk_dots_f32f32f32_neon);
-    matmul_<nk_f64_t, nk_f64_t>("dots_f64f64f64_neon", nk_dots_f64f64f64_packed_size_neon, nk_dots_f64f64f64_pack_neon,
-                                nk_dots_f64f64f64_neon);
+    matmul_<nk_f32_t, nk_f32_t>("dots_f32_neon", nk_dots_packed_size_f32_neon, nk_dots_pack_f32_neon,
+                                nk_dots_packed_f32_neon);
+    matmul_<nk_f64_t, nk_f64_t>("dots_f64_neon", nk_dots_packed_size_f64_neon, nk_dots_pack_f64_neon,
+                                nk_dots_packed_f64_neon);
 
     mesh_<f32_k, f32_k, f32_k>("rmsd_f32_neon", nk_rmsd_f32_neon, nk_rmsd_f32_serial);
     mesh_<f32_k, f32_k, f32_k>("kabsch_f32_neon", nk_kabsch_f32_neon, nk_kabsch_f32_serial);
@@ -1773,10 +1935,10 @@ int main(int argc, char **argv) {
     dense_<u8_k, f32_k, f64_k>("l2_u8_neonsdot", nk_l2_u8_neonsdot, nk_l2_u8_accurate);
     dense_<u8_k, u32_k, u32_k>("dot_u8_neonsdot", nk_dot_u8_neonsdot, nk_dot_u8_serial);
 
-    matmul_<nk_i8_t, nk_i32_t>("dots_i8i8i32_neonsdot", nk_dots_i8i8i32_packed_size_neonsdot,
-                               nk_dots_i8i8i32_pack_neonsdot, nk_dots_i8i8i32_neonsdot);
-    matmul_<nk_u8_t, nk_u32_t>("dots_u8u8u32_neonsdot", nk_dots_u8u8u32_packed_size_neonsdot,
-                               nk_dots_u8u8u32_pack_neonsdot, nk_dots_u8u8u32_neonsdot);
+    matmul_<nk_i8_t, nk_i32_t>("dots_i8_neonsdot", nk_dots_packed_size_i8_neonsdot, nk_dots_pack_i8_neonsdot,
+                               nk_dots_packed_i8_neonsdot);
+    matmul_<nk_u8_t, nk_u32_t>("dots_u8_neonsdot", nk_dots_packed_size_u8_neonsdot, nk_dots_pack_u8_neonsdot,
+                               nk_dots_packed_u8_neonsdot);
 #endif
 
 #if NK_TARGET_NEONHALF
@@ -1809,15 +1971,15 @@ int main(int argc, char **argv) {
     elementwise_<i8_k, nk_kernel_wsum_k, f32_k, f64_k, f32_k, f64_k>("wsum_i8_neonhalf", nk_wsum_i8_neonhalf,
                                                                      nk_wsum_i8_accurate, nk_l2_i8_accurate);
 
-    matmul_<nk_f16_t, nk_f32_t>("dots_f16f16f32_neonhalf", nk_dots_f16f16f32_packed_size_neonhalf,
-                                nk_dots_f16f16f32_pack_neonhalf, nk_dots_f16f16f32_neonhalf);
+    matmul_<nk_f16_t, nk_f32_t>("dots_f16_neonhalf", nk_dots_packed_size_f16_neonhalf, nk_dots_pack_f16_neonhalf,
+                                nk_dots_packed_f16_neonhalf);
 #endif
 
 #if NK_TARGET_NEONFHM
     dense_<f16_k, f32_k, f64_k>("dot_f16_neonfhm", nk_dot_f16_neonfhm, nk_dot_f16_accurate);
 
-    matmul_<nk_f16_t, nk_f32_t>("dots_f16f16f32_neonfhm", nk_dots_f16f16f32_packed_size_neonfhm,
-                                nk_dots_f16f16f32_pack_neonfhm, nk_dots_f16f16f32_neonfhm);
+    matmul_<nk_f16_t, nk_f32_t>("dots_f16_neonfhm", nk_dots_packed_size_f16_neonfhm, nk_dots_pack_f16_neonfhm,
+                                nk_dots_packed_f16_neonfhm);
 #endif // NK_TARGET_NEONFHM
 
 #if NK_TARGET_NEONBFDOT
@@ -1840,8 +2002,8 @@ int main(int argc, char **argv) {
     elementwise_<bf16_k, nk_kernel_wsum_k, f32_k, f64_k, f32_k, f64_k>("wsum_bf16_neonbfdot", nk_wsum_bf16_neonbfdot,
                                                                        nk_wsum_bf16_accurate, nk_l2_bf16_accurate);
 
-    matmul_<nk_bf16_t, nk_f32_t>("dots_bf16bf16f32_neonbfdot", nk_dots_bf16bf16f32_packed_size_neonbfdot,
-                                 nk_dots_bf16bf16f32_pack_neonbfdot, nk_dots_bf16bf16f32_neonbfdot);
+    matmul_<nk_bf16_t, nk_f32_t>("dots_bf16_neonbfdot", nk_dots_packed_size_bf16_neonbfdot, nk_dots_pack_bf16_neonbfdot,
+                                 nk_dots_packed_bf16_neonbfdot);
 #endif
 
 #if NK_TARGET_SVE
@@ -1855,8 +2017,8 @@ int main(int argc, char **argv) {
     dense_<f64_k, f64_k, f64_k>("l2sq_f64_sve", nk_l2sq_f64_sve, nk_l2sq_f64_serial);
     dense_<f64_k, f64_k, f64_k>("l2_f64_sve", nk_l2_f64_sve, nk_l2_f32_accurate);
 
-    dense_<b8_k, u32_k, u32_k>("hamming_b8_sve", nk_hamming_b8_sve, nk_hamming_b8_serial);
-    dense_<b8_k, f32_k, f32_k>("jaccard_b8_sve", nk_jaccard_b8_sve, nk_jaccard_b8_serial);
+    dense_<u1_k, u32_k, u32_k>("hamming_u1_sve", nk_hamming_u1_sve, nk_hamming_u1_serial);
+    dense_<u1_k, f32_k, f32_k>("jaccard_u1_sve", nk_jaccard_u1_sve, nk_jaccard_u1_serial);
 
     dense_<f32c_k, f32c_k, f64c_k>("dot_f32c_sve", nk_dot_f32c_sve, nk_dot_f32c_accurate);
     dense_<f32c_k, f32c_k, f64c_k>("vdot_f32c_sve", nk_vdot_f32c_sve, nk_vdot_f32c_accurate);
@@ -1910,8 +2072,8 @@ int main(int argc, char **argv) {
     dense_<u8_k, f32_k, f64_k>("l2_u8_haswell", nk_l2_u8_haswell, nk_l2_u8_accurate);
     dense_<u8_k, u32_k, u32_k>("dot_u8_haswell", nk_dot_u8_haswell, nk_dot_u8_serial);
 
-    dense_<b8_k, u32_k, u32_k>("hamming_b8_haswell", nk_hamming_b8_haswell, nk_hamming_b8_serial);
-    dense_<b8_k, f32_k, f32_k>("jaccard_b8_haswell", nk_jaccard_b8_haswell, nk_jaccard_b8_serial);
+    dense_<u1_k, u32_k, u32_k>("hamming_u1_haswell", nk_hamming_u1_haswell, nk_hamming_u1_serial);
+    dense_<u1_k, f32_k, f32_k>("jaccard_u1_haswell", nk_jaccard_u1_haswell, nk_jaccard_u1_serial);
 
     dense_<f16c_k, f32c_k, f64c_k>("dot_f16c_haswell", nk_dot_f16c_haswell, nk_dot_f16c_accurate);
     dense_<f16c_k, f32c_k, f64c_k>("vdot_f16c_haswell", nk_vdot_f16c_haswell, nk_vdot_f16c_accurate);
@@ -1998,10 +2160,10 @@ int main(int argc, char **argv) {
         "atan_f64_haswell", nk_atan_f64_haswell, elementwise_with_stl<nk_f64_t, atan_with_stl<nk_f64_t>>,
         l2_with_stl<nk_f64_t>);
 
-    matmul_<nk_f32_t, nk_f32_t>("dots_f32f32f32_haswell", nk_dots_f32f32f32_packed_size_haswell,
-                                nk_dots_f32f32f32_pack_haswell, nk_dots_f32f32f32_haswell);
-    matmul_<nk_f64_t, nk_f64_t>("dots_f64f64f64_haswell", nk_dots_f64f64f64_packed_size_haswell,
-                                nk_dots_f64f64f64_pack_haswell, nk_dots_f64f64f64_haswell);
+    matmul_<nk_f32_t, nk_f32_t>("dots_f32_haswell", nk_dots_packed_size_f32_haswell, nk_dots_pack_f32_haswell,
+                                nk_dots_packed_f32_haswell);
+    matmul_<nk_f64_t, nk_f64_t>("dots_f64_haswell", nk_dots_packed_size_f64_haswell, nk_dots_pack_f64_haswell,
+                                nk_dots_packed_f64_haswell);
 
 #endif
 
@@ -2070,16 +2232,19 @@ int main(int argc, char **argv) {
     mesh_<f32_k, f32_k, f32_k>("rmsd_f32_skylake", nk_rmsd_f32_skylake, nk_rmsd_f32_serial);
     mesh_<f32_k, f32_k, f32_k>("kabsch_f32_skylake", nk_kabsch_f32_skylake, nk_kabsch_f32_serial);
 
-    matmul_<nk_f32_t, nk_f32_t>("dots_f32f32f32_skylake", nk_dots_f32f32f32_packed_size_skylake,
-                                nk_dots_f32f32f32_pack_skylake, nk_dots_f32f32f32_skylake);
-    matmul_<nk_f64_t, nk_f64_t>("dots_f64f64f64_skylake", nk_dots_f64f64f64_packed_size_skylake,
-                                nk_dots_f64f64f64_pack_skylake, nk_dots_f64f64f64_skylake);
+    matmul_<nk_f32_t, nk_f32_t>("dots_f32_skylake", nk_dots_packed_size_f32_skylake, nk_dots_pack_f32_skylake,
+                                nk_dots_packed_f32_skylake);
+    matmul_<nk_f64_t, nk_f64_t>("dots_f64_skylake", nk_dots_packed_size_f64_skylake, nk_dots_pack_f64_skylake,
+                                nk_dots_packed_f64_skylake);
+    matmul_<nk_e4m3_t, nk_f32_t>("dots_e4m3_skylake", nk_dots_packed_size_e4m3_skylake, nk_dots_pack_e4m3_skylake,
+                                 nk_dots_packed_e4m3_skylake);
+    matmul_<nk_e5m2_t, nk_f32_t>("dots_e5m2_skylake", nk_dots_packed_size_e5m2_skylake, nk_dots_pack_e5m2_skylake,
+                                 nk_dots_packed_e5m2_skylake);
 
 #endif
 
 #if NK_TARGET_ICE
-    matmul_<nk_i8_t, nk_i32_t>("dots_i8i8i32_ice", nk_dots_i8i8i32_packed_size_ice, nk_dots_i8i8i32_pack_ice,
-                               nk_dots_i8i8i32_ice);
+    matmul_<nk_i8_t, nk_i32_t>("dots_i8_ice", nk_dots_packed_size_i8_ice, nk_dots_pack_i8_ice, nk_dots_i8_ice);
 
     dense_<i8_k, f32_k, f32_k>("angular_i8_ice", nk_angular_i8_ice, nk_angular_i8_serial);
     dense_<i8_k, u32_k, u32_k>("l2sq_i8_ice", nk_l2sq_i8_ice, nk_l2sq_i8_serial);
@@ -2091,13 +2256,23 @@ int main(int argc, char **argv) {
     dense_<u8_k, f32_k, f64_k>("l2_u8_ice", nk_l2_u8_ice, nk_l2_u8_accurate);
     dense_<u8_k, u32_k, u32_k>("dot_u8_ice", nk_dot_u8_ice, nk_dot_u8_serial);
 
+    dense_<i4_k, f32_k, f32_k>("angular_i4_ice", nk_angular_i4_ice, nk_angular_i4_serial);
+    dense_<i4_k, u32_k, u32_k>("l2sq_i4_ice", nk_l2sq_i4_ice, nk_l2sq_i4_serial);
+    dense_<i4_k, f32_k, f32_k>("l2_i4_ice", nk_l2_i4_ice, nk_l2_i4_serial);
+    dense_<i4_k, i32_k, i32_k>("dot_i4_ice", nk_dot_i4_ice, nk_dot_i4_serial);
+
+    dense_<u4_k, f32_k, f32_k>("angular_u4_ice", nk_angular_u4_ice, nk_angular_u4_serial);
+    dense_<u4_k, u32_k, u32_k>("l2sq_u4_ice", nk_l2sq_u4_ice, nk_l2sq_u4_serial);
+    dense_<u4_k, f32_k, f32_k>("l2_u4_ice", nk_l2_u4_ice, nk_l2_u4_serial);
+    dense_<u4_k, u32_k, u32_k>("dot_u4_ice", nk_dot_u4_ice, nk_dot_u4_serial);
+
     dense_<f64_k, f64_k, f64_k>("dot_f64_skylake", nk_dot_f64_skylake, nk_dot_f64_serial);
     dense_<f64_k, f64_k, f64_k>("angular_f64_skylake", nk_angular_f64_skylake, nk_angular_f64_serial);
     dense_<f64_k, f64_k, f64_k>("l2sq_f64_skylake", nk_l2sq_f64_skylake, nk_l2sq_f64_serial);
     dense_<f64_k, f64_k, f64_k>("l2_f64_skylake", nk_l2_f64_skylake, nk_l2_f64_serial);
 
-    dense_<b8_k, u32_k, u32_k>("hamming_b8_ice", nk_hamming_b8_ice, nk_hamming_b8_serial);
-    dense_<b8_k, f32_k, f32_k>("jaccard_b8_ice", nk_jaccard_b8_ice, nk_jaccard_b8_serial);
+    dense_<u1_k, u32_k, u32_k>("hamming_u1_ice", nk_hamming_u1_ice, nk_hamming_u1_serial);
+    dense_<u1_k, f32_k, f32_k>("jaccard_u1_ice", nk_jaccard_u1_ice, nk_jaccard_u1_serial);
 
     sparse_<u16_k, u32_k, u32_k>("intersect_u16_ice", nk_intersect_u16_ice, nk_intersect_u16_accurate);
     sparse_<u32_k, u32_k, u32_k>("intersect_u32_ice", nk_intersect_u32_ice, nk_intersect_u32_accurate);
@@ -2118,8 +2293,14 @@ int main(int argc, char **argv) {
     curved_<bf16_k, f32_k, f64_k>("mahalanobis_bf16_genoa", nk_mahalanobis_bf16_genoa, nk_mahalanobis_bf16_accurate);
     curved_<bf16c_k, f32c_k, f64c_k>("bilinear_bf16c_genoa", nk_bilinear_bf16c_genoa, nk_bilinear_bf16c_accurate);
 
-    matmul_<nk_bf16_t, nk_f32_t>("dots_bf16bf16f32_genoa", nk_dots_bf16bf16f32_packed_size_genoa,
-                                 nk_dots_bf16bf16f32_pack_genoa, nk_dots_bf16bf16f32_genoa);
+    matmul_<nk_bf16_t, nk_f32_t>("dots_bf16_genoa", nk_dots_packed_size_bf16_genoa, nk_dots_pack_bf16_genoa,
+                                 nk_dots_packed_bf16_genoa);
+
+    // FP8 GEMM variants
+    matmul_<nk_e4m3_t, nk_f32_t>("dots_e4m3_genoa", nk_dots_packed_size_e4m3_genoa, nk_dots_pack_e4m3_genoa,
+                                 nk_dots_packed_e4m3_genoa);
+    matmul_<nk_e5m2_t, nk_f32_t>("dots_e5m2_genoa", nk_dots_packed_size_e5m2_genoa, nk_dots_pack_e5m2_genoa,
+                                 nk_dots_packed_e5m2_genoa);
 
 #endif
 
@@ -2152,10 +2333,14 @@ int main(int argc, char **argv) {
         "atan_f16_sapphire", nk_atan_f16_sapphire, elementwise_with_stl<nk_f16_t, atan_with_stl<nk_f64_t>>,
         nk_l2_f16_accurate);
 
-    matmul_<nk_bf16_t, nk_f32_t>("dots_bf16bf16f32_sapphire_amx", nk_dots_bf16bf16f32_packed_size_sapphire_amx,
-                                 nk_dots_bf16bf16f32_pack_sapphire_amx, nk_dots_bf16bf16f32_sapphire_amx);
-    matmul_<nk_i8_t, nk_i32_t>("dots_i8i8i32_sapphire_amx", nk_dots_i8i8i32_packed_size_sapphire_amx,
-                               nk_dots_i8i8i32_pack_sapphire_amx, nk_dots_i8i8i32_sapphire_amx);
+    matmul_<nk_bf16_t, nk_f32_t>("dots_bf16_sapphire_amx", nk_dots_packed_size_bf16_sapphire_amx,
+                                 nk_dots_pack_bf16_sapphire_amx, nk_dots_packed_bf16_sapphire_amx);
+    matmul_<nk_i8_t, nk_i32_t>("dots_i8_sapphire_amx", nk_dots_packed_size_i8_sapphire_amx,
+                               nk_dots_pack_i8_sapphire_amx, nk_dots_packed_i8_sapphire_amx);
+    matmul_<nk_e4m3_t, nk_f32_t>("dots_e4m3_sapphire_amx", nk_dots_packed_size_e4m3_sapphire_amx,
+                                 nk_dots_pack_e4m3_sapphire_amx, nk_dots_packed_e4m3_sapphire_amx);
+    matmul_<nk_e5m2_t, nk_f32_t>("dots_e5m2_sapphire_amx", nk_dots_packed_size_e5m2_sapphire_amx,
+                                 nk_dots_pack_e5m2_sapphire_amx, nk_dots_packed_e5m2_sapphire_amx);
 
 #endif
 
@@ -2228,6 +2413,16 @@ int main(int argc, char **argv) {
     dense_<u8_k, f32_k, f64_k>("l2_u8_serial", nk_l2_u8_serial, nk_l2_u8_accurate);
     dense_<u8_k, u32_k, u32_k>("dot_u8_serial", nk_dot_u8_serial, nk_dot_u8_serial);
 
+    dense_<i4_k, f32_k, f32_k>("angular_i4_serial", nk_angular_i4_serial, nk_angular_i4_serial);
+    dense_<i4_k, u32_k, u32_k>("l2sq_i4_serial", nk_l2sq_i4_serial, nk_l2sq_i4_serial);
+    dense_<i4_k, f32_k, f32_k>("l2_i4_serial", nk_l2_i4_serial, nk_l2_i4_serial);
+    dense_<i4_k, i32_k, i32_k>("dot_i4_serial", nk_dot_i4_serial, nk_dot_i4_serial);
+
+    dense_<u4_k, f32_k, f32_k>("angular_u4_serial", nk_angular_u4_serial, nk_angular_u4_serial);
+    dense_<u4_k, u32_k, u32_k>("l2sq_u4_serial", nk_l2sq_u4_serial, nk_l2sq_u4_serial);
+    dense_<u4_k, f32_k, f32_k>("l2_u4_serial", nk_l2_u4_serial, nk_l2_u4_serial);
+    dense_<u4_k, u32_k, u32_k>("dot_u4_serial", nk_dot_u4_serial, nk_dot_u4_serial);
+
     dense_<f64c_k, f64c_k, f64c_k>("dot_f64c_serial", nk_dot_f64c_serial, nk_dot_f64c_serial);
     dense_<f32c_k, f32c_k, f64c_k>("dot_f32c_serial", nk_dot_f32c_serial, nk_dot_f32c_accurate);
     dense_<f16c_k, f32c_k, f64c_k>("dot_f16c_serial", nk_dot_f16c_serial, nk_dot_f16c_accurate);
@@ -2237,8 +2432,8 @@ int main(int argc, char **argv) {
     dense_<f16c_k, f32c_k, f64c_k>("vdot_f16c_serial", nk_vdot_f16c_serial, nk_vdot_f16c_accurate);
     dense_<bf16c_k, f32c_k, f64c_k>("vdot_bf16c_serial", nk_vdot_bf16c_serial, nk_vdot_bf16c_accurate);
 
-    dense_<b8_k, u32_k, u32_k>("hamming_b8_serial", nk_hamming_b8_serial, nk_hamming_b8_serial);
-    dense_<b8_k, f32_k, f32_k>("jaccard_b8_serial", nk_jaccard_b8_serial, nk_jaccard_b8_serial);
+    dense_<u1_k, u32_k, u32_k>("hamming_u1_serial", nk_hamming_u1_serial, nk_hamming_u1_serial);
+    dense_<u1_k, f32_k, f32_k>("jaccard_u1_serial", nk_jaccard_u1_serial, nk_jaccard_u1_serial);
 
     elementwise_<f32_k, nk_kernel_unknown_k, f32_k, f32_k, f32_k, f32_k>(
         "sin_f32_stl", elementwise_with_stl<nk_f32_t, sin_with_stl<nk_f32_t>>,
@@ -2310,12 +2505,58 @@ int main(int argc, char **argv) {
     geospatial_<f64_k, f64_k, f64_k>("vincenty_f64_serial", nk_vincenty_f64_serial, vincenty_with_stl<nk_f64_t>,
                                      l2_with_stl<nk_f64_t>);
 
-    matmul_<nk_bf16_t, nk_f32_t>("dots_bf16bf16f32_serial", nk_dots_bf16bf16f32_packed_size_serial,
-                                 nk_dots_bf16bf16f32_pack_serial, nk_dots_bf16bf16f32_serial);
-    matmul_<nk_i8_t, nk_i32_t>("dots_i8i8i32_serial", nk_dots_i8i8i32_packed_size_serial, nk_dots_i8i8i32_pack_serial,
-                               nk_dots_i8i8i32_serial);
-    matmul_<nk_f32_t, nk_f32_t>("dots_f32f32f32_serial", nk_dots_f32f32f32_packed_size_serial,
-                                nk_dots_f32f32f32_pack_serial, nk_dots_f32f32f32_serial);
+    matmul_<nk_bf16_t, nk_f32_t>("dots_bf16_serial", nk_dots_packed_size_bf16_serial, nk_dots_pack_bf16_serial,
+                                 nk_dots_packed_bf16_serial);
+    matmul_<nk_i8_t, nk_i32_t>("dots_i8_serial", nk_dots_packed_size_i8_serial, nk_dots_pack_i8_serial,
+                               nk_dots_packed_i8_serial);
+    matmul_<nk_f32_t, nk_f32_t>("dots_f32_serial", nk_dots_packed_size_f32_serial, nk_dots_pack_f32_serial,
+                                nk_dots_packed_f32_serial);
+
+    // Cast benchmarks - core float conversions
+    cast_<nk_f32_k, nk_f16_k>("cast_f32_to_f16_serial", nk_cast_serial);
+    cast_<nk_f16_k, nk_f32_k>("cast_f16_to_f32_serial", nk_cast_serial);
+    cast_<nk_f32_k, nk_bf16_k>("cast_f32_to_bf16_serial", nk_cast_serial);
+    cast_<nk_bf16_k, nk_f32_k>("cast_bf16_to_f32_serial", nk_cast_serial);
+    cast_<nk_f32_k, nk_e4m3_k>("cast_f32_to_e4m3_serial", nk_cast_serial);
+    cast_<nk_e4m3_k, nk_f32_k>("cast_e4m3_to_f32_serial", nk_cast_serial);
+    cast_<nk_f32_k, nk_e5m2_k>("cast_f32_to_e5m2_serial", nk_cast_serial);
+    cast_<nk_e5m2_k, nk_f32_k>("cast_e5m2_to_f32_serial", nk_cast_serial);
+    cast_<nk_f64_k, nk_f32_k>("cast_f64_to_f32_serial", nk_cast_serial);
+    cast_<nk_f32_k, nk_f64_k>("cast_f32_to_f64_serial", nk_cast_serial);
+
+#if NK_TARGET_HASWELL
+    cast_<nk_f32_k, nk_f16_k>("cast_f32_to_f16_haswell", nk_cast_haswell);
+    cast_<nk_f16_k, nk_f32_k>("cast_f16_to_f32_haswell", nk_cast_haswell);
+    cast_<nk_f32_k, nk_bf16_k>("cast_f32_to_bf16_haswell", nk_cast_haswell);
+    cast_<nk_bf16_k, nk_f32_k>("cast_bf16_to_f32_haswell", nk_cast_haswell);
+    cast_<nk_f32_k, nk_e4m3_k>("cast_f32_to_e4m3_haswell", nk_cast_haswell);
+    cast_<nk_e4m3_k, nk_f32_k>("cast_e4m3_to_f32_haswell", nk_cast_haswell);
+    cast_<nk_f32_k, nk_e5m2_k>("cast_f32_to_e5m2_haswell", nk_cast_haswell);
+    cast_<nk_e5m2_k, nk_f32_k>("cast_e5m2_to_f32_haswell", nk_cast_haswell);
+#endif
+
+#if NK_TARGET_SKYLAKE
+    cast_<nk_f32_k, nk_f16_k>("cast_f32_to_f16_skylake", nk_cast_skylake);
+    cast_<nk_f16_k, nk_f32_k>("cast_f16_to_f32_skylake", nk_cast_skylake);
+    cast_<nk_f32_k, nk_bf16_k>("cast_f32_to_bf16_skylake", nk_cast_skylake);
+    cast_<nk_bf16_k, nk_f32_k>("cast_bf16_to_f32_skylake", nk_cast_skylake);
+    cast_<nk_f32_k, nk_e4m3_k>("cast_f32_to_e4m3_skylake", nk_cast_skylake);
+    cast_<nk_e4m3_k, nk_f32_k>("cast_e4m3_to_f32_skylake", nk_cast_skylake);
+    cast_<nk_f32_k, nk_e5m2_k>("cast_f32_to_e5m2_skylake", nk_cast_skylake);
+    cast_<nk_e5m2_k, nk_f32_k>("cast_e5m2_to_f32_skylake", nk_cast_skylake);
+#endif
+
+#if NK_TARGET_ICE
+    cast_<nk_f32_k, nk_f16_k>("cast_f32_to_f16_ice", nk_cast_ice);
+    cast_<nk_f16_k, nk_f32_k>("cast_f16_to_f32_ice", nk_cast_ice);
+    cast_<nk_f32_k, nk_e4m3_k>("cast_f32_to_e4m3_ice", nk_cast_ice);
+    cast_<nk_e4m3_k, nk_f32_k>("cast_e4m3_to_f32_ice", nk_cast_ice);
+#endif
+
+#if NK_TARGET_SAPPHIRE
+    cast_<nk_f32_k, nk_f16_k>("cast_f32_to_f16_sapphire", nk_cast_sapphire);
+    cast_<nk_f16_k, nk_f32_k>("cast_f16_to_f32_sapphire", nk_cast_sapphire);
+#endif
 
     bm::RunSpecifiedBenchmarks();
     bm::Shutdown();

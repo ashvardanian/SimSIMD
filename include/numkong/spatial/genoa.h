@@ -10,14 +10,18 @@
 
 #if NK_TARGET_X86_
 #if NK_TARGET_GENOA
+#if defined(__clang__)
+#pragma clang attribute push(                                                                        \
+    __attribute__((target("avx2,avx512f,avx512vl,avx512bw,avx512dq,avx512bf16,f16c,fma,bmi,bmi2"))), \
+    apply_to = function)
+#elif defined(__GNUC__)
 #pragma GCC push_options
-#pragma GCC target("avx2", "avx512f", "avx512vl", "bmi2", "avx512bw", "avx512bf16")
-#pragma clang attribute push(__attribute__((target("avx2,avx512f,avx512vl,bmi2,avx512bw,avx512bf16"))), \
-                             apply_to = function)
+#pragma GCC target("avx2", "avx512f", "avx512vl", "avx512bw", "avx512dq", "avx512bf16", "f16c", "fma", "bmi", "bmi2")
+#endif
 
 #include "numkong/types.h"
 #include "numkong/reduce/skylake.h" // nk_reduce_add_f32x16_skylake_
-#include "numkong/dot/genoa.h"      // nk_e4m3x32_to_bf16x32_genoa_, nk_e5m2x32_to_bf16x32_genoa_
+#include "numkong/cast/ice.h"       // nk_e4m3x32_to_bf16x32_ice_, nk_e5m2x32_to_bf16x32_ice_
 
 #if defined(__cplusplus)
 extern "C" {
@@ -179,8 +183,8 @@ nk_l2sq_e4m3_genoa_cycle:
         b_e4m3x32 = _mm256_loadu_epi8(b);
         a += 32, b += 32, n -= 32;
     }
-    __m512i a_bf16x32 = nk_e4m3x32_to_bf16x32_genoa_(a_e4m3x32);
-    __m512i b_bf16x32 = nk_e4m3x32_to_bf16x32_genoa_(b_e4m3x32);
+    __m512i a_bf16x32 = nk_e4m3x32_to_bf16x32_ice_(a_e4m3x32);
+    __m512i b_bf16x32 = nk_e4m3x32_to_bf16x32_ice_(b_e4m3x32);
     __m512i diff_bf16x32 = nk_substract_bf16x32_genoa_(a_bf16x32, b_bf16x32);
     distance_sq_f32x16 = _mm512_dpbf16_ps(distance_sq_f32x16, (__m512bh)(diff_bf16x32), (__m512bh)(diff_bf16x32));
     if (n) goto nk_l2sq_e4m3_genoa_cycle;
@@ -211,8 +215,8 @@ nk_angular_e4m3_genoa_cycle:
         b_e4m3x32 = _mm256_loadu_epi8(b);
         a += 32, b += 32, n -= 32;
     }
-    __m512i a_bf16x32 = nk_e4m3x32_to_bf16x32_genoa_(a_e4m3x32);
-    __m512i b_bf16x32 = nk_e4m3x32_to_bf16x32_genoa_(b_e4m3x32);
+    __m512i a_bf16x32 = nk_e4m3x32_to_bf16x32_ice_(a_e4m3x32);
+    __m512i b_bf16x32 = nk_e4m3x32_to_bf16x32_ice_(b_e4m3x32);
     dot_f32x16 = _mm512_dpbf16_ps(dot_f32x16, (__m512bh)(a_bf16x32), (__m512bh)(b_bf16x32));
     a_norm_sq_f32x16 = _mm512_dpbf16_ps(a_norm_sq_f32x16, (__m512bh)(a_bf16x32), (__m512bh)(a_bf16x32));
     b_norm_sq_f32x16 = _mm512_dpbf16_ps(b_norm_sq_f32x16, (__m512bh)(b_bf16x32), (__m512bh)(b_bf16x32));
@@ -240,8 +244,8 @@ nk_l2sq_e5m2_genoa_cycle:
         b_e5m2x32 = _mm256_loadu_epi8(b);
         a += 32, b += 32, n -= 32;
     }
-    __m512i a_bf16x32 = nk_e5m2x32_to_bf16x32_genoa_(a_e5m2x32);
-    __m512i b_bf16x32 = nk_e5m2x32_to_bf16x32_genoa_(b_e5m2x32);
+    __m512i a_bf16x32 = nk_e5m2x32_to_bf16x32_ice_(a_e5m2x32);
+    __m512i b_bf16x32 = nk_e5m2x32_to_bf16x32_ice_(b_e5m2x32);
     __m512i diff_bf16x32 = nk_substract_bf16x32_genoa_(a_bf16x32, b_bf16x32);
     distance_sq_f32x16 = _mm512_dpbf16_ps(distance_sq_f32x16, (__m512bh)(diff_bf16x32), (__m512bh)(diff_bf16x32));
     if (n) goto nk_l2sq_e5m2_genoa_cycle;
@@ -272,8 +276,8 @@ nk_angular_e5m2_genoa_cycle:
         b_e5m2x32 = _mm256_loadu_epi8(b);
         a += 32, b += 32, n -= 32;
     }
-    __m512i a_bf16x32 = nk_e5m2x32_to_bf16x32_genoa_(a_e5m2x32);
-    __m512i b_bf16x32 = nk_e5m2x32_to_bf16x32_genoa_(b_e5m2x32);
+    __m512i a_bf16x32 = nk_e5m2x32_to_bf16x32_ice_(a_e5m2x32);
+    __m512i b_bf16x32 = nk_e5m2x32_to_bf16x32_ice_(b_e5m2x32);
     dot_f32x16 = _mm512_dpbf16_ps(dot_f32x16, (__m512bh)(a_bf16x32), (__m512bh)(b_bf16x32));
     a_norm_sq_f32x16 = _mm512_dpbf16_ps(a_norm_sq_f32x16, (__m512bh)(a_bf16x32), (__m512bh)(a_bf16x32));
     b_norm_sq_f32x16 = _mm512_dpbf16_ps(b_norm_sq_f32x16, (__m512bh)(b_bf16x32), (__m512bh)(b_bf16x32));
@@ -289,8 +293,11 @@ nk_angular_e5m2_genoa_cycle:
 } // extern "C"
 #endif
 
+#if defined(__clang__)
 #pragma clang attribute pop
+#elif defined(__GNUC__)
 #pragma GCC pop_options
+#endif
 #endif // NK_TARGET_GENOA
 #endif // NK_TARGET_X86_
 

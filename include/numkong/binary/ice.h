@@ -10,10 +10,13 @@
 
 #if NK_TARGET_X86_
 #if NK_TARGET_ICE
+#if defined(__clang__)
+#pragma clang attribute push( \
+    __attribute__((target("avx2,avx512f,avx512vl,avx512bw,avx512vpopcntdq,f16c,fma,bmi,bmi2"))), apply_to = function)
+#elif defined(__GNUC__)
 #pragma GCC push_options
-#pragma GCC target("avx2", "avx512f", "avx512vl", "bmi2", "avx512bw", "avx512vpopcntdq")
-#pragma clang attribute push(__attribute__((target("avx2,avx512f,avx512vl,bmi2,avx512bw,avx512vpopcntdq"))), \
-                             apply_to = function)
+#pragma GCC target("avx2", "avx512f", "avx512vl", "avx512bw", "avx512vpopcntdq", "f16c", "fma", "bmi", "bmi2")
+#endif
 
 #include "numkong/types.h"
 
@@ -21,19 +24,20 @@
 extern "C" {
 #endif
 
-NK_PUBLIC void nk_hamming_b8_ice(nk_b8_t const *a, nk_b8_t const *b, nk_size_t n_words, nk_u32_t *result) {
+NK_PUBLIC void nk_hamming_u1_ice(nk_u1x8_t const *a, nk_u1x8_t const *b, nk_size_t n, nk_u32_t *result) {
+    nk_size_t n_bytes = nk_size_divide_round_up_to_multiple_(n, NK_BITS_PER_BYTE);
 
     nk_u32_t xor_count;
     // It's harder to squeeze out performance from tiny representations, so we unroll the loops for binary metrics.
-    if (n_words <= 64) { // Up to 512 bits.
-        __mmask64 mask = (__mmask64)_bzhi_u64(0xFFFFFFFFFFFFFFFF, n_words);
+    if (n_bytes <= 64) { // Up to 512 bits.
+        __mmask64 mask = (__mmask64)_bzhi_u64(0xFFFFFFFFFFFFFFFF, n_bytes);
         __m512i a_u8x64 = _mm512_maskz_loadu_epi8(mask, a);
         __m512i b_u8x64 = _mm512_maskz_loadu_epi8(mask, b);
         __m512i xor_popcount_u64x8 = _mm512_popcnt_epi64(_mm512_xor_si512(a_u8x64, b_u8x64));
         xor_count = _mm512_reduce_add_epi64(xor_popcount_u64x8);
     }
-    else if (n_words <= 128) { // Up to 1024 bits.
-        __mmask64 mask = (__mmask64)_bzhi_u64(0xFFFFFFFFFFFFFFFF, n_words - 64);
+    else if (n_bytes <= 128) { // Up to 1024 bits.
+        __mmask64 mask = (__mmask64)_bzhi_u64(0xFFFFFFFFFFFFFFFF, n_bytes - 64);
         __m512i a_one_u8x64 = _mm512_loadu_epi8(a);
         __m512i b_one_u8x64 = _mm512_loadu_epi8(b);
         __m512i a_two_u8x64 = _mm512_maskz_loadu_epi8(mask, a + 64);
@@ -42,8 +46,8 @@ NK_PUBLIC void nk_hamming_b8_ice(nk_b8_t const *a, nk_b8_t const *b, nk_size_t n
         __m512i xor_popcount_two_u64x8 = _mm512_popcnt_epi64(_mm512_xor_si512(a_two_u8x64, b_two_u8x64));
         xor_count = _mm512_reduce_add_epi64(_mm512_add_epi64(xor_popcount_two_u64x8, xor_popcount_one_u64x8));
     }
-    else if (n_words <= 192) { // Up to 1536 bits.
-        __mmask64 mask = (__mmask64)_bzhi_u64(0xFFFFFFFFFFFFFFFF, n_words - 128);
+    else if (n_bytes <= 192) { // Up to 1536 bits.
+        __mmask64 mask = (__mmask64)_bzhi_u64(0xFFFFFFFFFFFFFFFF, n_bytes - 128);
         __m512i a_one_u8x64 = _mm512_loadu_epi8(a);
         __m512i b_one_u8x64 = _mm512_loadu_epi8(b);
         __m512i a_two_u8x64 = _mm512_loadu_epi8(a + 64);
@@ -56,8 +60,8 @@ NK_PUBLIC void nk_hamming_b8_ice(nk_b8_t const *a, nk_b8_t const *b, nk_size_t n
         xor_count = _mm512_reduce_add_epi64(_mm512_add_epi64(
             xor_popcount_three_u64x8, _mm512_add_epi64(xor_popcount_two_u64x8, xor_popcount_one_u64x8)));
     }
-    else if (n_words <= 256) { // Up to 2048 bits.
-        __mmask64 mask = (__mmask64)_bzhi_u64(0xFFFFFFFFFFFFFFFF, n_words - 192);
+    else if (n_bytes <= 256) { // Up to 2048 bits.
+        __mmask64 mask = (__mmask64)_bzhi_u64(0xFFFFFFFFFFFFFFFF, n_bytes - 192);
         __m512i a_one_u8x64 = _mm512_loadu_epi8(a);
         __m512i b_one_u8x64 = _mm512_loadu_epi8(b);
         __m512i a_two_u8x64 = _mm512_loadu_epi8(a + 64);
@@ -78,33 +82,34 @@ NK_PUBLIC void nk_hamming_b8_ice(nk_b8_t const *a, nk_b8_t const *b, nk_size_t n
         __m512i xor_popcount_u64x8 = _mm512_setzero_si512();
         __m512i a_u8x64, b_u8x64;
 
-    nk_hamming_b8_ice_cycle:
-        if (n_words < 64) {
-            __mmask64 mask = (__mmask64)_bzhi_u64(0xFFFFFFFFFFFFFFFF, n_words);
+    nk_hamming_u1_ice_cycle:
+        if (n_bytes < 64) {
+            __mmask64 mask = (__mmask64)_bzhi_u64(0xFFFFFFFFFFFFFFFF, n_bytes);
             a_u8x64 = _mm512_maskz_loadu_epi8(mask, a);
             b_u8x64 = _mm512_maskz_loadu_epi8(mask, b);
-            n_words = 0;
+            n_bytes = 0;
         }
         else {
             a_u8x64 = _mm512_loadu_epi8(a);
             b_u8x64 = _mm512_loadu_epi8(b);
-            a += 64, b += 64, n_words -= 64;
+            a += 64, b += 64, n_bytes -= 64;
         }
         __m512i xor_u8x64 = _mm512_xor_si512(a_u8x64, b_u8x64);
         xor_popcount_u64x8 = _mm512_add_epi64(xor_popcount_u64x8, _mm512_popcnt_epi64(xor_u8x64));
-        if (n_words) goto nk_hamming_b8_ice_cycle;
+        if (n_bytes) goto nk_hamming_u1_ice_cycle;
 
         xor_count = _mm512_reduce_add_epi64(xor_popcount_u64x8);
     }
     *result = xor_count;
 }
 
-NK_PUBLIC void nk_jaccard_b8_ice(nk_b8_t const *a, nk_b8_t const *b, nk_size_t n_words, nk_f32_t *result) {
+NK_PUBLIC void nk_jaccard_u1_ice(nk_u1x8_t const *a, nk_u1x8_t const *b, nk_size_t n, nk_f32_t *result) {
+    nk_size_t n_bytes = nk_size_divide_round_up_to_multiple_(n, NK_BITS_PER_BYTE);
 
     nk_u32_t intersection_count = 0, union_count = 0;
     //  It's harder to squeeze out performance from tiny representations, so we unroll the loops for binary metrics.
-    if (n_words <= 64) { // Up to 512 bits.
-        __mmask64 load_mask = (__mmask64)_bzhi_u64(0xFFFFFFFFFFFFFFFF, n_words);
+    if (n_bytes <= 64) { // Up to 512 bits.
+        __mmask64 load_mask = (__mmask64)_bzhi_u64(0xFFFFFFFFFFFFFFFF, n_bytes);
         __m512i a_u8x64 = _mm512_maskz_loadu_epi8(load_mask, a);
         __m512i b_u8x64 = _mm512_maskz_loadu_epi8(load_mask, b);
         __m512i intersection_popcount_u64x8 = _mm512_popcnt_epi64(_mm512_and_si512(a_u8x64, b_u8x64));
@@ -112,8 +117,8 @@ NK_PUBLIC void nk_jaccard_b8_ice(nk_b8_t const *a, nk_b8_t const *b, nk_size_t n
         intersection_count = _mm512_reduce_add_epi64(intersection_popcount_u64x8);
         union_count = _mm512_reduce_add_epi64(union_popcount_u64x8);
     }
-    else if (n_words <= 128) { // Up to 1024 bits.
-        __mmask64 load_mask = (__mmask64)_bzhi_u64(0xFFFFFFFFFFFFFFFF, n_words - 64);
+    else if (n_bytes <= 128) { // Up to 1024 bits.
+        __mmask64 load_mask = (__mmask64)_bzhi_u64(0xFFFFFFFFFFFFFFFF, n_bytes - 64);
         __m512i a_one_u8x64 = _mm512_loadu_epi8(a);
         __m512i b_one_u8x64 = _mm512_loadu_epi8(b);
         __m512i a_two_u8x64 = _mm512_maskz_loadu_epi8(load_mask, a + 64);
@@ -126,8 +131,8 @@ NK_PUBLIC void nk_jaccard_b8_ice(nk_b8_t const *a, nk_b8_t const *b, nk_size_t n
             _mm512_add_epi64(intersection_popcount_two_u64x8, intersection_popcount_one_u64x8));
         union_count = _mm512_reduce_add_epi64(_mm512_add_epi64(union_popcount_two_u64x8, union_popcount_one_u64x8));
     }
-    else if (n_words <= 192) { // Up to 1536 bits.
-        __mmask64 load_mask = (__mmask64)_bzhi_u64(0xFFFFFFFFFFFFFFFF, n_words - 128);
+    else if (n_bytes <= 192) { // Up to 1536 bits.
+        __mmask64 load_mask = (__mmask64)_bzhi_u64(0xFFFFFFFFFFFFFFFF, n_bytes - 128);
         __m512i a_one_u8x64 = _mm512_loadu_epi8(a);
         __m512i b_one_u8x64 = _mm512_loadu_epi8(b);
         __m512i a_two_u8x64 = _mm512_loadu_epi8(a + 64);
@@ -147,8 +152,8 @@ NK_PUBLIC void nk_jaccard_b8_ice(nk_b8_t const *a, nk_b8_t const *b, nk_size_t n
             _mm512_add_epi64(union_popcount_three_u64x8,
                              _mm512_add_epi64(union_popcount_two_u64x8, union_popcount_one_u64x8)));
     }
-    else if (n_words <= 256) { // Up to 2048 bits.
-        __mmask64 load_mask = (__mmask64)_bzhi_u64(0xFFFFFFFFFFFFFFFF, n_words - 192);
+    else if (n_bytes <= 256) { // Up to 2048 bits.
+        __mmask64 load_mask = (__mmask64)_bzhi_u64(0xFFFFFFFFFFFFFFFF, n_bytes - 192);
         __m512i a_one_u8x64 = _mm512_loadu_epi8(a);
         __m512i b_one_u8x64 = _mm512_loadu_epi8(b);
         __m512i a_two_u8x64 = _mm512_loadu_epi8(a + 64);
@@ -177,24 +182,24 @@ NK_PUBLIC void nk_jaccard_b8_ice(nk_b8_t const *a, nk_b8_t const *b, nk_size_t n
         __m512i union_popcount_u64x8 = _mm512_setzero_si512();
         __m512i a_u8x64, b_u8x64;
 
-    nk_jaccard_b8_ice_cycle:
-        if (n_words < 64) {
-            __mmask64 load_mask = (__mmask64)_bzhi_u64(0xFFFFFFFFFFFFFFFF, n_words);
+    nk_jaccard_u1_ice_cycle:
+        if (n_bytes < 64) {
+            __mmask64 load_mask = (__mmask64)_bzhi_u64(0xFFFFFFFFFFFFFFFF, n_bytes);
             a_u8x64 = _mm512_maskz_loadu_epi8(load_mask, a);
             b_u8x64 = _mm512_maskz_loadu_epi8(load_mask, b);
-            n_words = 0;
+            n_bytes = 0;
         }
         else {
             a_u8x64 = _mm512_loadu_epi8(a);
             b_u8x64 = _mm512_loadu_epi8(b);
-            a += 64, b += 64, n_words -= 64;
+            a += 64, b += 64, n_bytes -= 64;
         }
         __m512i intersection_u8x64 = _mm512_and_si512(a_u8x64, b_u8x64);
         __m512i union_u8x64 = _mm512_or_si512(a_u8x64, b_u8x64);
         intersection_popcount_u64x8 = _mm512_add_epi64(intersection_popcount_u64x8,
                                                        _mm512_popcnt_epi64(intersection_u8x64));
         union_popcount_u64x8 = _mm512_add_epi64(union_popcount_u64x8, _mm512_popcnt_epi64(union_u8x64));
-        if (n_words) goto nk_jaccard_b8_ice_cycle;
+        if (n_bytes) goto nk_jaccard_u1_ice_cycle;
 
         intersection_count = _mm512_reduce_add_epi64(intersection_popcount_u64x8);
         union_count = _mm512_reduce_add_epi64(union_popcount_u64x8);
@@ -312,8 +317,11 @@ NK_INTERNAL void nk_jaccard_b512_finalize_ice(nk_jaccard_b512_state_ice_t const 
 } // extern "C"
 #endif
 
+#if defined(__clang__)
 #pragma clang attribute pop
+#elif defined(__GNUC__)
 #pragma GCC pop_options
+#endif
 #endif // NK_TARGET_ICE
 #endif // NK_TARGET_X86_
 

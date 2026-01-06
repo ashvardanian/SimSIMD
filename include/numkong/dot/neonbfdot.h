@@ -10,12 +10,15 @@
 
 #if NK_TARGET_ARM_
 #if NK_TARGET_NEONBFDOT
+#if defined(__clang__)
+#pragma clang attribute push(__attribute__((target("arch=armv8.6-a+simd+bf16"))), apply_to = function)
+#elif defined(__GNUC__)
 #pragma GCC push_options
 #pragma GCC target("arch=armv8.6-a+simd+bf16")
-#pragma clang attribute push(__attribute__((target("arch=armv8.6-a+simd+bf16"))), apply_to = function)
+#endif
 
 #include "numkong/types.h"
-#include "numkong/reduce/neon.h" // nk_partial_load_b16x8_neon_
+#include "numkong/reduce/neon.h" // nk_partial_load_b16x8_serial_
 
 #if defined(__cplusplus)
 extern "C" {
@@ -28,8 +31,8 @@ NK_PUBLIC void nk_dot_bf16_neonbfdot(nk_bf16_t const *a_scalars, nk_bf16_t const
 nk_dot_bf16_neonbfdot_cycle:
     if (count_scalars < 8) {
         nk_b128_vec_t a_vec, b_vec;
-        nk_partial_load_b16x8_neon_(a_scalars, count_scalars, &a_vec);
-        nk_partial_load_b16x8_neon_(b_scalars, count_scalars, &b_vec);
+        nk_partial_load_b16x8_serial_(a_scalars, count_scalars, &a_vec);
+        nk_partial_load_b16x8_serial_(b_scalars, count_scalars, &b_vec);
         a_bf16x8 = vreinterpretq_bf16_u16(a_vec.u16x8);
         b_bf16x8 = vreinterpretq_bf16_u16(b_vec.u16x8);
         count_scalars = 0;
@@ -129,8 +132,11 @@ NK_INTERNAL void nk_dot_bf16x8_finalize_neonbfdot(                              
 } // extern "C"
 #endif
 
+#if defined(__clang__)
 #pragma clang attribute pop
+#elif defined(__GNUC__)
 #pragma GCC pop_options
+#endif
 #endif // NK_TARGET_NEONBFDOT
 #endif // NK_TARGET_ARM_
 

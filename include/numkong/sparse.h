@@ -9,7 +9,7 @@
  *  - Set intersection for sorted unique arrays → u32 count
  *  - Sparse dot products for weighted sparse vectors → f32 product
  *
- *  For datatypes:
+ *  For dtypes:
  *
  *  - `u16`: indices for vocabularies under 64 thousand tokens
  *  - `u32`: indices for vocabularies under 4 billion tokens
@@ -321,12 +321,12 @@ NK_MAKE_INTERSECT_LINEAR(accurate, u32, size) // nk_intersect_u32_accurate
         *count = (nk_u32_t)intersection_size;                                                                      \
     }
 
-NK_MAKE_INTERSECT_GALLOPING(serial, u16, size)                // nk_intersect_u16_serial
-NK_MAKE_INTERSECT_GALLOPING(serial, u32, size)                // nk_intersect_u32_serial
-NK_MAKE_SPARSE_DOT(serial, u16, bf16, f32, nk_bf16_to_f32)    // nk_sparse_dot_u16bf16_serial
-NK_MAKE_SPARSE_DOT(serial, u32, f32, f32, nk_assign_from_to_) // nk_sparse_dot_u32f32_serial
-NK_MAKE_SPARSE_DOT(accurate, u16, bf16, f64, nk_bf16_to_f64_) // nk_sparse_dot_u16bf16_accurate
-NK_MAKE_SPARSE_DOT(accurate, u32, f32, f64, nk_f32_to_f64_)   // nk_sparse_dot_u32f32_accurate
+NK_MAKE_INTERSECT_GALLOPING(serial, u16, size)                      // nk_intersect_u16_serial
+NK_MAKE_INTERSECT_GALLOPING(serial, u32, size)                      // nk_intersect_u32_serial
+NK_MAKE_SPARSE_DOT(serial, u16, bf16, f32, nk_bf16_to_f32_serial)   // nk_sparse_dot_u16bf16_serial
+NK_MAKE_SPARSE_DOT(serial, u32, f32, f32, nk_assign_from_to_)       // nk_sparse_dot_u32f32_serial
+NK_MAKE_SPARSE_DOT(accurate, u16, bf16, f64, nk_bf16_to_f64_serial) // nk_sparse_dot_u16bf16_accurate
+NK_MAKE_SPARSE_DOT(accurate, u32, f32, f64, nk_assign_from_to_)     // nk_sparse_dot_u32f32_accurate
 
 /*  The AVX-512 implementations are inspired by the "Faster-Than-Native Alternatives
  *  for x86 VP2INTERSECT Instructions" paper by Guille Diez-Canas, 2022.
@@ -343,10 +343,13 @@ NK_MAKE_SPARSE_DOT(accurate, u32, f32, f64, nk_f32_to_f64_)   // nk_sparse_dot_u
  */
 #if NK_TARGET_X86_
 #if NK_TARGET_ICE
-#pragma GCC push_options
-#pragma GCC target("avx2", "avx512f", "avx512vl", "bmi2", "lzcnt", "popcnt", "avx512bw", "avx512vbmi2")
+#if defined(__clang__)
 #pragma clang attribute push(__attribute__((target("avx2,avx512f,avx512vl,bmi2,lzcnt,popcnt,avx512bw,avx512vbmi2"))), \
                              apply_to = function)
+#elif defined(__GNUC__)
+#pragma GCC push_options
+#pragma GCC target("avx2", "avx512f", "avx512vl", "bmi2", "lzcnt", "popcnt", "avx512bw", "avx512vbmi2")
+#endif
 
 /**
  *  @brief  Analogous to `_mm512_2intersect_epi16_mask`, but compatible with Ice Lake CPUs,
@@ -641,18 +644,24 @@ NK_PUBLIC void nk_sparse_dot_u32f32_ice(                  //
     *product = _mm512_reduce_add_ps(product_f32x16) + tail_product;
 }
 
+#if defined(__clang__)
 #pragma clang attribute pop
+#elif defined(__GNUC__)
 #pragma GCC pop_options
+#endif
 #endif // NK_TARGET_ICE
 
 #if NK_TARGET_TURIN
-#pragma GCC push_options
-#pragma GCC target("avx2", "avx512f", "avx512vl", "bmi", "bmi2", "lzcnt", "popcnt", "avx512bw", "avx512vbmi2", \
-                   "avx512bf16", "avx512vnni", "avx512vp2intersect", "avx512dq")
+#if defined(__clang__)
 #pragma clang attribute push(                                                                                                    \
     __attribute__((target(                                                                                                       \
         "avx2,avx512f,avx512vl,bmi,bmi2,lzcnt,popcnt,avx512bw,avx512vbmi2,avx512bf16,avx512vnni,avx512vp2intersect,avx512dq"))), \
     apply_to = function)
+#elif defined(__GNUC__)
+#pragma GCC push_options
+#pragma GCC target("avx2", "avx512f", "avx512vl", "bmi", "bmi2", "lzcnt", "popcnt", "avx512bw", "avx512vbmi2", \
+                   "avx512bf16", "avx512vnni", "avx512vp2intersect", "avx512dq")
+#endif
 
 NK_PUBLIC void nk_intersect_u16_turin(      //
     nk_u16_t const *a, nk_u16_t const *b,   //
@@ -670,8 +679,8 @@ NK_PUBLIC void nk_intersect_u16_turin(      //
     // Broadcast index for last element (hoisted outside loop)
     __m256i const last_idx = _mm256_set1_epi16(15);
     while (a + 16 <= a_end && b + 16 <= b_end) {
-        a_vec.ymm = _mm256_lddqu_si256((__m256i const *)a);
-        b_vec.ymm = _mm256_lddqu_si256((__m256i const *)b);
+        a_vec.ymm = _mm256_loadu_si256((__m256i const *)a);
+        b_vec.ymm = _mm256_loadu_si256((__m256i const *)b);
 
         // Intersect the registers
         __m512i a_i32x16 = _mm512_cvtepu16_epi32(a_vec.ymm);
@@ -759,8 +768,8 @@ NK_PUBLIC void nk_sparse_dot_u16bf16_turin(                 //
     // Broadcast index for last element (hoisted outside loop)
     __m256i const last_idx = _mm256_set1_epi16(15);
     while (a + 16 <= a_end && b + 16 <= b_end) {
-        a_vec.ymm = _mm256_lddqu_si256((__m256i const *)a);
-        b_vec.ymm = _mm256_lddqu_si256((__m256i const *)b);
+        a_vec.ymm = _mm256_loadu_si256((__m256i const *)a);
+        b_vec.ymm = _mm256_loadu_si256((__m256i const *)b);
 
         // Intersecting registers with `_mm512_2intersect_epi16_mask` involves a lot of shuffling
         // and comparisons, so we want to avoid it if the slices don't overlap at all..
@@ -772,13 +781,13 @@ NK_PUBLIC void nk_sparse_dot_u16bf16_turin(                 //
         // If the slices don't overlap, advance the appropriate pointer
         while (a_max < b_min && a + 32 <= a_end) {
             a += 16, a_weights += 16;
-            a_vec.ymm = _mm256_lddqu_si256((__m256i const *)a);
+            a_vec.ymm = _mm256_loadu_si256((__m256i const *)a);
             a_max = a_vec.u16s[15];
         }
         a_min = a_vec.u16s[0];
         while (b_max < a_min && b + 32 <= b_end) {
             b += 16, b_weights += 16;
-            b_vec.ymm = _mm256_lddqu_si256((__m256i const *)b);
+            b_vec.ymm = _mm256_loadu_si256((__m256i const *)b);
             b_max = b_vec.u16s[15];
         }
         b_min = b_vec.u16s[0];
@@ -791,9 +800,9 @@ NK_PUBLIC void nk_sparse_dot_u16bf16_turin(                 //
 
         // Load and shift all the relevant weights to the start of the vector before doing the dot product
         if (a_matches_any_in_b) {
-            __m256i a_weights_bf16x16 = _mm256_lddqu_si256((__m256i const *)a_weights);
+            __m256i a_weights_bf16x16 = _mm256_loadu_si256((__m256i const *)a_weights);
             a_weights_bf16x16 = _mm256_maskz_compress_epi16(a_matches_any_in_b, a_weights_bf16x16);
-            __m256i b_weights_bf16x16 = _mm256_lddqu_si256((__m256i const *)b_weights);
+            __m256i b_weights_bf16x16 = _mm256_loadu_si256((__m256i const *)b_weights);
             b_weights_bf16x16 = _mm256_maskz_compress_epi16(b_matches_any_in_a, b_weights_bf16x16);
             product_f32x8 = _mm256_dpbf16_ps(product_f32x8, (__m256bh)a_weights_bf16x16, (__m256bh)b_weights_bf16x16);
         }
@@ -882,16 +891,22 @@ NK_PUBLIC void nk_sparse_dot_u32f32_turin(                //
     *product = _mm512_reduce_add_ps(product_f32x16) + tail_product;
 }
 
+#if defined(__clang__)
 #pragma clang attribute pop
+#elif defined(__GNUC__)
 #pragma GCC pop_options
+#endif
 #endif // NK_TARGET_TURIN
 #endif // NK_TARGET_X86_
 
 #if NK_TARGET_ARM_
 #if NK_TARGET_NEON
+#if defined(__clang__)
+#pragma clang attribute push(__attribute__((target("arch=armv8-a"))), apply_to = function)
+#elif defined(__GNUC__)
 #pragma GCC push_options
 #pragma GCC target("arch=armv8-a")
-#pragma clang attribute push(__attribute__((target("arch=armv8-a"))), apply_to = function)
+#endif
 
 /**
  *  @brief  Uses `vshrn` to produce a bitmask, similar to `movemask` in SSE.
@@ -1094,8 +1109,11 @@ NK_PUBLIC void nk_intersect_u32_neon(       //
     *count = tail_count + vaddvq_u32(c_counts_u32x4);
 }
 
+#if defined(__clang__)
 #pragma clang attribute pop
+#elif defined(__GNUC__)
 #pragma GCC pop_options
+#endif
 #endif // NK_TARGET_NEON
 
 /*  SVE2 introduces many new integer-oriented instructions, extending some of the NEON functionality
@@ -1121,9 +1139,12 @@ NK_PUBLIC void nk_intersect_u32_neon(       //
  *    https://gist.github.com/zingaburga/805669eb891c820bd220418ee3f0d6bd
  */
 #if NK_TARGET_SVE2
+#if defined(__clang__)
+#pragma clang attribute push(__attribute__((target("arch=armv8.2-a+sve+sve2"))), apply_to = function)
+#elif defined(__GNUC__)
 #pragma GCC push_options
 #pragma GCC target("arch=armv8.2-a+sve+sve2")
-#pragma clang attribute push(__attribute__((target("arch=armv8.2-a+sve+sve2"))), apply_to = function)
+#endif
 
 NK_PUBLIC void nk_intersect_u16_sve2(     //
     nk_u16_t const *a, nk_u16_t const *b, //
@@ -1369,14 +1390,20 @@ NK_PUBLIC void nk_sparse_dot_u32f32_sve2(                 //
     *product = svaddv_f32(svptrue_b32(), product_f32_sve);
 }
 
+#if defined(__clang__)
 #pragma clang attribute pop
+#elif defined(__GNUC__)
 #pragma GCC pop_options
+#endif
 #endif // NK_TARGET_SVE2
 
 #if NK_TARGET_SVE2 && NK_TARGET_SVEBFDOT
+#if defined(__clang__)
+#pragma clang attribute push(__attribute__((target("arch=armv8.6-a+sve+sve2+bf16"))), apply_to = function)
+#elif defined(__GNUC__)
 #pragma GCC push_options
 #pragma GCC target("arch=armv8.6-a+sve+sve2+bf16")
-#pragma clang attribute push(__attribute__((target("arch=armv8.6-a+sve+sve2+bf16"))), apply_to = function)
+#endif
 
 NK_PUBLIC void nk_sparse_dot_u16bf16_sve2(                  //
     nk_u16_t const *a, nk_u16_t const *b,                   //
@@ -1453,8 +1480,11 @@ NK_PUBLIC void nk_sparse_dot_u16bf16_sve2(                  //
     *product = svaddv_f32(svptrue_b32(), product_vec);
 }
 
+#if defined(__clang__)
 #pragma clang attribute pop
+#elif defined(__GNUC__)
 #pragma GCC pop_options
+#endif
 #endif // NK_TARGET_SVE2 && NK_TARGET_SVEBFDOT
 #endif // NK_TARGET_ARM_
 

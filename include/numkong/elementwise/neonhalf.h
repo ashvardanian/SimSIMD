@@ -10,11 +10,15 @@
 
 #if NK_TARGET_ARM_
 #if NK_TARGET_NEONHALF
+#if defined(__clang__)
+#pragma clang attribute push(__attribute__((target("arch=armv8.2-a+simd+fp16"))), apply_to = function)
+#elif defined(__GNUC__)
 #pragma GCC push_options
 #pragma GCC target("arch=armv8.2-a+simd+fp16")
-#pragma clang attribute push(__attribute__((target("arch=armv8.2-a+simd+fp16"))), apply_to = function)
+#endif
 
 #include "numkong/types.h"
+#include "numkong/cast/serial.h" // nk_f32_to_i8_serial
 
 #if defined(__cplusplus)
 extern "C" {
@@ -62,7 +66,7 @@ NK_PUBLIC void nk_wsum_f16_neonhalf(                   //
     nk_f32_t alpha_val = *alpha;
     nk_f32_t beta_val = *beta;
 
-    // There are are several special cases we may want to implement:
+    // There are several special cases we may want to implement:
     // 1. Simple addition, when both weights are equal to 1.0.
     if (alpha_val == 1 && beta_val == 1) {
         // In this case we can avoid expensive multiplications.
@@ -137,7 +141,7 @@ NK_PUBLIC void nk_sum_u8_neonhalf(nk_u8_t const *a, nk_u8_t const *b, nk_size_t 
     // The tail:
     for (; i < n; ++i) {
         nk_f32_t sum = (nk_f32_t)a[i] + b[i];
-        nk_f32_to_u8_(&sum, result + i);
+        nk_f32_to_u8_serial(&sum, result + i);
     }
 }
 
@@ -161,7 +165,7 @@ NK_PUBLIC void nk_scale_u8_neonhalf(nk_u8_t const *a, nk_size_t n, nk_f32_t cons
     // The tail:
     for (; i < n; ++i) {
         nk_f32_t sum = alpha_f16 * a[i] + beta_f16;
-        nk_f32_to_u8_(&sum, result + i);
+        nk_f32_to_u8_serial(&sum, result + i);
     }
 }
 
@@ -172,7 +176,7 @@ NK_PUBLIC void nk_wsum_u8_neonhalf(                  //
     nk_f32_t alpha_val = *alpha;
     nk_f32_t beta_val = *beta;
 
-    // There are are several special cases we may want to implement:
+    // There are several special cases we may want to implement:
     // 1. Simple addition, when both weights are equal to 1.0.
     if (alpha_val == 1 && beta_val == 1) {
         // In this case we can avoid expensive multiplications.
@@ -209,7 +213,7 @@ NK_PUBLIC void nk_wsum_u8_neonhalf(                  //
     // The tail:
     for (; i < n; ++i) {
         nk_f32_t sum = alpha_f16 * a[i] + beta_f16 * b[i];
-        nk_f32_to_u8_(&sum, result + i);
+        nk_f32_to_u8_serial(&sum, result + i);
     }
 }
 
@@ -238,7 +242,7 @@ NK_PUBLIC void nk_fma_u8_neonhalf(                        //
     // The tail:
     for (; i < n; ++i) {
         nk_f32_t sum = alpha_f16 * a[i] * b[i] + beta_f16 * c[i];
-        nk_f32_to_u8_(&sum, result + i);
+        nk_f32_to_u8_serial(&sum, result + i);
     }
 }
 
@@ -255,7 +259,7 @@ NK_PUBLIC void nk_sum_i8_neonhalf(nk_i8_t const *a, nk_i8_t const *b, nk_size_t 
     // The tail:
     for (; i < n; ++i) {
         nk_f32_t sum = (nk_f32_t)a[i] + b[i];
-        nk_f32_to_i8_(&sum, result + i);
+        nk_f32_to_i8_serial(&sum, result + i);
     }
 }
 
@@ -279,7 +283,7 @@ NK_PUBLIC void nk_scale_i8_neonhalf(nk_i8_t const *a, nk_size_t n, nk_f32_t cons
     // The tail:
     for (; i < n; ++i) {
         nk_f32_t sum = alpha_f16 * a[i] + beta_f16;
-        nk_f32_to_i8_(&sum, result + i);
+        nk_f32_to_i8_serial(&sum, result + i);
     }
 }
 
@@ -290,7 +294,7 @@ NK_PUBLIC void nk_wsum_i8_neonhalf(                  //
     nk_f32_t alpha_val = *alpha;
     nk_f32_t beta_val = *beta;
 
-    // There are are several special cases we may want to implement:
+    // There are several special cases we may want to implement:
     // 1. Simple addition, when both weights are equal to 1.0.
     if (alpha_val == 1 && beta_val == 1) {
         // In this case we can avoid expensive multiplications.
@@ -327,7 +331,7 @@ NK_PUBLIC void nk_wsum_i8_neonhalf(                  //
     // The tail:
     for (; i < n; ++i) {
         nk_f32_t sum = alpha_f16 * a[i] + beta_f16 * b[i];
-        nk_f32_to_i8_(&sum, result + i);
+        nk_f32_to_i8_serial(&sum, result + i);
     }
 }
 
@@ -356,7 +360,7 @@ NK_PUBLIC void nk_fma_i8_neonhalf(                        //
     // The tail:
     for (; i < n; ++i) {
         nk_f32_t sum = alpha_f16 * a[i] * b[i] + beta_f16 * c[i];
-        nk_f32_to_i8_(&sum, result + i);
+        nk_f32_to_i8_serial(&sum, result + i);
     }
 }
 
@@ -364,8 +368,11 @@ NK_PUBLIC void nk_fma_i8_neonhalf(                        //
 } // extern "C"
 #endif
 
+#if defined(__clang__)
 #pragma clang attribute pop
+#elif defined(__GNUC__)
 #pragma GCC pop_options
+#endif
 #endif // NK_TARGET_NEONHALF
 #endif // NK_TARGET_ARM_
 

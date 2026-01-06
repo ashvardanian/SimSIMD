@@ -43,7 +43,7 @@
 #else
 #define NK_PUBLIC   inline static
 #define NK_INTERNAL inline static
-#endif
+#endif // defined(__GNUC__) || defined(__clang__)
 
 #if NK_DYNAMIC_DISPATCH
 #if defined(_WIN32) || defined(__CYGWIN__)
@@ -55,7 +55,7 @@
 #endif
 #else
 #define NK_DYNAMIC NK_PUBLIC
-#endif
+#endif // NK_DYNAMIC_DISPATCH
 
 // Compiling for Arm: NK_TARGET_ARM_
 #if !defined(NK_TARGET_ARM_)
@@ -74,6 +74,47 @@
 #define NK_TARGET_X86_ 0
 #endif // defined(__x86_64__) || defined(_M_X64)
 #endif // !defined(NK_TARGET_X86_)
+
+// Compiling for RISC-V: NK_TARGET_RISCV_
+#if !defined(NK_TARGET_RISCV_)
+#if defined(__riscv) && (__riscv_xlen == 64)
+#define NK_TARGET_RISCV_ 1
+#else
+#define NK_TARGET_RISCV_ 0
+#endif // defined(__riscv) && (__riscv_xlen == 64)
+#endif // !defined(NK_TARGET_RISCV_)
+
+// Compiling for RISC-V Vector: NK_TARGET_SPACEMIT
+#if !defined(NK_TARGET_SPACEMIT) || (NK_TARGET_SPACEMIT && !NK_TARGET_RISCV_)
+#if defined(__riscv_v) && (__riscv_v >= 1000000)
+#define NK_TARGET_SPACEMIT NK_TARGET_RISCV_
+#else
+#undef NK_TARGET_SPACEMIT
+#define NK_TARGET_SPACEMIT 0
+#endif // defined(__riscv_v) && (__riscv_v >= 1000000)
+#endif // !defined(NK_TARGET_SPACEMIT) || ...
+
+// Compiling for RISC-V Vector with Zvfh (f16): NK_TARGET_SIFIVE
+// Requires GCC 14+ or Clang 18+ for full intrinsic support
+#if !defined(NK_TARGET_SIFIVE) || (NK_TARGET_SIFIVE && !NK_TARGET_SPACEMIT)
+#if defined(__riscv_zvfh) && (__riscv_zvfh > 0)
+#define NK_TARGET_SIFIVE NK_TARGET_SPACEMIT
+#else
+#undef NK_TARGET_SIFIVE
+#define NK_TARGET_SIFIVE 0
+#endif // defined(__riscv_zvfh) && (__riscv_zvfh > 0)
+#endif // !defined(NK_TARGET_SIFIVE) || ...
+
+// Compiling for RISC-V Vector with Zvfbfwma (bf16 widening FMA): NK_TARGET_XUANTIE
+// Requires GCC 14+ or Clang 18+ for full intrinsic support
+#if !defined(NK_TARGET_XUANTIE) || (NK_TARGET_XUANTIE && !NK_TARGET_SPACEMIT)
+#if defined(__riscv_zvfbfwma) && (__riscv_zvfbfwma > 0)
+#define NK_TARGET_XUANTIE NK_TARGET_SPACEMIT
+#else
+#undef NK_TARGET_XUANTIE
+#define NK_TARGET_XUANTIE 0
+#endif // defined(__riscv_zvfbfwma) && (__riscv_zvfbfwma > 0)
+#endif // !defined(NK_TARGET_XUANTIE) || ...
 
 // Compiling for Arm: NK_TARGET_NEON
 #if !defined(NK_TARGET_NEON) || (NK_TARGET_NEON && !NK_TARGET_ARM_)
@@ -250,6 +291,7 @@
 #define NK_TARGET_SKYLAKE 0
 #endif
 #endif // !defined(NK_TARGET_SKYLAKE) || ...
+
 #if !defined(NK_TARGET_ICE) || (NK_TARGET_ICE && !NK_TARGET_X86_)
 #if defined(__AVX512VNNI__) && defined(__AVX512IFMA__) && defined(__AVX512BITALG__) && defined(__AVX512VBMI2__) && \
     defined(__AVX512VPOPCNTDQ__)
@@ -259,6 +301,7 @@
 #define NK_TARGET_ICE 0
 #endif
 #endif // !defined(NK_TARGET_ICE) || ...
+
 #if !defined(NK_TARGET_GENOA) || (NK_TARGET_GENOA && !NK_TARGET_X86_)
 #if defined(__AVX512BF16__)
 #define NK_TARGET_GENOA 1
@@ -267,6 +310,7 @@
 #define NK_TARGET_GENOA 0
 #endif
 #endif // !defined(NK_TARGET_GENOA) || ...
+
 #if !defined(NK_TARGET_SAPPHIRE) || (NK_TARGET_SAPPHIRE && !NK_TARGET_X86_)
 #if defined(__AVX512FP16__)
 #define NK_TARGET_SAPPHIRE 1
@@ -275,6 +319,7 @@
 #define NK_TARGET_SAPPHIRE 0
 #endif
 #endif // !defined(NK_TARGET_SAPPHIRE) || ...
+
 #if !defined(NK_TARGET_SAPPHIRE_AMX) || (NK_TARGET_SAPPHIRE_AMX && !NK_TARGET_X86_)
 #if defined(__AMX_TILE__) && defined(__AMX_BF16__) && defined(__AMX_INT8__)
 #define NK_TARGET_SAPPHIRE_AMX 1
@@ -283,6 +328,7 @@
 #define NK_TARGET_SAPPHIRE_AMX 0
 #endif
 #endif // !defined(NK_TARGET_SAPPHIRE_AMX) || ...
+
 #if !defined(NK_TARGET_GRANITE_AMX) || (NK_TARGET_GRANITE_AMX && !NK_TARGET_X86_)
 #if defined(__AMX_TILE__) && defined(__AMX_FP16__)
 #define NK_TARGET_GRANITE_AMX 1
@@ -291,6 +337,7 @@
 #define NK_TARGET_GRANITE_AMX 0
 #endif
 #endif // !defined(NK_TARGET_GRANITE_AMX) || ...
+
 #if !defined(NK_TARGET_TURIN) || (NK_TARGET_TURIN && !NK_TARGET_X86_)
 #if defined(__AVX512VP2INTERSECT__)
 #define NK_TARGET_TURIN 1
@@ -299,6 +346,7 @@
 #define NK_TARGET_TURIN 0
 #endif
 #endif // !defined(NK_TARGET_TURIN) || ...
+
 #if !defined(NK_TARGET_SIERRA) || (NK_TARGET_SIERRA && !NK_TARGET_X86_)
 #if defined(__AVX2_VNNI__)
 #define NK_TARGET_SIERRA 1
@@ -308,72 +356,20 @@
 #endif
 #endif // !defined(NK_TARGET_SIERRA) || ...
 
+// Include the relevant intrinsics file - different for different OSes and ISAs
 #if defined(_MSC_VER)
 #include <intrin.h>
-#else
-
+#elif NK_TARGET_ARM_
 #if NK_TARGET_NEON
 #include <arm_neon.h>
 #endif
-
 #if NK_TARGET_SVE || NK_TARGET_SVE2
 #include <arm_sve.h>
 #endif
-
-#if NK_TARGET_HASWELL || NK_TARGET_SKYLAKE || NK_TARGET_ICE || NK_TARGET_GENOA || NK_TARGET_SAPPHIRE || NK_TARGET_TURIN
+#elif NK_TARGET_HASWELL || NK_TARGET_SKYLAKE
 #include <immintrin.h>
-#endif
-
-#endif
-
-#if !defined(NK_F32_SQRT)
-#include <math.h>
-#define NK_F32_SQRT(x) (sqrtf(x))
-#endif
-
-#if !defined(NK_F32_RSQRT)
-#include <math.h>
-#define NK_F32_RSQRT(x) (1 / NK_F32_SQRT(x))
-#endif
-
-#if !defined(NK_F64_SQRT)
-#include <math.h>
-#define NK_F64_SQRT(x) (sqrt(x))
-#endif
-
-#if !defined(NK_F64_RSQRT)
-#include <math.h>
-#define NK_F64_RSQRT(x) (1 / NK_F64_SQRT(x))
-#endif
-
-#if !defined(NK_F32_LOG)
-#include <math.h>
-#define NK_F32_LOG(x) (logf(x))
-#endif
-
-#if !defined(NK_F64_LOG)
-#include <math.h>
-#define NK_F64_LOG(x) (log(x))
-#endif
-
-#if !defined(NK_F32_TAN)
-#include <math.h>
-#define NK_F32_TAN(x) (tanf(x))
-#endif
-
-#if !defined(NK_F64_TAN)
-#include <math.h>
-#define NK_F64_TAN(x) (tan(x))
-#endif
-
-#if !defined(NK_F32_ABS)
-#include <math.h>
-#define NK_F32_ABS(x) (fabsf(x))
-#endif
-
-#if !defined(NK_F64_ABS)
-#include <math.h>
-#define NK_F64_ABS(x) (fabs(x))
+#elif NK_TARGET_SPACEMIT
+#include <riscv_vector.h>
 #endif
 
 #if !defined(NK_F64_DIVISION_EPSILON)
@@ -389,11 +385,11 @@
 #endif
 
 /**
- *  @brief  The compile-time constant defining the capacity of `nk_xd_index_t`.
+ *  @brief  The compile-time constant defining the capacity of `nk_tensor_position_t`.
  *          Matches `PyBUF_MAX_NDIM` by default.
  */
-#if !defined(NK_NDARRAY_MAX_RANK)
-#define NK_NDARRAY_MAX_RANK (64)
+#if !defined(NK_TENSOR_MAX_RANK)
+#define NK_TENSOR_MAX_RANK (64)
 #endif
 
 /**
@@ -438,8 +434,9 @@
 extern "C" {
 #endif
 
-typedef unsigned char nk_b8_t;   /// ? Eight boolean values packed in one byte
+typedef unsigned char nk_u1x8_t; /// ? Eight boolean values packed in one byte
 typedef unsigned char nk_i4x2_t; /// ? Two 4-bit signed integers packed in one byte
+typedef unsigned char nk_u4x2_t; /// ? Two 4-bit unsigned integers packed in one byte
 typedef unsigned char nk_e4m3_t; /// ? FP8 E4M3 value encoded into one byte
 typedef unsigned char nk_e5m2_t; /// ? FP8 E5M2 value encoded into one byte
 
@@ -475,18 +472,36 @@ typedef nk_f64_t nk_fmax_t;
 #define NK_I64_MAX 9223372036854775807LL
 #define NK_I64_MIN (-9223372036854775807LL - 1LL)
 #define NK_U64_MAX 18446744073709551615ULL
+#define NK_U64_MIN 0x0ULL
 
 #define NK_I32_MAX 2147483647
 #define NK_I32_MIN (-2147483647 - 1)
 #define NK_U32_MAX 4294967295U
+#define NK_U32_MIN 0x0U
 
 #define NK_I16_MAX 32767
 #define NK_I16_MIN (-32767 - 1)
 #define NK_U16_MAX 65535U
+#define NK_U16_MIN 0x0U
 
 #define NK_I8_MAX 127
 #define NK_I8_MIN (-127 - 1)
 #define NK_U8_MAX 255U
+#define NK_U8_MIN 0x0U
+
+#define NK_F16_MAX 0x7BFF // IEEE 754 binary16: +65504.0
+#define NK_F16_MIN 0xFBFF // IEEE 754 binary16: -65504.0
+
+#define NK_BF16_MAX 0x7F7F // BFloat16: ~+3.39e38
+#define NK_BF16_MIN 0xFF7F // BFloat16: ~-3.39e38
+
+#define NK_E4M3_MAX 0x7E // FP8 E4M3: +448.0
+#define NK_E4M3_MIN 0xFE // FP8 E4M3: -448.0
+
+#define NK_E5M2_MAX 0x7B // FP8 E5M2: +57344.0
+#define NK_E5M2_MIN 0xFB // FP8 E5M2: -57344.0
+
+#define NK_BITS_PER_BYTE 8
 
 /**
  *  @brief  Enumeration of supported scalar data types.
@@ -496,10 +511,8 @@ typedef nk_f64_t nk_fmax_t;
  *  interfaces.
  */
 typedef enum {
-    nk_datatype_unknown_k = 0, ///< Unknown data type
-    nk_b8_k = 1 << 1,          ///< Single-bit values packed into 8-bit words
-    nk_b1x8_k = nk_b8_k,       ///< Single-bit values packed into 8-bit words
-    nk_i4x2_k = 1 << 19,       ///< 4-bit signed integers packed into 8-bit words
+    nk_dtype_unknown_k = 0, ///< Unknown data type
+    nk_u1_k = 1 << 1,       ///< Single-bit values packed into 8-bit words
 
     nk_i8_k = 1 << 2,  ///< 8-bit signed integer
     nk_i16_k = 1 << 3, ///< 16-bit signed integer
@@ -518,19 +531,84 @@ typedef enum {
 
     nk_e4m3_k = 1 << 14, ///< FP8 E4M3 floating point
     nk_e5m2_k = 1 << 15, ///< FP8 E5M2 floating point
+    nk_i4_k = 1 << 16,   ///< 4-bit signed integers packed into 8-bit words
+    nk_u4_k = 1 << 17,   ///< 4-bit unsigned integers packed into 8-bit words
 
     nk_f64c_k = 1 << 20,  ///< Complex double precision floating point
     nk_f32c_k = 1 << 21,  ///< Complex single precision floating point
     nk_f16c_k = 1 << 22,  ///< Complex half precision floating point
     nk_bf16c_k = 1 << 23, ///< Complex brain floating point
-} nk_datatype_t;
+} nk_dtype_t;
+
+typedef enum {
+    nk_dtype_family_unknown_k = 0,
+    nk_dtype_family_float_k,
+    nk_dtype_family_complex_float_k,
+    nk_dtype_family_int_k,
+    nk_dtype_family_uint_k,
+} nk_dtype_family_k;
+
+/** @brief Classifies the family of the dtype. */
+NK_PUBLIC nk_dtype_family_k nk_dtype_family(nk_dtype_t dtype) {
+    switch (dtype) {
+    case nk_f64_k: return nk_dtype_family_float_k;
+    case nk_f32_k: return nk_dtype_family_float_k;
+    case nk_f16_k: return nk_dtype_family_float_k;
+    case nk_bf16_k: return nk_dtype_family_float_k;
+    case nk_e4m3_k: return nk_dtype_family_float_k;
+    case nk_e5m2_k: return nk_dtype_family_float_k;
+    case nk_f64c_k: return nk_dtype_family_complex_float_k;
+    case nk_f32c_k: return nk_dtype_family_complex_float_k;
+    case nk_f16c_k: return nk_dtype_family_complex_float_k;
+    case nk_bf16c_k: return nk_dtype_family_complex_float_k;
+    case nk_u1_k: return nk_dtype_family_uint_k;
+    case nk_u4_k: return nk_dtype_family_uint_k;
+    case nk_u8_k: return nk_dtype_family_uint_k;
+    case nk_u16_k: return nk_dtype_family_uint_k;
+    case nk_u32_k: return nk_dtype_family_uint_k;
+    case nk_u64_k: return nk_dtype_family_uint_k;
+    case nk_i4_k: return nk_dtype_family_int_k;
+    case nk_i8_k: return nk_dtype_family_int_k;
+    case nk_i16_k: return nk_dtype_family_int_k;
+    case nk_i32_k: return nk_dtype_family_int_k;
+    case nk_i64_k: return nk_dtype_family_int_k;
+    default: return nk_dtype_family_unknown_k;
+    }
+}
+
+/** @brief Returns the number of bits in a single scalar of a given type. */
+NK_PUBLIC nk_size_t nk_dtype_bits(nk_dtype_t dtype) {
+    switch (dtype) {
+    case nk_f64_k: return 64;
+    case nk_f32_k: return 32;
+    case nk_f16_k: return 16;
+    case nk_bf16_k: return 16;
+    case nk_e4m3_k: return 8;
+    case nk_e5m2_k: return 8;
+    case nk_f64c_k: return 128;
+    case nk_f32c_k: return 64;
+    case nk_f16c_k: return 32;
+    case nk_bf16c_k: return 32;
+    case nk_u1_k: return 1;
+    case nk_u4_k: return 4;
+    case nk_u8_k: return 8;
+    case nk_u16_k: return 16;
+    case nk_u32_k: return 32;
+    case nk_u64_k: return 64;
+    case nk_i4_k: return 4;
+    case nk_i8_k: return 8;
+    case nk_i16_k: return 16;
+    case nk_i32_k: return 32;
+    case nk_i64_k: return 64;
+    default: return 0;
+    }
+}
 
 /*  @brief  Half-precision floating-point type.
  *
  *  - GCC or Clang on 64-bit Arm: `__fp16`, may require `-mfp16-format` option.
  *  - GCC or Clang on 64-bit x86: `_Float16`.
  *  - Default: `unsigned short`.
- *
  */
 #if !defined(NK_NATIVE_F16) || NK_NATIVE_F16
 #if (defined(__GNUC__) || defined(__clang__)) && (defined(__ARM_ARCH) || defined(__aarch64__)) && \
@@ -623,13 +701,22 @@ typedef unsigned short nk_bf16_t;
 #endif
 #endif
 
+/**
+ *  RISC-V Vector (RVV) intrinsics use `_Float16` for half-precision floats.
+ *  This is the standard C23 type, also available in GCC/Clang with RVV extensions.
+ */
+#if NK_TARGET_RISCV_
+#define nk_f16_for_rvv_intrinsics_t _Float16
+#endif
+
 /*
  *  Let's make sure the sizes of the types are as expected.
  *  In C the `_Static_assert` is only available with C11 and later.
  */
 #define NK_STATIC_ASSERT(cond, msg) typedef char static_assertion_##msg[(cond) ? 1 : -1]
-NK_STATIC_ASSERT(sizeof(nk_b8_t) == 1, nk_b8_t_must_be_1_byte);
-NK_STATIC_ASSERT(sizeof(nk_i4x2_t) == 1, nk_i4x2_t_must_be_1_byte);
+NK_STATIC_ASSERT(sizeof(nk_u1x8_t) == 1, nk_u1x8_t_must_be_1_byte);
+NK_STATIC_ASSERT(sizeof(nk_i4x2_t) == 1, nk_i4_t_must_be_1_byte);
+NK_STATIC_ASSERT(sizeof(nk_u4x2_t) == 1, nk_u4_t_must_be_1_byte);
 NK_STATIC_ASSERT(sizeof(nk_e4m3_t) == 1, nk_e4m3_t_must_be_1_byte);
 NK_STATIC_ASSERT(sizeof(nk_e5m2_t) == 1, nk_e5m2_t_must_be_1_byte);
 NK_STATIC_ASSERT(sizeof(nk_i8_t) == 1, nk_i8_t_must_be_1_byte);
@@ -700,11 +787,11 @@ typedef union nk_b64_vec_t {
     nk_u8_t u8s[8];
     nk_u16_t u16s[4];
     nk_u32_t u32s[2];
-    nk_u64_t u64s[1];
+    nk_u64_t u64;
     nk_i8_t i8s[8];
     nk_i16_t i16s[4];
     nk_i32_t i32s[2];
-    nk_i64_t i64s[1];
+    nk_i64_t i64;
     nk_f16_t f16s[4];
     nk_bf16_t bf16s[4];
     nk_f32_t f32s[2];
@@ -743,7 +830,6 @@ typedef union nk_b128_vec_t {
     nk_e5m2_t e5m2s[16];
     nk_f32_t f32s[4];
     nk_f64_t f64s[2];
-    nk_b8_t b8s[16];
 } nk_b128_vec_t;
 
 /** @brief  Small 32-byte memory slice viewable as different types. */
@@ -780,7 +866,6 @@ typedef union nk_b256_vec_t {
     nk_e5m2_t e5m2s[32];
     nk_f32_t f32s[8];
     nk_f64_t f64s[4];
-    nk_b8_t b8s[32];
 } nk_b256_vec_t;
 
 /** @brief  Small 64-byte memory slice viewable as different types.
@@ -824,843 +909,7 @@ typedef union nk_b512_vec_t {
     nk_f64_t f64s[8];
     nk_e4m3_t e4m3s[64];
     nk_e5m2_t e5m2s[64];
-    nk_b8_t b8s[64];
 } nk_b512_vec_t;
-
-/**
- *  @brief  Computes `1/sqrt(x)` using the trick from Quake 3,
- *          replacing the magic numbers with the ones suggested by Jan Kadlec.
- *
- *  Subsequent additions by hardware manufacturers have made this algorithm redundant for the most part.
- *  For example, on x86, Intel introduced the SSE instruction `rsqrtss` in 1999. In a 2009 benchmark on
- *  the Intel Core 2, this instruction took 0.85ns per float compared to 3.54ns for the fast inverse
- *  square root algorithm, and had less error. Carmack's Magic Number `rsqrt` had an average error
- *  of 0.0990%, while SSE `rsqrtss` had 0.0094%, a 10x improvement.
- *
- *  https://web.archive.org/web/20210208132927/http://assemblyrequired.crashworks.org/timing-square-root/
- *  https://stackoverflow.com/a/41460625/2766161
- */
-NK_INTERNAL nk_f32_t nk_f32_approximate_inverse_square_root(nk_f32_t number) {
-    nk_fui32_t conv;
-    conv.f = number;
-    conv.u = 0x5F1FFFF9 - (conv.u >> 1);
-    // Refine using a Newton-Raphson step for better accuracy
-    conv.f *= 0.703952253f * (2.38924456f - number * conv.f * conv.f);
-    return conv.f;
-}
-
-/**
- *  @brief  Approximates `sqrt(x)` using the fast inverse square root trick
- *          with adjustments for direct square root approximation.
- *
- *  Similar to `rsqrt` approximation but multiplies by `number` to get `sqrt`.
- *  This technique is useful where `sqrt` approximation is needed in performance-critical code,
- *  though modern hardware provides optimized alternatives.
- */
-NK_INTERNAL nk_f32_t nk_f32_approximate_square_root(nk_f32_t number) {
-    return number * nk_f32_approximate_inverse_square_root(number);
-}
-
-/**
- *  @brief  Computes `log(x)` using the Mercator series.
- *          The series converges to the natural logarithm for args between -1 and 1.
- *          Published in 1668 in "Logarithmotechnia".
- */
-NK_INTERNAL nk_f32_t nk_f32_approximate_log(nk_f32_t number) {
-    nk_f32_t x = number - 1;
-    nk_f32_t x2 = x * x;
-    nk_f32_t x3 = x * x * x;
-    return x - x2 / 2 + x3 / 3;
-}
-
-/**
- *  @brief  Expands an `f16` (IEEE-754 16-bit) to a `float`.
- *
- *  Handles all IEEE-754 edge cases:
- *
- *       Input        F16 Hex   F32 Hex       Description
- *       +0           0x0000    0x00000000    Positive zero
- *       -0           0x8000    0x80000000    Negative zero
- *       +inf         0x7C00    0x7F800000    Positive infinity
- *       -inf         0xFC00    0xFF800000    Negative infinity
- *       NaN          0x7E00    0x7FC00000    Quiet NaN (payload preserved)
- *       Min normal   0x0400    0x38800000    2^-14
- *       Max normal   0x7BFF    0x477FE000    65504
- *       Min denorm   0x0001    0x33800000    2^-24
- *       Max denorm   0x03FF    0x387FC000    2^-14 - 2^-24
- *
- *  https://stackoverflow.com/a/60047308
- *  https://gist.github.com/milhidaka/95863906fe828198f47991c813dbe233
- *  https://github.com/OpenCyphal/libcanard/blob/636795f4bc395f56af8d2c61d3757b5e762bb9e5/canard.c#L811-L834
- */
-NK_INTERNAL void nk_f16_to_f32_(nk_f16_t const *src, nk_f32_t *dest) {
-#if NK_NATIVE_F16
-    *dest = (nk_f32_t)(*src);
-#else
-    unsigned short x;
-    nk_copy_bytes_(&x, src, 2);
-
-    unsigned int sign = (x >> 15) & 1;
-    unsigned int exponent = (x >> 10) & 0x1F;
-    unsigned int mantissa = x & 0x03FF;
-
-    nk_fui32_t conv;
-
-    if (exponent == 0) {
-        if (mantissa == 0) {
-            // Zero (preserve sign)
-            conv.u = sign << 31;
-        }
-        else {
-            // Denormal: value = mantissa * 2^-24
-            // Use FPU normalization, then subtract 24 from exponent
-            nk_fui32_t temp;
-            temp.f = (float)mantissa;
-            conv.u = (sign << 31) | (temp.u - 0x0C000000);
-        }
-    }
-    else if (exponent == 31) {
-        // Infinity (mantissa=0) or NaN (mantissa!=0)
-        conv.u = (sign << 31) | 0x7F800000 | (mantissa << 13);
-    }
-    else {
-        // Normal: rebias exponent (127-15=112), shift mantissa
-        conv.u = (sign << 31) | ((exponent + 112) << 23) | (mantissa << 13);
-    }
-
-    *dest = conv.f;
-#endif
-}
-
-/**
- *  @brief  Compresses a `float` to an `f16` (IEEE-754 16-bit).
- *
- *  Handles all IEEE-754 edge cases with round-to-nearest:
- *
- *      Input           F32 Hex       F16 Hex   Description
- *      +0              0x00000000    0x0000    Positive zero
- *      -0              0x80000000    0x8000    Negative zero
- *      +inf            0x7F800000    0x7C00    Positive infinity
- *      -inf            0xFF800000    0xFC00    Negative infinity
- *      NaN             0x7FC00000    0x7E00    Quiet NaN (payload truncated)
- *      1.0             0x3F800000    0x3C00    Normal number
- *      65504           0x477FE000    0x7BFF    Max f16 normal
- *      65520+          >0x477FE000   0x7C00    Overflow -> infinity
- *      2^-14           0x38800000    0x0400    Min f16 normal
- *      2^-24           0x33800000    0x0001    Min f16 denormal
- *      <2^-25          <0x33000000   0x0000    Underflow -> zero
- *
- *  https://stackoverflow.com/a/60047308
- *  https://gist.github.com/milhidaka/95863906fe828198f47991c813dbe233
- *  https://github.com/OpenCyphal/libcanard/blob/636795f4bc395f56af8d2c61d3757b5e762bb9e5/canard.c#L811-L834
- */
-NK_INTERNAL void nk_f32_to_f16_(nk_f32_t const *src, nk_f16_t *dest) {
-#if NK_NATIVE_F16
-    *dest = (nk_f16_t)(*src);
-#else
-    nk_fui32_t conv;
-    conv.f = *src;
-
-    unsigned int sign = (conv.u >> 31) & 1;
-    unsigned int exponent = (conv.u >> 23) & 0xFF;
-    unsigned int mantissa = conv.u & 0x007FFFFF;
-
-    unsigned short result;
-
-    if (exponent == 0) {
-        // Zero or f32 denormal -> f16 zero
-        result = (unsigned short)(sign << 15);
-    }
-    else if (exponent == 255) {
-        // Infinity or NaN
-        unsigned short payload = (unsigned short)(mantissa >> 13);
-        if (mantissa != 0 && payload == 0) payload = 1; // Preserve NaN-ness
-        result = (unsigned short)((sign << 15) | 0x7C00 | payload);
-    }
-    else if (exponent < 103) {
-        // Too small for f16 denormal -> zero
-        result = (unsigned short)(sign << 15);
-    }
-    else if (exponent < 113) {
-        // F16 denormal range
-        unsigned int shift = 113 - exponent;
-        unsigned int mant = (0x00800000 | mantissa) >> (shift + 13);
-        result = (unsigned short)((sign << 15) | mant);
-    }
-    else if (exponent < 143) {
-        // Normal f16 range with rounding
-        unsigned int f16_exp = exponent - 112;
-        unsigned int f16_mant = mantissa >> 13;
-        if (mantissa & 0x1000) { // Round to nearest
-            f16_mant++;
-            if (f16_mant > 0x3FF) {
-                f16_mant = 0;
-                f16_exp++;
-            }
-        }
-        if (f16_exp > 30) result = (unsigned short)((sign << 15) | 0x7C00);
-        else result = (unsigned short)((sign << 15) | (f16_exp << 10) | f16_mant);
-    }
-    else {
-        // Overflow -> infinity
-        result = (unsigned short)((sign << 15) | 0x7C00);
-    }
-
-    nk_copy_bytes_(dest, &result, 2);
-#endif
-}
-
-/**
- *  @brief  For compilers that don't natively support the `__bf16` type,
- *          upcasts contents into a more conventional `float`.
- *
- *  https://stackoverflow.com/questions/55253233/convert-fp32-to-bfloat16-in-c/55254307#55254307
- *  https://cloud.google.com/blog/products/ai-machine-learning/bfloat16-the-secret-to-high-performance-on-cloud-tpus
- */
-NK_INTERNAL void nk_bf16_to_f32_(nk_bf16_t const *src, nk_f32_t *dest) {
-#if NK_NATIVE_BF16
-    *dest = (nk_f32_t)(*src);
-#else
-    unsigned short x;
-    nk_copy_bytes_(&x, src, 2);
-    nk_fui32_t conv;
-    conv.u = x << 16; // Zero extends the mantissa
-    *dest = conv.f;
-#endif
-}
-
-/**
- *  @brief  Compresses a `float` to a `bf16` representation.
- *
- *  https://stackoverflow.com/questions/55253233/convert-fp32-to-bfloat16-in-c/55254307#55254307
- *  https://cloud.google.com/blog/products/ai-machine-learning/bfloat16-the-secret-to-high-performance-on-cloud-tpus
- */
-NK_INTERNAL void nk_f32_to_bf16_(nk_f32_t const *src, nk_bf16_t *dest) {
-#if NK_NATIVE_BF16
-    *dest = (nk_bf16_t)(*src);
-#else
-    nk_fui32_t conv;
-    conv.f = *src;
-    conv.u += 0x8000; // Rounding is optional
-    conv.u >>= 16;
-    // Use an intermediate variable to ensure correct behavior on big-endian systems.
-    // Copying directly from `&conv.u` would copy the wrong bytes on big-endian,
-    // since the lower 16 bits are at offset 2, not offset 0.
-    unsigned short result = (unsigned short)conv.u;
-    nk_copy_bytes_(dest, &result, 2);
-#endif
-}
-
-/**
- *  @brief  Convert FP8 E4M3 to IEEE 754 single-precision float.
- *
- *  E4M3 (FP8) format: 1 sign bit, 4 exponent bits (bias=7), 3 mantissa bits.
- *  Range: [-448, +448], no infinity, only two NaN encodings (0x7F, 0xFF).
- *  Subnormal values: (-1)^S * mantissa * 2^(-9) = mantissa / 512.
- *
- *  Special value mappings (E4M3 -> F32):
- *      Input        E4M3 Hex  F32 Hex       Description
- *      +0           0x00      0x00000000    Positive zero
- *      -0           0x80      0x80000000    Negative zero
- *      +NaN         0x7F      0x7FC00000    Quiet NaN (exp=15, mant!=0)
- *      -NaN         0xFF      0xFFC00000    Quiet NaN (signed)
- *      +448 (max)   0x7E      0x43E00000    Max normal = 448
- *      -448         0xFE      0xC3E00000    Min normal = -448
- *      1.0          0x38      0x3F800000    Normal (exp=7, mant=0)
- *      Min denorm   0x01      0x3B000000    1/512 = 2^(-9)
- *      Max denorm   0x07      0x3BE00000    7/512 = 7 * 2^(-9)
- *
- *  References:
- *      https://arxiv.org/pdf/2209.05433 (NVIDIA/Intel/Arm FP8 paper)
- *      https://www.opencompute.org/documents/ocp-8-bit-floating-point-specification-ofp8-revision-1-0-2023-12-01-pdf-1
- *      https://onnx.ai/onnx/technical/float8.html
- */
-NK_INTERNAL void nk_e4m3_to_f32_(nk_e4m3_t const *src, nk_f32_t *dest) {
-    nk_u8_t raw = *src;
-    nk_u32_t sign = (nk_u32_t)(raw & 0x80) << 24;
-    nk_u32_t exponent = (raw >> 3) & 0x0Fu;
-    nk_u32_t mantissa = raw & 0x07u;
-    nk_fui32_t conv;
-
-    if (exponent == 0) {
-        if (mantissa == 0) {
-            conv.u = sign;
-            *dest = conv.f;
-            return;
-        }
-        nk_f32_t value = (nk_f32_t)mantissa * (1.0f / 512.0f);
-        *dest = sign ? -value : value;
-        return;
-    }
-    if (exponent == 0x0Fu) {
-        if (mantissa == 0) { conv.u = sign | 0x7F800000u; }
-        else { conv.u = sign | 0x7FC00000u; }
-        *dest = conv.f;
-        return;
-    }
-
-    nk_u32_t f32_exponent = (exponent + 120u) << 23;
-    nk_u32_t f32_mantissa = mantissa << 20;
-    conv.u = sign | f32_exponent | f32_mantissa;
-    *dest = conv.f;
-}
-
-/**
- *  @brief  Convert IEEE 754 single-precision float to FP8 E4M3.
- *
- *  E4M3 (FP8) format: 1 sign bit, 4 exponent bits (bias=7), 3 mantissa bits.
- *  Range: [-448, +448], no infinity, only two NaN encodings.
- *  Rounding: RNE (Round to Nearest Even) per IEEE 754 / OCP FP8 spec.
- *  Subnormal threshold: values with |x| < 2^(-6) use subnormal encoding.
- *
- *  Special value mappings (F32 -> E4M3):
- *      Input        F32 Hex       E4M3 Hex  Description
- *      +0           0x00000000    0x00      Positive zero
- *      -0           0x80000000    0x80      Negative zero
- *      +inf         0x7F800000    0x7E      Saturates to max (+448)
- *      -inf         0xFF800000    0xFE      Saturates to min (-448)
- *      NaN          0x7FC00000    0x7F      Quiet NaN
- *      1.0          0x3F800000    0x38      Normal (exp=7, mant=0)
- *      448+         >0x43E00000   0x7E      Overflow -> max
- *      2^(-6)       0x3E800000    0x08      Min normal
- *      <2^(-12.5)   <0x39800000   0x00      Underflow -> zero (RNE boundary)
- *
- *  References:
- *      https://arxiv.org/pdf/2209.05433 (NVIDIA/Intel/Arm FP8 paper)
- *      https://www.opencompute.org/documents/ocp-8-bit-floating-point-specification-ofp8-revision-1-0-2023-12-01-pdf-1
- *      https://onnx.ai/onnx/technical/float8.html
- */
-NK_INTERNAL void nk_f32_to_e4m3_(nk_f32_t const *src, nk_e4m3_t *dest) {
-    nk_f32_t x = *src;
-    nk_fui32_t conv;
-    conv.f = x;
-    nk_u32_t sign_bit = conv.u >> 31;
-    nk_u32_t abs_bits = conv.u & 0x7FFFFFFFu;
-    nk_u8_t sign = (nk_u8_t)(sign_bit << 7);
-
-    if (abs_bits >= 0x7F800000u) {
-        nk_u8_t mant = (abs_bits > 0x7F800000u) ? 0x01u : 0x00u;
-        *dest = (nk_e4m3_t)(sign | 0x78u | mant);
-        return;
-    }
-
-    if (abs_bits == 0) {
-        *dest = (nk_e4m3_t)sign;
-        return;
-    }
-
-    nk_f32_t abs_x = sign_bit ? -x : x;
-
-    // Subnormal range: [0, 1/64). Use RNE rounding via scaled * 512.
-    // The RNE boundary between 0 and 1/512 is at 0.5/512, not 1/512.
-    if (abs_x < (1.0f / 64.0f)) {
-        nk_f32_t scaled = abs_x * 512.0f;
-        nk_i32_t mant = (nk_i32_t)scaled;
-        nk_f32_t frac = scaled - (nk_f32_t)mant;
-        if (frac > 0.5f || (frac == 0.5f && (mant & 1))) { ++mant; }
-        // If rounds to 8, promote to first normal (exp_field=1, mantissa=0)
-        if (mant > 7) {
-            *dest = (nk_e4m3_t)(sign | 0x08u);
-            return;
-        }
-        if (mant == 0) { *dest = (nk_e4m3_t)sign; }
-        else { *dest = (nk_e4m3_t)(sign | (nk_u8_t)mant); }
-        return;
-    }
-
-    nk_i32_t exp = (nk_i32_t)((abs_bits >> 23) & 0xFFu) - 127;
-    nk_u32_t mantissa = abs_bits & 0x7FFFFFu;
-    nk_u32_t significand = (1u << 23) | mantissa;
-    nk_i32_t shift = 23 - 3;
-    nk_u32_t remainder_mask = (1u << shift) - 1;
-    nk_u32_t remainder = significand & remainder_mask;
-    nk_u32_t halfway = 1u << (shift - 1);
-    nk_u32_t significand_rounded = significand >> shift;
-    if (remainder > halfway || (remainder == halfway && (significand_rounded & 1))) { ++significand_rounded; }
-    if (significand_rounded == (1u << (3 + 1))) {
-        significand_rounded >>= 1;
-        ++exp;
-    }
-    if (exp > 8) {
-        // Saturate to max value 448 = 0x7E (exp=15, mantissa=6). Note: 0x7F is NaN in e4m3FN.
-        *dest = (nk_e4m3_t)(sign | 0x7Eu);
-        return;
-    }
-    if (exp < -6) {
-        nk_f32_t scaled = abs_x * 512.0f;
-        nk_i32_t mant = (nk_i32_t)scaled;
-        nk_f32_t frac = scaled - (nk_f32_t)mant;
-        if (frac > 0.5f || (frac == 0.5f && (mant & 1))) { ++mant; }
-        // If rounds to 8, promote to first normal (exp_field=1, mantissa=0)
-        if (mant > 7) {
-            *dest = (nk_e4m3_t)(sign | 0x08u);
-            return;
-        }
-        if (mant == 0) { *dest = (nk_e4m3_t)sign; }
-        else { *dest = (nk_e4m3_t)(sign | (nk_u8_t)mant); }
-        return;
-    }
-
-    nk_u8_t exp_field = (nk_u8_t)(exp + 7);
-    nk_u8_t mant_field = (nk_u8_t)(significand_rounded & 0x07u);
-    // For exp_field=15, clamp mantissa to 6 to avoid NaN encoding (0x7F in e4m3FN)
-    if (exp_field == 15 && mant_field > 6) { mant_field = 6; }
-    *dest = (nk_e4m3_t)(sign | (exp_field << 3) | mant_field);
-}
-
-/**
- *  @brief  Convert FP8 E5M2 to IEEE 754 single-precision float.
- *
- *  E5M2 (FP8) format: 1 sign bit, 5 exponent bits (bias=15), 2 mantissa bits.
- *  Range: [-57344, +57344], supports infinity and NaN (IEEE 754 compatible).
- *  Subnormal values: (-1)^S * mantissa * 2^(-16) = mantissa / 65536.
- *
- *  Special value mappings (E5M2 -> F32):
- *      Input        E5M2 Hex  F32 Hex       Description
- *      +0           0x00      0x00000000    Positive zero
- *      -0           0x80      0x80000000    Negative zero
- *      +inf         0x7C      0x7F800000    Positive infinity
- *      -inf         0xFC      0xFF800000    Negative infinity
- *      +NaN         0x7D-7F   0x7FC00000    Quiet NaN (exp=31, mant!=0)
- *      -NaN         0xFD-FF   0xFFC00000    Quiet NaN (signed)
- *      +57344 (max) 0x7B      0x47600000    Max normal
- *      1.0          0x3C      0x3F800000    Normal (exp=15, mant=0)
- *      Min denorm   0x01      0x37800000    1/65536 = 2^(-16)
- *      Max denorm   0x03      0x38000000    3/65536 = 3 * 2^(-16)
- *
- *  References:
- *      https://arxiv.org/pdf/2209.05433 (NVIDIA/Intel/Arm FP8 paper)
- *      https://www.opencompute.org/documents/ocp-8-bit-floating-point-specification-ofp8-revision-1-0-2023-12-01-pdf-1
- *      https://onnx.ai/onnx/technical/float8.html
- */
-NK_INTERNAL void nk_e5m2_to_f32_(nk_e5m2_t const *src, nk_f32_t *dest) {
-    nk_u8_t raw = *src;
-    nk_u32_t sign = (nk_u32_t)(raw & 0x80) << 24;
-    nk_u32_t exponent = (raw >> 2) & 0x1Fu;
-    nk_u32_t mantissa = raw & 0x03u;
-    nk_fui32_t conv;
-
-    if (exponent == 0) {
-        if (mantissa == 0) {
-            conv.u = sign;
-            *dest = conv.f;
-            return;
-        }
-        nk_f32_t value = (nk_f32_t)mantissa * (1.0f / 65536.0f);
-        *dest = sign ? -value : value;
-        return;
-    }
-    if (exponent == 0x1Fu) {
-        if (mantissa == 0) { conv.u = sign | 0x7F800000u; }
-        else { conv.u = sign | 0x7FC00000u; }
-        *dest = conv.f;
-        return;
-    }
-
-    nk_u32_t f32_exponent = (exponent + 112u) << 23;
-    nk_u32_t f32_mantissa = mantissa << 21;
-    conv.u = sign | f32_exponent | f32_mantissa;
-    *dest = conv.f;
-}
-
-/**
- *  @brief  Convert IEEE 754 single-precision float to FP8 E5M2.
- *
- *  E5M2 (FP8) format: 1 sign bit, 5 exponent bits (bias=15), 2 mantissa bits.
- *  Range: [-57344, +57344], supports infinity and NaN (IEEE 754 compatible).
- *  Rounding: RNE (Round to Nearest Even) per IEEE 754 / OCP FP8 spec.
- *  Subnormal threshold: values with |x| < 2^(-14) use subnormal encoding.
- *
- *  Special value mappings (F32 -> E5M2):
- *      Input        F32 Hex       E5M2 Hex  Description
- *      +0           0x00000000    0x00      Positive zero
- *      -0           0x80000000    0x80      Negative zero
- *      +inf         0x7F800000    0x7C      Positive infinity
- *      -inf         0xFF800000    0xFC      Negative infinity
- *      NaN          0x7FC00000    0x7D      Quiet NaN
- *      1.0          0x3F800000    0x3C      Normal (exp=15, mant=0)
- *      57344+       >0x47600000   0x7C      Overflow -> infinity
- *      2^(-14)      0x38800000    0x04      Min normal
- *      <2^(-17.5)   <0x36800000   0x00      Underflow -> zero (RNE boundary)
- *
- *  References:
- *      https://arxiv.org/pdf/2209.05433 (NVIDIA/Intel/Arm FP8 paper)
- *      https://www.opencompute.org/documents/ocp-8-bit-floating-point-specification-ofp8-revision-1-0-2023-12-01-pdf-1
- *      https://onnx.ai/onnx/technical/float8.html
- */
-NK_INTERNAL void nk_f32_to_e5m2_(nk_f32_t const *src, nk_e5m2_t *dest) {
-    nk_f32_t x = *src;
-    nk_fui32_t conv;
-    conv.f = x;
-    nk_u32_t sign_bit = conv.u >> 31;
-    nk_u32_t abs_bits = conv.u & 0x7FFFFFFFu;
-    nk_u8_t sign = (nk_u8_t)(sign_bit << 7);
-
-    if (abs_bits >= 0x7F800000u) {
-        nk_u8_t mant = (abs_bits > 0x7F800000u) ? 0x01u : 0x00u;
-        *dest = (nk_e5m2_t)(sign | 0x7Cu | mant);
-        return;
-    }
-
-    if (abs_bits == 0) {
-        *dest = (nk_e5m2_t)sign;
-        return;
-    }
-
-    nk_f32_t abs_x = sign_bit ? -x : x;
-
-    // Subnormal range: [0, 1/16384). Use RNE rounding via scaled * 65536.
-    // The RNE boundary between 0 and 1/65536 is at 0.5/65536, not 1/65536.
-    if (abs_x < (1.0f / 16384.0f)) {
-        nk_f32_t scaled = abs_x * 65536.0f;
-        nk_i32_t mant = (nk_i32_t)scaled;
-        nk_f32_t frac = scaled - (nk_f32_t)mant;
-        if (frac > 0.5f || (frac == 0.5f && (mant & 1))) { ++mant; }
-        // If rounds to 4, promote to first normal (exp_field=1, mantissa=0)
-        if (mant > 3) {
-            *dest = (nk_e5m2_t)(sign | 0x04u);
-            return;
-        }
-        if (mant == 0) { *dest = (nk_e5m2_t)sign; }
-        else { *dest = (nk_e5m2_t)(sign | (nk_u8_t)mant); }
-        return;
-    }
-
-    nk_i32_t exp = (nk_i32_t)((abs_bits >> 23) & 0xFFu) - 127;
-    nk_u32_t mantissa = abs_bits & 0x7FFFFFu;
-    nk_u32_t significand = (1u << 23) | mantissa;
-    nk_i32_t shift = 23 - 2;
-    nk_u32_t remainder_mask = (1u << shift) - 1;
-    nk_u32_t remainder = significand & remainder_mask;
-    nk_u32_t halfway = 1u << (shift - 1);
-    nk_u32_t significand_rounded = significand >> shift;
-    if (remainder > halfway || (remainder == halfway && (significand_rounded & 1))) { ++significand_rounded; }
-    if (significand_rounded == (1u << (2 + 1))) {
-        significand_rounded >>= 1;
-        ++exp;
-    }
-    if (exp > 15) {
-        *dest = (nk_e5m2_t)(sign | 0x7Cu);
-        return;
-    }
-    if (exp < -14) {
-        nk_f32_t scaled = abs_x * 65536.0f;
-        nk_i32_t mant = (nk_i32_t)scaled;
-        nk_f32_t frac = scaled - (nk_f32_t)mant;
-        if (frac > 0.5f || (frac == 0.5f && (mant & 1))) { ++mant; }
-        // If rounds to 4, promote to first normal (exp_field=1, mantissa=0)
-        if (mant > 3) {
-            *dest = (nk_e5m2_t)(sign | 0x04u);
-            return;
-        }
-        if (mant == 0) { *dest = (nk_e5m2_t)sign; }
-        else { *dest = (nk_e5m2_t)(sign | (nk_u8_t)mant); }
-        return;
-    }
-
-    nk_u8_t exp_field = (nk_u8_t)(exp + 15);
-    nk_u8_t mant_field = (nk_u8_t)(significand_rounded & 0x03u);
-    *dest = (nk_e5m2_t)(sign | (exp_field << 2) | mant_field);
-}
-
-#if NK_DYNAMIC_DISPATCH
-NK_DYNAMIC void nk_f16_to_f32(nk_f16_t const *src, nk_f32_t *dest);
-NK_DYNAMIC void nk_f16_to_f64(nk_f16_t const *src, nk_f64_t *dest);
-NK_DYNAMIC void nk_bf16_to_f32(nk_bf16_t const *src, nk_f32_t *dest);
-NK_DYNAMIC void nk_bf16_to_f64(nk_bf16_t const *src, nk_f64_t *dest);
-NK_DYNAMIC void nk_f32_to_f16(nk_f32_t const *src, nk_f16_t *dest);
-NK_DYNAMIC void nk_f32_to_bf16(nk_f32_t const *src, nk_bf16_t *dest);
-NK_DYNAMIC void nk_e4m3_to_f32(nk_e4m3_t const *src, nk_f32_t *dest);
-NK_DYNAMIC void nk_f32_to_e4m3(nk_f32_t const *src, nk_e4m3_t *dest);
-NK_DYNAMIC void nk_e5m2_to_f32(nk_e5m2_t const *src, nk_f32_t *dest);
-NK_DYNAMIC void nk_f32_to_e5m2(nk_f32_t const *src, nk_e5m2_t *dest);
-#else
-NK_PUBLIC void nk_f16_to_f32(nk_f16_t const *src, nk_f32_t *dest);
-NK_PUBLIC void nk_f16_to_f64(nk_f16_t const *src, nk_f64_t *dest);
-NK_PUBLIC void nk_bf16_to_f32(nk_bf16_t const *src, nk_f32_t *dest);
-NK_PUBLIC void nk_bf16_to_f64(nk_bf16_t const *src, nk_f64_t *dest);
-NK_PUBLIC void nk_f32_to_f16(nk_f32_t const *src, nk_f16_t *dest);
-NK_PUBLIC void nk_f32_to_bf16(nk_f32_t const *src, nk_bf16_t *dest);
-NK_PUBLIC void nk_e4m3_to_f32(nk_e4m3_t const *src, nk_f32_t *dest);
-NK_PUBLIC void nk_f32_to_e4m3(nk_f32_t const *src, nk_e4m3_t *dest);
-NK_PUBLIC void nk_e5m2_to_f32(nk_e5m2_t const *src, nk_f32_t *dest);
-NK_PUBLIC void nk_f32_to_e5m2(nk_f32_t const *src, nk_e5m2_t *dest);
-#endif
-
-NK_INTERNAL void nk_f16_to_f64_(nk_f16_t const *x, nk_f64_t *y) {
-    nk_f32_t f32;
-    nk_f16_to_f32(x, &f32);
-    *y = (nk_f64_t)f32;
-}
-NK_INTERNAL void nk_f64_to_f16_(nk_f64_t const *x, nk_f16_t *y) {
-    nk_f32_t f32 = (nk_f32_t)*x;
-    nk_f32_to_f16(&f32, y);
-}
-NK_INTERNAL void nk_bf16_to_f64_(nk_bf16_t const *x, nk_f64_t *y) {
-    nk_f32_t f32;
-    nk_bf16_to_f32(x, &f32);
-    *y = (nk_f64_t)f32;
-}
-NK_INTERNAL void nk_f64_to_bf16_(nk_f64_t const *x, nk_bf16_t *y) {
-    nk_f32_t f32 = (nk_f32_t)*x;
-    nk_f32_to_bf16(&f32, y);
-}
-
-/*  Convert floating pointer numbers to integers, clamping them to the range of signed
- *  and unsigned low-resolution integers, and rounding them to the nearest integer.
- *
- *  In C++ the analogous solution with STL could be: `*y = std::clamp(std::round(*x), -128, 127)`.
- *  In C, using the standard library: `*x = fminf(fmaxf(roundf(*x), -128), 127)`.
- */
-NK_INTERNAL void nk_f32_to_i8_(nk_f32_t const *x, nk_i8_t *y) {
-    *y = (nk_i8_t)(*x > 127 ? 127 : (*x < -128 ? -128 : (int)(*x + (*x < 0 ? -0.5f : 0.5f))));
-}
-
-NK_INTERNAL void nk_f32_to_u8_(nk_f32_t const *x, nk_u8_t *y) {
-    *y = (nk_u8_t)(*x > 255 ? 255 : (*x < 0 ? 0 : (int)(*x + (*x < 0 ? -0.5f : 0.5f))));
-}
-
-NK_INTERNAL void nk_f32_to_i16_(nk_f32_t const *x, nk_i16_t *y) {
-    *y = (nk_i16_t)(*x > 32767 ? 32767 : (*x < -32768 ? -32768 : (int)(*x + (*x < 0 ? -0.5 : 0.5))));
-}
-
-NK_INTERNAL void nk_f32_to_u16_(nk_f32_t const *x, nk_u16_t *y) {
-    *y = (nk_u16_t)(*x > 65535 ? 65535 : (*x < 0 ? 0 : (int)(*x + (*x < 0 ? -0.5 : 0.5))));
-}
-
-NK_INTERNAL void nk_f64_to_i8_(nk_f64_t const *x, nk_i8_t *y) {
-    *y = (nk_i8_t)(*x > 127 ? 127 : (*x < -128 ? -128 : (int)(*x + (*x < 0 ? -0.5 : 0.5))));
-}
-
-NK_INTERNAL void nk_f64_to_u8_(nk_f64_t const *x, nk_u8_t *y) {
-    *y = (nk_u8_t)(*x > 255 ? 255 : (*x < 0 ? 0 : (int)(*x + (*x < 0 ? -0.5 : 0.5))));
-}
-
-NK_INTERNAL void nk_f64_to_i16_(nk_f64_t const *x, nk_i16_t *y) {
-    *y = (nk_i16_t)(*x > 32767 ? 32767 : (*x < -32768 ? -32768 : (int)(*x + (*x < 0 ? -0.5 : 0.5))));
-}
-
-NK_INTERNAL void nk_f64_to_u16_(nk_f64_t const *x, nk_u16_t *y) {
-    *y = (nk_u16_t)(*x > 65535 ? 65535 : (*x < 0 ? 0 : (int)(*x + (*x < 0 ? -0.5 : 0.5))));
-}
-
-NK_INTERNAL void nk_f64_to_i32_(nk_f64_t const *x, nk_i32_t *y) {
-    *y = (nk_i32_t)(*x > 2147483647 ? 2147483647
-                                    : (*x < -2147483648 ? -2147483648 : (int)(*x + (*x < 0 ? -0.5 : 0.5))));
-}
-
-NK_INTERNAL void nk_f64_to_u32_(nk_f64_t const *x, nk_u32_t *y) {
-    *y = (nk_u32_t)(*x > 4294967295 ? 4294967295 : (*x < 0 ? 0 : (unsigned int)(*x + (*x < 0 ? -0.5 : 0.5))));
-}
-
-NK_INTERNAL void nk_f64_to_i64_(nk_f64_t const *x, nk_i64_t *y) {
-    *y = (nk_i64_t)(*x > 9223372036854775807.0
-                        ? 9223372036854775807ll
-                        : (*x < -9223372036854775808.0 ? (-9223372036854775807ll - 1ll)
-                                                       : (long long)(*x + (*x < 0 ? -0.5 : 0.5))));
-}
-
-NK_INTERNAL void nk_f64_to_u64_(nk_f64_t const *x, nk_u64_t *y) {
-    *y = (nk_u64_t)(*x > 18446744073709551615.0 ? 18446744073709551615ull
-                                                : (*x < 0 ? 0 : (unsigned long long)(*x + (*x < 0 ? -0.5 : 0.5))));
-}
-
-NK_INTERNAL void nk_i64_to_i8_(nk_i64_t const *x, nk_i8_t *y) {
-    *y = (nk_i8_t)(*x > 127ll ? 127ll : (*x < -128ll ? -128ll : *x));
-}
-
-NK_INTERNAL void nk_i64_to_u8_(nk_i64_t const *x, nk_u8_t *y) {
-    *y = (nk_u8_t)(*x > 255ll ? 255ll : (*x < 0ll ? 0ll : *x));
-}
-
-NK_INTERNAL void nk_i64_to_i16_(nk_i64_t const *x, nk_i16_t *y) {
-    *y = (nk_i16_t)(*x > 32767ll ? 32767ll : (*x < -32768ll ? -32768ll : *x));
-}
-
-NK_INTERNAL void nk_i64_to_u16_(nk_i64_t const *x, nk_u16_t *y) {
-    *y = (nk_u16_t)(*x > 65535ll ? 65535ll : (*x < 0ll ? 0ll : *x));
-}
-
-NK_INTERNAL void nk_i64_to_i32_(nk_i64_t const *x, nk_i32_t *y) {
-    *y = (nk_i32_t)(*x > 2147483647ll ? 2147483647ll : (*x < -2147483648ll ? -2147483648ll : *x));
-}
-
-NK_INTERNAL void nk_i64_to_u32_(nk_i64_t const *x, nk_u32_t *y) {
-    *y = (nk_u32_t)(*x > 4294967295ll ? 4294967295ll : (*x < 0ll ? 0ll : *x));
-}
-
-NK_INTERNAL void nk_u64_to_i8_(nk_u64_t const *x, nk_i8_t *y) { *y = (nk_i8_t)(*x > 127ull ? 127ull : *x); }
-NK_INTERNAL void nk_u64_to_u8_(nk_u64_t const *x, nk_u8_t *y) { *y = (nk_u8_t)(*x > 255ull ? 255ull : *x); }
-NK_INTERNAL void nk_u64_to_i16_(nk_u64_t const *x, nk_i16_t *y) { *y = (nk_i16_t)(*x > 32767ull ? 32767ull : *x); }
-NK_INTERNAL void nk_u64_to_u16_(nk_u64_t const *x, nk_u16_t *y) { *y = (nk_u16_t)(*x > 65535ull ? 65535ull : *x); }
-
-NK_INTERNAL void nk_u64_to_i32_(nk_u64_t const *x, nk_i32_t *y) {
-    *y = (nk_i32_t)(*x > 2147483647ull ? 2147483647ull : *x);
-}
-
-NK_INTERNAL void nk_u64_to_u32_(nk_u64_t const *x, nk_u32_t *y) {
-    *y = (nk_u32_t)(*x > 4294967295ull ? 4294967295ull : *x);
-}
-
-NK_INTERNAL void nk_f64_to_f32_(nk_f64_t const *x, nk_f32_t *y) { *y = (nk_f32_t)*x; }
-NK_INTERNAL void nk_u64_to_f32_(nk_u64_t const *x, nk_f32_t *y) { *y = (nk_f32_t)*x; }
-NK_INTERNAL void nk_i64_to_f32_(nk_i64_t const *x, nk_f32_t *y) { *y = (nk_f32_t)*x; }
-
-NK_INTERNAL void nk_f32_to_f64_(nk_f32_t const *x, nk_f64_t *y) { *y = (nk_f64_t)*x; }
-NK_INTERNAL void nk_f64_to_f64_(nk_f64_t const *x, nk_f64_t *y) { *y = *x; }
-
-NK_INTERNAL void nk_i8_to_f64_(nk_i8_t const *x, nk_f64_t *y) { *y = (nk_f64_t)*x; }
-NK_INTERNAL void nk_i16_to_f64_(nk_i16_t const *x, nk_f64_t *y) { *y = (nk_f64_t)*x; }
-NK_INTERNAL void nk_i32_to_f64_(nk_i32_t const *x, nk_f64_t *y) { *y = (nk_f64_t)*x; }
-NK_INTERNAL void nk_i64_to_f64_(nk_i64_t const *x, nk_f64_t *y) { *y = (nk_f64_t)*x; }
-NK_INTERNAL void nk_u8_to_f64_(nk_u8_t const *x, nk_f64_t *y) { *y = (nk_f64_t)*x; }
-NK_INTERNAL void nk_u16_to_f64_(nk_u16_t const *x, nk_f64_t *y) { *y = (nk_f64_t)*x; }
-NK_INTERNAL void nk_u32_to_f64_(nk_u32_t const *x, nk_f64_t *y) { *y = (nk_f64_t)*x; }
-NK_INTERNAL void nk_u64_to_f64_(nk_u64_t const *x, nk_f64_t *y) { *y = (nk_f64_t)*x; }
-
-NK_INTERNAL void nk_i8_to_i64_(nk_i8_t const *x, nk_i64_t *y) { *y = (nk_i64_t)*x; }
-NK_INTERNAL void nk_i16_to_i64_(nk_i16_t const *x, nk_i64_t *y) { *y = (nk_i64_t)*x; }
-NK_INTERNAL void nk_i32_to_i64_(nk_i32_t const *x, nk_i64_t *y) { *y = (nk_i64_t)*x; }
-NK_INTERNAL void nk_i64_to_i64_(nk_i64_t const *x, nk_i64_t *y) { *y = *x; }
-NK_INTERNAL void nk_u8_to_i64_(nk_u8_t const *x, nk_i64_t *y) { *y = (nk_i64_t)*x; }
-NK_INTERNAL void nk_u16_to_i64_(nk_u16_t const *x, nk_i64_t *y) { *y = (nk_i64_t)*x; }
-NK_INTERNAL void nk_u32_to_i64_(nk_u32_t const *x, nk_i64_t *y) { *y = (nk_i64_t)*x; }
-NK_INTERNAL void nk_u64_to_i64_(nk_u64_t const *x, nk_i64_t *y) {
-    *y = (nk_i64_t)(*x >= 9223372036854775807ull ? 9223372036854775807ll : *x);
-}
-
-NK_INTERNAL void nk_i8_to_u64_(nk_i8_t const *x, nk_u64_t *y) { *y = (nk_u64_t)(*x < 0 ? 0 : *x); }
-NK_INTERNAL void nk_i16_to_u64_(nk_i16_t const *x, nk_u64_t *y) { *y = (nk_u64_t)(*x < 0 ? 0 : *x); }
-NK_INTERNAL void nk_i32_to_u64_(nk_i32_t const *x, nk_u64_t *y) { *y = (nk_u64_t)(*x < 0 ? 0 : *x); }
-NK_INTERNAL void nk_i64_to_u64_(nk_i64_t const *x, nk_u64_t *y) { *y = (nk_u64_t)(*x < 0 ? 0 : *x); }
-NK_INTERNAL void nk_u8_to_u64_(nk_u8_t const *x, nk_u64_t *y) { *y = (nk_u64_t)*x; }
-NK_INTERNAL void nk_u16_to_u64_(nk_u16_t const *x, nk_u64_t *y) { *y = (nk_u64_t)*x; }
-NK_INTERNAL void nk_u32_to_u64_(nk_u32_t const *x, nk_u64_t *y) { *y = (nk_u64_t)*x; }
-NK_INTERNAL void nk_u64_to_u64_(nk_u64_t const *x, nk_u64_t *y) { *y = *x; }
-
-NK_INTERNAL nk_f32_t nk_abs_f32(nk_f32_t x) { return x < 0 ? -x : x; }
-NK_INTERNAL nk_f64_t nk_abs_f64(nk_f64_t x) { return x < 0 ? -x : x; }
-NK_INTERNAL nk_i32_t nk_abs_i32(nk_i32_t x) { return x < 0 ? -x : x; }
-NK_INTERNAL nk_i64_t nk_abs_i64(nk_i64_t x) { return x < 0 ? -x : x; }
-NK_INTERNAL nk_u32_t nk_abs_u32(nk_u32_t x) { return x; }
-NK_INTERNAL nk_u64_t nk_abs_u64(nk_u64_t x) { return x; }
-
-NK_INTERNAL void nk_i64_to_f16_(nk_i64_t const *x, nk_f16_t *y) {
-    nk_f32_t f32 = (nk_f32_t)*x;
-    nk_f32_to_f16(&f32, y);
-}
-NK_INTERNAL void nk_i64_to_bf16_(nk_i64_t const *x, nk_bf16_t *y) {
-    nk_f32_t f32 = (nk_f32_t)*x;
-    nk_f32_to_bf16(&f32, y);
-}
-NK_INTERNAL void nk_u64_to_f16_(nk_u64_t const *x, nk_f16_t *y) {
-    nk_f32_t f32 = (nk_f32_t)*x;
-    nk_f32_to_f16(&f32, y);
-}
-NK_INTERNAL void nk_u64_to_bf16_(nk_u64_t const *x, nk_bf16_t *y) {
-    nk_f32_t f32 = (nk_f32_t)*x;
-    nk_f32_to_bf16(&f32, y);
-}
-
-/**
- *  @brief  Union for type-punned scalar values at language binding boundaries.
- *
- *  Used to bridge different type systems (Python, JavaScript, etc.) where
- *  scalars arrive as f64 but need to be passed to kernels as typed pointers.
- *  The caller fills the appropriate union member based on the target dtype,
- *  then passes the union address as `void const *` to kernel functions.
- */
-typedef union nk_scalar_buffer_t {
-    nk_u8_t bytes[8];
-    nk_f64_t f64;
-    nk_f32_t f32;
-    nk_f16_t f16;
-    nk_bf16_t bf16;
-    nk_i64_t i64;
-    nk_u64_t u64;
-    nk_i32_t i32;
-    nk_u32_t u32;
-    nk_i16_t i16;
-    nk_u16_t u16;
-    nk_i8_t i8;
-    nk_u8_t u8;
-} nk_scalar_buffer_t;
-
-/**
- *  @brief  Fill scalar buffer from f64, converting to the appropriate type.
- *
- *  @param[out] buf     Pointer to the scalar buffer to fill.
- *  @param[in]  value   The f64 value to convert.
- *  @param[in]  dtype   The target datatype that determines the conversion.
- */
-NK_INTERNAL void nk_scalar_buffer_set_f64(nk_scalar_buffer_t *buf, nk_f64_t value, nk_datatype_t dtype) {
-    switch (dtype) {
-    case nk_f64_k: buf->f64 = value; break;
-    case nk_f32_k: buf->f32 = (nk_f32_t)value; break;
-    case nk_f16_k: {
-        nk_f32_t tmp = (nk_f32_t)value;
-        nk_f32_to_f16_(&tmp, &buf->f16);
-    } break;
-    case nk_bf16_k: {
-        nk_f32_t tmp = (nk_f32_t)value;
-        nk_f32_to_bf16_(&tmp, &buf->bf16);
-    } break;
-    case nk_i64_k: buf->i64 = (nk_i64_t)value; break;
-    case nk_u64_k: buf->u64 = (nk_u64_t)value; break;
-    case nk_i32_k: buf->i32 = (nk_i32_t)value; break;
-    case nk_u32_k: buf->u32 = (nk_u32_t)value; break;
-    case nk_i16_k: buf->i16 = (nk_i16_t)value; break;
-    case nk_u16_k: buf->u16 = (nk_u16_t)value; break;
-    case nk_i8_k: buf->i8 = (nk_i8_t)value; break;
-    case nk_u8_k: buf->u8 = (nk_u8_t)value; break;
-    default: buf->f64 = value; break;
-    }
-}
-
-/**
- *  @brief  Read scalar buffer as f64, converting from the stored type.
- *
- *  @param[in] buf    Pointer to the scalar buffer to read.
- *  @param[in] dtype  The datatype that determines which member to read.
- *  @return           The value converted to f64.
- */
-NK_INTERNAL nk_f64_t nk_scalar_buffer_get_f64(nk_scalar_buffer_t const *buf, nk_datatype_t dtype) {
-    switch (dtype) {
-    case nk_f64_k: return buf->f64;
-    case nk_f32_k: return (nk_f64_t)buf->f32;
-    case nk_f16_k: {
-        nk_f32_t tmp;
-        nk_f16_to_f32_(&buf->f16, &tmp);
-        return (nk_f64_t)tmp;
-    }
-    case nk_bf16_k: {
-        nk_f32_t tmp;
-        nk_bf16_to_f32_(&buf->bf16, &tmp);
-        return (nk_f64_t)tmp;
-    }
-    case nk_i64_k: return (nk_f64_t)buf->i64;
-    case nk_u64_k: return (nk_f64_t)buf->u64;
-    case nk_i32_k: return (nk_f64_t)buf->i32;
-    case nk_u32_k: return (nk_f64_t)buf->u32;
-    case nk_i16_k: return (nk_f64_t)buf->i16;
-    case nk_u16_k: return (nk_f64_t)buf->u16;
-    case nk_i8_k: return (nk_f64_t)buf->i8;
-    case nk_u8_k: return (nk_f64_t)buf->u8;
-    default: return buf->f64;
-    }
-}
-
-/**
- *  @brief  Helper structure for implementing strided matrix row lookups, with @b single-byte-level pointer math.
- */
-NK_INTERNAL void *nk_advance_by_bytes_(void *ptr, nk_size_t bytes) { return (void *)((nk_u8_t *)ptr + bytes); }
-
-/**
- *  @brief  Divide and round up to the nearest integer.
- */
-NK_INTERNAL nk_size_t nk_divide_ceil_(nk_size_t dividend, nk_size_t divisor) {
-    return (dividend + divisor - 1) / divisor;
-}
 
 /**
  *  @brief Advances the Multi-Dimensional iterator to the next set of indicies.
@@ -1671,10 +920,10 @@ NK_INTERNAL nk_size_t nk_divide_ceil_(nk_size_t dividend, nk_size_t divisor) {
  *  @param[inout] byte_offset The @b signed byte offset of the current element, which will be advanced.
  *  @return 1 if the iterator was successfully advanced, 0 if the end of iteration was reached.
  *
- *  For flexibility, the API is decoupled from from the `nk_xd_index_t` structure, and
- *  can be used on any-rank tensors, independent of the `NK_NDARRAY_MAX_RANK` constant.
+ *  For flexibility, the API is decoupled from from the `nk_tensor_position_t` structure, and
+ *  can be used on any-rank tensors, independent of the `NK_TENSOR_MAX_RANK` constant.
  */
-NK_PUBLIC int nk_xd_index_next(                                          //
+NK_PUBLIC int nk_tensor_position_next(                                   //
     nk_size_t const *extents, nk_ssize_t const *strides, nk_size_t rank, //
     nk_size_t *coordinates, nk_ssize_t *byte_offset) {
     // Start from last dimension and move backward
@@ -1698,7 +947,7 @@ NK_PUBLIC int nk_xd_index_next(                                          //
  *  @param[out] byte_offset The byte offset of the current element, which will be advanced.
  *  @return 1 if the offset was successfully advanced, 0 if the end of iteration was reached.
  */
-NK_PUBLIC int nk_xd_index_linearize(                                     //
+NK_PUBLIC int nk_tensor_position_linearize(                              //
     nk_size_t const *extents, nk_ssize_t const *strides, nk_size_t rank, //
     nk_size_t const *coordinates, nk_ssize_t *byte_offset) {
 
@@ -1720,14 +969,14 @@ NK_PUBLIC int nk_xd_index_linearize(                                     //
  *  When advancing through a structure, its overall size and strides should be stored somewhere else.
  *  The `byte_offset` starts at zero and grow monotonically during iteration, if the strides are positive.
  */
-typedef struct nk_xd_index_t {
-    nk_size_t coordinates[NK_NDARRAY_MAX_RANK]; // Coordinate offsets along each dimension
-    nk_ssize_t byte_offset;                     // Byte offset of the current element
-} nk_xd_index_t;
+typedef struct nk_tensor_position_t {
+    nk_size_t coordinates[NK_TENSOR_MAX_RANK]; // Coordinate offsets along each dimension
+    nk_ssize_t byte_offset;                    // Byte offset of the current element
+} nk_tensor_position_t;
 
-NK_PUBLIC void nk_xd_index_init(nk_xd_index_t *xd_index) {
-    for (nk_size_t i = 0; i < NK_NDARRAY_MAX_RANK; i++) xd_index->coordinates[i] = 0;
-    xd_index->byte_offset = 0;
+NK_PUBLIC void nk_tensor_position_init(nk_tensor_position_t *tensor_position) {
+    for (nk_size_t i = 0; i < NK_TENSOR_MAX_RANK; i++) tensor_position->coordinates[i] = 0;
+    tensor_position->byte_offset = 0;
 }
 
 /**
@@ -1740,18 +989,18 @@ NK_PUBLIC void nk_xd_index_init(nk_xd_index_t *xd_index) {
  *  If the tensor is sparse, consider using a different data structure or a different memory layout.
  *
  *  Most NumKong algorithms don't work with the entire structure, but expect the fields to be passed separately.
- *  It would also require storing the @b start-pointer and the @b datatype/item-size separately, as it's not
+ *  It would also require storing the @b start-pointer and the @b dtype/item-size separately, as it's not
  *  stored inside the structure.
  */
-typedef struct nk_xd_span_t {
-    nk_size_t extents[NK_NDARRAY_MAX_RANK];  /// Number of elements along each dimension
-    nk_ssize_t strides[NK_NDARRAY_MAX_RANK]; /// Strides of the tensor in bytes
-    nk_size_t rank;                          /// Number of dimensions in the tensor
-} nk_xd_span_t;
+typedef struct nk_tensor_shape_t {
+    nk_size_t extents[NK_TENSOR_MAX_RANK];  /// Number of elements along each dimension
+    nk_ssize_t strides[NK_TENSOR_MAX_RANK]; /// Strides of the tensor in bytes
+    nk_size_t rank;                         /// Number of dimensions in the tensor
+} nk_tensor_shape_t;
 
-NK_PUBLIC void nk_xd_span_init(nk_xd_span_t *xd_span) {
-    for (nk_size_t i = 0; i < NK_NDARRAY_MAX_RANK; i++) xd_span->extents[i] = 0, xd_span->strides[i] = 0;
-    xd_span->rank = 0;
+NK_PUBLIC void nk_tensor_shape_init(nk_tensor_shape_t *tensor_shape) {
+    for (nk_size_t i = 0; i < NK_TENSOR_MAX_RANK; i++) tensor_shape->extents[i] = 0, tensor_shape->strides[i] = 0;
+    tensor_shape->rank = 0;
 }
 
 NK_INTERNAL nk_u32_t nk_u32_rol(nk_u32_t x, int n) { return (x << n) | (x >> (32 - n)); }
@@ -1795,22 +1044,6 @@ NK_INTERNAL void nk_i64_sadd_(nk_i64_t const *a, nk_i64_t const *b, nk_i64_t *r)
     if ((*b > 0) && (*a > (9223372036854775807ll) - *b)) { *r = 9223372036854775807ll; }                    // Overflow
     else if ((*b < 0) && (*a < (-9223372036854775807ll - 1ll) - *b)) { *r = -9223372036854775807ll - 1ll; } // Underflow
     else { *r = *a + *b; }
-}
-NK_INTERNAL void nk_f32_sadd_(nk_f32_t const *a, nk_f32_t const *b, nk_f32_t *r) { *r = *a + *b; }
-NK_INTERNAL void nk_f64_sadd_(nk_f64_t const *a, nk_f64_t const *b, nk_f64_t *r) { *r = *a + *b; }
-NK_INTERNAL void nk_f16_sadd_(nk_f16_t const *a, nk_f16_t const *b, nk_f16_t *r) {
-    nk_f32_t a_f32, b_f32, r_f32;
-    nk_f16_to_f32(a, &a_f32);
-    nk_f16_to_f32(b, &b_f32);
-    r_f32 = a_f32 + b_f32;
-    nk_f32_to_f16(&r_f32, r);
-}
-NK_INTERNAL void nk_bf16_sadd_(nk_bf16_t const *a, nk_bf16_t const *b, nk_bf16_t *r) {
-    nk_f32_t a_f32, b_f32, r_f32;
-    nk_bf16_to_f32(a, &a_f32);
-    nk_bf16_to_f32(b, &b_f32);
-    r_f32 = a_f32 + b_f32;
-    nk_f32_to_bf16(&r_f32, r);
 }
 
 NK_INTERNAL void nk_u8_smul_(nk_u8_t const *a, nk_u8_t const *b, nk_u8_t *r) {
@@ -1909,40 +1142,31 @@ NK_INTERNAL void nk_i64_smul_(nk_i64_t const *a, nk_i64_t const *b, nk_i64_t *r)
     }
 }
 
-NK_INTERNAL void nk_f32_smul_(nk_f32_t const *a, nk_f32_t const *b, nk_f32_t *r) { *r = *a * *b; }
-NK_INTERNAL void nk_f64_smul_(nk_f64_t const *a, nk_f64_t const *b, nk_f64_t *r) { *r = *a * *b; }
-
-NK_INTERNAL void nk_f16_smul_(nk_f16_t const *a, nk_f16_t const *b, nk_f16_t *r) {
-    nk_f32_t a_f32, b_f32, r_f32;
-    nk_f16_to_f32(a, &a_f32);
-    nk_f16_to_f32(b, &b_f32);
-    r_f32 = a_f32 * b_f32;
-    nk_f32_to_f16(&r_f32, r);
+/** @brief Divides the number rounding up to the next multiple of the given divisor. */
+NK_INTERNAL nk_size_t nk_size_divide_round_up_to_multiple_(nk_size_t number, nk_size_t divisor) {
+    return (number + divisor - 1) / divisor;
 }
 
-NK_INTERNAL void nk_bf16_smul_(nk_bf16_t const *a, nk_bf16_t const *b, nk_bf16_t *r) {
-    nk_f32_t a_f32, b_f32, r_f32;
-    nk_bf16_to_f32(a, &a_f32);
-    nk_bf16_to_f32(b, &b_f32);
-    r_f32 = a_f32 * b_f32;
-    nk_f32_to_bf16(&r_f32, r);
-}
+NK_INTERNAL nk_f64_t nk_f32_abs_(nk_f64_t x) { return x < 0 ? -x : x; }
+NK_INTERNAL nk_f64_t nk_f64_abs_(nk_f64_t x) { return x < 0 ? -x : x; }
+NK_INTERNAL nk_i64_t nk_i64_abs_(nk_i64_t x) { return x < 0 ? -x : x; }
+NK_INTERNAL nk_u64_t nk_u64_abs_(nk_u64_t x) { return x; }
+NK_INTERNAL nk_i64_t nk_i32_abs_(nk_i32_t x) { return x < 0 ? -x : x; }
+NK_INTERNAL nk_u32_t nk_u32_abs_(nk_u32_t x) { return x; }
 
-#if !NK_DYNAMIC_DISPATCH
-NK_PUBLIC void nk_f16_to_f32(nk_f16_t const *src, nk_f32_t *dest) { nk_f16_to_f32_(src, dest); }
-NK_PUBLIC void nk_f16_to_f64(nk_f16_t const *src, nk_f64_t *dest) { nk_f16_to_f64_(src, dest); }
-NK_PUBLIC void nk_f32_to_f16(nk_f32_t const *src, nk_f16_t *dest) { nk_f32_to_f16_(src, dest); }
-NK_PUBLIC void nk_bf16_to_f32(nk_bf16_t const *src, nk_f32_t *dest) { nk_bf16_to_f32_(src, dest); }
-NK_PUBLIC void nk_bf16_to_f64(nk_bf16_t const *src, nk_f64_t *dest) { nk_bf16_to_f64_(src, dest); }
-NK_PUBLIC void nk_f32_to_bf16(nk_f32_t const *src, nk_bf16_t *dest) { nk_f32_to_bf16_(src, dest); }
-NK_PUBLIC void nk_e4m3_to_f32(nk_e4m3_t const *src, nk_f32_t *dest) { nk_e4m3_to_f32_(src, dest); }
-NK_PUBLIC void nk_f32_to_e4m3(nk_f32_t const *src, nk_e4m3_t *dest) { nk_f32_to_e4m3_(src, dest); }
-NK_PUBLIC void nk_e5m2_to_f32(nk_e5m2_t const *src, nk_f32_t *dest) { nk_e5m2_to_f32_(src, dest); }
-NK_PUBLIC void nk_f32_to_e5m2(nk_f32_t const *src, nk_e5m2_t *dest) { nk_f32_to_e5m2_(src, dest); }
-#endif // NK_DYNAMIC_DISPATCH
+#if NK_DYNAMIC_DISPATCH
+NK_DYNAMIC void nk_f16_to_f32(nk_f16_t const *src, nk_f32_t *dest);
+NK_DYNAMIC void nk_bf16_to_f32(nk_bf16_t const *src, nk_f32_t *dest);
+NK_DYNAMIC void nk_e4m3_to_f32(nk_e4m3_t const *src, nk_f32_t *dest);
+NK_DYNAMIC void nk_e5m2_to_f32(nk_e5m2_t const *src, nk_f32_t *dest);
+NK_DYNAMIC void nk_f32_to_f16(nk_f32_t const *src, nk_f16_t *dest);
+NK_DYNAMIC void nk_f32_to_bf16(nk_f32_t const *src, nk_bf16_t *dest);
+NK_DYNAMIC void nk_f32_to_e4m3(nk_f32_t const *src, nk_e4m3_t *dest);
+NK_DYNAMIC void nk_f32_to_e5m2(nk_f32_t const *src, nk_e5m2_t *dest);
+#endif
 
 #ifdef __cplusplus
 } // extern "C"
 #endif
 
-#endif
+#endif // NK_TYPES_H

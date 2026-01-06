@@ -10,9 +10,12 @@
 
 #if NK_TARGET_X86_
 #if NK_TARGET_HASWELL
+#if defined(__clang__)
+#pragma clang attribute push(__attribute__((target("avx2,f16c,fma,bmi,bmi2"))), apply_to = function)
+#elif defined(__GNUC__)
 #pragma GCC push_options
-#pragma GCC target("avx2", "f16c", "fma")
-#pragma clang attribute push(__attribute__((target("avx2,f16c,fma"))), apply_to = function)
+#pragma GCC target("avx2", "f16c", "fma", "bmi", "bmi2")
+#endif
 
 #include "numkong/types.h"
 #include "numkong/reduce/haswell.h" // nk_reduce_add_f32x8_haswell_, nk_reduce_add_i32x8_haswell_
@@ -69,7 +72,7 @@ NK_INTERNAL nk_f64_t nk_angular_normalize_f64_haswell_(nk_f64_t ab, nk_f64_t a2,
     else if (ab == 0) return 1;
 
     // Design note: We use exact `_mm_sqrt_pd` instead of fast rsqrt approximation.
-    // The f32 `_mm_rsqrt_ps` has max relative error of 1.5*2^-12 (~11 bits precision).
+    // The f32 `_mm_rsqrt_ps` has max relative error of 1.5×2⁻¹² (~11 bits precision).
     // Even with Newton-Raphson refinement (doubles precision to ~22-24 bits), this is
     // insufficient for f64's 52-bit mantissa, causing ULP errors in the hundreds of millions.
     // The `_mm_sqrt_pd` instruction has ~13 cycle latency but provides full f64 precision.
@@ -123,8 +126,8 @@ nk_l2sq_f16_haswell_cycle:
         n = 0;
     }
     else {
-        a_f32x8 = _mm256_cvtph_ps(_mm_lddqu_si128((__m128i const *)a));
-        b_f32x8 = _mm256_cvtph_ps(_mm_lddqu_si128((__m128i const *)b));
+        a_f32x8 = _mm256_cvtph_ps(_mm_loadu_si128((__m128i const *)a));
+        b_f32x8 = _mm256_cvtph_ps(_mm_loadu_si128((__m128i const *)b));
         n -= 8, a += 8, b += 8;
     }
     __m256 diff_f32x8 = _mm256_sub_ps(a_f32x8, b_f32x8);
@@ -151,8 +154,8 @@ nk_angular_f16_haswell_cycle:
         n = 0;
     }
     else {
-        a_f32x8 = _mm256_cvtph_ps(_mm_lddqu_si128((__m128i const *)a));
-        b_f32x8 = _mm256_cvtph_ps(_mm_lddqu_si128((__m128i const *)b));
+        a_f32x8 = _mm256_cvtph_ps(_mm_loadu_si128((__m128i const *)a));
+        b_f32x8 = _mm256_cvtph_ps(_mm_loadu_si128((__m128i const *)b));
         n -= 8, a += 8, b += 8;
     }
     dot_product_f32x8 = _mm256_fmadd_ps(a_f32x8, b_f32x8, dot_product_f32x8);
@@ -177,8 +180,8 @@ nk_l2sq_bf16_haswell_cycle:
         n = 0;
     }
     else {
-        a_f32x8 = nk_bf16x8_to_f32x8_haswell_(_mm_lddqu_si128((__m128i const *)a));
-        b_f32x8 = nk_bf16x8_to_f32x8_haswell_(_mm_lddqu_si128((__m128i const *)b));
+        a_f32x8 = nk_bf16x8_to_f32x8_haswell_(_mm_loadu_si128((__m128i const *)a));
+        b_f32x8 = nk_bf16x8_to_f32x8_haswell_(_mm_loadu_si128((__m128i const *)b));
         n -= 8, a += 8, b += 8;
     }
     __m256 diff_f32x8 = _mm256_sub_ps(a_f32x8, b_f32x8);
@@ -205,8 +208,8 @@ nk_angular_bf16_haswell_cycle:
         n = 0;
     }
     else {
-        a_f32x8 = nk_bf16x8_to_f32x8_haswell_(_mm_lddqu_si128((__m128i const *)a));
-        b_f32x8 = nk_bf16x8_to_f32x8_haswell_(_mm_lddqu_si128((__m128i const *)b));
+        a_f32x8 = nk_bf16x8_to_f32x8_haswell_(_mm_loadu_si128((__m128i const *)a));
+        b_f32x8 = nk_bf16x8_to_f32x8_haswell_(_mm_loadu_si128((__m128i const *)b));
         n -= 8, a += 8, b += 8;
     }
     dot_product_f32x8 = _mm256_fmadd_ps(a_f32x8, b_f32x8, dot_product_f32x8);
@@ -227,8 +230,8 @@ NK_PUBLIC void nk_l2sq_i8_haswell(nk_i8_t const *a, nk_i8_t const *b, nk_size_t 
     // Process 16 elements per iteration with direct 128-bit loads (no extract needed)
     nk_size_t i = 0;
     for (; i + 16 <= n; i += 16) {
-        __m128i a_i8x16 = _mm_lddqu_si128((__m128i const *)(a + i));
-        __m128i b_i8x16 = _mm_lddqu_si128((__m128i const *)(b + i));
+        __m128i a_i8x16 = _mm_loadu_si128((__m128i const *)(a + i));
+        __m128i b_i8x16 = _mm_loadu_si128((__m128i const *)(b + i));
 
         // Sign extend i8 → i16 directly (128-bit → 256-bit, no port 5 pressure)
         __m256i a_i16x16 = _mm256_cvtepi8_epi16(a_i8x16);
@@ -277,8 +280,8 @@ NK_PUBLIC void nk_angular_i8_haswell(nk_i8_t const *a, nk_i8_t const *b, nk_size
     // This can easily lead to noticeable numerical errors in the final result.
     nk_size_t i = 0;
     for (; i + 16 <= n; i += 16) {
-        __m128i a_i8x16 = _mm_lddqu_si128((__m128i const *)(a + i));
-        __m128i b_i8x16 = _mm_lddqu_si128((__m128i const *)(b + i));
+        __m128i a_i8x16 = _mm_loadu_si128((__m128i const *)(a + i));
+        __m128i b_i8x16 = _mm_loadu_si128((__m128i const *)(b + i));
 
         // Sign extend i8 → i16 directly (128-bit → 256-bit, no port 5 pressure)
         __m256i a_i16x16 = _mm256_cvtepi8_epi16(a_i8x16);
@@ -314,8 +317,8 @@ NK_PUBLIC void nk_l2sq_u8_haswell(nk_u8_t const *a, nk_u8_t const *b, nk_size_t 
 
     nk_size_t i = 0;
     for (; i + 32 <= n; i += 32) {
-        __m256i a_u8x32 = _mm256_lddqu_si256((__m256i const *)(a + i));
-        __m256i b_u8x32 = _mm256_lddqu_si256((__m256i const *)(b + i));
+        __m256i a_u8x32 = _mm256_loadu_si256((__m256i const *)(a + i));
+        __m256i b_u8x32 = _mm256_loadu_si256((__m256i const *)(b + i));
 
         // Substracting unsigned vectors in AVX2 is done by saturating subtraction:
         __m256i diff_u8x32 = _mm256_or_si256(_mm256_subs_epu8(a_u8x32, b_u8x32), _mm256_subs_epu8(b_u8x32, a_u8x32));
@@ -375,8 +378,8 @@ NK_PUBLIC void nk_angular_u8_haswell(nk_u8_t const *a, nk_u8_t const *b, nk_size
     // This can easily lead to noticeable numerical errors in the final result.
     nk_size_t i = 0;
     for (; i + 32 <= n; i += 32) {
-        __m256i a_u8x32 = _mm256_lddqu_si256((__m256i const *)(a + i));
-        __m256i b_u8x32 = _mm256_lddqu_si256((__m256i const *)(b + i));
+        __m256i a_u8x32 = _mm256_loadu_si256((__m256i const *)(a + i));
+        __m256i b_u8x32 = _mm256_loadu_si256((__m256i const *)(b + i));
 
         // Upcast `uint8` to `int16`. Unlike the signed version, we can use the unpacking
         // instructions instead of extracts, as they are much faster and more efficient.
@@ -527,7 +530,7 @@ NK_PUBLIC void nk_l2_f64_haswell(nk_f64_t const *a, nk_f64_t const *b, nk_size_t
 
 NK_PUBLIC void nk_angular_f64_haswell(nk_f64_t const *a, nk_f64_t const *b, nk_size_t n, nk_f64_t *result) {
     // Dot2 (Ogita-Rump-Oishi 2005) for cross-product a·b only - it may have cancellation.
-    // Self-products ||a||² and ||b||² use simple FMA - all terms are non-negative, no cancellation.
+    // Self-products ‖a‖² and ‖b‖² use simple FMA - all terms are non-negative, no cancellation.
     // Note: For cross-product we use Knuth TwoSum (6 ops) rather than Neumaier with blends (10 ops)
     // since products can be signed and Knuth handles any operand ordering efficiently.
     __m256d dot_sum_f64x4 = _mm256_setzero_pd();
@@ -850,8 +853,11 @@ NK_INTERNAL void nk_l2_u8x16_finalize_haswell(nk_l2_u8x16_state_haswell_t const 
 } // extern "C"
 #endif
 
+#if defined(__clang__)
 #pragma clang attribute pop
+#elif defined(__GNUC__)
 #pragma GCC pop_options
+#endif
 #endif // NK_TARGET_HASWELL
 #endif // NK_TARGET_X86_
 

@@ -18,7 +18,7 @@
  *  - Average is WSum with alpha = beta = 0.5.
  *  - Elementwise multiply is FMA with beta = 0.
  *
- *  For datatypes:
+ *  For dtypes:
  *
  *  - 64-bit IEEE floating point numbers × 64-bit scales
  *  - 32-bit IEEE floating point numbers × 32-bit scales
@@ -896,9 +896,9 @@ NK_PUBLIC void nk_fma_u8_sapphire(nk_u8_t const *a, nk_u8_t const *b, nk_u8_t co
 #endif // NK_TARGET_SAPPHIRE
 
 /**
- *  @brief  Returns the scalar parameter datatype for elementwise scale/wsum/fma operations.
+ *  @brief  Returns the scalar parameter dtype for elementwise scale/wsum/fma operations.
  */
-NK_INTERNAL nk_datatype_t nk_scale_output_datatype(nk_datatype_t dtype) {
+NK_INTERNAL nk_dtype_t nk_scale_output_dtype(nk_dtype_t dtype) {
     switch (dtype) {
     case nk_f64_k: return nk_f64_k;
     case nk_f32_k: return nk_f32_k;
@@ -912,15 +912,15 @@ NK_INTERNAL nk_datatype_t nk_scale_output_datatype(nk_datatype_t dtype) {
     case nk_u16_k: return nk_f32_k;
     case nk_i8_k: return nk_f32_k;
     case nk_u8_k: return nk_f32_k;
-    default: return nk_datatype_unknown_k;
+    default: return nk_dtype_unknown_k;
     }
 }
 
-/** @copydoc nk_scale_output_datatype */
-NK_INTERNAL nk_datatype_t nk_wsum_output_datatype(nk_datatype_t dtype) { return nk_scale_output_datatype(dtype); }
+/** @copydoc nk_scale_output_dtype */
+NK_INTERNAL nk_dtype_t nk_wsum_output_dtype(nk_dtype_t dtype) { return nk_scale_output_dtype(dtype); }
 
-/** @copydoc nk_scale_output_datatype */
-NK_INTERNAL nk_datatype_t nk_fma_output_datatype(nk_datatype_t dtype) { return nk_scale_output_datatype(dtype); }
+/** @copydoc nk_scale_output_dtype */
+NK_INTERNAL nk_dtype_t nk_fma_output_dtype(nk_dtype_t dtype) { return nk_scale_output_dtype(dtype); }
 
 #include "numkong/elementwise/serial.h"
 #include "numkong/elementwise/neon.h"

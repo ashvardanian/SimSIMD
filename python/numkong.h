@@ -29,12 +29,12 @@ extern "C" {
  *  object that supports the buffer protocol (NumPy arrays, PyTorch tensors, etc.)
  */
 typedef struct TensorArgument {
-    char *start;            ///< Pointer to the first element
-    size_t dimensions;      ///< Vector size (1D) or column count (2D)
-    size_t count;           ///< Number of vectors (1 for 1D, num rows for 2D)
-    size_t stride;          ///< Stride between rows in bytes (0 for 1D)
-    int rank;               ///< Number of dimensions (1 or 2)
-    nk_datatype_t datatype; ///< Logical datatype
+    char *start;       ///< Pointer to the first element
+    size_t dimensions; ///< Vector size (1D) or column count (2D)
+    size_t count;      ///< Number of vectors (1 for 1D, num rows for 2D)
+    size_t stride;     ///< Stride between rows in bytes (0 for 1D)
+    int rank;          ///< Number of dimensions (1 or 2)
+    nk_dtype_t dtype;  ///< Logical dtype
 } TensorArgument;
 
 /**
@@ -44,7 +44,7 @@ typedef struct TensorArgument {
  *  with arbitrary strides.
  */
 typedef struct TensorView {
-    nk_datatype_t dtype;       ///< Logical datatype
+    nk_dtype_t dtype;          ///< Logical dtype
     size_t rank;               ///< Number of dimensions
     Py_ssize_t const *shape;   ///< Shape array (borrowed pointer)
     Py_ssize_t const *strides; ///< Strides array in bytes (borrowed pointer)
@@ -55,9 +55,9 @@ typedef struct TensorView {
 
 #pragma region Datatype Metadata
 
-/**  @brief Metadata for a single datatype.  */
+/**  @brief Metadata for a single dtype.  */
 typedef struct {
-    nk_datatype_t dtype;       ///< Logical datatype enum value
+    nk_dtype_t dtype;          ///< Logical dtype enum value
     char const *name;          ///< Human-readable name (e.g., "float32")
     char const *buffer_format; ///< Python buffer protocol format string
     char const *array_typestr; ///< NumPy array interface typestr
@@ -65,7 +65,7 @@ typedef struct {
     int is_complex;            ///< 1 if complex type, 0 otherwise
 } nk_dtype_info_t;
 
-/// Global datatype metadata table.
+/// Global dtype metadata table.
 extern nk_dtype_info_t const nk_dtype_table[];
 extern size_t const nk_dtype_table_size;
 
@@ -74,52 +74,52 @@ extern size_t const nk_dtype_table_size;
 #pragma region Datatype Utilities
 
 /**
- *  @brief Look up metadata for a datatype.
- *  @param[in] dtype Logical datatype.
+ *  @brief Look up metadata for a dtype.
+ *  @param[in] dtype Logical dtype.
  *  @return Pointer to metadata, or NULL if not found.
  */
-nk_dtype_info_t const *datatype_info(nk_datatype_t dtype);
+nk_dtype_info_t const *dtype_info(nk_dtype_t dtype);
 
 /**
- *  @brief Get byte size of a datatype.
- *  @param[in] dtype Logical datatype.
+ *  @brief Get byte size of a dtype.
+ *  @param[in] dtype Logical dtype.
  *  @return Size in bytes, or 0 if unknown.
  */
-size_t bytes_per_datatype(nk_datatype_t dtype);
+size_t bytes_per_dtype(nk_dtype_t dtype);
 
 /**
- *  @brief Get human-readable name of a datatype.
- *  @param[in] dtype Logical datatype.
+ *  @brief Get human-readable name of a dtype.
+ *  @param[in] dtype Logical dtype.
  *  @return Name string (e.g., "float32"), or "unknown" if not found.
  */
-char const *datatype_to_string(nk_datatype_t dtype);
+char const *dtype_to_string(nk_dtype_t dtype);
 
 /**
- *  @brief Get NumPy array interface typestr for a datatype.
- *  @param[in] dtype Logical datatype.
+ *  @brief Get NumPy array interface typestr for a dtype.
+ *  @param[in] dtype Logical dtype.
  *  @return Typestr (e.g., "<f4"), or "|V1" if not found.
  */
-char const *datatype_to_array_typestr(nk_datatype_t dtype);
+char const *dtype_to_array_typestr(nk_dtype_t dtype);
 
 /**
- *  @brief Get Python buffer protocol format string for a datatype.
- *  @param[in] dtype Logical datatype.
+ *  @brief Get Python buffer protocol format string for a dtype.
+ *  @param[in] dtype Logical dtype.
  *  @return Format string (e.g., "f"), or "unknown" if not found.
  */
-char const *datatype_to_python_string(nk_datatype_t dtype);
+char const *dtype_to_python_string(nk_dtype_t dtype);
 
 /**
- *  @brief Convert Python-style datatype string to logical datatype.
+ *  @brief Convert Python-style dtype string to logical dtype.
  *
  *  Handles NumPy format strings, Python struct format characters, and
  *  NumKong-specific names like "bfloat16" and "e4m3".
  *
  *  @param[in] name Format string from buffer protocol or user input.
- *  @return Logical datatype, or nk_datatype_unknown_k if not recognized.
+ *  @return Logical dtype, or nk_dtype_unknown_k if not recognized.
  *  @see https://docs.python.org/3/library/struct.html#format-characters
  *  @see https://numpy.org/doc/stable/reference/arrays.interface.html
  */
-nk_datatype_t python_string_to_datatype(char const *name);
+nk_dtype_t python_string_to_dtype(char const *name);
 
 /**
  *  @brief Convert metric name string to kernel kind.
@@ -129,11 +129,11 @@ nk_datatype_t python_string_to_datatype(char const *name);
 nk_kernel_kind_t python_string_to_metric_kind(char const *name);
 
 /**
- *  @brief Check if a datatype is complex.
- *  @param[in] datatype Logical datatype.
+ *  @brief Check if a dtype is complex.
+ *  @param[in] dtype Logical dtype.
  *  @return 1 if complex, 0 otherwise.
  */
-int is_complex(nk_datatype_t datatype);
+int is_complex(nk_dtype_t dtype);
 
 /**
  *  @brief Check string equality.
@@ -144,14 +144,14 @@ int is_complex(nk_datatype_t datatype);
 int same_string(char const *a, char const *b);
 
 /**
- *  @brief Cast a distance value to target datatype and store it.
+ *  @brief Cast a distance value to target dtype and store it.
  *  @param[in] distance The value to store.
- *  @param[in] target_dtype Target datatype.
+ *  @param[in] target_dtype Target dtype.
  *  @param[out] target_ptr Pointer to output buffer.
  *  @param[in] offset Element offset in output buffer.
- *  @return 1 on success, 0 if datatype not supported.
+ *  @return 1 on success, 0 if dtype not supported.
  */
-int cast_distance(nk_fmax_t distance, nk_datatype_t target_dtype, void *target_ptr, size_t offset);
+int cast_distance(nk_fmax_t distance, nk_dtype_t target_dtype, void *target_ptr, size_t offset);
 
 /**
  *  @brief Check if a metric is commutative.

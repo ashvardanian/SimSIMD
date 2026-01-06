@@ -10,10 +10,10 @@
 
 #pragma region Shared Implementations
 
-int impl_elementwise_add(char *a, char *b, char *out, size_t n, nk_datatype_t dtype, Py_ssize_t stride_a,
+int impl_elementwise_add(char *a, char *b, char *out, size_t n, nk_dtype_t dtype, Py_ssize_t stride_a,
                          Py_ssize_t stride_b, Py_ssize_t stride_out) {
     // Fast path: contiguous data
-    size_t item_size = bytes_per_datatype(dtype);
+    size_t item_size = bytes_per_dtype(dtype);
     if (stride_a == (Py_ssize_t)item_size && stride_b == (Py_ssize_t)item_size && stride_out == (Py_ssize_t)item_size) {
         switch (dtype) {
         case nk_f64_k: nk_sum_f64((nk_f64_t *)a, (nk_f64_t *)b, n, (nk_f64_t *)out); return 0;
@@ -45,9 +45,9 @@ int impl_elementwise_add(char *a, char *b, char *out, size_t n, nk_datatype_t dt
     }
 }
 
-int impl_elementwise_mul(char *a, char *b, char *out, size_t n, nk_datatype_t dtype, Py_ssize_t stride_a,
+int impl_elementwise_mul(char *a, char *b, char *out, size_t n, nk_dtype_t dtype, Py_ssize_t stride_a,
                          Py_ssize_t stride_b, Py_ssize_t stride_out) {
-    size_t item_size = bytes_per_datatype(dtype);
+    size_t item_size = bytes_per_dtype(dtype);
     // Contiguous fast path using FMA with alpha=1, beta=0
     if (stride_a == (Py_ssize_t)item_size && stride_b == (Py_ssize_t)item_size && stride_out == (Py_ssize_t)item_size) {
         switch (dtype) {
@@ -78,9 +78,9 @@ int impl_elementwise_mul(char *a, char *b, char *out, size_t n, nk_datatype_t dt
     }
 }
 
-int impl_elementwise_wsum(char *a, char *b, char *out, size_t n, nk_datatype_t dtype, double alpha, double beta,
+int impl_elementwise_wsum(char *a, char *b, char *out, size_t n, nk_dtype_t dtype, double alpha, double beta,
                           Py_ssize_t stride_a, Py_ssize_t stride_b, Py_ssize_t stride_out) {
-    size_t item_size = bytes_per_datatype(dtype);
+    size_t item_size = bytes_per_dtype(dtype);
     if (stride_a == (Py_ssize_t)item_size && stride_b == (Py_ssize_t)item_size && stride_out == (Py_ssize_t)item_size) {
         switch (dtype) {
         case nk_f64_k: {
@@ -112,9 +112,9 @@ int impl_elementwise_wsum(char *a, char *b, char *out, size_t n, nk_datatype_t d
     }
 }
 
-int impl_elementwise_scale(char *a, char *out, size_t n, nk_datatype_t dtype, double alpha, double beta,
+int impl_elementwise_scale(char *a, char *out, size_t n, nk_dtype_t dtype, double alpha, double beta,
                            Py_ssize_t stride_a, Py_ssize_t stride_out) {
-    size_t item_size = bytes_per_datatype(dtype);
+    size_t item_size = bytes_per_dtype(dtype);
     if (stride_a == (Py_ssize_t)item_size && stride_out == (Py_ssize_t)item_size) {
         switch (dtype) {
         case nk_f64_k: {

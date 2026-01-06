@@ -10,9 +10,13 @@
 
 #if NK_TARGET_X86_
 #if NK_TARGET_SKYLAKE
+#if defined(__clang__)
+#pragma clang attribute push(__attribute__((target("avx2,avx512f,avx512vl,avx512bw,avx512dq,f16c,fma,bmi,bmi2"))), \
+                             apply_to = function)
+#elif defined(__GNUC__)
 #pragma GCC push_options
-#pragma GCC target("avx2", "avx512f", "avx512vl", "avx512bw", "bmi2")
-#pragma clang attribute push(__attribute__((target("avx2,avx512f,avx512vl,avx512bw,bmi2"))), apply_to = function)
+#pragma GCC target("avx2", "avx512f", "avx512vl", "avx512bw", "avx512dq", "f16c", "fma", "bmi", "bmi2")
+#endif
 
 #include "numkong/types.h"
 #include "numkong/reduce/skylake.h" // nk_reduce_add_f32x16_skylake_
@@ -61,7 +65,7 @@ NK_INTERNAL nk_f64_t nk_angular_normalize_f64_skylake_(nk_f64_t ab, nk_f64_t a2,
     else if (ab == 0) return 1;
 
     // Design note: We use exact `_mm_sqrt_pd` instead of `_mm_rsqrt14_pd` approximation.
-    // The AVX-512 `_mm_rsqrt14_pd` has max relative error of 2^-14 (~14 bits precision).
+    // The AVX-512 `_mm_rsqrt14_pd` has max relative error of 2⁻¹⁴ (~14 bits precision).
     // Even with Newton-Raphson refinement (doubles precision to ~28 bits), this is
     // insufficient for f64's 52-bit mantissa, causing ULP errors in the tens of millions.
     // The `_mm_sqrt_pd` instruction provides full f64 precision.
@@ -158,7 +162,7 @@ NK_PUBLIC void nk_l2_f64_skylake(nk_f64_t const *a, nk_f64_t const *b, nk_size_t
 
 NK_PUBLIC void nk_angular_f64_skylake(nk_f64_t const *a, nk_f64_t const *b, nk_size_t n, nk_f64_t *result) {
     // Dot2 (Ogita-Rump-Oishi 2005) for cross-product a·b only - it may have cancellation.
-    // Self-products ||a||² and ||b||² use simple FMA - all terms are non-negative, no cancellation.
+    // Self-products ‖a‖² and ‖b‖² use simple FMA - all terms are non-negative, no cancellation.
     __m512d dot_sum_f64x8 = _mm512_setzero_pd();
     __m512d dot_compensation_f64x8 = _mm512_setzero_pd();
     __m512d a_norm_sq_f64x8 = _mm512_setzero_pd();
@@ -556,8 +560,11 @@ nk_angular_e5m2_skylake_cycle:
 } // extern "C"
 #endif
 
+#if defined(__clang__)
 #pragma clang attribute pop
+#elif defined(__GNUC__)
 #pragma GCC pop_options
+#endif
 #endif // NK_TARGET_SKYLAKE
 #endif // NK_TARGET_X86_
 

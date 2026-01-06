@@ -904,7 +904,7 @@ def test_dense(ndim, dtype, metric, capability, stats_fixture):
 @pytest.mark.repeat(randomized_repetitions_count)
 @pytest.mark.parametrize("ndim", [11, 97])
 @pytest.mark.parametrize(
-    "dtypes",  # representation datatype and compute precision
+    "dtypes",  # representation dtype and compute precision
     [
         ("float64", "float64"),
         ("float32", "float32"),

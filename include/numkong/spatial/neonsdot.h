@@ -10,9 +10,12 @@
 
 #if NK_TARGET_ARM_
 #if NK_TARGET_NEONSDOT
+#if defined(__clang__)
+#pragma clang attribute push(__attribute__((target("arch=armv8.2-a+dotprod"))), apply_to = function)
+#elif defined(__GNUC__)
 #pragma GCC push_options
 #pragma GCC target("arch=armv8.2-a+dotprod")
-#pragma clang attribute push(__attribute__((target("arch=armv8.2-a+dotprod"))), apply_to = function)
+#endif
 
 #include "numkong/types.h"
 #include "numkong/spatial/neon.h" // nk_angular_f32x4_finalize_neon_f32_, nk_l2_f32x4_finalize_neon_f32_
@@ -49,7 +52,7 @@ NK_PUBLIC void nk_l2sq_i8_neonsdot(nk_i8_t const *a, nk_i8_t const *b, nk_size_t
 NK_PUBLIC void nk_l2_i8_neonsdot(nk_i8_t const *a, nk_i8_t const *b, nk_size_t n, nk_f32_t *result) {
     nk_u32_t distance_sq_u32;
     nk_l2sq_i8_neonsdot(a, b, n, &distance_sq_u32);
-    *result = nk_sqrt_f32_neon_((nk_f32_t)distance_sq_u32);
+    *result = nk_f32_sqrt_neon((nk_f32_t)distance_sq_u32);
 }
 
 NK_PUBLIC void nk_angular_i8_neonsdot(nk_i8_t const *a, nk_i8_t const *b, nk_size_t n, nk_f32_t *result) {
@@ -191,7 +194,7 @@ NK_PUBLIC void nk_l2sq_u8_neonsdot(nk_u8_t const *a, nk_u8_t const *b, nk_size_t
 NK_PUBLIC void nk_l2_u8_neonsdot(nk_u8_t const *a, nk_u8_t const *b, nk_size_t n, nk_f32_t *result) {
     nk_u32_t d2;
     nk_l2sq_u8_neonsdot(a, b, n, &d2);
-    *result = nk_sqrt_f32_neon_((nk_f32_t)d2);
+    *result = nk_f32_sqrt_neon((nk_f32_t)d2);
 }
 
 NK_PUBLIC void nk_angular_u8_neonsdot(nk_u8_t const *a, nk_u8_t const *b, nk_size_t n, nk_f32_t *result) {
@@ -302,8 +305,11 @@ NK_INTERNAL void nk_l2_u8x16_finalize_neonsdot(nk_l2_u8x16_state_neonsdot_t cons
 } // extern "C"
 #endif
 
+#if defined(__clang__)
 #pragma clang attribute pop
+#elif defined(__GNUC__)
 #pragma GCC pop_options
+#endif
 #endif // NK_TARGET_NEONSDOT
 #endif // NK_TARGET_ARM_
 

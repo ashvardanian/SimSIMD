@@ -10,12 +10,16 @@
 
 #if NK_TARGET_X86_
 #if NK_TARGET_SKYLAKE
-#pragma GCC push_options
-#pragma GCC target("avx2", "avx512f", "avx512vl", "avx512bw", "avx512dq", "bmi2")
-#pragma clang attribute push(__attribute__((target("avx2,avx512f,avx512vl,avx512bw,avx512dq,bmi2"))), \
+#if defined(__clang__)
+#pragma clang attribute push(__attribute__((target("avx2,avx512f,avx512vl,avx512bw,avx512dq,f16c,fma,bmi,bmi2"))), \
                              apply_to = function)
+#elif defined(__GNUC__)
+#pragma GCC push_options
+#pragma GCC target("avx2", "avx512f", "avx512vl", "avx512bw", "avx512dq", "f16c", "fma", "bmi", "bmi2")
+#endif
 
-#include "numkong/reduce/skylake.h"
+#include "numkong/cast/skylake.h"   // `nk_bf16x16_to_f32x16_skylake_`
+#include "numkong/reduce/skylake.h" // `nk_reduce_add_f32x16_skylake_`
 
 #if defined(__cplusplus)
 extern "C" {
@@ -32,12 +36,12 @@ NK_INTERNAL void nk_dot_f32x16_finalize_skylake_wout_compensation_( //
     nk_b128_vec_t *result) {
 
     // ILP-optimized 4-way horizontal reduction for f32x16 in AVX-512
-    // Step 1: 16→8 for all 4 states (extract high 256-bit half and add to low half)
+    // Step 1: 16 → 8 for all 4 states (extract high 256-bit half and add to low half)
     __m256 sum_a_f32x8 = _mm256_add_ps(_mm512_castps512_ps256(sum_a_f32x16), _mm512_extractf32x8_ps(sum_a_f32x16, 1));
     __m256 sum_b_f32x8 = _mm256_add_ps(_mm512_castps512_ps256(sum_b_f32x16), _mm512_extractf32x8_ps(sum_b_f32x16, 1));
     __m256 sum_c_f32x8 = _mm256_add_ps(_mm512_castps512_ps256(sum_c_f32x16), _mm512_extractf32x8_ps(sum_c_f32x16, 1));
     __m256 sum_d_f32x8 = _mm256_add_ps(_mm512_castps512_ps256(sum_d_f32x16), _mm512_extractf32x8_ps(sum_d_f32x16, 1));
-    // Step 2: 8→4 for all 4 states (extract high 128-bit half and add to low half)
+    // Step 2: 8 → 4 for all 4 states (extract high 128-bit half and add to low half)
     __m128 sum_a_f32x4 = _mm_add_ps(_mm256_castps256_ps128(sum_a_f32x8), _mm256_extractf128_ps(sum_a_f32x8, 1));
     __m128 sum_b_f32x4 = _mm_add_ps(_mm256_castps256_ps128(sum_b_f32x8), _mm256_extractf128_ps(sum_b_f32x8, 1));
     __m128 sum_c_f32x4 = _mm_add_ps(_mm256_castps256_ps128(sum_c_f32x8), _mm256_extractf128_ps(sum_c_f32x8, 1));
@@ -458,7 +462,7 @@ NK_PUBLIC void nk_dot_u8_skylake(nk_u8_t const *a_scalars, nk_u8_t const *b_scal
     __m512i sum_i32x16 = _mm512_setzero_si512();
     nk_size_t idx_scalars = 0;
     for (; idx_scalars + 32 <= count_scalars; idx_scalars += 32) {
-        // Load 32 bytes and zero-extend to i16 (u8 -> u16 via zero-extension)
+        // Load 32 bytes and zero-extend to i16 (u8 → u16 via zero-extension)
         __m256i a_u8x32 = _mm256_loadu_si256((__m256i const *)(a_scalars + idx_scalars));
         __m256i b_u8x32 = _mm256_loadu_si256((__m256i const *)(b_scalars + idx_scalars));
         __m512i a_u16x32 = _mm512_cvtepu8_epi16(a_u8x32);
@@ -621,8 +625,11 @@ NK_INTERNAL void nk_dot_e5m2x16_finalize_skylake(                               
 } // extern "C"
 #endif
 
+#if defined(__clang__)
 #pragma clang attribute pop
+#elif defined(__GNUC__)
 #pragma GCC pop_options
+#endif
 #endif // NK_TARGET_SKYLAKE
 #endif // NK_TARGET_X86_
 

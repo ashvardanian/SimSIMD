@@ -521,6 +521,118 @@ NK_PUBLIC nk_f64_t nk_f64_atan2(nk_f64_t const y_input, nk_f64_t const x_input) 
     return result_bits.f;
 }
 
+/**
+ *  @brief Computes an approximate tangent of the given angle in radians with @b 3-ULP error bound for [-2π, 2π].
+ *  @param[in] angle_radians The input angle in radians.
+ *  @return The approximate tangent of the input angle.
+ */
+NK_PUBLIC nk_f32_t nk_f32_tan(nk_f32_t const angle_radians) {
+
+    // Constants for argument reduction
+    nk_f32_t const pi = 3.14159265358979323846f;            /// π
+    nk_f32_t const pi_half = 1.57079632679489661923f;       /// π/2
+    nk_f32_t const pi_quarter = 0.78539816339744830962f;    /// π/4
+    nk_f32_t const pi_reciprocal = 0.31830988618379067154f; /// 1/π
+
+    // Polynomial coefficients for tangent approximation (minimax polynomial)
+    nk_f32_t const coeff_7 = +0.002443315461f; /// Coefficient for x^7 term
+    nk_f32_t const coeff_5 = +0.05338123068f;  /// Coefficient for x^5 term
+    nk_f32_t const coeff_3 = +0.3333314061f;   /// Coefficient for x^3 term
+
+    // Compute (multiple_of_pi) = round(angle / π)
+    nk_f32_t const quotient = angle_radians * pi_reciprocal;
+    int const multiple_of_pi = (int)(quotient < 0 ? quotient - 0.5f : quotient + 0.5f);
+
+    // Reduce the angle to: (angle - (multiple_of_pi * π)) in [-π/2, π/2]
+    nk_f32_t angle = angle_radians - multiple_of_pi * pi;
+
+    // If |angle| > π/4, use tan(x) = 1/tan(π/2 - x) for better accuracy
+    int reciprocal = 0;
+    if (angle > pi_quarter) {
+        angle = pi_half - angle;
+        reciprocal = 1;
+    }
+    else if (angle < -pi_quarter) {
+        angle = -pi_half - angle;
+        reciprocal = 1;
+    }
+
+    // Compute the polynomial approximation: tan(x) ≈ x + c3*x³ + c5*x⁵ + c7*x⁷
+    nk_f32_t const angle_squared = angle * angle;
+    nk_f32_t const angle_cubed = angle * angle_squared;
+
+    nk_f32_t polynomial = coeff_7;
+    polynomial = polynomial * angle_squared + coeff_5;
+    polynomial = polynomial * angle_squared + coeff_3;
+    nk_f32_t result = polynomial * angle_cubed + angle;
+
+    // Apply reciprocal if we reduced from outer region
+    if (reciprocal) result = 1.0f / result;
+    return result;
+}
+
+/**
+ *  @brief Computes the tangent of the given angle in radians with @b 0-ULP error bound in [-2π, 2π].
+ *  @param[in] angle_radians The input angle in radians.
+ *  @return The approximate tangent of the input angle.
+ */
+NK_PUBLIC nk_f64_t nk_f64_tan(nk_f64_t const angle_radians) {
+
+    // Constants for argument reduction
+    nk_f64_t const pi_high = 3.141592653589793116;                         /// High-digits part of π
+    nk_f64_t const pi_low = 1.2246467991473532072e-16;                     /// Low-digits part of π
+    nk_f64_t const pi_half = 1.5707963267948966192313216916398;            /// π/2
+    nk_f64_t const pi_quarter = 0.78539816339744830961566084581988;        /// π/4
+    nk_f64_t const pi_reciprocal = 0.318309886183790671537767526745028724; /// 1/π
+
+    // Polynomial coefficients for tangent approximation (minimax polynomial)
+    nk_f64_t const coeff_13 = +0.000024030521244861858; /// Coefficient for x^13 term
+    nk_f64_t const coeff_11 = +0.00035923150434482523;  /// Coefficient for x^11 term
+    nk_f64_t const coeff_9 = +0.0058685277932046705;    /// Coefficient for x^9 term
+    nk_f64_t const coeff_7 = +0.021869488294859542;     /// Coefficient for x^7 term
+    nk_f64_t const coeff_5 = +0.053968253972902704;     /// Coefficient for x^5 term
+    nk_f64_t const coeff_3 = +0.13333333333320124;      /// Coefficient for x^3 term
+    nk_f64_t const coeff_1 = +0.33333333333333331;      /// Coefficient for x term
+
+    // Compute (multiple_of_pi) = round(angle / π)
+    nk_f64_t const quotient = angle_radians * pi_reciprocal;
+    int const multiple_of_pi = (int)(quotient < 0 ? quotient - 0.5 : quotient + 0.5);
+
+    // Reduce the angle using high/low precision split
+    nk_f64_t angle = angle_radians;
+    angle = angle - (multiple_of_pi * pi_high);
+    angle = angle - (multiple_of_pi * pi_low);
+
+    // If |angle| > π/4, use tan(x) = 1/tan(π/2 - x) for better accuracy
+    int reciprocal = 0;
+    if (angle > pi_quarter) {
+        angle = pi_half - angle;
+        reciprocal = 1;
+    }
+    else if (angle < -pi_quarter) {
+        angle = -pi_half - angle;
+        reciprocal = 1;
+    }
+
+    // Compute powers of angle
+    nk_f64_t const angle_squared = angle * angle;
+    nk_f64_t const angle_cubed = angle * angle_squared;
+
+    // Compute the polynomial approximation: tan(x) ≈ x*(1 + c1*x² + c3*x⁴ + ...)
+    nk_f64_t polynomial = coeff_13;
+    polynomial = polynomial * angle_squared + coeff_11;
+    polynomial = polynomial * angle_squared + coeff_9;
+    polynomial = polynomial * angle_squared + coeff_7;
+    polynomial = polynomial * angle_squared + coeff_5;
+    polynomial = polynomial * angle_squared + coeff_3;
+    polynomial = polynomial * angle_squared + coeff_1;
+    nk_f64_t result = polynomial * angle_cubed + angle;
+
+    // Apply reciprocal if we reduced from outer region
+    if (reciprocal) result = 1.0 / result;
+    return result;
+}
+
 NK_PUBLIC void nk_sin_f32_serial(nk_f32_t const *ins, nk_size_t n, nk_f32_t *outs) {
     for (nk_size_t i = 0; i != n; ++i) outs[i] = nk_f32_sin(ins[i]);
 }
@@ -543,27 +655,27 @@ NK_PUBLIC void nk_atan_f64_serial(nk_f64_t const *ins, nk_size_t n, nk_f64_t *ou
 NK_PUBLIC void nk_sin_f16_serial(nk_f16_t const *ins, nk_size_t n, nk_f16_t *outs) {
     for (nk_size_t i = 0; i != n; ++i) {
         nk_f32_t angle_f32;
-        nk_f16_to_f32_(&ins[i], &angle_f32);
+        nk_f16_to_f32_serial(&ins[i], &angle_f32);
         nk_f32_t const result_f32 = nk_f32_sin(angle_f32);
-        nk_f32_to_f16_(&result_f32, &outs[i]);
+        nk_f32_to_f16_serial(&result_f32, &outs[i]);
     }
 }
 
 NK_PUBLIC void nk_cos_f16_serial(nk_f16_t const *ins, nk_size_t n, nk_f16_t *outs) {
     for (nk_size_t i = 0; i != n; ++i) {
         nk_f32_t angle_f32;
-        nk_f16_to_f32_(&ins[i], &angle_f32);
+        nk_f16_to_f32_serial(&ins[i], &angle_f32);
         nk_f32_t const result_f32 = nk_f32_cos(angle_f32);
-        nk_f32_to_f16_(&result_f32, &outs[i]);
+        nk_f32_to_f16_serial(&result_f32, &outs[i]);
     }
 }
 
 NK_PUBLIC void nk_atan_f16_serial(nk_f16_t const *ins, nk_size_t n, nk_f16_t *outs) {
     for (nk_size_t i = 0; i != n; ++i) {
         nk_f32_t value_f32;
-        nk_f16_to_f32_(&ins[i], &value_f32);
+        nk_f16_to_f32_serial(&ins[i], &value_f32);
         nk_f32_t const result_f32 = nk_f32_atan(value_f32);
-        nk_f32_to_f16_(&result_f32, &outs[i]);
+        nk_f32_to_f16_serial(&result_f32, &outs[i]);
     }
 }
 

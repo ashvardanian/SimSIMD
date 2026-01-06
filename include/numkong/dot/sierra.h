@@ -10,9 +10,12 @@
 
 #if NK_TARGET_X86_
 #if NK_TARGET_SIERRA
+#if defined(__clang__)
+#pragma clang attribute push(__attribute__((target("avx2,f16c,fma,bmi,bmi2,avxvnni,avxvnniint8"))), apply_to = function)
+#elif defined(__GNUC__)
 #pragma GCC push_options
-#pragma GCC target("avx2", "bmi2", "f16c", "fma", "avxvnni", "avxvnniint8")
-#pragma clang attribute push(__attribute__((target("avx2,bmi2,f16c,fma,avxvnni,avxvnniint8"))), apply_to = function)
+#pragma GCC target("avx2", "f16c", "fma", "bmi", "bmi2", "avxvnni", "avxvnniint8")
+#endif
 
 #include "numkong/types.h"
 #include "numkong/reduce/haswell.h" // nk_reduce_add_i32x8_haswell_
@@ -27,8 +30,8 @@ NK_PUBLIC void nk_dot_i8_sierra(nk_i8_t const *a_scalars, nk_i8_t const *b_scala
     __m256i sum_i32x8 = _mm256_setzero_si256();
     nk_size_t idx_scalars = 0;
     for (; idx_scalars + 32 <= count_scalars; idx_scalars += 32) {
-        __m256i a_i8x32 = _mm256_lddqu_si256((__m256i const *)(a_scalars + idx_scalars));
-        __m256i b_i8x32 = _mm256_lddqu_si256((__m256i const *)(b_scalars + idx_scalars));
+        __m256i a_i8x32 = _mm256_loadu_si256((__m256i const *)(a_scalars + idx_scalars));
+        __m256i b_i8x32 = _mm256_loadu_si256((__m256i const *)(b_scalars + idx_scalars));
         sum_i32x8 = _mm256_dpbssds_epi32(sum_i32x8, a_i8x32, b_i8x32);
     }
 
@@ -57,8 +60,8 @@ NK_INTERNAL void nk_dot_i8x32_finalize_sierra(                                  
     nk_dot_i8x32_state_sierra_t const *state_a, nk_dot_i8x32_state_sierra_t const *state_b, //
     nk_dot_i8x32_state_sierra_t const *state_c, nk_dot_i8x32_state_sierra_t const *state_d, //
     nk_b128_vec_t *result) {
-    // ILP-optimized 4-way horizontal reduction for i32 in AVX2 (8 elements -> 1 scalar each)
-    // Step 1: 8->4 for all 4 states (extract high 128-bit half and add to low half)
+    // ILP-optimized 4-way horizontal reduction for i32 in AVX2 (8 elements → 1 scalar each)
+    // Step 1: 8 → 4 for all 4 states (extract high 128-bit half and add to low half)
     __m128i sum_i32x4_a = _mm_add_epi32(_mm256_castsi256_si128(state_a->sum_i32x8),
                                         _mm256_extracti128_si256(state_a->sum_i32x8, 1));
     __m128i sum_i32x4_b = _mm_add_epi32(_mm256_castsi256_si128(state_b->sum_i32x8),
@@ -67,7 +70,7 @@ NK_INTERNAL void nk_dot_i8x32_finalize_sierra(                                  
                                         _mm256_extracti128_si256(state_c->sum_i32x8, 1));
     __m128i sum_i32x4_d = _mm_add_epi32(_mm256_castsi256_si128(state_d->sum_i32x8),
                                         _mm256_extracti128_si256(state_d->sum_i32x8, 1));
-    // Step 2: Transpose 4x4 matrix of partial sums using integer shuffles
+    // Step 2: Transpose 4×4 matrix of partial sums using integer shuffles
     __m128i transpose_ab_low_i32x4 = _mm_unpacklo_epi32(sum_i32x4_a, sum_i32x4_b);
     __m128i transpose_cd_low_i32x4 = _mm_unpacklo_epi32(sum_i32x4_c, sum_i32x4_d);
     __m128i transpose_ab_high_i32x4 = _mm_unpackhi_epi32(sum_i32x4_a, sum_i32x4_b);
@@ -87,8 +90,8 @@ NK_PUBLIC void nk_dot_u8_sierra(nk_u8_t const *a_scalars, nk_u8_t const *b_scala
     __m256i sum_i32x8 = _mm256_setzero_si256();
     nk_size_t idx_scalars = 0;
     for (; idx_scalars + 32 <= count_scalars; idx_scalars += 32) {
-        __m256i a_u8x32 = _mm256_lddqu_si256((__m256i const *)(a_scalars + idx_scalars));
-        __m256i b_u8x32 = _mm256_lddqu_si256((__m256i const *)(b_scalars + idx_scalars));
+        __m256i a_u8x32 = _mm256_loadu_si256((__m256i const *)(a_scalars + idx_scalars));
+        __m256i b_u8x32 = _mm256_loadu_si256((__m256i const *)(b_scalars + idx_scalars));
         sum_i32x8 = _mm256_dpbuud_epi32(sum_i32x8, a_u8x32, b_u8x32);
     }
     nk_u32_t sum_u32 = (nk_u32_t)nk_reduce_add_i32x8_haswell_(sum_i32x8);
@@ -119,20 +122,15 @@ NK_INTERNAL void nk_dot_u8x32_finalize_sierra(                                  
         result);
 }
 
-NK_INTERNAL void nk_load_b256_sierra_(void const *src, nk_b256_vec_t *dst) {
-    dst->ymm = _mm256_loadu_si256((const __m256i *)src);
-}
-
-NK_INTERNAL void nk_partial_load_b8x32_sierra_(void const *src, nk_size_t n, nk_b256_vec_t *dst) {
-    nk_partial_load_b8x32_haswell_(src, n, dst);
-}
-
 #if defined(__cplusplus)
 } // extern "C"
 #endif
 
+#if defined(__clang__)
 #pragma clang attribute pop
+#elif defined(__GNUC__)
 #pragma GCC pop_options
+#endif
 #endif // NK_TARGET_SIERRA
 #endif // NK_TARGET_X86_
 

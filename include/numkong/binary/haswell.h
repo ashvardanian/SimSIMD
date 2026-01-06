@@ -10,34 +10,39 @@
 
 #if NK_TARGET_X86_
 #if NK_TARGET_HASWELL
+#if defined(__clang__)
+#pragma clang attribute push(__attribute__((target("popcnt"))), apply_to = function)
+#elif defined(__GNUC__)
 #pragma GCC push_options
 #pragma GCC target("popcnt")
-#pragma clang attribute push(__attribute__((target("popcnt"))), apply_to = function)
+#endif
 
 #include "numkong/types.h"
-#include "numkong/binary/serial.h" // `nk_popcount_b8`
+#include "numkong/binary/serial.h" // `nk_popcount_u1`
 
 #if defined(__cplusplus)
 extern "C" {
 #endif
 
-NK_PUBLIC void nk_hamming_b8_haswell(nk_b8_t const *a, nk_b8_t const *b, nk_size_t n_words, nk_u32_t *result) {
+NK_PUBLIC void nk_hamming_u1_haswell(nk_u1x8_t const *a, nk_u1x8_t const *b, nk_size_t n, nk_u32_t *result) {
+    nk_size_t n_bytes = nk_size_divide_round_up_to_multiple_(n, NK_BITS_PER_BYTE);
     // x86 supports unaligned loads and works just fine with the scalar version for small vectors.
     nk_u32_t differences = 0;
-    for (; n_words >= 8; n_words -= 8, a += 8, b += 8)
+    for (; n_bytes >= 8; n_bytes -= 8, a += 8, b += 8)
         differences += _mm_popcnt_u64(*(nk_u64_t const *)a ^ *(nk_u64_t const *)b);
-    for (; n_words; --n_words, ++a, ++b) differences += _mm_popcnt_u32(*a ^ *b);
+    for (; n_bytes; --n_bytes, ++a, ++b) differences += _mm_popcnt_u32(*a ^ *b);
     *result = differences;
 }
 
-NK_PUBLIC void nk_jaccard_b8_haswell(nk_b8_t const *a, nk_b8_t const *b, nk_size_t n_words, nk_f32_t *result) {
+NK_PUBLIC void nk_jaccard_u1_haswell(nk_u1x8_t const *a, nk_u1x8_t const *b, nk_size_t n, nk_f32_t *result) {
+    nk_size_t n_bytes = nk_size_divide_round_up_to_multiple_(n, NK_BITS_PER_BYTE);
     // x86 supports unaligned loads and works just fine with the scalar version for small vectors.
     nk_u32_t intersection_count = 0, union_count = 0;
-    for (; n_words >= 8; n_words -= 8, a += 8, b += 8)
+    for (; n_bytes >= 8; n_bytes -= 8, a += 8, b += 8)
         intersection_count += (nk_u32_t)_mm_popcnt_u64(*(nk_u64_t const *)a & *(nk_u64_t const *)b),
             union_count += (nk_u32_t)_mm_popcnt_u64(*(nk_u64_t const *)a | *(nk_u64_t const *)b);
-    for (; n_words; --n_words, ++a, ++b)
-        intersection_count += nk_popcount_b8(*a & *b), union_count += nk_popcount_b8(*a | *b);
+    for (; n_bytes; --n_bytes, ++a, ++b)
+        intersection_count += nk_popcount_u1(*a & *b), union_count += nk_popcount_u1(*a | *b);
     *result = (union_count != 0) ? 1.0f - (nk_f32_t)intersection_count / (nk_f32_t)union_count : 1.0f;
 }
 
@@ -152,8 +157,11 @@ NK_INTERNAL void nk_jaccard_b256_finalize_haswell(nk_jaccard_b256_state_haswell_
 } // extern "C"
 #endif
 
+#if defined(__clang__)
 #pragma clang attribute pop
+#elif defined(__GNUC__)
 #pragma GCC pop_options
+#endif
 #endif // NK_TARGET_HASWELL
 #endif // NK_TARGET_X86_
 

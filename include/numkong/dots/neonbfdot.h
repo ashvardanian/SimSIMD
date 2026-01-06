@@ -10,9 +10,12 @@
 
 #if NK_TARGET_ARM_
 #if NK_TARGET_NEONBFDOT
+#if defined(__clang__)
+#pragma clang attribute push(__attribute__((target("arch=armv8.6-a+simd+bf16"))), apply_to = function)
+#elif defined(__GNUC__)
 #pragma GCC push_options
 #pragma GCC target("arch=armv8.6-a+simd+bf16")
-#pragma clang attribute push(__attribute__((target("arch=armv8.6-a+simd+bf16"))), apply_to = function)
+#endif
 
 #include "numkong/types.h"
 
@@ -23,18 +26,21 @@ extern "C" {
 // BF16 GEMM: simd_width=8 (8 bf16s = 16 bytes = NEON register width)
 nk_make_dots_pack_size_(neonbfdot, bf16, f32)
 nk_make_dots_pack_(neonbfdot, bf16, f32)
-nk_make_dots_inner_vectors_(bf16bf16f32_neonbfdot, bf16, f32, nk_b128_vec_t, nk_dot_bf16x8_state_neonbfdot_t,
-                            nk_b128_vec_t, nk_dot_bf16x8_init_neonbfdot, nk_load_b128_neon_,
-                            nk_partial_load_b16x8_neon_, nk_dot_bf16x8_update_neonbfdot,
-                            nk_dot_bf16x8_finalize_neonbfdot, nk_partial_store_b32x4_neon_,
-                            /*k_tile=*/8)
+nk_make_dots_packed_vectors_(bf16_neonbfdot, bf16, f32, nk_b128_vec_t, nk_dot_bf16x8_state_neonbfdot_t, nk_b128_vec_t,
+                             nk_dot_bf16x8_init_neonbfdot, nk_load_b128_neon_, nk_partial_load_b16x8_serial_,
+                             nk_dot_bf16x8_update_neonbfdot, nk_dot_bf16x8_finalize_neonbfdot,
+                             nk_partial_store_b32x4_serial_,
+                             /*k_tile=*/8)
 
 #if defined(__cplusplus)
 } // extern "C"
 #endif
 
+#if defined(__clang__)
 #pragma clang attribute pop
+#elif defined(__GNUC__)
 #pragma GCC pop_options
+#endif
 #endif // NK_TARGET_NEONBFDOT
 #endif // NK_TARGET_ARM_
 

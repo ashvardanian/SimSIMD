@@ -10,12 +10,15 @@
 
 #if NK_TARGET_ARM_
 #if NK_TARGET_NEONBFDOT
+#if defined(__clang__)
+#pragma clang attribute push(__attribute__((target("arch=armv8.6-a+simd+bf16"))), apply_to = function)
+#elif defined(__GNUC__)
 #pragma GCC push_options
 #pragma GCC target("arch=armv8.6-a+simd+bf16")
-#pragma clang attribute push(__attribute__((target("arch=armv8.6-a+simd+bf16"))), apply_to = function)
+#endif
 
 #include "numkong/types.h"
-#include "numkong/reduce/neon.h"  // nk_partial_load_b16x8_neon_
+#include "numkong/reduce/neon.h"  // nk_partial_load_b16x8_serial_
 #include "numkong/spatial/neon.h" // nk_angular_f32x4_finalize_neon_f32_, nk_l2_f32x4_finalize_neon_f32_
 
 #if defined(__cplusplus)
@@ -71,8 +74,8 @@ NK_PUBLIC void nk_angular_bf16_neonbfdot(nk_bf16_t const *a, nk_bf16_t const *b,
 nk_angular_bf16_neonbfdot_cycle:
     if (n < 8) {
         nk_b128_vec_t a_vec, b_vec;
-        nk_partial_load_b16x8_neon_(a, n, &a_vec);
-        nk_partial_load_b16x8_neon_(b, n, &b_vec);
+        nk_partial_load_b16x8_serial_(a, n, &a_vec);
+        nk_partial_load_b16x8_serial_(b, n, &b_vec);
         a_bf16x8 = vreinterpretq_bf16_u16(a_vec.u16x8);
         b_bf16x8 = vreinterpretq_bf16_u16(b_vec.u16x8);
         n = 0;
@@ -87,7 +90,6 @@ nk_angular_bf16_neonbfdot_cycle:
     b_norm_sq_f32x4 = vbfdotq_f32(b_norm_sq_f32x4, b_bf16x8, b_bf16x8);
     if (n) goto nk_angular_bf16_neonbfdot_cycle;
 
-    // Avoid `nk_f32_approximate_inverse_square_root` on Arm NEON
     nk_f32_t dot_product_f32 = vaddvq_f32(dot_product_f32x4);
     nk_f32_t a_norm_sq_f32 = vaddvq_f32(a_norm_sq_f32x4);
     nk_f32_t b_norm_sq_f32 = vaddvq_f32(b_norm_sq_f32x4);
@@ -124,7 +126,7 @@ NK_PUBLIC void nk_l2sq_bf16_neonbfdot(nk_bf16_t const *a, nk_bf16_t const *b, nk
 }
 NK_PUBLIC void nk_l2_bf16_neonbfdot(nk_bf16_t const *a, nk_bf16_t const *b, nk_size_t n, nk_f32_t *result) {
     nk_l2sq_bf16_neonbfdot(a, b, n, result);
-    *result = nk_sqrt_f32_neon_(*result);
+    *result = nk_f32_sqrt_neon(*result);
 }
 
 typedef nk_dot_bf16x8_state_neonbfdot_t nk_angular_bf16x8_state_neonbfdot_t;
@@ -172,8 +174,11 @@ NK_INTERNAL void nk_l2_bf16x8_finalize_neonbfdot(nk_l2_bf16x8_state_neonbfdot_t 
 } // extern "C"
 #endif
 
+#if defined(__clang__)
 #pragma clang attribute pop
+#elif defined(__GNUC__)
 #pragma GCC pop_options
+#endif
 #endif // NK_TARGET_NEONBFDOT
 #endif // NK_TARGET_ARM_
 

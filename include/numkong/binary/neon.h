@@ -10,28 +10,32 @@
 
 #if NK_TARGET_ARM_
 #if NK_TARGET_NEON
+#if defined(__clang__)
+#pragma clang attribute push(__attribute__((target("arch=armv8-a+simd"))), apply_to = function)
+#elif defined(__GNUC__)
 #pragma GCC push_options
 #pragma GCC target("arch=armv8-a+simd")
-#pragma clang attribute push(__attribute__((target("arch=armv8-a+simd"))), apply_to = function)
+#endif
 
 #include "numkong/types.h"
 #include "numkong/reduce/neon.h"   // nk_reduce_add_u8x16_neon_
-#include "numkong/binary/serial.h" // nk_popcount_b8
+#include "numkong/binary/serial.h" // nk_popcount_u1
 
 #if defined(__cplusplus)
 extern "C" {
 #endif
 
-NK_PUBLIC void nk_hamming_b8_neon(nk_b8_t const *a, nk_b8_t const *b, nk_size_t n_words, nk_u32_t *result) {
+NK_PUBLIC void nk_hamming_u1_neon(nk_u1x8_t const *a, nk_u1x8_t const *b, nk_size_t n, nk_u32_t *result) {
+    nk_size_t n_bytes = nk_size_divide_round_up_to_multiple_(n, NK_BITS_PER_BYTE);
     nk_u32_t differences = 0;
     nk_size_t i = 0;
     // In each 8-bit word we may have up to 8 differences.
     // So for up-to 31 cycles (31 * 16 = 496 word-dimensions = 3968 bits)
     // we can aggregate the differences into a `uint8x16_t` vector,
     // where each component will be up-to 255.
-    while (i + 16 <= n_words) {
+    while (i + 16 <= n_bytes) {
         uint8x16_t popcount_u8x16 = vdupq_n_u8(0);
-        for (nk_size_t cycle = 0; cycle < 31 && i + 16 <= n_words; ++cycle, i += 16) {
+        for (nk_size_t cycle = 0; cycle < 31 && i + 16 <= n_bytes; ++cycle, i += 16) {
             uint8x16_t a_u8x16 = vld1q_u8(a + i);
             uint8x16_t b_u8x16 = vld1q_u8(b + i);
             uint8x16_t xor_popcount_u8x16 = vcntq_u8(veorq_u8(a_u8x16, b_u8x16));
@@ -40,21 +44,22 @@ NK_PUBLIC void nk_hamming_b8_neon(nk_b8_t const *a, nk_b8_t const *b, nk_size_t 
         differences += nk_reduce_add_u8x16_neon_(popcount_u8x16);
     }
     // Handle the tail
-    for (; i != n_words; ++i) differences += nk_popcount_b8(a[i] ^ b[i]);
+    for (; i != n_bytes; ++i) differences += nk_popcount_u1(a[i] ^ b[i]);
     *result = differences;
 }
 
-NK_PUBLIC void nk_jaccard_b8_neon(nk_b8_t const *a, nk_b8_t const *b, nk_size_t n_words, nk_f32_t *result) {
+NK_PUBLIC void nk_jaccard_u1_neon(nk_u1x8_t const *a, nk_u1x8_t const *b, nk_size_t n, nk_f32_t *result) {
+    nk_size_t n_bytes = nk_size_divide_round_up_to_multiple_(n, NK_BITS_PER_BYTE);
     nk_u32_t intersection_count = 0, union_count = 0;
     nk_size_t i = 0;
     // In each 8-bit word we may have up to 8 intersections/unions.
     // So for up-to 31 cycles (31 * 16 = 496 word-dimensions = 3968 bits)
     // we can aggregate the intersections/unions into a `uint8x16_t` vector,
     // where each component will be up-to 255.
-    while (i + 16 <= n_words) {
+    while (i + 16 <= n_bytes) {
         uint8x16_t intersection_popcount_u8x16 = vdupq_n_u8(0);
         uint8x16_t union_popcount_u8x16 = vdupq_n_u8(0);
-        for (nk_size_t cycle = 0; cycle < 31 && i + 16 <= n_words; ++cycle, i += 16) {
+        for (nk_size_t cycle = 0; cycle < 31 && i + 16 <= n_bytes; ++cycle, i += 16) {
             uint8x16_t a_u8x16 = vld1q_u8(a + i);
             uint8x16_t b_u8x16 = vld1q_u8(b + i);
             intersection_popcount_u8x16 = vaddq_u8(intersection_popcount_u8x16, vcntq_u8(vandq_u8(a_u8x16, b_u8x16)));
@@ -64,8 +69,8 @@ NK_PUBLIC void nk_jaccard_b8_neon(nk_b8_t const *a, nk_b8_t const *b, nk_size_t 
         union_count += nk_reduce_add_u8x16_neon_(union_popcount_u8x16);
     }
     // Handle the tail
-    for (; i != n_words; ++i)
-        intersection_count += nk_popcount_b8(a[i] & b[i]), union_count += nk_popcount_b8(a[i] | b[i]);
+    for (; i != n_bytes; ++i)
+        intersection_count += nk_popcount_u1(a[i] & b[i]), union_count += nk_popcount_u1(a[i] | b[i]);
     *result = (union_count != 0) ? 1.0f - (nk_f32_t)intersection_count / (nk_f32_t)union_count : 1.0f;
 }
 
@@ -98,11 +103,11 @@ NK_INTERNAL void nk_jaccard_b128_update_neon(nk_jaccard_b128_state_neon_t *state
     // Uses vector accumulation - horizontal sum deferred to finalize.
     //
     // ARM NEON instruction characteristics:
-    //   `vandq_u8`:   Bitwise AND, 1 cycle latency
-    //   `vcntq_u8`:   Byte popcount (16 bytes -> 16 popcounts), 1-2 cycles
-    //   `vpaddlq_u8`: Pairwise widening add u8->u16, 1 cycle
-    //   `vpaddlq_u16`: Pairwise widening add u16->u32, 1 cycle
-    //   `vaddq_u32`:  Vector add u32x4, 1 cycle
+    //   `vandq_u8`:    Bitwise AND, 1 cycle latency
+    //   `vcntq_u8`:    Byte popcount (16 bytes → 16 popcounts), 1-2 cycles
+    //   `vpaddlq_u8`:  Pairwise widening add u8 → u16, 1 cycle
+    //   `vpaddlq_u16`: Pairwise widening add u16 → u32, 1 cycle
+    //   `vaddq_u32`:   Vector add u32x4, 1 cycle
     // Total: ~5-6 cycles per 128-bit chunk (no horizontal sum penalty per update)
 
     // Step 1: Compute intersection bits (A AND B)
@@ -112,9 +117,9 @@ NK_INTERNAL void nk_jaccard_b128_update_neon(nk_jaccard_b128_state_neon_t *state
     uint8x16_t popcount_u8x16 = vcntq_u8(intersection_u8x16);
 
     // Step 3: Pairwise widening reduction chain
-    // u8x16 -> u16x8: pairs of adjacent bytes summed into 16-bit
+    // u8x16 → u16x8: pairs of adjacent bytes summed into 16-bit
     uint16x8_t popcount_u16x8 = vpaddlq_u8(popcount_u8x16);
-    // u16x8 -> u32x4: pairs of 16-bit values summed into 32-bit
+    // u16x8 → u32x4: pairs of 16-bit values summed into 32-bit
     uint32x4_t popcount_u32x4 = vpaddlq_u16(popcount_u16x8);
 
     // Step 4: Vector accumulation (defers horizontal sum to finalize)
@@ -142,7 +147,7 @@ NK_INTERNAL void nk_jaccard_b128_finalize_neon(nk_jaccard_b128_state_neon_t cons
                                                target_popcount_d};
     float32x4_t union_f32x4 = vsubq_f32(vaddq_f32(query_f32x4, targets_f32x4), intersection_f32x4);
 
-    // Handle zero-union edge case (empty vectors -> distance = 1.0)
+    // Handle zero-union edge case (empty vectors → distance = 1.0)
     float32x4_t one_f32x4 = vdupq_n_f32(1.0f);
     uint32x4_t zero_union_mask = vceqq_f32(union_f32x4, vdupq_n_f32(0.0f));
     float32x4_t safe_union_f32x4 = vbslq_f32(zero_union_mask, one_f32x4, union_f32x4);
@@ -168,8 +173,11 @@ NK_INTERNAL void nk_jaccard_b128_finalize_neon(nk_jaccard_b128_state_neon_t cons
 } // extern "C"
 #endif
 
+#if defined(__clang__)
 #pragma clang attribute pop
+#elif defined(__GNUC__)
 #pragma GCC pop_options
+#endif
 #endif // NK_TARGET_NEON
 #endif // NK_TARGET_ARM_
 

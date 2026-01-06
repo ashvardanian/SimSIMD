@@ -10,12 +10,15 @@
 
 #if NK_TARGET_ARM_
 #if NK_TARGET_SVE
+#if defined(__clang__)
+#pragma clang attribute push(__attribute__((target("arch=armv8.2-a+sve"))), apply_to = function)
+#elif defined(__GNUC__)
 #pragma GCC push_options
 #pragma GCC target("arch=armv8.2-a+sve")
-#pragma clang attribute push(__attribute__((target("arch=armv8.2-a+sve"))), apply_to = function)
+#endif
 
 #include "numkong/types.h"
-#include "numkong/dot/serial.h"  // `nk_popcount_b8`
+#include "numkong/dot/serial.h"  // `nk_popcount_u1`
 #include "numkong/reduce/neon.h" // `nk_reduce_add_u8x16_neon_`
 
 #if defined(__cplusplus)
@@ -146,8 +149,11 @@ NK_PUBLIC void nk_vdot_f64c_sve(nk_f64c_t const *a_pairs, nk_f64c_t const *b_pai
 } // extern "C"
 #endif
 
+#if defined(__clang__)
 #pragma clang attribute pop
+#elif defined(__GNUC__)
 #pragma GCC pop_options
+#endif
 #endif // NK_TARGET_SVE
 #endif // NK_TARGET_ARM_
 

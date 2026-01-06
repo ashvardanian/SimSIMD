@@ -67,7 +67,7 @@ SpacesInSquareBrackets: false
 
 BinPackArguments: true
 BinPackParameters: true
-BinPackLongBracedList: true
+# BinPackLongBracedList: true  # Requires clang-format 19+
 PenaltyBreakBeforeFirstCallParameter: 1
 
 # Macros treated as attributes (Python C API + NumKong visibility)
@@ -81,8 +81,10 @@ StatementMacros:
   - nk_make_dots_pack_size_
   - nk_make_dots_pack_
   - nk_make_dots_vectors_
-  - nk_make_dots_inner_vectors_
+  - nk_make_dots_packed_vectors_
   - nk_make_dots_outer_scalars_
+  - nk_make_dots_packed_4x4_vectors_aligned_
+  - nk_make_dots_packed_1x8_vectors_aligned_
   - nk_declare_dense_
   - nk_declare_sparse_
   - nk_declare_sparse_dot_

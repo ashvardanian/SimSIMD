@@ -85,7 +85,7 @@
  *
  *  @code{.c}
  *  // 1024-dimensional binary vectors, one query and four targets
- *  nk_b8_t query[128], target_first[128], target_second[128], target_third[128], target_fourth[128];
+ *  nk_u1x8_t query[128], target_first[128], target_second[128], target_third[128], target_fourth[128];
  *  // Precomputed popcount of 'a' as f32
  *  nk_f32_t query_popcount = ...;
  *  nk_f32_t target_popcount_first = ..., target_popcount_second = ...;
@@ -145,26 +145,26 @@ extern "C" {
  *
  *  @param[in] a The first binary vector.
  *  @param[in] b The second binary vector.
- *  @param[in] n_words The number of 8-bit words in the vectors.
+ *  @param[in] n The number of bits in the vectors.
  *  @param[out] result The output distance value.
  *
  *  @note The output distance value is non-negative.
  *  @note The output distance value is zero if and only if the two vectors are identical.
  */
-NK_DYNAMIC void nk_hamming_b8(nk_b8_t const *a, nk_b8_t const *b, nk_size_t n_words, nk_u32_t *result);
+NK_DYNAMIC void nk_hamming_u1(nk_u1x8_t const *a, nk_u1x8_t const *b, nk_size_t n, nk_u32_t *result);
 
 /**
  *  @brief Binary Jaccard distance computing the ratio of differing bits to the union of bits.
  *
  *  @param[in] a The first binary vector.
  *  @param[in] b The second binary vector.
- *  @param[in] n_words The number of 8-bit words in the vectors.
+ *  @param[in] n The number of bits in the vectors.
  *  @param[out] result The output distance value.
  *
  *  @note The output distance value is non-negative.
  *  @note The output distance value is zero if and only if the two vectors are identical.
  */
-NK_DYNAMIC void nk_jaccard_b8(nk_b8_t const *a, nk_b8_t const *b, nk_size_t n_words, nk_f32_t *result);
+NK_DYNAMIC void nk_jaccard_u1(nk_u1x8_t const *a, nk_u1x8_t const *b, nk_size_t n, nk_f32_t *result);
 
 /**
  *  @brief Integral Jaccard distance computing the ratio of differing bits to the union of bits.
@@ -179,10 +179,10 @@ NK_DYNAMIC void nk_jaccard_b8(nk_b8_t const *a, nk_b8_t const *b, nk_size_t n_wo
  */
 NK_DYNAMIC void nk_jaccard_u32(nk_u32_t const *a, nk_u32_t const *b, nk_size_t n, nk_f32_t *result);
 
-/** @copydoc nk_hamming_b8 */
-NK_PUBLIC void nk_hamming_b8_serial(nk_b8_t const *a, nk_b8_t const *b, nk_size_t n_words, nk_u32_t *result);
-/** @copydoc nk_jaccard_b8 */
-NK_PUBLIC void nk_jaccard_b8_serial(nk_b8_t const *a, nk_b8_t const *b, nk_size_t n_words, nk_f32_t *result);
+/** @copydoc nk_hamming_u1 */
+NK_PUBLIC void nk_hamming_u1_serial(nk_u1x8_t const *a, nk_u1x8_t const *b, nk_size_t n, nk_u32_t *result);
+/** @copydoc nk_jaccard_u1 */
+NK_PUBLIC void nk_jaccard_u1_serial(nk_u1x8_t const *a, nk_u1x8_t const *b, nk_size_t n, nk_f32_t *result);
 /** @copydoc nk_jaccard_u32 */
 NK_PUBLIC void nk_jaccard_u32_serial(nk_u32_t const *a, nk_u32_t const *b, nk_size_t n, nk_f32_t *result);
 
@@ -207,10 +207,10 @@ NK_INTERNAL void nk_jaccard_b128_finalize_serial(nk_jaccard_b128_state_serial_t 
                                                  nk_f32_t *results);
 
 #if NK_TARGET_NEON
-/** @copydoc nk_hamming_b8 */
-NK_PUBLIC void nk_hamming_b8_neon(nk_b8_t const *a, nk_b8_t const *b, nk_size_t n_words, nk_u32_t *result);
-/** @copydoc nk_jaccard_b8 */
-NK_PUBLIC void nk_jaccard_b8_neon(nk_b8_t const *a, nk_b8_t const *b, nk_size_t n_words, nk_f32_t *result);
+/** @copydoc nk_hamming_u1 */
+NK_PUBLIC void nk_hamming_u1_neon(nk_u1x8_t const *a, nk_u1x8_t const *b, nk_size_t n, nk_u32_t *result);
+/** @copydoc nk_jaccard_u1 */
+NK_PUBLIC void nk_jaccard_u1_neon(nk_u1x8_t const *a, nk_u1x8_t const *b, nk_size_t n, nk_f32_t *result);
 /** @copydoc nk_jaccard_u32 */
 NK_PUBLIC void nk_jaccard_u32_neon(nk_u32_t const *a, nk_u32_t const *b, nk_size_t n, nk_f32_t *result);
 
@@ -229,7 +229,7 @@ NK_PUBLIC void nk_jaccard_u32_neon(nk_u32_t const *a, nk_u32_t const *b, nk_size
  *
  *  @code{.c}
  *  // 256-bit binary vectors (2 x 128-bit chunks), one query and four targets
- *  nk_b8_t query[32], target_a[32], target_b[32], target_c[32], target_d[32];
+ *  nk_u1x8_t query[32], target_a[32], target_b[32], target_c[32], target_d[32];
  *  nk_f32_t query_popcount = 100.0f;
  *  nk_f32_t popcount_a = 95.0f, popcount_b = 110.0f, popcount_c = 88.0f, popcount_d = 102.0f;
  *
@@ -275,19 +275,19 @@ NK_INTERNAL void nk_jaccard_b128_finalize_neon(nk_jaccard_b128_state_neon_t cons
 #endif // NK_TARGET_NEON
 
 #if NK_TARGET_SVE
-/** @copydoc nk_hamming_b8 */
-NK_PUBLIC void nk_hamming_b8_sve(nk_b8_t const *a, nk_b8_t const *b, nk_size_t n_words, nk_u32_t *result);
-/** @copydoc nk_jaccard_b8 */
-NK_PUBLIC void nk_jaccard_b8_sve(nk_b8_t const *a, nk_b8_t const *b, nk_size_t n_words, nk_f32_t *result);
+/** @copydoc nk_hamming_u1 */
+NK_PUBLIC void nk_hamming_u1_sve(nk_u1x8_t const *a, nk_u1x8_t const *b, nk_size_t n, nk_u32_t *result);
+/** @copydoc nk_jaccard_u1 */
+NK_PUBLIC void nk_jaccard_u1_sve(nk_u1x8_t const *a, nk_u1x8_t const *b, nk_size_t n, nk_f32_t *result);
 /** @copydoc nk_jaccard_u32 */
 NK_PUBLIC void nk_jaccard_u32_sve(nk_u32_t const *a, nk_u32_t const *b, nk_size_t n, nk_f32_t *result);
 #endif // NK_TARGET_SVE
 
 #if NK_TARGET_HASWELL
-/** @copydoc nk_hamming_b8 */
-NK_PUBLIC void nk_hamming_b8_haswell(nk_b8_t const *a, nk_b8_t const *b, nk_size_t n_words, nk_u32_t *result);
-/** @copydoc nk_jaccard_b8 */
-NK_PUBLIC void nk_jaccard_b8_haswell(nk_b8_t const *a, nk_b8_t const *b, nk_size_t n_words, nk_f32_t *result);
+/** @copydoc nk_hamming_u1 */
+NK_PUBLIC void nk_hamming_u1_haswell(nk_u1x8_t const *a, nk_u1x8_t const *b, nk_size_t n, nk_u32_t *result);
+/** @copydoc nk_jaccard_u1 */
+NK_PUBLIC void nk_jaccard_u1_haswell(nk_u1x8_t const *a, nk_u1x8_t const *b, nk_size_t n, nk_f32_t *result);
 /** @copydoc nk_jaccard_u32 */
 NK_PUBLIC void nk_jaccard_u32_haswell(nk_u32_t const *a, nk_u32_t const *b, nk_size_t n, nk_f32_t *result);
 
@@ -301,7 +301,7 @@ NK_PUBLIC void nk_jaccard_u32_haswell(nk_u32_t const *a, nk_u32_t const *b, nk_s
  *
  *  @code{.c}
  *  // 512-bit binary vectors (2 x 256-bit chunks), one query and four targets
- *  nk_b8_t query[64], target_a[64], target_b[64], target_c[64], target_d[64];
+ *  nk_u1x8_t query[64], target_a[64], target_b[64], target_c[64], target_d[64];
  *  nk_f32_t query_popcount = 100.0f;
  *  nk_f32_t popcount_a = 95.0f, popcount_b = 110.0f, popcount_c = 88.0f, popcount_d = 102.0f;
  *
@@ -348,10 +348,10 @@ NK_INTERNAL void nk_jaccard_b256_finalize_haswell(nk_jaccard_b256_state_haswell_
 #endif // NK_TARGET_HASWELL
 
 #if NK_TARGET_ICE
-/** @copydoc nk_hamming_b8 */
-NK_PUBLIC void nk_hamming_b8_ice(nk_b8_t const *a, nk_b8_t const *b, nk_size_t n_words, nk_u32_t *result);
-/** @copydoc nk_jaccard_b8 */
-NK_PUBLIC void nk_jaccard_b8_ice(nk_b8_t const *a, nk_b8_t const *b, nk_size_t n_words, nk_f32_t *result);
+/** @copydoc nk_hamming_u1 */
+NK_PUBLIC void nk_hamming_u1_ice(nk_u1x8_t const *a, nk_u1x8_t const *b, nk_size_t n, nk_u32_t *result);
+/** @copydoc nk_jaccard_u1 */
+NK_PUBLIC void nk_jaccard_u1_ice(nk_u1x8_t const *a, nk_u1x8_t const *b, nk_size_t n, nk_f32_t *result);
 /** @copydoc nk_jaccard_u32 */
 NK_PUBLIC void nk_jaccard_u32_ice(nk_u32_t const *a, nk_u32_t const *b, nk_size_t n, nk_f32_t *result);
 
@@ -359,7 +359,7 @@ NK_PUBLIC void nk_jaccard_u32_ice(nk_u32_t const *a, nk_u32_t const *b, nk_size_
  *  @brief Running state for 512-bit Jaccard accumulation on Ice Lake.
  *  @code{.c}
  *  // 1024-dimensional binary vectors, one query and four targets
- *  nk_b8_t query[128], target_first[128], target_second[128], target_third[128], target_fourth[128];
+ *  nk_u1x8_t query[128], target_first[128], target_second[128], target_third[128], target_fourth[128];
  *  // Precomputed popcount of 'a' as f32
  *  nk_f32_t query_popcount = ...;
  *  nk_f32_t target_popcount_first = ..., target_popcount_second = ...;
@@ -402,31 +402,31 @@ NK_INTERNAL void nk_jaccard_b512_finalize_ice(nk_jaccard_b512_state_ice_t const 
 
 #if !NK_DYNAMIC_DISPATCH
 
-NK_PUBLIC void nk_hamming_b8(nk_b8_t const *a, nk_b8_t const *b, nk_size_t n, nk_u32_t *result) {
+NK_PUBLIC void nk_hamming_u1(nk_u1x8_t const *a, nk_u1x8_t const *b, nk_size_t n, nk_u32_t *result) {
 #if NK_TARGET_SVE
-    nk_hamming_b8_sve(a, b, n, result);
+    nk_hamming_u1_sve(a, b, n, result);
 #elif NK_TARGET_NEON
-    nk_hamming_b8_neon(a, b, n, result);
+    nk_hamming_u1_neon(a, b, n, result);
 #elif NK_TARGET_ICE
-    nk_hamming_b8_ice(a, b, n, result);
+    nk_hamming_u1_ice(a, b, n, result);
 #elif NK_TARGET_HASWELL
-    nk_hamming_b8_haswell(a, b, n, result);
+    nk_hamming_u1_haswell(a, b, n, result);
 #else
-    nk_hamming_b8_serial(a, b, n, result);
+    nk_hamming_u1_serial(a, b, n, result);
 #endif
 }
 
-NK_PUBLIC void nk_jaccard_b8(nk_b8_t const *a, nk_b8_t const *b, nk_size_t n, nk_f32_t *result) {
+NK_PUBLIC void nk_jaccard_u1(nk_u1x8_t const *a, nk_u1x8_t const *b, nk_size_t n, nk_f32_t *result) {
 #if NK_TARGET_SVE
-    nk_jaccard_b8_sve(a, b, n, result);
+    nk_jaccard_u1_sve(a, b, n, result);
 #elif NK_TARGET_NEON
-    nk_jaccard_b8_neon(a, b, n, result);
+    nk_jaccard_u1_neon(a, b, n, result);
 #elif NK_TARGET_ICE
-    nk_jaccard_b8_ice(a, b, n, result);
+    nk_jaccard_u1_ice(a, b, n, result);
 #elif NK_TARGET_HASWELL
-    nk_jaccard_b8_haswell(a, b, n, result);
+    nk_jaccard_u1_haswell(a, b, n, result);
 #else
-    nk_jaccard_b8_serial(a, b, n, result);
+    nk_jaccard_u1_serial(a, b, n, result);
 #endif
 }
 

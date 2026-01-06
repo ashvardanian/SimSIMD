@@ -9,7 +9,7 @@
  *  - L2 (Euclidean) regular and squared distance
  *  - Cosine (Angular) distance - @b not similarity!
  *
- *  For datatypes:
+ *  For dtypes:
  *
  *  - 64-bit IEEE floating point numbers
  *  - 32-bit IEEE floating point numbers
@@ -31,14 +31,14 @@
  *  Finalization takes the magnitudes of the full vectors (L2 norms) and computes the distance.
  *  Let the following be computed over the full vectors:
  *
- *      ab   = Σ_i (a_i · b_i)
- *      ||a|| = √(Σ_i a_i²)
- *      ||b|| = √(Σ_i b_i²)
+ *      ab   = Σᵢ (aᵢ · bᵢ)
+ *      ‖a‖ = √(Σᵢ aᵢ²)
+ *      ‖b‖ = √(Σᵢ bᵢ²)
  *
  *  Finalization formulas:
  *
- *      angular(a, b) = 1 − ab / (||a|| · ||b||)
- *      l2(a, b)      = √( ||a||² + ||b||² − 2·ab )
+ *      angular(a, b) = 1 − ab / (‖a‖ · ‖b‖)
+ *      l2(a, b)      = √( ‖a‖² + ‖b‖² − 2·ab )
  *
  *  The angular distance is clamped to ≥ 0, with a 0 result when both norms are zero and a 1 result when $ab$ is zero.
  *  L2 clamps the argument of the square root at 0 to avoid negative values from rounding.
@@ -148,6 +148,10 @@ NK_DYNAMIC void nk_l2_e5m2(nk_e5m2_t const *a, nk_e5m2_t const *b, nk_size_t n, 
 NK_DYNAMIC void nk_l2_i8(nk_i8_t const *a, nk_i8_t const *b, nk_size_t n, nk_f32_t *result);
 /** @copydoc nk_l2_f64 */
 NK_DYNAMIC void nk_l2_u8(nk_u8_t const *a, nk_u8_t const *b, nk_size_t n, nk_f32_t *result);
+/** @copydoc nk_l2_f64 */
+NK_DYNAMIC void nk_l2_i4(nk_i4x2_t const *a, nk_i4x2_t const *b, nk_size_t n, nk_f32_t *result);
+/** @copydoc nk_l2_f64 */
+NK_DYNAMIC void nk_l2_u4(nk_u4x2_t const *a, nk_u4x2_t const *b, nk_size_t n, nk_f32_t *result);
 
 /**
  *  @brief Squared L2 (Euclidean) distance between two vectors.
@@ -175,6 +179,10 @@ NK_DYNAMIC void nk_l2sq_e5m2(nk_e5m2_t const *a, nk_e5m2_t const *b, nk_size_t n
 NK_DYNAMIC void nk_l2sq_i8(nk_i8_t const *a, nk_i8_t const *b, nk_size_t n, nk_u32_t *result);
 /** @copydoc nk_l2sq_f64 */
 NK_DYNAMIC void nk_l2sq_u8(nk_u8_t const *a, nk_u8_t const *b, nk_size_t n, nk_u32_t *result);
+/** @copydoc nk_l2sq_f64 */
+NK_DYNAMIC void nk_l2sq_i4(nk_i4x2_t const *a, nk_i4x2_t const *b, nk_size_t n, nk_u32_t *result);
+/** @copydoc nk_l2sq_f64 */
+NK_DYNAMIC void nk_l2sq_u4(nk_u4x2_t const *a, nk_u4x2_t const *b, nk_size_t n, nk_u32_t *result);
 
 /**
  *  @brief Angular (cosine) distance between two vectors.
@@ -202,6 +210,10 @@ NK_DYNAMIC void nk_angular_e5m2(nk_e5m2_t const *a, nk_e5m2_t const *b, nk_size_
 NK_DYNAMIC void nk_angular_i8(nk_i8_t const *a, nk_i8_t const *b, nk_size_t n, nk_f32_t *result);
 /** @copydoc nk_angular_f64 */
 NK_DYNAMIC void nk_angular_u8(nk_u8_t const *a, nk_u8_t const *b, nk_size_t n, nk_f32_t *result);
+/** @copydoc nk_angular_f64 */
+NK_DYNAMIC void nk_angular_i4(nk_i4x2_t const *a, nk_i4x2_t const *b, nk_size_t n, nk_f32_t *result);
+/** @copydoc nk_angular_f64 */
+NK_DYNAMIC void nk_angular_u4(nk_u4x2_t const *a, nk_u4x2_t const *b, nk_size_t n, nk_f32_t *result);
 
 /*  Serial backends for all numeric types.
  *  By default they use 32-bit arithmetic, unless the arguments themselves contain 64-bit floats.
@@ -263,6 +275,19 @@ NK_PUBLIC void nk_l2sq_u8_accurate(nk_u8_t const *a, nk_u8_t const *b, nk_size_t
 NK_PUBLIC void nk_l2sq_u8_serial(nk_u8_t const *a, nk_u8_t const *b, nk_size_t n, nk_u32_t *result);
 /** @copydoc nk_angular_f64 */
 NK_PUBLIC void nk_angular_u8_serial(nk_u8_t const *a, nk_u8_t const *b, nk_size_t n, nk_f32_t *result);
+
+/** @copydoc nk_l2_f64 */
+NK_PUBLIC void nk_l2_i4_serial(nk_i4x2_t const *a, nk_i4x2_t const *b, nk_size_t n, nk_f32_t *result);
+/** @copydoc nk_l2sq_f64 */
+NK_PUBLIC void nk_l2sq_i4_serial(nk_i4x2_t const *a, nk_i4x2_t const *b, nk_size_t n, nk_u32_t *result);
+/** @copydoc nk_angular_f64 */
+NK_PUBLIC void nk_angular_i4_serial(nk_i4x2_t const *a, nk_i4x2_t const *b, nk_size_t n, nk_f32_t *result);
+/** @copydoc nk_l2_f64 */
+NK_PUBLIC void nk_l2_u4_serial(nk_u4x2_t const *a, nk_u4x2_t const *b, nk_size_t n, nk_f32_t *result);
+/** @copydoc nk_l2sq_f64 */
+NK_PUBLIC void nk_l2sq_u4_serial(nk_u4x2_t const *a, nk_u4x2_t const *b, nk_size_t n, nk_u32_t *result);
+/** @copydoc nk_angular_f64 */
+NK_PUBLIC void nk_angular_u4_serial(nk_u4x2_t const *a, nk_u4x2_t const *b, nk_size_t n, nk_f32_t *result);
 
 /** @copydoc nk_l2_f64 */
 NK_PUBLIC void nk_l2_f32_accurate(nk_f32_t const *a, nk_f32_t const *b, nk_size_t n, nk_f64_t *result);
@@ -471,11 +496,17 @@ NK_PUBLIC void nk_angular_e5m2_skylake(nk_e5m2_t const *a, nk_e5m2_t const *b, n
  */
 #if NK_TARGET_ICE
 /** @copydoc nk_l2_f64 */
-NK_PUBLIC void nk_l2_i4x2_ice(nk_i4x2_t const *a, nk_i4x2_t const *b, nk_size_t n, nk_f32_t *result);
+NK_PUBLIC void nk_l2_i4_ice(nk_i4x2_t const *a, nk_i4x2_t const *b, nk_size_t n, nk_f32_t *result);
 /** @copydoc nk_l2sq_f64 */
-NK_PUBLIC void nk_l2sq_i4x2_ice(nk_i4x2_t const *a, nk_i4x2_t const *b, nk_size_t n, nk_u32_t *result);
+NK_PUBLIC void nk_l2sq_i4_ice(nk_i4x2_t const *a, nk_i4x2_t const *b, nk_size_t n, nk_u32_t *result);
 /** @copydoc nk_angular_f64 */
-NK_PUBLIC void nk_angular_i4x2_ice(nk_i4x2_t const *a, nk_i4x2_t const *b, nk_size_t n, nk_f32_t *result);
+NK_PUBLIC void nk_angular_i4_ice(nk_i4x2_t const *a, nk_i4x2_t const *b, nk_size_t n, nk_f32_t *result);
+/** @copydoc nk_l2_f64 */
+NK_PUBLIC void nk_l2_u4_ice(nk_u4x2_t const *a, nk_u4x2_t const *b, nk_size_t n, nk_f32_t *result);
+/** @copydoc nk_l2sq_f64 */
+NK_PUBLIC void nk_l2sq_u4_ice(nk_u4x2_t const *a, nk_u4x2_t const *b, nk_size_t n, nk_u32_t *result);
+/** @copydoc nk_angular_f64 */
+NK_PUBLIC void nk_angular_u4_ice(nk_u4x2_t const *a, nk_u4x2_t const *b, nk_size_t n, nk_f32_t *result);
 /** @copydoc nk_l2_f64 */
 NK_PUBLIC void nk_l2_i8_ice(nk_i8_t const *a, nk_i8_t const *b, nk_size_t n, nk_f32_t *result);
 /** @copydoc nk_l2sq_f64 */
@@ -528,9 +559,9 @@ NK_PUBLIC void nk_angular_i8_sierra(nk_i8_t const *a, nk_i8_t const *b, nk_size_
 #endif // NK_TARGET_SIERRA
 
 /**
- *  @brief  Returns the output datatype for L2 (Euclidean) distance.
+ *  @brief  Returns the output dtype for L2 (Euclidean) distance.
  */
-NK_INTERNAL nk_datatype_t nk_l2_output_datatype(nk_datatype_t dtype) {
+NK_INTERNAL nk_dtype_t nk_l2_output_dtype(nk_dtype_t dtype) {
     switch (dtype) {
     case nk_f64_k: return nk_f64_k;
     case nk_f32_k: return nk_f32_k;
@@ -538,14 +569,16 @@ NK_INTERNAL nk_datatype_t nk_l2_output_datatype(nk_datatype_t dtype) {
     case nk_bf16_k: return nk_f32_k;
     case nk_i8_k: return nk_f32_k;
     case nk_u8_k: return nk_f32_k;
-    default: return nk_datatype_unknown_k;
+    case nk_i4_k: return nk_f32_k;
+    case nk_u4_k: return nk_f32_k;
+    default: return nk_dtype_unknown_k;
     }
 }
 
 /**
- *  @brief  Returns the output datatype for L2 squared distance.
+ *  @brief  Returns the output dtype for L2 squared distance.
  */
-NK_INTERNAL nk_datatype_t nk_l2sq_output_datatype(nk_datatype_t dtype) {
+NK_INTERNAL nk_dtype_t nk_l2sq_output_dtype(nk_dtype_t dtype) {
     switch (dtype) {
     case nk_f64_k: return nk_f64_k;
     case nk_f32_k: return nk_f32_k;
@@ -553,14 +586,16 @@ NK_INTERNAL nk_datatype_t nk_l2sq_output_datatype(nk_datatype_t dtype) {
     case nk_bf16_k: return nk_f32_k;
     case nk_i8_k: return nk_u32_k;
     case nk_u8_k: return nk_u32_k;
-    default: return nk_datatype_unknown_k;
+    case nk_i4_k: return nk_u32_k;
+    case nk_u4_k: return nk_u32_k;
+    default: return nk_dtype_unknown_k;
     }
 }
 
 /**
- *  @brief  Returns the output datatype for angular/cosine distance.
+ *  @brief  Returns the output dtype for angular/cosine distance.
  */
-NK_INTERNAL nk_datatype_t nk_angular_output_datatype(nk_datatype_t dtype) {
+NK_INTERNAL nk_dtype_t nk_angular_output_dtype(nk_dtype_t dtype) {
     switch (dtype) {
     case nk_f64_k: return nk_f64_k;
     case nk_f32_k: return nk_f32_k;
@@ -568,7 +603,9 @@ NK_INTERNAL nk_datatype_t nk_angular_output_datatype(nk_datatype_t dtype) {
     case nk_bf16_k: return nk_f32_k;
     case nk_i8_k: return nk_f32_k;
     case nk_u8_k: return nk_f32_k;
-    default: return nk_datatype_unknown_k;
+    case nk_i4_k: return nk_f32_k;
+    case nk_u4_k: return nk_f32_k;
+    default: return nk_dtype_unknown_k;
     }
 }
 
@@ -586,11 +623,16 @@ NK_INTERNAL nk_datatype_t nk_angular_output_datatype(nk_datatype_t dtype) {
 #include "numkong/spatial/sapphire.h"
 #include "numkong/spatial/ice.h"
 #include "numkong/spatial/sierra.h"
+#include "numkong/spatial/spacemit.h"
+#include "numkong/spatial/sifive.h"
+#include "numkong/spatial/xuantie.h"
 
 #if !NK_DYNAMIC_DISPATCH
 
 NK_PUBLIC void nk_l2_f64(nk_f64_t const *a, nk_f64_t const *b, nk_size_t n, nk_f64_t *result) {
-#if NK_TARGET_SVE
+#if NK_TARGET_SPACEMIT
+    nk_l2_f64_spacemit(a, b, n, result);
+#elif NK_TARGET_SVE
     nk_l2_f64_sve(a, b, n, result);
 #elif NK_TARGET_NEON
     nk_l2_f64_neon(a, b, n, result);
@@ -604,7 +646,9 @@ NK_PUBLIC void nk_l2_f64(nk_f64_t const *a, nk_f64_t const *b, nk_size_t n, nk_f
 }
 
 NK_PUBLIC void nk_l2sq_f64(nk_f64_t const *a, nk_f64_t const *b, nk_size_t n, nk_f64_t *result) {
-#if NK_TARGET_SVE
+#if NK_TARGET_SPACEMIT
+    nk_l2sq_f64_spacemit(a, b, n, result);
+#elif NK_TARGET_SVE
     nk_l2sq_f64_sve(a, b, n, result);
 #elif NK_TARGET_NEON
     nk_l2sq_f64_neon(a, b, n, result);
@@ -618,7 +662,9 @@ NK_PUBLIC void nk_l2sq_f64(nk_f64_t const *a, nk_f64_t const *b, nk_size_t n, nk
 }
 
 NK_PUBLIC void nk_angular_f64(nk_f64_t const *a, nk_f64_t const *b, nk_size_t n, nk_f64_t *result) {
-#if NK_TARGET_SVE
+#if NK_TARGET_SPACEMIT
+    nk_angular_f64_spacemit(a, b, n, result);
+#elif NK_TARGET_SVE
     nk_angular_f64_sve(a, b, n, result);
 #elif NK_TARGET_NEON
     nk_angular_f64_neon(a, b, n, result);
@@ -632,7 +678,9 @@ NK_PUBLIC void nk_angular_f64(nk_f64_t const *a, nk_f64_t const *b, nk_size_t n,
 }
 
 NK_PUBLIC void nk_l2_f32(nk_f32_t const *a, nk_f32_t const *b, nk_size_t n, nk_f32_t *result) {
-#if NK_TARGET_SVE
+#if NK_TARGET_SPACEMIT
+    nk_l2_f32_spacemit(a, b, n, result);
+#elif NK_TARGET_SVE
     nk_l2_f32_sve(a, b, n, result);
 #elif NK_TARGET_NEON
     nk_l2_f32_neon(a, b, n, result);
@@ -646,7 +694,9 @@ NK_PUBLIC void nk_l2_f32(nk_f32_t const *a, nk_f32_t const *b, nk_size_t n, nk_f
 }
 
 NK_PUBLIC void nk_l2sq_f32(nk_f32_t const *a, nk_f32_t const *b, nk_size_t n, nk_f32_t *result) {
-#if NK_TARGET_SVE
+#if NK_TARGET_SPACEMIT
+    nk_l2sq_f32_spacemit(a, b, n, result);
+#elif NK_TARGET_SVE
     nk_l2sq_f32_sve(a, b, n, result);
 #elif NK_TARGET_NEON
     nk_l2sq_f32_neon(a, b, n, result);
@@ -660,7 +710,9 @@ NK_PUBLIC void nk_l2sq_f32(nk_f32_t const *a, nk_f32_t const *b, nk_size_t n, nk
 }
 
 NK_PUBLIC void nk_angular_f32(nk_f32_t const *a, nk_f32_t const *b, nk_size_t n, nk_f32_t *result) {
-#if NK_TARGET_SVE
+#if NK_TARGET_SPACEMIT
+    nk_angular_f32_spacemit(a, b, n, result);
+#elif NK_TARGET_SVE
     nk_angular_f32_sve(a, b, n, result);
 #elif NK_TARGET_NEON
     nk_angular_f32_neon(a, b, n, result);
@@ -674,7 +726,9 @@ NK_PUBLIC void nk_angular_f32(nk_f32_t const *a, nk_f32_t const *b, nk_size_t n,
 }
 
 NK_PUBLIC void nk_l2_f16(nk_f16_t const *a, nk_f16_t const *b, nk_size_t n, nk_f32_t *result) {
-#if NK_TARGET_SVEHALF
+#if NK_TARGET_SIFIVE
+    nk_l2_f16_sifive(a, b, n, result);
+#elif NK_TARGET_SVEHALF
     nk_l2_f16_svehalf(a, b, n, result);
 #elif NK_TARGET_NEONHALF
     nk_l2_f16_neonhalf(a, b, n, result);
@@ -686,7 +740,9 @@ NK_PUBLIC void nk_l2_f16(nk_f16_t const *a, nk_f16_t const *b, nk_size_t n, nk_f
 }
 
 NK_PUBLIC void nk_l2sq_f16(nk_f16_t const *a, nk_f16_t const *b, nk_size_t n, nk_f32_t *result) {
-#if NK_TARGET_SVEHALF
+#if NK_TARGET_SIFIVE
+    nk_l2sq_f16_sifive(a, b, n, result);
+#elif NK_TARGET_SVEHALF
     nk_l2sq_f16_svehalf(a, b, n, result);
 #elif NK_TARGET_NEONHALF
     nk_l2sq_f16_neonhalf(a, b, n, result);
@@ -698,7 +754,9 @@ NK_PUBLIC void nk_l2sq_f16(nk_f16_t const *a, nk_f16_t const *b, nk_size_t n, nk
 }
 
 NK_PUBLIC void nk_angular_f16(nk_f16_t const *a, nk_f16_t const *b, nk_size_t n, nk_f32_t *result) {
-#if NK_TARGET_SVEHALF
+#if NK_TARGET_SIFIVE
+    nk_angular_f16_sifive(a, b, n, result);
+#elif NK_TARGET_SVEHALF
     nk_angular_f16_svehalf(a, b, n, result);
 #elif NK_TARGET_NEONHALF
     nk_angular_f16_neonhalf(a, b, n, result);
@@ -710,7 +768,9 @@ NK_PUBLIC void nk_angular_f16(nk_f16_t const *a, nk_f16_t const *b, nk_size_t n,
 }
 
 NK_PUBLIC void nk_l2_bf16(nk_bf16_t const *a, nk_bf16_t const *b, nk_size_t n, nk_f32_t *result) {
-#if NK_TARGET_SVEBFDOT
+#if NK_TARGET_XUANTIE
+    nk_l2_bf16_xuantie(a, b, n, result);
+#elif NK_TARGET_SVEBFDOT
     nk_l2_bf16_svebfdot(a, b, n, result);
 #elif NK_TARGET_NEONBFDOT
     nk_l2_bf16_neonbfdot(a, b, n, result);
@@ -724,7 +784,9 @@ NK_PUBLIC void nk_l2_bf16(nk_bf16_t const *a, nk_bf16_t const *b, nk_size_t n, n
 }
 
 NK_PUBLIC void nk_l2sq_bf16(nk_bf16_t const *a, nk_bf16_t const *b, nk_size_t n, nk_f32_t *result) {
-#if NK_TARGET_SVEBFDOT
+#if NK_TARGET_XUANTIE
+    nk_l2sq_bf16_xuantie(a, b, n, result);
+#elif NK_TARGET_SVEBFDOT
     nk_l2sq_bf16_svebfdot(a, b, n, result);
 #elif NK_TARGET_NEONBFDOT
     nk_l2sq_bf16_neonbfdot(a, b, n, result);
@@ -738,7 +800,9 @@ NK_PUBLIC void nk_l2sq_bf16(nk_bf16_t const *a, nk_bf16_t const *b, nk_size_t n,
 }
 
 NK_PUBLIC void nk_angular_bf16(nk_bf16_t const *a, nk_bf16_t const *b, nk_size_t n, nk_f32_t *result) {
-#if NK_TARGET_SVEBFDOT
+#if NK_TARGET_XUANTIE
+    nk_angular_bf16_xuantie(a, b, n, result);
+#elif NK_TARGET_SVEBFDOT
     nk_angular_bf16_svebfdot(a, b, n, result);
 #elif NK_TARGET_NEONBFDOT
     nk_angular_bf16_neonbfdot(a, b, n, result);
@@ -816,7 +880,9 @@ NK_PUBLIC void nk_angular_e5m2(nk_e5m2_t const *a, nk_e5m2_t const *b, nk_size_t
 }
 
 NK_PUBLIC void nk_l2_i8(nk_i8_t const *a, nk_i8_t const *b, nk_size_t n, nk_f32_t *result) {
-#if NK_TARGET_NEONSDOT
+#if NK_TARGET_SPACEMIT
+    nk_l2_i8_spacemit(a, b, n, result);
+#elif NK_TARGET_NEONSDOT
     nk_l2_i8_neonsdot(a, b, n, result);
 #elif NK_TARGET_ICE
     nk_l2_i8_ice(a, b, n, result);
@@ -828,7 +894,9 @@ NK_PUBLIC void nk_l2_i8(nk_i8_t const *a, nk_i8_t const *b, nk_size_t n, nk_f32_
 }
 
 NK_PUBLIC void nk_l2sq_i8(nk_i8_t const *a, nk_i8_t const *b, nk_size_t n, nk_u32_t *result) {
-#if NK_TARGET_NEONSDOT
+#if NK_TARGET_SPACEMIT
+    nk_l2sq_i8_spacemit(a, b, n, result);
+#elif NK_TARGET_NEONSDOT
     nk_l2sq_i8_neonsdot(a, b, n, result);
 #elif NK_TARGET_ICE
     nk_l2sq_i8_ice(a, b, n, result);
@@ -840,7 +908,9 @@ NK_PUBLIC void nk_l2sq_i8(nk_i8_t const *a, nk_i8_t const *b, nk_size_t n, nk_u3
 }
 
 NK_PUBLIC void nk_angular_i8(nk_i8_t const *a, nk_i8_t const *b, nk_size_t n, nk_f32_t *result) {
-#if NK_TARGET_SIERRA
+#if NK_TARGET_SPACEMIT
+    nk_angular_i8_spacemit(a, b, n, result);
+#elif NK_TARGET_SIERRA
     nk_angular_i8_sierra(a, b, n, result);
 #elif NK_TARGET_NEONSDOT
     nk_angular_i8_neonsdot(a, b, n, result);
@@ -854,7 +924,9 @@ NK_PUBLIC void nk_angular_i8(nk_i8_t const *a, nk_i8_t const *b, nk_size_t n, nk
 }
 
 NK_PUBLIC void nk_l2_u8(nk_u8_t const *a, nk_u8_t const *b, nk_size_t n, nk_f32_t *result) {
-#if NK_TARGET_NEONSDOT
+#if NK_TARGET_SPACEMIT
+    nk_l2_u8_spacemit(a, b, n, result);
+#elif NK_TARGET_NEONSDOT
     nk_l2_u8_neonsdot(a, b, n, result);
 #elif NK_TARGET_ICE
     nk_l2_u8_ice(a, b, n, result);
@@ -866,7 +938,9 @@ NK_PUBLIC void nk_l2_u8(nk_u8_t const *a, nk_u8_t const *b, nk_size_t n, nk_f32_
 }
 
 NK_PUBLIC void nk_l2sq_u8(nk_u8_t const *a, nk_u8_t const *b, nk_size_t n, nk_u32_t *result) {
-#if NK_TARGET_NEONSDOT
+#if NK_TARGET_SPACEMIT
+    nk_l2sq_u8_spacemit(a, b, n, result);
+#elif NK_TARGET_NEONSDOT
     nk_l2sq_u8_neonsdot(a, b, n, result);
 #elif NK_TARGET_ICE
     nk_l2sq_u8_ice(a, b, n, result);
@@ -878,7 +952,9 @@ NK_PUBLIC void nk_l2sq_u8(nk_u8_t const *a, nk_u8_t const *b, nk_size_t n, nk_u3
 }
 
 NK_PUBLIC void nk_angular_u8(nk_u8_t const *a, nk_u8_t const *b, nk_size_t n, nk_f32_t *result) {
-#if NK_TARGET_NEONSDOT
+#if NK_TARGET_SPACEMIT
+    nk_angular_u8_spacemit(a, b, n, result);
+#elif NK_TARGET_NEONSDOT
     nk_angular_u8_neonsdot(a, b, n, result);
 #elif NK_TARGET_ICE
     nk_angular_u8_ice(a, b, n, result);
@@ -886,6 +962,54 @@ NK_PUBLIC void nk_angular_u8(nk_u8_t const *a, nk_u8_t const *b, nk_size_t n, nk
     nk_angular_u8_haswell(a, b, n, result);
 #else
     nk_angular_u8_serial(a, b, n, result);
+#endif
+}
+
+NK_PUBLIC void nk_l2_i4(nk_i4x2_t const *a, nk_i4x2_t const *b, nk_size_t n, nk_f32_t *result) {
+#if NK_TARGET_ICE
+    nk_l2_i4_ice(a, b, n, result);
+#else
+    nk_l2_i4_serial(a, b, n, result);
+#endif
+}
+
+NK_PUBLIC void nk_l2sq_i4(nk_i4x2_t const *a, nk_i4x2_t const *b, nk_size_t n, nk_u32_t *result) {
+#if NK_TARGET_ICE
+    nk_l2sq_i4_ice(a, b, n, result);
+#else
+    nk_l2sq_i4_serial(a, b, n, result);
+#endif
+}
+
+NK_PUBLIC void nk_angular_i4(nk_i4x2_t const *a, nk_i4x2_t const *b, nk_size_t n, nk_f32_t *result) {
+#if NK_TARGET_ICE
+    nk_angular_i4_ice(a, b, n, result);
+#else
+    nk_angular_i4_serial(a, b, n, result);
+#endif
+}
+
+NK_PUBLIC void nk_l2_u4(nk_u4x2_t const *a, nk_u4x2_t const *b, nk_size_t n, nk_f32_t *result) {
+#if NK_TARGET_ICE
+    nk_l2_u4_ice(a, b, n, result);
+#else
+    nk_l2_u4_serial(a, b, n, result);
+#endif
+}
+
+NK_PUBLIC void nk_l2sq_u4(nk_u4x2_t const *a, nk_u4x2_t const *b, nk_size_t n, nk_u32_t *result) {
+#if NK_TARGET_ICE
+    nk_l2sq_u4_ice(a, b, n, result);
+#else
+    nk_l2sq_u4_serial(a, b, n, result);
+#endif
+}
+
+NK_PUBLIC void nk_angular_u4(nk_u4x2_t const *a, nk_u4x2_t const *b, nk_size_t n, nk_f32_t *result) {
+#if NK_TARGET_ICE
+    nk_angular_u4_ice(a, b, n, result);
+#else
+    nk_angular_u4_serial(a, b, n, result);
 #endif
 }
 

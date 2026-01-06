@@ -10,9 +10,12 @@
 
 #if NK_TARGET_ARM_
 #if NK_TARGET_NEON
+#if defined(__clang__)
+#pragma clang attribute push(__attribute__((target("arch=armv8-a+simd"))), apply_to = function)
+#elif defined(__GNUC__)
 #pragma GCC push_options
 #pragma GCC target("arch=armv8-a+simd")
-#pragma clang attribute push(__attribute__((target("arch=armv8-a+simd"))), apply_to = function)
+#endif
 
 #include "numkong/types.h"
 #include "numkong/dot/neon.h" // For nk_dot_f32x2_state_neon_t
@@ -21,15 +24,16 @@
 extern "C" {
 #endif
 
-NK_INTERNAL nk_f32_t nk_sqrt_f32_neon_(nk_f32_t x) { return vget_lane_f32(vsqrt_f32(vdup_n_f32(x)), 0); }
-NK_INTERNAL nk_f64_t nk_sqrt_f64_neon_(nk_f64_t x) { return vget_lane_f64(vsqrt_f64(vdup_n_f64(x)), 0); }
+NK_PUBLIC nk_f32_t nk_f32_sqrt_neon(nk_f32_t x) { return vget_lane_f32(vsqrt_f32(vdup_n_f32(x)), 0); }
+NK_PUBLIC nk_f64_t nk_f64_sqrt_neon(nk_f64_t x) { return vget_lane_f64(vsqrt_f64(vdup_n_f64(x)), 0); }
+
 NK_INTERNAL nk_f32_t nk_angular_normalize_f32_neon_(nk_f32_t ab, nk_f32_t a2, nk_f32_t b2) {
     if (a2 == 0 && b2 == 0) return 0;
     if (ab == 0) return 1;
     nk_f32_t squares_arr[2] = {a2, b2};
     float32x2_t squares = vld1_f32(squares_arr);
     // Unlike x86, Arm NEON manuals don't explicitly mention the accuracy of their `rsqrt` approximation.
-    // Third-party research suggests that it's less accurate than SSE instructions, having an error of 1.5*2^-12.
+    // Third-party research suggests that it's less accurate than SSE instructions, having an error of 1.5×2⁻¹².
     // One or two rounds of Newton-Raphson refinement are recommended to improve the accuracy.
     // https://github.com/lighttransport/embree-aarch64/issues/24
     // https://github.com/lighttransport/embree-aarch64/blob/3f75f8cb4e553d13dced941b5fefd4c826835a6b/common/math/math.h#L137-L145
@@ -50,7 +54,7 @@ NK_INTERNAL nk_f64_t nk_angular_normalize_f64_neon_(nk_f64_t ab, nk_f64_t a2, nk
     float64x2_t squares = vld1q_f64(squares_arr);
 
     // Unlike x86, Arm NEON manuals don't explicitly mention the accuracy of their `rsqrt` approximation.
-    // Third-party research suggests that it's less accurate than SSE instructions, having an error of 1.5*2^-12.
+    // Third-party research suggests that it's less accurate than SSE instructions, having an error of 1.5×2⁻¹².
     // One or two rounds of Newton-Raphson refinement are recommended to improve the accuracy.
     // https://github.com/lighttransport/embree-aarch64/issues/24
     // https://github.com/lighttransport/embree-aarch64/blob/3f75f8cb4e553d13dced941b5fefd4c826835a6b/common/math/math.h#L137-L145
@@ -85,7 +89,7 @@ NK_PUBLIC void nk_l2sq_f32_neon(nk_f32_t const *a, nk_f32_t const *b, nk_size_t 
 
 NK_PUBLIC void nk_l2_f32_neon(nk_f32_t const *a, nk_f32_t const *b, nk_size_t n, nk_f32_t *result) {
     nk_l2sq_f32_neon(a, b, n, result);
-    *result = nk_sqrt_f32_neon_(*result);
+    *result = nk_f32_sqrt_neon(*result);
 }
 
 NK_PUBLIC void nk_angular_f32_neon(nk_f32_t const *a, nk_f32_t const *b, nk_size_t n, nk_f32_t *result) {
@@ -145,7 +149,7 @@ NK_PUBLIC void nk_l2sq_f64_neon(nk_f64_t const *a, nk_f64_t const *b, nk_size_t 
 
 NK_PUBLIC void nk_l2_f64_neon(nk_f64_t const *a, nk_f64_t const *b, nk_size_t n, nk_f64_t *result) {
     nk_l2sq_f64_neon(a, b, n, result);
-    *result = nk_sqrt_f64_neon_(*result);
+    *result = nk_f64_sqrt_neon(*result);
 }
 
 NK_PUBLIC void nk_angular_f64_neon(nk_f64_t const *a, nk_f64_t const *b, nk_size_t n, nk_f64_t *result) {
@@ -231,7 +235,7 @@ NK_INTERNAL void nk_angular_f32x4_finalize_neon_(float32x4_t dots_f32x4, nk_f32_
     uint64x2_t dots_zero_ab_u64x2 = vceqq_f64(dots_ab_f64x2, zeros_f64x2);
     uint64x2_t dots_zero_cd_u64x2 = vceqq_f64(dots_cd_f64x2, zeros_f64x2);
 
-    // Both zero -> result = 0; products zero but dots nonzero -> result = 1
+    // Both zero → result = 0; products zero but dots nonzero → result = 1
     uint64x2_t both_zero_ab_u64x2 = vandq_u64(products_zero_ab_u64x2, dots_zero_ab_u64x2);
     uint64x2_t both_zero_cd_u64x2 = vandq_u64(products_zero_cd_u64x2, dots_zero_cd_u64x2);
     result_ab_f64x2 = vbslq_f64(both_zero_ab_u64x2, zeros_f64x2, result_ab_f64x2);
@@ -363,8 +367,11 @@ NK_INTERNAL void nk_l2_f32x2_finalize_neon(nk_l2_f32x2_state_neon_t const *state
 } // extern "C"
 #endif
 
+#if defined(__clang__)
 #pragma clang attribute pop
+#elif defined(__GNUC__)
 #pragma GCC pop_options
+#endif
 #endif // NK_TARGET_NEON
 #endif // NK_TARGET_ARM_
 

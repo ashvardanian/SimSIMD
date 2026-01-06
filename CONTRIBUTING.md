@@ -40,13 +40,21 @@ build_release/nk_test_run_time
 build_release/nk_test_compile_time # no need to run this one, it's just a compile-time test
 ```
 
-To utilize `f16` instructions, use GCC 12 or newer, or Clang 16 or newer.
+To utilize `f16` instructions, use GCC 12+ or Clang 16+.
+To utilize Intel AMX and Arm SME extensions, use GCC 14+ or Clang 18+.
 To install them on Ubuntu 22.04, use:
 
 ```sh
 sudo apt install gcc-12 g++-12
 sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-12 100
 sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-12 100
+```
+
+To cross-compile for a different ISA, use CMake toolchains:
+
+```sh
+cmake -B build_riscv -D CMAKE_TOOLCHAIN_FILE=cmake/riscv64-linux-gnu.cmake -D NK_BUILD_TESTS=1
+cmake -B build_arm64 -D CMAKE_TOOLCHAIN_FILE=cmake/aarch64-linux-gnu.cmake -D NK_BUILD_TESTS=1
 ```
 
 To compile with the default Apple Clang on macOS, use:

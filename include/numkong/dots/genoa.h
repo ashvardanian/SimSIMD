@@ -10,10 +10,14 @@
 
 #if NK_TARGET_X86_
 #if NK_TARGET_GENOA
+#if defined(__clang__)
+#pragma clang attribute push(                                                                        \
+    __attribute__((target("avx2,avx512f,avx512vl,avx512bw,avx512dq,avx512bf16,f16c,fma,bmi,bmi2"))), \
+    apply_to = function)
+#elif defined(__GNUC__)
 #pragma GCC push_options
-#pragma GCC target("avx2", "avx512f", "avx512vl", "bmi2", "avx512bw", "avx512bf16")
-#pragma clang attribute push(__attribute__((target("avx2,avx512f,avx512vl,bmi2,avx512bw,avx512bf16"))), \
-                             apply_to = function)
+#pragma GCC target("avx2", "avx512f", "avx512vl", "avx512bw", "avx512dq", "avx512bf16", "f16c", "fma", "bmi", "bmi2")
+#endif
 
 #include "numkong/types.h"
 
@@ -24,38 +28,44 @@ extern "C" {
 // BF16 GEMM: k_tile=32 (32 bf16s = 64 bytes = 1 cache line)
 nk_make_dots_pack_size_(genoa, bf16, f32)
 nk_make_dots_pack_(genoa, bf16, f32)
-nk_make_dots_inner_vectors_(bf16bf16f32_genoa, bf16, f32, nk_b512_vec_t, nk_dot_bf16x32_state_genoa_t, nk_b128_vec_t,
-                            nk_dot_bf16x32_init_genoa, nk_load_b512_skylake_, nk_partial_load_b16x32_skylake_,
-                            nk_dot_bf16x32_update_genoa, nk_dot_bf16x32_finalize_genoa, nk_partial_store_b32x4_skylake_,
-                            /*k_tile=*/32)
+nk_make_dots_packed_vectors_(bf16_genoa, bf16, f32, nk_b512_vec_t, nk_dot_bf16x32_state_genoa_t, nk_b128_vec_t,
+                             nk_dot_bf16x32_init_genoa, nk_load_b512_skylake_, nk_partial_load_b16x32_skylake_,
+                             nk_dot_bf16x32_update_genoa, nk_dot_bf16x32_finalize_genoa,
+                             nk_partial_store_b32x4_skylake_,
+                             /*k_tile=*/32)
 
 // E4M3 GEMM: k_tile=32 (32 e4m3s = 32 bytes = half cache line), F32 accumulator
 nk_make_dots_pack_size_(genoa, e4m3, f32)
 nk_make_dots_pack_(genoa, e4m3, f32)
-nk_make_dots_inner_vectors_(e4m3e4m3f32_genoa, e4m3, f32, nk_b256_vec_t, nk_dot_e4m3x32_state_genoa_t, nk_b128_vec_t,
-                            nk_dot_e4m3x32_init_genoa, nk_load_b256_haswell_, nk_partial_load_b8x32_haswell_,
-                            nk_dot_e4m3x32_update_genoa, nk_dot_e4m3x32_finalize_genoa, nk_partial_store_b32x4_skylake_,
-                            /*k_tile=*/32)
+nk_make_dots_packed_vectors_(e4m3_genoa, e4m3, f32, nk_b256_vec_t, nk_dot_e4m3x32_state_genoa_t, nk_b128_vec_t,
+                             nk_dot_e4m3x32_init_genoa, nk_load_b256_haswell_, nk_partial_load_u1x32_serial_,
+                             nk_dot_e4m3x32_update_genoa, nk_dot_e4m3x32_finalize_genoa,
+                             nk_partial_store_b32x4_skylake_,
+                             /*k_tile=*/32)
 
 // E5M2 GEMM: k_tile=32 (32 e5m2s = 32 bytes = half cache line), F32 accumulator
 nk_make_dots_pack_size_(genoa, e5m2, f32)
 nk_make_dots_pack_(genoa, e5m2, f32)
-nk_make_dots_inner_vectors_(e5m2e5m2f32_genoa, e5m2, f32, nk_b256_vec_t, nk_dot_e5m2x32_state_genoa_t, nk_b128_vec_t,
-                            nk_dot_e5m2x32_init_genoa, nk_load_b256_haswell_, nk_partial_load_b8x32_haswell_,
-                            nk_dot_e5m2x32_update_genoa, nk_dot_e5m2x32_finalize_genoa, nk_partial_store_b32x4_skylake_,
-                            /*k_tile=*/32)
+nk_make_dots_packed_vectors_(e5m2_genoa, e5m2, f32, nk_b256_vec_t, nk_dot_e5m2x32_state_genoa_t, nk_b128_vec_t,
+                             nk_dot_e5m2x32_init_genoa, nk_load_b256_haswell_, nk_partial_load_u1x32_serial_,
+                             nk_dot_e5m2x32_update_genoa, nk_dot_e5m2x32_finalize_genoa,
+                             nk_partial_store_b32x4_skylake_,
+                             /*k_tile=*/32)
 
-// Compact function: F32→BF16 conversion (reuses serial implementation logic)
-NK_PUBLIC void nk_dots_bf16bf16bf16_genoa(void *c, nk_size_t m, nk_size_t n, nk_size_t c_stride) {
-    nk_dots_bf16bf16bf16_serial(c, m, n, c_stride);
+// Compact function: F32 → BF16 conversion (reuses serial implementation logic)
+NK_PUBLIC void nk_dots_compact_bf16_genoa(void *c, nk_size_t row_count, nk_size_t column_count, nk_size_t c_stride) {
+    nk_dots_compact_bf16_serial(c, row_count, column_count, c_stride);
 }
 
 #if defined(__cplusplus)
 } // extern "C"
 #endif
 
+#if defined(__clang__)
 #pragma clang attribute pop
+#elif defined(__GNUC__)
 #pragma GCC pop_options
+#endif
 #endif // NK_TARGET_GENOA
 #endif // NK_TARGET_X86_
 

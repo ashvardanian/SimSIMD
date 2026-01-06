@@ -10,7 +10,7 @@
  *  - Bilinear form multiplication
  *  - Bilinear form multiplication over complex numbers
  *
- *  For datatypes:
+ *  For dtypes:
  *
  *  - 64-bit floating point numbers → 64-bit floats
  *  - 32-bit floating point numbers → 32-bit floats
@@ -379,7 +379,7 @@ NK_PUBLIC void nk_mahalanobis_f16_sapphire(nk_f16_t const *a, nk_f16_t const *b,
             }                                                                                                       \
             sum += diff_i * cdiff_j;                                                                                \
         }                                                                                                           \
-        *result = NK_F32_SQRT(sum);                                                                                 \
+        *result = nk_##accumulator_type##_sqrt_serial(sum);                                                         \
     }
 
 NK_MAKE_BILINEAR(serial, f64, f64, nk_assign_from_to_)          // nk_bilinear_f64_serial
@@ -390,31 +390,34 @@ NK_MAKE_BILINEAR(serial, f32, f32, nk_assign_from_to_)          // nk_bilinear_f
 NK_MAKE_COMPLEX_BILINEAR(serial, f32c, f32, nk_assign_from_to_) // nk_bilinear_f32c_serial
 NK_MAKE_MAHALANOBIS(serial, f32, f32, nk_assign_from_to_)       // nk_mahalanobis_f32_serial
 
-NK_MAKE_BILINEAR(serial, f16, f32, nk_f16_to_f32)          // nk_bilinear_f16_serial
-NK_MAKE_COMPLEX_BILINEAR(serial, f16c, f32, nk_f16_to_f32) // nk_bilinear_f16c_serial
-NK_MAKE_MAHALANOBIS(serial, f16, f32, nk_f16_to_f32)       // nk_mahalanobis_f16_serial
+NK_MAKE_BILINEAR(serial, f16, f32, nk_f16_to_f32_serial)          // nk_bilinear_f16_serial
+NK_MAKE_COMPLEX_BILINEAR(serial, f16c, f32, nk_f16_to_f32_serial) // nk_bilinear_f16c_serial
+NK_MAKE_MAHALANOBIS(serial, f16, f32, nk_f16_to_f32_serial)       // nk_mahalanobis_f16_serial
 
-NK_MAKE_BILINEAR(serial, bf16, f32, nk_bf16_to_f32)          // nk_bilinear_bf16_serial
-NK_MAKE_COMPLEX_BILINEAR(serial, bf16c, f32, nk_bf16_to_f32) // nk_bilinear_bf16c_serial
-NK_MAKE_MAHALANOBIS(serial, bf16, f32, nk_bf16_to_f32)       // nk_mahalanobis_bf16_serial
+NK_MAKE_BILINEAR(serial, bf16, f32, nk_bf16_to_f32_serial)          // nk_bilinear_bf16_serial
+NK_MAKE_COMPLEX_BILINEAR(serial, bf16c, f32, nk_bf16_to_f32_serial) // nk_bilinear_bf16c_serial
+NK_MAKE_MAHALANOBIS(serial, bf16, f32, nk_bf16_to_f32_serial)       // nk_mahalanobis_bf16_serial
 
 NK_MAKE_BILINEAR(accurate, f32, f64, nk_assign_from_to_)          // nk_bilinear_f32_accurate
 NK_MAKE_COMPLEX_BILINEAR(accurate, f32c, f64, nk_assign_from_to_) // nk_bilinear_f32c_accurate
 NK_MAKE_MAHALANOBIS(accurate, f32, f64, nk_assign_from_to_)       // nk_mahalanobis_f32_accurate
 
-NK_MAKE_BILINEAR(accurate, f16, f64, nk_f16_to_f64)          // nk_bilinear_f16_accurate
-NK_MAKE_COMPLEX_BILINEAR(accurate, f16c, f64, nk_f16_to_f64) // nk_bilinear_f16c_accurate
-NK_MAKE_MAHALANOBIS(accurate, f16, f64, nk_f16_to_f64)       // nk_mahalanobis_f16_accurate
+NK_MAKE_BILINEAR(accurate, f16, f64, nk_f16_to_f64_)          // nk_bilinear_f16_accurate
+NK_MAKE_COMPLEX_BILINEAR(accurate, f16c, f64, nk_f16_to_f64_) // nk_bilinear_f16c_accurate
+NK_MAKE_MAHALANOBIS(accurate, f16, f64, nk_f16_to_f64_)       // nk_mahalanobis_f16_accurate
 
-NK_MAKE_BILINEAR(accurate, bf16, f64, nk_bf16_to_f64)          // nk_bilinear_bf16_accurate
-NK_MAKE_COMPLEX_BILINEAR(accurate, bf16c, f64, nk_bf16_to_f64) // nk_bilinear_bf16c_accurate
-NK_MAKE_MAHALANOBIS(accurate, bf16, f64, nk_bf16_to_f64)       // nk_mahalanobis_bf16_accurate
+NK_MAKE_BILINEAR(accurate, bf16, f64, nk_bf16_to_f64_)          // nk_bilinear_bf16_accurate
+NK_MAKE_COMPLEX_BILINEAR(accurate, bf16c, f64, nk_bf16_to_f64_) // nk_bilinear_bf16c_accurate
+NK_MAKE_MAHALANOBIS(accurate, bf16, f64, nk_bf16_to_f64_)       // nk_mahalanobis_bf16_accurate
 
 #if NK_TARGET_ARM_
 #if NK_TARGET_NEON
+#if defined(__clang__)
+#pragma clang attribute push(__attribute__((target("arch=armv8.2-a+simd"))), apply_to = function)
+#elif defined(__GNUC__)
 #pragma GCC push_options
 #pragma GCC target("arch=armv8.2-a+simd")
-#pragma clang attribute push(__attribute__((target("arch=armv8.2-a+simd"))), apply_to = function)
+#endif
 
 NK_PUBLIC void nk_bilinear_f32_neon(nk_f32_t const *a, nk_f32_t const *b, nk_f32_t const *c, nk_size_t n,
                                     nk_f32_t *result) {
@@ -477,7 +480,7 @@ NK_PUBLIC void nk_mahalanobis_f32_neon(nk_f32_t const *a, nk_f32_t const *b, nk_
         }
     }
 
-    *result = nk_sqrt_f64_neon_(sum);
+    *result = nk_f64_sqrt_neon(sum);
 }
 
 NK_PUBLIC void nk_bilinear_f32c_neon(nk_f32c_t const *a, nk_f32c_t const *b, nk_f32c_t const *c, nk_size_t n,
@@ -532,14 +535,20 @@ NK_PUBLIC void nk_bilinear_f32c_neon(nk_f32c_t const *a, nk_f32c_t const *b, nk_
     results->imag = sum_imag;
 }
 
+#if defined(__clang__)
 #pragma clang attribute pop
+#elif defined(__GNUC__)
 #pragma GCC pop_options
+#endif
 #endif // NK_TARGET_NEON
 
 #if NK_TARGET_NEONHALF
+#if defined(__clang__)
+#pragma clang attribute push(__attribute__((target("arch=armv8.2-a+simd+fp16"))), apply_to = function)
+#elif defined(__GNUC__)
 #pragma GCC push_options
 #pragma GCC target("arch=armv8.2-a+simd+fp16")
-#pragma clang attribute push(__attribute__((target("arch=armv8.2-a+simd+fp16"))), apply_to = function)
+#endif
 
 NK_PUBLIC void nk_bilinear_f16_neonhalf(nk_f16_t const *a, nk_f16_t const *b, nk_f16_t const *c, nk_size_t n,
                                         nk_f32_t *result) {
@@ -615,7 +624,7 @@ NK_PUBLIC void nk_mahalanobis_f16_neonhalf(nk_f16_t const *a, nk_f16_t const *b,
         }
     }
 
-    *result = nk_sqrt_f32_neon_(sum);
+    *result = nk_f32_sqrt_neon(sum);
 }
 
 NK_INTERNAL float16x8x2_t nk_partial_load_f16x8x2_neon_(nk_f16c_t const *x, nk_size_t n) {
@@ -637,8 +646,8 @@ NK_PUBLIC void nk_bilinear_f16c_neonhalf(nk_f16c_t const *a, nk_f16c_t const *b,
     nk_size_t const tail_start = n - tail_length;
     for (nk_size_t i = 0; i != n; ++i) {
         nk_f32c_t a_i;
-        nk_f16_to_f32(&a[i].real, &a_i.real);
-        nk_f16_to_f32(&a[i].imag, &a_i.imag);
+        nk_f16_to_f32_neon(&a[i].real, &a_i.real);
+        nk_f16_to_f32_neon(&a[i].imag, &a_i.imag);
         float16x8_t cb_j_real_f16x8 = vdupq_n_f16(0);
         float16x8_t cb_j_imag_f16x8 = vdupq_n_f16(0);
         for (nk_size_t j = 0; j + 8 <= n; j += 8) {
@@ -684,21 +693,27 @@ NK_PUBLIC void nk_bilinear_f16c_neonhalf(nk_f16c_t const *a, nk_f16c_t const *b,
     results->imag = sum_imag;
 }
 
+#if defined(__clang__)
 #pragma clang attribute pop
+#elif defined(__GNUC__)
 #pragma GCC pop_options
+#endif
 #endif // NK_TARGET_NEONHALF
 
 #if NK_TARGET_NEONBFDOT
+#if defined(__clang__)
+#pragma clang attribute push(__attribute__((target("arch=armv8.6-a+simd+bf16"))), apply_to = function)
+#elif defined(__GNUC__)
 #pragma GCC push_options
 #pragma GCC target("arch=armv8.6-a+simd+bf16")
-#pragma clang attribute push(__attribute__((target("arch=armv8.6-a+simd+bf16"))), apply_to = function)
+#endif
 
 NK_PUBLIC void nk_bilinear_bf16_neonbfdot(nk_bf16_t const *a, nk_bf16_t const *b, nk_bf16_t const *c, nk_size_t n,
                                           nk_f32_t *result) {
     float32x4_t sum_f32x4 = vdupq_n_f32(0);
     for (nk_size_t i = 0; i != n; ++i) {
         nk_f32_t a_f32;
-        nk_bf16_to_f32(a + i, &a_f32);
+        nk_bf16_to_f32_serial(a + i, &a_f32);
         float32x4_t a_f32x4 = vdupq_n_f32(a_f32);
         float32x4_t cb_j_f32x4 = vdupq_n_f32(0);
         for (nk_size_t j = 0; j + 8 <= n; j += 8) {
@@ -716,7 +731,7 @@ NK_PUBLIC void nk_bilinear_bf16_neonbfdot(nk_bf16_t const *a, nk_bf16_t const *b
     if (tail_length) {
         for (nk_size_t i = 0; i != n; ++i) {
             nk_f32_t a_i;
-            nk_bf16_to_f32(a + i, &a_i);
+            nk_bf16_to_f32_serial(a + i, &a_i);
             nk_b128_vec_t b_vec, c_vec;
             nk_partial_load_b16x8_neon_(b + tail_start, tail_length, &b_vec);
             nk_partial_load_b16x8_neon_(c + i * n + tail_start, tail_length, &c_vec);
@@ -735,8 +750,8 @@ NK_PUBLIC void nk_mahalanobis_bf16_neonbfdot(nk_bf16_t const *a, nk_bf16_t const
     float32x4_t sum_f32x4 = vdupq_n_f32(0);
     for (nk_size_t i = 0; i != n; ++i) {
         nk_f32_t a_i, b_i;
-        nk_bf16_to_f32(a + i, &a_i);
-        nk_bf16_to_f32(b + i, &b_i);
+        nk_bf16_to_f32_serial(a + i, &a_i);
+        nk_bf16_to_f32_serial(b + i, &b_i);
         float32x4_t diff_i_f32x4 = vdupq_n_f32(a_i - b_i);
         float32x4_t cdiff_j_f32x4 = vdupq_n_f32(0);
         for (nk_size_t j = 0; j + 8 <= n; j += 8) {
@@ -768,8 +783,8 @@ NK_PUBLIC void nk_mahalanobis_bf16_neonbfdot(nk_bf16_t const *a, nk_bf16_t const
     if (tail_length) {
         for (nk_size_t i = 0; i != n; ++i) {
             nk_f32_t a_i, b_i;
-            nk_bf16_to_f32(a + i, &a_i);
-            nk_bf16_to_f32(b + i, &b_i);
+            nk_bf16_to_f32_serial(a + i, &a_i);
+            nk_bf16_to_f32_serial(b + i, &b_i);
             nk_f32_t diff_i = a_i - b_i;
             nk_b128_vec_t a_j_vec, b_j_vec, c_vec;
             nk_partial_load_b16x8_neon_(a + tail_start, tail_length, &a_j_vec);
@@ -794,7 +809,7 @@ NK_PUBLIC void nk_mahalanobis_bf16_neonbfdot(nk_bf16_t const *a, nk_bf16_t const
         }
     }
 
-    *result = nk_sqrt_f32_neon_(sum);
+    *result = nk_f32_sqrt_neon(sum);
 }
 
 NK_INTERNAL int16x4x2_t nk_partial_load_bf16x4x2_neon_(nk_bf16c_t const *x, nk_size_t n) {
@@ -816,8 +831,8 @@ NK_PUBLIC void nk_bilinear_bf16c_neonbfdot(nk_bf16c_t const *a, nk_bf16c_t const
     nk_size_t const tail_start = n - tail_length;
     for (nk_size_t i = 0; i != n; ++i) {
         nk_f32c_t a_i;
-        nk_bf16_to_f32(&a[i].real, &a_i.real);
-        nk_bf16_to_f32(&a[i].imag, &a_i.imag);
+        nk_bf16_to_f32_serial(&a[i].real, &a_i.real);
+        nk_bf16_to_f32_serial(&a[i].imag, &a_i.imag);
         // A nicer approach is to use `bf16` arithmetic for the dot product, but that requires
         // FMLA extensions available on Arm v8.3 and later. That we can also process 16 entries
         // at once. That's how the original implementation worked, but compiling it was a nightmare :)
@@ -868,17 +883,23 @@ NK_PUBLIC void nk_bilinear_bf16c_neonbfdot(nk_bf16c_t const *a, nk_bf16c_t const
     results->imag = sum_imag;
 }
 
+#if defined(__clang__)
 #pragma clang attribute pop
+#elif defined(__GNUC__)
 #pragma GCC pop_options
+#endif
 #endif // NK_TARGET_NEONBFDOT
 
 #endif // NK_TARGET_ARM_
 
 #if NK_TARGET_X86_
 #if NK_TARGET_HASWELL
+#if defined(__clang__)
+#pragma clang attribute push(__attribute__((target("avx2,f16c,fma,bmi,bmi2"))), apply_to = function)
+#elif defined(__GNUC__)
 #pragma GCC push_options
-#pragma GCC target("avx2", "f16c", "fma")
-#pragma clang attribute push(__attribute__((target("avx2,f16c,fma"))), apply_to = function)
+#pragma GCC target("avx2", "f16c", "fma", "bmi", "bmi2")
+#endif
 
 NK_PUBLIC void nk_bilinear_f16_haswell(nk_f16_t const *a, nk_f16_t const *b, nk_f16_t const *c, nk_size_t n,
                                        nk_f32_t *result) {
@@ -887,8 +908,8 @@ NK_PUBLIC void nk_bilinear_f16_haswell(nk_f16_t const *a, nk_f16_t const *b, nk_
         __m256 a_f32x8 = _mm256_cvtph_ps(_mm_set1_epi16(*(short const *)(a + i)));
         __m256 cb_j_f32x8 = _mm256_setzero_ps();
         for (nk_size_t j = 0; j + 8 <= n; j += 8) {
-            __m256 b_f32x8 = _mm256_cvtph_ps(_mm_lddqu_si128((__m128i const *)(b + j)));
-            __m256 c_f32x8 = _mm256_cvtph_ps(_mm_lddqu_si128((__m128i const *)(c + i * n + j)));
+            __m256 b_f32x8 = _mm256_cvtph_ps(_mm_loadu_si128((__m128i const *)(b + j)));
+            __m256 c_f32x8 = _mm256_cvtph_ps(_mm_loadu_si128((__m128i const *)(c + i * n + j)));
             cb_j_f32x8 = _mm256_fmadd_ps(b_f32x8, c_f32x8, cb_j_f32x8);
         }
         sum_f32x8 = _mm256_fmadd_ps(a_f32x8, cb_j_f32x8, sum_f32x8);
@@ -921,9 +942,9 @@ NK_PUBLIC void nk_mahalanobis_f16_haswell(nk_f16_t const *a, nk_f16_t const *b, 
         __m256 cdiff_j_f32x8 = _mm256_setzero_ps();
         for (nk_size_t j = 0; j + 8 <= n; j += 8) {
             __m256 diff_j_f32x8 = _mm256_sub_ps( //
-                _mm256_cvtph_ps(_mm_lddqu_si128((__m128i const *)(a + j))),
-                _mm256_cvtph_ps(_mm_lddqu_si128((__m128i const *)(b + j))));
-            __m256 c_f32x8 = _mm256_cvtph_ps(_mm_lddqu_si128((__m128i const *)(c + i * n + j)));
+                _mm256_cvtph_ps(_mm_loadu_si128((__m128i const *)(a + j))),
+                _mm256_cvtph_ps(_mm_loadu_si128((__m128i const *)(b + j))));
+            __m256 c_f32x8 = _mm256_cvtph_ps(_mm_loadu_si128((__m128i const *)(c + i * n + j)));
             cdiff_j_f32x8 = _mm256_fmadd_ps(diff_j_f32x8, c_f32x8, cdiff_j_f32x8);
         }
         sum_f32x8 = _mm256_fmadd_ps(diff_i_f32x8, cdiff_j_f32x8, sum_f32x8);
@@ -954,14 +975,14 @@ NK_PUBLIC void nk_bilinear_bf16_haswell(nk_bf16_t const *a, nk_bf16_t const *b, 
                                         nk_f32_t *result) {
     __m256 sum_f32x8 = _mm256_setzero_ps();
     for (nk_size_t i = 0; i != n; ++i) {
-        // The `nk_bf16_to_f32` is cheaper than `nk_bf16x8_to_f32x8_haswell_`
+        // The `nk_bf16_to_f32_serial` is cheaper than `nk_bf16x8_to_f32x8_haswell_`
         nk_f32_t a_f32;
-        nk_bf16_to_f32(a + i, &a_f32);
+        nk_bf16_to_f32_serial(a + i, &a_f32);
         __m256 a_f32x8 = _mm256_set1_ps(a_f32);
         __m256 cb_j_f32x8 = _mm256_setzero_ps();
         for (nk_size_t j = 0; j + 8 <= n; j += 8) {
-            __m256 b_f32x8 = nk_bf16x8_to_f32x8_haswell_(_mm_lddqu_si128((__m128i const *)(b + j)));
-            __m256 c_f32x8 = nk_bf16x8_to_f32x8_haswell_(_mm_lddqu_si128((__m128i const *)(c + i * n + j)));
+            __m256 b_f32x8 = nk_bf16x8_to_f32x8_haswell_(_mm_loadu_si128((__m128i const *)(b + j)));
+            __m256 c_f32x8 = nk_bf16x8_to_f32x8_haswell_(_mm_loadu_si128((__m128i const *)(c + i * n + j)));
             cb_j_f32x8 = _mm256_fmadd_ps(b_f32x8, c_f32x8, cb_j_f32x8);
         }
         sum_f32x8 = _mm256_fmadd_ps(a_f32x8, cb_j_f32x8, sum_f32x8);
@@ -974,7 +995,7 @@ NK_PUBLIC void nk_bilinear_bf16_haswell(nk_bf16_t const *a, nk_bf16_t const *b, 
     if (tail_length) {
         for (nk_size_t i = 0; i != n; ++i) {
             nk_f32_t a_i;
-            nk_bf16_to_f32(a + i, &a_i);
+            nk_bf16_to_f32_serial(a + i, &a_i);
             __m256 b_f32x8 = nk_partial_load_bf16x8_to_f32x8_haswell_(b + tail_start, tail_length);
             __m256 c_f32x8 = nk_partial_load_bf16x8_to_f32x8_haswell_(c + i * n + tail_start, tail_length);
             nk_f32_t cb_j = nk_reduce_add_f32x8_haswell_(_mm256_mul_ps(b_f32x8, c_f32x8));
@@ -990,17 +1011,17 @@ NK_PUBLIC void nk_mahalanobis_bf16_haswell(nk_bf16_t const *a, nk_bf16_t const *
     __m256 sum_f32x8 = _mm256_setzero_ps();
     for (nk_size_t i = 0; i != n; ++i) {
         nk_f32_t a_i, b_i;
-        nk_bf16_to_f32(a + i, &a_i);
-        nk_bf16_to_f32(b + i, &b_i);
+        nk_bf16_to_f32_serial(a + i, &a_i);
+        nk_bf16_to_f32_serial(b + i, &b_i);
         __m256 diff_i_f32x8 = _mm256_sub_ps( //
             _mm256_set1_ps(a_i),             //
             _mm256_set1_ps(b_i));
         __m256 cdiff_j_f32x8 = _mm256_setzero_ps();
         for (nk_size_t j = 0; j + 8 <= n; j += 8) {
             __m256 diff_j_f32x8 = _mm256_sub_ps(                                        //
-                nk_bf16x8_to_f32x8_haswell_(_mm_lddqu_si128((__m128i const *)(a + j))), //
-                nk_bf16x8_to_f32x8_haswell_(_mm_lddqu_si128((__m128i const *)(b + j))));
-            __m256 c_f32x8 = nk_bf16x8_to_f32x8_haswell_(_mm_lddqu_si128((__m128i const *)(c + i * n + j)));
+                nk_bf16x8_to_f32x8_haswell_(_mm_loadu_si128((__m128i const *)(a + j))), //
+                nk_bf16x8_to_f32x8_haswell_(_mm_loadu_si128((__m128i const *)(b + j))));
+            __m256 c_f32x8 = nk_bf16x8_to_f32x8_haswell_(_mm_loadu_si128((__m128i const *)(c + i * n + j)));
             cdiff_j_f32x8 = _mm256_fmadd_ps(diff_j_f32x8, c_f32x8, cdiff_j_f32x8);
         }
         sum_f32x8 = _mm256_fmadd_ps(diff_i_f32x8, cdiff_j_f32x8, sum_f32x8);
@@ -1013,8 +1034,8 @@ NK_PUBLIC void nk_mahalanobis_bf16_haswell(nk_bf16_t const *a, nk_bf16_t const *
     if (tail_length) {
         for (nk_size_t i = 0; i != n; ++i) {
             nk_f32_t a_i, b_i;
-            nk_bf16_to_f32(a + i, &a_i);
-            nk_bf16_to_f32(b + i, &b_i);
+            nk_bf16_to_f32_serial(a + i, &a_i);
+            nk_bf16_to_f32_serial(b + i, &b_i);
             nk_f32_t diff_i = a_i - b_i;
             __m256 diff_j_f32x8 = _mm256_sub_ps( //
                 nk_partial_load_bf16x8_to_f32x8_haswell_(a + tail_start, tail_length),
@@ -1028,14 +1049,21 @@ NK_PUBLIC void nk_mahalanobis_bf16_haswell(nk_bf16_t const *a, nk_bf16_t const *
     *result = nk_sqrt_f32_haswell_(sum);
 }
 
+#if defined(__clang__)
 #pragma clang attribute pop
+#elif defined(__GNUC__)
 #pragma GCC pop_options
+#endif
 #endif // NK_TARGET_HASWELL
 
 #if NK_TARGET_SKYLAKE
+#if defined(__clang__)
+#pragma clang attribute push(__attribute__((target("avx2,avx512f,avx512vl,avx512bw,avx512dq,f16c,fma,bmi,bmi2"))), \
+                             apply_to = function)
+#elif defined(__GNUC__)
 #pragma GCC push_options
-#pragma GCC target("avx2", "avx512f", "avx512vl", "bmi2")
-#pragma clang attribute push(__attribute__((target("avx2,avx512f,avx512vl,bmi2"))), apply_to = function)
+#pragma GCC target("avx2", "avx512f", "avx512vl", "avx512bw", "avx512dq", "f16c", "fma", "bmi", "bmi2")
+#endif
 
 NK_PUBLIC void nk_bilinear_f32_skylake_under16unrolled(nk_f32_t const *a, nk_f32_t const *b, nk_f32_t const *c,
                                                        nk_size_t n, nk_f32_t *result) {
@@ -1396,15 +1424,22 @@ NK_PUBLIC void nk_bilinear_f64c_skylake(nk_f64c_t const *a, nk_f64c_t const *b, 
     results->imag = sum_imag;
 }
 
+#if defined(__clang__)
 #pragma clang attribute pop
+#elif defined(__GNUC__)
 #pragma GCC pop_options
+#endif
 #endif // NK_TARGET_SKYLAKE
 
 #if NK_TARGET_GENOA
+#if defined(__clang__)
+#pragma clang attribute push(                                                                        \
+    __attribute__((target("avx2,avx512f,avx512vl,avx512bw,avx512dq,avx512bf16,f16c,fma,bmi,bmi2"))), \
+    apply_to = function)
+#elif defined(__GNUC__)
 #pragma GCC push_options
-#pragma GCC target("avx2", "avx512f", "avx512vl", "bmi2", "avx512bw", "avx512bf16")
-#pragma clang attribute push(__attribute__((target("avx2,avx512f,avx512vl,bmi2,avx512bw,avx512bf16"))), \
-                             apply_to = function)
+#pragma GCC target("avx2", "avx512f", "avx512vl", "avx512bw", "avx512dq", "avx512bf16", "f16c", "fma", "bmi", "bmi2")
+#endif
 
 NK_PUBLIC void nk_bilinear_bf16_genoa(nk_bf16_t const *a, nk_bf16_t const *b, nk_bf16_t const *c, nk_size_t n,
                                       nk_f32_t *result) {
@@ -1415,7 +1450,7 @@ NK_PUBLIC void nk_bilinear_bf16_genoa(nk_bf16_t const *a, nk_bf16_t const *b, nk
 
     for (nk_size_t i = 0; i != n; ++i) {
         nk_f32_t a_f32;
-        nk_bf16_to_f32(a + i, &a_f32);
+        nk_bf16_to_f32_serial(a + i, &a_f32);
         __m512 a_f32x16 = _mm512_set1_ps(a_f32);
         __m512 cb_j_f32x16 = _mm512_setzero_ps();
         __m512i b_bf16x32, c_bf16x32;
@@ -1448,8 +1483,8 @@ NK_PUBLIC void nk_mahalanobis_bf16_genoa(nk_bf16_t const *a, nk_bf16_t const *b,
 
     for (nk_size_t i = 0; i != n; ++i) {
         nk_f32_t a_i, b_i;
-        nk_bf16_to_f32(a + i, &a_i);
-        nk_bf16_to_f32(b + i, &b_i);
+        nk_bf16_to_f32_serial(a + i, &a_i);
+        nk_bf16_to_f32_serial(b + i, &b_i);
         __m512 diff_i_f32x16 = _mm512_set1_ps(a_i - b_i);
         __m512 cdiff_j_f32x16 = _mm512_setzero_ps();
         __m512i a_j_bf16x32, b_j_bf16x32, diff_j_bf16x32, c_bf16x32;
@@ -1539,15 +1574,21 @@ NK_PUBLIC void nk_bilinear_bf16c_genoa(nk_bf16c_t const *a, nk_bf16c_t const *b,
     results->imag = sum_imag;
 }
 
+#if defined(__clang__)
 #pragma clang attribute pop
+#elif defined(__GNUC__)
 #pragma GCC pop_options
+#endif
 #endif // NK_TARGET_GENOA
 
 #if NK_TARGET_SAPPHIRE
-#pragma GCC push_options
-#pragma GCC target("avx2", "avx512f", "avx512vl", "bmi2", "avx512bw", "avx512fp16")
-#pragma clang attribute push(__attribute__((target("avx2,avx512f,avx512vl,bmi2,avx512bw,avx512fp16"))), \
+#if defined(__clang__)
+#pragma clang attribute push(__attribute__((target("avx2,avx512f,avx512vl,avx512bw,avx512fp16,f16c,fma,bmi,bmi2"))), \
                              apply_to = function)
+#elif defined(__GNUC__)
+#pragma GCC push_options
+#pragma GCC target("avx2", "avx512f", "avx512vl", "avx512bw", "avx512fp16", "f16c", "fma", "bmi", "bmi2")
+#endif
 
 NK_PUBLIC void nk_bilinear_f16_sapphire_under32unrolled(nk_f16_t const *a, nk_f16_t const *b, nk_f16_t const *c,
                                                         nk_size_t const n, nk_f32_t *result) {
@@ -1751,8 +1792,11 @@ NK_PUBLIC void nk_bilinear_f16c_sapphire(nk_f16c_t const *a, nk_f16c_t const *b,
     results->imag = sum_imag;
 }
 
+#if defined(__clang__)
 #pragma clang attribute pop
+#elif defined(__GNUC__)
 #pragma GCC pop_options
+#endif
 #endif // NK_TARGET_SAPPHIRE
 #endif // NK_TARGET_X86_
 
