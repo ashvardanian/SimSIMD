@@ -1904,6 +1904,132 @@ impl<T: Dots, A: Allocator, const MAX_RANK: usize> Tensor<T, A, MAX_RANK> {
     }
 }
 
+// Parallel matmul implementations, if Fork Union is available
+#[cfg(feature = "parallel")]
+impl<T: Dots + Clone + Send + Sync, A: Allocator + Clone, const MAX_RANK: usize>
+    Tensor<T, A, MAX_RANK>
+where
+    T::Accumulator: Clone + Default + Send + Sync,
+{
+    /// Parallel matrix multiply into pre-allocated output.
+    ///
+    /// Distributes rows of A across threads; each computes its portion of C.
+    /// This is a non-allocating interface - you provide the output tensor.
+    ///
+    /// # Arguments
+    /// * `packed_b` - Pre-packed B matrix from `MatrixMultiplier::try_pack[_transposed]`
+    /// * `c` - Pre-allocated output tensor (m × n)
+    /// * `pool` - Pre-constructed thread pool
+    ///
+    /// # Example
+    /// ```ignore
+    /// use numkong::{Tensor, MatrixMultiplier};
+    /// use fork_union::ThreadPool;
+    ///
+    /// let mut pool = ThreadPool::try_spawn(4).unwrap();
+    /// let a = Tensor::<f32>::try_new(&[1024, 512], 1.0).unwrap();
+    /// let b = Tensor::<f32>::try_new(&[256, 512], 1.0).unwrap();
+    /// let packed_b = MatrixMultiplier::try_pack(&b).unwrap();
+    /// let mut c = Tensor::<f32>::try_new(&[1024, 256], 0.0).unwrap();
+    /// a.try_matmul_parallel_into(&packed_b, &mut c, &mut pool).unwrap();
+    /// ```
+    pub fn try_matmul_parallel_into<BA: Allocator, CA: Allocator, const CA_MAX_RANK: usize>(
+        &self,
+        packed_b: &MatrixMultiplier<T, BA>,
+        c: &mut Tensor<T::Accumulator, CA, CA_MAX_RANK>,
+        pool: &mut fork_union::ThreadPool,
+    ) -> Result<(), TensorError> {
+        if self.ndim() != 2 {
+            return Err(TensorError::DimensionMismatch {
+                expected: 2,
+                got: self.ndim(),
+            });
+        }
+        if !self.has_contiguous_rows() {
+            return Err(TensorError::NonContiguousRows);
+        }
+        let (m, k) = (self.shape()[0], self.shape()[1]);
+        let (n, packed_k) = packed_b.dims();
+        if k != packed_k {
+            return Err(TensorError::ShapeMismatch {
+                expected: ShapeDescriptor::from_slice(&[m, packed_k]),
+                got: ShapeDescriptor::from_slice(&[m, k]),
+            });
+        }
+        if c.shape() != &[m, n] {
+            return Err(TensorError::ShapeMismatch {
+                expected: ShapeDescriptor::from_slice(&[m, n]),
+                got: ShapeDescriptor::from_slice(c.shape()),
+            });
+        }
+        if !c.has_contiguous_rows() {
+            return Err(TensorError::NonContiguousRows);
+        }
+
+        let a_ptr = fork_union::SyncConstPtr::new(self.as_ptr());
+        let c_ptr = fork_union::SyncMutPtr::new(c.as_mut_ptr());
+        let packed_ptr = fork_union::SyncConstPtr::new(packed_b.as_ptr());
+        let a_stride = self.stride(0);
+        let c_stride = c.stride(0);
+
+        // Distribute rows across threads using fork_union
+        // Safety: Each thread writes to disjoint rows of C, so no data races.
+        pool.for_threads(move |thread_idx, num_threads| {
+            let num_threads = num_threads.max(1);
+            let rows_per_thread = (m + num_threads - 1) / num_threads;
+            let row_start = thread_idx * rows_per_thread;
+            let row_end = (row_start + rows_per_thread).min(m);
+
+            if row_start < m {
+                unsafe {
+                    T::dots(
+                        a_ptr.as_ptr().add(row_start * k),
+                        packed_ptr.as_ptr(),
+                        c_ptr.as_ptr().add(row_start * n),
+                        row_end - row_start,
+                        n,
+                        k,
+                        a_stride,
+                        c_stride,
+                    );
+                }
+            }
+        })
+        .join();
+
+        Ok(())
+    }
+
+    /// Parallel matrix multiply with allocation.
+    ///
+    /// Convenience wrapper that allocates the output tensor.
+    /// Prefer `try_matmul_parallel_into` for performance-critical code.
+    pub fn try_matmul_parallel<BA: Allocator>(
+        &self,
+        packed_b: &MatrixMultiplier<T, BA>,
+        pool: &mut fork_union::ThreadPool,
+    ) -> Result<Tensor<T::Accumulator, Global, MAX_RANK>, TensorError> {
+        let m = self.shape()[0];
+        let (n, _) = packed_b.dims();
+        let mut c = Tensor::<T::Accumulator, Global, MAX_RANK>::try_new(
+            &[m, n],
+            T::Accumulator::default(),
+        )?;
+        self.try_matmul_parallel_into(packed_b, &mut c, pool)?;
+        Ok(c)
+    }
+
+    /// Convenience method that panics on error.
+    pub fn matmul_parallel<BA: Allocator>(
+        &self,
+        packed_b: &MatrixMultiplier<T, BA>,
+        pool: &mut fork_union::ThreadPool,
+    ) -> Tensor<T::Accumulator, Global, MAX_RANK> {
+        self.try_matmul_parallel(packed_b, pool)
+            .expect("parallel matmul failed")
+    }
+}
+
 // endregion: Tensor GEMM
 
 // region: Tensor Elementwise Operations
@@ -2438,6 +2564,55 @@ mod tests {
 
         assert_eq!(c.shape(), &[4, 1]);
         assert!((c.as_slice()[0] - 8.0).abs() < 1e-5);
+    }
+
+    #[test]
+    #[cfg(feature = "parallel")]
+    fn matmul_f32_parallel() {
+        let mut pool = fork_union::ThreadPool::try_spawn(4).unwrap();
+        let a = Tensor::<f32>::try_new(&[64, 128], 1.0f32).unwrap();
+        let b = Tensor::<f32>::try_new(&[32, 128], 1.0f32).unwrap();
+
+        let packed_b = MatrixMultiplier::try_pack(&b).unwrap();
+        let c = a.matmul_parallel(&packed_b, &mut pool);
+
+        assert_eq!(c.shape(), &[64, 32]);
+        // Each element = sum of 128 products of 1.0 * 1.0 = 128.0
+        assert!((c.as_slice()[0] - 128.0).abs() < 1e-5);
+    }
+
+    #[test]
+    #[cfg(feature = "parallel")]
+    fn matmul_f32_parallel_into() {
+        let mut pool = fork_union::ThreadPool::try_spawn(4).unwrap();
+        let a = Tensor::<f32>::try_new(&[64, 128], 1.0f32).unwrap();
+        let b = Tensor::<f32>::try_new(&[32, 128], 1.0f32).unwrap();
+        let mut c = Tensor::<f32>::try_new(&[64, 32], 0.0f32).unwrap();
+
+        let packed_b = MatrixMultiplier::try_pack(&b).unwrap();
+        a.try_matmul_parallel_into(&packed_b, &mut c, &mut pool)
+            .unwrap();
+
+        // Verify against serial
+        let c_serial = a.matmul(&packed_b);
+        for (p, s) in c.as_slice().iter().zip(c_serial.as_slice().iter()) {
+            assert!((p - s).abs() < 1e-5);
+        }
+    }
+
+    #[test]
+    #[cfg(feature = "parallel")]
+    fn matmul_bf16_parallel() {
+        let mut pool = fork_union::ThreadPool::try_spawn(4).unwrap();
+        let a = Tensor::<bf16>::try_new(&[32, 64], bf16::from_f32(1.0)).unwrap();
+        let b = Tensor::<bf16>::try_new(&[16, 64], bf16::from_f32(1.0)).unwrap();
+
+        let packed_b = MatrixMultiplier::try_pack(&b).unwrap();
+        let c = a.matmul_parallel(&packed_b, &mut pool);
+
+        assert_eq!(c.shape(), &[32, 16]);
+        // Each element = sum of 64 products = 64.0
+        assert!((c.as_slice()[0] - 64.0).abs() < 1.0);
     }
 }
 
