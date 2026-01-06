@@ -305,7 +305,50 @@ NK_INTERNAL __m256i nk_bf16x32_to_e5m2x32_ice_(__m512i bf16x32) {
 #pragma region - Public API
 
 NK_PUBLIC void nk_cast_ice(void const *from, nk_dtype_t from_type, nk_size_t n, void *to, nk_dtype_t to_type) {
-    nk_cast_skylake(from, from_type, n, to, to_type);
+    // Group 1: Conversions TO bf16 (e4m3→bf16, e5m2→bf16)
+    if (to_type == nk_bf16_k && (from_type == nk_e4m3_k || from_type == nk_e5m2_k)) {
+        nk_e4m3_t const *src = (nk_e4m3_t const *)from;
+        nk_bf16_t *dst = (nk_bf16_t *)to;
+        for (nk_size_t i = 0; i < n; i += 32) {
+            nk_size_t remaining = n - i;
+            __mmask32 mask = (remaining >= 32) ? 0xFFFFFFFF : _bzhi_u32(0xFFFFFFFF, (unsigned)remaining);
+            __m256i in_f8x32 = _mm256_maskz_loadu_epi8(mask, src + i);
+            __m512i out_bf16x32 = (from_type == nk_e4m3_k) ? nk_e4m3x32_to_bf16x32_ice_(in_f8x32)
+                                                           : nk_e5m2x32_to_bf16x32_ice_(in_f8x32);
+            _mm512_mask_storeu_epi16(dst + i, mask, out_bf16x32);
+        }
+    }
+
+    // Group 2: Conversions FROM bf16 (bf16→e4m3, bf16→e5m2)
+    else if (from_type == nk_bf16_k && (to_type == nk_e4m3_k || to_type == nk_e5m2_k)) {
+        nk_bf16_t const *src = (nk_bf16_t const *)from;
+        nk_e4m3_t *dst = (nk_e4m3_t *)to;
+        for (nk_size_t i = 0; i < n; i += 32) {
+            nk_size_t remaining = n - i;
+            __mmask32 mask = (remaining >= 32) ? 0xFFFFFFFF : _bzhi_u32(0xFFFFFFFF, (unsigned)remaining);
+            __m512i in_bf16x32 = _mm512_maskz_loadu_epi16(mask, src + i);
+            __m256i out_f8x32 = (to_type == nk_e4m3_k) ? nk_bf16x32_to_e4m3x32_ice_(in_bf16x32)
+                                                       : nk_bf16x32_to_e5m2x32_ice_(in_bf16x32);
+            _mm256_mask_storeu_epi8(dst + i, mask, out_f8x32);
+        }
+    }
+
+    // Group 3: Conversions TO f16 (e4m3→f16, e5m2→f16)
+    else if (to_type == nk_f16_k && (from_type == nk_e4m3_k || from_type == nk_e5m2_k)) {
+        nk_e4m3_t const *src = (nk_e4m3_t const *)from;
+        nk_f16_t *dst = (nk_f16_t *)to;
+        for (nk_size_t i = 0; i < n; i += 32) {
+            nk_size_t remaining = n - i;
+            __mmask32 mask = (remaining >= 32) ? 0xFFFFFFFF : _bzhi_u32(0xFFFFFFFF, (unsigned)remaining);
+            __m256i in_f8x32 = _mm256_maskz_loadu_epi8(mask, src + i);
+            __m512i out_f16x32 = (from_type == nk_e4m3_k) ? nk_e4m3x32_to_f16x32_ice_(in_f8x32)
+                                                          : nk_e5m2x32_to_f16x32_ice_(in_f8x32);
+            _mm512_mask_storeu_epi16(dst + i, mask, out_f16x32);
+        }
+    }
+
+    // Default: delegate to Skylake for all other conversions
+    else nk_cast_skylake(from, from_type, n, to, to_type);
 }
 
 #pragma endregion - Public API

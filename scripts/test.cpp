@@ -1393,19 +1393,20 @@ void test_casts() {
 #endif
 
 #if NK_TARGET_ICE
-    run_if_matches("cast_f32_to_f16_ice", "f32>f16", test_cast<f32_t, f16_t>, nk_cast_ice);
-    run_if_matches("cast_f16_to_f32_ice", "f16>f32", test_cast<f16_t, f32_t>, nk_cast_ice);
-    run_if_matches("cast_f32_to_bf16_ice", "f32>bf16", test_cast<f32_t, bf16_t>, nk_cast_ice);
-    run_if_matches("cast_bf16_to_f32_ice", "bf16>f32", test_cast<bf16_t, f32_t>, nk_cast_ice);
-    run_if_matches("cast_f32_to_e4m3_ice", "f32>e4m3", test_cast<f32_t, e4m3_t>, nk_cast_ice);
-    run_if_matches("cast_e4m3_to_f32_ice", "e4m3>f32", test_cast<e4m3_t, f32_t>, nk_cast_ice);
+
+    run_if_matches("cast_e4m3_to_bf16_ice", "e4m3>bf16", test_cast<e4m3_t, bf16_t>, nk_cast_ice);
+    run_if_matches("cast_bf16_to_e4m3_ice", "bf16>e4m3", test_cast<bf16_t, e4m3_t>, nk_cast_ice);
+    run_if_matches("cast_e5m2_to_bf16_ice", "e5m2>bf16", test_cast<e5m2_t, bf16_t>, nk_cast_ice);
+    run_if_matches("cast_bf16_to_e5m2_ice", "bf16>e5m2", test_cast<bf16_t, e5m2_t>, nk_cast_ice);
+    run_if_matches("cast_e4m3_to_f16_ice", "e4m3>f16", test_cast<e4m3_t, f16_t>, nk_cast_ice);
+    run_if_matches("cast_e5m2_to_f16_ice", "e5m2>f16", test_cast<e5m2_t, f16_t>, nk_cast_ice);
 #endif
 
 #if NK_TARGET_SAPPHIRE
-    run_if_matches("cast_f32_to_f16_sapphire", "f32>f16", test_cast<f32_t, f16_t>, nk_cast_sapphire);
-    run_if_matches("cast_f16_to_f32_sapphire", "f16>f32", test_cast<f16_t, f32_t>, nk_cast_sapphire);
-    run_if_matches("cast_f32_to_bf16_sapphire", "f32>bf16", test_cast<f32_t, bf16_t>, nk_cast_sapphire);
-    run_if_matches("cast_bf16_to_f32_sapphire", "bf16>f32", test_cast<bf16_t, f32_t>, nk_cast_sapphire);
+    run_if_matches("cast_e4m3_to_f16_sapphire", "e4m3>f16", test_cast<e4m3_t, f16_t>, nk_cast_sapphire);
+    run_if_matches("cast_f16_to_e4m3_sapphire", "f16>e4m3", test_cast<f16_t, e4m3_t>, nk_cast_sapphire);
+    run_if_matches("cast_e5m2_to_f16_sapphire", "e5m2>f16", test_cast<e5m2_t, f16_t>, nk_cast_sapphire);
+    run_if_matches("cast_f16_to_e5m2_sapphire", "f16>e5m2", test_cast<f16_t, e5m2_t>, nk_cast_sapphire);
 #endif
 }
 
