@@ -321,6 +321,114 @@ NK_DYNAMIC void nk_dots_packed_e5m2( //
     nk_e5m2_t const *a, void const *b_packed, nk_f32_t *c, nk_size_t m, nk_size_t n, nk_size_t k, nk_size_t a_stride,
     nk_size_t c_stride);
 
+/**
+ *  @brief Returns packed buffer size in bytes for U1 (binary) B matrix.
+ *
+ *  @param[in] n The number of rows in B (output columns).
+ *  @param[in] k The number of bits (logical elements) per row.
+ */
+NK_DYNAMIC nk_size_t nk_dots_packed_size_u1(nk_size_t n, nk_size_t k);
+
+/**
+ *  @brief Packs U1 (binary) B matrix into a backend-specific layout.
+ *
+ *  @param[in] b The input B matrix in row-major order (8 bits packed per byte).
+ *  @param[in] n The number of rows in B (output columns).
+ *  @param[in] k The number of bits (logical elements) per row.
+ *  @param[in] b_stride The row stride in bytes for B.
+ *  @param[out] b_packed The output packed buffer from nk_dots_packed_size_u1.
+ */
+NK_DYNAMIC void nk_dots_pack_u1( //
+    nk_u1x8_t const *b, nk_size_t n, nk_size_t k, nk_size_t b_stride, void *b_packed);
+
+/**
+ *  @brief Computes C = popcount(A[i,:] & B[j,:]) for binary vectors.
+ *
+ *  @param[in] a The input A matrix in row-major order (8 bits packed per byte).
+ *  @param[in] b_packed The packed B matrix produced by nk_dots_pack_u1.
+ *  @param[out] c The output C matrix in row-major order (U32).
+ *  @param[in] m The number of rows in A.
+ *  @param[in] n The number of rows in B (output columns).
+ *  @param[in] k The number of bits (logical elements) per vector.
+ *  @param[in] a_stride The row stride in bytes for A.
+ *  @param[in] c_stride The row stride in bytes for C.
+ */
+NK_DYNAMIC void nk_dots_packed_u1( //
+    nk_u1x8_t const *a, void const *b_packed, nk_u32_t *c, nk_size_t m, nk_size_t n, nk_size_t k, nk_size_t a_stride,
+    nk_size_t c_stride);
+
+/**
+ *  @brief Returns packed buffer size in bytes for U4 (unsigned nibble) B matrix.
+ *
+ *  @param[in] n The number of rows in B (output columns).
+ *  @param[in] k The number of nibbles (logical elements) per row.
+ */
+NK_DYNAMIC nk_size_t nk_dots_packed_size_u4(nk_size_t n, nk_size_t k);
+
+/**
+ *  @brief Packs U4 (unsigned nibble) B matrix into a backend-specific layout.
+ *
+ *  @param[in] b The input B matrix in row-major order (2 nibbles packed per byte).
+ *  @param[in] n The number of rows in B (output columns).
+ *  @param[in] k The number of nibbles (logical elements) per row.
+ *  @param[in] b_stride The row stride in bytes for B.
+ *  @param[out] b_packed The output packed buffer from nk_dots_packed_size_u4.
+ */
+NK_DYNAMIC void nk_dots_pack_u4( //
+    nk_u4x2_t const *b, nk_size_t n, nk_size_t k, nk_size_t b_stride, void *b_packed);
+
+/**
+ *  @brief Computes C = A × Bᵀ using packed U4 B, accumulating into U32.
+ *
+ *  @param[in] a The input A matrix in row-major order (2 nibbles packed per byte).
+ *  @param[in] b_packed The packed B matrix produced by nk_dots_pack_u4.
+ *  @param[out] c The output C matrix in row-major order (U32).
+ *  @param[in] m The number of rows in A.
+ *  @param[in] n The number of rows in B (output columns).
+ *  @param[in] k The number of nibbles (logical elements) per vector.
+ *  @param[in] a_stride The row stride in bytes for A.
+ *  @param[in] c_stride The row stride in bytes for C.
+ */
+NK_DYNAMIC void nk_dots_packed_u4( //
+    nk_u4x2_t const *a, void const *b_packed, nk_u32_t *c, nk_size_t m, nk_size_t n, nk_size_t k, nk_size_t a_stride,
+    nk_size_t c_stride);
+
+/**
+ *  @brief Returns packed buffer size in bytes for I4 (signed nibble) B matrix.
+ *
+ *  @param[in] n The number of rows in B (output columns).
+ *  @param[in] k The number of nibbles (logical elements) per row.
+ */
+NK_DYNAMIC nk_size_t nk_dots_packed_size_i4(nk_size_t n, nk_size_t k);
+
+/**
+ *  @brief Packs I4 (signed nibble) B matrix into a backend-specific layout.
+ *
+ *  @param[in] b The input B matrix in row-major order (2 nibbles packed per byte).
+ *  @param[in] n The number of rows in B (output columns).
+ *  @param[in] k The number of nibbles (logical elements) per row.
+ *  @param[in] b_stride The row stride in bytes for B.
+ *  @param[out] b_packed The output packed buffer from nk_dots_packed_size_i4.
+ */
+NK_DYNAMIC void nk_dots_pack_i4( //
+    nk_i4x2_t const *b, nk_size_t n, nk_size_t k, nk_size_t b_stride, void *b_packed);
+
+/**
+ *  @brief Computes C = A × Bᵀ using packed I4 B, accumulating into I32.
+ *
+ *  @param[in] a The input A matrix in row-major order (2 nibbles packed per byte).
+ *  @param[in] b_packed The packed B matrix produced by nk_dots_pack_i4.
+ *  @param[out] c The output C matrix in row-major order (I32).
+ *  @param[in] m The number of rows in A.
+ *  @param[in] n The number of rows in B (output columns).
+ *  @param[in] k The number of nibbles (logical elements) per vector.
+ *  @param[in] a_stride The row stride in bytes for A.
+ *  @param[in] c_stride The row stride in bytes for C.
+ */
+NK_DYNAMIC void nk_dots_packed_i4( //
+    nk_i4x2_t const *a, void const *b_packed, nk_i32_t *c, nk_size_t m, nk_size_t n, nk_size_t k, nk_size_t a_stride,
+    nk_size_t c_stride);
+
 /** @copydoc nk_dots_packed_size_f32 */
 NK_PUBLIC nk_size_t nk_dots_packed_size_f32_serial(nk_size_t n, nk_size_t k);
 /** @copydoc nk_dots_pack_f32 */
@@ -374,6 +482,33 @@ NK_PUBLIC void nk_dots_pack_u8_serial(nk_u8_t const *b, nk_size_t n, nk_size_t k
 /** @copydoc nk_dots_packed_u8 */
 NK_PUBLIC void nk_dots_packed_u8_serial(nk_u8_t const *a, void const *b_packed, nk_u32_t *c, nk_size_t m, nk_size_t n,
                                         nk_size_t k, nk_size_t a_stride, nk_size_t c_stride);
+
+/** @copydoc nk_dots_packed_size_u1 */
+NK_PUBLIC nk_size_t nk_dots_packed_size_u1x8_serial(nk_size_t n, nk_size_t k);
+/** @copydoc nk_dots_pack_u1 */
+NK_PUBLIC void nk_dots_pack_u1x8_serial(nk_u1x8_t const *b, nk_size_t n, nk_size_t k, nk_size_t b_stride,
+                                        void *b_packed);
+/** @copydoc nk_dots_packed_u1 */
+NK_PUBLIC void nk_dots_packed_u1x8_serial(nk_u1x8_t const *a, void const *b_packed, nk_u32_t *c, nk_size_t m,
+                                          nk_size_t n, nk_size_t k, nk_size_t a_stride, nk_size_t c_stride);
+
+/** @copydoc nk_dots_packed_size_u4 */
+NK_PUBLIC nk_size_t nk_dots_packed_size_u4x2_serial(nk_size_t n, nk_size_t k);
+/** @copydoc nk_dots_pack_u4 */
+NK_PUBLIC void nk_dots_pack_u4x2_serial(nk_u4x2_t const *b, nk_size_t n, nk_size_t k, nk_size_t b_stride,
+                                        void *b_packed);
+/** @copydoc nk_dots_packed_u4 */
+NK_PUBLIC void nk_dots_packed_u4x2_serial(nk_u4x2_t const *a, void const *b_packed, nk_u32_t *c, nk_size_t m,
+                                          nk_size_t n, nk_size_t k, nk_size_t a_stride, nk_size_t c_stride);
+
+/** @copydoc nk_dots_packed_size_i4 */
+NK_PUBLIC nk_size_t nk_dots_packed_size_i4x2_serial(nk_size_t n, nk_size_t k);
+/** @copydoc nk_dots_pack_i4 */
+NK_PUBLIC void nk_dots_pack_i4x2_serial(nk_i4x2_t const *b, nk_size_t n, nk_size_t k, nk_size_t b_stride,
+                                        void *b_packed);
+/** @copydoc nk_dots_packed_i4 */
+NK_PUBLIC void nk_dots_packed_i4x2_serial(nk_i4x2_t const *a, void const *b_packed, nk_i32_t *c, nk_size_t m,
+                                          nk_size_t n, nk_size_t k, nk_size_t a_stride, nk_size_t c_stride);
 
 /*  Genoa backends using AVX-512 with BF16 extensions.
  *  These use VDPBF16PS for BF16 dot products.
@@ -435,6 +570,9 @@ NK_INTERNAL nk_dtype_t nk_dots_packed_output_dtype(nk_dtype_t dtype) {
     case nk_e5m2_k: return nk_f32_k;
     case nk_i8_k: return nk_i32_k;
     case nk_u8_k: return nk_u32_k;
+    case nk_u1_k: return nk_u32_k;
+    case nk_u4_k: return nk_u32_k;
+    case nk_i4_k: return nk_i32_k;
     default: return nk_dtype_unknown_k;
     }
 }
@@ -453,7 +591,6 @@ NK_INTERNAL nk_dtype_t nk_dots_packed_output_dtype(nk_dtype_t dtype) {
 #include "numkong/dots/neonbfdot.h"
 #include "numkong/dots/sve.h"
 #include "numkong/dots/svehalf.h"
-#include "numkong/dots/sme.h"
 
 #if !NK_DYNAMIC_DISPATCH
 
@@ -812,6 +949,39 @@ NK_PUBLIC void nk_dots_packed_e5m2(nk_e5m2_t const *a, void const *b_packed, nk_
 #else
     nk_dots_packed_e5m2_serial(a, b_packed, c, m, n, k, a_stride, c_stride);
 #endif
+}
+
+NK_PUBLIC nk_size_t nk_dots_packed_size_u1(nk_size_t n, nk_size_t k) { return nk_dots_packed_size_u1x8_serial(n, k); }
+
+NK_PUBLIC void nk_dots_pack_u1(nk_u1x8_t const *b, nk_size_t n, nk_size_t k, nk_size_t b_stride, void *b_packed) {
+    nk_dots_pack_u1x8_serial(b, n, k, b_stride, b_packed);
+}
+
+NK_PUBLIC void nk_dots_packed_u1(nk_u1x8_t const *a, void const *b_packed, nk_u32_t *c, nk_size_t m, nk_size_t n,
+                                 nk_size_t k, nk_size_t a_stride, nk_size_t c_stride) {
+    nk_dots_packed_u1x8_serial(a, b_packed, c, m, n, k, a_stride, c_stride);
+}
+
+NK_PUBLIC nk_size_t nk_dots_packed_size_u4(nk_size_t n, nk_size_t k) { return nk_dots_packed_size_u4x2_serial(n, k); }
+
+NK_PUBLIC void nk_dots_pack_u4(nk_u4x2_t const *b, nk_size_t n, nk_size_t k, nk_size_t b_stride, void *b_packed) {
+    nk_dots_pack_u4x2_serial(b, n, k, b_stride, b_packed);
+}
+
+NK_PUBLIC void nk_dots_packed_u4(nk_u4x2_t const *a, void const *b_packed, nk_u32_t *c, nk_size_t m, nk_size_t n,
+                                 nk_size_t k, nk_size_t a_stride, nk_size_t c_stride) {
+    nk_dots_packed_u4x2_serial(a, b_packed, c, m, n, k, a_stride, c_stride);
+}
+
+NK_PUBLIC nk_size_t nk_dots_packed_size_i4(nk_size_t n, nk_size_t k) { return nk_dots_packed_size_i4x2_serial(n, k); }
+
+NK_PUBLIC void nk_dots_pack_i4(nk_i4x2_t const *b, nk_size_t n, nk_size_t k, nk_size_t b_stride, void *b_packed) {
+    nk_dots_pack_i4x2_serial(b, n, k, b_stride, b_packed);
+}
+
+NK_PUBLIC void nk_dots_packed_i4(nk_i4x2_t const *a, void const *b_packed, nk_i32_t *c, nk_size_t m, nk_size_t n,
+                                 nk_size_t k, nk_size_t a_stride, nk_size_t c_stride) {
+    nk_dots_packed_i4x2_serial(a, b_packed, c, m, n, k, a_stride, c_stride);
 }
 
 #endif // !NK_DYNAMIC_DISPATCH

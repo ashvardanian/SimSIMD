@@ -2101,6 +2101,9 @@ NK_INTERNAL void nk_find_kernel_punned_i4_(nk_capability_t v, nk_kernel_kind_t k
         case nk_kernel_angular_k: *m = (m_t)&nk_angular_i4_serial, *c = nk_cap_serial_k; return;
         case nk_kernel_l2sq_k: *m = (m_t)&nk_l2sq_i4_serial, *c = nk_cap_serial_k; return;
         case nk_kernel_l2_k: *m = (m_t)&nk_l2_i4_serial, *c = nk_cap_serial_k; return;
+        case nk_kernel_dots_packed_size_k: *m = (m_t)&nk_dots_packed_size_i4x2_serial, *c = nk_cap_serial_k; return;
+        case nk_kernel_dots_pack_k: *m = (m_t)&nk_dots_pack_i4x2_serial, *c = nk_cap_serial_k; return;
+        case nk_kernel_dots_k: *m = (m_t)&nk_dots_packed_i4x2_serial, *c = nk_cap_serial_k; return;
         default: break;
         }
 }
@@ -2122,6 +2125,9 @@ NK_INTERNAL void nk_find_kernel_punned_u4_(nk_capability_t v, nk_kernel_kind_t k
         case nk_kernel_angular_k: *m = (m_t)&nk_angular_u4_serial, *c = nk_cap_serial_k; return;
         case nk_kernel_l2sq_k: *m = (m_t)&nk_l2sq_u4_serial, *c = nk_cap_serial_k; return;
         case nk_kernel_l2_k: *m = (m_t)&nk_l2_u4_serial, *c = nk_cap_serial_k; return;
+        case nk_kernel_dots_packed_size_k: *m = (m_t)&nk_dots_packed_size_u4x2_serial, *c = nk_cap_serial_k; return;
+        case nk_kernel_dots_pack_k: *m = (m_t)&nk_dots_pack_u4x2_serial, *c = nk_cap_serial_k; return;
+        case nk_kernel_dots_k: *m = (m_t)&nk_dots_packed_u4x2_serial, *c = nk_cap_serial_k; return;
         default: break;
         }
 }
@@ -2331,6 +2337,9 @@ NK_INTERNAL void nk_find_kernel_punned_u1_(nk_capability_t v, nk_kernel_kind_t k
     if (v & nk_cap_serial_k) switch (k) {
         case nk_kernel_hamming_k: *m = (m_t)&nk_hamming_u1_serial, *c = nk_cap_serial_k; return;
         case nk_kernel_jaccard_k: *m = (m_t)&nk_jaccard_u1_serial, *c = nk_cap_serial_k; return;
+        case nk_kernel_dots_packed_size_k: *m = (m_t)&nk_dots_packed_size_u1x8_serial, *c = nk_cap_serial_k; return;
+        case nk_kernel_dots_pack_k: *m = (m_t)&nk_dots_pack_u1x8_serial, *c = nk_cap_serial_k; return;
+        case nk_kernel_dots_k: *m = (m_t)&nk_dots_packed_u1x8_serial, *c = nk_cap_serial_k; return;
         default: break;
         }
 }

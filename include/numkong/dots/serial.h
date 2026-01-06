@@ -71,6 +71,7 @@
 #ifndef NK_DOTS_SERIAL_H
 #define NK_DOTS_SERIAL_H
 #include "numkong/types.h"
+#include "numkong/binary/serial.h" // `nk_popcount_u1`
 
 #if defined(__cplusplus)
 extern "C" {
@@ -88,6 +89,21 @@ typedef struct {
 } nk_dots_packed_buffer_header_t;
 
 #define NK_DOTS_GROUP_SIZE_ 16 // Rows per group for alignment
+
+/** @brief Regular fused-multiply-add for standard numeric types (f32, i8, u8, etc.) */
+#define nk_fma_multiply_add_(acc, a, b) (*(acc) += (a) * (b))
+
+/** @brief Fused-multiply-add for bit-vectors accumulating intersection population counts, like Jaccard kernels. */
+#define nk_fma_u1_and_popcnt_(acc, a, b) (*(acc) += nk_popcount_u1((nk_u1x8_t)((a) & (b))))
+
+/** @brief Fused-multily-add for 4-bit unsigned nibbles. */
+#define nk_fma_u4_nibble_dot_(acc, a, b) \
+    ((*(acc) += ((a) & 0x0F) * ((b) & 0x0F)), (*(acc) += (((a) >> 4) & 0x0F) * (((b) >> 4) & 0x0F)))
+
+/** @brief Fused-multily-add for 4-bit signed nibbles. */
+#define nk_fma_i4_nibble_dot_(acc, a, b)                                                   \
+    (*(acc) += (((nk_i32_t)(((a) & 0x0F) ^ 8) - 8) * ((nk_i32_t)(((b) & 0x0F) ^ 8) - 8)) + \
+               (((nk_i32_t)((((a) >> 4) & 0x0F) ^ 8) - 8) * ((nk_i32_t)((((b) >> 4) & 0x0F) ^ 8) - 8)))
 
 /**
  *  @brief Macro to generate packed_size function for transpose-based packing.
@@ -233,7 +249,7 @@ typedef struct {
                     for (nk_size_t tile_row_start_index = row_block_start_index;                                      \
                          tile_row_start_index < row_block_end_index; tile_row_start_index += register_row_count) {    \
                                                                                                                       \
-                        /* Initialize register_row_count × register_column_count accumulator states */               \
+                        /* Initialize register_row_count × register_column_count accumulator states */                \
                         state_type accumulator_tiles[4][4];                                                           \
                         init_fn(&accumulator_tiles[0][0]), init_fn(&accumulator_tiles[0][1]),                         \
                             init_fn(&accumulator_tiles[0][2]), init_fn(&accumulator_tiles[0][3]);                     \
@@ -274,7 +290,7 @@ typedef struct {
                             load_fn(b_depth_ptr_2 + depth_index, &b_vector_2);                                        \
                             load_fn(b_depth_ptr_3 + depth_index, &b_vector_3);                                        \
                                                                                                                       \
-                            /* 16 FMAs: 4 A rows × 4 B columns */                                                    \
+                            /* 16 FMAs: 4 A rows × 4 B columns */                                                     \
                             update_fn(&accumulator_tiles[0][0], a_vector_0, b_vector_0);                              \
                             update_fn(&accumulator_tiles[0][1], a_vector_0, b_vector_1);                              \
                             update_fn(&accumulator_tiles[0][2], a_vector_0, b_vector_2);                              \
@@ -345,7 +361,7 @@ typedef struct {
         nk_size_t const row_block_size = 128;              /* L2 cache blocking over rows */                          \
         nk_size_t const column_block_size = 2048;          /* L3 cache blocking over columns */                       \
         nk_size_t const register_row_count = 1;            /* Rows per register tile */                               \
-        nk_size_t const register_column_count = 8;         /* Columns per register tile (2 × 4) */                   \
+        nk_size_t const register_column_count = 8;         /* Columns per register tile (2 × 4) */                    \
         nk_size_t const group_size = NK_DOTS_GROUP_SIZE_;  /* Columns per packed group */                             \
         nk_size_t const group_stride = group_size * depth; /* Elements per group */                                   \
         nk_size_t const aligned_depth = (depth / simd_width) * simd_width;                                            \
@@ -392,7 +408,7 @@ typedef struct {
                     /* Loop 4: Process 1 row at a time */                                                             \
                     for (nk_size_t row_index = row_block_start_index; row_index < row_block_end_index; ++row_index) { \
                                                                                                                       \
-                        /* Initialize 1 × 8 accumulator states */                                                    \
+                        /* Initialize 1 × 8 accumulator states */                                                     \
                         state_type accumulator_0, accumulator_1, accumulator_2, accumulator_3, accumulator_4,         \
                             accumulator_5, accumulator_6, accumulator_7;                                              \
                         init_fn(&accumulator_0);                                                                      \
@@ -426,7 +442,7 @@ typedef struct {
                             load_fn(b_depth_ptr_6 + depth_index, &b_vector_6);                                        \
                             load_fn(b_depth_ptr_7 + depth_index, &b_vector_7);                                        \
                                                                                                                       \
-                            /* 8 FMAs: 1 A row × 8 B columns */                                                      \
+                            /* 8 FMAs: 1 A row × 8 B columns */                                                       \
                             update_fn(&accumulator_0, a_vector, b_vector_0);                                          \
                             update_fn(&accumulator_1, a_vector, b_vector_1);                                          \
                             update_fn(&accumulator_2, a_vector, b_vector_2);                                          \
@@ -437,7 +453,7 @@ typedef struct {
                             update_fn(&accumulator_7, a_vector, b_vector_7);                                          \
                         }                                                                                             \
                                                                                                                       \
-                        /* Finalize and store 1 × 8 results using two 4-way reductions */                            \
+                        /* Finalize and store 1 × 8 results using two 4-way reductions */                             \
                         result_vec_type result_vector;                                                                \
                         nk_##output_type##_t *c_row_ptr = (nk_##output_type##_t *)((char *)c_matrix +                 \
                                                                                    row_index * c_stride_in_bytes);    \
@@ -456,10 +472,10 @@ typedef struct {
 /* Generate both aligned kernel variants for each platform */
 #define nk_make_dots_packed_vectors_(suffix, input_type, output_type, vec_type, state_type, result_vec_type, init_fn, \
                                      load_fn, partial_load_fn, update_fn, finalize_fn, partial_store_fn, simd_width)  \
-    /* Generate 4 × 4 aligned kernel */                                                                              \
+    /* Generate 4 × 4 aligned kernel */                                                                               \
     nk_make_dots_packed_4x4_vectors_aligned_(suffix, input_type, output_type, vec_type, state_type, result_vec_type,  \
                                              init_fn, load_fn, partial_load_fn, update_fn, finalize_fn,               \
-                                             partial_store_fn, simd_width) /* Generate 1 × 8 aligned kernel */       \
+                                             partial_store_fn, simd_width) /* Generate 1 × 8 aligned kernel */        \
     nk_make_dots_packed_1x8_vectors_aligned_(suffix, input_type, output_type, vec_type, state_type, result_vec_type,  \
                                              init_fn, load_fn, partial_load_fn, update_fn, finalize_fn,               \
                                              partial_store_fn, simd_width)                                            \
@@ -477,13 +493,13 @@ typedef struct {
         nk_size_t const group_stride = group_size * depth; /* Elements per group */                                   \
         (void)register_column_count;                                                                                  \
         (void)group_stride; /* Suppress unused warnings */                                                            \
-        /* Use 1 × 8 kernel when columns are aligned to 8 and many columns relative to rows */                       \
+        /* Use 1 × 8 kernel when columns are aligned to 8 and many columns relative to rows */                        \
         if (column_count % 8 == 0 && column_count >= row_count * 2 && depth % simd_width == 0) {                      \
             nk_dots_##suffix##_1x8_aligned_(a_matrix, b_packed_buffer, c_matrix, row_count, column_count, depth,      \
                                             a_stride_in_bytes, c_stride_in_bytes);                                    \
             return;                                                                                                   \
         }                                                                                                             \
-        /* Use 4 × 4 kernel when dimensions are 4-aligned */                                                         \
+        /* Use 4 × 4 kernel when dimensions are 4-aligned */                                                          \
         if (row_count % 4 == 0 && column_count % 4 == 0 && depth % simd_width == 0) {                                 \
             nk_dots_##suffix##_aligned_(a_matrix, b_packed_buffer, c_matrix, row_count, column_count, depth,          \
                                         a_stride_in_bytes, c_stride_in_bytes);                                        \
@@ -593,7 +609,7 @@ typedef struct {
                             load_fn(b_depth_ptr_2 + k, &b_third_vec);                                                 \
                             load_fn(b_depth_ptr_3 + k, &b_fourth_vec);                                                \
                                                                                                                       \
-                            /* 16 FMAs: 4 A rows × 4 B columns */                                                    \
+                            /* 16 FMAs: 4 A rows × 4 B columns */                                                     \
                             update_fn(&accumulator_tiles[0][0], a_first_vec, b_first_vec);                            \
                             update_fn(&accumulator_tiles[0][1], a_first_vec, b_second_vec);                           \
                             update_fn(&accumulator_tiles[0][2], a_first_vec, b_third_vec);                            \
@@ -626,7 +642,7 @@ typedef struct {
                             partial_load_fn(b_depth_ptr_2 + aligned_depth, &b_third_vec, remainder_depth);            \
                             partial_load_fn(b_depth_ptr_3 + aligned_depth, &b_fourth_vec, remainder_depth);           \
                                                                                                                       \
-                            /* 16 FMAs: 4 A rows × 4 B columns */                                                    \
+                            /* 16 FMAs: 4 A rows × 4 B columns */                                                     \
                             update_fn(&accumulator_tiles[0][0], a_first_vec, b_first_vec);                            \
                             update_fn(&accumulator_tiles[0][1], a_first_vec, b_second_vec);                           \
                             update_fn(&accumulator_tiles[0][2], a_first_vec, b_third_vec);                            \
@@ -672,8 +688,16 @@ typedef struct {
  *    1. Register blocking (4 × 4): 16 scalar accumulators stay in registers across depth-loop
  *    2. depth-loop unrolling (4×): reduces loop overhead, enables ILP
  *    3. A-row caching: load 4 A values once, reuse for 4 B columns
+ *
+ *  Parameters:
+ *    - fma_fn: Functor for accumulation, e.g., nk_fma_multiply_add_(acc, a, b) for regular types
+ *    - depth_divisor: Converts logical depth to iteration count: iterations = (depth + divisor - 1) / divisor
+ *      - Regular types: 1 (iterate per element)
+ *      - u1: 8 (iterate per byte = 8 bits)
+ *      - u4/i4: 2 (iterate per byte = 2 nibbles)
  */
-#define nk_make_dots_outer_scalars_(suffix, input_type, accumulator_type, output_type, load_and_convert)               \
+#define nk_make_dots_outer_scalars_(suffix, input_type, accumulator_type, output_type, load_and_convert, fma_fn,       \
+                                    depth_divisor)                                                                     \
     NK_PUBLIC void nk_dots_packed_##input_type##_##suffix(                                                             \
         nk_##input_type##_t const *a, void const *b_packed_buffer, nk_##output_type##_t *c, nk_size_t row_count,       \
         nk_size_t column_count, nk_size_t depth, nk_size_t a_stride_in_bytes, nk_size_t c_stride_in_bytes) {           \
@@ -682,7 +706,8 @@ typedef struct {
         nk_size_t const register_column_count = 4; /* Columns per micro-kernel */                                      \
         nk_size_t const depth_unroll_factor = 4;   /* depth elements per unrolled iteration */                         \
         nk_size_t const group_size = NK_DOTS_GROUP_SIZE_;                                                              \
-        nk_size_t const group_stride = group_size * depth;                                                             \
+        nk_size_t const depth_iterations = (depth + depth_divisor - 1) / depth_divisor;                                \
+        nk_size_t const group_stride = group_size * depth_iterations;                                                  \
                                                                                                                        \
         nk_##input_type##_t const *packed_data =                                                                       \
             (nk_##input_type##_t const *)((char const *)b_packed_buffer + sizeof(nk_dots_packed_buffer_header_t));     \
@@ -706,15 +731,19 @@ typedef struct {
             nk_size_t const column_index_in_group = column_block_start_index % group_size;                             \
             nk_##input_type##_t const *group_base_ptr = packed_data + group_index * group_stride;                      \
                                                                                                                        \
-            nk_##input_type##_t const *b_depth_ptr_0 = group_base_ptr + (column_index_in_group + 0) * depth;           \
+            nk_##input_type##_t const *b_depth_ptr_0 = group_base_ptr +                                                \
+                                                       (column_index_in_group + 0) * depth_iterations;                 \
             nk_##input_type##_t const *b_depth_ptr_1 = (column_block_length > 1)                                       \
-                                                           ? group_base_ptr + (column_index_in_group + 1) * depth      \
+                                                           ? group_base_ptr +                                          \
+                                                                 (column_index_in_group + 1) * depth_iterations        \
                                                            : b_depth_ptr_0;                                            \
             nk_##input_type##_t const *b_depth_ptr_2 = (column_block_length > 2)                                       \
-                                                           ? group_base_ptr + (column_index_in_group + 2) * depth      \
+                                                           ? group_base_ptr +                                          \
+                                                                 (column_index_in_group + 2) * depth_iterations        \
                                                            : b_depth_ptr_0;                                            \
             nk_##input_type##_t const *b_depth_ptr_3 = (column_block_length > 3)                                       \
-                                                           ? group_base_ptr + (column_index_in_group + 3) * depth      \
+                                                           ? group_base_ptr +                                          \
+                                                                 (column_index_in_group + 3) * depth_iterations        \
                                                            : b_depth_ptr_0;                                            \
                                                                                                                        \
             /* Process rows in blocks of register_row_count */                                                         \
@@ -725,7 +754,7 @@ typedef struct {
                                                           : row_count;                                                 \
                 nk_size_t const row_block_length = row_block_end_index - row_block_start_index;                        \
                                                                                                                        \
-                /* 4 × 4 accumulator block */                                                                         \
+                /* 4 × 4 accumulator block */                                                                          \
                 nk_##accumulator_type##_t accumulator_0_0 = 0, accumulator_0_1 = 0, accumulator_0_2 = 0,               \
                                           accumulator_0_3 = 0;                                                         \
                 nk_##accumulator_type##_t accumulator_1_0 = 0, accumulator_1_1 = 0, accumulator_1_2 = 0,               \
@@ -754,11 +783,11 @@ typedef struct {
                                                         (row_block_start_index + 3) * a_stride_in_bytes)               \
                         : a_row_ptr_0;                                                                                 \
                                                                                                                        \
-                /* Main depth-loop with 4 × unrolling */                                                              \
+                /* Main depth-loop with 4 × unrolling */                                                               \
                 nk_size_t depth_index = 0;                                                                             \
                 nk_##accumulator_type##_t a_value_0, a_value_1, a_value_2, a_value_3, b_value_0, b_value_1, b_value_2, \
                     b_value_3;                                                                                         \
-                for (; depth_index + depth_unroll_factor <= depth; depth_index += depth_unroll_factor) {               \
+                for (; depth_index + depth_unroll_factor <= depth_iterations; depth_index += depth_unroll_factor) {    \
                     /* Unroll 0 */                                                                                     \
                     load_and_convert(a_row_ptr_0 + depth_index, &a_value_0),                                           \
                         load_and_convert(a_row_ptr_1 + depth_index, &a_value_1);                                       \
@@ -768,14 +797,18 @@ typedef struct {
                         load_and_convert(b_depth_ptr_1 + depth_index, &b_value_1);                                     \
                     load_and_convert(b_depth_ptr_2 + depth_index, &b_value_2),                                         \
                         load_and_convert(b_depth_ptr_3 + depth_index, &b_value_3);                                     \
-                    accumulator_0_0 += a_value_0 * b_value_0, accumulator_0_1 += a_value_0 * b_value_1,                \
-                        accumulator_0_2 += a_value_0 * b_value_2, accumulator_0_3 += a_value_0 * b_value_3;            \
-                    accumulator_1_0 += a_value_1 * b_value_0, accumulator_1_1 += a_value_1 * b_value_1,                \
-                        accumulator_1_2 += a_value_1 * b_value_2, accumulator_1_3 += a_value_1 * b_value_3;            \
-                    accumulator_2_0 += a_value_2 * b_value_0, accumulator_2_1 += a_value_2 * b_value_1,                \
-                        accumulator_2_2 += a_value_2 * b_value_2, accumulator_2_3 += a_value_2 * b_value_3;            \
-                    accumulator_3_0 += a_value_3 * b_value_0, accumulator_3_1 += a_value_3 * b_value_1,                \
-                        accumulator_3_2 += a_value_3 * b_value_2, accumulator_3_3 += a_value_3 * b_value_3;            \
+                    fma_fn(&accumulator_0_0, a_value_0, b_value_0), fma_fn(&accumulator_0_1, a_value_0, b_value_1),    \
+                        fma_fn(&accumulator_0_2, a_value_0, b_value_2),                                                \
+                        fma_fn(&accumulator_0_3, a_value_0, b_value_3);                                                \
+                    fma_fn(&accumulator_1_0, a_value_1, b_value_0), fma_fn(&accumulator_1_1, a_value_1, b_value_1),    \
+                        fma_fn(&accumulator_1_2, a_value_1, b_value_2),                                                \
+                        fma_fn(&accumulator_1_3, a_value_1, b_value_3);                                                \
+                    fma_fn(&accumulator_2_0, a_value_2, b_value_0), fma_fn(&accumulator_2_1, a_value_2, b_value_1),    \
+                        fma_fn(&accumulator_2_2, a_value_2, b_value_2),                                                \
+                        fma_fn(&accumulator_2_3, a_value_2, b_value_3);                                                \
+                    fma_fn(&accumulator_3_0, a_value_3, b_value_0), fma_fn(&accumulator_3_1, a_value_3, b_value_1),    \
+                        fma_fn(&accumulator_3_2, a_value_3, b_value_2),                                                \
+                        fma_fn(&accumulator_3_3, a_value_3, b_value_3);                                                \
                                                                                                                        \
                     /* Unroll 1 */                                                                                     \
                     load_and_convert(a_row_ptr_0 + depth_index + 1, &a_value_0),                                       \
@@ -786,14 +819,18 @@ typedef struct {
                         load_and_convert(b_depth_ptr_1 + depth_index + 1, &b_value_1);                                 \
                     load_and_convert(b_depth_ptr_2 + depth_index + 1, &b_value_2),                                     \
                         load_and_convert(b_depth_ptr_3 + depth_index + 1, &b_value_3);                                 \
-                    accumulator_0_0 += a_value_0 * b_value_0, accumulator_0_1 += a_value_0 * b_value_1,                \
-                        accumulator_0_2 += a_value_0 * b_value_2, accumulator_0_3 += a_value_0 * b_value_3;            \
-                    accumulator_1_0 += a_value_1 * b_value_0, accumulator_1_1 += a_value_1 * b_value_1,                \
-                        accumulator_1_2 += a_value_1 * b_value_2, accumulator_1_3 += a_value_1 * b_value_3;            \
-                    accumulator_2_0 += a_value_2 * b_value_0, accumulator_2_1 += a_value_2 * b_value_1,                \
-                        accumulator_2_2 += a_value_2 * b_value_2, accumulator_2_3 += a_value_2 * b_value_3;            \
-                    accumulator_3_0 += a_value_3 * b_value_0, accumulator_3_1 += a_value_3 * b_value_1,                \
-                        accumulator_3_2 += a_value_3 * b_value_2, accumulator_3_3 += a_value_3 * b_value_3;            \
+                    fma_fn(&accumulator_0_0, a_value_0, b_value_0), fma_fn(&accumulator_0_1, a_value_0, b_value_1),    \
+                        fma_fn(&accumulator_0_2, a_value_0, b_value_2),                                                \
+                        fma_fn(&accumulator_0_3, a_value_0, b_value_3);                                                \
+                    fma_fn(&accumulator_1_0, a_value_1, b_value_0), fma_fn(&accumulator_1_1, a_value_1, b_value_1),    \
+                        fma_fn(&accumulator_1_2, a_value_1, b_value_2),                                                \
+                        fma_fn(&accumulator_1_3, a_value_1, b_value_3);                                                \
+                    fma_fn(&accumulator_2_0, a_value_2, b_value_0), fma_fn(&accumulator_2_1, a_value_2, b_value_1),    \
+                        fma_fn(&accumulator_2_2, a_value_2, b_value_2),                                                \
+                        fma_fn(&accumulator_2_3, a_value_2, b_value_3);                                                \
+                    fma_fn(&accumulator_3_0, a_value_3, b_value_0), fma_fn(&accumulator_3_1, a_value_3, b_value_1),    \
+                        fma_fn(&accumulator_3_2, a_value_3, b_value_2),                                                \
+                        fma_fn(&accumulator_3_3, a_value_3, b_value_3);                                                \
                                                                                                                        \
                     /* Unroll 2 */                                                                                     \
                     load_and_convert(a_row_ptr_0 + depth_index + 2, &a_value_0),                                       \
@@ -804,14 +841,18 @@ typedef struct {
                         load_and_convert(b_depth_ptr_1 + depth_index + 2, &b_value_1);                                 \
                     load_and_convert(b_depth_ptr_2 + depth_index + 2, &b_value_2),                                     \
                         load_and_convert(b_depth_ptr_3 + depth_index + 2, &b_value_3);                                 \
-                    accumulator_0_0 += a_value_0 * b_value_0, accumulator_0_1 += a_value_0 * b_value_1,                \
-                        accumulator_0_2 += a_value_0 * b_value_2, accumulator_0_3 += a_value_0 * b_value_3;            \
-                    accumulator_1_0 += a_value_1 * b_value_0, accumulator_1_1 += a_value_1 * b_value_1,                \
-                        accumulator_1_2 += a_value_1 * b_value_2, accumulator_1_3 += a_value_1 * b_value_3;            \
-                    accumulator_2_0 += a_value_2 * b_value_0, accumulator_2_1 += a_value_2 * b_value_1,                \
-                        accumulator_2_2 += a_value_2 * b_value_2, accumulator_2_3 += a_value_2 * b_value_3;            \
-                    accumulator_3_0 += a_value_3 * b_value_0, accumulator_3_1 += a_value_3 * b_value_1,                \
-                        accumulator_3_2 += a_value_3 * b_value_2, accumulator_3_3 += a_value_3 * b_value_3;            \
+                    fma_fn(&accumulator_0_0, a_value_0, b_value_0), fma_fn(&accumulator_0_1, a_value_0, b_value_1),    \
+                        fma_fn(&accumulator_0_2, a_value_0, b_value_2),                                                \
+                        fma_fn(&accumulator_0_3, a_value_0, b_value_3);                                                \
+                    fma_fn(&accumulator_1_0, a_value_1, b_value_0), fma_fn(&accumulator_1_1, a_value_1, b_value_1),    \
+                        fma_fn(&accumulator_1_2, a_value_1, b_value_2),                                                \
+                        fma_fn(&accumulator_1_3, a_value_1, b_value_3);                                                \
+                    fma_fn(&accumulator_2_0, a_value_2, b_value_0), fma_fn(&accumulator_2_1, a_value_2, b_value_1),    \
+                        fma_fn(&accumulator_2_2, a_value_2, b_value_2),                                                \
+                        fma_fn(&accumulator_2_3, a_value_2, b_value_3);                                                \
+                    fma_fn(&accumulator_3_0, a_value_3, b_value_0), fma_fn(&accumulator_3_1, a_value_3, b_value_1),    \
+                        fma_fn(&accumulator_3_2, a_value_3, b_value_2),                                                \
+                        fma_fn(&accumulator_3_3, a_value_3, b_value_3);                                                \
                                                                                                                        \
                     /* Unroll 3 */                                                                                     \
                     load_and_convert(a_row_ptr_0 + depth_index + 3, &a_value_0),                                       \
@@ -822,18 +863,22 @@ typedef struct {
                         load_and_convert(b_depth_ptr_1 + depth_index + 3, &b_value_1);                                 \
                     load_and_convert(b_depth_ptr_2 + depth_index + 3, &b_value_2),                                     \
                         load_and_convert(b_depth_ptr_3 + depth_index + 3, &b_value_3);                                 \
-                    accumulator_0_0 += a_value_0 * b_value_0, accumulator_0_1 += a_value_0 * b_value_1,                \
-                        accumulator_0_2 += a_value_0 * b_value_2, accumulator_0_3 += a_value_0 * b_value_3;            \
-                    accumulator_1_0 += a_value_1 * b_value_0, accumulator_1_1 += a_value_1 * b_value_1,                \
-                        accumulator_1_2 += a_value_1 * b_value_2, accumulator_1_3 += a_value_1 * b_value_3;            \
-                    accumulator_2_0 += a_value_2 * b_value_0, accumulator_2_1 += a_value_2 * b_value_1,                \
-                        accumulator_2_2 += a_value_2 * b_value_2, accumulator_2_3 += a_value_2 * b_value_3;            \
-                    accumulator_3_0 += a_value_3 * b_value_0, accumulator_3_1 += a_value_3 * b_value_1,                \
-                        accumulator_3_2 += a_value_3 * b_value_2, accumulator_3_3 += a_value_3 * b_value_3;            \
+                    fma_fn(&accumulator_0_0, a_value_0, b_value_0), fma_fn(&accumulator_0_1, a_value_0, b_value_1),    \
+                        fma_fn(&accumulator_0_2, a_value_0, b_value_2),                                                \
+                        fma_fn(&accumulator_0_3, a_value_0, b_value_3);                                                \
+                    fma_fn(&accumulator_1_0, a_value_1, b_value_0), fma_fn(&accumulator_1_1, a_value_1, b_value_1),    \
+                        fma_fn(&accumulator_1_2, a_value_1, b_value_2),                                                \
+                        fma_fn(&accumulator_1_3, a_value_1, b_value_3);                                                \
+                    fma_fn(&accumulator_2_0, a_value_2, b_value_0), fma_fn(&accumulator_2_1, a_value_2, b_value_1),    \
+                        fma_fn(&accumulator_2_2, a_value_2, b_value_2),                                                \
+                        fma_fn(&accumulator_2_3, a_value_2, b_value_3);                                                \
+                    fma_fn(&accumulator_3_0, a_value_3, b_value_0), fma_fn(&accumulator_3_1, a_value_3, b_value_1),    \
+                        fma_fn(&accumulator_3_2, a_value_3, b_value_2),                                                \
+                        fma_fn(&accumulator_3_3, a_value_3, b_value_3);                                                \
                 }                                                                                                      \
                                                                                                                        \
                 /* Remainder depth-loop */                                                                             \
-                for (; depth_index < depth; ++depth_index) {                                                           \
+                for (; depth_index < depth_iterations; ++depth_index) {                                                \
                     load_and_convert(a_row_ptr_0 + depth_index, &a_value_0),                                           \
                         load_and_convert(a_row_ptr_1 + depth_index, &a_value_1);                                       \
                     load_and_convert(a_row_ptr_2 + depth_index, &a_value_2),                                           \
@@ -842,14 +887,18 @@ typedef struct {
                         load_and_convert(b_depth_ptr_1 + depth_index, &b_value_1);                                     \
                     load_and_convert(b_depth_ptr_2 + depth_index, &b_value_2),                                         \
                         load_and_convert(b_depth_ptr_3 + depth_index, &b_value_3);                                     \
-                    accumulator_0_0 += a_value_0 * b_value_0, accumulator_0_1 += a_value_0 * b_value_1,                \
-                        accumulator_0_2 += a_value_0 * b_value_2, accumulator_0_3 += a_value_0 * b_value_3;            \
-                    accumulator_1_0 += a_value_1 * b_value_0, accumulator_1_1 += a_value_1 * b_value_1,                \
-                        accumulator_1_2 += a_value_1 * b_value_2, accumulator_1_3 += a_value_1 * b_value_3;            \
-                    accumulator_2_0 += a_value_2 * b_value_0, accumulator_2_1 += a_value_2 * b_value_1,                \
-                        accumulator_2_2 += a_value_2 * b_value_2, accumulator_2_3 += a_value_2 * b_value_3;            \
-                    accumulator_3_0 += a_value_3 * b_value_0, accumulator_3_1 += a_value_3 * b_value_1,                \
-                        accumulator_3_2 += a_value_3 * b_value_2, accumulator_3_3 += a_value_3 * b_value_3;            \
+                    fma_fn(&accumulator_0_0, a_value_0, b_value_0), fma_fn(&accumulator_0_1, a_value_0, b_value_1),    \
+                        fma_fn(&accumulator_0_2, a_value_0, b_value_2),                                                \
+                        fma_fn(&accumulator_0_3, a_value_0, b_value_3);                                                \
+                    fma_fn(&accumulator_1_0, a_value_1, b_value_0), fma_fn(&accumulator_1_1, a_value_1, b_value_1),    \
+                        fma_fn(&accumulator_1_2, a_value_1, b_value_2),                                                \
+                        fma_fn(&accumulator_1_3, a_value_1, b_value_3);                                                \
+                    fma_fn(&accumulator_2_0, a_value_2, b_value_0), fma_fn(&accumulator_2_1, a_value_2, b_value_1),    \
+                        fma_fn(&accumulator_2_2, a_value_2, b_value_2),                                                \
+                        fma_fn(&accumulator_2_3, a_value_2, b_value_3);                                                \
+                    fma_fn(&accumulator_3_0, a_value_3, b_value_0), fma_fn(&accumulator_3_1, a_value_3, b_value_1),    \
+                        fma_fn(&accumulator_3_2, a_value_3, b_value_2),                                                \
+                        fma_fn(&accumulator_3_3, a_value_3, b_value_3);                                                \
                 }                                                                                                      \
                                                                                                                        \
                 /* Store accumulated results */                                                                        \
@@ -906,35 +955,127 @@ typedef struct {
 
 nk_make_dots_pack_size_(serial, f32, f32)
 nk_make_dots_pack_(serial, f32, f32)
-nk_make_dots_outer_scalars_(serial, f32, f32, f32, nk_assign_from_to_)
+nk_make_dots_outer_scalars_(serial, f32, f32, f32, nk_assign_from_to_, nk_fma_multiply_add_, 1)
 
 nk_make_dots_pack_size_(serial, f64, f64)
 nk_make_dots_pack_(serial, f64, f64)
-nk_make_dots_outer_scalars_(serial, f64, f64, f64, nk_assign_from_to_)
+nk_make_dots_outer_scalars_(serial, f64, f64, f64, nk_assign_from_to_, nk_fma_multiply_add_, 1)
 
 nk_make_dots_pack_size_(serial, f16, f32)
 nk_make_dots_pack_(serial, f16, f32)
-nk_make_dots_outer_scalars_(serial, f16, f32, f32, nk_f16_to_f32_serial)
+nk_make_dots_outer_scalars_(serial, f16, f32, f32, nk_f16_to_f32_serial, nk_fma_multiply_add_, 1)
 
 nk_make_dots_pack_size_(serial, bf16, f32)
 nk_make_dots_pack_(serial, bf16, f32)
-nk_make_dots_outer_scalars_(serial, bf16, f32, f32, nk_bf16_to_f32_serial)
+nk_make_dots_outer_scalars_(serial, bf16, f32, f32, nk_bf16_to_f32_serial, nk_fma_multiply_add_, 1)
 
 nk_make_dots_pack_size_(serial, i8, i32)
 nk_make_dots_pack_(serial, i8, i32)
-nk_make_dots_outer_scalars_(serial, i8, i32, i32, nk_assign_from_to_)
+nk_make_dots_outer_scalars_(serial, i8, i32, i32, nk_assign_from_to_, nk_fma_multiply_add_, 1)
 
 nk_make_dots_pack_size_(serial, u8, u32)
 nk_make_dots_pack_(serial, u8, u32)
-nk_make_dots_outer_scalars_(serial, u8, u32, u32, nk_assign_from_to_)
+nk_make_dots_outer_scalars_(serial, u8, u32, u32, nk_assign_from_to_, nk_fma_multiply_add_, 1)
 
 nk_make_dots_pack_size_(serial, e4m3, f32)
 nk_make_dots_pack_(serial, e4m3, f32)
-nk_make_dots_outer_scalars_(serial, e4m3, f32, f32, nk_e4m3_to_f32_serial)
+nk_make_dots_outer_scalars_(serial, e4m3, f32, f32, nk_e4m3_to_f32_serial, nk_fma_multiply_add_, 1)
 
 nk_make_dots_pack_size_(serial, e5m2, f32)
 nk_make_dots_pack_(serial, e5m2, f32)
-nk_make_dots_outer_scalars_(serial, e5m2, f32, f32, nk_e5m2_to_f32_serial)
+nk_make_dots_outer_scalars_(serial, e5m2, f32, f32, nk_e5m2_to_f32_serial, nk_fma_multiply_add_, 1)
+
+NK_PUBLIC nk_size_t nk_dots_packed_size_u1x8_serial(nk_size_t column_count, nk_size_t depth) {
+    nk_size_t const group_size = NK_DOTS_GROUP_SIZE_;
+    nk_size_t const column_groups_count = (column_count + group_size - 1) / group_size;
+    nk_size_t const depth_bytes = (depth + 7) / 8;
+    return sizeof(nk_dots_packed_buffer_header_t) + column_groups_count * group_size * depth_bytes;
+}
+
+NK_PUBLIC void nk_dots_pack_u1x8_serial(nk_u1x8_t const *b, nk_size_t column_count, nk_size_t depth,
+                                        nk_size_t b_stride_in_bytes, void *b_packed) {
+    nk_size_t const group_size = NK_DOTS_GROUP_SIZE_;
+    nk_size_t const column_groups_count = (column_count + group_size - 1) / group_size;
+    nk_size_t const depth_bytes = (depth + 7) / 8;
+
+    nk_dots_packed_buffer_header_t *header = (nk_dots_packed_buffer_header_t *)b_packed;
+    header->column_groups_count = (nk_u32_t)column_groups_count;
+    header->depth = (nk_u32_t)depth; // Store logical depth (bits)
+    header->group_size = (nk_u16_t)group_size;
+    header->column_remainder = (nk_u16_t)(column_count % group_size);
+
+    nk_u1x8_t *packed = (nk_u1x8_t *)((char *)b_packed + sizeof(nk_dots_packed_buffer_header_t));
+
+    // Zero entire buffer for edge padding
+    nk_size_t const total_bytes = column_groups_count * group_size * depth_bytes;
+    for (nk_size_t i = 0; i < total_bytes; ++i) packed[i] = 0;
+
+    // Copy B[column_count, depth_bytes] to packed format
+    for (nk_size_t column_index = 0; column_index < column_count; ++column_index) {
+        nk_size_t const group_index = column_index / group_size;
+        nk_size_t const column_index_in_group = column_index % group_size;
+        nk_u1x8_t *destination_row = packed + group_index * group_size * depth_bytes +
+                                     column_index_in_group * depth_bytes;
+        nk_u1x8_t const *source_row = (nk_u1x8_t const *)((char const *)b + column_index * b_stride_in_bytes);
+
+        for (nk_size_t byte_index = 0; byte_index < depth_bytes; ++byte_index) {
+            destination_row[byte_index] = source_row[byte_index];
+        }
+    }
+}
+
+NK_PUBLIC nk_size_t nk_dots_packed_size_u4x2_serial(nk_size_t column_count, nk_size_t depth) {
+    nk_size_t const group_size = NK_DOTS_GROUP_SIZE_;
+    nk_size_t const column_groups_count = (column_count + group_size - 1) / group_size;
+    nk_size_t const depth_bytes = (depth + 1) / 2;
+    return sizeof(nk_dots_packed_buffer_header_t) + column_groups_count * group_size * depth_bytes;
+}
+
+NK_PUBLIC void nk_dots_pack_u4x2_serial(nk_u4x2_t const *b, nk_size_t column_count, nk_size_t depth,
+                                        nk_size_t b_stride_in_bytes, void *b_packed) {
+    nk_size_t const group_size = NK_DOTS_GROUP_SIZE_;
+    nk_size_t const column_groups_count = (column_count + group_size - 1) / group_size;
+    nk_size_t const depth_bytes = (depth + 1) / 2;
+
+    nk_dots_packed_buffer_header_t *header = (nk_dots_packed_buffer_header_t *)b_packed;
+    header->column_groups_count = (nk_u32_t)column_groups_count;
+    header->depth = (nk_u32_t)depth; // Store logical depth (nibbles)
+    header->group_size = (nk_u16_t)group_size;
+    header->column_remainder = (nk_u16_t)(column_count % group_size);
+
+    nk_u4x2_t *packed = (nk_u4x2_t *)((char *)b_packed + sizeof(nk_dots_packed_buffer_header_t));
+
+    // Zero entire buffer for edge padding
+    nk_size_t const total_bytes = column_groups_count * group_size * depth_bytes;
+    for (nk_size_t i = 0; i < total_bytes; ++i) packed[i] = 0;
+
+    // Copy B[column_count, depth_bytes] to packed format
+    for (nk_size_t column_index = 0; column_index < column_count; ++column_index) {
+        nk_size_t const group_index = column_index / group_size;
+        nk_size_t const column_index_in_group = column_index % group_size;
+        nk_u4x2_t *destination_row = packed + group_index * group_size * depth_bytes +
+                                     column_index_in_group * depth_bytes;
+        nk_u4x2_t const *source_row = (nk_u4x2_t const *)((char const *)b + column_index * b_stride_in_bytes);
+
+        for (nk_size_t byte_index = 0; byte_index < depth_bytes; ++byte_index) {
+            destination_row[byte_index] = source_row[byte_index];
+        }
+    }
+}
+
+NK_PUBLIC nk_size_t nk_dots_packed_size_i4x2_serial(nk_size_t column_count, nk_size_t depth) {
+    return nk_dots_packed_size_u4x2_serial(column_count, depth);
+}
+
+NK_PUBLIC void nk_dots_pack_i4x2_serial(nk_i4x2_t const *b, nk_size_t column_count, nk_size_t depth,
+                                        nk_size_t b_stride_in_bytes, void *b_packed) {
+    // Cast to u4x2 and use u4 pack (same byte layout)
+    nk_dots_pack_u4x2_serial((nk_u4x2_t const *)b, column_count, depth, b_stride_in_bytes, b_packed);
+}
+
+nk_make_dots_outer_scalars_(serial, u1x8, u32, u32, nk_assign_from_to_, nk_fma_u1_and_popcnt_, 8)
+nk_make_dots_outer_scalars_(serial, u4x2, u32, u32, nk_assign_from_to_, nk_fma_u4_nibble_dot_, 2)
+nk_make_dots_outer_scalars_(serial, i4x2, i32, i32, nk_assign_from_to_, nk_fma_i4_nibble_dot_, 2)
 
 /*  BF16 compact: truncate F32 → BF16 in-place.
  *  Reads F32 matrix with c_stride_in_bytes, writes BF16 tightly packed (stride_in_bytes = column_count × sizeof(bf16)).

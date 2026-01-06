@@ -282,51 +282,51 @@ NK_INTERNAL void nk_fill_error_(void *ptr, nk_size_t bytes) {
         kernel(data, count, stride_bytes, value, index);                                                            \
     }
 
-#define nk_declare_dots_packed_size_(input_type, accum_type)                                                          \
-    NK_DYNAMIC nk_size_t nk_dots_packed_size_##input_type(nk_size_t n, nk_size_t k) {                                 \
-        static nk_dots_packed_size_punned_t kernel = 0;                                                               \
-        if (kernel == 0) {                                                                                            \
-            nk_capability_t used_capability;                                                                          \
-            nk_find_kernel_punned(nk_kernel_dots_packed_size_k, nk_##input_type##_k, nk_capabilities(), nk_cap_any_k, \
-                                  (nk_kernel_punned_t *)&kernel, &used_capability);                                   \
-            if (!kernel) return 0;                                                                                    \
-        }                                                                                                             \
-        return kernel(n, k);                                                                                          \
-    }
-
-#define nk_declare_dots_pack_(input_type, accum_type)                                                          \
-    NK_DYNAMIC void nk_dots_pack_##input_type(nk_##input_type##_t const *b, nk_size_t n, nk_size_t k,          \
-                                              nk_size_t b_stride, void *b_packed) {                            \
-        static nk_dots_pack_punned_t kernel = 0;                                                               \
-        if (kernel == 0) {                                                                                     \
-            nk_capability_t used_capability;                                                                   \
-            nk_find_kernel_punned(nk_kernel_dots_pack_k, nk_##input_type##_k, nk_capabilities(), nk_cap_any_k, \
-                                  (nk_kernel_punned_t *)&kernel, &used_capability);                            \
-            if (!kernel) {                                                                                     \
-                nk_size_t packed_size = nk_dots_packed_size_##input_type(n, k);                                \
-                if (packed_size) nk_fill_error_(b_packed, packed_size);                                        \
-                return;                                                                                        \
-            }                                                                                                  \
-        }                                                                                                      \
-        kernel(b, n, k, b_stride, b_packed);                                                                   \
-    }
-
-#define nk_declare_dots_(input_type, accum_type, output_type)                                                   \
-    NK_DYNAMIC void nk_dots_packed_##input_type(nk_##input_type##_t const *a, void const *b_packed,             \
-                                                nk_##output_type##_t *c, nk_size_t m, nk_size_t n, nk_size_t k, \
-                                                nk_size_t a_stride, nk_size_t c_stride) {                       \
-        static nk_dots_punned_t kernel = 0;                                                                     \
+#define nk_declare_dots_packed_size_(name, input_type, accum_type)                                              \
+    NK_DYNAMIC nk_size_t nk_dots_packed_size_##name(nk_size_t n, nk_size_t k) {                                 \
+        static nk_dots_packed_size_punned_t kernel = 0;                                                         \
         if (kernel == 0) {                                                                                      \
             nk_capability_t used_capability;                                                                    \
-            nk_find_kernel_punned(nk_kernel_dots_k, nk_##input_type##_k, nk_capabilities(), nk_cap_any_k,       \
+            nk_find_kernel_punned(nk_kernel_dots_packed_size_k, nk_##name##_k, nk_capabilities(), nk_cap_any_k, \
                                   (nk_kernel_punned_t *)&kernel, &used_capability);                             \
-            if (!kernel) {                                                                                      \
-                for (nk_size_t row = 0; row < m; ++row)                                                         \
-                    nk_fill_error_((nk_u8_t *)c + row * c_stride, n * sizeof(nk_##output_type##_t));            \
-                return;                                                                                         \
-            }                                                                                                   \
+            if (!kernel) return 0;                                                                              \
         }                                                                                                       \
-        kernel(a, b_packed, c, m, n, k, a_stride, c_stride);                                                    \
+        return kernel(n, k);                                                                                    \
+    }
+
+#define nk_declare_dots_pack_(name, input_type, accum_type)                                                         \
+    NK_DYNAMIC void nk_dots_pack_##name(nk_##input_type##_t const *b, nk_size_t n, nk_size_t k, nk_size_t b_stride, \
+                                        void *b_packed) {                                                           \
+        static nk_dots_pack_punned_t kernel = 0;                                                                    \
+        if (kernel == 0) {                                                                                          \
+            nk_capability_t used_capability;                                                                        \
+            nk_find_kernel_punned(nk_kernel_dots_pack_k, nk_##name##_k, nk_capabilities(), nk_cap_any_k,            \
+                                  (nk_kernel_punned_t *)&kernel, &used_capability);                                 \
+            if (!kernel) {                                                                                          \
+                nk_size_t packed_size = nk_dots_packed_size_##name(n, k);                                           \
+                if (packed_size) nk_fill_error_(b_packed, packed_size);                                             \
+                return;                                                                                             \
+            }                                                                                                       \
+        }                                                                                                           \
+        kernel(b, n, k, b_stride, b_packed);                                                                        \
+    }
+
+#define nk_declare_dots_(name, input_type, accum_type, output_type)                                                    \
+    NK_DYNAMIC void nk_dots_packed_##name(nk_##input_type##_t const *a, void const *b_packed, nk_##output_type##_t *c, \
+                                          nk_size_t m, nk_size_t n, nk_size_t k, nk_size_t a_stride,                   \
+                                          nk_size_t c_stride) {                                                        \
+        static nk_dots_punned_t kernel = 0;                                                                            \
+        if (kernel == 0) {                                                                                             \
+            nk_capability_t used_capability;                                                                           \
+            nk_find_kernel_punned(nk_kernel_dots_k, nk_##name##_k, nk_capabilities(), nk_cap_any_k,                    \
+                                  (nk_kernel_punned_t *)&kernel, &used_capability);                                    \
+            if (!kernel) {                                                                                             \
+                for (nk_size_t row = 0; row < m; ++row)                                                                \
+                    nk_fill_error_((nk_u8_t *)c + row * c_stride, n * sizeof(nk_##output_type##_t));                   \
+                return;                                                                                                \
+            }                                                                                                          \
+        }                                                                                                              \
+        kernel(a, b_packed, c, m, n, k, a_stride, c_stride);                                                           \
     }
 
 // Dot products
@@ -532,30 +532,39 @@ nk_declare_fma_(fma, e4m3, f32)
 nk_declare_fma_(fma, e5m2, f32)
 
 // Matrix multiplications (GEMM with packed B)
-nk_declare_dots_packed_size_(f32, f32)
-nk_declare_dots_packed_size_(f64, f64)
-nk_declare_dots_packed_size_(f16, f32)
-nk_declare_dots_packed_size_(bf16, f32)
-nk_declare_dots_packed_size_(i8, i32)
-nk_declare_dots_packed_size_(u8, u32)
-nk_declare_dots_packed_size_(e4m3, f32)
-nk_declare_dots_packed_size_(e5m2, f32)
-nk_declare_dots_pack_(f32, f32)
-nk_declare_dots_pack_(f64, f64)
-nk_declare_dots_pack_(f16, f32)
-nk_declare_dots_pack_(bf16, f32)
-nk_declare_dots_pack_(i8, i32)
-nk_declare_dots_pack_(u8, u32)
-nk_declare_dots_pack_(e4m3, f32)
-nk_declare_dots_pack_(e5m2, f32)
-nk_declare_dots_(f32, f32, f32)
-nk_declare_dots_(f64, f64, f64)
-nk_declare_dots_(f16, f32, f32)
-nk_declare_dots_(bf16, f32, f32)
-nk_declare_dots_(i8, i32, i32)
-nk_declare_dots_(u8, u32, u32)
-nk_declare_dots_(e4m3, f32, f32)
-nk_declare_dots_(e5m2, f32, f32)
+nk_declare_dots_packed_size_(f32, f32, f32)
+nk_declare_dots_packed_size_(f64, f64, f64)
+nk_declare_dots_packed_size_(f16, f16, f32)
+nk_declare_dots_packed_size_(bf16, bf16, f32)
+nk_declare_dots_packed_size_(i8, i8, i32)
+nk_declare_dots_packed_size_(u8, u8, u32)
+nk_declare_dots_packed_size_(e4m3, e4m3, f32)
+nk_declare_dots_packed_size_(e5m2, e5m2, f32)
+nk_declare_dots_packed_size_(u1, u1x8, u32)
+nk_declare_dots_packed_size_(u4, u4x2, u32)
+nk_declare_dots_packed_size_(i4, i4x2, i32)
+nk_declare_dots_pack_(f32, f32, f32)
+nk_declare_dots_pack_(f64, f64, f64)
+nk_declare_dots_pack_(f16, f16, f32)
+nk_declare_dots_pack_(bf16, bf16, f32)
+nk_declare_dots_pack_(i8, i8, i32)
+nk_declare_dots_pack_(u8, u8, u32)
+nk_declare_dots_pack_(e4m3, e4m3, f32)
+nk_declare_dots_pack_(e5m2, e5m2, f32)
+nk_declare_dots_pack_(u1, u1x8, u32)
+nk_declare_dots_pack_(u4, u4x2, u32)
+nk_declare_dots_pack_(i4, i4x2, i32)
+nk_declare_dots_(f32, f32, f32, f32)
+nk_declare_dots_(f64, f64, f64, f64)
+nk_declare_dots_(f16, f16, f32, f32)
+nk_declare_dots_(bf16, bf16, f32, f32)
+nk_declare_dots_(i8, i8, i32, i32)
+nk_declare_dots_(u8, u8, u32, u32)
+nk_declare_dots_(e4m3, e4m3, f32, f32)
+nk_declare_dots_(e5m2, e5m2, f32, f32)
+nk_declare_dots_(u1, u1x8, u32, u32)
+nk_declare_dots_(u4, u4x2, u32, u32)
+nk_declare_dots_(i4, i4x2, i32, i32)
 
 // ARM NEON capabilities
 NK_DYNAMIC int nk_uses_neon(void) { return (nk_capabilities() & nk_cap_neon_k) != 0; }
