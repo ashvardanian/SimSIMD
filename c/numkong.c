@@ -51,10 +51,15 @@
 extern "C" {
 #endif
 
+// Fill memory with 0xFF - produces NaN for floats, -1/MAX for integers.
+// Avoids libc dependency on memset.
+NK_INTERNAL void nk_fill_error_(void *ptr, nk_size_t bytes) {
+    nk_u8_t *p = (nk_u8_t *)ptr;
+    while (bytes--) *p++ = 0xFF;
+}
+
 // Every time a function is called, it checks if the metric is already loaded. If not, it fetches it.
-// If no metric is found, it returns NaN. We can obtain NaN by dividing 0.0 by 0.0, but that annoys
-// the MSVC compiler. Instead we can directly write-in the signaling NaN (0x7FF0000000000001)
-// or the qNaN (0x7FF8000000000000).
+// If no metric is found, we fill the output with 0xFF bytes (NaN for floats, -1/MAX for integers).
 #define nk_declare_dense_(name, extension, input_type, output_type)                                                  \
     NK_DYNAMIC void nk_##name##_##extension(nk_##input_type##_t const *a, nk_##input_type##_t const *b, nk_size_t n, \
                                             nk_##output_type##_t *results) {                                         \
@@ -64,7 +69,7 @@ extern "C" {
             nk_find_kernel_punned(nk_kernel_##name##_k, nk_##extension##_k, nk_capabilities(), nk_cap_any_k,         \
                                   (nk_kernel_punned_t *)&metric, &used_capability);                                  \
             if (!metric) {                                                                                           \
-                *(nk_u64_t *)results = 0x7FF0000000000001ull;                                                        \
+                nk_fill_error_(results, sizeof(nk_##output_type##_t));                                               \
                 return;                                                                                              \
             }                                                                                                        \
         }                                                                                                            \
@@ -80,7 +85,7 @@ extern "C" {
             nk_find_kernel_punned(nk_kernel_sparse_##name##_k, nk_##extension##_k, nk_capabilities(), nk_cap_any_k, \
                                   (nk_kernel_punned_t *)(&metric), &used_capability);                               \
             if (!metric) {                                                                                          \
-                *(nk_u64_t *)result = 0x7FF0000000000001ull;                                                        \
+                nk_fill_error_(result, sizeof(nk_##output_type##_t));                                               \
                 return;                                                                                             \
             }                                                                                                       \
         }                                                                                                           \
@@ -98,7 +103,7 @@ extern "C" {
             nk_find_kernel_punned(nk_kernel_sparse_dot_k, nk_##weight_type##_k, nk_capabilities(), nk_cap_any_k,      \
                                   (nk_kernel_punned_t *)&metric, &used_capability);                                   \
             if (!metric) {                                                                                            \
-                *(nk_u64_t *)product = 0x7FF0000000000001ull;                                                         \
+                nk_fill_error_(product, sizeof(nk_##output_type##_t));                                                \
                 return;                                                                                               \
             }                                                                                                         \
         }                                                                                                             \
@@ -114,7 +119,7 @@ extern "C" {
             nk_find_kernel_punned(nk_kernel_##name##_k, nk_##extension##_k, nk_capabilities(), nk_cap_any_k,          \
                                   (nk_kernel_punned_t *)(&metric), &used_capability);                                 \
             if (!metric) {                                                                                            \
-                *(nk_u64_t *)result = 0x7FF0000000000001ull;                                                          \
+                nk_fill_error_(result, sizeof(nk_##output_type##_t));                                                 \
                 return;                                                                                               \
             }                                                                                                         \
         }                                                                                                             \
@@ -131,7 +136,7 @@ extern "C" {
             nk_find_kernel_punned(nk_kernel_##name##_k, nk_##extension##_k, nk_capabilities(), nk_cap_any_k,    \
                                   (nk_kernel_punned_t *)(&metric), &used_capability);                           \
             if (!metric) {                                                                                      \
-                *(nk_u64_t *)results = 0x7FF0000000000001ull;                                                   \
+                nk_fill_error_(results, sizeof(nk_##output_type##_t));                                          \
                 return;                                                                                         \
             }                                                                                                   \
         }                                                                                                       \
@@ -147,6 +152,10 @@ extern "C" {
             nk_capability_t used_capability;                                                                 \
             nk_find_kernel_punned(nk_kernel_##name##_k, nk_##extension##_k, nk_capabilities(), nk_cap_any_k, \
                                   (nk_kernel_punned_t *)(&metric), &used_capability);                        \
+            if (!metric) {                                                                                   \
+                nk_fill_error_(result, n * sizeof(nk_##extension##_t));                                      \
+                return;                                                                                      \
+            }                                                                                                \
         }                                                                                                    \
         metric(a, b, c, n, (void const *)alpha, (void const *)beta, result);                                 \
     }
@@ -160,6 +169,10 @@ extern "C" {
             nk_capability_t used_capability;                                                                       \
             nk_find_kernel_punned(nk_kernel_##name##_k, nk_##extension##_k, nk_capabilities(), nk_cap_any_k,       \
                                   (nk_kernel_punned_t *)(&metric), &used_capability);                              \
+            if (!metric) {                                                                                         \
+                nk_fill_error_(result, n * sizeof(nk_##extension##_t));                                            \
+                return;                                                                                            \
+            }                                                                                                      \
         }                                                                                                          \
         metric(a, b, n, (void const *)alpha, (void const *)beta, result);                                          \
     }
@@ -173,6 +186,10 @@ extern "C" {
             nk_capability_t used_capability;                                                                     \
             nk_find_kernel_punned(nk_kernel_##name##_k, nk_##extension##_k, nk_capabilities(), nk_cap_any_k,     \
                                   (nk_kernel_punned_t *)(&metric), &used_capability);                            \
+            if (!metric) {                                                                                       \
+                nk_fill_error_(result, n * sizeof(nk_##extension##_t));                                          \
+                return;                                                                                          \
+            }                                                                                                    \
         }                                                                                                        \
         metric(a, n, (void const *)alpha, (void const *)beta, result);                                           \
     }
@@ -185,6 +202,10 @@ extern "C" {
             nk_capability_t used_capability;                                                                       \
             nk_find_kernel_punned(nk_kernel_##name##_k, nk_##extension##_k, nk_capabilities(), nk_cap_any_k,       \
                                   (nk_kernel_punned_t *)(&metric), &used_capability);                              \
+            if (!metric) {                                                                                         \
+                nk_fill_error_(result, n * sizeof(nk_##extension##_t));                                            \
+                return;                                                                                            \
+            }                                                                                                      \
         }                                                                                                          \
         metric(a, b, n, result);                                                                                   \
     }
@@ -197,6 +218,10 @@ extern "C" {
             nk_capability_t used_capability;                                                                 \
             nk_find_kernel_punned(nk_kernel_##name##_k, nk_##extension##_k, nk_capabilities(), nk_cap_any_k, \
                                   (nk_kernel_punned_t *)(&kernel), &used_capability);                        \
+            if (!kernel) {                                                                                   \
+                nk_fill_error_(outputs, n * sizeof(nk_##extension##_t));                                     \
+                return;                                                                                      \
+            }                                                                                                \
         }                                                                                                    \
         kernel(inputs, n, outputs);                                                                          \
     }
@@ -212,7 +237,11 @@ extern "C" {
             nk_find_kernel_punned(nk_kernel_##name##_k, nk_##extension##_k, nk_capabilities(), nk_cap_any_k,       \
                                   (nk_kernel_punned_t *)&kernel, &used_capability);                                \
             if (!kernel) {                                                                                         \
-                *(nk_u64_t *)result = 0x7FF0000000000001ull;                                                       \
+                if (a_centroid) nk_fill_error_(a_centroid, 3 * sizeof(nk_##mesh_type##_t));                        \
+                if (b_centroid) nk_fill_error_(b_centroid, 3 * sizeof(nk_##mesh_type##_t));                        \
+                if (rotation) nk_fill_error_(rotation, 9 * sizeof(nk_##mesh_type##_t));                            \
+                if (scale) nk_fill_error_(scale, sizeof(nk_##mesh_type##_t));                                      \
+                nk_fill_error_(result, sizeof(nk_##mesh_type##_t));                                                \
                 return;                                                                                            \
             }                                                                                                      \
         }                                                                                                          \
@@ -227,6 +256,10 @@ extern "C" {
             nk_capability_t used_capability;                                                                           \
             nk_find_kernel_punned(nk_kernel_reduce_add_k, nk_##extension##_k, nk_capabilities(), nk_cap_any_k,         \
                                   (nk_kernel_punned_t *)&kernel, &used_capability);                                    \
+            if (!kernel) {                                                                                             \
+                nk_fill_error_(result, sizeof(nk_##output_type##_t));                                                  \
+                return;                                                                                                \
+            }                                                                                                          \
         }                                                                                                              \
         kernel(data, count, stride_bytes, result);                                                                     \
     }
@@ -240,6 +273,11 @@ extern "C" {
             nk_capability_t used_capability;                                                                        \
             nk_find_kernel_punned(nk_kernel_reduce_##name##_k, nk_##extension##_k, nk_capabilities(), nk_cap_any_k, \
                                   (nk_kernel_punned_t *)&kernel, &used_capability);                                 \
+            if (!kernel) {                                                                                          \
+                nk_fill_error_(value, sizeof(nk_##output_type##_t));                                                \
+                nk_fill_error_(index, sizeof(nk_size_t));                                                           \
+                return;                                                                                             \
+            }                                                                                                       \
         }                                                                                                           \
         kernel(data, count, stride_bytes, value, index);                                                            \
     }
@@ -264,7 +302,11 @@ extern "C" {
             nk_capability_t used_capability;                                                                   \
             nk_find_kernel_punned(nk_kernel_dots_pack_k, nk_##input_type##_k, nk_capabilities(), nk_cap_any_k, \
                                   (nk_kernel_punned_t *)&kernel, &used_capability);                            \
-            if (!kernel) return;                                                                               \
+            if (!kernel) {                                                                                     \
+                nk_size_t packed_size = nk_dots_packed_size_##input_type(n, k);                                \
+                if (packed_size) nk_fill_error_(b_packed, packed_size);                                        \
+                return;                                                                                        \
+            }                                                                                                  \
         }                                                                                                      \
         kernel(b, n, k, b_stride, b_packed);                                                                   \
     }
@@ -278,7 +320,11 @@ extern "C" {
             nk_capability_t used_capability;                                                                    \
             nk_find_kernel_punned(nk_kernel_dots_k, nk_##input_type##_k, nk_capabilities(), nk_cap_any_k,       \
                                   (nk_kernel_punned_t *)&kernel, &used_capability);                             \
-            if (!kernel) return;                                                                                \
+            if (!kernel) {                                                                                      \
+                for (nk_size_t row = 0; row < m; ++row)                                                         \
+                    nk_fill_error_((nk_u8_t *)c + row * c_stride, n * sizeof(nk_##output_type##_t));            \
+                return;                                                                                         \
+            }                                                                                                   \
         }                                                                                                       \
         kernel(a, b_packed, c, m, n, k, a_stride, c_stride);                                                    \
     }
