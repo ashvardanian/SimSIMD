@@ -1,12 +1,12 @@
 /**
- *  @brief SIMD-accelerated horizontal reduction operations for Arm NEON-capable CPUs.
- *  @file include/numkong/reduce/neon.h
- *  @sa include/numkong/reduce.h
+ *  @brief SIMD-accelerated type casting operations for Arm NEON-capable CPUs.
+ *  @file include/numkong/cast/neon.h
+ *  @sa include/numkong/cast.h
  *  @author Ash Vardanian
  *  @date December 27, 2025
  */
-#ifndef NK_REDUCE_NEON_H
-#define NK_REDUCE_NEON_H
+#ifndef NK_CAST_NEON_H
+#define NK_CAST_NEON_H
 
 #if NK_TARGET_ARM_
 #if NK_TARGET_NEON
@@ -185,4 +185,4 @@ NK_PUBLIC void nk_cast_neon(void const *from, nk_dtype_t from_type, nk_size_t n,
 #endif // NK_TARGET_NEON
 #endif // NK_TARGET_ARM_
 
-#endif // NK_REDUCE_NEON_H
+#endif // NK_CAST_NEON_H
