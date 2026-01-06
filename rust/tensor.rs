@@ -27,15 +27,14 @@ use core::marker::PhantomData;
 use core::ptr::NonNull;
 
 use crate::numerics::{ATan, Cos, Dot, Scale, Sin, Sum, WSum, FMA};
-use crate::scalars::{bf16, f16};
+use crate::scalars::{bf16, e4m3, e5m2, f16};
 
 /// Size type used in C FFI to match `nk_size_t` which is always `uint64_t`.
 type u64size = u64;
 
 #[link(name = "numkong")]
 extern "C" {
-    // Matrix multiplication (GEMM) with packed B matrix
-    // F32: C[m×n] = A[m×k] × B[n×k]ᵀ
+
     fn nk_dots_packed_size_f32(n: u64size, k: u64size) -> u64size;
     fn nk_dots_pack_f32(b: *const f32, n: u64size, k: u64size, b_stride: u64size, packed: *mut u8);
     fn nk_dots_packed_f32(
@@ -49,7 +48,6 @@ extern "C" {
         c_stride: u64size,
     );
 
-    // F64 GEMM
     fn nk_dots_packed_size_f64(n: u64size, k: u64size) -> u64size;
     fn nk_dots_pack_f64(b: *const f64, n: u64size, k: u64size, b_stride: u64size, packed: *mut u8);
     fn nk_dots_packed_f64(
@@ -63,7 +61,6 @@ extern "C" {
         c_stride: u64size,
     );
 
-    // F16 GEMM (accumulates to F32)
     fn nk_dots_packed_size_f16(n: u64size, k: u64size) -> u64size;
     fn nk_dots_pack_f16(b: *const u16, n: u64size, k: u64size, b_stride: u64size, packed: *mut u8);
     fn nk_dots_packed_f16(
@@ -77,7 +74,6 @@ extern "C" {
         c_stride: u64size,
     );
 
-    // BF16 GEMM (accumulates to F32)
     fn nk_dots_packed_size_bf16(n: u64size, k: u64size) -> u64size;
     fn nk_dots_pack_bf16(b: *const u16, n: u64size, k: u64size, b_stride: u64size, packed: *mut u8);
     fn nk_dots_packed_bf16(
@@ -91,7 +87,6 @@ extern "C" {
         c_stride: u64size,
     );
 
-    // I8 GEMM (accumulates to I32)
     fn nk_dots_packed_size_i8(n: u64size, k: u64size) -> u64size;
     fn nk_dots_pack_i8(b: *const i8, n: u64size, k: u64size, b_stride: u64size, packed: *mut u8);
     fn nk_dots_packed_i8(
@@ -105,13 +100,38 @@ extern "C" {
         c_stride: u64size,
     );
 
-    // U8 GEMM (accumulates to U32)
     fn nk_dots_packed_size_u8(n: u64size, k: u64size) -> u64size;
     fn nk_dots_pack_u8(b: *const u8, n: u64size, k: u64size, b_stride: u64size, packed: *mut u8);
     fn nk_dots_packed_u8(
         a: *const u8,
         packed: *const u8,
         c: *mut u32,
+        m: u64size,
+        n: u64size,
+        k: u64size,
+        a_stride: u64size,
+        c_stride: u64size,
+    );
+
+    fn nk_dots_packed_size_e4m3(n: u64size, k: u64size) -> u64size;
+    fn nk_dots_pack_e4m3(b: *const u8, n: u64size, k: u64size, b_stride: u64size, packed: *mut u8);
+    fn nk_dots_packed_e4m3(
+        a: *const u8,
+        packed: *const u8,
+        c: *mut f32,
+        m: u64size,
+        n: u64size,
+        k: u64size,
+        a_stride: u64size,
+        c_stride: u64size,
+    );
+
+    fn nk_dots_packed_size_e5m2(n: u64size, k: u64size) -> u64size;
+    fn nk_dots_pack_e5m2(b: *const u8, n: u64size, k: u64size, b_stride: u64size, packed: *mut u8);
+    fn nk_dots_packed_e5m2(
+        a: *const u8,
+        packed: *const u8,
+        c: *mut f32,
         m: u64size,
         n: u64size,
         k: u64size,
@@ -517,6 +537,86 @@ impl Dots for u8 {
     ) {
         nk_dots_packed_u8(
             a,
+            packed,
+            c,
+            m as u64size,
+            n as u64size,
+            k as u64size,
+            a_stride as u64size,
+            c_stride as u64size,
+        )
+    }
+}
+
+impl Dots for e4m3 {
+    type Accumulator = f32;
+
+    fn dots_packed_size(n: usize, k: usize) -> usize {
+        unsafe { nk_dots_packed_size_e4m3(n as u64size, k as u64size) as usize }
+    }
+
+    unsafe fn dots_pack(b: *const Self, n: usize, k: usize, b_stride: usize, packed: *mut u8) {
+        nk_dots_pack_e4m3(
+            b as *const u8,
+            n as u64size,
+            k as u64size,
+            b_stride as u64size,
+            packed,
+        )
+    }
+
+    unsafe fn dots(
+        a: *const Self,
+        packed: *const u8,
+        c: *mut Self::Accumulator,
+        m: usize,
+        n: usize,
+        k: usize,
+        a_stride: usize,
+        c_stride: usize,
+    ) {
+        nk_dots_packed_e4m3(
+            a as *const u8,
+            packed,
+            c,
+            m as u64size,
+            n as u64size,
+            k as u64size,
+            a_stride as u64size,
+            c_stride as u64size,
+        )
+    }
+}
+
+impl Dots for e5m2 {
+    type Accumulator = f32;
+
+    fn dots_packed_size(n: usize, k: usize) -> usize {
+        unsafe { nk_dots_packed_size_e5m2(n as u64size, k as u64size) as usize }
+    }
+
+    unsafe fn dots_pack(b: *const Self, n: usize, k: usize, b_stride: usize, packed: *mut u8) {
+        nk_dots_pack_e5m2(
+            b as *const u8,
+            n as u64size,
+            k as u64size,
+            b_stride as u64size,
+            packed,
+        )
+    }
+
+    unsafe fn dots(
+        a: *const Self,
+        packed: *const u8,
+        c: *mut Self::Accumulator,
+        m: usize,
+        n: usize,
+        k: usize,
+        a_stride: usize,
+        c_stride: usize,
+    ) {
+        nk_dots_packed_e5m2(
+            a as *const u8,
             packed,
             c,
             m as u64size,
@@ -2167,6 +2267,177 @@ mod tests {
 
         let err = TensorError::TooManyRanks { got: 10 };
         assert_eq!(format!("{}", err), "too many ranks: 10");
+    }
+
+    #[test]
+    fn matmul_f32_pack() {
+        // A[4×8] × B[16×8]ᵀ = C[4×16]
+        let a = Tensor::<f32>::try_new(&[4, 8], 1.0f32).unwrap();
+        let b = Tensor::<f32>::try_new(&[16, 8], 1.0f32).unwrap();
+
+        let packed_b = MatrixMultiplier::try_pack(&b).unwrap();
+        let c = a.matmul(&packed_b);
+
+        assert_eq!(c.shape(), &[4, 16]);
+        // Each element = dot(row_a, row_b) = sum(1.0 * 1.0) * 8 = 8.0
+        assert!((c.as_slice()[0] - 8.0).abs() < 1e-5);
+    }
+
+    #[test]
+    fn matmul_f32_pack_transposed() {
+        // A[4×8], B[8×16] (standard k×n layout) → C[4×16]
+        let a = Tensor::<f32>::try_new(&[4, 8], 1.0f32).unwrap();
+        let b_transposed = Tensor::<f32>::try_new(&[8, 16], 1.0f32).unwrap(); // k × n
+
+        let packed_b = MatrixMultiplier::try_pack_transposed(&b_transposed).unwrap();
+        let c = a.matmul(&packed_b);
+
+        assert_eq!(c.shape(), &[4, 16]);
+        assert!((c.as_slice()[0] - 8.0).abs() < 1e-5);
+    }
+
+    #[test]
+    fn matmul_f32_into() {
+        let a = Tensor::<f32>::try_new(&[4, 8], 1.0f32).unwrap();
+        let b = Tensor::<f32>::try_new(&[16, 8], 1.0f32).unwrap();
+        let mut c = Tensor::<f32>::try_new(&[4, 16], 0.0f32).unwrap();
+
+        let packed_b = MatrixMultiplier::try_pack(&b).unwrap();
+        a.try_matmul_into(&packed_b, &mut c).unwrap();
+
+        assert!((c.as_slice()[0] - 8.0).abs() < 1e-5);
+    }
+
+    #[test]
+    fn matmul_f64_pack() {
+        let a = Tensor::<f64>::try_new(&[4, 8], 1.0f64).unwrap();
+        let b = Tensor::<f64>::try_new(&[16, 8], 1.0f64).unwrap();
+
+        let packed_b = MatrixMultiplier::try_pack(&b).unwrap();
+        let c = a.matmul(&packed_b);
+
+        assert_eq!(c.shape(), &[4, 16]);
+        assert!((c.as_slice()[0] - 8.0).abs() < 1e-10);
+    }
+
+    #[test]
+    fn matmul_bf16_pack() {
+        let a = Tensor::<bf16>::try_new(&[4, 8], bf16::from_f32(1.0)).unwrap();
+        let b = Tensor::<bf16>::try_new(&[16, 8], bf16::from_f32(1.0)).unwrap();
+
+        let packed_b = MatrixMultiplier::try_pack(&b).unwrap();
+        let c = a.matmul(&packed_b);
+
+        assert_eq!(c.shape(), &[4, 16]);
+        assert!((c.as_slice()[0] - 8.0).abs() < 0.1);
+    }
+
+    #[test]
+    fn matmul_f16_pack() {
+        let a = Tensor::<f16>::try_new(&[4, 8], f16::from_f32(1.0)).unwrap();
+        let b = Tensor::<f16>::try_new(&[16, 8], f16::from_f32(1.0)).unwrap();
+
+        let packed_b = MatrixMultiplier::try_pack(&b).unwrap();
+        let c = a.matmul(&packed_b);
+
+        assert_eq!(c.shape(), &[4, 16]);
+        assert!((c.as_slice()[0] - 8.0).abs() < 0.1);
+    }
+
+    #[test]
+    fn matmul_i8_pack() {
+        let a = Tensor::<i8>::try_new(&[4, 8], 1i8).unwrap();
+        let b = Tensor::<i8>::try_new(&[16, 8], 1i8).unwrap();
+
+        let packed_b = MatrixMultiplier::try_pack(&b).unwrap();
+        let c = a.matmul(&packed_b);
+
+        assert_eq!(c.shape(), &[4, 16]);
+        assert_eq!(c.as_slice()[0], 8);
+    }
+
+    #[test]
+    fn matmul_u8_pack() {
+        let a = Tensor::<u8>::try_new(&[4, 8], 1u8).unwrap();
+        let b = Tensor::<u8>::try_new(&[16, 8], 1u8).unwrap();
+
+        let packed_b = MatrixMultiplier::try_pack(&b).unwrap();
+        let c = a.matmul(&packed_b);
+
+        assert_eq!(c.shape(), &[4, 16]);
+        assert_eq!(c.as_slice()[0], 8);
+    }
+
+    #[test]
+    fn matmul_e4m3_pack() {
+        let a = Tensor::<e4m3>::try_new(&[4, 8], e4m3::ONE).unwrap();
+        let b = Tensor::<e4m3>::try_new(&[16, 8], e4m3::ONE).unwrap();
+
+        let packed_b = MatrixMultiplier::try_pack(&b).unwrap();
+        let c = a.matmul(&packed_b);
+
+        assert_eq!(c.shape(), &[4, 16]);
+        assert!((c.as_slice()[0] - 8.0).abs() < 0.5);
+    }
+
+    #[test]
+    fn matmul_e4m3_pack_transposed() {
+        let a = Tensor::<e4m3>::try_new(&[4, 8], e4m3::ONE).unwrap();
+        let b_t = Tensor::<e4m3>::try_new(&[8, 16], e4m3::ONE).unwrap();
+
+        let packed_b = MatrixMultiplier::try_pack_transposed(&b_t).unwrap();
+        let c = a.matmul(&packed_b);
+
+        assert_eq!(c.shape(), &[4, 16]);
+        assert!((c.as_slice()[0] - 8.0).abs() < 0.5);
+    }
+
+    #[test]
+    fn matmul_e5m2_pack() {
+        let a = Tensor::<e5m2>::try_new(&[4, 8], e5m2::ONE).unwrap();
+        let b = Tensor::<e5m2>::try_new(&[16, 8], e5m2::ONE).unwrap();
+
+        let packed_b = MatrixMultiplier::try_pack(&b).unwrap();
+        let c = a.matmul(&packed_b);
+
+        assert_eq!(c.shape(), &[4, 16]);
+        assert!((c.as_slice()[0] - 8.0).abs() < 0.5);
+    }
+
+    #[test]
+    fn matmul_e5m2_pack_transposed() {
+        let a = Tensor::<e5m2>::try_new(&[4, 8], e5m2::ONE).unwrap();
+        let b_t = Tensor::<e5m2>::try_new(&[8, 16], e5m2::ONE).unwrap();
+
+        let packed_b = MatrixMultiplier::try_pack_transposed(&b_t).unwrap();
+        let c = a.matmul(&packed_b);
+
+        assert_eq!(c.shape(), &[4, 16]);
+        assert!((c.as_slice()[0] - 8.0).abs() < 0.5);
+    }
+
+    #[test]
+    fn matmul_f32_single_row() {
+        let a = Tensor::<f32>::try_new(&[1, 8], 1.0f32).unwrap();
+        let b = Tensor::<f32>::try_new(&[4, 8], 1.0f32).unwrap();
+
+        let packed_b = MatrixMultiplier::try_pack(&b).unwrap();
+        let c = a.matmul(&packed_b);
+
+        assert_eq!(c.shape(), &[1, 4]);
+        assert!((c.as_slice()[0] - 8.0).abs() < 1e-5);
+    }
+
+    #[test]
+    fn matmul_f32_single_col() {
+        let a = Tensor::<f32>::try_new(&[4, 8], 1.0f32).unwrap();
+        let b = Tensor::<f32>::try_new(&[1, 8], 1.0f32).unwrap();
+
+        let packed_b = MatrixMultiplier::try_pack(&b).unwrap();
+        let c = a.matmul(&packed_b);
+
+        assert_eq!(c.shape(), &[4, 1]);
+        assert!((c.as_slice()[0] - 8.0).abs() < 1e-5);
     }
 }
 
