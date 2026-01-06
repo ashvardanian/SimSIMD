@@ -109,6 +109,18 @@ endif ()
 set(NK_BLAS_FOUND FALSE)
 set(NK_MKL_FOUND FALSE)
 
+# Skip BLAS/MKL/Accelerate detection when cross-compiling (host libraries won't work)
+if(CMAKE_CROSSCOMPILING)
+    if(NK_COMPARE_TO_MKL STREQUAL "AUTO")
+        message(STATUS "Cross-compiling: skipping MKL detection (host library)")
+        set(NK_COMPARE_TO_MKL "OFF")
+    endif()
+    if(NK_COMPARE_TO_BLAS STREQUAL "AUTO")
+        message(STATUS "Cross-compiling: skipping BLAS detection (host library)")
+        set(NK_COMPARE_TO_BLAS "OFF")
+    endif()
+endif()
+
 # Only attempt detection if building tests or benchmarks
 if (NK_BUILD_TESTS OR NK_BUILD_BENCHMARKS)
 
