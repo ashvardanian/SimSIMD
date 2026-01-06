@@ -37,10 +37,10 @@ NK_PUBLIC void nk_hamming_u1_sve(nk_u1x8_t const *a, nk_u1x8_t const *b, nk_size
     nk_size_t i = 0, cycle = 0;
     nk_u32_t differences = 0;
     svuint8_t popcount_u8 = svdup_n_u8(0);
-    svbool_t const all_predicate = svptrue_u1();
+    svbool_t const all_predicate = svptrue_b8();
     while (i < n_bytes) {
         do {
-            svbool_t active_predicate = svwhilelt_u1((unsigned int)i, (unsigned int)n_bytes);
+            svbool_t active_predicate = svwhilelt_b8((unsigned int)i, (unsigned int)n_bytes);
             svuint8_t a_u8 = svld1_u8(active_predicate, a + i);
             svuint8_t b_u8 = svld1_u8(active_predicate, b + i);
             popcount_u8 = svadd_u8_z(all_predicate, popcount_u8,
@@ -71,10 +71,10 @@ NK_PUBLIC void nk_jaccard_u1_sve(nk_u1x8_t const *a, nk_u1x8_t const *b, nk_size
     nk_u32_t intersection_count = 0, union_count = 0;
     svuint8_t intersection_popcount_u8 = svdup_n_u8(0);
     svuint8_t union_popcount_u8 = svdup_n_u8(0);
-    svbool_t const all_predicate = svptrue_u1();
+    svbool_t const all_predicate = svptrue_b8();
     while (i < n_bytes) {
         do {
-            svbool_t active_predicate = svwhilelt_u1((unsigned int)i, (unsigned int)n_bytes);
+            svbool_t active_predicate = svwhilelt_b8((unsigned int)i, (unsigned int)n_bytes);
             svuint8_t a_u8 = svld1_u8(active_predicate, a + i);
             svuint8_t b_u8 = svld1_u8(active_predicate, b + i);
             intersection_popcount_u8 = svadd_u8_z(all_predicate, intersection_popcount_u8,

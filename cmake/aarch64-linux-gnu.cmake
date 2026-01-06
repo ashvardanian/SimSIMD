@@ -4,8 +4,12 @@
 #   cmake -B build_arm64 -D CMAKE_TOOLCHAIN_FILE=cmake/aarch64-linux-gnu.cmake
 #   cmake --build build_arm64
 #
-# Prerequisites:
-#   sudo apt install gcc-aarch64-linux-gnu g++-aarch64-linux-gnu qemu-user
+# Prerequisites (choose one):
+#   Option A - Ubuntu/Debian packages:
+#     sudo apt install gcc-aarch64-linux-gnu g++-aarch64-linux-gnu qemu-user
+#   Option B - Arm GNU Toolchain (recommended for latest ISA support):
+#     Download from: https://developer.arm.com/downloads/-/arm-gnu-toolchain-downloads
+#     Set via AARCH64_TOOLCHAIN_PATH
 #
 # Testing with QEMU:
 #   Tests will automatically run under QEMU via CMAKE_CROSSCOMPILING_EMULATOR
@@ -16,9 +20,14 @@
 set(CMAKE_SYSTEM_NAME Linux)
 set(CMAKE_SYSTEM_PROCESSOR aarch64)
 
-# Cross-compiler from standard Ubuntu/Debian packages
-# Set AARCH64_TOOLCHAIN_PREFIX to override (e.g., for custom toolchain path)
-if(NOT DEFINED AARCH64_TOOLCHAIN_PREFIX)
+# Cross-compiler detection with fallback chain:
+# 1. AARCH64_TOOLCHAIN_PATH (explicit path to Arm GNU Toolchain)
+# 2. /tmp/aarch64 (default Arm GNU Toolchain location)
+# 3. System packages (aarch64-linux-gnu-)
+if(DEFINED AARCH64_TOOLCHAIN_PATH)
+    set(AARCH64_TOOLCHAIN_PREFIX "${AARCH64_TOOLCHAIN_PATH}/bin/aarch64-none-linux-gnu-")
+    set(CMAKE_SYSROOT "${AARCH64_TOOLCHAIN_PATH}/aarch64-none-linux-gnu/libc")
+elseif(NOT DEFINED AARCH64_TOOLCHAIN_PREFIX)
     set(AARCH64_TOOLCHAIN_PREFIX "aarch64-linux-gnu-")
 endif()
 
@@ -55,8 +64,11 @@ set(CMAKE_CXX_COMPILER ${AARCH64_TOOLCHAIN_PREFIX}g++)
 #   armv9-a+sve2+fp16+bf16+i8mm                  : Neoverse V2, Cortex-X3
 #   armv9.2-a+sve2+sme2+fp16+bf16+i8mm+fp16fml   : Future SME2-capable CPUs
 #
+# Default: armv9-a with SVE2 and common extensions (GCC 13 compatible)
+# For SME/SME2 support, use GCC 14+ and set:
+#   -DAARCH64_MARCH="armv9.2-a+sve2+sme2+fp16+bf16+i8mm+dotprod+fp16fml"
 if(NOT DEFINED AARCH64_MARCH)
-    set(AARCH64_MARCH "armv9.2-a+sve2+sme2+fp16+bf16+i8mm+dotprod+fp16fml")
+    set(AARCH64_MARCH "armv9-a+sve2+fp16+bf16+i8mm+dotprod+fp16fml")
 endif()
 
 set(CMAKE_C_FLAGS_INIT "-march=${AARCH64_MARCH}")

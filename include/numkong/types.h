@@ -359,10 +359,13 @@
 // Include the relevant intrinsics file - different for different OSes and ISAs
 #if defined(_MSC_VER)
 #include <intrin.h>
-#elif NK_TARGET_NEON
+#elif NK_TARGET_ARM_
+#if NK_TARGET_NEON
 #include <arm_neon.h>
-#elif NK_TARGET_SVE || NK_TARGET_SVE2
+#endif
+#if NK_TARGET_SVE || NK_TARGET_SVE2
 #include <arm_sve.h>
+#endif
 #elif NK_TARGET_HASWELL || NK_TARGET_SKYLAKE
 #include <immintrin.h>
 #elif NK_TARGET_SPACEMIT
