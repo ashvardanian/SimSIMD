@@ -469,18 +469,34 @@ typedef nk_f64_t nk_fmax_t;
 #define NK_I64_MAX 9223372036854775807LL
 #define NK_I64_MIN (-9223372036854775807LL - 1LL)
 #define NK_U64_MAX 18446744073709551615ULL
+#define NK_U64_MIN 0x0ULL
 
 #define NK_I32_MAX 2147483647
 #define NK_I32_MIN (-2147483647 - 1)
 #define NK_U32_MAX 4294967295U
+#define NK_U32_MIN 0x0U
 
 #define NK_I16_MAX 32767
 #define NK_I16_MIN (-32767 - 1)
 #define NK_U16_MAX 65535U
+#define NK_U16_MIN 0x0U
 
 #define NK_I8_MAX 127
 #define NK_I8_MIN (-127 - 1)
 #define NK_U8_MAX 255U
+#define NK_U8_MIN 0x0U
+
+#define NK_F16_MAX 0x7BFF // IEEE 754 binary16: +65504.0
+#define NK_F16_MIN 0xFBFF // IEEE 754 binary16: -65504.0
+
+#define NK_BF16_MAX 0x7F7F // BFloat16: ~+3.39e38
+#define NK_BF16_MIN 0xFF7F // BFloat16: ~-3.39e38
+
+#define NK_E4M3_MAX 0x7E // FP8 E4M3: +448.0
+#define NK_E4M3_MIN 0xFE // FP8 E4M3: -448.0
+
+#define NK_E5M2_MAX 0x7B // FP8 E5M2: +57344.0
+#define NK_E5M2_MIN 0xFB // FP8 E5M2: -57344.0
 
 #define NK_BITS_PER_BYTE 8
 

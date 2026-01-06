@@ -452,7 +452,8 @@ NK_PUBLIC void nk_reduce_add_f32_haswell(                          //
     nk_f64_t *result) {
     nk_size_t stride_elements = stride_bytes / sizeof(nk_f32_t);
     int aligned = (stride_bytes % sizeof(nk_f32_t) == 0);
-    if (!aligned) nk_reduce_add_f32_serial(data, count, stride_bytes, result);
+    if (count == 0) *result = 0;
+    else if (!aligned) nk_reduce_add_f32_serial(data, count, stride_bytes, result);
     else if (stride_elements == 1) nk_reduce_add_f32_haswell_contiguous_(data, count, result);
     else if (stride_elements <= 8) nk_reduce_add_f32_haswell_strided_(data, count, stride_elements, result);
     else nk_reduce_add_f32_haswell_gather_(data, count, stride_bytes, result);
@@ -537,7 +538,8 @@ NK_PUBLIC void nk_reduce_add_f64_haswell(                          //
     nk_f64_t *result) {
     nk_size_t stride_elements = stride_bytes / sizeof(nk_f64_t);
     int aligned = (stride_bytes % sizeof(nk_f64_t) == 0);
-    if (!aligned) nk_reduce_add_f64_serial(data, count, stride_bytes, result);
+    if (count == 0) *result = 0;
+    else if (!aligned) nk_reduce_add_f64_serial(data, count, stride_bytes, result);
     else if (stride_elements == 1) nk_reduce_add_f64_haswell_contiguous_(data, count, result);
     else if (stride_elements <= 4) nk_reduce_add_f64_haswell_strided_(data, count, stride_elements, result);
     else nk_reduce_add_f64_serial(data, count, stride_bytes, result);
@@ -628,7 +630,8 @@ NK_PUBLIC void nk_reduce_min_f32_haswell(                          //
     nk_f32_t *min_value, nk_size_t *min_index) {
     nk_size_t stride_elements = stride_bytes / sizeof(nk_f32_t);
     int aligned = (stride_bytes % sizeof(nk_f32_t) == 0);
-    if (!aligned) nk_reduce_min_f32_serial(data, count, stride_bytes, min_value, min_index);
+    if (count == 0) *min_value = NK_F32_MAX, *min_index = count;
+    else if (!aligned) nk_reduce_min_f32_serial(data, count, stride_bytes, min_value, min_index);
     else if (stride_elements == 1 && count >= 8)
         nk_reduce_min_f32_haswell_contiguous_(data, count, min_value, min_index);
     else if (stride_elements >= 2 && stride_elements <= 8)
@@ -720,7 +723,8 @@ NK_PUBLIC void nk_reduce_max_f32_haswell(                          //
     nk_f32_t *max_value, nk_size_t *max_index) {
     nk_size_t stride_elements = stride_bytes / sizeof(nk_f32_t);
     int aligned = (stride_bytes % sizeof(nk_f32_t) == 0);
-    if (!aligned) nk_reduce_max_f32_serial(data, count, stride_bytes, max_value, max_index);
+    if (count == 0) *max_value = NK_F32_MIN, *max_index = count;
+    else if (!aligned) nk_reduce_max_f32_serial(data, count, stride_bytes, max_value, max_index);
     else if (stride_elements == 1 && count >= 8)
         nk_reduce_max_f32_haswell_contiguous_(data, count, max_value, max_index);
     else if (stride_elements >= 2 && stride_elements <= 8)
@@ -812,7 +816,8 @@ NK_PUBLIC void nk_reduce_min_f64_haswell(                          //
     nk_f64_t *min_value, nk_size_t *min_index) {
     nk_size_t stride_elements = stride_bytes / sizeof(nk_f64_t);
     int aligned = (stride_bytes % sizeof(nk_f64_t) == 0);
-    if (!aligned) nk_reduce_min_f64_serial(data, count, stride_bytes, min_value, min_index);
+    if (count == 0) *min_value = NK_F64_MAX, *min_index = count;
+    else if (!aligned) nk_reduce_min_f64_serial(data, count, stride_bytes, min_value, min_index);
     else if (stride_elements == 1 && count >= 4)
         nk_reduce_min_f64_haswell_contiguous_(data, count, min_value, min_index);
     else if (stride_elements >= 2 && stride_elements <= 4)
@@ -904,7 +909,8 @@ NK_PUBLIC void nk_reduce_max_f64_haswell(                          //
     nk_f64_t *max_value, nk_size_t *max_index) {
     nk_size_t stride_elements = stride_bytes / sizeof(nk_f64_t);
     int aligned = (stride_bytes % sizeof(nk_f64_t) == 0);
-    if (!aligned) nk_reduce_max_f64_serial(data, count, stride_bytes, max_value, max_index);
+    if (count == 0) *max_value = NK_F64_MIN, *max_index = count;
+    else if (!aligned) nk_reduce_max_f64_serial(data, count, stride_bytes, max_value, max_index);
     else if (stride_elements == 1 && count >= 4)
         nk_reduce_max_f64_haswell_contiguous_(data, count, max_value, max_index);
     else if (stride_elements >= 2 && stride_elements <= 4)
@@ -1540,112 +1546,128 @@ NK_PUBLIC void nk_reduce_add_u64_haswell(                          //
 NK_PUBLIC void nk_reduce_min_i8_haswell(                          //
     nk_i8_t const *data, nk_size_t count, nk_size_t stride_bytes, //
     nk_i8_t *min_value, nk_size_t *min_index) {
-    if (stride_bytes == sizeof(nk_i8_t)) nk_reduce_min_i8_haswell_contiguous_(data, count, min_value, min_index);
+    if (count == 0) *min_value = NK_I8_MAX, *min_index = count;
+    else if (stride_bytes == sizeof(nk_i8_t)) nk_reduce_min_i8_haswell_contiguous_(data, count, min_value, min_index);
     else nk_reduce_min_i8_serial(data, count, stride_bytes, min_value, min_index);
 }
 
 NK_PUBLIC void nk_reduce_max_i8_haswell(                          //
     nk_i8_t const *data, nk_size_t count, nk_size_t stride_bytes, //
     nk_i8_t *max_value, nk_size_t *max_index) {
-    if (stride_bytes == sizeof(nk_i8_t)) nk_reduce_max_i8_haswell_contiguous_(data, count, max_value, max_index);
+    if (count == 0) *max_value = NK_I8_MIN, *max_index = count;
+    else if (stride_bytes == sizeof(nk_i8_t)) nk_reduce_max_i8_haswell_contiguous_(data, count, max_value, max_index);
     else nk_reduce_max_i8_serial(data, count, stride_bytes, max_value, max_index);
 }
 
 NK_PUBLIC void nk_reduce_min_u8_haswell(                          //
     nk_u8_t const *data, nk_size_t count, nk_size_t stride_bytes, //
     nk_u8_t *min_value, nk_size_t *min_index) {
-    if (stride_bytes == sizeof(nk_u8_t)) nk_reduce_min_u8_haswell_contiguous_(data, count, min_value, min_index);
+    if (count == 0) *min_value = NK_U8_MAX, *min_index = count;
+    else if (stride_bytes == sizeof(nk_u8_t)) nk_reduce_min_u8_haswell_contiguous_(data, count, min_value, min_index);
     else nk_reduce_min_u8_serial(data, count, stride_bytes, min_value, min_index);
 }
 
 NK_PUBLIC void nk_reduce_max_u8_haswell(                          //
     nk_u8_t const *data, nk_size_t count, nk_size_t stride_bytes, //
     nk_u8_t *max_value, nk_size_t *max_index) {
-    if (stride_bytes == sizeof(nk_u8_t)) nk_reduce_max_u8_haswell_contiguous_(data, count, max_value, max_index);
+    if (count == 0) *max_value = NK_U8_MIN, *max_index = count;
+    else if (stride_bytes == sizeof(nk_u8_t)) nk_reduce_max_u8_haswell_contiguous_(data, count, max_value, max_index);
     else nk_reduce_max_u8_serial(data, count, stride_bytes, max_value, max_index);
 }
 
 NK_PUBLIC void nk_reduce_min_i16_haswell(                          //
     nk_i16_t const *data, nk_size_t count, nk_size_t stride_bytes, //
     nk_i16_t *min_value, nk_size_t *min_index) {
-    if (stride_bytes == sizeof(nk_i16_t)) nk_reduce_min_i16_haswell_contiguous_(data, count, min_value, min_index);
+    if (count == 0) *min_value = NK_I16_MAX, *min_index = count;
+    else if (stride_bytes == sizeof(nk_i16_t)) nk_reduce_min_i16_haswell_contiguous_(data, count, min_value, min_index);
     else nk_reduce_min_i16_serial(data, count, stride_bytes, min_value, min_index);
 }
 
 NK_PUBLIC void nk_reduce_max_i16_haswell(                          //
     nk_i16_t const *data, nk_size_t count, nk_size_t stride_bytes, //
     nk_i16_t *max_value, nk_size_t *max_index) {
-    if (stride_bytes == sizeof(nk_i16_t)) nk_reduce_max_i16_haswell_contiguous_(data, count, max_value, max_index);
+    if (count == 0) *max_value = NK_I16_MIN, *max_index = count;
+    else if (stride_bytes == sizeof(nk_i16_t)) nk_reduce_max_i16_haswell_contiguous_(data, count, max_value, max_index);
     else nk_reduce_max_i16_serial(data, count, stride_bytes, max_value, max_index);
 }
 
 NK_PUBLIC void nk_reduce_min_u16_haswell(                          //
     nk_u16_t const *data, nk_size_t count, nk_size_t stride_bytes, //
     nk_u16_t *min_value, nk_size_t *min_index) {
-    if (stride_bytes == sizeof(nk_u16_t)) nk_reduce_min_u16_haswell_contiguous_(data, count, min_value, min_index);
+    if (count == 0) *min_value = NK_U16_MAX, *min_index = count;
+    else if (stride_bytes == sizeof(nk_u16_t)) nk_reduce_min_u16_haswell_contiguous_(data, count, min_value, min_index);
     else nk_reduce_min_u16_serial(data, count, stride_bytes, min_value, min_index);
 }
 
 NK_PUBLIC void nk_reduce_max_u16_haswell(                          //
     nk_u16_t const *data, nk_size_t count, nk_size_t stride_bytes, //
     nk_u16_t *max_value, nk_size_t *max_index) {
-    if (stride_bytes == sizeof(nk_u16_t)) nk_reduce_max_u16_haswell_contiguous_(data, count, max_value, max_index);
+    if (count == 0) *max_value = NK_U16_MIN, *max_index = count;
+    else if (stride_bytes == sizeof(nk_u16_t)) nk_reduce_max_u16_haswell_contiguous_(data, count, max_value, max_index);
     else nk_reduce_max_u16_serial(data, count, stride_bytes, max_value, max_index);
 }
 
 NK_PUBLIC void nk_reduce_min_i32_haswell(                          //
     nk_i32_t const *data, nk_size_t count, nk_size_t stride_bytes, //
     nk_i32_t *min_value, nk_size_t *min_index) {
-    if (stride_bytes == sizeof(nk_i32_t)) nk_reduce_min_i32_haswell_contiguous_(data, count, min_value, min_index);
+    if (count == 0) *min_value = NK_I32_MAX, *min_index = count;
+    else if (stride_bytes == sizeof(nk_i32_t)) nk_reduce_min_i32_haswell_contiguous_(data, count, min_value, min_index);
     else nk_reduce_min_i32_serial(data, count, stride_bytes, min_value, min_index);
 }
 
 NK_PUBLIC void nk_reduce_max_i32_haswell(                          //
     nk_i32_t const *data, nk_size_t count, nk_size_t stride_bytes, //
     nk_i32_t *max_value, nk_size_t *max_index) {
-    if (stride_bytes == sizeof(nk_i32_t)) nk_reduce_max_i32_haswell_contiguous_(data, count, max_value, max_index);
+    if (count == 0) *max_value = NK_I32_MIN, *max_index = count;
+    else if (stride_bytes == sizeof(nk_i32_t)) nk_reduce_max_i32_haswell_contiguous_(data, count, max_value, max_index);
     else nk_reduce_max_i32_serial(data, count, stride_bytes, max_value, max_index);
 }
 
 NK_PUBLIC void nk_reduce_min_u32_haswell(                          //
     nk_u32_t const *data, nk_size_t count, nk_size_t stride_bytes, //
     nk_u32_t *min_value, nk_size_t *min_index) {
-    if (stride_bytes == sizeof(nk_u32_t)) nk_reduce_min_u32_haswell_contiguous_(data, count, min_value, min_index);
+    if (count == 0) *min_value = NK_U32_MAX, *min_index = count;
+    else if (stride_bytes == sizeof(nk_u32_t)) nk_reduce_min_u32_haswell_contiguous_(data, count, min_value, min_index);
     else nk_reduce_min_u32_serial(data, count, stride_bytes, min_value, min_index);
 }
 
 NK_PUBLIC void nk_reduce_max_u32_haswell(                          //
     nk_u32_t const *data, nk_size_t count, nk_size_t stride_bytes, //
     nk_u32_t *max_value, nk_size_t *max_index) {
-    if (stride_bytes == sizeof(nk_u32_t)) nk_reduce_max_u32_haswell_contiguous_(data, count, max_value, max_index);
+    if (count == 0) *max_value = NK_U32_MIN, *max_index = count;
+    else if (stride_bytes == sizeof(nk_u32_t)) nk_reduce_max_u32_haswell_contiguous_(data, count, max_value, max_index);
     else nk_reduce_max_u32_serial(data, count, stride_bytes, max_value, max_index);
 }
 
 NK_PUBLIC void nk_reduce_min_i64_haswell(                          //
     nk_i64_t const *data, nk_size_t count, nk_size_t stride_bytes, //
     nk_i64_t *min_value, nk_size_t *min_index) {
-    if (stride_bytes == sizeof(nk_i64_t)) nk_reduce_min_i64_haswell_contiguous_(data, count, min_value, min_index);
+    if (count == 0) *min_value = NK_I64_MAX, *min_index = count;
+    else if (stride_bytes == sizeof(nk_i64_t)) nk_reduce_min_i64_haswell_contiguous_(data, count, min_value, min_index);
     else nk_reduce_min_i64_serial(data, count, stride_bytes, min_value, min_index);
 }
 
 NK_PUBLIC void nk_reduce_max_i64_haswell(                          //
     nk_i64_t const *data, nk_size_t count, nk_size_t stride_bytes, //
     nk_i64_t *max_value, nk_size_t *max_index) {
-    if (stride_bytes == sizeof(nk_i64_t)) nk_reduce_max_i64_haswell_contiguous_(data, count, max_value, max_index);
+    if (count == 0) *max_value = NK_I64_MIN, *max_index = count;
+    else if (stride_bytes == sizeof(nk_i64_t)) nk_reduce_max_i64_haswell_contiguous_(data, count, max_value, max_index);
     else nk_reduce_max_i64_serial(data, count, stride_bytes, max_value, max_index);
 }
 
 NK_PUBLIC void nk_reduce_min_u64_haswell(                          //
     nk_u64_t const *data, nk_size_t count, nk_size_t stride_bytes, //
     nk_u64_t *min_value, nk_size_t *min_index) {
-    if (stride_bytes == sizeof(nk_u64_t)) nk_reduce_min_u64_haswell_contiguous_(data, count, min_value, min_index);
+    if (count == 0) *min_value = NK_U64_MAX, *min_index = count;
+    else if (stride_bytes == sizeof(nk_u64_t)) nk_reduce_min_u64_haswell_contiguous_(data, count, min_value, min_index);
     else nk_reduce_min_u64_serial(data, count, stride_bytes, min_value, min_index);
 }
 
 NK_PUBLIC void nk_reduce_max_u64_haswell(                          //
     nk_u64_t const *data, nk_size_t count, nk_size_t stride_bytes, //
     nk_u64_t *max_value, nk_size_t *max_index) {
-    if (stride_bytes == sizeof(nk_u64_t)) nk_reduce_max_u64_haswell_contiguous_(data, count, max_value, max_index);
+    if (count == 0) *max_value = NK_U64_MIN, *max_index = count;
+    else if (stride_bytes == sizeof(nk_u64_t)) nk_reduce_max_u64_haswell_contiguous_(data, count, max_value, max_index);
     else nk_reduce_max_u64_serial(data, count, stride_bytes, max_value, max_index);
 }
 
@@ -1798,7 +1820,8 @@ NK_PUBLIC void nk_reduce_min_f16_haswell(                          //
     nk_f32_t *min_value, nk_size_t *min_index) {
     nk_size_t stride_elements = stride_bytes / sizeof(nk_f16_t);
     int aligned = (stride_bytes % sizeof(nk_f16_t) == 0);
-    if (!aligned) nk_reduce_min_f16_serial(data, count, stride_bytes, min_value, min_index);
+    if (count == 0) *min_value = NK_F32_MAX, *min_index = count;
+    else if (!aligned) nk_reduce_min_f16_serial(data, count, stride_bytes, min_value, min_index);
     else if (stride_elements == 1) nk_reduce_min_f16_haswell_contiguous_(data, count, min_value, min_index);
     else nk_reduce_min_f16_haswell_strided_(data, count, stride_elements, min_value, min_index);
 }
@@ -1899,7 +1922,8 @@ NK_PUBLIC void nk_reduce_max_f16_haswell(                          //
     nk_f32_t *max_value, nk_size_t *max_index) {
     nk_size_t stride_elements = stride_bytes / sizeof(nk_f16_t);
     int aligned = (stride_bytes % sizeof(nk_f16_t) == 0);
-    if (!aligned) nk_reduce_max_f16_serial(data, count, stride_bytes, max_value, max_index);
+    if (count == 0) *max_value = NK_F32_MIN, *max_index = count;
+    else if (!aligned) nk_reduce_max_f16_serial(data, count, stride_bytes, max_value, max_index);
     else if (stride_elements == 1) nk_reduce_max_f16_haswell_contiguous_(data, count, max_value, max_index);
     else nk_reduce_max_f16_haswell_strided_(data, count, stride_elements, max_value, max_index);
 }
@@ -2055,7 +2079,8 @@ NK_PUBLIC void nk_reduce_min_bf16_haswell(                          //
     nk_f32_t *min_value, nk_size_t *min_index) {
     nk_size_t stride_elements = stride_bytes / sizeof(nk_bf16_t);
     int aligned = (stride_bytes % sizeof(nk_bf16_t) == 0);
-    if (!aligned) nk_reduce_min_bf16_serial(data, count, stride_bytes, min_value, min_index);
+    if (count == 0) *min_value = NK_F32_MAX, *min_index = count;
+    else if (!aligned) nk_reduce_min_bf16_serial(data, count, stride_bytes, min_value, min_index);
     else if (stride_elements == 1) nk_reduce_min_bf16_haswell_contiguous_(data, count, min_value, min_index);
     else nk_reduce_min_bf16_haswell_strided_(data, count, stride_elements, min_value, min_index);
 }
@@ -2158,7 +2183,8 @@ NK_PUBLIC void nk_reduce_max_bf16_haswell(                          //
     nk_f32_t *max_value, nk_size_t *max_index) {
     nk_size_t stride_elements = stride_bytes / sizeof(nk_bf16_t);
     int aligned = (stride_bytes % sizeof(nk_bf16_t) == 0);
-    if (!aligned) nk_reduce_max_bf16_serial(data, count, stride_bytes, max_value, max_index);
+    if (count == 0) *max_value = NK_F32_MIN, *max_index = count;
+    else if (!aligned) nk_reduce_max_bf16_serial(data, count, stride_bytes, max_value, max_index);
     else if (stride_elements == 1) nk_reduce_max_bf16_haswell_contiguous_(data, count, max_value, max_index);
     else nk_reduce_max_bf16_haswell_strided_(data, count, stride_elements, max_value, max_index);
 }
@@ -2314,7 +2340,8 @@ NK_PUBLIC void nk_reduce_min_e4m3_haswell(                          //
     nk_f32_t *min_value, nk_size_t *min_index) {
     nk_size_t stride_elements = stride_bytes / sizeof(nk_e4m3_t);
     int aligned = (stride_bytes % sizeof(nk_e4m3_t) == 0);
-    if (!aligned) nk_reduce_min_e4m3_serial(data, count, stride_bytes, min_value, min_index);
+    if (count == 0) *min_value = NK_F32_MAX, *min_index = count;
+    else if (!aligned) nk_reduce_min_e4m3_serial(data, count, stride_bytes, min_value, min_index);
     else if (stride_elements == 1) nk_reduce_min_e4m3_haswell_contiguous_(data, count, min_value, min_index);
     else nk_reduce_min_e4m3_haswell_strided_(data, count, stride_elements, min_value, min_index);
 }
@@ -2417,7 +2444,8 @@ NK_PUBLIC void nk_reduce_max_e4m3_haswell(                          //
     nk_f32_t *max_value, nk_size_t *max_index) {
     nk_size_t stride_elements = stride_bytes / sizeof(nk_e4m3_t);
     int aligned = (stride_bytes % sizeof(nk_e4m3_t) == 0);
-    if (!aligned) nk_reduce_max_e4m3_serial(data, count, stride_bytes, max_value, max_index);
+    if (count == 0) *max_value = NK_F32_MIN, *max_index = count;
+    else if (!aligned) nk_reduce_max_e4m3_serial(data, count, stride_bytes, max_value, max_index);
     else if (stride_elements == 1) nk_reduce_max_e4m3_haswell_contiguous_(data, count, max_value, max_index);
     else nk_reduce_max_e4m3_haswell_strided_(data, count, stride_elements, max_value, max_index);
 }
@@ -2573,7 +2601,8 @@ NK_PUBLIC void nk_reduce_min_e5m2_haswell(                          //
     nk_f32_t *min_value, nk_size_t *min_index) {
     nk_size_t stride_elements = stride_bytes / sizeof(nk_e5m2_t);
     int aligned = (stride_bytes % sizeof(nk_e5m2_t) == 0);
-    if (!aligned) nk_reduce_min_e5m2_serial(data, count, stride_bytes, min_value, min_index);
+    if (count == 0) *min_value = NK_F32_MAX, *min_index = count;
+    else if (!aligned) nk_reduce_min_e5m2_serial(data, count, stride_bytes, min_value, min_index);
     else if (stride_elements == 1) nk_reduce_min_e5m2_haswell_contiguous_(data, count, min_value, min_index);
     else nk_reduce_min_e5m2_haswell_strided_(data, count, stride_elements, min_value, min_index);
 }
@@ -2676,7 +2705,8 @@ NK_PUBLIC void nk_reduce_max_e5m2_haswell(                          //
     nk_f32_t *max_value, nk_size_t *max_index) {
     nk_size_t stride_elements = stride_bytes / sizeof(nk_e5m2_t);
     int aligned = (stride_bytes % sizeof(nk_e5m2_t) == 0);
-    if (!aligned) nk_reduce_max_e5m2_serial(data, count, stride_bytes, max_value, max_index);
+    if (count == 0) *max_value = NK_F32_MIN, *max_index = count;
+    else if (!aligned) nk_reduce_max_e5m2_serial(data, count, stride_bytes, max_value, max_index);
     else if (stride_elements == 1) nk_reduce_max_e5m2_haswell_contiguous_(data, count, max_value, max_index);
     else nk_reduce_max_e5m2_haswell_strided_(data, count, stride_elements, max_value, max_index);
 }

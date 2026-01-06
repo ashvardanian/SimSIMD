@@ -837,7 +837,8 @@ NK_PUBLIC void nk_reduce_min_f32_skylake(                          //
     nk_f32_t *min_value, nk_size_t *min_index) {
     nk_size_t stride_elements = stride_bytes / sizeof(nk_f32_t);
     int aligned = (stride_bytes % sizeof(nk_f32_t) == 0);
-    if (!aligned) nk_reduce_min_f32_serial(data, count, stride_bytes, min_value, min_index);
+    if (count == 0) *min_value = NK_F32_MAX, *min_index = count;
+    else if (!aligned) nk_reduce_min_f32_serial(data, count, stride_bytes, min_value, min_index);
     else if (stride_elements == 1 && count >= 16)
         nk_reduce_min_f32_skylake_contiguous_(data, count, min_value, min_index);
     else if (stride_elements >= 2 && stride_elements <= 8)
@@ -942,7 +943,8 @@ NK_PUBLIC void nk_reduce_max_f32_skylake(                          //
     nk_f32_t *max_value, nk_size_t *max_index) {
     nk_size_t stride_elements = stride_bytes / sizeof(nk_f32_t);
     int aligned = (stride_bytes % sizeof(nk_f32_t) == 0);
-    if (!aligned) nk_reduce_max_f32_serial(data, count, stride_bytes, max_value, max_index);
+    if (count == 0) *max_value = NK_F32_MIN, *max_index = count;
+    else if (!aligned) nk_reduce_max_f32_serial(data, count, stride_bytes, max_value, max_index);
     else if (stride_elements == 1 && count >= 16)
         nk_reduce_max_f32_skylake_contiguous_(data, count, max_value, max_index);
     else if (stride_elements >= 2 && stride_elements <= 8)
@@ -1043,7 +1045,8 @@ NK_PUBLIC void nk_reduce_min_f64_skylake(                          //
     nk_f64_t *min_value, nk_size_t *min_index) {
     nk_size_t stride_elements = stride_bytes / sizeof(nk_f64_t);
     int aligned = (stride_bytes % sizeof(nk_f64_t) == 0);
-    if (!aligned) nk_reduce_min_f64_serial(data, count, stride_bytes, min_value, min_index);
+    if (count == 0) *min_value = NK_F64_MAX, *min_index = count;
+    else if (!aligned) nk_reduce_min_f64_serial(data, count, stride_bytes, min_value, min_index);
     else if (stride_elements == 1 && count >= 8)
         nk_reduce_min_f64_skylake_contiguous_(data, count, min_value, min_index);
     else if (stride_elements >= 2 && stride_elements <= 8)
@@ -1144,7 +1147,8 @@ NK_PUBLIC void nk_reduce_max_f64_skylake(                          //
     nk_f64_t *max_value, nk_size_t *max_index) {
     nk_size_t stride_elements = stride_bytes / sizeof(nk_f64_t);
     int aligned = (stride_bytes % sizeof(nk_f64_t) == 0);
-    if (!aligned) nk_reduce_max_f64_serial(data, count, stride_bytes, max_value, max_index);
+    if (count == 0) *max_value = NK_F64_MIN, *max_index = count;
+    else if (!aligned) nk_reduce_max_f64_serial(data, count, stride_bytes, max_value, max_index);
     else if (stride_elements == 1 && count >= 8)
         nk_reduce_max_f64_skylake_contiguous_(data, count, max_value, max_index);
     else if (stride_elements >= 2 && stride_elements <= 8)
@@ -1880,112 +1884,128 @@ NK_PUBLIC void nk_reduce_add_u64_skylake(                          //
 NK_PUBLIC void nk_reduce_min_i8_skylake(                          //
     nk_i8_t const *data, nk_size_t count, nk_size_t stride_bytes, //
     nk_i8_t *min_value, nk_size_t *min_index) {
-    if (stride_bytes == sizeof(nk_i8_t)) nk_reduce_min_i8_skylake_contiguous_(data, count, min_value, min_index);
+    if (count == 0) *min_value = NK_I8_MAX, *min_index = count;
+    else if (stride_bytes == sizeof(nk_i8_t)) nk_reduce_min_i8_skylake_contiguous_(data, count, min_value, min_index);
     else nk_reduce_min_i8_serial(data, count, stride_bytes, min_value, min_index);
 }
 
 NK_PUBLIC void nk_reduce_max_i8_skylake(                          //
     nk_i8_t const *data, nk_size_t count, nk_size_t stride_bytes, //
     nk_i8_t *max_value, nk_size_t *max_index) {
-    if (stride_bytes == sizeof(nk_i8_t)) nk_reduce_max_i8_skylake_contiguous_(data, count, max_value, max_index);
+    if (count == 0) *max_value = NK_I8_MIN, *max_index = count;
+    else if (stride_bytes == sizeof(nk_i8_t)) nk_reduce_max_i8_skylake_contiguous_(data, count, max_value, max_index);
     else nk_reduce_max_i8_serial(data, count, stride_bytes, max_value, max_index);
 }
 
 NK_PUBLIC void nk_reduce_min_u8_skylake(                          //
     nk_u8_t const *data, nk_size_t count, nk_size_t stride_bytes, //
     nk_u8_t *min_value, nk_size_t *min_index) {
-    if (stride_bytes == sizeof(nk_u8_t)) nk_reduce_min_u8_skylake_contiguous_(data, count, min_value, min_index);
+    if (count == 0) *min_value = NK_U8_MAX, *min_index = count;
+    else if (stride_bytes == sizeof(nk_u8_t)) nk_reduce_min_u8_skylake_contiguous_(data, count, min_value, min_index);
     else nk_reduce_min_u8_serial(data, count, stride_bytes, min_value, min_index);
 }
 
 NK_PUBLIC void nk_reduce_max_u8_skylake(                          //
     nk_u8_t const *data, nk_size_t count, nk_size_t stride_bytes, //
     nk_u8_t *max_value, nk_size_t *max_index) {
-    if (stride_bytes == sizeof(nk_u8_t)) nk_reduce_max_u8_skylake_contiguous_(data, count, max_value, max_index);
+    if (count == 0) *max_value = NK_U8_MIN, *max_index = count;
+    else if (stride_bytes == sizeof(nk_u8_t)) nk_reduce_max_u8_skylake_contiguous_(data, count, max_value, max_index);
     else nk_reduce_max_u8_serial(data, count, stride_bytes, max_value, max_index);
 }
 
 NK_PUBLIC void nk_reduce_min_i16_skylake(                          //
     nk_i16_t const *data, nk_size_t count, nk_size_t stride_bytes, //
     nk_i16_t *min_value, nk_size_t *min_index) {
-    if (stride_bytes == sizeof(nk_i16_t)) nk_reduce_min_i16_skylake_contiguous_(data, count, min_value, min_index);
+    if (count == 0) *min_value = NK_I16_MAX, *min_index = count;
+    else if (stride_bytes == sizeof(nk_i16_t)) nk_reduce_min_i16_skylake_contiguous_(data, count, min_value, min_index);
     else nk_reduce_min_i16_serial(data, count, stride_bytes, min_value, min_index);
 }
 
 NK_PUBLIC void nk_reduce_max_i16_skylake(                          //
     nk_i16_t const *data, nk_size_t count, nk_size_t stride_bytes, //
     nk_i16_t *max_value, nk_size_t *max_index) {
-    if (stride_bytes == sizeof(nk_i16_t)) nk_reduce_max_i16_skylake_contiguous_(data, count, max_value, max_index);
+    if (count == 0) *max_value = NK_I16_MIN, *max_index = count;
+    else if (stride_bytes == sizeof(nk_i16_t)) nk_reduce_max_i16_skylake_contiguous_(data, count, max_value, max_index);
     else nk_reduce_max_i16_serial(data, count, stride_bytes, max_value, max_index);
 }
 
 NK_PUBLIC void nk_reduce_min_u16_skylake(                          //
     nk_u16_t const *data, nk_size_t count, nk_size_t stride_bytes, //
     nk_u16_t *min_value, nk_size_t *min_index) {
-    if (stride_bytes == sizeof(nk_u16_t)) nk_reduce_min_u16_skylake_contiguous_(data, count, min_value, min_index);
+    if (count == 0) *min_value = NK_U16_MAX, *min_index = count;
+    else if (stride_bytes == sizeof(nk_u16_t)) nk_reduce_min_u16_skylake_contiguous_(data, count, min_value, min_index);
     else nk_reduce_min_u16_serial(data, count, stride_bytes, min_value, min_index);
 }
 
 NK_PUBLIC void nk_reduce_max_u16_skylake(                          //
     nk_u16_t const *data, nk_size_t count, nk_size_t stride_bytes, //
     nk_u16_t *max_value, nk_size_t *max_index) {
-    if (stride_bytes == sizeof(nk_u16_t)) nk_reduce_max_u16_skylake_contiguous_(data, count, max_value, max_index);
+    if (count == 0) *max_value = NK_U16_MIN, *max_index = count;
+    else if (stride_bytes == sizeof(nk_u16_t)) nk_reduce_max_u16_skylake_contiguous_(data, count, max_value, max_index);
     else nk_reduce_max_u16_serial(data, count, stride_bytes, max_value, max_index);
 }
 
 NK_PUBLIC void nk_reduce_min_i32_skylake(                          //
     nk_i32_t const *data, nk_size_t count, nk_size_t stride_bytes, //
     nk_i32_t *min_value, nk_size_t *min_index) {
-    if (stride_bytes == sizeof(nk_i32_t)) nk_reduce_min_i32_skylake_contiguous_(data, count, min_value, min_index);
+    if (count == 0) *min_value = NK_I32_MAX, *min_index = count;
+    else if (stride_bytes == sizeof(nk_i32_t)) nk_reduce_min_i32_skylake_contiguous_(data, count, min_value, min_index);
     else nk_reduce_min_i32_serial(data, count, stride_bytes, min_value, min_index);
 }
 
 NK_PUBLIC void nk_reduce_max_i32_skylake(                          //
     nk_i32_t const *data, nk_size_t count, nk_size_t stride_bytes, //
     nk_i32_t *max_value, nk_size_t *max_index) {
-    if (stride_bytes == sizeof(nk_i32_t)) nk_reduce_max_i32_skylake_contiguous_(data, count, max_value, max_index);
+    if (count == 0) *max_value = NK_I32_MIN, *max_index = count;
+    else if (stride_bytes == sizeof(nk_i32_t)) nk_reduce_max_i32_skylake_contiguous_(data, count, max_value, max_index);
     else nk_reduce_max_i32_serial(data, count, stride_bytes, max_value, max_index);
 }
 
 NK_PUBLIC void nk_reduce_min_u32_skylake(                          //
     nk_u32_t const *data, nk_size_t count, nk_size_t stride_bytes, //
     nk_u32_t *min_value, nk_size_t *min_index) {
-    if (stride_bytes == sizeof(nk_u32_t)) nk_reduce_min_u32_skylake_contiguous_(data, count, min_value, min_index);
+    if (count == 0) *min_value = NK_U32_MAX, *min_index = count;
+    else if (stride_bytes == sizeof(nk_u32_t)) nk_reduce_min_u32_skylake_contiguous_(data, count, min_value, min_index);
     else nk_reduce_min_u32_serial(data, count, stride_bytes, min_value, min_index);
 }
 
 NK_PUBLIC void nk_reduce_max_u32_skylake(                          //
     nk_u32_t const *data, nk_size_t count, nk_size_t stride_bytes, //
     nk_u32_t *max_value, nk_size_t *max_index) {
-    if (stride_bytes == sizeof(nk_u32_t)) nk_reduce_max_u32_skylake_contiguous_(data, count, max_value, max_index);
+    if (count == 0) *max_value = NK_U32_MIN, *max_index = count;
+    else if (stride_bytes == sizeof(nk_u32_t)) nk_reduce_max_u32_skylake_contiguous_(data, count, max_value, max_index);
     else nk_reduce_max_u32_serial(data, count, stride_bytes, max_value, max_index);
 }
 
 NK_PUBLIC void nk_reduce_min_i64_skylake(                          //
     nk_i64_t const *data, nk_size_t count, nk_size_t stride_bytes, //
     nk_i64_t *min_value, nk_size_t *min_index) {
-    if (stride_bytes == sizeof(nk_i64_t)) nk_reduce_min_i64_skylake_contiguous_(data, count, min_value, min_index);
+    if (count == 0) *min_value = NK_I64_MAX, *min_index = count;
+    else if (stride_bytes == sizeof(nk_i64_t)) nk_reduce_min_i64_skylake_contiguous_(data, count, min_value, min_index);
     else nk_reduce_min_i64_serial(data, count, stride_bytes, min_value, min_index);
 }
 
 NK_PUBLIC void nk_reduce_max_i64_skylake(                          //
     nk_i64_t const *data, nk_size_t count, nk_size_t stride_bytes, //
     nk_i64_t *max_value, nk_size_t *max_index) {
-    if (stride_bytes == sizeof(nk_i64_t)) nk_reduce_max_i64_skylake_contiguous_(data, count, max_value, max_index);
+    if (count == 0) *max_value = NK_I64_MIN, *max_index = count;
+    else if (stride_bytes == sizeof(nk_i64_t)) nk_reduce_max_i64_skylake_contiguous_(data, count, max_value, max_index);
     else nk_reduce_max_i64_serial(data, count, stride_bytes, max_value, max_index);
 }
 
 NK_PUBLIC void nk_reduce_min_u64_skylake(                          //
     nk_u64_t const *data, nk_size_t count, nk_size_t stride_bytes, //
     nk_u64_t *min_value, nk_size_t *min_index) {
-    if (stride_bytes == sizeof(nk_u64_t)) nk_reduce_min_u64_skylake_contiguous_(data, count, min_value, min_index);
+    if (count == 0) *min_value = NK_U64_MAX, *min_index = count;
+    else if (stride_bytes == sizeof(nk_u64_t)) nk_reduce_min_u64_skylake_contiguous_(data, count, min_value, min_index);
     else nk_reduce_min_u64_serial(data, count, stride_bytes, min_value, min_index);
 }
 
 NK_PUBLIC void nk_reduce_max_u64_skylake(                          //
     nk_u64_t const *data, nk_size_t count, nk_size_t stride_bytes, //
     nk_u64_t *max_value, nk_size_t *max_index) {
-    if (stride_bytes == sizeof(nk_u64_t)) nk_reduce_max_u64_skylake_contiguous_(data, count, max_value, max_index);
+    if (count == 0) *max_value = NK_U64_MIN, *max_index = count;
+    else if (stride_bytes == sizeof(nk_u64_t)) nk_reduce_max_u64_skylake_contiguous_(data, count, max_value, max_index);
     else nk_reduce_max_u64_serial(data, count, stride_bytes, max_value, max_index);
 }
 
