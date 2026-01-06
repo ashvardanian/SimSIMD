@@ -393,6 +393,8 @@ NK_INTERNAL nk_datatype_t nk_umeyama_output_datatype(nk_datatype_t dtype) {
 
 #include "numkong/mesh/serial.h"
 #include "numkong/mesh/neon.h"
+#include "numkong/mesh/neonhalf.h"
+#include "numkong/mesh/neonbfdot.h"
 #include "numkong/mesh/haswell.h"
 #include "numkong/mesh/skylake.h"
 

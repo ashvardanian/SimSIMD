@@ -163,7 +163,8 @@ NK_INTERNAL void nk_partial_store_b64x4_neon_(nk_b256_vec_t const *src, void *ds
 }
 
 /** @brief Convert 4 E4M3 values to f32x4 via bit manipulation (NEON).
- *  E4M3 format: S EEEE MMM (bias=7). F32: sign<<31, (exp+120)<<23, mant<<20. */
+ *  E4M3 format: S EEEE MMM (bias=7). F32: sign<<31, (exp+120)<<23, mant<<20.
+ *  Subnormals (exp=0): value = mantissa * 2^(1-7) * 2^(-3) = mantissa / 512. */
 NK_INTERNAL float32x4_t nk_e4m3x4_to_f32x4_neon_(nk_e4m3_t const *src) {
     uint8x8_t e4m3_u8x8 = vcreate_u8(*(uint32_t const *)src);
     uint16x8_t e4m3_u16x8 = vmovl_u8(e4m3_u8x8);
@@ -171,41 +172,24 @@ NK_INTERNAL float32x4_t nk_e4m3x4_to_f32x4_neon_(nk_e4m3_t const *src) {
     uint32x4_t sign_u32x4 = vshlq_n_u32(vshrq_n_u32(vandq_u32(v_u32x4, vdupq_n_u32(0x80)), 7), 31);
     uint32x4_t exp_u32x4 = vandq_u32(vshrq_n_u32(v_u32x4, 3), vdupq_n_u32(0x0F));
     uint32x4_t mant_u32x4 = vandq_u32(v_u32x4, vdupq_n_u32(0x07));
-    uint32x4_t f32_exp_u32x4 = vshlq_n_u32(vaddq_u32(exp_u32x4, vdupq_n_u32(120)), 23);
-    uint32x4_t f32_mant_u32x4 = vshlq_n_u32(mant_u32x4, 20);
-    uint32x4_t f32_bits_u32x4 = vorrq_u32(sign_u32x4, vorrq_u32(f32_exp_u32x4, f32_mant_u32x4));
-    uint32x4_t zero_mask_u32x4 = vceqq_u32(exp_u32x4, vdupq_n_u32(0));
-    f32_bits_u32x4 = vbicq_u32(f32_bits_u32x4, zero_mask_u32x4);
-    return vreinterpretq_f32_u32(f32_bits_u32x4);
-}
 
-/** @brief Partial load for E4M3 elements (up to 4) with expansion to f32x4 (NEON). */
-NK_INTERNAL float32x4_t nk_partial_load_e4m3x4_to_f32x4_neon_(nk_e4m3_t const *src, nk_size_t n) {
-    nk_u32_t buf = 0;
-    switch (n) {
-    default:
-    case 4: ((nk_u8_t *)&buf)[3] = src[3]; // fallthrough
-    case 3: ((nk_u8_t *)&buf)[2] = src[2]; // fallthrough
-    case 2: ((nk_u8_t *)&buf)[1] = src[1]; // fallthrough
-    case 1: ((nk_u8_t *)&buf)[0] = src[0]; // fallthrough
-    case 0: break;
-    }
-    uint8x8_t e4m3_u8x8 = vcreate_u8(buf);
-    uint16x8_t e4m3_u16x8 = vmovl_u8(e4m3_u8x8);
-    uint32x4_t v_u32x4 = vmovl_u16(vget_low_u16(e4m3_u16x8));
-    uint32x4_t sign_u32x4 = vshlq_n_u32(vshrq_n_u32(vandq_u32(v_u32x4, vdupq_n_u32(0x80)), 7), 31);
-    uint32x4_t exp_u32x4 = vandq_u32(vshrq_n_u32(v_u32x4, 3), vdupq_n_u32(0x0F));
-    uint32x4_t mant_u32x4 = vandq_u32(v_u32x4, vdupq_n_u32(0x07));
+    // Normal path: sign | ((exp+120)<<23) | (mant<<20)
     uint32x4_t f32_exp_u32x4 = vshlq_n_u32(vaddq_u32(exp_u32x4, vdupq_n_u32(120)), 23);
     uint32x4_t f32_mant_u32x4 = vshlq_n_u32(mant_u32x4, 20);
-    uint32x4_t f32_bits_u32x4 = vorrq_u32(sign_u32x4, vorrq_u32(f32_exp_u32x4, f32_mant_u32x4));
-    uint32x4_t zero_mask_u32x4 = vceqq_u32(exp_u32x4, vdupq_n_u32(0));
-    f32_bits_u32x4 = vbicq_u32(f32_bits_u32x4, zero_mask_u32x4);
-    return vreinterpretq_f32_u32(f32_bits_u32x4);
+    uint32x4_t normal_bits_u32x4 = vorrq_u32(sign_u32x4, vorrq_u32(f32_exp_u32x4, f32_mant_u32x4));
+
+    // Subnormal path: value = mantissa / 512.0f, then apply sign
+    float32x4_t subnorm_abs_f32x4 = vmulq_f32(vcvtq_f32_u32(mant_u32x4), vdupq_n_f32(1.0f / 512.0f));
+    float32x4_t subnorm_f32x4 = vreinterpretq_f32_u32(vorrq_u32(vreinterpretq_u32_f32(subnorm_abs_f32x4), sign_u32x4));
+
+    // Blend: if exp==0, use subnormal result; otherwise use normal bits
+    uint32x4_t exp_zero_mask = vceqq_u32(exp_u32x4, vdupq_n_u32(0));
+    return vbslq_f32(exp_zero_mask, subnorm_f32x4, vreinterpretq_f32_u32(normal_bits_u32x4));
 }
 
 /** @brief Convert 4 E5M2 values to f32x4 via bit manipulation (NEON).
- *  E5M2 format: S EEEEE MM (bias=15). F32: sign<<31, (exp+112)<<23, mant<<21. */
+ *  E5M2 format: S EEEEE MM (bias=15). F32: sign<<31, (exp+112)<<23, mant<<21.
+ *  Subnormals (exp=0): value = mantissa * 2^(1-15) * 2^(-2) = mantissa / 65536. */
 NK_INTERNAL float32x4_t nk_e5m2x4_to_f32x4_neon_(nk_e5m2_t const *src) {
     uint8x8_t e5m2_u8x8 = vcreate_u8(*(uint32_t const *)src);
     uint16x8_t e5m2_u16x8 = vmovl_u8(e5m2_u8x8);
@@ -213,67 +197,19 @@ NK_INTERNAL float32x4_t nk_e5m2x4_to_f32x4_neon_(nk_e5m2_t const *src) {
     uint32x4_t sign_u32x4 = vshlq_n_u32(vshrq_n_u32(vandq_u32(v_u32x4, vdupq_n_u32(0x80)), 7), 31);
     uint32x4_t exp_u32x4 = vandq_u32(vshrq_n_u32(v_u32x4, 2), vdupq_n_u32(0x1F));
     uint32x4_t mant_u32x4 = vandq_u32(v_u32x4, vdupq_n_u32(0x03));
+
+    // Normal path: sign | ((exp+112)<<23) | (mant<<21)
     uint32x4_t f32_exp_u32x4 = vshlq_n_u32(vaddq_u32(exp_u32x4, vdupq_n_u32(112)), 23);
     uint32x4_t f32_mant_u32x4 = vshlq_n_u32(mant_u32x4, 21);
-    uint32x4_t f32_bits_u32x4 = vorrq_u32(sign_u32x4, vorrq_u32(f32_exp_u32x4, f32_mant_u32x4));
-    uint32x4_t zero_mask_u32x4 = vceqq_u32(exp_u32x4, vdupq_n_u32(0));
-    f32_bits_u32x4 = vbicq_u32(f32_bits_u32x4, zero_mask_u32x4);
-    return vreinterpretq_f32_u32(f32_bits_u32x4);
-}
+    uint32x4_t normal_bits_u32x4 = vorrq_u32(sign_u32x4, vorrq_u32(f32_exp_u32x4, f32_mant_u32x4));
 
-/** @brief Partial load for E5M2 elements (up to 4) with expansion to f32x4 (NEON). */
-NK_INTERNAL float32x4_t nk_partial_load_e5m2x4_to_f32x4_neon_(nk_e5m2_t const *src, nk_size_t n) {
-    nk_u32_t buf = 0;
-    switch (n) {
-    default:
-    case 4: ((nk_u8_t *)&buf)[3] = src[3]; // fallthrough
-    case 3: ((nk_u8_t *)&buf)[2] = src[2]; // fallthrough
-    case 2: ((nk_u8_t *)&buf)[1] = src[1]; // fallthrough
-    case 1: ((nk_u8_t *)&buf)[0] = src[0]; // fallthrough
-    case 0: break;
-    }
-    uint8x8_t e5m2_u8x8 = vcreate_u8(buf);
-    uint16x8_t e5m2_u16x8 = vmovl_u8(e5m2_u8x8);
-    uint32x4_t v_u32x4 = vmovl_u16(vget_low_u16(e5m2_u16x8));
-    uint32x4_t sign_u32x4 = vshlq_n_u32(vshrq_n_u32(vandq_u32(v_u32x4, vdupq_n_u32(0x80)), 7), 31);
-    uint32x4_t exp_u32x4 = vandq_u32(vshrq_n_u32(v_u32x4, 2), vdupq_n_u32(0x1F));
-    uint32x4_t mant_u32x4 = vandq_u32(v_u32x4, vdupq_n_u32(0x03));
-    uint32x4_t f32_exp_u32x4 = vshlq_n_u32(vaddq_u32(exp_u32x4, vdupq_n_u32(112)), 23);
-    uint32x4_t f32_mant_u32x4 = vshlq_n_u32(mant_u32x4, 21);
-    uint32x4_t f32_bits_u32x4 = vorrq_u32(sign_u32x4, vorrq_u32(f32_exp_u32x4, f32_mant_u32x4));
-    uint32x4_t zero_mask_u32x4 = vceqq_u32(exp_u32x4, vdupq_n_u32(0));
-    f32_bits_u32x4 = vbicq_u32(f32_bits_u32x4, zero_mask_u32x4);
-    return vreinterpretq_f32_u32(f32_bits_u32x4);
-}
+    // Subnormal path: value = mantissa / 65536.0f, then apply sign
+    float32x4_t subnorm_abs_f32x4 = vmulq_f32(vcvtq_f32_u32(mant_u32x4), vdupq_n_f32(1.0f / 65536.0f));
+    float32x4_t subnorm_f32x4 = vreinterpretq_f32_u32(vorrq_u32(vreinterpretq_u32_f32(subnorm_abs_f32x4), sign_u32x4));
 
-/** @brief Convert 8 E4M3 values to f16x8 via bit manipulation (NEON).
- *  E4M3 format: S EEEE MMM (bias=7). F16: sign<<15, (exp+8)<<10, mant<<7. */
-NK_INTERNAL float16x8_t nk_e4m3x8_to_f16x8_neon_(uint8x8_t e4m3_u8x8) {
-    uint16x8_t v_u16x8 = vmovl_u8(e4m3_u8x8);
-    uint16x8_t sign_u16x8 = vshlq_n_u16(vshrq_n_u16(vandq_u16(v_u16x8, vdupq_n_u16(0x80)), 7), 15);
-    uint16x8_t exp_u16x8 = vandq_u16(vshrq_n_u16(v_u16x8, 3), vdupq_n_u16(0x0F));
-    uint16x8_t mant_u16x8 = vandq_u16(v_u16x8, vdupq_n_u16(0x07));
-    uint16x8_t f16_exp_u16x8 = vshlq_n_u16(vaddq_u16(exp_u16x8, vdupq_n_u16(8)), 10);
-    uint16x8_t f16_mant_u16x8 = vshlq_n_u16(mant_u16x8, 7);
-    uint16x8_t f16_bits_u16x8 = vorrq_u16(sign_u16x8, vorrq_u16(f16_exp_u16x8, f16_mant_u16x8));
-    uint16x8_t zero_mask_u16x8 = vceqq_u16(exp_u16x8, vdupq_n_u16(0));
-    f16_bits_u16x8 = vbicq_u16(f16_bits_u16x8, zero_mask_u16x8);
-    return vreinterpretq_f16_u16(f16_bits_u16x8);
-}
-
-/** @brief Convert 8 E5M2 values to f16x8 via bit manipulation (NEON).
- *  E5M2 format: S EEEEE MM (bias=15). F16: sign<<15, exp<<10, mant<<8. */
-NK_INTERNAL float16x8_t nk_e5m2x8_to_f16x8_neon_(uint8x8_t e5m2_u8x8) {
-    uint16x8_t v_u16x8 = vmovl_u8(e5m2_u8x8);
-    uint16x8_t sign_u16x8 = vshlq_n_u16(vshrq_n_u16(vandq_u16(v_u16x8, vdupq_n_u16(0x80)), 7), 15);
-    uint16x8_t exp_u16x8 = vandq_u16(vshrq_n_u16(v_u16x8, 2), vdupq_n_u16(0x1F));
-    uint16x8_t mant_u16x8 = vandq_u16(v_u16x8, vdupq_n_u16(0x03));
-    uint16x8_t f16_exp_u16x8 = vshlq_n_u16(exp_u16x8, 10);
-    uint16x8_t f16_mant_u16x8 = vshlq_n_u16(mant_u16x8, 8);
-    uint16x8_t f16_bits_u16x8 = vorrq_u16(sign_u16x8, vorrq_u16(f16_exp_u16x8, f16_mant_u16x8));
-    uint16x8_t zero_mask_u16x8 = vceqq_u16(exp_u16x8, vdupq_n_u16(0));
-    f16_bits_u16x8 = vbicq_u16(f16_bits_u16x8, zero_mask_u16x8);
-    return vreinterpretq_f16_u16(f16_bits_u16x8);
+    // Blend: if exp==0, use subnormal result; otherwise use normal bits
+    uint32x4_t exp_zero_mask = vceqq_u32(exp_u32x4, vdupq_n_u32(0));
+    return vbslq_f32(exp_zero_mask, subnorm_f32x4, vreinterpretq_f32_u32(normal_bits_u32x4));
 }
 
 /** @brief Convert f16x8 to 8 E4M3 values (NEON). */

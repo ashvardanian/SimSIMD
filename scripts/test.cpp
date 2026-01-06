@@ -3136,17 +3136,17 @@ void test_elementwise() {
     run_if_matches("sum_neon", "f32", test_sum_f32, nk_sum_f32_neon);
     run_if_matches("wsum_neon", "f32", test_wsum_f32, nk_wsum_f32_neon);
     run_if_matches("fma_neon", "f32", test_fma_f32, nk_fma_f32_neon);
+    run_if_matches("scale_neon", "e4m3", test_scale_e4m3, nk_scale_e4m3_neon);
+    run_if_matches("scale_neon", "e5m2", test_scale_e5m2, nk_scale_e5m2_neon);
+    run_if_matches("sum_neon", "e4m3", test_sum_e4m3, nk_sum_e4m3_neon);
+    run_if_matches("sum_neon", "e5m2", test_sum_e5m2, nk_sum_e5m2_neon);
+    run_if_matches("wsum_neon", "e4m3", test_wsum_e4m3, nk_wsum_e4m3_neon);
+    run_if_matches("wsum_neon", "e5m2", test_wsum_e5m2, nk_wsum_e5m2_neon);
+    run_if_matches("fma_neon", "e4m3", test_fma_e4m3, nk_fma_e4m3_neon);
+    run_if_matches("fma_neon", "e5m2", test_fma_e5m2, nk_fma_e5m2_neon);
 #endif // NK_TARGET_NEON
 
 #if NK_TARGET_NEONHALF
-    run_if_matches("scale_neonhalf", "e4m3", test_scale_e4m3, nk_scale_e4m3_neonhalf);
-    run_if_matches("scale_neonhalf", "e5m2", test_scale_e5m2, nk_scale_e5m2_neonhalf);
-    run_if_matches("sum_neonhalf", "e4m3", test_sum_e4m3, nk_sum_e4m3_neonhalf);
-    run_if_matches("sum_neonhalf", "e5m2", test_sum_e5m2, nk_sum_e5m2_neonhalf);
-    run_if_matches("wsum_neonhalf", "e4m3", test_wsum_e4m3, nk_wsum_e4m3_neonhalf);
-    run_if_matches("wsum_neonhalf", "e5m2", test_wsum_e5m2, nk_wsum_e5m2_neonhalf);
-    run_if_matches("fma_neonhalf", "e4m3", test_fma_e4m3, nk_fma_e4m3_neonhalf);
-    run_if_matches("fma_neonhalf", "e5m2", test_fma_e5m2, nk_fma_e5m2_neonhalf);
 #endif // NK_TARGET_NEONHALF
 
 #if NK_TARGET_HASWELL

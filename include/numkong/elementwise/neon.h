@@ -15,6 +15,7 @@
 #pragma clang attribute push(__attribute__((target("arch=armv8-a+simd"))), apply_to = function)
 
 #include "numkong/types.h"
+#include "numkong/reduce/neon.h"
 
 #if defined(__cplusplus)
 extern "C" {
@@ -608,6 +609,184 @@ NK_PUBLIC void nk_fma_f64_neon(                              //
 
     // The tail:
     for (; i < n; ++i) result[i] = alpha_val * a[i] * b[i] + beta_val * c[i];
+}
+
+NK_PUBLIC void nk_sum_e4m3_neon(nk_e4m3_t const *a, nk_e4m3_t const *b, nk_size_t n, nk_e4m3_t *result) {
+    nk_size_t i = 0;
+    for (; i + 4 <= n; i += 4) {
+        float32x4_t a_f32x4 = nk_e4m3x4_to_f32x4_neon_(a + i);
+        float32x4_t b_f32x4 = nk_e4m3x4_to_f32x4_neon_(b + i);
+        float32x4_t result_f32x4 = vaddq_f32(a_f32x4, b_f32x4);
+        nk_f32_t results[4];
+        vst1q_f32(results, result_f32x4);
+        for (int j = 0; j < 4; ++j) nk_f32_to_e4m3_(&results[j], result + i + j);
+    }
+    for (; i < n; ++i) {
+        nk_f32_t ai, bi, sum;
+        nk_e4m3_to_f32_(a + i, &ai);
+        nk_e4m3_to_f32_(b + i, &bi);
+        sum = ai + bi;
+        nk_f32_to_e4m3_(&sum, result + i);
+    }
+}
+
+NK_PUBLIC void nk_sum_e5m2_neon(nk_e5m2_t const *a, nk_e5m2_t const *b, nk_size_t n, nk_e5m2_t *result) {
+    nk_size_t i = 0;
+    for (; i + 4 <= n; i += 4) {
+        float32x4_t a_f32x4 = nk_e5m2x4_to_f32x4_neon_(a + i);
+        float32x4_t b_f32x4 = nk_e5m2x4_to_f32x4_neon_(b + i);
+        float32x4_t result_f32x4 = vaddq_f32(a_f32x4, b_f32x4);
+        nk_f32_t results[4];
+        vst1q_f32(results, result_f32x4);
+        for (int j = 0; j < 4; ++j) nk_f32_to_e5m2_(&results[j], result + i + j);
+    }
+    for (; i < n; ++i) {
+        nk_f32_t ai, bi, sum;
+        nk_e5m2_to_f32_(a + i, &ai);
+        nk_e5m2_to_f32_(b + i, &bi);
+        sum = ai + bi;
+        nk_f32_to_e5m2_(&sum, result + i);
+    }
+}
+
+NK_PUBLIC void nk_scale_e4m3_neon(nk_e4m3_t const *a, nk_size_t n, nk_f32_t const *alpha, nk_f32_t const *beta,
+                                  nk_e4m3_t *result) {
+    float32x4_t alpha_f32x4 = vdupq_n_f32(*alpha);
+    float32x4_t beta_f32x4 = vdupq_n_f32(*beta);
+    nk_size_t i = 0;
+    for (; i + 4 <= n; i += 4) {
+        float32x4_t a_f32x4 = nk_e4m3x4_to_f32x4_neon_(a + i);
+        float32x4_t result_f32x4 = vfmaq_f32(beta_f32x4, a_f32x4, alpha_f32x4);
+        nk_f32_t results[4];
+        vst1q_f32(results, result_f32x4);
+        for (int j = 0; j < 4; ++j) nk_f32_to_e4m3_(&results[j], result + i + j);
+    }
+    for (; i < n; ++i) {
+        nk_f32_t ai, scaled;
+        nk_e4m3_to_f32_(a + i, &ai);
+        scaled = *alpha * ai + *beta;
+        nk_f32_to_e4m3_(&scaled, result + i);
+    }
+}
+
+NK_PUBLIC void nk_scale_e5m2_neon(nk_e5m2_t const *a, nk_size_t n, nk_f32_t const *alpha, nk_f32_t const *beta,
+                                  nk_e5m2_t *result) {
+    float32x4_t alpha_f32x4 = vdupq_n_f32(*alpha);
+    float32x4_t beta_f32x4 = vdupq_n_f32(*beta);
+    nk_size_t i = 0;
+    for (; i + 4 <= n; i += 4) {
+        float32x4_t a_f32x4 = nk_e5m2x4_to_f32x4_neon_(a + i);
+        float32x4_t result_f32x4 = vfmaq_f32(beta_f32x4, a_f32x4, alpha_f32x4);
+        nk_f32_t results[4];
+        vst1q_f32(results, result_f32x4);
+        for (int j = 0; j < 4; ++j) nk_f32_to_e5m2_(&results[j], result + i + j);
+    }
+    for (; i < n; ++i) {
+        nk_f32_t ai, scaled;
+        nk_e5m2_to_f32_(a + i, &ai);
+        scaled = *alpha * ai + *beta;
+        nk_f32_to_e5m2_(&scaled, result + i);
+    }
+}
+
+NK_PUBLIC void nk_wsum_e4m3_neon(nk_e4m3_t const *a, nk_e4m3_t const *b, nk_size_t n, nk_f32_t const *alpha,
+                                 nk_f32_t const *beta, nk_e4m3_t *result) {
+    float32x4_t alpha_f32x4 = vdupq_n_f32(*alpha);
+    float32x4_t beta_f32x4 = vdupq_n_f32(*beta);
+    nk_size_t i = 0;
+    for (; i + 4 <= n; i += 4) {
+        float32x4_t a_f32x4 = nk_e4m3x4_to_f32x4_neon_(a + i);
+        float32x4_t b_f32x4 = nk_e4m3x4_to_f32x4_neon_(b + i);
+        float32x4_t a_scaled_f32x4 = vmulq_f32(a_f32x4, alpha_f32x4);
+        float32x4_t b_scaled_f32x4 = vmulq_f32(b_f32x4, beta_f32x4);
+        float32x4_t result_f32x4 = vaddq_f32(a_scaled_f32x4, b_scaled_f32x4);
+        nk_f32_t results[4];
+        vst1q_f32(results, result_f32x4);
+        for (int j = 0; j < 4; ++j) nk_f32_to_e4m3_(&results[j], result + i + j);
+    }
+    for (; i < n; ++i) {
+        nk_f32_t ai, bi, wsum;
+        nk_e4m3_to_f32_(a + i, &ai);
+        nk_e4m3_to_f32_(b + i, &bi);
+        wsum = *alpha * ai + *beta * bi;
+        nk_f32_to_e4m3_(&wsum, result + i);
+    }
+}
+
+NK_PUBLIC void nk_wsum_e5m2_neon(nk_e5m2_t const *a, nk_e5m2_t const *b, nk_size_t n, nk_f32_t const *alpha,
+                                 nk_f32_t const *beta, nk_e5m2_t *result) {
+    float32x4_t alpha_f32x4 = vdupq_n_f32(*alpha);
+    float32x4_t beta_f32x4 = vdupq_n_f32(*beta);
+    nk_size_t i = 0;
+    for (; i + 4 <= n; i += 4) {
+        float32x4_t a_f32x4 = nk_e5m2x4_to_f32x4_neon_(a + i);
+        float32x4_t b_f32x4 = nk_e5m2x4_to_f32x4_neon_(b + i);
+        float32x4_t a_scaled_f32x4 = vmulq_f32(a_f32x4, alpha_f32x4);
+        float32x4_t b_scaled_f32x4 = vmulq_f32(b_f32x4, beta_f32x4);
+        float32x4_t result_f32x4 = vaddq_f32(a_scaled_f32x4, b_scaled_f32x4);
+        nk_f32_t results[4];
+        vst1q_f32(results, result_f32x4);
+        for (int j = 0; j < 4; ++j) nk_f32_to_e5m2_(&results[j], result + i + j);
+    }
+    for (; i < n; ++i) {
+        nk_f32_t ai, bi, wsum;
+        nk_e5m2_to_f32_(a + i, &ai);
+        nk_e5m2_to_f32_(b + i, &bi);
+        wsum = *alpha * ai + *beta * bi;
+        nk_f32_to_e5m2_(&wsum, result + i);
+    }
+}
+
+NK_PUBLIC void nk_fma_e4m3_neon(nk_e4m3_t const *a, nk_e4m3_t const *b, nk_e4m3_t const *c, nk_size_t n,
+                                nk_f32_t const *alpha, nk_f32_t const *beta, nk_e4m3_t *result) {
+    float32x4_t alpha_f32x4 = vdupq_n_f32(*alpha);
+    float32x4_t beta_f32x4 = vdupq_n_f32(*beta);
+    nk_size_t i = 0;
+    for (; i + 4 <= n; i += 4) {
+        float32x4_t a_f32x4 = nk_e4m3x4_to_f32x4_neon_(a + i);
+        float32x4_t b_f32x4 = nk_e4m3x4_to_f32x4_neon_(b + i);
+        float32x4_t c_f32x4 = nk_e4m3x4_to_f32x4_neon_(c + i);
+        float32x4_t ab_f32x4 = vmulq_f32(a_f32x4, b_f32x4);
+        float32x4_t ab_scaled_f32x4 = vmulq_f32(ab_f32x4, alpha_f32x4);
+        float32x4_t result_f32x4 = vfmaq_f32(ab_scaled_f32x4, c_f32x4, beta_f32x4);
+        nk_f32_t results[4];
+        vst1q_f32(results, result_f32x4);
+        for (int j = 0; j < 4; ++j) nk_f32_to_e4m3_(&results[j], result + i + j);
+    }
+    for (; i < n; ++i) {
+        nk_f32_t ai, bi, ci, fma;
+        nk_e4m3_to_f32_(a + i, &ai);
+        nk_e4m3_to_f32_(b + i, &bi);
+        nk_e4m3_to_f32_(c + i, &ci);
+        fma = *alpha * ai * bi + *beta * ci;
+        nk_f32_to_e4m3_(&fma, result + i);
+    }
+}
+
+NK_PUBLIC void nk_fma_e5m2_neon(nk_e5m2_t const *a, nk_e5m2_t const *b, nk_e5m2_t const *c, nk_size_t n,
+                                nk_f32_t const *alpha, nk_f32_t const *beta, nk_e5m2_t *result) {
+    float32x4_t alpha_f32x4 = vdupq_n_f32(*alpha);
+    float32x4_t beta_f32x4 = vdupq_n_f32(*beta);
+    nk_size_t i = 0;
+    for (; i + 4 <= n; i += 4) {
+        float32x4_t a_f32x4 = nk_e5m2x4_to_f32x4_neon_(a + i);
+        float32x4_t b_f32x4 = nk_e5m2x4_to_f32x4_neon_(b + i);
+        float32x4_t c_f32x4 = nk_e5m2x4_to_f32x4_neon_(c + i);
+        float32x4_t ab_f32x4 = vmulq_f32(a_f32x4, b_f32x4);
+        float32x4_t ab_scaled_f32x4 = vmulq_f32(ab_f32x4, alpha_f32x4);
+        float32x4_t result_f32x4 = vfmaq_f32(ab_scaled_f32x4, c_f32x4, beta_f32x4);
+        nk_f32_t results[4];
+        vst1q_f32(results, result_f32x4);
+        for (int j = 0; j < 4; ++j) nk_f32_to_e5m2_(&results[j], result + i + j);
+    }
+    for (; i < n; ++i) {
+        nk_f32_t ai, bi, ci, fma;
+        nk_e5m2_to_f32_(a + i, &ai);
+        nk_e5m2_to_f32_(b + i, &bi);
+        nk_e5m2_to_f32_(c + i, &ci);
+        fma = *alpha * ai * bi + *beta * ci;
+        nk_f32_to_e5m2_(&fma, result + i);
+    }
 }
 
 #if defined(__cplusplus)

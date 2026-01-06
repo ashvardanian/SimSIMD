@@ -785,22 +785,22 @@ NK_DYNAMIC nk_capability_t nk_capabilities(void) {
     // Matrix multiplications (dots)
     nk_dots_f32f32f32_packed_size(0, 0);
     nk_dots_f64f64f64_packed_size(0, 0);
-    nk_dots_f16f32f32_packed_size(0, 0);
-    nk_dots_bf16f32f32_packed_size(0, 0);
-    nk_dots_i8i32i32_packed_size(0, 0);
-    nk_dots_u8u32u32_packed_size(0, 0);
+    nk_dots_f16f16f32_packed_size(0, 0);
+    nk_dots_bf16bf16f32_packed_size(0, 0);
+    nk_dots_i8i8i32_packed_size(0, 0);
+    nk_dots_u8u8u32_packed_size(0, 0);
     nk_dots_f32f32f32_pack((nk_f32_t *)x, 0, 0, 0, x);
     nk_dots_f64f64f64_pack((nk_f64_t *)x, 0, 0, 0, x);
-    nk_dots_f16f32f32_pack((nk_f16_t *)x, 0, 0, 0, x);
-    nk_dots_bf16f32f32_pack((nk_bf16_t *)x, 0, 0, 0, x);
-    nk_dots_i8i32i32_pack((nk_i8_t *)x, 0, 0, 0, x);
-    nk_dots_u8u32u32_pack((nk_u8_t *)x, 0, 0, 0, x);
+    nk_dots_f16f16f32_pack((nk_f16_t *)x, 0, 0, 0, x);
+    nk_dots_bf16bf16f32_pack((nk_bf16_t *)x, 0, 0, 0, x);
+    nk_dots_i8i8i32_pack((nk_i8_t *)x, 0, 0, 0, x);
+    nk_dots_u8u8u32_pack((nk_u8_t *)x, 0, 0, 0, x);
     nk_dots_f32f32f32((nk_f32_t *)x, x, (nk_f32_t *)x, 0, 0, 0, 0, 0);
     nk_dots_f64f64f64((nk_f64_t *)x, x, (nk_f64_t *)x, 0, 0, 0, 0, 0);
-    nk_dots_f16f32f32((nk_f16_t *)x, x, (nk_f32_t *)x, 0, 0, 0, 0, 0);
-    nk_dots_bf16f32f32((nk_bf16_t *)x, x, (nk_f32_t *)x, 0, 0, 0, 0, 0);
-    nk_dots_i8i32i32((nk_i8_t *)x, x, (nk_i32_t *)x, 0, 0, 0, 0, 0);
-    nk_dots_u8u32u32((nk_u8_t *)x, x, (nk_u32_t *)x, 0, 0, 0, 0, 0);
+    nk_dots_f16f16f32((nk_f16_t *)x, x, (nk_f32_t *)x, 0, 0, 0, 0, 0);
+    nk_dots_bf16bf16f32((nk_bf16_t *)x, x, (nk_f32_t *)x, 0, 0, 0, 0, 0);
+    nk_dots_i8i8i32((nk_i8_t *)x, x, (nk_i32_t *)x, 0, 0, 0, 0, 0);
+    nk_dots_u8u8u32((nk_u8_t *)x, x, (nk_u32_t *)x, 0, 0, 0, 0, 0);
 
     return static_capabilities;
 }
