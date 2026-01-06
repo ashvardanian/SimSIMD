@@ -1109,19 +1109,43 @@ void dot_f64_blas(nk_f64_t const *a, nk_f64_t const *b, nk_size_t n, nk_f64_t *r
 }
 
 void dot_f32c_blas(nk_f32c_t const *a, nk_f32c_t const *b, nk_size_t n, nk_f32c_t *result) {
+#if NK_COMPARE_TO_ACCELERATE
+    cblas_cdotu_sub(static_cast<int>(n), reinterpret_cast<__LAPACK_float_complex const *>(a), 1,
+                    reinterpret_cast<__LAPACK_float_complex const *>(b), 1,
+                    reinterpret_cast<__LAPACK_float_complex *>(result));
+#else
     cblas_cdotu_sub(static_cast<int>(n), a, 1, b, 1, result);
+#endif
 }
 
 void vdot_f32c_blas(nk_f32c_t const *a, nk_f32c_t const *b, nk_size_t n, nk_f32c_t *result) {
+#if NK_COMPARE_TO_ACCELERATE
+    cblas_cdotc_sub(static_cast<int>(n), reinterpret_cast<__LAPACK_float_complex const *>(a), 1,
+                    reinterpret_cast<__LAPACK_float_complex const *>(b), 1,
+                    reinterpret_cast<__LAPACK_float_complex *>(result)); // conjugated
+#else
     cblas_cdotc_sub(static_cast<int>(n), a, 1, b, 1, result); // conjugated
+#endif
 }
 
 void dot_f64c_blas(nk_f64c_t const *a, nk_f64c_t const *b, nk_size_t n, nk_f64c_t *result) {
+#if NK_COMPARE_TO_ACCELERATE
+    cblas_zdotu_sub(static_cast<int>(n), reinterpret_cast<__LAPACK_double_complex const *>(a), 1,
+                    reinterpret_cast<__LAPACK_double_complex const *>(b), 1,
+                    reinterpret_cast<__LAPACK_double_complex *>(result));
+#else
     cblas_zdotu_sub(static_cast<int>(n), a, 1, b, 1, result);
+#endif
 }
 
 void vdot_f64c_blas(nk_f64c_t const *a, nk_f64c_t const *b, nk_size_t n, nk_f64c_t *result) {
+#if NK_COMPARE_TO_ACCELERATE
+    cblas_zdotc_sub(static_cast<int>(n), reinterpret_cast<__LAPACK_double_complex const *>(a), 1,
+                    reinterpret_cast<__LAPACK_double_complex const *>(b), 1,
+                    reinterpret_cast<__LAPACK_double_complex *>(result)); // conjugated
+#else
     cblas_zdotc_sub(static_cast<int>(n), a, 1, b, 1, result); // conjugated
+#endif
 }
 
 void dots_f32_blas(nk_f32_t const *a, nk_f32_t const *b, nk_f32_t *c, nk_size_t m, nk_size_t n, nk_size_t k,
