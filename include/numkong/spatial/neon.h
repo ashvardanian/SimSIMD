@@ -58,12 +58,13 @@ NK_INTERNAL nk_f64_t nk_angular_normalize_f64_neon_(nk_f64_t ab, nk_f64_t a2, nk
     // One or two rounds of Newton-Raphson refinement are recommended to improve the accuracy.
     // https://github.com/lighttransport/embree-aarch64/issues/24
     // https://github.com/lighttransport/embree-aarch64/blob/3f75f8cb4e553d13dced941b5fefd4c826835a6b/common/math/math.h#L137-L145
-    float64x2_t rsqrts = vrsqrteq_f64(squares);
-    // Perform two rounds of Newton-Raphson refinement:
+    float64x2_t rsqrts_f64x2 = vrsqrteq_f64(squares);
+    // Perform three rounds of Newton-Raphson refinement for f64 precision (~48 bits):
     // https://en.wikipedia.org/wiki/Newton%27s_method
-    rsqrts = vmulq_f64(rsqrts, vrsqrtsq_f64(vmulq_f64(squares, rsqrts), rsqrts));
-    rsqrts = vmulq_f64(rsqrts, vrsqrtsq_f64(vmulq_f64(squares, rsqrts), rsqrts));
-    vst1q_f64(squares_arr, rsqrts);
+    rsqrts_f64x2 = vmulq_f64(rsqrts_f64x2, vrsqrtsq_f64(vmulq_f64(squares, rsqrts_f64x2), rsqrts_f64x2));
+    rsqrts_f64x2 = vmulq_f64(rsqrts_f64x2, vrsqrtsq_f64(vmulq_f64(squares, rsqrts_f64x2), rsqrts_f64x2));
+    rsqrts_f64x2 = vmulq_f64(rsqrts_f64x2, vrsqrtsq_f64(vmulq_f64(squares, rsqrts_f64x2), rsqrts_f64x2));
+    vst1q_f64(squares_arr, rsqrts_f64x2);
     nk_f64_t result = 1 - ab * squares_arr[0] * squares_arr[1];
     return result > 0 ? result : 0;
 }
