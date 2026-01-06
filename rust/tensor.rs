@@ -1972,11 +1972,17 @@ where
         let a_stride = self.stride(0);
         let c_stride = c.stride(0);
 
+        // Get actual thread count from pool
+        let num_threads = pool.threads().max(1);
+        let rows_per_thread = (m + num_threads - 1) / num_threads;
+
         // Distribute rows across threads using fork_union
         // Safety: Each thread writes to disjoint rows of C, so no data races.
-        pool.for_threads(move |thread_idx, num_threads| {
-            let num_threads = num_threads.max(1);
-            let rows_per_thread = (m + num_threads - 1) / num_threads;
+        pool.for_threads(move |thread_idx, _colocation_idx| {
+            // Configure each worker thread for optimal SIMD (including AMX)
+            // This is idempotent and safe to call multiple times
+            crate::capabilities::configure_thread();
+
             let row_start = thread_idx * rows_per_thread;
             let row_end = (row_start + rows_per_thread).min(m);
 

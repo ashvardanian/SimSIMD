@@ -677,9 +677,9 @@ NK_DYNAMIC nk_capability_t nk_capabilities(void) {
 
     // Passing `NULL` as `x` will trigger all kinds of `nonull` warnings on GCC.
     // Same applies to alpha/beta scalars in FMA/WSUM functions.
-    typedef double largest_scalar_t;
-    largest_scalar_t dummy_input[1];
-    void *x = &dummy_input[0];
+    nk_scalar_buffer_t dummy_input;
+    nk_dots_packed_buffer_header_t dummy_tensor_header;
+    void *x = &dummy_input;
     nk_f64_t dummy_alpha = 1, dummy_beta = 1;
     nk_size_t dummy_index;
 
@@ -921,14 +921,14 @@ NK_DYNAMIC nk_capability_t nk_capabilities(void) {
     nk_dots_pack_u8((nk_u8_t *)x, 0, 0, 0, x);
     nk_dots_pack_e4m3((nk_e4m3_t *)x, 0, 0, 0, x);
     nk_dots_pack_e5m2((nk_e5m2_t *)x, 0, 0, 0, x);
-    nk_dots_packed_f32((nk_f32_t *)x, x, (nk_f32_t *)x, 0, 0, 0, 0, 0);
-    nk_dots_packed_f64((nk_f64_t *)x, x, (nk_f64_t *)x, 0, 0, 0, 0, 0);
-    nk_dots_packed_f16((nk_f16_t *)x, x, (nk_f32_t *)x, 0, 0, 0, 0, 0);
-    nk_dots_packed_bf16((nk_bf16_t *)x, x, (nk_f32_t *)x, 0, 0, 0, 0, 0);
-    nk_dots_packed_i8((nk_i8_t *)x, x, (nk_i32_t *)x, 0, 0, 0, 0, 0);
-    nk_dots_packed_u8((nk_u8_t *)x, x, (nk_u32_t *)x, 0, 0, 0, 0, 0);
-    nk_dots_packed_e4m3((nk_e4m3_t *)x, x, (nk_f32_t *)x, 0, 0, 0, 0, 0);
-    nk_dots_packed_e5m2((nk_e5m2_t *)x, x, (nk_f32_t *)x, 0, 0, 0, 0, 0);
+    nk_dots_packed_f32((nk_f32_t *)x, (void *)&dummy_tensor_header, (nk_f32_t *)x, 0, 0, 0, 0, 0);
+    nk_dots_packed_f64((nk_f64_t *)x, (void *)&dummy_tensor_header, (nk_f64_t *)x, 0, 0, 0, 0, 0);
+    nk_dots_packed_f16((nk_f16_t *)x, (void *)&dummy_tensor_header, (nk_f32_t *)x, 0, 0, 0, 0, 0);
+    nk_dots_packed_bf16((nk_bf16_t *)x, (void *)&dummy_tensor_header, (nk_f32_t *)x, 0, 0, 0, 0, 0);
+    nk_dots_packed_i8((nk_i8_t *)x, (void *)&dummy_tensor_header, (nk_i32_t *)x, 0, 0, 0, 0, 0);
+    nk_dots_packed_u8((nk_u8_t *)x, (void *)&dummy_tensor_header, (nk_u32_t *)x, 0, 0, 0, 0, 0);
+    nk_dots_packed_e4m3((nk_e4m3_t *)x, (void *)&dummy_tensor_header, (nk_f32_t *)x, 0, 0, 0, 0, 0);
+    nk_dots_packed_e5m2((nk_e5m2_t *)x, (void *)&dummy_tensor_header, (nk_f32_t *)x, 0, 0, 0, 0, 0);
 
     return static_capabilities;
 }

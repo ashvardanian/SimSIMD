@@ -538,9 +538,12 @@ pub mod capabilities {
         unsafe { super::nk_uses_xuantie() != 0 }
     }
 
-    /// Flushes denormalized numbers to zero on the current CPU.
+    /// Configures the current thread for optimal SIMD performance.
+    /// This includes flushing denormalized numbers to zero and enabling AMX on supported CPUs.
+    /// Must be called once per thread before using AMX (Advanced Matrix Extensions) operations.
     pub fn configure_thread() -> bool {
-        unsafe { super::nk_configure_thread(0) != 0 }
+        // Pass !0 to enable all capabilities including AMX
+        unsafe { super::nk_configure_thread(!0) != 0 }
     }
 
     /// Returns `true` if the library uses dynamic dispatch for function selection.

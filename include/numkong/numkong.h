@@ -1701,6 +1701,16 @@ NK_INTERNAL void nk_find_kernel_punned_bf16_(nk_capability_t v, nk_kernel_kind_t
         default: break;
         }
 #endif
+#if NK_TARGET_SAPPHIRE_AMX
+    if (v & nk_cap_sapphire_amx_k) switch (k) {
+        case nk_kernel_dots_packed_size_k:
+            *m = (m_t)&nk_dots_packed_size_bf16_sapphire_amx, *c = nk_cap_sapphire_amx_k;
+            return;
+        case nk_kernel_dots_pack_k: *m = (m_t)&nk_dots_pack_bf16_sapphire_amx, *c = nk_cap_sapphire_amx_k; return;
+        case nk_kernel_dots_k: *m = (m_t)&nk_dots_packed_bf16_sapphire_amx, *c = nk_cap_sapphire_amx_k; return;
+        default: break;
+        }
+#endif
 #if NK_TARGET_SVE2 && NK_TARGET_SVEBFDOT
     if (v & nk_cap_sve2_k) switch (k) {
         case nk_kernel_sparse_dot_k: *m = (m_t)&nk_sparse_dot_u16bf16_sve2, *c = nk_cap_sve2_k; return;
@@ -1822,6 +1832,16 @@ NK_INTERNAL void nk_find_kernel_punned_i8_(nk_capability_t v, nk_kernel_kind_t k
         default: break;
         }
 #endif
+#if NK_TARGET_SAPPHIRE_AMX
+    if (v & nk_cap_sapphire_amx_k) switch (k) {
+        case nk_kernel_dots_packed_size_k:
+            *m = (m_t)&nk_dots_packed_size_i8_sapphire_amx, *c = nk_cap_sapphire_amx_k;
+            return;
+        case nk_kernel_dots_pack_k: *m = (m_t)&nk_dots_pack_i8_sapphire_amx, *c = nk_cap_sapphire_amx_k; return;
+        case nk_kernel_dots_k: *m = (m_t)&nk_dots_packed_i8_sapphire_amx, *c = nk_cap_sapphire_amx_k; return;
+        default: break;
+        }
+#endif
 #if NK_TARGET_NEONSDOT
     if (v & nk_cap_neonsdot_k) switch (k) {
         case nk_kernel_dot_k: *m = (m_t)&nk_dot_i8_neonsdot, *c = nk_cap_neonsdot_k; return;
@@ -1936,6 +1956,16 @@ NK_INTERNAL void nk_find_kernel_punned_u8_(nk_capability_t v, nk_kernel_kind_t k
         case nk_kernel_angular_k: *m = (m_t)&nk_angular_u8_spacemit, *c = nk_cap_spacemit_k; return;
         case nk_kernel_l2sq_k: *m = (m_t)&nk_l2sq_u8_spacemit, *c = nk_cap_spacemit_k; return;
         case nk_kernel_l2_k: *m = (m_t)&nk_l2_u8_spacemit, *c = nk_cap_spacemit_k; return;
+        default: break;
+        }
+#endif
+#if NK_TARGET_SAPPHIRE_AMX
+    if (v & nk_cap_sapphire_amx_k) switch (k) {
+        case nk_kernel_dots_packed_size_k:
+            *m = (m_t)&nk_dots_packed_size_u8_sapphire_amx, *c = nk_cap_sapphire_amx_k;
+            return;
+        case nk_kernel_dots_pack_k: *m = (m_t)&nk_dots_pack_u8_sapphire_amx, *c = nk_cap_sapphire_amx_k; return;
+        case nk_kernel_dots_k: *m = (m_t)&nk_dots_packed_u8_sapphire_amx, *c = nk_cap_sapphire_amx_k; return;
         default: break;
         }
 #endif
