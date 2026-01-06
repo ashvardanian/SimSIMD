@@ -732,9 +732,6 @@ NK_PUBLIC void nk_scale_f64_skylake(nk_f64_t const *a, nk_size_t n, nk_f64_t con
 /** @copydoc nk_scale_f32 */
 NK_PUBLIC void nk_scale_f32_skylake(nk_f32_t const *a, nk_size_t n, nk_f32_t const *alpha, nk_f32_t const *beta,
                                     nk_f32_t *result);
-/** @copydoc nk_scale_f16 */
-NK_PUBLIC void nk_scale_f16_skylake(nk_f16_t const *a, nk_size_t n, nk_f32_t const *alpha, nk_f32_t const *beta,
-                                    nk_f16_t *result);
 /** @copydoc nk_scale_bf16 */
 NK_PUBLIC void nk_scale_bf16_skylake(nk_bf16_t const *a, nk_size_t n, nk_f32_t const *alpha, nk_f32_t const *beta,
                                      nk_bf16_t *result);
@@ -786,9 +783,6 @@ NK_PUBLIC void nk_fma_f64_skylake(nk_f64_t const *a, nk_f64_t const *b, nk_f64_t
 /** @copydoc nk_fma_f32 */
 NK_PUBLIC void nk_fma_f32_skylake(nk_f32_t const *a, nk_f32_t const *b, nk_f32_t const *c, nk_size_t n,
                                   nk_f32_t const *alpha, nk_f32_t const *beta, nk_f32_t *result);
-/** @copydoc nk_fma_f16 */
-NK_PUBLIC void nk_fma_f16_skylake(nk_f16_t const *a, nk_f16_t const *b, nk_f16_t const *c, nk_size_t n,
-                                  nk_f32_t const *alpha, nk_f32_t const *beta, nk_f16_t *result);
 /** @copydoc nk_fma_bf16 */
 NK_PUBLIC void nk_fma_bf16_skylake(nk_bf16_t const *a, nk_bf16_t const *b, nk_bf16_t const *c, nk_size_t n,
                                    nk_f32_t const *alpha, nk_f32_t const *beta, nk_bf16_t *result);
@@ -816,6 +810,28 @@ NK_PUBLIC void nk_fma_i64_skylake(nk_i64_t const *a, nk_i64_t const *b, nk_i64_t
 /** @copydoc nk_fma_u64 */
 NK_PUBLIC void nk_fma_u64_skylake(nk_u64_t const *a, nk_u64_t const *b, nk_u64_t const *c, nk_size_t n,
                                   nk_f64_t const *alpha, nk_f64_t const *beta, nk_u64_t *result);
+/** @copydoc nk_sum_e4m3 */
+NK_PUBLIC void nk_sum_e4m3_skylake(nk_e4m3_t const *a, nk_e4m3_t const *b, nk_size_t n, nk_e4m3_t *result);
+/** @copydoc nk_sum_e5m2 */
+NK_PUBLIC void nk_sum_e5m2_skylake(nk_e5m2_t const *a, nk_e5m2_t const *b, nk_size_t n, nk_e5m2_t *result);
+/** @copydoc nk_scale_e4m3 */
+NK_PUBLIC void nk_scale_e4m3_skylake(nk_e4m3_t const *a, nk_size_t n, nk_f32_t const *alpha, nk_f32_t const *beta,
+                                     nk_e4m3_t *result);
+/** @copydoc nk_scale_e5m2 */
+NK_PUBLIC void nk_scale_e5m2_skylake(nk_e5m2_t const *a, nk_size_t n, nk_f32_t const *alpha, nk_f32_t const *beta,
+                                     nk_e5m2_t *result);
+/** @copydoc nk_wsum_e4m3 */
+NK_PUBLIC void nk_wsum_e4m3_skylake(nk_e4m3_t const *a, nk_e4m3_t const *b, nk_size_t n, nk_f32_t const *alpha,
+                                    nk_f32_t const *beta, nk_e4m3_t *result);
+/** @copydoc nk_wsum_e5m2 */
+NK_PUBLIC void nk_wsum_e5m2_skylake(nk_e5m2_t const *a, nk_e5m2_t const *b, nk_size_t n, nk_f32_t const *alpha,
+                                    nk_f32_t const *beta, nk_e5m2_t *result);
+/** @copydoc nk_fma_e4m3 */
+NK_PUBLIC void nk_fma_e4m3_skylake(nk_e4m3_t const *a, nk_e4m3_t const *b, nk_e4m3_t const *c, nk_size_t n,
+                                   nk_f32_t const *alpha, nk_f32_t const *beta, nk_e4m3_t *result);
+/** @copydoc nk_fma_e5m2 */
+NK_PUBLIC void nk_fma_e5m2_skylake(nk_e5m2_t const *a, nk_e5m2_t const *b, nk_e5m2_t const *c, nk_size_t n,
+                                   nk_f32_t const *alpha, nk_f32_t const *beta, nk_e5m2_t *result);
 #endif // NK_TARGET_SKYLAKE
 
 #if NK_TARGET_ICE
@@ -850,6 +866,8 @@ NK_PUBLIC void nk_scale_u8_sapphire(nk_u8_t const *a, nk_size_t n, nk_f32_t cons
 
 /** @copydoc nk_sum_f16 */
 NK_PUBLIC void nk_sum_f16_sapphire(nk_f16_t const *a, nk_f16_t const *b, nk_size_t n, nk_f16_t *result);
+/** @copydoc nk_sum_e4m3 */
+NK_PUBLIC void nk_sum_e4m3_sapphire(nk_e4m3_t const *a, nk_e4m3_t const *b, nk_size_t n, nk_e4m3_t *result);
 
 /** @copydoc nk_wsum_f16 */
 NK_PUBLIC void nk_wsum_f16_sapphire(nk_f16_t const *a, nk_f16_t const *b, nk_size_t n, nk_f32_t const *alpha,
@@ -1430,7 +1448,11 @@ NK_PUBLIC void nk_fma_u64(nk_u64_t const *a, nk_u64_t const *b, nk_u64_t const *
 }
 
 NK_PUBLIC void nk_sum_e4m3(nk_e4m3_t const *a, nk_e4m3_t const *b, nk_size_t n, nk_e4m3_t *result) {
-#if NK_TARGET_HASWELL
+#if NK_TARGET_SAPPHIRE
+    nk_sum_e4m3_sapphire(a, b, n, result);
+#elif NK_TARGET_SKYLAKE
+    nk_sum_e4m3_skylake(a, b, n, result);
+#elif NK_TARGET_HASWELL
     nk_sum_e4m3_haswell(a, b, n, result);
 #elif NK_TARGET_NEON
     nk_sum_e4m3_neon(a, b, n, result);
@@ -1440,7 +1462,9 @@ NK_PUBLIC void nk_sum_e4m3(nk_e4m3_t const *a, nk_e4m3_t const *b, nk_size_t n, 
 }
 
 NK_PUBLIC void nk_sum_e5m2(nk_e5m2_t const *a, nk_e5m2_t const *b, nk_size_t n, nk_e5m2_t *result) {
-#if NK_TARGET_HASWELL
+#if NK_TARGET_SKYLAKE
+    nk_sum_e5m2_skylake(a, b, n, result);
+#elif NK_TARGET_HASWELL
     nk_sum_e5m2_haswell(a, b, n, result);
 #elif NK_TARGET_NEON
     nk_sum_e5m2_neon(a, b, n, result);
@@ -1451,7 +1475,9 @@ NK_PUBLIC void nk_sum_e5m2(nk_e5m2_t const *a, nk_e5m2_t const *b, nk_size_t n, 
 
 NK_PUBLIC void nk_scale_e4m3(nk_e4m3_t const *a, nk_size_t n, nk_f32_t const *alpha, nk_f32_t const *beta,
                              nk_e4m3_t *result) {
-#if NK_TARGET_HASWELL
+#if NK_TARGET_SKYLAKE
+    nk_scale_e4m3_skylake(a, n, alpha, beta, result);
+#elif NK_TARGET_HASWELL
     nk_scale_e4m3_haswell(a, n, alpha, beta, result);
 #elif NK_TARGET_NEON
     nk_scale_e4m3_neon(a, n, alpha, beta, result);
@@ -1462,7 +1488,9 @@ NK_PUBLIC void nk_scale_e4m3(nk_e4m3_t const *a, nk_size_t n, nk_f32_t const *al
 
 NK_PUBLIC void nk_scale_e5m2(nk_e5m2_t const *a, nk_size_t n, nk_f32_t const *alpha, nk_f32_t const *beta,
                              nk_e5m2_t *result) {
-#if NK_TARGET_HASWELL
+#if NK_TARGET_SKYLAKE
+    nk_scale_e5m2_skylake(a, n, alpha, beta, result);
+#elif NK_TARGET_HASWELL
     nk_scale_e5m2_haswell(a, n, alpha, beta, result);
 #elif NK_TARGET_NEON
     nk_scale_e5m2_neon(a, n, alpha, beta, result);
@@ -1473,7 +1501,9 @@ NK_PUBLIC void nk_scale_e5m2(nk_e5m2_t const *a, nk_size_t n, nk_f32_t const *al
 
 NK_PUBLIC void nk_wsum_e4m3(nk_e4m3_t const *a, nk_e4m3_t const *b, nk_size_t n, nk_f32_t const *alpha,
                             nk_f32_t const *beta, nk_e4m3_t *result) {
-#if NK_TARGET_HASWELL
+#if NK_TARGET_SKYLAKE
+    nk_wsum_e4m3_skylake(a, b, n, alpha, beta, result);
+#elif NK_TARGET_HASWELL
     nk_wsum_e4m3_haswell(a, b, n, alpha, beta, result);
 #elif NK_TARGET_NEON
     nk_wsum_e4m3_neon(a, b, n, alpha, beta, result);
@@ -1484,7 +1514,9 @@ NK_PUBLIC void nk_wsum_e4m3(nk_e4m3_t const *a, nk_e4m3_t const *b, nk_size_t n,
 
 NK_PUBLIC void nk_wsum_e5m2(nk_e5m2_t const *a, nk_e5m2_t const *b, nk_size_t n, nk_f32_t const *alpha,
                             nk_f32_t const *beta, nk_e5m2_t *result) {
-#if NK_TARGET_HASWELL
+#if NK_TARGET_SKYLAKE
+    nk_wsum_e5m2_skylake(a, b, n, alpha, beta, result);
+#elif NK_TARGET_HASWELL
     nk_wsum_e5m2_haswell(a, b, n, alpha, beta, result);
 #elif NK_TARGET_NEON
     nk_wsum_e5m2_neon(a, b, n, alpha, beta, result);
@@ -1495,7 +1527,9 @@ NK_PUBLIC void nk_wsum_e5m2(nk_e5m2_t const *a, nk_e5m2_t const *b, nk_size_t n,
 
 NK_PUBLIC void nk_fma_e4m3(nk_e4m3_t const *a, nk_e4m3_t const *b, nk_e4m3_t const *c, nk_size_t n,
                            nk_f32_t const *alpha, nk_f32_t const *beta, nk_e4m3_t *result) {
-#if NK_TARGET_HASWELL
+#if NK_TARGET_SKYLAKE
+    nk_fma_e4m3_skylake(a, b, c, n, alpha, beta, result);
+#elif NK_TARGET_HASWELL
     nk_fma_e4m3_haswell(a, b, c, n, alpha, beta, result);
 #elif NK_TARGET_NEON
     nk_fma_e4m3_neon(a, b, c, n, alpha, beta, result);
@@ -1506,7 +1540,9 @@ NK_PUBLIC void nk_fma_e4m3(nk_e4m3_t const *a, nk_e4m3_t const *b, nk_e4m3_t con
 
 NK_PUBLIC void nk_fma_e5m2(nk_e5m2_t const *a, nk_e5m2_t const *b, nk_e5m2_t const *c, nk_size_t n,
                            nk_f32_t const *alpha, nk_f32_t const *beta, nk_e5m2_t *result) {
-#if NK_TARGET_HASWELL
+#if NK_TARGET_SKYLAKE
+    nk_fma_e5m2_skylake(a, b, c, n, alpha, beta, result);
+#elif NK_TARGET_HASWELL
     nk_fma_e5m2_haswell(a, b, c, n, alpha, beta, result);
 #elif NK_TARGET_NEON
     nk_fma_e5m2_neon(a, b, c, n, alpha, beta, result);
