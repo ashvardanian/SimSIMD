@@ -372,8 +372,8 @@ NK_PUBLIC void nk_dot_e4m3_neon(nk_e4m3_t const *a_scalars, nk_e4m3_t const *b_s
     nk_b32_vec_t a_vec, b_vec;
 nk_dot_e4m3_neon_cycle:
     if (count_scalars < 4) {
-        a_vec = nk_partial_load_b8x4_neon_(a_scalars, count_scalars);
-        b_vec = nk_partial_load_b8x4_neon_(b_scalars, count_scalars);
+        a_vec = nk_partial_load_b8x4_serial_(a_scalars, count_scalars);
+        b_vec = nk_partial_load_b8x4_serial_(b_scalars, count_scalars);
         count_scalars = 0;
     }
     else {
@@ -395,8 +395,8 @@ NK_PUBLIC void nk_dot_e5m2_neon(nk_e5m2_t const *a_scalars, nk_e5m2_t const *b_s
     nk_b32_vec_t a_vec, b_vec;
 nk_dot_e5m2_neon_cycle:
     if (count_scalars < 4) {
-        a_vec = nk_partial_load_b8x4_neon_(a_scalars, count_scalars);
-        b_vec = nk_partial_load_b8x4_neon_(b_scalars, count_scalars);
+        a_vec = nk_partial_load_b8x4_serial_(a_scalars, count_scalars);
+        b_vec = nk_partial_load_b8x4_serial_(b_scalars, count_scalars);
         count_scalars = 0;
     }
     else {

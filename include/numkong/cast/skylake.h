@@ -49,7 +49,7 @@ NK_INTERNAL void nk_partial_load_b16x32_skylake_(void const *src, nk_b512_vec_t 
 }
 
 /** @brief Type-agnostic partial load for 8-bit elements (64 elements max) into 512-bit vector (Skylake AVX-512). */
-NK_INTERNAL void nk_partial_load_u1x64_skylake_(void const *src, nk_b512_vec_t *dst, nk_size_t n) {
+NK_INTERNAL void nk_partial_load_b8x64_skylake_(void const *src, nk_b512_vec_t *dst, nk_size_t n) {
     __mmask64 mask = _bzhi_u64(0xFFFFFFFFFFFFFFFFULL, (unsigned int)n);
     dst->zmm = _mm512_maskz_loadu_epi8(mask, src);
 }
@@ -61,7 +61,7 @@ NK_INTERNAL void nk_partial_load_b32x8_skylake_(void const *src, nk_b256_vec_t *
 }
 
 /** @brief Type-agnostic partial load for 8-bit elements (16 elements max) into 128-bit vector (Skylake AVX-512). */
-NK_INTERNAL void nk_partial_load_u1x16_skylake_(void const *src, nk_b128_vec_t *dst, nk_size_t n) {
+NK_INTERNAL void nk_partial_load_b8x16_skylake_(void const *src, nk_b128_vec_t *dst, nk_size_t n) {
     __mmask16 mask = (__mmask16)_bzhi_u32(0xFFFF, (unsigned int)n);
     dst->xmm = _mm_maskz_loadu_epi8(mask, src);
 }

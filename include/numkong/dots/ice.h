@@ -29,7 +29,7 @@ extern "C" {
 nk_make_dots_pack_size_(ice, i8, i32)
 nk_make_dots_pack_(ice, i8, i32)
 nk_make_dots_packed_vectors_(i8_ice, i8, i32, nk_b256_vec_t, nk_dot_i8x32_state_ice_t, nk_b128_vec_t,
-                             nk_dot_i8x32_init_ice, nk_load_b256_haswell_, nk_partial_load_u1x32_serial_,
+                             nk_dot_i8x32_init_ice, nk_load_b256_haswell_, nk_partial_load_b8x32_serial_,
                              nk_dot_i8x32_update_ice, nk_dot_i8x32_finalize_ice, nk_partial_store_b32x4_skylake_,
                              /*k_tile=*/32)
 
@@ -37,7 +37,7 @@ nk_make_dots_packed_vectors_(i8_ice, i8, i32, nk_b256_vec_t, nk_dot_i8x32_state_
 nk_make_dots_pack_size_(ice, u8, u32)
 nk_make_dots_pack_(ice, u8, u32)
 nk_make_dots_packed_vectors_(u8_ice, u8, u32, nk_b512_vec_t, nk_dot_u8x64_state_ice_t, nk_b128_vec_t,
-                             nk_dot_u8x64_init_ice, nk_load_b512_skylake_, nk_partial_load_u1x64_skylake_,
+                             nk_dot_u8x64_init_ice, nk_load_b512_skylake_, nk_partial_load_b8x64_skylake_,
                              nk_dot_u8x64_update_ice, nk_dot_u8x64_finalize_ice, nk_partial_store_b32x4_skylake_,
                              /*k_tile=*/64)
 

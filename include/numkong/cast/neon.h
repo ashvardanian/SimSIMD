@@ -461,38 +461,6 @@ NK_INTERNAL nk_b32_vec_t nk_f32x4_to_e5m2x4_neon_(float32x4_t f32x4) {
 
 #pragma endregion - Vectorized Conversions
 
-#pragma region - Converting Loads and Stores
-
-/** @brief Partial load for 8-bit elements (up to 4) into nk_b32_vec_t (NEON). */
-NK_INTERNAL nk_b32_vec_t nk_partial_load_b8x4_neon_(void const *src, nk_size_t n) {
-    nk_b32_vec_t dst = {0};
-    nk_u8_t const *s = (nk_u8_t const *)src;
-    switch (n) {
-    default:
-    case 4: dst.u8s[3] = s[3]; // fallthrough
-    case 3: dst.u8s[2] = s[2]; // fallthrough
-    case 2: dst.u8s[1] = s[1]; // fallthrough
-    case 1: dst.u8s[0] = s[0]; // fallthrough
-    case 0: break;
-    }
-    return dst;
-}
-
-/** @brief Partial store for 8-bit elements (up to 4) from nk_b32_vec_t (NEON). */
-NK_INTERNAL void nk_partial_store_b8x4_neon_(nk_b32_vec_t const *src, void *dst, nk_size_t n) {
-    nk_u8_t *d = (nk_u8_t *)dst;
-    switch (n) {
-    default:
-    case 4: d[3] = src->u8s[3]; // fallthrough
-    case 3: d[2] = src->u8s[2]; // fallthrough
-    case 2: d[1] = src->u8s[1]; // fallthrough
-    case 1: d[0] = src->u8s[0]; // fallthrough
-    case 0: break;
-    }
-}
-
-#pragma endregion - Converting Loads and Stores
-
 #pragma region - Scalar Conversions
 
 /** @brief Convert f16 to f32 scalar using NEON vector conversion. */

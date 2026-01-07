@@ -60,7 +60,7 @@ nk_make_dots_packed_vectors_(bf16_haswell, bf16, f32, nk_b128_vec_t, nk_dot_bf16
 nk_make_dots_pack_size_(haswell, e4m3, f32)
 nk_make_dots_pack_(haswell, e4m3, f32)
 nk_make_dots_packed_vectors_(e4m3_haswell, e4m3, f32, nk_b128_vec_t, nk_dot_e4m3x16_state_haswell_t, nk_b128_vec_t,
-                             nk_dot_e4m3x16_init_haswell, nk_load_b128_haswell_, nk_partial_load_u1x16_serial_,
+                             nk_dot_e4m3x16_init_haswell, nk_load_b128_haswell_, nk_partial_load_b8x16_serial_,
                              nk_dot_e4m3x16_update_haswell, nk_dot_e4m3x16_finalize_haswell,
                              nk_partial_store_b32x4_serial_,
                              /*k_tile=*/16)
@@ -69,7 +69,7 @@ nk_make_dots_packed_vectors_(e4m3_haswell, e4m3, f32, nk_b128_vec_t, nk_dot_e4m3
 nk_make_dots_pack_size_(haswell, e5m2, f32)
 nk_make_dots_pack_(haswell, e5m2, f32)
 nk_make_dots_packed_vectors_(e5m2_haswell, e5m2, f32, nk_b128_vec_t, nk_dot_e5m2x16_state_haswell_t, nk_b128_vec_t,
-                             nk_dot_e5m2x16_init_haswell, nk_load_b128_haswell_, nk_partial_load_u1x16_serial_,
+                             nk_dot_e5m2x16_init_haswell, nk_load_b128_haswell_, nk_partial_load_b8x16_serial_,
                              nk_dot_e5m2x16_update_haswell, nk_dot_e5m2x16_finalize_haswell,
                              nk_partial_store_b32x4_serial_,
                              /*k_tile=*/16)
@@ -78,7 +78,7 @@ nk_make_dots_packed_vectors_(e5m2_haswell, e5m2, f32, nk_b128_vec_t, nk_dot_e5m2
 nk_make_dots_pack_size_(haswell, i8, i32)
 nk_make_dots_pack_(haswell, i8, i32)
 nk_make_dots_packed_vectors_(i8_haswell, i8, i32, nk_b128_vec_t, nk_dot_i8x16_state_haswell_t, nk_b128_vec_t,
-                             nk_dot_i8x16_init_haswell, nk_load_b128_haswell_, nk_partial_load_u1x16_serial_,
+                             nk_dot_i8x16_init_haswell, nk_load_b128_haswell_, nk_partial_load_b8x16_serial_,
                              nk_dot_i8x16_update_haswell, nk_dot_i8x16_finalize_haswell, nk_partial_store_b32x4_serial_,
                              /*k_tile=*/16)
 
@@ -86,7 +86,7 @@ nk_make_dots_packed_vectors_(i8_haswell, i8, i32, nk_b128_vec_t, nk_dot_i8x16_st
 nk_make_dots_pack_size_(haswell, u8, u32)
 nk_make_dots_pack_(haswell, u8, u32)
 nk_make_dots_packed_vectors_(u8_haswell, u8, u32, nk_b128_vec_t, nk_dot_u8x16_state_haswell_t, nk_b128_vec_t,
-                             nk_dot_u8x16_init_haswell, nk_load_b128_haswell_, nk_partial_load_u1x16_serial_,
+                             nk_dot_u8x16_init_haswell, nk_load_b128_haswell_, nk_partial_load_b8x16_serial_,
                              nk_dot_u8x16_update_haswell, nk_dot_u8x16_finalize_haswell, nk_partial_store_b32x4_serial_,
                              /*k_tile=*/16)
 
