@@ -27,7 +27,7 @@ use core::marker::PhantomData;
 use core::ptr::NonNull;
 
 use crate::numerics::{ATan, Cos, Dot, Scale, Sin, Sum, WSum, FMA};
-use crate::scalars::{bf16, e4m3, e5m2, f16};
+use crate::scalars::{bf16, e4m3, e5m2, f16, i4x2, u1x8, u4x2};
 
 /// Size type used in C FFI to match `nk_size_t` which is always `uint64_t`.
 type u64size = u64;
@@ -132,6 +132,45 @@ extern "C" {
         a: *const u8,
         packed: *const u8,
         c: *mut f32,
+        m: u64size,
+        n: u64size,
+        k: u64size,
+        a_stride: u64size,
+        c_stride: u64size,
+    );
+
+    fn nk_dots_packed_size_u1(n: u64size, k: u64size) -> u64size;
+    fn nk_dots_pack_u1(b: *const u8, n: u64size, k: u64size, b_stride: u64size, packed: *mut u8);
+    fn nk_dots_packed_u1(
+        a: *const u8,
+        packed: *const u8,
+        c: *mut u32,
+        m: u64size,
+        n: u64size,
+        k: u64size,
+        a_stride: u64size,
+        c_stride: u64size,
+    );
+
+    fn nk_dots_packed_size_u4(n: u64size, k: u64size) -> u64size;
+    fn nk_dots_pack_u4(b: *const u8, n: u64size, k: u64size, b_stride: u64size, packed: *mut u8);
+    fn nk_dots_packed_u4(
+        a: *const u8,
+        packed: *const u8,
+        c: *mut u32,
+        m: u64size,
+        n: u64size,
+        k: u64size,
+        a_stride: u64size,
+        c_stride: u64size,
+    );
+
+    fn nk_dots_packed_size_i4(n: u64size, k: u64size) -> u64size;
+    fn nk_dots_pack_i4(b: *const u8, n: u64size, k: u64size, b_stride: u64size, packed: *mut u8);
+    fn nk_dots_packed_i4(
+        a: *const u8,
+        packed: *const u8,
+        c: *mut i32,
         m: u64size,
         n: u64size,
         k: u64size,
@@ -616,6 +655,126 @@ impl Dots for e5m2 {
         c_stride: usize,
     ) {
         nk_dots_packed_e5m2(
+            a as *const u8,
+            packed,
+            c,
+            m as u64size,
+            n as u64size,
+            k as u64size,
+            a_stride as u64size,
+            c_stride as u64size,
+        )
+    }
+}
+
+impl Dots for u1x8 {
+    type Accumulator = u32;
+
+    fn dots_packed_size(n: usize, k: usize) -> usize {
+        unsafe { nk_dots_packed_size_u1(n as u64size, k as u64size) as usize }
+    }
+
+    unsafe fn dots_pack(b: *const Self, n: usize, k: usize, b_stride: usize, packed: *mut u8) {
+        nk_dots_pack_u1(
+            b as *const u8,
+            n as u64size,
+            k as u64size,
+            b_stride as u64size,
+            packed,
+        )
+    }
+
+    unsafe fn dots(
+        a: *const Self,
+        packed: *const u8,
+        c: *mut Self::Accumulator,
+        m: usize,
+        n: usize,
+        k: usize,
+        a_stride: usize,
+        c_stride: usize,
+    ) {
+        nk_dots_packed_u1(
+            a as *const u8,
+            packed,
+            c,
+            m as u64size,
+            n as u64size,
+            k as u64size,
+            a_stride as u64size,
+            c_stride as u64size,
+        )
+    }
+}
+
+impl Dots for u4x2 {
+    type Accumulator = u32;
+
+    fn dots_packed_size(n: usize, k: usize) -> usize {
+        unsafe { nk_dots_packed_size_u4(n as u64size, k as u64size) as usize }
+    }
+
+    unsafe fn dots_pack(b: *const Self, n: usize, k: usize, b_stride: usize, packed: *mut u8) {
+        nk_dots_pack_u4(
+            b as *const u8,
+            n as u64size,
+            k as u64size,
+            b_stride as u64size,
+            packed,
+        )
+    }
+
+    unsafe fn dots(
+        a: *const Self,
+        packed: *const u8,
+        c: *mut Self::Accumulator,
+        m: usize,
+        n: usize,
+        k: usize,
+        a_stride: usize,
+        c_stride: usize,
+    ) {
+        nk_dots_packed_u4(
+            a as *const u8,
+            packed,
+            c,
+            m as u64size,
+            n as u64size,
+            k as u64size,
+            a_stride as u64size,
+            c_stride as u64size,
+        )
+    }
+}
+
+impl Dots for i4x2 {
+    type Accumulator = i32;
+
+    fn dots_packed_size(n: usize, k: usize) -> usize {
+        unsafe { nk_dots_packed_size_i4(n as u64size, k as u64size) as usize }
+    }
+
+    unsafe fn dots_pack(b: *const Self, n: usize, k: usize, b_stride: usize, packed: *mut u8) {
+        nk_dots_pack_i4(
+            b as *const u8,
+            n as u64size,
+            k as u64size,
+            b_stride as u64size,
+            packed,
+        )
+    }
+
+    unsafe fn dots(
+        a: *const Self,
+        packed: *const u8,
+        c: *mut Self::Accumulator,
+        m: usize,
+        n: usize,
+        k: usize,
+        a_stride: usize,
+        c_stride: usize,
+    ) {
+        nk_dots_packed_i4(
             a as *const u8,
             packed,
             c,
