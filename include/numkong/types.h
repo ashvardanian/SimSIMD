@@ -767,6 +767,19 @@ typedef struct {
     nk_f64_t imag;
 } nk_f64c_t;
 
+/** @brief  Small 4-byte memory slice viewable as different types. */
+typedef union nk_b32_vec_t {
+    nk_u32_t u32;
+    nk_i32_t i32;
+    nk_f32_t f32;
+    nk_u8_t u8s[4];
+    nk_i8_t i8s[4];
+    nk_u16_t u16s[2];
+    nk_i16_t i16s[2];
+    nk_e4m3_t e4m3s[4];
+    nk_e5m2_t e5m2s[4];
+} nk_b32_vec_t;
+
 /** @brief  Small 8-byte memory slice viewable as different types. */
 typedef union nk_b64_vec_t {
 #if NK_TARGET_NEON

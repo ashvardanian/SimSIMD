@@ -369,17 +369,20 @@ NK_PUBLIC void nk_dot_e4m3_neon(nk_e4m3_t const *a_scalars, nk_e4m3_t const *b_s
                                 nk_f32_t *result) {
     float32x4_t a_f32x4, b_f32x4;
     float32x4_t sum_f32x4 = vdupq_n_f32(0);
+    nk_b32_vec_t a_vec, b_vec;
 nk_dot_e4m3_neon_cycle:
     if (count_scalars < 4) {
-        a_f32x4 = nk_partial_load_e4m3x4_to_f32x4_neon_(a_scalars, count_scalars);
-        b_f32x4 = nk_partial_load_e4m3x4_to_f32x4_neon_(b_scalars, count_scalars);
+        a_vec = nk_partial_load_b8x4_neon_(a_scalars, count_scalars);
+        b_vec = nk_partial_load_b8x4_neon_(b_scalars, count_scalars);
         count_scalars = 0;
     }
     else {
-        a_f32x4 = nk_e4m3x4_to_f32x4_neon_(a_scalars);
-        b_f32x4 = nk_e4m3x4_to_f32x4_neon_(b_scalars);
+        nk_load_b32_serial_(a_scalars, &a_vec);
+        nk_load_b32_serial_(b_scalars, &b_vec);
         a_scalars += 4, b_scalars += 4, count_scalars -= 4;
     }
+    a_f32x4 = nk_e4m3x4_to_f32x4_neon_(a_vec);
+    b_f32x4 = nk_e4m3x4_to_f32x4_neon_(b_vec);
     sum_f32x4 = vfmaq_f32(sum_f32x4, a_f32x4, b_f32x4);
     if (count_scalars) goto nk_dot_e4m3_neon_cycle;
     *result = vaddvq_f32(sum_f32x4);
@@ -389,17 +392,20 @@ NK_PUBLIC void nk_dot_e5m2_neon(nk_e5m2_t const *a_scalars, nk_e5m2_t const *b_s
                                 nk_f32_t *result) {
     float32x4_t a_f32x4, b_f32x4;
     float32x4_t sum_f32x4 = vdupq_n_f32(0);
+    nk_b32_vec_t a_vec, b_vec;
 nk_dot_e5m2_neon_cycle:
     if (count_scalars < 4) {
-        a_f32x4 = nk_partial_load_e5m2x4_to_f32x4_neon_(a_scalars, count_scalars);
-        b_f32x4 = nk_partial_load_e5m2x4_to_f32x4_neon_(b_scalars, count_scalars);
+        a_vec = nk_partial_load_b8x4_neon_(a_scalars, count_scalars);
+        b_vec = nk_partial_load_b8x4_neon_(b_scalars, count_scalars);
         count_scalars = 0;
     }
     else {
-        a_f32x4 = nk_e5m2x4_to_f32x4_neon_(a_scalars);
-        b_f32x4 = nk_e5m2x4_to_f32x4_neon_(b_scalars);
+        nk_load_b32_serial_(a_scalars, &a_vec);
+        nk_load_b32_serial_(b_scalars, &b_vec);
         a_scalars += 4, b_scalars += 4, count_scalars -= 4;
     }
+    a_f32x4 = nk_e5m2x4_to_f32x4_neon_(a_vec);
+    b_f32x4 = nk_e5m2x4_to_f32x4_neon_(b_vec);
     sum_f32x4 = vfmaq_f32(sum_f32x4, a_f32x4, b_f32x4);
     if (count_scalars) goto nk_dot_e5m2_neon_cycle;
     *result = vaddvq_f32(sum_f32x4);

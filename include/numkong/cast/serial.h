@@ -13,6 +13,16 @@
 extern "C" {
 #endif
 
+#pragma region - Type Punned Loads and Stores
+
+/** @brief Type-agnostic 32-bit full load (scalar). */
+NK_INTERNAL void nk_load_b32_serial_(void const *src, nk_b32_vec_t *dst) { dst->u32 = *(nk_u32_t const *)src; }
+
+/** @brief Type-agnostic 32-bit full store (scalar). */
+NK_INTERNAL void nk_store_b32_serial_(nk_b32_vec_t const *src, void *dst) { *(nk_u32_t *)dst = src->u32; }
+
+#pragma endregion - Type Punned Loads and Stores
+
 /**
  *  @brief  Expands an `f16` (IEEE-754 16-bit) to a `float`.
  *
