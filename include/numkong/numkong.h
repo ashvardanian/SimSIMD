@@ -366,7 +366,7 @@ typedef nk_u64_t nk_capability_t;
 /**
  *  @brief  ARM NEON with FP16 FML (ARMv8.2-A) - FEAT_FHM
  *
- *  Instructions: FMLAL/FMLSL (f16*f16->f32 widening multiply-accumulate)
+ *  Instructions: FMLAL/FMLSL (f16 ⨯ f16 → f32 widening multiply-accumulate)
  *  Used for: f16 dot products with f32 accumulator (20-48% faster than convert+FMA)
  *  Devices: Cortex-A76+ (2018), Apple A12+ (2018), Neoverse N1+ (2019)
  *
@@ -377,7 +377,7 @@ typedef nk_u64_t nk_capability_t;
 /**
  *  @brief  ARM NEON with BF16 (ARMv8.6-A) - FEAT_BF16
  *
- *  Instructions: BFDOT (bf16*bf16->f32 dot product), BFCVT (f32->bf16)
+ *  Instructions: BFDOT (bf16*bf16 → f32 dot product), BFCVT (f32->bf16)
  *  Used for: bf16 dot products, ML inference with bf16 weights
  *  Devices: Cortex-A78+ (2020), Apple M1+ (2020), Graviton 3+ (2021)
  *
@@ -388,7 +388,7 @@ typedef nk_u64_t nk_capability_t;
 /**
  *  @brief  ARM NEON with integer dot products (ARMv8.2-A) - FEAT_DotProd
  *
- *  Instructions: SDOT/UDOT (i8*i8->i32 dot product)
+ *  Instructions: SDOT/UDOT (i8 ⨯ i8->i32 dot product)
  *  Used for: i8/u8 dot products, quantized ML inference
  *  Devices: Cortex-A75+ (2017), Apple A11+ (2017), Graviton 2+ (2020)
  *
@@ -485,7 +485,7 @@ typedef nk_u64_t nk_capability_t;
 /**
  *  @brief  ARM SME2.1 - Non-widening FP16/BF16, LUTv2
  *
- *  Instructions: FMOPA.H (f16->f16), BFMOPA non-widening
+ *  Instructions: FMOPA.H (f16 → f16), BFMOPA non-widening
  *  Used for: Native f16/bf16 accumulation without f32 conversion
  *  Devices: Apple M5 (2025), future Cortex cores
  *
@@ -496,7 +496,7 @@ typedef nk_u64_t nk_capability_t;
 /**
  *  @brief  ARM SME F64 - Double precision outer products (FEAT_SME_F64F64)
  *
- *  Instructions: FMOPA.D (f64*f64->f64 outer product)
+ *  Instructions: FMOPA.D (f64*f64 → f64 outer product)
  *  Used for: High-precision matmul
  *  Devices: Apple M4 (2024)
  *
@@ -507,7 +507,7 @@ typedef nk_u64_t nk_capability_t;
 /**
  *  @brief  ARM SME F16F16 - Native f16 outer products (FEAT_SME_F16F16)
  *
- *  Instructions: FMOPA.H (f16*f16->f16 non-widening)
+ *  Instructions: FMOPA.H (f16 ⨯ f16 → f16 non-widening)
  *  Used for: f16 matmul without f32 conversion overhead
  *  Devices: Apple M5 (2025)
  *

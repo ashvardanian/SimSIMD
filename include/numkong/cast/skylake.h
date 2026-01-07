@@ -387,8 +387,8 @@ NK_PUBLIC void nk_cast_skylake(void const *from, nk_dtype_t from_type, nk_size_t
     int from_f64 = (from_type == nk_f64_k);
     int to_f64 = (to_type == nk_f64_k);
 
-    nk_u8_t const *src = (nk_u8_t const *)from;
-    nk_u8_t *dst = (nk_u8_t *)to;
+    nk_u8_t const *from_ptr = (nk_u8_t const *)from;
+    nk_u8_t *to_ptr = (nk_u8_t *)to;
 
     // Hub 1: f32x16 - float types + small integers (16 elements/batch)
     if (from_f32_hub && to_f32_hub) {
@@ -397,35 +397,46 @@ NK_PUBLIC void nk_cast_skylake(void const *from, nk_dtype_t from_type, nk_size_t
         while (n > 0) {
             nk_size_t batch = n < 16 ? n : 16;
             __mmask16 mask = (__mmask16)_bzhi_u32(0xFFFF, (unsigned int)batch);
-            __m512 f32x16;
+            __m512 hub_f32x16;
 
             // Upcast to f32x16
-            if (from_type == nk_f32_k) f32x16 = _mm512_maskz_loadu_ps(mask, src);
-            else if (from_type == nk_f16_k) f32x16 = _mm512_cvtph_ps(_mm256_maskz_loadu_epi16(mask, src));
+            if (from_type == nk_f32_k) hub_f32x16 = _mm512_maskz_loadu_ps(mask, from_ptr);
+            else if (from_type == nk_f16_k) hub_f32x16 = _mm512_cvtph_ps(_mm256_maskz_loadu_epi16(mask, from_ptr));
             else if (from_type == nk_bf16_k)
-                f32x16 = nk_bf16x16_to_f32x16_skylake_(_mm256_maskz_loadu_epi16(mask, src));
-            else if (from_type == nk_e4m3_k) f32x16 = nk_e4m3x16_to_f32x16_skylake_(_mm_maskz_loadu_epi8(mask, src));
-            else if (from_type == nk_e5m2_k) f32x16 = nk_e5m2x16_to_f32x16_skylake_(_mm_maskz_loadu_epi8(mask, src));
-            else if (from_type == nk_i8_k) f32x16 = nk_i8x16_to_f32x16_skylake_(_mm_maskz_loadu_epi8(mask, src));
-            else if (from_type == nk_u8_k) f32x16 = nk_u8x16_to_f32x16_skylake_(_mm_maskz_loadu_epi8(mask, src));
-            else if (from_type == nk_i16_k) f32x16 = nk_i16x16_to_f32x16_skylake_(_mm256_maskz_loadu_epi16(mask, src));
-            else if (from_type == nk_u16_k) f32x16 = nk_u16x16_to_f32x16_skylake_(_mm256_maskz_loadu_epi16(mask, src));
-            else f32x16 = _mm512_setzero_ps();
+                hub_f32x16 = nk_bf16x16_to_f32x16_skylake_(_mm256_maskz_loadu_epi16(mask, from_ptr));
+            else if (from_type == nk_e4m3_k)
+                hub_f32x16 = nk_e4m3x16_to_f32x16_skylake_(_mm_maskz_loadu_epi8(mask, from_ptr));
+            else if (from_type == nk_e5m2_k)
+                hub_f32x16 = nk_e5m2x16_to_f32x16_skylake_(_mm_maskz_loadu_epi8(mask, from_ptr));
+            else if (from_type == nk_i8_k)
+                hub_f32x16 = nk_i8x16_to_f32x16_skylake_(_mm_maskz_loadu_epi8(mask, from_ptr));
+            else if (from_type == nk_u8_k)
+                hub_f32x16 = nk_u8x16_to_f32x16_skylake_(_mm_maskz_loadu_epi8(mask, from_ptr));
+            else if (from_type == nk_i16_k)
+                hub_f32x16 = nk_i16x16_to_f32x16_skylake_(_mm256_maskz_loadu_epi16(mask, from_ptr));
+            else if (from_type == nk_u16_k)
+                hub_f32x16 = nk_u16x16_to_f32x16_skylake_(_mm256_maskz_loadu_epi16(mask, from_ptr));
+            else hub_f32x16 = _mm512_setzero_ps();
 
             // Downcast from f32x16
-            if (to_type == nk_f32_k) _mm512_mask_storeu_ps(dst, mask, f32x16);
+            if (to_type == nk_f32_k) _mm512_mask_storeu_ps(to_ptr, mask, hub_f32x16);
             else if (to_type == nk_f16_k)
-                _mm256_mask_storeu_epi16(dst, mask, _mm512_cvtps_ph(f32x16, _MM_FROUND_TO_NEAREST_INT));
-            else if (to_type == nk_bf16_k) _mm256_mask_storeu_epi16(dst, mask, nk_f32x16_to_bf16x16_skylake_(f32x16));
-            else if (to_type == nk_e4m3_k) _mm_mask_storeu_epi8(dst, mask, nk_f32x16_to_e4m3x16_skylake_(f32x16));
-            else if (to_type == nk_e5m2_k) _mm_mask_storeu_epi8(dst, mask, nk_f32x16_to_e5m2x16_skylake_(f32x16));
-            else if (to_type == nk_i8_k) _mm_mask_storeu_epi8(dst, mask, nk_f32x16_to_i8x16_skylake_(f32x16));
-            else if (to_type == nk_u8_k) _mm_mask_storeu_epi8(dst, mask, nk_f32x16_to_u8x16_skylake_(f32x16));
-            else if (to_type == nk_i16_k) _mm256_mask_storeu_epi16(dst, mask, nk_f32x16_to_i16x16_skylake_(f32x16));
-            else if (to_type == nk_u16_k) _mm256_mask_storeu_epi16(dst, mask, nk_f32x16_to_u16x16_skylake_(f32x16));
+                _mm256_mask_storeu_epi16(to_ptr, mask, _mm512_cvtps_ph(hub_f32x16, _MM_FROUND_TO_NEAREST_INT));
+            else if (to_type == nk_bf16_k)
+                _mm256_mask_storeu_epi16(to_ptr, mask, nk_f32x16_to_bf16x16_skylake_(hub_f32x16));
+            else if (to_type == nk_e4m3_k)
+                _mm_mask_storeu_epi8(to_ptr, mask, nk_f32x16_to_e4m3x16_skylake_(hub_f32x16));
+            else if (to_type == nk_e5m2_k)
+                _mm_mask_storeu_epi8(to_ptr, mask, nk_f32x16_to_e5m2x16_skylake_(hub_f32x16));
+            else if (to_type == nk_i8_k) _mm_mask_storeu_epi8(to_ptr, mask, nk_f32x16_to_i8x16_skylake_(hub_f32x16));
+            else if (to_type == nk_u8_k) _mm_mask_storeu_epi8(to_ptr, mask, nk_f32x16_to_u8x16_skylake_(hub_f32x16));
+            else if (to_type == nk_i16_k)
+                _mm256_mask_storeu_epi16(to_ptr, mask, nk_f32x16_to_i16x16_skylake_(hub_f32x16));
+            else if (to_type == nk_u16_k)
+                _mm256_mask_storeu_epi16(to_ptr, mask, nk_f32x16_to_u16x16_skylake_(hub_f32x16));
 
-            src += from_step;
-            dst += to_step;
+            from_ptr += from_step;
+            to_ptr += to_step;
             n -= batch;
         }
         return;
@@ -438,23 +449,25 @@ NK_PUBLIC void nk_cast_skylake(void const *from, nk_dtype_t from_type, nk_size_t
         while (n > 0) {
             nk_size_t batch = n < 8 ? n : 8;
             __mmask8 mask = (__mmask8)_bzhi_u32(0xFF, (unsigned int)batch);
-            __m512i u64x8;
+            __m512i hub_u64x8;
 
             // Upcast to u64x8
-            if (from_type == nk_u8_k) u64x8 = nk_u8x8_to_u64x8_skylake_(_mm_maskz_loadu_epi8(mask, src));
-            else if (from_type == nk_u16_k) u64x8 = nk_u16x8_to_u64x8_skylake_(_mm_maskz_loadu_epi16(mask, src));
-            else if (from_type == nk_u32_k) u64x8 = nk_u32x8_to_u64x8_skylake_(_mm256_maskz_loadu_epi32(mask, src));
-            else if (from_type == nk_u64_k) u64x8 = _mm512_maskz_loadu_epi64(mask, src);
-            else u64x8 = _mm512_setzero_si512();
+            if (from_type == nk_u8_k) hub_u64x8 = nk_u8x8_to_u64x8_skylake_(_mm_maskz_loadu_epi8(mask, from_ptr));
+            else if (from_type == nk_u16_k)
+                hub_u64x8 = nk_u16x8_to_u64x8_skylake_(_mm_maskz_loadu_epi16(mask, from_ptr));
+            else if (from_type == nk_u32_k)
+                hub_u64x8 = nk_u32x8_to_u64x8_skylake_(_mm256_maskz_loadu_epi32(mask, from_ptr));
+            else if (from_type == nk_u64_k) hub_u64x8 = _mm512_maskz_loadu_epi64(mask, from_ptr);
+            else hub_u64x8 = _mm512_setzero_si512();
 
             // Downcast from u64x8
-            if (to_type == nk_u8_k) _mm_mask_storeu_epi8(dst, mask, nk_u64x8_to_u8x8_skylake_(u64x8));
-            else if (to_type == nk_u16_k) _mm_mask_storeu_epi16(dst, mask, nk_u64x8_to_u16x8_skylake_(u64x8));
-            else if (to_type == nk_u32_k) _mm256_mask_storeu_epi32(dst, mask, nk_u64x8_to_u32x8_skylake_(u64x8));
-            else if (to_type == nk_u64_k) _mm512_mask_storeu_epi64(dst, mask, u64x8);
+            if (to_type == nk_u8_k) _mm_mask_storeu_epi8(to_ptr, mask, nk_u64x8_to_u8x8_skylake_(hub_u64x8));
+            else if (to_type == nk_u16_k) _mm_mask_storeu_epi16(to_ptr, mask, nk_u64x8_to_u16x8_skylake_(hub_u64x8));
+            else if (to_type == nk_u32_k) _mm256_mask_storeu_epi32(to_ptr, mask, nk_u64x8_to_u32x8_skylake_(hub_u64x8));
+            else if (to_type == nk_u64_k) _mm512_mask_storeu_epi64(to_ptr, mask, hub_u64x8);
 
-            src += from_step;
-            dst += to_step;
+            from_ptr += from_step;
+            to_ptr += to_step;
             n -= batch;
         }
         return;
@@ -467,29 +480,34 @@ NK_PUBLIC void nk_cast_skylake(void const *from, nk_dtype_t from_type, nk_size_t
         while (n > 0) {
             nk_size_t batch = n < 8 ? n : 8;
             __mmask8 mask = (__mmask8)_bzhi_u32(0xFF, (unsigned int)batch);
-            __m512i i64x8;
+            __m512i hub_i64x8;
 
             // Upcast to i64x8
-            if (from_type == nk_i8_k) i64x8 = nk_i8x8_to_i64x8_skylake_(_mm_maskz_loadu_epi8(mask, src));
-            else if (from_type == nk_u8_k) i64x8 = nk_u8x8_to_i64x8_skylake_(_mm_maskz_loadu_epi8(mask, src));
-            else if (from_type == nk_i16_k) i64x8 = nk_i16x8_to_i64x8_skylake_(_mm_maskz_loadu_epi16(mask, src));
-            else if (from_type == nk_u16_k) i64x8 = nk_u16x8_to_i64x8_skylake_(_mm_maskz_loadu_epi16(mask, src));
-            else if (from_type == nk_i32_k) i64x8 = nk_i32x8_to_i64x8_skylake_(_mm256_maskz_loadu_epi32(mask, src));
-            else if (from_type == nk_u32_k) i64x8 = nk_u32x8_to_i64x8_skylake_(_mm256_maskz_loadu_epi32(mask, src));
-            else if (from_type == nk_i64_k || from_type == nk_u64_k) i64x8 = _mm512_maskz_loadu_epi64(mask, src);
-            else i64x8 = _mm512_setzero_si512();
+            if (from_type == nk_i8_k) hub_i64x8 = nk_i8x8_to_i64x8_skylake_(_mm_maskz_loadu_epi8(mask, from_ptr));
+            else if (from_type == nk_u8_k) hub_i64x8 = nk_u8x8_to_i64x8_skylake_(_mm_maskz_loadu_epi8(mask, from_ptr));
+            else if (from_type == nk_i16_k)
+                hub_i64x8 = nk_i16x8_to_i64x8_skylake_(_mm_maskz_loadu_epi16(mask, from_ptr));
+            else if (from_type == nk_u16_k)
+                hub_i64x8 = nk_u16x8_to_i64x8_skylake_(_mm_maskz_loadu_epi16(mask, from_ptr));
+            else if (from_type == nk_i32_k)
+                hub_i64x8 = nk_i32x8_to_i64x8_skylake_(_mm256_maskz_loadu_epi32(mask, from_ptr));
+            else if (from_type == nk_u32_k)
+                hub_i64x8 = nk_u32x8_to_i64x8_skylake_(_mm256_maskz_loadu_epi32(mask, from_ptr));
+            else if (from_type == nk_i64_k || from_type == nk_u64_k)
+                hub_i64x8 = _mm512_maskz_loadu_epi64(mask, from_ptr);
+            else hub_i64x8 = _mm512_setzero_si512();
 
             // Downcast from i64x8
-            if (to_type == nk_i8_k) _mm_mask_storeu_epi8(dst, mask, nk_i64x8_to_i8x8_skylake_(i64x8));
-            else if (to_type == nk_u8_k) _mm_mask_storeu_epi8(dst, mask, nk_i64x8_to_u8x8_skylake_(i64x8));
-            else if (to_type == nk_i16_k) _mm_mask_storeu_epi16(dst, mask, nk_i64x8_to_i16x8_skylake_(i64x8));
-            else if (to_type == nk_u16_k) _mm_mask_storeu_epi16(dst, mask, nk_i64x8_to_u16x8_skylake_(i64x8));
-            else if (to_type == nk_i32_k) _mm256_mask_storeu_epi32(dst, mask, nk_i64x8_to_i32x8_skylake_(i64x8));
-            else if (to_type == nk_u32_k) _mm256_mask_storeu_epi32(dst, mask, nk_i64x8_to_u32x8_skylake_(i64x8));
-            else if (to_type == nk_i64_k || to_type == nk_u64_k) _mm512_mask_storeu_epi64(dst, mask, i64x8);
+            if (to_type == nk_i8_k) _mm_mask_storeu_epi8(to_ptr, mask, nk_i64x8_to_i8x8_skylake_(hub_i64x8));
+            else if (to_type == nk_u8_k) _mm_mask_storeu_epi8(to_ptr, mask, nk_i64x8_to_u8x8_skylake_(hub_i64x8));
+            else if (to_type == nk_i16_k) _mm_mask_storeu_epi16(to_ptr, mask, nk_i64x8_to_i16x8_skylake_(hub_i64x8));
+            else if (to_type == nk_u16_k) _mm_mask_storeu_epi16(to_ptr, mask, nk_i64x8_to_u16x8_skylake_(hub_i64x8));
+            else if (to_type == nk_i32_k) _mm256_mask_storeu_epi32(to_ptr, mask, nk_i64x8_to_i32x8_skylake_(hub_i64x8));
+            else if (to_type == nk_u32_k) _mm256_mask_storeu_epi32(to_ptr, mask, nk_i64x8_to_u32x8_skylake_(hub_i64x8));
+            else if (to_type == nk_i64_k || to_type == nk_u64_k) _mm512_mask_storeu_epi64(to_ptr, mask, hub_i64x8);
 
-            src += from_step;
-            dst += to_step;
+            from_ptr += from_step;
+            to_ptr += to_step;
             n -= batch;
         }
         return;
@@ -502,23 +520,26 @@ NK_PUBLIC void nk_cast_skylake(void const *from, nk_dtype_t from_type, nk_size_t
         while (n > 0) {
             nk_size_t batch = n < 8 ? n : 8;
             __mmask8 mask = (__mmask8)_bzhi_u32(0xFF, (unsigned int)batch);
-            __m512d f64x8;
+            __m512d hub_f64x8;
 
             // Upcast to f64x8
-            if (from_type == nk_f64_k) f64x8 = _mm512_maskz_loadu_pd(mask, src);
-            else if (from_type == nk_f32_k) f64x8 = nk_f32x8_to_f64x8_skylake_(_mm256_maskz_loadu_ps(mask, src));
-            else if (from_type == nk_i32_k) f64x8 = nk_i32x8_to_f64x8_skylake_(_mm256_maskz_loadu_epi32(mask, src));
-            else if (from_type == nk_u32_k) f64x8 = nk_u32x8_to_f64x8_skylake_(_mm256_maskz_loadu_epi32(mask, src));
-            else f64x8 = _mm512_setzero_pd();
+            if (from_type == nk_f64_k) hub_f64x8 = _mm512_maskz_loadu_pd(mask, from_ptr);
+            else if (from_type == nk_f32_k)
+                hub_f64x8 = nk_f32x8_to_f64x8_skylake_(_mm256_maskz_loadu_ps(mask, from_ptr));
+            else if (from_type == nk_i32_k)
+                hub_f64x8 = nk_i32x8_to_f64x8_skylake_(_mm256_maskz_loadu_epi32(mask, from_ptr));
+            else if (from_type == nk_u32_k)
+                hub_f64x8 = nk_u32x8_to_f64x8_skylake_(_mm256_maskz_loadu_epi32(mask, from_ptr));
+            else hub_f64x8 = _mm512_setzero_pd();
 
             // Downcast from f64x8
-            if (to_type == nk_f64_k) _mm512_mask_storeu_pd(dst, mask, f64x8);
-            else if (to_type == nk_f32_k) _mm256_mask_storeu_ps(dst, mask, nk_f64x8_to_f32x8_skylake_(f64x8));
-            else if (to_type == nk_i32_k) _mm256_mask_storeu_epi32(dst, mask, nk_f64x8_to_i32x8_skylake_(f64x8));
-            else if (to_type == nk_u32_k) _mm256_mask_storeu_epi32(dst, mask, nk_f64x8_to_u32x8_skylake_(f64x8));
+            if (to_type == nk_f64_k) _mm512_mask_storeu_pd(to_ptr, mask, hub_f64x8);
+            else if (to_type == nk_f32_k) _mm256_mask_storeu_ps(to_ptr, mask, nk_f64x8_to_f32x8_skylake_(hub_f64x8));
+            else if (to_type == nk_i32_k) _mm256_mask_storeu_epi32(to_ptr, mask, nk_f64x8_to_i32x8_skylake_(hub_f64x8));
+            else if (to_type == nk_u32_k) _mm256_mask_storeu_epi32(to_ptr, mask, nk_f64x8_to_u32x8_skylake_(hub_f64x8));
 
-            src += from_step;
-            dst += to_step;
+            from_ptr += from_step;
+            to_ptr += to_step;
             n -= batch;
         }
         return;

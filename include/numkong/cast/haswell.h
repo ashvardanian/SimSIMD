@@ -572,110 +572,116 @@ NK_PUBLIC void nk_cast_haswell(void const *from, nk_dtype_t from_type, nk_size_t
     nk_size_t from_step = nk_dtype_bits(from_type);
     nk_size_t to_step = nk_dtype_bits(to_type);
 
-    nk_u8_t const *src = (nk_u8_t const *)from;
-    nk_u8_t *dst = (nk_u8_t *)to;
+    nk_u8_t const *from_ptr = (nk_u8_t const *)from;
+    nk_u8_t *to_ptr = (nk_u8_t *)to;
     nk_size_t batches = n / 8;
     nk_size_t tail = n % 8;
-    nk_b256_vec_t vec;
+    nk_b256_vec_t hub;
 
-    for (nk_size_t b = 0; b < batches; ++b, src += from_step, dst += to_step) {
+    for (nk_size_t idx = 0; idx < batches; ++idx, from_ptr += from_step, to_ptr += to_step) {
         // Upcast to f32x8
-        if (from_type == nk_f32_k) vec.ymm_ps = _mm256_loadu_ps((float const *)src);
-        else if (from_type == nk_f16_k) vec.ymm_ps = _mm256_cvtph_ps(_mm_loadu_si128((__m128i const *)src));
+        if (from_type == nk_f32_k) hub.ymm_ps = _mm256_loadu_ps((float const *)from_ptr);
+        else if (from_type == nk_f16_k) hub.ymm_ps = _mm256_cvtph_ps(_mm_loadu_si128((__m128i const *)from_ptr));
         else if (from_type == nk_bf16_k)
-            vec.ymm_ps = nk_bf16x8_to_f32x8_haswell_(_mm_loadu_si128((__m128i const *)src));
+            hub.ymm_ps = nk_bf16x8_to_f32x8_haswell_(_mm_loadu_si128((__m128i const *)from_ptr));
         else if (from_type == nk_e4m3_k)
-            vec.ymm_ps = nk_e4m3x8_to_f32x8_haswell_(_mm_loadl_epi64((__m128i const *)src));
+            hub.ymm_ps = nk_e4m3x8_to_f32x8_haswell_(_mm_loadl_epi64((__m128i const *)from_ptr));
         else if (from_type == nk_e5m2_k)
-            vec.ymm_ps = nk_e5m2x8_to_f32x8_haswell_(_mm_loadl_epi64((__m128i const *)src));
-        else if (from_type == nk_i8_k) vec.ymm_ps = nk_i8x8_to_f32x8_haswell_(_mm_loadl_epi64((__m128i const *)src));
-        else if (from_type == nk_u8_k) vec.ymm_ps = nk_u8x8_to_f32x8_haswell_(_mm_loadl_epi64((__m128i const *)src));
-        else if (from_type == nk_i16_k) vec.ymm_ps = nk_i16x8_to_f32x8_haswell_(_mm_loadu_si128((__m128i const *)src));
-        else if (from_type == nk_u16_k) vec.ymm_ps = nk_u16x8_to_f32x8_haswell_(_mm_loadu_si128((__m128i const *)src));
+            hub.ymm_ps = nk_e5m2x8_to_f32x8_haswell_(_mm_loadl_epi64((__m128i const *)from_ptr));
+        else if (from_type == nk_i8_k)
+            hub.ymm_ps = nk_i8x8_to_f32x8_haswell_(_mm_loadl_epi64((__m128i const *)from_ptr));
+        else if (from_type == nk_u8_k)
+            hub.ymm_ps = nk_u8x8_to_f32x8_haswell_(_mm_loadl_epi64((__m128i const *)from_ptr));
+        else if (from_type == nk_i16_k)
+            hub.ymm_ps = nk_i16x8_to_f32x8_haswell_(_mm_loadu_si128((__m128i const *)from_ptr));
+        else if (from_type == nk_u16_k)
+            hub.ymm_ps = nk_u16x8_to_f32x8_haswell_(_mm_loadu_si128((__m128i const *)from_ptr));
         else if (from_type == nk_i32_k)
-            vec.ymm_ps = nk_i32x8_to_f32x8_haswell_(_mm256_loadu_si256((__m256i const *)src));
+            hub.ymm_ps = nk_i32x8_to_f32x8_haswell_(_mm256_loadu_si256((__m256i const *)from_ptr));
         else if (from_type == nk_u32_k)
-            vec.ymm_ps = nk_u32x8_to_f32x8_haswell_(_mm256_loadu_si256((__m256i const *)src));
+            hub.ymm_ps = nk_u32x8_to_f32x8_haswell_(_mm256_loadu_si256((__m256i const *)from_ptr));
 
         // Downcast from f32x8
-        if (to_type == nk_f32_k) _mm256_storeu_ps((float *)dst, vec.ymm_ps);
+        if (to_type == nk_f32_k) _mm256_storeu_ps((float *)to_ptr, hub.ymm_ps);
         else if (to_type == nk_f16_k)
-            _mm_storeu_si128((__m128i *)dst, _mm256_cvtps_ph(vec.ymm_ps, _MM_FROUND_TO_NEAREST_INT));
-        else if (to_type == nk_bf16_k) _mm_storeu_si128((__m128i *)dst, nk_f32x8_to_bf16x8_haswell_(vec.ymm_ps));
-        else if (to_type == nk_e4m3_k) _mm_storel_epi64((__m128i *)dst, nk_f32x8_to_e4m3x8_haswell_(vec.ymm_ps));
-        else if (to_type == nk_e5m2_k) _mm_storel_epi64((__m128i *)dst, nk_f32x8_to_e5m2x8_haswell_(vec.ymm_ps));
-        else if (to_type == nk_i8_k) _mm_storel_epi64((__m128i *)dst, nk_f32x8_to_i8x8_haswell_(vec.ymm_ps));
-        else if (to_type == nk_u8_k) _mm_storel_epi64((__m128i *)dst, nk_f32x8_to_u8x8_haswell_(vec.ymm_ps));
-        else if (to_type == nk_i16_k) _mm_storeu_si128((__m128i *)dst, nk_f32x8_to_i16x8_haswell_(vec.ymm_ps));
-        else if (to_type == nk_u16_k) _mm_storeu_si128((__m128i *)dst, nk_f32x8_to_u16x8_haswell_(vec.ymm_ps));
-        else if (to_type == nk_i32_k) _mm256_storeu_si256((__m256i *)dst, nk_f32x8_to_i32x8_haswell_(vec.ymm_ps));
-        else if (to_type == nk_u32_k) _mm256_storeu_si256((__m256i *)dst, nk_f32x8_to_u32x8_haswell_(vec.ymm_ps));
+            _mm_storeu_si128((__m128i *)to_ptr, _mm256_cvtps_ph(hub.ymm_ps, _MM_FROUND_TO_NEAREST_INT));
+        else if (to_type == nk_bf16_k) _mm_storeu_si128((__m128i *)to_ptr, nk_f32x8_to_bf16x8_haswell_(hub.ymm_ps));
+        else if (to_type == nk_e4m3_k) _mm_storel_epi64((__m128i *)to_ptr, nk_f32x8_to_e4m3x8_haswell_(hub.ymm_ps));
+        else if (to_type == nk_e5m2_k) _mm_storel_epi64((__m128i *)to_ptr, nk_f32x8_to_e5m2x8_haswell_(hub.ymm_ps));
+        else if (to_type == nk_i8_k) _mm_storel_epi64((__m128i *)to_ptr, nk_f32x8_to_i8x8_haswell_(hub.ymm_ps));
+        else if (to_type == nk_u8_k) _mm_storel_epi64((__m128i *)to_ptr, nk_f32x8_to_u8x8_haswell_(hub.ymm_ps));
+        else if (to_type == nk_i16_k) _mm_storeu_si128((__m128i *)to_ptr, nk_f32x8_to_i16x8_haswell_(hub.ymm_ps));
+        else if (to_type == nk_u16_k) _mm_storeu_si128((__m128i *)to_ptr, nk_f32x8_to_u16x8_haswell_(hub.ymm_ps));
+        else if (to_type == nk_i32_k) _mm256_storeu_si256((__m256i *)to_ptr, nk_f32x8_to_i32x8_haswell_(hub.ymm_ps));
+        else if (to_type == nk_u32_k) _mm256_storeu_si256((__m256i *)to_ptr, nk_f32x8_to_u32x8_haswell_(hub.ymm_ps));
     }
 
     // Handle tail with partial loads/stores
     if (tail) {
         // Upcast tail to f32x8
-        if (from_type == nk_f32_k) nk_partial_load_b32x8_serial_(src, &vec, tail);
+        if (from_type == nk_f32_k) nk_partial_load_b32x8_serial_(from_ptr, &hub, tail);
         else if (from_type == nk_f16_k)
-            vec.ymm_ps = nk_partial_load_f16x8_to_f32x8_haswell_((nk_f16_t const *)src, tail);
+            hub.ymm_ps = nk_partial_load_f16x8_to_f32x8_haswell_((nk_f16_t const *)from_ptr, tail);
         else if (from_type == nk_bf16_k)
-            vec.ymm_ps = nk_partial_load_bf16x8_to_f32x8_haswell_((nk_bf16_t const *)src, tail);
+            hub.ymm_ps = nk_partial_load_bf16x8_to_f32x8_haswell_((nk_bf16_t const *)from_ptr, tail);
         else if (from_type == nk_e4m3_k)
-            vec.ymm_ps = nk_partial_load_e4m3x8_to_f32x8_haswell_((nk_e4m3_t const *)src, tail);
+            hub.ymm_ps = nk_partial_load_e4m3x8_to_f32x8_haswell_((nk_e4m3_t const *)from_ptr, tail);
         else if (from_type == nk_e5m2_k)
-            vec.ymm_ps = nk_partial_load_e5m2x8_to_f32x8_haswell_((nk_e5m2_t const *)src, tail);
-        else if (from_type == nk_i8_k) vec.ymm_ps = nk_partial_load_i8x8_to_f32x8_haswell_((nk_i8_t const *)src, tail);
-        else if (from_type == nk_u8_k) vec.ymm_ps = nk_partial_load_u8x8_to_f32x8_haswell_((nk_u8_t const *)src, tail);
+            hub.ymm_ps = nk_partial_load_e5m2x8_to_f32x8_haswell_((nk_e5m2_t const *)from_ptr, tail);
+        else if (from_type == nk_i8_k)
+            hub.ymm_ps = nk_partial_load_i8x8_to_f32x8_haswell_((nk_i8_t const *)from_ptr, tail);
+        else if (from_type == nk_u8_k)
+            hub.ymm_ps = nk_partial_load_u8x8_to_f32x8_haswell_((nk_u8_t const *)from_ptr, tail);
         else if (from_type == nk_i16_k)
-            vec.ymm_ps = nk_partial_load_i16x8_to_f32x8_haswell_((nk_i16_t const *)src, tail);
+            hub.ymm_ps = nk_partial_load_i16x8_to_f32x8_haswell_((nk_i16_t const *)from_ptr, tail);
         else if (from_type == nk_u16_k)
-            vec.ymm_ps = nk_partial_load_u16x8_to_f32x8_haswell_((nk_u16_t const *)src, tail);
+            hub.ymm_ps = nk_partial_load_u16x8_to_f32x8_haswell_((nk_u16_t const *)from_ptr, tail);
         else if (from_type == nk_i32_k)
-            vec.ymm_ps = nk_partial_load_i32x8_to_f32x8_haswell_((nk_i32_t const *)src, tail);
+            hub.ymm_ps = nk_partial_load_i32x8_to_f32x8_haswell_((nk_i32_t const *)from_ptr, tail);
         else if (from_type == nk_u32_k)
-            vec.ymm_ps = nk_partial_load_u32x8_to_f32x8_haswell_((nk_u32_t const *)src, tail);
+            hub.ymm_ps = nk_partial_load_u32x8_to_f32x8_haswell_((nk_u32_t const *)from_ptr, tail);
 
         // Downcast and store tail
-        if (to_type == nk_f32_k) nk_partial_store_b32x8_serial_(&vec, dst, tail);
+        if (to_type == nk_f32_k) nk_partial_store_b32x8_serial_(&hub, to_ptr, tail);
         else if (to_type == nk_f16_k) {
-            vec.xmms[0] = _mm256_cvtps_ph(vec.ymm_ps, _MM_FROUND_TO_NEAREST_INT);
-            nk_partial_store_b16x8_serial_((nk_b128_vec_t *)&vec, dst, tail);
+            hub.xmms[0] = _mm256_cvtps_ph(hub.ymm_ps, _MM_FROUND_TO_NEAREST_INT);
+            nk_partial_store_b16x8_serial_((nk_b128_vec_t *)&hub, to_ptr, tail);
         }
         else if (to_type == nk_bf16_k) {
-            vec.xmms[0] = nk_f32x8_to_bf16x8_haswell_(vec.ymm_ps);
-            nk_partial_store_b16x8_serial_((nk_b128_vec_t *)&vec, dst, tail);
+            hub.xmms[0] = nk_f32x8_to_bf16x8_haswell_(hub.ymm_ps);
+            nk_partial_store_b16x8_serial_((nk_b128_vec_t *)&hub, to_ptr, tail);
         }
         else if (to_type == nk_e4m3_k) {
-            vec.xmms[0] = nk_f32x8_to_e4m3x8_haswell_(vec.ymm_ps);
-            nk_partial_store_b8x8_serial_((nk_b64_vec_t *)&vec, dst, tail);
+            hub.xmms[0] = nk_f32x8_to_e4m3x8_haswell_(hub.ymm_ps);
+            nk_partial_store_b8x8_serial_((nk_b64_vec_t *)&hub, to_ptr, tail);
         }
         else if (to_type == nk_e5m2_k) {
-            vec.xmms[0] = nk_f32x8_to_e5m2x8_haswell_(vec.ymm_ps);
-            nk_partial_store_b8x8_serial_((nk_b64_vec_t *)&vec, dst, tail);
+            hub.xmms[0] = nk_f32x8_to_e5m2x8_haswell_(hub.ymm_ps);
+            nk_partial_store_b8x8_serial_((nk_b64_vec_t *)&hub, to_ptr, tail);
         }
         else if (to_type == nk_i8_k) {
-            vec.xmms[0] = nk_f32x8_to_i8x8_haswell_(vec.ymm_ps);
-            nk_partial_store_b8x8_serial_((nk_b64_vec_t *)&vec, dst, tail);
+            hub.xmms[0] = nk_f32x8_to_i8x8_haswell_(hub.ymm_ps);
+            nk_partial_store_b8x8_serial_((nk_b64_vec_t *)&hub, to_ptr, tail);
         }
         else if (to_type == nk_u8_k) {
-            vec.xmms[0] = nk_f32x8_to_u8x8_haswell_(vec.ymm_ps);
-            nk_partial_store_b8x8_serial_((nk_b64_vec_t *)&vec, dst, tail);
+            hub.xmms[0] = nk_f32x8_to_u8x8_haswell_(hub.ymm_ps);
+            nk_partial_store_b8x8_serial_((nk_b64_vec_t *)&hub, to_ptr, tail);
         }
         else if (to_type == nk_i16_k) {
-            vec.xmms[0] = nk_f32x8_to_i16x8_haswell_(vec.ymm_ps);
-            nk_partial_store_b16x8_serial_((nk_b128_vec_t *)&vec, dst, tail);
+            hub.xmms[0] = nk_f32x8_to_i16x8_haswell_(hub.ymm_ps);
+            nk_partial_store_b16x8_serial_((nk_b128_vec_t *)&hub, to_ptr, tail);
         }
         else if (to_type == nk_u16_k) {
-            vec.xmms[0] = nk_f32x8_to_u16x8_haswell_(vec.ymm_ps);
-            nk_partial_store_b16x8_serial_((nk_b128_vec_t *)&vec, dst, tail);
+            hub.xmms[0] = nk_f32x8_to_u16x8_haswell_(hub.ymm_ps);
+            nk_partial_store_b16x8_serial_((nk_b128_vec_t *)&hub, to_ptr, tail);
         }
         else if (to_type == nk_i32_k) {
-            vec.ymm = nk_f32x8_to_i32x8_haswell_(vec.ymm_ps);
-            nk_partial_store_b32x8_serial_(&vec, dst, tail);
+            hub.ymm = nk_f32x8_to_i32x8_haswell_(hub.ymm_ps);
+            nk_partial_store_b32x8_serial_(&hub, to_ptr, tail);
         }
         else if (to_type == nk_u32_k) {
-            vec.ymm = nk_f32x8_to_u32x8_haswell_(vec.ymm_ps);
-            nk_partial_store_b32x8_serial_(&vec, dst, tail);
+            hub.ymm = nk_f32x8_to_u32x8_haswell_(hub.ymm_ps);
+            nk_partial_store_b32x8_serial_(&hub, to_ptr, tail);
         }
     }
 }

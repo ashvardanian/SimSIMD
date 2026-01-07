@@ -551,65 +551,125 @@ NK_PUBLIC void nk_cast_neon(void const *from, nk_dtype_t from_type, nk_size_t n,
         return;
     }
 
-    // Main loop: 4 elements per iteration (f32x4 hub)
+    // Check if F16 hub is applicable (FP8/F16/BF16 conversions, 8 elements/iter)
+    // Exception: BF16 ↔ F16 skips F16 hub since it needs F32 intermediate anyway
+    int from_f16_hub = (from_type == nk_e4m3_k || from_type == nk_e5m2_k || from_type == nk_f16_k ||
+                        from_type == nk_bf16_k);
+    int to_f16_hub = (to_type == nk_e4m3_k || to_type == nk_e5m2_k || to_type == nk_f16_k || to_type == nk_bf16_k ||
+                      to_type == nk_f32_k);
+    int is_bf16_f16 = (from_type == nk_bf16_k && to_type == nk_f16_k) ||
+                      (from_type == nk_f16_k && to_type == nk_bf16_k);
+
+    if (from_f16_hub && to_f16_hub && !is_bf16_f16) {
+        // F16 hub: 8 elements per iteration (float16x8_t intermediate)
+        nk_size_t batches = n / 8;
+        nk_size_t from_step = 8 * nk_dtype_bits(from_type) / 8;
+        nk_size_t to_step = 8 * nk_dtype_bits(to_type) / 8;
+        nk_u8_t const *from_ptr = (nk_u8_t const *)from;
+        nk_u8_t *to_ptr = (nk_u8_t *)to;
+
+        for (nk_size_t idx = 0; idx < batches; ++idx, from_ptr += from_step, to_ptr += to_step) {
+            // Upcast to f16x8 hub
+            float16x8_t hub_f16x8;
+            switch (from_type) {
+            case nk_e4m3_k: hub_f16x8 = nk_e4m3x8_to_f16x8_neon_(vld1_u8(from_ptr)); break;
+            case nk_e5m2_k: hub_f16x8 = nk_e5m2x8_to_f16x8_neon_(vld1_u8(from_ptr)); break;
+            case nk_f16_k: hub_f16x8 = vld1q_f16((nk_f16_for_arm_simd_t const *)from_ptr); break;
+            case nk_bf16_k: {
+                uint16x4_t bf16_lo = vld1_u16((nk_u16_t const *)from_ptr);
+                uint16x4_t bf16_hi = vld1_u16((nk_u16_t const *)(from_ptr + 8));
+                float32x4_t f32_lo = nk_bf16x4_to_f32x4_neon_(bf16_lo);
+                float32x4_t f32_hi = nk_bf16x4_to_f32x4_neon_(bf16_hi);
+                hub_f16x8 = vcombine_f16(vcvt_f16_f32(f32_lo), vcvt_f16_f32(f32_hi));
+            } break;
+            default: hub_f16x8 = vdupq_n_f16(0); break;
+            }
+
+            // Downcast from f16x8 hub
+            switch (to_type) {
+            case nk_e4m3_k: vst1_u8(to_ptr, nk_f16x8_to_e4m3x8_neon_(hub_f16x8)); break;
+            case nk_e5m2_k: vst1_u8(to_ptr, nk_f16x8_to_e5m2x8_neon_(hub_f16x8)); break;
+            case nk_f16_k: vst1q_f16((nk_f16_for_arm_simd_t *)to_ptr, hub_f16x8); break;
+            case nk_bf16_k: {
+                float32x4_t f32_lo = vcvt_f32_f16(vget_low_f16(hub_f16x8));
+                float32x4_t f32_hi = vcvt_f32_f16(vget_high_f16(hub_f16x8));
+                vst1_u16((nk_u16_t *)to_ptr, nk_f32x4_to_bf16x4_neon_(f32_lo));
+                vst1_u16((nk_u16_t *)(to_ptr + 8), nk_f32x4_to_bf16x4_neon_(f32_hi));
+            } break;
+            case nk_f32_k: {
+                vst1q_f32((nk_f32_t *)to_ptr, vcvt_f32_f16(vget_low_f16(hub_f16x8)));
+                vst1q_f32((nk_f32_t *)(to_ptr + 16), vcvt_f32_f16(vget_high_f16(hub_f16x8)));
+            } break;
+            default: break;
+            }
+        }
+
+        // Handle remaining elements (0-7) with F32 hub or serial
+        n = n % 8;
+        from = from_ptr;
+        to = to_ptr;
+        if (n == 0) return;
+    }
+
+    // F32 hub: 4 elements per iteration (f32x4 intermediate)
     nk_size_t batches = n / 4;
     nk_size_t tail = n % 4;
     nk_size_t from_step = 4 * nk_dtype_bits(from_type) / 8;
     nk_size_t to_step = 4 * nk_dtype_bits(to_type) / 8;
-    nk_u8_t const *src = (nk_u8_t const *)from;
-    nk_u8_t *dst = (nk_u8_t *)to;
+    nk_u8_t const *from_ptr = (nk_u8_t const *)from;
+    nk_u8_t *to_ptr = (nk_u8_t *)to;
 
-    for (nk_size_t b = 0; b < batches; ++b, src += from_step, dst += to_step) {
+    for (nk_size_t idx = 0; idx < batches; ++idx, from_ptr += from_step, to_ptr += to_step) {
         // Load and upcast to f32x4
-        float32x4_t vec_f32x4;
+        float32x4_t hub_f32x4;
         switch (from_type) {
-        case nk_f32_k: vec_f32x4 = vld1q_f32((nk_f32_t const *)src); break;
-        case nk_f16_k: vec_f32x4 = vcvt_f32_f16(vld1_f16((nk_f16_for_arm_simd_t const *)src)); break;
-        case nk_bf16_k: vec_f32x4 = nk_bf16x4_to_f32x4_neon_(vld1_u16((nk_u16_t const *)src)); break;
+        case nk_f32_k: hub_f32x4 = vld1q_f32((nk_f32_t const *)from_ptr); break;
+        case nk_f16_k: hub_f32x4 = vcvt_f32_f16(vld1_f16((nk_f16_for_arm_simd_t const *)from_ptr)); break;
+        case nk_bf16_k: hub_f32x4 = nk_bf16x4_to_f32x4_neon_(vld1_u16((nk_u16_t const *)from_ptr)); break;
         case nk_e4m3_k: {
-            nk_b32_vec_t src_vec;
-            nk_load_b32_serial_(src, &src_vec);
-            vec_f32x4 = nk_e4m3x4_to_f32x4_neon_(src_vec);
+            nk_b32_vec_t in_vec;
+            nk_load_b32_serial_(from_ptr, &in_vec);
+            hub_f32x4 = nk_e4m3x4_to_f32x4_neon_(in_vec);
         } break;
         case nk_e5m2_k: {
-            nk_b32_vec_t src_vec;
-            nk_load_b32_serial_(src, &src_vec);
-            vec_f32x4 = nk_e5m2x4_to_f32x4_neon_(src_vec);
+            nk_b32_vec_t in_vec;
+            nk_load_b32_serial_(from_ptr, &in_vec);
+            hub_f32x4 = nk_e5m2x4_to_f32x4_neon_(in_vec);
         } break;
-        case nk_i32_k: vec_f32x4 = vcvtq_f32_s32(vld1q_s32((nk_i32_t const *)src)); break;
-        case nk_u32_k: vec_f32x4 = vcvtq_f32_u32(vld1q_u32((nk_u32_t const *)src)); break;
-        case nk_i16_k: vec_f32x4 = nk_i16x4_to_f32x4_neon_(vld1_s16((nk_i16_t const *)src)); break;
-        case nk_u16_k: vec_f32x4 = nk_u16x4_to_f32x4_neon_(vld1_u16((nk_u16_t const *)src)); break;
-        case nk_i8_k: vec_f32x4 = nk_i8x4_to_f32x4_neon_(vld1_s8((nk_i8_t const *)src)); break;
-        case nk_u8_k: vec_f32x4 = nk_u8x4_to_f32x4_neon_(vld1_u8((nk_u8_t const *)src)); break;
-        default: vec_f32x4 = vdupq_n_f32(0); break;
+        case nk_i32_k: hub_f32x4 = vcvtq_f32_s32(vld1q_s32((nk_i32_t const *)from_ptr)); break;
+        case nk_u32_k: hub_f32x4 = vcvtq_f32_u32(vld1q_u32((nk_u32_t const *)from_ptr)); break;
+        case nk_i16_k: hub_f32x4 = nk_i16x4_to_f32x4_neon_(vld1_s16((nk_i16_t const *)from_ptr)); break;
+        case nk_u16_k: hub_f32x4 = nk_u16x4_to_f32x4_neon_(vld1_u16((nk_u16_t const *)from_ptr)); break;
+        case nk_i8_k: hub_f32x4 = nk_i8x4_to_f32x4_neon_(vld1_s8((nk_i8_t const *)from_ptr)); break;
+        case nk_u8_k: hub_f32x4 = nk_u8x4_to_f32x4_neon_(vld1_u8((nk_u8_t const *)from_ptr)); break;
+        default: hub_f32x4 = vdupq_n_f32(0); break;
         }
 
         // Downcast from f32x4 and store
         switch (to_type) {
-        case nk_f32_k: vst1q_f32((nk_f32_t *)dst, vec_f32x4); break;
-        case nk_f16_k: vst1_f16((nk_f16_for_arm_simd_t *)dst, vcvt_f16_f32(vec_f32x4)); break;
-        case nk_bf16_k: vst1_u16((nk_u16_t *)dst, nk_f32x4_to_bf16x4_neon_(vec_f32x4)); break;
+        case nk_f32_k: vst1q_f32((nk_f32_t *)to_ptr, hub_f32x4); break;
+        case nk_f16_k: vst1_f16((nk_f16_for_arm_simd_t *)to_ptr, vcvt_f16_f32(hub_f32x4)); break;
+        case nk_bf16_k: vst1_u16((nk_u16_t *)to_ptr, nk_f32x4_to_bf16x4_neon_(hub_f32x4)); break;
         case nk_e4m3_k: {
-            nk_b32_vec_t result_vec = nk_f32x4_to_e4m3x4_neon_(vec_f32x4);
-            *(nk_u32_t *)dst = result_vec.u32;
+            nk_b32_vec_t out_vec = nk_f32x4_to_e4m3x4_neon_(hub_f32x4);
+            *(nk_u32_t *)to_ptr = out_vec.u32;
         } break;
         case nk_e5m2_k: {
-            nk_b32_vec_t result_vec = nk_f32x4_to_e5m2x4_neon_(vec_f32x4);
-            *(nk_u32_t *)dst = result_vec.u32;
+            nk_b32_vec_t out_vec = nk_f32x4_to_e5m2x4_neon_(hub_f32x4);
+            *(nk_u32_t *)to_ptr = out_vec.u32;
         } break;
-        case nk_i32_k: vst1q_s32((nk_i32_t *)dst, vcvtq_s32_f32(vec_f32x4)); break;
-        case nk_u32_k: vst1q_u32((nk_u32_t *)dst, vcvtq_u32_f32(vec_f32x4)); break;
-        case nk_i16_k: vst1_s16((nk_i16_t *)dst, nk_f32x4_to_i16x4_neon_(vec_f32x4)); break;
-        case nk_u16_k: vst1_u16((nk_u16_t *)dst, nk_f32x4_to_u16x4_neon_(vec_f32x4)); break;
-        case nk_i8_k: nk_f32x4_to_i8x4_neon_(vec_f32x4, (nk_i8_t *)dst); break;
-        case nk_u8_k: nk_f32x4_to_u8x4_neon_(vec_f32x4, (nk_u8_t *)dst); break;
+        case nk_i32_k: vst1q_s32((nk_i32_t *)to_ptr, vcvtq_s32_f32(hub_f32x4)); break;
+        case nk_u32_k: vst1q_u32((nk_u32_t *)to_ptr, vcvtq_u32_f32(hub_f32x4)); break;
+        case nk_i16_k: vst1_s16((nk_i16_t *)to_ptr, nk_f32x4_to_i16x4_neon_(hub_f32x4)); break;
+        case nk_u16_k: vst1_u16((nk_u16_t *)to_ptr, nk_f32x4_to_u16x4_neon_(hub_f32x4)); break;
+        case nk_i8_k: nk_f32x4_to_i8x4_neon_(hub_f32x4, (nk_i8_t *)to_ptr); break;
+        case nk_u8_k: nk_f32x4_to_u8x4_neon_(hub_f32x4, (nk_u8_t *)to_ptr); break;
         default: break;
         }
     }
 
     // Handle tail elements with serial fallback
-    if (tail) nk_cast_serial(src, from_type, tail, dst, to_type);
+    if (tail) nk_cast_serial(from_ptr, from_type, tail, to_ptr, to_type);
 }
 
 #pragma endregion - Public API
