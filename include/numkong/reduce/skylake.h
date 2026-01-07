@@ -4,6 +4,36 @@
  *  @sa include/numkong/reduce.h
  *  @author Ash Vardanian
  *  @date December 27, 2025
+ *
+ *  @section float_as_int Float-as-Int Comparison Trick
+ *
+ *  FP8 min/max operations use direct byte comparison instead of F32 upcasting.
+ *  IEEE-like floats have the property that for same-sign values, the unsigned
+ *  bit pattern ordering matches the numeric ordering. To extend this to mixed
+ *  signs, we transform to "comparable form":
+ *
+ *  - Positive FP8 (sign=0): XOR with 0x80 → maps [0x00, 0x7F] to [0x80, 0xFF]
+ *  - Negative FP8 (sign=1): XOR with 0xFF → maps [0x80, 0xFF] to [0x7F, 0x00]
+ *
+ *  After transformation, unsigned byte comparison preserves FP8 numeric order:
+ *
+ *      max_positive → 0xFE (highest)    [E4M3: 0x7E→0xFE, E5M2: 0x7B→0xFB]
+ *      +0           → 0x80
+ *      -0           → 0x7F
+ *      max_negative → 0x01 (lowest)
+ *      NaN (E4M3)   → 0xFF              [0x7F transforms to 0xFF]
+ *
+ *  NaN Handling:
+ *
+ *  - E4M3: Single NaN encoding per sign (0x7F, 0xFF) → comparable form 0xFF, 0x00
+ *  - E5M2: Multiple NaNs (0x7D-0x7F, 0xFD-0xFF) → use threshold comparison
+ *
+ *  Port Usage (Skylake-X):
+ *
+ *  - VPTESTMB (sign detection): 1 uop, p5
+ *  - VPCMPUB (unsigned compare): 1 uop, p5
+ *  - VPXORD/VPORD/VPANDD: 1 uop, p05
+ *  - Mask ops (kand/kor/knot): 1 uop, p0 or p5
  */
 #ifndef NK_REDUCE_SKYLAKE_H
 #define NK_REDUCE_SKYLAKE_H
@@ -19,6 +49,8 @@
 #endif
 
 #include "numkong/types.h"
+#include "numkong/reduce/serial.h" // `nk_e4m3_to_f32_serial`
+#include "numkong/cast/skylake.h"  // `nk_e4m3x8_to_f32x8_skylake_`
 
 #if defined(__cplusplus)
 extern "C" {
@@ -521,6 +553,140 @@ NK_INTERNAL nk_u64_t nk_reduce_add_u64x8_skylake_(__m512i sum_u64x8) {
     __m128i hi_lane_u64 = _mm_unpackhi_epi64(sum_u64x2, sum_u64x2);
     __m128i final_u64 = _mm_add_epi64(sum_u64x2, hi_lane_u64);
     return (nk_u64_t)_mm_cvtsi128_si64(final_u64);
+}
+
+/**
+ *  @brief Convert 64× FP8 bytes to unsigned-comparable form for ordering.
+ *
+ *  Transforms FP8 bit patterns so that unsigned byte comparison (VPCMPUB)
+ *  preserves the correct FP8 numeric ordering across positive and negative values.
+ *
+ *  @param raw_i8x64 Raw FP8 bytes (E4M3 or E5M2 - same transformation)
+ *  @return Transformed bytes suitable for unsigned comparison
+ *
+ *  @note Same function works for both E4M3 and E5M2 (sign bit position identical)
+ *  @note Port usage: 1× VPTESTMB (p5), 1× mask_mov (p05), 1× VPXORD (p05) = 3 uops
+ */
+NK_INTERNAL __m512i nk_fp8x64_to_u8x64_comparable_skylake_(__m512i raw_i8x64) {
+    __mmask64 neg_m64 = _mm512_test_epi8_mask(raw_i8x64, _mm512_set1_epi8((char)0x80));
+    __m512i pos_xor_i8x64 = _mm512_set1_epi8((char)0x80);
+    __m512i neg_xor_i8x64 = _mm512_set1_epi8((char)0xFF);
+    __m512i xor_i8x64 = _mm512_mask_mov_epi8(pos_xor_i8x64, neg_m64, neg_xor_i8x64);
+    return _mm512_xor_si512(raw_i8x64, xor_i8x64);
+}
+
+/**
+ *  @brief Convert 64× comparable bytes back to FP8 format.
+ *
+ *  Reverses the transformation applied by nk_fp8x64_to_u8x64_comparable_skylake_.
+ *  Values < 0x80 in comparable form were originally negative FP8.
+ *
+ *  @param cmp_i8x64 Bytes in comparable form
+ *  @return Original FP8 bytes (E4M3 or E5M2)
+ *
+ *  @note Port usage: 1× VPCMPUB (p5), 1× mask_mov (p05), 1× VPXORD (p05) = 3 uops
+ */
+NK_INTERNAL __m512i nk_u8x64_comparable_to_fp8x64_skylake_(__m512i cmp_i8x64) {
+    __mmask64 was_neg_m64 = _mm512_cmplt_epu8_mask(cmp_i8x64, _mm512_set1_epi8((char)0x80));
+    __m512i neg_xor_i8x64 = _mm512_set1_epi8((char)0xFF);
+    __m512i pos_xor_i8x64 = _mm512_set1_epi8((char)0x80);
+    __m512i xor_i8x64 = _mm512_mask_mov_epi8(pos_xor_i8x64, was_neg_m64, neg_xor_i8x64);
+    return _mm512_xor_si512(cmp_i8x64, xor_i8x64);
+}
+
+/**
+ *  @brief IEEE-compliant min selection mask for E4M3 vectors in comparable form.
+ *
+ *  Returns mask indicating which lanes should select from 'a' to get element-wise
+ *  minimum with IEEE NaN semantics: min(x, NaN) = x, min(NaN, NaN) = NaN.
+ *
+ *  @param a_cmp_u8x64 First operand in comparable form
+ *  @param b_cmp_u8x64 Second operand in comparable form
+ *  @param nan_cmp_u8x64 NaN value in comparable form (0xFF for E4M3)
+ *  @return Mask where 1 = select a, 0 = select b
+ *
+ *  Usage: min = _mm512_mask_mov_epi8(b_cmp, mask, a_cmp);
+ *
+ *  @note Port usage: 2× VPCMPEQB (p5), 1× VPCMPUB (p5), 4× mask ops (p05) = ~5 uops
+ */
+NK_INTERNAL __mmask64 nk_min_mask_e4m3x64_skylake_( //
+    __m512i a_cmp_u8x64, __m512i b_cmp_u8x64, __m512i nan_cmp_u8x64) {
+    __mmask64 a_nan_m64 = _mm512_cmpeq_epi8_mask(a_cmp_u8x64, nan_cmp_u8x64);
+    __mmask64 b_nan_m64 = _mm512_cmpeq_epi8_mask(b_cmp_u8x64, nan_cmp_u8x64);
+    __mmask64 lt_m64 = _mm512_cmplt_epu8_mask(a_cmp_u8x64, b_cmp_u8x64);
+    // Select a if: a is not NaN AND (a < b OR b is NaN)
+    return _kand_mask64(_knot_mask64(a_nan_m64), _kor_mask64(lt_m64, b_nan_m64));
+}
+
+/**
+ *  @brief IEEE-compliant max selection mask for E4M3 vectors in comparable form.
+ *
+ *  Returns mask indicating which lanes should select from 'a' to get element-wise
+ *  maximum with IEEE NaN semantics: max(x, NaN) = x, max(NaN, NaN) = NaN.
+ *
+ *  @param a_cmp_u8x64 First operand in comparable form
+ *  @param b_cmp_u8x64 Second operand in comparable form
+ *  @param nan_cmp_u8x64 NaN value in comparable form (0xFF for E4M3)
+ *  @return Mask where 1 = select a, 0 = select b
+ *
+ *  Usage: max = _mm512_mask_mov_epi8(b_cmp, mask, a_cmp);
+ */
+NK_INTERNAL __mmask64 nk_max_mask_e4m3x64_skylake_( //
+    __m512i a_cmp_u8x64, __m512i b_cmp_u8x64, __m512i nan_cmp_u8x64) {
+    __mmask64 a_nan_m64 = _mm512_cmpeq_epi8_mask(a_cmp_u8x64, nan_cmp_u8x64);
+    __mmask64 b_nan_m64 = _mm512_cmpeq_epi8_mask(b_cmp_u8x64, nan_cmp_u8x64);
+    __mmask64 gt_m64 = _mm512_cmpgt_epu8_mask(a_cmp_u8x64, b_cmp_u8x64);
+    // Select a if: a is not NaN AND (a > b OR b is NaN)
+    return _kand_mask64(_knot_mask64(a_nan_m64), _kor_mask64(gt_m64, b_nan_m64));
+}
+
+/**
+ *  @brief IEEE-compliant min selection mask for E5M2 vectors in comparable form.
+ *
+ *  E5M2 has multiple NaN encodings (0x7D-0x7F per sign), requiring threshold
+ *  comparison instead of equality. In comparable form, NaNs map to >= 0xFD.
+ *
+ *  @param a_cmp_u8x64 First operand in comparable form
+ *  @param b_cmp_u8x64 Second operand in comparable form
+ *  @param nan_threshold_cmp_u8x64 NaN threshold in comparable form (0xFD for E5M2)
+ *  @return Mask where 1 = select a, 0 = select b
+ */
+NK_INTERNAL __mmask64 nk_min_mask_e5m2x64_skylake_( //
+    __m512i a_cmp_u8x64, __m512i b_cmp_u8x64, __m512i nan_threshold_cmp_u8x64) {
+    __mmask64 a_nan_m64 = _mm512_cmpge_epu8_mask(a_cmp_u8x64, nan_threshold_cmp_u8x64);
+    __mmask64 b_nan_m64 = _mm512_cmpge_epu8_mask(b_cmp_u8x64, nan_threshold_cmp_u8x64);
+    __mmask64 lt_m64 = _mm512_cmplt_epu8_mask(a_cmp_u8x64, b_cmp_u8x64);
+    return _kand_mask64(_knot_mask64(a_nan_m64), _kor_mask64(lt_m64, b_nan_m64));
+}
+
+/**
+ *  @brief IEEE-compliant max selection mask for E5M2 vectors in comparable form.
+ *
+ *  @param a_cmp_u8x64 First operand in comparable form
+ *  @param b_cmp_u8x64 Second operand in comparable form
+ *  @param nan_threshold_cmp_u8x64 NaN threshold in comparable form (0xFD for E5M2)
+ *  @return Mask where 1 = select a, 0 = select b
+ */
+NK_INTERNAL __mmask64 nk_max_mask_e5m2x64_skylake_( //
+    __m512i a_cmp_u8x64, __m512i b_cmp_u8x64, __m512i nan_threshold_cmp_u8x64) {
+    __mmask64 a_nan_m64 = _mm512_cmpge_epu8_mask(a_cmp_u8x64, nan_threshold_cmp_u8x64);
+    __mmask64 b_nan_m64 = _mm512_cmpge_epu8_mask(b_cmp_u8x64, nan_threshold_cmp_u8x64);
+    __mmask64 gt_m64 = _mm512_cmpgt_epu8_mask(a_cmp_u8x64, b_cmp_u8x64);
+    return _kand_mask64(_knot_mask64(a_nan_m64), _kor_mask64(gt_m64, b_nan_m64));
+}
+
+/** @brief Horizontal argmin: returns index of first minimum unsigned byte in ZMM register. */
+NK_INTERNAL nk_size_t nk_argmin_u8x64_skylake_(__m512i data_u8x64) {
+    nk_u8_t min_val = nk_reduce_min_u8x64_skylake_(data_u8x64);
+    __mmask64 eq_m64 = _mm512_cmpeq_epi8_mask(data_u8x64, _mm512_set1_epi8((char)min_val));
+    return (nk_size_t)_tzcnt_u64(eq_m64);
+}
+
+/** @brief Horizontal argmax: returns index of first maximum unsigned byte in ZMM register. */
+NK_INTERNAL nk_size_t nk_argmax_u8x64_skylake_(__m512i data_u8x64) {
+    nk_u8_t max_val = nk_reduce_max_u8x64_skylake_(data_u8x64);
+    __mmask64 eq_m64 = _mm512_cmpeq_epi8_mask(data_u8x64, _mm512_set1_epi8((char)max_val));
+    return (nk_size_t)_tzcnt_u64(eq_m64);
 }
 
 NK_INTERNAL void nk_reduce_add_f32_skylake_contiguous_( //
@@ -2010,6 +2176,237 @@ NK_PUBLIC void nk_reduce_max_u64_skylake(                          //
     if (count == 0) *max_value = NK_U64_MIN, *max_index = count;
     else if (stride_bytes == sizeof(nk_u64_t)) nk_reduce_max_u64_skylake_contiguous_(data, count, max_value, max_index);
     else nk_reduce_max_u64_serial(data, count, stride_bytes, max_value, max_index);
+}
+
+NK_INTERNAL void nk_reduce_min_e4m3_skylake_contiguous_( //
+    nk_e4m3_t const *data, nk_size_t count,              //
+    nk_f32_t *min_value, nk_size_t *min_index) {
+
+    __m512i nan_cmp_u8x64 = _mm512_set1_epi8((char)0xFF); // E4M3 NaN in comparable form
+    __m512i one_i64x8 = _mm512_set1_epi64(1);
+    nk_b512_vec_t min_vec, argmin_vec;
+    min_vec.zmm = nan_cmp_u8x64;              // Identity for min (0xFF)
+    argmin_vec.zmm = _mm512_setzero_si512();  // Track which iteration each qword's min came from
+    __m512i current_chunk_i64x8 = _mm512_setzero_si512();
+    __m512i data_i8x64;
+
+nk_reduce_min_e4m3_skylake_cycle_:
+    if (count < 64) {
+        data_i8x64 = nk_partial_load_b8x64_skylake_(data, count, 0xFF);
+        count = 0;
+    }
+    else {
+        data_i8x64 = _mm512_loadu_si512(data);
+        data += 64, count -= 64;
+    }
+    __m512i data_cmp_u8x64 = nk_fp8x64_to_u8x64_comparable_skylake_(data_i8x64);
+    __mmask64 min_mask_m64 = nk_min_mask_e4m3x64_skylake_(min_vec.zmm, data_cmp_u8x64, nan_cmp_u8x64);
+    __m512i new_min_cmp_u8x64 = _mm512_mask_mov_epi8(data_cmp_u8x64, min_mask_m64, min_vec.zmm);
+    __mmask64 changed_m64 = _mm512_cmpneq_epi8_mask(new_min_cmp_u8x64, min_vec.zmm);
+
+    // Convert 64-bit byte-change mask to 8-bit qword-change mask using SWAR + PEXT:
+    // 1. OR-cascade collapses each 8-bit group to its bit 0 (any-set detection)
+    // 2. PEXT extracts bits 0,8,16,24,32,40,48,56 into consecutive bits
+    nk_u64_t x = (nk_u64_t)changed_m64;
+    x |= x >> 1; // Each bit has OR of 2 neighbors
+    x |= x >> 2; // Each bit has OR of 4 neighbors
+    x |= x >> 4; // Bit 0 of each byte has OR of all 8 bits in that byte
+    __mmask8 chunk_updated_m8 = (__mmask8)_pext_u64(x, 0x0101010101010101ULL);
+
+    argmin_vec.zmm = _mm512_mask_mov_epi64(argmin_vec.zmm, chunk_updated_m8, current_chunk_i64x8);
+    min_vec.zmm = new_min_cmp_u8x64;
+    current_chunk_i64x8 = _mm512_add_epi64(current_chunk_i64x8, one_i64x8);
+    if (count) goto nk_reduce_min_e4m3_skylake_cycle_;
+
+    // Horizontal reduction: find lane with minimum value, extract its iteration index
+    nk_size_t first_lane = nk_argmin_u8x64_skylake_(min_vec.zmm);
+    nk_size_t chunk_idx = (nk_size_t)argmin_vec.i64s[first_lane / 8];
+    *min_index = chunk_idx * 64 + (first_lane % 64);
+
+    // Convert min value back to FP8, then to F32
+    min_vec.zmm = nk_u8x64_comparable_to_fp8x64_skylake_(min_vec.zmm);
+    nk_e4m3_to_f32_serial(&min_vec.e4m3s[first_lane], min_value);
+}
+
+NK_INTERNAL void nk_reduce_max_e4m3_skylake_contiguous_( //
+    nk_e4m3_t const *data, nk_size_t count,              //
+    nk_f32_t *max_value, nk_size_t *max_index) {
+
+    __m512i nan_cmp_u8x64 = _mm512_set1_epi8((char)0xFF); // E4M3 NaN in comparable form
+    __m512i one_i64x8 = _mm512_set1_epi64(1);
+    nk_b512_vec_t max_vec, argmax_vec;
+    max_vec.zmm = _mm512_setzero_si512();     // Identity for max (0x00)
+    argmax_vec.zmm = _mm512_setzero_si512();  // Track which iteration each qword's max came from
+    __m512i current_chunk_i64x8 = _mm512_setzero_si512();
+    __m512i data_i8x64;
+
+nk_reduce_max_e4m3_skylake_cycle_:
+    if (count < 64) {
+        data_i8x64 = nk_partial_load_b8x64_skylake_(data, count, 0x00);
+        count = 0;
+    }
+    else {
+        data_i8x64 = _mm512_loadu_si512(data);
+        data += 64, count -= 64;
+    }
+    __m512i data_cmp_u8x64 = nk_fp8x64_to_u8x64_comparable_skylake_(data_i8x64);
+    __mmask64 max_mask_m64 = nk_max_mask_e4m3x64_skylake_(max_vec.zmm, data_cmp_u8x64, nan_cmp_u8x64);
+    __m512i new_max_cmp_u8x64 = _mm512_mask_mov_epi8(data_cmp_u8x64, max_mask_m64, max_vec.zmm);
+    __mmask64 changed_m64 = _mm512_cmpneq_epi8_mask(new_max_cmp_u8x64, max_vec.zmm);
+
+    // Convert 64-bit byte-change mask to 8-bit qword-change mask using SWAR + PEXT
+    nk_u64_t x = (nk_u64_t)changed_m64;
+    x |= x >> 1;
+    x |= x >> 2;
+    x |= x >> 4;
+    __mmask8 chunk_updated_m8 = (__mmask8)_pext_u64(x, 0x0101010101010101ULL);
+
+    argmax_vec.zmm = _mm512_mask_mov_epi64(argmax_vec.zmm, chunk_updated_m8, current_chunk_i64x8);
+    max_vec.zmm = new_max_cmp_u8x64;
+    current_chunk_i64x8 = _mm512_add_epi64(current_chunk_i64x8, one_i64x8);
+    if (count) goto nk_reduce_max_e4m3_skylake_cycle_;
+
+    // Horizontal reduction: find lane with maximum value, extract its iteration index
+    nk_size_t first_lane = nk_argmax_u8x64_skylake_(max_vec.zmm);
+    nk_size_t chunk_idx = (nk_size_t)argmax_vec.i64s[first_lane / 8];
+    *max_index = chunk_idx * 64 + (first_lane % 64);
+
+    // Convert max value back to FP8, then to F32
+    max_vec.zmm = nk_u8x64_comparable_to_fp8x64_skylake_(max_vec.zmm);
+    nk_e4m3_to_f32_serial(&max_vec.e4m3s[first_lane], max_value);
+}
+
+NK_INTERNAL void nk_reduce_min_e5m2_skylake_contiguous_( //
+    nk_e5m2_t const *data, nk_size_t count,              //
+    nk_f32_t *min_value, nk_size_t *min_index) {
+
+    // E5M2 NaN threshold: 0x7D-0x7F map to 0xFD-0xFF in comparable form
+    __m512i nan_threshold_cmp_u8x64 = _mm512_set1_epi8((char)0xFD);
+    __m512i one_i64x8 = _mm512_set1_epi64(1);
+    nk_b512_vec_t min_vec, argmin_vec;
+    min_vec.zmm = _mm512_set1_epi8((char)0xFF);  // Identity for min
+    argmin_vec.zmm = _mm512_setzero_si512();
+    __m512i current_chunk_i64x8 = _mm512_setzero_si512();
+    __m512i data_i8x64;
+
+nk_reduce_min_e5m2_skylake_cycle_:
+    if (count < 64) {
+        data_i8x64 = nk_partial_load_b8x64_skylake_(data, count, 0xFF);
+        count = 0;
+    }
+    else {
+        data_i8x64 = _mm512_loadu_si512(data);
+        data += 64, count -= 64;
+    }
+    __m512i data_cmp_u8x64 = nk_fp8x64_to_u8x64_comparable_skylake_(data_i8x64);
+    __mmask64 min_mask_m64 = nk_min_mask_e5m2x64_skylake_(min_vec.zmm, data_cmp_u8x64, nan_threshold_cmp_u8x64);
+    __m512i new_min_cmp_u8x64 = _mm512_mask_mov_epi8(data_cmp_u8x64, min_mask_m64, min_vec.zmm);
+    __mmask64 changed_m64 = _mm512_cmpneq_epi8_mask(new_min_cmp_u8x64, min_vec.zmm);
+
+    // Convert 64-bit byte-change mask to 8-bit qword-change mask using SWAR + PEXT
+    nk_u64_t x = (nk_u64_t)changed_m64;
+    x |= x >> 1;
+    x |= x >> 2;
+    x |= x >> 4;
+    __mmask8 chunk_updated_m8 = (__mmask8)_pext_u64(x, 0x0101010101010101ULL);
+
+    argmin_vec.zmm = _mm512_mask_mov_epi64(argmin_vec.zmm, chunk_updated_m8, current_chunk_i64x8);
+    min_vec.zmm = new_min_cmp_u8x64;
+    current_chunk_i64x8 = _mm512_add_epi64(current_chunk_i64x8, one_i64x8);
+    if (count) goto nk_reduce_min_e5m2_skylake_cycle_;
+
+    // Horizontal reduction: find lane with minimum value, extract its iteration index
+    nk_size_t first_lane = nk_argmin_u8x64_skylake_(min_vec.zmm);
+    nk_size_t chunk_idx = (nk_size_t)argmin_vec.i64s[first_lane / 8];
+    *min_index = chunk_idx * 64 + (first_lane % 64);
+
+    // Convert min value back to FP8, then to F32
+    min_vec.zmm = nk_u8x64_comparable_to_fp8x64_skylake_(min_vec.zmm);
+    nk_e5m2_to_f32_serial(&min_vec.e5m2s[first_lane], min_value);
+}
+
+NK_INTERNAL void nk_reduce_max_e5m2_skylake_contiguous_( //
+    nk_e5m2_t const *data, nk_size_t count,              //
+    nk_f32_t *max_value, nk_size_t *max_index) {
+
+    __m512i nan_threshold_cmp_u8x64 = _mm512_set1_epi8((char)0xFD);
+    __m512i one_i64x8 = _mm512_set1_epi64(1);
+    nk_b512_vec_t max_vec, argmax_vec;
+    max_vec.zmm = _mm512_setzero_si512();     // Identity for max (0x00)
+    argmax_vec.zmm = _mm512_setzero_si512();
+    __m512i current_chunk_i64x8 = _mm512_setzero_si512();
+    __m512i data_i8x64;
+
+nk_reduce_max_e5m2_skylake_cycle_:
+    if (count < 64) {
+        data_i8x64 = nk_partial_load_b8x64_skylake_(data, count, 0x00);
+        count = 0;
+    }
+    else {
+        data_i8x64 = _mm512_loadu_si512(data);
+        data += 64, count -= 64;
+    }
+    __m512i data_cmp_u8x64 = nk_fp8x64_to_u8x64_comparable_skylake_(data_i8x64);
+    __mmask64 max_mask_m64 = nk_max_mask_e5m2x64_skylake_(max_vec.zmm, data_cmp_u8x64, nan_threshold_cmp_u8x64);
+    __m512i new_max_cmp_u8x64 = _mm512_mask_mov_epi8(data_cmp_u8x64, max_mask_m64, max_vec.zmm);
+    __mmask64 changed_m64 = _mm512_cmpneq_epi8_mask(new_max_cmp_u8x64, max_vec.zmm);
+
+    // Convert 64-bit byte-change mask to 8-bit qword-change mask using SWAR + PEXT
+    nk_u64_t x = (nk_u64_t)changed_m64;
+    x |= x >> 1;
+    x |= x >> 2;
+    x |= x >> 4;
+    __mmask8 chunk_updated_m8 = (__mmask8)_pext_u64(x, 0x0101010101010101ULL);
+
+    argmax_vec.zmm = _mm512_mask_mov_epi64(argmax_vec.zmm, chunk_updated_m8, current_chunk_i64x8);
+    max_vec.zmm = new_max_cmp_u8x64;
+    current_chunk_i64x8 = _mm512_add_epi64(current_chunk_i64x8, one_i64x8);
+    if (count) goto nk_reduce_max_e5m2_skylake_cycle_;
+
+    // Horizontal reduction: find lane with maximum value, extract its iteration index
+    nk_size_t first_lane = nk_argmax_u8x64_skylake_(max_vec.zmm);
+    nk_size_t chunk_idx = (nk_size_t)argmax_vec.i64s[first_lane / 8];
+    *max_index = chunk_idx * 64 + (first_lane % 64);
+
+    // Convert max value back to FP8, then to F32
+    max_vec.zmm = nk_u8x64_comparable_to_fp8x64_skylake_(max_vec.zmm);
+    nk_e5m2_to_f32_serial(&max_vec.e5m2s[first_lane], max_value);
+}
+
+NK_PUBLIC void nk_reduce_min_e4m3_skylake(                          //
+    nk_e4m3_t const *data, nk_size_t count, nk_size_t stride_bytes, //
+    nk_f32_t *min_value, nk_size_t *min_index) {
+    if (count == 0) *min_value = NK_F32_MAX, *min_index = count;
+    else if (stride_bytes == sizeof(nk_e4m3_t) && count >= 64)
+        nk_reduce_min_e4m3_skylake_contiguous_(data, count, min_value, min_index);
+    else nk_reduce_min_e4m3_serial(data, count, stride_bytes, min_value, min_index);
+}
+
+NK_PUBLIC void nk_reduce_max_e4m3_skylake(                          //
+    nk_e4m3_t const *data, nk_size_t count, nk_size_t stride_bytes, //
+    nk_f32_t *max_value, nk_size_t *max_index) {
+    if (count == 0) *max_value = -NK_F32_MAX, *max_index = count;
+    else if (stride_bytes == sizeof(nk_e4m3_t) && count >= 64)
+        nk_reduce_max_e4m3_skylake_contiguous_(data, count, max_value, max_index);
+    else nk_reduce_max_e4m3_serial(data, count, stride_bytes, max_value, max_index);
+}
+
+NK_PUBLIC void nk_reduce_min_e5m2_skylake(                          //
+    nk_e5m2_t const *data, nk_size_t count, nk_size_t stride_bytes, //
+    nk_f32_t *min_value, nk_size_t *min_index) {
+    if (count == 0) *min_value = NK_F32_MAX, *min_index = count;
+    else if (stride_bytes == sizeof(nk_e5m2_t) && count >= 64)
+        nk_reduce_min_e5m2_skylake_contiguous_(data, count, min_value, min_index);
+    else nk_reduce_min_e5m2_serial(data, count, stride_bytes, min_value, min_index);
+}
+
+NK_PUBLIC void nk_reduce_max_e5m2_skylake(                          //
+    nk_e5m2_t const *data, nk_size_t count, nk_size_t stride_bytes, //
+    nk_f32_t *max_value, nk_size_t *max_index) {
+    if (count == 0) *max_value = -NK_F32_MAX, *max_index = count;
+    else if (stride_bytes == sizeof(nk_e5m2_t) && count >= 64)
+        nk_reduce_max_e5m2_skylake_contiguous_(data, count, max_value, max_index);
+    else nk_reduce_max_e5m2_serial(data, count, stride_bytes, max_value, max_index);
 }
 
 #if defined(__cplusplus)

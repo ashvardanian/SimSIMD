@@ -287,6 +287,169 @@ NK_INTERNAL nk_f64_t nk_reduce_max_f64x4_haswell_(__m256d max_f64x4) {
 }
 
 /**
+ *  @brief Convert 32× FP8 bytes to unsigned-comparable form for ordering.
+ *
+ *  Transforms FP8 bit patterns so that unsigned byte comparison (VPMINUB/VPMAXUB)
+ *  preserves the correct FP8 numeric ordering across positive and negative values.
+ *
+ *  @param raw_i8x32 Raw FP8 bytes (E4M3 or E5M2 - same transformation)
+ *  @return Transformed bytes suitable for unsigned comparison
+ *
+ *  @note Same function works for both E4M3 and E5M2 (sign bit position identical)
+ *  @note Port usage: 1× VPCMPGTB (p01), 1× VPBLENDVB (p015×2), 1× VPXOR (p015) = ~4 uops
+ */
+NK_INTERNAL __m256i nk_fp8x32_to_u8x32_comparable_haswell_(__m256i raw_i8x32) {
+    // In AVX2, use signed comparison: 0 > x means x < 0 (negative)
+    __m256i neg_i8x32 = _mm256_cmpgt_epi8(_mm256_setzero_si256(), raw_i8x32);
+    __m256i pos_xor_i8x32 = _mm256_set1_epi8((char)0x80);
+    __m256i neg_xor_i8x32 = _mm256_set1_epi8((char)0xFF);
+    __m256i xor_i8x32 = _mm256_blendv_epi8(pos_xor_i8x32, neg_xor_i8x32, neg_i8x32);
+    return _mm256_xor_si256(raw_i8x32, xor_i8x32);
+}
+
+/**
+ *  @brief Convert 32× comparable bytes back to FP8 format.
+ *
+ *  Reverses the transformation applied by nk_fp8x32_to_u8x32_comparable_haswell_.
+ *  Values < 0x80 in comparable form were originally negative FP8.
+ *
+ *  @param cmp_i8x32 Bytes in comparable form
+ *  @return Original FP8 bytes (E4M3 or E5M2)
+ *
+ *  @note Port usage: 1× VPCMPGTB (p01), 1× VPBLENDVB (p015×2), 1× VPXOR (p015) = ~4 uops
+ */
+NK_INTERNAL __m256i nk_u8x32_comparable_to_fp8x32_haswell_(__m256i cmp_i8x32) {
+    // Values < 0x80 were negative FP8, values >= 0x80 were positive
+    __m256i threshold_i8x32 = _mm256_set1_epi8((char)0x80);
+    __m256i was_neg_i8x32 = _mm256_cmpgt_epi8(threshold_i8x32, cmp_i8x32);
+    __m256i neg_xor_i8x32 = _mm256_set1_epi8((char)0xFF);
+    __m256i pos_xor_i8x32 = _mm256_set1_epi8((char)0x80);
+    __m256i xor_i8x32 = _mm256_blendv_epi8(pos_xor_i8x32, neg_xor_i8x32, was_neg_i8x32);
+    return _mm256_xor_si256(cmp_i8x32, xor_i8x32);
+}
+
+/**
+ *  @brief IEEE-compliant min selection mask for E4M3 vectors in comparable form.
+ *
+ *  Returns blend mask indicating which lanes should select from 'a' to get
+ *  element-wise minimum with IEEE NaN semantics: min(x, NaN) = x, min(NaN, NaN) = NaN.
+ *
+ *  @param a_cmp_u8x32 First operand in comparable form
+ *  @param b_cmp_u8x32 Second operand in comparable form
+ *  @param nan_cmp_u8x32 NaN value in comparable form (0xFF for E4M3)
+ *  @return Blend mask: 0xFF = select a, 0x00 = select b
+ *
+ *  Usage: min = _mm256_blendv_epi8(b_cmp, a_cmp, mask);
+ *
+ *  @note Port usage: 2× VPCMPEQB (p01), 1× VPMINUB (p01), ~4× logic (p015) = ~7 uops
+ */
+NK_INTERNAL __m256i nk_min_mask_e4m3x32_haswell_( //
+    __m256i a_cmp_u8x32, __m256i b_cmp_u8x32, __m256i nan_cmp_u8x32) {
+    // Detect NaN: in comparable form, E4M3 NaN (0x7F) maps to 0xFF
+    __m256i a_nan_i8x32 = _mm256_cmpeq_epi8(a_cmp_u8x32, nan_cmp_u8x32);
+    __m256i b_nan_i8x32 = _mm256_cmpeq_epi8(b_cmp_u8x32, nan_cmp_u8x32);
+
+    // Use min_epu8 then check which one won
+    __m256i min_cmp_u8x32 = _mm256_min_epu8(a_cmp_u8x32, b_cmp_u8x32);
+    __m256i a_is_min_i8x32 = _mm256_cmpeq_epi8(min_cmp_u8x32, a_cmp_u8x32);
+
+    // Select a if: a is not NaN AND (a <= b OR b is NaN)
+    // Note: a_is_min is true when a == min, which includes a == b case
+    __m256i not_a_nan = _mm256_xor_si256(a_nan_i8x32, _mm256_set1_epi8((char)0xFF));
+    __m256i a_wins_or_b_nan = _mm256_or_si256(a_is_min_i8x32, b_nan_i8x32);
+    return _mm256_and_si256(not_a_nan, a_wins_or_b_nan);
+}
+
+/**
+ *  @brief IEEE-compliant max selection mask for E4M3 vectors in comparable form.
+ *
+ *  Returns blend mask indicating which lanes should select from 'a' to get
+ *  element-wise maximum with IEEE NaN semantics: max(x, NaN) = x, max(NaN, NaN) = NaN.
+ *
+ *  @param a_cmp_u8x32 First operand in comparable form
+ *  @param b_cmp_u8x32 Second operand in comparable form
+ *  @param nan_cmp_u8x32 NaN value in comparable form (0xFF for E4M3)
+ *  @return Blend mask: 0xFF = select a, 0x00 = select b
+ *
+ *  Usage: max = _mm256_blendv_epi8(b_cmp, a_cmp, mask);
+ */
+NK_INTERNAL __m256i nk_max_mask_e4m3x32_haswell_( //
+    __m256i a_cmp_u8x32, __m256i b_cmp_u8x32, __m256i nan_cmp_u8x32) {
+    __m256i a_nan_i8x32 = _mm256_cmpeq_epi8(a_cmp_u8x32, nan_cmp_u8x32);
+    __m256i b_nan_i8x32 = _mm256_cmpeq_epi8(b_cmp_u8x32, nan_cmp_u8x32);
+
+    __m256i max_cmp_u8x32 = _mm256_max_epu8(a_cmp_u8x32, b_cmp_u8x32);
+    __m256i a_is_max_i8x32 = _mm256_cmpeq_epi8(max_cmp_u8x32, a_cmp_u8x32);
+
+    // Select a if: a is not NaN AND (a >= b OR b is NaN)
+    __m256i not_a_nan = _mm256_xor_si256(a_nan_i8x32, _mm256_set1_epi8((char)0xFF));
+    __m256i a_wins_or_b_nan = _mm256_or_si256(a_is_max_i8x32, b_nan_i8x32);
+    return _mm256_and_si256(not_a_nan, a_wins_or_b_nan);
+}
+
+/**
+ *  @brief IEEE-compliant min selection mask for E5M2 vectors in comparable form.
+ *
+ *  E5M2 has multiple NaN encodings (0x7D-0x7F per sign), requiring threshold
+ *  comparison instead of equality. In comparable form, NaNs map to >= 0xFD.
+ *
+ *  @param a_cmp_u8x32 First operand in comparable form
+ *  @param b_cmp_u8x32 Second operand in comparable form
+ *  @param nan_threshold_cmp_u8x32 NaN threshold in comparable form (0xFD for E5M2)
+ *  @return Blend mask: 0xFF = select a, 0x00 = select b
+ */
+NK_INTERNAL __m256i nk_min_mask_e5m2x32_haswell_( //
+    __m256i a_cmp_u8x32, __m256i b_cmp_u8x32, __m256i nan_threshold_cmp_u8x32) {
+    // Detect NaN: max(x, threshold) == x means x >= threshold
+    __m256i a_nan_i8x32 = _mm256_cmpeq_epi8(_mm256_max_epu8(a_cmp_u8x32, nan_threshold_cmp_u8x32), a_cmp_u8x32);
+    __m256i b_nan_i8x32 = _mm256_cmpeq_epi8(_mm256_max_epu8(b_cmp_u8x32, nan_threshold_cmp_u8x32), b_cmp_u8x32);
+
+    __m256i min_cmp_u8x32 = _mm256_min_epu8(a_cmp_u8x32, b_cmp_u8x32);
+    __m256i a_is_min_i8x32 = _mm256_cmpeq_epi8(min_cmp_u8x32, a_cmp_u8x32);
+
+    __m256i not_a_nan = _mm256_xor_si256(a_nan_i8x32, _mm256_set1_epi8((char)0xFF));
+    __m256i a_wins_or_b_nan = _mm256_or_si256(a_is_min_i8x32, b_nan_i8x32);
+    return _mm256_and_si256(not_a_nan, a_wins_or_b_nan);
+}
+
+/**
+ *  @brief IEEE-compliant max selection mask for E5M2 vectors in comparable form.
+ *
+ *  @param a_cmp_u8x32 First operand in comparable form
+ *  @param b_cmp_u8x32 Second operand in comparable form
+ *  @param nan_threshold_cmp_u8x32 NaN threshold in comparable form (0xFD for E5M2)
+ *  @return Blend mask: 0xFF = select a, 0x00 = select b
+ */
+NK_INTERNAL __m256i nk_max_mask_e5m2x32_haswell_( //
+    __m256i a_cmp_u8x32, __m256i b_cmp_u8x32, __m256i nan_threshold_cmp_u8x32) {
+    __m256i a_nan_i8x32 = _mm256_cmpeq_epi8(_mm256_max_epu8(a_cmp_u8x32, nan_threshold_cmp_u8x32), a_cmp_u8x32);
+    __m256i b_nan_i8x32 = _mm256_cmpeq_epi8(_mm256_max_epu8(b_cmp_u8x32, nan_threshold_cmp_u8x32), b_cmp_u8x32);
+
+    __m256i max_cmp_u8x32 = _mm256_max_epu8(a_cmp_u8x32, b_cmp_u8x32);
+    __m256i a_is_max_i8x32 = _mm256_cmpeq_epi8(max_cmp_u8x32, a_cmp_u8x32);
+
+    __m256i not_a_nan = _mm256_xor_si256(a_nan_i8x32, _mm256_set1_epi8((char)0xFF));
+    __m256i a_wins_or_b_nan = _mm256_or_si256(a_is_max_i8x32, b_nan_i8x32);
+    return _mm256_and_si256(not_a_nan, a_wins_or_b_nan);
+}
+
+/** @brief Horizontal argmin: returns index of first minimum unsigned byte in YMM register. */
+NK_INTERNAL nk_size_t nk_argmin_u8x32_haswell_(__m256i data_u8x32) {
+    nk_u8_t min_val = nk_reduce_min_u8x32_haswell_(data_u8x32);
+    __m256i eq_i8x32 = _mm256_cmpeq_epi8(data_u8x32, _mm256_set1_epi8((char)min_val));
+    int eq_bits = _mm256_movemask_epi8(eq_i8x32);
+    return (nk_size_t)_tzcnt_u32((unsigned int)eq_bits);
+}
+
+/** @brief Horizontal argmax: returns index of first maximum unsigned byte in YMM register. */
+NK_INTERNAL nk_size_t nk_argmax_u8x32_haswell_(__m256i data_u8x32) {
+    nk_u8_t max_val = nk_reduce_max_u8x32_haswell_(data_u8x32);
+    __m256i eq_i8x32 = _mm256_cmpeq_epi8(data_u8x32, _mm256_set1_epi8((char)max_val));
+    int eq_bits = _mm256_movemask_epi8(eq_i8x32);
+    return (nk_size_t)_tzcnt_u32((unsigned int)eq_bits);
+}
+
+/**
  *  @brief Returns AVX2 blend mask for strided access of 8-bit elements (32-element register).
  *
  *  For column extraction from row-major matrices: stride N means every Nth element.
@@ -2248,52 +2411,59 @@ NK_PUBLIC void nk_reduce_add_e4m3_haswell(                          //
 NK_INTERNAL void nk_reduce_min_e4m3_haswell_contiguous_( //
     nk_e4m3_t const *data, nk_size_t count,              //
     nk_f32_t *min_value, nk_size_t *min_index) {
-    if (count == 0) {
-        *min_value = 0;
-        *min_index = 0;
-        return;
-    }
-    // Single-pass: track both min value and index in SIMD
-    __m128i data_i8x8 = _mm_loadl_epi64((__m128i const *)data);
-    __m256 min_f32x8 = nk_e4m3x8_to_f32x8_haswell_(data_i8x8);
-    __m256i min_idx_i32x8 = _mm256_setr_epi32(0, 1, 2, 3, 4, 5, 6, 7);
-    __m256i current_idx_i32x8 = _mm256_setr_epi32(8, 9, 10, 11, 12, 13, 14, 15);
-    __m256i step_i32x8 = _mm256_set1_epi32(8);
 
-    nk_size_t idx_scalars = 8;
-    for (; idx_scalars + 8 <= count; idx_scalars += 8) {
-        data_i8x8 = _mm_loadl_epi64((__m128i const *)(data + idx_scalars));
-        __m256 data_f32x8 = nk_e4m3x8_to_f32x8_haswell_(data_i8x8);
-        __m256 lt_mask = _mm256_cmp_ps(data_f32x8, min_f32x8, _CMP_LT_OQ);
-        min_f32x8 = _mm256_blendv_ps(min_f32x8, data_f32x8, lt_mask);
-        min_idx_i32x8 = _mm256_blendv_epi8(min_idx_i32x8, current_idx_i32x8, _mm256_castps_si256(lt_mask));
-        current_idx_i32x8 = _mm256_add_epi32(current_idx_i32x8, step_i32x8);
-    }
+    // E4M3 NaN (0x7F) maps to 0xFF in comparable form
+    __m256i nan_cmp_u8x32 = _mm256_set1_epi8((char)0xFF);
+    __m256i one_i64x4 = _mm256_set1_epi64x(1);
+    __m256i bit_isolate_i64x4 = _mm256_setr_epi64x(1, 2, 4, 8);
+    nk_b256_vec_t min_vec, argmin_vec;
+    min_vec.ymm = nan_cmp_u8x32;             // Identity for min (0xFF)
+    argmin_vec.ymm = _mm256_setzero_si256(); // Track which iteration each qword's min came from
+    __m256i current_chunk_i64x4 = _mm256_setzero_si256();
+    __m256i data_i8x32;
 
-    // Handle scalar tail
-    nk_f32_t min_val = nk_reduce_min_f32x8_haswell_(min_f32x8);
-    nk_size_t min_idx = 0;
-    for (; idx_scalars < count; ++idx_scalars) {
-        nk_f32_t val;
-        nk_e4m3_to_f32_serial(&data[idx_scalars], &val);
-        if (val < min_val) {
-            min_val = val;
-            min_idx = idx_scalars;
-        }
+nk_reduce_min_e4m3_haswell_cycle_:
+    if (count < 32) {
+        data_i8x32 = nk_partial_load_b8x32_serial_(data, count, 0xFF);
+        count = 0;
     }
+    else {
+        data_i8x32 = _mm256_loadu_si256((__m256i const *)data);
+        data += 32, count -= 32;
+    }
+    __m256i data_cmp_u8x32 = nk_fp8x32_to_u8x32_comparable_haswell_(data_i8x32);
+    __m256i min_mask_i8x32 = nk_min_mask_e4m3x32_haswell_(min_vec.ymm, data_cmp_u8x32, nan_cmp_u8x32);
+    __m256i new_min_cmp_u8x32 = _mm256_blendv_epi8(data_cmp_u8x32, min_vec.ymm, min_mask_i8x32);
+    __m256i changed_i8x32 = _mm256_xor_si256(_mm256_cmpeq_epi8(new_min_cmp_u8x32, min_vec.ymm),
+                                             _mm256_set1_epi8((char)0xFF));
+    int changed_bits = _mm256_movemask_epi8(changed_i8x32);
 
-    // Find winning lane: compare each lane to horizontal min
-    __m256 eq_mask = _mm256_cmp_ps(min_f32x8, _mm256_set1_ps(min_val), _CMP_EQ_OQ);
-    int eq_bits = _mm256_movemask_ps(eq_mask);
-    if (eq_bits) {
-        unsigned int first_lane = (unsigned int)_tzcnt_u32((unsigned int)eq_bits);
-        nk_i32_t indices[8];
-        _mm256_storeu_si256((__m256i *)indices, min_idx_i32x8);
-        nk_size_t vec_idx = (nk_size_t)indices[first_lane];
-        *min_index = (min_idx && min_idx < vec_idx) ? min_idx : vec_idx;
-    }
-    else { *min_index = min_idx; }
-    *min_value = min_val;
+    // Convert 32-bit byte-change mask to 4-bit qword-change mask using SWAR + PEXT:
+    // 1. OR-cascade collapses each 8-bit group to its bit 0
+    // 2. PEXT extracts bits 0,8,16,24 into consecutive bits
+    // 3. Broadcast + isolate + compare expands back to blend mask
+    nk_u32_t x = (nk_u32_t)changed_bits;
+    x |= x >> 1;
+    x |= x >> 2;
+    x |= x >> 4;
+    nk_u32_t mask4 = _pext_u32(x, 0x01010101);
+    __m256i mask_broadcast = _mm256_set1_epi64x((nk_i64_t)mask4);
+    __m256i chunk_updated_i64x4 = _mm256_cmpeq_epi64(_mm256_and_si256(mask_broadcast, bit_isolate_i64x4),
+                                                     bit_isolate_i64x4);
+
+    argmin_vec.ymm = _mm256_blendv_epi8(argmin_vec.ymm, current_chunk_i64x4, chunk_updated_i64x4);
+    min_vec.ymm = new_min_cmp_u8x32;
+    current_chunk_i64x4 = _mm256_add_epi64(current_chunk_i64x4, one_i64x4);
+    if (count) goto nk_reduce_min_e4m3_haswell_cycle_;
+
+    // Horizontal reduction: find lane with minimum value, extract its iteration index
+    nk_size_t first_lane = nk_argmin_u8x32_haswell_(min_vec.ymm);
+    nk_size_t chunk_idx = (nk_size_t)argmin_vec.i64s[first_lane / 8];
+    *min_index = chunk_idx * 32 + (first_lane % 32);
+
+    // Convert min value back to FP8, then to F32
+    min_vec.ymm = nk_u8x32_comparable_to_fp8x32_haswell_(min_vec.ymm);
+    nk_e4m3_to_f32_serial(&min_vec.e4m3s[first_lane], min_value);
 }
 
 NK_INTERNAL void nk_reduce_min_e4m3_haswell_strided_(                  //
@@ -2352,52 +2522,56 @@ NK_PUBLIC void nk_reduce_min_e4m3_haswell(                          //
 NK_INTERNAL void nk_reduce_max_e4m3_haswell_contiguous_( //
     nk_e4m3_t const *data, nk_size_t count,              //
     nk_f32_t *max_value, nk_size_t *max_index) {
-    if (count == 0) {
-        *max_value = 0;
-        *max_index = 0;
-        return;
-    }
-    // Single-pass: track both max value and index in SIMD
-    __m128i data_i8x8 = _mm_loadl_epi64((__m128i const *)data);
-    __m256 max_f32x8 = nk_e4m3x8_to_f32x8_haswell_(data_i8x8);
-    __m256i max_idx_i32x8 = _mm256_setr_epi32(0, 1, 2, 3, 4, 5, 6, 7);
-    __m256i current_idx_i32x8 = _mm256_setr_epi32(8, 9, 10, 11, 12, 13, 14, 15);
-    __m256i step_i32x8 = _mm256_set1_epi32(8);
 
-    nk_size_t idx_scalars = 8;
-    for (; idx_scalars + 8 <= count; idx_scalars += 8) {
-        data_i8x8 = _mm_loadl_epi64((__m128i const *)(data + idx_scalars));
-        __m256 data_f32x8 = nk_e4m3x8_to_f32x8_haswell_(data_i8x8);
-        __m256 gt_mask = _mm256_cmp_ps(data_f32x8, max_f32x8, _CMP_GT_OQ);
-        max_f32x8 = _mm256_blendv_ps(max_f32x8, data_f32x8, gt_mask);
-        max_idx_i32x8 = _mm256_blendv_epi8(max_idx_i32x8, current_idx_i32x8, _mm256_castps_si256(gt_mask));
-        current_idx_i32x8 = _mm256_add_epi32(current_idx_i32x8, step_i32x8);
-    }
+    // E4M3 NaN (0x7F) maps to 0xFF in comparable form
+    __m256i nan_cmp_u8x32 = _mm256_set1_epi8((char)0xFF);
+    __m256i one_i64x4 = _mm256_set1_epi64x(1);
+    __m256i bit_isolate_i64x4 = _mm256_setr_epi64x(1, 2, 4, 8);
+    nk_b256_vec_t max_vec, argmax_vec;
+    max_vec.ymm = _mm256_setzero_si256();    // Identity for max (0x00)
+    argmax_vec.ymm = _mm256_setzero_si256(); // Track which iteration each qword's max came from
+    __m256i current_chunk_i64x4 = _mm256_setzero_si256();
+    __m256i data_i8x32;
 
-    // Handle scalar tail
-    nk_f32_t max_val = nk_reduce_max_f32x8_haswell_(max_f32x8);
-    nk_size_t max_idx = 0;
-    for (; idx_scalars < count; ++idx_scalars) {
-        nk_f32_t val;
-        nk_e4m3_to_f32_serial(&data[idx_scalars], &val);
-        if (val > max_val) {
-            max_val = val;
-            max_idx = idx_scalars;
-        }
+nk_reduce_max_e4m3_haswell_cycle_:
+    if (count < 32) {
+        data_i8x32 = nk_partial_load_b8x32_serial_(data, count, 0x00);
+        count = 0;
     }
+    else {
+        data_i8x32 = _mm256_loadu_si256((__m256i const *)data);
+        data += 32, count -= 32;
+    }
+    __m256i data_cmp_u8x32 = nk_fp8x32_to_u8x32_comparable_haswell_(data_i8x32);
+    __m256i max_mask_i8x32 = nk_max_mask_e4m3x32_haswell_(max_vec.ymm, data_cmp_u8x32, nan_cmp_u8x32);
+    __m256i new_max_cmp_u8x32 = _mm256_blendv_epi8(data_cmp_u8x32, max_vec.ymm, max_mask_i8x32);
+    __m256i changed_i8x32 = _mm256_xor_si256(_mm256_cmpeq_epi8(new_max_cmp_u8x32, max_vec.ymm),
+                                             _mm256_set1_epi8((char)0xFF));
+    int changed_bits = _mm256_movemask_epi8(changed_i8x32);
 
-    // Find winning lane: compare each lane to horizontal max
-    __m256 eq_mask = _mm256_cmp_ps(max_f32x8, _mm256_set1_ps(max_val), _CMP_EQ_OQ);
-    int eq_bits = _mm256_movemask_ps(eq_mask);
-    if (eq_bits) {
-        unsigned int first_lane = (unsigned int)_tzcnt_u32((unsigned int)eq_bits);
-        nk_i32_t indices[8];
-        _mm256_storeu_si256((__m256i *)indices, max_idx_i32x8);
-        nk_size_t vec_idx = (nk_size_t)indices[first_lane];
-        *max_index = (max_idx && max_idx < vec_idx) ? max_idx : vec_idx;
-    }
-    else { *max_index = max_idx; }
-    *max_value = max_val;
+    // Convert 32-bit byte-change mask to 4-bit qword-change mask using SWAR + PEXT
+    nk_u32_t x = (nk_u32_t)changed_bits;
+    x |= x >> 1;
+    x |= x >> 2;
+    x |= x >> 4;
+    nk_u32_t mask4 = _pext_u32(x, 0x01010101);
+    __m256i mask_broadcast = _mm256_set1_epi64x((nk_i64_t)mask4);
+    __m256i chunk_updated_i64x4 = _mm256_cmpeq_epi64(_mm256_and_si256(mask_broadcast, bit_isolate_i64x4),
+                                                     bit_isolate_i64x4);
+
+    argmax_vec.ymm = _mm256_blendv_epi8(argmax_vec.ymm, current_chunk_i64x4, chunk_updated_i64x4);
+    max_vec.ymm = new_max_cmp_u8x32;
+    current_chunk_i64x4 = _mm256_add_epi64(current_chunk_i64x4, one_i64x4);
+    if (count) goto nk_reduce_max_e4m3_haswell_cycle_;
+
+    // Horizontal reduction: find lane with maximum value, extract its iteration index
+    nk_size_t first_lane = nk_argmax_u8x32_haswell_(max_vec.ymm);
+    nk_size_t chunk_idx = (nk_size_t)argmax_vec.i64s[first_lane / 8];
+    *max_index = chunk_idx * 32 + (first_lane % 32);
+
+    // Convert max value back to FP8, then to F32
+    max_vec.ymm = nk_u8x32_comparable_to_fp8x32_haswell_(max_vec.ymm);
+    nk_e4m3_to_f32_serial(&max_vec.e4m3s[first_lane], max_value);
 }
 
 NK_INTERNAL void nk_reduce_max_e4m3_haswell_strided_(                  //
@@ -2509,52 +2683,56 @@ NK_PUBLIC void nk_reduce_add_e5m2_haswell(                          //
 NK_INTERNAL void nk_reduce_min_e5m2_haswell_contiguous_( //
     nk_e5m2_t const *data, nk_size_t count,              //
     nk_f32_t *min_value, nk_size_t *min_index) {
-    if (count == 0) {
-        *min_value = 0;
-        *min_index = 0;
-        return;
-    }
-    // Single-pass: track both min value and index in SIMD
-    __m128i data_i8x8 = _mm_loadl_epi64((__m128i const *)data);
-    __m256 min_f32x8 = nk_e5m2x8_to_f32x8_haswell_(data_i8x8);
-    __m256i min_idx_i32x8 = _mm256_setr_epi32(0, 1, 2, 3, 4, 5, 6, 7);
-    __m256i current_idx_i32x8 = _mm256_setr_epi32(8, 9, 10, 11, 12, 13, 14, 15);
-    __m256i step_i32x8 = _mm256_set1_epi32(8);
 
-    nk_size_t idx_scalars = 8;
-    for (; idx_scalars + 8 <= count; idx_scalars += 8) {
-        data_i8x8 = _mm_loadl_epi64((__m128i const *)(data + idx_scalars));
-        __m256 data_f32x8 = nk_e5m2x8_to_f32x8_haswell_(data_i8x8);
-        __m256 lt_mask = _mm256_cmp_ps(data_f32x8, min_f32x8, _CMP_LT_OQ);
-        min_f32x8 = _mm256_blendv_ps(min_f32x8, data_f32x8, lt_mask);
-        min_idx_i32x8 = _mm256_blendv_epi8(min_idx_i32x8, current_idx_i32x8, _mm256_castps_si256(lt_mask));
-        current_idx_i32x8 = _mm256_add_epi32(current_idx_i32x8, step_i32x8);
-    }
+    // E5M2 NaN (0x7D-0x7F) maps to 0xFD-0xFF in comparable form
+    __m256i nan_threshold_cmp_u8x32 = _mm256_set1_epi8((char)0xFD);
+    __m256i one_i64x4 = _mm256_set1_epi64x(1);
+    __m256i bit_isolate_i64x4 = _mm256_setr_epi64x(1, 2, 4, 8);
+    nk_b256_vec_t min_vec, argmin_vec;
+    min_vec.ymm = _mm256_set1_epi8((char)0xFF); // Identity for min
+    argmin_vec.ymm = _mm256_setzero_si256();
+    __m256i current_chunk_i64x4 = _mm256_setzero_si256();
+    __m256i data_i8x32;
 
-    // Handle scalar tail
-    nk_f32_t min_val = nk_reduce_min_f32x8_haswell_(min_f32x8);
-    nk_size_t min_idx = 0;
-    for (; idx_scalars < count; ++idx_scalars) {
-        nk_f32_t val;
-        nk_e5m2_to_f32_serial(&data[idx_scalars], &val);
-        if (val < min_val) {
-            min_val = val;
-            min_idx = idx_scalars;
-        }
+nk_reduce_min_e5m2_haswell_cycle_:
+    if (count < 32) {
+        data_i8x32 = nk_partial_load_b8x32_serial_(data, count, 0xFF);
+        count = 0;
     }
+    else {
+        data_i8x32 = _mm256_loadu_si256((__m256i const *)data);
+        data += 32, count -= 32;
+    }
+    __m256i data_cmp_u8x32 = nk_fp8x32_to_u8x32_comparable_haswell_(data_i8x32);
+    __m256i min_mask_i8x32 = nk_min_mask_e5m2x32_haswell_(min_vec.ymm, data_cmp_u8x32, nan_threshold_cmp_u8x32);
+    __m256i new_min_cmp_u8x32 = _mm256_blendv_epi8(data_cmp_u8x32, min_vec.ymm, min_mask_i8x32);
+    __m256i changed_i8x32 = _mm256_xor_si256(_mm256_cmpeq_epi8(new_min_cmp_u8x32, min_vec.ymm),
+                                             _mm256_set1_epi8((char)0xFF));
+    int changed_bits = _mm256_movemask_epi8(changed_i8x32);
 
-    // Find winning lane: compare each lane to horizontal min
-    __m256 eq_mask = _mm256_cmp_ps(min_f32x8, _mm256_set1_ps(min_val), _CMP_EQ_OQ);
-    int eq_bits = _mm256_movemask_ps(eq_mask);
-    if (eq_bits) {
-        unsigned int first_lane = (unsigned int)_tzcnt_u32((unsigned int)eq_bits);
-        nk_i32_t indices[8];
-        _mm256_storeu_si256((__m256i *)indices, min_idx_i32x8);
-        nk_size_t vec_idx = (nk_size_t)indices[first_lane];
-        *min_index = (min_idx && min_idx < vec_idx) ? min_idx : vec_idx;
-    }
-    else { *min_index = min_idx; }
-    *min_value = min_val;
+    // Convert 32-bit byte-change mask to 4-bit qword-change mask using SWAR + PEXT
+    nk_u32_t x = (nk_u32_t)changed_bits;
+    x |= x >> 1;
+    x |= x >> 2;
+    x |= x >> 4;
+    nk_u32_t mask4 = _pext_u32(x, 0x01010101);
+    __m256i mask_broadcast = _mm256_set1_epi64x((nk_i64_t)mask4);
+    __m256i chunk_updated_i64x4 = _mm256_cmpeq_epi64(_mm256_and_si256(mask_broadcast, bit_isolate_i64x4),
+                                                     bit_isolate_i64x4);
+
+    argmin_vec.ymm = _mm256_blendv_epi8(argmin_vec.ymm, current_chunk_i64x4, chunk_updated_i64x4);
+    min_vec.ymm = new_min_cmp_u8x32;
+    current_chunk_i64x4 = _mm256_add_epi64(current_chunk_i64x4, one_i64x4);
+    if (count) goto nk_reduce_min_e5m2_haswell_cycle_;
+
+    // Horizontal reduction: find lane with minimum value, extract its iteration index
+    nk_size_t first_lane = nk_argmin_u8x32_haswell_(min_vec.ymm);
+    nk_size_t chunk_idx = (nk_size_t)argmin_vec.i64s[first_lane / 8];
+    *min_index = chunk_idx * 32 + (first_lane % 32);
+
+    // Convert min value back to FP8, then to F32
+    min_vec.ymm = nk_u8x32_comparable_to_fp8x32_haswell_(min_vec.ymm);
+    nk_e5m2_to_f32_serial(&min_vec.e5m2s[first_lane], min_value);
 }
 
 NK_INTERNAL void nk_reduce_min_e5m2_haswell_strided_(                  //
@@ -2613,52 +2791,56 @@ NK_PUBLIC void nk_reduce_min_e5m2_haswell(                          //
 NK_INTERNAL void nk_reduce_max_e5m2_haswell_contiguous_( //
     nk_e5m2_t const *data, nk_size_t count,              //
     nk_f32_t *max_value, nk_size_t *max_index) {
-    if (count == 0) {
-        *max_value = 0;
-        *max_index = 0;
-        return;
-    }
-    // Single-pass: track both max value and index in SIMD
-    __m128i data_i8x8 = _mm_loadl_epi64((__m128i const *)data);
-    __m256 max_f32x8 = nk_e5m2x8_to_f32x8_haswell_(data_i8x8);
-    __m256i max_idx_i32x8 = _mm256_setr_epi32(0, 1, 2, 3, 4, 5, 6, 7);
-    __m256i current_idx_i32x8 = _mm256_setr_epi32(8, 9, 10, 11, 12, 13, 14, 15);
-    __m256i step_i32x8 = _mm256_set1_epi32(8);
 
-    nk_size_t idx_scalars = 8;
-    for (; idx_scalars + 8 <= count; idx_scalars += 8) {
-        data_i8x8 = _mm_loadl_epi64((__m128i const *)(data + idx_scalars));
-        __m256 data_f32x8 = nk_e5m2x8_to_f32x8_haswell_(data_i8x8);
-        __m256 gt_mask = _mm256_cmp_ps(data_f32x8, max_f32x8, _CMP_GT_OQ);
-        max_f32x8 = _mm256_blendv_ps(max_f32x8, data_f32x8, gt_mask);
-        max_idx_i32x8 = _mm256_blendv_epi8(max_idx_i32x8, current_idx_i32x8, _mm256_castps_si256(gt_mask));
-        current_idx_i32x8 = _mm256_add_epi32(current_idx_i32x8, step_i32x8);
-    }
+    // E5M2 NaN (0x7D-0x7F) maps to 0xFD-0xFF in comparable form
+    __m256i nan_threshold_cmp_u8x32 = _mm256_set1_epi8((char)0xFD);
+    __m256i one_i64x4 = _mm256_set1_epi64x(1);
+    __m256i bit_isolate_i64x4 = _mm256_setr_epi64x(1, 2, 4, 8);
+    nk_b256_vec_t max_vec, argmax_vec;
+    max_vec.ymm = _mm256_setzero_si256(); // Identity for max (0x00)
+    argmax_vec.ymm = _mm256_setzero_si256();
+    __m256i current_chunk_i64x4 = _mm256_setzero_si256();
+    __m256i data_i8x32;
 
-    // Handle scalar tail
-    nk_f32_t max_val = nk_reduce_max_f32x8_haswell_(max_f32x8);
-    nk_size_t max_idx = 0;
-    for (; idx_scalars < count; ++idx_scalars) {
-        nk_f32_t val;
-        nk_e5m2_to_f32_serial(&data[idx_scalars], &val);
-        if (val > max_val) {
-            max_val = val;
-            max_idx = idx_scalars;
-        }
+nk_reduce_max_e5m2_haswell_cycle_:
+    if (count < 32) {
+        data_i8x32 = nk_partial_load_b8x32_serial_(data, count, 0x00);
+        count = 0;
     }
+    else {
+        data_i8x32 = _mm256_loadu_si256((__m256i const *)data);
+        data += 32, count -= 32;
+    }
+    __m256i data_cmp_u8x32 = nk_fp8x32_to_u8x32_comparable_haswell_(data_i8x32);
+    __m256i max_mask_i8x32 = nk_max_mask_e5m2x32_haswell_(max_vec.ymm, data_cmp_u8x32, nan_threshold_cmp_u8x32);
+    __m256i new_max_cmp_u8x32 = _mm256_blendv_epi8(data_cmp_u8x32, max_vec.ymm, max_mask_i8x32);
+    __m256i changed_i8x32 = _mm256_xor_si256(_mm256_cmpeq_epi8(new_max_cmp_u8x32, max_vec.ymm),
+                                             _mm256_set1_epi8((char)0xFF));
+    int changed_bits = _mm256_movemask_epi8(changed_i8x32);
 
-    // Find winning lane: compare each lane to horizontal max
-    __m256 eq_mask = _mm256_cmp_ps(max_f32x8, _mm256_set1_ps(max_val), _CMP_EQ_OQ);
-    int eq_bits = _mm256_movemask_ps(eq_mask);
-    if (eq_bits) {
-        unsigned int first_lane = (unsigned int)_tzcnt_u32((unsigned int)eq_bits);
-        nk_i32_t indices[8];
-        _mm256_storeu_si256((__m256i *)indices, max_idx_i32x8);
-        nk_size_t vec_idx = (nk_size_t)indices[first_lane];
-        *max_index = (max_idx && max_idx < vec_idx) ? max_idx : vec_idx;
-    }
-    else { *max_index = max_idx; }
-    *max_value = max_val;
+    // Convert 32-bit byte-change mask to 4-bit qword-change mask using SWAR + PEXT
+    nk_u32_t x = (nk_u32_t)changed_bits;
+    x |= x >> 1;
+    x |= x >> 2;
+    x |= x >> 4;
+    nk_u32_t mask4 = _pext_u32(x, 0x01010101);
+    __m256i mask_broadcast = _mm256_set1_epi64x((nk_i64_t)mask4);
+    __m256i chunk_updated_i64x4 = _mm256_cmpeq_epi64(_mm256_and_si256(mask_broadcast, bit_isolate_i64x4),
+                                                     bit_isolate_i64x4);
+
+    argmax_vec.ymm = _mm256_blendv_epi8(argmax_vec.ymm, current_chunk_i64x4, chunk_updated_i64x4);
+    max_vec.ymm = new_max_cmp_u8x32;
+    current_chunk_i64x4 = _mm256_add_epi64(current_chunk_i64x4, one_i64x4);
+    if (count) goto nk_reduce_max_e5m2_haswell_cycle_;
+
+    // Horizontal reduction: find lane with maximum value, extract its iteration index
+    nk_size_t first_lane = nk_argmax_u8x32_haswell_(max_vec.ymm);
+    nk_size_t chunk_idx = (nk_size_t)argmax_vec.i64s[first_lane / 8];
+    *max_index = chunk_idx * 32 + (first_lane % 32);
+
+    // Convert max value back to FP8, then to F32
+    max_vec.ymm = nk_u8x32_comparable_to_fp8x32_haswell_(max_vec.ymm);
+    nk_e5m2_to_f32_serial(&max_vec.e5m2s[first_lane], max_value);
 }
 
 NK_INTERNAL void nk_reduce_max_e5m2_haswell_strided_(                  //
