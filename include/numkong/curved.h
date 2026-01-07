@@ -743,8 +743,8 @@ NK_PUBLIC void nk_bilinear_bf16_neonbfdot(nk_bf16_t const *a, nk_bf16_t const *b
             nk_f32_t a_i;
             nk_bf16_to_f32_serial(a + i, &a_i);
             nk_b128_vec_t b_vec, c_vec;
-            nk_partial_load_b16x8_neon_(b + tail_start, &b_vec, tail_length);
-            nk_partial_load_b16x8_neon_(c + i * n + tail_start, &c_vec, tail_length);
+            nk_partial_load_b16x8_serial_(b + tail_start, &b_vec, tail_length);
+            nk_partial_load_b16x8_serial_(c + i * n + tail_start, &c_vec, tail_length);
             bfloat16x8_t b_bf16x8 = vreinterpretq_bf16_u16(b_vec.u16x8);
             bfloat16x8_t c_bf16x8 = vreinterpretq_bf16_u16(c_vec.u16x8);
             nk_f32_t cb_j = vaddvq_f32(vbfdotq_f32(vdupq_n_f32(0), b_bf16x8, c_bf16x8));
@@ -797,8 +797,8 @@ NK_PUBLIC void nk_mahalanobis_bf16_neonbfdot(nk_bf16_t const *a, nk_bf16_t const
             nk_bf16_to_f32_serial(b + i, &b_i);
             nk_f32_t diff_i = a_i - b_i;
             nk_b128_vec_t a_j_vec, b_j_vec, c_vec;
-            nk_partial_load_b16x8_neon_(a + tail_start, &a_j_vec, tail_length);
-            nk_partial_load_b16x8_neon_(b + tail_start, &b_j_vec, tail_length);
+            nk_partial_load_b16x8_serial_(a + tail_start, &a_j_vec, tail_length);
+            nk_partial_load_b16x8_serial_(b + tail_start, &b_j_vec, tail_length);
             bfloat16x8_t a_j_bf16x8 = vreinterpretq_bf16_u16(a_j_vec.u16x8);
             bfloat16x8_t b_j_bf16x8 = vreinterpretq_bf16_u16(b_j_vec.u16x8);
 
@@ -812,7 +812,7 @@ NK_PUBLIC void nk_mahalanobis_bf16_neonbfdot(nk_bf16_t const *a, nk_bf16_t const
             bfloat16x8_t diff_j_bf16x8 = vcombine_bf16(vcvt_bf16_f32(diff_j_low_f32x4),
                                                        vcvt_bf16_f32(diff_j_high_f32x4));
 
-            nk_partial_load_b16x8_neon_(c + i * n + tail_start, &c_vec, tail_length);
+            nk_partial_load_b16x8_serial_(c + i * n + tail_start, &c_vec, tail_length);
             bfloat16x8_t c_bf16x8 = vreinterpretq_bf16_u16(c_vec.u16x8);
             nk_f32_t cdiff_j = vaddvq_f32(vbfdotq_f32(vdupq_n_f32(0), diff_j_bf16x8, c_bf16x8));
             sum += diff_i * cdiff_j;
