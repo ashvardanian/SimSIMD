@@ -18,7 +18,8 @@
 #endif
 
 #include "numkong/types.h"
-#include "numkong/reduce/neon.h" // nk_partial_load_b16x8_serial_
+#include "numkong/cast/serial.h" // `nk_partial_load_b8x8_serial_`
+#include "numkong/cast/neon.h"   // `nk_e4m3x8_to_bf16x8_neon_`
 
 #if defined(__cplusplus)
 extern "C" {
@@ -99,6 +100,52 @@ NK_PUBLIC void nk_vdot_bf16c_neonbfdot(nk_bf16c_t const *a_pairs, nk_bf16c_t con
     nk_vdot_bf16c_serial(a_pairs, b_pairs, count_pairs, &tail_result);
     result->real = tail_result.real + vaddvq_f32(sum_real_f32x4);
     result->imag = tail_result.imag + vaddvq_f32(sum_imag_f32x4);
+}
+
+NK_PUBLIC void nk_dot_e4m3_neonbfdot(nk_e4m3_t const *a_scalars, nk_e4m3_t const *b_scalars, nk_size_t count_scalars,
+                                     nk_f32_t *result) {
+    bfloat16x8_t a_bf16x8, b_bf16x8;
+    float32x4_t sum_f32x4 = vdupq_n_f32(0);
+nk_dot_e4m3_neonbfdot_cycle:
+    if (count_scalars < 8) {
+        nk_b64_vec_t a_vec, b_vec;
+        nk_partial_load_b8x8_serial_(a_scalars, &a_vec, count_scalars);
+        nk_partial_load_b8x8_serial_(b_scalars, &b_vec, count_scalars);
+        a_bf16x8 = nk_e4m3x8_to_bf16x8_neon_(a_vec.u8x8);
+        b_bf16x8 = nk_e4m3x8_to_bf16x8_neon_(b_vec.u8x8);
+        count_scalars = 0;
+    }
+    else {
+        a_bf16x8 = nk_e4m3x8_to_bf16x8_neon_(vld1_u8(a_scalars));
+        b_bf16x8 = nk_e4m3x8_to_bf16x8_neon_(vld1_u8(b_scalars));
+        a_scalars += 8, b_scalars += 8, count_scalars -= 8;
+    }
+    sum_f32x4 = vbfdotq_f32(sum_f32x4, a_bf16x8, b_bf16x8);
+    if (count_scalars) goto nk_dot_e4m3_neonbfdot_cycle;
+    *result = vaddvq_f32(sum_f32x4);
+}
+
+NK_PUBLIC void nk_dot_e5m2_neonbfdot(nk_e5m2_t const *a_scalars, nk_e5m2_t const *b_scalars, nk_size_t count_scalars,
+                                     nk_f32_t *result) {
+    bfloat16x8_t a_bf16x8, b_bf16x8;
+    float32x4_t sum_f32x4 = vdupq_n_f32(0);
+nk_dot_e5m2_neonbfdot_cycle:
+    if (count_scalars < 8) {
+        nk_b64_vec_t a_vec, b_vec;
+        nk_partial_load_b8x8_serial_(a_scalars, &a_vec, count_scalars);
+        nk_partial_load_b8x8_serial_(b_scalars, &b_vec, count_scalars);
+        a_bf16x8 = nk_e5m2x8_to_bf16x8_neon_(a_vec.u8x8);
+        b_bf16x8 = nk_e5m2x8_to_bf16x8_neon_(b_vec.u8x8);
+        count_scalars = 0;
+    }
+    else {
+        a_bf16x8 = nk_e5m2x8_to_bf16x8_neon_(vld1_u8(a_scalars));
+        b_bf16x8 = nk_e5m2x8_to_bf16x8_neon_(vld1_u8(b_scalars));
+        a_scalars += 8, b_scalars += 8, count_scalars -= 8;
+    }
+    sum_f32x4 = vbfdotq_f32(sum_f32x4, a_bf16x8, b_bf16x8);
+    if (count_scalars) goto nk_dot_e5m2_neonbfdot_cycle;
+    *result = vaddvq_f32(sum_f32x4);
 }
 
 /**

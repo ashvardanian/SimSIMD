@@ -242,9 +242,10 @@ NK_INTERNAL void nk_e4m3_to_f32_serial(nk_e4m3_t const *src, nk_f32_t *dest) {
         *dest = sign ? -value : value;
         return;
     }
-    if (exponent == 0x0Fu) {
-        if (mantissa == 0) { conv.u = sign | 0x7F800000u; }
-        else { conv.u = sign | 0x7FC00000u; }
+    // E4M3FN has NO infinity. Only exp=15 && mant=7 is NaN.
+    // exp=15 && mant=0..6 are normal values (256, 288, 320, 352, 384, 416, 448).
+    if (exponent == 0x0Fu && mantissa == 7) {
+        conv.u = sign | 0x7FC00000u; // F32 quiet NaN
         *dest = conv.f;
         return;
     }
@@ -288,9 +289,14 @@ NK_INTERNAL void nk_f32_to_e4m3_serial(nk_f32_t const *src, nk_e4m3_t *dest) {
     nk_u32_t abs_bits = conv.u & 0x7FFFFFFFu;
     nk_u8_t sign = (nk_u8_t)(sign_bit << 7);
 
-    if (abs_bits >= 0x7F800000u) {
-        nk_u8_t mant = (abs_bits > 0x7F800000u) ? 0x01u : 0x00u;
-        *dest = (nk_e4m3_t)(sign | 0x78u | mant);
+    // NaN → E4M3FN NaN (0x7F or 0xFF)
+    if (abs_bits > 0x7F800000u) {
+        *dest = (nk_e4m3_t)(sign | 0x7Fu);
+        return;
+    }
+    // Infinity → saturate to max (0x7E or 0xFE), E4M3FN has no infinity
+    if (abs_bits == 0x7F800000u) {
+        *dest = (nk_e4m3_t)(sign | 0x7Eu);
         return;
     }
 

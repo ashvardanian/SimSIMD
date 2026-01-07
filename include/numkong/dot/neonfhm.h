@@ -21,7 +21,8 @@
 #endif
 
 #include "numkong/types.h"
-#include "numkong/reduce/neon.h" // nk_partial_load_b16x8_serial_
+#include "numkong/cast/serial.h" // `nk_partial_load_b8x8_serial_`
+#include "numkong/cast/neon.h"   // `nk_e4m3x8_to_f16x8_neon_`
 
 #if defined(__cplusplus)
 extern "C" {
@@ -51,7 +52,7 @@ NK_PUBLIC void nk_dot_f16_neonfhm(nk_f16_t const *a_scalars, nk_f16_t const *b_s
         float16x8_t a_f16x8 = vreinterpretq_f16_u16(a_vec.u16x8);
         float16x8_t b_f16x8 = vreinterpretq_f16_u16(b_vec.u16x8);
         sum_f32x4 = vfmlalq_low_f16(sum_f32x4, a_f16x8, b_f16x8);
-        if (remaining > 4) { sum_f32x4 = vfmlalq_high_f16(sum_f32x4, a_f16x8, b_f16x8); }
+        sum_f32x4 = vfmlalq_high_f16(sum_f32x4, a_f16x8, b_f16x8);
     }
 
     *result = vaddvq_f32(sum_f32x4);
@@ -179,6 +180,62 @@ NK_PUBLIC void nk_vdot_f16c_neonfhm(nk_f16c_t const *a_pairs, nk_f16c_t const *b
     nk_vdot_f16c_serial(a_pairs, b_pairs, count_pairs, &tail_result);
     result->real = vaddvq_f32(sum_real_f32x4) + tail_result.real;
     result->imag = vaddvq_f32(sum_imag_f32x4) + tail_result.imag;
+}
+
+NK_PUBLIC void nk_dot_e4m3_neonfhm(nk_e4m3_t const *a_scalars, nk_e4m3_t const *b_scalars, nk_size_t count_scalars,
+                                   nk_f32_t *result) {
+    float32x4_t sum_f32x4 = vdupq_n_f32(0);
+    nk_size_t idx = 0;
+
+    // Main loop: process 8 elements at a time using FMLAL
+    for (; idx + 8 <= count_scalars; idx += 8) {
+        float16x8_t a_f16x8 = nk_e4m3x8_to_f16x8_neon_(vld1_u8(a_scalars + idx));
+        float16x8_t b_f16x8 = nk_e4m3x8_to_f16x8_neon_(vld1_u8(b_scalars + idx));
+        sum_f32x4 = vfmlalq_low_f16(sum_f32x4, a_f16x8, b_f16x8);
+        sum_f32x4 = vfmlalq_high_f16(sum_f32x4, a_f16x8, b_f16x8);
+    }
+
+    // Handle remaining elements (0-7)
+    if (idx < count_scalars) {
+        nk_size_t remaining = count_scalars - idx;
+        nk_b64_vec_t a_vec, b_vec;
+        nk_partial_load_b8x8_serial_(a_scalars + idx, &a_vec, remaining);
+        nk_partial_load_b8x8_serial_(b_scalars + idx, &b_vec, remaining);
+        float16x8_t a_f16x8 = nk_e4m3x8_to_f16x8_neon_(a_vec.u8x8);
+        float16x8_t b_f16x8 = nk_e4m3x8_to_f16x8_neon_(b_vec.u8x8);
+        sum_f32x4 = vfmlalq_low_f16(sum_f32x4, a_f16x8, b_f16x8);
+        sum_f32x4 = vfmlalq_high_f16(sum_f32x4, a_f16x8, b_f16x8);
+    }
+
+    *result = vaddvq_f32(sum_f32x4);
+}
+
+NK_PUBLIC void nk_dot_e5m2_neonfhm(nk_e5m2_t const *a_scalars, nk_e5m2_t const *b_scalars, nk_size_t count_scalars,
+                                   nk_f32_t *result) {
+    float32x4_t sum_f32x4 = vdupq_n_f32(0);
+    nk_size_t idx = 0;
+
+    // Main loop: process 8 elements at a time using FMLAL
+    for (; idx + 8 <= count_scalars; idx += 8) {
+        float16x8_t a_f16x8 = nk_e5m2x8_to_f16x8_neon_(vld1_u8(a_scalars + idx));
+        float16x8_t b_f16x8 = nk_e5m2x8_to_f16x8_neon_(vld1_u8(b_scalars + idx));
+        sum_f32x4 = vfmlalq_low_f16(sum_f32x4, a_f16x8, b_f16x8);
+        sum_f32x4 = vfmlalq_high_f16(sum_f32x4, a_f16x8, b_f16x8);
+    }
+
+    // Handle remaining elements (0-7)
+    if (idx < count_scalars) {
+        nk_size_t remaining = count_scalars - idx;
+        nk_b64_vec_t a_vec, b_vec;
+        nk_partial_load_b8x8_serial_(a_scalars + idx, &a_vec, remaining);
+        nk_partial_load_b8x8_serial_(b_scalars + idx, &b_vec, remaining);
+        float16x8_t a_f16x8 = nk_e5m2x8_to_f16x8_neon_(a_vec.u8x8);
+        float16x8_t b_f16x8 = nk_e5m2x8_to_f16x8_neon_(b_vec.u8x8);
+        sum_f32x4 = vfmlalq_low_f16(sum_f32x4, a_f16x8, b_f16x8);
+        sum_f32x4 = vfmlalq_high_f16(sum_f32x4, a_f16x8, b_f16x8);
+    }
+
+    *result = vaddvq_f32(sum_f32x4);
 }
 
 #if defined(__cplusplus)

@@ -304,7 +304,15 @@ NK_INTERNAL __m256 nk_e4m3x8_to_f32x8_haswell_(__m128i e4m3_i8x8) {
 
     // Blend: if exp==0, use subnormal result; otherwise use normal bits
     __m256i exp_zero_mask = _mm256_cmpeq_epi32(exp_i32x8, _mm256_setzero_si256());
-    return _mm256_blendv_ps(_mm256_castsi256_ps(normal_bits_i32x8), subnorm_f32x8, _mm256_castsi256_ps(exp_zero_mask));
+    __m256 result = _mm256_blendv_ps(_mm256_castsi256_ps(normal_bits_i32x8), subnorm_f32x8,
+                                     _mm256_castsi256_ps(exp_zero_mask));
+
+    // NaN path: E4M3FN has NaN only when exp=15 AND mant=7 (0x7F or 0xFF)
+    __m256i is_nan_mask = _mm256_and_si256(                                            //
+        _mm256_cmpeq_epi32(exp_i32x8, _mm256_set1_epi32(15)),                          //
+        _mm256_cmpeq_epi32(mant_i32x8, _mm256_set1_epi32(7)));                         //
+    __m256i nan_bits = _mm256_or_si256(f32_sign_i32x8, _mm256_set1_epi32(0x7FC00000)); // F32 quiet NaN
+    return _mm256_blendv_ps(result, _mm256_castsi256_ps(nan_bits), _mm256_castsi256_ps(is_nan_mask));
 }
 
 /** @brief Convert 8× e5m2 → 8× f32 via bit manipulation (AVX2).
