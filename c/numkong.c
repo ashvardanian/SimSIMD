@@ -1,7 +1,7 @@
 /**
- *  @brief  Dynamic dispatch library for NumKong.
- *  @note   Compile with the most recent compiler available.
- *  @file   lib.c
+ *  @brief Dynamic dispatch library for NumKong.
+ *  @note Compile with the most recent compiler available.
+ *  @file c/numkong.c
  */
 #define NK_DYNAMIC_DISPATCH 1
 #define NK_NATIVE_F16       0

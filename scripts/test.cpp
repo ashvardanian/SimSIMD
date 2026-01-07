@@ -1,6 +1,6 @@
 /**
- *  @file   test.cpp
- *  @brief  C++ test suite with precision analysis using Boost.Multiprecision.
+ *  @brief C++ test suite with precision analysis using Boost.Multiprecision.
+ *  @file scripts/test.cpp
  *
  *  This test suite compares NumKong operations against high-precision references
  *  (quad precision via Boost.Multiprecision) and reports ULP error statistics.

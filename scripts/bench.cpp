@@ -1,6 +1,6 @@
 /**
- *  @file   bench.cpp
- *  @brief  NumKong C++ Benchmark Suite using Google Benchmark.
+ *  @brief NumKong C++ Benchmark Suite using Google Benchmark.
+ *  @file scripts/bench.cpp
  *
  *  Comprehensive benchmarks comparing NumKong SIMD-optimized functions against
  *  baseline implementations. Run with:
@@ -1910,9 +1910,9 @@ int main(int argc, char **argv) {
     elementwise_<f32_k, nk_kernel_wsum_k, f32_k, f64_k, f32_k, f64_k>("wsum_f32_serial", nk_wsum_f32_serial,
                                                                       nk_wsum_f32_accurate, nk_l2_f32_accurate);
 
-    matmul_<nk_f32_t, nk_f32_t>("dots_f32_neon", nk_dots_packed_size_f32_neon, nk_dots_pack_f32_neon,
+    matmul_<nk_f32_t, nk_f32_t>("dots_packed_f32_neon", nk_dots_packed_size_f32_neon, nk_dots_pack_f32_neon,
                                 nk_dots_packed_f32_neon);
-    matmul_<nk_f64_t, nk_f64_t>("dots_f64_neon", nk_dots_packed_size_f64_neon, nk_dots_pack_f64_neon,
+    matmul_<nk_f64_t, nk_f64_t>("dots_packed_f64_neon", nk_dots_packed_size_f64_neon, nk_dots_pack_f64_neon,
                                 nk_dots_packed_f64_neon);
 
     mesh_<f32_k, f32_k, f32_k>("rmsd_f32_neon", nk_rmsd_f32_neon, nk_rmsd_f32_serial);
@@ -1935,9 +1935,9 @@ int main(int argc, char **argv) {
     dense_<u8_k, f32_k, f64_k>("l2_u8_neonsdot", nk_l2_u8_neonsdot, nk_l2_u8_accurate);
     dense_<u8_k, u32_k, u32_k>("dot_u8_neonsdot", nk_dot_u8_neonsdot, nk_dot_u8_serial);
 
-    matmul_<nk_i8_t, nk_i32_t>("dots_i8_neonsdot", nk_dots_packed_size_i8_neonsdot, nk_dots_pack_i8_neonsdot,
+    matmul_<nk_i8_t, nk_i32_t>("dots_packed_i8_neonsdot", nk_dots_packed_size_i8_neonsdot, nk_dots_pack_i8_neonsdot,
                                nk_dots_packed_i8_neonsdot);
-    matmul_<nk_u8_t, nk_u32_t>("dots_u8_neonsdot", nk_dots_packed_size_u8_neonsdot, nk_dots_pack_u8_neonsdot,
+    matmul_<nk_u8_t, nk_u32_t>("dots_packed_u8_neonsdot", nk_dots_packed_size_u8_neonsdot, nk_dots_pack_u8_neonsdot,
                                nk_dots_packed_u8_neonsdot);
 #endif
 
@@ -1971,14 +1971,14 @@ int main(int argc, char **argv) {
     elementwise_<i8_k, nk_kernel_wsum_k, f32_k, f64_k, f32_k, f64_k>("wsum_i8_neonhalf", nk_wsum_i8_neonhalf,
                                                                      nk_wsum_i8_accurate, nk_l2_i8_accurate);
 
-    matmul_<nk_f16_t, nk_f32_t>("dots_f16_neonhalf", nk_dots_packed_size_f16_neonhalf, nk_dots_pack_f16_neonhalf,
+    matmul_<nk_f16_t, nk_f32_t>("dots_packed_f16_neonhalf", nk_dots_packed_size_f16_neonhalf, nk_dots_pack_f16_neonhalf,
                                 nk_dots_packed_f16_neonhalf);
 #endif
 
 #if NK_TARGET_NEONFHM
     dense_<f16_k, f32_k, f64_k>("dot_f16_neonfhm", nk_dot_f16_neonfhm, nk_dot_f16_accurate);
 
-    matmul_<nk_f16_t, nk_f32_t>("dots_f16_neonfhm", nk_dots_packed_size_f16_neonfhm, nk_dots_pack_f16_neonfhm,
+    matmul_<nk_f16_t, nk_f32_t>("dots_packed_f16_neonfhm", nk_dots_packed_size_f16_neonfhm, nk_dots_pack_f16_neonfhm,
                                 nk_dots_packed_f16_neonfhm);
 #endif // NK_TARGET_NEONFHM
 
@@ -2002,8 +2002,8 @@ int main(int argc, char **argv) {
     elementwise_<bf16_k, nk_kernel_wsum_k, f32_k, f64_k, f32_k, f64_k>("wsum_bf16_neonbfdot", nk_wsum_bf16_neonbfdot,
                                                                        nk_wsum_bf16_accurate, nk_l2_bf16_accurate);
 
-    matmul_<nk_bf16_t, nk_f32_t>("dots_bf16_neonbfdot", nk_dots_packed_size_bf16_neonbfdot, nk_dots_pack_bf16_neonbfdot,
-                                 nk_dots_packed_bf16_neonbfdot);
+    matmul_<nk_bf16_t, nk_f32_t>("dots_packed_bf16_neonbfdot", nk_dots_packed_size_bf16_neonbfdot,
+                                 nk_dots_pack_bf16_neonbfdot, nk_dots_packed_bf16_neonbfdot);
 #endif
 
 #if NK_TARGET_SVE
@@ -2140,7 +2140,6 @@ int main(int argc, char **argv) {
     geospatial_<f64_k, f64_k, f64_k>("vincenty_f64_haswell", nk_vincenty_f64_haswell, vincenty_with_stl<nk_f64_t>,
                                      l2_with_stl<nk_f64_t>);
 
-    // Trigonometry benchmarks for Haswell
     elementwise_<f32_k, nk_kernel_unknown_k, f32_k, f32_k, f32_k, f32_k>(
         "sin_f32_haswell", nk_sin_f32_haswell, elementwise_with_stl<nk_f32_t, sin_with_stl<nk_f64_t>>,
         l2_with_stl<nk_f32_t>);
@@ -2160,9 +2159,9 @@ int main(int argc, char **argv) {
         "atan_f64_haswell", nk_atan_f64_haswell, elementwise_with_stl<nk_f64_t, atan_with_stl<nk_f64_t>>,
         l2_with_stl<nk_f64_t>);
 
-    matmul_<nk_f32_t, nk_f32_t>("dots_f32_haswell", nk_dots_packed_size_f32_haswell, nk_dots_pack_f32_haswell,
+    matmul_<nk_f32_t, nk_f32_t>("dots_packed_f32_haswell", nk_dots_packed_size_f32_haswell, nk_dots_pack_f32_haswell,
                                 nk_dots_packed_f32_haswell);
-    matmul_<nk_f64_t, nk_f64_t>("dots_f64_haswell", nk_dots_packed_size_f64_haswell, nk_dots_pack_f64_haswell,
+    matmul_<nk_f64_t, nk_f64_t>("dots_packed_f64_haswell", nk_dots_packed_size_f64_haswell, nk_dots_pack_f64_haswell,
                                 nk_dots_packed_f64_haswell);
 
 #endif
@@ -2232,19 +2231,20 @@ int main(int argc, char **argv) {
     mesh_<f32_k, f32_k, f32_k>("rmsd_f32_skylake", nk_rmsd_f32_skylake, nk_rmsd_f32_serial);
     mesh_<f32_k, f32_k, f32_k>("kabsch_f32_skylake", nk_kabsch_f32_skylake, nk_kabsch_f32_serial);
 
-    matmul_<nk_f32_t, nk_f32_t>("dots_f32_skylake", nk_dots_packed_size_f32_skylake, nk_dots_pack_f32_skylake,
+    matmul_<nk_f32_t, nk_f32_t>("dots_packed_f32_skylake", nk_dots_packed_size_f32_skylake, nk_dots_pack_f32_skylake,
                                 nk_dots_packed_f32_skylake);
-    matmul_<nk_f64_t, nk_f64_t>("dots_f64_skylake", nk_dots_packed_size_f64_skylake, nk_dots_pack_f64_skylake,
+    matmul_<nk_f64_t, nk_f64_t>("dots_packed_f64_skylake", nk_dots_packed_size_f64_skylake, nk_dots_pack_f64_skylake,
                                 nk_dots_packed_f64_skylake);
-    matmul_<nk_e4m3_t, nk_f32_t>("dots_e4m3_skylake", nk_dots_packed_size_e4m3_skylake, nk_dots_pack_e4m3_skylake,
-                                 nk_dots_packed_e4m3_skylake);
-    matmul_<nk_e5m2_t, nk_f32_t>("dots_e5m2_skylake", nk_dots_packed_size_e5m2_skylake, nk_dots_pack_e5m2_skylake,
-                                 nk_dots_packed_e5m2_skylake);
+    matmul_<nk_e4m3_t, nk_f32_t>("dots_packed_e4m3_skylake", nk_dots_packed_size_e4m3_skylake,
+                                 nk_dots_pack_e4m3_skylake, nk_dots_packed_e4m3_skylake);
+    matmul_<nk_e5m2_t, nk_f32_t>("dots_packed_e5m2_skylake", nk_dots_packed_size_e5m2_skylake,
+                                 nk_dots_pack_e5m2_skylake, nk_dots_packed_e5m2_skylake);
 
 #endif
 
 #if NK_TARGET_ICE
-    matmul_<nk_i8_t, nk_i32_t>("dots_i8_ice", nk_dots_packed_size_i8_ice, nk_dots_pack_i8_ice, nk_dots_i8_ice);
+    matmul_<nk_i8_t, nk_i32_t>("dots_packed_i8_ice", nk_dots_packed_size_i8_ice, nk_dots_pack_i8_ice,
+                               nk_dots_packed_i8_ice);
 
     dense_<i8_k, f32_k, f32_k>("angular_i8_ice", nk_angular_i8_ice, nk_angular_i8_serial);
     dense_<i8_k, u32_k, u32_k>("l2sq_i8_ice", nk_l2sq_i8_ice, nk_l2sq_i8_serial);
@@ -2293,13 +2293,12 @@ int main(int argc, char **argv) {
     curved_<bf16_k, f32_k, f64_k>("mahalanobis_bf16_genoa", nk_mahalanobis_bf16_genoa, nk_mahalanobis_bf16_accurate);
     curved_<bf16c_k, f32c_k, f64c_k>("bilinear_bf16c_genoa", nk_bilinear_bf16c_genoa, nk_bilinear_bf16c_accurate);
 
-    matmul_<nk_bf16_t, nk_f32_t>("dots_bf16_genoa", nk_dots_packed_size_bf16_genoa, nk_dots_pack_bf16_genoa,
+    matmul_<nk_bf16_t, nk_f32_t>("dots_packed_bf16_genoa", nk_dots_packed_size_bf16_genoa, nk_dots_pack_bf16_genoa,
                                  nk_dots_packed_bf16_genoa);
 
-    // FP8 GEMM variants
-    matmul_<nk_e4m3_t, nk_f32_t>("dots_e4m3_genoa", nk_dots_packed_size_e4m3_genoa, nk_dots_pack_e4m3_genoa,
+    matmul_<nk_e4m3_t, nk_f32_t>("dots_packed_e4m3_genoa", nk_dots_packed_size_e4m3_genoa, nk_dots_pack_e4m3_genoa,
                                  nk_dots_packed_e4m3_genoa);
-    matmul_<nk_e5m2_t, nk_f32_t>("dots_e5m2_genoa", nk_dots_packed_size_e5m2_genoa, nk_dots_pack_e5m2_genoa,
+    matmul_<nk_e5m2_t, nk_f32_t>("dots_packed_e5m2_genoa", nk_dots_packed_size_e5m2_genoa, nk_dots_pack_e5m2_genoa,
                                  nk_dots_packed_e5m2_genoa);
 
 #endif
@@ -2333,13 +2332,13 @@ int main(int argc, char **argv) {
         "atan_f16_sapphire", nk_atan_f16_sapphire, elementwise_with_stl<nk_f16_t, atan_with_stl<nk_f64_t>>,
         nk_l2_f16_accurate);
 
-    matmul_<nk_bf16_t, nk_f32_t>("dots_bf16_sapphire_amx", nk_dots_packed_size_bf16_sapphire_amx,
+    matmul_<nk_bf16_t, nk_f32_t>("dots_packed_bf16_sapphire_amx", nk_dots_packed_size_bf16_sapphire_amx,
                                  nk_dots_pack_bf16_sapphire_amx, nk_dots_packed_bf16_sapphire_amx);
-    matmul_<nk_i8_t, nk_i32_t>("dots_i8_sapphire_amx", nk_dots_packed_size_i8_sapphire_amx,
+    matmul_<nk_i8_t, nk_i32_t>("dots_packed_i8_sapphire_amx", nk_dots_packed_size_i8_sapphire_amx,
                                nk_dots_pack_i8_sapphire_amx, nk_dots_packed_i8_sapphire_amx);
-    matmul_<nk_e4m3_t, nk_f32_t>("dots_e4m3_sapphire_amx", nk_dots_packed_size_e4m3_sapphire_amx,
+    matmul_<nk_e4m3_t, nk_f32_t>("dots_packed_e4m3_sapphire_amx", nk_dots_packed_size_e4m3_sapphire_amx,
                                  nk_dots_pack_e4m3_sapphire_amx, nk_dots_packed_e4m3_sapphire_amx);
-    matmul_<nk_e5m2_t, nk_f32_t>("dots_e5m2_sapphire_amx", nk_dots_packed_size_e5m2_sapphire_amx,
+    matmul_<nk_e5m2_t, nk_f32_t>("dots_packed_e5m2_sapphire_amx", nk_dots_packed_size_e5m2_sapphire_amx,
                                  nk_dots_pack_e5m2_sapphire_amx, nk_dots_packed_e5m2_sapphire_amx);
 
 #endif
@@ -2472,7 +2471,6 @@ int main(int argc, char **argv) {
         "atan_f64_serial", nk_atan_f64_serial, elementwise_with_stl<nk_f64_t, atan_with_stl<nk_f64_t>>,
         l2_with_stl<nk_f64_t>);
 
-    // f16 trigonometry serial (via f32 upcast)
     elementwise_<f16_k, nk_kernel_unknown_k, f32_k, f32_k, f32_k, f32_k>(
         "sin_f16_serial", nk_sin_f16_serial, elementwise_with_stl<nk_f16_t, sin_with_stl<nk_f64_t>>,
         nk_l2_f16_accurate);
@@ -2505,14 +2503,19 @@ int main(int argc, char **argv) {
     geospatial_<f64_k, f64_k, f64_k>("vincenty_f64_serial", nk_vincenty_f64_serial, vincenty_with_stl<nk_f64_t>,
                                      l2_with_stl<nk_f64_t>);
 
-    matmul_<nk_bf16_t, nk_f32_t>("dots_bf16_serial", nk_dots_packed_size_bf16_serial, nk_dots_pack_bf16_serial,
+    matmul_<nk_bf16_t, nk_f32_t>("dots_packed_bf16_serial", nk_dots_packed_size_bf16_serial, nk_dots_pack_bf16_serial,
                                  nk_dots_packed_bf16_serial);
-    matmul_<nk_i8_t, nk_i32_t>("dots_i8_serial", nk_dots_packed_size_i8_serial, nk_dots_pack_i8_serial,
+    matmul_<nk_i8_t, nk_i32_t>("dots_packed_i8_serial", nk_dots_packed_size_i8_serial, nk_dots_pack_i8_serial,
                                nk_dots_packed_i8_serial);
-    matmul_<nk_f32_t, nk_f32_t>("dots_f32_serial", nk_dots_packed_size_f32_serial, nk_dots_pack_f32_serial,
+    matmul_<nk_f32_t, nk_f32_t>("dots_packed_f32_serial", nk_dots_packed_size_f32_serial, nk_dots_pack_f32_serial,
                                 nk_dots_packed_f32_serial);
+    matmul_<nk_u1x8_t, nk_u32_t>("dots_packed_u1_serial", nk_dots_packed_size_u1x8_serial, nk_dots_pack_u1x8_serial,
+                                 nk_dots_packed_u1x8_serial);
+    matmul_<nk_u4x2_t, nk_u32_t>("dots_packed_u4_serial", nk_dots_packed_size_u4x2_serial, nk_dots_pack_u4x2_serial,
+                                 nk_dots_packed_u4x2_serial);
+    matmul_<nk_i4x2_t, nk_i32_t>("dots_packed_i4_serial", nk_dots_packed_size_i4x2_serial, nk_dots_pack_i4x2_serial,
+                                 nk_dots_packed_i4x2_serial);
 
-    // Cast benchmarks - core float conversions
     cast_<nk_f32_k, nk_f16_k>("cast_f32_to_f16_serial", nk_cast_serial);
     cast_<nk_f16_k, nk_f32_k>("cast_f16_to_f32_serial", nk_cast_serial);
     cast_<nk_f32_k, nk_bf16_k>("cast_f32_to_bf16_serial", nk_cast_serial);

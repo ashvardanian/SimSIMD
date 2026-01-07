@@ -1,8 +1,8 @@
 /**
- *  @file       numkong.h
- *  @brief      SIMD-accelerated Similarity Measures and Distance Functions.
- *  @author     Ash Vardanian
- *  @date       March 14, 2023
+ *  @brief SIMD-accelerated Similarity Measures and Distance Functions.
+ *  @file include/numkong.h
+ *  @author Ash Vardanian
+ *  @date March 14, 2023
  *
  *  @section x86_targets Choosing x86 Target Generations
  *

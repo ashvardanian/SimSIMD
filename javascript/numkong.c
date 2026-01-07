@@ -1,10 +1,10 @@
 /**
- *  @file       lib.c
- *  @brief      JavaScript bindings for NumKong.
- *  @author     Ash Vardanian
- *  @date       October 18, 2023
+ *  @brief JavaScript bindings for NumKong.
+ *  @file javascript/numkong.c
+ *  @author Ash Vardanian
+ *  @date October 18, 2023
  *
- *  @see        NodeJS docs: https://nodejs.org/api/n-api.html
+ *  @see NodeJS docs: https://nodejs.org/api/n-api.html
  */
 
 #include <node_api.h>        // `napi_*` functions
