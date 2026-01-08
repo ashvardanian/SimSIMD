@@ -1,9 +1,32 @@
 /**
- *  @brief SIMD-accelerated Dot Products for Real and Complex Numbers optimized for Arm NEON-capable CPUs.
+ *  @brief SIMD-accelerated Elementwise Operations optimized for Arm NEON-capable CPUs.
  *  @file include/numkong/elementwise/neon.h
  *  @sa include/numkong/elementwise.h
  *  @author Ash Vardanian
  *  @date December 27, 2025
+ *
+ *  @section elementwise_neon_instructions ARM NEON Instructions
+ *
+ *      Intrinsic         Instruction                   Latency     Throughput
+ *                                                                  A76     M4+/V1+/Oryon
+ *      vld1q_f32         LD1 (V.4S)                    4cy         2/cy    2/cy
+ *      vst1q_f32         ST1 (V.4S)                    2cy         2/cy    2/cy
+ *      vaddq_f32         FADD (V.4S, V.4S, V.4S)       2cy         2/cy    4/cy
+ *      vmulq_f32         FMUL (V.4S, V.4S, V.4S)       3cy         2/cy    4/cy
+ *      vfmaq_f32         FMLA (V.4S, V.4S, V.4S)       4cy         2/cy    4/cy
+ *      vaddq_f64         FADD (V.2D, V.2D, V.2D)       2cy         2/cy    4/cy
+ *      vmulq_f64         FMUL (V.2D, V.2D, V.2D)       3cy         2/cy    4/cy
+ *      vfmaq_f64         FMLA (V.2D, V.2D, V.2D)       4cy         2/cy    4/cy
+ *      vqaddq_s16        SQADD (V.8H, V.8H, V.8H)      2cy         2/cy    4/cy
+ *      vcvtq_f32_s32     SCVTF (V.4S, V.4S)            3cy         2/cy    2/cy
+ *      vcvtaq_s32_f32    FCVTAS (V.4S, V.4S)           3cy         2/cy    2/cy
+ *      vqmovn_s32        SQXTN (V.4H, V.4S)            3cy         2/cy    2/cy
+ *
+ *  Elementwise operations are throughput-bound rather than latency-bound. FP arithmetic
+ *  throughput doubles on 4-pipe cores (Apple M4+, Graviton3+, Oryon) from 2/cy to 4/cy.
+ *
+ *  Memory bandwidth (LD1/ST1) typically becomes the bottleneck for large arrays, as load/store
+ *  throughput remains at 2/cy across all cores.
  */
 #ifndef NK_ELEMENTWISE_NEON_H
 #define NK_ELEMENTWISE_NEON_H

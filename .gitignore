@@ -13,6 +13,7 @@ javascript/dist
 bun.lockb
 .build/
 .venv/
+.cache/
 
 # for Google Benchmark
 compare.py

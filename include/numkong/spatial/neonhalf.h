@@ -4,6 +4,24 @@
  *  @sa include/numkong/spatial.h
  *  @author Ash Vardanian
  *  @date December 27, 2025
+ *
+ *  @section spatial_neonhalf_instructions ARM NEON FP16 Instructions (ARMv8.2-FP16)
+ *
+ *      Intrinsic                   Instruction                     Latency     Throughput
+ *                                                                              A76         M4+/V1+/Oryon
+ *      vfmaq_f16                   FMLA (V.8H, V.8H, V.8H)         4cy         2/cy        4/cy
+ *      vcvt_f32_f16                FCVTL (V.4S, V.4H)              3cy         2/cy        4/cy
+ *      vld1q_f16                   LD1 (V.8H)                      4cy         2/cy        3/cy
+ *      vsubq_f16                   FSUB (V.8H, V.8H, V.8H)         2cy         2/cy        4/cy
+ *      vaddvq_f32                  FADDP+FADDP (V.4S)              4cy         1/cy        2/cy
+ *
+ *  The ARMv8.2-FP16 extension enables native half-precision arithmetic, doubling the element count
+ *  per vector register (8x F16 vs 4x F32). For spatial distance computations like L2 and angular
+ *  distance, this halves memory bandwidth requirements.
+ *
+ *  Inputs are widened from F16 to F32 for accumulation via FCVTL to preserve numerical precision
+ *  during the squared difference summation. The subtraction and FMA operations use F32 precision
+ *  in the accumulator to avoid catastrophic cancellation in distance computations.
  */
 #ifndef NK_SPATIAL_NEONHALF_H
 #define NK_SPATIAL_NEONHALF_H

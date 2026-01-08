@@ -4,6 +4,19 @@
  *  @sa include/numkong/spatial.h
  *  @author Ash Vardanian
  *  @date December 27, 2025
+ *
+ *  @section skylake_spatial_instructions Key AVX-512 Spatial Instructions
+ *
+ *      Intrinsic                   Instruction                     Latency     Throughput  Ports
+ *      _mm512_fmadd_ps             VFMADD132PS (ZMM, ZMM, ZMM)     4cy         0.5/cy      p05
+ *      _mm512_sub_ps               VSUBPS (ZMM, ZMM, ZMM)          4cy         0.5/cy      p05
+ *      _mm512_rsqrt14_ps           VRSQRT14PS (ZMM, ZMM)           4cy         1/cy        p0
+ *      _mm512_sqrt_ps              VSQRTPS (ZMM, ZMM)              12cy        3cy         p0
+ *      _mm512_reduce_add_ps        (sequence)                      ~8-10cy     -           -
+ *
+ *  Distance computations benefit from Skylake-X's dual FMA units achieving 0.5cy throughput for
+ *  fused multiply-add operations. VRSQRT14PS provides ~14-bit precision reciprocal square root;
+ *  with Newton-Raphson refinement, this exceeds f32's 23-bit mantissa requirements.
  */
 #ifndef NK_SPATIAL_SKYLAKE_H
 #define NK_SPATIAL_SKYLAKE_H
@@ -141,11 +154,11 @@ nk_l2sq_f64_skylake_cycle:
     __m512d abs_sum_f64x8 = _mm512_abs_pd(sum_f64x8);
     __mmask8 sum_ge_x = _mm512_cmp_pd_mask(abs_sum_f64x8, x_f64x8, _CMP_GE_OQ);
     // z = t - larger: recovers approximately the smaller value
-    // When |sum| >= x: z = t - sum; else z = t - x
+    // When |sum| ≥ x: z = t - sum; else z = t - x
     __m512d z_f64x8 = _mm512_sub_pd(t_f64x8, x_f64x8);
     z_f64x8 = _mm512_mask_sub_pd(z_f64x8, sum_ge_x, t_f64x8, sum_f64x8);
     // error = smaller - z: the rounding error from the addition
-    // When |sum| >= x: error = x - z; else error = sum - z
+    // When |sum| ≥ x: error = x - z; else error = sum - z
     __m512d error_f64x8 = _mm512_sub_pd(sum_f64x8, z_f64x8);
     error_f64x8 = _mm512_mask_sub_pd(error_f64x8, sum_ge_x, x_f64x8, z_f64x8);
     compensation_f64x8 = _mm512_add_pd(compensation_f64x8, error_f64x8);
@@ -161,7 +174,7 @@ NK_PUBLIC void nk_l2_f64_skylake(nk_f64_t const *a, nk_f64_t const *b, nk_size_t
 }
 
 NK_PUBLIC void nk_angular_f64_skylake(nk_f64_t const *a, nk_f64_t const *b, nk_size_t n, nk_f64_t *result) {
-    // Dot2 (Ogita-Rump-Oishi 2005) for cross-product a·b only - it may have cancellation.
+    // Dot2 (Ogita-Rump-Oishi 2005) for cross-product a × b only - it may have cancellation.
     // Self-products ‖a‖² and ‖b‖² use simple FMA - all terms are non-negative, no cancellation.
     __m512d dot_sum_f64x8 = _mm512_setzero_pd();
     __m512d dot_compensation_f64x8 = _mm512_setzero_pd();
@@ -234,7 +247,7 @@ NK_INTERNAL void nk_angular_f64x8_finalize_skylake(nk_angular_f64x8_state_skylak
     __m256d query_norm_f64x4 = _mm256_set1_pd(query_norm);
     __m256d target_norms_f64x4 = _mm256_set_pd(target_norm_d, target_norm_c, target_norm_b, target_norm_a);
 
-    // Compute products = query_norm * target_norm for all 4
+    // Compute products = ‖query‖ × ‖target‖ for all 4
     __m256d products_f64x4 = _mm256_mul_pd(query_norm_f64x4, target_norms_f64x4);
 
     // Compute sqrt and normalize: 1 - dot / sqrt(product)
@@ -266,7 +279,7 @@ NK_INTERNAL void nk_l2_f64x8_finalize_skylake(nk_l2_f64x8_state_skylake_t const 
     nk_dot_f64x8_finalize_skylake(state_a, state_b, state_c, state_d, &dots_vec);
     nk_f64_t dots[4] = {dots_vec.f64s[0], dots_vec.f64s[1], dots_vec.f64s[2], dots_vec.f64s[3]};
 
-    // Build 256-bit F64 vectors for parallel L2 distance: sqrt(q² + t² - 2*dot)
+    // Build 256-bit F64 vectors for parallel L2 distance: √(q² + t² − 2 × dot)
     __m256d dots_f64x4 = _mm256_loadu_pd(dots);
     __m256d query_norm_f64x4 = _mm256_set1_pd(query_norm);
     __m256d target_norms_f64x4 = _mm256_set_pd(target_norm_d, target_norm_c, target_norm_b, target_norm_a);
@@ -316,7 +329,7 @@ NK_INTERNAL void nk_angular_f32x8_finalize_skylake(nk_angular_f32x8_state_skylak
     __m256d target_norms_f64x4 = _mm256_set_pd((nk_f64_t)target_norm_d, (nk_f64_t)target_norm_c,
                                                (nk_f64_t)target_norm_b, (nk_f64_t)target_norm_a);
 
-    // Compute products = query_norm * target_norm for all 4
+    // Compute products = ‖query‖ × ‖target‖ for all 4
     __m256d products_f64x4 = _mm256_mul_pd(query_norm_f64x4, target_norms_f64x4);
 
     // Compute sqrt and normalize: 1 - dot / sqrt(product)
@@ -348,7 +361,7 @@ NK_INTERNAL void nk_l2_f32x8_finalize_skylake(nk_l2_f32x8_state_skylake_t const 
     nk_b128_vec_t dots_vec;
     nk_dot_f32x8_finalize_skylake(state_a, state_b, state_c, state_d, &dots_vec);
 
-    // Build 256-bit F64 vectors for parallel L2 distance: sqrt(q² + t² - 2*dot)
+    // Build 256-bit F64 vectors for parallel L2 distance: √(q² + t² − 2 × dot)
     __m256d dots_f64x4 = _mm256_cvtps_pd(dots_vec.xmm_ps);
     __m256d query_norm_f64x4 = _mm256_set1_pd((nk_f64_t)query_norm);
     __m256d target_norms_f64x4 = _mm256_set_pd((nk_f64_t)target_norm_d, (nk_f64_t)target_norm_c,

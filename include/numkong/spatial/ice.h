@@ -4,6 +4,18 @@
  *  @sa include/numkong/spatial.h
  *  @author Ash Vardanian
  *  @date December 27, 2025
+ *
+ *  @section ice_spatial_instructions Key AVX-512 VNNI Spatial Instructions
+ *
+ *      Intrinsic                   Instruction                     Ice         Genoa
+ *      _mm512_dpwssd_epi32         VPDPWSSD (ZMM, ZMM, ZMM)        5cy @ p0    4cy @ p01
+ *      _mm512_cvtepi8_epi16        VPMOVSXBW (ZMM, YMM)            3cy @ p5    3cy @ p12
+ *      _mm512_sub_epi16            VPSUBW (ZMM, ZMM, ZMM)          1cy @ p05   1cy @ p0123
+ *      _mm512_reduce_add_epi32     (pseudo: shuffle chain)         ~8cy        ~8cy
+ *
+ *  Ice Lake's VNNI enables efficient i8 distance computations via VPDPWSSD for squared differences.
+ *  After widening i8 to i16, the same instruction computes both multiply and horizontal pair addition.
+ *  This approach avoids the asymmetric VPDPBUSD issues with signed values like -128.
  */
 #ifndef NK_SPATIAL_ICE_H
 #define NK_SPATIAL_ICE_H
@@ -75,7 +87,7 @@ nk_angular_i8_ice_cycle:
     // We can't directly use the `_mm512_dpbusd_epi32` intrinsic everywhere,
     // as it's asymmetric with respect to the sign of the input arguments:
     //
-    //      Signed(ZeroExtend16(a.byte[4*j]) * SignExtend16(b.byte[4*j]))
+    //      Signed(ZeroExtend16(a.byte[4 × j]) × SignExtend16(b.byte[4 × j]))
     //
     // To compute the squares, we could just drop the sign bit of the second argument.
     // But this would lead to big-big problems on values like `-128`!
@@ -83,17 +95,14 @@ nk_angular_i8_ice_cycle:
     // Assuming this is an approximate kernel (with reciprocal square root approximations)
     // in the end, we can allow clamping the value to [-127, 127] range.
     //
-    // On Ice Lake:
+    // VNNI instruction performance (Ice Lake vs Zen4 Genoa):
     //
-    //  1. `VPDPBUSDS (ZMM, ZMM, ZMM)` can only execute on port 0, with 5 cycle latency.
-    //  2. `VPDPWSSDS (ZMM, ZMM, ZMM)` can also only execute on port 0, with 5 cycle latency.
-    //  3. `VPMADDWD (ZMM, ZMM, ZMM)` can execute on ports 0 and 5, with 5 cycle latency.
+    //      Instruction                     Ice             Genoa
+    //      VPDPBUSDS (ZMM, ZMM, ZMM)       5cy @ p0        4cy @ p01
+    //      VPDPWSSDS (ZMM, ZMM, ZMM)       5cy @ p0        4cy @ p01
+    //      VPMADDWD (ZMM, ZMM, ZMM)        5cy @ p05       3cy @ p01
     //
-    // On Zen4 Genoa:
-    //
-    //  1. `VPDPBUSDS (ZMM, ZMM, ZMM)` can execute on ports 0 and 1, with 4 cycle latency.
-    //  2. `VPDPWSSDS (ZMM, ZMM, ZMM)` can also execute on ports 0 and 1, with 4 cycle latency.
-    //  3. `VPMADDWD (ZMM, ZMM, ZMM)` can execute on ports 0 and 1, with 3 cycle latency.
+    // On Ice Lake, VNNI bottlenecks on port 0. On Genoa, dual-issue on p01 is faster.
     //
     // The old solution was complex replied on 1. and 2.:
     //
@@ -227,7 +236,7 @@ NK_PUBLIC void nk_l2sq_i4_ice(nk_i4x2_t const *a, nk_i4x2_t const *b, nk_size_t 
     //     Maps [0,7] → [0,7] (positive) and [8,15] → [-8,-1] (negative).
     //
     //  2. For L2 squared: |a-b|² = diff * diff, using `_mm512_dpbusd_epi32`.
-    //     After computing signed difference and taking abs, the result fits in [0,15].
+    //     After computing signed difference and taking abs, the result fits ∈ [0,15].
     //     We can then use DPBUSD to compute diff² efficiently without lookup tables.
     //
     // This approach avoids 8x VPSHUFB operations per iteration, replacing them with
@@ -267,13 +276,13 @@ nk_l2sq_i4_ice_cycle:
     b_low_i8x64 = _mm512_sub_epi8(_mm512_xor_si512(b_low_u8x64, eight_i8x64), eight_i8x64);
     b_high_i8x64 = _mm512_sub_epi8(_mm512_xor_si512(b_high_u8x64, eight_i8x64), eight_i8x64);
 
-    // Compute |a - b| for each nibble pair. Result is unsigned in [0, 15].
+    // Compute |a - b| for each nibble pair. Result is unsigned ∈ [0, 15].
     diff_low_u8x64 = _mm512_abs_epi8(_mm512_sub_epi8(a_low_i8x64, b_low_i8x64));
     diff_high_u8x64 = _mm512_abs_epi8(_mm512_sub_epi8(a_high_i8x64, b_high_i8x64));
 
     // Square and accumulate using DPBUSD: diff² = diff * diff.
     // DPBUSD computes u8*i8 products and sums groups of 4 into i32.
-    // Since diff is in [0,15], it's safe for both u8 and i8 interpretation.
+    // Since diff is ∈ [0,15], it's safe for both u8 and i8 interpretation.
     d2_i32x16 = _mm512_dpbusd_epi32(d2_i32x16, diff_low_u8x64, diff_low_u8x64);
     d2_i32x16 = _mm512_dpbusd_epi32(d2_i32x16, diff_high_u8x64, diff_high_u8x64);
     if (n_bytes) goto nk_l2sq_i4_ice_cycle;
@@ -286,8 +295,8 @@ NK_PUBLIC void nk_angular_i4_ice(nk_i4x2_t const *a, nk_i4x2_t const *b, nk_size
     nk_size_t n_bytes = nk_size_divide_round_up_to_multiple_(n, 2);
 
     // Angular distance for signed 4-bit integers requires computing:
-    //   1. Dot product: sum(a[i] * b[i])
-    //   2. Squared norms: sum(a[i]²) and sum(b[i]²)
+    //   1. Dot product: ∑(aᵢ × bᵢ)
+    //   2. Squared norms: ∑(aᵢ²) and ∑(bᵢ²)
     //
     // For signed i4 values in [-8, 7], we use DPBUSD for everything by leveraging
     // an algebraic identity. Define x = a ^ 8 (XOR with 8), which maps:
@@ -296,10 +305,10 @@ NK_PUBLIC void nk_angular_i4_ice(nk_i4x2_t const *a, nk_i4x2_t const *b, nk_size
     // The signed value is: a_signed = x - 8
     //
     // For two signed values:
-    //   a_signed * b_signed = (ax - 8)(bx - 8) = ax*bx - 8*ax - 8*bx + 64
+    //   a_signed × b_signed = (ax - 8)(bx - 8) = ax × bx - 8 × ax - 8 × bx + 64
     //
     // Therefore:
-    //   dot(a_signed, b_signed) = DPBUSD(ax, bx) - 8*(sum(ax) + sum(bx)) + 64*n
+    //   dot(a_signed, b_signed) = DPBUSD(ax, bx) - 8 × (∑(ax) + ∑(bx)) + 64 × n
     //
     // This avoids all i8 → i16 upcasts and uses DPBUSD directly on byte values!
     // For norms, we use |x|² = x², computing abs then squaring with DPBUSD.
@@ -339,7 +348,7 @@ nk_angular_i4_ice_cycle:
     b_low_u8x64 = _mm512_and_si512(b_i4_vec, nibble_mask_u8x64);
     b_high_u8x64 = _mm512_and_si512(_mm512_srli_epi16(b_i4_vec, 4), nibble_mask_u8x64);
 
-    // Compute biased values: ax = a ^ 8 (still in [0,15], just reordered)
+    // Compute biased values: ax = a ^ 8 (still ∈ [0,15], just reordered)
     ax_low_u8x64 = _mm512_xor_si512(a_low_u8x64, eight_i8x64);
     ax_high_u8x64 = _mm512_xor_si512(a_high_u8x64, eight_i8x64);
     bx_low_u8x64 = _mm512_xor_si512(b_low_u8x64, eight_i8x64);
@@ -366,7 +375,7 @@ nk_angular_i4_ice_cycle:
     __m512i b_low_abs_u8x64 = _mm512_abs_epi8(b_low_i8x64);
     __m512i b_high_abs_u8x64 = _mm512_abs_epi8(b_high_i8x64);
 
-    // Squared norms: |x|² = x², use DPBUSD for efficient squaring
+    // Squared norms: ‖x‖² = x², use DPBUSD for efficient squaring
     a2_i32x16 = _mm512_dpbusd_epi32(a2_i32x16, a_low_abs_u8x64, a_low_abs_u8x64);
     a2_i32x16 = _mm512_dpbusd_epi32(a2_i32x16, a_high_abs_u8x64, a_high_abs_u8x64);
     b2_i32x16 = _mm512_dpbusd_epi32(b2_i32x16, b_low_abs_u8x64, b_low_abs_u8x64);
@@ -374,7 +383,7 @@ nk_angular_i4_ice_cycle:
     if (n_bytes) goto nk_angular_i4_ice_cycle;
 
     // Apply algebraic correction for signed dot product:
-    // signed_dot = DPBUSD(ax, bx) - 8*(sum(ax) + sum(bx)) + 64*n
+    // signed_dot = DPBUSD(ax, bx) - 8 × (∑(ax) + ∑(bx)) + 64 × n
     nk_i64_t ax_sum = _mm512_reduce_add_epi64(ax_sum_i64x8);
     nk_i64_t bx_sum = _mm512_reduce_add_epi64(bx_sum_i64x8);
     nk_i32_t ab_raw = _mm512_reduce_add_epi32(ab_i32x16);
@@ -390,7 +399,7 @@ NK_PUBLIC void nk_l2sq_u4_ice(nk_u4x2_t const *a, nk_u4x2_t const *b, nk_size_t 
     // Parameter `n` is the number of 4-bit values (dimensions), not bytes.
     nk_size_t n_bytes = nk_size_divide_round_up_to_multiple_(n, 2);
 
-    // For unsigned 4-bit integers in [0, 15], the L2 squared distance is straightforward:
+    // For unsigned 4-bit integers ∈ [0, 15], the L2 squared distance is straightforward:
     //   1. Extract nibbles as u8 values
     //   2. Compute |a - b| using saturating subtraction: max(a,b) - min(a,b) = (a ⊖ b) | (b ⊖ a)
     //   3. Square with DPBUSD: diff * diff
@@ -446,11 +455,11 @@ NK_PUBLIC void nk_angular_u4_ice(nk_u4x2_t const *a, nk_u4x2_t const *b, nk_size
     // Parameter `n` is the number of 4-bit values (dimensions), not bytes.
     nk_size_t n_bytes = nk_size_divide_round_up_to_multiple_(n, 2);
 
-    // Angular distance for unsigned 4-bit integers in [0, 15].
+    // Angular distance for unsigned 4-bit integers ∈ [0, 15].
     // Since values are unsigned and small, we can use DPBUSD directly for both
     // dot product and norms without any sign handling.
     //
-    // DPBUSD computes: ZeroExtend(a) * SignExtend(b), but for values in [0, 15],
+    // DPBUSD computes: ZeroExtend(a) * SignExtend(b), but for values ∈ [0, 15],
     // sign extension is identity (no high bit set), so it works correctly.
     __m512i const nibble_mask_u8x64 = _mm512_set1_epi8(0x0F);
     __m512i const zeros_i8x64 = _mm512_setzero_si512();
@@ -486,7 +495,7 @@ nk_angular_u4_ice_cycle:
     ab_i32x16 = _mm512_dpbusd_epi32(ab_i32x16, a_high_u8x64, b_high_u8x64);
 
     // Squared norms: compute a² per nibble using lookup table for efficiency
-    // Squares lookup: 0 → 0, 1->1, 2->4, ..., 15 → 225
+    // Squares lookup: 0 → 0, 1 → 1, 2 → 4, ..., 15 → 225
     __m512i const u4_squares_lookup_u8x64 = _mm512_set_epi8(
         (char)225, (char)196, (char)169, (char)144, 121, 100, 81, 64, 49, 36, 25, 16, 9, 4, 1, 0, //
         (char)225, (char)196, (char)169, (char)144, 121, 100, 81, 64, 49, 36, 25, 16, 9, 4, 1, 0, //

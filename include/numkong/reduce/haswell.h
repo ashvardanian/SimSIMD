@@ -4,6 +4,18 @@
  *  @sa include/numkong/reduce.h
  *  @author Ash Vardanian
  *  @date December 27, 2025
+ *
+ *  @section haswell_reduce_instructions Key AVX2 Reduction Instructions
+ *
+ *      Intrinsic                   Instruction                     Latency     Throughput  Ports
+ *      _mm256_hadd_ps              VHADDPS (YMM, YMM, YMM)         7cy         0.5/cy      p01+p5
+ *      _mm256_extractf128_ps       VEXTRACTF128 (XMM, YMM, I8)     3cy         1/cy        p5
+ *      _mm_hadd_ps                 HADDPS (XMM, XMM, XMM)          5cy         1/cy        p01+p5
+ *      _mm_add_ps                  ADDPS (XMM, XMM, XMM)           3cy         1/cy        p01
+ *
+ *  Horizontal reductions require cross-lane operations: extract high 128 bits, add to low lane,
+ *  then apply 128-bit hadd twice. Total latency is ~11-13 cycles for YMM-to-scalar reduction.
+ *  Using dual accumulators in calling code helps hide this finalization latency.
  */
 #ifndef NK_REDUCE_HASWELL_H
 #define NK_REDUCE_HASWELL_H

@@ -4,6 +4,25 @@
  *  @sa include/numkong/dot.h
  *  @author Ash Vardanian
  *  @date December 27, 2025
+ *
+ *  @section dot_neonbfdot_instructions ARM NEON BF16 Instructions (ARMv8.6-BF16)
+ *
+ *      Intrinsic                   Instruction                     Latency     Throughput
+ *                                                                              A76         M4+/V1+/Oryon
+ *      vbfdotq_f32                 BFDOT (V.4S, V.8H, V.8H)        3cy         2/cy        4/cy
+ *      vcvt_f32_bf16               BFCVTN (V.4H, V.4S)             3cy         2/cy        4/cy
+ *      vld1q_bf16                  LD1 (V.8H)                      4cy         2/cy        3/cy
+ *      vaddvq_f32                  FADDP+FADDP (V.4S)              4cy         1/cy        2/cy
+ *      vfmaq_f32                   FMLA (V.4S, V.4S, V.4S)         4cy         2/cy        4/cy
+ *      vfmsq_f32                   FMLS (V.4S, V.4S, V.4S)         4cy         2/cy        4/cy
+ *
+ *  The ARMv8.6-BF16 extension provides the BFDOT instruction for accelerated BF16 dot products,
+ *  targeting machine learning inference workloads. BF16 trades mantissa precision (7 bits vs 10 in
+ *  FP16) for a larger exponent range matching FP32, eliminating overflow concerns during training.
+ *
+ *  BFDOT computes two BF16 dot products per lane, accumulating directly into FP32 without explicit
+ *  conversion. This provides higher throughput than FP16 convert-then-FMA sequences for ML inference
+ *  where the reduced precision is acceptable.
  */
 #ifndef NK_DOT_NEONBFDOT_H
 #define NK_DOT_NEONBFDOT_H

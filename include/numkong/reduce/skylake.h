@@ -4,6 +4,18 @@
  *  @sa include/numkong/reduce.h
  *  @author Ash Vardanian
  *  @date December 27, 2025
+ *
+ *  @section skylake_reduce_instructions Key AVX-512 Reduction Instructions
+ *
+ *      Intrinsic                   Instruction                     Latency     Throughput  Ports
+ *      _mm512_extractf32x8_ps      VEXTRACTF32X8 (YMM, ZMM, I8)    3cy         1/cy        p5
+ *      _mm256_extractf128_ps       VEXTRACTF128 (XMM, YMM, I8)     3cy         1/cy        p5
+ *      _mm256_hadd_ps              VHADDPS (YMM, YMM, YMM)         7cy         0.5/cy      p01+p5
+ *      _mm512_reduce_add_ps        (intrinsic sequence)            ~8-10cy     -           -
+ *
+ *  Horizontal reductions require cross-lane shuffles that bottleneck on port 5. The full ZMM to scalar
+ *  reduction takes 15-18 cycles via extract-and-add sequences. Using dual accumulators amortizes this
+ *  cost over larger input batches. Skylake-X server chips benefit from wider execution resources.
  */
 #ifndef NK_REDUCE_SKYLAKE_H
 #define NK_REDUCE_SKYLAKE_H

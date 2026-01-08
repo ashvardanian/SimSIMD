@@ -325,7 +325,7 @@ def yield_results(
         if dtype in matrices_per_dtype_and_shape:
             continue
         matrices = [random_matrix(shape, dtype) for _ in range(count_matrices_per_dtype)]
-        matrices_per_dtype_and_shape[matrix_key] = matrices[]
+        matrices_per_dtype_and_shape[matrix_key] = matrices
 
     # For each kernel, repeat benchmarks for each data type
     for kernel in kernels:

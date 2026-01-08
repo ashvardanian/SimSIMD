@@ -4,6 +4,25 @@
  *  @sa include/numkong/mesh.h
  *  @author Ash Vardanian
  *  @date December 27, 2025
+ *
+ *  @section neon_mesh_instructions Key NEON Mesh Instructions
+ *
+ *  Point cloud operations use these ARM NEON instructions:
+ *
+ *      Intrinsic         Instruction                   Latency     Throughput
+ *                                                                  A76     M4+/V1+/Oryon
+ *      vfmaq_f32         FMLA (V.4S, V.4S, V.4S)       4cy         2/cy    4/cy
+ *      vmulq_n_f32       FMUL (V.4S, V.4S, V.S[0])     3cy         2/cy    4/cy
+ *      vsubq_f32         FSUB (V.4S, V.4S, V.4S)       2cy         2/cy    4/cy
+ *      vaddvq_f32        FADDP+FADDP (reduce)          5cy         1/cy    1/cy
+ *      vld3q_f32         LD3 ({Vt.4S, Vt2.4S, Vt3.4S}) 6cy         1/cy    1/cy
+ *
+ *  LD3 provides hardware stride-3 deinterleaving for XYZ point data. The 6cy latency and
+ *  1/cy throughput make it the memory bottleneck regardless of core microarchitecture.
+ *
+ *  FMA throughput doubles on 4-pipe cores (Apple M4+, Graviton3+, Oryon). Using 2x loop
+ *  unrolling with independent accumulators hides FMA latency and saturates 2 FP pipes on
+ *  A76-class cores; 4x unrolling may further benefit 4-pipe cores.
  */
 #ifndef NK_MESH_NEON_H
 #define NK_MESH_NEON_H
@@ -24,27 +43,25 @@
 extern "C" {
 #endif
 
-/*  Internal helper: Deinterleave 12 floats (4 xyz triplets) into separate x, y, z vectors.
- *  Uses NEON vld3q for efficient stride-3 deinterleaving.
- *
- *  Input: 12 contiguous floats [x0,y0,z0, x1,y1,z1, x2,y2,z2, x3,y3,z3]
- *  Output: x[4], y[4], z[4] vectors
- */
 NK_INTERNAL void nk_deinterleave_f32x4_neon_(nk_f32_t const *ptr, float32x4_t *x_out, float32x4_t *y_out,
                                              float32x4_t *z_out) {
+    // Deinterleave 12 floats (4 xyz triplets) into separate x, y, z vectors.
+    // Uses NEON vld3q for efficient stride-3 deinterleaving.
+    //
+    // Input: 12 contiguous floats [x0,y0,z0, x1,y1,z1, x2,y2,z2, x3,y3,z3]
+    // Output: x[4], y[4], z[4] vectors
     float32x4x3_t xyz = vld3q_f32(ptr);
     *x_out = xyz.val[0];
     *y_out = xyz.val[1];
     *z_out = xyz.val[2];
 }
 
-/*  Internal helper: Deinterleave 6 f64 values (2 xyz triplets) into separate x, y, z vectors.
- *
- *  Input: 6 contiguous f64 [x0,y0,z0, x1,y1,z1]
- *  Output: x[2], y[2], z[2] vectors
- */
 NK_INTERNAL void nk_deinterleave_f64x2_neon_(nk_f64_t const *ptr, float64x2_t *x_out, float64x2_t *y_out,
                                              float64x2_t *z_out) {
+    // Deinterleave 6 f64 values (2 xyz triplets) into separate x, y, z vectors.
+    //
+    // Input: 6 contiguous f64 [x0,y0,z0, x1,y1,z1]
+    // Output: x[2], y[2], z[2] vectors
     // NEON doesn't have vld3q_f64, so we use vcombine to avoid stack round-trips
     // Load 2 xyz triplets: [x0,y0,z0, x1,y1,z1]
     *x_out = vcombine_f64(vld1_f64(&ptr[0]), vld1_f64(&ptr[3]));
@@ -52,16 +69,15 @@ NK_INTERNAL void nk_deinterleave_f64x2_neon_(nk_f64_t const *ptr, float64x2_t *x
     *z_out = vcombine_f64(vld1_f64(&ptr[2]), vld1_f64(&ptr[5]));
 }
 
-/*  Internal helper: Compute sum of squared distances after applying rotation (and optional scale).
- *  Used by kabsch (scale=1.0) and umeyama (scale=computed_scale).
- *  Returns sum_squared, caller computes √(sum_squared / n).
- *
- *  Optimization: 2x loop unrolling with multiple accumulators hides FMA latency (3-7 cycles).
- */
 NK_INTERNAL nk_f32_t nk_transformed_ssd_f32_neon_(nk_f32_t const *a, nk_f32_t const *b, nk_size_t n, nk_f32_t const *r,
                                                   nk_f32_t scale, nk_f32_t centroid_a_x, nk_f32_t centroid_a_y,
                                                   nk_f32_t centroid_a_z, nk_f32_t centroid_b_x, nk_f32_t centroid_b_y,
                                                   nk_f32_t centroid_b_z) {
+    // Compute sum of squared distances after applying rotation (and optional scale).
+    // Used by kabsch (scale=1.0) and umeyama (scale=computed_scale).
+    // Returns sum_squared, caller computes √(sum_squared / n).
+    //
+    // Optimization: 2x loop unrolling with multiple accumulators hides FMA latency (3-7 cycles).
     // Broadcast scaled rotation matrix elements
     float32x4_t sr0_f32x4 = vdupq_n_f32(scale * r[0]), sr1_f32x4 = vdupq_n_f32(scale * r[1]),
                 sr2_f32x4 = vdupq_n_f32(scale * r[2]);
@@ -191,7 +207,7 @@ NK_INTERNAL nk_f32_t nk_transformed_ssd_f32_neon_(nk_f32_t const *a, nk_f32_t co
     return sum_squared;
 }
 
-/*  Internal helper: Compute sum of squared distances for f64 after applying rotation (and optional scale).
+/*  Compute sum of squared distances for f64 after applying rotation (and optional scale).
  *  Note: rotation matrix r is f32 (from SVD), scale and data are f64.
  *
  *  Optimization: 2x loop unrolling with multiple accumulators hides FMA latency (3-7 cycles).

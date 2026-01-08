@@ -4,6 +4,19 @@
  *  @sa include/numkong/binary.h
  *  @author Ash Vardanian
  *  @date December 27, 2025
+ *
+ *  @section haswell_binary_instructions Key POPCNT/AVX2 Binary Instructions
+ *
+ *      Intrinsic                   Instruction                     Latency     Throughput  Ports
+ *      _mm_popcnt_u64              POPCNT (R64, R64)               3cy         1/cy        p1
+ *      _mm256_and_si256            VPAND (YMM, YMM, YMM)           1cy         0.33/cy     p015
+ *      _mm256_or_si256             VPOR (YMM, YMM, YMM)            1cy         0.33/cy     p015
+ *      _mm256_xor_si256            VPXOR (YMM, YMM, YMM)           1cy         0.33/cy     p015
+ *      _mm256_extracti128_si256    VEXTRACTI128 (XMM, YMM, I8)     3cy         1/cy        p5
+ *
+ *  Haswell lacks SIMD popcount; we extract 64-bit words and use scalar POPCNT. The p1 port
+ *  bottleneck limits throughput to 1 popcount/cycle. For Hamming distance, XOR + POPCNT;
+ *  for Jaccard, compute AND/OR + POPCNT separately to get intersection and union counts.
  */
 #ifndef NK_BINARY_HASWELL_H
 #define NK_BINARY_HASWELL_H
@@ -71,11 +84,11 @@ NK_INTERNAL void nk_jaccard_b256_update_haswell(nk_jaccard_b256_state_haswell_t 
     // Process one 256-bit chunk (native Haswell AVX2 register size).
     //
     // Haswell port analysis:
-    //   `_mm256_and_si256`:      p015, 1cy latency, 0.33cy throughput
-    //   `_mm256_extracti128`:    p5, 3cy latency, 1cy throughput
-    //   `_mm_cvtsi128_si64`:     p0, 2cy latency (first u64 extraction)
-    //   `_mm_extract_epi64`:     p5, 3cy latency, 1cy throughput
-    //   `_mm_popcnt_u64`:        p1 ONLY, 3cy latency, 1cy throughput (BOTTLENECK)
+    // - `_mm256_and_si256`:      p015, 1cy latency, 0.33cy throughput
+    // - `_mm256_extracti128`:    p5, 3cy latency, 1cy throughput
+    // - `_mm_cvtsi128_si64`:     p0, 2cy latency (first u64 extraction)
+    // - `_mm_extract_epi64`:     p5, 3cy latency, 1cy throughput
+    // - `_mm_popcnt_u64`:        p1 ONLY, 3cy latency, 1cy throughput (BOTTLENECK)
     //
     // With 4 popcounts per update, p1 is the bottleneck at 4 cycles minimum.
 
@@ -113,12 +126,12 @@ NK_INTERNAL void nk_jaccard_b256_finalize_haswell(nk_jaccard_b256_state_haswell_
     // 4-way SIMD Jaccard computation with fast reciprocal.
     //
     // Haswell port analysis:
-    //   `_mm_setr_ps`:     p5, 1cy (INSERTPS chain)
-    //   `_mm_add_ps`:      p01, 3cy latency
-    //   `_mm_sub_ps`:      p01, 3cy latency
-    //   `_mm_rcp_ps`:      p0, 5cy latency, 1cy throughput
-    //   `_mm_mul_ps`:      p01, 5cy latency, 0.5cy throughput
-    //   `_mm_blendv_ps`:   p015, 2cy latency
+    // - `_mm_setr_ps`:     p5, 1cy (INSERTPS chain)
+    // - `_mm_add_ps`:      p01, 3cy latency
+    // - `_mm_sub_ps`:      p01, 3cy latency
+    // - `_mm_rcp_ps`:      p0, 5cy latency, 1cy throughput
+    // - `_mm_mul_ps`:      p01, 5cy latency, 0.5cy throughput
+    // - `_mm_blendv_ps`:   p015, 2cy latency
 
     // Pack intersection counts and convert to float
     nk_f32_t intersection_a_f32 = (nk_f32_t)state_a->intersection_count;
@@ -139,8 +152,9 @@ NK_INTERNAL void nk_jaccard_b256_finalize_haswell(nk_jaccard_b256_state_haswell_
     __m128 safe_union_f32x4 = _mm_blendv_ps(union_f32x4, one_f32x4, zero_union_mask);
 
     // Fast reciprocal with Newton-Raphson refinement:
-    //   `_mm_rcp_ps`: ~12-bit precision, 5cy latency, 1cy throughput
-    //   Newton-Raphson: rcp' = rcp * (2 - x * rcp), doubles precision to ~22-24 bits
+    // - `_mm_rcp_ps`: ~12-bit precision, 5cy latency, 1cy throughput
+    // Newton-Raphson:
+    //      rcp' = rcp × (2 - x × rcp), doubles precision to ~22-24 bits
     // Total: ~10cy vs `_mm_div_ps` 13cy latency, but NR has better throughput
     __m128 union_reciprocal_f32x4 = _mm_rcp_ps(safe_union_f32x4);
     __m128 newton_raphson_correction = _mm_sub_ps(two_f32x4, _mm_mul_ps(safe_union_f32x4, union_reciprocal_f32x4));

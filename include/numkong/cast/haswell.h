@@ -3,6 +3,19 @@
  *  @file include/numkong/cast/haswell.h
  *  @author Ash Vardanian
  *  @date January 2, 2026
+ *
+ *  @section haswell_cast_instructions Key F16C/AVX2 Conversion Instructions
+ *
+ *      Intrinsic                   Instruction                     Latency     Throughput  Ports
+ *      _mm256_cvtph_ps             VCVTPH2PS (YMM, XMM)            5cy         1/cy        p01
+ *      _mm256_cvtps_ph             VCVTPS2PH (XMM, YMM, I8)        4cy         1/cy        p01+p5
+ *      _mm256_cvtepi16_epi32       VPMOVSXWD (YMM, XMM)            3cy         1/cy        p5
+ *      _mm256_slli_epi32           VPSLLD (YMM, YMM, I8)           1cy         0.5/cy      p01
+ *      _mm256_blendv_ps            VBLENDVPS (YMM, YMM, YMM, YMM)  2cy         1/cy        p015
+ *
+ *  F16C provides hardware F16<->F32 conversion. BF16 lacks hardware support and is emulated via
+ *  bit manipulation (shift upper 16 bits). FP8 formats (E4M3/E5M2) use lookup tables for subnormal
+ *  handling combined with arithmetic for normal values. All conversions hub through F32.
  */
 #ifndef NK_CAST_HASWELL_H
 #define NK_CAST_HASWELL_H
@@ -49,12 +62,12 @@ NK_INTERNAL void nk_load_b128_haswell_(void const *src, nk_b128_vec_t *dst) {
 
 #pragma region - Vectorized Conversions
 
-/** @brief Convert 8× bf16 → 8× f32 by shifting left 16 bits (AVX2). */
+/** @brief Convert 8x bf16 → 8x f32 by shifting left 16 bits (AVX2). */
 NK_INTERNAL __m256 nk_bf16x8_to_f32x8_haswell_(__m128i bf16_i16x8) {
     return _mm256_castsi256_ps(_mm256_slli_epi32(_mm256_cvtepu16_epi32(bf16_i16x8), 16));
 }
 
-/** @brief Convert 8× f32 → 8× bf16 by truncating with RNE rounding (AVX2). */
+/** @brief Convert 8x f32 → 8x bf16 by truncating with RNE rounding (AVX2). */
 NK_INTERNAL __m128i nk_f32x8_to_bf16x8_haswell_(__m256 f32x8) {
     __m256i bits_i32x8 = _mm256_castps_si256(f32x8);
     // RNE rounding: add (0x7FFF + lsb) where lsb is bit 16
@@ -118,7 +131,7 @@ NK_INTERNAL __m128i nk_f32x8_to_u8x8_haswell_(__m256 f32x8) {
     return _mm_packus_epi16(u16x8, _mm_setzero_si128());
 }
 
-/** @brief Convert 16× e4m3 → 16× bf16 via arithmetic + small LUT for subnormals (AVX2).
+/** @brief Convert 16x e4m3 → 16x bf16 via arithmetic + small LUT for subnormals (AVX2).
  *  E4M3 format: S EEEE MMM (bias=7). BF16: S EEEEEEEE MMMMMMM (bias=127).
  *  Normal values: BF16 = sign | ((lower7 << 4) + 0x3C00).
  *  Subnormals (8 values): looked up via vpshufb from an 8-entry LUT.
@@ -166,7 +179,7 @@ NK_INTERNAL __m256i nk_e4m3x16_to_bf16x16_haswell_(__m128i e4m3x16) {
     return _mm256_blendv_epi8(result_i16x16, nan_i16x16, is_nan_i16x16);
 }
 
-/** @brief Convert 16× e5m2 → 16× bf16 via arithmetic + small LUT for subnormals (AVX2).
+/** @brief Convert 16x e5m2 → 16x bf16 via arithmetic + small LUT for subnormals (AVX2).
  *  E5M2 format: S EEEEE MM (bias=15). BF16: S EEEEEEEE MMMMMMM (bias=127).
  *  Normal values: BF16 = sign | ((lower7 << 5) + 0x3800).
  *  Subnormals (4 values): looked up via vpshufb from a 4-entry LUT.
@@ -216,7 +229,7 @@ NK_INTERNAL __m256i nk_e5m2x16_to_bf16x16_haswell_(__m128i e5m2x16) {
     return _mm256_blendv_epi8(result_i16x16, nan_i16x16, is_nan_i16x16);
 }
 
-/** @brief Convert 16× e4m3 → 16× f16 via arithmetic + small LUT for subnormals (AVX2).
+/** @brief Convert 16x e4m3 → 16x f16 via arithmetic + small LUT for subnormals (AVX2).
  *  E4M3 format: S EEEE MMM (bias=7). F16: S EEEEE MMMMMMMMMM (bias=15).
  *  Normal values: F16 = sign | ((lower7 << 7) + 0x2000).
  *  Subnormals (8 values): looked up via vpshufb from an 8-entry LUT.
@@ -263,7 +276,7 @@ NK_INTERNAL __m256i nk_e4m3x16_to_f16x16_haswell_(__m128i e4m3x16) {
     return _mm256_blendv_epi8(result_i16x16, nan_i16x16, is_nan_i16x16);
 }
 
-/** @brief Convert 16× e5m2 → 16× f16 via simple bit shift (AVX2).
+/** @brief Convert 16x e5m2 → 16x f16 via simple bit shift (AVX2).
  *  E5M2 format: S EEEEE MM (bias=15). F16: S EEEEE MMMMMMMMMM (bias=15).
  *  Same exponent bias means F16 = (lower7 << 8) | (sign << 15).
  *  Handles all corner cases: zero, subnormals, normals, infinity, and NaN. */
@@ -280,9 +293,9 @@ NK_INTERNAL __m256i nk_e5m2x16_to_f16x16_haswell_(__m128i e5m2x16) {
     return _mm256_or_si256(result_i16x16, sign_i16x16);
 }
 
-/** @brief Convert 8× e4m3 → 8× f32 via bit manipulation (AVX2).
+/** @brief Convert 8x e4m3 → 8x f32 via bit manipulation (AVX2).
  *  E4M3 format: S EEEE MMM (bias=7). F32: sign<<31, (exp+120)<<23, mant<<20.
- *  Subnormals (exp=0): value = mantissa × 2⁽¹⁻⁷⁾ × 2⁻³ = mantissa / 512. */
+ *  Subnormals (exp=0): value = mantissa × 2⁽¹⁻⁷⁾ × 2⁻³ = mantissa ÷ 512. */
 NK_INTERNAL __m256 nk_e4m3x8_to_f32x8_haswell_(__m128i e4m3_i8x8) {
     __m256i e4m3_i32x8 = _mm256_cvtepu8_epi32(e4m3_i8x8);
 
@@ -315,9 +328,9 @@ NK_INTERNAL __m256 nk_e4m3x8_to_f32x8_haswell_(__m128i e4m3_i8x8) {
     return _mm256_blendv_ps(result, _mm256_castsi256_ps(nan_bits), _mm256_castsi256_ps(is_nan_mask));
 }
 
-/** @brief Convert 8× e5m2 → 8× f32 via bit manipulation (AVX2).
+/** @brief Convert 8x e5m2 → 8x f32 via bit manipulation (AVX2).
  *  E5M2 format: S EEEEE MM (bias=15). F32: sign<<31, (exp+112)<<23, mant<<21.
- *  Subnormals (exp=0): value = mantissa × 2⁽¹⁻¹⁵⁾ × 2⁻² = mantissa / 65536. */
+ *  Subnormals (exp=0): value = mantissa × 2⁽¹⁻¹⁵⁾ × 2⁻² = mantissa ÷ 65536. */
 NK_INTERNAL __m256 nk_e5m2x8_to_f32x8_haswell_(__m128i e5m2_i8x8) {
     __m256i e5m2_i32x8 = _mm256_cvtepu8_epi32(e5m2_i8x8);
 
@@ -342,9 +355,9 @@ NK_INTERNAL __m256 nk_e5m2x8_to_f32x8_haswell_(__m128i e5m2_i8x8) {
     return _mm256_blendv_ps(_mm256_castsi256_ps(normal_bits_i32x8), subnorm_f32x8, _mm256_castsi256_ps(exp_zero_mask));
 }
 
-/** @brief Convert 8× f32 → 8× e4m3 via bit manipulation (AVX2).
+/** @brief Convert 8x f32 → 8x e4m3 via bit manipulation (AVX2).
  *  E4M3 format: S EEEE MMM (bias=7). Handles normal, subnormal, and overflow cases.
- *  Subnormals (f32_exp <= 120): mantissa = round(abs_f32 * 512), clamped to [0,7]. */
+ *  Subnormals (f32_exp ≤ 120): mantissa = round(abs_f32 * 512), clamped to [0,7]. */
 NK_INTERNAL __m128i nk_f32x8_to_e4m3x8_haswell_(__m256 f32x8) {
     __m256i bits_i32x8 = _mm256_castps_si256(f32x8);
     __m256i sign_i32x8 = _mm256_srli_epi32(bits_i32x8, 31);
@@ -403,7 +416,7 @@ NK_INTERNAL __m128i nk_f32x8_to_e4m3x8_haswell_(__m256 f32x8) {
     return packed_i8x8;
 }
 
-/** @brief Convert 8× f32 → 8× e5m2 via bit manipulation (AVX2).
+/** @brief Convert 8x f32 → 8x e5m2 via bit manipulation (AVX2).
  *  E5M2 format: S EEEEE MM (bias=15). Handles normal, subnormal, and overflow cases.
  *  Uses RNE (round to nearest even) for mantissa rounding. */
 NK_INTERNAL __m128i nk_f32x8_to_e5m2x8_haswell_(__m256 f32x8) {

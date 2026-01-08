@@ -1,8 +1,20 @@
 /**
- *  @brief SIMD-accelerated type conversions for FP8/BF16/F16 types optimized for AMD Genoa CPUs.
+ *  @brief SIMD-accelerated type conversions for FP8/BF16/F16 types optimized for Intel Ice Lake CPUs.
  *  @file include/numkong/cast/ice.h
  *  @author Ash Vardanian
  *  @date January 2, 2026
+ *
+ *  @section ice_cast_instructions AVX-512 VBMI2 Instructions
+ *
+ *      Intrinsic                   Instruction                     Ice         Genoa
+ *      _mm512_permutex2var_epi16   VPERMI2W (ZMM, ZMM, ZMM)        3cy @ p5    2cy @ p12
+ *      _mm512_test_epi16_mask      VPTESTMW (k, ZMM, ZMM)          3cy @ p5    2cy @ p01
+ *      _mm512_mask_mov_epi16       VMOVDQU16 (ZMM{k}, ZMM)         1cy @ p05   1cy @ p05
+ *      _mm512_cvtepi16_epi8        VPMOVWB (YMM, ZMM)              3cy @ p5    2cy @ p12
+ *
+ *  Ice Lake's AVX-512 VBMI2 enables efficient 128-entry LUT lookups via dual VPERMI2W operations.
+ *  FP8-to-BF16/F16 conversions use 4 ZMM LUT registers with VPTESTMW for range selection, achieving
+ *  ~6 cycles for 32 FP8 conversions. E5M2-to-F16 simplifies to VPSLLW due to matching exponent bias.
  */
 #ifndef NK_CAST_ICE_H
 #define NK_CAST_ICE_H
@@ -25,7 +37,7 @@ extern "C" {
 
 #pragma region - Vectorized Conversions
 
-/** @brief Convert 32× e4m3 → 32× bf16 via 128-entry LUT lookup (AVX-512BW).
+/** @brief Convert 32x e4m3 → 32x bf16 via 128-entry LUT lookup (AVX-512BW).
  *  E4M3 format: S EEEE MMM (bias=7). BF16: S EEEEEEEE MMMMMMM (bias=127).
  *  Uses permutex2var for fast LUT lookup; sign handled separately via shift+OR.
  *  Handles all corner cases: zero, subnormals, normals, and NaN. */
@@ -69,7 +81,7 @@ NK_INTERNAL __m512i nk_e4m3x32_to_bf16x32_ice_(__m256i e4m3x32) {
     return _mm512_or_si512(result_i16x32, sign_i16x32);
 }
 
-/** @brief Convert 32× e5m2 → 32× bf16 via 128-entry LUT lookup (AVX-512BW).
+/** @brief Convert 32x e5m2 → 32x bf16 via 128-entry LUT lookup (AVX-512BW).
  *  E5M2 format: S EEEEE MM (bias=15). BF16: S EEEEEEEE MMMMMMM (bias=127).
  *  Uses permutex2var for fast LUT lookup; sign handled separately via shift+OR.
  *  Handles all corner cases: zero, subnormals, normals, infinity, and NaN. */
@@ -113,7 +125,7 @@ NK_INTERNAL __m512i nk_e5m2x32_to_bf16x32_ice_(__m256i e5m2x32) {
     return _mm512_or_si512(result_i16x32, sign_i16x32);
 }
 
-/** @brief Convert 32× e4m3 → 32× f16 via 128-entry LUT lookup (AVX-512BW).
+/** @brief Convert 32x e4m3 → 32x f16 via 128-entry LUT lookup (AVX-512BW).
  *  E4M3 format: S EEEE MMM (bias=7). F16: S EEEEE MMMMMMMMMM (bias=15).
  *  Uses permutex2var for fast LUT lookup; sign handled separately via shift+OR.
  *  Handles all corner cases: zero, subnormals, normals, and NaN. */
@@ -162,7 +174,7 @@ NK_INTERNAL __m512i nk_e4m3x32_to_f16x32_ice_(__m256i e4m3x32) {
     return _mm512_or_si512(result_i16x32, sign_i16x32);
 }
 
-/** @brief Convert 32× e5m2 → 32× f16 via simple bit shift (AVX-512BW).
+/** @brief Convert 32x e5m2 → 32x f16 via simple bit shift (AVX-512BW).
  *  E5M2 format: S EEEEE MM (bias=15). F16: S EEEEE MMMMMMMMMM (bias=15).
  *  Same exponent bias means F16 = (lower7 << 8) | (sign << 15).
  *  Handles all corner cases: zero, subnormals, normals, infinity, and NaN. */
@@ -178,7 +190,7 @@ NK_INTERNAL __m512i nk_e5m2x32_to_f16x32_ice_(__m256i e5m2x32) {
     return _mm512_or_si512(result_i16x32, sign_i16x32);
 }
 
-/** @brief Convert 32× bf16 → 32× e4m3 via bit manipulation (AVX-512BW).
+/** @brief Convert 32x bf16 → 32x e4m3 via bit manipulation (AVX-512BW).
  *  BF16: S EEEEEEEE MMMMMMM (bias=127). E4M3: S EEEE MMM (bias=7).
  *  Handles normal, subnormal, and overflow cases with RNE rounding. */
 NK_INTERNAL __m256i nk_bf16x32_to_e4m3x32_ice_(__m512i bf16x32) {
@@ -243,7 +255,7 @@ NK_INTERNAL __m256i nk_bf16x32_to_e4m3x32_ice_(__m512i bf16x32) {
     return _mm512_cvtepi16_epi8(e4m3_i16x32);
 }
 
-/** @brief Convert 32× bf16 → 32× e5m2 via bit manipulation (AVX-512BW).
+/** @brief Convert 32x bf16 → 32x e5m2 via bit manipulation (AVX-512BW).
  *  BF16: S EEEEEEEE MMMMMMM (bias=127). E5M2: S EEEEE MM (bias=15).
  *  Handles normal, subnormal, and overflow cases with RNE rounding. */
 NK_INTERNAL __m256i nk_bf16x32_to_e5m2x32_ice_(__m512i bf16x32) {

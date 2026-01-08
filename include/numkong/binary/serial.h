@@ -1,5 +1,5 @@
 /**
- *  @brief SIMD-accelerated Binary Similarity Measures optimized for SIMD-free CPUs.
+ *  @brief SIMD-accelerated Binary Similarity Measures optimized for Serial (SIMD-free) CPUs.
  *  @file include/numkong/binary/serial.h
  *  @sa include/numkong/binary.h
  *  @author Ash Vardanian

@@ -1,5 +1,5 @@
 /**
- *  @brief SIMD-accelerated type conversions for FP8/BF16/F16 types.
+ *  @brief SIMD-accelerated type conversions for FP8/BF16/F16 types optimized for Serial (SIMD-free) CPUs.
  *  @file include/numkong/cast/serial.h
  *  @author Ash Vardanian
  *  @date January 2, 2026
@@ -205,7 +205,7 @@ NK_INTERNAL void nk_f32_to_bf16_serial(nk_f32_t const *src, nk_bf16_t *dest) {
  *  @brief Convert FP8 E4M3 to IEEE 754 single-precision float.
  *
  *  E4M3 (FP8) format: 1 sign bit, 4 exponent bits (bias=7), 3 mantissa bits.
- *  Range: [-448, +448], no infinity, only two NaN encodings (0x7F, 0xFF).
+ *  Range: [-448, +448], no ∞, only two NaN encodings (0x7F, 0xFF).
  *  Subnormal values: (-1)ˢ × mantissa × 2⁻⁹ = mantissa / 512.
  *
  *  Special value mappings (E4M3 → F32):
@@ -242,7 +242,7 @@ NK_INTERNAL void nk_e4m3_to_f32_serial(nk_e4m3_t const *src, nk_f32_t *dest) {
         *dest = sign ? -value : value;
         return;
     }
-    // E4M3FN has NO infinity. Only exp=15 && mant=7 is NaN.
+    // E4M3FN has no ∞. Only exp=15 && mant=7 is NaN.
     // exp=15 && mant=0..6 are normal values (256, 288, 320, 352, 384, 416, 448).
     if (exponent == 0x0Fu && mantissa == 7) {
         conv.u = sign | 0x7FC00000u; // F32 quiet NaN
@@ -260,7 +260,7 @@ NK_INTERNAL void nk_e4m3_to_f32_serial(nk_e4m3_t const *src, nk_f32_t *dest) {
  *  @brief Convert IEEE 754 single-precision float to FP8 E4M3.
  *
  *  E4M3 (FP8) format: 1 sign bit, 4 exponent bits (bias=7), 3 mantissa bits.
- *  Range: [-448, +448], no infinity, only two NaN encodings.
+ *  Range: [-448, +448], no ∞, only two NaN encodings.
  *  Rounding: RNE (Round to Nearest Even) per IEEE 754 / OCP FP8 spec.
  *  Subnormal threshold: values with |x| < 2⁻⁶ use subnormal encoding.
  *
@@ -274,7 +274,7 @@ NK_INTERNAL void nk_e4m3_to_f32_serial(nk_e4m3_t const *src, nk_f32_t *dest) {
  *      1.0          0x3F800000    0x38      Normal (exp=7, mant=0)
  *      448+         >0x43E00000   0x7E      Overflow → max
  *      2⁻⁶         0x3E800000    0x08      Min normal
- *      <2⁻¹²·⁵     <0x39800000   0x00      Underflow → zero (RNE boundary)
+ *      <2⁻¹² × ⁵     <0x39800000   0x00      Underflow → zero (RNE boundary)
  *
  *  References:
  *      https://arxiv.org/pdf/2209.05433 (NVIDIA/Intel/Arm FP8 paper)
@@ -294,7 +294,7 @@ NK_INTERNAL void nk_f32_to_e4m3_serial(nk_f32_t const *src, nk_e4m3_t *dest) {
         *dest = (nk_e4m3_t)(sign | 0x7Fu);
         return;
     }
-    // Infinity → saturate to max (0x7E or 0xFE), E4M3FN has no infinity
+    // Infinity → saturate to max (0x7E or 0xFE), E4M3FN has no ∞
     if (abs_bits == 0x7F800000u) {
         *dest = (nk_e4m3_t)(sign | 0x7Eu);
         return;
@@ -437,7 +437,7 @@ NK_INTERNAL void nk_e5m2_to_f32_serial(nk_e5m2_t const *src, nk_f32_t *dest) {
  *      1.0          0x3F800000    0x3C      Normal (exp=15, mant=0)
  *      57344+       >0x47600000   0x7C      Overflow → infinity
  *      2⁻¹⁴        0x38800000    0x04      Min normal
- *      <2⁻¹⁷·⁵     <0x36800000   0x00      Underflow → zero (RNE boundary)
+ *      <2⁻¹⁷ × ⁵     <0x36800000   0x00      Underflow → zero (RNE boundary)
  *
  *  References:
  *      https://arxiv.org/pdf/2209.05433 (NVIDIA/Intel/Arm FP8 paper)

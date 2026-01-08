@@ -1,9 +1,21 @@
 /**
- *  @brief SIMD-accelerated Dot Products for Real and Complex Numbers optimized for Intel Ice Lake CPUs.
+ *  @brief SIMD-accelerated batch dot products (GEMM micro-kernels) optimized for Intel Ice Lake CPUs.
  *  @file include/numkong/dots/ice.h
  *  @sa include/numkong/dots.h
  *  @author Ash Vardanian
  *  @date December 27, 2025
+ *
+ *  @section ice_dots_instructions Relevant Instructions
+ *
+ *      Intrinsic                   Instruction                     Ice         Genoa
+ *      _mm512_dpbusd_epi32         VPDPBUSD (ZMM, ZMM, ZMM)        5cy @ p0    4cy @ p01
+ *      _mm512_dpwssd_epi32         VPDPWSSD (ZMM, ZMM, ZMM)        5cy @ p0    4cy @ p01
+ *      _mm512_cvtepi8_epi32        VPMOVSXBD (ZMM, XMM)            3cy @ p5    3cy @ p12
+ *      _mm512_loadu_si512          VMOVDQU64 (ZMM, M512)           7cy @ p23   7cy @ p23
+ *
+ *  Ice Lake's VNNI instructions accelerate int8 GEMM by computing 4-element dot products per lane.
+ *  VPDPBUSD/VPDPWSSD bottleneck on port 0, limiting throughput to 1/cy. AMD Genoa achieves 0.5/cy
+ *  via dual-issue on ports 0-1, making it significantly faster for quantized inference workloads.
  */
 #ifndef NK_DOTS_ICE_H
 #define NK_DOTS_ICE_H

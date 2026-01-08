@@ -284,7 +284,7 @@ NK_PUBLIC void nk_jsd_f16_sapphire(nk_f16_t const *a, nk_f16_t const *b, nk_size
  *
  *  Exploits the IEEE 754 representation to extract the exponent and mantissa:
  *  `log(x) = log(2) * exponent + log(mantissa)`. The mantissa is reduced to the
- *  range `[sqrt(2)/2, sqrt(2)]` for optimal convergence. Uses the transformation
+ *  range `[√2/2, √2]` for optimal convergence. Uses the transformation
  *  `u = (m-1)/(m+1)` which converges much faster than the classic Mercator series,
  *  since `u` is bounded to approximately `[-0.17, 0.17]` after range reduction.
  *
@@ -298,14 +298,14 @@ NK_INTERNAL nk_f32_t nk_f32_log_serial_(nk_f32_t x) {
     nk_fui32_t conv;
     conv.f = x;
     int exp = ((conv.u >> 23) & 0xFF) - 127;
-    conv.u = (conv.u & 0x007FFFFF) | 0x3F800000; // mantissa in [1, 2)
+    conv.u = (conv.u & 0x007FFFFF) | 0x3F800000; // mantissa ∈ [1, 2)
     nk_f32_t m = conv.f;
-    // Range reduction: if m > sqrt(2), halve it and increment exponent
+    // Range reduction: if m > √2, halve it and increment exponent
     if (m > 1.41421356f) m *= 0.5f, exp++;
     // Use (m-1)/(m+1) transformation for faster convergence
     nk_f32_t u = (m - 1.0f) / (m + 1.0f);
     nk_f32_t u2 = u * u;
-    // log(m) = 2 * (u + u^3/3 + u^5/5 + u^7/7)
+    // log(m) = 2 × (u + u³/3 + u⁵/5 + u⁷/7)
     nk_f32_t log_m = 2.0f * u * (1.0f + u2 * (0.3333333333f + u2 * (0.2f + u2 * 0.142857143f)));
     return (nk_f32_t)exp * 0.6931471805599453f + log_m;
 }
@@ -316,7 +316,7 @@ NK_INTERNAL nk_f32_t nk_f32_log_serial_(nk_f32_t x) {
  *
  *  Exploits the IEEE 754 representation to extract the 11-bit exponent and 52-bit mantissa:
  *  `log(x) = log(2) * exponent + log(mantissa)`. The mantissa is reduced to the
- *  range `[sqrt(2)/2, sqrt(2)]` for optimal convergence. Uses the transformation
+ *  range `[√2/2, √2]` for optimal convergence. Uses the transformation
  *  `u = (m-1)/(m+1)` which converges much faster than the classic Mercator series,
  *  since `u` is bounded to approximately `[-0.17, 0.17]` after range reduction.
  *
@@ -329,14 +329,14 @@ NK_INTERNAL nk_f64_t nk_f64_log_serial_(nk_f64_t x) {
     nk_fui64_t conv;
     conv.f = x;
     int exp = ((conv.u >> 52) & 0x7FF) - 1023;
-    conv.u = (conv.u & 0x000FFFFFFFFFFFFFULL) | 0x3FF0000000000000ULL; // mantissa in [1, 2)
+    conv.u = (conv.u & 0x000FFFFFFFFFFFFFULL) | 0x3FF0000000000000ULL; // mantissa ∈ [1, 2)
     nk_f64_t m = conv.f;
-    // Range reduction: if m > sqrt(2), halve it and increment exponent
+    // Range reduction: if m > √2, halve it and increment exponent
     if (m > 1.4142135623730950488) m *= 0.5, exp++;
     // Use (m-1)/(m+1) transformation for faster convergence
     nk_f64_t u = (m - 1.0) / (m + 1.0);
     nk_f64_t u2 = u * u;
-    // log(m) = 2 * (u + u^3/3 + u^5/5 + u^7/7 + u^9/9 + u^11/11 + u^13/13)
+    // log(m) = 2 × (u + u³/3 + u⁵/5 + u⁷/7 + u⁹/9 + u¹¹/11 + u¹³/13)
     nk_f64_t log_m = 2.0 * u *
                      (1.0 + u2 * (0.3333333333333333 +
                                   u2 * (0.2 + u2 * (0.14285714285714285 +
@@ -786,19 +786,19 @@ nk_jsd_f32_skylake_cycle:
 }
 
 NK_INTERNAL __m512d nk_log2_f64_skylake_(__m512d x) {
-    // Extract the exponent and mantissa: x = 2^exp * m, m in [1, 2)
+    // Extract the exponent and mantissa: x = 2^exp × m, m ∈ [1, 2)
     __m512d one_f64x8 = _mm512_set1_pd(1.0);
     __m512d two_f64x8 = _mm512_set1_pd(2.0);
     __m512d exponent_f64x8 = _mm512_getexp_pd(x);
     __m512d mantissa_f64x8 = _mm512_getmant_pd(x, _MM_MANT_NORM_1_2, _MM_MANT_SIGN_src);
 
-    // Compute log2(m) using the s-series: s = (m-1)/(m+1), s in [0, 1/3] for m in [1, 2)
-    // ln(m) = 2*s*(1 + s^2/3 + s^4/5 + s^6/7 + ...) converges fast since s^2 <= 1/9
-    // log2(m) = ln(m) * log2(e)
+    // Compute log2(m) using the s-series: s = (m-1)/(m+1), s ∈ [0, 1/3] for m ∈ [1, 2)
+    // ln(m) = 2 × s × (1 + s²/3 + s⁴/5 + s⁶/7 + ...) converges fast since s² ≤ 1/9
+    // log2(m) = ln(m) × log2(e)
     __m512d s_f64x8 = _mm512_div_pd(_mm512_sub_pd(mantissa_f64x8, one_f64x8), _mm512_add_pd(mantissa_f64x8, one_f64x8));
     __m512d s2_f64x8 = _mm512_mul_pd(s_f64x8, s_f64x8);
 
-    // Polynomial P(s^2) = 1 + s^2/3 + s^4/5 + ... using Horner's method
+    // Polynomial P(s²) = 1 + s²/3 + s⁴/5 + ... using Horner's method
     // 14 terms (k=0..13) achieves ~1 ULP accuracy for f64
     __m512d poly_f64x8 = _mm512_set1_pd(1.0 / 27.0); // 1/(2*13+1)
     poly_f64x8 = _mm512_fmadd_pd(s2_f64x8, poly_f64x8, _mm512_set1_pd(1.0 / 25.0));
@@ -815,7 +815,7 @@ NK_INTERNAL __m512d nk_log2_f64_skylake_(__m512d x) {
     poly_f64x8 = _mm512_fmadd_pd(s2_f64x8, poly_f64x8, _mm512_set1_pd(1.0 / 3.0));
     poly_f64x8 = _mm512_fmadd_pd(s2_f64x8, poly_f64x8, _mm512_set1_pd(1.0));
 
-    // ln(m) = 2 * s * P(s^2), then log2(m) = ln(m) * log2(e)
+    // ln(m) = 2 × s × P(s²), then log2(m) = ln(m) × log2(e)
     __m512d ln_m_f64x8 = _mm512_mul_pd(_mm512_mul_pd(two_f64x8, s_f64x8), poly_f64x8);
     __m512d log2e_f64x8 = _mm512_set1_pd(1.4426950408889634); // 1/ln(2)
     __m512d log2_m_f64x8 = _mm512_mul_pd(ln_m_f64x8, log2e_f64x8);

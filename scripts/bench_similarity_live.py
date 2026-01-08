@@ -70,11 +70,11 @@ def main():
             
         By default, when set to 1 the benchmark will generate many vectors of size (ndim, )
         and call the functions on pairs of single vectors: both directly, and through `cdist`.
-        Alternatively, for larger batch sizes the benchmark will generate two matrices of 
+        Alternatively, for larger batch sizes the benchmark will generate two matrices of
         size (n, ndim) and compute:
-            
+
         - batch mode: (n) distances between vectors in identical rows of the two matrices,
-        - all-pairs mode: (n^2) distances between all pairs of vectors in the two matrices via `cdist`.
+        - all-pairs mode: (n²) distances between all pairs of vectors in the two matrices via `cdist`.
         """,
     )
     parser.add_argument(
@@ -83,10 +83,10 @@ def main():
         default="batch",
         help="""Choose between 'batch' and 'all-pairs' mode (default: batch)
         
-        In 'batch' mode, the latency will generate two matrices of size (n, ndim) 
+        In 'batch' mode, the latency will generate two matrices of size (n, ndim)
         and compute (n) distances between vectors in identical rows of the two matrices.
         In 'all-pairs' mode, the latency will generate two matrices of size (n, ndim)
-        and compute (n^2) distances between all pairs of vectors in the two matrices via `cdist`.
+        and compute (n²) distances between all pairs of vectors in the two matrices via `cdist`.
         """,
     )
     parser.add_argument(

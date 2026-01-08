@@ -4,6 +4,17 @@
  *  @sa include/numkong/dot.h
  *  @author Ash Vardanian
  *  @date December 27, 2025
+ *
+ *  @section vnni_instructions VNNI Instructions Performance
+ *
+ *      Intrinsic                   Instruction                     Ice         Genoa
+ *      _mm512_dpwssd_epi32         VPDPWSSD (ZMM, ZMM, ZMM)        5cy @ p0    4cy @ p01
+ *      _mm512_dpbusd_epi32         VPDPBUSD (ZMM, ZMM, ZMM)        5cy @ p0    4cy @ p01
+ *      _mm512_madd_epi16           VPMADDWD (ZMM, ZMM, ZMM)        5cy @ p05   3cy @ p01
+ *
+ *  Ice Lake introduces AVX-512 VNNI for accelerated integer dot products. VNNI instructions bottleneck
+ *  on port 0, limiting throughput to 1/cy. AMD Genoa dual-issues on ports 0-1, achieving 0.5/cy throughput.
+ *  We use VPDPWSSD for signed i8 inputs after widening to i16, since VPDPBUSD is asymmetric (unsigned x signed).
  */
 #ifndef NK_DOT_ICE_H
 #define NK_DOT_ICE_H
@@ -263,7 +274,7 @@ nk_dot_i4_ice_cycle:
 NK_PUBLIC void nk_dot_u4_ice(nk_u4x2_t const *a, nk_u4x2_t const *b, nk_size_t n, nk_u32_t *result) {
     // u4 values are packed as nibbles: two 4-bit unsigned values per byte.
     // Parameter `n` is the number of 4-bit values (dimensions), not bytes.
-    // Values are in [0,15], so DPBUSD can be used directly.
+    // Values are ∈ [0,15], so DPBUSD can be used directly.
     //
     // Note: When n is odd, the high nibble of the last byte should be zero-padded.
     //
@@ -292,7 +303,7 @@ nk_dot_u4_ice_cycle:
     __m512i b_lo_u8x64 = _mm512_and_si512(b_u4x128, nibble_mask_u8x64);
     __m512i b_hi_u8x64 = _mm512_and_si512(_mm512_srli_epi16(b_u4x128, 4), nibble_mask_u8x64);
 
-    // DPBUSD works directly for u4 since values are in [0,15]
+    // DPBUSD works directly for u4 since values are ∈ [0,15]
     // and the signed interpretation of [0,15] is the same as unsigned
     sum_i32x16 = _mm512_dpbusd_epi32(sum_i32x16, a_lo_u8x64, b_lo_u8x64);
     sum_i32x16 = _mm512_dpbusd_epi32(sum_i32x16, a_hi_u8x64, b_hi_u8x64);

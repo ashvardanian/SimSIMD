@@ -8,9 +8,9 @@
  *  defined in numkong/types.h.
  *
  *  Usage:
- *    nk.bfloat16(3.14)           -> create a bfloat16 scalar
- *    float(nk.bfloat16(3.14))    -> convert back to Python float
- *    nk.bfloat16(1.0) + nk.bfloat16(2.0)  -> arithmetic
+ *    nk.bfloat16(3.14)           → create a bfloat16 scalar
+ *    float(nk.bfloat16(3.14))    → convert back to Python float
+ *    nk.bfloat16(1.0) + nk.bfloat16(2.0)  → arithmetic
  */
 
 #include "scalars.h"

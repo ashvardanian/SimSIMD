@@ -4,6 +4,28 @@
  *  @sa include/numkong/mesh.h
  *  @author Ash Vardanian
  *  @date December 27, 2025
+ *
+ *  @section mesh_neonbfdot_instructions ARM NEON BF16 Instructions (ARMv8.6-BF16)
+ *
+ *      Intrinsic                   Instruction                     Latency     Throughput
+ *                                                                              A76         M4+/V1+/Oryon
+ *      vld3_u16                    LD3 (V.4H x 3)                  6cy         1/cy        2/cy
+ *      vshll_n_u16                 USHLL (V.4S, V.4H, #16)         2cy         2/cy        4/cy
+ *      vfmaq_f32                   FMLA (V.4S, V.4S, V.4S)         4cy         2/cy        4/cy
+ *      vaddq_f32                   FADD (V.4S, V.4S, V.4S)         2cy         2/cy        4/cy
+ *      vsubq_f32                   FSUB (V.4S, V.4S, V.4S)         2cy         2/cy        4/cy
+ *      vmulq_f32                   FMUL (V.4S, V.4S, V.4S)         3cy         2/cy        4/cy
+ *      vdupq_n_f32                 DUP (V.4S, scalar)              2cy         2/cy        4/cy
+ *      vaddvq_f32                  FADDP+FADDP (V.4S)              4cy         1/cy        2/cy
+ *
+ *  The ARMv8.6-BF16 extension enables BF16 storage with F32 computation for 3D mesh alignment
+ *  operations. BF16's wider exponent range (matching F32) prevents overflow in geometric calculations
+ *  while halving memory bandwidth compared to F32.
+ *
+ *  For point cloud registration (RMSD, Kabsch, Umeyama), BF16 data is loaded using VLD3 de-interleave
+ *  operations, converted to F32 via bit-shift widening, then processed with F32 FMA chains. The 2x
+ *  unrolling with dual accumulators hides the 4-cycle FMA latency, achieving near-peak throughput
+ *  for covariance matrix and centroid computations.
  */
 #ifndef NK_MESH_NEONBFDOT_H
 #define NK_MESH_NEONBFDOT_H
@@ -24,7 +46,7 @@
 extern "C" {
 #endif
 
-/*  Internal helper: Load 4 bf16 xyz points (12 bf16 values) → 3x float32x4_t.
+/*  Load 4 bf16 xyz points (12 bf16 values) → 3x float32x4_t.
  *  Uses vld3_u16 to de-interleave xyz triplets, then converts bf16 to f32.
  *
  *  Input: 12 contiguous bf16 [x0,y0,z0, x1,y1,z1, x2,y2,z2, x3,y3,z3]
@@ -43,7 +65,7 @@ NK_INTERNAL void nk_deinterleave_bf16x4_to_f32x4_neonbfdot_(nk_bf16_t const *ptr
     *z_out = vreinterpretq_f32_u32(z_u32);
 }
 
-/*  Internal helper: Compute sum of squared distances for bf16 data after applying rotation (and optional scale).
+/*  Compute sum of squared distances for bf16 data after applying rotation (and optional scale).
  *  Loads bf16 data, converts to f32 during processing.
  *  Note: rotation matrix r is f32 (from SVD), scale and computation done in f32.
  */
@@ -736,7 +758,7 @@ NK_PUBLIC void nk_umeyama_bf16_neonbfdot(nk_bf16_t const *a, nk_bf16_t const *b,
     r[7] = svd_v[6] * svd_u[3] + svd_v[7] * svd_u[4] + svd_v[8] * svd_u[5];
     r[8] = svd_v[6] * svd_u[6] + svd_v[7] * svd_u[7] + svd_v[8] * svd_u[8];
 
-    // Handle reflection and compute scale: c = trace(D*S) / variance_a
+    // Handle reflection and compute scale: c = trace(D × S) / variance(a)
     // D = diag(1, 1, det(R)), svd_s contains proper positive singular values on diagonal
     nk_f32_t rotation_det = nk_det3x3_f32_(r);
     nk_f32_t sign_det = rotation_det < 0 ? -1.0f : 1.0f;

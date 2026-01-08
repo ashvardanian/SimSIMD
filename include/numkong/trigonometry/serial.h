@@ -1,5 +1,5 @@
 /**
- *  @brief SIMD-accelerated trigonometric element-wise operations, based on SLEEF, optimized for SIMD-free CPUs.
+ *  @brief SIMD-accelerated trigonometric element-wise operations, based on SLEEF, optimized for Serial (SIMD-free) CPUs.
  *  @file include/numkong/trigonometry/serial.h
  *  @sa include/numkong/trigonometry.h
  *  @author Ash Vardanian
@@ -26,15 +26,15 @@ NK_PUBLIC nk_f32_t nk_f32_sin(nk_f32_t const angle_radians) {
     nk_f32_t const pi_reciprocal = 0.31830988618379067154f; /// 1/π
 
     // Polynomial coefficients for sine/cosine approximation (minimax polynomial)
-    nk_f32_t const coeff_5 = -0.0001881748176f; /// Coefficient for x^5 term
-    nk_f32_t const coeff_3 = +0.008323502727f;  /// Coefficient for x^3 term
+    nk_f32_t const coeff_5 = -0.0001881748176f; /// Coefficient for x⁵ term
+    nk_f32_t const coeff_3 = +0.008323502727f;  /// Coefficient for x³ term
     nk_f32_t const coeff_1 = -0.1666651368f;    /// Coefficient for x term
 
     // Compute (multiple_of_pi) = round(angle / π)
     nk_f32_t const quotient = angle_radians * pi_reciprocal;
     int const multiple_of_pi = (int)(quotient < 0 ? quotient - 0.5f : quotient + 0.5f);
 
-    // Reduce the angle to: (angle - (multiple_of_pi * π)) in [0, π]
+    // Reduce the angle to: (angle - (multiple_of_pi * π)) ∈ [0, π]
     nk_f32_t const angle = angle_radians - multiple_of_pi * pi;
     nk_f32_t const angle_squared = angle * angle;
     nk_f32_t const angle_cubed = angle * angle_squared;
@@ -64,8 +64,8 @@ NK_PUBLIC nk_f32_t nk_f32_cos(nk_f32_t const angle_radians) {
     nk_f32_t const pi_reciprocal = 0.31830988618379067154f; /// 1/π
 
     // Polynomial coefficients for sine/cosine approximation (minimax polynomial)
-    nk_f32_t const coeff_5 = -0.0001881748176f; /// Coefficient for x^5 term
-    nk_f32_t const coeff_3 = +0.008323502727f;  /// Coefficient for x^3 term
+    nk_f32_t const coeff_5 = -0.0001881748176f; /// Coefficient for x⁵ term
+    nk_f32_t const coeff_3 = +0.008323502727f;  /// Coefficient for x³ term
     nk_f32_t const coeff_1 = -0.1666651368f;    /// Coefficient for x term
 
     // Compute (multiple_of_pi) = round(angle / π - 0.5)
@@ -266,7 +266,7 @@ NK_PUBLIC nk_f64_t nk_f64_sin(nk_f64_t const angle_radians) {
     nk_f64_t const quotient = angle_radians * pi_reciprocal;
     int const multiple_of_pi = (int)(quotient < 0 ? quotient - 0.5 : quotient + 0.5);
 
-    // Reduce the angle to: (angle - (multiple_of_pi * π)) in [0, π]
+    // Reduce the angle to: (angle - (multiple_of_pi * π)) ∈ [0, π]
     nk_f64_t angle = angle_radians;
     angle = angle - (multiple_of_pi * pi_high);
     angle = angle - (multiple_of_pi * pi_low);
@@ -535,9 +535,9 @@ NK_PUBLIC nk_f32_t nk_f32_tan(nk_f32_t const angle_radians) {
     nk_f32_t const pi_reciprocal = 0.31830988618379067154f; /// 1/π
 
     // Polynomial coefficients for tangent approximation (minimax polynomial)
-    nk_f32_t const coeff_7 = +0.002443315461f; /// Coefficient for x^7 term
-    nk_f32_t const coeff_5 = +0.05338123068f;  /// Coefficient for x^5 term
-    nk_f32_t const coeff_3 = +0.3333314061f;   /// Coefficient for x^3 term
+    nk_f32_t const coeff_7 = +0.002443315461f; /// Coefficient for x⁷ term
+    nk_f32_t const coeff_5 = +0.05338123068f;  /// Coefficient for x⁵ term
+    nk_f32_t const coeff_3 = +0.3333314061f;   /// Coefficient for x³ term
 
     // Compute (multiple_of_pi) = round(angle / π)
     nk_f32_t const quotient = angle_radians * pi_reciprocal;
@@ -557,7 +557,7 @@ NK_PUBLIC nk_f32_t nk_f32_tan(nk_f32_t const angle_radians) {
         reciprocal = 1;
     }
 
-    // Compute the polynomial approximation: tan(x) ≈ x + c3*x³ + c5*x⁵ + c7*x⁷
+    // Compute the polynomial approximation: tan(x) ≈ x + c3 × x³ + c5 × x⁵ + c7 × x⁷
     nk_f32_t const angle_squared = angle * angle;
     nk_f32_t const angle_cubed = angle * angle_squared;
 
@@ -586,12 +586,12 @@ NK_PUBLIC nk_f64_t nk_f64_tan(nk_f64_t const angle_radians) {
     nk_f64_t const pi_reciprocal = 0.318309886183790671537767526745028724; /// 1/π
 
     // Polynomial coefficients for tangent approximation (minimax polynomial)
-    nk_f64_t const coeff_13 = +0.000024030521244861858; /// Coefficient for x^13 term
-    nk_f64_t const coeff_11 = +0.00035923150434482523;  /// Coefficient for x^11 term
-    nk_f64_t const coeff_9 = +0.0058685277932046705;    /// Coefficient for x^9 term
-    nk_f64_t const coeff_7 = +0.021869488294859542;     /// Coefficient for x^7 term
-    nk_f64_t const coeff_5 = +0.053968253972902704;     /// Coefficient for x^5 term
-    nk_f64_t const coeff_3 = +0.13333333333320124;      /// Coefficient for x^3 term
+    nk_f64_t const coeff_13 = +0.000024030521244861858; /// Coefficient for x¹³ term
+    nk_f64_t const coeff_11 = +0.00035923150434482523;  /// Coefficient for x¹¹ term
+    nk_f64_t const coeff_9 = +0.0058685277932046705;    /// Coefficient for x⁹ term
+    nk_f64_t const coeff_7 = +0.021869488294859542;     /// Coefficient for x⁷ term
+    nk_f64_t const coeff_5 = +0.053968253972902704;     /// Coefficient for x⁵ term
+    nk_f64_t const coeff_3 = +0.13333333333320124;      /// Coefficient for x³ term
     nk_f64_t const coeff_1 = +0.33333333333333331;      /// Coefficient for x term
 
     // Compute (multiple_of_pi) = round(angle / π)
@@ -618,7 +618,7 @@ NK_PUBLIC nk_f64_t nk_f64_tan(nk_f64_t const angle_radians) {
     nk_f64_t const angle_squared = angle * angle;
     nk_f64_t const angle_cubed = angle * angle_squared;
 
-    // Compute the polynomial approximation: tan(x) ≈ x*(1 + c1*x² + c3*x⁴ + ...)
+    // Compute the polynomial approximation: tan(x) ≈ x × (1 + c1 × x² + c3 × x⁴ + ...)
     nk_f64_t polynomial = coeff_13;
     polynomial = polynomial * angle_squared + coeff_11;
     polynomial = polynomial * angle_squared + coeff_9;

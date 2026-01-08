@@ -4,6 +4,29 @@
  *  @sa include/numkong/trigonometry.h
  *  @author Ash Vardanian
  *  @date December 28, 2025
+ *
+ *  @section trigonometry_neon_instructions ARM NEON Instructions
+ *
+ *      Intrinsic         Instruction                   Latency     Throughput
+ *                                                                  A76     M4+/V1+/Oryon
+ *      vfmaq_f32         FMLA (V.4S, V.4S, V.4S)       4cy         2/cy    4/cy
+ *      vfmsq_f32         FMLS (V.4S, V.4S, V.4S)       4cy         2/cy    4/cy
+ *      vmulq_f32         FMUL (V.4S, V.4S, V.4S)       3cy         2/cy    4/cy
+ *      vaddq_f32         FADD (V.4S, V.4S, V.4S)       2cy         2/cy    4/cy
+ *      vsubq_f32         FSUB (V.4S, V.4S, V.4S)       2cy         2/cy    4/cy
+ *      vcvtnq_s32_f32    FCVTNS (V.4S, V.4S)           3cy         2/cy    2/cy
+ *      vcvtq_f32_s32     SCVTF (V.4S, V.4S)            3cy         2/cy    2/cy
+ *      vbslq_f32         BSL (V.16B, V.16B, V.16B)     2cy         2/cy    4/cy
+ *      vrecpeq_f32       FRECPE (V.4S, V.4S)           2cy         2/cy    2/cy
+ *      vrecpsq_f32       FRECPS (V.4S, V.4S, V.4S)     4cy         2/cy    4/cy
+ *      vfmaq_f64         FMLA (V.2D, V.2D, V.2D)       4cy         2/cy    4/cy
+ *      vdivq_f64         FDIV (V.2D, V.2D, V.2D)       15cy        0.5/cy  0.5/cy
+ *
+ *  Polynomial approximations for sin/cos/atan are FMA-dominated. On 4-pipe cores (Apple M4+,
+ *  Graviton3+, Oryon), FMA throughput doubles from 2/cy to 4/cy, improving performance.
+ *
+ *  Division (vdivq_f64) remains slow at 0.5/cy on all cores. For f32, use fast reciprocal
+ *  (vrecpeq_f32 + Newton-Raphson) instead when precision allows.
  */
 #ifndef NK_TRIGONOMETRY_NEON_H
 #define NK_TRIGONOMETRY_NEON_H

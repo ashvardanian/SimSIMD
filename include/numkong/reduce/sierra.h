@@ -6,8 +6,8 @@
  *  @date December 27, 2025
  *
  *  Uses AVX-VNNI (256-bit) for efficient widening dot-products:
- *  - _mm256_dpwssd_epi32: i16×i16→i32 accumulation (sum via dot with ones)
- *  - _mm256_dpbssd_epi32: i8×i8→i32 signed dot product
+ *  - `_mm256_dpwssd_epi32`: i16 × i16 → i32 accumulation (sum via dot with ones)
+ *  - `_mm256_dpbssd_epi32`: i8 × i8 → i32 signed dot product
  */
 #ifndef NK_REDUCE_SIERRA_H
 #define NK_REDUCE_SIERRA_H

@@ -1,5 +1,5 @@
 /**
- *  @brief SIMD-accelerated Dot Products for Real and Complex Numbers optimized for SIMD-free CPUs.
+ *  @brief SIMD-accelerated Dot Products for Real and Complex Numbers optimized for Serial (SIMD-free) CPUs.
  *  @file include/numkong/dot/serial.h
  *  @sa include/numkong/dot.h
  *  @author Ash Vardanian
@@ -23,8 +23,8 @@ extern "C" {
  *  running sum. Achieves O(1) error growth regardless of vector dimension.
  *
  *  Algorithm: For each term, compute t = sum + term, then:
- *    - If |sum| >= |term|: c += (sum - t) + term  (lost low-order bits of term)
- *    - Else:               c += (term - t) + sum  (lost low-order bits of sum)
+ *    - If ‖sum‖ ≥ ‖term‖: c += (sum - t) + term  (lost low-order bits of term)
+ *    - Else:              c += (term - t) + sum  (lost low-order bits of sum)
  *
  *  @see Neumaier, A. (1974). "Rundungsfehleranalyse einiger Verfahren zur Summation endlicher Summen"
  */
@@ -140,7 +140,7 @@ NK_PUBLIC void nk_dot_i4_serial(nk_i4x2_t const *a, nk_i4x2_t const *b, nk_size_
 NK_PUBLIC void nk_dot_u4_serial(nk_u4x2_t const *a, nk_u4x2_t const *b, nk_size_t n, nk_u32_t *result) {
     // u4 values are packed as nibbles: two 4-bit unsigned values per byte.
     // Parameter `n` is the number of 4-bit values (dimensions), not bytes.
-    // No sign extension needed - values are in [0,15].
+    // No sign extension needed - values are ∈ [0,15].
     nk_size_t n_bytes = (n + 1) / 2;
     nk_u32_t sum = 0;
     for (nk_size_t i = 0; i < n_bytes; ++i) {

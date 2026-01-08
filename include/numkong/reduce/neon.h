@@ -4,6 +4,31 @@
  *  @sa include/numkong/reduce.h
  *  @author Ash Vardanian
  *  @date December 27, 2025
+ *
+ *  @section neon_reduce_instructions ARM NEON Reduction Instructions
+ *
+ *  ARMv8 horizontal reductions and pairwise operations:
+ *
+ *      Intrinsic         Instruction                   Latency     Throughput
+ *                                                                  A76     M4+/V1+/Oryon
+ *      vaddvq_f32        FADDP + FADDP (V.4S to S)     5cy         1/cy    1/cy
+ *      vaddvq_f64        FADDP (V.2D to scalar)        3cy         1/cy    1/cy
+ *      vaddvq_s32        ADDV (S, V.4S)                3cy         1/cy    1/cy
+ *      vaddvq_u64        ADDP (D, V.2D)                3cy         1/cy    1/cy
+ *      vminvq_f32        FMINV (S, V.4S)               5cy         0.5/cy  0.5/cy
+ *      vmaxvq_f32        FMAXV (S, V.4S)               5cy         0.5/cy  0.5/cy
+ *      vpaddlq_u8        UADDLP (V.8H, V.16B)          2cy         2/cy    2/cy
+ *      vpaddlq_u16       UADDLP (V.4S, V.8H)           2cy         2/cy    2/cy
+ *      vpaddlq_u32       UADDLP (V.2D, V.4S)           2cy         2/cy    2/cy
+ *      vld2q_f32         LD2 ({Vt.4S, Vt2.4S}, [Xn])   6cy         1/cy    1/cy
+ *      vld3q_f32         LD3 ({Vt.4S, ...}, [Xn])      8cy         0.5/cy  0.5/cy
+ *      vld4q_f32         LD4 ({...}, [Xn])             10cy        0.33/cy 0.33/cy
+ *
+ *  Horizontal reductions (vaddvq, vminvq, vmaxvq) remain at 1/cy or 0.5/cy across all cores,
+ *  making them the primary bottleneck on 4-pipe cores where other FP operations run at 4/cy.
+ *
+ *  Tree-reduction patterns that defer horizontal ops to the end of large loops help minimize
+ *  this bottleneck and maximize throughput.
  */
 #ifndef NK_REDUCE_NEON_H
 #define NK_REDUCE_NEON_H

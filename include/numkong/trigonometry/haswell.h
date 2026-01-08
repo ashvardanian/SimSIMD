@@ -1,9 +1,22 @@
 /**
  *  @brief SIMD-accelerated trigonometric element-wise operations, based on SLEEF, optimized for Intel Haswell CPUs.
- *  @file include/numkong/elementwise/haswell.h
- *  @sa include/numkong/elementwise.h
+ *  @file include/numkong/trigonometry/haswell.h
+ *  @sa include/numkong/trigonometry.h
  *  @author Ash Vardanian
  *  @date December 27, 2025
+ *
+ *  @section haswell_trig_instructions Key AVX2 Trigonometry Instructions
+ *
+ *      Intrinsic                   Instruction                     Latency     Throughput  Ports
+ *      _mm256_fmadd_ps/pd          VFMADD (YMM, YMM, YMM)          5cy         0.5/cy      p01
+ *      _mm256_mul_ps/pd            VMULPS/PD (YMM, YMM, YMM)       5cy         0.5/cy      p01
+ *      _mm256_blendv_ps/pd         VBLENDVPS/PD (YMM, YMM, YMM)    2cy         1/cy        p015
+ *      _mm256_round_ps/pd          VROUNDPS/PD (YMM, YMM, I8)      6cy         1/cy        p01
+ *      _mm256_div_ps               VDIVPS (YMM, YMM, YMM)          13cy        5/cy        p0
+ *
+ *  Polynomial evaluation uses Horner's method with FMA for sin/cos/atan approximation. For large
+ *  arrays, out-of-order execution across loop iterations hides FMA latency better than Estrin's
+ *  scheme. Range reduction uses argument folding modulo pi with high/low precision constants.
  */
 #ifndef NK_TRIGONOMETRY_HASWELL_H
 #define NK_TRIGONOMETRY_HASWELL_H
@@ -32,8 +45,8 @@ NK_INTERNAL __m256 nk_f32x8_sin_haswell_(__m256 const angles_radians) {
     // Constants for argument reduction
     __m256 const pi = _mm256_set1_ps(3.14159265358979323846f);            // π
     __m256 const pi_reciprocal = _mm256_set1_ps(0.31830988618379067154f); // 1/π
-    __m256 const coeff_5 = _mm256_set1_ps(-0.0001881748176f);             // Coefficient for x^5 term
-    __m256 const coeff_3 = _mm256_set1_ps(+0.008323502727f);              // Coefficient for x^3 term
+    __m256 const coeff_5 = _mm256_set1_ps(-0.0001881748176f);             // Coefficient for x⁵ term
+    __m256 const coeff_3 = _mm256_set1_ps(+0.008323502727f);              // Coefficient for x³ term
     __m256 const coeff_1 = _mm256_set1_ps(-0.1666651368f);                // Coefficient for x term
 
     // Compute (multiples_of_pi) = round(angle / π)
@@ -41,7 +54,7 @@ NK_INTERNAL __m256 nk_f32x8_sin_haswell_(__m256 const angles_radians) {
     __m256 rounded_quotients = _mm256_round_ps(quotients, _MM_FROUND_TO_NEAREST_INT | _MM_FROUND_NO_EXC);
     __m256i multiples_of_pi = _mm256_cvtps_epi32(rounded_quotients);
 
-    // Reduce the angle to: (angle - (rounded_quotients * π)) in [0, π]
+    // Reduce the angle to: (angle - (rounded_quotients * π)) ∈ [0, π]
     __m256 const angles = _mm256_fnmadd_ps(rounded_quotients, pi, angles_radians);
     __m256 const angles_squared = _mm256_mul_ps(angles, angles);
     __m256 const angles_cubed = _mm256_mul_ps(angles, angles_squared);
@@ -66,8 +79,8 @@ NK_INTERNAL __m256 nk_f32x8_cos_haswell_(__m256 const angles_radians) {
     __m256 const pi = _mm256_set1_ps(3.14159265358979323846f);            // π
     __m256 const pi_half = _mm256_set1_ps(1.57079632679489661923f);       // π/2
     __m256 const pi_reciprocal = _mm256_set1_ps(0.31830988618379067154f); // 1/π
-    __m256 const coeff_5 = _mm256_set1_ps(-0.0001881748176f);             // Coefficient for x^5 term
-    __m256 const coeff_3 = _mm256_set1_ps(+0.008323502727f);              // Coefficient for x^3 term
+    __m256 const coeff_5 = _mm256_set1_ps(-0.0001881748176f);             // Coefficient for x⁵ term
+    __m256 const coeff_3 = _mm256_set1_ps(+0.008323502727f);              // Coefficient for x³ term
     __m256 const coeff_1 = _mm256_set1_ps(-0.1666651368f);                // Coefficient for x term
 
     // Compute (multiples_of_pi) = round((angle / π) - 0.5)
@@ -97,7 +110,7 @@ NK_INTERNAL __m256 nk_f32x8_cos_haswell_(__m256 const angles_radians) {
 
 NK_INTERNAL __m256 nk_f32x8_atan_haswell_(__m256 const inputs) {
     // Polynomial coefficients for atan approximation (8 terms)
-    // These coefficients approximate: atan(x) ≈ x + c8*x³ + c7*x⁵ + c6*x⁷ + ... + c1*x¹⁵
+    // These coefficients approximate: atan(x) ≈ x + c8 × x³ + c7 × x⁵ + c6 × x⁷ + ... + c1 × x¹⁵
     __m256 const coeff_8 = _mm256_set1_ps(-0.333331018686294555664062f);
     __m256 const coeff_7 = _mm256_set1_ps(+0.199926957488059997558594f);
     __m256 const coeff_6 = _mm256_set1_ps(-0.142027363181114196777344f);

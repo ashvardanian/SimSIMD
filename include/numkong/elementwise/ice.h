@@ -1,9 +1,23 @@
 /**
- *  @brief SIMD-accelerated Dot Products for Real and Complex Numbers optimized for Intel Ice Lake CPUs.
+ *  @brief SIMD-accelerated elementwise operations optimized for Intel Ice Lake CPUs.
  *  @file include/numkong/elementwise/ice.h
  *  @sa include/numkong/elementwise.h
  *  @author Ash Vardanian
  *  @date December 27, 2025
+ *
+ *  @section ice_elementwise_instructions Relevant Instructions
+ *
+ *      Intrinsic                   Instruction                     Ice         Genoa
+ *      _mm512_add_epi8             VPADDB (ZMM, ZMM, ZMM)          1cy @ p05   1cy @ p0123
+ *      _mm512_adds_epi8            VPADDSB (ZMM, ZMM, ZMM)         1cy @ p05   1cy @ p0123
+ *      _mm512_add_epi32            VPADDD (ZMM, ZMM, ZMM)          1cy @ p05   1cy @ p0123
+ *      _mm512_cmpgt_epi32_mask     VPCMPGTD (K, ZMM, ZMM)          3cy @ p5    3cy @ p0
+ *      _mm512_mask_blend_epi32     VPBLENDMD (ZMM, K, ZMM, ZMM)    1cy @ p05   1cy @ p0123
+ *      _mm512_maskz_loadu_epi8     VMOVDQU8 (ZMM {K}, M512)        7cy @ p23   7cy @ p23
+ *
+ *  Ice Lake inherits Skylake's AVX-512 execution but reduces frequency throttling on client chips.
+ *  Integer saturation arithmetic (VPADDSB, VPADDUSB) provides 1cy latency for overflow-safe addition.
+ *  For i32/i64 saturation, manual overflow detection via compare-and-blend is required.
  */
 #ifndef NK_ELEMENTWISE_ICE_H
 #define NK_ELEMENTWISE_ICE_H
@@ -274,3 +288,4 @@ nk_sum_u64_ice_cycle:
 #endif // NK_TARGET_X86_
 
 #endif // NK_ELEMENTWISE_ICE_H
+

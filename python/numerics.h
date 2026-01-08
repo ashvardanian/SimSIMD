@@ -17,7 +17,7 @@ extern "C" {
 #pragma region Shared Implementations
 
 /**
- *  @brief Stride-aware elementwise addition: out = a + b.
+ *  @brief Stride-aware elementwise addition: outᵢ = aᵢ + bᵢ.
  *
  *  Handles contiguous and strided data. Both operands must have the same dtype.
  *  Supports f32, f64, i8, i32.
@@ -36,14 +36,14 @@ int impl_elementwise_add(char *a, char *b, char *out, size_t n, nk_dtype_t dtype
                          Py_ssize_t stride_b, Py_ssize_t stride_out);
 
 /**
- *  @brief Stride-aware elementwise multiplication: out = a * b.
+ *  @brief Stride-aware elementwise multiplication: outᵢ = aᵢ · bᵢ.
  *  @see impl_elementwise_add for parameter details.
  */
 int impl_elementwise_mul(char *a, char *b, char *out, size_t n, nk_dtype_t dtype, Py_ssize_t stride_a,
                          Py_ssize_t stride_b, Py_ssize_t stride_out);
 
 /**
- *  @brief Stride-aware weighted sum: out = alpha*a + beta*b.
+ *  @brief Stride-aware weighted sum: outᵢ = α · aᵢ + β · bᵢ.
  *  @param[in] alpha Coefficient for first operand.
  *  @param[in] beta Coefficient for second operand.
  *  @see impl_elementwise_add for other parameter details.
@@ -52,7 +52,7 @@ int impl_elementwise_wsum(char *a, char *b, char *out, size_t n, nk_dtype_t dtyp
                           Py_ssize_t stride_a, Py_ssize_t stride_b, Py_ssize_t stride_out);
 
 /**
- *  @brief Stride-aware scale: out = alpha*a + beta.
+ *  @brief Stride-aware scale: outᵢ = α · aᵢ + β.
  *  @param[in] a Input data pointer.
  *  @param[out] out Output data pointer.
  *  @param[in] n Number of elements.
@@ -67,7 +67,7 @@ int impl_elementwise_scale(char *a, char *out, size_t n, nk_dtype_t dtype, doubl
                            Py_ssize_t stride_a, Py_ssize_t stride_out);
 
 /**
- *  @brief Stride-aware reduction: sum all elements.
+ *  @brief Stride-aware reduction: ∑ᵢ xᵢ (sum all elements).
  *
  *  Traverses an N-dimensional tensor with arbitrary strides.
  *  Returns floating-point result for float types, integer for int types.

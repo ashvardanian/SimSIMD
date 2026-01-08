@@ -1,5 +1,5 @@
 /**
- *  @brief SIMD-accelerated Dot Products for f16 using SiFive (RVV + Zvfh).
+ *  @brief SIMD-accelerated Dot Products for f16 optimized for SiFive (RVV + Zvfh) CPUs.
  *  @file include/numkong/dot/sifive.h
  *  @sa include/numkong/dot.h
  *  @author Ash Vardanian
@@ -7,7 +7,7 @@
  *
  *  SiFive P670/X280 and similar chips implement RVV 1.0 with Zvfh extension.
  *  Zvfh provides native half-precision (f16) vector operations.
- *  Uses widening multiply (f16 × f16 → f32) for precision, then reduces to f32.
+ *  Uses widening multiply (f16 ⨯ f16 → f32) for precision, then reduces to f32.
  *
  *  Requires: RVV 1.0 + Zvfh extension (GCC 14+ or Clang 18+)
  */
@@ -26,7 +26,7 @@ extern "C" {
 /**
  *  @brief  Dot product of two f16 vectors with f32 accumulation on SiFive.
  *
- *  Uses widening multiply (f16 × f16 → f32) for precision.
+ *  Uses widening multiply (f16 ⨯ f16 → f32) for precision.
  *  VL-based loop handles all tail elements automatically.
  */
 NK_PUBLIC void nk_dot_f16_sifive(nk_f16_t const *a_scalars, nk_f16_t const *b_scalars, nk_size_t count_scalars,
@@ -36,7 +36,7 @@ NK_PUBLIC void nk_dot_f16_sifive(nk_f16_t const *a_scalars, nk_f16_t const *b_sc
         vl = __riscv_vsetvl_e16m1(count_scalars);
         vfloat16m1_t a_f16x1 = __riscv_vle16_v_f16m1((float16_t const *)a_scalars, vl);
         vfloat16m1_t b_f16x1 = __riscv_vle16_v_f16m1((float16_t const *)b_scalars, vl);
-        // Widening multiply: f16 × f16 → f32
+        // Widening multiply: f16 ⨯ f16 → f32
         vfloat32m2_t ab_f32x2 = __riscv_vfwmul_vv_f32m2(a_f16x1, b_f16x1, vl);
         // Ordered reduction sum
         sum_f32x1 = __riscv_vfredusum_vs_f32m2_f32m1(ab_f32x2, sum_f32x1, vl);

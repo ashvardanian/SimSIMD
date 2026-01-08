@@ -4,6 +4,46 @@
  *  @sa include/numkong/cast.h
  *  @author Ash Vardanian
  *  @date December 27, 2025
+ *
+ *  @section neon_cast_instructions ARM NEON Conversion Instructions
+ *
+ *  Float ↔ integer conversions (Cortex-A76 class):
+ *
+ *      Intrinsic                   Instruction                     Latency     Throughput
+ *      vcvtq_f32_s32               SCVTF (V.4S, V.4S)              3cy         2/cy
+ *      vcvtq_f32_u32               UCVTF (V.4S, V.4S)              3cy         2/cy
+ *      vcvtq_s32_f32               FCVTZS (V.4S, V.4S)             3cy         2/cy
+ *      vcvtq_u32_f32               FCVTZU (V.4S, V.4S)             3cy         2/cy
+ *
+ *  Float precision conversions:
+ *
+ *      Intrinsic                   Instruction                     Latency     Throughput
+ *      vcvt_f32_f16                FCVTL (V.4S, V.4H)              3cy         2/cy
+ *      vcvt_f16_f32                FCVTN (V.4H, V.4S)              3cy         2/cy
+ *      vcvt_f64_f32                FCVTL (V.2D, V.2S)              3cy         2/cy
+ *      vcvt_f32_f64                FCVTN (V.2S, V.2D)              3cy         2/cy
+ *
+ *  Integer narrowing with saturation:
+ *
+ *      Intrinsic                   Instruction                     Latency     Throughput
+ *      vqmovn_s32                  SQXTN (V.4H, V.4S)              3cy         2/cy
+ *      vqmovn_u32                  UQXTN (V.4H, V.4S)              3cy         2/cy
+ *      vqmovun_s32                 SQXTUN (V.4H, V.4S)             3cy         2/cy
+ *
+ *  BF16 support (ARMv8.6-A+):
+ *
+ *      Intrinsic                   Instruction                     Latency     Throughput
+ *      vcvtq_low_bf16_f32          BFCVTN (V.4H, V.4S)             3cy         1/cy
+ *      vcvtq_high_bf16_f32         BFCVTN2 (V.8H, V.4S)            3cy         1/cy
+ *
+ *  BF16 conversions on baseline NEON (emulated via bit shifts):
+ *  - bf16 → f32: vmovl_u16 + vshlq_n_u32 by 16
+ *  - f32 → bf16: round-to-nearest + vshrn_n_u32 by 16
+ *
+ *  FP8 (E4M3/E5M2) conversions use NEON bit manipulation:
+ *  - Field extraction: vandq, vshrq, vshlq
+ *  - Blending: vbslq for conditional selection
+ *  - Subnormal handling: vmulq_n_f32 with scale factors (1/512, 1/65536)
  */
 #ifndef NK_CAST_NEON_H
 #define NK_CAST_NEON_H
@@ -38,9 +78,9 @@ NK_INTERNAL void nk_load_b64_neon_(void const *src, nk_b64_vec_t *dst) { dst->u8
 
 #pragma region - Vectorized Conversions
 
-/** @brief Convert 4× e4m3 → f32x4 via bit manipulation (NEON).
- *  E4M3FN format: S EEEE MMM (bias=7). No infinity representation.
- *  Only exp=15, mant=7 (0x7F) is NaN; exp=15, mant∈[0,6] are valid normals (max=448). */
+/** @brief Convert 4x e4m3 → f32x4 via bit manipulation (NEON).
+ *  E4M3FN format: S EEEE MMM (bias=7). No ∞ representation.
+ *  Only exp=15, mant=7 (0x7F) is NaN; exp=15, mant ∈ [0,6] are valid normals (max=448). */
 NK_INTERNAL float32x4_t nk_e4m3x4_to_f32x4_neon_(nk_b32_vec_t src) {
     uint8x8_t e4m3_u8x8 = vcreate_u8(src.u32);
     uint16x8_t e4m3_u16x8 = vmovl_u8(e4m3_u8x8);
@@ -54,7 +94,7 @@ NK_INTERNAL float32x4_t nk_e4m3x4_to_f32x4_neon_(nk_b32_vec_t src) {
     uint32x4_t f32_mant_u32x4 = vshlq_n_u32(mant_u32x4, 20);
     uint32x4_t normal_bits = vorrq_u32(sign_u32x4, vorrq_u32(f32_exp_u32x4, f32_mant_u32x4));
 
-    // Subnormal path (exp=0, mant≠0): value = ±mantissa × 2^-9
+    // Subnormal path (exp=0, mant ≠ 0): value = ±mantissa × 2⁻⁹
     float32x4_t subnormal_f32 = vmulq_n_f32(vcvtq_f32_u32(mant_u32x4), 1.0f / 512.0f);
     uint32x4_t subnormal_bits = vorrq_u32(vreinterpretq_u32_f32(subnormal_f32), sign_u32x4);
 
@@ -69,9 +109,9 @@ NK_INTERNAL float32x4_t nk_e4m3x4_to_f32x4_neon_(nk_b32_vec_t src) {
     return vreinterpretq_f32_u32(result);
 }
 
-/** @brief Convert 4× e5m2 → f32x4 via bit manipulation (NEON).
+/** @brief Convert 4x e5m2 → f32x4 via bit manipulation (NEON).
  *  E5M2 format: S EEEEE MM (bias=15). F32: sign<<31, (exp+112)<<23, mant<<21.
- *  Handles subnormals (exp=0, mant≠0), inf (exp=31, mant=0), and nan (exp=31, mant≠0). */
+ *  Handles subnormals (exp=0, mant ≠ 0), inf (exp=31, mant=0), and nan (exp=31, mant ≠ 0). */
 NK_INTERNAL float32x4_t nk_e5m2x4_to_f32x4_neon_(nk_b32_vec_t src) {
     uint8x8_t e5m2_u8x8 = vcreate_u8(src.u32);
     uint16x8_t e5m2_u16x8 = vmovl_u8(e5m2_u8x8);
@@ -85,7 +125,7 @@ NK_INTERNAL float32x4_t nk_e5m2x4_to_f32x4_neon_(nk_b32_vec_t src) {
     uint32x4_t f32_mant_u32x4 = vshlq_n_u32(mant_u32x4, 21);
     uint32x4_t normal_bits = vorrq_u32(sign_u32x4, vorrq_u32(f32_exp_u32x4, f32_mant_u32x4));
 
-    // Subnormal path (exp=0, mant≠0): value = ±mantissa × 2^-16
+    // Subnormal path (exp=0, mant ≠ 0): value = ±mantissa × 2⁻¹⁶
     float32x4_t subnormal_f32 = vmulq_n_f32(vcvtq_f32_u32(mant_u32x4), 1.0f / 65536.0f);
     uint32x4_t subnormal_bits = vorrq_u32(vreinterpretq_u32_f32(subnormal_f32), sign_u32x4);
 
@@ -103,9 +143,9 @@ NK_INTERNAL float32x4_t nk_e5m2x4_to_f32x4_neon_(nk_b32_vec_t src) {
     return vreinterpretq_f32_u32(result);
 }
 
-/** @brief Convert 8× e4m3 → f16x8 via bit manipulation (NEON).
+/** @brief Convert 8x e4m3 → f16x8 via bit manipulation (NEON).
  *  E4M3FN format: S EEEE MMM (bias=7). F16: S EEEEE MMMMMMMMMM (bias=15).
- *  E4M3FN has no infinity; only exp=15, mant=7 is NaN. exp=15, mant∈[0,6] are valid normals. */
+ *  E4M3FN has no ∞; only exp=15, mant=7 is NaN. exp=15, mant ∈ [0,6] are valid normals. */
 NK_INTERNAL float16x8_t nk_e4m3x8_to_f16x8_neon_(uint8x8_t e4m3_u8x8) {
     uint16x8_t v_u16x8 = vmovl_u8(e4m3_u8x8);
     uint16x8_t sign_u16x8 = vshlq_n_u16(vandq_u16(v_u16x8, vdupq_n_u16(0x80)), 8); // sign << 15
@@ -117,7 +157,7 @@ NK_INTERNAL float16x8_t nk_e4m3x8_to_f16x8_neon_(uint8x8_t e4m3_u8x8) {
     uint16x8_t f16_mant_u16x8 = vshlq_n_u16(mant_u16x8, 7);
     uint16x8_t normal_bits = vorrq_u16(sign_u16x8, vorrq_u16(f16_exp_u16x8, f16_mant_u16x8));
 
-    // Subnormal path (exp=0, mant≠0): E4M3 subnormal value = mant × 2^-9 = mant / 512
+    // Subnormal path (exp=0, mant ≠ 0): E4M3 subnormal value = mant × 2⁻⁹ = mant ÷ 512
     // Compute arithmetically: mant → f32 → multiply → f16
     float32x4_t subnorm_lo_f32x4 = vmulq_n_f32(vcvtq_f32_u32(vmovl_u16(vget_low_u16(mant_u16x8))), 1.0f / 512.0f);
     float32x4_t subnorm_hi_f32x4 = vmulq_n_f32(vcvtq_f32_u32(vmovl_u16(vget_high_u16(mant_u16x8))), 1.0f / 512.0f);
@@ -136,7 +176,7 @@ NK_INTERNAL float16x8_t nk_e4m3x8_to_f16x8_neon_(uint8x8_t e4m3_u8x8) {
     return vreinterpretq_f16_u16(result);
 }
 
-/** @brief Convert 8× e5m2 → f16x8 via bit shift (NEON).
+/** @brief Convert 8x e5m2 → f16x8 via bit shift (NEON).
  *  E5M2 (bias=15) and F16 (bias=15) share the same exponent bias, so conversion is trivial.
  *  E5M2: S EEEEE MM → F16: S EEEEE MM 00000000. Works for all: zero, subnormal, normal, inf, nan. */
 NK_INTERNAL float16x8_t nk_e5m2x8_to_f16x8_neon_(uint8x8_t e5m2_u8x8) {
@@ -144,7 +184,7 @@ NK_INTERNAL float16x8_t nk_e5m2x8_to_f16x8_neon_(uint8x8_t e5m2_u8x8) {
     return vreinterpretq_f16_u16(vshlq_n_u16(v_u16x8, 8));
 }
 
-/** @brief Convert f16x8 → 8× e4m3 with RNE rounding (NEON).
+/** @brief Convert f16x8 → 8x e4m3 with RNE rounding (NEON).
  *  F16: S EEEEE MMMMMMMMMM (bias=15) → E4M3: S EEEE MMM (bias=7).
  *  Handles subnormals (exp < 9 → E4M3 subnormal), overflow (> 448 → clamp), inf → max, nan → nan. */
 NK_INTERNAL uint8x8_t nk_f16x8_to_e4m3x8_neon_(float16x8_t f16x8) {
@@ -187,7 +227,7 @@ NK_INTERNAL uint8x8_t nk_f16x8_to_e4m3x8_neon_(float16x8_t f16x8) {
     uint16x8_t normal_result = vorrq_u16(sign_byte,
                                          vorrq_u16(vshlq_n_u16(vreinterpretq_u16_s16(clamped_exp), 3), e4m3_mant));
 
-    // Subnormal path: E4M3 subnormal = mant × 2^-9
+    // Subnormal path: E4M3 subnormal = mant × 2⁻⁹
     // Use float conversion for correctness: abs(f16) × 512, round to int, clamp to [0,7]
     float32x4_t abs_f32_lo = vabsq_f32(vcvt_f32_f16(vget_low_f16(f16x8)));
     float32x4_t abs_f32_hi = vabsq_f32(vcvt_f32_f16(vget_high_f16(f16x8)));
@@ -202,7 +242,7 @@ NK_INTERNAL uint8x8_t nk_f16x8_to_e4m3x8_neon_(float16x8_t f16x8) {
     uint16x8_t subnorm_mant = vreinterpretq_u16_s16(vcombine_s16(sub_mant_lo16, sub_mant_hi16));
     uint16x8_t subnorm_result = vorrq_u16(sign_byte, subnorm_mant);
 
-    // Special values: E4M3FN has no infinity, max normal = 0x7E (exp=15, mant=6 = 448)
+    // Special values: E4M3FN has no ∞, max normal = 0x7E (exp=15, mant=6 = 448)
     uint16x8_t e4m3_max = vorrq_u16(sign_byte, vdupq_n_u16(0x7E)); // ±448 (exp=15, mant=6)
     uint16x8_t e4m3_nan = vorrq_u16(sign_byte, vdupq_n_u16(0x7F)); // ±NaN (exp=15, mant=7)
     uint16x8_t e4m3_zero = sign_byte;                              // ±0
@@ -218,7 +258,7 @@ NK_INTERNAL uint8x8_t nk_f16x8_to_e4m3x8_neon_(float16x8_t f16x8) {
     return vmovn_u16(result);
 }
 
-/** @brief Convert f16x8 → 8× e5m2 with RNE rounding (NEON).
+/** @brief Convert f16x8 → 8x e5m2 with RNE rounding (NEON).
  *  F16 (bias=15) and E5M2 (bias=15) share the same bias, so conversion is truncation with RNE rounding.
  *  F16: S EEEEE MMMMMMMMMM → E5M2: S EEEEE MM. Mantissa overflow carries into exponent. */
 NK_INTERNAL uint8x8_t nk_f16x8_to_e5m2x8_neon_(float16x8_t f16x8) {
@@ -242,7 +282,7 @@ NK_INTERNAL uint8x8_t nk_f16x8_to_e5m2x8_neon_(float16x8_t f16x8) {
     return vmovn_u16(e5m2_u16x8);
 }
 
-/** @brief Convert 4× bf16 → f32x4 via bit shift (NEON).
+/** @brief Convert 4x bf16 → f32x4 via bit shift (NEON).
  *  BF16 format: S EEEEEEEE MMMMMMM (bias=127, same as f32 but truncated mantissa).
  *  F32 = bf16 << 16. */
 NK_INTERNAL float32x4_t nk_bf16x4_to_f32x4_neon_(uint16x4_t bf16_u16x4) {
@@ -250,7 +290,7 @@ NK_INTERNAL float32x4_t nk_bf16x4_to_f32x4_neon_(uint16x4_t bf16_u16x4) {
     return vreinterpretq_f32_u32(bits_u32x4);
 }
 
-/** @brief Convert f32x4 → 4× bf16 with RNE rounding (NEON).
+/** @brief Convert f32x4 → 4x bf16 with RNE rounding (NEON).
  *  Round-to-nearest-even: add (0x7FFF + lsb) before truncation. */
 NK_INTERNAL uint16x4_t nk_f32x4_to_bf16x4_neon_(float32x4_t f32x4) {
     uint32x4_t bits_u32x4 = vreinterpretq_u32_f32(f32x4);
@@ -260,9 +300,9 @@ NK_INTERNAL uint16x4_t nk_f32x4_to_bf16x4_neon_(float32x4_t f32x4) {
     return vmovn_u32(vshrq_n_u32(bits_u32x4, 16));
 }
 
-/** @brief Convert 8× e4m3 → bf16x8 via direct bit manipulation (NEON).
+/** @brief Convert 8x e4m3 → bf16x8 via direct bit manipulation (NEON).
  *  E4M3FN format: S EEEE MMM (bias=7). BF16: S EEEEEEEE MMMMMMM (bias=127).
- *  Direct conversion without F16/F32 intermediate for hot loop efficiency. */
+ *  Direct conversion without F16 ÷ F32 intermediate for hot loop efficiency. */
 NK_INTERNAL bfloat16x8_t nk_e4m3x8_to_bf16x8_neon_(uint8x8_t e4m3_u8x8) {
     uint16x8_t v_u16x8 = vmovl_u8(e4m3_u8x8);
     uint16x8_t sign_u16x8 = vshlq_n_u16(vandq_u16(v_u16x8, vdupq_n_u16(0x80)), 8); // sign << 15
@@ -274,7 +314,7 @@ NK_INTERNAL bfloat16x8_t nk_e4m3x8_to_bf16x8_neon_(uint8x8_t e4m3_u8x8) {
     uint16x8_t bf16_mant_u16x8 = vshlq_n_u16(mant_u16x8, 4);
     uint16x8_t normal_bits = vorrq_u16(sign_u16x8, vorrq_u16(bf16_exp_u16x8, bf16_mant_u16x8));
 
-    // Subnormal path (exp=0): E4M3 subnormal = mant × 2^-9 = mant / 512 → BF16
+    // Subnormal path (exp=0): E4M3 subnormal = mant × 2⁻⁹ = mant ÷ 512 → BF16
     // Compute via f32: mant → f32 → multiply → truncate to bf16
     float32x4_t subnorm_lo_f32x4 = vmulq_n_f32(vcvtq_f32_u32(vmovl_u16(vget_low_u16(mant_u16x8))), 1.0f / 512.0f);
     float32x4_t subnorm_hi_f32x4 = vmulq_n_f32(vcvtq_f32_u32(vmovl_u16(vget_high_u16(mant_u16x8))), 1.0f / 512.0f);
@@ -293,9 +333,9 @@ NK_INTERNAL bfloat16x8_t nk_e4m3x8_to_bf16x8_neon_(uint8x8_t e4m3_u8x8) {
     return vreinterpretq_bf16_u16(result);
 }
 
-/** @brief Convert 8× e5m2 → bf16x8 via direct bit manipulation (NEON).
+/** @brief Convert 8x e5m2 → bf16x8 via direct bit manipulation (NEON).
  *  E5M2 format: S EEEEE MM (bias=15). BF16: S EEEEEEEE MMMMMMM (bias=127).
- *  Direct conversion without F16/F32 intermediate for hot loop efficiency. */
+ *  Direct conversion without F16 ÷ F32 intermediate for hot loop efficiency. */
 NK_INTERNAL bfloat16x8_t nk_e5m2x8_to_bf16x8_neon_(uint8x8_t e5m2_u8x8) {
     uint16x8_t v_u16x8 = vmovl_u8(e5m2_u8x8);
     uint16x8_t sign_u16x8 = vshlq_n_u16(vandq_u16(v_u16x8, vdupq_n_u16(0x80)), 8); // sign << 15
@@ -307,7 +347,7 @@ NK_INTERNAL bfloat16x8_t nk_e5m2x8_to_bf16x8_neon_(uint8x8_t e5m2_u8x8) {
     uint16x8_t bf16_mant_u16x8 = vshlq_n_u16(mant_u16x8, 5);
     uint16x8_t normal_bits = vorrq_u16(sign_u16x8, vorrq_u16(bf16_exp_u16x8, bf16_mant_u16x8));
 
-    // Subnormal path (exp=0): E5M2 subnormal = mant × 2^-16 = mant / 65536 → BF16
+    // Subnormal path (exp=0): E5M2 subnormal = mant × 2⁻¹⁶ = mant ÷ 65536 → BF16
     // Compute via f32: mant → f32 → multiply → truncate to bf16
     float32x4_t subnorm_lo_f32x4 = vmulq_n_f32(vcvtq_f32_u32(vmovl_u16(vget_low_u16(mant_u16x8))), 1.0f / 65536.0f);
     float32x4_t subnorm_hi_f32x4 = vmulq_n_f32(vcvtq_f32_u32(vmovl_u16(vget_high_u16(mant_u16x8))), 1.0f / 65536.0f);
@@ -329,37 +369,37 @@ NK_INTERNAL bfloat16x8_t nk_e5m2x8_to_bf16x8_neon_(uint8x8_t e5m2_u8x8) {
     return vreinterpretq_bf16_u16(result);
 }
 
-/** @brief Convert 4× i16 → f32x4 (NEON). Widen to i32, then convert. */
+/** @brief Convert 4x i16 → f32x4 (NEON). Widen to i32, then convert. */
 NK_INTERNAL float32x4_t nk_i16x4_to_f32x4_neon_(int16x4_t i16x4) { return vcvtq_f32_s32(vmovl_s16(i16x4)); }
 
-/** @brief Convert 4× u16 → f32x4 (NEON). Widen to u32, then convert. */
+/** @brief Convert 4x u16 → f32x4 (NEON). Widen to u32, then convert. */
 NK_INTERNAL float32x4_t nk_u16x4_to_f32x4_neon_(uint16x4_t u16x4) { return vcvtq_f32_u32(vmovl_u16(u16x4)); }
 
-/** @brief Convert 4× i8 → f32x4 (NEON). Widen i8→i16→i32, then convert. */
+/** @brief Convert 4x i8 → f32x4 (NEON). Widen i8 → i16 → i32, then convert. */
 NK_INTERNAL float32x4_t nk_i8x4_to_f32x4_neon_(int8x8_t i8x8) {
     int16x8_t i16x8 = vmovl_s8(i8x8);
     return vcvtq_f32_s32(vmovl_s16(vget_low_s16(i16x8)));
 }
 
-/** @brief Convert 4× u8 → f32x4 (NEON). Widen u8→u16→u32, then convert. */
+/** @brief Convert 4x u8 → f32x4 (NEON). Widen u8 → u16 → u32, then convert. */
 NK_INTERNAL float32x4_t nk_u8x4_to_f32x4_neon_(uint8x8_t u8x8) {
     uint16x8_t u16x8 = vmovl_u8(u8x8);
     return vcvtq_f32_u32(vmovl_u16(vget_low_u16(u16x8)));
 }
 
-/** @brief Convert f32x4 → 4× i16 with saturation (NEON). Convert to i32, narrow. */
+/** @brief Convert f32x4 → 4x i16 with saturation (NEON). Convert to i32, narrow. */
 NK_INTERNAL int16x4_t nk_f32x4_to_i16x4_neon_(float32x4_t f32x4) {
     int32x4_t i32x4 = vcvtq_s32_f32(f32x4);
     return vqmovn_s32(i32x4);
 }
 
-/** @brief Convert f32x4 → 4× u16 with saturation (NEON). Convert to u32, narrow. */
+/** @brief Convert f32x4 → 4x u16 with saturation (NEON). Convert to u32, narrow. */
 NK_INTERNAL uint16x4_t nk_f32x4_to_u16x4_neon_(float32x4_t f32x4) {
     uint32x4_t u32x4 = vcvtq_u32_f32(f32x4);
     return vqmovn_u32(u32x4);
 }
 
-/** @brief Convert f32x4 → 4× i8 with saturation (NEON). Convert to i32, narrow twice. */
+/** @brief Convert f32x4 → 4x i8 with saturation (NEON). Convert to i32, narrow twice. */
 NK_INTERNAL void nk_f32x4_to_i8x4_neon_(float32x4_t f32x4, nk_i8_t *dst) {
     int32x4_t i32x4 = vcvtq_s32_f32(f32x4);
     int16x4_t i16x4 = vqmovn_s32(i32x4);
@@ -368,7 +408,7 @@ NK_INTERNAL void nk_f32x4_to_i8x4_neon_(float32x4_t f32x4, nk_i8_t *dst) {
     vst1_lane_s32((int32_t *)dst, vreinterpret_s32_s8(i8x8), 0);
 }
 
-/** @brief Convert f32x4 → 4× u8 with saturation (NEON). Convert to u32, narrow twice. */
+/** @brief Convert f32x4 → 4x u8 with saturation (NEON). Convert to u32, narrow twice. */
 NK_INTERNAL void nk_f32x4_to_u8x4_neon_(float32x4_t f32x4, nk_u8_t *dst) {
     uint32x4_t u32x4 = vcvtq_u32_f32(f32x4);
     uint16x4_t u16x4 = vqmovn_u32(u32x4);
@@ -377,7 +417,7 @@ NK_INTERNAL void nk_f32x4_to_u8x4_neon_(float32x4_t f32x4, nk_u8_t *dst) {
     vst1_lane_u32((uint32_t *)dst, vreinterpret_u32_u8(u8x8), 0);
 }
 
-/** @brief Convert f32x4 → 4× e4m3 via bit manipulation (NEON).
+/** @brief Convert f32x4 → 4x e4m3 via bit manipulation (NEON).
  *  E4M3 format: S EEEE MMM (bias=7). Handles normal, subnormal, and overflow cases.
  *  Uses RNE (round to nearest even) for mantissa rounding. Returns packed result in nk_b32_vec_t. */
 NK_INTERNAL nk_b32_vec_t nk_f32x4_to_e4m3x4_neon_(float32x4_t f32x4) {
@@ -444,7 +484,7 @@ NK_INTERNAL nk_b32_vec_t nk_f32x4_to_e4m3x4_neon_(float32x4_t f32x4) {
     return result;
 }
 
-/** @brief Convert f32x4 → 4× e5m2 via bit manipulation (NEON).
+/** @brief Convert f32x4 → 4x e5m2 via bit manipulation (NEON).
  *  E5M2 format: S EEEEE MM (bias=15). Handles normal, subnormal, and overflow cases.
  *  Uses RNE (round to nearest even) for mantissa rounding. Returns packed result in nk_b32_vec_t. */
 NK_INTERNAL nk_b32_vec_t nk_f32x4_to_e5m2x4_neon_(float32x4_t f32x4) {

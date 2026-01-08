@@ -1,9 +1,21 @@
 /**
- *  @brief SIMD-accelerated Dot Products for Real and Complex Numbers optimized for Intel Skylake-X CPUs.
+ *  @brief SIMD-accelerated point cloud and mesh operations optimized for Intel Skylake-X CPUs.
  *  @file include/numkong/mesh/skylake.h
  *  @sa include/numkong/mesh.h
  *  @author Ash Vardanian
  *  @date December 27, 2025
+ *
+ *  @section skylake_mesh_instructions Key AVX-512 Mesh Instructions
+ *
+ *      Intrinsic                   Instruction                     Latency     Throughput  Ports
+ *      _mm512_fmadd_ps             VFMADD132PS (ZMM, ZMM, ZMM)     4cy         0.5/cy      p05
+ *      _mm512_permutexvar_ps       VPERMPS (ZMM, ZMM, ZMM)         3cy         1/cy        p5
+ *      _mm512_permutex2var_ps      VPERMT2PS (ZMM, ZMM, ZMM)       3cy         1/cy        p5
+ *      _mm512_extractf32x8_ps      VEXTRACTF32X8 (YMM, ZMM, I8)    3cy         1/cy        p5
+ *
+ *  Point cloud operations use VPERMT2PS for stride-3 deinterleaving of xyz coordinates, avoiding
+ *  expensive gather instructions. This achieves ~1.8x speedup over scalar deinterleaving. Dual FMA
+ *  accumulators on Skylake-X server chips hide the 4cy latency for centroid and covariance computation.
  */
 #ifndef NK_MESH_SKYLAKE_H
 #define NK_MESH_SKYLAKE_H
@@ -25,7 +37,7 @@
 extern "C" {
 #endif
 
-/*  Internal helper: Deinterleave 48 floats (16 xyz triplets) into separate x, y, z vectors.
+/*  Deinterleave 48 floats (16 xyz triplets) into separate x, y, z vectors.
  *  Uses permutex2var shuffles instead of gather for ~1.8x speedup.
  *
  *  Input: 48 contiguous floats [x0,y0,z0, x1,y1,z1, ..., x15,y15,z15]
@@ -67,7 +79,7 @@ NK_INTERNAL void nk_deinterleave_f32x16_skylake_(                               
     *z_f32x16_out = _mm512_permutex2var_ps(z01_f32x16, idx_z_2_i32x16, reg2_f32x16);
 }
 
-/*  Internal helper: Deinterleave 8 f64 3D points from xyz,xyz,xyz... to separate x,y,z vectors.
+/*  Deinterleave 8 f64 3D points from xyz,xyz,xyz... to separate x,y,z vectors.
  *  Input: 24 consecutive f64 values (8 points * 3 coordinates)
  *  Output: Three __m512d vectors containing the x, y, z coordinates separately.
  */
@@ -96,7 +108,7 @@ NK_INTERNAL void nk_deinterleave_f64x8_skylake_(                                
     *z_f64x8_out = _mm512_permutex2var_pd(z01_f64x8, idx_z_2_i64x8, reg2_f64x8);
 }
 
-/*  Internal helper: Compute sum of squared distances after applying rotation (and optional scale).
+/*  Compute sum of squared distances after applying rotation (and optional scale).
  *  Used by kabsch (scale=1.0) and umeyama (scale=computed_scale).
  *  Returns sum_squared, caller computes √(sum_squared / n).
  */
@@ -179,7 +191,7 @@ NK_INTERNAL nk_f32_t nk_transformed_ssd_f32_skylake_(nk_f32_t const *a, nk_f32_t
     return sum_squared;
 }
 
-/*  Internal helper: Compute sum of squared distances for f64 after applying rotation (and optional scale).
+/*  Compute sum of squared distances for f64 after applying rotation (and optional scale).
  *  Rotation matrix, scale and data are all f64 for full precision.
  */
 NK_INTERNAL nk_f64_t nk_transformed_ssd_f64_skylake_(nk_f64_t const *a, nk_f64_t const *b, nk_size_t n,
@@ -996,7 +1008,7 @@ NK_PUBLIC void nk_umeyama_f32_skylake(nk_f32_t const *a, nk_f32_t const *b, nk_s
     r[7] = svd_v[6] * svd_u[3] + svd_v[7] * svd_u[4] + svd_v[8] * svd_u[5];
     r[8] = svd_v[6] * svd_u[6] + svd_v[7] * svd_u[7] + svd_v[8] * svd_u[8];
 
-    // Scale factor: c = trace(D*S) / (n * variance_a)
+    // Scale factor: c = trace(D × S) / (n × variance(a))
     nk_f32_t det = nk_det3x3_f32_(r);
     nk_f32_t d3 = det < 0 ? -1.0f : 1.0f;
     nk_f32_t trace_ds = svd_s[0] + svd_s[4] + d3 * svd_s[8];
@@ -1149,7 +1161,7 @@ NK_PUBLIC void nk_umeyama_f64_skylake(nk_f64_t const *a, nk_f64_t const *b, nk_s
     r[7] = svd_v[6] * svd_u[3] + svd_v[7] * svd_u[4] + svd_v[8] * svd_u[5];
     r[8] = svd_v[6] * svd_u[6] + svd_v[7] * svd_u[7] + svd_v[8] * svd_u[8];
 
-    // Scale factor: c = trace(D*S) / (n * variance_a)
+    // Scale factor: c = trace(D × S) / (n × variance(a))
     nk_f64_t det = nk_det3x3_f64_(r);
     nk_f64_t d3 = det < 0 ? -1.0 : 1.0;
     nk_f64_t trace_ds = svd_s[0] + svd_s[1] + d3 * svd_s[2];

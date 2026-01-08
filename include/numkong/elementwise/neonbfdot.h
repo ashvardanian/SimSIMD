@@ -4,6 +4,29 @@
  *  @sa include/numkong/elementwise.h
  *  @author Ash Vardanian
  *  @date December 27, 2025
+ *
+ *  @section elementwise_neonbfdot_instructions ARM NEON BF16 Instructions (ARMv8.6-BF16)
+ *
+ *      Intrinsic                   Instruction                     Latency     Throughput
+ *                                                                              A76         M4+/V1+/Oryon
+ *      vld1_bf16                   LD1 (V.4H)                      4cy         2/cy        3/cy
+ *      vst1_bf16                   ST1 (V.4H)                      2cy         2/cy        3/cy
+ *      vcvt_f32_bf16               BFCVTN (V.4H, V.4S)             3cy         2/cy        4/cy
+ *      vcvt_bf16_f32               BFCVT (V.4H, V.4S)              3cy         2/cy        4/cy
+ *      vaddq_f32                   FADD (V.4S, V.4S, V.4S)         2cy         2/cy        4/cy
+ *      vmulq_f32                   FMUL (V.4S, V.4S, V.4S)         3cy         2/cy        4/cy
+ *      vmulq_n_f32                 FMUL (V.4S, V.4S, scalar)       3cy         2/cy        4/cy
+ *      vfmaq_f32                   FMLA (V.4S, V.4S, V.4S)         4cy         2/cy        4/cy
+ *      vfmaq_n_f32                 FMLA (V.4S, V.4S, scalar)       4cy         2/cy        4/cy
+ *      vdupq_n_f32                 DUP (V.4S, scalar)              2cy         2/cy        4/cy
+ *
+ *  The ARMv8.6-BF16 extension provides element-wise operations on BF16 data by converting to F32
+ *  for arithmetic, then back to BF16 for storage. This preserves the dynamic range benefits of BF16
+ *  (matching F32 exponent) while using F32 precision for intermediate calculations.
+ *
+ *  Operations process 4 BF16 elements at a time, widening to F32 for computation. While this gives
+ *  lower throughput than native F16 operations, it prevents overflow issues common with FP16's
+ *  limited exponent range in ML training workloads.
  */
 #ifndef NK_ELEMENTWISE_NEONBFDOT_H
 #define NK_ELEMENTWISE_NEONBFDOT_H

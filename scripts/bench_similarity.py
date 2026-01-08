@@ -73,6 +73,7 @@ class Kernel:
 
 
 def serial_cosine(a: List[float], b: List[float]) -> float:
+    """Cosine distance: 1 - ∑(aᵢ · bᵢ) / (‖a‖ · ‖b‖)"""
     dot_product = sum(ai * bi for ai, bi in zip(a, b))
     norm_a = sum(ai * ai for ai in a) ** 0.5
     norm_b = sum(bi * bi for bi in b) ** 0.5
@@ -84,6 +85,7 @@ def serial_cosine(a: List[float], b: List[float]) -> float:
 
 
 def serial_sqeuclidean(a: List[float], b: List[float]) -> float:
+    """Squared Euclidean distance: ∑(aᵢ - bᵢ)²"""
     return sum((ai - bi) ** 2 for ai, bi in zip(a, b))
 
 
@@ -596,14 +598,14 @@ def main():
         default=1,
         help="""
             Number of vectors per batch (default: 1)
-            
+
             By default, when set to 1 the latency will generate many vectors of size (ndim, )
             and call the functions on pairs of single vectors: both directly, and through `cdist`.
-            Alternatively, for larger batch sizes the latency will generate two matrices of 
+            Alternatively, for larger batch sizes the latency will generate two matrices of
             size (n, ndim) and compute:
-            
+
             - batch mode: (n) distances between vectors in identical rows of the two matrices,
-            - all-pairs mode: (n^2) distances between all pairs of vectors in the two matrices via `cdist`.
+            - all-pairs mode: (n²) distances between all pairs of vectors in the two matrices via `cdist`.
             """,
     )
     parser.add_argument(
@@ -612,10 +614,10 @@ def main():
         default="batch",
         help="""Choose between 'batch' and 'all-pairs' mode (default: batch)
         
-        In 'batch' mode, the latency will generate two matrices of size (n, ndim) 
+        In 'batch' mode, the latency will generate two matrices of size (n, ndim)
         and compute (n) distances between vectors in identical rows of the two matrices.
         In 'all-pairs' mode, the latency will generate two matrices of size (n, ndim)
-        and compute (n^2) distances between all pairs of vectors in the two matrices via `cdist`.
+        and compute (n²) distances between all pairs of vectors in the two matrices via `cdist`.
         """,
     )
     parser.add_argument(

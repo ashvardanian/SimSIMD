@@ -4,6 +4,21 @@
  *  @sa include/numkong/spatial.h
  *  @author Ash Vardanian
  *  @date December 27, 2025
+ *
+ *  @section haswell_spatial_instructions Key AVX2 Spatial Instructions
+ *
+ *      Intrinsic                   Instruction                     Latency     Throughput  Ports
+ *      _mm256_fmadd_ps             VFMADD (YMM, YMM, YMM)          5cy         0.5/cy      p01
+ *      _mm256_mul_ps               VMULPS (YMM, YMM, YMM)          5cy         0.5/cy      p01
+ *      _mm256_add_ps               VADDPS (YMM, YMM, YMM)          3cy         1/cy        p01
+ *      _mm256_sub_ps               VSUBPS (YMM, YMM, YMM)          3cy         1/cy        p01
+ *      _mm_rsqrt_ps                VRSQRTPS (XMM, XMM)             5cy         1/cy        p0
+ *      _mm_sqrt_ps                 VSQRTPS (XMM, XMM)              11cy        7cy         p0
+ *      _mm256_sqrt_ps              VSQRTPS (YMM, YMM)              12cy        14cy        p0
+ *
+ *  For angular distance normalization, `_mm_rsqrt_ps` provides ~12-bit precision (1.5 x 2^-12 error).
+ *  Newton-Raphson refinement doubles precision to ~22-24 bits, sufficient for f32. For f64 we use
+ *  the exact `_mm_sqrt_pd` instruction since fast rsqrt approximations lack f64 precision.
  */
 #ifndef NK_SPATIAL_HASWELL_H
 #define NK_SPATIAL_HASWELL_H
@@ -38,7 +53,7 @@ NK_INTERNAL __m128 nk_rsqrt_f32x4_haswell_(__m128 x) {
 /** @brief Safe square root of 4 floats with zero-clamping for numerical stability. */
 NK_INTERNAL __m128 nk_safe_sqrt_f32x4_haswell_(__m128 x) { return _mm_sqrt_ps(_mm_max_ps(x, _mm_setzero_ps())); }
 
-/** @brief Angular distance finalize: computes 1 - dot/sqrt(query_norm*target_norm) for 4 pairs. */
+/** @brief Angular distance finalize: computes 1 − dot/√(‖query‖ × ‖target‖) for 4 pairs. */
 NK_INTERNAL void nk_angular_f32x4_finalize_haswell_(__m128 dots_f32x4, nk_f32_t query_norm, nk_f32_t target_norm_a,
                                                     nk_f32_t target_norm_b, nk_f32_t target_norm_c,
                                                     nk_f32_t target_norm_d, nk_f32_t *results) {
@@ -50,7 +65,7 @@ NK_INTERNAL void nk_angular_f32x4_finalize_haswell_(__m128 dots_f32x4, nk_f32_t 
     _mm_storeu_ps(results, _mm_sub_ps(_mm_set1_ps(1.0f), normalized_f32x4));
 }
 
-/** @brief L2 distance finalize: computes sqrt(query²+target²-2*dot) for 4 pairs. */
+/** @brief L2 distance finalize: computes √(query²+target²-2 × dot) for 4 pairs. */
 NK_INTERNAL void nk_l2_f32x4_finalize_haswell_(__m128 dots_f32x4, nk_f32_t query_norm, nk_f32_t target_norm_a,
                                                nk_f32_t target_norm_b, nk_f32_t target_norm_c, nk_f32_t target_norm_d,
                                                nk_f32_t *results) {
@@ -72,7 +87,7 @@ NK_INTERNAL nk_f64_t nk_angular_normalize_f64_haswell_(nk_f64_t ab, nk_f64_t a2,
     else if (ab == 0) return 1;
 
     // Design note: We use exact `_mm_sqrt_pd` instead of fast rsqrt approximation.
-    // The f32 `_mm_rsqrt_ps` has max relative error of 1.5×2⁻¹² (~11 bits precision).
+    // The f32 `_mm_rsqrt_ps` has max relative error of 1.5 × 2⁻¹² (~11 bits precision).
     // Even with Newton-Raphson refinement (doubles precision to ~22-24 bits), this is
     // insufficient for f64's 52-bit mantissa, causing ULP errors in the hundreds of millions.
     // The `_mm_sqrt_pd` instruction has ~13 cycle latency but provides full f64 precision.
@@ -100,7 +115,7 @@ NK_INTERNAL nk_f32_t nk_angular_normalize_f32_haswell_(nk_f32_t ab, nk_f32_t a2,
     __m128 rsqrts = _mm_rsqrt_ps(squares);
 
     // Perform one iteration of Newton-Raphson refinement to improve the precision of rsqrt:
-    // Formula: y' = y * (1.5 - 0.5 * x * y * y)
+    // Formula: y' = y × (1.5 - 0.5 × x × y × y)
     __m128 half = _mm_set1_ps(0.5f);
     __m128 three_halves = _mm_set1_ps(1.5f);
     rsqrts = _mm_mul_ps(rsqrts,
@@ -110,7 +125,7 @@ NK_INTERNAL nk_f32_t nk_angular_normalize_f32_haswell_(nk_f32_t ab, nk_f32_t a2,
     nk_f32_t a2_reciprocal = _mm_cvtss_f32(_mm_shuffle_ps(rsqrts, rsqrts, _MM_SHUFFLE(0, 0, 0, 1)));
     nk_f32_t b2_reciprocal = _mm_cvtss_f32(rsqrts);
 
-    // Calculate the angular distance: 1 - dot_product * a2_reciprocal * b2_reciprocal
+    // Calculate the angular distance: 1 - dot_product × a2_reciprocal × b2_reciprocal
     nk_f32_t result = 1.0f - ab * a2_reciprocal * b2_reciprocal;
     return result > 0 ? result : 0;
 }
@@ -266,8 +281,8 @@ NK_PUBLIC void nk_angular_i8_haswell(nk_i8_t const *a, nk_i8_t const *b, nk_size
     __m256i a_norm_sq_i32x8 = _mm256_setzero_si256();
     __m256i b_norm_sq_i32x8 = _mm256_setzero_si256();
 
-    // AVX2 has no instructions for 8-bit signed integer dot-products,
-    // but it has a weird instruction for mixed signed-unsigned 8-bit dot-product.
+    // AVX2 has no instructions for 8-bit signed integer dot products,
+    // but it has a weird instruction for mixed signed-unsigned 8-bit dot product.
     // So we need to normalize the first vector to its absolute value,
     // and shift the product sign into the second vector.
     //
@@ -320,7 +335,7 @@ NK_PUBLIC void nk_l2sq_u8_haswell(nk_u8_t const *a, nk_u8_t const *b, nk_size_t 
         __m256i a_u8x32 = _mm256_loadu_si256((__m256i const *)(a + i));
         __m256i b_u8x32 = _mm256_loadu_si256((__m256i const *)(b + i));
 
-        // Substracting unsigned vectors in AVX2 is done by saturating subtraction:
+        // Subtracting unsigned vectors in AVX2 is done by saturating subtraction:
         __m256i diff_u8x32 = _mm256_or_si256(_mm256_subs_epu8(a_u8x32, b_u8x32), _mm256_subs_epu8(b_u8x32, a_u8x32));
 
         // Upcast `uint8` to `int16`. Unlike the signed version, we can use the unpacking
@@ -364,8 +379,8 @@ NK_PUBLIC void nk_angular_u8_haswell(nk_u8_t const *a, nk_u8_t const *b, nk_size
     __m256i b_norm_sq_high_i32x8 = _mm256_setzero_si256();
     __m256i const zeros_i8x32 = _mm256_setzero_si256();
 
-    // AVX2 has no instructions for 8-bit signed integer dot-products,
-    // but it has a weird instruction for mixed signed-unsigned 8-bit dot-product.
+    // AVX2 has no instructions for 8-bit signed integer dot products,
+    // but it has a weird instruction for mixed signed-unsigned 8-bit dot product.
     // So we need to normalize the first vector to its absolute value,
     // and shift the product sign into the second vector.
     //
@@ -529,7 +544,7 @@ NK_PUBLIC void nk_l2_f64_haswell(nk_f64_t const *a, nk_f64_t const *b, nk_size_t
 }
 
 NK_PUBLIC void nk_angular_f64_haswell(nk_f64_t const *a, nk_f64_t const *b, nk_size_t n, nk_f64_t *result) {
-    // Dot2 (Ogita-Rump-Oishi 2005) for cross-product a·b only - it may have cancellation.
+    // Dot2 (Ogita-Rump-Oishi 2005) for cross-product a × b only - it may have cancellation.
     // Self-products ‖a‖² and ‖b‖² use simple FMA - all terms are non-negative, no cancellation.
     // Note: For cross-product we use Knuth TwoSum (6 ops) rather than Neumaier with blends (10 ops)
     // since products can be signed and Knuth handles any operand ordering efficiently.
@@ -541,7 +556,7 @@ NK_PUBLIC void nk_angular_f64_haswell(nk_f64_t const *a, nk_f64_t const *b, nk_s
     for (; i + 4 <= n; i += 4) {
         __m256d a_f64x4 = _mm256_loadu_pd(a + i);
         __m256d b_f64x4 = _mm256_loadu_pd(b + i);
-        // TwoProd: product = a * b, error = fma(a, b, -product)
+        // TwoProd: product = a × b, error = fma(a, b, -product)
         __m256d x_f64x4 = _mm256_mul_pd(a_f64x4, b_f64x4);
         __m256d product_error_f64x4 = _mm256_fmsub_pd(a_f64x4, b_f64x4, x_f64x4);
         // Knuth TwoSum: error = (sum - (t - z)) + (x - z) where z = t - sum
@@ -608,10 +623,10 @@ NK_INTERNAL void nk_angular_f32x4_finalize_haswell(nk_angular_f32x4_state_haswel
     __m256d target_norms_f64x4 = _mm256_set_pd((nk_f64_t)target_norm_d, (nk_f64_t)target_norm_c,
                                                (nk_f64_t)target_norm_b, (nk_f64_t)target_norm_a);
 
-    // Compute products = query_norm * target_norm for all 4
+    // Compute products = ‖query‖ × ‖target‖ for all 4
     __m256d products_f64x4 = _mm256_mul_pd(query_norm_f64x4, target_norms_f64x4);
 
-    // Compute angular: 1.0 - dot / sqrt(product) in f64
+    // Compute angular: 1.0 - dot / √(product) in f64
     __m256d sqrt_products_f64x4 = _mm256_sqrt_pd(products_f64x4);
     __m256d normalized_f64x4 = _mm256_div_pd(dots_f64x4, sqrt_products_f64x4);
     __m256d ones_f64x4 = _mm256_set1_pd(1.0);
@@ -662,7 +677,7 @@ NK_INTERNAL void nk_l2_f32x4_finalize_haswell(nk_l2_f32x4_state_haswell_t const 
     __m256d query_sq_f64x4 = _mm256_mul_pd(query_norm_f64x4, query_norm_f64x4);
     __m256d target_sq_f64x4 = _mm256_mul_pd(target_norms_f64x4, target_norms_f64x4);
 
-    // Compute distance squared: q² + t² - 2*dot using FMA
+    // Compute distance squared: q² + t² - 2 × dot using FMA
     __m256d two_f64x4 = _mm256_set1_pd(2.0);
     __m256d sum_sq_f64x4 = _mm256_add_pd(query_sq_f64x4, target_sq_f64x4);
     __m256d dist_sq_f64x4 = _mm256_fnmadd_pd(two_f64x4, dots_f64x4, sum_sq_f64x4);

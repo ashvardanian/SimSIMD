@@ -8,6 +8,21 @@
  *  Uses AVX-512 FP16 for native half-precision trigonometry:
  *  - 32 FP16 values per 512-bit register
  *  - Polynomial approximations tuned for FP16 precision (~3.3 decimal digits)
+ *
+ *  @section sapphire_trig_instructions Relevant Instructions
+ *
+ *      Intrinsic                   Instruction                     Sapphire    Genoa
+ *      _mm512_mul_ph               VMULPH (ZMM, ZMM, ZMM)          4cy @ p05   3cy @ p01
+ *      _mm512_fmadd_ph             VFMADD (ZMM, ZMM, ZMM)          4cy @ p05   4cy @ p01
+ *      _mm512_fnmadd_ph            VFNMADD (ZMM, ZMM, ZMM)         4cy @ p05   4cy @ p01
+ *      _mm512_fmsub_ph             VFMSUB (ZMM, ZMM, ZMM)          4cy @ p05   4cy @ p01
+ *      _mm512_sub_ph               VSUBPH (ZMM, ZMM, ZMM)          4cy @ p05   3cy @ p01
+ *      _mm512_div_ph               VDIVPH (ZMM, ZMM, ZMM)          10cy @ p0   10cy @ p0
+ *      _mm512_abs_ph               VANDPS (ZMM, ZMM, ZMM)          1cy @ p05   1cy @ p0123
+ *      _mm512_cvtph_epi16          VCVTPH2W (ZMM, ZMM)             4cy @ p05   4cy @ p01
+ *      _mm512_roundscale_ph        VRNDSCALEPH (ZMM, ZMM, imm8)    4cy @ p05   4cy @ p01
+ *      _mm512_cmp_ph_mask          VCMPPH (K, ZMM, ZMM, imm8)      3cy @ p5    3cy @ p0
+ *      _mm512_test_epi16_mask      VPTESTMW (K, ZMM, ZMM)          3cy @ p5    3cy @ p0
  */
 #ifndef NK_TRIGONOMETRY_SAPPHIRE_H
 #define NK_TRIGONOMETRY_SAPPHIRE_H

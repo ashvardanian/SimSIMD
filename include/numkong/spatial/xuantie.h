@@ -1,5 +1,5 @@
 /**
- *  @brief SIMD-accelerated Spatial Distances for bf16 using XuanTie (RVV + Zvfbfwma).
+ *  @brief SIMD-accelerated Spatial Distances for bf16 optimized for XuanTie (RVV + Zvfbfwma) CPUs.
  *  @file include/numkong/spatial/xuantie.h
  *  @sa include/numkong/spatial.h
  *  @author Ash Vardanian
@@ -8,7 +8,7 @@
  *  Zvfbfwma provides widening bf16 fused multiply-accumulate to f32:
  *    vfwmaccbf16: f32 ← bf16 × bf16
  *
- *  For L2 distance, we use the identity: (a−b)² = a² + b² − 2×a×b
+ *  For L2 distance, we use the identity: (a−b)² = a² + b² − 2 × a × b
  *  This allows us to use vfwmaccbf16 for all computations.
  *
  *  Requires: RVV 1.0 + Zvfbfwma extension (GCC 14+ or Clang 18+)
@@ -30,7 +30,7 @@ extern "C" {
 /**
  *  @brief  L2 squared distance of two bf16 vectors with f32 accumulation on XuanTie.
  *
- *  L2²(a,b) = Σ(a[i] - b[i])² = Σ(a² + b² − 2×a×b)
+ *  L2²(a,b) = ∑(aᵢ − bᵢ)² = ∑(a² + b² − 2 × a × b)
  *  Uses vfwmaccbf16 for all bf16 multiply-accumulate operations.
  */
 NK_PUBLIC void nk_l2sq_bf16_xuantie(nk_bf16_t const *a_scalars, nk_bf16_t const *b_scalars, nk_size_t count_scalars,
@@ -60,7 +60,7 @@ NK_PUBLIC void nk_l2sq_bf16_xuantie(nk_bf16_t const *a_scalars, nk_bf16_t const 
         ab_sum_f32x1 = __riscv_vfredusum_vs_f32m2_f32m1(ab_f32x2, ab_sum_f32x1, vl);
     }
 
-    // Final: (a² + b²) - 2*(a*b)
+    // Final: (a² + b²) − 2 × (a × b)
     nk_f32_t sq_sum = __riscv_vfmv_f_s_f32m1_f32(sq_sum_f32x1);
     nk_f32_t ab_sum = __riscv_vfmv_f_s_f32m1_f32(ab_sum_f32x1);
     *result = sq_sum - 2.0f * ab_sum;
@@ -80,7 +80,7 @@ NK_PUBLIC void nk_l2_bf16_xuantie(nk_bf16_t const *a_scalars, nk_bf16_t const *b
 /**
  *  @brief  Angular distance of two bf16 vectors on XuanTie.
  *
- *  Angular = 1 - dot(a,b) / (||a|| × ||b||)
+ *  Angular = 1 − dot(a,b) / (‖a‖ ⨯ ‖b‖)
  *  Uses vfwmaccbf16 for all bf16 multiply-accumulate operations.
  */
 NK_PUBLIC void nk_angular_bf16_xuantie(nk_bf16_t const *a_scalars, nk_bf16_t const *b_scalars, nk_size_t count_scalars,
@@ -110,7 +110,7 @@ NK_PUBLIC void nk_angular_bf16_xuantie(nk_bf16_t const *a_scalars, nk_bf16_t con
         b_sq_f32x1 = __riscv_vfredusum_vs_f32m2_f32m1(bb_f32x2, b_sq_f32x1, vl);
     }
 
-    // Finalize: 1 - dot / sqrt(a_sq * b_sq)
+    // Finalize: 1 - dot / √(‖a‖² × ‖b‖²)
     nk_f32_t dot = __riscv_vfmv_f_s_f32m1_f32(dot_f32x1);
     nk_f32_t a_sq = __riscv_vfmv_f_s_f32m1_f32(a_sq_f32x1);
     nk_f32_t b_sq = __riscv_vfmv_f_s_f32m1_f32(b_sq_f32x1);

@@ -5,8 +5,28 @@
  *  @author Ash Vardanian
  *  @date December 29, 2025
  *
- *  This implementation uses the f16 intermediate path for e4m3/e5m2 reductions,
- *  leveraging the FEAT_FP16FML feature for efficient f8 to f16 conversions.
+ *  @section reduce_neonfhm_instructions ARM NEON FP16 Matrix Instructions (ARMv8.4-FHM)
+ *
+ *      Intrinsic                   Instruction                     Latency     Throughput
+ *                                                                              A76         M4+/V1+/Oryon
+ *      vld1_u8                     LD1 (V.8B)                      4cy         2/cy        3/cy
+ *      vcvt_f32_f16                FCVTL (V.4S, V.4H)              3cy         2/cy        4/cy
+ *      vget_low_f16                (extract low half, no instr)    0cy         -           -
+ *      vget_high_f16               (extract high half, no instr)   0cy         -           -
+ *      vaddq_f32                   FADD (V.4S, V.4S, V.4S)         2cy         2/cy        4/cy
+ *      vcltq_f32                   FCMLT (V.4S, V.4S, V.4S)        2cy         2/cy        4/cy
+ *      vcgtq_f32                   FCMGT (V.4S, V.4S, V.4S)        2cy         2/cy        4/cy
+ *      vbslq_f32                   BSL (V.16B, V.16B, V.16B)       2cy         2/cy        4/cy
+ *      vbslq_s32                   BSL (V.16B, V.16B, V.16B)       2cy         2/cy        4/cy
+ *      vaddvq_f32                  FADDP+FADDP (V.4S)              4cy         1/cy        2/cy
+ *
+ *  This implementation targets E4M3 and E5M2 8-bit floating-point formats used in ML quantization.
+ *  Values are first converted to F16 via lookup tables, then widened to F32 for accumulation.
+ *  The ARMv8.4-FHM extension provides the underlying F16 infrastructure.
+ *
+ *  E4M3 (4-bit exponent, 3-bit mantissa) covers range [-448, 448] while E5M2 (5-bit exponent,
+ *  2-bit mantissa) covers a wider range similar to FP16 but with lower precision. Both formats
+ *  are critical for 8-bit quantized ML inference.
  */
 #ifndef NK_REDUCE_NEONFHM_H
 #define NK_REDUCE_NEONFHM_H

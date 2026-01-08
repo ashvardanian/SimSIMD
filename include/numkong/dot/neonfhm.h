@@ -5,8 +5,24 @@
  *  @author Ash Vardanian
  *  @date December 28, 2025
  *
- *  This implementation uses FMLAL (vfmlalq_low_f16/vfmlalq_high_f16) for widening
- *  fp16->f32 multiply-accumulate, which is 20-48% faster than convert-then-FMA.
+ *  @section neonfhm_instructions ARM NEON FP16 Matrix Instructions (ARMv8.4-FHM)
+ *
+ *      Intrinsic                   Instruction                     Latency     Throughput
+ *                                                                              A76         M4+/V1+/Oryon
+ *      vfmlalq_low_f16             FMLAL (V.4S, V.8H, V.8H)        4cy         2/cy        4/cy
+ *      vfmlalq_high_f16            FMLAL2 (V.4S, V.8H, V.8H)       4cy         2/cy        4/cy
+ *      vfmlslq_low_f16             FMLSL (V.4S, V.8H, V.8H)        4cy         2/cy        4/cy
+ *      vfmlslq_high_f16            FMLSL2 (V.4S, V.8H, V.8H)       4cy         2/cy        4/cy
+ *      vld1q_f16                   LD1 (V.8H)                      4cy         2/cy        3/cy
+ *      vaddvq_f32                  FADDP+FADDP (V.4S)              4cy         1/cy        2/cy
+ *
+ *  The ARMv8.4-FHM extension (FEAT_FHM) provides FMLAL/FMLSL instructions that fuse FP16 to FP32
+ *  widening with multiply-accumulate in a single operation. This eliminates the 2-instruction
+ *  sequence FCVTL (3cy) + FMLA (4cy) = 7cy, achieving 20-48% speedup over convert-then-FMA.
+ *
+ *  FMLAL preserves FP32 accumulator precision while accepting FP16 inputs, ideal for mixed-precision
+ *  workloads. The _low variants process elements 0-3, _high variants process elements 4-7, enabling
+ *  efficient processing of 8 FP16 elements per iteration with full precision accumulation.
  */
 #ifndef NK_DOT_NEONFHM_H
 #define NK_DOT_NEONFHM_H
@@ -37,7 +53,7 @@ NK_PUBLIC void nk_dot_f16_neonfhm(nk_f16_t const *a_scalars, nk_f16_t const *b_s
     for (; idx + 8 <= count_scalars; idx += 8) {
         float16x8_t a_f16x8 = vld1q_f16((nk_f16_for_arm_simd_t const *)(a_scalars + idx));
         float16x8_t b_f16x8 = vld1q_f16((nk_f16_for_arm_simd_t const *)(b_scalars + idx));
-        // FMLAL: widening multiply-accumulate fp16->f32
+        // FMLAL: widening multiply-accumulate fp16 → f32
         // low: processes elements 0-3, high: processes elements 4-7
         sum_f32x4 = vfmlalq_low_f16(sum_f32x4, a_f16x8, b_f16x8);
         sum_f32x4 = vfmlalq_high_f16(sum_f32x4, a_f16x8, b_f16x8);
@@ -68,7 +84,7 @@ NK_INTERNAL void nk_dot_f16x8_init_neonfhm(nk_dot_f16x8_state_neonfhm_t *state) 
 NK_INTERNAL void nk_dot_f16x8_update_neonfhm(nk_dot_f16x8_state_neonfhm_t *state, nk_b128_vec_t a, nk_b128_vec_t b) {
     float16x8_t a_f16x8 = vreinterpretq_f16_u16(a.u16x8);
     float16x8_t b_f16x8 = vreinterpretq_f16_u16(b.u16x8);
-    // FMLAL: widening multiply-accumulate fp16->f32 (faster than convert-then-FMA)
+    // FMLAL: widening multiply-accumulate fp16 → f32 (faster than convert-then-FMA)
     state->sum_f32x4 = vfmlalq_low_f16(state->sum_f32x4, a_f16x8, b_f16x8);
     state->sum_f32x4 = vfmlalq_high_f16(state->sum_f32x4, a_f16x8, b_f16x8);
 }
@@ -83,10 +99,10 @@ NK_INTERNAL void nk_dot_f16x8_finalize_neonfhm(                                 
 }
 
 /**
- *  @brief Complex dot product using FMLAL/FMLSL for widening fp16->f32 operations.
- *  Computes: result = Σ(a[i] * b[i]) where * is complex multiplication.
- *  Real: Σ(a.re * b.re - a.im * b.im)
- *  Imag: Σ(a.re * b.im + a.im * b.re)
+ *  @brief Complex dot product using FMLAL/FMLSL for widening fp16 → f32 operations.
+ *  Computes: result = ∑(aᵢ × bᵢ) where × is complex multiplication.
+ *  Real: ∑(aᵣ × bᵣ - aᵢ × bᵢ)
+ *  Imag: ∑(aᵣ × bᵢ + aᵢ × bᵣ)
  */
 NK_PUBLIC void nk_dot_f16c_neonfhm(nk_f16c_t const *a_pairs, nk_f16c_t const *b_pairs, nk_size_t count_pairs,
                                    nk_f32c_t *result) {
@@ -106,13 +122,13 @@ NK_PUBLIC void nk_dot_f16c_neonfhm(nk_f16c_t const *a_pairs, nk_f16c_t const *b_
         float16x4_t b_real = vreinterpret_f16_s16(b_i16x4x2.val[0]);
         float16x4_t b_imag = vreinterpret_f16_s16(b_i16x4x2.val[1]);
 
-        // Real: a.re * b.re - a.im * b.im (FMLAL then FMLSL)
+        // Real: aᵣ × bᵣ - aᵢ × bᵢ (FMLAL then FMLSL)
         sum_real_lo = vfmlal_low_f16(sum_real_lo, a_real, b_real);
         sum_real_lo = vfmlsl_low_f16(sum_real_lo, a_imag, b_imag);
         sum_real_hi = vfmlal_high_f16(sum_real_hi, a_real, b_real);
         sum_real_hi = vfmlsl_high_f16(sum_real_hi, a_imag, b_imag);
 
-        // Imag: a.re * b.im + a.im * b.re (FMLAL for both)
+        // Imag: aᵣ × bᵢ + aᵢ × bᵣ (FMLAL for both)
         sum_imag_lo = vfmlal_low_f16(sum_imag_lo, a_real, b_imag);
         sum_imag_lo = vfmlal_low_f16(sum_imag_lo, a_imag, b_real);
         sum_imag_hi = vfmlal_high_f16(sum_imag_hi, a_real, b_imag);
@@ -133,10 +149,10 @@ NK_PUBLIC void nk_dot_f16c_neonfhm(nk_f16c_t const *a_pairs, nk_f16c_t const *b_
 }
 
 /**
- *  @brief Complex conjugate dot product using FMLAL/FMLSL for widening fp16->f32 operations.
- *  Computes: result = Σ(a[i] * conj(b[i])) where * is complex multiplication.
- *  Real: Σ(a.re * b.re + a.im * b.im)
- *  Imag: Σ(a.im * b.re - a.re * b.im)
+ *  @brief Complex conjugate dot product using FMLAL/FMLSL for widening fp16 → f32 operations.
+ *  Computes: result = ∑(aᵢ × conj(bᵢ)) where × is complex multiplication.
+ *  Real: ∑(aᵣ × bᵣ + aᵢ × bᵢ)
+ *  Imag: ∑(aᵢ × bᵣ - aᵣ × bᵢ)
  */
 NK_PUBLIC void nk_vdot_f16c_neonfhm(nk_f16c_t const *a_pairs, nk_f16c_t const *b_pairs, nk_size_t count_pairs,
                                     nk_f32c_t *result) {
@@ -156,13 +172,13 @@ NK_PUBLIC void nk_vdot_f16c_neonfhm(nk_f16c_t const *a_pairs, nk_f16c_t const *b
         float16x4_t b_real = vreinterpret_f16_s16(b_i16x4x2.val[0]);
         float16x4_t b_imag = vreinterpret_f16_s16(b_i16x4x2.val[1]);
 
-        // Real: a.re * b.re + a.im * b.im (FMLAL for both)
+        // Real: aᵣ × bᵣ + aᵢ × bᵢ (FMLAL for both)
         sum_real_lo = vfmlal_low_f16(sum_real_lo, a_real, b_real);
         sum_real_lo = vfmlal_low_f16(sum_real_lo, a_imag, b_imag);
         sum_real_hi = vfmlal_high_f16(sum_real_hi, a_real, b_real);
         sum_real_hi = vfmlal_high_f16(sum_real_hi, a_imag, b_imag);
 
-        // Imag: a.im * b.re - a.re * b.im (FMLAL then FMLSL)
+        // Imag: aᵢ × bᵣ - aᵣ × bᵢ (FMLAL then FMLSL)
         sum_imag_lo = vfmlal_low_f16(sum_imag_lo, a_imag, b_real);
         sum_imag_lo = vfmlsl_low_f16(sum_imag_lo, a_real, b_imag);
         sum_imag_hi = vfmlal_high_f16(sum_imag_hi, a_imag, b_real);

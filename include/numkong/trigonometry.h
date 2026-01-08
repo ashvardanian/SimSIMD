@@ -67,7 +67,7 @@
  *  - Estrin's scheme for polynomial evaluation: This tree-based approach reduces the dependency depth
  *    from N sequential FMAs to log2(N) by computing powers of x in parallel with partial sums.
  *    For an 8-term polynomial, Estrin reduces depth from 7 to 3. However, benchmarks showed ~20%
- *    regression because the extra MUL operations for computing x^2, x^4, x^8 hurt throughput more
+ *    regression because the extra MUL operations for computing x², x⁴, x⁸ hurt throughput more
  *    than the reduced dependency depth helps latency. For large arrays, out-of-order execution
  *    across loop iterations already hides FMA latency, making throughput the bottleneck.
  *

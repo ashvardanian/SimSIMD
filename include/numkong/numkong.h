@@ -377,7 +377,7 @@ typedef nk_u64_t nk_capability_t;
 /**
  *  @brief  ARM NEON with BF16 (ARMv8.6-A) - FEAT_BF16
  *
- *  Instructions: BFDOT (bf16*bf16 → f32 dot product), BFCVT (f32->bf16)
+ *  Instructions: BFDOT (bf16 ⨯ bf16 → f32 dot product), BFCVT (f32 → bf16)
  *  Used for: bf16 dot products, ML inference with bf16 weights
  *  Devices: Cortex-A78+ (2020), Apple M1+ (2020), Graviton 3+ (2021)
  *
@@ -388,7 +388,7 @@ typedef nk_u64_t nk_capability_t;
 /**
  *  @brief  ARM NEON with integer dot products (ARMv8.2-A) - FEAT_DotProd
  *
- *  Instructions: SDOT/UDOT (i8 ⨯ i8->i32 dot product)
+ *  Instructions: SDOT/UDOT (i8 ⨯ i8 → i32 dot product)
  *  Used for: i8/u8 dot products, quantized ML inference
  *  Devices: Cortex-A75+ (2017), Apple A11+ (2017), Graviton 2+ (2020)
  *
@@ -445,7 +445,7 @@ typedef nk_u64_t nk_capability_t;
  *  Used for: Set intersection, sparse operations
  *  Devices: Neoverse V2 (2023), Cortex-X3+ (2022), Graviton 4 (2024)
  *
- *  Detection: ID_AA64PFR0_EL1.SVE == 1 && ID_AA64ZFR0_EL1.SVEver >= 1
+ *  Detection: ID_AA64PFR0_EL1.SVE == 1 && ID_AA64ZFR0_EL1.SVEver ≥ 1
  */
 #define nk_cap_sve2_k ((nk_capability_t)1 << 44)
 
@@ -455,7 +455,7 @@ typedef nk_u64_t nk_capability_t;
  *  Instructions: Extended predication, new gather/scatter modes
  *  Devices: Future ARM cores (2025+)
  *
- *  Detection: ID_AA64ZFR0_EL1.SVEver >= 2
+ *  Detection: ID_AA64ZFR0_EL1.SVEver ≥ 2
  */
 #define nk_cap_sve2p1_k ((nk_capability_t)1 << 45)
 
@@ -478,7 +478,7 @@ typedef nk_u64_t nk_capability_t;
  *  Used for: 2-4x outer product throughput, INT4 weight decompression
  *  Devices: Apple M4 (2024), Cortex-X925 (2024)
  *
- *  Detection: ID_AA64SMFR0_EL1.SMEver >= 1
+ *  Detection: ID_AA64SMFR0_EL1.SMEver ≥ 1
  */
 #define nk_cap_sme2_k ((nk_capability_t)1 << 49)
 
@@ -489,7 +489,7 @@ typedef nk_u64_t nk_capability_t;
  *  Used for: Native f16/bf16 accumulation without f32 conversion
  *  Devices: Apple M5 (2025), future Cortex cores
  *
- *  Detection: ID_AA64SMFR0_EL1.SMEver >= 2
+ *  Detection: ID_AA64SMFR0_EL1.SMEver ≥ 2
  */
 #define nk_cap_sme2p1_k ((nk_capability_t)1 << 50)
 
@@ -518,7 +518,7 @@ typedef nk_u64_t nk_capability_t;
 /**
  *  @brief  ARM SME B16B16 - Native bf16 outer products (FEAT_SME_B16B16)
  *
- *  Instructions: BFMOPA non-widening (bf16*bf16->bf16)
+ *  Instructions: BFMOPA non-widening (bf16 ⨯ bf16 → bf16)
  *  Used for: bf16 matmul without f32 conversion
  *  Devices: Apple M5 (2025)
  *
@@ -560,7 +560,7 @@ typedef nk_u64_t nk_capability_t;
 /**
  *  @brief  Capability of the RISC-V Vector Zvfh extension (vector half-precision f16).
  *
- *  Instructions: vle16 (f16), vfwmul.vv (f16→f32), vfredusum, etc.
+ *  Instructions: vle16 (f16), vfwmul.vv (f16 → f32), vfredusum, etc.
  *  Used for: Half-precision floating point vector operations.
  *
  *  Detection: Compile-time via __riscv_zvfh. Runtime detection requires parsing /proc/cpuinfo or HWCAP2.
@@ -570,7 +570,7 @@ typedef nk_u64_t nk_capability_t;
 /**
  *  @brief  Capability of the RISC-V Vector Zvfbfwma extension (bf16 widening FMA).
  *
- *  Instructions: vfwmaccbf16.vv (f32 += bf16 * bf16), etc.
+ *  Instructions: vfwmaccbf16.vv (f32 += bf16 × bf16), etc.
  *  Used for: BFloat16 AI/ML workloads with widening FMA for dot products.
  *
  *  Detection: Compile-time via __riscv_zvfbfwma. Runtime detection requires parsing /proc/cpuinfo or HWCAP2.
@@ -647,7 +647,7 @@ typedef void (*nk_metric_geospatial_punned_t)(void const *a_lats, void const *a_
 
 /**
  *  @brief  Type-punned function pointer for Scaling & Shifting operations on dense vector representations.
- *          Implements the `y = alpha * a + beta` operation.
+ *          Implements the `y = α  × a + β` operation.
  *
  *  @param[in] a        Pointer to the first data array.
  *  @param[in] n        Number of scalar words in the input arrays.
@@ -670,7 +670,7 @@ typedef void (*nk_kernel_sum_punned_t)(void const *a, void const *b, nk_size_t n
 
 /**
  *  @brief  Type-punned function pointer for Weighted Sum operations on dense vector representations.
- *          Implements the `y = alpha * a + beta * b` operation.
+ *          Implements the `y = α  × a + β  × b` operation.
  *
  *  @param[in] a        Pointer to the first data array.
  *  @param[in] b        Pointer to the second data array.
@@ -684,13 +684,13 @@ typedef void (*nk_kernel_wsum_punned_t)(void const *a, void const *b, nk_size_t 
 
 /**
  *  @brief  Type-punned function pointer for FMA operations on dense vector representations.
- *          Implements the `y = alpha * a * b + beta * c` operation.
+ *          Implements the `y = α  × a  × b + β  × c` operation.
  *
  *  @param[in] a        Pointer to the first data array.
  *  @param[in] b        Pointer to the second data array.
  *  @param[in] c        Pointer to the third data array.
  *  @param[in] n        Number of scalar words in the input arrays.
- *  @param[in] alpha    Pointer to scaling factor for a*b product (type depends on input precision).
+ *  @param[in] alpha    Pointer to scaling factor for a × b product (type depends on input precision).
  *  @param[in] beta     Pointer to scaling factor for c array (type depends on input precision).
  *  @param[out] y       Output value in the same precision as the input arrays.
  */
@@ -718,7 +718,7 @@ typedef void (*nk_kernel_trigonometry_punned_t)(void const *x, nk_size_t n, void
  *  @param[in] n            Number of 3D points in each cloud.
  *  @param[out] a_centroid  Output centroid of first cloud (3 values), or NULL.
  *  @param[out] b_centroid  Output centroid of second cloud (3 values), or NULL.
- *  @param[out] rotation    Output 3×3 rotation matrix (9 values, row-major), or NULL.
+ *  @param[out] rotation    Output 3 × 3 rotation matrix (9 values, row-major), or NULL.
  *  @param[out] scale       Output scale factor (1.0 for RMSD/Kabsch), or NULL.
  *  @param[out] d           Output RMSD value as a double-precision float.
  */

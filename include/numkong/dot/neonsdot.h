@@ -4,6 +4,25 @@
  *  @sa include/numkong/dot.h
  *  @author Ash Vardanian
  *  @date December 27, 2025
+ *
+ *  @section dot_neonsdot_instructions ARM NEON SDOT/UDOT Instructions (ARMv8.4-DotProd)
+ *
+ *      Intrinsic                   Instruction                     Latency     Throughput
+ *                                                                              A76         M4+/V1+/Oryon
+ *      vdotq_s32                   SDOT (V.4S, V.16B, V.16B)       3cy         2/cy        4/cy
+ *      vdotq_u32                   UDOT (V.4S, V.16B, V.16B)       3cy         2/cy        4/cy
+ *      vld1q_s8                    LD1 (V.16B)                     4cy         2/cy        3/cy
+ *      vld1q_u8                    LD1 (V.16B)                     4cy         2/cy        3/cy
+ *      vaddvq_s32                  ADDV (V.4S)                     4cy         1/cy        2/cy
+ *      vaddvq_u32                  ADDV (V.4S)                     4cy         1/cy        2/cy
+ *
+ *  The ARMv8.4-DotProd extension provides SDOT/UDOT instructions critical for int8 quantized ML
+ *  inference. Each instruction computes four dot products of 4-element int8 vectors, accumulating
+ *  into int32 lanes, processing 16 multiply-accumulates per instruction.
+ *
+ *  SDOT handles signed int8 operands while UDOT handles unsigned. The 3-cycle latency with 2/cy
+ *  throughput on A76 (4/cy on newer cores) enables efficient int8 matrix multiplication for
+ *  quantized neural network inference, where 8-bit weights reduce memory bandwidth by 4x vs FP32.
  */
 #ifndef NK_DOT_NEONSDOT_H
 #define NK_DOT_NEONSDOT_H

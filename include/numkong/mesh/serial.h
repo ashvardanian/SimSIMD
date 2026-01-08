@@ -1,5 +1,5 @@
 /**
- *  @brief SIMD-accelerated Dot Products for Real and Complex Numbers optimized for SIMD-free CPUs.
+ *  @brief SIMD-accelerated Dot Products for Real and Complex Numbers optimized for Serial (SIMD-free) CPUs.
  *  @file include/numkong/mesh/serial.h
  *  @sa include/numkong/mesh.h
  *  @author Ash Vardanian
@@ -547,7 +547,7 @@ NK_MAKE_DET3X3(f64)
         rotation_matrix[6] = svd_v[6] * svd_u[0] + svd_v[7] * svd_u[1] + svd_v[8] * svd_u[2];                         \
         rotation_matrix[7] = svd_v[6] * svd_u[3] + svd_v[7] * svd_u[4] + svd_v[8] * svd_u[5];                         \
         rotation_matrix[8] = svd_v[6] * svd_u[6] + svd_v[7] * svd_u[7] + svd_v[8] * svd_u[8];                         \
-        /* Handle reflection and compute scale: c = trace(D*S) / variance_a */                                        \
+        /* Handle reflection and compute scale: c = trace(D × S) / variance(a) */                                        \
         /* D = diag(1, 1, det(R)), svd_s contains proper positive singular values on diagonal */                      \
         nk_##svd_type##_t rotation_det = nk_det3x3_##svd_type##_(rotation_matrix);                                    \
         nk_##svd_type##_t sign_det = rotation_det < 0 ? (nk_##svd_type##_t) - 1.0 : (nk_##svd_type##_t)1.0;           \

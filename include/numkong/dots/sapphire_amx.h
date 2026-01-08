@@ -35,6 +35,35 @@
  *  - Pre-pack B matrix once for repeated inference (avoids runtime reordering)
  *  - Morton Z-curve tile ordering improves L2 cache hit rate by 5-25%
  *  - Use streaming stores for large C matrices to avoid cache pollution
+ *
+ *  @section amx_instructions Intel AMX Instructions (Sapphire Rapids+)
+ *
+ *  Tile configuration and data movement:
+ *
+ *      Intrinsic                   Instruction                     Notes
+ *      _tile_loadconfig            LDTILECFG (mem64)               Configure tile palette
+ *      _tile_loadd                 TILELOADD (TMM, mem, stride)    Load tile from memory
+ *      _tile_stored                TILESTORED (mem, TMM, stride)   Store tile to memory
+ *      _tile_zero                  TILEZERO (TMM)                  Zero a tile register
+ *
+ *  BF16 matrix multiply (AMX-BF16):
+ *
+ *      Intrinsic                   Instruction                     Operation
+ *      _tile_dpbf16ps              TDPBF16PS (TMM, TMM, TMM)       C += A × B (bf16 → f32)
+ *
+ *  INT8 matrix multiply (AMX-INT8):
+ *
+ *      Intrinsic                   Instruction                     Operation
+ *      _tile_dpbssd                TDPBSSD (TMM, TMM, TMM)         C += A × B (i8 × i8 → i32)
+ *      _tile_dpbsud                TDPBSUD (TMM, TMM, TMM)         C += A × B (i8 × u8 → i32)
+ *      _tile_dpbusd                TDPBUSD (TMM, TMM, TMM)         C += A × B (u8 × i8 → i32)
+ *      _tile_dpbuud                TDPBUUD (TMM, TMM, TMM)         C += A × B (u8 × u8 → u32)
+ *
+ *  AMX performance characteristics:
+ *  - TDPBF16PS: 16 × 16 × 32 = 8192 BF16 MACs per instruction
+ *  - TDPBSSD: 16 × 16 × 64 = 16384 INT8 MACs per instruction
+ *  - Tile load latency is ~20-30 cycles; software pipelining essential
+ *  - PDEP/PEXT used for Morton Z-curve encoding (BMI2): 2-3cy @ p1
  */
 #ifndef NK_DOTS_SAPPHIRE_AMX_H
 #define NK_DOTS_SAPPHIRE_AMX_H
@@ -459,7 +488,7 @@ NK_INTERNAL void nk_dots_u8_zero2x2_sapphire_amx(void) {
 }
 
 /*  Accumulate UINT8 2 × 2 output: C[row_idx, col_idx] += A[row_idx] × B[col_idx].
- *  Uses TDPBUUD (unsigned×unsigned→unsigned) instruction.
+ *  Uses TDPBUUD (unsigned×unsigned → unsigned) instruction.
  */
 NK_INTERNAL void nk_dots_u8_update2x2_sapphire_amx(   //
     nk_dots_u8_a16x64_sapphire_amx_t const *a_tile_0, //
@@ -667,7 +696,7 @@ NK_INTERNAL void nk_dots_pack_u8_transposed_sapphire_amx( //
     nk_compiler_barrier_sapphire_amx_();
 }
 
-/*  Load E4M3 A tile with FP8→BF16 conversion.
+/*  Load E4M3 A tile with FP8 → BF16 conversion.
  *  E4M3 and BF16 both use 32 elements per tile row (same depth granularity).
  *  Converts each row of 32 E4M3 bytes to 32 BF16 elements.
  */
@@ -692,7 +721,7 @@ NK_INTERNAL void nk_dots_e4m3_load_a_sapphire_amx( //
     nk_compiler_barrier_sapphire_amx_();
 }
 
-/*  Load E5M2 A tile with FP8→BF16 conversion.
+/*  Load E5M2 A tile with FP8 → BF16 conversion.
  */
 NK_INTERNAL void nk_dots_e5m2_load_a_sapphire_amx( //
     nk_dots_bf16_a16x32_sapphire_amx_t *a_tile,    //
@@ -1373,7 +1402,7 @@ NK_PUBLIC void nk_dots_pack_u8_sapphire_amx(                   //
     }
 }
 
-/*  Pack E4M3 B matrix with FP8→BF16 conversion.
+/*  Pack E4M3 B matrix with FP8 → BF16 conversion.
  *  Converts E4M3 to BF16, then uses BF16 pair-interleaved layout.
  */
 NK_PUBLIC void nk_dots_pack_e4m3_sapphire_amx(                   //
@@ -1447,7 +1476,7 @@ NK_PUBLIC void nk_dots_pack_e4m3_sapphire_amx(                   //
     }
 }
 
-/*  Pack E5M2 B matrix with FP8→BF16 conversion.
+/*  Pack E5M2 B matrix with FP8 → BF16 conversion.
  */
 NK_PUBLIC void nk_dots_pack_e5m2_sapphire_amx(                   //
     nk_e5m2_t const *b, nk_size_t column_count, nk_size_t depth, //
@@ -1585,7 +1614,7 @@ NK_PUBLIC void nk_dots_packed_bf16_sapphire_amx(           //
             _tile_zero(6);
             _tile_zero(7);
 
-            // Fast path: full row-block with full depth-tiles -> direct A load with 2-deep pipelining
+            // Fast path: full row-block with full depth-tiles → direct A load with 2-deep pipelining
             if (is_full_row_block && full_depth_tiles_count > 0) {
                 nk_bf16_t const *a_upper_base = a + row_block_start * a_stride_elements;
                 nk_bf16_t const *a_lower_base = a + (row_block_start + 16) * a_stride_elements;
@@ -1679,7 +1708,7 @@ NK_PUBLIC void nk_dots_packed_bf16_sapphire_amx(           //
                 _tile_dpbf16ps(6, 1, 2);
                 _tile_dpbf16ps(7, 1, 3);
             }
-            // Slow path: edge row-block -> buffered load with masking
+            // Slow path: edge row-block → buffered load with masking
             else {
                 nk_size_t const rows_in_upper_tile = (valid_rows_count > 16) ? 16 : valid_rows_count;
                 nk_size_t const rows_in_lower_tile = (valid_rows_count > 16) ? valid_rows_count - 16 : 0;
@@ -2212,7 +2241,7 @@ NK_PUBLIC void nk_dots_packed_i8_sapphire_amx(           //
 }
 
 /*  U8 × U8 → U32 matmul: C[rows_count × cols_count] = A[rows_count × depth] × B[cols_count × depth]ᵀ
- *  Uses TDPBUUD instruction for unsigned×unsigned→unsigned accumulation.
+ *  Uses TDPBUUD instruction for unsigned×unsigned → unsigned accumulation.
  */
 NK_PUBLIC void nk_dots_packed_u8_sapphire_amx(           //
     nk_u8_t const *a, void const *b_packed, nk_u32_t *c, //
@@ -2524,7 +2553,7 @@ NK_PUBLIC void nk_dots_packed_u8_sapphire_amx(           //
     _tile_release();
 }
 
-/*  E4M3 x E4M3 -> F32 matmul using BF16 AMX path with on-the-fly conversion.
+/*  E4M3 x E4M3 → F32 matmul using BF16 AMX path with on-the-fly conversion.
  *  B matrix is pre-packed with FP8 → BF16 conversion.
  *  A matrix is converted from E4M3 to BF16 during tile loading.
  *

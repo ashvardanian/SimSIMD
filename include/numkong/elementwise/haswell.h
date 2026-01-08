@@ -4,6 +4,19 @@
  *  @sa include/numkong/elementwise.h
  *  @author Ash Vardanian
  *  @date December 27, 2025
+ *
+ *  @section haswell_elementwise_instructions Key AVX2 Elementwise Instructions
+ *
+ *      Intrinsic                   Instruction                     Latency     Throughput  Ports
+ *      _mm256_fmadd_ps             VFMADD (YMM, YMM, YMM)          5cy         0.5/cy      p01
+ *      _mm256_add_ps               VADDPS (YMM, YMM, YMM)          3cy         1/cy        p01
+ *      _mm256_mul_ps               VMULPS (YMM, YMM, YMM)          5cy         0.5/cy      p01
+ *      _mm256_cvtepi32_ps          VCVTDQ2PS (YMM, YMM)            4cy         1/cy        p01
+ *      _mm256_cvtepi8_epi32        VPMOVSXBD (YMM, XMM)            3cy         1/cy        p5
+ *
+ *  Elementwise operations (sum, scale, wsum, fma) are compute-bound on FMA throughput. For mixed-
+ *  precision operations, type conversion chains (e.g., i8->i32->f32) add ~7-10 cycles overhead.
+ *  The FMA unit handles both multiply-add fusion and standalone multiply/add operations.
  */
 #ifndef NK_ELEMENTWISE_HASWELL_H
 #define NK_ELEMENTWISE_HASWELL_H
@@ -520,7 +533,7 @@ NK_PUBLIC void nk_scale_i8_haswell(nk_i8_t const *a, nk_size_t n, nk_f32_t const
         a_i32s[0] = a[i + 0], a_i32s[1] = a[i + 1], a_i32s[2] = a[i + 2], a_i32s[3] = a[i + 3], //
             a_i32s[4] = a[i + 4], a_i32s[5] = a[i + 5], a_i32s[6] = a[i + 6], a_i32s[7] = a[i + 7];
         //! This can be done at least 50% faster if we convert 8-bit integers to floats instead
-        //! of relying on the slow `_mm256_cvtepi32_ps` instruction.
+        //! of relying on `_mm256_cvtepi32_ps`: 4cy (1/cy) @ p01.
         __m256 a_f32x8 = _mm256_cvtepi32_ps(_mm256_loadu_si256((__m256i *)a_i32s));
         // The normal part.
         __m256 result_f32x8 = _mm256_fmadd_ps(a_f32x8, alpha_f32x8, beta_f32x8);
@@ -585,7 +598,7 @@ NK_PUBLIC void nk_wsum_i8_haswell(                   //
         b_i32s[0] = b[i + 0], b_i32s[1] = b[i + 1], b_i32s[2] = b[i + 2], b_i32s[3] = b[i + 3], //
             b_i32s[4] = b[i + 4], b_i32s[5] = b[i + 5], b_i32s[6] = b[i + 6], b_i32s[7] = b[i + 7];
         //! This can be done at least 50% faster if we convert 8-bit integers to floats instead
-        //! of relying on the slow `_mm256_cvtepi32_ps` instruction.
+        //! of relying on `_mm256_cvtepi32_ps`: 4cy (1/cy) @ p01.
         __m256 a_f32x8 = _mm256_cvtepi32_ps(_mm256_loadu_si256((__m256i *)a_i32s));
         __m256 b_f32x8 = _mm256_cvtepi32_ps(_mm256_loadu_si256((__m256i *)b_i32s));
         // The normal part.
@@ -649,7 +662,7 @@ NK_PUBLIC void nk_scale_u8_haswell(nk_u8_t const *a, nk_size_t n, nk_f32_t const
         a_i32s[0] = a[i + 0], a_i32s[1] = a[i + 1], a_i32s[2] = a[i + 2], a_i32s[3] = a[i + 3], //
             a_i32s[4] = a[i + 4], a_i32s[5] = a[i + 5], a_i32s[6] = a[i + 6], a_i32s[7] = a[i + 7];
         //! This can be done at least 50% faster if we convert 8-bit integers to floats instead
-        //! of relying on the slow `_mm256_cvtepi32_ps` instruction.
+        //! of relying on `_mm256_cvtepi32_ps`: 4cy (1/cy) @ p01.
         __m256 a_f32x8 = _mm256_cvtepi32_ps(_mm256_loadu_si256((__m256i *)a_i32s));
         // The normal part.
         __m256 result_f32x8 = _mm256_fmadd_ps(a_f32x8, alpha_f32x8, beta_f32x8);
@@ -714,7 +727,7 @@ NK_PUBLIC void nk_wsum_u8_haswell(                   //
         b_i32s[0] = b[i + 0], b_i32s[1] = b[i + 1], b_i32s[2] = b[i + 2], b_i32s[3] = b[i + 3], //
             b_i32s[4] = b[i + 4], b_i32s[5] = b[i + 5], b_i32s[6] = b[i + 6], b_i32s[7] = b[i + 7];
         //! This can be done at least 50% faster if we convert 8-bit integers to floats instead
-        //! of relying on the slow `_mm256_cvtepi32_ps` instruction.
+        //! of relying on `_mm256_cvtepi32_ps`: 4cy (1/cy) @ p01.
         __m256 a_f32x8 = _mm256_cvtepi32_ps(_mm256_loadu_si256((__m256i *)a_i32s));
         __m256 b_f32x8 = _mm256_cvtepi32_ps(_mm256_loadu_si256((__m256i *)b_i32s));
         // The normal part.
@@ -765,7 +778,7 @@ NK_PUBLIC void nk_fma_i8_haswell(                                      //
         c_i32s[0] = c[i + 0], c_i32s[1] = c[i + 1], c_i32s[2] = c[i + 2], c_i32s[3] = c[i + 3], //
             c_i32s[4] = c[i + 4], c_i32s[5] = c[i + 5], c_i32s[6] = c[i + 6], c_i32s[7] = c[i + 7];
         //! This can be done at least 50% faster if we convert 8-bit integers to floats instead
-        //! of relying on the slow `_mm256_cvtepi32_ps` instruction.
+        //! of relying on `_mm256_cvtepi32_ps`: 4cy (1/cy) @ p01.
         __m256 a_f32x8 = _mm256_cvtepi32_ps(_mm256_loadu_si256((__m256i *)a_i32s));
         __m256 b_f32x8 = _mm256_cvtepi32_ps(_mm256_loadu_si256((__m256i *)b_i32s));
         __m256 c_f32x8 = _mm256_cvtepi32_ps(_mm256_loadu_si256((__m256i *)c_i32s));
@@ -818,7 +831,7 @@ NK_PUBLIC void nk_fma_u8_haswell(                                      //
         c_i32s[0] = c[i + 0], c_i32s[1] = c[i + 1], c_i32s[2] = c[i + 2], c_i32s[3] = c[i + 3], //
             c_i32s[4] = c[i + 4], c_i32s[5] = c[i + 5], c_i32s[6] = c[i + 6], c_i32s[7] = c[i + 7];
         //! This can be done at least 50% faster if we convert 8-bit integers to floats instead
-        //! of relying on the slow `_mm256_cvtepi32_ps` instruction.
+        //! of relying on `_mm256_cvtepi32_ps`: 4cy (1/cy) @ p01.
         __m256 a_f32x8 = _mm256_cvtepi32_ps(_mm256_loadu_si256((__m256i *)a_i32s));
         __m256 b_f32x8 = _mm256_cvtepi32_ps(_mm256_loadu_si256((__m256i *)b_i32s));
         __m256 c_f32x8 = _mm256_cvtepi32_ps(_mm256_loadu_si256((__m256i *)c_i32s));
@@ -1158,7 +1171,7 @@ NK_INTERNAL __m256i _mm256_adds_epu32_haswell(__m256i a, __m256i b) {
 NK_INTERNAL __m256d _mm256_cvtepu32_pd_haswell(__m128i a) {
     // TODO: Converting unsigned 32-bit integers to double-precision floats isn't trivial in AVX2.
     // Let's convert the lower 31 bits to a double-precision float.
-    // And then conditionally add 2^31 to the result if the MSB is set.
+    // And then conditionally add 2³¹ to the result if the MSB is set.
     //
     //  __m256d result = _mm256_cvtepi32_pd(_mm_and_si128(a, _mm_set1_epi32(0x7FFFFFFF)));
     //  int should_increment = (_mm_movemask_epi8(a) & 0x8888);

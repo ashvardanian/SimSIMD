@@ -4,6 +4,29 @@
  *  @sa include/numkong/reduce.h
  *  @author Ash Vardanian
  *  @date December 27, 2025
+ *
+ *  @section reduce_neonsdot_instructions ARM NEON SDOT/UDOT Instructions (ARMv8.4-DotProd)
+ *
+ *      Intrinsic                   Instruction                     Latency     Throughput
+ *                                                                              A76         M4+/V1+/Oryon
+ *      vdotq_s32                   SDOT (V.4S, V.16B, V.16B)       3cy         2/cy        4/cy
+ *      vdotq_u32                   UDOT (V.4S, V.16B, V.16B)       3cy         2/cy        4/cy
+ *      vld1q_s8                    LD1 (V.16B)                     4cy         2/cy        3/cy
+ *      vld1q_u8                    LD1 (V.16B)                     4cy         2/cy        3/cy
+ *      vld2q_s8                    LD2 (V.16B x 2)                 6cy         1/cy        2/cy
+ *      vld3q_s8                    LD3 (V.16B x 3)                 6cy         1/cy        2/cy
+ *      vld4q_s8                    LD4 (V.16B x 4)                 6cy         1/cy        2/cy
+ *      vaddvq_s32                  ADDV (V.4S)                     4cy         1/cy        2/cy
+ *      vaddvq_u32                  ADDV (V.4S)                     4cy         1/cy        2/cy
+ *      vdupq_n_s8                  DUP (V.16B, scalar)             2cy         2/cy        4/cy
+ *
+ *  The ARMv8.4-DotProd extension enables efficient int8 summation by dotting with a vector of ones.
+ *  SDOT/UDOT compute the dot product of 16 int8 values, accumulating into 4 int32 lanes in one
+ *  instruction - effectively summing 16 values with automatic widening to prevent overflow.
+ *
+ *  For strided access patterns, VLD2/VLD3/VLD4 de-interleave loads enable efficient reduction of
+ *  non-contiguous data (e.g., first channel of RGB pixels). The int64 result type accommodates
+ *  large array sums without overflow.
  */
 #ifndef NK_REDUCE_NEONSDOT_H
 #define NK_REDUCE_NEONSDOT_H

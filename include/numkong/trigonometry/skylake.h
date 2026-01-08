@@ -1,9 +1,22 @@
 /**
  *  @brief SIMD-accelerated trigonometric element-wise operations, based on SLEEF, optimized for Intel Skylake-X CPUs.
- *  @file include/numkong/elementwise/skylake.h
- *  @sa include/numkong/elementwise.h
+ *  @file include/numkong/trigonometry/skylake.h
+ *  @sa include/numkong/trigonometry.h
  *  @author Ash Vardanian
  *  @date December 27, 2025
+ *
+ *  @section skylake_trig_instructions Key AVX-512 Trigonometry Instructions
+ *
+ *      Intrinsic                   Instruction                     Latency     Throughput  Ports
+ *      _mm512_fmadd_ps             VFMADD132PS (ZMM, ZMM, ZMM)     4cy         0.5/cy      p05
+ *      _mm512_mul_ps               VMULPS (ZMM, ZMM, ZMM)          4cy         0.5/cy      p05
+ *      _mm512_and_ps               VANDPS (ZMM, ZMM, ZMM)          1cy         0.33/cy     p015
+ *      _mm512_cmp_ps_mask          VCMPPS (K, ZMM, ZMM, I8)        3cy         1/cy        p01
+ *      _mm512_roundscale_ps        VRNDSCALEPS (ZMM, ZMM, I8)      8cy         0.5/cy      p01
+ *
+ *  Trigonometric functions use polynomial approximations evaluated via Horner's method with FMA chains.
+ *  AVX-512 mask registers enable branchless range reduction and sign handling without blend overhead.
+ *  Skylake-X's dual FMA units achieve 0.5cy throughput, processing 32 f32 sin/cos values per 8 cycles.
  */
 #ifndef NK_TRIGONOMETRY_SKYLAKE_H
 #define NK_TRIGONOMETRY_SKYLAKE_H
@@ -28,8 +41,8 @@ NK_INTERNAL __m512 nk_f32x16_sin_skylake_(__m512 const angles_radians) {
     // Constants for argument reduction
     __m512 const pi = _mm512_set1_ps(3.14159265358979323846f);            // π
     __m512 const pi_reciprocal = _mm512_set1_ps(0.31830988618379067154f); // 1/π
-    __m512 const coeff_5 = _mm512_set1_ps(-0.0001881748176f);             // Coefficient for x^5 term
-    __m512 const coeff_3 = _mm512_set1_ps(+0.008323502727f);              // Coefficient for x^3 term
+    __m512 const coeff_5 = _mm512_set1_ps(-0.0001881748176f);             // Coefficient for x⁵ term
+    __m512 const coeff_3 = _mm512_set1_ps(+0.008323502727f);              // Coefficient for x³ term
     __m512 const coeff_1 = _mm512_set1_ps(-0.1666651368f);                // Coefficient for x term
 
     // Compute (multiples_of_pi) = round(angle / π)
@@ -37,7 +50,7 @@ NK_INTERNAL __m512 nk_f32x16_sin_skylake_(__m512 const angles_radians) {
     __m512 rounded_quotients = _mm512_roundscale_ps(quotients, _MM_FROUND_TO_NEAREST_INT | _MM_FROUND_NO_EXC);
     __m512i multiples_of_pi = _mm512_cvtps_epi32(rounded_quotients);
 
-    // Reduce the angle to: (angle - (rounded_quotients * π)) in [0, π]
+    // Reduce the angle to: (angle - (rounded_quotients * π)) ∈ [0, π]
     __m512 const angles = _mm512_fnmadd_ps(rounded_quotients, pi, angles_radians);
     __m512 const angles_squared = _mm512_mul_ps(angles, angles);
     __m512 const angles_cubed = _mm512_mul_ps(angles, angles_squared);
@@ -59,8 +72,8 @@ NK_INTERNAL __m512 nk_f32x16_cos_skylake_(__m512 const angles_radians) {
     __m512 const pi = _mm512_set1_ps(3.14159265358979323846f);            // π
     __m512 const pi_half = _mm512_set1_ps(1.57079632679489661923f);       // π/2
     __m512 const pi_reciprocal = _mm512_set1_ps(0.31830988618379067154f); // 1/π
-    __m512 const coeff_5 = _mm512_set1_ps(-0.0001881748176f);             // Coefficient for x^5 term
-    __m512 const coeff_3 = _mm512_set1_ps(+0.008323502727f);              // Coefficient for x^3 term
+    __m512 const coeff_5 = _mm512_set1_ps(-0.0001881748176f);             // Coefficient for x⁵ term
+    __m512 const coeff_3 = _mm512_set1_ps(+0.008323502727f);              // Coefficient for x³ term
     __m512 const coeff_1 = _mm512_set1_ps(-0.1666651368f);                // Coefficient for x term
 
     // Compute (multiples_of_pi) = round((angle / π) - 0.5)
@@ -145,7 +158,7 @@ NK_INTERNAL __m512 nk_f32x16_atan2_skylake_(__m512 const ys_inputs, __m512 const
     xs = _mm512_mask_blend_ps(swap_mask, xs, ys);
     ys = _mm512_mask_sub_ps(ys, swap_mask, _mm512_setzero_ps(), temps);
 
-    // Compute ratio and ratio^2
+    // Compute ratio and ratio²
     __m512 const ratio = _mm512_div_ps(ys, xs);
     __m512 const ratio_squared = _mm512_mul_ps(ratio, ratio);
     __m512 const ratio_cubed = _mm512_mul_ps(ratio, ratio_squared);
@@ -438,7 +451,7 @@ NK_INTERNAL __m512d nk_f64x8_atan2_skylake_(__m512d const ys_inputs, __m512d con
     xs = _mm512_mask_blend_pd(swap_mask, xs, ys);
     ys = _mm512_mask_sub_pd(ys, swap_mask, _mm512_setzero_pd(), temps);
 
-    // Compute ratio and ratio^2
+    // Compute ratio and ratio²
     __m512d const ratio = _mm512_div_pd(ys, xs);
     __m512d const ratio_squared = _mm512_mul_pd(ratio, ratio);
     __m512d const ratio_cubed = _mm512_mul_pd(ratio, ratio_squared);

@@ -1,9 +1,21 @@
 /**
- *  @brief SIMD-accelerated Dot Products for Real and Complex Numbers optimized for Intel Skylake-X CPUs.
+ *  @brief SIMD-accelerated batch dot products (GEMM micro-kernels) optimized for Intel Skylake-X CPUs.
  *  @file include/numkong/dots/skylake.h
  *  @sa include/numkong/dots.h
  *  @author Ash Vardanian
  *  @date December 27, 2025
+ *
+ *  @section skylake_dots_instructions Relevant Instructions
+ *
+ *      Intrinsic                   Instruction                     SKL         ICL         Genoa
+ *      _mm512_fmadd_ps             VFMADD132PS (ZMM, ZMM, ZMM)     4cy @ p05   4cy @ p05   4cy @ p01
+ *      _mm512_fmadd_pd             VFMADD132PD (ZMM, ZMM, ZMM)     4cy @ p05   4cy @ p05   4cy @ p01
+ *      _mm512_cvtph_ps             VCVTPH2PS (ZMM, YMM)            5cy @ p05   5cy @ p05   5cy @ p01
+ *      _mm512_loadu_ps             VMOVUPS (ZMM, M512)             7cy @ p23   7cy @ p23   7cy @ p23
+ *
+ *  GEMM micro-kernels tile the K dimension to maximize FMA throughput. Skylake-X server chips with
+ *  dual FMA units achieve 0.5cy throughput, enabling 32 FLOPs/cycle for f32 or 16 FLOPs/cycle for f64.
+ *  FP8 types (E4M3, E5M2) convert to f32 for accumulation, adding ~5cy latency per conversion.
  */
 #ifndef NK_DOTS_SKYLAKE_H
 #define NK_DOTS_SKYLAKE_H

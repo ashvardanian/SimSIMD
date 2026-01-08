@@ -4,6 +4,26 @@
  *  @sa include/numkong/spatial.h
  *  @author Ash Vardanian
  *  @date December 27, 2025
+ *
+ *  @section neon_spatial_instructions Key NEON Spatial Instructions
+ *
+ *  ARM NEON instructions for distance computations:
+ *
+ *      Intrinsic         Instruction                   Latency     Throughput
+ *                                                                  A76     M4+/V1+/Oryon
+ *      vfmaq_f32         FMLA (V.4S, V.4S, V.4S)       4cy         2/cy    4/cy
+ *      vmulq_f32         FMUL (V.4S, V.4S, V.4S)       3cy         2/cy    4/cy
+ *      vaddq_f32         FADD (V.4S, V.4S, V.4S)       2cy         2/cy    4/cy
+ *      vsubq_f32         FSUB (V.4S, V.4S, V.4S)       2cy         2/cy    4/cy
+ *      vrsqrteq_f32      FRSQRTE (V.4S, V.4S)          2cy         2/cy    2/cy
+ *      vsqrtq_f32        FSQRT (V.4S, V.4S)            9-12cy      0.25/cy 0.25/cy
+ *      vrecpeq_f32       FRECPE (V.4S, V.4S)           2cy         2/cy    2/cy
+ *
+ *  FRSQRTE provides ~8-bit precision; two Newton-Raphson iterations via vrsqrtsq_f32 achieve
+ *  ~23-bit precision, sufficient for f32. This is much faster than FSQRT (0.25/cy).
+ *
+ *  Distance computations (L2, angular) benefit from 2x throughput on 4-pipe cores (Apple M4+,
+ *  Graviton3+, Oryon), but FSQRT remains slow on all cores. Use rsqrt+NR when precision allows.
  */
 #ifndef NK_SPATIAL_NEON_H
 #define NK_SPATIAL_NEON_H
@@ -133,7 +153,7 @@ NK_PUBLIC void nk_l2sq_f64_neon(nk_f64_t const *a, nk_f64_t const *b, nk_size_t 
         float64x2_t abs_sum_f64x2 = vabsq_f64(sum_f64x2);
         // diff_sq is already non-negative (it's a square), so vabsq is unnecessary
         uint64x2_t sum_ge_x_u64x2 = vcgeq_f64(abs_sum_f64x2, diff_sq_f64x2);
-        // When |sum| >= |x|: comp += (sum - t) + x; when |x| > |sum|: comp += (x - t) + sum
+        // When |sum| ≥ |x|: comp += (sum - t) + x; when |x| > |sum|: comp += (x - t) + sum
         float64x2_t comp_sum_large_f64x2 = vaddq_f64(vsubq_f64(sum_f64x2, t_f64x2), diff_sq_f64x2);
         float64x2_t comp_x_large_f64x2 = vaddq_f64(vsubq_f64(diff_sq_f64x2, t_f64x2), sum_f64x2);
         float64x2_t comp_update_f64x2 = vbslq_f64(sum_ge_x_u64x2, comp_sum_large_f64x2, comp_x_large_f64x2);
@@ -188,7 +208,7 @@ NK_PUBLIC void nk_angular_f64_neon(nk_f64_t const *a, nk_f64_t const *b, nk_size
     *result = nk_angular_normalize_f64_neon_(ab_f64, a2_f64, b2_f64);
 }
 
-/** @brief Angular distance finalize: computes 1 - dot/sqrt(query_norm*target_norm) for 4 pairs in f64. */
+/** @brief Angular distance finalize: computes 1 − dot/√(‖query‖ × ‖target‖) for 4 pairs in f64. */
 NK_INTERNAL void nk_angular_f32x4_finalize_neon_(float32x4_t dots_f32x4, nk_f32_t query_norm, nk_f32_t target_norm_a,
                                                  nk_f32_t target_norm_b, nk_f32_t target_norm_c, nk_f32_t target_norm_d,
                                                  nk_f32_t *results) {
@@ -220,7 +240,7 @@ NK_INTERNAL void nk_angular_f32x4_finalize_neon_(float32x4_t dots_f32x4, nk_f32_
     rsqrt_cd_f64x2 = vmulq_f64(rsqrt_cd_f64x2,
                                vrsqrtsq_f64(vmulq_f64(products_cd_f64x2, rsqrt_cd_f64x2), rsqrt_cd_f64x2));
 
-    // angular = 1 - dot * rsqrt(product)
+    // angular = 1 − dot × rsqrt(product)
     float64x2_t ones_f64x2 = vdupq_n_f64(1.0);
     float64x2_t zeros_f64x2 = vdupq_n_f64(0.0);
     float64x2_t result_ab_f64x2 = vsubq_f64(ones_f64x2, vmulq_f64(dots_ab_f64x2, rsqrt_ab_f64x2));
@@ -255,7 +275,7 @@ NK_INTERNAL void nk_angular_f32x4_finalize_neon_(float32x4_t dots_f32x4, nk_f32_
     vst1q_f32(results, vcombine_f32(result_ab_f32x2, result_cd_f32x2));
 }
 
-/** @brief L2 distance finalize: computes sqrt(query²+target²-2*dot) for 4 pairs in f64. */
+/** @brief L2 distance finalize: computes √(query²+target²−2 × dot) for 4 pairs in f64. */
 NK_INTERNAL void nk_l2_f32x4_finalize_neon_(float32x4_t dots_f32x4, nk_f32_t query_norm, nk_f32_t target_norm_a,
                                             nk_f32_t target_norm_b, nk_f32_t target_norm_c, nk_f32_t target_norm_d,
                                             nk_f32_t *results) {
@@ -271,7 +291,7 @@ NK_INTERNAL void nk_l2_f32x4_finalize_neon_(float32x4_t dots_f32x4, nk_f32_t que
     float64x2_t target_sq_ab_f64x2 = vmulq_f64(target_norms_ab_f64x2, target_norms_ab_f64x2);
     float64x2_t target_sq_cd_f64x2 = vmulq_f64(target_norms_cd_f64x2, target_norms_cd_f64x2);
 
-    // dist_sq = query_sq + target_sq - 2*dot
+    // dist_sq = query_sq + target_sq − 2 × dot
     float64x2_t neg_two_f64x2 = vdupq_n_f64(-2.0);
     float64x2_t sum_sq_ab_f64x2 = vaddq_f64(query_sq_f64x2, target_sq_ab_f64x2);
     float64x2_t sum_sq_cd_f64x2 = vaddq_f64(query_sq_f64x2, target_sq_cd_f64x2);
@@ -322,7 +342,7 @@ NK_INTERNAL void nk_l2_f32x4_finalize_neon_f32_(float32x4_t dots_f32x4, nk_f32_t
     float32x4_t query_sq_f32x4 = vmulq_f32(query_norm_f32x4, query_norm_f32x4);
     float32x4_t target_sq_f32x4 = vmulq_f32(target_norms_f32x4, target_norms_f32x4);
     float32x4_t sum_sq_f32x4 = vaddq_f32(query_sq_f32x4, target_sq_f32x4);
-    // dist_sq = sum_sq - 2*dot
+    // dist_sq = sum_sq − 2 × dot
     float32x4_t dist_sq_f32x4 = vfmsq_f32(sum_sq_f32x4, vdupq_n_f32(2.0f), dots_f32x4);
     // Clamp and sqrt
     dist_sq_f32x4 = vmaxq_f32(dist_sq_f32x4, vdupq_n_f32(0.0f));

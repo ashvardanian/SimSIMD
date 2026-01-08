@@ -4,6 +4,29 @@
  *  @sa include/numkong/reduce.h
  *  @author Ash Vardanian
  *  @date December 27, 2025
+ *
+ *  @section reduce_neonbfdot_instructions ARM NEON BF16 Instructions (ARMv8.6-BF16)
+ *
+ *      Intrinsic                   Instruction                     Latency     Throughput
+ *                                                                              A76         M4+/V1+/Oryon
+ *      vbfdotq_f32                 BFDOT (V.4S, V.8H, V.8H)        3cy         2/cy        4/cy
+ *      vld1q_bf16                  LD1 (V.8H)                      4cy         2/cy        3/cy
+ *      vld2q_u16                   LD2 (V.8H x 2)                  6cy         1/cy        2/cy
+ *      vld3q_u16                   LD3 (V.8H x 3)                  6cy         1/cy        2/cy
+ *      vld4q_u16                   LD4 (V.8H x 4)                  6cy         1/cy        2/cy
+ *      vshll_n_u16                 USHLL (V.4S, V.4H, #16)         2cy         2/cy        4/cy
+ *      vcltq_f32                   FCMLT (V.4S, V.4S, V.4S)        2cy         2/cy        4/cy
+ *      vcgtq_f32                   FCMGT (V.4S, V.4S, V.4S)        2cy         2/cy        4/cy
+ *      vbslq_f32                   BSL (V.16B, V.16B, V.16B)       2cy         2/cy        4/cy
+ *      vaddvq_f32                  FADDP+FADDP (V.4S)              4cy         1/cy        2/cy
+ *
+ *  The ARMv8.6-BF16 extension provides BFDOT for efficient BF16 summation by dotting with a vector
+ *  of ones (0x3F80 = BF16 representation of 1.0). This computes sum in a single instruction per
+ *  8 BF16 elements, accumulating directly into F32.
+ *
+ *  For min/max reductions, BF16 values are converted to F32 via bit-shift (USHLL by 16), leveraging
+ *  BF16's compatible exponent range with F32. Comparisons and conditional updates use F32 operations
+ *  for correct handling of the full BF16 value range.
  */
 #ifndef NK_REDUCE_NEONBFDOT_H
 #define NK_REDUCE_NEONBFDOT_H

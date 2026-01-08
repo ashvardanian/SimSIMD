@@ -32,11 +32,11 @@
  *  large number of required population counts. There are several instructions we should keep in mind:
  *
  *      Intrinsic                   Instruction                     Ice         Genoa
- *      _mm512_popcnt_epi64         VPOPCNTQ (ZMM, K, ZMM)          3c @ p5     2c @ p01
- *      _mm512_shuffle_epi8         VPSHUFB (ZMM, ZMM, ZMM)         1c @ p5     2c @ p12
- *      _mm512_sad_epu8             VPSADBW (ZMM, ZMM, ZMM)         3c @ p5     3c @ p01
- *      _mm512_ternarylogic_epi64   VPTERNLOGQ (ZMM, ZMM, ZMM, I8)  1c @ p05    1c @ p0123
- *      _mm512_gf2p8mul_epi8        VGF2P8MULB (ZMM, ZMM, ZMM)      5c @ p0     3c @ p01
+ *      _mm512_popcnt_epi64         VPOPCNTQ (ZMM, K, ZMM)          3cy @ p5     2cy @ p01
+ *      _mm512_shuffle_epi8         VPSHUFB (ZMM, ZMM, ZMM)         1cy @ p5     2cy @ p12
+ *      _mm512_sad_epu8             VPSADBW (ZMM, ZMM, ZMM)         3cy @ p5     3cy @ p01
+ *      _mm512_ternarylogic_epi64   VPTERNLOGQ (ZMM, ZMM, ZMM, I8)  1cy @ p05    1cy @ p0123
+ *      _mm512_gf2p8mul_epi8        VGF2P8MULB (ZMM, ZMM, ZMM)      5cy @ p0     3cy @ p01
  *
  *  On Ice Lake, VPOPCNTQ bottlenecks on port 5. On AMD Genoa/Turin, it dual-issues
  *  on ports 0-1, making native popcount significantly faster without CSA tricks.
@@ -122,7 +122,7 @@
  *  @section Finalize Output Types
  *
  *  Jaccard similarity finalize outputs to f32:
- *  - Jaccard = intersection / union, always in [0.0, 1.0]
+ *  - Jaccard = intersection / union, always ∈ [0.0, 1.0]
  *  - f32 provides ~7 decimal digits, far exceeding practical needs
  *  - Matches spatial.h convention for non-f64 distance outputs
  *  - Reduces memory footprint in large-scale binary similarity search
