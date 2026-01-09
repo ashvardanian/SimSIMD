@@ -190,33 +190,7 @@ NK_PUBLIC void nk_bilinear_bf16c_serial(nk_bf16c_t const *a, nk_bf16c_t const *b
 /** @copydoc nk_mahalanobis_bf16 */
 NK_PUBLIC void nk_mahalanobis_bf16_serial(nk_bf16_t const *a, nk_bf16_t const *b, nk_bf16_t const *c, nk_size_t n,
                                           nk_f32_t *result);
-/** @copydoc nk_bilinear_f32 */
-NK_PUBLIC void nk_bilinear_f32_accurate(nk_f32_t const *a, nk_f32_t const *b, nk_f32_t const *c, nk_size_t n,
-                                        nk_f64_t *result);
-/** @copydoc nk_bilinear_f32c */
-NK_PUBLIC void nk_bilinear_f32c_accurate(nk_f32c_t const *a, nk_f32c_t const *b, nk_f32c_t const *c, nk_size_t n,
-                                         nk_f64c_t *results);
-/** @copydoc nk_mahalanobis_f32 */
-NK_PUBLIC void nk_mahalanobis_f32_accurate(nk_f32_t const *a, nk_f32_t const *b, nk_f32_t const *c, nk_size_t n,
-                                           nk_f64_t *result);
-/** @copydoc nk_bilinear_f16 */
-NK_PUBLIC void nk_bilinear_f16_accurate(nk_f16_t const *a, nk_f16_t const *b, nk_f16_t const *c, nk_size_t n,
-                                        nk_f64_t *result);
-/** @copydoc nk_bilinear_f16c */
-NK_PUBLIC void nk_bilinear_f16c_accurate(nk_f16c_t const *a, nk_f16c_t const *b, nk_f16c_t const *c, nk_size_t n,
-                                         nk_f64c_t *results);
-/** @copydoc nk_mahalanobis_f16 */
-NK_PUBLIC void nk_mahalanobis_f16_accurate(nk_f16_t const *a, nk_f16_t const *b, nk_f16_t const *c, nk_size_t n,
-                                           nk_f64_t *result);
-/** @copydoc nk_bilinear_bf16 */
-NK_PUBLIC void nk_bilinear_bf16_accurate(nk_bf16_t const *a, nk_bf16_t const *b, nk_bf16_t const *c, nk_size_t n,
-                                         nk_f64_t *result);
-/** @copydoc nk_bilinear_bf16c */
-NK_PUBLIC void nk_bilinear_bf16c_accurate(nk_bf16c_t const *a, nk_bf16c_t const *b, nk_bf16c_t const *c, nk_size_t n,
-                                          nk_f64c_t *results);
-/** @copydoc nk_mahalanobis_bf16 */
-NK_PUBLIC void nk_mahalanobis_bf16_accurate(nk_bf16_t const *a, nk_bf16_t const *b, nk_bf16_t const *c, nk_size_t n,
-                                            nk_f64_t *result);
+
 #if NK_TARGET_NEON
 /** @copydoc nk_bilinear_f32 */
 NK_PUBLIC void nk_bilinear_f32_neon(nk_f32_t const *a, nk_f32_t const *b, nk_f32_t const *c, nk_size_t n,
@@ -313,8 +287,8 @@ NK_PUBLIC void nk_mahalanobis_f16_sapphire(nk_f16_t const *a, nk_f16_t const *b,
                                            nk_f32_t *result);
 #endif // NK_TARGET_SAPPHIRE
 
-#define NK_MAKE_BILINEAR(name, input_type, accumulator_type, load_and_convert)                                   \
-    NK_PUBLIC void nk_bilinear_##input_type##_##name(nk_##input_type##_t const *a, nk_##input_type##_t const *b, \
+#define nk_define_bilinear_(input_type, accumulator_type, load_and_convert)                                      \
+    NK_PUBLIC void nk_bilinear_##input_type##_serial(nk_##input_type##_t const *a, nk_##input_type##_t const *b, \
                                                      nk_##input_type##_t const *c, nk_size_t n,                  \
                                                      nk_##accumulator_type##_t *result) {                        \
         nk_##accumulator_type##_t sum = 0, a_i, b_j, c_ij;                                                       \
@@ -331,8 +305,8 @@ NK_PUBLIC void nk_mahalanobis_f16_sapphire(nk_f16_t const *a, nk_f16_t const *b,
         *result = sum;                                                                                           \
     }
 
-#define NK_MAKE_COMPLEX_BILINEAR(name, input_type, accumulator_type, load_and_convert)                              \
-    NK_PUBLIC void nk_bilinear_##input_type##_##name(                                                               \
+#define nk_define_bilinear_complex_(input_type, accumulator_type, load_and_convert)                                 \
+    NK_PUBLIC void nk_bilinear_##input_type##_serial(                                                               \
         nk_##input_type##_t const *a_pairs, nk_##input_type##_t const *b_pairs, nk_##input_type##_t const *c_pairs, \
         nk_size_t n, nk_##accumulator_type##c_t *results) {                                                         \
         nk_##accumulator_type##_t sum_real = 0;                                                                     \
@@ -360,8 +334,8 @@ NK_PUBLIC void nk_mahalanobis_f16_sapphire(nk_f16_t const *a, nk_f16_t const *b,
         results->imag = sum_imag;                                                                                   \
     }
 
-#define NK_MAKE_MAHALANOBIS(name, input_type, accumulator_type, load_and_convert)                                   \
-    NK_PUBLIC void nk_mahalanobis_##input_type##_##name(nk_##input_type##_t const *a, nk_##input_type##_t const *b, \
+#define nk_define_mahalanobis_(input_type, accumulator_type, load_and_convert)                                      \
+    NK_PUBLIC void nk_mahalanobis_##input_type##_serial(nk_##input_type##_t const *a, nk_##input_type##_t const *b, \
                                                         nk_##input_type##_t const *c, nk_size_t n,                  \
                                                         nk_##accumulator_type##_t *result) {                        \
         nk_##accumulator_type##_t sum = 0, v_ai, v_bi, v_aj, v_bj, v_cij;                                           \
@@ -382,33 +356,21 @@ NK_PUBLIC void nk_mahalanobis_f16_sapphire(nk_f16_t const *a, nk_f16_t const *b,
         *result = nk_##accumulator_type##_sqrt_serial(sum);                                                         \
     }
 
-NK_MAKE_BILINEAR(serial, f64, f64, nk_assign_from_to_)          // nk_bilinear_f64_serial
-NK_MAKE_COMPLEX_BILINEAR(serial, f64c, f64, nk_assign_from_to_) // nk_bilinear_f64c_serial
-NK_MAKE_MAHALANOBIS(serial, f64, f64, nk_assign_from_to_)       // nk_mahalanobis_f64_serial
+nk_define_bilinear_(f64, f64, nk_assign_from_to_)          // nk_bilinear_f64_serial
+nk_define_bilinear_complex_(f64c, f64, nk_assign_from_to_) // nk_bilinear_f64c_serial
+nk_define_mahalanobis_(f64, f64, nk_assign_from_to_)       // nk_mahalanobis_f64_serial
 
-NK_MAKE_BILINEAR(serial, f32, f32, nk_assign_from_to_)          // nk_bilinear_f32_serial
-NK_MAKE_COMPLEX_BILINEAR(serial, f32c, f32, nk_assign_from_to_) // nk_bilinear_f32c_serial
-NK_MAKE_MAHALANOBIS(serial, f32, f32, nk_assign_from_to_)       // nk_mahalanobis_f32_serial
+nk_define_bilinear_(f32, f32, nk_assign_from_to_)          // nk_bilinear_f32_serial
+nk_define_bilinear_complex_(f32c, f32, nk_assign_from_to_) // nk_bilinear_f32c_serial
+nk_define_mahalanobis_(f32, f32, nk_assign_from_to_)       // nk_mahalanobis_f32_serial
 
-NK_MAKE_BILINEAR(serial, f16, f32, nk_f16_to_f32_serial)          // nk_bilinear_f16_serial
-NK_MAKE_COMPLEX_BILINEAR(serial, f16c, f32, nk_f16_to_f32_serial) // nk_bilinear_f16c_serial
-NK_MAKE_MAHALANOBIS(serial, f16, f32, nk_f16_to_f32_serial)       // nk_mahalanobis_f16_serial
+nk_define_bilinear_(f16, f32, nk_f16_to_f32_serial)          // nk_bilinear_f16_serial
+nk_define_bilinear_complex_(f16c, f32, nk_f16_to_f32_serial) // nk_bilinear_f16c_serial
+nk_define_mahalanobis_(f16, f32, nk_f16_to_f32_serial)       // nk_mahalanobis_f16_serial
 
-NK_MAKE_BILINEAR(serial, bf16, f32, nk_bf16_to_f32_serial)          // nk_bilinear_bf16_serial
-NK_MAKE_COMPLEX_BILINEAR(serial, bf16c, f32, nk_bf16_to_f32_serial) // nk_bilinear_bf16c_serial
-NK_MAKE_MAHALANOBIS(serial, bf16, f32, nk_bf16_to_f32_serial)       // nk_mahalanobis_bf16_serial
-
-NK_MAKE_BILINEAR(accurate, f32, f64, nk_assign_from_to_)          // nk_bilinear_f32_accurate
-NK_MAKE_COMPLEX_BILINEAR(accurate, f32c, f64, nk_assign_from_to_) // nk_bilinear_f32c_accurate
-NK_MAKE_MAHALANOBIS(accurate, f32, f64, nk_assign_from_to_)       // nk_mahalanobis_f32_accurate
-
-NK_MAKE_BILINEAR(accurate, f16, f64, nk_f16_to_f64_)          // nk_bilinear_f16_accurate
-NK_MAKE_COMPLEX_BILINEAR(accurate, f16c, f64, nk_f16_to_f64_) // nk_bilinear_f16c_accurate
-NK_MAKE_MAHALANOBIS(accurate, f16, f64, nk_f16_to_f64_)       // nk_mahalanobis_f16_accurate
-
-NK_MAKE_BILINEAR(accurate, bf16, f64, nk_bf16_to_f64_)          // nk_bilinear_bf16_accurate
-NK_MAKE_COMPLEX_BILINEAR(accurate, bf16c, f64, nk_bf16_to_f64_) // nk_bilinear_bf16c_accurate
-NK_MAKE_MAHALANOBIS(accurate, bf16, f64, nk_bf16_to_f64_)       // nk_mahalanobis_bf16_accurate
+nk_define_bilinear_(bf16, f32, nk_bf16_to_f32_serial)          // nk_bilinear_bf16_serial
+nk_define_bilinear_complex_(bf16c, f32, nk_bf16_to_f32_serial) // nk_bilinear_bf16c_serial
+nk_define_mahalanobis_(bf16, f32, nk_bf16_to_f32_serial)       // nk_mahalanobis_bf16_serial
 
 #if NK_TARGET_ARM_
 #if NK_TARGET_NEON

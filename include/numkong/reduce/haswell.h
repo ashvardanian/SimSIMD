@@ -2424,7 +2424,13 @@ NK_INTERNAL void nk_reduce_min_e4m3_haswell_contiguous_( //
 
 nk_reduce_min_e4m3_haswell_cycle_:
     if (count < 32) {
-        data_i8x32 = nk_partial_load_b8x32_serial_(data, count, 0xFF);
+        nk_b256_vec_t data_vec;
+        nk_partial_load_b8x32_serial_(data, count, &data_vec);
+        // Blend tail with 0xFF (min identity) - create mask where byte index >= count
+        __m256i indices = _mm256_setr_epi8(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, //
+                                           16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31);
+        __m256i tail_mask = _mm256_cmpgt_epi8(indices, _mm256_set1_epi8((char)(count - 1)));
+        data_i8x32 = _mm256_or_si256(data_vec.ymm, tail_mask); // OR with 0xFF where mask is set
         count = 0;
     }
     else {
@@ -2535,7 +2541,9 @@ NK_INTERNAL void nk_reduce_max_e4m3_haswell_contiguous_( //
 
 nk_reduce_max_e4m3_haswell_cycle_:
     if (count < 32) {
-        data_i8x32 = nk_partial_load_b8x32_serial_(data, count, 0x00);
+        nk_b256_vec_t data_vec;
+        nk_partial_load_b8x32_serial_(data, count, &data_vec);
+        data_i8x32 = data_vec.ymm; // zeros in tail are already max identity (0x00)
         count = 0;
     }
     else {
@@ -2696,7 +2704,13 @@ NK_INTERNAL void nk_reduce_min_e5m2_haswell_contiguous_( //
 
 nk_reduce_min_e5m2_haswell_cycle_:
     if (count < 32) {
-        data_i8x32 = nk_partial_load_b8x32_serial_(data, count, 0xFF);
+        nk_b256_vec_t data_vec;
+        nk_partial_load_b8x32_serial_(data, count, &data_vec);
+        // Blend tail with 0xFF (min identity) - create mask where byte index >= count
+        __m256i indices = _mm256_setr_epi8(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, //
+                                           16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31);
+        __m256i tail_mask = _mm256_cmpgt_epi8(indices, _mm256_set1_epi8((char)(count - 1)));
+        data_i8x32 = _mm256_or_si256(data_vec.ymm, tail_mask); // OR with 0xFF where mask is set
         count = 0;
     }
     else {
@@ -2804,7 +2818,9 @@ NK_INTERNAL void nk_reduce_max_e5m2_haswell_contiguous_( //
 
 nk_reduce_max_e5m2_haswell_cycle_:
     if (count < 32) {
-        data_i8x32 = nk_partial_load_b8x32_serial_(data, count, 0x00);
+        nk_b256_vec_t data_vec;
+        nk_partial_load_b8x32_serial_(data, count, &data_vec);
+        data_i8x32 = data_vec.ymm; // zeros in tail are already max identity (0x00)
         count = 0;
     }
     else {

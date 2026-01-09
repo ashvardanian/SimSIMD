@@ -32,8 +32,8 @@ extern "C" {
  *
  *  @see Neumaier, A. (1974). "Rundungsfehleranalyse einiger Verfahren zur Summation endlicher Summen"
  */
-#define NK_MAKE_L2SQ(name, input_type, accumulator_type, output_type, load_and_convert)                      \
-    NK_PUBLIC void nk_l2sq_##input_type##_##name(nk_##input_type##_t const *a, nk_##input_type##_t const *b, \
+#define nk_define_l2sq_(input_type, accumulator_type, output_type, load_and_convert)                         \
+    NK_PUBLIC void nk_l2sq_##input_type##_serial(nk_##input_type##_t const *a, nk_##input_type##_t const *b, \
                                                  nk_size_t n, nk_##output_type##_t *result) {                \
         nk_##accumulator_type##_t sum = 0, compensation = 0, a_element, b_element;                           \
         for (nk_size_t i = 0; i != n; ++i) {                                                                 \
@@ -49,12 +49,12 @@ extern "C" {
         *result = (nk_##output_type##_t)(sum + compensation);                                                \
     }
 
-#define NK_MAKE_L2(name, input_type, accumulator_type, l2sq_output_type, output_type, load_and_convert, compute_sqrt) \
-    NK_PUBLIC void nk_l2_##input_type##_##name(nk_##input_type##_t const *a, nk_##input_type##_t const *b,            \
-                                               nk_size_t n, nk_##output_type##_t *result) {                           \
-        nk_##l2sq_output_type##_t distance_sq;                                                                        \
-        nk_l2sq_##input_type##_##name(a, b, n, &distance_sq);                                                         \
-        *result = compute_sqrt((nk_##output_type##_t)distance_sq);                                                    \
+#define nk_define_l2_(input_type, accumulator_type, l2sq_output_type, output_type, load_and_convert, compute_sqrt) \
+    NK_PUBLIC void nk_l2_##input_type##_serial(nk_##input_type##_t const *a, nk_##input_type##_t const *b,         \
+                                               nk_size_t n, nk_##output_type##_t *result) {                        \
+        nk_##l2sq_output_type##_t distance_sq;                                                                     \
+        nk_l2sq_##input_type##_serial(a, b, n, &distance_sq);                                                      \
+        *result = compute_sqrt((nk_##output_type##_t)distance_sq);                                                 \
     }
 
 /**
@@ -63,10 +63,10 @@ extern "C" {
  *  Uses Neumaier summation for all three accumulators (dot_product, a_norm_sq, b_norm_sq).
  *  Achieves O(1) error growth regardless of vector dimension.
  *
- *  @see NK_MAKE_L2SQ for detailed documentation on Neumaier summation.
+ *  @see nk_define_l2sq_ for detailed documentation on Neumaier summation.
  */
-#define NK_MAKE_COS(name, input_type, accumulator_type, output_type, load_and_convert, compute_rsqrt)             \
-    NK_PUBLIC void nk_angular_##input_type##_##name(nk_##input_type##_t const *a, nk_##input_type##_t const *b,   \
+#define nk_define_angular_(input_type, accumulator_type, output_type, load_and_convert, compute_rsqrt)            \
+    NK_PUBLIC void nk_angular_##input_type##_serial(nk_##input_type##_t const *a, nk_##input_type##_t const *b,   \
                                                     nk_size_t n, nk_##output_type##_t *result) {                  \
         nk_##accumulator_type##_t dot_sum = 0, a_sum = 0, b_sum = 0, a_element, b_element;                        \
         nk_##accumulator_type##_t compensation_dot = 0, compensation_a = 0, compensation_b = 0;                   \
@@ -171,53 +171,37 @@ NK_INTERNAL nk_f64_t nk_f64_rsqrt_serial(nk_f64_t number) {
  */
 NK_INTERNAL nk_f64_t nk_f64_sqrt_serial(nk_f64_t number) { return number * nk_f64_rsqrt_serial(number); }
 
-NK_MAKE_COS(serial, f64, f64, f64, nk_assign_from_to_, nk_f64_rsqrt_serial)    // nk_angular_f64_serial
-NK_MAKE_L2SQ(serial, f64, f64, f64, nk_assign_from_to_)                        // nk_l2sq_f64_serial
-NK_MAKE_L2(serial, f64, f64, f64, f64, nk_assign_from_to_, nk_f64_sqrt_serial) // nk_l2_f64_serial
+nk_define_angular_(f64, f64, f64, nk_assign_from_to_, nk_f64_rsqrt_serial) // nk_angular_f64_serial
+nk_define_l2sq_(f64, f64, f64, nk_assign_from_to_)                         // nk_l2sq_f64_serial
+nk_define_l2_(f64, f64, f64, f64, nk_assign_from_to_, nk_f64_sqrt_serial)  // nk_l2_f64_serial
 
-NK_MAKE_COS(serial, f32, f32, f32, nk_assign_from_to_, nk_f32_rsqrt_serial)    // nk_angular_f32_serial
-NK_MAKE_L2SQ(serial, f32, f32, f32, nk_assign_from_to_)                        // nk_l2sq_f32_serial
-NK_MAKE_L2(serial, f32, f32, f32, f32, nk_assign_from_to_, nk_f32_sqrt_serial) // nk_l2_f32_serial
+nk_define_angular_(f32, f32, f32, nk_assign_from_to_, nk_f32_rsqrt_serial) // nk_angular_f32_serial
+nk_define_l2sq_(f32, f32, f32, nk_assign_from_to_)                         // nk_l2sq_f32_serial
+nk_define_l2_(f32, f32, f32, f32, nk_assign_from_to_, nk_f32_sqrt_serial)  // nk_l2_f32_serial
 
-NK_MAKE_COS(serial, f16, f32, f32, nk_f16_to_f32_serial, nk_f32_rsqrt_serial)    // nk_angular_f16_serial
-NK_MAKE_L2SQ(serial, f16, f32, f32, nk_f16_to_f32_serial)                        // nk_l2sq_f16_serial
-NK_MAKE_L2(serial, f16, f32, f32, f32, nk_f16_to_f32_serial, nk_f32_sqrt_serial) // nk_l2_f16_serial
+nk_define_angular_(f16, f32, f32, nk_f16_to_f32_serial, nk_f32_rsqrt_serial) // nk_angular_f16_serial
+nk_define_l2sq_(f16, f32, f32, nk_f16_to_f32_serial)                         // nk_l2sq_f16_serial
+nk_define_l2_(f16, f32, f32, f32, nk_f16_to_f32_serial, nk_f32_sqrt_serial)  // nk_l2_f16_serial
 
-NK_MAKE_COS(serial, bf16, f32, f32, nk_bf16_to_f32_serial, nk_f32_rsqrt_serial)    // nk_angular_bf16_serial
-NK_MAKE_L2SQ(serial, bf16, f32, f32, nk_bf16_to_f32_serial)                        // nk_l2sq_bf16_serial
-NK_MAKE_L2(serial, bf16, f32, f32, f32, nk_bf16_to_f32_serial, nk_f32_sqrt_serial) // nk_l2_bf16_serial
+nk_define_angular_(bf16, f32, f32, nk_bf16_to_f32_serial, nk_f32_rsqrt_serial) // nk_angular_bf16_serial
+nk_define_l2sq_(bf16, f32, f32, nk_bf16_to_f32_serial)                         // nk_l2sq_bf16_serial
+nk_define_l2_(bf16, f32, f32, f32, nk_bf16_to_f32_serial, nk_f32_sqrt_serial)  // nk_l2_bf16_serial
 
-NK_MAKE_COS(serial, e4m3, f32, f32, nk_e4m3_to_f32_serial, nk_f32_rsqrt_serial)    // nk_angular_e4m3_serial
-NK_MAKE_L2SQ(serial, e4m3, f32, f32, nk_e4m3_to_f32_serial)                        // nk_l2sq_e4m3_serial
-NK_MAKE_L2(serial, e4m3, f32, f32, f32, nk_e4m3_to_f32_serial, nk_f32_sqrt_serial) // nk_l2_e4m3_serial
+nk_define_angular_(e4m3, f32, f32, nk_e4m3_to_f32_serial, nk_f32_rsqrt_serial) // nk_angular_e4m3_serial
+nk_define_l2sq_(e4m3, f32, f32, nk_e4m3_to_f32_serial)                         // nk_l2sq_e4m3_serial
+nk_define_l2_(e4m3, f32, f32, f32, nk_e4m3_to_f32_serial, nk_f32_sqrt_serial)  // nk_l2_e4m3_serial
 
-NK_MAKE_COS(serial, e5m2, f32, f32, nk_e5m2_to_f32_serial, nk_f32_rsqrt_serial)    // nk_angular_e5m2_serial
-NK_MAKE_L2SQ(serial, e5m2, f32, f32, nk_e5m2_to_f32_serial)                        // nk_l2sq_e5m2_serial
-NK_MAKE_L2(serial, e5m2, f32, f32, f32, nk_e5m2_to_f32_serial, nk_f32_sqrt_serial) // nk_l2_e5m2_serial
+nk_define_angular_(e5m2, f32, f32, nk_e5m2_to_f32_serial, nk_f32_rsqrt_serial) // nk_angular_e5m2_serial
+nk_define_l2sq_(e5m2, f32, f32, nk_e5m2_to_f32_serial)                         // nk_l2sq_e5m2_serial
+nk_define_l2_(e5m2, f32, f32, f32, nk_e5m2_to_f32_serial, nk_f32_sqrt_serial)  // nk_l2_e5m2_serial
 
-NK_MAKE_COS(serial, i8, i32, f32, nk_assign_from_to_, nk_f32_rsqrt_serial)      // nk_angular_i8_serial
-NK_MAKE_L2SQ(serial, i8, i32, u32, nk_assign_from_to_)                          // nk_l2sq_i8_serial
-NK_MAKE_L2SQ(accurate, i8, i32, u32, nk_assign_from_to_)                        // nk_l2sq_i8_accurate
-NK_MAKE_L2(serial, i8, i32, u32, f32, nk_assign_from_to_, nk_f32_sqrt_serial)   // nk_l2_i8_serial
-NK_MAKE_L2(accurate, i8, i32, u32, f64, nk_assign_from_to_, nk_f64_sqrt_serial) // nk_l2_i8_accurate
+nk_define_angular_(i8, i32, f32, nk_assign_from_to_, nk_f32_rsqrt_serial) // nk_angular_i8_serial
+nk_define_l2sq_(i8, i32, u32, nk_assign_from_to_)                         // nk_l2sq_i8_serial
+nk_define_l2_(i8, i32, u32, f32, nk_assign_from_to_, nk_f32_sqrt_serial)  // nk_l2_i8_serial
 
-NK_MAKE_COS(serial, u8, u32, f32, nk_assign_from_to_, nk_f32_rsqrt_serial)      // nk_angular_u8_serial
-NK_MAKE_L2SQ(serial, u8, u32, u32, nk_assign_from_to_)                          // nk_l2sq_u8_serial
-NK_MAKE_L2SQ(accurate, u8, u32, u32, nk_assign_from_to_)                        // nk_l2sq_u8_accurate
-NK_MAKE_L2(serial, u8, u32, u32, f32, nk_assign_from_to_, nk_f32_sqrt_serial)   // nk_l2_u8_serial
-NK_MAKE_L2(accurate, u8, u32, u32, f64, nk_assign_from_to_, nk_f64_sqrt_serial) // nk_l2_u8_accurate
-
-NK_MAKE_COS(accurate, f32, f64, f64, nk_assign_from_to_, nk_f64_rsqrt_serial)    // nk_angular_f32_accurate
-NK_MAKE_L2SQ(accurate, f32, f64, f64, nk_assign_from_to_)                        // nk_l2sq_f32_accurate
-NK_MAKE_L2(accurate, f32, f64, f64, f64, nk_assign_from_to_, nk_f64_sqrt_serial) // nk_l2_f32_accurate
-
-NK_MAKE_COS(accurate, f16, f64, f64, nk_f16_to_f64_, nk_f64_rsqrt_serial)    // nk_angular_f16_accurate
-NK_MAKE_L2SQ(accurate, f16, f64, f64, nk_f16_to_f64_)                        // nk_l2sq_f16_accurate
-NK_MAKE_L2(accurate, f16, f64, f64, f64, nk_f16_to_f64_, nk_f64_sqrt_serial) // nk_l2_f16_accurate
-
-NK_MAKE_COS(accurate, bf16, f64, f64, nk_bf16_to_f64_, nk_f64_rsqrt_serial)    // nk_angular_bf16_accurate
-NK_MAKE_L2SQ(accurate, bf16, f64, f64, nk_bf16_to_f64_)                        // nk_l2sq_bf16_accurate
-NK_MAKE_L2(accurate, bf16, f64, f64, f64, nk_bf16_to_f64_, nk_f64_sqrt_serial) // nk_l2_bf16_accurate
+nk_define_angular_(u8, u32, f32, nk_assign_from_to_, nk_f32_rsqrt_serial) // nk_angular_u8_serial
+nk_define_l2sq_(u8, u32, u32, nk_assign_from_to_)                         // nk_l2sq_u8_serial
+nk_define_l2_(u8, u32, u32, f32, nk_assign_from_to_, nk_f32_sqrt_serial)  // nk_l2_u8_serial
 
 typedef nk_dot_f64x2_state_serial_t nk_angular_f64x2_state_serial_t;
 

@@ -217,7 +217,6 @@ NK_DYNAMIC void nk_angular_u4(nk_u4x2_t const *a, nk_u4x2_t const *b, nk_size_t 
 
 /*  Serial backends for all numeric types.
  *  By default they use 32-bit arithmetic, unless the arguments themselves contain 64-bit floats.
- *  For double-precision computation check out the "*_accurate" variants of those "*_serial" functions.
  */
 /** @copydoc nk_l2_f64 */
 NK_PUBLIC void nk_l2_f64_serial(nk_f64_t const *a, nk_f64_t const *b, nk_size_t n, nk_f64_t *result);
@@ -257,20 +256,12 @@ NK_PUBLIC void nk_l2sq_e5m2_serial(nk_e5m2_t const *a, nk_e5m2_t const *b, nk_si
 NK_PUBLIC void nk_angular_e5m2_serial(nk_e5m2_t const *a, nk_e5m2_t const *b, nk_size_t n, nk_f32_t *result);
 /** @copydoc nk_l2_f64 */
 NK_PUBLIC void nk_l2_i8_serial(nk_i8_t const *a, nk_i8_t const *b, nk_size_t n, nk_f32_t *result);
-/** @copydoc nk_l2_f64 */
-NK_PUBLIC void nk_l2_i8_accurate(nk_i8_t const *a, nk_i8_t const *b, nk_size_t n, nk_f64_t *result);
-/** @copydoc nk_l2sq_f64 */
-NK_PUBLIC void nk_l2sq_i8_accurate(nk_i8_t const *a, nk_i8_t const *b, nk_size_t n, nk_u32_t *result);
 /** @copydoc nk_l2sq_f64 */
 NK_PUBLIC void nk_l2sq_i8_serial(nk_i8_t const *a, nk_i8_t const *b, nk_size_t n, nk_u32_t *result);
 /** @copydoc nk_angular_f64 */
 NK_PUBLIC void nk_angular_i8_serial(nk_i8_t const *a, nk_i8_t const *b, nk_size_t n, nk_f32_t *result);
 /** @copydoc nk_l2_f64 */
 NK_PUBLIC void nk_l2_u8_serial(nk_u8_t const *a, nk_u8_t const *b, nk_size_t n, nk_f32_t *result);
-/** @copydoc nk_l2_f64 */
-NK_PUBLIC void nk_l2_u8_accurate(nk_u8_t const *a, nk_u8_t const *b, nk_size_t n, nk_f64_t *result);
-/** @copydoc nk_l2sq_f64 */
-NK_PUBLIC void nk_l2sq_u8_accurate(nk_u8_t const *a, nk_u8_t const *b, nk_size_t n, nk_u32_t *result);
 /** @copydoc nk_l2sq_f64 */
 NK_PUBLIC void nk_l2sq_u8_serial(nk_u8_t const *a, nk_u8_t const *b, nk_size_t n, nk_u32_t *result);
 /** @copydoc nk_angular_f64 */
@@ -288,25 +279,6 @@ NK_PUBLIC void nk_l2_u4_serial(nk_u4x2_t const *a, nk_u4x2_t const *b, nk_size_t
 NK_PUBLIC void nk_l2sq_u4_serial(nk_u4x2_t const *a, nk_u4x2_t const *b, nk_size_t n, nk_u32_t *result);
 /** @copydoc nk_angular_f64 */
 NK_PUBLIC void nk_angular_u4_serial(nk_u4x2_t const *a, nk_u4x2_t const *b, nk_size_t n, nk_f32_t *result);
-
-/** @copydoc nk_l2_f64 */
-NK_PUBLIC void nk_l2_f32_accurate(nk_f32_t const *a, nk_f32_t const *b, nk_size_t n, nk_f64_t *result);
-/** @copydoc nk_l2sq_f64 */
-NK_PUBLIC void nk_l2sq_f32_accurate(nk_f32_t const *a, nk_f32_t const *b, nk_size_t n, nk_f64_t *result);
-/** @copydoc nk_angular_f64 */
-NK_PUBLIC void nk_angular_f32_accurate(nk_f32_t const *a, nk_f32_t const *b, nk_size_t n, nk_f64_t *result);
-/** @copydoc nk_l2_f64 */
-NK_PUBLIC void nk_l2_f16_accurate(nk_f16_t const *a, nk_f16_t const *b, nk_size_t n, nk_f64_t *result);
-/** @copydoc nk_l2sq_f64 */
-NK_PUBLIC void nk_l2sq_f16_accurate(nk_f16_t const *a, nk_f16_t const *b, nk_size_t n, nk_f64_t *result);
-/** @copydoc nk_angular_f64 */
-NK_PUBLIC void nk_angular_f16_accurate(nk_f16_t const *a, nk_f16_t const *b, nk_size_t n, nk_f64_t *result);
-/** @copydoc nk_l2_f64 */
-NK_PUBLIC void nk_l2_bf16_accurate(nk_bf16_t const *a, nk_bf16_t const *b, nk_size_t n, nk_f64_t *result);
-/** @copydoc nk_l2sq_f64 */
-NK_PUBLIC void nk_l2sq_bf16_accurate(nk_bf16_t const *a, nk_bf16_t const *b, nk_size_t n, nk_f64_t *result);
-/** @copydoc nk_angular_f64 */
-NK_PUBLIC void nk_angular_bf16_accurate(nk_bf16_t const *a, nk_bf16_t const *b, nk_size_t n, nk_f64_t *result);
 
 /*  SIMD-powered backends for Arm NEON, mostly using 32-bit arithmetic over 128-bit words.
  *  By far the most portable backend, covering most Arm v8 devices, over a billion phones, and almost all

@@ -51,8 +51,10 @@
 extern "C" {
 #endif
 
-// Fill memory with 0xFF - produces NaN for floats, -1/MAX for integers.
-// Avoids libc dependency on memset.
+/**
+ *  @brief Fill memory with 0xFF - produces NaN for floats, -1/MAX for integers.
+ *  Avoids libc dependency on memset.
+ */
 NK_INTERNAL void nk_fill_error_(void *ptr, nk_size_t bytes) {
     nk_u8_t *p = (nk_u8_t *)ptr;
     while (bytes--) *p++ = 0xFF;
@@ -60,7 +62,7 @@ NK_INTERNAL void nk_fill_error_(void *ptr, nk_size_t bytes) {
 
 // Every time a function is called, it checks if the metric is already loaded. If not, it fetches it.
 // If no metric is found, we fill the output with 0xFF bytes (NaN for floats, -1/MAX for integers).
-#define nk_declare_dense_(name, extension, input_type, output_type)                                                  \
+#define nk_define_dense_(name, extension, input_type, output_type)                                                   \
     NK_DYNAMIC void nk_##name##_##extension(nk_##input_type##_t const *a, nk_##input_type##_t const *b, nk_size_t n, \
                                             nk_##output_type##_t *results) {                                         \
         static nk_metric_dense_punned_t metric = 0;                                                                  \
@@ -76,7 +78,7 @@ NK_INTERNAL void nk_fill_error_(void *ptr, nk_size_t bytes) {
         metric(a, b, n, (void *)results);                                                                            \
     }
 
-#define nk_declare_sparse_(name, extension, type, output_type)                                                      \
+#define nk_define_sparse_(name, extension, type, output_type)                                                       \
     NK_DYNAMIC void nk_##name##_##extension(nk_##type##_t const *a, nk_##type##_t const *b, nk_size_t a_length,     \
                                             nk_size_t b_length, nk_##output_type##_t *result) {                     \
         static nk_sparse_intersect_punned_t metric = 0;                                                             \
@@ -92,7 +94,7 @@ NK_INTERNAL void nk_fill_error_(void *ptr, nk_size_t bytes) {
         metric(a, b, a_length, b_length, (void *)result);                                                           \
     }
 
-#define nk_declare_sparse_dot_(name, index_type, weight_type, output_type)                                            \
+#define nk_define_sparse_dot_(name, index_type, weight_type, output_type)                                             \
     NK_DYNAMIC void nk_##name##_##index_type##weight_type(nk_##index_type##_t const *a, nk_##index_type##_t const *b, \
                                                           nk_##weight_type##_t const *a_weights,                      \
                                                           nk_##weight_type##_t const *b_weights, nk_size_t a_length,  \
@@ -110,7 +112,7 @@ NK_INTERNAL void nk_fill_error_(void *ptr, nk_size_t bytes) {
         metric(a, b, a_weights, b_weights, a_length, b_length, (void *)product);                                      \
     }
 
-#define nk_declare_curved_(name, extension, output_type)                                                              \
+#define nk_define_curved_(name, extension, output_type)                                                               \
     NK_DYNAMIC void nk_##name##_##extension(nk_##extension##_t const *a, nk_##extension##_t const *b,                 \
                                             nk_##extension##_t const *c, nk_size_t n, nk_##output_type##_t *result) { \
         static nk_metric_curved_punned_t metric = 0;                                                                  \
@@ -126,7 +128,7 @@ NK_INTERNAL void nk_fill_error_(void *ptr, nk_size_t bytes) {
         metric(a, b, c, n, (void *)result);                                                                           \
     }
 
-#define nk_declare_geospatial_(name, extension, output_type)                                                    \
+#define nk_define_geospatial_(name, extension, output_type)                                                     \
     NK_DYNAMIC void nk_##name##_##extension(nk_##extension##_t const *a_lats, nk_##extension##_t const *a_lons, \
                                             nk_##extension##_t const *b_lats, nk_##extension##_t const *b_lons, \
                                             nk_size_t n, nk_##output_type##_t *results) {                       \
@@ -143,7 +145,7 @@ NK_INTERNAL void nk_fill_error_(void *ptr, nk_size_t bytes) {
         metric(a_lats, a_lons, b_lats, b_lons, n, (void *)results);                                             \
     }
 
-#define nk_declare_fma_(name, extension, scalar_type)                                                        \
+#define nk_define_fma_(name, extension, scalar_type)                                                         \
     NK_DYNAMIC void nk_##name##_##extension(                                                                 \
         nk_##extension##_t const *a, nk_##extension##_t const *b, nk_##extension##_t const *c, nk_size_t n,  \
         nk_##scalar_type##_t const *alpha, nk_##scalar_type##_t const *beta, nk_##extension##_t *result) {   \
@@ -160,7 +162,7 @@ NK_INTERNAL void nk_fill_error_(void *ptr, nk_size_t bytes) {
         metric(a, b, c, n, (void const *)alpha, (void const *)beta, result);                                 \
     }
 
-#define nk_declare_wsum_(name, extension, scalar_type)                                                             \
+#define nk_define_wsum_(name, extension, scalar_type)                                                              \
     NK_DYNAMIC void nk_##name##_##extension(nk_##extension##_t const *a, nk_##extension##_t const *b, nk_size_t n, \
                                             nk_##scalar_type##_t const *alpha, nk_##scalar_type##_t const *beta,   \
                                             nk_##extension##_t *result) {                                          \
@@ -177,7 +179,7 @@ NK_INTERNAL void nk_fill_error_(void *ptr, nk_size_t bytes) {
         metric(a, b, n, (void const *)alpha, (void const *)beta, result);                                          \
     }
 
-#define nk_declare_scale_(name, extension, scalar_type)                                                          \
+#define nk_define_scale_(name, extension, scalar_type)                                                           \
     NK_DYNAMIC void nk_##name##_##extension(nk_##extension##_t const *a, nk_size_t n,                            \
                                             nk_##scalar_type##_t const *alpha, nk_##scalar_type##_t const *beta, \
                                             nk_##extension##_t *result) {                                        \
@@ -194,7 +196,7 @@ NK_INTERNAL void nk_fill_error_(void *ptr, nk_size_t bytes) {
         metric(a, n, (void const *)alpha, (void const *)beta, result);                                           \
     }
 
-#define nk_declare_sum_(name, extension)                                                                           \
+#define nk_define_sum_(name, extension)                                                                            \
     NK_DYNAMIC void nk_##name##_##extension(nk_##extension##_t const *a, nk_##extension##_t const *b, nk_size_t n, \
                                             nk_##extension##_t *result) {                                          \
         static nk_kernel_sum_punned_t metric = 0;                                                                  \
@@ -210,7 +212,7 @@ NK_INTERNAL void nk_fill_error_(void *ptr, nk_size_t bytes) {
         metric(a, b, n, result);                                                                                   \
     }
 
-#define nk_declare_trigonometry_(name, extension)                                                            \
+#define nk_define_trigonometry_(name, extension)                                                             \
     NK_DYNAMIC void nk_##name##_##extension(nk_##extension##_t const *inputs, nk_size_t n,                   \
                                             nk_##extension##_t *outputs) {                                   \
         static nk_kernel_trigonometry_punned_t kernel = 0;                                                   \
@@ -226,7 +228,7 @@ NK_INTERNAL void nk_fill_error_(void *ptr, nk_size_t bytes) {
         kernel(inputs, n, outputs);                                                                          \
     }
 
-#define nk_declare_mesh_(name, extension, mesh_type)                                                               \
+#define nk_define_mesh_(name, extension, mesh_type)                                                                \
     NK_DYNAMIC void nk_##name##_##extension(nk_##extension##_t const *a, nk_##extension##_t const *b, nk_size_t n, \
                                             nk_##mesh_type##_t *a_centroid, nk_##mesh_type##_t *b_centroid,        \
                                             nk_##mesh_type##_t *rotation, nk_##mesh_type##_t *scale,               \
@@ -248,7 +250,7 @@ NK_INTERNAL void nk_fill_error_(void *ptr, nk_size_t bytes) {
         kernel(a, b, n, (void *)a_centroid, (void *)b_centroid, (void *)rotation, (void *)scale, (void *)result);  \
     }
 
-#define nk_declare_reduce_add_(extension, output_type)                                                                 \
+#define nk_define_reduce_add_(extension, output_type)                                                                  \
     NK_DYNAMIC void nk_reduce_add_##extension(nk_##extension##_t const *data, nk_size_t count, nk_size_t stride_bytes, \
                                               nk_##output_type##_t *result) {                                          \
         static nk_kernel_reduce_add_punned_t kernel = 0;                                                               \
@@ -264,7 +266,7 @@ NK_INTERNAL void nk_fill_error_(void *ptr, nk_size_t bytes) {
         kernel(data, count, stride_bytes, result);                                                                     \
     }
 
-#define nk_declare_reduce_minmax_(name, extension, output_type)                                                     \
+#define nk_define_reduce_minmax_(name, extension, output_type)                                                      \
     NK_DYNAMIC void nk_reduce_##name##_##extension(nk_##extension##_t const *data, nk_size_t count,                 \
                                                    nk_size_t stride_bytes, nk_##output_type##_t *value,             \
                                                    nk_size_t *index) {                                              \
@@ -282,7 +284,7 @@ NK_INTERNAL void nk_fill_error_(void *ptr, nk_size_t bytes) {
         kernel(data, count, stride_bytes, value, index);                                                            \
     }
 
-#define nk_declare_dots_packed_size_(name, input_type, accum_type)                                              \
+#define nk_define_dots_packed_size_(name, input_type, accum_type)                                               \
     NK_DYNAMIC nk_size_t nk_dots_packed_size_##name(nk_size_t n, nk_size_t k) {                                 \
         static nk_dots_packed_size_punned_t kernel = 0;                                                         \
         if (kernel == 0) {                                                                                      \
@@ -294,7 +296,7 @@ NK_INTERNAL void nk_fill_error_(void *ptr, nk_size_t bytes) {
         return kernel(n, k);                                                                                    \
     }
 
-#define nk_declare_dots_pack_(name, input_type, accum_type)                                                         \
+#define nk_define_dots_pack_(name, input_type, accum_type)                                                          \
     NK_DYNAMIC void nk_dots_pack_##name(nk_##input_type##_t const *b, nk_size_t n, nk_size_t k, nk_size_t b_stride, \
                                         void *b_packed) {                                                           \
         static nk_dots_pack_punned_t kernel = 0;                                                                    \
@@ -311,7 +313,7 @@ NK_INTERNAL void nk_fill_error_(void *ptr, nk_size_t bytes) {
         kernel(b, n, k, b_stride, b_packed);                                                                        \
     }
 
-#define nk_declare_dots_(name, input_type, accum_type, output_type)                                                    \
+#define nk_define_dots_packed_(name, input_type, accum_type, output_type)                                              \
     NK_DYNAMIC void nk_dots_packed_##name(nk_##input_type##_t const *a, void const *b_packed, nk_##output_type##_t *c, \
                                           nk_size_t m, nk_size_t n, nk_size_t k, nk_size_t a_stride,                   \
                                           nk_size_t c_stride) {                                                        \
@@ -330,241 +332,240 @@ NK_INTERNAL void nk_fill_error_(void *ptr, nk_size_t bytes) {
     }
 
 // Dot products
-nk_declare_dense_(dot, i8, i8, i32)
-nk_declare_dense_(dot, u8, u8, u32)
-nk_declare_dense_(dot, i4, i4x2, i32)
-nk_declare_dense_(dot, u4, u4x2, u32)
-nk_declare_dense_(dot, f16, f16, f32)
-nk_declare_dense_(dot, bf16, bf16, f32)
-nk_declare_dense_(dot, f32, f32, f32)
-nk_declare_dense_(dot, f64, f64, f64)
-nk_declare_dense_(dot, f16c, f16c, f32c)
-nk_declare_dense_(dot, bf16c, bf16c, f32c)
-nk_declare_dense_(dot, f32c, f32c, f32c)
-nk_declare_dense_(dot, f64c, f64c, f64c)
-nk_declare_dense_(dot, e4m3, e4m3, f32)
-nk_declare_dense_(dot, e5m2, e5m2, f32)
-nk_declare_dense_(vdot, f16c, f16c, f32c)
-nk_declare_dense_(vdot, bf16c, bf16c, f32c)
-nk_declare_dense_(vdot, f32c, f32c, f32c)
-nk_declare_dense_(vdot, f64c, f64c, f64c)
+nk_define_dense_(dot, i8, i8, i32)
+nk_define_dense_(dot, u8, u8, u32)
+nk_define_dense_(dot, i4, i4x2, i32)
+nk_define_dense_(dot, u4, u4x2, u32)
+nk_define_dense_(dot, f16, f16, f32)
+nk_define_dense_(dot, bf16, bf16, f32)
+nk_define_dense_(dot, f32, f32, f32)
+nk_define_dense_(dot, f64, f64, f64)
+nk_define_dense_(dot, f16c, f16c, f32c)
+nk_define_dense_(dot, bf16c, bf16c, f32c)
+nk_define_dense_(dot, f32c, f32c, f32c)
+nk_define_dense_(dot, f64c, f64c, f64c)
+nk_define_dense_(dot, e4m3, e4m3, f32)
+nk_define_dense_(dot, e5m2, e5m2, f32)
+nk_define_dense_(vdot, f16c, f16c, f32c)
+nk_define_dense_(vdot, bf16c, bf16c, f32c)
+nk_define_dense_(vdot, f32c, f32c, f32c)
+nk_define_dense_(vdot, f64c, f64c, f64c)
 
 // Spatial distances
-nk_declare_dense_(angular, i8, i8, f32)
-nk_declare_dense_(angular, u8, u8, f32)
-nk_declare_dense_(angular, i4, i4x2, f32)
-nk_declare_dense_(angular, u4, u4x2, f32)
-nk_declare_dense_(angular, f16, f16, f32)
-nk_declare_dense_(angular, bf16, bf16, f32)
-nk_declare_dense_(angular, f32, f32, f32)
-nk_declare_dense_(angular, f64, f64, f64)
-nk_declare_dense_(angular, e4m3, e4m3, f32)
-nk_declare_dense_(angular, e5m2, e5m2, f32)
-nk_declare_dense_(l2sq, i8, i8, u32)
-nk_declare_dense_(l2sq, u8, u8, u32)
-nk_declare_dense_(l2sq, i4, i4x2, u32)
-nk_declare_dense_(l2sq, u4, u4x2, u32)
-nk_declare_dense_(l2sq, f16, f16, f32)
-nk_declare_dense_(l2sq, bf16, bf16, f32)
-nk_declare_dense_(l2sq, f32, f32, f32)
-nk_declare_dense_(l2sq, f64, f64, f64)
-nk_declare_dense_(l2sq, e4m3, e4m3, f32)
-nk_declare_dense_(l2sq, e5m2, e5m2, f32)
-nk_declare_dense_(l2, i8, i8, f32)
-nk_declare_dense_(l2, u8, u8, f32)
-nk_declare_dense_(l2, i4, i4x2, f32)
-nk_declare_dense_(l2, u4, u4x2, f32)
-nk_declare_dense_(l2, f16, f16, f32)
-nk_declare_dense_(l2, bf16, bf16, f32)
-nk_declare_dense_(l2, f32, f32, f32)
-nk_declare_dense_(l2, f64, f64, f64)
-nk_declare_dense_(l2, e4m3, e4m3, f32)
-nk_declare_dense_(l2, e5m2, e5m2, f32)
+nk_define_dense_(angular, i8, i8, f32)
+nk_define_dense_(angular, u8, u8, f32)
+nk_define_dense_(angular, i4, i4x2, f32)
+nk_define_dense_(angular, u4, u4x2, f32)
+nk_define_dense_(angular, f16, f16, f32)
+nk_define_dense_(angular, bf16, bf16, f32)
+nk_define_dense_(angular, f32, f32, f32)
+nk_define_dense_(angular, f64, f64, f64)
+nk_define_dense_(angular, e4m3, e4m3, f32)
+nk_define_dense_(angular, e5m2, e5m2, f32)
+nk_define_dense_(l2sq, i8, i8, u32)
+nk_define_dense_(l2sq, u8, u8, u32)
+nk_define_dense_(l2sq, i4, i4x2, u32)
+nk_define_dense_(l2sq, u4, u4x2, u32)
+nk_define_dense_(l2sq, f16, f16, f32)
+nk_define_dense_(l2sq, bf16, bf16, f32)
+nk_define_dense_(l2sq, f32, f32, f32)
+nk_define_dense_(l2sq, f64, f64, f64)
+nk_define_dense_(l2sq, e4m3, e4m3, f32)
+nk_define_dense_(l2sq, e5m2, e5m2, f32)
+nk_define_dense_(l2, i8, i8, f32)
+nk_define_dense_(l2, u8, u8, f32)
+nk_define_dense_(l2, i4, i4x2, f32)
+nk_define_dense_(l2, u4, u4x2, f32)
+nk_define_dense_(l2, f16, f16, f32)
+nk_define_dense_(l2, bf16, bf16, f32)
+nk_define_dense_(l2, f32, f32, f32)
+nk_define_dense_(l2, f64, f64, f64)
+nk_define_dense_(l2, e4m3, e4m3, f32)
+nk_define_dense_(l2, e5m2, e5m2, f32)
 
 // Geospatial distances
-nk_declare_geospatial_(haversine, f64, f64)
-nk_declare_geospatial_(haversine, f32, f32)
-nk_declare_geospatial_(vincenty, f64, f64)
-nk_declare_geospatial_(vincenty, f32, f32)
+nk_define_geospatial_(haversine, f64, f64)
+nk_define_geospatial_(haversine, f32, f32)
+nk_define_geospatial_(vincenty, f64, f64)
+nk_define_geospatial_(vincenty, f32, f32)
 
 // Binary distances
-nk_declare_dense_(hamming, u1, u1x8, u32)
-nk_declare_dense_(jaccard, u1, u1x8, f32)
-nk_declare_dense_(jaccard, u32, u32, f32)
+nk_define_dense_(hamming, u1, u1x8, u32)
+nk_define_dense_(jaccard, u1, u1x8, f32)
+nk_define_dense_(jaccard, u32, u32, f32)
 
 // Probability distributions
-nk_declare_dense_(kld, f16, f16, f32)
-nk_declare_dense_(kld, bf16, bf16, f32)
-nk_declare_dense_(kld, f32, f32, f32)
-nk_declare_dense_(kld, f64, f64, f64)
-nk_declare_dense_(jsd, f16, f16, f32)
-nk_declare_dense_(jsd, bf16, bf16, f32)
-nk_declare_dense_(jsd, f32, f32, f32)
-nk_declare_dense_(jsd, f64, f64, f64)
+nk_define_dense_(kld, f16, f16, f32)
+nk_define_dense_(kld, bf16, bf16, f32)
+nk_define_dense_(kld, f32, f32, f32)
+nk_define_dense_(kld, f64, f64, f64)
+nk_define_dense_(jsd, f16, f16, f32)
+nk_define_dense_(jsd, bf16, bf16, f32)
+nk_define_dense_(jsd, f32, f32, f32)
+nk_define_dense_(jsd, f64, f64, f64)
 
 // Sparse sets
-nk_declare_sparse_(intersect, u16, u16, u32)
-nk_declare_sparse_(intersect, u32, u32, u32)
-nk_declare_sparse_dot_(sparse_dot, u16, bf16, f32)
-nk_declare_sparse_dot_(sparse_dot, u32, f32, f32)
+nk_define_sparse_(intersect, u16, u16, u32) nk_define_sparse_(intersect, u32, u32, u32)
+    nk_define_sparse_dot_(sparse_dot, u16, bf16, f32)
+nk_define_sparse_dot_(sparse_dot, u32, f32, f32)
 
 // Curved spaces
-nk_declare_curved_(bilinear, f64, f64)
-nk_declare_curved_(bilinear, f64c, f64c)
-nk_declare_curved_(mahalanobis, f64, f64)
-nk_declare_curved_(bilinear, f32, f32)
-nk_declare_curved_(bilinear, f32c, f32c)
-nk_declare_curved_(mahalanobis, f32, f32)
-nk_declare_curved_(bilinear, f16, f32)
-nk_declare_curved_(bilinear, f16c, f32c)
-nk_declare_curved_(mahalanobis, f16, f32)
-nk_declare_curved_(bilinear, bf16, f32)
-nk_declare_curved_(bilinear, bf16c, f32c)
-nk_declare_curved_(mahalanobis, bf16, f32)
+nk_define_curved_(bilinear, f64, f64)
+nk_define_curved_(bilinear, f64c, f64c)
+nk_define_curved_(mahalanobis, f64, f64)
+nk_define_curved_(bilinear, f32, f32)
+nk_define_curved_(bilinear, f32c, f32c)
+nk_define_curved_(mahalanobis, f32, f32)
+nk_define_curved_(bilinear, f16, f32)
+nk_define_curved_(bilinear, f16c, f32c)
+nk_define_curved_(mahalanobis, f16, f32)
+nk_define_curved_(bilinear, bf16, f32)
+nk_define_curved_(bilinear, bf16c, f32c)
+nk_define_curved_(mahalanobis, bf16, f32)
 
 // Element-wise operations
-nk_declare_fma_(fma, f64, f64)
-nk_declare_fma_(fma, f32, f32)
-nk_declare_fma_(fma, f16, f32)
-nk_declare_fma_(fma, bf16, f32)
-nk_declare_fma_(fma, i8, f32)
-nk_declare_fma_(fma, u8, f32)
-nk_declare_wsum_(wsum, f64, f64)
-nk_declare_wsum_(wsum, f32, f32)
-nk_declare_wsum_(wsum, f16, f32)
-nk_declare_wsum_(wsum, bf16, f32)
-nk_declare_wsum_(wsum, i8, f32)
-nk_declare_wsum_(wsum, u8, f32)
-nk_declare_scale_(scale, f64, f64)
-nk_declare_scale_(scale, f32, f32)
-nk_declare_scale_(scale, f16, f32)
-nk_declare_scale_(scale, bf16, f32)
-nk_declare_scale_(scale, i8, f32)
-nk_declare_scale_(scale, u8, f32)
-nk_declare_scale_(scale, i16, f32)
-nk_declare_scale_(scale, u16, f32)
-nk_declare_scale_(scale, i32, f64)
-nk_declare_scale_(scale, u32, f64)
-nk_declare_scale_(scale, i64, f64)
-nk_declare_scale_(scale, u64, f64)
-nk_declare_sum_(sum, f64)
-nk_declare_sum_(sum, f32)
-nk_declare_sum_(sum, f16)
-nk_declare_sum_(sum, bf16)
-nk_declare_sum_(sum, i8)
-nk_declare_sum_(sum, u8)
-nk_declare_sum_(sum, i16)
-nk_declare_sum_(sum, u16)
-nk_declare_sum_(sum, i32)
-nk_declare_sum_(sum, u32)
-nk_declare_sum_(sum, i64)
-nk_declare_sum_(sum, u64)
+nk_define_fma_(fma, f64, f64)
+nk_define_fma_(fma, f32, f32)
+nk_define_fma_(fma, f16, f32)
+nk_define_fma_(fma, bf16, f32)
+nk_define_fma_(fma, i8, f32)
+nk_define_fma_(fma, u8, f32)
+nk_define_wsum_(wsum, f64, f64)
+nk_define_wsum_(wsum, f32, f32)
+nk_define_wsum_(wsum, f16, f32)
+nk_define_wsum_(wsum, bf16, f32)
+nk_define_wsum_(wsum, i8, f32)
+nk_define_wsum_(wsum, u8, f32)
+nk_define_scale_(scale, f64, f64)
+nk_define_scale_(scale, f32, f32)
+nk_define_scale_(scale, f16, f32)
+nk_define_scale_(scale, bf16, f32)
+nk_define_scale_(scale, i8, f32)
+nk_define_scale_(scale, u8, f32)
+nk_define_scale_(scale, i16, f32)
+nk_define_scale_(scale, u16, f32)
+nk_define_scale_(scale, i32, f64)
+nk_define_scale_(scale, u32, f64)
+nk_define_scale_(scale, i64, f64)
+nk_define_scale_(scale, u64, f64)
+nk_define_sum_(sum, f64)
+nk_define_sum_(sum, f32)
+nk_define_sum_(sum, f16)
+nk_define_sum_(sum, bf16)
+nk_define_sum_(sum, i8)
+nk_define_sum_(sum, u8)
+nk_define_sum_(sum, i16)
+nk_define_sum_(sum, u16)
+nk_define_sum_(sum, i32)
+nk_define_sum_(sum, u32)
+nk_define_sum_(sum, i64)
+nk_define_sum_(sum, u64)
 
 // Trigonometry functions
-nk_declare_trigonometry_(sin, f32)
-nk_declare_trigonometry_(sin, f64)
-nk_declare_trigonometry_(cos, f32)
-nk_declare_trigonometry_(cos, f64)
-nk_declare_trigonometry_(atan, f32)
-nk_declare_trigonometry_(atan, f64)
+nk_define_trigonometry_(sin, f32)
+nk_define_trigonometry_(sin, f64)
+nk_define_trigonometry_(cos, f32)
+nk_define_trigonometry_(cos, f64)
+nk_define_trigonometry_(atan, f32)
+nk_define_trigonometry_(atan, f64)
 
 // Mesh alignment (RMSD, Kabsch, Umeyama)
-nk_declare_mesh_(rmsd, f32, f32)
-nk_declare_mesh_(rmsd, f64, f64)
-nk_declare_mesh_(kabsch, f32, f32)
-nk_declare_mesh_(kabsch, f64, f64)
-nk_declare_mesh_(umeyama, f32, f32)
-nk_declare_mesh_(umeyama, f64, f64)
+nk_define_mesh_(rmsd, f32, f32)
+nk_define_mesh_(rmsd, f64, f64)
+nk_define_mesh_(kabsch, f32, f32)
+nk_define_mesh_(kabsch, f64, f64)
+nk_define_mesh_(umeyama, f32, f32)
+nk_define_mesh_(umeyama, f64, f64)
 
 // Horizontal reductions - floating point
-nk_declare_reduce_add_(f32, f64)
-nk_declare_reduce_add_(f64, f64)
-nk_declare_reduce_minmax_(min, f32, f32)
-nk_declare_reduce_minmax_(max, f32, f32)
-nk_declare_reduce_minmax_(min, f64, f64)
-nk_declare_reduce_minmax_(max, f64, f64)
+nk_define_reduce_add_(f32, f64)
+nk_define_reduce_add_(f64, f64)
+nk_define_reduce_minmax_(min, f32, f32)
+nk_define_reduce_minmax_(max, f32, f32)
+nk_define_reduce_minmax_(min, f64, f64)
+nk_define_reduce_minmax_(max, f64, f64)
 // Horizontal reductions - integers (output widened for sum)
-nk_declare_reduce_add_(i8, i64)
-nk_declare_reduce_add_(u8, u64)
-nk_declare_reduce_add_(i16, i64)
-nk_declare_reduce_add_(u16, u64)
-nk_declare_reduce_add_(i32, i64)
-nk_declare_reduce_add_(u32, u64)
-nk_declare_reduce_add_(i64, i64)
-nk_declare_reduce_add_(u64, u64)
-nk_declare_reduce_minmax_(min, i8, i8)
-nk_declare_reduce_minmax_(max, i8, i8)
-nk_declare_reduce_minmax_(min, u8, u8)
-nk_declare_reduce_minmax_(max, u8, u8)
-nk_declare_reduce_minmax_(min, i16, i16)
-nk_declare_reduce_minmax_(max, i16, i16)
-nk_declare_reduce_minmax_(min, u16, u16)
-nk_declare_reduce_minmax_(max, u16, u16)
-nk_declare_reduce_minmax_(min, i32, i32)
-nk_declare_reduce_minmax_(max, i32, i32)
-nk_declare_reduce_minmax_(min, u32, u32)
-nk_declare_reduce_minmax_(max, u32, u32)
-nk_declare_reduce_minmax_(min, i64, i64)
-nk_declare_reduce_minmax_(max, i64, i64)
-nk_declare_reduce_minmax_(min, u64, u64)
-nk_declare_reduce_minmax_(max, u64, u64)
+nk_define_reduce_add_(i8, i64)
+nk_define_reduce_add_(u8, u64)
+nk_define_reduce_add_(i16, i64)
+nk_define_reduce_add_(u16, u64)
+nk_define_reduce_add_(i32, i64)
+nk_define_reduce_add_(u32, u64)
+nk_define_reduce_add_(i64, i64)
+nk_define_reduce_add_(u64, u64)
+nk_define_reduce_minmax_(min, i8, i8)
+nk_define_reduce_minmax_(max, i8, i8)
+nk_define_reduce_minmax_(min, u8, u8)
+nk_define_reduce_minmax_(max, u8, u8)
+nk_define_reduce_minmax_(min, i16, i16)
+nk_define_reduce_minmax_(max, i16, i16)
+nk_define_reduce_minmax_(min, u16, u16)
+nk_define_reduce_minmax_(max, u16, u16)
+nk_define_reduce_minmax_(min, i32, i32)
+nk_define_reduce_minmax_(max, i32, i32)
+nk_define_reduce_minmax_(min, u32, u32)
+nk_define_reduce_minmax_(max, u32, u32)
+nk_define_reduce_minmax_(min, i64, i64)
+nk_define_reduce_minmax_(max, i64, i64)
+nk_define_reduce_minmax_(min, u64, u64)
+nk_define_reduce_minmax_(max, u64, u64)
 // Horizontal reductions - half-precision types (output widened to f32)
-nk_declare_reduce_add_(f16, f32)
-nk_declare_reduce_add_(bf16, f32)
-nk_declare_reduce_add_(e4m3, f32)
-nk_declare_reduce_add_(e5m2, f32)
-nk_declare_reduce_minmax_(min, f16, f32)
-nk_declare_reduce_minmax_(max, f16, f32)
-nk_declare_reduce_minmax_(min, bf16, f32)
-nk_declare_reduce_minmax_(max, bf16, f32)
-nk_declare_reduce_minmax_(min, e4m3, f32)
-nk_declare_reduce_minmax_(max, e4m3, f32)
-nk_declare_reduce_minmax_(min, e5m2, f32)
-nk_declare_reduce_minmax_(max, e5m2, f32)
+nk_define_reduce_add_(f16, f32)
+nk_define_reduce_add_(bf16, f32)
+nk_define_reduce_add_(e4m3, f32)
+nk_define_reduce_add_(e5m2, f32)
+nk_define_reduce_minmax_(min, f16, f32)
+nk_define_reduce_minmax_(max, f16, f32)
+nk_define_reduce_minmax_(min, bf16, f32)
+nk_define_reduce_minmax_(max, bf16, f32)
+nk_define_reduce_minmax_(min, e4m3, f32)
+nk_define_reduce_minmax_(max, e4m3, f32)
+nk_define_reduce_minmax_(min, e5m2, f32)
+nk_define_reduce_minmax_(max, e5m2, f32)
 // Elementwise operations - FP8 types
-nk_declare_sum_(sum, e4m3)
-nk_declare_sum_(sum, e5m2)
-nk_declare_scale_(scale, e4m3, f32)
-nk_declare_scale_(scale, e5m2, f32)
-nk_declare_wsum_(wsum, e4m3, f32)
-nk_declare_wsum_(wsum, e5m2, f32)
-nk_declare_fma_(fma, e4m3, f32)
-nk_declare_fma_(fma, e5m2, f32)
+nk_define_sum_(sum, e4m3)
+nk_define_sum_(sum, e5m2)
+nk_define_scale_(scale, e4m3, f32)
+nk_define_scale_(scale, e5m2, f32)
+nk_define_wsum_(wsum, e4m3, f32)
+nk_define_wsum_(wsum, e5m2, f32)
+nk_define_fma_(fma, e4m3, f32)
+nk_define_fma_(fma, e5m2, f32)
 
 // Matrix multiplications (GEMM with packed B)
-nk_declare_dots_packed_size_(f32, f32, f32)
-nk_declare_dots_packed_size_(f64, f64, f64)
-nk_declare_dots_packed_size_(f16, f16, f32)
-nk_declare_dots_packed_size_(bf16, bf16, f32)
-nk_declare_dots_packed_size_(i8, i8, i32)
-nk_declare_dots_packed_size_(u8, u8, u32)
-nk_declare_dots_packed_size_(e4m3, e4m3, f32)
-nk_declare_dots_packed_size_(e5m2, e5m2, f32)
-nk_declare_dots_packed_size_(u1, u1x8, u32)
-nk_declare_dots_packed_size_(u4, u4x2, u32)
-nk_declare_dots_packed_size_(i4, i4x2, i32)
-nk_declare_dots_pack_(f32, f32, f32)
-nk_declare_dots_pack_(f64, f64, f64)
-nk_declare_dots_pack_(f16, f16, f32)
-nk_declare_dots_pack_(bf16, bf16, f32)
-nk_declare_dots_pack_(i8, i8, i32)
-nk_declare_dots_pack_(u8, u8, u32)
-nk_declare_dots_pack_(e4m3, e4m3, f32)
-nk_declare_dots_pack_(e5m2, e5m2, f32)
-nk_declare_dots_pack_(u1, u1x8, u32)
-nk_declare_dots_pack_(u4, u4x2, u32)
-nk_declare_dots_pack_(i4, i4x2, i32)
-nk_declare_dots_(f32, f32, f32, f32)
-nk_declare_dots_(f64, f64, f64, f64)
-nk_declare_dots_(f16, f16, f32, f32)
-nk_declare_dots_(bf16, bf16, f32, f32)
-nk_declare_dots_(i8, i8, i32, i32)
-nk_declare_dots_(u8, u8, u32, u32)
-nk_declare_dots_(e4m3, e4m3, f32, f32)
-nk_declare_dots_(e5m2, e5m2, f32, f32)
-nk_declare_dots_(u1, u1x8, u32, u32)
-nk_declare_dots_(u4, u4x2, u32, u32)
-nk_declare_dots_(i4, i4x2, i32, i32)
+nk_define_dots_packed_size_(f32, f32, f32)
+nk_define_dots_packed_size_(f64, f64, f64)
+nk_define_dots_packed_size_(f16, f16, f32)
+nk_define_dots_packed_size_(bf16, bf16, f32)
+nk_define_dots_packed_size_(i8, i8, i32)
+nk_define_dots_packed_size_(u8, u8, u32)
+nk_define_dots_packed_size_(e4m3, e4m3, f32)
+nk_define_dots_packed_size_(e5m2, e5m2, f32)
+nk_define_dots_packed_size_(u1, u1x8, u32)
+nk_define_dots_packed_size_(u4, u4x2, u32)
+nk_define_dots_packed_size_(i4, i4x2, i32)
+nk_define_dots_pack_(f32, f32, f32)
+nk_define_dots_pack_(f64, f64, f64)
+nk_define_dots_pack_(f16, f16, f32)
+nk_define_dots_pack_(bf16, bf16, f32)
+nk_define_dots_pack_(i8, i8, i32)
+nk_define_dots_pack_(u8, u8, u32)
+nk_define_dots_pack_(e4m3, e4m3, f32)
+nk_define_dots_pack_(e5m2, e5m2, f32)
+nk_define_dots_pack_(u1, u1x8, u32)
+nk_define_dots_pack_(u4, u4x2, u32)
+nk_define_dots_pack_(i4, i4x2, i32)
+nk_define_dots_packed_(f32, f32, f32, f32)
+nk_define_dots_packed_(f64, f64, f64, f64)
+nk_define_dots_packed_(f16, f16, f32, f32)
+nk_define_dots_packed_(bf16, bf16, f32, f32)
+nk_define_dots_packed_(i8, i8, i32, i32)
+nk_define_dots_packed_(u8, u8, u32, u32)
+nk_define_dots_packed_(e4m3, e4m3, f32, f32)
+nk_define_dots_packed_(e5m2, e5m2, f32, f32)
+nk_define_dots_packed_(u1, u1x8, u32, u32)
+nk_define_dots_packed_(u4, u4x2, u32, u32)
+nk_define_dots_packed_(i4, i4x2, i32, i32)
 
 // ARM NEON capabilities
 NK_DYNAMIC int nk_uses_neon(void) { return (nk_capabilities() & nk_cap_neon_k) != 0; }

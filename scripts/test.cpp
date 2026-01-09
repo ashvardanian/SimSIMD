@@ -1,9 +1,9 @@
 /**
- *  @brief C++ test suite with precision analysis using Boost.Multiprecision.
+ *  @brief C++ test suite with precision analysis using double-double arithmetic.
  *  @file scripts/test.cpp
  *
- *  This test suite compares NumKong operations against high-precision references
- *  (quad precision via Boost.Multiprecision) and reports ULP error statistics.
+ *  This test suite compares NumKong operations against high-precision references,
+ *  like our `f118_t` double-double type, and reports ULP error statistics.
  *
  *  Environment Variables:
  *    NK_TEST_ASSERT=1             - Assert on ULP threshold violations (default: 0)
@@ -22,8 +22,6 @@
  *    NK_TEST_DISTRIBUTION=<type>  - Random distribution: uniform_k|lognormal_k|cauchy_k (default: lognormal_k)
  */
 
-#pragma region Includes_and_Configuration
-
 #include <algorithm>
 #include <cassert>
 #include <cfloat>
@@ -37,8 +35,6 @@
 #include <random>
 #include <regex>
 #include <vector>
-
-#include <boost/multiprecision/cpp_bin_float.hpp>
 
 #if NK_TEST_USE_OPENMP
 #include <omp.h>
@@ -66,97 +62,41 @@
 
 #define NK_NATIVE_F16  0
 #define NK_NATIVE_BF16 0
-#include <numkong/numkong.h>
+#include <numkong/numkong.hpp>
+
+namespace nk = ashvardanian::numkong;
+
+using nk::bf16_t;
+using nk::e4m3_t;
+using nk::e5m2_t;
+using nk::f118_t;
+using nk::f118c_t;
+using nk::f16_t;
+using nk::f32_t;
+using nk::f32c_t;
+using nk::f64_t;
+using nk::f64c_t;
+using nk::i16_t;
+using nk::i32_t;
+using nk::i4x2_t;
+using nk::i64_t;
+using nk::i8_t;
+using nk::u16_t;
+using nk::u1x8_t;
+using nk::u32_t;
+using nk::u4x2_t;
+using nk::u64_t;
+using nk::u8_t;
 
 using steady_clock = std::chrono::steady_clock;
 using time_point = steady_clock::time_point;
 
-namespace mp = boost::multiprecision;
-using f128_t = mp::cpp_bin_float_quad;
+#pragma region Configuration
 
-/// @brief Quad-precision complex for reference computations.
-struct f128c_t {
-    f128_t real = 0;
-    f128_t imag = 0;
-    f128c_t() = default;
-    f128c_t(f128_t r, f128_t i) : real(r), imag(i) {}
-};
-
-/**
- *  @brief Double-double arithmetic with ~106-bit mantissa.
- *  Uses Knuth two-sum + FMA for lower-error transformations.
- *
- *      Type                        Speed  Mantissa  Notes
- *      double                      1.0x   53-bit    Hardware
- *      long double                 1.5x   64-bit    x87 hardware
- *      double_double_t             11x    ~106-bit  Software, FMA-based
- *      __float128                  88x    113-bit   libquadmath
- *      boost::float128             91x    113-bit   Wrapper around `__float128`
- *      boost::cpp_bin_float_quad   200x   113-bit   Pure C++ (slowest!)
- *      boost::cpp_bin_float_50     237x   ~166-bit  50 decimal digits
- */
-struct double_double_t {
-    double hi, lo;
-
-    inline double_double_t() noexcept : hi(0), lo(0) {}
-    inline double_double_t(double h, double l) noexcept : hi(h), lo(l) {}
-    inline double_double_t(double v) noexcept : hi(v), lo(0) {}
-
-    inline explicit double_double_t(f128_t const &v) noexcept {
-        hi = static_cast<double>(v);
-        lo = static_cast<double>(v - f128_t(hi));
-    }
-
-    inline static double_double_t two_sum(double a, double b) noexcept {
-        double s = a + b;
-        double v = s - a;
-        return double_double_t(s, (a - (s - v)) + (b - v));
-    }
-
-    inline static double_double_t quick_two_sum(double a, double b) noexcept {
-        return double_double_t(a + b, b - ((a + b) - a));
-    }
-
-    inline double_double_t operator+(double_double_t const &o) const noexcept {
-        double_double_t s = two_sum(hi, o.hi);
-        s.lo += lo + o.lo;
-        return quick_two_sum(s.hi, s.lo);
-    }
-
-    inline double_double_t &operator+=(double_double_t const &o) noexcept { return *this = *this + o; }
-
-    inline double_double_t operator-(double_double_t const &o) const noexcept {
-        double_double_t s = two_sum(hi, -o.hi);
-        s.lo += lo - o.lo;
-        return quick_two_sum(s.hi, s.lo);
-    }
-
-    inline double_double_t operator*(double_double_t const &o) const noexcept {
-        double p = hi * o.hi;
-        return quick_two_sum(p, std::fma(hi, o.hi, -p) + hi * o.lo + lo * o.hi);
-    }
-
-    inline double_double_t operator/(double_double_t const &o) const noexcept {
-        double q = hi / o.hi;
-        double_double_t r = *this - o * double_double_t(q);
-        return quick_two_sum(q, r.hi / o.hi);
-    }
-
-    inline bool operator==(double_double_t const &o) const noexcept { return hi == o.hi && lo == o.lo; }
-    inline bool operator!=(double_double_t const &o) const noexcept { return !(*this == o); }
-    inline bool operator<(double_double_t const &o) const noexcept { return hi < o.hi || (hi == o.hi && lo < o.lo); }
-    inline bool operator>(double_double_t const &o) const noexcept { return o < *this; }
-    inline bool operator<=(double_double_t const &o) const noexcept { return !(o < *this); }
-    inline bool operator>=(double_double_t const &o) const noexcept { return !(*this < o); }
-
-    inline explicit operator double() const noexcept { return hi + lo; }
-    inline explicit operator f128_t() const noexcept { return f128_t(hi) + f128_t(lo); }
-};
-
-/// @brief  Square root for double_double_t via f128_t conversion.
-inline double_double_t sqrt(double_double_t const &x) noexcept { return double_double_t(mp::sqrt(f128_t(x))); }
-
-using fmax_t = double_double_t;
+std::size_t dense_dimension = 1024; // For dot products, spatial metrics
+std::size_t sparse_dimension = 256; // For sparse set intersection and sparse dot
+std::size_t mesh_dimension = 256;   // For RMSD, Kabsch (3D point clouds)
+std::size_t matmul_dimension_m = 64, matmul_dimension_n = 64, matmul_dimension_k = 64;
 
 enum class random_distribution_kind_t { uniform_k, lognormal_k, cauchy_k };
 
@@ -215,14 +155,9 @@ inline bool within_time_budget(time_point start) {
     return elapsed < static_cast<long long>(global_config.time_budget_ms);
 }
 
-// Global test dimensions - can be overridden via environment variables
-std::size_t dense_dimension = 1024; // For dot products, spatial metrics
-std::size_t mesh_dimension = 256;   // For RMSD, Kabsch (3D point clouds)
-std::size_t matmul_dimension_m = 64, matmul_dimension_n = 64, matmul_dimension_k = 64;
+#pragma endregion // Configuration
 
-#pragma endregion // Includes_and_Configuration
-
-#pragma region Precision_Infrastructure
+#pragma region Precision Infrastructure
 
 /**
  *  @brief Compute ULP (Units in Last Place) distance between two floating-point values.
@@ -236,10 +171,19 @@ std::size_t matmul_dimension_m = 64, matmul_dimension_n = 64, matmul_dimension_k
  */
 template <typename scalar_type_>
 std::uint64_t ulp_distance(scalar_type_ a, scalar_type_ b) noexcept {
-    // Handle special cases
-    if (std::isnan(a) || std::isnan(b)) return std::numeric_limits<std::uint64_t>::max();
+    // Handle special cases - skip float checks for integer types
+    constexpr bool is_integer_type = []() {
+        if constexpr (std::is_integral_v<scalar_type_>) return true;
+        else if constexpr (std::is_class_v<scalar_type_>) return scalar_type_::is_integer();
+        else return false;
+    }();
+    if constexpr (!is_integer_type) {
+        if (std::isnan(static_cast<double>(a)) || std::isnan(static_cast<double>(b)))
+            return std::numeric_limits<std::uint64_t>::max();
+        if (std::isinf(static_cast<double>(a)) || std::isinf(static_cast<double>(b)))
+            return std::numeric_limits<std::uint64_t>::max();
+    }
     if (a == b) return 0; // Also handles +0 == -0
-    if (std::isinf(a) || std::isinf(b)) return std::numeric_limits<std::uint64_t>::max();
 
     // Use the XOR transformation from Bruce Dawson's "Comparing Floating Point Numbers"
     // This transforms float bit patterns to an ordered integer representation where
@@ -284,16 +228,9 @@ std::uint64_t ulp_distance(scalar_type_ a, scalar_type_ b) noexcept {
     }
 }
 
-// Specialization for computing ULP when comparing against high-precision reference
-template <typename scalar_type_>
-std::uint64_t ulp_distance_from_reference(scalar_type_ actual, f128_t reference) noexcept {
-    scalar_type_ ref_as_t = static_cast<scalar_type_>(reference);
-    return ulp_distance(actual, ref_as_t);
-}
+#pragma endregion // Precision Infrastructure
 
-#pragma endregion // Precision_Infrastructure
-
-#pragma region Error_Statistics
+#pragma region Error Statistics
 
 /**
  *  @brief Accumulator for error statistics across multiple test trials.
@@ -314,40 +251,48 @@ struct error_stats_t {
     std::size_t count = 0;
     std::size_t exact_matches = 0;
 
-    void accumulate(nk_f64_t expected, nk_f64_t actual) noexcept {
-        nk_f64_t abs_err = std::fabs(expected - actual);
-        nk_f64_t rel_err = expected != 0 ? abs_err / std::fabs(expected) : abs_err;
+    template <typename actual_type_, typename expected_type_>
+    void accumulate(actual_type_ actual, expected_type_ expected) noexcept {
+        if constexpr (std::is_class_v<actual_type_> && actual_type_::is_complex()) {
+            accumulate_scalar(actual.real(), expected.real());
+            accumulate_scalar(actual.imag(), expected.imag());
+        }
+        else { accumulate_scalar(actual, expected); }
+    }
+
+    template <typename actual_type_, typename expected_type_>
+    void accumulate_scalar(actual_type_ actual, expected_type_ expected) noexcept {
+        actual_type_ expected_as_actual;
+        if constexpr (std::is_same_v<expected_type_, f118_t>) expected_as_actual = expected.template to<actual_type_>();
+        else expected_as_actual = static_cast<actual_type_>(expected);
+        std::uint64_t ulps = ulp_distance(actual, expected_as_actual);
+        nk_f64_t exp_f64 = static_cast<nk_f64_t>(expected);
+        nk_f64_t act_f64 = static_cast<nk_f64_t>(actual);
+
+        nk_f64_t abs_err = std::fabs(exp_f64 - act_f64);
+        nk_f64_t rel_err = exp_f64 != 0 ? abs_err / std::fabs(exp_f64) : abs_err;
 
         min_abs_err = std::min(min_abs_err, abs_err);
         max_abs_err = std::max(max_abs_err, abs_err);
         sum_abs_err += abs_err;
-
         min_rel_err = std::min(min_rel_err, rel_err);
         max_rel_err = std::max(max_rel_err, rel_err);
         sum_rel_err += rel_err;
-
-        count++;
-        if (abs_err == 0) exact_matches++;
-    }
-
-    void accumulate_ulp(std::uint64_t ulps) noexcept {
         min_ulp = std::min(min_ulp, ulps);
         max_ulp = std::max(max_ulp, ulps);
         sum_ulp += ulps;
-        if (ulps == 0) exact_matches++;
+
         count++;
+        if (ulps == 0) exact_matches++;
     }
 
-    void accumulate(nk_f64_t expected, nk_f64_t actual, std::uint64_t ulps) noexcept {
-        accumulate(expected, actual);
-        // Don't double-count
-        count--;
-        exact_matches -= (expected == actual) ? 1 : 0;
-        accumulate_ulp(ulps);
-        count--;
-        exact_matches -= (ulps == 0) ? 1 : 0;
+    void accumulate_exact(bool matches) noexcept {
+        std::uint64_t ulps = matches ? 0 : std::numeric_limits<std::uint64_t>::max();
+        min_ulp = std::min(min_ulp, ulps);
+        max_ulp = std::max(max_ulp, ulps);
+        sum_ulp += ulps;
         count++;
-        if (ulps == 0) exact_matches++;
+        if (matches) exact_matches++;
     }
 
     nk_f64_t mean_abs_err() const noexcept { return count > 0 ? sum_abs_err / count : 0; }
@@ -356,7 +301,6 @@ struct error_stats_t {
 
     void reset() noexcept { *this = error_stats_t {}; }
 
-    // Merge stats from another instance (for OpenMP reduction)
     void merge(error_stats_t const &other) noexcept {
         min_abs_err = std::min(min_abs_err, other.min_abs_err);
         max_abs_err = std::max(max_abs_err, other.max_abs_err);
@@ -394,1224 +338,220 @@ void print_stats_header() noexcept {
     std::printf("───────────────────────────────────────────────────────────────────────────────────────────────\n");
 }
 
-#pragma endregion // Error_Statistics
+#pragma endregion // Error Statistics
 
-#pragma region Reference_Implementations
-
-/**
- *  @brief Reference dot product with configurable precision.
- *  Use fmax_t for f64 kernels, double for f32/f16/bf16 kernels.
- */
-template <typename reference_type_, typename scalar_type_>
-reference_type_ reference_dot(scalar_type_ const *a, scalar_type_ const *b, std::size_t n) noexcept {
-    reference_type_ sum = 0;
-    for (std::size_t i = 0; i < n; i++) { sum += reference_type_(a[i]) * reference_type_(b[i]); }
-    return sum;
-}
-
-/**
- *  @brief Reference L2 squared distance with configurable precision.
- */
-template <typename reference_type_, typename scalar_type_>
-reference_type_ reference_l2sq(scalar_type_ const *a, scalar_type_ const *b, std::size_t n) noexcept {
-    reference_type_ sum = 0;
-    for (std::size_t i = 0; i < n; i++) {
-        reference_type_ diff = reference_type_(a[i]) - reference_type_(b[i]);
-        sum += diff * diff;
-    }
-    return sum;
-}
-
-/**
- *  @brief Reference angular (cosine) distance with configurable precision.
- */
-template <typename reference_type_, typename scalar_type_>
-reference_type_ reference_angular(scalar_type_ const *a, scalar_type_ const *b, std::size_t n) noexcept {
-    reference_type_ ab = 0, aa = 0, bb = 0;
-    for (std::size_t i = 0; i < n; i++) {
-        reference_type_ ai = reference_type_(a[i]);
-        reference_type_ bi = reference_type_(b[i]);
-        ab += ai * bi;
-        aa += ai * ai;
-        bb += bi * bi;
-    }
-    if (aa == 0 && bb == 0) return reference_type_(0);
-    if (ab == 0) return reference_type_(1);
-    reference_type_ cos_sim = ab / std::sqrt(static_cast<double>(aa * bb));
-    reference_type_ result = reference_type_(1) - cos_sim;
-    return result > 0 ? result : reference_type_(0);
-}
-
-/**
- *  @brief Helper to get the appropriate epsilon for probability divergence.
- *         Must match NK_F32_DIVISION_EPSILON and NK_F64_DIVISION_EPSILON.
- */
-template <typename scalar_type_>
-f128_t divergence_epsilon() noexcept {
-    if constexpr (std::is_same_v<scalar_type_, nk_f64_t> || std::is_same_v<scalar_type_, double>) {
-        return f128_t(1e-15L); // NK_F64_DIVISION_EPSILON
-    }
-    else {
-        return f128_t(1e-7L); // NK_F32_DIVISION_EPSILON
-    }
-}
-
-/**
- *  @brief Quad-precision KL divergence reference.
- */
-template <typename scalar_type_>
-f128_t reference_kld_quad(scalar_type_ const *p, scalar_type_ const *q, std::size_t n) noexcept {
-    f128_t sum = 0;
-    f128_t epsilon = divergence_epsilon<scalar_type_>();
-    for (std::size_t i = 0; i < n; i++) {
-        f128_t pi = f128_t(p[i]);
-        f128_t qi = f128_t(q[i]);
-        if (pi > 0) { sum += pi * mp::log((pi + epsilon) / (qi + epsilon)); }
-    }
-    return sum;
-}
-
-/**
- *  @brief Quad-precision Jensen-Shannon divergence reference.
- *         Returns sqrt(JSD/2) to match the JSD distance metric implementation.
- */
-template <typename scalar_type_>
-f128_t reference_jsd_quad(scalar_type_ const *p, scalar_type_ const *q, std::size_t n) noexcept {
-    f128_t sum = 0;
-    f128_t epsilon = divergence_epsilon<scalar_type_>();
-    for (std::size_t i = 0; i < n; i++) {
-        f128_t pi = f128_t(p[i]);
-        f128_t qi = f128_t(q[i]);
-        f128_t mi = (pi + qi) / 2;
-        if (pi > 0) sum += pi * mp::log((pi + epsilon) / (mi + epsilon));
-        if (qi > 0) sum += qi * mp::log((qi + epsilon) / (mi + epsilon));
-    }
-    f128_t d_half = sum / 2;
-    return d_half > 0 ? mp::sqrt(d_half) : f128_t(0);
-}
-
-/**
- *  @brief Quad-precision bilinear form reference: a^T * C * b
- */
-template <typename scalar_type_>
-f128_t reference_bilinear_quad(scalar_type_ const *a, scalar_type_ const *c, scalar_type_ const *b,
-                               std::size_t n) noexcept {
-    f128_t sum = 0;
-    for (std::size_t i = 0; i < n; i++) {
-        for (std::size_t j = 0; j < n; j++) { sum += f128_t(a[i]) * f128_t(c[i * n + j]) * f128_t(b[j]); }
-    }
-    return sum;
-}
-
-/**
- *  @brief Reference sum reduction with stride support.
- */
-template <typename scalar_type_, typename accumulator_type_ = f128_t>
-accumulator_type_ reference_reduce_add(scalar_type_ const *data, std::size_t count, std::size_t stride_bytes) noexcept {
-    accumulator_type_ sum = 0;
-    char const *ptr = reinterpret_cast<char const *>(data);
-    for (std::size_t i = 0; i < count; i++) {
-        sum += accumulator_type_(*reinterpret_cast<scalar_type_ const *>(ptr));
-        ptr += stride_bytes;
-    }
-    return sum;
-}
-
-/**
- *  @brief Reference min reduction with argmin and stride support.
- */
-template <typename scalar_type_>
-void reference_reduce_min(scalar_type_ const *data, std::size_t count, std::size_t stride_bytes,
-                          scalar_type_ *min_value, nk_size_t *min_index) noexcept {
-    char const *ptr = reinterpret_cast<char const *>(data);
-    scalar_type_ best_val = *reinterpret_cast<scalar_type_ const *>(ptr);
-    nk_size_t best_idx = 0;
-    for (std::size_t i = 1; i < count; i++) {
-        ptr += stride_bytes;
-        scalar_type_ val = *reinterpret_cast<scalar_type_ const *>(ptr);
-        if (val < best_val) {
-            best_val = val;
-            best_idx = i;
-        }
-    }
-    *min_value = best_val;
-    *min_index = best_idx;
-}
-
-/**
- *  @brief Reference max reduction with argmax and stride support.
- */
-template <typename scalar_type_>
-void reference_reduce_max(scalar_type_ const *data, std::size_t count, std::size_t stride_bytes,
-                          scalar_type_ *max_value, nk_size_t *max_index) noexcept {
-    char const *ptr = reinterpret_cast<char const *>(data);
-    scalar_type_ best_val = *reinterpret_cast<scalar_type_ const *>(ptr);
-    nk_size_t best_idx = 0;
-    for (std::size_t i = 1; i < count; i++) {
-        ptr += stride_bytes;
-        scalar_type_ val = *reinterpret_cast<scalar_type_ const *>(ptr);
-        if (val > best_val) {
-            best_val = val;
-            best_idx = i;
-        }
-    }
-    *max_value = best_val;
-    *max_index = best_idx;
-}
-
-#pragma endregion // Reference_Implementations
-
-#pragma region Test_Harness_Templates
+#pragma region Test Harness Templates
 
 /**
  *  @brief Aligned memory allocation for SIMD-friendly buffers.
  */
 template <typename scalar_type_>
 struct aligned_buffer {
-    static constexpr std::size_t alignment = 64; // Cache line
-    scalar_type_ *data = nullptr;
-    std::size_t count = 0;
+    static constexpr std::size_t alignment_k = 64; // Cache line
+    scalar_type_ *data_ = nullptr;
+    std::size_t size_ = 0;
 
     aligned_buffer() = default;
-    explicit aligned_buffer(std::size_t n) : count(n) {
-        if (n > 0) {
-            void *ptr = std::aligned_alloc(alignment,
-                                           ((n * sizeof(scalar_type_) + alignment - 1) / alignment) * alignment);
-            data = static_cast<scalar_type_ *>(ptr);
-            std::memset(data, 0, n * sizeof(scalar_type_));
-        }
+    explicit aligned_buffer(std::size_t n) : size_(n) {
+        if (n == 0) return;
+        void *ptr = std::aligned_alloc(alignment_k,
+                                       ((n * sizeof(scalar_type_) + alignment_k - 1) / alignment_k) * alignment_k);
+        data_ = static_cast<scalar_type_ *>(ptr);
+        std::memset(data_, 0, n * sizeof(scalar_type_));
     }
-    ~aligned_buffer() {
-        if (data) std::free(data);
+    ~aligned_buffer() noexcept {
+        if (data_) std::free(data_);
     }
     aligned_buffer(aligned_buffer const &) = delete;
     aligned_buffer &operator=(aligned_buffer const &) = delete;
-    aligned_buffer(aligned_buffer &&other) noexcept : data(other.data), count(other.count) {
-        other.data = nullptr;
-        other.count = 0;
+    aligned_buffer(aligned_buffer &&other) noexcept : data_(other.data_), size_(other.size_) {
+        other.data_ = nullptr;
+        other.size_ = 0;
     }
     aligned_buffer &operator=(aligned_buffer &&other) noexcept {
-        if (this != &other) {
-            if (data) std::free(data);
-            data = other.data;
-            count = other.count;
-            other.data = nullptr;
-            other.count = 0;
-        }
+        if (this == &other) return *this;
+        if (data_) std::free(data_);
+        data_ = other.data_;
+        size_ = other.size_;
+        other.data_ = nullptr;
+        other.size_ = 0;
         return *this;
     }
 
-    scalar_type_ &operator[](std::size_t i) noexcept { return data[i]; }
-    scalar_type_ const &operator[](std::size_t i) const noexcept { return data[i]; }
+    scalar_type_ &operator[](std::size_t i) noexcept { return data_[i]; }
+    scalar_type_ const &operator[](std::size_t i) const noexcept { return data_[i]; }
+
+    // STL-style accessors
+    scalar_type_ *data() noexcept { return data_; }
+    scalar_type_ const *data() const noexcept { return data_; }
+    std::size_t size() const noexcept { return size_; }
+    bool empty() const noexcept { return size_ == 0; }
 };
 
 /**
- *  @brief Wrapper for nk_f32_t providing unique type identity.
- */
-struct f32_t {
-    nk_f32_t raw;
-    f32_t() noexcept : raw(0) {}
-    f32_t(float v) noexcept : raw(v) {}
-    operator float() const noexcept { return raw; }
-    operator f128_t() const noexcept { return f128_t(raw); }
-    static f32_t from_raw(nk_f32_t r) noexcept {
-        f32_t v;
-        v.raw = r;
-        return v;
-    }
-};
-
-/**
- *  @brief Wrapper for nk_f64_t providing unique type identity.
- */
-struct f64_t {
-    nk_f64_t raw;
-    f64_t() noexcept : raw(0) {}
-    f64_t(double v) noexcept : raw(v) {}
-    operator double() const noexcept { return raw; }
-    operator f128_t() const noexcept { return f128_t(raw); }
-    static f64_t from_raw(nk_f64_t r) noexcept {
-        f64_t v;
-        v.raw = r;
-        return v;
-    }
-};
-
-/**
- *  @brief Wrapper for nk_f32c_t (single-precision complex) providing unique type identity.
- */
-struct f32c_t {
-    nk_f32c_t raw;
-    f32c_t() noexcept : raw {0, 0} {}
-    f32c_t(float r, float i) noexcept : raw {r, i} {}
-    static f32c_t from_raw(nk_f32c_t r) noexcept {
-        f32c_t v;
-        v.raw = r;
-        return v;
-    }
-};
-
-/**
- *  @brief Wrapper for nk_f64c_t (double-precision complex) providing unique type identity.
- */
-struct f64c_t {
-    nk_f64c_t raw;
-    f64c_t() noexcept : raw {0, 0} {}
-    f64c_t(double r, double i) noexcept : raw {r, i} {}
-    static f64c_t from_raw(nk_f64c_t r) noexcept {
-        f64c_t v;
-        v.raw = r;
-        return v;
-    }
-};
-
-/**
- *  @brief Wrapper for nk_i8_t providing unique type identity.
- */
-struct i8_t {
-    nk_i8_t raw;
-    i8_t() noexcept : raw(0) {}
-    i8_t(std::int32_t v) noexcept : raw(static_cast<nk_i8_t>(v)) {}
-    operator std::int32_t() const noexcept { return raw; }
-    static i8_t from_raw(nk_i8_t r) noexcept {
-        i8_t v;
-        v.raw = r;
-        return v;
-    }
-};
-
-/**
- *  @brief Wrapper for nk_u8_t providing unique type identity.
- */
-struct u8_t {
-    nk_u8_t raw;
-    u8_t() noexcept : raw(0) {}
-    u8_t(std::uint32_t v) noexcept : raw(static_cast<nk_u8_t>(v)) {}
-    operator std::uint32_t() const noexcept { return raw; }
-    static u8_t from_raw(nk_u8_t r) noexcept {
-        u8_t v;
-        v.raw = r;
-        return v;
-    }
-};
-
-/**
- *  @brief Wrapper for nk_i32_t providing unique type identity.
- */
-struct i32_t {
-    nk_i32_t raw;
-    i32_t() noexcept : raw(0) {}
-    i32_t(std::int32_t v) noexcept : raw(v) {}
-    operator std::int32_t() const noexcept { return raw; }
-    static i32_t from_raw(nk_i32_t r) noexcept {
-        i32_t v;
-        v.raw = r;
-        return v;
-    }
-};
-
-/**
- *  @brief Wrapper for nk_f16_t enabling implicit float conversions.
- */
-struct f16_t {
-    nk_f16_t raw;
-    f16_t() noexcept : raw(0) {}
-    f16_t(float v) noexcept { nk_f32_to_f16(&v, &raw); }
-    operator float() const noexcept {
-        float r;
-        nk_f16_to_f32(&raw, &r);
-        return r;
-    }
-    operator f128_t() const noexcept { return f128_t(float(*this)); }
-    static f16_t from_raw(nk_f16_t r) noexcept {
-        f16_t v;
-        v.raw = r;
-        return v;
-    }
-};
-
-/**
- *  @brief Wrapper for nk_bf16_t enabling implicit float conversions.
- */
-struct bf16_t {
-    nk_bf16_t raw;
-    bf16_t() noexcept : raw(0) {}
-    bf16_t(float v) noexcept { nk_f32_to_bf16(&v, &raw); }
-    operator float() const noexcept {
-        float r;
-        nk_bf16_to_f32(&raw, &r);
-        return r;
-    }
-    operator f128_t() const noexcept { return f128_t(float(*this)); }
-    static bf16_t from_raw(nk_bf16_t r) noexcept {
-        bf16_t v;
-        v.raw = r;
-        return v;
-    }
-};
-
-/**
- *  @brief Wrapper for nk_e4m3_t enabling implicit float conversions.
- */
-struct e4m3_t {
-    nk_e4m3_t raw;
-    e4m3_t() noexcept : raw(0) {}
-    e4m3_t(float v) noexcept { nk_f32_to_e4m3(&v, &raw); }
-    operator float() const noexcept {
-        float r;
-        nk_e4m3_to_f32(&raw, &r);
-        return r;
-    }
-    operator f128_t() const noexcept { return f128_t(float(*this)); }
-    static e4m3_t from_raw(nk_e4m3_t r) noexcept {
-        e4m3_t v;
-        v.raw = r;
-        return v;
-    }
-};
-
-/**
- *  @brief Wrapper for nk_e5m2_t enabling implicit float conversions.
- */
-struct e5m2_t {
-    nk_e5m2_t raw;
-    e5m2_t() noexcept : raw(0) {}
-    e5m2_t(float v) noexcept { nk_f32_to_e5m2(&v, &raw); }
-    operator float() const noexcept {
-        float r;
-        nk_e5m2_to_f32(&raw, &r);
-        return r;
-    }
-    operator f128_t() const noexcept { return f128_t(float(*this)); }
-    static e5m2_t from_raw(nk_e5m2_t r) noexcept {
-        e5m2_t v;
-        v.raw = r;
-        return v;
-    }
-};
-
-/**
- *  @brief Wrapper for nk_u1x8_t (8 bits packed per byte).
- */
-struct u1x8_t {
-    nk_u1x8_t raw;
-    u1x8_t() noexcept : raw(0) {}
-    u1x8_t(std::uint8_t v) noexcept : raw(v) {}
-    operator std::uint8_t() const noexcept { return raw; }
-    static u1x8_t from_raw(nk_u1x8_t r) noexcept {
-        u1x8_t v;
-        v.raw = r;
-        return v;
-    }
-};
-
-/**
- *  @brief Wrapper for nk_u4x2_t (2 unsigned nibbles per byte).
- */
-struct u4x2_t {
-    nk_u4x2_t raw;
-    u4x2_t() noexcept : raw(0) {}
-    u4x2_t(std::uint8_t v) noexcept : raw(v) {}
-    operator std::uint8_t() const noexcept { return raw; }
-    static u4x2_t from_raw(nk_u4x2_t r) noexcept {
-        u4x2_t v;
-        v.raw = r;
-        return v;
-    }
-};
-
-/**
- *  @brief Wrapper for nk_i4x2_t (2 signed nibbles per byte).
- */
-struct i4x2_t {
-    nk_i4x2_t raw;
-    i4x2_t() noexcept : raw(0) {}
-    i4x2_t(std::uint8_t v) noexcept : raw(v) {}
-    operator std::uint8_t() const noexcept { return raw; }
-    static i4x2_t from_raw(nk_i4x2_t r) noexcept {
-        i4x2_t v;
-        v.raw = r;
-        return v;
-    }
-};
-
-/**
- *  @brief Numeric traits for all scalar types.
- *
- *  Provides type-specific metadata for generic test templates:
- *  - raw_type: The underlying C type for kernel calls
- *  - result_type: Output type from kernel (e.g., f32 for f16 dot products)
- *  - reference_type: High-precision type for reference computation
- *  - type_name(): String name for reporting
- *  - max_finite(): Largest representable finite value
- *  - safe_max(): Conservative range for accumulation operations
- *  - mantissa_bits(): Precision bits (for ULP scaling)
- *  - is_integer(): True for integer types (exact comparison)
- */
-template <typename scalar_type_>
-struct nk_numeric_traits;
-
-// f32
-template <>
-struct nk_numeric_traits<f32_t> {
-    using raw_type = nk_f32_t;
-    using dot_result_type = nk_f32_t;
-    using reference_type = fmax_t;
-    using reduce_add_result_type = nk_f64_t;
-    using ulp_type = float;
-    using dot_kernel_type = void (*)(raw_type const *, raw_type const *, nk_size_t, dot_result_type *);
-    using sum_kernel_type = void (*)(raw_type const *, raw_type const *, nk_size_t, raw_type *);
-    using scale_kernel_type = void (*)(raw_type const *, nk_size_t, nk_f32_t const *, nk_f32_t const *, raw_type *);
-    using wsum_kernel_type = void (*)(raw_type const *, raw_type const *, nk_size_t, nk_f32_t const *, nk_f32_t const *,
-                                      raw_type *);
-    using fma_kernel_type = void (*)(raw_type const *, raw_type const *, raw_type const *, nk_size_t, nk_f32_t const *,
-                                     nk_f32_t const *, raw_type *);
-    using reduce_add_kernel_type = void (*)(raw_type const *, nk_size_t, nk_size_t, reduce_add_result_type *);
-    using trig_kernel_type = void (*)(raw_type const *, nk_size_t, raw_type *);
-    using mesh_kernel_type = void (*)(raw_type const *, raw_type const *, nk_size_t, raw_type *, raw_type *, raw_type *,
-                                      raw_type *, raw_type *);
-    using bilinear_kernel_type = void (*)(raw_type const *, raw_type const *, raw_type const *, nk_size_t, raw_type *);
-    using haversine_kernel_type = void (*)(raw_type const *, raw_type const *, raw_type const *, raw_type const *,
-                                           nk_size_t, raw_type *);
-    using dots_pack_kernel_type = void (*)(raw_type const *, nk_size_t, nk_size_t, nk_size_t, void *);
-    using dots_packed_kernel_type = void (*)(raw_type const *, void const *, dot_result_type *, nk_size_t, nk_size_t,
-                                             nk_size_t, nk_size_t, nk_size_t);
-    using dots_blas_kernel_type = void (*)(raw_type const *, raw_type const *, raw_type *, nk_size_t, nk_size_t,
-                                           nk_size_t, nk_size_t, nk_size_t);
-    using gemm_reference_type = double; // Use double for f32 GEMM reference - faster than f128
-
-    static constexpr nk_dtype_t dtype = nk_f32_k;
-    static constexpr char const *type_name() { return "f32"; }
-    static constexpr double max_finite() { return 3.4e38; }
-    static constexpr double safe_max() { return 1e6; }
-    static constexpr int mantissa_bits() { return 23; }
-    static constexpr int ulp_shift() { return 0; }
-    static constexpr bool is_integer() { return false; }
-    static constexpr bool is_complex() { return false; }
-    static constexpr double rmsd_tolerance() { return 1e-5; }
-    static constexpr double kabsch_tolerance() { return 1e-5; }
-    static constexpr double umeyama_tolerance() { return 1e-4; }
-    static constexpr std::size_t elements_per_byte() { return 1; }
-    static constexpr std::size_t k_multiplier() { return 1; }
-
-    // Element-wise operations for reference computations
-    static reference_type dot(reference_type sum, raw_type a, raw_type b) noexcept {
-        return sum + reference_type(a) * reference_type(b);
-    }
-    static reference_type diff_sq(reference_type sum, raw_type a, raw_type b) noexcept {
-        reference_type d = reference_type(a) - reference_type(b);
-        return sum + d * d;
-    }
-
-    template <typename generator_type_>
-    static void fill(aligned_buffer<raw_type> &buf, generator_type_ &rng) {
-        fill_random(buf, rng, -safe_max(), safe_max());
-    }
-};
-
-// f64
-template <>
-struct nk_numeric_traits<f64_t> {
-    using raw_type = nk_f64_t;
-    using dot_result_type = nk_f64_t;
-    using reference_type = fmax_t;
-    using reduce_add_result_type = nk_f64_t;
-    using ulp_type = double;
-    using dot_kernel_type = void (*)(raw_type const *, raw_type const *, nk_size_t, dot_result_type *);
-    using reduce_add_kernel_type = void (*)(raw_type const *, nk_size_t, nk_size_t, reduce_add_result_type *);
-    using trig_kernel_type = void (*)(raw_type const *, nk_size_t, raw_type *);
-    using mesh_kernel_type = void (*)(raw_type const *, raw_type const *, nk_size_t, raw_type *, raw_type *, raw_type *,
-                                      raw_type *, raw_type *);
-    using bilinear_kernel_type = void (*)(raw_type const *, raw_type const *, raw_type const *, nk_size_t, raw_type *);
-    using haversine_kernel_type = void (*)(raw_type const *, raw_type const *, raw_type const *, raw_type const *,
-                                           nk_size_t, raw_type *);
-    using dots_pack_kernel_type = void (*)(raw_type const *, nk_size_t, nk_size_t, nk_size_t, void *);
-    using dots_packed_kernel_type = void (*)(raw_type const *, void const *, dot_result_type *, nk_size_t, nk_size_t,
-                                             nk_size_t, nk_size_t, nk_size_t);
-    using dots_blas_kernel_type = void (*)(raw_type const *, raw_type const *, raw_type *, nk_size_t, nk_size_t,
-                                           nk_size_t, nk_size_t, nk_size_t);
-    using gemm_reference_type = fmax_t; // Use quad precision for f64 GEMM reference
-
-    static constexpr nk_dtype_t dtype = nk_f64_k;
-    static constexpr char const *type_name() { return "f64"; }
-    static constexpr double max_finite() { return 1.7e308; }
-    static constexpr double safe_max() { return 1e6; }
-    static constexpr int mantissa_bits() { return 52; }
-    static constexpr int ulp_shift() { return 0; }
-    static constexpr bool is_integer() { return false; }
-    static constexpr bool is_complex() { return false; }
-    static constexpr double rmsd_tolerance() { return 1e-10; }
-    static constexpr double kabsch_tolerance() { return 1e-10; }
-    static constexpr double umeyama_tolerance() { return 1e-10; }
-    static constexpr std::size_t elements_per_byte() { return 1; }
-    static constexpr std::size_t k_multiplier() { return 1; }
-
-    static reference_type dot(reference_type sum, raw_type a, raw_type b) noexcept {
-        return sum + reference_type(a) * reference_type(b);
-    }
-    static reference_type diff_sq(reference_type sum, raw_type a, raw_type b) noexcept {
-        reference_type d = reference_type(a) - reference_type(b);
-        return sum + d * d;
-    }
-
-    template <typename generator_type_>
-    static void fill(aligned_buffer<raw_type> &buf, generator_type_ &rng) {
-        fill_random(buf, rng, -safe_max(), safe_max());
-    }
-};
-
-// f16 - result is f32
-template <>
-struct nk_numeric_traits<f16_t> {
-    using raw_type = nk_f16_t;
-    using dot_result_type = nk_f32_t;
-    using reference_type = f128_t;
-    using ulp_type = float;
-    using dot_kernel_type = void (*)(raw_type const *, raw_type const *, nk_size_t, dot_result_type *);
-    using trig_kernel_type = void (*)(raw_type const *, nk_size_t, raw_type *);
-    using dots_pack_kernel_type = void (*)(raw_type const *, nk_size_t, nk_size_t, nk_size_t, void *);
-    using dots_packed_kernel_type = void (*)(raw_type const *, void const *, dot_result_type *, nk_size_t, nk_size_t,
-                                             nk_size_t, nk_size_t, nk_size_t);
-
-    static constexpr nk_dtype_t dtype = nk_f16_k;
-    static constexpr char const *type_name() { return "f16"; }
-    static constexpr double max_finite() { return 65504.0; }
-    static constexpr double safe_max() { return 100.0; }
-    static constexpr int mantissa_bits() { return 10; }
-    static constexpr int ulp_shift() { return 13; }
-    static constexpr bool is_integer() { return false; }
-    static constexpr bool is_complex() { return false; }
-    static constexpr std::size_t elements_per_byte() { return 1; }
-    static constexpr std::size_t k_multiplier() { return 1; }
-
-    static reference_type dot(reference_type sum, raw_type a, raw_type b) noexcept {
-        return sum + reference_type(f16_t::from_raw(a)) * reference_type(f16_t::from_raw(b));
-    }
-    static reference_type diff_sq(reference_type sum, raw_type a, raw_type b) noexcept {
-        reference_type d = reference_type(f16_t::from_raw(a)) - reference_type(f16_t::from_raw(b));
-        return sum + d * d;
-    }
-
-    template <typename generator_type_>
-    static void fill(aligned_buffer<raw_type> &buf, generator_type_ &rng) {
-        fill_random(buf, rng, -safe_max(), safe_max());
-    }
-};
-
-// bf16 - result is f32
-template <>
-struct nk_numeric_traits<bf16_t> {
-    using raw_type = nk_bf16_t;
-    using dot_result_type = nk_f32_t;
-    using reference_type = f128_t;
-    using ulp_type = float;
-    using dot_kernel_type = void (*)(raw_type const *, raw_type const *, nk_size_t, dot_result_type *);
-    using dots_pack_kernel_type = void (*)(raw_type const *, nk_size_t, nk_size_t, nk_size_t, void *);
-    using dots_packed_kernel_type = void (*)(raw_type const *, void const *, dot_result_type *, nk_size_t, nk_size_t,
-                                             nk_size_t, nk_size_t, nk_size_t);
-
-    static constexpr nk_dtype_t dtype = nk_bf16_k;
-    static constexpr char const *type_name() { return "bf16"; }
-    static constexpr double max_finite() { return 3.4e38; }
-    static constexpr double safe_max() { return 100.0; }
-    static constexpr int mantissa_bits() { return 7; }
-    static constexpr int ulp_shift() { return 16; }
-    static constexpr bool is_integer() { return false; }
-    static constexpr bool is_complex() { return false; }
-    static constexpr std::size_t elements_per_byte() { return 1; }
-    static constexpr std::size_t k_multiplier() { return 1; }
-
-    static reference_type dot(reference_type sum, raw_type a, raw_type b) noexcept {
-        return sum + reference_type(bf16_t::from_raw(a)) * reference_type(bf16_t::from_raw(b));
-    }
-    static reference_type diff_sq(reference_type sum, raw_type a, raw_type b) noexcept {
-        reference_type d = reference_type(bf16_t::from_raw(a)) - reference_type(bf16_t::from_raw(b));
-        return sum + d * d;
-    }
-
-    template <typename generator_type_>
-    static void fill(aligned_buffer<raw_type> &buf, generator_type_ &rng) {
-        fill_random(buf, rng, -safe_max(), safe_max());
-    }
-};
-
-// e4m3 - result is f32
-template <>
-struct nk_numeric_traits<e4m3_t> {
-    using raw_type = nk_e4m3_t;
-    using dot_result_type = nk_f32_t;
-    using reference_type = f128_t;
-    using reduce_add_result_type = nk_f32_t;
-    using ulp_type = float;
-    using dot_kernel_type = void (*)(raw_type const *, raw_type const *, nk_size_t, dot_result_type *);
-    using sum_kernel_type = void (*)(raw_type const *, raw_type const *, nk_size_t, raw_type *);
-    using scale_kernel_type = void (*)(raw_type const *, nk_size_t, nk_f32_t const *, nk_f32_t const *, raw_type *);
-    using wsum_kernel_type = void (*)(raw_type const *, raw_type const *, nk_size_t, nk_f32_t const *, nk_f32_t const *,
-                                      raw_type *);
-    using fma_kernel_type = void (*)(raw_type const *, raw_type const *, raw_type const *, nk_size_t, nk_f32_t const *,
-                                     nk_f32_t const *, raw_type *);
-    using reduce_add_kernel_type = void (*)(raw_type const *, nk_size_t, nk_size_t, reduce_add_result_type *);
-
-    static constexpr nk_dtype_t dtype = nk_e4m3_k;
-    static constexpr char const *type_name() { return "e4m3"; }
-    static constexpr double max_finite() { return 448.0; }
-    static constexpr double safe_max() { return 1.0; }
-    static constexpr int mantissa_bits() { return 3; }
-    static constexpr int ulp_shift() { return 20; }
-    static constexpr bool is_integer() { return false; }
-    static constexpr bool is_complex() { return false; }
-    static constexpr std::size_t elements_per_byte() { return 1; }
-    static constexpr std::size_t k_multiplier() { return 1; }
-
-    static reference_type dot(reference_type sum, raw_type a, raw_type b) noexcept {
-        return sum + reference_type(e4m3_t::from_raw(a)) * reference_type(e4m3_t::from_raw(b));
-    }
-    static reference_type diff_sq(reference_type sum, raw_type a, raw_type b) noexcept {
-        reference_type d = reference_type(e4m3_t::from_raw(a)) - reference_type(e4m3_t::from_raw(b));
-        return sum + d * d;
-    }
-
-    template <typename generator_type_>
-    static void fill(aligned_buffer<raw_type> &buf, generator_type_ &rng) {
-        fill_random(buf, rng, -safe_max(), safe_max());
-    }
-};
-
-// e5m2 - result is f32
-template <>
-struct nk_numeric_traits<e5m2_t> {
-    using raw_type = nk_e5m2_t;
-    using dot_result_type = nk_f32_t;
-    using reference_type = f128_t;
-    using reduce_add_result_type = nk_f32_t;
-    using ulp_type = float;
-    using dot_kernel_type = void (*)(raw_type const *, raw_type const *, nk_size_t, dot_result_type *);
-    using sum_kernel_type = void (*)(raw_type const *, raw_type const *, nk_size_t, raw_type *);
-    using scale_kernel_type = void (*)(raw_type const *, nk_size_t, nk_f32_t const *, nk_f32_t const *, raw_type *);
-    using wsum_kernel_type = void (*)(raw_type const *, raw_type const *, nk_size_t, nk_f32_t const *, nk_f32_t const *,
-                                      raw_type *);
-    using fma_kernel_type = void (*)(raw_type const *, raw_type const *, raw_type const *, nk_size_t, nk_f32_t const *,
-                                     nk_f32_t const *, raw_type *);
-    using reduce_add_kernel_type = void (*)(raw_type const *, nk_size_t, nk_size_t, reduce_add_result_type *);
-
-    static constexpr nk_dtype_t dtype = nk_e5m2_k;
-    static constexpr char const *type_name() { return "e5m2"; }
-    static constexpr double max_finite() { return 57344.0; }
-    static constexpr double safe_max() { return 3.0; }
-    static constexpr int mantissa_bits() { return 2; }
-    static constexpr int ulp_shift() { return 21; }
-    static constexpr bool is_integer() { return false; }
-    static constexpr bool is_complex() { return false; }
-    static constexpr std::size_t elements_per_byte() { return 1; }
-    static constexpr std::size_t k_multiplier() { return 1; }
-
-    static reference_type dot(reference_type sum, raw_type a, raw_type b) noexcept {
-        return sum + reference_type(e5m2_t::from_raw(a)) * reference_type(e5m2_t::from_raw(b));
-    }
-    static reference_type diff_sq(reference_type sum, raw_type a, raw_type b) noexcept {
-        reference_type d = reference_type(e5m2_t::from_raw(a)) - reference_type(e5m2_t::from_raw(b));
-        return sum + d * d;
-    }
-
-    template <typename generator_type_>
-    static void fill(aligned_buffer<raw_type> &buf, generator_type_ &rng) {
-        fill_random(buf, rng, -safe_max(), safe_max());
-    }
-};
-
-// i8 - integer, result is i32
-template <>
-struct nk_numeric_traits<i8_t> {
-    using raw_type = nk_i8_t;
-    using dot_result_type = nk_i32_t;
-    using reference_type = std::int64_t;
-    using dot_kernel_type = void (*)(raw_type const *, raw_type const *, nk_size_t, dot_result_type *);
-    using dots_pack_kernel_type = void (*)(raw_type const *, nk_size_t, nk_size_t, nk_size_t, void *);
-    using dots_packed_kernel_type = void (*)(raw_type const *, void const *, dot_result_type *, nk_size_t, nk_size_t,
-                                             nk_size_t, nk_size_t, nk_size_t);
-
-    static constexpr nk_dtype_t dtype = nk_i8_k;
-    static constexpr char const *type_name() { return "i8"; }
-    static constexpr double max_finite() { return 127.0; }
-    static constexpr double safe_max() { return 10.0; }
-    static constexpr int mantissa_bits() { return 0; }
-    static constexpr bool is_integer() { return true; }
-    static constexpr bool is_complex() { return false; }
-    static constexpr std::size_t elements_per_byte() { return 1; }
-    static constexpr std::size_t k_multiplier() { return 1; }
-
-    static reference_type dot(reference_type sum, raw_type a, raw_type b) noexcept {
-        return sum + reference_type(a) * reference_type(b);
-    }
-    static reference_type diff_sq(reference_type sum, raw_type a, raw_type b) noexcept {
-        reference_type d = reference_type(a) - reference_type(b);
-        return sum + d * d;
-    }
-
-    template <typename generator_type_>
-    static void fill(aligned_buffer<raw_type> &buf, generator_type_ &rng) {
-        std::uniform_int_distribution<int> dist(-127, 127);
-        for (std::size_t i = 0; i < buf.count; i++) buf[i] = static_cast<raw_type>(dist(rng));
-    }
-};
-
-// u8 - integer, result is u32
-template <>
-struct nk_numeric_traits<u8_t> {
-    using raw_type = nk_u8_t;
-    using dot_result_type = nk_u32_t;
-    using reference_type = std::uint64_t;
-    using dot_kernel_type = void (*)(raw_type const *, raw_type const *, nk_size_t, dot_result_type *);
-
-    static constexpr nk_dtype_t dtype = nk_u8_k;
-    static constexpr char const *type_name() { return "u8"; }
-    static constexpr double max_finite() { return 255.0; }
-    static constexpr double safe_max() { return 15.0; }
-    static constexpr int mantissa_bits() { return 0; }
-    static constexpr bool is_integer() { return true; }
-    static constexpr bool is_complex() { return false; }
-    static constexpr std::size_t elements_per_byte() { return 1; }
-    static constexpr std::size_t k_multiplier() { return 1; }
-
-    static reference_type dot(reference_type sum, raw_type a, raw_type b) noexcept {
-        return sum + reference_type(a) * reference_type(b);
-    }
-    static reference_type diff_sq(reference_type sum, raw_type a, raw_type b) noexcept {
-        reference_type d = reference_type(a) - reference_type(b);
-        return sum + d * d;
-    }
-
-    template <typename generator_type_>
-    static void fill(aligned_buffer<raw_type> &buf, generator_type_ &rng) {
-        std::uniform_int_distribution<int> dist(0, 255);
-        for (std::size_t i = 0; i < buf.count; i++) buf[i] = static_cast<raw_type>(dist(rng));
-    }
-};
-
-// i32 - integer, reduce_add returns i64
-template <>
-struct nk_numeric_traits<i32_t> {
-    using raw_type = nk_i32_t;
-    using dot_result_type = nk_i32_t;
-    using reference_type = std::int64_t;
-    using reduce_add_result_type = nk_i64_t;
-    using reduce_add_kernel_type = void (*)(raw_type const *, nk_size_t, nk_size_t, reduce_add_result_type *);
-
-    static constexpr nk_dtype_t dtype = nk_i32_k;
-    static constexpr char const *type_name() { return "i32"; }
-    static constexpr double max_finite() { return 2147483647.0; }
-    static constexpr double safe_max() { return 1000.0; }
-    static constexpr int mantissa_bits() { return 0; }
-    static constexpr bool is_integer() { return true; }
-    static constexpr bool is_complex() { return false; }
-
-    static reference_type dot(reference_type sum, raw_type a, raw_type b) noexcept {
-        return sum + reference_type(a) * reference_type(b);
-    }
-    static reference_type diff_sq(reference_type sum, raw_type a, raw_type b) noexcept {
-        reference_type d = reference_type(a) - reference_type(b);
-        return sum + d * d;
-    }
-};
-
-// Native float - for legacy code using nk_f32_t directly
-template <>
-struct nk_numeric_traits<float> {
-    using raw_type = float;
-    using dot_result_type = float;
-    using reference_type = fmax_t;
-    using dot_kernel_type = void (*)(raw_type const *, raw_type const *, nk_size_t, dot_result_type *);
-
-    static constexpr char const *type_name() { return "f32"; }
-    static constexpr double max_finite() { return 3.4e38; }
-    static constexpr double safe_max() { return 1e6; }
-    static constexpr int mantissa_bits() { return 23; }
-    static constexpr bool is_integer() { return false; }
-    static constexpr bool is_complex() { return false; }
-
-    static reference_type dot(reference_type sum, raw_type a, raw_type b) noexcept {
-        return sum + reference_type(a) * reference_type(b);
-    }
-    static reference_type diff_sq(reference_type sum, raw_type a, raw_type b) noexcept {
-        reference_type d = reference_type(a) - reference_type(b);
-        return sum + d * d;
-    }
-};
-
-// Native double - for reference computation buffers
-template <>
-struct nk_numeric_traits<double> {
-    using raw_type = double;
-    using dot_result_type = double;
-    using reference_type = fmax_t;
-    using dot_kernel_type = void (*)(raw_type const *, raw_type const *, nk_size_t, dot_result_type *);
-
-    static constexpr char const *type_name() { return "f64"; }
-    static constexpr double max_finite() { return 1.7e308; }
-    static constexpr double safe_max() { return 1e6; }
-    static constexpr int mantissa_bits() { return 52; }
-    static constexpr bool is_integer() { return false; }
-    static constexpr bool is_complex() { return false; }
-
-    static reference_type dot(reference_type sum, raw_type a, raw_type b) noexcept {
-        return sum + reference_type(a) * reference_type(b);
-    }
-    static reference_type diff_sq(reference_type sum, raw_type a, raw_type b) noexcept {
-        reference_type d = reference_type(a) - reference_type(b);
-        return sum + d * d;
-    }
-};
-
-// u1x8 - 8 bits packed per byte, result is u32, popcount of AND
-template <>
-struct nk_numeric_traits<u1x8_t> {
-    using raw_type = nk_u1x8_t;
-    using dot_result_type = nk_u32_t;
-    using reference_type = std::uint64_t;
-    using dots_pack_kernel_type = void (*)(raw_type const *, nk_size_t, nk_size_t, nk_size_t, void *);
-    using dots_packed_kernel_type = void (*)(raw_type const *, void const *, dot_result_type *, nk_size_t, nk_size_t,
-                                             nk_size_t, nk_size_t, nk_size_t);
-
-    static constexpr nk_dtype_t dtype = nk_u1_k;
-    static constexpr char const *type_name() { return "u1"; }
-    static constexpr double max_finite() { return 1.0; }
-    static constexpr double safe_max() { return 1.0; }
-    static constexpr int mantissa_bits() { return 0; }
-    static constexpr bool is_integer() { return true; }
-    static constexpr bool is_complex() { return false; }
-    static constexpr std::size_t elements_per_byte() { return 8; }
-    static constexpr std::size_t k_multiplier() { return 8; }
-
-    // Binary dot: popcount of AND for 8 bits per byte
-    static reference_type dot(reference_type sum, raw_type a, raw_type b) noexcept {
-        return sum + __builtin_popcount(a & b);
-    }
-
-    template <typename generator_type_>
-    static void fill(aligned_buffer<raw_type> &buf, generator_type_ &rng) {
-        std::uniform_int_distribution<int> dist(0, 255);
-        for (std::size_t i = 0; i < buf.count; i++) buf[i] = static_cast<raw_type>(dist(rng));
-    }
-};
-
-// u4x2 - 2 unsigned nibbles per byte, result is u32
-template <>
-struct nk_numeric_traits<u4x2_t> {
-    using raw_type = nk_u4x2_t;
-    using dot_result_type = nk_u32_t;
-    using l2sq_result_type = nk_u32_t; // Same as dot for unsigned types
-    using reference_type = std::uint64_t;
-    using dot_kernel_type = void (*)(raw_type const *, raw_type const *, nk_size_t, dot_result_type *);
-    using l2sq_kernel_type = void (*)(raw_type const *, raw_type const *, nk_size_t, l2sq_result_type *);
-    using angular_kernel_type = void (*)(raw_type const *, raw_type const *, nk_size_t, nk_f32_t *);
-    using dots_pack_kernel_type = void (*)(raw_type const *, nk_size_t, nk_size_t, nk_size_t, void *);
-    using dots_packed_kernel_type = void (*)(raw_type const *, void const *, dot_result_type *, nk_size_t, nk_size_t,
-                                             nk_size_t, nk_size_t, nk_size_t);
-
-    static constexpr nk_dtype_t dtype = nk_u4_k;
-    static constexpr char const *type_name() { return "u4"; }
-    static constexpr double max_finite() { return 15.0; }
-    static constexpr double safe_max() { return 15.0; }
-    static constexpr int mantissa_bits() { return 0; }
-    static constexpr bool is_integer() { return true; }
-    static constexpr bool is_complex() { return false; }
-    static constexpr std::size_t elements_per_byte() { return 2; }
-    static constexpr std::size_t k_multiplier() { return 2; }
-
-    // Element-wise dot: processes both nibbles in a byte
-    static reference_type dot(reference_type sum, raw_type a, raw_type b) noexcept {
-        reference_type a_lo = a & 0x0F, a_hi = (a >> 4) & 0x0F;
-        reference_type b_lo = b & 0x0F, b_hi = (b >> 4) & 0x0F;
-        return sum + a_lo * b_lo + a_hi * b_hi;
-    }
-    // Element-wise diff_sq: processes both nibbles in a byte
-    static reference_type diff_sq(reference_type sum, raw_type a, raw_type b) noexcept {
-        std::int64_t a_lo = a & 0x0F, a_hi = (a >> 4) & 0x0F;
-        std::int64_t b_lo = b & 0x0F, b_hi = (b >> 4) & 0x0F;
-        std::int64_t d_lo = a_lo - b_lo, d_hi = a_hi - b_hi;
-        return sum + static_cast<reference_type>(d_lo * d_lo + d_hi * d_hi);
-    }
-    // Element-wise norm_sq: computes sum of squares for both nibbles
-    static reference_type norm_sq(reference_type sum, raw_type a) noexcept {
-        reference_type lo = a & 0x0F, hi = (a >> 4) & 0x0F;
-        return sum + lo * lo + hi * hi;
-    }
-
-    template <typename generator_type_>
-    static void fill(aligned_buffer<raw_type> &buf, generator_type_ &rng) {
-        std::uniform_int_distribution<int> dist(0, 255);
-        for (std::size_t i = 0; i < buf.count; i++) buf[i] = static_cast<raw_type>(dist(rng));
-    }
-};
-
-// i4x2 - 2 signed nibbles per byte, dot result is i32, l2sq result is u32 (always positive)
-template <>
-struct nk_numeric_traits<i4x2_t> {
-    using raw_type = nk_i4x2_t;
-    using dot_result_type = nk_i32_t;
-    using l2sq_result_type = nk_u32_t; // L2 squared is always non-negative
-    using reference_type = std::int64_t;
-    using dot_kernel_type = void (*)(raw_type const *, raw_type const *, nk_size_t, dot_result_type *);
-    using l2sq_kernel_type = void (*)(raw_type const *, raw_type const *, nk_size_t, l2sq_result_type *);
-    using angular_kernel_type = void (*)(raw_type const *, raw_type const *, nk_size_t, nk_f32_t *);
-    using dots_pack_kernel_type = void (*)(raw_type const *, nk_size_t, nk_size_t, nk_size_t, void *);
-    using dots_packed_kernel_type = void (*)(raw_type const *, void const *, dot_result_type *, nk_size_t, nk_size_t,
-                                             nk_size_t, nk_size_t, nk_size_t);
-
-    static constexpr nk_dtype_t dtype = nk_i4_k;
-    static constexpr char const *type_name() { return "i4"; }
-    static constexpr double max_finite() { return 7.0; }
-    static constexpr double safe_max() { return 7.0; }
-    static constexpr int mantissa_bits() { return 0; }
-    static constexpr bool is_integer() { return true; }
-    static constexpr bool is_complex() { return false; }
-    static constexpr std::size_t elements_per_byte() { return 2; }
-    static constexpr std::size_t k_multiplier() { return 2; }
-
-    // Element-wise dot: processes both signed nibbles in a byte
-    static reference_type dot(reference_type sum, raw_type a, raw_type b) noexcept {
-        std::uint8_t a_byte = static_cast<std::uint8_t>(a);
-        std::uint8_t b_byte = static_cast<std::uint8_t>(b);
-        std::int32_t a_lo = static_cast<std::int32_t>((a_byte & 0x0F) ^ 8) - 8;
-        std::int32_t a_hi = static_cast<std::int32_t>(((a_byte >> 4) & 0x0F) ^ 8) - 8;
-        std::int32_t b_lo = static_cast<std::int32_t>((b_byte & 0x0F) ^ 8) - 8;
-        std::int32_t b_hi = static_cast<std::int32_t>(((b_byte >> 4) & 0x0F) ^ 8) - 8;
-        return sum + reference_type(a_lo) * reference_type(b_lo) + reference_type(a_hi) * reference_type(b_hi);
-    }
-    // Element-wise diff_sq: processes both signed nibbles in a byte
-    static reference_type diff_sq(reference_type sum, raw_type a, raw_type b) noexcept {
-        std::uint8_t a_byte = static_cast<std::uint8_t>(a);
-        std::uint8_t b_byte = static_cast<std::uint8_t>(b);
-        std::int32_t a_lo = static_cast<std::int32_t>((a_byte & 0x0F) ^ 8) - 8;
-        std::int32_t a_hi = static_cast<std::int32_t>(((a_byte >> 4) & 0x0F) ^ 8) - 8;
-        std::int32_t b_lo = static_cast<std::int32_t>((b_byte & 0x0F) ^ 8) - 8;
-        std::int32_t b_hi = static_cast<std::int32_t>(((b_byte >> 4) & 0x0F) ^ 8) - 8;
-        reference_type d_lo = a_lo - b_lo, d_hi = a_hi - b_hi;
-        return sum + d_lo * d_lo + d_hi * d_hi;
-    }
-    // Element-wise norm_sq: computes sum of squares for both signed nibbles
-    static reference_type norm_sq(reference_type sum, raw_type a) noexcept {
-        std::uint8_t a_byte = static_cast<std::uint8_t>(a);
-        std::int32_t lo = static_cast<std::int32_t>((a_byte & 0x0F) ^ 8) - 8;
-        std::int32_t hi = static_cast<std::int32_t>(((a_byte >> 4) & 0x0F) ^ 8) - 8;
-        return sum + reference_type(lo) * reference_type(lo) + reference_type(hi) * reference_type(hi);
-    }
-
-    template <typename generator_type_>
-    static void fill(aligned_buffer<raw_type> &buf, generator_type_ &rng) {
-        std::uniform_int_distribution<int> dist(0, 255);
-        for (std::size_t i = 0; i < buf.count; i++) buf[i] = static_cast<raw_type>(dist(rng));
-    }
-};
-
-// f32c - single-precision complex
-template <>
-struct nk_numeric_traits<f32c_t> {
-    using raw_type = nk_f32c_t;
-    using dot_result_type = nk_f32c_t;
-    using reference_type = f128c_t;
-    using dot_kernel_type = void (*)(raw_type const *, raw_type const *, nk_size_t, dot_result_type *);
-
-    static constexpr char const *type_name() { return "f32c"; }
-    static constexpr bool is_integer() { return false; }
-    static constexpr bool is_complex() { return true; }
-    static constexpr std::size_t elements_per_byte() { return 1; }
-    static constexpr std::size_t k_multiplier() { return 1; }
-
-    // Regular complex dot: (a.re + i*a.im) * (b.re + i*b.im)
-    static reference_type dot(reference_type sum, raw_type a, raw_type b) noexcept {
-        sum.real += f128_t(a.real) * f128_t(b.real) - f128_t(a.imag) * f128_t(b.imag);
-        sum.imag += f128_t(a.real) * f128_t(b.imag) + f128_t(a.imag) * f128_t(b.real);
-        return sum;
-    }
-
-    // Conjugate dot: conj(a) * b = (a.re - i*a.im) * (b.re + i*b.im)
-    static reference_type vdot(reference_type sum, raw_type a, raw_type b) noexcept {
-        sum.real += f128_t(a.real) * f128_t(b.real) + f128_t(a.imag) * f128_t(b.imag);
-        sum.imag += f128_t(a.real) * f128_t(b.imag) - f128_t(a.imag) * f128_t(b.real);
-        return sum;
-    }
-
-    template <typename generator_type_>
-    static void fill(aligned_buffer<raw_type> &buf, generator_type_ &rng) {
-        std::uniform_real_distribution<float> dist(-1.0f, 1.0f);
-        for (std::size_t i = 0; i < buf.count; i++) {
-            buf[i].real = dist(rng);
-            buf[i].imag = dist(rng);
-        }
-    }
-};
-
-// f64c - double-precision complex
-template <>
-struct nk_numeric_traits<f64c_t> {
-    using raw_type = nk_f64c_t;
-    using dot_result_type = nk_f64c_t;
-    using reference_type = f128c_t;
-    using dot_kernel_type = void (*)(raw_type const *, raw_type const *, nk_size_t, dot_result_type *);
-
-    static constexpr char const *type_name() { return "f64c"; }
-    static constexpr bool is_integer() { return false; }
-    static constexpr bool is_complex() { return true; }
-    static constexpr std::size_t elements_per_byte() { return 1; }
-    static constexpr std::size_t k_multiplier() { return 1; }
-
-    // Regular complex dot: (a.re + i*a.im) * (b.re + i*b.im)
-    static reference_type dot(reference_type sum, raw_type a, raw_type b) noexcept {
-        sum.real += f128_t(a.real) * f128_t(b.real) - f128_t(a.imag) * f128_t(b.imag);
-        sum.imag += f128_t(a.real) * f128_t(b.imag) + f128_t(a.imag) * f128_t(b.real);
-        return sum;
-    }
-
-    // Conjugate dot: conj(a) * b = (a.re - i*a.im) * (b.re + i*b.im)
-    static reference_type vdot(reference_type sum, raw_type a, raw_type b) noexcept {
-        sum.real += f128_t(a.real) * f128_t(b.real) + f128_t(a.imag) * f128_t(b.imag);
-        sum.imag += f128_t(a.real) * f128_t(b.imag) - f128_t(a.imag) * f128_t(b.real);
-        return sum;
-    }
-
-    template <typename generator_type_>
-    static void fill(aligned_buffer<raw_type> &buf, generator_type_ &rng) {
-        std::uniform_real_distribution<double> dist(-1.0, 1.0);
-        for (std::size_t i = 0; i < buf.count; i++) {
-            buf[i].real = dist(rng);
-            buf[i].imag = dist(rng);
-        }
-    }
-};
-
-/**
- *  @brief Get raw pointer from aligned_buffer for kernel calls.
- *  Performs reinterpret_cast from wrapper type to raw C type.
- */
-template <typename scalar_type_>
-auto raw_ptr(aligned_buffer<scalar_type_> const &buf) noexcept {
-    using raw_t = typename nk_numeric_traits<scalar_type_>::raw_type;
-    return reinterpret_cast<raw_t const *>(buf.data);
-}
-
-template <typename scalar_type_>
-auto raw_ptr(aligned_buffer<scalar_type_> &buf) noexcept {
-    using raw_t = typename nk_numeric_traits<scalar_type_>::raw_type;
-    return reinterpret_cast<raw_t *>(buf.data);
-}
-
-/**
- *  @brief Fill buffer with random values using configured distribution.
- *
- *  Distributions:
- *    - uniform_k:   Bounded within safe range, fastest baseline
- *    - lognormal_k: Sign-randomized log-normal, compressed to safe range
- *    - cauchy_k:    Compressed extreme tails, fits within safe range
- *
- *  Range defaults to [-safe_max, +safe_max] from nk_numeric_traits<T>.
+ *  @brief Fill sub-byte buffer with random bytes uniformly.
  */
 template <typename scalar_type_, typename generator_type_>
-void fill_random(aligned_buffer<scalar_type_> &buf, generator_type_ &rng,
-                 nk_f64_t min_val = -nk_numeric_traits<scalar_type_>::safe_max(),
-                 nk_f64_t max_val = nk_numeric_traits<scalar_type_>::safe_max()) {
+    requires(std::is_same_v<scalar_type_, u1x8_t> || std::is_same_v<scalar_type_, i4x2_t> ||
+             std::is_same_v<scalar_type_, u4x2_t>)
+void fill_random(aligned_buffer<scalar_type_> &buf, generator_type_ &rng) {
+    std::uniform_int_distribution<unsigned int> dist(0, 255);
+    for (std::size_t i = 0; i < buf.size(); i++)
+        buf[i] = scalar_type_::from_raw(static_cast<typename scalar_type_::raw_t>(dist(rng)));
+}
+
+/**
+ *  @brief Fill integer buffer with random values in safe range.
+ */
+template <typename scalar_type_, typename generator_type_>
+    requires(scalar_type_::is_integer() && !std::is_same_v<scalar_type_, u1x8_t> &&
+             !std::is_same_v<scalar_type_, i4x2_t> && !std::is_same_v<scalar_type_, u4x2_t>)
+void fill_random(aligned_buffer<scalar_type_> &buf, generator_type_ &rng) {
+    using raw_t = typename scalar_type_::raw_t;
+    raw_t min_raw, max_raw;
+    if constexpr (sizeof(raw_t) == 1) min_raw = -10, max_raw = 10;
+    else if constexpr (sizeof(raw_t) == 2) min_raw = -100, max_raw = 100;
+    else if constexpr (sizeof(raw_t) == 4) min_raw = -1000, max_raw = 1000;
+    else min_raw = -10000, max_raw = 10000;
+
+    std::uniform_int_distribution<std::int64_t> dist(min_raw, max_raw);
+    for (std::size_t i = 0; i < buf.size(); i++) buf[i] = scalar_type_(static_cast<raw_t>(dist(rng)));
+}
+
+/**
+ *  @brief Generate a single random floating-point value respecting global distribution.
+ *  Centralizes distribution logic to avoid code duplication across float/complex overloads.
+ */
+template <typename generator_type_>
+nk_f64_t random_f64_in_range(generator_type_ &rng, nk_f64_t min_val, nk_f64_t max_val) {
     nk_f64_t range = max_val - min_val;
     nk_f64_t mid = (max_val + min_val) / 2.0;
 
     switch (global_config.distribution) {
     case random_distribution_kind_t::uniform_k: {
         std::uniform_real_distribution<nk_f64_t> dist(min_val, max_val);
-        for (std::size_t i = 0; i < buf.count; i++) { buf[i] = static_cast<scalar_type_>(dist(rng)); }
-        break;
+        return dist(rng);
     }
     case random_distribution_kind_t::lognormal_k: {
-        // Log-normal with random sign, compressed to [min_val, max_val]
         std::lognormal_distribution<nk_f64_t> lognorm(0.0, 0.5);
         std::uniform_real_distribution<nk_f64_t> sign_dist(0.0, 1.0);
-        for (std::size_t i = 0; i < buf.count; i++) {
-            nk_f64_t val = lognorm(rng);
-            nk_f64_t compressed = 2.0 / (1.0 + std::exp(-val)) - 1.0;
-            if (sign_dist(rng) < 0.5) compressed = -compressed;
-            buf[i] = static_cast<scalar_type_>(mid + compressed * (range / 2.0));
-        }
-        break;
+        nk_f64_t val = lognorm(rng);
+        nk_f64_t compressed = 2.0 / (1.0 + std::exp(-val)) - 1.0;
+        if (sign_dist(rng) < 0.5) compressed = -compressed;
+        return mid + compressed * (range / 2.0);
     }
     case random_distribution_kind_t::cauchy_k: {
-        // Cauchy compressed via atan to [min_val, max_val]
-        std::cauchy_distribution<nk_f64_t> cauchy_k(0.0, 1.0);
-        for (std::size_t i = 0; i < buf.count; i++) {
-            nk_f64_t val = cauchy_k(rng);
-            nk_f64_t compressed = (2.0 / M_PI) * std::atan(val);
-            buf[i] = static_cast<scalar_type_>(mid + compressed * (range / 2.0));
-        }
-        break;
+        std::cauchy_distribution<nk_f64_t> cauchy(0.0, 1.0);
+        nk_f64_t val = cauchy(rng);
+        nk_f64_t compressed = (2.0 / M_PI) * std::atan(val);
+        return mid + compressed * (range / 2.0);
     }
+    }
+    return mid; // unreachable
+}
+
+/**
+ *  @brief Fill floating-point buffer with random values in specified range, respecting global distribution.
+ */
+template <typename scalar_type_, typename generator_type_>
+    requires(!scalar_type_::is_integer() && !scalar_type_::is_complex())
+void fill_random(aligned_buffer<scalar_type_> &buf, generator_type_ &rng, scalar_type_ min_val, scalar_type_ max_val) {
+    nk_f64_t min_f64 = static_cast<nk_f64_t>(min_val);
+    nk_f64_t max_f64 = static_cast<nk_f64_t>(max_val);
+    for (std::size_t i = 0; i < buf.size(); i++) buf[i] = scalar_type_(random_f64_in_range(rng, min_f64, max_f64));
+}
+
+/**
+ *  @brief Fill floating-point buffer with random values respecting global distribution.
+ */
+template <typename scalar_type_, typename generator_type_>
+    requires(!scalar_type_::is_integer() && !scalar_type_::is_complex())
+void fill_random(aligned_buffer<scalar_type_> &buf, generator_type_ &rng) {
+    nk_f64_t min_val, max_val;
+    if constexpr (sizeof(typename scalar_type_::raw_t) >= 8) min_val = -1e8, max_val = 1e8;
+    else if constexpr (sizeof(typename scalar_type_::raw_t) >= 4) min_val = -1e4, max_val = 1e4;
+    else if constexpr (scalar_type_::bits() >= 16) min_val = -100, max_val = 100;
+    else min_val = -10, max_val = 10; // FP8 types
+
+    for (std::size_t i = 0; i < buf.size(); i++) buf[i] = scalar_type_(random_f64_in_range(rng, min_val, max_val));
+}
+
+/**
+ *  @brief Fill complex buffer with random values respecting global distribution.
+ */
+template <typename scalar_type_, typename generator_type_>
+    requires(scalar_type_::is_complex())
+void fill_random(aligned_buffer<scalar_type_> &buf, generator_type_ &rng) {
+    for (std::size_t i = 0; i < buf.size(); i++) {
+        auto re = random_f64_in_range(rng, -100.0, 100.0);
+        auto im = random_f64_in_range(rng, -100.0, 100.0);
+        buf[i] = scalar_type_(re, im);
     }
 }
 
 /**
- *  @brief Fill buffer with random probability distribution (sums to ~1).
+ *  @brief Fills two buffers with valid probability distributions (positive values summing to 1).
  */
 template <typename scalar_type_, typename generator_type_>
-void fill_probability(aligned_buffer<scalar_type_> &buf, generator_type_ &rng) {
-    std::uniform_real_distribution<nk_f64_t> dist(0.01, 1.0);
-    nk_f64_t sum = 0;
-    for (std::size_t i = 0; i < buf.count; i++) {
-        nk_f64_t v = dist(rng);
-        buf[i] = static_cast<scalar_type_>(v);
-        sum += v;
+void fill_probability(aligned_buffer<scalar_type_> &p, aligned_buffer<scalar_type_> &q, generator_type_ &rng) {
+    using scalar_t = scalar_type_;
+    std::uniform_real_distribution<double> dist(0.01, 1.0);
+    std::size_t n = p.size();
+
+    double sum_p = 0, sum_q = 0;
+    for (std::size_t i = 0; i < n; i++) {
+        double pv = dist(rng), qv = dist(rng);
+        p[i] = scalar_t(pv);
+        q[i] = scalar_t(qv);
+        sum_p += pv;
+        sum_q += qv;
     }
-    // Normalize
-    for (std::size_t i = 0; i < buf.count; i++) {
-        buf[i] = static_cast<scalar_type_>(static_cast<nk_f64_t>(buf[i]) / sum);
+    for (std::size_t i = 0; i < n; i++) {
+        p[i] = scalar_t(static_cast<double>(p[i]) / sum_p);
+        q[i] = scalar_t(static_cast<double>(q[i]) / sum_q);
     }
 }
 
-/**
- *  @brief Fill buffer with random integers in specified range.
- */
-template <typename scalar_type_, typename generator_type_>
-void fill_random_integers(aligned_buffer<scalar_type_> &buf, generator_type_ &rng, int min_val = -100,
-                          int max_val = 100) {
-    std::uniform_int_distribution<int> dist(min_val, max_val);
-    for (std::size_t i = 0; i < buf.count; i++) { buf[i] = static_cast<scalar_type_>(dist(rng)); }
-}
+#pragma endregion // Test Harness Templates
 
-#pragma endregion // Test_Harness_Templates
-
-#pragma region BLAS_Baselines
+#pragma region BLAS Baselines
 
 #if NK_COMPARE_TO_BLAS || NK_COMPARE_TO_MKL || NK_COMPARE_TO_ACCELERATE
 
-void dot_f32_blas(nk_f32_t const *a, nk_f32_t const *b, nk_size_t n, nk_f32_t *result) {
+void dot_f32_blas(nk::f32_t const *a, nk::f32_t const *b, nk::size_t n, nk::f32_t *result) {
     *result = cblas_sdot(static_cast<int>(n), a, 1, b, 1);
 }
 
-void dot_f64_blas(nk_f64_t const *a, nk_f64_t const *b, nk_size_t n, nk_f64_t *result) {
+void dot_f64_blas(nk::f64_t const *a, nk::f64_t const *b, nk::size_t n, nk::f64_t *result) {
     *result = cblas_ddot(static_cast<int>(n), a, 1, b, 1);
 }
 
-void dot_f32c_blas(nk_f32c_t const *a, nk_f32c_t const *b, nk_size_t n, nk_f32c_t *result) {
+void dot_f32c_blas(nk::f32c_t const *a, nk::f32c_t const *b, nk::size_t n, nk::f32c_t *result) {
     cblas_cdotu_sub(static_cast<int>(n), a, 1, b, 1, result);
 }
 
-void vdot_f32c_blas(nk_f32c_t const *a, nk_f32c_t const *b, nk_size_t n, nk_f32c_t *result) {
+void vdot_f32c_blas(nk::f32c_t const *a, nk::f32c_t const *b, nk::size_t n, nk::f32c_t *result) {
     cblas_cdotc_sub(static_cast<int>(n), a, 1, b, 1, result); // conjugated
 }
 
-void dot_f64c_blas(nk_f64c_t const *a, nk_f64c_t const *b, nk_size_t n, nk_f64c_t *result) {
+void dot_f64c_blas(nk::f64c_t const *a, nk::f64c_t const *b, nk::size_t n, nk::f64c_t *result) {
     cblas_zdotu_sub(static_cast<int>(n), a, 1, b, 1, result);
 }
 
-void vdot_f64c_blas(nk_f64c_t const *a, nk_f64c_t const *b, nk_size_t n, nk_f64c_t *result) {
+void vdot_f64c_blas(nk::f64c_t const *a, nk::f64c_t const *b, nk::size_t n, nk::f64c_t *result) {
     cblas_zdotc_sub(static_cast<int>(n), a, 1, b, 1, result); // conjugated
 }
 
-void dots_f32_blas(nk_f32_t const *a, nk_f32_t const *b, nk_f32_t *c, nk_size_t m, nk_size_t n, nk_size_t k,
-                   nk_size_t a_stride, nk_size_t c_stride) {
+void dots_f32_blas(nk::f32_t const *a, nk::f32_t const *b, nk::f32_t *c, nk::size_t m, nk::size_t n, nk::size_t k,
+                   nk::size_t a_stride, nk::size_t c_stride) {
     (void)a_stride;
     (void)c_stride;
     cblas_sgemm(CblasRowMajor, CblasNoTrans, CblasTrans, static_cast<int>(m), static_cast<int>(n), static_cast<int>(k),
                 1.0f, a, static_cast<int>(k), b, static_cast<int>(k), 0.0f, c, static_cast<int>(n));
 }
 
-void dots_f64_blas(nk_f64_t const *a, nk_f64_t const *b, nk_f64_t *c, nk_size_t m, nk_size_t n, nk_size_t k,
-                   nk_size_t a_stride, nk_size_t c_stride) {
+void dots_f64_blas(nk::f64_t const *a, nk::f64_t const *b, nk::f64_t *c, nk::size_t m, nk::size_t n, nk::size_t k,
+                   nk::size_t a_stride, nk::size_t c_stride) {
     (void)a_stride;
     (void)c_stride;
     cblas_dgemm(CblasRowMajor, CblasNoTrans, CblasTrans, static_cast<int>(m), static_cast<int>(n), static_cast<int>(k),
@@ -1620,8 +560,8 @@ void dots_f64_blas(nk_f64_t const *a, nk_f64_t const *b, nk_f64_t *c, nk_size_t 
 #endif // NK_COMPARE_TO_BLAS || NK_COMPARE_TO_MKL || NK_COMPARE_TO_ACCELERATE
 
 #if NK_COMPARE_TO_MKL
-void dots_bf16_mkl(nk_bf16_t const *a, nk_bf16_t const *b, nk_f32_t *c, nk_size_t m, nk_size_t n, nk_size_t k,
-                   nk_size_t a_stride, nk_size_t c_stride) {
+void dots_bf16_mkl(nk::bf16_t const *a, nk::bf16_t const *b, nk::f32_t *c, nk::size_t m, nk::size_t n, nk::size_t k,
+                   nk::size_t a_stride, nk::size_t c_stride) {
     (void)a_stride;
     (void)c_stride;
     cblas_gemm_bf16(CblasRowMajor, CblasNoTrans, CblasTrans, static_cast<MKL_INT>(m), static_cast<MKL_INT>(n),
@@ -1629,8 +569,8 @@ void dots_bf16_mkl(nk_bf16_t const *a, nk_bf16_t const *b, nk_f32_t *c, nk_size_
                     static_cast<MKL_INT>(n));
 }
 
-void dots_f16_mkl(nk_f16_t const *a, nk_f16_t const *b, nk_f32_t *c, nk_size_t m, nk_size_t n, nk_size_t k,
-                  nk_size_t a_stride, nk_size_t c_stride) {
+void dots_f16_mkl(nk::f16_t const *a, nk::f16_t const *b, nk::f32_t *c, nk::size_t m, nk::size_t n, nk::size_t k,
+                  nk::size_t a_stride, nk::size_t c_stride) {
     (void)a_stride;
     (void)c_stride;
     cblas_gemm_f16(CblasRowMajor, CblasNoTrans, CblasTrans, static_cast<MKL_INT>(m), static_cast<MKL_INT>(n),
@@ -1638,8 +578,8 @@ void dots_f16_mkl(nk_f16_t const *a, nk_f16_t const *b, nk_f32_t *c, nk_size_t m
                    reinterpret_cast<MKL_F16 const *>(b), static_cast<MKL_INT>(k), 0.0f, c, static_cast<MKL_INT>(n));
 }
 
-void dots_i8_mkl(nk_i8_t const *a, nk_u8_t const *b, nk_i32_t *c, nk_size_t m, nk_size_t n, nk_size_t k,
-                 nk_size_t a_stride, nk_size_t c_stride) {
+void dots_i8_mkl(nk::i8_t const *a, nk::u8_t const *b, nk::i32_t *c, nk::size_t m, nk::size_t n, nk::size_t k,
+                 nk::size_t a_stride, nk::size_t c_stride) {
     (void)a_stride;
     (void)c_stride;
     MKL_INT32 c_offset = 0;
@@ -1650,58 +590,7 @@ void dots_i8_mkl(nk_i8_t const *a, nk_u8_t const *b, nk_i32_t *c, nk_size_t m, n
 
 #endif // NK_COMPARE_TO_MKL
 
-#pragma endregion // BLAS_Baselines
-
-#pragma region Kernel_Types
-
-// Dot kernels
-using dot_f32_t = void (*)(nk_f32_t const *, nk_f32_t const *, nk_size_t, nk_f32_t *);
-using dot_f64_t = void (*)(nk_f64_t const *, nk_f64_t const *, nk_size_t, nk_f64_t *);
-using dot_f16_t = void (*)(nk_f16_t const *, nk_f16_t const *, nk_size_t, nk_f32_t *);
-using dot_bf16_t = void (*)(nk_bf16_t const *, nk_bf16_t const *, nk_size_t, nk_f32_t *);
-using dot_i8_t = void (*)(nk_i8_t const *, nk_i8_t const *, nk_size_t, nk_i32_t *);
-using dot_u8_t = void (*)(nk_u8_t const *, nk_u8_t const *, nk_size_t, nk_u32_t *);
-using dot_e4m3_t = void (*)(nk_e4m3_t const *, nk_e4m3_t const *, nk_size_t, nk_f32_t *);
-using dot_e5m2_t = void (*)(nk_e5m2_t const *, nk_e5m2_t const *, nk_size_t, nk_f32_t *);
-
-// Spatial kernels (l2sq, angular)
-using l2sq_f32_t = void (*)(nk_f32_t const *, nk_f32_t const *, nk_size_t, nk_f32_t *);
-using l2sq_f64_t = void (*)(nk_f64_t const *, nk_f64_t const *, nk_size_t, nk_f64_t *);
-using l2sq_f16_t = void (*)(nk_f16_t const *, nk_f16_t const *, nk_size_t, nk_f32_t *);
-using l2sq_bf16_t = void (*)(nk_bf16_t const *, nk_bf16_t const *, nk_size_t, nk_f32_t *);
-using angular_f32_t = void (*)(nk_f32_t const *, nk_f32_t const *, nk_size_t, nk_f32_t *);
-using angular_f64_t = void (*)(nk_f64_t const *, nk_f64_t const *, nk_size_t, nk_f64_t *);
-using angular_f16_t = void (*)(nk_f16_t const *, nk_f16_t const *, nk_size_t, nk_f32_t *);
-using angular_bf16_t = void (*)(nk_bf16_t const *, nk_bf16_t const *, nk_size_t, nk_f32_t *);
-
-// Binary kernels
-using hamming_u1_t = void (*)(nk_u1x8_t const *, nk_u1x8_t const *, nk_size_t, nk_u32_t *);
-using jaccard_u1_t = void (*)(nk_u1x8_t const *, nk_u1x8_t const *, nk_size_t, nk_f32_t *);
-
-// Trigonometry kernels
-using sin_f16_t = void (*)(nk_f16_t const *, nk_size_t, nk_f16_t *);
-using cos_f16_t = void (*)(nk_f16_t const *, nk_size_t, nk_f16_t *);
-using atan_f16_t = void (*)(nk_f16_t const *, nk_size_t, nk_f16_t *);
-using sin_f32_t = void (*)(nk_f32_t const *, nk_size_t, nk_f32_t *);
-using cos_f32_t = void (*)(nk_f32_t const *, nk_size_t, nk_f32_t *);
-using sin_f64_t = void (*)(nk_f64_t const *, nk_size_t, nk_f64_t *);
-using cos_f64_t = void (*)(nk_f64_t const *, nk_size_t, nk_f64_t *);
-
-// Sparse kernels
-using intersect_u16_t = void (*)(nk_u16_t const *, nk_u16_t const *, nk_size_t, nk_size_t, nk_u32_t *);
-using intersect_u32_t = void (*)(nk_u32_t const *, nk_u32_t const *, nk_size_t, nk_size_t, nk_u32_t *);
-using sparse_dot_u32f32_t = void (*)(nk_u32_t const *, nk_u32_t const *, nk_f32_t const *, nk_f32_t const *, nk_size_t,
-                                     nk_size_t, nk_f32_t *);
-using sparse_dot_u16bf16_t = void (*)(nk_u16_t const *, nk_u16_t const *, nk_bf16_t const *, nk_bf16_t const *,
-                                      nk_size_t, nk_size_t, nk_f32_t *);
-
-// Matrix multiplication packed size kernel
-using dots_packed_size_t = nk_size_t (*)(nk_size_t, nk_size_t);
-
-// Casts
-using cast_t = void (*)(void const *, nk_dtype_t, nk_size_t, void *, nk_dtype_t);
-
-#pragma endregion // Kernel_Types
+#pragma endregion // BLAS Baselines
 
 #pragma region Types
 
@@ -1734,65 +623,32 @@ void test_fp8_conversions() {
     std::printf("  FP8 conversions: PASS\n");
 }
 
-/**
- *  @brief Test denormal number handling.
- */
-void test_denormals() {
-    std::printf("Testing denormal handling...\n");
-
-    float denormal = 1e-40f;
-    int classification = std::fpclassify(denormal);
-
-    if (classification == FP_SUBNORMAL) { std::printf("  Denormals are preserved (FP_SUBNORMAL)\n"); }
-    else if (classification == FP_ZERO) { std::printf("  Denormals flushed to zero (FTZ mode)\n"); }
-    else { std::printf("  Unexpected classification: %d\n", classification); }
-
-    std::printf("  Denormal handling: PASS\n");
-}
-
 #pragma endregion // Types
 
 #pragma region Cast
+
+using cast_t = void (*)(void const *, nk_dtype_t, nk_size_t, void *, nk_dtype_t);
 
 /**
  *  @brief Test cast kernel against serial kernel.
  *  SIMD kernels must match serial output exactly (raw byte comparison).
  */
-template <typename from_wrapper_t, typename to_wrapper_t>
+template <typename from_type_, typename to_type_>
 error_stats_t test_cast(cast_t kernel) {
-    using from_traits = nk_numeric_traits<from_wrapper_t>;
-    using to_traits = nk_numeric_traits<to_wrapper_t>;
-    using from_raw_t = typename from_traits::raw_type;
-    using to_raw_t = typename to_traits::raw_type;
-
     error_stats_t stats;
     std::mt19937 rng(global_config.seed);
 
-    aligned_buffer<from_raw_t> src(dense_dimension);
-    aligned_buffer<to_raw_t> dst_simd(dense_dimension);
-    aligned_buffer<to_raw_t> dst_serial(dense_dimension);
-
-    nk_f64_t range_max = std::min(from_traits::safe_max(), to_traits::safe_max());
-    std::uniform_real_distribution<nk_f64_t> dist(-range_max, range_max);
+    aligned_buffer<from_type_> src(dense_dimension);
+    aligned_buffer<to_type_> dst_simd(dense_dimension), dst_serial(dense_dimension);
 
     for (auto start = test_start_time(); within_time_budget(start);) {
-        for (std::size_t i = 0; i < dense_dimension; ++i) {
-            from_wrapper_t val(dist(rng));
-            src[i] = val.raw;
-        }
-        std::memset(dst_simd.data, 0, dst_simd.count * sizeof(to_raw_t));
-        std::memset(dst_serial.data, 0, dst_serial.count * sizeof(to_raw_t));
+        fill_random(src, rng);
 
-        // Run serial kernel (ground truth)
-        nk_cast_serial(src.data, from_traits::dtype, dense_dimension, dst_serial.data, to_traits::dtype);
-        // Run SIMD kernel
-        kernel(src.data, from_traits::dtype, dense_dimension, dst_simd.data, to_traits::dtype);
+        nk_cast_serial(&src[0].raw_, from_type_::dtype(), dense_dimension, &dst_serial[0].raw_, to_type_::dtype());
+        kernel(&src[0].raw_, from_type_::dtype(), dense_dimension, &dst_simd[0].raw_, to_type_::dtype());
 
-        // Compare raw bytes - must match exactly
-        for (std::size_t i = 0; i < dense_dimension; ++i) {
-            std::uint64_t ulps = (dst_simd[i] == dst_serial[i]) ? 0 : 1;
-            stats.accumulate_ulp(ulps);
-        }
+        for (std::size_t i = 0; i < dense_dimension; ++i)
+            stats.accumulate_exact(dst_simd[i].raw_ == dst_serial[i].raw_);
     }
     return stats;
 }
@@ -1872,60 +728,25 @@ void test_casts() {
  *  Works with f32_t, f64_t, e4m3_t, e5m2_t wrapper types.
  */
 template <typename scalar_type_>
-error_stats_t test_reduce_add(typename nk_numeric_traits<scalar_type_>::reduce_add_kernel_type kernel) {
+error_stats_t test_reduce_add(typename scalar_type_::reduce_add_kernel_t kernel) {
     using scalar_t = scalar_type_;
-    using traits = nk_numeric_traits<scalar_t>;
-    using raw_t = typename traits::raw_type;
-    using result_t = typename traits::reduce_add_result_type;
-    using ref_t = typename traits::reference_type;
+    using raw_t = typename scalar_t::raw_t;
+    using result_t = typename scalar_t::reduce_add_result_t;
 
     error_stats_t stats;
-    std::mt19937 rng(global_config.seed);
-    aligned_buffer<scalar_t> data(dense_dimension);
+    std::mt19937 generator(global_config.seed);
+    aligned_buffer<scalar_t> buffer(dense_dimension);
 
     for (auto start = test_start_time(); within_time_budget(start);) {
-        fill_random(data, rng, -traits::safe_max(), traits::safe_max());
+        fill_random(buffer, generator);
 
         result_t result;
-        kernel(raw_ptr(data), dense_dimension, sizeof(raw_t), &result);
+        kernel(&buffer[0].raw_, dense_dimension, sizeof(raw_t), &result.raw_);
 
-        ref_t ref = 0;
-        for (std::size_t i = 0; i < dense_dimension; i++) ref += ref_t(double(data[i]));
+        f118_t reference;
+        nk::reduce_add<scalar_t, f118_t, false>(&buffer[0], dense_dimension, sizeof(raw_t), &reference);
 
-        std::uint64_t ulps = ulp_distance(static_cast<double>(result), static_cast<double>(ref));
-        stats.accumulate(static_cast<double>(ref), static_cast<double>(result), ulps);
-    }
-    return stats;
-}
-
-/**
- *  @brief Unified reduce_add test for integer types.
- *  Works with i32_t wrapper type.
- */
-template <typename scalar_type_>
-error_stats_t test_reduce_add_int(typename nk_numeric_traits<scalar_type_>::reduce_add_kernel_type kernel) {
-    using scalar_t = scalar_type_;
-    using traits = nk_numeric_traits<scalar_t>;
-    using raw_t = typename traits::raw_type;
-    using result_t = typename traits::reduce_add_result_type;
-    using ref_t = typename traits::reference_type;
-
-    error_stats_t stats;
-    std::mt19937 rng(global_config.seed);
-    aligned_buffer<scalar_t> data(dense_dimension);
-    std::uniform_int_distribution<raw_t> dist(-static_cast<raw_t>(traits::safe_max()),
-                                              static_cast<raw_t>(traits::safe_max()));
-
-    for (auto start = test_start_time(); within_time_budget(start);) {
-        for (std::size_t i = 0; i < dense_dimension; i++) data[i] = scalar_t::from_raw(dist(rng));
-
-        result_t result;
-        kernel(raw_ptr(data), dense_dimension, sizeof(raw_t), &result);
-
-        ref_t ref = 0;
-        for (std::size_t i = 0; i < dense_dimension; i++) ref += static_cast<ref_t>(data[i]);
-
-        stats.accumulate_ulp(result == static_cast<result_t>(ref) ? 0 : 1);
+        stats.accumulate(result, reference);
     }
     return stats;
 }
@@ -1936,14 +757,14 @@ void test_reduce() {
 #if NK_DYNAMIC_DISPATCH
     run_if_matches("reduce_add", "f32", test_reduce_add<f32_t>, nk_reduce_add_f32);
     run_if_matches("reduce_add", "f64", test_reduce_add<f64_t>, nk_reduce_add_f64);
-    run_if_matches("reduce_add", "i32", test_reduce_add_int<i32_t>, nk_reduce_add_i32);
+    run_if_matches("reduce_add", "i32", test_reduce_add<i32_t>, nk_reduce_add_i32);
     run_if_matches("reduce_add", "e4m3", test_reduce_add<e4m3_t>, nk_reduce_add_e4m3);
     run_if_matches("reduce_add", "e5m2", test_reduce_add<e5m2_t>, nk_reduce_add_e5m2);
 #else
 #if NK_TARGET_NEON
     run_if_matches("reduce_add_neon", "f32", test_reduce_add<f32_t>, nk_reduce_add_f32_neon);
     run_if_matches("reduce_add_neon", "f64", test_reduce_add<f64_t>, nk_reduce_add_f64_neon);
-    run_if_matches("reduce_add_neon", "i32", test_reduce_add_int<i32_t>, nk_reduce_add_i32_neon);
+    run_if_matches("reduce_add_neon", "i32", test_reduce_add<i32_t>, nk_reduce_add_i32_neon);
 #endif
 #if NK_TARGET_NEONFHM
     run_if_matches("reduce_add_neonfhm", "e4m3", test_reduce_add<e4m3_t>, nk_reduce_add_e4m3_neonfhm);
@@ -1952,18 +773,18 @@ void test_reduce() {
 #if NK_TARGET_HASWELL
     run_if_matches("reduce_add_haswell", "f32", test_reduce_add<f32_t>, nk_reduce_add_f32_haswell);
     run_if_matches("reduce_add_haswell", "f64", test_reduce_add<f64_t>, nk_reduce_add_f64_haswell);
-    run_if_matches("reduce_add_haswell", "i32", test_reduce_add_int<i32_t>, nk_reduce_add_i32_haswell);
+    run_if_matches("reduce_add_haswell", "i32", test_reduce_add<i32_t>, nk_reduce_add_i32_haswell);
     run_if_matches("reduce_add_haswell", "e4m3", test_reduce_add<e4m3_t>, nk_reduce_add_e4m3_haswell);
     run_if_matches("reduce_add_haswell", "e5m2", test_reduce_add<e5m2_t>, nk_reduce_add_e5m2_haswell);
 #endif
 #if NK_TARGET_SKYLAKE
     run_if_matches("reduce_add_skylake", "f32", test_reduce_add<f32_t>, nk_reduce_add_f32_skylake);
     run_if_matches("reduce_add_skylake", "f64", test_reduce_add<f64_t>, nk_reduce_add_f64_skylake);
-    run_if_matches("reduce_add_skylake", "i32", test_reduce_add_int<i32_t>, nk_reduce_add_i32_skylake);
+    run_if_matches("reduce_add_skylake", "i32", test_reduce_add<i32_t>, nk_reduce_add_i32_skylake);
 #endif
     run_if_matches("reduce_add_serial", "f32", test_reduce_add<f32_t>, nk_reduce_add_f32_serial);
     run_if_matches("reduce_add_serial", "f64", test_reduce_add<f64_t>, nk_reduce_add_f64_serial);
-    run_if_matches("reduce_add_serial", "i32", test_reduce_add_int<i32_t>, nk_reduce_add_i32_serial);
+    run_if_matches("reduce_add_serial", "i32", test_reduce_add<i32_t>, nk_reduce_add_i32_serial);
     run_if_matches("reduce_add_serial", "e4m3", test_reduce_add<e4m3_t>, nk_reduce_add_e4m3_serial);
     run_if_matches("reduce_add_serial", "e5m2", test_reduce_add<e5m2_t>, nk_reduce_add_e5m2_serial);
 #endif
@@ -1975,95 +796,58 @@ void test_reduce() {
 
 /**
  *  @brief Unified dot product test for all types: float, integer, and complex.
- *  Works with f32_t, f64_t, f16_t, bf16_t, e4m3_t, e5m2_t, i8_t, u8_t, i4x2_t, u4x2_t, f32c_t, f64c_t.
- *  - Float types: ULP distance comparison
- *  - Integer types: exact match required
- *  - Complex types: max ULP of real and imag parts
+ *  Works with f32_t, f64_t, f16_t, bf16_t, e4m3_t, e5m2_t, i8_t, u8_t, f32c_t, f64c_t.
  */
 template <typename scalar_type_>
-error_stats_t test_dot(typename nk_numeric_traits<scalar_type_>::dot_kernel_type kernel) {
-    using traits = nk_numeric_traits<scalar_type_>;
-    using raw_t = typename traits::raw_type;
-    using result_t = typename traits::dot_result_type;
-    using ref_t = typename traits::reference_type;
+error_stats_t test_dot(typename scalar_type_::dot_kernel_t kernel) {
+    using scalar_t = scalar_type_;
+    using raw_t = typename scalar_t::raw_t;
+    using result_t = typename scalar_t::dot_result_t;
+    using reference_t = std::conditional_t<scalar_t::is_complex(), f118c_t, f118_t>;
 
     error_stats_t stats;
     std::mt19937 rng(global_config.seed);
-
-    // Buffer allocation: handle sub-byte types
-    constexpr std::size_t elems_per_byte = traits::elements_per_byte();
-    std::size_t n_bytes = (dense_dimension + elems_per_byte - 1) / elems_per_byte;
-    aligned_buffer<raw_t> a(n_bytes), b(n_bytes);
+    aligned_buffer<scalar_t> a(dense_dimension), b(dense_dimension);
 
     for (auto start = test_start_time(); within_time_budget(start);) {
-        traits::fill(a, rng);
-        traits::fill(b, rng);
+        fill_random(a, rng);
+        fill_random(b, rng);
 
         result_t result;
-        kernel(a.data, b.data, dense_dimension, &result);
+        kernel(&a[0].raw_, &b[0].raw_, dense_dimension, &result.raw_);
 
-        // Reference computation using traits::dot()
-        ref_t ref {};
-        for (std::size_t i = 0; i < n_bytes; i++) ref = traits::dot(ref, a[i], b[i]);
+        reference_t reference;
+        nk::dot<scalar_t, reference_t, false>(&a[0], &b[0], dense_dimension, &reference);
 
-        // Error comparison depends on type
-        if constexpr (traits::is_integer()) {
-            // Integer types: exact match
-            std::uint64_t ulps = (result == static_cast<result_t>(ref)) ? 0 : std::numeric_limits<std::uint64_t>::max();
-            stats.accumulate_ulp(ulps);
-            if (global_config.assert_on_failure && result != static_cast<result_t>(ref)) {
-                std::fprintf(stderr, "FAIL: dot_%s dim=%zu expected=%lld got=%lld\n", traits::type_name(),
-                             dense_dimension, static_cast<long long>(ref), static_cast<long long>(result));
-                assert(false);
-            }
-        }
-        else if constexpr (traits::is_complex()) {
-            // Complex types: max ULP of real and imag
-            std::uint64_t ulps_real = ulp_distance_from_reference(result.real, ref.real);
-            std::uint64_t ulps_imag = ulp_distance_from_reference(result.imag, ref.imag);
-            std::uint64_t ulps = std::max(ulps_real, ulps_imag);
-            stats.accumulate_ulp(ulps);
-        }
-        else {
-            // Float types: ULP distance
-            std::uint64_t ulps = ulp_distance_from_reference(result, static_cast<double>(ref));
-            stats.accumulate(static_cast<double>(ref), static_cast<double>(result), ulps);
-        }
+        stats.accumulate(result, reference);
     }
     return stats;
 }
 
 /**
  *  @brief Conjugate dot product test for complex types (vdot = conj(a) * b).
- *  Uses traits::vdot() for reference computation.
  */
 template <typename scalar_type_>
-error_stats_t test_vdot(typename nk_numeric_traits<scalar_type_>::dot_kernel_type kernel) {
-    using traits = nk_numeric_traits<scalar_type_>;
-    using raw_t = typename traits::raw_type;
-    using result_t = typename traits::dot_result_type;
-    using ref_t = typename traits::reference_type;
+error_stats_t test_vdot(typename scalar_type_::vdot_kernel_t kernel) {
+    using scalar_t = scalar_type_;
+    using raw_t = typename scalar_t::raw_t;
+    using result_t = typename scalar_t::vdot_result_t;
 
     error_stats_t stats;
     std::mt19937 rng(global_config.seed);
-    aligned_buffer<raw_t> a(dense_dimension), b(dense_dimension);
+    aligned_buffer<scalar_t> a(dense_dimension), b(dense_dimension);
 
     for (auto start = test_start_time(); within_time_budget(start);) {
-        traits::fill(a, rng);
-        traits::fill(b, rng);
+        fill_random(a, rng);
+        fill_random(b, rng);
 
         result_t result;
-        kernel(a.data, b.data, dense_dimension, &result);
+        kernel(&a[0].raw_, &b[0].raw_, dense_dimension, &result.raw_);
 
-        // Reference computation using traits::vdot()
-        ref_t ref {};
-        for (std::size_t i = 0; i < dense_dimension; i++) ref = traits::vdot(ref, a[i], b[i]);
+        f118c_t reference;
+        nk::vdot<scalar_t, f118c_t, false>(&a[0], &b[0], dense_dimension, &reference);
 
-        // Complex types: max ULP of real and imag
-        std::uint64_t ulps_real = ulp_distance_from_reference(result.real, ref.real);
-        std::uint64_t ulps_imag = ulp_distance_from_reference(result.imag, ref.imag);
-        std::uint64_t ulps = std::max(ulps_real, ulps_imag);
-        stats.accumulate_ulp(ulps);
+        stats.accumulate(result, reference);
     }
     return stats;
 }
@@ -2200,31 +984,26 @@ void test_dot() {
  *  Works with f32_t, f64_t, f16_t, bf16_t wrapper types.
  */
 template <typename scalar_type_>
-error_stats_t test_l2sq(typename nk_numeric_traits<scalar_type_>::dot_kernel_type kernel) {
+error_stats_t test_l2sq(typename scalar_type_::l2sq_kernel_t kernel) {
     using scalar_t = scalar_type_;
-    using traits = nk_numeric_traits<scalar_t>;
-    using result_t = typename traits::dot_result_type;
-    using ref_t = typename traits::reference_type;
+    using raw_t = typename scalar_t::raw_t;
+    using result_t = typename scalar_t::l2sq_result_t;
 
     error_stats_t stats;
     std::mt19937 rng(global_config.seed);
     aligned_buffer<scalar_t> a(dense_dimension), b(dense_dimension);
 
     for (auto start = test_start_time(); within_time_budget(start);) {
-        fill_random(a, rng, -traits::safe_max(), traits::safe_max());
-        fill_random(b, rng, -traits::safe_max(), traits::safe_max());
+        fill_random(a, rng);
+        fill_random(b, rng);
 
         result_t result;
-        kernel(raw_ptr(a), raw_ptr(b), dense_dimension, &result);
+        kernel(&a[0].raw_, &b[0].raw_, dense_dimension, &result.raw_);
 
-        ref_t ref = 0;
-        for (std::size_t i = 0; i < dense_dimension; i++) {
-            ref_t diff = ref_t(double(a[i])) - ref_t(double(b[i]));
-            ref += diff * diff;
-        }
+        f118_t reference;
+        nk::l2sq<scalar_t, f118_t, false>(&a[0], &b[0], dense_dimension, &reference);
 
-        std::uint64_t ulps = ulp_distance(result, static_cast<result_t>(double(ref)));
-        stats.accumulate(double(ref), double(result), ulps);
+        stats.accumulate(result, reference);
     }
     return stats;
 }
@@ -2234,172 +1013,26 @@ error_stats_t test_l2sq(typename nk_numeric_traits<scalar_type_>::dot_kernel_typ
  *  Works with f32_t, f64_t, f16_t, bf16_t wrapper types.
  */
 template <typename scalar_type_>
-error_stats_t test_angular(typename nk_numeric_traits<scalar_type_>::dot_kernel_type kernel) {
+error_stats_t test_angular(typename scalar_type_::angular_kernel_t kernel) {
     using scalar_t = scalar_type_;
-    using traits = nk_numeric_traits<scalar_t>;
-    using result_t = typename traits::dot_result_type;
-    using ref_t = typename traits::reference_type;
+    using raw_t = typename scalar_t::raw_t;
+    using result_t = typename scalar_t::angular_result_t;
 
     error_stats_t stats;
     std::mt19937 rng(global_config.seed);
     aligned_buffer<scalar_t> a(dense_dimension), b(dense_dimension);
 
     for (auto start = test_start_time(); within_time_budget(start);) {
-        fill_random(a, rng, -traits::safe_max(), traits::safe_max());
-        fill_random(b, rng, -traits::safe_max(), traits::safe_max());
+        fill_random(a, rng);
+        fill_random(b, rng);
 
         result_t result;
-        kernel(raw_ptr(a), raw_ptr(b), dense_dimension, &result);
+        kernel(&a[0].raw_, &b[0].raw_, dense_dimension, &result.raw_);
 
-        ref_t ab = 0, aa = 0, bb = 0;
-        for (std::size_t i = 0; i < dense_dimension; i++) {
-            ref_t ai = double(a[i]), bi = double(b[i]);
-            ab += ai * bi;
-            aa += ai * ai;
-            bb += bi * bi;
-        }
-        ref_t ref = 0;
-        if (aa != 0 && bb != 0) {
-            using ::sqrt;
-            using mp::sqrt;
-            ref_t cos_sim = ab / sqrt(aa * bb);
-            ref = ref_t(1) - cos_sim;
-            if (ref < 0) ref = 0;
-        }
+        f118_t reference;
+        nk::angular<scalar_t, f118_t, false>(&a[0], &b[0], dense_dimension, &reference);
 
-        std::uint64_t ulps = ulp_distance(result, static_cast<result_t>(double(ref)));
-        stats.accumulate(double(ref), double(result), ulps);
-    }
-    return stats;
-}
-
-/**
- *  @brief Unified L2 squared distance test for nibble types.
- *  Works with i4x2_t, u4x2_t. For nibbles, handles odd dimensions.
- */
-template <typename scalar_type_>
-error_stats_t test_l2sq_int(typename nk_numeric_traits<scalar_type_>::l2sq_kernel_type kernel) {
-    using scalar_t = scalar_type_;
-    using traits = nk_numeric_traits<scalar_t>;
-    using raw_t = typename traits::raw_type;
-    using result_t = typename traits::l2sq_result_type;
-    using ref_t = typename traits::reference_type;
-
-    error_stats_t stats;
-    std::mt19937 rng(global_config.seed);
-
-    constexpr std::size_t elems_per_byte = traits::elements_per_byte();
-    std::size_t n_bytes = (dense_dimension + elems_per_byte - 1) / elems_per_byte;
-    aligned_buffer<raw_t> a(n_bytes), b(n_bytes);
-
-    for (auto start = test_start_time(); within_time_budget(start);) {
-        traits::fill(a, rng);
-        traits::fill(b, rng);
-
-        result_t result;
-        kernel(a.data, b.data, dense_dimension, &result);
-
-        // Reference computation
-        ref_t ref = 0;
-        if constexpr (elems_per_byte == 1) {
-            for (std::size_t i = 0; i < dense_dimension; i++) ref = traits::diff_sq(ref, a[i], b[i]);
-        }
-        else {
-            std::size_t full_bytes = dense_dimension / elems_per_byte;
-            for (std::size_t i = 0; i < full_bytes; i++) ref = traits::diff_sq(ref, a[i], b[i]);
-            if (dense_dimension % elems_per_byte != 0) {
-                auto a_byte = static_cast<std::uint8_t>(a[full_bytes]);
-                auto b_byte = static_cast<std::uint8_t>(b[full_bytes]);
-                if constexpr (std::is_same_v<scalar_t, i4x2_t>) {
-                    std::int32_t a_lo = static_cast<std::int32_t>((a_byte & 0x0F) ^ 8) - 8;
-                    std::int32_t b_lo = static_cast<std::int32_t>((b_byte & 0x0F) ^ 8) - 8;
-                    std::int32_t d = a_lo - b_lo;
-                    ref += ref_t(d * d);
-                }
-                else {
-                    std::int32_t d = static_cast<std::int32_t>(a_byte & 0x0F) -
-                                     static_cast<std::int32_t>(b_byte & 0x0F);
-                    ref += ref_t(d * d);
-                }
-            }
-        }
-
-        std::uint64_t ulps = (result == static_cast<result_t>(ref)) ? 0 : std::numeric_limits<std::uint64_t>::max();
-        stats.accumulate_ulp(ulps);
-    }
-    return stats;
-}
-
-/**
- *  @brief Unified angular (cosine) distance test for integer/nibble types.
- *  Works with i4x2_t, u4x2_t. Returns f32 result.
- */
-template <typename scalar_type_>
-error_stats_t test_angular_int(typename nk_numeric_traits<scalar_type_>::angular_kernel_type kernel) {
-    using scalar_t = scalar_type_;
-    using traits = nk_numeric_traits<scalar_t>;
-    using raw_t = typename traits::raw_type;
-    using ref_t = typename traits::reference_type;
-
-    error_stats_t stats;
-    std::mt19937 rng(global_config.seed);
-
-    constexpr std::size_t elems_per_byte = traits::elements_per_byte();
-    std::size_t n_bytes = (dense_dimension + elems_per_byte - 1) / elems_per_byte;
-    aligned_buffer<raw_t> a(n_bytes), b(n_bytes);
-
-    for (auto start = test_start_time(); within_time_budget(start);) {
-        traits::fill(a, rng);
-        traits::fill(b, rng);
-
-        nk_f32_t result;
-        kernel(a.data, b.data, dense_dimension, &result);
-
-        // Reference computation
-        ref_t dot_sum = 0, a_norm_sq = 0, b_norm_sq = 0;
-        if constexpr (elems_per_byte == 1) {
-            for (std::size_t i = 0; i < dense_dimension; i++) {
-                dot_sum = traits::dot(dot_sum, a[i], b[i]);
-                a_norm_sq += ref_t(a[i]) * ref_t(a[i]);
-                b_norm_sq += ref_t(b[i]) * ref_t(b[i]);
-            }
-        }
-        else {
-            std::size_t full_bytes = dense_dimension / elems_per_byte;
-            for (std::size_t i = 0; i < full_bytes; i++) {
-                dot_sum = traits::dot(dot_sum, a[i], b[i]);
-                a_norm_sq = traits::norm_sq(a_norm_sq, a[i]);
-                b_norm_sq = traits::norm_sq(b_norm_sq, b[i]);
-            }
-            if (dense_dimension % elems_per_byte != 0) {
-                auto a_byte = static_cast<std::uint8_t>(a[full_bytes]);
-                auto b_byte = static_cast<std::uint8_t>(b[full_bytes]);
-                if constexpr (std::is_same_v<scalar_t, i4x2_t>) {
-                    std::int32_t a_lo = static_cast<std::int32_t>((a_byte & 0x0F) ^ 8) - 8;
-                    std::int32_t b_lo = static_cast<std::int32_t>((b_byte & 0x0F) ^ 8) - 8;
-                    dot_sum += ref_t(a_lo) * ref_t(b_lo);
-                    a_norm_sq += ref_t(a_lo) * ref_t(a_lo);
-                    b_norm_sq += ref_t(b_lo) * ref_t(b_lo);
-                }
-                else {
-                    ref_t a_lo = a_byte & 0x0F, b_lo = b_byte & 0x0F;
-                    dot_sum += a_lo * b_lo;
-                    a_norm_sq += a_lo * a_lo;
-                    b_norm_sq += b_lo * b_lo;
-                }
-            }
-        }
-
-        f128_t ref = 0;
-        if (a_norm_sq != 0 && b_norm_sq != 0) {
-            // Note: when dot_sum is 0, cos_sim is 0, so angular = 1.0 (orthogonal)
-            f128_t cos_sim = f128_t(dot_sum) / mp::sqrt(f128_t(a_norm_sq) * f128_t(b_norm_sq));
-            ref = f128_t(1) - cos_sim;
-            if (ref < 0) ref = 0;
-        }
-
-        std::uint64_t ulps = ulp_distance_from_reference(result, ref);
-        stats.accumulate(static_cast<double>(ref), static_cast<double>(result), ulps);
+        stats.accumulate(result, reference);
     }
     return stats;
 }
@@ -2417,10 +1050,10 @@ void test_spatial() {
     run_if_matches("angular", "f64", test_angular<f64_t>, nk_angular_f64);
     run_if_matches("angular", "f16", test_angular<f16_t>, nk_angular_f16);
     run_if_matches("angular", "bf16", test_angular<bf16_t>, nk_angular_bf16);
-    run_if_matches("l2sq", "i4", test_l2sq_int<i4x2_t>, nk_l2sq_i4);
-    run_if_matches("l2sq", "u4", test_l2sq_int<u4x2_t>, nk_l2sq_u4);
-    run_if_matches("angular", "i4", test_angular_int<i4x2_t>, nk_angular_i4);
-    run_if_matches("angular", "u4", test_angular_int<u4x2_t>, nk_angular_u4);
+    run_if_matches("l2sq", "i4", test_l2sq<i4x2_t>, nk_l2sq_i4);
+    run_if_matches("l2sq", "u4", test_l2sq<u4x2_t>, nk_l2sq_u4);
+    run_if_matches("angular", "i4", test_angular<i4x2_t>, nk_angular_i4);
+    run_if_matches("angular", "u4", test_angular<u4x2_t>, nk_angular_u4);
 #else
     // Static compilation - test all available ISA variants
 
@@ -2460,10 +1093,10 @@ void test_spatial() {
 #endif // NK_TARGET_SKYLAKE
 
 #if NK_TARGET_ICE
-    run_if_matches("l2sq_ice", "i4", test_l2sq_int<i4x2_t>, nk_l2sq_i4_ice);
-    run_if_matches("l2sq_ice", "u4", test_l2sq_int<u4x2_t>, nk_l2sq_u4_ice);
-    run_if_matches("angular_ice", "i4", test_angular_int<i4x2_t>, nk_angular_i4_ice);
-    run_if_matches("angular_ice", "u4", test_angular_int<u4x2_t>, nk_angular_u4_ice);
+    run_if_matches("l2sq_ice", "i4", test_l2sq<i4x2_t>, nk_l2sq_i4_ice);
+    run_if_matches("l2sq_ice", "u4", test_l2sq<u4x2_t>, nk_l2sq_u4_ice);
+    run_if_matches("angular_ice", "i4", test_angular<i4x2_t>, nk_angular_i4_ice);
+    run_if_matches("angular_ice", "u4", test_angular<u4x2_t>, nk_angular_u4_ice);
 #endif // NK_TARGET_ICE
 
 #if NK_TARGET_SPACEMIT
@@ -2492,10 +1125,10 @@ void test_spatial() {
     run_if_matches("angular_serial", "f64", test_angular<f64_t>, nk_angular_f64_serial);
     run_if_matches("angular_serial", "f16", test_angular<f16_t>, nk_angular_f16_serial);
     run_if_matches("angular_serial", "bf16", test_angular<bf16_t>, nk_angular_bf16_serial);
-    run_if_matches("l2sq_serial", "i4", test_l2sq_int<i4x2_t>, nk_l2sq_i4_serial);
-    run_if_matches("l2sq_serial", "u4", test_l2sq_int<u4x2_t>, nk_l2sq_u4_serial);
-    run_if_matches("angular_serial", "i4", test_angular_int<i4x2_t>, nk_angular_i4_serial);
-    run_if_matches("angular_serial", "u4", test_angular_int<u4x2_t>, nk_angular_u4_serial);
+    run_if_matches("l2sq_serial", "i4", test_l2sq<i4x2_t>, nk_l2sq_i4_serial);
+    run_if_matches("l2sq_serial", "u4", test_l2sq<u4x2_t>, nk_l2sq_u4_serial);
+    run_if_matches("angular_serial", "i4", test_angular<i4x2_t>, nk_angular_i4_serial);
+    run_if_matches("angular_serial", "u4", test_angular<u4x2_t>, nk_angular_u4_serial);
 
 #endif // NK_DYNAMIC_DISPATCH
 }
@@ -2508,31 +1141,27 @@ void test_spatial() {
  *  @brief Template for bilinear form test: a^T * M * b
  */
 template <typename scalar_type_>
-error_stats_t test_bilinear(typename nk_numeric_traits<scalar_type_>::bilinear_kernel_type kernel) {
+error_stats_t test_bilinear(typename scalar_type_::bilinear_kernel_t kernel) {
     using scalar_t = scalar_type_;
-    using traits = nk_numeric_traits<scalar_t>;
-    using raw_t = typename traits::raw_type;
+    using raw_t = typename scalar_t::raw_t;
+    using result_t = typename scalar_t::bilinear_result_t;
 
     error_stats_t stats;
     std::mt19937 rng(global_config.seed);
 
-    std::size_t bilinear_dims[] = {2, 3, 4, 8, 16, 32};
+    aligned_buffer<scalar_t> a(dense_dimension), b(dense_dimension), m(dense_dimension * dense_dimension);
+    for (auto start = test_start_time(); within_time_budget(start);) {
+        fill_random(a, rng);
+        fill_random(b, rng);
+        fill_random(m, rng);
 
-    for (std::size_t dim : bilinear_dims) {
-        for (auto start = test_start_time(); within_time_budget(start);) {
-            aligned_buffer<raw_t> a(dim), b(dim), m(dim * dim);
-            fill_random(a, rng, -1.0, 1.0);
-            fill_random(b, rng, -1.0, 1.0);
-            fill_random(m, rng, -1.0, 1.0);
+        result_t result;
+        kernel(&a[0].raw_, &b[0].raw_, &m[0].raw_, dense_dimension, &result.raw_);
 
-            raw_t result;
-            kernel(a.data, b.data, m.data, dim, &result);
+        f118_t reference;
+        nk::bilinear<scalar_t, f118_t, false>(&a[0], &b[0], &m[0], dense_dimension, &reference);
 
-            f128_t ref = reference_bilinear_quad(a.data, m.data, b.data, dim);
-            std::uint64_t ulps = ulp_distance_from_reference(result, ref);
-
-            stats.accumulate(static_cast<double>(ref), static_cast<double>(result), ulps);
-        }
+        stats.accumulate(result, reference);
     }
 
     return stats;
@@ -2568,46 +1197,28 @@ void test_curved() {
 
 /**
  *  @brief Template for KL divergence test.
+ *  KLD requires probability distributions: all values > 0, sum to 1.
  */
 template <typename scalar_type_>
-error_stats_t test_kld(typename nk_numeric_traits<scalar_type_>::dot_kernel_type kernel) {
+error_stats_t test_kld(typename scalar_type_::kld_kernel_t kernel) {
     using scalar_t = scalar_type_;
-    using traits = nk_numeric_traits<scalar_t>;
-    using raw_t = typename traits::raw_type;
+    using raw_t = typename scalar_t::raw_t;
+    using result_t = typename scalar_t::kld_result_t;
 
     error_stats_t stats;
     std::mt19937 rng(global_config.seed);
-    std::uniform_real_distribution<double> dist(0.01, 1.0);
+    aligned_buffer<scalar_t> p(dense_dimension), q(dense_dimension);
 
-    std::size_t prob_dims[] = {4, 8, 16, 32, 64, 128, 256};
+    for (auto start = test_start_time(); within_time_budget(start);) {
+        fill_probability(p, q, rng);
 
-    for (std::size_t dim : prob_dims) {
-        error_stats_t dim_stats;
-        for (auto start = test_start_time(); within_time_budget(start);) {
-            aligned_buffer<raw_t> p(dim), q(dim);
-            double sum_p = 0, sum_q = 0;
-            for (std::size_t i = 0; i < dim; i++) {
-                double pv = dist(rng), qv = dist(rng);
-                p[i] = static_cast<raw_t>(pv);
-                q[i] = static_cast<raw_t>(qv);
-                sum_p += pv;
-                sum_q += qv;
-            }
-            for (std::size_t i = 0; i < dim; i++) {
-                p[i] = static_cast<raw_t>(static_cast<double>(p[i]) / sum_p);
-                q[i] = static_cast<raw_t>(static_cast<double>(q[i]) / sum_q);
-            }
+        result_t result;
+        kernel(&p[0].raw_, &q[0].raw_, dense_dimension, &result.raw_);
 
-            raw_t result;
-            kernel(p.data, q.data, dim, &result);
+        f118_t reference;
+        nk::kld<scalar_t, f118_t, false>(&p[0], &q[0], dense_dimension, &reference);
 
-            f128_t ref = reference_kld_quad(p.data, q.data, dim);
-            std::uint64_t ulps = ulp_distance_from_reference(result, ref);
-
-            stats.accumulate(static_cast<double>(ref), static_cast<double>(result), ulps);
-            dim_stats.accumulate(static_cast<double>(ref), static_cast<double>(result), ulps);
-        }
-        if (global_config.verbose) dim_stats.report_dimension("kld", traits::type_name(), dim);
+        stats.accumulate(result, reference);
     }
 
     return stats;
@@ -2615,46 +1226,28 @@ error_stats_t test_kld(typename nk_numeric_traits<scalar_type_>::dot_kernel_type
 
 /**
  *  @brief Template for Jensen-Shannon divergence test.
+ *  JSD requires probability distributions: all values > 0, sum to 1.
  */
 template <typename scalar_type_>
-error_stats_t test_jsd(typename nk_numeric_traits<scalar_type_>::dot_kernel_type kernel) {
+error_stats_t test_jsd(typename scalar_type_::jsd_kernel_t kernel) {
     using scalar_t = scalar_type_;
-    using traits = nk_numeric_traits<scalar_t>;
-    using raw_t = typename traits::raw_type;
+    using raw_t = typename scalar_t::raw_t;
+    using result_t = typename scalar_t::jsd_result_t;
 
     error_stats_t stats;
     std::mt19937 rng(global_config.seed);
-    std::uniform_real_distribution<double> dist(0.01, 1.0);
+    aligned_buffer<scalar_t> p(dense_dimension), q(dense_dimension);
 
-    std::size_t prob_dims[] = {4, 8, 16, 32, 64, 128, 256};
+    for (auto start = test_start_time(); within_time_budget(start);) {
+        fill_probability(p, q, rng);
 
-    for (std::size_t dim : prob_dims) {
-        error_stats_t dim_stats;
-        for (auto start = test_start_time(); within_time_budget(start);) {
-            aligned_buffer<raw_t> p(dim), q(dim);
-            double sum_p = 0, sum_q = 0;
-            for (std::size_t i = 0; i < dim; i++) {
-                double pv = dist(rng), qv = dist(rng);
-                p[i] = static_cast<raw_t>(pv);
-                q[i] = static_cast<raw_t>(qv);
-                sum_p += pv;
-                sum_q += qv;
-            }
-            for (std::size_t i = 0; i < dim; i++) {
-                p[i] = static_cast<raw_t>(static_cast<double>(p[i]) / sum_p);
-                q[i] = static_cast<raw_t>(static_cast<double>(q[i]) / sum_q);
-            }
+        result_t result;
+        kernel(&p[0].raw_, &q[0].raw_, dense_dimension, &result.raw_);
 
-            raw_t result;
-            kernel(p.data, q.data, dim, &result);
+        f118_t reference;
+        nk::jsd<scalar_t, f118_t, false>(&p[0], &q[0], dense_dimension, &reference);
 
-            f128_t ref = reference_jsd_quad(p.data, q.data, dim);
-            std::uint64_t ulps = ulp_distance_from_reference(result, ref);
-
-            stats.accumulate(static_cast<double>(ref), static_cast<double>(result), ulps);
-            dim_stats.accumulate(static_cast<double>(ref), static_cast<double>(result), ulps);
-        }
-        if (global_config.verbose) dim_stats.report_dimension("jsd", traits::type_name(), dim);
+        stats.accumulate(result, reference);
     }
 
     return stats;
@@ -2696,34 +1289,28 @@ void test_probability() {
 #pragma region Binary
 
 /**
- *  @brief Test Hamming distance (exact match required).
+ *  @brief Test Hamming distance for binary vectors.
  */
-error_stats_t test_hamming_u1(hamming_u1_t kernel) {
-    using traits = nk_numeric_traits<u1x8_t>;
+error_stats_t test_hamming(u1x8_t::hamming_kernel_t kernel) {
+    using scalar_t = u1x8_t;
+
     error_stats_t stats;
     std::mt19937 rng(global_config.seed);
 
     std::size_t n_bytes = dense_dimension / 8;
-    aligned_buffer<nk_u1x8_t> a(n_bytes), b(n_bytes);
+    aligned_buffer<scalar_t> a(n_bytes), b(n_bytes);
 
     for (auto start = test_start_time(); within_time_budget(start);) {
-        traits::fill(a, rng);
-        traits::fill(b, rng);
+        fill_random(a, rng);
+        fill_random(b, rng);
 
-        nk_u32_t result;
-        kernel(a.data, b.data, dense_dimension, &result);
+        u32_t result;
+        kernel(&a[0].raw_, &b[0].raw_, dense_dimension, &result.raw_);
 
-        // Reference: count differing bits using __builtin_popcount
-        std::uint32_t ref = 0;
-        for (std::size_t i = 0; i < n_bytes; i++) ref += __builtin_popcount(a[i] ^ b[i]);
+        u32_t reference;
+        nk::hamming(&a[0], &b[0], n_bytes, &reference);
 
-        std::uint64_t ulps = (result == ref) ? 0 : std::numeric_limits<std::uint64_t>::max();
-        stats.accumulate_ulp(ulps);
-
-        if (global_config.assert_on_failure && result != ref) {
-            std::fprintf(stderr, "FAIL: hamming_u1 n_bits=%zu expected=%u got=%u\n", dense_dimension, ref, result);
-            assert(false);
-        }
+        stats.accumulate(result, reference);
     }
 
     return stats;
@@ -2732,32 +1319,26 @@ error_stats_t test_hamming_u1(hamming_u1_t kernel) {
 /**
  *  @brief Test Jaccard distance for binary vectors.
  */
-error_stats_t test_jaccard_u1(jaccard_u1_t kernel) {
-    using traits = nk_numeric_traits<u1x8_t>;
+error_stats_t test_jaccard(u1x8_t::jaccard_kernel_t kernel) {
+    using scalar_t = u1x8_t;
+
     error_stats_t stats;
     std::mt19937 rng(global_config.seed);
 
     std::size_t n_bytes = dense_dimension / 8;
-    aligned_buffer<nk_u1x8_t> a(n_bytes), b(n_bytes);
+    aligned_buffer<scalar_t> a(n_bytes), b(n_bytes);
 
     for (auto start = test_start_time(); within_time_budget(start);) {
-        traits::fill(a, rng);
-        traits::fill(b, rng);
+        fill_random(a, rng);
+        fill_random(b, rng);
 
-        nk_f32_t result;
-        kernel(a.data, b.data, dense_dimension, &result);
+        f32_t result;
+        kernel(&a[0].raw_, &b[0].raw_, dense_dimension, &result.raw_);
 
-        // Reference: Jaccard = 1 - |intersection| / |union| using __builtin_popcount
-        std::uint32_t intersection = 0, union_count = 0;
-        for (std::size_t i = 0; i < n_bytes; i++) {
-            intersection += __builtin_popcount(a[i] & b[i]);
-            union_count += __builtin_popcount(a[i] | b[i]);
-        }
+        f32_t reference;
+        nk::jaccard(&a[0], &b[0], n_bytes, &reference);
 
-        f128_t ref = (union_count > 0) ? (f128_t(1) - f128_t(intersection) / f128_t(union_count)) : f128_t(1);
-        std::uint64_t ulps = ulp_distance_from_reference(result, ref);
-
-        stats.accumulate(static_cast<double>(ref), static_cast<double>(result), ulps);
+        stats.accumulate(result, reference);
     }
 
     return stats;
@@ -2768,29 +1349,29 @@ void test_binary() {
 
 #if NK_DYNAMIC_DISPATCH
     // Dynamic dispatch - only test the dispatcher itself
-    run_if_matches("hamming", "u1", test_hamming_u1, nk_hamming_u1);
-    run_if_matches("jaccard", "u1", test_jaccard_u1, nk_jaccard_u1);
+    run_if_matches("hamming", "u1", test_hamming, nk_hamming_u1);
+    run_if_matches("jaccard", "u1", test_jaccard, nk_jaccard_u1);
 #else
     // Static compilation - test all available ISA variants
 
 #if NK_TARGET_NEON
-    run_if_matches("hamming_neon", "u1", test_hamming_u1, nk_hamming_u1_neon);
-    run_if_matches("jaccard_neon", "u1", test_jaccard_u1, nk_jaccard_u1_neon);
+    run_if_matches("hamming_neon", "u1", test_hamming, nk_hamming_u1_neon);
+    run_if_matches("jaccard_neon", "u1", test_jaccard, nk_jaccard_u1_neon);
 #endif // NK_TARGET_NEON
 
 #if NK_TARGET_HASWELL
-    run_if_matches("hamming_haswell", "u1", test_hamming_u1, nk_hamming_u1_haswell);
-    run_if_matches("jaccard_haswell", "u1", test_jaccard_u1, nk_jaccard_u1_haswell);
+    run_if_matches("hamming_haswell", "u1", test_hamming, nk_hamming_u1_haswell);
+    run_if_matches("jaccard_haswell", "u1", test_jaccard, nk_jaccard_u1_haswell);
 #endif // NK_TARGET_HASWELL
 
 #if NK_TARGET_ICE
-    run_if_matches("hamming_ice", "u1", test_hamming_u1, nk_hamming_u1_ice);
-    run_if_matches("jaccard_ice", "u1", test_jaccard_u1, nk_jaccard_u1_ice);
+    run_if_matches("hamming_ice", "u1", test_hamming, nk_hamming_u1_ice);
+    run_if_matches("jaccard_ice", "u1", test_jaccard, nk_jaccard_u1_ice);
 #endif // NK_TARGET_ICE
 
     // Serial always runs - baseline test
-    run_if_matches("hamming_serial", "u1", test_hamming_u1, nk_hamming_u1_serial);
-    run_if_matches("jaccard_serial", "u1", test_jaccard_u1, nk_jaccard_u1_serial);
+    run_if_matches("hamming_serial", "u1", test_hamming, nk_hamming_u1_serial);
+    run_if_matches("jaccard_serial", "u1", test_jaccard, nk_jaccard_u1_serial);
 
 #endif // NK_DYNAMIC_DISPATCH
 }
@@ -2803,25 +1384,23 @@ void test_binary() {
  *  @brief Unified test for elementwise sum: result[i] = a[i] + b[i]
  */
 template <typename scalar_type_>
-error_stats_t test_sum(typename nk_numeric_traits<scalar_type_>::sum_kernel_type kernel) {
+error_stats_t test_sum(typename scalar_type_::sum_kernel_t kernel) {
     using scalar_t = scalar_type_;
-    using traits = nk_numeric_traits<scalar_t>;
+    using raw_t = typename scalar_t::raw_t;
 
     error_stats_t stats;
     std::mt19937 rng(global_config.seed);
-    aligned_buffer<scalar_t> a(dense_dimension), b(dense_dimension), result(dense_dimension);
+    aligned_buffer<scalar_t> a(dense_dimension), b(dense_dimension), result(dense_dimension),
+        reference(dense_dimension);
 
     for (auto start = test_start_time(); within_time_budget(start);) {
-        fill_random(a, rng, -traits::safe_max(), traits::safe_max());
-        fill_random(b, rng, -traits::safe_max(), traits::safe_max());
+        fill_random(a, rng);
+        fill_random(b, rng);
 
-        kernel(raw_ptr(a), raw_ptr(b), dense_dimension, raw_ptr(result));
+        kernel(&a[0].raw_, &b[0].raw_, dense_dimension, &result[0].raw_);
+        nk::sum<scalar_t, false>(&a[0], &b[0], dense_dimension, &reference[0]);
 
-        for (std::size_t i = 0; i < dense_dimension; i++) {
-            scalar_t expected(float(a[i]) + float(b[i]));
-            std::uint64_t ulps = ulp_distance(float(result[i]), float(expected));
-            stats.accumulate_ulp(ulps);
-        }
+        for (std::size_t i = 0; i < dense_dimension; i++) stats.accumulate(result[i], reference[i]);
     }
     return stats;
 }
@@ -2830,28 +1409,26 @@ error_stats_t test_sum(typename nk_numeric_traits<scalar_type_>::sum_kernel_type
  *  @brief Unified test for scale: result[i] = alpha * x[i] + beta
  */
 template <typename scalar_type_>
-error_stats_t test_scale(typename nk_numeric_traits<scalar_type_>::scale_kernel_type kernel) {
+error_stats_t test_scale(typename scalar_type_::scale_kernel_t kernel) {
     using scalar_t = scalar_type_;
-    using traits = nk_numeric_traits<scalar_t>;
+    using raw_t = typename scalar_t::raw_t;
+    using scale_t = typename scalar_t::scale_t;
 
     error_stats_t stats;
     std::mt19937 rng(global_config.seed);
-    aligned_buffer<scalar_t> input(dense_dimension), result(dense_dimension);
-    std::uniform_real_distribution<float> coef_dist(-2.0f, 2.0f);
+    aligned_buffer<scalar_t> input(dense_dimension), result(dense_dimension), reference(dense_dimension);
+    std::uniform_real_distribution<scale_t> coef_dist(scale_t(-2.0), scale_t(2.0));
 
     for (auto start = test_start_time(); within_time_budget(start);) {
-        fill_random(input, rng, -traits::safe_max(), traits::safe_max());
+        fill_random(input, rng);
 
-        nk_f32_t alpha = coef_dist(rng);
-        nk_f32_t beta = coef_dist(rng);
+        scale_t alpha = coef_dist(rng);
+        scale_t beta = coef_dist(rng);
 
-        kernel(raw_ptr(input), dense_dimension, &alpha, &beta, raw_ptr(result));
+        kernel(&input[0].raw_, dense_dimension, &alpha, &beta, &result[0].raw_);
+        nk::scale<scalar_t, scale_t, false>(&input[0], dense_dimension, &alpha, &beta, &reference[0]);
 
-        for (std::size_t i = 0; i < dense_dimension; i++) {
-            scalar_t expected(alpha * float(input[i]) + beta);
-            std::uint64_t ulps = ulp_distance(float(result[i]), float(expected));
-            stats.accumulate_ulp(ulps);
-        }
+        for (std::size_t i = 0; i < dense_dimension; i++) stats.accumulate(result[i], reference[i]);
     }
     return stats;
 }
@@ -2860,29 +1437,28 @@ error_stats_t test_scale(typename nk_numeric_traits<scalar_type_>::scale_kernel_
  *  @brief Unified test for weighted sum: result[i] = alpha * a[i] + beta * b[i]
  */
 template <typename scalar_type_>
-error_stats_t test_wsum(typename nk_numeric_traits<scalar_type_>::wsum_kernel_type kernel) {
+error_stats_t test_wsum(typename scalar_type_::wsum_kernel_t kernel) {
     using scalar_t = scalar_type_;
-    using traits = nk_numeric_traits<scalar_t>;
+    using raw_t = typename scalar_t::raw_t;
+    using scale_t = typename scalar_t::scale_t;
 
     error_stats_t stats;
     std::mt19937 rng(global_config.seed);
-    aligned_buffer<scalar_t> a(dense_dimension), b(dense_dimension), result(dense_dimension);
-    std::uniform_real_distribution<float> coef_dist(-2.0f, 2.0f);
+    aligned_buffer<scalar_t> a(dense_dimension), b(dense_dimension), result(dense_dimension),
+        reference(dense_dimension);
+    std::uniform_real_distribution<scale_t> coef_dist(scale_t(-2.0), scale_t(2.0));
 
     for (auto start = test_start_time(); within_time_budget(start);) {
-        fill_random(a, rng, -traits::safe_max(), traits::safe_max());
-        fill_random(b, rng, -traits::safe_max(), traits::safe_max());
+        fill_random(a, rng);
+        fill_random(b, rng);
 
-        nk_f32_t alpha = coef_dist(rng);
-        nk_f32_t beta = coef_dist(rng);
+        scale_t alpha = coef_dist(rng);
+        scale_t beta = coef_dist(rng);
 
-        kernel(raw_ptr(a), raw_ptr(b), dense_dimension, &alpha, &beta, raw_ptr(result));
+        kernel(&a[0].raw_, &b[0].raw_, dense_dimension, &alpha, &beta, &result[0].raw_);
+        nk::wsum<scalar_t, scale_t, false>(&a[0], &b[0], dense_dimension, &alpha, &beta, &reference[0]);
 
-        for (std::size_t i = 0; i < dense_dimension; i++) {
-            scalar_t expected(alpha * float(a[i]) + beta * float(b[i]));
-            std::uint64_t ulps = ulp_distance(float(result[i]), float(expected));
-            stats.accumulate_ulp(ulps);
-        }
+        for (std::size_t i = 0; i < dense_dimension; i++) stats.accumulate(result[i], reference[i]);
     }
     return stats;
 }
@@ -2891,30 +1467,29 @@ error_stats_t test_wsum(typename nk_numeric_traits<scalar_type_>::wsum_kernel_ty
  *  @brief Unified test for FMA: result[i] = alpha * a[i] * b[i] + beta * c[i]
  */
 template <typename scalar_type_>
-error_stats_t test_fma(typename nk_numeric_traits<scalar_type_>::fma_kernel_type kernel) {
+error_stats_t test_fma(typename scalar_type_::fma_kernel_t kernel) {
     using scalar_t = scalar_type_;
-    using traits = nk_numeric_traits<scalar_t>;
+    using raw_t = typename scalar_t::raw_t;
+    using scale_t = typename scalar_t::scale_t;
 
     error_stats_t stats;
     std::mt19937 rng(global_config.seed);
-    aligned_buffer<scalar_t> a(dense_dimension), b(dense_dimension), c(dense_dimension), result(dense_dimension);
-    std::uniform_real_distribution<float> coef_dist(-2.0f, 2.0f);
+    aligned_buffer<scalar_t> a(dense_dimension), b(dense_dimension), c(dense_dimension);
+    aligned_buffer<scalar_t> result(dense_dimension), reference(dense_dimension);
+    std::uniform_real_distribution<scale_t> coef_dist(scale_t(-2.0), scale_t(2.0));
 
     for (auto start = test_start_time(); within_time_budget(start);) {
-        fill_random(a, rng, -traits::safe_max(), traits::safe_max());
-        fill_random(b, rng, -traits::safe_max(), traits::safe_max());
-        fill_random(c, rng, -traits::safe_max(), traits::safe_max());
+        fill_random(a, rng);
+        fill_random(b, rng);
+        fill_random(c, rng);
 
-        nk_f32_t alpha = coef_dist(rng);
-        nk_f32_t beta = coef_dist(rng);
+        scale_t alpha = coef_dist(rng);
+        scale_t beta = coef_dist(rng);
 
-        kernel(raw_ptr(a), raw_ptr(b), raw_ptr(c), dense_dimension, &alpha, &beta, raw_ptr(result));
+        kernel(&a[0].raw_, &b[0].raw_, &c[0].raw_, dense_dimension, &alpha, &beta, &result[0].raw_);
+        nk::fma<scalar_t, scale_t, false>(&a[0], &b[0], dense_dimension, &c[0], &alpha, &beta, &reference[0]);
 
-        for (std::size_t i = 0; i < dense_dimension; i++) {
-            scalar_t expected(alpha * float(a[i]) * float(b[i]) + beta * float(c[i]));
-            std::uint64_t ulps = ulp_distance(float(result[i]), float(expected));
-            stats.accumulate_ulp(ulps);
-        }
+        for (std::size_t i = 0; i < dense_dimension; i++) stats.accumulate(result[i], reference[i]);
     }
     return stats;
 }
@@ -3013,157 +1588,118 @@ void test_elementwise() {
 #pragma region Trigonometry
 
 /**
- *  @brief Unified trigonometry test template for sin/cos/atan approximations.
- *  Works with f32_t, f64_t, f16_t wrapper types.
- *
- *  @tparam scalar_type_ The wrapper type (f32_t, f64_t, f16_t)
- *  @tparam ref_func_type_ The reference function type (e.g., decltype(mp::sin<f128_t>))
- *  @param kernel The kernel to test
- *  @param ref_func The high-precision reference function (mp::sin, mp::cos, mp::atan)
- *  @param range_min Minimum input value
- *  @param range_max Maximum input value
+ *  @brief Test sine approximation kernel against nk::sin<scalar_t, f118_t, false> reference.
  */
-template <typename scalar_type_, typename ref_func_type_>
-error_stats_t test_trig(typename nk_numeric_traits<scalar_type_>::trig_kernel_type kernel, ref_func_type_ ref_func,
-                        nk_f64_t range_min, nk_f64_t range_max) {
+template <typename scalar_type_>
+error_stats_t test_sin(typename scalar_type_::trig_kernel_t kernel) {
     using scalar_t = scalar_type_;
-    using traits = nk_numeric_traits<scalar_t>;
-    using ulp_t = typename traits::ulp_type;
+    using raw_t = typename scalar_t::raw_t;
 
     error_stats_t stats;
-    constexpr std::size_t n_samples = 10000;
+    std::mt19937 rng(global_config.seed);
+    aligned_buffer<scalar_t> inputs(dense_dimension), outputs(dense_dimension), reference(dense_dimension);
 
-    aligned_buffer<scalar_t> inputs(n_samples), outputs(n_samples);
+    for (auto start = test_start_time(); within_time_budget(start);) {
+        fill_random(inputs, rng, scalar_t(-2 * M_PI), scalar_t(2 * M_PI));
 
-    // Fill inputs
-    for (std::size_t i = 0; i < n_samples; i++) {
-        nk_f64_t val = range_min + (range_max - range_min) * i / n_samples;
-        inputs[i] = scalar_t(val);
+        kernel(&inputs[0].raw_, dense_dimension, &outputs[0].raw_);
+        nk::sin<scalar_t, f118_t, false>(&inputs[0], dense_dimension, &reference[0]);
+
+        for (std::size_t i = 0; i < dense_dimension; i++) stats.accumulate(outputs[i], reference[i]);
     }
-
-    kernel(raw_ptr(inputs), n_samples, raw_ptr(outputs));
-
-    for (std::size_t i = 0; i < n_samples; i++) {
-        f128_t ref = ref_func(f128_t(inputs[i]));
-        ulp_t output_ulp = ulp_t(outputs[i]);
-        ulp_t ref_ulp = ulp_t(ref);
-        std::uint64_t ulps = ulp_distance(output_ulp, ref_ulp) >> traits::ulp_shift();
-        stats.accumulate(nk_f64_t(ref), nk_f64_t(output_ulp), ulps);
-    }
-
     return stats;
 }
 
-// Reference functor types for baseline functions
-struct baseline_sin_t {
-    f128_t operator()(f128_t x) const { return mp::sin(x); }
-};
-struct baseline_cos_t {
-    f128_t operator()(f128_t x) const { return mp::cos(x); }
-};
-struct baseline_atan_t {
-    f128_t operator()(f128_t x) const { return mp::atan(x); }
-};
-struct baseline_sqrt_t {
-    f128_t operator()(f128_t x) const { return mp::sqrt(x); }
-};
-inline constexpr baseline_sin_t baseline_sin {};
-inline constexpr baseline_cos_t baseline_cos {};
-inline constexpr baseline_atan_t baseline_atan {};
-inline constexpr baseline_sqrt_t baseline_sqrt {};
+/**
+ *  @brief Test cosine approximation kernel against nk::cos<scalar_t, f118_t, false> reference.
+ */
+template <typename scalar_type_>
+error_stats_t test_cos(typename scalar_type_::trig_kernel_t kernel) {
+    using scalar_t = scalar_type_;
+    using raw_t = typename scalar_t::raw_t;
+
+    error_stats_t stats;
+    std::mt19937 rng(global_config.seed);
+    aligned_buffer<scalar_t> inputs(dense_dimension), outputs(dense_dimension), reference(dense_dimension);
+
+    for (auto start = test_start_time(); within_time_budget(start);) {
+        fill_random(inputs, rng, scalar_t(-2 * M_PI), scalar_t(2 * M_PI));
+
+        kernel(&inputs[0].raw_, dense_dimension, &outputs[0].raw_);
+        nk::cos<scalar_t, f118_t, false>(&inputs[0], dense_dimension, &reference[0]);
+
+        for (std::size_t i = 0; i < dense_dimension; i++) stats.accumulate(outputs[i], reference[i]);
+    }
+    return stats;
+}
+
+/**
+ *  @brief Test atan approximation kernel against nk::atan<scalar_t, f118_t, false> reference.
+ */
+template <typename scalar_type_>
+error_stats_t test_atan(typename scalar_type_::trig_kernel_t kernel) {
+    using scalar_t = scalar_type_;
+    using raw_t = typename scalar_t::raw_t;
+
+    error_stats_t stats;
+    std::mt19937 rng(global_config.seed);
+    aligned_buffer<scalar_t> inputs(dense_dimension), outputs(dense_dimension), reference(dense_dimension);
+
+    for (auto start = test_start_time(); within_time_budget(start);) {
+        fill_random(inputs, rng, scalar_t(-10.0), scalar_t(10.0));
+
+        kernel(&inputs[0].raw_, dense_dimension, &outputs[0].raw_);
+        nk::atan<scalar_t, f118_t, false>(&inputs[0], dense_dimension, &reference[0]);
+
+        for (std::size_t i = 0; i < dense_dimension; i++) stats.accumulate(outputs[i], reference[i]);
+    }
+    return stats;
+}
 
 void test_trigonometry() {
     std::printf("Testing trigonometry...\n");
 
 #if NK_DYNAMIC_DISPATCH
-    run_if_matches(
-        "sin", "f32", [](auto k) { return test_trig<f32_t>(k, baseline_sin, -2 * M_PI, 2 * M_PI); }, nk_sin_f32);
-    run_if_matches(
-        "cos", "f32", [](auto k) { return test_trig<f32_t>(k, baseline_cos, -2 * M_PI, 2 * M_PI); }, nk_cos_f32);
-    run_if_matches(
-        "sin", "f64", [](auto k) { return test_trig<f64_t>(k, baseline_sin, -2 * M_PI, 2 * M_PI); }, nk_sin_f64);
-    run_if_matches(
-        "cos", "f64", [](auto k) { return test_trig<f64_t>(k, baseline_cos, -2 * M_PI, 2 * M_PI); }, nk_cos_f64);
+    run_if_matches("sin", "f32", test_sin<f32_t>, nk_sin_f32);
+    run_if_matches("cos", "f32", test_cos<f32_t>, nk_cos_f32);
+    run_if_matches("sin", "f64", test_sin<f64_t>, nk_sin_f64);
+    run_if_matches("cos", "f64", test_cos<f64_t>, nk_cos_f64);
 #else
 
 #if NK_TARGET_NEON
-    run_if_matches(
-        "sin_neon", "f32", [](auto k) { return test_trig<f32_t>(k, baseline_sin, -2 * M_PI, 2 * M_PI); },
-        nk_sin_f32_neon);
-    run_if_matches(
-        "cos_neon", "f32", [](auto k) { return test_trig<f32_t>(k, baseline_cos, -2 * M_PI, 2 * M_PI); },
-        nk_cos_f32_neon);
-    run_if_matches(
-        "sin_neon", "f64", [](auto k) { return test_trig<f64_t>(k, baseline_sin, -2 * M_PI, 2 * M_PI); },
-        nk_sin_f64_neon);
-    run_if_matches(
-        "cos_neon", "f64", [](auto k) { return test_trig<f64_t>(k, baseline_cos, -2 * M_PI, 2 * M_PI); },
-        nk_cos_f64_neon);
+    run_if_matches("sin_neon", "f32", test_sin<f32_t>, nk_sin_f32_neon);
+    run_if_matches("cos_neon", "f32", test_cos<f32_t>, nk_cos_f32_neon);
+    run_if_matches("sin_neon", "f64", test_sin<f64_t>, nk_sin_f64_neon);
+    run_if_matches("cos_neon", "f64", test_cos<f64_t>, nk_cos_f64_neon);
 #endif
 
 #if NK_TARGET_HASWELL
-    run_if_matches(
-        "sin_haswell", "f32", [](auto k) { return test_trig<f32_t>(k, baseline_sin, -2 * M_PI, 2 * M_PI); },
-        nk_sin_f32_haswell);
-    run_if_matches(
-        "cos_haswell", "f32", [](auto k) { return test_trig<f32_t>(k, baseline_cos, -2 * M_PI, 2 * M_PI); },
-        nk_cos_f32_haswell);
-    run_if_matches(
-        "sin_haswell", "f64", [](auto k) { return test_trig<f64_t>(k, baseline_sin, -2 * M_PI, 2 * M_PI); },
-        nk_sin_f64_haswell);
-    run_if_matches(
-        "cos_haswell", "f64", [](auto k) { return test_trig<f64_t>(k, baseline_cos, -2 * M_PI, 2 * M_PI); },
-        nk_cos_f64_haswell);
+    run_if_matches("sin_haswell", "f32", test_sin<f32_t>, nk_sin_f32_haswell);
+    run_if_matches("cos_haswell", "f32", test_cos<f32_t>, nk_cos_f32_haswell);
+    run_if_matches("sin_haswell", "f64", test_sin<f64_t>, nk_sin_f64_haswell);
+    run_if_matches("cos_haswell", "f64", test_cos<f64_t>, nk_cos_f64_haswell);
 #endif
 
 #if NK_TARGET_SKYLAKE
-    run_if_matches(
-        "sin_skylake", "f32", [](auto k) { return test_trig<f32_t>(k, baseline_sin, -2 * M_PI, 2 * M_PI); },
-        nk_sin_f32_skylake);
-    run_if_matches(
-        "cos_skylake", "f32", [](auto k) { return test_trig<f32_t>(k, baseline_cos, -2 * M_PI, 2 * M_PI); },
-        nk_cos_f32_skylake);
-    run_if_matches(
-        "sin_skylake", "f64", [](auto k) { return test_trig<f64_t>(k, baseline_sin, -2 * M_PI, 2 * M_PI); },
-        nk_sin_f64_skylake);
-    run_if_matches(
-        "cos_skylake", "f64", [](auto k) { return test_trig<f64_t>(k, baseline_cos, -2 * M_PI, 2 * M_PI); },
-        nk_cos_f64_skylake);
+    run_if_matches("sin_skylake", "f32", test_sin<f32_t>, nk_sin_f32_skylake);
+    run_if_matches("cos_skylake", "f32", test_cos<f32_t>, nk_cos_f32_skylake);
+    run_if_matches("sin_skylake", "f64", test_sin<f64_t>, nk_sin_f64_skylake);
+    run_if_matches("cos_skylake", "f64", test_cos<f64_t>, nk_cos_f64_skylake);
 #endif
 
 #if NK_TARGET_SAPPHIRE
-    run_if_matches(
-        "sin_sapphire", "f16", [](auto k) { return test_trig<f16_t>(k, baseline_sin, -2 * M_PI, 2 * M_PI); },
-        nk_sin_f16_sapphire);
-    run_if_matches(
-        "cos_sapphire", "f16", [](auto k) { return test_trig<f16_t>(k, baseline_cos, -2 * M_PI, 2 * M_PI); },
-        nk_cos_f16_sapphire);
-    run_if_matches(
-        "atan_sapphire", "f16", [](auto k) { return test_trig<f16_t>(k, baseline_atan, -10.0, 10.0); },
-        nk_atan_f16_sapphire);
+    run_if_matches("sin_sapphire", "f16", test_sin<f16_t>, nk_sin_f16_sapphire);
+    run_if_matches("cos_sapphire", "f16", test_cos<f16_t>, nk_cos_f16_sapphire);
+    run_if_matches("atan_sapphire", "f16", test_atan<f16_t>, nk_atan_f16_sapphire);
 #endif
 
-    run_if_matches(
-        "sin_serial", "f32", [](auto k) { return test_trig<f32_t>(k, baseline_sin, -2 * M_PI, 2 * M_PI); },
-        nk_sin_f32_serial);
-    run_if_matches(
-        "cos_serial", "f32", [](auto k) { return test_trig<f32_t>(k, baseline_cos, -2 * M_PI, 2 * M_PI); },
-        nk_cos_f32_serial);
-    run_if_matches(
-        "sin_serial", "f64", [](auto k) { return test_trig<f64_t>(k, baseline_sin, -2 * M_PI, 2 * M_PI); },
-        nk_sin_f64_serial);
-    run_if_matches(
-        "cos_serial", "f64", [](auto k) { return test_trig<f64_t>(k, baseline_cos, -2 * M_PI, 2 * M_PI); },
-        nk_cos_f64_serial);
-    run_if_matches(
-        "sin_serial", "f16", [](auto k) { return test_trig<f16_t>(k, baseline_sin, -2 * M_PI, 2 * M_PI); },
-        nk_sin_f16_serial);
-    run_if_matches(
-        "cos_serial", "f16", [](auto k) { return test_trig<f16_t>(k, baseline_cos, -2 * M_PI, 2 * M_PI); },
-        nk_cos_f16_serial);
-    run_if_matches(
-        "atan_serial", "f16", [](auto k) { return test_trig<f16_t>(k, baseline_atan, -10.0, 10.0); },
-        nk_atan_f16_serial);
+    run_if_matches("sin_serial", "f32", test_sin<f32_t>, nk_sin_f32_serial);
+    run_if_matches("cos_serial", "f32", test_cos<f32_t>, nk_cos_f32_serial);
+    run_if_matches("sin_serial", "f64", test_sin<f64_t>, nk_sin_f64_serial);
+    run_if_matches("cos_serial", "f64", test_cos<f64_t>, nk_cos_f64_serial);
+    run_if_matches("sin_serial", "f16", test_sin<f16_t>, nk_sin_f16_serial);
+    run_if_matches("cos_serial", "f16", test_cos<f16_t>, nk_cos_f16_serial);
+    run_if_matches("atan_serial", "f16", test_atan<f16_t>, nk_atan_f16_serial);
 
 #endif
 }
@@ -3172,102 +1708,60 @@ void test_trigonometry() {
 
 #pragma region Geospatial
 
-/** Earth's radius in meters - matches `NK_EARTH_MEDIATORIAL_RADIUS` */
-static f128_t const EARTH_RADIUS_M = f128_t("6335439.0");
-
 /**
- *  @brief Reference Haversine distance in high precision.
- *  Formula: 2 * R * arcsin(sqrt(sin²(Δlat/2) + cos(lat1)*cos(lat2)*sin²(Δlon/2)))
- */
-f128_t reference_haversine(f128_t lat1, f128_t lon1, f128_t lat2, f128_t lon2) {
-    f128_t dlat = lat2 - lat1;
-    f128_t dlon = lon2 - lon1;
-
-    f128_t sin_dlat_2 = mp::sin(dlat / 2);
-    f128_t sin_dlon_2 = mp::sin(dlon / 2);
-
-    f128_t a = sin_dlat_2 * sin_dlat_2 + mp::cos(lat1) * mp::cos(lat2) * sin_dlon_2 * sin_dlon_2;
-    f128_t c = 2 * mp::asin(mp::sqrt(a));
-
-    return EARTH_RADIUS_M * c;
-}
-
-/**
- *  @brief Template for Haversine distance test.
+ *  @brief Test Haversine distance.
  */
 template <typename scalar_type_>
-error_stats_t test_haversine(typename nk_numeric_traits<scalar_type_>::haversine_kernel_type kernel) {
+error_stats_t test_haversine(typename scalar_type_::haversine_kernel_t kernel) {
     using scalar_t = scalar_type_;
-    using traits = nk_numeric_traits<scalar_t>;
+    using raw_t = typename scalar_t::raw_t;
 
     error_stats_t stats;
     std::mt19937 rng(global_config.seed);
-    std::uniform_real_distribution<nk_f64_t> lat_dist(-M_PI / 2, M_PI / 2);
-    std::uniform_real_distribution<nk_f64_t> lon_dist(-M_PI, M_PI);
+    aligned_buffer<scalar_t> a_lats(dense_dimension), a_lons(dense_dimension);
+    aligned_buffer<scalar_t> b_lats(dense_dimension), b_lons(dense_dimension);
+    aligned_buffer<scalar_t> results(dense_dimension), reference(dense_dimension);
 
-    std::size_t geo_dims[] = {1, 4, 8, 16, 32, 64, 128};
+    for (auto start = test_start_time(); within_time_budget(start);) {
+        fill_random(a_lats, rng, scalar_t(-M_PI / 2), scalar_t(M_PI / 2));
+        fill_random(a_lons, rng, scalar_t(-M_PI), scalar_t(M_PI));
+        fill_random(b_lats, rng, scalar_t(-M_PI / 2), scalar_t(M_PI / 2));
+        fill_random(b_lons, rng, scalar_t(-M_PI), scalar_t(M_PI));
 
-    for (std::size_t dim : geo_dims) {
-        for (auto start = test_start_time(); within_time_budget(start);) {
-            aligned_buffer<scalar_t> a_lats(dim), a_lons(dim), b_lats(dim), b_lons(dim), results(dim);
+        kernel(&a_lats[0].raw_, &a_lons[0].raw_, &b_lats[0].raw_, &b_lons[0].raw_, dense_dimension, &results[0].raw_);
+        nk::haversine<scalar_t, f118_t, false>(&a_lats[0], &a_lons[0], &b_lats[0], &b_lons[0], dense_dimension,
+                                               &reference[0]);
 
-            for (std::size_t i = 0; i < dim; i++) {
-                a_lats[i] = scalar_t(lat_dist(rng));
-                a_lons[i] = scalar_t(lon_dist(rng));
-                b_lats[i] = scalar_t(lat_dist(rng));
-                b_lons[i] = scalar_t(lon_dist(rng));
-            }
-
-            kernel(raw_ptr(a_lats), raw_ptr(a_lons), raw_ptr(b_lats), raw_ptr(b_lons), dim, raw_ptr(results));
-
-            for (std::size_t i = 0; i < dim; i++) {
-                f128_t ref = reference_haversine(f128_t(a_lats[i]), f128_t(a_lons[i]), f128_t(b_lats[i]),
-                                                 f128_t(b_lons[i]));
-                std::uint64_t ulps = ulp_distance_from_reference(results[i].raw, ref);
-                stats.accumulate(nk_f64_t(ref), nk_f64_t(results[i]), ulps);
-            }
-        }
+        for (std::size_t i = 0; i < dense_dimension; i++) stats.accumulate(results[i], reference[i]);
     }
     return stats;
 }
 
 /**
- *  @brief Template for Vincenty distance test (uses Haversine as sanity check).
+ *  @brief Test Vincenty distance.
  */
 template <typename scalar_type_>
-error_stats_t test_vincenty(typename nk_numeric_traits<scalar_type_>::haversine_kernel_type kernel) {
+error_stats_t test_vincenty(typename scalar_type_::haversine_kernel_t kernel) {
     using scalar_t = scalar_type_;
-    using traits = nk_numeric_traits<scalar_t>;
+    using raw_t = typename scalar_t::raw_t;
 
     error_stats_t stats;
     std::mt19937 rng(global_config.seed);
-    std::uniform_real_distribution<nk_f64_t> lat_dist(-M_PI / 2, M_PI / 2);
-    std::uniform_real_distribution<nk_f64_t> lon_dist(-M_PI, M_PI);
+    aligned_buffer<scalar_t> a_lats(dense_dimension), a_lons(dense_dimension);
+    aligned_buffer<scalar_t> b_lats(dense_dimension), b_lons(dense_dimension);
+    aligned_buffer<scalar_t> results(dense_dimension), reference(dense_dimension);
 
-    std::size_t geo_dims[] = {1, 4, 8, 16, 32, 64};
+    for (auto start = test_start_time(); within_time_budget(start);) {
+        fill_random(a_lats, rng, scalar_t(-M_PI / 2), scalar_t(M_PI / 2));
+        fill_random(a_lons, rng, scalar_t(-M_PI), scalar_t(M_PI));
+        fill_random(b_lats, rng, scalar_t(-M_PI / 2), scalar_t(M_PI / 2));
+        fill_random(b_lons, rng, scalar_t(-M_PI), scalar_t(M_PI));
 
-    for (std::size_t dim : geo_dims) {
-        for (auto start = test_start_time(); within_time_budget(start);) {
-            aligned_buffer<scalar_t> a_lats(dim), a_lons(dim), b_lats(dim), b_lons(dim), results(dim);
+        kernel(&a_lats[0].raw_, &a_lons[0].raw_, &b_lats[0].raw_, &b_lons[0].raw_, dense_dimension, &results[0].raw_);
+        nk::vincenty<scalar_t, f118_t, false>(&a_lats[0], &a_lons[0], &b_lats[0], &b_lons[0], dense_dimension,
+                                              &reference[0]);
 
-            for (std::size_t i = 0; i < dim; i++) {
-                a_lats[i] = scalar_t(lat_dist(rng));
-                a_lons[i] = scalar_t(lon_dist(rng));
-                b_lats[i] = scalar_t(lat_dist(rng));
-                b_lons[i] = scalar_t(lon_dist(rng));
-            }
-
-            kernel(raw_ptr(a_lats), raw_ptr(a_lons), raw_ptr(b_lats), raw_ptr(b_lons), dim, raw_ptr(results));
-
-            for (std::size_t i = 0; i < dim; i++) {
-                f128_t haversine_ref = reference_haversine(f128_t(a_lats[i]), f128_t(a_lons[i]), f128_t(b_lats[i]),
-                                                           f128_t(b_lons[i]));
-                f128_t rel_diff = mp::abs(f128_t(results[i]) - haversine_ref) / (haversine_ref + f128_t("1e-10"));
-
-                if (rel_diff < f128_t("0.01")) { stats.accumulate_ulp(0); }
-                else { stats.accumulate_ulp(1); }
-            }
-        }
+        for (std::size_t i = 0; i < dense_dimension; i++) stats.accumulate(results[i], reference[i]);
     }
     return stats;
 }
@@ -3312,196 +1806,91 @@ void test_geospatial() {
 #pragma region Mesh
 
 /**
- *  @brief Compute centroid of a 3D point cloud using high precision.
- */
-void reference_centroid(f128_t const *points, std::size_t n, f128_t *centroid) {
-    centroid[0] = centroid[1] = centroid[2] = 0;
-    for (std::size_t i = 0; i < n; i++) {
-        centroid[0] += points[i * 3 + 0];
-        centroid[1] += points[i * 3 + 1];
-        centroid[2] += points[i * 3 + 2];
-    }
-    f128_t inv_n = f128_t(1) / f128_t(n);
-    centroid[0] *= inv_n;
-    centroid[1] *= inv_n;
-    centroid[2] *= inv_n;
-}
-
-/**
- *  @brief Compute RMSD between two 3D point clouds using high precision.
- *  RMSD = sqrt(1/n * sum ||(a_i - centroid_a) - (b_i - centroid_b)||^2)
- *  Note: We center both point clouds first to match the kernel behavior.
- */
-f128_t reference_rmsd(f128_t const *a, f128_t const *b, std::size_t n) {
-    // Compute centroids
-    f128_t ca[3] = {0, 0, 0}, cb[3] = {0, 0, 0};
-    for (std::size_t i = 0; i < n; i++) {
-        ca[0] += a[i * 3 + 0], ca[1] += a[i * 3 + 1], ca[2] += a[i * 3 + 2];
-        cb[0] += b[i * 3 + 0], cb[1] += b[i * 3 + 1], cb[2] += b[i * 3 + 2];
-    }
-    ca[0] /= n, ca[1] /= n, ca[2] /= n;
-    cb[0] /= n, cb[1] /= n, cb[2] /= n;
-
-    // Compute centered RMSD
-    f128_t sum_sq = 0;
-    for (std::size_t i = 0; i < n; i++) {
-        f128_t dx = (a[i * 3 + 0] - ca[0]) - (b[i * 3 + 0] - cb[0]);
-        f128_t dy = (a[i * 3 + 1] - ca[1]) - (b[i * 3 + 1] - cb[1]);
-        f128_t dz = (a[i * 3 + 2] - ca[2]) - (b[i * 3 + 2] - cb[2]);
-        sum_sq += dx * dx + dy * dy + dz * dz;
-    }
-    return mp::sqrt(sum_sq / f128_t(n));
-}
-
-/**
- *  @brief Apply 3x3 rotation matrix to a point.
- */
-void apply_rotation(f128_t const *rotation, f128_t const *point, f128_t *result) {
-    result[0] = rotation[0] * point[0] + rotation[1] * point[1] + rotation[2] * point[2];
-    result[1] = rotation[3] * point[0] + rotation[4] * point[1] + rotation[5] * point[2];
-    result[2] = rotation[6] * point[0] + rotation[7] * point[1] + rotation[8] * point[2];
-}
-
-/**
- *  @brief Create a rotation matrix around the Z axis.
- */
-void make_rotation_z(f128_t angle, f128_t *rotation) {
-    f128_t c = mp::cos(angle);
-    f128_t s = mp::sin(angle);
-    // Row 0
-    rotation[0] = c;
-    rotation[1] = -s;
-    rotation[2] = 0;
-    // Row 1
-    rotation[3] = s;
-    rotation[4] = c;
-    rotation[5] = 0;
-    // Row 2
-    rotation[6] = 0;
-    rotation[7] = 0;
-    rotation[8] = 1;
-}
-
-/**
- *  @brief Template for RMSD test.
+ *  @brief Test RMSD kernel.
  */
 template <typename scalar_type_>
-error_stats_t test_rmsd(typename nk_numeric_traits<scalar_type_>::mesh_kernel_type kernel) {
+error_stats_t test_rmsd(typename scalar_type_::mesh_kernel_t kernel) {
     using scalar_t = scalar_type_;
-    using traits = nk_numeric_traits<scalar_t>;
-    using raw_t = typename traits::raw_type;
 
     error_stats_t stats;
     std::mt19937 rng(global_config.seed);
-    std::uniform_real_distribution<nk_f64_t> dist(-10.0, 10.0);
 
     std::size_t n = mesh_dimension;
-    aligned_buffer<raw_t> a(n * 3), b(n * 3);
-    aligned_buffer<f128_t> a_hp(n * 3), b_hp(n * 3);
+    aligned_buffer<scalar_t> a(n * 3), b(n * 3);
 
     for (auto start = test_start_time(); within_time_budget(start);) {
-        for (std::size_t i = 0; i < n * 3; i++) {
-            nk_f64_t val_a = dist(rng);
-            nk_f64_t val_b = dist(rng);
-            a[i] = static_cast<raw_t>(val_a);
-            b[i] = static_cast<raw_t>(val_b);
-            a_hp[i] = f128_t(val_a);
-            b_hp[i] = f128_t(val_b);
-        }
+        fill_random(a, rng, scalar_t(-10.0), scalar_t(10.0));
+        fill_random(b, rng, scalar_t(-10.0), scalar_t(10.0));
 
-        f128_t ref_rmsd = reference_rmsd(a_hp.data, b_hp.data, n);
+        scalar_t a_centroid[3], b_centroid[3], rot[9], scale, result;
+        kernel(&a[0].raw_, &b[0].raw_, n, &a_centroid[0].raw_, &b_centroid[0].raw_, &rot[0].raw_, &scale.raw_,
+               &result.raw_);
 
-        raw_t a_centroid[3], b_centroid[3], rotation[9], scale, result;
-        kernel(a.data, b.data, n, a_centroid, b_centroid, rotation, &scale, &result);
+        f118_t a_centroid_ref[3], b_centroid_ref[3], rot_ref[9], scale_ref, reference;
+        nk::rmsd<scalar_t, f118_t, false>(&a[0], &b[0], n, a_centroid_ref, b_centroid_ref, rot_ref, &scale_ref,
+                                          &reference);
 
-        std::uint64_t ulps = ulp_distance_from_reference(result, ref_rmsd);
-        stats.accumulate(static_cast<nk_f64_t>(ref_rmsd), static_cast<nk_f64_t>(result), ulps);
+        stats.accumulate(result, reference);
     }
     return stats;
 }
 
 /**
- *  @brief Template for Kabsch test.
+ *  @brief Test Kabsch alignment kernel.
  */
 template <typename scalar_type_>
-error_stats_t test_kabsch(typename nk_numeric_traits<scalar_type_>::mesh_kernel_type kernel) {
+error_stats_t test_kabsch(typename scalar_type_::mesh_kernel_t kernel) {
     using scalar_t = scalar_type_;
-    using traits = nk_numeric_traits<scalar_t>;
-    using raw_t = typename traits::raw_type;
 
     error_stats_t stats;
     std::mt19937 rng(global_config.seed);
-    std::uniform_real_distribution<nk_f64_t> dist(-5.0, 5.0);
-    std::uniform_real_distribution<nk_f64_t> angle_dist(-M_PI, M_PI);
 
     std::size_t n = mesh_dimension;
-    aligned_buffer<raw_t> a(n * 3), b(n * 3);
+    aligned_buffer<scalar_t> a(n * 3), b(n * 3);
 
     for (auto start = test_start_time(); within_time_budget(start);) {
-        for (std::size_t i = 0; i < n * 3; i++) { a[i] = static_cast<raw_t>(dist(rng)); }
+        fill_random(a, rng, scalar_t(-5.0), scalar_t(5.0));
+        fill_random(b, rng, scalar_t(-5.0), scalar_t(5.0));
 
-        f128_t rotation_hp[9];
-        f128_t angle = f128_t(angle_dist(rng));
-        make_rotation_z(angle, rotation_hp);
+        scalar_t a_centroid[3], b_centroid[3], rot[9], scale, result;
+        kernel(&a[0].raw_, &b[0].raw_, n, &a_centroid[0].raw_, &b_centroid[0].raw_, &rot[0].raw_, &scale.raw_,
+               &result.raw_);
 
-        for (std::size_t i = 0; i < n; i++) {
-            f128_t point[3] = {f128_t(a[i * 3]), f128_t(a[i * 3 + 1]), f128_t(a[i * 3 + 2])};
-            f128_t rotated[3];
-            apply_rotation(rotation_hp, point, rotated);
-            b[i * 3 + 0] = static_cast<raw_t>(static_cast<nk_f64_t>(rotated[0]));
-            b[i * 3 + 1] = static_cast<raw_t>(static_cast<nk_f64_t>(rotated[1]));
-            b[i * 3 + 2] = static_cast<raw_t>(static_cast<nk_f64_t>(rotated[2]));
-        }
+        f118_t a_centroid_ref[3], b_centroid_ref[3], rot_ref[9], scale_ref, reference;
+        nk::kabsch<scalar_t, f118_t, false>(&a[0], &b[0], n, a_centroid_ref, b_centroid_ref, rot_ref, &scale_ref,
+                                            &reference);
 
-        raw_t a_centroid[3], b_centroid[3], rotation[9], scale, result;
-        kernel(a.data, b.data, n, a_centroid, b_centroid, rotation, &scale, &result);
-
-        if (static_cast<nk_f64_t>(result) < traits::kabsch_tolerance()) { stats.accumulate_ulp(0); }
-        else { stats.accumulate(0.0, static_cast<nk_f64_t>(result), 1); }
+        stats.accumulate(result, reference);
     }
     return stats;
 }
 
 /**
- *  @brief Template for Umeyama test.
+ *  @brief Test Umeyama alignment kernel.
  */
 template <typename scalar_type_>
-error_stats_t test_umeyama(typename nk_numeric_traits<scalar_type_>::mesh_kernel_type kernel) {
+error_stats_t test_umeyama(typename scalar_type_::mesh_kernel_t kernel) {
     using scalar_t = scalar_type_;
-    using traits = nk_numeric_traits<scalar_t>;
-    using raw_t = typename traits::raw_type;
 
     error_stats_t stats;
     std::mt19937 rng(global_config.seed);
-    std::uniform_real_distribution<nk_f64_t> dist(-5.0, 5.0);
-    std::uniform_real_distribution<nk_f64_t> angle_dist(-M_PI, M_PI);
-    std::uniform_real_distribution<nk_f64_t> scale_dist(0.5, 2.0);
 
     std::size_t n = mesh_dimension;
-    aligned_buffer<raw_t> a(n * 3), b(n * 3);
+    aligned_buffer<scalar_t> a(n * 3), b(n * 3);
 
     for (auto start = test_start_time(); within_time_budget(start);) {
-        for (std::size_t i = 0; i < n * 3; i++) { a[i] = static_cast<raw_t>(dist(rng)); }
+        fill_random(a, rng, scalar_t(-5.0), scalar_t(5.0));
+        fill_random(b, rng, scalar_t(-5.0), scalar_t(5.0));
 
-        f128_t rotation_hp[9];
-        f128_t angle = f128_t(angle_dist(rng));
-        f128_t scale_factor = f128_t(scale_dist(rng));
-        make_rotation_z(angle, rotation_hp);
+        scalar_t a_centroid[3], b_centroid[3], rot[9], scale, result;
+        kernel(&a[0].raw_, &b[0].raw_, n, &a_centroid[0].raw_, &b_centroid[0].raw_, &rot[0].raw_, &scale.raw_,
+               &result.raw_);
 
-        for (std::size_t i = 0; i < n; i++) {
-            f128_t point[3] = {f128_t(a[i * 3]), f128_t(a[i * 3 + 1]), f128_t(a[i * 3 + 2])};
-            f128_t rotated[3];
-            apply_rotation(rotation_hp, point, rotated);
-            b[i * 3 + 0] = static_cast<raw_t>(static_cast<nk_f64_t>(scale_factor * rotated[0]));
-            b[i * 3 + 1] = static_cast<raw_t>(static_cast<nk_f64_t>(scale_factor * rotated[1]));
-            b[i * 3 + 2] = static_cast<raw_t>(static_cast<nk_f64_t>(scale_factor * rotated[2]));
-        }
+        f118_t a_centroid_ref[3], b_centroid_ref[3], rot_ref[9], scale_ref, reference;
+        nk::umeyama<scalar_t, f118_t, false>(&a[0], &b[0], n, a_centroid_ref, b_centroid_ref, rot_ref, &scale_ref,
+                                             &reference);
 
-        raw_t a_centroid[3], b_centroid[3], rotation[9], scale, result;
-        kernel(a.data, b.data, n, a_centroid, b_centroid, rotation, &scale, &result);
-
-        if (static_cast<nk_f64_t>(result) < traits::umeyama_tolerance()) { stats.accumulate_ulp(0); }
-        else { stats.accumulate(0.0, static_cast<nk_f64_t>(result), 1); }
+        stats.accumulate(result, reference);
     }
     return stats;
 }
@@ -3561,103 +1950,47 @@ void test_mesh() {
 #pragma region Dots
 
 /**
- *  @brief Reference GEMM computation with configurable precision.
- *  Computes C = A × Bᵀ where A is (m × k), B is (n × k), C is (m × n).
- *  Result: C[i,j] = Σₗ A[i,l] × B[j,l]
- *  Use reference_type_=f128_t for f64 kernels, f64_t for f32/f16/bf16 kernels.
- */
-template <typename reference_type_, typename input_type_>
-void reference_gemm(input_type_ const *a, input_type_ const *b, reference_type_ *c, std::size_t m, std::size_t n,
-                    std::size_t k, std::size_t a_stride_bytes, std::size_t b_stride_bytes) noexcept {
-    for (std::size_t i = 0; i < m; i++) {
-        input_type_ const *a_row = reinterpret_cast<input_type_ const *>(reinterpret_cast<char const *>(a) +
-                                                                         i * a_stride_bytes);
-        for (std::size_t j = 0; j < n; j++) {
-            input_type_ const *b_row = reinterpret_cast<input_type_ const *>(reinterpret_cast<char const *>(b) +
-                                                                             j * b_stride_bytes);
-            reference_type_ sum = 0;
-            for (std::size_t l = 0; l < k; l++) { sum += reference_type_(a_row[l]) * reference_type_(b_row[l]); }
-            c[i * n + j] = sum;
-        }
-    }
-}
-
-/**
- *  @brief Generic GEMM test using nk_numeric_traits.
- *  Works for all types: f32, f64, f16, bf16, i8, u1x8, u4x2, i4x2.
+ *  @brief Generic GEMM test against f118_t reference.
+ *  Works for all types: f32, f64, f16, bf16, i8.
  */
 template <typename scalar_type_>
-error_stats_t test_dots(dots_packed_size_t packed_size_fn,
-                        typename nk_numeric_traits<scalar_type_>::dots_pack_kernel_type pack_fn,
-                        typename nk_numeric_traits<scalar_type_>::dots_packed_kernel_type dots_fn) {
-    using traits = nk_numeric_traits<scalar_type_>;
-    using raw_type = typename traits::raw_type;
-    using result_type = typename traits::dot_result_type;
-    using reference_type = typename traits::reference_type;
+error_stats_t test_dots(typename scalar_type_::dots_packed_size_kernel_t packed_size_fn,
+                        typename scalar_type_::dots_pack_kernel_t pack_fn,
+                        typename scalar_type_::dots_packed_kernel_t dots_fn) {
+    using scalar_t = scalar_type_;
+    using result_t = typename scalar_t::dot_result_t;
 
     error_stats_t stats;
     std::mt19937 rng(global_config.seed);
 
-    // For sub-byte types, k is in logical elements (bits/nibbles), not bytes
-    std::size_t m = matmul_dimension_m, n = matmul_dimension_n;
-    std::size_t k = matmul_dimension_k * traits::k_multiplier();
-    std::size_t k_bytes = k / traits::elements_per_byte();
+    std::size_t m = matmul_dimension_m, n = matmul_dimension_n, k = matmul_dimension_k;
+    std::size_t a_stride = k * sizeof(typename scalar_t::raw_t);
+    std::size_t b_stride = k * sizeof(typename scalar_t::raw_t);
+    std::size_t c_stride = n * sizeof(result_t);
 
-    std::size_t a_stride = k_bytes * sizeof(raw_type);
-    std::size_t b_stride = k_bytes * sizeof(raw_type);
-    std::size_t c_stride = n * sizeof(result_type);
-
-    aligned_buffer<raw_type> a(m * k_bytes), b(n * k_bytes);
-    aligned_buffer<result_type> c(m * n);
-    aligned_buffer<reference_type> c_ref(m * n);
+    aligned_buffer<scalar_t> a(m * k), b(n * k);
+    aligned_buffer<result_t> c(m * n);
+    aligned_buffer<f118_t> c_ref(m * n);
 
     nk_size_t packed_size = packed_size_fn(n, k);
     aligned_buffer<char> b_packed(packed_size);
-
-    // Fill function based on type
-    auto fill = [&rng](raw_type *data, std::size_t count) {
-        if constexpr (traits::is_integer()) {
-            std::uniform_int_distribution<int> dist(0, 255);
-            for (std::size_t i = 0; i < count; i++) data[i] = static_cast<raw_type>(dist(rng));
-        }
-        else {
-            std::uniform_real_distribution<float> dist(-1.0f, 1.0f);
-            for (std::size_t i = 0; i < count; i++) data[i] = static_cast<raw_type>(dist(rng));
-        }
-    };
+    nk_size_t ref_packed_size = nk::dots_packed_size<scalar_t>(n, k);
+    aligned_buffer<char> b_packed_ref(ref_packed_size);
 
     for (auto start = test_start_time(); within_time_budget(start);) {
-        fill(a.data, m * k_bytes);
-        fill(b.data, n * k_bytes);
+        fill_random(a, rng);
+        fill_random(b, rng);
 
-        // Reference GEMM using element-wise traits::dot()
-        for (std::size_t i = 0; i < m; i++) {
-            raw_type const *a_row = a.data + i * k_bytes;
-            for (std::size_t j = 0; j < n; j++) {
-                raw_type const *b_row = b.data + j * k_bytes;
-                reference_type sum = 0;
-                for (std::size_t k_idx = 0; k_idx < k_bytes; k_idx++)
-                    sum = traits::dot(sum, a_row[k_idx], b_row[k_idx]);
-                c_ref[i * n + j] = sum;
-            }
-        }
+        // Run kernel being tested
+        pack_fn(&b[0].raw_, n, k, b_stride, b_packed.data());
+        dots_fn(&a[0].raw_, b_packed.data(), &c[0].raw_, m, n, k, a_stride, c_stride);
 
-        pack_fn(b.data, n, k, b_stride, b_packed.data);
-        dots_fn(a.data, b_packed.data, c.data, m, n, k, a_stride, c_stride);
+        // Compute f118_t reference using nk:: template
+        nk::dots_pack<scalar_t>(&b[0], n, k, b_stride, b_packed_ref.data());
+        nk::dots_packed<scalar_t, f118_t, false>(&a[0], b_packed_ref.data(), &c_ref[0], m, n, k, a_stride,
+                                                 n * sizeof(f118_t));
 
-        // Compare results
-        for (std::size_t i = 0; i < m * n; i++) {
-            if constexpr (traits::is_integer()) {
-                auto expected = static_cast<std::int64_t>(c_ref[i]);
-                auto actual = static_cast<std::int64_t>(c[i]);
-                std::uint64_t ulps = (expected == actual) ? 0 : 1;
-                stats.accumulate(static_cast<double>(expected), static_cast<double>(actual), ulps);
-            }
-            else {
-                std::uint64_t ulps = ulp_distance_from_reference(c[i], static_cast<f128_t>(c_ref[i]));
-                stats.accumulate(static_cast<double>(c_ref[i]), static_cast<double>(c[i]), ulps);
-            }
-        }
+        for (std::size_t i = 0; i < m * n; i++) stats.accumulate(c[i], c_ref[i]);
     }
     return stats;
 }
@@ -3665,13 +1998,13 @@ error_stats_t test_dots(dots_packed_size_t packed_size_fn,
 #if NK_COMPARE_TO_BLAS || NK_COMPARE_TO_MKL || NK_COMPARE_TO_ACCELERATE
 /**
  *  @brief Unified template to test GEMM with unpacked B (for BLAS comparison).
- *  Uses traits::gemm_reference_type for reference computation precision.
+ *  Uses dots_result_t for reference computation precision.
  */
 template <typename scalar_type_>
-error_stats_t test_dots_unpacked(typename nk_numeric_traits<scalar_type_>::dots_blas_kernel_type dots_fn) {
-    using traits = nk_numeric_traits<scalar_type_>;
-    using raw_t = typename traits::raw_type;
-    using ref_t = typename traits::gemm_reference_type;
+error_stats_t test_dots_unpacked(typename scalar_type_::dots_blas_kernel_t dots_fn) {
+    using scalar_t = scalar_type_;
+    using raw_t = typename scalar_t::raw_t;
+    using result_t = typename scalar_t::dots_result_t;
 
     error_stats_t stats;
     std::mt19937 rng(global_config.seed);
@@ -3679,22 +2012,20 @@ error_stats_t test_dots_unpacked(typename nk_numeric_traits<scalar_type_>::dots_
     std::size_t m = matmul_dimension_m, n = matmul_dimension_n, k = matmul_dimension_k;
     std::size_t a_stride = k * sizeof(raw_t);
     std::size_t b_stride = k * sizeof(raw_t);
-    std::size_t c_stride = n * sizeof(raw_t);
+    std::size_t c_stride = n * sizeof(result_t);
 
-    aligned_buffer<raw_t> a_buf(m * k), b_buf(n * k), c(m * n);
-    aligned_buffer<ref_t> c_ref(m * n);
+    aligned_buffer<scalar_t> a_buf(m * k), b_buf(n * k);
+    aligned_buffer<result_t> c(m * n);
+    aligned_buffer<f118_t> c_ref(m * n);
 
     for (auto start = test_start_time(); within_time_budget(start);) {
         fill_random(a_buf, rng);
         fill_random(b_buf, rng);
 
-        reference_gemm<ref_t, raw_t>(a_buf.data, b_buf.data, c_ref.data, m, n, k, a_stride, b_stride);
-        dots_fn(a_buf.data, b_buf.data, c.data, m, n, k, a_stride, c_stride);
+        reference_dots<f118_t, scalar_t>(&a_buf[0], &b_buf[0], &c_ref[0], m, n, k, a_stride, b_stride);
+        dots_fn(&a_buf[0].raw_, &b_buf[0].raw_, &c[0], m, n, k, a_stride, c_stride);
 
-        for (std::size_t i = 0; i < m * n; i++) {
-            std::uint64_t ulps = ulp_distance(c[i], static_cast<raw_t>(c_ref[i]));
-            stats.accumulate(static_cast<double>(c_ref[i]), static_cast<double>(c[i]), ulps);
-        }
+        for (std::size_t i = 0; i < m * n; i++) stats.accumulate(c[i], c_ref[i]);
     }
     return stats;
 }
@@ -3771,182 +2102,80 @@ void test_dots() {
  */
 template <typename scalar_type_>
 void fill_sorted_unique(aligned_buffer<scalar_type_> &buf, std::mt19937 &rng, scalar_type_ max_val) {
-    std::uniform_int_distribution<scalar_type_> dist(0, max_val);
-    std::vector<scalar_type_> values;
-    values.reserve(buf.count * 2);
+    using raw_t = typename scalar_type_::raw_t;
+    std::uniform_int_distribution<raw_t> dist(0, static_cast<raw_t>(max_val));
+    std::vector<raw_t> values;
+    values.reserve(buf.size() * 2);
 
     // Generate more values than needed, then deduplicate
-    while (values.size() < buf.count) {
-        for (std::size_t i = 0; i < buf.count * 2 && values.size() < buf.count * 3; i++) {
+    while (values.size() < buf.size()) {
+        for (std::size_t i = 0; i < buf.size() * 2 && values.size() < buf.size() * 3; i++) {
             values.push_back(dist(rng));
         }
         std::sort(values.begin(), values.end());
         values.erase(std::unique(values.begin(), values.end()), values.end());
     }
 
-    // Take first buf.count unique values
-    for (std::size_t i = 0; i < buf.count; i++) buf[i] = values[i];
+    // Take first buf.size() unique values
+    for (std::size_t i = 0; i < buf.size(); i++) buf[i] = scalar_type_(values[i]);
 }
 
 /**
- *  @brief Reference intersection count using merge algorithm.
+ *  @brief Test set intersection (unified template for u16/u32 index types).
  */
-template <typename scalar_type_>
-std::uint32_t reference_intersect(scalar_type_ const *a, scalar_type_ const *b, std::size_t a_len,
-                                  std::size_t b_len) noexcept {
-    std::uint32_t count = 0;
-    std::size_t i = 0, j = 0;
-    while (i < a_len && j < b_len) {
-        if (a[i] < b[j]) i++;
-        else if (a[i] > b[j]) j++;
-        else {
-            count++;
-            i++;
-            j++;
-        }
-    }
-    return count;
-}
-
-/**
- *  @brief Reference sparse dot product using merge algorithm.
- */
-template <typename index_type_, typename weight_type_>
-f128_t reference_sparse_dot(index_type_ const *a, index_type_ const *b, weight_type_ const *a_weights,
-                            weight_type_ const *b_weights, std::size_t a_len, std::size_t b_len) noexcept {
-    f128_t product = 0;
-    std::size_t i = 0, j = 0;
-    while (i < a_len && j < b_len) {
-        if (a[i] < b[j]) i++;
-        else if (a[i] > b[j]) j++;
-        else {
-            product += f128_t(a_weights[i]) * f128_t(b_weights[j]);
-            i++;
-            j++;
-        }
-    }
-    return product;
-}
-
-/**
- *  @brief Test u16 set intersection.
- */
-error_stats_t test_intersect_u16(intersect_u16_t kernel) {
+template <typename index_type_>
+error_stats_t test_intersect(typename index_type_::intersect_kernel_t kernel) {
+    using index_t = index_type_;
     error_stats_t stats;
     std::mt19937 rng(global_config.seed);
+    std::size_t dim = sparse_dimension;
+    aligned_buffer<index_t> a(dim), b(dim);
 
-    std::size_t sparse_dims[] = {8, 16, 32, 64, 128, 256, 512};
+    for (auto start = test_start_time(); within_time_budget(start);) {
+        fill_sorted_unique(a, rng, index_t(dim * 4));
+        fill_sorted_unique(b, rng, index_t(dim * 4));
 
-    for (std::size_t dim : sparse_dims) {
-        for (auto start = test_start_time(); within_time_budget(start);) {
-            aligned_buffer<nk_u16_t> a(dim), b(dim);
-            fill_sorted_unique(a, rng, static_cast<nk_u16_t>(dim * 4));
-            fill_sorted_unique(b, rng, static_cast<nk_u16_t>(dim * 4));
+        nk_u32_t result;
+        kernel(&a[0].raw_, &b[0].raw_, dim, dim, &result);
 
-            nk_u32_t result;
-            kernel(a.data, b.data, dim, dim, &result);
-
-            std::uint32_t ref = reference_intersect(a.data, b.data, dim, dim);
-            stats.accumulate_ulp(result == ref ? 0 : 1);
-        }
+        std::uint32_t ref;
+        nk::intersect<index_t, false>(&a[0], &b[0], dim, dim, &ref);
+        stats.accumulate_exact(result == ref);
     }
     return stats;
 }
 
 /**
- *  @brief Test u32 set intersection.
+ *  @brief Test sparse dot product (unified template, parameterized by weight type).
+ *
+ *  Dispatch is by weight type (matching numkong.h dispatch tables):
+ *  - bf16_t weights → u16_t indices
+ *  - f32_t weights → u32_t indices
  */
-error_stats_t test_intersect_u32(intersect_u32_t kernel) {
+template <typename weight_type_>
+error_stats_t test_sparse_dot(typename weight_type_::sparse_dot_kernel_t kernel) {
+    using weight_t = weight_type_;
+    using index_t = typename weight_t::sparse_dot_index_t;
+
     error_stats_t stats;
     std::mt19937 rng(global_config.seed);
+    std::size_t dim = sparse_dimension;
+    aligned_buffer<index_t> a_idx(dim), b_idx(dim);
+    aligned_buffer<weight_t> a_weights(dim), b_weights(dim);
 
-    std::size_t sparse_dims[] = {8, 16, 32, 64, 128, 256, 512};
+    for (auto start = test_start_time(); within_time_budget(start);) {
+        fill_sorted_unique(a_idx, rng, index_t(dim * 4));
+        fill_sorted_unique(b_idx, rng, index_t(dim * 4));
+        fill_random(a_weights, rng);
+        fill_random(b_weights, rng);
 
-    for (std::size_t dim : sparse_dims) {
-        for (auto start = test_start_time(); within_time_budget(start);) {
-            aligned_buffer<nk_u32_t> a(dim), b(dim);
-            fill_sorted_unique(a, rng, static_cast<nk_u32_t>(dim * 4));
-            fill_sorted_unique(b, rng, static_cast<nk_u32_t>(dim * 4));
+        typename weight_t::dot_result_t result;
+        kernel(&a_idx[0].raw_, &b_idx[0].raw_, &a_weights[0].raw_, &b_weights[0].raw_, dim, dim, &result.raw_);
 
-            nk_u32_t result;
-            kernel(a.data, b.data, dim, dim, &result);
-
-            std::uint32_t ref = reference_intersect(a.data, b.data, dim, dim);
-            stats.accumulate_ulp(result == ref ? 0 : 1);
-        }
-    }
-    return stats;
-}
-
-/**
- *  @brief Test sparse dot product with u32 indices and f32 weights.
- */
-error_stats_t test_sparse_dot_u32f32(sparse_dot_u32f32_t kernel) {
-    error_stats_t stats;
-    std::mt19937 rng(global_config.seed);
-
-    std::size_t sparse_dims[] = {8, 16, 32, 64, 128, 256};
-
-    for (std::size_t dim : sparse_dims) {
-        for (auto start = test_start_time(); within_time_budget(start);) {
-            aligned_buffer<nk_u32_t> a_idx(dim), b_idx(dim);
-            aligned_buffer<nk_f32_t> a_weights(dim), b_weights(dim);
-
-            fill_sorted_unique(a_idx, rng, static_cast<nk_u32_t>(dim * 4));
-            fill_sorted_unique(b_idx, rng, static_cast<nk_u32_t>(dim * 4));
-            fill_random(a_weights, rng, -1.0, 1.0);
-            fill_random(b_weights, rng, -1.0, 1.0);
-
-            nk_f32_t result;
-            kernel(a_idx.data, b_idx.data, a_weights.data, b_weights.data, dim, dim, &result);
-
-            f128_t ref = reference_sparse_dot(a_idx.data, b_idx.data, a_weights.data, b_weights.data, dim, dim);
-            std::uint64_t ulps = ulp_distance_from_reference(result, ref);
-            stats.accumulate(static_cast<double>(ref), static_cast<double>(result), ulps);
-        }
-    }
-    return stats;
-}
-
-/**
- *  @brief Test sparse dot product with u16 indices and bf16 weights.
- */
-error_stats_t test_sparse_dot_u16bf16(sparse_dot_u16bf16_t kernel) {
-    error_stats_t stats;
-    std::mt19937 rng(global_config.seed);
-
-    std::size_t sparse_dims[] = {8, 16, 32, 64, 128, 256};
-
-    for (std::size_t dim : sparse_dims) {
-        for (auto start = test_start_time(); within_time_budget(start);) {
-            aligned_buffer<nk_u16_t> a_idx(dim), b_idx(dim);
-            aligned_buffer<bf16_t> a_weights(dim), b_weights(dim);
-
-            fill_sorted_unique(a_idx, rng, static_cast<nk_u16_t>(dim * 4));
-            fill_sorted_unique(b_idx, rng, static_cast<nk_u16_t>(dim * 4));
-            fill_random(a_weights, rng, -1.0, 1.0);
-            fill_random(b_weights, rng, -1.0, 1.0);
-
-            nk_f32_t result;
-            kernel(a_idx.data, b_idx.data, reinterpret_cast<nk_bf16_t const *>(a_weights.data),
-                   reinterpret_cast<nk_bf16_t const *>(b_weights.data), dim, dim, &result);
-
-            // Reference with float conversion
-            f128_t ref = 0;
-            std::size_t i = 0, j = 0;
-            while (i < dim && j < dim) {
-                if (a_idx[i] < b_idx[j]) i++;
-                else if (a_idx[i] > b_idx[j]) j++;
-                else {
-                    ref += f128_t(static_cast<float>(a_weights[i])) * f128_t(static_cast<float>(b_weights[j]));
-                    i++;
-                    j++;
-                }
-            }
-
-            std::uint64_t ulps = ulp_distance_from_reference(result, ref);
-            stats.accumulate(static_cast<double>(ref), static_cast<double>(result), ulps);
-        }
+        f118_t ref;
+        nk::sparse_dot<index_t, weight_t, f118_t, false>(&a_idx[0], &b_idx[0], &a_weights[0], &b_weights[0], dim, dim,
+                                                         &ref);
+        stats.accumulate(result, ref);
     }
     return stats;
 }
@@ -3955,42 +2184,42 @@ void test_sparse() {
     std::printf("Testing sparse operations...\n");
 
 #if NK_DYNAMIC_DISPATCH
-    run_if_matches("intersect", "u16", test_intersect_u16, nk_intersect_u16);
-    run_if_matches("intersect", "u32", test_intersect_u32, nk_intersect_u32);
-    run_if_matches("sparse_dot", "u32f32", test_sparse_dot_u32f32, nk_sparse_dot_u32f32);
-    run_if_matches("sparse_dot", "u16bf16", test_sparse_dot_u16bf16, nk_sparse_dot_u16bf16);
+    run_if_matches("intersect", "u16", test_intersect<u16_t>, nk_intersect_u16);
+    run_if_matches("intersect", "u32", test_intersect<u32_t>, nk_intersect_u32);
+    run_if_matches("sparse_dot", "u32f32", test_sparse_dot<f32_t>, nk_sparse_dot_u32f32);
+    run_if_matches("sparse_dot", "u16bf16", test_sparse_dot<bf16_t>, nk_sparse_dot_u16bf16);
 #else
 
 #if NK_TARGET_NEON
-    run_if_matches("intersect_neon", "u16", test_intersect_u16, nk_intersect_u16_neon);
-    run_if_matches("intersect_neon", "u32", test_intersect_u32, nk_intersect_u32_neon);
+    run_if_matches("intersect_neon", "u16", test_intersect<u16_t>, nk_intersect_u16_neon);
+    run_if_matches("intersect_neon", "u32", test_intersect<u32_t>, nk_intersect_u32_neon);
 #endif // NK_TARGET_NEON
 
 #if NK_TARGET_SVE
-    run_if_matches("intersect_sve2", "u16", test_intersect_u16, nk_intersect_u16_sve2);
-    run_if_matches("intersect_sve2", "u32", test_intersect_u32, nk_intersect_u32_sve2);
-    run_if_matches("sparse_dot_sve2", "u32f32", test_sparse_dot_u32f32, nk_sparse_dot_u32f32_sve2);
-    run_if_matches("sparse_dot_sve2", "u16bf16", test_sparse_dot_u16bf16, nk_sparse_dot_u16bf16_sve2);
+    run_if_matches("intersect_sve2", "u16", test_intersect<u16_t>, nk_intersect_u16_sve2);
+    run_if_matches("intersect_sve2", "u32", test_intersect<u32_t>, nk_intersect_u32_sve2);
+    run_if_matches("sparse_dot_sve2", "u32f32", test_sparse_dot<f32_t>, nk_sparse_dot_u32f32_sve2);
+    run_if_matches("sparse_dot_sve2", "u16bf16", test_sparse_dot<bf16_t>, nk_sparse_dot_u16bf16_sve2);
 #endif // NK_TARGET_SVE
 
 #if NK_TARGET_ICE
-    run_if_matches("intersect_ice", "u16", test_intersect_u16, nk_intersect_u16_ice);
-    run_if_matches("intersect_ice", "u32", test_intersect_u32, nk_intersect_u32_ice);
-    run_if_matches("sparse_dot_ice", "u32f32", test_sparse_dot_u32f32, nk_sparse_dot_u32f32_ice);
+    run_if_matches("intersect_ice", "u16", test_intersect<u16_t>, nk_intersect_u16_ice);
+    run_if_matches("intersect_ice", "u32", test_intersect<u32_t>, nk_intersect_u32_ice);
+    run_if_matches("sparse_dot_ice", "u32f32", test_sparse_dot<f32_t>, nk_sparse_dot_u32f32_ice);
 #endif // NK_TARGET_ICE
 
 #if NK_TARGET_TURIN
-    run_if_matches("intersect_turin", "u16", test_intersect_u16, nk_intersect_u16_turin);
-    run_if_matches("intersect_turin", "u32", test_intersect_u32, nk_intersect_u32_turin);
-    run_if_matches("sparse_dot_turin", "u32f32", test_sparse_dot_u32f32, nk_sparse_dot_u32f32_turin);
-    run_if_matches("sparse_dot_turin", "u16bf16", test_sparse_dot_u16bf16, nk_sparse_dot_u16bf16_turin);
+    run_if_matches("intersect_turin", "u16", test_intersect<u16_t>, nk_intersect_u16_turin);
+    run_if_matches("intersect_turin", "u32", test_intersect<u32_t>, nk_intersect_u32_turin);
+    run_if_matches("sparse_dot_turin", "u32f32", test_sparse_dot<f32_t>, nk_sparse_dot_u32f32_turin);
+    run_if_matches("sparse_dot_turin", "u16bf16", test_sparse_dot<bf16_t>, nk_sparse_dot_u16bf16_turin);
 #endif // NK_TARGET_TURIN
 
     // Serial always runs - baseline test
-    run_if_matches("intersect_serial", "u16", test_intersect_u16, nk_intersect_u16_serial);
-    run_if_matches("intersect_serial", "u32", test_intersect_u32, nk_intersect_u32_serial);
-    run_if_matches("sparse_dot_serial", "u32f32", test_sparse_dot_u32f32, nk_sparse_dot_u32f32_serial);
-    run_if_matches("sparse_dot_serial", "u16bf16", test_sparse_dot_u16bf16, nk_sparse_dot_u16bf16_serial);
+    run_if_matches("intersect_serial", "u16", test_intersect<u16_t>, nk_intersect_u16_serial);
+    run_if_matches("intersect_serial", "u32", test_intersect<u32_t>, nk_intersect_u32_serial);
+    run_if_matches("sparse_dot_serial", "u32f32", test_sparse_dot<f32_t>, nk_sparse_dot_u32f32_serial);
+    run_if_matches("sparse_dot_serial", "u16bf16", test_sparse_dot<bf16_t>, nk_sparse_dot_u16bf16_serial);
 
 #endif // NK_DYNAMIC_DISPATCH
 }
@@ -4022,6 +2251,13 @@ int main(int argc, char **argv) {
         if (val > 0) {
             dense_dimension = val;
             std::printf("Using NK_TEST_DENSE_DIMENSION=%zu\n", dense_dimension);
+        }
+    }
+    if (char const *env = std::getenv("NK_TEST_SPARSE_DIMENSION")) {
+        std::size_t val = static_cast<std::size_t>(std::atoll(env));
+        if (val > 0) {
+            sparse_dimension = val;
+            std::printf("Using NK_TEST_SPARSE_DIMENSION=%zu\n", sparse_dimension);
         }
     }
     if (char const *env = std::getenv("NK_TEST_MESH_DIMENSION")) {
@@ -4126,7 +2362,6 @@ int main(int argc, char **argv) {
 
     // Type conversion tests
     test_fp8_conversions();
-    test_denormals();
 
     // Print header for precision table
     print_stats_header();

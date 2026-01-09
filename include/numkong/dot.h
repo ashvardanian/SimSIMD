@@ -336,27 +336,6 @@ NK_INTERNAL void nk_dot_e5m2x16_finalize_serial(nk_dot_e5m2x16_state_serial_t co
                                                 nk_dot_e5m2x16_state_serial_t const *state_c,
                                                 nk_dot_e5m2x16_state_serial_t const *state_d, nk_b128_vec_t *result);
 
-/** @copydoc nk_dot_f32 */
-NK_PUBLIC void nk_dot_f32_accurate(nk_f32_t const *a, nk_f32_t const *b, nk_size_t n, nk_f64_t *result);
-/** @copydoc nk_dot_f32c */
-NK_PUBLIC void nk_dot_f32c_accurate(nk_f32c_t const *a, nk_f32c_t const *b, nk_size_t n, nk_f64c_t *result);
-/** @copydoc nk_vdot_f32c */
-NK_PUBLIC void nk_vdot_f32c_accurate(nk_f32c_t const *a, nk_f32c_t const *b, nk_size_t n, nk_f64c_t *result);
-
-/** @copydoc nk_dot_f16 */
-NK_PUBLIC void nk_dot_f16_accurate(nk_f16_t const *a, nk_f16_t const *b, nk_size_t n, nk_f64_t *result);
-/** @copydoc nk_dot_f16c */
-NK_PUBLIC void nk_dot_f16c_accurate(nk_f16c_t const *a, nk_f16c_t const *b, nk_size_t n, nk_f64c_t *result);
-/** @copydoc nk_vdot_f16c */
-NK_PUBLIC void nk_vdot_f16c_accurate(nk_f16c_t const *a, nk_f16c_t const *b, nk_size_t n, nk_f64c_t *result);
-
-/** @copydoc nk_dot_bf16 */
-NK_PUBLIC void nk_dot_bf16_accurate(nk_bf16_t const *a, nk_bf16_t const *b, nk_size_t n, nk_f64_t *result);
-/** @copydoc nk_dot_bf16c */
-NK_PUBLIC void nk_dot_bf16c_accurate(nk_bf16c_t const *a, nk_bf16c_t const *b, nk_size_t n, nk_f64c_t *result);
-/** @copydoc nk_vdot_bf16c */
-NK_PUBLIC void nk_vdot_bf16c_accurate(nk_bf16c_t const *a, nk_bf16c_t const *b, nk_size_t n, nk_f64c_t *result);
-
 #if NK_TARGET_NEON
 /** @copydoc nk_dot_f32 */
 NK_PUBLIC void nk_dot_f32_neon(nk_f32_t const *a, nk_f32_t const *b, nk_size_t n, nk_f32_t *result);

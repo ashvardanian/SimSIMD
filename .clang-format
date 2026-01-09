@@ -78,29 +78,47 @@ AttributeMacros:
   - NK_INTERNAL
   - NK_DYNAMIC
 StatementMacros:
-  - nk_make_dots_pack_size_
-  - nk_make_dots_pack_
-  - nk_make_dots_vectors_
-  - nk_make_dots_packed_vectors_
-  - nk_make_dots_outer_scalars_
-  - nk_make_dots_packed_4x4_vectors_aligned_
-  - nk_make_dots_packed_1x8_vectors_aligned_
-  - nk_declare_dense_
-  - nk_declare_sparse_
-  - nk_declare_sparse_dot_
-  - nk_declare_curved_
-  - nk_declare_geospatial_
-  - nk_declare_fma_
-  - nk_declare_wsum_
-  - nk_declare_scale_
-  - nk_declare_sum_
-  - nk_declare_trigonometry_
-  - nk_declare_mesh_
-  - nk_declare_reduce_add_
-  - nk_declare_reduce_minmax_
-  - nk_declare_dots_packed_size_
-  - nk_declare_dots_pack_
-  - nk_declare_dots_
+  - nk_define_bilinear_
+  - nk_define_bilinear_complex_
+  - nk_define_mahalanobis_
+  - nk_define_dot_
+  - nk_define_dot_complex_
+  - nk_define_vdot_complex_
+  - nk_define_kld_
+  - nk_define_jsd_
+  - nk_define_intersect_
+  - nk_define_sparse_dot_
+  - nk_define_scale_
+  - nk_define_sum_
+  - nk_define_wsum_
+  - nk_define_fma_
+  - nk_define_l2sq_
+  - nk_define_l2_
+  - nk_define_angular_
+  - nk_define_rmsd_
+  - nk_define_kabsch_
+  - nk_define_umeyama_  
+  - nk_define_cond_swap_
+  - nk_define_conditional_negating_swap_
+  - nk_define_approximate_givens_quaternion_
+  - nk_define_jacobi_conjugation_
+  - nk_define_quaternion_to_mat3x3_
+  - nk_define_jacobi_eigenanlysis_
+  - nk_define_qr_givens_quaternion_
+  - nk_define_sort_singular_values_
+  - nk_define_qr_decomposition_
+  - nk_define_svd3x3_
+  - nk_define_det3x3_
+  - nk_define_geospatial_
+  - nk_define_reduce_add_
+  - nk_define_reduce_minmax_
+  - nk_define_dots_packed_size_
+  - nk_define_dots_pack_
+  - nk_define_dots_packed_
+  - nk_define_trigonometry_
+  - nk_define_mesh_
+  - nk_define_dense_
+  - nk_define_curved_
 
 # Align consecutive macro definitions (useful for NK_TARGET_* flags)
 AlignConsecutiveMacros:

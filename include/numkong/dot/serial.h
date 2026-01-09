@@ -28,8 +28,8 @@ extern "C" {
  *
  *  @see Neumaier, A. (1974). "Rundungsfehleranalyse einiger Verfahren zur Summation endlicher Summen"
  */
-#define NK_MAKE_DOT(name, input_type, accumulator_type, output_type, load_and_convert)                      \
-    NK_PUBLIC void nk_dot_##input_type##_##name(nk_##input_type##_t const *a, nk_##input_type##_t const *b, \
+#define nk_define_dot_(input_type, accumulator_type, output_type, load_and_convert)                         \
+    NK_PUBLIC void nk_dot_##input_type##_serial(nk_##input_type##_t const *a, nk_##input_type##_t const *b, \
                                                 nk_size_t n, nk_##output_type##_t *result) {                \
         nk_##accumulator_type##_t sum = 0, compensation = 0, ai, bi;                                        \
         for (nk_size_t i = 0; i != n; ++i) {                                                                \
@@ -44,8 +44,8 @@ extern "C" {
         *result = (nk_##output_type##_t)(sum + compensation);                                               \
     }
 
-#define NK_MAKE_COMPLEX_DOT(name, input_type, accumulator_type, output_complex_type, load_and_convert)               \
-    NK_PUBLIC void nk_dot_##input_type##_##name(nk_##input_type##_t const *a_pairs,                                  \
+#define nk_define_dot_complex_(input_type, accumulator_type, output_complex_type, load_and_convert)                  \
+    NK_PUBLIC void nk_dot_##input_type##_serial(nk_##input_type##_t const *a_pairs,                                  \
                                                 nk_##input_type##_t const *b_pairs, nk_size_t count_pairs,           \
                                                 nk_##output_complex_type##_t *result) {                              \
         nk_##accumulator_type##_t sum_real = 0, sum_imag = 0, compensation_real = 0, compensation_imag = 0;          \
@@ -70,8 +70,8 @@ extern "C" {
         result->imag = sum_imag + compensation_imag;                                                                 \
     }
 
-#define NK_MAKE_COMPLEX_VDOT(name, input_type, accumulator_type, output_complex_type, load_and_convert)              \
-    NK_PUBLIC void nk_vdot_##input_type##_##name(nk_##input_type##_t const *a_pairs,                                 \
+#define nk_define_vdot_complex_(input_type, accumulator_type, output_complex_type, load_and_convert)                 \
+    NK_PUBLIC void nk_vdot_##input_type##_serial(nk_##input_type##_t const *a_pairs,                                 \
                                                  nk_##input_type##_t const *b_pairs, nk_size_t count_pairs,          \
                                                  nk_##output_complex_type##_t *result) {                             \
         nk_##accumulator_type##_t sum_real = 0, sum_imag = 0, compensation_real = 0, compensation_imag = 0;          \
@@ -96,24 +96,27 @@ extern "C" {
         result->imag = sum_imag + compensation_imag;                                                                 \
     }
 
-NK_MAKE_DOT(serial, f64, f64, f64, nk_assign_from_to_)            // nk_dot_f64_serial
-NK_MAKE_COMPLEX_DOT(serial, f64c, f64, f64c, nk_assign_from_to_)  // nk_dot_f64c_serial
-NK_MAKE_COMPLEX_VDOT(serial, f64c, f64, f64c, nk_assign_from_to_) // nk_vdot_f64c_serial
+nk_define_dot_(f64, f64, f64, nk_assign_from_to_)            // nk_dot_f64_serial
+nk_define_dot_complex_(f64c, f64, f64c, nk_assign_from_to_)  // nk_dot_f64c_serial
+nk_define_vdot_complex_(f64c, f64, f64c, nk_assign_from_to_) // nk_vdot_f64c_serial
 
-NK_MAKE_DOT(serial, f32, f32, f32, nk_assign_from_to_)            // nk_dot_f32_serial
-NK_MAKE_COMPLEX_DOT(serial, f32c, f32, f32c, nk_assign_from_to_)  // nk_dot_f32c_serial
-NK_MAKE_COMPLEX_VDOT(serial, f32c, f32, f32c, nk_assign_from_to_) // nk_vdot_f32c_serial
+nk_define_dot_(f32, f32, f32, nk_assign_from_to_)            // nk_dot_f32_serial
+nk_define_dot_complex_(f32c, f32, f32c, nk_assign_from_to_)  // nk_dot_f32c_serial
+nk_define_vdot_complex_(f32c, f32, f32c, nk_assign_from_to_) // nk_vdot_f32c_serial
 
-NK_MAKE_DOT(serial, f16, f32, f32, nk_f16_to_f32_serial)            // nk_dot_f16_serial
-NK_MAKE_COMPLEX_DOT(serial, f16c, f32, f32c, nk_f16_to_f32_serial)  // nk_dot_f16c_serial
-NK_MAKE_COMPLEX_VDOT(serial, f16c, f32, f32c, nk_f16_to_f32_serial) // nk_vdot_f16c_serial
+nk_define_dot_(f16, f32, f32, nk_f16_to_f32_serial)            // nk_dot_f16_serial
+nk_define_dot_complex_(f16c, f32, f32c, nk_f16_to_f32_serial)  // nk_dot_f16c_serial
+nk_define_vdot_complex_(f16c, f32, f32c, nk_f16_to_f32_serial) // nk_vdot_f16c_serial
 
-NK_MAKE_DOT(serial, bf16, f32, f32, nk_bf16_to_f32_serial)            // nk_dot_bf16_serial
-NK_MAKE_COMPLEX_DOT(serial, bf16c, f32, f32c, nk_bf16_to_f32_serial)  // nk_dot_bf16c_serial
-NK_MAKE_COMPLEX_VDOT(serial, bf16c, f32, f32c, nk_bf16_to_f32_serial) // nk_vdot_bf16c_serial
+nk_define_dot_(bf16, f32, f32, nk_bf16_to_f32_serial)            // nk_dot_bf16_serial
+nk_define_dot_complex_(bf16c, f32, f32c, nk_bf16_to_f32_serial)  // nk_dot_bf16c_serial
+nk_define_vdot_complex_(bf16c, f32, f32c, nk_bf16_to_f32_serial) // nk_vdot_bf16c_serial
 
-NK_MAKE_DOT(serial, i8, i64, i32, nk_assign_from_to_) // nk_dot_i8_serial
-NK_MAKE_DOT(serial, u8, u64, u32, nk_assign_from_to_) // nk_dot_u8_serial
+nk_define_dot_(i8, i32, i32, nk_assign_from_to_) // nk_dot_i8_serial
+nk_define_dot_(u8, u32, u32, nk_assign_from_to_) // nk_dot_u8_serial
+
+nk_define_dot_(e4m3, f32, f32, nk_e4m3_to_f32_serial) // nk_dot_e4m3_serial
+nk_define_dot_(e5m2, f32, f32, nk_e5m2_to_f32_serial) // nk_dot_e5m2_serial
 
 NK_PUBLIC void nk_dot_i4_serial(nk_i4x2_t const *a, nk_i4x2_t const *b, nk_size_t n, nk_i32_t *result) {
     // i4 values are packed as nibbles: two 4-bit signed values per byte.
@@ -158,21 +161,6 @@ NK_PUBLIC void nk_dot_u4_serial(nk_u4x2_t const *a, nk_u4x2_t const *b, nk_size_
     }
     *result = sum;
 }
-
-NK_MAKE_DOT(serial, e4m3, f32, f32, nk_e4m3_to_f32_serial) // nk_dot_e4m3_serial
-NK_MAKE_DOT(serial, e5m2, f32, f32, nk_e5m2_to_f32_serial) // nk_dot_e5m2_serial
-
-NK_MAKE_DOT(accurate, f32, f64, f64, nk_assign_from_to_)            // nk_dot_f32_accurate
-NK_MAKE_COMPLEX_DOT(accurate, f32c, f64, f64c, nk_assign_from_to_)  // nk_dot_f32c_accurate
-NK_MAKE_COMPLEX_VDOT(accurate, f32c, f64, f64c, nk_assign_from_to_) // nk_vdot_f32c_accurate
-
-NK_MAKE_DOT(accurate, f16, f64, f64, nk_f16_to_f64_serial)            // nk_dot_f16_accurate
-NK_MAKE_COMPLEX_DOT(accurate, f16c, f64, f64c, nk_f16_to_f64_serial)  // nk_dot_f16c_accurate
-NK_MAKE_COMPLEX_VDOT(accurate, f16c, f64, f64c, nk_f16_to_f64_serial) // nk_vdot_f16c_accurate
-
-NK_MAKE_DOT(accurate, bf16, f64, f64, nk_bf16_to_f64_serial)            // nk_dot_bf16_accurate
-NK_MAKE_COMPLEX_DOT(accurate, bf16c, f64, f64c, nk_bf16_to_f64_serial)  // nk_dot_bf16c_accurate
-NK_MAKE_COMPLEX_VDOT(accurate, bf16c, f64, f64c, nk_bf16_to_f64_serial) // nk_vdot_bf16c_accurate
 
 typedef struct nk_dot_f64x2_state_serial_t {
     nk_f64_t sums[2];

@@ -88,8 +88,8 @@
  *  - Detecting target CPU features at compile time: https://stackoverflow.com/a/28939692/2766161
  */
 
-#ifndef NK_H
-#define NK_H
+#ifndef NK_NUMKONG_H
+#define NK_NUMKONG_H
 
 #define NK_VERSION_MAJOR 6
 #define NK_VERSION_MINOR 5
@@ -3093,4 +3093,4 @@ NK_PUBLIC void nk_find_kernel_punned(  //
 }
 #endif
 
-#endif // NK_H
+#endif // NK_NUMKONG_H

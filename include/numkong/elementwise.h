@@ -389,64 +389,6 @@ NK_PUBLIC void nk_fma_i64_serial(nk_i64_t const *a, nk_i64_t const *b, nk_i64_t 
 NK_PUBLIC void nk_fma_u64_serial(nk_u64_t const *a, nk_u64_t const *b, nk_u64_t const *c, nk_size_t n,
                                  nk_f64_t const *alpha, nk_f64_t const *beta, nk_u64_t *result);
 
-/*  Double-precision serial backends for select numeric types.
- *  For single-precision computation check out the "*_serial" counterparts.
- */
-/** @copydoc nk_sum_f32 */
-NK_PUBLIC void nk_sum_f32_accurate(nk_f32_t const *a, nk_f32_t const *b, nk_size_t n, nk_f32_t *result);
-/** @copydoc nk_sum_f16 */
-NK_PUBLIC void nk_sum_f16_accurate(nk_f16_t const *a, nk_f16_t const *b, nk_size_t n, nk_f16_t *result);
-/** @copydoc nk_sum_bf16 */
-NK_PUBLIC void nk_sum_bf16_accurate(nk_bf16_t const *a, nk_bf16_t const *b, nk_size_t n, nk_bf16_t *result);
-
-/** @copydoc nk_scale_f32 */
-NK_PUBLIC void nk_scale_f32_accurate(nk_f32_t const *a, nk_size_t n, nk_f64_t const *alpha, nk_f64_t const *beta,
-                                     nk_f32_t *result);
-/** @copydoc nk_scale_f16 */
-NK_PUBLIC void nk_scale_f16_accurate(nk_f16_t const *a, nk_size_t n, nk_f64_t const *alpha, nk_f64_t const *beta,
-                                     nk_f16_t *result);
-/** @copydoc nk_scale_bf16 */
-NK_PUBLIC void nk_scale_bf16_accurate(nk_bf16_t const *a, nk_size_t n, nk_f64_t const *alpha, nk_f64_t const *beta,
-                                      nk_bf16_t *result);
-/** @copydoc nk_scale_i8 */
-NK_PUBLIC void nk_scale_i8_accurate(nk_i8_t const *a, nk_size_t n, nk_f64_t const *alpha, nk_f64_t const *beta,
-                                    nk_i8_t *result);
-/** @copydoc nk_scale_u8 */
-NK_PUBLIC void nk_scale_u8_accurate(nk_u8_t const *a, nk_size_t n, nk_f64_t const *alpha, nk_f64_t const *beta,
-                                    nk_u8_t *result);
-
-/** @copydoc nk_wsum_f32 */
-NK_PUBLIC void nk_wsum_f32_accurate(nk_f32_t const *a, nk_f32_t const *b, nk_size_t n, nk_f64_t const *alpha,
-                                    nk_f64_t const *beta, nk_f32_t *result);
-/** @copydoc nk_wsum_f16 */
-NK_PUBLIC void nk_wsum_f16_accurate(nk_f16_t const *a, nk_f16_t const *b, nk_size_t n, nk_f64_t const *alpha,
-                                    nk_f64_t const *beta, nk_f16_t *result);
-/** @copydoc nk_wsum_bf16 */
-NK_PUBLIC void nk_wsum_bf16_accurate(nk_bf16_t const *a, nk_bf16_t const *b, nk_size_t n, nk_f64_t const *alpha,
-                                     nk_f64_t const *beta, nk_bf16_t *result);
-/** @copydoc nk_wsum_i8 */
-NK_PUBLIC void nk_wsum_i8_accurate(nk_i8_t const *a, nk_i8_t const *b, nk_size_t n, nk_f64_t const *alpha,
-                                   nk_f64_t const *beta, nk_i8_t *result);
-/** @copydoc nk_wsum_u8 */
-NK_PUBLIC void nk_wsum_u8_accurate(nk_u8_t const *a, nk_u8_t const *b, nk_size_t n, nk_f64_t const *alpha,
-                                   nk_f64_t const *beta, nk_u8_t *result);
-
-/** @copydoc nk_fma_f32 */
-NK_PUBLIC void nk_fma_f32_accurate(nk_f32_t const *a, nk_f32_t const *b, nk_f32_t const *c, nk_size_t n,
-                                   nk_f64_t const *alpha, nk_f64_t const *beta, nk_f32_t *result);
-/** @copydoc nk_fma_f16 */
-NK_PUBLIC void nk_fma_f16_accurate(nk_f16_t const *a, nk_f16_t const *b, nk_f16_t const *c, nk_size_t n,
-                                   nk_f64_t const *alpha, nk_f64_t const *beta, nk_f16_t *result);
-/** @copydoc nk_fma_bf16 */
-NK_PUBLIC void nk_fma_bf16_accurate(nk_bf16_t const *a, nk_bf16_t const *b, nk_bf16_t const *c, nk_size_t n,
-                                    nk_f64_t const *alpha, nk_f64_t const *beta, nk_bf16_t *result);
-/** @copydoc nk_fma_i8 */
-NK_PUBLIC void nk_fma_i8_accurate(nk_i8_t const *a, nk_i8_t const *b, nk_i8_t const *c, nk_size_t n,
-                                  nk_f64_t const *alpha, nk_f64_t const *beta, nk_i8_t *result);
-/** @copydoc nk_fma_u8 */
-NK_PUBLIC void nk_fma_u8_accurate(nk_u8_t const *a, nk_u8_t const *b, nk_u8_t const *c, nk_size_t n,
-                                  nk_f64_t const *alpha, nk_f64_t const *beta, nk_u8_t *result);
-
 /** @copydoc nk_sum_e4m3 */
 NK_PUBLIC void nk_sum_e4m3_serial(nk_e4m3_t const *a, nk_e4m3_t const *b, nk_size_t n, nk_e4m3_t *result);
 /** @copydoc nk_sum_e5m2 */

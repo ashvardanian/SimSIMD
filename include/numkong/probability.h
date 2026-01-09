@@ -21,11 +21,6 @@
  *  - Arm: NEON
  *  - x86: Haswell, Skylake, Sapphire
  *
- *  @section numeric_stability Numeric Stability
- *
- *  The implementations use a small epsilon to avoid division by zero when inputs contain zeros.
- *  For higher-precision accumulation, use the "*_accurate" serial variants.
- *
  *  @section x86_instructions Relevant x86 Instructions
  *
  *  KL/JS divergence requires log2(x) which decomposes into exponent extraction (VGETEXP) plus
@@ -199,19 +194,6 @@ NK_PUBLIC void nk_kld_bf16_serial(nk_bf16_t const *a, nk_bf16_t const *b, nk_siz
 /** @copydoc nk_jsd_bf16 */
 NK_PUBLIC void nk_jsd_bf16_serial(nk_bf16_t const *a, nk_bf16_t const *b, nk_size_t n, nk_f32_t *result);
 
-/** @copydoc nk_kld_f32 */
-NK_PUBLIC void nk_kld_f32_accurate(nk_f32_t const *a, nk_f32_t const *b, nk_size_t n, nk_f64_t *result);
-/** @copydoc nk_jsd_f32 */
-NK_PUBLIC void nk_jsd_f32_accurate(nk_f32_t const *a, nk_f32_t const *b, nk_size_t n, nk_f64_t *result);
-/** @copydoc nk_kld_f16 */
-NK_PUBLIC void nk_kld_f16_accurate(nk_f16_t const *a, nk_f16_t const *b, nk_size_t n, nk_f64_t *result);
-/** @copydoc nk_jsd_f16 */
-NK_PUBLIC void nk_jsd_f16_accurate(nk_f16_t const *a, nk_f16_t const *b, nk_size_t n, nk_f64_t *result);
-/** @copydoc nk_kld_bf16 */
-NK_PUBLIC void nk_kld_bf16_accurate(nk_bf16_t const *a, nk_bf16_t const *b, nk_size_t n, nk_f64_t *result);
-/** @copydoc nk_jsd_bf16 */
-NK_PUBLIC void nk_jsd_bf16_accurate(nk_bf16_t const *a, nk_bf16_t const *b, nk_size_t n, nk_f64_t *result);
-
 #if NK_TARGET_NEON
 /** @copydoc nk_kld_f32 */
 NK_PUBLIC void nk_kld_f32_neon(nk_f32_t const *a, nk_f32_t const *b, nk_size_t n, nk_f32_t *result);
@@ -250,32 +232,32 @@ NK_PUBLIC void nk_jsd_f16_sapphire(nk_f16_t const *a, nk_f16_t const *b, nk_size
 #include "numkong/cast/serial.h"    // `nk_f16_to_f64_serial`
 #include "numkong/spatial/serial.h" // `nk_f32_sqrt_serial`
 
-#define NK_MAKE_KLD(name, input_type, accumulator_type, output_type, load_and_convert, epsilon, compute_log) \
-    NK_PUBLIC void nk_kld_##input_type##_##name(nk_##input_type##_t const *a, nk_##input_type##_t const *b,  \
-                                                nk_size_t n, output_type *result) {                          \
-        nk_##accumulator_type##_t d = 0, ai, bi;                                                             \
-        for (nk_size_t i = 0; i != n; ++i) {                                                                 \
-            load_and_convert(a + i, &ai);                                                                    \
-            load_and_convert(b + i, &bi);                                                                    \
-            d += ai * compute_log((ai + epsilon) / (bi + epsilon));                                          \
-        }                                                                                                    \
-        *result = (output_type)d;                                                                            \
+#define nk_define_kld_(input_type, accumulator_type, output_type, load_and_convert, epsilon, compute_log)   \
+    NK_PUBLIC void nk_kld_##input_type##_serial(nk_##input_type##_t const *a, nk_##input_type##_t const *b, \
+                                                nk_size_t n, output_type *result) {                         \
+        nk_##accumulator_type##_t d = 0, ai, bi;                                                            \
+        for (nk_size_t i = 0; i != n; ++i) {                                                                \
+            load_and_convert(a + i, &ai);                                                                   \
+            load_and_convert(b + i, &bi);                                                                   \
+            d += ai * compute_log((ai + epsilon) / (bi + epsilon));                                         \
+        }                                                                                                   \
+        *result = (output_type)d;                                                                           \
     }
 
-#define NK_MAKE_JSD(name, input_type, accumulator_type, output_type, load_and_convert, epsilon, compute_log, \
-                    compute_sqrt)                                                                            \
-    NK_PUBLIC void nk_jsd_##input_type##_##name(nk_##input_type##_t const *a, nk_##input_type##_t const *b,  \
-                                                nk_size_t n, output_type *result) {                          \
-        nk_##accumulator_type##_t d = 0, ai, bi;                                                             \
-        for (nk_size_t i = 0; i != n; ++i) {                                                                 \
-            load_and_convert(a + i, &ai);                                                                    \
-            load_and_convert(b + i, &bi);                                                                    \
-            nk_##accumulator_type##_t mi = (ai + bi) / 2;                                                    \
-            d += ai * compute_log((ai + epsilon) / (mi + epsilon));                                          \
-            d += bi * compute_log((bi + epsilon) / (mi + epsilon));                                          \
-        }                                                                                                    \
-        output_type d_half = ((output_type)d / 2);                                                           \
-        *result = d_half > 0 ? compute_sqrt(d_half) : 0;                                                     \
+#define nk_define_jsd_(input_type, accumulator_type, output_type, load_and_convert, epsilon, compute_log,   \
+                       compute_sqrt)                                                                        \
+    NK_PUBLIC void nk_jsd_##input_type##_serial(nk_##input_type##_t const *a, nk_##input_type##_t const *b, \
+                                                nk_size_t n, output_type *result) {                         \
+        nk_##accumulator_type##_t d = 0, ai, bi;                                                            \
+        for (nk_size_t i = 0; i != n; ++i) {                                                                \
+            load_and_convert(a + i, &ai);                                                                   \
+            load_and_convert(b + i, &bi);                                                                   \
+            nk_##accumulator_type##_t mi = (ai + bi) / 2;                                                   \
+            d += ai * compute_log((ai + epsilon) / (mi + epsilon));                                         \
+            d += bi * compute_log((bi + epsilon) / (mi + epsilon));                                         \
+        }                                                                                                   \
+        output_type d_half = ((output_type)d / 2);                                                          \
+        *result = d_half > 0 ? compute_sqrt(d_half) : 0;                                                    \
     }
 
 /**
@@ -345,35 +327,19 @@ NK_INTERNAL nk_f64_t nk_f64_log_serial_(nk_f64_t x) {
     return (nk_f64_t)exp * 0.6931471805599453 + log_m;
 }
 
-// Serial variants: f64 inputs → f64 output, f32 inputs → f32 output, f16/bf16 inputs → f32 output
-NK_MAKE_KLD(serial, f64, f64, nk_f64_t, nk_assign_from_to_, NK_F64_DIVISION_EPSILON, nk_f64_log_serial_)
-NK_MAKE_JSD(serial, f64, f64, nk_f64_t, nk_assign_from_to_, NK_F64_DIVISION_EPSILON, nk_f64_log_serial_,
-            nk_f64_sqrt_serial)
+nk_define_kld_(f64, f64, nk_f64_t, nk_assign_from_to_, NK_F64_DIVISION_EPSILON, nk_f64_log_serial_)
+nk_define_jsd_(f64, f64, nk_f64_t, nk_assign_from_to_, NK_F64_DIVISION_EPSILON, nk_f64_log_serial_, nk_f64_sqrt_serial)
 
-NK_MAKE_KLD(serial, f32, f32, nk_f32_t, nk_assign_from_to_, NK_F32_DIVISION_EPSILON, nk_f32_log_serial_)
-NK_MAKE_JSD(serial, f32, f32, nk_f32_t, nk_assign_from_to_, NK_F32_DIVISION_EPSILON, nk_f32_log_serial_,
-            nk_f32_sqrt_serial)
+nk_define_kld_(f32, f32, nk_f32_t, nk_assign_from_to_, NK_F32_DIVISION_EPSILON, nk_f32_log_serial_)
+nk_define_jsd_(f32, f32, nk_f32_t, nk_assign_from_to_, NK_F32_DIVISION_EPSILON, nk_f32_log_serial_, nk_f32_sqrt_serial)
 
-NK_MAKE_KLD(serial, f16, f32, nk_f32_t, nk_f16_to_f32_serial, NK_F32_DIVISION_EPSILON, nk_f32_log_serial_)
-NK_MAKE_JSD(serial, f16, f32, nk_f32_t, nk_f16_to_f32_serial, NK_F32_DIVISION_EPSILON, nk_f32_log_serial_,
-            nk_f32_sqrt_serial)
+nk_define_kld_(f16, f32, nk_f32_t, nk_f16_to_f32_serial, NK_F32_DIVISION_EPSILON, nk_f32_log_serial_)
+nk_define_jsd_(f16, f32, nk_f32_t, nk_f16_to_f32_serial, NK_F32_DIVISION_EPSILON, nk_f32_log_serial_,
+               nk_f32_sqrt_serial)
 
-NK_MAKE_KLD(serial, bf16, f32, nk_f32_t, nk_bf16_to_f32_serial, NK_F32_DIVISION_EPSILON, nk_f32_log_serial_)
-NK_MAKE_JSD(serial, bf16, f32, nk_f32_t, nk_bf16_to_f32_serial, NK_F32_DIVISION_EPSILON, nk_f32_log_serial_,
-            nk_f32_sqrt_serial)
-
-// Accurate variants: use f64 math and always f64 output (internal use for numerical verification)
-NK_MAKE_KLD(accurate, f32, f64, nk_f64_t, nk_assign_from_to_, NK_F32_DIVISION_EPSILON, nk_f64_log_serial_)
-NK_MAKE_JSD(accurate, f32, f64, nk_f64_t, nk_assign_from_to_, NK_F32_DIVISION_EPSILON, nk_f64_log_serial_,
-            nk_f64_sqrt_serial)
-
-NK_MAKE_KLD(accurate, f16, f64, nk_f64_t, nk_f16_to_f64_serial, NK_F32_DIVISION_EPSILON, nk_f64_log_serial_)
-NK_MAKE_JSD(accurate, f16, f64, nk_f64_t, nk_f16_to_f64_serial, NK_F32_DIVISION_EPSILON, nk_f64_log_serial_,
-            nk_f64_sqrt_serial)
-
-NK_MAKE_KLD(accurate, bf16, f64, nk_f64_t, nk_bf16_to_f64_serial, NK_F32_DIVISION_EPSILON, nk_f64_log_serial_)
-NK_MAKE_JSD(accurate, bf16, f64, nk_f64_t, nk_bf16_to_f64_serial, NK_F32_DIVISION_EPSILON, nk_f64_log_serial_,
-            nk_f64_sqrt_serial)
+nk_define_kld_(bf16, f32, nk_f32_t, nk_bf16_to_f32_serial, NK_F32_DIVISION_EPSILON, nk_f32_log_serial_)
+nk_define_jsd_(bf16, f32, nk_f32_t, nk_bf16_to_f32_serial, NK_F32_DIVISION_EPSILON, nk_f32_log_serial_,
+               nk_f32_sqrt_serial)
 
 #if NK_TARGET_ARM_
 #if NK_TARGET_NEON

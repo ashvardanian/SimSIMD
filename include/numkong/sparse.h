@@ -163,21 +163,6 @@ NK_PUBLIC void nk_sparse_dot_u32f32_serial(nk_u32_t const *a, nk_u32_t const *b,
                                            nk_f32_t const *b_weights, nk_size_t a_length, nk_size_t b_length,
                                            nk_f32_t *product);
 
-/** @copydoc nk_intersect_u16 */
-NK_PUBLIC void nk_intersect_u16_accurate(nk_u16_t const *a, nk_u16_t const *b, nk_size_t a_length, nk_size_t b_length,
-                                         nk_u32_t *count);
-/** @copydoc nk_intersect_u32 */
-NK_PUBLIC void nk_intersect_u32_accurate(nk_u32_t const *a, nk_u32_t const *b, nk_size_t a_length, nk_size_t b_length,
-                                         nk_u32_t *count);
-/** @copydoc nk_sparse_dot_u16bf16 */
-NK_PUBLIC void nk_sparse_dot_u16bf16_accurate(nk_u16_t const *a, nk_u16_t const *b, nk_bf16_t const *a_weights,
-                                              nk_bf16_t const *b_weights, nk_size_t a_length, nk_size_t b_length,
-                                              nk_f32_t *product);
-/** @copydoc nk_sparse_dot_u32f32 */
-NK_PUBLIC void nk_sparse_dot_u32f32_accurate(nk_u32_t const *a, nk_u32_t const *b, nk_f32_t const *a_weights,
-                                             nk_f32_t const *b_weights, nk_size_t a_length, nk_size_t b_length,
-                                             nk_f32_t *product);
-
 #if NK_TARGET_NEON
 /** @copydoc nk_intersect_u16 */
 NK_PUBLIC void nk_intersect_u16_neon(nk_u16_t const *a, nk_u16_t const *b, nk_size_t a_length, nk_size_t b_length,
@@ -237,26 +222,69 @@ NK_PUBLIC void nk_sparse_dot_u32f32_turin(nk_u32_t const *a, nk_u32_t const *b, 
                                           nk_f32_t *product);
 #endif // NK_TARGET_TURIN
 
-#define NK_MAKE_INTERSECT_LINEAR(name, input_type, counter_type)                                                  \
-    NK_PUBLIC void nk_intersect_##input_type##_##name(nk_##input_type##_t const *a, nk_##input_type##_t const *b, \
-                                                      nk_size_t a_length, nk_size_t b_length, nk_u32_t *count) {  \
-        nk_##counter_type##_t intersection_size = 0;                                                              \
-        nk_size_t i = 0, j = 0;                                                                                   \
-        while (i != a_length && j != b_length) {                                                                  \
-            nk_##input_type##_t ai = a[i];                                                                        \
-            nk_##input_type##_t bj = b[j];                                                                        \
-            intersection_size += ai == bj;                                                                        \
-            i += ai < bj;                                                                                         \
-            j += ai >= bj;                                                                                        \
-        }                                                                                                         \
-        *count = (nk_u32_t)intersection_size;                                                                     \
+#define nk_define_intersect_(input_type)                                                                           \
+    NK_PUBLIC nk_size_t nk_intersect_##input_type##_galloping_search_(                                             \
+        nk_##input_type##_t const *array, nk_size_t start, nk_size_t length, nk_##input_type##_t val) {            \
+        nk_size_t low = start;                                                                                     \
+        nk_size_t high = start + 1;                                                                                \
+        while (high < length && array[high] < val) {                                                               \
+            low = high;                                                                                            \
+            high = (2 * high < length) ? 2 * high : length;                                                        \
+        }                                                                                                          \
+        while (low < high) {                                                                                       \
+            nk_size_t mid = low + (high - low) / 2;                                                                \
+            if (array[mid] < val) { low = mid + 1; }                                                               \
+            else { high = mid; }                                                                                   \
+        }                                                                                                          \
+        return low;                                                                                                \
+    }                                                                                                              \
+    NK_PUBLIC nk_size_t nk_intersect_##input_type##_linear_scan_(nk_##input_type##_t const *a,                     \
+                                                                 nk_##input_type##_t const *b, nk_size_t a_length, \
+                                                                 nk_size_t b_length, nk_u32_t *count) {            \
+        nk_size_t intersection_size = 0;                                                                           \
+        nk_size_t i = 0, j = 0;                                                                                    \
+        while (i != a_length && j != b_length) {                                                                   \
+            nk_##input_type##_t ai = a[i];                                                                         \
+            nk_##input_type##_t bj = b[j];                                                                         \
+            intersection_size += ai == bj;                                                                         \
+            i += ai < bj;                                                                                          \
+            j += ai >= bj;                                                                                         \
+        }                                                                                                          \
+        return intersection_size;                                                                                  \
+    }                                                                                                              \
+    NK_PUBLIC void nk_intersect_##input_type##_serial(nk_##input_type##_t const *shorter,                          \
+                                                      nk_##input_type##_t const *longer, nk_size_t shorter_length, \
+                                                      nk_size_t longer_length, nk_u32_t *count) {                  \
+        /* Swap arrays if necessary, as we want "longer" to be larger than "shorter" */                            \
+        if (longer_length < shorter_length) {                                                                      \
+            nk_##input_type##_t const *temp = shorter;                                                             \
+            shorter = longer;                                                                                      \
+            longer = temp;                                                                                         \
+            nk_size_t temp_length = shorter_length;                                                                \
+            shorter_length = longer_length;                                                                        \
+            longer_length = temp_length;                                                                           \
+        }                                                                                                          \
+                                                                                                                   \
+        /* Use the accurate implementation if galloping is not beneficial */                                       \
+        if (longer_length < 64 * shorter_length) {                                                                 \
+            *count = (nk_u32_t)nk_intersect_##input_type##_linear_scan_(shorter, longer, shorter_length,           \
+                                                                        longer_length, count);                     \
+            return;                                                                                                \
+        }                                                                                                          \
+                                                                                                                   \
+        /* Perform galloping, shrinking the target range */                                                        \
+        nk_size_t intersection_size = 0;                                                                           \
+        nk_size_t j = 0;                                                                                           \
+        for (nk_size_t i = 0; i < shorter_length; ++i) {                                                           \
+            nk_##input_type##_t shorter_i = shorter[i];                                                            \
+            j = nk_intersect_##input_type##_galloping_search_(longer, j, longer_length, shorter_i);                \
+            if (j < longer_length && longer[j] == shorter_i) { intersection_size++; }                              \
+        }                                                                                                          \
+        *count = (nk_u32_t)intersection_size;                                                                      \
     }
 
-NK_MAKE_INTERSECT_LINEAR(accurate, u16, size) // nk_intersect_u16_accurate
-NK_MAKE_INTERSECT_LINEAR(accurate, u32, size) // nk_intersect_u32_accurate
-
-#define NK_MAKE_SPARSE_DOT(name, input_type, weight_type, accumulator_type, load_and_convert)               \
-    NK_PUBLIC void nk_sparse_dot_##input_type##weight_type##_##name(                                        \
+#define nk_define_sparse_dot_(input_type, weight_type, accumulator_type, load_and_convert)                  \
+    NK_PUBLIC void nk_sparse_dot_##input_type##weight_type##_serial(                                        \
         nk_##input_type##_t const *a, nk_##input_type##_t const *b, nk_##weight_type##_t const *a_weights,  \
         nk_##weight_type##_t const *b_weights, nk_size_t a_length, nk_size_t b_length, nk_f32_t *product) { \
         nk_##accumulator_type##_t weights_product = 0, awi, bwi;                                            \
@@ -274,59 +302,11 @@ NK_MAKE_INTERSECT_LINEAR(accurate, u32, size) // nk_intersect_u32_accurate
         *product = (nk_f32_t)weights_product;                                                               \
     }
 
-#define NK_MAKE_INTERSECT_GALLOPING(name, input_type, counter_type)                                                \
-    NK_PUBLIC nk_size_t nk_galloping_search_##input_type(nk_##input_type##_t const *array, nk_size_t start,        \
-                                                         nk_size_t length, nk_##input_type##_t val) {              \
-        nk_size_t low = start;                                                                                     \
-        nk_size_t high = start + 1;                                                                                \
-        while (high < length && array[high] < val) {                                                               \
-            low = high;                                                                                            \
-            high = (2 * high < length) ? 2 * high : length;                                                        \
-        }                                                                                                          \
-        while (low < high) {                                                                                       \
-            nk_size_t mid = low + (high - low) / 2;                                                                \
-            if (array[mid] < val) { low = mid + 1; }                                                               \
-            else { high = mid; }                                                                                   \
-        }                                                                                                          \
-        return low;                                                                                                \
-    }                                                                                                              \
-                                                                                                                   \
-    NK_PUBLIC void nk_intersect_##input_type##_##name(nk_##input_type##_t const *shorter,                          \
-                                                      nk_##input_type##_t const *longer, nk_size_t shorter_length, \
-                                                      nk_size_t longer_length, nk_u32_t *count) {                  \
-        /* Swap arrays if necessary, as we want "longer" to be larger than "shorter" */                            \
-        if (longer_length < shorter_length) {                                                                      \
-            nk_##input_type##_t const *temp = shorter;                                                             \
-            shorter = longer;                                                                                      \
-            longer = temp;                                                                                         \
-            nk_size_t temp_length = shorter_length;                                                                \
-            shorter_length = longer_length;                                                                        \
-            longer_length = temp_length;                                                                           \
-        }                                                                                                          \
-                                                                                                                   \
-        /* Use the accurate implementation if galloping is not beneficial */                                       \
-        if (longer_length < 64 * shorter_length) {                                                                 \
-            nk_intersect_##input_type##_accurate(shorter, longer, shorter_length, longer_length, count);           \
-            return;                                                                                                \
-        }                                                                                                          \
-                                                                                                                   \
-        /* Perform galloping, shrinking the target range */                                                        \
-        nk_##counter_type##_t intersection_size = 0;                                                               \
-        nk_size_t j = 0;                                                                                           \
-        for (nk_size_t i = 0; i < shorter_length; ++i) {                                                           \
-            nk_##input_type##_t shorter_i = shorter[i];                                                            \
-            j = nk_galloping_search_##input_type(longer, j, longer_length, shorter_i);                             \
-            if (j < longer_length && longer[j] == shorter_i) { intersection_size++; }                              \
-        }                                                                                                          \
-        *count = (nk_u32_t)intersection_size;                                                                      \
-    }
+nk_define_intersect_(u16) // nk_intersect_u16_serial
+nk_define_intersect_(u32) // nk_intersect_u32_serial
 
-NK_MAKE_INTERSECT_GALLOPING(serial, u16, size)                      // nk_intersect_u16_serial
-NK_MAKE_INTERSECT_GALLOPING(serial, u32, size)                      // nk_intersect_u32_serial
-NK_MAKE_SPARSE_DOT(serial, u16, bf16, f32, nk_bf16_to_f32_serial)   // nk_sparse_dot_u16bf16_serial
-NK_MAKE_SPARSE_DOT(serial, u32, f32, f32, nk_assign_from_to_)       // nk_sparse_dot_u32f32_serial
-NK_MAKE_SPARSE_DOT(accurate, u16, bf16, f64, nk_bf16_to_f64_serial) // nk_sparse_dot_u16bf16_accurate
-NK_MAKE_SPARSE_DOT(accurate, u32, f32, f64, nk_assign_from_to_)     // nk_sparse_dot_u32f32_accurate
+nk_define_sparse_dot_(u16, bf16, f32, nk_bf16_to_f32_serial) // nk_sparse_dot_u16bf16_serial
+nk_define_sparse_dot_(u32, f32, f32, nk_assign_from_to_)     // nk_sparse_dot_u32f32_serial
 
 /*  The AVX-512 implementations are inspired by the "Faster-Than-Native Alternatives
  *  for x86 VP2INTERSECT Instructions" paper by Guille Diez-Canas, 2022.
