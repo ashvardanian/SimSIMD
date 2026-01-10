@@ -8,7 +8,7 @@ To keep the quality of the code high, we have a set of [guidelines](https://gith
 
 ## Navigating the Codebase
 
-Primary kernels are implemented in header files under `include/simsimd/`:
+Primary kernels are implemented in header files under `include/numkong/`:
 
 - `dot.h` - dot products for real and complex vectors.
 - `spatial.h` - spatial distances: L2, cosine distance.
@@ -19,10 +19,10 @@ Primary kernels are implemented in header files under `include/simsimd/`:
 
 Bindings to other languages are in the respective directories:
 
-- `python/lib.c` - Python bindings.
-- `javascript/lib.c` - JavaScript bindings.
-- `rust/lib.rs` - Rust bindings.
-- `swift/SimSIMD.swift` - Swift bindings.
+- `python/numkong.c` - Python bindings.
+- `javascript/numkong.c` - JavaScript bindings.
+- `rust/numkong.rs` - Rust bindings.
+- `swift/NumKong.swift` - Swift bindings.
 
 All tests, benchmarks, and examples are placed in the `scripts/` directory, if compatible with the toolchain of the implementation language.
 
@@ -32,15 +32,16 @@ To rerun experiments utilize the following command:
 
 ```sh
 sudo apt install libopenblas-dev # BLAS installation is optional, but recommended for benchmarks
-cmake -D CMAKE_BUILD_TYPE=Release -D SIMSIMD_BUILD_TESTS=1 -D SIMSIMD_BUILD_BENCHMARKS=1 -D SIMSIMD_BUILD_BENCHMARKS_WITH_CBLAS=1 -B build_release
+cmake -D CMAKE_BUILD_TYPE=Release -D NK_BUILD_TESTS=1 -D NK_BUILD_BENCHMARKS=1 -D NK_BUILD_BENCHMARKS_WITH_CBLAS=1 -B build_release
 cmake --build build_release --config Release
-build_release/simsimd_bench
-build_release/simsimd_bench --benchmark_filter=js
-build_release/simsimd_test_run_time
-build_release/simsimd_test_compile_time # no need to run this one, it's just a compile-time test
+build_release/nk_bench
+build_release/nk_bench --benchmark_filter=js
+build_release/nk_test_run_time
+build_release/nk_test_compile_time # no need to run this one, it's just a compile-time test
 ```
 
-To utilize `f16` instructions, use GCC 12 or newer, or Clang 16 or newer.
+To utilize `f16` instructions, use GCC 12+ or Clang 16+.
+To utilize Intel AMX and Arm SME extensions, use GCC 14+ or Clang 18+.
 To install them on Ubuntu 22.04, use:
 
 ```sh
@@ -49,14 +50,21 @@ sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-12 100
 sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-12 100
 ```
 
+To cross-compile for a different ISA, use CMake toolchains:
+
+```sh
+cmake -B build_riscv -D CMAKE_TOOLCHAIN_FILE=cmake/riscv64-linux-gnu.cmake -D NK_BUILD_TESTS=1
+cmake -B build_arm64 -D CMAKE_TOOLCHAIN_FILE=cmake/aarch64-linux-gnu.cmake -D NK_BUILD_TESTS=1
+```
+
 To compile with the default Apple Clang on macOS, use:
 
 ```sh
 brew install openblas
 cmake -D CMAKE_BUILD_TYPE=Release \
-      -D SIMSIMD_BUILD_TESTS=1 \
-      -D SIMSIMD_BUILD_BENCHMARKS=1 \
-      -D SIMSIMD_BUILD_BENCHMARKS_WITH_CBLAS=1 \
+      -D NK_BUILD_TESTS=1 \
+      -D NK_BUILD_BENCHMARKS=1 \
+      -D NK_BUILD_BENCHMARKS_WITH_CBLAS=1 \
       -D CMAKE_PREFIX_PATH="$(brew --prefix openblas)" \
       -D CMAKE_CXX_STANDARD_INCLUDE_DIRECTORIES="$(brew --prefix openblas)/include" \
       -B build_release
@@ -70,9 +78,9 @@ Replacing the default compiler across the entire system is not recommended on ma
 brew install llvm openblas
 unset DEVELOPER_DIR
 cmake -D CMAKE_BUILD_TYPE=Release \
-      -D SIMSIMD_BUILD_TESTS=1 \
-      -D SIMSIMD_BUILD_BENCHMARKS=1 \
-      -D SIMSIMD_BUILD_BENCHMARKS_WITH_CBLAS=1 \
+      -D NK_BUILD_TESTS=1 \
+      -D NK_BUILD_BENCHMARKS=1 \
+      -D NK_BUILD_BENCHMARKS_WITH_CBLAS=1 \
       -D CMAKE_CXX_STANDARD_INCLUDE_DIRECTORIES="$(brew --prefix openblas)/include" \
       -D CMAKE_C_LINK_FLAGS="-L$(xcrun --sdk macosx --show-sdk-path)/usr/lib" \
       -D CMAKE_EXE_LINKER_FLAGS="-L$(xcrun --sdk macosx --show-sdk-path)/usr/lib" \
@@ -83,6 +91,13 @@ cmake -D CMAKE_BUILD_TYPE=Release \
       -B build_release
 cmake --build build_release --config Release
 ```
+
+I'd recommend putting the following breakpoints:
+
+- `__asan::ReportGenericError` - to detect illegal memory accesses.
+- `__GI_exit` - to stop at exit points - the end of running any executable.
+- `__builtin_unreachable` - to catch unexpected code paths.
+- `_sz_assert_failure` - to catch StringZilla logic assertions.
 
 When benchmarking, make sure to disable multi-threading in the BLAS library, as it may interfere with the results:
 
@@ -105,7 +120,7 @@ pip install pytest pytest-repeat tabulate    # testing dependencies
 pytest scripts/test.py -s -x -Wd             # to run tests
 
 # to check supported SIMD instructions:
-python -c "import simsimd; print(simsimd.get_capabilities())"
+python -c "import numkong; print(numkong.get_capabilities())"
 ```
 
 Alternatively, use `uv` to create the virtual environment.
@@ -135,25 +150,25 @@ Benchmarking:
 
 ```sh
 pip install numpy scipy scikit-learn                 # for comparison baselines
-python scripts/bench_vectors.py                      # to run default benchmarks
-python scripts/bench_vectors.py --n 1000 --ndim 1536 # batch size and dimensions
+python scripts/bench_similarity.py                      # to run default benchmarks
+python scripts/bench_similarity.py --n 1000 --ndim 1536 # batch size and dimensions
 ```
 
 You can also benchmark against other libraries, filter the numeric types, and distance metrics:
 
 ```sh
-$ python scripts/bench_vectors.py --help
+$ python scripts/bench_similarity.py --help
 > usage: bench.py [-h] [--ndim NDIM] [-n COUNT]
 >                 [--metric {all,dot,spatial,binary,probability,sparse}]
 >                 [--dtype {all,bin8,int8,uint16,uint32,float16,float32,float64,bfloat16,complex32,complex64,complex128}] 
 >                 [--scipy] [--scikit] [--torch] [--tf] [--jax]
 > 
-> Benchmark SimSIMD vs. other libraries
+> Benchmark NumKong vs. other libraries
 > 
 > optional arguments:
 >   -h, --help            show this help message and exit
 >   --ndim NDIM           Number of dimensions in vectors (default: 1536) For binary vectors (e.g., Hamming, Jaccard), this is the number of bits. In
->                         case of SimSIMD, the inputs will be treated at the bit-level. Other packages will be matching/comparing 8-bit integers. The
+>                         case of NumKong, the inputs will be treated at the bit-level. Other packages will be matching/comparing 8-bit integers. The
 >                         volume of exchanged data will be identical, but the results will differ.
 >   -n COUNT, --count COUNT
 >                         Number of vectors per batch (default: 1) By default, when set to 1 the benchmark will generate many vectors of size (ndim, )
@@ -203,8 +218,8 @@ python -m cibuildwheel --platform windows
 ## Rust
 
 ```sh
-cargo test -p simsimd
-cargo test -p simsimd -- --nocapture # To see the output
+cargo test -p numkong
+cargo test -p numkong -- --nocapture # To see the output
 cargo bench
 open target/criterion/report/index.html
 ```

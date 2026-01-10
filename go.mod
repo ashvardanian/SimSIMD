@@ -1,3 +1,3 @@
-module github.com/ashvardanian/simsimd
+module github.com/ashvardanian/numkong
 
 go 1.19

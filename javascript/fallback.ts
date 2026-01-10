@@ -70,12 +70,12 @@ export function euclidean(
 
 
 /**
- * @brief Computes the cosine distance between two vectors.
+ * @brief Computes the angular distance between two vectors.
  * @param {Float64Array|Float32Array|Int8Array} a - The first vector.
  * @param {Float64Array|Float32Array|Int8Array} b - The second vector.
- * @returns {number} The cosine distance between vectors a and b.
+ * @returns {number} The angular distance between vectors a and b.
  */
-export function cosine(
+export function angular(
   a: Float64Array | Float32Array | Int8Array,
   b: Float64Array | Float32Array | Int8Array
 ): number {
@@ -224,7 +224,7 @@ export const jensenshannon = (a: Float64Array | Float32Array, b: Float64Array | 
 export default {
   sqeuclidean,
   euclidean,
-  cosine,
+  angular,
   inner,
   hamming,
   jaccard,

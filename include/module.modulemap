@@ -1,4 +1,4 @@
-module CSimSIMD {
-    header "simsimd/simsimd.h"
+module CNumKong {
+    header "numkong/numkong.h"
     export *
 }
