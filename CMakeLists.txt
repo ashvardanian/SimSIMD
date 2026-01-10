@@ -8,11 +8,11 @@ project(
     HOMEPAGE_URL "https://github.com/ashvardanian/numkong"
 )
 
-set(CMAKE_C_STANDARD 23)
+set(CMAKE_C_STANDARD 99)
 set(CMAKE_C_STANDARD_REQUIRED YES)
 set(CMAKE_C_EXTENSIONS NO)
 
-set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED YES)
 set(CMAKE_CXX_EXTENSIONS NO)
 
@@ -269,26 +269,8 @@ endif()
 
 # Build tests
 if(NK_BUILD_TESTS)
-    # Fetch Boost for high-precision reference computations
-    include(FetchContent)
-    FetchContent_Declare(
-        boost_multiprecision
-        GIT_REPOSITORY https://github.com/boostorg/multiprecision.git
-        GIT_TAG boost-1.89.0
-    )
-    FetchContent_Declare(
-        boost_config
-        GIT_REPOSITORY https://github.com/boostorg/config.git
-        GIT_TAG boost-1.89.0
-    )
-    FetchContent_MakeAvailable(boost_multiprecision boost_config)
-
     # C++ precision test (ULP-based error analysis)
     add_executable(nk_test scripts/test.cpp c/numkong.c)
-    target_include_directories(nk_test PRIVATE
-        ${boost_multiprecision_SOURCE_DIR}/include
-        ${boost_config_SOURCE_DIR}/include
-    )
     target_link_libraries(nk_test numkong m)
 
     if(OpenMP_FOUND)
