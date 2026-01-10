@@ -1,4 +1,9 @@
 {
+    "clangd.arguments": [
+        "--compile-commands-dir=${workspaceFolder}",
+        "-std=c++23"
+    ],
+    "C_Cpp.default.cppStandard": "c++23",
     "cSpell.words": [
         "allclose",
         "Altra",
