@@ -1,12 +1,12 @@
 /**
- *  @brief SIMD-accelerated Spatial Distances for f16 using SiFive (RVV + Zvfh).
+ *  @brief SIMD-accelerated Spatial Distances for f16 optimized for SiFive (RVV + Zvfh) CPUs.
  *  @file include/numkong/spatial/sifive.h
  *  @sa include/numkong/spatial.h
  *  @author Ash Vardanian
  *  @date January 5, 2026
  *
  *  Zvfh provides native half-precision (f16) vector operations.
- *  Uses widening operations (f16 -> f32) for precision accumulation.
+ *  Uses widening operations (f16 → f32) for precision accumulation.
  *
  *  Requires: RVV 1.0 + Zvfh extension (GCC 14+ or Clang 18+)
  */
@@ -27,7 +27,7 @@ extern "C" {
 /**
  *  @brief  L2 squared distance of two f16 vectors with f32 accumulation on SiFive.
  *
- *  L2²(a,b) = Σ(a[i] - b[i])²
+ *  L2²(a,b) = ∑(aᵢ − bᵢ)²
  *  Uses f16 difference, then widening square to f32.
  */
 NK_PUBLIC void nk_l2sq_f16_sifive(nk_f16_t const *a_scalars, nk_f16_t const *b_scalars, nk_size_t count_scalars,
@@ -60,7 +60,7 @@ NK_PUBLIC void nk_l2_f16_sifive(nk_f16_t const *a_scalars, nk_f16_t const *b_sca
 /**
  *  @brief  Angular distance of two f16 vectors on SiFive.
  *
- *  Angular = 1 - dot(a,b) / (||a|| × ||b||)
+ *  Angular = 1 − dot(a,b) / (‖a‖ ⨯ ‖b‖)
  *  Uses f32 accumulation for dot product and norms.
  */
 NK_PUBLIC void nk_angular_f16_sifive(nk_f16_t const *a_scalars, nk_f16_t const *b_scalars, nk_size_t count_scalars,
@@ -87,7 +87,7 @@ NK_PUBLIC void nk_angular_f16_sifive(nk_f16_t const *a_scalars, nk_f16_t const *
         b_sq_f32x1 = __riscv_vfredusum_vs_f32m2_f32m1(bb_f32x2, b_sq_f32x1, vl);
     }
 
-    // Finalize: 1 - dot / sqrt(a_sq * b_sq)
+    // Finalize: 1 - dot / √(‖a‖² × ‖b‖²)
     nk_f32_t dot = __riscv_vfmv_f_s_f32m1_f32(dot_f32x1);
     nk_f32_t a_sq = __riscv_vfmv_f_s_f32m1_f32(a_sq_f32x1);
     nk_f32_t b_sq = __riscv_vfmv_f_s_f32m1_f32(b_sq_f32x1);

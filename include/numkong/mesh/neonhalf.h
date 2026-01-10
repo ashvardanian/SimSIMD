@@ -4,6 +4,27 @@
  *  @sa include/numkong/mesh.h
  *  @author Ash Vardanian
  *  @date December 27, 2025
+ *
+ *  @section mesh_neonhalf_instructions ARM NEON FP16 Instructions (ARMv8.2-FP16)
+ *
+ *      Intrinsic                   Instruction                     Latency     Throughput
+ *                                                                              A76         M4+/V1+/Oryon
+ *      vld3_f16                    LD3 (V.4H x 3)                  6cy         1/cy        2/cy
+ *      vcvt_f32_f16                FCVTL (V.4S, V.4H)              3cy         2/cy        4/cy
+ *      vfmaq_f32                   FMLA (V.4S, V.4S, V.4S)         4cy         2/cy        4/cy
+ *      vaddq_f32                   FADD (V.4S, V.4S, V.4S)         2cy         2/cy        4/cy
+ *      vsubq_f32                   FSUB (V.4S, V.4S, V.4S)         2cy         2/cy        4/cy
+ *      vmulq_f32                   FMUL (V.4S, V.4S, V.4S)         3cy         2/cy        4/cy
+ *      vdupq_n_f32                 DUP (V.4S, scalar)              2cy         2/cy        4/cy
+ *      vaddvq_f32                  FADDP+FADDP (V.4S)              4cy         1/cy        2/cy
+ *
+ *  Mesh alignment algorithms (RMSD, Kabsch, Umeyama) for 3D point cloud registration using F16 input
+ *  with F32 intermediate precision. VLD3 provides efficient stride-3 deinterleaving for XYZ triplets,
+ *  then FCVTL widens to F32 for rotation matrix and centroid computations.
+ *
+ *  These algorithms compute optimal rigid body (Kabsch) or similarity (Umeyama) transformations
+ *  between point sets, commonly used in structural biology (protein alignment) and computer vision.
+ *  F16 storage halves memory for large point clouds while F32 arithmetic ensures numerical stability.
  */
 #ifndef NK_MESH_NEONHALF_H
 #define NK_MESH_NEONHALF_H
@@ -24,28 +45,26 @@
 extern "C" {
 #endif
 
-/*  Internal helper: Deinterleave 12 f16 values (4 xyz triplets) into separate x, y, z vectors.
- *  Uses NEON vld3_f16 for efficient stride-3 deinterleaving, then converts to f32.
- *
- *  Input: 12 contiguous f16 values [x0,y0,z0, x1,y1,z1, x2,y2,z2, x3,y3,z3]
- *  Output: x[4], y[4], z[4] vectors in f32
- */
 NK_INTERNAL void nk_deinterleave_f16x4_to_f32x4_neonhalf_(nk_f16_t const *ptr, float32x4_t *x_out, float32x4_t *y_out,
                                                           float32x4_t *z_out) {
+    // Deinterleave 12 f16 values (4 xyz triplets) into separate x, y, z vectors.
+    // Uses NEON vld3_f16 for efficient stride-3 deinterleaving, then converts to f32.
+    //
+    // Input: 12 contiguous f16 values [x0,y0,z0, x1,y1,z1, x2,y2,z2, x3,y3,z3]
+    // Output: x[4], y[4], z[4] vectors in f32
     float16x4x3_t xyz = vld3_f16((nk_f16_for_arm_simd_t const *)ptr);
     *x_out = vcvt_f32_f16(xyz.val[0]);
     *y_out = vcvt_f32_f16(xyz.val[1]);
     *z_out = vcvt_f32_f16(xyz.val[2]);
 }
 
-/*  Internal helper: Compute sum of squared differences after rigid transformation.
- *  Used by Kabsch algorithm for RMSD computation after rotation is applied.
- */
 NK_INTERNAL nk_f32_t nk_transformed_ssd_f16_neonhalf_(nk_f16_t const *a, nk_f16_t const *b, nk_size_t n,
                                                       nk_f32_t const *r, nk_f32_t scale, nk_f32_t centroid_a_x,
                                                       nk_f32_t centroid_a_y, nk_f32_t centroid_a_z,
                                                       nk_f32_t centroid_b_x, nk_f32_t centroid_b_y,
                                                       nk_f32_t centroid_b_z) {
+    // Compute sum of squared differences after rigid transformation.
+    // Used by Kabsch algorithm for RMSD computation after rotation is applied.
     float32x4_t const centroid_a_x_f32x4 = vdupq_n_f32(centroid_a_x);
     float32x4_t const centroid_a_y_f32x4 = vdupq_n_f32(centroid_a_y);
     float32x4_t const centroid_a_z_f32x4 = vdupq_n_f32(centroid_a_z);
@@ -528,7 +547,7 @@ NK_PUBLIC void nk_umeyama_f16_neonhalf(nk_f16_t const *a, nk_f16_t const *b, nk_
     r[7] = svd_v[6] * svd_u[3] + svd_v[7] * svd_u[4] + svd_v[8] * svd_u[5];
     r[8] = svd_v[6] * svd_u[6] + svd_v[7] * svd_u[7] + svd_v[8] * svd_u[8];
 
-    // Handle reflection and compute scale: c = trace(D*S) / variance_a
+    // Handle reflection and compute scale: c = trace(D × S) / variance(a)
     nk_f32_t det_r = nk_det3x3_f32_(r);
     nk_f32_t sign_det = det_r < 0 ? -1.0f : 1.0f;
     nk_f32_t trace_scaled_s = svd_s[0] + svd_s[4] + sign_det * svd_s[8];

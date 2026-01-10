@@ -9,8 +9,8 @@
  *
  *  Primary Use Cases (1-to-N focus):
  *
- *  - k-NN search: ‖a-b‖² = ‖a‖² + ‖b‖² - 2(a·b)
- *  - Cosine similarity: (a·b) / (‖a‖·‖b‖)
+ *  - k-NN search: ‖a-b‖² = ‖a‖² + ‖b‖² - 2(a × b)
+ *  - Cosine similarity: (a × b) / (‖a‖ × ‖b‖)
  *  - Sparse attention patterns
  *  - Embedding similarity matrices
  *  - k-means clustering, DBSCAN, hierarchical clustering
@@ -95,7 +95,7 @@
  *
  *  @section why_no_scaling Why No Alpha/Beta Scaling?
  *
- *  BLAS-style `C = α·A·B + β·C` scaling was considered but omitted. While useful for scientific
+ *  BLAS-style `C = α × A × B + β × C` scaling was considered but omitted. While useful for scientific
  *  computing (iterative solvers, matrix factorizations), it's rarely used in ML inference where
  *  frameworks handle such operations via graph fusion. More importantly, on chips with separate
  *  physical registers for vector and matrix operations (like AMX), moving scalars between register

@@ -7,7 +7,7 @@
  *  This file implements FlashAttention-2 style scaled dot-product attention (SDPA) optimized
  *  for Intel AMX instructions on Sapphire Rapids CPUs. The kernel computes:
  *
- *      O = softmax(Q @ K^T / sqrt(d)) @ V
+ *      O = softmax(Q × Kᵀ / √d) × V
  *
  *  Key features:
  *  - Online softmax: Mathematically exact, processes KV blocks incrementally
@@ -23,7 +23,7 @@
  *  Performance comparison with H100 FlashAttention-2:
  *  - H100 SXM5: ~335 TFLOPS (35% of 989 TFLOPS peak), 80GB HBM3
  *  - 100-core SPR: ~40 TFLOPS with FlashAttention (13% of 300 TFLOPS peak)
- *  - CPU advantage: 512GB-2TB DDR5 vs 80GB HBM → supports 10-25× longer contexts
+ *  - CPU advantage: 512GB-2TB DDR5 vs 80GB HBM → supports 10-25⨯ longer contexts
  *
  *  Expected performance per core:
  *  - Decode (query_len=1, kv_len=4K): 350-450 GOPS (softmax bound)
@@ -31,17 +31,31 @@
  *  - Long context (kv_len=64K+): 250-350 GOPS (memory bandwidth bound)
  *
  *  Block sizes:
- *  - Br = 16 (query block rows, matches AMX tile height)
- *  - Bc = 16 (KV block columns, fits 16×16 scores in 16 ZMM registers)
+ *  - Bᵣ = 16 (query block rows, matches AMX tile height)
+ *  - Bᶜ = 16 (KV block columns, fits 16×16 scores in 16 ZMM registers)
  *
  *  Algorithm (FlashAttention-2 style):
  *  For each query block:
- *    Initialize O_acc = 0, l = 0 (running sum), m = -inf (running max)
+ *    Initialize O = 0, rowsum = 0, rowmax = -∞
  *    For each KV block:
- *      S = Q @ K^T using AMX TDPBF16PS
+ *      S = Q × Kᵀ using AMX TDPBF16PS
  *      Apply online softmax: rescale old values, accumulate new
- *      O_acc = rescale(O_acc) + P @ V using AMX
- *    Finalize: O = O_acc / l
+ *      O = rescale(O) + P × V using AMX
+ *    Finalize: normalize O by row sums
+ *
+ *  @section sapphire_amx_attention_instructions Relevant Instructions
+ *
+ *      Intrinsic                   Instruction                     Sapphire
+ *      _tile_dpbf16ps              TDPBF16PS (TMM, TMM, TMM)       ~16cy (16x16x32 BF16)
+ *      _tile_dpbssd                TDPBSSD (TMM, TMM, TMM)         ~16cy (16x16x64 INT8)
+ *      _tile_loadd                 TILELOADD (TMM, MEM)            ~10cy @ p23
+ *      _tile_stored                TILESTORED (MEM, TMM)           ~10cy @ p4
+ *      _tile_zero                  TILEZERO (TMM)                  ~1cy
+ *      _mm512_fmadd_ps             VFMADD (ZMM, ZMM, ZMM)          4cy @ p05
+ *      _mm512_mul_ps               VMULPS (ZMM, ZMM, ZMM)          4cy @ p05
+ *      _mm512_max_ps               VMAXPS (ZMM, ZMM, ZMM)          4cy @ p05
+ *      _mm512_reduce_max_ps        (pseudo: VHADDPS chain)         ~8cy
+ *      _mm512_reduce_add_ps        (pseudo: VHADDPS chain)         ~8cy
  */
 #ifndef NK_ATTENTION_SAPPHIRE_AMX_H
 #define NK_ATTENTION_SAPPHIRE_AMX_H
@@ -65,9 +79,7 @@
 extern "C" {
 #endif
 
-/* ============================================================================
- *  Packed KV Cache Structures
- * ============================================================================ */
+/* Packed KV Cache Structures */
 
 /**
  *  @brief Packed KV cache header for attention (64-byte aligned).
@@ -88,21 +100,21 @@ typedef struct {
     nk_u32_t reserved[9];     ///< Pad to 64 bytes
 } nk_attention_kv_packed_header_t;
 
-/* ============================================================================
- *  Fast Exp Approximation for AVX-512
+/**
+ *  @brief Fast exp approximation for AVX-512.
  *
  *  Uses Cody-Waite range reduction + Remez minimax polynomial.
- *  Accuracy: max error < 1 ULP for x in [-87.3, 88.7] (float range)
- *  Performance: ~15-20 cycles for 16 floats
- * ============================================================================ */
+ *  Accuracy: max error < 1 ULP for x ∈ [-87.3, 88.7] (float range).
+ *  Performance: ~15-20 cycles for 16 floats.
+ */
 
 /**
  *  @brief Fast vectorized exp(x) approximation using AVX-512.
  *
  *  Algorithm:
- *  1. Range reduction: x = n * ln(2) + r, where |r| < ln(2)/2
+ *  1. Range reduction: x = n × ln(2) + r, where |r| < ln(2)/2
  *  2. Polynomial approximation: exp(r) ≈ 1 + r + r²/2 + ... (degree 6)
- *  3. Reconstruction: exp(x) = 2^n * exp(r)
+ *  3. Reconstruction: exp(x) = 2ⁿ × exp(r)
  *
  *  @param x Input vector (16 floats)
  *  @return exp(x) for each element
@@ -121,7 +133,7 @@ NK_INTERNAL __m512 nk_exp_ps_avx512_(__m512 x) {
     // n = round(x / ln(2))
     __m512 n = _mm512_roundscale_ps(_mm512_mul_ps(x, log2e), _MM_FROUND_TO_NEAREST_INT);
 
-    // r = x - n * ln(2) using Cody-Waite for precision
+    // r = x - n × ln(2) using Cody-Waite for precision
     __m512 r = _mm512_fnmadd_ps(n, ln2_hi, x);
     r = _mm512_fnmadd_ps(n, ln2_lo, r);
 
@@ -136,8 +148,8 @@ NK_INTERNAL __m512 nk_exp_ps_avx512_(__m512 x) {
     p = _mm512_fmadd_ps(p, r, _mm512_set1_ps(1.0f));
     p = _mm512_fmadd_ps(p, r, _mm512_set1_ps(1.0f));
 
-    // Reconstruct: exp(x) = 2^n * exp(r)
-    // 2^n via IEEE 754 exponent manipulation
+    // Reconstruct: exp(x) = 2ⁿ × exp(r)
+    // 2ⁿ via IEEE 754 exponent manipulation
     __m512i ni = _mm512_cvtps_epi32(n);
     ni = _mm512_add_epi32(ni, _mm512_set1_epi32(127));
     ni = _mm512_slli_epi32(ni, 23);
@@ -173,21 +185,21 @@ NK_INTERNAL __m512 nk_exp_ps_fast_avx512_(__m512 x) {
     // n = round(x / ln(2))
     __m512 n = _mm512_roundscale_ps(_mm512_mul_ps(x, log2e), _MM_FROUND_TO_NEAREST_INT);
 
-    // r = x - n * ln(2) using Cody-Waite for precision
+    // r = x - n × ln(2) using Cody-Waite for precision
     __m512 r = _mm512_fnmadd_ps(n, ln2_hi, x);
     r = _mm512_fnmadd_ps(n, ln2_lo, r);
 
     // Polynomial approximation for exp(r): degree 4
     // Optimized coefficients for [-ln(2)/2, ln(2)/2]
     // exp(r) ≈ 1 + r + r²/2 + r³/6 + r⁴/24
-    // Using Horner form: ((c4*r + c3)*r + c2)*r + c1)*r + c0
+    // Using Horner form: ((c₄ × r + c₃) × r + c₂) × r + c₁) × r + c₀
     __m512 p = _mm512_set1_ps(4.1666666667e-2f);                 // 1/24
     p = _mm512_fmadd_ps(p, r, _mm512_set1_ps(1.6666666667e-1f)); // 1/6
     p = _mm512_fmadd_ps(p, r, _mm512_set1_ps(5.0000000000e-1f)); // 1/2
     p = _mm512_fmadd_ps(p, r, _mm512_set1_ps(1.0f));             // 1
     p = _mm512_fmadd_ps(p, r, _mm512_set1_ps(1.0f));             // 1
 
-    // Reconstruct: exp(x) = 2^n * exp(r)
+    // Reconstruct: exp(x) = 2ⁿ × exp(r)
     __m512i ni = _mm512_cvtps_epi32(n);
     ni = _mm512_add_epi32(ni, _mm512_set1_epi32(127));
     ni = _mm512_slli_epi32(ni, 23);
@@ -196,8 +208,8 @@ NK_INTERNAL __m512 nk_exp_ps_fast_avx512_(__m512 x) {
     return _mm512_mul_ps(p, pow2n);
 }
 
-/* ============================================================================
- *  Online Softmax Primitives
+/**
+ *  @brief Online softmax primitives.
  *
  *  These implement the online softmax algorithm from FlashAttention.
  *  Key insight: softmax can be computed incrementally by tracking:
@@ -205,9 +217,9 @@ NK_INTERNAL __m512 nk_exp_ps_fast_avx512_(__m512 x) {
  *  - l: running sum of exp(x - m)
  *
  *  When a new block arrives with larger values:
- *  - Rescale old sum: l = l * exp(old_m - new_m)
- *  - Add new contributions: l += sum(exp(new_x - new_m))
- * ============================================================================ */
+ *  - Rescale old sum: l = l × exp(m_old - m_new)
+ *  - Add new contributions: l += Σ exp(x_new - m_new)
+ */
 
 /**
  *  @brief State for online softmax computation.
@@ -220,7 +232,7 @@ typedef struct {
 } nk_attention_softmax_row_state_t;
 
 /**
- *  @brief Update softmax state with Bc=32 score block (optimized).
+ *  @brief Update softmax state with Bᶜ=32 score block (optimized).
  *
  *  Computes online softmax for 16×32 score block using AVX-512.
  *  Optimizations:
@@ -404,14 +416,14 @@ NK_INTERNAL void nk_attention_softmax_init_(nk_attention_softmax_row_state_t *st
  *
  *  For a 16×16 score block S[16][16]:
  *  1. Compute row-wise max of S
- *  2. Update running max: new_max = max(old_max, block_max)
- *  3. Rescale old sum: old_sum *= exp(old_max - new_max)
- *  4. Compute P = exp(S - new_max), store for P @ V
- *  5. Update sum: new_sum = old_sum + row_sum(P)
+ *  2. Update running max: newₘₐₓ = max(oldₘₐₓ, blockₘₐₓ)
+ *  3. Rescale old sum: oldₛᵤₘ × = exp(oldₘₐₓ - newₘₐₓ)
+ *  4. Compute P = exp(S - newₘₐₓ), store for P × V
+ *  5. Update sum: newₛᵤₘ = oldₛᵤₘ + row_sum(P)
  *
  *  @param state        Running softmax state (updated in place)
  *  @param scores       16×16 score block in row-major order (256 floats)
- *  @param scale        Scaling factor (1/sqrt(head_dim))
+ *  @param scale        Scaling factor (1/√head_dim)
  *  @param weights_out  Output: 16×16 attention weights P (pre-softmax normalized)
  */
 NK_INTERNAL void nk_attention_softmax_update_(nk_attention_softmax_row_state_t *state, nk_f32_t const *scores,
@@ -433,11 +445,11 @@ NK_INTERNAL void nk_attention_softmax_update_(nk_attention_softmax_row_state_t *
     __m512 old_max = state->row_max;
     __m512 new_max = _mm512_max_ps(old_max, row_max_new);
 
-    // Rescale old sum: l = l * exp(old_max - new_max)
+    // Rescale old sum: l = l × exp(oldₘₐₓ - newₘₐₓ)
     __m512 correction = nk_exp_ps_avx512_(_mm512_sub_ps(old_max, new_max));
     __m512 old_sum_rescaled = _mm512_mul_ps(state->row_sum, correction);
 
-    // Compute P = exp(S - new_max) for each row, accumulate sum
+    // Compute P = exp(S - newₘₐₓ) for each row, accumulate sum
     __m512 new_sum = old_sum_rescaled;
     float new_max_arr[16];
     _mm512_store_ps(new_max_arr, new_max);
@@ -460,7 +472,7 @@ NK_INTERNAL void nk_attention_softmax_update_(nk_attention_softmax_row_state_t *
  *  @brief Rescale output accumulator when max changes.
  *
  *  When processing a new KV block with larger scores, previous O accumulator
- *  needs rescaling: O = O * exp(old_max - new_max)
+ *  needs rescaling: O = O × exp(oldₘₐₓ - newₘₐₓ)
  *
  *  @param output       Output accumulator [16][head_dim] in F32
  *  @param head_dim     Head dimension
@@ -483,9 +495,7 @@ NK_INTERNAL void nk_attention_rescale_output_(nk_f32_t *output, nk_size_t head_d
     }
 }
 
-/* ============================================================================
- *  KV Cache Packing Functions
- * ============================================================================ */
+/* KV Cache Packing Functions */
 
 /**
  *  @brief Calculate packed KV cache size in bytes.
@@ -521,8 +531,8 @@ NK_PUBLIC nk_size_t nk_attention_kv_packed_size_sapphire_amx(nk_size_t num_kv_he
  *  Input layout: [num_kv_heads, seq_len, head_dim] in BF16, row-major
  *  Output: Packed tiles suitable for TDPBF16PS
  *
- *  For attention, K is transposed (K^T), so we pack with that in mind.
- *  K[h, s, d] accessed as K^T[h, d, s] → pack as B matrix for Q @ K^T
+ *  For attention, K is transposed (Kᵀ), so we pack with that in mind.
+ *  K[h, s, d] accessed as Kᵀ[h, d, s] → pack as B matrix for Q × Kᵀ
  *
  *  @param k            Source K matrix
  *  @param kv_packed    Destination packed buffer (header must be initialized)
@@ -545,9 +555,9 @@ NK_PUBLIC void nk_attention_pack_k_sapphire_amx(nk_bf16_t const *k, void *kv_pac
 
     nk_bf16_t *k_packed = (nk_bf16_t *)((char *)kv_packed + header->k_offset);
 
-    // For Q @ K^T, K acts as B matrix but transposed
-    // K[h, s, d] → K^T[h, d, s]
-    // Pack K^T into AMX B tile format with pair-interleaving
+    // For Q × Kᵀ, K acts as B matrix but transposed
+    // K[h, s, d] → Kᵀ[h, d, s]
+    // Pack Kᵀ into AMX B tile format with pair-interleaving
 
     nk_size_t tiles_per_seq = (seq_len + 15) / 16;
     nk_size_t tiles_per_depth = head_dim_padded / 32;
@@ -572,7 +582,7 @@ NK_PUBLIC void nk_attention_pack_k_sapphire_amx(nk_bf16_t const *k, void *kv_pac
 
                 // Pack with pair-interleaving for TDPBF16PS
                 // B tile layout: data[depth/2][col][depth%2]
-                // For K^T: depth is original head_dim, col is original seq position
+                // For Kᵀ: depth is original head_dim, col is original seq position
                 for (nk_size_t d = 0; d < 32; d += 2) {
                     for (nk_size_t s = 0; s < 16; s++) {
                         nk_size_t dst_idx = (d / 2) * 32 + s * 2;
@@ -605,7 +615,7 @@ NK_PUBLIC void nk_attention_pack_k_sapphire_amx(nk_bf16_t const *k, void *kv_pac
  *  Input layout: [num_kv_heads, seq_len, head_dim] in BF16, row-major
  *  Output: Packed tiles suitable for TDPBF16PS
  *
- *  For P @ V, V acts as B matrix (no transpose needed).
+ *  For P × V, V acts as B matrix (no transpose needed).
  *  V[h, s, d] → pack as B matrix
  *
  *  @param v            Source V matrix
@@ -667,15 +677,13 @@ NK_PUBLIC void nk_attention_pack_v_sapphire_amx(nk_bf16_t const *v, void *kv_pac
     }
 }
 
-/* ============================================================================
- *  Main Attention Kernels
- * ============================================================================ */
+/* Main Attention Kernels */
 
 /**
- *  @brief Extract K block from packed format: K^T[head_dim, Bc] for a given kv_block.
+ *  @brief Extract K block from packed format: Kᵀ[head_dim, Bᶜ] for a given kv_block.
  *
- *  K is packed as K^T for Q @ K^T, with pair-interleaving.
- *  Output is in row-major F32 format: k_out[d * Bc + ki] = K^T[d, ki]
+ *  K is packed as Kᵀ for Q × Kᵀ, with pair-interleaving.
+ *  Output is in row-major F32 format: k_out[d × Bᶜ + kᵢ] = Kᵀ[d, kᵢ]
  */
 NK_INTERNAL void nk_attention_extract_k_block_(nk_bf16_t const *k_packed, nk_f32_t *k_out, nk_size_t kv_h,
                                                nk_size_t kv_block_start, nk_size_t valid_kv, nk_size_t head_dim,
@@ -717,10 +725,10 @@ NK_INTERNAL void nk_attention_extract_k_block_(nk_bf16_t const *k_packed, nk_f32
 }
 
 /**
- *  @brief Extract V block from packed format: V[Bc, head_dim] for a given kv_block.
+ *  @brief Extract V block from packed format: V[Bᶜ, head_dim] for a given kv_block.
  *
- *  V is packed for P @ V, with pair-interleaving.
- *  Output is in row-major F32 format: v_out[ki * head_dim + d] = V[ki, d]
+ *  V is packed for P × V, with pair-interleaving.
+ *  Output is in row-major F32 format: v_out[kᵢ × head_dim + d] = V[kᵢ, d]
  */
 NK_INTERNAL void nk_attention_extract_v_block_(nk_bf16_t const *v_packed, nk_f32_t *v_out, nk_size_t kv_h,
                                                nk_size_t kv_block_start, nk_size_t valid_kv, nk_size_t head_dim,
@@ -762,7 +770,7 @@ NK_INTERNAL void nk_attention_extract_v_block_(nk_bf16_t const *v_packed, nk_f32
 /**
  *  @brief Scaled dot-product attention with pre-packed KV cache.
  *
- *  Computes: O = softmax(Q @ K^T * scale) @ V
+ *  Computes: O = softmax(Q × Kᵀ × scale) × V
  *
  *  Uses FlashAttention-2 algorithm:
  *  - Process KV in blocks to maintain O(N) memory
@@ -777,7 +785,7 @@ NK_INTERNAL void nk_attention_extract_v_block_(nk_bf16_t const *v_packed, nk_f32
  *  @param query_len    Number of query positions (1 for decode, batch for prefill)
  *  @param kv_len       Context length (K/V sequence length)
  *  @param head_dim     Head dimension (64, 112, or 128)
- *  @param scale        Scaling factor, typically 1/sqrt(head_dim)
+ *  @param scale        Scaling factor, typically 1/√head_dim
  */
 NK_PUBLIC void nk_attention_bf16_sapphire_amx(nk_bf16_t const *q, void const *kv_packed, nk_f32_t *output,
                                               nk_size_t num_heads, nk_size_t num_kv_heads, nk_size_t query_len,
@@ -795,7 +803,7 @@ NK_PUBLIC void nk_attention_bf16_sapphire_amx(nk_bf16_t const *q, void const *kv
     nk_amx_tile_configure_sapphire_amx_();
 
     // Temporary buffers (aligned to 64 bytes)
-    NK_ALIGN64 nk_f32_t scores[16 * 16];  // S = Q @ K^T block
+    NK_ALIGN64 nk_f32_t scores[16 * 16];  // S = Q × Kᵀ block
     NK_ALIGN64 nk_f32_t weights[16 * 16]; // P = softmax(S)
     NK_ALIGN64 nk_f32_t o_acc[16 * 256];  // Output accumulator (max head_dim=256)
 
@@ -821,7 +829,7 @@ NK_PUBLIC void nk_attention_bf16_sapphire_amx(nk_bf16_t const *q, void const *kv
             for (nk_size_t i = 0; i < valid_q * head_dim_padded; i++) { o_acc[i] = 0.0f; }
 
             // Temporary buffers for extracted K and V blocks
-            NK_ALIGN64 nk_f32_t k_block[16 * 256]; // K^T block [head_dim, 16]
+            NK_ALIGN64 nk_f32_t k_block[16 * 256]; // Kᵀ block [head_dim, 16]
             NK_ALIGN64 nk_f32_t v_block[16 * 256]; // V block [16, head_dim]
             NK_ALIGN64 nk_f32_t q_block[16 * 256]; // Q block [16, head_dim]
 
@@ -840,7 +848,7 @@ NK_PUBLIC void nk_attention_bf16_sapphire_amx(nk_bf16_t const *q, void const *kv
                 // Extract K block: K^T[head_dim, valid_kv] using bulk extraction
                 nk_attention_extract_k_block_(k_packed, k_block, kv_h, kvb, valid_kv, head_dim, kv_len);
 
-                // Phase 1: Compute S = Q @ K^T using AVX-512 FMA
+                // Phase 1: Compute S = Q × Kᵀ using AVX-512 FMA
                 for (nk_size_t qi = 0; qi < valid_q; qi++) {
                     for (nk_size_t ki = 0; ki < valid_kv; ki++) {
                         __m512 sum_v = _mm512_setzero_ps();
@@ -881,7 +889,7 @@ NK_PUBLIC void nk_attention_bf16_sapphire_amx(nk_bf16_t const *q, void const *kv
                 // Extract V block: V[valid_kv, head_dim] using bulk extraction
                 nk_attention_extract_v_block_(v_packed, v_block, kv_h, kvb, valid_kv, head_dim, kv_len);
 
-                // Phase 3: Compute O_acc += P @ V using AVX-512 FMA
+                // Phase 3: Compute O += P × V using AVX-512 FMA
                 for (nk_size_t qi = 0; qi < valid_q; qi++) {
                     nk_size_t d = 0;
                     // Vectorized loop over head_dim
@@ -905,7 +913,7 @@ NK_PUBLIC void nk_attention_bf16_sapphire_amx(nk_bf16_t const *q, void const *kv
                 }
             }
 
-            // Finalize: O = O_acc / l
+            // Finalize: normalize O by row sums
             float row_sums[16];
             _mm512_store_ps(row_sums, softmax_state.row_sum);
 
@@ -923,12 +931,12 @@ NK_PUBLIC void nk_attention_bf16_sapphire_amx(nk_bf16_t const *q, void const *kv
  *  @brief AMX-optimized attention kernel using TDPBF16PS for both matmuls.
  *
  *  This variant uses:
- *  - Bc=32 blocking to align with V packing (32 seq positions per tile)
- *  - _tile_dpbf16ps for Q @ K^T (using 2 K tiles per block for 32 columns)
- *  - _mm512_cvtneps_pbh for F32→BF16 conversion (P weights)
- *  - _tile_dpbf16ps for P @ V (using pre-packed V tiles directly)
+ *  - Bᶜ=32 blocking to align with V packing (32 seq positions per tile)
+ *  - `_tile_dpbf16ps` for Q × Kᵀ (using 2 K tiles per block for 32 columns)
+ *  - `_mm512_cvtneps_pbh` for F32 → BF16 conversion (P weights)
+ *  - `_tile_dpbf16ps` for P × V (using pre-packed V tiles directly)
  *
- *  Block sizes: Br=16, Bc=32
+ *  Block sizes: Bᵣ=16, Bᶜ=32
  */
 NK_PUBLIC void nk_attention_bf16_amx_bc32_sapphire_amx(nk_bf16_t const *q, void const *kv_packed, nk_f32_t *output,
                                                        nk_size_t num_heads, nk_size_t num_kv_heads, nk_size_t query_len,
@@ -994,7 +1002,7 @@ NK_PUBLIC void nk_attention_bf16_amx_bc32_sapphire_amx(nk_bf16_t const *q, void 
             for (nk_size_t kvb = 0; kvb < kv_len; kvb += Bc) {
                 nk_size_t valid_kv = (kvb + Bc <= kv_len) ? Bc : (kv_len - kvb);
 
-                // ========== Phase 1: S = Q @ K^T using AMX ==========
+                // Phase 1: S = Q × Kᵀ using AMX
                 // Need 2 K tiles per block (each K tile has 16 columns)
                 nk_size_t k_tile_idx0 = kvb / 16;        // First K tile
                 nk_size_t k_tile_idx1 = (kvb + 16) / 16; // Second K tile
@@ -1101,12 +1109,12 @@ NK_PUBLIC void nk_attention_bf16_amx_bc32_sapphire_amx(nk_bf16_t const *q, void 
                     for (nk_size_t qi = 0; qi < 16; qi++) { _mm512_store_ps(&scores[qi * 32 + 16], neg_inf); }
                 }
 
-                // ========== Phase 2: Online Softmax (fast degree-4 exp) ==========
+                // Phase 2: online softmax (fast degree-4 exp)
                 __m512 old_max = softmax_state.row_max;
                 nk_attention_softmax_update_bc32_fast_(&softmax_state, scores, scale, weights);
                 nk_attention_rescale_output_(o_acc, head_dim_padded, old_max, softmax_state.row_max);
 
-                // ========== Phase 3: O += P @ V using AMX ==========
+                // Phase 3: O += P × V using AMX
                 // Convert P[16, 32] from F32 to BF16 and pack as A-tile
                 for (nk_size_t qi = 0; qi < 16; qi++) {
                     for (nk_size_t ki = 0; ki < 32; ki += 16) {
@@ -1163,7 +1171,7 @@ NK_PUBLIC void nk_attention_bf16_amx_bc32_sapphire_amx(nk_bf16_t const *q, void 
                 }
             }
 
-            // ========== Finalize: O = O_acc / l ==========
+            // Finalize: normalize O by row sums
             float row_sums[16];
             _mm512_store_ps(row_sums, softmax_state.row_sum);
             for (nk_size_t qi = 0; qi < valid_q; qi++) {
@@ -1186,14 +1194,14 @@ NK_PUBLIC void nk_attention_bf16_amx_bc32_sapphire_amx(nk_bf16_t const *q, void 
  *  4. Scores stored directly to softmax input buffer
  *
  *  Tile register allocation:
- *  - TMM0: Score accumulator (cols 0:16)
- *  - TMM1: Q tile (reloaded per depth iteration)
- *  - TMM2: K tile 0
- *  - TMM3: Score accumulator (cols 16:32)
- *  - TMM4: K tile 1
- *  - TMM5: Output accumulator
- *  - TMM6: P tile (loaded once per KV block)
- *  - TMM7: V tile
+ *  - TMM₀: Score accumulator (cols 0:16)
+ *  - TMM₁: Q tile (reloaded per depth iteration)
+ *  - TMM₂: K tile 0
+ *  - TMM₃: Score accumulator (cols 16:32)
+ *  - TMM₄: K tile 1
+ *  - TMM₅: Output accumulator
+ *  - TMM₆: P tile (loaded once per KV block)
+ *  - TMM₇: V tile
  */
 NK_PUBLIC void nk_attention_bf16_amx_optimized_sapphire_amx(nk_bf16_t const *q, void const *kv_packed, nk_f32_t *output,
                                                             nk_size_t num_heads, nk_size_t num_kv_heads,
@@ -1245,9 +1253,7 @@ NK_PUBLIC void nk_attention_bf16_amx_optimized_sapphire_amx(nk_bf16_t const *q, 
         for (nk_size_t qb = 0; qb < query_len; qb += Br) {
             nk_size_t valid_q = (qb + Br <= query_len) ? Br : (query_len - qb);
 
-            // ============================================================
-            // OPTIMIZATION 1: Pre-pack Q tiles ONCE for all KV blocks
-            // ============================================================
+            // Pre-pack Q tiles once for all KV blocks
             for (nk_size_t dt = 0; dt < tiles_per_depth; dt++) {
                 nk_size_t depth_start = dt * 32;
                 if (depth_start + 32 <= head_dim) {
@@ -1297,9 +1303,7 @@ NK_PUBLIC void nk_attention_bf16_amx_optimized_sapphire_amx(nk_bf16_t const *q, 
                 nk_size_t k_tile_idx0 = kvb / 16;
                 nk_size_t k_tile_idx1 = (kvb + 16) / 16;
 
-                // ============================================================
-                // Phase 1: S = Q @ K^T using pre-packed Q tiles
-                // ============================================================
+                // Phase 1: S = Q × Kᵀ using pre-packed Q tiles
                 _tile_zero(0); // Score cols 0:16
                 _tile_zero(3); // Score cols 16:32
 
@@ -1319,9 +1323,6 @@ NK_PUBLIC void nk_attention_bf16_amx_optimized_sapphire_amx(nk_bf16_t const *q, 
                     }
                 }
 
-                // ============================================================
-                // OPTIMIZATION 3: Direct tile store to score buffer
-                // ============================================================
                 // Store first 16 columns directly to scores[0:16]
                 _tile_stored(0, &scores[0][0], 128); // stride=128 bytes (32 floats)
 
@@ -1352,16 +1353,12 @@ NK_PUBLIC void nk_attention_bf16_amx_optimized_sapphire_amx(nk_bf16_t const *q, 
                     }
                 }
 
-                // ============================================================
-                // Phase 2: Online Softmax (using fast degree-4 exp)
-                // ============================================================
+                // Phase 2: online softmax (fast degree-4 exp)
                 __m512 old_max = softmax_state.row_max;
                 nk_attention_softmax_update_bc32_fast_(&softmax_state, &scores[0][0], scale, &weights[0][0]);
                 nk_attention_rescale_output_(&o_acc[0][0], head_dim_padded, old_max, softmax_state.row_max);
 
-                // ============================================================
-                // Phase 3: O += P @ V with hoisted P tile load
-                // ============================================================
+                // Phase 3: O += P × V with hoisted P tile load
                 // Convert F32 weights to BF16 P tile (once per KV block)
                 for (nk_size_t qi = 0; qi < 16; qi++) {
                     __m512 p0 = _mm512_load_ps(&weights[qi][0]);
@@ -1372,10 +1369,8 @@ NK_PUBLIC void nk_attention_bf16_amx_optimized_sapphire_amx(nk_bf16_t const *q, 
                     *(__m256bh *)&p_tile[qi][16] = pb1;
                 }
 
-                // ============================================================
-                // OPTIMIZATION 2: Load P tile ONCE, reuse for all V tiles
-                // ============================================================
-                _tile_loadd(6, p_tile, 64); // Load P once!
+                // Load P tile once, reuse for all V tiles
+                _tile_loadd(6, p_tile, 64);
 
                 nk_size_t v_seq_tile = kvb / 32;
 
@@ -1413,7 +1408,7 @@ NK_PUBLIC void nk_attention_bf16_amx_optimized_sapphire_amx(nk_bf16_t const *q, 
                 }
             }
 
-            // Finalize: O = O_acc / l
+            // Finalize: normalize O by row sums
             float row_sums[16];
             _mm512_store_ps(row_sums, softmax_state.row_sum);
             for (nk_size_t qi = 0; qi < valid_q; qi++) {
@@ -1433,7 +1428,7 @@ NK_PUBLIC void nk_attention_bf16_amx_optimized_sapphire_amx(nk_bf16_t const *q, 
  *
  *  Same as nk_attention_bf16_sapphire_amx but applies causal mask:
  *  - For position i, only attend to positions 0..i (mask future tokens)
- *  - Masked positions get -inf before softmax
+ *  - Masked positions get -∞ before softmax
  *
  *  Optimization: Completely skip KV blocks where all positions would be masked.
  */

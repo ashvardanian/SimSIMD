@@ -1,5 +1,5 @@
 /**
- *  @brief SIMD-accelerated Dot Products for bf16 using XuanTie (RVV + Zvfbfwma).
+ *  @brief SIMD-accelerated Dot Products for bf16 optimized for XuanTie (RVV + Zvfbfwma) CPUs.
  *  @file include/numkong/dot/xuantie.h
  *  @sa include/numkong/dot.h
  *  @author Ash Vardanian
@@ -7,7 +7,7 @@
  *
  *  Alibaba XuanTie C930 and similar chips implement RVV 1.0 with Zvfbfwma extension.
  *  Zvfbfwma provides widening bf16 fused multiply-accumulate to f32:
- *    vfwmaccbf16: f32 ← bf16 × bf16
+ *    vfwmaccbf16: f32 ← bf16 ⨯ bf16
  *
  *  Requires: RVV 1.0 + Zvfbfwma extension (GCC 14+ or Clang 18+)
  */
@@ -36,7 +36,7 @@ NK_PUBLIC void nk_dot_bf16_xuantie(nk_bf16_t const *a_scalars, nk_bf16_t const *
         vl = __riscv_vsetvl_e16m1(count_scalars);
         vbfloat16m1_t a_bf16x1 = __riscv_vle16_v_bf16m1((bfloat16_t const *)a_scalars, vl);
         vbfloat16m1_t b_bf16x1 = __riscv_vle16_v_bf16m1((bfloat16_t const *)b_scalars, vl);
-        // Widening bf16 FMA: f32 ← bf16 × bf16
+        // Widening bf16 FMA: f32 ← bf16 ⨯ bf16
         vfloat32m2_t acc_f32x2 = __riscv_vfmv_v_f_f32m2(0.0f, vl);
         acc_f32x2 = __riscv_vfwmaccbf16_vv_f32m2(acc_f32x2, a_bf16x1, b_bf16x1, vl);
         // Reduction sum

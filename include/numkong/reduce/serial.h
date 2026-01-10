@@ -1,5 +1,5 @@
 /**
- *  @brief SIMD-accelerated horizontal reduction operations for SIMD-free CPUs.
+ *  @brief SIMD-accelerated horizontal reduction operations optimized for Serial (SIMD-free) CPUs.
  *  @file include/numkong/reduce/serial.h
  *  @sa include/numkong/reduce.h
  *  @author Ash Vardanian

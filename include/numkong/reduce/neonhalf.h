@@ -4,6 +4,29 @@
  *  @sa include/numkong/reduce.h
  *  @author Ash Vardanian
  *  @date December 27, 2025
+ *
+ *  @section reduce_neonhalf_instructions ARM NEON FP16 Instructions (ARMv8.2-FP16)
+ *
+ *      Intrinsic                   Instruction                     Latency     Throughput
+ *                                                                              A76         M4+/V1+/Oryon
+ *      vld1q_f16                   LD1 (V.8H)                      4cy         2/cy        3/cy
+ *      vaddq_f16                   FADD (V.8H, V.8H, V.8H)         2cy         2/cy        4/cy
+ *      vadd_f16                    FADD (V.4H, V.4H, V.4H)         2cy         2/cy        4/cy
+ *      vpadd_f16                   FADDP (V.4H, V.4H, V.4H)        2cy         2/cy        4/cy
+ *      vcvt_f32_f16                FCVTL (V.4S, V.4H)              3cy         2/cy        4/cy
+ *      vcltq_f16                   FCMLT (V.8H, V.8H, V.8H)        2cy         2/cy        4/cy
+ *      vcgtq_f16                   FCMGT (V.8H, V.8H, V.8H)        2cy         2/cy        4/cy
+ *      vbslq_f16                   BSL (V.16B, V.16B, V.16B)       2cy         2/cy        4/cy
+ *      vmovl_u16                   UXTL (V.4S, V.4H)               2cy         2/cy        4/cy
+ *      vbslq_s32                   BSL (V.16B, V.16B, V.16B)       2cy         2/cy        4/cy
+ *
+ *  The ARMv8.2-FP16 extension enables native half-precision reductions, processing 8 F16 elements
+ *  per vector operation. For sum reductions, accumulation is performed in F16 then converted to F32
+ *  for the final result to avoid overflow in large arrays.
+ *
+ *  Min/max reductions track both values and indices using F16 comparisons with 32-bit index vectors.
+ *  The BSL (bitwise select) instruction enables branchless conditional updates of both value and
+ *  index lanes based on comparison masks.
  */
 #ifndef NK_REDUCE_NEONHALF_H
 #define NK_REDUCE_NEONHALF_H

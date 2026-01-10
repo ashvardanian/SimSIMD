@@ -2200,7 +2200,7 @@ where
 // region: Tensor Elementwise Operations
 
 impl<T: Clone + Scale, const MAX_RANK: usize> Tensor<T, Global, MAX_RANK> {
-    /// Apply element-wise scale: result[i] = alpha * self[i] + beta
+    /// Apply element-wise scale: result[i] = α · self[i] + β
     ///
     /// Returns a new array with the scaled values.
     pub fn scale(
@@ -2213,7 +2213,7 @@ impl<T: Clone + Scale, const MAX_RANK: usize> Tensor<T, Global, MAX_RANK> {
         Ok(result)
     }
 
-    /// Apply element-wise scale in-place: self[i] = alpha * self[i] + beta
+    /// Apply element-wise scale in-place: self[i] = α · self[i] + β
     pub fn scale_inplace(&mut self, alpha: T::Scalar, beta: T::Scalar) {
         // Need a temporary for in-place operation since input and output overlap
         let ptr = self.as_ptr();
@@ -2266,7 +2266,7 @@ impl<T: Clone + Sum, const MAX_RANK: usize> Tensor<T, Global, MAX_RANK> {
 }
 
 impl<T: Clone + WSum, const MAX_RANK: usize> Tensor<T, Global, MAX_RANK> {
-    /// Weighted sum: result[i] = alpha * self[i] + beta * other[i]
+    /// Weighted sum: result[i] = α · self[i] + β · other[i]
     ///
     /// Returns a new array with the weighted sum.
     pub fn wsum<const OTHER_MAX_RANK: usize>(
@@ -2294,7 +2294,7 @@ impl<T: Clone + WSum, const MAX_RANK: usize> Tensor<T, Global, MAX_RANK> {
 }
 
 impl<T: Clone + FMA, const MAX_RANK: usize> Tensor<T, Global, MAX_RANK> {
-    /// Fused multiply-add: result[i] = alpha * self[i] * b[i] + beta * c[i]
+    /// Fused multiply-add: result[i] = α · self[i] · b[i] + β · c[i]
     ///
     /// Returns a new array with the FMA result.
     pub fn fma<const B_MAX_RANK: usize, const C_MAX_RANK: usize>(
@@ -2570,7 +2570,7 @@ mod tests {
         let c = a.matmul(&packed_b);
 
         assert_eq!(c.shape(), &[4, 16]);
-        // Each element = dot(row_a, row_b) = sum(1.0 * 1.0) * 8 = 8.0
+        // Each element = dot(row_a, row_b) = ∑(1.0 · 1.0) · 8 = 8.0
         assert!((c.as_slice()[0] - 8.0).abs() < 1e-5);
     }
 
@@ -2742,7 +2742,7 @@ mod tests {
         let c = a.matmul_parallel(&packed_b, &mut pool);
 
         assert_eq!(c.shape(), &[64, 32]);
-        // Each element = sum of 128 products of 1.0 * 1.0 = 128.0
+        // Each element = ∑(128 products of 1.0 · 1.0) = 128.0
         assert!((c.as_slice()[0] - 128.0).abs() < 1e-5);
     }
 

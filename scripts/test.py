@@ -64,8 +64,10 @@ try:
 
     numpy_available = True
 
+    # Inner product: ∑ᵢ xᵢ · yᵢ
     baseline_inner = np.inner
     baseline_intersect = lambda x, y: len(np.intersect1d(x, y))
+    # Bilinear form: x^T · z · y
     baseline_bilinear = lambda x, y, z: x @ z @ y
 
     def _normalize_element_wise(r, dtype_new):
@@ -103,6 +105,7 @@ try:
             return larger_dtype, larger_dtype
 
     def baseline_scale(x, alpha, beta):
+        """Scale operation: α · x + β"""
         compute_dtype, _ = _computation_dtype(x, alpha)
         result = alpha * x.astype(compute_dtype) + beta
         return _normalize_element_wise(result, x.dtype)
@@ -113,11 +116,13 @@ try:
         return _normalize_element_wise(result, x.dtype)
 
     def baseline_wsum(x, y, alpha, beta):
+        """Weighted sum: α · x + β · y"""
         compute_dtype, _ = _computation_dtype(x, y)
         result = x.astype(compute_dtype) * alpha + y.astype(compute_dtype) * beta
         return _normalize_element_wise(result, x.dtype)
 
     def baseline_fma(x, y, z, alpha, beta):
+        """Fused multiply-add: α · x · y + β · z"""
         compute_dtype, _ = _computation_dtype(x, y)
         result = x.astype(compute_dtype) * y.astype(compute_dtype) * alpha + z.astype(compute_dtype) * beta
         return _normalize_element_wise(result, x.dtype)
@@ -144,10 +149,12 @@ except:
     # NumPy is not installed, most tests will be skipped
     numpy_available = False
 
+    # Inner product: ∑ᵢ xᵢ · yᵢ
     baseline_inner = lambda x, y: sum(x[i] * y[i] for i in range(len(x)))
     baseline_intersect = lambda x, y: len(set(x).intersection(y))
 
     def baseline_bilinear(x, y, z):
+        """Bilinear form: ∑ᵢ ∑ⱼ xᵢ · zᵢⱼ · yⱼ"""
         result = 0
         for i in range(len(x)):
             for j in range(len(y)):
@@ -155,15 +162,18 @@ except:
         return result
 
     def baseline_scale(x, alpha, beta):
+        """Scale operation: α · x + β"""
         return [alpha * xi + beta for xi in x]
 
     def baseline_sum(x, y):
         return [xi + yi for xi, yi in zip(x, y)]
 
     def baseline_fma(x, y, z, alpha, beta):
+        """Fused multiply-add: α · x · y + β · z"""
         return [(alpha * xi) * yi + beta * zi for xi, yi, zi in zip(x, y, z)]
 
     def baseline_wsum(x, y, alpha, beta):
+        """Weighted sum: α · x + β · y"""
         return [(alpha * xi) + beta * yi for xi, yi in zip(x, y)]
 
     def baseline_add(x, y, out=None):
@@ -210,8 +220,11 @@ except:
     # SciPy is not installed, some tests will be skipped
     scipy_available = False
 
+    # Cosine/angular distance: 1 - (x · y) / (‖x‖ · ‖y‖)
     baseline_angular = lambda x, y: 1.0 - np.dot(x, y) / (np.linalg.norm(x) * np.linalg.norm(y))
+    # Euclidean distance: √(∑ᵢ (xᵢ - yᵢ)²)
     baseline_euclidean = lambda x, y: np.array([np.sqrt(np.sum((x - y) ** 2))])
+    # Squared Euclidean distance: ∑ᵢ (xᵢ - yᵢ)²
     baseline_sqeuclidean = lambda x, y: np.sum((x - y) ** 2)
     baseline_jensenshannon = lambda p, q: (np.sum((np.sqrt(p) - np.sqrt(q)) ** 2)) / 2
     baseline_hamming = lambda x, y: np.logical_xor(x, y).sum()

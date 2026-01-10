@@ -1,9 +1,41 @@
 /**
- *  @brief SIMD-accelerated Dot Products for Real and Complex Numbers optimized for Arm NEON-capable CPUs.
+ *  @brief SIMD-accelerated Elementwise Operations using FP16 for Arm NEON-capable CPUs.
  *  @file include/numkong/elementwise/neonhalf.h
  *  @sa include/numkong/elementwise.h
  *  @author Ash Vardanian
  *  @date December 27, 2025
+ *
+ *  @section elementwise_neonhalf_instructions ARM NEON FP16 Instructions (ARMv8.2-FP16)
+ *
+ *      Intrinsic                   Instruction                     Latency     Throughput
+ *                                                                              A76         M4+/V1+/Oryon
+ *      vld1q_f16                   LD1 (V.8H)                      4cy         2/cy        3/cy
+ *      vst1q_f16                   ST1 (V.8H)                      2cy         2/cy        3/cy
+ *      vaddq_f16                   FADD (V.8H, V.8H, V.8H)         2cy         2/cy        4/cy
+ *      vmulq_f16                   FMUL (V.8H, V.8H, V.8H)         3cy         2/cy        4/cy
+ *      vmulq_n_f16                 FMUL (V.8H, V.8H, scalar)       3cy         2/cy        4/cy
+ *      vfmaq_f16                   FMLA (V.8H, V.8H, V.8H)         4cy         2/cy        4/cy
+ *      vfmaq_n_f16                 FMLA (V.8H, V.8H, scalar)       4cy         2/cy        4/cy
+ *      vdupq_n_f16                 DUP (V.8H, scalar)              2cy         2/cy        4/cy
+ *      vld1_u8                     LD1 (V.8B)                      4cy         2/cy        3/cy
+ *      vld1_s8                     LD1 (V.8B)                      4cy         2/cy        3/cy
+ *      vmovl_u8                    UXTL (V.8H, V.8B)               2cy         2/cy        4/cy
+ *      vmovl_s8                    SXTL (V.8H, V.8B)               2cy         2/cy        4/cy
+ *      vcvtq_f16_u16               UCVTF (V.8H, V.8H)              3cy         2/cy        4/cy
+ *      vcvtq_f16_s16               SCVTF (V.8H, V.8H)              3cy         2/cy        4/cy
+ *      vcvtaq_u16_f16              FCVTAU (V.8H, V.8H)             3cy         2/cy        4/cy
+ *      vcvtaq_s16_f16              FCVTAS (V.8H, V.8H)             3cy         2/cy        4/cy
+ *      vqmovn_u16                  UQXTN (V.8B, V.8H)              3cy         2/cy        4/cy
+ *      vqmovn_s16                  SQXTN (V.8B, V.8H)              3cy         2/cy        4/cy
+ *      vqaddq_u8                   UQADD (V.16B, V.16B, V.16B)     2cy         2/cy        4/cy
+ *      vqaddq_s8                   SQADD (V.16B, V.16B, V.16B)     2cy         2/cy        4/cy
+ *
+ *  The ARMv8.2-FP16 extension enables native half-precision element-wise operations, processing 8
+ *  F16 elements per instruction. Operations like sum, scale, wsum, and fma work directly in F16,
+ *  avoiding conversion overhead while halving memory bandwidth vs F32.
+ *
+ *  For int8 element-wise operations, values are widened to F16 for arithmetic via UCVTF/SCVTF,
+ *  then narrowed back with saturating conversion (FCVTA + UQXTN/SQXTN) to handle overflow gracefully.
  */
 #ifndef NK_ELEMENTWISE_NEONHALF_H
 #define NK_ELEMENTWISE_NEONHALF_H
@@ -18,7 +50,7 @@
 #endif
 
 #include "numkong/types.h"
-#include "numkong/cast/serial.h" // nk_f32_to_i8_serial
+#include "numkong/cast/serial.h" // `nk_f32_to_i8_serial`
 
 #if defined(__cplusplus)
 extern "C" {

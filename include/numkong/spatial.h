@@ -31,14 +31,14 @@
  *  Finalization takes the magnitudes of the full vectors (L2 norms) and computes the distance.
  *  Let the following be computed over the full vectors:
  *
- *      ab   = Σᵢ (aᵢ · bᵢ)
+ *      ab   = Σᵢ (aᵢ × bᵢ)
  *      ‖a‖ = √(Σᵢ aᵢ²)
  *      ‖b‖ = √(Σᵢ bᵢ²)
  *
  *  Finalization formulas:
  *
- *      angular(a, b) = 1 − ab / (‖a‖ · ‖b‖)
- *      l2(a, b)      = √( ‖a‖² + ‖b‖² − 2·ab )
+ *      angular(a, b) = 1 − ab / (‖a‖ × ‖b‖)
+ *      l2(a, b)      = √( ‖a‖² + ‖b‖² − 2 × ab )
  *
  *  The angular distance is clamped to ≥ 0, with a 0 result when both norms are zero and a 1 result when $ab$ is zero.
  *  L2 clamps the argument of the square root at 0 to avoid negative values from rounding.

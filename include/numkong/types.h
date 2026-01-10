@@ -10,6 +10,28 @@
  *  - Macros for internal compiler/hardware checks, like: `NK_TARGET_ARM_`.
  *  - Macros for feature controls, like: `NK_TARGET_NEON`
  *
+ *  @section fp8_types FP8 Numeric Types
+ *
+ *  There are several variants of 8-bit floating point types supported by different industry memebers
+ *  with different hardware support. None are part of the IEEE 754 standard, but some are part of the
+ *  Open Compute Project (OCP) 8-bit Floating Point Specification (OFP8):
+ *
+ *      Format    Bias  Sign  Exp  Mant  Range   Infinity            NaN               Standard
+ *      E4M3FN    7     1     4    3     ±448    ❌ No               Only 0x7F/0xFF    OCP, NVIDIA, ONNX
+ *      E5M2      15    1     5    2     ±57344  ✅ Yes (0x7C/0xFC)  0x7D-7F, 0xFD-FF  OCP, IEEE-like
+ *      E4M3FNUZ  8     1     4    3     ±240    ❌ No               0x80 only         GraphCore, ONNX
+ *      E5M2FNUZ  16    1     5    2     ±57344  ❌ No               0x80 only         GraphCore, ONNX
+ *
+ *  In currently available and soon incoming harware, only two series of models prioritze FNUZ over OCP:
+ *
+ *  - GraphCore IPUs were the original platform proposing FNUZ
+ *  - AMD MI300 series based on CDNA3 implements FNUZ, but not OCP
+ *  - AMD MI350+ series based on CDNA4 switch to OCP and remove FNUZ
+ *  - NVIDIA Hopper and Blackwell only support E4M3FN, E5M2
+ *  - Intel AVX10.2 defines HF8 (E4M3FN) and BF8 (E5M2) - OCP-aligned
+ *  - Arm implements E4M3 (meaning E4M3FN) and E5M2 with a shared `__mfp8` type and a `FPMR` format selector
+ *
+ *  For brevety, across NumKong, "E4M3" implies "E4M3FN".
  */
 #ifndef NK_TYPES_H
 #define NK_TYPES_H
@@ -669,10 +691,7 @@ typedef __bf16 nk_bf16_t;
 typedef __bfloat16 nk_bf16_t;
 #undef NK_NATIVE_BF16
 #define NK_NATIVE_BF16 1
-#else                                       // Unknown compiler or architecture
-#if defined(__GNUC__) || defined(__clang__) // Some compilers don't support warning pragmas
-#warning "Unknown compiler or architecture for bfloat16."
-#endif
+#else // Unknown compiler or architecture
 #undef NK_NATIVE_BF16
 #define NK_NATIVE_BF16 0
 #endif // Unknown compiler or architecture
@@ -769,6 +788,19 @@ typedef struct {
     nk_f64_t real;
     nk_f64_t imag;
 } nk_f64c_t;
+
+/** @brief  Small 4-byte memory slice viewable as different types. */
+typedef union nk_b32_vec_t {
+    nk_u32_t u32;
+    nk_i32_t i32;
+    nk_f32_t f32;
+    nk_u8_t u8s[4];
+    nk_i8_t i8s[4];
+    nk_u16_t u16s[2];
+    nk_i16_t i16s[2];
+    nk_e4m3_t e4m3s[4];
+    nk_e5m2_t e5m2s[4];
+} nk_b32_vec_t;
 
 /** @brief  Small 8-byte memory slice viewable as different types. */
 typedef union nk_b64_vec_t {

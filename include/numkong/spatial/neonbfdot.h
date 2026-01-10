@@ -4,6 +4,26 @@
  *  @sa include/numkong/spatial.h
  *  @author Ash Vardanian
  *  @date December 27, 2025
+ *
+ *  @section spatial_neonbfdot_instructions ARM NEON BF16 Instructions (ARMv8.6-BF16)
+ *
+ *      Intrinsic                   Instruction                     Latency     Throughput
+ *                                                                              A76         M4+/V1+/Oryon
+ *      vbfdotq_f32                 BFDOT (V.4S, V.8H, V.8H)        3cy         2/cy        4/cy
+ *      vcvt_f32_bf16               BFCVTN (V.4H, V.4S)             3cy         2/cy        4/cy
+ *      vld1q_bf16                  LD1 (V.8H)                      4cy         2/cy        3/cy
+ *      vsubq_f32                   FSUB (V.4S, V.4S, V.4S)         2cy         2/cy        4/cy
+ *      vfmaq_f64                   FMLA (V.2D, V.2D, V.2D)         4cy         2/cy        4/cy
+ *      vaddvq_f32                  FADDP+FADDP (V.4S)              4cy         1/cy        2/cy
+ *      vaddvq_f64                  FADDP (V.2D)                    3cy         1/cy        2/cy
+ *
+ *  The ARMv8.6-BF16 extension provides BFDOT for accelerated dot products on BF16 data, useful for
+ *  angular distance (cosine similarity) computations. BF16's larger exponent range (matching FP32)
+ *  prevents overflow during norm accumulation compared to FP16.
+ *
+ *  For L2 distance, inputs are converted to F32 for subtraction, then accumulated in F64 for
+ *  numerical stability. Angular distance leverages BFDOT directly since it only requires dot
+ *  products, not element-wise differences.
  */
 #ifndef NK_SPATIAL_NEONBFDOT_H
 #define NK_SPATIAL_NEONBFDOT_H
@@ -74,8 +94,8 @@ NK_PUBLIC void nk_angular_bf16_neonbfdot(nk_bf16_t const *a, nk_bf16_t const *b,
 nk_angular_bf16_neonbfdot_cycle:
     if (n < 8) {
         nk_b128_vec_t a_vec, b_vec;
-        nk_partial_load_b16x8_serial_(a, n, &a_vec);
-        nk_partial_load_b16x8_serial_(b, n, &b_vec);
+        nk_partial_load_b16x8_serial_(a, &a_vec, n);
+        nk_partial_load_b16x8_serial_(b, &b_vec, n);
         a_bf16x8 = vreinterpretq_bf16_u16(a_vec.u16x8);
         b_bf16x8 = vreinterpretq_bf16_u16(b_vec.u16x8);
         n = 0;

@@ -4,6 +4,26 @@
  *  @sa include/numkong/dot.h
  *  @author Ash Vardanian
  *  @date December 27, 2025
+ *
+ *  @section neon_dot_instructions NEON Dot Product Instructions
+ *
+ *  Key NEON instructions for dot products:
+ *
+ *      Intrinsic         Instruction                   Latency     Throughput
+ *                                                                  A76     M4+/V1+/Oryon
+ *      vfmaq_f32         FMLA (V.4S, V.4S, V.4S)       4cy         2/cy    4/cy
+ *      vfmaq_f64         FMLA (V.2D, V.2D, V.2D)       4cy         2/cy    4/cy
+ *      vmulq_f32         FMUL (V.4S, V.4S, V.4S)       3cy         2/cy    4/cy
+ *      vaddvq_f32        FADDP+FADDP (reduce)          5cy         1/cy    1/cy
+ *      vaddvq_f64        FADDP (V.2D to scalar)        3cy         1/cy    1/cy
+ *      vcvt_f64_f32      FCVTL (V.2D, V.2S)            3cy         2/cy    2/cy
+ *      vld2_f32          LD2 ({Vt.2S, Vt2.2S}, [Xn])   4cy         1/cy    1/cy
+ *
+ *  FMA throughput doubles on cores with 4 SIMD pipes (Apple M4+, Graviton3+, Oryon), but
+ *  horizontal reductions remain at 1/cy on all cores and become the main bottleneck.
+ *
+ *  For f32 dot products, we upcast to f64 for accumulation to preserve precision and
+ *  avoid catastrophic cancellation in large-magnitude sums.
  */
 #ifndef NK_DOT_NEON_H
 #define NK_DOT_NEON_H
@@ -56,7 +76,7 @@ NK_PUBLIC void nk_dot_f32c_neon(nk_f32c_t const *a_pairs, nk_f32c_t const *b_pai
         float64x2_t a_imag_f64x2 = vcvt_f64_f32(a_f32x2x2.val[1]);
         float64x2_t b_real_f64x2 = vcvt_f64_f32(b_f32x2x2.val[0]);
         float64x2_t b_imag_f64x2 = vcvt_f64_f32(b_f32x2x2.val[1]);
-        // Compute the dot product: real = a_r*b_r - a_i*b_i, imag = a_r*b_i + a_i*b_r
+        // Compute the dot product: real = aᵣ × bᵣ - aᵢ × bᵢ, imag = aᵣ × bᵢ + aᵢ × bᵣ
         sum_real_f64x2 = vfmaq_f64(sum_real_f64x2, a_real_f64x2, b_real_f64x2);
         sum_real_f64x2 = vfmsq_f64(sum_real_f64x2, a_imag_f64x2, b_imag_f64x2);
         sum_imag_f64x2 = vfmaq_f64(sum_imag_f64x2, a_real_f64x2, b_imag_f64x2);
@@ -91,7 +111,7 @@ NK_PUBLIC void nk_vdot_f32c_neon(nk_f32c_t const *a_pairs, nk_f32c_t const *b_pa
         float64x2_t a_imag_f64x2 = vcvt_f64_f32(a_f32x2x2.val[1]);
         float64x2_t b_real_f64x2 = vcvt_f64_f32(b_f32x2x2.val[0]);
         float64x2_t b_imag_f64x2 = vcvt_f64_f32(b_f32x2x2.val[1]);
-        // Compute conjugate dot product: real = a_r*b_r + a_i*b_i, imag = a_r*b_i - a_i*b_r
+        // Compute conjugate dot product: real = aᵣ × bᵣ + aᵢ × bᵢ, imag = aᵣ × bᵢ - aᵢ × bᵣ
         sum_real_f64x2 = vfmaq_f64(sum_real_f64x2, a_real_f64x2, b_real_f64x2);
         sum_real_f64x2 = vfmaq_f64(sum_real_f64x2, a_imag_f64x2, b_imag_f64x2);
         sum_imag_f64x2 = vfmaq_f64(sum_imag_f64x2, a_real_f64x2, b_imag_f64x2);
@@ -151,7 +171,7 @@ NK_PUBLIC void nk_dot_f64_neon(nk_f64_t const *a_scalars, nk_f64_t const *b_scal
     for (; idx_scalars + 2 <= count_scalars; idx_scalars += 2) {
         float64x2_t a_f64x2 = vld1q_f64(a_scalars + idx_scalars);
         float64x2_t b_f64x2 = vld1q_f64(b_scalars + idx_scalars);
-        // TwoProd: h = a * b, r = fma(a, b, -h) captures the rounding error
+        // TwoProd: h = a × b, r = fma(a, b, -h) captures the rounding error
         float64x2_t product_f64x2 = vmulq_f64(a_f64x2, b_f64x2);
         float64x2_t product_error_f64x2 = vfmsq_f64(product_f64x2, a_f64x2, b_f64x2);
         product_error_f64x2 = vnegq_f64(product_error_f64x2);
@@ -187,8 +207,8 @@ NK_PUBLIC void nk_dot_f64c_neon(nk_f64c_t const *a_pairs, nk_f64c_t const *b_pai
         float64x2_t b_real_f64x2 = b_f64x2x2.val[0];
         float64x2_t b_imag_f64x2 = b_f64x2x2.val[1];
 
-        // Real part: a_r*b_r - a_i*b_i (using TwoProd and TwoSum)
-        // First term: a_r * b_r
+        // Real part: aᵣ × bᵣ - aᵢ × bᵢ (using TwoProd and TwoSum)
+        // First term: aᵣ × bᵣ
         float64x2_t prod_rr_f64x2 = vmulq_f64(a_real_f64x2, b_real_f64x2);
         float64x2_t err_rr_f64x2 = vnegq_f64(vfmsq_f64(prod_rr_f64x2, a_real_f64x2, b_real_f64x2));
         float64x2_t t_real_f64x2 = vaddq_f64(sum_real_f64x2, prod_rr_f64x2);
@@ -197,7 +217,7 @@ NK_PUBLIC void nk_dot_f64c_neon(nk_f64c_t const *a_pairs, nk_f64c_t const *b_pai
                                                    vsubq_f64(prod_rr_f64x2, z_real_f64x2));
         sum_real_f64x2 = t_real_f64x2;
         compensation_real_f64x2 = vaddq_f64(compensation_real_f64x2, vaddq_f64(err_sum_real_f64x2, err_rr_f64x2));
-        // Second term: -a_i * b_i
+        // Second term: -aᵢ × bᵢ
         float64x2_t prod_ii_f64x2 = vmulq_f64(a_imag_f64x2, b_imag_f64x2);
         float64x2_t err_ii_f64x2 = vnegq_f64(vfmsq_f64(prod_ii_f64x2, a_imag_f64x2, b_imag_f64x2));
         t_real_f64x2 = vsubq_f64(sum_real_f64x2, prod_ii_f64x2);
@@ -207,8 +227,8 @@ NK_PUBLIC void nk_dot_f64c_neon(nk_f64c_t const *a_pairs, nk_f64c_t const *b_pai
         sum_real_f64x2 = t_real_f64x2;
         compensation_real_f64x2 = vsubq_f64(compensation_real_f64x2, vaddq_f64(err_sum_real_f64x2, err_ii_f64x2));
 
-        // Imag part: a_r*b_i + a_i*b_r (using TwoProd and TwoSum)
-        // First term: a_r * b_i
+        // Imag part: aᵣ × bᵢ + aᵢ × bᵣ (using TwoProd and TwoSum)
+        // First term: aᵣ × bᵢ
         float64x2_t prod_ri_f64x2 = vmulq_f64(a_real_f64x2, b_imag_f64x2);
         float64x2_t err_ri_f64x2 = vnegq_f64(vfmsq_f64(prod_ri_f64x2, a_real_f64x2, b_imag_f64x2));
         float64x2_t t_imag_f64x2 = vaddq_f64(sum_imag_f64x2, prod_ri_f64x2);
@@ -217,7 +237,7 @@ NK_PUBLIC void nk_dot_f64c_neon(nk_f64c_t const *a_pairs, nk_f64c_t const *b_pai
                                                    vsubq_f64(prod_ri_f64x2, z_imag_f64x2));
         sum_imag_f64x2 = t_imag_f64x2;
         compensation_imag_f64x2 = vaddq_f64(compensation_imag_f64x2, vaddq_f64(err_sum_imag_f64x2, err_ri_f64x2));
-        // Second term: a_i * b_r
+        // Second term: aᵢ × bᵣ
         float64x2_t prod_ir_f64x2 = vmulq_f64(a_imag_f64x2, b_real_f64x2);
         float64x2_t err_ir_f64x2 = vnegq_f64(vfmsq_f64(prod_ir_f64x2, a_imag_f64x2, b_real_f64x2));
         t_imag_f64x2 = vaddq_f64(sum_imag_f64x2, prod_ir_f64x2);
@@ -260,8 +280,8 @@ NK_PUBLIC void nk_vdot_f64c_neon(nk_f64c_t const *a_pairs, nk_f64c_t const *b_pa
         float64x2_t b_real_f64x2 = b_f64x2x2.val[0];
         float64x2_t b_imag_f64x2 = b_f64x2x2.val[1];
 
-        // Real part: a_r*b_r + a_i*b_i (using TwoProd and TwoSum)
-        // First term: a_r * b_r
+        // Real part: aᵣ × bᵣ + aᵢ × bᵢ (using TwoProd and TwoSum)
+        // First term: aᵣ × bᵣ
         float64x2_t prod_rr_f64x2 = vmulq_f64(a_real_f64x2, b_real_f64x2);
         float64x2_t err_rr_f64x2 = vnegq_f64(vfmsq_f64(prod_rr_f64x2, a_real_f64x2, b_real_f64x2));
         float64x2_t t_real_f64x2 = vaddq_f64(sum_real_f64x2, prod_rr_f64x2);
@@ -270,7 +290,7 @@ NK_PUBLIC void nk_vdot_f64c_neon(nk_f64c_t const *a_pairs, nk_f64c_t const *b_pa
                                                    vsubq_f64(prod_rr_f64x2, z_real_f64x2));
         sum_real_f64x2 = t_real_f64x2;
         compensation_real_f64x2 = vaddq_f64(compensation_real_f64x2, vaddq_f64(err_sum_real_f64x2, err_rr_f64x2));
-        // Second term: +a_i * b_i (note: + instead of - for conjugate)
+        // Second term: +aᵢ × bᵢ (note: + instead of - for conjugate)
         float64x2_t prod_ii_f64x2 = vmulq_f64(a_imag_f64x2, b_imag_f64x2);
         float64x2_t err_ii_f64x2 = vnegq_f64(vfmsq_f64(prod_ii_f64x2, a_imag_f64x2, b_imag_f64x2));
         t_real_f64x2 = vaddq_f64(sum_real_f64x2, prod_ii_f64x2);
@@ -280,8 +300,8 @@ NK_PUBLIC void nk_vdot_f64c_neon(nk_f64c_t const *a_pairs, nk_f64c_t const *b_pa
         sum_real_f64x2 = t_real_f64x2;
         compensation_real_f64x2 = vaddq_f64(compensation_real_f64x2, vaddq_f64(err_sum_real_f64x2, err_ii_f64x2));
 
-        // Imag part: a_r*b_i - a_i*b_r (using TwoProd and TwoSum)
-        // First term: a_r * b_i
+        // Imag part: aᵣ × bᵢ - aᵢ × bᵣ (using TwoProd and TwoSum)
+        // First term: aᵣ × bᵢ
         float64x2_t prod_ri_f64x2 = vmulq_f64(a_real_f64x2, b_imag_f64x2);
         float64x2_t err_ri_f64x2 = vnegq_f64(vfmsq_f64(prod_ri_f64x2, a_real_f64x2, b_imag_f64x2));
         float64x2_t t_imag_f64x2 = vaddq_f64(sum_imag_f64x2, prod_ri_f64x2);
@@ -290,7 +310,7 @@ NK_PUBLIC void nk_vdot_f64c_neon(nk_f64c_t const *a_pairs, nk_f64c_t const *b_pa
                                                    vsubq_f64(prod_ri_f64x2, z_imag_f64x2));
         sum_imag_f64x2 = t_imag_f64x2;
         compensation_imag_f64x2 = vaddq_f64(compensation_imag_f64x2, vaddq_f64(err_sum_imag_f64x2, err_ri_f64x2));
-        // Second term: -a_i * b_r (note: - instead of + for conjugate)
+        // Second term: -aᵢ × bᵣ (note: - instead of + for conjugate)
         float64x2_t prod_ir_f64x2 = vmulq_f64(a_imag_f64x2, b_real_f64x2);
         float64x2_t err_ir_f64x2 = vnegq_f64(vfmsq_f64(prod_ir_f64x2, a_imag_f64x2, b_real_f64x2));
         t_imag_f64x2 = vsubq_f64(sum_imag_f64x2, prod_ir_f64x2);
@@ -337,7 +357,7 @@ NK_INTERNAL void nk_dot_f64x2_update_neon(nk_dot_f64x2_state_neon_t *state, nk_b
     float64x2_t a_f64x2 = vreinterpretq_f64_u64(a.u64x2);
     float64x2_t b_f64x2 = vreinterpretq_f64_u64(b.u64x2);
 
-    // TwoProd: h = a * b, r = fma(a, b, -h) captures the rounding error
+    // TwoProd: h = a × b, r = fma(a, b, -h) captures the rounding error
     float64x2_t product_f64x2 = vmulq_f64(a_f64x2, b_f64x2);
     float64x2_t product_error_f64x2 = vnegq_f64(vfmsq_f64(product_f64x2, a_f64x2, b_f64x2));
 
@@ -369,17 +389,20 @@ NK_PUBLIC void nk_dot_e4m3_neon(nk_e4m3_t const *a_scalars, nk_e4m3_t const *b_s
                                 nk_f32_t *result) {
     float32x4_t a_f32x4, b_f32x4;
     float32x4_t sum_f32x4 = vdupq_n_f32(0);
+    nk_b32_vec_t a_vec, b_vec;
 nk_dot_e4m3_neon_cycle:
     if (count_scalars < 4) {
-        a_f32x4 = nk_partial_load_e4m3x4_to_f32x4_neon_(a_scalars, count_scalars);
-        b_f32x4 = nk_partial_load_e4m3x4_to_f32x4_neon_(b_scalars, count_scalars);
+        a_vec = nk_partial_load_b8x4_serial_(a_scalars, count_scalars);
+        b_vec = nk_partial_load_b8x4_serial_(b_scalars, count_scalars);
         count_scalars = 0;
     }
     else {
-        a_f32x4 = nk_e4m3x4_to_f32x4_neon_(a_scalars);
-        b_f32x4 = nk_e4m3x4_to_f32x4_neon_(b_scalars);
+        nk_load_b32_serial_(a_scalars, &a_vec);
+        nk_load_b32_serial_(b_scalars, &b_vec);
         a_scalars += 4, b_scalars += 4, count_scalars -= 4;
     }
+    a_f32x4 = nk_e4m3x4_to_f32x4_neon_(a_vec);
+    b_f32x4 = nk_e4m3x4_to_f32x4_neon_(b_vec);
     sum_f32x4 = vfmaq_f32(sum_f32x4, a_f32x4, b_f32x4);
     if (count_scalars) goto nk_dot_e4m3_neon_cycle;
     *result = vaddvq_f32(sum_f32x4);
@@ -389,17 +412,20 @@ NK_PUBLIC void nk_dot_e5m2_neon(nk_e5m2_t const *a_scalars, nk_e5m2_t const *b_s
                                 nk_f32_t *result) {
     float32x4_t a_f32x4, b_f32x4;
     float32x4_t sum_f32x4 = vdupq_n_f32(0);
+    nk_b32_vec_t a_vec, b_vec;
 nk_dot_e5m2_neon_cycle:
     if (count_scalars < 4) {
-        a_f32x4 = nk_partial_load_e5m2x4_to_f32x4_neon_(a_scalars, count_scalars);
-        b_f32x4 = nk_partial_load_e5m2x4_to_f32x4_neon_(b_scalars, count_scalars);
+        a_vec = nk_partial_load_b8x4_serial_(a_scalars, count_scalars);
+        b_vec = nk_partial_load_b8x4_serial_(b_scalars, count_scalars);
         count_scalars = 0;
     }
     else {
-        a_f32x4 = nk_e5m2x4_to_f32x4_neon_(a_scalars);
-        b_f32x4 = nk_e5m2x4_to_f32x4_neon_(b_scalars);
+        nk_load_b32_serial_(a_scalars, &a_vec);
+        nk_load_b32_serial_(b_scalars, &b_vec);
         a_scalars += 4, b_scalars += 4, count_scalars -= 4;
     }
+    a_f32x4 = nk_e5m2x4_to_f32x4_neon_(a_vec);
+    b_f32x4 = nk_e5m2x4_to_f32x4_neon_(b_vec);
     sum_f32x4 = vfmaq_f32(sum_f32x4, a_f32x4, b_f32x4);
     if (count_scalars) goto nk_dot_e5m2_neon_cycle;
     *result = vaddvq_f32(sum_f32x4);

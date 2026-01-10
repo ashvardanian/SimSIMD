@@ -7,9 +7,18 @@
  *
  *  Sapphire Rapids adds native FP16 support via AVX-512 FP16 extension.
  *  For e4m3 L2 distance, we can leverage F16 for the subtraction step:
- *  - e4m3 differences fit in F16 (max |a-b| = 896 < 65504)
+ *  - e4m3 differences fit in F16 (max |a−b| = 896 < 65504)
  *  - But squared differences overflow F16 (896² = 802816 > 65504)
  *  - So: subtract in F16, convert to F32, then square and accumulate
+ *
+ *  @section sapphire_spatial_instructions Relevant Instructions
+ *
+ *      Intrinsic                   Instruction                     Sapphire    Genoa
+ *      _mm256_sub_ph               VSUBPH (YMM, YMM, YMM)          4cy @ p05   3cy @ p01
+ *      _mm512_cvtph_ps             VCVTPH2PS (ZMM, YMM)            5cy @ p05   5cy @ p01
+ *      _mm512_fmadd_ps             VFMADD (ZMM, ZMM, ZMM)          4cy @ p05   4cy @ p01
+ *      _mm512_reduce_add_ps        (pseudo: VHADDPS chain)         ~8cy        ~8cy
+ *      _mm_maskz_loadu_epi8        VMOVDQU8 (XMM {K}, M128)        7cy @ p23   7cy @ p23
  */
 #ifndef NK_SPATIAL_SAPPHIRE_H
 #define NK_SPATIAL_SAPPHIRE_H

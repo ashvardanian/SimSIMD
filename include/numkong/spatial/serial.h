@@ -1,5 +1,5 @@
 /**
- *  @brief SIMD-accelerated Spatial Similarity Measures optimized for SIMD-free CPUs.
+ *  @brief SIMD-accelerated Spatial Similarity Measures optimized for Serial (SIMD-free) CPUs.
  *  @file include/numkong/spatial/serial.h
  *  @sa include/numkong/spatial.h
  *  @author Ash Vardanian
@@ -7,7 +7,9 @@
  */
 #ifndef NK_SPATIAL_SERIAL_H
 #define NK_SPATIAL_SERIAL_H
+
 #include "numkong/types.h"
+#include "numkong/cast/serial.h"
 
 #if defined(__cplusplus)
 extern "C" {
@@ -22,13 +24,13 @@ extern "C" {
  *
  *  Performance vs Accuracy Tradeoff:
  *  - Adds ~30% overhead (3 extra FP operations per iteration) compared to naive summation
- *  - Reduces relative error from ~10^-5 to ~10^-7 at n=100K for f32
+ *  - Reduces relative error from ~10⁻⁵ to ~10⁻⁷ at n=100K for f32
  *  - Benefits all floating-point types: f64, f32, f16, bf16
  *  - Integer types (i8) maintain perfect accuracy regardless
  *
  *  Algorithm: For each term, compute t = sum + term, then:
- *    - If |sum| >= |term|: c += (sum - t) + term  (lost low-order bits of term)
- *    - Else:               c += (term - t) + sum  (lost low-order bits of sum)
+ *    - If |sum| ≥ |term|: c += (sum − t) + term   (lost low-order bits of term)
+ *    - Else:              c += (term − t) + sum   (lost low-order bits of sum)
  *
  *  @see Neumaier, A. (1974). "Rundungsfehleranalyse einiger Verfahren zur Summation endlicher Summen"
  */
@@ -102,7 +104,7 @@ extern "C" {
     }
 
 /**
- *  @brief  Computes `1/sqrt(x)` using the trick from Quake 3,
+ *  @brief  Computes `1/√x` using the trick from Quake 3,
  *          with two Newton-Raphson iterations for improved accuracy.
  *
  *  The initial guess uses bit manipulation exploiting IEEE 754 float representation.
@@ -130,7 +132,7 @@ NK_INTERNAL nk_f32_t nk_f32_rsqrt_serial(nk_f32_t number) {
 }
 
 /**
- *  @brief  Approximates `sqrt(x)` using the identity `sqrt(x) = x * rsqrt(x)`.
+ *  @brief  Approximates `√x` using the identity `√x = x × rsqrt(x)`.
  *
  *  Leverages the fast inverse square root approximation and multiplies by `number`.
  *  Inherits the ~0.0005% maximum relative error from the underlying `rsqrt` implementation.
@@ -140,7 +142,7 @@ NK_INTERNAL nk_f32_t nk_f32_rsqrt_serial(nk_f32_t number) {
 NK_INTERNAL nk_f32_t nk_f32_sqrt_serial(nk_f32_t number) { return number * nk_f32_rsqrt_serial(number); }
 
 /**
- *  @brief  Computes `1/sqrt(x)` for double precision using the Quake 3 trick,
+ *  @brief  Computes `1/√x` for double precision using the Quake 3 trick,
  *          with three Newton-Raphson iterations for full f64 accuracy.
  *
  *  The initial guess uses bit manipulation exploiting IEEE 754 double representation.
@@ -164,7 +166,7 @@ NK_INTERNAL nk_f64_t nk_f64_rsqrt_serial(nk_f64_t number) {
 }
 
 /**
- *  @brief  Approximates `sqrt(x)` for double precision using `sqrt(x) = x * rsqrt(x)`.
+ *  @brief  Approximates `√x` for double precision using `√x = x × rsqrt(x)`.
  *
  *  Leverages the fast inverse square root approximation and multiplies by `number`.
  *  Inherits near-full f64 precision from the underlying `rsqrt` implementation.

@@ -4,6 +4,25 @@
  *  @sa include/numkong/dots.h
  *  @author Ash Vardanian
  *  @date December 27, 2025
+ *
+ *  @section dots_sve_instructions ARM SVE Instructions
+ *
+ *      Intrinsic                   Instruction                     Latency     Throughput
+ *      svld1_f32                   LD1W (Z.S, P/Z, [Xn])           4-6cy       2/cy
+ *      svst1_f32                   ST1W (Z.S, P, [Xn])             4cy         1/cy
+ *      svmla_f32_x                 FMLA (Z.S, P/M, Z.S, Z.S)       4cy         2/cy
+ *      svaddv_f32                  FADDV (S, P, Z.S)               6cy         1/cy
+ *      svdup_f32                   DUP (Z.S, #imm)                 1cy         2/cy
+ *      svwhilelt_b32               WHILELT (P.S, Xn, Xm)           2cy         1/cy
+ *      svptrue_b32                 PTRUE (P.S, pattern)            1cy         2/cy
+ *      svcntw                      CNTW (Xd)                       1cy         2/cy
+ *
+ *  SVE vector widths vary across implementations: Graviton3 uses 256-bit, while Graviton4/5
+ *  and Apple M4+ use 128-bit. Code using svcntb() adapts automatically, but wider vectors
+ *  process more elements per iteration with identical latencies.
+ *
+ *  Batch dot products benefit from SVE's predication to handle variable-length vectors
+ *  without scalar cleanup loops, reducing branch overhead in matrix operations.
  */
 #ifndef NK_DOTS_SVE_H
 #define NK_DOTS_SVE_H

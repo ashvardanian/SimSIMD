@@ -4,6 +4,24 @@
  *  @sa include/numkong/dot.h
  *  @author Ash Vardanian
  *  @date December 27, 2025
+ *
+ *  @section dot_neonhalf_instructions ARM NEON FP16 Instructions (ARMv8.2-FP16)
+ *
+ *      Intrinsic                   Instruction                     Latency     Throughput
+ *                                                                              A76         M4+/V1+/Oryon
+ *      vfmaq_f16                   FMLA (V.8H, V.8H, V.8H)         4cy         2/cy        4/cy
+ *      vcvt_f32_f16                FCVTL (V.4S, V.4H)              3cy         2/cy        4/cy
+ *      vld1q_f16                   LD1 (V.8H)                      4cy         2/cy        3/cy
+ *      vaddvq_f32                  FADDP+FADDP (V.4S)              4cy         1/cy        2/cy
+ *      vfmsq_f16                   FMLS (V.8H, V.8H, V.8H)         4cy         2/cy        4/cy
+ *
+ *  The ARMv8.2-FP16 extension enables native half-precision arithmetic, doubling the element count
+ *  per vector register (8x F16 vs 4x F32). This doubles theoretical throughput for bandwidth-bound
+ *  workloads while halving memory footprint.
+ *
+ *  For dot products, inputs are widened from F16 to F32 for accumulation to preserve numerical
+ *  precision. The FCVTL instruction handles this widening efficiently, allowing the FMA operations
+ *  to maintain full F32 precision in the accumulator.
  */
 #ifndef NK_DOT_NEONHALF_H
 #define NK_DOT_NEONHALF_H
@@ -18,7 +36,7 @@
 #endif
 
 #include "numkong/types.h"
-#include "numkong/reduce/neonhalf.h" // nk_partial_load_f16x4_to_f32x4_neonhalf_
+#include "numkong/cast/serial.h" // `nk_partial_load_b16x4_serial_`
 
 #if defined(__cplusplus)
 extern "C" {
@@ -30,8 +48,11 @@ NK_PUBLIC void nk_dot_f16_neonhalf(nk_f16_t const *a_scalars, nk_f16_t const *b_
     float32x4_t sum_f32x4 = vdupq_n_f32(0);
 nk_dot_f16_neonhalf_cycle:
     if (count_scalars < 4) {
-        nk_partial_load_f16x4_to_f32x4_neonhalf_(a_scalars, count_scalars, &a_f32x4);
-        nk_partial_load_f16x4_to_f32x4_neonhalf_(b_scalars, count_scalars, &b_f32x4);
+        nk_b64_vec_t a_vec, b_vec;
+        nk_partial_load_b16x4_serial_(a_scalars, &a_vec, count_scalars);
+        nk_partial_load_b16x4_serial_(b_scalars, &b_vec, count_scalars);
+        a_f32x4 = vcvt_f32_f16(vreinterpret_f16_u16(a_vec.u16x4));
+        b_f32x4 = vcvt_f32_f16(vreinterpret_f16_u16(b_vec.u16x4));
         count_scalars = 0;
     }
     else {

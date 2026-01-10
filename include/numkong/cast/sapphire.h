@@ -1,8 +1,23 @@
 /**
- *  @brief SIMD-accelerated type conversions for FP8/BF16/F16 types optimized for AMD Genoa CPUs.
+ *  @brief SIMD-accelerated type conversions for FP8/BF16/F16 types optimized for Intel Sapphire Rapids CPUs.
  *  @file include/numkong/cast/sapphire.h
  *  @author Ash Vardanian
  *  @date January 2, 2026
+ *
+ *  @section sapphire_cast_instructions Relevant Instructions
+ *
+ *      Intrinsic                   Instruction                     Sapphire    Genoa
+ *      _mm_cvtss_sh                VCVTSS2SH (XMM, XMM, XMM)       5cy @ p05   5cy @ p01
+ *      _mm_cvtsh_ss                VCVTSH2SS (XMM, XMM, XMM)       5cy @ p05   5cy @ p01
+ *      _mm256_cvtepu8_epi16        VPMOVZXBW (YMM, XMM)            3cy @ p5    3cy @ p12
+ *      _mm256_mul_ph               VMULPH (YMM, YMM, YMM)          4cy @ p05   3cy @ p01
+ *      _mm256_cvtepi16_ph          VCVTW2PH (YMM, YMM)             4cy @ p05   4cy @ p01
+ *      _mm256_cvtph_epi16          VCVTPH2W (YMM, YMM)             4cy @ p05   4cy @ p01
+ *      _mm256_mask_blend_epi16     VPBLENDMW (YMM, K, YMM, YMM)    1cy @ p05   1cy @ p0123
+ *      _mm256_testn_epi16_mask     VPTESTNMW (K, YMM, YMM)         3cy @ p5    3cy @ p0
+ *      _mm256_cvtepi16_epi8        VPMOVWB (XMM, YMM)              4cy @ p5    4cy @ p12
+ *      _mm_maskz_loadu_epi8        VMOVDQU8 (XMM {K}, M128)        7cy @ p23   7cy @ p23
+ *      _mm256_mask_storeu_epi16    VMOVDQU16 (M256 {K}, YMM)       4cy @ p4    4cy @ p4
  */
 #ifndef NK_CAST_SAPPHIRE_H
 #define NK_CAST_SAPPHIRE_H
@@ -35,10 +50,10 @@ NK_PUBLIC void nk_f16_to_f32_sapphire(nk_f16_t const *from, nk_f32_t *to) {
 
 #pragma region - Vectorized Conversions
 
-/** @brief Convert 16× e4m3 → 16× f16 via bit manipulation (AVX-512 FP16).
+/** @brief Convert 16x e4m3 → 16x f16 via bit manipulation (AVX-512 FP16).
  *  E4M3 format: S EEEE MMM (bias=7). F16: S EEEEE MMMMMMMMMM (bias=15).
  *  Normal: sign | ((exp+8)<<10) | (mant<<7).
- *  Subnormals (exp=0): value = mantissa / 512, computed via f16 arithmetic. */
+ *  Subnormals (exp=0): value = mantissa ÷ 512, computed via f16 arithmetic. */
 NK_INTERNAL __m256h nk_e4m3x16_to_f16x16_sapphire_(__m128i e4m3_i8x16) {
     __m256i e4m3_i16x16 = _mm256_cvtepu8_epi16(e4m3_i8x16);
 
@@ -56,13 +71,20 @@ NK_INTERNAL __m256h nk_e4m3x16_to_f16x16_sapphire_(__m128i e4m3_i8x16) {
     __m256h subnorm_abs_f16x16 = _mm256_mul_ph(_mm256_cvtepi16_ph(mantissa_i16x16),
                                                _mm256_castsi256_ph(_mm256_set1_epi16(0x1800))); // 1/512
     __m256i subnorm_signed_i16x16 = _mm256_or_si256(_mm256_castph_si256(subnorm_abs_f16x16), sign_i16x16);
-    return _mm256_castsi256_ph(_mm256_mask_blend_epi16(is_subnormal, normal_i16x16, subnorm_signed_i16x16));
+    __m256i result_i16x16 = _mm256_mask_blend_epi16(is_subnormal, normal_i16x16, subnorm_signed_i16x16);
+
+    // NaN path: E4M3FN has NaN only when exp=15 AND mant=7 (lower 7 bits == 0x7F)
+    __mmask16 is_nan = _mm256_cmpeq_epi16_mask(                                 //
+        _mm256_and_si256(e4m3_i16x16, _mm256_set1_epi16(0x7F)),                 //
+        _mm256_set1_epi16(0x7F));                                               //
+    __m256i nan_bits = _mm256_or_si256(sign_i16x16, _mm256_set1_epi16(0x7E00)); // F16 quiet NaN
+    return _mm256_castsi256_ph(_mm256_mask_blend_epi16(is_nan, result_i16x16, nan_bits));
 }
 
-/** @brief Convert 16× e5m2 → 16× f16 via bit manipulation (AVX-512 FP16).
+/** @brief Convert 16x e5m2 → 16x f16 via bit manipulation (AVX-512 FP16).
  *  E5M2 format: S EEEEE MM (bias=15). F16: S EEEEE MMMMMMMMMM (bias=15).
  *  Normal: sign | (exp<<10) | (mant<<8) (same exponent bias).
- *  Subnormals (exp=0): value = mantissa / 65536, computed via f16 arithmetic. */
+ *  Subnormals (exp=0): value = mantissa ÷ 65536, computed via f16 arithmetic. */
 NK_INTERNAL __m256h nk_e5m2x16_to_f16x16_sapphire_(__m128i e5m2_i8x16) {
     __m256i e5m2_i16x16 = _mm256_cvtepu8_epi16(e5m2_i8x16);
 
@@ -82,7 +104,7 @@ NK_INTERNAL __m256h nk_e5m2x16_to_f16x16_sapphire_(__m128i e5m2_i8x16) {
     return _mm256_castsi256_ph(_mm256_mask_blend_epi16(is_subnormal, normal_i16x16, subnorm_signed_i16x16));
 }
 
-/** @brief Convert 16× f16 → 16× e4m3 via bit manipulation (AVX-512 FP16).
+/** @brief Convert 16x f16 → 16x e4m3 via bit manipulation (AVX-512 FP16).
  *  F16: S EEEEE MMMMMMMMMM (bias=15). E4M3: S EEEE MMM (bias=7).
  *  Handles normal, subnormal, and overflow cases with RNE rounding. */
 NK_INTERNAL __m128i nk_f16x16_to_e4m3x16_sapphire_(__m256h f16x16) {
@@ -136,7 +158,7 @@ NK_INTERNAL __m128i nk_f16x16_to_e4m3x16_sapphire_(__m256h f16x16) {
     return _mm256_cvtepi16_epi8(e4m3_i16x16);
 }
 
-/** @brief Convert 16× f16 → 16× e5m2 via bit manipulation (AVX-512 FP16).
+/** @brief Convert 16x f16 → 16x e5m2 via bit manipulation (AVX-512 FP16).
  *  F16: S EEEEE MMMMMMMMMM (bias=15). E5M2: S EEEEE MM (bias=15).
  *  Same exponent bias, so just round mantissa from 10 to 2 bits. */
 NK_INTERNAL __m128i nk_f16x16_to_e5m2x16_sapphire_(__m256h f16x16) {
@@ -191,31 +213,31 @@ NK_INTERNAL __m128i nk_f16x16_to_e5m2x16_sapphire_(__m256h f16x16) {
 #pragma region - Public API
 
 NK_PUBLIC void nk_cast_sapphire(void const *from, nk_dtype_t from_type, nk_size_t n, void *to, nk_dtype_t to_type) {
-    // Group 1: Conversions TO f16 (e4m3→f16, e5m2→f16) using AVX512FP16
+    // Group 1: Conversions to f16 (e4m3 → f16, e5m2 → f16)
     if (to_type == nk_f16_k && (from_type == nk_e4m3_k || from_type == nk_e5m2_k)) {
-        nk_e4m3_t const *src = (nk_e4m3_t const *)from;
-        nk_f16_t *dst = (nk_f16_t *)to;
-        for (nk_size_t i = 0; i < n; i += 16) {
-            nk_size_t remaining = n - i;
+        nk_e4m3_t const *from_ptr = (nk_e4m3_t const *)from;
+        nk_f16_t *to_ptr = (nk_f16_t *)to;
+        for (nk_size_t idx = 0; idx < n; idx += 16) {
+            nk_size_t remaining = n - idx;
             __mmask16 mask = (remaining >= 16) ? 0xFFFF : (unsigned short)_bzhi_u32(0xFFFF, (unsigned)remaining);
-            __m128i in_f8x16 = _mm_maskz_loadu_epi8(mask, src + i);
+            __m128i in_f8x16 = _mm_maskz_loadu_epi8(mask, from_ptr + idx);
             __m256h out_f16x16 = (from_type == nk_e4m3_k) ? nk_e4m3x16_to_f16x16_sapphire_(in_f8x16)
                                                           : nk_e5m2x16_to_f16x16_sapphire_(in_f8x16);
-            _mm256_mask_storeu_epi16(dst + i, mask, _mm256_castph_si256(out_f16x16));
+            _mm256_mask_storeu_epi16(to_ptr + idx, mask, _mm256_castph_si256(out_f16x16));
         }
     }
 
-    // Group 2: Conversions FROM f16 (f16→e4m3, f16→e5m2) using AVX512FP16
+    // Group 2: Conversions from f16 (f16 → e4m3, f16 → e5m2)
     else if (from_type == nk_f16_k && (to_type == nk_e4m3_k || to_type == nk_e5m2_k)) {
-        nk_f16_t const *src = (nk_f16_t const *)from;
-        nk_e4m3_t *dst = (nk_e4m3_t *)to;
-        for (nk_size_t i = 0; i < n; i += 16) {
-            nk_size_t remaining = n - i;
+        nk_f16_t const *from_ptr = (nk_f16_t const *)from;
+        nk_e4m3_t *to_ptr = (nk_e4m3_t *)to;
+        for (nk_size_t idx = 0; idx < n; idx += 16) {
+            nk_size_t remaining = n - idx;
             __mmask16 mask = (remaining >= 16) ? 0xFFFF : (unsigned short)_bzhi_u32(0xFFFF, (unsigned)remaining);
-            __m256h in_f16x16 = _mm256_castsi256_ph(_mm256_maskz_loadu_epi16(mask, src + i));
+            __m256h in_f16x16 = _mm256_castsi256_ph(_mm256_maskz_loadu_epi16(mask, from_ptr + idx));
             __m128i out_f8x16 = (to_type == nk_e4m3_k) ? nk_f16x16_to_e4m3x16_sapphire_(in_f16x16)
                                                        : nk_f16x16_to_e5m2x16_sapphire_(in_f16x16);
-            _mm_mask_storeu_epi8(dst + i, mask, out_f8x16);
+            _mm_mask_storeu_epi8(to_ptr + idx, mask, out_f8x16);
         }
     }
 

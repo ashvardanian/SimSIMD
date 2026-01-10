@@ -4,6 +4,18 @@
  *  @sa include/numkong/dot.h
  *  @author Ash Vardanian
  *  @date December 27, 2025
+ *
+ *  @section skylake_instructions Key AVX-512 Instructions
+ *
+ *      Intrinsic                   Instruction                     Latency     Throughput  Ports
+ *      _mm512_madd_epi16           VPMADDWD (ZMM, ZMM, ZMM)        5cy         0.5/cy      p05
+ *      _mm512_add_epi32            VPADDD (ZMM, ZMM, ZMM)          1cy         0.5/cy      p05
+ *      _mm512_fmadd_ps             VFMADD132PS (ZMM, ZMM, ZMM)     4cy         0.5/cy      p05
+ *      _mm512_cvtepi8_epi16        VPMOVSXBW (ZMM, YMM)            3cy         1/cy        p5
+ *
+ *  Skylake-X server chips feature dual 512-bit FMA units on ports 0 and 5, enabling 0.5cy throughput for
+ *  VFMADD and arithmetic operations. Client Skylake variants have only one FMA unit with 1cy throughput.
+ *  Without VNNI support, integer dot products use VPMADDWD for i16 pair multiplication with i32 accumulation.
  */
 #ifndef NK_DOT_SKYLAKE_H
 #define NK_DOT_SKYLAKE_H
@@ -449,7 +461,7 @@ NK_PUBLIC void nk_dot_i8_skylake(nk_i8_t const *a_scalars, nk_i8_t const *b_scal
         __m256i b_i8x32 = _mm256_loadu_si256((__m256i const *)(b_scalars + idx_scalars));
         __m512i a_i16x32 = _mm512_cvtepi8_epi16(a_i8x32);
         __m512i b_i16x32 = _mm512_cvtepi8_epi16(b_i8x32);
-        // _mm512_madd_epi16: multiply adjacent pairs of i16, add pairs to produce i32
+        // VPMADDWD: 5cy (0.5/cy) @ p05 - multiply adjacent i16 pairs, add to i32
         sum_i32x16 = _mm512_add_epi32(sum_i32x16, _mm512_madd_epi16(a_i16x32, b_i16x32));
     }
     nk_i32_t sum = _mm512_reduce_add_epi32(sum_i32x16);
@@ -467,7 +479,7 @@ NK_PUBLIC void nk_dot_u8_skylake(nk_u8_t const *a_scalars, nk_u8_t const *b_scal
         __m256i b_u8x32 = _mm256_loadu_si256((__m256i const *)(b_scalars + idx_scalars));
         __m512i a_u16x32 = _mm512_cvtepu8_epi16(a_u8x32);
         __m512i b_u16x32 = _mm512_cvtepu8_epi16(b_u8x32);
-        // _mm512_madd_epi16: multiply adjacent pairs, add pairs to produce i32
+        // VPMADDWD: 5cy (0.5/cy) @ p05 - multiply adjacent i16 pairs, add to i32
         sum_i32x16 = _mm512_add_epi32(sum_i32x16, _mm512_madd_epi16(a_u16x32, b_u16x32));
     }
     nk_u32_t sum = (nk_u32_t)_mm512_reduce_add_epi32(sum_i32x16);

@@ -5,13 +5,18 @@
  *  @author Ash Vardanian
  *  @date December 27, 2025
  *
- *  @section dot_haswell_optimizations Dot Haswell Optimizations
+ *  @section haswell_dot_instructions Key AVX2/FMA Dot Product Instructions
  *
- *  Several families of optimizations have been considered. For small numeric types like F16, BF16, E4M3, and E5M2
- *  we use F32 accumulators. For F32 dot-products all stable summation algorithms end up slower than the naive approach
- *  of upcasting to F64 and downcasting back to F32 for the output. Lacking native F128 on most platforms, for the F64
- *  dot product we use the Dot2 algorithm (Ogita-Rump-Oishi, 2005) for compensated dot product. It's a clean combination
- *  of TwoSum & TwoProd techniques.
+ *      Intrinsic                   Instruction                     Latency     Throughput  Ports
+ *      _mm256_fmadd_ps/pd          VFMADD (YMM, YMM, YMM)          5cy         0.5/cy      p01
+ *      _mm256_mul_ps/pd            VMULPS/PD (YMM, YMM, YMM)       5cy         0.5/cy      p01
+ *      _mm256_add_ps/pd            VADDPS/PD (YMM, YMM, YMM)       3cy         1/cy        p01
+ *      _mm256_cvtph_ps             VCVTPH2PS (YMM, XMM)            5cy         1/cy        p01
+ *      _mm256_cvtps_pd             VCVTPS2PD (YMM, XMM)            2cy         1/cy        p01
+ *
+ *  For small numeric types (F16, BF16, E4M3, E5M2) we use F32 accumulators. For F32 dot products,
+ *  upcasting to F64 and downcasting back is faster than stable summation algorithms. For F64 we
+ *  use the Dot2 algorithm (Ogita-Rump-Oishi, 2005) for compensated accumulation via TwoSum/TwoProd.
  */
 #ifndef NK_DOT_HASWELL_H
 #define NK_DOT_HASWELL_H

@@ -31,7 +31,7 @@
  *          scalar_t ai = a[i], bj = b[j];
  *          intersection_size += ai == bj;
  *          i += ai < bj;
- *          j += ai >= bj;
+ *          j += ai ≥ bj;
  *      }
  *
  *  Weighted sparse dot-products follow the same merge loop, but accumulate a product
@@ -42,7 +42,7 @@
  *          scalar_t ai = a[i], bj = b[j];
  *          product += ai == bj ? a_weights[i] * b_weights[j] : 0;
  *          i += ai < bj;
- *          j += ai >= bj;
+ *          j += ai ≥ bj;
  *      }
  *
  *  @section galloping_search Galloping vs Linear

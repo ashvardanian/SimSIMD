@@ -247,45 +247,45 @@ NK_INTERNAL void nk_jaccard_b512_finalize_ice(nk_jaccard_b512_state_ice_t const 
                                               nk_f32_t target_popcount_c, nk_f32_t target_popcount_d,
                                               nk_f32_t *results) {
 
-    // Port-optimized 4-way horizontal reduction using early i64→i32 truncation.
+    // Port-optimized 4-way horizontal reduction using early i64 → i32 truncation.
     //
     // Key insight: `_mm_hadd_epi32` uses ports p01, not p5, avoiding the shuffle bottleneck.
     // By truncating to i32 early, we can use hadd for reduction instead of expensive shuffles.
     //
     // Ice Lake execution ports:
-    //   p0:   Division, reciprocal (`VRCP14PS`: 4cy latency, 1/cy throughput)
-    //   p01:  FP mul/add/fma, hadd (`VMULPS`/`VPHADDD`: 3cy latency, 0.5/cy throughput)
-    //   p015: Integer add (`VPADDD`: 1cy latency, 0.33/cy throughput)
-    //   p5:   Shuffles/extracts (`VEXTRACTI128`: 3cy latency, 1/cy throughput)
+    // - p0: Division, reciprocal (`VRCP14PS`: 4cy latency, 1/cy throughput)
+    // - p01: FP mul/add/fma, hadd (`VMULPS`/`VPHADDD`: 3cy latency, 0.5/cy throughput)
+    // - p015: Integer add (`VPADDD`: 1cy latency, 0.33/cy throughput)
+    // - p5: Shuffles/extracts (`VEXTRACTI128`: 3cy latency, 1/cy throughput)
 
-    // Step 1: Truncate 8×i64 → 8×i32 per state (fits in YMM)
+    // Step 1: Truncate 8x i64 → 8x i32 per state (fits in YMM)
     // `VPMOVQD` (ZMM→YMM): 4cy latency, 0.5/cy throughput, port p01
     __m256i a_i32x8 = _mm512_cvtepi64_epi32(state_a->intersection_count_i64x8);
     __m256i b_i32x8 = _mm512_cvtepi64_epi32(state_b->intersection_count_i64x8);
     __m256i c_i32x8 = _mm512_cvtepi64_epi32(state_c->intersection_count_i64x8);
     __m256i d_i32x8 = _mm512_cvtepi64_epi32(state_d->intersection_count_i64x8);
 
-    // Step 2: Reduce 8×i32 → 4×i32 (add high 128-bit lane to low)
-    // `VEXTRACTI128`: 3cy latency, 1/cy throughput, port p5
-    // `VPADDD` (XMM): 1cy latency, 0.33/cy throughput, ports p015
+    // Step 2: Reduce 8x i32 → 4x i32 (add high 128-bit lane to low)
+    // - `VEXTRACTI128`: 3cy latency, 1/cy throughput, port p5
+    // - `VPADDD` (XMM): 1cy latency, 0.33/cy throughput, ports p015
     __m128i a_i32x4 = _mm_add_epi32(_mm256_castsi256_si128(a_i32x8), _mm256_extracti128_si256(a_i32x8, 1));
     __m128i b_i32x4 = _mm_add_epi32(_mm256_castsi256_si128(b_i32x8), _mm256_extracti128_si256(b_i32x8, 1));
     __m128i c_i32x4 = _mm_add_epi32(_mm256_castsi256_si128(c_i32x8), _mm256_extracti128_si256(c_i32x8, 1));
     __m128i d_i32x4 = _mm_add_epi32(_mm256_castsi256_si128(d_i32x8), _mm256_extracti128_si256(d_i32x8, 1));
 
-    // Step 3: Reduce 4×i32 → 2×i32 using horizontal add (uses p01, not p5!)
-    // `VPHADDD` (XMM): 3cy latency, 0.5/cy throughput, ports p01
+    // Step 3: Reduce 4x i32 → 2x i32 using horizontal add (uses p01, not p5!)
+    // - `VPHADDD` (XMM): 3cy latency, 0.5/cy throughput, ports p01
     __m128i ab_i32x4 = _mm_hadd_epi32(a_i32x4, b_i32x4); // [a01, a23, b01, b23]
     __m128i cd_i32x4 = _mm_hadd_epi32(c_i32x4, d_i32x4); // [c01, c23, d01, d23]
 
-    // Step 4: Reduce 2×i32 → 1×i32 per state (final horizontal add)
+    // Step 4: Reduce 2x i32 → 1x i32 per state (final horizontal add)
     __m128i intersection_i32x4 = _mm_hadd_epi32(ab_i32x4, cd_i32x4); // [a, b, c, d]
 
-    // Step 5: Direct i32 → f32 conversion (simpler than i64→f64→f32 path)
-    // `VCVTDQ2PS` (XMM): 4cy latency, 0.5/cy throughput, port p01
+    // Step 5: Direct i32 → f32 conversion (simpler than i64 → f64 → f32 path)
+    // - `VCVTDQ2PS` (XMM): 4cy latency, 0.5/cy throughput, port p01
     __m128 intersection_f32x4 = _mm_cvtepi32_ps(intersection_i32x4);
 
-    // Compute Jaccard distance: 1 - intersection / union
+    // Compute Jaccard distance: 1 - intersection ÷ union
     // where union = query_popcount + target_popcount - intersection
     __m128 query_f32x4 = _mm_set1_ps(query_popcount);
     __m128 targets_f32x4 = _mm_setr_ps(target_popcount_a, target_popcount_b, target_popcount_c, target_popcount_d);
@@ -297,10 +297,10 @@ NK_INTERNAL void nk_jaccard_b512_finalize_ice(nk_jaccard_b512_state_ice_t const 
     __m128 safe_union_f32x4 = _mm_blendv_ps(union_f32x4, one_f32x4, zero_union_mask);
 
     // Fast reciprocal with Newton-Raphson refinement:
-    //   `VRCP14PS`: 4cy latency, 1/cy throughput, port p0 (~14-bit precision)
-    //   Newton-Raphson: rcp' = rcp * (2 - x * rcp) doubles precision to ~28 bits
-    //   `VFNMADD`: 4cy latency, 0.5/cy throughput, ports p01
-    //   `VMULPS`: 4cy latency, 0.5/cy throughput, ports p01
+    // - `VRCP14PS`: 4cy latency, 1/cy throughput, port p0 (~14-bit precision)
+    // Newton-Raphson: rcp' = rcp × (2 - x × rcp) doubles precision to ~28 bits
+    // - `VFNMADD`: 4cy latency, 0.5/cy throughput, ports p01
+    // - `VMULPS`: 4cy latency, 0.5/cy throughput, ports p01
     // Total: ~12cy vs `VDIVPS` 11cy latency but 3cy throughput - NR wins on throughput
     __m128 union_reciprocal_f32x4 = _mm_rcp14_ps(safe_union_f32x4);
     union_reciprocal_f32x4 = _mm_mul_ps(union_reciprocal_f32x4,

@@ -28,12 +28,17 @@
  *  - E4M3: Single NaN encoding per sign (0x7F, 0xFF) → comparable form 0xFF, 0x00
  *  - E5M2: Multiple NaNs (0x7D-0x7F, 0xFD-0xFF) → use threshold comparison
  *
- *  Port Usage (Skylake-X):
+ *  @section skylake_reduce_instructions Key AVX-512 Reduction Instructions
  *
- *  - VPTESTMB (sign detection): 1 uop, p5
- *  - VPCMPUB (unsigned compare): 1 uop, p5
- *  - VPXORD/VPORD/VPANDD: 1 uop, p05
- *  - Mask ops (kand/kor/knot): 1 uop, p0 or p5
+ *      Intrinsic                   Instruction                     Latency     Throughput  Ports
+ *      _mm512_extractf32x8_ps      VEXTRACTF32X8 (YMM, ZMM, I8)    3cy         1/cy        p5
+ *      _mm256_extractf128_ps       VEXTRACTF128 (XMM, YMM, I8)     3cy         1/cy        p5
+ *      _mm256_hadd_ps              VHADDPS (YMM, YMM, YMM)         7cy         0.5/cy      p01+p5
+ *      _mm512_reduce_add_ps        (intrinsic sequence)            ~8-10cy     -           -
+ *
+ *  Horizontal reductions require cross-lane shuffles that bottleneck on port 5. The full ZMM to scalar
+ *  reduction takes 15-18 cycles via extract-and-add sequences. Using dual accumulators amortizes this
+ *  cost over larger input batches. Skylake-X server chips benefit from wider execution resources.
  */
 #ifndef NK_REDUCE_SKYLAKE_H
 #define NK_REDUCE_SKYLAKE_H

@@ -1,5 +1,5 @@
 /**
- *  @brief SIMD-accelerated type conversions for FP8/BF16/F16 types.
+ *  @brief SIMD-accelerated type conversions for FP8/BF16/F16 types optimized for Serial (SIMD-free) CPUs.
  *  @file include/numkong/cast/serial.h
  *  @author Ash Vardanian
  *  @date January 2, 2026
@@ -13,8 +13,18 @@
 extern "C" {
 #endif
 
+#pragma region - Type Punned Loads and Stores
+
+/** @brief Type-agnostic 32-bit full load (scalar). */
+NK_INTERNAL void nk_load_b32_serial_(void const *src, nk_b32_vec_t *dst) { dst->u32 = *(nk_u32_t const *)src; }
+
+/** @brief Type-agnostic 32-bit full store (scalar). */
+NK_INTERNAL void nk_store_b32_serial_(nk_b32_vec_t const *src, void *dst) { *(nk_u32_t *)dst = src->u32; }
+
+#pragma endregion - Type Punned Loads and Stores
+
 /**
- *  @brief  Expands an `f16` (IEEE-754 16-bit) to a `float`.
+ *  @brief Expands an `f16` (IEEE-754 16-bit) to a `float`.
  *
  *  Handles all IEEE-754 edge cases:
  *
@@ -73,7 +83,7 @@ NK_INTERNAL void nk_f16_to_f32_serial(nk_f16_t const *src, nk_f32_t *dest) {
 }
 
 /**
- *  @brief  Compresses a `float` to an `f16` (IEEE-754 16-bit).
+ *  @brief Compresses a `float` to an `f16` (IEEE-754 16-bit).
  *
  *  Handles all IEEE-754 edge cases with round-to-nearest:
  *
@@ -151,7 +161,7 @@ NK_INTERNAL void nk_f32_to_f16_serial(nk_f32_t const *src, nk_f16_t *dest) {
 }
 
 /**
- *  @brief  For compilers that don't natively support the `__bf16` type,
+ *  @brief For compilers that don't natively support the `__bf16` type,
  *          upcasts contents into a more conventional `float`.
  *
  *  https://stackoverflow.com/questions/55253233/convert-fp32-to-bfloat16-in-c/55254307#55254307
@@ -170,7 +180,7 @@ NK_INTERNAL void nk_bf16_to_f32_serial(nk_bf16_t const *src, nk_f32_t *dest) {
 }
 
 /**
- *  @brief  Compresses a `float` to a `bf16` representation.
+ *  @brief Compresses a `float` to a `bf16` representation.
  *
  *  https://stackoverflow.com/questions/55253233/convert-fp32-to-bfloat16-in-c/55254307#55254307
  *  https://cloud.google.com/blog/products/ai-machine-learning/bfloat16-the-secret-to-high-performance-on-cloud-tpus
@@ -192,10 +202,10 @@ NK_INTERNAL void nk_f32_to_bf16_serial(nk_f32_t const *src, nk_bf16_t *dest) {
 }
 
 /**
- *  @brief  Convert FP8 E4M3 to IEEE 754 single-precision float.
+ *  @brief Convert FP8 E4M3 to IEEE 754 single-precision float.
  *
  *  E4M3 (FP8) format: 1 sign bit, 4 exponent bits (bias=7), 3 mantissa bits.
- *  Range: [-448, +448], no infinity, only two NaN encodings (0x7F, 0xFF).
+ *  Range: [-448, +448], no ∞, only two NaN encodings (0x7F, 0xFF).
  *  Subnormal values: (-1)ˢ × mantissa × 2⁻⁹ = mantissa / 512.
  *
  *  Special value mappings (E4M3 → F32):
@@ -232,9 +242,10 @@ NK_INTERNAL void nk_e4m3_to_f32_serial(nk_e4m3_t const *src, nk_f32_t *dest) {
         *dest = sign ? -value : value;
         return;
     }
-    if (exponent == 0x0Fu) {
-        if (mantissa == 0) { conv.u = sign | 0x7F800000u; }
-        else { conv.u = sign | 0x7FC00000u; }
+    // E4M3FN has no ∞. Only exp=15 && mant=7 is NaN.
+    // exp=15 && mant=0..6 are normal values (256, 288, 320, 352, 384, 416, 448).
+    if (exponent == 0x0Fu && mantissa == 7) {
+        conv.u = sign | 0x7FC00000u; // F32 quiet NaN
         *dest = conv.f;
         return;
     }
@@ -246,10 +257,10 @@ NK_INTERNAL void nk_e4m3_to_f32_serial(nk_e4m3_t const *src, nk_f32_t *dest) {
 }
 
 /**
- *  @brief  Convert IEEE 754 single-precision float to FP8 E4M3.
+ *  @brief Convert IEEE 754 single-precision float to FP8 E4M3.
  *
  *  E4M3 (FP8) format: 1 sign bit, 4 exponent bits (bias=7), 3 mantissa bits.
- *  Range: [-448, +448], no infinity, only two NaN encodings.
+ *  Range: [-448, +448], no ∞, only two NaN encodings.
  *  Rounding: RNE (Round to Nearest Even) per IEEE 754 / OCP FP8 spec.
  *  Subnormal threshold: values with |x| < 2⁻⁶ use subnormal encoding.
  *
@@ -263,7 +274,7 @@ NK_INTERNAL void nk_e4m3_to_f32_serial(nk_e4m3_t const *src, nk_f32_t *dest) {
  *      1.0          0x3F800000    0x38      Normal (exp=7, mant=0)
  *      448+         >0x43E00000   0x7E      Overflow → max
  *      2⁻⁶         0x3E800000    0x08      Min normal
- *      <2⁻¹²·⁵     <0x39800000   0x00      Underflow → zero (RNE boundary)
+ *      <2⁻¹² × ⁵     <0x39800000   0x00      Underflow → zero (RNE boundary)
  *
  *  References:
  *      https://arxiv.org/pdf/2209.05433 (NVIDIA/Intel/Arm FP8 paper)
@@ -278,9 +289,14 @@ NK_INTERNAL void nk_f32_to_e4m3_serial(nk_f32_t const *src, nk_e4m3_t *dest) {
     nk_u32_t abs_bits = conv.u & 0x7FFFFFFFu;
     nk_u8_t sign = (nk_u8_t)(sign_bit << 7);
 
-    if (abs_bits >= 0x7F800000u) {
-        nk_u8_t mant = (abs_bits > 0x7F800000u) ? 0x01u : 0x00u;
-        *dest = (nk_e4m3_t)(sign | 0x78u | mant);
+    // NaN → E4M3FN NaN (0x7F or 0xFF)
+    if (abs_bits > 0x7F800000u) {
+        *dest = (nk_e4m3_t)(sign | 0x7Fu);
+        return;
+    }
+    // Infinity → saturate to max (0x7E or 0xFE), E4M3FN has no ∞
+    if (abs_bits == 0x7F800000u) {
+        *dest = (nk_e4m3_t)(sign | 0x7Eu);
         return;
     }
 
@@ -349,7 +365,7 @@ NK_INTERNAL void nk_f32_to_e4m3_serial(nk_f32_t const *src, nk_e4m3_t *dest) {
 }
 
 /**
- *  @brief  Convert FP8 E5M2 to IEEE 754 single-precision float.
+ *  @brief Convert FP8 E5M2 to IEEE 754 single-precision float.
  *
  *  E5M2 (FP8) format: 1 sign bit, 5 exponent bits (bias=15), 2 mantissa bits.
  *  Range: [-57344, +57344], supports infinity and NaN (IEEE 754 compatible).
@@ -404,7 +420,7 @@ NK_INTERNAL void nk_e5m2_to_f32_serial(nk_e5m2_t const *src, nk_f32_t *dest) {
 }
 
 /**
- *  @brief  Convert IEEE 754 single-precision float to FP8 E5M2.
+ *  @brief Convert IEEE 754 single-precision float to FP8 E5M2.
  *
  *  E5M2 (FP8) format: 1 sign bit, 5 exponent bits (bias=15), 2 mantissa bits.
  *  Range: [-57344, +57344], supports infinity and NaN (IEEE 754 compatible).
@@ -421,7 +437,7 @@ NK_INTERNAL void nk_e5m2_to_f32_serial(nk_e5m2_t const *src, nk_f32_t *dest) {
  *      1.0          0x3F800000    0x3C      Normal (exp=15, mant=0)
  *      57344+       >0x47600000   0x7C      Overflow → infinity
  *      2⁻¹⁴        0x38800000    0x04      Min normal
- *      <2⁻¹⁷·⁵     <0x36800000   0x00      Underflow → zero (RNE boundary)
+ *      <2⁻¹⁷ × ⁵     <0x36800000   0x00      Underflow → zero (RNE boundary)
  *
  *  References:
  *      https://arxiv.org/pdf/2209.05433 (NVIDIA/Intel/Arm FP8 paper)
@@ -702,7 +718,7 @@ NK_INTERNAL void nk_partial_load_b32x4_serial_(void const *src, nk_b128_vec_t *d
 }
 
 /** @brief Type-agnostic partial load for 8-bit elements (8 elements max) into 64-bit vector. */
-NK_INTERNAL void nk_partial_load_u1x8_serial_(void const *src, nk_b64_vec_t *dst, nk_size_t n) {
+NK_INTERNAL void nk_partial_load_b8x8_serial_(void const *src, nk_b64_vec_t *dst, nk_size_t n) {
     dst->u64 = 0;
     nk_u8_t const *s = (nk_u8_t const *)src;
     switch (n) {
@@ -715,6 +731,34 @@ NK_INTERNAL void nk_partial_load_u1x8_serial_(void const *src, nk_b64_vec_t *dst
     case 3: dst->u8s[2] = s[2]; // fallthrough
     case 2: dst->u8s[1] = s[1]; // fallthrough
     case 1: dst->u8s[0] = s[0]; // fallthrough
+    case 0: break;
+    }
+}
+
+/** @brief Type-agnostic partial load for 8-bit elements (4 elements max) into 32-bit vector. */
+NK_INTERNAL nk_b32_vec_t nk_partial_load_b8x4_serial_(void const *src, nk_size_t n) {
+    nk_b32_vec_t dst = {0};
+    nk_u8_t const *s = (nk_u8_t const *)src;
+    switch (n) {
+    default:
+    case 4: dst.u8s[3] = s[3]; // fallthrough
+    case 3: dst.u8s[2] = s[2]; // fallthrough
+    case 2: dst.u8s[1] = s[1]; // fallthrough
+    case 1: dst.u8s[0] = s[0]; // fallthrough
+    case 0: break;
+    }
+    return dst;
+}
+
+/** @brief Partial store for 8-bit elements (up to 4) from nk_b32_vec_t. */
+NK_INTERNAL void nk_partial_store_b8x4_serial_(nk_b32_vec_t const *src, void *dst, nk_size_t n) {
+    nk_u8_t *d = (nk_u8_t *)dst;
+    switch (n) {
+    default:
+    case 4: d[3] = src->u8s[3]; // fallthrough
+    case 3: d[2] = src->u8s[2]; // fallthrough
+    case 2: d[1] = src->u8s[1]; // fallthrough
+    case 1: d[0] = src->u8s[0]; // fallthrough
     case 0: break;
     }
 }
@@ -738,7 +782,7 @@ NK_INTERNAL void nk_partial_load_b16x8_serial_(void const *src, nk_b128_vec_t *d
 }
 
 /** @brief Type-agnostic partial load for 8-bit elements (16 elements max) into 128-bit vector. */
-NK_INTERNAL void nk_partial_load_u1x16_serial_(void const *src, nk_b128_vec_t *dst, nk_size_t n) {
+NK_INTERNAL void nk_partial_load_b8x16_serial_(void const *src, nk_b128_vec_t *dst, nk_size_t n) {
     dst->u64s[0] = 0, dst->u64s[1] = 0;
     nk_u8_t const *s = (nk_u8_t const *)src;
     switch (n) {
@@ -790,7 +834,7 @@ NK_INTERNAL void nk_partial_load_b16x16_serial_(void const *src, nk_b256_vec_t *
 }
 
 /** @brief Type-agnostic partial load for 8-bit elements (32 elements max) into 256-bit vector. */
-NK_INTERNAL void nk_partial_load_u1x32_serial_(void const *src, nk_b256_vec_t *dst, nk_size_t n) {
+NK_INTERNAL void nk_partial_load_b8x32_serial_(void const *src, nk_b256_vec_t *dst, nk_size_t n) {
     dst->u64s[0] = 0, dst->u64s[1] = 0, dst->u64s[2] = 0, dst->u64s[3] = 0;
     nk_u8_t const *s = (nk_u8_t const *)src;
     switch (n) {
@@ -921,7 +965,7 @@ NK_INTERNAL void nk_partial_store_b16x8_serial_(nk_b128_vec_t const *src, void *
 }
 
 /** @brief Type-agnostic partial store for 8-bit elements (8 elements max) from 64-bit vector. */
-NK_INTERNAL void nk_partial_store_u1x8_serial_(nk_b64_vec_t const *src, void *dst, nk_size_t n) {
+NK_INTERNAL void nk_partial_store_b8x8_serial_(nk_b64_vec_t const *src, void *dst, nk_size_t n) {
     nk_u8_t *d = (nk_u8_t *)dst;
     switch (n) {
     default:
@@ -964,7 +1008,7 @@ NK_INTERNAL void nk_partial_store_b64x4_serial_(nk_b256_vec_t const *src, void *
     }
 }
 
-/** @brief Type-agnostic partial load for 32-bit elements (2 elements max) into 64-bit vector (NEON). */
+/** @brief Type-agnostic partial load for 32-bit elements (2 elements max) into 64-bit vector. */
 NK_INTERNAL void nk_partial_load_b32x2_serial_(void const *src, nk_b64_vec_t *dst, nk_size_t n) {
     dst->u64 = 0;
     nk_u32_t const *s = (nk_u32_t const *)src;
@@ -976,7 +1020,7 @@ NK_INTERNAL void nk_partial_load_b32x2_serial_(void const *src, nk_b64_vec_t *ds
     }
 }
 
-/** @brief Type-agnostic partial load for 16-bit elements (4 elements max) into 64-bit vector (NEON). */
+/** @brief Type-agnostic partial load for 16-bit elements (4 elements max) into 64-bit vector. */
 NK_INTERNAL void nk_partial_load_b16x4_serial_(void const *src, nk_b64_vec_t *dst, nk_size_t n) {
     dst->u64 = 0;
     nk_u16_t const *s = (nk_u16_t const *)src;
@@ -990,7 +1034,7 @@ NK_INTERNAL void nk_partial_load_b16x4_serial_(void const *src, nk_b64_vec_t *ds
     }
 }
 
-/** @brief Type-agnostic partial load for 64-bit elements (2 elements max) into 128-bit vector (NEON). */
+/** @brief Type-agnostic partial load for 64-bit elements (2 elements max) into 128-bit vector. */
 NK_INTERNAL void nk_partial_load_b64x2_serial_(void const *src, nk_b128_vec_t *dst, nk_size_t n) {
     dst->u64s[0] = 0, dst->u64s[1] = 0;
     nk_u64_t const *s = (nk_u64_t const *)src;
@@ -1002,7 +1046,7 @@ NK_INTERNAL void nk_partial_load_b64x2_serial_(void const *src, nk_b128_vec_t *d
     }
 }
 
-/** @brief Type-agnostic partial store for 64-bit elements (2 elements max) from 128-bit vector (NEON). */
+/** @brief Type-agnostic partial store for 64-bit elements (2 elements max) from 128-bit vector. */
 NK_INTERNAL void nk_partial_store_b64x2_serial_(nk_b128_vec_t const *src, void *dst, nk_size_t n) {
     nk_u64_t *d = (nk_u64_t *)dst;
     switch (n) {
@@ -1014,7 +1058,7 @@ NK_INTERNAL void nk_partial_store_b64x2_serial_(nk_b128_vec_t const *src, void *
 }
 
 /**
- *  @brief  Union for type-punned scalar values at language binding boundaries.
+ *  @brief Union for type-punned scalar values at language binding boundaries.
  *
  *  Used to bridge different type systems (Python, JavaScript, etc.) where
  *  scalars arrive as f64 but need to be passed to kernels as typed pointers.

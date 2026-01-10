@@ -1,9 +1,23 @@
 /**
- *  @brief SIMD-accelerated horizontal reduction operations for Intel Skylake-X CPUs.
+ *  @brief SIMD-accelerated type conversions for FP8/BF16/F16 types optimized for Intel Skylake-X CPUs.
  *  @file include/numkong/cast/skylake.h
  *  @sa include/numkong/cast.h
  *  @author Ash Vardanian
  *  @date December 27, 2025
+ *
+ *  @section skylake_cast_instructions AVX-512 Conversion Instructions
+ *
+ *      Intrinsic                   Instruction                     SKL         ICL         Genoa
+ *      _mm512_cvtph_ps             VCVTPH2PS (ZMM, YMM)            5cy @ p05   5cy @ p05   4cy @ p01
+ *      _mm512_cvtps_ph             VCVTPS2PH (YMM, ZMM, imm)       5cy @ p05   5cy @ p05   4cy @ p01
+ *      _mm512_cvtps_epi32          VCVTPS2DQ (ZMM, ZMM)            4cy @ p0    4cy @ p0    3cy @ p01
+ *      _mm512_cvtepi32_ps          VCVTDQ2PS (ZMM, ZMM)            4cy @ p0    4cy @ p0    3cy @ p01
+ *      _mm512_cvtepi32_epi16       VPMOVDW (YMM, ZMM)              3cy @ p5    3cy @ p5    2cy @ p12
+ *      _mm512_cvtsepi32_epi8       VPMOVSDB (XMM, ZMM)             3cy @ p5    3cy @ p5    2cy @ p12
+ *
+ *  F16 conversions use hardware F16C via VCVTPH2PS/VCVTPS2PH. BF16 lacks hardware support on Skylake,
+ *  requiring emulation via VPMOVZXWD + VPSLLD for bf16-to-f32, achieving ~4cy total. FP8 (E4M3/E5M2)
+ *  conversions use bit manipulation with VPTERNLOGD for sign/exp/mantissa composition.
  */
 #ifndef NK_CAST_SKYLAKE_H
 #define NK_CAST_SKYLAKE_H
@@ -49,7 +63,7 @@ NK_INTERNAL void nk_partial_load_b16x32_skylake_(void const *src, nk_b512_vec_t 
 }
 
 /** @brief Type-agnostic partial load for 8-bit elements (64 elements max) into 512-bit vector (Skylake AVX-512). */
-NK_INTERNAL void nk_partial_load_u1x64_skylake_(void const *src, nk_b512_vec_t *dst, nk_size_t n) {
+NK_INTERNAL void nk_partial_load_b8x64_skylake_(void const *src, nk_b512_vec_t *dst, nk_size_t n) {
     __mmask64 mask = _bzhi_u64(0xFFFFFFFFFFFFFFFFULL, (unsigned int)n);
     dst->zmm = _mm512_maskz_loadu_epi8(mask, src);
 }
@@ -67,7 +81,7 @@ NK_INTERNAL void nk_partial_load_b32x8_skylake_(void const *src, nk_b256_vec_t *
 }
 
 /** @brief Type-agnostic partial load for 8-bit elements (16 elements max) into 128-bit vector (Skylake AVX-512). */
-NK_INTERNAL void nk_partial_load_u1x16_skylake_(void const *src, nk_b128_vec_t *dst, nk_size_t n) {
+NK_INTERNAL void nk_partial_load_b8x16_skylake_(void const *src, nk_b128_vec_t *dst, nk_size_t n) {
     __mmask16 mask = (__mmask16)_bzhi_u32(0xFFFF, (unsigned int)n);
     dst->xmm = _mm_maskz_loadu_epi8(mask, src);
 }
@@ -94,22 +108,22 @@ NK_INTERNAL void nk_partial_store_b64x4_skylake_(nk_b256_vec_t const *src, void 
 
 #pragma region - Vectorized Conversions
 
-/** @brief Convert 16× bf16 → 16× f32 (Skylake AVX-512). */
+/** @brief Convert 16x bf16 → 16x f32 (Skylake AVX-512). */
 NK_INTERNAL __m512 nk_bf16x16_to_f32x16_skylake_(__m256i a) {
     // Upcasting from `bf16` to `f32` is done by shifting the `bf16` values by 16 bits to the left, like:
     return _mm512_castsi512_ps(_mm512_slli_epi32(_mm512_cvtepu16_epi32(a), 16));
 }
 
-/** @brief Convert 16× f32 → 16× bf16 (Skylake AVX-512). */
+/** @brief Convert 16x f32 → 16x bf16 (Skylake AVX-512). */
 NK_INTERNAL __m256i nk_f32x16_to_bf16x16_skylake_(__m512 a) {
     // Add 2¹⁵ and right shift 16 to do round-nearest
     __m512i x = _mm512_srli_epi32(_mm512_add_epi32(_mm512_castps_si512(a), _mm512_set1_epi32(1 << 15)), 16);
     return _mm512_cvtepi32_epi16(x);
 }
 
-/** @brief Convert 16× e4m3 → 16× f32 via bit manipulation (AVX-512).
+/** @brief Convert 16x e4m3 → 16x f32 via bit manipulation (AVX-512).
  *  E4M3 format: S EEEE MMM (bias=7). F32: sign<<31, (exp+120)<<23, mantissa<<20.
- *  Subnormals (exp=0): value = mantissa × 2⁽¹⁻⁷⁾ × 2⁻³ = mantissa / 512. */
+ *  Subnormals (exp=0): value = mantissa × 2⁽¹⁻⁷⁾ × 2⁻³ = mantissa ÷ 512. */
 NK_INTERNAL __m512 nk_e4m3x16_to_f32x16_skylake_(__m128i e4m3_i8x16) {
     __m512i e4m3_i32x16 = _mm512_cvtepu8_epi32(e4m3_i8x16);
 
@@ -127,12 +141,20 @@ NK_INTERNAL __m512 nk_e4m3x16_to_f32x16_skylake_(__m128i e4m3_i8x16) {
     // Subnormal fix: for exp==0 lanes, replace with (mantissa / 512) | sign using masked OR
     __mmask16 is_subnormal = _mm512_testn_epi32_mask(e4m3_i32x16, _mm512_set1_epi32(0x78));
     __m512 subnorm_abs_f32x16 = _mm512_mul_ps(_mm512_cvtepi32_ps(mantissa_i32x16), _mm512_set1_ps(1.0f / 512.0f));
-    return _mm512_mask_or_ps(result_f32x16, is_subnormal, subnorm_abs_f32x16, _mm512_castsi512_ps(sign_i32x16));
+    result_f32x16 = _mm512_mask_or_ps(result_f32x16, is_subnormal, subnorm_abs_f32x16,
+                                      _mm512_castsi512_ps(sign_i32x16));
+
+    // NaN path: E4M3FN has NaN only when exp=15 AND mant=7 (0x7F or 0xFF)
+    __mmask16 is_nan = _mm512_mask_cmpeq_epi32_mask(                                //
+        _mm512_cmpeq_epi32_mask(exp_i32x16, _mm512_set1_epi32(15)),                 //
+        mantissa_i32x16, _mm512_set1_epi32(7));                                     //
+    __m512i nan_bits = _mm512_or_si512(sign_i32x16, _mm512_set1_epi32(0x7FC00000)); // F32 quiet NaN
+    return _mm512_mask_blend_ps(is_nan, result_f32x16, _mm512_castsi512_ps(nan_bits));
 }
 
-/** @brief Convert 16× e5m2 → 16× f32 via bit manipulation (AVX-512).
+/** @brief Convert 16x e5m2 → 16x f32 via bit manipulation (AVX-512).
  *  E5M2 format: S EEEEE MM (bias=15). F32: sign<<31, (exp+112)<<23, mantissa<<21.
- *  Subnormals (exp=0): value = mantissa × 2⁽¹⁻¹⁵⁾ × 2⁻² = mantissa / 65536. */
+ *  Subnormals (exp=0): value = mantissa × 2⁽¹⁻¹⁵⁾ × 2⁻² = mantissa ÷ 65536. */
 NK_INTERNAL __m512 nk_e5m2x16_to_f32x16_skylake_(__m128i e5m2_i8x16) {
     __m512i e5m2_i32x16 = _mm512_cvtepu8_epi32(e5m2_i8x16);
 
@@ -153,9 +175,9 @@ NK_INTERNAL __m512 nk_e5m2x16_to_f32x16_skylake_(__m128i e5m2_i8x16) {
     return _mm512_mask_or_ps(result_f32x16, is_subnormal, subnorm_abs_f32x16, _mm512_castsi512_ps(sign_i32x16));
 }
 
-/** @brief Convert 16× f32 → 16× e4m3 via bit manipulation (AVX-512).
+/** @brief Convert 16x f32 → 16x e4m3 via bit manipulation (AVX-512).
  *  E4M3 format: S EEEE MMM (bias=7). Handles normal, subnormal, and overflow cases.
- *  Subnormals (f32_exp <= 120): mantissa = round(abs_f32 * 512), clamped to [0,7]. */
+ *  Subnormals (f32_exp ≤ 120): mantissa = round(abs_f32 * 512), clamped to [0,7]. */
 NK_INTERNAL __m128i nk_f32x16_to_e4m3x16_skylake_(__m512 f32x16) {
     __m512i bits_i32x16 = _mm512_castps_si512(f32x16);
     __m512i sign_i32x16 = _mm512_srli_epi32(bits_i32x16, 31);
@@ -210,7 +232,7 @@ NK_INTERNAL __m128i nk_f32x16_to_e4m3x16_skylake_(__m512 f32x16) {
     return _mm512_cvtepi32_epi8(e4m3_i32x16);
 }
 
-/** @brief Convert 16× f32 → 16× e5m2 via bit manipulation (AVX-512).
+/** @brief Convert 16x f32 → 16x e5m2 via bit manipulation (AVX-512).
  *  E5M2 format: S EEEEE MM (bias=15). Handles normal, subnormal, and overflow cases.
  *  Uses RNE (round to nearest even) for mantissa rounding. */
 NK_INTERNAL __m128i nk_f32x16_to_e5m2x16_skylake_(__m512 f32x16) {
@@ -385,8 +407,8 @@ NK_PUBLIC void nk_cast_skylake(void const *from, nk_dtype_t from_type, nk_size_t
     int from_f64 = (from_type == nk_f64_k);
     int to_f64 = (to_type == nk_f64_k);
 
-    nk_u8_t const *src = (nk_u8_t const *)from;
-    nk_u8_t *dst = (nk_u8_t *)to;
+    nk_u8_t const *from_ptr = (nk_u8_t const *)from;
+    nk_u8_t *to_ptr = (nk_u8_t *)to;
 
     // Hub 1: f32x16 - float types + small integers (16 elements/batch)
     if (from_f32_hub && to_f32_hub) {
@@ -395,35 +417,46 @@ NK_PUBLIC void nk_cast_skylake(void const *from, nk_dtype_t from_type, nk_size_t
         while (n > 0) {
             nk_size_t batch = n < 16 ? n : 16;
             __mmask16 mask = (__mmask16)_bzhi_u32(0xFFFF, (unsigned int)batch);
-            __m512 f32x16;
+            __m512 hub_f32x16;
 
             // Upcast to f32x16
-            if (from_type == nk_f32_k) f32x16 = _mm512_maskz_loadu_ps(mask, src);
-            else if (from_type == nk_f16_k) f32x16 = _mm512_cvtph_ps(_mm256_maskz_loadu_epi16(mask, src));
+            if (from_type == nk_f32_k) hub_f32x16 = _mm512_maskz_loadu_ps(mask, from_ptr);
+            else if (from_type == nk_f16_k) hub_f32x16 = _mm512_cvtph_ps(_mm256_maskz_loadu_epi16(mask, from_ptr));
             else if (from_type == nk_bf16_k)
-                f32x16 = nk_bf16x16_to_f32x16_skylake_(_mm256_maskz_loadu_epi16(mask, src));
-            else if (from_type == nk_e4m3_k) f32x16 = nk_e4m3x16_to_f32x16_skylake_(_mm_maskz_loadu_epi8(mask, src));
-            else if (from_type == nk_e5m2_k) f32x16 = nk_e5m2x16_to_f32x16_skylake_(_mm_maskz_loadu_epi8(mask, src));
-            else if (from_type == nk_i8_k) f32x16 = nk_i8x16_to_f32x16_skylake_(_mm_maskz_loadu_epi8(mask, src));
-            else if (from_type == nk_u8_k) f32x16 = nk_u8x16_to_f32x16_skylake_(_mm_maskz_loadu_epi8(mask, src));
-            else if (from_type == nk_i16_k) f32x16 = nk_i16x16_to_f32x16_skylake_(_mm256_maskz_loadu_epi16(mask, src));
-            else if (from_type == nk_u16_k) f32x16 = nk_u16x16_to_f32x16_skylake_(_mm256_maskz_loadu_epi16(mask, src));
-            else f32x16 = _mm512_setzero_ps();
+                hub_f32x16 = nk_bf16x16_to_f32x16_skylake_(_mm256_maskz_loadu_epi16(mask, from_ptr));
+            else if (from_type == nk_e4m3_k)
+                hub_f32x16 = nk_e4m3x16_to_f32x16_skylake_(_mm_maskz_loadu_epi8(mask, from_ptr));
+            else if (from_type == nk_e5m2_k)
+                hub_f32x16 = nk_e5m2x16_to_f32x16_skylake_(_mm_maskz_loadu_epi8(mask, from_ptr));
+            else if (from_type == nk_i8_k)
+                hub_f32x16 = nk_i8x16_to_f32x16_skylake_(_mm_maskz_loadu_epi8(mask, from_ptr));
+            else if (from_type == nk_u8_k)
+                hub_f32x16 = nk_u8x16_to_f32x16_skylake_(_mm_maskz_loadu_epi8(mask, from_ptr));
+            else if (from_type == nk_i16_k)
+                hub_f32x16 = nk_i16x16_to_f32x16_skylake_(_mm256_maskz_loadu_epi16(mask, from_ptr));
+            else if (from_type == nk_u16_k)
+                hub_f32x16 = nk_u16x16_to_f32x16_skylake_(_mm256_maskz_loadu_epi16(mask, from_ptr));
+            else hub_f32x16 = _mm512_setzero_ps();
 
             // Downcast from f32x16
-            if (to_type == nk_f32_k) _mm512_mask_storeu_ps(dst, mask, f32x16);
+            if (to_type == nk_f32_k) _mm512_mask_storeu_ps(to_ptr, mask, hub_f32x16);
             else if (to_type == nk_f16_k)
-                _mm256_mask_storeu_epi16(dst, mask, _mm512_cvtps_ph(f32x16, _MM_FROUND_TO_NEAREST_INT));
-            else if (to_type == nk_bf16_k) _mm256_mask_storeu_epi16(dst, mask, nk_f32x16_to_bf16x16_skylake_(f32x16));
-            else if (to_type == nk_e4m3_k) _mm_mask_storeu_epi8(dst, mask, nk_f32x16_to_e4m3x16_skylake_(f32x16));
-            else if (to_type == nk_e5m2_k) _mm_mask_storeu_epi8(dst, mask, nk_f32x16_to_e5m2x16_skylake_(f32x16));
-            else if (to_type == nk_i8_k) _mm_mask_storeu_epi8(dst, mask, nk_f32x16_to_i8x16_skylake_(f32x16));
-            else if (to_type == nk_u8_k) _mm_mask_storeu_epi8(dst, mask, nk_f32x16_to_u8x16_skylake_(f32x16));
-            else if (to_type == nk_i16_k) _mm256_mask_storeu_epi16(dst, mask, nk_f32x16_to_i16x16_skylake_(f32x16));
-            else if (to_type == nk_u16_k) _mm256_mask_storeu_epi16(dst, mask, nk_f32x16_to_u16x16_skylake_(f32x16));
+                _mm256_mask_storeu_epi16(to_ptr, mask, _mm512_cvtps_ph(hub_f32x16, _MM_FROUND_TO_NEAREST_INT));
+            else if (to_type == nk_bf16_k)
+                _mm256_mask_storeu_epi16(to_ptr, mask, nk_f32x16_to_bf16x16_skylake_(hub_f32x16));
+            else if (to_type == nk_e4m3_k)
+                _mm_mask_storeu_epi8(to_ptr, mask, nk_f32x16_to_e4m3x16_skylake_(hub_f32x16));
+            else if (to_type == nk_e5m2_k)
+                _mm_mask_storeu_epi8(to_ptr, mask, nk_f32x16_to_e5m2x16_skylake_(hub_f32x16));
+            else if (to_type == nk_i8_k) _mm_mask_storeu_epi8(to_ptr, mask, nk_f32x16_to_i8x16_skylake_(hub_f32x16));
+            else if (to_type == nk_u8_k) _mm_mask_storeu_epi8(to_ptr, mask, nk_f32x16_to_u8x16_skylake_(hub_f32x16));
+            else if (to_type == nk_i16_k)
+                _mm256_mask_storeu_epi16(to_ptr, mask, nk_f32x16_to_i16x16_skylake_(hub_f32x16));
+            else if (to_type == nk_u16_k)
+                _mm256_mask_storeu_epi16(to_ptr, mask, nk_f32x16_to_u16x16_skylake_(hub_f32x16));
 
-            src += from_step;
-            dst += to_step;
+            from_ptr += from_step;
+            to_ptr += to_step;
             n -= batch;
         }
         return;
@@ -436,23 +469,25 @@ NK_PUBLIC void nk_cast_skylake(void const *from, nk_dtype_t from_type, nk_size_t
         while (n > 0) {
             nk_size_t batch = n < 8 ? n : 8;
             __mmask8 mask = (__mmask8)_bzhi_u32(0xFF, (unsigned int)batch);
-            __m512i u64x8;
+            __m512i hub_u64x8;
 
             // Upcast to u64x8
-            if (from_type == nk_u8_k) u64x8 = nk_u8x8_to_u64x8_skylake_(_mm_maskz_loadu_epi8(mask, src));
-            else if (from_type == nk_u16_k) u64x8 = nk_u16x8_to_u64x8_skylake_(_mm_maskz_loadu_epi16(mask, src));
-            else if (from_type == nk_u32_k) u64x8 = nk_u32x8_to_u64x8_skylake_(_mm256_maskz_loadu_epi32(mask, src));
-            else if (from_type == nk_u64_k) u64x8 = _mm512_maskz_loadu_epi64(mask, src);
-            else u64x8 = _mm512_setzero_si512();
+            if (from_type == nk_u8_k) hub_u64x8 = nk_u8x8_to_u64x8_skylake_(_mm_maskz_loadu_epi8(mask, from_ptr));
+            else if (from_type == nk_u16_k)
+                hub_u64x8 = nk_u16x8_to_u64x8_skylake_(_mm_maskz_loadu_epi16(mask, from_ptr));
+            else if (from_type == nk_u32_k)
+                hub_u64x8 = nk_u32x8_to_u64x8_skylake_(_mm256_maskz_loadu_epi32(mask, from_ptr));
+            else if (from_type == nk_u64_k) hub_u64x8 = _mm512_maskz_loadu_epi64(mask, from_ptr);
+            else hub_u64x8 = _mm512_setzero_si512();
 
             // Downcast from u64x8
-            if (to_type == nk_u8_k) _mm_mask_storeu_epi8(dst, mask, nk_u64x8_to_u8x8_skylake_(u64x8));
-            else if (to_type == nk_u16_k) _mm_mask_storeu_epi16(dst, mask, nk_u64x8_to_u16x8_skylake_(u64x8));
-            else if (to_type == nk_u32_k) _mm256_mask_storeu_epi32(dst, mask, nk_u64x8_to_u32x8_skylake_(u64x8));
-            else if (to_type == nk_u64_k) _mm512_mask_storeu_epi64(dst, mask, u64x8);
+            if (to_type == nk_u8_k) _mm_mask_storeu_epi8(to_ptr, mask, nk_u64x8_to_u8x8_skylake_(hub_u64x8));
+            else if (to_type == nk_u16_k) _mm_mask_storeu_epi16(to_ptr, mask, nk_u64x8_to_u16x8_skylake_(hub_u64x8));
+            else if (to_type == nk_u32_k) _mm256_mask_storeu_epi32(to_ptr, mask, nk_u64x8_to_u32x8_skylake_(hub_u64x8));
+            else if (to_type == nk_u64_k) _mm512_mask_storeu_epi64(to_ptr, mask, hub_u64x8);
 
-            src += from_step;
-            dst += to_step;
+            from_ptr += from_step;
+            to_ptr += to_step;
             n -= batch;
         }
         return;
@@ -465,29 +500,34 @@ NK_PUBLIC void nk_cast_skylake(void const *from, nk_dtype_t from_type, nk_size_t
         while (n > 0) {
             nk_size_t batch = n < 8 ? n : 8;
             __mmask8 mask = (__mmask8)_bzhi_u32(0xFF, (unsigned int)batch);
-            __m512i i64x8;
+            __m512i hub_i64x8;
 
             // Upcast to i64x8
-            if (from_type == nk_i8_k) i64x8 = nk_i8x8_to_i64x8_skylake_(_mm_maskz_loadu_epi8(mask, src));
-            else if (from_type == nk_u8_k) i64x8 = nk_u8x8_to_i64x8_skylake_(_mm_maskz_loadu_epi8(mask, src));
-            else if (from_type == nk_i16_k) i64x8 = nk_i16x8_to_i64x8_skylake_(_mm_maskz_loadu_epi16(mask, src));
-            else if (from_type == nk_u16_k) i64x8 = nk_u16x8_to_i64x8_skylake_(_mm_maskz_loadu_epi16(mask, src));
-            else if (from_type == nk_i32_k) i64x8 = nk_i32x8_to_i64x8_skylake_(_mm256_maskz_loadu_epi32(mask, src));
-            else if (from_type == nk_u32_k) i64x8 = nk_u32x8_to_i64x8_skylake_(_mm256_maskz_loadu_epi32(mask, src));
-            else if (from_type == nk_i64_k || from_type == nk_u64_k) i64x8 = _mm512_maskz_loadu_epi64(mask, src);
-            else i64x8 = _mm512_setzero_si512();
+            if (from_type == nk_i8_k) hub_i64x8 = nk_i8x8_to_i64x8_skylake_(_mm_maskz_loadu_epi8(mask, from_ptr));
+            else if (from_type == nk_u8_k) hub_i64x8 = nk_u8x8_to_i64x8_skylake_(_mm_maskz_loadu_epi8(mask, from_ptr));
+            else if (from_type == nk_i16_k)
+                hub_i64x8 = nk_i16x8_to_i64x8_skylake_(_mm_maskz_loadu_epi16(mask, from_ptr));
+            else if (from_type == nk_u16_k)
+                hub_i64x8 = nk_u16x8_to_i64x8_skylake_(_mm_maskz_loadu_epi16(mask, from_ptr));
+            else if (from_type == nk_i32_k)
+                hub_i64x8 = nk_i32x8_to_i64x8_skylake_(_mm256_maskz_loadu_epi32(mask, from_ptr));
+            else if (from_type == nk_u32_k)
+                hub_i64x8 = nk_u32x8_to_i64x8_skylake_(_mm256_maskz_loadu_epi32(mask, from_ptr));
+            else if (from_type == nk_i64_k || from_type == nk_u64_k)
+                hub_i64x8 = _mm512_maskz_loadu_epi64(mask, from_ptr);
+            else hub_i64x8 = _mm512_setzero_si512();
 
             // Downcast from i64x8
-            if (to_type == nk_i8_k) _mm_mask_storeu_epi8(dst, mask, nk_i64x8_to_i8x8_skylake_(i64x8));
-            else if (to_type == nk_u8_k) _mm_mask_storeu_epi8(dst, mask, nk_i64x8_to_u8x8_skylake_(i64x8));
-            else if (to_type == nk_i16_k) _mm_mask_storeu_epi16(dst, mask, nk_i64x8_to_i16x8_skylake_(i64x8));
-            else if (to_type == nk_u16_k) _mm_mask_storeu_epi16(dst, mask, nk_i64x8_to_u16x8_skylake_(i64x8));
-            else if (to_type == nk_i32_k) _mm256_mask_storeu_epi32(dst, mask, nk_i64x8_to_i32x8_skylake_(i64x8));
-            else if (to_type == nk_u32_k) _mm256_mask_storeu_epi32(dst, mask, nk_i64x8_to_u32x8_skylake_(i64x8));
-            else if (to_type == nk_i64_k || to_type == nk_u64_k) _mm512_mask_storeu_epi64(dst, mask, i64x8);
+            if (to_type == nk_i8_k) _mm_mask_storeu_epi8(to_ptr, mask, nk_i64x8_to_i8x8_skylake_(hub_i64x8));
+            else if (to_type == nk_u8_k) _mm_mask_storeu_epi8(to_ptr, mask, nk_i64x8_to_u8x8_skylake_(hub_i64x8));
+            else if (to_type == nk_i16_k) _mm_mask_storeu_epi16(to_ptr, mask, nk_i64x8_to_i16x8_skylake_(hub_i64x8));
+            else if (to_type == nk_u16_k) _mm_mask_storeu_epi16(to_ptr, mask, nk_i64x8_to_u16x8_skylake_(hub_i64x8));
+            else if (to_type == nk_i32_k) _mm256_mask_storeu_epi32(to_ptr, mask, nk_i64x8_to_i32x8_skylake_(hub_i64x8));
+            else if (to_type == nk_u32_k) _mm256_mask_storeu_epi32(to_ptr, mask, nk_i64x8_to_u32x8_skylake_(hub_i64x8));
+            else if (to_type == nk_i64_k || to_type == nk_u64_k) _mm512_mask_storeu_epi64(to_ptr, mask, hub_i64x8);
 
-            src += from_step;
-            dst += to_step;
+            from_ptr += from_step;
+            to_ptr += to_step;
             n -= batch;
         }
         return;
@@ -500,23 +540,26 @@ NK_PUBLIC void nk_cast_skylake(void const *from, nk_dtype_t from_type, nk_size_t
         while (n > 0) {
             nk_size_t batch = n < 8 ? n : 8;
             __mmask8 mask = (__mmask8)_bzhi_u32(0xFF, (unsigned int)batch);
-            __m512d f64x8;
+            __m512d hub_f64x8;
 
             // Upcast to f64x8
-            if (from_type == nk_f64_k) f64x8 = _mm512_maskz_loadu_pd(mask, src);
-            else if (from_type == nk_f32_k) f64x8 = nk_f32x8_to_f64x8_skylake_(_mm256_maskz_loadu_ps(mask, src));
-            else if (from_type == nk_i32_k) f64x8 = nk_i32x8_to_f64x8_skylake_(_mm256_maskz_loadu_epi32(mask, src));
-            else if (from_type == nk_u32_k) f64x8 = nk_u32x8_to_f64x8_skylake_(_mm256_maskz_loadu_epi32(mask, src));
-            else f64x8 = _mm512_setzero_pd();
+            if (from_type == nk_f64_k) hub_f64x8 = _mm512_maskz_loadu_pd(mask, from_ptr);
+            else if (from_type == nk_f32_k)
+                hub_f64x8 = nk_f32x8_to_f64x8_skylake_(_mm256_maskz_loadu_ps(mask, from_ptr));
+            else if (from_type == nk_i32_k)
+                hub_f64x8 = nk_i32x8_to_f64x8_skylake_(_mm256_maskz_loadu_epi32(mask, from_ptr));
+            else if (from_type == nk_u32_k)
+                hub_f64x8 = nk_u32x8_to_f64x8_skylake_(_mm256_maskz_loadu_epi32(mask, from_ptr));
+            else hub_f64x8 = _mm512_setzero_pd();
 
             // Downcast from f64x8
-            if (to_type == nk_f64_k) _mm512_mask_storeu_pd(dst, mask, f64x8);
-            else if (to_type == nk_f32_k) _mm256_mask_storeu_ps(dst, mask, nk_f64x8_to_f32x8_skylake_(f64x8));
-            else if (to_type == nk_i32_k) _mm256_mask_storeu_epi32(dst, mask, nk_f64x8_to_i32x8_skylake_(f64x8));
-            else if (to_type == nk_u32_k) _mm256_mask_storeu_epi32(dst, mask, nk_f64x8_to_u32x8_skylake_(f64x8));
+            if (to_type == nk_f64_k) _mm512_mask_storeu_pd(to_ptr, mask, hub_f64x8);
+            else if (to_type == nk_f32_k) _mm256_mask_storeu_ps(to_ptr, mask, nk_f64x8_to_f32x8_skylake_(hub_f64x8));
+            else if (to_type == nk_i32_k) _mm256_mask_storeu_epi32(to_ptr, mask, nk_f64x8_to_i32x8_skylake_(hub_f64x8));
+            else if (to_type == nk_u32_k) _mm256_mask_storeu_epi32(to_ptr, mask, nk_f64x8_to_u32x8_skylake_(hub_f64x8));
 
-            src += from_step;
-            dst += to_step;
+            from_ptr += from_step;
+            to_ptr += to_step;
             n -= batch;
         }
         return;

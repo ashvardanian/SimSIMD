@@ -4,10 +4,10 @@
  *
  *  Pure Python C API scalar types for bfloat16, float8_e4m3, and float8_e5m2.
  *  These work without NumPy - they're standalone Python objects:
- *    nk.bfloat16(3.14)           -> create a bfloat16 scalar
- *    float(nk.bfloat16(3.14))    -> convert back to Python float
- *    nk.bfloat16(3.14) == 3.14   -> comparison with other numbers
- *    nk.bfloat16(1.0) + nk.bfloat16(2.0)  -> arithmetic
+ *    nk.bfloat16(3.14)           → create a bfloat16 scalar
+ *    float(nk.bfloat16(3.14))    → convert back to Python float
+ *    nk.bfloat16(3.14) == 3.14   → comparison with other numbers
+ *    nk.bfloat16(1.0) + nk.bfloat16(2.0)  → arithmetic
  */
 #ifndef NK_SCALARS_H
 #define NK_SCALARS_H

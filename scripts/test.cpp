@@ -527,19 +527,43 @@ void dot_f64_blas(nk::f64_t const *a, nk::f64_t const *b, nk::size_t n, nk::f64_
 }
 
 void dot_f32c_blas(nk::f32c_t const *a, nk::f32c_t const *b, nk::size_t n, nk::f32c_t *result) {
+#if NK_COMPARE_TO_ACCELERATE
+    cblas_cdotu_sub(static_cast<int>(n), reinterpret_cast<__LAPACK_float_complex const *>(a), 1,
+                    reinterpret_cast<__LAPACK_float_complex const *>(b), 1,
+                    reinterpret_cast<__LAPACK_float_complex *>(result));
+#else
     cblas_cdotu_sub(static_cast<int>(n), a, 1, b, 1, result);
+#endif
 }
 
 void vdot_f32c_blas(nk::f32c_t const *a, nk::f32c_t const *b, nk::size_t n, nk::f32c_t *result) {
+#if NK_COMPARE_TO_ACCELERATE
+    cblas_cdotc_sub(static_cast<int>(n), reinterpret_cast<__LAPACK_float_complex const *>(a), 1,
+                    reinterpret_cast<__LAPACK_float_complex const *>(b), 1,
+                    reinterpret_cast<__LAPACK_float_complex *>(result)); // conjugated
+#else
     cblas_cdotc_sub(static_cast<int>(n), a, 1, b, 1, result); // conjugated
+#endif
 }
 
 void dot_f64c_blas(nk::f64c_t const *a, nk::f64c_t const *b, nk::size_t n, nk::f64c_t *result) {
+#if NK_COMPARE_TO_ACCELERATE
+    cblas_zdotu_sub(static_cast<int>(n), reinterpret_cast<__LAPACK_double_complex const *>(a), 1,
+                    reinterpret_cast<__LAPACK_double_complex const *>(b), 1,
+                    reinterpret_cast<__LAPACK_double_complex *>(result));
+#else
     cblas_zdotu_sub(static_cast<int>(n), a, 1, b, 1, result);
+#endif
 }
 
 void vdot_f64c_blas(nk::f64c_t const *a, nk::f64c_t const *b, nk::size_t n, nk::f64c_t *result) {
+#if NK_COMPARE_TO_ACCELERATE
+    cblas_zdotc_sub(static_cast<int>(n), reinterpret_cast<__LAPACK_double_complex const *>(a), 1,
+                    reinterpret_cast<__LAPACK_double_complex const *>(b), 1,
+                    reinterpret_cast<__LAPACK_double_complex *>(result)); // conjugated
+#else
     cblas_zdotc_sub(static_cast<int>(n), a, 1, b, 1, result); // conjugated
+#endif
 }
 
 void dots_f32_blas(nk::f32_t const *a, nk::f32_t const *b, nk::f32_t *c, nk::size_t m, nk::size_t n, nk::size_t k,
@@ -1519,17 +1543,17 @@ void test_elementwise() {
     run_if_matches("sum_neon", "f32", test_sum<f32_t>, nk_sum_f32_neon);
     run_if_matches("wsum_neon", "f32", test_wsum<f32_t>, nk_wsum_f32_neon);
     run_if_matches("fma_neon", "f32", test_fma<f32_t>, nk_fma_f32_neon);
+    run_if_matches("scale_neon", "e4m3", test_scale<e4m3_t>, nk_scale_e4m3_neon);
+    run_if_matches("scale_neon", "e5m2", test_scale<e5m2_t>, nk_scale_e5m2_neon);
+    run_if_matches("sum_neon", "e4m3", test_sum<e4m3_t>, nk_sum_e4m3_neon);
+    run_if_matches("sum_neon", "e5m2", test_sum<e5m2_t>, nk_sum_e5m2_neon);
+    run_if_matches("wsum_neon", "e4m3", test_wsum<e4m3_t>, nk_wsum_e4m3_neon);
+    run_if_matches("wsum_neon", "e5m2", test_wsum<e5m2_t>, nk_wsum_e5m2_neon);
+    run_if_matches("fma_neon", "e4m3", test_fma<e4m3_t>, nk_fma_e4m3_neon);
+    run_if_matches("fma_neon", "e5m2", test_fma<e5m2_t>, nk_fma_e5m2_neon);
 #endif // NK_TARGET_NEON
 
 #if NK_TARGET_NEONHALF
-    run_if_matches("scale_neonhalf", "e4m3", test_scale<e4m3_t>, nk_scale_e4m3_neonhalf);
-    run_if_matches("scale_neonhalf", "e5m2", test_scale<e5m2_t>, nk_scale_e5m2_neonhalf);
-    run_if_matches("sum_neonhalf", "e4m3", test_sum<e4m3_t>, nk_sum_e4m3_neonhalf);
-    run_if_matches("sum_neonhalf", "e5m2", test_sum<e5m2_t>, nk_sum_e5m2_neonhalf);
-    run_if_matches("wsum_neonhalf", "e4m3", test_wsum<e4m3_t>, nk_wsum_e4m3_neonhalf);
-    run_if_matches("wsum_neonhalf", "e5m2", test_wsum<e5m2_t>, nk_wsum_e5m2_neonhalf);
-    run_if_matches("fma_neonhalf", "e4m3", test_fma<e4m3_t>, nk_fma_e4m3_neonhalf);
-    run_if_matches("fma_neonhalf", "e5m2", test_fma<e5m2_t>, nk_fma_e5m2_neonhalf);
 #endif // NK_TARGET_NEONHALF
 
 #if NK_TARGET_HASWELL

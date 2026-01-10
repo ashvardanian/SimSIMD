@@ -4,6 +4,22 @@
  *  @sa include/numkong/binary.h
  *  @author Ash Vardanian
  *  @date December 27, 2025
+ *
+ *  @section neon_binary_instructions NEON Binary Instructions
+ *
+ *  Key NEON instructions for binary/bitwise operations (Cortex-A76 class):
+ *
+ *      Intrinsic                   Instruction                     Latency     Throughput
+ *      vcntq_u8                    CNT (V.16B, V.16B)              2cy         2/cy
+ *      veorq_u8                    EOR (V.16B, V.16B, V.16B)       1cy         4/cy
+ *      vandq_u8                    AND (V.16B, V.16B, V.16B)       1cy         4/cy
+ *      vorrq_u8                    ORR (V.16B, V.16B, V.16B)       1cy         4/cy
+ *      vpaddlq_u8                  UADDLP (V.8H, V.16B)            2cy         2/cy
+ *      vaddvq_u32                  ADDV (S, V.4S)                  3cy         1/cy
+ *
+ *  According to the available literature, the throughput for those basic integer ops is
+ *  identical across most Apple, Qualcomm, and AWS Graviton chips. As long as we avoid widening
+ *  operations and horizontal reductions, we won't face any reasonable bottlenecks.
  */
 #ifndef NK_BINARY_NEON_H
 #define NK_BINARY_NEON_H
@@ -18,8 +34,8 @@
 #endif
 
 #include "numkong/types.h"
-#include "numkong/reduce/neon.h"   // nk_reduce_add_u8x16_neon_
-#include "numkong/binary/serial.h" // nk_popcount_u1
+#include "numkong/reduce/neon.h"   // `nk_reduce_add_u8x16_neon_`
+#include "numkong/binary/serial.h" // `nk_popcount_u1`
 
 #if defined(__cplusplus)
 extern "C" {
@@ -103,12 +119,12 @@ NK_INTERNAL void nk_jaccard_b128_update_neon(nk_jaccard_b128_state_neon_t *state
     // Uses vector accumulation - horizontal sum deferred to finalize.
     //
     // ARM NEON instruction characteristics:
-    //   `vandq_u8`:    Bitwise AND, 1 cycle latency
-    //   `vcntq_u8`:    Byte popcount (16 bytes → 16 popcounts), 1-2 cycles
-    //   `vpaddlq_u8`:  Pairwise widening add u8 → u16, 1 cycle
-    //   `vpaddlq_u16`: Pairwise widening add u16 → u32, 1 cycle
-    //   `vaddq_u32`:   Vector add u32x4, 1 cycle
-    // Total: ~5-6 cycles per 128-bit chunk (no horizontal sum penalty per update)
+    // - `vandq_u8`:    AND (V.16B, V.16B, V.16B)       1cy
+    // - `vcntq_u8`:    CNT (V.16B, V.16B)              1-2cy, byte popcount
+    // - `vpaddlq_u8`:  UADDLP (V.8H, V.16B)            1cy, pairwise widen u8 → u16
+    // - `vpaddlq_u16`: UADDLP (V.4S, V.8H)             1cy, pairwise widen u16 → u32
+    // - `vaddq_u32`:   ADD (V.4S, V.4S, V.4S)          1cy
+    // Total: ~5-6cy per 128-bit chunk (horizontal sum deferred to finalize)
 
     // Step 1: Compute intersection bits (A AND B)
     uint8x16_t intersection_u8x16 = vandq_u8(a, b);
@@ -134,17 +150,22 @@ NK_INTERNAL void nk_jaccard_b128_finalize_neon(nk_jaccard_b128_state_neon_t cons
                                                nk_f32_t target_popcount_c, nk_f32_t target_popcount_d,
                                                nk_f32_t *results) {
 
-    // Horizontal sum each state's vector accumulator via `vaddvq_u32` (ARMv8.1+, 2-3 cycles)
-    // This is done once at finalize, not per-update, for better throughput.
-    uint32x4_t intersection_u32x4 = (uint32x4_t) {
-        vaddvq_u32(state_a->intersection_count_u32x4), vaddvq_u32(state_b->intersection_count_u32x4),
-        vaddvq_u32(state_c->intersection_count_u32x4), vaddvq_u32(state_d->intersection_count_u32x4)};
+    // Horizontal sum via `vaddvq_u32` ~ ADDV (S, V.4S): 2-3cy [ARMv8.1+]
+    // Done once at finalize, not per-update, for better throughput.
+    nk_b128_vec_t intersection_vec;
+    intersection_vec.u32s[0] = vaddvq_u32(state_a->intersection_count_u32x4),
+    intersection_vec.u32s[1] = vaddvq_u32(state_b->intersection_count_u32x4),
+    intersection_vec.u32s[2] = vaddvq_u32(state_c->intersection_count_u32x4),
+    intersection_vec.u32s[3] = vaddvq_u32(state_d->intersection_count_u32x4);
+    uint32x4_t intersection_u32x4 = intersection_vec.u32x4;
     float32x4_t intersection_f32x4 = vcvtq_f32_u32(intersection_u32x4);
 
-    // Compute union using |A OR B| = |A| + |B| - |A AND B|
+    // Compute union using |A ∪ B| = |A| + |B| - |A ∩ B|
     float32x4_t query_f32x4 = vdupq_n_f32(query_popcount);
-    float32x4_t targets_f32x4 = (float32x4_t) {target_popcount_a, target_popcount_b, target_popcount_c,
-                                               target_popcount_d};
+    nk_b128_vec_t targets_vec;
+    targets_vec.f32s[0] = target_popcount_a, targets_vec.f32s[1] = target_popcount_b,
+    targets_vec.f32s[2] = target_popcount_c, targets_vec.f32s[3] = target_popcount_d;
+    float32x4_t targets_f32x4 = targets_vec.f32x4;
     float32x4_t union_f32x4 = vsubq_f32(vaddq_f32(query_f32x4, targets_f32x4), intersection_f32x4);
 
     // Handle zero-union edge case (empty vectors → distance = 1.0)
@@ -153,15 +174,15 @@ NK_INTERNAL void nk_jaccard_b128_finalize_neon(nk_jaccard_b128_state_neon_t cons
     float32x4_t safe_union_f32x4 = vbslq_f32(zero_union_mask, one_f32x4, union_f32x4);
 
     // Fast reciprocal with Newton-Raphson refinement:
-    //   `vrecpeq_f32`: ~12-bit estimate, 1 cycle
-    //   `vrecpsq_f32`: Newton-Raphson step computes (2 - a*b), 1 cycle
-    //   `vmulq_f32`: multiply, 1 cycle
+    // - `vrecpeq_f32`: ~12-bit estimate, 1 cycle
+    // - `vrecpsq_f32`: Newton-Raphson step computes (2 - a × b), 1 cycle
+    // - `vmulq_f32`: multiply, 1 cycle
     // One N-R iteration: ~24-bit accuracy, sufficient for f32 (23 mantissa bits).
     // Total: ~3-4 cycles vs ~10-14 cycles for division.
     float32x4_t union_reciprocal_f32x4 = vrecpeq_f32(safe_union_f32x4);
     union_reciprocal_f32x4 = vmulq_f32(union_reciprocal_f32x4, vrecpsq_f32(safe_union_f32x4, union_reciprocal_f32x4));
 
-    // Compute Jaccard distance = 1 - intersection/union
+    // Compute Jaccard distance = 1 - intersection ÷ union
     float32x4_t ratio_f32x4 = vmulq_f32(intersection_f32x4, union_reciprocal_f32x4);
     float32x4_t jaccard_f32x4 = vsubq_f32(one_f32x4, ratio_f32x4);
     float32x4_t result_f32x4 = vbslq_f32(zero_union_mask, one_f32x4, jaccard_f32x4);

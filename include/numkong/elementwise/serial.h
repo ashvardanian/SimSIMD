@@ -1,5 +1,5 @@
 /**
- *  @brief SIMD-accelerated Dot Products for Real and Complex Numbers optimized for SIMD-free CPUs.
+ *  @brief SIMD-accelerated Dot Products for Real and Complex Numbers optimized for Serial (SIMD-free) CPUs.
  *  @file include/numkong/elementwise/serial.h
  *  @sa include/numkong/elementwise.h
  *  @author Ash Vardanian

@@ -4,6 +4,20 @@
  *  @sa include/numkong/reduce.h
  *  @author Ash Vardanian
  *  @date December 27, 2025
+ *
+ *  @section ice_reduce_instructions Relevant Instructions
+ *
+ *      Intrinsic                   Instruction                     Ice         Genoa
+ *      _mm512_dpwssd_epi32         VPDPWSSD (ZMM, ZMM, ZMM)        5cy @ p0    4cy @ p01
+ *      _mm512_cvtepi8_epi16        VPMOVSXBW (ZMM, YMM)            3cy @ p5    3cy @ p12
+ *      _mm512_cvtepu8_epi16        VPMOVZXBW (ZMM, YMM)            3cy @ p5    3cy @ p12
+ *      _mm512_reduce_add_epi32     (pseudo: shuffle chain)         ~8cy        ~8cy
+ *      _mm512_unpacklo_epi8        VPUNPCKLBW (ZMM, ZMM, ZMM)      1cy @ p5    1cy @ p12
+ *      _mm512_extracti64x4_epi64   VEXTRACTI64X4 (YMM, ZMM, imm8)  3cy @ p5    3cy @ p12
+ *
+ *  Ice Lake reductions leverage VNNI's VPDPWSSD for efficient i8/i16 summation by multiplying with a
+ *  vector of ones. This approach achieves better throughput than sequential addition for large arrays.
+ *  Shuffle operations bottleneck on port 5, making horizontal reductions inherently latency-bound.
  */
 #ifndef NK_REDUCE_ICE_H
 #define NK_REDUCE_ICE_H

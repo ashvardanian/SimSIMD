@@ -1,9 +1,21 @@
 /**
- *  @brief SIMD-accelerated Dot Products for Real and Complex Numbers optimized for Intel Skylake-X CPUs.
+ *  @brief SIMD-accelerated batch dot products (GEMM micro-kernels) optimized for Intel Skylake-X CPUs.
  *  @file include/numkong/dots/skylake.h
  *  @sa include/numkong/dots.h
  *  @author Ash Vardanian
  *  @date December 27, 2025
+ *
+ *  @section skylake_dots_instructions Relevant Instructions
+ *
+ *      Intrinsic                   Instruction                     SKL         ICL         Genoa
+ *      _mm512_fmadd_ps             VFMADD132PS (ZMM, ZMM, ZMM)     4cy @ p05   4cy @ p05   4cy @ p01
+ *      _mm512_fmadd_pd             VFMADD132PD (ZMM, ZMM, ZMM)     4cy @ p05   4cy @ p05   4cy @ p01
+ *      _mm512_cvtph_ps             VCVTPH2PS (ZMM, YMM)            5cy @ p05   5cy @ p05   5cy @ p01
+ *      _mm512_loadu_ps             VMOVUPS (ZMM, M512)             7cy @ p23   7cy @ p23   7cy @ p23
+ *
+ *  GEMM micro-kernels tile the K dimension to maximize FMA throughput. Skylake-X server chips with
+ *  dual FMA units achieve 0.5cy throughput, enabling 32 FLOPs/cycle for f32 or 16 FLOPs/cycle for f64.
+ *  FP8 types (E4M3, E5M2) convert to f32 for accumulation, adding ~5cy latency per conversion.
  */
 #ifndef NK_DOTS_SKYLAKE_H
 #define NK_DOTS_SKYLAKE_H
@@ -46,7 +58,7 @@ nk_make_dots_packed_vectors_(f32_skylake, f32, f32, nk_b256_vec_t, nk_dot_f32x8_
 nk_make_dots_pack_size_(skylake, e4m3, f32)
 nk_make_dots_pack_(skylake, e4m3, f32)
 nk_make_dots_packed_vectors_(e4m3_skylake, e4m3, f32, nk_b128_vec_t, nk_dot_e4m3x16_state_skylake_t, nk_b128_vec_t,
-                             nk_dot_e4m3x16_init_skylake, nk_load_b128_haswell_, nk_partial_load_u1x16_skylake_,
+                             nk_dot_e4m3x16_init_skylake, nk_load_b128_haswell_, nk_partial_load_b8x16_skylake_,
                              nk_dot_e4m3x16_update_skylake, nk_dot_e4m3x16_finalize_skylake,
                              nk_partial_store_b32x4_skylake_,
                              /*k_tile=*/16)
@@ -55,7 +67,7 @@ nk_make_dots_packed_vectors_(e4m3_skylake, e4m3, f32, nk_b128_vec_t, nk_dot_e4m3
 nk_make_dots_pack_size_(skylake, e5m2, f32)
 nk_make_dots_pack_(skylake, e5m2, f32)
 nk_make_dots_packed_vectors_(e5m2_skylake, e5m2, f32, nk_b128_vec_t, nk_dot_e5m2x16_state_skylake_t, nk_b128_vec_t,
-                             nk_dot_e5m2x16_init_skylake, nk_load_b128_haswell_, nk_partial_load_u1x16_skylake_,
+                             nk_dot_e5m2x16_init_skylake, nk_load_b128_haswell_, nk_partial_load_b8x16_skylake_,
                              nk_dot_e5m2x16_update_skylake, nk_dot_e5m2x16_finalize_skylake,
                              nk_partial_store_b32x4_skylake_,
                              /*k_tile=*/16)

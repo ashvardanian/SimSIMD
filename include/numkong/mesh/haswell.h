@@ -4,6 +4,19 @@
  *  @sa include/numkong/mesh.h
  *  @author Ash Vardanian
  *  @date December 27, 2025
+ *
+ *  @section haswell_mesh_instructions Key AVX2 Mesh Instructions
+ *
+ *      Intrinsic                   Instruction                     Latency     Throughput  Ports
+ *      _mm256_fmadd_ps             VFMADD (YMM, YMM, YMM)          5cy         0.5/cy      p01
+ *      _mm256_hadd_ps              VHADDPS (YMM, YMM, YMM)         7cy         0.5/cy      p01+p5
+ *      _mm256_permute2f128_ps      VPERM2F128 (YMM, YMM, YMM, I8)  3cy         1/cy        p5
+ *      _mm256_extractf128_ps       VEXTRACTF128 (XMM, YMM, I8)     3cy         1/cy        p5
+ *      _mm256_i32gather_ps         VGATHERDPS (YMM, M, YMM, YMM)   12cy        5/cy        p0+p23
+ *
+ *  Point cloud operations (centroid, covariance, Kabsch alignment) use gather instructions for
+ *  stride-3 xyz deinterleaving. Multiple FMA accumulators hide the 5-cycle FMA latency. VHADDPS
+ *  interleaves results across lanes, requiring additional shuffles for final scalar reduction.
  */
 #ifndef NK_MESH_HASWELL_H
 #define NK_MESH_HASWELL_H
@@ -25,7 +38,7 @@
 extern "C" {
 #endif
 
-/*  Internal helper: Deinterleave 24 floats (8 xyz triplets) into separate x, y, z vectors.
+/*  Deinterleave 24 floats (8 xyz triplets) into separate x, y, z vectors.
  *  Uses AVX2 gather instructions for clean stride-3 access.
  *
  *  Input: 24 contiguous floats [x0,y0,z0, x1,y1,z1, ..., x7,y7,z7]
@@ -39,7 +52,7 @@ NK_INTERNAL void nk_deinterleave_f32x8_haswell_(nk_f32_t const *ptr, __m256 *x_o
     *z_out = _mm256_i32gather_ps(ptr + 2, idx, 4);
 }
 
-/*  Internal helper: Deinterleave 12 f64 values (4 xyz triplets) into separate x, y, z vectors.
+/*  Deinterleave 12 f64 values (4 xyz triplets) into separate x, y, z vectors.
  *  Uses scalar extraction for simplicity as AVX2 lacks efficient stride-3 gather for f64.
  *
  *  Input: 12 contiguous f64 [x0,y0,z0, x1,y1,z1, x2,y2,z2, x3,y3,z3]
@@ -60,7 +73,7 @@ NK_INTERNAL void nk_deinterleave_f64x4_haswell_(nk_f64_t const *ptr, __m256d *x_
  * - nk_reduce_add_f64x4_haswell_
  */
 
-/*  Internal helper: Compute sum of squared distances after applying rotation (and optional scale).
+/*  Compute sum of squared distances after applying rotation (and optional scale).
  *  Used by kabsch (scale=1.0) and umeyama (scale=computed_scale).
  *  Returns sum_squared, caller computes sqrt(sum_squared / n).
  */
@@ -143,7 +156,7 @@ NK_INTERNAL nk_f32_t nk_transformed_ssd_f32_haswell_(nk_f32_t const *a, nk_f32_t
     return sum_squared;
 }
 
-/*  Internal helper: Compute sum of squared distances for f64 after applying rotation (and optional scale).
+/*  Compute sum of squared distances for f64 after applying rotation (and optional scale).
  *  Rotation matrix, scale and data are all f64 for full precision.
  */
 NK_INTERNAL nk_f64_t nk_transformed_ssd_f64_haswell_(nk_f64_t const *a, nk_f64_t const *b, nk_size_t n,
@@ -942,7 +955,7 @@ NK_PUBLIC void nk_umeyama_f32_haswell(nk_f32_t const *a, nk_f32_t const *b, nk_s
     r[7] = svd_v[6] * svd_u[3] + svd_v[7] * svd_u[4] + svd_v[8] * svd_u[5];
     r[8] = svd_v[6] * svd_u[6] + svd_v[7] * svd_u[7] + svd_v[8] * svd_u[8];
 
-    // Scale factor: c = trace(D*S) / (n * variance_a)
+    // Scale factor: c = trace(D × S) / (n × variance(a))
     nk_f32_t det = nk_det3x3_f32_(r);
     nk_f32_t d3 = det < 0 ? -1.0f : 1.0f;
     nk_f32_t trace_ds = svd_s[0] + svd_s[4] + d3 * svd_s[8];
@@ -1094,7 +1107,7 @@ NK_PUBLIC void nk_umeyama_f64_haswell(nk_f64_t const *a, nk_f64_t const *b, nk_s
     r[7] = svd_v[6] * svd_u[3] + svd_v[7] * svd_u[4] + svd_v[8] * svd_u[5];
     r[8] = svd_v[6] * svd_u[6] + svd_v[7] * svd_u[7] + svd_v[8] * svd_u[8];
 
-    // Scale factor: c = trace(D*S) / (n * variance_a)
+    // Scale factor: c = trace(D × S) / (n × variance(a))
     nk_f64_t det = nk_det3x3_f64_(r);
     nk_f64_t d3 = det < 0 ? -1.0 : 1.0;
     nk_f64_t trace_ds = svd_s[0] + svd_s[1] + d3 * svd_s[2];
@@ -1126,7 +1139,7 @@ NK_PUBLIC void nk_umeyama_f64_haswell(nk_f64_t const *a, nk_f64_t const *b, nk_s
     *result = nk_sqrt_f64_haswell_(sum_squared * inv_n);
 }
 
-/*  Internal helper: Deinterleave 8 f16 xyz triplets (24 f16 values) and convert to 3 x __m256 f32.
+/*  Deinterleave 8 f16 xyz triplets (24 f16 values) and convert to 3 x __m256 f32.
  *  Uses scalar extraction for clean stride-3 access, then F16C conversion.
  *
  *  Input: 24 contiguous f16 [x0,y0,z0, x1,y1,z1, ..., x7,y7,z7]
@@ -1148,7 +1161,7 @@ NK_INTERNAL void nk_deinterleave_f16x8_to_f32x8_haswell_(nk_f16_t const *ptr, __
     *z_out = _mm256_cvtph_ps(z_vec.xmms[0]);
 }
 
-/*  Internal helper: Deinterleave 8 bf16 xyz triplets (24 bf16 values) and convert to 3 x __m256 f32.
+/*  Deinterleave 8 bf16 xyz triplets (24 bf16 values) and convert to 3 x __m256 f32.
  *  Uses scalar extraction for clean stride-3 access, then bit-shift conversion.
  *
  *  Input: 24 contiguous bf16 [x0,y0,z0, x1,y1,z1, ..., x7,y7,z7]
@@ -1170,7 +1183,7 @@ NK_INTERNAL void nk_deinterleave_bf16x8_to_f32x8_haswell_(nk_bf16_t const *ptr, 
     *z_out = nk_bf16x8_to_f32x8_haswell_(z_vec.xmms[0]);
 }
 
-/*  Internal helper: Compute sum of squared distances for f16 data after applying rotation (and optional scale).
+/*  Compute sum of squared distances for f16 data after applying rotation (and optional scale).
  *  Loads f16 data, converts to f32 during processing.
  *  Note: rotation matrix r is f32 (from SVD), scale and computation done in f32.
  */
@@ -1261,7 +1274,7 @@ NK_INTERNAL nk_f32_t nk_transformed_ssd_f16_haswell_(nk_f16_t const *a, nk_f16_t
     return sum_squared;
 }
 
-/*  Internal helper: Compute sum of squared distances for bf16 data after applying rotation (and optional scale).
+/*  Compute sum of squared distances for bf16 data after applying rotation (and optional scale).
  *  Loads bf16 data, converts to f32 during processing.
  *  Note: rotation matrix r is f32 (from SVD), scale and computation done in f32.
  */
@@ -2010,7 +2023,7 @@ NK_PUBLIC void nk_umeyama_f16_haswell(nk_f16_t const *a, nk_f16_t const *b, nk_s
     r[7] = svd_v[6] * svd_u[3] + svd_v[7] * svd_u[4] + svd_v[8] * svd_u[5];
     r[8] = svd_v[6] * svd_u[6] + svd_v[7] * svd_u[7] + svd_v[8] * svd_u[8];
 
-    // Scale factor: c = trace(D*S) / (n * variance_a)
+    // Scale factor: c = trace(D × S) / (n × variance(a))
     nk_f32_t det = nk_det3x3_f32_(r);
     nk_f32_t d3 = det < 0 ? -1.0f : 1.0f;
     nk_f32_t trace_ds = svd_s[0] + svd_s[4] + d3 * svd_s[8];
@@ -2172,7 +2185,7 @@ NK_PUBLIC void nk_umeyama_bf16_haswell(nk_bf16_t const *a, nk_bf16_t const *b, n
     r[7] = svd_v[6] * svd_u[3] + svd_v[7] * svd_u[4] + svd_v[8] * svd_u[5];
     r[8] = svd_v[6] * svd_u[6] + svd_v[7] * svd_u[7] + svd_v[8] * svd_u[8];
 
-    // Scale factor: c = trace(D*S) / (n * variance_a)
+    // Scale factor: c = trace(D × S) / (n × variance(a))
     nk_f32_t det = nk_det3x3_f32_(r);
     nk_f32_t d3 = det < 0 ? -1.0f : 1.0f;
     nk_f32_t trace_ds = svd_s[0] + svd_s[4] + d3 * svd_s[8];

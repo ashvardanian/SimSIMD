@@ -130,8 +130,8 @@ class NumKongTests: XCTestCase {
 
     func testHaversineFloat64() throws {
         // New York City to London (coordinates in radians)
-        // NYC: 40.7128° N, 74.0060° W -> radians
-        // London: 51.5074° N, 0.1278° W -> radians
+        // NYC: 40.7128° N, 74.0060° W → radians
+        // London: 51.5074° N, 0.1278° W → radians
         let aLat: [Float64] = [40.7128 * .pi / 180.0]
         let aLon: [Float64] = [-74.0060 * .pi / 180.0]
         let bLat: [Float64] = [51.5074 * .pi / 180.0]
