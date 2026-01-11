@@ -839,7 +839,7 @@ NK_PUBLIC void nk_kabsch_f64_skylake(nk_f64_t const *a, nk_f64_t const *b, nk_si
     cross_covariance[8] = _mm512_reduce_add_pd(cov_zz_f64x8) - sum_a_z * sum_b_z * inv_n;
 
     // SVD using f64 for full precision
-    nk_f64_t svd_u[9], svd_s[3], svd_v[9];
+    nk_f64_t svd_u[9], svd_s[9], svd_v[9];
     nk_svd3x3_f64_(cross_covariance, svd_u, svd_s, svd_v);
 
     // R = V * Uᵀ
@@ -1146,7 +1146,7 @@ NK_PUBLIC void nk_umeyama_f64_skylake(nk_f64_t const *a, nk_f64_t const *b, nk_s
     cross_covariance[8] = _mm512_reduce_add_pd(cov_zz_f64x8) - sum_a_z * sum_b_z * inv_n;
 
     // SVD using f64 for full precision
-    nk_f64_t svd_u[9], svd_s[3], svd_v[9];
+    nk_f64_t svd_u[9], svd_s[9], svd_v[9];
     nk_svd3x3_f64_(cross_covariance, svd_u, svd_s, svd_v);
 
     // R = V * Uᵀ
@@ -1164,7 +1164,7 @@ NK_PUBLIC void nk_umeyama_f64_skylake(nk_f64_t const *a, nk_f64_t const *b, nk_s
     // Scale factor: c = trace(D × S) / (n × variance(a))
     nk_f64_t det = nk_det3x3_f64_(r);
     nk_f64_t d3 = det < 0 ? -1.0 : 1.0;
-    nk_f64_t trace_ds = svd_s[0] + svd_s[1] + d3 * svd_s[2];
+    nk_f64_t trace_ds = svd_s[0] + svd_s[4] + d3 * svd_s[8];
     nk_f64_t c = trace_ds / (n * variance_a);
     if (scale) *scale = c;
 

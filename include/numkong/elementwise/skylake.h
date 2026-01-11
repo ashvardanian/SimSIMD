@@ -1132,12 +1132,8 @@ nk_wsum_e4m3_skylake_cycle:
     }
     a_f32x16 = nk_e4m3x16_to_f32x16_skylake_(a_e4m3x16);
     b_f32x16 = nk_e4m3x16_to_f32x16_skylake_(b_e4m3x16);
-    // FP8 rounding note: Using separate multiply and add operations ensures intermediate
-    // rounding matches scalar reference. FMA would produce different results near FP8
-    // representable boundaries due to single-rounding vs double-rounding behavior.
     a_scaled_f32x16 = _mm512_mul_ps(a_f32x16, alpha_f32x16);
-    b_scaled_f32x16 = _mm512_mul_ps(b_f32x16, beta_f32x16);
-    result_f32x16 = _mm512_add_ps(a_scaled_f32x16, b_scaled_f32x16);
+    result_f32x16 = _mm512_fmadd_ps(b_f32x16, beta_f32x16, a_scaled_f32x16);
     result_e4m3x16 = nk_f32x16_to_e4m3x16_skylake_(result_f32x16);
     _mm_mask_storeu_epi8(result, mask, result_e4m3x16);
     result += 16;
@@ -1165,12 +1161,8 @@ nk_wsum_e5m2_skylake_cycle:
     }
     a_f32x16 = nk_e5m2x16_to_f32x16_skylake_(a_e5m2x16);
     b_f32x16 = nk_e5m2x16_to_f32x16_skylake_(b_e5m2x16);
-    // FP8 rounding note: Using separate multiply and add operations ensures intermediate
-    // rounding matches scalar reference. FMA would produce different results near FP8
-    // representable boundaries due to single-rounding vs double-rounding behavior.
     a_scaled_f32x16 = _mm512_mul_ps(a_f32x16, alpha_f32x16);
-    b_scaled_f32x16 = _mm512_mul_ps(b_f32x16, beta_f32x16);
-    result_f32x16 = _mm512_add_ps(a_scaled_f32x16, b_scaled_f32x16);
+    result_f32x16 = _mm512_fmadd_ps(b_f32x16, beta_f32x16, a_scaled_f32x16);
     result_e5m2x16 = nk_f32x16_to_e5m2x16_skylake_(result_f32x16);
     _mm_mask_storeu_epi8(result, mask, result_e5m2x16);
     result += 16;
@@ -1262,4 +1254,3 @@ nk_fma_e5m2_skylake_cycle:
 #endif // NK_TARGET_X86_
 
 #endif // NK_ELEMENTWISE_SKYLAKE_H
-

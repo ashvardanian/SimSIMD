@@ -88,8 +88,10 @@ NK_INTERNAL __m256 nk_f32x8_cos_haswell_(__m256 const angles_radians) {
     __m256 rounded_quotients = _mm256_round_ps(quotients, _MM_FROUND_TO_NEAREST_INT | _MM_FROUND_NO_EXC);
     __m256i multiples_of_pi = _mm256_cvtps_epi32(rounded_quotients);
 
-    // Reduce the angle to: (angle - (multiples_of_pi * π)) in [-π/2, π/2]
-    __m256 const angles = _mm256_fnmadd_ps(rounded_quotients, pi, _mm256_sub_ps(angles_radians, pi_half));
+    // Reduce the angle to: (angle - (multiples_of_pi * π + π/2)) in [-π/2, π/2]
+    // Note: Computing offset first avoids catastrophic cancellation
+    __m256 const offset = _mm256_fmadd_ps(rounded_quotients, pi, pi_half);
+    __m256 const angles = _mm256_sub_ps(angles_radians, offset);
     __m256 const angles_squared = _mm256_mul_ps(angles, angles);
     __m256 const angles_cubed = _mm256_mul_ps(angles, angles_squared);
 

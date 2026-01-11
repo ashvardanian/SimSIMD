@@ -887,7 +887,7 @@ NK_INTERNAL __m512h nk_log2_f16_sapphire_(__m512h x) {
     poly_f16x32 = _mm512_fmadd_ph(mantissa_f16x32, poly_f16x32, _mm512_set1_ph((nk_f16_t)-3.3241990f));
     poly_f16x32 = _mm512_fmadd_ph(mantissa_f16x32, poly_f16x32, _mm512_set1_ph((nk_f16_t)3.1157899f));
 
-    return _mm512_add_ph(_mm512_mul_ph(poly_f16x32, _mm512_sub_ph(mantissa_f16x32, one_f16x32)), exponent_f16x32);
+    return _mm512_fmadd_ph(poly_f16x32, _mm512_sub_ph(mantissa_f16x32, one_f16x32), exponent_f16x32);
 }
 
 NK_PUBLIC void nk_kld_f16_sapphire(nk_f16_t const *a, nk_f16_t const *b, nk_size_t n, nk_f32_t *result) {

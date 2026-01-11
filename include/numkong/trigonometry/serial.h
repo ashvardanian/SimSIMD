@@ -72,8 +72,10 @@ NK_PUBLIC nk_f32_t nk_f32_cos(nk_f32_t const angle_radians) {
     nk_f32_t const quotient = angle_radians * pi_reciprocal - 0.5f;
     int const multiple_of_pi = (int)(quotient < 0 ? quotient - 0.5f : quotient + 0.5f);
 
-    // Reduce the angle to: (angle - (multiple_of_pi * π)) in [-π/2, π/2]
-    nk_f32_t const angle = angle_radians - pi_half - multiple_of_pi * pi;
+    // Reduce the angle to: (angle - (multiple_of_pi * π + π/2)) in [-π/2, π/2]
+    // Note: Computing offset first avoids catastrophic cancellation when subtracting separately
+    nk_f32_t const offset = pi_half + multiple_of_pi * pi;
+    nk_f32_t const angle = angle_radians - offset;
     nk_f32_t const angle_squared = angle * angle;
     nk_f32_t const angle_cubed = angle * angle_squared;
 

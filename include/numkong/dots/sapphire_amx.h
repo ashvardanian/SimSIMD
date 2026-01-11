@@ -439,8 +439,7 @@ NK_INTERNAL void nk_dots_i8_output2x2_sapphire_amx(  //
 /*  Initialize UINT8 output state to zero.
  */
 NK_INTERNAL void nk_dots_u8_init_sapphire_amx(nk_dots_u8_state_sapphire_amx_t *state) {
-    __m512i zero = _mm512_setzero_si512();
-    for (nk_size_t row_idx = 0; row_idx < 16; row_idx++) { _mm512_store_si512((__m512i *)state->data[row_idx], zero); }
+    nk_dots_i8_init_sapphire_amx((nk_dots_i8_state_sapphire_amx_t *)state);
 }
 
 /*  Load U8 A tile from row-major source with masking for edge tiles.
@@ -449,18 +448,9 @@ NK_INTERNAL void nk_dots_u8_load_a_sapphire_amx( //
     nk_dots_u8_a16x64_sapphire_amx_t *a_tile,    //
     nk_u8_t const *src, nk_size_t src_stride,    //
     nk_size_t valid_rows, nk_size_t valid_cols) {
-
-    __mmask64 col_mask = (valid_cols >= 64) ? 0xFFFFFFFFFFFFFFFFULL : ((__mmask64)1 << valid_cols) - 1;
-    __m512i zero = _mm512_setzero_si512();
-
-    for (nk_size_t row_idx = 0; row_idx < 16; row_idx++) {
-        if (row_idx < valid_rows) {
-            __m512i row = _mm512_maskz_loadu_epi8(col_mask, src + row_idx * src_stride);
-            _mm512_store_si512((__m512i *)a_tile->data[row_idx], row);
-        }
-        else { _mm512_store_si512((__m512i *)a_tile->data[row_idx], zero); }
-    }
-    nk_compiler_barrier_sapphire_amx_();
+    nk_dots_i8_load_a_sapphire_amx(                   //
+        (nk_dots_i8_a16x64_sapphire_amx_t *)a_tile,   //
+        (nk_i8_t const *)src, src_stride, valid_rows, valid_cols);
 }
 
 /*  Store U8 state to output matrix with masking for edge tiles.
@@ -469,80 +459,9 @@ NK_INTERNAL void nk_dots_u8_store_sapphire_amx(   //
     nk_dots_u8_state_sapphire_amx_t const *state, //
     nk_u32_t *dst, nk_size_t dst_stride_elements, //
     nk_size_t valid_rows, nk_size_t valid_cols) {
-
-    __mmask16 col_mask = (valid_cols >= 16) ? 0xFFFF : ((__mmask16)1 << valid_cols) - 1;
-
-    for (nk_size_t row_idx = 0; row_idx < valid_rows; row_idx++) {
-        __m512i row = _mm512_load_si512((__m512i const *)state->data[row_idx]);
-        _mm512_mask_storeu_epi32(dst + row_idx * dst_stride_elements, col_mask, row);
-    }
-}
-
-/*  Zero UINT8 2 × 2 C accumulators in TMM4-7 (call once before depth-loop).
- */
-NK_INTERNAL void nk_dots_u8_zero2x2_sapphire_amx(void) {
-    _tile_zero(4);
-    _tile_zero(5);
-    _tile_zero(6);
-    _tile_zero(7);
-}
-
-/*  Accumulate UINT8 2 × 2 output: C[row_idx, col_idx] += A[row_idx] × B[col_idx].
- *  Uses TDPBUUD (unsigned×unsigned → unsigned) instruction.
- */
-NK_INTERNAL void nk_dots_u8_update2x2_sapphire_amx(   //
-    nk_dots_u8_a16x64_sapphire_amx_t const *a_tile_0, //
-    nk_dots_u8_a16x64_sapphire_amx_t const *a_tile_1, //
-    nk_dots_u8_b64x16_sapphire_amx_t const *b_tile_0, //
-    nk_dots_u8_b64x16_sapphire_amx_t const *b_tile_1) {
-
-    _tile_loadd(0, a_tile_0->data, 64);
-    _tile_loadd(1, a_tile_1->data, 64);
-    _tile_loadd(2, b_tile_0->data, 64);
-    _tile_loadd(3, b_tile_1->data, 64);
-
-    _tile_dpbuud(4, 0, 2);
-    _tile_dpbuud(5, 0, 3);
-    _tile_dpbuud(6, 1, 2);
-    _tile_dpbuud(7, 1, 3);
-}
-
-/*  Accumulate UINT8 2 × 2 with DIRECT A load from source matrix.
- */
-NK_INTERNAL void nk_dots_u8_update2x2_direct_sapphire_amx(                      //
-    nk_u8_t const *a_row_ptr_0, nk_u8_t const *a_row_ptr_1, nk_size_t a_stride, //
-    nk_dots_u8_b64x16_sapphire_amx_t const *b_tile_0,                           //
-    nk_dots_u8_b64x16_sapphire_amx_t const *b_tile_1) {
-
-    _tile_loadd(0, a_row_ptr_0, a_stride);
-    _tile_loadd(1, a_row_ptr_1, a_stride);
-    _tile_loadd(2, b_tile_0->data, 64);
-    _tile_loadd(3, b_tile_1->data, 64);
-
-    _tile_dpbuud(4, 0, 2);
-    _tile_dpbuud(5, 0, 3);
-    _tile_dpbuud(6, 1, 2);
-    _tile_dpbuud(7, 1, 3);
-}
-
-/*  Store UINT8 2 × 2 C accumulators from TMM4-7 to state buffer.
- */
-NK_INTERNAL void nk_dots_u8_store2x2_sapphire_amx( //
-    nk_dots_u8_state2x2_sapphire_amx_t *state) {
-    _tile_stored(4, state->c[0][0].data, 64);
-    _tile_stored(5, state->c[0][1].data, 64);
-    _tile_stored(6, state->c[1][0].data, 64);
-    _tile_stored(7, state->c[1][1].data, 64);
-}
-
-/*  Store UINT8 2 × 2 C accumulators DIRECTLY to output matrix.
- */
-NK_INTERNAL void nk_dots_u8_store2x2_direct_sapphire_amx( //
-    nk_u32_t *c, nk_size_t c_stride) {
-    _tile_stored(4, c, c_stride);
-    _tile_stored(5, c + 16, c_stride);
-    _tile_stored(6, (nk_u32_t *)((char *)c + 16 * c_stride), c_stride);
-    _tile_stored(7, (nk_u32_t *)((char *)c + 16 * c_stride) + 16, c_stride);
+    nk_dots_i8_store_sapphire_amx(                    //
+        (nk_dots_i8_state_sapphire_amx_t const *)state, //
+        (nk_i32_t *)dst, dst_stride_elements, valid_rows, valid_cols);
 }
 
 /*  Store UINT8 2 × 2 state to output matrix with masking for edge tiles.
@@ -551,24 +470,9 @@ NK_INTERNAL void nk_dots_u8_output2x2_sapphire_amx(  //
     nk_dots_u8_state2x2_sapphire_amx_t const *state, //
     nk_u32_t *dst, nk_size_t dst_stride_elements,    //
     nk_size_t valid_rows, nk_size_t valid_cols) {
-
-    nk_size_t const rows_upper = (valid_rows > 16) ? 16 : valid_rows;
-    nk_size_t const cols_left = (valid_cols > 16) ? 16 : valid_cols;
-    nk_size_t const cols_right = (valid_cols > 16) ? valid_cols - 16 : 0;
-
-    if (rows_upper > 0 && cols_left > 0)
-        nk_dots_u8_store_sapphire_amx(&state->c[0][0], dst, dst_stride_elements, rows_upper, cols_left);
-    if (rows_upper > 0 && cols_right > 0)
-        nk_dots_u8_store_sapphire_amx(&state->c[0][1], dst + 16, dst_stride_elements, rows_upper, cols_right);
-
-    if (valid_rows > 16) {
-        nk_size_t const rows_lower = valid_rows - 16;
-        nk_u32_t *dst_lower = dst + 16 * dst_stride_elements;
-        if (cols_left > 0)
-            nk_dots_u8_store_sapphire_amx(&state->c[1][0], dst_lower, dst_stride_elements, rows_lower, cols_left);
-        if (cols_right > 0)
-            nk_dots_u8_store_sapphire_amx(&state->c[1][1], dst_lower + 16, dst_stride_elements, rows_lower, cols_right);
-    }
+    nk_dots_i8_output2x2_sapphire_amx(                    //
+        (nk_dots_i8_state2x2_sapphire_amx_t const *)state, //
+        (nk_i32_t *)dst, dst_stride_elements, valid_rows, valid_cols);
 }
 
 /*  Pack U8 A transposed into B format.

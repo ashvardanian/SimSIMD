@@ -44,6 +44,7 @@
 #include <concepts>    // `std::same_as`
 #include <cstdint>     // `std::uint32_t`
 #include <limits>      // `std::numeric_limits`
+#include <random>      // `std::uniform_real_distribution`
 #include <type_traits> // `std::is_same_v`
 #include <utility>     // `std::swap`
 
@@ -116,6 +117,192 @@ constexpr bool operator<(double a, f118_t b) noexcept { return f118_t(a) < b; }
 constexpr bool operator>(double a, f118_t b) noexcept { return f118_t(a) > b; }
 constexpr bool operator<=(double a, f118_t b) noexcept { return f118_t(a) <= b; }
 constexpr bool operator>=(double a, f118_t b) noexcept { return f118_t(a) >= b; }
+
+#pragma region Random
+
+/**
+ *  @brief Fill array with uniform random values.
+ *
+ *  @tparam scalar_type_ A NumKong wrapper type (e.g., f32_t, f64_t, i32_t).
+ *  @tparam generator_type_ A random number generator type (e.g., std::mt19937_64).
+ *  @tparam range_type_ The type used for range bounds (auto-detected from scalar_type_).
+ *  @param data Pointer to the array to fill.
+ *  @param n Number of elements to fill.
+ *  @param generator The random number generator.
+ *  @param min_val Minimum value (inclusive).
+ *  @param max_val Maximum value (inclusive for integers, exclusive for floats).
+ */
+template <typename scalar_type_, typename generator_type_>
+void fill_uniform(generator_type_ &generator, scalar_type_ *data, std::size_t n) noexcept {
+
+    // Packed types (u1x8, u4x2, i4x2) need special handling - just fill with random bytes
+    if constexpr (std::is_same_v<scalar_type_, u1x8_t> || std::is_same_v<scalar_type_, u4x2_t> ||
+                  std::is_same_v<scalar_type_, i4x2_t>) {
+        std::uniform_int_distribution<std::uint32_t> distribution(0, 255);
+        for (std::size_t i = 0; i < n; ++i) data[i] = static_cast<std::uint8_t>(distribution(generator));
+    }
+    // Integer distribution types aren't always defined
+    else if constexpr (is_integer<scalar_type_>()) {
+        using small_integer_t = std::conditional_t<is_signed<scalar_type_>(), std::int32_t, std::uint32_t>;
+        using large_integer_t = std::conditional_t<is_signed<scalar_type_>(), std::int64_t, std::uint64_t>;
+        using distribution_integer_t = std::conditional_t<sizeof(scalar_type_) <= 4, small_integer_t, large_integer_t>;
+        std::uniform_int_distribution<distribution_integer_t> distribution(finite_min<distribution_integer_t>(),
+                                                                           finite_max<distribution_integer_t>());
+        for (std::size_t i = 0; i < n; ++i) data[i] = static_cast<scalar_type_>(distribution(generator));
+    }
+    else {
+        using distribution_float_t = std::conditional_t<sizeof(scalar_type_) <= 4, float, double>;
+        std::uniform_real_distribution<distribution_float_t> distribution(finite_min<distribution_float_t>(),
+                                                                          finite_max<distribution_float_t>());
+        for (std::size_t i = 0; i < n; ++i) data[i] = static_cast<scalar_type_>(distribution(generator));
+    }
+}
+
+/**
+ *  @brief Fill array with uniform random values.
+ *
+ *  @tparam scalar_type_ A NumKong wrapper type (e.g., f32_t, f64_t, i32_t).
+ *  @tparam generator_type_ A random number generator type (e.g., std::mt19937_64).
+ *  @tparam range_type_ The type used for range bounds (auto-detected from scalar_type_).
+ *  @param data Pointer to the array to fill.
+ *  @param n Number of elements to fill.
+ *  @param generator The random number generator.
+ *  @param min_val Minimum value (inclusive).
+ *  @param max_val Maximum value (inclusive for integers, exclusive for floats).
+ */
+template <typename scalar_type_, typename generator_type_>
+void fill_uniform(                                                 //
+    generator_type_ &generator, scalar_type_ *data, std::size_t n, //
+    scalar_type_ min_val, scalar_type_ max_val) noexcept {
+
+    if constexpr (is_integer<scalar_type_>()) {
+        using small_integer_t = std::conditional_t<is_signed<scalar_type_>(), std::int32_t, std::uint32_t>;
+        using large_integer_t = std::conditional_t<is_signed<scalar_type_>(), std::int64_t, std::uint64_t>;
+        using distribution_integer_t = std::conditional_t<sizeof(scalar_type_) <= 4, small_integer_t, large_integer_t>;
+        std::uniform_int_distribution<distribution_integer_t> distribution(
+            static_cast<distribution_integer_t>(min_val), static_cast<distribution_integer_t>(max_val));
+        for (std::size_t i = 0; i < n; ++i) data[i] = static_cast<scalar_type_>(distribution(generator));
+    }
+    else {
+        using distribution_float_t = std::conditional_t<sizeof(scalar_type_) <= 4, float, double>;
+        std::uniform_real_distribution<distribution_float_t> distribution(static_cast<distribution_float_t>(min_val),
+                                                                          static_cast<distribution_float_t>(max_val));
+        for (std::size_t i = 0; i < n; ++i) data[i] = static_cast<scalar_type_>(distribution(generator));
+    }
+}
+
+/**
+ *  @brief Fill array with lognormal distribution (good for detecting numerical edge cases).
+ *
+ *
+ *  @tparam scalar_type_ A NumKong wrapper type.
+ *  @tparam generator_type_ A random number generator type.
+ *  @param data Pointer to the array to fill.
+ *  @param n Number of elements to fill.
+ *  @param generator The random number generator.
+ *  @param mean Mean of the underlying normal distribution.
+ *  @param stddev Standard deviation of the underlying normal distribution.
+ */
+template <typename scalar_type_, typename generator_type_>
+void fill_lognormal(                                               //
+    generator_type_ &generator, scalar_type_ *data, std::size_t n, //
+    scalar_type_ mean = scalar_type_(0), scalar_type_ stddev = scalar_type_(0.5)) noexcept {
+
+    using distribution_float_t = std::conditional_t<sizeof(scalar_type_) <= 4, float, double>;
+    std::lognormal_distribution<distribution_float_t> distribution(mean, stddev);
+    std::bernoulli_distribution sign_distribution(0.5);
+    distribution_float_t const clamp_max = finite_max<scalar_type_>();
+
+    for (std::size_t i = 0; i < n; ++i) {
+        distribution_float_t val = distribution(generator);
+        if (val > clamp_max) val = clamp_max;
+        if (sign_distribution(generator)) val = -val;
+        data[i] = static_cast<scalar_type_>(val);
+    }
+}
+
+/**
+ *  @brief Fill array with Cauchy distribution (heavy tails for stress testing).
+ *
+ *  @tparam scalar_type_ A NumKong wrapper type.
+ *  @tparam generator_type_ A random number generator type.
+ *  @param data Pointer to the array to fill.
+ *  @param n Number of elements to fill.
+ *  @param generator The random number generator.
+ *  @param location Location parameter (median).
+ *  @param scale Scale parameter.
+ */
+template <typename scalar_type_, typename generator_type_>
+void fill_cauchy(                                                  //
+    generator_type_ &generator, scalar_type_ *data, std::size_t n, //
+    scalar_type_ location = 0, scalar_type_ scale = 1) noexcept {
+
+    using distribution_float_t = std::conditional_t<sizeof(scalar_type_) <= 4, float, double>;
+    std::cauchy_distribution<distribution_float_t> distribution(location, scale);
+    distribution_float_t const clamp_max = finite_max<scalar_type_>();
+    distribution_float_t const clamp_min = finite_min<scalar_type_>();
+
+    for (std::size_t i = 0; i < n; ++i) {
+        distribution_float_t val = distribution(generator);
+        if (val > clamp_max) val = clamp_max;
+        else if (val < clamp_min) val = clamp_min;
+        data[i] = static_cast<scalar_type_>(val);
+    }
+}
+
+/**
+ *  @brief Fill arrays with latitude and longitude coordinate values in radians.
+ *
+ *  Uses type-appropriate distribution precision.
+ *  Useful for geospatial (latitude/longitude) benchmarks.
+ *
+ *  @tparam scalar_type_ A NumKong wrapper type.
+ *  @tparam generator_type_ A random number generator type.
+ *  @param lats Pointer to the latitude array to fill (-π/2 to +π/2).
+ *  @param lons Pointer to the longitude array to fill (-π to +π).
+ *  @param n Number of elements to fill in each array.
+ *  @param generator The random number generator.
+ */
+template <typename scalar_type_, typename generator_type_>
+void fill_coordinates(generator_type_ &generator, scalar_type_ *lats, scalar_type_ *lons, std::size_t n) noexcept {
+
+    using distribution_float_t = std::conditional_t<sizeof(scalar_type_) <= 4, float, double>;
+    constexpr distribution_float_t pi = distribution_float_t(3.14159265358979323846);
+    std::uniform_real_distribution<distribution_float_t> lat_disttribution(-pi / 2, pi / 2);
+    std::uniform_real_distribution<distribution_float_t> lon_disttribution(-pi, pi);
+    for (std::size_t i = 0; i < n; ++i) {
+        lats[i] = static_cast<scalar_type_>(lat_disttribution(generator));
+        lons[i] = static_cast<scalar_type_>(lon_disttribution(generator));
+    }
+}
+
+/**
+ *  @brief Fill ONE array as a probability distribution (sums to 1.0).
+ *
+ *  @tparam scalar_type_ A NumKong wrapper type.
+ *  @tparam generator_type_ A random number generator type.
+ *  @param data Pointer to the probability array.
+ *  @param n Number of elements to fill.
+ *  @param generator The random number generator.
+ */
+template <typename scalar_type_, typename generator_type_>
+void fill_probability(generator_type_ &generator, scalar_type_ *data, std::size_t n) noexcept {
+
+    using distribution_float_t = std::conditional_t<sizeof(scalar_type_) <= 4, float, double>;
+    std::uniform_real_distribution<distribution_float_t> distribution( //
+        distribution_float_t(0.01), distribution_float_t(1));
+
+    distribution_float_t sum = 0;
+    for (std::size_t i = 0; i < n; ++i) {
+        distribution_float_t val = distribution(generator);
+        data[i] = static_cast<scalar_type_>(val);
+        sum += val;
+    }
+    for (std::size_t i = 0; i < n; ++i)
+        data[i] = static_cast<scalar_type_>(static_cast<distribution_float_t>(data[i]) / sum);
+}
+
+#pragma endregion Random
 
 #pragma region Dot Kernels
 
@@ -356,12 +543,13 @@ void sum(in_type_ const *a, in_type_ const *b, std::size_t n, in_type_ *c) noexc
 /**
  *  @brief Elementwise scale: c[i] = alpha * a[i] + beta
  *  @tparam in_type_ Element type
- *  @tparam scale_type_ Scalar type for alpha/beta
+ *  @tparam precision_type_ Precision type for scalar fallback computations (default: in_type_)
  *  @tparam allow_simd_ Enable SIMD dispatch
  */
-template <typename in_type_, typename scale_type_ = typename in_type_::scale_t, bool allow_simd_ = true>
-void scale(in_type_ const *a, std::size_t n, scale_type_ const *alpha, scale_type_ const *beta, in_type_ *c) noexcept {
-    constexpr bool simd = allow_simd_ && std::is_same_v<scale_type_, typename in_type_::scale_t>;
+template <typename in_type_, typename precision_type_ = in_type_, bool allow_simd_ = true>
+void scale(in_type_ const *a, std::size_t n, typename in_type_::scale_t const *alpha,
+           typename in_type_::scale_t const *beta, in_type_ *c) noexcept {
+    constexpr bool simd = allow_simd_ && std::is_same_v<precision_type_, in_type_>;
 
     if constexpr (std::is_same_v<in_type_, f64_t> && simd) nk_scale_f64(&a->raw_, n, alpha, beta, &c->raw_);
     else if constexpr (std::is_same_v<in_type_, f32_t> && simd) nk_scale_f32(&a->raw_, n, alpha, beta, &c->raw_);
@@ -375,22 +563,23 @@ void scale(in_type_ const *a, std::size_t n, scale_type_ const *alpha, scale_typ
     else if constexpr (std::is_same_v<in_type_, u32_t> && simd) nk_scale_u32(&a->raw_, n, alpha, beta, &c->raw_);
     else if constexpr (std::is_same_v<in_type_, i64_t> && simd) nk_scale_i64(&a->raw_, n, alpha, beta, &c->raw_);
     else if constexpr (std::is_same_v<in_type_, u64_t> && simd) nk_scale_u64(&a->raw_, n, alpha, beta, &c->raw_);
-    // Scalar fallback
+    // Scalar fallback with high-precision intermediates
     else {
-        for (std::size_t i = 0; i < n; i++) c[i] = in_type_(scale_type_(a[i]) * (*alpha) + (*beta));
+        for (std::size_t i = 0; i < n; i++)
+            c[i] = (precision_type_(a[i]) * precision_type_(*alpha) + precision_type_(*beta)).template to<in_type_>();
     }
 }
 
 /**
  *  @brief Weighted sum: c[i] = alpha * a[i] + beta * b[i]
  *  @tparam in_type_ Element type
- *  @tparam scale_type_ Scalar type for alpha/beta
+ *  @tparam precision_type_ Precision type for scalar fallback computations (default: in_type_)
  *  @tparam allow_simd_ Enable SIMD dispatch
  */
-template <typename in_type_, typename scale_type_ = typename in_type_::scale_t, bool allow_simd_ = true>
-void wsum(in_type_ const *a, in_type_ const *b, std::size_t n, scale_type_ const *alpha, scale_type_ const *beta,
-          in_type_ *c) noexcept {
-    constexpr bool simd = allow_simd_ && std::is_same_v<scale_type_, typename in_type_::scale_t>;
+template <typename in_type_, typename precision_type_ = in_type_, bool allow_simd_ = true>
+void wsum(in_type_ const *a, in_type_ const *b, std::size_t n, typename in_type_::scale_t const *alpha,
+          typename in_type_::scale_t const *beta, in_type_ *c) noexcept {
+    constexpr bool simd = allow_simd_ && std::is_same_v<precision_type_, in_type_>;
 
     if constexpr (std::is_same_v<in_type_, f64_t> && simd) nk_wsum_f64(&a->raw_, &b->raw_, n, alpha, beta, &c->raw_);
     else if constexpr (std::is_same_v<in_type_, f32_t> && simd)
@@ -413,10 +602,11 @@ void wsum(in_type_ const *a, in_type_ const *b, std::size_t n, scale_type_ const
         nk_wsum_i64(&a->raw_, &b->raw_, n, alpha, beta, &c->raw_);
     else if constexpr (std::is_same_v<in_type_, u64_t> && simd)
         nk_wsum_u64(&a->raw_, &b->raw_, n, alpha, beta, &c->raw_);
-    // Scalar fallback
+    // Scalar fallback with high-precision intermediates
     else {
         for (std::size_t i = 0; i < n; i++) {
-            c[i] = in_type_(scale_type_(a[i]) * (*alpha) + scale_type_(b[i]) * (*beta));
+            c[i] = (precision_type_(a[i]) * precision_type_(*alpha) + precision_type_(b[i]) * precision_type_(*beta))
+                       .template to<in_type_>();
         }
     }
 }
@@ -424,13 +614,13 @@ void wsum(in_type_ const *a, in_type_ const *b, std::size_t n, scale_type_ const
 /**
  *  @brief Elementwise fused multiply-add: d[i] = alpha * a[i] * b[i] + beta * c[i]
  *  @tparam in_type_ Element type
- *  @tparam scale_type_ Scalar type for alpha/beta
+ *  @tparam precision_type_ Precision type for scalar fallback computations (default: in_type_)
  *  @tparam allow_simd_ Enable SIMD dispatch
  */
-template <typename in_type_, typename scale_type_ = typename in_type_::scale_t, bool allow_simd_ = true>
-void fma(in_type_ const *a, in_type_ const *b, std::size_t n, in_type_ const *c, scale_type_ const *alpha,
-         scale_type_ const *beta, in_type_ *d) noexcept {
-    constexpr bool simd = allow_simd_ && std::is_same_v<scale_type_, typename in_type_::scale_t>;
+template <typename in_type_, typename precision_type_ = in_type_, bool allow_simd_ = true>
+void fma(in_type_ const *a, in_type_ const *b, std::size_t n, in_type_ const *c,
+         typename in_type_::scale_t const *alpha, typename in_type_::scale_t const *beta, in_type_ *d) noexcept {
+    constexpr bool simd = allow_simd_ && std::is_same_v<precision_type_, in_type_>;
 
     if constexpr (std::is_same_v<in_type_, f64_t> && simd)
         nk_fma_f64(&a->raw_, &b->raw_, &c->raw_, n, alpha, beta, &d->raw_);
@@ -456,10 +646,12 @@ void fma(in_type_ const *a, in_type_ const *b, std::size_t n, in_type_ const *c,
         nk_fma_i64(&a->raw_, &b->raw_, &c->raw_, n, alpha, beta, &d->raw_);
     else if constexpr (std::is_same_v<in_type_, u64_t> && simd)
         nk_fma_u64(&a->raw_, &b->raw_, &c->raw_, n, alpha, beta, &d->raw_);
-    // Scalar fallback
+    // Scalar fallback with high-precision intermediates
     else {
         for (std::size_t i = 0; i < n; i++) {
-            d[i] = in_type_(scale_type_(a[i]) * scale_type_(b[i]) * (*alpha) + scale_type_(c[i]) * (*beta));
+            d[i] = (precision_type_(a[i]) * precision_type_(b[i]) * precision_type_(*alpha) +
+                    precision_type_(c[i]) * precision_type_(*beta))
+                       .template to<in_type_>();
         }
     }
 }
@@ -569,7 +761,7 @@ void reduce_min(in_type_ const *data, std::size_t count, std::size_t stride_byte
         nk_reduce_min_u64(&data->raw_, count, stride_bytes, &min_value->raw_, min_index);
     // Scalar fallback
     else {
-        in_type_ best_value = in_type_::max();
+        in_type_ best_value = in_type_::finite_max();
         std::size_t best_index = 0;
         auto const *ptr = reinterpret_cast<std::byte const *>(data);
         for (std::size_t i = 0; i < count; i++, ptr += stride_bytes) {
@@ -629,7 +821,7 @@ void reduce_max(in_type_ const *data, std::size_t count, std::size_t stride_byte
         nk_reduce_max_u64(&data->raw_, count, stride_bytes, &max_value->raw_, max_index);
     // Scalar fallback
     else {
-        in_type_ best_value = in_type_::min();
+        in_type_ best_value = in_type_::finite_min();
         std::size_t best_index = 0;
         auto const *ptr = reinterpret_cast<std::byte const *>(data);
         for (std::size_t i = 0; i < count; i++, ptr += stride_bytes) {
@@ -646,7 +838,7 @@ void reduce_max(in_type_ const *data, std::size_t count, std::size_t stride_byte
 #pragma region Curved Kernels
 
 /**
- *  @brief Bilinear form: a^T * C * b where C is an n×n matrix (row-major)
+ *  @brief Bilinear form: a^scalar_type_ * C * b where C is an n×n matrix (row-major)
  *  @tparam in_type_ Input vector element type (real or complex)
  *  @tparam result_type_ Accumulator type (default: in_type_::bilinear_result_t)
  *  @tparam allow_simd_ Enable SIMD kernel dispatch when true
@@ -686,7 +878,7 @@ void bilinear(in_type_ const *a, in_type_ const *b, in_type_ const *c, std::size
 }
 
 /**
- *  @brief Mahalanobis distance: sqrt((a-b)^T * C * (a-b)) where C is an n×n matrix (row-major)
+ *  @brief Mahalanobis distance: sqrt((a-b)^scalar_type_ * C * (a-b)) where C is an n×n matrix (row-major)
  *  @tparam in_type_ Input vector element type
  *  @tparam result_type_ Accumulator type (default: in_type_::mahalanobis_result_t)
  *  @tparam allow_simd_ Enable SIMD kernel dispatch when true
@@ -1965,6 +2157,44 @@ void dots_packed(in_type_ const *a, void const *b_packed, result_type_ *c, std::
                 for (std::size_t l = 0; l < depth; l++) sum = fused_multiply_add(sum, a_row[l], b_col[l]);
                 c_row[j] = sum;
             }
+        }
+    }
+}
+
+/**
+ *  @brief Reference unpacked GEMM: C = A × Bᵀ (row-major A and B, B transposed).
+ *
+ *  This matches BLAS sgemm/dgemm with CblasNoTrans for A and CblasTrans for B.
+ *  Useful as a reference implementation for validating BLAS/MKL/Accelerate.
+ *
+ *  @param a Matrix A [m x k] row-major
+ *  @param b Matrix B [n x k] row-major (accessed as Bᵀ)
+ *  @param c Output matrix C [m x n] row-major
+ *  @param row_count Rows of A and C (m)
+ *  @param column_count Rows of B and columns of C (n)
+ *  @param depth Columns of A and B (k)
+ *  @param a_stride_in_bytes Stride between rows of A in bytes
+ *  @param b_stride_in_bytes Stride between rows of B in bytes
+ *  @param c_stride_in_bytes Stride between rows of C in bytes
+ *  @tparam in_type_ Input element type (e.g., f32_t, bf16_t)
+ *  @tparam result_type_ Accumulator/output type (e.g., f32_t, f118_t for high precision)
+ */
+template <typename in_type_, typename result_type_ = typename in_type_::dot_result_t>
+void dots_unpacked(in_type_ const *a, in_type_ const *b, result_type_ *c, std::size_t row_count,
+                   std::size_t column_count, std::size_t depth, std::size_t a_stride_in_bytes,
+                   std::size_t b_stride_in_bytes, std::size_t c_stride_in_bytes) noexcept {
+    char const *a_bytes = reinterpret_cast<char const *>(a);
+    char const *b_bytes = reinterpret_cast<char const *>(b);
+    char *c_bytes = reinterpret_cast<char *>(c);
+
+    for (std::size_t i = 0; i < row_count; i++) {
+        in_type_ const *a_row = reinterpret_cast<in_type_ const *>(a_bytes + i * a_stride_in_bytes);
+        result_type_ *c_row = reinterpret_cast<result_type_ *>(c_bytes + i * c_stride_in_bytes);
+        for (std::size_t j = 0; j < column_count; j++) {
+            in_type_ const *b_row = reinterpret_cast<in_type_ const *>(b_bytes + j * b_stride_in_bytes);
+            result_type_ sum {};
+            for (std::size_t l = 0; l < depth; l++) sum = fused_multiply_add(sum, a_row[l], b_row[l]);
+            c_row[j] = sum;
         }
     }
 }

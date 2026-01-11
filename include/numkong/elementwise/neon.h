@@ -110,8 +110,7 @@ NK_PUBLIC void nk_wsum_f32_neon(                       //
         float32x4_t a_f32x4 = vld1q_f32(a + i);
         float32x4_t b_f32x4 = vld1q_f32(b + i);
         float32x4_t a_scaled_f32x4 = vmulq_n_f32(a_f32x4, alpha_val);
-        float32x4_t b_scaled_f32x4 = vmulq_n_f32(b_f32x4, beta_val);
-        float32x4_t result_f32x4 = vaddq_f32(a_scaled_f32x4, b_scaled_f32x4);
+        float32x4_t result_f32x4 = vfmaq_n_f32(a_scaled_f32x4, b_f32x4, beta_val);
         vst1q_f32(result + i, result_f32x4);
     }
 
