@@ -119,6 +119,22 @@ StatementMacros:
   - nk_define_mesh_
   - nk_define_dense_
   - nk_define_curved_
+  - nk_dispatch_dense_
+  - nk_dispatch_sparse_
+  - nk_dispatch_sparse_dot_
+  - nk_dispatch_curved_
+  - nk_dispatch_geospatial_
+  - nk_dispatch_fma_
+  - nk_dispatch_wsum_
+  - nk_dispatch_scale_
+  - nk_dispatch_sum_
+  - nk_dispatch_trigonometry_
+  - nk_dispatch_mesh_
+  - nk_dispatch_reduce_add_
+  - nk_dispatch_reduce_minmax_
+  - nk_dispatch_dots_packed_size_
+  - nk_dispatch_dots_pack_
+  - nk_dispatch_dots_packed_
 
 # Align consecutive macro definitions (useful for NK_TARGET_* flags)
 AlignConsecutiveMacros:

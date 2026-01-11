@@ -619,6 +619,29 @@ nk_define_rmsd_(bf16, f32, f32, nk_bf16_to_f32_serial, nk_f32_sqrt_serial)      
 nk_define_kabsch_(bf16, f32, f32, f32, nk_bf16_to_f32_serial, nk_f32_sqrt_serial)  // nk_kabsch_bf16_serial
 nk_define_umeyama_(bf16, f32, f32, f32, nk_bf16_to_f32_serial, nk_f32_sqrt_serial) // nk_umeyama_bf16_serial
 
+#undef NK_F32_SVD_GAMMA_
+#undef NK_F32_SVD_CSTAR_
+#undef NK_F32_SVD_SSTAR_
+#undef NK_F32_SVD_EPSILON_
+#undef NK_F64_SVD_GAMMA_
+#undef NK_F64_SVD_CSTAR_
+#undef NK_F64_SVD_SSTAR_
+#undef NK_F64_SVD_EPSILON_
+#undef nk_define_cond_swap_
+#undef nk_define_conditional_negating_swap_
+#undef nk_define_approximate_givens_quaternion_
+#undef nk_define_jacobi_conjugation_
+#undef nk_define_quaternion_to_mat3x3_
+#undef nk_define_jacobi_eigenanlysis_
+#undef nk_define_qr_givens_quaternion_
+#undef nk_define_sort_singular_values_
+#undef nk_define_qr_decomposition_
+#undef nk_define_svd3x3_
+#undef nk_define_det3x3_
+#undef nk_define_rmsd_
+#undef nk_define_kabsch_
+#undef nk_define_umeyama_
+
 #if defined(__cplusplus)
 } // extern "C"
 #endif

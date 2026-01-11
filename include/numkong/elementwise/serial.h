@@ -133,6 +133,11 @@ nk_define_fma_(u32, f64, nk_assign_from_to_, nk_f64_to_u32_serial)      // nk_fm
 nk_define_fma_(i64, f64, nk_assign_from_to_, nk_f64_to_i64_serial)      // nk_fma_i64_serial
 nk_define_fma_(u64, f64, nk_assign_from_to_, nk_f64_to_u64_serial)      // nk_fma_u64_serial
 
+#undef nk_define_scale_
+#undef nk_define_sum_
+#undef nk_define_wsum_
+#undef nk_define_fma_
+
 #if defined(__cplusplus)
 } // extern "C"
 #endif

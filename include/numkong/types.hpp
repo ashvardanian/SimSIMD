@@ -22,6 +22,29 @@
  *  - Trigonometric functions like the `sin`, `tanh`, `acos`
  *  - Rust-style `total_cmp`, `round`, `to_radians`, `mul_add` for FMA operations
  *  - Type definitions for NumKong mixed-precision often-widening operations
+ *
+ *  @section terminology Terminology: Word vs Value vs Dimension
+ *
+ *  Each type defines three bit-width constants that describe its memory layout:
+ *
+ *  - @b value: A C++ container element, like the `i4x2_t`, `f32_t`, and `f64c_t`.
+ *
+ *  - @b word: A raw Assembly-level storage unit, like a single `unsigned char` under
+ *    the `i4x2_t` or one of the two `double`s forming the `f64c_t`.
+ *
+ *  - @b dimension: A logical unit of work, like the a single nibble of `i4x2_t`, or
+ *    a single bit of `u1x8_t`. For complex numbers, it would be a pair of floating-point values.
+ *
+ *  In a tabular form, with more examples, it would look like:
+ *
+ *      Type       bits/word   bits/dimension   bits/value   dims/value   words/value
+ *      f32_t         32             32             32           1             1
+ *      f32c_t        32             64             64           1             2
+ *      u1x8_t         8              1              8           8             1
+ *      i4x2_t         8              4              8           2             1
+ *
+ *  @sa `dimensions_per_value<T>()` to convert dimension counts to value counts.
+ *  @sa `bits_per_value<T>()` to infer the size of each value.
  */
 
 #ifndef NK_TYPES_HPP
@@ -97,7 +120,9 @@ struct f32_t {
 
     static constexpr nk_dtype_t dtype() noexcept { return nk_f32_k; }
     static constexpr char const *dtype_name() noexcept { return "f32"; }
-    static constexpr unsigned bits() noexcept { return 32; }
+    static constexpr unsigned bits_per_word() noexcept { return 32; }
+    static constexpr unsigned bits_per_dimension() noexcept { return 32; }
+    static constexpr unsigned bits_per_value() noexcept { return 32; }
     static constexpr unsigned mantissa_bits() noexcept { return 23; }
     static constexpr unsigned exponent_bits() noexcept { return 8; }
     static constexpr int min_exponent() noexcept { return -125; }
@@ -124,6 +149,7 @@ struct f32_t {
     using fma_kernel_t = void (*)(raw_t const *, raw_t const *, raw_t const *, nk_size_t, scale_t const *,
                                   scale_t const *, raw_t *);
     using reduce_add_kernel_t = void (*)(raw_t const *, nk_size_t, nk_size_t, nk_f64_t *);
+    using reduce_extremum_kernel_t = void (*)(raw_t const *, nk_size_t, nk_size_t, raw_t *, nk_size_t *);
     using trig_kernel_t = void (*)(raw_t const *, nk_size_t, raw_t *);
     using mesh_kernel_t = void (*)(raw_t const *, raw_t const *, nk_size_t, raw_t *, raw_t *, raw_t *, raw_t *,
                                    raw_t *);
@@ -142,6 +168,8 @@ struct f32_t {
     constexpr f32_t() noexcept : raw_(0) {}
     constexpr f32_t(float v) noexcept : raw_(v) {}
     constexpr explicit f32_t(double v) noexcept : raw_(static_cast<float>(v)) {}
+    template <std::integral integral_type_>
+    constexpr f32_t(integral_type_ v) noexcept : raw_(static_cast<float>(v)) {}
     constexpr operator float() const noexcept { return raw_; }
     constexpr float raw() const noexcept { return raw_; }
     static constexpr f32_t from_raw(raw_t r) noexcept { return f32_t {r}; }
@@ -157,6 +185,15 @@ struct f32_t {
     static constexpr f32_t negative_infinity() noexcept { return f32_t {std::bit_cast<raw_t>(0xFF800000u)}; }
     static constexpr f32_t quiet_nan() noexcept { return f32_t {std::bit_cast<raw_t>(0x7FC00000u)}; }
     static constexpr f32_t signaling_nan() noexcept { return f32_t {std::bit_cast<raw_t>(0x7F800001u)}; }
+
+    // Mathematical constants
+    static constexpr f32_t pi_k() noexcept { return f32_t {3.14159265358979323846f}; }
+    static constexpr f32_t two_pi_k() noexcept { return f32_t {6.28318530717958647692f}; }
+    static constexpr f32_t half_pi_k() noexcept { return f32_t {1.57079632679489661923f}; }
+    static constexpr f32_t e_k() noexcept { return f32_t {2.71828182845904523536f}; }
+    static constexpr f32_t sqrt2_k() noexcept { return f32_t {1.41421356237309504880f}; }
+    static constexpr f32_t inv_sqrt2_k() noexcept { return f32_t {0.70710678118654752440f}; }
+    static constexpr f32_t ln2_k() noexcept { return f32_t {0.69314718055994530942f}; }
 
     constexpr bool is_nan() const noexcept { return (to_bits() & 0x7FFFFFFFu) > 0x7F800000u; }
     constexpr bool is_infinite() const noexcept { return (to_bits() & 0x7FFFFFFFu) == 0x7F800000u; }
@@ -331,7 +368,9 @@ struct f64_t {
 
     static constexpr nk_dtype_t dtype() noexcept { return nk_f64_k; }
     static constexpr char const *dtype_name() noexcept { return "f64"; }
-    static constexpr unsigned bits() noexcept { return 64; }
+    static constexpr unsigned bits_per_word() noexcept { return 64; }
+    static constexpr unsigned bits_per_dimension() noexcept { return 64; }
+    static constexpr unsigned bits_per_value() noexcept { return 64; }
     static constexpr unsigned mantissa_bits() noexcept { return 52; }
     static constexpr unsigned exponent_bits() noexcept { return 11; }
     static constexpr int min_exponent() noexcept { return -1021; }
@@ -358,6 +397,7 @@ struct f64_t {
     using fma_kernel_t = void (*)(raw_t const *, raw_t const *, raw_t const *, nk_size_t, scale_t const *,
                                   scale_t const *, raw_t *);
     using reduce_add_kernel_t = void (*)(raw_t const *, nk_size_t, nk_size_t, nk_f64_t *);
+    using reduce_extremum_kernel_t = void (*)(raw_t const *, nk_size_t, nk_size_t, raw_t *, nk_size_t *);
     using trig_kernel_t = void (*)(raw_t const *, nk_size_t, raw_t *);
     using bilinear_kernel_t = void (*)(raw_t const *, raw_t const *, raw_t const *, nk_size_t, raw_t *);
     using haversine_kernel_t = void (*)(raw_t const *, raw_t const *, raw_t const *, raw_t const *, nk_size_t, raw_t *);
@@ -373,6 +413,8 @@ struct f64_t {
     constexpr f64_t() noexcept : raw_(0) {}
     constexpr f64_t(double v) noexcept : raw_(v) {}
     constexpr explicit f64_t(float v) noexcept : raw_(static_cast<double>(v)) {}
+    template <std::integral integral_type_>
+    constexpr f64_t(integral_type_ v) noexcept : raw_(static_cast<double>(v)) {}
     constexpr operator double() const noexcept { return raw_; }
     constexpr double raw() const noexcept { return raw_; }
     static constexpr f64_t from_raw(raw_t r) noexcept { return f64_t {r}; }
@@ -388,6 +430,15 @@ struct f64_t {
     static constexpr f64_t negative_infinity() noexcept { return f64_t {std::bit_cast<raw_t>(0xFFF0000000000000ull)}; }
     static constexpr f64_t quiet_nan() noexcept { return f64_t {std::bit_cast<raw_t>(0x7FF8000000000000ull)}; }
     static constexpr f64_t signaling_nan() noexcept { return f64_t {std::bit_cast<raw_t>(0x7FF0000000000001ull)}; }
+
+    // Mathematical constants
+    static constexpr f64_t pi_k() noexcept { return f64_t {3.14159265358979323846}; }
+    static constexpr f64_t two_pi_k() noexcept { return f64_t {6.28318530717958647692}; }
+    static constexpr f64_t half_pi_k() noexcept { return f64_t {1.57079632679489661923}; }
+    static constexpr f64_t e_k() noexcept { return f64_t {2.71828182845904523536}; }
+    static constexpr f64_t sqrt2_k() noexcept { return f64_t {1.41421356237309504880}; }
+    static constexpr f64_t inv_sqrt2_k() noexcept { return f64_t {0.70710678118654752440}; }
+    static constexpr f64_t ln2_k() noexcept { return f64_t {0.69314718055994530942}; }
 
     constexpr bool is_nan() const noexcept { return (to_bits() & 0x7FFFFFFFFFFFFFFFull) > 0x7FF0000000000000ull; }
     constexpr bool is_infinite() const noexcept { return (to_bits() & 0x7FFFFFFFFFFFFFFFull) == 0x7FF0000000000000ull; }
@@ -551,15 +602,19 @@ struct f32c_t {
 
     using dot_result_t = f32c_t;
     using vdot_result_t = f32c_t;
+    using bilinear_result_t = f32c_t;
 
     using dot_kernel_t = void (*)(raw_t const *, raw_t const *, nk_size_t, nk_f32c_t *);
     using vdot_kernel_t = void (*)(raw_t const *, raw_t const *, nk_size_t, nk_f32c_t *);
+    using bilinear_kernel_t = void (*)(raw_t const *, raw_t const *, raw_t const *, nk_size_t, raw_t *);
 
     raw_t raw_;
 
     static constexpr nk_dtype_t dtype() noexcept { return nk_f32c_k; }
     static constexpr char const *dtype_name() noexcept { return "f32c"; }
-    static constexpr unsigned bits() noexcept { return 64; }
+    static constexpr unsigned bits_per_word() noexcept { return 32; }      // One float component
+    static constexpr unsigned bits_per_dimension() noexcept { return 64; } // One complex number
+    static constexpr unsigned bits_per_value() noexcept { return 64; }
     static constexpr unsigned component_bits() noexcept { return 32; }
     static constexpr bool is_integer() noexcept { return false; }
     static constexpr bool is_signed() noexcept { return true; }
@@ -780,15 +835,19 @@ struct f64c_t {
 
     using dot_result_t = f64c_t;
     using vdot_result_t = f64c_t;
+    using bilinear_result_t = f64c_t;
 
     using dot_kernel_t = void (*)(raw_t const *, raw_t const *, nk_size_t, nk_f64c_t *);
     using vdot_kernel_t = void (*)(raw_t const *, raw_t const *, nk_size_t, nk_f64c_t *);
+    using bilinear_kernel_t = void (*)(raw_t const *, raw_t const *, raw_t const *, nk_size_t, raw_t *);
 
     raw_t raw_;
 
     static constexpr nk_dtype_t dtype() noexcept { return nk_f64c_k; }
     static constexpr char const *dtype_name() noexcept { return "f64c"; }
-    static constexpr unsigned bits() noexcept { return 128; }
+    static constexpr unsigned bits_per_word() noexcept { return 64; }       // One double component
+    static constexpr unsigned bits_per_dimension() noexcept { return 128; } // One complex number
+    static constexpr unsigned bits_per_value() noexcept { return 128; }
     static constexpr unsigned component_bits() noexcept { return 64; }
     static constexpr bool is_integer() noexcept { return false; }
     static constexpr bool is_signed() noexcept { return true; }
@@ -1026,7 +1085,9 @@ struct f16_t {
 
     static constexpr nk_dtype_t dtype() noexcept { return nk_f16_k; }
     static constexpr char const *dtype_name() noexcept { return "f16"; }
-    static constexpr unsigned bits() noexcept { return 16; }
+    static constexpr unsigned bits_per_word() noexcept { return 16; }
+    static constexpr unsigned bits_per_dimension() noexcept { return 16; }
+    static constexpr unsigned bits_per_value() noexcept { return 16; }
     static constexpr unsigned mantissa_bits() noexcept { return 10; }
     static constexpr unsigned exponent_bits() noexcept { return 5; }
     static constexpr int min_exponent() noexcept { return -13; }
@@ -1057,6 +1118,11 @@ struct f16_t {
         float f = static_cast<float>(v);
         nk_f32_to_f16(&f, &raw_);
     }
+    template <std::integral integral_type_>
+    f16_t(integral_type_ v) noexcept {
+        float f = static_cast<float>(v);
+        nk_f32_to_f16(&f, &raw_);
+    }
     operator float() const noexcept { return to_f32(); }
     float raw() const noexcept { return to_f32(); }
     static f16_t from_raw(raw_t r) noexcept {
@@ -1080,6 +1146,15 @@ struct f16_t {
     static constexpr f16_t negative_infinity() noexcept { return from_bits(0xFC00); }
     static constexpr f16_t quiet_nan() noexcept { return from_bits(0x7E00); }
     static constexpr f16_t signaling_nan() noexcept { return from_bits(0x7C01); }
+
+    // Mathematical constants (from_f32 is not constexpr)
+    static inline f16_t pi_k() noexcept { return from_f32(3.14159265358979323846f); }
+    static inline f16_t two_pi_k() noexcept { return from_f32(6.28318530717958647692f); }
+    static inline f16_t half_pi_k() noexcept { return from_f32(1.57079632679489661923f); }
+    static inline f16_t e_k() noexcept { return from_f32(2.71828182845904523536f); }
+    static inline f16_t sqrt2_k() noexcept { return from_f32(1.41421356237309504880f); }
+    static inline f16_t inv_sqrt2_k() noexcept { return from_f32(0.70710678118654752440f); }
+    static inline f16_t ln2_k() noexcept { return from_f32(0.69314718055994530942f); }
 
     constexpr bool is_nan() const noexcept { return (to_bits() & 0x7FFF) > 0x7C00; }
     constexpr bool is_infinite() const noexcept { return (to_bits() & 0x7FFF) == 0x7C00; }
@@ -1218,7 +1293,9 @@ struct bf16_t {
 
     static constexpr nk_dtype_t dtype() noexcept { return nk_bf16_k; }
     static constexpr char const *dtype_name() noexcept { return "bf16"; }
-    static constexpr unsigned bits() noexcept { return 16; }
+    static constexpr unsigned bits_per_word() noexcept { return 16; }
+    static constexpr unsigned bits_per_dimension() noexcept { return 16; }
+    static constexpr unsigned bits_per_value() noexcept { return 16; }
     static constexpr unsigned mantissa_bits() noexcept { return 7; }
     static constexpr unsigned exponent_bits() noexcept { return 8; }
     static constexpr int min_exponent() noexcept { return -125; } // Same as f32
@@ -1249,6 +1326,11 @@ struct bf16_t {
         float f = static_cast<float>(v);
         nk_f32_to_bf16(&f, &raw_);
     }
+    template <std::integral integral_type_>
+    bf16_t(integral_type_ v) noexcept {
+        float f = static_cast<float>(v);
+        nk_f32_to_bf16(&f, &raw_);
+    }
     operator float() const noexcept { return to_f32(); }
     float raw() const noexcept { return to_f32(); }
     static bf16_t from_raw(raw_t r) noexcept {
@@ -1272,6 +1354,15 @@ struct bf16_t {
     static constexpr bf16_t negative_infinity() noexcept { return from_bits(0xFF80); }
     static constexpr bf16_t quiet_nan() noexcept { return from_bits(0x7FC0); }
     static constexpr bf16_t signaling_nan() noexcept { return from_bits(0x7F81); }
+
+    // Mathematical constants (from_f32 is not constexpr)
+    static inline bf16_t pi_k() noexcept { return from_f32(3.14159265358979323846f); }
+    static inline bf16_t two_pi_k() noexcept { return from_f32(6.28318530717958647692f); }
+    static inline bf16_t half_pi_k() noexcept { return from_f32(1.57079632679489661923f); }
+    static inline bf16_t e_k() noexcept { return from_f32(2.71828182845904523536f); }
+    static inline bf16_t sqrt2_k() noexcept { return from_f32(1.41421356237309504880f); }
+    static inline bf16_t inv_sqrt2_k() noexcept { return from_f32(0.70710678118654752440f); }
+    static inline bf16_t ln2_k() noexcept { return from_f32(0.69314718055994530942f); }
 
     constexpr bool is_nan() const noexcept { return (to_bits() & 0x7FFF) > 0x7F80; }
     constexpr bool is_infinite() const noexcept { return (to_bits() & 0x7FFF) == 0x7F80; }
@@ -1384,18 +1475,25 @@ struct bf16_t {
  *  @note Math computed via f32 upcast for precision.
  */
 struct f16c_t {
-    f16_t real_;
-    f16_t imag_;
-
     using component_t = f16_t;
     using raw_t = nk_f16c_t;
 
     using dot_result_t = f32c_t;      // widened to f32c
+    using vdot_result_t = f32c_t;     // widened to f32c
     using bilinear_result_t = f32c_t; // widened to f32c
+
+    // Kernel signatures: input f16c, output widened to f32c
+    using dot_kernel_t = void (*)(raw_t const *, raw_t const *, nk_size_t, nk_f32c_t *);
+    using vdot_kernel_t = void (*)(raw_t const *, raw_t const *, nk_size_t, nk_f32c_t *);
+    using bilinear_kernel_t = void (*)(raw_t const *, raw_t const *, raw_t const *, nk_size_t, nk_f32c_t *);
+
+    raw_t raw_;
 
     static constexpr nk_dtype_t dtype() noexcept { return nk_f16c_k; }
     static constexpr char const *dtype_name() noexcept { return "f16c"; }
-    static constexpr unsigned bits() noexcept { return 32; }
+    static constexpr unsigned bits_per_word() noexcept { return 16; }      // One f16 component
+    static constexpr unsigned bits_per_dimension() noexcept { return 32; } // One complex number
+    static constexpr unsigned bits_per_value() noexcept { return 32; }
     static constexpr unsigned component_bits() noexcept { return 16; }
     static constexpr bool is_integer() noexcept { return false; }
     static constexpr bool is_signed() noexcept { return true; }
@@ -1404,17 +1502,16 @@ struct f16c_t {
     static constexpr bool has_infinity() noexcept { return true; }
     static constexpr bool has_nan() noexcept { return true; }
 
-    constexpr f16c_t() noexcept : real_(), imag_() {}
-    constexpr f16c_t(f16_t r) noexcept : real_(r), imag_() {}
-    constexpr f16c_t(f16_t r, f16_t i) noexcept : real_(r), imag_(i) {}
+    constexpr f16c_t() noexcept : raw_ {0, 0} {}
+    constexpr f16c_t(f16_t r) noexcept : raw_ {r.raw_, 0} {}
+    constexpr f16c_t(f16_t r, f16_t i) noexcept : raw_ {r.raw_, i.raw_} {}
 
     static constexpr f16c_t from_raw(raw_t r) noexcept {
         return f16c_t {f16_t::from_raw(r.real), f16_t::from_raw(r.imag)};
     }
-    constexpr raw_t to_raw() const noexcept { return raw_t {real_.raw_, imag_.raw_}; }
 
-    constexpr f16_t real() const noexcept { return real_; }
-    constexpr f16_t imag() const noexcept { return imag_; }
+    inline f16_t real() const noexcept { return f16_t::from_raw(raw_.real); }
+    inline f16_t imag() const noexcept { return f16_t::from_raw(raw_.imag); }
 
     static constexpr f16c_t zero() noexcept { return f16c_t {}; }
 
@@ -1428,39 +1525,40 @@ struct f16c_t {
     }
     static constexpr f16c_t quiet_nan() noexcept { return f16c_t {f16_t::quiet_nan(), f16_t::quiet_nan()}; }
 
-    constexpr f16c_t operator+() const noexcept { return *this; }
-    constexpr f16c_t operator-() const noexcept { return f16c_t {-real_, -imag_}; }
+    inline f16c_t operator+() const noexcept { return *this; }
+    inline f16c_t operator-() const noexcept { return f16c_t {-real(), -imag()}; }
 
-    inline f16c_t operator+(f16c_t o) const noexcept { return f16c_t {real_ + o.real_, imag_ + o.imag_}; }
-    inline f16c_t operator-(f16c_t o) const noexcept { return f16c_t {real_ - o.real_, imag_ - o.imag_}; }
+    inline f16c_t operator+(f16c_t o) const noexcept { return f16c_t {real() + o.real(), imag() + o.imag()}; }
+    inline f16c_t operator-(f16c_t o) const noexcept { return f16c_t {real() - o.real(), imag() - o.imag()}; }
 
     inline f16c_t operator*(f16c_t o) const noexcept {
-        return f16c_t {real_ * o.real_ - imag_ * o.imag_, real_ * o.imag_ + imag_ * o.real_};
+        return f16c_t {real() * o.real() - imag() * o.imag(), real() * o.imag() + imag() * o.real()};
     }
 
     inline f16c_t operator/(f16c_t o) const noexcept {
-        f16_t denom = o.real_ * o.real_ + o.imag_ * o.imag_;
-        return f16c_t {(real_ * o.real_ + imag_ * o.imag_) / denom, (imag_ * o.real_ - real_ * o.imag_) / denom};
+        f16_t denom = o.real() * o.real() + o.imag() * o.imag();
+        return f16c_t {(real() * o.real() + imag() * o.imag()) / denom,
+                       (imag() * o.real() - real() * o.imag()) / denom};
     }
 
     inline f16c_t &operator+=(f16c_t o) noexcept {
-        real_ += o.real_;
-        imag_ += o.imag_;
+        raw_.real = (real() + o.real()).raw_;
+        raw_.imag = (imag() + o.imag()).raw_;
         return *this;
     }
     inline f16c_t &operator-=(f16c_t o) noexcept {
-        real_ -= o.real_;
-        imag_ -= o.imag_;
+        raw_.real = (real() - o.real()).raw_;
+        raw_.imag = (imag() - o.imag()).raw_;
         return *this;
     }
     inline f16c_t &operator*=(f16c_t o) noexcept { return *this = *this * o; }
     inline f16c_t &operator/=(f16c_t o) noexcept { return *this = *this / o; }
 
-    constexpr bool operator==(f16c_t o) const noexcept { return real_ == o.real_ && imag_ == o.imag_; }
-    constexpr bool operator!=(f16c_t o) const noexcept { return !(*this == o); }
+    inline bool operator==(f16c_t o) const noexcept { return raw_.real == o.raw_.real && raw_.imag == o.raw_.imag; }
+    inline bool operator!=(f16c_t o) const noexcept { return !(*this == o); }
 
-    constexpr f16c_t conj() const noexcept { return f16c_t {real_, -imag_}; }
-    inline f16_t norm() const noexcept { return real_ * real_ + imag_ * imag_; }
+    inline f16c_t conj() const noexcept { return f16c_t {real(), -imag()}; }
+    inline f16_t norm() const noexcept { return real() * real() + imag() * imag(); }
     inline f16_t abs() const noexcept { return norm().sqrt(); }
 };
 
@@ -1478,18 +1576,25 @@ struct f16c_t {
  *  @note Math computed via f32 upcast for precision.
  */
 struct bf16c_t {
-    bf16_t real_;
-    bf16_t imag_;
-
     using component_t = bf16_t;
     using raw_t = nk_bf16c_t;
 
     using dot_result_t = f32c_t;      // widened to f32c
+    using vdot_result_t = f32c_t;     // widened to f32c
     using bilinear_result_t = f32c_t; // widened to f32c
+
+    // Kernel signatures: input bf16c, output widened to f32c
+    using dot_kernel_t = void (*)(raw_t const *, raw_t const *, nk_size_t, nk_f32c_t *);
+    using vdot_kernel_t = void (*)(raw_t const *, raw_t const *, nk_size_t, nk_f32c_t *);
+    using bilinear_kernel_t = void (*)(raw_t const *, raw_t const *, raw_t const *, nk_size_t, nk_f32c_t *);
+
+    raw_t raw_;
 
     static constexpr nk_dtype_t dtype() noexcept { return nk_bf16c_k; }
     static constexpr char const *dtype_name() noexcept { return "bf16c"; }
-    static constexpr unsigned bits() noexcept { return 32; }
+    static constexpr unsigned bits_per_word() noexcept { return 16; }      // One bf16 component
+    static constexpr unsigned bits_per_dimension() noexcept { return 32; } // One complex number
+    static constexpr unsigned bits_per_value() noexcept { return 32; }
     static constexpr unsigned component_bits() noexcept { return 16; }
     static constexpr bool is_integer() noexcept { return false; }
     static constexpr bool is_signed() noexcept { return true; }
@@ -1498,17 +1603,16 @@ struct bf16c_t {
     static constexpr bool has_infinity() noexcept { return true; }
     static constexpr bool has_nan() noexcept { return true; }
 
-    constexpr bf16c_t() noexcept : real_(), imag_() {}
-    constexpr bf16c_t(bf16_t r) noexcept : real_(r), imag_() {}
-    constexpr bf16c_t(bf16_t r, bf16_t i) noexcept : real_(r), imag_(i) {}
+    constexpr bf16c_t() noexcept : raw_ {0, 0} {}
+    constexpr bf16c_t(bf16_t r) noexcept : raw_ {r.raw_, 0} {}
+    constexpr bf16c_t(bf16_t r, bf16_t i) noexcept : raw_ {r.raw_, i.raw_} {}
 
     static constexpr bf16c_t from_raw(raw_t r) noexcept {
         return bf16c_t {bf16_t::from_raw(r.real), bf16_t::from_raw(r.imag)};
     }
-    constexpr raw_t to_raw() const noexcept { return raw_t {real_.raw_, imag_.raw_}; }
 
-    constexpr bf16_t real() const noexcept { return real_; }
-    constexpr bf16_t imag() const noexcept { return imag_; }
+    inline bf16_t real() const noexcept { return bf16_t::from_raw(raw_.real); }
+    inline bf16_t imag() const noexcept { return bf16_t::from_raw(raw_.imag); }
 
     static constexpr bf16c_t zero() noexcept { return bf16c_t {}; }
 
@@ -1522,39 +1626,40 @@ struct bf16c_t {
     }
     static constexpr bf16c_t quiet_nan() noexcept { return bf16c_t {bf16_t::quiet_nan(), bf16_t::quiet_nan()}; }
 
-    constexpr bf16c_t operator+() const noexcept { return *this; }
-    constexpr bf16c_t operator-() const noexcept { return bf16c_t {-real_, -imag_}; }
+    inline bf16c_t operator+() const noexcept { return *this; }
+    inline bf16c_t operator-() const noexcept { return bf16c_t {-real(), -imag()}; }
 
-    inline bf16c_t operator+(bf16c_t o) const noexcept { return bf16c_t {real_ + o.real_, imag_ + o.imag_}; }
-    inline bf16c_t operator-(bf16c_t o) const noexcept { return bf16c_t {real_ - o.real_, imag_ - o.imag_}; }
+    inline bf16c_t operator+(bf16c_t o) const noexcept { return bf16c_t {real() + o.real(), imag() + o.imag()}; }
+    inline bf16c_t operator-(bf16c_t o) const noexcept { return bf16c_t {real() - o.real(), imag() - o.imag()}; }
 
     inline bf16c_t operator*(bf16c_t o) const noexcept {
-        return bf16c_t {real_ * o.real_ - imag_ * o.imag_, real_ * o.imag_ + imag_ * o.real_};
+        return bf16c_t {real() * o.real() - imag() * o.imag(), real() * o.imag() + imag() * o.real()};
     }
 
     inline bf16c_t operator/(bf16c_t o) const noexcept {
-        bf16_t denom = o.real_ * o.real_ + o.imag_ * o.imag_;
-        return bf16c_t {(real_ * o.real_ + imag_ * o.imag_) / denom, (imag_ * o.real_ - real_ * o.imag_) / denom};
+        bf16_t denom = o.real() * o.real() + o.imag() * o.imag();
+        return bf16c_t {(real() * o.real() + imag() * o.imag()) / denom,
+                        (imag() * o.real() - real() * o.imag()) / denom};
     }
 
     inline bf16c_t &operator+=(bf16c_t o) noexcept {
-        real_ += o.real_;
-        imag_ += o.imag_;
+        raw_.real = (real() + o.real()).raw_;
+        raw_.imag = (imag() + o.imag()).raw_;
         return *this;
     }
     inline bf16c_t &operator-=(bf16c_t o) noexcept {
-        real_ -= o.real_;
-        imag_ -= o.imag_;
+        raw_.real = (real() - o.real()).raw_;
+        raw_.imag = (imag() - o.imag()).raw_;
         return *this;
     }
     inline bf16c_t &operator*=(bf16c_t o) noexcept { return *this = *this * o; }
     inline bf16c_t &operator/=(bf16c_t o) noexcept { return *this = *this / o; }
 
-    constexpr bool operator==(bf16c_t o) const noexcept { return real_ == o.real_ && imag_ == o.imag_; }
-    constexpr bool operator!=(bf16c_t o) const noexcept { return !(*this == o); }
+    inline bool operator==(bf16c_t o) const noexcept { return raw_.real == o.raw_.real && raw_.imag == o.raw_.imag; }
+    inline bool operator!=(bf16c_t o) const noexcept { return !(*this == o); }
 
-    constexpr bf16c_t conj() const noexcept { return bf16c_t {real_, -imag_}; }
-    inline bf16_t norm() const noexcept { return real_ * real_ + imag_ * imag_; }
+    inline bf16c_t conj() const noexcept { return bf16c_t {real(), -imag()}; }
+    inline bf16_t norm() const noexcept { return real() * real() + imag() * imag(); }
     inline bf16_t abs() const noexcept { return norm().sqrt(); }
 };
 
@@ -1584,6 +1689,7 @@ struct e4m3_t {
 
     using dot_kernel_t = void (*)(raw_t const *, raw_t const *, nk_size_t, nk_f32_t *);
     using reduce_add_kernel_t = void (*)(raw_t const *, nk_size_t, nk_size_t, nk_f32_t *);
+    using reduce_extremum_kernel_t = void (*)(raw_t const *, nk_size_t, nk_size_t, raw_t *, nk_size_t *);
     using scale_kernel_t = void (*)(raw_t const *, nk_size_t, scale_t const *, scale_t const *, raw_t *);
     using sum_kernel_t = void (*)(raw_t const *, raw_t const *, nk_size_t, raw_t *);
     using wsum_kernel_t = void (*)(raw_t const *, raw_t const *, nk_size_t, scale_t const *, scale_t const *, raw_t *);
@@ -1596,7 +1702,9 @@ struct e4m3_t {
 
     static constexpr nk_dtype_t dtype() noexcept { return nk_e4m3_k; }
     static constexpr char const *dtype_name() noexcept { return "e4m3"; }
-    static constexpr unsigned bits() noexcept { return 8; }
+    static constexpr unsigned bits_per_word() noexcept { return 8; }
+    static constexpr unsigned bits_per_dimension() noexcept { return 8; }
+    static constexpr unsigned bits_per_value() noexcept { return 8; }
     static constexpr unsigned mantissa_bits() noexcept { return 3; }
     static constexpr unsigned exponent_bits() noexcept { return 4; }
     static constexpr bool is_integer() noexcept { return false; }
@@ -1625,6 +1733,11 @@ struct e4m3_t {
         float f = static_cast<float>(v);
         nk_f32_to_e4m3(&f, &raw_);
     }
+    template <std::integral integral_type_>
+    e4m3_t(integral_type_ v) noexcept {
+        float f = static_cast<float>(v);
+        nk_f32_to_e4m3(&f, &raw_);
+    }
     operator float() const noexcept { return to_f32(); }
     float raw() const noexcept { return to_f32(); }
     static e4m3_t from_raw(raw_t r) noexcept {
@@ -1645,6 +1758,15 @@ struct e4m3_t {
     static constexpr e4m3_t positive_min() noexcept { return from_bits(0x08); }  // Smallest positive normal (2^-6)
     static constexpr e4m3_t subnormal_min() noexcept { return from_bits(0x01); } // Smallest positive subnormal
     static constexpr e4m3_t quiet_nan() noexcept { return from_bits(0x7F); }     // +NaN
+
+    // Mathematical constants (from_f32 is not constexpr)
+    static inline e4m3_t pi_k() noexcept { return from_f32(3.14159265358979323846f); }
+    static inline e4m3_t two_pi_k() noexcept { return from_f32(6.28318530717958647692f); }
+    static inline e4m3_t half_pi_k() noexcept { return from_f32(1.57079632679489661923f); }
+    static inline e4m3_t e_k() noexcept { return from_f32(2.71828182845904523536f); }
+    static inline e4m3_t sqrt2_k() noexcept { return from_f32(1.41421356237309504880f); }
+    static inline e4m3_t inv_sqrt2_k() noexcept { return from_f32(0.70710678118654752440f); }
+    static inline e4m3_t ln2_k() noexcept { return from_f32(0.69314718055994530942f); }
 
     constexpr bool is_nan() const noexcept { return (raw_ & 0x7F) == 0x7F; }
     constexpr bool is_infinite() const noexcept { return false; } // E4M3 has no infinity
@@ -1769,6 +1891,7 @@ struct e5m2_t {
 
     using dot_kernel_t = void (*)(raw_t const *, raw_t const *, nk_size_t, nk_f32_t *);
     using reduce_add_kernel_t = void (*)(raw_t const *, nk_size_t, nk_size_t, nk_f32_t *);
+    using reduce_extremum_kernel_t = void (*)(raw_t const *, nk_size_t, nk_size_t, raw_t *, nk_size_t *);
     using scale_kernel_t = void (*)(raw_t const *, nk_size_t, scale_t const *, scale_t const *, raw_t *);
     using sum_kernel_t = void (*)(raw_t const *, raw_t const *, nk_size_t, raw_t *);
     using wsum_kernel_t = void (*)(raw_t const *, raw_t const *, nk_size_t, scale_t const *, scale_t const *, raw_t *);
@@ -1781,7 +1904,9 @@ struct e5m2_t {
 
     static constexpr nk_dtype_t dtype() noexcept { return nk_e5m2_k; }
     static constexpr char const *dtype_name() noexcept { return "e5m2"; }
-    static constexpr unsigned bits() noexcept { return 8; }
+    static constexpr unsigned bits_per_word() noexcept { return 8; }
+    static constexpr unsigned bits_per_dimension() noexcept { return 8; }
+    static constexpr unsigned bits_per_value() noexcept { return 8; }
     static constexpr unsigned mantissa_bits() noexcept { return 2; }
     static constexpr unsigned exponent_bits() noexcept { return 5; }
     static constexpr bool is_integer() noexcept { return false; }
@@ -1810,6 +1935,11 @@ struct e5m2_t {
         float f = static_cast<float>(v);
         nk_f32_to_e5m2(&f, &raw_);
     }
+    template <std::integral integral_type_>
+    e5m2_t(integral_type_ v) noexcept {
+        float f = static_cast<float>(v);
+        nk_f32_to_e5m2(&f, &raw_);
+    }
     operator float() const noexcept { return to_f32(); }
     float raw() const noexcept { return to_f32(); }
     static e5m2_t from_raw(raw_t r) noexcept {
@@ -1832,6 +1962,15 @@ struct e5m2_t {
     static constexpr e5m2_t negative_infinity() noexcept { return from_bits(0xFC); }
     static constexpr e5m2_t quiet_nan() noexcept { return from_bits(0x7E); }
     static constexpr e5m2_t signaling_nan() noexcept { return from_bits(0x7D); }
+
+    // Mathematical constants (from_f32 is not constexpr)
+    static inline e5m2_t pi_k() noexcept { return from_f32(3.14159265358979323846f); }
+    static inline e5m2_t two_pi_k() noexcept { return from_f32(6.28318530717958647692f); }
+    static inline e5m2_t half_pi_k() noexcept { return from_f32(1.57079632679489661923f); }
+    static inline e5m2_t e_k() noexcept { return from_f32(2.71828182845904523536f); }
+    static inline e5m2_t sqrt2_k() noexcept { return from_f32(1.41421356237309504880f); }
+    static inline e5m2_t inv_sqrt2_k() noexcept { return from_f32(0.70710678118654752440f); }
+    static inline e5m2_t ln2_k() noexcept { return from_f32(0.69314718055994530942f); }
 
     constexpr bool is_nan() const noexcept { return (raw_ & 0x7F) > 0x7C; }
     constexpr bool is_infinite() const noexcept { return (raw_ & 0x7F) == 0x7C; }
@@ -1970,7 +2109,9 @@ struct f118_t {
 
     static constexpr nk_dtype_t dtype() noexcept { return nk_dtype_unknown_k; }
     static constexpr char const *dtype_name() noexcept { return "f118"; }
-    static constexpr unsigned bits() noexcept { return 128; }          // Effective precision
+    static constexpr unsigned bits_per_word() noexcept { return 128; }
+    static constexpr unsigned bits_per_dimension() noexcept { return 128; }
+    static constexpr unsigned bits_per_value() noexcept { return 128; }
     static constexpr unsigned mantissa_bits() noexcept { return 103; } // ~103 bits mantissa precision
     static constexpr bool is_integer() noexcept { return false; }
     static constexpr bool is_signed() noexcept { return true; }
@@ -2717,7 +2858,9 @@ struct f118c_t {
     // Type metadata for consistency with other scalar types
     static constexpr nk_dtype_t dtype() noexcept { return nk_dtype_unknown_k; }
     static constexpr char const *dtype_name() noexcept { return "f118c"; }
-    static constexpr unsigned bits() noexcept { return 256; }
+    static constexpr unsigned bits_per_word() noexcept { return 128; }      // One double-double component
+    static constexpr unsigned bits_per_dimension() noexcept { return 256; } // One complex number
+    static constexpr unsigned bits_per_value() noexcept { return 256; }
     static constexpr unsigned mantissa_bits() noexcept { return 103; }
     static constexpr bool is_integer() noexcept { return false; }
     static constexpr bool is_signed() noexcept { return true; }
@@ -2741,6 +2884,8 @@ struct f118c_t {
 
     constexpr f118c_t(f32c_t c) noexcept : real_(c.real()), imag_(c.imag()) {}
     constexpr f118c_t(f64c_t c) noexcept : real_(c.real()), imag_(c.imag()) {}
+    inline f118c_t(f16c_t c) noexcept : real_(static_cast<float>(c.real())), imag_(static_cast<float>(c.imag())) {}
+    inline f118c_t(bf16c_t c) noexcept : real_(static_cast<float>(c.real())), imag_(static_cast<float>(c.imag())) {}
 
     constexpr f118_t real() const noexcept { return real_; }
     constexpr f118_t imag() const noexcept { return imag_; }
@@ -2807,7 +2952,9 @@ struct i8_t {
 
     static constexpr nk_dtype_t dtype() noexcept { return nk_i8_k; }
     static constexpr char const *dtype_name() noexcept { return "i8"; }
-    static constexpr unsigned bits() noexcept { return 8; }
+    static constexpr unsigned bits_per_word() noexcept { return 8; }
+    static constexpr unsigned bits_per_dimension() noexcept { return 8; }
+    static constexpr unsigned bits_per_value() noexcept { return 8; }
     static constexpr bool is_integer() noexcept { return true; }
     static constexpr bool is_signed() noexcept { return true; }
     static constexpr bool is_complex() noexcept { return false; }
@@ -2819,7 +2966,8 @@ struct i8_t {
 
     constexpr i8_t() noexcept : raw_(0) {}
     constexpr i8_t(std::int8_t v) noexcept : raw_(v) {}
-    constexpr explicit i8_t(std::int32_t v) noexcept : raw_(static_cast<raw_t>(v)) {}
+    template <std::integral integral_type_>
+    constexpr i8_t(integral_type_ v) noexcept : raw_(static_cast<raw_t>(v)) {}
     constexpr operator std::int8_t() const noexcept { return raw_; }
     constexpr std::int8_t raw() const noexcept { return raw_; }
     static constexpr i8_t from_raw(raw_t r) noexcept { return i8_t {r}; }
@@ -2947,7 +3095,9 @@ struct u8_t {
 
     static constexpr nk_dtype_t dtype() noexcept { return nk_u8_k; }
     static constexpr char const *dtype_name() noexcept { return "u8"; }
-    static constexpr unsigned bits() noexcept { return 8; }
+    static constexpr unsigned bits_per_word() noexcept { return 8; }
+    static constexpr unsigned bits_per_dimension() noexcept { return 8; }
+    static constexpr unsigned bits_per_value() noexcept { return 8; }
     static constexpr bool is_integer() noexcept { return true; }
     static constexpr bool is_signed() noexcept { return false; }
     static constexpr bool is_complex() noexcept { return false; }
@@ -2959,7 +3109,8 @@ struct u8_t {
 
     constexpr u8_t() noexcept : raw_(0) {}
     constexpr u8_t(std::uint8_t v) noexcept : raw_(v) {}
-    constexpr explicit u8_t(std::uint32_t v) noexcept : raw_(static_cast<raw_t>(v)) {}
+    template <std::integral integral_type_>
+    constexpr u8_t(integral_type_ v) noexcept : raw_(static_cast<raw_t>(v)) {}
     constexpr operator std::uint8_t() const noexcept { return raw_; }
     constexpr std::uint8_t raw() const noexcept { return raw_; }
     static constexpr u8_t from_raw(raw_t r) noexcept { return u8_t {r}; }
@@ -3065,10 +3216,13 @@ struct i32_t {
 
     using reduce_add_result_t = i64_t; // `nk_reduce_add_i32` widened output
     using reduce_add_kernel_t = void (*)(raw_t const *, nk_size_t, nk_size_t, nk_i64_t *);
+    using reduce_extremum_kernel_t = void (*)(raw_t const *, nk_size_t, nk_size_t, raw_t *, nk_size_t *);
 
     static constexpr nk_dtype_t dtype() noexcept { return nk_i32_k; }
     static constexpr char const *dtype_name() noexcept { return "i32"; }
-    static constexpr unsigned bits() noexcept { return 32; }
+    static constexpr unsigned bits_per_word() noexcept { return 32; }
+    static constexpr unsigned bits_per_dimension() noexcept { return 32; }
+    static constexpr unsigned bits_per_value() noexcept { return 32; }
     static constexpr bool is_integer() noexcept { return true; }
     static constexpr bool is_signed() noexcept { return true; }
     static constexpr bool is_complex() noexcept { return false; }
@@ -3202,7 +3356,9 @@ struct u32_t {
 
     static constexpr nk_dtype_t dtype() noexcept { return nk_u32_k; }
     static constexpr char const *dtype_name() noexcept { return "u32"; }
-    static constexpr unsigned bits() noexcept { return 32; }
+    static constexpr unsigned bits_per_word() noexcept { return 32; }
+    static constexpr unsigned bits_per_dimension() noexcept { return 32; }
+    static constexpr unsigned bits_per_value() noexcept { return 32; }
     static constexpr bool is_integer() noexcept { return true; }
     static constexpr bool is_signed() noexcept { return false; }
     static constexpr bool is_complex() noexcept { return false; }
@@ -3316,7 +3472,9 @@ struct i64_t {
 
     static constexpr nk_dtype_t dtype() noexcept { return nk_i64_k; }
     static constexpr char const *dtype_name() noexcept { return "i64"; }
-    static constexpr unsigned bits() noexcept { return 64; }
+    static constexpr unsigned bits_per_word() noexcept { return 64; }
+    static constexpr unsigned bits_per_dimension() noexcept { return 64; }
+    static constexpr unsigned bits_per_value() noexcept { return 64; }
     static constexpr bool is_integer() noexcept { return true; }
     static constexpr bool is_signed() noexcept { return true; }
     static constexpr bool is_complex() noexcept { return false; }
@@ -3448,7 +3606,9 @@ struct u64_t {
 
     static constexpr nk_dtype_t dtype() noexcept { return nk_u64_k; }
     static constexpr char const *dtype_name() noexcept { return "u64"; }
-    static constexpr unsigned bits() noexcept { return 64; }
+    static constexpr unsigned bits_per_word() noexcept { return 64; }
+    static constexpr unsigned bits_per_dimension() noexcept { return 64; }
+    static constexpr unsigned bits_per_value() noexcept { return 64; }
     static constexpr bool is_integer() noexcept { return true; }
     static constexpr bool is_signed() noexcept { return false; }
     static constexpr bool is_complex() noexcept { return false; }
@@ -3562,7 +3722,9 @@ struct i16_t {
 
     static constexpr nk_dtype_t dtype() noexcept { return nk_i16_k; }
     static constexpr char const *dtype_name() noexcept { return "i16"; }
-    static constexpr unsigned bits() noexcept { return 16; }
+    static constexpr unsigned bits_per_word() noexcept { return 16; }
+    static constexpr unsigned bits_per_dimension() noexcept { return 16; }
+    static constexpr unsigned bits_per_value() noexcept { return 16; }
     static constexpr bool is_integer() noexcept { return true; }
     static constexpr bool is_signed() noexcept { return true; }
     static constexpr bool is_complex() noexcept { return false; }
@@ -3574,8 +3736,8 @@ struct i16_t {
 
     constexpr i16_t() noexcept : raw_(0) {}
     constexpr i16_t(std::int16_t v) noexcept : raw_(v) {}
-    constexpr explicit i16_t(std::int32_t v) noexcept : raw_(static_cast<raw_t>(v)) {}
-    constexpr explicit i16_t(std::int64_t v) noexcept : raw_(static_cast<raw_t>(v)) {}
+    template <std::integral integral_type_>
+    constexpr i16_t(integral_type_ v) noexcept : raw_(static_cast<raw_t>(v)) {}
     constexpr operator std::int16_t() const noexcept { return raw_; }
     constexpr std::int16_t raw() const noexcept { return raw_; }
     static constexpr i16_t from_raw(raw_t r) noexcept { return i16_t {r}; }
@@ -3692,7 +3854,9 @@ struct u16_t {
 
     static constexpr nk_dtype_t dtype() noexcept { return nk_u16_k; }
     static constexpr char const *dtype_name() noexcept { return "u16"; }
-    static constexpr unsigned bits() noexcept { return 16; }
+    static constexpr unsigned bits_per_word() noexcept { return 16; }
+    static constexpr unsigned bits_per_dimension() noexcept { return 16; }
+    static constexpr unsigned bits_per_value() noexcept { return 16; }
     static constexpr bool is_integer() noexcept { return true; }
     static constexpr bool is_signed() noexcept { return false; }
     static constexpr bool is_complex() noexcept { return false; }
@@ -3704,8 +3868,8 @@ struct u16_t {
 
     constexpr u16_t() noexcept : raw_(0) {}
     constexpr u16_t(std::uint16_t v) noexcept : raw_(v) {}
-    constexpr explicit u16_t(std::uint32_t v) noexcept : raw_(static_cast<raw_t>(v)) {}
-    constexpr explicit u16_t(std::uint64_t v) noexcept : raw_(static_cast<raw_t>(v)) {}
+    template <std::integral integral_type_>
+    constexpr u16_t(integral_type_ v) noexcept : raw_(static_cast<raw_t>(v)) {}
     constexpr operator std::uint16_t() const noexcept { return raw_; }
     constexpr std::uint16_t raw() const noexcept { return raw_; }
     static constexpr u16_t from_raw(raw_t r) noexcept { return u16_t {r}; }
@@ -3816,7 +3980,9 @@ struct u1x8_t {
 
     static constexpr nk_dtype_t dtype() noexcept { return nk_u1_k; }
     static constexpr char const *dtype_name() noexcept { return "u1x8"; }
-    static constexpr unsigned bits() noexcept { return 8; }
+    static constexpr unsigned bits_per_word() noexcept { return 8; }
+    static constexpr unsigned bits_per_dimension() noexcept { return 1; } // Each bit is one dimension
+    static constexpr unsigned bits_per_value() noexcept { return 8; }
     static constexpr unsigned elements() noexcept { return 8; }
     static constexpr bool is_integer() noexcept { return true; }
     static constexpr bool is_signed() noexcept { return false; }
@@ -3901,7 +4067,9 @@ struct i4x2_t {
 
     static constexpr nk_dtype_t dtype() noexcept { return nk_i4_k; }
     static constexpr char const *dtype_name() noexcept { return "i4x2"; }
-    static constexpr unsigned bits() noexcept { return 8; }
+    static constexpr unsigned bits_per_word() noexcept { return 8; }
+    static constexpr unsigned bits_per_dimension() noexcept { return 4; } // Each nibble is one dimension
+    static constexpr unsigned bits_per_value() noexcept { return 8; }
     static constexpr unsigned elements() noexcept { return 2; }
     static constexpr unsigned element_bits() noexcept { return 4; }
     static constexpr bool is_integer() noexcept { return true; }
@@ -4000,7 +4168,9 @@ struct u4x2_t {
 
     static constexpr nk_dtype_t dtype() noexcept { return nk_u4_k; }
     static constexpr char const *dtype_name() noexcept { return "u4x2"; }
-    static constexpr unsigned bits() noexcept { return 8; }
+    static constexpr unsigned bits_per_word() noexcept { return 8; }
+    static constexpr unsigned bits_per_dimension() noexcept { return 4; } // Each nibble is one dimension
+    static constexpr unsigned bits_per_value() noexcept { return 8; }
     static constexpr unsigned elements() noexcept { return 2; }
     static constexpr unsigned element_bits() noexcept { return 4; }
     static constexpr bool is_integer() noexcept { return true; }
@@ -4180,7 +4350,7 @@ template <typename scalar_type_>
 struct is_std_complex_sfinae_<std::complex<scalar_type_>> : std::true_type {};
 
 template <typename scalar_type_>
-constexpr bool is_std_complex() noexcept {
+constexpr bool is_std_complex_() noexcept {
     return is_std_complex_sfinae_<scalar_type_>::value;
 }
 
@@ -4188,7 +4358,7 @@ constexpr bool is_std_complex() noexcept {
 template <typename scalar_type_>
 constexpr bool is_complex() noexcept {
     if constexpr (is_numeric_class<scalar_type_>()) return scalar_type_::is_complex();
-    else return is_std_complex<scalar_type_>();
+    else return is_std_complex_<scalar_type_>();
 }
 
 /** @brief Check if a type is an complex type - STL or NumKong. */
@@ -4196,7 +4366,7 @@ template <typename scalar_type_>
 constexpr bool is_signed() noexcept {
     if constexpr (is_numeric_class<scalar_type_>()) return scalar_type_::is_signed();
     else if constexpr (is_complex<scalar_type_>()) return is_signed<scalar_type_::value_type>();
-    else return std::is_signed<scalar_type_>::value();
+    else return std::is_signed<scalar_type_>::value;
 }
 
 /** @brief Get the maximum representable value for a type. */
@@ -4211,6 +4381,83 @@ template <typename scalar_type_>
 constexpr auto finite_min() noexcept {
     if constexpr (is_numeric_class<scalar_type_>()) return scalar_type_::finite_min();
     return std::numeric_limits<scalar_type_>::lowest();
+}
+
+/** @brief Bits per value. For complex types matches value size. */
+template <typename scalar_type_>
+constexpr unsigned bits_per_value() noexcept {
+    if constexpr (is_numeric_class<scalar_type_>()) return scalar_type_::bits_per_value();
+    else return sizeof(scalar_type_) * NK_BITS_PER_BYTE;
+}
+
+/** @brief Bits per value. For complex types matches value size. */
+template <typename scalar_type_>
+constexpr unsigned bits_per_dimension() noexcept {
+    if constexpr (is_numeric_class<scalar_type_>()) return scalar_type_::bits_per_dimension();
+    else return sizeof(scalar_type_) * NK_BITS_PER_BYTE;
+}
+
+/** @brief Dimensions per container value. For normal types = 1, for sub-byte packed types > 1. */
+template <typename scalar_type_>
+constexpr unsigned dimensions_per_value() noexcept {
+    return bits_per_value<scalar_type_>() / bits_per_dimension<scalar_type_>();
+}
+
+/**
+ *  @brief Extract the word type from a value type.
+ *
+ *  For complex types (f32c_t, f64c_t, etc.), returns the component type (f32_t, f64_t).
+ *  For all other types, returns the type itself.
+ */
+template <typename value_type_, typename = void>
+struct word_type {
+    using type = value_type_;
+};
+
+template <typename value_type_>
+struct word_type<value_type_, std::void_t<typename value_type_::component_t>> {
+    using type = typename value_type_::component_t;
+};
+
+template <typename scalar_type_>
+struct word_type<std::complex<scalar_type_>> {
+    using type = scalar_type_;
+};
+
+/**
+ *  @brief Extract the raw C-level type.
+ */
+template <typename value_type_, typename = void>
+struct raw_pod_type {
+    using type = value_type_;
+};
+
+template <typename value_type_>
+struct raw_pod_type<value_type_, std::void_t<typename value_type_::raw_t>> {
+    using type = typename value_type_::raw_t;
+};
+
+/**
+ *  @brief Ceiling division: (n + divisor - 1) / divisor (compile-time divisor).
+ */
+template <std::size_t divisor_>
+constexpr std::size_t divide_round_up(std::size_t n) noexcept {
+    return (n + divisor_ - 1) / divisor_;
+}
+
+/**
+ *  @brief Ceiling division: (n + divisor - 1) / divisor (runtime divisor).
+ */
+constexpr std::size_t divide_round_up(std::size_t n, std::size_t divisor) noexcept {
+    return (n + divisor - 1) / divisor;
+}
+
+/**
+ *  @brief Round up to next multiple: ((n + multiple - 1) / multiple) * multiple.
+ */
+template <std::size_t multiple_>
+constexpr std::size_t round_up_to_multiple(std::size_t n) {
+    return divide_round_up<multiple_>(n) * multiple_;
 }
 
 #pragma endregion Numeric Limits

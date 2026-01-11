@@ -27,6 +27,7 @@
 #include <cfloat>
 #include <chrono>
 #include <cmath>
+#include <complex>
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
@@ -67,11 +68,13 @@
 namespace nk = ashvardanian::numkong;
 
 using nk::bf16_t;
+using nk::bf16c_t;
 using nk::e4m3_t;
 using nk::e5m2_t;
 using nk::f118_t;
 using nk::f118c_t;
 using nk::f16_t;
+using nk::f16c_t;
 using nk::f32_t;
 using nk::f32c_t;
 using nk::f64_t;
@@ -90,6 +93,13 @@ using nk::u8_t;
 
 using steady_clock = std::chrono::steady_clock;
 using time_point = steady_clock::time_point;
+
+extern template class nk::vector<int>;
+extern template class nk::vector<nk::i32_t>;
+extern template class nk::vector<nk::u1x8_t>;
+extern template class nk::vector<nk::i4x2_t>;
+extern template class nk::vector<nk::f64c_t>;
+extern template class nk::vector<std::complex<float>>;
 
 #pragma region Configuration
 
@@ -137,7 +147,7 @@ static test_config_t global_config;
 
 /**
  *  @brief Run a test only if its full name matches the filter.
- *  @param name The test name (e.g., "dot_blas", "l2sq_haswell")
+ *  @param name The test name (e.g., "dot_with_blas", "l2sq_haswell")
  *  @param type The type signature (e.g., "f32", "bf16")
  *  @param test_fn The test function that returns error_stats_t
  *  @param args Variadic arguments to forward to the test function
@@ -172,12 +182,12 @@ inline bool within_time_budget(time_point start) {
 template <typename scalar_type_>
 std::uint64_t ulp_distance(scalar_type_ a, scalar_type_ b) noexcept {
     // Handle special cases - skip float checks for integer types
-    constexpr bool is_integer_type = []() {
+    constexpr bool is_integer = []() {
         if constexpr (std::is_integral_v<scalar_type_>) return true;
         else if constexpr (std::is_class_v<scalar_type_>) return scalar_type_::is_integer();
         else return false;
     }();
-    if constexpr (!is_integer_type) {
+    if constexpr (!is_integer) {
         if (std::isnan(static_cast<double>(a)) || std::isnan(static_cast<double>(b)))
             return std::numeric_limits<std::uint64_t>::max();
         if (std::isinf(static_cast<double>(a)) || std::isinf(static_cast<double>(b)))
@@ -338,195 +348,72 @@ void print_stats_header() noexcept {
     std::printf("───────────────────────────────────────────────────────────────────────────────────────────────\n");
 }
 
+/**
+ *  @brief Factory function to allocate vectors, potentially raising bad-allocs.
+ */
+template <typename type_>
+[[nodiscard]] nk::vector<type_> make_vector(std::size_t n) {
+    nk::vector<type_> result;
+    if (!result.resize(n)) throw std::bad_alloc();
+    return result;
+}
+
+/**
+ *  @brief Fill buffer with random values, respecting global distribution setting.
+ *
+ *  Dispatches to appropriate nk::fill_* library function based on `global_config.distribution`.
+ *  Infers sensible bounds from type's representable range.
+ */
+template <typename scalar_type_, typename generator_type_>
+void fill_random(generator_type_ &generator, nk::vector<scalar_type_> &vector) {
+    // Sub-byte, integer, and complex types only support uniform distribution
+    // (lognormal/cauchy have floating-point default args that don't convert properly)
+    constexpr bool is_uniform_only = std::is_same_v<scalar_type_, nk::u1x8_t> ||  //
+                                     std::is_same_v<scalar_type_, nk::i4x2_t> ||  //
+                                     std::is_same_v<scalar_type_, nk::u4x2_t> ||  //
+                                     std::is_same_v<scalar_type_, nk::i8_t> ||    //
+                                     std::is_same_v<scalar_type_, nk::u8_t> ||    //
+                                     std::is_same_v<scalar_type_, nk::i16_t> ||   //
+                                     std::is_same_v<scalar_type_, nk::u16_t> ||   //
+                                     std::is_same_v<scalar_type_, nk::i32_t> ||   //
+                                     std::is_same_v<scalar_type_, nk::u32_t> ||   //
+                                     std::is_same_v<scalar_type_, nk::i64_t> ||   //
+                                     std::is_same_v<scalar_type_, nk::u64_t> ||   //
+                                     std::is_same_v<scalar_type_, nk::f16c_t> ||  //
+                                     std::is_same_v<scalar_type_, nk::bf16c_t> || //
+                                     std::is_same_v<scalar_type_, nk::f32c_t> ||  //
+                                     std::is_same_v<scalar_type_, nk::f64c_t>;
+    if constexpr (is_uniform_only) { nk::fill_uniform(generator, vector.values_data(), vector.size_values()); }
+    else {
+        switch (global_config.distribution) {
+        case random_distribution_kind_t::uniform_k:
+            nk::fill_uniform(generator, vector.values_data(), vector.size_values());
+            break;
+        case random_distribution_kind_t::lognormal_k:
+            nk::fill_lognormal(generator, vector.values_data(), vector.size_values());
+            break;
+        case random_distribution_kind_t::cauchy_k:
+            nk::fill_cauchy(generator, vector.values_data(), vector.size_values());
+            break;
+        }
+    }
+}
+
 #pragma endregion // Error Statistics
-
-#pragma region Test Harness Templates
-
-/**
- *  @brief Aligned memory allocation for SIMD-friendly buffers.
- */
-template <typename scalar_type_>
-struct aligned_buffer {
-    static constexpr std::size_t alignment_k = 64; // Cache line
-    scalar_type_ *data_ = nullptr;
-    std::size_t size_ = 0;
-
-    aligned_buffer() = default;
-    explicit aligned_buffer(std::size_t n) : size_(n) {
-        if (n == 0) return;
-        void *ptr = std::aligned_alloc(alignment_k,
-                                       ((n * sizeof(scalar_type_) + alignment_k - 1) / alignment_k) * alignment_k);
-        data_ = static_cast<scalar_type_ *>(ptr);
-        std::memset(data_, 0, n * sizeof(scalar_type_));
-    }
-    ~aligned_buffer() noexcept {
-        if (data_) std::free(data_);
-    }
-    aligned_buffer(aligned_buffer const &) = delete;
-    aligned_buffer &operator=(aligned_buffer const &) = delete;
-    aligned_buffer(aligned_buffer &&other) noexcept : data_(other.data_), size_(other.size_) {
-        other.data_ = nullptr;
-        other.size_ = 0;
-    }
-    aligned_buffer &operator=(aligned_buffer &&other) noexcept {
-        if (this == &other) return *this;
-        if (data_) std::free(data_);
-        data_ = other.data_;
-        size_ = other.size_;
-        other.data_ = nullptr;
-        other.size_ = 0;
-        return *this;
-    }
-
-    scalar_type_ &operator[](std::size_t i) noexcept { return data_[i]; }
-    scalar_type_ const &operator[](std::size_t i) const noexcept { return data_[i]; }
-
-    // STL-style accessors
-    scalar_type_ *data() noexcept { return data_; }
-    scalar_type_ const *data() const noexcept { return data_; }
-    std::size_t size() const noexcept { return size_; }
-    bool empty() const noexcept { return size_ == 0; }
-};
-
-/**
- *  @brief Fill sub-byte buffer with random bytes uniformly.
- */
-template <typename scalar_type_, typename generator_type_>
-    requires(std::is_same_v<scalar_type_, u1x8_t> || std::is_same_v<scalar_type_, i4x2_t> ||
-             std::is_same_v<scalar_type_, u4x2_t>)
-void fill_random(aligned_buffer<scalar_type_> &buf, generator_type_ &rng) {
-    std::uniform_int_distribution<unsigned int> dist(0, 255);
-    for (std::size_t i = 0; i < buf.size(); i++)
-        buf[i] = scalar_type_::from_raw(static_cast<typename scalar_type_::raw_t>(dist(rng)));
-}
-
-/**
- *  @brief Fill integer buffer with random values in safe range.
- */
-template <typename scalar_type_, typename generator_type_>
-    requires(scalar_type_::is_integer() && !std::is_same_v<scalar_type_, u1x8_t> &&
-             !std::is_same_v<scalar_type_, i4x2_t> && !std::is_same_v<scalar_type_, u4x2_t>)
-void fill_random(aligned_buffer<scalar_type_> &buf, generator_type_ &rng) {
-    using raw_t = typename scalar_type_::raw_t;
-    raw_t min_raw, max_raw;
-    if constexpr (sizeof(raw_t) == 1) min_raw = -10, max_raw = 10;
-    else if constexpr (sizeof(raw_t) == 2) min_raw = -100, max_raw = 100;
-    else if constexpr (sizeof(raw_t) == 4) min_raw = -1000, max_raw = 1000;
-    else min_raw = -10000, max_raw = 10000;
-
-    std::uniform_int_distribution<std::int64_t> dist(min_raw, max_raw);
-    for (std::size_t i = 0; i < buf.size(); i++) buf[i] = scalar_type_(static_cast<raw_t>(dist(rng)));
-}
-
-/**
- *  @brief Generate a single random floating-point value respecting global distribution.
- *  Centralizes distribution logic to avoid code duplication across float/complex overloads.
- */
-template <typename generator_type_>
-nk_f64_t random_f64_in_range(generator_type_ &rng, nk_f64_t min_val, nk_f64_t max_val) {
-    nk_f64_t range = max_val - min_val;
-    nk_f64_t mid = (max_val + min_val) / 2.0;
-
-    switch (global_config.distribution) {
-    case random_distribution_kind_t::uniform_k: {
-        std::uniform_real_distribution<nk_f64_t> dist(min_val, max_val);
-        return dist(rng);
-    }
-    case random_distribution_kind_t::lognormal_k: {
-        std::lognormal_distribution<nk_f64_t> lognorm(0.0, 0.5);
-        std::uniform_real_distribution<nk_f64_t> sign_dist(0.0, 1.0);
-        nk_f64_t val = lognorm(rng);
-        nk_f64_t compressed = 2.0 / (1.0 + std::exp(-val)) - 1.0;
-        if (sign_dist(rng) < 0.5) compressed = -compressed;
-        return mid + compressed * (range / 2.0);
-    }
-    case random_distribution_kind_t::cauchy_k: {
-        std::cauchy_distribution<nk_f64_t> cauchy(0.0, 1.0);
-        nk_f64_t val = cauchy(rng);
-        nk_f64_t compressed = (2.0 / M_PI) * std::atan(val);
-        return mid + compressed * (range / 2.0);
-    }
-    }
-    return mid; // unreachable
-}
-
-/**
- *  @brief Fill floating-point buffer with random values in specified range, respecting global distribution.
- */
-template <typename scalar_type_, typename generator_type_>
-    requires(!scalar_type_::is_integer() && !scalar_type_::is_complex())
-void fill_random(aligned_buffer<scalar_type_> &buf, generator_type_ &rng, scalar_type_ min_val, scalar_type_ max_val) {
-    nk_f64_t min_f64 = static_cast<nk_f64_t>(min_val);
-    nk_f64_t max_f64 = static_cast<nk_f64_t>(max_val);
-    for (std::size_t i = 0; i < buf.size(); i++) buf[i] = scalar_type_(random_f64_in_range(rng, min_f64, max_f64));
-}
-
-/**
- *  @brief Fill floating-point buffer with random values respecting global distribution.
- */
-template <typename scalar_type_, typename generator_type_>
-    requires(!scalar_type_::is_integer() && !scalar_type_::is_complex())
-void fill_random(aligned_buffer<scalar_type_> &buf, generator_type_ &rng) {
-    nk_f64_t min_val, max_val;
-    if constexpr (sizeof(typename scalar_type_::raw_t) >= 8) min_val = -1e8, max_val = 1e8;
-    else if constexpr (sizeof(typename scalar_type_::raw_t) >= 4) min_val = -1e4, max_val = 1e4;
-    else if constexpr (scalar_type_::bits() >= 16) min_val = -100, max_val = 100;
-    else min_val = -10, max_val = 10; // FP8 types
-
-    for (std::size_t i = 0; i < buf.size(); i++) buf[i] = scalar_type_(random_f64_in_range(rng, min_val, max_val));
-}
-
-/**
- *  @brief Fill complex buffer with random values respecting global distribution.
- */
-template <typename scalar_type_, typename generator_type_>
-    requires(scalar_type_::is_complex())
-void fill_random(aligned_buffer<scalar_type_> &buf, generator_type_ &rng) {
-    for (std::size_t i = 0; i < buf.size(); i++) {
-        auto re = random_f64_in_range(rng, -100.0, 100.0);
-        auto im = random_f64_in_range(rng, -100.0, 100.0);
-        buf[i] = scalar_type_(re, im);
-    }
-}
-
-/**
- *  @brief Fills two buffers with valid probability distributions (positive values summing to 1).
- */
-template <typename scalar_type_, typename generator_type_>
-void fill_probability(aligned_buffer<scalar_type_> &p, aligned_buffer<scalar_type_> &q, generator_type_ &rng) {
-    using scalar_t = scalar_type_;
-    std::uniform_real_distribution<double> dist(0.01, 1.0);
-    std::size_t n = p.size();
-
-    double sum_p = 0, sum_q = 0;
-    for (std::size_t i = 0; i < n; i++) {
-        double pv = dist(rng), qv = dist(rng);
-        p[i] = scalar_t(pv);
-        q[i] = scalar_t(qv);
-        sum_p += pv;
-        sum_q += qv;
-    }
-    for (std::size_t i = 0; i < n; i++) {
-        p[i] = scalar_t(static_cast<double>(p[i]) / sum_p);
-        q[i] = scalar_t(static_cast<double>(q[i]) / sum_q);
-    }
-}
-
-#pragma endregion // Test Harness Templates
 
 #pragma region BLAS Baselines
 
 #if NK_COMPARE_TO_BLAS || NK_COMPARE_TO_MKL || NK_COMPARE_TO_ACCELERATE
 
-void dot_f32_blas(nk::f32_t const *a, nk::f32_t const *b, nk::size_t n, nk::f32_t *result) {
+void dot_f32_with_blas(nk_f32_t const *a, nk_f32_t const *b, nk_size_t n, nk_f32_t *result) {
     *result = cblas_sdot(static_cast<int>(n), a, 1, b, 1);
 }
 
-void dot_f64_blas(nk::f64_t const *a, nk::f64_t const *b, nk::size_t n, nk::f64_t *result) {
+void dot_f64_with_blas(nk_f64_t const *a, nk_f64_t const *b, nk_size_t n, nk_f64_t *result) {
     *result = cblas_ddot(static_cast<int>(n), a, 1, b, 1);
 }
 
-void dot_f32c_blas(nk::f32c_t const *a, nk::f32c_t const *b, nk::size_t n, nk::f32c_t *result) {
+void dot_f32c_with_blas(nk_f32c_t const *a, nk_f32c_t const *b, nk_size_t n, nk_f32c_t *result) {
 #if NK_COMPARE_TO_ACCELERATE
     cblas_cdotu_sub(static_cast<int>(n), reinterpret_cast<__LAPACK_float_complex const *>(a), 1,
                     reinterpret_cast<__LAPACK_float_complex const *>(b), 1,
@@ -536,7 +423,7 @@ void dot_f32c_blas(nk::f32c_t const *a, nk::f32c_t const *b, nk::size_t n, nk::f
 #endif
 }
 
-void vdot_f32c_blas(nk::f32c_t const *a, nk::f32c_t const *b, nk::size_t n, nk::f32c_t *result) {
+void vdot_f32c_with_blas(nk_f32c_t const *a, nk_f32c_t const *b, nk_size_t n, nk_f32c_t *result) {
 #if NK_COMPARE_TO_ACCELERATE
     cblas_cdotc_sub(static_cast<int>(n), reinterpret_cast<__LAPACK_float_complex const *>(a), 1,
                     reinterpret_cast<__LAPACK_float_complex const *>(b), 1,
@@ -546,7 +433,7 @@ void vdot_f32c_blas(nk::f32c_t const *a, nk::f32c_t const *b, nk::size_t n, nk::
 #endif
 }
 
-void dot_f64c_blas(nk::f64c_t const *a, nk::f64c_t const *b, nk::size_t n, nk::f64c_t *result) {
+void dot_f64c_with_blas(nk_f64c_t const *a, nk_f64c_t const *b, nk_size_t n, nk_f64c_t *result) {
 #if NK_COMPARE_TO_ACCELERATE
     cblas_zdotu_sub(static_cast<int>(n), reinterpret_cast<__LAPACK_double_complex const *>(a), 1,
                     reinterpret_cast<__LAPACK_double_complex const *>(b), 1,
@@ -556,7 +443,7 @@ void dot_f64c_blas(nk::f64c_t const *a, nk::f64c_t const *b, nk::size_t n, nk::f
 #endif
 }
 
-void vdot_f64c_blas(nk::f64c_t const *a, nk::f64c_t const *b, nk::size_t n, nk::f64c_t *result) {
+void vdot_f64c_with_blas(nk_f64c_t const *a, nk_f64c_t const *b, nk_size_t n, nk_f64c_t *result) {
 #if NK_COMPARE_TO_ACCELERATE
     cblas_zdotc_sub(static_cast<int>(n), reinterpret_cast<__LAPACK_double_complex const *>(a), 1,
                     reinterpret_cast<__LAPACK_double_complex const *>(b), 1,
@@ -566,50 +453,91 @@ void vdot_f64c_blas(nk::f64c_t const *a, nk::f64c_t const *b, nk::size_t n, nk::
 #endif
 }
 
-void dots_f32_blas(nk::f32_t const *a, nk::f32_t const *b, nk::f32_t *c, nk::size_t m, nk::size_t n, nk::size_t k,
-                   nk::size_t a_stride, nk::size_t c_stride) {
+void dots_f32_with_blas(f32_t const *a, f32_t const *b, f32_t *c, nk_size_t m, nk_size_t n, nk_size_t k,
+                        nk_size_t a_stride, nk_size_t c_stride) {
     (void)a_stride;
     (void)c_stride;
     cblas_sgemm(CblasRowMajor, CblasNoTrans, CblasTrans, static_cast<int>(m), static_cast<int>(n), static_cast<int>(k),
-                1.0f, a, static_cast<int>(k), b, static_cast<int>(k), 0.0f, c, static_cast<int>(n));
+                1.0f, &a->raw_, static_cast<int>(k), &b->raw_, static_cast<int>(k), 0.0f, &c->raw_,
+                static_cast<int>(n));
 }
 
-void dots_f64_blas(nk::f64_t const *a, nk::f64_t const *b, nk::f64_t *c, nk::size_t m, nk::size_t n, nk::size_t k,
-                   nk::size_t a_stride, nk::size_t c_stride) {
+void dots_f64_with_blas(f64_t const *a, f64_t const *b, f64_t *c, nk_size_t m, nk_size_t n, nk_size_t k,
+                        nk_size_t a_stride, nk_size_t c_stride) {
     (void)a_stride;
     (void)c_stride;
     cblas_dgemm(CblasRowMajor, CblasNoTrans, CblasTrans, static_cast<int>(m), static_cast<int>(n), static_cast<int>(k),
-                1.0, a, static_cast<int>(k), b, static_cast<int>(k), 0.0, c, static_cast<int>(n));
+                1.0, &a->raw_, static_cast<int>(k), &b->raw_, static_cast<int>(k), 0.0, &c->raw_, static_cast<int>(n));
+}
+
+void dots_f32c_with_blas(f32c_t const *a, f32c_t const *b, f32c_t *c, nk_size_t m, nk_size_t n, nk_size_t k,
+                         nk_size_t a_stride, nk_size_t c_stride) {
+    (void)a_stride;
+    (void)c_stride;
+    nk_f32c_t alpha = {1.0f, 0.0f}, beta = {0.0f, 0.0f};
+#if NK_COMPARE_TO_ACCELERATE
+    cblas_cgemm(CblasRowMajor, CblasNoTrans, CblasTrans, static_cast<int>(m), static_cast<int>(n), static_cast<int>(k),
+                reinterpret_cast<__LAPACK_float_complex const *>(&alpha),
+                reinterpret_cast<__LAPACK_float_complex const *>(&a->raw_), static_cast<int>(k),
+                reinterpret_cast<__LAPACK_float_complex const *>(&b->raw_), static_cast<int>(k),
+                reinterpret_cast<__LAPACK_float_complex const *>(&beta),
+                reinterpret_cast<__LAPACK_float_complex *>(&c->raw_), static_cast<int>(n));
+#else
+    cblas_cgemm(CblasRowMajor, CblasNoTrans, CblasTrans, static_cast<int>(m), static_cast<int>(n), static_cast<int>(k),
+                &alpha, &a->raw_, static_cast<int>(k), &b->raw_, static_cast<int>(k), &beta, &c->raw_,
+                static_cast<int>(n));
+#endif
+}
+
+void dots_f64c_with_blas(f64c_t const *a, f64c_t const *b, f64c_t *c, nk_size_t m, nk_size_t n, nk_size_t k,
+                         nk_size_t a_stride, nk_size_t c_stride) {
+    (void)a_stride;
+    (void)c_stride;
+    nk_f64c_t alpha = {1.0, 0.0}, beta = {0.0, 0.0};
+#if NK_COMPARE_TO_ACCELERATE
+    cblas_zgemm(CblasRowMajor, CblasNoTrans, CblasTrans, static_cast<int>(m), static_cast<int>(n), static_cast<int>(k),
+                reinterpret_cast<__LAPACK_double_complex const *>(&alpha),
+                reinterpret_cast<__LAPACK_double_complex const *>(&a->raw_), static_cast<int>(k),
+                reinterpret_cast<__LAPACK_double_complex const *>(&b->raw_), static_cast<int>(k),
+                reinterpret_cast<__LAPACK_double_complex const *>(&beta),
+                reinterpret_cast<__LAPACK_double_complex *>(&c->raw_), static_cast<int>(n));
+#else
+    cblas_zgemm(CblasRowMajor, CblasNoTrans, CblasTrans, static_cast<int>(m), static_cast<int>(n), static_cast<int>(k),
+                &alpha, &a->raw_, static_cast<int>(k), &b->raw_, static_cast<int>(k), &beta, &c->raw_,
+                static_cast<int>(n));
+#endif
 }
 #endif // NK_COMPARE_TO_BLAS || NK_COMPARE_TO_MKL || NK_COMPARE_TO_ACCELERATE
 
 #if NK_COMPARE_TO_MKL
-void dots_bf16_mkl(nk::bf16_t const *a, nk::bf16_t const *b, nk::f32_t *c, nk::size_t m, nk::size_t n, nk::size_t k,
-                   nk::size_t a_stride, nk::size_t c_stride) {
+void dots_bf16_with_mkl(bf16_t const *a, bf16_t const *b, f32_t *c, nk_size_t m, nk_size_t n, nk_size_t k,
+                        nk_size_t a_stride, nk_size_t c_stride) {
     (void)a_stride;
     (void)c_stride;
     cblas_gemm_bf16(CblasRowMajor, CblasNoTrans, CblasTrans, static_cast<MKL_INT>(m), static_cast<MKL_INT>(n),
-                    static_cast<MKL_INT>(k), 1.0f, a, static_cast<MKL_INT>(k), b, static_cast<MKL_INT>(k), 0.0f, c,
-                    static_cast<MKL_INT>(n));
+                    static_cast<MKL_INT>(k), 1.0f, &a->raw_, static_cast<MKL_INT>(k), &b->raw_, static_cast<MKL_INT>(k),
+                    0.0f, &c->raw_, static_cast<MKL_INT>(n));
 }
 
-void dots_f16_mkl(nk::f16_t const *a, nk::f16_t const *b, nk::f32_t *c, nk::size_t m, nk::size_t n, nk::size_t k,
-                  nk::size_t a_stride, nk::size_t c_stride) {
+void dots_f16_with_mkl(f16_t const *a, f16_t const *b, f32_t *c, nk_size_t m, nk_size_t n, nk_size_t k,
+                       nk_size_t a_stride, nk_size_t c_stride) {
     (void)a_stride;
     (void)c_stride;
     cblas_gemm_f16(CblasRowMajor, CblasNoTrans, CblasTrans, static_cast<MKL_INT>(m), static_cast<MKL_INT>(n),
-                   static_cast<MKL_INT>(k), 1.0f, reinterpret_cast<MKL_F16 const *>(a), static_cast<MKL_INT>(k),
-                   reinterpret_cast<MKL_F16 const *>(b), static_cast<MKL_INT>(k), 0.0f, c, static_cast<MKL_INT>(n));
+                   static_cast<MKL_INT>(k), 1.0f, reinterpret_cast<MKL_F16 const *>(&a->raw_), static_cast<MKL_INT>(k),
+                   reinterpret_cast<MKL_F16 const *>(&b->raw_), static_cast<MKL_INT>(k), 0.0f, &c->raw_,
+                   static_cast<MKL_INT>(n));
 }
 
-void dots_i8_mkl(nk::i8_t const *a, nk::u8_t const *b, nk::i32_t *c, nk::size_t m, nk::size_t n, nk::size_t k,
-                 nk::size_t a_stride, nk::size_t c_stride) {
+/** @brief MKL s16×s16→s32 integer GEMM wrapper. */
+void dots_i16_with_mkl(i16_t const *a, i16_t const *b, i32_t *c, nk_size_t m, nk_size_t n, nk_size_t k,
+                       nk_size_t a_stride, nk_size_t c_stride) {
     (void)a_stride;
     (void)c_stride;
     MKL_INT32 c_offset = 0;
-    cblas_gemm_s8u8s32(CblasRowMajor, CblasNoTrans, CblasTrans, CblasFixOffset, static_cast<MKL_INT>(m),
-                       static_cast<MKL_INT>(n), static_cast<MKL_INT>(k), 1.0f, a, static_cast<MKL_INT>(k), 0, b,
-                       static_cast<MKL_INT>(k), 0, 0.0f, c, static_cast<MKL_INT>(n), &c_offset);
+    cblas_gemm_s16s16s32(CblasRowMajor, CblasNoTrans, CblasTrans, CblasFixOffset, static_cast<MKL_INT>(m),
+                         static_cast<MKL_INT>(n), static_cast<MKL_INT>(k), 1.0f, &a->raw_, static_cast<MKL_INT>(k), 0,
+                         &b->raw_, static_cast<MKL_INT>(k), 0, 0.0f, &c->raw_, static_cast<MKL_INT>(n), &c_offset);
 }
 
 #endif // NK_COMPARE_TO_MKL
@@ -660,16 +588,19 @@ using cast_t = void (*)(void const *, nk_dtype_t, nk_size_t, void *, nk_dtype_t)
 template <typename from_type_, typename to_type_>
 error_stats_t test_cast(cast_t kernel) {
     error_stats_t stats;
-    std::mt19937 rng(global_config.seed);
+    std::mt19937 generator(global_config.seed);
 
-    aligned_buffer<from_type_> src(dense_dimension);
-    aligned_buffer<to_type_> dst_simd(dense_dimension), dst_serial(dense_dimension);
+    auto src = make_vector<from_type_>(dense_dimension);
+    auto dst_simd = make_vector<to_type_>(dense_dimension);
+    auto dst_serial = make_vector<to_type_>(dense_dimension);
 
     for (auto start = test_start_time(); within_time_budget(start);) {
-        fill_random(src, rng);
+        fill_random(generator, src);
 
-        nk_cast_serial(&src[0].raw_, from_type_::dtype(), dense_dimension, &dst_serial[0].raw_, to_type_::dtype());
-        kernel(&src[0].raw_, from_type_::dtype(), dense_dimension, &dst_simd[0].raw_, to_type_::dtype());
+        nk_cast_serial(src.raw_values_data(), from_type_::dtype(), dense_dimension, dst_serial.raw_values_data(),
+                       to_type_::dtype());
+        kernel(src.raw_values_data(), from_type_::dtype(), dense_dimension, dst_simd.raw_values_data(),
+               to_type_::dtype());
 
         for (std::size_t i = 0; i < dense_dimension; ++i)
             stats.accumulate_exact(dst_simd[i].raw_ == dst_serial[i].raw_);
@@ -759,16 +690,17 @@ error_stats_t test_reduce_add(typename scalar_type_::reduce_add_kernel_t kernel)
 
     error_stats_t stats;
     std::mt19937 generator(global_config.seed);
-    aligned_buffer<scalar_t> buffer(dense_dimension);
+    auto buffer = make_vector<scalar_t>(dense_dimension);
 
     for (auto start = test_start_time(); within_time_budget(start);) {
-        fill_random(buffer, generator);
+        fill_random(generator, buffer);
 
         result_t result;
-        kernel(&buffer[0].raw_, dense_dimension, sizeof(raw_t), &result.raw_);
+        kernel(buffer.raw_values_data(), dense_dimension, sizeof(raw_t), &result.raw_);
 
         f118_t reference;
-        nk::reduce_add<scalar_t, f118_t, false>(&buffer[0], dense_dimension, sizeof(raw_t), &reference);
+        nk::reduce_add<scalar_t, f118_t, nk::no_simd_k>(buffer.values_data(), dense_dimension, sizeof(raw_t),
+                                                        &reference);
 
         stats.accumulate(result, reference);
     }
@@ -830,18 +762,18 @@ error_stats_t test_dot(typename scalar_type_::dot_kernel_t kernel) {
     using reference_t = std::conditional_t<scalar_t::is_complex(), f118c_t, f118_t>;
 
     error_stats_t stats;
-    std::mt19937 rng(global_config.seed);
-    aligned_buffer<scalar_t> a(dense_dimension), b(dense_dimension);
+    std::mt19937 generator(global_config.seed);
+    auto a = make_vector<scalar_t>(dense_dimension), b = make_vector<scalar_t>(dense_dimension);
 
     for (auto start = test_start_time(); within_time_budget(start);) {
-        fill_random(a, rng);
-        fill_random(b, rng);
+        fill_random(generator, a);
+        fill_random(generator, b);
 
         result_t result;
-        kernel(&a[0].raw_, &b[0].raw_, dense_dimension, &result.raw_);
+        kernel(a.raw_values_data(), b.raw_values_data(), dense_dimension, &result.raw_);
 
         reference_t reference;
-        nk::dot<scalar_t, reference_t, false>(&a[0], &b[0], dense_dimension, &reference);
+        nk::dot<scalar_t, reference_t, nk::no_simd_k>(a.values_data(), b.values_data(), dense_dimension, &reference);
 
         stats.accumulate(result, reference);
     }
@@ -858,18 +790,18 @@ error_stats_t test_vdot(typename scalar_type_::vdot_kernel_t kernel) {
     using result_t = typename scalar_t::vdot_result_t;
 
     error_stats_t stats;
-    std::mt19937 rng(global_config.seed);
-    aligned_buffer<scalar_t> a(dense_dimension), b(dense_dimension);
+    std::mt19937 generator(global_config.seed);
+    auto a = make_vector<scalar_t>(dense_dimension), b = make_vector<scalar_t>(dense_dimension);
 
     for (auto start = test_start_time(); within_time_budget(start);) {
-        fill_random(a, rng);
-        fill_random(b, rng);
+        fill_random(generator, a);
+        fill_random(generator, b);
 
         result_t result;
-        kernel(&a[0].raw_, &b[0].raw_, dense_dimension, &result.raw_);
+        kernel(a.raw_values_data(), b.raw_values_data(), dense_dimension, &result.raw_);
 
         f118c_t reference;
-        nk::vdot<scalar_t, f118c_t, false>(&a[0], &b[0], dense_dimension, &reference);
+        nk::vdot<scalar_t, f118c_t, nk::no_simd_k>(a.values_data(), b.values_data(), dense_dimension, &reference);
 
         stats.accumulate(result, reference);
     }
@@ -895,6 +827,10 @@ void test_dot() {
     run_if_matches("vdot", "f32c", test_vdot<f32c_t>, nk_vdot_f32c);
     run_if_matches("dot", "f64c", test_dot<f64c_t>, nk_dot_f64c);
     run_if_matches("vdot", "f64c", test_vdot<f64c_t>, nk_vdot_f64c);
+    run_if_matches("dot", "f16c", test_dot<f16c_t>, nk_dot_f16c);
+    run_if_matches("vdot", "f16c", test_vdot<f16c_t>, nk_vdot_f16c);
+    run_if_matches("dot", "bf16c", test_dot<bf16c_t>, nk_dot_bf16c);
+    run_if_matches("vdot", "bf16c", test_vdot<bf16c_t>, nk_vdot_bf16c);
 #else
     // Static compilation - test all available ISA variants
 
@@ -911,10 +847,14 @@ void test_dot() {
 
 #if NK_TARGET_NEONHALF
     run_if_matches("dot_neonhalf", "f16", test_dot<f16_t>, nk_dot_f16_neonhalf);
+    run_if_matches("dot_neonhalf", "f16c", test_dot<f16c_t>, nk_dot_f16c_neonhalf);
+    run_if_matches("vdot_neonhalf", "f16c", test_vdot<f16c_t>, nk_vdot_f16c_neonhalf);
 #endif // NK_TARGET_NEONHALF
 
 #if NK_TARGET_NEONBFDOT
     run_if_matches("dot_neonbfdot", "bf16", test_dot<bf16_t>, nk_dot_bf16_neonbfdot);
+    run_if_matches("dot_neonbfdot", "bf16c", test_dot<bf16c_t>, nk_dot_bf16c_neonbfdot);
+    run_if_matches("vdot_neonbfdot", "bf16c", test_vdot<bf16c_t>, nk_vdot_bf16c_neonbfdot);
 #endif // NK_TARGET_NEONBFDOT
 
 #if NK_TARGET_NEONSDOT
@@ -933,6 +873,8 @@ void test_dot() {
     run_if_matches("dot_haswell", "u8", test_dot<u8_t>, nk_dot_u8_haswell);
     run_if_matches("dot_haswell", "f32c", test_dot<f32c_t>, nk_dot_f32c_haswell);
     run_if_matches("vdot_haswell", "f32c", test_vdot<f32c_t>, nk_vdot_f32c_haswell);
+    run_if_matches("dot_haswell", "f16c", test_dot<f16c_t>, nk_dot_f16c_haswell);
+    run_if_matches("vdot_haswell", "f16c", test_vdot<f16c_t>, nk_vdot_f16c_haswell);
 #endif // NK_TARGET_HASWELL
 
 #if NK_TARGET_SKYLAKE
@@ -985,17 +927,21 @@ void test_dot() {
     run_if_matches("vdot_serial", "f32c", test_vdot<f32c_t>, nk_vdot_f32c_serial);
     run_if_matches("dot_serial", "f64c", test_dot<f64c_t>, nk_dot_f64c_serial);
     run_if_matches("vdot_serial", "f64c", test_vdot<f64c_t>, nk_vdot_f64c_serial);
+    run_if_matches("dot_serial", "f16c", test_dot<f16c_t>, nk_dot_f16c_serial);
+    run_if_matches("vdot_serial", "f16c", test_vdot<f16c_t>, nk_vdot_f16c_serial);
+    run_if_matches("dot_serial", "bf16c", test_dot<bf16c_t>, nk_dot_bf16c_serial);
+    run_if_matches("vdot_serial", "bf16c", test_vdot<bf16c_t>, nk_vdot_bf16c_serial);
 
 #endif // NK_DYNAMIC_DISPATCH
 
 #if NK_COMPARE_TO_BLAS || NK_COMPARE_TO_MKL || NK_COMPARE_TO_ACCELERATE
     // BLAS/MKL/Accelerate precision comparison
-    run_if_matches("dot_blas", "f32", test_dot<f32_t>, dot_f32_blas);
-    run_if_matches("dot_blas", "f64", test_dot<f64_t>, dot_f64_blas);
-    run_if_matches("dot_blas", "f32c", test_dot<f32c_t>, dot_f32c_blas);
-    run_if_matches("vdot_blas", "f32c", test_vdot<f32c_t>, vdot_f32c_blas);
-    run_if_matches("dot_blas", "f64c", test_dot<f64c_t>, dot_f64c_blas);
-    run_if_matches("vdot_blas", "f64c", test_vdot<f64c_t>, vdot_f64c_blas);
+    run_if_matches("dot_with_blas", "f32", test_dot<f32_t>, dot_f32_with_blas);
+    run_if_matches("dot_with_blas", "f64", test_dot<f64_t>, dot_f64_with_blas);
+    run_if_matches("dot_with_blas", "f32c", test_dot<f32c_t>, dot_f32c_with_blas);
+    run_if_matches("vdot_with_blas", "f32c", test_vdot<f32c_t>, vdot_f32c_with_blas);
+    run_if_matches("dot_with_blas", "f64c", test_dot<f64c_t>, dot_f64c_with_blas);
+    run_if_matches("vdot_with_blas", "f64c", test_vdot<f64c_t>, vdot_f64c_with_blas);
 #endif // NK_COMPARE_TO_BLAS || NK_COMPARE_TO_MKL || NK_COMPARE_TO_ACCELERATE
 }
 
@@ -1014,18 +960,18 @@ error_stats_t test_l2sq(typename scalar_type_::l2sq_kernel_t kernel) {
     using result_t = typename scalar_t::l2sq_result_t;
 
     error_stats_t stats;
-    std::mt19937 rng(global_config.seed);
-    aligned_buffer<scalar_t> a(dense_dimension), b(dense_dimension);
+    std::mt19937 generator(global_config.seed);
+    auto a = make_vector<scalar_t>(dense_dimension), b = make_vector<scalar_t>(dense_dimension);
 
     for (auto start = test_start_time(); within_time_budget(start);) {
-        fill_random(a, rng);
-        fill_random(b, rng);
+        fill_random(generator, a);
+        fill_random(generator, b);
 
         result_t result;
-        kernel(&a[0].raw_, &b[0].raw_, dense_dimension, &result.raw_);
+        kernel(a.raw_values_data(), b.raw_values_data(), dense_dimension, &result.raw_);
 
         f118_t reference;
-        nk::l2sq<scalar_t, f118_t, false>(&a[0], &b[0], dense_dimension, &reference);
+        nk::l2sq<scalar_t, f118_t, nk::no_simd_k>(a.values_data(), b.values_data(), dense_dimension, &reference);
 
         stats.accumulate(result, reference);
     }
@@ -1043,18 +989,18 @@ error_stats_t test_angular(typename scalar_type_::angular_kernel_t kernel) {
     using result_t = typename scalar_t::angular_result_t;
 
     error_stats_t stats;
-    std::mt19937 rng(global_config.seed);
-    aligned_buffer<scalar_t> a(dense_dimension), b(dense_dimension);
+    std::mt19937 generator(global_config.seed);
+    auto a = make_vector<scalar_t>(dense_dimension), b = make_vector<scalar_t>(dense_dimension);
 
     for (auto start = test_start_time(); within_time_budget(start);) {
-        fill_random(a, rng);
-        fill_random(b, rng);
+        fill_random(generator, a);
+        fill_random(generator, b);
 
         result_t result;
-        kernel(&a[0].raw_, &b[0].raw_, dense_dimension, &result.raw_);
+        kernel(a.raw_values_data(), b.raw_values_data(), dense_dimension, &result.raw_);
 
         f118_t reference;
-        nk::angular<scalar_t, f118_t, false>(&a[0], &b[0], dense_dimension, &reference);
+        nk::angular<scalar_t, f118_t, nk::no_simd_k>(a.values_data(), b.values_data(), dense_dimension, &reference);
 
         stats.accumulate(result, reference);
     }
@@ -1169,21 +1115,24 @@ error_stats_t test_bilinear(typename scalar_type_::bilinear_kernel_t kernel) {
     using scalar_t = scalar_type_;
     using raw_t = typename scalar_t::raw_t;
     using result_t = typename scalar_t::bilinear_result_t;
+    using reference_t = std::conditional_t<scalar_t::is_complex(), f118c_t, f118_t>;
 
     error_stats_t stats;
-    std::mt19937 rng(global_config.seed);
+    std::mt19937 generator(global_config.seed);
 
-    aligned_buffer<scalar_t> a(dense_dimension), b(dense_dimension), m(dense_dimension * dense_dimension);
+    auto a = make_vector<scalar_t>(dense_dimension), b = make_vector<scalar_t>(dense_dimension);
+    auto m = make_vector<scalar_t>(dense_dimension * dense_dimension);
     for (auto start = test_start_time(); within_time_budget(start);) {
-        fill_random(a, rng);
-        fill_random(b, rng);
-        fill_random(m, rng);
+        fill_random(generator, a);
+        fill_random(generator, b);
+        fill_random(generator, m);
 
         result_t result;
-        kernel(&a[0].raw_, &b[0].raw_, &m[0].raw_, dense_dimension, &result.raw_);
+        kernel(a.raw_values_data(), b.raw_values_data(), m.raw_values_data(), dense_dimension, &result.raw_);
 
-        f118_t reference;
-        nk::bilinear<scalar_t, f118_t, false>(&a[0], &b[0], &m[0], dense_dimension, &reference);
+        reference_t reference;
+        nk::bilinear<scalar_t, reference_t, nk::no_simd_k>(a.values_data(), b.values_data(), m.values_data(),
+                                                           dense_dimension, &reference);
 
         stats.accumulate(result, reference);
     }
@@ -1197,20 +1146,27 @@ void test_curved() {
 #if NK_DYNAMIC_DISPATCH
     run_if_matches("bilinear", "f32", test_bilinear<f32_t>, nk_bilinear_f32);
     run_if_matches("bilinear", "f64", test_bilinear<f64_t>, nk_bilinear_f64);
+    run_if_matches("bilinear", "f32c", test_bilinear<f32c_t>, nk_bilinear_f32c);
+    run_if_matches("bilinear", "f64c", test_bilinear<f64c_t>, nk_bilinear_f64c);
 #else
 
 #if NK_TARGET_NEON
     run_if_matches("bilinear_neon", "f32", test_bilinear<f32_t>, nk_bilinear_f32_neon);
+    run_if_matches("bilinear_neon", "f32c", test_bilinear<f32c_t>, nk_bilinear_f32c_neon);
 #endif // NK_TARGET_NEON
 
 #if NK_TARGET_SKYLAKE
     run_if_matches("bilinear_skylake", "f32", test_bilinear<f32_t>, nk_bilinear_f32_skylake);
     run_if_matches("bilinear_skylake", "f64", test_bilinear<f64_t>, nk_bilinear_f64_skylake);
+    run_if_matches("bilinear_skylake", "f32c", test_bilinear<f32c_t>, nk_bilinear_f32c_skylake);
+    run_if_matches("bilinear_skylake", "f64c", test_bilinear<f64c_t>, nk_bilinear_f64c_skylake);
 #endif // NK_TARGET_SKYLAKE
 
     // Serial always runs - baseline test
     run_if_matches("bilinear_serial", "f32", test_bilinear<f32_t>, nk_bilinear_f32_serial);
     run_if_matches("bilinear_serial", "f64", test_bilinear<f64_t>, nk_bilinear_f64_serial);
+    run_if_matches("bilinear_serial", "f32c", test_bilinear<f32c_t>, nk_bilinear_f32c_serial);
+    run_if_matches("bilinear_serial", "f64c", test_bilinear<f64c_t>, nk_bilinear_f64c_serial);
 
 #endif // NK_DYNAMIC_DISPATCH
 }
@@ -1230,17 +1186,18 @@ error_stats_t test_kld(typename scalar_type_::kld_kernel_t kernel) {
     using result_t = typename scalar_t::kld_result_t;
 
     error_stats_t stats;
-    std::mt19937 rng(global_config.seed);
-    aligned_buffer<scalar_t> p(dense_dimension), q(dense_dimension);
+    std::mt19937 generator(global_config.seed);
+    auto p = make_vector<scalar_t>(dense_dimension), q = make_vector<scalar_t>(dense_dimension);
 
     for (auto start = test_start_time(); within_time_budget(start);) {
-        fill_probability(p, q, rng);
+        nk::fill_probability(generator, p.values_data(), dense_dimension);
+        nk::fill_probability(generator, q.values_data(), dense_dimension);
 
         result_t result;
-        kernel(&p[0].raw_, &q[0].raw_, dense_dimension, &result.raw_);
+        kernel(p.raw_values_data(), q.raw_values_data(), dense_dimension, &result.raw_);
 
         f118_t reference;
-        nk::kld<scalar_t, f118_t, false>(&p[0], &q[0], dense_dimension, &reference);
+        nk::kld<scalar_t, f118_t, nk::no_simd_k>(p.values_data(), q.values_data(), dense_dimension, &reference);
 
         stats.accumulate(result, reference);
     }
@@ -1259,17 +1216,18 @@ error_stats_t test_jsd(typename scalar_type_::jsd_kernel_t kernel) {
     using result_t = typename scalar_t::jsd_result_t;
 
     error_stats_t stats;
-    std::mt19937 rng(global_config.seed);
-    aligned_buffer<scalar_t> p(dense_dimension), q(dense_dimension);
+    std::mt19937 generator(global_config.seed);
+    auto p = make_vector<scalar_t>(dense_dimension), q = make_vector<scalar_t>(dense_dimension);
 
     for (auto start = test_start_time(); within_time_budget(start);) {
-        fill_probability(p, q, rng);
+        nk::fill_probability(generator, p.values_data(), dense_dimension);
+        nk::fill_probability(generator, q.values_data(), dense_dimension);
 
         result_t result;
-        kernel(&p[0].raw_, &q[0].raw_, dense_dimension, &result.raw_);
+        kernel(p.raw_values_data(), q.raw_values_data(), dense_dimension, &result.raw_);
 
         f118_t reference;
-        nk::jsd<scalar_t, f118_t, false>(&p[0], &q[0], dense_dimension, &reference);
+        nk::jsd<scalar_t, f118_t, nk::no_simd_k>(p.values_data(), q.values_data(), dense_dimension, &reference);
 
         stats.accumulate(result, reference);
     }
@@ -1319,20 +1277,20 @@ error_stats_t test_hamming(u1x8_t::hamming_kernel_t kernel) {
     using scalar_t = u1x8_t;
 
     error_stats_t stats;
-    std::mt19937 rng(global_config.seed);
+    std::mt19937 generator(global_config.seed);
 
     std::size_t n_bytes = dense_dimension / 8;
-    aligned_buffer<scalar_t> a(n_bytes), b(n_bytes);
+    auto a = make_vector<scalar_t>(n_bytes), b = make_vector<scalar_t>(n_bytes);
 
     for (auto start = test_start_time(); within_time_budget(start);) {
-        fill_random(a, rng);
-        fill_random(b, rng);
+        fill_random(generator, a);
+        fill_random(generator, b);
 
         u32_t result;
-        kernel(&a[0].raw_, &b[0].raw_, dense_dimension, &result.raw_);
+        kernel(a.raw_values_data(), b.raw_values_data(), dense_dimension, &result.raw_);
 
         u32_t reference;
-        nk::hamming(&a[0], &b[0], n_bytes, &reference);
+        nk::hamming(a.values_data(), b.values_data(), n_bytes, &reference);
 
         stats.accumulate(result, reference);
     }
@@ -1347,20 +1305,20 @@ error_stats_t test_jaccard(u1x8_t::jaccard_kernel_t kernel) {
     using scalar_t = u1x8_t;
 
     error_stats_t stats;
-    std::mt19937 rng(global_config.seed);
+    std::mt19937 generator(global_config.seed);
 
     std::size_t n_bytes = dense_dimension / 8;
-    aligned_buffer<scalar_t> a(n_bytes), b(n_bytes);
+    auto a = make_vector<scalar_t>(n_bytes), b = make_vector<scalar_t>(n_bytes);
 
     for (auto start = test_start_time(); within_time_budget(start);) {
-        fill_random(a, rng);
-        fill_random(b, rng);
+        fill_random(generator, a);
+        fill_random(generator, b);
 
         f32_t result;
-        kernel(&a[0].raw_, &b[0].raw_, dense_dimension, &result.raw_);
+        kernel(a.raw_values_data(), b.raw_values_data(), dense_dimension, &result.raw_);
 
         f32_t reference;
-        nk::jaccard(&a[0], &b[0], n_bytes, &reference);
+        nk::jaccard(a.values_data(), b.values_data(), n_bytes, &reference);
 
         stats.accumulate(result, reference);
     }
@@ -1413,16 +1371,16 @@ error_stats_t test_sum(typename scalar_type_::sum_kernel_t kernel) {
     using raw_t = typename scalar_t::raw_t;
 
     error_stats_t stats;
-    std::mt19937 rng(global_config.seed);
-    aligned_buffer<scalar_t> a(dense_dimension), b(dense_dimension), result(dense_dimension),
-        reference(dense_dimension);
+    std::mt19937 generator(global_config.seed);
+    auto a = make_vector<scalar_t>(dense_dimension), b = make_vector<scalar_t>(dense_dimension);
+    auto result = make_vector<scalar_t>(dense_dimension), reference = make_vector<scalar_t>(dense_dimension);
 
     for (auto start = test_start_time(); within_time_budget(start);) {
-        fill_random(a, rng);
-        fill_random(b, rng);
+        fill_random(generator, a);
+        fill_random(generator, b);
 
-        kernel(&a[0].raw_, &b[0].raw_, dense_dimension, &result[0].raw_);
-        nk::sum<scalar_t, false>(&a[0], &b[0], dense_dimension, &reference[0]);
+        kernel(a.raw_values_data(), b.raw_values_data(), dense_dimension, result.raw_values_data());
+        nk::sum<scalar_t, nk::no_simd_k>(a.values_data(), b.values_data(), dense_dimension, reference.values_data());
 
         for (std::size_t i = 0; i < dense_dimension; i++) stats.accumulate(result[i], reference[i]);
     }
@@ -1439,18 +1397,20 @@ error_stats_t test_scale(typename scalar_type_::scale_kernel_t kernel) {
     using scale_t = typename scalar_t::scale_t;
 
     error_stats_t stats;
-    std::mt19937 rng(global_config.seed);
-    aligned_buffer<scalar_t> input(dense_dimension), result(dense_dimension), reference(dense_dimension);
+    std::mt19937 generator(global_config.seed);
+    auto input = make_vector<scalar_t>(dense_dimension);
+    auto result = make_vector<scalar_t>(dense_dimension), reference = make_vector<scalar_t>(dense_dimension);
     std::uniform_real_distribution<scale_t> coef_dist(scale_t(-2.0), scale_t(2.0));
 
     for (auto start = test_start_time(); within_time_budget(start);) {
-        fill_random(input, rng);
+        fill_random(generator, input);
 
-        scale_t alpha = coef_dist(rng);
-        scale_t beta = coef_dist(rng);
+        scale_t alpha = coef_dist(generator);
+        scale_t beta = coef_dist(generator);
 
-        kernel(&input[0].raw_, dense_dimension, &alpha, &beta, &result[0].raw_);
-        nk::scale<scalar_t, scale_t, false>(&input[0], dense_dimension, &alpha, &beta, &reference[0]);
+        kernel(input.raw_values_data(), dense_dimension, &alpha, &beta, result.raw_values_data());
+        nk::scale<scalar_t, f118_t, nk::no_simd_k>(input.values_data(), dense_dimension, &alpha, &beta,
+                                                   reference.values_data());
 
         for (std::size_t i = 0; i < dense_dimension; i++) stats.accumulate(result[i], reference[i]);
     }
@@ -1467,20 +1427,21 @@ error_stats_t test_wsum(typename scalar_type_::wsum_kernel_t kernel) {
     using scale_t = typename scalar_t::scale_t;
 
     error_stats_t stats;
-    std::mt19937 rng(global_config.seed);
-    aligned_buffer<scalar_t> a(dense_dimension), b(dense_dimension), result(dense_dimension),
-        reference(dense_dimension);
+    std::mt19937 generator(global_config.seed);
+    auto a = make_vector<scalar_t>(dense_dimension), b = make_vector<scalar_t>(dense_dimension);
+    auto result = make_vector<scalar_t>(dense_dimension), reference = make_vector<scalar_t>(dense_dimension);
     std::uniform_real_distribution<scale_t> coef_dist(scale_t(-2.0), scale_t(2.0));
 
     for (auto start = test_start_time(); within_time_budget(start);) {
-        fill_random(a, rng);
-        fill_random(b, rng);
+        fill_random(generator, a);
+        fill_random(generator, b);
 
-        scale_t alpha = coef_dist(rng);
-        scale_t beta = coef_dist(rng);
+        scale_t alpha = coef_dist(generator);
+        scale_t beta = coef_dist(generator);
 
-        kernel(&a[0].raw_, &b[0].raw_, dense_dimension, &alpha, &beta, &result[0].raw_);
-        nk::wsum<scalar_t, scale_t, false>(&a[0], &b[0], dense_dimension, &alpha, &beta, &reference[0]);
+        kernel(a.raw_values_data(), b.raw_values_data(), dense_dimension, &alpha, &beta, result.raw_values_data());
+        nk::wsum<scalar_t, f118_t, nk::no_simd_k>(a.values_data(), b.values_data(), dense_dimension, &alpha, &beta,
+                                                  reference.values_data());
 
         for (std::size_t i = 0; i < dense_dimension; i++) stats.accumulate(result[i], reference[i]);
     }
@@ -1497,21 +1458,24 @@ error_stats_t test_fma(typename scalar_type_::fma_kernel_t kernel) {
     using scale_t = typename scalar_t::scale_t;
 
     error_stats_t stats;
-    std::mt19937 rng(global_config.seed);
-    aligned_buffer<scalar_t> a(dense_dimension), b(dense_dimension), c(dense_dimension);
-    aligned_buffer<scalar_t> result(dense_dimension), reference(dense_dimension);
+    std::mt19937 generator(global_config.seed);
+    auto a = make_vector<scalar_t>(dense_dimension), b = make_vector<scalar_t>(dense_dimension);
+    auto c = make_vector<scalar_t>(dense_dimension);
+    auto result = make_vector<scalar_t>(dense_dimension), reference = make_vector<scalar_t>(dense_dimension);
     std::uniform_real_distribution<scale_t> coef_dist(scale_t(-2.0), scale_t(2.0));
 
     for (auto start = test_start_time(); within_time_budget(start);) {
-        fill_random(a, rng);
-        fill_random(b, rng);
-        fill_random(c, rng);
+        fill_random(generator, a);
+        fill_random(generator, b);
+        fill_random(generator, c);
 
-        scale_t alpha = coef_dist(rng);
-        scale_t beta = coef_dist(rng);
+        scale_t alpha = coef_dist(generator);
+        scale_t beta = coef_dist(generator);
 
-        kernel(&a[0].raw_, &b[0].raw_, &c[0].raw_, dense_dimension, &alpha, &beta, &result[0].raw_);
-        nk::fma<scalar_t, scale_t, false>(&a[0], &b[0], dense_dimension, &c[0], &alpha, &beta, &reference[0]);
+        kernel(a.raw_values_data(), b.raw_values_data(), c.raw_values_data(), dense_dimension, &alpha, &beta,
+               result.raw_values_data());
+        nk::fma<scalar_t, f118_t, nk::no_simd_k>(a.values_data(), b.values_data(), dense_dimension, c.values_data(),
+                                                 &alpha, &beta, reference.values_data());
 
         for (std::size_t i = 0; i < dense_dimension; i++) stats.accumulate(result[i], reference[i]);
     }
@@ -1612,7 +1576,7 @@ void test_elementwise() {
 #pragma region Trigonometry
 
 /**
- *  @brief Test sine approximation kernel against nk::sin<scalar_t, f118_t, false> reference.
+ *  @brief Test sine approximation kernel against `nk::sin<scalar_t, f118_t, nk::no_simd_k>`.
  */
 template <typename scalar_type_>
 error_stats_t test_sin(typename scalar_type_::trig_kernel_t kernel) {
@@ -1620,14 +1584,16 @@ error_stats_t test_sin(typename scalar_type_::trig_kernel_t kernel) {
     using raw_t = typename scalar_t::raw_t;
 
     error_stats_t stats;
-    std::mt19937 rng(global_config.seed);
-    aligned_buffer<scalar_t> inputs(dense_dimension), outputs(dense_dimension), reference(dense_dimension);
+    std::mt19937 generator(global_config.seed);
+    auto inputs = make_vector<scalar_t>(dense_dimension);
+    auto outputs = make_vector<scalar_t>(dense_dimension), reference = make_vector<scalar_t>(dense_dimension);
 
     for (auto start = test_start_time(); within_time_budget(start);) {
-        fill_random(inputs, rng, scalar_t(-2 * M_PI), scalar_t(2 * M_PI));
+        nk::fill_uniform(generator, inputs.values_data(), inputs.size_values(), -scalar_t::two_pi_k(),
+                         scalar_t::two_pi_k());
 
-        kernel(&inputs[0].raw_, dense_dimension, &outputs[0].raw_);
-        nk::sin<scalar_t, f118_t, false>(&inputs[0], dense_dimension, &reference[0]);
+        kernel(inputs.raw_values_data(), dense_dimension, outputs.raw_values_data());
+        nk::sin<scalar_t, f118_t, nk::no_simd_k>(inputs.values_data(), dense_dimension, reference.values_data());
 
         for (std::size_t i = 0; i < dense_dimension; i++) stats.accumulate(outputs[i], reference[i]);
     }
@@ -1635,7 +1601,7 @@ error_stats_t test_sin(typename scalar_type_::trig_kernel_t kernel) {
 }
 
 /**
- *  @brief Test cosine approximation kernel against nk::cos<scalar_t, f118_t, false> reference.
+ *  @brief Test cosine approximation kernel against `nk::cos<scalar_t, f118_t, nk::no_simd_k>`.
  */
 template <typename scalar_type_>
 error_stats_t test_cos(typename scalar_type_::trig_kernel_t kernel) {
@@ -1643,14 +1609,16 @@ error_stats_t test_cos(typename scalar_type_::trig_kernel_t kernel) {
     using raw_t = typename scalar_t::raw_t;
 
     error_stats_t stats;
-    std::mt19937 rng(global_config.seed);
-    aligned_buffer<scalar_t> inputs(dense_dimension), outputs(dense_dimension), reference(dense_dimension);
+    std::mt19937 generator(global_config.seed);
+    auto inputs = make_vector<scalar_t>(dense_dimension);
+    auto outputs = make_vector<scalar_t>(dense_dimension), reference = make_vector<scalar_t>(dense_dimension);
 
     for (auto start = test_start_time(); within_time_budget(start);) {
-        fill_random(inputs, rng, scalar_t(-2 * M_PI), scalar_t(2 * M_PI));
+        nk::fill_uniform(generator, inputs.values_data(), inputs.size_values(), -scalar_t::two_pi_k(),
+                         scalar_t::two_pi_k());
 
-        kernel(&inputs[0].raw_, dense_dimension, &outputs[0].raw_);
-        nk::cos<scalar_t, f118_t, false>(&inputs[0], dense_dimension, &reference[0]);
+        kernel(inputs.raw_values_data(), dense_dimension, outputs.raw_values_data());
+        nk::cos<scalar_t, f118_t, nk::no_simd_k>(inputs.values_data(), dense_dimension, reference.values_data());
 
         for (std::size_t i = 0; i < dense_dimension; i++) stats.accumulate(outputs[i], reference[i]);
     }
@@ -1658,7 +1626,7 @@ error_stats_t test_cos(typename scalar_type_::trig_kernel_t kernel) {
 }
 
 /**
- *  @brief Test atan approximation kernel against nk::atan<scalar_t, f118_t, false> reference.
+ *  @brief Test atan approximation kernel against `nk::atan<scalar_t, f118_t, nk::no_simd_k>`.
  */
 template <typename scalar_type_>
 error_stats_t test_atan(typename scalar_type_::trig_kernel_t kernel) {
@@ -1666,14 +1634,15 @@ error_stats_t test_atan(typename scalar_type_::trig_kernel_t kernel) {
     using raw_t = typename scalar_t::raw_t;
 
     error_stats_t stats;
-    std::mt19937 rng(global_config.seed);
-    aligned_buffer<scalar_t> inputs(dense_dimension), outputs(dense_dimension), reference(dense_dimension);
+    std::mt19937 generator(global_config.seed);
+    auto inputs = make_vector<scalar_t>(dense_dimension);
+    auto outputs = make_vector<scalar_t>(dense_dimension), reference = make_vector<scalar_t>(dense_dimension);
 
     for (auto start = test_start_time(); within_time_budget(start);) {
-        fill_random(inputs, rng, scalar_t(-10.0), scalar_t(10.0));
+        nk::fill_uniform(generator, inputs.values_data(), inputs.size_values(), scalar_t(-10.0), scalar_t(10.0));
 
-        kernel(&inputs[0].raw_, dense_dimension, &outputs[0].raw_);
-        nk::atan<scalar_t, f118_t, false>(&inputs[0], dense_dimension, &reference[0]);
+        kernel(inputs.raw_values_data(), dense_dimension, outputs.raw_values_data());
+        nk::atan<scalar_t, f118_t, nk::no_simd_k>(inputs.values_data(), dense_dimension, reference.values_data());
 
         for (std::size_t i = 0; i < dense_dimension; i++) stats.accumulate(outputs[i], reference[i]);
     }
@@ -1741,20 +1710,19 @@ error_stats_t test_haversine(typename scalar_type_::haversine_kernel_t kernel) {
     using raw_t = typename scalar_t::raw_t;
 
     error_stats_t stats;
-    std::mt19937 rng(global_config.seed);
-    aligned_buffer<scalar_t> a_lats(dense_dimension), a_lons(dense_dimension);
-    aligned_buffer<scalar_t> b_lats(dense_dimension), b_lons(dense_dimension);
-    aligned_buffer<scalar_t> results(dense_dimension), reference(dense_dimension);
+    std::mt19937 generator(global_config.seed);
+    auto a_lats = make_vector<scalar_t>(dense_dimension), a_lons = make_vector<scalar_t>(dense_dimension);
+    auto b_lats = make_vector<scalar_t>(dense_dimension), b_lons = make_vector<scalar_t>(dense_dimension);
+    auto results = make_vector<scalar_t>(dense_dimension), reference = make_vector<scalar_t>(dense_dimension);
 
     for (auto start = test_start_time(); within_time_budget(start);) {
-        fill_random(a_lats, rng, scalar_t(-M_PI / 2), scalar_t(M_PI / 2));
-        fill_random(a_lons, rng, scalar_t(-M_PI), scalar_t(M_PI));
-        fill_random(b_lats, rng, scalar_t(-M_PI / 2), scalar_t(M_PI / 2));
-        fill_random(b_lons, rng, scalar_t(-M_PI), scalar_t(M_PI));
+        nk::fill_coordinates(generator, a_lats.values_data(), a_lons.values_data(), dense_dimension);
+        nk::fill_coordinates(generator, b_lats.values_data(), b_lons.values_data(), dense_dimension);
 
-        kernel(&a_lats[0].raw_, &a_lons[0].raw_, &b_lats[0].raw_, &b_lons[0].raw_, dense_dimension, &results[0].raw_);
-        nk::haversine<scalar_t, f118_t, false>(&a_lats[0], &a_lons[0], &b_lats[0], &b_lons[0], dense_dimension,
-                                               &reference[0]);
+        kernel(a_lats.raw_values_data(), a_lons.raw_values_data(), b_lats.raw_values_data(), b_lons.raw_values_data(),
+               dense_dimension, results.raw_values_data());
+        nk::haversine<scalar_t, f118_t, nk::no_simd_k>(a_lats.values_data(), a_lons.values_data(), b_lats.values_data(),
+                                                       b_lons.values_data(), dense_dimension, reference.values_data());
 
         for (std::size_t i = 0; i < dense_dimension; i++) stats.accumulate(results[i], reference[i]);
     }
@@ -1770,20 +1738,19 @@ error_stats_t test_vincenty(typename scalar_type_::haversine_kernel_t kernel) {
     using raw_t = typename scalar_t::raw_t;
 
     error_stats_t stats;
-    std::mt19937 rng(global_config.seed);
-    aligned_buffer<scalar_t> a_lats(dense_dimension), a_lons(dense_dimension);
-    aligned_buffer<scalar_t> b_lats(dense_dimension), b_lons(dense_dimension);
-    aligned_buffer<scalar_t> results(dense_dimension), reference(dense_dimension);
+    std::mt19937 generator(global_config.seed);
+    auto a_lats = make_vector<scalar_t>(dense_dimension), a_lons = make_vector<scalar_t>(dense_dimension);
+    auto b_lats = make_vector<scalar_t>(dense_dimension), b_lons = make_vector<scalar_t>(dense_dimension);
+    auto results = make_vector<scalar_t>(dense_dimension), reference = make_vector<scalar_t>(dense_dimension);
 
     for (auto start = test_start_time(); within_time_budget(start);) {
-        fill_random(a_lats, rng, scalar_t(-M_PI / 2), scalar_t(M_PI / 2));
-        fill_random(a_lons, rng, scalar_t(-M_PI), scalar_t(M_PI));
-        fill_random(b_lats, rng, scalar_t(-M_PI / 2), scalar_t(M_PI / 2));
-        fill_random(b_lons, rng, scalar_t(-M_PI), scalar_t(M_PI));
+        nk::fill_coordinates(generator, a_lats.values_data(), a_lons.values_data(), dense_dimension);
+        nk::fill_coordinates(generator, b_lats.values_data(), b_lons.values_data(), dense_dimension);
 
-        kernel(&a_lats[0].raw_, &a_lons[0].raw_, &b_lats[0].raw_, &b_lons[0].raw_, dense_dimension, &results[0].raw_);
-        nk::vincenty<scalar_t, f118_t, false>(&a_lats[0], &a_lons[0], &b_lats[0], &b_lons[0], dense_dimension,
-                                              &reference[0]);
+        kernel(a_lats.raw_values_data(), a_lons.raw_values_data(), b_lats.raw_values_data(), b_lons.raw_values_data(),
+               dense_dimension, results.raw_values_data());
+        nk::vincenty<scalar_t, f118_t, nk::no_simd_k>(a_lats.values_data(), a_lons.values_data(), b_lats.values_data(),
+                                                      b_lons.values_data(), dense_dimension, reference.values_data());
 
         for (std::size_t i = 0; i < dense_dimension; i++) stats.accumulate(results[i], reference[i]);
     }
@@ -1837,22 +1804,22 @@ error_stats_t test_rmsd(typename scalar_type_::mesh_kernel_t kernel) {
     using scalar_t = scalar_type_;
 
     error_stats_t stats;
-    std::mt19937 rng(global_config.seed);
+    std::mt19937 generator(global_config.seed);
 
     std::size_t n = mesh_dimension;
-    aligned_buffer<scalar_t> a(n * 3), b(n * 3);
+    auto a = make_vector<scalar_t>(n * 3), b = make_vector<scalar_t>(n * 3);
 
     for (auto start = test_start_time(); within_time_budget(start);) {
-        fill_random(a, rng, scalar_t(-10.0), scalar_t(10.0));
-        fill_random(b, rng, scalar_t(-10.0), scalar_t(10.0));
+        fill_random(generator, a);
+        fill_random(generator, b);
 
         scalar_t a_centroid[3], b_centroid[3], rot[9], scale, result;
-        kernel(&a[0].raw_, &b[0].raw_, n, &a_centroid[0].raw_, &b_centroid[0].raw_, &rot[0].raw_, &scale.raw_,
-               &result.raw_);
+        kernel(a.raw_values_data(), b.raw_values_data(), n, &a_centroid[0].raw_, &b_centroid[0].raw_, &rot[0].raw_,
+               &scale.raw_, &result.raw_);
 
         f118_t a_centroid_ref[3], b_centroid_ref[3], rot_ref[9], scale_ref, reference;
-        nk::rmsd<scalar_t, f118_t, false>(&a[0], &b[0], n, a_centroid_ref, b_centroid_ref, rot_ref, &scale_ref,
-                                          &reference);
+        nk::rmsd<scalar_t, f118_t, nk::no_simd_k>(a.values_data(), b.values_data(), n, a_centroid_ref, b_centroid_ref,
+                                                  rot_ref, &scale_ref, &reference);
 
         stats.accumulate(result, reference);
     }
@@ -1867,22 +1834,22 @@ error_stats_t test_kabsch(typename scalar_type_::mesh_kernel_t kernel) {
     using scalar_t = scalar_type_;
 
     error_stats_t stats;
-    std::mt19937 rng(global_config.seed);
+    std::mt19937 generator(global_config.seed);
 
     std::size_t n = mesh_dimension;
-    aligned_buffer<scalar_t> a(n * 3), b(n * 3);
+    auto a = make_vector<scalar_t>(n * 3), b = make_vector<scalar_t>(n * 3);
 
     for (auto start = test_start_time(); within_time_budget(start);) {
-        fill_random(a, rng, scalar_t(-5.0), scalar_t(5.0));
-        fill_random(b, rng, scalar_t(-5.0), scalar_t(5.0));
+        fill_random(generator, a);
+        fill_random(generator, b);
 
         scalar_t a_centroid[3], b_centroid[3], rot[9], scale, result;
-        kernel(&a[0].raw_, &b[0].raw_, n, &a_centroid[0].raw_, &b_centroid[0].raw_, &rot[0].raw_, &scale.raw_,
-               &result.raw_);
+        kernel(a.raw_values_data(), b.raw_values_data(), n, &a_centroid[0].raw_, &b_centroid[0].raw_, &rot[0].raw_,
+               &scale.raw_, &result.raw_);
 
         f118_t a_centroid_ref[3], b_centroid_ref[3], rot_ref[9], scale_ref, reference;
-        nk::kabsch<scalar_t, f118_t, false>(&a[0], &b[0], n, a_centroid_ref, b_centroid_ref, rot_ref, &scale_ref,
-                                            &reference);
+        nk::kabsch<scalar_t, f118_t, nk::no_simd_k>(a.values_data(), b.values_data(), n, a_centroid_ref, b_centroid_ref,
+                                                    rot_ref, &scale_ref, &reference);
 
         stats.accumulate(result, reference);
     }
@@ -1897,22 +1864,22 @@ error_stats_t test_umeyama(typename scalar_type_::mesh_kernel_t kernel) {
     using scalar_t = scalar_type_;
 
     error_stats_t stats;
-    std::mt19937 rng(global_config.seed);
+    std::mt19937 generator(global_config.seed);
 
     std::size_t n = mesh_dimension;
-    aligned_buffer<scalar_t> a(n * 3), b(n * 3);
+    auto a = make_vector<scalar_t>(n * 3), b = make_vector<scalar_t>(n * 3);
 
     for (auto start = test_start_time(); within_time_budget(start);) {
-        fill_random(a, rng, scalar_t(-5.0), scalar_t(5.0));
-        fill_random(b, rng, scalar_t(-5.0), scalar_t(5.0));
+        fill_random(generator, a);
+        fill_random(generator, b);
 
         scalar_t a_centroid[3], b_centroid[3], rot[9], scale, result;
-        kernel(&a[0].raw_, &b[0].raw_, n, &a_centroid[0].raw_, &b_centroid[0].raw_, &rot[0].raw_, &scale.raw_,
-               &result.raw_);
+        kernel(a.raw_values_data(), b.raw_values_data(), n, &a_centroid[0].raw_, &b_centroid[0].raw_, &rot[0].raw_,
+               &scale.raw_, &result.raw_);
 
         f118_t a_centroid_ref[3], b_centroid_ref[3], rot_ref[9], scale_ref, reference;
-        nk::umeyama<scalar_t, f118_t, false>(&a[0], &b[0], n, a_centroid_ref, b_centroid_ref, rot_ref, &scale_ref,
-                                             &reference);
+        nk::umeyama<scalar_t, f118_t, nk::no_simd_k>(a.values_data(), b.values_data(), n, a_centroid_ref,
+                                                     b_centroid_ref, rot_ref, &scale_ref, &reference);
 
         stats.accumulate(result, reference);
     }
@@ -1985,34 +1952,36 @@ error_stats_t test_dots(typename scalar_type_::dots_packed_size_kernel_t packed_
     using result_t = typename scalar_t::dot_result_t;
 
     error_stats_t stats;
-    std::mt19937 rng(global_config.seed);
+    std::mt19937 generator(global_config.seed);
 
     std::size_t m = matmul_dimension_m, n = matmul_dimension_n, k = matmul_dimension_k;
-    std::size_t a_stride = k * sizeof(typename scalar_t::raw_t);
-    std::size_t b_stride = k * sizeof(typename scalar_t::raw_t);
+    std::size_t k_values = nk::divide_round_up(k, nk::dimensions_per_value<scalar_t>());
+    std::size_t a_stride = k_values * sizeof(scalar_t);
+    std::size_t b_stride = k_values * sizeof(scalar_t);
     std::size_t c_stride = n * sizeof(result_t);
 
-    aligned_buffer<scalar_t> a(m * k), b(n * k);
-    aligned_buffer<result_t> c(m * n);
-    aligned_buffer<f118_t> c_ref(m * n);
+    auto a = make_vector<scalar_t>(m * k), b = make_vector<scalar_t>(n * k);
+    auto c = make_vector<result_t>(m * n);
+    auto c_ref = make_vector<f118_t>(m * n);
 
     nk_size_t packed_size = packed_size_fn(n, k);
-    aligned_buffer<char> b_packed(packed_size);
-    nk_size_t ref_packed_size = nk::dots_packed_size<scalar_t>(n, k);
-    aligned_buffer<char> b_packed_ref(ref_packed_size);
+    auto b_packed = make_vector<char>(packed_size);
+    nk_size_t ref_packed_size = nk::dots_packed_size<scalar_t, nk::no_simd_k>(n, k);
+    auto b_packed_ref = make_vector<char>(ref_packed_size);
 
     for (auto start = test_start_time(); within_time_budget(start);) {
-        fill_random(a, rng);
-        fill_random(b, rng);
+        fill_random(generator, a);
+        fill_random(generator, b);
 
         // Run kernel being tested
-        pack_fn(&b[0].raw_, n, k, b_stride, b_packed.data());
-        dots_fn(&a[0].raw_, b_packed.data(), &c[0].raw_, m, n, k, a_stride, c_stride);
+        pack_fn(b.raw_values_data(), n, k, b_stride, b_packed.raw_values_data());
+        dots_fn(a.raw_values_data(), b_packed.raw_values_data(), c.raw_values_data(), m, n, k, a_stride, c_stride);
 
         // Compute f118_t reference using nk:: template
-        nk::dots_pack<scalar_t>(&b[0], n, k, b_stride, b_packed_ref.data());
-        nk::dots_packed<scalar_t, f118_t, false>(&a[0], b_packed_ref.data(), &c_ref[0], m, n, k, a_stride,
-                                                 n * sizeof(f118_t));
+        nk::dots_pack<scalar_t, nk::no_simd_k>(b.values_data(), n, k, b_stride, b_packed_ref.raw_values_data());
+        nk::dots_packed<scalar_t, f118_t, nk::no_simd_k>(a.values_data(), b_packed_ref.raw_values_data(),
+                                                         c_ref.raw_values_data(), m, n, k, a_stride,
+                                                         n * sizeof(f118_t));
 
         for (std::size_t i = 0; i < m * n; i++) stats.accumulate(c[i], c_ref[i]);
     }
@@ -2021,33 +1990,41 @@ error_stats_t test_dots(typename scalar_type_::dots_packed_size_kernel_t packed_
 
 #if NK_COMPARE_TO_BLAS || NK_COMPARE_TO_MKL || NK_COMPARE_TO_ACCELERATE
 /**
- *  @brief Unified template to test GEMM with unpacked B (for BLAS comparison).
- *  Uses dots_result_t for reference computation precision.
+ *  @brief Unified template to test unpacked GEMM against high-precision reference.
+ *
+ *  Validates BLAS/MKL/Accelerate GEMM implementations by comparing against
+ *  nk::dots_unpacked with f118_t accumulation.
+ *
+ *  @tparam scalar_type_ Input element type (e.g., f32_t, bf16_t)
+ *  @tparam accumulator_type_ Output type from BLAS kernel (e.g., f32_t for bf16 GEMM)
+ *  @tparam reference_type_ High-precision reference type (f118_t for real, f118c_t for complex)
+ *  @tparam kernel_type_ Deduced function pointer type for the BLAS kernel
  */
-template <typename scalar_type_>
-error_stats_t test_dots_unpacked(typename scalar_type_::dots_blas_kernel_t dots_fn) {
+template <typename scalar_type_, typename accumulator_type_, typename reference_type_ = f118_t, typename kernel_type_>
+error_stats_t test_dots_unpacked(kernel_type_ dots_fn) {
     using scalar_t = scalar_type_;
     using raw_t = typename scalar_t::raw_t;
-    using result_t = typename scalar_t::dots_result_t;
+    using result_t = accumulator_type_;
+    using reference_t = reference_type_;
 
     error_stats_t stats;
-    std::mt19937 rng(global_config.seed);
+    std::mt19937 generator(global_config.seed);
 
     std::size_t m = matmul_dimension_m, n = matmul_dimension_n, k = matmul_dimension_k;
     std::size_t a_stride = k * sizeof(raw_t);
     std::size_t b_stride = k * sizeof(raw_t);
-    std::size_t c_stride = n * sizeof(result_t);
+    std::size_t c_stride = n * sizeof(typename result_t::raw_t);
 
-    aligned_buffer<scalar_t> a_buf(m * k), b_buf(n * k);
-    aligned_buffer<result_t> c(m * n);
-    aligned_buffer<f118_t> c_ref(m * n);
-
+    auto a_buf = make_vector<scalar_t>(m * k), b_buf = make_vector<scalar_t>(n * k);
+    auto c = make_vector<result_t>(m * n);
+    auto c_ref = make_vector<reference_t>(m * n); // f118_t doesn't have raw_t, use auto(auto = make_vector<
     for (auto start = test_start_time(); within_time_budget(start);) {
-        fill_random(a_buf, rng);
-        fill_random(b_buf, rng);
+        fill_random(generator, a_buf);
+        fill_random(generator, b_buf);
 
-        reference_dots<f118_t, scalar_t>(&a_buf[0], &b_buf[0], &c_ref[0], m, n, k, a_stride, b_stride);
-        dots_fn(&a_buf[0].raw_, &b_buf[0].raw_, &c[0], m, n, k, a_stride, c_stride);
+        nk::dots_unpacked<scalar_t, reference_t>(a_buf.values_data(), b_buf.values_data(), c_ref.raw_values_data(), m,
+                                                 n, k, a_stride, b_stride, n * sizeof(reference_t));
+        dots_fn(a_buf.values_data(), b_buf.values_data(), c.values_data(), m, n, k, a_stride, c_stride);
 
         for (std::size_t i = 0; i < m * n; i++) stats.accumulate(c[i], c_ref[i]);
     }
@@ -2112,9 +2089,25 @@ void test_dots() {
 
 #if NK_COMPARE_TO_BLAS || NK_COMPARE_TO_MKL || NK_COMPARE_TO_ACCELERATE
     // BLAS/MKL/Accelerate GEMM precision comparison
-    run_if_matches("dots_blas", "f32", test_dots_unpacked<f32_t>, dots_f32_blas);
-    run_if_matches("dots_blas", "f64", test_dots_unpacked<f64_t>, dots_f64_blas);
+    run_if_matches("dots_with_blas", "f32", test_dots_unpacked<f32_t, f32_t, f118_t, decltype(&dots_f32_with_blas)>,
+                   dots_f32_with_blas);
+    run_if_matches("dots_with_blas", "f64", test_dots_unpacked<f64_t, f64_t, f118_t, decltype(&dots_f64_with_blas)>,
+                   dots_f64_with_blas);
+    run_if_matches("dots_with_blas", "f32c",
+                   test_dots_unpacked<f32c_t, f32c_t, f118c_t, decltype(&dots_f32c_with_blas)>, dots_f32c_with_blas);
+    run_if_matches("dots_with_blas", "f64c",
+                   test_dots_unpacked<f64c_t, f64c_t, f118c_t, decltype(&dots_f64c_with_blas)>, dots_f64c_with_blas);
 #endif // NK_COMPARE_TO_BLAS || NK_COMPARE_TO_MKL || NK_COMPARE_TO_ACCELERATE
+
+#if NK_COMPARE_TO_MKL
+    // MKL-specific GEMM with widening accumulation
+    run_if_matches("dots_with_mkl", "bf16", test_dots_unpacked<bf16_t, f32_t, f118_t, decltype(&dots_bf16_with_mkl)>,
+                   dots_bf16_with_mkl);
+    run_if_matches("dots_with_mkl", "f16", test_dots_unpacked<f16_t, f32_t, f118_t, decltype(&dots_f16_with_mkl)>,
+                   dots_f16_with_mkl);
+    run_if_matches("dots_with_mkl", "i16", test_dots_unpacked<i16_t, i32_t, i64_t, decltype(&dots_i16_with_mkl)>,
+                   dots_i16_with_mkl);
+#endif // NK_COMPARE_TO_MKL
 }
 
 #pragma endregion // Dots
@@ -2122,26 +2115,28 @@ void test_dots() {
 #pragma region Sparse
 
 /**
- *  @brief Generate a sorted array of unique random indices.
+ *  @brief Generate a sorted array of unique random indices (in-place).
  */
-template <typename scalar_type_>
-void fill_sorted_unique(aligned_buffer<scalar_type_> &buf, std::mt19937 &rng, scalar_type_ max_val) {
+template <typename scalar_type_, typename generator_type_>
+void fill_sorted_unique(generator_type_ &generator, nk::vector<scalar_type_> &vector, scalar_type_ max_val) {
     using raw_t = typename scalar_type_::raw_t;
-    std::uniform_int_distribution<raw_t> dist(0, static_cast<raw_t>(max_val));
-    std::vector<raw_t> values;
-    values.reserve(buf.size() * 2);
+    std::uniform_int_distribution<raw_t> distribution(0, static_cast<raw_t>(max_val));
+    std::size_t const count = vector.size_values();
 
-    // Generate more values than needed, then deduplicate
-    while (values.size() < buf.size()) {
-        for (std::size_t i = 0; i < buf.size() * 2 && values.size() < buf.size() * 3; i++) {
-            values.push_back(dist(rng));
-        }
-        std::sort(values.begin(), values.end());
-        values.erase(std::unique(values.begin(), values.end()), values.end());
+    // Fill and sort once
+    for (std::size_t i = 0; i < count; ++i) vector[i] = scalar_type_(distribution(generator));
+    std::sort(vector.values_data(), vector.values_data() + count);
+
+    // Compact duplicates; refill gaps until full
+    auto unique_end = std::unique(vector.values_data(), vector.values_data() + count);
+    std::size_t unique_count = static_cast<std::size_t>(unique_end - vector.values_data());
+
+    while (unique_count < count) {
+        for (std::size_t i = unique_count; i < count; ++i) vector[i] = scalar_type_(distribution(generator));
+        std::sort(vector.values_data(), vector.values_data() + count);
+        unique_end = std::unique(vector.values_data(), vector.values_data() + count);
+        unique_count = static_cast<std::size_t>(unique_end - vector.values_data());
     }
-
-    // Take first buf.size() unique values
-    for (std::size_t i = 0; i < buf.size(); i++) buf[i] = scalar_type_(values[i]);
 }
 
 /**
@@ -2151,19 +2146,19 @@ template <typename index_type_>
 error_stats_t test_intersect(typename index_type_::intersect_kernel_t kernel) {
     using index_t = index_type_;
     error_stats_t stats;
-    std::mt19937 rng(global_config.seed);
+    std::mt19937 generator(global_config.seed);
     std::size_t dim = sparse_dimension;
-    aligned_buffer<index_t> a(dim), b(dim);
+    auto a = make_vector<index_t>(dim), b = make_vector<index_t>(dim);
 
     for (auto start = test_start_time(); within_time_budget(start);) {
-        fill_sorted_unique(a, rng, index_t(dim * 4));
-        fill_sorted_unique(b, rng, index_t(dim * 4));
+        fill_sorted_unique(generator, a, index_t(dim * 4));
+        fill_sorted_unique(generator, b, index_t(dim * 4));
 
         nk_u32_t result;
-        kernel(&a[0].raw_, &b[0].raw_, dim, dim, &result);
+        kernel(a.raw_values_data(), b.raw_values_data(), dim, dim, &result);
 
         std::uint32_t ref;
-        nk::intersect<index_t, false>(&a[0], &b[0], dim, dim, &ref);
+        nk::intersect<index_t, nk::no_simd_k>(a.values_data(), b.values_data(), dim, dim, &ref);
         stats.accumulate_exact(result == ref);
     }
     return stats;
@@ -2182,23 +2177,24 @@ error_stats_t test_sparse_dot(typename weight_type_::sparse_dot_kernel_t kernel)
     using index_t = typename weight_t::sparse_dot_index_t;
 
     error_stats_t stats;
-    std::mt19937 rng(global_config.seed);
+    std::mt19937 generator(global_config.seed);
     std::size_t dim = sparse_dimension;
-    aligned_buffer<index_t> a_idx(dim), b_idx(dim);
-    aligned_buffer<weight_t> a_weights(dim), b_weights(dim);
+    auto a_idx = make_vector<index_t>(dim), b_idx = make_vector<index_t>(dim);
+    auto a_weights = make_vector<weight_t>(dim), b_weights = make_vector<weight_t>(dim);
 
     for (auto start = test_start_time(); within_time_budget(start);) {
-        fill_sorted_unique(a_idx, rng, index_t(dim * 4));
-        fill_sorted_unique(b_idx, rng, index_t(dim * 4));
-        fill_random(a_weights, rng);
-        fill_random(b_weights, rng);
+        fill_sorted_unique(generator, a_idx, index_t(dim * 4));
+        fill_sorted_unique(generator, b_idx, index_t(dim * 4));
+        fill_random(generator, a_weights);
+        fill_random(generator, b_weights);
 
         typename weight_t::dot_result_t result;
-        kernel(&a_idx[0].raw_, &b_idx[0].raw_, &a_weights[0].raw_, &b_weights[0].raw_, dim, dim, &result.raw_);
+        kernel(a_idx.raw_values_data(), b_idx.raw_values_data(), a_weights.raw_values_data(),
+               b_weights.raw_values_data(), dim, dim, &result.raw_);
 
         f118_t ref;
-        nk::sparse_dot<index_t, weight_t, f118_t, false>(&a_idx[0], &b_idx[0], &a_weights[0], &b_weights[0], dim, dim,
-                                                         &ref);
+        nk::sparse_dot<index_t, weight_t, f118_t, nk::no_simd_k>(
+            a_idx.values_data(), b_idx.values_data(), a_weights.values_data(), b_weights.values_data(), dim, dim, &ref);
         stats.accumulate(result, ref);
     }
     return stats;
@@ -2249,6 +2245,166 @@ void test_sparse() {
 }
 
 #pragma endregion // Sparse
+
+#pragma region Vector Type Tests
+
+/**
+ *  @brief Test nk::vector instantiation and operations for all supported type combinations.
+ *
+ *  Verifies that the dimension-based API, value-based API, iterators, and sub-byte proxy
+ *  references work correctly for: float, std::complex<double>, f32c_t, i8_t, i4x2_t, u1x8_t.
+ */
+void test_vector_types() {
+    std::printf("Testing vector type instantiations...\n");
+
+    // Test: float (primitive, 1 dim per value)
+    {
+        nk::vector<float> v;
+        assert(v.resize(100) && "float resize failed");
+        assert(v.size() == 100 && "float size mismatch");
+        assert(v.size_values() == 100 && "float size_values mismatch");
+        v[50] = 3.14f;
+        assert(v[50] == 3.14f && "float operator[] failed");
+        std::size_t count = 0;
+        for (auto it = v.begin(); it != v.end(); ++it) ++count;
+        assert(count == 100 && "float iterator count mismatch");
+    }
+
+    // Test: std::complex<double> (primitive complex, 1 dim per value)
+    {
+        nk::vector<std::complex<double>> v;
+        assert(v.resize(50) && "complex<double> resize failed");
+        assert(v.size() == 50 && "complex<double> size mismatch");
+        assert(v.size_values() == 50 && "complex<double> size_values mismatch");
+        v[25] = std::complex<double>(1.0, 2.0);
+        assert(v[25] == std::complex<double>(1.0, 2.0) && "complex<double> operator[] failed");
+        std::size_t count = 0;
+        for (auto &elem : v) {
+            (void)elem;
+            ++count;
+        }
+        assert(count == 50 && "complex<double> range-for count mismatch");
+    }
+
+    // Test: f32c_t (NumKong complex wrapper, 1 dim per value)
+    {
+        nk::vector<nk::f32c_t> v;
+        assert(v.resize(64) && "f32c_t resize failed");
+        assert(v.size() == 64 && "f32c_t size mismatch");
+        assert(v.size_values() == 64 && "f32c_t size_values mismatch");
+        v[32] = nk::f32c_t(1.5f, -2.5f);
+        assert(v[32] == nk::f32c_t(1.5f, -2.5f) && "f32c_t operator[] failed");
+    }
+
+    // Test: i8_t (NumKong integer wrapper, 1 dim per value)
+    {
+        nk::vector<nk::i8_t> v;
+        assert(v.resize(128) && "i8_t resize failed");
+        assert(v.size() == 128 && "i8_t size mismatch");
+        assert(v.size_values() == 128 && "i8_t size_values mismatch");
+        v[64] = nk::i8_t(-42);
+        assert(v[64] == nk::i8_t(-42) && "i8_t operator[] failed");
+    }
+
+    // Test: i4x2_t (sub-byte, 2 dims per value, LSB-first)
+    {
+        nk::vector<nk::i4x2_t> v;
+        assert(v.resize(100) && "i4x2_t resize failed");
+        assert(v.size() == 100 && "i4x2_t size mismatch");
+        assert(v.size_values() == 50 && "i4x2_t size_values mismatch (should be dims/2)");
+
+        v[0] = 5, v[1] = -3;
+        assert(v[0] == 5 && "i4x2_t dim 0 mismatch");
+        assert(v[1] == -3 && "i4x2_t dim 1 mismatch");
+
+        // Test iterator returns correct count
+        std::size_t count = 0;
+        for (auto it = v.begin(); it != v.end(); ++it) ++count;
+        assert(count == 100 && "i4x2_t iterator count mismatch");
+    }
+
+    // Test: u1x8_t (sub-byte, 8 dims per value, LSB-first)
+    {
+        nk::vector<nk::u1x8_t> v;
+        assert(v.resize(64) && "u1x8_t resize failed");
+        assert(v.size() == 64 && "u1x8_t size mismatch");
+        assert(v.size_values() == 8 && "u1x8_t size_values mismatch (should be dims/8)");
+
+        v[0] = true, v[1] = false, v[7] = true;
+        assert(v[0] == true && "u1x8_t dim 0 mismatch");
+        assert(v[1] == false && "u1x8_t dim 1 mismatch");
+        assert(v[7] == true && "u1x8_t dim 7 mismatch");
+
+        // Test iterator returns correct count
+        std::size_t count = 0;
+        for (auto it = v.begin(); it != v.end(); ++it) ++count;
+        assert(count == 64 && "u1x8_t iterator count mismatch");
+    }
+
+    // Test: Custom allocator (stateless)
+    {
+        using custom_alloc_t = nk::aligned_allocator<nk::f32_t, 128>;
+        nk::vector<nk::f32_t, custom_alloc_t> v;
+        assert(v.resize(256) && "custom allocator resize failed");
+        assert(v.size() == 256 && "custom allocator size mismatch");
+        v[128] = nk::f32_t(99.0f);
+        assert(v[128] == nk::f32_t(99.0f) && "custom allocator value mismatch");
+    }
+
+    // Test: Reserve and capacity
+    {
+        nk::vector<nk::f64_t> v;
+        assert(v.reserve(1000) && "reserve failed");
+        assert(v.capacity() >= 1000 && "capacity < reserved");
+        assert(v.resize(500) && "resize after reserve failed");
+        assert(v.size() == 500 && "size after reserve mismatch");
+        assert(v.capacity() >= 1000 && "capacity shrunk after resize");
+    }
+
+    // Test: Move semantics
+    {
+        nk::vector<nk::f32_t> v1;
+        assert(v1.resize(100) && "v1 resize failed");
+        v1[50] = nk::f32_t(42.0f);
+
+        nk::vector<nk::f32_t> v2 = std::move(v1);
+        assert(v2.size() == 100 && "move ctor size mismatch");
+        assert(v2[50] == nk::f32_t(42.0f) && "move ctor value mismatch");
+        assert(v1.size() == 0 && "moved-from vector not empty");
+
+        nk::vector<nk::f32_t> v3;
+        v3 = std::move(v2);
+        assert(v3.size() == 100 && "move assign size mismatch");
+        assert(v3[50] == nk::f32_t(42.0f) && "move assign value mismatch");
+    }
+
+    // Test: Swap
+    {
+        nk::vector<nk::i8_t> v1, v2;
+        assert(v1.resize(10) && v2.resize(20));
+        v1[0] = nk::i8_t(1);
+        v2[0] = nk::i8_t(2);
+
+        swap(v1, v2);
+        assert(v1.size() == 20 && "swap v1 size mismatch");
+        assert(v2.size() == 10 && "swap v2 size mismatch");
+        assert(v1[0] == nk::i8_t(2) && "swap v1 value mismatch");
+        assert(v2[0] == nk::i8_t(1) && "swap v2 value mismatch");
+    }
+
+    std::printf("  vector<float>:                OK\n");
+    std::printf("  vector<std::complex<double>>: OK\n");
+    std::printf("  vector<f32c_t>:               OK\n");
+    std::printf("  vector<i8_t>:                 OK\n");
+    std::printf("  vector<i4x2_t>:               OK (sub-byte proxy, LSB-first)\n");
+    std::printf("  vector<u1x8_t>:               OK (sub-byte proxy, LSB-first)\n");
+    std::printf("  custom allocator:             OK\n");
+    std::printf("  reserve/capacity:             OK\n");
+    std::printf("  move semantics:               OK\n");
+    std::printf("  swap:                         OK\n");
+}
+
+#pragma endregion // Vector Type Tests
 
 int main(int argc, char **argv) {
     (void)argc;
@@ -2386,6 +2542,9 @@ int main(int argc, char **argv) {
 
     // Type conversion tests
     test_fp8_conversions();
+
+    // Vector type instantiation tests
+    test_vector_types();
 
     // Print header for precision table
     print_stats_header();
