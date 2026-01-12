@@ -38,12 +38,16 @@
 
 #include "numkong/numkong.h"
 #include "numkong/types.hpp"
+#include "numkong/tensor.hpp"
+
+#include <cstdint> // `std::uint32_t`
+#include <cmath>   // `std::sqrt`
+#include <cstring> // `std::memcpy`
 
 #include <bit>         // `std::bit_cast`
-#include <cmath>       // `std::sqrt`
 #include <concepts>    // `std::same_as`
-#include <cstdint>     // `std::uint32_t`
 #include <limits>      // `std::numeric_limits`
+#include <random>      // `std::uniform_real_distribution`
 #include <type_traits> // `std::is_same_v`
 #include <utility>     // `std::swap`
 
@@ -51,21 +55,21 @@ namespace ashvardanian::numkong {
 
 /** @brief FMA helper template for baseline dot-product implementations. */
 template <typename in_type_, typename accumulator_type_>
-    requires(in_type_::bits() >= NK_BITS_PER_BYTE)
+    requires(in_type_::bits_per_value() >= NK_BITS_PER_BYTE)
 inline accumulator_type_ fused_multiply_add(accumulator_type_ acc, in_type_ a, in_type_ b) noexcept {
     return acc + static_cast<accumulator_type_>(a) * static_cast<accumulator_type_>(b);
 }
 
 /** @brief FMA helper template for baseline conjugate complex dot-product implementations. */
 template <typename in_type_, typename accumulator_type_>
-    requires(in_type_::bits() >= NK_BITS_PER_BYTE)
+    requires(in_type_::bits_per_value() >= NK_BITS_PER_BYTE)
 inline accumulator_type_ fused_conjugate_multiply_add(accumulator_type_ acc, in_type_ a, in_type_ b) noexcept {
     return acc + static_cast<accumulator_type_>(a.conj()) * static_cast<accumulator_type_>(b);
 }
 
 /** @brief Fused addition of squared differences for baseline L2 implementations. */
 template <typename in_type_, typename accumulator_type_>
-    requires(in_type_::bits() >= NK_BITS_PER_BYTE)
+    requires(in_type_::bits_per_value() >= NK_BITS_PER_BYTE)
 constexpr accumulator_type_ fused_difference_squared_add(accumulator_type_ acc, in_type_ a, in_type_ b) noexcept {
     auto d = static_cast<accumulator_type_>(a) - static_cast<accumulator_type_>(b);
     return acc + d * d;
@@ -117,53 +121,266 @@ constexpr bool operator>(double a, f118_t b) noexcept { return f118_t(a) > b; }
 constexpr bool operator<=(double a, f118_t b) noexcept { return f118_t(a) <= b; }
 constexpr bool operator>=(double a, f118_t b) noexcept { return f118_t(a) >= b; }
 
-#pragma region Dot Kernels
+#pragma region Random
 
 /**
- *  @brief Dot product with configurable precision.
- *  @tparam in_type_ Input vector element type
- *  @tparam result_type_ Accumulator type (default: in_type_::dot_result_t)
- *  @tparam allow_simd_ Enable SIMD kernel dispatch when true
+ *  @brief Fill array with uniform random values.
+ *
+ *  @tparam scalar_type_ A NumKong wrapper type (e.g., f32_t, f64_t, i32_t).
+ *  @tparam generator_type_ A random number generator type (e.g., std::mt19937_64).
+ *  @tparam range_type_ The type used for range bounds (auto-detected from scalar_type_).
+ *  @param data Pointer to the array to fill.
+ *  @param n Number of elements to fill.
+ *  @param generator The random number generator.
+ *  @param min_val Minimum value (inclusive).
+ *  @param max_val Maximum value (inclusive for integers, exclusive for floats).
  */
-template <typename in_type_, typename result_type_ = typename in_type_::dot_result_t, bool allow_simd_ = true>
-void dot(in_type_ const *a, in_type_ const *b, std::size_t n, result_type_ *r) noexcept {
-    constexpr bool simd = allow_simd_ && std::is_same_v<result_type_, typename in_type_::dot_result_t>;
+template <typename scalar_type_, typename generator_type_>
+void fill_uniform(generator_type_ &generator, scalar_type_ *data, std::size_t n) noexcept {
 
-    if constexpr (std::is_same_v<in_type_, f32_t> && simd) nk_dot_f32(&a->raw_, &b->raw_, n, &r->raw_);
-    else if constexpr (std::is_same_v<in_type_, f64_t> && simd) nk_dot_f64(&a->raw_, &b->raw_, n, &r->raw_);
-    else if constexpr (std::is_same_v<in_type_, f16_t> && simd) nk_dot_f16(&a->raw_, &b->raw_, n, &r->raw_);
-    else if constexpr (std::is_same_v<in_type_, bf16_t> && simd) nk_dot_bf16(&a->raw_, &b->raw_, n, &r->raw_);
-    else if constexpr (std::is_same_v<in_type_, e4m3_t> && simd) nk_dot_e4m3(&a->raw_, &b->raw_, n, &r->raw_);
-    else if constexpr (std::is_same_v<in_type_, e5m2_t> && simd) nk_dot_e5m2(&a->raw_, &b->raw_, n, &r->raw_);
-    else if constexpr (std::is_same_v<in_type_, i8_t> && simd) nk_dot_i8(&a->raw_, &b->raw_, n, &r->raw_);
-    else if constexpr (std::is_same_v<in_type_, u8_t> && simd) nk_dot_u8(&a->raw_, &b->raw_, n, &r->raw_);
-    else if constexpr (std::is_same_v<in_type_, f32c_t> && simd) nk_dot_f32c(&a->raw_, &b->raw_, n, &r->raw_);
-    else if constexpr (std::is_same_v<in_type_, f64c_t> && simd) nk_dot_f64c(&a->raw_, &b->raw_, n, &r->raw_);
-    else if constexpr (std::is_same_v<in_type_, i4x2_t> && simd) nk_dot_i4(&a->raw_, &b->raw_, n, &r->raw_);
-    else if constexpr (std::is_same_v<in_type_, u4x2_t> && simd) nk_dot_u4(&a->raw_, &b->raw_, n, &r->raw_);
+    // Packed types (u1x8, u4x2, i4x2) need special handling - just fill with random bytes
+    if constexpr (std::is_same_v<scalar_type_, u1x8_t> || std::is_same_v<scalar_type_, u4x2_t> ||
+                  std::is_same_v<scalar_type_, i4x2_t>) {
+        std::uniform_int_distribution<std::uint32_t> distribution(0, 255);
+        for (std::size_t i = 0; i < n; ++i) data[i].raw_ = static_cast<std::uint8_t>(distribution(generator));
+    }
+    // Integer distribution types aren't always defined
+    else if constexpr (is_integer<scalar_type_>()) {
+        using small_integer_t = std::conditional_t<is_signed<scalar_type_>(), std::int32_t, std::uint32_t>;
+        using large_integer_t = std::conditional_t<is_signed<scalar_type_>(), std::int64_t, std::uint64_t>;
+        using distribution_integer_t = std::conditional_t<sizeof(scalar_type_) <= 4, small_integer_t, large_integer_t>;
+        std::uniform_int_distribution<distribution_integer_t> distribution(finite_min<distribution_integer_t>(),
+                                                                           finite_max<distribution_integer_t>());
+        for (std::size_t i = 0; i < n; ++i) data[i] = static_cast<scalar_type_>(distribution(generator));
+    }
+    // Complex types need both real and imaginary parts filled
+    else if constexpr (is_complex<scalar_type_>()) {
+        using component_t = typename scalar_type_::component_t;
+        using distribution_float_t = std::conditional_t<sizeof(component_t) <= 4, float, double>;
+        std::uniform_real_distribution<distribution_float_t> distribution(-10.0, 10.0);
+        for (std::size_t i = 0; i < n; ++i) {
+            auto real = distribution(generator), imag = distribution(generator);
+            data[i] = scalar_type_(component_t(static_cast<distribution_float_t>(real)),
+                                   component_t(static_cast<distribution_float_t>(imag)));
+        }
+    }
+    // Floats and other types use a fixed range for better numerical stability
+    else {
+        using distribution_float_t = std::conditional_t<sizeof(scalar_type_) <= 4, float, double>;
+        std::uniform_real_distribution<distribution_float_t> distribution(-10.0, 10.0);
+        for (std::size_t i = 0; i < n; ++i) data[i] = static_cast<scalar_type_>(distribution(generator));
+    }
+}
+
+/**
+ *  @brief Fill array with uniform random values.
+ *
+ *  @tparam scalar_type_ A NumKong wrapper type (e.g., f32_t, f64_t, i32_t).
+ *  @tparam generator_type_ A random number generator type (e.g., std::mt19937_64).
+ *  @tparam range_type_ The type used for range bounds (auto-detected from scalar_type_).
+ *  @param data Pointer to the array to fill.
+ *  @param n Number of elements to fill.
+ *  @param generator The random number generator.
+ *  @param min_val Minimum value (inclusive).
+ *  @param max_val Maximum value (inclusive for integers, exclusive for floats).
+ */
+template <typename scalar_type_, typename generator_type_>
+void fill_uniform(                                                 //
+    generator_type_ &generator, scalar_type_ *data, std::size_t n, //
+    scalar_type_ min_val, scalar_type_ max_val) noexcept {
+
+    if constexpr (is_integer<scalar_type_>()) {
+        using small_integer_t = std::conditional_t<is_signed<scalar_type_>(), std::int32_t, std::uint32_t>;
+        using large_integer_t = std::conditional_t<is_signed<scalar_type_>(), std::int64_t, std::uint64_t>;
+        using distribution_integer_t = std::conditional_t<sizeof(scalar_type_) <= 4, small_integer_t, large_integer_t>;
+        std::uniform_int_distribution<distribution_integer_t> distribution( //
+            static_cast<distribution_integer_t>(min_val), static_cast<distribution_integer_t>(max_val));
+        for (std::size_t i = 0; i < n; ++i) data[i] = static_cast<scalar_type_>(distribution(generator));
+    }
+    else {
+        using distribution_float_t = std::conditional_t<sizeof(scalar_type_) <= 4, float, double>;
+        std::uniform_real_distribution<distribution_float_t> distribution( //
+            static_cast<distribution_float_t>(min_val), static_cast<distribution_float_t>(max_val));
+        for (std::size_t i = 0; i < n; ++i) data[i] = static_cast<scalar_type_>(distribution(generator));
+    }
+}
+
+/**
+ *  @brief Fill array with lognormal distribution (good for detecting numerical edge cases).
+ *
+ *
+ *  @tparam scalar_type_ A NumKong wrapper type.
+ *  @tparam generator_type_ A random number generator type.
+ *  @param data Pointer to the array to fill.
+ *  @param n Number of elements to fill.
+ *  @param generator The random number generator.
+ *  @param mean Mean of the underlying normal distribution.
+ *  @param stddev Standard deviation of the underlying normal distribution.
+ */
+template <typename scalar_type_, typename generator_type_>
+void fill_lognormal(                                               //
+    generator_type_ &generator, scalar_type_ *data, std::size_t n, //
+    scalar_type_ mean = scalar_type_(0), scalar_type_ stddev = scalar_type_(0.5)) noexcept {
+
+    using distribution_float_t = std::conditional_t<sizeof(scalar_type_) <= 4, float, double>;
+    std::lognormal_distribution<distribution_float_t> distribution(mean, stddev);
+    std::bernoulli_distribution sign_distribution(0.5);
+    distribution_float_t const clamp_max = finite_max<scalar_type_>();
+
+    for (std::size_t i = 0; i < n; ++i) {
+        distribution_float_t val = distribution(generator);
+        if (val > clamp_max) val = clamp_max;
+        if (sign_distribution(generator)) val = -val;
+        data[i] = static_cast<scalar_type_>(val);
+    }
+}
+
+/**
+ *  @brief Fill array with Cauchy distribution (heavy tails for stress testing).
+ *
+ *  @tparam scalar_type_ A NumKong wrapper type.
+ *  @tparam generator_type_ A random number generator type.
+ *  @param data Pointer to the array to fill.
+ *  @param n Number of elements to fill.
+ *  @param generator The random number generator.
+ *  @param location Location parameter (median).
+ *  @param scale Scale parameter.
+ */
+template <typename scalar_type_, typename generator_type_>
+void fill_cauchy(                                                  //
+    generator_type_ &generator, scalar_type_ *data, std::size_t n, //
+    scalar_type_ location = 0, scalar_type_ scale = 1) noexcept {
+
+    using distribution_float_t = std::conditional_t<sizeof(scalar_type_) <= 4, float, double>;
+    std::cauchy_distribution<distribution_float_t> distribution(location, scale);
+    distribution_float_t const clamp_max = finite_max<scalar_type_>();
+    distribution_float_t const clamp_min = finite_min<scalar_type_>();
+
+    for (std::size_t i = 0; i < n; ++i) {
+        distribution_float_t val = distribution(generator);
+        if (val > clamp_max) val = clamp_max;
+        else if (val < clamp_min) val = clamp_min;
+        data[i] = static_cast<scalar_type_>(val);
+    }
+}
+
+/**
+ *  @brief Fill arrays with latitude and longitude coordinate values in radians.
+ *
+ *  Uses type-appropriate distribution precision.
+ *  Useful for geospatial (latitude/longitude) benchmarks.
+ *
+ *  @tparam scalar_type_ A NumKong wrapper type.
+ *  @tparam generator_type_ A random number generator type.
+ *  @param lats Pointer to the latitude array to fill (-π/2 to +π/2).
+ *  @param lons Pointer to the longitude array to fill (-π to +π).
+ *  @param n Number of elements to fill in each array.
+ *  @param generator The random number generator.
+ */
+template <typename scalar_type_, typename generator_type_>
+void fill_coordinates(generator_type_ &generator, scalar_type_ *lats, scalar_type_ *lons, std::size_t n) noexcept {
+
+    using distribution_float_t = std::conditional_t<sizeof(scalar_type_) <= 4, float, double>;
+    constexpr distribution_float_t pi = distribution_float_t(3.14159265358979323846);
+    std::uniform_real_distribution<distribution_float_t> lat_disttribution(-pi / 2, pi / 2);
+    std::uniform_real_distribution<distribution_float_t> lon_disttribution(-pi, pi);
+    for (std::size_t i = 0; i < n; ++i) {
+        lats[i] = static_cast<scalar_type_>(lat_disttribution(generator));
+        lons[i] = static_cast<scalar_type_>(lon_disttribution(generator));
+    }
+}
+
+/**
+ *  @brief Fill array as a probability distribution (sums to 1.0).
+ *
+ *  @tparam scalar_type_ A NumKong wrapper type.
+ *  @tparam generator_type_ A random number generator type.
+ *  @param data Pointer to the probability array.
+ *  @param n Number of elements to fill.
+ *  @param generator The random number generator.
+ */
+template <typename scalar_type_, typename generator_type_>
+void fill_probability(generator_type_ &generator, scalar_type_ *data, std::size_t n) noexcept {
+
+    using distribution_float_t = std::conditional_t<sizeof(scalar_type_) <= 4, float, double>;
+    std::uniform_real_distribution<distribution_float_t> distribution( //
+        distribution_float_t(0.01), distribution_float_t(1));
+
+    distribution_float_t sum = 0;
+    for (std::size_t i = 0; i < n; ++i) {
+        distribution_float_t val = distribution(generator);
+        data[i] = static_cast<scalar_type_>(val);
+        sum += val;
+    }
+    for (std::size_t i = 0; i < n; ++i)
+        data[i] = static_cast<scalar_type_>(static_cast<distribution_float_t>(data[i]) / sum);
+}
+
+#pragma endregion Random
+
+#pragma region Dot Kernels
+
+enum allow_simd_t {
+    prefer_simd_k = 0,
+    no_simd_k = 1,
+};
+
+/**
+ *  @brief Dot product with configurable precision
+ *  @param[in] a,b First and second vector
+ *  @param[in] d Number of dimensions input vectors
+ *  @param[out] r Point to output dot-product value
+ *
+ *  @tparam in_type_ Input vector element type
+ *  @tparam result_type_ Accumulator type, defaults to `in_type_::dot_result_t`
+ *  @tparam allow_simd_ Enable SIMD kernel dispatch when `true`
+ */
+template <typename in_type_, typename result_type_ = typename in_type_::dot_result_t,
+          allow_simd_t allow_simd_ = prefer_simd_k>
+void dot(in_type_ const *a, in_type_ const *b, std::size_t d, result_type_ *r) noexcept {
+    constexpr bool simd = allow_simd_ == prefer_simd_k && std::is_same_v<result_type_, typename in_type_::dot_result_t>;
+
+    if constexpr (std::is_same_v<in_type_, f32_t> && simd) nk_dot_f32(&a->raw_, &b->raw_, d, &r->raw_);
+    else if constexpr (std::is_same_v<in_type_, f64_t> && simd) nk_dot_f64(&a->raw_, &b->raw_, d, &r->raw_);
+    else if constexpr (std::is_same_v<in_type_, f16_t> && simd) nk_dot_f16(&a->raw_, &b->raw_, d, &r->raw_);
+    else if constexpr (std::is_same_v<in_type_, bf16_t> && simd) nk_dot_bf16(&a->raw_, &b->raw_, d, &r->raw_);
+    else if constexpr (std::is_same_v<in_type_, e4m3_t> && simd) nk_dot_e4m3(&a->raw_, &b->raw_, d, &r->raw_);
+    else if constexpr (std::is_same_v<in_type_, e5m2_t> && simd) nk_dot_e5m2(&a->raw_, &b->raw_, d, &r->raw_);
+    else if constexpr (std::is_same_v<in_type_, i8_t> && simd) nk_dot_i8(&a->raw_, &b->raw_, d, &r->raw_);
+    else if constexpr (std::is_same_v<in_type_, u8_t> && simd) nk_dot_u8(&a->raw_, &b->raw_, d, &r->raw_);
+    else if constexpr (std::is_same_v<in_type_, f32c_t> && simd) nk_dot_f32c(&a->raw_, &b->raw_, d, &r->raw_);
+    else if constexpr (std::is_same_v<in_type_, f64c_t> && simd) nk_dot_f64c(&a->raw_, &b->raw_, d, &r->raw_);
+    else if constexpr (std::is_same_v<in_type_, i4x2_t> && simd) nk_dot_i4(&a->raw_, &b->raw_, d, &r->raw_);
+    else if constexpr (std::is_same_v<in_type_, u4x2_t> && simd) nk_dot_u4(&a->raw_, &b->raw_, d, &r->raw_);
     // Scalar fallback
     else {
         result_type_ sum {};
+        std::size_t n = d / bits_per_value<in_type_>();
         for (std::size_t i = 0; i < n; i++) sum = fused_multiply_add(sum, a[i], b[i]);
         *r = sum;
     }
 }
 
 /**
- *  @brief Conjugate dot product (vdot): sum(conj(a[i]) * b[i])
+ *  @brief Conjugate dot product (vdot): Σ(ā[i] × b[i])
+ *  @param[in] a,b First and second complex vectors
+ *  @param[in] d Number of dimensions in input vectors
+ *  @param[out] r Pointer to output value
+ *
  *  @tparam in_type_ Complex input type (f32c_t, f64c_t, f16c_t, bf16c_t)
- *  @tparam result_type_ Accumulator type (default: in_type_::dot_result_t)
- *  @tparam allow_simd_ Enable SIMD kernel dispatch when true
+ *  @tparam result_type_ Accumulator type, defaults to `in_type_::dot_result_t`
+ *  @tparam allow_simd_ Enable SIMD kernel dispatch when `prefer_simd_k`
  */
-template <typename in_type_, typename result_type_ = typename in_type_::dot_result_t, bool allow_simd_ = true>
-void vdot(in_type_ const *a, in_type_ const *b, std::size_t n, result_type_ *r) noexcept {
-    constexpr bool simd = allow_simd_ && std::is_same_v<result_type_, typename in_type_::dot_result_t>;
+template <typename in_type_, typename result_type_ = typename in_type_::dot_result_t,
+          allow_simd_t allow_simd_ = prefer_simd_k>
+void vdot(in_type_ const *a, in_type_ const *b, std::size_t d, result_type_ *r) noexcept {
+    constexpr bool simd = allow_simd_ == prefer_simd_k && std::is_same_v<result_type_, typename in_type_::dot_result_t>;
 
-    if constexpr (std::is_same_v<in_type_, f32c_t> && simd) nk_vdot_f32c(&a->raw_, &b->raw_, n, &r->raw_);
-    else if constexpr (std::is_same_v<in_type_, f64c_t> && simd) nk_vdot_f64c(&a->raw_, &b->raw_, n, &r->raw_);
+    if constexpr (std::is_same_v<in_type_, f32c_t> && simd) nk_vdot_f32c(&a->raw_, &b->raw_, d, &r->raw_);
+    else if constexpr (std::is_same_v<in_type_, f64c_t> && simd) nk_vdot_f64c(&a->raw_, &b->raw_, d, &r->raw_);
     else {
         result_type_ sum {};
-        for (std::size_t i = 0; i < n; i++) sum = fused_conjugate_multiply_add(sum, a[i], b[i]);
+        for (std::size_t i = 0; i < d; i++) sum = fused_conjugate_multiply_add(sum, a[i], b[i]);
         *r = sum;
     }
 }
@@ -173,85 +390,105 @@ void vdot(in_type_ const *a, in_type_ const *b, std::size_t n, result_type_ *r) 
 #pragma region Spatial Kernels
 
 /**
- *  @brief L2 (Euclidean) distance.
+ *  @brief L2 (Euclidean) distance
+ *  @param[in] a,b First and second vectors
+ *  @param[in] d Number of dimensions in input vectors
+ *  @param[out] r Pointer to output distance value
+ *
  *  @tparam in_type_ Input vector element type
- *  @tparam result_type_ Accumulator type (default: in_type_::l2sq_result_t)
- *  @tparam allow_simd_ Enable SIMD kernel dispatch when true
+ *  @tparam result_type_ Accumulator type, defaults to `in_type_::l2sq_result_t`
+ *  @tparam allow_simd_ Enable SIMD kernel dispatch when `prefer_simd_k`
  */
-template <typename in_type_, typename result_type_ = typename in_type_::l2sq_result_t, bool allow_simd_ = true>
-void l2(in_type_ const *a, in_type_ const *b, std::size_t n, result_type_ *r) noexcept {
-    constexpr bool simd = allow_simd_ && std::is_same_v<result_type_, typename in_type_::l2sq_result_t>;
+template <typename in_type_, typename result_type_ = typename in_type_::l2sq_result_t,
+          allow_simd_t allow_simd_ = prefer_simd_k>
+void l2(in_type_ const *a, in_type_ const *b, std::size_t d, result_type_ *r) noexcept {
+    constexpr bool simd = allow_simd_ == prefer_simd_k &&
+                          std::is_same_v<result_type_, typename in_type_::l2sq_result_t>;
 
-    if constexpr (std::is_same_v<in_type_, f64_t> && simd) nk_l2_f64(&a->raw_, &b->raw_, n, &r->raw_);
-    else if constexpr (std::is_same_v<in_type_, f32_t> && simd) nk_l2_f32(&a->raw_, &b->raw_, n, &r->raw_);
-    else if constexpr (std::is_same_v<in_type_, f16_t> && simd) nk_l2_f16(&a->raw_, &b->raw_, n, &r->raw_);
-    else if constexpr (std::is_same_v<in_type_, bf16_t> && simd) nk_l2_bf16(&a->raw_, &b->raw_, n, &r->raw_);
-    else if constexpr (std::is_same_v<in_type_, e4m3_t> && simd) nk_l2_e4m3(&a->raw_, &b->raw_, n, &r->raw_);
-    else if constexpr (std::is_same_v<in_type_, e5m2_t> && simd) nk_l2_e5m2(&a->raw_, &b->raw_, n, &r->raw_);
-    else if constexpr (std::is_same_v<in_type_, i8_t> && simd) nk_l2_i8(&a->raw_, &b->raw_, n, &r->raw_);
-    else if constexpr (std::is_same_v<in_type_, u8_t> && simd) nk_l2_u8(&a->raw_, &b->raw_, n, &r->raw_);
-    else if constexpr (std::is_same_v<in_type_, i4x2_t> && simd) nk_l2_i4(&a->raw_, &b->raw_, n, &r->raw_);
-    else if constexpr (std::is_same_v<in_type_, u4x2_t> && simd) nk_l2_u4(&a->raw_, &b->raw_, n, &r->raw_);
+    if constexpr (std::is_same_v<in_type_, f64_t> && simd) nk_l2_f64(&a->raw_, &b->raw_, d, &r->raw_);
+    else if constexpr (std::is_same_v<in_type_, f32_t> && simd) nk_l2_f32(&a->raw_, &b->raw_, d, &r->raw_);
+    else if constexpr (std::is_same_v<in_type_, f16_t> && simd) nk_l2_f16(&a->raw_, &b->raw_, d, &r->raw_);
+    else if constexpr (std::is_same_v<in_type_, bf16_t> && simd) nk_l2_bf16(&a->raw_, &b->raw_, d, &r->raw_);
+    else if constexpr (std::is_same_v<in_type_, e4m3_t> && simd) nk_l2_e4m3(&a->raw_, &b->raw_, d, &r->raw_);
+    else if constexpr (std::is_same_v<in_type_, e5m2_t> && simd) nk_l2_e5m2(&a->raw_, &b->raw_, d, &r->raw_);
+    else if constexpr (std::is_same_v<in_type_, i8_t> && simd) nk_l2_i8(&a->raw_, &b->raw_, d, &r->raw_);
+    else if constexpr (std::is_same_v<in_type_, u8_t> && simd) nk_l2_u8(&a->raw_, &b->raw_, d, &r->raw_);
+    else if constexpr (std::is_same_v<in_type_, i4x2_t> && simd) nk_l2_i4(&a->raw_, &b->raw_, d, &r->raw_);
+    else if constexpr (std::is_same_v<in_type_, u4x2_t> && simd) nk_l2_u4(&a->raw_, &b->raw_, d, &r->raw_);
     // Scalar fallback
     else {
         result_type_ sum {};
-        for (std::size_t i = 0; i < n; i++) sum = fused_difference_squared_add(sum, a[i], b[i]);
+        for (std::size_t i = 0; i < divide_round_up(d, dimensions_per_value<in_type_>()); i++)
+            sum = fused_difference_squared_add(sum, a[i], b[i]);
         *r = sum.sqrt();
     }
 }
 
 /**
- *  @brief Squared L2 (Euclidean) distance.
+ *  @brief Squared L2 (Euclidean) distance
+ *  @param[in] a,b First and second vectors
+ *  @param[in] d Number of dimensions in input vectors
+ *  @param[out] r Pointer to output distance value
+ *
  *  @tparam in_type_ Input vector element type
- *  @tparam result_type_ Accumulator type (default: in_type_::l2sq_result_t)
- *  @tparam allow_simd_ Enable SIMD kernel dispatch when true
+ *  @tparam result_type_ Accumulator type, defaults to `in_type_::l2sq_result_t`
+ *  @tparam allow_simd_ Enable SIMD kernel dispatch when `prefer_simd_k`
  */
-template <typename in_type_, typename result_type_ = typename in_type_::l2sq_result_t, bool allow_simd_ = true>
-void l2sq(in_type_ const *a, in_type_ const *b, std::size_t n, result_type_ *r) noexcept {
-    constexpr bool simd = allow_simd_ && std::is_same_v<result_type_, typename in_type_::l2sq_result_t>;
+template <typename in_type_, typename result_type_ = typename in_type_::l2sq_result_t,
+          allow_simd_t allow_simd_ = prefer_simd_k>
+void l2sq(in_type_ const *a, in_type_ const *b, std::size_t d, result_type_ *r) noexcept {
+    constexpr bool simd = allow_simd_ == prefer_simd_k &&
+                          std::is_same_v<result_type_, typename in_type_::l2sq_result_t>;
 
-    if constexpr (std::is_same_v<in_type_, f64_t> && simd) nk_l2sq_f64(&a->raw_, &b->raw_, n, &r->raw_);
-    else if constexpr (std::is_same_v<in_type_, f32_t> && simd) nk_l2sq_f32(&a->raw_, &b->raw_, n, &r->raw_);
-    else if constexpr (std::is_same_v<in_type_, f16_t> && simd) nk_l2sq_f16(&a->raw_, &b->raw_, n, &r->raw_);
-    else if constexpr (std::is_same_v<in_type_, bf16_t> && simd) nk_l2sq_bf16(&a->raw_, &b->raw_, n, &r->raw_);
-    else if constexpr (std::is_same_v<in_type_, e4m3_t> && simd) nk_l2sq_e4m3(&a->raw_, &b->raw_, n, &r->raw_);
-    else if constexpr (std::is_same_v<in_type_, e5m2_t> && simd) nk_l2sq_e5m2(&a->raw_, &b->raw_, n, &r->raw_);
-    else if constexpr (std::is_same_v<in_type_, i8_t> && simd) nk_l2sq_i8(&a->raw_, &b->raw_, n, &r->raw_);
-    else if constexpr (std::is_same_v<in_type_, u8_t> && simd) nk_l2sq_u8(&a->raw_, &b->raw_, n, &r->raw_);
-    else if constexpr (std::is_same_v<in_type_, i4x2_t> && simd) nk_l2sq_i4(&a->raw_, &b->raw_, n, &r->raw_);
-    else if constexpr (std::is_same_v<in_type_, u4x2_t> && simd) nk_l2sq_u4(&a->raw_, &b->raw_, n, &r->raw_);
+    if constexpr (std::is_same_v<in_type_, f64_t> && simd) nk_l2sq_f64(&a->raw_, &b->raw_, d, &r->raw_);
+    else if constexpr (std::is_same_v<in_type_, f32_t> && simd) nk_l2sq_f32(&a->raw_, &b->raw_, d, &r->raw_);
+    else if constexpr (std::is_same_v<in_type_, f16_t> && simd) nk_l2sq_f16(&a->raw_, &b->raw_, d, &r->raw_);
+    else if constexpr (std::is_same_v<in_type_, bf16_t> && simd) nk_l2sq_bf16(&a->raw_, &b->raw_, d, &r->raw_);
+    else if constexpr (std::is_same_v<in_type_, e4m3_t> && simd) nk_l2sq_e4m3(&a->raw_, &b->raw_, d, &r->raw_);
+    else if constexpr (std::is_same_v<in_type_, e5m2_t> && simd) nk_l2sq_e5m2(&a->raw_, &b->raw_, d, &r->raw_);
+    else if constexpr (std::is_same_v<in_type_, i8_t> && simd) nk_l2sq_i8(&a->raw_, &b->raw_, d, &r->raw_);
+    else if constexpr (std::is_same_v<in_type_, u8_t> && simd) nk_l2sq_u8(&a->raw_, &b->raw_, d, &r->raw_);
+    else if constexpr (std::is_same_v<in_type_, i4x2_t> && simd) nk_l2sq_i4(&a->raw_, &b->raw_, d, &r->raw_);
+    else if constexpr (std::is_same_v<in_type_, u4x2_t> && simd) nk_l2sq_u4(&a->raw_, &b->raw_, d, &r->raw_);
     // Scalar fallback
     else {
         result_type_ sum {};
-        for (std::size_t i = 0; i < n; i++) sum = fused_difference_squared_add(sum, a[i], b[i]);
+        for (std::size_t i = 0; i < divide_round_up(d, dimensions_per_value<in_type_>()); i++)
+            sum = fused_difference_squared_add(sum, a[i], b[i]);
         *r = sum;
     }
 }
 
 /**
  *  @brief Angular similarity (cosine): dot(a,b) / (|a| * |b|)
+ *  @param[in] a,b First and second vectors
+ *  @param[in] d Number of dimensions in input vectors
+ *  @param[out] r Pointer to output distance value
+ *
  *  @tparam in_type_ Input vector element type
- *  @tparam result_type_ Accumulator type (default: in_type_::angular_result_t)
- *  @tparam allow_simd_ Enable SIMD kernel dispatch when true
+ *  @tparam result_type_ Accumulator type, defaults to `in_type_::angular_result_t`
+ *  @tparam allow_simd_ Enable SIMD kernel dispatch when `prefer_simd_k`
  */
-template <typename in_type_, typename result_type_ = typename in_type_::angular_result_t, bool allow_simd_ = true>
-void angular(in_type_ const *a, in_type_ const *b, std::size_t n, result_type_ *r) noexcept {
-    constexpr bool simd = allow_simd_ && std::is_same_v<result_type_, typename in_type_::angular_result_t>;
+template <typename in_type_, typename result_type_ = typename in_type_::angular_result_t,
+          allow_simd_t allow_simd_ = prefer_simd_k>
+void angular(in_type_ const *a, in_type_ const *b, std::size_t d, result_type_ *r) noexcept {
+    constexpr bool simd = allow_simd_ == prefer_simd_k &&
+                          std::is_same_v<result_type_, typename in_type_::angular_result_t>;
 
-    if constexpr (std::is_same_v<in_type_, f64_t> && simd) nk_angular_f64(&a->raw_, &b->raw_, n, &r->raw_);
-    else if constexpr (std::is_same_v<in_type_, f32_t> && simd) nk_angular_f32(&a->raw_, &b->raw_, n, &r->raw_);
-    else if constexpr (std::is_same_v<in_type_, f16_t> && simd) nk_angular_f16(&a->raw_, &b->raw_, n, &r->raw_);
-    else if constexpr (std::is_same_v<in_type_, bf16_t> && simd) nk_angular_bf16(&a->raw_, &b->raw_, n, &r->raw_);
-    else if constexpr (std::is_same_v<in_type_, e4m3_t> && simd) nk_angular_e4m3(&a->raw_, &b->raw_, n, &r->raw_);
-    else if constexpr (std::is_same_v<in_type_, e5m2_t> && simd) nk_angular_e5m2(&a->raw_, &b->raw_, n, &r->raw_);
-    else if constexpr (std::is_same_v<in_type_, i8_t> && simd) nk_angular_i8(&a->raw_, &b->raw_, n, &r->raw_);
-    else if constexpr (std::is_same_v<in_type_, u8_t> && simd) nk_angular_u8(&a->raw_, &b->raw_, n, &r->raw_);
-    else if constexpr (std::is_same_v<in_type_, i4x2_t> && simd) nk_angular_i4(&a->raw_, &b->raw_, n, &r->raw_);
-    else if constexpr (std::is_same_v<in_type_, u4x2_t> && simd) nk_angular_u4(&a->raw_, &b->raw_, n, &r->raw_);
+    if constexpr (std::is_same_v<in_type_, f64_t> && simd) nk_angular_f64(&a->raw_, &b->raw_, d, &r->raw_);
+    else if constexpr (std::is_same_v<in_type_, f32_t> && simd) nk_angular_f32(&a->raw_, &b->raw_, d, &r->raw_);
+    else if constexpr (std::is_same_v<in_type_, f16_t> && simd) nk_angular_f16(&a->raw_, &b->raw_, d, &r->raw_);
+    else if constexpr (std::is_same_v<in_type_, bf16_t> && simd) nk_angular_bf16(&a->raw_, &b->raw_, d, &r->raw_);
+    else if constexpr (std::is_same_v<in_type_, e4m3_t> && simd) nk_angular_e4m3(&a->raw_, &b->raw_, d, &r->raw_);
+    else if constexpr (std::is_same_v<in_type_, e5m2_t> && simd) nk_angular_e5m2(&a->raw_, &b->raw_, d, &r->raw_);
+    else if constexpr (std::is_same_v<in_type_, i8_t> && simd) nk_angular_i8(&a->raw_, &b->raw_, d, &r->raw_);
+    else if constexpr (std::is_same_v<in_type_, u8_t> && simd) nk_angular_u8(&a->raw_, &b->raw_, d, &r->raw_);
+    else if constexpr (std::is_same_v<in_type_, i4x2_t> && simd) nk_angular_i4(&a->raw_, &b->raw_, d, &r->raw_);
+    else if constexpr (std::is_same_v<in_type_, u4x2_t> && simd) nk_angular_u4(&a->raw_, &b->raw_, d, &r->raw_);
     // Scalar fallback
     else {
         result_type_ ab {}, aa {}, bb {};
-        for (std::size_t i = 0; i < n; i++) {
+        for (std::size_t i = 0; i < divide_round_up(d, dimensions_per_value<in_type_>()); i++) {
             ab = fused_multiply_add(ab, a[i], b[i]);
             aa = fused_multiply_add(aa, a[i], a[i]);
             bb = fused_multiply_add(bb, b[i], b[i]);
@@ -269,22 +506,27 @@ void angular(in_type_ const *a, in_type_ const *b, std::size_t n, result_type_ *
 
 /**
  *  @brief Kullback-Leibler divergence: sum(p[i] * log(p[i] / q[i]))
+ *  @param[in] p,q First and second probability distributions
+ *  @param[in] d Number of dimensions in input vectors
+ *  @param[out] r Pointer to output divergence value
+ *
  *  @tparam in_type_ Input distribution type (probability vectors)
- *  @tparam result_type_ Accumulator type (default: f118_t for validation)
- *  @tparam allow_simd_ Enable SIMD kernel dispatch when true
+ *  @tparam result_type_ Accumulator type, defaults to `in_type_::kld_result_t`
+ *  @tparam allow_simd_ Enable SIMD kernel dispatch when `prefer_simd_k`
  */
-template <typename in_type_, typename result_type_ = typename in_type_::kld_result_t, bool allow_simd_ = true>
-void kld(in_type_ const *p, in_type_ const *q, std::size_t n, result_type_ *r) noexcept {
-    constexpr bool simd = allow_simd_ && std::is_same_v<result_type_, typename in_type_::kld_result_t>;
+template <typename in_type_, typename result_type_ = typename in_type_::kld_result_t,
+          allow_simd_t allow_simd_ = prefer_simd_k>
+void kld(in_type_ const *p, in_type_ const *q, std::size_t d, result_type_ *r) noexcept {
+    constexpr bool simd = allow_simd_ == prefer_simd_k && std::is_same_v<result_type_, typename in_type_::kld_result_t>;
 
-    if constexpr (std::is_same_v<in_type_, f64_t> && simd) nk_kld_f64(&p->raw_, &q->raw_, n, &r->raw_);
-    else if constexpr (std::is_same_v<in_type_, f32_t> && simd) nk_kld_f32(&p->raw_, &q->raw_, n, &r->raw_);
-    else if constexpr (std::is_same_v<in_type_, f16_t> && simd) nk_kld_f16(&p->raw_, &q->raw_, n, &r->raw_);
-    else if constexpr (std::is_same_v<in_type_, bf16_t> && simd) nk_kld_bf16(&p->raw_, &q->raw_, n, &r->raw_);
+    if constexpr (std::is_same_v<in_type_, f64_t> && simd) nk_kld_f64(&p->raw_, &q->raw_, d, &r->raw_);
+    else if constexpr (std::is_same_v<in_type_, f32_t> && simd) nk_kld_f32(&p->raw_, &q->raw_, d, &r->raw_);
+    else if constexpr (std::is_same_v<in_type_, f16_t> && simd) nk_kld_f16(&p->raw_, &q->raw_, d, &r->raw_);
+    else if constexpr (std::is_same_v<in_type_, bf16_t> && simd) nk_kld_bf16(&p->raw_, &q->raw_, d, &r->raw_);
     // Scalar fallback
     else {
         result_type_ sum {};
-        for (std::size_t i = 0; i < n; i++) {
+        for (std::size_t i = 0; i < d; i++) {
             result_type_ pi(p[i]), qi(q[i]);
             if (pi > result_type_(0)) sum = sum + pi * (pi / qi).log();
         }
@@ -294,23 +536,28 @@ void kld(in_type_ const *p, in_type_ const *q, std::size_t n, result_type_ *r) n
 
 /**
  *  @brief Jensen-Shannon divergence: 0.5 * (KL(p||m) + KL(q||m)) where m = (p+q)/2
+ *  @param[in] p,q First and second probability distributions
+ *  @param[in] d Number of dimensions in input vectors
+ *  @param[out] r Pointer to output divergence value
+ *
  *  @tparam in_type_ Input distribution type (probability vectors)
- *  @tparam result_type_ Accumulator type (default: f118_t for validation)
- *  @tparam allow_simd_ Enable SIMD kernel dispatch when true
+ *  @tparam result_type_ Accumulator type, defaults to `in_type_::jsd_result_t`
+ *  @tparam allow_simd_ Enable SIMD kernel dispatch when `prefer_simd_k`
  */
-template <typename in_type_, typename result_type_ = typename in_type_::jsd_result_t, bool allow_simd_ = true>
-void jsd(in_type_ const *p, in_type_ const *q, std::size_t n, result_type_ *r) noexcept {
-    constexpr bool simd = allow_simd_ && std::is_same_v<result_type_, typename in_type_::jsd_result_t>;
+template <typename in_type_, typename result_type_ = typename in_type_::jsd_result_t,
+          allow_simd_t allow_simd_ = prefer_simd_k>
+void jsd(in_type_ const *p, in_type_ const *q, std::size_t d, result_type_ *r) noexcept {
+    constexpr bool simd = allow_simd_ == prefer_simd_k && std::is_same_v<result_type_, typename in_type_::jsd_result_t>;
 
-    if constexpr (std::is_same_v<in_type_, f64_t> && simd) nk_jsd_f64(&p->raw_, &q->raw_, n, &r->raw_);
-    else if constexpr (std::is_same_v<in_type_, f32_t> && simd) nk_jsd_f32(&p->raw_, &q->raw_, n, &r->raw_);
-    else if constexpr (std::is_same_v<in_type_, f16_t> && simd) nk_jsd_f16(&p->raw_, &q->raw_, n, &r->raw_);
-    else if constexpr (std::is_same_v<in_type_, bf16_t> && simd) nk_jsd_bf16(&p->raw_, &q->raw_, n, &r->raw_);
+    if constexpr (std::is_same_v<in_type_, f64_t> && simd) nk_jsd_f64(&p->raw_, &q->raw_, d, &r->raw_);
+    else if constexpr (std::is_same_v<in_type_, f32_t> && simd) nk_jsd_f32(&p->raw_, &q->raw_, d, &r->raw_);
+    else if constexpr (std::is_same_v<in_type_, f16_t> && simd) nk_jsd_f16(&p->raw_, &q->raw_, d, &r->raw_);
+    else if constexpr (std::is_same_v<in_type_, bf16_t> && simd) nk_jsd_bf16(&p->raw_, &q->raw_, d, &r->raw_);
     // Scalar fallback
     else {
         result_type_ sum {};
         result_type_ half(0.5);
-        for (std::size_t i = 0; i < n; i++) {
+        for (std::size_t i = 0; i < d; i++) {
             result_type_ pi(p[i]), qi(q[i]);
             result_type_ mi = half * (pi + qi);
             if (pi > result_type_(0)) sum = sum + pi * (pi / mi).log();
@@ -328,138 +575,162 @@ void jsd(in_type_ const *p, in_type_ const *q, std::size_t n, result_type_ *r) n
 
 /**
  *  @brief Elementwise sum: c[i] = a[i] + b[i]
+ *  @param[in] a,b Input vectors
+ *  @param[in] d Number of dimensions in input vectors
+ *  @param[out] c Output vector
+ *
  *  @tparam in_type_ Element type
- *  @tparam allow_simd_ Enable SIMD dispatch
+ *  @tparam allow_simd_ Enable SIMD kernel dispatch when `prefer_simd_k`
  */
-template <typename in_type_, bool allow_simd_ = true>
-void sum(in_type_ const *a, in_type_ const *b, std::size_t n, in_type_ *c) noexcept {
-    constexpr bool simd = allow_simd_;
+template <typename in_type_, allow_simd_t allow_simd_ = prefer_simd_k>
+void sum(in_type_ const *a, in_type_ const *b, std::size_t d, in_type_ *c) noexcept {
+    constexpr bool simd = allow_simd_ == prefer_simd_k;
 
-    if constexpr (std::is_same_v<in_type_, f64_t> && simd) nk_sum_f64(&a->raw_, &b->raw_, n, &c->raw_);
-    else if constexpr (std::is_same_v<in_type_, f32_t> && simd) nk_sum_f32(&a->raw_, &b->raw_, n, &c->raw_);
-    else if constexpr (std::is_same_v<in_type_, f16_t> && simd) nk_sum_f16(&a->raw_, &b->raw_, n, &c->raw_);
-    else if constexpr (std::is_same_v<in_type_, bf16_t> && simd) nk_sum_bf16(&a->raw_, &b->raw_, n, &c->raw_);
-    else if constexpr (std::is_same_v<in_type_, i8_t> && simd) nk_sum_i8(&a->raw_, &b->raw_, n, &c->raw_);
-    else if constexpr (std::is_same_v<in_type_, u8_t> && simd) nk_sum_u8(&a->raw_, &b->raw_, n, &c->raw_);
-    else if constexpr (std::is_same_v<in_type_, i16_t> && simd) nk_sum_i16(&a->raw_, &b->raw_, n, &c->raw_);
-    else if constexpr (std::is_same_v<in_type_, u16_t> && simd) nk_sum_u16(&a->raw_, &b->raw_, n, &c->raw_);
-    else if constexpr (std::is_same_v<in_type_, i32_t> && simd) nk_sum_i32(&a->raw_, &b->raw_, n, &c->raw_);
-    else if constexpr (std::is_same_v<in_type_, u32_t> && simd) nk_sum_u32(&a->raw_, &b->raw_, n, &c->raw_);
-    else if constexpr (std::is_same_v<in_type_, i64_t> && simd) nk_sum_i64(&a->raw_, &b->raw_, n, &c->raw_);
-    else if constexpr (std::is_same_v<in_type_, u64_t> && simd) nk_sum_u64(&a->raw_, &b->raw_, n, &c->raw_);
+    if constexpr (std::is_same_v<in_type_, f64_t> && simd) nk_sum_f64(&a->raw_, &b->raw_, d, &c->raw_);
+    else if constexpr (std::is_same_v<in_type_, f32_t> && simd) nk_sum_f32(&a->raw_, &b->raw_, d, &c->raw_);
+    else if constexpr (std::is_same_v<in_type_, f16_t> && simd) nk_sum_f16(&a->raw_, &b->raw_, d, &c->raw_);
+    else if constexpr (std::is_same_v<in_type_, bf16_t> && simd) nk_sum_bf16(&a->raw_, &b->raw_, d, &c->raw_);
+    else if constexpr (std::is_same_v<in_type_, i8_t> && simd) nk_sum_i8(&a->raw_, &b->raw_, d, &c->raw_);
+    else if constexpr (std::is_same_v<in_type_, u8_t> && simd) nk_sum_u8(&a->raw_, &b->raw_, d, &c->raw_);
+    else if constexpr (std::is_same_v<in_type_, i16_t> && simd) nk_sum_i16(&a->raw_, &b->raw_, d, &c->raw_);
+    else if constexpr (std::is_same_v<in_type_, u16_t> && simd) nk_sum_u16(&a->raw_, &b->raw_, d, &c->raw_);
+    else if constexpr (std::is_same_v<in_type_, i32_t> && simd) nk_sum_i32(&a->raw_, &b->raw_, d, &c->raw_);
+    else if constexpr (std::is_same_v<in_type_, u32_t> && simd) nk_sum_u32(&a->raw_, &b->raw_, d, &c->raw_);
+    else if constexpr (std::is_same_v<in_type_, i64_t> && simd) nk_sum_i64(&a->raw_, &b->raw_, d, &c->raw_);
+    else if constexpr (std::is_same_v<in_type_, u64_t> && simd) nk_sum_u64(&a->raw_, &b->raw_, d, &c->raw_);
     // Scalar fallback
     else {
-        for (std::size_t i = 0; i < n; i++) c[i] = a[i].saturating_add(b[i]);
+        for (std::size_t i = 0; i < d; i++) c[i] = a[i].saturating_add(b[i]);
     }
 }
 
 /**
  *  @brief Elementwise scale: c[i] = alpha * a[i] + beta
+ *  @param[in] a Input vector
+ *  @param[in] d Number of dimensions in input vector
+ *  @param[in] alpha,beta Scale and shift coefficients
+ *  @param[out] c Output vector
+ *
  *  @tparam in_type_ Element type
- *  @tparam scale_type_ Scalar type for alpha/beta
- *  @tparam allow_simd_ Enable SIMD dispatch
+ *  @tparam precision_type_ Precision type for scalar fallback computations, defaults to `in_type_`
+ *  @tparam allow_simd_ Enable SIMD kernel dispatch when `prefer_simd_k`
  */
-template <typename in_type_, typename scale_type_ = typename in_type_::scale_t, bool allow_simd_ = true>
-void scale(in_type_ const *a, std::size_t n, scale_type_ const *alpha, scale_type_ const *beta, in_type_ *c) noexcept {
-    constexpr bool simd = allow_simd_ && std::is_same_v<scale_type_, typename in_type_::scale_t>;
+template <typename in_type_, typename precision_type_ = in_type_, allow_simd_t allow_simd_ = prefer_simd_k>
+void scale(in_type_ const *a, std::size_t d, typename in_type_::scale_t const *alpha,
+           typename in_type_::scale_t const *beta, in_type_ *c) noexcept {
+    constexpr bool simd = allow_simd_ == prefer_simd_k && std::is_same_v<precision_type_, in_type_>;
 
-    if constexpr (std::is_same_v<in_type_, f64_t> && simd) nk_scale_f64(&a->raw_, n, alpha, beta, &c->raw_);
-    else if constexpr (std::is_same_v<in_type_, f32_t> && simd) nk_scale_f32(&a->raw_, n, alpha, beta, &c->raw_);
-    else if constexpr (std::is_same_v<in_type_, f16_t> && simd) nk_scale_f16(&a->raw_, n, alpha, beta, &c->raw_);
-    else if constexpr (std::is_same_v<in_type_, bf16_t> && simd) nk_scale_bf16(&a->raw_, n, alpha, beta, &c->raw_);
-    else if constexpr (std::is_same_v<in_type_, i8_t> && simd) nk_scale_i8(&a->raw_, n, alpha, beta, &c->raw_);
-    else if constexpr (std::is_same_v<in_type_, u8_t> && simd) nk_scale_u8(&a->raw_, n, alpha, beta, &c->raw_);
-    else if constexpr (std::is_same_v<in_type_, i16_t> && simd) nk_scale_i16(&a->raw_, n, alpha, beta, &c->raw_);
-    else if constexpr (std::is_same_v<in_type_, u16_t> && simd) nk_scale_u16(&a->raw_, n, alpha, beta, &c->raw_);
-    else if constexpr (std::is_same_v<in_type_, i32_t> && simd) nk_scale_i32(&a->raw_, n, alpha, beta, &c->raw_);
-    else if constexpr (std::is_same_v<in_type_, u32_t> && simd) nk_scale_u32(&a->raw_, n, alpha, beta, &c->raw_);
-    else if constexpr (std::is_same_v<in_type_, i64_t> && simd) nk_scale_i64(&a->raw_, n, alpha, beta, &c->raw_);
-    else if constexpr (std::is_same_v<in_type_, u64_t> && simd) nk_scale_u64(&a->raw_, n, alpha, beta, &c->raw_);
-    // Scalar fallback
+    if constexpr (std::is_same_v<in_type_, f64_t> && simd) nk_scale_f64(&a->raw_, d, alpha, beta, &c->raw_);
+    else if constexpr (std::is_same_v<in_type_, f32_t> && simd) nk_scale_f32(&a->raw_, d, alpha, beta, &c->raw_);
+    else if constexpr (std::is_same_v<in_type_, f16_t> && simd) nk_scale_f16(&a->raw_, d, alpha, beta, &c->raw_);
+    else if constexpr (std::is_same_v<in_type_, bf16_t> && simd) nk_scale_bf16(&a->raw_, d, alpha, beta, &c->raw_);
+    else if constexpr (std::is_same_v<in_type_, i8_t> && simd) nk_scale_i8(&a->raw_, d, alpha, beta, &c->raw_);
+    else if constexpr (std::is_same_v<in_type_, u8_t> && simd) nk_scale_u8(&a->raw_, d, alpha, beta, &c->raw_);
+    else if constexpr (std::is_same_v<in_type_, i16_t> && simd) nk_scale_i16(&a->raw_, d, alpha, beta, &c->raw_);
+    else if constexpr (std::is_same_v<in_type_, u16_t> && simd) nk_scale_u16(&a->raw_, d, alpha, beta, &c->raw_);
+    else if constexpr (std::is_same_v<in_type_, i32_t> && simd) nk_scale_i32(&a->raw_, d, alpha, beta, &c->raw_);
+    else if constexpr (std::is_same_v<in_type_, u32_t> && simd) nk_scale_u32(&a->raw_, d, alpha, beta, &c->raw_);
+    else if constexpr (std::is_same_v<in_type_, i64_t> && simd) nk_scale_i64(&a->raw_, d, alpha, beta, &c->raw_);
+    else if constexpr (std::is_same_v<in_type_, u64_t> && simd) nk_scale_u64(&a->raw_, d, alpha, beta, &c->raw_);
+    // Scalar fallback with high-precision intermediates
     else {
-        for (std::size_t i = 0; i < n; i++) c[i] = in_type_(scale_type_(a[i]) * (*alpha) + (*beta));
+        for (std::size_t i = 0; i < d; i++)
+            c[i] = (precision_type_(a[i]) * precision_type_(*alpha) + precision_type_(*beta)).template to<in_type_>();
     }
 }
 
 /**
  *  @brief Weighted sum: c[i] = alpha * a[i] + beta * b[i]
+ *  @param[in] a,b Input vectors
+ *  @param[in] d Number of dimensions in input vectors
+ *  @param[in] alpha,beta Weight coefficients
+ *  @param[out] c Output vector
+ *
  *  @tparam in_type_ Element type
- *  @tparam scale_type_ Scalar type for alpha/beta
- *  @tparam allow_simd_ Enable SIMD dispatch
+ *  @tparam precision_type_ Precision type for scalar fallback computations, defaults to `in_type_`
+ *  @tparam allow_simd_ Enable SIMD kernel dispatch when `prefer_simd_k`
  */
-template <typename in_type_, typename scale_type_ = typename in_type_::scale_t, bool allow_simd_ = true>
-void wsum(in_type_ const *a, in_type_ const *b, std::size_t n, scale_type_ const *alpha, scale_type_ const *beta,
-          in_type_ *c) noexcept {
-    constexpr bool simd = allow_simd_ && std::is_same_v<scale_type_, typename in_type_::scale_t>;
+template <typename in_type_, typename precision_type_ = in_type_, allow_simd_t allow_simd_ = prefer_simd_k>
+void wsum(in_type_ const *a, in_type_ const *b, std::size_t d, typename in_type_::scale_t const *alpha,
+          typename in_type_::scale_t const *beta, in_type_ *c) noexcept {
+    constexpr bool simd = allow_simd_ == prefer_simd_k && std::is_same_v<precision_type_, in_type_>;
 
-    if constexpr (std::is_same_v<in_type_, f64_t> && simd) nk_wsum_f64(&a->raw_, &b->raw_, n, alpha, beta, &c->raw_);
+    if constexpr (std::is_same_v<in_type_, f64_t> && simd) nk_wsum_f64(&a->raw_, &b->raw_, d, alpha, beta, &c->raw_);
     else if constexpr (std::is_same_v<in_type_, f32_t> && simd)
-        nk_wsum_f32(&a->raw_, &b->raw_, n, alpha, beta, &c->raw_);
+        nk_wsum_f32(&a->raw_, &b->raw_, d, alpha, beta, &c->raw_);
     else if constexpr (std::is_same_v<in_type_, f16_t> && simd)
-        nk_wsum_f16(&a->raw_, &b->raw_, n, alpha, beta, &c->raw_);
+        nk_wsum_f16(&a->raw_, &b->raw_, d, alpha, beta, &c->raw_);
     else if constexpr (std::is_same_v<in_type_, bf16_t> && simd)
-        nk_wsum_bf16(&a->raw_, &b->raw_, n, alpha, beta, &c->raw_);
-    else if constexpr (std::is_same_v<in_type_, i8_t> && simd) nk_wsum_i8(&a->raw_, &b->raw_, n, alpha, beta, &c->raw_);
-    else if constexpr (std::is_same_v<in_type_, u8_t> && simd) nk_wsum_u8(&a->raw_, &b->raw_, n, alpha, beta, &c->raw_);
+        nk_wsum_bf16(&a->raw_, &b->raw_, d, alpha, beta, &c->raw_);
+    else if constexpr (std::is_same_v<in_type_, i8_t> && simd) nk_wsum_i8(&a->raw_, &b->raw_, d, alpha, beta, &c->raw_);
+    else if constexpr (std::is_same_v<in_type_, u8_t> && simd) nk_wsum_u8(&a->raw_, &b->raw_, d, alpha, beta, &c->raw_);
     else if constexpr (std::is_same_v<in_type_, i16_t> && simd)
-        nk_wsum_i16(&a->raw_, &b->raw_, n, alpha, beta, &c->raw_);
+        nk_wsum_i16(&a->raw_, &b->raw_, d, alpha, beta, &c->raw_);
     else if constexpr (std::is_same_v<in_type_, u16_t> && simd)
-        nk_wsum_u16(&a->raw_, &b->raw_, n, alpha, beta, &c->raw_);
+        nk_wsum_u16(&a->raw_, &b->raw_, d, alpha, beta, &c->raw_);
     else if constexpr (std::is_same_v<in_type_, i32_t> && simd)
-        nk_wsum_i32(&a->raw_, &b->raw_, n, alpha, beta, &c->raw_);
+        nk_wsum_i32(&a->raw_, &b->raw_, d, alpha, beta, &c->raw_);
     else if constexpr (std::is_same_v<in_type_, u32_t> && simd)
-        nk_wsum_u32(&a->raw_, &b->raw_, n, alpha, beta, &c->raw_);
+        nk_wsum_u32(&a->raw_, &b->raw_, d, alpha, beta, &c->raw_);
     else if constexpr (std::is_same_v<in_type_, i64_t> && simd)
-        nk_wsum_i64(&a->raw_, &b->raw_, n, alpha, beta, &c->raw_);
+        nk_wsum_i64(&a->raw_, &b->raw_, d, alpha, beta, &c->raw_);
     else if constexpr (std::is_same_v<in_type_, u64_t> && simd)
-        nk_wsum_u64(&a->raw_, &b->raw_, n, alpha, beta, &c->raw_);
-    // Scalar fallback
+        nk_wsum_u64(&a->raw_, &b->raw_, d, alpha, beta, &c->raw_);
+    // Scalar fallback with high-precision intermediates
     else {
-        for (std::size_t i = 0; i < n; i++) {
-            c[i] = in_type_(scale_type_(a[i]) * (*alpha) + scale_type_(b[i]) * (*beta));
+        for (std::size_t i = 0; i < d; i++) {
+            c[i] = (precision_type_(a[i]) * precision_type_(*alpha) + precision_type_(b[i]) * precision_type_(*beta))
+                       .template to<in_type_>();
         }
     }
 }
 
 /**
- *  @brief Elementwise fused multiply-add: d[i] = alpha * a[i] * b[i] + beta * c[i]
+ *  @brief Elementwise fused multiply-add: out[i] = alpha * a[i] * b[i] + beta * c[i]
+ *  @param[in] a,b,c Input vectors
+ *  @param[in] d Number of dimensions in input vectors
+ *  @param[in] alpha,beta Coefficients
+ *  @param[out] out Output vector
+ *
  *  @tparam in_type_ Element type
- *  @tparam scale_type_ Scalar type for alpha/beta
- *  @tparam allow_simd_ Enable SIMD dispatch
+ *  @tparam precision_type_ Precision type for scalar fallback computations, defaults to `in_type_`
+ *  @tparam allow_simd_ Enable SIMD kernel dispatch when `prefer_simd_k`
  */
-template <typename in_type_, typename scale_type_ = typename in_type_::scale_t, bool allow_simd_ = true>
-void fma(in_type_ const *a, in_type_ const *b, std::size_t n, in_type_ const *c, scale_type_ const *alpha,
-         scale_type_ const *beta, in_type_ *d) noexcept {
-    constexpr bool simd = allow_simd_ && std::is_same_v<scale_type_, typename in_type_::scale_t>;
+template <typename in_type_, typename precision_type_ = in_type_, allow_simd_t allow_simd_ = prefer_simd_k>
+void fma(in_type_ const *a, in_type_ const *b, std::size_t d, in_type_ const *c,
+         typename in_type_::scale_t const *alpha, typename in_type_::scale_t const *beta, in_type_ *out) noexcept {
+    constexpr bool simd = allow_simd_ == prefer_simd_k && std::is_same_v<precision_type_, in_type_>;
 
     if constexpr (std::is_same_v<in_type_, f64_t> && simd)
-        nk_fma_f64(&a->raw_, &b->raw_, &c->raw_, n, alpha, beta, &d->raw_);
+        nk_fma_f64(&a->raw_, &b->raw_, &c->raw_, d, alpha, beta, &out->raw_);
     else if constexpr (std::is_same_v<in_type_, f32_t> && simd)
-        nk_fma_f32(&a->raw_, &b->raw_, &c->raw_, n, alpha, beta, &d->raw_);
+        nk_fma_f32(&a->raw_, &b->raw_, &c->raw_, d, alpha, beta, &out->raw_);
     else if constexpr (std::is_same_v<in_type_, f16_t> && simd)
-        nk_fma_f16(&a->raw_, &b->raw_, &c->raw_, n, alpha, beta, &d->raw_);
+        nk_fma_f16(&a->raw_, &b->raw_, &c->raw_, d, alpha, beta, &out->raw_);
     else if constexpr (std::is_same_v<in_type_, bf16_t> && simd)
-        nk_fma_bf16(&a->raw_, &b->raw_, &c->raw_, n, alpha, beta, &d->raw_);
+        nk_fma_bf16(&a->raw_, &b->raw_, &c->raw_, d, alpha, beta, &out->raw_);
     else if constexpr (std::is_same_v<in_type_, i8_t> && simd)
-        nk_fma_i8(&a->raw_, &b->raw_, &c->raw_, n, alpha, beta, &d->raw_);
+        nk_fma_i8(&a->raw_, &b->raw_, &c->raw_, d, alpha, beta, &out->raw_);
     else if constexpr (std::is_same_v<in_type_, u8_t> && simd)
-        nk_fma_u8(&a->raw_, &b->raw_, &c->raw_, n, alpha, beta, &d->raw_);
+        nk_fma_u8(&a->raw_, &b->raw_, &c->raw_, d, alpha, beta, &out->raw_);
     else if constexpr (std::is_same_v<in_type_, i16_t> && simd)
-        nk_fma_i16(&a->raw_, &b->raw_, &c->raw_, n, alpha, beta, &d->raw_);
+        nk_fma_i16(&a->raw_, &b->raw_, &c->raw_, d, alpha, beta, &out->raw_);
     else if constexpr (std::is_same_v<in_type_, u16_t> && simd)
-        nk_fma_u16(&a->raw_, &b->raw_, &c->raw_, n, alpha, beta, &d->raw_);
+        nk_fma_u16(&a->raw_, &b->raw_, &c->raw_, d, alpha, beta, &out->raw_);
     else if constexpr (std::is_same_v<in_type_, i32_t> && simd)
-        nk_fma_i32(&a->raw_, &b->raw_, &c->raw_, n, alpha, beta, &d->raw_);
+        nk_fma_i32(&a->raw_, &b->raw_, &c->raw_, d, alpha, beta, &out->raw_);
     else if constexpr (std::is_same_v<in_type_, u32_t> && simd)
-        nk_fma_u32(&a->raw_, &b->raw_, &c->raw_, n, alpha, beta, &d->raw_);
+        nk_fma_u32(&a->raw_, &b->raw_, &c->raw_, d, alpha, beta, &out->raw_);
     else if constexpr (std::is_same_v<in_type_, i64_t> && simd)
-        nk_fma_i64(&a->raw_, &b->raw_, &c->raw_, n, alpha, beta, &d->raw_);
+        nk_fma_i64(&a->raw_, &b->raw_, &c->raw_, d, alpha, beta, &out->raw_);
     else if constexpr (std::is_same_v<in_type_, u64_t> && simd)
-        nk_fma_u64(&a->raw_, &b->raw_, &c->raw_, n, alpha, beta, &d->raw_);
-    // Scalar fallback
+        nk_fma_u64(&a->raw_, &b->raw_, &c->raw_, d, alpha, beta, &out->raw_);
+    // Scalar fallback with high-precision intermediates
     else {
-        for (std::size_t i = 0; i < n; i++) {
-            d[i] = in_type_(scale_type_(a[i]) * scale_type_(b[i]) * (*alpha) + scale_type_(c[i]) * (*beta));
+        for (std::size_t i = 0; i < d; i++) {
+            out[i] = (precision_type_(a[i]) * precision_type_(b[i]) * precision_type_(*alpha) +
+                      precision_type_(c[i]) * precision_type_(*beta))
+                         .template to<in_type_>();
         }
     }
 }
@@ -470,18 +741,20 @@ void fma(in_type_ const *a, in_type_ const *b, std::size_t n, in_type_ const *c,
 
 /**
  *  @brief Sum all elements: sum(data[i])
- *  @tparam in_type_ Input vector element type
- *  @tparam result_type_ Accumulator type (default: in_type_::reduce_add_result_t, often widened)
- *  @tparam allow_simd_ Enable SIMD kernel dispatch when true
+ *  @param[in] data Input array
+ *  @param[in] count Number of elements
+ *  @param[in] stride_bytes Stride between elements in bytes (use sizeof(in_type_) for contiguous)
+ *  @param[out] result Output sum
  *
- *  @param data Input array
- *  @param count Number of elements
- *  @param stride_bytes Stride between elements in bytes (use sizeof(in_type_) for contiguous)
- *  @param result Output sum
+ *  @tparam in_type_ Input vector element type
+ *  @tparam result_type_ Accumulator type, defaults to `in_type_::reduce_add_result_t` (often widened)
+ *  @tparam allow_simd_ Enable SIMD kernel dispatch when `prefer_simd_k`
  */
-template <typename in_type_, typename result_type_ = typename in_type_::reduce_add_result_t, bool allow_simd_ = true>
+template <typename in_type_, typename result_type_ = typename in_type_::reduce_add_result_t,
+          allow_simd_t allow_simd_ = prefer_simd_k>
 void reduce_add(in_type_ const *data, std::size_t count, std::size_t stride_bytes, result_type_ *result) noexcept {
-    constexpr bool simd = allow_simd_ && std::is_same_v<result_type_, typename in_type_::reduce_add_result_t>;
+    constexpr bool simd = allow_simd_ == prefer_simd_k &&
+                          std::is_same_v<result_type_, typename in_type_::reduce_add_result_t>;
 
     if constexpr (std::is_same_v<in_type_, f64_t> && simd)
         nk_reduce_add_f64(&data->raw_, count, stride_bytes, &result->raw_);
@@ -523,53 +796,51 @@ void reduce_add(in_type_ const *data, std::size_t count, std::size_t stride_byte
 
 /**
  *  @brief Find minimum element and its index: argmin(data[i])
+ *  @param[in] data Input array
+ *  @param[in] count Number of elements
+ *  @param[in] stride_bytes Stride between elements in bytes (use sizeof(in_type_) for contiguous)
+ *  @param[out] min_value Output minimum value
+ *  @param[out] min_index Output index of minimum value
+ *
  *  @tparam in_type_ Input vector element type
- *  @tparam result_type_ Result type for the minimum value (f32_t for half-precision inputs)
- *  @tparam allow_simd_ Enable SIMD kernel dispatch when true
- *
- *  @param data Input array
- *  @param count Number of elements
- *  @param stride_bytes Stride between elements in bytes (use sizeof(in_type_) for contiguous)
- *  @param min_value Output minimum value
- *  @param min_index Output index of minimum value
- *
- *  @note For f16_t, bf16_t, e4m3_t, e5m2_t inputs, result_type_ must be f32_t for SIMD dispatch
+ *  @tparam allow_simd_ Enable SIMD kernel dispatch when `prefer_simd_k`
  */
-template <typename in_type_, bool allow_simd_ = true>
+template <typename in_type_, allow_simd_t allow_simd_ = prefer_simd_k>
 void reduce_min(in_type_ const *data, std::size_t count, std::size_t stride_bytes, in_type_ *min_value,
                 std::size_t *min_index) noexcept {
+    constexpr bool simd = allow_simd_ == prefer_simd_k;
 
-    if constexpr (std::is_same_v<in_type_, f64_t> && allow_simd_)
+    if constexpr (std::is_same_v<in_type_, f64_t> && simd)
         nk_reduce_min_f64(&data->raw_, count, stride_bytes, &min_value->raw_, min_index);
-    else if constexpr (std::is_same_v<in_type_, f32_t> && allow_simd_)
+    else if constexpr (std::is_same_v<in_type_, f32_t> && simd)
         nk_reduce_min_f32(&data->raw_, count, stride_bytes, &min_value->raw_, min_index);
-    else if constexpr (std::is_same_v<in_type_, f16_t> && allow_simd_)
+    else if constexpr (std::is_same_v<in_type_, f16_t> && simd)
         nk_reduce_min_f16(&data->raw_, count, stride_bytes, &min_value->raw_, min_index);
-    else if constexpr (std::is_same_v<in_type_, bf16_t> && allow_simd_)
+    else if constexpr (std::is_same_v<in_type_, bf16_t> && simd)
         nk_reduce_min_bf16(&data->raw_, count, stride_bytes, &min_value->raw_, min_index);
-    else if constexpr (std::is_same_v<in_type_, e4m3_t> && allow_simd_)
+    else if constexpr (std::is_same_v<in_type_, e4m3_t> && simd)
         nk_reduce_min_e4m3(&data->raw_, count, stride_bytes, &min_value->raw_, min_index);
-    else if constexpr (std::is_same_v<in_type_, e5m2_t> && allow_simd_)
+    else if constexpr (std::is_same_v<in_type_, e5m2_t> && simd)
         nk_reduce_min_e5m2(&data->raw_, count, stride_bytes, &min_value->raw_, min_index);
-    else if constexpr (std::is_same_v<in_type_, i8_t> && allow_simd_)
+    else if constexpr (std::is_same_v<in_type_, i8_t> && simd)
         nk_reduce_min_i8(&data->raw_, count, stride_bytes, &min_value->raw_, min_index);
-    else if constexpr (std::is_same_v<in_type_, u8_t> && allow_simd_)
+    else if constexpr (std::is_same_v<in_type_, u8_t> && simd)
         nk_reduce_min_u8(&data->raw_, count, stride_bytes, &min_value->raw_, min_index);
-    else if constexpr (std::is_same_v<in_type_, i16_t> && allow_simd_)
+    else if constexpr (std::is_same_v<in_type_, i16_t> && simd)
         nk_reduce_min_i16(&data->raw_, count, stride_bytes, &min_value->raw_, min_index);
-    else if constexpr (std::is_same_v<in_type_, u16_t> && allow_simd_)
+    else if constexpr (std::is_same_v<in_type_, u16_t> && simd)
         nk_reduce_min_u16(&data->raw_, count, stride_bytes, &min_value->raw_, min_index);
-    else if constexpr (std::is_same_v<in_type_, i32_t> && allow_simd_)
+    else if constexpr (std::is_same_v<in_type_, i32_t> && simd)
         nk_reduce_min_i32(&data->raw_, count, stride_bytes, &min_value->raw_, min_index);
-    else if constexpr (std::is_same_v<in_type_, u32_t> && allow_simd_)
+    else if constexpr (std::is_same_v<in_type_, u32_t> && simd)
         nk_reduce_min_u32(&data->raw_, count, stride_bytes, &min_value->raw_, min_index);
-    else if constexpr (std::is_same_v<in_type_, i64_t> && allow_simd_)
+    else if constexpr (std::is_same_v<in_type_, i64_t> && simd)
         nk_reduce_min_i64(&data->raw_, count, stride_bytes, &min_value->raw_, min_index);
-    else if constexpr (std::is_same_v<in_type_, u64_t> && allow_simd_)
+    else if constexpr (std::is_same_v<in_type_, u64_t> && simd)
         nk_reduce_min_u64(&data->raw_, count, stride_bytes, &min_value->raw_, min_index);
     // Scalar fallback
     else {
-        in_type_ best_value = in_type_::max();
+        in_type_ best_value = in_type_::finite_max();
         std::size_t best_index = 0;
         auto const *ptr = reinterpret_cast<std::byte const *>(data);
         for (std::size_t i = 0; i < count; i++, ptr += stride_bytes) {
@@ -583,53 +854,52 @@ void reduce_min(in_type_ const *data, std::size_t count, std::size_t stride_byte
 
 /**
  *  @brief Find maximum element and its index: argmax(data[i])
+ *  @param[in] data Input array
+ *  @param[in] count Number of elements
+ *  @param[in] stride_bytes Stride between elements in bytes (use sizeof(in_type_) for contiguous)
+ *  @param[out] max_value Output maximum value
+ *  @param[out] max_index Output index of maximum value
+ *
  *  @tparam in_type_ Input vector element type
- *  @tparam result_type_ Result type for the maximum value (f32_t for half-precision inputs)
- *  @tparam allow_simd_ Enable SIMD kernel dispatch when true
- *
- *  @param data Input array
- *  @param count Number of elements
- *  @param stride_bytes Stride between elements in bytes (use sizeof(in_type_) for contiguous)
- *  @param max_value Output maximum value
- *  @param max_index Output index of maximum value
- *
- *  @note For f16_t, bf16_t, e4m3_t, e5m2_t inputs, result_type_ must be f32_t for SIMD dispatch
+ *  @tparam result_type_ Result type for the maximum value, defaults to `in_type_`
+ *  @tparam allow_simd_ Enable SIMD kernel dispatch when `prefer_simd_k`
  */
-template <typename in_type_, typename result_type_ = in_type_, bool allow_simd_ = true>
+template <typename in_type_, typename result_type_ = in_type_, allow_simd_t allow_simd_ = prefer_simd_k>
 void reduce_max(in_type_ const *data, std::size_t count, std::size_t stride_bytes, result_type_ *max_value,
                 std::size_t *max_index) noexcept {
+    constexpr bool simd = allow_simd_ == prefer_simd_k;
 
-    if constexpr (std::is_same_v<in_type_, f64_t> && allow_simd_)
+    if constexpr (std::is_same_v<in_type_, f64_t> && simd)
         nk_reduce_max_f64(&data->raw_, count, stride_bytes, &max_value->raw_, max_index);
-    else if constexpr (std::is_same_v<in_type_, f32_t> && allow_simd_)
+    else if constexpr (std::is_same_v<in_type_, f32_t> && simd)
         nk_reduce_max_f32(&data->raw_, count, stride_bytes, &max_value->raw_, max_index);
-    else if constexpr (std::is_same_v<in_type_, f16_t> && allow_simd_)
+    else if constexpr (std::is_same_v<in_type_, f16_t> && simd)
         nk_reduce_max_f16(&data->raw_, count, stride_bytes, &max_value->raw_, max_index);
-    else if constexpr (std::is_same_v<in_type_, bf16_t> && allow_simd_)
+    else if constexpr (std::is_same_v<in_type_, bf16_t> && simd)
         nk_reduce_max_bf16(&data->raw_, count, stride_bytes, &max_value->raw_, max_index);
-    else if constexpr (std::is_same_v<in_type_, e4m3_t> && allow_simd_)
+    else if constexpr (std::is_same_v<in_type_, e4m3_t> && simd)
         nk_reduce_max_e4m3(&data->raw_, count, stride_bytes, &max_value->raw_, max_index);
-    else if constexpr (std::is_same_v<in_type_, e5m2_t> && allow_simd_)
+    else if constexpr (std::is_same_v<in_type_, e5m2_t> && simd)
         nk_reduce_max_e5m2(&data->raw_, count, stride_bytes, &max_value->raw_, max_index);
-    else if constexpr (std::is_same_v<in_type_, i8_t> && allow_simd_)
+    else if constexpr (std::is_same_v<in_type_, i8_t> && simd)
         nk_reduce_max_i8(&data->raw_, count, stride_bytes, &max_value->raw_, max_index);
-    else if constexpr (std::is_same_v<in_type_, u8_t> && allow_simd_)
+    else if constexpr (std::is_same_v<in_type_, u8_t> && simd)
         nk_reduce_max_u8(&data->raw_, count, stride_bytes, &max_value->raw_, max_index);
-    else if constexpr (std::is_same_v<in_type_, i16_t> && allow_simd_)
+    else if constexpr (std::is_same_v<in_type_, i16_t> && simd)
         nk_reduce_max_i16(&data->raw_, count, stride_bytes, &max_value->raw_, max_index);
-    else if constexpr (std::is_same_v<in_type_, u16_t> && allow_simd_)
+    else if constexpr (std::is_same_v<in_type_, u16_t> && simd)
         nk_reduce_max_u16(&data->raw_, count, stride_bytes, &max_value->raw_, max_index);
-    else if constexpr (std::is_same_v<in_type_, i32_t> && allow_simd_)
+    else if constexpr (std::is_same_v<in_type_, i32_t> && simd)
         nk_reduce_max_i32(&data->raw_, count, stride_bytes, &max_value->raw_, max_index);
-    else if constexpr (std::is_same_v<in_type_, u32_t> && allow_simd_)
+    else if constexpr (std::is_same_v<in_type_, u32_t> && simd)
         nk_reduce_max_u32(&data->raw_, count, stride_bytes, &max_value->raw_, max_index);
-    else if constexpr (std::is_same_v<in_type_, i64_t> && allow_simd_)
+    else if constexpr (std::is_same_v<in_type_, i64_t> && simd)
         nk_reduce_max_i64(&data->raw_, count, stride_bytes, &max_value->raw_, max_index);
-    else if constexpr (std::is_same_v<in_type_, u64_t> && allow_simd_)
+    else if constexpr (std::is_same_v<in_type_, u64_t> && simd)
         nk_reduce_max_u64(&data->raw_, count, stride_bytes, &max_value->raw_, max_index);
     // Scalar fallback
     else {
-        in_type_ best_value = in_type_::min();
+        in_type_ best_value = in_type_::finite_min();
         std::size_t best_index = 0;
         auto const *ptr = reinterpret_cast<std::byte const *>(data);
         for (std::size_t i = 0; i < count; i++, ptr += stride_bytes) {
@@ -646,39 +916,47 @@ void reduce_max(in_type_ const *data, std::size_t count, std::size_t stride_byte
 #pragma region Curved Kernels
 
 /**
- *  @brief Bilinear form: a^T * C * b where C is an n×n matrix (row-major)
+ *  @brief Bilinear form: aᵀ × C × b where C is a d×d matrix (row-major)
+ *  @param[in] a,b Input vectors of length d
+ *  @param[in] c Matrix of size d×d (row-major)
+ *  @param[in] d Number of dimensions
+ *  @param[out] r Pointer to output value
+ *
  *  @tparam in_type_ Input vector element type (real or complex)
- *  @tparam result_type_ Accumulator type (default: in_type_::bilinear_result_t)
- *  @tparam allow_simd_ Enable SIMD kernel dispatch when true
+ *  @tparam result_type_ Accumulator type, defaults to `in_type_::bilinear_result_t`
+ *  @tparam allow_simd_ Enable SIMD kernel dispatch when `prefer_simd_k`
+ *
  *  @note For weighted inner products, Mahalanobis distance, etc.
  */
-template <typename in_type_, typename result_type_ = typename in_type_::bilinear_result_t, bool allow_simd_ = true>
-void bilinear(in_type_ const *a, in_type_ const *b, in_type_ const *c, std::size_t n, result_type_ *r) noexcept {
-    constexpr bool simd = allow_simd_ && std::is_same_v<result_type_, typename in_type_::bilinear_result_t>;
+template <typename in_type_, typename result_type_ = typename in_type_::bilinear_result_t,
+          allow_simd_t allow_simd_ = prefer_simd_k>
+void bilinear(in_type_ const *a, in_type_ const *b, in_type_ const *c, std::size_t d, result_type_ *r) noexcept {
+    constexpr bool simd = allow_simd_ == prefer_simd_k &&
+                          std::is_same_v<result_type_, typename in_type_::bilinear_result_t>;
 
     // Real types
-    if constexpr (std::is_same_v<in_type_, f64_t> && simd) nk_bilinear_f64(&a->raw_, &b->raw_, &c->raw_, n, &r->raw_);
+    if constexpr (std::is_same_v<in_type_, f64_t> && simd) nk_bilinear_f64(&a->raw_, &b->raw_, &c->raw_, d, &r->raw_);
     else if constexpr (std::is_same_v<in_type_, f32_t> && simd)
-        nk_bilinear_f32(&a->raw_, &b->raw_, &c->raw_, n, &r->raw_);
+        nk_bilinear_f32(&a->raw_, &b->raw_, &c->raw_, d, &r->raw_);
     else if constexpr (std::is_same_v<in_type_, f16_t> && simd)
-        nk_bilinear_f16(&a->raw_, &b->raw_, &c->raw_, n, &r->raw_);
+        nk_bilinear_f16(&a->raw_, &b->raw_, &c->raw_, d, &r->raw_);
     else if constexpr (std::is_same_v<in_type_, bf16_t> && simd)
-        nk_bilinear_bf16(&a->raw_, &b->raw_, &c->raw_, n, &r->raw_);
+        nk_bilinear_bf16(&a->raw_, &b->raw_, &c->raw_, d, &r->raw_);
     // Complex types
     else if constexpr (std::is_same_v<in_type_, f64c_t> && simd)
-        nk_bilinear_f64c(&a->raw_, &b->raw_, &c->raw_, n, &r->raw_);
+        nk_bilinear_f64c(&a->raw_, &b->raw_, &c->raw_, d, &r->raw_);
     else if constexpr (std::is_same_v<in_type_, f32c_t> && simd)
-        nk_bilinear_f32c(&a->raw_, &b->raw_, &c->raw_, n, &r->raw_);
+        nk_bilinear_f32c(&a->raw_, &b->raw_, &c->raw_, d, &r->raw_);
     else if constexpr (std::is_same_v<in_type_, f16c_t> && simd)
-        nk_bilinear_f16c(&a->raw_, &b->raw_, &c->raw_, n, &r->raw_);
+        nk_bilinear_f16c(&a->raw_, &b->raw_, &c->raw_, d, &r->raw_);
     else if constexpr (std::is_same_v<in_type_, bf16c_t> && simd)
-        nk_bilinear_bf16c(&a->raw_, &b->raw_, &c->raw_, n, &r->raw_);
+        nk_bilinear_bf16c(&a->raw_, &b->raw_, &c->raw_, d, &r->raw_);
     // Scalar fallback
     else {
         result_type_ sum {};
-        for (std::size_t i = 0; i < n; i++) {
-            for (std::size_t j = 0; j < n; j++) {
-                sum = sum + result_type_(a[i]) * result_type_(c[i * n + j]) * result_type_(b[j]);
+        for (std::size_t i = 0; i < d; i++) {
+            for (std::size_t j = 0; j < d; j++) {
+                sum = sum + result_type_(a[i]) * result_type_(c[i * d + j]) * result_type_(b[j]);
             }
         }
         *r = sum;
@@ -686,31 +964,38 @@ void bilinear(in_type_ const *a, in_type_ const *b, in_type_ const *c, std::size
 }
 
 /**
- *  @brief Mahalanobis distance: sqrt((a-b)^T * C * (a-b)) where C is an n×n matrix (row-major)
+ *  @brief Mahalanobis distance: √((a−b)ᵀ × C × (a−b)) where C is a d×d matrix (row-major)
+ *  @param[in] a,b Input vectors of length d
+ *  @param[in] c Covariance matrix of size d×d (row-major)
+ *  @param[in] d Number of dimensions
+ *  @param[out] r Pointer to output distance value
+ *
  *  @tparam in_type_ Input vector element type
- *  @tparam result_type_ Accumulator type (default: in_type_::mahalanobis_result_t)
- *  @tparam allow_simd_ Enable SIMD kernel dispatch when true
+ *  @tparam result_type_ Accumulator type, defaults to `in_type_::mahalanobis_result_t`
+ *  @tparam allow_simd_ Enable SIMD kernel dispatch when `prefer_simd_k`
  */
-template <typename in_type_, typename result_type_ = typename in_type_::mahalanobis_result_t, bool allow_simd_ = true>
-void mahalanobis(in_type_ const *a, in_type_ const *b, in_type_ const *c, std::size_t n, result_type_ *r) noexcept {
-    constexpr bool simd = allow_simd_ && std::is_same_v<result_type_, typename in_type_::mahalanobis_result_t>;
+template <typename in_type_, typename result_type_ = typename in_type_::mahalanobis_result_t,
+          allow_simd_t allow_simd_ = prefer_simd_k>
+void mahalanobis(in_type_ const *a, in_type_ const *b, in_type_ const *c, std::size_t d, result_type_ *r) noexcept {
+    constexpr bool simd = allow_simd_ == prefer_simd_k &&
+                          std::is_same_v<result_type_, typename in_type_::mahalanobis_result_t>;
 
     if constexpr (std::is_same_v<in_type_, f64_t> && simd)
-        nk_mahalanobis_f64(&a->raw_, &b->raw_, &c->raw_, n, &r->raw_);
+        nk_mahalanobis_f64(&a->raw_, &b->raw_, &c->raw_, d, &r->raw_);
     else if constexpr (std::is_same_v<in_type_, f32_t> && simd)
-        nk_mahalanobis_f32(&a->raw_, &b->raw_, &c->raw_, n, &r->raw_);
+        nk_mahalanobis_f32(&a->raw_, &b->raw_, &c->raw_, d, &r->raw_);
     else if constexpr (std::is_same_v<in_type_, f16_t> && simd)
-        nk_mahalanobis_f16(&a->raw_, &b->raw_, &c->raw_, n, &r->raw_);
+        nk_mahalanobis_f16(&a->raw_, &b->raw_, &c->raw_, d, &r->raw_);
     else if constexpr (std::is_same_v<in_type_, bf16_t> && simd)
-        nk_mahalanobis_bf16(&a->raw_, &b->raw_, &c->raw_, n, &r->raw_);
+        nk_mahalanobis_bf16(&a->raw_, &b->raw_, &c->raw_, d, &r->raw_);
     // Scalar fallback
     else {
         result_type_ sum {};
-        for (std::size_t i = 0; i < n; i++) {
+        for (std::size_t i = 0; i < d; i++) {
             result_type_ di = result_type_(a[i]) - result_type_(b[i]);
-            for (std::size_t j = 0; j < n; j++) {
+            for (std::size_t j = 0; j < d; j++) {
                 result_type_ dj = result_type_(a[j]) - result_type_(b[j]);
-                sum = sum + di * result_type_(c[i * n + j]) * dj;
+                sum = sum + di * result_type_(c[i * d + j]) * dj;
             }
         }
         *r = sum.sqrt();
@@ -723,34 +1008,32 @@ void mahalanobis(in_type_ const *a, in_type_ const *b, in_type_ const *c, std::s
 
 /**
  *  @brief Batched Haversine distance (great-circle distance on sphere)
- *  @tparam in_type_ Input coordinate type (f32_t, f64_t)
- *  @tparam precision_type_ Precision type for scalar fallback computations (default: double)
- *  @tparam allow_simd_ Enable SIMD kernel dispatch when true
+ *  @param[in] a_lats,a_lons Arrays of latitudes/longitudes for first points (radians)
+ *  @param[in] b_lats,b_lons Arrays of latitudes/longitudes for second points (radians)
+ *  @param[in] d Number of point pairs
+ *  @param[out] results Output array of distances (meters)
  *
- *  @param a_lats Array of latitudes for first points (radians)
- *  @param a_lons Array of longitudes for first points (radians)
- *  @param b_lats Array of latitudes for second points (radians)
- *  @param b_lons Array of longitudes for second points (radians)
- *  @param n Number of point pairs
- *  @param results Output array of distances (meters)
+ *  @tparam in_type_ Input coordinate type (f32_t, f64_t)
+ *  @tparam precision_type_ Precision type for scalar fallback computations, defaults to `in_type_`
+ *  @tparam allow_simd_ Enable SIMD kernel dispatch when `prefer_simd_k`
  *
  *  @note Uses spherical Earth model with mediatorial radius (6335439.0 m)
  *  @note Accuracy: 0.3-0.6% vs WGS-84, suitable for ranking/similarity
  */
-template <typename in_type_, typename precision_type_ = in_type_, bool allow_simd_ = true>
+template <typename in_type_, typename precision_type_ = in_type_, allow_simd_t allow_simd_ = prefer_simd_k>
 void haversine(in_type_ const *a_lats, in_type_ const *a_lons, in_type_ const *b_lats, in_type_ const *b_lons,
-               std::size_t n, in_type_ *results) noexcept {
-    constexpr bool simd = allow_simd_ && std::is_same_v<in_type_, precision_type_>;
+               std::size_t d, in_type_ *results) noexcept {
+    constexpr bool simd = allow_simd_ == prefer_simd_k && std::is_same_v<in_type_, precision_type_>;
 
     if constexpr (std::is_same_v<in_type_, f64_t> && simd)
-        nk_haversine_f64(&a_lats->raw_, &a_lons->raw_, &b_lats->raw_, &b_lons->raw_, n, &results->raw_);
+        nk_haversine_f64(&a_lats->raw_, &a_lons->raw_, &b_lats->raw_, &b_lons->raw_, d, &results->raw_);
     else if constexpr (std::is_same_v<in_type_, f32_t> && simd)
-        nk_haversine_f32(&a_lats->raw_, &a_lons->raw_, &b_lats->raw_, &b_lons->raw_, n, &results->raw_);
+        nk_haversine_f32(&a_lats->raw_, &a_lons->raw_, &b_lats->raw_, &b_lons->raw_, d, &results->raw_);
     // Scalar fallback
     else {
         precision_type_ const earth_radius = precision_type_(6335439.0); // mediatorial radius in meters
 
-        for (std::size_t i = 0; i < n; i++) {
+        for (std::size_t i = 0; i < d; i++) {
             precision_type_ first_latitude = precision_type_(a_lats[i]);
             precision_type_ first_longitude = precision_type_(a_lons[i]);
             precision_type_ second_latitude = precision_type_(b_lats[i]);
@@ -781,30 +1064,28 @@ void haversine(in_type_ const *a_lats, in_type_ const *a_lons, in_type_ const *b
 
 /**
  *  @brief Batched Vincenty distance (geodesic distance on ellipsoid)
- *  @tparam in_type_ Input coordinate type (f32_t, f64_t)
- *  @tparam precision_type_ Precision type for scalar fallback computations (default: double)
- *  @tparam allow_simd_ Enable SIMD kernel dispatch when true
+ *  @param[in] a_lats,a_lons Arrays of latitudes/longitudes for first points (radians)
+ *  @param[in] b_lats,b_lons Arrays of latitudes/longitudes for second points (radians)
+ *  @param[in] d Number of point pairs
+ *  @param[out] results Output array of distances (meters)
  *
- *  @param a_lats Array of latitudes for first points (radians)
- *  @param a_lons Array of longitudes for first points (radians)
- *  @param b_lats Array of latitudes for second points (radians)
- *  @param b_lons Array of longitudes for second points (radians)
- *  @param n Number of point pairs
- *  @param results Output array of distances (meters)
+ *  @tparam in_type_ Input coordinate type (f32_t, f64_t)
+ *  @tparam precision_type_ Precision type for scalar fallback computations, defaults to `in_type_`
+ *  @tparam allow_simd_ Enable SIMD kernel dispatch when `prefer_simd_k`
  *
  *  @note Uses WGS-84/IERS-2003 ellipsoid model
  *  @note Accuracy: 0.01-0.2% vs WGS-84, 3-20x more accurate than Haversine
  *  @note Iterative algorithm with max 100 iterations
  */
-template <typename in_type_, typename precision_type_ = in_type_, bool allow_simd_ = true>
+template <typename in_type_, typename precision_type_ = in_type_, allow_simd_t allow_simd_ = prefer_simd_k>
 void vincenty(in_type_ const *a_lats, in_type_ const *a_lons, in_type_ const *b_lats, in_type_ const *b_lons,
-              std::size_t n, in_type_ *results) noexcept {
-    constexpr bool simd = allow_simd_ && std::is_same_v<in_type_, precision_type_>;
+              std::size_t d, in_type_ *results) noexcept {
+    constexpr bool simd = allow_simd_ == prefer_simd_k && std::is_same_v<in_type_, precision_type_>;
 
     if constexpr (std::is_same_v<in_type_, f64_t> && simd)
-        nk_vincenty_f64(&a_lats->raw_, &a_lons->raw_, &b_lats->raw_, &b_lons->raw_, n, &results->raw_);
+        nk_vincenty_f64(&a_lats->raw_, &a_lons->raw_, &b_lats->raw_, &b_lons->raw_, d, &results->raw_);
     else if constexpr (std::is_same_v<in_type_, f32_t> && simd)
-        nk_vincenty_f32(&a_lats->raw_, &a_lons->raw_, &b_lats->raw_, &b_lons->raw_, n, &results->raw_);
+        nk_vincenty_f32(&a_lats->raw_, &a_lons->raw_, &b_lats->raw_, &b_lons->raw_, d, &results->raw_);
     // Scalar fallback
     else {
         precision_type_ const equatorial_radius = precision_type_(6378136.6);
@@ -813,7 +1094,7 @@ void vincenty(in_type_ const *a_lats, in_type_ const *a_lons, in_type_ const *b_
         precision_type_ const convergence_threshold = precision_type_(1e-12);
         constexpr int max_iterations = 100;
 
-        for (std::size_t i = 0; i < n; i++) {
+        for (std::size_t i = 0; i < d; i++) {
             precision_type_ first_latitude = precision_type_(a_lats[i]);
             precision_type_ second_latitude = precision_type_(b_lats[i]);
             precision_type_ longitude_difference = precision_type_(b_lons[i]) - precision_type_(a_lons[i]);
@@ -925,19 +1206,17 @@ void vincenty(in_type_ const *a_lats, in_type_ const *a_lons, in_type_ const *b_
 
 /**
  *  @brief Count intersection of two sorted index arrays
- *  @tparam index_type_ Index type (u16_t, u32_t)
- *  @tparam allow_simd_ Enable SIMD kernel dispatch when true
+ *  @param[in] a,b Sorted index arrays (ascending, unique elements)
+ *  @param[in] a_length,b_length Number of elements in each array
+ *  @param[out] count Output intersection count
  *
- *  @param a First sorted index array (ascending, unique elements)
- *  @param b Second sorted index array (ascending, unique elements)
- *  @param a_length Number of elements in first array
- *  @param b_length Number of elements in second array
- *  @param count Output intersection count
+ *  @tparam index_type_ Index type (u16_t, u32_t)
+ *  @tparam allow_simd_ Enable SIMD kernel dispatch when `prefer_simd_k`
  */
-template <typename index_type_, bool allow_simd_ = true>
+template <typename index_type_, allow_simd_t allow_simd_ = prefer_simd_k>
 void intersect(index_type_ const *a, index_type_ const *b, std::size_t a_length, std::size_t b_length,
                std::uint32_t *count) noexcept {
-    constexpr bool simd = allow_simd_;
+    constexpr bool simd = allow_simd_ == prefer_simd_k;
 
     if constexpr (std::is_same_v<index_type_, u16_t> && simd)
         nk_intersect_u16(&a->raw_, &b->raw_, a_length, b_length, count);
@@ -958,25 +1237,23 @@ void intersect(index_type_ const *a, index_type_ const *b, std::size_t a_length,
 
 /**
  *  @brief Sparse weighted dot product (sorted indices)
+ *  @param[in] a,b Sorted index arrays (ascending, unique elements)
+ *  @param[in] a_weights,b_weights Weights corresponding to indices
+ *  @param[in] a_length,b_length Number of elements in each array
+ *  @param[out] product Output dot product
+ *
  *  @tparam index_type_ Index type (u16_t, u32_t)
  *  @tparam weight_t Weight type (bf16_t for u16 indices, f32_t for u32 indices)
- *  @tparam result_type_ Result type (default: f32_t)
- *  @tparam allow_simd_ Enable SIMD kernel dispatch when true
- *
- *  @param a First sorted index array (ascending, unique elements)
- *  @param b Second sorted index array (ascending, unique elements)
- *  @param a_weights Weights corresponding to first indices
- *  @param b_weights Weights corresponding to second indices
- *  @param a_length Number of elements in first array
- *  @param b_length Number of elements in second array
- *  @param product Output dot product
+ *  @tparam result_type_ Result type, defaults to `f32_t`
+ *  @tparam allow_simd_ Enable SIMD kernel dispatch when `prefer_simd_k`
  *
  *  @note Computes sum of a_weights[i] * b_weights[j] for all i,j where a[i] == b[j]
  */
-template <typename index_type_, typename weight_t, typename result_type_ = f32_t, bool allow_simd_ = true>
+template <typename index_type_, typename weight_t, typename result_type_ = f32_t,
+          allow_simd_t allow_simd_ = prefer_simd_k>
 void sparse_dot(index_type_ const *a, index_type_ const *b, weight_t const *a_weights, weight_t const *b_weights,
                 std::size_t a_length, std::size_t b_length, result_type_ *product) noexcept {
-    constexpr bool simd = allow_simd_ && std::is_same_v<result_type_, typename weight_t::dot_result_t>;
+    constexpr bool simd = allow_simd_ == prefer_simd_k && std::is_same_v<result_type_, typename weight_t::dot_result_t>;
 
     // u16 indices + bf16 weights → f32 product
     if constexpr (std::is_same_v<index_type_, u16_t> && std::is_same_v<weight_t, bf16_t> && simd)
@@ -1339,25 +1616,25 @@ void svd3x3_(scalar_type_ const *a, scalar_type_ *svd_u, scalar_type_ *svd_s, sc
 
 /**
  *  @brief Root Mean Square Deviation between two 3D point clouds (no alignment)
- *  @tparam in_type_ Input point type (f32_t, f64_t, f16_t, bf16_t)
- *  @tparam result_type_ Result type for outputs
- *  @tparam allow_simd_ Enable SIMD kernel dispatch when true
+ *  @param[in] a,b Point clouds [d × 3] interleaved (x₀,y₀,z₀, x₁,y₁,z₁, ...)
+ *  @param[in] d Number of 3D points
+ *  @param[out] a_centroid,b_centroid Centroids (3 values each), can be nullptr
+ *  @param[out] rotation 3×3 rotation matrix (9 values), always identity, can be nullptr
+ *  @param[out] scale Scale factor, always 1.0, can be nullptr
+ *  @param[out] result Output RMSD value
  *
- *  @param a First point cloud [n x 3] interleaved (x0,y0,z0, x1,y1,z1, ...)
- *  @param b Second point cloud [n x 3] interleaved
- *  @param n Number of 3D points
- *  @param a_centroid Output centroid of first cloud (3 values), can be nullptr
- *  @param b_centroid Output centroid of second cloud (3 values), can be nullptr
- *  @param rotation Output 3x3 rotation matrix (9 values), always identity, can be nullptr
- *  @param scale Output scale factor, always 1.0, can be nullptr
- *  @param result Output RMSD value
+ *  @tparam in_type_ Input point type (f32_t, f64_t, f16_t, bf16_t)
+ *  @tparam result_type_ Result type for outputs, defaults to `in_type_::rmsd_result_t`
+ *  @tparam allow_simd_ Enable SIMD kernel dispatch when `prefer_simd_k`
  */
-template <typename in_type_, typename result_type_ = typename in_type_::rmsd_result_t, bool allow_simd_ = true>
+template <typename in_type_, typename result_type_ = typename in_type_::rmsd_result_t,
+          allow_simd_t allow_simd_ = prefer_simd_k>
 void rmsd(                                               //
     in_type_ const *a, in_type_ const *b, std::size_t n, //
     result_type_ *a_centroid, result_type_ *b_centroid,  //
     result_type_ *rotation, result_type_ *scale, result_type_ *result) noexcept {
-    constexpr bool simd = allow_simd_ && std::is_same_v<result_type_, typename in_type_::rmsd_result_t>;
+    constexpr bool simd = allow_simd_ == prefer_simd_k &&
+                          std::is_same_v<result_type_, typename in_type_::rmsd_result_t>;
 
     if constexpr (std::is_same_v<in_type_, f64_t> && simd)
         nk_rmsd_f64(&a->raw_, &b->raw_, n, &a_centroid->raw_, &b_centroid->raw_, &rotation->raw_, &scale->raw_,
@@ -1440,25 +1717,25 @@ void rmsd(                                               //
 
 /**
  *  @brief Kabsch algorithm for optimal rigid body alignment (rotation only)
- *  @tparam in_type_ Input point type (f32_t, f64_t, f16_t, bf16_t)
- *  @tparam result_type_ Result type for outputs
- *  @tparam allow_simd_ Enable SIMD kernel dispatch when true
+ *  @param[in] a,b Point clouds [n × 3] interleaved (source and target)
+ *  @param[in] n Number of 3D points
+ *  @param[out] a_centroid,b_centroid Centroids (3 values each), can be nullptr
+ *  @param[out] rotation 3×3 rotation matrix (9 values, row-major), can be nullptr
+ *  @param[out] scale Scale factor, always 1.0 for Kabsch, can be nullptr
+ *  @param[out] result Output RMSD after optimal rotation
  *
- *  @param a First point cloud [n x 3] interleaved (source)
- *  @param b Second point cloud [n x 3] interleaved (target)
- *  @param n Number of 3D points
- *  @param a_centroid Output centroid of first cloud (3 values), can be nullptr
- *  @param b_centroid Output centroid of second cloud (3 values), can be nullptr
- *  @param rotation Output 3x3 rotation matrix (9 values, row-major), can be nullptr
- *  @param scale Output scale factor, always 1.0 for Kabsch, can be nullptr
- *  @param result Output RMSD after optimal rotation
+ *  @tparam in_type_ Input point type (f32_t, f64_t, f16_t, bf16_t)
+ *  @tparam result_type_ Result type for outputs, defaults to `in_type_::rmsd_result_t`
+ *  @tparam allow_simd_ Enable SIMD kernel dispatch when `prefer_simd_k`
  */
-template <typename in_type_, typename result_type_ = typename in_type_::rmsd_result_t, bool allow_simd_ = true>
+template <typename in_type_, typename result_type_ = typename in_type_::rmsd_result_t,
+          allow_simd_t allow_simd_ = prefer_simd_k>
 void kabsch(                                             //
     in_type_ const *a, in_type_ const *b, std::size_t n, //
     result_type_ *a_centroid, result_type_ *b_centroid,  //
     result_type_ *rotation, result_type_ *scale, result_type_ *result) noexcept {
-    constexpr bool simd = allow_simd_ && std::is_same_v<result_type_, typename in_type_::rmsd_result_t>;
+    constexpr bool simd = allow_simd_ == prefer_simd_k &&
+                          std::is_same_v<result_type_, typename in_type_::rmsd_result_t>;
 
     if constexpr (std::is_same_v<in_type_, f64_t> && simd)
         nk_kabsch_f64(&a->raw_, &b->raw_, n, a_centroid ? &a_centroid->raw_ : nullptr, &b_centroid->raw_,
@@ -1593,23 +1870,23 @@ void kabsch(                                             //
 
 /**
  *  @brief Umeyama algorithm for similarity transform (rotation + uniform scale)
- *  @tparam in_type_ Input point type (f32_t, f64_t, f16_t, bf16_t)
- *  @tparam result_type_ Result type for outputs
- *  @tparam allow_simd_ Enable SIMD kernel dispatch when true
+ *  @param[in] a,b Point clouds [n × 3] interleaved (source and target)
+ *  @param[in] n Number of 3D points
+ *  @param[out] a_centroid,b_centroid Centroids (3 values each), can be nullptr
+ *  @param[out] rotation 3×3 rotation matrix (9 values, row-major), can be nullptr
+ *  @param[out] scale Uniform scale factor, can be nullptr
+ *  @param[out] result Output RMSD after optimal transformation
  *
- *  @param a First point cloud [n x 3] interleaved (source)
- *  @param b Second point cloud [n x 3] interleaved (target)
- *  @param n Number of 3D points
- *  @param a_centroid Output centroid of first cloud (3 values), can be nullptr
- *  @param b_centroid Output centroid of second cloud (3 values), can be nullptr
- *  @param rotation Output 3x3 rotation matrix (9 values, row-major), can be nullptr
- *  @param scale Output uniform scale factor, can be nullptr
- *  @param result Output RMSD after optimal transformation
+ *  @tparam in_type_ Input point type (f32_t, f64_t, f16_t, bf16_t)
+ *  @tparam result_type_ Result type for outputs, defaults to `in_type_::dot_result_t`
+ *  @tparam allow_simd_ Enable SIMD kernel dispatch when `prefer_simd_k`
  */
-template <typename in_type_, typename result_type_ = typename in_type_::dot_result_t, bool allow_simd_ = true>
+template <typename in_type_, typename result_type_ = typename in_type_::dot_result_t,
+          allow_simd_t allow_simd_ = prefer_simd_k>
 void umeyama(in_type_ const *a, in_type_ const *b, std::size_t n, result_type_ *a_centroid, result_type_ *b_centroid,
              result_type_ *rotation, result_type_ *scale, result_type_ *result) noexcept {
-    constexpr bool simd = allow_simd_ && std::is_same_v<result_type_, typename in_type_::rmsd_result_t>;
+    constexpr bool simd = allow_simd_ == prefer_simd_k &&
+                          std::is_same_v<result_type_, typename in_type_::rmsd_result_t>;
 
     if constexpr (std::is_same_v<in_type_, f64_t> && simd)
         nk_umeyama_f64(&a->raw_, &b->raw_, n, &a_centroid->raw_, &b_centroid->raw_, &rotation->raw_, &scale->raw_,
@@ -1764,12 +2041,17 @@ void umeyama(in_type_ const *a, in_type_ const *b, std::size_t n, result_type_ *
 
 /**
  *  @brief Array sine: out[i] = sin(in[i])
+ *  @param[in] in Input array
+ *  @param[in] n Number of elements
+ *  @param[out] out Output array
+ *
  *  @tparam in_type_ Element type (f32_t, f64_t, f16_t)
- *  @tparam allow_simd_ Enable SIMD kernel dispatch
+ *  @tparam precision_type_ Precision type for scalar fallback, defaults to `in_type_`
+ *  @tparam allow_simd_ Enable SIMD kernel dispatch when `prefer_simd_k`
  */
-template <typename in_type_, typename precision_type_ = in_type_, bool allow_simd_ = true>
+template <typename in_type_, typename precision_type_ = in_type_, allow_simd_t allow_simd_ = prefer_simd_k>
 void sin(in_type_ const *in, std::size_t n, in_type_ *out) noexcept {
-    constexpr bool simd = allow_simd_ && std::is_same_v<in_type_, precision_type_>;
+    constexpr bool simd = allow_simd_ == prefer_simd_k && std::is_same_v<in_type_, precision_type_>;
 
     if constexpr (std::is_same_v<in_type_, f64_t> && simd) nk_sin_f64(&in->raw_, n, &out->raw_);
     else if constexpr (std::is_same_v<in_type_, f32_t> && simd) nk_sin_f32(&in->raw_, n, &out->raw_);
@@ -1782,12 +2064,17 @@ void sin(in_type_ const *in, std::size_t n, in_type_ *out) noexcept {
 
 /**
  *  @brief Array cosine: out[i] = cos(in[i])
+ *  @param[in] in Input array
+ *  @param[in] n Number of elements
+ *  @param[out] out Output array
+ *
  *  @tparam in_type_ Element type (f32_t, f64_t, f16_t)
- *  @tparam allow_simd_ Enable SIMD kernel dispatch
+ *  @tparam precision_type_ Precision type for scalar fallback, defaults to `in_type_`
+ *  @tparam allow_simd_ Enable SIMD kernel dispatch when `prefer_simd_k`
  */
-template <typename in_type_, typename precision_type_ = in_type_, bool allow_simd_ = true>
+template <typename in_type_, typename precision_type_ = in_type_, allow_simd_t allow_simd_ = prefer_simd_k>
 void cos(in_type_ const *in, std::size_t n, in_type_ *out) noexcept {
-    constexpr bool simd = allow_simd_ && std::is_same_v<in_type_, precision_type_>;
+    constexpr bool simd = allow_simd_ == prefer_simd_k && std::is_same_v<in_type_, precision_type_>;
 
     if constexpr (std::is_same_v<in_type_, f64_t> && simd) nk_cos_f64(&in->raw_, n, &out->raw_);
     else if constexpr (std::is_same_v<in_type_, f32_t> && simd) nk_cos_f32(&in->raw_, n, &out->raw_);
@@ -1800,12 +2087,17 @@ void cos(in_type_ const *in, std::size_t n, in_type_ *out) noexcept {
 
 /**
  *  @brief Array atan: out[i] = atan(in[i])
+ *  @param[in] in Input array
+ *  @param[in] n Number of elements
+ *  @param[out] out Output array
+ *
  *  @tparam in_type_ Element type (f32_t, f64_t, f16_t)
- *  @tparam allow_simd_ Enable SIMD kernel dispatch
+ *  @tparam precision_type_ Precision type for scalar fallback, defaults to `in_type_`
+ *  @tparam allow_simd_ Enable SIMD kernel dispatch when `prefer_simd_k`
  */
-template <typename in_type_, typename precision_type_ = in_type_, bool allow_simd_ = true>
+template <typename in_type_, typename precision_type_ = in_type_, allow_simd_t allow_simd_ = prefer_simd_k>
 void atan(in_type_ const *in, std::size_t n, in_type_ *out) noexcept {
-    constexpr bool simd = allow_simd_ && std::is_same_v<in_type_, precision_type_>;
+    constexpr bool simd = allow_simd_ == prefer_simd_k && std::is_same_v<in_type_, precision_type_>;
 
     if constexpr (std::is_same_v<in_type_, f64_t> && simd) nk_atan_f64(&in->raw_, n, &out->raw_);
     else if constexpr (std::is_same_v<in_type_, f32_t> && simd) nk_atan_f32(&in->raw_, n, &out->raw_);
@@ -1822,103 +2114,115 @@ void atan(in_type_ const *in, std::size_t n, in_type_ *out) noexcept {
 
 /**
  *  @brief Estimates the memory requirements for packed B matrix.
+ *  @param[in] column_count Number of columns in B (n)
+ *  @param[in] depth Number of dimensions per column (k)
  *  @return Size in bytes for column-major B data plus stride metadata
+ *
+ *  @tparam in_type_ Input element type
+ *  @tparam allow_simd_ Enable SIMD kernel dispatch when `prefer_simd_k`
  */
-template <typename in_type_, bool allow_simd_ = true>
+template <typename in_type_, allow_simd_t allow_simd_ = prefer_simd_k>
 NK_PUBLIC size_t dots_packed_size(size_t column_count, size_t depth) {
-    if constexpr (std::is_same_v<in_type_, f64_t> && allow_simd_) return nk_dots_packed_size_f64(column_count, depth);
-    else if constexpr (std::is_same_v<in_type_, f32_t> && allow_simd_)
-        return nk_dots_packed_size_f32(column_count, depth);
-    else if constexpr (std::is_same_v<in_type_, f16_t> && allow_simd_)
-        return nk_dots_packed_size_f16(column_count, depth);
-    else if constexpr (std::is_same_v<in_type_, bf16_t> && allow_simd_)
-        return nk_dots_packed_size_bf16(column_count, depth);
-    else if constexpr (std::is_same_v<in_type_, i8_t> && allow_simd_)
-        return nk_dots_packed_size_i8(column_count, depth);
-    else if constexpr (std::is_same_v<in_type_, u8_t> && allow_simd_)
-        return nk_dots_packed_size_u8(column_count, depth);
-    else if constexpr (std::is_same_v<in_type_, e4m3_t> && allow_simd_)
-        return nk_dots_packed_size_e4m3(column_count, depth);
-    else if constexpr (std::is_same_v<in_type_, e5m2_t> && allow_simd_)
-        return nk_dots_packed_size_e5m2(column_count, depth);
-    else if constexpr (std::is_same_v<in_type_, u1x8_t> && allow_simd_)
-        return nk_dots_packed_size_u1(column_count, depth);
-    else if constexpr (std::is_same_v<in_type_, u4x2_t> && allow_simd_)
-        return nk_dots_packed_size_u4(column_count, depth);
-    else if constexpr (std::is_same_v<in_type_, i4x2_t> && allow_simd_)
-        return nk_dots_packed_size_i4(column_count, depth);
-    else return column_count * depth * sizeof(typename in_type_::raw_t) + sizeof(size_t);
+    constexpr bool simd = allow_simd_ == prefer_simd_k;
+
+    if constexpr (std::is_same_v<in_type_, f64_t> && simd) return nk_dots_packed_size_f64(column_count, depth);
+    else if constexpr (std::is_same_v<in_type_, f32_t> && simd) return nk_dots_packed_size_f32(column_count, depth);
+    else if constexpr (std::is_same_v<in_type_, f16_t> && simd) return nk_dots_packed_size_f16(column_count, depth);
+    else if constexpr (std::is_same_v<in_type_, bf16_t> && simd) return nk_dots_packed_size_bf16(column_count, depth);
+    else if constexpr (std::is_same_v<in_type_, i8_t> && simd) return nk_dots_packed_size_i8(column_count, depth);
+    else if constexpr (std::is_same_v<in_type_, u8_t> && simd) return nk_dots_packed_size_u8(column_count, depth);
+    else if constexpr (std::is_same_v<in_type_, e4m3_t> && simd) return nk_dots_packed_size_e4m3(column_count, depth);
+    else if constexpr (std::is_same_v<in_type_, e5m2_t> && simd) return nk_dots_packed_size_e5m2(column_count, depth);
+    else if constexpr (std::is_same_v<in_type_, u1x8_t> && simd) return nk_dots_packed_size_u1(column_count, depth);
+    else if constexpr (std::is_same_v<in_type_, u4x2_t> && simd) return nk_dots_packed_size_u4(column_count, depth);
+    else if constexpr (std::is_same_v<in_type_, i4x2_t> && simd) return nk_dots_packed_size_i4(column_count, depth);
+    else {
+        return column_count * divide_round_up(depth, dimensions_per_value<in_type_>()) *
+                   sizeof(typename in_type_::raw_t) +
+               sizeof(size_t);
+    }
 }
 
 /**
  *  @brief Packs matrix B into column-major form for efficient dots_packed access.
- *  @param b Input matrix B in row-major form [column_count x depth]
- *  @param column_count Number of columns in B (n)
- *  @param depth Number of elements per column (k)
- *  @param b_stride_in_bytes Stride between rows of B in bytes
- *  @param b_packed Output buffer for packed column-major B with metadata
+ *  @param[in] b Input matrix B in row-major form [column_count × depth]
+ *  @param[in] column_count Number of columns in B (n)
+ *  @param[in] depth Number of dimensions per column (k)
+ *  @param[in] b_stride_in_bytes Stride between rows of B in bytes
+ *  @param[out] b_packed Output buffer for packed column-major B with metadata
+ *
+ *  @tparam in_type_ Input element type
+ *  @tparam allow_simd_ Enable SIMD kernel dispatch when `prefer_simd_k`
  */
-template <typename in_type_, bool allow_simd_ = true>
+template <typename in_type_, allow_simd_t allow_simd_ = prefer_simd_k>
 NK_PUBLIC void dots_pack(in_type_ const *b, size_t column_count, size_t depth, size_t b_stride_in_bytes,
                          void *b_packed) {
     using raw_t = typename in_type_::raw_t;
-    if constexpr (std::is_same_v<in_type_, f64_t> && allow_simd_)
+    constexpr bool simd = allow_simd_ == prefer_simd_k;
+
+    if constexpr (std::is_same_v<in_type_, f64_t> && simd)
         nk_dots_pack_f64(reinterpret_cast<raw_t const *>(b), column_count, depth, b_stride_in_bytes, b_packed);
-    else if constexpr (std::is_same_v<in_type_, f32_t> && allow_simd_)
+    else if constexpr (std::is_same_v<in_type_, f32_t> && simd)
         nk_dots_pack_f32(reinterpret_cast<raw_t const *>(b), column_count, depth, b_stride_in_bytes, b_packed);
-    else if constexpr (std::is_same_v<in_type_, f16_t> && allow_simd_)
+    else if constexpr (std::is_same_v<in_type_, f16_t> && simd)
         nk_dots_pack_f16(reinterpret_cast<raw_t const *>(b), column_count, depth, b_stride_in_bytes, b_packed);
-    else if constexpr (std::is_same_v<in_type_, bf16_t> && allow_simd_)
+    else if constexpr (std::is_same_v<in_type_, bf16_t> && simd)
         nk_dots_pack_bf16(reinterpret_cast<raw_t const *>(b), column_count, depth, b_stride_in_bytes, b_packed);
-    else if constexpr (std::is_same_v<in_type_, i8_t> && allow_simd_)
+    else if constexpr (std::is_same_v<in_type_, i8_t> && simd)
         nk_dots_pack_i8(reinterpret_cast<raw_t const *>(b), column_count, depth, b_stride_in_bytes, b_packed);
-    else if constexpr (std::is_same_v<in_type_, u8_t> && allow_simd_)
+    else if constexpr (std::is_same_v<in_type_, u8_t> && simd)
         nk_dots_pack_u8(reinterpret_cast<raw_t const *>(b), column_count, depth, b_stride_in_bytes, b_packed);
-    else if constexpr (std::is_same_v<in_type_, e4m3_t> && allow_simd_)
+    else if constexpr (std::is_same_v<in_type_, e4m3_t> && simd)
         nk_dots_pack_e4m3(reinterpret_cast<raw_t const *>(b), column_count, depth, b_stride_in_bytes, b_packed);
-    else if constexpr (std::is_same_v<in_type_, e5m2_t> && allow_simd_)
+    else if constexpr (std::is_same_v<in_type_, e5m2_t> && simd)
         nk_dots_pack_e5m2(reinterpret_cast<raw_t const *>(b), column_count, depth, b_stride_in_bytes, b_packed);
-    else if constexpr (std::is_same_v<in_type_, u1x8_t> && allow_simd_)
+    else if constexpr (std::is_same_v<in_type_, u1x8_t> && simd)
         nk_dots_pack_u1(reinterpret_cast<raw_t const *>(b), column_count, depth, b_stride_in_bytes, b_packed);
-    else if constexpr (std::is_same_v<in_type_, u4x2_t> && allow_simd_)
+    else if constexpr (std::is_same_v<in_type_, u4x2_t> && simd)
         nk_dots_pack_u4(reinterpret_cast<raw_t const *>(b), column_count, depth, b_stride_in_bytes, b_packed);
-    else if constexpr (std::is_same_v<in_type_, i4x2_t> && allow_simd_)
+    else if constexpr (std::is_same_v<in_type_, i4x2_t> && simd)
         nk_dots_pack_i4(reinterpret_cast<raw_t const *>(b), column_count, depth, b_stride_in_bytes, b_packed);
     else {
-        // Transpose B from row-major [column_count x depth] to column-major
+        std::size_t depth_values = divide_round_up(depth, dimensions_per_value<in_type_>());
+
+        // Transpose B from row-major [column_count × depth_values] to column-major
         char const *b_bytes = reinterpret_cast<char const *>(b);
         in_type_ *out = static_cast<in_type_ *>(b_packed);
         for (size_t j = 0; j < column_count; j++) {
             in_type_ const *b_row = reinterpret_cast<in_type_ const *>(b_bytes + j * b_stride_in_bytes);
-            for (size_t l = 0; l < depth; l++) out[j * depth + l] = b_row[l];
+            for (size_t l = 0; l < depth_values; l++) out[j * depth_values + l] = b_row[l];
         }
         // Append stride metadata
-        size_t packed_stride = depth * sizeof(raw_t);
-        size_t bytes_for_data = column_count * depth * sizeof(raw_t);
+        size_t packed_stride = depth_values * sizeof(raw_t);
+        size_t bytes_for_data = column_count * depth_values * sizeof(raw_t);
         char *metadata_ptr = static_cast<char *>(b_packed) + bytes_for_data;
         std::memcpy(metadata_ptr, &packed_stride, sizeof(size_t));
     }
 }
 
 /**
- *  @brief Packed dot products (batch matrix multiply): C = A * B (row-major)
- *  @param a Matrix A [m x k]
- *  @param b_packed Packed matrix B [k x n] with stride metadata appended
- *  @param c Output matrix C [m x n]
- *  @param row_count Rows of A and C (m)
- *  @param column_count Columns of B and C (n)
- *  @param depth Columns of A, Rows of B (k)
- *  @param a_stride_in_bytes Stride between rows of A in bytes
- *  @param c_stride_in_bytes Stride between rows of C in bytes
+ *  @brief Packed dot products (batch matrix multiply): C = A × B (row-major)
+ *  @param[in] a Matrix A [m × k]
+ *  @param[in] b_packed Packed matrix B [k × n] with stride metadata appended
+ *  @param[out] c Output matrix C [m × n]
+ *  @param[in] row_count Rows of A and C (m)
+ *  @param[in] column_count Columns of B and C (n)
+ *  @param[in] depth Columns of A, Rows of B (k)
+ *  @param[in] a_stride_in_bytes Stride between rows of A in bytes
+ *  @param[in] c_stride_in_bytes Stride between rows of C in bytes
+ *
  *  @tparam in_type_ Input element type
- *  @tparam result_type_ Accumulator/output type
+ *  @tparam result_type_ Accumulator/output type, defaults to `in_type_::dot_result_t`
+ *  @tparam allow_simd_ Enable SIMD kernel dispatch when `prefer_simd_k`
  */
-template <typename in_type_, typename result_type_ = typename in_type_::dot_result_t, bool allow_simd_ = true>
+template <typename in_type_, typename result_type_ = typename in_type_::dot_result_t,
+          allow_simd_t allow_simd_ = prefer_simd_k>
 void dots_packed(in_type_ const *a, void const *b_packed, result_type_ *c, std::size_t row_count,
                  std::size_t column_count, std::size_t depth, std::size_t a_stride_in_bytes,
                  std::size_t c_stride_in_bytes) noexcept {
     using raw_t = typename in_type_::raw_t;
-    constexpr bool dispatch = allow_simd_ && std::is_same_v<result_type_, typename in_type_::dot_result_t>;
+    constexpr bool dispatch = allow_simd_ == prefer_simd_k &&
+                              std::is_same_v<result_type_, typename in_type_::dot_result_t>;
     if constexpr (std::is_same_v<in_type_, f64_t> && dispatch)
         nk_dots_packed_f64(&a->raw_, b_packed, c, row_count, column_count, depth, a_stride_in_bytes, c_stride_in_bytes);
     else if constexpr (std::is_same_v<in_type_, f32_t> && dispatch)
@@ -1946,7 +2250,8 @@ void dots_packed(in_type_ const *a, void const *b_packed, result_type_ *c, std::
         nk_dots_packed_i4(&a->raw_, b_packed, c, row_count, column_count, depth, a_stride_in_bytes, c_stride_in_bytes);
     else {
         // Extract b_stride from the end of packed data
-        std::size_t bytes_for_b = column_count * depth * sizeof(raw_t);
+        std::size_t depth_values = divide_round_up(depth, dimensions_per_value<in_type_>());
+        std::size_t bytes_for_b = column_count * depth_values * sizeof(raw_t);
         char const *metadata_ptr = static_cast<char const *>(b_packed) + bytes_for_b;
         std::size_t b_stride_in_bytes;
         std::memcpy(&b_stride_in_bytes, metadata_ptr, sizeof(std::size_t));
@@ -1962,9 +2267,51 @@ void dots_packed(in_type_ const *a, void const *b_packed, result_type_ *c, std::
             for (std::size_t j = 0; j < column_count; j++) {
                 in_type_ const *b_col = reinterpret_cast<in_type_ const *>(b_bytes + j * b_stride_in_bytes);
                 result_type_ sum {};
-                for (std::size_t l = 0; l < depth; l++) sum = fused_multiply_add(sum, a_row[l], b_col[l]);
+                for (std::size_t l = 0; l < depth_values; l++) sum = fused_multiply_add(sum, a_row[l], b_col[l]);
                 c_row[j] = sum;
             }
+        }
+    }
+}
+
+/**
+ *  @brief Reference unpacked GEMM: C = A × Bᵀ (row-major A and B, B transposed).
+ *
+ *  This matches BLAS sgemm/dgemm with CblasNoTrans for A and CblasTrans for B.
+ *  Useful as a reference implementation for validating BLAS/MKL/Accelerate.
+ *
+ *  @param a Matrix A [m x k] row-major
+ *  @param b Matrix B [n x k] row-major (accessed as Bᵀ)
+ *  @param c Output matrix C [m x n] row-major
+ *  @param row_count Rows of A and C (m)
+ *  @param column_count Rows of B and columns of C (n)
+ *  @param depth Columns of A and B (k)
+ *  @param a_stride_in_bytes Stride between rows of A in bytes
+ *  @param b_stride_in_bytes Stride between rows of B in bytes
+ *  @param c_stride_in_bytes Stride between rows of C in bytes
+ *  @tparam in_type_ Input element type (e.g., f32_t, bf16_t)
+ *  @tparam result_type_ Accumulator/output type (e.g., f32_t, f118_t for high precision)
+ */
+template <typename in_type_, typename result_type_ = typename in_type_::dot_result_t>
+void dots_unpacked(in_type_ const *a, in_type_ const *b, result_type_ *c, std::size_t row_count,
+                   std::size_t column_count, std::size_t depth, std::size_t a_stride_in_bytes,
+                   std::size_t b_stride_in_bytes, std::size_t c_stride_in_bytes) noexcept {
+    char const *a_bytes = reinterpret_cast<char const *>(a);
+    char const *b_bytes = reinterpret_cast<char const *>(b);
+    char *c_bytes = reinterpret_cast<char *>(c);
+
+    // For sub-byte types, depth is dimensions but we iterate over values
+    constexpr unsigned dpv = dimensions_per_value<in_type_>();
+    std::size_t depth_values = (depth + dpv - 1) / dpv;
+
+    for (std::size_t i = 0; i < row_count; i++) {
+        in_type_ const *a_row = reinterpret_cast<in_type_ const *>(a_bytes + i * a_stride_in_bytes);
+        result_type_ *c_row = reinterpret_cast<result_type_ *>(c_bytes + i * c_stride_in_bytes);
+        for (std::size_t j = 0; j < column_count; j++) {
+            in_type_ const *b_row = reinterpret_cast<in_type_ const *>(b_bytes + j * b_stride_in_bytes);
+            result_type_ sum {};
+            for (std::size_t l = 0; l < depth_values; l++) sum = fused_multiply_add(sum, a_row[l], b_row[l]);
+            c_row[j] = sum;
         }
     }
 }

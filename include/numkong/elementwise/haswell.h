@@ -102,8 +102,8 @@ NK_PUBLIC void nk_wsum_f32_haswell(                    //
     for (; i + 8 <= n; i += 8) {
         __m256 a_f32x8 = _mm256_loadu_ps(a + i);
         __m256 b_f32x8 = _mm256_loadu_ps(b + i);
-        __m256 ab_f32x8 = _mm256_mul_ps(a_f32x8, alpha_f32x8);
-        __m256 result_f32x8 = _mm256_fmadd_ps(b_f32x8, beta_f32x8, ab_f32x8);
+        __m256 a_scaled_f32x8 = _mm256_mul_ps(a_f32x8, alpha_f32x8);
+        __m256 result_f32x8 = _mm256_fmadd_ps(b_f32x8, beta_f32x8, a_scaled_f32x8);
         _mm256_storeu_ps(result + i, result_f32x8);
     }
 
@@ -175,8 +175,8 @@ NK_PUBLIC void nk_wsum_f64_haswell(                    //
     for (; i + 4 <= n; i += 4) {
         __m256d a_f64x4 = _mm256_loadu_pd(a + i);
         __m256d b_f64x4 = _mm256_loadu_pd(b + i);
-        __m256d ab_f64x4 = _mm256_mul_pd(a_f64x4, alpha_f64x4);
-        __m256d result_f64x4 = _mm256_fmadd_pd(b_f64x4, beta_f64x4, ab_f64x4);
+        __m256d a_scaled_f64x4 = _mm256_mul_pd(a_f64x4, alpha_f64x4);
+        __m256d result_f64x4 = _mm256_fmadd_pd(b_f64x4, beta_f64x4, a_scaled_f64x4);
         _mm256_storeu_pd(result + i, result_f64x4);
     }
 
@@ -267,8 +267,8 @@ NK_PUBLIC void nk_wsum_f16_haswell(                    //
         __m128i b_f16x8 = _mm_loadu_si128((__m128i const *)(b + i));
         __m256 a_f32x8 = _mm256_cvtph_ps(a_f16x8);
         __m256 b_f32x8 = _mm256_cvtph_ps(b_f16x8);
-        __m256 ab_f32x8 = _mm256_mul_ps(a_f32x8, alpha_f32x8);
-        __m256 result_f32x8 = _mm256_fmadd_ps(b_f32x8, beta_f32x8, ab_f32x8);
+        __m256 a_scaled_f32x8 = _mm256_mul_ps(a_f32x8, alpha_f32x8);
+        __m256 result_f32x8 = _mm256_fmadd_ps(b_f32x8, beta_f32x8, a_scaled_f32x8);
         __m128i result_f16x8 = _mm256_cvtps_ph(result_f32x8, _MM_FROUND_TO_NEAREST_INT | _MM_FROUND_NO_EXC);
         _mm_storeu_si128((__m128i *)(result + i), result_f16x8);
     }
@@ -365,8 +365,8 @@ NK_PUBLIC void nk_wsum_bf16_haswell(                     //
         __m128i b_bf16x8 = _mm_loadu_si128((__m128i const *)(b + i));
         __m256 a_f32x8 = nk_bf16x8_to_f32x8_haswell_(a_bf16x8);
         __m256 b_f32x8 = nk_bf16x8_to_f32x8_haswell_(b_bf16x8);
-        __m256 ab_f32x8 = _mm256_mul_ps(a_f32x8, alpha_f32x8);
-        __m256 result_f32x8 = _mm256_fmadd_ps(b_f32x8, beta_f32x8, ab_f32x8);
+        __m256 a_scaled_f32x8 = _mm256_mul_ps(a_f32x8, alpha_f32x8);
+        __m256 result_f32x8 = _mm256_fmadd_ps(b_f32x8, beta_f32x8, a_scaled_f32x8);
         __m128i result_bf16x8 = nk_f32x8_to_bf16x8_haswell_(result_f32x8);
         _mm_storeu_si128((__m128i *)(result + i), result_bf16x8);
     }
@@ -1375,12 +1375,8 @@ NK_PUBLIC void nk_wsum_e4m3_haswell(nk_e4m3_t const *a, nk_e4m3_t const *b, nk_s
         __m128i b_e4m3x8 = _mm_loadl_epi64((__m128i const *)(b + i));
         __m256 a_f32x8 = nk_e4m3x8_to_f32x8_haswell_(a_e4m3x8);
         __m256 b_f32x8 = nk_e4m3x8_to_f32x8_haswell_(b_e4m3x8);
-        // FP8 rounding note: Using separate multiply and add operations ensures intermediate
-        // rounding matches scalar reference. FMA would produce different results near FP8
-        // representable boundaries due to single-rounding vs double-rounding behavior.
         __m256 a_scaled_f32x8 = _mm256_mul_ps(a_f32x8, alpha_f32x8);
-        __m256 b_scaled_f32x8 = _mm256_mul_ps(b_f32x8, beta_f32x8);
-        __m256 result_f32x8 = _mm256_add_ps(a_scaled_f32x8, b_scaled_f32x8);
+        __m256 result_f32x8 = _mm256_fmadd_ps(b_f32x8, beta_f32x8, a_scaled_f32x8);
         __m128i result_e4m3x8 = nk_f32x8_to_e4m3x8_haswell_(result_f32x8);
         _mm_storel_epi64((__m128i *)(result + i), result_e4m3x8);
     }
@@ -1403,12 +1399,8 @@ NK_PUBLIC void nk_wsum_e5m2_haswell(nk_e5m2_t const *a, nk_e5m2_t const *b, nk_s
         __m128i b_e5m2x8 = _mm_loadl_epi64((__m128i const *)(b + i));
         __m256 a_f32x8 = nk_e5m2x8_to_f32x8_haswell_(a_e5m2x8);
         __m256 b_f32x8 = nk_e5m2x8_to_f32x8_haswell_(b_e5m2x8);
-        // FP8 rounding note: Using separate multiply and add operations ensures intermediate
-        // rounding matches scalar reference. FMA would produce different results near FP8
-        // representable boundaries due to single-rounding vs double-rounding behavior.
         __m256 a_scaled_f32x8 = _mm256_mul_ps(a_f32x8, alpha_f32x8);
-        __m256 b_scaled_f32x8 = _mm256_mul_ps(b_f32x8, beta_f32x8);
-        __m256 result_f32x8 = _mm256_add_ps(a_scaled_f32x8, b_scaled_f32x8);
+        __m256 result_f32x8 = _mm256_fmadd_ps(b_f32x8, beta_f32x8, a_scaled_f32x8);
         __m128i result_e5m2x8 = nk_f32x8_to_e5m2x8_haswell_(result_f32x8);
         _mm_storel_epi64((__m128i *)(result + i), result_e5m2x8);
     }

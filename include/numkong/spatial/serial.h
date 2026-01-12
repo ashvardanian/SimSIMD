@@ -205,6 +205,10 @@ nk_define_angular_(u8, u32, f32, nk_assign_from_to_, nk_f32_rsqrt_serial) // nk_
 nk_define_l2sq_(u8, u32, u32, nk_assign_from_to_)                         // nk_l2sq_u8_serial
 nk_define_l2_(u8, u32, u32, f32, nk_assign_from_to_, nk_f32_sqrt_serial)  // nk_l2_u8_serial
 
+#undef nk_define_l2sq_
+#undef nk_define_l2_
+#undef nk_define_angular_
+
 typedef nk_dot_f64x2_state_serial_t nk_angular_f64x2_state_serial_t;
 
 NK_INTERNAL void nk_angular_f64x2_init_serial(nk_angular_f64x2_state_serial_t *state) {

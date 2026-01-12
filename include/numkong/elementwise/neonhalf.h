@@ -124,8 +124,7 @@ NK_PUBLIC void nk_wsum_f16_neonhalf(                   //
         float16x8_t a_f16x8 = vld1q_f16((float16_t const *)a + i);
         float16x8_t b_f16x8 = vld1q_f16((float16_t const *)b + i);
         float16x8_t a_scaled_f16x8 = vmulq_n_f16(a_f16x8, alpha_f16);
-        float16x8_t b_scaled_f16x8 = vmulq_n_f16(b_f16x8, beta_f16);
-        float16x8_t result_f16x8 = vaddq_f16(a_scaled_f16x8, b_scaled_f16x8);
+        float16x8_t result_f16x8 = vfmaq_n_f16(a_scaled_f16x8, b_f16x8, beta_f16);
         vst1q_f16((float16_t *)result + i, result_f16x8);
     }
 
@@ -236,8 +235,7 @@ NK_PUBLIC void nk_wsum_u8_neonhalf(                  //
         float16x8_t a_f16x8 = vcvtq_f16_u16(vmovl_u8(a_u8x8));
         float16x8_t b_f16x8 = vcvtq_f16_u16(vmovl_u8(b_u8x8));
         float16x8_t a_scaled_f16x8 = vmulq_n_f16(a_f16x8, alpha_f16);
-        float16x8_t b_scaled_f16x8 = vmulq_n_f16(b_f16x8, beta_f16);
-        float16x8_t result_f16x8 = vaddq_f16(a_scaled_f16x8, b_scaled_f16x8);
+        float16x8_t result_f16x8 = vfmaq_n_f16(a_scaled_f16x8, b_f16x8, beta_f16);
         uint8x8_t result_u8x8 = vqmovn_u16(vcvtaq_u16_f16(result_f16x8));
         vst1_u8(result + i, result_u8x8);
     }
@@ -354,8 +352,7 @@ NK_PUBLIC void nk_wsum_i8_neonhalf(                  //
         float16x8_t a_f16x8 = vcvtq_f16_s16(vmovl_s8(a_i8x8));
         float16x8_t b_f16x8 = vcvtq_f16_s16(vmovl_s8(b_i8x8));
         float16x8_t a_scaled_f16x8 = vmulq_n_f16(a_f16x8, alpha_f16);
-        float16x8_t b_scaled_f16x8 = vmulq_n_f16(b_f16x8, beta_f16);
-        float16x8_t result_f16x8 = vaddq_f16(a_scaled_f16x8, b_scaled_f16x8);
+        float16x8_t result_f16x8 = vfmaq_n_f16(a_scaled_f16x8, b_f16x8, beta_f16);
         int8x8_t result_i8x8 = vqmovn_s16(vcvtaq_s16_f16(result_f16x8));
         vst1_s8(result + i, result_i8x8);
     }

@@ -2437,7 +2437,7 @@ NK_INTERNAL void nk_reduce_min_e4m3_haswell_contiguous_( //
 nk_reduce_min_e4m3_haswell_cycle_:
     if (count < 32) {
         nk_b256_vec_t data_vec;
-        nk_partial_load_b8x32_serial_(data, count, &data_vec);
+        nk_partial_load_b8x32_serial_(data, &data_vec, count);
         // Blend tail with 0xFF (min identity) - create mask where byte index >= count
         __m256i indices = _mm256_setr_epi8(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, //
                                            16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31);
@@ -2554,7 +2554,7 @@ NK_INTERNAL void nk_reduce_max_e4m3_haswell_contiguous_( //
 nk_reduce_max_e4m3_haswell_cycle_:
     if (count < 32) {
         nk_b256_vec_t data_vec;
-        nk_partial_load_b8x32_serial_(data, count, &data_vec);
+        nk_partial_load_b8x32_serial_(data, &data_vec, count);
         data_i8x32 = data_vec.ymm; // zeros in tail are already max identity (0x00)
         count = 0;
     }
@@ -2717,7 +2717,7 @@ NK_INTERNAL void nk_reduce_min_e5m2_haswell_contiguous_( //
 nk_reduce_min_e5m2_haswell_cycle_:
     if (count < 32) {
         nk_b256_vec_t data_vec;
-        nk_partial_load_b8x32_serial_(data, count, &data_vec);
+        nk_partial_load_b8x32_serial_(data, &data_vec, count);
         // Blend tail with 0xFF (min identity) - create mask where byte index >= count
         __m256i indices = _mm256_setr_epi8(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, //
                                            16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31);
@@ -2831,7 +2831,7 @@ NK_INTERNAL void nk_reduce_max_e5m2_haswell_contiguous_( //
 nk_reduce_max_e5m2_haswell_cycle_:
     if (count < 32) {
         nk_b256_vec_t data_vec;
-        nk_partial_load_b8x32_serial_(data, count, &data_vec);
+        nk_partial_load_b8x32_serial_(data, &data_vec, count);
         data_i8x32 = data_vec.ymm; // zeros in tail are already max identity (0x00)
         count = 0;
     }

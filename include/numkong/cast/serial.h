@@ -833,50 +833,8 @@ NK_INTERNAL void nk_partial_load_b16x16_serial_(void const *src, nk_b256_vec_t *
     }
 }
 
-/** @brief Type-agnostic partial load for 8-bit elements (32 elements max) into 256-bit vector. */
-NK_INTERNAL void nk_partial_load_b8x32_serial_(void const *src, nk_b256_vec_t *dst, nk_size_t n) {
-    dst->u64s[0] = 0, dst->u64s[1] = 0, dst->u64s[2] = 0, dst->u64s[3] = 0;
-    nk_u8_t const *s = (nk_u8_t const *)src;
-    switch (n) {
-    default:
-    case 32: dst->u8s[31] = s[31]; // fallthrough
-    case 31: dst->u8s[30] = s[30]; // fallthrough
-    case 30: dst->u8s[29] = s[29]; // fallthrough
-    case 29: dst->u8s[28] = s[28]; // fallthrough
-    case 28: dst->u8s[27] = s[27]; // fallthrough
-    case 27: dst->u8s[26] = s[26]; // fallthrough
-    case 26: dst->u8s[25] = s[25]; // fallthrough
-    case 25: dst->u8s[24] = s[24]; // fallthrough
-    case 24: dst->u8s[23] = s[23]; // fallthrough
-    case 23: dst->u8s[22] = s[22]; // fallthrough
-    case 22: dst->u8s[21] = s[21]; // fallthrough
-    case 21: dst->u8s[20] = s[20]; // fallthrough
-    case 20: dst->u8s[19] = s[19]; // fallthrough
-    case 19: dst->u8s[18] = s[18]; // fallthrough
-    case 18: dst->u8s[17] = s[17]; // fallthrough
-    case 17: dst->u8s[16] = s[16]; // fallthrough
-    case 16: dst->u8s[15] = s[15]; // fallthrough
-    case 15: dst->u8s[14] = s[14]; // fallthrough
-    case 14: dst->u8s[13] = s[13]; // fallthrough
-    case 13: dst->u8s[12] = s[12]; // fallthrough
-    case 12: dst->u8s[11] = s[11]; // fallthrough
-    case 11: dst->u8s[10] = s[10]; // fallthrough
-    case 10: dst->u8s[9] = s[9];   // fallthrough
-    case 9: dst->u8s[8] = s[8];    // fallthrough
-    case 8: dst->u8s[7] = s[7];    // fallthrough
-    case 7: dst->u8s[6] = s[6];    // fallthrough
-    case 6: dst->u8s[5] = s[5];    // fallthrough
-    case 5: dst->u8s[4] = s[4];    // fallthrough
-    case 4: dst->u8s[3] = s[3];    // fallthrough
-    case 3: dst->u8s[2] = s[2];    // fallthrough
-    case 2: dst->u8s[1] = s[1];    // fallthrough
-    case 1: dst->u8s[0] = s[0];    // fallthrough
-    case 0: break;
-    }
-}
-
 /** @brief Partial load for 8-bit elements (32 max) into 256-bit vector (zeros in remaining slots). */
-NK_INTERNAL void nk_partial_load_b8x32_serial_(void const *src, nk_size_t n, nk_b256_vec_t *dst) {
+NK_INTERNAL void nk_partial_load_b8x32_serial_(void const *src, nk_b256_vec_t *dst, nk_size_t n) {
     dst->u64s[0] = 0, dst->u64s[1] = 0, dst->u64s[2] = 0, dst->u64s[3] = 0;
     nk_u8_t const *s = (nk_u8_t const *)src;
     switch (n) {

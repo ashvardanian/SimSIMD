@@ -118,6 +118,10 @@ nk_define_dot_(u8, u32, u32, nk_assign_from_to_) // nk_dot_u8_serial
 nk_define_dot_(e4m3, f32, f32, nk_e4m3_to_f32_serial) // nk_dot_e4m3_serial
 nk_define_dot_(e5m2, f32, f32, nk_e5m2_to_f32_serial) // nk_dot_e5m2_serial
 
+#undef nk_define_dot_
+#undef nk_define_dot_complex_
+#undef nk_define_vdot_complex_
+
 NK_PUBLIC void nk_dot_i4_serial(nk_i4x2_t const *a, nk_i4x2_t const *b, nk_size_t n, nk_i32_t *result) {
     // i4 values are packed as nibbles: two 4-bit signed values per byte.
     // Parameter `n` is the number of 4-bit values (dimensions), not bytes.

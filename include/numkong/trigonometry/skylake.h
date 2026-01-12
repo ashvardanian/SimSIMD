@@ -81,8 +81,10 @@ NK_INTERNAL __m512 nk_f32x16_cos_skylake_(__m512 const angles_radians) {
     __m512 rounded_quotients = _mm512_roundscale_ps(quotients, _MM_FROUND_TO_NEAREST_INT | _MM_FROUND_NO_EXC);
     __m512i multiples_of_pi = _mm512_cvtps_epi32(rounded_quotients);
 
-    // Reduce the angle to: (angle - (multiples_of_pi * π)) in [-π/2, π/2]
-    __m512 const angles = _mm512_fnmadd_ps(rounded_quotients, pi, _mm512_sub_ps(angles_radians, pi_half));
+    // Reduce the angle to: (angle - (multiples_of_pi * π + π/2)) in [-π/2, π/2]
+    // Note: Computing offset first avoids catastrophic cancellation
+    __m512 const offset = _mm512_fmadd_ps(rounded_quotients, pi, pi_half);
+    __m512 const angles = _mm512_sub_ps(angles_radians, offset);
     __m512 const angles_squared = _mm512_mul_ps(angles, angles);
     __m512 const angles_cubed = _mm512_mul_ps(angles, angles_squared);
 

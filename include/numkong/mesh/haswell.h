@@ -631,9 +631,9 @@ NK_PUBLIC void nk_kabsch_f32_haswell(nk_f32_t const *a, nk_f32_t const *b, nk_si
     h21 -= n * centroid_a_z * centroid_b_y;
     h22 -= n * centroid_a_z * centroid_b_z;
 
-    // Compute SVD and optimal rotation
+    // Compute SVD and optimal rotation (svd_s is 9-element diagonal matrix)
     nk_f32_t cross_covariance[9] = {h00, h01, h02, h10, h11, h12, h20, h21, h22};
-    nk_f32_t svd_u[9], svd_s[3], svd_v[9];
+    nk_f32_t svd_u[9], svd_s[9], svd_v[9];
     nk_svd3x3_f32_(cross_covariance, svd_u, svd_s, svd_v);
 
     // R = V * Uᵀ
@@ -785,9 +785,9 @@ NK_PUBLIC void nk_kabsch_f64_haswell(nk_f64_t const *a, nk_f64_t const *b, nk_si
     H21 -= n * centroid_a_z * centroid_b_y;
     H22 -= n * centroid_a_z * centroid_b_z;
 
-    // Compute SVD and optimal rotation using f64 precision
+    // Compute SVD and optimal rotation using f64 precision (svd_s is 9-element diagonal matrix)
     nk_f64_t cross_covariance[9] = {H00, H01, H02, H10, H11, H12, H20, H21, H22};
-    nk_f64_t svd_u[9], svd_s[3], svd_v[9];
+    nk_f64_t svd_u[9], svd_s[9], svd_v[9];
     nk_svd3x3_f64_(cross_covariance, svd_u, svd_s, svd_v);
 
     // R = V * Uᵀ
@@ -1091,8 +1091,8 @@ NK_PUBLIC void nk_umeyama_f64_haswell(nk_f64_t const *a, nk_f64_t const *b, nk_s
     cross_covariance[7] = h21_s - sum_a_z * sum_b_y * inv_n;
     cross_covariance[8] = h22_s - sum_a_z * sum_b_z * inv_n;
 
-    // SVD using f64 for full precision
-    nk_f64_t svd_u[9], svd_s[3], svd_v[9];
+    // SVD using f64 for full precision (svd_s is 9-element diagonal matrix)
+    nk_f64_t svd_u[9], svd_s[9], svd_v[9];
     nk_svd3x3_f64_(cross_covariance, svd_u, svd_s, svd_v);
 
     // R = V * Uᵀ
@@ -1108,9 +1108,10 @@ NK_PUBLIC void nk_umeyama_f64_haswell(nk_f64_t const *a, nk_f64_t const *b, nk_s
     r[8] = svd_v[6] * svd_u[6] + svd_v[7] * svd_u[7] + svd_v[8] * svd_u[8];
 
     // Scale factor: c = trace(D × S) / (n × variance(a))
+    // svd_s diagonal: [0], [4], [8]
     nk_f64_t det = nk_det3x3_f64_(r);
     nk_f64_t d3 = det < 0 ? -1.0 : 1.0;
-    nk_f64_t trace_ds = svd_s[0] + svd_s[1] + d3 * svd_s[2];
+    nk_f64_t trace_ds = svd_s[0] + svd_s[4] + d3 * svd_s[8];
     nk_f64_t c = trace_ds / (n * variance_a);
     if (scale) *scale = c;
 
