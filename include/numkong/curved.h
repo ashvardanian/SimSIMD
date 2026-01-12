@@ -227,6 +227,18 @@ NK_PUBLIC void nk_mahalanobis_bf16_neonbfdot(nk_bf16_t const *a, nk_bf16_t const
                                              nk_f32_t *result);
 #endif // NK_TARGET_NEONBFDOT
 
+#if NK_TARGET_SMEF64
+/** @copydoc nk_bilinear_f32 */
+NK_PUBLIC void nk_bilinear_f32_smef64(nk_f32_t const *a, nk_f32_t const *b, nk_f32_t const *c, nk_size_t n,
+                                      nk_f32_t *result);
+/** @copydoc nk_bilinear_f32c */
+NK_PUBLIC void nk_bilinear_f32c_smef64(nk_f32c_t const *a, nk_f32c_t const *b, nk_f32c_t const *c, nk_size_t n,
+                                       nk_f32c_t *result);
+/** @copydoc nk_mahalanobis_f32 */
+NK_PUBLIC void nk_mahalanobis_f32_smef64(nk_f32_t const *a, nk_f32_t const *b, nk_f32_t const *c, nk_size_t n,
+                                         nk_f32_t *result);
+#endif // NK_TARGET_SMEF64
+
 #if NK_TARGET_HASWELL
 /** @copydoc nk_bilinear_f16 */
 NK_PUBLIC void nk_bilinear_f16_haswell(nk_f16_t const *a, nk_f16_t const *b, nk_f16_t const *c, nk_size_t n,
@@ -861,6 +873,255 @@ NK_PUBLIC void nk_bilinear_bf16c_neonbfdot(nk_bf16c_t const *a, nk_bf16c_t const
 #pragma GCC pop_options
 #endif
 #endif // NK_TARGET_NEONBFDOT
+
+#if NK_TARGET_SMEF64
+#pragma GCC push_options
+#pragma GCC target("+sme+sme-f64f64")
+#pragma clang attribute push(__attribute__((target("sme,sme-f64f64"))), apply_to = function)
+
+#include <arm_sme.h>
+#include <arm_sve.h>
+
+/**
+ *  @brief Streaming SVE kernel for bilinear form with f64 accumulation.
+ *
+ *  Computes result = a^T * C * b using f64 accumulation for higher precision.
+ *  All computation in streaming mode using SVE.
+ *
+ *  Algorithm (O(n²), no intermediate materialization):
+ *    For each row i: dot(C[i,:], b) * a[i], accumulate
+ *
+ *  Processing: Uses full f32 vector width, multiplies in f32, then sums
+ *  pairwise to f64 for accumulation.
+ */
+__arm_locally_streaming static nk_f64_t nk_bilinear_f32_smef64_kernel_(nk_f32_t const *a, nk_f32_t const *b,
+                                                                       nk_f32_t const *c, nk_size_t n) {
+    nk_u64_t const vl_f32 = svcntw(); // f32 elements per vector (16 for 512-bit SVL)
+    svbool_t const ptrue_s = svptrue_b32();
+
+    nk_f64_t final_sum = 0.0;
+
+    for (nk_size_t i = 0; i < n; i++) {
+        nk_f64_t a_i = (nk_f64_t)a[i];
+        nk_f32_t const *c_row = c + i * n;
+
+        // Vectorized dot product: C[i,:] · b
+        // Use f32 multiply, then horizontal sum with f64 accumulation
+        svfloat32_t acc0 = svdup_f32(0.0f);
+        svfloat32_t acc1 = svdup_f32(0.0f);
+
+        nk_size_t j = 0;
+
+        // Unroll 2x for better throughput
+        for (; j + 2 * vl_f32 <= n; j += 2 * vl_f32) {
+            svfloat32_t c0 = svld1_f32(ptrue_s, c_row + j);
+            svfloat32_t b0 = svld1_f32(ptrue_s, b + j);
+            svfloat32_t c1 = svld1_f32(ptrue_s, c_row + j + vl_f32);
+            svfloat32_t b1 = svld1_f32(ptrue_s, b + j + vl_f32);
+
+            acc0 = svmla_f32_x(ptrue_s, acc0, c0, b0);
+            acc1 = svmla_f32_x(ptrue_s, acc1, c1, b1);
+        }
+
+        // Handle remaining full vector
+        for (; j + vl_f32 <= n; j += vl_f32) {
+            svfloat32_t c_vec = svld1_f32(ptrue_s, c_row + j);
+            svfloat32_t b_vec = svld1_f32(ptrue_s, b + j);
+            acc0 = svmla_f32_x(ptrue_s, acc0, c_vec, b_vec);
+        }
+
+        // Handle remaining elements with predication
+        if (j < n) {
+            svbool_t pg = svwhilelt_b32(j, n);
+            svfloat32_t c_vec = svld1_f32(pg, c_row + j);
+            svfloat32_t b_vec = svld1_f32(pg, b + j);
+            acc0 = svmla_f32_m(pg, acc0, c_vec, b_vec);
+        }
+
+        // Combine accumulators and horizontal sum (upgrade to f64 for final add)
+        acc0 = svadd_f32_x(ptrue_s, acc0, acc1);
+        nk_f64_t cb_i = (nk_f64_t)svaddv_f32(ptrue_s, acc0);
+        final_sum += a_i * cb_i;
+    }
+
+    return final_sum;
+}
+
+/**
+ *  @brief Bilinear form using Streaming SVE with f64 accumulation.
+ *
+ *  Computes result = a^T * C * b using f64 accumulation for higher precision.
+ *  Uses Streaming SVE for vectorized computation with row-wise dot products.
+ *
+ *  Complexity: O(n^2) - computes C*b implicitly without materializing intermediate.
+ */
+NK_PUBLIC void nk_bilinear_f32_smef64(nk_f32_t const *a, nk_f32_t const *b, nk_f32_t const *c, nk_size_t n,
+                                      nk_f32_t *result) {
+    *result = (nk_f32_t)nk_bilinear_f32_smef64_kernel_(a, b, c, n);
+}
+
+/**
+ *  @brief Streaming SVE kernel for Mahalanobis distance with f64 accumulation.
+ *
+ *  Computes result = sqrt((a-b)^T * C * (a-b)) using f64 accumulation.
+ */
+__arm_locally_streaming static nk_f64_t nk_mahalanobis_f32_smef64_kernel_(nk_f32_t const *a, nk_f32_t const *b,
+                                                                          nk_f32_t const *c, nk_size_t n) {
+    nk_u64_t const vl_f32 = svcntw();
+    svbool_t const ptrue_s = svptrue_b32();
+
+    nk_f64_t final_sum = 0.0;
+
+    for (nk_size_t i = 0; i < n; i++) {
+        nk_f64_t diff_i = (nk_f64_t)a[i] - (nk_f64_t)b[i];
+        nk_f32_t const *c_row = c + i * n;
+
+        svfloat32_t acc0 = svdup_f32(0.0f);
+        svfloat32_t acc1 = svdup_f32(0.0f);
+
+        nk_size_t j = 0;
+        for (; j + 2 * vl_f32 <= n; j += 2 * vl_f32) {
+            // Load a and b, compute diff = a - b
+            svfloat32_t a0 = svld1_f32(ptrue_s, a + j);
+            svfloat32_t b0 = svld1_f32(ptrue_s, b + j);
+            svfloat32_t diff0 = svsub_f32_x(ptrue_s, a0, b0);
+
+            svfloat32_t a1 = svld1_f32(ptrue_s, a + j + vl_f32);
+            svfloat32_t b1 = svld1_f32(ptrue_s, b + j + vl_f32);
+            svfloat32_t diff1 = svsub_f32_x(ptrue_s, a1, b1);
+
+            // Load C row and FMA
+            svfloat32_t c0 = svld1_f32(ptrue_s, c_row + j);
+            svfloat32_t c1 = svld1_f32(ptrue_s, c_row + j + vl_f32);
+
+            acc0 = svmla_f32_x(ptrue_s, acc0, c0, diff0);
+            acc1 = svmla_f32_x(ptrue_s, acc1, c1, diff1);
+        }
+
+        for (; j + vl_f32 <= n; j += vl_f32) {
+            svfloat32_t a_vec = svld1_f32(ptrue_s, a + j);
+            svfloat32_t b_vec = svld1_f32(ptrue_s, b + j);
+            svfloat32_t diff = svsub_f32_x(ptrue_s, a_vec, b_vec);
+            svfloat32_t c_vec = svld1_f32(ptrue_s, c_row + j);
+            acc0 = svmla_f32_x(ptrue_s, acc0, c_vec, diff);
+        }
+
+        if (j < n) {
+            svbool_t pg = svwhilelt_b32(j, n);
+            svfloat32_t a_vec = svld1_f32(pg, a + j);
+            svfloat32_t b_vec = svld1_f32(pg, b + j);
+            svfloat32_t diff = svsub_f32_m(pg, a_vec, b_vec);
+            svfloat32_t c_vec = svld1_f32(pg, c_row + j);
+            acc0 = svmla_f32_m(pg, acc0, c_vec, diff);
+        }
+
+        acc0 = svadd_f32_x(ptrue_s, acc0, acc1);
+        nk_f64_t c_diff_i = (nk_f64_t)svaddv_f32(ptrue_s, acc0);
+        final_sum += diff_i * c_diff_i;
+    }
+
+    return final_sum;
+}
+
+/**
+ *  @brief Mahalanobis distance using Streaming SVE with f64 accumulation.
+ *
+ *  Computes result = sqrt((a-b)^T * C * (a-b)) using f64 accumulation.
+ *  Uses Streaming SVE for vectorized computation.
+ */
+NK_PUBLIC void nk_mahalanobis_f32_smef64(nk_f32_t const *a, nk_f32_t const *b, nk_f32_t const *c, nk_size_t n,
+                                         nk_f32_t *result) {
+    nk_f64_t sum = nk_mahalanobis_f32_smef64_kernel_(a, b, c, n);
+    *result = (nk_f32_t)__builtin_sqrt(sum);
+}
+
+/**
+ *  @brief Streaming SVE kernel for complex bilinear form using FCMLA.
+ *
+ *  Computes result = a^T * C * b for complex vectors.
+ *  Uses svcmla for fused complex multiply-accumulate with predicated tail handling.
+ *  No scalar fallback - uses svwhilelt_b32 predicates for remaining elements.
+ *
+ *  Note: svld2_f32 (2-way deinterleaving load) is NOT available in Streaming SVE mode
+ *  on Apple M4, so we use contiguous loads and handle interleaved data directly with FCMLA.
+ */
+__arm_locally_streaming static void nk_bilinear_f32c_smef64_kernel_(nk_f32c_t const *a, nk_f32c_t const *b,
+                                                                    nk_f32c_t const *c, nk_size_t n, nk_f64_t *sum_real,
+                                                                    nk_f64_t *sum_imag) {
+    nk_u64_t const vl_f32 = svcntw();
+    svbool_t const ptrue_s = svptrue_b32();
+    nk_size_t const n_floats = n * 2; // Total floats (interleaved complex)
+
+    nk_f64_t acc_real = 0.0, acc_imag = 0.0;
+    nk_f32_t const *b_f32 = (nk_f32_t const *)b;
+    nk_f32_t const *c_f32 = (nk_f32_t const *)c;
+
+    for (nk_size_t i = 0; i < n; i++) {
+        nk_f64_t a_r = (nk_f64_t)a[i].real;
+        nk_f64_t a_i = (nk_f64_t)a[i].imag;
+
+        // Two interleaved accumulators for ILP [r0,i0,r1,i1,...]
+        svfloat32_t acc0 = svdup_f32(0.0f);
+        svfloat32_t acc1 = svdup_f32(0.0f);
+        nk_f32_t const *c_row = c_f32 + i * n_floats;
+
+        // Single loop with predicated operations - NO SCALAR TAIL
+        nk_size_t j = 0;
+        do {
+            // Generate predicates for two vector-widths
+            svbool_t pg0 = svwhilelt_b32((nk_u32_t)j, (nk_u32_t)n_floats);
+            svbool_t pg1 = svwhilelt_b32((nk_u32_t)(j + vl_f32), (nk_u32_t)n_floats);
+
+            // Predicated loads for first and second chunks
+            svfloat32_t c0 = svld1_f32(pg0, c_row + j);
+            svfloat32_t b0 = svld1_f32(pg0, b_f32 + j);
+            svfloat32_t c1 = svld1_f32(pg1, c_row + j + vl_f32);
+            svfloat32_t b1 = svld1_f32(pg1, b_f32 + j + vl_f32);
+
+            // FCMLA with unpredicated execution - safe because:
+            // 1. Predicated loads zero inactive lanes
+            // 2. Zero * anything = zero, so inactive lanes contribute nothing
+            acc0 = svcmla_f32_x(ptrue_s, acc0, c0, b0, 0);
+            acc0 = svcmla_f32_x(ptrue_s, acc0, c0, b0, 90);
+            acc1 = svcmla_f32_x(ptrue_s, acc1, c1, b1, 0);
+            acc1 = svcmla_f32_x(ptrue_s, acc1, c1, b1, 90);
+
+            j += 2 * vl_f32;
+        } while (j < n_floats);
+
+        // Combine accumulators
+        acc0 = svadd_f32_x(ptrue_s, acc0, acc1);
+
+        // Horizontal sum: deinterleave to get separate real/imag sums
+        svfloat32_t reals = svuzp1_f32(acc0, acc0);
+        svfloat32_t imags = svuzp2_f32(acc0, acc0);
+        nk_f64_t cb_r = (nk_f64_t)svaddv_f32(ptrue_s, reals) * 0.5;
+        nk_f64_t cb_i = (nk_f64_t)svaddv_f32(ptrue_s, imags) * 0.5;
+
+        // Final complex accumulation with a
+        acc_real += a_r * cb_r - a_i * cb_i;
+        acc_imag += a_r * cb_i + a_i * cb_r;
+    }
+
+    *sum_real = acc_real;
+    *sum_imag = acc_imag;
+}
+
+/**
+ *  @brief Complex bilinear form using Streaming SVE with f64 accumulation.
+ *  Uses FCMLA (fused complex multiply-accumulate) with predicated tail handling.
+ */
+NK_PUBLIC void nk_bilinear_f32c_smef64(nk_f32c_t const *a, nk_f32c_t const *b, nk_f32c_t const *c, nk_size_t n,
+                                       nk_f32c_t *result) {
+    nk_f64_t sum_real, sum_imag;
+    nk_bilinear_f32c_smef64_kernel_(a, b, c, n, &sum_real, &sum_imag);
+    result->real = (nk_f32_t)sum_real;
+    result->imag = (nk_f32_t)sum_imag;
+}
+
+#pragma clang attribute pop
+#pragma GCC pop_options
+#endif // NK_TARGET_SMEF64
 
 #endif // NK_TARGET_ARM_
 

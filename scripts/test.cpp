@@ -1208,6 +1208,11 @@ void test_curved() {
     run_if_matches("bilinear_skylake", "f64", test_bilinear<f64_t>, nk_bilinear_f64_skylake);
 #endif // NK_TARGET_SKYLAKE
 
+#if NK_TARGET_SMEF64
+    run_if_matches("bilinear_smef64", "f32", test_bilinear<f32_t>, nk_bilinear_f32_smef64);
+    run_if_matches("bilinear_smef64", "f32c", test_bilinear<f32c_t>, nk_bilinear_f32c_smef64);
+#endif // NK_TARGET_SMEF64
+
     // Serial always runs - baseline test
     run_if_matches("bilinear_serial", "f32", test_bilinear<f32_t>, nk_bilinear_f32_serial);
     run_if_matches("bilinear_serial", "f64", test_bilinear<f64_t>, nk_bilinear_f64_serial);
@@ -2089,6 +2094,28 @@ void test_dots() {
     run_if_matches("dots_skylake", "f64", test_dots<f64_t>, nk_dots_packed_size_f64_skylake, nk_dots_pack_f64_skylake,
                    nk_dots_packed_f64_skylake);
 #endif // NK_TARGET_SKYLAKE
+
+#if NK_TARGET_SME
+    // SME precision validation tests (Arm Scalable Matrix Extension)
+    run_if_matches("dots_sme", "f16", test_dots<f16_t>, nk_dots_packed_size_f16_sme, nk_dots_pack_f16_sme,
+                   nk_dots_packed_f16_sme);
+    run_if_matches("dots_sme", "bf16", test_dots<bf16_t>, nk_dots_packed_size_bf16_sme, nk_dots_pack_bf16_sme,
+                   nk_dots_packed_bf16_sme);
+    run_if_matches("dots_sme", "i8", test_dots<i8_t>, nk_dots_packed_size_i8_sme, nk_dots_pack_i8_sme,
+                   nk_dots_packed_i8_sme);
+    run_if_matches("dots_sme", "u8", test_dots<u8_t>, nk_dots_packed_size_u8_sme, nk_dots_pack_u8_sme,
+                   nk_dots_packed_u8_sme);
+    run_if_matches("dots_sme", "e4m3", test_dots<e4m3_t>, nk_dots_packed_size_e4m3_sme, nk_dots_pack_e4m3_sme,
+                   nk_dots_packed_e4m3_sme);
+    run_if_matches("dots_sme", "e5m2", test_dots<e5m2_t>, nk_dots_packed_size_e5m2_sme, nk_dots_pack_e5m2_sme,
+                   nk_dots_packed_e5m2_sme);
+#endif // NK_TARGET_SME
+#if NK_TARGET_SMEF64
+    run_if_matches("dots_smef64", "f32", test_dots<f32_t>, nk_dots_packed_size_f32_smef64, nk_dots_pack_f32_smef64,
+                   nk_dots_packed_f32_smef64);
+    run_if_matches("dots_smef64", "f64", test_dots<f64_t>, nk_dots_packed_size_f64_smef64, nk_dots_pack_f64_smef64,
+                   nk_dots_packed_f64_smef64);
+#endif // NK_TARGET_SMEF64
 
     // Serial always runs - baseline test
     run_if_matches("dots_serial", "f32", test_dots<f32_t>, nk_dots_packed_size_f32_serial, nk_dots_pack_f32_serial,

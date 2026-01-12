@@ -1004,7 +1004,7 @@ NK_INTERNAL void nk_dots_pack_i8_transposed_sapphire_amx( //
  *  @param result Output n_vectors × n_vectors matrix
  *  @param result_stride Byte stride between result rows
  */
-NK_PUBLIC void nk_cross_bf16_sapphire_amx(                          //
+NK_PUBLIC void nk_dots_symmetric_bf16_sapphire_amx(                  //
     nk_bf16_t const *vectors, nk_size_t n_vectors, nk_size_t depth, //
     nk_size_t stride, nk_f32_t *result, nk_size_t result_stride) {
 
@@ -1055,7 +1055,7 @@ NK_PUBLIC void nk_cross_bf16_sapphire_amx(                          //
 /*  Compute self cross-correlation for up to 16 INT8 vectors.
  *  Result[row_idx, column_idx] = dot(vectors[row_idx], vectors[column_idx])
  */
-NK_PUBLIC void nk_cross_i8_sapphire_amx(                          //
+NK_PUBLIC void nk_dots_symmetric_i8_sapphire_amx(                  //
     nk_i8_t const *vectors, nk_size_t n_vectors, nk_size_t depth, //
     nk_size_t stride, nk_i32_t *result, nk_size_t result_stride) {
 

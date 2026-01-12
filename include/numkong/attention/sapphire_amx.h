@@ -677,8 +677,6 @@ NK_PUBLIC void nk_attention_pack_v_sapphire_amx(nk_bf16_t const *v, void *kv_pac
     }
 }
 
-/* Main Attention Kernels */
-
 /**
  *  @brief Extract K block from packed format: Kᵀ[head_dim, Bᶜ] for a given kv_block.
  *
