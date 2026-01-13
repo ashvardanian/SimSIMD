@@ -4098,13 +4098,18 @@ impl MeshAlignmentResult<f32> {
 
 /// Mesh alignment operations for 3D point clouds.
 pub trait MeshAlignment: Sized {
-    fn rmsd(a: &[[Self; 3]], b: &[[Self; 3]]) -> Option<MeshAlignmentResult<Self>>;
-    fn kabsch(a: &[[Self; 3]], b: &[[Self; 3]]) -> Option<MeshAlignmentResult<Self>>;
-    fn umeyama(a: &[[Self; 3]], b: &[[Self; 3]]) -> Option<MeshAlignmentResult<Self>>;
+    /// Output type for results. f64/f32 use themselves, f16/bf16 use f32.
+    type Output: Default + Copy;
+
+    fn rmsd(a: &[[Self; 3]], b: &[[Self; 3]]) -> Option<MeshAlignmentResult<Self::Output>>;
+    fn kabsch(a: &[[Self; 3]], b: &[[Self; 3]]) -> Option<MeshAlignmentResult<Self::Output>>;
+    fn umeyama(a: &[[Self; 3]], b: &[[Self; 3]]) -> Option<MeshAlignmentResult<Self::Output>>;
 }
 
 impl MeshAlignment for f64 {
-    fn rmsd(a: &[[Self; 3]], b: &[[Self; 3]]) -> Option<MeshAlignmentResult<Self>> {
+    type Output = f64;
+
+    fn rmsd(a: &[[Self; 3]], b: &[[Self; 3]]) -> Option<MeshAlignmentResult<Self::Output>> {
         if a.len() != b.len() || a.len() < 3 {
             return None;
         }
@@ -4130,7 +4135,7 @@ impl MeshAlignment for f64 {
         Some(result)
     }
 
-    fn kabsch(a: &[[Self; 3]], b: &[[Self; 3]]) -> Option<MeshAlignmentResult<Self>> {
+    fn kabsch(a: &[[Self; 3]], b: &[[Self; 3]]) -> Option<MeshAlignmentResult<Self::Output>> {
         if a.len() != b.len() || a.len() < 3 {
             return None;
         }
@@ -4156,7 +4161,7 @@ impl MeshAlignment for f64 {
         Some(result)
     }
 
-    fn umeyama(a: &[[Self; 3]], b: &[[Self; 3]]) -> Option<MeshAlignmentResult<Self>> {
+    fn umeyama(a: &[[Self; 3]], b: &[[Self; 3]]) -> Option<MeshAlignmentResult<Self::Output>> {
         if a.len() != b.len() || a.len() < 3 {
             return None;
         }
@@ -4184,7 +4189,9 @@ impl MeshAlignment for f64 {
 }
 
 impl MeshAlignment for f32 {
-    fn rmsd(a: &[[Self; 3]], b: &[[Self; 3]]) -> Option<MeshAlignmentResult<Self>> {
+    type Output = f32;
+
+    fn rmsd(a: &[[Self; 3]], b: &[[Self; 3]]) -> Option<MeshAlignmentResult<Self::Output>> {
         if a.len() != b.len() || a.len() < 3 {
             return None;
         }
@@ -4210,7 +4217,7 @@ impl MeshAlignment for f32 {
         Some(result)
     }
 
-    fn kabsch(a: &[[Self; 3]], b: &[[Self; 3]]) -> Option<MeshAlignmentResult<Self>> {
+    fn kabsch(a: &[[Self; 3]], b: &[[Self; 3]]) -> Option<MeshAlignmentResult<Self::Output>> {
         if a.len() != b.len() || a.len() < 3 {
             return None;
         }
@@ -4236,7 +4243,7 @@ impl MeshAlignment for f32 {
         Some(result)
     }
 
-    fn umeyama(a: &[[Self; 3]], b: &[[Self; 3]]) -> Option<MeshAlignmentResult<Self>> {
+    fn umeyama(a: &[[Self; 3]], b: &[[Self; 3]]) -> Option<MeshAlignmentResult<Self::Output>> {
         if a.len() != b.len() || a.len() < 3 {
             return None;
         }
@@ -4251,6 +4258,170 @@ impl MeshAlignment for f32 {
             nk_umeyama_f32(
                 a.as_ptr() as *const f32,
                 b.as_ptr() as *const f32,
+                a.len() as u64size,
+                result.a_centroid.as_mut_ptr(),
+                result.b_centroid.as_mut_ptr(),
+                result.rotation_matrix.as_mut_ptr(),
+                &mut result.scale,
+                &mut result.rmsd,
+            )
+        };
+        Some(result)
+    }
+}
+
+impl MeshAlignment for f16 {
+    type Output = f32;
+
+    fn rmsd(a: &[[Self; 3]], b: &[[Self; 3]]) -> Option<MeshAlignmentResult<Self::Output>> {
+        if a.len() != b.len() || a.len() < 3 {
+            return None;
+        }
+        let mut result = MeshAlignmentResult {
+            rotation_matrix: [0.0; 9],
+            scale: 0.0,
+            rmsd: 0.0,
+            a_centroid: [0.0; 3],
+            b_centroid: [0.0; 3],
+        };
+        unsafe {
+            nk_rmsd_f16(
+                a.as_ptr() as *const u16,
+                b.as_ptr() as *const u16,
+                a.len() as u64size,
+                result.a_centroid.as_mut_ptr(),
+                result.b_centroid.as_mut_ptr(),
+                result.rotation_matrix.as_mut_ptr(),
+                &mut result.scale,
+                &mut result.rmsd,
+            )
+        };
+        Some(result)
+    }
+
+    fn kabsch(a: &[[Self; 3]], b: &[[Self; 3]]) -> Option<MeshAlignmentResult<Self::Output>> {
+        if a.len() != b.len() || a.len() < 3 {
+            return None;
+        }
+        let mut result = MeshAlignmentResult {
+            rotation_matrix: [0.0; 9],
+            scale: 0.0,
+            rmsd: 0.0,
+            a_centroid: [0.0; 3],
+            b_centroid: [0.0; 3],
+        };
+        unsafe {
+            nk_kabsch_f16(
+                a.as_ptr() as *const u16,
+                b.as_ptr() as *const u16,
+                a.len() as u64size,
+                result.a_centroid.as_mut_ptr(),
+                result.b_centroid.as_mut_ptr(),
+                result.rotation_matrix.as_mut_ptr(),
+                &mut result.scale,
+                &mut result.rmsd,
+            )
+        };
+        Some(result)
+    }
+
+    fn umeyama(a: &[[Self; 3]], b: &[[Self; 3]]) -> Option<MeshAlignmentResult<Self::Output>> {
+        if a.len() != b.len() || a.len() < 3 {
+            return None;
+        }
+        let mut result = MeshAlignmentResult {
+            rotation_matrix: [0.0; 9],
+            scale: 0.0,
+            rmsd: 0.0,
+            a_centroid: [0.0; 3],
+            b_centroid: [0.0; 3],
+        };
+        unsafe {
+            nk_umeyama_f16(
+                a.as_ptr() as *const u16,
+                b.as_ptr() as *const u16,
+                a.len() as u64size,
+                result.a_centroid.as_mut_ptr(),
+                result.b_centroid.as_mut_ptr(),
+                result.rotation_matrix.as_mut_ptr(),
+                &mut result.scale,
+                &mut result.rmsd,
+            )
+        };
+        Some(result)
+    }
+}
+
+impl MeshAlignment for bf16 {
+    type Output = f32;
+
+    fn rmsd(a: &[[Self; 3]], b: &[[Self; 3]]) -> Option<MeshAlignmentResult<Self::Output>> {
+        if a.len() != b.len() || a.len() < 3 {
+            return None;
+        }
+        let mut result = MeshAlignmentResult {
+            rotation_matrix: [0.0; 9],
+            scale: 0.0,
+            rmsd: 0.0,
+            a_centroid: [0.0; 3],
+            b_centroid: [0.0; 3],
+        };
+        unsafe {
+            nk_rmsd_bf16(
+                a.as_ptr() as *const u16,
+                b.as_ptr() as *const u16,
+                a.len() as u64size,
+                result.a_centroid.as_mut_ptr(),
+                result.b_centroid.as_mut_ptr(),
+                result.rotation_matrix.as_mut_ptr(),
+                &mut result.scale,
+                &mut result.rmsd,
+            )
+        };
+        Some(result)
+    }
+
+    fn kabsch(a: &[[Self; 3]], b: &[[Self; 3]]) -> Option<MeshAlignmentResult<Self::Output>> {
+        if a.len() != b.len() || a.len() < 3 {
+            return None;
+        }
+        let mut result = MeshAlignmentResult {
+            rotation_matrix: [0.0; 9],
+            scale: 0.0,
+            rmsd: 0.0,
+            a_centroid: [0.0; 3],
+            b_centroid: [0.0; 3],
+        };
+        unsafe {
+            nk_kabsch_bf16(
+                a.as_ptr() as *const u16,
+                b.as_ptr() as *const u16,
+                a.len() as u64size,
+                result.a_centroid.as_mut_ptr(),
+                result.b_centroid.as_mut_ptr(),
+                result.rotation_matrix.as_mut_ptr(),
+                &mut result.scale,
+                &mut result.rmsd,
+            )
+        };
+        Some(result)
+    }
+
+    fn umeyama(a: &[[Self; 3]], b: &[[Self; 3]]) -> Option<MeshAlignmentResult<Self::Output>> {
+        if a.len() != b.len() || a.len() < 3 {
+            return None;
+        }
+        let mut result = MeshAlignmentResult {
+            rotation_matrix: [0.0; 9],
+            scale: 0.0,
+            rmsd: 0.0,
+            a_centroid: [0.0; 3],
+            b_centroid: [0.0; 3],
+        };
+        unsafe {
+            nk_umeyama_bf16(
+                a.as_ptr() as *const u16,
+                b.as_ptr() as *const u16,
                 a.len() as u64size,
                 result.a_centroid.as_mut_ptr(),
                 result.b_centroid.as_mut_ptr(),
