@@ -1279,24 +1279,22 @@ int main(int argc, char **argv) {
 #endif
 
 #if NK_TARGET_SME
-    matmul_<nk_f16_t, nk_f32_t>("dots_packed_f16_sme", nk_dots_packed_size_f16_sme, nk_dots_pack_f16_sme,
-                                nk_dots_packed_f16_sme);
-    matmul_<nk_bf16_t, nk_f32_t>("dots_packed_bf16_sme", nk_dots_packed_size_bf16_sme, nk_dots_pack_bf16_sme,
-                                 nk_dots_packed_bf16_sme);
-    matmul_<nk_i8_t, nk_i32_t>("dots_packed_i8_sme", nk_dots_packed_size_i8_sme, nk_dots_pack_i8_sme,
-                               nk_dots_packed_i8_sme);
-    matmul_<nk_u8_t, nk_u32_t>("dots_packed_u8_sme", nk_dots_packed_size_u8_sme, nk_dots_pack_u8_sme,
-                               nk_dots_packed_u8_sme);
-    matmul_<nk_e4m3_t, nk_f32_t>("dots_packed_e4m3_sme", nk_dots_packed_size_e4m3_sme, nk_dots_pack_e4m3_sme,
-                                 nk_dots_packed_e4m3_sme);
-    matmul_<nk_e5m2_t, nk_f32_t>("dots_packed_e5m2_sme", nk_dots_packed_size_e5m2_sme, nk_dots_pack_e5m2_sme,
-                                 nk_dots_packed_e5m2_sme);
+    dots_<f16_k, f32_k>("dots_packed_f16_sme", nk_dots_packed_size_f16_sme, nk_dots_pack_f16_sme,
+                        nk_dots_packed_f16_sme);
+    dots_<bf16_k, f32_k>("dots_packed_bf16_sme", nk_dots_packed_size_bf16_sme, nk_dots_pack_bf16_sme,
+                         nk_dots_packed_bf16_sme);
+    dots_<i8_k, i32_k>("dots_packed_i8_sme", nk_dots_packed_size_i8_sme, nk_dots_pack_i8_sme, nk_dots_packed_i8_sme);
+    dots_<u8_k, u32_k>("dots_packed_u8_sme", nk_dots_packed_size_u8_sme, nk_dots_pack_u8_sme, nk_dots_packed_u8_sme);
+    dots_<e4m3_k, f32_k>("dots_packed_e4m3_sme", nk_dots_packed_size_e4m3_sme, nk_dots_pack_e4m3_sme,
+                         nk_dots_packed_e4m3_sme);
+    dots_<e5m2_k, f32_k>("dots_packed_e5m2_sme", nk_dots_packed_size_e5m2_sme, nk_dots_pack_e5m2_sme,
+                         nk_dots_packed_e5m2_sme);
 #endif
 #if NK_TARGET_SMEF64
-    matmul_<nk_f32_t, nk_f32_t>("dots_packed_f32_smef64", nk_dots_packed_size_f32_smef64, nk_dots_pack_f32_smef64,
-                                nk_dots_packed_f32_smef64);
-    matmul_<nk_f64_t, nk_f64_t>("dots_packed_f64_smef64", nk_dots_packed_size_f64_smef64, nk_dots_pack_f64_smef64,
-                                nk_dots_packed_f64_smef64);
+    dots_<f32_k, f32_k>("dots_packed_f32_smef64", nk_dots_packed_size_f32_smef64, nk_dots_pack_f32_smef64,
+                        nk_dots_packed_f32_smef64);
+    dots_<f64_k, f64_k>("dots_packed_f64_smef64", nk_dots_packed_size_f64_smef64, nk_dots_pack_f64_smef64,
+                        nk_dots_packed_f64_smef64);
 
     curved_<f32_k, f32_k, f64_k>("bilinear_f32_smef64", nk_bilinear_f32_smef64);
     curved_<f32c_k, f32c_k, f64c_k>("bilinear_f32c_smef64", nk_bilinear_f32c_smef64);

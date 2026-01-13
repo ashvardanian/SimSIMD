@@ -112,9 +112,12 @@ StatementMacros:
   - nk_define_geospatial_
   - nk_define_reduce_add_
   - nk_define_reduce_minmax_
-  - nk_define_dots_packed_size_
+  - nk_define_dots_pack_size_
   - nk_define_dots_pack_
-  - nk_define_dots_packed_
+  - nk_define_dots_packed_4x4_vectors_aligned_
+  - nk_define_dots_packed_1x8_vectors_aligned_
+  - nk_define_dots_packed_vectors_
+  - nk_define_dots_outer_scalars_
   - nk_define_trigonometry_
   - nk_define_mesh_
   - nk_define_dense_
@@ -152,3 +155,6 @@ DerivePointerAlignment: false
 # Preserve user line breaks in intrinsic-heavy code
 BreakBeforeBinaryOperators: None
 PenaltyBreakAssignment: 50
+
+# Ensure files end with a newline
+InsertNewlineAtEOF: true

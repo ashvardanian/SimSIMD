@@ -6,8 +6,8 @@
  *
  *  This file provides two macro families for generating GEMM kernels:
  *
- *  - nk_make_dots_packed_vectors_: SIMD kernels using platform-specific vector intrinsics
- *  - nk_make_dots_outer_scalars_: Portable scalar kernels for any CPU
+ *  - nk_define_dots_packed_vectors_: SIMD kernels using platform-specific vector intrinsics
+ *  - nk_define_dots_outer_scalars_: Portable scalar kernels for any CPU
  *
  *  Both use the same B packing format (see below), enabling pack-once-use-anywhere.
  *
@@ -111,7 +111,7 @@ typedef struct {
  *  Calculates buffer size needed for packed B matrix: header + column_groups_count × group_size × depth.
  *  Edge rows are zero-padded to full group size for uniform SIMD loads.
  */
-#define nk_make_dots_pack_size_(suffix, input_type, output_type)                                               \
+#define nk_define_dots_pack_size_(suffix, input_type, output_type)                                             \
     NK_PUBLIC nk_size_t nk_dots_packed_size_##input_type##_##suffix(nk_size_t column_count, nk_size_t depth) { \
         nk_size_t const group_size = NK_DOTS_GROUP_SIZE_;                                                      \
         nk_size_t const column_groups_count = (column_count + group_size - 1) / group_size;                    \
@@ -127,7 +127,7 @@ typedef struct {
  *  Each group contains group_size rows, each row has depth contiguous elements.
  *  Edge groups are zero-padded to full group_size.
  */
-#define nk_make_dots_pack_(suffix, input_type, output_type)                                                          \
+#define nk_define_dots_pack_(suffix, input_type, output_type)                                                        \
     NK_PUBLIC void nk_dots_pack_##input_type##_##suffix(nk_##input_type##_t const *b, nk_size_t column_count,        \
                                                         nk_size_t depth, nk_size_t b_stride_in_bytes,                \
                                                         void *b_packed) {                                            \
@@ -192,9 +192,9 @@ typedef struct {
  *          // ... 16 FMAs for 4 × 4 register tile
  *      }
  */
-#define nk_make_dots_packed_4x4_vectors_aligned_(suffix, input_type, output_type, vec_type, state_type,               \
-                                                 result_vec_type, init_fn, load_fn, partial_load_fn, update_fn,       \
-                                                 finalize_fn, partial_store_fn, simd_width)                           \
+#define nk_define_dots_packed_4x4_vectors_aligned_(suffix, input_type, output_type, vec_type, state_type,             \
+                                                   result_vec_type, init_fn, load_fn, partial_load_fn, update_fn,     \
+                                                   finalize_fn, partial_store_fn, simd_width)                         \
                                                                                                                       \
     NK_PUBLIC void nk_dots_##suffix##_aligned_(nk_##input_type##_t const *a_matrix, void const *b_packed_buffer,      \
                                                nk_##output_type##_t *c_matrix, nk_size_t row_count,                   \
@@ -346,9 +346,9 @@ typedef struct {
  *  Optimized for cases where M is small relative to N (few rows, many columns).
  *  Uses same finalize function twice (for columns 0-3 and 4-7).
  */
-#define nk_make_dots_packed_1x8_vectors_aligned_(suffix, input_type, output_type, vec_type, state_type,               \
-                                                 result_vec_type, init_fn, load_fn, partial_load_fn, update_fn,       \
-                                                 finalize_fn, partial_store_fn, simd_width)                           \
+#define nk_define_dots_packed_1x8_vectors_aligned_(suffix, input_type, output_type, vec_type, state_type,             \
+                                                   result_vec_type, init_fn, load_fn, partial_load_fn, update_fn,     \
+                                                   finalize_fn, partial_store_fn, simd_width)                         \
                                                                                                                       \
     NK_PUBLIC void nk_dots_##suffix##_1x8_aligned_(nk_##input_type##_t const *a_matrix, void const *b_packed_buffer,  \
                                                    nk_##output_type##_t *c_matrix, nk_size_t row_count,               \
@@ -470,212 +470,213 @@ typedef struct {
     }
 
 /* Generate both aligned kernel variants for each platform */
-#define nk_make_dots_packed_vectors_(suffix, input_type, output_type, vec_type, state_type, result_vec_type, init_fn, \
-                                     load_fn, partial_load_fn, update_fn, finalize_fn, partial_store_fn, simd_width)  \
-    /* Generate 4 × 4 aligned kernel */                                                                               \
-    nk_make_dots_packed_4x4_vectors_aligned_(suffix, input_type, output_type, vec_type, state_type, result_vec_type,  \
-                                             init_fn, load_fn, partial_load_fn, update_fn, finalize_fn,               \
-                                             partial_store_fn, simd_width) /* Generate 1 × 8 aligned kernel */        \
-    nk_make_dots_packed_1x8_vectors_aligned_(suffix, input_type, output_type, vec_type, state_type, result_vec_type,  \
-                                             init_fn, load_fn, partial_load_fn, update_fn, finalize_fn,               \
-                                             partial_store_fn, simd_width)                                            \
-                                                                                                                      \
-    NK_PUBLIC void nk_dots_packed_##suffix(nk_##input_type##_t const *a_matrix, void const *b_packed_buffer,          \
-                                           nk_##output_type##_t *c_matrix, nk_size_t row_count,                       \
-                                           nk_size_t column_count, nk_size_t depth, nk_size_t a_stride_in_bytes,      \
-                                           nk_size_t c_stride_in_bytes) {                                             \
-        /* Cache blocking parameters (hardcoded for optimal L1/L2/L3 utilization) */                                  \
-        nk_size_t const row_block_size = 128;              /* L2 cache blocking over rows */                          \
-        nk_size_t const column_block_size = 2048;          /* L3 cache blocking over columns */                       \
-        nk_size_t const register_row_count = 4;            /* Rows per register tile */                               \
-        nk_size_t const register_column_count = 4;         /* Columns per register tile */                            \
-        nk_size_t const group_size = NK_DOTS_GROUP_SIZE_;  /* Columns per packed group */                             \
-        nk_size_t const group_stride = group_size * depth; /* Elements per group */                                   \
-        (void)register_column_count;                                                                                  \
-        (void)group_stride; /* Suppress unused warnings */                                                            \
-        /* Use 1 × 8 kernel when columns are aligned to 8 and many columns relative to rows */                        \
-        if (column_count % 8 == 0 && column_count >= row_count * 2 && depth % simd_width == 0) {                      \
-            nk_dots_##suffix##_1x8_aligned_(a_matrix, b_packed_buffer, c_matrix, row_count, column_count, depth,      \
-                                            a_stride_in_bytes, c_stride_in_bytes);                                    \
-            return;                                                                                                   \
-        }                                                                                                             \
-        /* Use 4 × 4 kernel when dimensions are 4-aligned */                                                          \
-        if (row_count % 4 == 0 && column_count % 4 == 0 && depth % simd_width == 0) {                                 \
-            nk_dots_##suffix##_aligned_(a_matrix, b_packed_buffer, c_matrix, row_count, column_count, depth,          \
-                                        a_stride_in_bytes, c_stride_in_bytes);                                        \
-            return;                                                                                                   \
-        }                                                                                                             \
-                                                                                                                      \
-        /* Zero output matrix */                                                                                      \
-        for (nk_size_t row_index = 0; row_index < row_count; ++row_index) {                                           \
-            nk_##output_type##_t *c_row = (nk_##output_type##_t *)((char *)c_matrix + row_index * c_stride_in_bytes); \
-            for (nk_size_t column_index = 0; column_index < column_count; ++column_index) c_row[column_index] = 0;    \
-        }                                                                                                             \
-                                                                                                                      \
-        /* Compute aligned/remainder depth for partial loads */                                                       \
-        nk_size_t const aligned_depth = (depth / simd_width) * simd_width;                                            \
-        nk_size_t const remainder_depth = depth - aligned_depth;                                                      \
-                                                                                                                      \
-        /* Loop 1: L3 cache blocking over columns */                                                                  \
-        nk_##input_type##_t const *packed_data =                                                                      \
-            (nk_##input_type##_t const *)((char const *)b_packed_buffer + sizeof(nk_dots_packed_buffer_header_t));    \
-        for (nk_size_t column_block_start_index = 0; column_block_start_index < column_count;                         \
-             column_block_start_index += column_block_size) {                                                         \
-            nk_size_t column_block_end_index = column_block_start_index + column_block_size;                          \
-            if (column_block_end_index > column_count) column_block_end_index = column_count;                         \
-                                                                                                                      \
-            /* Loop 2: L2 cache blocking over rows */                                                                 \
-            for (nk_size_t row_block_start_index = 0; row_block_start_index < row_count;                              \
-                 row_block_start_index += row_block_size) {                                                           \
-                nk_size_t row_block_end_index = row_block_start_index + row_block_size;                               \
-                if (row_block_end_index > row_count) row_block_end_index = row_count;                                 \
-                                                                                                                      \
-                /* Loop 4: Register tiling over columns (register_column_count columns per batch) */                  \
-                for (nk_size_t tile_column_start_index = column_block_start_index;                                    \
-                     tile_column_start_index < column_block_end_index;                                                \
-                     tile_column_start_index += register_column_count) {                                              \
-                    nk_size_t tile_column_count = register_column_count;                                              \
-                    if (tile_column_start_index + tile_column_count > column_block_end_index)                         \
-                        tile_column_count = column_block_end_index - tile_column_start_index;                         \
-                                                                                                                      \
-                    /* Compute B pointers once per column tile (outside row and depth loops) */                       \
-                    nk_size_t const group_index = tile_column_start_index / group_size;                               \
-                    nk_size_t const column_index_in_group = tile_column_start_index % group_size;                     \
-                    nk_##input_type##_t const *group_base_ptr = packed_data + group_index * group_stride;             \
-                                                                                                                      \
-                    nk_##input_type##_t const *b_depth_ptr_0 = group_base_ptr + (column_index_in_group + 0) * depth;  \
-                    nk_##input_type##_t const *b_depth_ptr_1 = (tile_column_count > 1)                                \
-                                                                   ? group_base_ptr +                                 \
-                                                                         (column_index_in_group + 1) * depth          \
-                                                                   : b_depth_ptr_0;                                   \
-                    nk_##input_type##_t const *b_depth_ptr_2 = (tile_column_count > 2)                                \
-                                                                   ? group_base_ptr +                                 \
-                                                                         (column_index_in_group + 2) * depth          \
-                                                                   : b_depth_ptr_0;                                   \
-                    nk_##input_type##_t const *b_depth_ptr_3 = (tile_column_count > 3)                                \
-                                                                   ? group_base_ptr +                                 \
-                                                                         (column_index_in_group + 3) * depth          \
-                                                                   : b_depth_ptr_0;                                   \
-                                                                                                                      \
-                    /* Loop 5: Register tiling over rows (register_rows rows per tile) */                             \
-                    for (nk_size_t tile_row_start_index = row_block_start_index;                                      \
-                         tile_row_start_index < row_block_end_index; tile_row_start_index += register_row_count) {    \
-                        nk_size_t tile_row_count = register_row_count;                                                \
-                        if (tile_row_start_index + tile_row_count > row_block_end_index)                              \
-                            tile_row_count = row_block_end_index - tile_row_start_index;                              \
-                                                                                                                      \
-                        /* Initialize register_rows x register_cols accumulator states */                             \
-                        state_type accumulator_tiles[4][4];                                                           \
-                        for (nk_size_t r = 0; r < tile_row_count; ++r) {                                              \
-                            init_fn(&accumulator_tiles[r][0]);                                                        \
-                            init_fn(&accumulator_tiles[r][1]);                                                        \
-                            init_fn(&accumulator_tiles[r][2]);                                                        \
-                            init_fn(&accumulator_tiles[r][3]);                                                        \
-                        }                                                                                             \
-                                                                                                                      \
-                        /* A row pointers */                                                                          \
-                        nk_##input_type##_t const *a_row_ptr_0 =                                                      \
-                            (nk_##input_type##_t const *)((char const *)a_matrix +                                    \
-                                                          (tile_row_start_index + 0) * a_stride_in_bytes);            \
-                        nk_##input_type##_t const *a_row_ptr_1 =                                                      \
-                            (tile_row_count > 1)                                                                      \
-                                ? (nk_##input_type##_t const *)((char const *)a_matrix +                              \
-                                                                (tile_row_start_index + 1) * a_stride_in_bytes)       \
-                                : a_row_ptr_0;                                                                        \
-                        nk_##input_type##_t const *a_row_ptr_2 =                                                      \
-                            (tile_row_count > 2)                                                                      \
-                                ? (nk_##input_type##_t const *)((char const *)a_matrix +                              \
-                                                                (tile_row_start_index + 2) * a_stride_in_bytes)       \
-                                : a_row_ptr_0;                                                                        \
-                        nk_##input_type##_t const *a_row_ptr_3 =                                                      \
-                            (tile_row_count > 3)                                                                      \
-                                ? (nk_##input_type##_t const *)((char const *)a_matrix +                              \
-                                                                (tile_row_start_index + 3) * a_stride_in_bytes)       \
-                                : a_row_ptr_0;                                                                        \
-                                                                                                                      \
-                        /* Tight inner loop: k elements with simple ptr+k addressing */                               \
-                        vec_type a_first_vec, a_second_vec, a_third_vec, a_fourth_vec;                                \
-                        vec_type b_first_vec, b_second_vec, b_third_vec, b_fourth_vec;                                \
-                        for (nk_size_t k = 0; k < aligned_depth; k += simd_width) {                                   \
-                            /* Load next few elements from 4 rows from A */                                           \
-                            load_fn(a_row_ptr_0 + k, &a_first_vec);                                                   \
-                            load_fn(a_row_ptr_1 + k, &a_second_vec);                                                  \
-                            load_fn(a_row_ptr_2 + k, &a_third_vec);                                                   \
-                            load_fn(a_row_ptr_3 + k, &a_fourth_vec);                                                  \
-                                                                                                                      \
-                            /* Load next few elements from 4 rows from B */                                           \
-                            load_fn(b_depth_ptr_0 + k, &b_first_vec);                                                 \
-                            load_fn(b_depth_ptr_1 + k, &b_second_vec);                                                \
-                            load_fn(b_depth_ptr_2 + k, &b_third_vec);                                                 \
-                            load_fn(b_depth_ptr_3 + k, &b_fourth_vec);                                                \
-                                                                                                                      \
-                            /* 16 FMAs: 4 A rows × 4 B columns */                                                     \
-                            update_fn(&accumulator_tiles[0][0], a_first_vec, b_first_vec);                            \
-                            update_fn(&accumulator_tiles[0][1], a_first_vec, b_second_vec);                           \
-                            update_fn(&accumulator_tiles[0][2], a_first_vec, b_third_vec);                            \
-                            update_fn(&accumulator_tiles[0][3], a_first_vec, b_fourth_vec);                           \
-                            update_fn(&accumulator_tiles[1][0], a_second_vec, b_first_vec);                           \
-                            update_fn(&accumulator_tiles[1][1], a_second_vec, b_second_vec);                          \
-                            update_fn(&accumulator_tiles[1][2], a_second_vec, b_third_vec);                           \
-                            update_fn(&accumulator_tiles[1][3], a_second_vec, b_fourth_vec);                          \
-                            update_fn(&accumulator_tiles[2][0], a_third_vec, b_first_vec);                            \
-                            update_fn(&accumulator_tiles[2][1], a_third_vec, b_second_vec);                           \
-                            update_fn(&accumulator_tiles[2][2], a_third_vec, b_third_vec);                            \
-                            update_fn(&accumulator_tiles[2][3], a_third_vec, b_fourth_vec);                           \
-                            update_fn(&accumulator_tiles[3][0], a_fourth_vec, b_first_vec);                           \
-                            update_fn(&accumulator_tiles[3][1], a_fourth_vec, b_second_vec);                          \
-                            update_fn(&accumulator_tiles[3][2], a_fourth_vec, b_third_vec);                           \
-                            update_fn(&accumulator_tiles[3][3], a_fourth_vec, b_fourth_vec);                          \
-                        }                                                                                             \
-                                                                                                                      \
-                        /* Handle remainder k positions with partial loads */                                         \
-                        if (remainder_depth > 0) {                                                                    \
-                            /* Load next few elements from 4 rows from A */                                           \
-                            partial_load_fn(a_row_ptr_0 + aligned_depth, &a_first_vec, remainder_depth);              \
-                            partial_load_fn(a_row_ptr_1 + aligned_depth, &a_second_vec, remainder_depth);             \
-                            partial_load_fn(a_row_ptr_2 + aligned_depth, &a_third_vec, remainder_depth);              \
-                            partial_load_fn(a_row_ptr_3 + aligned_depth, &a_fourth_vec, remainder_depth);             \
-                                                                                                                      \
-                            /* Load next few elements from 4 rows from B */                                           \
-                            partial_load_fn(b_depth_ptr_0 + aligned_depth, &b_first_vec, remainder_depth);            \
-                            partial_load_fn(b_depth_ptr_1 + aligned_depth, &b_second_vec, remainder_depth);           \
-                            partial_load_fn(b_depth_ptr_2 + aligned_depth, &b_third_vec, remainder_depth);            \
-                            partial_load_fn(b_depth_ptr_3 + aligned_depth, &b_fourth_vec, remainder_depth);           \
-                                                                                                                      \
-                            /* 16 FMAs: 4 A rows × 4 B columns */                                                     \
-                            update_fn(&accumulator_tiles[0][0], a_first_vec, b_first_vec);                            \
-                            update_fn(&accumulator_tiles[0][1], a_first_vec, b_second_vec);                           \
-                            update_fn(&accumulator_tiles[0][2], a_first_vec, b_third_vec);                            \
-                            update_fn(&accumulator_tiles[0][3], a_first_vec, b_fourth_vec);                           \
-                            update_fn(&accumulator_tiles[1][0], a_second_vec, b_first_vec);                           \
-                            update_fn(&accumulator_tiles[1][1], a_second_vec, b_second_vec);                          \
-                            update_fn(&accumulator_tiles[1][2], a_second_vec, b_third_vec);                           \
-                            update_fn(&accumulator_tiles[1][3], a_second_vec, b_fourth_vec);                          \
-                            update_fn(&accumulator_tiles[2][0], a_third_vec, b_first_vec);                            \
-                            update_fn(&accumulator_tiles[2][1], a_third_vec, b_second_vec);                           \
-                            update_fn(&accumulator_tiles[2][2], a_third_vec, b_third_vec);                            \
-                            update_fn(&accumulator_tiles[2][3], a_third_vec, b_fourth_vec);                           \
-                            update_fn(&accumulator_tiles[3][0], a_fourth_vec, b_first_vec);                           \
-                            update_fn(&accumulator_tiles[3][1], a_fourth_vec, b_second_vec);                          \
-                            update_fn(&accumulator_tiles[3][2], a_fourth_vec, b_third_vec);                           \
-                            update_fn(&accumulator_tiles[3][3], a_fourth_vec, b_fourth_vec);                          \
-                        }                                                                                             \
-                                                                                                                      \
-                        /* Finalize and store register_rows x register_cols results using batched 4-way reduction */  \
-                        for (nk_size_t r = 0; r < tile_row_count; ++r) {                                              \
-                            result_vec_type result_vector;                                                            \
-                            finalize_fn(&accumulator_tiles[r][0], &accumulator_tiles[r][1], &accumulator_tiles[r][2], \
-                                        &accumulator_tiles[r][3], &result_vector);                                    \
-                                                                                                                      \
-                            nk_##output_type##_t *c_row = (nk_##output_type##_t *)((char *)c_matrix +                 \
-                                                                                   (tile_row_start_index + r) *       \
-                                                                                       c_stride_in_bytes);            \
-                            partial_store_fn(&result_vector, c_row + tile_column_start_index, tile_column_count);     \
-                        }                                                                                             \
-                    }                                                                                                 \
-                }                                                                                                     \
-            }                                                                                                         \
-        }                                                                                                             \
+#define nk_define_dots_packed_vectors_(suffix, input_type, output_type, vec_type, state_type, result_vec_type,         \
+                                       init_fn, load_fn, partial_load_fn, update_fn, finalize_fn, partial_store_fn,    \
+                                       simd_width)                                                                     \
+    /* Generate 4 × 4 aligned kernel */                                                                                \
+    nk_define_dots_packed_4x4_vectors_aligned_(suffix, input_type, output_type, vec_type, state_type, result_vec_type, \
+                                               init_fn, load_fn, partial_load_fn, update_fn, finalize_fn,              \
+                                               partial_store_fn, simd_width) /* Generate 1 × 8 aligned kernel */       \
+    nk_define_dots_packed_1x8_vectors_aligned_(suffix, input_type, output_type, vec_type, state_type, result_vec_type, \
+                                               init_fn, load_fn, partial_load_fn, update_fn, finalize_fn,              \
+                                               partial_store_fn, simd_width)                                           \
+                                                                                                                       \
+    NK_PUBLIC void nk_dots_packed_##suffix(nk_##input_type##_t const *a_matrix, void const *b_packed_buffer,           \
+                                           nk_##output_type##_t *c_matrix, nk_size_t row_count,                        \
+                                           nk_size_t column_count, nk_size_t depth, nk_size_t a_stride_in_bytes,       \
+                                           nk_size_t c_stride_in_bytes) {                                              \
+        /* Cache blocking parameters (hardcoded for optimal L1/L2/L3 utilization) */                                   \
+        nk_size_t const row_block_size = 128;              /* L2 cache blocking over rows */                           \
+        nk_size_t const column_block_size = 2048;          /* L3 cache blocking over columns */                        \
+        nk_size_t const register_row_count = 4;            /* Rows per register tile */                                \
+        nk_size_t const register_column_count = 4;         /* Columns per register tile */                             \
+        nk_size_t const group_size = NK_DOTS_GROUP_SIZE_;  /* Columns per packed group */                              \
+        nk_size_t const group_stride = group_size * depth; /* Elements per group */                                    \
+        (void)register_column_count;                                                                                   \
+        (void)group_stride; /* Suppress unused warnings */                                                             \
+        /* Use 1 × 8 kernel when columns are aligned to 8 and many columns relative to rows */                         \
+        if (column_count % 8 == 0 && column_count >= row_count * 2 && depth % simd_width == 0) {                       \
+            nk_dots_##suffix##_1x8_aligned_(a_matrix, b_packed_buffer, c_matrix, row_count, column_count, depth,       \
+                                            a_stride_in_bytes, c_stride_in_bytes);                                     \
+            return;                                                                                                    \
+        }                                                                                                              \
+        /* Use 4 × 4 kernel when dimensions are 4-aligned */                                                           \
+        if (row_count % 4 == 0 && column_count % 4 == 0 && depth % simd_width == 0) {                                  \
+            nk_dots_##suffix##_aligned_(a_matrix, b_packed_buffer, c_matrix, row_count, column_count, depth,           \
+                                        a_stride_in_bytes, c_stride_in_bytes);                                         \
+            return;                                                                                                    \
+        }                                                                                                              \
+                                                                                                                       \
+        /* Zero output matrix */                                                                                       \
+        for (nk_size_t row_index = 0; row_index < row_count; ++row_index) {                                            \
+            nk_##output_type##_t *c_row = (nk_##output_type##_t *)((char *)c_matrix + row_index * c_stride_in_bytes);  \
+            for (nk_size_t column_index = 0; column_index < column_count; ++column_index) c_row[column_index] = 0;     \
+        }                                                                                                              \
+                                                                                                                       \
+        /* Compute aligned/remainder depth for partial loads */                                                        \
+        nk_size_t const aligned_depth = (depth / simd_width) * simd_width;                                             \
+        nk_size_t const remainder_depth = depth - aligned_depth;                                                       \
+                                                                                                                       \
+        /* Loop 1: L3 cache blocking over columns */                                                                   \
+        nk_##input_type##_t const *packed_data =                                                                       \
+            (nk_##input_type##_t const *)((char const *)b_packed_buffer + sizeof(nk_dots_packed_buffer_header_t));     \
+        for (nk_size_t column_block_start_index = 0; column_block_start_index < column_count;                          \
+             column_block_start_index += column_block_size) {                                                          \
+            nk_size_t column_block_end_index = column_block_start_index + column_block_size;                           \
+            if (column_block_end_index > column_count) column_block_end_index = column_count;                          \
+                                                                                                                       \
+            /* Loop 2: L2 cache blocking over rows */                                                                  \
+            for (nk_size_t row_block_start_index = 0; row_block_start_index < row_count;                               \
+                 row_block_start_index += row_block_size) {                                                            \
+                nk_size_t row_block_end_index = row_block_start_index + row_block_size;                                \
+                if (row_block_end_index > row_count) row_block_end_index = row_count;                                  \
+                                                                                                                       \
+                /* Loop 4: Register tiling over columns (register_column_count columns per batch) */                   \
+                for (nk_size_t tile_column_start_index = column_block_start_index;                                     \
+                     tile_column_start_index < column_block_end_index;                                                 \
+                     tile_column_start_index += register_column_count) {                                               \
+                    nk_size_t tile_column_count = register_column_count;                                               \
+                    if (tile_column_start_index + tile_column_count > column_block_end_index)                          \
+                        tile_column_count = column_block_end_index - tile_column_start_index;                          \
+                                                                                                                       \
+                    /* Compute B pointers once per column tile (outside row and depth loops) */                        \
+                    nk_size_t const group_index = tile_column_start_index / group_size;                                \
+                    nk_size_t const column_index_in_group = tile_column_start_index % group_size;                      \
+                    nk_##input_type##_t const *group_base_ptr = packed_data + group_index * group_stride;              \
+                                                                                                                       \
+                    nk_##input_type##_t const *b_depth_ptr_0 = group_base_ptr + (column_index_in_group + 0) * depth;   \
+                    nk_##input_type##_t const *b_depth_ptr_1 = (tile_column_count > 1)                                 \
+                                                                   ? group_base_ptr +                                  \
+                                                                         (column_index_in_group + 1) * depth           \
+                                                                   : b_depth_ptr_0;                                    \
+                    nk_##input_type##_t const *b_depth_ptr_2 = (tile_column_count > 2)                                 \
+                                                                   ? group_base_ptr +                                  \
+                                                                         (column_index_in_group + 2) * depth           \
+                                                                   : b_depth_ptr_0;                                    \
+                    nk_##input_type##_t const *b_depth_ptr_3 = (tile_column_count > 3)                                 \
+                                                                   ? group_base_ptr +                                  \
+                                                                         (column_index_in_group + 3) * depth           \
+                                                                   : b_depth_ptr_0;                                    \
+                                                                                                                       \
+                    /* Loop 5: Register tiling over rows (register_rows rows per tile) */                              \
+                    for (nk_size_t tile_row_start_index = row_block_start_index;                                       \
+                         tile_row_start_index < row_block_end_index; tile_row_start_index += register_row_count) {     \
+                        nk_size_t tile_row_count = register_row_count;                                                 \
+                        if (tile_row_start_index + tile_row_count > row_block_end_index)                               \
+                            tile_row_count = row_block_end_index - tile_row_start_index;                               \
+                                                                                                                       \
+                        /* Initialize register_rows x register_cols accumulator states */                              \
+                        state_type accumulator_tiles[4][4];                                                            \
+                        for (nk_size_t r = 0; r < tile_row_count; ++r) {                                               \
+                            init_fn(&accumulator_tiles[r][0]);                                                         \
+                            init_fn(&accumulator_tiles[r][1]);                                                         \
+                            init_fn(&accumulator_tiles[r][2]);                                                         \
+                            init_fn(&accumulator_tiles[r][3]);                                                         \
+                        }                                                                                              \
+                                                                                                                       \
+                        /* A row pointers */                                                                           \
+                        nk_##input_type##_t const *a_row_ptr_0 =                                                       \
+                            (nk_##input_type##_t const *)((char const *)a_matrix +                                     \
+                                                          (tile_row_start_index + 0) * a_stride_in_bytes);             \
+                        nk_##input_type##_t const *a_row_ptr_1 =                                                       \
+                            (tile_row_count > 1)                                                                       \
+                                ? (nk_##input_type##_t const *)((char const *)a_matrix +                               \
+                                                                (tile_row_start_index + 1) * a_stride_in_bytes)        \
+                                : a_row_ptr_0;                                                                         \
+                        nk_##input_type##_t const *a_row_ptr_2 =                                                       \
+                            (tile_row_count > 2)                                                                       \
+                                ? (nk_##input_type##_t const *)((char const *)a_matrix +                               \
+                                                                (tile_row_start_index + 2) * a_stride_in_bytes)        \
+                                : a_row_ptr_0;                                                                         \
+                        nk_##input_type##_t const *a_row_ptr_3 =                                                       \
+                            (tile_row_count > 3)                                                                       \
+                                ? (nk_##input_type##_t const *)((char const *)a_matrix +                               \
+                                                                (tile_row_start_index + 3) * a_stride_in_bytes)        \
+                                : a_row_ptr_0;                                                                         \
+                                                                                                                       \
+                        /* Tight inner loop: k elements with simple ptr+k addressing */                                \
+                        vec_type a_first_vec, a_second_vec, a_third_vec, a_fourth_vec;                                 \
+                        vec_type b_first_vec, b_second_vec, b_third_vec, b_fourth_vec;                                 \
+                        for (nk_size_t k = 0; k < aligned_depth; k += simd_width) {                                    \
+                            /* Load next few elements from 4 rows from A */                                            \
+                            load_fn(a_row_ptr_0 + k, &a_first_vec);                                                    \
+                            load_fn(a_row_ptr_1 + k, &a_second_vec);                                                   \
+                            load_fn(a_row_ptr_2 + k, &a_third_vec);                                                    \
+                            load_fn(a_row_ptr_3 + k, &a_fourth_vec);                                                   \
+                                                                                                                       \
+                            /* Load next few elements from 4 rows from B */                                            \
+                            load_fn(b_depth_ptr_0 + k, &b_first_vec);                                                  \
+                            load_fn(b_depth_ptr_1 + k, &b_second_vec);                                                 \
+                            load_fn(b_depth_ptr_2 + k, &b_third_vec);                                                  \
+                            load_fn(b_depth_ptr_3 + k, &b_fourth_vec);                                                 \
+                                                                                                                       \
+                            /* 16 FMAs: 4 A rows × 4 B columns */                                                      \
+                            update_fn(&accumulator_tiles[0][0], a_first_vec, b_first_vec);                             \
+                            update_fn(&accumulator_tiles[0][1], a_first_vec, b_second_vec);                            \
+                            update_fn(&accumulator_tiles[0][2], a_first_vec, b_third_vec);                             \
+                            update_fn(&accumulator_tiles[0][3], a_first_vec, b_fourth_vec);                            \
+                            update_fn(&accumulator_tiles[1][0], a_second_vec, b_first_vec);                            \
+                            update_fn(&accumulator_tiles[1][1], a_second_vec, b_second_vec);                           \
+                            update_fn(&accumulator_tiles[1][2], a_second_vec, b_third_vec);                            \
+                            update_fn(&accumulator_tiles[1][3], a_second_vec, b_fourth_vec);                           \
+                            update_fn(&accumulator_tiles[2][0], a_third_vec, b_first_vec);                             \
+                            update_fn(&accumulator_tiles[2][1], a_third_vec, b_second_vec);                            \
+                            update_fn(&accumulator_tiles[2][2], a_third_vec, b_third_vec);                             \
+                            update_fn(&accumulator_tiles[2][3], a_third_vec, b_fourth_vec);                            \
+                            update_fn(&accumulator_tiles[3][0], a_fourth_vec, b_first_vec);                            \
+                            update_fn(&accumulator_tiles[3][1], a_fourth_vec, b_second_vec);                           \
+                            update_fn(&accumulator_tiles[3][2], a_fourth_vec, b_third_vec);                            \
+                            update_fn(&accumulator_tiles[3][3], a_fourth_vec, b_fourth_vec);                           \
+                        }                                                                                              \
+                                                                                                                       \
+                        /* Handle remainder k positions with partial loads */                                          \
+                        if (remainder_depth > 0) {                                                                     \
+                            /* Load next few elements from 4 rows from A */                                            \
+                            partial_load_fn(a_row_ptr_0 + aligned_depth, &a_first_vec, remainder_depth);               \
+                            partial_load_fn(a_row_ptr_1 + aligned_depth, &a_second_vec, remainder_depth);              \
+                            partial_load_fn(a_row_ptr_2 + aligned_depth, &a_third_vec, remainder_depth);               \
+                            partial_load_fn(a_row_ptr_3 + aligned_depth, &a_fourth_vec, remainder_depth);              \
+                                                                                                                       \
+                            /* Load next few elements from 4 rows from B */                                            \
+                            partial_load_fn(b_depth_ptr_0 + aligned_depth, &b_first_vec, remainder_depth);             \
+                            partial_load_fn(b_depth_ptr_1 + aligned_depth, &b_second_vec, remainder_depth);            \
+                            partial_load_fn(b_depth_ptr_2 + aligned_depth, &b_third_vec, remainder_depth);             \
+                            partial_load_fn(b_depth_ptr_3 + aligned_depth, &b_fourth_vec, remainder_depth);            \
+                                                                                                                       \
+                            /* 16 FMAs: 4 A rows × 4 B columns */                                                      \
+                            update_fn(&accumulator_tiles[0][0], a_first_vec, b_first_vec);                             \
+                            update_fn(&accumulator_tiles[0][1], a_first_vec, b_second_vec);                            \
+                            update_fn(&accumulator_tiles[0][2], a_first_vec, b_third_vec);                             \
+                            update_fn(&accumulator_tiles[0][3], a_first_vec, b_fourth_vec);                            \
+                            update_fn(&accumulator_tiles[1][0], a_second_vec, b_first_vec);                            \
+                            update_fn(&accumulator_tiles[1][1], a_second_vec, b_second_vec);                           \
+                            update_fn(&accumulator_tiles[1][2], a_second_vec, b_third_vec);                            \
+                            update_fn(&accumulator_tiles[1][3], a_second_vec, b_fourth_vec);                           \
+                            update_fn(&accumulator_tiles[2][0], a_third_vec, b_first_vec);                             \
+                            update_fn(&accumulator_tiles[2][1], a_third_vec, b_second_vec);                            \
+                            update_fn(&accumulator_tiles[2][2], a_third_vec, b_third_vec);                             \
+                            update_fn(&accumulator_tiles[2][3], a_third_vec, b_fourth_vec);                            \
+                            update_fn(&accumulator_tiles[3][0], a_fourth_vec, b_first_vec);                            \
+                            update_fn(&accumulator_tiles[3][1], a_fourth_vec, b_second_vec);                           \
+                            update_fn(&accumulator_tiles[3][2], a_fourth_vec, b_third_vec);                            \
+                            update_fn(&accumulator_tiles[3][3], a_fourth_vec, b_fourth_vec);                           \
+                        }                                                                                              \
+                                                                                                                       \
+                        /* Finalize and store register_rows x register_cols results using batched 4-way reduction */   \
+                        for (nk_size_t r = 0; r < tile_row_count; ++r) {                                               \
+                            result_vec_type result_vector;                                                             \
+                            finalize_fn(&accumulator_tiles[r][0], &accumulator_tiles[r][1], &accumulator_tiles[r][2],  \
+                                        &accumulator_tiles[r][3], &result_vector);                                     \
+                                                                                                                       \
+                            nk_##output_type##_t *c_row = (nk_##output_type##_t *)((char *)c_matrix +                  \
+                                                                                   (tile_row_start_index + r) *        \
+                                                                                       c_stride_in_bytes);             \
+                            partial_store_fn(&result_vector, c_row + tile_column_start_index, tile_column_count);      \
+                        }                                                                                              \
+                    }                                                                                                  \
+                }                                                                                                      \
+            }                                                                                                          \
+        }                                                                                                              \
     }
 
 /**
@@ -696,8 +697,8 @@ typedef struct {
  *      - u1: 8 (iterate per byte = 8 bits)
  *      - u4/i4: 2 (iterate per byte = 2 nibbles)
  */
-#define nk_make_dots_outer_scalars_(suffix, input_type, accumulator_type, output_type, load_and_convert, fma_fn,       \
-                                    depth_divisor)                                                                     \
+#define nk_define_dots_outer_scalars_(suffix, input_type, accumulator_type, output_type, load_and_convert, fma_fn,     \
+                                      depth_divisor)                                                                   \
     NK_PUBLIC void nk_dots_packed_##input_type##_##suffix(                                                             \
         nk_##input_type##_t const *a, void const *b_packed_buffer, nk_##output_type##_t *c, nk_size_t row_count,       \
         nk_size_t column_count, nk_size_t depth, nk_size_t a_stride_in_bytes, nk_size_t c_stride_in_bytes) {           \
@@ -953,37 +954,37 @@ typedef struct {
         }                                                                                                              \
     }
 
-nk_make_dots_pack_size_(serial, f32, f32)
-nk_make_dots_pack_(serial, f32, f32)
-nk_make_dots_outer_scalars_(serial, f32, f32, f32, nk_assign_from_to_, nk_fma_multiply_add_, 1)
+nk_define_dots_pack_size_(serial, f32, f32)
+nk_define_dots_pack_(serial, f32, f32)
+nk_define_dots_outer_scalars_(serial, f32, f32, f32, nk_assign_from_to_, nk_fma_multiply_add_, 1)
 
-nk_make_dots_pack_size_(serial, f64, f64)
-nk_make_dots_pack_(serial, f64, f64)
-nk_make_dots_outer_scalars_(serial, f64, f64, f64, nk_assign_from_to_, nk_fma_multiply_add_, 1)
+nk_define_dots_pack_size_(serial, f64, f64)
+nk_define_dots_pack_(serial, f64, f64)
+nk_define_dots_outer_scalars_(serial, f64, f64, f64, nk_assign_from_to_, nk_fma_multiply_add_, 1)
 
-nk_make_dots_pack_size_(serial, f16, f32)
-nk_make_dots_pack_(serial, f16, f32)
-nk_make_dots_outer_scalars_(serial, f16, f32, f32, nk_f16_to_f32_serial, nk_fma_multiply_add_, 1)
+nk_define_dots_pack_size_(serial, f16, f32)
+nk_define_dots_pack_(serial, f16, f32)
+nk_define_dots_outer_scalars_(serial, f16, f32, f32, nk_f16_to_f32_serial, nk_fma_multiply_add_, 1)
 
-nk_make_dots_pack_size_(serial, bf16, f32)
-nk_make_dots_pack_(serial, bf16, f32)
-nk_make_dots_outer_scalars_(serial, bf16, f32, f32, nk_bf16_to_f32_serial, nk_fma_multiply_add_, 1)
+nk_define_dots_pack_size_(serial, bf16, f32)
+nk_define_dots_pack_(serial, bf16, f32)
+nk_define_dots_outer_scalars_(serial, bf16, f32, f32, nk_bf16_to_f32_serial, nk_fma_multiply_add_, 1)
 
-nk_make_dots_pack_size_(serial, i8, i32)
-nk_make_dots_pack_(serial, i8, i32)
-nk_make_dots_outer_scalars_(serial, i8, i32, i32, nk_assign_from_to_, nk_fma_multiply_add_, 1)
+nk_define_dots_pack_size_(serial, i8, i32)
+nk_define_dots_pack_(serial, i8, i32)
+nk_define_dots_outer_scalars_(serial, i8, i32, i32, nk_assign_from_to_, nk_fma_multiply_add_, 1)
 
-nk_make_dots_pack_size_(serial, u8, u32)
-nk_make_dots_pack_(serial, u8, u32)
-nk_make_dots_outer_scalars_(serial, u8, u32, u32, nk_assign_from_to_, nk_fma_multiply_add_, 1)
+nk_define_dots_pack_size_(serial, u8, u32)
+nk_define_dots_pack_(serial, u8, u32)
+nk_define_dots_outer_scalars_(serial, u8, u32, u32, nk_assign_from_to_, nk_fma_multiply_add_, 1)
 
-nk_make_dots_pack_size_(serial, e4m3, f32)
-nk_make_dots_pack_(serial, e4m3, f32)
-nk_make_dots_outer_scalars_(serial, e4m3, f32, f32, nk_e4m3_to_f32_serial, nk_fma_multiply_add_, 1)
+nk_define_dots_pack_size_(serial, e4m3, f32)
+nk_define_dots_pack_(serial, e4m3, f32)
+nk_define_dots_outer_scalars_(serial, e4m3, f32, f32, nk_e4m3_to_f32_serial, nk_fma_multiply_add_, 1)
 
-nk_make_dots_pack_size_(serial, e5m2, f32)
-nk_make_dots_pack_(serial, e5m2, f32)
-nk_make_dots_outer_scalars_(serial, e5m2, f32, f32, nk_e5m2_to_f32_serial, nk_fma_multiply_add_, 1)
+nk_define_dots_pack_size_(serial, e5m2, f32)
+nk_define_dots_pack_(serial, e5m2, f32)
+nk_define_dots_outer_scalars_(serial, e5m2, f32, f32, nk_e5m2_to_f32_serial, nk_fma_multiply_add_, 1)
 
 NK_PUBLIC nk_size_t nk_dots_packed_size_u1x8_serial(nk_size_t column_count, nk_size_t depth) {
     nk_size_t const group_size = NK_DOTS_GROUP_SIZE_;
@@ -1073,12 +1074,13 @@ NK_PUBLIC void nk_dots_pack_i4x2_serial(nk_i4x2_t const *b, nk_size_t column_cou
     nk_dots_pack_u4x2_serial((nk_u4x2_t const *)b, column_count, depth, b_stride_in_bytes, b_packed);
 }
 
-nk_make_dots_outer_scalars_(serial, u1x8, u32, u32, nk_assign_from_to_, nk_fma_u1_and_popcnt_, 8)
-nk_make_dots_outer_scalars_(serial, u4x2, u32, u32, nk_assign_from_to_, nk_fma_u4_nibble_dot_, 2)
-nk_make_dots_outer_scalars_(serial, i4x2, i32, i32, nk_assign_from_to_, nk_fma_i4_nibble_dot_, 2)
+nk_define_dots_outer_scalars_(serial, u1x8, u32, u32, nk_assign_from_to_, nk_fma_u1_and_popcnt_, 8)
+nk_define_dots_outer_scalars_(serial, u4x2, u32, u32, nk_assign_from_to_, nk_fma_u4_nibble_dot_, 2)
+nk_define_dots_outer_scalars_(serial, i4x2, i32, i32, nk_assign_from_to_, nk_fma_i4_nibble_dot_, 2)
 
 /*  BF16 compact: truncate F32 → BF16 in-place.
- *  Reads F32 matrix with c_stride_in_bytes, writes BF16 tightly packed (stride_in_bytes = column_count × sizeof(bf16)).
+ *  Reads F32 matrix with c_stride_in_bytes, writes BF16 tightly packed (stride_in_bytes = column_count ×
+ * sizeof(bf16)).
  */
 NK_PUBLIC void nk_dots_compact_bf16_serial(void *c, nk_size_t row_count, nk_size_t column_count,
                                            nk_size_t c_stride_in_bytes) {
