@@ -2880,8 +2880,15 @@ NK_INTERNAL void nk_find_kernel_punned_i64_(nk_capability_t v, nk_kernel_kind_t 
 NK_INTERNAL void nk_find_kernel_punned_u64_(nk_capability_t v, nk_kernel_kind_t k, nk_kernel_punned_t *m,
                                             nk_capability_t *c) {
     typedef nk_kernel_punned_t m_t;
+#if NK_TARGET_SVE2
+    if (v & nk_cap_sve2_k) switch (k) {
+        case nk_kernel_sparse_intersect_k: *m = (m_t)&nk_sparse_intersect_u64_sve2, *c = nk_cap_sve2_k; return;
+        default: break;
+        }
+#endif
 #if NK_TARGET_NEON
     if (v & nk_cap_neon_k) switch (k) {
+        case nk_kernel_sparse_intersect_k: *m = (m_t)&nk_sparse_intersect_u64_neon, *c = nk_cap_neon_k; return;
         case nk_kernel_each_fma_k: *m = (m_t)&nk_each_fma_u64_neon, *c = nk_cap_neon_k; return;
         case nk_kernel_each_scale_k: *m = (m_t)&nk_each_scale_u64_neon, *c = nk_cap_neon_k; return;
         case nk_kernel_each_sum_k: *m = (m_t)&nk_each_sum_u64_neon, *c = nk_cap_neon_k; return;
@@ -2891,8 +2898,15 @@ NK_INTERNAL void nk_find_kernel_punned_u64_(nk_capability_t v, nk_kernel_kind_t 
         default: break;
         }
 #endif
+#if NK_TARGET_TURIN
+    if (v & nk_cap_turin_k) switch (k) {
+        case nk_kernel_sparse_intersect_k: *m = (m_t)&nk_sparse_intersect_u64_turin, *c = nk_cap_turin_k; return;
+        default: break;
+        }
+#endif
 #if NK_TARGET_ICE
     if (v & nk_cap_ice_k) switch (k) {
+        case nk_kernel_sparse_intersect_k: *m = (m_t)&nk_sparse_intersect_u64_ice, *c = nk_cap_ice_k; return;
         case nk_kernel_each_sum_k: *m = (m_t)&nk_each_sum_u64_ice, *c = nk_cap_ice_k; return;
         default: break;
         }
@@ -2916,6 +2930,7 @@ NK_INTERNAL void nk_find_kernel_punned_u64_(nk_capability_t v, nk_kernel_kind_t 
         }
 #endif
     if (v & nk_cap_serial_k) switch (k) {
+        case nk_kernel_sparse_intersect_k: *m = (m_t)&nk_sparse_intersect_u64_serial, *c = nk_cap_serial_k; return;
         case nk_kernel_each_fma_k: *m = (m_t)&nk_each_fma_u64_serial, *c = nk_cap_serial_k; return;
         case nk_kernel_each_scale_k: *m = (m_t)&nk_each_scale_u64_serial, *c = nk_cap_serial_k; return;
         case nk_kernel_each_sum_k: *m = (m_t)&nk_each_sum_u64_serial, *c = nk_cap_serial_k; return;
