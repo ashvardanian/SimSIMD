@@ -2448,6 +2448,17 @@ impl<const MAX_RANK: usize> Tensor<f64, Global, MAX_RANK> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::sync::Once;
+
+    static INIT: Once = Once::new();
+
+    /// Initialize thread for AMX and other SIMD features.
+    /// Safe to call multiple times - only executes once.
+    fn init_thread() {
+        INIT.call_once(|| {
+            crate::capabilities::configure_thread();
+        });
+    }
 
     #[test]
     fn tensor_creation() {
@@ -2562,6 +2573,7 @@ mod tests {
 
     #[test]
     fn matmul_f32_pack() {
+        init_thread();
         // A[4×8] × B[16×8]ᵀ = C[4×16]
         let a = Tensor::<f32>::try_new(&[4, 8], 1.0f32).unwrap();
         let b = Tensor::<f32>::try_new(&[16, 8], 1.0f32).unwrap();
@@ -2576,6 +2588,7 @@ mod tests {
 
     #[test]
     fn matmul_f32_pack_transposed() {
+        init_thread();
         // A[4×8], B[8×16] (standard k×n layout) → C[4×16]
         let a = Tensor::<f32>::try_new(&[4, 8], 1.0f32).unwrap();
         let b_transposed = Tensor::<f32>::try_new(&[8, 16], 1.0f32).unwrap(); // k × n
@@ -2589,6 +2602,7 @@ mod tests {
 
     #[test]
     fn matmul_f32_into() {
+        init_thread();
         let a = Tensor::<f32>::try_new(&[4, 8], 1.0f32).unwrap();
         let b = Tensor::<f32>::try_new(&[16, 8], 1.0f32).unwrap();
         let mut c = Tensor::<f32>::try_new(&[4, 16], 0.0f32).unwrap();
@@ -2601,6 +2615,7 @@ mod tests {
 
     #[test]
     fn matmul_f64_pack() {
+        init_thread();
         let a = Tensor::<f64>::try_new(&[4, 8], 1.0f64).unwrap();
         let b = Tensor::<f64>::try_new(&[16, 8], 1.0f64).unwrap();
 
@@ -2613,6 +2628,7 @@ mod tests {
 
     #[test]
     fn matmul_bf16_pack() {
+        init_thread();
         let a = Tensor::<bf16>::try_new(&[4, 8], bf16::from_f32(1.0)).unwrap();
         let b = Tensor::<bf16>::try_new(&[16, 8], bf16::from_f32(1.0)).unwrap();
 
@@ -2625,6 +2641,7 @@ mod tests {
 
     #[test]
     fn matmul_f16_pack() {
+        init_thread();
         let a = Tensor::<f16>::try_new(&[4, 8], f16::from_f32(1.0)).unwrap();
         let b = Tensor::<f16>::try_new(&[16, 8], f16::from_f32(1.0)).unwrap();
 
@@ -2637,6 +2654,7 @@ mod tests {
 
     #[test]
     fn matmul_i8_pack() {
+        init_thread();
         let a = Tensor::<i8>::try_new(&[4, 8], 1i8).unwrap();
         let b = Tensor::<i8>::try_new(&[16, 8], 1i8).unwrap();
 
@@ -2649,6 +2667,7 @@ mod tests {
 
     #[test]
     fn matmul_u8_pack() {
+        init_thread();
         let a = Tensor::<u8>::try_new(&[4, 8], 1u8).unwrap();
         let b = Tensor::<u8>::try_new(&[16, 8], 1u8).unwrap();
 
@@ -2661,6 +2680,7 @@ mod tests {
 
     #[test]
     fn matmul_e4m3_pack() {
+        init_thread();
         let a = Tensor::<e4m3>::try_new(&[4, 8], e4m3::ONE).unwrap();
         let b = Tensor::<e4m3>::try_new(&[16, 8], e4m3::ONE).unwrap();
 
@@ -2673,6 +2693,7 @@ mod tests {
 
     #[test]
     fn matmul_e4m3_pack_transposed() {
+        init_thread();
         let a = Tensor::<e4m3>::try_new(&[4, 8], e4m3::ONE).unwrap();
         let b_t = Tensor::<e4m3>::try_new(&[8, 16], e4m3::ONE).unwrap();
 
@@ -2685,6 +2706,7 @@ mod tests {
 
     #[test]
     fn matmul_e5m2_pack() {
+        init_thread();
         let a = Tensor::<e5m2>::try_new(&[4, 8], e5m2::ONE).unwrap();
         let b = Tensor::<e5m2>::try_new(&[16, 8], e5m2::ONE).unwrap();
 
@@ -2697,6 +2719,7 @@ mod tests {
 
     #[test]
     fn matmul_e5m2_pack_transposed() {
+        init_thread();
         let a = Tensor::<e5m2>::try_new(&[4, 8], e5m2::ONE).unwrap();
         let b_t = Tensor::<e5m2>::try_new(&[8, 16], e5m2::ONE).unwrap();
 
@@ -2709,6 +2732,7 @@ mod tests {
 
     #[test]
     fn matmul_f32_single_row() {
+        init_thread();
         let a = Tensor::<f32>::try_new(&[1, 8], 1.0f32).unwrap();
         let b = Tensor::<f32>::try_new(&[4, 8], 1.0f32).unwrap();
 
@@ -2721,6 +2745,7 @@ mod tests {
 
     #[test]
     fn matmul_f32_single_col() {
+        init_thread();
         let a = Tensor::<f32>::try_new(&[4, 8], 1.0f32).unwrap();
         let b = Tensor::<f32>::try_new(&[1, 8], 1.0f32).unwrap();
 
@@ -2734,6 +2759,7 @@ mod tests {
     #[test]
     #[cfg(feature = "parallel")]
     fn matmul_f32_parallel() {
+        init_thread();
         let mut pool = fork_union::ThreadPool::try_spawn(4).unwrap();
         let a = Tensor::<f32>::try_new(&[64, 128], 1.0f32).unwrap();
         let b = Tensor::<f32>::try_new(&[32, 128], 1.0f32).unwrap();
@@ -2749,6 +2775,7 @@ mod tests {
     #[test]
     #[cfg(feature = "parallel")]
     fn matmul_f32_parallel_into() {
+        init_thread();
         let mut pool = fork_union::ThreadPool::try_spawn(4).unwrap();
         let a = Tensor::<f32>::try_new(&[64, 128], 1.0f32).unwrap();
         let b = Tensor::<f32>::try_new(&[32, 128], 1.0f32).unwrap();
@@ -2768,6 +2795,7 @@ mod tests {
     #[test]
     #[cfg(feature = "parallel")]
     fn matmul_bf16_parallel() {
+        init_thread();
         let mut pool = fork_union::ThreadPool::try_spawn(4).unwrap();
         let a = Tensor::<bf16>::try_new(&[32, 64], bf16::from_f32(1.0)).unwrap();
         let b = Tensor::<bf16>::try_new(&[16, 64], bf16::from_f32(1.0)).unwrap();
