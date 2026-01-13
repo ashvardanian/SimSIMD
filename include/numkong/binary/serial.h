@@ -47,6 +47,18 @@ NK_PUBLIC void nk_jaccard_u32_serial(nk_u32_t const *a, nk_u32_t const *b, nk_si
     *result = (n != 0) ? 1.0f - (nk_f32_t)intersection_count / (nk_f32_t)n : 1.0f;
 }
 
+NK_PUBLIC void nk_hamming_u8_serial(nk_u8_t const *a, nk_u8_t const *b, nk_size_t n, nk_u32_t *result) {
+    nk_u32_t differences = 0;
+    for (nk_size_t i = 0; i != n; ++i) differences += (a[i] != b[i]);
+    *result = differences;
+}
+
+NK_PUBLIC void nk_jaccard_u16_serial(nk_u16_t const *a, nk_u16_t const *b, nk_size_t n, nk_f32_t *result) {
+    nk_u32_t matches = 0;
+    for (nk_size_t i = 0; i != n; ++i) matches += (a[i] == b[i]);
+    *result = (n != 0) ? 1.0f - (nk_f32_t)matches / (nk_f32_t)n : 1.0f;
+}
+
 typedef struct nk_jaccard_b128_state_serial_t {
     nk_u64_t intersection_count;
 } nk_jaccard_b128_state_serial_t;

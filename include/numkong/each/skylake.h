@@ -1,7 +1,7 @@
 /**
  *  @brief SIMD-accelerated elementwise operations optimized for Intel Skylake-X CPUs.
- *  @file include/numkong/elementwise/skylake.h
- *  @sa include/numkong/elementwise.h
+ *  @file include/numkong/each/skylake.h
+ *  @sa include/numkong/each.h
  *  @author Ash Vardanian
  *  @date December 27, 2025
  *
@@ -19,8 +19,8 @@
  *  AVX-512 masked loads and stores eliminate branch misprediction penalties for partial vector processing.
  *  Note that client Skylake chips may throttle frequency when executing 512-bit instructions continuously.
  */
-#ifndef NK_ELEMENTWISE_SKYLAKE_H
-#define NK_ELEMENTWISE_SKYLAKE_H
+#ifndef NK_EACH_SKYLAKE_H
+#define NK_EACH_SKYLAKE_H
 
 #if NK_TARGET_X86_
 #if NK_TARGET_SKYLAKE
@@ -39,10 +39,10 @@
 extern "C" {
 #endif
 
-NK_PUBLIC void nk_sum_f64_skylake(nk_f64_t const *a, nk_f64_t const *b, nk_size_t n, nk_f64_t *result) {
+NK_PUBLIC void nk_each_sum_f64_skylake(nk_f64_t const *a, nk_f64_t const *b, nk_size_t n, nk_f64_t *result) {
     __m512d a_vec, b_vec, sum_vec;
     __mmask8 mask = 0xFF;
-nk_sum_f64_skylake_cycle:
+nk_each_sum_f64_skylake_cycle:
     if (n < 8) {
         mask = (__mmask8)_bzhi_u32(0xFFFFFFFF, n);
         a_vec = _mm512_maskz_loadu_pd(mask, a);
@@ -57,18 +57,18 @@ nk_sum_f64_skylake_cycle:
     sum_vec = _mm512_add_pd(a_vec, b_vec);
     _mm512_mask_storeu_pd(result, mask, sum_vec);
     result += 8;
-    if (n) goto nk_sum_f64_skylake_cycle;
+    if (n) goto nk_each_sum_f64_skylake_cycle;
 }
 
-NK_PUBLIC void nk_scale_f64_skylake(nk_f64_t const *a, nk_size_t n, nk_f64_t const *alpha, nk_f64_t const *beta,
-                                    nk_f64_t *result) {
+NK_PUBLIC void nk_each_scale_f64_skylake(nk_f64_t const *a, nk_size_t n, nk_f64_t const *alpha, nk_f64_t const *beta,
+                                         nk_f64_t *result) {
     nk_f64_t alpha_val = *alpha;
     nk_f64_t beta_val = *beta;
     __m512d alpha_f64x8 = _mm512_set1_pd(alpha_val);
     __m512d beta_f64x8 = _mm512_set1_pd(beta_val);
     __m512d a_f64x8, result_f64x8;
     __mmask8 mask = 0xFF;
-nk_scale_f64_skylake_cycle:
+nk_each_scale_f64_skylake_cycle:
     if (n < 8) {
         mask = (__mmask8)_bzhi_u32(0xFFFFFFFF, n);
         a_f64x8 = _mm512_maskz_loadu_pd(mask, a);
@@ -81,10 +81,10 @@ nk_scale_f64_skylake_cycle:
     result_f64x8 = _mm512_fmadd_pd(a_f64x8, alpha_f64x8, beta_f64x8);
     _mm512_mask_storeu_pd(result, mask, result_f64x8);
     result += 8;
-    if (n) goto nk_scale_f64_skylake_cycle;
+    if (n) goto nk_each_scale_f64_skylake_cycle;
 }
 
-NK_PUBLIC void nk_wsum_f64_skylake(                    //
+NK_PUBLIC void nk_each_blend_f64_skylake(              //
     nk_f64_t const *a, nk_f64_t const *b, nk_size_t n, //
     nk_f64_t const *alpha, nk_f64_t const *beta, nk_f64_t *result) {
     nk_f64_t alpha_val = *alpha;
@@ -94,15 +94,15 @@ NK_PUBLIC void nk_wsum_f64_skylake(                    //
     // 1. Simple addition, when both weights are equal to 1.0.
     if (alpha_val == 1 && beta_val == 1) {
         // In this case we can avoid expensive multiplications.
-        nk_sum_f64_skylake(a, b, n, result);
+        nk_each_sum_f64_skylake(a, b, n, result);
         return;
     }
     // 2. Just scaling, when one of the weights is equal to zero.
     else if (alpha_val == 0 || beta_val == 0) {
         // In this case we can avoid half of the load instructions.
         nk_f64_t zero = 0;
-        if (beta_val == 0) { nk_scale_f64_skylake(a, n, alpha, &zero, result); }
-        else { nk_scale_f64_skylake(b, n, beta, &zero, result); }
+        if (beta_val == 0) { nk_each_scale_f64_skylake(a, n, alpha, &zero, result); }
+        else { nk_each_scale_f64_skylake(b, n, beta, &zero, result); }
         return;
     }
 
@@ -111,7 +111,7 @@ NK_PUBLIC void nk_wsum_f64_skylake(                    //
     __m512d beta_f64x8 = _mm512_set1_pd(beta_val);
     __m512d a_f64x8, b_f64x8, a_scaled_f64x8, result_f64x8;
     __mmask8 mask = 0xFF;
-nk_wsum_f64_skylake_cycle:
+nk_each_blend_f64_skylake_cycle:
     if (n < 8) {
         mask = (__mmask8)_bzhi_u32(0xFFFFFFFF, n);
         a_f64x8 = _mm512_maskz_loadu_pd(mask, a);
@@ -127,14 +127,14 @@ nk_wsum_f64_skylake_cycle:
     result_f64x8 = _mm512_fmadd_pd(b_f64x8, beta_f64x8, a_scaled_f64x8);
     _mm512_mask_storeu_pd(result, mask, result_f64x8);
     result += 8;
-    if (n) goto nk_wsum_f64_skylake_cycle;
+    if (n) goto nk_each_blend_f64_skylake_cycle;
 }
 
-NK_PUBLIC void nk_sum_f32_skylake(nk_f32_t const *a, nk_f32_t const *b, nk_size_t n, nk_f32_t *result) {
+NK_PUBLIC void nk_each_sum_f32_skylake(nk_f32_t const *a, nk_f32_t const *b, nk_size_t n, nk_f32_t *result) {
     __m512 a_vec, b_vec, sum_vec;
     __mmask16 mask = 0xFFFF;
 
-nk_sum_f32_skylake_cycle:
+nk_each_sum_f32_skylake_cycle:
     if (n < 16) {
         mask = (__mmask16)_bzhi_u32(0xFFFFFFFF, n);
         a_vec = _mm512_maskz_loadu_ps(mask, a);
@@ -149,11 +149,11 @@ nk_sum_f32_skylake_cycle:
     sum_vec = _mm512_add_ps(a_vec, b_vec);
     _mm512_mask_storeu_ps(result, mask, sum_vec);
     result += 16;
-    if (n) goto nk_sum_f32_skylake_cycle;
+    if (n) goto nk_each_sum_f32_skylake_cycle;
 }
 
-NK_PUBLIC void nk_scale_f32_skylake(nk_f32_t const *a, nk_size_t n, nk_f32_t const *alpha, nk_f32_t const *beta,
-                                    nk_f32_t *result) {
+NK_PUBLIC void nk_each_scale_f32_skylake(nk_f32_t const *a, nk_size_t n, nk_f32_t const *alpha, nk_f32_t const *beta,
+                                         nk_f32_t *result) {
     nk_f32_t alpha_val = *alpha;
     nk_f32_t beta_val = *beta;
     __m512 alpha_f32x16 = _mm512_set1_ps(alpha_val);
@@ -161,7 +161,7 @@ NK_PUBLIC void nk_scale_f32_skylake(nk_f32_t const *a, nk_size_t n, nk_f32_t con
     __m512 a_f32x16, result_f32x16;
     __mmask16 mask = 0xFFFF;
 
-nk_scale_f32_skylake_cycle:
+nk_each_scale_f32_skylake_cycle:
     if (n < 16) {
         mask = (__mmask16)_bzhi_u32(0xFFFFFFFF, n);
         a_f32x16 = _mm512_maskz_loadu_ps(mask, a);
@@ -174,10 +174,10 @@ nk_scale_f32_skylake_cycle:
     result_f32x16 = _mm512_fmadd_ps(a_f32x16, alpha_f32x16, beta_f32x16);
     _mm512_mask_storeu_ps(result, mask, result_f32x16);
     result += 16;
-    if (n) goto nk_scale_f32_skylake_cycle;
+    if (n) goto nk_each_scale_f32_skylake_cycle;
 }
 
-NK_PUBLIC void nk_wsum_f32_skylake(                    //
+NK_PUBLIC void nk_each_blend_f32_skylake(              //
     nk_f32_t const *a, nk_f32_t const *b, nk_size_t n, //
     nk_f32_t const *alpha, nk_f32_t const *beta, nk_f32_t *result) {
     nk_f32_t alpha_val = *alpha;
@@ -187,15 +187,15 @@ NK_PUBLIC void nk_wsum_f32_skylake(                    //
     // 1. Simple addition, when both weights are equal to 1.0.
     if (alpha_val == 1 && beta_val == 1) {
         // In this case we can avoid expensive multiplications.
-        nk_sum_f32_skylake(a, b, n, result);
+        nk_each_sum_f32_skylake(a, b, n, result);
         return;
     }
     // 2. Just scaling, when one of the weights is equal to zero.
     else if (alpha_val == 0 || beta_val == 0) {
         // In this case we can avoid half of the load instructions.
         nk_f32_t zero = 0;
-        if (beta_val == 0) { nk_scale_f32_skylake(a, n, alpha, &zero, result); }
-        else { nk_scale_f32_skylake(b, n, beta, &zero, result); }
+        if (beta_val == 0) { nk_each_scale_f32_skylake(a, n, alpha, &zero, result); }
+        else { nk_each_scale_f32_skylake(b, n, beta, &zero, result); }
         return;
     }
 
@@ -204,7 +204,7 @@ NK_PUBLIC void nk_wsum_f32_skylake(                    //
     __m512 beta_f32x16 = _mm512_set1_ps(beta_val);
     __m512 a_f32x16, b_f32x16, a_scaled_f32x16, result_f32x16;
     __mmask16 mask = 0xFFFF;
-nk_wsum_f32_skylake_cycle:
+nk_each_blend_f32_skylake_cycle:
     if (n < 16) {
         mask = (__mmask16)_bzhi_u32(0xFFFFFFFF, n);
         a_f32x16 = _mm512_maskz_loadu_ps(mask, a);
@@ -220,14 +220,14 @@ nk_wsum_f32_skylake_cycle:
     result_f32x16 = _mm512_fmadd_ps(b_f32x16, beta_f32x16, a_scaled_f32x16);
     _mm512_mask_storeu_ps(result, mask, result_f32x16);
     result += 16;
-    if (n) goto nk_wsum_f32_skylake_cycle;
+    if (n) goto nk_each_blend_f32_skylake_cycle;
 }
 
-NK_PUBLIC void nk_sum_bf16_skylake(nk_bf16_t const *a, nk_bf16_t const *b, nk_size_t n, nk_bf16_t *result) {
+NK_PUBLIC void nk_each_sum_bf16_skylake(nk_bf16_t const *a, nk_bf16_t const *b, nk_size_t n, nk_bf16_t *result) {
     __m256i a_bf16_vec, b_bf16_vec, sum_bf16_vec;
     __m512 a_vec, b_vec, sum_vec;
     __mmask16 mask = 0xFFFF;
-nk_sum_bf16_skylake_cycle:
+nk_each_sum_bf16_skylake_cycle:
     if (n < 16) {
         mask = (__mmask16)_bzhi_u32(0xFFFFFFFF, n);
         a_bf16_vec = _mm256_maskz_loadu_epi16(mask, a);
@@ -245,11 +245,11 @@ nk_sum_bf16_skylake_cycle:
     sum_bf16_vec = nk_f32x16_to_bf16x16_skylake_(sum_vec);
     _mm256_mask_storeu_epi16(result, mask, sum_bf16_vec);
     result += 16;
-    if (n) goto nk_sum_bf16_skylake_cycle;
+    if (n) goto nk_each_sum_bf16_skylake_cycle;
 }
 
-NK_PUBLIC void nk_scale_bf16_skylake(nk_bf16_t const *a, nk_size_t n, nk_f32_t const *alpha, nk_f32_t const *beta,
-                                     nk_bf16_t *result) {
+NK_PUBLIC void nk_each_scale_bf16_skylake(nk_bf16_t const *a, nk_size_t n, nk_f32_t const *alpha, nk_f32_t const *beta,
+                                          nk_bf16_t *result) {
     nk_f32_t alpha_val = *alpha;
     nk_f32_t beta_val = *beta;
     __m512 alpha_f32x16 = _mm512_set1_ps(alpha_val);
@@ -257,7 +257,7 @@ NK_PUBLIC void nk_scale_bf16_skylake(nk_bf16_t const *a, nk_size_t n, nk_f32_t c
     __m256i a_bf16x16, result_bf16x16;
     __m512 a_f32x16, result_f32x16;
     __mmask16 mask = 0xFFFF;
-nk_scale_bf16_skylake_cycle:
+nk_each_scale_bf16_skylake_cycle:
     if (n < 16) {
         mask = (__mmask16)_bzhi_u32(0xFFFFFFFF, n);
         a_bf16x16 = _mm256_maskz_loadu_epi16(mask, a);
@@ -272,10 +272,10 @@ nk_scale_bf16_skylake_cycle:
     result_bf16x16 = nk_f32x16_to_bf16x16_skylake_(result_f32x16);
     _mm256_mask_storeu_epi16(result, mask, result_bf16x16);
     result += 16;
-    if (n) goto nk_scale_bf16_skylake_cycle;
+    if (n) goto nk_each_scale_bf16_skylake_cycle;
 }
 
-NK_PUBLIC void nk_wsum_bf16_skylake(                     //
+NK_PUBLIC void nk_each_blend_bf16_skylake(               //
     nk_bf16_t const *a, nk_bf16_t const *b, nk_size_t n, //
     nk_f32_t const *alpha, nk_f32_t const *beta, nk_bf16_t *result) {
     nk_f32_t alpha_val = *alpha;
@@ -285,15 +285,15 @@ NK_PUBLIC void nk_wsum_bf16_skylake(                     //
     // 1. Simple addition, when both weights are equal to 1.0.
     if (alpha_val == 1 && beta_val == 1) {
         // In this case we can avoid expensive multiplications.
-        nk_sum_bf16_skylake(a, b, n, result);
+        nk_each_sum_bf16_skylake(a, b, n, result);
         return;
     }
     // 2. Just scaling, when one of the weights is equal to zero.
     else if (alpha_val == 0 || beta_val == 0) {
         // In this case we can avoid half of the load instructions.
         nk_f32_t zero = 0;
-        if (beta_val == 0) { nk_scale_bf16_skylake(a, n, alpha, &zero, result); }
-        else { nk_scale_bf16_skylake(b, n, beta, &zero, result); }
+        if (beta_val == 0) { nk_each_scale_bf16_skylake(a, n, alpha, &zero, result); }
+        else { nk_each_scale_bf16_skylake(b, n, beta, &zero, result); }
         return;
     }
 
@@ -303,7 +303,7 @@ NK_PUBLIC void nk_wsum_bf16_skylake(                     //
     __m256i a_bf16x16, b_bf16x16, result_bf16x16;
     __m512 a_f32x16, b_f32x16, a_scaled_f32x16, result_f32x16;
     __mmask16 mask = 0xFFFF;
-nk_wsum_bf16_skylake_cycle:
+nk_each_blend_bf16_skylake_cycle:
     if (n < 16) {
         mask = (__mmask16)_bzhi_u32(0xFFFFFFFF, n);
         a_bf16x16 = _mm256_maskz_loadu_epi16(mask, a);
@@ -322,10 +322,10 @@ nk_wsum_bf16_skylake_cycle:
     result_bf16x16 = nk_f32x16_to_bf16x16_skylake_(result_f32x16);
     _mm256_mask_storeu_epi16(result, mask, result_bf16x16);
     result += 16;
-    if (n) goto nk_wsum_bf16_skylake_cycle;
+    if (n) goto nk_each_blend_bf16_skylake_cycle;
 }
 
-NK_PUBLIC void nk_fma_f64_skylake(                                        //
+NK_PUBLIC void nk_each_fma_f64_skylake(                                   //
     nk_f64_t const *a, nk_f64_t const *b, nk_f64_t const *c, nk_size_t n, //
     nk_f64_t const *alpha, nk_f64_t const *beta, nk_f64_t *result) {
     nk_f64_t alpha_val = *alpha;
@@ -334,7 +334,7 @@ NK_PUBLIC void nk_fma_f64_skylake(                                        //
     __m512d beta_f64x8 = _mm512_set1_pd(beta_val);
     __m512d a_f64x8, b_f64x8, c_f64x8, ab_f64x8, ab_scaled_f64x8, result_f64x8;
     __mmask8 mask = 0xFF;
-nk_fma_f64_skylake_cycle:
+nk_each_fma_f64_skylake_cycle:
     if (n < 8) {
         mask = (__mmask8)_bzhi_u32(0xFFFFFFFF, n);
         a_f64x8 = _mm512_maskz_loadu_pd(mask, a);
@@ -353,10 +353,10 @@ nk_fma_f64_skylake_cycle:
     result_f64x8 = _mm512_fmadd_pd(c_f64x8, beta_f64x8, ab_scaled_f64x8);
     _mm512_mask_storeu_pd(result, mask, result_f64x8);
     result += 8;
-    if (n) goto nk_fma_f64_skylake_cycle;
+    if (n) goto nk_each_fma_f64_skylake_cycle;
 }
 
-NK_PUBLIC void nk_fma_f32_skylake(                                        //
+NK_PUBLIC void nk_each_fma_f32_skylake(                                   //
     nk_f32_t const *a, nk_f32_t const *b, nk_f32_t const *c, nk_size_t n, //
     nk_f32_t const *alpha, nk_f32_t const *beta, nk_f32_t *result) {
     nk_f32_t alpha_val = *alpha;
@@ -365,7 +365,7 @@ NK_PUBLIC void nk_fma_f32_skylake(                                        //
     __m512 beta_f32x16 = _mm512_set1_ps(beta_val);
     __m512 a_f32x16, b_f32x16, c_f32x16, ab_f32x16, ab_scaled_f32x16, result_f32x16;
     __mmask16 mask = 0xFFFF;
-nk_fma_f32_skylake_cycle:
+nk_each_fma_f32_skylake_cycle:
     if (n < 16) {
         mask = (__mmask16)_bzhi_u32(0xFFFFFFFF, n);
         a_f32x16 = _mm512_maskz_loadu_ps(mask, a);
@@ -384,10 +384,10 @@ nk_fma_f32_skylake_cycle:
     result_f32x16 = _mm512_fmadd_ps(c_f32x16, beta_f32x16, ab_scaled_f32x16);
     _mm512_mask_storeu_ps(result, mask, result_f32x16);
     result += 16;
-    if (n) goto nk_fma_f32_skylake_cycle;
+    if (n) goto nk_each_fma_f32_skylake_cycle;
 }
 
-NK_PUBLIC void nk_fma_bf16_skylake(                                          //
+NK_PUBLIC void nk_each_fma_bf16_skylake(                                     //
     nk_bf16_t const *a, nk_bf16_t const *b, nk_bf16_t const *c, nk_size_t n, //
     nk_f32_t const *alpha, nk_f32_t const *beta, nk_bf16_t *result) {
     nk_f32_t alpha_val = *alpha;
@@ -397,7 +397,7 @@ NK_PUBLIC void nk_fma_bf16_skylake(                                          //
     __m256i a_bf16x16, b_bf16x16, c_bf16x16, result_bf16x16;
     __m512 a_f32x16, b_f32x16, c_f32x16, ab_f32x16, ab_scaled_f32x16, result_f32x16;
     __mmask16 mask = 0xFFFF;
-nk_fma_bf16_skylake_cycle:
+nk_each_fma_bf16_skylake_cycle:
     if (n < 16) {
         mask = (__mmask16)_bzhi_u32(0xFFFFFFFF, n);
         a_bf16x16 = _mm256_maskz_loadu_epi16(mask, a);
@@ -420,11 +420,11 @@ nk_fma_bf16_skylake_cycle:
     result_bf16x16 = nk_f32x16_to_bf16x16_skylake_(result_f32x16);
     _mm256_mask_storeu_epi16(result, mask, result_bf16x16);
     result += 16;
-    if (n) goto nk_fma_bf16_skylake_cycle;
+    if (n) goto nk_each_fma_bf16_skylake_cycle;
 }
 
-NK_PUBLIC void nk_scale_i8_skylake(nk_i8_t const *a, nk_size_t n, nk_f32_t const *alpha, nk_f32_t const *beta,
-                                   nk_i8_t *result) {
+NK_PUBLIC void nk_each_scale_i8_skylake(nk_i8_t const *a, nk_size_t n, nk_f32_t const *alpha, nk_f32_t const *beta,
+                                        nk_i8_t *result) {
     nk_f32_t alpha_val = *alpha;
     nk_f32_t beta_val = *beta;
     __m512 alpha_f32x16 = _mm512_set1_ps(alpha_val);
@@ -436,7 +436,7 @@ NK_PUBLIC void nk_scale_i8_skylake(nk_i8_t const *a, nk_size_t n, nk_f32_t const
     __m512i min_i32x16 = _mm512_set1_epi32(-128);
     __m512i max_i32x16 = _mm512_set1_epi32(127);
 
-nk_scale_i8_skylake_cycle:
+nk_each_scale_i8_skylake_cycle:
     if (n < 16) {
         mask = (__mmask16)_bzhi_u32(0xFFFFFFFF, n);
         a_i8x16 = _mm_maskz_loadu_epi8(mask, a);
@@ -454,10 +454,10 @@ nk_scale_i8_skylake_cycle:
     result_i8x16 = _mm512_cvtepi32_epi8(result_i32x16);
     _mm_mask_storeu_epi8(result, mask, result_i8x16);
     result += 16;
-    if (n) goto nk_scale_i8_skylake_cycle;
+    if (n) goto nk_each_scale_i8_skylake_cycle;
 }
 
-NK_PUBLIC void nk_fma_i8_skylake(                                      //
+NK_PUBLIC void nk_each_fma_i8_skylake(                                 //
     nk_i8_t const *a, nk_i8_t const *b, nk_i8_t const *c, nk_size_t n, //
     nk_f32_t const *alpha, nk_f32_t const *beta, nk_i8_t *result) {
     nk_f32_t alpha_val = *alpha;
@@ -471,7 +471,7 @@ NK_PUBLIC void nk_fma_i8_skylake(                                      //
     __m512i min_i32x16 = _mm512_set1_epi32(-128);
     __m512i max_i32x16 = _mm512_set1_epi32(127);
 
-nk_fma_i8_skylake_cycle:
+nk_each_fma_i8_skylake_cycle:
     if (n < 16) {
         mask = (__mmask16)_bzhi_u32(0xFFFFFFFF, n);
         a_i8x16 = _mm_maskz_loadu_epi8(mask, a);
@@ -497,11 +497,11 @@ nk_fma_i8_skylake_cycle:
     result_i8x16 = _mm512_cvtepi32_epi8(result_i32x16);
     _mm_mask_storeu_epi8(result, mask, result_i8x16);
     result += 16;
-    if (n) goto nk_fma_i8_skylake_cycle;
+    if (n) goto nk_each_fma_i8_skylake_cycle;
 }
 
-NK_PUBLIC void nk_scale_u8_skylake(nk_u8_t const *a, nk_size_t n, nk_f32_t const *alpha, nk_f32_t const *beta,
-                                   nk_u8_t *result) {
+NK_PUBLIC void nk_each_scale_u8_skylake(nk_u8_t const *a, nk_size_t n, nk_f32_t const *alpha, nk_f32_t const *beta,
+                                        nk_u8_t *result) {
     nk_f32_t alpha_val = *alpha;
     nk_f32_t beta_val = *beta;
     __m512 alpha_f32x16 = _mm512_set1_ps(alpha_val);
@@ -513,7 +513,7 @@ NK_PUBLIC void nk_scale_u8_skylake(nk_u8_t const *a, nk_size_t n, nk_f32_t const
     __m512i min_u32x16 = _mm512_set1_epi32(0);
     __m512i max_u32x16 = _mm512_set1_epi32(255);
 
-nk_scale_u8_skylake_cycle:
+nk_each_scale_u8_skylake_cycle:
     if (n < 16) {
         mask = (__mmask16)_bzhi_u32(0xFFFFFFFF, n);
         a_u8x16 = _mm_maskz_loadu_epi8(mask, a);
@@ -531,10 +531,10 @@ nk_scale_u8_skylake_cycle:
     result_u8x16 = _mm512_cvtepi32_epi8(result_u32x16);
     _mm_mask_storeu_epi8(result, mask, result_u8x16);
     result += 16;
-    if (n) goto nk_scale_u8_skylake_cycle;
+    if (n) goto nk_each_scale_u8_skylake_cycle;
 }
 
-NK_PUBLIC void nk_fma_u8_skylake(                                      //
+NK_PUBLIC void nk_each_fma_u8_skylake(                                 //
     nk_u8_t const *a, nk_u8_t const *b, nk_u8_t const *c, nk_size_t n, //
     nk_f32_t const *alpha, nk_f32_t const *beta, nk_u8_t *result) {
     nk_f32_t alpha_val = *alpha;
@@ -548,7 +548,7 @@ NK_PUBLIC void nk_fma_u8_skylake(                                      //
     __m512i min_u32x16 = _mm512_set1_epi32(0);
     __m512i max_u32x16 = _mm512_set1_epi32(255);
 
-nk_fma_u8_skylake_cycle:
+nk_each_fma_u8_skylake_cycle:
     if (n < 16) {
         mask = (__mmask16)_bzhi_u32(0xFFFFFFFF, n);
         a_u8x16 = _mm_maskz_loadu_epi8(mask, a);
@@ -574,11 +574,11 @@ nk_fma_u8_skylake_cycle:
     result_u8x16 = _mm512_cvtepi32_epi8(result_u32x16);
     _mm_mask_storeu_epi8(result, mask, result_u8x16);
     result += 16;
-    if (n) goto nk_fma_u8_skylake_cycle;
+    if (n) goto nk_each_fma_u8_skylake_cycle;
 }
 
-NK_PUBLIC void nk_scale_i16_skylake(nk_i16_t const *a, nk_size_t n, nk_f32_t const *alpha, nk_f32_t const *beta,
-                                    nk_i16_t *result) {
+NK_PUBLIC void nk_each_scale_i16_skylake(nk_i16_t const *a, nk_size_t n, nk_f32_t const *alpha, nk_f32_t const *beta,
+                                         nk_i16_t *result) {
     nk_f32_t alpha_f32 = *alpha;
     nk_f32_t beta_f32 = *beta;
     __m512 alpha_f32x16 = _mm512_set1_ps(alpha_f32);
@@ -590,7 +590,7 @@ NK_PUBLIC void nk_scale_i16_skylake(nk_i16_t const *a, nk_size_t n, nk_f32_t con
     __m512i min_i32x16 = _mm512_set1_epi32(-32768);
     __m512i max_i32x16 = _mm512_set1_epi32(32767);
 
-nk_scale_i16_skylake_cycle:
+nk_each_scale_i16_skylake_cycle:
     if (n < 16) {
         mask = (__mmask16)_bzhi_u32(0xFFFFFFFF, n);
         a_i16x16 = _mm256_maskz_loadu_epi16(mask, a);
@@ -608,10 +608,10 @@ nk_scale_i16_skylake_cycle:
     result_i16x16 = _mm512_cvtepi32_epi16(result_i32x16);
     _mm256_mask_storeu_epi16(result, mask, result_i16x16);
     result += 16;
-    if (n) goto nk_scale_i16_skylake_cycle;
+    if (n) goto nk_each_scale_i16_skylake_cycle;
 }
 
-NK_PUBLIC void nk_fma_i16_skylake(                                        //
+NK_PUBLIC void nk_each_fma_i16_skylake(                                   //
     nk_i16_t const *a, nk_i16_t const *b, nk_i16_t const *c, nk_size_t n, //
     nk_f32_t const *alpha, nk_f32_t const *beta, nk_i16_t *result) {
     nk_f32_t alpha_f32 = *alpha;
@@ -625,7 +625,7 @@ NK_PUBLIC void nk_fma_i16_skylake(                                        //
     __m512i min_i32x16 = _mm512_set1_epi32(-32768);
     __m512i max_i32x16 = _mm512_set1_epi32(32767);
 
-nk_fma_i16_skylake_cycle:
+nk_each_fma_i16_skylake_cycle:
     if (n < 16) {
         mask = (__mmask16)_bzhi_u32(0xFFFFFFFF, n);
         a_i16x16 = _mm256_maskz_loadu_epi16(mask, a);
@@ -651,11 +651,11 @@ nk_fma_i16_skylake_cycle:
     result_i16x16 = _mm512_cvtepi32_epi16(result_i32x16);
     _mm256_mask_storeu_epi16(result, mask, result_i16x16);
     result += 16;
-    if (n) goto nk_fma_i16_skylake_cycle;
+    if (n) goto nk_each_fma_i16_skylake_cycle;
 }
 
-NK_PUBLIC void nk_scale_u16_skylake(nk_u16_t const *a, nk_size_t n, nk_f32_t const *alpha, nk_f32_t const *beta,
-                                    nk_u16_t *result) {
+NK_PUBLIC void nk_each_scale_u16_skylake(nk_u16_t const *a, nk_size_t n, nk_f32_t const *alpha, nk_f32_t const *beta,
+                                         nk_u16_t *result) {
     nk_f32_t alpha_f32 = *alpha;
     nk_f32_t beta_f32 = *beta;
     __m512 alpha_f32x16 = _mm512_set1_ps(alpha_f32);
@@ -667,7 +667,7 @@ NK_PUBLIC void nk_scale_u16_skylake(nk_u16_t const *a, nk_size_t n, nk_f32_t con
     __m512i min_u32x16 = _mm512_set1_epi32(0);
     __m512i max_u32x16 = _mm512_set1_epi32(65535);
 
-nk_scale_u16_skylake_cycle:
+nk_each_scale_u16_skylake_cycle:
     if (n < 16) {
         mask = (__mmask16)_bzhi_u32(0xFFFFFFFF, n);
         a_u16x16 = _mm256_maskz_loadu_epi16(mask, a);
@@ -685,10 +685,10 @@ nk_scale_u16_skylake_cycle:
     result_u16x16 = _mm512_cvtepi32_epi16(result_u32x16);
     _mm256_mask_storeu_epi16(result, mask, result_u16x16);
     result += 16;
-    if (n) goto nk_scale_u16_skylake_cycle;
+    if (n) goto nk_each_scale_u16_skylake_cycle;
 }
 
-NK_PUBLIC void nk_fma_u16_skylake(                                        //
+NK_PUBLIC void nk_each_fma_u16_skylake(                                   //
     nk_u16_t const *a, nk_u16_t const *b, nk_u16_t const *c, nk_size_t n, //
     nk_f32_t const *alpha, nk_f32_t const *beta, nk_u16_t *result) {
     nk_f32_t alpha_f32 = *alpha;
@@ -702,7 +702,7 @@ NK_PUBLIC void nk_fma_u16_skylake(                                        //
     __m512i min_u32x16 = _mm512_set1_epi32(0);
     __m512i max_u32x16 = _mm512_set1_epi32(65535);
 
-nk_fma_u16_skylake_cycle:
+nk_each_fma_u16_skylake_cycle:
     if (n < 16) {
         mask = (__mmask16)_bzhi_u32(0xFFFFFFFF, n);
         a_u16x16 = _mm256_maskz_loadu_epi16(mask, a);
@@ -728,11 +728,11 @@ nk_fma_u16_skylake_cycle:
     result_u16x16 = _mm512_cvtepi32_epi16(result_u32x16);
     _mm256_mask_storeu_epi16(result, mask, result_u16x16);
     result += 16;
-    if (n) goto nk_fma_u16_skylake_cycle;
+    if (n) goto nk_each_fma_u16_skylake_cycle;
 }
 
-NK_PUBLIC void nk_scale_i32_skylake(nk_i32_t const *a, nk_size_t n, nk_f64_t const *alpha, nk_f64_t const *beta,
-                                    nk_i32_t *result) {
+NK_PUBLIC void nk_each_scale_i32_skylake(nk_i32_t const *a, nk_size_t n, nk_f64_t const *alpha, nk_f64_t const *beta,
+                                         nk_i32_t *result) {
     nk_f64_t alpha_val = *alpha;
     nk_f64_t beta_val = *beta;
     __m512d alpha_f64x8 = _mm512_set1_pd(alpha_val);
@@ -743,7 +743,7 @@ NK_PUBLIC void nk_scale_i32_skylake(nk_i32_t const *a, nk_size_t n, nk_f64_t con
     __m512d min_f64x8 = _mm512_set1_pd(-2147483648.0);
     __m512d max_f64x8 = _mm512_set1_pd(2147483647.0);
 
-nk_scale_i32_skylake_cycle:
+nk_each_scale_i32_skylake_cycle:
     if (n < 8) {
         mask = (__mmask8)_bzhi_u32(0xFFFFFFFF, n);
         a_i32x8 = _mm256_maskz_loadu_epi32(mask, a);
@@ -760,10 +760,10 @@ nk_scale_i32_skylake_cycle:
     result_i32x8 = _mm512_cvttpd_epi32(result_f64x8);
     _mm256_mask_storeu_epi32(result, mask, result_i32x8);
     result += 8;
-    if (n) goto nk_scale_i32_skylake_cycle;
+    if (n) goto nk_each_scale_i32_skylake_cycle;
 }
 
-NK_PUBLIC void nk_fma_i32_skylake(                                        //
+NK_PUBLIC void nk_each_fma_i32_skylake(                                   //
     nk_i32_t const *a, nk_i32_t const *b, nk_i32_t const *c, nk_size_t n, //
     nk_f64_t const *alpha, nk_f64_t const *beta, nk_i32_t *result) {
     nk_f64_t alpha_val = *alpha;
@@ -776,7 +776,7 @@ NK_PUBLIC void nk_fma_i32_skylake(                                        //
     __m512d min_f64x8 = _mm512_set1_pd(-2147483648.0);
     __m512d max_f64x8 = _mm512_set1_pd(2147483647.0);
 
-nk_fma_i32_skylake_cycle:
+nk_each_fma_i32_skylake_cycle:
     if (n < 8) {
         mask = (__mmask8)_bzhi_u32(0xFFFFFFFF, n);
         a_i32x8 = _mm256_maskz_loadu_epi32(mask, a);
@@ -801,11 +801,11 @@ nk_fma_i32_skylake_cycle:
     result_i32x8 = _mm512_cvttpd_epi32(result_f64x8);
     _mm256_mask_storeu_epi32(result, mask, result_i32x8);
     result += 8;
-    if (n) goto nk_fma_i32_skylake_cycle;
+    if (n) goto nk_each_fma_i32_skylake_cycle;
 }
 
-NK_PUBLIC void nk_scale_u32_skylake(nk_u32_t const *a, nk_size_t n, nk_f64_t const *alpha, nk_f64_t const *beta,
-                                    nk_u32_t *result) {
+NK_PUBLIC void nk_each_scale_u32_skylake(nk_u32_t const *a, nk_size_t n, nk_f64_t const *alpha, nk_f64_t const *beta,
+                                         nk_u32_t *result) {
     nk_f64_t alpha_val = *alpha;
     nk_f64_t beta_val = *beta;
     __m512d alpha_f64x8 = _mm512_set1_pd(alpha_val);
@@ -816,7 +816,7 @@ NK_PUBLIC void nk_scale_u32_skylake(nk_u32_t const *a, nk_size_t n, nk_f64_t con
     __m512d min_f64x8 = _mm512_set1_pd(0.0);
     __m512d max_f64x8 = _mm512_set1_pd(4294967295.0);
 
-nk_scale_u32_skylake_cycle:
+nk_each_scale_u32_skylake_cycle:
     if (n < 8) {
         mask = (__mmask8)_bzhi_u32(0xFFFFFFFF, n);
         a_u32x8 = _mm256_maskz_loadu_epi32(mask, a);
@@ -833,10 +833,10 @@ nk_scale_u32_skylake_cycle:
     result_u32x8 = _mm512_cvttpd_epu32(result_f64x8);
     _mm256_mask_storeu_epi32(result, mask, result_u32x8);
     result += 8;
-    if (n) goto nk_scale_u32_skylake_cycle;
+    if (n) goto nk_each_scale_u32_skylake_cycle;
 }
 
-NK_PUBLIC void nk_fma_u32_skylake(                                        //
+NK_PUBLIC void nk_each_fma_u32_skylake(                                   //
     nk_u32_t const *a, nk_u32_t const *b, nk_u32_t const *c, nk_size_t n, //
     nk_f64_t const *alpha, nk_f64_t const *beta, nk_u32_t *result) {
     nk_f64_t alpha_val = *alpha;
@@ -849,7 +849,7 @@ NK_PUBLIC void nk_fma_u32_skylake(                                        //
     __m512d min_f64x8 = _mm512_set1_pd(0.0);
     __m512d max_f64x8 = _mm512_set1_pd(4294967295.0);
 
-nk_fma_u32_skylake_cycle:
+nk_each_fma_u32_skylake_cycle:
     if (n < 8) {
         mask = (__mmask8)_bzhi_u32(0xFFFFFFFF, n);
         a_u32x8 = _mm256_maskz_loadu_epi32(mask, a);
@@ -874,11 +874,11 @@ nk_fma_u32_skylake_cycle:
     result_u32x8 = _mm512_cvttpd_epu32(result_f64x8);
     _mm256_mask_storeu_epi32(result, mask, result_u32x8);
     result += 8;
-    if (n) goto nk_fma_u32_skylake_cycle;
+    if (n) goto nk_each_fma_u32_skylake_cycle;
 }
 
-NK_PUBLIC void nk_scale_i64_skylake(nk_i64_t const *a, nk_size_t n, nk_f64_t const *alpha, nk_f64_t const *beta,
-                                    nk_i64_t *result) {
+NK_PUBLIC void nk_each_scale_i64_skylake(nk_i64_t const *a, nk_size_t n, nk_f64_t const *alpha, nk_f64_t const *beta,
+                                         nk_i64_t *result) {
     nk_f64_t alpha_val = *alpha;
     nk_f64_t beta_val = *beta;
     __m512d alpha_f64x8 = _mm512_set1_pd(alpha_val);
@@ -888,7 +888,7 @@ NK_PUBLIC void nk_scale_i64_skylake(nk_i64_t const *a, nk_size_t n, nk_f64_t con
     __m512i result_i64x8;
     __mmask8 mask = 0xFF;
 
-nk_scale_i64_skylake_cycle:
+nk_each_scale_i64_skylake_cycle:
     if (n < 8) {
         mask = (__mmask8)_bzhi_u32(0xFFFFFFFF, n);
         a_i64x8 = _mm512_maskz_loadu_epi64(mask, a);
@@ -903,10 +903,10 @@ nk_scale_i64_skylake_cycle:
     result_i64x8 = _mm512_cvtpd_epi64(result_f64x8);
     _mm512_mask_storeu_epi64(result, mask, result_i64x8);
     result += 8;
-    if (n) goto nk_scale_i64_skylake_cycle;
+    if (n) goto nk_each_scale_i64_skylake_cycle;
 }
 
-NK_PUBLIC void nk_fma_i64_skylake(                                        //
+NK_PUBLIC void nk_each_fma_i64_skylake(                                   //
     nk_i64_t const *a, nk_i64_t const *b, nk_i64_t const *c, nk_size_t n, //
     nk_f64_t const *alpha, nk_f64_t const *beta, nk_i64_t *result) {
     nk_f64_t alpha_val = *alpha;
@@ -916,7 +916,7 @@ NK_PUBLIC void nk_fma_i64_skylake(                                        //
     __m512i a_i64x8, b_i64x8, c_i64x8, result_i64x8;
     __m512d a_f64x8, b_f64x8, c_f64x8, ab_f64x8, ab_scaled_f64x8, result_f64x8;
     __mmask8 mask = 0xFF;
-nk_fma_i64_skylake_cycle:
+nk_each_fma_i64_skylake_cycle:
     if (n < 8) {
         mask = (__mmask8)_bzhi_u32(0xFFFFFFFF, n);
         a_i64x8 = _mm512_maskz_loadu_epi64(mask, a);
@@ -939,11 +939,11 @@ nk_fma_i64_skylake_cycle:
     result_i64x8 = _mm512_cvtpd_epi64(result_f64x8);
     _mm512_mask_storeu_epi64(result, mask, result_i64x8);
     result += 8;
-    if (n) goto nk_fma_i64_skylake_cycle;
+    if (n) goto nk_each_fma_i64_skylake_cycle;
 }
 
-NK_PUBLIC void nk_scale_u64_skylake(nk_u64_t const *a, nk_size_t n, nk_f64_t const *alpha, nk_f64_t const *beta,
-                                    nk_u64_t *result) {
+NK_PUBLIC void nk_each_scale_u64_skylake(nk_u64_t const *a, nk_size_t n, nk_f64_t const *alpha, nk_f64_t const *beta,
+                                         nk_u64_t *result) {
     nk_f64_t alpha_val = *alpha;
     nk_f64_t beta_val = *beta;
     __m512d alpha_f64x8 = _mm512_set1_pd(alpha_val);
@@ -953,7 +953,7 @@ NK_PUBLIC void nk_scale_u64_skylake(nk_u64_t const *a, nk_size_t n, nk_f64_t con
     __m512i result_u64x8;
     __mmask8 mask = 0xFF;
 
-nk_scale_u64_skylake_cycle:
+nk_each_scale_u64_skylake_cycle:
     if (n < 8) {
         mask = (__mmask8)_bzhi_u32(0xFFFFFFFF, n);
         a_u64x8 = _mm512_maskz_loadu_epi64(mask, a);
@@ -968,10 +968,10 @@ nk_scale_u64_skylake_cycle:
     result_u64x8 = _mm512_cvtpd_epu64(result_f64x8);
     _mm512_mask_storeu_epi64(result, mask, result_u64x8);
     result += 8;
-    if (n) goto nk_scale_u64_skylake_cycle;
+    if (n) goto nk_each_scale_u64_skylake_cycle;
 }
 
-NK_PUBLIC void nk_fma_u64_skylake(                                        //
+NK_PUBLIC void nk_each_fma_u64_skylake(                                   //
     nk_u64_t const *a, nk_u64_t const *b, nk_u64_t const *c, nk_size_t n, //
     nk_f64_t const *alpha, nk_f64_t const *beta, nk_u64_t *result) {
     nk_f64_t alpha_val = *alpha;
@@ -981,7 +981,7 @@ NK_PUBLIC void nk_fma_u64_skylake(                                        //
     __m512i a_u64x8, b_u64x8, c_u64x8, result_u64x8;
     __m512d a_f64x8, b_f64x8, c_f64x8, ab_f64x8, ab_scaled_f64x8, result_f64x8;
     __mmask8 mask = 0xFF;
-nk_fma_u64_skylake_cycle:
+nk_each_fma_u64_skylake_cycle:
     if (n < 8) {
         mask = (__mmask8)_bzhi_u32(0xFFFFFFFF, n);
         a_u64x8 = _mm512_maskz_loadu_epi64(mask, a);
@@ -1004,14 +1004,14 @@ nk_fma_u64_skylake_cycle:
     result_u64x8 = _mm512_cvtpd_epu64(result_f64x8);
     _mm512_mask_storeu_epi64(result, mask, result_u64x8);
     result += 8;
-    if (n) goto nk_fma_u64_skylake_cycle;
+    if (n) goto nk_each_fma_u64_skylake_cycle;
 }
 
-NK_PUBLIC void nk_sum_e4m3_skylake(nk_e4m3_t const *a, nk_e4m3_t const *b, nk_size_t n, nk_e4m3_t *result) {
+NK_PUBLIC void nk_each_sum_e4m3_skylake(nk_e4m3_t const *a, nk_e4m3_t const *b, nk_size_t n, nk_e4m3_t *result) {
     __m128i a_e4m3x16, b_e4m3x16, result_e4m3x16;
     __m512 a_f32x16, b_f32x16, result_f32x16;
     __mmask16 mask = 0xFFFF;
-nk_sum_e4m3_skylake_cycle:
+nk_each_sum_e4m3_skylake_cycle:
     if (n < 16) {
         mask = (__mmask16)_bzhi_u32(0xFFFF, (unsigned int)n);
         a_e4m3x16 = _mm_maskz_loadu_epi8(mask, a);
@@ -1029,14 +1029,14 @@ nk_sum_e4m3_skylake_cycle:
     result_e4m3x16 = nk_f32x16_to_e4m3x16_skylake_(result_f32x16);
     _mm_mask_storeu_epi8(result, mask, result_e4m3x16);
     result += 16;
-    if (n) goto nk_sum_e4m3_skylake_cycle;
+    if (n) goto nk_each_sum_e4m3_skylake_cycle;
 }
 
-NK_PUBLIC void nk_sum_e5m2_skylake(nk_e5m2_t const *a, nk_e5m2_t const *b, nk_size_t n, nk_e5m2_t *result) {
+NK_PUBLIC void nk_each_sum_e5m2_skylake(nk_e5m2_t const *a, nk_e5m2_t const *b, nk_size_t n, nk_e5m2_t *result) {
     __m128i a_e5m2x16, b_e5m2x16, result_e5m2x16;
     __m512 a_f32x16, b_f32x16, result_f32x16;
     __mmask16 mask = 0xFFFF;
-nk_sum_e5m2_skylake_cycle:
+nk_each_sum_e5m2_skylake_cycle:
     if (n < 16) {
         mask = (__mmask16)_bzhi_u32(0xFFFF, (unsigned int)n);
         a_e5m2x16 = _mm_maskz_loadu_epi8(mask, a);
@@ -1054,17 +1054,17 @@ nk_sum_e5m2_skylake_cycle:
     result_e5m2x16 = nk_f32x16_to_e5m2x16_skylake_(result_f32x16);
     _mm_mask_storeu_epi8(result, mask, result_e5m2x16);
     result += 16;
-    if (n) goto nk_sum_e5m2_skylake_cycle;
+    if (n) goto nk_each_sum_e5m2_skylake_cycle;
 }
 
-NK_PUBLIC void nk_scale_e4m3_skylake(nk_e4m3_t const *a, nk_size_t n, nk_f32_t const *alpha, nk_f32_t const *beta,
-                                     nk_e4m3_t *result) {
+NK_PUBLIC void nk_each_scale_e4m3_skylake(nk_e4m3_t const *a, nk_size_t n, nk_f32_t const *alpha, nk_f32_t const *beta,
+                                          nk_e4m3_t *result) {
     __m512 alpha_f32x16 = _mm512_set1_ps(*alpha);
     __m512 beta_f32x16 = _mm512_set1_ps(*beta);
     __m128i a_e4m3x16, result_e4m3x16;
     __m512 a_f32x16, result_f32x16;
     __mmask16 mask = 0xFFFF;
-nk_scale_e4m3_skylake_cycle:
+nk_each_scale_e4m3_skylake_cycle:
     if (n < 16) {
         mask = (__mmask16)_bzhi_u32(0xFFFF, (unsigned int)n);
         a_e4m3x16 = _mm_maskz_loadu_epi8(mask, a);
@@ -1081,17 +1081,17 @@ nk_scale_e4m3_skylake_cycle:
     result_e4m3x16 = nk_f32x16_to_e4m3x16_skylake_(result_f32x16);
     _mm_mask_storeu_epi8(result, mask, result_e4m3x16);
     result += 16;
-    if (n) goto nk_scale_e4m3_skylake_cycle;
+    if (n) goto nk_each_scale_e4m3_skylake_cycle;
 }
 
-NK_PUBLIC void nk_scale_e5m2_skylake(nk_e5m2_t const *a, nk_size_t n, nk_f32_t const *alpha, nk_f32_t const *beta,
-                                     nk_e5m2_t *result) {
+NK_PUBLIC void nk_each_scale_e5m2_skylake(nk_e5m2_t const *a, nk_size_t n, nk_f32_t const *alpha, nk_f32_t const *beta,
+                                          nk_e5m2_t *result) {
     __m512 alpha_f32x16 = _mm512_set1_ps(*alpha);
     __m512 beta_f32x16 = _mm512_set1_ps(*beta);
     __m128i a_e5m2x16, result_e5m2x16;
     __m512 a_f32x16, result_f32x16;
     __mmask16 mask = 0xFFFF;
-nk_scale_e5m2_skylake_cycle:
+nk_each_scale_e5m2_skylake_cycle:
     if (n < 16) {
         mask = (__mmask16)_bzhi_u32(0xFFFF, (unsigned int)n);
         a_e5m2x16 = _mm_maskz_loadu_epi8(mask, a);
@@ -1108,17 +1108,17 @@ nk_scale_e5m2_skylake_cycle:
     result_e5m2x16 = nk_f32x16_to_e5m2x16_skylake_(result_f32x16);
     _mm_mask_storeu_epi8(result, mask, result_e5m2x16);
     result += 16;
-    if (n) goto nk_scale_e5m2_skylake_cycle;
+    if (n) goto nk_each_scale_e5m2_skylake_cycle;
 }
 
-NK_PUBLIC void nk_wsum_e4m3_skylake(nk_e4m3_t const *a, nk_e4m3_t const *b, nk_size_t n, nk_f32_t const *alpha,
-                                    nk_f32_t const *beta, nk_e4m3_t *result) {
+NK_PUBLIC void nk_each_blend_e4m3_skylake(nk_e4m3_t const *a, nk_e4m3_t const *b, nk_size_t n, nk_f32_t const *alpha,
+                                          nk_f32_t const *beta, nk_e4m3_t *result) {
     __m512 alpha_f32x16 = _mm512_set1_ps(*alpha);
     __m512 beta_f32x16 = _mm512_set1_ps(*beta);
     __m128i a_e4m3x16, b_e4m3x16, result_e4m3x16;
     __m512 a_f32x16, b_f32x16, a_scaled_f32x16, b_scaled_f32x16, result_f32x16;
     __mmask16 mask = 0xFFFF;
-nk_wsum_e4m3_skylake_cycle:
+nk_each_blend_e4m3_skylake_cycle:
     if (n < 16) {
         mask = (__mmask16)_bzhi_u32(0xFFFF, (unsigned int)n);
         a_e4m3x16 = _mm_maskz_loadu_epi8(mask, a);
@@ -1137,17 +1137,17 @@ nk_wsum_e4m3_skylake_cycle:
     result_e4m3x16 = nk_f32x16_to_e4m3x16_skylake_(result_f32x16);
     _mm_mask_storeu_epi8(result, mask, result_e4m3x16);
     result += 16;
-    if (n) goto nk_wsum_e4m3_skylake_cycle;
+    if (n) goto nk_each_blend_e4m3_skylake_cycle;
 }
 
-NK_PUBLIC void nk_wsum_e5m2_skylake(nk_e5m2_t const *a, nk_e5m2_t const *b, nk_size_t n, nk_f32_t const *alpha,
-                                    nk_f32_t const *beta, nk_e5m2_t *result) {
+NK_PUBLIC void nk_each_blend_e5m2_skylake(nk_e5m2_t const *a, nk_e5m2_t const *b, nk_size_t n, nk_f32_t const *alpha,
+                                          nk_f32_t const *beta, nk_e5m2_t *result) {
     __m512 alpha_f32x16 = _mm512_set1_ps(*alpha);
     __m512 beta_f32x16 = _mm512_set1_ps(*beta);
     __m128i a_e5m2x16, b_e5m2x16, result_e5m2x16;
     __m512 a_f32x16, b_f32x16, a_scaled_f32x16, b_scaled_f32x16, result_f32x16;
     __mmask16 mask = 0xFFFF;
-nk_wsum_e5m2_skylake_cycle:
+nk_each_blend_e5m2_skylake_cycle:
     if (n < 16) {
         mask = (__mmask16)_bzhi_u32(0xFFFF, (unsigned int)n);
         a_e5m2x16 = _mm_maskz_loadu_epi8(mask, a);
@@ -1166,17 +1166,17 @@ nk_wsum_e5m2_skylake_cycle:
     result_e5m2x16 = nk_f32x16_to_e5m2x16_skylake_(result_f32x16);
     _mm_mask_storeu_epi8(result, mask, result_e5m2x16);
     result += 16;
-    if (n) goto nk_wsum_e5m2_skylake_cycle;
+    if (n) goto nk_each_blend_e5m2_skylake_cycle;
 }
 
-NK_PUBLIC void nk_fma_e4m3_skylake(nk_e4m3_t const *a, nk_e4m3_t const *b, nk_e4m3_t const *c, nk_size_t n,
-                                   nk_f32_t const *alpha, nk_f32_t const *beta, nk_e4m3_t *result) {
+NK_PUBLIC void nk_each_fma_e4m3_skylake(nk_e4m3_t const *a, nk_e4m3_t const *b, nk_e4m3_t const *c, nk_size_t n,
+                                        nk_f32_t const *alpha, nk_f32_t const *beta, nk_e4m3_t *result) {
     __m512 alpha_f32x16 = _mm512_set1_ps(*alpha);
     __m512 beta_f32x16 = _mm512_set1_ps(*beta);
     __m128i a_e4m3x16, b_e4m3x16, c_e4m3x16, result_e4m3x16;
     __m512 a_f32x16, b_f32x16, c_f32x16, ab_f32x16, ab_scaled_f32x16, result_f32x16;
     __mmask16 mask = 0xFFFF;
-nk_fma_e4m3_skylake_cycle:
+nk_each_fma_e4m3_skylake_cycle:
     if (n < 16) {
         mask = (__mmask16)_bzhi_u32(0xFFFF, (unsigned int)n);
         a_e4m3x16 = _mm_maskz_loadu_epi8(mask, a);
@@ -1202,17 +1202,17 @@ nk_fma_e4m3_skylake_cycle:
     result_e4m3x16 = nk_f32x16_to_e4m3x16_skylake_(result_f32x16);
     _mm_mask_storeu_epi8(result, mask, result_e4m3x16);
     result += 16;
-    if (n) goto nk_fma_e4m3_skylake_cycle;
+    if (n) goto nk_each_fma_e4m3_skylake_cycle;
 }
 
-NK_PUBLIC void nk_fma_e5m2_skylake(nk_e5m2_t const *a, nk_e5m2_t const *b, nk_e5m2_t const *c, nk_size_t n,
-                                   nk_f32_t const *alpha, nk_f32_t const *beta, nk_e5m2_t *result) {
+NK_PUBLIC void nk_each_fma_e5m2_skylake(nk_e5m2_t const *a, nk_e5m2_t const *b, nk_e5m2_t const *c, nk_size_t n,
+                                        nk_f32_t const *alpha, nk_f32_t const *beta, nk_e5m2_t *result) {
     __m512 alpha_f32x16 = _mm512_set1_ps(*alpha);
     __m512 beta_f32x16 = _mm512_set1_ps(*beta);
     __m128i a_e5m2x16, b_e5m2x16, c_e5m2x16, result_e5m2x16;
     __m512 a_f32x16, b_f32x16, c_f32x16, ab_f32x16, ab_scaled_f32x16, result_f32x16;
     __mmask16 mask = 0xFFFF;
-nk_fma_e5m2_skylake_cycle:
+nk_each_fma_e5m2_skylake_cycle:
     if (n < 16) {
         mask = (__mmask16)_bzhi_u32(0xFFFF, (unsigned int)n);
         a_e5m2x16 = _mm_maskz_loadu_epi8(mask, a);
@@ -1238,7 +1238,7 @@ nk_fma_e5m2_skylake_cycle:
     result_e5m2x16 = nk_f32x16_to_e5m2x16_skylake_(result_f32x16);
     _mm_mask_storeu_epi8(result, mask, result_e5m2x16);
     result += 16;
-    if (n) goto nk_fma_e5m2_skylake_cycle;
+    if (n) goto nk_each_fma_e5m2_skylake_cycle;
 }
 
 #if defined(__cplusplus)
@@ -1253,4 +1253,4 @@ nk_fma_e5m2_skylake_cycle:
 #endif // NK_TARGET_SKYLAKE
 #endif // NK_TARGET_X86_
 
-#endif // NK_ELEMENTWISE_SKYLAKE_H
+#endif // NK_EACH_SKYLAKE_H

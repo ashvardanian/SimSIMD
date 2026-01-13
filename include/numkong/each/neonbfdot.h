@@ -1,7 +1,7 @@
 /**
  *  @brief SIMD-accelerated Elementwise Operations using BF16 for Arm NEON-capable CPUs.
- *  @file include/numkong/elementwise/neonbfdot.h
- *  @sa include/numkong/elementwise.h
+ *  @file include/numkong/each/neonbfdot.h
+ *  @sa include/numkong/each.h
  *  @author Ash Vardanian
  *  @date December 27, 2025
  *
@@ -28,8 +28,8 @@
  *  lower throughput than native F16 operations, it prevents overflow issues common with FP16's
  *  limited exponent range in ML training workloads.
  */
-#ifndef NK_ELEMENTWISE_NEONBFDOT_H
-#define NK_ELEMENTWISE_NEONBFDOT_H
+#ifndef NK_EACH_NEONBFDOT_H
+#define NK_EACH_NEONBFDOT_H
 
 #if NK_TARGET_ARM_
 #if NK_TARGET_NEONBFDOT
@@ -46,7 +46,7 @@
 extern "C" {
 #endif
 
-NK_PUBLIC void nk_sum_bf16_neonbfdot(nk_bf16_t const *a, nk_bf16_t const *b, nk_size_t n, nk_bf16_t *result) {
+NK_PUBLIC void nk_each_sum_bf16_neonbfdot(nk_bf16_t const *a, nk_bf16_t const *b, nk_size_t n, nk_bf16_t *result) {
     // The main loop:
     nk_size_t i = 0;
     for (; i + 4 <= n; i += 4) {
@@ -66,7 +66,7 @@ NK_PUBLIC void nk_sum_bf16_neonbfdot(nk_bf16_t const *a, nk_bf16_t const *b, nk_
     }
 }
 
-NK_PUBLIC void nk_scale_bf16_neonbfdot(nk_bf16_t const *a, nk_size_t n, nk_f32_t const *alpha, nk_f32_t const *beta,
+NK_PUBLIC void nk_each_scale_bf16_neonbfdot(nk_bf16_t const *a, nk_size_t n, nk_f32_t const *alpha, nk_f32_t const *beta,
                                        nk_bf16_t *result) {
     nk_f32_t alpha_val = *alpha;
     nk_f32_t beta_val = *beta;
@@ -90,7 +90,7 @@ NK_PUBLIC void nk_scale_bf16_neonbfdot(nk_bf16_t const *a, nk_size_t n, nk_f32_t
     }
 }
 
-NK_PUBLIC void nk_wsum_bf16_neonbfdot(                   //
+NK_PUBLIC void nk_each_blend_bf16_neonbfdot(                   //
     nk_bf16_t const *a, nk_bf16_t const *b, nk_size_t n, //
     nk_f32_t const *alpha, nk_f32_t const *beta, nk_bf16_t *result) {
 
@@ -101,15 +101,15 @@ NK_PUBLIC void nk_wsum_bf16_neonbfdot(                   //
     // 1. Simple addition, when both weights are equal to 1.0.
     if (alpha_val == 1 && beta_val == 1) {
         // In this case we can avoid expensive multiplications.
-        nk_sum_bf16_neonbfdot(a, b, n, result);
+        nk_each_sum_bf16_neonbfdot(a, b, n, result);
         return;
     }
     // 2. Just scaling, when one of the weights is equal to zero.
     else if (alpha_val == 0 || beta_val == 0) {
         // In this case we can avoid half of the load instructions.
         nk_f32_t zero = 0;
-        if (beta_val == 0) { nk_scale_bf16_neonbfdot(a, n, alpha, &zero, result); }
-        else { nk_scale_bf16_neonbfdot(b, n, beta, &zero, result); }
+        if (beta_val == 0) { nk_each_scale_bf16_neonbfdot(a, n, alpha, &zero, result); }
+        else { nk_each_scale_bf16_neonbfdot(b, n, beta, &zero, result); }
         return;
     }
 
@@ -135,7 +135,7 @@ NK_PUBLIC void nk_wsum_bf16_neonbfdot(                   //
     }
 }
 
-NK_PUBLIC void nk_fma_bf16_neonbfdot(                           //
+NK_PUBLIC void nk_each_fma_bf16_neonbfdot(                           //
     nk_bf16_t const *a, nk_bf16_t const *b, nk_bf16_t const *c, //
     nk_size_t n, nk_f32_t const *alpha, nk_f32_t const *beta, nk_bf16_t *result) {
     nk_f32_t alpha_val = *alpha;
@@ -176,4 +176,4 @@ NK_PUBLIC void nk_fma_bf16_neonbfdot(                           //
 #endif // NK_TARGET_NEONBFDOT
 #endif // NK_TARGET_ARM_
 
-#endif // NK_ELEMENTWISE_NEONBFDOT_H
+#endif // NK_EACH_NEONBFDOT_H

@@ -1,7 +1,7 @@
 /**
  *  @brief SIMD-accelerated Dot Products for Real and Complex Numbers optimized for Arm SVE-capable CPUs.
- *  @file include/numkong/elementwise/sve.h
- *  @sa include/numkong/elementwise.h
+ *  @file include/numkong/each/svehalf.h
+ *  @sa include/numkong/each.h
  *  @author Ash Vardanian
  *  @date December 27, 2025
  *
@@ -30,8 +30,8 @@
  *  FP16 elementwise operations double throughput compared to FP32, but division and square
  *  root remain slow. Consider reciprocal approximations for performance-critical paths.
  */
-#ifndef NK_ELEMENTWISE_SVEHALF_H
-#define NK_ELEMENTWISE_SVEHALF_H
+#ifndef NK_EACH_SVEHALF_H
+#define NK_EACH_SVEHALF_H
 
 #if NK_TARGET_ARM_
 #if NK_TARGET_SVEHALF
@@ -60,4 +60,4 @@ extern "C" {
 #endif // NK_TARGET_SVEHALF
 #endif // NK_TARGET_ARM_
 
-#endif // NK_ELEMENTWISE_SVEHALF_H
+#endif // NK_EACH_SVEHALF_H

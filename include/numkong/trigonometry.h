@@ -20,7 +20,7 @@
  *  - Arm: NEON
  *  - x86: Haswell, Skylake, Sapphire Rapids
  *
- *  Those functions partially complement the `elementwise.h` module, and are necessary for
+ *  Those functions partially complement the `each.h` module, and are necessary for
  *  the `geospatial.h` module, among others. Both Haversine and Vincenty's formulas require
  *  trigonometric functions, and those are the most expensive part of the computation.
  *

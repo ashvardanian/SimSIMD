@@ -1,7 +1,7 @@
 /**
  *  @brief SIMD-accelerated Dot Products for Real and Complex Numbers optimized for Arm SVE-capable CPUs.
- *  @file include/numkong/elementwise/sve.h
- *  @sa include/numkong/elementwise.h
+ *  @file include/numkong/each/sve.h
+ *  @sa include/numkong/each.h
  *  @author Ash Vardanian
  *  @date December 27, 2025
  *
@@ -30,8 +30,8 @@
  *  Division and square root are significantly slower (10-16cy) with limited throughput
  *  (0.2/cy), so consider reciprocal approximations for performance-critical code.
  */
-#ifndef NK_ELEMENTWISE_SVE_H
-#define NK_ELEMENTWISE_SVE_H
+#ifndef NK_EACH_SVE_H
+#define NK_EACH_SVE_H
 
 #if NK_TARGET_ARM_
 #if NK_TARGET_SVE
@@ -60,4 +60,4 @@ extern "C" {
 #endif // NK_TARGET_SVE
 #endif // NK_TARGET_ARM_
 
-#endif // NK_ELEMENTWISE_SVE_H
+#endif // NK_EACH_SVE_H

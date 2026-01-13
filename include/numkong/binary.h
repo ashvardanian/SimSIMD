@@ -179,12 +179,42 @@ NK_DYNAMIC void nk_jaccard_u1(nk_u1x8_t const *a, nk_u1x8_t const *b, nk_size_t 
  */
 NK_DYNAMIC void nk_jaccard_u32(nk_u32_t const *a, nk_u32_t const *b, nk_size_t n, nk_f32_t *result);
 
+/**
+ *  @brief Byte-level Hamming distance computing the number of differing bytes between two vectors.
+ *
+ *  @param[in] a The first byte vector.
+ *  @param[in] b The second byte vector.
+ *  @param[in] n The number of bytes in the vectors.
+ *  @param[out] result The output distance value.
+ *
+ *  @note The output distance value is non-negative.
+ *  @note The output distance value is zero if and only if the two vectors are identical.
+ */
+NK_DYNAMIC void nk_hamming_u8(nk_u8_t const *a, nk_u8_t const *b, nk_size_t n, nk_u32_t *result);
+
+/**
+ *  @brief Integral Jaccard distance for 16-bit unsigned integer vectors.
+ *
+ *  @param[in] a The first vector.
+ *  @param[in] b The second vector.
+ *  @param[in] n The number of 16-bit scalars in the vectors.
+ *  @param[out] result The output distance value.
+ *
+ *  @note The output distance value is non-negative.
+ *  @note The output distance value is zero if and only if the two vectors are identical.
+ */
+NK_DYNAMIC void nk_jaccard_u16(nk_u16_t const *a, nk_u16_t const *b, nk_size_t n, nk_f32_t *result);
+
 /** @copydoc nk_hamming_u1 */
 NK_PUBLIC void nk_hamming_u1_serial(nk_u1x8_t const *a, nk_u1x8_t const *b, nk_size_t n, nk_u32_t *result);
+/** @copydoc nk_hamming_u8 */
+NK_PUBLIC void nk_hamming_u8_serial(nk_u8_t const *a, nk_u8_t const *b, nk_size_t n, nk_u32_t *result);
 /** @copydoc nk_jaccard_u1 */
 NK_PUBLIC void nk_jaccard_u1_serial(nk_u1x8_t const *a, nk_u1x8_t const *b, nk_size_t n, nk_f32_t *result);
 /** @copydoc nk_jaccard_u32 */
 NK_PUBLIC void nk_jaccard_u32_serial(nk_u32_t const *a, nk_u32_t const *b, nk_size_t n, nk_f32_t *result);
+/** @copydoc nk_jaccard_u16 */
+NK_PUBLIC void nk_jaccard_u16_serial(nk_u16_t const *a, nk_u16_t const *b, nk_size_t n, nk_f32_t *result);
 
 /**
  *  @brief Running state for 128-bit Jaccard accumulation (serial/portable).
@@ -209,10 +239,14 @@ NK_INTERNAL void nk_jaccard_b128_finalize_serial(nk_jaccard_b128_state_serial_t 
 #if NK_TARGET_NEON
 /** @copydoc nk_hamming_u1 */
 NK_PUBLIC void nk_hamming_u1_neon(nk_u1x8_t const *a, nk_u1x8_t const *b, nk_size_t n, nk_u32_t *result);
+/** @copydoc nk_hamming_u8 */
+NK_PUBLIC void nk_hamming_u8_neon(nk_u8_t const *a, nk_u8_t const *b, nk_size_t n, nk_u32_t *result);
 /** @copydoc nk_jaccard_u1 */
 NK_PUBLIC void nk_jaccard_u1_neon(nk_u1x8_t const *a, nk_u1x8_t const *b, nk_size_t n, nk_f32_t *result);
 /** @copydoc nk_jaccard_u32 */
 NK_PUBLIC void nk_jaccard_u32_neon(nk_u32_t const *a, nk_u32_t const *b, nk_size_t n, nk_f32_t *result);
+/** @copydoc nk_jaccard_u16 */
+NK_PUBLIC void nk_jaccard_u16_neon(nk_u16_t const *a, nk_u16_t const *b, nk_size_t n, nk_f32_t *result);
 
 /**
  *  @brief Running state for 128-bit Jaccard accumulation on NEON.
@@ -277,17 +311,25 @@ NK_INTERNAL void nk_jaccard_b128_finalize_neon(nk_jaccard_b128_state_neon_t cons
 #if NK_TARGET_SVE
 /** @copydoc nk_hamming_u1 */
 NK_PUBLIC void nk_hamming_u1_sve(nk_u1x8_t const *a, nk_u1x8_t const *b, nk_size_t n, nk_u32_t *result);
+/** @copydoc nk_hamming_u8 */
+NK_PUBLIC void nk_hamming_u8_sve(nk_u8_t const *a, nk_u8_t const *b, nk_size_t n, nk_u32_t *result);
 /** @copydoc nk_jaccard_u1 */
 NK_PUBLIC void nk_jaccard_u1_sve(nk_u1x8_t const *a, nk_u1x8_t const *b, nk_size_t n, nk_f32_t *result);
 /** @copydoc nk_jaccard_u32 */
 NK_PUBLIC void nk_jaccard_u32_sve(nk_u32_t const *a, nk_u32_t const *b, nk_size_t n, nk_f32_t *result);
+/** @copydoc nk_jaccard_u16 */
+NK_PUBLIC void nk_jaccard_u16_sve(nk_u16_t const *a, nk_u16_t const *b, nk_size_t n, nk_f32_t *result);
 #endif // NK_TARGET_SVE
 
 #if NK_TARGET_HASWELL
 /** @copydoc nk_hamming_u1 */
 NK_PUBLIC void nk_hamming_u1_haswell(nk_u1x8_t const *a, nk_u1x8_t const *b, nk_size_t n, nk_u32_t *result);
+/** @copydoc nk_hamming_u8 */
+NK_PUBLIC void nk_hamming_u8_haswell(nk_u8_t const *a, nk_u8_t const *b, nk_size_t n, nk_u32_t *result);
 /** @copydoc nk_jaccard_u1 */
 NK_PUBLIC void nk_jaccard_u1_haswell(nk_u1x8_t const *a, nk_u1x8_t const *b, nk_size_t n, nk_f32_t *result);
+/** @copydoc nk_jaccard_u16 */
+NK_PUBLIC void nk_jaccard_u16_haswell(nk_u16_t const *a, nk_u16_t const *b, nk_size_t n, nk_f32_t *result);
 /** @copydoc nk_jaccard_u32 */
 NK_PUBLIC void nk_jaccard_u32_haswell(nk_u32_t const *a, nk_u32_t const *b, nk_size_t n, nk_f32_t *result);
 
@@ -350,10 +392,14 @@ NK_INTERNAL void nk_jaccard_b256_finalize_haswell(nk_jaccard_b256_state_haswell_
 #if NK_TARGET_ICE
 /** @copydoc nk_hamming_u1 */
 NK_PUBLIC void nk_hamming_u1_ice(nk_u1x8_t const *a, nk_u1x8_t const *b, nk_size_t n, nk_u32_t *result);
+/** @copydoc nk_hamming_u8 */
+NK_PUBLIC void nk_hamming_u8_ice(nk_u8_t const *a, nk_u8_t const *b, nk_size_t n, nk_u32_t *result);
 /** @copydoc nk_jaccard_u1 */
 NK_PUBLIC void nk_jaccard_u1_ice(nk_u1x8_t const *a, nk_u1x8_t const *b, nk_size_t n, nk_f32_t *result);
 /** @copydoc nk_jaccard_u32 */
 NK_PUBLIC void nk_jaccard_u32_ice(nk_u32_t const *a, nk_u32_t const *b, nk_size_t n, nk_f32_t *result);
+/** @copydoc nk_jaccard_u16 */
+NK_PUBLIC void nk_jaccard_u16_ice(nk_u16_t const *a, nk_u16_t const *b, nk_size_t n, nk_f32_t *result);
 
 /**
  *  @brief Running state for 512-bit Jaccard accumulation on Ice Lake.
@@ -441,6 +487,34 @@ NK_PUBLIC void nk_jaccard_u32(nk_u32_t const *a, nk_u32_t const *b, nk_size_t n,
     nk_jaccard_u32_haswell(a, b, n, result);
 #else
     nk_jaccard_u32_serial(a, b, n, result);
+#endif
+}
+
+NK_PUBLIC void nk_hamming_u8(nk_u8_t const *a, nk_u8_t const *b, nk_size_t n, nk_u32_t *result) {
+#if NK_TARGET_SVE
+    nk_hamming_u8_sve(a, b, n, result);
+#elif NK_TARGET_NEON
+    nk_hamming_u8_neon(a, b, n, result);
+#elif NK_TARGET_ICE
+    nk_hamming_u8_ice(a, b, n, result);
+#elif NK_TARGET_HASWELL
+    nk_hamming_u8_haswell(a, b, n, result);
+#else
+    nk_hamming_u8_serial(a, b, n, result);
+#endif
+}
+
+NK_PUBLIC void nk_jaccard_u16(nk_u16_t const *a, nk_u16_t const *b, nk_size_t n, nk_f32_t *result) {
+#if NK_TARGET_SVE
+    nk_jaccard_u16_sve(a, b, n, result);
+#elif NK_TARGET_NEON
+    nk_jaccard_u16_neon(a, b, n, result);
+#elif NK_TARGET_ICE
+    nk_jaccard_u16_ice(a, b, n, result);
+#elif NK_TARGET_HASWELL
+    nk_jaccard_u16_haswell(a, b, n, result);
+#else
+    nk_jaccard_u16_serial(a, b, n, result);
 #endif
 }
 

@@ -132,6 +132,36 @@ NK_PUBLIC void nk_jaccard_u32_sve(nk_u32_t const *a, nk_u32_t const *b, nk_size_
     *result = (n != 0) ? 1.0f - (nk_f32_t)intersection_count / (nk_f32_t)n : 1.0f;
 }
 
+NK_PUBLIC void nk_hamming_u8_sve(nk_u8_t const *a, nk_u8_t const *b, nk_size_t n, nk_u32_t *result) {
+    nk_size_t const bytes_per_register = svcntb();
+    nk_size_t i = 0;
+    nk_u32_t differences = 0;
+    while (i < n) {
+        svbool_t active_predicate = svwhilelt_b8((unsigned int)i, (unsigned int)n);
+        svuint8_t a_u8 = svld1_u8(active_predicate, a + i);
+        svuint8_t b_u8 = svld1_u8(active_predicate, b + i);
+        svbool_t neq_predicate = svcmpne_u8(active_predicate, a_u8, b_u8);
+        differences += svcntp_b8(active_predicate, neq_predicate);
+        i += bytes_per_register;
+    }
+    *result = differences;
+}
+
+NK_PUBLIC void nk_jaccard_u16_sve(nk_u16_t const *a, nk_u16_t const *b, nk_size_t n, nk_f32_t *result) {
+    nk_size_t const halfwords_per_register = svcnth();
+    nk_size_t i = 0;
+    nk_u32_t intersection_count = 0;
+    while (i < n) {
+        svbool_t active_predicate = svwhilelt_b16((unsigned int)i, (unsigned int)n);
+        svuint16_t a_u16 = svld1_u16(active_predicate, a + i);
+        svuint16_t b_u16 = svld1_u16(active_predicate, b + i);
+        svbool_t equality_predicate = svcmpeq_u16(active_predicate, a_u16, b_u16);
+        intersection_count += svcntp_b16(active_predicate, equality_predicate);
+        i += halfwords_per_register;
+    }
+    *result = (n != 0) ? 1.0f - (nk_f32_t)intersection_count / (nk_f32_t)n : 1.0f;
+}
+
 #if defined(__cplusplus)
 } // extern "C"
 #endif
