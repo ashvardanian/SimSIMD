@@ -452,16 +452,14 @@ mod tests {
         {
             let a_u16: &[u16] = &[153, 16384, 17408];
             let b_u16: &[u16] = &[7408, 15360, 16384];
-            if let Some(result) = u16::intersect(a_u16, b_u16) {
-                assert_almost_equal(1.0, result, 0.0001);
-            }
+            let result = u16::sparse_intersection_size(a_u16, b_u16);
+            assert_eq!(result, 1);
         }
         {
             let a_u16: &[u16] = &[8, 153, 11638];
             let b_u16: &[u16] = &[7408, 15360, 16384];
-            if let Some(result) = u16::intersect(a_u16, b_u16) {
-                assert_almost_equal(0.0, result, 0.0001);
-            }
+            let result = u16::sparse_intersection_size(a_u16, b_u16);
+            assert_eq!(result, 0);
         }
     }
 
@@ -470,16 +468,14 @@ mod tests {
         {
             let a_u32: &[u32] = &[11, 153];
             let b_u32: &[u32] = &[11, 153, 7408, 16384];
-            if let Some(result) = u32::intersect(a_u32, b_u32) {
-                assert_almost_equal(2.0, result, 0.0001);
-            }
+            let result = u32::sparse_intersection_size(a_u32, b_u32);
+            assert_eq!(result, 2);
         }
         {
             let a_u32: &[u32] = &[153, 7408, 11638];
             let b_u32: &[u32] = &[153, 7408, 11638];
-            if let Some(result) = u32::intersect(a_u32, b_u32) {
-                assert_almost_equal(3.0, result, 0.0001);
-            }
+            let result = u32::sparse_intersection_size(a_u32, b_u32);
+            assert_eq!(result, 3);
         }
     }
 
@@ -554,8 +550,7 @@ mod tests {
         for (i, array_a) in test_arrays.iter().enumerate() {
             for (j, array_b) in test_arrays.iter().enumerate() {
                 let expected = reference_intersect(array_a, array_b);
-                let result =
-                    u32::intersect(array_a.as_slice(), array_b.as_slice()).unwrap() as usize;
+                let result = u32::sparse_intersection_size(array_a.as_slice(), array_b.as_slice());
                 assert_eq!(
                     expected,
                     result,
@@ -575,8 +570,7 @@ mod tests {
         for (i, array_a) in test_arrays.iter().enumerate() {
             for (j, array_b) in test_arrays.iter().enumerate() {
                 let expected = reference_intersect(array_a, array_b);
-                let result =
-                    u16::intersect(array_a.as_slice(), array_b.as_slice()).unwrap() as usize;
+                let result = u16::sparse_intersection_size(array_a.as_slice(), array_b.as_slice());
                 assert_eq!(
                     expected,
                     result,
@@ -594,30 +588,39 @@ mod tests {
     fn intersect_edge_cases() {
         let empty: &[u32] = &[];
         let non_empty: &[u32] = &[1, 2, 3];
-        assert_eq!(u32::intersect(empty, empty), Some(0u32));
-        assert_eq!(u32::intersect(empty, non_empty), Some(0u32));
-        assert_eq!(u32::intersect(non_empty, empty), Some(0u32));
+        assert_eq!(u32::sparse_intersection_size(empty, empty), 0);
+        assert_eq!(u32::sparse_intersection_size(empty, non_empty), 0);
+        assert_eq!(u32::sparse_intersection_size(non_empty, empty), 0);
 
-        assert_eq!(u32::intersect(&[42u32], &[42u32]), Some(1u32));
-        assert_eq!(u32::intersect(&[42u32], &[43u32]), Some(0u32));
+        assert_eq!(u32::sparse_intersection_size(&[42u32], &[42u32]), 1);
+        assert_eq!(u32::sparse_intersection_size(&[42u32], &[43u32]), 0);
 
         let a: &[u32] = &[1, 2, 3, 4, 5];
         let b: &[u32] = &[10, 20, 30, 40, 50];
-        assert_eq!(u32::intersect(a, b), Some(0u32));
+        assert_eq!(u32::sparse_intersection_size(a, b), 0);
 
         let c: &[u32] = &[10, 20, 30, 40, 50];
-        assert_eq!(u32::intersect(c, c), Some(5u32));
+        assert_eq!(u32::sparse_intersection_size(c, c), 5);
 
         let boundary_16: Vec<u32> = (0..16).collect();
         let boundary_32: Vec<u32> = (0..32).collect();
         let boundary_64: Vec<u32> = (0..64).collect();
-        assert_eq!(u32::intersect(&boundary_16, &boundary_16), Some(16u32));
-        assert_eq!(u32::intersect(&boundary_32, &boundary_32), Some(32u32));
-        assert_eq!(u32::intersect(&boundary_64, &boundary_64), Some(64u32));
+        assert_eq!(
+            u32::sparse_intersection_size(&boundary_16, &boundary_16),
+            16
+        );
+        assert_eq!(
+            u32::sparse_intersection_size(&boundary_32, &boundary_32),
+            32
+        );
+        assert_eq!(
+            u32::sparse_intersection_size(&boundary_64, &boundary_64),
+            64
+        );
 
         let first_half: Vec<u32> = (0..32).collect();
         let second_half: Vec<u32> = (16..48).collect();
-        assert_eq!(u32::intersect(&first_half, &second_half), Some(16u32));
+        assert_eq!(u32::sparse_intersection_size(&first_half, &second_half), 16);
     }
 
     // Numeric type tests

@@ -97,6 +97,9 @@ extern "C" {
 
     fn nk_hamming_u1(a: *const u8, b: *const u8, c: u64size, d: *mut u32);
     fn nk_jaccard_u1(a: *const u8, b: *const u8, c: u64size, d: *mut f32);
+    fn nk_hamming_u8(a: *const u8, b: *const u8, n: u64size, result: *mut u32);
+    fn nk_jaccard_u16(a: *const u16, b: *const u16, n: u64size, result: *mut f32);
+    fn nk_jaccard_u32(a: *const u32, b: *const u32, n: u64size, result: *mut f32);
 
     // 4-bit integer kernels
     fn nk_dot_i4(a: *const u8, b: *const u8, n: u64size, result: *mut i32);
@@ -120,19 +123,29 @@ extern "C" {
     fn nk_kld_f64(a: *const f64, b: *const f64, c: u64size, d: *mut f64);
 
     // Sparse sets
-    fn nk_intersect_u16(
+    fn nk_sparse_intersect_u16(
         a: *const u16,
         b: *const u16,
         a_length: u64size,
         b_length: u64size,
-        d: *mut u32,
+        result: *mut u16,
+        count: *mut u64size,
     );
-    fn nk_intersect_u32(
+    fn nk_sparse_intersect_u32(
         a: *const u32,
         b: *const u32,
         a_length: u64size,
         b_length: u64size,
-        d: *mut u32,
+        result: *mut u32,
+        count: *mut u64size,
+    );
+    fn nk_sparse_intersect_u64(
+        a: *const u64,
+        b: *const u64,
+        a_length: u64size,
+        b_length: u64size,
+        result: *mut u64,
+        count: *mut u64size,
     );
 
     // Trigonometry functions
@@ -1415,6 +1428,18 @@ impl Hamming for u1x8 {
     }
 }
 
+impl Hamming for u8 {
+    type Output = u32;
+    fn hamming(a: &[Self], b: &[Self]) -> Option<Self::Output> {
+        if a.len() != b.len() {
+            return None;
+        }
+        let mut result: Self::Output = 0;
+        unsafe { nk_hamming_u8(a.as_ptr(), b.as_ptr(), a.len() as u64size, &mut result) };
+        Some(result)
+    }
+}
+
 // endregion: Hamming
 
 // region: Jaccard
@@ -1441,6 +1466,30 @@ impl Jaccard for u1x8 {
                 &mut result,
             )
         };
+        Some(result)
+    }
+}
+
+impl Jaccard for u16 {
+    type Output = f32;
+    fn jaccard(a: &[Self], b: &[Self]) -> Option<Self::Output> {
+        if a.len() != b.len() {
+            return None;
+        }
+        let mut result: Self::Output = 0.0;
+        unsafe { nk_jaccard_u16(a.as_ptr(), b.as_ptr(), a.len() as u64size, &mut result) };
+        Some(result)
+    }
+}
+
+impl Jaccard for u32 {
+    type Output = f32;
+    fn jaccard(a: &[Self], b: &[Self]) -> Option<Self::Output> {
+        if a.len() != b.len() {
+            return None;
+        }
+        let mut result: Self::Output = 0.0;
+        unsafe { nk_jaccard_u32(a.as_ptr(), b.as_ptr(), a.len() as u64size, &mut result) };
         Some(result)
     }
 }
@@ -1775,43 +1824,122 @@ impl ComplexVDot for bf16 {
 
 // region: Sparse
 
-/// Computes the **intersection size** between two sorted sparse vectors.
+/// Computes set operations on sorted sparse vectors.
 pub trait Sparse: Sized {
-    type Output;
-    fn intersect(a: &[Self], b: &[Self]) -> Option<Self::Output>;
+    /// Returns the intersection size between two sorted sparse vectors.
+    fn sparse_intersection_size(a: &[Self], b: &[Self]) -> usize;
+
+    /// Computes intersection and writes matching elements to output buffer.
+    /// Buffer must be at least `min(a.len(), b.len())` in size.
+    /// Returns `Some(count)` with number of elements written, or `None` if buffer too small.
+    fn sparse_intersect_into(a: &[Self], b: &[Self], result: &mut [Self]) -> Option<usize>;
 }
 
 impl Sparse for u16 {
-    type Output = u32;
-    fn intersect(a: &[Self], b: &[Self]) -> Option<Self::Output> {
-        let mut result: Self::Output = 0;
+    fn sparse_intersection_size(a: &[Self], b: &[Self]) -> usize {
+        let mut count: u64size = 0;
         unsafe {
-            nk_intersect_u16(
+            nk_sparse_intersect_u16(
                 a.as_ptr(),
                 b.as_ptr(),
                 a.len() as u64size,
                 b.len() as u64size,
-                &mut result,
+                core::ptr::null_mut(),
+                &mut count,
             )
         };
-        Some(result)
+        count as usize
+    }
+
+    fn sparse_intersect_into(a: &[Self], b: &[Self], result: &mut [Self]) -> Option<usize> {
+        let min_len = a.len().min(b.len());
+        if result.len() < min_len {
+            return None;
+        }
+        let mut count: u64size = 0;
+        unsafe {
+            nk_sparse_intersect_u16(
+                a.as_ptr(),
+                b.as_ptr(),
+                a.len() as u64size,
+                b.len() as u64size,
+                result.as_mut_ptr(),
+                &mut count,
+            )
+        };
+        Some(count as usize)
     }
 }
 
 impl Sparse for u32 {
-    type Output = u32;
-    fn intersect(a: &[Self], b: &[Self]) -> Option<Self::Output> {
-        let mut result: Self::Output = 0;
+    fn sparse_intersection_size(a: &[Self], b: &[Self]) -> usize {
+        let mut count: u64size = 0;
         unsafe {
-            nk_intersect_u32(
+            nk_sparse_intersect_u32(
                 a.as_ptr(),
                 b.as_ptr(),
                 a.len() as u64size,
                 b.len() as u64size,
-                &mut result,
+                core::ptr::null_mut(),
+                &mut count,
             )
         };
-        Some(result)
+        count as usize
+    }
+
+    fn sparse_intersect_into(a: &[Self], b: &[Self], result: &mut [Self]) -> Option<usize> {
+        let min_len = a.len().min(b.len());
+        if result.len() < min_len {
+            return None;
+        }
+        let mut count: u64size = 0;
+        unsafe {
+            nk_sparse_intersect_u32(
+                a.as_ptr(),
+                b.as_ptr(),
+                a.len() as u64size,
+                b.len() as u64size,
+                result.as_mut_ptr(),
+                &mut count,
+            )
+        };
+        Some(count as usize)
+    }
+}
+
+impl Sparse for u64 {
+    fn sparse_intersection_size(a: &[Self], b: &[Self]) -> usize {
+        let mut count: u64size = 0;
+        unsafe {
+            nk_sparse_intersect_u64(
+                a.as_ptr(),
+                b.as_ptr(),
+                a.len() as u64size,
+                b.len() as u64size,
+                core::ptr::null_mut(),
+                &mut count,
+            )
+        };
+        count as usize
+    }
+
+    fn sparse_intersect_into(a: &[Self], b: &[Self], result: &mut [Self]) -> Option<usize> {
+        let min_len = a.len().min(b.len());
+        if result.len() < min_len {
+            return None;
+        }
+        let mut count: u64size = 0;
+        unsafe {
+            nk_sparse_intersect_u64(
+                a.as_ptr(),
+                b.as_ptr(),
+                a.len() as u64size,
+                b.len() as u64size,
+                result.as_mut_ptr(),
+                &mut count,
+            )
+        };
+        Some(count as usize)
     }
 }
 
@@ -3152,5 +3280,77 @@ mod tests {
         let a: &[[f64; 3]] = &[[0.0, 0.0, 0.0], [1.0, 0.0, 0.0]];
         let b: &[[f64; 3]] = &[[0.0, 0.0, 0.0], [1.0, 0.0, 0.0]];
         assert!(f64::kabsch(a, b).is_none());
+    }
+
+    #[test]
+    fn hamming_u8() {
+        let a: Vec<u8> = vec![0, 1, 2, 3, 4, 5, 6, 7];
+        let b: Vec<u8> = vec![0, 1, 2, 3, 0, 0, 0, 0];
+        let result = u8::hamming(&a, &b).unwrap();
+        assert_eq!(result, 4);
+    }
+
+    #[test]
+    fn jaccard_u16() {
+        let a: Vec<u16> = vec![1, 2, 3, 4];
+        let b: Vec<u16> = vec![1, 2, 3, 4];
+        let result = u16::jaccard(&a, &b).unwrap();
+        assert!((result - 0.0).abs() < 0.01);
+
+        let c: Vec<u16> = vec![5, 6, 7, 8];
+        let result2 = u16::jaccard(&a, &c).unwrap();
+        assert!((result2 - 1.0).abs() < 0.01);
+    }
+
+    #[test]
+    fn jaccard_u32() {
+        let a: Vec<u32> = vec![1, 2, 3, 4];
+        let b: Vec<u32> = vec![1, 2, 5, 6];
+        let result = u32::jaccard(&a, &b).unwrap();
+        assert!((result - 0.5).abs() < 0.01);
+    }
+
+    #[test]
+    fn sparse_intersection_size_u16() {
+        let a: Vec<u16> = vec![1, 3, 5, 7, 9];
+        let b: Vec<u16> = vec![2, 3, 5, 8, 9];
+        let count = u16::sparse_intersection_size(&a, &b);
+        assert_eq!(count, 3);
+    }
+
+    #[test]
+    fn sparse_intersect_into_u16() {
+        let a: Vec<u16> = vec![1, 3, 5, 7, 9];
+        let b: Vec<u16> = vec![2, 3, 5, 8, 9];
+        let mut result: Vec<u16> = vec![0; 5];
+        let count = u16::sparse_intersect_into(&a, &b, &mut result).unwrap();
+        assert_eq!(count, 3);
+        assert_eq!(&result[..count], &[3, 5, 9]);
+    }
+
+    #[test]
+    fn sparse_intersect_into_u32() {
+        let a: Vec<u32> = vec![10, 20, 30, 40];
+        let b: Vec<u32> = vec![15, 20, 30, 45];
+        let mut result: Vec<u32> = vec![0; 4];
+        let count = u32::sparse_intersect_into(&a, &b, &mut result).unwrap();
+        assert_eq!(count, 2);
+        assert_eq!(&result[..count], &[20, 30]);
+    }
+
+    #[test]
+    fn sparse_intersection_size_u64() {
+        let a: Vec<u64> = vec![100, 200, 300];
+        let b: Vec<u64> = vec![200, 300, 400];
+        let count = u64::sparse_intersection_size(&a, &b);
+        assert_eq!(count, 2);
+    }
+
+    #[test]
+    fn sparse_intersect_into_buffer_too_small() {
+        let a: Vec<u16> = vec![1, 2, 3, 4, 5];
+        let b: Vec<u16> = vec![3, 4, 5, 6, 7];
+        let mut result: Vec<u16> = vec![0; 2];
+        assert!(u16::sparse_intersect_into(&a, &b, &mut result).is_none());
     }
 }
