@@ -177,9 +177,9 @@ nk_define_angular_(f64, f64, f64, nk_assign_from_to_, nk_f64_rsqrt_serial) // nk
 nk_define_l2sq_(f64, f64, f64, nk_assign_from_to_)                         // nk_l2sq_f64_serial
 nk_define_l2_(f64, f64, f64, f64, nk_assign_from_to_, nk_f64_sqrt_serial)  // nk_l2_f64_serial
 
-nk_define_angular_(f32, f32, f32, nk_assign_from_to_, nk_f32_rsqrt_serial) // nk_angular_f32_serial
-nk_define_l2sq_(f32, f32, f32, nk_assign_from_to_)                         // nk_l2sq_f32_serial
-nk_define_l2_(f32, f32, f32, f32, nk_assign_from_to_, nk_f32_sqrt_serial)  // nk_l2_f32_serial
+nk_define_angular_(f32, f64, f32, nk_assign_from_to_, nk_f64_rsqrt_serial) // nk_angular_f32_serial
+nk_define_l2sq_(f32, f64, f32, nk_assign_from_to_)                         // nk_l2sq_f32_serial
+nk_define_l2_(f32, f64, f32, f32, nk_assign_from_to_, nk_f64_sqrt_serial)  // nk_l2_f32_serial
 
 nk_define_angular_(f16, f32, f32, nk_f16_to_f32_serial, nk_f32_rsqrt_serial) // nk_angular_f16_serial
 nk_define_l2sq_(f16, f32, f32, nk_f16_to_f32_serial)                         // nk_l2sq_f16_serial
