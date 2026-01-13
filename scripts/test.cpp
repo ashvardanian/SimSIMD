@@ -104,9 +104,9 @@ extern template class nk::vector<std::complex<float>>;
 
 #pragma region Configuration
 
-std::size_t dense_dimensionss = 1024; // For dot products, spatial metrics
-std::size_t sparse_dimensionss = 256; // For sparse set intersection and sparse dot
-std::size_t mesh_points = 256;        // For RMSD, Kabsch (3D point clouds)
+std::size_t dense_dimensions = 1024; // For dot products, spatial metrics
+std::size_t sparse_dimensions = 256; // For sparse set intersection and sparse dot
+std::size_t mesh_points = 256;       // For RMSD, Kabsch (3D point clouds)
 std::size_t matrix_height = 64, matrix_width = 64, matrix_depth = 64;
 
 enum class random_distribution_kind_t { uniform_k, lognormal_k, cauchy_k };
@@ -1493,86 +1493,86 @@ void test_elementwise() {
 
 #if NK_DYNAMIC_DISPATCH
     // Dynamic dispatch - only test the dispatcher itself
-    run_if_matches("scale", "f32", test_scale<f32_t>, nk_each_scale_f32);
-    run_if_matches("sum", "f32", test_sum<f32_t>, nk_each_sum_f32);
-    run_if_matches("wsum", "f32", test_wsum<f32_t>, nk_each_blend_f32);
-    run_if_matches("fma", "f32", test_fma<f32_t>, nk_each_fma_f32);
-    run_if_matches("scale", "e4m3", test_scale<e4m3_t>, nk_each_scale_e4m3);
-    run_if_matches("scale", "e5m2", test_scale<e5m2_t>, nk_each_scale_e5m2);
-    run_if_matches("sum", "e4m3", test_sum<e4m3_t>, nk_each_sum_e4m3);
-    run_if_matches("sum", "e5m2", test_sum<e5m2_t>, nk_each_sum_e5m2);
-    run_if_matches("wsum", "e4m3", test_wsum<e4m3_t>, nk_each_blend_e4m3);
-    run_if_matches("wsum", "e5m2", test_wsum<e5m2_t>, nk_each_blend_e5m2);
-    run_if_matches("fma", "e4m3", test_fma<e4m3_t>, nk_each_fma_e4m3);
-    run_if_matches("fma", "e5m2", test_fma<e5m2_t>, nk_each_fma_e5m2);
+    run_if_matches("each_scale", "f32", test_scale<f32_t>, nk_each_scale_f32);
+    run_if_matches("each_sum", "f32", test_sum<f32_t>, nk_each_sum_f32);
+    run_if_matches("each_wsum", "f32", test_wsum<f32_t>, nk_each_blend_f32);
+    run_if_matches("each_fma", "f32", test_fma<f32_t>, nk_each_fma_f32);
+    run_if_matches("each_scale", "e4m3", test_scale<e4m3_t>, nk_each_scale_e4m3);
+    run_if_matches("each_scale", "e5m2", test_scale<e5m2_t>, nk_each_scale_e5m2);
+    run_if_matches("each_sum", "e4m3", test_sum<e4m3_t>, nk_each_sum_e4m3);
+    run_if_matches("each_sum", "e5m2", test_sum<e5m2_t>, nk_each_sum_e5m2);
+    run_if_matches("each_wsum", "e4m3", test_wsum<e4m3_t>, nk_each_blend_e4m3);
+    run_if_matches("each_wsum", "e5m2", test_wsum<e5m2_t>, nk_each_blend_e5m2);
+    run_if_matches("each_fma", "e4m3", test_fma<e4m3_t>, nk_each_fma_e4m3);
+    run_if_matches("each_fma", "e5m2", test_fma<e5m2_t>, nk_each_fma_e5m2);
 #else
     // Static compilation - test all available ISA variants
 
 #if NK_TARGET_NEON
-    run_if_matches("scale_neon", "f32", test_scale<f32_t>, nk_each_scale_f32_neon);
-    run_if_matches("sum_neon", "f32", test_sum<f32_t>, nk_each_sum_f32_neon);
-    run_if_matches("wsum_neon", "f32", test_wsum<f32_t>, nk_each_blend_f32_neon);
-    run_if_matches("fma_neon", "f32", test_fma<f32_t>, nk_each_fma_f32_neon);
-    run_if_matches("scale_neon", "e4m3", test_scale<e4m3_t>, nk_each_scale_e4m3_neon);
-    run_if_matches("scale_neon", "e5m2", test_scale<e5m2_t>, nk_each_scale_e5m2_neon);
-    run_if_matches("sum_neon", "e4m3", test_sum<e4m3_t>, nk_each_sum_e4m3_neon);
-    run_if_matches("sum_neon", "e5m2", test_sum<e5m2_t>, nk_each_sum_e5m2_neon);
-    run_if_matches("wsum_neon", "e4m3", test_wsum<e4m3_t>, nk_each_blend_e4m3_neon);
-    run_if_matches("wsum_neon", "e5m2", test_wsum<e5m2_t>, nk_each_blend_e5m2_neon);
-    run_if_matches("fma_neon", "e4m3", test_fma<e4m3_t>, nk_each_fma_e4m3_neon);
-    run_if_matches("fma_neon", "e5m2", test_fma<e5m2_t>, nk_each_fma_e5m2_neon);
+    run_if_matches("each_scale_neon", "f32", test_scale<f32_t>, nk_each_scale_f32_neon);
+    run_if_matches("each_sum_neon", "f32", test_sum<f32_t>, nk_each_sum_f32_neon);
+    run_if_matches("each_wsum_neon", "f32", test_wsum<f32_t>, nk_each_blend_f32_neon);
+    run_if_matches("each_fma_neon", "f32", test_fma<f32_t>, nk_each_fma_f32_neon);
+    run_if_matches("each_scale_neon", "e4m3", test_scale<e4m3_t>, nk_each_scale_e4m3_neon);
+    run_if_matches("each_scale_neon", "e5m2", test_scale<e5m2_t>, nk_each_scale_e5m2_neon);
+    run_if_matches("each_sum_neon", "e4m3", test_sum<e4m3_t>, nk_each_sum_e4m3_neon);
+    run_if_matches("each_sum_neon", "e5m2", test_sum<e5m2_t>, nk_each_sum_e5m2_neon);
+    run_if_matches("each_wsum_neon", "e4m3", test_wsum<e4m3_t>, nk_each_blend_e4m3_neon);
+    run_if_matches("each_wsum_neon", "e5m2", test_wsum<e5m2_t>, nk_each_blend_e5m2_neon);
+    run_if_matches("each_fma_neon", "e4m3", test_fma<e4m3_t>, nk_each_fma_e4m3_neon);
+    run_if_matches("each_fma_neon", "e5m2", test_fma<e5m2_t>, nk_each_fma_e5m2_neon);
 #endif // NK_TARGET_NEON
 
 #if NK_TARGET_NEONHALF
 #endif // NK_TARGET_NEONHALF
 
 #if NK_TARGET_HASWELL
-    run_if_matches("scale_haswell", "f32", test_scale<f32_t>, nk_each_scale_f32_haswell);
-    run_if_matches("sum_haswell", "f32", test_sum<f32_t>, nk_each_sum_f32_haswell);
-    run_if_matches("wsum_haswell", "f32", test_wsum<f32_t>, nk_each_blend_f32_haswell);
-    run_if_matches("fma_haswell", "f32", test_fma<f32_t>, nk_each_fma_f32_haswell);
-    run_if_matches("scale_haswell", "e4m3", test_scale<e4m3_t>, nk_each_scale_e4m3_haswell);
-    run_if_matches("scale_haswell", "e5m2", test_scale<e5m2_t>, nk_each_scale_e5m2_haswell);
-    run_if_matches("sum_haswell", "e4m3", test_sum<e4m3_t>, nk_each_sum_e4m3_haswell);
-    run_if_matches("sum_haswell", "e5m2", test_sum<e5m2_t>, nk_each_sum_e5m2_haswell);
-    run_if_matches("wsum_haswell", "e4m3", test_wsum<e4m3_t>, nk_each_blend_e4m3_haswell);
-    run_if_matches("wsum_haswell", "e5m2", test_wsum<e5m2_t>, nk_each_blend_e5m2_haswell);
-    run_if_matches("fma_haswell", "e4m3", test_fma<e4m3_t>, nk_each_fma_e4m3_haswell);
-    run_if_matches("fma_haswell", "e5m2", test_fma<e5m2_t>, nk_each_fma_e5m2_haswell);
+    run_if_matches("each_scale_haswell", "f32", test_scale<f32_t>, nk_each_scale_f32_haswell);
+    run_if_matches("each_sum_haswell", "f32", test_sum<f32_t>, nk_each_sum_f32_haswell);
+    run_if_matches("each_wsum_haswell", "f32", test_wsum<f32_t>, nk_each_blend_f32_haswell);
+    run_if_matches("each_fma_haswell", "f32", test_fma<f32_t>, nk_each_fma_f32_haswell);
+    run_if_matches("each_scale_haswell", "e4m3", test_scale<e4m3_t>, nk_each_scale_e4m3_haswell);
+    run_if_matches("each_scale_haswell", "e5m2", test_scale<e5m2_t>, nk_each_scale_e5m2_haswell);
+    run_if_matches("each_sum_haswell", "e4m3", test_sum<e4m3_t>, nk_each_sum_e4m3_haswell);
+    run_if_matches("each_sum_haswell", "e5m2", test_sum<e5m2_t>, nk_each_sum_e5m2_haswell);
+    run_if_matches("each_wsum_haswell", "e4m3", test_wsum<e4m3_t>, nk_each_blend_e4m3_haswell);
+    run_if_matches("each_wsum_haswell", "e5m2", test_wsum<e5m2_t>, nk_each_blend_e5m2_haswell);
+    run_if_matches("each_fma_haswell", "e4m3", test_fma<e4m3_t>, nk_each_fma_e4m3_haswell);
+    run_if_matches("each_fma_haswell", "e5m2", test_fma<e5m2_t>, nk_each_fma_e5m2_haswell);
 #endif // NK_TARGET_HASWELL
 
 #if NK_TARGET_SKYLAKE
-    run_if_matches("scale_skylake", "f32", test_scale<f32_t>, nk_each_scale_f32_skylake);
-    run_if_matches("sum_skylake", "f32", test_sum<f32_t>, nk_each_sum_f32_skylake);
-    run_if_matches("wsum_skylake", "f32", test_wsum<f32_t>, nk_each_blend_f32_skylake);
-    run_if_matches("fma_skylake", "f32", test_fma<f32_t>, nk_each_fma_f32_skylake);
-    run_if_matches("scale_skylake", "e4m3", test_scale<e4m3_t>, nk_each_scale_e4m3_skylake);
-    run_if_matches("scale_skylake", "e5m2", test_scale<e5m2_t>, nk_each_scale_e5m2_skylake);
-    run_if_matches("sum_skylake", "e4m3", test_sum<e4m3_t>, nk_each_sum_e4m3_skylake);
-    run_if_matches("sum_skylake", "e5m2", test_sum<e5m2_t>, nk_each_sum_e5m2_skylake);
-    run_if_matches("wsum_skylake", "e4m3", test_wsum<e4m3_t>, nk_each_blend_e4m3_skylake);
-    run_if_matches("wsum_skylake", "e5m2", test_wsum<e5m2_t>, nk_each_blend_e5m2_skylake);
-    run_if_matches("fma_skylake", "e4m3", test_fma<e4m3_t>, nk_each_fma_e4m3_skylake);
-    run_if_matches("fma_skylake", "e5m2", test_fma<e5m2_t>, nk_each_fma_e5m2_skylake);
+    run_if_matches("each_scale_skylake", "f32", test_scale<f32_t>, nk_each_scale_f32_skylake);
+    run_if_matches("each_sum_skylake", "f32", test_sum<f32_t>, nk_each_sum_f32_skylake);
+    run_if_matches("each_wsum_skylake", "f32", test_wsum<f32_t>, nk_each_blend_f32_skylake);
+    run_if_matches("each_fma_skylake", "f32", test_fma<f32_t>, nk_each_fma_f32_skylake);
+    run_if_matches("each_scale_skylake", "e4m3", test_scale<e4m3_t>, nk_each_scale_e4m3_skylake);
+    run_if_matches("each_scale_skylake", "e5m2", test_scale<e5m2_t>, nk_each_scale_e5m2_skylake);
+    run_if_matches("each_sum_skylake", "e4m3", test_sum<e4m3_t>, nk_each_sum_e4m3_skylake);
+    run_if_matches("each_sum_skylake", "e5m2", test_sum<e5m2_t>, nk_each_sum_e5m2_skylake);
+    run_if_matches("each_wsum_skylake", "e4m3", test_wsum<e4m3_t>, nk_each_blend_e4m3_skylake);
+    run_if_matches("each_wsum_skylake", "e5m2", test_wsum<e5m2_t>, nk_each_blend_e5m2_skylake);
+    run_if_matches("each_fma_skylake", "e4m3", test_fma<e4m3_t>, nk_each_fma_e4m3_skylake);
+    run_if_matches("each_fma_skylake", "e5m2", test_fma<e5m2_t>, nk_each_fma_e5m2_skylake);
 #endif // NK_TARGET_SKYLAKE
 
 #if NK_TARGET_SAPPHIRE
-    run_if_matches("sum_sapphire", "e4m3", test_sum<e4m3_t>, nk_each_sum_e4m3_sapphire);
+    run_if_matches("each_sum_sapphire", "e4m3", test_sum<e4m3_t>, nk_each_sum_e4m3_sapphire);
 #endif // NK_TARGET_SAPPHIRE
 
     // Serial always runs - baseline test
-    run_if_matches("scale_serial", "f32", test_scale<f32_t>, nk_each_scale_f32_serial);
-    run_if_matches("sum_serial", "f32", test_sum<f32_t>, nk_each_sum_f32_serial);
-    run_if_matches("wsum_serial", "f32", test_wsum<f32_t>, nk_each_blend_f32_serial);
-    run_if_matches("fma_serial", "f32", test_fma<f32_t>, nk_each_fma_f32_serial);
-    run_if_matches("scale_serial", "e4m3", test_scale<e4m3_t>, nk_each_scale_e4m3_serial);
-    run_if_matches("scale_serial", "e5m2", test_scale<e5m2_t>, nk_each_scale_e5m2_serial);
-    run_if_matches("sum_serial", "e4m3", test_sum<e4m3_t>, nk_each_sum_e4m3_serial);
-    run_if_matches("sum_serial", "e5m2", test_sum<e5m2_t>, nk_each_sum_e5m2_serial);
-    run_if_matches("wsum_serial", "e4m3", test_wsum<e4m3_t>, nk_each_blend_e4m3_serial);
-    run_if_matches("wsum_serial", "e5m2", test_wsum<e5m2_t>, nk_each_blend_e5m2_serial);
-    run_if_matches("fma_serial", "e4m3", test_fma<e4m3_t>, nk_each_fma_e4m3_serial);
-    run_if_matches("fma_serial", "e5m2", test_fma<e5m2_t>, nk_each_fma_e5m2_serial);
+    run_if_matches("each_scale_serial", "f32", test_scale<f32_t>, nk_each_scale_f32_serial);
+    run_if_matches("each_sum_serial", "f32", test_sum<f32_t>, nk_each_sum_f32_serial);
+    run_if_matches("each_wsum_serial", "f32", test_wsum<f32_t>, nk_each_blend_f32_serial);
+    run_if_matches("each_fma_serial", "f32", test_fma<f32_t>, nk_each_fma_f32_serial);
+    run_if_matches("each_scale_serial", "e4m3", test_scale<e4m3_t>, nk_each_scale_e4m3_serial);
+    run_if_matches("each_scale_serial", "e5m2", test_scale<e5m2_t>, nk_each_scale_e5m2_serial);
+    run_if_matches("each_sum_serial", "e4m3", test_sum<e4m3_t>, nk_each_sum_e4m3_serial);
+    run_if_matches("each_sum_serial", "e5m2", test_sum<e5m2_t>, nk_each_sum_e5m2_serial);
+    run_if_matches("each_wsum_serial", "e4m3", test_wsum<e4m3_t>, nk_each_blend_e4m3_serial);
+    run_if_matches("each_wsum_serial", "e5m2", test_wsum<e5m2_t>, nk_each_blend_e5m2_serial);
+    run_if_matches("each_fma_serial", "e4m3", test_fma<e4m3_t>, nk_each_fma_e4m3_serial);
+    run_if_matches("each_fma_serial", "e5m2", test_fma<e5m2_t>, nk_each_fma_e5m2_serial);
 
 #endif // NK_DYNAMIC_DISPATCH
 }
@@ -2171,7 +2171,7 @@ void fill_sorted_unique(generator_type_ &generator, nk::vector<scalar_type_> &ve
  *  @brief Test set intersection (unified template for u16/u32 index types).
  */
 template <typename index_type_>
-error_stats_t test_intersect(typename index_type_::intersect_kernel_t kernel) {
+error_stats_t test_intersect(typename index_type_::sparse_intersect_kernel_t kernel) {
     using index_t = index_type_;
     error_stats_t stats;
     std::mt19937 generator(global_config.seed);
@@ -2182,12 +2182,12 @@ error_stats_t test_intersect(typename index_type_::intersect_kernel_t kernel) {
         fill_sorted_unique(generator, a, index_t(dim * 4));
         fill_sorted_unique(generator, b, index_t(dim * 4));
 
-        nk_u32_t result;
-        kernel(a.raw_values_data(), b.raw_values_data(), dim, dim, &result);
+        nk_size_t count;
+        kernel(a.raw_values_data(), b.raw_values_data(), dim, dim, nullptr, &count);
 
-        std::uint32_t ref;
-        nk::intersect<index_t, nk::no_simd_k>(a.values_data(), b.values_data(), dim, dim, &ref);
-        stats.accumulate_exact(result == ref);
+        nk_size_t ref;
+        nk::sparse_intersect<index_t, nk::no_simd_k>(a.values_data(), b.values_data(), dim, dim, &ref);
+        stats.accumulate_exact(count == ref);
     }
     return stats;
 }
@@ -2232,40 +2232,46 @@ void test_sparse() {
     std::printf("Testing sparse operations...\n");
 
 #if NK_DYNAMIC_DISPATCH
-    run_if_matches("intersect", "u16", test_intersect<u16_t>, nk_intersect_u16);
-    run_if_matches("intersect", "u32", test_intersect<u32_t>, nk_intersect_u32);
+    run_if_matches("sparse_intersect", "u16", test_intersect<u16_t>, nk_sparse_intersect_u16);
+    run_if_matches("sparse_intersect", "u32", test_intersect<u32_t>, nk_sparse_intersect_u32);
+    run_if_matches("sparse_intersect", "u64", test_intersect<u64_t>, nk_sparse_intersect_u64);
     run_if_matches("sparse_dot", "u32f32", test_sparse_dot<f32_t>, nk_sparse_dot_u32f32);
     run_if_matches("sparse_dot", "u16bf16", test_sparse_dot<bf16_t>, nk_sparse_dot_u16bf16);
 #else
 
 #if NK_TARGET_NEON
-    run_if_matches("intersect_neon", "u16", test_intersect<u16_t>, nk_intersect_u16_neon);
-    run_if_matches("intersect_neon", "u32", test_intersect<u32_t>, nk_intersect_u32_neon);
+    run_if_matches("sparse_intersect_neon", "u16", test_intersect<u16_t>, nk_sparse_intersect_u16_neon);
+    run_if_matches("sparse_intersect_neon", "u32", test_intersect<u32_t>, nk_sparse_intersect_u32_neon);
+    run_if_matches("sparse_intersect_neon", "u64", test_intersect<u64_t>, nk_sparse_intersect_u64_neon);
 #endif // NK_TARGET_NEON
 
 #if NK_TARGET_SVE
-    run_if_matches("intersect_sve2", "u16", test_intersect<u16_t>, nk_intersect_u16_sve2);
-    run_if_matches("intersect_sve2", "u32", test_intersect<u32_t>, nk_intersect_u32_sve2);
+    run_if_matches("sparse_intersect_sve2", "u16", test_intersect<u16_t>, nk_sparse_intersect_u16_sve2);
+    run_if_matches("sparse_intersect_sve2", "u32", test_intersect<u32_t>, nk_sparse_intersect_u32_sve2);
+    run_if_matches("sparse_intersect_sve2", "u64", test_intersect<u64_t>, nk_sparse_intersect_u64_sve2);
     run_if_matches("sparse_dot_sve2", "u32f32", test_sparse_dot<f32_t>, nk_sparse_dot_u32f32_sve2);
     run_if_matches("sparse_dot_sve2", "u16bf16", test_sparse_dot<bf16_t>, nk_sparse_dot_u16bf16_sve2);
 #endif // NK_TARGET_SVE
 
 #if NK_TARGET_ICE
-    run_if_matches("intersect_ice", "u16", test_intersect<u16_t>, nk_intersect_u16_ice);
-    run_if_matches("intersect_ice", "u32", test_intersect<u32_t>, nk_intersect_u32_ice);
+    run_if_matches("sparse_intersect_ice", "u16", test_intersect<u16_t>, nk_sparse_intersect_u16_ice);
+    run_if_matches("sparse_intersect_ice", "u32", test_intersect<u32_t>, nk_sparse_intersect_u32_ice);
+    run_if_matches("sparse_intersect_ice", "u64", test_intersect<u64_t>, nk_sparse_intersect_u64_ice);
     run_if_matches("sparse_dot_ice", "u32f32", test_sparse_dot<f32_t>, nk_sparse_dot_u32f32_ice);
 #endif // NK_TARGET_ICE
 
 #if NK_TARGET_TURIN
-    run_if_matches("intersect_turin", "u16", test_intersect<u16_t>, nk_intersect_u16_turin);
-    run_if_matches("intersect_turin", "u32", test_intersect<u32_t>, nk_intersect_u32_turin);
+    run_if_matches("sparse_intersect_turin", "u16", test_intersect<u16_t>, nk_sparse_intersect_u16_turin);
+    run_if_matches("sparse_intersect_turin", "u32", test_intersect<u32_t>, nk_sparse_intersect_u32_turin);
+    run_if_matches("sparse_intersect_turin", "u64", test_intersect<u64_t>, nk_sparse_intersect_u64_turin);
     run_if_matches("sparse_dot_turin", "u32f32", test_sparse_dot<f32_t>, nk_sparse_dot_u32f32_turin);
     run_if_matches("sparse_dot_turin", "u16bf16", test_sparse_dot<bf16_t>, nk_sparse_dot_u16bf16_turin);
 #endif // NK_TARGET_TURIN
 
     // Serial always runs - baseline test
-    run_if_matches("intersect_serial", "u16", test_intersect<u16_t>, nk_intersect_u16_serial);
-    run_if_matches("intersect_serial", "u32", test_intersect<u32_t>, nk_intersect_u32_serial);
+    run_if_matches("sparse_intersect_serial", "u16", test_intersect<u16_t>, nk_sparse_intersect_u16_serial);
+    run_if_matches("sparse_intersect_serial", "u32", test_intersect<u32_t>, nk_sparse_intersect_u32_serial);
+    run_if_matches("sparse_intersect_serial", "u64", test_intersect<u64_t>, nk_sparse_intersect_u64_serial);
     run_if_matches("sparse_dot_serial", "u32f32", test_sparse_dot<f32_t>, nk_sparse_dot_u32f32_serial);
     run_if_matches("sparse_dot_serial", "u16bf16", test_sparse_dot<bf16_t>, nk_sparse_dot_u16bf16_serial);
 

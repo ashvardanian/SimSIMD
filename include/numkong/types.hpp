@@ -3356,7 +3356,8 @@ struct u32_t {
     using reduce_add_result_t = u64_t; // `nk_reduce_add_u32` widened output
     using jaccard_result_t = f32_t;    // `nk_jaccard_u32` output
 
-    using intersect_kernel_t = void (*)(raw_t const *, raw_t const *, nk_size_t, nk_size_t, nk_u32_t *);
+    using sparse_intersect_kernel_t = void (*)(raw_t const *, raw_t const *, nk_size_t, nk_size_t, raw_t *,
+                                               nk_size_t *);
 
     static constexpr nk_dtype_t dtype() noexcept { return nk_u32_k; }
     static constexpr char const *dtype_name() noexcept { return "u32"; }
@@ -3611,6 +3612,8 @@ struct u64_t {
 
     using reduce_add_result_t = u64_t; // `nk_reduce_add_u64` (no widening, already max)
 
+    using sparse_intersect_kernel_t = void (*)(raw_t const *, raw_t const *, nk_size_t, nk_size_t, raw_t *, nk_size_t *);
+
     static constexpr nk_dtype_t dtype() noexcept { return nk_u64_k; }
     static constexpr char const *dtype_name() noexcept { return "u64"; }
     static constexpr unsigned bits_per_word() noexcept { return 64; }
@@ -3860,7 +3863,8 @@ struct u16_t {
     using reduce_add_result_t = u64_t; // `nk_reduce_add_u16` widened output
     using jaccard_result_t = f32_t;    // `nk_jaccard_u16` output
 
-    using intersect_kernel_t = void (*)(raw_t const *, raw_t const *, nk_size_t, nk_size_t, nk_u32_t *);
+    using sparse_intersect_kernel_t = void (*)(raw_t const *, raw_t const *, nk_size_t, nk_size_t, raw_t *,
+                                               nk_size_t *);
 
     static constexpr nk_dtype_t dtype() noexcept { return nk_u16_k; }
     static constexpr char const *dtype_name() noexcept { return "u16"; }

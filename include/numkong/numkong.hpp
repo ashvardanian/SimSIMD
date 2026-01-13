@@ -1214,17 +1214,19 @@ void vincenty(in_type_ const *a_lats, in_type_ const *a_lons, in_type_ const *b_
  *  @tparam allow_simd_ Enable SIMD kernel dispatch when `prefer_simd_k`
  */
 template <typename index_type_, allow_simd_t allow_simd_ = prefer_simd_k>
-void intersect(index_type_ const *a, index_type_ const *b, std::size_t a_length, std::size_t b_length,
-               std::uint32_t *count) noexcept {
+void sparse_intersect(index_type_ const *a, index_type_ const *b, std::size_t a_length, std::size_t b_length,
+                      nk_size_t *count) noexcept {
     constexpr bool simd = allow_simd_ == prefer_simd_k;
 
     if constexpr (std::is_same_v<index_type_, u16_t> && simd)
-        nk_intersect_u16(&a->raw_, &b->raw_, a_length, b_length, count);
+        nk_sparse_intersect_u16(&a->raw_, &b->raw_, a_length, b_length, nullptr, count);
     else if constexpr (std::is_same_v<index_type_, u32_t> && simd)
-        nk_intersect_u32(&a->raw_, &b->raw_, a_length, b_length, count);
+        nk_sparse_intersect_u32(&a->raw_, &b->raw_, a_length, b_length, nullptr, count);
+    else if constexpr (std::is_same_v<index_type_, u64_t> && simd)
+        nk_sparse_intersect_u64(&a->raw_, &b->raw_, a_length, b_length, nullptr, count);
     // Scalar fallback
     else {
-        std::uint32_t c = 0;
+        nk_size_t c = 0;
         std::size_t i = 0, j = 0;
         while (i < a_length && j < b_length) {
             if (a[i] < b[j]) i++;
