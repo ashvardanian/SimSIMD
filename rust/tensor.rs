@@ -26,7 +26,7 @@ extern crate alloc;
 use core::marker::PhantomData;
 use core::ptr::NonNull;
 
-use crate::numerics::{ATan, Cos, Dot, Scale, Sin, Sum, WSum, FMA};
+use crate::numerics::{ATan, Cos, Dot, EachBlend, EachFMA, EachScale, EachSum, Sin};
 use crate::scalars::{bf16, e4m3, e5m2, f16, i4x2, u1x8, u4x2};
 
 /// Size type used in C FFI to match `nk_size_t` which is always `uint64_t`.
@@ -2199,7 +2199,7 @@ where
 
 // region: Tensor Elementwise Operations
 
-impl<T: Clone + Scale, const MAX_RANK: usize> Tensor<T, Global, MAX_RANK> {
+impl<T: Clone + EachScale, const MAX_RANK: usize> Tensor<T, Global, MAX_RANK> {
     /// Apply element-wise scale: result[i] = α · self[i] + β
     ///
     /// Returns a new array with the scaled values.
@@ -2209,7 +2209,7 @@ impl<T: Clone + Scale, const MAX_RANK: usize> Tensor<T, Global, MAX_RANK> {
         beta: T::Scalar,
     ) -> Result<Tensor<T, Global, MAX_RANK>, TensorError> {
         let mut result = Tensor::try_new(self.shape(), unsafe { (*self.as_ptr()).clone() })?;
-        T::scale(self.as_slice(), alpha, beta, result.as_mut_slice());
+        T::each_scale(self.as_slice(), alpha, beta, result.as_mut_slice());
         Ok(result)
     }
 
@@ -2220,12 +2220,12 @@ impl<T: Clone + Scale, const MAX_RANK: usize> Tensor<T, Global, MAX_RANK> {
         let len = self.len;
         unsafe {
             let slice = core::slice::from_raw_parts(ptr, len);
-            T::scale(slice, alpha, beta, self.as_mut_slice());
+            T::each_scale(slice, alpha, beta, self.as_mut_slice());
         }
     }
 }
 
-impl<T: Clone + Sum, const MAX_RANK: usize> Tensor<T, Global, MAX_RANK> {
+impl<T: Clone + EachSum, const MAX_RANK: usize> Tensor<T, Global, MAX_RANK> {
     /// Element-wise sum: result[i] = self[i] + other[i]
     ///
     /// Returns a new array with the summed values.
@@ -2240,7 +2240,7 @@ impl<T: Clone + Sum, const MAX_RANK: usize> Tensor<T, Global, MAX_RANK> {
             });
         }
         let mut result = Tensor::try_new(self.shape(), unsafe { (*self.as_ptr()).clone() })?;
-        T::sum(self.as_slice(), other.as_slice(), result.as_mut_slice());
+        T::each_sum(self.as_slice(), other.as_slice(), result.as_mut_slice());
         Ok(result)
     }
 
@@ -2259,13 +2259,13 @@ impl<T: Clone + Sum, const MAX_RANK: usize> Tensor<T, Global, MAX_RANK> {
         let len = self.len;
         unsafe {
             let slice = core::slice::from_raw_parts(ptr, len);
-            T::sum(slice, other.as_slice(), self.as_mut_slice());
+            T::each_sum(slice, other.as_slice(), self.as_mut_slice());
         }
         Ok(())
     }
 }
 
-impl<T: Clone + WSum, const MAX_RANK: usize> Tensor<T, Global, MAX_RANK> {
+impl<T: Clone + EachBlend, const MAX_RANK: usize> Tensor<T, Global, MAX_RANK> {
     /// Weighted sum: result[i] = α · self[i] + β · other[i]
     ///
     /// Returns a new array with the weighted sum.
@@ -2282,7 +2282,7 @@ impl<T: Clone + WSum, const MAX_RANK: usize> Tensor<T, Global, MAX_RANK> {
             });
         }
         let mut result = Tensor::try_new(self.shape(), unsafe { (*self.as_ptr()).clone() })?;
-        T::wsum(
+        T::each_blend(
             self.as_slice(),
             other.as_slice(),
             alpha,
@@ -2293,7 +2293,7 @@ impl<T: Clone + WSum, const MAX_RANK: usize> Tensor<T, Global, MAX_RANK> {
     }
 }
 
-impl<T: Clone + FMA, const MAX_RANK: usize> Tensor<T, Global, MAX_RANK> {
+impl<T: Clone + EachFMA, const MAX_RANK: usize> Tensor<T, Global, MAX_RANK> {
     /// Fused multiply-add: result[i] = α · self[i] · b[i] + β · c[i]
     ///
     /// Returns a new array with the FMA result.
@@ -2311,7 +2311,7 @@ impl<T: Clone + FMA, const MAX_RANK: usize> Tensor<T, Global, MAX_RANK> {
             });
         }
         let mut result = Tensor::try_new(self.shape(), unsafe { (*self.as_ptr()).clone() })?;
-        T::fma(
+        T::each_fma(
             self.as_slice(),
             b.as_slice(),
             c.as_slice(),
