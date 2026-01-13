@@ -53,7 +53,7 @@
 //! The `SpatialSimilarity` trait (combining `Dot`, `Angular`, `Euclidean`) covers:
 //!
 //! - `dot(a, b)`: Computes dot product between two slices.
-//! - `angular(a, b)` / `cosine(a, b)`: Computes angular distance (1 - cosine similarity).
+//! - `angular(a, b)` / `cosine(a, b)`: Computes angular distance (1 − cosine similarity).
 //! - `l2sq(a, b)` / `sqeuclidean(a, b)`: Computes squared Euclidean distance.
 //! - `l2(a, b)` / `euclidean(a, b)`: Computes Euclidean distance.
 //!
@@ -69,10 +69,10 @@
 //!
 //! The `Elementwise` trait (combining `EachScale`, `EachSum`, `EachBlend`, `EachFMA`) covers:
 //!
-//! - `scale(a, alpha, beta, result)`: Element-wise `result[i] = α · a[i] + β`.
+//! - `scale(a, alpha, beta, result)`: Element-wise `result[i] = α × a[i] + β`.
 //! - `sum(a, b, result)`: Element-wise `result[i] = a[i] + b[i]`.
-//! - `wsum(a, b, alpha, beta, result)`: Weighted sum `result[i] = α · a[i] + β · b[i]`.
-//! - `fma(a, b, c, alpha, beta, result)`: Fused multiply-add `result[i] = α · a[i] · b[i] + β · c[i]`.
+//! - `wsum(a, b, alpha, beta, result)`: Weighted sum `result[i] = α × a[i] + β × b[i]`.
+//! - `fma(a, b, c, alpha, beta, result)`: Fused multiply-add `result[i] = α × a[i] × b[i] + β × c[i]`.
 //!
 //! The `Trigonometry` trait (combining `Sin`, `Cos`, `ATan`) covers:
 //!

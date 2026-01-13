@@ -726,7 +726,7 @@ extern "C" {
         to_type: u32,
     );
 
-    // Bilinear form: a^T * C * b
+    // Bilinear form: aᵀ × C × b
     fn nk_bilinear_f64(a: *const f64, b: *const f64, c: *const f64, n: u64size, result: *mut f64);
     fn nk_bilinear_f32(a: *const f32, b: *const f32, c: *const f32, n: u64size, result: *mut f32);
     fn nk_bilinear_f16(a: *const u16, b: *const u16, c: *const u16, n: u64size, result: *mut f32);
@@ -1900,6 +1900,15 @@ impl Euclidean for u4x2 {
 // region: Geospatial
 
 /// Computes **great-circle distances** between geographic coordinates on Earth.
+///
+/// Uses the Haversine formula for spherical Earth approximation:
+///
+/// - `a = sin²(Δφ/2) + cos(φ₁) × cos(φ₂) × sin²(Δλ/2)`
+/// - `c = 2 × atan2(√a, √(1−a))`
+/// - `d = R × c`
+///
+/// Where φ = latitude, λ = longitude, R = Earth's radius (6335 km).
+/// Inputs are in radians, outputs in meters.
 pub trait Haversine: Sized {
     fn haversine(
         a_lat: &[Self],
@@ -1911,6 +1920,18 @@ pub trait Haversine: Sized {
 }
 
 /// Computes **Vincenty geodesic distances** on the WGS84 ellipsoid.
+///
+/// Uses Vincenty's iterative formula for oblate spheroid geodesics:
+///
+/// 1. Reduced latitudes: `tan(U) = (1−f) × tan(φ)`
+/// 2. Iterate until convergence: `λ → L + (1−C) × f × sin(α) × [σ + C × sin(σ) × ...]`
+/// 3. Compute: `u² = cos²(α) × (a² − b²)/b²`
+/// 4. Series coefficients A, B from u²
+/// 5. Distance: `s = b × A × (σ − Δσ)`
+///
+/// Where a = equatorial radius, b = polar radius, f = flattening.
+/// ~20× more accurate than Haversine for long distances.
+/// Inputs are in radians, outputs in meters.
 pub trait Vincenty: Sized {
     fn vincenty(
         a_lat: &[Self],
@@ -2591,7 +2612,7 @@ pub trait SparseDot: Sized {
 
     /// Computes sparse dot product.
     ///
-    /// Returns the sum of `a_weights[i] * b_weights[j]` for all pairs where `a_indices[i] == b_indices[j]`.
+    /// Returns the sum of `a_weights[i] × b_weights[j]` for all pairs where `a_indices[i] == b_indices[j]`.
     fn sparse_dot(
         a_indices: &[Self],
         b_indices: &[Self],
@@ -5147,7 +5168,7 @@ impl MeshAlignment for bf16 {
 
 // region: Bilinear Form
 
-/// Bilinear form computation: a^T * C * b where C is a metric tensor.
+/// Bilinear form computation: aᵀ × C × b where C is a metric tensor.
 ///
 /// Computes the bilinear form of two vectors `a` and `b` with respect to
 /// a symmetric matrix `C` (given in row-major order as a flat slice of length n²).
@@ -5155,7 +5176,7 @@ pub trait Bilinear: Sized {
     /// Output type for results. f64/f32 use themselves, f16/bf16 use f32.
     type Output;
 
-    /// Computes the bilinear form a^T * C * b.
+    /// Computes the bilinear form aᵀ × C × b.
     ///
     /// # Arguments
     /// * `a` - First vector of length n
@@ -5259,7 +5280,7 @@ impl Bilinear for bf16 {
 
 // region: Mahalanobis Distance
 
-/// Mahalanobis distance: sqrt((a-b)^T * C * (a-b)).
+/// Mahalanobis distance: √((a−b)ᵀ × C × (a−b)).
 ///
 /// Computes the Mahalanobis distance between two vectors `a` and `b` with respect
 /// to an inverse covariance matrix `C` (given in row-major order as a flat slice of length n²).
@@ -5267,7 +5288,7 @@ pub trait Mahalanobis: Sized {
     /// Output type for results. f64/f32 use themselves, f16/bf16 use f32.
     type Output;
 
-    /// Computes the Mahalanobis distance sqrt((a-b)^T * C * (a-b)).
+    /// Computes the Mahalanobis distance √((a−b)ᵀ × C × (a−b)).
     ///
     /// # Arguments
     /// * `a` - First vector of length n
@@ -5387,7 +5408,7 @@ impl<T: KullbackLeibler + JensenShannon> ProbabilitySimilarity for T {}
 pub trait ComplexProducts: ComplexDot + ComplexVDot {}
 impl<T: ComplexDot + ComplexVDot> ComplexProducts for T {}
 
-///// `Elementwise` bundles element-wise operations: EachScale, EachSum, EachBlend, and EachFMA.
+/// `Elementwise` bundles element-wise operations: EachScale, EachSum, EachBlend, and EachFMA.
 pub trait Elementwise: EachScale + EachSum + EachBlend + EachFMA {}
 impl<T: EachScale + EachSum + EachBlend + EachFMA> Elementwise for T {}
 
