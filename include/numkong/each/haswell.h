@@ -1,7 +1,7 @@
 /**
  *  @brief SIMD-accelerated Dot Products for Real and Complex Numbers optimized for Intel Haswell CPUs.
- *  @file include/numkong/elementwise/haswell.h
- *  @sa include/numkong/elementwise.h
+ *  @file include/numkong/each/haswell.h
+ *  @sa include/numkong/each.h
  *  @author Ash Vardanian
  *  @date December 27, 2025
  *
@@ -18,8 +18,8 @@
  *  precision operations, type conversion chains (e.g., i8->i32->f32) add ~7-10 cycles overhead.
  *  The FMA unit handles both multiply-add fusion and standalone multiply/add operations.
  */
-#ifndef NK_ELEMENTWISE_HASWELL_H
-#define NK_ELEMENTWISE_HASWELL_H
+#ifndef NK_EACH_HASWELL_H
+#define NK_EACH_HASWELL_H
 
 #if NK_TARGET_X86_
 #if NK_TARGET_HASWELL
@@ -38,7 +38,7 @@
 extern "C" {
 #endif
 
-NK_PUBLIC void nk_sum_f32_haswell(nk_f32_t const *a, nk_f32_t const *b, nk_size_t n, nk_f32_t *result) {
+NK_PUBLIC void nk_each_sum_f32_haswell(nk_f32_t const *a, nk_f32_t const *b, nk_size_t n, nk_f32_t *result) {
     // The main loop:
     nk_size_t i = 0;
     for (; i + 8 <= n; i += 8) {
@@ -52,7 +52,7 @@ NK_PUBLIC void nk_sum_f32_haswell(nk_f32_t const *a, nk_f32_t const *b, nk_size_
     for (; i < n; ++i) result[i] = a[i] + b[i];
 }
 
-NK_PUBLIC void nk_scale_f32_haswell(nk_f32_t const *a, nk_size_t n, nk_f32_t const *alpha, nk_f32_t const *beta,
+NK_PUBLIC void nk_each_scale_f32_haswell(nk_f32_t const *a, nk_size_t n, nk_f32_t const *alpha, nk_f32_t const *beta,
                                     nk_f32_t *result) {
     nk_f32_t alpha_val = *alpha;
     nk_f32_t beta_val = *beta;
@@ -71,7 +71,7 @@ NK_PUBLIC void nk_scale_f32_haswell(nk_f32_t const *a, nk_size_t n, nk_f32_t con
     for (; i < n; ++i) result[i] = alpha_val * a[i] + beta_val;
 }
 
-NK_PUBLIC void nk_wsum_f32_haswell(                    //
+NK_PUBLIC void nk_each_blend_f32_haswell(                    //
     nk_f32_t const *a, nk_f32_t const *b, nk_size_t n, //
     nk_f32_t const *alpha, nk_f32_t const *beta, nk_f32_t *result) {
     nk_f32_t alpha_val = *alpha;
@@ -81,15 +81,15 @@ NK_PUBLIC void nk_wsum_f32_haswell(                    //
     // 1. Simple addition, when both weights are equal to 1.0.
     if (alpha_val == 1 && beta_val == 1) {
         // In this case we can avoid expensive multiplications.
-        nk_sum_f32_haswell(a, b, n, result);
+        nk_each_sum_f32_haswell(a, b, n, result);
         return;
     }
     // 2. Just scaling, when one of the weights is equal to zero.
     else if (alpha_val == 0 || beta_val == 0) {
         // In this case we can avoid half of the load instructions.
         nk_f32_t zero = 0;
-        if (beta_val == 0) { nk_scale_f32_haswell(a, n, alpha, &zero, result); }
-        else { nk_scale_f32_haswell(b, n, beta, &zero, result); }
+        if (beta_val == 0) { nk_each_scale_f32_haswell(a, n, alpha, &zero, result); }
+        else { nk_each_scale_f32_haswell(b, n, beta, &zero, result); }
         return;
     }
 
@@ -111,7 +111,7 @@ NK_PUBLIC void nk_wsum_f32_haswell(                    //
     for (; i < n; ++i) result[i] = alpha_val * a[i] + beta_val * b[i];
 }
 
-NK_PUBLIC void nk_sum_f64_haswell(nk_f64_t const *a, nk_f64_t const *b, nk_size_t n, nk_f64_t *result) {
+NK_PUBLIC void nk_each_sum_f64_haswell(nk_f64_t const *a, nk_f64_t const *b, nk_size_t n, nk_f64_t *result) {
     // The main loop:
     nk_size_t i = 0;
     for (; i + 4 <= n; i += 4) {
@@ -125,7 +125,7 @@ NK_PUBLIC void nk_sum_f64_haswell(nk_f64_t const *a, nk_f64_t const *b, nk_size_
     for (; i < n; ++i) result[i] = a[i] + b[i];
 }
 
-NK_PUBLIC void nk_scale_f64_haswell(nk_f64_t const *a, nk_size_t n, nk_f64_t const *alpha, nk_f64_t const *beta,
+NK_PUBLIC void nk_each_scale_f64_haswell(nk_f64_t const *a, nk_size_t n, nk_f64_t const *alpha, nk_f64_t const *beta,
                                     nk_f64_t *result) {
     nk_f64_t alpha_val = *alpha;
     nk_f64_t beta_val = *beta;
@@ -144,7 +144,7 @@ NK_PUBLIC void nk_scale_f64_haswell(nk_f64_t const *a, nk_size_t n, nk_f64_t con
     for (; i < n; ++i) result[i] = alpha_val * a[i] + beta_val;
 }
 
-NK_PUBLIC void nk_wsum_f64_haswell(                    //
+NK_PUBLIC void nk_each_blend_f64_haswell(                    //
     nk_f64_t const *a, nk_f64_t const *b, nk_size_t n, //
     nk_f64_t const *alpha, nk_f64_t const *beta, nk_f64_t *result) {
     nk_f64_t alpha_val = *alpha;
@@ -154,15 +154,15 @@ NK_PUBLIC void nk_wsum_f64_haswell(                    //
     // 1. Simple addition, when both weights are equal to 1.0.
     if (alpha_val == 1 && beta_val == 1) {
         // In this case we can avoid expensive multiplications.
-        nk_sum_f64_haswell(a, b, n, result);
+        nk_each_sum_f64_haswell(a, b, n, result);
         return;
     }
     // 2. Just scaling, when one of the weights is equal to zero.
     else if (alpha_val == 0 || beta_val == 0) {
         // In this case we can avoid half of the load instructions.
         nk_f64_t zero = 0;
-        if (beta_val == 0) { nk_scale_f64_haswell(a, n, alpha, &zero, result); }
-        else { nk_scale_f64_haswell(b, n, beta, &zero, result); }
+        if (beta_val == 0) { nk_each_scale_f64_haswell(a, n, alpha, &zero, result); }
+        else { nk_each_scale_f64_haswell(b, n, beta, &zero, result); }
         return;
     }
 
@@ -184,7 +184,7 @@ NK_PUBLIC void nk_wsum_f64_haswell(                    //
     for (; i < n; ++i) result[i] = alpha_val * a[i] + beta_val * b[i];
 }
 
-NK_PUBLIC void nk_sum_f16_haswell(nk_f16_t const *a, nk_f16_t const *b, nk_size_t n, nk_f16_t *result) {
+NK_PUBLIC void nk_each_sum_f16_haswell(nk_f16_t const *a, nk_f16_t const *b, nk_size_t n, nk_f16_t *result) {
 
     // The main loop:
     nk_size_t i = 0;
@@ -208,7 +208,7 @@ NK_PUBLIC void nk_sum_f16_haswell(nk_f16_t const *a, nk_f16_t const *b, nk_size_
     }
 }
 
-NK_PUBLIC void nk_scale_f16_haswell(nk_f16_t const *a, nk_size_t n, nk_f32_t const *alpha, nk_f32_t const *beta,
+NK_PUBLIC void nk_each_scale_f16_haswell(nk_f16_t const *a, nk_size_t n, nk_f32_t const *alpha, nk_f32_t const *beta,
                                     nk_f16_t *result) {
     nk_f32_t alpha_val = *alpha;
     nk_f32_t beta_val = *beta;
@@ -234,7 +234,7 @@ NK_PUBLIC void nk_scale_f16_haswell(nk_f16_t const *a, nk_size_t n, nk_f32_t con
     }
 }
 
-NK_PUBLIC void nk_wsum_f16_haswell(                    //
+NK_PUBLIC void nk_each_blend_f16_haswell(                    //
     nk_f16_t const *a, nk_f16_t const *b, nk_size_t n, //
     nk_f32_t const *alpha, nk_f32_t const *beta, nk_f16_t *result) {
     nk_f32_t alpha_val = *alpha;
@@ -244,15 +244,15 @@ NK_PUBLIC void nk_wsum_f16_haswell(                    //
     // 1. Simple addition, when both weights are equal to 1.0.
     if (alpha_val == 1 && beta_val == 1) {
         // In this case we can avoid expensive multiplications.
-        nk_sum_f16_haswell(a, b, n, result);
+        nk_each_sum_f16_haswell(a, b, n, result);
         return;
     }
     // 2. Just scaling, when one of the weights is equal to zero.
     else if (alpha_val == 0 || beta_val == 0) {
         // In this case we can avoid half of the load instructions.
         nk_f32_t zero = 0;
-        if (beta_val == 0) { nk_scale_f16_haswell(a, n, alpha, &zero, result); }
-        else { nk_scale_f16_haswell(b, n, beta, &zero, result); }
+        if (beta_val == 0) { nk_each_scale_f16_haswell(a, n, alpha, &zero, result); }
+        else { nk_each_scale_f16_haswell(b, n, beta, &zero, result); }
         return;
     }
 
@@ -283,7 +283,7 @@ NK_PUBLIC void nk_wsum_f16_haswell(                    //
     }
 }
 
-NK_PUBLIC void nk_sum_bf16_haswell(nk_bf16_t const *a, nk_bf16_t const *b, nk_size_t n, nk_bf16_t *result) {
+NK_PUBLIC void nk_each_sum_bf16_haswell(nk_bf16_t const *a, nk_bf16_t const *b, nk_size_t n, nk_bf16_t *result) {
     // The main loop:
     nk_size_t i = 0;
     for (; i + 8 <= n; i += 8) {
@@ -306,7 +306,7 @@ NK_PUBLIC void nk_sum_bf16_haswell(nk_bf16_t const *a, nk_bf16_t const *b, nk_si
     }
 }
 
-NK_PUBLIC void nk_scale_bf16_haswell(nk_bf16_t const *a, nk_size_t n, nk_f32_t const *alpha, nk_f32_t const *beta,
+NK_PUBLIC void nk_each_scale_bf16_haswell(nk_bf16_t const *a, nk_size_t n, nk_f32_t const *alpha, nk_f32_t const *beta,
                                      nk_bf16_t *result) {
     nk_f32_t alpha_val = *alpha;
     nk_f32_t beta_val = *beta;
@@ -332,7 +332,7 @@ NK_PUBLIC void nk_scale_bf16_haswell(nk_bf16_t const *a, nk_size_t n, nk_f32_t c
     }
 }
 
-NK_PUBLIC void nk_wsum_bf16_haswell(                     //
+NK_PUBLIC void nk_each_blend_bf16_haswell(                     //
     nk_bf16_t const *a, nk_bf16_t const *b, nk_size_t n, //
     nk_f32_t const *alpha, nk_f32_t const *beta, nk_bf16_t *result) {
     nk_f32_t alpha_val = *alpha;
@@ -342,15 +342,15 @@ NK_PUBLIC void nk_wsum_bf16_haswell(                     //
     // 1. Simple addition, when both weights are equal to 1.0.
     if (alpha_val == 1 && beta_val == 1) {
         // In this case we can avoid expensive multiplications.
-        nk_sum_bf16_haswell(a, b, n, result);
+        nk_each_sum_bf16_haswell(a, b, n, result);
         return;
     }
     // 2. Just scaling, when one of the weights is equal to zero.
     else if (alpha_val == 0 || beta_val == 0) {
         // In this case we can avoid half of the load instructions.
         nk_f32_t zero = 0;
-        if (beta_val == 0) { nk_scale_bf16_haswell(a, n, alpha, &zero, result); }
-        else { nk_scale_bf16_haswell(b, n, beta, &zero, result); }
+        if (beta_val == 0) { nk_each_scale_bf16_haswell(a, n, alpha, &zero, result); }
+        else { nk_each_scale_bf16_haswell(b, n, beta, &zero, result); }
         return;
     }
 
@@ -381,7 +381,7 @@ NK_PUBLIC void nk_wsum_bf16_haswell(                     //
     }
 }
 
-NK_PUBLIC void nk_fma_f32_haswell(                           //
+NK_PUBLIC void nk_each_fma_f32_haswell(                           //
     nk_f32_t const *a, nk_f32_t const *b, nk_f32_t const *c, //
     nk_size_t n, nk_f32_t const *alpha, nk_f32_t const *beta, nk_f32_t *result) {
     nk_f32_t alpha_val = *alpha;
@@ -405,7 +405,7 @@ NK_PUBLIC void nk_fma_f32_haswell(                           //
     for (; i < n; ++i) result[i] = alpha_val * a[i] * b[i] + beta_val * c[i];
 }
 
-NK_PUBLIC void nk_fma_f64_haswell(                           //
+NK_PUBLIC void nk_each_fma_f64_haswell(                           //
     nk_f64_t const *a, nk_f64_t const *b, nk_f64_t const *c, //
     nk_size_t n, nk_f64_t const *alpha, nk_f64_t const *beta, nk_f64_t *result) {
     nk_f64_t alpha_val = *alpha;
@@ -429,7 +429,7 @@ NK_PUBLIC void nk_fma_f64_haswell(                           //
     for (; i < n; ++i) result[i] = alpha_val * a[i] * b[i] + beta_val * c[i];
 }
 
-NK_PUBLIC void nk_fma_f16_haswell(                           //
+NK_PUBLIC void nk_each_fma_f16_haswell(                           //
     nk_f16_t const *a, nk_f16_t const *b, nk_f16_t const *c, //
     nk_size_t n, nk_f32_t const *alpha, nk_f32_t const *beta, nk_f16_t *result) {
     nk_f32_t alpha_val = *alpha;
@@ -464,7 +464,7 @@ NK_PUBLIC void nk_fma_f16_haswell(                           //
     }
 }
 
-NK_PUBLIC void nk_fma_bf16_haswell(                             //
+NK_PUBLIC void nk_each_fma_bf16_haswell(                             //
     nk_bf16_t const *a, nk_bf16_t const *b, nk_bf16_t const *c, //
     nk_size_t n, nk_f32_t const *alpha, nk_f32_t const *beta, nk_bf16_t *result) {
     nk_f32_t alpha_val = *alpha;
@@ -499,7 +499,7 @@ NK_PUBLIC void nk_fma_bf16_haswell(                             //
     }
 }
 
-NK_PUBLIC void nk_sum_i8_haswell(nk_i8_t const *a, nk_i8_t const *b, nk_size_t n, nk_i8_t *result) {
+NK_PUBLIC void nk_each_sum_i8_haswell(nk_i8_t const *a, nk_i8_t const *b, nk_size_t n, nk_i8_t *result) {
     // The main loop:
     nk_size_t i = 0;
     for (; i + 32 <= n; i += 32) {
@@ -517,7 +517,7 @@ NK_PUBLIC void nk_sum_i8_haswell(nk_i8_t const *a, nk_i8_t const *b, nk_size_t n
     }
 }
 
-NK_PUBLIC void nk_scale_i8_haswell(nk_i8_t const *a, nk_size_t n, nk_f32_t const *alpha, nk_f32_t const *beta,
+NK_PUBLIC void nk_each_scale_i8_haswell(nk_i8_t const *a, nk_size_t n, nk_f32_t const *alpha, nk_f32_t const *beta,
                                    nk_i8_t *result) {
     nk_f32_t alpha_val = *alpha;
     nk_f32_t beta_val = *beta;
@@ -561,7 +561,7 @@ NK_PUBLIC void nk_scale_i8_haswell(nk_i8_t const *a, nk_size_t n, nk_f32_t const
     }
 }
 
-NK_PUBLIC void nk_wsum_i8_haswell(                   //
+NK_PUBLIC void nk_each_blend_i8_haswell(                   //
     nk_i8_t const *a, nk_i8_t const *b, nk_size_t n, //
     nk_f32_t const *alpha, nk_f32_t const *beta, nk_i8_t *result) {
     nk_f32_t alpha_val = *alpha;
@@ -571,15 +571,15 @@ NK_PUBLIC void nk_wsum_i8_haswell(                   //
     // 1. Simple addition, when both weights are equal to 1.0.
     if (alpha_val == 1 && beta_val == 1) {
         // In this case we can avoid expensive multiplications.
-        nk_sum_i8_haswell(a, b, n, result);
+        nk_each_sum_i8_haswell(a, b, n, result);
         return;
     }
     // 2. Just scaling, when one of the weights is equal to zero.
     else if (alpha_val == 0 || beta_val == 0) {
         // In this case we can avoid half of the load instructions.
         nk_f32_t zero = 0;
-        if (beta_val == 0) { nk_scale_i8_haswell(a, n, alpha, &zero, result); }
-        else { nk_scale_i8_haswell(b, n, beta, &zero, result); }
+        if (beta_val == 0) { nk_each_scale_i8_haswell(a, n, alpha, &zero, result); }
+        else { nk_each_scale_i8_haswell(b, n, beta, &zero, result); }
         return;
     }
 
@@ -628,7 +628,7 @@ NK_PUBLIC void nk_wsum_i8_haswell(                   //
     }
 }
 
-NK_PUBLIC void nk_sum_u8_haswell(nk_u8_t const *a, nk_u8_t const *b, nk_size_t n, nk_u8_t *result) {
+NK_PUBLIC void nk_each_sum_u8_haswell(nk_u8_t const *a, nk_u8_t const *b, nk_size_t n, nk_u8_t *result) {
     // The main loop:
     nk_size_t i = 0;
     for (; i + 32 <= n; i += 32) {
@@ -646,7 +646,7 @@ NK_PUBLIC void nk_sum_u8_haswell(nk_u8_t const *a, nk_u8_t const *b, nk_size_t n
     }
 }
 
-NK_PUBLIC void nk_scale_u8_haswell(nk_u8_t const *a, nk_size_t n, nk_f32_t const *alpha, nk_f32_t const *beta,
+NK_PUBLIC void nk_each_scale_u8_haswell(nk_u8_t const *a, nk_size_t n, nk_f32_t const *alpha, nk_f32_t const *beta,
                                    nk_u8_t *result) {
     nk_f32_t alpha_val = *alpha;
     nk_f32_t beta_val = *beta;
@@ -690,7 +690,7 @@ NK_PUBLIC void nk_scale_u8_haswell(nk_u8_t const *a, nk_size_t n, nk_f32_t const
     }
 }
 
-NK_PUBLIC void nk_wsum_u8_haswell(                   //
+NK_PUBLIC void nk_each_blend_u8_haswell(                   //
     nk_u8_t const *a, nk_u8_t const *b, nk_size_t n, //
     nk_f32_t const *alpha, nk_f32_t const *beta, nk_u8_t *result) {
     nk_f32_t alpha_val = *alpha;
@@ -700,15 +700,15 @@ NK_PUBLIC void nk_wsum_u8_haswell(                   //
     // 1. Simple addition, when both weights are equal to 1.0.
     if (alpha_val == 1 && beta_val == 1) {
         // In this case we can avoid expensive multiplications.
-        nk_sum_u8_haswell(a, b, n, result);
+        nk_each_sum_u8_haswell(a, b, n, result);
         return;
     }
     // 2. Just scaling, when one of the weights is equal to zero.
     else if (alpha_val == 0 || beta_val == 0) {
         // In this case we can avoid half of the load instructions.
         nk_f32_t zero = 0;
-        if (beta_val == 0) { nk_scale_u8_haswell(a, n, alpha, &zero, result); }
-        else { nk_scale_u8_haswell(b, n, beta, &zero, result); }
+        if (beta_val == 0) { nk_each_scale_u8_haswell(a, n, alpha, &zero, result); }
+        else { nk_each_scale_u8_haswell(b, n, beta, &zero, result); }
         return;
     }
 
@@ -757,7 +757,7 @@ NK_PUBLIC void nk_wsum_u8_haswell(                   //
     }
 }
 
-NK_PUBLIC void nk_fma_i8_haswell(                                      //
+NK_PUBLIC void nk_each_fma_i8_haswell(                                      //
     nk_i8_t const *a, nk_i8_t const *b, nk_i8_t const *c, nk_size_t n, //
     nk_f32_t const *alpha, nk_f32_t const *beta, nk_i8_t *result) {
     nk_f32_t alpha_val = *alpha;
@@ -810,7 +810,7 @@ NK_PUBLIC void nk_fma_i8_haswell(                                      //
     }
 }
 
-NK_PUBLIC void nk_fma_u8_haswell(                                      //
+NK_PUBLIC void nk_each_fma_u8_haswell(                                      //
     nk_u8_t const *a, nk_u8_t const *b, nk_u8_t const *c, nk_size_t n, //
     nk_f32_t const *alpha, nk_f32_t const *beta, nk_u8_t *result) {
     nk_f32_t alpha_val = *alpha;
@@ -863,7 +863,7 @@ NK_PUBLIC void nk_fma_u8_haswell(                                      //
     }
 }
 
-NK_PUBLIC void nk_sum_i16_haswell(nk_i16_t const *a, nk_i16_t const *b, nk_size_t n, nk_i16_t *result) {
+NK_PUBLIC void nk_each_sum_i16_haswell(nk_i16_t const *a, nk_i16_t const *b, nk_size_t n, nk_i16_t *result) {
     // The main loop:
     nk_size_t i = 0;
     for (; i + 16 <= n; i += 16) {
@@ -881,7 +881,7 @@ NK_PUBLIC void nk_sum_i16_haswell(nk_i16_t const *a, nk_i16_t const *b, nk_size_
     }
 }
 
-NK_PUBLIC void nk_scale_i16_haswell(nk_i16_t const *a, nk_size_t n, nk_f32_t const *alpha, nk_f32_t const *beta,
+NK_PUBLIC void nk_each_scale_i16_haswell(nk_i16_t const *a, nk_size_t n, nk_f32_t const *alpha, nk_f32_t const *beta,
                                     nk_i16_t *result) {
     nk_f32_t alpha_f32 = *alpha;
     nk_f32_t beta_f32 = *beta;
@@ -912,7 +912,7 @@ NK_PUBLIC void nk_scale_i16_haswell(nk_i16_t const *a, nk_size_t n, nk_f32_t con
     }
 }
 
-NK_PUBLIC void nk_fma_i16_haswell(                                        //
+NK_PUBLIC void nk_each_fma_i16_haswell(                                        //
     nk_i16_t const *a, nk_i16_t const *b, nk_i16_t const *c, nk_size_t n, //
     nk_f32_t const *alpha, nk_f32_t const *beta, nk_i16_t *result) {
     nk_f32_t alpha_f32 = *alpha;
@@ -948,7 +948,7 @@ NK_PUBLIC void nk_fma_i16_haswell(                                        //
     }
 }
 
-NK_PUBLIC void nk_sum_u16_haswell(nk_u16_t const *a, nk_u16_t const *b, nk_size_t n, nk_u16_t *result) {
+NK_PUBLIC void nk_each_sum_u16_haswell(nk_u16_t const *a, nk_u16_t const *b, nk_size_t n, nk_u16_t *result) {
     // The main loop:
     nk_size_t i = 0;
     for (; i + 16 <= n; i += 16) {
@@ -966,7 +966,7 @@ NK_PUBLIC void nk_sum_u16_haswell(nk_u16_t const *a, nk_u16_t const *b, nk_size_
     }
 }
 
-NK_PUBLIC void nk_scale_u16_haswell(nk_u16_t const *a, nk_size_t n, nk_f32_t const *alpha, nk_f32_t const *beta,
+NK_PUBLIC void nk_each_scale_u16_haswell(nk_u16_t const *a, nk_size_t n, nk_f32_t const *alpha, nk_f32_t const *beta,
                                     nk_u16_t *result) {
     nk_f32_t alpha_f32 = *alpha;
     nk_f32_t beta_f32 = *beta;
@@ -997,7 +997,7 @@ NK_PUBLIC void nk_scale_u16_haswell(nk_u16_t const *a, nk_size_t n, nk_f32_t con
     }
 }
 
-NK_PUBLIC void nk_fma_u16_haswell(                                        //
+NK_PUBLIC void nk_each_fma_u16_haswell(                                        //
     nk_u16_t const *a, nk_u16_t const *b, nk_u16_t const *c, nk_size_t n, //
     nk_f32_t const *alpha, nk_f32_t const *beta, nk_u16_t *result) {
     nk_f32_t alpha_f32 = *alpha;
@@ -1054,7 +1054,7 @@ NK_INTERNAL __m256i _mm256_adds_epi32_haswell(__m256i a, __m256i b) {
     return result;
 }
 
-NK_PUBLIC void nk_sum_i32_haswell(nk_i32_t const *a, nk_i32_t const *b, nk_size_t n, nk_i32_t *result) {
+NK_PUBLIC void nk_each_sum_i32_haswell(nk_i32_t const *a, nk_i32_t const *b, nk_size_t n, nk_i32_t *result) {
     // The main loop:
     nk_size_t i = 0;
     for (; i + 8 <= n; i += 8) {
@@ -1072,7 +1072,7 @@ NK_PUBLIC void nk_sum_i32_haswell(nk_i32_t const *a, nk_i32_t const *b, nk_size_
     }
 }
 
-NK_PUBLIC void nk_scale_i32_haswell(nk_i32_t const *a, nk_size_t n, nk_f64_t const *alpha, nk_f64_t const *beta,
+NK_PUBLIC void nk_each_scale_i32_haswell(nk_i32_t const *a, nk_size_t n, nk_f64_t const *alpha, nk_f64_t const *beta,
                                     nk_i32_t *result) {
     nk_f64_t alpha_val = *alpha;
     nk_f64_t beta_val = *beta;
@@ -1101,7 +1101,7 @@ NK_PUBLIC void nk_scale_i32_haswell(nk_i32_t const *a, nk_size_t n, nk_f64_t con
     }
 }
 
-NK_PUBLIC void nk_fma_i32_haswell(                                        //
+NK_PUBLIC void nk_each_fma_i32_haswell(                                        //
     nk_i32_t const *a, nk_i32_t const *b, nk_i32_t const *c, nk_size_t n, //
     nk_f64_t const *alpha, nk_f64_t const *beta, nk_i32_t *result) {
     nk_f64_t alpha_val = *alpha;
@@ -1200,7 +1200,7 @@ NK_INTERNAL __m128i _mm256_cvtpd_epu32_haswell(__m256d a) {
     return _mm_loadu_si128((__m128i *)to);
 }
 
-NK_PUBLIC void nk_sum_u32_haswell(nk_u32_t const *a, nk_u32_t const *b, nk_size_t n, nk_u32_t *result) {
+NK_PUBLIC void nk_each_sum_u32_haswell(nk_u32_t const *a, nk_u32_t const *b, nk_size_t n, nk_u32_t *result) {
     // The main loop:
     nk_size_t i = 0;
     for (; i + 8 <= n; i += 8) {
@@ -1218,7 +1218,7 @@ NK_PUBLIC void nk_sum_u32_haswell(nk_u32_t const *a, nk_u32_t const *b, nk_size_
     }
 }
 
-NK_PUBLIC void nk_scale_u32_haswell(nk_u32_t const *a, nk_size_t n, nk_f64_t const *alpha, nk_f64_t const *beta,
+NK_PUBLIC void nk_each_scale_u32_haswell(nk_u32_t const *a, nk_size_t n, nk_f64_t const *alpha, nk_f64_t const *beta,
                                     nk_u32_t *result) {
     nk_f64_t alpha_val = *alpha;
     nk_f64_t beta_val = *beta;
@@ -1247,7 +1247,7 @@ NK_PUBLIC void nk_scale_u32_haswell(nk_u32_t const *a, nk_size_t n, nk_f64_t con
     }
 }
 
-NK_PUBLIC void nk_fma_u32_haswell(                                        //
+NK_PUBLIC void nk_each_fma_u32_haswell(                                        //
     nk_u32_t const *a, nk_u32_t const *b, nk_u32_t const *c, nk_size_t n, //
     nk_f64_t const *alpha, nk_f64_t const *beta, nk_u32_t *result) {
     nk_f64_t alpha_val = *alpha;
@@ -1281,7 +1281,7 @@ NK_PUBLIC void nk_fma_u32_haswell(                                        //
     }
 }
 
-NK_PUBLIC void nk_sum_e4m3_haswell(nk_e4m3_t const *a, nk_e4m3_t const *b, nk_size_t n, nk_e4m3_t *result) {
+NK_PUBLIC void nk_each_sum_e4m3_haswell(nk_e4m3_t const *a, nk_e4m3_t const *b, nk_size_t n, nk_e4m3_t *result) {
     nk_size_t i = 0;
     for (; i + 8 <= n; i += 8) {
         __m128i a_e4m3x8 = _mm_loadl_epi64((__m128i const *)(a + i));
@@ -1301,7 +1301,7 @@ NK_PUBLIC void nk_sum_e4m3_haswell(nk_e4m3_t const *a, nk_e4m3_t const *b, nk_si
     }
 }
 
-NK_PUBLIC void nk_sum_e5m2_haswell(nk_e5m2_t const *a, nk_e5m2_t const *b, nk_size_t n, nk_e5m2_t *result) {
+NK_PUBLIC void nk_each_sum_e5m2_haswell(nk_e5m2_t const *a, nk_e5m2_t const *b, nk_size_t n, nk_e5m2_t *result) {
     nk_size_t i = 0;
     for (; i + 8 <= n; i += 8) {
         __m128i a_e5m2x8 = _mm_loadl_epi64((__m128i const *)(a + i));
@@ -1321,7 +1321,7 @@ NK_PUBLIC void nk_sum_e5m2_haswell(nk_e5m2_t const *a, nk_e5m2_t const *b, nk_si
     }
 }
 
-NK_PUBLIC void nk_scale_e4m3_haswell(nk_e4m3_t const *a, nk_size_t n, nk_f32_t const *alpha, nk_f32_t const *beta,
+NK_PUBLIC void nk_each_scale_e4m3_haswell(nk_e4m3_t const *a, nk_size_t n, nk_f32_t const *alpha, nk_f32_t const *beta,
                                      nk_e4m3_t *result) {
     __m256 alpha_f32x8 = _mm256_set1_ps(*alpha);
     __m256 beta_f32x8 = _mm256_set1_ps(*beta);
@@ -1343,7 +1343,7 @@ NK_PUBLIC void nk_scale_e4m3_haswell(nk_e4m3_t const *a, nk_size_t n, nk_f32_t c
     }
 }
 
-NK_PUBLIC void nk_scale_e5m2_haswell(nk_e5m2_t const *a, nk_size_t n, nk_f32_t const *alpha, nk_f32_t const *beta,
+NK_PUBLIC void nk_each_scale_e5m2_haswell(nk_e5m2_t const *a, nk_size_t n, nk_f32_t const *alpha, nk_f32_t const *beta,
                                      nk_e5m2_t *result) {
     __m256 alpha_f32x8 = _mm256_set1_ps(*alpha);
     __m256 beta_f32x8 = _mm256_set1_ps(*beta);
@@ -1365,7 +1365,7 @@ NK_PUBLIC void nk_scale_e5m2_haswell(nk_e5m2_t const *a, nk_size_t n, nk_f32_t c
     }
 }
 
-NK_PUBLIC void nk_wsum_e4m3_haswell(nk_e4m3_t const *a, nk_e4m3_t const *b, nk_size_t n, nk_f32_t const *alpha,
+NK_PUBLIC void nk_each_blend_e4m3_haswell(nk_e4m3_t const *a, nk_e4m3_t const *b, nk_size_t n, nk_f32_t const *alpha,
                                     nk_f32_t const *beta, nk_e4m3_t *result) {
     __m256 alpha_f32x8 = _mm256_set1_ps(*alpha);
     __m256 beta_f32x8 = _mm256_set1_ps(*beta);
@@ -1389,7 +1389,7 @@ NK_PUBLIC void nk_wsum_e4m3_haswell(nk_e4m3_t const *a, nk_e4m3_t const *b, nk_s
     }
 }
 
-NK_PUBLIC void nk_wsum_e5m2_haswell(nk_e5m2_t const *a, nk_e5m2_t const *b, nk_size_t n, nk_f32_t const *alpha,
+NK_PUBLIC void nk_each_blend_e5m2_haswell(nk_e5m2_t const *a, nk_e5m2_t const *b, nk_size_t n, nk_f32_t const *alpha,
                                     nk_f32_t const *beta, nk_e5m2_t *result) {
     __m256 alpha_f32x8 = _mm256_set1_ps(*alpha);
     __m256 beta_f32x8 = _mm256_set1_ps(*beta);
@@ -1413,7 +1413,7 @@ NK_PUBLIC void nk_wsum_e5m2_haswell(nk_e5m2_t const *a, nk_e5m2_t const *b, nk_s
     }
 }
 
-NK_PUBLIC void nk_fma_e4m3_haswell(nk_e4m3_t const *a, nk_e4m3_t const *b, nk_e4m3_t const *c, nk_size_t n,
+NK_PUBLIC void nk_each_fma_e4m3_haswell(nk_e4m3_t const *a, nk_e4m3_t const *b, nk_e4m3_t const *c, nk_size_t n,
                                    nk_f32_t const *alpha, nk_f32_t const *beta, nk_e4m3_t *result) {
     __m256 alpha_f32x8 = _mm256_set1_ps(*alpha);
     __m256 beta_f32x8 = _mm256_set1_ps(*beta);
@@ -1444,7 +1444,7 @@ NK_PUBLIC void nk_fma_e4m3_haswell(nk_e4m3_t const *a, nk_e4m3_t const *b, nk_e4
     }
 }
 
-NK_PUBLIC void nk_fma_e5m2_haswell(nk_e5m2_t const *a, nk_e5m2_t const *b, nk_e5m2_t const *c, nk_size_t n,
+NK_PUBLIC void nk_each_fma_e5m2_haswell(nk_e5m2_t const *a, nk_e5m2_t const *b, nk_e5m2_t const *c, nk_size_t n,
                                    nk_f32_t const *alpha, nk_f32_t const *beta, nk_e5m2_t *result) {
     __m256 alpha_f32x8 = _mm256_set1_ps(*alpha);
     __m256 beta_f32x8 = _mm256_set1_ps(*beta);
@@ -1487,4 +1487,4 @@ NK_PUBLIC void nk_fma_e5m2_haswell(nk_e5m2_t const *a, nk_e5m2_t const *b, nk_e5
 #endif // NK_TARGET_HASWELL
 #endif // NK_TARGET_X86_
 
-#endif // NK_ELEMENTWISE_HASWELL_H
+#endif // NK_EACH_HASWELL_H

@@ -60,38 +60,38 @@ NK_INTERNAL void nk_fill_error_(void *ptr, nk_size_t bytes) {
     while (bytes--) *p++ = 0xFF;
 }
 
-// Every time a function is called, it checks if the metric is already loaded. If not, it fetches it.
-// If no metric is found, we fill the output with 0xFF bytes (NaN for floats, -1/MAX for integers).
+// Every time a function is called, it checks if the kernel is already loaded. If not, it fetches it.
+// If no kernel is found, we fill the output with 0xFF bytes (NaN for floats, -1/MAX for integers).
 #define nk_dispatch_dense_(name, extension, input_type, output_type)                                                 \
     NK_DYNAMIC void nk_##name##_##extension(nk_##input_type##_t const *a, nk_##input_type##_t const *b, nk_size_t n, \
                                             nk_##output_type##_t *results) {                                         \
-        static nk_metric_dense_punned_t metric = 0;                                                                  \
-        if (metric == 0) {                                                                                           \
+        static nk_metric_dense_punned_t kernel = 0;                                                                  \
+        if (kernel == 0) {                                                                                           \
             nk_capability_t used_capability;                                                                         \
             nk_find_kernel_punned(nk_kernel_##name##_k, nk_##extension##_k, nk_capabilities(), nk_cap_any_k,         \
-                                  (nk_kernel_punned_t *)&metric, &used_capability);                                  \
-            if (!metric) {                                                                                           \
+                                  (nk_kernel_punned_t *)&kernel, &used_capability);                                  \
+            if (!kernel) {                                                                                           \
                 nk_fill_error_(results, sizeof(nk_##output_type##_t));                                               \
                 return;                                                                                              \
             }                                                                                                        \
         }                                                                                                            \
-        metric(a, b, n, (void *)results);                                                                            \
+        kernel(a, b, n, (void *)results);                                                                            \
     }
 
-#define nk_dispatch_sparse_(name, extension, type, output_type)                                                     \
-    NK_DYNAMIC void nk_##name##_##extension(nk_##type##_t const *a, nk_##type##_t const *b, nk_size_t a_length,     \
-                                            nk_size_t b_length, nk_##output_type##_t *result) {                     \
-        static nk_sparse_intersect_punned_t metric = 0;                                                             \
-        if (metric == 0) {                                                                                          \
-            nk_capability_t used_capability;                                                                        \
-            nk_find_kernel_punned(nk_kernel_sparse_##name##_k, nk_##extension##_k, nk_capabilities(), nk_cap_any_k, \
-                                  (nk_kernel_punned_t *)(&metric), &used_capability);                               \
-            if (!metric) {                                                                                          \
-                nk_fill_error_(result, sizeof(nk_##output_type##_t));                                               \
-                return;                                                                                             \
-            }                                                                                                       \
-        }                                                                                                           \
-        metric(a, b, a_length, b_length, (void *)result);                                                           \
+#define nk_dispatch_sparse_(name, extension, type)                                                              \
+    NK_DYNAMIC void nk_##name##_##extension(nk_##type##_t const *a, nk_##type##_t const *b, nk_size_t a_length, \
+                                            nk_size_t b_length, nk_##type##_t *result, nk_size_t *count) {      \
+        static nk_sparse_intersect_punned_t kernel = 0;                                                         \
+        if (kernel == 0) {                                                                                      \
+            nk_capability_t used_capability;                                                                    \
+            nk_find_kernel_punned(nk_kernel_##name##_k, nk_##extension##_k, nk_capabilities(), nk_cap_any_k,    \
+                                  (nk_kernel_punned_t *)(&kernel), &used_capability);                           \
+            if (!kernel) {                                                                                      \
+                if (count) *count = 0;                                                                          \
+                return;                                                                                         \
+            }                                                                                                   \
+        }                                                                                                       \
+        kernel(a, b, a_length, b_length, (void *)result, count);                                                \
     }
 
 #define nk_dispatch_sparse_dot_(name, index_type, weight_type, output_type)                                           \
@@ -99,117 +99,117 @@ NK_INTERNAL void nk_fill_error_(void *ptr, nk_size_t bytes) {
                                                           nk_##weight_type##_t const *a_weights,                      \
                                                           nk_##weight_type##_t const *b_weights, nk_size_t a_length,  \
                                                           nk_size_t b_length, nk_##output_type##_t *product) {        \
-        static nk_sparse_dot_punned_t metric = 0;                                                                     \
-        if (metric == 0) {                                                                                            \
+        static nk_sparse_dot_punned_t kernel = 0;                                                                     \
+        if (kernel == 0) {                                                                                            \
             nk_capability_t used_capability;                                                                          \
             nk_find_kernel_punned(nk_kernel_sparse_dot_k, nk_##weight_type##_k, nk_capabilities(), nk_cap_any_k,      \
-                                  (nk_kernel_punned_t *)&metric, &used_capability);                                   \
-            if (!metric) {                                                                                            \
+                                  (nk_kernel_punned_t *)&kernel, &used_capability);                                   \
+            if (!kernel) {                                                                                            \
                 nk_fill_error_(product, sizeof(nk_##output_type##_t));                                                \
                 return;                                                                                               \
             }                                                                                                         \
         }                                                                                                             \
-        metric(a, b, a_weights, b_weights, a_length, b_length, (void *)product);                                      \
+        kernel(a, b, a_weights, b_weights, a_length, b_length, (void *)product);                                      \
     }
 
 #define nk_dispatch_curved_(name, extension, output_type)                                                             \
     NK_DYNAMIC void nk_##name##_##extension(nk_##extension##_t const *a, nk_##extension##_t const *b,                 \
                                             nk_##extension##_t const *c, nk_size_t n, nk_##output_type##_t *result) { \
-        static nk_metric_curved_punned_t metric = 0;                                                                  \
-        if (metric == 0) {                                                                                            \
+        static nk_metric_curved_punned_t kernel = 0;                                                                  \
+        if (kernel == 0) {                                                                                            \
             nk_capability_t used_capability;                                                                          \
             nk_find_kernel_punned(nk_kernel_##name##_k, nk_##extension##_k, nk_capabilities(), nk_cap_any_k,          \
-                                  (nk_kernel_punned_t *)(&metric), &used_capability);                                 \
-            if (!metric) {                                                                                            \
+                                  (nk_kernel_punned_t *)(&kernel), &used_capability);                                 \
+            if (!kernel) {                                                                                            \
                 nk_fill_error_(result, sizeof(nk_##output_type##_t));                                                 \
                 return;                                                                                               \
             }                                                                                                         \
         }                                                                                                             \
-        metric(a, b, c, n, (void *)result);                                                                           \
+        kernel(a, b, c, n, (void *)result);                                                                           \
     }
 
 #define nk_dispatch_geospatial_(name, extension, output_type)                                                   \
     NK_DYNAMIC void nk_##name##_##extension(nk_##extension##_t const *a_lats, nk_##extension##_t const *a_lons, \
                                             nk_##extension##_t const *b_lats, nk_##extension##_t const *b_lons, \
                                             nk_size_t n, nk_##output_type##_t *results) {                       \
-        static nk_metric_geospatial_punned_t metric = 0;                                                        \
-        if (metric == 0) {                                                                                      \
+        static nk_metric_geospatial_punned_t kernel = 0;                                                        \
+        if (kernel == 0) {                                                                                      \
             nk_capability_t used_capability;                                                                    \
             nk_find_kernel_punned(nk_kernel_##name##_k, nk_##extension##_k, nk_capabilities(), nk_cap_any_k,    \
-                                  (nk_kernel_punned_t *)(&metric), &used_capability);                           \
-            if (!metric) {                                                                                      \
+                                  (nk_kernel_punned_t *)(&kernel), &used_capability);                           \
+            if (!kernel) {                                                                                      \
                 nk_fill_error_(results, sizeof(nk_##output_type##_t));                                          \
                 return;                                                                                         \
             }                                                                                                   \
         }                                                                                                       \
-        metric(a_lats, a_lons, b_lats, b_lons, n, (void *)results);                                             \
+        kernel(a_lats, a_lons, b_lats, b_lons, n, (void *)results);                                             \
     }
 
-#define nk_dispatch_fma_(name, extension, scalar_type)                                                       \
-    NK_DYNAMIC void nk_##name##_##extension(                                                                 \
+#define nk_dispatch_each_fma_(extension, scalar_type)                                                        \
+    NK_DYNAMIC void nk_each_fma_##extension(                                                                 \
         nk_##extension##_t const *a, nk_##extension##_t const *b, nk_##extension##_t const *c, nk_size_t n,  \
         nk_##scalar_type##_t const *alpha, nk_##scalar_type##_t const *beta, nk_##extension##_t *result) {   \
-        static nk_kernel_fma_punned_t metric = 0;                                                            \
-        if (metric == 0) {                                                                                   \
+        static nk_each_fma_punned_t kernel = 0;                                                              \
+        if (kernel == 0) {                                                                                   \
             nk_capability_t used_capability;                                                                 \
-            nk_find_kernel_punned(nk_kernel_##name##_k, nk_##extension##_k, nk_capabilities(), nk_cap_any_k, \
-                                  (nk_kernel_punned_t *)(&metric), &used_capability);                        \
-            if (!metric) {                                                                                   \
+            nk_find_kernel_punned(nk_kernel_each_fma_k, nk_##extension##_k, nk_capabilities(), nk_cap_any_k, \
+                                  (nk_kernel_punned_t *)(&kernel), &used_capability);                        \
+            if (!kernel) {                                                                                   \
                 nk_fill_error_(result, n * sizeof(nk_##extension##_t));                                      \
                 return;                                                                                      \
             }                                                                                                \
         }                                                                                                    \
-        metric(a, b, c, n, (void const *)alpha, (void const *)beta, result);                                 \
+        kernel(a, b, c, n, (void const *)alpha, (void const *)beta, result);                                 \
     }
 
-#define nk_dispatch_wsum_(name, extension, scalar_type)                                                            \
-    NK_DYNAMIC void nk_##name##_##extension(nk_##extension##_t const *a, nk_##extension##_t const *b, nk_size_t n, \
-                                            nk_##scalar_type##_t const *alpha, nk_##scalar_type##_t const *beta,   \
-                                            nk_##extension##_t *result) {                                          \
-        static nk_kernel_wsum_punned_t metric = 0;                                                                 \
-        if (metric == 0) {                                                                                         \
+#define nk_dispatch_each_blend_(extension, scalar_type)                                                              \
+    NK_DYNAMIC void nk_each_blend_##extension(nk_##extension##_t const *a, nk_##extension##_t const *b, nk_size_t n, \
+                                              nk_##scalar_type##_t const *alpha, nk_##scalar_type##_t const *beta,   \
+                                              nk_##extension##_t *result) {                                          \
+        static nk_each_blend_punned_t kernel = 0;                                                                    \
+        if (kernel == 0) {                                                                                           \
+            nk_capability_t used_capability;                                                                         \
+            nk_find_kernel_punned(nk_kernel_each_blend_k, nk_##extension##_k, nk_capabilities(), nk_cap_any_k,       \
+                                  (nk_kernel_punned_t *)(&kernel), &used_capability);                                \
+            if (!kernel) {                                                                                           \
+                nk_fill_error_(result, n * sizeof(nk_##extension##_t));                                              \
+                return;                                                                                              \
+            }                                                                                                        \
+        }                                                                                                            \
+        kernel(a, b, n, (void const *)alpha, (void const *)beta, result);                                            \
+    }
+
+#define nk_dispatch_each_scale_(extension, scalar_type)                                                            \
+    NK_DYNAMIC void nk_each_scale_##extension(nk_##extension##_t const *a, nk_size_t n,                            \
+                                              nk_##scalar_type##_t const *alpha, nk_##scalar_type##_t const *beta, \
+                                              nk_##extension##_t *result) {                                        \
+        static nk_each_scale_punned_t kernel = 0;                                                                  \
+        if (kernel == 0) {                                                                                         \
             nk_capability_t used_capability;                                                                       \
-            nk_find_kernel_punned(nk_kernel_##name##_k, nk_##extension##_k, nk_capabilities(), nk_cap_any_k,       \
-                                  (nk_kernel_punned_t *)(&metric), &used_capability);                              \
-            if (!metric) {                                                                                         \
+            nk_find_kernel_punned(nk_kernel_each_scale_k, nk_##extension##_k, nk_capabilities(), nk_cap_any_k,     \
+                                  (nk_kernel_punned_t *)(&kernel), &used_capability);                              \
+            if (!kernel) {                                                                                         \
                 nk_fill_error_(result, n * sizeof(nk_##extension##_t));                                            \
                 return;                                                                                            \
             }                                                                                                      \
         }                                                                                                          \
-        metric(a, b, n, (void const *)alpha, (void const *)beta, result);                                          \
+        kernel(a, n, (void const *)alpha, (void const *)beta, result);                                             \
     }
 
-#define nk_dispatch_scale_(name, extension, scalar_type)                                                         \
-    NK_DYNAMIC void nk_##name##_##extension(nk_##extension##_t const *a, nk_size_t n,                            \
-                                            nk_##scalar_type##_t const *alpha, nk_##scalar_type##_t const *beta, \
-                                            nk_##extension##_t *result) {                                        \
-        static nk_kernel_scale_punned_t metric = 0;                                                              \
-        if (metric == 0) {                                                                                       \
-            nk_capability_t used_capability;                                                                     \
-            nk_find_kernel_punned(nk_kernel_##name##_k, nk_##extension##_k, nk_capabilities(), nk_cap_any_k,     \
-                                  (nk_kernel_punned_t *)(&metric), &used_capability);                            \
-            if (!metric) {                                                                                       \
-                nk_fill_error_(result, n * sizeof(nk_##extension##_t));                                          \
-                return;                                                                                          \
-            }                                                                                                    \
-        }                                                                                                        \
-        metric(a, n, (void const *)alpha, (void const *)beta, result);                                           \
-    }
-
-#define nk_dispatch_sum_(name, extension)                                                                          \
-    NK_DYNAMIC void nk_##name##_##extension(nk_##extension##_t const *a, nk_##extension##_t const *b, nk_size_t n, \
+#define nk_dispatch_each_sum_(extension)                                                                           \
+    NK_DYNAMIC void nk_each_sum_##extension(nk_##extension##_t const *a, nk_##extension##_t const *b, nk_size_t n, \
                                             nk_##extension##_t *result) {                                          \
-        static nk_kernel_sum_punned_t metric = 0;                                                                  \
-        if (metric == 0) {                                                                                         \
+        static nk_each_sum_punned_t kernel = 0;                                                                    \
+        if (kernel == 0) {                                                                                         \
             nk_capability_t used_capability;                                                                       \
-            nk_find_kernel_punned(nk_kernel_##name##_k, nk_##extension##_k, nk_capabilities(), nk_cap_any_k,       \
-                                  (nk_kernel_punned_t *)(&metric), &used_capability);                              \
-            if (!metric) {                                                                                         \
+            nk_find_kernel_punned(nk_kernel_each_sum_k, nk_##extension##_k, nk_capabilities(), nk_cap_any_k,       \
+                                  (nk_kernel_punned_t *)(&kernel), &used_capability);                              \
+            if (!kernel) {                                                                                         \
                 nk_fill_error_(result, n * sizeof(nk_##extension##_t));                                            \
                 return;                                                                                            \
             }                                                                                                      \
         }                                                                                                          \
-        metric(a, b, n, result);                                                                                   \
+        kernel(a, b, n, result);                                                                                   \
     }
 
 #define nk_dispatch_trigonometry_(name, extension)                                                           \
@@ -405,8 +405,9 @@ nk_dispatch_dense_(jsd, f32, f32, f32)
 nk_dispatch_dense_(jsd, f64, f64, f64)
 
 // Sparse sets
-nk_dispatch_sparse_(intersect, u16, u16, u32)
-nk_dispatch_sparse_(intersect, u32, u32, u32)
+nk_dispatch_sparse_(sparse_intersect, u16, u16)
+nk_dispatch_sparse_(sparse_intersect, u32, u32)
+nk_dispatch_sparse_(sparse_intersect, u64, u64)
 nk_dispatch_sparse_dot_(sparse_dot, u16, bf16, f32)
 nk_dispatch_sparse_dot_(sparse_dot, u32, f32, f32)
 
@@ -425,42 +426,42 @@ nk_dispatch_curved_(bilinear, bf16c, f32c)
 nk_dispatch_curved_(mahalanobis, bf16, f32)
 
 // Element-wise operations
-nk_dispatch_fma_(fma, f64, f64)
-nk_dispatch_fma_(fma, f32, f32)
-nk_dispatch_fma_(fma, f16, f32)
-nk_dispatch_fma_(fma, bf16, f32)
-nk_dispatch_fma_(fma, i8, f32)
-nk_dispatch_fma_(fma, u8, f32)
-nk_dispatch_wsum_(wsum, f64, f64)
-nk_dispatch_wsum_(wsum, f32, f32)
-nk_dispatch_wsum_(wsum, f16, f32)
-nk_dispatch_wsum_(wsum, bf16, f32)
-nk_dispatch_wsum_(wsum, i8, f32)
-nk_dispatch_wsum_(wsum, u8, f32)
-nk_dispatch_scale_(scale, f64, f64)
-nk_dispatch_scale_(scale, f32, f32)
-nk_dispatch_scale_(scale, f16, f32)
-nk_dispatch_scale_(scale, bf16, f32)
-nk_dispatch_scale_(scale, i8, f32)
-nk_dispatch_scale_(scale, u8, f32)
-nk_dispatch_scale_(scale, i16, f32)
-nk_dispatch_scale_(scale, u16, f32)
-nk_dispatch_scale_(scale, i32, f64)
-nk_dispatch_scale_(scale, u32, f64)
-nk_dispatch_scale_(scale, i64, f64)
-nk_dispatch_scale_(scale, u64, f64)
-nk_dispatch_sum_(sum, f64)
-nk_dispatch_sum_(sum, f32)
-nk_dispatch_sum_(sum, f16)
-nk_dispatch_sum_(sum, bf16)
-nk_dispatch_sum_(sum, i8)
-nk_dispatch_sum_(sum, u8)
-nk_dispatch_sum_(sum, i16)
-nk_dispatch_sum_(sum, u16)
-nk_dispatch_sum_(sum, i32)
-nk_dispatch_sum_(sum, u32)
-nk_dispatch_sum_(sum, i64)
-nk_dispatch_sum_(sum, u64)
+nk_dispatch_each_fma_(f32, f32)
+nk_dispatch_each_fma_(f16, f32)
+nk_dispatch_each_fma_(f64, f64)
+nk_dispatch_each_fma_(bf16, f32)
+nk_dispatch_each_fma_(i8, f32)
+nk_dispatch_each_fma_(u8, f32)
+nk_dispatch_each_blend_(f64, f64)
+nk_dispatch_each_blend_(f32, f32)
+nk_dispatch_each_blend_(f16, f32)
+nk_dispatch_each_blend_(bf16, f32)
+nk_dispatch_each_blend_(i8, f32)
+nk_dispatch_each_blend_(u8, f32)
+nk_dispatch_each_scale_(f64, f64)
+nk_dispatch_each_scale_(f32, f32)
+nk_dispatch_each_scale_(f16, f32)
+nk_dispatch_each_scale_(bf16, f32)
+nk_dispatch_each_scale_(i8, f32)
+nk_dispatch_each_scale_(u8, f32)
+nk_dispatch_each_scale_(i16, f32)
+nk_dispatch_each_scale_(u16, f32)
+nk_dispatch_each_scale_(i32, f64)
+nk_dispatch_each_scale_(u32, f64)
+nk_dispatch_each_scale_(i64, f64)
+nk_dispatch_each_scale_(u64, f64)
+nk_dispatch_each_sum_(f64)
+nk_dispatch_each_sum_(f32)
+nk_dispatch_each_sum_(f16)
+nk_dispatch_each_sum_(bf16)
+nk_dispatch_each_sum_(i8)
+nk_dispatch_each_sum_(u8)
+nk_dispatch_each_sum_(i16)
+nk_dispatch_each_sum_(u16)
+nk_dispatch_each_sum_(i32)
+nk_dispatch_each_sum_(u32)
+nk_dispatch_each_sum_(i64)
+nk_dispatch_each_sum_(u64)
 
 // Trigonometry functions
 nk_dispatch_trigonometry_(sin, f32)
@@ -524,14 +525,14 @@ nk_dispatch_reduce_minmax_(max, e4m3, f32)
 nk_dispatch_reduce_minmax_(min, e5m2, f32)
 nk_dispatch_reduce_minmax_(max, e5m2, f32)
 // Elementwise operations - FP8 types
-nk_dispatch_sum_(sum, e4m3)
-nk_dispatch_sum_(sum, e5m2)
-nk_dispatch_scale_(scale, e4m3, f32)
-nk_dispatch_scale_(scale, e5m2, f32)
-nk_dispatch_wsum_(wsum, e4m3, f32)
-nk_dispatch_wsum_(wsum, e5m2, f32)
-nk_dispatch_fma_(fma, e4m3, f32)
-nk_dispatch_fma_(fma, e5m2, f32)
+nk_dispatch_each_sum_(e4m3)
+nk_dispatch_each_sum_(e5m2)
+nk_dispatch_each_scale_(e4m3, f32)
+nk_dispatch_each_scale_(e5m2, f32)
+nk_dispatch_each_blend_(e4m3, f32)
+nk_dispatch_each_blend_(e5m2, f32)
+nk_dispatch_each_fma_(e4m3, f32)
+nk_dispatch_each_fma_(e5m2, f32)
 
 // Matrix multiplications (GEMM with packed B)
 nk_dispatch_dots_packed_size_(f32, f32, f32)
@@ -766,8 +767,9 @@ NK_DYNAMIC nk_capability_t nk_capabilities(void) {
     nk_jsd_f64((nk_f64_t *)x, (nk_f64_t *)x, 0, dummy_results);
 
     // Sparse
-    nk_intersect_u16((nk_u16_t *)x, (nk_u16_t *)x, 0, 0, dummy_results);
-    nk_intersect_u32((nk_u32_t *)x, (nk_u32_t *)x, 0, 0, dummy_results);
+    nk_sparse_intersect_u16((nk_u16_t *)x, (nk_u16_t *)x, 0, 0, (nk_u16_t *)x, (nk_size_t *)dummy_results);
+    nk_sparse_intersect_u32((nk_u32_t *)x, (nk_u32_t *)x, 0, 0, (nk_u32_t *)x, (nk_size_t *)dummy_results);
+    nk_sparse_intersect_u64((nk_u64_t *)x, (nk_u64_t *)x, 0, 0, (nk_u64_t *)x, (nk_size_t *)dummy_results);
 
     // Curved:
     nk_bilinear_f64((nk_f64_t *)x, (nk_f64_t *)x, (nk_f64_t *)x, 0, dummy_results);
@@ -784,23 +786,26 @@ NK_DYNAMIC nk_capability_t nk_capabilities(void) {
     nk_bilinear_bf16c((nk_bf16c_t *)x, (nk_bf16c_t *)x, (nk_bf16c_t *)x, 0, dummy_results);
 
     // Elementwise
-    nk_wsum_f64((nk_f64_t *)x, (nk_f64_t *)x, 0, &dummy_alpha, &dummy_beta, (nk_f64_t *)x);
-    nk_wsum_f32((nk_f32_t *)x, (nk_f32_t *)x, 0, (nk_f32_t *)&dummy_alpha, (nk_f32_t *)&dummy_beta, (nk_f32_t *)x);
-    nk_wsum_f16((nk_f16_t *)x, (nk_f16_t *)x, 0, (nk_f32_t *)&dummy_alpha, (nk_f32_t *)&dummy_beta, (nk_f16_t *)x);
-    nk_wsum_bf16((nk_bf16_t *)x, (nk_bf16_t *)x, 0, (nk_f32_t *)&dummy_alpha, (nk_f32_t *)&dummy_beta, (nk_bf16_t *)x);
-    nk_wsum_i8((nk_i8_t *)x, (nk_i8_t *)x, 0, (nk_f32_t *)&dummy_alpha, (nk_f32_t *)&dummy_beta, (nk_i8_t *)x);
-    nk_wsum_u8((nk_u8_t *)x, (nk_u8_t *)x, 0, (nk_f32_t *)&dummy_alpha, (nk_f32_t *)&dummy_beta, (nk_u8_t *)x);
-    nk_fma_f64((nk_f64_t *)x, (nk_f64_t *)x, (nk_f64_t *)x, 0, &dummy_alpha, &dummy_beta, (nk_f64_t *)x);
-    nk_fma_f32((nk_f32_t *)x, (nk_f32_t *)x, (nk_f32_t *)x, 0, (nk_f32_t *)&dummy_alpha, (nk_f32_t *)&dummy_beta,
-               (nk_f32_t *)x);
-    nk_fma_f16((nk_f16_t *)x, (nk_f16_t *)x, (nk_f16_t *)x, 0, (nk_f32_t *)&dummy_alpha, (nk_f32_t *)&dummy_beta,
-               (nk_f16_t *)x);
-    nk_fma_bf16((nk_bf16_t *)x, (nk_bf16_t *)x, (nk_bf16_t *)x, 0, (nk_f32_t *)&dummy_alpha, (nk_f32_t *)&dummy_beta,
-                (nk_bf16_t *)x);
-    nk_fma_i8((nk_i8_t *)x, (nk_i8_t *)x, (nk_i8_t *)x, 0, (nk_f32_t *)&dummy_alpha, (nk_f32_t *)&dummy_beta,
-              (nk_i8_t *)x);
-    nk_fma_u8((nk_u8_t *)x, (nk_u8_t *)x, (nk_u8_t *)x, 0, (nk_f32_t *)&dummy_alpha, (nk_f32_t *)&dummy_beta,
-              (nk_u8_t *)x);
+    nk_each_blend_f64((nk_f64_t *)x, (nk_f64_t *)x, 0, &dummy_alpha, &dummy_beta, (nk_f64_t *)x);
+    nk_each_blend_f32((nk_f32_t *)x, (nk_f32_t *)x, 0, (nk_f32_t *)&dummy_alpha, (nk_f32_t *)&dummy_beta,
+                      (nk_f32_t *)x);
+    nk_each_blend_f16((nk_f16_t *)x, (nk_f16_t *)x, 0, (nk_f32_t *)&dummy_alpha, (nk_f32_t *)&dummy_beta,
+                      (nk_f16_t *)x);
+    nk_each_blend_bf16((nk_bf16_t *)x, (nk_bf16_t *)x, 0, (nk_f32_t *)&dummy_alpha, (nk_f32_t *)&dummy_beta,
+                       (nk_bf16_t *)x);
+    nk_each_blend_i8((nk_i8_t *)x, (nk_i8_t *)x, 0, (nk_f32_t *)&dummy_alpha, (nk_f32_t *)&dummy_beta, (nk_i8_t *)x);
+    nk_each_blend_u8((nk_u8_t *)x, (nk_u8_t *)x, 0, (nk_f32_t *)&dummy_alpha, (nk_f32_t *)&dummy_beta, (nk_u8_t *)x);
+    nk_each_fma_f64((nk_f64_t *)x, (nk_f64_t *)x, (nk_f64_t *)x, 0, &dummy_alpha, &dummy_beta, (nk_f64_t *)x);
+    nk_each_fma_f32((nk_f32_t *)x, (nk_f32_t *)x, (nk_f32_t *)x, 0, (nk_f32_t *)&dummy_alpha, (nk_f32_t *)&dummy_beta,
+                    (nk_f32_t *)x);
+    nk_each_fma_f16((nk_f16_t *)x, (nk_f16_t *)x, (nk_f16_t *)x, 0, (nk_f32_t *)&dummy_alpha, (nk_f32_t *)&dummy_beta,
+                    (nk_f16_t *)x);
+    nk_each_fma_bf16((nk_bf16_t *)x, (nk_bf16_t *)x, (nk_bf16_t *)x, 0, (nk_f32_t *)&dummy_alpha,
+                     (nk_f32_t *)&dummy_beta, (nk_bf16_t *)x);
+    nk_each_fma_i8((nk_i8_t *)x, (nk_i8_t *)x, (nk_i8_t *)x, 0, (nk_f32_t *)&dummy_alpha, (nk_f32_t *)&dummy_beta,
+                   (nk_i8_t *)x);
+    nk_each_fma_u8((nk_u8_t *)x, (nk_u8_t *)x, (nk_u8_t *)x, 0, (nk_f32_t *)&dummy_alpha, (nk_f32_t *)&dummy_beta,
+                   (nk_u8_t *)x);
 
     // Sparse dot products
     nk_jaccard_u32((nk_u32_t *)x, (nk_u32_t *)x, 0, dummy_results);
@@ -830,44 +835,46 @@ NK_DYNAMIC nk_capability_t nk_capabilities(void) {
                    (nk_f64_t *)x);
 
     // Scale
-    nk_scale_f64((nk_f64_t *)x, 0, &dummy_alpha, &dummy_beta, (nk_f64_t *)x);
-    nk_scale_f32((nk_f32_t *)x, 0, (nk_f32_t *)&dummy_alpha, (nk_f32_t *)&dummy_beta, (nk_f32_t *)x);
-    nk_scale_f16((nk_f16_t *)x, 0, (nk_f32_t *)&dummy_alpha, (nk_f32_t *)&dummy_beta, (nk_f16_t *)x);
-    nk_scale_bf16((nk_bf16_t *)x, 0, (nk_f32_t *)&dummy_alpha, (nk_f32_t *)&dummy_beta, (nk_bf16_t *)x);
-    nk_scale_i8((nk_i8_t *)x, 0, (nk_f32_t *)&dummy_alpha, (nk_f32_t *)&dummy_beta, (nk_i8_t *)x);
-    nk_scale_u8((nk_u8_t *)x, 0, (nk_f32_t *)&dummy_alpha, (nk_f32_t *)&dummy_beta, (nk_u8_t *)x);
-    nk_scale_i16((nk_i16_t *)x, 0, (nk_f32_t *)&dummy_alpha, (nk_f32_t *)&dummy_beta, (nk_i16_t *)x);
-    nk_scale_u16((nk_u16_t *)x, 0, (nk_f32_t *)&dummy_alpha, (nk_f32_t *)&dummy_beta, (nk_u16_t *)x);
-    nk_scale_i32((nk_i32_t *)x, 0, &dummy_alpha, &dummy_beta, (nk_i32_t *)x);
-    nk_scale_u32((nk_u32_t *)x, 0, &dummy_alpha, &dummy_beta, (nk_u32_t *)x);
-    nk_scale_i64((nk_i64_t *)x, 0, &dummy_alpha, &dummy_beta, (nk_i64_t *)x);
-    nk_scale_u64((nk_u64_t *)x, 0, &dummy_alpha, &dummy_beta, (nk_u64_t *)x);
-    nk_scale_e4m3((nk_e4m3_t *)x, 0, (nk_f32_t *)&dummy_alpha, (nk_f32_t *)&dummy_beta, (nk_e4m3_t *)x);
-    nk_scale_e5m2((nk_e5m2_t *)x, 0, (nk_f32_t *)&dummy_alpha, (nk_f32_t *)&dummy_beta, (nk_e5m2_t *)x);
+    nk_each_scale_f64((nk_f64_t *)x, 0, &dummy_alpha, &dummy_beta, (nk_f64_t *)x);
+    nk_each_scale_f32((nk_f32_t *)x, 0, (nk_f32_t *)&dummy_alpha, (nk_f32_t *)&dummy_beta, (nk_f32_t *)x);
+    nk_each_scale_f16((nk_f16_t *)x, 0, (nk_f32_t *)&dummy_alpha, (nk_f32_t *)&dummy_beta, (nk_f16_t *)x);
+    nk_each_scale_bf16((nk_bf16_t *)x, 0, (nk_f32_t *)&dummy_alpha, (nk_f32_t *)&dummy_beta, (nk_bf16_t *)x);
+    nk_each_scale_i8((nk_i8_t *)x, 0, (nk_f32_t *)&dummy_alpha, (nk_f32_t *)&dummy_beta, (nk_i8_t *)x);
+    nk_each_scale_u8((nk_u8_t *)x, 0, (nk_f32_t *)&dummy_alpha, (nk_f32_t *)&dummy_beta, (nk_u8_t *)x);
+    nk_each_scale_i16((nk_i16_t *)x, 0, (nk_f32_t *)&dummy_alpha, (nk_f32_t *)&dummy_beta, (nk_i16_t *)x);
+    nk_each_scale_u16((nk_u16_t *)x, 0, (nk_f32_t *)&dummy_alpha, (nk_f32_t *)&dummy_beta, (nk_u16_t *)x);
+    nk_each_scale_i32((nk_i32_t *)x, 0, &dummy_alpha, &dummy_beta, (nk_i32_t *)x);
+    nk_each_scale_u32((nk_u32_t *)x, 0, &dummy_alpha, &dummy_beta, (nk_u32_t *)x);
+    nk_each_scale_i64((nk_i64_t *)x, 0, &dummy_alpha, &dummy_beta, (nk_i64_t *)x);
+    nk_each_scale_u64((nk_u64_t *)x, 0, &dummy_alpha, &dummy_beta, (nk_u64_t *)x);
+    nk_each_scale_e4m3((nk_e4m3_t *)x, 0, (nk_f32_t *)&dummy_alpha, (nk_f32_t *)&dummy_beta, (nk_e4m3_t *)x);
+    nk_each_scale_e5m2((nk_e5m2_t *)x, 0, (nk_f32_t *)&dummy_alpha, (nk_f32_t *)&dummy_beta, (nk_e5m2_t *)x);
 
     // Sum
-    nk_sum_f64((nk_f64_t *)x, (nk_f64_t *)x, 0, (nk_f64_t *)x);
-    nk_sum_f32((nk_f32_t *)x, (nk_f32_t *)x, 0, (nk_f32_t *)x);
-    nk_sum_f16((nk_f16_t *)x, (nk_f16_t *)x, 0, (nk_f16_t *)x);
-    nk_sum_bf16((nk_bf16_t *)x, (nk_bf16_t *)x, 0, (nk_bf16_t *)x);
-    nk_sum_i8((nk_i8_t *)x, (nk_i8_t *)x, 0, (nk_i8_t *)x);
-    nk_sum_u8((nk_u8_t *)x, (nk_u8_t *)x, 0, (nk_u8_t *)x);
-    nk_sum_i16((nk_i16_t *)x, (nk_i16_t *)x, 0, (nk_i16_t *)x);
-    nk_sum_u16((nk_u16_t *)x, (nk_u16_t *)x, 0, (nk_u16_t *)x);
-    nk_sum_i32((nk_i32_t *)x, (nk_i32_t *)x, 0, (nk_i32_t *)x);
-    nk_sum_u32((nk_u32_t *)x, (nk_u32_t *)x, 0, (nk_u32_t *)x);
-    nk_sum_i64((nk_i64_t *)x, (nk_i64_t *)x, 0, (nk_i64_t *)x);
-    nk_sum_u64((nk_u64_t *)x, (nk_u64_t *)x, 0, (nk_u64_t *)x);
-    nk_sum_e4m3((nk_e4m3_t *)x, (nk_e4m3_t *)x, 0, (nk_e4m3_t *)x);
-    nk_sum_e5m2((nk_e5m2_t *)x, (nk_e5m2_t *)x, 0, (nk_e5m2_t *)x);
+    nk_each_sum_f64((nk_f64_t *)x, (nk_f64_t *)x, 0, (nk_f64_t *)x);
+    nk_each_sum_f32((nk_f32_t *)x, (nk_f32_t *)x, 0, (nk_f32_t *)x);
+    nk_each_sum_f16((nk_f16_t *)x, (nk_f16_t *)x, 0, (nk_f16_t *)x);
+    nk_each_sum_bf16((nk_bf16_t *)x, (nk_bf16_t *)x, 0, (nk_bf16_t *)x);
+    nk_each_sum_i8((nk_i8_t *)x, (nk_i8_t *)x, 0, (nk_i8_t *)x);
+    nk_each_sum_u8((nk_u8_t *)x, (nk_u8_t *)x, 0, (nk_u8_t *)x);
+    nk_each_sum_i16((nk_i16_t *)x, (nk_i16_t *)x, 0, (nk_i16_t *)x);
+    nk_each_sum_u16((nk_u16_t *)x, (nk_u16_t *)x, 0, (nk_u16_t *)x);
+    nk_each_sum_i32((nk_i32_t *)x, (nk_i32_t *)x, 0, (nk_i32_t *)x);
+    nk_each_sum_u32((nk_u32_t *)x, (nk_u32_t *)x, 0, (nk_u32_t *)x);
+    nk_each_sum_i64((nk_i64_t *)x, (nk_i64_t *)x, 0, (nk_i64_t *)x);
+    nk_each_sum_u64((nk_u64_t *)x, (nk_u64_t *)x, 0, (nk_u64_t *)x);
+    nk_each_sum_e4m3((nk_e4m3_t *)x, (nk_e4m3_t *)x, 0, (nk_e4m3_t *)x);
+    nk_each_sum_e5m2((nk_e5m2_t *)x, (nk_e5m2_t *)x, 0, (nk_e5m2_t *)x);
 
-    // FP8 wsum/fma
-    nk_wsum_e4m3((nk_e4m3_t *)x, (nk_e4m3_t *)x, 0, (nk_f32_t *)&dummy_alpha, (nk_f32_t *)&dummy_beta, (nk_e4m3_t *)x);
-    nk_wsum_e5m2((nk_e5m2_t *)x, (nk_e5m2_t *)x, 0, (nk_f32_t *)&dummy_alpha, (nk_f32_t *)&dummy_beta, (nk_e5m2_t *)x);
-    nk_fma_e4m3((nk_e4m3_t *)x, (nk_e4m3_t *)x, (nk_e4m3_t *)x, 0, (nk_f32_t *)&dummy_alpha, (nk_f32_t *)&dummy_beta,
-                (nk_e4m3_t *)x);
-    nk_fma_e5m2((nk_e5m2_t *)x, (nk_e5m2_t *)x, (nk_e5m2_t *)x, 0, (nk_f32_t *)&dummy_alpha, (nk_f32_t *)&dummy_beta,
-                (nk_e5m2_t *)x);
+    // FP8 blend/fma
+    nk_each_blend_e4m3((nk_e4m3_t *)x, (nk_e4m3_t *)x, 0, (nk_f32_t *)&dummy_alpha, (nk_f32_t *)&dummy_beta,
+                       (nk_e4m3_t *)x);
+    nk_each_blend_e5m2((nk_e5m2_t *)x, (nk_e5m2_t *)x, 0, (nk_f32_t *)&dummy_alpha, (nk_f32_t *)&dummy_beta,
+                       (nk_e5m2_t *)x);
+    nk_each_fma_e4m3((nk_e4m3_t *)x, (nk_e4m3_t *)x, (nk_e4m3_t *)x, 0, (nk_f32_t *)&dummy_alpha,
+                     (nk_f32_t *)&dummy_beta, (nk_e4m3_t *)x);
+    nk_each_fma_e5m2((nk_e5m2_t *)x, (nk_e5m2_t *)x, (nk_e5m2_t *)x, 0, (nk_f32_t *)&dummy_alpha,
+                     (nk_f32_t *)&dummy_beta, (nk_e5m2_t *)x);
 
     // Reduce add
     nk_reduce_add_f32((nk_f32_t *)x, 0, 0, (nk_f64_t *)x);

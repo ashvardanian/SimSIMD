@@ -1,6 +1,6 @@
 /**
  *  @brief SIMD-accelerated mixed-precision element-wise operations.
- *  @file include/numkong/elementwise.h
+ *  @file include/numkong/each.h
  *  @author Ash Vardanian
  *  @date October 16, 2024
  *
@@ -69,8 +69,8 @@
  *  - Arm intrinsics: https://developer.arm.com/architectures/instruction-sets/intrinsics/
  *
  */
-#ifndef NK_ELEMENTWISE_H
-#define NK_ELEMENTWISE_H
+#ifndef NK_EACH_H
+#define NK_EACH_H
 
 #include "numkong/types.h"
 
@@ -87,41 +87,41 @@ extern "C" {
  *  @param[in] beta Pointer to the shift (bias) value (type depends on input precision).
  *  @param[out] result The output vector.
  */
-NK_DYNAMIC void nk_scale_f64(nk_f64_t const *a, nk_size_t n, nk_f64_t const *alpha, nk_f64_t const *beta,
-                             nk_f64_t *result);
-/** @copydoc nk_scale_f64 */
-NK_DYNAMIC void nk_scale_f32(nk_f32_t const *a, nk_size_t n, nk_f32_t const *alpha, nk_f32_t const *beta,
-                             nk_f32_t *result);
-/** @copydoc nk_scale_f64 */
-NK_DYNAMIC void nk_scale_f16(nk_f16_t const *a, nk_size_t n, nk_f32_t const *alpha, nk_f32_t const *beta,
-                             nk_f16_t *result);
-/** @copydoc nk_scale_f64 */
-NK_DYNAMIC void nk_scale_bf16(nk_bf16_t const *a, nk_size_t n, nk_f32_t const *alpha, nk_f32_t const *beta,
-                              nk_bf16_t *result);
-/** @copydoc nk_scale_f64 */
-NK_DYNAMIC void nk_scale_i8(nk_i8_t const *a, nk_size_t n, nk_f32_t const *alpha, nk_f32_t const *beta,
-                            nk_i8_t *result);
-/** @copydoc nk_scale_f64 */
-NK_DYNAMIC void nk_scale_u8(nk_u8_t const *a, nk_size_t n, nk_f32_t const *alpha, nk_f32_t const *beta,
-                            nk_u8_t *result);
-/** @copydoc nk_scale_f64 */
-NK_DYNAMIC void nk_scale_i16(nk_i16_t const *a, nk_size_t n, nk_f32_t const *alpha, nk_f32_t const *beta,
-                             nk_i16_t *result);
-/** @copydoc nk_scale_f64 */
-NK_DYNAMIC void nk_scale_u16(nk_u16_t const *a, nk_size_t n, nk_f32_t const *alpha, nk_f32_t const *beta,
-                             nk_u16_t *result);
-/** @copydoc nk_scale_f64 */
-NK_DYNAMIC void nk_scale_i32(nk_i32_t const *a, nk_size_t n, nk_f64_t const *alpha, nk_f64_t const *beta,
-                             nk_i32_t *result);
-/** @copydoc nk_scale_f64 */
-NK_DYNAMIC void nk_scale_u32(nk_u32_t const *a, nk_size_t n, nk_f64_t const *alpha, nk_f64_t const *beta,
-                             nk_u32_t *result);
-/** @copydoc nk_scale_f64 */
-NK_DYNAMIC void nk_scale_i64(nk_i64_t const *a, nk_size_t n, nk_f64_t const *alpha, nk_f64_t const *beta,
-                             nk_i64_t *result);
-/** @copydoc nk_scale_f64 */
-NK_DYNAMIC void nk_scale_u64(nk_u64_t const *a, nk_size_t n, nk_f64_t const *alpha, nk_f64_t const *beta,
-                             nk_u64_t *result);
+NK_DYNAMIC void nk_each_scale_f64(nk_f64_t const *a, nk_size_t n, nk_f64_t const *alpha, nk_f64_t const *beta,
+                                  nk_f64_t *result);
+/** @copydoc nk_each_scale_f64 */
+NK_DYNAMIC void nk_each_scale_f32(nk_f32_t const *a, nk_size_t n, nk_f32_t const *alpha, nk_f32_t const *beta,
+                                  nk_f32_t *result);
+/** @copydoc nk_each_scale_f64 */
+NK_DYNAMIC void nk_each_scale_f16(nk_f16_t const *a, nk_size_t n, nk_f32_t const *alpha, nk_f32_t const *beta,
+                                  nk_f16_t *result);
+/** @copydoc nk_each_scale_f64 */
+NK_DYNAMIC void nk_each_scale_bf16(nk_bf16_t const *a, nk_size_t n, nk_f32_t const *alpha, nk_f32_t const *beta,
+                                   nk_bf16_t *result);
+/** @copydoc nk_each_scale_f64 */
+NK_DYNAMIC void nk_each_scale_i8(nk_i8_t const *a, nk_size_t n, nk_f32_t const *alpha, nk_f32_t const *beta,
+                                 nk_i8_t *result);
+/** @copydoc nk_each_scale_f64 */
+NK_DYNAMIC void nk_each_scale_u8(nk_u8_t const *a, nk_size_t n, nk_f32_t const *alpha, nk_f32_t const *beta,
+                                 nk_u8_t *result);
+/** @copydoc nk_each_scale_f64 */
+NK_DYNAMIC void nk_each_scale_i16(nk_i16_t const *a, nk_size_t n, nk_f32_t const *alpha, nk_f32_t const *beta,
+                                  nk_i16_t *result);
+/** @copydoc nk_each_scale_f64 */
+NK_DYNAMIC void nk_each_scale_u16(nk_u16_t const *a, nk_size_t n, nk_f32_t const *alpha, nk_f32_t const *beta,
+                                  nk_u16_t *result);
+/** @copydoc nk_each_scale_f64 */
+NK_DYNAMIC void nk_each_scale_i32(nk_i32_t const *a, nk_size_t n, nk_f64_t const *alpha, nk_f64_t const *beta,
+                                  nk_i32_t *result);
+/** @copydoc nk_each_scale_f64 */
+NK_DYNAMIC void nk_each_scale_u32(nk_u32_t const *a, nk_size_t n, nk_f64_t const *alpha, nk_f64_t const *beta,
+                                  nk_u32_t *result);
+/** @copydoc nk_each_scale_f64 */
+NK_DYNAMIC void nk_each_scale_i64(nk_i64_t const *a, nk_size_t n, nk_f64_t const *alpha, nk_f64_t const *beta,
+                                  nk_i64_t *result);
+/** @copydoc nk_each_scale_f64 */
+NK_DYNAMIC void nk_each_scale_u64(nk_u64_t const *a, nk_size_t n, nk_f64_t const *alpha, nk_f64_t const *beta,
+                                  nk_u64_t *result);
 
 /**
  *  @brief Element-wise sum: result[i] = a[i] + b[i].
@@ -131,29 +131,29 @@ NK_DYNAMIC void nk_scale_u64(nk_u64_t const *a, nk_size_t n, nk_f64_t const *alp
  *  @param[in] n The number of elements in the vectors.
  *  @param[out] result The output vector.
  */
-NK_DYNAMIC void nk_sum_f64(nk_f64_t const *a, nk_f64_t const *b, nk_size_t n, nk_f64_t *result);
-/** @copydoc nk_sum_f64 */
-NK_DYNAMIC void nk_sum_f32(nk_f32_t const *a, nk_f32_t const *b, nk_size_t n, nk_f32_t *result);
-/** @copydoc nk_sum_f64 */
-NK_DYNAMIC void nk_sum_f16(nk_f16_t const *a, nk_f16_t const *b, nk_size_t n, nk_f16_t *result);
-/** @copydoc nk_sum_f64 */
-NK_DYNAMIC void nk_sum_bf16(nk_bf16_t const *a, nk_bf16_t const *b, nk_size_t n, nk_bf16_t *result);
-/** @copydoc nk_sum_f64 */
-NK_DYNAMIC void nk_sum_i8(nk_i8_t const *a, nk_i8_t const *b, nk_size_t n, nk_i8_t *result);
-/** @copydoc nk_sum_f64 */
-NK_DYNAMIC void nk_sum_u8(nk_u8_t const *a, nk_u8_t const *b, nk_size_t n, nk_u8_t *result);
-/** @copydoc nk_sum_f64 */
-NK_DYNAMIC void nk_sum_i16(nk_i16_t const *a, nk_i16_t const *b, nk_size_t n, nk_i16_t *result);
-/** @copydoc nk_sum_f64 */
-NK_DYNAMIC void nk_sum_u16(nk_u16_t const *a, nk_u16_t const *b, nk_size_t n, nk_u16_t *result);
-/** @copydoc nk_sum_f64 */
-NK_DYNAMIC void nk_sum_i32(nk_i32_t const *a, nk_i32_t const *b, nk_size_t n, nk_i32_t *result);
-/** @copydoc nk_sum_f64 */
-NK_DYNAMIC void nk_sum_u32(nk_u32_t const *a, nk_u32_t const *b, nk_size_t n, nk_u32_t *result);
-/** @copydoc nk_sum_f64 */
-NK_DYNAMIC void nk_sum_i64(nk_i64_t const *a, nk_i64_t const *b, nk_size_t n, nk_i64_t *result);
-/** @copydoc nk_sum_f64 */
-NK_DYNAMIC void nk_sum_u64(nk_u64_t const *a, nk_u64_t const *b, nk_size_t n, nk_u64_t *result);
+NK_DYNAMIC void nk_each_sum_f64(nk_f64_t const *a, nk_f64_t const *b, nk_size_t n, nk_f64_t *result);
+/** @copydoc nk_each_sum_f64 */
+NK_DYNAMIC void nk_each_sum_f32(nk_f32_t const *a, nk_f32_t const *b, nk_size_t n, nk_f32_t *result);
+/** @copydoc nk_each_sum_f64 */
+NK_DYNAMIC void nk_each_sum_f16(nk_f16_t const *a, nk_f16_t const *b, nk_size_t n, nk_f16_t *result);
+/** @copydoc nk_each_sum_f64 */
+NK_DYNAMIC void nk_each_sum_bf16(nk_bf16_t const *a, nk_bf16_t const *b, nk_size_t n, nk_bf16_t *result);
+/** @copydoc nk_each_sum_f64 */
+NK_DYNAMIC void nk_each_sum_i8(nk_i8_t const *a, nk_i8_t const *b, nk_size_t n, nk_i8_t *result);
+/** @copydoc nk_each_sum_f64 */
+NK_DYNAMIC void nk_each_sum_u8(nk_u8_t const *a, nk_u8_t const *b, nk_size_t n, nk_u8_t *result);
+/** @copydoc nk_each_sum_f64 */
+NK_DYNAMIC void nk_each_sum_i16(nk_i16_t const *a, nk_i16_t const *b, nk_size_t n, nk_i16_t *result);
+/** @copydoc nk_each_sum_f64 */
+NK_DYNAMIC void nk_each_sum_u16(nk_u16_t const *a, nk_u16_t const *b, nk_size_t n, nk_u16_t *result);
+/** @copydoc nk_each_sum_f64 */
+NK_DYNAMIC void nk_each_sum_i32(nk_i32_t const *a, nk_i32_t const *b, nk_size_t n, nk_i32_t *result);
+/** @copydoc nk_each_sum_f64 */
+NK_DYNAMIC void nk_each_sum_u32(nk_u32_t const *a, nk_u32_t const *b, nk_size_t n, nk_u32_t *result);
+/** @copydoc nk_each_sum_f64 */
+NK_DYNAMIC void nk_each_sum_i64(nk_i64_t const *a, nk_i64_t const *b, nk_size_t n, nk_i64_t *result);
+/** @copydoc nk_each_sum_f64 */
+NK_DYNAMIC void nk_each_sum_u64(nk_u64_t const *a, nk_u64_t const *b, nk_size_t n, nk_u64_t *result);
 
 /**
  *  @brief Weighted sum: result[i] = alpha * a[i] + beta * b[i].
@@ -165,23 +165,23 @@ NK_DYNAMIC void nk_sum_u64(nk_u64_t const *a, nk_u64_t const *b, nk_size_t n, nk
  *  @param[in] beta Pointer to the second weight (type depends on input precision).
  *  @param[out] result The output vector.
  */
-NK_DYNAMIC void nk_wsum_f64(nk_f64_t const *a, nk_f64_t const *b, nk_size_t n, nk_f64_t const *alpha,
-                            nk_f64_t const *beta, nk_f64_t *result);
-/** @copydoc nk_wsum_f64 */
-NK_DYNAMIC void nk_wsum_f32(nk_f32_t const *a, nk_f32_t const *b, nk_size_t n, nk_f32_t const *alpha,
-                            nk_f32_t const *beta, nk_f32_t *result);
-/** @copydoc nk_wsum_f64 */
-NK_DYNAMIC void nk_wsum_f16(nk_f16_t const *a, nk_f16_t const *b, nk_size_t n, nk_f32_t const *alpha,
-                            nk_f32_t const *beta, nk_f16_t *result);
-/** @copydoc nk_wsum_f64 */
-NK_DYNAMIC void nk_wsum_bf16(nk_bf16_t const *a, nk_bf16_t const *b, nk_size_t n, nk_f32_t const *alpha,
-                             nk_f32_t const *beta, nk_bf16_t *result);
-/** @copydoc nk_wsum_f64 */
-NK_DYNAMIC void nk_wsum_i8(nk_i8_t const *a, nk_i8_t const *b, nk_size_t n, nk_f32_t const *alpha, nk_f32_t const *beta,
-                           nk_i8_t *result);
-/** @copydoc nk_wsum_f64 */
-NK_DYNAMIC void nk_wsum_u8(nk_u8_t const *a, nk_u8_t const *b, nk_size_t n, nk_f32_t const *alpha, nk_f32_t const *beta,
-                           nk_u8_t *result);
+NK_DYNAMIC void nk_each_blend_f64(nk_f64_t const *a, nk_f64_t const *b, nk_size_t n, nk_f64_t const *alpha,
+                                  nk_f64_t const *beta, nk_f64_t *result);
+/** @copydoc nk_each_blend_f64 */
+NK_DYNAMIC void nk_each_blend_f32(nk_f32_t const *a, nk_f32_t const *b, nk_size_t n, nk_f32_t const *alpha,
+                                  nk_f32_t const *beta, nk_f32_t *result);
+/** @copydoc nk_each_blend_f64 */
+NK_DYNAMIC void nk_each_blend_f16(nk_f16_t const *a, nk_f16_t const *b, nk_size_t n, nk_f32_t const *alpha,
+                                  nk_f32_t const *beta, nk_f16_t *result);
+/** @copydoc nk_each_blend_f64 */
+NK_DYNAMIC void nk_each_blend_bf16(nk_bf16_t const *a, nk_bf16_t const *b, nk_size_t n, nk_f32_t const *alpha,
+                                   nk_f32_t const *beta, nk_bf16_t *result);
+/** @copydoc nk_each_blend_f64 */
+NK_DYNAMIC void nk_each_blend_i8(nk_i8_t const *a, nk_i8_t const *b, nk_size_t n, nk_f32_t const *alpha,
+                                 nk_f32_t const *beta, nk_i8_t *result);
+/** @copydoc nk_each_blend_f64 */
+NK_DYNAMIC void nk_each_blend_u8(nk_u8_t const *a, nk_u8_t const *b, nk_size_t n, nk_f32_t const *alpha,
+                                 nk_f32_t const *beta, nk_u8_t *result);
 
 /**
  *  @brief Fused multiply-add: result[i] = alpha * a[i] * b[i] + beta * c[i].
@@ -194,648 +194,648 @@ NK_DYNAMIC void nk_wsum_u8(nk_u8_t const *a, nk_u8_t const *b, nk_size_t n, nk_f
  *  @param[in] beta Pointer to the scaling factor for c[i] (type depends on input precision).
  *  @param[out] result The output vector.
  */
-NK_DYNAMIC void nk_fma_f64(nk_f64_t const *a, nk_f64_t const *b, nk_f64_t const *c, nk_size_t n, nk_f64_t const *alpha,
-                           nk_f64_t const *beta, nk_f64_t *result);
-/** @copydoc nk_fma_f64 */
-NK_DYNAMIC void nk_fma_f32(nk_f32_t const *a, nk_f32_t const *b, nk_f32_t const *c, nk_size_t n, nk_f32_t const *alpha,
-                           nk_f32_t const *beta, nk_f32_t *result);
-/** @copydoc nk_fma_f64 */
-NK_DYNAMIC void nk_fma_f16(nk_f16_t const *a, nk_f16_t const *b, nk_f16_t const *c, nk_size_t n, nk_f32_t const *alpha,
-                           nk_f32_t const *beta, nk_f16_t *result);
-/** @copydoc nk_fma_f64 */
-NK_DYNAMIC void nk_fma_bf16(nk_bf16_t const *a, nk_bf16_t const *b, nk_bf16_t const *c, nk_size_t n,
-                            nk_f32_t const *alpha, nk_f32_t const *beta, nk_bf16_t *result);
-/** @copydoc nk_fma_f64 */
-NK_DYNAMIC void nk_fma_i8(nk_i8_t const *a, nk_i8_t const *b, nk_i8_t const *c, nk_size_t n, nk_f32_t const *alpha,
-                          nk_f32_t const *beta, nk_i8_t *result);
-/** @copydoc nk_fma_f64 */
-NK_DYNAMIC void nk_fma_u8(nk_u8_t const *a, nk_u8_t const *b, nk_u8_t const *c, nk_size_t n, nk_f32_t const *alpha,
-                          nk_f32_t const *beta, nk_u8_t *result);
-/** @copydoc nk_fma_f64 */
-NK_DYNAMIC void nk_fma_i16(nk_i16_t const *a, nk_i16_t const *b, nk_i16_t const *c, nk_size_t n, nk_f32_t const *alpha,
-                           nk_f32_t const *beta, nk_i16_t *result);
+NK_DYNAMIC void nk_each_fma_f64(nk_f64_t const *a, nk_f64_t const *b, nk_f64_t const *c, nk_size_t n,
+                                nk_f64_t const *alpha, nk_f64_t const *beta, nk_f64_t *result);
+/** @copydoc nk_each_fma_f64 */
+NK_DYNAMIC void nk_each_fma_f32(nk_f32_t const *a, nk_f32_t const *b, nk_f32_t const *c, nk_size_t n,
+                                nk_f32_t const *alpha, nk_f32_t const *beta, nk_f32_t *result);
+/** @copydoc nk_each_fma_f64 */
+NK_DYNAMIC void nk_each_fma_f16(nk_f16_t const *a, nk_f16_t const *b, nk_f16_t const *c, nk_size_t n,
+                                nk_f32_t const *alpha, nk_f32_t const *beta, nk_f16_t *result);
+/** @copydoc nk_each_fma_f64 */
+NK_DYNAMIC void nk_each_fma_bf16(nk_bf16_t const *a, nk_bf16_t const *b, nk_bf16_t const *c, nk_size_t n,
+                                 nk_f32_t const *alpha, nk_f32_t const *beta, nk_bf16_t *result);
+/** @copydoc nk_each_fma_f64 */
+NK_DYNAMIC void nk_each_fma_i8(nk_i8_t const *a, nk_i8_t const *b, nk_i8_t const *c, nk_size_t n, nk_f32_t const *alpha,
+                               nk_f32_t const *beta, nk_i8_t *result);
+/** @copydoc nk_each_fma_f64 */
+NK_DYNAMIC void nk_each_fma_u8(nk_u8_t const *a, nk_u8_t const *b, nk_u8_t const *c, nk_size_t n, nk_f32_t const *alpha,
+                               nk_f32_t const *beta, nk_u8_t *result);
+/** @copydoc nk_each_fma_f64 */
+NK_DYNAMIC void nk_each_fma_i16(nk_i16_t const *a, nk_i16_t const *b, nk_i16_t const *c, nk_size_t n,
+                                nk_f32_t const *alpha, nk_f32_t const *beta, nk_i16_t *result);
 
-/** @copydoc nk_sum_f64 */
-NK_DYNAMIC void nk_sum_e4m3(nk_e4m3_t const *a, nk_e4m3_t const *b, nk_size_t n, nk_e4m3_t *result);
-/** @copydoc nk_sum_f64 */
-NK_DYNAMIC void nk_sum_e5m2(nk_e5m2_t const *a, nk_e5m2_t const *b, nk_size_t n, nk_e5m2_t *result);
-/** @copydoc nk_scale_f64 */
-NK_DYNAMIC void nk_scale_e4m3(nk_e4m3_t const *a, nk_size_t n, nk_f32_t const *alpha, nk_f32_t const *beta,
-                              nk_e4m3_t *result);
-/** @copydoc nk_scale_f64 */
-NK_DYNAMIC void nk_scale_e5m2(nk_e5m2_t const *a, nk_size_t n, nk_f32_t const *alpha, nk_f32_t const *beta,
-                              nk_e5m2_t *result);
-/** @copydoc nk_wsum_f64 */
-NK_DYNAMIC void nk_wsum_e4m3(nk_e4m3_t const *a, nk_e4m3_t const *b, nk_size_t n, nk_f32_t const *alpha,
-                             nk_f32_t const *beta, nk_e4m3_t *result);
-/** @copydoc nk_wsum_f64 */
-NK_DYNAMIC void nk_wsum_e5m2(nk_e5m2_t const *a, nk_e5m2_t const *b, nk_size_t n, nk_f32_t const *alpha,
-                             nk_f32_t const *beta, nk_e5m2_t *result);
-/** @copydoc nk_fma_f64 */
-NK_DYNAMIC void nk_fma_e4m3(nk_e4m3_t const *a, nk_e4m3_t const *b, nk_e4m3_t const *c, nk_size_t n,
-                            nk_f32_t const *alpha, nk_f32_t const *beta, nk_e4m3_t *result);
-/** @copydoc nk_fma_f64 */
-NK_DYNAMIC void nk_fma_e5m2(nk_e5m2_t const *a, nk_e5m2_t const *b, nk_e5m2_t const *c, nk_size_t n,
-                            nk_f32_t const *alpha, nk_f32_t const *beta, nk_e5m2_t *result);
-/** @copydoc nk_fma_f64 */
-NK_DYNAMIC void nk_fma_u16(nk_u16_t const *a, nk_u16_t const *b, nk_u16_t const *c, nk_size_t n, nk_f32_t const *alpha,
-                           nk_f32_t const *beta, nk_u16_t *result);
-/** @copydoc nk_fma_f64 */
-NK_DYNAMIC void nk_fma_i32(nk_i32_t const *a, nk_i32_t const *b, nk_i32_t const *c, nk_size_t n, nk_f64_t const *alpha,
-                           nk_f64_t const *beta, nk_i32_t *result);
-/** @copydoc nk_fma_f64 */
-NK_DYNAMIC void nk_fma_u32(nk_u32_t const *a, nk_u32_t const *b, nk_u32_t const *c, nk_size_t n, nk_f64_t const *alpha,
-                           nk_f64_t const *beta, nk_u32_t *result);
-/** @copydoc nk_fma_f64 */
-NK_DYNAMIC void nk_fma_i64(nk_i64_t const *a, nk_i64_t const *b, nk_i64_t const *c, nk_size_t n, nk_f64_t const *alpha,
-                           nk_f64_t const *beta, nk_i64_t *result);
-/** @copydoc nk_fma_f64 */
-NK_DYNAMIC void nk_fma_u64(nk_u64_t const *a, nk_u64_t const *b, nk_u64_t const *c, nk_size_t n, nk_f64_t const *alpha,
-                           nk_f64_t const *beta, nk_u64_t *result);
-
-/** @copydoc nk_scale_f64 */
-NK_PUBLIC void nk_scale_f64_serial(nk_f64_t const *a, nk_size_t n, nk_f64_t const *alpha, nk_f64_t const *beta,
-                                   nk_f64_t *result);
-/** @copydoc nk_scale_f64 */
-NK_PUBLIC void nk_scale_f32_serial(nk_f32_t const *a, nk_size_t n, nk_f32_t const *alpha, nk_f32_t const *beta,
-                                   nk_f32_t *result);
-/** @copydoc nk_scale_f64 */
-NK_PUBLIC void nk_scale_f16_serial(nk_f16_t const *a, nk_size_t n, nk_f32_t const *alpha, nk_f32_t const *beta,
-                                   nk_f16_t *result);
-/** @copydoc nk_scale_f64 */
-NK_PUBLIC void nk_scale_bf16_serial(nk_bf16_t const *a, nk_size_t n, nk_f32_t const *alpha, nk_f32_t const *beta,
-                                    nk_bf16_t *result);
-/** @copydoc nk_scale_f64 */
-NK_PUBLIC void nk_scale_i8_serial(nk_i8_t const *a, nk_size_t n, nk_f32_t const *alpha, nk_f32_t const *beta,
-                                  nk_i8_t *result);
-/** @copydoc nk_scale_f64 */
-NK_PUBLIC void nk_scale_u8_serial(nk_u8_t const *a, nk_size_t n, nk_f32_t const *alpha, nk_f32_t const *beta,
-                                  nk_u8_t *result);
-/** @copydoc nk_scale_f64 */
-NK_PUBLIC void nk_scale_i16_serial(nk_i16_t const *a, nk_size_t n, nk_f32_t const *alpha, nk_f32_t const *beta,
-                                   nk_i16_t *result);
-/** @copydoc nk_scale_f64 */
-NK_PUBLIC void nk_scale_u16_serial(nk_u16_t const *a, nk_size_t n, nk_f32_t const *alpha, nk_f32_t const *beta,
-                                   nk_u16_t *result);
-/** @copydoc nk_scale_f64 */
-NK_PUBLIC void nk_scale_i32_serial(nk_i32_t const *a, nk_size_t n, nk_f64_t const *alpha, nk_f64_t const *beta,
-                                   nk_i32_t *result);
-/** @copydoc nk_scale_f64 */
-NK_PUBLIC void nk_scale_u32_serial(nk_u32_t const *a, nk_size_t n, nk_f64_t const *alpha, nk_f64_t const *beta,
-                                   nk_u32_t *result);
-/** @copydoc nk_scale_f64 */
-NK_PUBLIC void nk_scale_i64_serial(nk_i64_t const *a, nk_size_t n, nk_f64_t const *alpha, nk_f64_t const *beta,
-                                   nk_i64_t *result);
-/** @copydoc nk_scale_f64 */
-NK_PUBLIC void nk_scale_u64_serial(nk_u64_t const *a, nk_size_t n, nk_f64_t const *alpha, nk_f64_t const *beta,
-                                   nk_u64_t *result);
-
-/** @copydoc nk_sum_f64 */
-NK_PUBLIC void nk_sum_f64_serial(nk_f64_t const *a, nk_f64_t const *b, nk_size_t n, nk_f64_t *result);
-/** @copydoc nk_sum_f64 */
-NK_PUBLIC void nk_sum_f32_serial(nk_f32_t const *a, nk_f32_t const *b, nk_size_t n, nk_f32_t *result);
-/** @copydoc nk_sum_f64 */
-NK_PUBLIC void nk_sum_f16_serial(nk_f16_t const *a, nk_f16_t const *b, nk_size_t n, nk_f16_t *result);
-/** @copydoc nk_sum_f64 */
-NK_PUBLIC void nk_sum_bf16_serial(nk_bf16_t const *a, nk_bf16_t const *b, nk_size_t n, nk_bf16_t *result);
-/** @copydoc nk_sum_f64 */
-NK_PUBLIC void nk_sum_i8_serial(nk_i8_t const *a, nk_i8_t const *b, nk_size_t n, nk_i8_t *result);
-/** @copydoc nk_sum_f64 */
-NK_PUBLIC void nk_sum_u8_serial(nk_u8_t const *a, nk_u8_t const *b, nk_size_t n, nk_u8_t *result);
-/** @copydoc nk_sum_f64 */
-NK_PUBLIC void nk_sum_i16_serial(nk_i16_t const *a, nk_i16_t const *b, nk_size_t n, nk_i16_t *result);
-/** @copydoc nk_sum_f64 */
-NK_PUBLIC void nk_sum_u16_serial(nk_u16_t const *a, nk_u16_t const *b, nk_size_t n, nk_u16_t *result);
-/** @copydoc nk_sum_f64 */
-NK_PUBLIC void nk_sum_i32_serial(nk_i32_t const *a, nk_i32_t const *b, nk_size_t n, nk_i32_t *result);
-/** @copydoc nk_sum_f64 */
-NK_PUBLIC void nk_sum_u32_serial(nk_u32_t const *a, nk_u32_t const *b, nk_size_t n, nk_u32_t *result);
-/** @copydoc nk_sum_f64 */
-NK_PUBLIC void nk_sum_i64_serial(nk_i64_t const *a, nk_i64_t const *b, nk_size_t n, nk_i64_t *result);
-/** @copydoc nk_sum_f64 */
-NK_PUBLIC void nk_sum_u64_serial(nk_u64_t const *a, nk_u64_t const *b, nk_size_t n, nk_u64_t *result);
-
-/** @copydoc nk_wsum_f64 */
-NK_PUBLIC void nk_wsum_f64_serial(nk_f64_t const *a, nk_f64_t const *b, nk_size_t n, nk_f64_t const *alpha,
-                                  nk_f64_t const *beta, nk_f64_t *result);
-/** @copydoc nk_wsum_f64 */
-NK_PUBLIC void nk_wsum_f32_serial(nk_f32_t const *a, nk_f32_t const *b, nk_size_t n, nk_f32_t const *alpha,
-                                  nk_f32_t const *beta, nk_f32_t *result);
-/** @copydoc nk_wsum_f64 */
-NK_PUBLIC void nk_wsum_f16_serial(nk_f16_t const *a, nk_f16_t const *b, nk_size_t n, nk_f32_t const *alpha,
-                                  nk_f32_t const *beta, nk_f16_t *result);
-/** @copydoc nk_wsum_f64 */
-NK_PUBLIC void nk_wsum_bf16_serial(nk_bf16_t const *a, nk_bf16_t const *b, nk_size_t n, nk_f32_t const *alpha,
-                                   nk_f32_t const *beta, nk_bf16_t *result);
-/** @copydoc nk_wsum_f64 */
-NK_PUBLIC void nk_wsum_i8_serial(nk_i8_t const *a, nk_i8_t const *b, nk_size_t n, nk_f32_t const *alpha,
-                                 nk_f32_t const *beta, nk_i8_t *result);
-/** @copydoc nk_wsum_f64 */
-NK_PUBLIC void nk_wsum_u8_serial(nk_u8_t const *a, nk_u8_t const *b, nk_size_t n, nk_f32_t const *alpha,
-                                 nk_f32_t const *beta, nk_u8_t *result);
-/** @copydoc nk_wsum_f64 */
-NK_PUBLIC void nk_wsum_i16_serial(nk_i16_t const *a, nk_i16_t const *b, nk_size_t n, nk_f32_t const *alpha,
-                                  nk_f32_t const *beta, nk_i16_t *result);
-/** @copydoc nk_wsum_f64 */
-NK_PUBLIC void nk_wsum_u16_serial(nk_u16_t const *a, nk_u16_t const *b, nk_size_t n, nk_f32_t const *alpha,
-                                  nk_f32_t const *beta, nk_u16_t *result);
-/** @copydoc nk_wsum_f64 */
-NK_PUBLIC void nk_wsum_i32_serial(nk_i32_t const *a, nk_i32_t const *b, nk_size_t n, nk_f64_t const *alpha,
-                                  nk_f64_t const *beta, nk_i32_t *result);
-/** @copydoc nk_wsum_f64 */
-NK_PUBLIC void nk_wsum_u32_serial(nk_u32_t const *a, nk_u32_t const *b, nk_size_t n, nk_f64_t const *alpha,
-                                  nk_f64_t const *beta, nk_u32_t *result);
-/** @copydoc nk_wsum_f64 */
-NK_PUBLIC void nk_wsum_i64_serial(nk_i64_t const *a, nk_i64_t const *b, nk_size_t n, nk_f64_t const *alpha,
-                                  nk_f64_t const *beta, nk_i64_t *result);
-/** @copydoc nk_wsum_f64 */
-NK_PUBLIC void nk_wsum_u64_serial(nk_u64_t const *a, nk_u64_t const *b, nk_size_t n, nk_f64_t const *alpha,
-                                  nk_f64_t const *beta, nk_u64_t *result);
-
-/** @copydoc nk_fma_f64 */
-NK_PUBLIC void nk_fma_f64_serial(nk_f64_t const *a, nk_f64_t const *b, nk_f64_t const *c, nk_size_t n,
-                                 nk_f64_t const *alpha, nk_f64_t const *beta, nk_f64_t *result);
-/** @copydoc nk_fma_f64 */
-NK_PUBLIC void nk_fma_f32_serial(nk_f32_t const *a, nk_f32_t const *b, nk_f32_t const *c, nk_size_t n,
-                                 nk_f32_t const *alpha, nk_f32_t const *beta, nk_f32_t *result);
-/** @copydoc nk_fma_f64 */
-NK_PUBLIC void nk_fma_f16_serial(nk_f16_t const *a, nk_f16_t const *b, nk_f16_t const *c, nk_size_t n,
-                                 nk_f32_t const *alpha, nk_f32_t const *beta, nk_f16_t *result);
-/** @copydoc nk_fma_f64 */
-NK_PUBLIC void nk_fma_bf16_serial(nk_bf16_t const *a, nk_bf16_t const *b, nk_bf16_t const *c, nk_size_t n,
-                                  nk_f32_t const *alpha, nk_f32_t const *beta, nk_bf16_t *result);
-/** @copydoc nk_fma_f64 */
-NK_PUBLIC void nk_fma_i8_serial(nk_i8_t const *a, nk_i8_t const *b, nk_i8_t const *c, nk_size_t n,
-                                nk_f32_t const *alpha, nk_f32_t const *beta, nk_i8_t *result);
-/** @copydoc nk_fma_f64 */
-NK_PUBLIC void nk_fma_u8_serial(nk_u8_t const *a, nk_u8_t const *b, nk_u8_t const *c, nk_size_t n,
-                                nk_f32_t const *alpha, nk_f32_t const *beta, nk_u8_t *result);
-/** @copydoc nk_fma_f64 */
-NK_PUBLIC void nk_fma_i16_serial(nk_i16_t const *a, nk_i16_t const *b, nk_i16_t const *c, nk_size_t n,
-                                 nk_f32_t const *alpha, nk_f32_t const *beta, nk_i16_t *result);
-/** @copydoc nk_fma_f64 */
-NK_PUBLIC void nk_fma_u16_serial(nk_u16_t const *a, nk_u16_t const *b, nk_u16_t const *c, nk_size_t n,
-                                 nk_f32_t const *alpha, nk_f32_t const *beta, nk_u16_t *result);
-/** @copydoc nk_fma_f64 */
-NK_PUBLIC void nk_fma_i32_serial(nk_i32_t const *a, nk_i32_t const *b, nk_i32_t const *c, nk_size_t n,
-                                 nk_f64_t const *alpha, nk_f64_t const *beta, nk_i32_t *result);
-/** @copydoc nk_fma_f64 */
-NK_PUBLIC void nk_fma_u32_serial(nk_u32_t const *a, nk_u32_t const *b, nk_u32_t const *c, nk_size_t n,
-                                 nk_f64_t const *alpha, nk_f64_t const *beta, nk_u32_t *result);
-/** @copydoc nk_fma_f64 */
-NK_PUBLIC void nk_fma_i64_serial(nk_i64_t const *a, nk_i64_t const *b, nk_i64_t const *c, nk_size_t n,
-                                 nk_f64_t const *alpha, nk_f64_t const *beta, nk_i64_t *result);
-/** @copydoc nk_fma_f64 */
-NK_PUBLIC void nk_fma_u64_serial(nk_u64_t const *a, nk_u64_t const *b, nk_u64_t const *c, nk_size_t n,
-                                 nk_f64_t const *alpha, nk_f64_t const *beta, nk_u64_t *result);
-
-/** @copydoc nk_sum_e4m3 */
-NK_PUBLIC void nk_sum_e4m3_serial(nk_e4m3_t const *a, nk_e4m3_t const *b, nk_size_t n, nk_e4m3_t *result);
-/** @copydoc nk_sum_e5m2 */
-NK_PUBLIC void nk_sum_e5m2_serial(nk_e5m2_t const *a, nk_e5m2_t const *b, nk_size_t n, nk_e5m2_t *result);
-/** @copydoc nk_scale_e4m3 */
-NK_PUBLIC void nk_scale_e4m3_serial(nk_e4m3_t const *a, nk_size_t n, nk_f32_t const *alpha, nk_f32_t const *beta,
-                                    nk_e4m3_t *result);
-/** @copydoc nk_scale_e5m2 */
-NK_PUBLIC void nk_scale_e5m2_serial(nk_e5m2_t const *a, nk_size_t n, nk_f32_t const *alpha, nk_f32_t const *beta,
-                                    nk_e5m2_t *result);
-/** @copydoc nk_wsum_e4m3 */
-NK_PUBLIC void nk_wsum_e4m3_serial(nk_e4m3_t const *a, nk_e4m3_t const *b, nk_size_t n, nk_f32_t const *alpha,
+/** @copydoc nk_each_sum_f64 */
+NK_DYNAMIC void nk_each_sum_e4m3(nk_e4m3_t const *a, nk_e4m3_t const *b, nk_size_t n, nk_e4m3_t *result);
+/** @copydoc nk_each_sum_f64 */
+NK_DYNAMIC void nk_each_sum_e5m2(nk_e5m2_t const *a, nk_e5m2_t const *b, nk_size_t n, nk_e5m2_t *result);
+/** @copydoc nk_each_scale_f64 */
+NK_DYNAMIC void nk_each_scale_e4m3(nk_e4m3_t const *a, nk_size_t n, nk_f32_t const *alpha, nk_f32_t const *beta,
+                                   nk_e4m3_t *result);
+/** @copydoc nk_each_scale_f64 */
+NK_DYNAMIC void nk_each_scale_e5m2(nk_e5m2_t const *a, nk_size_t n, nk_f32_t const *alpha, nk_f32_t const *beta,
+                                   nk_e5m2_t *result);
+/** @copydoc nk_each_blend_f64 */
+NK_DYNAMIC void nk_each_blend_e4m3(nk_e4m3_t const *a, nk_e4m3_t const *b, nk_size_t n, nk_f32_t const *alpha,
                                    nk_f32_t const *beta, nk_e4m3_t *result);
-/** @copydoc nk_wsum_e5m2 */
-NK_PUBLIC void nk_wsum_e5m2_serial(nk_e5m2_t const *a, nk_e5m2_t const *b, nk_size_t n, nk_f32_t const *alpha,
+/** @copydoc nk_each_blend_f64 */
+NK_DYNAMIC void nk_each_blend_e5m2(nk_e5m2_t const *a, nk_e5m2_t const *b, nk_size_t n, nk_f32_t const *alpha,
                                    nk_f32_t const *beta, nk_e5m2_t *result);
-/** @copydoc nk_fma_e4m3 */
-NK_PUBLIC void nk_fma_e4m3_serial(nk_e4m3_t const *a, nk_e4m3_t const *b, nk_e4m3_t const *c, nk_size_t n,
-                                  nk_f32_t const *alpha, nk_f32_t const *beta, nk_e4m3_t *result);
-/** @copydoc nk_fma_e5m2 */
-NK_PUBLIC void nk_fma_e5m2_serial(nk_e5m2_t const *a, nk_e5m2_t const *b, nk_e5m2_t const *c, nk_size_t n,
-                                  nk_f32_t const *alpha, nk_f32_t const *beta, nk_e5m2_t *result);
+/** @copydoc nk_each_fma_f64 */
+NK_DYNAMIC void nk_each_fma_e4m3(nk_e4m3_t const *a, nk_e4m3_t const *b, nk_e4m3_t const *c, nk_size_t n,
+                                 nk_f32_t const *alpha, nk_f32_t const *beta, nk_e4m3_t *result);
+/** @copydoc nk_each_fma_f64 */
+NK_DYNAMIC void nk_each_fma_e5m2(nk_e5m2_t const *a, nk_e5m2_t const *b, nk_e5m2_t const *c, nk_size_t n,
+                                 nk_f32_t const *alpha, nk_f32_t const *beta, nk_e5m2_t *result);
+/** @copydoc nk_each_fma_f64 */
+NK_DYNAMIC void nk_each_fma_u16(nk_u16_t const *a, nk_u16_t const *b, nk_u16_t const *c, nk_size_t n,
+                                nk_f32_t const *alpha, nk_f32_t const *beta, nk_u16_t *result);
+/** @copydoc nk_each_fma_f64 */
+NK_DYNAMIC void nk_each_fma_i32(nk_i32_t const *a, nk_i32_t const *b, nk_i32_t const *c, nk_size_t n,
+                                nk_f64_t const *alpha, nk_f64_t const *beta, nk_i32_t *result);
+/** @copydoc nk_each_fma_f64 */
+NK_DYNAMIC void nk_each_fma_u32(nk_u32_t const *a, nk_u32_t const *b, nk_u32_t const *c, nk_size_t n,
+                                nk_f64_t const *alpha, nk_f64_t const *beta, nk_u32_t *result);
+/** @copydoc nk_each_fma_f64 */
+NK_DYNAMIC void nk_each_fma_i64(nk_i64_t const *a, nk_i64_t const *b, nk_i64_t const *c, nk_size_t n,
+                                nk_f64_t const *alpha, nk_f64_t const *beta, nk_i64_t *result);
+/** @copydoc nk_each_fma_f64 */
+NK_DYNAMIC void nk_each_fma_u64(nk_u64_t const *a, nk_u64_t const *b, nk_u64_t const *c, nk_size_t n,
+                                nk_f64_t const *alpha, nk_f64_t const *beta, nk_u64_t *result);
+
+/** @copydoc nk_each_scale_f64 */
+NK_PUBLIC void nk_each_scale_f64_serial(nk_f64_t const *a, nk_size_t n, nk_f64_t const *alpha, nk_f64_t const *beta,
+                                        nk_f64_t *result);
+/** @copydoc nk_each_scale_f64 */
+NK_PUBLIC void nk_each_scale_f32_serial(nk_f32_t const *a, nk_size_t n, nk_f32_t const *alpha, nk_f32_t const *beta,
+                                        nk_f32_t *result);
+/** @copydoc nk_each_scale_f64 */
+NK_PUBLIC void nk_each_scale_f16_serial(nk_f16_t const *a, nk_size_t n, nk_f32_t const *alpha, nk_f32_t const *beta,
+                                        nk_f16_t *result);
+/** @copydoc nk_each_scale_f64 */
+NK_PUBLIC void nk_each_scale_bf16_serial(nk_bf16_t const *a, nk_size_t n, nk_f32_t const *alpha, nk_f32_t const *beta,
+                                         nk_bf16_t *result);
+/** @copydoc nk_each_scale_f64 */
+NK_PUBLIC void nk_each_scale_i8_serial(nk_i8_t const *a, nk_size_t n, nk_f32_t const *alpha, nk_f32_t const *beta,
+                                       nk_i8_t *result);
+/** @copydoc nk_each_scale_f64 */
+NK_PUBLIC void nk_each_scale_u8_serial(nk_u8_t const *a, nk_size_t n, nk_f32_t const *alpha, nk_f32_t const *beta,
+                                       nk_u8_t *result);
+/** @copydoc nk_each_scale_f64 */
+NK_PUBLIC void nk_each_scale_i16_serial(nk_i16_t const *a, nk_size_t n, nk_f32_t const *alpha, nk_f32_t const *beta,
+                                        nk_i16_t *result);
+/** @copydoc nk_each_scale_f64 */
+NK_PUBLIC void nk_each_scale_u16_serial(nk_u16_t const *a, nk_size_t n, nk_f32_t const *alpha, nk_f32_t const *beta,
+                                        nk_u16_t *result);
+/** @copydoc nk_each_scale_f64 */
+NK_PUBLIC void nk_each_scale_i32_serial(nk_i32_t const *a, nk_size_t n, nk_f64_t const *alpha, nk_f64_t const *beta,
+                                        nk_i32_t *result);
+/** @copydoc nk_each_scale_f64 */
+NK_PUBLIC void nk_each_scale_u32_serial(nk_u32_t const *a, nk_size_t n, nk_f64_t const *alpha, nk_f64_t const *beta,
+                                        nk_u32_t *result);
+/** @copydoc nk_each_scale_f64 */
+NK_PUBLIC void nk_each_scale_i64_serial(nk_i64_t const *a, nk_size_t n, nk_f64_t const *alpha, nk_f64_t const *beta,
+                                        nk_i64_t *result);
+/** @copydoc nk_each_scale_f64 */
+NK_PUBLIC void nk_each_scale_u64_serial(nk_u64_t const *a, nk_size_t n, nk_f64_t const *alpha, nk_f64_t const *beta,
+                                        nk_u64_t *result);
+
+/** @copydoc nk_each_sum_f64 */
+NK_PUBLIC void nk_each_sum_f64_serial(nk_f64_t const *a, nk_f64_t const *b, nk_size_t n, nk_f64_t *result);
+/** @copydoc nk_each_sum_f64 */
+NK_PUBLIC void nk_each_sum_f32_serial(nk_f32_t const *a, nk_f32_t const *b, nk_size_t n, nk_f32_t *result);
+/** @copydoc nk_each_sum_f64 */
+NK_PUBLIC void nk_each_sum_f16_serial(nk_f16_t const *a, nk_f16_t const *b, nk_size_t n, nk_f16_t *result);
+/** @copydoc nk_each_sum_f64 */
+NK_PUBLIC void nk_each_sum_bf16_serial(nk_bf16_t const *a, nk_bf16_t const *b, nk_size_t n, nk_bf16_t *result);
+/** @copydoc nk_each_sum_f64 */
+NK_PUBLIC void nk_each_sum_i8_serial(nk_i8_t const *a, nk_i8_t const *b, nk_size_t n, nk_i8_t *result);
+/** @copydoc nk_each_sum_f64 */
+NK_PUBLIC void nk_each_sum_u8_serial(nk_u8_t const *a, nk_u8_t const *b, nk_size_t n, nk_u8_t *result);
+/** @copydoc nk_each_sum_f64 */
+NK_PUBLIC void nk_each_sum_i16_serial(nk_i16_t const *a, nk_i16_t const *b, nk_size_t n, nk_i16_t *result);
+/** @copydoc nk_each_sum_f64 */
+NK_PUBLIC void nk_each_sum_u16_serial(nk_u16_t const *a, nk_u16_t const *b, nk_size_t n, nk_u16_t *result);
+/** @copydoc nk_each_sum_f64 */
+NK_PUBLIC void nk_each_sum_i32_serial(nk_i32_t const *a, nk_i32_t const *b, nk_size_t n, nk_i32_t *result);
+/** @copydoc nk_each_sum_f64 */
+NK_PUBLIC void nk_each_sum_u32_serial(nk_u32_t const *a, nk_u32_t const *b, nk_size_t n, nk_u32_t *result);
+/** @copydoc nk_each_sum_f64 */
+NK_PUBLIC void nk_each_sum_i64_serial(nk_i64_t const *a, nk_i64_t const *b, nk_size_t n, nk_i64_t *result);
+/** @copydoc nk_each_sum_f64 */
+NK_PUBLIC void nk_each_sum_u64_serial(nk_u64_t const *a, nk_u64_t const *b, nk_size_t n, nk_u64_t *result);
+
+/** @copydoc nk_each_blend_f64 */
+NK_PUBLIC void nk_each_blend_f64_serial(nk_f64_t const *a, nk_f64_t const *b, nk_size_t n, nk_f64_t const *alpha,
+                                        nk_f64_t const *beta, nk_f64_t *result);
+/** @copydoc nk_each_blend_f64 */
+NK_PUBLIC void nk_each_blend_f32_serial(nk_f32_t const *a, nk_f32_t const *b, nk_size_t n, nk_f32_t const *alpha,
+                                        nk_f32_t const *beta, nk_f32_t *result);
+/** @copydoc nk_each_blend_f64 */
+NK_PUBLIC void nk_each_blend_f16_serial(nk_f16_t const *a, nk_f16_t const *b, nk_size_t n, nk_f32_t const *alpha,
+                                        nk_f32_t const *beta, nk_f16_t *result);
+/** @copydoc nk_each_blend_f64 */
+NK_PUBLIC void nk_each_blend_bf16_serial(nk_bf16_t const *a, nk_bf16_t const *b, nk_size_t n, nk_f32_t const *alpha,
+                                         nk_f32_t const *beta, nk_bf16_t *result);
+/** @copydoc nk_each_blend_f64 */
+NK_PUBLIC void nk_each_blend_i8_serial(nk_i8_t const *a, nk_i8_t const *b, nk_size_t n, nk_f32_t const *alpha,
+                                       nk_f32_t const *beta, nk_i8_t *result);
+/** @copydoc nk_each_blend_f64 */
+NK_PUBLIC void nk_each_blend_u8_serial(nk_u8_t const *a, nk_u8_t const *b, nk_size_t n, nk_f32_t const *alpha,
+                                       nk_f32_t const *beta, nk_u8_t *result);
+/** @copydoc nk_each_blend_f64 */
+NK_PUBLIC void nk_each_blend_i16_serial(nk_i16_t const *a, nk_i16_t const *b, nk_size_t n, nk_f32_t const *alpha,
+                                        nk_f32_t const *beta, nk_i16_t *result);
+/** @copydoc nk_each_blend_f64 */
+NK_PUBLIC void nk_each_blend_u16_serial(nk_u16_t const *a, nk_u16_t const *b, nk_size_t n, nk_f32_t const *alpha,
+                                        nk_f32_t const *beta, nk_u16_t *result);
+/** @copydoc nk_each_blend_f64 */
+NK_PUBLIC void nk_each_blend_i32_serial(nk_i32_t const *a, nk_i32_t const *b, nk_size_t n, nk_f64_t const *alpha,
+                                        nk_f64_t const *beta, nk_i32_t *result);
+/** @copydoc nk_each_blend_f64 */
+NK_PUBLIC void nk_each_blend_u32_serial(nk_u32_t const *a, nk_u32_t const *b, nk_size_t n, nk_f64_t const *alpha,
+                                        nk_f64_t const *beta, nk_u32_t *result);
+/** @copydoc nk_each_blend_f64 */
+NK_PUBLIC void nk_each_blend_i64_serial(nk_i64_t const *a, nk_i64_t const *b, nk_size_t n, nk_f64_t const *alpha,
+                                        nk_f64_t const *beta, nk_i64_t *result);
+/** @copydoc nk_each_blend_f64 */
+NK_PUBLIC void nk_each_blend_u64_serial(nk_u64_t const *a, nk_u64_t const *b, nk_size_t n, nk_f64_t const *alpha,
+                                        nk_f64_t const *beta, nk_u64_t *result);
+
+/** @copydoc nk_each_fma_f64 */
+NK_PUBLIC void nk_each_fma_f64_serial(nk_f64_t const *a, nk_f64_t const *b, nk_f64_t const *c, nk_size_t n,
+                                      nk_f64_t const *alpha, nk_f64_t const *beta, nk_f64_t *result);
+/** @copydoc nk_each_fma_f64 */
+NK_PUBLIC void nk_each_fma_f32_serial(nk_f32_t const *a, nk_f32_t const *b, nk_f32_t const *c, nk_size_t n,
+                                      nk_f32_t const *alpha, nk_f32_t const *beta, nk_f32_t *result);
+/** @copydoc nk_each_fma_f64 */
+NK_PUBLIC void nk_each_fma_f16_serial(nk_f16_t const *a, nk_f16_t const *b, nk_f16_t const *c, nk_size_t n,
+                                      nk_f32_t const *alpha, nk_f32_t const *beta, nk_f16_t *result);
+/** @copydoc nk_each_fma_f64 */
+NK_PUBLIC void nk_each_fma_bf16_serial(nk_bf16_t const *a, nk_bf16_t const *b, nk_bf16_t const *c, nk_size_t n,
+                                       nk_f32_t const *alpha, nk_f32_t const *beta, nk_bf16_t *result);
+/** @copydoc nk_each_fma_f64 */
+NK_PUBLIC void nk_each_fma_i8_serial(nk_i8_t const *a, nk_i8_t const *b, nk_i8_t const *c, nk_size_t n,
+                                     nk_f32_t const *alpha, nk_f32_t const *beta, nk_i8_t *result);
+/** @copydoc nk_each_fma_f64 */
+NK_PUBLIC void nk_each_fma_u8_serial(nk_u8_t const *a, nk_u8_t const *b, nk_u8_t const *c, nk_size_t n,
+                                     nk_f32_t const *alpha, nk_f32_t const *beta, nk_u8_t *result);
+/** @copydoc nk_each_fma_f64 */
+NK_PUBLIC void nk_each_fma_i16_serial(nk_i16_t const *a, nk_i16_t const *b, nk_i16_t const *c, nk_size_t n,
+                                      nk_f32_t const *alpha, nk_f32_t const *beta, nk_i16_t *result);
+/** @copydoc nk_each_fma_f64 */
+NK_PUBLIC void nk_each_fma_u16_serial(nk_u16_t const *a, nk_u16_t const *b, nk_u16_t const *c, nk_size_t n,
+                                      nk_f32_t const *alpha, nk_f32_t const *beta, nk_u16_t *result);
+/** @copydoc nk_each_fma_f64 */
+NK_PUBLIC void nk_each_fma_i32_serial(nk_i32_t const *a, nk_i32_t const *b, nk_i32_t const *c, nk_size_t n,
+                                      nk_f64_t const *alpha, nk_f64_t const *beta, nk_i32_t *result);
+/** @copydoc nk_each_fma_f64 */
+NK_PUBLIC void nk_each_fma_u32_serial(nk_u32_t const *a, nk_u32_t const *b, nk_u32_t const *c, nk_size_t n,
+                                      nk_f64_t const *alpha, nk_f64_t const *beta, nk_u32_t *result);
+/** @copydoc nk_each_fma_f64 */
+NK_PUBLIC void nk_each_fma_i64_serial(nk_i64_t const *a, nk_i64_t const *b, nk_i64_t const *c, nk_size_t n,
+                                      nk_f64_t const *alpha, nk_f64_t const *beta, nk_i64_t *result);
+/** @copydoc nk_each_fma_f64 */
+NK_PUBLIC void nk_each_fma_u64_serial(nk_u64_t const *a, nk_u64_t const *b, nk_u64_t const *c, nk_size_t n,
+                                      nk_f64_t const *alpha, nk_f64_t const *beta, nk_u64_t *result);
+
+/** @copydoc nk_each_sum_e4m3 */
+NK_PUBLIC void nk_each_sum_e4m3_serial(nk_e4m3_t const *a, nk_e4m3_t const *b, nk_size_t n, nk_e4m3_t *result);
+/** @copydoc nk_each_sum_e5m2 */
+NK_PUBLIC void nk_each_sum_e5m2_serial(nk_e5m2_t const *a, nk_e5m2_t const *b, nk_size_t n, nk_e5m2_t *result);
+/** @copydoc nk_each_scale_e4m3 */
+NK_PUBLIC void nk_each_scale_e4m3_serial(nk_e4m3_t const *a, nk_size_t n, nk_f32_t const *alpha, nk_f32_t const *beta,
+                                         nk_e4m3_t *result);
+/** @copydoc nk_each_scale_e5m2 */
+NK_PUBLIC void nk_each_scale_e5m2_serial(nk_e5m2_t const *a, nk_size_t n, nk_f32_t const *alpha, nk_f32_t const *beta,
+                                         nk_e5m2_t *result);
+/** @copydoc nk_each_blend_e4m3 */
+NK_PUBLIC void nk_each_blend_e4m3_serial(nk_e4m3_t const *a, nk_e4m3_t const *b, nk_size_t n, nk_f32_t const *alpha,
+                                         nk_f32_t const *beta, nk_e4m3_t *result);
+/** @copydoc nk_each_blend_e5m2 */
+NK_PUBLIC void nk_each_blend_e5m2_serial(nk_e5m2_t const *a, nk_e5m2_t const *b, nk_size_t n, nk_f32_t const *alpha,
+                                         nk_f32_t const *beta, nk_e5m2_t *result);
+/** @copydoc nk_each_fma_e4m3 */
+NK_PUBLIC void nk_each_fma_e4m3_serial(nk_e4m3_t const *a, nk_e4m3_t const *b, nk_e4m3_t const *c, nk_size_t n,
+                                       nk_f32_t const *alpha, nk_f32_t const *beta, nk_e4m3_t *result);
+/** @copydoc nk_each_fma_e5m2 */
+NK_PUBLIC void nk_each_fma_e5m2_serial(nk_e5m2_t const *a, nk_e5m2_t const *b, nk_e5m2_t const *c, nk_size_t n,
+                                       nk_f32_t const *alpha, nk_f32_t const *beta, nk_e5m2_t *result);
 
 #if NK_TARGET_NEON
-/** @copydoc nk_scale_f32 */
-NK_PUBLIC void nk_scale_f32_neon(nk_f32_t const *a, nk_size_t n, nk_f32_t const *alpha, nk_f32_t const *beta,
-                                 nk_f32_t *result);
-/** @copydoc nk_scale_i16 */
-NK_PUBLIC void nk_scale_i16_neon(nk_i16_t const *a, nk_size_t n, nk_f32_t const *alpha, nk_f32_t const *beta,
-                                 nk_i16_t *result);
-/** @copydoc nk_scale_u16 */
-NK_PUBLIC void nk_scale_u16_neon(nk_u16_t const *a, nk_size_t n, nk_f32_t const *alpha, nk_f32_t const *beta,
-                                 nk_u16_t *result);
-/** @copydoc nk_scale_i32 */
-NK_PUBLIC void nk_scale_i32_neon(nk_i32_t const *a, nk_size_t n, nk_f64_t const *alpha, nk_f64_t const *beta,
-                                 nk_i32_t *result);
-/** @copydoc nk_scale_u32 */
-NK_PUBLIC void nk_scale_u32_neon(nk_u32_t const *a, nk_size_t n, nk_f64_t const *alpha, nk_f64_t const *beta,
-                                 nk_u32_t *result);
-/** @copydoc nk_scale_i64 */
-NK_PUBLIC void nk_scale_i64_neon(nk_i64_t const *a, nk_size_t n, nk_f64_t const *alpha, nk_f64_t const *beta,
-                                 nk_i64_t *result);
-/** @copydoc nk_scale_u64 */
-NK_PUBLIC void nk_scale_u64_neon(nk_u64_t const *a, nk_size_t n, nk_f64_t const *alpha, nk_f64_t const *beta,
-                                 nk_u64_t *result);
+/** @copydoc nk_each_scale_f32 */
+NK_PUBLIC void nk_each_scale_f32_neon(nk_f32_t const *a, nk_size_t n, nk_f32_t const *alpha, nk_f32_t const *beta,
+                                      nk_f32_t *result);
+/** @copydoc nk_each_scale_i16 */
+NK_PUBLIC void nk_each_scale_i16_neon(nk_i16_t const *a, nk_size_t n, nk_f32_t const *alpha, nk_f32_t const *beta,
+                                      nk_i16_t *result);
+/** @copydoc nk_each_scale_u16 */
+NK_PUBLIC void nk_each_scale_u16_neon(nk_u16_t const *a, nk_size_t n, nk_f32_t const *alpha, nk_f32_t const *beta,
+                                      nk_u16_t *result);
+/** @copydoc nk_each_scale_i32 */
+NK_PUBLIC void nk_each_scale_i32_neon(nk_i32_t const *a, nk_size_t n, nk_f64_t const *alpha, nk_f64_t const *beta,
+                                      nk_i32_t *result);
+/** @copydoc nk_each_scale_u32 */
+NK_PUBLIC void nk_each_scale_u32_neon(nk_u32_t const *a, nk_size_t n, nk_f64_t const *alpha, nk_f64_t const *beta,
+                                      nk_u32_t *result);
+/** @copydoc nk_each_scale_i64 */
+NK_PUBLIC void nk_each_scale_i64_neon(nk_i64_t const *a, nk_size_t n, nk_f64_t const *alpha, nk_f64_t const *beta,
+                                      nk_i64_t *result);
+/** @copydoc nk_each_scale_u64 */
+NK_PUBLIC void nk_each_scale_u64_neon(nk_u64_t const *a, nk_size_t n, nk_f64_t const *alpha, nk_f64_t const *beta,
+                                      nk_u64_t *result);
 
-/** @copydoc nk_sum_f32 */
-NK_PUBLIC void nk_sum_f32_neon(nk_f32_t const *a, nk_f32_t const *b, nk_size_t n, nk_f32_t *result);
-/** @copydoc nk_sum_i16 */
-NK_PUBLIC void nk_sum_i16_neon(nk_i16_t const *a, nk_i16_t const *b, nk_size_t n, nk_i16_t *result);
-/** @copydoc nk_sum_u16 */
-NK_PUBLIC void nk_sum_u16_neon(nk_u16_t const *a, nk_u16_t const *b, nk_size_t n, nk_u16_t *result);
-/** @copydoc nk_sum_i32 */
-NK_PUBLIC void nk_sum_i32_neon(nk_i32_t const *a, nk_i32_t const *b, nk_size_t n, nk_i32_t *result);
-/** @copydoc nk_sum_u32 */
-NK_PUBLIC void nk_sum_u32_neon(nk_u32_t const *a, nk_u32_t const *b, nk_size_t n, nk_u32_t *result);
-/** @copydoc nk_sum_i64 */
-NK_PUBLIC void nk_sum_i64_neon(nk_i64_t const *a, nk_i64_t const *b, nk_size_t n, nk_i64_t *result);
-/** @copydoc nk_sum_u64 */
-NK_PUBLIC void nk_sum_u64_neon(nk_u64_t const *a, nk_u64_t const *b, nk_size_t n, nk_u64_t *result);
+/** @copydoc nk_each_sum_f32 */
+NK_PUBLIC void nk_each_sum_f32_neon(nk_f32_t const *a, nk_f32_t const *b, nk_size_t n, nk_f32_t *result);
+/** @copydoc nk_each_sum_i16 */
+NK_PUBLIC void nk_each_sum_i16_neon(nk_i16_t const *a, nk_i16_t const *b, nk_size_t n, nk_i16_t *result);
+/** @copydoc nk_each_sum_u16 */
+NK_PUBLIC void nk_each_sum_u16_neon(nk_u16_t const *a, nk_u16_t const *b, nk_size_t n, nk_u16_t *result);
+/** @copydoc nk_each_sum_i32 */
+NK_PUBLIC void nk_each_sum_i32_neon(nk_i32_t const *a, nk_i32_t const *b, nk_size_t n, nk_i32_t *result);
+/** @copydoc nk_each_sum_u32 */
+NK_PUBLIC void nk_each_sum_u32_neon(nk_u32_t const *a, nk_u32_t const *b, nk_size_t n, nk_u32_t *result);
+/** @copydoc nk_each_sum_i64 */
+NK_PUBLIC void nk_each_sum_i64_neon(nk_i64_t const *a, nk_i64_t const *b, nk_size_t n, nk_i64_t *result);
+/** @copydoc nk_each_sum_u64 */
+NK_PUBLIC void nk_each_sum_u64_neon(nk_u64_t const *a, nk_u64_t const *b, nk_size_t n, nk_u64_t *result);
 
-/** @copydoc nk_wsum_f32 */
-NK_PUBLIC void nk_wsum_f32_neon(nk_f32_t const *a, nk_f32_t const *b, nk_size_t n, nk_f32_t const *alpha,
-                                nk_f32_t const *beta, nk_f32_t *result);
+/** @copydoc nk_each_blend_f32 */
+NK_PUBLIC void nk_each_blend_f32_neon(nk_f32_t const *a, nk_f32_t const *b, nk_size_t n, nk_f32_t const *alpha,
+                                      nk_f32_t const *beta, nk_f32_t *result);
 
-/** @copydoc nk_fma_f32 */
-NK_PUBLIC void nk_fma_f32_neon(nk_f32_t const *a, nk_f32_t const *b, nk_f32_t const *c, nk_size_t n,
-                               nk_f32_t const *alpha, nk_f32_t const *beta, nk_f32_t *result);
-/** @copydoc nk_fma_i16 */
-NK_PUBLIC void nk_fma_i16_neon(nk_i16_t const *a, nk_i16_t const *b, nk_i16_t const *c, nk_size_t n,
-                               nk_f32_t const *alpha, nk_f32_t const *beta, nk_i16_t *result);
-/** @copydoc nk_fma_u16 */
-NK_PUBLIC void nk_fma_u16_neon(nk_u16_t const *a, nk_u16_t const *b, nk_u16_t const *c, nk_size_t n,
-                               nk_f32_t const *alpha, nk_f32_t const *beta, nk_u16_t *result);
-/** @copydoc nk_fma_i32 */
-NK_PUBLIC void nk_fma_i32_neon(nk_i32_t const *a, nk_i32_t const *b, nk_i32_t const *c, nk_size_t n,
-                               nk_f64_t const *alpha, nk_f64_t const *beta, nk_i32_t *result);
-/** @copydoc nk_fma_u32 */
-NK_PUBLIC void nk_fma_u32_neon(nk_u32_t const *a, nk_u32_t const *b, nk_u32_t const *c, nk_size_t n,
-                               nk_f64_t const *alpha, nk_f64_t const *beta, nk_u32_t *result);
-/** @copydoc nk_fma_i64 */
-NK_PUBLIC void nk_fma_i64_neon(nk_i64_t const *a, nk_i64_t const *b, nk_i64_t const *c, nk_size_t n,
-                               nk_f64_t const *alpha, nk_f64_t const *beta, nk_i64_t *result);
-/** @copydoc nk_fma_u64 */
-NK_PUBLIC void nk_fma_u64_neon(nk_u64_t const *a, nk_u64_t const *b, nk_u64_t const *c, nk_size_t n,
-                               nk_f64_t const *alpha, nk_f64_t const *beta, nk_u64_t *result);
+/** @copydoc nk_each_fma_f32 */
+NK_PUBLIC void nk_each_fma_f32_neon(nk_f32_t const *a, nk_f32_t const *b, nk_f32_t const *c, nk_size_t n,
+                                    nk_f32_t const *alpha, nk_f32_t const *beta, nk_f32_t *result);
+/** @copydoc nk_each_fma_i16 */
+NK_PUBLIC void nk_each_fma_i16_neon(nk_i16_t const *a, nk_i16_t const *b, nk_i16_t const *c, nk_size_t n,
+                                    nk_f32_t const *alpha, nk_f32_t const *beta, nk_i16_t *result);
+/** @copydoc nk_each_fma_u16 */
+NK_PUBLIC void nk_each_fma_u16_neon(nk_u16_t const *a, nk_u16_t const *b, nk_u16_t const *c, nk_size_t n,
+                                    nk_f32_t const *alpha, nk_f32_t const *beta, nk_u16_t *result);
+/** @copydoc nk_each_fma_i32 */
+NK_PUBLIC void nk_each_fma_i32_neon(nk_i32_t const *a, nk_i32_t const *b, nk_i32_t const *c, nk_size_t n,
+                                    nk_f64_t const *alpha, nk_f64_t const *beta, nk_i32_t *result);
+/** @copydoc nk_each_fma_u32 */
+NK_PUBLIC void nk_each_fma_u32_neon(nk_u32_t const *a, nk_u32_t const *b, nk_u32_t const *c, nk_size_t n,
+                                    nk_f64_t const *alpha, nk_f64_t const *beta, nk_u32_t *result);
+/** @copydoc nk_each_fma_i64 */
+NK_PUBLIC void nk_each_fma_i64_neon(nk_i64_t const *a, nk_i64_t const *b, nk_i64_t const *c, nk_size_t n,
+                                    nk_f64_t const *alpha, nk_f64_t const *beta, nk_i64_t *result);
+/** @copydoc nk_each_fma_u64 */
+NK_PUBLIC void nk_each_fma_u64_neon(nk_u64_t const *a, nk_u64_t const *b, nk_u64_t const *c, nk_size_t n,
+                                    nk_f64_t const *alpha, nk_f64_t const *beta, nk_u64_t *result);
 
-/** @copydoc nk_sum_f64 */
-NK_PUBLIC void nk_sum_f64_neon(nk_f64_t const *a, nk_f64_t const *b, nk_size_t n, nk_f64_t *result);
-/** @copydoc nk_scale_f64 */
-NK_PUBLIC void nk_scale_f64_neon(nk_f64_t const *a, nk_size_t n, nk_f64_t const *alpha, nk_f64_t const *beta,
-                                 nk_f64_t *result);
-/** @copydoc nk_wsum_f64 */
-NK_PUBLIC void nk_wsum_f64_neon(nk_f64_t const *a, nk_f64_t const *b, nk_size_t n, nk_f64_t const *alpha,
-                                nk_f64_t const *beta, nk_f64_t *result);
-/** @copydoc nk_fma_f64 */
-NK_PUBLIC void nk_fma_f64_neon(nk_f64_t const *a, nk_f64_t const *b, nk_f64_t const *c, nk_size_t n,
-                               nk_f64_t const *alpha, nk_f64_t const *beta, nk_f64_t *result);
+/** @copydoc nk_each_sum_f64 */
+NK_PUBLIC void nk_each_sum_f64_neon(nk_f64_t const *a, nk_f64_t const *b, nk_size_t n, nk_f64_t *result);
+/** @copydoc nk_each_scale_f64 */
+NK_PUBLIC void nk_each_scale_f64_neon(nk_f64_t const *a, nk_size_t n, nk_f64_t const *alpha, nk_f64_t const *beta,
+                                      nk_f64_t *result);
+/** @copydoc nk_each_blend_f64 */
+NK_PUBLIC void nk_each_blend_f64_neon(nk_f64_t const *a, nk_f64_t const *b, nk_size_t n, nk_f64_t const *alpha,
+                                      nk_f64_t const *beta, nk_f64_t *result);
+/** @copydoc nk_each_fma_f64 */
+NK_PUBLIC void nk_each_fma_f64_neon(nk_f64_t const *a, nk_f64_t const *b, nk_f64_t const *c, nk_size_t n,
+                                    nk_f64_t const *alpha, nk_f64_t const *beta, nk_f64_t *result);
 #endif // NK_TARGET_NEON
 
 #if NK_TARGET_NEONBFDOT
-/** @copydoc nk_sum_bf16 */
-NK_PUBLIC void nk_sum_bf16_neonbfdot(nk_bf16_t const *a, nk_bf16_t const *b, nk_size_t n, nk_bf16_t *result);
-/** @copydoc nk_scale_bf16 */
-NK_PUBLIC void nk_scale_bf16_neonbfdot(nk_bf16_t const *a, nk_size_t n, nk_f32_t const *alpha, nk_f32_t const *beta,
-                                       nk_bf16_t *result);
-/** @copydoc nk_wsum_bf16 */
-NK_PUBLIC void nk_wsum_bf16_neonbfdot(nk_bf16_t const *a, nk_bf16_t const *b, nk_size_t n, nk_f32_t const *alpha,
-                                      nk_f32_t const *beta, nk_bf16_t *result);
-/** @copydoc nk_fma_bf16 */
-NK_PUBLIC void nk_fma_bf16_neonbfdot(nk_bf16_t const *a, nk_bf16_t const *b, nk_bf16_t const *c, nk_size_t n,
-                                     nk_f32_t const *alpha, nk_f32_t const *beta, nk_bf16_t *result);
+/** @copydoc nk_each_sum_bf16 */
+NK_PUBLIC void nk_each_sum_bf16_neonbfdot(nk_bf16_t const *a, nk_bf16_t const *b, nk_size_t n, nk_bf16_t *result);
+/** @copydoc nk_each_scale_bf16 */
+NK_PUBLIC void nk_each_scale_bf16_neonbfdot(nk_bf16_t const *a, nk_size_t n, nk_f32_t const *alpha,
+                                            nk_f32_t const *beta, nk_bf16_t *result);
+/** @copydoc nk_each_blend_bf16 */
+NK_PUBLIC void nk_each_blend_bf16_neonbfdot(nk_bf16_t const *a, nk_bf16_t const *b, nk_size_t n, nk_f32_t const *alpha,
+                                            nk_f32_t const *beta, nk_bf16_t *result);
+/** @copydoc nk_each_fma_bf16 */
+NK_PUBLIC void nk_each_fma_bf16_neonbfdot(nk_bf16_t const *a, nk_bf16_t const *b, nk_bf16_t const *c, nk_size_t n,
+                                          nk_f32_t const *alpha, nk_f32_t const *beta, nk_bf16_t *result);
 #endif // NK_TARGET_NEONBFDOT
 
 #if NK_TARGET_NEONHALF
-/** @copydoc nk_sum_f16 */
-NK_PUBLIC void nk_sum_f16_neonhalf(nk_f16_t const *a, nk_f16_t const *b, nk_size_t n, nk_f16_t *result);
-/** @copydoc nk_scale_f16 */
-NK_PUBLIC void nk_scale_f16_neonhalf(nk_f16_t const *a, nk_size_t n, nk_f32_t const *alpha, nk_f32_t const *beta,
-                                     nk_f16_t *result);
-/** @copydoc nk_wsum_f16 */
-NK_PUBLIC void nk_wsum_f16_neonhalf(nk_f16_t const *a, nk_f16_t const *b, nk_size_t n, nk_f32_t const *alpha,
-                                    nk_f32_t const *beta, nk_f16_t *result);
-/** @copydoc nk_fma_f16 */
-NK_PUBLIC void nk_fma_f16_neonhalf(nk_f16_t const *a, nk_f16_t const *b, nk_f16_t const *c, nk_size_t n,
-                                   nk_f32_t const *alpha, nk_f32_t const *beta, nk_f16_t *result);
+/** @copydoc nk_each_sum_f16 */
+NK_PUBLIC void nk_each_sum_f16_neonhalf(nk_f16_t const *a, nk_f16_t const *b, nk_size_t n, nk_f16_t *result);
+/** @copydoc nk_each_scale_f16 */
+NK_PUBLIC void nk_each_scale_f16_neonhalf(nk_f16_t const *a, nk_size_t n, nk_f32_t const *alpha, nk_f32_t const *beta,
+                                          nk_f16_t *result);
+/** @copydoc nk_each_blend_f16 */
+NK_PUBLIC void nk_each_blend_f16_neonhalf(nk_f16_t const *a, nk_f16_t const *b, nk_size_t n, nk_f32_t const *alpha,
+                                          nk_f32_t const *beta, nk_f16_t *result);
+/** @copydoc nk_each_fma_f16 */
+NK_PUBLIC void nk_each_fma_f16_neonhalf(nk_f16_t const *a, nk_f16_t const *b, nk_f16_t const *c, nk_size_t n,
+                                        nk_f32_t const *alpha, nk_f32_t const *beta, nk_f16_t *result);
 
-/** @copydoc nk_sum_i8 */
-NK_PUBLIC void nk_sum_i8_neonhalf(nk_i8_t const *a, nk_i8_t const *b, nk_size_t n, nk_i8_t *result);
-/** @copydoc nk_sum_u8 */
-NK_PUBLIC void nk_sum_u8_neonhalf(nk_u8_t const *a, nk_u8_t const *b, nk_size_t n, nk_u8_t *result);
-/** @copydoc nk_scale_i8 */
-NK_PUBLIC void nk_scale_i8_neonhalf(nk_i8_t const *a, nk_size_t n, nk_f32_t const *alpha, nk_f32_t const *beta,
-                                    nk_i8_t *result);
-/** @copydoc nk_scale_u8 */
-NK_PUBLIC void nk_scale_u8_neonhalf(nk_u8_t const *a, nk_size_t n, nk_f32_t const *alpha, nk_f32_t const *beta,
-                                    nk_u8_t *result);
-/** @copydoc nk_wsum_i8 */
-NK_PUBLIC void nk_wsum_i8_neonhalf(nk_i8_t const *a, nk_i8_t const *b, nk_size_t n, nk_f32_t const *alpha,
-                                   nk_f32_t const *beta, nk_i8_t *result);
-/** @copydoc nk_wsum_u8 */
-NK_PUBLIC void nk_wsum_u8_neonhalf(nk_u8_t const *a, nk_u8_t const *b, nk_size_t n, nk_f32_t const *alpha,
-                                   nk_f32_t const *beta, nk_u8_t *result);
-/** @copydoc nk_fma_i8 */
-NK_PUBLIC void nk_fma_i8_neonhalf(nk_i8_t const *a, nk_i8_t const *b, nk_i8_t const *c, nk_size_t n,
-                                  nk_f32_t const *alpha, nk_f32_t const *beta, nk_i8_t *result);
-/** @copydoc nk_fma_u8 */
-NK_PUBLIC void nk_fma_u8_neonhalf(nk_u8_t const *a, nk_u8_t const *b, nk_u8_t const *c, nk_size_t n,
-                                  nk_f32_t const *alpha, nk_f32_t const *beta, nk_u8_t *result);
+/** @copydoc nk_each_sum_i8 */
+NK_PUBLIC void nk_each_sum_i8_neonhalf(nk_i8_t const *a, nk_i8_t const *b, nk_size_t n, nk_i8_t *result);
+/** @copydoc nk_each_sum_u8 */
+NK_PUBLIC void nk_each_sum_u8_neonhalf(nk_u8_t const *a, nk_u8_t const *b, nk_size_t n, nk_u8_t *result);
+/** @copydoc nk_each_scale_i8 */
+NK_PUBLIC void nk_each_scale_i8_neonhalf(nk_i8_t const *a, nk_size_t n, nk_f32_t const *alpha, nk_f32_t const *beta,
+                                         nk_i8_t *result);
+/** @copydoc nk_each_scale_u8 */
+NK_PUBLIC void nk_each_scale_u8_neonhalf(nk_u8_t const *a, nk_size_t n, nk_f32_t const *alpha, nk_f32_t const *beta,
+                                         nk_u8_t *result);
+/** @copydoc nk_each_blend_i8 */
+NK_PUBLIC void nk_each_blend_i8_neonhalf(nk_i8_t const *a, nk_i8_t const *b, nk_size_t n, nk_f32_t const *alpha,
+                                         nk_f32_t const *beta, nk_i8_t *result);
+/** @copydoc nk_each_blend_u8 */
+NK_PUBLIC void nk_each_blend_u8_neonhalf(nk_u8_t const *a, nk_u8_t const *b, nk_size_t n, nk_f32_t const *alpha,
+                                         nk_f32_t const *beta, nk_u8_t *result);
+/** @copydoc nk_each_fma_i8 */
+NK_PUBLIC void nk_each_fma_i8_neonhalf(nk_i8_t const *a, nk_i8_t const *b, nk_i8_t const *c, nk_size_t n,
+                                       nk_f32_t const *alpha, nk_f32_t const *beta, nk_i8_t *result);
+/** @copydoc nk_each_fma_u8 */
+NK_PUBLIC void nk_each_fma_u8_neonhalf(nk_u8_t const *a, nk_u8_t const *b, nk_u8_t const *c, nk_size_t n,
+                                       nk_f32_t const *alpha, nk_f32_t const *beta, nk_u8_t *result);
 #endif // NK_TARGET_NEONHALF
 
 #if NK_TARGET_HASWELL
-/** @copydoc nk_scale_f64 */
-NK_PUBLIC void nk_scale_f64_haswell(nk_f64_t const *a, nk_size_t n, nk_f64_t const *alpha, nk_f64_t const *beta,
-                                    nk_f64_t *result);
-/** @copydoc nk_scale_f32 */
-NK_PUBLIC void nk_scale_f32_haswell(nk_f32_t const *a, nk_size_t n, nk_f32_t const *alpha, nk_f32_t const *beta,
-                                    nk_f32_t *result);
-/** @copydoc nk_scale_f16 */
-NK_PUBLIC void nk_scale_f16_haswell(nk_f16_t const *a, nk_size_t n, nk_f32_t const *alpha, nk_f32_t const *beta,
-                                    nk_f16_t *result);
-/** @copydoc nk_scale_bf16 */
-NK_PUBLIC void nk_scale_bf16_haswell(nk_bf16_t const *a, nk_size_t n, nk_f32_t const *alpha, nk_f32_t const *beta,
-                                     nk_bf16_t *result);
-/** @copydoc nk_scale_i8 */
-NK_PUBLIC void nk_scale_i8_haswell(nk_i8_t const *a, nk_size_t n, nk_f32_t const *alpha, nk_f32_t const *beta,
-                                   nk_i8_t *result);
-/** @copydoc nk_scale_u8 */
-NK_PUBLIC void nk_scale_u8_haswell(nk_u8_t const *a, nk_size_t n, nk_f32_t const *alpha, nk_f32_t const *beta,
-                                   nk_u8_t *result);
-/** @copydoc nk_scale_i16 */
-NK_PUBLIC void nk_scale_i16_haswell(nk_i16_t const *a, nk_size_t n, nk_f32_t const *alpha, nk_f32_t const *beta,
-                                    nk_i16_t *result);
-/** @copydoc nk_scale_u16 */
-NK_PUBLIC void nk_scale_u16_haswell(nk_u16_t const *a, nk_size_t n, nk_f32_t const *alpha, nk_f32_t const *beta,
-                                    nk_u16_t *result);
-/** @copydoc nk_scale_i32 */
-NK_PUBLIC void nk_scale_i32_haswell(nk_i32_t const *a, nk_size_t n, nk_f64_t const *alpha, nk_f64_t const *beta,
-                                    nk_i32_t *result);
-/** @copydoc nk_scale_u32 */
-NK_PUBLIC void nk_scale_u32_haswell(nk_u32_t const *a, nk_size_t n, nk_f64_t const *alpha, nk_f64_t const *beta,
-                                    nk_u32_t *result);
+/** @copydoc nk_each_scale_f64 */
+NK_PUBLIC void nk_each_scale_f64_haswell(nk_f64_t const *a, nk_size_t n, nk_f64_t const *alpha, nk_f64_t const *beta,
+                                         nk_f64_t *result);
+/** @copydoc nk_each_scale_f32 */
+NK_PUBLIC void nk_each_scale_f32_haswell(nk_f32_t const *a, nk_size_t n, nk_f32_t const *alpha, nk_f32_t const *beta,
+                                         nk_f32_t *result);
+/** @copydoc nk_each_scale_f16 */
+NK_PUBLIC void nk_each_scale_f16_haswell(nk_f16_t const *a, nk_size_t n, nk_f32_t const *alpha, nk_f32_t const *beta,
+                                         nk_f16_t *result);
+/** @copydoc nk_each_scale_bf16 */
+NK_PUBLIC void nk_each_scale_bf16_haswell(nk_bf16_t const *a, nk_size_t n, nk_f32_t const *alpha, nk_f32_t const *beta,
+                                          nk_bf16_t *result);
+/** @copydoc nk_each_scale_i8 */
+NK_PUBLIC void nk_each_scale_i8_haswell(nk_i8_t const *a, nk_size_t n, nk_f32_t const *alpha, nk_f32_t const *beta,
+                                        nk_i8_t *result);
+/** @copydoc nk_each_scale_u8 */
+NK_PUBLIC void nk_each_scale_u8_haswell(nk_u8_t const *a, nk_size_t n, nk_f32_t const *alpha, nk_f32_t const *beta,
+                                        nk_u8_t *result);
+/** @copydoc nk_each_scale_i16 */
+NK_PUBLIC void nk_each_scale_i16_haswell(nk_i16_t const *a, nk_size_t n, nk_f32_t const *alpha, nk_f32_t const *beta,
+                                         nk_i16_t *result);
+/** @copydoc nk_each_scale_u16 */
+NK_PUBLIC void nk_each_scale_u16_haswell(nk_u16_t const *a, nk_size_t n, nk_f32_t const *alpha, nk_f32_t const *beta,
+                                         nk_u16_t *result);
+/** @copydoc nk_each_scale_i32 */
+NK_PUBLIC void nk_each_scale_i32_haswell(nk_i32_t const *a, nk_size_t n, nk_f64_t const *alpha, nk_f64_t const *beta,
+                                         nk_i32_t *result);
+/** @copydoc nk_each_scale_u32 */
+NK_PUBLIC void nk_each_scale_u32_haswell(nk_u32_t const *a, nk_size_t n, nk_f64_t const *alpha, nk_f64_t const *beta,
+                                         nk_u32_t *result);
 
-/** @copydoc nk_sum_f64 */
-NK_PUBLIC void nk_sum_f64_haswell(nk_f64_t const *a, nk_f64_t const *b, nk_size_t n, nk_f64_t *result);
-/** @copydoc nk_sum_f32 */
-NK_PUBLIC void nk_sum_f32_haswell(nk_f32_t const *a, nk_f32_t const *b, nk_size_t n, nk_f32_t *result);
-/** @copydoc nk_sum_f16 */
-NK_PUBLIC void nk_sum_f16_haswell(nk_f16_t const *a, nk_f16_t const *b, nk_size_t n, nk_f16_t *result);
-/** @copydoc nk_sum_bf16 */
-NK_PUBLIC void nk_sum_bf16_haswell(nk_bf16_t const *a, nk_bf16_t const *b, nk_size_t n, nk_bf16_t *result);
-/** @copydoc nk_sum_i8 */
-NK_PUBLIC void nk_sum_i8_haswell(nk_i8_t const *a, nk_i8_t const *b, nk_size_t n, nk_i8_t *result);
-/** @copydoc nk_sum_u8 */
-NK_PUBLIC void nk_sum_u8_haswell(nk_u8_t const *a, nk_u8_t const *b, nk_size_t n, nk_u8_t *result);
-/** @copydoc nk_sum_i16 */
-NK_PUBLIC void nk_sum_i16_haswell(nk_i16_t const *a, nk_i16_t const *b, nk_size_t n, nk_i16_t *result);
-/** @copydoc nk_sum_u16 */
-NK_PUBLIC void nk_sum_u16_haswell(nk_u16_t const *a, nk_u16_t const *b, nk_size_t n, nk_u16_t *result);
-/** @copydoc nk_sum_i32 */
-NK_PUBLIC void nk_sum_i32_haswell(nk_i32_t const *a, nk_i32_t const *b, nk_size_t n, nk_i32_t *result);
-/** @copydoc nk_sum_u32 */
-NK_PUBLIC void nk_sum_u32_haswell(nk_u32_t const *a, nk_u32_t const *b, nk_size_t n, nk_u32_t *result);
+/** @copydoc nk_each_sum_f64 */
+NK_PUBLIC void nk_each_sum_f64_haswell(nk_f64_t const *a, nk_f64_t const *b, nk_size_t n, nk_f64_t *result);
+/** @copydoc nk_each_sum_f32 */
+NK_PUBLIC void nk_each_sum_f32_haswell(nk_f32_t const *a, nk_f32_t const *b, nk_size_t n, nk_f32_t *result);
+/** @copydoc nk_each_sum_f16 */
+NK_PUBLIC void nk_each_sum_f16_haswell(nk_f16_t const *a, nk_f16_t const *b, nk_size_t n, nk_f16_t *result);
+/** @copydoc nk_each_sum_bf16 */
+NK_PUBLIC void nk_each_sum_bf16_haswell(nk_bf16_t const *a, nk_bf16_t const *b, nk_size_t n, nk_bf16_t *result);
+/** @copydoc nk_each_sum_i8 */
+NK_PUBLIC void nk_each_sum_i8_haswell(nk_i8_t const *a, nk_i8_t const *b, nk_size_t n, nk_i8_t *result);
+/** @copydoc nk_each_sum_u8 */
+NK_PUBLIC void nk_each_sum_u8_haswell(nk_u8_t const *a, nk_u8_t const *b, nk_size_t n, nk_u8_t *result);
+/** @copydoc nk_each_sum_i16 */
+NK_PUBLIC void nk_each_sum_i16_haswell(nk_i16_t const *a, nk_i16_t const *b, nk_size_t n, nk_i16_t *result);
+/** @copydoc nk_each_sum_u16 */
+NK_PUBLIC void nk_each_sum_u16_haswell(nk_u16_t const *a, nk_u16_t const *b, nk_size_t n, nk_u16_t *result);
+/** @copydoc nk_each_sum_i32 */
+NK_PUBLIC void nk_each_sum_i32_haswell(nk_i32_t const *a, nk_i32_t const *b, nk_size_t n, nk_i32_t *result);
+/** @copydoc nk_each_sum_u32 */
+NK_PUBLIC void nk_each_sum_u32_haswell(nk_u32_t const *a, nk_u32_t const *b, nk_size_t n, nk_u32_t *result);
 
-/** @copydoc nk_wsum_f64 */
-NK_PUBLIC void nk_wsum_f64_haswell(nk_f64_t const *a, nk_f64_t const *b, nk_size_t n, nk_f64_t const *alpha,
-                                   nk_f64_t const *beta, nk_f64_t *result);
-/** @copydoc nk_wsum_f32 */
-NK_PUBLIC void nk_wsum_f32_haswell(nk_f32_t const *a, nk_f32_t const *b, nk_size_t n, nk_f32_t const *alpha,
-                                   nk_f32_t const *beta, nk_f32_t *result);
-/** @copydoc nk_wsum_f16 */
-NK_PUBLIC void nk_wsum_f16_haswell(nk_f16_t const *a, nk_f16_t const *b, nk_size_t n, nk_f32_t const *alpha,
-                                   nk_f32_t const *beta, nk_f16_t *result);
-/** @copydoc nk_wsum_bf16 */
-NK_PUBLIC void nk_wsum_bf16_haswell(nk_bf16_t const *a, nk_bf16_t const *b, nk_size_t n, nk_f32_t const *alpha,
-                                    nk_f32_t const *beta, nk_bf16_t *result);
-/** @copydoc nk_wsum_i8 */
-NK_PUBLIC void nk_wsum_i8_haswell(nk_i8_t const *a, nk_i8_t const *b, nk_size_t n, nk_f32_t const *alpha,
-                                  nk_f32_t const *beta, nk_i8_t *result);
-/** @copydoc nk_wsum_u8 */
-NK_PUBLIC void nk_wsum_u8_haswell(nk_u8_t const *a, nk_u8_t const *b, nk_size_t n, nk_f32_t const *alpha,
-                                  nk_f32_t const *beta, nk_u8_t *result);
+/** @copydoc nk_each_blend_f64 */
+NK_PUBLIC void nk_each_blend_f64_haswell(nk_f64_t const *a, nk_f64_t const *b, nk_size_t n, nk_f64_t const *alpha,
+                                         nk_f64_t const *beta, nk_f64_t *result);
+/** @copydoc nk_each_blend_f32 */
+NK_PUBLIC void nk_each_blend_f32_haswell(nk_f32_t const *a, nk_f32_t const *b, nk_size_t n, nk_f32_t const *alpha,
+                                         nk_f32_t const *beta, nk_f32_t *result);
+/** @copydoc nk_each_blend_f16 */
+NK_PUBLIC void nk_each_blend_f16_haswell(nk_f16_t const *a, nk_f16_t const *b, nk_size_t n, nk_f32_t const *alpha,
+                                         nk_f32_t const *beta, nk_f16_t *result);
+/** @copydoc nk_each_blend_bf16 */
+NK_PUBLIC void nk_each_blend_bf16_haswell(nk_bf16_t const *a, nk_bf16_t const *b, nk_size_t n, nk_f32_t const *alpha,
+                                          nk_f32_t const *beta, nk_bf16_t *result);
+/** @copydoc nk_each_blend_i8 */
+NK_PUBLIC void nk_each_blend_i8_haswell(nk_i8_t const *a, nk_i8_t const *b, nk_size_t n, nk_f32_t const *alpha,
+                                        nk_f32_t const *beta, nk_i8_t *result);
+/** @copydoc nk_each_blend_u8 */
+NK_PUBLIC void nk_each_blend_u8_haswell(nk_u8_t const *a, nk_u8_t const *b, nk_size_t n, nk_f32_t const *alpha,
+                                        nk_f32_t const *beta, nk_u8_t *result);
 
-/** @copydoc nk_fma_f64 */
-NK_PUBLIC void nk_fma_f64_haswell(nk_f64_t const *a, nk_f64_t const *b, nk_f64_t const *c, nk_size_t n,
-                                  nk_f64_t const *alpha, nk_f64_t const *beta, nk_f64_t *result);
-/** @copydoc nk_fma_f32 */
-NK_PUBLIC void nk_fma_f32_haswell(nk_f32_t const *a, nk_f32_t const *b, nk_f32_t const *c, nk_size_t n,
-                                  nk_f32_t const *alpha, nk_f32_t const *beta, nk_f32_t *result);
-/** @copydoc nk_fma_f16 */
-NK_PUBLIC void nk_fma_f16_haswell(nk_f16_t const *a, nk_f16_t const *b, nk_f16_t const *c, nk_size_t n,
-                                  nk_f32_t const *alpha, nk_f32_t const *beta, nk_f16_t *result);
-/** @copydoc nk_fma_bf16 */
-NK_PUBLIC void nk_fma_bf16_haswell(nk_bf16_t const *a, nk_bf16_t const *b, nk_bf16_t const *c, nk_size_t n,
-                                   nk_f32_t const *alpha, nk_f32_t const *beta, nk_bf16_t *result);
-/** @copydoc nk_fma_i8 */
-NK_PUBLIC void nk_fma_i8_haswell(nk_i8_t const *a, nk_i8_t const *b, nk_i8_t const *c, nk_size_t n,
-                                 nk_f32_t const *alpha, nk_f32_t const *beta, nk_i8_t *result);
-/** @copydoc nk_fma_u8 */
-NK_PUBLIC void nk_fma_u8_haswell(nk_u8_t const *a, nk_u8_t const *b, nk_u8_t const *c, nk_size_t n,
-                                 nk_f32_t const *alpha, nk_f32_t const *beta, nk_u8_t *result);
-/** @copydoc nk_fma_i16 */
-NK_PUBLIC void nk_fma_i16_haswell(nk_i16_t const *a, nk_i16_t const *b, nk_i16_t const *c, nk_size_t n,
-                                  nk_f32_t const *alpha, nk_f32_t const *beta, nk_i16_t *result);
-/** @copydoc nk_fma_u16 */
-NK_PUBLIC void nk_fma_u16_haswell(nk_u16_t const *a, nk_u16_t const *b, nk_u16_t const *c, nk_size_t n,
-                                  nk_f32_t const *alpha, nk_f32_t const *beta, nk_u16_t *result);
-/** @copydoc nk_fma_i32 */
-NK_PUBLIC void nk_fma_i32_haswell(nk_i32_t const *a, nk_i32_t const *b, nk_i32_t const *c, nk_size_t n,
-                                  nk_f64_t const *alpha, nk_f64_t const *beta, nk_i32_t *result);
-/** @copydoc nk_fma_u32 */
-NK_PUBLIC void nk_fma_u32_haswell(nk_u32_t const *a, nk_u32_t const *b, nk_u32_t const *c, nk_size_t n,
-                                  nk_f64_t const *alpha, nk_f64_t const *beta, nk_u32_t *result);
+/** @copydoc nk_each_fma_f64 */
+NK_PUBLIC void nk_each_fma_f64_haswell(nk_f64_t const *a, nk_f64_t const *b, nk_f64_t const *c, nk_size_t n,
+                                       nk_f64_t const *alpha, nk_f64_t const *beta, nk_f64_t *result);
+/** @copydoc nk_each_fma_f32 */
+NK_PUBLIC void nk_each_fma_f32_haswell(nk_f32_t const *a, nk_f32_t const *b, nk_f32_t const *c, nk_size_t n,
+                                       nk_f32_t const *alpha, nk_f32_t const *beta, nk_f32_t *result);
+/** @copydoc nk_each_fma_f16 */
+NK_PUBLIC void nk_each_fma_f16_haswell(nk_f16_t const *a, nk_f16_t const *b, nk_f16_t const *c, nk_size_t n,
+                                       nk_f32_t const *alpha, nk_f32_t const *beta, nk_f16_t *result);
+/** @copydoc nk_each_fma_bf16 */
+NK_PUBLIC void nk_each_fma_bf16_haswell(nk_bf16_t const *a, nk_bf16_t const *b, nk_bf16_t const *c, nk_size_t n,
+                                        nk_f32_t const *alpha, nk_f32_t const *beta, nk_bf16_t *result);
+/** @copydoc nk_each_fma_i8 */
+NK_PUBLIC void nk_each_fma_i8_haswell(nk_i8_t const *a, nk_i8_t const *b, nk_i8_t const *c, nk_size_t n,
+                                      nk_f32_t const *alpha, nk_f32_t const *beta, nk_i8_t *result);
+/** @copydoc nk_each_fma_u8 */
+NK_PUBLIC void nk_each_fma_u8_haswell(nk_u8_t const *a, nk_u8_t const *b, nk_u8_t const *c, nk_size_t n,
+                                      nk_f32_t const *alpha, nk_f32_t const *beta, nk_u8_t *result);
+/** @copydoc nk_each_fma_i16 */
+NK_PUBLIC void nk_each_fma_i16_haswell(nk_i16_t const *a, nk_i16_t const *b, nk_i16_t const *c, nk_size_t n,
+                                       nk_f32_t const *alpha, nk_f32_t const *beta, nk_i16_t *result);
+/** @copydoc nk_each_fma_u16 */
+NK_PUBLIC void nk_each_fma_u16_haswell(nk_u16_t const *a, nk_u16_t const *b, nk_u16_t const *c, nk_size_t n,
+                                       nk_f32_t const *alpha, nk_f32_t const *beta, nk_u16_t *result);
+/** @copydoc nk_each_fma_i32 */
+NK_PUBLIC void nk_each_fma_i32_haswell(nk_i32_t const *a, nk_i32_t const *b, nk_i32_t const *c, nk_size_t n,
+                                       nk_f64_t const *alpha, nk_f64_t const *beta, nk_i32_t *result);
+/** @copydoc nk_each_fma_u32 */
+NK_PUBLIC void nk_each_fma_u32_haswell(nk_u32_t const *a, nk_u32_t const *b, nk_u32_t const *c, nk_size_t n,
+                                       nk_f64_t const *alpha, nk_f64_t const *beta, nk_u32_t *result);
 
-/** @copydoc nk_sum_e4m3 */
-NK_PUBLIC void nk_sum_e4m3_haswell(nk_e4m3_t const *a, nk_e4m3_t const *b, nk_size_t n, nk_e4m3_t *result);
-/** @copydoc nk_sum_e5m2 */
-NK_PUBLIC void nk_sum_e5m2_haswell(nk_e5m2_t const *a, nk_e5m2_t const *b, nk_size_t n, nk_e5m2_t *result);
-/** @copydoc nk_scale_e4m3 */
-NK_PUBLIC void nk_scale_e4m3_haswell(nk_e4m3_t const *a, nk_size_t n, nk_f32_t const *alpha, nk_f32_t const *beta,
-                                     nk_e4m3_t *result);
-/** @copydoc nk_scale_e5m2 */
-NK_PUBLIC void nk_scale_e5m2_haswell(nk_e5m2_t const *a, nk_size_t n, nk_f32_t const *alpha, nk_f32_t const *beta,
-                                     nk_e5m2_t *result);
-/** @copydoc nk_wsum_e4m3 */
-NK_PUBLIC void nk_wsum_e4m3_haswell(nk_e4m3_t const *a, nk_e4m3_t const *b, nk_size_t n, nk_f32_t const *alpha,
-                                    nk_f32_t const *beta, nk_e4m3_t *result);
-/** @copydoc nk_wsum_e5m2 */
-NK_PUBLIC void nk_wsum_e5m2_haswell(nk_e5m2_t const *a, nk_e5m2_t const *b, nk_size_t n, nk_f32_t const *alpha,
-                                    nk_f32_t const *beta, nk_e5m2_t *result);
-/** @copydoc nk_fma_e4m3 */
-NK_PUBLIC void nk_fma_e4m3_haswell(nk_e4m3_t const *a, nk_e4m3_t const *b, nk_e4m3_t const *c, nk_size_t n,
-                                   nk_f32_t const *alpha, nk_f32_t const *beta, nk_e4m3_t *result);
-/** @copydoc nk_fma_e5m2 */
-NK_PUBLIC void nk_fma_e5m2_haswell(nk_e5m2_t const *a, nk_e5m2_t const *b, nk_e5m2_t const *c, nk_size_t n,
-                                   nk_f32_t const *alpha, nk_f32_t const *beta, nk_e5m2_t *result);
+/** @copydoc nk_each_sum_e4m3 */
+NK_PUBLIC void nk_each_sum_e4m3_haswell(nk_e4m3_t const *a, nk_e4m3_t const *b, nk_size_t n, nk_e4m3_t *result);
+/** @copydoc nk_each_sum_e5m2 */
+NK_PUBLIC void nk_each_sum_e5m2_haswell(nk_e5m2_t const *a, nk_e5m2_t const *b, nk_size_t n, nk_e5m2_t *result);
+/** @copydoc nk_each_scale_e4m3 */
+NK_PUBLIC void nk_each_scale_e4m3_haswell(nk_e4m3_t const *a, nk_size_t n, nk_f32_t const *alpha, nk_f32_t const *beta,
+                                          nk_e4m3_t *result);
+/** @copydoc nk_each_scale_e5m2 */
+NK_PUBLIC void nk_each_scale_e5m2_haswell(nk_e5m2_t const *a, nk_size_t n, nk_f32_t const *alpha, nk_f32_t const *beta,
+                                          nk_e5m2_t *result);
+/** @copydoc nk_each_blend_e4m3 */
+NK_PUBLIC void nk_each_blend_e4m3_haswell(nk_e4m3_t const *a, nk_e4m3_t const *b, nk_size_t n, nk_f32_t const *alpha,
+                                          nk_f32_t const *beta, nk_e4m3_t *result);
+/** @copydoc nk_each_blend_e5m2 */
+NK_PUBLIC void nk_each_blend_e5m2_haswell(nk_e5m2_t const *a, nk_e5m2_t const *b, nk_size_t n, nk_f32_t const *alpha,
+                                          nk_f32_t const *beta, nk_e5m2_t *result);
+/** @copydoc nk_each_fma_e4m3 */
+NK_PUBLIC void nk_each_fma_e4m3_haswell(nk_e4m3_t const *a, nk_e4m3_t const *b, nk_e4m3_t const *c, nk_size_t n,
+                                        nk_f32_t const *alpha, nk_f32_t const *beta, nk_e4m3_t *result);
+/** @copydoc nk_each_fma_e5m2 */
+NK_PUBLIC void nk_each_fma_e5m2_haswell(nk_e5m2_t const *a, nk_e5m2_t const *b, nk_e5m2_t const *c, nk_size_t n,
+                                        nk_f32_t const *alpha, nk_f32_t const *beta, nk_e5m2_t *result);
 #endif // NK_TARGET_HASWELL
 
 #if NK_TARGET_SKYLAKE
-/** @copydoc nk_scale_f64 */
-NK_PUBLIC void nk_scale_f64_skylake(nk_f64_t const *a, nk_size_t n, nk_f64_t const *alpha, nk_f64_t const *beta,
-                                    nk_f64_t *result);
-/** @copydoc nk_scale_f32 */
-NK_PUBLIC void nk_scale_f32_skylake(nk_f32_t const *a, nk_size_t n, nk_f32_t const *alpha, nk_f32_t const *beta,
-                                    nk_f32_t *result);
-/** @copydoc nk_scale_bf16 */
-NK_PUBLIC void nk_scale_bf16_skylake(nk_bf16_t const *a, nk_size_t n, nk_f32_t const *alpha, nk_f32_t const *beta,
-                                     nk_bf16_t *result);
-/** @copydoc nk_scale_i8 */
-NK_PUBLIC void nk_scale_i8_skylake(nk_i8_t const *a, nk_size_t n, nk_f32_t const *alpha, nk_f32_t const *beta,
-                                   nk_i8_t *result);
-/** @copydoc nk_scale_u8 */
-NK_PUBLIC void nk_scale_u8_skylake(nk_u8_t const *a, nk_size_t n, nk_f32_t const *alpha, nk_f32_t const *beta,
-                                   nk_u8_t *result);
-/** @copydoc nk_scale_i16 */
-NK_PUBLIC void nk_scale_i16_skylake(nk_i16_t const *a, nk_size_t n, nk_f32_t const *alpha, nk_f32_t const *beta,
-                                    nk_i16_t *result);
-/** @copydoc nk_scale_u16 */
-NK_PUBLIC void nk_scale_u16_skylake(nk_u16_t const *a, nk_size_t n, nk_f32_t const *alpha, nk_f32_t const *beta,
-                                    nk_u16_t *result);
-/** @copydoc nk_scale_i32 */
-NK_PUBLIC void nk_scale_i32_skylake(nk_i32_t const *a, nk_size_t n, nk_f64_t const *alpha, nk_f64_t const *beta,
-                                    nk_i32_t *result);
-/** @copydoc nk_scale_u32 */
-NK_PUBLIC void nk_scale_u32_skylake(nk_u32_t const *a, nk_size_t n, nk_f64_t const *alpha, nk_f64_t const *beta,
-                                    nk_u32_t *result);
-/** @copydoc nk_scale_i64 */
-NK_PUBLIC void nk_scale_i64_skylake(nk_i64_t const *a, nk_size_t n, nk_f64_t const *alpha, nk_f64_t const *beta,
-                                    nk_i64_t *result);
-/** @copydoc nk_scale_u64 */
-NK_PUBLIC void nk_scale_u64_skylake(nk_u64_t const *a, nk_size_t n, nk_f64_t const *alpha, nk_f64_t const *beta,
-                                    nk_u64_t *result);
+/** @copydoc nk_each_scale_f64 */
+NK_PUBLIC void nk_each_scale_f64_skylake(nk_f64_t const *a, nk_size_t n, nk_f64_t const *alpha, nk_f64_t const *beta,
+                                         nk_f64_t *result);
+/** @copydoc nk_each_scale_f32 */
+NK_PUBLIC void nk_each_scale_f32_skylake(nk_f32_t const *a, nk_size_t n, nk_f32_t const *alpha, nk_f32_t const *beta,
+                                         nk_f32_t *result);
+/** @copydoc nk_each_scale_bf16 */
+NK_PUBLIC void nk_each_scale_bf16_skylake(nk_bf16_t const *a, nk_size_t n, nk_f32_t const *alpha, nk_f32_t const *beta,
+                                          nk_bf16_t *result);
+/** @copydoc nk_each_scale_i8 */
+NK_PUBLIC void nk_each_scale_i8_skylake(nk_i8_t const *a, nk_size_t n, nk_f32_t const *alpha, nk_f32_t const *beta,
+                                        nk_i8_t *result);
+/** @copydoc nk_each_scale_u8 */
+NK_PUBLIC void nk_each_scale_u8_skylake(nk_u8_t const *a, nk_size_t n, nk_f32_t const *alpha, nk_f32_t const *beta,
+                                        nk_u8_t *result);
+/** @copydoc nk_each_scale_i16 */
+NK_PUBLIC void nk_each_scale_i16_skylake(nk_i16_t const *a, nk_size_t n, nk_f32_t const *alpha, nk_f32_t const *beta,
+                                         nk_i16_t *result);
+/** @copydoc nk_each_scale_u16 */
+NK_PUBLIC void nk_each_scale_u16_skylake(nk_u16_t const *a, nk_size_t n, nk_f32_t const *alpha, nk_f32_t const *beta,
+                                         nk_u16_t *result);
+/** @copydoc nk_each_scale_i32 */
+NK_PUBLIC void nk_each_scale_i32_skylake(nk_i32_t const *a, nk_size_t n, nk_f64_t const *alpha, nk_f64_t const *beta,
+                                         nk_i32_t *result);
+/** @copydoc nk_each_scale_u32 */
+NK_PUBLIC void nk_each_scale_u32_skylake(nk_u32_t const *a, nk_size_t n, nk_f64_t const *alpha, nk_f64_t const *beta,
+                                         nk_u32_t *result);
+/** @copydoc nk_each_scale_i64 */
+NK_PUBLIC void nk_each_scale_i64_skylake(nk_i64_t const *a, nk_size_t n, nk_f64_t const *alpha, nk_f64_t const *beta,
+                                         nk_i64_t *result);
+/** @copydoc nk_each_scale_u64 */
+NK_PUBLIC void nk_each_scale_u64_skylake(nk_u64_t const *a, nk_size_t n, nk_f64_t const *alpha, nk_f64_t const *beta,
+                                         nk_u64_t *result);
 
-/** @copydoc nk_sum_f64 */
-NK_PUBLIC void nk_sum_f64_skylake(nk_f64_t const *a, nk_f64_t const *b, nk_size_t n, nk_f64_t *result);
-/** @copydoc nk_sum_f32 */
-NK_PUBLIC void nk_sum_f32_skylake(nk_f32_t const *a, nk_f32_t const *b, nk_size_t n, nk_f32_t *result);
-/** @copydoc nk_sum_bf16 */
-NK_PUBLIC void nk_sum_bf16_skylake(nk_bf16_t const *a, nk_bf16_t const *b, nk_size_t n, nk_bf16_t *result);
+/** @copydoc nk_each_sum_f64 */
+NK_PUBLIC void nk_each_sum_f64_skylake(nk_f64_t const *a, nk_f64_t const *b, nk_size_t n, nk_f64_t *result);
+/** @copydoc nk_each_sum_f32 */
+NK_PUBLIC void nk_each_sum_f32_skylake(nk_f32_t const *a, nk_f32_t const *b, nk_size_t n, nk_f32_t *result);
+/** @copydoc nk_each_sum_bf16 */
+NK_PUBLIC void nk_each_sum_bf16_skylake(nk_bf16_t const *a, nk_bf16_t const *b, nk_size_t n, nk_bf16_t *result);
 
-/** @copydoc nk_wsum_f64 */
-NK_PUBLIC void nk_wsum_f64_skylake(nk_f64_t const *a, nk_f64_t const *b, nk_size_t n, nk_f64_t const *alpha,
-                                   nk_f64_t const *beta, nk_f64_t *result);
-/** @copydoc nk_wsum_f32 */
-NK_PUBLIC void nk_wsum_f32_skylake(nk_f32_t const *a, nk_f32_t const *b, nk_size_t n, nk_f32_t const *alpha,
-                                   nk_f32_t const *beta, nk_f32_t *result);
-/** @copydoc nk_wsum_bf16 */
-NK_PUBLIC void nk_wsum_bf16_skylake(nk_bf16_t const *a, nk_bf16_t const *b, nk_size_t n, nk_f32_t const *alpha,
-                                    nk_f32_t const *beta, nk_bf16_t *result);
+/** @copydoc nk_each_blend_f64 */
+NK_PUBLIC void nk_each_blend_f64_skylake(nk_f64_t const *a, nk_f64_t const *b, nk_size_t n, nk_f64_t const *alpha,
+                                         nk_f64_t const *beta, nk_f64_t *result);
+/** @copydoc nk_each_blend_f32 */
+NK_PUBLIC void nk_each_blend_f32_skylake(nk_f32_t const *a, nk_f32_t const *b, nk_size_t n, nk_f32_t const *alpha,
+                                         nk_f32_t const *beta, nk_f32_t *result);
+/** @copydoc nk_each_blend_bf16 */
+NK_PUBLIC void nk_each_blend_bf16_skylake(nk_bf16_t const *a, nk_bf16_t const *b, nk_size_t n, nk_f32_t const *alpha,
+                                          nk_f32_t const *beta, nk_bf16_t *result);
 
-/** @copydoc nk_fma_f64 */
-NK_PUBLIC void nk_fma_f64_skylake(nk_f64_t const *a, nk_f64_t const *b, nk_f64_t const *c, nk_size_t n,
-                                  nk_f64_t const *alpha, nk_f64_t const *beta, nk_f64_t *result);
-/** @copydoc nk_fma_f32 */
-NK_PUBLIC void nk_fma_f32_skylake(nk_f32_t const *a, nk_f32_t const *b, nk_f32_t const *c, nk_size_t n,
-                                  nk_f32_t const *alpha, nk_f32_t const *beta, nk_f32_t *result);
-/** @copydoc nk_fma_bf16 */
-NK_PUBLIC void nk_fma_bf16_skylake(nk_bf16_t const *a, nk_bf16_t const *b, nk_bf16_t const *c, nk_size_t n,
-                                   nk_f32_t const *alpha, nk_f32_t const *beta, nk_bf16_t *result);
-/** @copydoc nk_fma_i8 */
-NK_PUBLIC void nk_fma_i8_skylake(nk_i8_t const *a, nk_i8_t const *b, nk_i8_t const *c, nk_size_t n,
-                                 nk_f32_t const *alpha, nk_f32_t const *beta, nk_i8_t *result);
-/** @copydoc nk_fma_u8 */
-NK_PUBLIC void nk_fma_u8_skylake(nk_u8_t const *a, nk_u8_t const *b, nk_u8_t const *c, nk_size_t n,
-                                 nk_f32_t const *alpha, nk_f32_t const *beta, nk_u8_t *result);
-/** @copydoc nk_fma_i16 */
-NK_PUBLIC void nk_fma_i16_skylake(nk_i16_t const *a, nk_i16_t const *b, nk_i16_t const *c, nk_size_t n,
-                                  nk_f32_t const *alpha, nk_f32_t const *beta, nk_i16_t *result);
-/** @copydoc nk_fma_u16 */
-NK_PUBLIC void nk_fma_u16_skylake(nk_u16_t const *a, nk_u16_t const *b, nk_u16_t const *c, nk_size_t n,
-                                  nk_f32_t const *alpha, nk_f32_t const *beta, nk_u16_t *result);
-/** @copydoc nk_fma_i32 */
-NK_PUBLIC void nk_fma_i32_skylake(nk_i32_t const *a, nk_i32_t const *b, nk_i32_t const *c, nk_size_t n,
-                                  nk_f64_t const *alpha, nk_f64_t const *beta, nk_i32_t *result);
-/** @copydoc nk_fma_u32 */
-NK_PUBLIC void nk_fma_u32_skylake(nk_u32_t const *a, nk_u32_t const *b, nk_u32_t const *c, nk_size_t n,
-                                  nk_f64_t const *alpha, nk_f64_t const *beta, nk_u32_t *result);
-/** @copydoc nk_fma_i64 */
-NK_PUBLIC void nk_fma_i64_skylake(nk_i64_t const *a, nk_i64_t const *b, nk_i64_t const *c, nk_size_t n,
-                                  nk_f64_t const *alpha, nk_f64_t const *beta, nk_i64_t *result);
-/** @copydoc nk_fma_u64 */
-NK_PUBLIC void nk_fma_u64_skylake(nk_u64_t const *a, nk_u64_t const *b, nk_u64_t const *c, nk_size_t n,
-                                  nk_f64_t const *alpha, nk_f64_t const *beta, nk_u64_t *result);
-/** @copydoc nk_sum_e4m3 */
-NK_PUBLIC void nk_sum_e4m3_skylake(nk_e4m3_t const *a, nk_e4m3_t const *b, nk_size_t n, nk_e4m3_t *result);
-/** @copydoc nk_sum_e5m2 */
-NK_PUBLIC void nk_sum_e5m2_skylake(nk_e5m2_t const *a, nk_e5m2_t const *b, nk_size_t n, nk_e5m2_t *result);
-/** @copydoc nk_scale_e4m3 */
-NK_PUBLIC void nk_scale_e4m3_skylake(nk_e4m3_t const *a, nk_size_t n, nk_f32_t const *alpha, nk_f32_t const *beta,
-                                     nk_e4m3_t *result);
-/** @copydoc nk_scale_e5m2 */
-NK_PUBLIC void nk_scale_e5m2_skylake(nk_e5m2_t const *a, nk_size_t n, nk_f32_t const *alpha, nk_f32_t const *beta,
-                                     nk_e5m2_t *result);
-/** @copydoc nk_wsum_e4m3 */
-NK_PUBLIC void nk_wsum_e4m3_skylake(nk_e4m3_t const *a, nk_e4m3_t const *b, nk_size_t n, nk_f32_t const *alpha,
-                                    nk_f32_t const *beta, nk_e4m3_t *result);
-/** @copydoc nk_wsum_e5m2 */
-NK_PUBLIC void nk_wsum_e5m2_skylake(nk_e5m2_t const *a, nk_e5m2_t const *b, nk_size_t n, nk_f32_t const *alpha,
-                                    nk_f32_t const *beta, nk_e5m2_t *result);
-/** @copydoc nk_fma_e4m3 */
-NK_PUBLIC void nk_fma_e4m3_skylake(nk_e4m3_t const *a, nk_e4m3_t const *b, nk_e4m3_t const *c, nk_size_t n,
-                                   nk_f32_t const *alpha, nk_f32_t const *beta, nk_e4m3_t *result);
-/** @copydoc nk_fma_e5m2 */
-NK_PUBLIC void nk_fma_e5m2_skylake(nk_e5m2_t const *a, nk_e5m2_t const *b, nk_e5m2_t const *c, nk_size_t n,
-                                   nk_f32_t const *alpha, nk_f32_t const *beta, nk_e5m2_t *result);
+/** @copydoc nk_each_fma_f64 */
+NK_PUBLIC void nk_each_fma_f64_skylake(nk_f64_t const *a, nk_f64_t const *b, nk_f64_t const *c, nk_size_t n,
+                                       nk_f64_t const *alpha, nk_f64_t const *beta, nk_f64_t *result);
+/** @copydoc nk_each_fma_f32 */
+NK_PUBLIC void nk_each_fma_f32_skylake(nk_f32_t const *a, nk_f32_t const *b, nk_f32_t const *c, nk_size_t n,
+                                       nk_f32_t const *alpha, nk_f32_t const *beta, nk_f32_t *result);
+/** @copydoc nk_each_fma_bf16 */
+NK_PUBLIC void nk_each_fma_bf16_skylake(nk_bf16_t const *a, nk_bf16_t const *b, nk_bf16_t const *c, nk_size_t n,
+                                        nk_f32_t const *alpha, nk_f32_t const *beta, nk_bf16_t *result);
+/** @copydoc nk_each_fma_i8 */
+NK_PUBLIC void nk_each_fma_i8_skylake(nk_i8_t const *a, nk_i8_t const *b, nk_i8_t const *c, nk_size_t n,
+                                      nk_f32_t const *alpha, nk_f32_t const *beta, nk_i8_t *result);
+/** @copydoc nk_each_fma_u8 */
+NK_PUBLIC void nk_each_fma_u8_skylake(nk_u8_t const *a, nk_u8_t const *b, nk_u8_t const *c, nk_size_t n,
+                                      nk_f32_t const *alpha, nk_f32_t const *beta, nk_u8_t *result);
+/** @copydoc nk_each_fma_i16 */
+NK_PUBLIC void nk_each_fma_i16_skylake(nk_i16_t const *a, nk_i16_t const *b, nk_i16_t const *c, nk_size_t n,
+                                       nk_f32_t const *alpha, nk_f32_t const *beta, nk_i16_t *result);
+/** @copydoc nk_each_fma_u16 */
+NK_PUBLIC void nk_each_fma_u16_skylake(nk_u16_t const *a, nk_u16_t const *b, nk_u16_t const *c, nk_size_t n,
+                                       nk_f32_t const *alpha, nk_f32_t const *beta, nk_u16_t *result);
+/** @copydoc nk_each_fma_i32 */
+NK_PUBLIC void nk_each_fma_i32_skylake(nk_i32_t const *a, nk_i32_t const *b, nk_i32_t const *c, nk_size_t n,
+                                       nk_f64_t const *alpha, nk_f64_t const *beta, nk_i32_t *result);
+/** @copydoc nk_each_fma_u32 */
+NK_PUBLIC void nk_each_fma_u32_skylake(nk_u32_t const *a, nk_u32_t const *b, nk_u32_t const *c, nk_size_t n,
+                                       nk_f64_t const *alpha, nk_f64_t const *beta, nk_u32_t *result);
+/** @copydoc nk_each_fma_i64 */
+NK_PUBLIC void nk_each_fma_i64_skylake(nk_i64_t const *a, nk_i64_t const *b, nk_i64_t const *c, nk_size_t n,
+                                       nk_f64_t const *alpha, nk_f64_t const *beta, nk_i64_t *result);
+/** @copydoc nk_each_fma_u64 */
+NK_PUBLIC void nk_each_fma_u64_skylake(nk_u64_t const *a, nk_u64_t const *b, nk_u64_t const *c, nk_size_t n,
+                                       nk_f64_t const *alpha, nk_f64_t const *beta, nk_u64_t *result);
+/** @copydoc nk_each_sum_e4m3 */
+NK_PUBLIC void nk_each_sum_e4m3_skylake(nk_e4m3_t const *a, nk_e4m3_t const *b, nk_size_t n, nk_e4m3_t *result);
+/** @copydoc nk_each_sum_e5m2 */
+NK_PUBLIC void nk_each_sum_e5m2_skylake(nk_e5m2_t const *a, nk_e5m2_t const *b, nk_size_t n, nk_e5m2_t *result);
+/** @copydoc nk_each_scale_e4m3 */
+NK_PUBLIC void nk_each_scale_e4m3_skylake(nk_e4m3_t const *a, nk_size_t n, nk_f32_t const *alpha, nk_f32_t const *beta,
+                                          nk_e4m3_t *result);
+/** @copydoc nk_each_scale_e5m2 */
+NK_PUBLIC void nk_each_scale_e5m2_skylake(nk_e5m2_t const *a, nk_size_t n, nk_f32_t const *alpha, nk_f32_t const *beta,
+                                          nk_e5m2_t *result);
+/** @copydoc nk_each_blend_e4m3 */
+NK_PUBLIC void nk_each_blend_e4m3_skylake(nk_e4m3_t const *a, nk_e4m3_t const *b, nk_size_t n, nk_f32_t const *alpha,
+                                          nk_f32_t const *beta, nk_e4m3_t *result);
+/** @copydoc nk_each_blend_e5m2 */
+NK_PUBLIC void nk_each_blend_e5m2_skylake(nk_e5m2_t const *a, nk_e5m2_t const *b, nk_size_t n, nk_f32_t const *alpha,
+                                          nk_f32_t const *beta, nk_e5m2_t *result);
+/** @copydoc nk_each_fma_e4m3 */
+NK_PUBLIC void nk_each_fma_e4m3_skylake(nk_e4m3_t const *a, nk_e4m3_t const *b, nk_e4m3_t const *c, nk_size_t n,
+                                        nk_f32_t const *alpha, nk_f32_t const *beta, nk_e4m3_t *result);
+/** @copydoc nk_each_fma_e5m2 */
+NK_PUBLIC void nk_each_fma_e5m2_skylake(nk_e5m2_t const *a, nk_e5m2_t const *b, nk_e5m2_t const *c, nk_size_t n,
+                                        nk_f32_t const *alpha, nk_f32_t const *beta, nk_e5m2_t *result);
 #endif // NK_TARGET_SKYLAKE
 
 #if NK_TARGET_ICE
-/** @copydoc nk_sum_i8 */
-NK_PUBLIC void nk_sum_i8_ice(nk_i8_t const *a, nk_i8_t const *b, nk_size_t n, nk_i8_t *result);
-/** @copydoc nk_sum_u8 */
-NK_PUBLIC void nk_sum_u8_ice(nk_u8_t const *a, nk_u8_t const *b, nk_size_t n, nk_u8_t *result);
-/** @copydoc nk_sum_i16 */
-NK_PUBLIC void nk_sum_i16_ice(nk_i16_t const *a, nk_i16_t const *b, nk_size_t n, nk_i16_t *result);
-/** @copydoc nk_sum_u16 */
-NK_PUBLIC void nk_sum_u16_ice(nk_u16_t const *a, nk_u16_t const *b, nk_size_t n, nk_u16_t *result);
-/** @copydoc nk_sum_i32 */
-NK_PUBLIC void nk_sum_i32_ice(nk_i32_t const *a, nk_i32_t const *b, nk_size_t n, nk_i32_t *result);
-/** @copydoc nk_sum_u32 */
-NK_PUBLIC void nk_sum_u32_ice(nk_u32_t const *a, nk_u32_t const *b, nk_size_t n, nk_u32_t *result);
-/** @copydoc nk_sum_i64 */
-NK_PUBLIC void nk_sum_i64_ice(nk_i64_t const *a, nk_i64_t const *b, nk_size_t n, nk_i64_t *result);
-/** @copydoc nk_sum_u64 */
-NK_PUBLIC void nk_sum_u64_ice(nk_u64_t const *a, nk_u64_t const *b, nk_size_t n, nk_u64_t *result);
+/** @copydoc nk_each_sum_i8 */
+NK_PUBLIC void nk_each_sum_i8_ice(nk_i8_t const *a, nk_i8_t const *b, nk_size_t n, nk_i8_t *result);
+/** @copydoc nk_each_sum_u8 */
+NK_PUBLIC void nk_each_sum_u8_ice(nk_u8_t const *a, nk_u8_t const *b, nk_size_t n, nk_u8_t *result);
+/** @copydoc nk_each_sum_i16 */
+NK_PUBLIC void nk_each_sum_i16_ice(nk_i16_t const *a, nk_i16_t const *b, nk_size_t n, nk_i16_t *result);
+/** @copydoc nk_each_sum_u16 */
+NK_PUBLIC void nk_each_sum_u16_ice(nk_u16_t const *a, nk_u16_t const *b, nk_size_t n, nk_u16_t *result);
+/** @copydoc nk_each_sum_i32 */
+NK_PUBLIC void nk_each_sum_i32_ice(nk_i32_t const *a, nk_i32_t const *b, nk_size_t n, nk_i32_t *result);
+/** @copydoc nk_each_sum_u32 */
+NK_PUBLIC void nk_each_sum_u32_ice(nk_u32_t const *a, nk_u32_t const *b, nk_size_t n, nk_u32_t *result);
+/** @copydoc nk_each_sum_i64 */
+NK_PUBLIC void nk_each_sum_i64_ice(nk_i64_t const *a, nk_i64_t const *b, nk_size_t n, nk_i64_t *result);
+/** @copydoc nk_each_sum_u64 */
+NK_PUBLIC void nk_each_sum_u64_ice(nk_u64_t const *a, nk_u64_t const *b, nk_size_t n, nk_u64_t *result);
 #endif // NK_TARGET_ICE
 
 #if NK_TARGET_SAPPHIRE
-/** @copydoc nk_scale_f16 */
-NK_PUBLIC void nk_scale_f16_sapphire(nk_f16_t const *a, nk_size_t n, nk_f32_t const *alpha, nk_f32_t const *beta,
-                                     nk_f16_t *result);
-/** @copydoc nk_scale_i8 */
-NK_PUBLIC void nk_scale_i8_sapphire(nk_i8_t const *a, nk_size_t n, nk_f32_t const *alpha, nk_f32_t const *beta,
-                                    nk_i8_t *result);
-/** @copydoc nk_scale_u8 */
-NK_PUBLIC void nk_scale_u8_sapphire(nk_u8_t const *a, nk_size_t n, nk_f32_t const *alpha, nk_f32_t const *beta,
-                                    nk_u8_t *result);
+/** @copydoc nk_each_scale_f16 */
+NK_PUBLIC void nk_each_scale_f16_sapphire(nk_f16_t const *a, nk_size_t n, nk_f32_t const *alpha, nk_f32_t const *beta,
+                                          nk_f16_t *result);
+/** @copydoc nk_each_scale_i8 */
+NK_PUBLIC void nk_each_scale_i8_sapphire(nk_i8_t const *a, nk_size_t n, nk_f32_t const *alpha, nk_f32_t const *beta,
+                                         nk_i8_t *result);
+/** @copydoc nk_each_scale_u8 */
+NK_PUBLIC void nk_each_scale_u8_sapphire(nk_u8_t const *a, nk_size_t n, nk_f32_t const *alpha, nk_f32_t const *beta,
+                                         nk_u8_t *result);
 
-/** @copydoc nk_sum_f16 */
-NK_PUBLIC void nk_sum_f16_sapphire(nk_f16_t const *a, nk_f16_t const *b, nk_size_t n, nk_f16_t *result);
-/** @copydoc nk_sum_e4m3 */
-NK_PUBLIC void nk_sum_e4m3_sapphire(nk_e4m3_t const *a, nk_e4m3_t const *b, nk_size_t n, nk_e4m3_t *result);
+/** @copydoc nk_each_sum_f16 */
+NK_PUBLIC void nk_each_sum_f16_sapphire(nk_f16_t const *a, nk_f16_t const *b, nk_size_t n, nk_f16_t *result);
+/** @copydoc nk_each_sum_e4m3 */
+NK_PUBLIC void nk_each_sum_e4m3_sapphire(nk_e4m3_t const *a, nk_e4m3_t const *b, nk_size_t n, nk_e4m3_t *result);
 
-/** @copydoc nk_wsum_f16 */
-NK_PUBLIC void nk_wsum_f16_sapphire(nk_f16_t const *a, nk_f16_t const *b, nk_size_t n, nk_f32_t const *alpha,
-                                    nk_f32_t const *beta, nk_f16_t *result);
-/** @copydoc nk_wsum_i8 */
-NK_PUBLIC void nk_wsum_i8_sapphire(nk_i8_t const *a, nk_i8_t const *b, nk_size_t n, nk_f32_t const *alpha,
-                                   nk_f32_t const *beta, nk_i8_t *result);
-/** @copydoc nk_wsum_u8 */
-NK_PUBLIC void nk_wsum_u8_sapphire(nk_u8_t const *a, nk_u8_t const *b, nk_size_t n, nk_f32_t const *alpha,
-                                   nk_f32_t const *beta, nk_u8_t *result);
+/** @copydoc nk_each_blend_f16 */
+NK_PUBLIC void nk_each_blend_f16_sapphire(nk_f16_t const *a, nk_f16_t const *b, nk_size_t n, nk_f32_t const *alpha,
+                                          nk_f32_t const *beta, nk_f16_t *result);
+/** @copydoc nk_each_blend_i8 */
+NK_PUBLIC void nk_each_blend_i8_sapphire(nk_i8_t const *a, nk_i8_t const *b, nk_size_t n, nk_f32_t const *alpha,
+                                         nk_f32_t const *beta, nk_i8_t *result);
+/** @copydoc nk_each_blend_u8 */
+NK_PUBLIC void nk_each_blend_u8_sapphire(nk_u8_t const *a, nk_u8_t const *b, nk_size_t n, nk_f32_t const *alpha,
+                                         nk_f32_t const *beta, nk_u8_t *result);
 
-/** @copydoc nk_fma_f16 */
-NK_PUBLIC void nk_fma_f16_sapphire(nk_f16_t const *a, nk_f16_t const *b, nk_f16_t const *c, nk_size_t n,
-                                   nk_f32_t const *alpha, nk_f32_t const *beta, nk_f16_t *result);
-/** @copydoc nk_fma_i8 */
-NK_PUBLIC void nk_fma_i8_sapphire(nk_i8_t const *a, nk_i8_t const *b, nk_i8_t const *c, nk_size_t n,
-                                  nk_f32_t const *alpha, nk_f32_t const *beta, nk_i8_t *result);
-/** @copydoc nk_fma_u8 */
-NK_PUBLIC void nk_fma_u8_sapphire(nk_u8_t const *a, nk_u8_t const *b, nk_u8_t const *c, nk_size_t n,
-                                  nk_f32_t const *alpha, nk_f32_t const *beta, nk_u8_t *result);
+/** @copydoc nk_each_fma_f16 */
+NK_PUBLIC void nk_each_fma_f16_sapphire(nk_f16_t const *a, nk_f16_t const *b, nk_f16_t const *c, nk_size_t n,
+                                        nk_f32_t const *alpha, nk_f32_t const *beta, nk_f16_t *result);
+/** @copydoc nk_each_fma_i8 */
+NK_PUBLIC void nk_each_fma_i8_sapphire(nk_i8_t const *a, nk_i8_t const *b, nk_i8_t const *c, nk_size_t n,
+                                       nk_f32_t const *alpha, nk_f32_t const *beta, nk_i8_t *result);
+/** @copydoc nk_each_fma_u8 */
+NK_PUBLIC void nk_each_fma_u8_sapphire(nk_u8_t const *a, nk_u8_t const *b, nk_u8_t const *c, nk_size_t n,
+                                       nk_f32_t const *alpha, nk_f32_t const *beta, nk_u8_t *result);
 #endif // NK_TARGET_SAPPHIRE
 
 /**
  *  @brief  Returns the scalar parameter dtype for elementwise scale/wsum/fma operations.
  */
-NK_INTERNAL nk_dtype_t nk_scale_output_dtype(nk_dtype_t dtype) {
+NK_INTERNAL nk_dtype_t nk_each_scale_output_dtype(nk_dtype_t dtype) {
     switch (dtype) {
     case nk_f64_k: return nk_f64_k;
     case nk_f32_k: return nk_f32_k;
@@ -853,643 +853,654 @@ NK_INTERNAL nk_dtype_t nk_scale_output_dtype(nk_dtype_t dtype) {
     }
 }
 
-/** @copydoc nk_scale_output_dtype */
-NK_INTERNAL nk_dtype_t nk_wsum_output_dtype(nk_dtype_t dtype) { return nk_scale_output_dtype(dtype); }
+/** @copydoc nk_each_scale_output_dtype */
+NK_INTERNAL nk_dtype_t nk_each_blend_output_dtype(nk_dtype_t dtype) { return nk_each_scale_output_dtype(dtype); }
 
-/** @copydoc nk_scale_output_dtype */
-NK_INTERNAL nk_dtype_t nk_fma_output_dtype(nk_dtype_t dtype) { return nk_scale_output_dtype(dtype); }
+/** @copydoc nk_each_scale_output_dtype */
+NK_INTERNAL nk_dtype_t nk_each_fma_output_dtype(nk_dtype_t dtype) { return nk_each_scale_output_dtype(dtype); }
 
-#include "numkong/elementwise/serial.h"
-#include "numkong/elementwise/neon.h"
-#include "numkong/elementwise/neonhalf.h"
-#include "numkong/elementwise/neonbfdot.h"
-#include "numkong/elementwise/haswell.h"
-#include "numkong/elementwise/skylake.h"
-#include "numkong/elementwise/ice.h"
-#include "numkong/elementwise/sapphire.h"
+#include "numkong/each/serial.h"
+#include "numkong/each/neon.h"
+#include "numkong/each/neonhalf.h"
+#include "numkong/each/neonbfdot.h"
+#include "numkong/each/haswell.h"
+#include "numkong/each/skylake.h"
+#include "numkong/each/ice.h"
+#include "numkong/each/sapphire.h"
 
 #if !NK_DYNAMIC_DISPATCH
 
-NK_PUBLIC void nk_sum_f64(nk_f64_t const *a, nk_f64_t const *b, nk_size_t n, nk_f64_t *r) {
+NK_PUBLIC void nk_each_sum_f64(nk_f64_t const *a, nk_f64_t const *b, nk_size_t n, nk_f64_t *r) {
 #if NK_TARGET_SKYLAKE
-    nk_sum_f64_skylake(a, b, n, r);
+    nk_each_sum_f64_skylake(a, b, n, r);
 #elif NK_TARGET_HASWELL
-    nk_sum_f64_haswell(a, b, n, r);
+    nk_each_sum_f64_haswell(a, b, n, r);
 #elif NK_TARGET_NEON
-    nk_sum_f64_neon(a, b, n, r);
+    nk_each_sum_f64_neon(a, b, n, r);
 #else
-    nk_sum_f64_serial(a, b, n, r);
+    nk_each_sum_f64_serial(a, b, n, r);
 #endif
 }
 
-NK_PUBLIC void nk_sum_f32(nk_f32_t const *a, nk_f32_t const *b, nk_size_t n, nk_f32_t *r) {
+NK_PUBLIC void nk_each_sum_f32(nk_f32_t const *a, nk_f32_t const *b, nk_size_t n, nk_f32_t *r) {
 #if NK_TARGET_SKYLAKE
-    nk_sum_f32_skylake(a, b, n, r);
+    nk_each_sum_f32_skylake(a, b, n, r);
 #elif NK_TARGET_HASWELL
-    nk_sum_f32_haswell(a, b, n, r);
+    nk_each_sum_f32_haswell(a, b, n, r);
 #elif NK_TARGET_NEON
-    nk_sum_f32_neon(a, b, n, r);
+    nk_each_sum_f32_neon(a, b, n, r);
 #else
-    nk_sum_f32_serial(a, b, n, r);
+    nk_each_sum_f32_serial(a, b, n, r);
 #endif
 }
 
-NK_PUBLIC void nk_sum_bf16(nk_bf16_t const *a, nk_bf16_t const *b, nk_size_t n, nk_bf16_t *r) {
+NK_PUBLIC void nk_each_sum_bf16(nk_bf16_t const *a, nk_bf16_t const *b, nk_size_t n, nk_bf16_t *r) {
 #if NK_TARGET_SKYLAKE
-    nk_sum_bf16_skylake(a, b, n, r);
+    nk_each_sum_bf16_skylake(a, b, n, r);
 #elif NK_TARGET_HASWELL
-    nk_sum_bf16_haswell(a, b, n, r);
+    nk_each_sum_bf16_haswell(a, b, n, r);
 #elif NK_TARGET_NEONBFDOT
-    nk_sum_bf16_neonbfdot(a, b, n, r);
+    nk_each_sum_bf16_neonbfdot(a, b, n, r);
 #else
-    nk_sum_bf16_serial(a, b, n, r);
+    nk_each_sum_bf16_serial(a, b, n, r);
 #endif
 }
 
-NK_PUBLIC void nk_sum_f16(nk_f16_t const *a, nk_f16_t const *b, nk_size_t n, nk_f16_t *r) {
+NK_PUBLIC void nk_each_sum_f16(nk_f16_t const *a, nk_f16_t const *b, nk_size_t n, nk_f16_t *r) {
 #if NK_TARGET_SAPPHIRE
-    nk_sum_f16_sapphire(a, b, n, r);
+    nk_each_sum_f16_sapphire(a, b, n, r);
 #elif NK_TARGET_HASWELL
-    nk_sum_f16_haswell(a, b, n, r);
+    nk_each_sum_f16_haswell(a, b, n, r);
 #elif NK_TARGET_NEONHALF
-    nk_sum_f16_neonhalf(a, b, n, r);
+    nk_each_sum_f16_neonhalf(a, b, n, r);
 #else
-    nk_sum_f16_serial(a, b, n, r);
+    nk_each_sum_f16_serial(a, b, n, r);
 #endif
 }
 
-NK_PUBLIC void nk_sum_i8(nk_i8_t const *a, nk_i8_t const *b, nk_size_t n, nk_i8_t *r) {
+NK_PUBLIC void nk_each_sum_i8(nk_i8_t const *a, nk_i8_t const *b, nk_size_t n, nk_i8_t *r) {
 #if NK_TARGET_ICE
-    nk_sum_i8_ice(a, b, n, r);
+    nk_each_sum_i8_ice(a, b, n, r);
 #elif NK_TARGET_HASWELL
-    nk_sum_i8_haswell(a, b, n, r);
+    nk_each_sum_i8_haswell(a, b, n, r);
 #elif NK_TARGET_NEONHALF
-    nk_sum_i8_neonhalf(a, b, n, r);
+    nk_each_sum_i8_neonhalf(a, b, n, r);
 #else
-    nk_sum_i8_serial(a, b, n, r);
+    nk_each_sum_i8_serial(a, b, n, r);
 #endif
 }
 
-NK_PUBLIC void nk_sum_u8(nk_u8_t const *a, nk_u8_t const *b, nk_size_t n, nk_u8_t *r) {
+NK_PUBLIC void nk_each_sum_u8(nk_u8_t const *a, nk_u8_t const *b, nk_size_t n, nk_u8_t *r) {
 #if NK_TARGET_ICE
-    nk_sum_u8_ice(a, b, n, r);
+    nk_each_sum_u8_ice(a, b, n, r);
 #elif NK_TARGET_HASWELL
-    nk_sum_u8_haswell(a, b, n, r);
+    nk_each_sum_u8_haswell(a, b, n, r);
 #elif NK_TARGET_NEONHALF
-    nk_sum_u8_neonhalf(a, b, n, r);
+    nk_each_sum_u8_neonhalf(a, b, n, r);
 #else
-    nk_sum_u8_serial(a, b, n, r);
+    nk_each_sum_u8_serial(a, b, n, r);
 #endif
 }
 
-NK_PUBLIC void nk_sum_i16(nk_i16_t const *a, nk_i16_t const *b, nk_size_t n, nk_i16_t *r) {
+NK_PUBLIC void nk_each_sum_i16(nk_i16_t const *a, nk_i16_t const *b, nk_size_t n, nk_i16_t *r) {
 #if NK_TARGET_ICE
-    nk_sum_i16_ice(a, b, n, r);
+    nk_each_sum_i16_ice(a, b, n, r);
 #elif NK_TARGET_HASWELL
-    nk_sum_i16_haswell(a, b, n, r);
+    nk_each_sum_i16_haswell(a, b, n, r);
 #elif NK_TARGET_NEON
-    nk_sum_i16_neon(a, b, n, r);
+    nk_each_sum_i16_neon(a, b, n, r);
 #else
-    nk_sum_i16_serial(a, b, n, r);
+    nk_each_sum_i16_serial(a, b, n, r);
 #endif
 }
 
-NK_PUBLIC void nk_sum_u16(nk_u16_t const *a, nk_u16_t const *b, nk_size_t n, nk_u16_t *r) {
+NK_PUBLIC void nk_each_sum_u16(nk_u16_t const *a, nk_u16_t const *b, nk_size_t n, nk_u16_t *r) {
 #if NK_TARGET_ICE
-    nk_sum_u16_ice(a, b, n, r);
+    nk_each_sum_u16_ice(a, b, n, r);
 #elif NK_TARGET_HASWELL
-    nk_sum_u16_haswell(a, b, n, r);
+    nk_each_sum_u16_haswell(a, b, n, r);
 #elif NK_TARGET_NEON
-    nk_sum_u16_neon(a, b, n, r);
+    nk_each_sum_u16_neon(a, b, n, r);
 #else
-    nk_sum_u16_serial(a, b, n, r);
+    nk_each_sum_u16_serial(a, b, n, r);
 #endif
 }
 
-NK_PUBLIC void nk_sum_i32(nk_i32_t const *a, nk_i32_t const *b, nk_size_t n, nk_i32_t *r) {
+NK_PUBLIC void nk_each_sum_i32(nk_i32_t const *a, nk_i32_t const *b, nk_size_t n, nk_i32_t *r) {
 #if NK_TARGET_ICE
-    nk_sum_i32_ice(a, b, n, r);
+    nk_each_sum_i32_ice(a, b, n, r);
 #elif NK_TARGET_HASWELL
-    nk_sum_i32_haswell(a, b, n, r);
+    nk_each_sum_i32_haswell(a, b, n, r);
 #elif NK_TARGET_NEON
-    nk_sum_i32_neon(a, b, n, r);
+    nk_each_sum_i32_neon(a, b, n, r);
 #else
-    nk_sum_i32_serial(a, b, n, r);
+    nk_each_sum_i32_serial(a, b, n, r);
 #endif
 }
 
-NK_PUBLIC void nk_sum_u32(nk_u32_t const *a, nk_u32_t const *b, nk_size_t n, nk_u32_t *r) {
+NK_PUBLIC void nk_each_sum_u32(nk_u32_t const *a, nk_u32_t const *b, nk_size_t n, nk_u32_t *r) {
 #if NK_TARGET_ICE
-    nk_sum_u32_ice(a, b, n, r);
+    nk_each_sum_u32_ice(a, b, n, r);
 #elif NK_TARGET_HASWELL
-    nk_sum_u32_haswell(a, b, n, r);
+    nk_each_sum_u32_haswell(a, b, n, r);
 #elif NK_TARGET_NEON
-    nk_sum_u32_neon(a, b, n, r);
+    nk_each_sum_u32_neon(a, b, n, r);
 #else
-    nk_sum_u32_serial(a, b, n, r);
+    nk_each_sum_u32_serial(a, b, n, r);
 #endif
 }
 
-NK_PUBLIC void nk_sum_i64(nk_i64_t const *a, nk_i64_t const *b, nk_size_t n, nk_i64_t *r) {
+NK_PUBLIC void nk_each_sum_i64(nk_i64_t const *a, nk_i64_t const *b, nk_size_t n, nk_i64_t *r) {
 #if NK_TARGET_ICE
-    nk_sum_i64_ice(a, b, n, r);
+    nk_each_sum_i64_ice(a, b, n, r);
 #elif NK_TARGET_NEON
-    nk_sum_i64_neon(a, b, n, r);
+    nk_each_sum_i64_neon(a, b, n, r);
 #else
-    nk_sum_i64_serial(a, b, n, r);
+    nk_each_sum_i64_serial(a, b, n, r);
 #endif
 }
 
-NK_PUBLIC void nk_sum_u64(nk_u64_t const *a, nk_u64_t const *b, nk_size_t n, nk_u64_t *r) {
+NK_PUBLIC void nk_each_sum_u64(nk_u64_t const *a, nk_u64_t const *b, nk_size_t n, nk_u64_t *r) {
 #if NK_TARGET_ICE
-    nk_sum_u64_ice(a, b, n, r);
+    nk_each_sum_u64_ice(a, b, n, r);
 #elif NK_TARGET_NEON
-    nk_sum_u64_neon(a, b, n, r);
+    nk_each_sum_u64_neon(a, b, n, r);
 #else
-    nk_sum_u64_serial(a, b, n, r);
+    nk_each_sum_u64_serial(a, b, n, r);
 #endif
 }
 
-NK_PUBLIC void nk_scale_f64(nk_f64_t const *a, nk_size_t n, nk_f64_t const *alpha, nk_f64_t const *beta, nk_f64_t *r) {
+NK_PUBLIC void nk_each_scale_f64(nk_f64_t const *a, nk_size_t n, nk_f64_t const *alpha, nk_f64_t const *beta,
+                                 nk_f64_t *r) {
 #if NK_TARGET_SKYLAKE
-    nk_scale_f64_skylake(a, n, alpha, beta, r);
+    nk_each_scale_f64_skylake(a, n, alpha, beta, r);
 #elif NK_TARGET_HASWELL
-    nk_scale_f64_haswell(a, n, alpha, beta, r);
+    nk_each_scale_f64_haswell(a, n, alpha, beta, r);
 #elif NK_TARGET_NEON
-    nk_scale_f64_neon(a, n, alpha, beta, r);
+    nk_each_scale_f64_neon(a, n, alpha, beta, r);
 #else
-    nk_scale_f64_serial(a, n, alpha, beta, r);
+    nk_each_scale_f64_serial(a, n, alpha, beta, r);
 #endif
 }
 
-NK_PUBLIC void nk_scale_f32(nk_f32_t const *a, nk_size_t n, nk_f32_t const *alpha, nk_f32_t const *beta, nk_f32_t *r) {
+NK_PUBLIC void nk_each_scale_f32(nk_f32_t const *a, nk_size_t n, nk_f32_t const *alpha, nk_f32_t const *beta,
+                                 nk_f32_t *r) {
 #if NK_TARGET_SKYLAKE
-    nk_scale_f32_skylake(a, n, alpha, beta, r);
+    nk_each_scale_f32_skylake(a, n, alpha, beta, r);
 #elif NK_TARGET_HASWELL
-    nk_scale_f32_haswell(a, n, alpha, beta, r);
+    nk_each_scale_f32_haswell(a, n, alpha, beta, r);
 #elif NK_TARGET_NEON
-    nk_scale_f32_neon(a, n, alpha, beta, r);
+    nk_each_scale_f32_neon(a, n, alpha, beta, r);
 #else
-    nk_scale_f32_serial(a, n, alpha, beta, r);
+    nk_each_scale_f32_serial(a, n, alpha, beta, r);
 #endif
 }
 
-NK_PUBLIC void nk_scale_bf16(nk_bf16_t const *a, nk_size_t n, nk_f32_t const *alpha, nk_f32_t const *beta,
-                             nk_bf16_t *r) {
+NK_PUBLIC void nk_each_scale_bf16(nk_bf16_t const *a, nk_size_t n, nk_f32_t const *alpha, nk_f32_t const *beta,
+                                  nk_bf16_t *r) {
 #if NK_TARGET_SKYLAKE
-    nk_scale_bf16_skylake(a, n, alpha, beta, r);
+    nk_each_scale_bf16_skylake(a, n, alpha, beta, r);
 #elif NK_TARGET_HASWELL
-    nk_scale_bf16_haswell(a, n, alpha, beta, r);
+    nk_each_scale_bf16_haswell(a, n, alpha, beta, r);
 #elif NK_TARGET_NEONBFDOT
-    nk_scale_bf16_neonbfdot(a, n, alpha, beta, r);
+    nk_each_scale_bf16_neonbfdot(a, n, alpha, beta, r);
 #else
-    nk_scale_bf16_serial(a, n, alpha, beta, r);
+    nk_each_scale_bf16_serial(a, n, alpha, beta, r);
 #endif
 }
 
-NK_PUBLIC void nk_scale_f16(nk_f16_t const *a, nk_size_t n, nk_f32_t const *alpha, nk_f32_t const *beta, nk_f16_t *r) {
+NK_PUBLIC void nk_each_scale_f16(nk_f16_t const *a, nk_size_t n, nk_f32_t const *alpha, nk_f32_t const *beta,
+                                 nk_f16_t *r) {
 #if NK_TARGET_SAPPHIRE
-    nk_scale_f16_sapphire(a, n, alpha, beta, r);
+    nk_each_scale_f16_sapphire(a, n, alpha, beta, r);
 #elif NK_TARGET_HASWELL
-    nk_scale_f16_haswell(a, n, alpha, beta, r);
+    nk_each_scale_f16_haswell(a, n, alpha, beta, r);
 #elif NK_TARGET_NEONHALF
-    nk_scale_f16_neonhalf(a, n, alpha, beta, r);
+    nk_each_scale_f16_neonhalf(a, n, alpha, beta, r);
 #else
-    nk_scale_f16_serial(a, n, alpha, beta, r);
+    nk_each_scale_f16_serial(a, n, alpha, beta, r);
 #endif
 }
 
-NK_PUBLIC void nk_scale_i8(nk_i8_t const *a, nk_size_t n, nk_f32_t const *alpha, nk_f32_t const *beta, nk_i8_t *r) {
+NK_PUBLIC void nk_each_scale_i8(nk_i8_t const *a, nk_size_t n, nk_f32_t const *alpha, nk_f32_t const *beta,
+                                nk_i8_t *r) {
 #if NK_TARGET_SAPPHIRE
-    nk_scale_i8_sapphire(a, n, alpha, beta, r);
+    nk_each_scale_i8_sapphire(a, n, alpha, beta, r);
 #elif NK_TARGET_SKYLAKE
-    nk_scale_i8_skylake(a, n, alpha, beta, r);
+    nk_each_scale_i8_skylake(a, n, alpha, beta, r);
 #elif NK_TARGET_HASWELL
-    nk_scale_i8_haswell(a, n, alpha, beta, r);
+    nk_each_scale_i8_haswell(a, n, alpha, beta, r);
 #elif NK_TARGET_NEONHALF
-    nk_scale_i8_neonhalf(a, n, alpha, beta, r);
+    nk_each_scale_i8_neonhalf(a, n, alpha, beta, r);
 #else
-    nk_scale_i8_serial(a, n, alpha, beta, r);
+    nk_each_scale_i8_serial(a, n, alpha, beta, r);
 #endif
 }
 
-NK_PUBLIC void nk_scale_u8(nk_u8_t const *a, nk_size_t n, nk_f32_t const *alpha, nk_f32_t const *beta, nk_u8_t *r) {
+NK_PUBLIC void nk_each_scale_u8(nk_u8_t const *a, nk_size_t n, nk_f32_t const *alpha, nk_f32_t const *beta,
+                                nk_u8_t *r) {
 #if NK_TARGET_SAPPHIRE
-    nk_scale_u8_sapphire(a, n, alpha, beta, r);
+    nk_each_scale_u8_sapphire(a, n, alpha, beta, r);
 #elif NK_TARGET_SKYLAKE
-    nk_scale_u8_skylake(a, n, alpha, beta, r);
+    nk_each_scale_u8_skylake(a, n, alpha, beta, r);
 #elif NK_TARGET_HASWELL
-    nk_scale_u8_haswell(a, n, alpha, beta, r);
+    nk_each_scale_u8_haswell(a, n, alpha, beta, r);
 #elif NK_TARGET_NEONHALF
-    nk_scale_u8_neonhalf(a, n, alpha, beta, r);
+    nk_each_scale_u8_neonhalf(a, n, alpha, beta, r);
 #else
-    nk_scale_u8_serial(a, n, alpha, beta, r);
+    nk_each_scale_u8_serial(a, n, alpha, beta, r);
 #endif
 }
 
-NK_PUBLIC void nk_scale_i16(nk_i16_t const *a, nk_size_t n, nk_f32_t const *alpha, nk_f32_t const *beta, nk_i16_t *r) {
+NK_PUBLIC void nk_each_scale_i16(nk_i16_t const *a, nk_size_t n, nk_f32_t const *alpha, nk_f32_t const *beta,
+                                 nk_i16_t *r) {
 #if NK_TARGET_SKYLAKE
-    nk_scale_i16_skylake(a, n, alpha, beta, r);
+    nk_each_scale_i16_skylake(a, n, alpha, beta, r);
 #elif NK_TARGET_HASWELL
-    nk_scale_i16_haswell(a, n, alpha, beta, r);
+    nk_each_scale_i16_haswell(a, n, alpha, beta, r);
 #elif NK_TARGET_NEON
-    nk_scale_i16_neon(a, n, alpha, beta, r);
+    nk_each_scale_i16_neon(a, n, alpha, beta, r);
 #else
-    nk_scale_i16_serial(a, n, alpha, beta, r);
+    nk_each_scale_i16_serial(a, n, alpha, beta, r);
 #endif
 }
 
-NK_PUBLIC void nk_scale_u16(nk_u16_t const *a, nk_size_t n, nk_f32_t const *alpha, nk_f32_t const *beta, nk_u16_t *r) {
+NK_PUBLIC void nk_each_scale_u16(nk_u16_t const *a, nk_size_t n, nk_f32_t const *alpha, nk_f32_t const *beta,
+                                 nk_u16_t *r) {
 #if NK_TARGET_SKYLAKE
-    nk_scale_u16_skylake(a, n, alpha, beta, r);
+    nk_each_scale_u16_skylake(a, n, alpha, beta, r);
 #elif NK_TARGET_HASWELL
-    nk_scale_u16_haswell(a, n, alpha, beta, r);
+    nk_each_scale_u16_haswell(a, n, alpha, beta, r);
 #elif NK_TARGET_NEON
-    nk_scale_u16_neon(a, n, alpha, beta, r);
+    nk_each_scale_u16_neon(a, n, alpha, beta, r);
 #else
-    nk_scale_u16_serial(a, n, alpha, beta, r);
+    nk_each_scale_u16_serial(a, n, alpha, beta, r);
 #endif
 }
 
-NK_PUBLIC void nk_scale_i32(nk_i32_t const *a, nk_size_t n, nk_f64_t const *alpha, nk_f64_t const *beta, nk_i32_t *r) {
+NK_PUBLIC void nk_each_scale_i32(nk_i32_t const *a, nk_size_t n, nk_f64_t const *alpha, nk_f64_t const *beta,
+                                 nk_i32_t *r) {
 #if NK_TARGET_SKYLAKE
-    nk_scale_i32_skylake(a, n, alpha, beta, r);
+    nk_each_scale_i32_skylake(a, n, alpha, beta, r);
 #elif NK_TARGET_HASWELL
-    nk_scale_i32_haswell(a, n, alpha, beta, r);
+    nk_each_scale_i32_haswell(a, n, alpha, beta, r);
 #elif NK_TARGET_NEON
-    nk_scale_i32_neon(a, n, alpha, beta, r);
+    nk_each_scale_i32_neon(a, n, alpha, beta, r);
 #else
-    nk_scale_i32_serial(a, n, alpha, beta, r);
+    nk_each_scale_i32_serial(a, n, alpha, beta, r);
 #endif
 }
 
-NK_PUBLIC void nk_scale_u32(nk_u32_t const *a, nk_size_t n, nk_f64_t const *alpha, nk_f64_t const *beta, nk_u32_t *r) {
+NK_PUBLIC void nk_each_scale_u32(nk_u32_t const *a, nk_size_t n, nk_f64_t const *alpha, nk_f64_t const *beta,
+                                 nk_u32_t *r) {
 #if NK_TARGET_SKYLAKE
-    nk_scale_u32_skylake(a, n, alpha, beta, r);
+    nk_each_scale_u32_skylake(a, n, alpha, beta, r);
 #elif NK_TARGET_HASWELL
-    nk_scale_u32_haswell(a, n, alpha, beta, r);
+    nk_each_scale_u32_haswell(a, n, alpha, beta, r);
 #elif NK_TARGET_NEON
-    nk_scale_u32_neon(a, n, alpha, beta, r);
+    nk_each_scale_u32_neon(a, n, alpha, beta, r);
 #else
-    nk_scale_u32_serial(a, n, alpha, beta, r);
+    nk_each_scale_u32_serial(a, n, alpha, beta, r);
 #endif
 }
 
-NK_PUBLIC void nk_scale_i64(nk_i64_t const *a, nk_size_t n, nk_f64_t const *alpha, nk_f64_t const *beta, nk_i64_t *r) {
+NK_PUBLIC void nk_each_scale_i64(nk_i64_t const *a, nk_size_t n, nk_f64_t const *alpha, nk_f64_t const *beta,
+                                 nk_i64_t *r) {
 #if NK_TARGET_SKYLAKE
-    nk_scale_i64_skylake(a, n, alpha, beta, r);
+    nk_each_scale_i64_skylake(a, n, alpha, beta, r);
 #elif NK_TARGET_NEON
-    nk_scale_i64_neon(a, n, alpha, beta, r);
+    nk_each_scale_i64_neon(a, n, alpha, beta, r);
 #else
-    nk_scale_i64_serial(a, n, alpha, beta, r);
+    nk_each_scale_i64_serial(a, n, alpha, beta, r);
 #endif
 }
 
-NK_PUBLIC void nk_scale_u64(nk_u64_t const *a, nk_size_t n, nk_f64_t const *alpha, nk_f64_t const *beta, nk_u64_t *r) {
+NK_PUBLIC void nk_each_scale_u64(nk_u64_t const *a, nk_size_t n, nk_f64_t const *alpha, nk_f64_t const *beta,
+                                 nk_u64_t *r) {
 #if NK_TARGET_SKYLAKE
-    nk_scale_u64_skylake(a, n, alpha, beta, r);
+    nk_each_scale_u64_skylake(a, n, alpha, beta, r);
 #elif NK_TARGET_NEON
-    nk_scale_u64_neon(a, n, alpha, beta, r);
+    nk_each_scale_u64_neon(a, n, alpha, beta, r);
 #else
-    nk_scale_u64_serial(a, n, alpha, beta, r);
+    nk_each_scale_u64_serial(a, n, alpha, beta, r);
 #endif
 }
 
-NK_PUBLIC void nk_wsum_f64(nk_f64_t const *a, nk_f64_t const *b, nk_size_t n, nk_f64_t const *alpha,
-                           nk_f64_t const *beta, nk_f64_t *r) {
+NK_PUBLIC void nk_each_blend_f64(nk_f64_t const *a, nk_f64_t const *b, nk_size_t n, nk_f64_t const *alpha,
+                                 nk_f64_t const *beta, nk_f64_t *r) {
 #if NK_TARGET_SKYLAKE
-    nk_wsum_f64_skylake(a, b, n, alpha, beta, r);
+    nk_each_blend_f64_skylake(a, b, n, alpha, beta, r);
 #elif NK_TARGET_HASWELL
-    nk_wsum_f64_haswell(a, b, n, alpha, beta, r);
+    nk_each_blend_f64_haswell(a, b, n, alpha, beta, r);
 #elif NK_TARGET_NEON
-    nk_wsum_f64_neon(a, b, n, alpha, beta, r);
+    nk_each_blend_f64_neon(a, b, n, alpha, beta, r);
 #else
-    nk_wsum_f64_serial(a, b, n, alpha, beta, r);
+    nk_each_blend_f64_serial(a, b, n, alpha, beta, r);
 #endif
 }
 
-NK_PUBLIC void nk_wsum_f32(nk_f32_t const *a, nk_f32_t const *b, nk_size_t n, nk_f32_t const *alpha,
-                           nk_f32_t const *beta, nk_f32_t *r) {
+NK_PUBLIC void nk_each_blend_f32(nk_f32_t const *a, nk_f32_t const *b, nk_size_t n, nk_f32_t const *alpha,
+                                 nk_f32_t const *beta, nk_f32_t *r) {
 #if NK_TARGET_SKYLAKE
-    nk_wsum_f32_skylake(a, b, n, alpha, beta, r);
+    nk_each_blend_f32_skylake(a, b, n, alpha, beta, r);
 #elif NK_TARGET_HASWELL
-    nk_wsum_f32_haswell(a, b, n, alpha, beta, r);
+    nk_each_blend_f32_haswell(a, b, n, alpha, beta, r);
 #elif NK_TARGET_NEON
-    nk_wsum_f32_neon(a, b, n, alpha, beta, r);
+    nk_each_blend_f32_neon(a, b, n, alpha, beta, r);
 #else
-    nk_wsum_f32_serial(a, b, n, alpha, beta, r);
+    nk_each_blend_f32_serial(a, b, n, alpha, beta, r);
 #endif
 }
 
-NK_PUBLIC void nk_wsum_bf16(nk_bf16_t const *a, nk_bf16_t const *b, nk_size_t n, nk_f32_t const *alpha,
-                            nk_f32_t const *beta, nk_bf16_t *r) {
+NK_PUBLIC void nk_each_blend_bf16(nk_bf16_t const *a, nk_bf16_t const *b, nk_size_t n, nk_f32_t const *alpha,
+                                  nk_f32_t const *beta, nk_bf16_t *r) {
 #if NK_TARGET_SKYLAKE
-    nk_wsum_bf16_skylake(a, b, n, alpha, beta, r);
+    nk_each_blend_bf16_skylake(a, b, n, alpha, beta, r);
 #elif NK_TARGET_HASWELL
-    nk_wsum_bf16_haswell(a, b, n, alpha, beta, r);
+    nk_each_blend_bf16_haswell(a, b, n, alpha, beta, r);
 #elif NK_TARGET_NEONBFDOT
-    nk_wsum_bf16_neonbfdot(a, b, n, alpha, beta, r);
+    nk_each_blend_bf16_neonbfdot(a, b, n, alpha, beta, r);
 #else
-    nk_wsum_bf16_serial(a, b, n, alpha, beta, r);
+    nk_each_blend_bf16_serial(a, b, n, alpha, beta, r);
 #endif
 }
 
-NK_PUBLIC void nk_wsum_f16(nk_f16_t const *a, nk_f16_t const *b, nk_size_t n, nk_f32_t const *alpha,
-                           nk_f32_t const *beta, nk_f16_t *r) {
+NK_PUBLIC void nk_each_blend_f16(nk_f16_t const *a, nk_f16_t const *b, nk_size_t n, nk_f32_t const *alpha,
+                                 nk_f32_t const *beta, nk_f16_t *r) {
 #if NK_TARGET_SAPPHIRE
-    nk_wsum_f16_sapphire(a, b, n, alpha, beta, r);
+    nk_each_blend_f16_sapphire(a, b, n, alpha, beta, r);
 #elif NK_TARGET_HASWELL
-    nk_wsum_f16_haswell(a, b, n, alpha, beta, r);
+    nk_each_blend_f16_haswell(a, b, n, alpha, beta, r);
 #elif NK_TARGET_NEONHALF
-    nk_wsum_f16_neonhalf(a, b, n, alpha, beta, r);
+    nk_each_blend_f16_neonhalf(a, b, n, alpha, beta, r);
 #else
-    nk_wsum_f16_serial(a, b, n, alpha, beta, r);
+    nk_each_blend_f16_serial(a, b, n, alpha, beta, r);
 #endif
 }
 
-NK_PUBLIC void nk_wsum_i8(nk_i8_t const *a, nk_i8_t const *b, nk_size_t n, nk_f32_t const *alpha, nk_f32_t const *beta,
-                          nk_i8_t *r) {
+NK_PUBLIC void nk_each_blend_i8(nk_i8_t const *a, nk_i8_t const *b, nk_size_t n, nk_f32_t const *alpha,
+                                nk_f32_t const *beta, nk_i8_t *r) {
 #if NK_TARGET_SAPPHIRE
-    nk_wsum_i8_sapphire(a, b, n, alpha, beta, r);
+    nk_each_blend_i8_sapphire(a, b, n, alpha, beta, r);
 #elif NK_TARGET_HASWELL
-    nk_wsum_i8_haswell(a, b, n, alpha, beta, r);
+    nk_each_blend_i8_haswell(a, b, n, alpha, beta, r);
 #elif NK_TARGET_NEONHALF
-    nk_wsum_i8_neonhalf(a, b, n, alpha, beta, r);
+    nk_each_blend_i8_neonhalf(a, b, n, alpha, beta, r);
 #else
-    nk_wsum_i8_serial(a, b, n, alpha, beta, r);
+    nk_each_blend_i8_serial(a, b, n, alpha, beta, r);
 #endif
 }
 
-NK_PUBLIC void nk_wsum_u8(nk_u8_t const *a, nk_u8_t const *b, nk_size_t n, nk_f32_t const *alpha, nk_f32_t const *beta,
-                          nk_u8_t *r) {
+NK_PUBLIC void nk_each_blend_u8(nk_u8_t const *a, nk_u8_t const *b, nk_size_t n, nk_f32_t const *alpha,
+                                nk_f32_t const *beta, nk_u8_t *r) {
 #if NK_TARGET_SAPPHIRE
-    nk_wsum_u8_sapphire(a, b, n, alpha, beta, r);
+    nk_each_blend_u8_sapphire(a, b, n, alpha, beta, r);
 #elif NK_TARGET_HASWELL
-    nk_wsum_u8_haswell(a, b, n, alpha, beta, r);
+    nk_each_blend_u8_haswell(a, b, n, alpha, beta, r);
 #elif NK_TARGET_NEONHALF
-    nk_wsum_u8_neonhalf(a, b, n, alpha, beta, r);
+    nk_each_blend_u8_neonhalf(a, b, n, alpha, beta, r);
 #else
-    nk_wsum_u8_serial(a, b, n, alpha, beta, r);
+    nk_each_blend_u8_serial(a, b, n, alpha, beta, r);
 #endif
 }
 
-NK_PUBLIC void nk_fma_f64(nk_f64_t const *a, nk_f64_t const *b, nk_f64_t const *c, nk_size_t n, nk_f64_t const *alpha,
-                          nk_f64_t const *beta, nk_f64_t *r) {
+NK_PUBLIC void nk_each_fma_f64(nk_f64_t const *a, nk_f64_t const *b, nk_f64_t const *c, nk_size_t n,
+                               nk_f64_t const *alpha, nk_f64_t const *beta, nk_f64_t *r) {
 #if NK_TARGET_SKYLAKE
-    nk_fma_f64_skylake(a, b, c, n, alpha, beta, r);
+    nk_each_fma_f64_skylake(a, b, c, n, alpha, beta, r);
 #elif NK_TARGET_HASWELL
-    nk_fma_f64_haswell(a, b, c, n, alpha, beta, r);
+    nk_each_fma_f64_haswell(a, b, c, n, alpha, beta, r);
 #elif NK_TARGET_NEON
-    nk_fma_f64_neon(a, b, c, n, alpha, beta, r);
+    nk_each_fma_f64_neon(a, b, c, n, alpha, beta, r);
 #else
-    nk_fma_f64_serial(a, b, c, n, alpha, beta, r);
+    nk_each_fma_f64_serial(a, b, c, n, alpha, beta, r);
 #endif
 }
 
-NK_PUBLIC void nk_fma_f32(nk_f32_t const *a, nk_f32_t const *b, nk_f32_t const *c, nk_size_t n, nk_f32_t const *alpha,
-                          nk_f32_t const *beta, nk_f32_t *r) {
+NK_PUBLIC void nk_each_fma_f32(nk_f32_t const *a, nk_f32_t const *b, nk_f32_t const *c, nk_size_t n,
+                               nk_f32_t const *alpha, nk_f32_t const *beta, nk_f32_t *r) {
 #if NK_TARGET_SKYLAKE
-    nk_fma_f32_skylake(a, b, c, n, alpha, beta, r);
+    nk_each_fma_f32_skylake(a, b, c, n, alpha, beta, r);
 #elif NK_TARGET_HASWELL
-    nk_fma_f32_haswell(a, b, c, n, alpha, beta, r);
+    nk_each_fma_f32_haswell(a, b, c, n, alpha, beta, r);
 #elif NK_TARGET_NEON
-    nk_fma_f32_neon(a, b, c, n, alpha, beta, r);
+    nk_each_fma_f32_neon(a, b, c, n, alpha, beta, r);
 #else
-    nk_fma_f32_serial(a, b, c, n, alpha, beta, r);
+    nk_each_fma_f32_serial(a, b, c, n, alpha, beta, r);
 #endif
 }
 
-NK_PUBLIC void nk_fma_bf16(nk_bf16_t const *a, nk_bf16_t const *b, nk_bf16_t const *c, nk_size_t n,
-                           nk_f32_t const *alpha, nk_f32_t const *beta, nk_bf16_t *r) {
+NK_PUBLIC void nk_each_fma_bf16(nk_bf16_t const *a, nk_bf16_t const *b, nk_bf16_t const *c, nk_size_t n,
+                                nk_f32_t const *alpha, nk_f32_t const *beta, nk_bf16_t *r) {
 #if NK_TARGET_SKYLAKE
-    nk_fma_bf16_skylake(a, b, c, n, alpha, beta, r);
+    nk_each_fma_bf16_skylake(a, b, c, n, alpha, beta, r);
 #elif NK_TARGET_HASWELL
-    nk_fma_bf16_haswell(a, b, c, n, alpha, beta, r);
+    nk_each_fma_bf16_haswell(a, b, c, n, alpha, beta, r);
 #elif NK_TARGET_NEONBFDOT
-    nk_fma_bf16_neonbfdot(a, b, c, n, alpha, beta, r);
+    nk_each_fma_bf16_neonbfdot(a, b, c, n, alpha, beta, r);
 #else
-    nk_fma_bf16_serial(a, b, c, n, alpha, beta, r);
+    nk_each_fma_bf16_serial(a, b, c, n, alpha, beta, r);
 #endif
 }
 
-NK_PUBLIC void nk_fma_f16(nk_f16_t const *a, nk_f16_t const *b, nk_f16_t const *c, nk_size_t n, nk_f32_t const *alpha,
-                          nk_f32_t const *beta, nk_f16_t *r) {
+NK_PUBLIC void nk_each_fma_f16(nk_f16_t const *a, nk_f16_t const *b, nk_f16_t const *c, nk_size_t n,
+                               nk_f32_t const *alpha, nk_f32_t const *beta, nk_f16_t *r) {
 #if NK_TARGET_SAPPHIRE
-    nk_fma_f16_sapphire(a, b, c, n, alpha, beta, r);
+    nk_each_fma_f16_sapphire(a, b, c, n, alpha, beta, r);
 #elif NK_TARGET_HASWELL
-    nk_fma_f16_haswell(a, b, c, n, alpha, beta, r);
+    nk_each_fma_f16_haswell(a, b, c, n, alpha, beta, r);
 #elif NK_TARGET_NEONHALF
-    nk_fma_f16_neonhalf(a, b, c, n, alpha, beta, r);
+    nk_each_fma_f16_neonhalf(a, b, c, n, alpha, beta, r);
 #else
-    nk_fma_f16_serial(a, b, c, n, alpha, beta, r);
+    nk_each_fma_f16_serial(a, b, c, n, alpha, beta, r);
 #endif
 }
 
-NK_PUBLIC void nk_fma_i8(nk_i8_t const *a, nk_i8_t const *b, nk_i8_t const *c, nk_size_t n, nk_f32_t const *alpha,
-                         nk_f32_t const *beta, nk_i8_t *r) {
+NK_PUBLIC void nk_each_fma_i8(nk_i8_t const *a, nk_i8_t const *b, nk_i8_t const *c, nk_size_t n, nk_f32_t const *alpha,
+                              nk_f32_t const *beta, nk_i8_t *r) {
 #if NK_TARGET_SAPPHIRE
-    nk_fma_i8_sapphire(a, b, c, n, alpha, beta, r);
+    nk_each_fma_i8_sapphire(a, b, c, n, alpha, beta, r);
 #elif NK_TARGET_SKYLAKE
-    nk_fma_i8_skylake(a, b, c, n, alpha, beta, r);
+    nk_each_fma_i8_skylake(a, b, c, n, alpha, beta, r);
 #elif NK_TARGET_HASWELL
-    nk_fma_i8_haswell(a, b, c, n, alpha, beta, r);
+    nk_each_fma_i8_haswell(a, b, c, n, alpha, beta, r);
 #elif NK_TARGET_NEONHALF
-    nk_fma_i8_neonhalf(a, b, c, n, alpha, beta, r);
+    nk_each_fma_i8_neonhalf(a, b, c, n, alpha, beta, r);
 #else
-    nk_fma_i8_serial(a, b, c, n, alpha, beta, r);
+    nk_each_fma_i8_serial(a, b, c, n, alpha, beta, r);
 #endif
 }
 
-NK_PUBLIC void nk_fma_u8(nk_u8_t const *a, nk_u8_t const *b, nk_u8_t const *c, nk_size_t n, nk_f32_t const *alpha,
-                         nk_f32_t const *beta, nk_u8_t *r) {
+NK_PUBLIC void nk_each_fma_u8(nk_u8_t const *a, nk_u8_t const *b, nk_u8_t const *c, nk_size_t n, nk_f32_t const *alpha,
+                              nk_f32_t const *beta, nk_u8_t *r) {
 #if NK_TARGET_SAPPHIRE
-    nk_fma_u8_sapphire(a, b, c, n, alpha, beta, r);
+    nk_each_fma_u8_sapphire(a, b, c, n, alpha, beta, r);
 #elif NK_TARGET_SKYLAKE
-    nk_fma_i8_skylake(a, b, c, n, alpha, beta, r);
+    nk_each_fma_i8_skylake(a, b, c, n, alpha, beta, r);
 #elif NK_TARGET_HASWELL
-    nk_fma_u8_haswell(a, b, c, n, alpha, beta, r);
+    nk_each_fma_u8_haswell(a, b, c, n, alpha, beta, r);
 #elif NK_TARGET_NEONHALF
-    nk_fma_u8_neonhalf(a, b, c, n, alpha, beta, r);
+    nk_each_fma_u8_neonhalf(a, b, c, n, alpha, beta, r);
 #else
-    nk_fma_u8_serial(a, b, c, n, alpha, beta, r);
+    nk_each_fma_u8_serial(a, b, c, n, alpha, beta, r);
 #endif
 }
 
-NK_PUBLIC void nk_fma_i16(nk_i16_t const *a, nk_i16_t const *b, nk_i16_t const *c, nk_size_t n, nk_f32_t const *alpha,
-                          nk_f32_t const *beta, nk_i16_t *r) {
+NK_PUBLIC void nk_each_fma_i16(nk_i16_t const *a, nk_i16_t const *b, nk_i16_t const *c, nk_size_t n,
+                               nk_f32_t const *alpha, nk_f32_t const *beta, nk_i16_t *r) {
 #if NK_TARGET_SKYLAKE
-    nk_fma_i16_skylake(a, b, c, n, alpha, beta, r);
+    nk_each_fma_i16_skylake(a, b, c, n, alpha, beta, r);
 #elif NK_TARGET_HASWELL
-    nk_fma_i16_haswell(a, b, c, n, alpha, beta, r);
+    nk_each_fma_i16_haswell(a, b, c, n, alpha, beta, r);
 #elif NK_TARGET_NEON
-    nk_fma_i16_neon(a, b, c, n, alpha, beta, r);
+    nk_each_fma_i16_neon(a, b, c, n, alpha, beta, r);
 #else
-    nk_fma_i16_serial(a, b, c, n, alpha, beta, r);
+    nk_each_fma_i16_serial(a, b, c, n, alpha, beta, r);
 #endif
 }
 
-NK_PUBLIC void nk_fma_u16(nk_u16_t const *a, nk_u16_t const *b, nk_u16_t const *c, nk_size_t n, nk_f32_t const *alpha,
-                          nk_f32_t const *beta, nk_u16_t *r) {
+NK_PUBLIC void nk_each_fma_u16(nk_u16_t const *a, nk_u16_t const *b, nk_u16_t const *c, nk_size_t n,
+                               nk_f32_t const *alpha, nk_f32_t const *beta, nk_u16_t *r) {
 #if NK_TARGET_SKYLAKE
-    nk_fma_u16_skylake(a, b, c, n, alpha, beta, r);
+    nk_each_fma_u16_skylake(a, b, c, n, alpha, beta, r);
 #elif NK_TARGET_HASWELL
-    nk_fma_u16_haswell(a, b, c, n, alpha, beta, r);
+    nk_each_fma_u16_haswell(a, b, c, n, alpha, beta, r);
 #elif NK_TARGET_NEON
-    nk_fma_u16_neon(a, b, c, n, alpha, beta, r);
+    nk_each_fma_u16_neon(a, b, c, n, alpha, beta, r);
 #else
-    nk_fma_u16_serial(a, b, c, n, alpha, beta, r);
+    nk_each_fma_u16_serial(a, b, c, n, alpha, beta, r);
 #endif
 }
 
-NK_PUBLIC void nk_fma_i32(nk_i32_t const *a, nk_i32_t const *b, nk_i32_t const *c, nk_size_t n, nk_f64_t const *alpha,
-                          nk_f64_t const *beta, nk_i32_t *r) {
+NK_PUBLIC void nk_each_fma_i32(nk_i32_t const *a, nk_i32_t const *b, nk_i32_t const *c, nk_size_t n,
+                               nk_f64_t const *alpha, nk_f64_t const *beta, nk_i32_t *r) {
 #if NK_TARGET_SKYLAKE
-    nk_fma_i32_skylake(a, b, c, n, alpha, beta, r);
+    nk_each_fma_i32_skylake(a, b, c, n, alpha, beta, r);
 #elif NK_TARGET_HASWELL
-    nk_fma_i32_haswell(a, b, c, n, alpha, beta, r);
+    nk_each_fma_i32_haswell(a, b, c, n, alpha, beta, r);
 #elif NK_TARGET_NEON
-    nk_fma_i32_neon(a, b, c, n, alpha, beta, r);
+    nk_each_fma_i32_neon(a, b, c, n, alpha, beta, r);
 #else
-    nk_fma_i32_serial(a, b, c, n, alpha, beta, r);
+    nk_each_fma_i32_serial(a, b, c, n, alpha, beta, r);
 #endif
 }
 
-NK_PUBLIC void nk_fma_u32(nk_u32_t const *a, nk_u32_t const *b, nk_u32_t const *c, nk_size_t n, nk_f64_t const *alpha,
-                          nk_f64_t const *beta, nk_u32_t *r) {
+NK_PUBLIC void nk_each_fma_u32(nk_u32_t const *a, nk_u32_t const *b, nk_u32_t const *c, nk_size_t n,
+                               nk_f64_t const *alpha, nk_f64_t const *beta, nk_u32_t *r) {
 #if NK_TARGET_SKYLAKE
-    nk_fma_u32_skylake(a, b, c, n, alpha, beta, r);
+    nk_each_fma_u32_skylake(a, b, c, n, alpha, beta, r);
 #elif NK_TARGET_HASWELL
-    nk_fma_u32_haswell(a, b, c, n, alpha, beta, r);
+    nk_each_fma_u32_haswell(a, b, c, n, alpha, beta, r);
 #elif NK_TARGET_NEON
-    nk_fma_u32_neon(a, b, c, n, alpha, beta, r);
+    nk_each_fma_u32_neon(a, b, c, n, alpha, beta, r);
 #else
-    nk_fma_u32_serial(a, b, c, n, alpha, beta, r);
+    nk_each_fma_u32_serial(a, b, c, n, alpha, beta, r);
 #endif
 }
 
-NK_PUBLIC void nk_fma_i64(nk_i64_t const *a, nk_i64_t const *b, nk_i64_t const *c, nk_size_t n, nk_f64_t const *alpha,
-                          nk_f64_t const *beta, nk_i64_t *r) {
+NK_PUBLIC void nk_each_fma_i64(nk_i64_t const *a, nk_i64_t const *b, nk_i64_t const *c, nk_size_t n,
+                               nk_f64_t const *alpha, nk_f64_t const *beta, nk_i64_t *r) {
 #if NK_TARGET_SKYLAKE
-    nk_fma_i64_skylake(a, b, c, n, alpha, beta, r);
+    nk_each_fma_i64_skylake(a, b, c, n, alpha, beta, r);
 #elif NK_TARGET_NEON
-    nk_fma_i64_neon(a, b, c, n, alpha, beta, r);
+    nk_each_fma_i64_neon(a, b, c, n, alpha, beta, r);
 #else
-    nk_fma_i64_serial(a, b, c, n, alpha, beta, r);
+    nk_each_fma_i64_serial(a, b, c, n, alpha, beta, r);
 #endif
 }
 
-NK_PUBLIC void nk_fma_u64(nk_u64_t const *a, nk_u64_t const *b, nk_u64_t const *c, nk_size_t n, nk_f64_t const *alpha,
-                          nk_f64_t const *beta, nk_u64_t *r) {
+NK_PUBLIC void nk_each_fma_u64(nk_u64_t const *a, nk_u64_t const *b, nk_u64_t const *c, nk_size_t n,
+                               nk_f64_t const *alpha, nk_f64_t const *beta, nk_u64_t *r) {
 #if NK_TARGET_SKYLAKE
-    nk_fma_u64_skylake(a, b, c, n, alpha, beta, r);
+    nk_each_fma_u64_skylake(a, b, c, n, alpha, beta, r);
 #elif NK_TARGET_NEON
-    nk_fma_u64_neon(a, b, c, n, alpha, beta, r);
+    nk_each_fma_u64_neon(a, b, c, n, alpha, beta, r);
 #else
-    nk_fma_u64_serial(a, b, c, n, alpha, beta, r);
+    nk_each_fma_u64_serial(a, b, c, n, alpha, beta, r);
 #endif
 }
 
-NK_PUBLIC void nk_sum_e4m3(nk_e4m3_t const *a, nk_e4m3_t const *b, nk_size_t n, nk_e4m3_t *result) {
+NK_PUBLIC void nk_each_sum_e4m3(nk_e4m3_t const *a, nk_e4m3_t const *b, nk_size_t n, nk_e4m3_t *result) {
 #if NK_TARGET_SAPPHIRE
-    nk_sum_e4m3_sapphire(a, b, n, result);
+    nk_each_sum_e4m3_sapphire(a, b, n, result);
 #elif NK_TARGET_SKYLAKE
-    nk_sum_e4m3_skylake(a, b, n, result);
+    nk_each_sum_e4m3_skylake(a, b, n, result);
 #elif NK_TARGET_HASWELL
-    nk_sum_e4m3_haswell(a, b, n, result);
+    nk_each_sum_e4m3_haswell(a, b, n, result);
 #elif NK_TARGET_NEON
-    nk_sum_e4m3_neon(a, b, n, result);
+    nk_each_sum_e4m3_neon(a, b, n, result);
 #else
-    nk_sum_e4m3_serial(a, b, n, result);
+    nk_each_sum_e4m3_serial(a, b, n, result);
 #endif
 }
 
-NK_PUBLIC void nk_sum_e5m2(nk_e5m2_t const *a, nk_e5m2_t const *b, nk_size_t n, nk_e5m2_t *result) {
+NK_PUBLIC void nk_each_sum_e5m2(nk_e5m2_t const *a, nk_e5m2_t const *b, nk_size_t n, nk_e5m2_t *result) {
 #if NK_TARGET_SKYLAKE
-    nk_sum_e5m2_skylake(a, b, n, result);
+    nk_each_sum_e5m2_skylake(a, b, n, result);
 #elif NK_TARGET_HASWELL
-    nk_sum_e5m2_haswell(a, b, n, result);
+    nk_each_sum_e5m2_haswell(a, b, n, result);
 #elif NK_TARGET_NEON
-    nk_sum_e5m2_neon(a, b, n, result);
+    nk_each_sum_e5m2_neon(a, b, n, result);
 #else
-    nk_sum_e5m2_serial(a, b, n, result);
+    nk_each_sum_e5m2_serial(a, b, n, result);
 #endif
 }
 
-NK_PUBLIC void nk_scale_e4m3(nk_e4m3_t const *a, nk_size_t n, nk_f32_t const *alpha, nk_f32_t const *beta,
-                             nk_e4m3_t *result) {
+NK_PUBLIC void nk_each_scale_e4m3(nk_e4m3_t const *a, nk_size_t n, nk_f32_t const *alpha, nk_f32_t const *beta,
+                                  nk_e4m3_t *result) {
 #if NK_TARGET_SKYLAKE
-    nk_scale_e4m3_skylake(a, n, alpha, beta, result);
+    nk_each_scale_e4m3_skylake(a, n, alpha, beta, result);
 #elif NK_TARGET_HASWELL
-    nk_scale_e4m3_haswell(a, n, alpha, beta, result);
+    nk_each_scale_e4m3_haswell(a, n, alpha, beta, result);
 #elif NK_TARGET_NEON
-    nk_scale_e4m3_neon(a, n, alpha, beta, result);
+    nk_each_scale_e4m3_neon(a, n, alpha, beta, result);
 #else
-    nk_scale_e4m3_serial(a, n, alpha, beta, result);
+    nk_each_scale_e4m3_serial(a, n, alpha, beta, result);
 #endif
 }
 
-NK_PUBLIC void nk_scale_e5m2(nk_e5m2_t const *a, nk_size_t n, nk_f32_t const *alpha, nk_f32_t const *beta,
-                             nk_e5m2_t *result) {
+NK_PUBLIC void nk_each_scale_e5m2(nk_e5m2_t const *a, nk_size_t n, nk_f32_t const *alpha, nk_f32_t const *beta,
+                                  nk_e5m2_t *result) {
 #if NK_TARGET_SKYLAKE
-    nk_scale_e5m2_skylake(a, n, alpha, beta, result);
+    nk_each_scale_e5m2_skylake(a, n, alpha, beta, result);
 #elif NK_TARGET_HASWELL
-    nk_scale_e5m2_haswell(a, n, alpha, beta, result);
+    nk_each_scale_e5m2_haswell(a, n, alpha, beta, result);
 #elif NK_TARGET_NEON
-    nk_scale_e5m2_neon(a, n, alpha, beta, result);
+    nk_each_scale_e5m2_neon(a, n, alpha, beta, result);
 #else
-    nk_scale_e5m2_serial(a, n, alpha, beta, result);
+    nk_each_scale_e5m2_serial(a, n, alpha, beta, result);
 #endif
 }
 
-NK_PUBLIC void nk_wsum_e4m3(nk_e4m3_t const *a, nk_e4m3_t const *b, nk_size_t n, nk_f32_t const *alpha,
-                            nk_f32_t const *beta, nk_e4m3_t *result) {
+NK_PUBLIC void nk_each_blend_e4m3(nk_e4m3_t const *a, nk_e4m3_t const *b, nk_size_t n, nk_f32_t const *alpha,
+                                  nk_f32_t const *beta, nk_e4m3_t *result) {
 #if NK_TARGET_SKYLAKE
-    nk_wsum_e4m3_skylake(a, b, n, alpha, beta, result);
+    nk_each_blend_e4m3_skylake(a, b, n, alpha, beta, result);
 #elif NK_TARGET_HASWELL
-    nk_wsum_e4m3_haswell(a, b, n, alpha, beta, result);
+    nk_each_blend_e4m3_haswell(a, b, n, alpha, beta, result);
 #elif NK_TARGET_NEON
-    nk_wsum_e4m3_neon(a, b, n, alpha, beta, result);
+    nk_each_blend_e4m3_neon(a, b, n, alpha, beta, result);
 #else
-    nk_wsum_e4m3_serial(a, b, n, alpha, beta, result);
+    nk_each_blend_e4m3_serial(a, b, n, alpha, beta, result);
 #endif
 }
 
-NK_PUBLIC void nk_wsum_e5m2(nk_e5m2_t const *a, nk_e5m2_t const *b, nk_size_t n, nk_f32_t const *alpha,
-                            nk_f32_t const *beta, nk_e5m2_t *result) {
+NK_PUBLIC void nk_each_blend_e5m2(nk_e5m2_t const *a, nk_e5m2_t const *b, nk_size_t n, nk_f32_t const *alpha,
+                                  nk_f32_t const *beta, nk_e5m2_t *result) {
 #if NK_TARGET_SKYLAKE
-    nk_wsum_e5m2_skylake(a, b, n, alpha, beta, result);
+    nk_each_blend_e5m2_skylake(a, b, n, alpha, beta, result);
 #elif NK_TARGET_HASWELL
-    nk_wsum_e5m2_haswell(a, b, n, alpha, beta, result);
+    nk_each_blend_e5m2_haswell(a, b, n, alpha, beta, result);
 #elif NK_TARGET_NEON
-    nk_wsum_e5m2_neon(a, b, n, alpha, beta, result);
+    nk_each_blend_e5m2_neon(a, b, n, alpha, beta, result);
 #else
-    nk_wsum_e5m2_serial(a, b, n, alpha, beta, result);
+    nk_each_blend_e5m2_serial(a, b, n, alpha, beta, result);
 #endif
 }
 
-NK_PUBLIC void nk_fma_e4m3(nk_e4m3_t const *a, nk_e4m3_t const *b, nk_e4m3_t const *c, nk_size_t n,
-                           nk_f32_t const *alpha, nk_f32_t const *beta, nk_e4m3_t *result) {
+NK_PUBLIC void nk_each_fma_e4m3(nk_e4m3_t const *a, nk_e4m3_t const *b, nk_e4m3_t const *c, nk_size_t n,
+                                nk_f32_t const *alpha, nk_f32_t const *beta, nk_e4m3_t *result) {
 #if NK_TARGET_SKYLAKE
-    nk_fma_e4m3_skylake(a, b, c, n, alpha, beta, result);
+    nk_each_fma_e4m3_skylake(a, b, c, n, alpha, beta, result);
 #elif NK_TARGET_HASWELL
-    nk_fma_e4m3_haswell(a, b, c, n, alpha, beta, result);
+    nk_each_fma_e4m3_haswell(a, b, c, n, alpha, beta, result);
 #elif NK_TARGET_NEON
-    nk_fma_e4m3_neon(a, b, c, n, alpha, beta, result);
+    nk_each_fma_e4m3_neon(a, b, c, n, alpha, beta, result);
 #else
-    nk_fma_e4m3_serial(a, b, c, n, alpha, beta, result);
+    nk_each_fma_e4m3_serial(a, b, c, n, alpha, beta, result);
 #endif
 }
 
-NK_PUBLIC void nk_fma_e5m2(nk_e5m2_t const *a, nk_e5m2_t const *b, nk_e5m2_t const *c, nk_size_t n,
-                           nk_f32_t const *alpha, nk_f32_t const *beta, nk_e5m2_t *result) {
+NK_PUBLIC void nk_each_fma_e5m2(nk_e5m2_t const *a, nk_e5m2_t const *b, nk_e5m2_t const *c, nk_size_t n,
+                                nk_f32_t const *alpha, nk_f32_t const *beta, nk_e5m2_t *result) {
 #if NK_TARGET_SKYLAKE
-    nk_fma_e5m2_skylake(a, b, c, n, alpha, beta, result);
+    nk_each_fma_e5m2_skylake(a, b, c, n, alpha, beta, result);
 #elif NK_TARGET_HASWELL
-    nk_fma_e5m2_haswell(a, b, c, n, alpha, beta, result);
+    nk_each_fma_e5m2_haswell(a, b, c, n, alpha, beta, result);
 #elif NK_TARGET_NEON
-    nk_fma_e5m2_neon(a, b, c, n, alpha, beta, result);
+    nk_each_fma_e5m2_neon(a, b, c, n, alpha, beta, result);
 #else
-    nk_fma_e5m2_serial(a, b, c, n, alpha, beta, result);
+    nk_each_fma_e5m2_serial(a, b, c, n, alpha, beta, result);
 #endif
 }
 
@@ -1499,4 +1510,4 @@ NK_PUBLIC void nk_fma_e5m2(nk_e5m2_t const *a, nk_e5m2_t const *b, nk_e5m2_t con
 }
 #endif
 
-#endif // NK_ELEMENTWISE_H
+#endif // NK_EACH_H

@@ -1,7 +1,7 @@
 /**
  *  @brief SIMD-accelerated Dot Products for Real and Complex Numbers optimized for Intel Sapphire Rapids CPUs.
- *  @file include/numkong/elementwise/sapphire.h
- *  @sa include/numkong/elementwise.h
+ *  @file include/numkong/each/sapphire.h
+ *  @sa include/numkong/each.h
  *  @author Ash Vardanian
  *  @date December 27, 2025
  *
@@ -20,8 +20,8 @@
  *      _mm512_maskz_loadu_epi16    VMOVDQU16 (ZMM {K}, M512)       7cy @ p23   7cy @ p23
  *      _mm512_mask_storeu_epi16    VMOVDQU16 (M512 {K}, ZMM)       4cy @ p4    4cy @ p4
  */
-#ifndef NK_ELEMENTWISE_SAPPHIRE_H
-#define NK_ELEMENTWISE_SAPPHIRE_H
+#ifndef NK_EACH_SAPPHIRE_H
+#define NK_EACH_SAPPHIRE_H
 
 #if NK_TARGET_X86_
 #if NK_TARGET_SAPPHIRE
@@ -40,11 +40,11 @@
 extern "C" {
 #endif
 
-NK_PUBLIC void nk_sum_f16_sapphire(nk_f16_t const *a, nk_f16_t const *b, nk_size_t n, nk_f16_t *result) {
+NK_PUBLIC void nk_each_sum_f16_sapphire(nk_f16_t const *a, nk_f16_t const *b, nk_size_t n, nk_f16_t *result) {
     __mmask32 mask = 0xFFFFFFFF;
     __m512h a_f16_vec, b_f16_vec;
     __m512h sum_f16_vec;
-nk_sum_f16_sapphire_cycle:
+nk_each_sum_f16_sapphire_cycle:
     if (n < 32) {
         mask = (__mmask32)_bzhi_u32(0xFFFFFFFF, n);
         a_f16_vec = _mm512_castsi512_ph(_mm512_maskz_loadu_epi16(mask, a));
@@ -59,10 +59,10 @@ nk_sum_f16_sapphire_cycle:
     sum_f16_vec = _mm512_add_ph(a_f16_vec, b_f16_vec);
     _mm512_mask_storeu_epi16(result, mask, _mm512_castph_si512(sum_f16_vec));
     result += 32;
-    if (n) goto nk_sum_f16_sapphire_cycle;
+    if (n) goto nk_each_sum_f16_sapphire_cycle;
 }
 
-NK_PUBLIC void nk_scale_f16_sapphire(nk_f16_t const *a, nk_size_t n, nk_f32_t const *alpha, nk_f32_t const *beta,
+NK_PUBLIC void nk_each_scale_f16_sapphire(nk_f16_t const *a, nk_size_t n, nk_f32_t const *alpha, nk_f32_t const *beta,
                                      nk_f16_t *result) {
     short alpha_short, beta_short;
     nk_f32_to_f16_sapphire(alpha, (nk_f16_t *)&alpha_short);
@@ -72,7 +72,7 @@ NK_PUBLIC void nk_scale_f16_sapphire(nk_f16_t const *a, nk_size_t n, nk_f32_t co
     __m512h beta_f16x32 = _mm512_castsi512_ph(_mm512_set1_epi16(beta_short));
     __m512h a_f16x32;
     __m512h result_f16x32;
-nk_scale_f16_sapphire_cycle:
+nk_each_scale_f16_sapphire_cycle:
     if (n < 32) {
         mask = (__mmask32)_bzhi_u32(0xFFFFFFFF, n);
         a_f16x32 = _mm512_castsi512_ph(_mm512_maskz_loadu_epi16(mask, a));
@@ -85,10 +85,10 @@ nk_scale_f16_sapphire_cycle:
     result_f16x32 = _mm512_fmadd_ph(a_f16x32, alpha_f16x32, beta_f16x32);
     _mm512_mask_storeu_epi16(result, mask, _mm512_castph_si512(result_f16x32));
     result += 32;
-    if (n) goto nk_scale_f16_sapphire_cycle;
+    if (n) goto nk_each_scale_f16_sapphire_cycle;
 }
 
-NK_PUBLIC void nk_wsum_f16_sapphire(                   //
+NK_PUBLIC void nk_each_blend_f16_sapphire(                   //
     nk_f16_t const *a, nk_f16_t const *b, nk_size_t n, //
     nk_f32_t const *alpha, nk_f32_t const *beta, nk_f16_t *result) {
 
@@ -99,15 +99,15 @@ NK_PUBLIC void nk_wsum_f16_sapphire(                   //
     // 1. Simple addition, when both weights are equal to 1.0.
     if (alpha_val == 1 && beta_val == 1) {
         // In this case we can avoid expensive multiplications.
-        nk_sum_f16_sapphire(a, b, n, result);
+        nk_each_sum_f16_sapphire(a, b, n, result);
         return;
     }
     // 2. Just scaling, when one of the weights is equal to zero.
     else if (alpha_val == 0 || beta_val == 0) {
         // In this case we can avoid half of the load instructions.
         nk_f32_t zero = 0;
-        if (beta_val == 0) { nk_scale_f16_sapphire(a, n, alpha, &zero, result); }
-        else { nk_scale_f16_sapphire(b, n, beta, &zero, result); }
+        if (beta_val == 0) { nk_each_scale_f16_sapphire(a, n, alpha, &zero, result); }
+        else { nk_each_scale_f16_sapphire(b, n, beta, &zero, result); }
         return;
     }
 
@@ -120,7 +120,7 @@ NK_PUBLIC void nk_wsum_f16_sapphire(                   //
     __m512h beta_f16x32 = _mm512_castsi512_ph(_mm512_set1_epi16(beta_short));
     __m512h a_f16x32, b_f16x32;
     __m512h a_scaled_f16x32, result_f16x32;
-nk_wsum_f16_sapphire_cycle:
+nk_each_blend_f16_sapphire_cycle:
     if (n < 32) {
         mask = (__mmask32)_bzhi_u32(0xFFFFFFFF, n);
         a_f16x32 = _mm512_castsi512_ph(_mm512_maskz_loadu_epi16(mask, a));
@@ -136,10 +136,10 @@ nk_wsum_f16_sapphire_cycle:
     result_f16x32 = _mm512_fmadd_ph(b_f16x32, beta_f16x32, a_scaled_f16x32);
     _mm512_mask_storeu_epi16(result, mask, _mm512_castph_si512(result_f16x32));
     result += 32;
-    if (n) goto nk_wsum_f16_sapphire_cycle;
+    if (n) goto nk_each_blend_f16_sapphire_cycle;
 }
 
-NK_PUBLIC void nk_fma_f16_sapphire(                                       //
+NK_PUBLIC void nk_each_fma_f16_sapphire(                                       //
     nk_f16_t const *a, nk_f16_t const *b, nk_f16_t const *c, nk_size_t n, //
     nk_f32_t const *alpha, nk_f32_t const *beta, nk_f16_t *result) {
 
@@ -151,7 +151,7 @@ NK_PUBLIC void nk_fma_f16_sapphire(                                       //
     __m512h beta_f16x32 = _mm512_castsi512_ph(_mm512_set1_epi16(beta_short));
     __m512h a_f16x32, b_f16x32, c_f16x32;
     __m512h ab_f16x32, ab_scaled_f16x32, result_f16x32;
-nk_fma_f16_sapphire_cycle:
+nk_each_fma_f16_sapphire_cycle:
     if (n < 32) {
         mask = (__mmask32)_bzhi_u32(0xFFFFFFFF, n);
         a_f16x32 = _mm512_castsi512_ph(_mm512_maskz_loadu_epi16(mask, a));
@@ -170,10 +170,10 @@ nk_fma_f16_sapphire_cycle:
     result_f16x32 = _mm512_fmadd_ph(c_f16x32, beta_f16x32, ab_scaled_f16x32);
     _mm512_mask_storeu_epi16(result, mask, _mm512_castph_si512(result_f16x32));
     result += 32;
-    if (n) goto nk_fma_f16_sapphire_cycle;
+    if (n) goto nk_each_fma_f16_sapphire_cycle;
 }
 
-NK_PUBLIC void nk_scale_u8_sapphire(nk_u8_t const *a, nk_size_t n, nk_f32_t const *alpha, nk_f32_t const *beta,
+NK_PUBLIC void nk_each_scale_u8_sapphire(nk_u8_t const *a, nk_size_t n, nk_f32_t const *alpha, nk_f32_t const *beta,
                                     nk_u8_t *result) {
     short alpha_short, beta_short;
     nk_f32_to_f16_sapphire(alpha, (nk_f16_t *)&alpha_short);
@@ -185,7 +185,7 @@ NK_PUBLIC void nk_scale_u8_sapphire(nk_u8_t const *a, nk_size_t n, nk_f32_t cons
     __m512h a_low_f16x32, a_high_f16x32;
     __m512h result_low_f16x32, result_high_f16x32;
     __m512i result_low_i16x32, result_high_i16x32;
-nk_scale_u8_sapphire_cycle:
+nk_each_scale_u8_sapphire_cycle:
     if (n < 64) {
         mask = (__mmask64)_bzhi_u64(0xFFFFFFFFFFFFFFFFull, n);
         a_u8x64 = _mm512_maskz_loadu_epi8(mask, a);
@@ -207,10 +207,10 @@ nk_scale_u8_sapphire_cycle:
     result_u8x64 = _mm512_packus_epi16(result_low_i16x32, result_high_i16x32);
     _mm512_mask_storeu_epi8(result, mask, result_u8x64);
     result += 64;
-    if (n) goto nk_scale_u8_sapphire_cycle;
+    if (n) goto nk_each_scale_u8_sapphire_cycle;
 }
 
-NK_PUBLIC void nk_wsum_u8_sapphire(                  //
+NK_PUBLIC void nk_each_blend_u8_sapphire(                  //
     nk_u8_t const *a, nk_u8_t const *b, nk_size_t n, //
     nk_f32_t const *alpha, nk_f32_t const *beta, nk_u8_t *result) {
 
@@ -221,15 +221,15 @@ NK_PUBLIC void nk_wsum_u8_sapphire(                  //
     // 1. Simple addition, when both weights are equal to 1.0.
     if (alpha_val == 1 && beta_val == 1) {
         // In this case we can avoid expensive multiplications.
-        nk_sum_u8_ice(a, b, n, result);
+        nk_each_sum_u8_ice(a, b, n, result);
         return;
     }
     // 2. Just scaling, when one of the weights is equal to zero.
     else if (alpha_val == 0 || beta_val == 0) {
         // In this case we can avoid half of the load instructions.
         nk_f32_t zero = 0;
-        if (beta_val == 0) { nk_scale_u8_sapphire(a, n, alpha, &zero, result); }
-        else { nk_scale_u8_sapphire(b, n, beta, &zero, result); }
+        if (beta_val == 0) { nk_each_scale_u8_sapphire(a, n, alpha, &zero, result); }
+        else { nk_each_scale_u8_sapphire(b, n, beta, &zero, result); }
         return;
     }
 
@@ -244,7 +244,7 @@ NK_PUBLIC void nk_wsum_u8_sapphire(                  //
     __m512h a_low_f16x32, a_high_f16x32, b_low_f16x32, b_high_f16x32;
     __m512h a_scaled_low_f16x32, a_scaled_high_f16x32, result_low_f16x32, result_high_f16x32;
     __m512i result_low_i16x32, result_high_i16x32;
-nk_wsum_u8_sapphire_cycle:
+nk_each_blend_u8_sapphire_cycle:
     if (n < 64) {
         mask = (__mmask64)_bzhi_u64(0xFFFFFFFFFFFFFFFFull, n);
         a_u8x64 = _mm512_maskz_loadu_epi8(mask, a);
@@ -273,10 +273,10 @@ nk_wsum_u8_sapphire_cycle:
     result_u8x64 = _mm512_packus_epi16(result_low_i16x32, result_high_i16x32);
     _mm512_mask_storeu_epi8(result, mask, result_u8x64);
     result += 64;
-    if (n) goto nk_wsum_u8_sapphire_cycle;
+    if (n) goto nk_each_blend_u8_sapphire_cycle;
 }
 
-NK_PUBLIC void nk_scale_i8_sapphire(nk_i8_t const *a, nk_size_t n, nk_f32_t const *alpha, nk_f32_t const *beta,
+NK_PUBLIC void nk_each_scale_i8_sapphire(nk_i8_t const *a, nk_size_t n, nk_f32_t const *alpha, nk_f32_t const *beta,
                                     nk_i8_t *result) {
     short alpha_short, beta_short;
     nk_f32_to_f16_sapphire(alpha, (nk_f16_t *)&alpha_short);
@@ -289,7 +289,7 @@ NK_PUBLIC void nk_scale_i8_sapphire(nk_i8_t const *a, nk_size_t n, nk_f32_t cons
     __m512h a_low_f16x32, a_high_f16x32;
     __m512h result_low_f16x32, result_high_f16x32;
     __m512i result_low_i16x32, result_high_i16x32;
-nk_scale_i8_sapphire_cycle:
+nk_each_scale_i8_sapphire_cycle:
     if (n < 64) {
         // Tail: use masked 512-bit load and extract (runs once)
         mask = (__mmask64)_bzhi_u64(0xFFFFFFFFFFFFFFFFull, n);
@@ -317,10 +317,10 @@ nk_scale_i8_sapphire_cycle:
                                       _mm512_cvtsepi16_epi8(result_high_i16x32), 1);
     _mm512_mask_storeu_epi8(result, mask, result_i8x64);
     result += 64;
-    if (n) goto nk_scale_i8_sapphire_cycle;
+    if (n) goto nk_each_scale_i8_sapphire_cycle;
 }
 
-NK_PUBLIC void nk_wsum_i8_sapphire(                  //
+NK_PUBLIC void nk_each_blend_i8_sapphire(                  //
     nk_i8_t const *a, nk_i8_t const *b, nk_size_t n, //
     nk_f32_t const *alpha, nk_f32_t const *beta, nk_i8_t *result) {
 
@@ -331,15 +331,15 @@ NK_PUBLIC void nk_wsum_i8_sapphire(                  //
     // 1. Simple addition, when both weights are equal to 1.0.
     if (alpha_val == 1 && beta_val == 1) {
         // In this case we can avoid expensive multiplications.
-        nk_sum_i8_ice(a, b, n, result);
+        nk_each_sum_i8_ice(a, b, n, result);
         return;
     }
     // 2. Just scaling, when one of the weights is equal to zero.
     else if (alpha_val == 0 || beta_val == 0) {
         // In this case we can avoid half of the load instructions.
         nk_f32_t zero = 0;
-        if (beta_val == 0) { nk_scale_i8_sapphire(a, n, alpha, &zero, result); }
-        else { nk_scale_i8_sapphire(b, n, beta, &zero, result); }
+        if (beta_val == 0) { nk_each_scale_i8_sapphire(a, n, alpha, &zero, result); }
+        else { nk_each_scale_i8_sapphire(b, n, beta, &zero, result); }
         return;
     }
 
@@ -355,7 +355,7 @@ NK_PUBLIC void nk_wsum_i8_sapphire(                  //
     __m512h a_low_f16x32, a_high_f16x32, b_low_f16x32, b_high_f16x32;
     __m512h a_scaled_low_f16x32, a_scaled_high_f16x32, result_low_f16x32, result_high_f16x32;
     __m512i result_low_i16x32, result_high_i16x32;
-nk_wsum_i8_sapphire_cycle:
+nk_each_blend_i8_sapphire_cycle:
     if (n < 64) {
         // Tail: use masked 512-bit loads and extract (runs once)
         mask = (__mmask64)_bzhi_u64(0xFFFFFFFFFFFFFFFFull, n);
@@ -393,10 +393,10 @@ nk_wsum_i8_sapphire_cycle:
                                       _mm512_cvtsepi16_epi8(result_high_i16x32), 1);
     _mm512_mask_storeu_epi8(result, mask, result_i8x64);
     result += 64;
-    if (n) goto nk_wsum_i8_sapphire_cycle;
+    if (n) goto nk_each_blend_i8_sapphire_cycle;
 }
 
-NK_PUBLIC void nk_fma_i8_sapphire(                                     //
+NK_PUBLIC void nk_each_fma_i8_sapphire(                                     //
     nk_i8_t const *a, nk_i8_t const *b, nk_i8_t const *c, nk_size_t n, //
     nk_f32_t const *alpha, nk_f32_t const *beta, nk_i8_t *result) {
 
@@ -415,7 +415,7 @@ NK_PUBLIC void nk_fma_i8_sapphire(                                     //
     __m512h min_f16x32 = _mm512_cvtepi16_ph(_mm512_set1_epi16(-128));
     __m512h max_f16x32 = _mm512_cvtepi16_ph(_mm512_set1_epi16(127));
 
-nk_fma_i8_sapphire_cycle:
+nk_each_fma_i8_sapphire_cycle:
     if (n < 64) {
         // Tail: use masked 512-bit loads and extract (runs once)
         mask = (__mmask64)_bzhi_u64(0xFFFFFFFFFFFFFFFFull, n);
@@ -467,10 +467,10 @@ nk_fma_i8_sapphire_cycle:
                                       _mm512_cvtsepi16_epi8(result_high_i16x32), 1);
     _mm512_mask_storeu_epi8(result, mask, result_i8x64);
     result += 64;
-    if (n) goto nk_fma_i8_sapphire_cycle;
+    if (n) goto nk_each_fma_i8_sapphire_cycle;
 }
 
-NK_PUBLIC void nk_fma_u8_sapphire(                                     //
+NK_PUBLIC void nk_each_fma_u8_sapphire(                                     //
     nk_u8_t const *a, nk_u8_t const *b, nk_u8_t const *c, nk_size_t n, //
     nk_f32_t const *alpha, nk_f32_t const *beta, nk_u8_t *result) {
 
@@ -488,7 +488,7 @@ NK_PUBLIC void nk_fma_u8_sapphire(                                     //
     __m512h min_f16x32 = _mm512_cvtepi16_ph(_mm512_set1_epi16(0));
     __m512h max_f16x32 = _mm512_cvtepi16_ph(_mm512_set1_epi16(255));
 
-nk_fma_u8_sapphire_cycle:
+nk_each_fma_u8_sapphire_cycle:
     if (n < 64) {
         mask = (__mmask64)_bzhi_u64(0xFFFFFFFFFFFFFFFFull, n);
         a_u8x64 = _mm512_maskz_loadu_epi8(mask, a);
@@ -528,16 +528,16 @@ nk_fma_u8_sapphire_cycle:
     result_u8x64 = _mm512_packus_epi16(result_low_i16x32, result_high_i16x32);
     _mm512_mask_storeu_epi8(result, mask, result_u8x64);
     result += 64;
-    if (n) goto nk_fma_u8_sapphire_cycle;
+    if (n) goto nk_each_fma_u8_sapphire_cycle;
 }
 
-NK_PUBLIC void nk_sum_e4m3_sapphire(nk_e4m3_t const *a, nk_e4m3_t const *b, nk_size_t n, nk_e4m3_t *result) {
+NK_PUBLIC void nk_each_sum_e4m3_sapphire(nk_e4m3_t const *a, nk_e4m3_t const *b, nk_size_t n, nk_e4m3_t *result) {
     __m256i a_e4m3x32, b_e4m3x32;
     __m256h a_lo_f16x16, a_hi_f16x16, b_lo_f16x16, b_hi_f16x16;
     __m256h sum_lo_f16x16, sum_hi_f16x16;
     __m128i result_lo_e4m3x16, result_hi_e4m3x16;
     __mmask32 mask = 0xFFFFFFFF;
-nk_sum_e4m3_sapphire_cycle:
+nk_each_sum_e4m3_sapphire_cycle:
     if (n < 32) {
         mask = (__mmask32)_bzhi_u32(0xFFFFFFFF, (unsigned int)n);
         a_e4m3x32 = _mm256_maskz_loadu_epi8(mask, a);
@@ -568,7 +568,7 @@ nk_sum_e4m3_sapphire_cycle:
     __m256i result_e4m3x32 = _mm256_inserti128_si256(_mm256_castsi128_si256(result_lo_e4m3x16), result_hi_e4m3x16, 1);
     _mm256_mask_storeu_epi8(result, mask, result_e4m3x32);
     result += 32;
-    if (n) goto nk_sum_e4m3_sapphire_cycle;
+    if (n) goto nk_each_sum_e4m3_sapphire_cycle;
 }
 
 #if defined(__cplusplus)
@@ -583,4 +583,4 @@ nk_sum_e4m3_sapphire_cycle:
 #endif // NK_TARGET_SAPPHIRE
 #endif // NK_TARGET_X86_
 
-#endif // NK_ELEMENTWISE_SAPPHIRE_H
+#endif // NK_EACH_SAPPHIRE_H

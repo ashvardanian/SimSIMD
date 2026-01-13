@@ -1,7 +1,7 @@
 /**
  *  @brief SIMD-accelerated Elementwise Operations optimized for Arm NEON-capable CPUs.
- *  @file include/numkong/elementwise/neon.h
- *  @sa include/numkong/elementwise.h
+ *  @file include/numkong/each/neon.h
+ *  @sa include/numkong/each.h
  *  @author Ash Vardanian
  *  @date December 27, 2025
  *
@@ -28,8 +28,8 @@
  *  Memory bandwidth (LD1/ST1) typically becomes the bottleneck for large arrays, as load/store
  *  throughput remains at 2/cy across all cores.
  */
-#ifndef NK_ELEMENTWISE_NEON_H
-#define NK_ELEMENTWISE_NEON_H
+#ifndef NK_EACH_NEON_H
+#define NK_EACH_NEON_H
 
 #if NK_TARGET_ARM_
 #if NK_TARGET_NEON
@@ -47,7 +47,7 @@
 extern "C" {
 #endif
 
-NK_PUBLIC void nk_sum_f32_neon(nk_f32_t const *a, nk_f32_t const *b, nk_size_t n, nk_f32_t *result) {
+NK_PUBLIC void nk_each_sum_f32_neon(nk_f32_t const *a, nk_f32_t const *b, nk_size_t n, nk_f32_t *result) {
     // The main loop:
     nk_size_t i = 0;
     for (; i + 4 <= n; i += 4) {
@@ -61,8 +61,8 @@ NK_PUBLIC void nk_sum_f32_neon(nk_f32_t const *a, nk_f32_t const *b, nk_size_t n
     for (; i < n; ++i) result[i] = a[i] + b[i];
 }
 
-NK_PUBLIC void nk_scale_f32_neon(nk_f32_t const *a, nk_size_t n, nk_f32_t const *alpha, nk_f32_t const *beta,
-                                 nk_f32_t *result) {
+NK_PUBLIC void nk_each_scale_f32_neon(nk_f32_t const *a, nk_size_t n, nk_f32_t const *alpha, nk_f32_t const *beta,
+                                      nk_f32_t *result) {
     nk_f32_t alpha_val = *alpha;
     nk_f32_t beta_val = *beta;
     float32x4_t alpha_f32x4 = vdupq_n_f32(alpha_val);
@@ -80,7 +80,7 @@ NK_PUBLIC void nk_scale_f32_neon(nk_f32_t const *a, nk_size_t n, nk_f32_t const 
     for (; i < n; ++i) result[i] = alpha_val * a[i] + beta_val;
 }
 
-NK_PUBLIC void nk_wsum_f32_neon(                       //
+NK_PUBLIC void nk_each_blend_f32_neon(                 //
     nk_f32_t const *a, nk_f32_t const *b, nk_size_t n, //
     nk_f32_t const *alpha, nk_f32_t const *beta, nk_f32_t *result) {
 
@@ -91,15 +91,15 @@ NK_PUBLIC void nk_wsum_f32_neon(                       //
     // 1. Simple addition, when both weights are equal to 1.0.
     if (alpha_val == 1 && beta_val == 1) {
         // In this case we can avoid expensive multiplications.
-        nk_sum_f32_neon(a, b, n, result);
+        nk_each_sum_f32_neon(a, b, n, result);
         return;
     }
     // 2. Just scaling, when one of the weights is equal to zero.
     else if (alpha_val == 0 || beta_val == 0) {
         // In this case we can avoid half of the load instructions.
         nk_f32_t zero = 0;
-        if (beta_val == 0) { nk_scale_f32_neon(a, n, alpha, &zero, result); }
-        else { nk_scale_f32_neon(b, n, beta, &zero, result); }
+        if (beta_val == 0) { nk_each_scale_f32_neon(a, n, alpha, &zero, result); }
+        else { nk_each_scale_f32_neon(b, n, beta, &zero, result); }
         return;
     }
 
@@ -118,7 +118,7 @@ NK_PUBLIC void nk_wsum_f32_neon(                       //
     for (; i < n; ++i) result[i] = alpha_val * a[i] + beta_val * b[i];
 }
 
-NK_PUBLIC void nk_fma_f32_neon(                              //
+NK_PUBLIC void nk_each_fma_f32_neon(                         //
     nk_f32_t const *a, nk_f32_t const *b, nk_f32_t const *c, //
     nk_size_t n, nk_f32_t const *alpha, nk_f32_t const *beta, nk_f32_t *result) {
     nk_f32_t alpha_val = *alpha;
@@ -140,7 +140,7 @@ NK_PUBLIC void nk_fma_f32_neon(                              //
     for (; i < n; ++i) result[i] = alpha_val * a[i] * b[i] + beta_val * c[i];
 }
 
-NK_PUBLIC void nk_sum_i16_neon(nk_i16_t const *a, nk_i16_t const *b, nk_size_t n, nk_i16_t *result) {
+NK_PUBLIC void nk_each_sum_i16_neon(nk_i16_t const *a, nk_i16_t const *b, nk_size_t n, nk_i16_t *result) {
     // The main loop:
     nk_size_t i = 0;
     for (; i + 8 <= n; i += 8) {
@@ -154,8 +154,8 @@ NK_PUBLIC void nk_sum_i16_neon(nk_i16_t const *a, nk_i16_t const *b, nk_size_t n
     for (; i < n; ++i) nk_i16_sadd_(a + i, b + i, result + i);
 }
 
-NK_PUBLIC void nk_scale_i16_neon(nk_i16_t const *a, nk_size_t n, nk_f32_t const *alpha, nk_f32_t const *beta,
-                                 nk_i16_t *result) {
+NK_PUBLIC void nk_each_scale_i16_neon(nk_i16_t const *a, nk_size_t n, nk_f32_t const *alpha, nk_f32_t const *beta,
+                                      nk_i16_t *result) {
     float32_t alpha_f32 = *alpha;
     float32_t beta_f32 = *beta;
     float32x4_t alpha_f32x4 = vdupq_n_f32(alpha_f32);
@@ -178,7 +178,7 @@ NK_PUBLIC void nk_scale_i16_neon(nk_i16_t const *a, nk_size_t n, nk_f32_t const 
     }
 }
 
-NK_PUBLIC void nk_fma_i16_neon(                              //
+NK_PUBLIC void nk_each_fma_i16_neon(                         //
     nk_i16_t const *a, nk_i16_t const *b, nk_i16_t const *c, //
     nk_size_t n, nk_f32_t const *alpha, nk_f32_t const *beta, nk_i16_t *result) {
     float32_t alpha_f32 = *alpha;
@@ -207,7 +207,7 @@ NK_PUBLIC void nk_fma_i16_neon(                              //
     }
 }
 
-NK_PUBLIC void nk_sum_u16_neon(nk_u16_t const *a, nk_u16_t const *b, nk_size_t n, nk_u16_t *result) {
+NK_PUBLIC void nk_each_sum_u16_neon(nk_u16_t const *a, nk_u16_t const *b, nk_size_t n, nk_u16_t *result) {
     // The main loop:
     nk_size_t i = 0;
     for (; i + 8 <= n; i += 8) {
@@ -221,8 +221,8 @@ NK_PUBLIC void nk_sum_u16_neon(nk_u16_t const *a, nk_u16_t const *b, nk_size_t n
     for (; i < n; ++i) nk_u16_sadd_(a + i, b + i, result + i);
 }
 
-NK_PUBLIC void nk_scale_u16_neon(nk_u16_t const *a, nk_size_t n, nk_f32_t const *alpha, nk_f32_t const *beta,
-                                 nk_u16_t *result) {
+NK_PUBLIC void nk_each_scale_u16_neon(nk_u16_t const *a, nk_size_t n, nk_f32_t const *alpha, nk_f32_t const *beta,
+                                      nk_u16_t *result) {
     float32_t alpha_f32 = *alpha;
     float32_t beta_f32 = *beta;
     float32x4_t alpha_f32x4 = vdupq_n_f32(alpha_f32);
@@ -245,7 +245,7 @@ NK_PUBLIC void nk_scale_u16_neon(nk_u16_t const *a, nk_size_t n, nk_f32_t const 
     }
 }
 
-NK_PUBLIC void nk_fma_u16_neon(                              //
+NK_PUBLIC void nk_each_fma_u16_neon(                         //
     nk_u16_t const *a, nk_u16_t const *b, nk_u16_t const *c, //
     nk_size_t n, nk_f32_t const *alpha, nk_f32_t const *beta, nk_u16_t *result) {
     float32_t alpha_f32 = *alpha;
@@ -274,7 +274,7 @@ NK_PUBLIC void nk_fma_u16_neon(                              //
     }
 }
 
-NK_PUBLIC void nk_sum_i32_neon(nk_i32_t const *a, nk_i32_t const *b, nk_size_t n, nk_i32_t *result) {
+NK_PUBLIC void nk_each_sum_i32_neon(nk_i32_t const *a, nk_i32_t const *b, nk_size_t n, nk_i32_t *result) {
     // The main loop:
     nk_size_t i = 0;
     for (; i + 4 <= n; i += 4) {
@@ -288,8 +288,8 @@ NK_PUBLIC void nk_sum_i32_neon(nk_i32_t const *a, nk_i32_t const *b, nk_size_t n
     for (; i < n; ++i) nk_i32_sadd_(a + i, b + i, result + i);
 }
 
-NK_PUBLIC void nk_scale_i32_neon(nk_i32_t const *a, nk_size_t n, nk_f64_t const *alpha, nk_f64_t const *beta,
-                                 nk_i32_t *result) {
+NK_PUBLIC void nk_each_scale_i32_neon(nk_i32_t const *a, nk_size_t n, nk_f64_t const *alpha, nk_f64_t const *beta,
+                                      nk_i32_t *result) {
     nk_f64_t alpha_val = *alpha;
     nk_f64_t beta_val = *beta;
     float64x2_t alpha_f64x2 = vdupq_n_f64(alpha_val);
@@ -312,7 +312,7 @@ NK_PUBLIC void nk_scale_i32_neon(nk_i32_t const *a, nk_size_t n, nk_f64_t const 
     }
 }
 
-NK_PUBLIC void nk_fma_i32_neon(                              //
+NK_PUBLIC void nk_each_fma_i32_neon(                         //
     nk_i32_t const *a, nk_i32_t const *b, nk_i32_t const *c, //
     nk_size_t n, nk_f64_t const *alpha, nk_f64_t const *beta, nk_i32_t *result) {
     nk_f64_t alpha_val = *alpha;
@@ -341,7 +341,7 @@ NK_PUBLIC void nk_fma_i32_neon(                              //
     }
 }
 
-NK_PUBLIC void nk_sum_u32_neon(nk_u32_t const *a, nk_u32_t const *b, nk_size_t n, nk_u32_t *result) {
+NK_PUBLIC void nk_each_sum_u32_neon(nk_u32_t const *a, nk_u32_t const *b, nk_size_t n, nk_u32_t *result) {
     // The main loop:
     nk_size_t i = 0;
     for (; i + 4 <= n; i += 4) {
@@ -355,8 +355,8 @@ NK_PUBLIC void nk_sum_u32_neon(nk_u32_t const *a, nk_u32_t const *b, nk_size_t n
     for (; i < n; ++i) nk_u32_sadd_(a + i, b + i, result + i);
 }
 
-NK_PUBLIC void nk_scale_u32_neon(nk_u32_t const *a, nk_size_t n, nk_f64_t const *alpha, nk_f64_t const *beta,
-                                 nk_u32_t *result) {
+NK_PUBLIC void nk_each_scale_u32_neon(nk_u32_t const *a, nk_size_t n, nk_f64_t const *alpha, nk_f64_t const *beta,
+                                      nk_u32_t *result) {
     nk_f64_t alpha_val = *alpha;
     nk_f64_t beta_val = *beta;
     float64x2_t alpha_f64x2 = vdupq_n_f64(alpha_val);
@@ -379,7 +379,7 @@ NK_PUBLIC void nk_scale_u32_neon(nk_u32_t const *a, nk_size_t n, nk_f64_t const 
     }
 }
 
-NK_PUBLIC void nk_fma_u32_neon(                              //
+NK_PUBLIC void nk_each_fma_u32_neon(                         //
     nk_u32_t const *a, nk_u32_t const *b, nk_u32_t const *c, //
     nk_size_t n, nk_f64_t const *alpha, nk_f64_t const *beta, nk_u32_t *result) {
     nk_f64_t alpha_val = *alpha;
@@ -408,7 +408,7 @@ NK_PUBLIC void nk_fma_u32_neon(                              //
     }
 }
 
-NK_PUBLIC void nk_sum_i64_neon(nk_i64_t const *a, nk_i64_t const *b, nk_size_t n, nk_i64_t *result) {
+NK_PUBLIC void nk_each_sum_i64_neon(nk_i64_t const *a, nk_i64_t const *b, nk_size_t n, nk_i64_t *result) {
     // The main loop:
     nk_size_t i = 0;
     for (; i + 2 <= n; i += 2) {
@@ -422,8 +422,8 @@ NK_PUBLIC void nk_sum_i64_neon(nk_i64_t const *a, nk_i64_t const *b, nk_size_t n
     for (; i < n; ++i) nk_i64_sadd_(a + i, b + i, result + i);
 }
 
-NK_PUBLIC void nk_scale_i64_neon(nk_i64_t const *a, nk_size_t n, nk_f64_t const *alpha, nk_f64_t const *beta,
-                                 nk_i64_t *result) {
+NK_PUBLIC void nk_each_scale_i64_neon(nk_i64_t const *a, nk_size_t n, nk_f64_t const *alpha, nk_f64_t const *beta,
+                                      nk_i64_t *result) {
     nk_f64_t alpha_val = *alpha;
     nk_f64_t beta_val = *beta;
     float64x2_t alpha_f64x2 = vdupq_n_f64(alpha_val);
@@ -446,7 +446,7 @@ NK_PUBLIC void nk_scale_i64_neon(nk_i64_t const *a, nk_size_t n, nk_f64_t const 
     }
 }
 
-NK_PUBLIC void nk_fma_i64_neon(                              //
+NK_PUBLIC void nk_each_fma_i64_neon(                         //
     nk_i64_t const *a, nk_i64_t const *b, nk_i64_t const *c, //
     nk_size_t n, nk_f64_t const *alpha, nk_f64_t const *beta, nk_i64_t *result) {
     nk_f64_t alpha_val = *alpha;
@@ -475,7 +475,7 @@ NK_PUBLIC void nk_fma_i64_neon(                              //
     }
 }
 
-NK_PUBLIC void nk_sum_u64_neon(nk_u64_t const *a, nk_u64_t const *b, nk_size_t n, nk_u64_t *result) {
+NK_PUBLIC void nk_each_sum_u64_neon(nk_u64_t const *a, nk_u64_t const *b, nk_size_t n, nk_u64_t *result) {
     // The main loop:
     nk_size_t i = 0;
     for (; i + 2 <= n; i += 2) {
@@ -489,8 +489,8 @@ NK_PUBLIC void nk_sum_u64_neon(nk_u64_t const *a, nk_u64_t const *b, nk_size_t n
     for (; i < n; ++i) nk_u64_sadd_(a + i, b + i, result + i);
 }
 
-NK_PUBLIC void nk_scale_u64_neon(nk_u64_t const *a, nk_size_t n, nk_f64_t const *alpha, nk_f64_t const *beta,
-                                 nk_u64_t *result) {
+NK_PUBLIC void nk_each_scale_u64_neon(nk_u64_t const *a, nk_size_t n, nk_f64_t const *alpha, nk_f64_t const *beta,
+                                      nk_u64_t *result) {
     nk_f64_t alpha_val = *alpha;
     nk_f64_t beta_val = *beta;
     float64x2_t alpha_f64x2 = vdupq_n_f64(alpha_val);
@@ -513,7 +513,7 @@ NK_PUBLIC void nk_scale_u64_neon(nk_u64_t const *a, nk_size_t n, nk_f64_t const 
     }
 }
 
-NK_PUBLIC void nk_fma_u64_neon(                              //
+NK_PUBLIC void nk_each_fma_u64_neon(                         //
     nk_u64_t const *a, nk_u64_t const *b, nk_u64_t const *c, //
     nk_size_t n, nk_f64_t const *alpha, nk_f64_t const *beta, nk_u64_t *result) {
     nk_f64_t alpha_val = *alpha;
@@ -542,7 +542,7 @@ NK_PUBLIC void nk_fma_u64_neon(                              //
     }
 }
 
-NK_PUBLIC void nk_sum_f64_neon(nk_f64_t const *a, nk_f64_t const *b, nk_size_t n, nk_f64_t *result) {
+NK_PUBLIC void nk_each_sum_f64_neon(nk_f64_t const *a, nk_f64_t const *b, nk_size_t n, nk_f64_t *result) {
     // The main loop:
     nk_size_t i = 0;
     for (; i + 2 <= n; i += 2) {
@@ -556,8 +556,8 @@ NK_PUBLIC void nk_sum_f64_neon(nk_f64_t const *a, nk_f64_t const *b, nk_size_t n
     for (; i < n; ++i) result[i] = a[i] + b[i];
 }
 
-NK_PUBLIC void nk_scale_f64_neon(nk_f64_t const *a, nk_size_t n, nk_f64_t const *alpha, nk_f64_t const *beta,
-                                 nk_f64_t *result) {
+NK_PUBLIC void nk_each_scale_f64_neon(nk_f64_t const *a, nk_size_t n, nk_f64_t const *alpha, nk_f64_t const *beta,
+                                      nk_f64_t *result) {
     nk_f64_t alpha_val = *alpha;
     nk_f64_t beta_val = *beta;
     float64x2_t alpha_f64x2 = vdupq_n_f64(alpha_val);
@@ -575,7 +575,7 @@ NK_PUBLIC void nk_scale_f64_neon(nk_f64_t const *a, nk_size_t n, nk_f64_t const 
     for (; i < n; ++i) result[i] = alpha_val * a[i] + beta_val;
 }
 
-NK_PUBLIC void nk_wsum_f64_neon(                       //
+NK_PUBLIC void nk_each_blend_f64_neon(                 //
     nk_f64_t const *a, nk_f64_t const *b, nk_size_t n, //
     nk_f64_t const *alpha, nk_f64_t const *beta, nk_f64_t *result) {
 
@@ -586,15 +586,15 @@ NK_PUBLIC void nk_wsum_f64_neon(                       //
     // 1. Simple addition, when both weights are equal to 1.0.
     if (alpha_val == 1 && beta_val == 1) {
         // In this case we can avoid expensive multiplications.
-        nk_sum_f64_neon(a, b, n, result);
+        nk_each_sum_f64_neon(a, b, n, result);
         return;
     }
     // 2. Just scaling, when one of the weights is equal to zero.
     else if (alpha_val == 0 || beta_val == 0) {
         // In this case we can avoid half of the load instructions.
         nk_f64_t zero = 0;
-        if (beta_val == 0) { nk_scale_f64_neon(a, n, alpha, &zero, result); }
-        else { nk_scale_f64_neon(b, n, beta, &zero, result); }
+        if (beta_val == 0) { nk_each_scale_f64_neon(a, n, alpha, &zero, result); }
+        else { nk_each_scale_f64_neon(b, n, beta, &zero, result); }
         return;
     }
 
@@ -614,7 +614,7 @@ NK_PUBLIC void nk_wsum_f64_neon(                       //
     for (; i < n; ++i) result[i] = alpha_val * a[i] + beta_val * b[i];
 }
 
-NK_PUBLIC void nk_fma_f64_neon(                              //
+NK_PUBLIC void nk_each_fma_f64_neon(                         //
     nk_f64_t const *a, nk_f64_t const *b, nk_f64_t const *c, //
     nk_size_t n, nk_f64_t const *alpha, nk_f64_t const *beta, nk_f64_t *result) {
     nk_f64_t alpha_val = *alpha;
@@ -636,7 +636,7 @@ NK_PUBLIC void nk_fma_f64_neon(                              //
     for (; i < n; ++i) result[i] = alpha_val * a[i] * b[i] + beta_val * c[i];
 }
 
-NK_PUBLIC void nk_sum_e4m3_neon(nk_e4m3_t const *a, nk_e4m3_t const *b, nk_size_t n, nk_e4m3_t *result) {
+NK_PUBLIC void nk_each_sum_e4m3_neon(nk_e4m3_t const *a, nk_e4m3_t const *b, nk_size_t n, nk_e4m3_t *result) {
     nk_b32_vec_t a_vec, b_vec, result_vec;
     nk_size_t i = 0;
     for (; i + 4 <= n; i += 4) {
@@ -657,7 +657,7 @@ NK_PUBLIC void nk_sum_e4m3_neon(nk_e4m3_t const *a, nk_e4m3_t const *b, nk_size_
     }
 }
 
-NK_PUBLIC void nk_sum_e5m2_neon(nk_e5m2_t const *a, nk_e5m2_t const *b, nk_size_t n, nk_e5m2_t *result) {
+NK_PUBLIC void nk_each_sum_e5m2_neon(nk_e5m2_t const *a, nk_e5m2_t const *b, nk_size_t n, nk_e5m2_t *result) {
     nk_b32_vec_t a_vec, b_vec, result_vec;
     nk_size_t i = 0;
     for (; i + 4 <= n; i += 4) {
@@ -678,8 +678,8 @@ NK_PUBLIC void nk_sum_e5m2_neon(nk_e5m2_t const *a, nk_e5m2_t const *b, nk_size_
     }
 }
 
-NK_PUBLIC void nk_scale_e4m3_neon(nk_e4m3_t const *a, nk_size_t n, nk_f32_t const *alpha, nk_f32_t const *beta,
-                                  nk_e4m3_t *result) {
+NK_PUBLIC void nk_each_scale_e4m3_neon(nk_e4m3_t const *a, nk_size_t n, nk_f32_t const *alpha, nk_f32_t const *beta,
+                                       nk_e4m3_t *result) {
     float32x4_t alpha_f32x4 = vdupq_n_f32(*alpha);
     float32x4_t beta_f32x4 = vdupq_n_f32(*beta);
     nk_b32_vec_t a_vec, result_vec;
@@ -699,8 +699,8 @@ NK_PUBLIC void nk_scale_e4m3_neon(nk_e4m3_t const *a, nk_size_t n, nk_f32_t cons
     }
 }
 
-NK_PUBLIC void nk_scale_e5m2_neon(nk_e5m2_t const *a, nk_size_t n, nk_f32_t const *alpha, nk_f32_t const *beta,
-                                  nk_e5m2_t *result) {
+NK_PUBLIC void nk_each_scale_e5m2_neon(nk_e5m2_t const *a, nk_size_t n, nk_f32_t const *alpha, nk_f32_t const *beta,
+                                       nk_e5m2_t *result) {
     float32x4_t alpha_f32x4 = vdupq_n_f32(*alpha);
     float32x4_t beta_f32x4 = vdupq_n_f32(*beta);
     nk_b32_vec_t a_vec, result_vec;
@@ -720,8 +720,8 @@ NK_PUBLIC void nk_scale_e5m2_neon(nk_e5m2_t const *a, nk_size_t n, nk_f32_t cons
     }
 }
 
-NK_PUBLIC void nk_wsum_e4m3_neon(nk_e4m3_t const *a, nk_e4m3_t const *b, nk_size_t n, nk_f32_t const *alpha,
-                                 nk_f32_t const *beta, nk_e4m3_t *result) {
+NK_PUBLIC void nk_each_blend_e4m3_neon(nk_e4m3_t const *a, nk_e4m3_t const *b, nk_size_t n, nk_f32_t const *alpha,
+                                       nk_f32_t const *beta, nk_e4m3_t *result) {
     float32x4_t alpha_f32x4 = vdupq_n_f32(*alpha);
     float32x4_t beta_f32x4 = vdupq_n_f32(*beta);
     nk_b32_vec_t a_vec, b_vec, result_vec;
@@ -745,8 +745,8 @@ NK_PUBLIC void nk_wsum_e4m3_neon(nk_e4m3_t const *a, nk_e4m3_t const *b, nk_size
     }
 }
 
-NK_PUBLIC void nk_wsum_e5m2_neon(nk_e5m2_t const *a, nk_e5m2_t const *b, nk_size_t n, nk_f32_t const *alpha,
-                                 nk_f32_t const *beta, nk_e5m2_t *result) {
+NK_PUBLIC void nk_each_blend_e5m2_neon(nk_e5m2_t const *a, nk_e5m2_t const *b, nk_size_t n, nk_f32_t const *alpha,
+                                       nk_f32_t const *beta, nk_e5m2_t *result) {
     float32x4_t alpha_f32x4 = vdupq_n_f32(*alpha);
     float32x4_t beta_f32x4 = vdupq_n_f32(*beta);
     nk_b32_vec_t a_vec, b_vec, result_vec;
@@ -770,8 +770,8 @@ NK_PUBLIC void nk_wsum_e5m2_neon(nk_e5m2_t const *a, nk_e5m2_t const *b, nk_size
     }
 }
 
-NK_PUBLIC void nk_fma_e4m3_neon(nk_e4m3_t const *a, nk_e4m3_t const *b, nk_e4m3_t const *c, nk_size_t n,
-                                nk_f32_t const *alpha, nk_f32_t const *beta, nk_e4m3_t *result) {
+NK_PUBLIC void nk_each_fma_e4m3_neon(nk_e4m3_t const *a, nk_e4m3_t const *b, nk_e4m3_t const *c, nk_size_t n,
+                                     nk_f32_t const *alpha, nk_f32_t const *beta, nk_e4m3_t *result) {
     float32x4_t alpha_f32x4 = vdupq_n_f32(*alpha);
     float32x4_t beta_f32x4 = vdupq_n_f32(*beta);
     nk_b32_vec_t a_vec, b_vec, c_vec, result_vec;
@@ -799,8 +799,8 @@ NK_PUBLIC void nk_fma_e4m3_neon(nk_e4m3_t const *a, nk_e4m3_t const *b, nk_e4m3_
     }
 }
 
-NK_PUBLIC void nk_fma_e5m2_neon(nk_e5m2_t const *a, nk_e5m2_t const *b, nk_e5m2_t const *c, nk_size_t n,
-                                nk_f32_t const *alpha, nk_f32_t const *beta, nk_e5m2_t *result) {
+NK_PUBLIC void nk_each_fma_e5m2_neon(nk_e5m2_t const *a, nk_e5m2_t const *b, nk_e5m2_t const *c, nk_size_t n,
+                                     nk_f32_t const *alpha, nk_f32_t const *beta, nk_e5m2_t *result) {
     float32x4_t alpha_f32x4 = vdupq_n_f32(*alpha);
     float32x4_t beta_f32x4 = vdupq_n_f32(*beta);
     nk_b32_vec_t a_vec, b_vec, c_vec, result_vec;
@@ -840,4 +840,4 @@ NK_PUBLIC void nk_fma_e5m2_neon(nk_e5m2_t const *a, nk_e5m2_t const *b, nk_e5m2_
 #endif // NK_TARGET_NEON
 #endif // NK_TARGET_ARM_
 
-#endif // NK_ELEMENTWISE_NEON_H
+#endif // NK_EACH_NEON_H

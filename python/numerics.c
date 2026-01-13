@@ -16,10 +16,10 @@ int impl_elementwise_add(char *a, char *b, char *out, size_t n, nk_dtype_t dtype
     size_t item_size = bytes_per_dtype(dtype);
     if (stride_a == (Py_ssize_t)item_size && stride_b == (Py_ssize_t)item_size && stride_out == (Py_ssize_t)item_size) {
         switch (dtype) {
-        case nk_f64_k: nk_sum_f64((nk_f64_t *)a, (nk_f64_t *)b, n, (nk_f64_t *)out); return 0;
-        case nk_f32_k: nk_sum_f32((nk_f32_t *)a, (nk_f32_t *)b, n, (nk_f32_t *)out); return 0;
-        case nk_i8_k: nk_sum_i8((nk_i8_t *)a, (nk_i8_t *)b, n, (nk_i8_t *)out); return 0;
-        case nk_i32_k: nk_sum_i32((nk_i32_t *)a, (nk_i32_t *)b, n, (nk_i32_t *)out); return 0;
+        case nk_f64_k: nk_each_sum_f64((nk_f64_t *)a, (nk_f64_t *)b, n, (nk_f64_t *)out); return 0;
+        case nk_f32_k: nk_each_sum_f32((nk_f32_t *)a, (nk_f32_t *)b, n, (nk_f32_t *)out); return 0;
+        case nk_i8_k: nk_each_sum_i8((nk_i8_t *)a, (nk_i8_t *)b, n, (nk_i8_t *)out); return 0;
+        case nk_i32_k: nk_each_sum_i32((nk_i32_t *)a, (nk_i32_t *)b, n, (nk_i32_t *)out); return 0;
         default: break;
         }
     }
@@ -53,12 +53,12 @@ int impl_elementwise_mul(char *a, char *b, char *out, size_t n, nk_dtype_t dtype
         switch (dtype) {
         case nk_f64_k: {
             nk_f64_t alpha = 1, beta = 0;
-            nk_fma_f64((nk_f64_t *)a, (nk_f64_t *)b, (nk_f64_t *)out, n, &alpha, &beta, (nk_f64_t *)out);
+            nk_each_fma_f64((nk_f64_t *)a, (nk_f64_t *)b, (nk_f64_t *)out, n, &alpha, &beta, (nk_f64_t *)out);
             return 0;
         }
         case nk_f32_k: {
             nk_f32_t alpha = 1, beta = 0;
-            nk_fma_f32((nk_f32_t *)a, (nk_f32_t *)b, (nk_f32_t *)out, n, &alpha, &beta, (nk_f32_t *)out);
+            nk_each_fma_f32((nk_f32_t *)a, (nk_f32_t *)b, (nk_f32_t *)out, n, &alpha, &beta, (nk_f32_t *)out);
             return 0;
         }
         default: break;
@@ -85,12 +85,12 @@ int impl_elementwise_wsum(char *a, char *b, char *out, size_t n, nk_dtype_t dtyp
         switch (dtype) {
         case nk_f64_k: {
             nk_f64_t alpha_f64 = alpha, beta_f64 = beta;
-            nk_wsum_f64((nk_f64_t *)a, (nk_f64_t *)b, n, &alpha_f64, &beta_f64, (nk_f64_t *)out);
+            nk_each_blend_f64((nk_f64_t *)a, (nk_f64_t *)b, n, &alpha_f64, &beta_f64, (nk_f64_t *)out);
             return 0;
         }
         case nk_f32_k: {
             nk_f32_t alpha_f32 = (nk_f32_t)alpha, beta_f32 = (nk_f32_t)beta;
-            nk_wsum_f32((nk_f32_t *)a, (nk_f32_t *)b, n, &alpha_f32, &beta_f32, (nk_f32_t *)out);
+            nk_each_blend_f32((nk_f32_t *)a, (nk_f32_t *)b, n, &alpha_f32, &beta_f32, (nk_f32_t *)out);
             return 0;
         }
         default: break;
@@ -119,12 +119,12 @@ int impl_elementwise_scale(char *a, char *out, size_t n, nk_dtype_t dtype, doubl
         switch (dtype) {
         case nk_f64_k: {
             nk_f64_t alpha_f64 = alpha, beta_f64 = beta;
-            nk_scale_f64((nk_f64_t *)a, n, &alpha_f64, &beta_f64, (nk_f64_t *)out);
+            nk_each_scale_f64((nk_f64_t *)a, n, &alpha_f64, &beta_f64, (nk_f64_t *)out);
             return 0;
         }
         case nk_f32_k: {
             nk_f32_t alpha_f32 = (nk_f32_t)alpha, beta_f32 = (nk_f32_t)beta;
-            nk_scale_f32((nk_f32_t *)a, n, &alpha_f32, &beta_f32, (nk_f32_t *)out);
+            nk_each_scale_f32((nk_f32_t *)a, n, &alpha_f32, &beta_f32, (nk_f32_t *)out);
             return 0;
         }
         default: break;
