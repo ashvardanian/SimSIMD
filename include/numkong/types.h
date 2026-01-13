@@ -60,7 +60,7 @@
 // On GCC we mark the functions as `nonnull` informing that none of the arguments can be `NULL`.
 // Marking with `pure` and `const` isn't possible as outputting to a pointer is a "side effect".
 #if defined(__GNUC__) || defined(__clang__)
-#define NK_PUBLIC   __attribute__((unused, nonnull)) inline static
+#define NK_PUBLIC   __attribute__((unused)) inline static
 #define NK_INTERNAL __attribute__((always_inline)) inline static
 #else
 #define NK_PUBLIC   inline static
@@ -71,7 +71,7 @@
 #if defined(_WIN32) || defined(__CYGWIN__)
 #define NK_DYNAMIC __declspec(dllexport)
 #elif defined(__GNUC__) || defined(__clang__)
-#define NK_DYNAMIC __attribute__((visibility("default"))) __attribute__((nonnull))
+#define NK_DYNAMIC __attribute__((visibility("default")))
 #else
 #define NK_DYNAMIC NK_PUBLIC
 #endif
