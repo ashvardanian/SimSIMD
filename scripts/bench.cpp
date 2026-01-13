@@ -13,16 +13,16 @@
  *
  *  Environment Variables:
  *    NK_BENCH_FILTER=<pattern>       - Filter benchmarks by name regex (default: run all)
- *    NK_BENCH_DENSE_DIMENSION=N      - Vector dimension for dot/spatial benchmarks (default: 1536)
- *    NK_BENCH_CURVED_DIMENSION=N     - Vector dimension for curved benchmarks (default: 8)
- *    NK_BENCH_MESH_DIMENSION=N       - Point count for mesh benchmarks (default: 1000)
- *    NK_BENCH_MATMUL_DIMENSION_M=N   - GEMM M dimension (default: 128)
- *    NK_BENCH_MATMUL_DIMENSION_N=N   - GEMM N dimension (default: 512)
- *    NK_BENCH_MATMUL_DIMENSION_K=N   - GEMM K dimension (default: 256)
  *    NK_BENCH_SEED=N                 - RNG seed (default: 42)
+ *    NK_BENCH_CURVED_DIMENSIONS=N    - Vector dimension for curved benchmarks (default: 64)
  *    NK_BENCH_SPARSE_FIRST_LENGTH=N  - First set size for sparse benchmarks (default: 1024)
  *    NK_BENCH_SPARSE_SECOND_LENGTH=N - Second set size for sparse benchmarks (default: 8192)
  *    NK_BENCH_SPARSE_INTERSECTION=F  - Intersection share 0.0-1.0 (default: 0.5)
+ *    NK_DENSE_DIMENSIONS=N           - Vector dimension for dot/spatial benchmarks (default: 1536)
+ *    NK_MESH_POINTS=N                - Point count for mesh benchmarks (default: 1000)
+ *    NK_MATRIX_HEIGHT=N              - GEMM M dimension (default: 128)
+ *    NK_MATRIX_WIDTH=N               - GEMM N dimension (default: 512)
+ *    NK_MATRIX_DEPTH=N               - GEMM K dimension (default: 256)
  */
 
 #include <array>         // `std::array`
@@ -75,18 +75,18 @@ namespace nk = ashvardanian::numkong;
 constexpr std::size_t default_seconds = 10;
 constexpr std::size_t default_threads = 1;
 
-/// For sub-byte data types
-/// Can be overridden at runtime via `NK_BENCH_DENSE_DIMENSION` environment variable
-std::size_t dense_dimension = 1536;
+/// Vector dimension for dot products and spatial metrics
+/// Can be overridden at runtime via `NK_DENSE_DIMENSIONS` environment variable
+std::size_t dense_dimensionss = 1536;
 /// Has quadratic impact on the number of operations
-/// Can be overridden at runtime via `NK_BENCH_CURVED_DIMENSION` environment variable
-std::size_t curved_dimension = 64;
+/// Can be overridden at runtime via `NK_BENCH_CURVED_DIMENSIONS` environment variable
+std::size_t curved_dimensionss = 64;
 /// Number of 3D points for mesh metrics (RMSD, Kabsch)
-/// Can be overridden at runtime via `NK_BENCH_MESH_DIMENSION` environment variable
-std::size_t mesh_dimension = 1000;
+/// Can be overridden at runtime via `NK_MESH_POINTS` environment variable
+std::size_t mesh_points = 1000;
 /// Matrix multiplication benchmark globals
-/// Can be overridden at runtime via `NK_BENCH_MATMUL_DIMENSION_M/N/K` environment variables
-std::size_t matmul_dimension_m = 128, matmul_dimension_n = 512, matmul_dimension_k = 256;
+/// Can be overridden at runtime via `NK_MATRIX_HEIGHT/WIDTH/DEPTH` environment variables
+std::size_t matrix_height = 128, matrix_width = 512, matrix_depth = 256;
 /// Random seed for reproducible benchmarks
 /// Can be overridden at runtime via `NK_BENCH_SEED` environment variable
 std::uint32_t random_seed = 42;
@@ -435,9 +435,9 @@ void measure_geospatial(bm::State &state, kernel_type_ kernel, std::size_t coord
 
 template <nk_dtype_t input_dtype_, nk_dtype_t output_dtype_, typename kernel_type_ = void>
 void dense_(std::string name, kernel_type_ *kernel) {
-    std::string bench_name = name + "<" + std::to_string(dense_dimension) + "d>";
+    std::string bench_name = name + "<" + std::to_string(dense_dimensions) + "d>";
     bm::RegisterBenchmark(bench_name.c_str(), measure_dense<input_dtype_, output_dtype_, kernel_type_ *>, kernel,
-                          dense_dimension)
+                          dense_dimensions)
         ->MinTime(default_seconds)
         ->Threads(default_threads);
 }
@@ -445,19 +445,19 @@ void dense_(std::string name, kernel_type_ *kernel) {
 template <nk_dtype_t input_dtype_, nk_kernel_kind_t kernel_kind_ = nk_kernel_unknown_k,
           nk_dtype_t alpha_dtype_ = nk_dtype_unknown_k, typename kernel_type_ = void>
 void elementwise_(std::string name, kernel_type_ *kernel) {
-    std::string bench_name = name + "<" + std::to_string(dense_dimension) + "d>";
+    std::string bench_name = name + "<" + std::to_string(dense_dimensions) + "d>";
     bm::RegisterBenchmark(bench_name.c_str(),
                           measure_elementwise<input_dtype_, kernel_kind_, alpha_dtype_, kernel_type_ *>, kernel,
-                          dense_dimension)
+                          dense_dimensions)
         ->MinTime(default_seconds)
         ->Threads(default_threads);
 }
 
 template <nk_dtype_t input_dtype_, nk_dtype_t output_dtype_, typename kernel_type_ = void>
 void geospatial_(std::string name, kernel_type_ *kernel) {
-    std::string bench_name = name + "<" + std::to_string(dense_dimension) + "d>";
+    std::string bench_name = name + "<" + std::to_string(dense_dimensions) + "d>";
     bm::RegisterBenchmark(bench_name.c_str(), measure_geospatial<input_dtype_, output_dtype_, kernel_type_ *>, kernel,
-                          dense_dimension)
+                          dense_dimensions)
         ->MinTime(default_seconds)
         ->Threads(default_threads);
 }
@@ -477,18 +477,18 @@ void sparse_(std::string name, kernel_type_ *kernel) {
 
 template <nk_dtype_t input_dtype_, nk_dtype_t output_dtype_, typename kernel_type_ = void>
 void curved_(std::string name, kernel_type_ *kernel) {
-    std::string bench_name = name + "<" + std::to_string(curved_dimension) + "d>";
+    std::string bench_name = name + "<" + std::to_string(curved_dimensions) + "d>";
     bm::RegisterBenchmark(bench_name.c_str(), measure_curved<input_dtype_, output_dtype_, kernel_type_ *>, kernel,
-                          curved_dimension)
+                          curved_dimensions)
         ->MinTime(default_seconds)
         ->Threads(default_threads);
 }
 
 template <nk_dtype_t input_dtype_, nk_dtype_t output_dtype_, typename kernel_type_ = void>
 void mesh_(std::string name, kernel_type_ *kernel) {
-    std::string bench_name = name + "<" + std::to_string(mesh_dimension) + "pts>";
+    std::string bench_name = name + "<" + std::to_string(mesh_points) + "pts>";
     bm::RegisterBenchmark(bench_name.c_str(), measure_mesh<input_dtype_, output_dtype_, kernel_type_ *>, kernel,
-                          mesh_dimension)
+                          mesh_points)
         ->MinTime(default_seconds)
         ->Threads(default_threads);
 }
@@ -538,10 +538,10 @@ void dots_(std::string name, //
            typename nk::type_for<input_dtype_>::type::dots_packed_size_kernel_t packed_size_fn,
            typename nk::type_for<input_dtype_>::type::dots_pack_kernel_t pack_fn,
            typename nk::type_for<input_dtype_>::type::dots_packed_kernel_t kernel) {
-    std::string bench_name = name + "<" + std::to_string(matmul_dimension_m) + "x" +
-                             std::to_string(matmul_dimension_n) + "x" + std::to_string(matmul_dimension_k) + ">";
+    std::string bench_name = name + "<" + std::to_string(matrix_height) + "x" + std::to_string(matrix_width) + "x" +
+                             std::to_string(matrix_depth) + ">";
     bm::RegisterBenchmark(bench_name.c_str(), measure_dots_packed<input_dtype_, output_dtype_>, packed_size_fn, pack_fn,
-                          kernel, matmul_dimension_m, matmul_dimension_n, matmul_dimension_k)
+                          kernel, matrix_height, matrix_width, matrix_depth)
         ->MinTime(default_seconds)
         ->Threads(1); // Single-threaded for packed matmul
 }
@@ -869,8 +869,8 @@ void measure_cast(bm::State &state, cast_kernel_t kernel, std::size_t count) {
 
 template <nk_dtype_t input_dtype_, nk_dtype_t output_dtype_>
 void cast_(std::string name, cast_kernel_t kernel) {
-    std::string bench_name = name + "<" + std::to_string(dense_dimension) + "d>";
-    bm::RegisterBenchmark(bench_name.c_str(), measure_cast<input_dtype_, output_dtype_>, kernel, dense_dimension)
+    std::string bench_name = name + "<" + std::to_string(dense_dimensions) + "d>";
+    bm::RegisterBenchmark(bench_name.c_str(), measure_cast<input_dtype_, output_dtype_>, kernel, dense_dimensions)
         ->MinTime(default_seconds)
         ->Threads(default_threads);
 }
@@ -939,49 +939,46 @@ int main(int argc, char **argv) {
     std::printf("\n");
 
     // Override dimensions from environment variables if provided
-    if (char const *env_dense = std::getenv("NK_BENCH_DENSE_DIMENSION")) {
+    if (char const *env_dense = std::getenv("NK_DENSE_DIMENSIONS")) {
         std::size_t parsed_dense = static_cast<std::size_t>(std::atoll(env_dense));
         if (parsed_dense > 0) {
-            dense_dimension = parsed_dense;
-            std::printf("Overriding `dense_dimension` to %zu from NK_BENCH_DENSE_DIMENSION\n", dense_dimension);
+            dense_dimensions = parsed_dense;
+            std::printf("Using NK_DENSE_DIMENSIONS=%zu\n", dense_dimensions);
         }
     }
-    if (char const *env_curved = std::getenv("NK_BENCH_CURVED_DIMENSION")) {
+    if (char const *env_curved = std::getenv("NK_BENCH_CURVED_DIMENSIONS")) {
         std::size_t parsed_curved = static_cast<std::size_t>(std::atoll(env_curved));
         if (parsed_curved > 0) {
-            curved_dimension = parsed_curved;
-            std::printf("Overriding `curved_dimension` to %zu from NK_BENCH_CURVED_DIMENSION\n", curved_dimension);
+            curved_dimensions = parsed_curved;
+            std::printf("Using NK_BENCH_CURVED_DIMENSIONS=%zu\n", curved_dimensions);
         }
     }
-    if (char const *env_mesh = std::getenv("NK_BENCH_MESH_DIMENSION")) {
+    if (char const *env_mesh = std::getenv("NK_MESH_POINTS")) {
         std::size_t parsed_mesh = static_cast<std::size_t>(std::atoll(env_mesh));
         if (parsed_mesh > 0) {
-            mesh_dimension = parsed_mesh;
-            std::printf("Overriding `mesh_dimension` to %zu from NK_BENCH_MESH_DIMENSION\n", mesh_dimension);
+            mesh_points = parsed_mesh;
+            std::printf("Using NK_MESH_POINTS=%zu\n", mesh_points);
         }
     }
-    if (char const *env_matmul_dimension_m = std::getenv("NK_BENCH_MATMUL_DIMENSION_M")) {
-        std::size_t parsed = static_cast<std::size_t>(std::atoll(env_matmul_dimension_m));
+    if (char const *env_matrix_height = std::getenv("NK_MATRIX_HEIGHT")) {
+        std::size_t parsed = static_cast<std::size_t>(std::atoll(env_matrix_height));
         if (parsed > 0) {
-            matmul_dimension_m = parsed;
-            std::printf("Overriding `matmul_dimension_m` to %zu from NK_BENCH_MATMUL_DIMENSION_M\n",
-                        matmul_dimension_m);
+            matrix_height = parsed;
+            std::printf("Using NK_MATRIX_HEIGHT=%zu\n", matrix_height);
         }
     }
-    if (char const *env_matmul_dimension_n = std::getenv("NK_BENCH_MATMUL_DIMENSION_N")) {
-        std::size_t parsed = static_cast<std::size_t>(std::atoll(env_matmul_dimension_n));
+    if (char const *env_matrix_width = std::getenv("NK_MATRIX_WIDTH")) {
+        std::size_t parsed = static_cast<std::size_t>(std::atoll(env_matrix_width));
         if (parsed > 0) {
-            matmul_dimension_n = parsed;
-            std::printf("Overriding `matmul_dimension_n` to %zu from NK_BENCH_MATMUL_DIMENSION_N\n",
-                        matmul_dimension_n);
+            matrix_width = parsed;
+            std::printf("Using NK_MATRIX_WIDTH=%zu\n", matrix_width);
         }
     }
-    if (char const *env_matmul_dimension_k = std::getenv("NK_BENCH_MATMUL_DIMENSION_K")) {
-        std::size_t parsed = static_cast<std::size_t>(std::atoll(env_matmul_dimension_k));
+    if (char const *env_matrix_depth = std::getenv("NK_MATRIX_DEPTH")) {
+        std::size_t parsed = static_cast<std::size_t>(std::atoll(env_matrix_depth));
         if (parsed > 0) {
-            matmul_dimension_k = parsed;
-            std::printf("Overriding `matmul_dimension_k` to %zu from NK_BENCH_MATMUL_DIMENSION_K\n",
-                        matmul_dimension_k);
+            matrix_depth = parsed;
+            std::printf("Using NK_MATRIX_DEPTH=%zu\n", matrix_depth);
         }
     }
     if (char const *env_seed = std::getenv("NK_BENCH_SEED")) {
@@ -1080,14 +1077,14 @@ int main(int argc, char **argv) {
 
     // BLAS GEMM baselines for matmul comparison (same layout as NumKong: A×Bᵀ)
     {
-        std::string dims = std::to_string(matmul_dimension_m) + "x" + std::to_string(matmul_dimension_n) + "x" +
-                           std::to_string(matmul_dimension_k);
-        bm::RegisterBenchmark(("dots_f32_with_blas<" + dims + ">").c_str(), measure_dots_f32_with_blas,
-                              matmul_dimension_m, matmul_dimension_n, matmul_dimension_k)
+        std::string dims = std::to_string(matrix_height) + "x" + std::to_string(matrix_width) + "x" +
+                           std::to_string(matrix_depth);
+        bm::RegisterBenchmark(("dots_f32_with_blas<" + dims + ">").c_str(), measure_dots_f32_with_blas, matrix_height,
+                              matrix_width, matrix_depth)
             ->MinTime(default_seconds)
             ->Threads(1);
-        bm::RegisterBenchmark(("dots_f64_with_blas<" + dims + ">").c_str(), measure_dots_f64_with_blas,
-                              matmul_dimension_m, matmul_dimension_n, matmul_dimension_k)
+        bm::RegisterBenchmark(("dots_f64_with_blas<" + dims + ">").c_str(), measure_dots_f64_with_blas, matrix_height,
+                              matrix_width, matrix_depth)
             ->MinTime(default_seconds)
             ->Threads(1);
     }
@@ -1097,26 +1094,26 @@ int main(int argc, char **argv) {
 #if NK_COMPARE_TO_MKL
     // MKL GEMM baselines for matmul comparison
     {
-        std::string dims = std::to_string(matmul_dimension_m) + "x" + std::to_string(matmul_dimension_n) + "x" +
-                           std::to_string(matmul_dimension_k);
-        bm::RegisterBenchmark(("dots_f32_with_mkl<" + dims + ">").c_str(), measure_dots_f32_with_mkl,
-                              matmul_dimension_m, matmul_dimension_n, matmul_dimension_k)
+        std::string dims = std::to_string(matrix_height) + "x" + std::to_string(matrix_width) + "x" +
+                           std::to_string(matrix_depth);
+        bm::RegisterBenchmark(("dots_f32_with_mkl<" + dims + ">").c_str(), measure_dots_f32_with_mkl, matrix_height,
+                              matrix_width, matrix_depth)
             ->MinTime(default_seconds)
             ->Threads(1);
-        bm::RegisterBenchmark(("dots_bf16_with_mkl<" + dims + ">").c_str(), measure_dots_bf16_with_mkl,
-                              matmul_dimension_m, matmul_dimension_n, matmul_dimension_k)
+        bm::RegisterBenchmark(("dots_bf16_with_mkl<" + dims + ">").c_str(), measure_dots_bf16_with_mkl, matrix_height,
+                              matrix_width, matrix_depth)
             ->MinTime(default_seconds)
             ->Threads(1);
-        bm::RegisterBenchmark(("dots_f16_with_mkl<" + dims + ">").c_str(), measure_dots_f16_with_mkl,
-                              matmul_dimension_m, matmul_dimension_n, matmul_dimension_k)
+        bm::RegisterBenchmark(("dots_f16_with_mkl<" + dims + ">").c_str(), measure_dots_f16_with_mkl, matrix_height,
+                              matrix_width, matrix_depth)
             ->MinTime(default_seconds)
             ->Threads(1);
         bm::RegisterBenchmark(("dots_u8i8i32_with_mkl<" + dims + ">").c_str(), measure_dots_u8i8i32_with_mkl,
-                              matmul_dimension_m, matmul_dimension_n, matmul_dimension_k)
+                              matrix_height, matrix_width, matrix_depth)
             ->MinTime(default_seconds)
             ->Threads(1);
         bm::RegisterBenchmark(("dots_i16i16i32_with_mkl<" + dims + ">").c_str(), measure_dots_i16i16i32_with_mkl,
-                              matmul_dimension_m, matmul_dimension_n, matmul_dimension_k)
+                              matrix_height, matrix_width, matrix_depth)
             ->MinTime(default_seconds)
             ->Threads(1);
     }

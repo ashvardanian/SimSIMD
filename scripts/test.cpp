@@ -14,12 +14,13 @@
  *    NK_TEST_ULP_THRESHOLD_BF16=N - Max allowed ULP for bf16 (default: 256)
  *    NK_TEST_TIME_BUDGET_MS=N     - Time budget per kernel in ms (default: 1000)
  *    NK_TEST_SEED=N               - RNG seed (default: 12345)
- *    NK_TEST_DENSE_DIMENSION=N    - Vector dimension for dot/spatial tests (default: 1024)
- *    NK_TEST_MESH_DIMENSION=N     - Point count for mesh tests (default: 256)
- *    NK_TEST_MATMUL_DIMENSION_M=N - GEMM M dimension (default: 64)
- *    NK_TEST_MATMUL_DIMENSION_N=N - GEMM N dimension (default: 64)
- *    NK_TEST_MATMUL_DIMENSION_K=N - GEMM K dimension (default: 64)
  *    NK_TEST_DISTRIBUTION=<type>  - Random distribution: uniform_k|lognormal_k|cauchy_k (default: lognormal_k)
+ *    NK_DENSE_DIMENSIONS=N        - Vector dimension for dot/spatial tests (default: 1024)
+ *    NK_SPARSE_DIMENSIONS=N       - Vector dimension for sparse tests (default: 256)
+ *    NK_MESH_POINTS=N             - Point count for mesh tests (default: 256)
+ *    NK_MATRIX_HEIGHT=N           - GEMM M dimension (default: 64)
+ *    NK_MATRIX_WIDTH=N            - GEMM N dimension (default: 64)
+ *    NK_MATRIX_DEPTH=N            - GEMM K dimension (default: 64)
  */
 
 #include <algorithm>
@@ -103,10 +104,10 @@ extern template class nk::vector<std::complex<float>>;
 
 #pragma region Configuration
 
-std::size_t dense_dimension = 1024; // For dot products, spatial metrics
-std::size_t sparse_dimension = 256; // For sparse set intersection and sparse dot
-std::size_t mesh_dimension = 256;   // For RMSD, Kabsch (3D point clouds)
-std::size_t matmul_dimension_m = 64, matmul_dimension_n = 64, matmul_dimension_k = 64;
+std::size_t dense_dimensionss = 1024; // For dot products, spatial metrics
+std::size_t sparse_dimensionss = 256; // For sparse set intersection and sparse dot
+std::size_t mesh_points = 256;        // For RMSD, Kabsch (3D point clouds)
+std::size_t matrix_height = 64, matrix_width = 64, matrix_depth = 64;
 
 enum class random_distribution_kind_t { uniform_k, lognormal_k, cauchy_k };
 
@@ -590,19 +591,19 @@ error_stats_t test_cast(cast_t kernel) {
     error_stats_t stats;
     std::mt19937 generator(global_config.seed);
 
-    auto src = make_vector<from_type_>(dense_dimension);
-    auto dst_simd = make_vector<to_type_>(dense_dimension);
-    auto dst_serial = make_vector<to_type_>(dense_dimension);
+    auto src = make_vector<from_type_>(dense_dimensions);
+    auto dst_simd = make_vector<to_type_>(dense_dimensions);
+    auto dst_serial = make_vector<to_type_>(dense_dimensions);
 
     for (auto start = test_start_time(); within_time_budget(start);) {
         fill_random(generator, src);
 
-        nk_cast_serial(src.raw_values_data(), from_type_::dtype(), dense_dimension, dst_serial.raw_values_data(),
+        nk_cast_serial(src.raw_values_data(), from_type_::dtype(), dense_dimensions, dst_serial.raw_values_data(),
                        to_type_::dtype());
-        kernel(src.raw_values_data(), from_type_::dtype(), dense_dimension, dst_simd.raw_values_data(),
+        kernel(src.raw_values_data(), from_type_::dtype(), dense_dimensions, dst_simd.raw_values_data(),
                to_type_::dtype());
 
-        for (std::size_t i = 0; i < dense_dimension; ++i)
+        for (std::size_t i = 0; i < dense_dimensions; ++i)
             stats.accumulate_exact(dst_simd[i].raw_ == dst_serial[i].raw_);
     }
     return stats;
@@ -690,16 +691,16 @@ error_stats_t test_reduce_add(typename scalar_type_::reduce_add_kernel_t kernel)
 
     error_stats_t stats;
     std::mt19937 generator(global_config.seed);
-    auto buffer = make_vector<scalar_t>(dense_dimension);
+    auto buffer = make_vector<scalar_t>(dense_dimensions);
 
     for (auto start = test_start_time(); within_time_budget(start);) {
         fill_random(generator, buffer);
 
         result_t result;
-        kernel(buffer.raw_values_data(), dense_dimension, sizeof(raw_t), &result.raw_);
+        kernel(buffer.raw_values_data(), dense_dimensions, sizeof(raw_t), &result.raw_);
 
         f118_t reference;
-        nk::reduce_add<scalar_t, f118_t, nk::no_simd_k>(buffer.values_data(), dense_dimension, sizeof(raw_t),
+        nk::reduce_add<scalar_t, f118_t, nk::no_simd_k>(buffer.values_data(), dense_dimensions, sizeof(raw_t),
                                                         &reference);
 
         stats.accumulate(result, reference);
@@ -763,17 +764,17 @@ error_stats_t test_dot(typename scalar_type_::dot_kernel_t kernel) {
 
     error_stats_t stats;
     std::mt19937 generator(global_config.seed);
-    auto a = make_vector<scalar_t>(dense_dimension), b = make_vector<scalar_t>(dense_dimension);
+    auto a = make_vector<scalar_t>(dense_dimensions), b = make_vector<scalar_t>(dense_dimensions);
 
     for (auto start = test_start_time(); within_time_budget(start);) {
         fill_random(generator, a);
         fill_random(generator, b);
 
         result_t result;
-        kernel(a.raw_values_data(), b.raw_values_data(), dense_dimension, &result.raw_);
+        kernel(a.raw_values_data(), b.raw_values_data(), dense_dimensions, &result.raw_);
 
         reference_t reference;
-        nk::dot<scalar_t, reference_t, nk::no_simd_k>(a.values_data(), b.values_data(), dense_dimension, &reference);
+        nk::dot<scalar_t, reference_t, nk::no_simd_k>(a.values_data(), b.values_data(), dense_dimensions, &reference);
 
         stats.accumulate(result, reference);
     }
@@ -791,17 +792,17 @@ error_stats_t test_vdot(typename scalar_type_::vdot_kernel_t kernel) {
 
     error_stats_t stats;
     std::mt19937 generator(global_config.seed);
-    auto a = make_vector<scalar_t>(dense_dimension), b = make_vector<scalar_t>(dense_dimension);
+    auto a = make_vector<scalar_t>(dense_dimensions), b = make_vector<scalar_t>(dense_dimensions);
 
     for (auto start = test_start_time(); within_time_budget(start);) {
         fill_random(generator, a);
         fill_random(generator, b);
 
         result_t result;
-        kernel(a.raw_values_data(), b.raw_values_data(), dense_dimension, &result.raw_);
+        kernel(a.raw_values_data(), b.raw_values_data(), dense_dimensions, &result.raw_);
 
         f118c_t reference;
-        nk::vdot<scalar_t, f118c_t, nk::no_simd_k>(a.values_data(), b.values_data(), dense_dimension, &reference);
+        nk::vdot<scalar_t, f118c_t, nk::no_simd_k>(a.values_data(), b.values_data(), dense_dimensions, &reference);
 
         stats.accumulate(result, reference);
     }
@@ -961,17 +962,17 @@ error_stats_t test_l2sq(typename scalar_type_::l2sq_kernel_t kernel) {
 
     error_stats_t stats;
     std::mt19937 generator(global_config.seed);
-    auto a = make_vector<scalar_t>(dense_dimension), b = make_vector<scalar_t>(dense_dimension);
+    auto a = make_vector<scalar_t>(dense_dimensions), b = make_vector<scalar_t>(dense_dimensions);
 
     for (auto start = test_start_time(); within_time_budget(start);) {
         fill_random(generator, a);
         fill_random(generator, b);
 
         result_t result;
-        kernel(a.raw_values_data(), b.raw_values_data(), dense_dimension, &result.raw_);
+        kernel(a.raw_values_data(), b.raw_values_data(), dense_dimensions, &result.raw_);
 
         f118_t reference;
-        nk::l2sq<scalar_t, f118_t, nk::no_simd_k>(a.values_data(), b.values_data(), dense_dimension, &reference);
+        nk::l2sq<scalar_t, f118_t, nk::no_simd_k>(a.values_data(), b.values_data(), dense_dimensions, &reference);
 
         stats.accumulate(result, reference);
     }
@@ -990,17 +991,17 @@ error_stats_t test_angular(typename scalar_type_::angular_kernel_t kernel) {
 
     error_stats_t stats;
     std::mt19937 generator(global_config.seed);
-    auto a = make_vector<scalar_t>(dense_dimension), b = make_vector<scalar_t>(dense_dimension);
+    auto a = make_vector<scalar_t>(dense_dimensions), b = make_vector<scalar_t>(dense_dimensions);
 
     for (auto start = test_start_time(); within_time_budget(start);) {
         fill_random(generator, a);
         fill_random(generator, b);
 
         result_t result;
-        kernel(a.raw_values_data(), b.raw_values_data(), dense_dimension, &result.raw_);
+        kernel(a.raw_values_data(), b.raw_values_data(), dense_dimensions, &result.raw_);
 
         f118_t reference;
-        nk::angular<scalar_t, f118_t, nk::no_simd_k>(a.values_data(), b.values_data(), dense_dimension, &reference);
+        nk::angular<scalar_t, f118_t, nk::no_simd_k>(a.values_data(), b.values_data(), dense_dimensions, &reference);
 
         stats.accumulate(result, reference);
     }
@@ -1120,19 +1121,19 @@ error_stats_t test_bilinear(typename scalar_type_::bilinear_kernel_t kernel) {
     error_stats_t stats;
     std::mt19937 generator(global_config.seed);
 
-    auto a = make_vector<scalar_t>(dense_dimension), b = make_vector<scalar_t>(dense_dimension);
-    auto m = make_vector<scalar_t>(dense_dimension * dense_dimension);
+    auto a = make_vector<scalar_t>(dense_dimensions), b = make_vector<scalar_t>(dense_dimensions);
+    auto m = make_vector<scalar_t>(dense_dimensions * dense_dimensions);
     for (auto start = test_start_time(); within_time_budget(start);) {
         fill_random(generator, a);
         fill_random(generator, b);
         fill_random(generator, m);
 
         result_t result;
-        kernel(a.raw_values_data(), b.raw_values_data(), m.raw_values_data(), dense_dimension, &result.raw_);
+        kernel(a.raw_values_data(), b.raw_values_data(), m.raw_values_data(), dense_dimensions, &result.raw_);
 
         reference_t reference;
         nk::bilinear<scalar_t, reference_t, nk::no_simd_k>(a.values_data(), b.values_data(), m.values_data(),
-                                                           dense_dimension, &reference);
+                                                           dense_dimensions, &reference);
 
         stats.accumulate(result, reference);
     }
@@ -1192,17 +1193,17 @@ error_stats_t test_kld(typename scalar_type_::kld_kernel_t kernel) {
 
     error_stats_t stats;
     std::mt19937 generator(global_config.seed);
-    auto p = make_vector<scalar_t>(dense_dimension), q = make_vector<scalar_t>(dense_dimension);
+    auto p = make_vector<scalar_t>(dense_dimensions), q = make_vector<scalar_t>(dense_dimensions);
 
     for (auto start = test_start_time(); within_time_budget(start);) {
-        nk::fill_probability(generator, p.values_data(), dense_dimension);
-        nk::fill_probability(generator, q.values_data(), dense_dimension);
+        nk::fill_probability(generator, p.values_data(), dense_dimensions);
+        nk::fill_probability(generator, q.values_data(), dense_dimensions);
 
         result_t result;
-        kernel(p.raw_values_data(), q.raw_values_data(), dense_dimension, &result.raw_);
+        kernel(p.raw_values_data(), q.raw_values_data(), dense_dimensions, &result.raw_);
 
         f118_t reference;
-        nk::kld<scalar_t, f118_t, nk::no_simd_k>(p.values_data(), q.values_data(), dense_dimension, &reference);
+        nk::kld<scalar_t, f118_t, nk::no_simd_k>(p.values_data(), q.values_data(), dense_dimensions, &reference);
 
         stats.accumulate(result, reference);
     }
@@ -1222,17 +1223,17 @@ error_stats_t test_jsd(typename scalar_type_::jsd_kernel_t kernel) {
 
     error_stats_t stats;
     std::mt19937 generator(global_config.seed);
-    auto p = make_vector<scalar_t>(dense_dimension), q = make_vector<scalar_t>(dense_dimension);
+    auto p = make_vector<scalar_t>(dense_dimensions), q = make_vector<scalar_t>(dense_dimensions);
 
     for (auto start = test_start_time(); within_time_budget(start);) {
-        nk::fill_probability(generator, p.values_data(), dense_dimension);
-        nk::fill_probability(generator, q.values_data(), dense_dimension);
+        nk::fill_probability(generator, p.values_data(), dense_dimensions);
+        nk::fill_probability(generator, q.values_data(), dense_dimensions);
 
         result_t result;
-        kernel(p.raw_values_data(), q.raw_values_data(), dense_dimension, &result.raw_);
+        kernel(p.raw_values_data(), q.raw_values_data(), dense_dimensions, &result.raw_);
 
         f118_t reference;
-        nk::jsd<scalar_t, f118_t, nk::no_simd_k>(p.values_data(), q.values_data(), dense_dimension, &reference);
+        nk::jsd<scalar_t, f118_t, nk::no_simd_k>(p.values_data(), q.values_data(), dense_dimensions, &reference);
 
         stats.accumulate(result, reference);
     }
@@ -1284,7 +1285,7 @@ error_stats_t test_hamming(u1x8_t::hamming_kernel_t kernel) {
     error_stats_t stats;
     std::mt19937 generator(global_config.seed);
 
-    std::size_t n_bytes = dense_dimension / 8;
+    std::size_t n_bytes = dense_dimensions / 8;
     auto a = make_vector<scalar_t>(n_bytes), b = make_vector<scalar_t>(n_bytes);
 
     for (auto start = test_start_time(); within_time_budget(start);) {
@@ -1292,7 +1293,7 @@ error_stats_t test_hamming(u1x8_t::hamming_kernel_t kernel) {
         fill_random(generator, b);
 
         u32_t result;
-        kernel(a.raw_values_data(), b.raw_values_data(), dense_dimension, &result.raw_);
+        kernel(a.raw_values_data(), b.raw_values_data(), dense_dimensions, &result.raw_);
 
         u32_t reference;
         nk::hamming(a.values_data(), b.values_data(), n_bytes, &reference);
@@ -1312,7 +1313,7 @@ error_stats_t test_jaccard(u1x8_t::jaccard_kernel_t kernel) {
     error_stats_t stats;
     std::mt19937 generator(global_config.seed);
 
-    std::size_t n_bytes = dense_dimension / 8;
+    std::size_t n_bytes = dense_dimensions / 8;
     auto a = make_vector<scalar_t>(n_bytes), b = make_vector<scalar_t>(n_bytes);
 
     for (auto start = test_start_time(); within_time_budget(start);) {
@@ -1320,7 +1321,7 @@ error_stats_t test_jaccard(u1x8_t::jaccard_kernel_t kernel) {
         fill_random(generator, b);
 
         f32_t result;
-        kernel(a.raw_values_data(), b.raw_values_data(), dense_dimension, &result.raw_);
+        kernel(a.raw_values_data(), b.raw_values_data(), dense_dimensions, &result.raw_);
 
         f32_t reference;
         nk::jaccard(a.values_data(), b.values_data(), n_bytes, &reference);
@@ -1377,17 +1378,17 @@ error_stats_t test_sum(typename scalar_type_::sum_kernel_t kernel) {
 
     error_stats_t stats;
     std::mt19937 generator(global_config.seed);
-    auto a = make_vector<scalar_t>(dense_dimension), b = make_vector<scalar_t>(dense_dimension);
-    auto result = make_vector<scalar_t>(dense_dimension), reference = make_vector<scalar_t>(dense_dimension);
+    auto a = make_vector<scalar_t>(dense_dimensions), b = make_vector<scalar_t>(dense_dimensions);
+    auto result = make_vector<scalar_t>(dense_dimensions), reference = make_vector<scalar_t>(dense_dimensions);
 
     for (auto start = test_start_time(); within_time_budget(start);) {
         fill_random(generator, a);
         fill_random(generator, b);
 
-        kernel(a.raw_values_data(), b.raw_values_data(), dense_dimension, result.raw_values_data());
-        nk::sum<scalar_t, nk::no_simd_k>(a.values_data(), b.values_data(), dense_dimension, reference.values_data());
+        kernel(a.raw_values_data(), b.raw_values_data(), dense_dimensions, result.raw_values_data());
+        nk::sum<scalar_t, nk::no_simd_k>(a.values_data(), b.values_data(), dense_dimensions, reference.values_data());
 
-        for (std::size_t i = 0; i < dense_dimension; i++) stats.accumulate(result[i], reference[i]);
+        for (std::size_t i = 0; i < dense_dimensions; i++) stats.accumulate(result[i], reference[i]);
     }
     return stats;
 }
@@ -1403,8 +1404,8 @@ error_stats_t test_scale(typename scalar_type_::scale_kernel_t kernel) {
 
     error_stats_t stats;
     std::mt19937 generator(global_config.seed);
-    auto input = make_vector<scalar_t>(dense_dimension);
-    auto result = make_vector<scalar_t>(dense_dimension), reference = make_vector<scalar_t>(dense_dimension);
+    auto input = make_vector<scalar_t>(dense_dimensions);
+    auto result = make_vector<scalar_t>(dense_dimensions), reference = make_vector<scalar_t>(dense_dimensions);
     std::uniform_real_distribution<scale_t> coef_dist(scale_t(-2.0), scale_t(2.0));
 
     for (auto start = test_start_time(); within_time_budget(start);) {
@@ -1413,11 +1414,11 @@ error_stats_t test_scale(typename scalar_type_::scale_kernel_t kernel) {
         scale_t alpha = coef_dist(generator);
         scale_t beta = coef_dist(generator);
 
-        kernel(input.raw_values_data(), dense_dimension, &alpha, &beta, result.raw_values_data());
-        nk::scale<scalar_t, f118_t, nk::no_simd_k>(input.values_data(), dense_dimension, &alpha, &beta,
+        kernel(input.raw_values_data(), dense_dimensions, &alpha, &beta, result.raw_values_data());
+        nk::scale<scalar_t, f118_t, nk::no_simd_k>(input.values_data(), dense_dimensions, &alpha, &beta,
                                                    reference.values_data());
 
-        for (std::size_t i = 0; i < dense_dimension; i++) stats.accumulate(result[i], reference[i]);
+        for (std::size_t i = 0; i < dense_dimensions; i++) stats.accumulate(result[i], reference[i]);
     }
     return stats;
 }
@@ -1433,8 +1434,8 @@ error_stats_t test_wsum(typename scalar_type_::wsum_kernel_t kernel) {
 
     error_stats_t stats;
     std::mt19937 generator(global_config.seed);
-    auto a = make_vector<scalar_t>(dense_dimension), b = make_vector<scalar_t>(dense_dimension);
-    auto result = make_vector<scalar_t>(dense_dimension), reference = make_vector<scalar_t>(dense_dimension);
+    auto a = make_vector<scalar_t>(dense_dimensions), b = make_vector<scalar_t>(dense_dimensions);
+    auto result = make_vector<scalar_t>(dense_dimensions), reference = make_vector<scalar_t>(dense_dimensions);
     std::uniform_real_distribution<scale_t> coef_dist(scale_t(-2.0), scale_t(2.0));
 
     for (auto start = test_start_time(); within_time_budget(start);) {
@@ -1444,11 +1445,11 @@ error_stats_t test_wsum(typename scalar_type_::wsum_kernel_t kernel) {
         scale_t alpha = coef_dist(generator);
         scale_t beta = coef_dist(generator);
 
-        kernel(a.raw_values_data(), b.raw_values_data(), dense_dimension, &alpha, &beta, result.raw_values_data());
-        nk::wsum<scalar_t, f118_t, nk::no_simd_k>(a.values_data(), b.values_data(), dense_dimension, &alpha, &beta,
+        kernel(a.raw_values_data(), b.raw_values_data(), dense_dimensions, &alpha, &beta, result.raw_values_data());
+        nk::wsum<scalar_t, f118_t, nk::no_simd_k>(a.values_data(), b.values_data(), dense_dimensions, &alpha, &beta,
                                                   reference.values_data());
 
-        for (std::size_t i = 0; i < dense_dimension; i++) stats.accumulate(result[i], reference[i]);
+        for (std::size_t i = 0; i < dense_dimensions; i++) stats.accumulate(result[i], reference[i]);
     }
     return stats;
 }
@@ -1464,9 +1465,9 @@ error_stats_t test_fma(typename scalar_type_::fma_kernel_t kernel) {
 
     error_stats_t stats;
     std::mt19937 generator(global_config.seed);
-    auto a = make_vector<scalar_t>(dense_dimension), b = make_vector<scalar_t>(dense_dimension);
-    auto c = make_vector<scalar_t>(dense_dimension);
-    auto result = make_vector<scalar_t>(dense_dimension), reference = make_vector<scalar_t>(dense_dimension);
+    auto a = make_vector<scalar_t>(dense_dimensions), b = make_vector<scalar_t>(dense_dimensions);
+    auto c = make_vector<scalar_t>(dense_dimensions);
+    auto result = make_vector<scalar_t>(dense_dimensions), reference = make_vector<scalar_t>(dense_dimensions);
     std::uniform_real_distribution<scale_t> coef_dist(scale_t(-2.0), scale_t(2.0));
 
     for (auto start = test_start_time(); within_time_budget(start);) {
@@ -1477,12 +1478,12 @@ error_stats_t test_fma(typename scalar_type_::fma_kernel_t kernel) {
         scale_t alpha = coef_dist(generator);
         scale_t beta = coef_dist(generator);
 
-        kernel(a.raw_values_data(), b.raw_values_data(), c.raw_values_data(), dense_dimension, &alpha, &beta,
+        kernel(a.raw_values_data(), b.raw_values_data(), c.raw_values_data(), dense_dimensions, &alpha, &beta,
                result.raw_values_data());
-        nk::fma<scalar_t, f118_t, nk::no_simd_k>(a.values_data(), b.values_data(), dense_dimension, c.values_data(),
+        nk::fma<scalar_t, f118_t, nk::no_simd_k>(a.values_data(), b.values_data(), dense_dimensions, c.values_data(),
                                                  &alpha, &beta, reference.values_data());
 
-        for (std::size_t i = 0; i < dense_dimension; i++) stats.accumulate(result[i], reference[i]);
+        for (std::size_t i = 0; i < dense_dimensions; i++) stats.accumulate(result[i], reference[i]);
     }
     return stats;
 }
@@ -1590,17 +1591,17 @@ error_stats_t test_sin(typename scalar_type_::trig_kernel_t kernel) {
 
     error_stats_t stats;
     std::mt19937 generator(global_config.seed);
-    auto inputs = make_vector<scalar_t>(dense_dimension);
-    auto outputs = make_vector<scalar_t>(dense_dimension), reference = make_vector<scalar_t>(dense_dimension);
+    auto inputs = make_vector<scalar_t>(dense_dimensions);
+    auto outputs = make_vector<scalar_t>(dense_dimensions), reference = make_vector<scalar_t>(dense_dimensions);
 
     for (auto start = test_start_time(); within_time_budget(start);) {
         nk::fill_uniform(generator, inputs.values_data(), inputs.size_values(), -scalar_t::two_pi_k(),
                          scalar_t::two_pi_k());
 
-        kernel(inputs.raw_values_data(), dense_dimension, outputs.raw_values_data());
-        nk::sin<scalar_t, f118_t, nk::no_simd_k>(inputs.values_data(), dense_dimension, reference.values_data());
+        kernel(inputs.raw_values_data(), dense_dimensions, outputs.raw_values_data());
+        nk::sin<scalar_t, f118_t, nk::no_simd_k>(inputs.values_data(), dense_dimensions, reference.values_data());
 
-        for (std::size_t i = 0; i < dense_dimension; i++) stats.accumulate(outputs[i], reference[i]);
+        for (std::size_t i = 0; i < dense_dimensions; i++) stats.accumulate(outputs[i], reference[i]);
     }
     return stats;
 }
@@ -1615,17 +1616,17 @@ error_stats_t test_cos(typename scalar_type_::trig_kernel_t kernel) {
 
     error_stats_t stats;
     std::mt19937 generator(global_config.seed);
-    auto inputs = make_vector<scalar_t>(dense_dimension);
-    auto outputs = make_vector<scalar_t>(dense_dimension), reference = make_vector<scalar_t>(dense_dimension);
+    auto inputs = make_vector<scalar_t>(dense_dimensions);
+    auto outputs = make_vector<scalar_t>(dense_dimensions), reference = make_vector<scalar_t>(dense_dimensions);
 
     for (auto start = test_start_time(); within_time_budget(start);) {
         nk::fill_uniform(generator, inputs.values_data(), inputs.size_values(), -scalar_t::two_pi_k(),
                          scalar_t::two_pi_k());
 
-        kernel(inputs.raw_values_data(), dense_dimension, outputs.raw_values_data());
-        nk::cos<scalar_t, f118_t, nk::no_simd_k>(inputs.values_data(), dense_dimension, reference.values_data());
+        kernel(inputs.raw_values_data(), dense_dimensions, outputs.raw_values_data());
+        nk::cos<scalar_t, f118_t, nk::no_simd_k>(inputs.values_data(), dense_dimensions, reference.values_data());
 
-        for (std::size_t i = 0; i < dense_dimension; i++) stats.accumulate(outputs[i], reference[i]);
+        for (std::size_t i = 0; i < dense_dimensions; i++) stats.accumulate(outputs[i], reference[i]);
     }
     return stats;
 }
@@ -1640,16 +1641,16 @@ error_stats_t test_atan(typename scalar_type_::trig_kernel_t kernel) {
 
     error_stats_t stats;
     std::mt19937 generator(global_config.seed);
-    auto inputs = make_vector<scalar_t>(dense_dimension);
-    auto outputs = make_vector<scalar_t>(dense_dimension), reference = make_vector<scalar_t>(dense_dimension);
+    auto inputs = make_vector<scalar_t>(dense_dimensions);
+    auto outputs = make_vector<scalar_t>(dense_dimensions), reference = make_vector<scalar_t>(dense_dimensions);
 
     for (auto start = test_start_time(); within_time_budget(start);) {
         nk::fill_uniform(generator, inputs.values_data(), inputs.size_values(), scalar_t(-10.0), scalar_t(10.0));
 
-        kernel(inputs.raw_values_data(), dense_dimension, outputs.raw_values_data());
-        nk::atan<scalar_t, f118_t, nk::no_simd_k>(inputs.values_data(), dense_dimension, reference.values_data());
+        kernel(inputs.raw_values_data(), dense_dimensions, outputs.raw_values_data());
+        nk::atan<scalar_t, f118_t, nk::no_simd_k>(inputs.values_data(), dense_dimensions, reference.values_data());
 
-        for (std::size_t i = 0; i < dense_dimension; i++) stats.accumulate(outputs[i], reference[i]);
+        for (std::size_t i = 0; i < dense_dimensions; i++) stats.accumulate(outputs[i], reference[i]);
     }
     return stats;
 }
@@ -1716,20 +1717,20 @@ error_stats_t test_haversine(typename scalar_type_::haversine_kernel_t kernel) {
 
     error_stats_t stats;
     std::mt19937 generator(global_config.seed);
-    auto a_lats = make_vector<scalar_t>(dense_dimension), a_lons = make_vector<scalar_t>(dense_dimension);
-    auto b_lats = make_vector<scalar_t>(dense_dimension), b_lons = make_vector<scalar_t>(dense_dimension);
-    auto results = make_vector<scalar_t>(dense_dimension), reference = make_vector<scalar_t>(dense_dimension);
+    auto a_lats = make_vector<scalar_t>(dense_dimensions), a_lons = make_vector<scalar_t>(dense_dimensions);
+    auto b_lats = make_vector<scalar_t>(dense_dimensions), b_lons = make_vector<scalar_t>(dense_dimensions);
+    auto results = make_vector<scalar_t>(dense_dimensions), reference = make_vector<scalar_t>(dense_dimensions);
 
     for (auto start = test_start_time(); within_time_budget(start);) {
-        nk::fill_coordinates(generator, a_lats.values_data(), a_lons.values_data(), dense_dimension);
-        nk::fill_coordinates(generator, b_lats.values_data(), b_lons.values_data(), dense_dimension);
+        nk::fill_coordinates(generator, a_lats.values_data(), a_lons.values_data(), dense_dimensions);
+        nk::fill_coordinates(generator, b_lats.values_data(), b_lons.values_data(), dense_dimensions);
 
         kernel(a_lats.raw_values_data(), a_lons.raw_values_data(), b_lats.raw_values_data(), b_lons.raw_values_data(),
-               dense_dimension, results.raw_values_data());
+               dense_dimensions, results.raw_values_data());
         nk::haversine<scalar_t, f118_t, nk::no_simd_k>(a_lats.values_data(), a_lons.values_data(), b_lats.values_data(),
-                                                       b_lons.values_data(), dense_dimension, reference.values_data());
+                                                       b_lons.values_data(), dense_dimensions, reference.values_data());
 
-        for (std::size_t i = 0; i < dense_dimension; i++) stats.accumulate(results[i], reference[i]);
+        for (std::size_t i = 0; i < dense_dimensions; i++) stats.accumulate(results[i], reference[i]);
     }
     return stats;
 }
@@ -1744,20 +1745,20 @@ error_stats_t test_vincenty(typename scalar_type_::haversine_kernel_t kernel) {
 
     error_stats_t stats;
     std::mt19937 generator(global_config.seed);
-    auto a_lats = make_vector<scalar_t>(dense_dimension), a_lons = make_vector<scalar_t>(dense_dimension);
-    auto b_lats = make_vector<scalar_t>(dense_dimension), b_lons = make_vector<scalar_t>(dense_dimension);
-    auto results = make_vector<scalar_t>(dense_dimension), reference = make_vector<scalar_t>(dense_dimension);
+    auto a_lats = make_vector<scalar_t>(dense_dimensions), a_lons = make_vector<scalar_t>(dense_dimensions);
+    auto b_lats = make_vector<scalar_t>(dense_dimensions), b_lons = make_vector<scalar_t>(dense_dimensions);
+    auto results = make_vector<scalar_t>(dense_dimensions), reference = make_vector<scalar_t>(dense_dimensions);
 
     for (auto start = test_start_time(); within_time_budget(start);) {
-        nk::fill_coordinates(generator, a_lats.values_data(), a_lons.values_data(), dense_dimension);
-        nk::fill_coordinates(generator, b_lats.values_data(), b_lons.values_data(), dense_dimension);
+        nk::fill_coordinates(generator, a_lats.values_data(), a_lons.values_data(), dense_dimensions);
+        nk::fill_coordinates(generator, b_lats.values_data(), b_lons.values_data(), dense_dimensions);
 
         kernel(a_lats.raw_values_data(), a_lons.raw_values_data(), b_lats.raw_values_data(), b_lons.raw_values_data(),
-               dense_dimension, results.raw_values_data());
+               dense_dimensions, results.raw_values_data());
         nk::vincenty<scalar_t, f118_t, nk::no_simd_k>(a_lats.values_data(), a_lons.values_data(), b_lats.values_data(),
-                                                      b_lons.values_data(), dense_dimension, reference.values_data());
+                                                      b_lons.values_data(), dense_dimensions, reference.values_data());
 
-        for (std::size_t i = 0; i < dense_dimension; i++) stats.accumulate(results[i], reference[i]);
+        for (std::size_t i = 0; i < dense_dimensions; i++) stats.accumulate(results[i], reference[i]);
     }
     return stats;
 }
@@ -1811,7 +1812,7 @@ error_stats_t test_rmsd(typename scalar_type_::mesh_kernel_t kernel) {
     error_stats_t stats;
     std::mt19937 generator(global_config.seed);
 
-    std::size_t n = mesh_dimension;
+    std::size_t n = mesh_points;
     auto a = make_vector<scalar_t>(n * 3), b = make_vector<scalar_t>(n * 3);
 
     for (auto start = test_start_time(); within_time_budget(start);) {
@@ -1841,7 +1842,7 @@ error_stats_t test_kabsch(typename scalar_type_::mesh_kernel_t kernel) {
     error_stats_t stats;
     std::mt19937 generator(global_config.seed);
 
-    std::size_t n = mesh_dimension;
+    std::size_t n = mesh_points;
     auto a = make_vector<scalar_t>(n * 3), b = make_vector<scalar_t>(n * 3);
 
     for (auto start = test_start_time(); within_time_budget(start);) {
@@ -1871,7 +1872,7 @@ error_stats_t test_umeyama(typename scalar_type_::mesh_kernel_t kernel) {
     error_stats_t stats;
     std::mt19937 generator(global_config.seed);
 
-    std::size_t n = mesh_dimension;
+    std::size_t n = mesh_points;
     auto a = make_vector<scalar_t>(n * 3), b = make_vector<scalar_t>(n * 3);
 
     for (auto start = test_start_time(); within_time_budget(start);) {
@@ -1959,7 +1960,7 @@ error_stats_t test_dots(typename scalar_type_::dots_packed_size_kernel_t packed_
     error_stats_t stats;
     std::mt19937 generator(global_config.seed);
 
-    std::size_t m = matmul_dimension_m, n = matmul_dimension_n, k = matmul_dimension_k;
+    std::size_t m = matrix_height, n = matrix_width, k = matrix_depth;
     std::size_t k_values = nk::divide_round_up(k, nk::dimensions_per_value<scalar_t>());
     std::size_t a_stride = k_values * sizeof(scalar_t);
     std::size_t b_stride = k_values * sizeof(scalar_t);
@@ -2015,7 +2016,7 @@ error_stats_t test_dots_unpacked(kernel_type_ dots_fn) {
     error_stats_t stats;
     std::mt19937 generator(global_config.seed);
 
-    std::size_t m = matmul_dimension_m, n = matmul_dimension_n, k = matmul_dimension_k;
+    std::size_t m = matrix_height, n = matrix_width, k = matrix_depth;
     std::size_t a_stride = k * sizeof(raw_t);
     std::size_t b_stride = k * sizeof(raw_t);
     std::size_t c_stride = n * sizeof(typename result_t::raw_t);
@@ -2174,7 +2175,7 @@ error_stats_t test_intersect(typename index_type_::intersect_kernel_t kernel) {
     using index_t = index_type_;
     error_stats_t stats;
     std::mt19937 generator(global_config.seed);
-    std::size_t dim = sparse_dimension;
+    std::size_t dim = sparse_dimensions;
     auto a = make_vector<index_t>(dim), b = make_vector<index_t>(dim);
 
     for (auto start = test_start_time(); within_time_budget(start);) {
@@ -2205,7 +2206,7 @@ error_stats_t test_sparse_dot(typename weight_type_::sparse_dot_kernel_t kernel)
 
     error_stats_t stats;
     std::mt19937 generator(global_config.seed);
-    std::size_t dim = sparse_dimension;
+    std::size_t dim = sparse_dimensions;
     auto a_idx = make_vector<index_t>(dim), b_idx = make_vector<index_t>(dim);
     auto a_weights = make_vector<weight_t>(dim), b_weights = make_vector<weight_t>(dim);
 
@@ -2453,46 +2454,46 @@ int main(int argc, char **argv) {
     }
 
     // Parse dimension overrides from environment variables
-    if (char const *env = std::getenv("NK_TEST_DENSE_DIMENSION")) {
+    if (char const *env = std::getenv("NK_DENSE_DIMENSIONS")) {
         std::size_t val = static_cast<std::size_t>(std::atoll(env));
         if (val > 0) {
-            dense_dimension = val;
-            std::printf("Using NK_TEST_DENSE_DIMENSION=%zu\n", dense_dimension);
+            dense_dimensions = val;
+            std::printf("Using NK_DENSE_DIMENSIONS=%zu\n", dense_dimensions);
         }
     }
-    if (char const *env = std::getenv("NK_TEST_SPARSE_DIMENSION")) {
+    if (char const *env = std::getenv("NK_SPARSE_DIMENSIONS")) {
         std::size_t val = static_cast<std::size_t>(std::atoll(env));
         if (val > 0) {
-            sparse_dimension = val;
-            std::printf("Using NK_TEST_SPARSE_DIMENSION=%zu\n", sparse_dimension);
+            sparse_dimensions = val;
+            std::printf("Using NK_SPARSE_DIMENSIONS=%zu\n", sparse_dimensions);
         }
     }
-    if (char const *env = std::getenv("NK_TEST_MESH_DIMENSION")) {
+    if (char const *env = std::getenv("NK_MESH_POINTS")) {
         std::size_t val = static_cast<std::size_t>(std::atoll(env));
         if (val > 0) {
-            mesh_dimension = val;
-            std::printf("Using NK_TEST_MESH_DIMENSION=%zu\n", mesh_dimension);
+            mesh_points = val;
+            std::printf("Using NK_MESH_POINTS=%zu\n", mesh_points);
         }
     }
-    if (char const *env = std::getenv("NK_TEST_MATMUL_DIMENSION_M")) {
+    if (char const *env = std::getenv("NK_MATRIX_HEIGHT")) {
         std::size_t val = static_cast<std::size_t>(std::atoll(env));
         if (val > 0) {
-            matmul_dimension_m = val;
-            std::printf("Using NK_TEST_MATMUL_DIMENSION_M=%zu\n", matmul_dimension_m);
+            matrix_height = val;
+            std::printf("Using NK_MATRIX_HEIGHT=%zu\n", matrix_height);
         }
     }
-    if (char const *env = std::getenv("NK_TEST_MATMUL_DIMENSION_N")) {
+    if (char const *env = std::getenv("NK_MATRIX_WIDTH")) {
         std::size_t val = static_cast<std::size_t>(std::atoll(env));
         if (val > 0) {
-            matmul_dimension_n = val;
-            std::printf("Using NK_TEST_MATMUL_DIMENSION_N=%zu\n", matmul_dimension_n);
+            matrix_width = val;
+            std::printf("Using NK_MATRIX_WIDTH=%zu\n", matrix_width);
         }
     }
-    if (char const *env = std::getenv("NK_TEST_MATMUL_DIMENSION_K")) {
+    if (char const *env = std::getenv("NK_MATRIX_DEPTH")) {
         std::size_t val = static_cast<std::size_t>(std::atoll(env));
         if (val > 0) {
-            matmul_dimension_k = val;
-            std::printf("Using NK_TEST_MATMUL_DIMENSION_K=%zu\n", matmul_dimension_k);
+            matrix_depth = val;
+            std::printf("Using NK_MATRIX_DEPTH=%zu\n", matrix_depth);
         }
     }
 
