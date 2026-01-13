@@ -393,6 +393,8 @@ nk_dispatch_geospatial_(vincenty, f32, f32)
 nk_dispatch_dense_(hamming, u1, u1x8, u32)
 nk_dispatch_dense_(jaccard, u1, u1x8, f32)
 nk_dispatch_dense_(jaccard, u32, u32, f32)
+nk_dispatch_dense_(hamming, u8, u8, u32)
+nk_dispatch_dense_(jaccard, u16, u16, f32)
 
 // Probability distributions
 nk_dispatch_dense_(kld, f16, f16, f32)

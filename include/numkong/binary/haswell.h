@@ -73,6 +73,101 @@ NK_PUBLIC void nk_jaccard_u32_haswell(nk_u32_t const *a, nk_u32_t const *b, nk_s
     *result = (n != 0) ? 1.0f - (nk_f32_t)intersection_count / (nk_f32_t)n : 1.0f;
 }
 
+NK_PUBLIC void nk_hamming_u8_haswell(nk_u8_t const *a, nk_u8_t const *b, nk_size_t n, nk_u32_t *result) {
+    // Process 32 bytes at a time using AVX2 (256-bit registers).
+    // Compare bytes for equality, invert to get not-equal mask, then count mismatches.
+    //
+    // Haswell port analysis:
+    // - `_mm256_loadu_si256`:   p23, 1cy latency (load)
+    // - `_mm256_cmpeq_epi8`:    p015, 1cy latency, 0.33cy throughput
+    // - `_mm256_extracti128`:   p5, 3cy latency, 1cy throughput
+    // - `_mm_popcnt_u64`:       p1 ONLY, 3cy latency, 1cy throughput (BOTTLENECK)
+    //
+    // For counting mismatches, we XOR and popcount the resulting bits set to 1.
+    // Alternative: compare -> movemask -> popcount, but movemask only works per-byte MSBs.
+    // XOR approach: each differing byte produces 0xFF (8 bits set), need to count bytes not bits.
+
+    nk_u32_t differences = 0;
+    nk_size_t n_remaining = n;
+
+    // Main loop: process 32 bytes at a time
+    for (; n_remaining >= 32; n_remaining -= 32, a += 32, b += 32) {
+        __m256i a_u8x32 = _mm256_loadu_si256((__m256i const *)a);
+        __m256i b_u8x32 = _mm256_loadu_si256((__m256i const *)b);
+
+        // Compare for equality: 0xFF where equal, 0x00 where different
+        __m256i equality_u8x32 = _mm256_cmpeq_epi8(a_u8x32, b_u8x32);
+
+        // Extract to two 128-bit halves for movemask
+        // movemask extracts the MSB of each byte, giving us 16 bits per 128-bit half
+        __m128i equality_low_u8x16 = _mm256_castsi256_si128(equality_u8x32);
+        __m128i equality_high_u8x16 = _mm256_extracti128_si256(equality_u8x32, 1);
+
+        // Get masks: bit set = equal (0xFF MSB = 1), bit clear = different
+        int mask_low = _mm_movemask_epi8(equality_low_u8x16);   // 16 bits
+        int mask_high = _mm_movemask_epi8(equality_high_u8x16); // 16 bits
+
+        // Invert to count differences (bit set = different)
+        // Then popcount to count mismatches
+        differences += (nk_u32_t)_mm_popcnt_u32((unsigned int)(~mask_low & 0xFFFF));
+        differences += (nk_u32_t)_mm_popcnt_u32((unsigned int)(~mask_high & 0xFFFF));
+    }
+
+    // Handle remaining bytes (0-31) with scalar code
+    for (; n_remaining; --n_remaining, ++a, ++b) differences += (*a != *b);
+
+    *result = differences;
+}
+
+NK_PUBLIC void nk_jaccard_u16_haswell(nk_u16_t const *a, nk_u16_t const *b, nk_size_t n, nk_f32_t *result) {
+    // Process 16 u16 values at a time using AVX2 (256-bit registers).
+    // Compare 16-bit integers for equality and count matches.
+    //
+    // Haswell port analysis:
+    // - `_mm256_loadu_si256`:   p23, 1cy latency (load)
+    // - `_mm256_cmpeq_epi16`:   p015, 1cy latency, 0.33cy throughput
+    // - `_mm256_packs_epi16`:   p5, 1cy latency, 1cy throughput (pack 16->8 bit)
+    // - `_mm_movemask_epi8`:    p0, 3cy latency (extracts MSB of each byte)
+    // - `_mm_popcnt_u32`:       p1 ONLY, 3cy latency, 1cy throughput
+
+    nk_u32_t matches = 0;
+    nk_size_t n_remaining = n;
+
+    // Main loop: process 16 u16 values at a time
+    for (; n_remaining >= 16; n_remaining -= 16, a += 16, b += 16) {
+        __m256i a_u16x16 = _mm256_loadu_si256((__m256i const *)a);
+        __m256i b_u16x16 = _mm256_loadu_si256((__m256i const *)b);
+
+        // Compare for equality: 0xFFFF where equal, 0x0000 where different
+        __m256i equality_u16x16 = _mm256_cmpeq_epi16(a_u16x16, b_u16x16);
+
+        // Pack 16-bit results to 8-bit to use movemask efficiently.
+        // _mm256_packs_epi16 saturates signed 16-bit to signed 8-bit:
+        // 0xFFFF (-1) -> 0x80 (-128), 0x0000 (0) -> 0x00 (0)
+        // Note: packs interleaves lanes, so we need to handle the permutation.
+        // For counting, we just need the total popcount, so lane order doesn't matter.
+        __m256i packed_i8x32 = _mm256_packs_epi16(equality_u16x16, equality_u16x16);
+
+        // Extract to 128-bit halves
+        __m128i packed_low_i8x16 = _mm256_castsi256_si128(packed_i8x32);
+        __m128i packed_high_i8x16 = _mm256_extracti128_si256(packed_i8x32, 1);
+
+        // movemask extracts MSB of each byte
+        // After packs: 0x80 (MSB=1) for equal, 0x00 (MSB=0) for different
+        // Each 128-bit half has 8 relevant bytes (lower 8 from each original lane)
+        int mask_low = _mm_movemask_epi8(packed_low_i8x16) & 0xFF;   // Lower 8 bytes
+        int mask_high = _mm_movemask_epi8(packed_high_i8x16) & 0xFF; // Lower 8 bytes from high lane
+
+        matches += (nk_u32_t)_mm_popcnt_u32((unsigned int)mask_low);
+        matches += (nk_u32_t)_mm_popcnt_u32((unsigned int)mask_high);
+    }
+
+    // Handle remaining elements (0-15) with scalar code
+    for (; n_remaining; --n_remaining, ++a, ++b) matches += (*a == *b);
+
+    *result = (n != 0) ? 1.0f - (nk_f32_t)matches / (nk_f32_t)n : 1.0f;
+}
+
 typedef struct nk_jaccard_b256_state_haswell_t {
     nk_u32_t intersection_count;
 } nk_jaccard_b256_state_haswell_t;

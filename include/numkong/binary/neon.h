@@ -105,6 +105,52 @@ NK_PUBLIC void nk_jaccard_u32_neon(nk_u32_t const *a, nk_u32_t const *b, nk_size
     *result = (n != 0) ? 1.0f - (nk_f32_t)intersection_count / (nk_f32_t)n : 1.0f;
 }
 
+NK_PUBLIC void nk_hamming_u8_neon(nk_u8_t const *a, nk_u8_t const *b, nk_size_t n, nk_u32_t *result) {
+    nk_size_t i = 0;
+    uint32x4_t diff_count_u32x4 = vdupq_n_u32(0);
+    // Process 16 bytes at a time using NEON with widening adds to avoid overflow.
+    // Uses pairwise widening chain: 16 u8 → 8 u16 → 4 u32 per iteration.
+    for (; i + 16 <= n; i += 16) {
+        uint8x16_t a_u8x16 = vld1q_u8(a + i);
+        uint8x16_t b_u8x16 = vld1q_u8(b + i);
+        // vceqq_u8 returns 0xFF for equal, 0x00 for not-equal
+        // Invert to get 0xFF for not-equal, then shift right by 7 to get 1
+        uint8x16_t not_equal_u8x16 = vmvnq_u8(vceqq_u8(a_u8x16, b_u8x16));
+        uint8x16_t diff_bits_u8x16 = vshrq_n_u8(not_equal_u8x16, 7);
+        // Widen: 16 u8 → 8 u16 → 4 u32 using pairwise add and widen
+        uint16x8_t diff_u16x8 = vpaddlq_u8(diff_bits_u8x16);
+        uint32x4_t diff_u32x4 = vpaddlq_u16(diff_u16x8);
+        diff_count_u32x4 = vaddq_u32(diff_count_u32x4, diff_u32x4);
+    }
+    nk_u32_t differences = vaddvq_u32(diff_count_u32x4);
+    // Handle tail elements
+    for (; i != n; ++i) differences += (a[i] != b[i]);
+    *result = differences;
+}
+
+NK_PUBLIC void nk_jaccard_u16_neon(nk_u16_t const *a, nk_u16_t const *b, nk_size_t n, nk_f32_t *result) {
+    nk_u32_t matches = 0;
+    nk_size_t i = 0;
+    uint32x4_t match_count_u32x4 = vdupq_n_u32(0);
+    // Process 8 u16 values at a time using NEON
+    for (; i + 8 <= n; i += 8) {
+        uint16x8_t a_u16x8 = vld1q_u16(a + i);
+        uint16x8_t b_u16x8 = vld1q_u16(b + i);
+        // vceqq_u16 returns 0xFFFF for equal, 0x0000 for not-equal
+        uint16x8_t equality_mask = vceqq_u16(a_u16x8, b_u16x8);
+        // Count matches by shifting right by 15 to get 1 for match, 0 for non-match
+        // Then widen and accumulate into u32
+        uint16x8_t match_bits = vshrq_n_u16(equality_mask, 15);
+        // Pairwise add and widen to u32
+        uint32x4_t match_u32x4 = vpaddlq_u16(match_bits);
+        match_count_u32x4 = vaddq_u32(match_count_u32x4, match_u32x4);
+    }
+    matches += vaddvq_u32(match_count_u32x4);
+    // Handle tail elements
+    for (; i != n; ++i) matches += (a[i] == b[i]);
+    *result = (n != 0) ? 1.0f - (nk_f32_t)matches / (nk_f32_t)n : 1.0f;
+}
+
 typedef struct nk_jaccard_b128_state_neon_t {
     uint32x4_t intersection_count_u32x4;
 } nk_jaccard_b128_state_neon_t;

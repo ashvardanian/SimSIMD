@@ -220,10 +220,48 @@ NK_PUBLIC void nk_jaccard_u32_ice(nk_u32_t const *a, nk_u32_t const *b, nk_size_
         __mmask16 load_mask = (__mmask16)_bzhi_u32(0xFFFF, n_remaining);
         __m512i a_u32x16 = _mm512_maskz_loadu_epi32(load_mask, a);
         __m512i b_u32x16 = _mm512_maskz_loadu_epi32(load_mask, b);
-        __mmask16 equality_mask = _mm512_cmpeq_epi32_mask(a_u32x16, b_u32x16) & load_mask;
+        __mmask16 equality_mask = _mm512_mask_cmpeq_epi32_mask(load_mask, a_u32x16, b_u32x16);
         intersection_count += _mm_popcnt_u32((unsigned int)equality_mask);
     }
     *result = (n != 0) ? 1.0f - (nk_f32_t)intersection_count / (nk_f32_t)n : 1.0f;
+}
+
+NK_PUBLIC void nk_hamming_u8_ice(nk_u8_t const *a, nk_u8_t const *b, nk_size_t n, nk_u32_t *result) {
+    nk_u32_t differences = 0;
+    nk_size_t n_remaining = n;
+    for (; n_remaining >= 64; n_remaining -= 64, a += 64, b += 64) {
+        __m512i a_u8x64 = _mm512_loadu_si512((__m512i const *)a);
+        __m512i b_u8x64 = _mm512_loadu_si512((__m512i const *)b);
+        __mmask64 neq_mask = _mm512_cmpneq_epi8_mask(a_u8x64, b_u8x64);
+        differences += _mm_popcnt_u64(neq_mask);
+    }
+    if (n_remaining) {
+        __mmask64 load_mask = (__mmask64)_bzhi_u64(0xFFFFFFFFFFFFFFFF, n_remaining);
+        __m512i a_u8x64 = _mm512_maskz_loadu_epi8(load_mask, a);
+        __m512i b_u8x64 = _mm512_maskz_loadu_epi8(load_mask, b);
+        __mmask64 neq_mask = _mm512_mask_cmpneq_epi8_mask(load_mask, a_u8x64, b_u8x64);
+        differences += _mm_popcnt_u64(neq_mask);
+    }
+    *result = differences;
+}
+
+NK_PUBLIC void nk_jaccard_u16_ice(nk_u16_t const *a, nk_u16_t const *b, nk_size_t n, nk_f32_t *result) {
+    nk_u32_t matches = 0;
+    nk_size_t n_remaining = n;
+    for (; n_remaining >= 32; n_remaining -= 32, a += 32, b += 32) {
+        __m512i a_u16x32 = _mm512_loadu_si512((__m512i const *)a);
+        __m512i b_u16x32 = _mm512_loadu_si512((__m512i const *)b);
+        __mmask32 equality_mask = _mm512_cmpeq_epi16_mask(a_u16x32, b_u16x32);
+        matches += _mm_popcnt_u32(equality_mask);
+    }
+    if (n_remaining) {
+        __mmask32 load_mask = (__mmask32)_bzhi_u32(0xFFFFFFFF, n_remaining);
+        __m512i a_u16x32 = _mm512_maskz_loadu_epi16(load_mask, a);
+        __m512i b_u16x32 = _mm512_maskz_loadu_epi16(load_mask, b);
+        __mmask32 equality_mask = _mm512_mask_cmpeq_epi16_mask(load_mask, a_u16x32, b_u16x32);
+        matches += _mm_popcnt_u32(equality_mask);
+    }
+    *result = (n != 0) ? 1.0f - (nk_f32_t)matches / (nk_f32_t)n : 1.0f;
 }
 
 typedef struct nk_jaccard_b512_state_ice_t {

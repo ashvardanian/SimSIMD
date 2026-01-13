@@ -1280,36 +1280,68 @@ void sparse_dot(index_type_ const *a, index_type_ const *b, weight_t const *a_we
 #pragma region Binary Kernels
 
 /**
- *  @brief Hamming distance between bit vectors
- *  @param a First bit vector [n] (each element is u1x8_t = 8 bits)
- *  @param b Second bit vector [n]
- *  @param n Number of u1x8_t elements (total bits = n * 8)
- *  @return Number of differing bits
+ *  @brief Hamming distance: count of differing elements
+ *  @param[in] a,b Input vectors
+ *  @param[in] d Number of dimensions (elements for u8_t, bits/8 for u1x8_t)
+ *  @param[out] r Pointer to output count
+ *
+ *  @tparam in_type_ Input vector element type (u1x8_t or u8_t)
+ *  @tparam result_type_ Accumulator type, defaults to `in_type_::hamming_result_t`
+ *  @tparam allow_simd_ Enable SIMD kernel dispatch when `prefer_simd_k`
  */
-inline void hamming(u1x8_t const *a, u1x8_t const *b, std::size_t n, u32_t *r) noexcept {
-    std::size_t sum = 0;
-    for (std::size_t i = 0; i < n; i++) sum += a[i].hamming(b[i]);
-    *r = static_cast<u32_t>(sum);
+template <typename in_type_, typename result_type_ = typename in_type_::hamming_result_t,
+          allow_simd_t allow_simd_ = prefer_simd_k>
+void hamming(in_type_ const *a, in_type_ const *b, std::size_t d, result_type_ *r) noexcept {
+    constexpr bool simd = allow_simd_ == prefer_simd_k &&
+                          std::is_same_v<result_type_, typename in_type_::hamming_result_t>;
+
+    if constexpr (std::is_same_v<in_type_, u1x8_t> && simd) nk_hamming_u1(&a->raw_, &b->raw_, d, &r->raw_);
+    else if constexpr (std::is_same_v<in_type_, u8_t> && simd) nk_hamming_u8(&a->raw_, &b->raw_, d, &r->raw_);
+    // Scalar fallback
+    else {
+        typename result_type_::raw_t count = 0;
+        for (std::size_t i = 0; i < d; i++) count += (a[i] != b[i]) ? 1 : 0;
+        *r = result_type_::from_raw(count);
+    }
 }
 
 /**
- *  @brief Jaccard similarity for bit vectors: |A & B| / |A | B|
- *  @param a First bit vector [n]
- *  @param b Second bit vector [n]
- *  @param n Number of u1x8_t elements
- *  @return Jaccard similarity in [0, 1]
+ *  @brief Jaccard distance: 1 - (matching elements / total elements)
+ *  @param[in] a,b Input vectors
+ *  @param[in] d Number of dimensions
+ *  @param[out] r Pointer to output distance
+ *
+ *  For u1x8_t (bit vectors): uses |A ∩ B| / |A ∪ B| (set intersection/union)
+ *  For u16_t/u32_t (element vectors): uses count of matching elements / total
+ *
+ *  @tparam in_type_ Input vector element type (u1x8_t, u16_t, or u32_t)
+ *  @tparam result_type_ Accumulator type, defaults to `in_type_::jaccard_result_t`
+ *  @tparam allow_simd_ Enable SIMD kernel dispatch when `prefer_simd_k`
  */
-void jaccard(u1x8_t const *a, u1x8_t const *b, std::size_t n, f32_t *r) noexcept {
-    std::uint32_t intersection_count = 0;
-    std::uint32_t union_count = 0;
-    for (std::size_t i = 0; i < n; i++) {
-        intersection_count += a[i].intersection(b[i]);
-        union_count += a[i].union_size(b[i]);
+template <typename in_type_, typename result_type_ = typename in_type_::jaccard_result_t,
+          allow_simd_t allow_simd_ = prefer_simd_k>
+void jaccard(in_type_ const *a, in_type_ const *b, std::size_t d, result_type_ *r) noexcept {
+    constexpr bool simd = allow_simd_ == prefer_simd_k &&
+                          std::is_same_v<result_type_, typename in_type_::jaccard_result_t>;
+
+    if constexpr (std::is_same_v<in_type_, u1x8_t> && simd) nk_jaccard_u1(&a->raw_, &b->raw_, d, &r->raw_);
+    else if constexpr (std::is_same_v<in_type_, u16_t> && simd) nk_jaccard_u16(&a->raw_, &b->raw_, d, &r->raw_);
+    else if constexpr (std::is_same_v<in_type_, u32_t> && simd) nk_jaccard_u32(&a->raw_, &b->raw_, d, &r->raw_);
+    // Scalar fallback for u1x8_t (bit vectors)
+    else if constexpr (std::is_same_v<in_type_, u1x8_t>) {
+        std::uint32_t intersection_count = 0, union_count = 0;
+        for (std::size_t i = 0; i < d; i++)
+            intersection_count += a[i].intersection(b[i]), union_count += a[i].union_size(b[i]);
+        if (union_count == 0) *r = result_type_(0.0f);
+        else *r = result_type_(1.0f - static_cast<float>(intersection_count) / static_cast<float>(union_count));
     }
-    // Jaccard distance = 1 - (intersection / union)
-    // Both empty = identical = distance 0; otherwise 1 - similarity
-    if (union_count == 0) *r = f32_t(0.0);
-    else *r = f32_t(1.0f - static_cast<float>(intersection_count) / static_cast<float>(union_count));
+    // Scalar fallback for element vectors
+    else {
+        std::size_t matches = 0;
+        for (std::size_t i = 0; i < d; i++) matches += (a[i] == b[i]) ? 1 : 0;
+        if (d == 0) *r = result_type_(1.0f);
+        else *r = result_type_(1.0f - static_cast<float>(matches) / static_cast<float>(d));
+    }
 }
 
 #pragma endregion Binary Kernels

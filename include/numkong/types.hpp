@@ -3086,6 +3086,7 @@ struct u8_t {
     using dot_result_t = u32_t;        // `nk_dot_u8` output (widened)
     using reduce_add_result_t = u64_t; // `nk_reduce_add_u8` widened output
     using l2sq_result_t = u32_t;       // `nk_l2sq_u8` output (widened)
+    using hamming_result_t = u32_t;    // `nk_hamming_u8` output
 
     using dot_kernel_t = void (*)(raw_t const *, raw_t const *, nk_size_t, nk_u32_t *);
     using dots_packed_size_kernel_t = nk_size_t (*)(nk_size_t, nk_size_t);
@@ -3351,6 +3352,7 @@ struct u32_t {
     using signed_t = nk_i32_t;
 
     using reduce_add_result_t = u64_t; // `nk_reduce_add_u32` widened output
+    using jaccard_result_t = f32_t;    // `nk_jaccard_u32` output
 
     using intersect_kernel_t = void (*)(raw_t const *, raw_t const *, nk_size_t, nk_size_t, nk_u32_t *);
 
@@ -3849,6 +3851,7 @@ struct u16_t {
     using signed_t = nk_i16_t;
 
     using reduce_add_result_t = u64_t; // `nk_reduce_add_u16` widened output
+    using jaccard_result_t = f32_t;    // `nk_jaccard_u16` output
 
     using intersect_kernel_t = void (*)(raw_t const *, raw_t const *, nk_size_t, nk_size_t, nk_u32_t *);
 

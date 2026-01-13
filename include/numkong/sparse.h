@@ -6,15 +6,16 @@
  *
  *  Contains:
  *
- *  - Set intersection for sorted unique arrays → u32 count
- *  - Sparse dot products for weighted sparse vectors → f32 product
+ *  - Set intersection for sorted unique arrays → `u32` count
+ *  - Sparse dot products for weighted sparse vectors → `f32` product
  *
  *  For dtypes:
  *
  *  - `u16`: indices for vocabularies under 64 thousand tokens
  *  - `u32`: indices for vocabularies under 4 billion tokens
- *  - `u16` indices + `bf16` weights → f32 product
- *  - `u32` indices + `f32` weights → f32 product
+ *  - `u64`: indices for trillion-scale combinatorics and graphs
+ *  - `u16` indices + `bf16` weights → `f32` product
+ *  - `u32` indices + `f32` weights → `f32` product
  *
  *  For hardware architectures:
  *
@@ -87,32 +88,49 @@ extern "C" {
 #endif
 
 /**
- *  @brief Set intersection size between two sorted u16 arrays.
+ *  @brief Set intersection between two sorted u16 arrays.
  *
  *  @param[in] a The first sorted array of indices.
  *  @param[in] b The second sorted array of indices.
  *  @param[in] a_length The number of elements in the first array.
  *  @param[in] b_length The number of elements in the second array.
+ *  @param[out] result Output buffer for intersection elements, or NULL to count only.
  *  @param[out] count The output intersection count.
  *
  *  @note Inputs must be sorted in ascending order and contain unique elements.
  */
-NK_DYNAMIC void nk_intersect_u16( //
-    nk_u16_t const *a, nk_u16_t const *b, nk_size_t a_length, nk_size_t b_length, nk_u32_t *count);
+NK_DYNAMIC void nk_sparse_intersect_u16( //
+    nk_u16_t const *a, nk_u16_t const *b, nk_size_t a_length, nk_size_t b_length, nk_u16_t *result, nk_size_t *count);
 
 /**
- *  @brief Set intersection size between two sorted u32 arrays.
+ *  @brief Set intersection between two sorted u32 arrays.
  *
  *  @param[in] a The first sorted array of indices.
  *  @param[in] b The second sorted array of indices.
  *  @param[in] a_length The number of elements in the first array.
  *  @param[in] b_length The number of elements in the second array.
+ *  @param[out] result Output buffer for intersection elements, or NULL to count only.
  *  @param[out] count The output intersection count.
  *
  *  @note Inputs must be sorted in ascending order and contain unique elements.
  */
-NK_DYNAMIC void nk_intersect_u32( //
-    nk_u32_t const *a, nk_u32_t const *b, nk_size_t a_length, nk_size_t b_length, nk_u32_t *count);
+NK_DYNAMIC void nk_sparse_intersect_u32( //
+    nk_u32_t const *a, nk_u32_t const *b, nk_size_t a_length, nk_size_t b_length, nk_u32_t *result, nk_size_t *count);
+
+/**
+ *  @brief Set intersection between two sorted u64 arrays.
+ *
+ *  @param[in] a The first sorted array of indices.
+ *  @param[in] b The second sorted array of indices.
+ *  @param[in] a_length The number of elements in the first array.
+ *  @param[in] b_length The number of elements in the second array.
+ *  @param[out] result Output buffer for intersection elements, or NULL to count only.
+ *  @param[out] count The output intersection count.
+ *
+ *  @note Inputs must be sorted in ascending order and contain unique elements.
+ */
+NK_DYNAMIC void nk_sparse_intersect_u64( //
+    nk_u64_t const *a, nk_u64_t const *b, nk_size_t a_length, nk_size_t b_length, nk_u64_t *result, nk_size_t *count);
 
 /**
  *  @brief Sparse dot-product over u16 indices with bf16 weights.
@@ -148,12 +166,15 @@ NK_DYNAMIC void nk_sparse_dot_u32f32( //
     nk_u32_t const *a, nk_u32_t const *b, nk_f32_t const *a_weights, nk_f32_t const *b_weights, nk_size_t a_length,
     nk_size_t b_length, nk_f32_t *product);
 
-/** @copydoc nk_intersect_u16 */
-NK_PUBLIC void nk_intersect_u16_serial(nk_u16_t const *a, nk_u16_t const *b, nk_size_t a_length, nk_size_t b_length,
-                                       nk_u32_t *count);
-/** @copydoc nk_intersect_u32 */
-NK_PUBLIC void nk_intersect_u32_serial(nk_u32_t const *a, nk_u32_t const *b, nk_size_t a_length, nk_size_t b_length,
-                                       nk_u32_t *count);
+/** @copydoc nk_sparse_intersect_u16 */
+NK_PUBLIC void nk_sparse_intersect_u16_serial(nk_u16_t const *a, nk_u16_t const *b, nk_size_t a_length,
+                                              nk_size_t b_length, nk_u16_t *result, nk_size_t *count);
+/** @copydoc nk_sparse_intersect_u32 */
+NK_PUBLIC void nk_sparse_intersect_u32_serial(nk_u32_t const *a, nk_u32_t const *b, nk_size_t a_length,
+                                              nk_size_t b_length, nk_u32_t *result, nk_size_t *count);
+/** @copydoc nk_sparse_intersect_u64 */
+NK_PUBLIC void nk_sparse_intersect_u64_serial(nk_u64_t const *a, nk_u64_t const *b, nk_size_t a_length,
+                                              nk_size_t b_length, nk_u64_t *result, nk_size_t *count);
 /** @copydoc nk_sparse_dot_u16bf16 */
 NK_PUBLIC void nk_sparse_dot_u16bf16_serial(nk_u16_t const *a, nk_u16_t const *b, nk_bf16_t const *a_weights,
                                             nk_bf16_t const *b_weights, nk_size_t a_length, nk_size_t b_length,
@@ -164,21 +185,27 @@ NK_PUBLIC void nk_sparse_dot_u32f32_serial(nk_u32_t const *a, nk_u32_t const *b,
                                            nk_f32_t *product);
 
 #if NK_TARGET_NEON
-/** @copydoc nk_intersect_u16 */
-NK_PUBLIC void nk_intersect_u16_neon(nk_u16_t const *a, nk_u16_t const *b, nk_size_t a_length, nk_size_t b_length,
-                                     nk_u32_t *count);
-/** @copydoc nk_intersect_u32 */
-NK_PUBLIC void nk_intersect_u32_neon(nk_u32_t const *a, nk_u32_t const *b, nk_size_t a_length, nk_size_t b_length,
-                                     nk_u32_t *count);
+/** @copydoc nk_sparse_intersect_u16 */
+NK_PUBLIC void nk_sparse_intersect_u16_neon(nk_u16_t const *a, nk_u16_t const *b, nk_size_t a_length,
+                                            nk_size_t b_length, nk_u16_t *result, nk_size_t *count);
+/** @copydoc nk_sparse_intersect_u32 */
+NK_PUBLIC void nk_sparse_intersect_u32_neon(nk_u32_t const *a, nk_u32_t const *b, nk_size_t a_length,
+                                            nk_size_t b_length, nk_u32_t *result, nk_size_t *count);
+/** @copydoc nk_sparse_intersect_u64 */
+NK_PUBLIC void nk_sparse_intersect_u64_neon(nk_u64_t const *a, nk_u64_t const *b, nk_size_t a_length,
+                                            nk_size_t b_length, nk_u64_t *result, nk_size_t *count);
 #endif // NK_TARGET_NEON
 
 #if NK_TARGET_SVE2
-/** @copydoc nk_intersect_u16 */
-NK_PUBLIC void nk_intersect_u16_sve2(nk_u16_t const *a, nk_u16_t const *b, nk_size_t a_length, nk_size_t b_length,
-                                     nk_u32_t *count);
-/** @copydoc nk_intersect_u32 */
-NK_PUBLIC void nk_intersect_u32_sve2(nk_u32_t const *a, nk_u32_t const *b, nk_size_t a_length, nk_size_t b_length,
-                                     nk_u32_t *count);
+/** @copydoc nk_sparse_intersect_u16 */
+NK_PUBLIC void nk_sparse_intersect_u16_sve2(nk_u16_t const *a, nk_u16_t const *b, nk_size_t a_length,
+                                            nk_size_t b_length, nk_u16_t *result, nk_size_t *count);
+/** @copydoc nk_sparse_intersect_u32 */
+NK_PUBLIC void nk_sparse_intersect_u32_sve2(nk_u32_t const *a, nk_u32_t const *b, nk_size_t a_length,
+                                            nk_size_t b_length, nk_u32_t *result, nk_size_t *count);
+/** @copydoc nk_sparse_intersect_u64 */
+NK_PUBLIC void nk_sparse_intersect_u64_sve2(nk_u64_t const *a, nk_u64_t const *b, nk_size_t a_length,
+                                            nk_size_t b_length, nk_u64_t *result, nk_size_t *count);
 /** @copydoc nk_sparse_dot_u32f32 */
 NK_PUBLIC void nk_sparse_dot_u32f32_sve2(nk_u32_t const *a, nk_u32_t const *b, nk_f32_t const *a_weights,
                                          nk_f32_t const *b_weights, nk_size_t a_length, nk_size_t b_length,
@@ -193,12 +220,15 @@ NK_PUBLIC void nk_sparse_dot_u16bf16_sve2(nk_u16_t const *a, nk_u16_t const *b, 
 #endif // NK_TARGET_SVE2 && NK_TARGET_SVEBFDOT
 
 #if NK_TARGET_ICE
-/** @copydoc nk_intersect_u16 */
-NK_PUBLIC void nk_intersect_u16_ice(nk_u16_t const *a, nk_u16_t const *b, nk_size_t a_length, nk_size_t b_length,
-                                    nk_u32_t *count);
-/** @copydoc nk_intersect_u32 */
-NK_PUBLIC void nk_intersect_u32_ice(nk_u32_t const *a, nk_u32_t const *b, nk_size_t a_length, nk_size_t b_length,
-                                    nk_u32_t *count);
+/** @copydoc nk_sparse_intersect_u16 */
+NK_PUBLIC void nk_sparse_intersect_u16_ice(nk_u16_t const *a, nk_u16_t const *b, nk_size_t a_length, nk_size_t b_length,
+                                           nk_u16_t *result, nk_size_t *count);
+/** @copydoc nk_sparse_intersect_u32 */
+NK_PUBLIC void nk_sparse_intersect_u32_ice(nk_u32_t const *a, nk_u32_t const *b, nk_size_t a_length, nk_size_t b_length,
+                                           nk_u32_t *result, nk_size_t *count);
+/** @copydoc nk_sparse_intersect_u64 */
+NK_PUBLIC void nk_sparse_intersect_u64_ice(nk_u64_t const *a, nk_u64_t const *b, nk_size_t a_length, nk_size_t b_length,
+                                           nk_u64_t *result, nk_size_t *count);
 /** @copydoc nk_sparse_dot_u32f32 */
 NK_PUBLIC void nk_sparse_dot_u32f32_ice(nk_u32_t const *a, nk_u32_t const *b, nk_f32_t const *a_weights,
                                         nk_f32_t const *b_weights, nk_size_t a_length, nk_size_t b_length,
@@ -206,12 +236,15 @@ NK_PUBLIC void nk_sparse_dot_u32f32_ice(nk_u32_t const *a, nk_u32_t const *b, nk
 #endif // NK_TARGET_ICE
 
 #if NK_TARGET_TURIN
-/** @copydoc nk_intersect_u16 */
-NK_PUBLIC void nk_intersect_u16_turin(nk_u16_t const *a, nk_u16_t const *b, nk_size_t a_length, nk_size_t b_length,
-                                      nk_u32_t *count);
-/** @copydoc nk_intersect_u32 */
-NK_PUBLIC void nk_intersect_u32_turin(nk_u32_t const *a, nk_u32_t const *b, nk_size_t a_length, nk_size_t b_length,
-                                      nk_u32_t *count);
+/** @copydoc nk_sparse_intersect_u16 */
+NK_PUBLIC void nk_sparse_intersect_u16_turin(nk_u16_t const *a, nk_u16_t const *b, nk_size_t a_length,
+                                             nk_size_t b_length, nk_u16_t *result, nk_size_t *count);
+/** @copydoc nk_sparse_intersect_u32 */
+NK_PUBLIC void nk_sparse_intersect_u32_turin(nk_u32_t const *a, nk_u32_t const *b, nk_size_t a_length,
+                                             nk_size_t b_length, nk_u32_t *result, nk_size_t *count);
+/** @copydoc nk_sparse_intersect_u64 */
+NK_PUBLIC void nk_sparse_intersect_u64_turin(nk_u64_t const *a, nk_u64_t const *b, nk_size_t a_length,
+                                             nk_size_t b_length, nk_u64_t *result, nk_size_t *count);
 /** @copydoc nk_sparse_dot_u16bf16 */
 NK_PUBLIC void nk_sparse_dot_u16bf16_turin(nk_u16_t const *a, nk_u16_t const *b, nk_bf16_t const *a_weights,
                                            nk_bf16_t const *b_weights, nk_size_t a_length, nk_size_t b_length,
@@ -222,65 +255,71 @@ NK_PUBLIC void nk_sparse_dot_u32f32_turin(nk_u32_t const *a, nk_u32_t const *b, 
                                           nk_f32_t *product);
 #endif // NK_TARGET_TURIN
 
-#define nk_define_intersect_(input_type)                                                                           \
-    NK_PUBLIC nk_size_t nk_intersect_##input_type##_galloping_search_(                                             \
-        nk_##input_type##_t const *array, nk_size_t start, nk_size_t length, nk_##input_type##_t val) {            \
-        nk_size_t low = start;                                                                                     \
-        nk_size_t high = start + 1;                                                                                \
-        while (high < length && array[high] < val) {                                                               \
-            low = high;                                                                                            \
-            high = (2 * high < length) ? 2 * high : length;                                                        \
-        }                                                                                                          \
-        while (low < high) {                                                                                       \
-            nk_size_t mid = low + (high - low) / 2;                                                                \
-            if (array[mid] < val) { low = mid + 1; }                                                               \
-            else { high = mid; }                                                                                   \
-        }                                                                                                          \
-        return low;                                                                                                \
-    }                                                                                                              \
-    NK_PUBLIC nk_size_t nk_intersect_##input_type##_linear_scan_(nk_##input_type##_t const *a,                     \
-                                                                 nk_##input_type##_t const *b, nk_size_t a_length, \
-                                                                 nk_size_t b_length, nk_u32_t *count) {            \
-        nk_size_t intersection_size = 0;                                                                           \
-        nk_size_t i = 0, j = 0;                                                                                    \
-        while (i != a_length && j != b_length) {                                                                   \
-            nk_##input_type##_t ai = a[i];                                                                         \
-            nk_##input_type##_t bj = b[j];                                                                         \
-            intersection_size += ai == bj;                                                                         \
-            i += ai < bj;                                                                                          \
-            j += ai >= bj;                                                                                         \
-        }                                                                                                          \
-        return intersection_size;                                                                                  \
-    }                                                                                                              \
-    NK_PUBLIC void nk_intersect_##input_type##_serial(nk_##input_type##_t const *shorter,                          \
-                                                      nk_##input_type##_t const *longer, nk_size_t shorter_length, \
-                                                      nk_size_t longer_length, nk_u32_t *count) {                  \
-        /* Swap arrays if necessary, as we want "longer" to be larger than "shorter" */                            \
-        if (longer_length < shorter_length) {                                                                      \
-            nk_##input_type##_t const *temp = shorter;                                                             \
-            shorter = longer;                                                                                      \
-            longer = temp;                                                                                         \
-            nk_size_t temp_length = shorter_length;                                                                \
-            shorter_length = longer_length;                                                                        \
-            longer_length = temp_length;                                                                           \
-        }                                                                                                          \
-                                                                                                                   \
-        /* Use the accurate implementation if galloping is not beneficial */                                       \
-        if (longer_length < 64 * shorter_length) {                                                                 \
-            *count = (nk_u32_t)nk_intersect_##input_type##_linear_scan_(shorter, longer, shorter_length,           \
-                                                                        longer_length, count);                     \
-            return;                                                                                                \
-        }                                                                                                          \
-                                                                                                                   \
-        /* Perform galloping, shrinking the target range */                                                        \
-        nk_size_t intersection_size = 0;                                                                           \
-        nk_size_t j = 0;                                                                                           \
-        for (nk_size_t i = 0; i < shorter_length; ++i) {                                                           \
-            nk_##input_type##_t shorter_i = shorter[i];                                                            \
-            j = nk_intersect_##input_type##_galloping_search_(longer, j, longer_length, shorter_i);                \
-            if (j < longer_length && longer[j] == shorter_i) { intersection_size++; }                              \
-        }                                                                                                          \
-        *count = (nk_u32_t)intersection_size;                                                                      \
+#define nk_define_sparse_intersect_(input_type)                                                                      \
+    NK_PUBLIC nk_size_t nk_sparse_intersect_##input_type##_galloping_search_(                                        \
+        nk_##input_type##_t const *array, nk_size_t start, nk_size_t length, nk_##input_type##_t val) {              \
+        nk_size_t low = start;                                                                                       \
+        nk_size_t high = start + 1;                                                                                  \
+        while (high < length && array[high] < val) {                                                                 \
+            low = high;                                                                                              \
+            high = (2 * high < length) ? 2 * high : length;                                                          \
+        }                                                                                                            \
+        while (low < high) {                                                                                         \
+            nk_size_t mid = low + (high - low) / 2;                                                                  \
+            if (array[mid] < val) { low = mid + 1; }                                                                 \
+            else { high = mid; }                                                                                     \
+        }                                                                                                            \
+        return low;                                                                                                  \
+    }                                                                                                                \
+    NK_PUBLIC nk_size_t nk_sparse_intersect_##input_type##_linear_scan_(                                             \
+        nk_##input_type##_t const *a, nk_##input_type##_t const *b, nk_size_t a_length, nk_size_t b_length,          \
+        nk_##input_type##_t *result) {                                                                               \
+        nk_size_t intersection_size = 0;                                                                             \
+        nk_size_t i = 0, j = 0;                                                                                      \
+        while (i != a_length && j != b_length) {                                                                     \
+            nk_##input_type##_t ai = a[i];                                                                           \
+            nk_##input_type##_t bj = b[j];                                                                           \
+            if (ai == bj) {                                                                                          \
+                if (result) result[intersection_size] = ai;                                                          \
+                intersection_size++;                                                                                 \
+            }                                                                                                        \
+            i += ai <= bj;                                                                                           \
+            j += ai >= bj;                                                                                           \
+        }                                                                                                            \
+        return intersection_size;                                                                                    \
+    }                                                                                                                \
+    NK_PUBLIC void nk_sparse_intersect_##input_type##_serial(                                                        \
+        nk_##input_type##_t const *shorter, nk_##input_type##_t const *longer, nk_size_t shorter_length,             \
+        nk_size_t longer_length, nk_##input_type##_t *result, nk_size_t *count) {                                    \
+        /* Swap arrays if necessary, as we want "longer" to be larger than "shorter" */                              \
+        if (longer_length < shorter_length) {                                                                        \
+            nk_##input_type##_t const *temp = shorter;                                                               \
+            shorter = longer;                                                                                        \
+            longer = temp;                                                                                           \
+            nk_size_t temp_length = shorter_length;                                                                  \
+            shorter_length = longer_length;                                                                          \
+            longer_length = temp_length;                                                                             \
+        }                                                                                                            \
+                                                                                                                     \
+        /* Use the accurate implementation if galloping is not beneficial */                                         \
+        if (longer_length < 64 * shorter_length) {                                                                   \
+            *count = nk_sparse_intersect_##input_type##_linear_scan_(shorter, longer, shorter_length, longer_length, \
+                                                                     result);                                        \
+            return;                                                                                                  \
+        }                                                                                                            \
+                                                                                                                     \
+        /* Perform galloping, shrinking the target range */                                                          \
+        nk_size_t intersection_size = 0;                                                                             \
+        nk_size_t j = 0;                                                                                             \
+        for (nk_size_t i = 0; i < shorter_length; ++i) {                                                             \
+            nk_##input_type##_t shorter_i = shorter[i];                                                              \
+            j = nk_sparse_intersect_##input_type##_galloping_search_(longer, j, longer_length, shorter_i);           \
+            if (j < longer_length && longer[j] == shorter_i) {                                                       \
+                if (result) result[intersection_size] = shorter_i;                                                   \
+                intersection_size++;                                                                                 \
+            }                                                                                                        \
+        }                                                                                                            \
+        *count = intersection_size;                                                                                  \
     }
 
 #define nk_define_sparse_dot_(input_type, weight_type, accumulator_type, load_and_convert)                  \
@@ -302,8 +341,9 @@ NK_PUBLIC void nk_sparse_dot_u32f32_turin(nk_u32_t const *a, nk_u32_t const *b, 
         *product = (nk_f32_t)weights_product;                                                               \
     }
 
-nk_define_intersect_(u16) // nk_intersect_u16_serial
-nk_define_intersect_(u32) // nk_intersect_u32_serial
+nk_define_sparse_intersect_(u16) // nk_sparse_intersect_u16_serial
+nk_define_sparse_intersect_(u32) // nk_sparse_intersect_u32_serial
+nk_define_sparse_intersect_(u64) // nk_sparse_intersect_u64_serial
 
 nk_define_sparse_dot_(u16, bf16, f32, nk_bf16_to_f32_serial) // nk_sparse_dot_u16bf16_serial
 nk_define_sparse_dot_(u32, f32, f32, nk_assign_from_to_)     // nk_sparse_dot_u32f32_serial
@@ -428,14 +468,14 @@ NK_INTERNAL nk_u16_t nk_intersect_u32x16_ice_(__m512i a, __m512i b) {
     return ~(nk_u16_t)(nm0 & nk_u16_rol(nm1, 4) & nk_u16_rol(nm2, 8) & nk_u16_ror(nm3, 4));
 }
 
-NK_PUBLIC void nk_intersect_u16_ice(        //
+NK_PUBLIC void nk_sparse_intersect_u16_ice( //
     nk_u16_t const *a, nk_u16_t const *b,   //
     nk_size_t a_length, nk_size_t b_length, //
-    nk_u32_t *count) {
+    nk_u16_t *result, nk_size_t *count) {
 
     // The baseline implementation for very small arrays (2 registers or less) can be quite simple:
     if (a_length < 64 && b_length < 64) {
-        nk_intersect_u16_serial(a, b, a_length, b_length, count);
+        nk_sparse_intersect_u16_serial(a, b, a_length, b_length, result, count);
         return;
     }
 
@@ -479,25 +519,24 @@ NK_PUBLIC void nk_intersect_u16_ice(        //
         // Now we are likely to have some overlap, so we can intersect the registers
         __mmask32 a_matches = nk_intersect_u16x32_ice_(a_vec.zmm, b_vec.zmm);
 
-        // The paper also contained a very nice procedure for exporting the matches,
-        // but we don't need it here:
-        //      _mm512_mask_compressstoreu_epi16(c, a_matches, a_vec);
+        // Export matches if result buffer is provided
+        if (result) { _mm512_mask_compressstoreu_epi16(result + c, a_matches, a_vec.zmm); }
         c += _mm_popcnt_u32(a_matches); // MSVC has no `_popcnt32`
     }
 
-    nk_u32_t tail_count = 0;
-    nk_intersect_u16_serial(a, b, a_end - a, b_end - b, &tail_count);
-    *count = (nk_u32_t)c + tail_count;
+    nk_size_t tail_count = 0;
+    nk_sparse_intersect_u16_serial(a, b, a_end - a, b_end - b, result ? result + c : NULL, &tail_count);
+    *count = c + tail_count;
 }
 
-NK_PUBLIC void nk_intersect_u32_ice(        //
+NK_PUBLIC void nk_sparse_intersect_u32_ice( //
     nk_u32_t const *a, nk_u32_t const *b,   //
     nk_size_t a_length, nk_size_t b_length, //
-    nk_u32_t *count) {
+    nk_u32_t *result, nk_size_t *count) {
 
     // The baseline implementation for very small arrays (2 registers or less) can be quite simple:
     if (a_length < 32 && b_length < 32) {
-        nk_intersect_u32_serial(a, b, a_length, b_length, count);
+        nk_sparse_intersect_u32_serial(a, b, a_length, b_length, result, count);
         return;
     }
 
@@ -541,15 +580,111 @@ NK_PUBLIC void nk_intersect_u32_ice(        //
         // Now we are likely to have some overlap, so we can intersect the registers
         __mmask16 a_matches = nk_intersect_u32x16_ice_(a_vec.zmm, b_vec.zmm);
 
-        // The paper also contained a very nice procedure for exporting the matches,
-        // but we don't need it here:
-        //      _mm512_mask_compressstoreu_epi32(c, a_matches, a_u32x16);
+        // Export matches if result buffer is provided
+        if (result) { _mm512_mask_compressstoreu_epi32(result + c, a_matches, a_vec.zmm); }
         c += _mm_popcnt_u32(a_matches); // MSVC has no `_popcnt32`
     }
 
-    nk_u32_t tail_count = 0;
-    nk_intersect_u32_serial(a, b, a_end - a, b_end - b, &tail_count);
-    *count = (nk_u32_t)c + tail_count;
+    nk_size_t tail_count = 0;
+    nk_sparse_intersect_u32_serial(a, b, a_end - a, b_end - b, result ? result + c : NULL, &tail_count);
+    *count = c + tail_count;
+}
+
+/**
+ *  @brief  Analogous to `_mm512_2intersect_epi64`, but compatible with Ice Lake CPUs,
+ *          returns only one mask indicating which elements in `a` have a match in `b`.
+ */
+NK_INTERNAL nk_u8_t nk_intersect_u64x8_ice_(__m512i a, __m512i b) {
+    __m512i a1 = _mm512_alignr_epi64(a, a, 2);
+    __m512i b1 = _mm512_shuffle_i64x2(b, b, _MM_SHUFFLE(2, 1, 0, 3));
+    __mmask8 nm00 = _mm512_cmpneq_epi64_mask(a, b);
+
+    __m512i a2 = _mm512_alignr_epi64(a, a, 4);
+    __m512i a3 = _mm512_alignr_epi64(a, a, 6);
+    __mmask8 nm01 = _mm512_cmpneq_epi64_mask(a1, b);
+    __mmask8 nm02 = _mm512_cmpneq_epi64_mask(a2, b);
+
+    __mmask8 nm03 = _mm512_cmpneq_epi64_mask(a3, b);
+    __mmask8 nm10 = _mm512_mask_cmpneq_epi64_mask(nm00, a, b1);
+    __mmask8 nm11 = _mm512_mask_cmpneq_epi64_mask(nm01, a1, b1);
+
+    __m512i b2 = _mm512_shuffle_i64x2(b, b, _MM_SHUFFLE(1, 0, 3, 2));
+    __mmask8 nm12 = _mm512_mask_cmpneq_epi64_mask(nm02, a2, b1);
+    __mmask8 nm13 = _mm512_mask_cmpneq_epi64_mask(nm03, a3, b1);
+    __mmask8 nm20 = _mm512_mask_cmpneq_epi64_mask(nm10, a, b2);
+
+    __m512i b3 = _mm512_shuffle_i64x2(b, b, _MM_SHUFFLE(0, 3, 2, 1));
+    __mmask8 nm21 = _mm512_mask_cmpneq_epi64_mask(nm11, a1, b2);
+    __mmask8 nm22 = _mm512_mask_cmpneq_epi64_mask(nm12, a2, b2);
+    __mmask8 nm23 = _mm512_mask_cmpneq_epi64_mask(nm13, a3, b2);
+
+    __mmask8 nm0 = _mm512_mask_cmpneq_epi64_mask(nm20, a, b3);
+    __mmask8 nm1 = _mm512_mask_cmpneq_epi64_mask(nm21, a1, b3);
+    __mmask8 nm2 = _mm512_mask_cmpneq_epi64_mask(nm22, a2, b3);
+    __mmask8 nm3 = _mm512_mask_cmpneq_epi64_mask(nm23, a3, b3);
+
+    return ~(nk_u8_t)(nm0 & nk_u8_rol(nm1, 2) & nk_u8_rol(nm2, 4) & nk_u8_ror(nm3, 2));
+}
+
+NK_PUBLIC void nk_sparse_intersect_u64_ice( //
+    nk_u64_t const *a, nk_u64_t const *b,   //
+    nk_size_t a_length, nk_size_t b_length, //
+    nk_u64_t *result, nk_size_t *count) {
+
+    // The baseline implementation for very small arrays (2 registers or less) can be quite simple:
+    if (a_length < 16 && b_length < 16) {
+        nk_sparse_intersect_u64_serial(a, b, a_length, b_length, result, count);
+        return;
+    }
+
+    nk_u64_t const *const a_end = a + a_length;
+    nk_u64_t const *const b_end = b + b_length;
+    nk_size_t c = 0;
+    nk_b512_vec_t a_vec, b_vec;
+
+    while (a + 8 <= a_end && b + 8 <= b_end) {
+        a_vec.zmm = _mm512_loadu_si512((__m512i const *)a);
+        b_vec.zmm = _mm512_loadu_si512((__m512i const *)b);
+
+        // Intersecting registers with `nk_intersect_u64x8_ice_` involves a lot of shuffling
+        // and comparisons, so we want to avoid it if the slices don't overlap at all.
+        nk_u64_t a_min;
+        nk_u64_t a_max = a_vec.u64s[7];
+        nk_u64_t b_min = b_vec.u64s[0];
+        nk_u64_t b_max = b_vec.u64s[7];
+
+        // If the slices don't overlap, advance the appropriate pointer
+        while (a_max < b_min && a + 16 <= a_end) {
+            a += 8;
+            a_vec.zmm = _mm512_loadu_si512((__m512i const *)a);
+            a_max = a_vec.u64s[7];
+        }
+        a_min = a_vec.u64s[0];
+        while (b_max < a_min && b + 16 <= b_end) {
+            b += 8;
+            b_vec.zmm = _mm512_loadu_si512((__m512i const *)b);
+            b_max = b_vec.u64s[7];
+        }
+        b_min = b_vec.u64s[0];
+
+        __m512i a_max_u64x8 = _mm512_set1_epi64(*(long long const *)&a_max);
+        __m512i b_max_u64x8 = _mm512_set1_epi64(*(long long const *)&b_max);
+        __mmask8 a_step_mask = _mm512_cmple_epu64_mask(a_vec.zmm, b_max_u64x8);
+        __mmask8 b_step_mask = _mm512_cmple_epu64_mask(b_vec.zmm, a_max_u64x8);
+        a += 16 - _lzcnt_u32((nk_u32_t)a_step_mask | 0x100);
+        b += 16 - _lzcnt_u32((nk_u32_t)b_step_mask | 0x100);
+
+        // Now we are likely to have some overlap, so we can intersect the registers
+        __mmask8 a_matches = nk_intersect_u64x8_ice_(a_vec.zmm, b_vec.zmm);
+
+        // Export matches if result buffer is provided
+        if (result) { _mm512_mask_compressstoreu_epi64(result + c, a_matches, a_vec.zmm); }
+        c += _mm_popcnt_u32(a_matches); // MSVC has no `_popcnt32`
+    }
+
+    nk_size_t tail_count = 0;
+    nk_sparse_intersect_u64_serial(a, b, a_end - a, b_end - b, result ? result + c : NULL, &tail_count);
+    *count = c + tail_count;
 }
 
 NK_PUBLIC void nk_sparse_dot_u32f32_ice(                  //
@@ -643,10 +778,10 @@ NK_PUBLIC void nk_sparse_dot_u32f32_ice(                  //
                    "avx512bf16", "avx512vnni", "avx512vp2intersect", "avx512dq")
 #endif
 
-NK_PUBLIC void nk_intersect_u16_turin(      //
-    nk_u16_t const *a, nk_u16_t const *b,   //
-    nk_size_t a_length, nk_size_t b_length, //
-    nk_u32_t *count) {
+NK_PUBLIC void nk_sparse_intersect_u16_turin( //
+    nk_u16_t const *a, nk_u16_t const *b,     //
+    nk_size_t a_length, nk_size_t b_length,   //
+    nk_u16_t *result, nk_size_t *count) {
 
     //! There is no such thing as `_mm512_2intersect_epi16`, only the 32-bit variant!
     //! So instead of jumping through 32 entries at a time, like on Ice Lake, we will
@@ -668,9 +803,8 @@ NK_PUBLIC void nk_intersect_u16_turin(      //
         __mmask16 a_matches_any_in_b, b_matches_any_in_a;
         _mm512_2intersect_epi32(a_i32x16, b_i32x16, &a_matches_any_in_b, &b_matches_any_in_a);
 
-        // The paper also contained a very nice procedure for exporting the matches,
-        // but we don't need it here:
-        //      _mm512_mask_compressstoreu_epi16(c, a_matches_any_in_b, a_vec);
+        // Export matches if result buffer is provided
+        if (result) { _mm256_mask_compressstoreu_epi16(result + c, a_matches_any_in_b, a_vec.ymm); }
         c += _mm_popcnt_u32(a_matches_any_in_b); // MSVC has no `_popcnt32`
 
         __m256i a_max_u16x16 = _mm256_permutexvar_epi16(last_idx, a_vec.ymm);
@@ -681,15 +815,15 @@ NK_PUBLIC void nk_intersect_u16_turin(      //
         b += _tzcnt_u32(~(nk_u32_t)b_step_mask | 0x10000);
     }
 
-    nk_u32_t tail_count = 0;
-    nk_intersect_u16_serial(a, b, a_end - a, b_end - b, &tail_count);
-    *count = (nk_u32_t)c + tail_count;
+    nk_size_t tail_count = 0;
+    nk_sparse_intersect_u16_serial(a, b, a_end - a, b_end - b, result ? result + c : NULL, &tail_count);
+    *count = c + tail_count;
 }
 
-NK_PUBLIC void nk_intersect_u32_turin(      //
-    nk_u32_t const *a, nk_u32_t const *b,   //
-    nk_size_t a_length, nk_size_t b_length, //
-    nk_u32_t *count) {
+NK_PUBLIC void nk_sparse_intersect_u32_turin( //
+    nk_u32_t const *a, nk_u32_t const *b,     //
+    nk_size_t a_length, nk_size_t b_length,   //
+    nk_u32_t *result, nk_size_t *count) {
 
     nk_u32_t const *const a_end = a + a_length;
     nk_u32_t const *const b_end = b + b_length;
@@ -706,9 +840,8 @@ NK_PUBLIC void nk_intersect_u32_turin(      //
         __mmask16 a_matches_any_in_b, b_matches_any_in_a;
         _mm512_2intersect_epi32(a_vec.zmm, b_vec.zmm, &a_matches_any_in_b, &b_matches_any_in_a);
 
-        // The paper also contained a very nice procedure for exporting the matches,
-        // but we don't need it here:
-        //      _mm512_mask_compressstoreu_epi32(c, a_matches_any_in_b, a_vec);
+        // Export matches if result buffer is provided
+        if (result) { _mm512_mask_compressstoreu_epi32(result + c, a_matches_any_in_b, a_vec.zmm); }
         c += _mm_popcnt_u32(a_matches_any_in_b); // MSVC has no `_popcnt32`
 
         // Pure SIMD broadcasts - no scalar extraction needed
@@ -720,9 +853,47 @@ NK_PUBLIC void nk_intersect_u32_turin(      //
         b += _tzcnt_u32(~(nk_u32_t)b_step_mask | 0x10000);
     }
 
-    nk_u32_t tail_count = 0;
-    nk_intersect_u32_serial(a, b, a_end - a, b_end - b, &tail_count);
-    *count = (nk_u32_t)c + tail_count;
+    nk_size_t tail_count = 0;
+    nk_sparse_intersect_u32_serial(a, b, a_end - a, b_end - b, result ? result + c : NULL, &tail_count);
+    *count = c + tail_count;
+}
+
+NK_PUBLIC void nk_sparse_intersect_u64_turin( //
+    nk_u64_t const *a, nk_u64_t const *b,     //
+    nk_size_t a_length, nk_size_t b_length,   //
+    nk_u64_t *result, nk_size_t *count) {
+
+    nk_u64_t const *const a_end = a + a_length;
+    nk_u64_t const *const b_end = b + b_length;
+    nk_size_t c = 0;
+    nk_b512_vec_t a_vec, b_vec;
+
+    // Broadcast index for last element (hoisted outside loop)
+    __m512i const last_idx = _mm512_set1_epi64(7);
+    while (a + 8 <= a_end && b + 8 <= b_end) {
+        a_vec.zmm = _mm512_loadu_si512((__m512i const *)a);
+        b_vec.zmm = _mm512_loadu_si512((__m512i const *)b);
+
+        // Intersect the registers
+        __mmask8 a_matches_any_in_b, b_matches_any_in_a;
+        _mm512_2intersect_epi64(a_vec.zmm, b_vec.zmm, &a_matches_any_in_b, &b_matches_any_in_a);
+
+        // Export matches if result buffer is provided
+        if (result) { _mm512_mask_compressstoreu_epi64(result + c, a_matches_any_in_b, a_vec.zmm); }
+        c += _mm_popcnt_u32(a_matches_any_in_b); // MSVC has no `_popcnt32`
+
+        // Pure SIMD broadcasts - no scalar extraction needed
+        __m512i a_max_u64x8 = _mm512_permutexvar_epi64(last_idx, a_vec.zmm);
+        __m512i b_max_u64x8 = _mm512_permutexvar_epi64(last_idx, b_vec.zmm);
+        __mmask8 a_step_mask = _mm512_cmple_epu64_mask(a_vec.zmm, b_max_u64x8);
+        __mmask8 b_step_mask = _mm512_cmple_epu64_mask(b_vec.zmm, a_max_u64x8);
+        a += _tzcnt_u32(~(nk_u32_t)a_step_mask | 0x100);
+        b += _tzcnt_u32(~(nk_u32_t)b_step_mask | 0x100);
+    }
+
+    nk_size_t tail_count = 0;
+    nk_sparse_intersect_u64_serial(a, b, a_end - a, b_end - b, result ? result + c : NULL, &tail_count);
+    *count = c + tail_count;
 }
 
 NK_PUBLIC void nk_sparse_dot_u16bf16_turin(                 //
@@ -940,14 +1111,20 @@ NK_INTERNAL uint16x8_t nk_intersect_u16x8_neon_(uint16x8_t a, uint16x8_t b) {
     return nm;
 }
 
-NK_PUBLIC void nk_intersect_u16_neon(       //
-    nk_u16_t const *a, nk_u16_t const *b,   //
-    nk_size_t a_length, nk_size_t b_length, //
-    nk_u32_t *count) {
+NK_PUBLIC void nk_sparse_intersect_u16_neon( //
+    nk_u16_t const *a, nk_u16_t const *b,    //
+    nk_size_t a_length, nk_size_t b_length,  //
+    nk_u16_t *result, nk_size_t *count) {
+
+    // NEON lacks compress-store, so fall back to serial for result output
+    if (result) {
+        nk_sparse_intersect_u16_serial(a, b, a_length, b_length, result, count);
+        return;
+    }
 
     // The baseline implementation for very small arrays (2 registers or less) can be quite simple:
     if (a_length < 32 && b_length < 32) {
-        nk_intersect_u16_serial(a, b, a_length, b_length, count);
+        nk_sparse_intersect_u16_serial(a, b, a_length, b_length, result, count);
         return;
     }
 
@@ -1015,19 +1192,25 @@ NK_PUBLIC void nk_intersect_u16_neon(       //
         b += (64 - b_step) / 8;
     }
 
-    nk_u32_t tail_count = 0;
-    nk_intersect_u16_serial(a, b, a_end - a, b_end - b, &tail_count);
-    *count = tail_count + (nk_u32_t)vaddvq_u16(c_counts_u16x8);
+    nk_size_t tail_count = 0;
+    nk_sparse_intersect_u16_serial(a, b, a_end - a, b_end - b, NULL, &tail_count);
+    *count = tail_count + (nk_size_t)vaddvq_u16(c_counts_u16x8);
 }
 
-NK_PUBLIC void nk_intersect_u32_neon(       //
-    nk_u32_t const *a, nk_u32_t const *b,   //
-    nk_size_t a_length, nk_size_t b_length, //
-    nk_u32_t *count) {
+NK_PUBLIC void nk_sparse_intersect_u32_neon( //
+    nk_u32_t const *a, nk_u32_t const *b,    //
+    nk_size_t a_length, nk_size_t b_length,  //
+    nk_u32_t *result, nk_size_t *count) {
+
+    // NEON lacks compress-store, so fall back to serial for result output
+    if (result) {
+        nk_sparse_intersect_u32_serial(a, b, a_length, b_length, result, count);
+        return;
+    }
 
     // The baseline implementation for very small arrays (2 registers or less) can be quite simple:
     if (a_length < 32 && b_length < 32) {
-        nk_intersect_u32_serial(a, b, a_length, b_length, count);
+        nk_sparse_intersect_u32_serial(a, b, a_length, b_length, result, count);
         return;
     }
 
@@ -1084,9 +1267,85 @@ NK_PUBLIC void nk_intersect_u32_neon(       //
         b += (64 - b_step) / 16;
     }
 
-    nk_u32_t tail_count = 0;
-    nk_intersect_u32_serial(a, b, a_end - a, b_end - b, &tail_count);
-    *count = tail_count + vaddvq_u32(c_counts_u32x4);
+    nk_size_t tail_count = 0;
+    nk_sparse_intersect_u32_serial(a, b, a_end - a, b_end - b, NULL, &tail_count);
+    *count = tail_count + (nk_size_t)vaddvq_u32(c_counts_u32x4);
+}
+
+NK_INTERNAL uint64x2_t nk_intersect_u64x2_neon_(uint64x2_t a, uint64x2_t b) {
+    uint64x2_t b1 = vextq_u64(b, b, 1);
+    uint64x2_t nm00 = vceqq_u64(a, b);
+    uint64x2_t nm01 = vceqq_u64(a, b1);
+    uint64x2_t nm = vorrq_u64(nm00, nm01);
+    return nm;
+}
+
+NK_PUBLIC void nk_sparse_intersect_u64_neon( //
+    nk_u64_t const *a, nk_u64_t const *b,    //
+    nk_size_t a_length, nk_size_t b_length,  //
+    nk_u64_t *result, nk_size_t *count) {
+
+    // NEON lacks compress-store, so fall back to serial for result output
+    if (result) {
+        nk_sparse_intersect_u64_serial(a, b, a_length, b_length, result, count);
+        return;
+    }
+
+    // The baseline implementation for very small arrays (2 registers or less) can be quite simple:
+    if (a_length < 8 && b_length < 8) {
+        nk_sparse_intersect_u64_serial(a, b, a_length, b_length, result, count);
+        return;
+    }
+
+    nk_u64_t const *const a_end = a + a_length;
+    nk_u64_t const *const b_end = b + b_length;
+    nk_b128_vec_t a_vec, b_vec;
+    uint64x2_t c_counts_u64x2 = vdupq_n_u64(0);
+
+    while (a + 2 <= a_end && b + 2 <= b_end) {
+        a_vec.u64x2 = vld1q_u64(a);
+        b_vec.u64x2 = vld1q_u64(b);
+
+        // Intersecting registers with `nk_intersect_u64x2_neon_` involves comparisons,
+        // so we want to avoid it if the slices don't overlap at all.
+        nk_u64_t a_min;
+        nk_u64_t a_max = a_vec.u64s[1];
+        nk_u64_t b_min = b_vec.u64s[0];
+        nk_u64_t b_max = b_vec.u64s[1];
+
+        // If the slices don't overlap, advance the appropriate pointer
+        while (a_max < b_min && a + 4 <= a_end) {
+            a += 2;
+            a_vec.u64x2 = vld1q_u64(a);
+            a_max = a_vec.u64s[1];
+        }
+        a_min = a_vec.u64s[0];
+        while (b_max < a_min && b + 4 <= b_end) {
+            b += 2;
+            b_vec.u64x2 = vld1q_u64(b);
+            b_max = b_vec.u64s[1];
+        }
+        b_min = b_vec.u64s[0];
+
+        // Now we are likely to have some overlap, so we can intersect the registers
+        // Transform match-masks into "ones", accumulate them between the cycles,
+        // and merge all together in the end.
+        uint64x2_t a_matches = nk_intersect_u64x2_neon_(a_vec.u64x2, b_vec.u64x2);
+        c_counts_u64x2 = vaddq_u64(c_counts_u64x2, vandq_u64(a_matches, vdupq_n_u64(1)));
+
+        uint64x2_t a_max_u64x2 = vdupq_n_u64(a_max);
+        uint64x2_t b_max_u64x2 = vdupq_n_u64(b_max);
+        nk_u64_t a_step = nk_clz_u64_(nk_u8_to_u4_neon_( //
+            vreinterpretq_u8_u64(vcleq_u64(a_vec.u64x2, b_max_u64x2))));
+        nk_u64_t b_step = nk_clz_u64_(nk_u8_to_u4_neon_( //
+            vreinterpretq_u8_u64(vcleq_u64(b_vec.u64x2, a_max_u64x2))));
+        a += (64 - a_step) / 32;
+        b += (64 - b_step) / 32;
+    }
+
+    nk_size_t tail_count = 0;
+    nk_sparse_intersect_u64_serial(a, b, a_end - a, b_end - b, NULL, &tail_count);
+    *count = tail_count + (nk_size_t)vaddvq_u64(c_counts_u64x2);
 }
 
 #if defined(__clang__)
@@ -1126,11 +1385,10 @@ NK_PUBLIC void nk_intersect_u32_neon(       //
 #pragma GCC target("arch=armv8.2-a+sve+sve2")
 #endif
 
-NK_PUBLIC void nk_intersect_u16_sve2(     //
-    nk_u16_t const *a, nk_u16_t const *b, //
-    nk_size_t a_length,
-    nk_size_t b_length, //
-    nk_u32_t *count) {
+NK_PUBLIC void nk_sparse_intersect_u16_sve2( //
+    nk_u16_t const *a, nk_u16_t const *b,    //
+    nk_size_t a_length, nk_size_t b_length,  //
+    nk_u16_t *result, nk_size_t *count) {
 
     // A single SVE lane is 128 bits wide, so one lane fits 8 values.
     nk_size_t const register_size = svcnth();
@@ -1188,16 +1446,25 @@ NK_PUBLIC void nk_intersect_u16_sve2(     //
         }
         nk_size_t equal_count = svcntp_b16(svptrue_b16(), equal_mask);
 
+        // Use SVE2 svcompact to compress matching elements and store to result buffer
+        if (result) {
+            svuint16_t compacted = svcompact_u16(equal_mask, a_vec);
+            svbool_t store_predicate = svwhilelt_b16_u64(0, equal_count);
+            svst1_u16(store_predicate, result + c, compacted);
+        }
+
         // Advance
         a_idx += a_step;
         b_idx += b_step;
         c += equal_count;
     }
-    *count = (nk_u32_t)c;
+    *count = c;
 }
 
-NK_PUBLIC void nk_intersect_u32_sve2(nk_u32_t const *a, nk_u32_t const *b, nk_size_t a_length, nk_size_t b_length,
-                                     nk_u32_t *count) {
+NK_PUBLIC void nk_sparse_intersect_u32_sve2( //
+    nk_u32_t const *a, nk_u32_t const *b,    //
+    nk_size_t a_length, nk_size_t b_length,  //
+    nk_u32_t *result, nk_size_t *count) {
 
     // A single SVE lane is 128 bits wide, so one lane fits 4 values.
     nk_size_t const register_size = svcntw();
@@ -1248,7 +1515,7 @@ NK_PUBLIC void nk_intersect_u32_sve2(nk_u32_t const *a, nk_u32_t const *b, nk_si
         nk_u64_t b_step = svcntp_b32(b_progress, b_mask);
 
         // Comparing `a_vec` with each lane of `b_vec` can't be done with `svmatch`,
-        // the same way as in `nk_intersect_u16_sve2`, as that instruction is only
+        // the same way as in `nk_sparse_intersect_u16_sve2`, as that instruction is only
         // available for 8-bit and 16-bit integers.
         //
         //      svbool_t equal_mask = svpfalse_b();
@@ -1283,12 +1550,92 @@ NK_PUBLIC void nk_intersect_u32_sve2(nk_u32_t const *a, nk_u32_t const *b, nk_si
         svbool_t equal_mask = svcmpne_n_u32(a_progress, hist, 0);
         nk_size_t equal_count = svcntp_b32(a_progress, equal_mask);
 
+        // Use SVE2 svcompact to compress matching elements and store to result buffer
+        if (result) {
+            svuint32_t compacted = svcompact_u32(equal_mask, a_vec);
+            svbool_t store_predicate = svwhilelt_b32_u64(0, equal_count);
+            svst1_u32(store_predicate, result + c, compacted);
+        }
+
         // Advance
         a_idx += a_step;
         b_idx += b_step;
         c += equal_count;
     }
-    *count = (nk_u32_t)c;
+    *count = c;
+}
+
+NK_PUBLIC void nk_sparse_intersect_u64_sve2( //
+    nk_u64_t const *a, nk_u64_t const *b,    //
+    nk_size_t a_length, nk_size_t b_length,  //
+    nk_u64_t *result, nk_size_t *count) {
+
+    // A single SVE lane is 128 bits wide, so one lane fits 2 values.
+    nk_size_t const register_size = svcntd();
+    nk_size_t const lanes_count = register_size / 2;
+    nk_size_t a_idx = 0, b_idx = 0;
+    nk_size_t c = 0;
+
+    while (a_idx < a_length && b_idx < b_length) {
+        // Load `a_member` and broadcast it, load `b_members_vec` from memory
+        svbool_t a_progress = svwhilelt_b64_u64(a_idx, a_length);
+        svbool_t b_progress = svwhilelt_b64_u64(b_idx, b_length);
+        svuint64_t a_vec = svld1_u64(a_progress, a + a_idx);
+        svuint64_t b_vec = svld1_u64(b_progress, b + b_idx);
+
+        // Intersecting registers involves comparisons,
+        // so we want to avoid it if the slices don't overlap at all.
+        nk_u64_t a_min;
+        nk_u64_t a_max = svlastb(a_progress, a_vec);
+        nk_u64_t b_min = svlasta(svpfalse_b(), b_vec);
+        nk_u64_t b_max = svlastb(b_progress, b_vec);
+
+        // If the slices don't overlap, advance the appropriate pointer
+        while (a_max < b_min && (a_idx + register_size) <= a_length) {
+            a_idx += register_size;
+            a_progress = svwhilelt_b64_u64(a_idx, a_length);
+            a_vec = svld1_u64(a_progress, a + a_idx);
+            a_max = svlastb(a_progress, a_vec);
+        }
+        a_min = svlasta(svpfalse_b(), a_vec);
+        while (b_max < a_min && (b_idx + register_size) <= b_length) {
+            b_idx += register_size;
+            b_progress = svwhilelt_b64_u64(b_idx, b_length);
+            b_vec = svld1_u64(b_progress, b + b_idx);
+            b_max = svlastb(b_progress, b_vec);
+        }
+        b_min = svlasta(svpfalse_b(), b_vec);
+
+        // Estimate how much we will need to advance the pointers afterwards.
+        svbool_t a_mask = svcmple_n_u64(a_progress, a_vec, b_max);
+        svbool_t b_mask = svcmple_n_u64(b_progress, b_vec, a_max);
+        nk_u64_t a_step = svcntp_b64(a_progress, a_mask);
+        nk_u64_t b_step = svcntp_b64(b_progress, b_mask);
+
+        // Use histogram instructions like `svhistcnt_u64_z` to compute intersection.
+        // They compute the prefix-matching count, equivalent to the lower triangle
+        // of the row-major intersection matrix.
+        svuint64_t hist_lower = svhistcnt_u64_z(a_progress, a_vec, b_vec);
+        svuint64_t a_rev_vec = svrev_u64(a_vec);
+        svuint64_t b_rev_vec = svrev_u64(b_vec);
+        svuint64_t hist_upper = svrev_u64(svhistcnt_u64_z(svptrue_b64(), a_rev_vec, b_rev_vec));
+        svuint64_t hist = svorr_u64_x(a_progress, hist_lower, hist_upper);
+        svbool_t equal_mask = svcmpne_n_u64(a_progress, hist, 0);
+        nk_size_t equal_count = svcntp_b64(a_progress, equal_mask);
+
+        // Use SVE2 svcompact to compress matching elements and store to result buffer
+        if (result) {
+            svuint64_t compacted = svcompact_u64(equal_mask, a_vec);
+            svbool_t store_predicate = svwhilelt_b64_u64(0, equal_count);
+            svst1_u64(store_predicate, result + c, compacted);
+        }
+
+        // Advance
+        a_idx += a_step;
+        b_idx += b_step;
+        c += equal_count;
+    }
+    *count = c;
 }
 
 NK_PUBLIC void nk_sparse_dot_u32f32_sve2(                 //
@@ -1470,33 +1817,48 @@ NK_PUBLIC void nk_sparse_dot_u16bf16_sve2(                  //
 
 #if !NK_DYNAMIC_DISPATCH
 
-NK_PUBLIC void nk_intersect_u16(nk_u16_t const *a, nk_u16_t const *b, nk_size_t a_length, nk_size_t b_length,
-                                nk_u32_t *count) {
+NK_PUBLIC void nk_sparse_intersect_u16(nk_u16_t const *a, nk_u16_t const *b, nk_size_t a_length, nk_size_t b_length,
+                                       nk_u16_t *result, nk_size_t *count) {
 #if NK_TARGET_SVE2
-    nk_intersect_u16_sve2(a, b, a_length, b_length, count);
+    nk_sparse_intersect_u16_sve2(a, b, a_length, b_length, result, count);
 #elif NK_TARGET_NEON
-    nk_intersect_u16_neon(a, b, a_length, b_length, count);
+    nk_sparse_intersect_u16_neon(a, b, a_length, b_length, result, count);
 #elif NK_TARGET_TURIN
-    nk_intersect_u16_turin(a, b, a_length, b_length, count);
+    nk_sparse_intersect_u16_turin(a, b, a_length, b_length, result, count);
 #elif NK_TARGET_ICE
-    nk_intersect_u16_ice(a, b, a_length, b_length, count);
+    nk_sparse_intersect_u16_ice(a, b, a_length, b_length, result, count);
 #else
-    nk_intersect_u16_serial(a, b, a_length, b_length, count);
+    nk_sparse_intersect_u16_serial(a, b, a_length, b_length, result, count);
 #endif
 }
 
-NK_PUBLIC void nk_intersect_u32(nk_u32_t const *a, nk_u32_t const *b, nk_size_t a_length, nk_size_t b_length,
-                                nk_u32_t *count) {
+NK_PUBLIC void nk_sparse_intersect_u32(nk_u32_t const *a, nk_u32_t const *b, nk_size_t a_length, nk_size_t b_length,
+                                       nk_u32_t *result, nk_size_t *count) {
 #if NK_TARGET_SVE2
-    nk_intersect_u32_sve2(a, b, a_length, b_length, count);
+    nk_sparse_intersect_u32_sve2(a, b, a_length, b_length, result, count);
 #elif NK_TARGET_NEON
-    nk_intersect_u32_neon(a, b, a_length, b_length, count);
+    nk_sparse_intersect_u32_neon(a, b, a_length, b_length, result, count);
 #elif NK_TARGET_TURIN
-    nk_intersect_u32_turin(a, b, a_length, b_length, count);
+    nk_sparse_intersect_u32_turin(a, b, a_length, b_length, result, count);
 #elif NK_TARGET_ICE
-    nk_intersect_u32_ice(a, b, a_length, b_length, count);
+    nk_sparse_intersect_u32_ice(a, b, a_length, b_length, result, count);
 #else
-    nk_intersect_u32_serial(a, b, a_length, b_length, count);
+    nk_sparse_intersect_u32_serial(a, b, a_length, b_length, result, count);
+#endif
+}
+
+NK_PUBLIC void nk_sparse_intersect_u64(nk_u64_t const *a, nk_u64_t const *b, nk_size_t a_length, nk_size_t b_length,
+                                       nk_u64_t *result, nk_size_t *count) {
+#if NK_TARGET_SVE2
+    nk_sparse_intersect_u64_sve2(a, b, a_length, b_length, result, count);
+#elif NK_TARGET_NEON
+    nk_sparse_intersect_u64_neon(a, b, a_length, b_length, result, count);
+#elif NK_TARGET_TURIN
+    nk_sparse_intersect_u64_turin(a, b, a_length, b_length, result, count);
+#elif NK_TARGET_ICE
+    nk_sparse_intersect_u64_ice(a, b, a_length, b_length, result, count);
+#else
+    nk_sparse_intersect_u64_serial(a, b, a_length, b_length, result, count);
 #endif
 }
 
