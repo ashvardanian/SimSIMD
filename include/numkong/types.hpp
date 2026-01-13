@@ -53,13 +53,14 @@
 #include "numkong/types.h"
 #include "numkong/cast.h"
 
-#include <bit>     // `std::bit_cast`
-#include <compare> // `std::strong_ordering`
-#include <cmath>   // `std::sqrt`
-#include <complex> // `std::complex`
-#include <cstdint> // `nk_u32_t`
-#include <limits>  // `std::numeric_limits`
-#include <utility> // `std::swap`
+#include <bit>      // `std::bit_cast`
+#include <compare>  // `std::strong_ordering`
+#include <concepts> // `std::integral`
+#include <cmath>    // `std::sqrt`
+#include <complex>  // `std::complex`
+#include <cstdint>  // `nk_u32_t`
+#include <limits>   // `std::numeric_limits`
+#include <utility>  // `std::swap`
 
 namespace ashvardanian::numkong {
 
@@ -3234,7 +3235,8 @@ struct i32_t {
 
     constexpr i32_t() noexcept : raw_(0) {}
     constexpr i32_t(std::int32_t v) noexcept : raw_(v) {}
-    constexpr explicit i32_t(std::int64_t v) noexcept : raw_(static_cast<raw_t>(v)) {}
+    template <std::integral integral_type_>
+    constexpr i32_t(integral_type_ v) noexcept : raw_(static_cast<raw_t>(v)) {}
     constexpr operator std::int32_t() const noexcept { return raw_; }
     constexpr std::int32_t raw() const noexcept { return raw_; }
     static constexpr i32_t from_raw(raw_t r) noexcept { return i32_t {r}; }
@@ -3370,7 +3372,8 @@ struct u32_t {
 
     constexpr u32_t() noexcept : raw_(0) {}
     constexpr u32_t(std::uint32_t v) noexcept : raw_(v) {}
-    constexpr explicit u32_t(std::uint64_t v) noexcept : raw_(static_cast<raw_t>(v)) {}
+    template <std::integral integral_type_>
+    constexpr u32_t(integral_type_ v) noexcept : raw_(static_cast<raw_t>(v)) {}
     constexpr operator std::uint32_t() const noexcept { return raw_; }
     constexpr std::uint32_t raw() const noexcept { return raw_; }
     static constexpr u32_t from_raw(raw_t r) noexcept { return u32_t {r}; }
@@ -3486,6 +3489,8 @@ struct i64_t {
 
     constexpr i64_t() noexcept : raw_(0) {}
     constexpr i64_t(std::int64_t v) noexcept : raw_(v) {}
+    template <std::integral integral_type_>
+    constexpr i64_t(integral_type_ v) noexcept : raw_(static_cast<raw_t>(v)) {}
     constexpr operator std::int64_t() const noexcept { return raw_; }
     constexpr std::int64_t raw() const noexcept { return raw_; }
     static constexpr i64_t from_raw(raw_t r) noexcept { return i64_t {r}; }
@@ -3620,6 +3625,8 @@ struct u64_t {
 
     constexpr u64_t() noexcept : raw_(0) {}
     constexpr u64_t(std::uint64_t v) noexcept : raw_(v) {}
+    template <std::integral integral_type_>
+    constexpr u64_t(integral_type_ v) noexcept : raw_(static_cast<raw_t>(v)) {}
     constexpr operator std::uint64_t() const noexcept { return raw_; }
     constexpr std::uint64_t raw() const noexcept { return raw_; }
     static constexpr u64_t from_raw(raw_t r) noexcept { return u64_t {r}; }
