@@ -29,19 +29,19 @@ extern "C" {
  *  Uses widening multiply (f16 ⨯ f16 → f32) for precision.
  *  VL-based loop handles all tail elements automatically.
  */
-NK_PUBLIC void nk_dot_f16_sifive(nk_f16_t const *a_scalars, nk_f16_t const *b_scalars, nk_size_t count_scalars,
+NK_PUBLIC void nk_dot_f16_sifive(nk_f16_t const *a_scalars, nk_f16_t const *b_scalars, nk_nk_size_t count_scalars,
                                  nk_f32_t *result) {
-    vfloat32m1_t sum_f32x1 = __riscv_vfmv_v_f_f32m1(0.0f, 1);
-    for (size_t vl; count_scalars > 0; count_scalars -= vl, a_scalars += vl, b_scalars += vl) {
+    vfloat32m1_t sum_f32m1 = __riscv_vfmv_v_f_f32m1(0.0f, 1);
+    for (nk_size_t vl; count_scalars > 0; count_scalars -= vl, a_scalars += vl, b_scalars += vl) {
         vl = __riscv_vsetvl_e16m1(count_scalars);
-        vfloat16m1_t a_f16x1 = __riscv_vle16_v_f16m1((float16_t const *)a_scalars, vl);
-        vfloat16m1_t b_f16x1 = __riscv_vle16_v_f16m1((float16_t const *)b_scalars, vl);
+        vfloat16m1_t a_f16m1 = __riscv_vle16_v_f16m1((float16_t const *)a_scalars, vl);
+        vfloat16m1_t b_f16m1 = __riscv_vle16_v_f16m1((float16_t const *)b_scalars, vl);
         // Widening multiply: f16 ⨯ f16 → f32
-        vfloat32m2_t ab_f32x2 = __riscv_vfwmul_vv_f32m2(a_f16x1, b_f16x1, vl);
+        vfloat32m2_t ab_f32m2 = __riscv_vfwmul_vv_f32m2(a_f16m1, b_f16m1, vl);
         // Ordered reduction sum
-        sum_f32x1 = __riscv_vfredusum_vs_f32m2_f32m1(ab_f32x2, sum_f32x1, vl);
+        sum_f32m1 = __riscv_vfredusum_vs_f32m2_f32m1(ab_f32m2, sum_f32m1, vl);
     }
-    *result = __riscv_vfmv_f_s_f32m1_f32(sum_f32x1);
+    *result = __riscv_vfmv_f_s_f32m1_f32(sum_f32m1);
 }
 
 #if defined(__cplusplus)

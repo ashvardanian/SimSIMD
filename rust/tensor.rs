@@ -26,7 +26,7 @@ extern crate alloc;
 use core::marker::PhantomData;
 use core::ptr::NonNull;
 
-use crate::numerics::{ATan, Cos, Dot, Scale, Sin, Sum, WSum, FMA};
+use crate::numerics::{ATan, Cos, Dot, EachBlend, EachFMA, EachScale, EachSum, Sin};
 use crate::scalars::{bf16, e4m3, e5m2, f16, i4x2, u1x8, u4x2};
 
 /// Size type used in C FFI to match `nk_size_t` which is always `uint64_t`.
@@ -2199,8 +2199,8 @@ where
 
 // region: Tensor Elementwise Operations
 
-impl<T: Clone + Scale, const MAX_RANK: usize> Tensor<T, Global, MAX_RANK> {
-    /// Apply element-wise scale: result[i] = α · self[i] + β
+impl<T: Clone + EachScale, const MAX_RANK: usize> Tensor<T, Global, MAX_RANK> {
+    /// Apply element-wise scale: result[i] = α × self[i] + β
     ///
     /// Returns a new array with the scaled values.
     pub fn scale(
@@ -2209,23 +2209,23 @@ impl<T: Clone + Scale, const MAX_RANK: usize> Tensor<T, Global, MAX_RANK> {
         beta: T::Scalar,
     ) -> Result<Tensor<T, Global, MAX_RANK>, TensorError> {
         let mut result = Tensor::try_new(self.shape(), unsafe { (*self.as_ptr()).clone() })?;
-        T::scale(self.as_slice(), alpha, beta, result.as_mut_slice());
+        T::each_scale(self.as_slice(), alpha, beta, result.as_mut_slice());
         Ok(result)
     }
 
-    /// Apply element-wise scale in-place: self[i] = α · self[i] + β
+    /// Apply element-wise scale in-place: self[i] = α × self[i] + β
     pub fn scale_inplace(&mut self, alpha: T::Scalar, beta: T::Scalar) {
         // Need a temporary for in-place operation since input and output overlap
         let ptr = self.as_ptr();
         let len = self.len;
         unsafe {
             let slice = core::slice::from_raw_parts(ptr, len);
-            T::scale(slice, alpha, beta, self.as_mut_slice());
+            T::each_scale(slice, alpha, beta, self.as_mut_slice());
         }
     }
 }
 
-impl<T: Clone + Sum, const MAX_RANK: usize> Tensor<T, Global, MAX_RANK> {
+impl<T: Clone + EachSum, const MAX_RANK: usize> Tensor<T, Global, MAX_RANK> {
     /// Element-wise sum: result[i] = self[i] + other[i]
     ///
     /// Returns a new array with the summed values.
@@ -2240,7 +2240,7 @@ impl<T: Clone + Sum, const MAX_RANK: usize> Tensor<T, Global, MAX_RANK> {
             });
         }
         let mut result = Tensor::try_new(self.shape(), unsafe { (*self.as_ptr()).clone() })?;
-        T::sum(self.as_slice(), other.as_slice(), result.as_mut_slice());
+        T::each_sum(self.as_slice(), other.as_slice(), result.as_mut_slice());
         Ok(result)
     }
 
@@ -2259,14 +2259,14 @@ impl<T: Clone + Sum, const MAX_RANK: usize> Tensor<T, Global, MAX_RANK> {
         let len = self.len;
         unsafe {
             let slice = core::slice::from_raw_parts(ptr, len);
-            T::sum(slice, other.as_slice(), self.as_mut_slice());
+            T::each_sum(slice, other.as_slice(), self.as_mut_slice());
         }
         Ok(())
     }
 }
 
-impl<T: Clone + WSum, const MAX_RANK: usize> Tensor<T, Global, MAX_RANK> {
-    /// Weighted sum: result[i] = α · self[i] + β · other[i]
+impl<T: Clone + EachBlend, const MAX_RANK: usize> Tensor<T, Global, MAX_RANK> {
+    /// Weighted sum: result[i] = α × self[i] + β × other[i]
     ///
     /// Returns a new array with the weighted sum.
     pub fn wsum<const OTHER_MAX_RANK: usize>(
@@ -2282,7 +2282,7 @@ impl<T: Clone + WSum, const MAX_RANK: usize> Tensor<T, Global, MAX_RANK> {
             });
         }
         let mut result = Tensor::try_new(self.shape(), unsafe { (*self.as_ptr()).clone() })?;
-        T::wsum(
+        T::each_blend(
             self.as_slice(),
             other.as_slice(),
             alpha,
@@ -2293,8 +2293,8 @@ impl<T: Clone + WSum, const MAX_RANK: usize> Tensor<T, Global, MAX_RANK> {
     }
 }
 
-impl<T: Clone + FMA, const MAX_RANK: usize> Tensor<T, Global, MAX_RANK> {
-    /// Fused multiply-add: result[i] = α · self[i] · b[i] + β · c[i]
+impl<T: Clone + EachFMA, const MAX_RANK: usize> Tensor<T, Global, MAX_RANK> {
+    /// Fused multiply-add: result[i] = α × self[i] × b[i] + β × c[i]
     ///
     /// Returns a new array with the FMA result.
     pub fn fma<const B_MAX_RANK: usize, const C_MAX_RANK: usize>(
@@ -2311,7 +2311,7 @@ impl<T: Clone + FMA, const MAX_RANK: usize> Tensor<T, Global, MAX_RANK> {
             });
         }
         let mut result = Tensor::try_new(self.shape(), unsafe { (*self.as_ptr()).clone() })?;
-        T::fma(
+        T::each_fma(
             self.as_slice(),
             b.as_slice(),
             c.as_slice(),
@@ -2448,6 +2448,17 @@ impl<const MAX_RANK: usize> Tensor<f64, Global, MAX_RANK> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::sync::Once;
+
+    static INIT: Once = Once::new();
+
+    /// Initialize thread for AMX and other SIMD features.
+    /// Safe to call multiple times - only executes once.
+    fn init_thread() {
+        INIT.call_once(|| {
+            crate::capabilities::configure_thread();
+        });
+    }
 
     #[test]
     fn tensor_creation() {
@@ -2562,6 +2573,7 @@ mod tests {
 
     #[test]
     fn matmul_f32_pack() {
+        init_thread();
         // A[4×8] × B[16×8]ᵀ = C[4×16]
         let a = Tensor::<f32>::try_new(&[4, 8], 1.0f32).unwrap();
         let b = Tensor::<f32>::try_new(&[16, 8], 1.0f32).unwrap();
@@ -2570,12 +2582,13 @@ mod tests {
         let c = a.matmul(&packed_b);
 
         assert_eq!(c.shape(), &[4, 16]);
-        // Each element = dot(row_a, row_b) = ∑(1.0 · 1.0) · 8 = 8.0
+        // Each element = dot(row_a, row_b) = ∑(1.0 × 1.0) × 8 = 8.0
         assert!((c.as_slice()[0] - 8.0).abs() < 1e-5);
     }
 
     #[test]
     fn matmul_f32_pack_transposed() {
+        init_thread();
         // A[4×8], B[8×16] (standard k×n layout) → C[4×16]
         let a = Tensor::<f32>::try_new(&[4, 8], 1.0f32).unwrap();
         let b_transposed = Tensor::<f32>::try_new(&[8, 16], 1.0f32).unwrap(); // k × n
@@ -2589,6 +2602,7 @@ mod tests {
 
     #[test]
     fn matmul_f32_into() {
+        init_thread();
         let a = Tensor::<f32>::try_new(&[4, 8], 1.0f32).unwrap();
         let b = Tensor::<f32>::try_new(&[16, 8], 1.0f32).unwrap();
         let mut c = Tensor::<f32>::try_new(&[4, 16], 0.0f32).unwrap();
@@ -2601,6 +2615,7 @@ mod tests {
 
     #[test]
     fn matmul_f64_pack() {
+        init_thread();
         let a = Tensor::<f64>::try_new(&[4, 8], 1.0f64).unwrap();
         let b = Tensor::<f64>::try_new(&[16, 8], 1.0f64).unwrap();
 
@@ -2613,6 +2628,7 @@ mod tests {
 
     #[test]
     fn matmul_bf16_pack() {
+        init_thread();
         let a = Tensor::<bf16>::try_new(&[4, 8], bf16::from_f32(1.0)).unwrap();
         let b = Tensor::<bf16>::try_new(&[16, 8], bf16::from_f32(1.0)).unwrap();
 
@@ -2625,6 +2641,7 @@ mod tests {
 
     #[test]
     fn matmul_f16_pack() {
+        init_thread();
         let a = Tensor::<f16>::try_new(&[4, 8], f16::from_f32(1.0)).unwrap();
         let b = Tensor::<f16>::try_new(&[16, 8], f16::from_f32(1.0)).unwrap();
 
@@ -2637,6 +2654,7 @@ mod tests {
 
     #[test]
     fn matmul_i8_pack() {
+        init_thread();
         let a = Tensor::<i8>::try_new(&[4, 8], 1i8).unwrap();
         let b = Tensor::<i8>::try_new(&[16, 8], 1i8).unwrap();
 
@@ -2649,6 +2667,7 @@ mod tests {
 
     #[test]
     fn matmul_u8_pack() {
+        init_thread();
         let a = Tensor::<u8>::try_new(&[4, 8], 1u8).unwrap();
         let b = Tensor::<u8>::try_new(&[16, 8], 1u8).unwrap();
 
@@ -2661,6 +2680,7 @@ mod tests {
 
     #[test]
     fn matmul_e4m3_pack() {
+        init_thread();
         let a = Tensor::<e4m3>::try_new(&[4, 8], e4m3::ONE).unwrap();
         let b = Tensor::<e4m3>::try_new(&[16, 8], e4m3::ONE).unwrap();
 
@@ -2673,6 +2693,7 @@ mod tests {
 
     #[test]
     fn matmul_e4m3_pack_transposed() {
+        init_thread();
         let a = Tensor::<e4m3>::try_new(&[4, 8], e4m3::ONE).unwrap();
         let b_t = Tensor::<e4m3>::try_new(&[8, 16], e4m3::ONE).unwrap();
 
@@ -2685,6 +2706,7 @@ mod tests {
 
     #[test]
     fn matmul_e5m2_pack() {
+        init_thread();
         let a = Tensor::<e5m2>::try_new(&[4, 8], e5m2::ONE).unwrap();
         let b = Tensor::<e5m2>::try_new(&[16, 8], e5m2::ONE).unwrap();
 
@@ -2697,6 +2719,7 @@ mod tests {
 
     #[test]
     fn matmul_e5m2_pack_transposed() {
+        init_thread();
         let a = Tensor::<e5m2>::try_new(&[4, 8], e5m2::ONE).unwrap();
         let b_t = Tensor::<e5m2>::try_new(&[8, 16], e5m2::ONE).unwrap();
 
@@ -2709,6 +2732,7 @@ mod tests {
 
     #[test]
     fn matmul_f32_single_row() {
+        init_thread();
         let a = Tensor::<f32>::try_new(&[1, 8], 1.0f32).unwrap();
         let b = Tensor::<f32>::try_new(&[4, 8], 1.0f32).unwrap();
 
@@ -2721,6 +2745,7 @@ mod tests {
 
     #[test]
     fn matmul_f32_single_col() {
+        init_thread();
         let a = Tensor::<f32>::try_new(&[4, 8], 1.0f32).unwrap();
         let b = Tensor::<f32>::try_new(&[1, 8], 1.0f32).unwrap();
 
@@ -2734,6 +2759,7 @@ mod tests {
     #[test]
     #[cfg(feature = "parallel")]
     fn matmul_f32_parallel() {
+        init_thread();
         let mut pool = fork_union::ThreadPool::try_spawn(4).unwrap();
         let a = Tensor::<f32>::try_new(&[64, 128], 1.0f32).unwrap();
         let b = Tensor::<f32>::try_new(&[32, 128], 1.0f32).unwrap();
@@ -2742,13 +2768,14 @@ mod tests {
         let c = a.matmul_parallel(&packed_b, &mut pool);
 
         assert_eq!(c.shape(), &[64, 32]);
-        // Each element = ∑(128 products of 1.0 · 1.0) = 128.0
+        // Each element = ∑(128 products of 1.0 × 1.0) = 128.0
         assert!((c.as_slice()[0] - 128.0).abs() < 1e-5);
     }
 
     #[test]
     #[cfg(feature = "parallel")]
     fn matmul_f32_parallel_into() {
+        init_thread();
         let mut pool = fork_union::ThreadPool::try_spawn(4).unwrap();
         let a = Tensor::<f32>::try_new(&[64, 128], 1.0f32).unwrap();
         let b = Tensor::<f32>::try_new(&[32, 128], 1.0f32).unwrap();
@@ -2768,6 +2795,7 @@ mod tests {
     #[test]
     #[cfg(feature = "parallel")]
     fn matmul_bf16_parallel() {
+        init_thread();
         let mut pool = fork_union::ThreadPool::try_spawn(4).unwrap();
         let a = Tensor::<bf16>::try_new(&[32, 64], bf16::from_f32(1.0)).unwrap();
         let b = Tensor::<bf16>::try_new(&[16, 64], bf16::from_f32(1.0)).unwrap();

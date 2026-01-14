@@ -53,7 +53,7 @@
 //! The `SpatialSimilarity` trait (combining `Dot`, `Angular`, `Euclidean`) covers:
 //!
 //! - `dot(a, b)`: Computes dot product between two slices.
-//! - `angular(a, b)` / `cosine(a, b)`: Computes angular distance (1 - cosine similarity).
+//! - `angular(a, b)` / `cosine(a, b)`: Computes angular distance (1 − cosine similarity).
 //! - `l2sq(a, b)` / `sqeuclidean(a, b)`: Computes squared Euclidean distance.
 //! - `l2(a, b)` / `euclidean(a, b)`: Computes Euclidean distance.
 //!
@@ -67,12 +67,12 @@
 //! - `jensenshannon(a, b)`: Computes Jensen-Shannon divergence.
 //! - `kullbackleibler(a, b)`: Computes Kullback-Leibler divergence.
 //!
-//! The `Elementwise` trait (combining `Scale`, `Sum`, `WSum`, `FMA`) covers:
+//! The `Elementwise` trait (combining `EachScale`, `EachSum`, `EachBlend`, `EachFMA`) covers:
 //!
-//! - `scale(a, alpha, beta, result)`: Element-wise `result[i] = α · a[i] + β`.
+//! - `scale(a, alpha, beta, result)`: Element-wise `result[i] = α × a[i] + β`.
 //! - `sum(a, b, result)`: Element-wise `result[i] = a[i] + b[i]`.
-//! - `wsum(a, b, alpha, beta, result)`: Weighted sum `result[i] = α · a[i] + β · b[i]`.
-//! - `fma(a, b, c, alpha, beta, result)`: Fused multiply-add `result[i] = α · a[i] · b[i] + β · c[i]`.
+//! - `wsum(a, b, alpha, beta, result)`: Weighted sum `result[i] = α × a[i] + β × b[i]`.
+//! - `fma(a, b, c, alpha, beta, result)`: Fused multiply-add `result[i] = α × a[i] × b[i] + β × c[i]`.
 //!
 //! The `Trigonometry` trait (combining `Sin`, `Cos`, `ATan`) covers:
 //!
@@ -80,7 +80,7 @@
 //! - `cos(input, result)`: Element-wise cosine.
 //! - `atan(input, result)`: Element-wise arctangent.
 //!
-//! Additional traits: `ComplexDot`, `ComplexVDot`, `Sparse`.
+//! Additional traits: `ComplexDot`, `ComplexVDot`, `SparseIntersect`, `SparseDot`.
 //!
 #![allow(non_camel_case_types)]
 #![cfg_attr(all(not(test), not(feature = "std")), no_std)]
@@ -98,10 +98,11 @@ pub use numerics::{ComplexProductF32, ComplexProductF64};
 
 // Re-export all numeric traits
 pub use numerics::{
-    ATan, Angular, BinarySimilarity, ComplexDot, ComplexProducts, ComplexVDot, Cos, Dot,
-    Elementwise, Euclidean, Hamming, Haversine, Jaccard, JensenShannon, KullbackLeibler,
-    MeshAlignment, MeshAlignmentResult, ProbabilitySimilarity, Scale, Sin, Sparse,
-    SpatialSimilarity, Sum, Trigonometry, Vincenty, WSum, FMA,
+    ATan, Angular, Bilinear, BinarySimilarity, ComplexDot, ComplexProducts, ComplexVDot, Cos, Dot,
+    EachBlend, EachFMA, EachScale, EachSum, Elementwise, Euclidean, Hamming, Haversine, Jaccard,
+    JensenShannon, KullbackLeibler, Mahalanobis, MeshAlignment, MeshAlignmentResult,
+    ProbabilitySimilarity, ReduceAdd, ReduceMax, ReduceMin, Reductions, Sin, SparseDot,
+    SparseIntersect, SpatialSimilarity, Trigonometry, Vincenty,
 };
 
 // Re-export cast operations
@@ -452,16 +453,14 @@ mod tests {
         {
             let a_u16: &[u16] = &[153, 16384, 17408];
             let b_u16: &[u16] = &[7408, 15360, 16384];
-            if let Some(result) = u16::intersect(a_u16, b_u16) {
-                assert_almost_equal(1.0, result, 0.0001);
-            }
+            let result = u16::sparse_intersection_size(a_u16, b_u16);
+            assert_eq!(result, 1);
         }
         {
             let a_u16: &[u16] = &[8, 153, 11638];
             let b_u16: &[u16] = &[7408, 15360, 16384];
-            if let Some(result) = u16::intersect(a_u16, b_u16) {
-                assert_almost_equal(0.0, result, 0.0001);
-            }
+            let result = u16::sparse_intersection_size(a_u16, b_u16);
+            assert_eq!(result, 0);
         }
     }
 
@@ -470,16 +469,14 @@ mod tests {
         {
             let a_u32: &[u32] = &[11, 153];
             let b_u32: &[u32] = &[11, 153, 7408, 16384];
-            if let Some(result) = u32::intersect(a_u32, b_u32) {
-                assert_almost_equal(2.0, result, 0.0001);
-            }
+            let result = u32::sparse_intersection_size(a_u32, b_u32);
+            assert_eq!(result, 2);
         }
         {
             let a_u32: &[u32] = &[153, 7408, 11638];
             let b_u32: &[u32] = &[153, 7408, 11638];
-            if let Some(result) = u32::intersect(a_u32, b_u32) {
-                assert_almost_equal(3.0, result, 0.0001);
-            }
+            let result = u32::sparse_intersection_size(a_u32, b_u32);
+            assert_eq!(result, 3);
         }
     }
 
@@ -554,8 +551,7 @@ mod tests {
         for (i, array_a) in test_arrays.iter().enumerate() {
             for (j, array_b) in test_arrays.iter().enumerate() {
                 let expected = reference_intersect(array_a, array_b);
-                let result =
-                    u32::intersect(array_a.as_slice(), array_b.as_slice()).unwrap() as usize;
+                let result = u32::sparse_intersection_size(array_a.as_slice(), array_b.as_slice());
                 assert_eq!(
                     expected,
                     result,
@@ -575,8 +571,7 @@ mod tests {
         for (i, array_a) in test_arrays.iter().enumerate() {
             for (j, array_b) in test_arrays.iter().enumerate() {
                 let expected = reference_intersect(array_a, array_b);
-                let result =
-                    u16::intersect(array_a.as_slice(), array_b.as_slice()).unwrap() as usize;
+                let result = u16::sparse_intersection_size(array_a.as_slice(), array_b.as_slice());
                 assert_eq!(
                     expected,
                     result,
@@ -594,30 +589,39 @@ mod tests {
     fn intersect_edge_cases() {
         let empty: &[u32] = &[];
         let non_empty: &[u32] = &[1, 2, 3];
-        assert_eq!(u32::intersect(empty, empty), Some(0u32));
-        assert_eq!(u32::intersect(empty, non_empty), Some(0u32));
-        assert_eq!(u32::intersect(non_empty, empty), Some(0u32));
+        assert_eq!(u32::sparse_intersection_size(empty, empty), 0);
+        assert_eq!(u32::sparse_intersection_size(empty, non_empty), 0);
+        assert_eq!(u32::sparse_intersection_size(non_empty, empty), 0);
 
-        assert_eq!(u32::intersect(&[42u32], &[42u32]), Some(1u32));
-        assert_eq!(u32::intersect(&[42u32], &[43u32]), Some(0u32));
+        assert_eq!(u32::sparse_intersection_size(&[42u32], &[42u32]), 1);
+        assert_eq!(u32::sparse_intersection_size(&[42u32], &[43u32]), 0);
 
         let a: &[u32] = &[1, 2, 3, 4, 5];
         let b: &[u32] = &[10, 20, 30, 40, 50];
-        assert_eq!(u32::intersect(a, b), Some(0u32));
+        assert_eq!(u32::sparse_intersection_size(a, b), 0);
 
         let c: &[u32] = &[10, 20, 30, 40, 50];
-        assert_eq!(u32::intersect(c, c), Some(5u32));
+        assert_eq!(u32::sparse_intersection_size(c, c), 5);
 
         let boundary_16: Vec<u32> = (0..16).collect();
         let boundary_32: Vec<u32> = (0..32).collect();
         let boundary_64: Vec<u32> = (0..64).collect();
-        assert_eq!(u32::intersect(&boundary_16, &boundary_16), Some(16u32));
-        assert_eq!(u32::intersect(&boundary_32, &boundary_32), Some(32u32));
-        assert_eq!(u32::intersect(&boundary_64, &boundary_64), Some(64u32));
+        assert_eq!(
+            u32::sparse_intersection_size(&boundary_16, &boundary_16),
+            16
+        );
+        assert_eq!(
+            u32::sparse_intersection_size(&boundary_32, &boundary_32),
+            32
+        );
+        assert_eq!(
+            u32::sparse_intersection_size(&boundary_64, &boundary_64),
+            64
+        );
 
         let first_half: Vec<u32> = (0..32).collect();
         let second_half: Vec<u32> = (16..48).collect();
-        assert_eq!(u32::intersect(&first_half, &second_half), Some(16u32));
+        assert_eq!(u32::sparse_intersection_size(&first_half, &second_half), 16);
     }
 
     // Numeric type tests
@@ -903,7 +907,7 @@ mod tests {
         let alpha = 2.0_f32;
         let beta = 1.0_f32;
         let mut result = vec![0.0f32; a.len()];
-        f32::scale(&a, alpha, beta, &mut result).unwrap();
+        f32::each_scale(&a, alpha, beta, &mut result).unwrap();
         let expected: Vec<f32> = a.iter().map(|x| alpha * x + beta).collect();
         assert_vec_almost_equal_f32(&result, &expected, 0.1);
     }
@@ -914,7 +918,7 @@ mod tests {
         let alpha = 2.0_f64;
         let beta = 1.0_f64;
         let mut result = vec![0.0f64; a.len()];
-        f64::scale(&a, alpha, beta, &mut result).unwrap();
+        f64::each_scale(&a, alpha, beta, &mut result).unwrap();
         let expected: Vec<f64> = a.iter().map(|x| alpha * x + beta).collect();
         assert_vec_almost_equal_f64(&result, &expected, 0.1);
     }
@@ -925,7 +929,7 @@ mod tests {
         let alpha = 2.0_f64;
         let beta = 1.0_f64;
         let mut result = vec![0i32; a.len()];
-        i32::scale(&a, alpha, beta, &mut result).unwrap();
+        i32::each_scale(&a, alpha, beta, &mut result).unwrap();
         for (i, &r) in result.iter().enumerate() {
             let expected = (alpha * a[i] as f64 + beta).round() as i32;
             assert!(
@@ -947,7 +951,7 @@ mod tests {
         let alpha = 2.0_f32;
         let beta = 1.0_f32;
         let mut result = vec![f16::ZERO; a.len()];
-        f16::scale(&a, alpha, beta, &mut result).unwrap();
+        f16::each_scale(&a, alpha, beta, &mut result).unwrap();
         for (i, r) in result.iter().enumerate() {
             let expected = alpha * (i + 1) as f32 + beta;
             assert!(
@@ -966,7 +970,7 @@ mod tests {
         let a: Vec<f32> = vec![1.0, 2.0, 3.0];
         let b: Vec<f32> = vec![4.0, 5.0, 6.0];
         let mut result = vec![0.0f32; a.len()];
-        f32::sum(&a, &b, &mut result).unwrap();
+        f32::each_sum(&a, &b, &mut result).unwrap();
         let expected: Vec<f32> = vec![5.0, 7.0, 9.0];
         assert_vec_almost_equal_f32(&result, &expected, 0.1);
     }
@@ -976,7 +980,7 @@ mod tests {
         let a: Vec<f64> = vec![1.0, 2.0, 3.0];
         let b: Vec<f64> = vec![4.0, 5.0, 6.0];
         let mut result = vec![0.0f64; a.len()];
-        f64::sum(&a, &b, &mut result).unwrap();
+        f64::each_sum(&a, &b, &mut result).unwrap();
         let expected: Vec<f64> = vec![5.0, 7.0, 9.0];
         assert_vec_almost_equal_f64(&result, &expected, 0.1);
     }
@@ -986,7 +990,7 @@ mod tests {
         let a: Vec<f32> = vec![1.0, 2.0, 3.0];
         let b: Vec<f32> = vec![4.0, 5.0];
         let mut result = vec![0.0f32; a.len()];
-        assert!(f32::sum(&a, &b, &mut result).is_none());
+        assert!(f32::each_sum(&a, &b, &mut result).is_none());
     }
 
     // WSum tests
@@ -997,7 +1001,7 @@ mod tests {
         let alpha = 0.5;
         let beta = 0.5;
         let mut result = vec![0.0f32; a.len()];
-        f32::wsum(&a, &b, alpha, beta, &mut result).unwrap();
+        f32::each_blend(&a, &b, alpha, beta, &mut result).unwrap();
         let expected: Vec<f32> = vec![2.5, 3.5, 4.5];
         assert_vec_almost_equal_f32(&result, &expected, 0.1);
     }
@@ -1009,7 +1013,7 @@ mod tests {
         let alpha = 0.5;
         let beta = 0.5;
         let mut result = vec![0.0f64; a.len()];
-        f64::wsum(&a, &b, alpha, beta, &mut result).unwrap();
+        f64::each_blend(&a, &b, alpha, beta, &mut result).unwrap();
         let expected: Vec<f64> = vec![2.5, 3.5, 4.5];
         assert_vec_almost_equal_f64(&result, &expected, 0.1);
     }
@@ -1023,7 +1027,7 @@ mod tests {
         let alpha = 1.0;
         let beta = 1.0;
         let mut result = vec![0.0f32; a.len()];
-        f32::fma(&a, &b, &c, alpha, beta, &mut result).unwrap();
+        f32::each_fma(&a, &b, &c, alpha, beta, &mut result).unwrap();
         let expected: Vec<f32> = vec![3.0, 7.0, 13.0];
         assert_vec_almost_equal_f32(&result, &expected, 0.1);
     }
@@ -1036,7 +1040,7 @@ mod tests {
         let alpha = 1.0;
         let beta = 1.0;
         let mut result = vec![0.0f64; a.len()];
-        f64::fma(&a, &b, &c, alpha, beta, &mut result).unwrap();
+        f64::each_fma(&a, &b, &c, alpha, beta, &mut result).unwrap();
         let expected: Vec<f64> = vec![3.0, 7.0, 13.0];
         assert_vec_almost_equal_f64(&result, &expected, 0.1);
     }
@@ -1048,7 +1052,7 @@ mod tests {
         let alpha = 2.0;
         let beta = 0.5;
         let mut result = vec![0.0f32; a.len()];
-        f32::scale(&a, alpha, beta, &mut result).unwrap();
+        f32::each_scale(&a, alpha, beta, &mut result).unwrap();
         assert_eq!(result.len(), 1536);
         for i in 0..1536 {
             let expected = alpha as f32 * a[i] + beta as f32;
@@ -1067,7 +1071,7 @@ mod tests {
         let a: Vec<f32> = (0..1536).map(|i| i as f32).collect();
         let b: Vec<f32> = (0..1536).map(|i| (i as f32) * 2.0).collect();
         let mut result = vec![0.0f32; a.len()];
-        f32::sum(&a, &b, &mut result).unwrap();
+        f32::each_sum(&a, &b, &mut result).unwrap();
         assert_eq!(result.len(), 1536);
         for i in 0..1536 {
             let expected = a[i] + b[i];

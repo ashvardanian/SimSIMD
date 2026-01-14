@@ -24,10 +24,10 @@
 #if NK_TARGET_X86_
 #if NK_TARGET_HASWELL
 #if defined(__clang__)
-#pragma clang attribute push(__attribute__((target("popcnt"))), apply_to = function)
+#pragma clang attribute push(__attribute__((target("avx2,sse4.1,popcnt"))), apply_to = function)
 #elif defined(__GNUC__)
 #pragma GCC push_options
-#pragma GCC target("popcnt")
+#pragma GCC target("avx2", "sse4.1", "popcnt")
 #endif
 
 #include "numkong/types.h"

@@ -903,6 +903,12 @@ void test_dot() {
     run_if_matches("dot_spacemit", "u8", test_dot<u8_t>, nk_dot_u8_spacemit);
     run_if_matches("dot_spacemit", "f32", test_dot<f32_t>, nk_dot_f32_spacemit);
     run_if_matches("dot_spacemit", "f64", test_dot<f64_t>, nk_dot_f64_spacemit);
+    run_if_matches("dot_spacemit", "f16", test_dot<f16_t>, nk_dot_f16_spacemit);
+    run_if_matches("dot_spacemit", "bf16", test_dot<bf16_t>, nk_dot_bf16_spacemit);
+    run_if_matches("dot_spacemit", "e4m3", test_dot<e4m3_t>, nk_dot_e4m3_spacemit);
+    run_if_matches("dot_spacemit", "e5m2", test_dot<e5m2_t>, nk_dot_e5m2_spacemit);
+    run_if_matches("dot_spacemit", "i4", test_dot<i4x2_t>, nk_dot_i4_spacemit);
+    run_if_matches("dot_spacemit", "u4", test_dot<u4x2_t>, nk_dot_u4_spacemit);
 #endif // NK_TARGET_SPACEMIT
 
 #if NK_TARGET_SIFIVE
@@ -1073,8 +1079,16 @@ void test_spatial() {
 #if NK_TARGET_SPACEMIT
     run_if_matches("l2sq_spacemit", "f32", test_l2sq<f32_t>, nk_l2sq_f32_spacemit);
     run_if_matches("l2sq_spacemit", "f64", test_l2sq<f64_t>, nk_l2sq_f64_spacemit);
+    run_if_matches("l2sq_spacemit", "f16", test_l2sq<f16_t>, nk_l2sq_f16_spacemit);
+    run_if_matches("l2sq_spacemit", "bf16", test_l2sq<bf16_t>, nk_l2sq_bf16_spacemit);
+    run_if_matches("l2sq_spacemit", "i4", test_l2sq<i4x2_t>, nk_l2sq_i4_spacemit);
+    run_if_matches("l2sq_spacemit", "u4", test_l2sq<u4x2_t>, nk_l2sq_u4_spacemit);
     run_if_matches("angular_spacemit", "f32", test_angular<f32_t>, nk_angular_f32_spacemit);
     run_if_matches("angular_spacemit", "f64", test_angular<f64_t>, nk_angular_f64_spacemit);
+    run_if_matches("angular_spacemit", "f16", test_angular<f16_t>, nk_angular_f16_spacemit);
+    run_if_matches("angular_spacemit", "bf16", test_angular<bf16_t>, nk_angular_bf16_spacemit);
+    run_if_matches("angular_spacemit", "i4", test_angular<i4x2_t>, nk_angular_i4_spacemit);
+    run_if_matches("angular_spacemit", "u4", test_angular<u4x2_t>, nk_angular_u4_spacemit);
 #endif // NK_TARGET_SPACEMIT
 
 #if NK_TARGET_SIFIVE
@@ -1356,6 +1370,11 @@ void test_binary() {
     run_if_matches("hamming_ice", "u1", test_hamming, nk_hamming_u1_ice);
     run_if_matches("jaccard_ice", "u1", test_jaccard, nk_jaccard_u1_ice);
 #endif // NK_TARGET_ICE
+
+#if NK_TARGET_SPACEMIT
+    run_if_matches("hamming_spacemit", "u1", test_hamming, nk_hamming_u1_spacemit);
+    run_if_matches("jaccard_spacemit", "u1", test_jaccard, nk_jaccard_u1_spacemit);
+#endif // NK_TARGET_SPACEMIT
 
     // Serial always runs - baseline test
     run_if_matches("hamming_serial", "u1", test_hamming, nk_hamming_u1_serial);

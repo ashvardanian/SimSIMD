@@ -875,6 +875,8 @@ NK_PUBLIC void nk_dot_u8(nk_u8_t const *a, nk_u8_t const *b, nk_size_t n, nk_u32
 NK_PUBLIC void nk_dot_i4(nk_i4x2_t const *a, nk_i4x2_t const *b, nk_size_t n, nk_i32_t *result) {
 #if NK_TARGET_ICE
     nk_dot_i4_ice(a, b, n, result);
+#elif NK_TARGET_SPACEMIT
+    nk_dot_i4_spacemit(a, b, n, result);
 #else
     nk_dot_i4_serial(a, b, n, result);
 #endif
@@ -882,6 +884,8 @@ NK_PUBLIC void nk_dot_i4(nk_i4x2_t const *a, nk_i4x2_t const *b, nk_size_t n, nk
 NK_PUBLIC void nk_dot_u4(nk_u4x2_t const *a, nk_u4x2_t const *b, nk_size_t n, nk_u32_t *result) {
 #if NK_TARGET_ICE
     nk_dot_u4_ice(a, b, n, result);
+#elif NK_TARGET_SPACEMIT
+    nk_dot_u4_spacemit(a, b, n, result);
 #else
     nk_dot_u4_serial(a, b, n, result);
 #endif
@@ -889,6 +893,8 @@ NK_PUBLIC void nk_dot_u4(nk_u4x2_t const *a, nk_u4x2_t const *b, nk_size_t n, nk
 NK_PUBLIC void nk_dot_f16(nk_f16_t const *a, nk_f16_t const *b, nk_size_t n, nk_f32_t *result) {
 #if NK_TARGET_SIFIVE
     nk_dot_f16_sifive(a, b, n, result);
+#elif NK_TARGET_SPACEMIT
+    nk_dot_f16_spacemit(a, b, n, result);
 #elif NK_TARGET_SVEHALF
     nk_dot_f16_svehalf(a, b, n, result);
 #elif NK_TARGET_NEONFHM
@@ -906,6 +912,8 @@ NK_PUBLIC void nk_dot_f16(nk_f16_t const *a, nk_f16_t const *b, nk_size_t n, nk_
 NK_PUBLIC void nk_dot_bf16(nk_bf16_t const *a, nk_bf16_t const *b, nk_size_t n, nk_f32_t *result) {
 #if NK_TARGET_GENOA
     nk_dot_bf16_genoa(a, b, n, result);
+#elif NK_TARGET_SPACEMIT
+    nk_dot_bf16_spacemit(a, b, n, result);
 #elif NK_TARGET_SKYLAKE
     nk_dot_bf16_skylake(a, b, n, result);
 #elif NK_TARGET_HASWELL
@@ -919,6 +927,8 @@ NK_PUBLIC void nk_dot_bf16(nk_bf16_t const *a, nk_bf16_t const *b, nk_size_t n, 
 NK_PUBLIC void nk_dot_e4m3(nk_e4m3_t const *a, nk_e4m3_t const *b, nk_size_t n, nk_f32_t *result) {
 #if NK_TARGET_GENOA
     nk_dot_e4m3_genoa(a, b, n, result);
+#elif NK_TARGET_SPACEMIT
+    nk_dot_e4m3_spacemit(a, b, n, result);
 #elif NK_TARGET_SKYLAKE
     nk_dot_e4m3_skylake(a, b, n, result);
 #elif NK_TARGET_HASWELL
@@ -932,6 +942,8 @@ NK_PUBLIC void nk_dot_e4m3(nk_e4m3_t const *a, nk_e4m3_t const *b, nk_size_t n, 
 NK_PUBLIC void nk_dot_e5m2(nk_e5m2_t const *a, nk_e5m2_t const *b, nk_size_t n, nk_f32_t *result) {
 #if NK_TARGET_GENOA
     nk_dot_e5m2_genoa(a, b, n, result);
+#elif NK_TARGET_SPACEMIT
+    nk_dot_e5m2_spacemit(a, b, n, result);
 #elif NK_TARGET_SKYLAKE
     nk_dot_e5m2_skylake(a, b, n, result);
 #elif NK_TARGET_HASWELL
