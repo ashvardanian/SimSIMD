@@ -134,7 +134,7 @@ NK_INTERNAL void nk_reduce_min_f16_neonhalf_contiguous_( //
     nk_f32_t *min_value, nk_size_t *min_index) {
 
     // Track min values in native f16, indices in 2x int32x4 (for 8 lanes)
-    float16x8_t min_f16x8 = vdupq_n_f16(__builtin_huge_valf());
+    float16x8_t min_f16x8 = vdupq_n_f16(NK_F32_MAX);
     int32x4_t min_idx_lo_i32x4 = vdupq_n_s32(0);
     int32x4_t min_idx_hi_i32x4 = vdupq_n_s32(0);
     int32x4_t idx_lo_i32x4 = {0, 1, 2, 3};
@@ -199,7 +199,7 @@ NK_INTERNAL void nk_reduce_min_f16_neonhalf_strided_(                 //
     nk_f16_t const *data, nk_size_t count, nk_size_t stride_elements, //
     nk_f32_t *min_value, nk_size_t *min_index) {
 
-    float16x8_t min_f16x8 = vdupq_n_f16(__builtin_huge_valf());
+    float16x8_t min_f16x8 = vdupq_n_f16(NK_F32_MAX);
     int32x4_t min_idx_lo_i32x4 = vdupq_n_s32(0);
     int32x4_t min_idx_hi_i32x4 = vdupq_n_s32(0);
     int32x4_t idx_lo_i32x4 = {0, 1, 2, 3};
@@ -311,7 +311,7 @@ NK_INTERNAL void nk_reduce_max_f16_neonhalf_contiguous_( //
     nk_f32_t *max_value, nk_size_t *max_index) {
 
     // Track max values in native f16, indices in 2x int32x4 (for 8 lanes)
-    float16x8_t max_f16x8 = vdupq_n_f16(-__builtin_huge_valf());
+    float16x8_t max_f16x8 = vdupq_n_f16(NK_F32_MIN);
     int32x4_t max_idx_lo_i32x4 = vdupq_n_s32(0);
     int32x4_t max_idx_hi_i32x4 = vdupq_n_s32(0);
     int32x4_t idx_lo_i32x4 = {0, 1, 2, 3};
@@ -376,7 +376,7 @@ NK_INTERNAL void nk_reduce_max_f16_neonhalf_strided_(                 //
     nk_f16_t const *data, nk_size_t count, nk_size_t stride_elements, //
     nk_f32_t *max_value, nk_size_t *max_index) {
 
-    float16x8_t max_f16x8 = vdupq_n_f16(-__builtin_huge_valf());
+    float16x8_t max_f16x8 = vdupq_n_f16(NK_F32_MIN);
     int32x4_t max_idx_lo_i32x4 = vdupq_n_s32(0);
     int32x4_t max_idx_hi_i32x4 = vdupq_n_s32(0);
     int32x4_t idx_lo_i32x4 = {0, 1, 2, 3};

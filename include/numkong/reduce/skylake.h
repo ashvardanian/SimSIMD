@@ -938,7 +938,7 @@ NK_INTERNAL void nk_reduce_min_f32_skylake_contiguous_( //
         __mmask16 tail_mask = (__mmask16)_bzhi_u32(0xFFFF, (unsigned int)remaining);
         __m512 tail_f32x16 = _mm512_maskz_loadu_ps(tail_mask, data + idx_scalars);
         // Set masked-out lanes to +inf so they don't affect the min
-        __m512 inf_f32x16 = _mm512_set1_ps(__builtin_huge_valf());
+        __m512 inf_f32x16 = _mm512_set1_ps(NK_F32_MAX);
         tail_f32x16 = _mm512_mask_mov_ps(inf_f32x16, tail_mask, tail_f32x16);
         __mmask16 lt_mask = _mm512_cmp_ps_mask(tail_f32x16, min_f32x16, _CMP_LT_OQ);
         min_f32x16 = _mm512_mask_mov_ps(min_f32x16, lt_mask, tail_f32x16);
@@ -965,7 +965,7 @@ NK_INTERNAL void nk_reduce_min_f32_skylake_strided_(                  //
     nk_f32_t *min_value, nk_size_t *min_index) {
     // Masked load with +inf for non-stride elements; track logical indices
     __mmask16 stride_mask_m16 = nk_stride_mask_b32x16_(stride_elements);
-    __m512 pos_inf_f32x16 = _mm512_set1_ps(__builtin_huge_valf());
+    __m512 pos_inf_f32x16 = _mm512_set1_ps(NK_F32_MAX);
     __m512 min_f32x16 = pos_inf_f32x16;
     __m512i min_idx_i32x16 = _mm512_setzero_si512();
     nk_size_t idx_scalars = 0;
@@ -1044,7 +1044,7 @@ NK_INTERNAL void nk_reduce_max_f32_skylake_contiguous_( //
         __mmask16 tail_mask = (__mmask16)_bzhi_u32(0xFFFF, (unsigned int)remaining);
         __m512 tail_f32x16 = _mm512_maskz_loadu_ps(tail_mask, data + idx_scalars);
         // Set masked-out lanes to -inf so they don't affect the max
-        __m512 neg_inf_f32x16 = _mm512_set1_ps(-__builtin_huge_valf());
+        __m512 neg_inf_f32x16 = _mm512_set1_ps(NK_F32_MIN);
         tail_f32x16 = _mm512_mask_mov_ps(neg_inf_f32x16, tail_mask, tail_f32x16);
         __mmask16 gt_mask = _mm512_cmp_ps_mask(tail_f32x16, max_f32x16, _CMP_GT_OQ);
         max_f32x16 = _mm512_mask_mov_ps(max_f32x16, gt_mask, tail_f32x16);
@@ -1071,7 +1071,7 @@ NK_INTERNAL void nk_reduce_max_f32_skylake_strided_(                  //
     nk_f32_t *max_value, nk_size_t *max_index) {
     // Masked load with -inf for non-stride elements; track logical indices
     __mmask16 stride_mask_m16 = nk_stride_mask_b32x16_(stride_elements);
-    __m512 neg_inf_f32x16 = _mm512_set1_ps(-__builtin_huge_valf());
+    __m512 neg_inf_f32x16 = _mm512_set1_ps(NK_F32_MIN);
     __m512 max_f32x16 = neg_inf_f32x16;
     __m512i max_idx_i32x16 = _mm512_setzero_si512();
     nk_size_t idx_scalars = 0;
@@ -1149,7 +1149,7 @@ NK_INTERNAL void nk_reduce_min_f64_skylake_contiguous_( //
     if (remaining > 0) {
         __mmask8 tail_mask = (__mmask8)_bzhi_u32(0xFF, (unsigned int)remaining);
         __m512d tail_f64x8 = _mm512_maskz_loadu_pd(tail_mask, data + idx_scalars);
-        __m512d inf_f64x8 = _mm512_set1_pd(__builtin_huge_val());
+        __m512d inf_f64x8 = _mm512_set1_pd(NK_F64_MAX);
         tail_f64x8 = _mm512_mask_mov_pd(inf_f64x8, tail_mask, tail_f64x8);
         __mmask8 lt_mask = _mm512_cmp_pd_mask(tail_f64x8, min_f64x8, _CMP_LT_OQ);
         min_f64x8 = _mm512_mask_mov_pd(min_f64x8, lt_mask, tail_f64x8);
@@ -1173,7 +1173,7 @@ NK_INTERNAL void nk_reduce_min_f64_skylake_strided_(                  //
     nk_f64_t *min_value, nk_size_t *min_index) {
     // Masked load with +inf for non-stride elements; track logical indices
     __mmask8 stride_mask_m8 = nk_stride_mask_b64x8_(stride_elements);
-    __m512d pos_inf_f64x8 = _mm512_set1_pd(__builtin_huge_val());
+    __m512d pos_inf_f64x8 = _mm512_set1_pd(NK_F64_MAX);
     __m512d min_f64x8 = pos_inf_f64x8;
     __m512i min_idx_i64x8 = _mm512_setzero_si512();
     nk_size_t idx_scalars = 0;
@@ -1251,7 +1251,7 @@ NK_INTERNAL void nk_reduce_max_f64_skylake_contiguous_( //
     if (remaining > 0) {
         __mmask8 tail_mask = (__mmask8)_bzhi_u32(0xFF, (unsigned int)remaining);
         __m512d tail_f64x8 = _mm512_maskz_loadu_pd(tail_mask, data + idx_scalars);
-        __m512d neg_inf_f64x8 = _mm512_set1_pd(-__builtin_huge_val());
+        __m512d neg_inf_f64x8 = _mm512_set1_pd(NK_F64_MIN);
         tail_f64x8 = _mm512_mask_mov_pd(neg_inf_f64x8, tail_mask, tail_f64x8);
         __mmask8 gt_mask = _mm512_cmp_pd_mask(tail_f64x8, max_f64x8, _CMP_GT_OQ);
         max_f64x8 = _mm512_mask_mov_pd(max_f64x8, gt_mask, tail_f64x8);
@@ -1275,7 +1275,7 @@ NK_INTERNAL void nk_reduce_max_f64_skylake_strided_(                  //
     nk_f64_t *max_value, nk_size_t *max_index) {
     // Masked load with -inf for non-stride elements; track logical indices
     __mmask8 stride_mask_m8 = nk_stride_mask_b64x8_(stride_elements);
-    __m512d neg_inf_f64x8 = _mm512_set1_pd(-__builtin_huge_val());
+    __m512d neg_inf_f64x8 = _mm512_set1_pd(NK_F64_MIN);
     __m512d max_f64x8 = neg_inf_f64x8;
     __m512i max_idx_i64x8 = _mm512_setzero_si512();
     nk_size_t idx_scalars = 0;
@@ -2394,7 +2394,7 @@ NK_PUBLIC void nk_reduce_min_e4m3_skylake(                          //
 NK_PUBLIC void nk_reduce_max_e4m3_skylake(                          //
     nk_e4m3_t const *data, nk_size_t count, nk_size_t stride_bytes, //
     nk_f32_t *max_value, nk_size_t *max_index) {
-    if (count == 0) *max_value = -NK_F32_MAX, *max_index = count;
+    if (count == 0) *max_value = NK_F32_MIN, *max_index = count;
     else if (stride_bytes == sizeof(nk_e4m3_t) && count >= 64)
         nk_reduce_max_e4m3_skylake_contiguous_(data, count, max_value, max_index);
     else nk_reduce_max_e4m3_serial(data, count, stride_bytes, max_value, max_index);
@@ -2412,7 +2412,7 @@ NK_PUBLIC void nk_reduce_min_e5m2_skylake(                          //
 NK_PUBLIC void nk_reduce_max_e5m2_skylake(                          //
     nk_e5m2_t const *data, nk_size_t count, nk_size_t stride_bytes, //
     nk_f32_t *max_value, nk_size_t *max_index) {
-    if (count == 0) *max_value = -NK_F32_MAX, *max_index = count;
+    if (count == 0) *max_value = NK_F32_MIN, *max_index = count;
     else if (stride_bytes == sizeof(nk_e5m2_t) && count >= 64)
         nk_reduce_max_e5m2_skylake_contiguous_(data, count, max_value, max_index);
     else nk_reduce_max_e5m2_serial(data, count, stride_bytes, max_value, max_index);

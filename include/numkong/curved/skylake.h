@@ -386,10 +386,10 @@ NK_PUBLIC void nk_bilinear_f64c_skylake(nk_f64c_t const *a, nk_f64c_t const *b, 
         {
             // First term: a_i_real * cb_j_real
             nk_f64_t product1 = a_i_real * cb_j_real;
-            nk_f64_t product_error1 = __builtin_fma(a_i_real, cb_j_real, -product1);
+            nk_f64_t product_error1 = (a_i_real * cb_j_real) - product1;
             // Second term: -a_i_imag * cb_j_imag
             nk_f64_t product2 = a_i_imag * cb_j_imag;
-            nk_f64_t product_error2 = __builtin_fma(a_i_imag, cb_j_imag, -product2);
+            nk_f64_t product_error2 = (a_i_imag * cb_j_imag) - product2;
             // TwoSum for first addition: t = sum_real + product1
             nk_f64_t t1 = sum_real + product1;
             nk_f64_t z1 = t1 - sum_real;
@@ -408,10 +408,10 @@ NK_PUBLIC void nk_bilinear_f64c_skylake(nk_f64c_t const *a, nk_f64c_t const *b, 
         {
             // First term: a_i_real * cb_j_imag
             nk_f64_t product1 = a_i_real * cb_j_imag;
-            nk_f64_t product_error1 = __builtin_fma(a_i_real, cb_j_imag, -product1);
+            nk_f64_t product_error1 = (a_i_real * cb_j_imag) - product1;
             // Second term: a_i_imag * cb_j_real
             nk_f64_t product2 = a_i_imag * cb_j_real;
-            nk_f64_t product_error2 = __builtin_fma(a_i_imag, cb_j_real, -product2);
+            nk_f64_t product_error2 = (a_i_imag * cb_j_real) - product2;
             // TwoSum for first addition: t = sum_imag + product1
             nk_f64_t t1 = sum_imag + product1;
             nk_f64_t z1 = t1 - sum_imag;

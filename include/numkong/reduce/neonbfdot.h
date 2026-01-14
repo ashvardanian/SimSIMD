@@ -129,7 +129,7 @@ NK_INTERNAL void nk_reduce_min_bf16_neonbfdot_contiguous_( //
     nk_f32_t *min_value, nk_size_t *min_index) {
 
     // Track min values in f32 (converted from bf16), process 4 at a time
-    float32x4_t min_f32x4 = vdupq_n_f32(__builtin_huge_valf());
+    float32x4_t min_f32x4 = vdupq_n_f32(NK_F32_MAX);
     int32x4_t min_idx_i32x4 = vdupq_n_s32(0);
     int32x4_t idx_i32x4 = {0, 1, 2, 3};
     int32x4_t step_i32x4 = vdupq_n_s32(4);
@@ -178,7 +178,7 @@ NK_INTERNAL void nk_reduce_min_bf16_neonbfdot_strided_(                //
     nk_bf16_t const *data, nk_size_t count, nk_size_t stride_elements, //
     nk_f32_t *min_value, nk_size_t *min_index) {
 
-    float32x4_t min_f32x4 = vdupq_n_f32(__builtin_huge_valf());
+    float32x4_t min_f32x4 = vdupq_n_f32(NK_F32_MAX);
     int32x4_t min_idx_i32x4 = vdupq_n_s32(0);
     int32x4_t idx_i32x4 = {0, 1, 2, 3};
     int32x4_t step_i32x4 = vdupq_n_s32(4);
@@ -263,7 +263,7 @@ NK_INTERNAL void nk_reduce_max_bf16_neonbfdot_contiguous_( //
     nk_f32_t *max_value, nk_size_t *max_index) {
 
     // Track max values in f32 (converted from bf16), process 4 at a time
-    float32x4_t max_f32x4 = vdupq_n_f32(-__builtin_huge_valf());
+    float32x4_t max_f32x4 = vdupq_n_f32(NK_F32_MIN);
     int32x4_t max_idx_i32x4 = vdupq_n_s32(0);
     int32x4_t idx_i32x4 = {0, 1, 2, 3};
     int32x4_t step_i32x4 = vdupq_n_s32(4);
@@ -312,7 +312,7 @@ NK_INTERNAL void nk_reduce_max_bf16_neonbfdot_strided_(                //
     nk_bf16_t const *data, nk_size_t count, nk_size_t stride_elements, //
     nk_f32_t *max_value, nk_size_t *max_index) {
 
-    float32x4_t max_f32x4 = vdupq_n_f32(-__builtin_huge_valf());
+    float32x4_t max_f32x4 = vdupq_n_f32(NK_F32_MIN);
     int32x4_t max_idx_i32x4 = vdupq_n_s32(0);
     int32x4_t idx_i32x4 = {0, 1, 2, 3};
     int32x4_t step_i32x4 = vdupq_n_s32(4);

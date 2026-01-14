@@ -349,9 +349,10 @@ NK_PUBLIC void nk_angular_f64_spacemit(nk_f64_t const *a_scalars, nk_f64_t const
 
     // Normalize: 1 − dot / √(‖a‖² × ‖b‖²)
     if (a_norm_sq_f64 == 0.0 && b_norm_sq_f64 == 0.0) { *result = 0.0; }
-    else if (ab_f64 == 0.0) { *result = 1.0; }
+    else if (dot_f64 == 0.0) { *result = 1.0; }
     else {
-        nk_f64_t unclipped = 1.0 - ab_f64 * nk_f64_rsqrt_spacemit(a_norm_sq_f64) * nk_f64_rsqrt_spacemit(b_norm_sq_f64);
+        nk_f64_t unclipped = 1.0 -
+                             dot_f64 * nk_f64_rsqrt_spacemit(a_norm_sq_f64) * nk_f64_rsqrt_spacemit(b_norm_sq_f64);
         *result = unclipped > 0 ? unclipped : 0;
     }
 }

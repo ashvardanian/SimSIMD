@@ -753,15 +753,24 @@ NK_STATIC_ASSERT(sizeof(nk_bf16_t) == 2, nk_bf16_t_must_be_2_bytes);
 
 #define nk_assign_from_to_(src, dest) (*(dest) = *(src))
 
+/** @brief  Convenience type for half-precision floating-point bit manipulation. */
+typedef union {
+    nk_u16_t u;
+    nk_i16_t i;
+    nk_f16_t f;
+} nk_fui16_t;
+
 /** @brief  Convenience type for single-precision floating-point bit manipulation. */
 typedef union {
     nk_u32_t u;
+    nk_i32_t i;
     nk_f32_t f;
 } nk_fui32_t;
 
 /** @brief  Convenience type for double-precision floating-point bit manipulation. */
 typedef union {
     nk_u64_t u;
+    nk_i64_t i;
     nk_f64_t f;
 } nk_fui64_t;
 

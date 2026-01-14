@@ -722,9 +722,7 @@ NK_INTERNAL void nk_e5m2x32_to_f16x32_ssve_(svbool_t pg16, nk_e5m2_t const *src,
     // Let's use 2⁻¹⁴ × (1/4) = multiply by 0.25 after scaling
     // Or: 2⁻¹⁶ as F16 subnormal: 0x0001 = 2⁻²⁴, so 2⁻¹⁶ = 2⁸ × 2⁻²⁴ = 256 × 0x0001
     // That means 2⁻¹⁶ = 0x0100 in F16 subnormal representation
-    nk_f16_t scale_f16;
-    __builtin_memcpy(&scale_f16, &scale_bits, sizeof(scale_f16));
-    svfloat16_t scale = svdup_n_f16(scale_f16);
+    svfloat16_t scale = svreinterpret_f16_u16(svdup_n_u16(scale_bits));
     svfloat16_t subnorm_abs = svmul_f16_x(pg16, mant_f16, scale);
     svuint16_t subnorm = svorr_u16_x(pg16, svreinterpret_u16_f16(subnorm_abs), sign);
 
@@ -946,11 +944,9 @@ static nk_u16_t const nk_e4m3_to_f16_lut_u16_[128] = {
  */
 NK_INTERNAL nk_f16_t nk_e4m3_to_f16_lut_(nk_e4m3_t src) {
     nk_u8_t idx = src & 0x7F;
-    nk_u16_t result = nk_e4m3_to_f16_lut_u16_[idx];
-    if (src & 0x80) result |= 0x8000; // Apply sign
-    nk_f16_t f16_result;
-    __builtin_memcpy(&f16_result, &result, sizeof(result));
-    return f16_result;
+    nk_fui16_t result = {.u = nk_e4m3_to_f16_lut_u16_[idx]};
+    if (src & 0x80) result.u |= 0x8000; // Apply sign
+    return result.f;
 }
 
 NK_PUBLIC nk_size_t nk_dots_packed_size_e4m3_sme(nk_size_t n, nk_size_t k) {
@@ -1072,11 +1068,9 @@ static nk_u16_t const nk_e5m2_to_f16_lut_u16_[128] = {
  */
 NK_INTERNAL nk_f16_t nk_e5m2_to_f16_lut_(nk_e5m2_t src) {
     nk_u8_t idx = src & 0x7F;
-    nk_u16_t result = nk_e5m2_to_f16_lut_u16_[idx];
-    if (src & 0x80) result |= 0x8000;
-    nk_f16_t f16_result;
-    __builtin_memcpy(&f16_result, &result, sizeof(result));
-    return f16_result;
+    nk_fui16_t result = {.u = nk_e5m2_to_f16_lut_u16_[idx]};
+    if (src & 0x80) result.u |= 0x8000;
+    return result.f;
 }
 
 /*  Fused `e5m2` × `e5m2` → `f32` GEMM kernel using SSVE inline conversion.
