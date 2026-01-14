@@ -117,6 +117,7 @@ StatementMacros:
   - nk_define_dots_packed_4x4_vectors_aligned_
   - nk_define_dots_packed_1x8_vectors_aligned_
   - nk_define_dots_packed_vectors_
+  - nk_define_dots_symmetric_
   - nk_define_dots_outer_scalars_
   - nk_define_trigonometry_
   - nk_define_mesh_

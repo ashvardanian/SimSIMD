@@ -1128,6 +1128,54 @@ NK_PUBLIC void nk_dots_compact_i8_serial(void *c, nk_size_t row_count, nk_size_t
     }
 }
 
+/*  Symmetric Gram matrix: C = A × Aᵀ
+ *
+ *  Computes the symmetric matrix C[i,j] = dot(A[i,:], A[j,:])
+ *  Only computes upper triangle, then mirrors to lower.
+ *
+ *  Parameters:
+ *    - suffix: Function name suffix (e.g., f32_serial)
+ *    - input_type: Input element type (e.g., f16, f32)
+ *    - output_type: Output element type (e.g., f32, i32)
+ *    - intermediate_type: Type produced by load_and_convert (e.g., f32 for f16->f32)
+ *    - acc_type: Accumulator type for higher precision (e.g., f64)
+ *    - load_and_convert: Function/macro to load and convert: (src_ptr, dest_ptr)
+ */
+#define nk_define_dots_symmetric_(suffix, input_type, output_type, intermediate_type, acc_type, load_and_convert) \
+    NK_PUBLIC void nk_dots_symmetric_##suffix(nk_##input_type##_t const *vectors, nk_size_t n_vectors,            \
+                                              nk_size_t depth, nk_size_t stride, nk_##output_type##_t *result,    \
+                                              nk_size_t result_stride) {                                          \
+                                                                                                                  \
+        nk_size_t const vectors_stride_elements = stride / sizeof(nk_##input_type##_t);                           \
+        nk_size_t const result_stride_elements = result_stride / sizeof(nk_##output_type##_t);                    \
+                                                                                                                  \
+        /* Compute upper triangle including diagonal */                                                           \
+        for (nk_size_t i = 0; i < n_vectors; i++) {                                                               \
+            nk_##input_type##_t const *row_i = vectors + i * vectors_stride_elements;                             \
+            for (nk_size_t j = i; j < n_vectors; j++) {                                                           \
+                nk_##input_type##_t const *row_j = vectors + j * vectors_stride_elements;                         \
+                nk_##acc_type##_t acc = 0;                                                                        \
+                for (nk_size_t d = 0; d < depth; d++) {                                                           \
+                    nk_##intermediate_type##_t val_i, val_j;                                                      \
+                    load_and_convert(row_i + d, &val_i);                                                          \
+                    load_and_convert(row_j + d, &val_j);                                                          \
+                    acc += (nk_##acc_type##_t)val_i * (nk_##acc_type##_t)val_j;                                   \
+                }                                                                                                 \
+                nk_##output_type##_t val = (nk_##output_type##_t)acc;                                             \
+                result[i * result_stride_elements + j] = val;                                                     \
+                result[j * result_stride_elements + i] = val; /* Mirror to lower triangle */                      \
+            }                                                                                                     \
+        }                                                                                                         \
+    }
+
+// Instantiate serial symmetric Gram matrix functions
+nk_define_dots_symmetric_(f32_serial, f32, f32, f32, f64, nk_assign_from_to_)
+nk_define_dots_symmetric_(f64_serial, f64, f64, f64, f64, nk_assign_from_to_)
+nk_define_dots_symmetric_(f16_serial, f16, f32, f32, f64, nk_f16_to_f32_serial)
+nk_define_dots_symmetric_(bf16_serial, bf16, f32, f32, f64, nk_bf16_to_f32_serial)
+nk_define_dots_symmetric_(i8_serial, i8, i32, i32, i64, nk_assign_from_to_)
+nk_define_dots_symmetric_(u8_serial, u8, u32, u32, u64, nk_assign_from_to_)
+
 #if defined(__cplusplus)
 }
 #endif

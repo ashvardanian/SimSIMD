@@ -442,6 +442,87 @@ NK_PUBLIC void nk_dots_packed_f64_smef64(nk_f64_t const *a, void const *b_packed
     nk_dots_f64_sme_kernel_(a, b_packed, c, rows, columns, depth, a_stride_elements, c_stride_elements);
 }
 
+/** @copydoc nk_dots_symmetric_bf16 */
+NK_PUBLIC void nk_dots_symmetric_f32_smef64(nk_f32_t const *vectors, nk_size_t n_vectors, nk_size_t depth,
+                                            nk_size_t stride, nk_f32_t *result, nk_size_t result_stride) {
+
+    nk_size_t const stride_elements = stride / sizeof(nk_f32_t);
+    nk_size_t const result_stride_elements = result_stride / sizeof(nk_f32_t);
+    nk_size_t const vl = svcntsw(); // f32 elements per vector
+
+    // Compute upper triangle including diagonal, then mirror
+    for (nk_size_t i = 0; i < n_vectors; i++) {
+        nk_f32_t const *row_i = vectors + i * stride_elements;
+        for (nk_size_t j = i; j < n_vectors; j++) {
+            nk_f32_t const *row_j = vectors + j * stride_elements;
+
+            // SVE vectorized dot product with f64 accumulation
+            svfloat64_t acc = svdup_f64(0.0);
+            nk_size_t d = 0;
+            while (d + vl <= depth) {
+                svbool_t pg = svptrue_b32();
+                svfloat32_t vi = svld1_f32(pg, row_i + d);
+                svfloat32_t vj = svld1_f32(pg, row_j + d);
+                // Widen to f64 and accumulate (low and high halves)
+                svfloat64_t vi_lo = svcvt_f64_f32_x(svptrue_b64(), svget2(svuzp(vi, vi), 0));
+                svfloat64_t vj_lo = svcvt_f64_f32_x(svptrue_b64(), svget2(svuzp(vj, vj), 0));
+                acc = svmla_f64_x(svptrue_b64(), acc, vi_lo, vj_lo);
+                d += vl;
+            }
+            // Handle remainder
+            if (d < depth) {
+                svbool_t pg = svwhilelt_b32((uint32_t)d, (uint32_t)depth);
+                svfloat32_t vi = svld1_f32(pg, row_i + d);
+                svfloat32_t vj = svld1_f32(pg, row_j + d);
+                svfloat64_t vi_lo = svcvt_f64_f32_x(svptrue_b64(), svget2(svuzp(vi, vi), 0));
+                svfloat64_t vj_lo = svcvt_f64_f32_x(svptrue_b64(), svget2(svuzp(vj, vj), 0));
+                acc = svmla_f64_x(svptrue_b64(), acc, vi_lo, vj_lo);
+            }
+            nk_f32_t dot = (nk_f32_t)svaddv_f64(svptrue_b64(), acc);
+            result[i * result_stride_elements + j] = dot;
+            result[j * result_stride_elements + i] = dot;
+        }
+    }
+}
+
+/** @copydoc nk_dots_symmetric_bf16 */
+NK_PUBLIC void nk_dots_symmetric_f64_smef64(nk_f64_t const *vectors, nk_size_t n_vectors, nk_size_t depth,
+                                            nk_size_t stride, nk_f64_t *result, nk_size_t result_stride) {
+
+    nk_size_t const stride_elements = stride / sizeof(nk_f64_t);
+    nk_size_t const result_stride_elements = result_stride / sizeof(nk_f64_t);
+    nk_size_t const vl = svcntd(); // f64 elements per vector
+
+    // Compute upper triangle including diagonal, then mirror
+    for (nk_size_t i = 0; i < n_vectors; i++) {
+        nk_f64_t const *row_i = vectors + i * stride_elements;
+        for (nk_size_t j = i; j < n_vectors; j++) {
+            nk_f64_t const *row_j = vectors + j * stride_elements;
+
+            // SVE vectorized dot product
+            svfloat64_t acc = svdup_f64(0.0);
+            nk_size_t d = 0;
+            while (d + vl <= depth) {
+                svbool_t pg = svptrue_b64();
+                svfloat64_t vi = svld1_f64(pg, row_i + d);
+                svfloat64_t vj = svld1_f64(pg, row_j + d);
+                acc = svmla_f64_x(pg, acc, vi, vj);
+                d += vl;
+            }
+            // Handle remainder
+            if (d < depth) {
+                svbool_t pg = svwhilelt_b64((uint64_t)d, (uint64_t)depth);
+                svfloat64_t vi = svld1_f64(pg, row_i + d);
+                svfloat64_t vj = svld1_f64(pg, row_j + d);
+                acc = svmla_f64_x(pg, acc, vi, vj);
+            }
+            nk_f64_t dot = svaddv_f64(svptrue_b64(), acc);
+            result[i * result_stride_elements + j] = dot;
+            result[j * result_stride_elements + i] = dot;
+        }
+    }
+}
+
 #if defined(__cplusplus)
 } // extern "C"
 #endif

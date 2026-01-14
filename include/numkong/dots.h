@@ -247,42 +247,42 @@ NK_DYNAMIC void nk_dots_packed_u4(nk_u4x2_t const *a, void const *b_packed, nk_u
 
 /**
  *  @brief Computes C = A × Aᵀ symmetric Gram matrix.
- *  @param[in] a The input A matrix in row-major order.
- *  @param[out] c The output C matrix in row-major order.
- *  @param[in] m The number of rows in A.
- *  @param[in] k The number of columns in A.
- *  @param[in] a_stride The row stride in bytes for A.
- *  @param[in] c_stride The row stride in bytes for C.
+ *  @param[in] vectors Input matrix of row vectors in row-major order.
+ *  @param[in] n_vectors Number of vectors (rows) in the input matrix.
+ *  @param[in] depth Dimension of each vector (columns).
+ *  @param[in] stride Row stride in bytes for the input matrix.
+ *  @param[out] result Output symmetric matrix (n_vectors × n_vectors).
+ *  @param[in] result_stride Row stride in bytes for the result matrix.
  */
-NK_DYNAMIC void nk_dots_symmetric_bf16(nk_bf16_t const *a, nk_f32_t *c, nk_size_t m, nk_size_t k, nk_size_t a_stride,
-                                       nk_size_t c_stride);
+NK_DYNAMIC void nk_dots_symmetric_bf16(nk_bf16_t const *vectors, nk_size_t n_vectors, nk_size_t depth, nk_size_t stride,
+                                       nk_f32_t *result, nk_size_t result_stride);
 /** @copydoc nk_dots_symmetric_bf16 */
-NK_DYNAMIC void nk_dots_symmetric_f16(nk_f16_t const *a, nk_f32_t *c, nk_size_t m, nk_size_t k, nk_size_t a_stride,
-                                      nk_size_t c_stride);
+NK_DYNAMIC void nk_dots_symmetric_f16(nk_f16_t const *vectors, nk_size_t n_vectors, nk_size_t depth, nk_size_t stride,
+                                      nk_f32_t *result, nk_size_t result_stride);
 /** @copydoc nk_dots_symmetric_bf16 */
-NK_DYNAMIC void nk_dots_symmetric_e4m3(nk_e4m3_t const *a, nk_f32_t *c, nk_size_t m, nk_size_t k, nk_size_t a_stride,
-                                       nk_size_t c_stride);
+NK_DYNAMIC void nk_dots_symmetric_e4m3(nk_e4m3_t const *vectors, nk_size_t n_vectors, nk_size_t depth, nk_size_t stride,
+                                       nk_f32_t *result, nk_size_t result_stride);
 /** @copydoc nk_dots_symmetric_bf16 */
-NK_DYNAMIC void nk_dots_symmetric_e5m2(nk_e5m2_t const *a, nk_f32_t *c, nk_size_t m, nk_size_t k, nk_size_t a_stride,
-                                       nk_size_t c_stride);
+NK_DYNAMIC void nk_dots_symmetric_e5m2(nk_e5m2_t const *vectors, nk_size_t n_vectors, nk_size_t depth, nk_size_t stride,
+                                       nk_f32_t *result, nk_size_t result_stride);
 /** @copydoc nk_dots_symmetric_bf16 */
-NK_DYNAMIC void nk_dots_symmetric_f32(nk_f32_t const *a, nk_f32_t *c, nk_size_t m, nk_size_t k, nk_size_t a_stride,
-                                      nk_size_t c_stride);
+NK_DYNAMIC void nk_dots_symmetric_f32(nk_f32_t const *vectors, nk_size_t n_vectors, nk_size_t depth, nk_size_t stride,
+                                      nk_f32_t *result, nk_size_t result_stride);
 /** @copydoc nk_dots_symmetric_bf16 */
-NK_DYNAMIC void nk_dots_symmetric_f64(nk_f64_t const *a, nk_f64_t *c, nk_size_t m, nk_size_t k, nk_size_t a_stride,
-                                      nk_size_t c_stride);
+NK_DYNAMIC void nk_dots_symmetric_f64(nk_f64_t const *vectors, nk_size_t n_vectors, nk_size_t depth, nk_size_t stride,
+                                      nk_f64_t *result, nk_size_t result_stride);
 /** @copydoc nk_dots_symmetric_bf16 */
-NK_DYNAMIC void nk_dots_symmetric_i8(nk_i8_t const *a, nk_i32_t *c, nk_size_t m, nk_size_t k, nk_size_t a_stride,
-                                     nk_size_t c_stride);
+NK_DYNAMIC void nk_dots_symmetric_i8(nk_i8_t const *vectors, nk_size_t n_vectors, nk_size_t depth, nk_size_t stride,
+                                     nk_i32_t *result, nk_size_t result_stride);
 /** @copydoc nk_dots_symmetric_bf16 */
-NK_DYNAMIC void nk_dots_symmetric_u8(nk_u8_t const *a, nk_u32_t *c, nk_size_t m, nk_size_t k, nk_size_t a_stride,
-                                     nk_size_t c_stride);
+NK_DYNAMIC void nk_dots_symmetric_u8(nk_u8_t const *vectors, nk_size_t n_vectors, nk_size_t depth, nk_size_t stride,
+                                     nk_u32_t *result, nk_size_t result_stride);
 /** @copydoc nk_dots_symmetric_bf16 */
-NK_DYNAMIC void nk_dots_symmetric_i4(nk_i4x2_t const *a, nk_i32_t *c, nk_size_t m, nk_size_t k, nk_size_t a_stride,
-                                     nk_size_t c_stride);
+NK_DYNAMIC void nk_dots_symmetric_i4(nk_i4x2_t const *vectors, nk_size_t n_vectors, nk_size_t depth, nk_size_t stride,
+                                     nk_i32_t *result, nk_size_t result_stride);
 /** @copydoc nk_dots_symmetric_bf16 */
-NK_DYNAMIC void nk_dots_symmetric_u4(nk_u4x2_t const *a, nk_u32_t *c, nk_size_t m, nk_size_t k, nk_size_t a_stride,
-                                     nk_size_t c_stride);
+NK_DYNAMIC void nk_dots_symmetric_u4(nk_u4x2_t const *vectors, nk_size_t n_vectors, nk_size_t depth, nk_size_t stride,
+                                     nk_u32_t *result, nk_size_t result_stride);
 
 /** @copydoc nk_dots_packed_size_f32 */
 NK_PUBLIC nk_size_t nk_dots_packed_size_f32_serial(nk_size_t n, nk_size_t k);
@@ -307,6 +307,38 @@ NK_PUBLIC void nk_dots_pack_f16_serial(nk_f16_t const *b, nk_size_t n, nk_size_t
 /** @copydoc nk_dots_packed_f16 */
 NK_PUBLIC void nk_dots_packed_f16_serial(nk_f16_t const *a, void const *b_packed, nk_f32_t *c, nk_size_t m, nk_size_t n,
                                          nk_size_t k, nk_size_t a_stride, nk_size_t c_stride);
+
+/**
+ *  @brief Compacts f32 GEMM output to bf16 (in-place).
+ *
+ *  After computing C_f32 = A × Bᵀ in f32, truncates to bf16 with rounding.
+ *  The operation is done in-place: reads f32 values and writes bf16 to the same buffer.
+ *  Output is tightly packed with stride = n × sizeof(bf16).
+ *
+ *  @param c Buffer containing f32 values, will be overwritten with bf16 output (m × n).
+ *  @param m Number of rows.
+ *  @param n Number of columns.
+ *  @param c_stride Row stride of input f32 matrix in bytes.
+ */
+NK_DYNAMIC void nk_dots_compact_bf16(void *c, nk_size_t m, nk_size_t n, nk_size_t c_stride);
+
+/**
+ *  @brief Compacts i32 GEMM output to normalized i8 (in-place).
+ *
+ *  After computing C_i32 = A × Bᵀ in i32, normalizes to cosine similarity in [-128, 127].
+ *  Uses squared norms for normalization: result[i,j] = 127 × C[i,j] / sqrt(a_norm[i] × b_norm[j]).
+ *  The operation is done in-place: reads i32 values and writes i8 to the same buffer.
+ *  Output is tightly packed with stride = n × sizeof(i8).
+ *
+ *  @param c Buffer containing i32 values, will be overwritten with i8 output (m × n).
+ *  @param m Number of rows.
+ *  @param n Number of columns.
+ *  @param c_stride Row stride of input i32 matrix in bytes.
+ *  @param a_squared_norms Squared L2 norms for A rows (length m).
+ *  @param b_squared_norms Squared L2 norms for B rows (length n).
+ */
+NK_DYNAMIC void nk_dots_compact_i8(void *c, nk_size_t m, nk_size_t n, nk_size_t c_stride,
+                                   nk_i32_t const *a_squared_norms, nk_i32_t const *b_squared_norms);
 
 /** @copydoc nk_dots_packed_size_bf16 */
 NK_PUBLIC nk_size_t nk_dots_packed_size_bf16_serial(nk_size_t n, nk_size_t k);
