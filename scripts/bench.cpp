@@ -1531,6 +1531,27 @@ int main(int argc, char **argv) {
     sparse_<u64_k, u64_k>("sparse_intersect_u64_turin", nk_sparse_intersect_u64_turin);
 #endif
 
+#if NK_TARGET_SPACEMIT
+    // Binary operations
+    dense_<u1_k, u32_k>("hamming_u1_spacemit", nk_hamming_u1_spacemit);
+    dense_<u1_k, f32_k>("jaccard_u1_spacemit", nk_jaccard_u1_spacemit);
+    dense_<u8_k, u32_k>("hamming_u8_spacemit", nk_hamming_u8_spacemit);
+    dense_<u16_k, f32_k>("jaccard_u16_spacemit", nk_jaccard_u16_spacemit);
+    dense_<u32_k, f32_k>("jaccard_u32_spacemit", nk_jaccard_u32_spacemit);
+
+    // Dot products
+    dense_<i8_k, i32_k>("dot_i8_spacemit", nk_dot_i8_spacemit);
+    dense_<u8_k, u32_k>("dot_u8_spacemit", nk_dot_u8_spacemit);
+    dense_<f32_k, f32_k>("dot_f32_spacemit", nk_dot_f32_spacemit);
+    dense_<f64_k, f64_k>("dot_f64_spacemit", nk_dot_f64_spacemit);
+
+    // Spatial operations
+    dense_<f32_k, f32_k>("l2sq_f32_spacemit", nk_l2sq_f32_spacemit);
+    dense_<f64_k, f64_k>("l2sq_f64_spacemit", nk_l2sq_f64_spacemit);
+    dense_<f32_k, f32_k>("angular_f32_spacemit", nk_angular_f32_spacemit);
+    dense_<f64_k, f64_k>("angular_f64_spacemit", nk_angular_f64_spacemit);
+#endif
+
     sparse_<u16_k, u32_k>("sparse_intersect_u16_serial", nk_sparse_intersect_u16_serial);
     sparse_<u32_k, u32_k>("sparse_intersect_u32_serial", nk_sparse_intersect_u32_serial);
     sparse_<u64_k, u64_k>("sparse_intersect_u64_serial", nk_sparse_intersect_u64_serial);

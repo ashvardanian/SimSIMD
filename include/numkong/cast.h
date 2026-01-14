@@ -79,12 +79,18 @@ NK_PUBLIC void nk_cast_ice(void const *from, nk_dtype_t from_type, nk_size_t n, 
 NK_PUBLIC void nk_cast_sapphire(void const *from, nk_dtype_t from_type, nk_size_t n, void *to, nk_dtype_t to_type);
 #endif // NK_TARGET_SAPPHIRE
 
+#if NK_TARGET_SPACEMIT
+/** @copydoc nk_cast */
+NK_PUBLIC void nk_cast_spacemit(void const *from, nk_dtype_t from_type, nk_size_t n, void *to, nk_dtype_t to_type);
+#endif // NK_TARGET_SPACEMIT
+
 #include "numkong/cast/serial.h"
 #include "numkong/cast/neon.h"
 #include "numkong/cast/haswell.h"
 #include "numkong/cast/skylake.h"
 #include "numkong/cast/ice.h"
 #include "numkong/cast/sapphire.h"
+#include "numkong/cast/spacemit.h"
 
 #if !NK_DYNAMIC_DISPATCH
 
@@ -97,6 +103,8 @@ NK_PUBLIC void nk_cast(void const *from, nk_dtype_t from_type, nk_size_t n, void
     nk_cast_skylake(from, from_type, n, to, to_type);
 #elif NK_TARGET_HASWELL
     nk_cast_haswell(from, from_type, n, to, to_type);
+#elif NK_TARGET_SPACEMIT
+    nk_cast_spacemit(from, from_type, n, to, to_type);
 #elif NK_TARGET_NEON
     nk_cast_neon(from, from_type, n, to, to_type);
 #else

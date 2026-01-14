@@ -445,6 +445,7 @@ NK_INTERNAL void nk_jaccard_b512_finalize_ice(nk_jaccard_b512_state_ice_t const 
 #include "numkong/binary/sve.h"
 #include "numkong/binary/ice.h"
 #include "numkong/binary/haswell.h"
+#include "numkong/binary/spacemit.h"
 
 #if !NK_DYNAMIC_DISPATCH
 
@@ -457,6 +458,8 @@ NK_PUBLIC void nk_hamming_u1(nk_u1x8_t const *a, nk_u1x8_t const *b, nk_size_t n
     nk_hamming_u1_ice(a, b, n, result);
 #elif NK_TARGET_HASWELL
     nk_hamming_u1_haswell(a, b, n, result);
+#elif NK_TARGET_SPACEMIT
+    nk_hamming_u1_spacemit(a, b, n, result);
 #else
     nk_hamming_u1_serial(a, b, n, result);
 #endif
@@ -471,6 +474,8 @@ NK_PUBLIC void nk_jaccard_u1(nk_u1x8_t const *a, nk_u1x8_t const *b, nk_size_t n
     nk_jaccard_u1_ice(a, b, n, result);
 #elif NK_TARGET_HASWELL
     nk_jaccard_u1_haswell(a, b, n, result);
+#elif NK_TARGET_SPACEMIT
+    nk_jaccard_u1_spacemit(a, b, n, result);
 #else
     nk_jaccard_u1_serial(a, b, n, result);
 #endif
@@ -485,6 +490,8 @@ NK_PUBLIC void nk_jaccard_u32(nk_u32_t const *a, nk_u32_t const *b, nk_size_t n,
     nk_jaccard_u32_ice(a, b, n, result);
 #elif NK_TARGET_HASWELL
     nk_jaccard_u32_haswell(a, b, n, result);
+#elif NK_TARGET_SPACEMIT
+    nk_jaccard_u32_spacemit(a, b, n, result);
 #else
     nk_jaccard_u32_serial(a, b, n, result);
 #endif
@@ -499,6 +506,8 @@ NK_PUBLIC void nk_hamming_u8(nk_u8_t const *a, nk_u8_t const *b, nk_size_t n, nk
     nk_hamming_u8_ice(a, b, n, result);
 #elif NK_TARGET_HASWELL
     nk_hamming_u8_haswell(a, b, n, result);
+#elif NK_TARGET_SPACEMIT
+    nk_hamming_u8_spacemit(a, b, n, result);
 #else
     nk_hamming_u8_serial(a, b, n, result);
 #endif
@@ -513,6 +522,8 @@ NK_PUBLIC void nk_jaccard_u16(nk_u16_t const *a, nk_u16_t const *b, nk_size_t n,
     nk_jaccard_u16_ice(a, b, n, result);
 #elif NK_TARGET_HASWELL
     nk_jaccard_u16_haswell(a, b, n, result);
+#elif NK_TARGET_SPACEMIT
+    nk_jaccard_u16_spacemit(a, b, n, result);
 #else
     nk_jaccard_u16_serial(a, b, n, result);
 #endif

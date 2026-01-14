@@ -700,6 +700,8 @@ NK_PUBLIC void nk_angular_f32(nk_f32_t const *a, nk_f32_t const *b, nk_size_t n,
 NK_PUBLIC void nk_l2_f16(nk_f16_t const *a, nk_f16_t const *b, nk_size_t n, nk_f32_t *result) {
 #if NK_TARGET_SIFIVE
     nk_l2_f16_sifive(a, b, n, result);
+#elif NK_TARGET_SPACEMIT
+    nk_l2_f16_spacemit(a, b, n, result);
 #elif NK_TARGET_SVEHALF
     nk_l2_f16_svehalf(a, b, n, result);
 #elif NK_TARGET_NEONHALF
@@ -714,6 +716,8 @@ NK_PUBLIC void nk_l2_f16(nk_f16_t const *a, nk_f16_t const *b, nk_size_t n, nk_f
 NK_PUBLIC void nk_l2sq_f16(nk_f16_t const *a, nk_f16_t const *b, nk_size_t n, nk_f32_t *result) {
 #if NK_TARGET_SIFIVE
     nk_l2sq_f16_sifive(a, b, n, result);
+#elif NK_TARGET_SPACEMIT
+    nk_l2sq_f16_spacemit(a, b, n, result);
 #elif NK_TARGET_SVEHALF
     nk_l2sq_f16_svehalf(a, b, n, result);
 #elif NK_TARGET_NEONHALF
@@ -728,6 +732,8 @@ NK_PUBLIC void nk_l2sq_f16(nk_f16_t const *a, nk_f16_t const *b, nk_size_t n, nk
 NK_PUBLIC void nk_angular_f16(nk_f16_t const *a, nk_f16_t const *b, nk_size_t n, nk_f32_t *result) {
 #if NK_TARGET_SIFIVE
     nk_angular_f16_sifive(a, b, n, result);
+#elif NK_TARGET_SPACEMIT
+    nk_angular_f16_spacemit(a, b, n, result);
 #elif NK_TARGET_SVEHALF
     nk_angular_f16_svehalf(a, b, n, result);
 #elif NK_TARGET_NEONHALF
@@ -742,6 +748,8 @@ NK_PUBLIC void nk_angular_f16(nk_f16_t const *a, nk_f16_t const *b, nk_size_t n,
 NK_PUBLIC void nk_l2_bf16(nk_bf16_t const *a, nk_bf16_t const *b, nk_size_t n, nk_f32_t *result) {
 #if NK_TARGET_XUANTIE
     nk_l2_bf16_xuantie(a, b, n, result);
+#elif NK_TARGET_SPACEMIT
+    nk_l2_bf16_spacemit(a, b, n, result);
 #elif NK_TARGET_SVEBFDOT
     nk_l2_bf16_svebfdot(a, b, n, result);
 #elif NK_TARGET_NEONBFDOT
@@ -758,6 +766,8 @@ NK_PUBLIC void nk_l2_bf16(nk_bf16_t const *a, nk_bf16_t const *b, nk_size_t n, n
 NK_PUBLIC void nk_l2sq_bf16(nk_bf16_t const *a, nk_bf16_t const *b, nk_size_t n, nk_f32_t *result) {
 #if NK_TARGET_XUANTIE
     nk_l2sq_bf16_xuantie(a, b, n, result);
+#elif NK_TARGET_SPACEMIT
+    nk_l2sq_bf16_spacemit(a, b, n, result);
 #elif NK_TARGET_SVEBFDOT
     nk_l2sq_bf16_svebfdot(a, b, n, result);
 #elif NK_TARGET_NEONBFDOT
@@ -774,6 +784,8 @@ NK_PUBLIC void nk_l2sq_bf16(nk_bf16_t const *a, nk_bf16_t const *b, nk_size_t n,
 NK_PUBLIC void nk_angular_bf16(nk_bf16_t const *a, nk_bf16_t const *b, nk_size_t n, nk_f32_t *result) {
 #if NK_TARGET_XUANTIE
     nk_angular_bf16_xuantie(a, b, n, result);
+#elif NK_TARGET_SPACEMIT
+    nk_angular_bf16_spacemit(a, b, n, result);
 #elif NK_TARGET_SVEBFDOT
     nk_angular_bf16_svebfdot(a, b, n, result);
 #elif NK_TARGET_NEONBFDOT
@@ -794,6 +806,8 @@ NK_PUBLIC void nk_l2_e4m3(nk_e4m3_t const *a, nk_e4m3_t const *b, nk_size_t n, n
     nk_l2_e4m3_sapphire(a, b, n, result);
 #elif NK_TARGET_SKYLAKE
     nk_l2_e4m3_skylake(a, b, n, result);
+#elif NK_TARGET_SPACEMIT
+    nk_l2_e4m3_spacemit(a, b, n, result);
 #else
     nk_l2_e4m3_serial(a, b, n, result);
 #endif
@@ -806,6 +820,8 @@ NK_PUBLIC void nk_l2sq_e4m3(nk_e4m3_t const *a, nk_e4m3_t const *b, nk_size_t n,
     nk_l2sq_e4m3_sapphire(a, b, n, result);
 #elif NK_TARGET_SKYLAKE
     nk_l2sq_e4m3_skylake(a, b, n, result);
+#elif NK_TARGET_SPACEMIT
+    nk_l2sq_e4m3_spacemit(a, b, n, result);
 #else
     nk_l2sq_e4m3_serial(a, b, n, result);
 #endif
@@ -816,6 +832,8 @@ NK_PUBLIC void nk_angular_e4m3(nk_e4m3_t const *a, nk_e4m3_t const *b, nk_size_t
     nk_angular_e4m3_genoa(a, b, n, result);
 #elif NK_TARGET_SKYLAKE
     nk_angular_e4m3_skylake(a, b, n, result);
+#elif NK_TARGET_SPACEMIT
+    nk_angular_e4m3_spacemit(a, b, n, result);
 #else
     nk_angular_e4m3_serial(a, b, n, result);
 #endif
@@ -826,6 +844,8 @@ NK_PUBLIC void nk_l2_e5m2(nk_e5m2_t const *a, nk_e5m2_t const *b, nk_size_t n, n
     nk_l2_e5m2_genoa(a, b, n, result);
 #elif NK_TARGET_SKYLAKE
     nk_l2_e5m2_skylake(a, b, n, result);
+#elif NK_TARGET_SPACEMIT
+    nk_l2_e5m2_spacemit(a, b, n, result);
 #else
     nk_l2_e5m2_serial(a, b, n, result);
 #endif
@@ -836,6 +856,8 @@ NK_PUBLIC void nk_l2sq_e5m2(nk_e5m2_t const *a, nk_e5m2_t const *b, nk_size_t n,
     nk_l2sq_e5m2_genoa(a, b, n, result);
 #elif NK_TARGET_SKYLAKE
     nk_l2sq_e5m2_skylake(a, b, n, result);
+#elif NK_TARGET_SPACEMIT
+    nk_l2sq_e5m2_spacemit(a, b, n, result);
 #else
     nk_l2sq_e5m2_serial(a, b, n, result);
 #endif
@@ -846,6 +868,8 @@ NK_PUBLIC void nk_angular_e5m2(nk_e5m2_t const *a, nk_e5m2_t const *b, nk_size_t
     nk_angular_e5m2_genoa(a, b, n, result);
 #elif NK_TARGET_SKYLAKE
     nk_angular_e5m2_skylake(a, b, n, result);
+#elif NK_TARGET_SPACEMIT
+    nk_angular_e5m2_spacemit(a, b, n, result);
 #else
     nk_angular_e5m2_serial(a, b, n, result);
 #endif
@@ -940,6 +964,8 @@ NK_PUBLIC void nk_angular_u8(nk_u8_t const *a, nk_u8_t const *b, nk_size_t n, nk
 NK_PUBLIC void nk_l2_i4(nk_i4x2_t const *a, nk_i4x2_t const *b, nk_size_t n, nk_f32_t *result) {
 #if NK_TARGET_ICE
     nk_l2_i4_ice(a, b, n, result);
+#elif NK_TARGET_SPACEMIT
+    nk_l2_i4_spacemit(a, b, n, result);
 #else
     nk_l2_i4_serial(a, b, n, result);
 #endif
@@ -948,6 +974,8 @@ NK_PUBLIC void nk_l2_i4(nk_i4x2_t const *a, nk_i4x2_t const *b, nk_size_t n, nk_
 NK_PUBLIC void nk_l2sq_i4(nk_i4x2_t const *a, nk_i4x2_t const *b, nk_size_t n, nk_u32_t *result) {
 #if NK_TARGET_ICE
     nk_l2sq_i4_ice(a, b, n, result);
+#elif NK_TARGET_SPACEMIT
+    nk_l2sq_i4_spacemit(a, b, n, result);
 #else
     nk_l2sq_i4_serial(a, b, n, result);
 #endif
@@ -956,6 +984,8 @@ NK_PUBLIC void nk_l2sq_i4(nk_i4x2_t const *a, nk_i4x2_t const *b, nk_size_t n, n
 NK_PUBLIC void nk_angular_i4(nk_i4x2_t const *a, nk_i4x2_t const *b, nk_size_t n, nk_f32_t *result) {
 #if NK_TARGET_ICE
     nk_angular_i4_ice(a, b, n, result);
+#elif NK_TARGET_SPACEMIT
+    nk_angular_i4_spacemit(a, b, n, result);
 #else
     nk_angular_i4_serial(a, b, n, result);
 #endif
@@ -964,6 +994,8 @@ NK_PUBLIC void nk_angular_i4(nk_i4x2_t const *a, nk_i4x2_t const *b, nk_size_t n
 NK_PUBLIC void nk_l2_u4(nk_u4x2_t const *a, nk_u4x2_t const *b, nk_size_t n, nk_f32_t *result) {
 #if NK_TARGET_ICE
     nk_l2_u4_ice(a, b, n, result);
+#elif NK_TARGET_SPACEMIT
+    nk_l2_u4_spacemit(a, b, n, result);
 #else
     nk_l2_u4_serial(a, b, n, result);
 #endif
@@ -972,6 +1004,8 @@ NK_PUBLIC void nk_l2_u4(nk_u4x2_t const *a, nk_u4x2_t const *b, nk_size_t n, nk_
 NK_PUBLIC void nk_l2sq_u4(nk_u4x2_t const *a, nk_u4x2_t const *b, nk_size_t n, nk_u32_t *result) {
 #if NK_TARGET_ICE
     nk_l2sq_u4_ice(a, b, n, result);
+#elif NK_TARGET_SPACEMIT
+    nk_l2sq_u4_spacemit(a, b, n, result);
 #else
     nk_l2sq_u4_serial(a, b, n, result);
 #endif
@@ -980,6 +1014,8 @@ NK_PUBLIC void nk_l2sq_u4(nk_u4x2_t const *a, nk_u4x2_t const *b, nk_size_t n, n
 NK_PUBLIC void nk_angular_u4(nk_u4x2_t const *a, nk_u4x2_t const *b, nk_size_t n, nk_f32_t *result) {
 #if NK_TARGET_ICE
     nk_angular_u4_ice(a, b, n, result);
+#elif NK_TARGET_SPACEMIT
+    nk_angular_u4_spacemit(a, b, n, result);
 #else
     nk_angular_u4_serial(a, b, n, result);
 #endif
