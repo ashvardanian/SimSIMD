@@ -119,8 +119,17 @@ NK_INTERNAL void nk_reduce_add_i16_ice_strided_(                      //
         __m512i data_i16x32 = _mm512_maskz_loadu_epi16(stride_mask_m32, data + idx_scalars);
         sum_i32x16 = _mm512_dpwssd_epi32(sum_i32x16, data_i16x32, ones_i16x32);
     }
+
+    // Handle tail with masked SIMD instead of scalar loop
+    if (idx_scalars < total_scalars) {
+        nk_size_t remaining_scalars = total_scalars - idx_scalars;
+        // Compute mask that combines stride pattern with tail boundary
+        __mmask32 tail_mask = (__mmask32)_bzhi_u32(0xFFFFFFFF, remaining_scalars);
+        __mmask32 combined_mask = _kand_mask32(stride_mask_m32, tail_mask);
+        __m512i data_i16x32 = _mm512_maskz_loadu_epi16(combined_mask, data + idx_scalars);
+        sum_i32x16 = _mm512_dpwssd_epi32(sum_i32x16, data_i16x32, ones_i16x32);
+    }
     sum_i64 += _mm512_reduce_add_epi32(sum_i32x16);
-    for (nk_size_t idx = idx_scalars / stride_elements; idx < count; ++idx) sum_i64 += data[idx * stride_elements];
 
     *result = sum_i64;
 }
@@ -189,8 +198,16 @@ NK_INTERNAL void nk_reduce_add_u16_ice_strided_(                      //
         __m512i data_u16x32 = _mm512_maskz_loadu_epi16(stride_mask_m32, data + idx_scalars);
         sum_i32x16 = _mm512_dpwssd_epi32(sum_i32x16, data_u16x32, ones_i16x32);
     }
+
+    // Handle tail with masked SIMD instead of scalar loop
+    if (idx_scalars < total_scalars) {
+        nk_size_t remaining_scalars = total_scalars - idx_scalars;
+        __mmask32 tail_mask = (__mmask32)_bzhi_u32(0xFFFFFFFF, remaining_scalars);
+        __mmask32 combined_mask = _kand_mask32(stride_mask_m32, tail_mask);
+        __m512i data_u16x32 = _mm512_maskz_loadu_epi16(combined_mask, data + idx_scalars);
+        sum_i32x16 = _mm512_dpwssd_epi32(sum_i32x16, data_u16x32, ones_i16x32);
+    }
     sum_u64 += (nk_u64_t)_mm512_reduce_add_epi32(sum_i32x16);
-    for (nk_size_t idx = idx_scalars / stride_elements; idx < count; ++idx) sum_u64 += data[idx * stride_elements];
 
     *result = sum_u64;
 }
@@ -245,9 +262,21 @@ NK_INTERNAL void nk_reduce_add_i8_ice_strided_(                      //
         sum_i32x16 = _mm512_dpwssd_epi32(sum_i32x16, hi_i16x32, ones_i16x32);
     }
 
-    nk_i64_t sum = _mm512_reduce_add_epi32(sum_i32x16);
-    for (nk_size_t idx = idx_scalars / stride_elements; idx < count; ++idx) sum += data[idx * stride_elements];
+    // Handle tail with masked SIMD instead of scalar loop
+    if (idx_scalars < total_scalars) {
+        nk_size_t remaining_scalars = total_scalars - idx_scalars;
+        __mmask64 tail_mask = (__mmask64)_bzhi_u64(0xFFFFFFFFFFFFFFFFull, remaining_scalars);
+        __mmask64 combined_mask = _kand_mask64(stride_mask_m64, tail_mask);
+        __m512i data_i8x64 = _mm512_maskz_loadu_epi8(combined_mask, data + idx_scalars);
+        __m256i lo_i8x32 = _mm512_castsi512_si256(data_i8x64);
+        __m256i hi_i8x32 = _mm512_extracti64x4_epi64(data_i8x64, 1);
+        __m512i lo_i16x32 = _mm512_cvtepi8_epi16(lo_i8x32);
+        __m512i hi_i16x32 = _mm512_cvtepi8_epi16(hi_i8x32);
+        sum_i32x16 = _mm512_dpwssd_epi32(sum_i32x16, lo_i16x32, ones_i16x32);
+        sum_i32x16 = _mm512_dpwssd_epi32(sum_i32x16, hi_i16x32, ones_i16x32);
+    }
 
+    nk_i64_t sum = _mm512_reduce_add_epi32(sum_i32x16);
     *result = sum;
 }
 
@@ -311,9 +340,21 @@ NK_INTERNAL void nk_reduce_add_u8_ice_strided_(                      //
         sum_i32x16 = _mm512_dpwssd_epi32(sum_i32x16, hi_i16x32, ones_i16x32);
     }
 
-    nk_u64_t sum = (nk_u64_t)_mm512_reduce_add_epi32(sum_i32x16);
-    for (nk_size_t idx = idx_scalars / stride_elements; idx < count; ++idx) sum += data[idx * stride_elements];
+    // Handle tail with masked SIMD instead of scalar loop
+    if (idx_scalars < total_scalars) {
+        nk_size_t remaining_scalars = total_scalars - idx_scalars;
+        __mmask64 tail_mask = (__mmask64)_bzhi_u64(0xFFFFFFFFFFFFFFFFull, remaining_scalars);
+        __mmask64 combined_mask = _kand_mask64(stride_mask_m64, tail_mask);
+        __m512i data_u8x64 = _mm512_maskz_loadu_epi8(combined_mask, data + idx_scalars);
+        __m256i lo_u8x32 = _mm512_castsi512_si256(data_u8x64);
+        __m256i hi_u8x32 = _mm512_extracti64x4_epi64(data_u8x64, 1);
+        __m512i lo_i16x32 = _mm512_cvtepu8_epi16(lo_u8x32);
+        __m512i hi_i16x32 = _mm512_cvtepu8_epi16(hi_u8x32);
+        sum_i32x16 = _mm512_dpwssd_epi32(sum_i32x16, lo_i16x32, ones_i16x32);
+        sum_i32x16 = _mm512_dpwssd_epi32(sum_i32x16, hi_i16x32, ones_i16x32);
+    }
 
+    nk_u64_t sum = (nk_u64_t)_mm512_reduce_add_epi32(sum_i32x16);
     *result = sum;
 }
 
