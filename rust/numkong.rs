@@ -113,8 +113,9 @@ pub use numerics::capabilities;
 
 // Re-export tensor types
 pub use tensor::{
-    Allocator, Dots, Global, Matrix, MatrixMultiplier, MatrixView, MatrixViewMut, ShapeDescriptor,
-    SliceRange, Tensor, TensorError, TensorView, TensorViewMut, DEFAULT_MAX_RANK, SIMD_ALIGNMENT,
+    Allocator, Dots, DotsSymmetric, Global, Matrix, MatrixMultiplier, MatrixView, MatrixViewMut,
+    ShapeDescriptor, SliceRange, Tensor, TensorError, TensorView, TensorViewMut, DEFAULT_MAX_RANK,
+    SIMD_ALIGNMENT,
 };
 
 // region: Tests

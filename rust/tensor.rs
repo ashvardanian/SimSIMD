@@ -177,6 +177,88 @@ extern "C" {
         a_stride: u64size,
         c_stride: u64size,
     );
+
+    // Symmetric Gram matrix (C = A × Aᵀ)
+    fn nk_dots_symmetric_f32(
+        vectors: *const f32,
+        n_vectors: u64size,
+        depth: u64size,
+        stride: u64size,
+        result: *mut f32,
+        result_stride: u64size,
+    );
+    fn nk_dots_symmetric_f64(
+        vectors: *const f64,
+        n_vectors: u64size,
+        depth: u64size,
+        stride: u64size,
+        result: *mut f64,
+        result_stride: u64size,
+    );
+    fn nk_dots_symmetric_f16(
+        vectors: *const u16,
+        n_vectors: u64size,
+        depth: u64size,
+        stride: u64size,
+        result: *mut f32,
+        result_stride: u64size,
+    );
+    fn nk_dots_symmetric_bf16(
+        vectors: *const u16,
+        n_vectors: u64size,
+        depth: u64size,
+        stride: u64size,
+        result: *mut f32,
+        result_stride: u64size,
+    );
+    fn nk_dots_symmetric_i8(
+        vectors: *const i8,
+        n_vectors: u64size,
+        depth: u64size,
+        stride: u64size,
+        result: *mut i32,
+        result_stride: u64size,
+    );
+    fn nk_dots_symmetric_u8(
+        vectors: *const u8,
+        n_vectors: u64size,
+        depth: u64size,
+        stride: u64size,
+        result: *mut u32,
+        result_stride: u64size,
+    );
+    fn nk_dots_symmetric_e4m3(
+        vectors: *const u8,
+        n_vectors: u64size,
+        depth: u64size,
+        stride: u64size,
+        result: *mut f32,
+        result_stride: u64size,
+    );
+    fn nk_dots_symmetric_e5m2(
+        vectors: *const u8,
+        n_vectors: u64size,
+        depth: u64size,
+        stride: u64size,
+        result: *mut f32,
+        result_stride: u64size,
+    );
+    fn nk_dots_symmetric_u4(
+        vectors: *const u8,
+        n_vectors: u64size,
+        depth: u64size,
+        stride: u64size,
+        result: *mut u32,
+        result_stride: u64size,
+    );
+    fn nk_dots_symmetric_i4(
+        vectors: *const u8,
+        n_vectors: u64size,
+        depth: u64size,
+        stride: u64size,
+        result: *mut i32,
+        result_stride: u64size,
+    );
 }
 
 // region: Constants and Allocator
@@ -787,6 +869,256 @@ impl Dots for i4x2 {
     }
 }
 
+/// Trait for symmetric Gram matrix computation (C = A × Aᵀ).
+///
+/// Computes the symmetric matrix of dot products between all pairs of row vectors.
+/// The result is an n×n symmetric matrix where result[i,j] = dot(row_i, row_j).
+///
+/// # Mathematical Operation
+/// Given input matrix A of shape [n, k]:
+/// - Computes C = A × Aᵀ
+/// - Result C is symmetric: C[i,j] = C[j,i]
+/// - Only upper triangle is computed, then mirrored to lower triangle
+pub trait DotsSymmetric: Sized + Clone {
+    /// Accumulator/output type for the multiplication
+    type Accumulator: Clone + Default;
+
+    /// Computes C = A × Aᵀ where C is symmetric
+    ///
+    /// # Safety
+    /// - `vectors` must point to valid memory for `n_vectors × depth` elements with given stride
+    /// - `result` must point to valid memory for `n_vectors × n_vectors` elements with given stride
+    /// - Strides are in bytes, not elements
+    unsafe fn dots_symmetric(
+        vectors: *const Self,
+        n_vectors: usize,
+        depth: usize,
+        stride: usize,
+        result: *mut Self::Accumulator,
+        result_stride: usize,
+    );
+}
+
+impl DotsSymmetric for f32 {
+    type Accumulator = f32;
+
+    unsafe fn dots_symmetric(
+        vectors: *const Self,
+        n_vectors: usize,
+        depth: usize,
+        stride: usize,
+        result: *mut Self::Accumulator,
+        result_stride: usize,
+    ) {
+        nk_dots_symmetric_f32(
+            vectors,
+            n_vectors as u64size,
+            depth as u64size,
+            stride as u64size,
+            result,
+            result_stride as u64size,
+        )
+    }
+}
+
+impl DotsSymmetric for f64 {
+    type Accumulator = f64;
+
+    unsafe fn dots_symmetric(
+        vectors: *const Self,
+        n_vectors: usize,
+        depth: usize,
+        stride: usize,
+        result: *mut Self::Accumulator,
+        result_stride: usize,
+    ) {
+        nk_dots_symmetric_f64(
+            vectors,
+            n_vectors as u64size,
+            depth as u64size,
+            stride as u64size,
+            result,
+            result_stride as u64size,
+        )
+    }
+}
+
+impl DotsSymmetric for f16 {
+    type Accumulator = f32;
+
+    unsafe fn dots_symmetric(
+        vectors: *const Self,
+        n_vectors: usize,
+        depth: usize,
+        stride: usize,
+        result: *mut Self::Accumulator,
+        result_stride: usize,
+    ) {
+        nk_dots_symmetric_f16(
+            vectors as *const u16,
+            n_vectors as u64size,
+            depth as u64size,
+            stride as u64size,
+            result,
+            result_stride as u64size,
+        )
+    }
+}
+
+impl DotsSymmetric for bf16 {
+    type Accumulator = f32;
+
+    unsafe fn dots_symmetric(
+        vectors: *const Self,
+        n_vectors: usize,
+        depth: usize,
+        stride: usize,
+        result: *mut Self::Accumulator,
+        result_stride: usize,
+    ) {
+        nk_dots_symmetric_bf16(
+            vectors as *const u16,
+            n_vectors as u64size,
+            depth as u64size,
+            stride as u64size,
+            result,
+            result_stride as u64size,
+        )
+    }
+}
+
+impl DotsSymmetric for i8 {
+    type Accumulator = i32;
+
+    unsafe fn dots_symmetric(
+        vectors: *const Self,
+        n_vectors: usize,
+        depth: usize,
+        stride: usize,
+        result: *mut Self::Accumulator,
+        result_stride: usize,
+    ) {
+        nk_dots_symmetric_i8(
+            vectors,
+            n_vectors as u64size,
+            depth as u64size,
+            stride as u64size,
+            result,
+            result_stride as u64size,
+        )
+    }
+}
+
+impl DotsSymmetric for u8 {
+    type Accumulator = u32;
+
+    unsafe fn dots_symmetric(
+        vectors: *const Self,
+        n_vectors: usize,
+        depth: usize,
+        stride: usize,
+        result: *mut Self::Accumulator,
+        result_stride: usize,
+    ) {
+        nk_dots_symmetric_u8(
+            vectors,
+            n_vectors as u64size,
+            depth as u64size,
+            stride as u64size,
+            result,
+            result_stride as u64size,
+        )
+    }
+}
+
+impl DotsSymmetric for e4m3 {
+    type Accumulator = f32;
+
+    unsafe fn dots_symmetric(
+        vectors: *const Self,
+        n_vectors: usize,
+        depth: usize,
+        stride: usize,
+        result: *mut Self::Accumulator,
+        result_stride: usize,
+    ) {
+        nk_dots_symmetric_e4m3(
+            vectors as *const u8,
+            n_vectors as u64size,
+            depth as u64size,
+            stride as u64size,
+            result,
+            result_stride as u64size,
+        )
+    }
+}
+
+impl DotsSymmetric for e5m2 {
+    type Accumulator = f32;
+
+    unsafe fn dots_symmetric(
+        vectors: *const Self,
+        n_vectors: usize,
+        depth: usize,
+        stride: usize,
+        result: *mut Self::Accumulator,
+        result_stride: usize,
+    ) {
+        nk_dots_symmetric_e5m2(
+            vectors as *const u8,
+            n_vectors as u64size,
+            depth as u64size,
+            stride as u64size,
+            result,
+            result_stride as u64size,
+        )
+    }
+}
+
+impl DotsSymmetric for u4x2 {
+    type Accumulator = u32;
+
+    unsafe fn dots_symmetric(
+        vectors: *const Self,
+        n_vectors: usize,
+        depth: usize,
+        stride: usize,
+        result: *mut Self::Accumulator,
+        result_stride: usize,
+    ) {
+        nk_dots_symmetric_u4(
+            vectors as *const u8,
+            n_vectors as u64size,
+            depth as u64size,
+            stride as u64size,
+            result,
+            result_stride as u64size,
+        )
+    }
+}
+
+impl DotsSymmetric for i4x2 {
+    type Accumulator = i32;
+
+    unsafe fn dots_symmetric(
+        vectors: *const Self,
+        n_vectors: usize,
+        depth: usize,
+        stride: usize,
+        result: *mut Self::Accumulator,
+        result_stride: usize,
+    ) {
+        nk_dots_symmetric_i4(
+            vectors as *const u8,
+            n_vectors as u64size,
+            depth as u64size,
+            stride as u64size,
+            result,
+            result_stride as u64size,
+        )
+    }
+}
+
 // endregion: Dots Trait
 
 // region: Tensor
@@ -1287,6 +1619,60 @@ impl<'a, T: Clone, const MAX_RANK: usize> TensorView<'a, T, MAX_RANK> {
                 }
             }
         }
+    }
+}
+
+impl<'a, T: DotsSymmetric, const MAX_RANK: usize> TensorView<'a, T, MAX_RANK>
+where
+    T::Accumulator: Clone + Default + 'static,
+{
+    /// Computes the symmetric Gram matrix C = A × Aᵀ.
+    ///
+    /// Given a matrix of row vectors, computes the matrix of all pairwise dot products.
+    /// The result is a symmetric n×n matrix where result[i,j] = dot(row_i, row_j).
+    ///
+    /// # Example
+    /// ```ignore
+    /// use numkong::{Tensor, TensorView};
+    ///
+    /// // 100 vectors of dimension 768
+    /// let vectors = Tensor::<f32>::try_new(&[100, 768], 0.0)?;
+    ///
+    /// // Compute 100×100 Gram matrix
+    /// let gram = vectors.as_view().gram_matrix()?;
+    /// assert_eq!(gram.shape(), &[100, 100]);
+    /// ```
+    pub fn gram_matrix(&self) -> Result<Tensor<T::Accumulator, Global, MAX_RANK>, TensorError> {
+        let shape = self.shape();
+        if shape.len() != 2 {
+            return Err(TensorError::InvalidShape(format!(
+                "gram_matrix requires 2D tensor, got {}D",
+                shape.len()
+            )));
+        }
+
+        let n_vectors = shape[0];
+        let depth = shape[1];
+
+        // Result is n_vectors × n_vectors symmetric matrix
+        let result_shape = &[n_vectors, n_vectors];
+        let mut result = Tensor::<T::Accumulator, Global, MAX_RANK>::try_new(
+            result_shape,
+            T::Accumulator::default(),
+        )?;
+
+        unsafe {
+            T::dots_symmetric(
+                self.as_ptr(),
+                n_vectors,
+                depth,
+                self.stride(0),
+                result.as_mut_ptr(),
+                result.stride(0),
+            );
+        }
+
+        Ok(result)
     }
 }
 
