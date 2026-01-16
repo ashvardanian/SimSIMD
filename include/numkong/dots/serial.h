@@ -72,6 +72,8 @@
 #define NK_DOTS_SERIAL_H
 #include "numkong/types.h"
 #include "numkong/binary/serial.h" // `nk_popcount_u1`
+#include "numkong/cast/serial.h"   // Generic load/store helpers
+#include "numkong/dot/serial.h"    // Stateful dot product helpers
 
 #if defined(__cplusplus)
 extern "C" {
@@ -680,311 +682,192 @@ typedef struct {
     }
 
 /**
- *  @brief Scalar GEMM macro with 4 × 4 register blocking.
+ * @brief Vectorized symmetric Gram matrix: C = A × Aᵀ
  *
- *  Computes C[row_count, column_count] = A[row_count, depth] × B[depth, column_count] where
- *  B is pre-packed as Bᵀ[column_count, depth].
+ * Computes symmetric matrix C[i,j] = dot(A[i,:], A[j,:]) using vectorized operations.
+ * Only computes upper triangle for efficiency, then mirrors to lower triangle.
  *
- *  Optimizations:
- *    1. Register blocking (4 × 4): 16 scalar accumulators stay in registers across depth-loop
- *    2. depth-loop unrolling (4×): reduces loop overhead, enables ILP
- *    3. A-row caching: load 4 A values once, reuse for 4 B columns
- *
- *  Parameters:
- *    - fma_fn: Functor for accumulation, e.g., nk_fma_multiply_add_(acc, a, b) for regular types
- *    - depth_divisor: Converts logical depth to iteration count: iterations = (depth + divisor - 1) / divisor
- *      - Regular types: 1 (iterate per element)
- *      - u1: 8 (iterate per byte = 8 bits)
- *      - u4/i4: 2 (iterate per byte = 2 nibbles)
+ * Optimizations:
+ * - Vector loads (simd_width elements per load)
+ * - Register reuse (row_i loaded once per iteration, used for all j ≥ i)
+ * - State-based accumulation (supports Neumaier compensation, platform-specific precision)
  */
-#define nk_define_dots_outer_scalars_(suffix, input_type, accumulator_type, output_type, load_and_convert, fma_fn,     \
-                                      depth_divisor)                                                                   \
-    NK_PUBLIC void nk_dots_packed_##input_type##_##suffix(                                                             \
-        nk_##input_type##_t const *a, void const *b_packed_buffer, nk_##output_type##_t *c, nk_size_t row_count,       \
-        nk_size_t column_count, nk_size_t depth, nk_size_t a_stride_in_bytes, nk_size_t c_stride_in_bytes) {           \
-                                                                                                                       \
-        nk_size_t const register_row_count = 4;    /* Rows per micro-kernel */                                         \
-        nk_size_t const register_column_count = 4; /* Columns per micro-kernel */                                      \
-        nk_size_t const depth_unroll_factor = 4;   /* depth elements per unrolled iteration */                         \
-        nk_size_t const group_size = NK_DOTS_GROUP_SIZE_;                                                              \
-        nk_size_t const depth_iterations = (depth + depth_divisor - 1) / depth_divisor;                                \
-        nk_size_t const group_stride = group_size * depth_iterations;                                                  \
-                                                                                                                       \
-        nk_##input_type##_t const *packed_data =                                                                       \
-            (nk_##input_type##_t const *)((char const *)b_packed_buffer + sizeof(nk_dots_packed_buffer_header_t));     \
-                                                                                                                       \
-        /* Zero output matrix */                                                                                       \
-        for (nk_size_t row_index = 0; row_index < row_count; ++row_index) {                                            \
-            nk_##output_type##_t *c_row = (nk_##output_type##_t *)((char *)c + row_index * c_stride_in_bytes);         \
-            for (nk_size_t column_index = 0; column_index < column_count; ++column_index) c_row[column_index] = 0;     \
-        }                                                                                                              \
-                                                                                                                       \
-        /* Process columns in groups of register_column_count */                                                       \
-        for (nk_size_t column_block_start_index = 0; column_block_start_index < column_count;                          \
-             column_block_start_index += register_column_count) {                                                      \
-            nk_size_t const column_block_end_index = (column_block_start_index + register_column_count < column_count) \
-                                                         ? (column_block_start_index + register_column_count)          \
-                                                         : column_count;                                               \
-            nk_size_t const column_block_length = column_block_end_index - column_block_start_index;                   \
-                                                                                                                       \
-            /* Compute B pointers once per column block */                                                             \
-            nk_size_t const group_index = column_block_start_index / group_size;                                       \
-            nk_size_t const column_index_in_group = column_block_start_index % group_size;                             \
-            nk_##input_type##_t const *group_base_ptr = packed_data + group_index * group_stride;                      \
-                                                                                                                       \
-            nk_##input_type##_t const *b_depth_ptr_0 = group_base_ptr +                                                \
-                                                       (column_index_in_group + 0) * depth_iterations;                 \
-            nk_##input_type##_t const *b_depth_ptr_1 = (column_block_length > 1)                                       \
-                                                           ? group_base_ptr +                                          \
-                                                                 (column_index_in_group + 1) * depth_iterations        \
-                                                           : b_depth_ptr_0;                                            \
-            nk_##input_type##_t const *b_depth_ptr_2 = (column_block_length > 2)                                       \
-                                                           ? group_base_ptr +                                          \
-                                                                 (column_index_in_group + 2) * depth_iterations        \
-                                                           : b_depth_ptr_0;                                            \
-            nk_##input_type##_t const *b_depth_ptr_3 = (column_block_length > 3)                                       \
-                                                           ? group_base_ptr +                                          \
-                                                                 (column_index_in_group + 3) * depth_iterations        \
-                                                           : b_depth_ptr_0;                                            \
-                                                                                                                       \
-            /* Process rows in blocks of register_row_count */                                                         \
-            for (nk_size_t row_block_start_index = 0; row_block_start_index < row_count;                               \
-                 row_block_start_index += register_row_count) {                                                        \
-                nk_size_t const row_block_end_index = (row_block_start_index + register_row_count < row_count)         \
-                                                          ? (row_block_start_index + register_row_count)               \
-                                                          : row_count;                                                 \
-                nk_size_t const row_block_length = row_block_end_index - row_block_start_index;                        \
-                                                                                                                       \
-                /* 4 × 4 accumulator block */                                                                          \
-                nk_##accumulator_type##_t accumulator_0_0 = 0, accumulator_0_1 = 0, accumulator_0_2 = 0,               \
-                                          accumulator_0_3 = 0;                                                         \
-                nk_##accumulator_type##_t accumulator_1_0 = 0, accumulator_1_1 = 0, accumulator_1_2 = 0,               \
-                                          accumulator_1_3 = 0;                                                         \
-                nk_##accumulator_type##_t accumulator_2_0 = 0, accumulator_2_1 = 0, accumulator_2_2 = 0,               \
-                                          accumulator_2_3 = 0;                                                         \
-                nk_##accumulator_type##_t accumulator_3_0 = 0, accumulator_3_1 = 0, accumulator_3_2 = 0,               \
-                                          accumulator_3_3 = 0;                                                         \
-                                                                                                                       \
-                /* A row pointers */                                                                                   \
-                nk_##input_type##_t const *a_row_ptr_0 =                                                               \
-                    (nk_##input_type##_t const *)((char const *)a + row_block_start_index * a_stride_in_bytes);        \
-                nk_##input_type##_t const *a_row_ptr_1 =                                                               \
-                    (row_block_length > 1)                                                                             \
-                        ? (nk_##input_type##_t const *)((char const *)a +                                              \
-                                                        (row_block_start_index + 1) * a_stride_in_bytes)               \
-                        : a_row_ptr_0;                                                                                 \
-                nk_##input_type##_t const *a_row_ptr_2 =                                                               \
-                    (row_block_length > 2)                                                                             \
-                        ? (nk_##input_type##_t const *)((char const *)a +                                              \
-                                                        (row_block_start_index + 2) * a_stride_in_bytes)               \
-                        : a_row_ptr_0;                                                                                 \
-                nk_##input_type##_t const *a_row_ptr_3 =                                                               \
-                    (row_block_length > 3)                                                                             \
-                        ? (nk_##input_type##_t const *)((char const *)a +                                              \
-                                                        (row_block_start_index + 3) * a_stride_in_bytes)               \
-                        : a_row_ptr_0;                                                                                 \
-                                                                                                                       \
-                /* Main depth-loop with 4 × unrolling */                                                               \
-                nk_size_t depth_index = 0;                                                                             \
-                nk_##accumulator_type##_t a_value_0, a_value_1, a_value_2, a_value_3, b_value_0, b_value_1, b_value_2, \
-                    b_value_3;                                                                                         \
-                for (; depth_index + depth_unroll_factor <= depth_iterations; depth_index += depth_unroll_factor) {    \
-                    /* Unroll 0 */                                                                                     \
-                    load_and_convert(a_row_ptr_0 + depth_index, &a_value_0),                                           \
-                        load_and_convert(a_row_ptr_1 + depth_index, &a_value_1);                                       \
-                    load_and_convert(a_row_ptr_2 + depth_index, &a_value_2),                                           \
-                        load_and_convert(a_row_ptr_3 + depth_index, &a_value_3);                                       \
-                    load_and_convert(b_depth_ptr_0 + depth_index, &b_value_0),                                         \
-                        load_and_convert(b_depth_ptr_1 + depth_index, &b_value_1);                                     \
-                    load_and_convert(b_depth_ptr_2 + depth_index, &b_value_2),                                         \
-                        load_and_convert(b_depth_ptr_3 + depth_index, &b_value_3);                                     \
-                    fma_fn(&accumulator_0_0, a_value_0, b_value_0), fma_fn(&accumulator_0_1, a_value_0, b_value_1),    \
-                        fma_fn(&accumulator_0_2, a_value_0, b_value_2),                                                \
-                        fma_fn(&accumulator_0_3, a_value_0, b_value_3);                                                \
-                    fma_fn(&accumulator_1_0, a_value_1, b_value_0), fma_fn(&accumulator_1_1, a_value_1, b_value_1),    \
-                        fma_fn(&accumulator_1_2, a_value_1, b_value_2),                                                \
-                        fma_fn(&accumulator_1_3, a_value_1, b_value_3);                                                \
-                    fma_fn(&accumulator_2_0, a_value_2, b_value_0), fma_fn(&accumulator_2_1, a_value_2, b_value_1),    \
-                        fma_fn(&accumulator_2_2, a_value_2, b_value_2),                                                \
-                        fma_fn(&accumulator_2_3, a_value_2, b_value_3);                                                \
-                    fma_fn(&accumulator_3_0, a_value_3, b_value_0), fma_fn(&accumulator_3_1, a_value_3, b_value_1),    \
-                        fma_fn(&accumulator_3_2, a_value_3, b_value_2),                                                \
-                        fma_fn(&accumulator_3_3, a_value_3, b_value_3);                                                \
-                                                                                                                       \
-                    /* Unroll 1 */                                                                                     \
-                    load_and_convert(a_row_ptr_0 + depth_index + 1, &a_value_0),                                       \
-                        load_and_convert(a_row_ptr_1 + depth_index + 1, &a_value_1);                                   \
-                    load_and_convert(a_row_ptr_2 + depth_index + 1, &a_value_2),                                       \
-                        load_and_convert(a_row_ptr_3 + depth_index + 1, &a_value_3);                                   \
-                    load_and_convert(b_depth_ptr_0 + depth_index + 1, &b_value_0),                                     \
-                        load_and_convert(b_depth_ptr_1 + depth_index + 1, &b_value_1);                                 \
-                    load_and_convert(b_depth_ptr_2 + depth_index + 1, &b_value_2),                                     \
-                        load_and_convert(b_depth_ptr_3 + depth_index + 1, &b_value_3);                                 \
-                    fma_fn(&accumulator_0_0, a_value_0, b_value_0), fma_fn(&accumulator_0_1, a_value_0, b_value_1),    \
-                        fma_fn(&accumulator_0_2, a_value_0, b_value_2),                                                \
-                        fma_fn(&accumulator_0_3, a_value_0, b_value_3);                                                \
-                    fma_fn(&accumulator_1_0, a_value_1, b_value_0), fma_fn(&accumulator_1_1, a_value_1, b_value_1),    \
-                        fma_fn(&accumulator_1_2, a_value_1, b_value_2),                                                \
-                        fma_fn(&accumulator_1_3, a_value_1, b_value_3);                                                \
-                    fma_fn(&accumulator_2_0, a_value_2, b_value_0), fma_fn(&accumulator_2_1, a_value_2, b_value_1),    \
-                        fma_fn(&accumulator_2_2, a_value_2, b_value_2),                                                \
-                        fma_fn(&accumulator_2_3, a_value_2, b_value_3);                                                \
-                    fma_fn(&accumulator_3_0, a_value_3, b_value_0), fma_fn(&accumulator_3_1, a_value_3, b_value_1),    \
-                        fma_fn(&accumulator_3_2, a_value_3, b_value_2),                                                \
-                        fma_fn(&accumulator_3_3, a_value_3, b_value_3);                                                \
-                                                                                                                       \
-                    /* Unroll 2 */                                                                                     \
-                    load_and_convert(a_row_ptr_0 + depth_index + 2, &a_value_0),                                       \
-                        load_and_convert(a_row_ptr_1 + depth_index + 2, &a_value_1);                                   \
-                    load_and_convert(a_row_ptr_2 + depth_index + 2, &a_value_2),                                       \
-                        load_and_convert(a_row_ptr_3 + depth_index + 2, &a_value_3);                                   \
-                    load_and_convert(b_depth_ptr_0 + depth_index + 2, &b_value_0),                                     \
-                        load_and_convert(b_depth_ptr_1 + depth_index + 2, &b_value_1);                                 \
-                    load_and_convert(b_depth_ptr_2 + depth_index + 2, &b_value_2),                                     \
-                        load_and_convert(b_depth_ptr_3 + depth_index + 2, &b_value_3);                                 \
-                    fma_fn(&accumulator_0_0, a_value_0, b_value_0), fma_fn(&accumulator_0_1, a_value_0, b_value_1),    \
-                        fma_fn(&accumulator_0_2, a_value_0, b_value_2),                                                \
-                        fma_fn(&accumulator_0_3, a_value_0, b_value_3);                                                \
-                    fma_fn(&accumulator_1_0, a_value_1, b_value_0), fma_fn(&accumulator_1_1, a_value_1, b_value_1),    \
-                        fma_fn(&accumulator_1_2, a_value_1, b_value_2),                                                \
-                        fma_fn(&accumulator_1_3, a_value_1, b_value_3);                                                \
-                    fma_fn(&accumulator_2_0, a_value_2, b_value_0), fma_fn(&accumulator_2_1, a_value_2, b_value_1),    \
-                        fma_fn(&accumulator_2_2, a_value_2, b_value_2),                                                \
-                        fma_fn(&accumulator_2_3, a_value_2, b_value_3);                                                \
-                    fma_fn(&accumulator_3_0, a_value_3, b_value_0), fma_fn(&accumulator_3_1, a_value_3, b_value_1),    \
-                        fma_fn(&accumulator_3_2, a_value_3, b_value_2),                                                \
-                        fma_fn(&accumulator_3_3, a_value_3, b_value_3);                                                \
-                                                                                                                       \
-                    /* Unroll 3 */                                                                                     \
-                    load_and_convert(a_row_ptr_0 + depth_index + 3, &a_value_0),                                       \
-                        load_and_convert(a_row_ptr_1 + depth_index + 3, &a_value_1);                                   \
-                    load_and_convert(a_row_ptr_2 + depth_index + 3, &a_value_2),                                       \
-                        load_and_convert(a_row_ptr_3 + depth_index + 3, &a_value_3);                                   \
-                    load_and_convert(b_depth_ptr_0 + depth_index + 3, &b_value_0),                                     \
-                        load_and_convert(b_depth_ptr_1 + depth_index + 3, &b_value_1);                                 \
-                    load_and_convert(b_depth_ptr_2 + depth_index + 3, &b_value_2),                                     \
-                        load_and_convert(b_depth_ptr_3 + depth_index + 3, &b_value_3);                                 \
-                    fma_fn(&accumulator_0_0, a_value_0, b_value_0), fma_fn(&accumulator_0_1, a_value_0, b_value_1),    \
-                        fma_fn(&accumulator_0_2, a_value_0, b_value_2),                                                \
-                        fma_fn(&accumulator_0_3, a_value_0, b_value_3);                                                \
-                    fma_fn(&accumulator_1_0, a_value_1, b_value_0), fma_fn(&accumulator_1_1, a_value_1, b_value_1),    \
-                        fma_fn(&accumulator_1_2, a_value_1, b_value_2),                                                \
-                        fma_fn(&accumulator_1_3, a_value_1, b_value_3);                                                \
-                    fma_fn(&accumulator_2_0, a_value_2, b_value_0), fma_fn(&accumulator_2_1, a_value_2, b_value_1),    \
-                        fma_fn(&accumulator_2_2, a_value_2, b_value_2),                                                \
-                        fma_fn(&accumulator_2_3, a_value_2, b_value_3);                                                \
-                    fma_fn(&accumulator_3_0, a_value_3, b_value_0), fma_fn(&accumulator_3_1, a_value_3, b_value_1),    \
-                        fma_fn(&accumulator_3_2, a_value_3, b_value_2),                                                \
-                        fma_fn(&accumulator_3_3, a_value_3, b_value_3);                                                \
-                }                                                                                                      \
-                                                                                                                       \
-                /* Remainder depth-loop */                                                                             \
-                for (; depth_index < depth_iterations; ++depth_index) {                                                \
-                    load_and_convert(a_row_ptr_0 + depth_index, &a_value_0),                                           \
-                        load_and_convert(a_row_ptr_1 + depth_index, &a_value_1);                                       \
-                    load_and_convert(a_row_ptr_2 + depth_index, &a_value_2),                                           \
-                        load_and_convert(a_row_ptr_3 + depth_index, &a_value_3);                                       \
-                    load_and_convert(b_depth_ptr_0 + depth_index, &b_value_0),                                         \
-                        load_and_convert(b_depth_ptr_1 + depth_index, &b_value_1);                                     \
-                    load_and_convert(b_depth_ptr_2 + depth_index, &b_value_2),                                         \
-                        load_and_convert(b_depth_ptr_3 + depth_index, &b_value_3);                                     \
-                    fma_fn(&accumulator_0_0, a_value_0, b_value_0), fma_fn(&accumulator_0_1, a_value_0, b_value_1),    \
-                        fma_fn(&accumulator_0_2, a_value_0, b_value_2),                                                \
-                        fma_fn(&accumulator_0_3, a_value_0, b_value_3);                                                \
-                    fma_fn(&accumulator_1_0, a_value_1, b_value_0), fma_fn(&accumulator_1_1, a_value_1, b_value_1),    \
-                        fma_fn(&accumulator_1_2, a_value_1, b_value_2),                                                \
-                        fma_fn(&accumulator_1_3, a_value_1, b_value_3);                                                \
-                    fma_fn(&accumulator_2_0, a_value_2, b_value_0), fma_fn(&accumulator_2_1, a_value_2, b_value_1),    \
-                        fma_fn(&accumulator_2_2, a_value_2, b_value_2),                                                \
-                        fma_fn(&accumulator_2_3, a_value_2, b_value_3);                                                \
-                    fma_fn(&accumulator_3_0, a_value_3, b_value_0), fma_fn(&accumulator_3_1, a_value_3, b_value_1),    \
-                        fma_fn(&accumulator_3_2, a_value_3, b_value_2),                                                \
-                        fma_fn(&accumulator_3_3, a_value_3, b_value_3);                                                \
-                }                                                                                                      \
-                                                                                                                       \
-                /* Store accumulated results */                                                                        \
-                nk_##output_type##_t *c_row_ptr_0 = (nk_##output_type##_t *)((char *)c + row_block_start_index *       \
-                                                                                             c_stride_in_bytes);       \
-                if (column_block_length > 0)                                                                           \
-                    c_row_ptr_0[column_block_start_index] += (nk_##output_type##_t)accumulator_0_0;                    \
-                if (column_block_length > 1)                                                                           \
-                    c_row_ptr_0[column_block_start_index + 1] += (nk_##output_type##_t)accumulator_0_1;                \
-                if (column_block_length > 2)                                                                           \
-                    c_row_ptr_0[column_block_start_index + 2] += (nk_##output_type##_t)accumulator_0_2;                \
-                if (column_block_length > 3)                                                                           \
-                    c_row_ptr_0[column_block_start_index + 3] += (nk_##output_type##_t)accumulator_0_3;                \
-                                                                                                                       \
-                if (row_block_length > 1) {                                                                            \
-                    nk_##output_type##_t *c_row_ptr_1 =                                                                \
-                        (nk_##output_type##_t *)((char *)c + (row_block_start_index + 1) * c_stride_in_bytes);         \
-                    if (column_block_length > 0)                                                                       \
-                        c_row_ptr_1[column_block_start_index] += (nk_##output_type##_t)accumulator_1_0;                \
-                    if (column_block_length > 1)                                                                       \
-                        c_row_ptr_1[column_block_start_index + 1] += (nk_##output_type##_t)accumulator_1_1;            \
-                    if (column_block_length > 2)                                                                       \
-                        c_row_ptr_1[column_block_start_index + 2] += (nk_##output_type##_t)accumulator_1_2;            \
-                    if (column_block_length > 3)                                                                       \
-                        c_row_ptr_1[column_block_start_index + 3] += (nk_##output_type##_t)accumulator_1_3;            \
-                }                                                                                                      \
-                if (row_block_length > 2) {                                                                            \
-                    nk_##output_type##_t *c_row_ptr_2 =                                                                \
-                        (nk_##output_type##_t *)((char *)c + (row_block_start_index + 2) * c_stride_in_bytes);         \
-                    if (column_block_length > 0)                                                                       \
-                        c_row_ptr_2[column_block_start_index] += (nk_##output_type##_t)accumulator_2_0;                \
-                    if (column_block_length > 1)                                                                       \
-                        c_row_ptr_2[column_block_start_index + 1] += (nk_##output_type##_t)accumulator_2_1;            \
-                    if (column_block_length > 2)                                                                       \
-                        c_row_ptr_2[column_block_start_index + 2] += (nk_##output_type##_t)accumulator_2_2;            \
-                    if (column_block_length > 3)                                                                       \
-                        c_row_ptr_2[column_block_start_index + 3] += (nk_##output_type##_t)accumulator_2_3;            \
-                }                                                                                                      \
-                if (row_block_length > 3) {                                                                            \
-                    nk_##output_type##_t *c_row_ptr_3 =                                                                \
-                        (nk_##output_type##_t *)((char *)c + (row_block_start_index + 3) * c_stride_in_bytes);         \
-                    if (column_block_length > 0)                                                                       \
-                        c_row_ptr_3[column_block_start_index] += (nk_##output_type##_t)accumulator_3_0;                \
-                    if (column_block_length > 1)                                                                       \
-                        c_row_ptr_3[column_block_start_index + 1] += (nk_##output_type##_t)accumulator_3_1;            \
-                    if (column_block_length > 2)                                                                       \
-                        c_row_ptr_3[column_block_start_index + 2] += (nk_##output_type##_t)accumulator_3_2;            \
-                    if (column_block_length > 3)                                                                       \
-                        c_row_ptr_3[column_block_start_index + 3] += (nk_##output_type##_t)accumulator_3_3;            \
-                }                                                                                                      \
-            }                                                                                                          \
-        }                                                                                                              \
+#define nk_define_dots_symmetric_vectors_(suffix, input_type, output_type, vec_type, state_type,           \
+                                          result_vec_type, init_fn, load_fn, partial_load_fn, update_fn,  \
+                                          finalize_fn, simd_width)                                         \
+    NK_PUBLIC void nk_dots_symmetric_##suffix(nk_##input_type##_t const *vectors, nk_size_t n_vectors,    \
+                                              nk_size_t depth, nk_size_t stride,                           \
+                                              nk_##output_type##_t *result, nk_size_t result_stride) {     \
+                                                                                                           \
+        nk_size_t const vectors_stride_elements = stride / sizeof(nk_##input_type##_t);                    \
+        nk_size_t const result_stride_elements = result_stride / sizeof(nk_##output_type##_t);             \
+        nk_size_t const aligned_depth = (depth / simd_width) * simd_width;                                 \
+        nk_size_t const remainder_depth = depth - aligned_depth;                                           \
+                                                                                                           \
+        /* Compute upper triangle including diagonal */                                                    \
+        for (nk_size_t i = 0; i < n_vectors; i++) {                                                        \
+            nk_##input_type##_t const *row_i = vectors + i * vectors_stride_elements;                      \
+            for (nk_size_t j = i; j < n_vectors; j++) {                                                    \
+                nk_##input_type##_t const *row_j = vectors + j * vectors_stride_elements;                  \
+                                                                                                           \
+                /* Initialize accumulator state */                                                          \
+                state_type acc;                                                                            \
+                init_fn(&acc);                                                                             \
+                                                                                                           \
+                /* Vectorized depth loop */                                                                 \
+                for (nk_size_t d = 0; d < aligned_depth; d += simd_width) {                                \
+                    vec_type vec_i, vec_j;                                                                 \
+                    load_fn(row_i + d, &vec_i);                                                            \
+                    load_fn(row_j + d, &vec_j);                                                            \
+                    update_fn(&acc, vec_i, vec_j);                                                         \
+                }                                                                                          \
+                                                                                                           \
+                /* Handle remainder with partial load */                                                    \
+                if (remainder_depth > 0) {                                                                 \
+                    vec_type vec_i, vec_j;                                                                 \
+                    partial_load_fn(row_i + aligned_depth, &vec_i, remainder_depth);                       \
+                    partial_load_fn(row_j + aligned_depth, &vec_j, remainder_depth);                       \
+                    update_fn(&acc, vec_i, vec_j);                                                         \
+                }                                                                                          \
+                                                                                                           \
+                /* Finalize: horizontal reduction to scalar */                                             \
+                state_type dummy_b, dummy_c, dummy_d;                                                      \
+                init_fn(&dummy_b); init_fn(&dummy_c); init_fn(&dummy_d);                                  \
+                result_vec_type result_vec;                                                                \
+                finalize_fn(&acc, &dummy_b, &dummy_c, &dummy_d, &result_vec);                             \
+                                                                                                           \
+                /* Store result and mirror to lower triangle */                                            \
+                nk_##output_type##_t val = result_vec.output_type##s[0];                                   \
+                result[i * result_stride_elements + j] = val;                                              \
+                if (i != j) {                                                                              \
+                    result[j * result_stride_elements + i] = val;                                          \
+                }                                                                                          \
+            }                                                                                              \
+        }                                                                                                  \
     }
 
-nk_define_dots_pack_size_(serial, f32, f32)
-nk_define_dots_pack_(serial, f32, f32)
-nk_define_dots_outer_scalars_(serial, f32, f32, f32, nk_assign_from_to_, nk_fma_multiply_add_, 1)
-
+/* F64 GEMM: simd_width=2 (2 f64s = 16 bytes) */
 nk_define_dots_pack_size_(serial, f64, f64)
 nk_define_dots_pack_(serial, f64, f64)
-nk_define_dots_outer_scalars_(serial, f64, f64, f64, nk_assign_from_to_, nk_fma_multiply_add_, 1)
+nk_define_dots_symmetric_vectors_(f64_serial, f64, f64, nk_b128_vec_t, nk_dot_f64x2_state_serial_t,
+                                  nk_b256_vec_t, nk_dot_f64x2_init_serial, nk_load_b128_serial_,
+                                  nk_partial_load_b64x2_serial_, nk_dot_f64x2_update_serial,
+                                  nk_dot_f64x2_finalize_serial, /*simd_width=*/2)
+nk_define_dots_packed_vectors_(f64_serial, f64, f64, nk_b128_vec_t, nk_dot_f64x2_state_serial_t, nk_b256_vec_t,
+                               nk_dot_f64x2_init_serial, nk_load_b128_serial_, nk_partial_load_b64x2_serial_,
+                               nk_dot_f64x2_update_serial, nk_dot_f64x2_finalize_serial, nk_partial_store_b64x4_serial_,
+                               /*simd_width=*/2)
 
+/* F32 GEMM: simd_width=4 (4 f32s = 16 bytes) */
+nk_define_dots_pack_size_(serial, f32, f32)
+nk_define_dots_pack_(serial, f32, f32)
+nk_define_dots_symmetric_vectors_(f32_serial, f32, f32, nk_b128_vec_t, nk_dot_f32x4_state_serial_t,
+                                  nk_b128_vec_t, nk_dot_f32x4_init_serial, nk_load_b128_serial_,
+                                  nk_partial_load_b32x4_serial_, nk_dot_f32x4_update_serial,
+                                  nk_dot_f32x4_finalize_serial, /*simd_width=*/4)
+nk_define_dots_packed_vectors_(f32_serial, f32, f32, nk_b128_vec_t, nk_dot_f32x4_state_serial_t, nk_b128_vec_t,
+                               nk_dot_f32x4_init_serial, nk_load_b128_serial_, nk_partial_load_b32x4_serial_,
+                               nk_dot_f32x4_update_serial, nk_dot_f32x4_finalize_serial, nk_partial_store_b32x4_serial_,
+                               /*simd_width=*/4)
+
+/* F16 GEMM: simd_width=8 (8 f16s = 16 bytes), F32 accumulator */
 nk_define_dots_pack_size_(serial, f16, f32)
 nk_define_dots_pack_(serial, f16, f32)
-nk_define_dots_outer_scalars_(serial, f16, f32, f32, nk_f16_to_f32_serial, nk_fma_multiply_add_, 1)
+nk_define_dots_symmetric_vectors_(f16_serial, f16, f32, nk_b128_vec_t, nk_dot_f16x8_state_serial_t,
+                                  nk_b128_vec_t, nk_dot_f16x8_init_serial, nk_load_b128_serial_,
+                                  nk_partial_load_b16x8_serial_, nk_dot_f16x8_update_serial,
+                                  nk_dot_f16x8_finalize_serial, /*simd_width=*/8)
+nk_define_dots_packed_vectors_(f16_serial, f16, f32, nk_b128_vec_t, nk_dot_f16x8_state_serial_t, nk_b128_vec_t,
+                               nk_dot_f16x8_init_serial, nk_load_b128_serial_, nk_partial_load_b16x8_serial_,
+                               nk_dot_f16x8_update_serial, nk_dot_f16x8_finalize_serial, nk_partial_store_b32x4_serial_,
+                               /*simd_width=*/8)
 
+/* BF16 GEMM: simd_width=8 (8 bf16s = 16 bytes), F32 accumulator */
 nk_define_dots_pack_size_(serial, bf16, f32)
 nk_define_dots_pack_(serial, bf16, f32)
-nk_define_dots_outer_scalars_(serial, bf16, f32, f32, nk_bf16_to_f32_serial, nk_fma_multiply_add_, 1)
+nk_define_dots_symmetric_vectors_(bf16_serial, bf16, f32, nk_b128_vec_t, nk_dot_bf16x8_state_serial_t,
+                                  nk_b128_vec_t, nk_dot_bf16x8_init_serial, nk_load_b128_serial_,
+                                  nk_partial_load_b16x8_serial_, nk_dot_bf16x8_update_serial,
+                                  nk_dot_bf16x8_finalize_serial, /*simd_width=*/8)
+nk_define_dots_packed_vectors_(bf16_serial, bf16, f32, nk_b128_vec_t, nk_dot_bf16x8_state_serial_t, nk_b128_vec_t,
+                               nk_dot_bf16x8_init_serial, nk_load_b128_serial_, nk_partial_load_b16x8_serial_,
+                               nk_dot_bf16x8_update_serial, nk_dot_bf16x8_finalize_serial,
+                               nk_partial_store_b32x4_serial_,
+                               /*simd_width=*/8)
 
+/* I8 GEMM: simd_width=16 (16 i8s = 16 bytes), I32 accumulator */
 nk_define_dots_pack_size_(serial, i8, i32)
 nk_define_dots_pack_(serial, i8, i32)
-nk_define_dots_outer_scalars_(serial, i8, i32, i32, nk_assign_from_to_, nk_fma_multiply_add_, 1)
+nk_define_dots_symmetric_vectors_(i8_serial, i8, i32, nk_b128_vec_t, nk_dot_i8x16_state_serial_t,
+                                  nk_b128_vec_t, nk_dot_i8x16_init_serial, nk_load_b128_serial_,
+                                  nk_partial_load_b8x16_serial_, nk_dot_i8x16_update_serial,
+                                  nk_dot_i8x16_finalize_serial, /*simd_width=*/16)
+nk_define_dots_packed_vectors_(i8_serial, i8, i32, nk_b128_vec_t, nk_dot_i8x16_state_serial_t, nk_b128_vec_t,
+                               nk_dot_i8x16_init_serial, nk_load_b128_serial_, nk_partial_load_b8x16_serial_,
+                               nk_dot_i8x16_update_serial, nk_dot_i8x16_finalize_serial, nk_partial_store_b32x4_serial_,
+                               /*simd_width=*/16)
 
+/* U8 GEMM: simd_width=16 (16 u8s = 16 bytes), U32 accumulator */
 nk_define_dots_pack_size_(serial, u8, u32)
 nk_define_dots_pack_(serial, u8, u32)
-nk_define_dots_outer_scalars_(serial, u8, u32, u32, nk_assign_from_to_, nk_fma_multiply_add_, 1)
+nk_define_dots_symmetric_vectors_(u8_serial, u8, u32, nk_b128_vec_t, nk_dot_u8x16_state_serial_t,
+                                  nk_b128_vec_t, nk_dot_u8x16_init_serial, nk_load_b128_serial_,
+                                  nk_partial_load_b8x16_serial_, nk_dot_u8x16_update_serial,
+                                  nk_dot_u8x16_finalize_serial, /*simd_width=*/16)
+nk_define_dots_packed_vectors_(u8_serial, u8, u32, nk_b128_vec_t, nk_dot_u8x16_state_serial_t, nk_b128_vec_t,
+                               nk_dot_u8x16_init_serial, nk_load_b128_serial_, nk_partial_load_b8x16_serial_,
+                               nk_dot_u8x16_update_serial, nk_dot_u8x16_finalize_serial, nk_partial_store_b32x4_serial_,
+                               /*simd_width=*/16)
 
+/* E4M3 GEMM: simd_width=16 (16 e4m3s = 16 bytes), F32 accumulator */
 nk_define_dots_pack_size_(serial, e4m3, f32)
 nk_define_dots_pack_(serial, e4m3, f32)
-nk_define_dots_outer_scalars_(serial, e4m3, f32, f32, nk_e4m3_to_f32_serial, nk_fma_multiply_add_, 1)
+nk_define_dots_symmetric_vectors_(e4m3_serial, e4m3, f32, nk_b128_vec_t, nk_dot_e4m3x16_state_serial_t,
+                                  nk_b128_vec_t, nk_dot_e4m3x16_init_serial, nk_load_b128_serial_,
+                                  nk_partial_load_b8x16_serial_, nk_dot_e4m3x16_update_serial,
+                                  nk_dot_e4m3x16_finalize_serial, /*simd_width=*/16)
+nk_define_dots_packed_vectors_(e4m3_serial, e4m3, f32, nk_b128_vec_t, nk_dot_e4m3x16_state_serial_t, nk_b128_vec_t,
+                               nk_dot_e4m3x16_init_serial, nk_load_b128_serial_, nk_partial_load_b8x16_serial_,
+                               nk_dot_e4m3x16_update_serial, nk_dot_e4m3x16_finalize_serial,
+                               nk_partial_store_b32x4_serial_,
+                               /*simd_width=*/16)
 
+/* E5M2 GEMM: simd_width=16 (16 e5m2s = 16 bytes), F32 accumulator */
 nk_define_dots_pack_size_(serial, e5m2, f32)
 nk_define_dots_pack_(serial, e5m2, f32)
-nk_define_dots_outer_scalars_(serial, e5m2, f32, f32, nk_e5m2_to_f32_serial, nk_fma_multiply_add_, 1)
+nk_define_dots_symmetric_vectors_(e5m2_serial, e5m2, f32, nk_b128_vec_t, nk_dot_e5m2x16_state_serial_t,
+                                  nk_b128_vec_t, nk_dot_e5m2x16_init_serial, nk_load_b128_serial_,
+                                  nk_partial_load_b8x16_serial_, nk_dot_e5m2x16_update_serial,
+                                  nk_dot_e5m2x16_finalize_serial, /*simd_width=*/16)
+nk_define_dots_packed_vectors_(e5m2_serial, e5m2, f32, nk_b128_vec_t, nk_dot_e5m2x16_state_serial_t, nk_b128_vec_t,
+                               nk_dot_e5m2x16_init_serial, nk_load_b128_serial_, nk_partial_load_b8x16_serial_,
+                               nk_dot_e5m2x16_update_serial, nk_dot_e5m2x16_finalize_serial,
+                               nk_partial_store_b32x4_serial_,
+                               /*simd_width=*/16)
+
+/* U4x2 GEMM: simd_width=8 (8 u4x2s = 8 bytes = 16 nibbles), U32 accumulator */
+/* Note: pack_size and pack functions are manually defined below for nibble handling */
+nk_define_dots_symmetric_vectors_(u4x2_serial, u4x2, u32, nk_b64_vec_t, nk_dot_u4x16_state_serial_t,
+                                  nk_b128_vec_t, nk_dot_u4x16_init_serial, nk_load_b64_serial_,
+                                  nk_partial_load_b8x8_serial_, nk_dot_u4x16_update_serial,
+                                  nk_dot_u4x16_finalize_serial, /*simd_width=*/8)
+nk_define_dots_packed_vectors_(u4x2_serial, u4x2, u32, nk_b64_vec_t, nk_dot_u4x16_state_serial_t, nk_b128_vec_t,
+                               nk_dot_u4x16_init_serial, nk_load_b64_serial_, nk_partial_load_b8x8_serial_,
+                               nk_dot_u4x16_update_serial, nk_dot_u4x16_finalize_serial,
+                               nk_partial_store_b32x4_serial_,
+                               /*simd_width=*/8)
+
+/* I4x2 GEMM: simd_width=8 (8 i4x2s = 8 bytes = 16 nibbles), I32 accumulator */
+/* Note: pack_size and pack functions are manually defined below for nibble handling */
+nk_define_dots_symmetric_vectors_(i4x2_serial, i4x2, i32, nk_b64_vec_t, nk_dot_i4x16_state_serial_t,
+                                  nk_b128_vec_t, nk_dot_i4x16_init_serial, nk_load_b64_serial_,
+                                  nk_partial_load_b8x8_serial_, nk_dot_i4x16_update_serial,
+                                  nk_dot_i4x16_finalize_serial, /*simd_width=*/8)
+nk_define_dots_packed_vectors_(i4x2_serial, i4x2, i32, nk_b64_vec_t, nk_dot_i4x16_state_serial_t, nk_b128_vec_t,
+                               nk_dot_i4x16_init_serial, nk_load_b64_serial_, nk_partial_load_b8x8_serial_,
+                               nk_dot_i4x16_update_serial, nk_dot_i4x16_finalize_serial,
+                               nk_partial_store_b32x4_serial_,
+                               /*simd_width=*/8)
 
 NK_PUBLIC nk_size_t nk_dots_packed_size_u1x8_serial(nk_size_t column_count, nk_size_t depth) {
     nk_size_t const group_size = NK_DOTS_GROUP_SIZE_;
@@ -1074,13 +957,17 @@ NK_PUBLIC void nk_dots_pack_i4x2_serial(nk_i4x2_t const *b, nk_size_t column_cou
     nk_dots_pack_u4x2_serial((nk_u4x2_t const *)b, column_count, depth, b_stride_in_bytes, b_packed);
 }
 
-nk_define_dots_outer_scalars_(serial, u1x8, u32, u32, nk_assign_from_to_, nk_fma_u1_and_popcnt_, 8)
-nk_define_dots_outer_scalars_(serial, u4x2, u32, u32, nk_assign_from_to_, nk_fma_u4_nibble_dot_, 2)
-nk_define_dots_outer_scalars_(serial, i4x2, i32, i32, nk_assign_from_to_, nk_fma_i4_nibble_dot_, 2)
+/* TODO: U1x8 GEMM not yet refactored to packed_vectors pattern - stub implementation */
+NK_PUBLIC void nk_dots_packed_u1x8_serial(nk_u1x8_t const *a, void const *b_packed_buffer, nk_u32_t *c,
+                                          nk_size_t row_count, nk_size_t column_count, nk_size_t depth,
+                                          nk_size_t a_stride_in_bytes, nk_size_t c_stride_in_bytes) {
+    (void)a; (void)b_packed_buffer; (void)c; (void)row_count; (void)column_count; (void)depth;
+    (void)a_stride_in_bytes; (void)c_stride_in_bytes;
+    /* Not implemented - u1x8 needs refactoring to packed_vectors pattern */
+}
 
 /*  BF16 compact: truncate F32 → BF16 in-place.
- *  Reads F32 matrix with c_stride_in_bytes, writes BF16 tightly packed (stride_in_bytes = column_count ×
- * sizeof(bf16)).
+ *  Reads F32 matrix with c_stride_in_bytes, writes BF16 tightly packed (stride = column_count × sizeof(bf16)).
  */
 NK_PUBLIC void nk_dots_compact_bf16_serial(void *c, nk_size_t row_count, nk_size_t column_count,
                                            nk_size_t c_stride_in_bytes) {
@@ -1127,54 +1014,6 @@ NK_PUBLIC void nk_dots_compact_i8_serial(void *c, nk_size_t row_count, nk_size_t
         }
     }
 }
-
-/*  Symmetric Gram matrix: C = A × Aᵀ
- *
- *  Computes the symmetric matrix C[i,j] = dot(A[i,:], A[j,:])
- *  Only computes upper triangle, then mirrors to lower.
- *
- *  Parameters:
- *    - suffix: Function name suffix (e.g., f32_serial)
- *    - input_type: Input element type (e.g., f16, f32)
- *    - output_type: Output element type (e.g., f32, i32)
- *    - intermediate_type: Type produced by load_and_convert (e.g., f32 for f16->f32)
- *    - acc_type: Accumulator type for higher precision (e.g., f64)
- *    - load_and_convert: Function/macro to load and convert: (src_ptr, dest_ptr)
- */
-#define nk_define_dots_symmetric_(suffix, input_type, output_type, intermediate_type, acc_type, load_and_convert) \
-    NK_PUBLIC void nk_dots_symmetric_##suffix(nk_##input_type##_t const *vectors, nk_size_t n_vectors,            \
-                                              nk_size_t depth, nk_size_t stride, nk_##output_type##_t *result,    \
-                                              nk_size_t result_stride) {                                          \
-                                                                                                                  \
-        nk_size_t const vectors_stride_elements = stride / sizeof(nk_##input_type##_t);                           \
-        nk_size_t const result_stride_elements = result_stride / sizeof(nk_##output_type##_t);                    \
-                                                                                                                  \
-        /* Compute upper triangle including diagonal */                                                           \
-        for (nk_size_t i = 0; i < n_vectors; i++) {                                                               \
-            nk_##input_type##_t const *row_i = vectors + i * vectors_stride_elements;                             \
-            for (nk_size_t j = i; j < n_vectors; j++) {                                                           \
-                nk_##input_type##_t const *row_j = vectors + j * vectors_stride_elements;                         \
-                nk_##acc_type##_t acc = 0;                                                                        \
-                for (nk_size_t d = 0; d < depth; d++) {                                                           \
-                    nk_##intermediate_type##_t val_i, val_j;                                                      \
-                    load_and_convert(row_i + d, &val_i);                                                          \
-                    load_and_convert(row_j + d, &val_j);                                                          \
-                    acc += (nk_##acc_type##_t)val_i * (nk_##acc_type##_t)val_j;                                   \
-                }                                                                                                 \
-                nk_##output_type##_t val = (nk_##output_type##_t)acc;                                             \
-                result[i * result_stride_elements + j] = val;                                                     \
-                result[j * result_stride_elements + i] = val; /* Mirror to lower triangle */                      \
-            }                                                                                                     \
-        }                                                                                                         \
-    }
-
-// Instantiate serial symmetric Gram matrix functions
-nk_define_dots_symmetric_(f32_serial, f32, f32, f32, f64, nk_assign_from_to_)
-nk_define_dots_symmetric_(f64_serial, f64, f64, f64, f64, nk_assign_from_to_)
-nk_define_dots_symmetric_(f16_serial, f16, f32, f32, f64, nk_f16_to_f32_serial)
-nk_define_dots_symmetric_(bf16_serial, bf16, f32, f32, f64, nk_bf16_to_f32_serial)
-nk_define_dots_symmetric_(i8_serial, i8, i32, i32, i64, nk_assign_from_to_)
-nk_define_dots_symmetric_(u8_serial, u8, u32, u32, u64, nk_assign_from_to_)
 
 #if defined(__cplusplus)
 }

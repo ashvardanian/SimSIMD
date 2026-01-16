@@ -2350,6 +2350,69 @@ void dots_unpacked(in_type_ const *a, in_type_ const *b, result_type_ *c, std::s
     }
 }
 
+/**
+ *  @brief Symmetric dot products (A × A^T matrix multiply): C[i,j] = dot(A[i], A[j])
+ *  @param[in] a Matrix A [n × k] (n vectors of dimension k)
+ *  @param[in] n_vectors Number of vectors (n)
+ *  @param[in] depth Dimension of each vector (k)
+ *  @param[in] a_stride_in_bytes Stride between vectors in A
+ *  @param[out] c Output matrix C [n × n]
+ *  @param[in] c_stride_in_bytes Stride between rows of C in bytes
+ *
+ *  @tparam in_type_ Input element type
+ *  @tparam result_type_ Accumulator/output type, defaults to `in_type_::dot_result_t`
+ *  @tparam allow_simd_ Enable SIMD kernel dispatch when `prefer_simd_k`
+ */
+template <typename in_type_, typename result_type_ = typename in_type_::dot_result_t,
+          allow_simd_t allow_simd_ = prefer_simd_k>
+void dots_symmetric(in_type_ const *a, std::size_t n_vectors, std::size_t depth, std::size_t a_stride_in_bytes,
+                    result_type_ *c, std::size_t c_stride_in_bytes) noexcept {
+    using raw_t = typename in_type_::raw_t;
+    constexpr bool dispatch = allow_simd_ == prefer_simd_k &&
+                              std::is_same_v<result_type_, typename in_type_::dot_result_t>;
+
+    if constexpr (std::is_same_v<in_type_, f64_t> && dispatch)
+        nk_dots_symmetric_f64(&a->raw_, n_vectors, depth, a_stride_in_bytes, c, c_stride_in_bytes);
+    else if constexpr (std::is_same_v<in_type_, f32_t> && dispatch)
+        nk_dots_symmetric_f32(&a->raw_, n_vectors, depth, a_stride_in_bytes, c, c_stride_in_bytes);
+    else if constexpr (std::is_same_v<in_type_, f16_t> && dispatch)
+        nk_dots_symmetric_f16(&a->raw_, n_vectors, depth, a_stride_in_bytes, c, c_stride_in_bytes);
+    else if constexpr (std::is_same_v<in_type_, bf16_t> && dispatch)
+        nk_dots_symmetric_bf16(&a->raw_, n_vectors, depth, a_stride_in_bytes, c, c_stride_in_bytes);
+    else if constexpr (std::is_same_v<in_type_, i8_t> && dispatch)
+        nk_dots_symmetric_i8(&a->raw_, n_vectors, depth, a_stride_in_bytes, c, c_stride_in_bytes);
+    else if constexpr (std::is_same_v<in_type_, u8_t> && dispatch)
+        nk_dots_symmetric_u8(&a->raw_, n_vectors, depth, a_stride_in_bytes, c, c_stride_in_bytes);
+    else if constexpr (std::is_same_v<in_type_, e4m3_t> && dispatch)
+        nk_dots_symmetric_e4m3(&a->raw_, n_vectors, depth, a_stride_in_bytes, c, c_stride_in_bytes);
+    else if constexpr (std::is_same_v<in_type_, e5m2_t> && dispatch)
+        nk_dots_symmetric_e5m2(&a->raw_, n_vectors, depth, a_stride_in_bytes, c, c_stride_in_bytes);
+    else if constexpr (std::is_same_v<in_type_, u1x8_t> && dispatch)
+        nk_dots_symmetric_u1(&a->raw_, n_vectors, depth, a_stride_in_bytes, c, c_stride_in_bytes);
+    else if constexpr (std::is_same_v<in_type_, u4x2_t> && dispatch)
+        nk_dots_symmetric_u4(&a->raw_, n_vectors, depth, a_stride_in_bytes, c, c_stride_in_bytes);
+    else if constexpr (std::is_same_v<in_type_, i4x2_t> && dispatch)
+        nk_dots_symmetric_i4(&a->raw_, n_vectors, depth, a_stride_in_bytes, c, c_stride_in_bytes);
+    else {
+        // Scalar fallback: C[i,j] = dot(A[i], A[j])
+        std::size_t depth_values = divide_round_up(depth, dimensions_per_value<in_type_>());
+        char const *a_bytes = reinterpret_cast<char const *>(a);
+        char *c_bytes = reinterpret_cast<char *>(c);
+
+        for (std::size_t i = 0; i < n_vectors; i++) {
+            in_type_ const *a_i = reinterpret_cast<in_type_ const *>(a_bytes + i * a_stride_in_bytes);
+            result_type_ *c_row = reinterpret_cast<result_type_ *>(c_bytes + i * c_stride_in_bytes);
+
+            for (std::size_t j = 0; j < n_vectors; j++) {
+                in_type_ const *a_j = reinterpret_cast<in_type_ const *>(a_bytes + j * a_stride_in_bytes);
+                result_type_ sum {};
+                for (std::size_t l = 0; l < depth_values; l++) sum = fused_multiply_add(sum, a_i[l], a_j[l]);
+                c_row[j] = sum;
+            }
+        }
+    }
+}
+
 #pragma endregion Dots Kernels
 
 } // namespace ashvardanian::numkong

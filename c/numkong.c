@@ -331,6 +331,24 @@ NK_INTERNAL void nk_fill_error_(void *ptr, nk_size_t bytes) {
         kernel(a, b_packed, c, m, n, k, a_stride, c_stride);                                                           \
     }
 
+#define nk_dispatch_dots_symmetric_(name, input_type, output_type)                                                     \
+    NK_DYNAMIC void nk_dots_symmetric_##name(nk_##input_type##_t const *vectors, nk_size_t n_vectors, nk_size_t depth, \
+                                             nk_size_t stride, nk_##output_type##_t *result,                           \
+                                             nk_size_t result_stride) {                                                \
+        static nk_dots_symmetric_punned_t kernel = 0;                                                                  \
+        if (kernel == 0) {                                                                                             \
+            nk_capability_t used_capability;                                                                           \
+            nk_find_kernel_punned(nk_kernel_dots_symmetric_k, nk_##name##_k, nk_capabilities(), nk_cap_any_k,          \
+                                  (nk_kernel_punned_t *)&kernel, &used_capability);                                    \
+            if (!kernel) {                                                                                             \
+                for (nk_size_t row = 0; row < n_vectors; ++row)                                                        \
+                    nk_fill_error_((nk_u8_t *)result + row * result_stride, n_vectors * sizeof(nk_##output_type##_t)); \
+                return;                                                                                                \
+            }                                                                                                          \
+        }                                                                                                              \
+        kernel(vectors, n_vectors, depth, stride, result, result_stride);                                              \
+    }
+
 // Dot products
 nk_dispatch_dense_(dot, i8, i8, i32)
 nk_dispatch_dense_(dot, u8, u8, u32)
@@ -570,6 +588,18 @@ nk_dispatch_dots_packed_(e5m2, e5m2, f32, f32)
 nk_dispatch_dots_packed_(u1, u1x8, u32, u32)
 nk_dispatch_dots_packed_(u4, u4x2, u32, u32)
 nk_dispatch_dots_packed_(i4, i4x2, i32, i32)
+
+// Symmetric Gram matrix (A × Aᵀ)
+nk_dispatch_dots_symmetric_(f32, f32, f32)
+nk_dispatch_dots_symmetric_(f64, f64, f64)
+nk_dispatch_dots_symmetric_(f16, f16, f32)
+nk_dispatch_dots_symmetric_(bf16, bf16, f32)
+nk_dispatch_dots_symmetric_(i8, i8, i32)
+nk_dispatch_dots_symmetric_(u8, u8, u32)
+nk_dispatch_dots_symmetric_(e4m3, e4m3, f32)
+nk_dispatch_dots_symmetric_(e5m2, e5m2, f32)
+nk_dispatch_dots_symmetric_(u4, u4x2, u32)
+nk_dispatch_dots_symmetric_(i4, i4x2, i32)
 
 // ARM NEON capabilities
 NK_DYNAMIC int nk_uses_neon(void) { return (nk_capabilities() & nk_cap_neon_k) != 0; }
@@ -949,6 +979,18 @@ NK_DYNAMIC nk_capability_t nk_capabilities(void) {
     nk_dots_packed_u8((nk_u8_t *)x, (void *)&dummy_tensor_header, (nk_u32_t *)x, 0, 0, 0, 0, 0);
     nk_dots_packed_e4m3((nk_e4m3_t *)x, (void *)&dummy_tensor_header, (nk_f32_t *)x, 0, 0, 0, 0, 0);
     nk_dots_packed_e5m2((nk_e5m2_t *)x, (void *)&dummy_tensor_header, (nk_f32_t *)x, 0, 0, 0, 0, 0);
+
+    // Symmetric Gram matrix (A × Aᵀ)
+    nk_dots_symmetric_f32((nk_f32_t *)x, 0, 0, 0, (nk_f32_t *)x, 0);
+    nk_dots_symmetric_f64((nk_f64_t *)x, 0, 0, 0, (nk_f64_t *)x, 0);
+    nk_dots_symmetric_f16((nk_f16_t *)x, 0, 0, 0, (nk_f32_t *)x, 0);
+    nk_dots_symmetric_bf16((nk_bf16_t *)x, 0, 0, 0, (nk_f32_t *)x, 0);
+    nk_dots_symmetric_i8((nk_i8_t *)x, 0, 0, 0, (nk_i32_t *)x, 0);
+    nk_dots_symmetric_u8((nk_u8_t *)x, 0, 0, 0, (nk_u32_t *)x, 0);
+    nk_dots_symmetric_e4m3((nk_e4m3_t *)x, 0, 0, 0, (nk_f32_t *)x, 0);
+    nk_dots_symmetric_e5m2((nk_e5m2_t *)x, 0, 0, 0, (nk_f32_t *)x, 0);
+    nk_dots_symmetric_u4((nk_u4x2_t *)x, 0, 0, 0, (nk_u32_t *)x, 0);
+    nk_dots_symmetric_i4((nk_i4x2_t *)x, 0, 0, 0, (nk_i32_t *)x, 0);
 
     return static_capabilities;
 }

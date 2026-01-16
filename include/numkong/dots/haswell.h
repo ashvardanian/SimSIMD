@@ -39,6 +39,10 @@ extern "C" {
 /* F32 GEMM: simd_width=4 (4 f32s = 16 bytes for f32->f64 upcast accumulation) */
 nk_define_dots_pack_size_(haswell, f32, f32)
 nk_define_dots_pack_(haswell, f32, f32)
+nk_define_dots_symmetric_vectors_(f32_haswell, f32, f32, nk_b128_vec_t, nk_dot_f32x4_state_haswell_t, nk_b128_vec_t,
+                                  nk_dot_f32x4_init_haswell, nk_load_b128_haswell_, nk_partial_load_b32x4_serial_,
+                                  nk_dot_f32x4_update_haswell, nk_dot_f32x4_finalize_haswell,
+                                  /*simd_width=*/4)
 nk_define_dots_packed_vectors_(f32_haswell, f32, f32, nk_b128_vec_t, nk_dot_f32x4_state_haswell_t, nk_b128_vec_t,
                                nk_dot_f32x4_init_haswell, nk_load_b128_haswell_, nk_partial_load_b32x4_serial_,
                                nk_dot_f32x4_update_haswell, nk_dot_f32x4_finalize_haswell,
@@ -48,6 +52,10 @@ nk_define_dots_packed_vectors_(f32_haswell, f32, f32, nk_b128_vec_t, nk_dot_f32x
 /* F64 GEMM: simd_width=4 (4 f64s = 32 bytes = AVX2 register width) */
 nk_define_dots_pack_size_(haswell, f64, f64)
 nk_define_dots_pack_(haswell, f64, f64)
+nk_define_dots_symmetric_vectors_(f64_haswell, f64, f64, nk_b256_vec_t, nk_dot_f64x4_state_haswell_t, nk_b256_vec_t,
+                                  nk_dot_f64x4_init_haswell, nk_load_b256_haswell_, nk_partial_load_b64x4_serial_,
+                                  nk_dot_f64x4_update_haswell, nk_dot_f64x4_finalize_haswell,
+                                  /*simd_width=*/4)
 nk_define_dots_packed_vectors_(f64_haswell, f64, f64, nk_b256_vec_t, nk_dot_f64x4_state_haswell_t, nk_b256_vec_t,
                                nk_dot_f64x4_init_haswell, nk_load_b256_haswell_, nk_partial_load_b64x4_serial_,
                                nk_dot_f64x4_update_haswell, nk_dot_f64x4_finalize_haswell,
@@ -57,6 +65,10 @@ nk_define_dots_packed_vectors_(f64_haswell, f64, f64, nk_b256_vec_t, nk_dot_f64x
 /* F16 GEMM: simd_width=8 (8 f16s = 16 bytes = 128-bit input) */
 nk_define_dots_pack_size_(haswell, f16, f32)
 nk_define_dots_pack_(haswell, f16, f32)
+nk_define_dots_symmetric_vectors_(f16_haswell, f16, f32, nk_b128_vec_t, nk_dot_f16x8_state_haswell_t, nk_b128_vec_t,
+                                  nk_dot_f16x8_init_haswell, nk_load_b128_haswell_, nk_partial_load_b16x8_serial_,
+                                  nk_dot_f16x8_update_haswell, nk_dot_f16x8_finalize_haswell,
+                                  /*simd_width=*/8)
 nk_define_dots_packed_vectors_(f16_haswell, f16, f32, nk_b128_vec_t, nk_dot_f16x8_state_haswell_t, nk_b128_vec_t,
                                nk_dot_f16x8_init_haswell, nk_load_b128_haswell_, nk_partial_load_b16x8_serial_,
                                nk_dot_f16x8_update_haswell, nk_dot_f16x8_finalize_haswell,
@@ -66,6 +78,10 @@ nk_define_dots_packed_vectors_(f16_haswell, f16, f32, nk_b128_vec_t, nk_dot_f16x
 /* BF16 GEMM: simd_width=8 (8 bf16s = 16 bytes = 128-bit input) */
 nk_define_dots_pack_size_(haswell, bf16, f32)
 nk_define_dots_pack_(haswell, bf16, f32)
+nk_define_dots_symmetric_vectors_(bf16_haswell, bf16, f32, nk_b128_vec_t, nk_dot_bf16x8_state_haswell_t, nk_b128_vec_t,
+                                  nk_dot_bf16x8_init_haswell, nk_load_b128_haswell_, nk_partial_load_b16x8_serial_,
+                                  nk_dot_bf16x8_update_haswell, nk_dot_bf16x8_finalize_haswell,
+                                  /*simd_width=*/8)
 nk_define_dots_packed_vectors_(bf16_haswell, bf16, f32, nk_b128_vec_t, nk_dot_bf16x8_state_haswell_t, nk_b128_vec_t,
                                nk_dot_bf16x8_init_haswell, nk_load_b128_haswell_, nk_partial_load_b16x8_serial_,
                                nk_dot_bf16x8_update_haswell, nk_dot_bf16x8_finalize_haswell,
@@ -75,6 +91,10 @@ nk_define_dots_packed_vectors_(bf16_haswell, bf16, f32, nk_b128_vec_t, nk_dot_bf
 /* E4M3 GEMM: simd_width=16 (16 e4m3s = 16 bytes = 128-bit input) */
 nk_define_dots_pack_size_(haswell, e4m3, f32)
 nk_define_dots_pack_(haswell, e4m3, f32)
+nk_define_dots_symmetric_vectors_(e4m3_haswell, e4m3, f32, nk_b128_vec_t, nk_dot_e4m3x16_state_haswell_t, nk_b128_vec_t,
+                                  nk_dot_e4m3x16_init_haswell, nk_load_b128_haswell_, nk_partial_load_b8x16_serial_,
+                                  nk_dot_e4m3x16_update_haswell, nk_dot_e4m3x16_finalize_haswell,
+                                  /*simd_width=*/16)
 nk_define_dots_packed_vectors_(e4m3_haswell, e4m3, f32, nk_b128_vec_t, nk_dot_e4m3x16_state_haswell_t, nk_b128_vec_t,
                                nk_dot_e4m3x16_init_haswell, nk_load_b128_haswell_, nk_partial_load_b8x16_serial_,
                                nk_dot_e4m3x16_update_haswell, nk_dot_e4m3x16_finalize_haswell,
@@ -84,6 +104,10 @@ nk_define_dots_packed_vectors_(e4m3_haswell, e4m3, f32, nk_b128_vec_t, nk_dot_e4
 /* E5M2 GEMM: simd_width=16 (16 e5m2s = 16 bytes = 128-bit input) */
 nk_define_dots_pack_size_(haswell, e5m2, f32)
 nk_define_dots_pack_(haswell, e5m2, f32)
+nk_define_dots_symmetric_vectors_(e5m2_haswell, e5m2, f32, nk_b128_vec_t, nk_dot_e5m2x16_state_haswell_t, nk_b128_vec_t,
+                                  nk_dot_e5m2x16_init_haswell, nk_load_b128_haswell_, nk_partial_load_b8x16_serial_,
+                                  nk_dot_e5m2x16_update_haswell, nk_dot_e5m2x16_finalize_haswell,
+                                  /*simd_width=*/16)
 nk_define_dots_packed_vectors_(e5m2_haswell, e5m2, f32, nk_b128_vec_t, nk_dot_e5m2x16_state_haswell_t, nk_b128_vec_t,
                                nk_dot_e5m2x16_init_haswell, nk_load_b128_haswell_, nk_partial_load_b8x16_serial_,
                                nk_dot_e5m2x16_update_haswell, nk_dot_e5m2x16_finalize_haswell,
@@ -93,6 +117,10 @@ nk_define_dots_packed_vectors_(e5m2_haswell, e5m2, f32, nk_b128_vec_t, nk_dot_e5
 /* I8 GEMM: simd_width=16 (16 i8s = 16 bytes = 128-bit input) */
 nk_define_dots_pack_size_(haswell, i8, i32)
 nk_define_dots_pack_(haswell, i8, i32)
+nk_define_dots_symmetric_vectors_(i8_haswell, i8, i32, nk_b128_vec_t, nk_dot_i8x16_state_haswell_t, nk_b128_vec_t,
+                                  nk_dot_i8x16_init_haswell, nk_load_b128_haswell_, nk_partial_load_b8x16_serial_,
+                                  nk_dot_i8x16_update_haswell, nk_dot_i8x16_finalize_haswell,
+                                  /*simd_width=*/16)
 nk_define_dots_packed_vectors_(i8_haswell, i8, i32, nk_b128_vec_t, nk_dot_i8x16_state_haswell_t, nk_b128_vec_t,
                                nk_dot_i8x16_init_haswell, nk_load_b128_haswell_, nk_partial_load_b8x16_serial_,
                                nk_dot_i8x16_update_haswell, nk_dot_i8x16_finalize_haswell,
@@ -102,6 +130,10 @@ nk_define_dots_packed_vectors_(i8_haswell, i8, i32, nk_b128_vec_t, nk_dot_i8x16_
 /* U8 GEMM: simd_width=16 (16 u8s = 16 bytes = 128-bit input) */
 nk_define_dots_pack_size_(haswell, u8, u32)
 nk_define_dots_pack_(haswell, u8, u32)
+nk_define_dots_symmetric_vectors_(u8_haswell, u8, u32, nk_b128_vec_t, nk_dot_u8x16_state_haswell_t, nk_b128_vec_t,
+                                  nk_dot_u8x16_init_haswell, nk_load_b128_haswell_, nk_partial_load_b8x16_serial_,
+                                  nk_dot_u8x16_update_haswell, nk_dot_u8x16_finalize_haswell,
+                                  /*simd_width=*/16)
 nk_define_dots_packed_vectors_(u8_haswell, u8, u32, nk_b128_vec_t, nk_dot_u8x16_state_haswell_t, nk_b128_vec_t,
                                nk_dot_u8x16_init_haswell, nk_load_b128_haswell_, nk_partial_load_b8x16_serial_,
                                nk_dot_u8x16_update_haswell, nk_dot_u8x16_finalize_haswell,

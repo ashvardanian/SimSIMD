@@ -545,6 +545,46 @@ void dots_(std::string name, //
         ->Threads(1); // Single-threaded for packed matmul
 }
 
+template <nk_dtype_t input_dtype_, nk_dtype_t output_dtype_>
+void measure_dots_symmetric(                                                   //
+    bm::State &state,                                                          //
+    typename nk::type_for<input_dtype_>::type::dots_symmetric_kernel_t kernel, //
+    std::size_t n, std::size_t k) {
+
+    using input_t = typename nk::type_for<input_dtype_>::type;
+    using output_t = typename nk::type_for<output_dtype_>::type;
+    using raw_input_t = typename input_t::raw_t;
+    using raw_output_t = typename output_t::raw_t;
+
+    // Allocate matrix A (n vectors × k dimensions) and result matrix C (n × n)
+    auto matrix_a = make_vector<input_t>(n * k);
+    auto matrix_c = make_vector<output_t>(n * n);
+
+    // Initialize with random values
+    auto generator = make_random_engine();
+    nk::fill_uniform(generator, matrix_a.values_data(), n * k);
+
+    std::size_t iterations = 0;
+    for (auto _ : state) {
+        bm::DoNotOptimize(matrix_c.raw_values_data());
+        kernel(matrix_a.raw_values_data(), n, k, k * sizeof(raw_input_t), //
+               matrix_c.raw_values_data(), n * sizeof(raw_output_t));
+        ++iterations;
+    }
+
+    state.counters["tops"] = bm::Counter(iterations * 2.0 * n * n * k, bm::Counter::kIsRate);
+}
+
+template <nk_dtype_t input_dtype_, nk_dtype_t output_dtype_>
+void dots_symmetric_(std::string name, //
+                     typename nk::type_for<input_dtype_>::type::dots_symmetric_kernel_t kernel) {
+    std::string bench_name = name + "<" + std::to_string(matrix_height) + "x" + std::to_string(matrix_depth) + ">";
+    bm::RegisterBenchmark(bench_name.c_str(), measure_dots_symmetric<input_dtype_, output_dtype_>, //
+                          kernel, matrix_height, matrix_depth)
+        ->MinTime(default_seconds)
+        ->Threads(1); // Single-threaded for symmetric matmul
+}
+
 template <typename scalar_type_>
 struct sin_with_stl {
     scalar_type_ operator()(scalar_type_ x) const { return std::sin(x); }
@@ -1678,6 +1718,79 @@ int main(int argc, char **argv) {
                        nk_dots_packed_u4x2_serial);
     dots_<i4_k, i32_k>("dots_packed_i4_serial", nk_dots_packed_size_i4x2_serial, nk_dots_pack_i4x2_serial,
                        nk_dots_packed_i4x2_serial);
+
+    // Symmetric GEMM benchmarks (A × A^T)
+    dots_symmetric_<f32_k, f32_k>("dots_symmetric_f32_serial", nk_dots_symmetric_f32_serial);
+    dots_symmetric_<f64_k, f64_k>("dots_symmetric_f64_serial", nk_dots_symmetric_f64_serial);
+    dots_symmetric_<bf16_k, f32_k>("dots_symmetric_bf16_serial", nk_dots_symmetric_bf16_serial);
+    dots_symmetric_<f16_k, f32_k>("dots_symmetric_f16_serial", nk_dots_symmetric_f16_serial);
+    dots_symmetric_<i8_k, i32_k>("dots_symmetric_i8_serial", nk_dots_symmetric_i8_serial);
+    dots_symmetric_<u8_k, u32_k>("dots_symmetric_u8_serial", nk_dots_symmetric_u8_serial);
+    // Note: i4/u4 symmetric not implemented in serial baseline, only in Ice/SME
+    dots_symmetric_<e4m3_k, f32_k>("dots_symmetric_e4m3_serial", nk_dots_symmetric_e4m3_serial);
+    dots_symmetric_<e5m2_k, f32_k>("dots_symmetric_e5m2_serial", nk_dots_symmetric_e5m2_serial);
+
+#if NK_TARGET_HASWELL
+    dots_symmetric_<f32_k, f32_k>("dots_symmetric_f32_haswell", nk_dots_symmetric_f32_haswell);
+    dots_symmetric_<f64_k, f64_k>("dots_symmetric_f64_haswell", nk_dots_symmetric_f64_haswell);
+    dots_symmetric_<bf16_k, f32_k>("dots_symmetric_bf16_haswell", nk_dots_symmetric_bf16_haswell);
+    dots_symmetric_<f16_k, f32_k>("dots_symmetric_f16_haswell", nk_dots_symmetric_f16_haswell);
+    dots_symmetric_<i8_k, i32_k>("dots_symmetric_i8_haswell", nk_dots_symmetric_i8_haswell);
+    dots_symmetric_<u8_k, u32_k>("dots_symmetric_u8_haswell", nk_dots_symmetric_u8_haswell);
+    dots_symmetric_<e4m3_k, f32_k>("dots_symmetric_e4m3_haswell", nk_dots_symmetric_e4m3_haswell);
+    dots_symmetric_<e5m2_k, f32_k>("dots_symmetric_e5m2_haswell", nk_dots_symmetric_e5m2_haswell);
+#endif
+
+#if NK_TARGET_SKYLAKE
+    dots_symmetric_<f32_k, f32_k>("dots_symmetric_f32_skylake", nk_dots_symmetric_f32_skylake);
+    dots_symmetric_<f64_k, f64_k>("dots_symmetric_f64_skylake", nk_dots_symmetric_f64_skylake);
+    dots_symmetric_<bf16_k, f32_k>("dots_symmetric_bf16_skylake", nk_dots_symmetric_bf16_skylake);
+    dots_symmetric_<f16_k, f32_k>("dots_symmetric_f16_skylake", nk_dots_symmetric_f16_skylake);
+    dots_symmetric_<e4m3_k, f32_k>("dots_symmetric_e4m3_skylake", nk_dots_symmetric_e4m3_skylake);
+    dots_symmetric_<e5m2_k, f32_k>("dots_symmetric_e5m2_skylake", nk_dots_symmetric_e5m2_skylake);
+#endif
+
+#if NK_TARGET_ICE
+    dots_symmetric_<i8_k, i32_k>("dots_symmetric_i8_ice", nk_dots_symmetric_i8_ice);
+    dots_symmetric_<u8_k, u32_k>("dots_symmetric_u8_ice", nk_dots_symmetric_u8_ice);
+    dots_symmetric_<i4_k, i32_k>("dots_symmetric_i4_ice", nk_dots_symmetric_i4_ice);
+    dots_symmetric_<u4_k, u32_k>("dots_symmetric_u4_ice", nk_dots_symmetric_u4_ice);
+#endif
+
+#if NK_TARGET_GENOA
+    dots_symmetric_<bf16_k, f32_k>("dots_symmetric_bf16_genoa", nk_dots_symmetric_bf16_genoa);
+    dots_symmetric_<e4m3_k, f32_k>("dots_symmetric_e4m3_genoa", nk_dots_symmetric_e4m3_genoa);
+    dots_symmetric_<e5m2_k, f32_k>("dots_symmetric_e5m2_genoa", nk_dots_symmetric_e5m2_genoa);
+#endif
+
+#if NK_TARGET_NEON
+    dots_symmetric_<f32_k, f32_k>("dots_symmetric_f32_neon", nk_dots_symmetric_f32_neon);
+    dots_symmetric_<f64_k, f64_k>("dots_symmetric_f64_neon", nk_dots_symmetric_f64_neon);
+#endif
+
+#if NK_TARGET_NEONSDOT
+    dots_symmetric_<i8_k, i32_k>("dots_symmetric_i8_neonsdot", nk_dots_symmetric_i8_neonsdot);
+    dots_symmetric_<u8_k, u32_k>("dots_symmetric_u8_neonsdot", nk_dots_symmetric_u8_neonsdot);
+#endif
+
+#if NK_TARGET_NEONFHM
+    dots_symmetric_<f16_k, f32_k>("dots_symmetric_f16_neonfhm", nk_dots_symmetric_f16_neonfhm);
+#endif
+
+#if NK_TARGET_NEONHALF
+    dots_symmetric_<f16_k, f32_k>("dots_symmetric_f16_neonhalf", nk_dots_symmetric_f16_neonhalf);
+#endif
+
+#if NK_TARGET_SME
+    dots_symmetric_<bf16_k, f32_k>("dots_symmetric_bf16_sme", nk_dots_symmetric_bf16_sme);
+    dots_symmetric_<f16_k, f32_k>("dots_symmetric_f16_sme", nk_dots_symmetric_f16_sme);
+    dots_symmetric_<i8_k, i32_k>("dots_symmetric_i8_sme", nk_dots_symmetric_i8_sme);
+    dots_symmetric_<u8_k, u32_k>("dots_symmetric_u8_sme", nk_dots_symmetric_u8_sme);
+    dots_symmetric_<e4m3_k, f32_k>("dots_symmetric_e4m3_sme", nk_dots_symmetric_e4m3_sme);
+    dots_symmetric_<e5m2_k, f32_k>("dots_symmetric_e5m2_sme", nk_dots_symmetric_e5m2_sme);
+    dots_symmetric_<i4_k, i32_k>("dots_symmetric_i4_sme", nk_dots_symmetric_i4_sme);
+    dots_symmetric_<u4_k, u32_k>("dots_symmetric_u4_sme", nk_dots_symmetric_u4_sme);
+#endif
 
     cast_<nk_f32_k, nk_f16_k>("cast_f32_to_f16_serial", nk_cast_serial);
     cast_<nk_f16_k, nk_f32_k>("cast_f16_to_f32_serial", nk_cast_serial);

@@ -685,6 +685,9 @@ NK_INTERNAL void nk_load_b256_serial_(void const *src, nk_b256_vec_t *dst) {
 /** @brief Type-agnostic 128-bit full load. */
 NK_INTERNAL void nk_load_b128_serial_(void const *src, nk_b128_vec_t *dst) { dst->u64s[0] = 0, dst->u64s[1] = 0; }
 
+/** @brief Type-agnostic 64-bit full load. */
+NK_INTERNAL void nk_load_b64_serial_(void const *src, nk_b64_vec_t *dst) { dst->u64 = *(nk_u64_t const *)src; }
+
 /** @brief Type-agnostic partial load for 32-bit elements (8 elements max) into 256-bit vector. */
 NK_INTERNAL void nk_partial_load_b32x8_serial_(void const *src, nk_b256_vec_t *dst, nk_size_t n) {
     dst->u64s[0] = 0, dst->u64s[1] = 0, dst->u64s[2] = 0, dst->u64s[3] = 0;
@@ -993,6 +996,14 @@ NK_INTERNAL void nk_partial_load_b16x4_serial_(void const *src, nk_b64_vec_t *ds
 }
 
 /** @brief Type-agnostic partial load for 64-bit elements (2 elements max) into 128-bit vector. */
+/** @brief Partial load for 4-bit nibbles (64 max = 32 bytes) into 256-bit vector (zeros in remaining slots). */
+NK_INTERNAL void nk_partial_load_b4x64_serial_(void const *src, nk_b256_vec_t *dst, nk_size_t n) {
+    dst->u64s[0] = 0, dst->u64s[1] = 0, dst->u64s[2] = 0, dst->u64s[3] = 0;
+    nk_u8_t const *s = (nk_u8_t const *)src;
+    nk_size_t n_bytes = (n + 1) / 2;
+    for (nk_size_t i = 0; i < n_bytes && i < 32; i++) dst->u8s[i] = s[i];
+}
+
 NK_INTERNAL void nk_partial_load_b64x2_serial_(void const *src, nk_b128_vec_t *dst, nk_size_t n) {
     dst->u64s[0] = 0, dst->u64s[1] = 0;
     nk_u64_t const *s = (nk_u64_t const *)src;

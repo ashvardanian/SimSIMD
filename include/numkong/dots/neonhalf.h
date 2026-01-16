@@ -26,6 +26,10 @@ extern "C" {
 /* F16 GEMM: simd_width=4 (4 f16s = 8 bytes = 64-bit input for direct f32 conversion) */
 nk_define_dots_pack_size_(neonhalf, f16, f32)
 nk_define_dots_pack_(neonhalf, f16, f32)
+nk_define_dots_symmetric_vectors_(f16_neonhalf, f16, f32, nk_b64_vec_t, nk_dot_f16x4_state_neonhalf_t, nk_b128_vec_t,
+                                  nk_dot_f16x4_init_neonhalf, nk_load_b64_neon_, nk_partial_load_b16x4_serial_,
+                                  nk_dot_f16x4_update_neonhalf, nk_dot_f16x4_finalize_neonhalf,
+                                  /*simd_width=*/4)
 nk_define_dots_packed_vectors_(f16_neonhalf, f16, f32, nk_b64_vec_t, nk_dot_f16x4_state_neonhalf_t, nk_b128_vec_t,
                                nk_dot_f16x4_init_neonhalf, nk_load_b64_neon_, nk_partial_load_b16x4_serial_,
                                nk_dot_f16x4_update_neonhalf, nk_dot_f16x4_finalize_neonhalf,

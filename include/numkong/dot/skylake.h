@@ -589,6 +589,51 @@ NK_INTERNAL void nk_dot_f32x8_finalize_skylake(                                 
     result->xmm = _mm_castps_si128(result_f32x4);
 }
 
+typedef struct nk_dot_bf16x16_state_skylake_t {
+    __m512 sum_f32x16;
+} nk_dot_bf16x16_state_skylake_t;
+
+NK_INTERNAL void nk_dot_bf16x16_init_skylake(nk_dot_bf16x16_state_skylake_t *state) {
+    state->sum_f32x16 = _mm512_setzero_ps();
+}
+
+NK_INTERNAL void nk_dot_bf16x16_update_skylake(nk_dot_bf16x16_state_skylake_t *state, nk_b256_vec_t a,
+                                               nk_b256_vec_t b) {
+    __m512 a_f32x16 = nk_bf16x16_to_f32x16_skylake_(a.ymm);
+    __m512 b_f32x16 = nk_bf16x16_to_f32x16_skylake_(b.ymm);
+    state->sum_f32x16 = _mm512_fmadd_ps(a_f32x16, b_f32x16, state->sum_f32x16);
+}
+
+NK_INTERNAL void nk_dot_bf16x16_finalize_skylake(                                                 //
+    nk_dot_bf16x16_state_skylake_t const *state_a, nk_dot_bf16x16_state_skylake_t const *state_b, //
+    nk_dot_bf16x16_state_skylake_t const *state_c, nk_dot_bf16x16_state_skylake_t const *state_d, //
+    nk_b128_vec_t *result) {
+    nk_dot_f32x16_finalize_skylake_wout_compensation_(state_a->sum_f32x16, state_b->sum_f32x16, state_c->sum_f32x16,
+                                                      state_d->sum_f32x16, result);
+}
+
+typedef struct nk_dot_f16x16_state_skylake_t {
+    __m512 sum_f32x16;
+} nk_dot_f16x16_state_skylake_t;
+
+NK_INTERNAL void nk_dot_f16x16_init_skylake(nk_dot_f16x16_state_skylake_t *state) {
+    state->sum_f32x16 = _mm512_setzero_ps();
+}
+
+NK_INTERNAL void nk_dot_f16x16_update_skylake(nk_dot_f16x16_state_skylake_t *state, nk_b256_vec_t a, nk_b256_vec_t b) {
+    __m512 a_f32x16 = _mm512_cvtph_ps(a.ymm);
+    __m512 b_f32x16 = _mm512_cvtph_ps(b.ymm);
+    state->sum_f32x16 = _mm512_fmadd_ps(a_f32x16, b_f32x16, state->sum_f32x16);
+}
+
+NK_INTERNAL void nk_dot_f16x16_finalize_skylake(                                                //
+    nk_dot_f16x16_state_skylake_t const *state_a, nk_dot_f16x16_state_skylake_t const *state_b, //
+    nk_dot_f16x16_state_skylake_t const *state_c, nk_dot_f16x16_state_skylake_t const *state_d, //
+    nk_b128_vec_t *result) {
+    nk_dot_f32x16_finalize_skylake_wout_compensation_(state_a->sum_f32x16, state_b->sum_f32x16, state_c->sum_f32x16,
+                                                      state_d->sum_f32x16, result);
+}
+
 typedef struct nk_dot_e4m3x16_state_skylake_t {
     __m512 sum_f32x16;
 } nk_dot_e4m3x16_state_skylake_t;

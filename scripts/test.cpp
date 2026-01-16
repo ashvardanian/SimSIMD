@@ -2013,6 +2013,42 @@ error_stats_t test_dots(typename scalar_type_::dots_packed_size_kernel_t packed_
     return stats;
 }
 
+/**
+ *  @brief Generic symmetric GEMM (A × A^T) test against f118_t reference.
+ *  Works for all types: f32, f64, f16, bf16, i8, u8, i4, u4, e4m3, e5m2.
+ */
+template <typename scalar_type_>
+error_stats_t test_dots_symmetric(typename scalar_type_::dots_symmetric_kernel_t kernel_fn) {
+    using scalar_t = scalar_type_;
+    using result_t = typename scalar_t::dot_result_t;
+
+    error_stats_t stats;
+    std::mt19937 generator(global_config.seed);
+
+    std::size_t n = matrix_height, k = matrix_depth;
+    std::size_t k_values = nk::divide_round_up(k, nk::dimensions_per_value<scalar_t>());
+    std::size_t a_stride = k_values * sizeof(scalar_t);
+    std::size_t c_stride = n * sizeof(result_t);
+
+    auto a = make_vector<scalar_t>(n * k);
+    auto c = make_vector<result_t>(n * n);
+    auto c_ref = make_vector<f118_t>(n * n);
+
+    for (auto start = test_start_time(); within_time_budget(start);) {
+        fill_random(generator, a);
+
+        // Run kernel being tested
+        kernel_fn(a.raw_values_data(), n, k, a_stride, c.raw_values_data(), c_stride);
+
+        // Compute f118_t reference using nk:: template
+        nk::dots_symmetric<scalar_t, f118_t, nk::no_simd_k>(a.values_data(), n, k, a_stride, c_ref.raw_values_data(),
+                                                            n * sizeof(f118_t));
+
+        for (std::size_t i = 0; i < n * n; i++) stats.accumulate(c[i], c_ref[i]);
+    }
+    return stats;
+}
+
 #if NK_COMPARE_TO_BLAS || NK_COMPARE_TO_MKL || NK_COMPARE_TO_ACCELERATE
 /**
  *  @brief Unified template to test unpacked GEMM against high-precision reference.
@@ -2155,6 +2191,98 @@ void test_dots() {
     run_if_matches("dots_with_mkl", "i16", test_dots_unpacked<i16_t, i32_t, i64_t, decltype(&dots_i16_with_mkl)>,
                    dots_i16_with_mkl);
 #endif // NK_COMPARE_TO_MKL
+}
+
+void test_dots_symmetric() {
+    std::printf("Testing symmetric batch dot products (A × A^T GEMM)...\n");
+
+#if NK_DYNAMIC_DISPATCH
+    run_if_matches("dots_symmetric", "f32", test_dots_symmetric<f32_t>, nk_dots_symmetric_f32);
+    run_if_matches("dots_symmetric", "f64", test_dots_symmetric<f64_t>, nk_dots_symmetric_f64);
+    run_if_matches("dots_symmetric", "bf16", test_dots_symmetric<bf16_t>, nk_dots_symmetric_bf16);
+    run_if_matches("dots_symmetric", "f16", test_dots_symmetric<f16_t>, nk_dots_symmetric_f16);
+    run_if_matches("dots_symmetric", "i8", test_dots_symmetric<i8_t>, nk_dots_symmetric_i8);
+    run_if_matches("dots_symmetric", "u8", test_dots_symmetric<u8_t>, nk_dots_symmetric_u8);
+    run_if_matches("dots_symmetric", "i4", test_dots_symmetric<i4x2_t>, nk_dots_symmetric_i4);
+    run_if_matches("dots_symmetric", "u4", test_dots_symmetric<u4x2_t>, nk_dots_symmetric_u4);
+    run_if_matches("dots_symmetric", "e4m3", test_dots_symmetric<e4m3_t>, nk_dots_symmetric_e4m3);
+    run_if_matches("dots_symmetric", "e5m2", test_dots_symmetric<e5m2_t>, nk_dots_symmetric_e5m2);
+#else
+
+#if NK_TARGET_NEON
+    run_if_matches("dots_symmetric_neon", "f32", test_dots_symmetric<f32_t>, nk_dots_symmetric_f32_neon);
+    run_if_matches("dots_symmetric_neon", "f64", test_dots_symmetric<f64_t>, nk_dots_symmetric_f64_neon);
+#endif
+
+#if NK_TARGET_HASWELL
+    run_if_matches("dots_symmetric_haswell", "f32", test_dots_symmetric<f32_t>, nk_dots_symmetric_f32_haswell);
+    run_if_matches("dots_symmetric_haswell", "f64", test_dots_symmetric<f64_t>, nk_dots_symmetric_f64_haswell);
+    run_if_matches("dots_symmetric_haswell", "bf16", test_dots_symmetric<bf16_t>, nk_dots_symmetric_bf16_haswell);
+    run_if_matches("dots_symmetric_haswell", "f16", test_dots_symmetric<f16_t>, nk_dots_symmetric_f16_haswell);
+    run_if_matches("dots_symmetric_haswell", "i8", test_dots_symmetric<i8_t>, nk_dots_symmetric_i8_haswell);
+    run_if_matches("dots_symmetric_haswell", "u8", test_dots_symmetric<u8_t>, nk_dots_symmetric_u8_haswell);
+    run_if_matches("dots_symmetric_haswell", "e4m3", test_dots_symmetric<e4m3_t>, nk_dots_symmetric_e4m3_haswell);
+    run_if_matches("dots_symmetric_haswell", "e5m2", test_dots_symmetric<e5m2_t>, nk_dots_symmetric_e5m2_haswell);
+#endif
+
+#if NK_TARGET_SKYLAKE
+    run_if_matches("dots_symmetric_skylake", "f32", test_dots_symmetric<f32_t>, nk_dots_symmetric_f32_skylake);
+    run_if_matches("dots_symmetric_skylake", "f64", test_dots_symmetric<f64_t>, nk_dots_symmetric_f64_skylake);
+    run_if_matches("dots_symmetric_skylake", "bf16", test_dots_symmetric<bf16_t>, nk_dots_symmetric_bf16_skylake);
+    run_if_matches("dots_symmetric_skylake", "f16", test_dots_symmetric<f16_t>, nk_dots_symmetric_f16_skylake);
+    run_if_matches("dots_symmetric_skylake", "e4m3", test_dots_symmetric<e4m3_t>, nk_dots_symmetric_e4m3_skylake);
+    run_if_matches("dots_symmetric_skylake", "e5m2", test_dots_symmetric<e5m2_t>, nk_dots_symmetric_e5m2_skylake);
+#endif
+
+#if NK_TARGET_ICE
+    run_if_matches("dots_symmetric_ice", "i8", test_dots_symmetric<i8_t>, nk_dots_symmetric_i8_ice);
+    run_if_matches("dots_symmetric_ice", "u8", test_dots_symmetric<u8_t>, nk_dots_symmetric_u8_ice);
+    run_if_matches("dots_symmetric_ice", "i4", test_dots_symmetric<i4x2_t>, nk_dots_symmetric_i4_ice);
+    run_if_matches("dots_symmetric_ice", "u4", test_dots_symmetric<u4x2_t>, nk_dots_symmetric_u4_ice);
+#endif
+
+#if NK_TARGET_GENOA
+    run_if_matches("dots_symmetric_genoa", "bf16", test_dots_symmetric<bf16_t>, nk_dots_symmetric_bf16_genoa);
+    run_if_matches("dots_symmetric_genoa", "e4m3", test_dots_symmetric<e4m3_t>, nk_dots_symmetric_e4m3_genoa);
+    run_if_matches("dots_symmetric_genoa", "e5m2", test_dots_symmetric<e5m2_t>, nk_dots_symmetric_e5m2_genoa);
+#endif
+
+#if NK_TARGET_NEONSDOT
+    run_if_matches("dots_symmetric_neonsdot", "i8", test_dots_symmetric<i8_t>, nk_dots_symmetric_i8_neonsdot);
+    run_if_matches("dots_symmetric_neonsdot", "u8", test_dots_symmetric<u8_t>, nk_dots_symmetric_u8_neonsdot);
+#endif
+
+#if NK_TARGET_NEONFHM
+    run_if_matches("dots_symmetric_neonfhm", "f16", test_dots_symmetric<f16_t>, nk_dots_symmetric_f16_neonfhm);
+#endif
+
+#if NK_TARGET_NEONHALF
+    run_if_matches("dots_symmetric_neonhalf", "f16", test_dots_symmetric<f16_t>, nk_dots_symmetric_f16_neonhalf);
+#endif
+
+#if NK_TARGET_SME
+    run_if_matches("dots_symmetric_sme", "bf16", test_dots_symmetric<bf16_t>, nk_dots_symmetric_bf16_sme);
+    run_if_matches("dots_symmetric_sme", "f16", test_dots_symmetric<f16_t>, nk_dots_symmetric_f16_sme);
+    run_if_matches("dots_symmetric_sme", "i8", test_dots_symmetric<i8_t>, nk_dots_symmetric_i8_sme);
+    run_if_matches("dots_symmetric_sme", "u8", test_dots_symmetric<u8_t>, nk_dots_symmetric_u8_sme);
+    run_if_matches("dots_symmetric_sme", "i4", test_dots_symmetric<i4x2_t>, nk_dots_symmetric_i4_sme);
+    run_if_matches("dots_symmetric_sme", "u4", test_dots_symmetric<u4x2_t>, nk_dots_symmetric_u4_sme);
+    run_if_matches("dots_symmetric_sme", "e4m3", test_dots_symmetric<e4m3_t>, nk_dots_symmetric_e4m3_sme);
+    run_if_matches("dots_symmetric_sme", "e5m2", test_dots_symmetric<e5m2_t>, nk_dots_symmetric_e5m2_sme);
+#endif
+
+    // Serial always runs - baseline test
+    run_if_matches("dots_symmetric_serial", "f32", test_dots_symmetric<f32_t>, nk_dots_symmetric_f32_serial);
+    run_if_matches("dots_symmetric_serial", "f64", test_dots_symmetric<f64_t>, nk_dots_symmetric_f64_serial);
+    run_if_matches("dots_symmetric_serial", "bf16", test_dots_symmetric<bf16_t>, nk_dots_symmetric_bf16_serial);
+    run_if_matches("dots_symmetric_serial", "f16", test_dots_symmetric<f16_t>, nk_dots_symmetric_f16_serial);
+    run_if_matches("dots_symmetric_serial", "i8", test_dots_symmetric<i8_t>, nk_dots_symmetric_i8_serial);
+    run_if_matches("dots_symmetric_serial", "u8", test_dots_symmetric<u8_t>, nk_dots_symmetric_u8_serial);
+    // Note: i4/u4 symmetric not implemented in serial baseline, only in Ice/SME
+    run_if_matches("dots_symmetric_serial", "e4m3", test_dots_symmetric<e4m3_t>, nk_dots_symmetric_e4m3_serial);
+    run_if_matches("dots_symmetric_serial", "e5m2", test_dots_symmetric<e5m2_t>, nk_dots_symmetric_e5m2_serial);
+
+#endif // NK_DYNAMIC_DISPATCH
 }
 
 #pragma endregion // Dots
@@ -2619,6 +2747,7 @@ int main(int argc, char **argv) {
     test_geospatial();
     test_mesh();
     test_dots();
+    test_dots_symmetric();
     test_sparse();
 
     std::printf("\n");

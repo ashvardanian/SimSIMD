@@ -40,6 +40,10 @@ extern "C" {
 /* I8 GEMM: simd_width=32 (32 i8s = 32 bytes = half cache line) */
 nk_define_dots_pack_size_(ice, i8, i32)
 nk_define_dots_pack_(ice, i8, i32)
+nk_define_dots_symmetric_vectors_(i8_ice, i8, i32, nk_b256_vec_t, nk_dot_i8x32_state_ice_t, nk_b128_vec_t,
+                                  nk_dot_i8x32_init_ice, nk_load_b256_haswell_, nk_partial_load_b8x32_serial_,
+                                  nk_dot_i8x32_update_ice, nk_dot_i8x32_finalize_ice,
+                                  /*simd_width=*/32)
 nk_define_dots_packed_vectors_(i8_ice, i8, i32, nk_b256_vec_t, nk_dot_i8x32_state_ice_t, nk_b128_vec_t,
                                nk_dot_i8x32_init_ice, nk_load_b256_haswell_, nk_partial_load_b8x32_serial_,
                                nk_dot_i8x32_update_ice, nk_dot_i8x32_finalize_ice, nk_partial_store_b32x4_skylake_,
@@ -48,9 +52,59 @@ nk_define_dots_packed_vectors_(i8_ice, i8, i32, nk_b256_vec_t, nk_dot_i8x32_stat
 /* U8 GEMM: simd_width=64 (64 u8s = 64 bytes = 1 cache line) */
 nk_define_dots_pack_size_(ice, u8, u32)
 nk_define_dots_pack_(ice, u8, u32)
+nk_define_dots_symmetric_vectors_(u8_ice, u8, u32, nk_b512_vec_t, nk_dot_u8x64_state_ice_t, nk_b128_vec_t,
+                                  nk_dot_u8x64_init_ice, nk_load_b512_skylake_, nk_partial_load_b8x64_skylake_,
+                                  nk_dot_u8x64_update_ice, nk_dot_u8x64_finalize_ice,
+                                  /*simd_width=*/64)
 nk_define_dots_packed_vectors_(u8_ice, u8, u32, nk_b512_vec_t, nk_dot_u8x64_state_ice_t, nk_b128_vec_t,
                                nk_dot_u8x64_init_ice, nk_load_b512_skylake_, nk_partial_load_b8x64_skylake_,
                                nk_dot_u8x64_update_ice, nk_dot_u8x64_finalize_ice, nk_partial_store_b32x4_skylake_,
+                               /*simd_width=*/64)
+
+/* I4 GEMM: simd_width=64 (64 nibbles = 32 bytes = half cache line) */
+NK_PUBLIC nk_size_t nk_dots_packed_size_i4_ice(nk_size_t column_count, nk_size_t depth) {
+    nk_size_t const group_size = NK_DOTS_GROUP_SIZE_;
+    nk_size_t const column_groups_count = (column_count + group_size - 1) / group_size;
+    nk_size_t const depth_bytes = (depth + 1) / 2; // Nibble packing: 2 nibbles per byte
+    return sizeof(nk_dots_packed_buffer_header_t) + column_groups_count * group_size * depth_bytes;
+}
+
+NK_PUBLIC void nk_dots_pack_i4_ice(nk_i4x2_t const *b, nk_size_t column_count, nk_size_t depth,
+                                   nk_size_t b_stride_in_bytes, void *b_packed) {
+    // Delegate to serial implementation (same nibble packing logic)
+    nk_dots_pack_i4x2_serial(b, column_count, depth, b_stride_in_bytes, b_packed);
+}
+
+nk_define_dots_symmetric_vectors_(i4_ice, i4, i32, nk_b256_vec_t, nk_dot_i4x64_state_ice_t, nk_b128_vec_t,
+                                  nk_dot_i4x64_init_ice, nk_load_b256_haswell_, nk_partial_load_b4x64_serial_,
+                                  nk_dot_i4x64_update_ice, nk_dot_i4x64_finalize_ice,
+                                  /*simd_width=*/64)
+nk_define_dots_packed_vectors_(i4_ice, i4, i32, nk_b256_vec_t, nk_dot_i4x64_state_ice_t, nk_b128_vec_t,
+                               nk_dot_i4x64_init_ice, nk_load_b256_haswell_, nk_partial_load_b4x64_serial_,
+                               nk_dot_i4x64_update_ice, nk_dot_i4x64_finalize_ice, nk_partial_store_b32x4_skylake_,
+                               /*simd_width=*/64)
+
+/* U4 GEMM: simd_width=64 (64 nibbles = 32 bytes = half cache line) */
+NK_PUBLIC nk_size_t nk_dots_packed_size_u4_ice(nk_size_t column_count, nk_size_t depth) {
+    nk_size_t const group_size = NK_DOTS_GROUP_SIZE_;
+    nk_size_t const column_groups_count = (column_count + group_size - 1) / group_size;
+    nk_size_t const depth_bytes = (depth + 1) / 2; // Nibble packing: 2 nibbles per byte
+    return sizeof(nk_dots_packed_buffer_header_t) + column_groups_count * group_size * depth_bytes;
+}
+
+NK_PUBLIC void nk_dots_pack_u4_ice(nk_u4x2_t const *b, nk_size_t column_count, nk_size_t depth,
+                                   nk_size_t b_stride_in_bytes, void *b_packed) {
+    // Delegate to serial implementation (same nibble packing logic)
+    nk_dots_pack_u4x2_serial(b, column_count, depth, b_stride_in_bytes, b_packed);
+}
+
+nk_define_dots_symmetric_vectors_(u4_ice, u4, u32, nk_b256_vec_t, nk_dot_u4x64_state_ice_t, nk_b128_vec_t,
+                                  nk_dot_u4x64_init_ice, nk_load_b256_haswell_, nk_partial_load_b4x64_serial_,
+                                  nk_dot_u4x64_update_ice, nk_dot_u4x64_finalize_ice,
+                                  /*simd_width=*/64)
+nk_define_dots_packed_vectors_(u4_ice, u4, u32, nk_b256_vec_t, nk_dot_u4x64_state_ice_t, nk_b128_vec_t,
+                               nk_dot_u4x64_init_ice, nk_load_b256_haswell_, nk_partial_load_b4x64_serial_,
+                               nk_dot_u4x64_update_ice, nk_dot_u4x64_finalize_ice, nk_partial_store_b32x4_skylake_,
                                /*simd_width=*/64)
 
 #if defined(__cplusplus)

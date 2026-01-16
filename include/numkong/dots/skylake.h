@@ -39,6 +39,10 @@ extern "C" {
 /* F64 GEMM: simd_width=8 (8 f64s = 64 bytes = 1 cache line) */
 nk_define_dots_pack_size_(skylake, f64, f64)
 nk_define_dots_pack_(skylake, f64, f64)
+nk_define_dots_symmetric_vectors_(f64_skylake, f64, f64, nk_b512_vec_t, nk_dot_f64x8_state_skylake_t, nk_b256_vec_t,
+                                  nk_dot_f64x8_init_skylake, nk_load_b512_skylake_, nk_partial_load_b64x8_skylake_,
+                                  nk_dot_f64x8_update_skylake, nk_dot_f64x8_finalize_skylake,
+                                  /*simd_width=*/8)
 nk_define_dots_packed_vectors_(f64_skylake, f64, f64, nk_b512_vec_t, nk_dot_f64x8_state_skylake_t, nk_b256_vec_t,
                                nk_dot_f64x8_init_skylake, nk_load_b512_skylake_, nk_partial_load_b64x8_skylake_,
                                nk_dot_f64x8_update_skylake, nk_dot_f64x8_finalize_skylake,
@@ -48,15 +52,49 @@ nk_define_dots_packed_vectors_(f64_skylake, f64, f64, nk_b512_vec_t, nk_dot_f64x
 /* F32 GEMM: simd_width=8 (8 f32s = 32 bytes = half cache line) */
 nk_define_dots_pack_size_(skylake, f32, f32)
 nk_define_dots_pack_(skylake, f32, f32)
+nk_define_dots_symmetric_vectors_(f32_skylake, f32, f32, nk_b256_vec_t, nk_dot_f32x8_state_skylake_t, nk_b128_vec_t,
+                                  nk_dot_f32x8_init_skylake, nk_load_b256_haswell_, nk_partial_load_b32x8_skylake_,
+                                  nk_dot_f32x8_update_skylake, nk_dot_f32x8_finalize_skylake,
+                                  /*simd_width=*/8)
 nk_define_dots_packed_vectors_(f32_skylake, f32, f32, nk_b256_vec_t, nk_dot_f32x8_state_skylake_t, nk_b128_vec_t,
                                nk_dot_f32x8_init_skylake, nk_load_b256_haswell_, nk_partial_load_b32x8_skylake_,
                                nk_dot_f32x8_update_skylake, nk_dot_f32x8_finalize_skylake,
                                nk_partial_store_b32x4_skylake_,
                                /*simd_width=*/8)
 
+/* BF16 GEMM: simd_width=16 (16 bf16s = 32 bytes = half cache line), F32 accumulator */
+nk_define_dots_pack_size_(skylake, bf16, f32)
+nk_define_dots_pack_(skylake, bf16, f32)
+nk_define_dots_symmetric_vectors_(bf16_skylake, bf16, f32, nk_b256_vec_t, nk_dot_bf16x16_state_skylake_t, nk_b128_vec_t,
+                                  nk_dot_bf16x16_init_skylake, nk_load_b256_haswell_, nk_partial_load_b16x16_skylake_,
+                                  nk_dot_bf16x16_update_skylake, nk_dot_bf16x16_finalize_skylake,
+                                  /*simd_width=*/16)
+nk_define_dots_packed_vectors_(bf16_skylake, bf16, f32, nk_b256_vec_t, nk_dot_bf16x16_state_skylake_t, nk_b128_vec_t,
+                               nk_dot_bf16x16_init_skylake, nk_load_b256_haswell_, nk_partial_load_b16x16_skylake_,
+                               nk_dot_bf16x16_update_skylake, nk_dot_bf16x16_finalize_skylake,
+                               nk_partial_store_b32x4_skylake_,
+                               /*simd_width=*/16)
+
+/* F16 GEMM: simd_width=16 (16 f16s = 32 bytes = half cache line), F32 accumulator */
+nk_define_dots_pack_size_(skylake, f16, f32)
+nk_define_dots_pack_(skylake, f16, f32)
+nk_define_dots_symmetric_vectors_(f16_skylake, f16, f32, nk_b256_vec_t, nk_dot_f16x16_state_skylake_t, nk_b128_vec_t,
+                                  nk_dot_f16x16_init_skylake, nk_load_b256_haswell_, nk_partial_load_b16x16_skylake_,
+                                  nk_dot_f16x16_update_skylake, nk_dot_f16x16_finalize_skylake,
+                                  /*simd_width=*/16)
+nk_define_dots_packed_vectors_(f16_skylake, f16, f32, nk_b256_vec_t, nk_dot_f16x16_state_skylake_t, nk_b128_vec_t,
+                               nk_dot_f16x16_init_skylake, nk_load_b256_haswell_, nk_partial_load_b16x16_skylake_,
+                               nk_dot_f16x16_update_skylake, nk_dot_f16x16_finalize_skylake,
+                               nk_partial_store_b32x4_skylake_,
+                               /*simd_width=*/16)
+
 /* E4M3 GEMM: simd_width=16 (16 e4m3s = 16 bytes = quarter cache line), F32 accumulator */
 nk_define_dots_pack_size_(skylake, e4m3, f32)
 nk_define_dots_pack_(skylake, e4m3, f32)
+nk_define_dots_symmetric_vectors_(e4m3_skylake, e4m3, f32, nk_b128_vec_t, nk_dot_e4m3x16_state_skylake_t, nk_b128_vec_t,
+                                  nk_dot_e4m3x16_init_skylake, nk_load_b128_haswell_, nk_partial_load_b8x16_skylake_,
+                                  nk_dot_e4m3x16_update_skylake, nk_dot_e4m3x16_finalize_skylake,
+                                  /*simd_width=*/16)
 nk_define_dots_packed_vectors_(e4m3_skylake, e4m3, f32, nk_b128_vec_t, nk_dot_e4m3x16_state_skylake_t, nk_b128_vec_t,
                                nk_dot_e4m3x16_init_skylake, nk_load_b128_haswell_, nk_partial_load_b8x16_skylake_,
                                nk_dot_e4m3x16_update_skylake, nk_dot_e4m3x16_finalize_skylake,
@@ -66,6 +104,10 @@ nk_define_dots_packed_vectors_(e4m3_skylake, e4m3, f32, nk_b128_vec_t, nk_dot_e4
 /* E5M2 GEMM: simd_width=16 (16 e5m2s = 16 bytes = quarter cache line), F32 accumulator */
 nk_define_dots_pack_size_(skylake, e5m2, f32)
 nk_define_dots_pack_(skylake, e5m2, f32)
+nk_define_dots_symmetric_vectors_(e5m2_skylake, e5m2, f32, nk_b128_vec_t, nk_dot_e5m2x16_state_skylake_t, nk_b128_vec_t,
+                                  nk_dot_e5m2x16_init_skylake, nk_load_b128_haswell_, nk_partial_load_b8x16_skylake_,
+                                  nk_dot_e5m2x16_update_skylake, nk_dot_e5m2x16_finalize_skylake,
+                                  /*simd_width=*/16)
 nk_define_dots_packed_vectors_(e5m2_skylake, e5m2, f32, nk_b128_vec_t, nk_dot_e5m2x16_state_skylake_t, nk_b128_vec_t,
                                nk_dot_e5m2x16_init_skylake, nk_load_b128_haswell_, nk_partial_load_b8x16_skylake_,
                                nk_dot_e5m2x16_update_skylake, nk_dot_e5m2x16_finalize_skylake,

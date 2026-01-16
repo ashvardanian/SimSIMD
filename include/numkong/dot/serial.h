@@ -457,6 +457,94 @@ NK_INTERNAL void nk_dot_e5m2x16_finalize_serial(                                
     result->f32s[3] = state_d->sums[0] + state_d->sums[1] + state_d->sums[2] + state_d->sums[3];
 }
 
+// U4x2 state: processes 16 nibbles (8 bytes = 64 bits) per update
+typedef struct nk_dot_u4x16_state_serial_t {
+    nk_u64_t sums[2]; // sums[0]: low nibbles, sums[1]: high nibbles
+} nk_dot_u4x16_state_serial_t;
+
+NK_INTERNAL void nk_dot_u4x16_init_serial(nk_dot_u4x16_state_serial_t *state) {
+    state->sums[0] = 0, state->sums[1] = 0;
+}
+
+NK_INTERNAL void nk_dot_u4x16_update_serial(nk_dot_u4x16_state_serial_t *state, nk_b64_vec_t a, nk_b64_vec_t b) {
+    // Process 8 bytes (16 nibbles total) using SWAR
+    // Separate accumulators for low and high nibbles
+    nk_u64_t sum_low = state->sums[0];
+    nk_u64_t sum_high = state->sums[1];
+
+    // Process all 8 bytes, extracting and multiplying nibbles
+    for (nk_size_t i = 0; i < 8; i++) {
+        nk_u8_t a_byte = a.u8s[i];
+        nk_u8_t b_byte = b.u8s[i];
+
+        // Extract low and high nibbles using SWAR masks
+        nk_u8_t a_low = a_byte & 0x0F;
+        nk_u8_t b_low = b_byte & 0x0F;
+        nk_u8_t a_high = (a_byte >> 4) & 0x0F;
+        nk_u8_t b_high = (b_byte >> 4) & 0x0F;
+
+        // Accumulate products into separate accumulators
+        sum_low += (nk_u32_t)a_low * (nk_u32_t)b_low;
+        sum_high += (nk_u32_t)a_high * (nk_u32_t)b_high;
+    }
+
+    state->sums[0] = sum_low, state->sums[1] = sum_high;
+}
+
+NK_INTERNAL void nk_dot_u4x16_finalize_serial(nk_dot_u4x16_state_serial_t const *state_a,
+                                              nk_dot_u4x16_state_serial_t const *state_b,
+                                              nk_dot_u4x16_state_serial_t const *state_c,
+                                              nk_dot_u4x16_state_serial_t const *state_d, nk_b128_vec_t *result) {
+    result->u32s[0] = (nk_u32_t)(state_a->sums[0] + state_a->sums[1]);
+    result->u32s[1] = (nk_u32_t)(state_b->sums[0] + state_b->sums[1]);
+    result->u32s[2] = (nk_u32_t)(state_c->sums[0] + state_c->sums[1]);
+    result->u32s[3] = (nk_u32_t)(state_d->sums[0] + state_d->sums[1]);
+}
+
+// I4x2 state: signed nibbles with same structure
+typedef struct nk_dot_i4x16_state_serial_t {
+    nk_i64_t sums[2]; // sums[0]: low nibbles, sums[1]: high nibbles
+} nk_dot_i4x16_state_serial_t;
+
+NK_INTERNAL void nk_dot_i4x16_init_serial(nk_dot_i4x16_state_serial_t *state) {
+    state->sums[0] = 0, state->sums[1] = 0;
+}
+
+NK_INTERNAL void nk_dot_i4x16_update_serial(nk_dot_i4x16_state_serial_t *state, nk_b64_vec_t a, nk_b64_vec_t b) {
+    // Process 8 bytes (16 nibbles total) using SWAR with sign extension
+    // Separate accumulators for low and high nibbles
+    nk_i64_t sum_low = state->sums[0];
+    nk_i64_t sum_high = state->sums[1];
+
+    // Process all 8 bytes, extracting and multiplying signed nibbles
+    for (nk_size_t i = 0; i < 8; i++) {
+        nk_u8_t a_byte = a.u8s[i];
+        nk_u8_t b_byte = b.u8s[i];
+
+        // Extract nibbles and sign extend: (nibble ^ 8) - 8 maps [0,15] → [-8,7]
+        nk_i8_t a_low = (nk_i8_t)(((a_byte & 0x0F) ^ 8) - 8);
+        nk_i8_t b_low = (nk_i8_t)(((b_byte & 0x0F) ^ 8) - 8);
+        nk_i8_t a_high = (nk_i8_t)((((a_byte >> 4) & 0x0F) ^ 8) - 8);
+        nk_i8_t b_high = (nk_i8_t)((((b_byte >> 4) & 0x0F) ^ 8) - 8);
+
+        // Accumulate products into separate accumulators
+        sum_low += (nk_i32_t)a_low * (nk_i32_t)b_low;
+        sum_high += (nk_i32_t)a_high * (nk_i32_t)b_high;
+    }
+
+    state->sums[0] = sum_low, state->sums[1] = sum_high;
+}
+
+NK_INTERNAL void nk_dot_i4x16_finalize_serial(nk_dot_i4x16_state_serial_t const *state_a,
+                                              nk_dot_i4x16_state_serial_t const *state_b,
+                                              nk_dot_i4x16_state_serial_t const *state_c,
+                                              nk_dot_i4x16_state_serial_t const *state_d, nk_b128_vec_t *result) {
+    result->i32s[0] = (nk_i32_t)(state_a->sums[0] + state_a->sums[1]);
+    result->i32s[1] = (nk_i32_t)(state_b->sums[0] + state_b->sums[1]);
+    result->i32s[2] = (nk_i32_t)(state_c->sums[0] + state_c->sums[1]);
+    result->i32s[3] = (nk_i32_t)(state_d->sums[0] + state_d->sums[1]);
+}
+
 #if defined(__cplusplus)
 } // extern "C"
 #endif

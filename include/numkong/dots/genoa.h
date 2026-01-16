@@ -28,6 +28,10 @@ extern "C" {
 /* BF16 GEMM: simd_width=32 (32 bf16s = 64 bytes = 1 cache line) */
 nk_define_dots_pack_size_(genoa, bf16, f32)
 nk_define_dots_pack_(genoa, bf16, f32)
+nk_define_dots_symmetric_vectors_(bf16_genoa, bf16, f32, nk_b512_vec_t, nk_dot_bf16x32_state_genoa_t, nk_b128_vec_t,
+                                  nk_dot_bf16x32_init_genoa, nk_load_b512_skylake_, nk_partial_load_b16x32_skylake_,
+                                  nk_dot_bf16x32_update_genoa, nk_dot_bf16x32_finalize_genoa,
+                                  /*simd_width=*/32)
 nk_define_dots_packed_vectors_(bf16_genoa, bf16, f32, nk_b512_vec_t, nk_dot_bf16x32_state_genoa_t, nk_b128_vec_t,
                                nk_dot_bf16x32_init_genoa, nk_load_b512_skylake_, nk_partial_load_b16x32_skylake_,
                                nk_dot_bf16x32_update_genoa, nk_dot_bf16x32_finalize_genoa,
@@ -37,6 +41,10 @@ nk_define_dots_packed_vectors_(bf16_genoa, bf16, f32, nk_b512_vec_t, nk_dot_bf16
 /* E4M3 GEMM: simd_width=32 (32 e4m3s = 32 bytes = half cache line), F32 accumulator */
 nk_define_dots_pack_size_(genoa, e4m3, f32)
 nk_define_dots_pack_(genoa, e4m3, f32)
+nk_define_dots_symmetric_vectors_(e4m3_genoa, e4m3, f32, nk_b256_vec_t, nk_dot_e4m3x32_state_genoa_t, nk_b128_vec_t,
+                                  nk_dot_e4m3x32_init_genoa, nk_load_b256_haswell_, nk_partial_load_b8x32_serial_,
+                                  nk_dot_e4m3x32_update_genoa, nk_dot_e4m3x32_finalize_genoa,
+                                  /*simd_width=*/32)
 nk_define_dots_packed_vectors_(e4m3_genoa, e4m3, f32, nk_b256_vec_t, nk_dot_e4m3x32_state_genoa_t, nk_b128_vec_t,
                                nk_dot_e4m3x32_init_genoa, nk_load_b256_haswell_, nk_partial_load_b8x32_serial_,
                                nk_dot_e4m3x32_update_genoa, nk_dot_e4m3x32_finalize_genoa,
@@ -46,6 +54,10 @@ nk_define_dots_packed_vectors_(e4m3_genoa, e4m3, f32, nk_b256_vec_t, nk_dot_e4m3
 /* E5M2 GEMM: simd_width=32 (32 e5m2s = 32 bytes = half cache line), F32 accumulator */
 nk_define_dots_pack_size_(genoa, e5m2, f32)
 nk_define_dots_pack_(genoa, e5m2, f32)
+nk_define_dots_symmetric_vectors_(e5m2_genoa, e5m2, f32, nk_b256_vec_t, nk_dot_e5m2x32_state_genoa_t, nk_b128_vec_t,
+                                  nk_dot_e5m2x32_init_genoa, nk_load_b256_haswell_, nk_partial_load_b8x32_serial_,
+                                  nk_dot_e5m2x32_update_genoa, nk_dot_e5m2x32_finalize_genoa,
+                                  /*simd_width=*/32)
 nk_define_dots_packed_vectors_(e5m2_genoa, e5m2, f32, nk_b256_vec_t, nk_dot_e5m2x32_state_genoa_t, nk_b128_vec_t,
                                nk_dot_e5m2x32_init_genoa, nk_load_b256_haswell_, nk_partial_load_b8x32_serial_,
                                nk_dot_e5m2x32_update_genoa, nk_dot_e5m2x32_finalize_genoa,
