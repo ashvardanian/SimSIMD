@@ -158,7 +158,7 @@ nk_dot_f32c_skylake_cycle:
     }
     __m512d a_f64x8 = _mm512_cvtps_pd(a_f32x8);
     __m512d b_f64x8 = _mm512_cvtps_pd(b_f32x8);
-    __m512d b_swapped_f64x8 = _mm512_permute_pd(b_f64x8, 0b01010101);
+    __m512d b_swapped_f64x8 = _mm512_permute_pd(b_f64x8, 0x55);
     sum_real_f64x8 = _mm512_fmadd_pd(a_f64x8, b_f64x8, sum_real_f64x8);
     sum_imag_f64x8 = _mm512_fmadd_pd(a_f64x8, b_swapped_f64x8, sum_imag_f64x8);
     if (count_pairs) goto nk_dot_f32c_skylake_cycle;
@@ -199,7 +199,7 @@ nk_vdot_f32c_skylake_cycle:
     __m512d a_f64x8 = _mm512_cvtps_pd(a_f32x8);
     __m512d b_f64x8 = _mm512_cvtps_pd(b_f32x8);
     sum_real_f64x8 = _mm512_fmadd_pd(a_f64x8, b_f64x8, sum_real_f64x8);
-    __m512d b_swapped_f64x8 = _mm512_permute_pd(b_f64x8, 0b01010101);
+    __m512d b_swapped_f64x8 = _mm512_permute_pd(b_f64x8, 0x55);
     sum_imag_f64x8 = _mm512_fmadd_pd(a_f64x8, b_swapped_f64x8, sum_imag_f64x8);
     if (count_pairs) goto nk_vdot_f32c_skylake_cycle;
 

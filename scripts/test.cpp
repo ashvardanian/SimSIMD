@@ -515,19 +515,19 @@ void dots_bf16_with_mkl(bf16_t const *a, bf16_t const *b, f32_t *c, nk_size_t m,
                         nk_size_t a_stride, nk_size_t c_stride) {
     (void)a_stride;
     (void)c_stride;
-    cblas_gemm_bf16(CblasRowMajor, CblasNoTrans, CblasTrans, static_cast<MKL_INT>(m), static_cast<MKL_INT>(n),
-                    static_cast<MKL_INT>(k), 1.0f, &a->raw_, static_cast<MKL_INT>(k), &b->raw_, static_cast<MKL_INT>(k),
-                    0.0f, &c->raw_, static_cast<MKL_INT>(n));
+    cblas_gemm_bf16bf16f32(CblasRowMajor, CblasNoTrans, CblasTrans, static_cast<MKL_INT>(m), static_cast<MKL_INT>(n),
+                           static_cast<MKL_INT>(k), 1.0f, &a->raw_, static_cast<MKL_INT>(k), &b->raw_,
+                           static_cast<MKL_INT>(k), 0.0f, &c->raw_, static_cast<MKL_INT>(n));
 }
 
 void dots_f16_with_mkl(f16_t const *a, f16_t const *b, f32_t *c, nk_size_t m, nk_size_t n, nk_size_t k,
                        nk_size_t a_stride, nk_size_t c_stride) {
     (void)a_stride;
     (void)c_stride;
-    cblas_gemm_f16(CblasRowMajor, CblasNoTrans, CblasTrans, static_cast<MKL_INT>(m), static_cast<MKL_INT>(n),
-                   static_cast<MKL_INT>(k), 1.0f, reinterpret_cast<MKL_F16 const *>(&a->raw_), static_cast<MKL_INT>(k),
-                   reinterpret_cast<MKL_F16 const *>(&b->raw_), static_cast<MKL_INT>(k), 0.0f, &c->raw_,
-                   static_cast<MKL_INT>(n));
+    cblas_gemm_f16f16f32(CblasRowMajor, CblasNoTrans, CblasTrans, static_cast<MKL_INT>(m), static_cast<MKL_INT>(n),
+                         static_cast<MKL_INT>(k), 1.0f, reinterpret_cast<MKL_F16 const *>(&a->raw_),
+                         static_cast<MKL_INT>(k), reinterpret_cast<MKL_F16 const *>(&b->raw_), static_cast<MKL_INT>(k),
+                         0.0f, &c->raw_, static_cast<MKL_INT>(n));
 }
 
 /** @brief MKL s16×s16→s32 integer GEMM wrapper. */
