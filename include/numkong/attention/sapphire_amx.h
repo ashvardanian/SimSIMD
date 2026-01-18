@@ -567,7 +567,7 @@ NK_PUBLIC void nk_attention_pack_k_sapphire_amx(nk_bf16_t const *k, void *kv_pac
         nk_bf16_t const *k_head = k + h * seq_len * head_dim;
         nk_bf16_t *k_head_packed = k_packed + h * tiles_per_seq * tiles_per_depth * tile_size;
 
-        // Pack tiles: iterate over seq_len tiles (columns of K^T) and depth tiles
+        // Pack tiles: iterate over seq_len tiles (columns of Kᵀ) and depth tiles
         for (nk_size_t seq_tile = 0; seq_tile < tiles_per_seq; seq_tile++) {
             nk_size_t seq_start = seq_tile * 16;
             nk_size_t valid_seq = (seq_start + 16 <= seq_len) ? 16 : (seq_len - seq_start);
@@ -843,7 +843,7 @@ NK_PUBLIC void nk_attention_bf16_sapphire_amx(nk_bf16_t const *q, void const *kv
             for (nk_size_t kvb = 0; kvb < kv_len; kvb += Bc) {
                 nk_size_t valid_kv = (kvb + Bc <= kv_len) ? Bc : (kv_len - kvb);
 
-                // Extract K block: K^T[head_dim, valid_kv] using bulk extraction
+                // Extract K block: Kᵀ[head_dim, valid_kv] using bulk extraction
                 nk_attention_extract_k_block_(k_packed, k_block, kv_h, kvb, valid_kv, head_dim, kv_len);
 
                 // Phase 1: Compute S = Q × Kᵀ using AVX-512 FMA
@@ -854,7 +854,7 @@ NK_PUBLIC void nk_attention_bf16_sapphire_amx(nk_bf16_t const *q, void const *kv
                         // Vectorized loop over head_dim
                         for (; d + 16 <= head_dim; d += 16) {
                             __m512 q_v = _mm512_loadu_ps(&q_block[qi * head_dim + d]);
-                            // K^T is stored as [head_dim, kv], gather is slow, use scalar for now
+                            // Kᵀ is stored as [head_dim, kv], gather is slow, use scalar for now
                             __m512 k_v = _mm512_set_ps(
                                 k_block[(d + 15) * 16 + ki], k_block[(d + 14) * 16 + ki], k_block[(d + 13) * 16 + ki],
                                 k_block[(d + 12) * 16 + ki], k_block[(d + 11) * 16 + ki], k_block[(d + 10) * 16 + ki],

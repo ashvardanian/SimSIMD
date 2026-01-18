@@ -75,11 +75,11 @@ NK_PUBLIC void nk_dots_pack_i4_ice(nk_i4x2_t const *b, nk_size_t column_count, n
     nk_dots_pack_i4x2_serial(b, column_count, depth, b_stride_in_bytes, b_packed);
 }
 
-nk_define_dots_symmetric_vectors_(i4_ice, i4, i32, nk_b256_vec_t, nk_dot_i4x64_state_ice_t, nk_b128_vec_t,
+nk_define_dots_symmetric_vectors_(i4_ice, i4x2, i32, nk_b256_vec_t, nk_dot_i4x64_state_ice_t, nk_b128_vec_t,
                                   nk_dot_i4x64_init_ice, nk_load_b256_haswell_, nk_partial_load_b4x64_serial_,
                                   nk_dot_i4x64_update_ice, nk_dot_i4x64_finalize_ice,
                                   /*simd_width=*/64)
-nk_define_dots_packed_vectors_(i4_ice, i4, i32, nk_b256_vec_t, nk_dot_i4x64_state_ice_t, nk_b128_vec_t,
+nk_define_dots_packed_vectors_(i4_ice, i4x2, i32, nk_b256_vec_t, nk_dot_i4x64_state_ice_t, nk_b128_vec_t,
                                nk_dot_i4x64_init_ice, nk_load_b256_haswell_, nk_partial_load_b4x64_serial_,
                                nk_dot_i4x64_update_ice, nk_dot_i4x64_finalize_ice, nk_partial_store_b32x4_skylake_,
                                /*simd_width=*/64)
@@ -98,11 +98,11 @@ NK_PUBLIC void nk_dots_pack_u4_ice(nk_u4x2_t const *b, nk_size_t column_count, n
     nk_dots_pack_u4x2_serial(b, column_count, depth, b_stride_in_bytes, b_packed);
 }
 
-nk_define_dots_symmetric_vectors_(u4_ice, u4, u32, nk_b256_vec_t, nk_dot_u4x64_state_ice_t, nk_b128_vec_t,
+nk_define_dots_symmetric_vectors_(u4_ice, u4x2, u32, nk_b256_vec_t, nk_dot_u4x64_state_ice_t, nk_b128_vec_t,
                                   nk_dot_u4x64_init_ice, nk_load_b256_haswell_, nk_partial_load_b4x64_serial_,
                                   nk_dot_u4x64_update_ice, nk_dot_u4x64_finalize_ice,
                                   /*simd_width=*/64)
-nk_define_dots_packed_vectors_(u4_ice, u4, u32, nk_b256_vec_t, nk_dot_u4x64_state_ice_t, nk_b128_vec_t,
+nk_define_dots_packed_vectors_(u4_ice, u4x2, u32, nk_b256_vec_t, nk_dot_u4x64_state_ice_t, nk_b128_vec_t,
                                nk_dot_u4x64_init_ice, nk_load_b256_haswell_, nk_partial_load_b4x64_serial_,
                                nk_dot_u4x64_update_ice, nk_dot_u4x64_finalize_ice, nk_partial_store_b32x4_skylake_,
                                /*simd_width=*/64)

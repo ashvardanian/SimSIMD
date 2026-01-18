@@ -480,7 +480,7 @@ nk_define_det3x3_(f64)
     }
 
 /*  Umeyama algorithm for optimal similarity transformation (rotation + uniform scale).
- *  Finds the rotation matrix R and scale factor c that minimizes ||c*R*A - B||.
+ *  Finds the rotation matrix R and scale factor c that minimizes ‖c × R × A - B‖.
  *  Reference: S. Umeyama, "Least-squares estimation of transformation parameters
  *  between two point patterns", IEEE TPAMI 1991.
  */
@@ -549,7 +549,7 @@ nk_define_det3x3_(f64)
         rotation_matrix[6] = svd_v[6] * svd_u[0] + svd_v[7] * svd_u[1] + svd_v[8] * svd_u[2];                         \
         rotation_matrix[7] = svd_v[6] * svd_u[3] + svd_v[7] * svd_u[4] + svd_v[8] * svd_u[5];                         \
         rotation_matrix[8] = svd_v[6] * svd_u[6] + svd_v[7] * svd_u[7] + svd_v[8] * svd_u[8];                         \
-        /* Handle reflection and compute scale: c = trace(D × S) / variance(a) */                                        \
+        /* Handle reflection and compute scale: c = trace(D × S) / variance(a) */                                     \
         /* D = diag(1, 1, det(R)), svd_s contains proper positive singular values on diagonal */                      \
         nk_##svd_type##_t rotation_det = nk_det3x3_##svd_type##_(rotation_matrix);                                    \
         nk_##svd_type##_t sign_det = rotation_det < 0 ? (nk_##svd_type##_t) - 1.0 : (nk_##svd_type##_t)1.0;           \
@@ -573,7 +573,7 @@ nk_define_det3x3_(f64)
         if (rotation) {                                                                                               \
             for (int j = 0; j < 9; ++j) rotation[j] = (nk_##output_type##_t)rotation_matrix[j];                       \
         }                                                                                                             \
-        /* Step 5: Compute RMSD after similarity transform: ||c*R*a - b|| */                                          \
+        /* Step 5: Compute RMSD after similarity transform: ‖c × R × a - b‖ */                                        \
         nk_##accumulator_type##_t sum_squared = 0;                                                                    \
         for (nk_size_t i = 0; i < n; ++i) {                                                                           \
             nk_##svd_type##_t point_a[3], point_b[3], rotated_point_a[3];                                             \

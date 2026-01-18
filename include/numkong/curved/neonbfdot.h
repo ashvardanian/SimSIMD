@@ -54,7 +54,7 @@ NK_PUBLIC void nk_bilinear_bf16_neonbfdot(nk_bf16_t const *a, nk_bf16_t const *b
         nk_bf16_to_f32_serial(a + i, &a_i_f32);
         float32x4_t a_i_f32x4 = vdupq_n_f32(a_i_f32);
 
-        // Inner sum: sum_j c[i*n+j] * b[j]
+        // Inner sum
         float32x4_t inner_sum_f32x4 = vdupq_n_f32(0);
         nk_size_t j = 0;
 
@@ -93,7 +93,7 @@ NK_PUBLIC void nk_mahalanobis_bf16_neonbfdot(nk_bf16_t const *a, nk_bf16_t const
         nk_bf16_to_f32_serial(b + i, &b_i_f32);
         nk_f32_t diff_i = a_i_f32 - b_i_f32;
 
-        // Inner sum: sum_j c[i*n+j] * (a[j] - b[j])
+        // Inner sum
         float32x4_t inner_sum_f32x4 = vdupq_n_f32(0);
         nk_size_t j = 0;
 

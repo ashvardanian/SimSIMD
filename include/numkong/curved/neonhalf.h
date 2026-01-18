@@ -22,8 +22,8 @@
  *  to maintain cache locality.
  *
  *  Mathematical definitions:
- *  - Bilinear: result = sum_i sum_j a_i * c_ij * b_j
- *  - Mahalanobis: result = sqrt((a-b)^T * C * (a-b))
+ *  - Bilinear: result = ∑ᵢ ∑ⱼ aᵢ × cᵢⱼ × bⱼ
+ *  - Mahalanobis: result = √((a - b)ᵀ × C × (a - b))
  */
 #ifndef NK_CURVED_NEONHALF_H
 #define NK_CURVED_NEONHALF_H
@@ -58,7 +58,7 @@ NK_PUBLIC void nk_bilinear_f16_neonhalf(nk_f16_t const *a, nk_f16_t const *b, nk
         nk_f32_t a_row;
         nk_f16_to_f32_serial(a + row, &a_row);
 
-        // Compute inner sum: sum_j c_ij * b_j
+        // Compute inner sum
         float32x4_t inner_sum_f32x4 = vdupq_n_f32(0);
         nk_size_t column = 0;
 
@@ -101,7 +101,7 @@ NK_PUBLIC void nk_mahalanobis_f16_neonhalf(nk_f16_t const *a, nk_f16_t const *b,
         nk_f16_to_f32_serial(b + row, &b_row);
         nk_f32_t diff_row = a_row - b_row;
 
-        // Compute inner sum: sum_j c_ij * (a[j] - b[j])
+        // Compute inner sum
         float32x4_t inner_sum_f32x4 = vdupq_n_f32(0);
         nk_size_t column = 0;
 
@@ -147,7 +147,7 @@ NK_PUBLIC void nk_bilinear_f16c_neonhalf(nk_f16c_t const *a_pairs, nk_f16c_t con
         nk_f16_to_f32_serial(&(a_pairs + row)->real, &a_real);
         nk_f16_to_f32_serial(&(a_pairs + row)->imag, &a_imag);
 
-        // Compute inner sum: sum_j c_ij * b_j (complex multiplication)
+        // Compute inner sum
         float32x4_t inner_sum_real_f32x4 = vdupq_n_f32(0);
         float32x4_t inner_sum_imag_f32x4 = vdupq_n_f32(0);
         nk_size_t column = 0;
@@ -162,7 +162,7 @@ NK_PUBLIC void nk_bilinear_f16c_neonhalf(nk_f16c_t const *a_pairs, nk_f16c_t con
             float32x4_t c_real_f32x4 = vcvt_f32_f16(vreinterpret_f16_s16(c_i16x4x2.val[0]));
             float32x4_t c_imag_f32x4 = vcvt_f32_f16(vreinterpret_f16_s16(c_i16x4x2.val[1]));
 
-            // Complex multiply: c_ij * b_j = (c_real*b_real - c_imag*b_imag) + (c_real*b_imag + c_imag*b_real)i
+            // Complex multiply
             inner_sum_real_f32x4 = vfmaq_f32(inner_sum_real_f32x4, c_real_f32x4, b_real_f32x4);
             inner_sum_real_f32x4 = vfmsq_f32(inner_sum_real_f32x4, c_imag_f32x4, b_imag_f32x4);
             inner_sum_imag_f32x4 = vfmaq_f32(inner_sum_imag_f32x4, c_real_f32x4, b_imag_f32x4);
@@ -181,12 +181,12 @@ NK_PUBLIC void nk_bilinear_f16c_neonhalf(nk_f16c_t const *a_pairs, nk_f16c_t con
             nk_f16_to_f32_serial(&(c_row + column)->real, &c_real);
             nk_f16_to_f32_serial(&(c_row + column)->imag, &c_imag);
 
-            // Complex multiply: c_ij * b_j
+            // Complex multiply
             inner_sum_real += c_real * b_real - c_imag * b_imag;
             inner_sum_imag += c_real * b_imag + c_imag * b_real;
         }
 
-        // Complex multiply: a[row] * inner_sum and accumulate
+        // Complex multiply
         outer_sum_real += a_real * inner_sum_real - a_imag * inner_sum_imag;
         outer_sum_imag += a_real * inner_sum_imag + a_imag * inner_sum_real;
     }

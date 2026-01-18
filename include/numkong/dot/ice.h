@@ -206,10 +206,10 @@ NK_PUBLIC void nk_dot_i4_ice(nk_i4x2_t const *a, nk_i4x2_t const *b, nk_size_t n
     // Algorithm: For signed i4, we use an algebraic transformation.
     // Let ax, bx be the unsigned [0,15] representation of signed values a, b in [-8,7].
     // Then: a = ax - 8, b = bx - 8 (the XOR trick gives signed = (unsigned ^ 8) - 8)
-    // So: a * b = (ax - 8)(bx - 8) = ax*bx - 8*ax - 8*bx + 64
+    // So: a * b = (ax - 8)(bx - 8) = ax * bx - 8 * ax - 8 * bx + 64
     //
-    // We compute ax*bx using DPBUSD, then apply the correction:
-    //   signed_dot = unsigned_dot - 8*(sum_ax + sum_bx) + 64*n
+    // We compute ax * bx using DPBUSD, then apply the correction:
+    //   signed_dot = unsigned_dot - 8 * (sum_ax + sum_bx) + 64 * n
     //
     // Note: When n is odd, the high nibble of the last byte should be zero-padded.
     //
@@ -220,12 +220,6 @@ NK_PUBLIC void nk_dot_i4_ice(nk_i4x2_t const *a, nk_i4x2_t const *b, nk_size_t n
     __m512i sum_cd_i32x16 = _mm512_setzero_si512();
     __m512i sum_cx_i64x8 = _mm512_setzero_si512();
     __m512i sum_dx_i64x8 = _mm512_setzero_si512();
-
-    // For signed i4 values, the transformation is: signed_val = (raw ^ 8) - 8
-    // Let cx = ax ^ 8 and dx = bx ^ 8, then:
-    // a * b = (cx - 8)(dx - 8) = cx*dx - 8*cx - 8*dx + 64
-    // So: Σ(a*b) = Σ(cx*dx) - 8*Σcx - 8*Σdx + 64*n
-
     __m512i a_i4x128, b_i4x128;
 
 nk_dot_i4_ice_cycle:

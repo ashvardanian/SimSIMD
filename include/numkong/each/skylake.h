@@ -1075,7 +1075,7 @@ nk_each_scale_e4m3_skylake_cycle:
         a += 16, n -= 16;
     }
     a_f32x16 = nk_e4m3x16_to_f32x16_skylake_(a_e4m3x16);
-    // FP8 rounding note: FMA is acceptable here because scale computes (a * alpha + beta),
+    // FP8 rounding note: FMA is acceptable here because scale computes (α × a + β),
     // a single multiply-add operation where single-rounding preserves accuracy.
     result_f32x16 = _mm512_fmadd_ps(a_f32x16, alpha_f32x16, beta_f32x16);
     result_e4m3x16 = nk_f32x16_to_e4m3x16_skylake_(result_f32x16);
@@ -1102,7 +1102,7 @@ nk_each_scale_e5m2_skylake_cycle:
         a += 16, n -= 16;
     }
     a_f32x16 = nk_e5m2x16_to_f32x16_skylake_(a_e5m2x16);
-    // FP8 rounding note: FMA is acceptable here because scale computes (a * alpha + beta),
+    // FP8 rounding note: FMA is acceptable here because scale computes (α × a + β),
     // a single multiply-add operation where single-rounding preserves accuracy.
     result_f32x16 = _mm512_fmadd_ps(a_f32x16, alpha_f32x16, beta_f32x16);
     result_e5m2x16 = nk_f32x16_to_e5m2x16_skylake_(result_f32x16);
@@ -1193,9 +1193,9 @@ nk_each_fma_e4m3_skylake_cycle:
     a_f32x16 = nk_e4m3x16_to_f32x16_skylake_(a_e4m3x16);
     b_f32x16 = nk_e4m3x16_to_f32x16_skylake_(b_e4m3x16);
     c_f32x16 = nk_e4m3x16_to_f32x16_skylake_(c_e4m3x16);
-    // FP8 rounding note: Hybrid approach - use separate MUL for (a*b) and (a*b*alpha) to
+    // FP8 rounding note: Hybrid approach - use separate MUL for (a × b) and (α × a × b) to
     // preserve intermediate rounding, then FMA for final addition since it matches scalar
-    // semantics of (alpha*a*b + beta*c) when the multiply term is already computed.
+    // semantics of (α × a × b + β × c) when the multiply term is already computed.
     ab_f32x16 = _mm512_mul_ps(a_f32x16, b_f32x16);
     ab_scaled_f32x16 = _mm512_mul_ps(ab_f32x16, alpha_f32x16);
     result_f32x16 = _mm512_fmadd_ps(c_f32x16, beta_f32x16, ab_scaled_f32x16);
@@ -1229,9 +1229,9 @@ nk_each_fma_e5m2_skylake_cycle:
     a_f32x16 = nk_e5m2x16_to_f32x16_skylake_(a_e5m2x16);
     b_f32x16 = nk_e5m2x16_to_f32x16_skylake_(b_e5m2x16);
     c_f32x16 = nk_e5m2x16_to_f32x16_skylake_(c_e5m2x16);
-    // FP8 rounding note: Hybrid approach - use separate MUL for (a*b) and (a*b*alpha) to
+    // FP8 rounding note: Hybrid approach - use separate MUL for (a × b) and (α × a × b) to
     // preserve intermediate rounding, then FMA for final addition since it matches scalar
-    // semantics of (alpha*a*b + beta*c) when the multiply term is already computed.
+    // semantics of (α × a × b + β × c) when the multiply term is already computed.
     ab_f32x16 = _mm512_mul_ps(a_f32x16, b_f32x16);
     ab_scaled_f32x16 = _mm512_mul_ps(ab_f32x16, alpha_f32x16);
     result_f32x16 = _mm512_fmadd_ps(c_f32x16, beta_f32x16, ab_scaled_f32x16);

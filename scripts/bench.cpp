@@ -50,7 +50,7 @@
 #if NK_COMPARE_TO_MKL
 #include <mkl.h>
 // MKL provides additional GEMM routines:
-// - cblas_gemm_bf16: BF16 inputs → F32 output
+// - cblas_gemm_bf16bf16f32: BF16 inputs → F32 output
 // - cblas_hgemm: F16 GEMM (if available)
 #elif NK_COMPARE_TO_ACCELERATE
 #include <Accelerate/Accelerate.h> // Apple Accelerate framework
@@ -107,6 +107,31 @@ template <typename type_>
 }
 
 /**
+ *  @brief Factory function to allocate matrix buffers with correct size for sub-byte types.
+ *
+ *  For sub-byte types (u4, i4, u1), calculates the actual number of raw_t elements needed
+ *  to store a matrix of logical dimensions rows × cols.
+ *
+ *  @tparam dtype_ The NumKong dtype (e.g., nk_u4_k, nk_i4_k)
+ *  @param rows Number of logical rows
+ *  @param cols Number of logical columns per row
+ *  @return Vector with correct byte capacity for the matrix
+ */
+template <nk_dtype_t dtype_>
+[[nodiscard]] nk::vector<typename nk::type_for<dtype_>::type> make_vector_for_matrix(std::size_t rows,
+                                                                                     std::size_t cols) {
+    using type_ = typename nk::type_for<dtype_>::type;
+    using raw_t = typename type_::raw_t;
+
+    nk_size_t bits_per_element = nk_dtype_bits(dtype_);
+    nk_size_t bits_per_row = cols * bits_per_element;
+    nk_size_t bytes_per_row = nk_size_divide_round_up_to_multiple_(bits_per_row, 8);
+    nk_size_t total_elements = rows * bytes_per_row / sizeof(raw_t);
+
+    return make_vector<type_>(total_elements);
+}
+
+/**
  *  @brief Measures the performance of a @b dense kernel function using Google Benchmark.
  *  @param state The benchmark state object provided by Google Benchmark.
  *  @param kernel The kernel function to benchmark.
@@ -158,7 +183,7 @@ void measure_curved(bm::State &state, kernel_type_ kernel, std::size_t dimension
     using output_t = typename nk::type_for<output_dtype_>::type;
     using input_vector_t = nk::vector<input_t>;
 
-    // Preallocate inputs: pairs of vectors + metric tensors (dimensions x dimensions)
+    // Preallocate inputs: pairs of vectors + metric tensors (dimensions × dimensions)
     constexpr std::size_t vectors_count = 128;
     std::vector<input_vector_t> first_vectors(vectors_count), second_vectors(vectors_count), tensors(vectors_count);
     auto generator = make_random_engine();
@@ -326,9 +351,9 @@ void measure_elementwise(bm::State &state, kernel_type_ kernel, std::size_t dime
 
     // Preallocate vectors for different kernel types:
     // - sum: input_a, input_c -> output
-    // - wsum: input_a, input_c + alpha, beta -> output
-    // - fma: input_a, input_b, input_c + alpha, beta -> output
-    // - scale: input_a + alpha, beta -> output
+    // - wsum: input_a, input_c + α, β -> output
+    // - fma: input_a, input_b, input_c + α, β -> output
+    // - scale: input_a + α, β -> output
     // - trig (unknown): input_a -> output
     constexpr std::size_t vectors_count = 128;
     std::vector<input_vector_t> input_a(vectors_count), input_b(vectors_count);
@@ -506,26 +531,38 @@ void measure_dots_packed(                                                       
     using raw_input_t = typename input_t::raw_t;
     using raw_output_t = typename output_t::raw_t;
 
-    // Allocate matrices using nk::vector
-    auto matrix_a = make_vector<input_t>(m * k);
-    auto matrix_b = make_vector<input_t>(n * k);
+    // Calculate correct strides for sub-byte types (u4, i4, u1, etc.)
+    nk_size_t bits_per_element = nk_dtype_bits(input_dtype_);
+    nk_size_t a_stride_bytes = nk_size_divide_round_up_to_multiple_(k * bits_per_element, 8);
+    nk_size_t b_stride_bytes = nk_size_divide_round_up_to_multiple_(n * bits_per_element, 8);
+
+    // Allocate matrices with correct sizes for sub-byte types
+    auto matrix_a = make_vector_for_matrix<input_dtype_>(m, k);
+    auto matrix_b = make_vector_for_matrix<input_dtype_>(k, n);
     nk_size_t packed_bytes = packed_size_fn(n, k);
-    std::vector<char> matrix_b_packed(packed_bytes, 0); // packed buffer is just bytes
+    std::vector<char> matrix_b_packed(packed_bytes, 0);
     auto matrix_c = make_vector<output_t>(m * n);
 
-    // Initialize with random values
-    auto generator = make_random_engine();
-    nk::fill_uniform(generator, matrix_a.values_data(), m * k);
-    nk::fill_uniform(generator, matrix_b.values_data(), n * k);
+    // Debug output
+    if (state.thread_index() == 0 && state.iterations() == 0) {
+        printf("DEBUG: m=%lu, n=%lu, k=%lu, bits=%lu\n", m, n, k, bits_per_element);
+        printf("DEBUG: matrix_a.size()=%lu, matrix_b.size()=%lu\n", matrix_a.size(), matrix_b.size());
+        printf("DEBUG: a_stride=%lu, b_stride=%lu, packed_bytes=%lu\n", a_stride_bytes, b_stride_bytes, packed_bytes);
+    }
 
-    // Pack B matrix once (amortized cost for repeated inference)
-    pack_fn(matrix_b.raw_values_data(), n, k, k * sizeof(raw_input_t), matrix_b_packed.data());
+    // Initialize with random values (fill_uniform handles sub-byte types correctly)
+    auto generator = make_random_engine();
+    nk::fill_uniform(generator, matrix_a.values_data(), matrix_a.size());
+    nk::fill_uniform(generator, matrix_b.values_data(), matrix_b.size());
+
+    // Pack B matrix once (amortized cost for repeated inference) with correct stride
+    pack_fn(matrix_b.raw_values_data(), n, k, b_stride_bytes, matrix_b_packed.data());
 
     std::size_t iterations = 0;
     for (auto _ : state) {
         bm::DoNotOptimize(matrix_c.raw_values_data());
         kernel(matrix_a.raw_values_data(), matrix_b_packed.data(), matrix_c.raw_values_data(), //
-               m, n, k, k * sizeof(raw_input_t), n * sizeof(raw_output_t));
+               m, n, k, a_stride_bytes, n * sizeof(raw_output_t));
         ++iterations;
     }
 
@@ -800,6 +837,50 @@ void measure_dots_f64_with_blas(bm::State &state, std::size_t m, std::size_t n, 
                                   });
 }
 
+/**
+ *  @brief Unified symmetric rank-k update (SYRK) benchmark template: C = A × Aᵀ
+ *
+ *  Follows the same pattern as measure_dots_unpacked but for symmetric operations
+ *  where only a single input matrix A is needed to compute C = A × Aᵀ.
+ *
+ *  @tparam input_type_ Type for matrix A.
+ *  @tparam output_type_ Type for matrix C (defaults to input_type_).
+ */
+template <typename input_type_, typename output_type_ = input_type_, typename init_type_ = identity_init,
+          typename kernel_type_>
+void measure_dots_symmetric_unpacked(bm::State &state, std::size_t n, std::size_t k, kernel_type_ kernel,
+                                     init_type_ init = {}) {
+    std::vector<input_type_> matrix_a(n * k);
+    std::vector<output_type_> matrix_c(n * n);
+    auto generator = make_random_engine();
+    nk::fill_uniform(generator, matrix_a.data(), matrix_a.size());
+
+    std::size_t iterations = 0;
+    for (auto _ : state) {
+        bm::DoNotOptimize(matrix_c.data());
+        kernel(matrix_a.data(), matrix_c.data(), n, k);
+        ++iterations;
+    }
+    // For symmetric operations: n×n result from n×k × k×n = 2*n*n*k FLOPs
+    state.counters["tops"] = bm::Counter(iterations * 2.0 * n * n * k, bm::Counter::kIsRate);
+}
+
+void measure_dots_symmetric_f32_with_blas(bm::State &state, std::size_t n, std::size_t k) {
+    measure_dots_symmetric_unpacked<float>(state, n, k, [](float *a, float *c, std::size_t n, std::size_t k) {
+        // C = α×A×Aᵀ + β×C (CblasUpper: compute upper triangle only)
+        cblas_ssyrk(CblasRowMajor, CblasUpper, CblasNoTrans, static_cast<int>(n), static_cast<int>(k), 1.0f, a,
+                    static_cast<int>(k), 0.0f, c, static_cast<int>(n));
+    });
+}
+
+void measure_dots_symmetric_f64_with_blas(bm::State &state, std::size_t n, std::size_t k) {
+    measure_dots_symmetric_unpacked<double>(state, n, k, [](double *a, double *c, std::size_t n, std::size_t k) {
+        // C = α×A×Aᵀ + β×C (CblasUpper: compute upper triangle only)
+        cblas_dsyrk(CblasRowMajor, CblasUpper, CblasNoTrans, static_cast<int>(n), static_cast<int>(k), 1.0, a,
+                    static_cast<int>(k), 0.0, c, static_cast<int>(n));
+    });
+}
+
 #endif // NK_COMPARE_TO_BLAS || NK_COMPARE_TO_MKL || NK_COMPARE_TO_ACCELERATE
 
 #if NK_COMPARE_TO_MKL
@@ -834,8 +915,8 @@ void measure_dots_bf16_with_mkl(bm::State &state, std::size_t m, std::size_t n, 
     measure_dots_unpacked<MKL_BF16, MKL_BF16, float>(
         state, m, n, k,
         [](MKL_BF16 *a, MKL_BF16 *b, float *c, std::size_t m, std::size_t n, std::size_t k) {
-            cblas_gemm_bf16(CblasRowMajor, CblasNoTrans, CblasTrans, (MKL_INT)m, (MKL_INT)n, (MKL_INT)k, 1.0f, a,
-                            (MKL_INT)k, b, (MKL_INT)k, 0.0f, c, (MKL_INT)n);
+            cblas_gemm_bf16bf16f32(CblasRowMajor, CblasNoTrans, CblasTrans, (MKL_INT)m, (MKL_INT)n, (MKL_INT)k, 1.0f, a,
+                                   (MKL_INT)k, b, (MKL_INT)k, 0.0f, c, (MKL_INT)n);
         },
         f32_to_bf16, f32_to_bf16);
 }
@@ -844,8 +925,8 @@ void measure_dots_f16_with_mkl(bm::State &state, std::size_t m, std::size_t n, s
     measure_dots_unpacked<MKL_F16, MKL_F16, float>(
         state, m, n, k,
         [](MKL_F16 *a, MKL_F16 *b, float *c, std::size_t m, std::size_t n, std::size_t k) {
-            cblas_gemm_f16(CblasRowMajor, CblasNoTrans, CblasTrans, (MKL_INT)m, (MKL_INT)n, (MKL_INT)k, 1.0f, a,
-                           (MKL_INT)k, b, (MKL_INT)k, 0.0f, c, (MKL_INT)n);
+            cblas_gemm_f16f16f32(CblasRowMajor, CblasNoTrans, CblasTrans, (MKL_INT)m, (MKL_INT)n, (MKL_INT)k, 1.0f, a,
+                                 (MKL_INT)k, b, (MKL_INT)k, 0.0f, c, (MKL_INT)n);
         },
         f32_to_f16, f32_to_f16);
 }
@@ -1124,6 +1205,19 @@ int main(int argc, char **argv) {
             ->Threads(1);
         bm::RegisterBenchmark(("dots_f64_with_blas<" + dims + ">").c_str(), measure_dots_f64_with_blas, matrix_height,
                               matrix_width, matrix_depth)
+            ->MinTime(default_seconds)
+            ->Threads(1);
+    }
+
+    // BLAS SYRK baselines for symmetric operations (correct operation for dots_symmetric: A×Aᵀ)
+    {
+        std::string dims = std::to_string(matrix_height) + "x" + std::to_string(matrix_depth);
+        bm::RegisterBenchmark(("dots_symmetric_f32_with_blas<" + dims + ">").c_str(),
+                              measure_dots_symmetric_f32_with_blas, matrix_height, matrix_depth)
+            ->MinTime(default_seconds)
+            ->Threads(1);
+        bm::RegisterBenchmark(("dots_symmetric_f64_with_blas<" + dims + ">").c_str(),
+                              measure_dots_symmetric_f64_with_blas, matrix_height, matrix_depth)
             ->MinTime(default_seconds)
             ->Threads(1);
     }
@@ -1417,6 +1511,8 @@ int main(int argc, char **argv) {
                         nk_dots_packed_f32_haswell);
     dots_<f64_k, f64_k>("dots_packed_f64_haswell", nk_dots_packed_size_f64_haswell, nk_dots_pack_f64_haswell,
                         nk_dots_packed_f64_haswell);
+    dots_<f16_k, f32_k>("dots_packed_f16_haswell", nk_dots_packed_size_f16_haswell, nk_dots_pack_f16_haswell,
+                        nk_dots_packed_f16_haswell);
 
 #endif
 
@@ -1467,6 +1563,10 @@ int main(int argc, char **argv) {
                         nk_dots_packed_f32_skylake);
     dots_<f64_k, f64_k>("dots_packed_f64_skylake", nk_dots_packed_size_f64_skylake, nk_dots_pack_f64_skylake,
                         nk_dots_packed_f64_skylake);
+    dots_<bf16_k, f32_k>("dots_packed_bf16_skylake", nk_dots_packed_size_bf16_skylake, nk_dots_pack_bf16_skylake,
+                         nk_dots_packed_bf16_skylake);
+    dots_<f16_k, f32_k>("dots_packed_f16_skylake", nk_dots_packed_size_f16_skylake, nk_dots_pack_f16_skylake,
+                        nk_dots_packed_f16_skylake);
     dots_<e4m3_k, f32_k>("dots_packed_e4m3_skylake", nk_dots_packed_size_e4m3_skylake, nk_dots_pack_e4m3_skylake,
                          nk_dots_packed_e4m3_skylake);
     dots_<e5m2_k, f32_k>("dots_packed_e5m2_skylake", nk_dots_packed_size_e5m2_skylake, nk_dots_pack_e5m2_skylake,
@@ -1719,7 +1819,7 @@ int main(int argc, char **argv) {
     dots_<i4_k, i32_k>("dots_packed_i4_serial", nk_dots_packed_size_i4x2_serial, nk_dots_pack_i4x2_serial,
                        nk_dots_packed_i4x2_serial);
 
-    // Symmetric GEMM benchmarks (A × A^T)
+    // Symmetric GEMM benchmarks (A × Aᵀ)
     dots_symmetric_<f32_k, f32_k>("dots_symmetric_f32_serial", nk_dots_symmetric_f32_serial);
     dots_symmetric_<f64_k, f64_k>("dots_symmetric_f64_serial", nk_dots_symmetric_f64_serial);
     dots_symmetric_<bf16_k, f32_k>("dots_symmetric_bf16_serial", nk_dots_symmetric_bf16_serial);

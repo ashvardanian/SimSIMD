@@ -154,8 +154,7 @@ NK_PUBLIC void nk_bilinear_f32c_neon(nk_f32c_t const *a_pairs, nk_f32c_t const *
             float64x2_t c_real_f64x2 = vcvt_f64_f32(c_f32x2x2.val[0]);
             float64x2_t c_imag_f64x2 = vcvt_f64_f32(c_f32x2x2.val[1]);
 
-            // Complex multiply: cᵢⱼ × bⱼ = (c_real×b_real - c_imag×b_imag) + (c_real×b_imag + c_imag×b_real)i
-            // Real part: c_real×b_real - c_imag×b_imag
+            // Complex multiply
             inner_sum_real_f64x2 = vfmaq_f64(inner_sum_real_f64x2, c_real_f64x2, b_real_f64x2);
             inner_sum_real_f64x2 = vfmsq_f64(inner_sum_real_f64x2, c_imag_f64x2, b_imag_f64x2);
 
@@ -179,8 +178,7 @@ NK_PUBLIC void nk_bilinear_f32c_neon(nk_f32c_t const *a_pairs, nk_f32c_t const *
             inner_sum_imag_f64 += c_real * b_imag + c_imag * b_real;
         }
 
-        // Outer accumulation: outer_sum += aᵢ × inner_sum (complex multiply)
-        // (a_real + a_imag*i) × (inner_real + inner_imag*i)
+        // Outer accumulation
         outer_sum_real_f64 += a_real_f64 * inner_sum_real_f64 - a_imag_f64 * inner_sum_imag_f64;
         outer_sum_imag_f64 += a_real_f64 * inner_sum_imag_f64 + a_imag_f64 * inner_sum_real_f64;
     }

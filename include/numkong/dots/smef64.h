@@ -200,7 +200,7 @@ __arm_locally_streaming __arm_new("za") static void nk_dots_f32_sme_kernel_(nk_f
 }
 
 /**
- *  @brief Computes C = A × B^T using packed `f32` B, accumulating with `f64` precision.
+ *  @brief Computes C = A × Bᵀ using packed `f32` B, accumulating with `f64` precision.
  *
  *  High-precision matrix multiplication using `f64` accumulators for scientific computing.
  *  All edge handling is done via predicates in the kernel.
@@ -419,7 +419,7 @@ __arm_locally_streaming __arm_new("za") static void nk_dots_f64_sme_kernel_(nk_f
 }
 
 /**
- *  @brief Computes C = A × B^T using packed `f64` B with Kahan compensated summation.
+ *  @brief Computes C = A × Bᵀ using packed `f64` B with Kahan compensated summation.
  *
  *  High-precision `f64` GEMM with ~16-17 decimal digits of precision.
  *  All edge handling is done via predicates in the kernel.

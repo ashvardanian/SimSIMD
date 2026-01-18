@@ -692,67 +692,65 @@ typedef struct {
  * - Register reuse (row_i loaded once per iteration, used for all j ≥ i)
  * - State-based accumulation (supports Neumaier compensation, platform-specific precision)
  */
-#define nk_define_dots_symmetric_vectors_(suffix, input_type, output_type, vec_type, state_type,           \
-                                          result_vec_type, init_fn, load_fn, partial_load_fn, update_fn,  \
-                                          finalize_fn, simd_width)                                         \
-    NK_PUBLIC void nk_dots_symmetric_##suffix(nk_##input_type##_t const *vectors, nk_size_t n_vectors,    \
-                                              nk_size_t depth, nk_size_t stride,                           \
-                                              nk_##output_type##_t *result, nk_size_t result_stride) {     \
-                                                                                                           \
-        nk_size_t const vectors_stride_elements = stride / sizeof(nk_##input_type##_t);                    \
-        nk_size_t const result_stride_elements = result_stride / sizeof(nk_##output_type##_t);             \
-        nk_size_t const aligned_depth = (depth / simd_width) * simd_width;                                 \
-        nk_size_t const remainder_depth = depth - aligned_depth;                                           \
-                                                                                                           \
-        /* Compute upper triangle including diagonal */                                                    \
-        for (nk_size_t i = 0; i < n_vectors; i++) {                                                        \
-            nk_##input_type##_t const *row_i = vectors + i * vectors_stride_elements;                      \
-            for (nk_size_t j = i; j < n_vectors; j++) {                                                    \
-                nk_##input_type##_t const *row_j = vectors + j * vectors_stride_elements;                  \
-                                                                                                           \
-                /* Initialize accumulator state */                                                          \
-                state_type acc;                                                                            \
-                init_fn(&acc);                                                                             \
-                                                                                                           \
-                /* Vectorized depth loop */                                                                 \
-                for (nk_size_t d = 0; d < aligned_depth; d += simd_width) {                                \
-                    vec_type vec_i, vec_j;                                                                 \
-                    load_fn(row_i + d, &vec_i);                                                            \
-                    load_fn(row_j + d, &vec_j);                                                            \
-                    update_fn(&acc, vec_i, vec_j);                                                         \
-                }                                                                                          \
-                                                                                                           \
-                /* Handle remainder with partial load */                                                    \
-                if (remainder_depth > 0) {                                                                 \
-                    vec_type vec_i, vec_j;                                                                 \
-                    partial_load_fn(row_i + aligned_depth, &vec_i, remainder_depth);                       \
-                    partial_load_fn(row_j + aligned_depth, &vec_j, remainder_depth);                       \
-                    update_fn(&acc, vec_i, vec_j);                                                         \
-                }                                                                                          \
-                                                                                                           \
-                /* Finalize: horizontal reduction to scalar */                                             \
-                state_type dummy_b, dummy_c, dummy_d;                                                      \
-                init_fn(&dummy_b); init_fn(&dummy_c); init_fn(&dummy_d);                                  \
-                result_vec_type result_vec;                                                                \
-                finalize_fn(&acc, &dummy_b, &dummy_c, &dummy_d, &result_vec);                             \
-                                                                                                           \
-                /* Store result and mirror to lower triangle */                                            \
-                nk_##output_type##_t val = result_vec.output_type##s[0];                                   \
-                result[i * result_stride_elements + j] = val;                                              \
-                if (i != j) {                                                                              \
-                    result[j * result_stride_elements + i] = val;                                          \
-                }                                                                                          \
-            }                                                                                              \
-        }                                                                                                  \
+#define nk_define_dots_symmetric_vectors_(suffix, input_type, output_type, vec_type, state_type, result_vec_type, \
+                                          init_fn, load_fn, partial_load_fn, update_fn, finalize_fn, simd_width)  \
+    NK_PUBLIC void nk_dots_symmetric_##suffix(nk_##input_type##_t const *vectors, nk_size_t n_vectors,            \
+                                              nk_size_t depth, nk_size_t stride, nk_##output_type##_t *result,    \
+                                              nk_size_t result_stride) {                                          \
+                                                                                                                  \
+        nk_size_t const vectors_stride_elements = stride / sizeof(nk_##input_type##_t);                           \
+        nk_size_t const result_stride_elements = result_stride / sizeof(nk_##output_type##_t);                    \
+        nk_size_t const aligned_depth = (depth / simd_width) * simd_width;                                        \
+        nk_size_t const remainder_depth = depth - aligned_depth;                                                  \
+                                                                                                                  \
+        /* Compute upper triangle including diagonal */                                                           \
+        for (nk_size_t i = 0; i < n_vectors; i++) {                                                               \
+            nk_##input_type##_t const *row_i = vectors + i * vectors_stride_elements;                             \
+            for (nk_size_t j = i; j < n_vectors; j++) {                                                           \
+                nk_##input_type##_t const *row_j = vectors + j * vectors_stride_elements;                         \
+                                                                                                                  \
+                /* Initialize accumulator state */                                                                \
+                state_type acc;                                                                                   \
+                init_fn(&acc);                                                                                    \
+                                                                                                                  \
+                /* Vectorized depth loop */                                                                       \
+                for (nk_size_t d = 0; d < aligned_depth; d += simd_width) {                                       \
+                    vec_type vec_i, vec_j;                                                                        \
+                    load_fn(row_i + d, &vec_i);                                                                   \
+                    load_fn(row_j + d, &vec_j);                                                                   \
+                    update_fn(&acc, vec_i, vec_j);                                                                \
+                }                                                                                                 \
+                                                                                                                  \
+                /* Handle remainder with partial load */                                                          \
+                if (remainder_depth > 0) {                                                                        \
+                    vec_type vec_i, vec_j;                                                                        \
+                    partial_load_fn(row_i + aligned_depth, &vec_i, remainder_depth);                              \
+                    partial_load_fn(row_j + aligned_depth, &vec_j, remainder_depth);                              \
+                    update_fn(&acc, vec_i, vec_j);                                                                \
+                }                                                                                                 \
+                                                                                                                  \
+                /* Finalize: horizontal reduction to scalar */                                                    \
+                state_type dummy_b, dummy_c, dummy_d;                                                             \
+                init_fn(&dummy_b);                                                                                \
+                init_fn(&dummy_c);                                                                                \
+                init_fn(&dummy_d);                                                                                \
+                result_vec_type result_vec;                                                                       \
+                finalize_fn(&acc, &dummy_b, &dummy_c, &dummy_d, &result_vec);                                     \
+                                                                                                                  \
+                /* Store result and mirror to lower triangle */                                                   \
+                nk_##output_type##_t val = result_vec.output_type##s[0];                                          \
+                result[i * result_stride_elements + j] = val;                                                     \
+                if (i != j) { result[j * result_stride_elements + i] = val; }                                     \
+            }                                                                                                     \
+        }                                                                                                         \
     }
 
 /* F64 GEMM: simd_width=2 (2 f64s = 16 bytes) */
 nk_define_dots_pack_size_(serial, f64, f64)
 nk_define_dots_pack_(serial, f64, f64)
-nk_define_dots_symmetric_vectors_(f64_serial, f64, f64, nk_b128_vec_t, nk_dot_f64x2_state_serial_t,
-                                  nk_b256_vec_t, nk_dot_f64x2_init_serial, nk_load_b128_serial_,
-                                  nk_partial_load_b64x2_serial_, nk_dot_f64x2_update_serial,
-                                  nk_dot_f64x2_finalize_serial, /*simd_width=*/2)
+nk_define_dots_symmetric_vectors_(f64_serial, f64, f64, nk_b128_vec_t, nk_dot_f64x2_state_serial_t, nk_b256_vec_t,
+                                  nk_dot_f64x2_init_serial, nk_load_b128_serial_, nk_partial_load_b64x2_serial_,
+                                  nk_dot_f64x2_update_serial, nk_dot_f64x2_finalize_serial, /*simd_width=*/2)
 nk_define_dots_packed_vectors_(f64_serial, f64, f64, nk_b128_vec_t, nk_dot_f64x2_state_serial_t, nk_b256_vec_t,
                                nk_dot_f64x2_init_serial, nk_load_b128_serial_, nk_partial_load_b64x2_serial_,
                                nk_dot_f64x2_update_serial, nk_dot_f64x2_finalize_serial, nk_partial_store_b64x4_serial_,
@@ -761,10 +759,9 @@ nk_define_dots_packed_vectors_(f64_serial, f64, f64, nk_b128_vec_t, nk_dot_f64x2
 /* F32 GEMM: simd_width=4 (4 f32s = 16 bytes) */
 nk_define_dots_pack_size_(serial, f32, f32)
 nk_define_dots_pack_(serial, f32, f32)
-nk_define_dots_symmetric_vectors_(f32_serial, f32, f32, nk_b128_vec_t, nk_dot_f32x4_state_serial_t,
-                                  nk_b128_vec_t, nk_dot_f32x4_init_serial, nk_load_b128_serial_,
-                                  nk_partial_load_b32x4_serial_, nk_dot_f32x4_update_serial,
-                                  nk_dot_f32x4_finalize_serial, /*simd_width=*/4)
+nk_define_dots_symmetric_vectors_(f32_serial, f32, f32, nk_b128_vec_t, nk_dot_f32x4_state_serial_t, nk_b128_vec_t,
+                                  nk_dot_f32x4_init_serial, nk_load_b128_serial_, nk_partial_load_b32x4_serial_,
+                                  nk_dot_f32x4_update_serial, nk_dot_f32x4_finalize_serial, /*simd_width=*/4)
 nk_define_dots_packed_vectors_(f32_serial, f32, f32, nk_b128_vec_t, nk_dot_f32x4_state_serial_t, nk_b128_vec_t,
                                nk_dot_f32x4_init_serial, nk_load_b128_serial_, nk_partial_load_b32x4_serial_,
                                nk_dot_f32x4_update_serial, nk_dot_f32x4_finalize_serial, nk_partial_store_b32x4_serial_,
@@ -773,10 +770,9 @@ nk_define_dots_packed_vectors_(f32_serial, f32, f32, nk_b128_vec_t, nk_dot_f32x4
 /* F16 GEMM: simd_width=8 (8 f16s = 16 bytes), F32 accumulator */
 nk_define_dots_pack_size_(serial, f16, f32)
 nk_define_dots_pack_(serial, f16, f32)
-nk_define_dots_symmetric_vectors_(f16_serial, f16, f32, nk_b128_vec_t, nk_dot_f16x8_state_serial_t,
-                                  nk_b128_vec_t, nk_dot_f16x8_init_serial, nk_load_b128_serial_,
-                                  nk_partial_load_b16x8_serial_, nk_dot_f16x8_update_serial,
-                                  nk_dot_f16x8_finalize_serial, /*simd_width=*/8)
+nk_define_dots_symmetric_vectors_(f16_serial, f16, f32, nk_b128_vec_t, nk_dot_f16x8_state_serial_t, nk_b128_vec_t,
+                                  nk_dot_f16x8_init_serial, nk_load_b128_serial_, nk_partial_load_b16x8_serial_,
+                                  nk_dot_f16x8_update_serial, nk_dot_f16x8_finalize_serial, /*simd_width=*/8)
 nk_define_dots_packed_vectors_(f16_serial, f16, f32, nk_b128_vec_t, nk_dot_f16x8_state_serial_t, nk_b128_vec_t,
                                nk_dot_f16x8_init_serial, nk_load_b128_serial_, nk_partial_load_b16x8_serial_,
                                nk_dot_f16x8_update_serial, nk_dot_f16x8_finalize_serial, nk_partial_store_b32x4_serial_,
@@ -785,10 +781,9 @@ nk_define_dots_packed_vectors_(f16_serial, f16, f32, nk_b128_vec_t, nk_dot_f16x8
 /* BF16 GEMM: simd_width=8 (8 bf16s = 16 bytes), F32 accumulator */
 nk_define_dots_pack_size_(serial, bf16, f32)
 nk_define_dots_pack_(serial, bf16, f32)
-nk_define_dots_symmetric_vectors_(bf16_serial, bf16, f32, nk_b128_vec_t, nk_dot_bf16x8_state_serial_t,
-                                  nk_b128_vec_t, nk_dot_bf16x8_init_serial, nk_load_b128_serial_,
-                                  nk_partial_load_b16x8_serial_, nk_dot_bf16x8_update_serial,
-                                  nk_dot_bf16x8_finalize_serial, /*simd_width=*/8)
+nk_define_dots_symmetric_vectors_(bf16_serial, bf16, f32, nk_b128_vec_t, nk_dot_bf16x8_state_serial_t, nk_b128_vec_t,
+                                  nk_dot_bf16x8_init_serial, nk_load_b128_serial_, nk_partial_load_b16x8_serial_,
+                                  nk_dot_bf16x8_update_serial, nk_dot_bf16x8_finalize_serial, /*simd_width=*/8)
 nk_define_dots_packed_vectors_(bf16_serial, bf16, f32, nk_b128_vec_t, nk_dot_bf16x8_state_serial_t, nk_b128_vec_t,
                                nk_dot_bf16x8_init_serial, nk_load_b128_serial_, nk_partial_load_b16x8_serial_,
                                nk_dot_bf16x8_update_serial, nk_dot_bf16x8_finalize_serial,
@@ -798,10 +793,9 @@ nk_define_dots_packed_vectors_(bf16_serial, bf16, f32, nk_b128_vec_t, nk_dot_bf1
 /* I8 GEMM: simd_width=16 (16 i8s = 16 bytes), I32 accumulator */
 nk_define_dots_pack_size_(serial, i8, i32)
 nk_define_dots_pack_(serial, i8, i32)
-nk_define_dots_symmetric_vectors_(i8_serial, i8, i32, nk_b128_vec_t, nk_dot_i8x16_state_serial_t,
-                                  nk_b128_vec_t, nk_dot_i8x16_init_serial, nk_load_b128_serial_,
-                                  nk_partial_load_b8x16_serial_, nk_dot_i8x16_update_serial,
-                                  nk_dot_i8x16_finalize_serial, /*simd_width=*/16)
+nk_define_dots_symmetric_vectors_(i8_serial, i8, i32, nk_b128_vec_t, nk_dot_i8x16_state_serial_t, nk_b128_vec_t,
+                                  nk_dot_i8x16_init_serial, nk_load_b128_serial_, nk_partial_load_b8x16_serial_,
+                                  nk_dot_i8x16_update_serial, nk_dot_i8x16_finalize_serial, /*simd_width=*/16)
 nk_define_dots_packed_vectors_(i8_serial, i8, i32, nk_b128_vec_t, nk_dot_i8x16_state_serial_t, nk_b128_vec_t,
                                nk_dot_i8x16_init_serial, nk_load_b128_serial_, nk_partial_load_b8x16_serial_,
                                nk_dot_i8x16_update_serial, nk_dot_i8x16_finalize_serial, nk_partial_store_b32x4_serial_,
@@ -810,10 +804,9 @@ nk_define_dots_packed_vectors_(i8_serial, i8, i32, nk_b128_vec_t, nk_dot_i8x16_s
 /* U8 GEMM: simd_width=16 (16 u8s = 16 bytes), U32 accumulator */
 nk_define_dots_pack_size_(serial, u8, u32)
 nk_define_dots_pack_(serial, u8, u32)
-nk_define_dots_symmetric_vectors_(u8_serial, u8, u32, nk_b128_vec_t, nk_dot_u8x16_state_serial_t,
-                                  nk_b128_vec_t, nk_dot_u8x16_init_serial, nk_load_b128_serial_,
-                                  nk_partial_load_b8x16_serial_, nk_dot_u8x16_update_serial,
-                                  nk_dot_u8x16_finalize_serial, /*simd_width=*/16)
+nk_define_dots_symmetric_vectors_(u8_serial, u8, u32, nk_b128_vec_t, nk_dot_u8x16_state_serial_t, nk_b128_vec_t,
+                                  nk_dot_u8x16_init_serial, nk_load_b128_serial_, nk_partial_load_b8x16_serial_,
+                                  nk_dot_u8x16_update_serial, nk_dot_u8x16_finalize_serial, /*simd_width=*/16)
 nk_define_dots_packed_vectors_(u8_serial, u8, u32, nk_b128_vec_t, nk_dot_u8x16_state_serial_t, nk_b128_vec_t,
                                nk_dot_u8x16_init_serial, nk_load_b128_serial_, nk_partial_load_b8x16_serial_,
                                nk_dot_u8x16_update_serial, nk_dot_u8x16_finalize_serial, nk_partial_store_b32x4_serial_,
@@ -822,10 +815,9 @@ nk_define_dots_packed_vectors_(u8_serial, u8, u32, nk_b128_vec_t, nk_dot_u8x16_s
 /* E4M3 GEMM: simd_width=16 (16 e4m3s = 16 bytes), F32 accumulator */
 nk_define_dots_pack_size_(serial, e4m3, f32)
 nk_define_dots_pack_(serial, e4m3, f32)
-nk_define_dots_symmetric_vectors_(e4m3_serial, e4m3, f32, nk_b128_vec_t, nk_dot_e4m3x16_state_serial_t,
-                                  nk_b128_vec_t, nk_dot_e4m3x16_init_serial, nk_load_b128_serial_,
-                                  nk_partial_load_b8x16_serial_, nk_dot_e4m3x16_update_serial,
-                                  nk_dot_e4m3x16_finalize_serial, /*simd_width=*/16)
+nk_define_dots_symmetric_vectors_(e4m3_serial, e4m3, f32, nk_b128_vec_t, nk_dot_e4m3x16_state_serial_t, nk_b128_vec_t,
+                                  nk_dot_e4m3x16_init_serial, nk_load_b128_serial_, nk_partial_load_b8x16_serial_,
+                                  nk_dot_e4m3x16_update_serial, nk_dot_e4m3x16_finalize_serial, /*simd_width=*/16)
 nk_define_dots_packed_vectors_(e4m3_serial, e4m3, f32, nk_b128_vec_t, nk_dot_e4m3x16_state_serial_t, nk_b128_vec_t,
                                nk_dot_e4m3x16_init_serial, nk_load_b128_serial_, nk_partial_load_b8x16_serial_,
                                nk_dot_e4m3x16_update_serial, nk_dot_e4m3x16_finalize_serial,
@@ -835,10 +827,9 @@ nk_define_dots_packed_vectors_(e4m3_serial, e4m3, f32, nk_b128_vec_t, nk_dot_e4m
 /* E5M2 GEMM: simd_width=16 (16 e5m2s = 16 bytes), F32 accumulator */
 nk_define_dots_pack_size_(serial, e5m2, f32)
 nk_define_dots_pack_(serial, e5m2, f32)
-nk_define_dots_symmetric_vectors_(e5m2_serial, e5m2, f32, nk_b128_vec_t, nk_dot_e5m2x16_state_serial_t,
-                                  nk_b128_vec_t, nk_dot_e5m2x16_init_serial, nk_load_b128_serial_,
-                                  nk_partial_load_b8x16_serial_, nk_dot_e5m2x16_update_serial,
-                                  nk_dot_e5m2x16_finalize_serial, /*simd_width=*/16)
+nk_define_dots_symmetric_vectors_(e5m2_serial, e5m2, f32, nk_b128_vec_t, nk_dot_e5m2x16_state_serial_t, nk_b128_vec_t,
+                                  nk_dot_e5m2x16_init_serial, nk_load_b128_serial_, nk_partial_load_b8x16_serial_,
+                                  nk_dot_e5m2x16_update_serial, nk_dot_e5m2x16_finalize_serial, /*simd_width=*/16)
 nk_define_dots_packed_vectors_(e5m2_serial, e5m2, f32, nk_b128_vec_t, nk_dot_e5m2x16_state_serial_t, nk_b128_vec_t,
                                nk_dot_e5m2x16_init_serial, nk_load_b128_serial_, nk_partial_load_b8x16_serial_,
                                nk_dot_e5m2x16_update_serial, nk_dot_e5m2x16_finalize_serial,
@@ -847,26 +838,22 @@ nk_define_dots_packed_vectors_(e5m2_serial, e5m2, f32, nk_b128_vec_t, nk_dot_e5m
 
 /* U4x2 GEMM: simd_width=8 (8 u4x2s = 8 bytes = 16 nibbles), U32 accumulator */
 /* Note: pack_size and pack functions are manually defined below for nibble handling */
-nk_define_dots_symmetric_vectors_(u4x2_serial, u4x2, u32, nk_b64_vec_t, nk_dot_u4x16_state_serial_t,
-                                  nk_b128_vec_t, nk_dot_u4x16_init_serial, nk_load_b64_serial_,
-                                  nk_partial_load_b8x8_serial_, nk_dot_u4x16_update_serial,
-                                  nk_dot_u4x16_finalize_serial, /*simd_width=*/8)
+nk_define_dots_symmetric_vectors_(u4x2_serial, u4x2, u32, nk_b64_vec_t, nk_dot_u4x16_state_serial_t, nk_b128_vec_t,
+                                  nk_dot_u4x16_init_serial, nk_load_b64_serial_, nk_partial_load_b8x8_serial_,
+                                  nk_dot_u4x16_update_serial, nk_dot_u4x16_finalize_serial, /*simd_width=*/8)
 nk_define_dots_packed_vectors_(u4x2_serial, u4x2, u32, nk_b64_vec_t, nk_dot_u4x16_state_serial_t, nk_b128_vec_t,
                                nk_dot_u4x16_init_serial, nk_load_b64_serial_, nk_partial_load_b8x8_serial_,
-                               nk_dot_u4x16_update_serial, nk_dot_u4x16_finalize_serial,
-                               nk_partial_store_b32x4_serial_,
+                               nk_dot_u4x16_update_serial, nk_dot_u4x16_finalize_serial, nk_partial_store_b32x4_serial_,
                                /*simd_width=*/8)
 
 /* I4x2 GEMM: simd_width=8 (8 i4x2s = 8 bytes = 16 nibbles), I32 accumulator */
 /* Note: pack_size and pack functions are manually defined below for nibble handling */
-nk_define_dots_symmetric_vectors_(i4x2_serial, i4x2, i32, nk_b64_vec_t, nk_dot_i4x16_state_serial_t,
-                                  nk_b128_vec_t, nk_dot_i4x16_init_serial, nk_load_b64_serial_,
-                                  nk_partial_load_b8x8_serial_, nk_dot_i4x16_update_serial,
-                                  nk_dot_i4x16_finalize_serial, /*simd_width=*/8)
+nk_define_dots_symmetric_vectors_(i4x2_serial, i4x2, i32, nk_b64_vec_t, nk_dot_i4x16_state_serial_t, nk_b128_vec_t,
+                                  nk_dot_i4x16_init_serial, nk_load_b64_serial_, nk_partial_load_b8x8_serial_,
+                                  nk_dot_i4x16_update_serial, nk_dot_i4x16_finalize_serial, /*simd_width=*/8)
 nk_define_dots_packed_vectors_(i4x2_serial, i4x2, i32, nk_b64_vec_t, nk_dot_i4x16_state_serial_t, nk_b128_vec_t,
                                nk_dot_i4x16_init_serial, nk_load_b64_serial_, nk_partial_load_b8x8_serial_,
-                               nk_dot_i4x16_update_serial, nk_dot_i4x16_finalize_serial,
-                               nk_partial_store_b32x4_serial_,
+                               nk_dot_i4x16_update_serial, nk_dot_i4x16_finalize_serial, nk_partial_store_b32x4_serial_,
                                /*simd_width=*/8)
 
 NK_PUBLIC nk_size_t nk_dots_packed_size_u1x8_serial(nk_size_t column_count, nk_size_t depth) {

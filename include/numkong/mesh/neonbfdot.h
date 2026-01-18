@@ -786,7 +786,7 @@ NK_PUBLIC void nk_umeyama_bf16_neonbfdot(nk_bf16_t const *a, nk_bf16_t const *b,
         for (int j = 0; j < 9; ++j) rotation[j] = r[j];
     }
 
-    // Compute RMSD after similarity transform: ||c*R*a - b||
+    // Compute RMSD after similarity transform: ‖c × R × a - b‖
     nk_f32_t sum_squared = nk_transformed_ssd_bf16_neonbfdot_(a, b, n, r, c, centroid_a_x, centroid_a_y, centroid_a_z,
                                                               centroid_b_x, centroid_b_y, centroid_b_z);
     *result = nk_f32_sqrt_neon(sum_squared * inv_n);

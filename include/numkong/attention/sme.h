@@ -136,11 +136,11 @@ NK_INTERNAL svfloat32_t nk_exp_f32_sve_(svbool_t pg, svfloat32_t x) __arm_stream
 
     // Polynomial approximation for exp(r): degree 4
     // exp(r) ≈ 1 + r + r²/2 + r³/6 + r⁴/24
-    svfloat32_t p = svdup_f32(4.1666666667e-2f);                   // 1/24
-    p = svmad_f32_m(pg, p, r, svdup_f32(1.6666666667e-1f));        // 1/6
-    p = svmad_f32_m(pg, p, r, svdup_f32(5.0000000000e-1f));        // 1/2
-    p = svmad_f32_m(pg, p, r, svdup_f32(1.0f));                    // 1
-    p = svmad_f32_m(pg, p, r, svdup_f32(1.0f));                    // 1
+    svfloat32_t p = svdup_f32(4.1666666667e-2f);            // 1/24
+    p = svmad_f32_m(pg, p, r, svdup_f32(1.6666666667e-1f)); // 1/6
+    p = svmad_f32_m(pg, p, r, svdup_f32(5.0000000000e-1f)); // 1/2
+    p = svmad_f32_m(pg, p, r, svdup_f32(1.0f));             // 1
+    p = svmad_f32_m(pg, p, r, svdup_f32(1.0f));             // 1
 
     // Reconstruct: exp(x) = 2ⁿ × exp(r)
     // 2ⁿ via IEEE 754 exponent manipulation
@@ -155,16 +155,12 @@ NK_INTERNAL svfloat32_t nk_exp_f32_sve_(svbool_t pg, svfloat32_t x) __arm_stream
 /**
  *  @brief Horizontal sum reduction in Streaming SVE.
  */
-NK_INTERNAL nk_f32_t nk_reduce_add_f32_sve_(svbool_t pg, svfloat32_t x) __arm_streaming {
-    return svaddv_f32(pg, x);
-}
+NK_INTERNAL nk_f32_t nk_reduce_add_f32_sve_(svbool_t pg, svfloat32_t x) __arm_streaming { return svaddv_f32(pg, x); }
 
 /**
  *  @brief Horizontal max reduction in Streaming SVE.
  */
-NK_INTERNAL nk_f32_t nk_reduce_max_f32_sve_(svbool_t pg, svfloat32_t x) __arm_streaming {
-    return svmaxv_f32(pg, x);
-}
+NK_INTERNAL nk_f32_t nk_reduce_max_f32_sve_(svbool_t pg, svfloat32_t x) __arm_streaming { return svmaxv_f32(pg, x); }
 
 /* KV Cache Size and Packing Functions */
 
@@ -177,7 +173,7 @@ NK_INTERNAL nk_f32_t nk_reduce_max_f32_sve_(svbool_t pg, svfloat32_t x) __arm_st
  *  @return Required buffer size in bytes (64-byte aligned)
  */
 NK_PUBLIC nk_size_t nk_attention_packed_kv_size_bf16_sme(nk_size_t num_kv_heads, nk_size_t head_dim,
-                                                          nk_size_t max_seq_len) {
+                                                         nk_size_t max_seq_len) {
     // Pad head_dim to multiple of 32 for SME
     nk_size_t head_dim_padded = (head_dim + 31) / 32 * 32;
 
@@ -192,7 +188,7 @@ NK_PUBLIC nk_size_t nk_attention_packed_kv_size_bf16_sme(nk_size_t num_kv_heads,
  *  @brief Calculate packed KV cache size in bytes for f16.
  */
 NK_PUBLIC nk_size_t nk_attention_packed_kv_size_f16_sme(nk_size_t num_kv_heads, nk_size_t head_dim,
-                                                         nk_size_t max_seq_len) {
+                                                        nk_size_t max_seq_len) {
     return nk_attention_packed_kv_size_bf16_sme(num_kv_heads, head_dim, max_seq_len);
 }
 
@@ -209,8 +205,8 @@ NK_PUBLIC nk_size_t nk_attention_packed_kv_size_f16_sme(nk_size_t num_kv_heads, 
  *  @param kv_packed    Output packed buffer
  */
 NK_PUBLIC void nk_attention_pack_kv_bf16_sme(nk_bf16_t const *k, nk_bf16_t const *v, nk_size_t num_kv_heads,
-                                              nk_size_t head_dim, nk_size_t seq_len, nk_size_t k_stride,
-                                              nk_size_t v_stride, void *kv_packed) {
+                                             nk_size_t head_dim, nk_size_t seq_len, nk_size_t k_stride,
+                                             nk_size_t v_stride, void *kv_packed) {
 
     nk_attention_sme_kv_packed_header_t *header = (nk_attention_sme_kv_packed_header_t *)kv_packed;
     nk_size_t head_dim_padded = (head_dim + 31) / 32 * 32;
@@ -259,8 +255,8 @@ NK_PUBLIC void nk_attention_pack_kv_bf16_sme(nk_bf16_t const *k, nk_bf16_t const
  *  @brief Pack K and V tensors for f16.
  */
 NK_PUBLIC void nk_attention_pack_kv_f16_sme(nk_f16_t const *k, nk_f16_t const *v, nk_size_t num_kv_heads,
-                                             nk_size_t head_dim, nk_size_t seq_len, nk_size_t k_stride,
-                                             nk_size_t v_stride, void *kv_packed) {
+                                            nk_size_t head_dim, nk_size_t seq_len, nk_size_t k_stride,
+                                            nk_size_t v_stride, void *kv_packed) {
 
     nk_attention_sme_kv_packed_header_t *header = (nk_attention_sme_kv_packed_header_t *)kv_packed;
     nk_size_t head_dim_padded = (head_dim + 31) / 32 * 32;
@@ -310,35 +306,32 @@ NK_PUBLIC void nk_attention_pack_kv_f16_sme(nk_f16_t const *k, nk_f16_t const *v
  *  FlashAttention-2 algorithm with optimizations:
  *  - State (row_max, row_sum) kept in SVE registers instead of arrays
  *  - Vectorized initialization of o_acc array
- *  - FMLA-based dot products for Q×K^T (proper vectorization)
+ *  - FMLA-based dot products for Q×Kᵀ (proper vectorization)
  *  - Batched exp calls for softmax
  *  - svdup_lane for weight broadcasting (no store-load cycle)
  *  - Predicated SVE loops for unified body/tail handling
  */
-__arm_locally_streaming __arm_new("za")
-static void nk_attention_bf16_sme_kernel_(nk_bf16_t const *q,            // [query_len, head_dim]
-                                           nk_bf16_t const *k,            // [kv_len, head_dim_padded]
-                                           nk_bf16_t const *v,            // [kv_len, head_dim_padded]
-                                           nk_bf16_t *output,             // [query_len, head_dim]
-                                           nk_size_t query_len, nk_size_t kv_len, nk_size_t head_dim,
-                                           nk_size_t head_dim_padded, nk_f32_t scale) {
+__arm_locally_streaming __arm_new("za") static void nk_attention_bf16_sme_kernel_(
+    nk_bf16_t const *q, // [query_len, head_dim]
+    nk_bf16_t const *k, // [kv_len, head_dim_padded]
+    nk_bf16_t const *v, // [kv_len, head_dim_padded]
+    nk_bf16_t *output,  // [query_len, head_dim]
+    nk_size_t query_len, nk_size_t kv_len, nk_size_t head_dim, nk_size_t head_dim_padded, nk_f32_t scale) {
 
     svbool_t const ptrue_s = svptrue_b32();
     nk_size_t const Bc = 16;
     nk_size_t const valid_q = (query_len < 16) ? query_len : 16;
 
-    // === OPTIMIZATION 1: State in SVE registers instead of arrays ===
-    svfloat32_t row_max_v = svdup_f32(-FLT_MAX);  // All 16 row maxes
-    svfloat32_t row_sum_v = svdup_f32(0.0f);      // All 16 row sums
+    // State in SVE registers instead of arrays.
+    svfloat32_t row_max_v = svdup_f32(-FLT_MAX); // All 16 row maxes
+    svfloat32_t row_sum_v = svdup_f32(0.0f);     // All 16 row sums
 
     // Output accumulator - still needs array but with vectorized init
     NK_ALIGN64 nk_f32_t o_acc[16 * 256];
 
-    // === OPTIMIZATION 1b: Vectorized init instead of scalar loop ===
+    //  Vectorized init instead of scalar loop.
     svfloat32_t zero_v = svdup_f32(0.0f);
-    for (nk_size_t i = 0; i < 16 * head_dim_padded; i += svcntw()) {
-        svst1_f32(ptrue_s, o_acc + i, zero_v);
-    }
+    for (nk_size_t i = 0; i < 16 * head_dim_padded; i += svcntw()) { svst1_f32(ptrue_s, o_acc + i, zero_v); }
 
     // Temporary for scores - stored in ZA tile 0
     NK_ALIGN64 nk_f32_t scores[16][16];
@@ -347,7 +340,7 @@ static void nk_attention_bf16_sme_kernel_(nk_bf16_t const *q,            // [que
     for (nk_size_t kv_start = 0; kv_start < kv_len; kv_start += Bc) {
         nk_size_t const valid_kv = ((kv_start + Bc) <= kv_len) ? Bc : (kv_len - kv_start);
 
-        // === OPTIMIZATION 2: Q×K^T using FMLA with 8× ki unroll ===
+        // Q×Kᵀ using FMLA with 8× ki unroll.
         // Reuses Q row across 8 ki values, reducing Q load overhead
         // For Bc=16, this gives exactly 2 iterations per qi
         for (nk_size_t qi = 0; qi < valid_q; qi++) {
@@ -368,14 +361,22 @@ static void nk_attention_bf16_sme_kernel_(nk_bf16_t const *q,            // [que
                     svfloat32_t q_f32 = nk_bf16_to_f32_sve_(pg, q_bf16);
 
                     // Load 8 K rows and accumulate
-                    svbfloat16_t k0 = svld1_bf16(pg, (bfloat16_t const *)(k + (kv_start + ki + 0) * head_dim_padded + d));
-                    svbfloat16_t k1 = svld1_bf16(pg, (bfloat16_t const *)(k + (kv_start + ki + 1) * head_dim_padded + d));
-                    svbfloat16_t k2 = svld1_bf16(pg, (bfloat16_t const *)(k + (kv_start + ki + 2) * head_dim_padded + d));
-                    svbfloat16_t k3 = svld1_bf16(pg, (bfloat16_t const *)(k + (kv_start + ki + 3) * head_dim_padded + d));
-                    svbfloat16_t k4 = svld1_bf16(pg, (bfloat16_t const *)(k + (kv_start + ki + 4) * head_dim_padded + d));
-                    svbfloat16_t k5 = svld1_bf16(pg, (bfloat16_t const *)(k + (kv_start + ki + 5) * head_dim_padded + d));
-                    svbfloat16_t k6 = svld1_bf16(pg, (bfloat16_t const *)(k + (kv_start + ki + 6) * head_dim_padded + d));
-                    svbfloat16_t k7 = svld1_bf16(pg, (bfloat16_t const *)(k + (kv_start + ki + 7) * head_dim_padded + d));
+                    svbfloat16_t k0 = svld1_bf16(pg,
+                                                 (bfloat16_t const *)(k + (kv_start + ki + 0) * head_dim_padded + d));
+                    svbfloat16_t k1 = svld1_bf16(pg,
+                                                 (bfloat16_t const *)(k + (kv_start + ki + 1) * head_dim_padded + d));
+                    svbfloat16_t k2 = svld1_bf16(pg,
+                                                 (bfloat16_t const *)(k + (kv_start + ki + 2) * head_dim_padded + d));
+                    svbfloat16_t k3 = svld1_bf16(pg,
+                                                 (bfloat16_t const *)(k + (kv_start + ki + 3) * head_dim_padded + d));
+                    svbfloat16_t k4 = svld1_bf16(pg,
+                                                 (bfloat16_t const *)(k + (kv_start + ki + 4) * head_dim_padded + d));
+                    svbfloat16_t k5 = svld1_bf16(pg,
+                                                 (bfloat16_t const *)(k + (kv_start + ki + 5) * head_dim_padded + d));
+                    svbfloat16_t k6 = svld1_bf16(pg,
+                                                 (bfloat16_t const *)(k + (kv_start + ki + 6) * head_dim_padded + d));
+                    svbfloat16_t k7 = svld1_bf16(pg,
+                                                 (bfloat16_t const *)(k + (kv_start + ki + 7) * head_dim_padded + d));
 
                     dot0 = svmla_f32_x(pg, dot0, q_f32, nk_bf16_to_f32_sve_(pg, k0));
                     dot1 = svmla_f32_x(pg, dot1, q_f32, nk_bf16_to_f32_sve_(pg, k1));
@@ -411,7 +412,8 @@ static void nk_attention_bf16_sme_kernel_(nk_bf16_t const *q,            // [que
                 for (nk_size_t d = 0; d < head_dim; d += svcntw()) {
                     svbool_t pg = svwhilelt_b32((nk_u32_t)d, (nk_u32_t)head_dim);
                     svbfloat16_t q_bf16 = svld1_bf16(pg, (bfloat16_t const *)(q + qi * head_dim + d));
-                    svbfloat16_t k_bf16 = svld1_bf16(pg, (bfloat16_t const *)(k + (kv_start + ki) * head_dim_padded + d));
+                    svbfloat16_t k_bf16 = svld1_bf16(pg,
+                                                     (bfloat16_t const *)(k + (kv_start + ki) * head_dim_padded + d));
                     svfloat32_t q_f32 = nk_bf16_to_f32_sve_(pg, q_bf16);
                     svfloat32_t k_f32 = nk_bf16_to_f32_sve_(pg, k_bf16);
                     dot = svmla_f32_x(pg, dot, q_f32, k_f32);
@@ -420,7 +422,7 @@ static void nk_attention_bf16_sme_kernel_(nk_bf16_t const *q,            // [que
             }
         }
 
-        // === OPTIMIZATION 3: Compute block maxes for all rows at once ===
+        // Compute block maxes for all rows at once.
         NK_ALIGN64 nk_f32_t block_max_arr[16];
         for (nk_size_t qi = 0; qi < valid_q; qi++) {
             svfloat32_t row_scores = svld1_f32(ptrue_s, scores[qi]);
@@ -431,7 +433,7 @@ static void nk_attention_bf16_sme_kernel_(nk_bf16_t const *q,            // [que
         // Compute new max: element-wise max of row_max_v and block_max_v
         svfloat32_t new_max_v = svmax_f32_x(ptrue_s, row_max_v, block_max_v);
 
-        // === OPTIMIZATION 3a: Batch correction factors (ONE exp call) ===
+        // Batch correction factors (one exp call).
         svfloat32_t correction_v = nk_exp_f32_sve_(ptrue_s, svsub_f32_x(ptrue_s, row_max_v, new_max_v));
 
         // Update row_sum_v with corrections (all 16 at once)
@@ -453,7 +455,7 @@ static void nk_attention_bf16_sme_kernel_(nk_bf16_t const *q,            // [que
             }
         }
 
-        // === OPTIMIZATION 3b: Compute softmax weights (16 exp calls, each vectorized) ===
+        //  Compute softmax weights (16 exp calls, each vectorized).
         NK_ALIGN64 nk_f32_t new_max_arr[16];
         svst1_f32(ptrue_s, new_max_arr, new_max_v);
 
@@ -480,31 +482,34 @@ static void nk_attention_bf16_sme_kernel_(nk_bf16_t const *q,            // [que
         // Update row_max_v
         row_max_v = new_max_v;
 
-        // === OPTIMIZATION 4 & 6: P×V with specialized decode path ===
+        // nd 6: P×V with specialized decode path.
         if (valid_q == 1) {
             // Decode mode: keep accumulators in registers, reduce memory traffic
             // Process all ki for each depth chunk, accumulate in register
             for (nk_size_t d = 0; d < head_dim; d += svcntw()) {
                 svbool_t pg = svwhilelt_b32((nk_u32_t)d, (nk_u32_t)head_dim);
-                svfloat32_t acc = svld1_f32(pg, o_acc + d);  // Load once
+                svfloat32_t acc = svld1_f32(pg, o_acc + d); // Load once
 
                 for (nk_size_t ki = 0; ki < valid_kv; ki++) {
-                    svbfloat16_t v_bf16 = svld1_bf16(pg, (bfloat16_t const *)(v + (kv_start + ki) * head_dim_padded + d));
+                    svbfloat16_t v_bf16 = svld1_bf16(pg,
+                                                     (bfloat16_t const *)(v + (kv_start + ki) * head_dim_padded + d));
                     svfloat32_t v_f32 = nk_bf16_to_f32_sve_(pg, v_bf16);
                     svfloat32_t w_vec = svdup_f32(all_weights[0][ki]);
                     acc = svmla_f32_x(pg, acc, w_vec, v_f32);
                 }
 
-                svst1_f32(pg, o_acc + d, acc);  // Store once
+                svst1_f32(pg, o_acc + d, acc); // Store once
             }
-        } else {
+        }
+        else {
             // Prefill mode: ki-first for better V row reuse across queries
             for (nk_size_t ki = 0; ki < valid_kv; ki++) {
                 for (nk_size_t d = 0; d < head_dim; d += svcntw()) {
                     svbool_t pg = svwhilelt_b32((nk_u32_t)d, (nk_u32_t)head_dim);
 
                     // Load V row once (reused for all qi)
-                    svbfloat16_t v_bf16 = svld1_bf16(pg, (bfloat16_t const *)(v + (kv_start + ki) * head_dim_padded + d));
+                    svbfloat16_t v_bf16 = svld1_bf16(pg,
+                                                     (bfloat16_t const *)(v + (kv_start + ki) * head_dim_padded + d));
                     svfloat32_t v_f32 = nk_bf16_to_f32_sve_(pg, v_bf16);
 
                     // Accumulate for all query rows
@@ -521,7 +526,7 @@ static void nk_attention_bf16_sme_kernel_(nk_bf16_t const *q,            // [que
         }
     }
 
-    // === Final: Vectorized normalization ===
+    // Final: Vectorized normalization.
     NK_ALIGN64 nk_f32_t final_sums[16];
     svst1_f32(ptrue_s, final_sums, row_sum_v);
 
@@ -555,8 +560,8 @@ static void nk_attention_bf16_sme_kernel_(nk_bf16_t const *q,            // [que
  *  @param scale        Scaling factor (typically 1/√head_dim)
  */
 NK_PUBLIC void nk_attention_bf16_sme(nk_bf16_t const *q, void const *kv_packed, nk_bf16_t *output, nk_size_t num_heads,
-                                      nk_size_t num_kv_heads, nk_size_t query_len, nk_size_t kv_len, nk_size_t head_dim,
-                                      nk_f32_t scale) {
+                                     nk_size_t num_kv_heads, nk_size_t query_len, nk_size_t kv_len, nk_size_t head_dim,
+                                     nk_f32_t scale) {
 
     nk_attention_sme_kv_packed_header_t const *header = (nk_attention_sme_kv_packed_header_t const *)kv_packed;
     nk_size_t head_dim_padded = header->head_dim_padded;
@@ -581,7 +586,7 @@ NK_PUBLIC void nk_attention_bf16_sme(nk_bf16_t const *q, void const *kv_packed, 
             nk_size_t q_block_len = (q_start + 16 < query_len) ? 16 : (query_len - q_start);
 
             nk_attention_bf16_sme_kernel_(q_ptr + q_start * head_dim, k_ptr, v_ptr, out_ptr + q_start * head_dim,
-                                           q_block_len, kv_len, head_dim, head_dim_padded, scale);
+                                          q_block_len, kv_len, head_dim, head_dim_padded, scale);
         }
     }
 }
@@ -590,15 +595,14 @@ NK_PUBLIC void nk_attention_bf16_sme(nk_bf16_t const *q, void const *kv_packed, 
  *  @brief Internal: f16 attention kernel using SME outer products and streaming SVE.
  *
  *  FlashAttention-2 algorithm with:
- *  - SME outer products for Q×K^T computation
+ *  - SME outer products for Q×Kᵀ computation
  *  - Vectorized softmax using nk_exp_f32_sve_ (no __builtin_expf)
  *  - F32→F16 downcast before P×V multiplication
  *  - Predicated SVE loops for unified body/tail handling
  */
-__arm_locally_streaming __arm_new("za")
-static void nk_attention_f16_sme_kernel_(nk_f16_t const *q, nk_f16_t const *k, nk_f16_t const *v, nk_f16_t *output,
-                                          nk_size_t query_len, nk_size_t kv_len, nk_size_t head_dim,
-                                          nk_size_t head_dim_padded, nk_f32_t scale) {
+__arm_locally_streaming __arm_new("za") static void nk_attention_f16_sme_kernel_(
+    nk_f16_t const *q, nk_f16_t const *k, nk_f16_t const *v, nk_f16_t *output, nk_size_t query_len, nk_size_t kv_len,
+    nk_size_t head_dim, nk_size_t head_dim_padded, nk_f32_t scale) {
 
     svbool_t const ptrue_s = svptrue_b32();
     svbool_t const ptrue_h = svptrue_b16();
@@ -616,16 +620,14 @@ static void nk_attention_f16_sme_kernel_(nk_f16_t const *q, nk_f16_t const *k, n
 
     // Vectorized init of o_acc using SVE loop
     svfloat32_t zero_vec = svdup_f32(0.0f);
-    for (nk_size_t i = 0; i < 16 * head_dim_padded; i += svcntw()) {
-        svst1_f32(ptrue_s, o_acc + i, zero_vec);
-    }
+    for (nk_size_t i = 0; i < 16 * head_dim_padded; i += svcntw()) { svst1_f32(ptrue_s, o_acc + i, zero_vec); }
 
     // Process KV in blocks of Bc=16
     for (nk_size_t kv_start = 0; kv_start < kv_len; kv_start += Bc) {
         nk_size_t const valid_kv = ((kv_start + Bc) <= kv_len) ? Bc : (kv_len - kv_start);
 
-        // === Phase 1: Q×K^T using SME outer products ===
-        // Compute scores[16, 16] = Q[16, d] × K[16, d]^T into ZA tile 0
+        // Phase 1: Q×Kᵀ using SME outer products.
+        // Compute scores[16, 16] = Q[16, d] × K[16, d]ᵀ into ZA tile 0
         svzero_za();
 
         // Accumulate over depth dimension in chunks of 32 (f16 vector width)
@@ -638,7 +640,8 @@ static void nk_attention_f16_sme_kernel_(nk_f16_t const *q, nk_f16_t const *k, n
                 // For this depth slice, accumulate outer products with all K rows in block
                 for (nk_size_t ki = 0; ki < valid_kv; ki++) {
                     // Load K[kv_start+ki, d:d+32] as f16 vector
-                    svfloat16_t k_vec = svld1_f16(ptrue_h, (float16_t const *)(k + (kv_start + ki) * head_dim_padded + d));
+                    svfloat16_t k_vec = svld1_f16(ptrue_h,
+                                                  (float16_t const *)(k + (kv_start + ki) * head_dim_padded + d));
 
                     // Outer product accumulate: ZA[qi, ki] += dot(q_vec, k_vec)
                     // Note: svmopa does 2-way widening, so we use it row-by-row
@@ -647,7 +650,7 @@ static void nk_attention_f16_sme_kernel_(nk_f16_t const *q, nk_f16_t const *k, n
             }
         }
 
-        // === Phase 2: Extract scores, apply online softmax, accumulate P×V ===
+        // Phase 2: Extract scores, apply online softmax, accumulate P×V.
         // Process each query row: extract score row, compute softmax weights, multiply by V
         NK_ALIGN64 nk_f32_t score_row[16];
         NK_ALIGN64 nk_f32_t weights_f32[16];
@@ -669,17 +672,17 @@ static void nk_attention_f16_sme_kernel_(nk_f16_t const *q, nk_f16_t const *k, n
             block_maxes[qi] = svmaxv_f32(ptrue_s, s_vec);
         }
 
-        // === Vectorized max update for all rows at once ===
+        // Vectorized max update for all rows at once.
         svfloat32_t old_max_vec = svld1_f32(ptrue_s, row_max);
         svfloat32_t block_max_vec = svld1_f32(ptrue_s, block_maxes);
         svfloat32_t new_max_vec = svmax_f32_x(ptrue_s, old_max_vec, block_max_vec);
         svst1_f32(ptrue_s, new_maxes, new_max_vec);
 
-        // === Vectorized correction factor computation ===
+        // Vectorized correction factor computation.
         svfloat32_t correction_vec = nk_exp_f32_sve_(ptrue_s, svsub_f32_x(ptrue_s, old_max_vec, new_max_vec));
         svst1_f32(ptrue_s, corrections, correction_vec);
 
-        // === Vectorized row_sum rescaling ===
+        // Vectorized row_sum rescaling.
         svfloat32_t row_sum_vec = svld1_f32(ptrue_s, row_sum);
         row_sum_vec = svmul_f32_x(ptrue_s, row_sum_vec, correction_vec);
 
@@ -711,15 +714,15 @@ static void nk_attention_f16_sme_kernel_(nk_f16_t const *q, nk_f16_t const *k, n
             svst1_f32(ptrue_s, all_weights[qi], weights_quantized);
         }
 
-        // === Vectorized row_sum update with deltas ===
+        // Vectorized row_sum update with deltas.
         svfloat32_t delta_vec = svld1_f32(ptrue_s, sum_deltas);
         row_sum_vec = svadd_f32_x(ptrue_s, row_sum_vec, delta_vec);
         svst1_f32(ptrue_s, row_sum, row_sum_vec);
 
-        // === Update row_max ===
+        // Update row_max.
         svst1_f32(ptrue_s, row_max, new_max_vec);
 
-        // === Phase 3: Accumulate P×V for all query rows ===
+        // Phase 3: Accumulate P×V for all query rows.
         for (nk_size_t qi = 0; qi < valid_q; qi++) {
             for (nk_size_t ki = 0; ki < valid_kv; ki++) {
                 nk_f32_t w = all_weights[qi][ki];
@@ -742,7 +745,7 @@ static void nk_attention_f16_sme_kernel_(nk_f16_t const *q, nk_f16_t const *k, n
         }
     }
 
-    // === Final: Vectorized normalization with predicates ===
+    // Final: Vectorized normalization with predicates.
     // Compute inverse sums for all rows at once using SVE
     svfloat32_t final_sum_vec = svld1_f32(ptrue_s, row_sum);
     svfloat32_t ones_vec = svdup_f32(1.0f);
@@ -776,8 +779,8 @@ static void nk_attention_f16_sme_kernel_(nk_f16_t const *q, nk_f16_t const *k, n
  *  @brief Scaled dot-product attention using f16 with SME.
  */
 NK_PUBLIC void nk_attention_f16_sme(nk_f16_t const *q, void const *kv_packed, nk_f16_t *output, nk_size_t num_heads,
-                                     nk_size_t num_kv_heads, nk_size_t query_len, nk_size_t kv_len, nk_size_t head_dim,
-                                     nk_f32_t scale) {
+                                    nk_size_t num_kv_heads, nk_size_t query_len, nk_size_t kv_len, nk_size_t head_dim,
+                                    nk_f32_t scale) {
 
     nk_attention_sme_kv_packed_header_t const *header = (nk_attention_sme_kv_packed_header_t const *)kv_packed;
     nk_size_t head_dim_padded = header->head_dim_padded;
@@ -800,7 +803,7 @@ NK_PUBLIC void nk_attention_f16_sme(nk_f16_t const *q, void const *kv_packed, nk
             nk_size_t q_block_len = (q_start + 16 < query_len) ? 16 : (query_len - q_start);
 
             nk_attention_f16_sme_kernel_(q_ptr + q_start * head_dim, k_ptr, v_ptr, out_ptr + q_start * head_dim,
-                                          q_block_len, kv_len, head_dim, head_dim_padded, scale);
+                                         q_block_len, kv_len, head_dim, head_dim_padded, scale);
         }
     }
 }
@@ -815,8 +818,8 @@ NK_PUBLIC void nk_attention_f16_sme(nk_f16_t const *q, void const *kv_packed, nk
  *  Optimization: Completely skip KV blocks where all positions would be masked.
  */
 NK_PUBLIC void nk_attention_causal_bf16_sme(nk_bf16_t const *q, void const *kv_packed, nk_bf16_t *output,
-                                             nk_size_t num_heads, nk_size_t num_kv_heads, nk_size_t query_len,
-                                             nk_size_t kv_len, nk_size_t head_dim, nk_f32_t scale) {
+                                            nk_size_t num_heads, nk_size_t num_kv_heads, nk_size_t query_len,
+                                            nk_size_t kv_len, nk_size_t head_dim, nk_f32_t scale) {
     // TODO: Implement proper causal masking with block skipping
     // For now, delegate to full attention (correct for decode where query_len=1)
     nk_attention_bf16_sme(q, kv_packed, output, num_heads, num_kv_heads, query_len, kv_len, head_dim, scale);
@@ -828,8 +831,8 @@ NK_PUBLIC void nk_attention_causal_bf16_sme(nk_bf16_t const *q, void const *kv_p
  *  Same as nk_attention_f16_sme but applies causal mask.
  */
 NK_PUBLIC void nk_attention_causal_f16_sme(nk_f16_t const *q, void const *kv_packed, nk_f16_t *output,
-                                            nk_size_t num_heads, nk_size_t num_kv_heads, nk_size_t query_len,
-                                            nk_size_t kv_len, nk_size_t head_dim, nk_f32_t scale) {
+                                           nk_size_t num_heads, nk_size_t num_kv_heads, nk_size_t query_len,
+                                           nk_size_t kv_len, nk_size_t head_dim, nk_f32_t scale) {
     // TODO: Implement proper causal masking with block skipping
     // For now, delegate to full attention (correct for decode where query_len=1)
     nk_attention_f16_sme(q, kv_packed, output, num_heads, num_kv_heads, query_len, kv_len, head_dim, scale);

@@ -53,7 +53,7 @@ NK_PUBLIC void nk_each_sum_f32_haswell(nk_f32_t const *a, nk_f32_t const *b, nk_
 }
 
 NK_PUBLIC void nk_each_scale_f32_haswell(nk_f32_t const *a, nk_size_t n, nk_f32_t const *alpha, nk_f32_t const *beta,
-                                    nk_f32_t *result) {
+                                         nk_f32_t *result) {
     nk_f32_t alpha_val = *alpha;
     nk_f32_t beta_val = *beta;
     __m256 alpha_f32x8 = _mm256_set1_ps(alpha_val);
@@ -71,7 +71,7 @@ NK_PUBLIC void nk_each_scale_f32_haswell(nk_f32_t const *a, nk_size_t n, nk_f32_
     for (; i < n; ++i) result[i] = alpha_val * a[i] + beta_val;
 }
 
-NK_PUBLIC void nk_each_blend_f32_haswell(                    //
+NK_PUBLIC void nk_each_blend_f32_haswell(              //
     nk_f32_t const *a, nk_f32_t const *b, nk_size_t n, //
     nk_f32_t const *alpha, nk_f32_t const *beta, nk_f32_t *result) {
     nk_f32_t alpha_val = *alpha;
@@ -126,7 +126,7 @@ NK_PUBLIC void nk_each_sum_f64_haswell(nk_f64_t const *a, nk_f64_t const *b, nk_
 }
 
 NK_PUBLIC void nk_each_scale_f64_haswell(nk_f64_t const *a, nk_size_t n, nk_f64_t const *alpha, nk_f64_t const *beta,
-                                    nk_f64_t *result) {
+                                         nk_f64_t *result) {
     nk_f64_t alpha_val = *alpha;
     nk_f64_t beta_val = *beta;
     __m256d alpha_f64x4 = _mm256_set1_pd(alpha_val);
@@ -144,7 +144,7 @@ NK_PUBLIC void nk_each_scale_f64_haswell(nk_f64_t const *a, nk_size_t n, nk_f64_
     for (; i < n; ++i) result[i] = alpha_val * a[i] + beta_val;
 }
 
-NK_PUBLIC void nk_each_blend_f64_haswell(                    //
+NK_PUBLIC void nk_each_blend_f64_haswell(              //
     nk_f64_t const *a, nk_f64_t const *b, nk_size_t n, //
     nk_f64_t const *alpha, nk_f64_t const *beta, nk_f64_t *result) {
     nk_f64_t alpha_val = *alpha;
@@ -209,7 +209,7 @@ NK_PUBLIC void nk_each_sum_f16_haswell(nk_f16_t const *a, nk_f16_t const *b, nk_
 }
 
 NK_PUBLIC void nk_each_scale_f16_haswell(nk_f16_t const *a, nk_size_t n, nk_f32_t const *alpha, nk_f32_t const *beta,
-                                    nk_f16_t *result) {
+                                         nk_f16_t *result) {
     nk_f32_t alpha_val = *alpha;
     nk_f32_t beta_val = *beta;
     __m256 alpha_f32x8 = _mm256_set1_ps(alpha_val);
@@ -234,7 +234,7 @@ NK_PUBLIC void nk_each_scale_f16_haswell(nk_f16_t const *a, nk_size_t n, nk_f32_
     }
 }
 
-NK_PUBLIC void nk_each_blend_f16_haswell(                    //
+NK_PUBLIC void nk_each_blend_f16_haswell(              //
     nk_f16_t const *a, nk_f16_t const *b, nk_size_t n, //
     nk_f32_t const *alpha, nk_f32_t const *beta, nk_f16_t *result) {
     nk_f32_t alpha_val = *alpha;
@@ -307,7 +307,7 @@ NK_PUBLIC void nk_each_sum_bf16_haswell(nk_bf16_t const *a, nk_bf16_t const *b, 
 }
 
 NK_PUBLIC void nk_each_scale_bf16_haswell(nk_bf16_t const *a, nk_size_t n, nk_f32_t const *alpha, nk_f32_t const *beta,
-                                     nk_bf16_t *result) {
+                                          nk_bf16_t *result) {
     nk_f32_t alpha_val = *alpha;
     nk_f32_t beta_val = *beta;
     __m256 alpha_f32x8 = _mm256_set1_ps(alpha_val);
@@ -332,7 +332,7 @@ NK_PUBLIC void nk_each_scale_bf16_haswell(nk_bf16_t const *a, nk_size_t n, nk_f3
     }
 }
 
-NK_PUBLIC void nk_each_blend_bf16_haswell(                     //
+NK_PUBLIC void nk_each_blend_bf16_haswell(               //
     nk_bf16_t const *a, nk_bf16_t const *b, nk_size_t n, //
     nk_f32_t const *alpha, nk_f32_t const *beta, nk_bf16_t *result) {
     nk_f32_t alpha_val = *alpha;
@@ -381,7 +381,7 @@ NK_PUBLIC void nk_each_blend_bf16_haswell(                     //
     }
 }
 
-NK_PUBLIC void nk_each_fma_f32_haswell(                           //
+NK_PUBLIC void nk_each_fma_f32_haswell(                      //
     nk_f32_t const *a, nk_f32_t const *b, nk_f32_t const *c, //
     nk_size_t n, nk_f32_t const *alpha, nk_f32_t const *beta, nk_f32_t *result) {
     nk_f32_t alpha_val = *alpha;
@@ -405,7 +405,7 @@ NK_PUBLIC void nk_each_fma_f32_haswell(                           //
     for (; i < n; ++i) result[i] = alpha_val * a[i] * b[i] + beta_val * c[i];
 }
 
-NK_PUBLIC void nk_each_fma_f64_haswell(                           //
+NK_PUBLIC void nk_each_fma_f64_haswell(                      //
     nk_f64_t const *a, nk_f64_t const *b, nk_f64_t const *c, //
     nk_size_t n, nk_f64_t const *alpha, nk_f64_t const *beta, nk_f64_t *result) {
     nk_f64_t alpha_val = *alpha;
@@ -429,7 +429,7 @@ NK_PUBLIC void nk_each_fma_f64_haswell(                           //
     for (; i < n; ++i) result[i] = alpha_val * a[i] * b[i] + beta_val * c[i];
 }
 
-NK_PUBLIC void nk_each_fma_f16_haswell(                           //
+NK_PUBLIC void nk_each_fma_f16_haswell(                      //
     nk_f16_t const *a, nk_f16_t const *b, nk_f16_t const *c, //
     nk_size_t n, nk_f32_t const *alpha, nk_f32_t const *beta, nk_f16_t *result) {
     nk_f32_t alpha_val = *alpha;
@@ -464,7 +464,7 @@ NK_PUBLIC void nk_each_fma_f16_haswell(                           //
     }
 }
 
-NK_PUBLIC void nk_each_fma_bf16_haswell(                             //
+NK_PUBLIC void nk_each_fma_bf16_haswell(                        //
     nk_bf16_t const *a, nk_bf16_t const *b, nk_bf16_t const *c, //
     nk_size_t n, nk_f32_t const *alpha, nk_f32_t const *beta, nk_bf16_t *result) {
     nk_f32_t alpha_val = *alpha;
@@ -518,7 +518,7 @@ NK_PUBLIC void nk_each_sum_i8_haswell(nk_i8_t const *a, nk_i8_t const *b, nk_siz
 }
 
 NK_PUBLIC void nk_each_scale_i8_haswell(nk_i8_t const *a, nk_size_t n, nk_f32_t const *alpha, nk_f32_t const *beta,
-                                   nk_i8_t *result) {
+                                        nk_i8_t *result) {
     nk_f32_t alpha_val = *alpha;
     nk_f32_t beta_val = *beta;
     __m256 alpha_f32x8 = _mm256_set1_ps(alpha_val);
@@ -561,7 +561,7 @@ NK_PUBLIC void nk_each_scale_i8_haswell(nk_i8_t const *a, nk_size_t n, nk_f32_t 
     }
 }
 
-NK_PUBLIC void nk_each_blend_i8_haswell(                   //
+NK_PUBLIC void nk_each_blend_i8_haswell(             //
     nk_i8_t const *a, nk_i8_t const *b, nk_size_t n, //
     nk_f32_t const *alpha, nk_f32_t const *beta, nk_i8_t *result) {
     nk_f32_t alpha_val = *alpha;
@@ -647,7 +647,7 @@ NK_PUBLIC void nk_each_sum_u8_haswell(nk_u8_t const *a, nk_u8_t const *b, nk_siz
 }
 
 NK_PUBLIC void nk_each_scale_u8_haswell(nk_u8_t const *a, nk_size_t n, nk_f32_t const *alpha, nk_f32_t const *beta,
-                                   nk_u8_t *result) {
+                                        nk_u8_t *result) {
     nk_f32_t alpha_val = *alpha;
     nk_f32_t beta_val = *beta;
     __m256 alpha_f32x8 = _mm256_set1_ps(alpha_val);
@@ -690,7 +690,7 @@ NK_PUBLIC void nk_each_scale_u8_haswell(nk_u8_t const *a, nk_size_t n, nk_f32_t 
     }
 }
 
-NK_PUBLIC void nk_each_blend_u8_haswell(                   //
+NK_PUBLIC void nk_each_blend_u8_haswell(             //
     nk_u8_t const *a, nk_u8_t const *b, nk_size_t n, //
     nk_f32_t const *alpha, nk_f32_t const *beta, nk_u8_t *result) {
     nk_f32_t alpha_val = *alpha;
@@ -757,7 +757,7 @@ NK_PUBLIC void nk_each_blend_u8_haswell(                   //
     }
 }
 
-NK_PUBLIC void nk_each_fma_i8_haswell(                                      //
+NK_PUBLIC void nk_each_fma_i8_haswell(                                 //
     nk_i8_t const *a, nk_i8_t const *b, nk_i8_t const *c, nk_size_t n, //
     nk_f32_t const *alpha, nk_f32_t const *beta, nk_i8_t *result) {
     nk_f32_t alpha_val = *alpha;
@@ -810,7 +810,7 @@ NK_PUBLIC void nk_each_fma_i8_haswell(                                      //
     }
 }
 
-NK_PUBLIC void nk_each_fma_u8_haswell(                                      //
+NK_PUBLIC void nk_each_fma_u8_haswell(                                 //
     nk_u8_t const *a, nk_u8_t const *b, nk_u8_t const *c, nk_size_t n, //
     nk_f32_t const *alpha, nk_f32_t const *beta, nk_u8_t *result) {
     nk_f32_t alpha_val = *alpha;
@@ -882,7 +882,7 @@ NK_PUBLIC void nk_each_sum_i16_haswell(nk_i16_t const *a, nk_i16_t const *b, nk_
 }
 
 NK_PUBLIC void nk_each_scale_i16_haswell(nk_i16_t const *a, nk_size_t n, nk_f32_t const *alpha, nk_f32_t const *beta,
-                                    nk_i16_t *result) {
+                                         nk_i16_t *result) {
     nk_f32_t alpha_f32 = *alpha;
     nk_f32_t beta_f32 = *beta;
     __m256 alpha_f32x8 = _mm256_set1_ps(alpha_f32);
@@ -912,7 +912,7 @@ NK_PUBLIC void nk_each_scale_i16_haswell(nk_i16_t const *a, nk_size_t n, nk_f32_
     }
 }
 
-NK_PUBLIC void nk_each_fma_i16_haswell(                                        //
+NK_PUBLIC void nk_each_fma_i16_haswell(                                   //
     nk_i16_t const *a, nk_i16_t const *b, nk_i16_t const *c, nk_size_t n, //
     nk_f32_t const *alpha, nk_f32_t const *beta, nk_i16_t *result) {
     nk_f32_t alpha_f32 = *alpha;
@@ -967,7 +967,7 @@ NK_PUBLIC void nk_each_sum_u16_haswell(nk_u16_t const *a, nk_u16_t const *b, nk_
 }
 
 NK_PUBLIC void nk_each_scale_u16_haswell(nk_u16_t const *a, nk_size_t n, nk_f32_t const *alpha, nk_f32_t const *beta,
-                                    nk_u16_t *result) {
+                                         nk_u16_t *result) {
     nk_f32_t alpha_f32 = *alpha;
     nk_f32_t beta_f32 = *beta;
     __m256 alpha_f32x8 = _mm256_set1_ps(alpha_f32);
@@ -997,7 +997,7 @@ NK_PUBLIC void nk_each_scale_u16_haswell(nk_u16_t const *a, nk_size_t n, nk_f32_
     }
 }
 
-NK_PUBLIC void nk_each_fma_u16_haswell(                                        //
+NK_PUBLIC void nk_each_fma_u16_haswell(                                   //
     nk_u16_t const *a, nk_u16_t const *b, nk_u16_t const *c, nk_size_t n, //
     nk_f32_t const *alpha, nk_f32_t const *beta, nk_u16_t *result) {
     nk_f32_t alpha_f32 = *alpha;
@@ -1073,7 +1073,7 @@ NK_PUBLIC void nk_each_sum_i32_haswell(nk_i32_t const *a, nk_i32_t const *b, nk_
 }
 
 NK_PUBLIC void nk_each_scale_i32_haswell(nk_i32_t const *a, nk_size_t n, nk_f64_t const *alpha, nk_f64_t const *beta,
-                                    nk_i32_t *result) {
+                                         nk_i32_t *result) {
     nk_f64_t alpha_val = *alpha;
     nk_f64_t beta_val = *beta;
     __m256d alpha_f64x4 = _mm256_set1_pd(alpha_val);
@@ -1101,7 +1101,7 @@ NK_PUBLIC void nk_each_scale_i32_haswell(nk_i32_t const *a, nk_size_t n, nk_f64_
     }
 }
 
-NK_PUBLIC void nk_each_fma_i32_haswell(                                        //
+NK_PUBLIC void nk_each_fma_i32_haswell(                                   //
     nk_i32_t const *a, nk_i32_t const *b, nk_i32_t const *c, nk_size_t n, //
     nk_f64_t const *alpha, nk_f64_t const *beta, nk_i32_t *result) {
     nk_f64_t alpha_val = *alpha;
@@ -1219,7 +1219,7 @@ NK_PUBLIC void nk_each_sum_u32_haswell(nk_u32_t const *a, nk_u32_t const *b, nk_
 }
 
 NK_PUBLIC void nk_each_scale_u32_haswell(nk_u32_t const *a, nk_size_t n, nk_f64_t const *alpha, nk_f64_t const *beta,
-                                    nk_u32_t *result) {
+                                         nk_u32_t *result) {
     nk_f64_t alpha_val = *alpha;
     nk_f64_t beta_val = *beta;
     __m256d alpha_f64x4 = _mm256_set1_pd(alpha_val);
@@ -1247,7 +1247,7 @@ NK_PUBLIC void nk_each_scale_u32_haswell(nk_u32_t const *a, nk_size_t n, nk_f64_
     }
 }
 
-NK_PUBLIC void nk_each_fma_u32_haswell(                                        //
+NK_PUBLIC void nk_each_fma_u32_haswell(                                   //
     nk_u32_t const *a, nk_u32_t const *b, nk_u32_t const *c, nk_size_t n, //
     nk_f64_t const *alpha, nk_f64_t const *beta, nk_u32_t *result) {
     nk_f64_t alpha_val = *alpha;
@@ -1322,14 +1322,14 @@ NK_PUBLIC void nk_each_sum_e5m2_haswell(nk_e5m2_t const *a, nk_e5m2_t const *b, 
 }
 
 NK_PUBLIC void nk_each_scale_e4m3_haswell(nk_e4m3_t const *a, nk_size_t n, nk_f32_t const *alpha, nk_f32_t const *beta,
-                                     nk_e4m3_t *result) {
+                                          nk_e4m3_t *result) {
     __m256 alpha_f32x8 = _mm256_set1_ps(*alpha);
     __m256 beta_f32x8 = _mm256_set1_ps(*beta);
     nk_size_t i = 0;
     for (; i + 8 <= n; i += 8) {
         __m128i a_e4m3x8 = _mm_loadl_epi64((__m128i const *)(a + i));
         __m256 a_f32x8 = nk_e4m3x8_to_f32x8_haswell_(a_e4m3x8);
-        // FP8 rounding note: FMA is acceptable here because scale computes (a * alpha + beta),
+        // FP8 rounding note: FMA is acceptable here because scale computes (α × a + β),
         // a single multiply-add operation where single-rounding preserves accuracy.
         __m256 result_f32x8 = _mm256_fmadd_ps(a_f32x8, alpha_f32x8, beta_f32x8);
         __m128i result_e4m3x8 = nk_f32x8_to_e4m3x8_haswell_(result_f32x8);
@@ -1344,14 +1344,14 @@ NK_PUBLIC void nk_each_scale_e4m3_haswell(nk_e4m3_t const *a, nk_size_t n, nk_f3
 }
 
 NK_PUBLIC void nk_each_scale_e5m2_haswell(nk_e5m2_t const *a, nk_size_t n, nk_f32_t const *alpha, nk_f32_t const *beta,
-                                     nk_e5m2_t *result) {
+                                          nk_e5m2_t *result) {
     __m256 alpha_f32x8 = _mm256_set1_ps(*alpha);
     __m256 beta_f32x8 = _mm256_set1_ps(*beta);
     nk_size_t i = 0;
     for (; i + 8 <= n; i += 8) {
         __m128i a_e5m2x8 = _mm_loadl_epi64((__m128i const *)(a + i));
         __m256 a_f32x8 = nk_e5m2x8_to_f32x8_haswell_(a_e5m2x8);
-        // FP8 rounding note: FMA is acceptable here because scale computes (a * alpha + beta),
+        // FP8 rounding note: FMA is acceptable here because scale computes (α × a + β),
         // a single multiply-add operation where single-rounding preserves accuracy.
         __m256 result_f32x8 = _mm256_fmadd_ps(a_f32x8, alpha_f32x8, beta_f32x8);
         __m128i result_e5m2x8 = nk_f32x8_to_e5m2x8_haswell_(result_f32x8);
@@ -1366,7 +1366,7 @@ NK_PUBLIC void nk_each_scale_e5m2_haswell(nk_e5m2_t const *a, nk_size_t n, nk_f3
 }
 
 NK_PUBLIC void nk_each_blend_e4m3_haswell(nk_e4m3_t const *a, nk_e4m3_t const *b, nk_size_t n, nk_f32_t const *alpha,
-                                    nk_f32_t const *beta, nk_e4m3_t *result) {
+                                          nk_f32_t const *beta, nk_e4m3_t *result) {
     __m256 alpha_f32x8 = _mm256_set1_ps(*alpha);
     __m256 beta_f32x8 = _mm256_set1_ps(*beta);
     nk_size_t i = 0;
@@ -1390,7 +1390,7 @@ NK_PUBLIC void nk_each_blend_e4m3_haswell(nk_e4m3_t const *a, nk_e4m3_t const *b
 }
 
 NK_PUBLIC void nk_each_blend_e5m2_haswell(nk_e5m2_t const *a, nk_e5m2_t const *b, nk_size_t n, nk_f32_t const *alpha,
-                                    nk_f32_t const *beta, nk_e5m2_t *result) {
+                                          nk_f32_t const *beta, nk_e5m2_t *result) {
     __m256 alpha_f32x8 = _mm256_set1_ps(*alpha);
     __m256 beta_f32x8 = _mm256_set1_ps(*beta);
     nk_size_t i = 0;
@@ -1414,7 +1414,7 @@ NK_PUBLIC void nk_each_blend_e5m2_haswell(nk_e5m2_t const *a, nk_e5m2_t const *b
 }
 
 NK_PUBLIC void nk_each_fma_e4m3_haswell(nk_e4m3_t const *a, nk_e4m3_t const *b, nk_e4m3_t const *c, nk_size_t n,
-                                   nk_f32_t const *alpha, nk_f32_t const *beta, nk_e4m3_t *result) {
+                                        nk_f32_t const *alpha, nk_f32_t const *beta, nk_e4m3_t *result) {
     __m256 alpha_f32x8 = _mm256_set1_ps(*alpha);
     __m256 beta_f32x8 = _mm256_set1_ps(*beta);
     nk_size_t i = 0;
@@ -1425,9 +1425,9 @@ NK_PUBLIC void nk_each_fma_e4m3_haswell(nk_e4m3_t const *a, nk_e4m3_t const *b, 
         __m256 a_f32x8 = nk_e4m3x8_to_f32x8_haswell_(a_e4m3x8);
         __m256 b_f32x8 = nk_e4m3x8_to_f32x8_haswell_(b_e4m3x8);
         __m256 c_f32x8 = nk_e4m3x8_to_f32x8_haswell_(c_e4m3x8);
-        // FP8 rounding note: Hybrid approach - use separate MUL for (a*b) and (a*b*alpha) to
+        // FP8 rounding note: Hybrid approach - use separate MUL for (a × b) and (α × a × b) to
         // preserve intermediate rounding, then FMA for final addition since it matches scalar
-        // semantics of (alpha*a*b + beta*c) when the multiply term is already computed.
+        // semantics of (α × a × b + β × c) when the multiply term is already computed.
         __m256 ab_f32x8 = _mm256_mul_ps(a_f32x8, b_f32x8);
         __m256 ab_scaled_f32x8 = _mm256_mul_ps(ab_f32x8, alpha_f32x8);
         __m256 result_f32x8 = _mm256_fmadd_ps(c_f32x8, beta_f32x8, ab_scaled_f32x8);
@@ -1445,7 +1445,7 @@ NK_PUBLIC void nk_each_fma_e4m3_haswell(nk_e4m3_t const *a, nk_e4m3_t const *b, 
 }
 
 NK_PUBLIC void nk_each_fma_e5m2_haswell(nk_e5m2_t const *a, nk_e5m2_t const *b, nk_e5m2_t const *c, nk_size_t n,
-                                   nk_f32_t const *alpha, nk_f32_t const *beta, nk_e5m2_t *result) {
+                                        nk_f32_t const *alpha, nk_f32_t const *beta, nk_e5m2_t *result) {
     __m256 alpha_f32x8 = _mm256_set1_ps(*alpha);
     __m256 beta_f32x8 = _mm256_set1_ps(*beta);
     nk_size_t i = 0;
@@ -1456,9 +1456,9 @@ NK_PUBLIC void nk_each_fma_e5m2_haswell(nk_e5m2_t const *a, nk_e5m2_t const *b, 
         __m256 a_f32x8 = nk_e5m2x8_to_f32x8_haswell_(a_e5m2x8);
         __m256 b_f32x8 = nk_e5m2x8_to_f32x8_haswell_(b_e5m2x8);
         __m256 c_f32x8 = nk_e5m2x8_to_f32x8_haswell_(c_e5m2x8);
-        // FP8 rounding note: Hybrid approach - use separate MUL for (a*b) and (a*b*alpha) to
+        // FP8 rounding note: Hybrid approach - use separate MUL for (a × b) and (α × a × b) to
         // preserve intermediate rounding, then FMA for final addition since it matches scalar
-        // semantics of (alpha*a*b + beta*c) when the multiply term is already computed.
+        // semantics of (α × a × b + β × c) when the multiply term is already computed.
         __m256 ab_f32x8 = _mm256_mul_ps(a_f32x8, b_f32x8);
         __m256 ab_scaled_f32x8 = _mm256_mul_ps(ab_f32x8, alpha_f32x8);
         __m256 result_f32x8 = _mm256_fmadd_ps(c_f32x8, beta_f32x8, ab_scaled_f32x8);

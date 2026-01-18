@@ -359,7 +359,7 @@ NK_PUBLIC void nk_kabsch_f16_neonhalf(nk_f16_t const *a, nk_f16_t const *b, nk_s
     }
 
     // Compute centered covariance: H = (A - centroid_A)ᵀ * (B - centroid_B)
-    // H = sum(a × bᵀ) - n * centroid_a * centroid_bᵀ
+    // H = sum(a * bᵀ) - n * centroid_a * centroid_bᵀ
     nk_f32_t h[9];
     h[0] = h00 - n * centroid_a_x * centroid_b_x;
     h[1] = h01 - n * centroid_a_x * centroid_b_y;
@@ -415,10 +415,6 @@ NK_PUBLIC void nk_kabsch_f16_neonhalf(nk_f16_t const *a, nk_f16_t const *b, nk_s
     *result = nk_f32_sqrt_neon(sum_squared * inv_n);
 }
 
-/**
- *  @brief Umeyama algorithm for optimal similarity transformation using NEON FP16 with widening to FP32.
- *  Finds the rotation matrix R and scale factor c that minimizes ||c*R*A - B||.
- */
 NK_PUBLIC void nk_umeyama_f16_neonhalf(nk_f16_t const *a, nk_f16_t const *b, nk_size_t n, nk_f32_t *a_centroid,
                                        nk_f32_t *b_centroid, nk_f32_t *rotation, nk_f32_t *scale, nk_f32_t *result) {
     // Fused single-pass: load f16, convert to f32, compute centroids, covariance, and variance

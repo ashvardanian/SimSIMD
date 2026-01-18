@@ -1594,7 +1594,7 @@ void qr_decomposition_(scalar_type_ const *input, scalar_type_ *q, scalar_type_ 
            (scalar_type_(-1.0) + scalar_type_(2.0) * sin_half_3_sq);
 }
 
-/** @brief 3×3 SVD: A = U * S * V^scalar_type_ using McAdams algorithm. */
+/** @brief 3×3 SVD: A = U * S * Vᵀ using McAdams algorithm. */
 template <typename scalar_type_>
 void svd3x3_(scalar_type_ const *a, scalar_type_ *svd_u, scalar_type_ *svd_s, scalar_type_ *svd_v) {
     // Compute Aᵀ * A (symmetric)
@@ -2043,7 +2043,7 @@ void umeyama(in_type_ const *a, in_type_ const *b, std::size_t n, result_type_ *
             for (unsigned int j = 0; j < 9; j++) rotation[j] = rotation_matrix[j];
         }
 
-        // Step 5: Compute RMSD after similarity transform: ||c*R*a - b||
+        // Step 5: Compute RMSD after similarity transform: ‖c × R × a - b‖
         result_type_ sum_squared {};
         for (std::size_t i = 0; i < n; i++) {
             result_type_ point_a[3], point_b[3], rotated_point_a[3];

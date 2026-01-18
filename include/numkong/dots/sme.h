@@ -141,7 +141,7 @@ NK_PUBLIC nk_size_t nk_dots_packed_size_bf16_sme(nk_size_t n, nk_size_t k) {
 /*  Pack `f16` B matrix for SME outer product access.
  *
  *  SME outer product: ZA[i,j] += A[i] × B[j]
- *  For GEMM C = A × B^T, we need B stored column-major so that
+ *  For GEMM C = A × Bᵀ, we need B stored column-major so that
  *  loading a column of B gives us the elements for one N output row.
  *
  *  Layout: tiles are stored in (column_tile, depth_tile) order with column-major
