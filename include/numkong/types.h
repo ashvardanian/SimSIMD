@@ -1188,6 +1188,11 @@ NK_INTERNAL nk_size_t nk_size_divide_round_up_to_multiple_(nk_size_t number, nk_
     return (number + divisor - 1) / divisor;
 }
 
+/** @brief Rounds up the number to the next multiple of the given divisor. */
+NK_INTERNAL nk_size_t nk_round_up_to_multiple_(nk_size_t number, nk_size_t divisor) {
+    return ((number + divisor - 1) / divisor) * divisor;
+}
+
 NK_INTERNAL nk_f64_t nk_f32_abs_(nk_f64_t x) { return x < 0 ? -x : x; }
 NK_INTERNAL nk_f64_t nk_f64_abs_(nk_f64_t x) { return x < 0 ? -x : x; }
 NK_INTERNAL nk_i64_t nk_i64_abs_(nk_i64_t x) { return x < 0 ? -x : x; }
