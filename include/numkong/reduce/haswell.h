@@ -1855,7 +1855,9 @@ NK_INTERNAL void nk_reduce_add_f16_haswell_contiguous_( //
     __m256 sum_f32x8 = _mm256_setzero_ps();
 nk_reduce_add_f16_haswell_contiguous_cycle:
     if (count < 8) {
-        data_f32x8 = nk_partial_load_f16x8_to_f32x8_haswell_(data, count);
+        nk_b256_vec_t vec;
+        nk_partial_load_f16x8_to_f32x8_haswell_(data, &vec, count);
+        data_f32x8 = vec.ymm_ps;
         count = 0;
     }
     else {
@@ -2112,7 +2114,9 @@ NK_INTERNAL void nk_reduce_add_bf16_haswell_contiguous_( //
     __m256 sum_f32x8 = _mm256_setzero_ps();
 nk_reduce_add_bf16_haswell_contiguous_cycle:
     if (count < 8) {
-        data_f32x8 = nk_partial_load_bf16x8_to_f32x8_haswell_(data, count);
+        nk_b256_vec_t vec;
+        nk_partial_load_bf16x8_to_f32x8_haswell_(data, &vec, count);
+        data_f32x8 = vec.ymm_ps;
         count = 0;
     }
     else {
@@ -2373,7 +2377,9 @@ NK_INTERNAL void nk_reduce_add_e4m3_haswell_contiguous_( //
     __m256 sum_f32x8 = _mm256_setzero_ps();
 nk_reduce_add_e4m3_haswell_contiguous_cycle:
     if (count < 8) {
-        data_f32x8 = nk_partial_load_e4m3x8_to_f32x8_haswell_(data, count);
+        nk_b256_vec_t vec;
+        nk_partial_load_e4m3x8_to_f32x8_haswell_(data, &vec, count);
+        data_f32x8 = vec.ymm_ps;
         count = 0;
     }
     else {
@@ -2653,7 +2659,9 @@ NK_INTERNAL void nk_reduce_add_e5m2_haswell_contiguous_( //
     __m256 sum_f32x8 = _mm256_setzero_ps();
 nk_reduce_add_e5m2_haswell_contiguous_cycle:
     if (count < 8) {
-        data_f32x8 = nk_partial_load_e5m2x8_to_f32x8_haswell_(data, count);
+        nk_b256_vec_t vec;
+        nk_partial_load_e5m2x8_to_f32x8_haswell_(data, &vec, count);
+        data_f32x8 = vec.ymm_ps;
         count = 0;
     }
     else {

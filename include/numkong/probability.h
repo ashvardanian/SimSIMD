@@ -584,8 +584,11 @@ NK_PUBLIC void nk_kld_f16_haswell(nk_f16_t const *a, nk_f16_t const *b, nk_size_
 
 nk_kld_f16_haswell_cycle:
     if (n < 8) {
-        a_f32x8 = nk_partial_load_f16x8_to_f32x8_haswell_(a, n);
-        b_f32x8 = nk_partial_load_f16x8_to_f32x8_haswell_(b, n);
+        nk_b256_vec_t a_vec, b_vec;
+        nk_partial_load_f16x8_to_f32x8_haswell_(a, &a_vec, n);
+        nk_partial_load_f16x8_to_f32x8_haswell_(b, &b_vec, n);
+        a_f32x8 = a_vec.ymm_ps;
+        b_f32x8 = b_vec.ymm_ps;
         n = 0;
     }
     else {
@@ -615,8 +618,11 @@ NK_PUBLIC void nk_jsd_f16_haswell(nk_f16_t const *a, nk_f16_t const *b, nk_size_
 
 nk_jsd_f16_haswell_cycle:
     if (n < 8) {
-        a_f32x8 = nk_partial_load_f16x8_to_f32x8_haswell_(a, n);
-        b_f32x8 = nk_partial_load_f16x8_to_f32x8_haswell_(b, n);
+        nk_b256_vec_t a_vec, b_vec;
+        nk_partial_load_f16x8_to_f32x8_haswell_(a, &a_vec, n);
+        nk_partial_load_f16x8_to_f32x8_haswell_(b, &b_vec, n);
+        a_f32x8 = a_vec.ymm_ps;
+        b_f32x8 = b_vec.ymm_ps;
         n = 0;
     }
     else {

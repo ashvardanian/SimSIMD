@@ -40,14 +40,49 @@ extern "C" {
 #endif
 
 /**
- *  @brief Internal helper for f32x8-based finalize (used by f16, bf16, e4m3, e5m2 kernels).
- *
- *  These types accumulate to f32x8 and need a common horizontal reduction.
+ *  @brief Internal helper state for dot-products of low-precision types, where 32-bit accumulation is enough.
+ *  @sa nk_dot_f16x8_state_haswell_t, nk_dot_bf16x8_state_haswell_t
+ *  @sa nk_dot_e4m3x16_state_haswell_t, nk_dot_e5m2x16_state_haswell_t
  */
-NK_INTERNAL void nk_dot_f32x8_finalize_haswell_wout_compensation_( //
-    __m256 const sum_a_f32x8, __m256 const sum_b_f32x8,            //
-    __m256 const sum_c_f32x8, __m256 const sum_d_f32x8,            //
+typedef struct nk_dot_through_f32_state_haswell_t_ {
+    __m256 sum_f32x8;
+} nk_dot_through_f32_state_haswell_t_;
+
+/**
+ *  @brief Initializes 32-bit accumulators for low-precision dot-products.
+ *  @sa nk_dot_f16x8_init_haswell, nk_dot_bf16x8_init_haswell
+ *  @sa nk_dot_e4m3x16_init_haswell, nk_dot_e5m2x16_init_haswell
+ */
+NK_INTERNAL void nk_dot_through_f32_init_haswell_(nk_dot_through_f32_state_haswell_t_ *state) {
+    state->sum_f32x8 = _mm256_setzero_ps();
+}
+
+/**
+ *  @brief Fuses 32-bit multiplication and accumulation for low-precision dot-products.
+ *  @sa nk_dot_f16x8_update_haswell, nk_dot_bf16x8_update_haswell
+ *  @sa nk_dot_e4m3x16_update_haswell, nk_dot_e5m2x16_update_haswell
+ */
+NK_INTERNAL void nk_dot_through_f32_update_haswell_(nk_dot_through_f32_state_haswell_t_ *state, nk_b256_vec_t a,
+                                                    nk_b256_vec_t b) {
+    state->sum_f32x8 = _mm256_fmadd_ps(a.ymm_ps, b.ymm_ps, state->sum_f32x8);
+}
+
+/**
+ *  @brief Finalizes 4x low-precision dot-products placing them into 4x consecutive 32-bit slots.
+ *  @sa nk_dot_f16x8_finalize_haswell, nk_dot_bf16x8_finalize_haswell
+ *  @sa nk_dot_e4m3x16_finalize_haswell, nk_dot_e5m2x16_finalize_haswell
+ *
+ *  The goal of this kernel is simple - compute 4x horizontal reductions, each involving 8x floats.
+ *  The lack of vectorized horizontal instruction implies many consecutive shuffles producing a tree-like
+ *  reduction. This kernel allows combining some of those operations between different dot products.
+ */
+NK_INTERNAL void nk_dot_through_f32_finalize_haswell_(                                                      //
+    nk_dot_through_f32_state_haswell_t_ const *state_a, nk_dot_through_f32_state_haswell_t_ const *state_b, //
+    nk_dot_through_f32_state_haswell_t_ const *state_c, nk_dot_through_f32_state_haswell_t_ const *state_d, //
     nk_b128_vec_t *result) {
+
+    __m256 const sum_a_f32x8 = state_a->sum_f32x8, sum_b_f32x8 = state_b->sum_f32x8, sum_c_f32x8 = state_c->sum_f32x8,
+                 sum_d_f32x8 = state_d->sum_f32x8;
 
     // ILP-optimized 4-way horizontal reduction for f32 in AVX2
     __m128 sum_a_f32x4 = _mm_add_ps(_mm256_castps256_ps128(sum_a_f32x8), _mm256_extractf128_ps(sum_a_f32x8, 1));
@@ -285,8 +320,11 @@ NK_PUBLIC void nk_dot_f16_haswell(nk_f16_t const *a_scalars, nk_f16_t const *b_s
     __m256 sum_f32x8 = _mm256_setzero_ps();
 nk_dot_f16_haswell_cycle:
     if (count_scalars < 8) {
-        a_f32x8 = nk_partial_load_f16x8_to_f32x8_haswell_(a_scalars, count_scalars);
-        b_f32x8 = nk_partial_load_f16x8_to_f32x8_haswell_(b_scalars, count_scalars);
+        nk_b256_vec_t a_vec, b_vec;
+        nk_partial_load_f16x8_to_f32x8_haswell_(a_scalars, &a_vec, count_scalars);
+        nk_partial_load_f16x8_to_f32x8_haswell_(b_scalars, &b_vec, count_scalars);
+        a_f32x8 = a_vec.ymm_ps;
+        b_f32x8 = b_vec.ymm_ps;
         count_scalars = 0;
     }
     else {
@@ -425,8 +463,11 @@ NK_PUBLIC void nk_dot_e4m3_haswell(nk_e4m3_t const *a_scalars, nk_e4m3_t const *
     __m256 sum_f32x8 = _mm256_setzero_ps();
 nk_dot_e4m3_haswell_cycle:
     if (count_scalars < 8) {
-        a_f32x8 = nk_partial_load_e4m3x8_to_f32x8_haswell_(a_scalars, count_scalars);
-        b_f32x8 = nk_partial_load_e4m3x8_to_f32x8_haswell_(b_scalars, count_scalars);
+        nk_b256_vec_t a_vec, b_vec;
+        nk_partial_load_e4m3x8_to_f32x8_haswell_(a_scalars, &a_vec, count_scalars);
+        nk_partial_load_e4m3x8_to_f32x8_haswell_(b_scalars, &b_vec, count_scalars);
+        a_f32x8 = a_vec.ymm_ps;
+        b_f32x8 = b_vec.ymm_ps;
         count_scalars = 0;
     }
     else {
@@ -445,8 +486,11 @@ NK_PUBLIC void nk_dot_e5m2_haswell(nk_e5m2_t const *a_scalars, nk_e5m2_t const *
     __m256 sum_f32x8 = _mm256_setzero_ps();
 nk_dot_e5m2_haswell_cycle:
     if (count_scalars < 8) {
-        a_f32x8 = nk_partial_load_e5m2x8_to_f32x8_haswell_(a_scalars, count_scalars);
-        b_f32x8 = nk_partial_load_e5m2x8_to_f32x8_haswell_(b_scalars, count_scalars);
+        nk_b256_vec_t a_vec, b_vec;
+        nk_partial_load_e5m2x8_to_f32x8_haswell_(a_scalars, &a_vec, count_scalars);
+        nk_partial_load_e5m2x8_to_f32x8_haswell_(b_scalars, &b_vec, count_scalars);
+        a_f32x8 = a_vec.ymm_ps;
+        b_f32x8 = b_vec.ymm_ps;
         count_scalars = 0;
     }
     else {
@@ -509,106 +553,71 @@ NK_INTERNAL void nk_dot_f32x4_finalize_haswell(                                 
     result->xmm = _mm_castps_si128(sum_f32x4);
 }
 
-typedef struct nk_dot_f16x8_state_haswell_t {
-    __m256 sum_f32x8;
-} nk_dot_f16x8_state_haswell_t;
+typedef nk_dot_through_f32_state_haswell_t_ nk_dot_f16x8_state_haswell_t;
 
-NK_INTERNAL void nk_dot_f16x8_init_haswell(nk_dot_f16x8_state_haswell_t *state) {
-    state->sum_f32x8 = _mm256_setzero_ps();
+/**
+ *  @brief Upcasting load helpers for F16 → F32 GEMM optimization.
+ *
+ *  These helpers eliminate inner-loop conversions by:
+ *  - Loading unpacked A (f16) and upcasting to f32 on-the-fly
+ *  - Loading packed B (already stored as f32) directly
+ */
+NK_INTERNAL void nk_load_f16x8_to_f32x8_haswell_(void const *src, nk_b256_vec_t *dst) {
+    dst->ymm_ps = _mm256_cvtph_ps(_mm_loadu_si128((__m128i const *)src));
 }
 
-NK_INTERNAL void nk_dot_f16x8_update_haswell(nk_dot_f16x8_state_haswell_t *state, nk_b128_vec_t a, nk_b128_vec_t b) {
-    state->sum_f32x8 = _mm256_fmadd_ps(_mm256_cvtph_ps(a.xmm), _mm256_cvtph_ps(b.xmm), state->sum_f32x8);
+NK_INTERNAL void nk_dots_partial_load_f16x8_to_f32x8_haswell_(void const *src, nk_b256_vec_t *dst, nk_size_t n) {
+    nk_b128_vec_t f16_partial;
+    nk_partial_load_b16x8_serial_(src, &f16_partial, n);
+    dst->ymm_ps = _mm256_cvtph_ps(f16_partial.xmm);
 }
 
-NK_INTERNAL void nk_dot_f16x8_finalize_haswell(                                               //
-    nk_dot_f16x8_state_haswell_t const *state_a, nk_dot_f16x8_state_haswell_t const *state_b, //
-    nk_dot_f16x8_state_haswell_t const *state_c, nk_dot_f16x8_state_haswell_t const *state_d, //
-    nk_b128_vec_t *result) {
-    nk_dot_f32x8_finalize_haswell_wout_compensation_( //
-        state_a->sum_f32x8, state_b->sum_f32x8,       //
-        state_c->sum_f32x8, state_d->sum_f32x8, result);
+typedef nk_dot_through_f32_state_haswell_t_ nk_dot_bf16x8_state_haswell_t;
+
+/**
+ *  @brief Upcasting load helpers for BF16 → F32 GEMM optimization.
+ */
+NK_INTERNAL void nk_load_bf16x8_to_f32x8_haswell_(void const *src, nk_b256_vec_t *dst) {
+    dst->ymm_ps = nk_bf16x8_to_f32x8_haswell_(_mm_loadu_si128((__m128i const *)src));
 }
 
-typedef struct nk_dot_bf16x8_state_haswell_t {
-    __m256 sum_f32x8;
-} nk_dot_bf16x8_state_haswell_t;
-
-NK_INTERNAL void nk_dot_bf16x8_init_haswell(nk_dot_bf16x8_state_haswell_t *state) {
-    state->sum_f32x8 = _mm256_setzero_ps();
+NK_INTERNAL void nk_dots_partial_load_bf16x8_to_f32x8_haswell_(void const *src, nk_b256_vec_t *dst, nk_size_t n) {
+    nk_b128_vec_t bf16_partial;
+    nk_partial_load_b16x8_serial_(src, &bf16_partial, n);
+    dst->ymm_ps = nk_bf16x8_to_f32x8_haswell_(bf16_partial.xmm);
 }
 
-NK_INTERNAL void nk_dot_bf16x8_update_haswell(nk_dot_bf16x8_state_haswell_t *state, nk_b128_vec_t a, nk_b128_vec_t b) {
-    state->sum_f32x8 = _mm256_fmadd_ps(nk_bf16x8_to_f32x8_haswell_(a.xmm), nk_bf16x8_to_f32x8_haswell_(b.xmm),
-                                       state->sum_f32x8);
+/**
+ *  @brief Upcasting load helpers for E4M3 → F32 GEMM optimization.
+ */
+NK_INTERNAL void nk_load_e4m3x16_to_f32x8_haswell_(void const *src, nk_b256_vec_t *dst) {
+    // Load 8 bytes (8x E4M3 values), convert to F32x8
+    dst->ymm_ps = nk_e4m3x8_to_f32x8_haswell_(_mm_loadl_epi64((__m128i const *)src));
 }
 
-NK_INTERNAL void nk_dot_bf16x8_finalize_haswell(                                                //
-    nk_dot_bf16x8_state_haswell_t const *state_a, nk_dot_bf16x8_state_haswell_t const *state_b, //
-    nk_dot_bf16x8_state_haswell_t const *state_c, nk_dot_bf16x8_state_haswell_t const *state_d, //
-    nk_b128_vec_t *result) {
-    nk_dot_f32x8_finalize_haswell_wout_compensation_( //
-        state_a->sum_f32x8, state_b->sum_f32x8,       //
-        state_c->sum_f32x8, state_d->sum_f32x8, result);
+NK_INTERNAL void nk_dots_partial_load_e4m3x16_to_f32x8_haswell_(void const *src, nk_b256_vec_t *dst, nk_size_t n) {
+    nk_b128_vec_t e4m3_partial;
+    nk_partial_load_b8x16_serial_(src, &e4m3_partial, n);
+    dst->ymm_ps = nk_e4m3x8_to_f32x8_haswell_(e4m3_partial.xmm);
 }
 
-typedef struct nk_dot_e4m3x16_state_haswell_t {
-    __m256 sum_f32x8;
-} nk_dot_e4m3x16_state_haswell_t;
-
-NK_INTERNAL void nk_dot_e4m3x16_init_haswell(nk_dot_e4m3x16_state_haswell_t *state) {
-    state->sum_f32x8 = _mm256_setzero_ps();
+/**
+ *  @brief Upcasting load helpers for E5M2 → F32 GEMM optimization.
+ */
+NK_INTERNAL void nk_load_e5m2x16_to_f32x8_haswell_(void const *src, nk_b256_vec_t *dst) {
+    // Load 8 bytes (8x E5M2 values), convert to F32x8
+    dst->ymm_ps = nk_e5m2x8_to_f32x8_haswell_(_mm_loadl_epi64((__m128i const *)src));
 }
 
-NK_INTERNAL void nk_dot_e4m3x16_update_haswell(nk_dot_e4m3x16_state_haswell_t *state, nk_b128_vec_t a,
-                                               nk_b128_vec_t b) {
-    __m256 sum_f32x8 = state->sum_f32x8;
-    sum_f32x8 = _mm256_fmadd_ps(nk_e4m3x8_to_f32x8_haswell_(_mm_loadl_epi64((__m128i const *)(a.e4m3s + 0))),
-                                nk_e4m3x8_to_f32x8_haswell_(_mm_loadl_epi64((__m128i const *)(b.e4m3s + 0))),
-                                sum_f32x8);
-    sum_f32x8 = _mm256_fmadd_ps(nk_e4m3x8_to_f32x8_haswell_(_mm_loadl_epi64((__m128i const *)(a.e4m3s + 8))),
-                                nk_e4m3x8_to_f32x8_haswell_(_mm_loadl_epi64((__m128i const *)(b.e4m3s + 8))),
-                                sum_f32x8);
-    state->sum_f32x8 = sum_f32x8;
+NK_INTERNAL void nk_dots_partial_load_e5m2x16_to_f32x8_haswell_(void const *src, nk_b256_vec_t *dst, nk_size_t n) {
+    nk_b128_vec_t e5m2_partial;
+    nk_partial_load_b8x16_serial_(src, &e5m2_partial, n);
+    dst->ymm_ps = nk_e5m2x8_to_f32x8_haswell_(e5m2_partial.xmm);
 }
 
-NK_INTERNAL void nk_dot_e4m3x16_finalize_haswell(                                                 //
-    nk_dot_e4m3x16_state_haswell_t const *state_a, nk_dot_e4m3x16_state_haswell_t const *state_b, //
-    nk_dot_e4m3x16_state_haswell_t const *state_c, nk_dot_e4m3x16_state_haswell_t const *state_d, //
-    nk_b128_vec_t *result) {
-    nk_dot_f32x8_finalize_haswell_wout_compensation_( //
-        state_a->sum_f32x8, state_b->sum_f32x8,       //
-        state_c->sum_f32x8, state_d->sum_f32x8, result);
-}
+typedef nk_dot_through_f32_state_haswell_t_ nk_dot_e4m3x16_state_haswell_t;
 
-typedef struct nk_dot_e5m2x16_state_haswell_t {
-    __m256 sum_f32x8;
-} nk_dot_e5m2x16_state_haswell_t;
-
-NK_INTERNAL void nk_dot_e5m2x16_init_haswell(nk_dot_e5m2x16_state_haswell_t *state) {
-    state->sum_f32x8 = _mm256_setzero_ps();
-}
-
-NK_INTERNAL void nk_dot_e5m2x16_update_haswell(nk_dot_e5m2x16_state_haswell_t *state, nk_b128_vec_t a,
-                                               nk_b128_vec_t b) {
-    __m256 sum_f32x8 = state->sum_f32x8;
-    sum_f32x8 = _mm256_fmadd_ps(nk_e5m2x8_to_f32x8_haswell_(_mm_loadl_epi64((__m128i const *)(a.e5m2s + 0))),
-                                nk_e5m2x8_to_f32x8_haswell_(_mm_loadl_epi64((__m128i const *)(b.e5m2s + 0))),
-                                sum_f32x8);
-    sum_f32x8 = _mm256_fmadd_ps(nk_e5m2x8_to_f32x8_haswell_(_mm_loadl_epi64((__m128i const *)(a.e5m2s + 8))),
-                                nk_e5m2x8_to_f32x8_haswell_(_mm_loadl_epi64((__m128i const *)(b.e5m2s + 8))),
-                                sum_f32x8);
-    state->sum_f32x8 = sum_f32x8;
-}
-
-NK_INTERNAL void nk_dot_e5m2x16_finalize_haswell(                                                 //
-    nk_dot_e5m2x16_state_haswell_t const *state_a, nk_dot_e5m2x16_state_haswell_t const *state_b, //
-    nk_dot_e5m2x16_state_haswell_t const *state_c, nk_dot_e5m2x16_state_haswell_t const *state_d, //
-    nk_b128_vec_t *result) {
-    nk_dot_f32x8_finalize_haswell_wout_compensation_( //
-        state_a->sum_f32x8, state_b->sum_f32x8,       //
-        state_c->sum_f32x8, state_d->sum_f32x8, result);
-}
+typedef nk_dot_through_f32_state_haswell_t_ nk_dot_e5m2x16_state_haswell_t;
 
 /**
  *  @brief Running state for 128-bit dot accumulation over i8 scalars on Haswell.

@@ -543,13 +543,6 @@ void measure_dots_packed(                                                       
     std::vector<char> matrix_b_packed(packed_bytes, 0);
     auto matrix_c = make_vector<output_t>(m * n);
 
-    // Debug output
-    if (state.thread_index() == 0 && state.iterations() == 0) {
-        printf("DEBUG: m=%lu, n=%lu, k=%lu, bits=%lu\n", m, n, k, bits_per_element);
-        printf("DEBUG: matrix_a.size()=%lu, matrix_b.size()=%lu\n", matrix_a.size(), matrix_b.size());
-        printf("DEBUG: a_stride=%lu, b_stride=%lu, packed_bytes=%lu\n", a_stride_bytes, b_stride_bytes, packed_bytes);
-    }
-
     // Initialize with random values (fill_uniform handles sub-byte types correctly)
     auto generator = make_random_engine();
     nk::fill_uniform(generator, matrix_a.values_data(), matrix_a.size());
@@ -1812,12 +1805,10 @@ int main(int argc, char **argv) {
                        nk_dots_packed_i8_serial);
     dots_<f32_k, f32_k>("dots_packed_f32_serial", nk_dots_packed_size_f32_serial, nk_dots_pack_f32_serial,
                         nk_dots_packed_f32_serial);
-    dots_<u1_k, u32_k>("dots_packed_u1_serial", nk_dots_packed_size_u1x8_serial, nk_dots_pack_u1x8_serial,
-                       nk_dots_packed_u1x8_serial);
     dots_<u4_k, u32_k>("dots_packed_u4_serial", nk_dots_packed_size_u4x2_serial, nk_dots_pack_u4x2_serial,
-                       nk_dots_packed_u4x2_serial);
+                       nk_dots_packed_u4_serial);
     dots_<i4_k, i32_k>("dots_packed_i4_serial", nk_dots_packed_size_i4x2_serial, nk_dots_pack_i4x2_serial,
-                       nk_dots_packed_i4x2_serial);
+                       nk_dots_packed_i4_serial);
 
     // Symmetric GEMM benchmarks (A × Aᵀ)
     dots_symmetric_<f32_k, f32_k>("dots_symmetric_f32_serial", nk_dots_symmetric_f32_serial);

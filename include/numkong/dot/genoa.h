@@ -22,6 +22,7 @@
 #include "numkong/types.h"
 #include "numkong/cast/ice.h"       // `nk_e4m3x32_to_bf16x32_ice_`
 #include "numkong/reduce/skylake.h" // `nk_reduce_add_f32x16_skylake_`
+#include "numkong/dot/skylake.h"    // `nk_dot_through_f32_finalize_skylake_`
 
 #if defined(__cplusplus)
 extern "C" {
@@ -186,69 +187,50 @@ nk_dot_e5m2_genoa_cycle:
     *result = nk_reduce_add_f32x16_skylake_(sum_f32x16);
 }
 
-typedef struct nk_dot_bf16x32_state_genoa_t {
-    __m512 sum_f32x16;
-} nk_dot_bf16x32_state_genoa_t;
+NK_INTERNAL void nk_load_e4m3x32_to_bf16x32_genoa_(void const *src, nk_b512_vec_t *dst) {
+    dst->zmm = nk_e4m3x32_to_bf16x32_ice_(_mm256_loadu_si256((__m256i const *)src));
+}
+NK_INTERNAL void nk_partial_load_e4m3x32_to_bf16x32_genoa_(void const *src, nk_b512_vec_t *dst, nk_size_t n) {
+    nk_b256_vec_t e4m3_partial;
+    nk_partial_load_b8x32_serial_(src, &e4m3_partial, n);
+    dst->zmm = nk_e4m3x32_to_bf16x32_ice_(e4m3_partial.ymm);
+}
 
-NK_INTERNAL void nk_dot_bf16x32_init_genoa(nk_dot_bf16x32_state_genoa_t *state) {
+NK_INTERNAL void nk_load_e5m2x32_to_bf16x32_genoa_(void const *src, nk_b512_vec_t *dst) {
+    dst->zmm = nk_e5m2x32_to_bf16x32_ice_(_mm256_loadu_si256((__m256i const *)src));
+}
+NK_INTERNAL void nk_partial_load_e5m2x32_to_bf16x32_genoa_(void const *src, nk_b512_vec_t *dst, nk_size_t n) {
+    nk_b256_vec_t e5m2_partial;
+    nk_partial_load_b8x32_serial_(src, &e5m2_partial, n);
+    dst->zmm = nk_e5m2x32_to_bf16x32_ice_(e5m2_partial.ymm);
+}
+
+typedef struct nk_dot_through_bf16_state_genoa_t_ {
+    __m512 sum_f32x16;
+} nk_dot_through_bf16_state_genoa_t_;
+
+NK_INTERNAL void nk_dot_through_bf16_init_genoa_(nk_dot_through_bf16_state_genoa_t_ *state) {
     state->sum_f32x16 = _mm512_setzero();
 }
 
-NK_INTERNAL void nk_dot_bf16x32_update_genoa(nk_dot_bf16x32_state_genoa_t *state, nk_b512_vec_t a, nk_b512_vec_t b) {
+NK_INTERNAL void nk_dot_through_bf16_update_genoa_(nk_dot_through_bf16_state_genoa_t_ *state, nk_b512_vec_t a,
+                                                   nk_b512_vec_t b) {
     state->sum_f32x16 = _mm512_dpbf16_ps(state->sum_f32x16, (__m512bh)(a.zmm), (__m512bh)(b.zmm));
 }
 
-NK_INTERNAL void nk_dot_bf16x32_finalize_genoa(                                               //
-    nk_dot_bf16x32_state_genoa_t const *state_a, nk_dot_bf16x32_state_genoa_t const *state_b, //
-    nk_dot_bf16x32_state_genoa_t const *state_c, nk_dot_bf16x32_state_genoa_t const *state_d, //
+NK_INTERNAL void nk_dot_through_bf16_finalize_genoa_(                                                     //
+    nk_dot_through_bf16_state_genoa_t_ const *state_a, nk_dot_through_bf16_state_genoa_t_ const *state_b, //
+    nk_dot_through_bf16_state_genoa_t_ const *state_c, nk_dot_through_bf16_state_genoa_t_ const *state_d, //
     nk_b128_vec_t *result) {
-    nk_dot_f32x16_finalize_skylake_wout_compensation_(state_a->sum_f32x16, state_b->sum_f32x16, state_c->sum_f32x16,
-                                                      state_d->sum_f32x16, result);
+    nk_dot_through_f32_finalize_skylake_((nk_dot_through_f32_state_skylake_t_ const *)state_a,
+                                         (nk_dot_through_f32_state_skylake_t_ const *)state_b,
+                                         (nk_dot_through_f32_state_skylake_t_ const *)state_c,
+                                         (nk_dot_through_f32_state_skylake_t_ const *)state_d, result);
 }
 
-typedef struct nk_dot_e4m3x32_state_genoa_t {
-    __m512 sum_f32x16;
-} nk_dot_e4m3x32_state_genoa_t;
+typedef nk_dot_through_bf16_state_genoa_t_ nk_dot_e4m3x32_state_genoa_t;
 
-NK_INTERNAL void nk_dot_e4m3x32_init_genoa(nk_dot_e4m3x32_state_genoa_t *state) {
-    state->sum_f32x16 = _mm512_setzero();
-}
-
-NK_INTERNAL void nk_dot_e4m3x32_update_genoa(nk_dot_e4m3x32_state_genoa_t *state, nk_b256_vec_t a, nk_b256_vec_t b) {
-    __m512i a_bf16x32 = nk_e4m3x32_to_bf16x32_ice_(a.ymm);
-    __m512i b_bf16x32 = nk_e4m3x32_to_bf16x32_ice_(b.ymm);
-    state->sum_f32x16 = _mm512_dpbf16_ps(state->sum_f32x16, (__m512bh)(a_bf16x32), (__m512bh)(b_bf16x32));
-}
-
-NK_INTERNAL void nk_dot_e4m3x32_finalize_genoa(                                               //
-    nk_dot_e4m3x32_state_genoa_t const *state_a, nk_dot_e4m3x32_state_genoa_t const *state_b, //
-    nk_dot_e4m3x32_state_genoa_t const *state_c, nk_dot_e4m3x32_state_genoa_t const *state_d, //
-    nk_b128_vec_t *result) {
-    nk_dot_f32x16_finalize_skylake_wout_compensation_(state_a->sum_f32x16, state_b->sum_f32x16, state_c->sum_f32x16,
-                                                      state_d->sum_f32x16, result);
-}
-
-typedef struct nk_dot_e5m2x32_state_genoa_t {
-    __m512 sum_f32x16;
-} nk_dot_e5m2x32_state_genoa_t;
-
-NK_INTERNAL void nk_dot_e5m2x32_init_genoa(nk_dot_e5m2x32_state_genoa_t *state) {
-    state->sum_f32x16 = _mm512_setzero();
-}
-
-NK_INTERNAL void nk_dot_e5m2x32_update_genoa(nk_dot_e5m2x32_state_genoa_t *state, nk_b256_vec_t a, nk_b256_vec_t b) {
-    __m512i a_bf16x32 = nk_e5m2x32_to_bf16x32_ice_(a.ymm);
-    __m512i b_bf16x32 = nk_e5m2x32_to_bf16x32_ice_(b.ymm);
-    state->sum_f32x16 = _mm512_dpbf16_ps(state->sum_f32x16, (__m512bh)(a_bf16x32), (__m512bh)(b_bf16x32));
-}
-
-NK_INTERNAL void nk_dot_e5m2x32_finalize_genoa(                                               //
-    nk_dot_e5m2x32_state_genoa_t const *state_a, nk_dot_e5m2x32_state_genoa_t const *state_b, //
-    nk_dot_e5m2x32_state_genoa_t const *state_c, nk_dot_e5m2x32_state_genoa_t const *state_d, //
-    nk_b128_vec_t *result) {
-    nk_dot_f32x16_finalize_skylake_wout_compensation_(state_a->sum_f32x16, state_b->sum_f32x16, state_c->sum_f32x16,
-                                                      state_d->sum_f32x16, result);
-}
+typedef nk_dot_through_bf16_state_genoa_t_ nk_dot_e5m2x32_state_genoa_t;
 
 #if defined(__cplusplus)
 } // extern "C"

@@ -1567,6 +1567,20 @@ NK_PUBLIC void nk_cast_serial(void const *from, nk_dtype_t from_type, nk_size_t 
     }
 }
 
+/** @brief Convert E4M3 to BF16 via F32 intermediate. */
+NK_PUBLIC void nk_e4m3_to_bf16(nk_e4m3_t const *src, nk_bf16_t *dest) {
+    nk_f32_t temp;
+    nk_e4m3_to_f32_serial(src, &temp);
+    nk_f32_to_bf16_serial(&temp, dest);
+}
+
+/** @brief Convert E5M2 to BF16 via F32 intermediate. */
+NK_PUBLIC void nk_e5m2_to_bf16(nk_e5m2_t const *src, nk_bf16_t *dest) {
+    nk_f32_t temp;
+    nk_e5m2_to_f32_serial(src, &temp);
+    nk_f32_to_bf16_serial(&temp, dest);
+}
+
 #pragma endregion - Public API
 
 #if defined(__cplusplus)
