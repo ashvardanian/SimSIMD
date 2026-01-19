@@ -924,6 +924,14 @@ void measure_dots_f16_with_mkl(bm::State &state, std::size_t m, std::size_t n, s
         f32_to_f16, f32_to_f16);
 }
 
+void measure_dots_f64_with_mkl(bm::State &state, std::size_t m, std::size_t n, std::size_t k) {
+    measure_dots_unpacked<double>(state, m, n, k,
+                                  [](double *a, double *b, double *c, std::size_t m, std::size_t n, std::size_t k) {
+                                      cblas_dgemm(CblasRowMajor, CblasNoTrans, CblasTrans, (MKL_INT)m, (MKL_INT)n,
+                                                  (MKL_INT)k, 1.0, a, (MKL_INT)k, b, (MKL_INT)k, 0.0, c, (MKL_INT)n);
+                                  });
+}
+
 void measure_dots_u8i8i32_with_mkl(bm::State &state, std::size_t m, std::size_t n, std::size_t k) {
     measure_dots_unpacked<std::uint8_t, std::int8_t, std::int32_t>(
         state, m, n, k,
@@ -1231,6 +1239,10 @@ int main(int argc, char **argv) {
             ->MinTime(default_seconds)
             ->Threads(1);
         bm::RegisterBenchmark(("dots_f16_with_mkl<" + dims + ">").c_str(), measure_dots_f16_with_mkl, matrix_height,
+                              matrix_width, matrix_depth)
+            ->MinTime(default_seconds)
+            ->Threads(1);
+        bm::RegisterBenchmark(("dots_f64_with_mkl<" + dims + ">").c_str(), measure_dots_f64_with_mkl, matrix_height,
                               matrix_width, matrix_depth)
             ->MinTime(default_seconds)
             ->Threads(1);
