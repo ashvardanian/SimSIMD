@@ -2167,7 +2167,6 @@ NK_PUBLIC size_t dots_packed_size(size_t column_count, size_t depth) {
     else if constexpr (std::is_same_v<in_type_, u8_t> && simd) return nk_dots_packed_size_u8(column_count, depth);
     else if constexpr (std::is_same_v<in_type_, e4m3_t> && simd) return nk_dots_packed_size_e4m3(column_count, depth);
     else if constexpr (std::is_same_v<in_type_, e5m2_t> && simd) return nk_dots_packed_size_e5m2(column_count, depth);
-    else if constexpr (std::is_same_v<in_type_, u1x8_t> && simd) return nk_dots_packed_size_u1(column_count, depth);
     else if constexpr (std::is_same_v<in_type_, u4x2_t> && simd) return nk_dots_packed_size_u4(column_count, depth);
     else if constexpr (std::is_same_v<in_type_, i4x2_t> && simd) return nk_dots_packed_size_i4(column_count, depth);
     else {
@@ -2210,8 +2209,6 @@ NK_PUBLIC void dots_pack(in_type_ const *b, size_t column_count, size_t depth, s
         nk_dots_pack_e4m3(reinterpret_cast<raw_t const *>(b), column_count, depth, b_stride_in_bytes, b_packed);
     else if constexpr (std::is_same_v<in_type_, e5m2_t> && simd)
         nk_dots_pack_e5m2(reinterpret_cast<raw_t const *>(b), column_count, depth, b_stride_in_bytes, b_packed);
-    else if constexpr (std::is_same_v<in_type_, u1x8_t> && simd)
-        nk_dots_pack_u1(reinterpret_cast<raw_t const *>(b), column_count, depth, b_stride_in_bytes, b_packed);
     else if constexpr (std::is_same_v<in_type_, u4x2_t> && simd)
         nk_dots_pack_u4(reinterpret_cast<raw_t const *>(b), column_count, depth, b_stride_in_bytes, b_packed);
     else if constexpr (std::is_same_v<in_type_, i4x2_t> && simd)
@@ -2276,8 +2273,6 @@ void dots_packed(in_type_ const *a, void const *b_packed, result_type_ *c, std::
     else if constexpr (std::is_same_v<in_type_, e5m2_t> && dispatch)
         nk_dots_packed_e5m2(&a->raw_, b_packed, c, row_count, column_count, depth, a_stride_in_bytes,
                             c_stride_in_bytes);
-    else if constexpr (std::is_same_v<in_type_, u1x8_t> && dispatch)
-        nk_dots_packed_u1(&a->raw_, b_packed, c, row_count, column_count, depth, a_stride_in_bytes, c_stride_in_bytes);
     else if constexpr (std::is_same_v<in_type_, u4x2_t> && dispatch)
         nk_dots_packed_u4(&a->raw_, b_packed, c, row_count, column_count, depth, a_stride_in_bytes, c_stride_in_bytes);
     else if constexpr (std::is_same_v<in_type_, i4x2_t> && dispatch)
@@ -2387,8 +2382,6 @@ void dots_symmetric(in_type_ const *a, std::size_t n_vectors, std::size_t depth,
         nk_dots_symmetric_e4m3(&a->raw_, n_vectors, depth, a_stride_in_bytes, c, c_stride_in_bytes);
     else if constexpr (std::is_same_v<in_type_, e5m2_t> && dispatch)
         nk_dots_symmetric_e5m2(&a->raw_, n_vectors, depth, a_stride_in_bytes, c, c_stride_in_bytes);
-    else if constexpr (std::is_same_v<in_type_, u1x8_t> && dispatch)
-        nk_dots_symmetric_u1(&a->raw_, n_vectors, depth, a_stride_in_bytes, c, c_stride_in_bytes);
     else if constexpr (std::is_same_v<in_type_, u4x2_t> && dispatch)
         nk_dots_symmetric_u4(&a->raw_, n_vectors, depth, a_stride_in_bytes, c, c_stride_in_bytes);
     else if constexpr (std::is_same_v<in_type_, i4x2_t> && dispatch)
