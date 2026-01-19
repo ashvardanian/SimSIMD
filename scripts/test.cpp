@@ -894,6 +894,8 @@ void test_dot() {
 #endif // NK_TARGET_SKYLAKE
 
 #if NK_TARGET_ICE
+    run_if_matches("dot_ice", "i8", test_dot<i8_t>, nk_dot_i8_ice);
+    run_if_matches("dot_ice", "u8", test_dot<u8_t>, nk_dot_u8_ice);
     run_if_matches("dot_ice", "i4", test_dot<i4x2_t>, nk_dot_i4_ice);
     run_if_matches("dot_ice", "u4", test_dot<u4x2_t>, nk_dot_u4_ice);
 #endif // NK_TARGET_ICE

@@ -1535,6 +1535,9 @@ int main(int argc, char **argv) {
     dense_<e4m3_k, f32_k>("dot_e4m3_skylake", nk_dot_e4m3_skylake);
     dense_<e5m2_k, f32_k>("dot_e5m2_skylake", nk_dot_e5m2_skylake);
 
+    dense_<i8_k, i32_k>("dot_i8_skylake", nk_dot_i8_skylake);
+    dense_<u8_k, u32_k>("dot_u8_skylake", nk_dot_u8_skylake);
+
     elementwise_<f64_k, fma_k, f64_k>("each_fma_f64_skylake", nk_each_fma_f64_skylake);
     elementwise_<f64_k, wsum_k, f64_k>("each_wsum_f64_skylake", nk_each_blend_f64_skylake);
     elementwise_<f32_k, fma_k, f32_k>("each_fma_f32_skylake", nk_each_fma_f32_skylake);
