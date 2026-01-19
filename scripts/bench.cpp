@@ -551,15 +551,13 @@ void measure_dots_packed(                                                       
     // Pack B matrix once (amortized cost for repeated inference) with correct stride
     pack_fn(matrix_b.raw_values_data(), n, k, b_stride_bytes, matrix_b_packed.data());
 
-    std::size_t iterations = 0;
     for (auto _ : state) {
         bm::DoNotOptimize(matrix_c.raw_values_data());
         kernel(matrix_a.raw_values_data(), matrix_b_packed.data(), matrix_c.raw_values_data(), //
                m, n, k, a_stride_bytes, n * sizeof(raw_output_t));
-        ++iterations;
     }
 
-    state.counters["tops"] = bm::Counter(iterations * 2.0 * m * n * k, bm::Counter::kIsRate);
+    state.counters["tensor-ops"] = bm::Counter(2.0 * m * n * k, bm::Counter::kIsRate);
 }
 
 template <nk_dtype_t input_dtype_, nk_dtype_t output_dtype_>
