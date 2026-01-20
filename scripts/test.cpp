@@ -70,6 +70,8 @@ namespace nk = ashvardanian::numkong;
 
 using nk::bf16_t;
 using nk::bf16c_t;
+using nk::e2m3_t;
+using nk::e3m2_t;
 using nk::e4m3_t;
 using nk::e5m2_t;
 using nk::f118_t;
@@ -95,12 +97,12 @@ using nk::u8_t;
 using steady_clock = std::chrono::steady_clock;
 using time_point = steady_clock::time_point;
 
-extern template class nk::vector<int>;
-extern template class nk::vector<nk::i32_t>;
-extern template class nk::vector<nk::u1x8_t>;
-extern template class nk::vector<nk::i4x2_t>;
-extern template class nk::vector<nk::f64c_t>;
-extern template class nk::vector<std::complex<float>>;
+template class nk::vector<int>;
+template class nk::vector<nk::i32_t>;
+template class nk::vector<nk::u1x8_t>;
+template class nk::vector<nk::i4x2_t>;
+template class nk::vector<nk::f64c_t>;
+template class nk::vector<std::complex<float>>;
 
 #pragma region Configuration
 
@@ -621,6 +623,10 @@ void test_casts() {
     run_if_matches("cast_e4m3_to_f32", "e4m3>f32", test_cast<e4m3_t, f32_t>, nk_cast);
     run_if_matches("cast_f32_to_e5m2", "f32>e5m2", test_cast<f32_t, e5m2_t>, nk_cast);
     run_if_matches("cast_e5m2_to_f32", "e5m2>f32", test_cast<e5m2_t, f32_t>, nk_cast);
+    run_if_matches("cast_f32_to_e2m3", "f32>e2m3", test_cast<f32_t, e2m3_t>, nk_cast);
+    run_if_matches("cast_e2m3_to_f32", "e2m3>f32", test_cast<e2m3_t, f32_t>, nk_cast);
+    run_if_matches("cast_f32_to_e3m2", "f32>e3m2", test_cast<f32_t, e3m2_t>, nk_cast);
+    run_if_matches("cast_e3m2_to_f32", "e3m2>f32", test_cast<e3m2_t, f32_t>, nk_cast);
     run_if_matches("cast_f64_to_f32", "f64>f32", test_cast<f64_t, f32_t>, nk_cast);
     run_if_matches("cast_f32_to_f64", "f32>f64", test_cast<f32_t, f64_t>, nk_cast);
 #endif
@@ -820,6 +826,8 @@ void test_dot() {
     run_if_matches("dot", "bf16", test_dot<bf16_t>, nk_dot_bf16);
     run_if_matches("dot", "e4m3", test_dot<e4m3_t>, nk_dot_e4m3);
     run_if_matches("dot", "e5m2", test_dot<e5m2_t>, nk_dot_e5m2);
+    run_if_matches("dot", "e2m3", test_dot<e2m3_t>, nk_dot_e2m3);
+    run_if_matches("dot", "e3m2", test_dot<e3m2_t>, nk_dot_e3m2);
     run_if_matches("dot", "i8", test_dot<i8_t>, nk_dot_i8);
     run_if_matches("dot", "u8", test_dot<u8_t>, nk_dot_u8);
     run_if_matches("dot", "i4", test_dot<i4x2_t>, nk_dot_i4);
@@ -928,6 +936,8 @@ void test_dot() {
     run_if_matches("dot_serial", "bf16", test_dot<bf16_t>, nk_dot_bf16_serial);
     run_if_matches("dot_serial", "e4m3", test_dot<e4m3_t>, nk_dot_e4m3_serial);
     run_if_matches("dot_serial", "e5m2", test_dot<e5m2_t>, nk_dot_e5m2_serial);
+    run_if_matches("dot_serial", "e2m3", test_dot<e2m3_t>, nk_dot_e2m3_serial);
+    run_if_matches("dot_serial", "e3m2", test_dot<e3m2_t>, nk_dot_e3m2_serial);
     run_if_matches("dot_serial", "i8", test_dot<i8_t>, nk_dot_i8_serial);
     run_if_matches("dot_serial", "u8", test_dot<u8_t>, nk_dot_u8_serial);
     run_if_matches("dot_serial", "i4", test_dot<i4x2_t>, nk_dot_i4_serial);
@@ -1025,10 +1035,14 @@ void test_spatial() {
     run_if_matches("l2sq", "f64", test_l2sq<f64_t>, nk_l2sq_f64);
     run_if_matches("l2sq", "f16", test_l2sq<f16_t>, nk_l2sq_f16);
     run_if_matches("l2sq", "bf16", test_l2sq<bf16_t>, nk_l2sq_bf16);
+    run_if_matches("l2sq", "e2m3", test_l2sq<e2m3_t>, nk_l2sq_e2m3);
+    run_if_matches("l2sq", "e3m2", test_l2sq<e3m2_t>, nk_l2sq_e3m2);
     run_if_matches("angular", "f32", test_angular<f32_t>, nk_angular_f32);
     run_if_matches("angular", "f64", test_angular<f64_t>, nk_angular_f64);
     run_if_matches("angular", "f16", test_angular<f16_t>, nk_angular_f16);
     run_if_matches("angular", "bf16", test_angular<bf16_t>, nk_angular_bf16);
+    run_if_matches("angular", "e2m3", test_angular<e2m3_t>, nk_angular_e2m3);
+    run_if_matches("angular", "e3m2", test_angular<e3m2_t>, nk_angular_e3m2);
     run_if_matches("l2sq", "i4", test_l2sq<i4x2_t>, nk_l2sq_i4);
     run_if_matches("l2sq", "u4", test_l2sq<u4x2_t>, nk_l2sq_u4);
     run_if_matches("angular", "i4", test_angular<i4x2_t>, nk_angular_i4);
@@ -2085,8 +2099,8 @@ error_stats_t test_dots_unpacked(kernel_type_ dots_fn) {
         fill_random(generator, a_buf);
         fill_random(generator, b_buf);
 
-        nk::dots_unpacked<scalar_t, reference_t>(a_buf.values_data(), b_buf.values_data(), c_ref.raw_values_data(), m,
-                                                 n, k, a_stride, b_stride, n * sizeof(reference_t));
+        nk::dots_unpacked<scalar_t, reference_t>(a_buf.values_data(), b_buf.values_data(), c_ref.values_data(), m, n, k,
+                                                 a_stride, b_stride, n * sizeof(reference_t));
         dots_fn(a_buf.values_data(), b_buf.values_data(), c.values_data(), m, n, k, a_stride, c_stride);
 
         for (std::size_t i = 0; i < m * n; i++) stats.accumulate(c[i], c_ref[i]);
@@ -2104,7 +2118,6 @@ void test_dots() {
     run_if_matches("dots", "bf16", test_dots<bf16_t>, nk_dots_packed_size_bf16, nk_dots_pack_bf16, nk_dots_packed_bf16);
     run_if_matches("dots", "f16", test_dots<f16_t>, nk_dots_packed_size_f16, nk_dots_pack_f16, nk_dots_packed_f16);
     run_if_matches("dots", "i8", test_dots<i8_t>, nk_dots_packed_size_i8, nk_dots_pack_i8, nk_dots_packed_i8);
-    run_if_matches("dots", "u1", test_dots<u1x8_t>, nk_dots_packed_size_u1, nk_dots_pack_u1, nk_dots_packed_u1);
     run_if_matches("dots", "u4", test_dots<u4x2_t>, nk_dots_packed_size_u4, nk_dots_pack_u4, nk_dots_packed_u4);
     run_if_matches("dots", "i4", test_dots<i4x2_t>, nk_dots_packed_size_i4, nk_dots_pack_i4, nk_dots_packed_i4);
 #else
@@ -2128,7 +2141,31 @@ void test_dots() {
                    nk_dots_packed_f32_skylake);
     run_if_matches("dots_skylake", "f64", test_dots<f64_t>, nk_dots_packed_size_f64_skylake, nk_dots_pack_f64_skylake,
                    nk_dots_packed_f64_skylake);
+    run_if_matches("dots_skylake", "e4m3", test_dots<e4m3_t>, nk_dots_packed_size_e4m3_skylake,
+                   nk_dots_pack_e4m3_skylake, nk_dots_packed_e4m3_skylake);
+    run_if_matches("dots_skylake", "e5m2", test_dots<e5m2_t>, nk_dots_packed_size_e5m2_skylake,
+                   nk_dots_pack_e5m2_skylake, nk_dots_packed_e5m2_skylake);
 #endif // NK_TARGET_SKYLAKE
+
+#if NK_TARGET_ICE
+    run_if_matches("dots_ice", "i4", test_dots<i4x2_t>, nk_dots_packed_size_i4_ice, nk_dots_pack_i4_ice,
+                   nk_dots_packed_i4_ice);
+    run_if_matches("dots_ice", "u4", test_dots<u4x2_t>, nk_dots_packed_size_u4_ice, nk_dots_pack_u4_ice,
+                   nk_dots_packed_u4_ice);
+    run_if_matches("dots_ice", "i8", test_dots<i8_t>, nk_dots_packed_size_i8_ice, nk_dots_pack_i8_ice,
+                   nk_dots_packed_i8_ice);
+    run_if_matches("dots_ice", "u8", test_dots<u8_t>, nk_dots_packed_size_u8_ice, nk_dots_pack_u8_ice,
+                   nk_dots_packed_u8_ice);
+#endif // NK_TARGET_ICE
+
+#if NK_TARGET_GENOA
+    run_if_matches("dots_genoa", "bf16", test_dots<bf16_t>, nk_dots_packed_size_bf16_genoa, nk_dots_pack_bf16_genoa,
+                   nk_dots_packed_bf16_genoa);
+    run_if_matches("dots_genoa", "e4m3", test_dots<e4m3_t>, nk_dots_packed_size_e4m3_genoa, nk_dots_pack_e4m3_genoa,
+                   nk_dots_packed_e4m3_genoa);
+    run_if_matches("dots_genoa", "e5m2", test_dots<e5m2_t>, nk_dots_packed_size_e5m2_genoa, nk_dots_pack_e5m2_genoa,
+                   nk_dots_packed_e5m2_genoa);
+#endif // NK_TARGET_GENOA
 
 #if NK_TARGET_SME
     // SME precision validation tests (Arm Scalable Matrix Extension)
@@ -2163,12 +2200,16 @@ void test_dots() {
                    nk_dots_packed_f16_serial);
     run_if_matches("dots_serial", "i8", test_dots<i8_t>, nk_dots_packed_size_i8_serial, nk_dots_pack_i8_serial,
                    nk_dots_packed_i8_serial);
-    run_if_matches("dots_serial", "u1", test_dots<u1x8_t>, nk_dots_packed_size_u1x8_serial, nk_dots_pack_u1x8_serial,
-                   nk_dots_packed_u1x8_serial);
-    run_if_matches("dots_serial", "u4", test_dots<u4x2_t>, nk_dots_packed_size_u4x2_serial, nk_dots_pack_u4x2_serial,
-                   nk_dots_packed_u4x2_serial);
-    run_if_matches("dots_serial", "i4", test_dots<i4x2_t>, nk_dots_packed_size_i4x2_serial, nk_dots_pack_i4x2_serial,
-                   nk_dots_packed_i4x2_serial);
+    run_if_matches("dots_serial", "u8", test_dots<u8_t>, nk_dots_packed_size_u8_serial, nk_dots_pack_u8_serial,
+                   nk_dots_packed_u8_serial);
+    run_if_matches("dots_serial", "e4m3", test_dots<e4m3_t>, nk_dots_packed_size_e4m3_serial, nk_dots_pack_e4m3_serial,
+                   nk_dots_packed_e4m3_serial);
+    run_if_matches("dots_serial", "e5m2", test_dots<e5m2_t>, nk_dots_packed_size_e5m2_serial, nk_dots_pack_e5m2_serial,
+                   nk_dots_packed_e5m2_serial);
+    run_if_matches("dots_serial", "u4", test_dots<u4x2_t>, nk_dots_packed_size_u4_serial, nk_dots_pack_u4_serial,
+                   nk_dots_packed_u4_serial);
+    run_if_matches("dots_serial", "i4", test_dots<i4x2_t>, nk_dots_packed_size_i4_serial, nk_dots_pack_i4_serial,
+                   nk_dots_packed_i4_serial);
 
 #endif // NK_DYNAMIC_DISPATCH
 

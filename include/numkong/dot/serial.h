@@ -83,6 +83,8 @@ nk_define_dot_(u8, u32, u32, nk_assign_from_to_) // nk_dot_u8_serial
 
 nk_define_dot_(e4m3, f32, f32, nk_e4m3_to_f32_serial) // nk_dot_e4m3_serial
 nk_define_dot_(e5m2, f32, f32, nk_e5m2_to_f32_serial) // nk_dot_e5m2_serial
+nk_define_dot_(e2m3, f32, f32, nk_e2m3_to_f32_serial) // nk_dot_e2m3_serial
+nk_define_dot_(e3m2, f32, f32, nk_e3m2_to_f32_serial) // nk_dot_e3m2_serial
 
 #undef nk_define_dot_
 #undef nk_define_dot_complex_
@@ -450,6 +452,78 @@ NK_INTERNAL void nk_dot_e5m2x16_update_serial(nk_dot_e5m2x16_state_serial_t *sta
 NK_INTERNAL void nk_dot_e5m2x16_finalize_serial(                                                //
     nk_dot_e5m2x16_state_serial_t const *state_a, nk_dot_e5m2x16_state_serial_t const *state_b, //
     nk_dot_e5m2x16_state_serial_t const *state_c, nk_dot_e5m2x16_state_serial_t const *state_d, //
+    nk_b128_vec_t *result) {
+    result->f32s[0] = state_a->sums[0] + state_a->sums[1] + state_a->sums[2] + state_a->sums[3];
+    result->f32s[1] = state_b->sums[0] + state_b->sums[1] + state_b->sums[2] + state_b->sums[3];
+    result->f32s[2] = state_c->sums[0] + state_c->sums[1] + state_c->sums[2] + state_c->sums[3];
+    result->f32s[3] = state_d->sums[0] + state_d->sums[1] + state_d->sums[2] + state_d->sums[3];
+}
+
+typedef struct nk_dot_e2m3x16_state_serial_t {
+    nk_f32_t sums[4];
+} nk_dot_e2m3x16_state_serial_t;
+
+NK_INTERNAL void nk_dot_e2m3x16_init_serial(nk_dot_e2m3x16_state_serial_t *state) {
+    state->sums[0] = 0, state->sums[1] = 0, state->sums[2] = 0, state->sums[3] = 0;
+}
+
+NK_INTERNAL void nk_dot_e2m3x16_update_serial(nk_dot_e2m3x16_state_serial_t *state, nk_b128_vec_t a, nk_b128_vec_t b) {
+    nk_f32_t sum0 = state->sums[0];
+    nk_f32_t sum1 = state->sums[1];
+    nk_f32_t sum2 = state->sums[2];
+    nk_f32_t sum3 = state->sums[3];
+    nk_f32_t ai0, ai1, ai2, ai3;
+    nk_f32_t bi0, bi1, bi2, bi3;
+    for (nk_size_t i = 0; i != 16; i += 4) {
+        nk_e2m3_to_f32_serial(a.e2m3s + i, &ai0), nk_e2m3_to_f32_serial(b.e2m3s + i, &bi0);
+        nk_e2m3_to_f32_serial(a.e2m3s + i + 1, &ai1), nk_e2m3_to_f32_serial(b.e2m3s + i + 1, &bi1);
+        nk_e2m3_to_f32_serial(a.e2m3s + i + 2, &ai2), nk_e2m3_to_f32_serial(b.e2m3s + i + 2, &bi2);
+        nk_e2m3_to_f32_serial(a.e2m3s + i + 3, &ai3), nk_e2m3_to_f32_serial(b.e2m3s + i + 3, &bi3);
+        sum0 += ai0 * bi0, sum1 += ai1 * bi1, sum2 += ai2 * bi2, sum3 += ai3 * bi3;
+    }
+
+    state->sums[0] = sum0, state->sums[1] = sum1, state->sums[2] = sum2, state->sums[3] = sum3;
+}
+
+NK_INTERNAL void nk_dot_e2m3x16_finalize_serial(                                                //
+    nk_dot_e2m3x16_state_serial_t const *state_a, nk_dot_e2m3x16_state_serial_t const *state_b, //
+    nk_dot_e2m3x16_state_serial_t const *state_c, nk_dot_e2m3x16_state_serial_t const *state_d, //
+    nk_b128_vec_t *result) {
+    result->f32s[0] = state_a->sums[0] + state_a->sums[1] + state_a->sums[2] + state_a->sums[3];
+    result->f32s[1] = state_b->sums[0] + state_b->sums[1] + state_b->sums[2] + state_b->sums[3];
+    result->f32s[2] = state_c->sums[0] + state_c->sums[1] + state_c->sums[2] + state_c->sums[3];
+    result->f32s[3] = state_d->sums[0] + state_d->sums[1] + state_d->sums[2] + state_d->sums[3];
+}
+
+typedef struct nk_dot_e3m2x16_state_serial_t {
+    nk_f32_t sums[4];
+} nk_dot_e3m2x16_state_serial_t;
+
+NK_INTERNAL void nk_dot_e3m2x16_init_serial(nk_dot_e3m2x16_state_serial_t *state) {
+    state->sums[0] = 0, state->sums[1] = 0, state->sums[2] = 0, state->sums[3] = 0;
+}
+
+NK_INTERNAL void nk_dot_e3m2x16_update_serial(nk_dot_e3m2x16_state_serial_t *state, nk_b128_vec_t a, nk_b128_vec_t b) {
+    nk_f32_t sum0 = state->sums[0];
+    nk_f32_t sum1 = state->sums[1];
+    nk_f32_t sum2 = state->sums[2];
+    nk_f32_t sum3 = state->sums[3];
+    nk_f32_t ai0, ai1, ai2, ai3;
+    nk_f32_t bi0, bi1, bi2, bi3;
+    for (nk_size_t i = 0; i != 16; i += 4) {
+        nk_e3m2_to_f32_serial(a.e3m2s + i, &ai0), nk_e3m2_to_f32_serial(b.e3m2s + i, &bi0);
+        nk_e3m2_to_f32_serial(a.e3m2s + i + 1, &ai1), nk_e3m2_to_f32_serial(b.e3m2s + i + 1, &bi1);
+        nk_e3m2_to_f32_serial(a.e3m2s + i + 2, &ai2), nk_e3m2_to_f32_serial(b.e3m2s + i + 2, &bi2);
+        nk_e3m2_to_f32_serial(a.e3m2s + i + 3, &ai3), nk_e3m2_to_f32_serial(b.e3m2s + i + 3, &bi3);
+        sum0 += ai0 * bi0, sum1 += ai1 * bi1, sum2 += ai2 * bi2, sum3 += ai3 * bi3;
+    }
+
+    state->sums[0] = sum0, state->sums[1] = sum1, state->sums[2] = sum2, state->sums[3] = sum3;
+}
+
+NK_INTERNAL void nk_dot_e3m2x16_finalize_serial(                                                //
+    nk_dot_e3m2x16_state_serial_t const *state_a, nk_dot_e3m2x16_state_serial_t const *state_b, //
+    nk_dot_e3m2x16_state_serial_t const *state_c, nk_dot_e3m2x16_state_serial_t const *state_d, //
     nk_b128_vec_t *result) {
     result->f32s[0] = state_a->sums[0] + state_a->sums[1] + state_a->sums[2] + state_a->sums[3];
     result->f32s[1] = state_b->sums[0] + state_b->sums[1] + state_b->sums[2] + state_b->sums[3];

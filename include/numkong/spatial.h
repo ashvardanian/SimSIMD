@@ -145,6 +145,10 @@ NK_DYNAMIC void nk_l2_e4m3(nk_e4m3_t const *a, nk_e4m3_t const *b, nk_size_t n, 
 /** @copydoc nk_l2_f64 */
 NK_DYNAMIC void nk_l2_e5m2(nk_e5m2_t const *a, nk_e5m2_t const *b, nk_size_t n, nk_f32_t *result);
 /** @copydoc nk_l2_f64 */
+NK_DYNAMIC void nk_l2_e2m3(nk_e2m3_t const *a, nk_e2m3_t const *b, nk_size_t n, nk_f32_t *result);
+/** @copydoc nk_l2_f64 */
+NK_DYNAMIC void nk_l2_e3m2(nk_e3m2_t const *a, nk_e3m2_t const *b, nk_size_t n, nk_f32_t *result);
+/** @copydoc nk_l2_f64 */
 NK_DYNAMIC void nk_l2_i8(nk_i8_t const *a, nk_i8_t const *b, nk_size_t n, nk_f32_t *result);
 /** @copydoc nk_l2_f64 */
 NK_DYNAMIC void nk_l2_u8(nk_u8_t const *a, nk_u8_t const *b, nk_size_t n, nk_f32_t *result);
@@ -176,6 +180,10 @@ NK_DYNAMIC void nk_l2sq_e4m3(nk_e4m3_t const *a, nk_e4m3_t const *b, nk_size_t n
 /** @copydoc nk_l2sq_f64 */
 NK_DYNAMIC void nk_l2sq_e5m2(nk_e5m2_t const *a, nk_e5m2_t const *b, nk_size_t n, nk_f32_t *result);
 /** @copydoc nk_l2sq_f64 */
+NK_DYNAMIC void nk_l2sq_e2m3(nk_e2m3_t const *a, nk_e2m3_t const *b, nk_size_t n, nk_f32_t *result);
+/** @copydoc nk_l2sq_f64 */
+NK_DYNAMIC void nk_l2sq_e3m2(nk_e3m2_t const *a, nk_e3m2_t const *b, nk_size_t n, nk_f32_t *result);
+/** @copydoc nk_l2sq_f64 */
 NK_DYNAMIC void nk_l2sq_i8(nk_i8_t const *a, nk_i8_t const *b, nk_size_t n, nk_u32_t *result);
 /** @copydoc nk_l2sq_f64 */
 NK_DYNAMIC void nk_l2sq_u8(nk_u8_t const *a, nk_u8_t const *b, nk_size_t n, nk_u32_t *result);
@@ -206,6 +214,10 @@ NK_DYNAMIC void nk_angular_bf16(nk_bf16_t const *a, nk_bf16_t const *b, nk_size_
 NK_DYNAMIC void nk_angular_e4m3(nk_e4m3_t const *a, nk_e4m3_t const *b, nk_size_t n, nk_f32_t *result);
 /** @copydoc nk_angular_f64 */
 NK_DYNAMIC void nk_angular_e5m2(nk_e5m2_t const *a, nk_e5m2_t const *b, nk_size_t n, nk_f32_t *result);
+/** @copydoc nk_angular_f64 */
+NK_DYNAMIC void nk_angular_e2m3(nk_e2m3_t const *a, nk_e2m3_t const *b, nk_size_t n, nk_f32_t *result);
+/** @copydoc nk_angular_f64 */
+NK_DYNAMIC void nk_angular_e3m2(nk_e3m2_t const *a, nk_e3m2_t const *b, nk_size_t n, nk_f32_t *result);
 /** @copydoc nk_angular_f64 */
 NK_DYNAMIC void nk_angular_i8(nk_i8_t const *a, nk_i8_t const *b, nk_size_t n, nk_f32_t *result);
 /** @copydoc nk_angular_f64 */

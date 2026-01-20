@@ -2510,6 +2510,58 @@ NK_INTERNAL void nk_find_kernel_punned_e5m2_(nk_capability_t v, nk_kernel_kind_t
         }
 }
 
+NK_INTERNAL void nk_find_kernel_punned_e2m3_(nk_capability_t v, nk_kernel_kind_t k, nk_kernel_punned_t *m,
+                                             nk_capability_t *c) {
+    typedef nk_kernel_punned_t m_t;
+#if NK_TARGET_NEONFHM
+    if (v & nk_cap_neonfhm_k) switch (k) {
+        case nk_kernel_dot_k: *m = (m_t)&nk_dot_e2m3_neonfhm, *c = nk_cap_neonfhm_k; return;
+        case nk_kernel_dots_packed_size_k: *m = (m_t)&nk_dots_packed_size_e2m3_neonfhm, *c = nk_cap_neonfhm_k; return;
+        case nk_kernel_dots_pack_k: *m = (m_t)&nk_dots_pack_e2m3_neonfhm, *c = nk_cap_neonfhm_k; return;
+        case nk_kernel_dots_k: *m = (m_t)&nk_dots_packed_e2m3_neonfhm, *c = nk_cap_neonfhm_k; return;
+        case nk_kernel_dots_symmetric_k: *m = (m_t)&nk_dots_symmetric_e2m3_neonfhm, *c = nk_cap_neonfhm_k; return;
+        default: break;
+        }
+#endif
+    if (v & nk_cap_serial_k) switch (k) {
+        case nk_kernel_dot_k: *m = (m_t)&nk_dot_e2m3_serial, *c = nk_cap_serial_k; return;
+        case nk_kernel_l2_k: *m = (m_t)&nk_l2_e2m3_serial, *c = nk_cap_serial_k; return;
+        case nk_kernel_l2sq_k: *m = (m_t)&nk_l2sq_e2m3_serial, *c = nk_cap_serial_k; return;
+        case nk_kernel_angular_k: *m = (m_t)&nk_angular_e2m3_serial, *c = nk_cap_serial_k; return;
+        case nk_kernel_dots_packed_size_k: *m = (m_t)&nk_dots_packed_size_e2m3_serial, *c = nk_cap_serial_k; return;
+        case nk_kernel_dots_pack_k: *m = (m_t)&nk_dots_pack_e2m3_serial, *c = nk_cap_serial_k; return;
+        case nk_kernel_dots_k: *m = (m_t)&nk_dots_packed_e2m3_serial, *c = nk_cap_serial_k; return;
+        case nk_kernel_dots_symmetric_k: *m = (m_t)&nk_dots_symmetric_e2m3_serial, *c = nk_cap_serial_k; return;
+        default: break;
+        }
+}
+
+NK_INTERNAL void nk_find_kernel_punned_e3m2_(nk_capability_t v, nk_kernel_kind_t k, nk_kernel_punned_t *m,
+                                             nk_capability_t *c) {
+    typedef nk_kernel_punned_t m_t;
+#if NK_TARGET_NEONFHM
+    if (v & nk_cap_neonfhm_k) switch (k) {
+        case nk_kernel_dot_k: *m = (m_t)&nk_dot_e3m2_neonfhm, *c = nk_cap_neonfhm_k; return;
+        case nk_kernel_dots_packed_size_k: *m = (m_t)&nk_dots_packed_size_e3m2_neonfhm, *c = nk_cap_neonfhm_k; return;
+        case nk_kernel_dots_pack_k: *m = (m_t)&nk_dots_pack_e3m2_neonfhm, *c = nk_cap_neonfhm_k; return;
+        case nk_kernel_dots_k: *m = (m_t)&nk_dots_packed_e3m2_neonfhm, *c = nk_cap_neonfhm_k; return;
+        case nk_kernel_dots_symmetric_k: *m = (m_t)&nk_dots_symmetric_e3m2_neonfhm, *c = nk_cap_neonfhm_k; return;
+        default: break;
+        }
+#endif
+    if (v & nk_cap_serial_k) switch (k) {
+        case nk_kernel_dot_k: *m = (m_t)&nk_dot_e3m2_serial, *c = nk_cap_serial_k; return;
+        case nk_kernel_l2_k: *m = (m_t)&nk_l2_e3m2_serial, *c = nk_cap_serial_k; return;
+        case nk_kernel_l2sq_k: *m = (m_t)&nk_l2sq_e3m2_serial, *c = nk_cap_serial_k; return;
+        case nk_kernel_angular_k: *m = (m_t)&nk_angular_e3m2_serial, *c = nk_cap_serial_k; return;
+        case nk_kernel_dots_packed_size_k: *m = (m_t)&nk_dots_packed_size_e3m2_serial, *c = nk_cap_serial_k; return;
+        case nk_kernel_dots_pack_k: *m = (m_t)&nk_dots_pack_e3m2_serial, *c = nk_cap_serial_k; return;
+        case nk_kernel_dots_k: *m = (m_t)&nk_dots_packed_e3m2_serial, *c = nk_cap_serial_k; return;
+        case nk_kernel_dots_symmetric_k: *m = (m_t)&nk_dots_symmetric_e3m2_serial, *c = nk_cap_serial_k; return;
+        default: break;
+        }
+}
+
 NK_INTERNAL void nk_find_kernel_punned_u1_(nk_capability_t v, nk_kernel_kind_t k, nk_kernel_punned_t *m,
                                            nk_capability_t *c) {
     typedef nk_kernel_punned_t m_t;
@@ -3210,6 +3262,8 @@ NK_INTERNAL void nk_find_kernel_punned_( //
     case nk_bf16_k: nk_find_kernel_punned_bf16_(viable, kind, m, c); return;
     case nk_e4m3_k: nk_find_kernel_punned_e4m3_(viable, kind, m, c); return;
     case nk_e5m2_k: nk_find_kernel_punned_e5m2_(viable, kind, m, c); return;
+    case nk_e2m3_k: nk_find_kernel_punned_e2m3_(viable, kind, m, c); return;
+    case nk_e3m2_k: nk_find_kernel_punned_e3m2_(viable, kind, m, c); return;
 
     case nk_f32c_k: nk_find_kernel_punned_f32c_(viable, kind, m, c); return;
     case nk_f64c_k: nk_find_kernel_punned_f64c_(viable, kind, m, c); return;

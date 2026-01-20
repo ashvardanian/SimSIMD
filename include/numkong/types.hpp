@@ -2076,6 +2076,318 @@ struct e5m2_t {
 };
 
 /**
+ *  @brief Float6 E2M3FN: 1 sign + 2 exponent (bias=1) + 3 mantissa bits, with 2 bits of padding.
+ *
+ *  Range: [-7.5, +7.5], stored byte-aligned in 8 bits (0b00SEEMM, upper 2 bits unused/padding).
+ *  Format: 6-bit payload + 2-bit padding for efficient byte-aligned SIMD operations.
+ *  No Inf/NaN support (OCP Microscaling FN format).
+ *  Optimized for ARM NEONFHM using FMLAL (widening FP16→FP32).
+ *
+ *  References:
+ *  - https://www.opencompute.org/documents/ocp-microscaling-formats-mx-v1-0-spec-final-pdf
+ *  - https://arxiv.org/abs/2401.14112 (FP6-LLM paper)
+ */
+struct e2m3_t {
+    // Core type aliases
+    using raw_t = nk_e2m3_t;
+    using uint_t = nk_u8_t;
+
+    using dot_result_t = f32_t;
+    using reduce_add_result_t = f32_t;
+    using l2sq_result_t = f32_t;
+    using scale_t = nk_f32_t;
+
+    using dot_kernel_t = void (*)(raw_t const *, raw_t const *, nk_size_t, nk_f32_t *);
+    using reduce_add_kernel_t = void (*)(raw_t const *, nk_size_t, nk_size_t, nk_f32_t *);
+    using reduce_extremum_kernel_t = void (*)(raw_t const *, nk_size_t, nk_size_t, raw_t *, nk_size_t *);
+    using scale_kernel_t = void (*)(raw_t const *, nk_size_t, scale_t const *, scale_t const *, raw_t *);
+    using sum_kernel_t = void (*)(raw_t const *, raw_t const *, nk_size_t, raw_t *);
+    using wsum_kernel_t = void (*)(raw_t const *, raw_t const *, nk_size_t, scale_t const *, scale_t const *, raw_t *);
+    using fma_kernel_t = void (*)(raw_t const *, raw_t const *, raw_t const *, nk_size_t, scale_t const *,
+                                  scale_t const *, raw_t *);
+    using dots_packed_size_kernel_t = nk_size_t (*)(nk_size_t, nk_size_t);
+    using dots_pack_kernel_t = void (*)(raw_t const *, nk_size_t, nk_size_t, nk_size_t, void *);
+    using dots_symmetric_kernel_t = void (*)(raw_t const *, nk_size_t, nk_size_t, nk_size_t, nk_f32_t *, nk_size_t);
+    using dots_packed_kernel_t = void (*)(raw_t const *, void const *, nk_f32_t *, nk_size_t, nk_size_t, nk_size_t,
+                                          nk_size_t, nk_size_t);
+
+    static constexpr nk_dtype_t dtype() noexcept { return nk_e2m3_k; }
+    static constexpr char const *dtype_name() noexcept { return "e2m3"; }
+    static constexpr unsigned bits_per_word() noexcept { return 8; }
+    static constexpr unsigned bits_per_dimension() noexcept { return 8; }
+    static constexpr unsigned bits_per_value() noexcept { return 8; }
+    static constexpr unsigned mantissa_bits() noexcept { return 3; }
+    static constexpr unsigned exponent_bits() noexcept { return 2; }
+    static constexpr bool is_integer() noexcept { return false; }
+    static constexpr bool is_signed() noexcept { return true; }
+    static constexpr bool is_complex() noexcept { return false; }
+    static constexpr bool is_exact() noexcept { return false; }
+    static constexpr bool has_infinity() noexcept { return false; }
+    static constexpr bool has_nan() noexcept { return false; }
+
+    raw_t raw_;
+
+    inline float to_f32() const noexcept {
+        float r;
+        nk_e2m3_to_f32(&raw_, &r);
+        return r;
+    }
+    static inline e2m3_t from_f32(float v) noexcept {
+        e2m3_t r;
+        nk_f32_to_e2m3(&v, &r.raw_);
+        return r;
+    }
+
+    inline e2m3_t() noexcept : raw_(0) {}
+    inline e2m3_t(float v) noexcept { nk_f32_to_e2m3(&v, &raw_); }
+    explicit e2m3_t(double v) noexcept {
+        float f = static_cast<float>(v);
+        nk_f32_to_e2m3(&f, &raw_);
+    }
+    template <std::integral integral_type_>
+    e2m3_t(integral_type_ v) noexcept {
+        float f = static_cast<float>(v);
+        nk_f32_to_e2m3(&f, &raw_);
+    }
+    inline operator float() const noexcept { return to_f32(); }
+    inline float raw() const noexcept { return to_f32(); }
+    static constexpr e2m3_t from_raw(raw_t r) noexcept {
+        e2m3_t v;
+        v.raw_ = r;
+        return v;
+    }
+    static constexpr e2m3_t from_bits(uint_t bits) noexcept {
+        e2m3_t v;
+        v.raw_ = bits;
+        return v;
+    }
+    constexpr uint_t to_bits() const noexcept { return raw_; }
+
+    // E2M3FN range: [-7.5, +7.5], no Inf/NaN
+    static constexpr e2m3_t finite_max() noexcept { return from_bits(0x1F); }    // +7.5
+    static constexpr e2m3_t finite_min() noexcept { return from_bits(0x3F); }    // -7.5
+    static constexpr e2m3_t positive_min() noexcept { return from_bits(0x08); }  // Smallest positive normal (2^0 = 1.0)
+    static constexpr e2m3_t subnormal_min() noexcept { return from_bits(0x01); } // Smallest positive subnormal
+
+    // Mathematical constants (precomputed for constexpr)
+    static constexpr e2m3_t pi_k() noexcept { return from_bits(0x15); }        // π ≈ 3.14159
+    static constexpr e2m3_t two_pi_k() noexcept { return from_bits(0x1D); }    // 2π ≈ 6.28319
+    static constexpr e2m3_t half_pi_k() noexcept { return from_bits(0x0D); }   // π/2 ≈ 1.57080
+    static constexpr e2m3_t e_k() noexcept { return from_bits(0x13); }         // e ≈ 2.71828
+    static constexpr e2m3_t sqrt2_k() noexcept { return from_bits(0x0B); }     // √2 ≈ 1.41421
+    static constexpr e2m3_t inv_sqrt2_k() noexcept { return from_bits(0x03); } // 1/√2 ≈ 0.70711
+    static constexpr e2m3_t ln2_k() noexcept { return from_bits(0x03); }       // ln(2) ≈ 0.69315
+
+    constexpr bool is_nan() const noexcept { return false; }
+    constexpr bool is_infinite() const noexcept { return false; }
+    constexpr bool is_finite() const noexcept { return true; }
+    constexpr bool is_normal() const noexcept {
+        uint_t exp = (raw_ >> 3) & 0x03;
+        return exp != 0;
+    }
+    constexpr bool is_subnormal() const noexcept { return ((raw_ >> 3) & 0x03) == 0 && (raw_ & 0x07) != 0; }
+    constexpr bool is_sign_positive() const noexcept { return (raw_ & 0x20) == 0; }
+    constexpr bool is_sign_negative() const noexcept { return (raw_ & 0x20) != 0; }
+
+    inline e2m3_t operator+() const noexcept { return *this; }
+    inline e2m3_t operator-() const noexcept { return from_bits(raw_ ^ 0x20); }
+    inline e2m3_t operator+(e2m3_t o) const noexcept { return from_f32(to_f32() + o.to_f32()); }
+    inline e2m3_t operator-(e2m3_t o) const noexcept { return from_f32(to_f32() - o.to_f32()); }
+    inline e2m3_t operator*(e2m3_t o) const noexcept { return from_f32(to_f32() * o.to_f32()); }
+    inline e2m3_t operator/(e2m3_t o) const noexcept { return from_f32(to_f32() / o.to_f32()); }
+
+    inline e2m3_t &operator+=(e2m3_t o) noexcept { return *this = *this + o; }
+    inline e2m3_t &operator-=(e2m3_t o) noexcept { return *this = *this - o; }
+    inline e2m3_t &operator*=(e2m3_t o) noexcept { return *this = *this * o; }
+    inline e2m3_t &operator/=(e2m3_t o) noexcept { return *this = *this / o; }
+
+    inline bool operator==(e2m3_t o) const noexcept { return to_f32() == o.to_f32(); }
+    inline bool operator!=(e2m3_t o) const noexcept { return to_f32() != o.to_f32(); }
+    inline bool operator<(e2m3_t o) const noexcept { return to_f32() < o.to_f32(); }
+    inline bool operator>(e2m3_t o) const noexcept { return to_f32() > o.to_f32(); }
+    inline bool operator<=(e2m3_t o) const noexcept { return to_f32() <= o.to_f32(); }
+    inline bool operator>=(e2m3_t o) const noexcept { return to_f32() >= o.to_f32(); }
+
+    constexpr e2m3_t abs() const noexcept { return from_bits(raw_ & 0x1F); }
+    constexpr e2m3_t copysign(e2m3_t sign) const noexcept { return from_bits((raw_ & 0x1F) | (sign.raw_ & 0x20)); }
+
+    inline e2m3_t sqrt() const noexcept { return from_f32(std::sqrt(to_f32())); }
+    inline e2m3_t min(e2m3_t o) const noexcept { return from_f32(std::fmin(to_f32(), o.to_f32())); }
+    inline e2m3_t max(e2m3_t o) const noexcept { return from_f32(std::fmax(to_f32(), o.to_f32())); }
+    inline e2m3_t clamp(e2m3_t lo, e2m3_t hi) const noexcept { return max(lo).min(hi); }
+
+    inline e2m3_t saturating_add(e2m3_t o) const noexcept {
+        float result = to_f32() + o.to_f32();
+        if (result >= finite_max().to_f32()) return finite_max();
+        if (result <= finite_min().to_f32()) return finite_min();
+        return from_f32(result);
+    }
+
+    inline e2m3_t saturating_sub(e2m3_t o) const noexcept {
+        float result = to_f32() - o.to_f32();
+        if (result >= finite_max().to_f32()) return finite_max();
+        if (result <= finite_min().to_f32()) return finite_min();
+        return from_f32(result);
+    }
+};
+
+/**
+ *  @brief Float6 E3M2FN: 1 sign + 3 exponent (bias=3) + 2 mantissa bits, with 2 bits of padding.
+ *
+ *  Range: [-28, +28], stored byte-aligned in 8 bits (0b00SEEEMM, upper 2 bits unused/padding).
+ *  Format: 6-bit payload + 2-bit padding for efficient byte-aligned SIMD operations.
+ *  No Inf/NaN support (OCP Microscaling FN format).
+ *  Optimized for ARM NEONFHM using FMLAL (widening FP16→FP32).
+ *
+ *  References:
+ *  - https://www.opencompute.org/documents/ocp-microscaling-formats-mx-v1-0-spec-final-pdf
+ *  - https://arxiv.org/abs/2401.14112 (FP6-LLM paper)
+ */
+struct e3m2_t {
+    // Core type aliases
+    using raw_t = nk_e3m2_t;
+    using uint_t = nk_u8_t;
+
+    using dot_result_t = f32_t;
+    using reduce_add_result_t = f32_t;
+    using l2sq_result_t = f32_t;
+    using scale_t = nk_f32_t;
+
+    using dot_kernel_t = void (*)(raw_t const *, raw_t const *, nk_size_t, nk_f32_t *);
+    using reduce_add_kernel_t = void (*)(raw_t const *, nk_size_t, nk_size_t, nk_f32_t *);
+    using reduce_extremum_kernel_t = void (*)(raw_t const *, nk_size_t, nk_size_t, raw_t *, nk_size_t *);
+    using scale_kernel_t = void (*)(raw_t const *, nk_size_t, scale_t const *, scale_t const *, raw_t *);
+    using sum_kernel_t = void (*)(raw_t const *, raw_t const *, nk_size_t, raw_t *);
+    using wsum_kernel_t = void (*)(raw_t const *, raw_t const *, nk_size_t, scale_t const *, scale_t const *, raw_t *);
+    using fma_kernel_t = void (*)(raw_t const *, raw_t const *, raw_t const *, nk_size_t, scale_t const *,
+                                  scale_t const *, raw_t *);
+    using dots_packed_size_kernel_t = nk_size_t (*)(nk_size_t, nk_size_t);
+    using dots_pack_kernel_t = void (*)(raw_t const *, nk_size_t, nk_size_t, nk_size_t, void *);
+    using dots_symmetric_kernel_t = void (*)(raw_t const *, nk_size_t, nk_size_t, nk_size_t, nk_f32_t *, nk_size_t);
+    using dots_packed_kernel_t = void (*)(raw_t const *, void const *, nk_f32_t *, nk_size_t, nk_size_t, nk_size_t,
+                                          nk_size_t, nk_size_t);
+
+    static constexpr nk_dtype_t dtype() noexcept { return nk_e3m2_k; }
+    static constexpr char const *dtype_name() noexcept { return "e3m2"; }
+    static constexpr unsigned bits_per_word() noexcept { return 8; }
+    static constexpr unsigned bits_per_dimension() noexcept { return 8; }
+    static constexpr unsigned bits_per_value() noexcept { return 8; }
+    static constexpr unsigned mantissa_bits() noexcept { return 2; }
+    static constexpr unsigned exponent_bits() noexcept { return 3; }
+    static constexpr bool is_integer() noexcept { return false; }
+    static constexpr bool is_signed() noexcept { return true; }
+    static constexpr bool is_complex() noexcept { return false; }
+    static constexpr bool is_exact() noexcept { return false; }
+    static constexpr bool has_infinity() noexcept { return false; }
+    static constexpr bool has_nan() noexcept { return false; }
+
+    raw_t raw_;
+
+    inline float to_f32() const noexcept {
+        float r;
+        nk_e3m2_to_f32(&raw_, &r);
+        return r;
+    }
+    static inline e3m2_t from_f32(float v) noexcept {
+        e3m2_t r;
+        nk_f32_to_e3m2(&v, &r.raw_);
+        return r;
+    }
+
+    inline e3m2_t() noexcept : raw_(0) {}
+    inline e3m2_t(float v) noexcept { nk_f32_to_e3m2(&v, &raw_); }
+    explicit e3m2_t(double v) noexcept {
+        float f = static_cast<float>(v);
+        nk_f32_to_e3m2(&f, &raw_);
+    }
+    template <std::integral integral_type_>
+    e3m2_t(integral_type_ v) noexcept {
+        float f = static_cast<float>(v);
+        nk_f32_to_e3m2(&f, &raw_);
+    }
+    inline operator float() const noexcept { return to_f32(); }
+    inline float raw() const noexcept { return to_f32(); }
+    static constexpr e3m2_t from_raw(raw_t r) noexcept {
+        e3m2_t v;
+        v.raw_ = r;
+        return v;
+    }
+    static constexpr e3m2_t from_bits(uint_t bits) noexcept {
+        e3m2_t v;
+        v.raw_ = bits;
+        return v;
+    }
+    constexpr uint_t to_bits() const noexcept { return raw_; }
+
+    // E3M2FN range: [-28, +28], no Inf/NaN
+    static constexpr e3m2_t finite_max() noexcept { return from_bits(0x1F); }    // +28.0
+    static constexpr e3m2_t finite_min() noexcept { return from_bits(0x3F); }    // -28.0
+    static constexpr e3m2_t positive_min() noexcept { return from_bits(0x0C); }  // Smallest positive normal (2^0 = 1.0)
+    static constexpr e3m2_t subnormal_min() noexcept { return from_bits(0x01); } // Smallest positive subnormal
+
+    // Mathematical constants (precomputed for constexpr)
+    static constexpr e3m2_t pi_k() noexcept { return from_bits(0x12); }        // π ≈ 3.14159
+    static constexpr e3m2_t two_pi_k() noexcept { return from_bits(0x16); }    // 2π ≈ 6.28319
+    static constexpr e3m2_t half_pi_k() noexcept { return from_bits(0x0E); }   // π/2 ≈ 1.57080
+    static constexpr e3m2_t e_k() noexcept { return from_bits(0x11); }         // e ≈ 2.71828
+    static constexpr e3m2_t sqrt2_k() noexcept { return from_bits(0x0E); }     // √2 ≈ 1.41421
+    static constexpr e3m2_t inv_sqrt2_k() noexcept { return from_bits(0x0A); } // 1/√2 ≈ 0.70711
+    static constexpr e3m2_t ln2_k() noexcept { return from_bits(0x0A); }       // ln(2) ≈ 0.69315
+
+    constexpr bool is_nan() const noexcept { return false; }
+    constexpr bool is_infinite() const noexcept { return false; }
+    constexpr bool is_finite() const noexcept { return true; }
+    constexpr bool is_normal() const noexcept {
+        uint_t exp = (raw_ >> 2) & 0x07;
+        return exp != 0;
+    }
+    constexpr bool is_subnormal() const noexcept { return ((raw_ >> 2) & 0x07) == 0 && (raw_ & 0x03) != 0; }
+    constexpr bool is_sign_positive() const noexcept { return (raw_ & 0x20) == 0; }
+    constexpr bool is_sign_negative() const noexcept { return (raw_ & 0x20) != 0; }
+
+    inline e3m2_t operator+() const noexcept { return *this; }
+    inline e3m2_t operator-() const noexcept { return from_bits(raw_ ^ 0x20); }
+    inline e3m2_t operator+(e3m2_t o) const noexcept { return from_f32(to_f32() + o.to_f32()); }
+    inline e3m2_t operator-(e3m2_t o) const noexcept { return from_f32(to_f32() - o.to_f32()); }
+    inline e3m2_t operator*(e3m2_t o) const noexcept { return from_f32(to_f32() * o.to_f32()); }
+    inline e3m2_t operator/(e3m2_t o) const noexcept { return from_f32(to_f32() / o.to_f32()); }
+
+    inline e3m2_t &operator+=(e3m2_t o) noexcept { return *this = *this + o; }
+    inline e3m2_t &operator-=(e3m2_t o) noexcept { return *this = *this - o; }
+    inline e3m2_t &operator*=(e3m2_t o) noexcept { return *this = *this * o; }
+    inline e3m2_t &operator/=(e3m2_t o) noexcept { return *this = *this / o; }
+
+    inline bool operator==(e3m2_t o) const noexcept { return to_f32() == o.to_f32(); }
+    inline bool operator!=(e3m2_t o) const noexcept { return to_f32() != o.to_f32(); }
+    inline bool operator<(e3m2_t o) const noexcept { return to_f32() < o.to_f32(); }
+    inline bool operator>(e3m2_t o) const noexcept { return to_f32() > o.to_f32(); }
+    inline bool operator<=(e3m2_t o) const noexcept { return to_f32() <= o.to_f32(); }
+    inline bool operator>=(e3m2_t o) const noexcept { return to_f32() >= o.to_f32(); }
+
+    constexpr e3m2_t abs() const noexcept { return from_bits(raw_ & 0x1F); }
+    constexpr e3m2_t copysign(e3m2_t sign) const noexcept { return from_bits((raw_ & 0x1F) | (sign.raw_ & 0x20)); }
+
+    inline e3m2_t sqrt() const noexcept { return from_f32(std::sqrt(to_f32())); }
+    inline e3m2_t min(e3m2_t o) const noexcept { return from_f32(std::fmin(to_f32(), o.to_f32())); }
+    inline e3m2_t max(e3m2_t o) const noexcept { return from_f32(std::fmax(to_f32(), o.to_f32())); }
+    inline e3m2_t clamp(e3m2_t lo, e3m2_t hi) const noexcept { return max(lo).min(hi); }
+
+    inline e3m2_t saturating_add(e3m2_t o) const noexcept {
+        float result = to_f32() + o.to_f32();
+        if (result >= finite_max().to_f32()) return finite_max();
+        if (result <= finite_min().to_f32()) return finite_min();
+        return from_f32(result);
+    }
+
+    inline e3m2_t saturating_sub(e3m2_t o) const noexcept {
+        float result = to_f32() - o.to_f32();
+        if (result >= finite_max().to_f32()) return finite_max();
+        if (result <= finite_min().to_f32()) return finite_min();
+        return from_f32(result);
+    }
+};
+
+/**
  *  @brief Hardware-friendly @b "double-double" arithmetic with ~106-bit mantissa.
  *
  *  Uses Knuth two-sum + FMA for error-free transformations. Provides ~106 bits of

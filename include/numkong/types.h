@@ -461,6 +461,8 @@ typedef unsigned char nk_i4x2_t; /// ? Two 4-bit signed integers packed in one b
 typedef unsigned char nk_u4x2_t; /// ? Two 4-bit unsigned integers packed in one byte
 typedef unsigned char nk_e4m3_t; /// ? FP8 E4M3 value encoded into one byte
 typedef unsigned char nk_e5m2_t; /// ? FP8 E5M2 value encoded into one byte
+typedef unsigned char nk_e2m3_t; /// ? FP6 E2M3FN value encoded into one byte (6 bits used, 2 bits unused)
+typedef unsigned char nk_e3m2_t; /// ? FP6 E3M2FN value encoded into one byte (6 bits used, 2 bits unused)
 
 typedef signed char nk_i8_t;
 typedef unsigned char nk_u8_t;
@@ -523,6 +525,12 @@ typedef nk_f64_t nk_fmax_t;
 #define NK_E5M2_MAX 0x7B // FP8 E5M2: +57344.0
 #define NK_E5M2_MIN 0xFB // FP8 E5M2: -57344.0
 
+#define NK_E2M3_MAX 0x1F // FP6 E2M3: +7.5
+#define NK_E2M3_MIN 0x3F // FP6 E2M3: -7.5
+
+#define NK_E3M2_MAX 0x1F // FP6 E3M2: +28.0
+#define NK_E3M2_MIN 0x3F // FP6 E3M2: -28.0
+
 #define NK_BITS_PER_BYTE 8
 
 /**
@@ -555,6 +563,8 @@ typedef enum {
     nk_e5m2_k = 1 << 15, ///< FP8 E5M2 floating point
     nk_i4_k = 1 << 16,   ///< 4-bit signed integers packed into 8-bit words
     nk_u4_k = 1 << 17,   ///< 4-bit unsigned integers packed into 8-bit words
+    nk_e2m3_k = 1 << 18, ///< FP6 E2M3 floating point
+    nk_e3m2_k = 1 << 19, ///< FP6 E3M2 floating point
 
     nk_f64c_k = 1 << 20,  ///< Complex double precision floating point
     nk_f32c_k = 1 << 21,  ///< Complex single precision floating point
@@ -579,6 +589,8 @@ NK_PUBLIC nk_dtype_family_k nk_dtype_family(nk_dtype_t dtype) {
     case nk_bf16_k: return nk_dtype_family_float_k;
     case nk_e4m3_k: return nk_dtype_family_float_k;
     case nk_e5m2_k: return nk_dtype_family_float_k;
+    case nk_e2m3_k: return nk_dtype_family_float_k;
+    case nk_e3m2_k: return nk_dtype_family_float_k;
     case nk_f64c_k: return nk_dtype_family_complex_float_k;
     case nk_f32c_k: return nk_dtype_family_complex_float_k;
     case nk_f16c_k: return nk_dtype_family_complex_float_k;
@@ -607,6 +619,8 @@ NK_PUBLIC nk_size_t nk_dtype_bits(nk_dtype_t dtype) {
     case nk_bf16_k: return 16;
     case nk_e4m3_k: return 8;
     case nk_e5m2_k: return 8;
+    case nk_e2m3_k: return 8;
+    case nk_e3m2_k: return 8;
     case nk_f64c_k: return 128;
     case nk_f32c_k: return 64;
     case nk_f16c_k: return 32;
@@ -869,6 +883,8 @@ typedef union nk_b128_vec_t {
     nk_bf16_t bf16s[8];
     nk_e4m3_t e4m3s[16];
     nk_e5m2_t e5m2s[16];
+    nk_e2m3_t e2m3s[16];
+    nk_e3m2_t e3m2s[16];
     nk_f32_t f32s[4];
     nk_f64_t f64s[2];
 } nk_b128_vec_t;

@@ -184,6 +184,56 @@ NK_INTERNAL float16x8_t nk_e5m2x8_to_f16x8_neon_(uint8x8_t e5m2_u8x8) {
     return vreinterpretq_f16_u16(vshlq_n_u16(v_u16x8, 8));
 }
 
+/** @brief Convert 8x e2m3 → f16x8 via direct bit manipulation (NEON).
+ *  E2M3FN (FP6): S EE MMM (bias=1) → F16: S EEEEE MMMMMMMMMM (bias=15).
+ *  No Inf/NaN support. Direct conversion for normal values, subnormal handling simplified. */
+NK_INTERNAL float16x8_t nk_e2m3x8_to_f16x8_neon_(uint8x8_t e2m3_u8x8) {
+    // Widen to 16-bit for NEON operations
+    uint16x8_t v_u16x8 = vmovl_u8(e2m3_u8x8);
+
+    // Extract fields: format is 0b00SEEMM (6 bits used)
+    uint16x8_t sign_u16x8 = vshlq_n_u16(vandq_u16(v_u16x8, vdupq_n_u16(0x20)), 10); // sign << 15
+    uint16x8_t exp_u16x8 = vandq_u16(vshrq_n_u16(v_u16x8, 3), vdupq_n_u16(0x03));   // 2-bit exp
+    uint16x8_t mant_u16x8 = vandq_u16(v_u16x8, vdupq_n_u16(0x07));                  // 3-bit mant
+
+    // Rebias exponent: F16_exp = E2M3_exp - 1 + 15 = E2M3_exp + 14
+    uint16x8_t exp_rebiased = vaddq_u16(exp_u16x8, vdupq_n_u16(14));
+    uint16x8_t exp_positioned = vshlq_n_u16(exp_rebiased, 10); // Position at bits [14:10]
+
+    // Position mantissa: shift left by 7 (F16 has 10 mant bits, E2M3 has 3)
+    uint16x8_t mant_positioned = vshlq_n_u16(mant_u16x8, 7);
+
+    // Combine: sign | exp | mant
+    uint16x8_t result = vorrq_u16(sign_u16x8, vorrq_u16(exp_positioned, mant_positioned));
+
+    return vreinterpretq_f16_u16(result);
+}
+
+/** @brief Convert 8x e3m2 → f16x8 via direct bit manipulation (NEON).
+ *  E3M2FN (FP6): S EEE MM (bias=3) → F16: S EEEEE MMMMMMMMMM (bias=15).
+ *  No Inf/NaN support. Direct conversion for normal values, subnormal handling simplified. */
+NK_INTERNAL float16x8_t nk_e3m2x8_to_f16x8_neon_(uint8x8_t e3m2_u8x8) {
+    // Widen to 16-bit for NEON operations
+    uint16x8_t v_u16x8 = vmovl_u8(e3m2_u8x8);
+
+    // Extract fields: format is 0b00SEEEMM (6 bits used)
+    uint16x8_t sign_u16x8 = vshlq_n_u16(vandq_u16(v_u16x8, vdupq_n_u16(0x20)), 10); // sign << 15
+    uint16x8_t exp_u16x8 = vandq_u16(vshrq_n_u16(v_u16x8, 2), vdupq_n_u16(0x07));   // 3-bit exp
+    uint16x8_t mant_u16x8 = vandq_u16(v_u16x8, vdupq_n_u16(0x03));                  // 2-bit mant
+
+    // Rebias exponent: F16_exp = E3M2_exp - 3 + 15 = E3M2_exp + 12
+    uint16x8_t exp_rebiased = vaddq_u16(exp_u16x8, vdupq_n_u16(12));
+    uint16x8_t exp_positioned = vshlq_n_u16(exp_rebiased, 10); // Position at bits [14:10]
+
+    // Position mantissa: shift left by 8 (F16 has 10 mant bits, E3M2 has 2)
+    uint16x8_t mant_positioned = vshlq_n_u16(mant_u16x8, 8);
+
+    // Combine: sign | exp | mant
+    uint16x8_t result = vorrq_u16(sign_u16x8, vorrq_u16(exp_positioned, mant_positioned));
+
+    return vreinterpretq_f16_u16(result);
+}
+
 /** @brief Convert f16x8 → 8x e4m3 with RNE rounding (NEON).
  *  F16: S EEEEE MMMMMMMMMM (bias=15) → E4M3: S EEEE MMM (bias=7).
  *  Handles subnormals (exp < 9 → E4M3 subnormal), overflow (> 448 → clamp), inf → max, nan → nan. */
