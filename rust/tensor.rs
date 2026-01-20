@@ -27,7 +27,7 @@ use core::marker::PhantomData;
 use core::ptr::NonNull;
 
 use crate::numerics::{ATan, Cos, Dot, EachBlend, EachFMA, EachScale, EachSum, Sin};
-use crate::scalars::{bf16, e4m3, e5m2, f16, i4x2, u1x8, u4x2};
+use crate::scalars::{bf16, e2m3, e3m2, e4m3, e5m2, f16, i4x2, u1x8, u4x2};
 
 /// Size type used in C FFI to match `nk_size_t` which is always `uint64_t`.
 type u64size = u64;
@@ -139,6 +139,32 @@ extern "C" {
         c_stride: u64size,
     );
 
+    fn nk_dots_packed_size_e2m3(n: u64size, k: u64size) -> u64size;
+    fn nk_dots_pack_e2m3(b: *const u8, n: u64size, k: u64size, b_stride: u64size, packed: *mut u8);
+    fn nk_dots_packed_e2m3(
+        a: *const u8,
+        packed: *const u8,
+        c: *mut f32,
+        m: u64size,
+        n: u64size,
+        k: u64size,
+        a_stride: u64size,
+        c_stride: u64size,
+    );
+
+    fn nk_dots_packed_size_e3m2(n: u64size, k: u64size) -> u64size;
+    fn nk_dots_pack_e3m2(b: *const u8, n: u64size, k: u64size, b_stride: u64size, packed: *mut u8);
+    fn nk_dots_packed_e3m2(
+        a: *const u8,
+        packed: *const u8,
+        c: *mut f32,
+        m: u64size,
+        n: u64size,
+        k: u64size,
+        a_stride: u64size,
+        c_stride: u64size,
+    );
+
     fn nk_dots_packed_size_u1(n: u64size, k: u64size) -> u64size;
     fn nk_dots_pack_u1(b: *const u8, n: u64size, k: u64size, b_stride: u64size, packed: *mut u8);
     fn nk_dots_packed_u1(
@@ -236,6 +262,22 @@ extern "C" {
         result_stride: u64size,
     );
     fn nk_dots_symmetric_e5m2(
+        vectors: *const u8,
+        n_vectors: u64size,
+        depth: u64size,
+        stride: u64size,
+        result: *mut f32,
+        result_stride: u64size,
+    );
+    fn nk_dots_symmetric_e2m3(
+        vectors: *const u8,
+        n_vectors: u64size,
+        depth: u64size,
+        stride: u64size,
+        result: *mut f32,
+        result_stride: u64size,
+    );
+    fn nk_dots_symmetric_e3m2(
         vectors: *const u8,
         n_vectors: u64size,
         depth: u64size,
@@ -749,6 +791,86 @@ impl Dots for e5m2 {
     }
 }
 
+impl Dots for e2m3 {
+    type Accumulator = f32;
+
+    fn dots_packed_size(n: usize, k: usize) -> usize {
+        unsafe { nk_dots_packed_size_e2m3(n as u64size, k as u64size) as usize }
+    }
+
+    unsafe fn dots_pack(b: *const Self, n: usize, k: usize, b_stride: usize, packed: *mut u8) {
+        nk_dots_pack_e2m3(
+            b as *const u8,
+            n as u64size,
+            k as u64size,
+            b_stride as u64size,
+            packed,
+        )
+    }
+
+    unsafe fn dots(
+        a: *const Self,
+        packed: *const u8,
+        c: *mut Self::Accumulator,
+        m: usize,
+        n: usize,
+        k: usize,
+        a_stride: usize,
+        c_stride: usize,
+    ) {
+        nk_dots_packed_e2m3(
+            a as *const u8,
+            packed,
+            c,
+            m as u64size,
+            n as u64size,
+            k as u64size,
+            a_stride as u64size,
+            c_stride as u64size,
+        )
+    }
+}
+
+impl Dots for e3m2 {
+    type Accumulator = f32;
+
+    fn dots_packed_size(n: usize, k: usize) -> usize {
+        unsafe { nk_dots_packed_size_e3m2(n as u64size, k as u64size) as usize }
+    }
+
+    unsafe fn dots_pack(b: *const Self, n: usize, k: usize, b_stride: usize, packed: *mut u8) {
+        nk_dots_pack_e3m2(
+            b as *const u8,
+            n as u64size,
+            k as u64size,
+            b_stride as u64size,
+            packed,
+        )
+    }
+
+    unsafe fn dots(
+        a: *const Self,
+        packed: *const u8,
+        c: *mut Self::Accumulator,
+        m: usize,
+        n: usize,
+        k: usize,
+        a_stride: usize,
+        c_stride: usize,
+    ) {
+        nk_dots_packed_e3m2(
+            a as *const u8,
+            packed,
+            c,
+            m as u64size,
+            n as u64size,
+            k as u64size,
+            a_stride as u64size,
+            c_stride as u64size,
+        )
+    }
+}
+
 impl Dots for u1x8 {
     type Accumulator = u32;
 
@@ -1065,6 +1187,50 @@ impl DotsSymmetric for e5m2 {
         result_stride: usize,
     ) {
         nk_dots_symmetric_e5m2(
+            vectors as *const u8,
+            n_vectors as u64size,
+            depth as u64size,
+            stride as u64size,
+            result,
+            result_stride as u64size,
+        )
+    }
+}
+
+impl DotsSymmetric for e2m3 {
+    type Accumulator = f32;
+
+    unsafe fn dots_symmetric(
+        vectors: *const Self,
+        n_vectors: usize,
+        depth: usize,
+        stride: usize,
+        result: *mut Self::Accumulator,
+        result_stride: usize,
+    ) {
+        nk_dots_symmetric_e2m3(
+            vectors as *const u8,
+            n_vectors as u64size,
+            depth as u64size,
+            stride as u64size,
+            result,
+            result_stride as u64size,
+        )
+    }
+}
+
+impl DotsSymmetric for e3m2 {
+    type Accumulator = f32;
+
+    unsafe fn dots_symmetric(
+        vectors: *const Self,
+        n_vectors: usize,
+        depth: usize,
+        stride: usize,
+        result: *mut Self::Accumulator,
+        result_stride: usize,
+    ) {
+        nk_dots_symmetric_e3m2(
             vectors as *const u8,
             n_vectors as u64size,
             depth as u64size,
@@ -1645,10 +1811,10 @@ where
     pub fn gram_matrix(&self) -> Result<Tensor<T::Accumulator, Global, MAX_RANK>, TensorError> {
         let shape = self.shape();
         if shape.len() != 2 {
-            return Err(TensorError::InvalidShape(format!(
-                "gram_matrix requires 2D tensor, got {}D",
-                shape.len()
-            )));
+            return Err(TensorError::InvalidShape {
+                shape: ShapeDescriptor::from_slice(shape),
+                reason: "gram_matrix requires 2D tensor",
+            });
         }
 
         let n_vectors = shape[0];

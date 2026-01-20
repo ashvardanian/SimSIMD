@@ -13,7 +13,7 @@
 //! - **Mesh alignment**: [`MeshAlignment`]
 //! - **Sparse sets**: [`SparseIntersect`], [`SparseDot`]
 
-use crate::scalars::{bf16, e4m3, e5m2, f16, i4x2, u1x8, u4x2};
+use crate::scalars::{bf16, e2m3, e3m2, e4m3, e5m2, f16, i4x2, u1x8, u4x2};
 
 pub type ComplexProductF32 = (f32, f32);
 pub type ComplexProductF64 = (f64, f64);
@@ -65,6 +65,8 @@ extern "C" {
     fn nk_dot_bf16(a: *const u16, b: *const u16, c: u64size, d: *mut f32);
     fn nk_dot_e4m3(a: *const u8, b: *const u8, c: u64size, d: *mut f32);
     fn nk_dot_e5m2(a: *const u8, b: *const u8, c: u64size, d: *mut f32);
+    fn nk_dot_e2m3(a: *const u8, b: *const u8, c: u64size, d: *mut f32);
+    fn nk_dot_e3m2(a: *const u8, b: *const u8, c: u64size, d: *mut f32);
     fn nk_dot_f32(a: *const f32, b: *const f32, c: u64size, d: *mut f32);
     fn nk_dot_f64(a: *const f64, b: *const f64, c: u64size, d: *mut f64);
 
@@ -85,6 +87,8 @@ extern "C" {
     fn nk_angular_bf16(a: *const u16, b: *const u16, c: u64size, d: *mut f32);
     fn nk_angular_e4m3(a: *const u8, b: *const u8, c: u64size, d: *mut f32);
     fn nk_angular_e5m2(a: *const u8, b: *const u8, c: u64size, d: *mut f32);
+    fn nk_angular_e2m3(a: *const u8, b: *const u8, c: u64size, d: *mut f32);
+    fn nk_angular_e3m2(a: *const u8, b: *const u8, c: u64size, d: *mut f32);
     fn nk_angular_f32(a: *const f32, b: *const f32, c: u64size, d: *mut f32);
     fn nk_angular_f64(a: *const f64, b: *const f64, c: u64size, d: *mut f64);
 
@@ -94,6 +98,8 @@ extern "C" {
     fn nk_l2sq_bf16(a: *const u16, b: *const u16, c: u64size, d: *mut f32);
     fn nk_l2sq_e4m3(a: *const u8, b: *const u8, c: u64size, d: *mut f32);
     fn nk_l2sq_e5m2(a: *const u8, b: *const u8, c: u64size, d: *mut f32);
+    fn nk_l2sq_e2m3(a: *const u8, b: *const u8, c: u64size, d: *mut f32);
+    fn nk_l2sq_e3m2(a: *const u8, b: *const u8, c: u64size, d: *mut f32);
     fn nk_l2sq_f32(a: *const f32, b: *const f32, c: u64size, d: *mut f32);
     fn nk_l2sq_f64(a: *const f64, b: *const f64, c: u64size, d: *mut f64);
 
@@ -103,6 +109,8 @@ extern "C" {
     fn nk_l2_bf16(a: *const u16, b: *const u16, c: u64size, d: *mut f32);
     fn nk_l2_e4m3(a: *const u8, b: *const u8, c: u64size, d: *mut f32);
     fn nk_l2_e5m2(a: *const u8, b: *const u8, c: u64size, d: *mut f32);
+    fn nk_l2_e2m3(a: *const u8, b: *const u8, c: u64size, d: *mut f32);
+    fn nk_l2_e3m2(a: *const u8, b: *const u8, c: u64size, d: *mut f32);
     fn nk_l2_f32(a: *const f32, b: *const f32, c: u64size, d: *mut f32);
     fn nk_l2_f64(a: *const f64, b: *const f64, c: u64size, d: *mut f64);
 
@@ -1337,6 +1345,44 @@ impl Dot for e5m2 {
     }
 }
 
+impl Dot for e2m3 {
+    type Output = f32;
+    fn dot(a: &[Self], b: &[Self]) -> Option<Self::Output> {
+        if a.len() != b.len() {
+            return None;
+        }
+        let mut result: Self::Output = 0.0;
+        unsafe {
+            nk_dot_e2m3(
+                a.as_ptr() as *const u8,
+                b.as_ptr() as *const u8,
+                a.len() as u64size,
+                &mut result,
+            )
+        };
+        Some(result)
+    }
+}
+
+impl Dot for e3m2 {
+    type Output = f32;
+    fn dot(a: &[Self], b: &[Self]) -> Option<Self::Output> {
+        if a.len() != b.len() {
+            return None;
+        }
+        let mut result: Self::Output = 0.0;
+        unsafe {
+            nk_dot_e3m2(
+                a.as_ptr() as *const u8,
+                b.as_ptr() as *const u8,
+                a.len() as u64size,
+                &mut result,
+            )
+        };
+        Some(result)
+    }
+}
+
 impl Dot for i4x2 {
     type Output = i32;
     fn dot(a: &[Self], b: &[Self]) -> Option<Self::Output> {
@@ -1506,6 +1552,44 @@ impl Angular for e5m2 {
         let mut result: Self::Output = 0.0;
         unsafe {
             nk_angular_e5m2(
+                a.as_ptr() as *const u8,
+                b.as_ptr() as *const u8,
+                a.len() as u64size,
+                &mut result,
+            )
+        };
+        Some(result)
+    }
+}
+
+impl Angular for e2m3 {
+    type Output = f32;
+    fn angular(a: &[Self], b: &[Self]) -> Option<Self::Output> {
+        if a.len() != b.len() {
+            return None;
+        }
+        let mut result: Self::Output = 0.0;
+        unsafe {
+            nk_angular_e2m3(
+                a.as_ptr() as *const u8,
+                b.as_ptr() as *const u8,
+                a.len() as u64size,
+                &mut result,
+            )
+        };
+        Some(result)
+    }
+}
+
+impl Angular for e3m2 {
+    type Output = f32;
+    fn angular(a: &[Self], b: &[Self]) -> Option<Self::Output> {
+        if a.len() != b.len() {
+            return None;
+        }
+        let mut result: Self::Output = 0.0;
+        unsafe {
+            nk_angular_e3m2(
                 a.as_ptr() as *const u8,
                 b.as_ptr() as *const u8,
                 a.len() as u64size,
@@ -1807,6 +1891,80 @@ impl Euclidean for e5m2 {
         let mut result: Self::L2Output = 0.0;
         unsafe {
             nk_l2_e5m2(
+                a.as_ptr() as *const u8,
+                b.as_ptr() as *const u8,
+                a.len() as u64size,
+                &mut result,
+            )
+        };
+        Some(result)
+    }
+}
+
+impl Euclidean for e2m3 {
+    type L2sqOutput = f32;
+    type L2Output = f32;
+
+    fn l2sq(a: &[Self], b: &[Self]) -> Option<Self::L2sqOutput> {
+        if a.len() != b.len() {
+            return None;
+        }
+        let mut result: Self::L2sqOutput = 0.0;
+        unsafe {
+            nk_l2sq_e2m3(
+                a.as_ptr() as *const u8,
+                b.as_ptr() as *const u8,
+                a.len() as u64size,
+                &mut result,
+            )
+        };
+        Some(result)
+    }
+
+    fn l2(a: &[Self], b: &[Self]) -> Option<Self::L2Output> {
+        if a.len() != b.len() {
+            return None;
+        }
+        let mut result: Self::L2Output = 0.0;
+        unsafe {
+            nk_l2_e2m3(
+                a.as_ptr() as *const u8,
+                b.as_ptr() as *const u8,
+                a.len() as u64size,
+                &mut result,
+            )
+        };
+        Some(result)
+    }
+}
+
+impl Euclidean for e3m2 {
+    type L2sqOutput = f32;
+    type L2Output = f32;
+
+    fn l2sq(a: &[Self], b: &[Self]) -> Option<Self::L2sqOutput> {
+        if a.len() != b.len() {
+            return None;
+        }
+        let mut result: Self::L2sqOutput = 0.0;
+        unsafe {
+            nk_l2sq_e3m2(
+                a.as_ptr() as *const u8,
+                b.as_ptr() as *const u8,
+                a.len() as u64size,
+                &mut result,
+            )
+        };
+        Some(result)
+    }
+
+    fn l2(a: &[Self], b: &[Self]) -> Option<Self::L2Output> {
+        if a.len() != b.len() {
+            return None;
+        }
+        let mut result: Self::L2Output = 0.0;
+        unsafe {
+            nk_l2_e3m2(
                 a.as_ptr() as *const u8,
                 b.as_ptr() as *const u8,
                 a.len() as u64size,

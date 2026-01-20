@@ -519,6 +519,258 @@ NK_INTERNAL void nk_f32_to_e5m2_serial(nk_f32_t const *src, nk_e5m2_t *dest) {
     *dest = (nk_e5m2_t)(sign | (exp_field << 2) | mant_field);
 }
 
+/**
+ *  @brief Convert FP6 E2M3FN to IEEE 754 single-precision float.
+ *
+ *  E2M3FN (FP6) format: 1 sign bit, 2 exponent bits (bias=1), 3 mantissa bits.
+ *  Range: [-7.5, +7.5], no infinity or NaN (OCP Microscaling FN format).
+ *  Uses precomputed lookup table for all 64 possible values.
+ *
+ *  References:
+ *      https://www.opencompute.org/documents/ocp-microscaling-formats-mx-v1-0-spec-final-pdf
+ *      https://arxiv.org/abs/2401.14112 (FP6-LLM)
+ */
+NK_INTERNAL void nk_e2m3_to_f32_serial(nk_e2m3_t const *src, nk_f32_t *dest) {
+    nk_u8_t raw = *src;
+    nk_u32_t sign = (nk_u32_t)((raw >> 5) & 0x01u) << 31;
+    nk_u32_t exponent = (raw >> 3) & 0x03u;
+    nk_u32_t mantissa = raw & 0x07u;
+    nk_fui32_t conv;
+
+    // Handle zero
+    if (exponent == 0 && mantissa == 0) {
+        conv.u = sign;
+        *dest = conv.f;
+        return;
+    }
+
+    // Handle subnormal (exp=0, mant!=0)
+    if (exponent == 0) {
+        // Subnormal: value = 2^(-1) * (mantissa / 8)
+        nk_f32_t value = (nk_f32_t)mantissa * (1.0f / 16.0f); // 2^(-1) * (1/8) = 1/16
+        *dest = sign ? -value : value;
+        return;
+    }
+
+    // Normal values: rebias from E2M3 (bias=1) to F32 (bias=127)
+    // E2M3 exp range: 1-3 (unbiased: 0-2)
+    // F32 needs: (e2m3_exp - 1) + 127 = e2m3_exp + 126
+    nk_u32_t f32_exponent = (exponent + 126u) << 23;
+    nk_u32_t f32_mantissa = mantissa << 20;
+    conv.u = sign | f32_exponent | f32_mantissa;
+    *dest = conv.f;
+}
+
+/**
+ *  @brief Convert IEEE 754 single-precision float to FP6 E2M3FN.
+ *
+ *  E2M3FN (FP6) format: 1 sign bit, 2 exponent bits (bias=1), 3 mantissa bits.
+ *  Range: [-7.5, +7.5], no ∞ or NaN. Saturates to max on overflow.
+ *  Rounding: RNE (Round to Nearest Even) per IEEE 754.
+ *  Subnormal threshold: values with |x| < 0.5 use subnormal encoding.
+ */
+NK_INTERNAL void nk_f32_to_e2m3_serial(nk_f32_t const *src, nk_e2m3_t *dest) {
+    nk_f32_t x = *src;
+    nk_fui32_t conv;
+    conv.f = x;
+    nk_u32_t sign_bit = conv.u >> 31;
+    nk_u32_t abs_bits = conv.u & 0x7FFFFFFFu;
+    nk_u8_t sign = (nk_u8_t)(sign_bit << 5);
+
+    // Zero
+    if (abs_bits == 0) {
+        *dest = (nk_e2m3_t)sign;
+        return;
+    }
+
+    nk_f32_t abs_x = sign_bit ? -x : x;
+
+    // Clamp to E2M3FN range [-7.5, 7.5]
+    // Max value: exp=3, mant=7 → (1 + 7/8) * 2^(3-1) = 1.875 * 4 = 7.5
+    if (abs_x >= 7.5f) {
+        *dest = (nk_e2m3_t)(sign | 0x1Fu); // Max: 0b011111
+        return;
+    }
+
+    // Subnormal range: [0, 0.5). exp=0, mant encodes value/0.125
+    if (abs_x < 0.5f) {
+        nk_f32_t scaled = abs_x * 8.0f; // Scale to mantissa range [0, 4)
+        nk_i32_t mant = (nk_i32_t)scaled;
+        nk_f32_t frac = scaled - (nk_f32_t)mant;
+        // RNE rounding
+        if (frac > 0.5f || (frac == 0.5f && (mant & 1))) { ++mant; }
+        // If rounds to 8, promote to first normal (exp=1, mant=0)
+        if (mant > 7) {
+            *dest = (nk_e2m3_t)(sign | 0x08u);
+            return;
+        }
+        *dest = (nk_e2m3_t)(sign | (nk_u8_t)mant);
+        return;
+    }
+
+    // Normal range: extract exponent and mantissa
+    nk_i32_t exp = (nk_i32_t)((abs_bits >> 23) & 0xFFu) - 127;
+    nk_u32_t mantissa = abs_bits & 0x7FFFFFu;
+    nk_u32_t significand = (1u << 23) | mantissa;
+
+    // Round mantissa from 23 to 3 bits
+    nk_i32_t shift = 23 - 3;
+    nk_u32_t remainder_mask = (1u << shift) - 1;
+    nk_u32_t remainder = significand & remainder_mask;
+    nk_u32_t halfway = 1u << (shift - 1);
+    nk_u32_t significand_rounded = significand >> shift;
+
+    // RNE rounding
+    if (remainder > halfway || (remainder == halfway && (significand_rounded & 1))) { ++significand_rounded; }
+
+    // Handle carry into exponent
+    if (significand_rounded == (1u << 4)) {
+        significand_rounded >>= 1;
+        ++exp;
+    }
+
+    // Rebias exponent: e2m3_exp = f32_exp + 1
+    nk_i32_t e2m3_exp = exp + 1;
+
+    // Clamp to valid range
+    if (e2m3_exp > 3) {
+        *dest = (nk_e2m3_t)(sign | 0x1Fu); // Max value
+        return;
+    }
+    if (e2m3_exp < 0) {
+        *dest = (nk_e2m3_t)sign; // Underflow to zero
+        return;
+    }
+
+    nk_u8_t exp_field = (nk_u8_t)e2m3_exp;
+    nk_u8_t mant_field = (nk_u8_t)(significand_rounded & 0x07u);
+    *dest = (nk_e2m3_t)(sign | (exp_field << 3) | mant_field);
+}
+
+/**
+ *  @brief Convert FP6 E3M2FN to IEEE 754 single-precision float.
+ *
+ *  E3M2FN (FP6) format: 1 sign bit, 3 exponent bits (bias=3), 2 mantissa bits.
+ *  Range: [-28, +28], no infinity or NaN (OCP Microscaling FN format).
+ */
+NK_INTERNAL void nk_e3m2_to_f32_serial(nk_e3m2_t const *src, nk_f32_t *dest) {
+    nk_u8_t raw = *src;
+    nk_u32_t sign = (nk_u32_t)((raw >> 5) & 0x01u) << 31;
+    nk_u32_t exponent = (raw >> 2) & 0x07u;
+    nk_u32_t mantissa = raw & 0x03u;
+    nk_fui32_t conv;
+
+    // Handle zero
+    if (exponent == 0 && mantissa == 0) {
+        conv.u = sign;
+        *dest = conv.f;
+        return;
+    }
+
+    // Handle subnormal (exp=0, mant!=0)
+    if (exponent == 0) {
+        // Subnormal: value = 2^(-2) * (mantissa / 4)
+        nk_f32_t value = (nk_f32_t)mantissa * (1.0f / 16.0f); // 2^(-2) * (1/4) = 1/16
+        *dest = sign ? -value : value;
+        return;
+    }
+
+    // Normal values: rebias from E3M2 (bias=3) to F32 (bias=127)
+    // E3M2 exp range: 1-7 (unbiased: -2 to 4)
+    // F32 needs: (e3m2_exp - 3) + 127 = e3m2_exp + 124
+    nk_u32_t f32_exponent = (exponent + 124u) << 23;
+    nk_u32_t f32_mantissa = mantissa << 21;
+    conv.u = sign | f32_exponent | f32_mantissa;
+    *dest = conv.f;
+}
+
+/**
+ *  @brief Convert IEEE 754 single-precision float to FP6 E3M2FN.
+ *
+ *  E3M2FN (FP6) format: 1 sign bit, 3 exponent bits (bias=3), 2 mantissa bits.
+ *  Range: [-28, +28], no ∞ or NaN. Saturates to max on overflow.
+ *  Rounding: RNE (Round to Nearest Even) per IEEE 754.
+ *  Subnormal threshold: values with |x| < 0.25 use subnormal encoding.
+ */
+NK_INTERNAL void nk_f32_to_e3m2_serial(nk_f32_t const *src, nk_e3m2_t *dest) {
+    nk_f32_t x = *src;
+    nk_fui32_t conv;
+    conv.f = x;
+    nk_u32_t sign_bit = conv.u >> 31;
+    nk_u32_t abs_bits = conv.u & 0x7FFFFFFFu;
+    nk_u8_t sign = (nk_u8_t)(sign_bit << 5);
+
+    // Zero
+    if (abs_bits == 0) {
+        *dest = (nk_e3m2_t)sign;
+        return;
+    }
+
+    nk_f32_t abs_x = sign_bit ? -x : x;
+
+    // Clamp to E3M2FN range [-28, 28]
+    // Max value: exp=7, mant=2 → (1 + 2/4) * 2^(7-3) = 1.5 * 16 = 24
+    // Actually max is exp=7, mant=3 → (1 + 3/4) * 2^4 = 1.75 * 16 = 28
+    if (abs_x >= 28.0f) {
+        *dest = (nk_e3m2_t)(sign | 0x1Fu); // Max: 0b011111 (exp=7, mant=3)
+        return;
+    }
+
+    // Subnormal range: [0, 0.25). exp=0, mant encodes value/0.0625
+    if (abs_x < 0.25f) {
+        nk_f32_t scaled = abs_x * 16.0f; // Scale to mantissa range [0, 4)
+        nk_i32_t mant = (nk_i32_t)scaled;
+        nk_f32_t frac = scaled - (nk_f32_t)mant;
+        // RNE rounding
+        if (frac > 0.5f || (frac == 0.5f && (mant & 1))) { ++mant; }
+        // If rounds to 4, promote to first normal (exp=1, mant=0)
+        if (mant > 3) {
+            *dest = (nk_e3m2_t)(sign | 0x04u);
+            return;
+        }
+        *dest = (nk_e3m2_t)(sign | (nk_u8_t)mant);
+        return;
+    }
+
+    // Normal range: extract exponent and mantissa
+    nk_i32_t exp = (nk_i32_t)((abs_bits >> 23) & 0xFFu) - 127;
+    nk_u32_t mantissa = abs_bits & 0x7FFFFFu;
+    nk_u32_t significand = (1u << 23) | mantissa;
+
+    // Round mantissa from 23 to 2 bits
+    nk_i32_t shift = 23 - 2;
+    nk_u32_t remainder_mask = (1u << shift) - 1;
+    nk_u32_t remainder = significand & remainder_mask;
+    nk_u32_t halfway = 1u << (shift - 1);
+    nk_u32_t significand_rounded = significand >> shift;
+
+    // RNE rounding
+    if (remainder > halfway || (remainder == halfway && (significand_rounded & 1))) { ++significand_rounded; }
+
+    // Handle carry into exponent
+    if (significand_rounded == (1u << 3)) {
+        significand_rounded >>= 1;
+        ++exp;
+    }
+
+    // Rebias exponent: e3m2_exp = f32_exp + 3
+    nk_i32_t e3m2_exp = exp + 3;
+
+    // Clamp to valid range
+    if (e3m2_exp > 7) {
+        *dest = (nk_e3m2_t)(sign | 0x1Fu); // Max value
+        return;
+    }
+    if (e3m2_exp < 0) {
+        *dest = (nk_e3m2_t)sign; // Underflow to zero
+        return;
+    }
+
+    nk_u8_t exp_field = (nk_u8_t)e3m2_exp;
+    nk_u8_t mant_field = (nk_u8_t)(significand_rounded & 0x03u);
+    *dest = (nk_e3m2_t)(sign | (exp_field << 2) | mant_field);
+}
+
 NK_INTERNAL void nk_f16_to_f64_serial(nk_f16_t const *x, nk_f64_t *y) {
     nk_f32_t f32;
     nk_f16_to_f32_serial(x, &f32);

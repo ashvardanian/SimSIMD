@@ -91,7 +91,7 @@ pub mod scalars;
 pub mod tensor;
 
 // Re-export scalar types at crate root
-pub use scalars::{bf16, e4m3, e5m2, f16, i4x2, u1x8, u4x2};
+pub use scalars::{bf16, e2m3, e3m2, e4m3, e5m2, f16, i4x2, u1x8, u4x2};
 
 // Re-export complex product types
 pub use numerics::{ComplexProductF32, ComplexProductF64};

@@ -6,6 +6,8 @@
 //! - [`bf16`]: Brain floating point (bfloat16) - truncated single precision
 //! - [`e4m3`]: 8-bit floating point with 4 exponent, 3 mantissa bits (OCP FP8)
 //! - [`e5m2`]: 8-bit floating point with 5 exponent, 2 mantissa bits (OCP FP8)
+//! - [`e2m3`]: 6-bit floating point with 2 exponent, 3 mantissa bits (padded to 8-bit)
+//! - [`e3m2`]: 6-bit floating point with 3 exponent, 2 mantissa bits (padded to 8-bit)
 //!
 //! All types support standard arithmetic operations via trait implementations
 //! and conversion to/from `f32`.
@@ -22,6 +24,10 @@ extern "C" {
     fn nk_e4m3_to_f32(src: *const u8, dest: *mut f32);
     fn nk_f32_to_e5m2(src: *const f32, dest: *mut u8);
     fn nk_e5m2_to_f32(src: *const u8, dest: *mut f32);
+    fn nk_f32_to_e2m3(src: *const f32, dest: *mut u8);
+    fn nk_e2m3_to_f32(src: *const u8, dest: *mut f32);
+    fn nk_f32_to_e3m2(src: *const f32, dest: *mut u8);
+    fn nk_e3m2_to_f32(src: *const u8, dest: *mut f32);
 }
 
 /// Compatibility function for pre 1.85 Rust versions lacking `f32::abs`.
@@ -623,6 +629,318 @@ impl core::cmp::PartialOrd for e5m2 {
 
 // endregion: e5m2 Type
 
+// region: e2m3 Type
+
+/// A 6-bit floating point number in E2M3FN format (padded to 8-bit).
+///
+/// E2M3FN uses 1 sign bit, 2 exponent bits, and 3 mantissa bits. It provides
+/// higher precision than E3M2 but narrower dynamic range. Note: E2M3FN has no
+/// infinities, using those bit patterns for NaN instead.
+///
+/// # Examples
+///
+/// ```
+/// use numkong::e2m3;
+///
+/// let fp6 = e2m3::from_f32(2.5);
+/// let float = fp6.to_f32();
+/// ```
+#[repr(transparent)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct e2m3(pub u8);
+
+impl e2m3 {
+    /// Positive zero.
+    pub const ZERO: Self = e2m3(0x00);
+
+    /// Positive one.
+    pub const ONE: Self = e2m3(0x08);
+
+    /// Negative one.
+    pub const NEG_ONE: Self = e2m3(0x28);
+
+    #[inline(always)]
+    pub fn from_f32(value: f32) -> Self {
+        let mut result: u8 = 0;
+        unsafe { nk_f32_to_e2m3(&value, &mut result) };
+        e2m3(result)
+    }
+
+    #[inline(always)]
+    pub fn to_f32(self) -> f32 {
+        let mut result: f32 = 0.0;
+        unsafe { nk_e2m3_to_f32(&self.0, &mut result) };
+        result
+    }
+
+    /// Returns true if this value is NaN.
+    /// E2M3FN has no infinities - all special values are NaN.
+    #[inline(always)]
+    pub fn is_nan(self) -> bool {
+        false // E2M3FN has no NaN representation
+    }
+
+    /// Returns true if this value is positive or negative infinity.
+    /// E2M3FN format has no infinities.
+    #[inline(always)]
+    pub fn is_infinite(self) -> bool {
+        false
+    }
+
+    /// Returns true if this number is neither infinite nor NaN.
+    /// Note: E2M3FN format has no infinities or NaN.
+    #[inline(always)]
+    pub fn is_finite(self) -> bool {
+        true
+    }
+
+    /// Returns the absolute value of self.
+    #[inline(always)]
+    pub fn abs(self) -> Self {
+        e2m3(self.0 & 0x1F) // Clear sign bit
+    }
+
+    /// Returns the largest integer less than or equal to a number.
+    ///
+    /// This method is only available when the `std` feature is enabled.
+    #[cfg(feature = "std")]
+    #[inline(always)]
+    pub fn floor(self) -> Self {
+        Self::from_f32(self.to_f32().floor())
+    }
+
+    /// Returns the smallest integer greater than or equal to a number.
+    ///
+    /// This method is only available when the `std` feature is enabled.
+    #[cfg(feature = "std")]
+    #[inline(always)]
+    pub fn ceil(self) -> Self {
+        Self::from_f32(self.to_f32().ceil())
+    }
+
+    /// Returns the nearest integer to a number. Round half-way cases away from 0.0.
+    ///
+    /// This method is only available when the `std` feature is enabled.
+    #[cfg(feature = "std")]
+    #[inline(always)]
+    pub fn round(self) -> Self {
+        Self::from_f32(self.to_f32().round())
+    }
+}
+
+#[cfg(feature = "std")]
+impl core::fmt::Display for e2m3 {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        write!(f, "{}", self.to_f32())
+    }
+}
+
+impl core::ops::Add for e2m3 {
+    type Output = Self;
+    #[inline(always)]
+    fn add(self, rhs: Self) -> Self::Output {
+        Self::from_f32(self.to_f32() + rhs.to_f32())
+    }
+}
+
+impl core::ops::Sub for e2m3 {
+    type Output = Self;
+    #[inline(always)]
+    fn sub(self, rhs: Self) -> Self::Output {
+        Self::from_f32(self.to_f32() - rhs.to_f32())
+    }
+}
+
+impl core::ops::Mul for e2m3 {
+    type Output = Self;
+    #[inline(always)]
+    fn mul(self, rhs: Self) -> Self::Output {
+        Self::from_f32(self.to_f32() * rhs.to_f32())
+    }
+}
+
+impl core::ops::Div for e2m3 {
+    type Output = Self;
+    #[inline(always)]
+    fn div(self, rhs: Self) -> Self::Output {
+        Self::from_f32(self.to_f32() / rhs.to_f32())
+    }
+}
+
+impl core::ops::Neg for e2m3 {
+    type Output = Self;
+    #[inline(always)]
+    fn neg(self) -> Self::Output {
+        Self::from_f32(-self.to_f32())
+    }
+}
+
+impl core::cmp::PartialOrd for e2m3 {
+    #[inline(always)]
+    fn partial_cmp(&self, other: &Self) -> Option<core::cmp::Ordering> {
+        self.to_f32().partial_cmp(&other.to_f32())
+    }
+}
+
+// endregion: e2m3 Type
+
+// region: e3m2 Type
+
+/// A 6-bit floating point number in E3M2FN format (padded to 8-bit).
+///
+/// E3M2FN uses 1 sign bit, 3 exponent bits, and 2 mantissa bits. It provides
+/// wider dynamic range than E2M3 but lower precision. Unlike E2M3FN, E3M2FN
+/// supports infinities.
+///
+/// # Examples
+///
+/// ```
+/// use numkong::e3m2;
+///
+/// let fp6 = e3m2::from_f32(2.5);
+/// let float = fp6.to_f32();
+/// ```
+#[repr(transparent)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct e3m2(pub u8);
+
+impl e3m2 {
+    /// Positive zero.
+    pub const ZERO: Self = e3m2(0x00);
+
+    /// Positive one.
+    pub const ONE: Self = e3m2(0x0C);
+
+    /// Negative one.
+    pub const NEG_ONE: Self = e3m2(0x2C);
+
+    #[inline(always)]
+    pub fn from_f32(value: f32) -> Self {
+        let mut result: u8 = 0;
+        unsafe { nk_f32_to_e3m2(&value, &mut result) };
+        e3m2(result)
+    }
+
+    #[inline(always)]
+    pub fn to_f32(self) -> f32 {
+        let mut result: f32 = 0.0;
+        unsafe { nk_e3m2_to_f32(&self.0, &mut result) };
+        result
+    }
+
+    /// Returns true if this value is NaN.
+    #[inline(always)]
+    pub fn is_nan(self) -> bool {
+        let exp = (self.0 >> 2) & 0x07;
+        let mant = self.0 & 0x03;
+        exp == 0x07 && mant != 0
+    }
+
+    /// Returns true if this value is positive or negative infinity.
+    #[inline(always)]
+    pub fn is_infinite(self) -> bool {
+        let exp = (self.0 >> 2) & 0x07;
+        let mant = self.0 & 0x03;
+        exp == 0x07 && mant == 0
+    }
+
+    /// Returns true if this number is neither infinite nor NaN.
+    #[inline(always)]
+    pub fn is_finite(self) -> bool {
+        let exp = (self.0 >> 2) & 0x07;
+        exp != 0x07
+    }
+
+    /// Returns the absolute value of self.
+    #[inline(always)]
+    pub fn abs(self) -> Self {
+        e3m2(self.0 & 0x1F) // Clear sign bit
+    }
+
+    /// Returns the largest integer less than or equal to a number.
+    ///
+    /// This method is only available when the `std` feature is enabled.
+    #[cfg(feature = "std")]
+    #[inline(always)]
+    pub fn floor(self) -> Self {
+        Self::from_f32(self.to_f32().floor())
+    }
+
+    /// Returns the smallest integer greater than or equal to a number.
+    ///
+    /// This method is only available when the `std` feature is enabled.
+    #[cfg(feature = "std")]
+    #[inline(always)]
+    pub fn ceil(self) -> Self {
+        Self::from_f32(self.to_f32().ceil())
+    }
+
+    /// Returns the nearest integer to a number. Round half-way cases away from 0.0.
+    ///
+    /// This method is only available when the `std` feature is enabled.
+    #[cfg(feature = "std")]
+    #[inline(always)]
+    pub fn round(self) -> Self {
+        Self::from_f32(self.to_f32().round())
+    }
+}
+
+#[cfg(feature = "std")]
+impl core::fmt::Display for e3m2 {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        write!(f, "{}", self.to_f32())
+    }
+}
+
+impl core::ops::Add for e3m2 {
+    type Output = Self;
+    #[inline(always)]
+    fn add(self, rhs: Self) -> Self::Output {
+        Self::from_f32(self.to_f32() + rhs.to_f32())
+    }
+}
+
+impl core::ops::Sub for e3m2 {
+    type Output = Self;
+    #[inline(always)]
+    fn sub(self, rhs: Self) -> Self::Output {
+        Self::from_f32(self.to_f32() - rhs.to_f32())
+    }
+}
+
+impl core::ops::Mul for e3m2 {
+    type Output = Self;
+    #[inline(always)]
+    fn mul(self, rhs: Self) -> Self::Output {
+        Self::from_f32(self.to_f32() * rhs.to_f32())
+    }
+}
+
+impl core::ops::Div for e3m2 {
+    type Output = Self;
+    #[inline(always)]
+    fn div(self, rhs: Self) -> Self::Output {
+        Self::from_f32(self.to_f32() / rhs.to_f32())
+    }
+}
+
+impl core::ops::Neg for e3m2 {
+    type Output = Self;
+    #[inline(always)]
+    fn neg(self) -> Self::Output {
+        Self::from_f32(-self.to_f32())
+    }
+}
+
+impl core::cmp::PartialOrd for e3m2 {
+    #[inline(always)]
+    fn partial_cmp(&self, other: &Self) -> Option<core::cmp::Ordering> {
+        self.to_f32().partial_cmp(&other.to_f32())
+    }
+}
+
+// endregion: e3m2 Type
+
 // region: u1x8 Type
 
 /// A packed 8-bit vector representing 8 binary (1-bit) values.
@@ -965,6 +1283,96 @@ mod tests {
                 assert!(
                     rel_error < 0.5,
                     "e5m2 roundtrip failed for {}: got {}",
+                    val,
+                    roundtrip
+                );
+            } else {
+                assert_eq!(roundtrip, 0.0);
+            }
+        }
+    }
+
+    #[test]
+    fn e2m3_arithmetic() {
+        let a = e2m3::from_f32(2.0);
+        let b = e2m3::from_f32(1.5);
+
+        assert!((a + b).to_f32() - 3.5 < 1.0);
+        assert!((a - b).to_f32() - 0.5 < 1.0);
+        assert!((a * b).to_f32() - 3.0 < 1.0);
+        assert!((a / b).to_f32() - 1.333 < 1.0);
+        assert!((-a).to_f32() + 2.0 < 0.5);
+
+        assert!(e2m3::ZERO.to_f32() == 0.0);
+        assert!((e2m3::ONE.to_f32() - 1.0).abs() < 0.2);
+        assert!((e2m3::NEG_ONE.to_f32() + 1.0).abs() < 0.2);
+
+        assert!(a > b);
+        assert!(!(a < b));
+        assert!(a == a);
+
+        assert!((-a).abs().to_f32() - 2.0 < 0.5);
+        assert!(a.is_finite());
+        assert!(!a.is_nan());
+        assert!(!a.is_infinite());
+    }
+
+    #[test]
+    fn e3m2_arithmetic() {
+        let a = e3m2::from_f32(4.0);
+        let b = e3m2::from_f32(2.0);
+
+        assert!((a + b).to_f32() - 6.0 < 1.0);
+        assert!((a - b).to_f32() - 2.0 < 1.0);
+        assert!((a * b).to_f32() - 8.0 < 1.0);
+        assert!((a / b).to_f32() - 2.0 < 1.0);
+        assert!((-a).to_f32() + 4.0 < 1.0);
+
+        assert!(e3m2::ZERO.to_f32() == 0.0);
+        assert!((e3m2::ONE.to_f32() - 1.0).abs() < 0.2);
+        assert!((e3m2::NEG_ONE.to_f32() + 1.0).abs() < 0.2);
+
+        assert!(a > b);
+        assert!(!(a < b));
+        assert!(a == a);
+
+        assert!((-a).abs().to_f32() - 4.0 < 1.0);
+        assert!(a.is_finite());
+        assert!(!a.is_nan());
+        assert!(!a.is_infinite());
+    }
+
+    #[test]
+    fn e2m3_roundtrip() {
+        let test_values = [0.0f32, 1.0, -1.0, 0.5, 2.0, 3.0];
+        for &val in &test_values {
+            let fp6 = e2m3::from_f32(val);
+            let roundtrip = fp6.to_f32();
+            if val != 0.0 {
+                let rel_error = ((roundtrip - val) / val).abs();
+                assert!(
+                    rel_error < 1.0,
+                    "e2m3 roundtrip failed for {}: got {}",
+                    val,
+                    roundtrip
+                );
+            } else {
+                assert_eq!(roundtrip, 0.0);
+            }
+        }
+    }
+
+    #[test]
+    fn e3m2_roundtrip() {
+        let test_values = [0.0f32, 1.0, -1.0, 0.5, 2.0, 4.0, 8.0, 16.0];
+        for &val in &test_values {
+            let fp6 = e3m2::from_f32(val);
+            let roundtrip = fp6.to_f32();
+            if val != 0.0 {
+                let rel_error = ((roundtrip - val) / val).abs();
+                assert!(
+                    rel_error < 1.0,
+                    "e3m2 roundtrip failed for {}: got {}",
                     val,
                     roundtrip
                 );
