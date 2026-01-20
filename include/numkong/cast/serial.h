@@ -592,9 +592,9 @@ NK_INTERNAL void nk_f32_to_e2m3_serial(nk_f32_t const *src, nk_e2m3_t *dest) {
         return;
     }
 
-    // Subnormal range: [0, 0.5). exp=0, mant encodes value/0.125
-    if (abs_x < 0.5f) {
-        nk_f32_t scaled = abs_x * 8.0f; // Scale to mantissa range [0, 4)
+    // Subnormal range: [0, 1.0). exp=0, mant encodes value/0.125
+    if (abs_x < 1.0f) {
+        nk_f32_t scaled = abs_x * 8.0f; // Scale to mantissa range [0, 8)
         nk_i32_t mant = (nk_i32_t)scaled;
         nk_f32_t frac = scaled - (nk_f32_t)mant;
         // RNE rounding
