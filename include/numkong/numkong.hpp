@@ -142,7 +142,9 @@ void fill_uniform(generator_type_ &generator, scalar_type_ *data, std::size_t n)
     if constexpr (std::is_same_v<scalar_type_, u1x8_t> || std::is_same_v<scalar_type_, u4x2_t> ||
                   std::is_same_v<scalar_type_, i4x2_t>) {
         std::uniform_int_distribution<std::uint32_t> distribution(0, 255);
-        for (std::size_t i = 0; i < n; ++i) data[i].raw_ = static_cast<std::uint8_t>(distribution(generator));
+        std::size_t num_packed_values = divide_round_up(n, static_cast<std::size_t>(scalar_type_::elements()));
+        for (std::size_t i = 0; i < num_packed_values; ++i)
+            data[i].raw_ = static_cast<std::uint8_t>(distribution(generator));
     }
     // Integer distribution types aren't always defined
     else if constexpr (is_integer<scalar_type_>()) {
