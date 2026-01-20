@@ -68,6 +68,13 @@ NK_INTERNAL void nk_partial_load_b8x64_skylake_(void const *src, nk_b512_vec_t *
     dst->zmm = _mm512_maskz_loadu_epi8(mask, src);
 }
 
+/** @brief Partial load for 4-bit nibbles (128 max = 64 bytes) into 512-bit vector (Skylake AVX-512). */
+NK_INTERNAL void nk_partial_load_b4x128_skylake_(void const *src, nk_b512_vec_t *dst, nk_size_t n) {
+    nk_size_t n_bytes = (n + 1) / 2; // Convert nibble count to byte count
+    __mmask64 mask = _bzhi_u64(0xFFFFFFFFFFFFFFFFULL, (unsigned int)n_bytes);
+    dst->zmm = _mm512_maskz_loadu_epi8(mask, src);
+}
+
 /** @brief Type-agnostic partial load for 32-bit elements (8 elements max) into 256-bit vector (Skylake AVX-512). */
 NK_INTERNAL void nk_partial_load_b32x8_skylake_(void const *src, nk_b256_vec_t *dst, nk_size_t n) {
     __mmask8 mask = (__mmask8)_bzhi_u32(0xFF, (unsigned int)n);

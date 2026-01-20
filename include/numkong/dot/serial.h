@@ -501,7 +501,39 @@ NK_INTERNAL void nk_dot_u4x16_finalize_serial(nk_dot_u4x16_state_serial_t const 
     result->u32s[3] = (nk_u32_t)(state_d->sums[0] + state_d->sums[1]);
 }
 
-// I4x2 state: signed nibbles with same structure
+/**
+ *  @brief Load helper for i4→i8 conversion (asymmetric GEMM optimization).
+ *
+ *  Loads 8 bytes containing 16 packed i4 values and expands them to 16 i8 values.
+ *  This matches the asymmetric pattern: A matrix expands on load, B matrix pre-expanded.
+ */
+NK_INTERNAL void nk_load_i4x16_to_i8x16_serial_(void const *src, nk_b128_vec_t *dst) {
+    nk_i4_to_i8_serial_((nk_i4x2_t const *)src, dst->i8s, 16);
+}
+
+/**
+ *  @brief Partial load helper for i4→i8 conversion.
+ */
+NK_INTERNAL void nk_partial_load_i4x16_to_i8x16_serial_(void const *src, nk_b128_vec_t *dst, nk_size_t n) {
+    nk_i4_to_i8_serial_((nk_i4x2_t const *)src, dst->i8s, n);
+    for (nk_size_t i = n; i < 16; ++i) dst->i8s[i] = 0;
+}
+
+/**
+ *  @brief Load helper for u4→u8 conversion (asymmetric GEMM optimization).
+ */
+NK_INTERNAL void nk_load_u4x16_to_u8x16_serial_(void const *src, nk_b128_vec_t *dst) {
+    nk_u4_to_u8_serial_((nk_u4x2_t const *)src, dst->u8s, 16);
+}
+
+/**
+ *  @brief Partial load helper for u4→u8 conversion.
+ */
+NK_INTERNAL void nk_partial_load_u4x16_to_u8x16_serial_(void const *src, nk_b128_vec_t *dst, nk_size_t n) {
+    nk_u4_to_u8_serial_((nk_u4x2_t const *)src, dst->u8s, n);
+    for (nk_size_t i = n; i < 16; ++i) dst->u8s[i] = 0;
+}
+
 typedef struct nk_dot_i4x16_state_serial_t {
     nk_i64_t sums[2]; // sums[0]: low nibbles, sums[1]: high nibbles
 } nk_dot_i4x16_state_serial_t;

@@ -1516,6 +1516,16 @@ int main(int argc, char **argv) {
                         nk_dots_packed_f64_haswell);
     dots_<f16_k, f32_k>("dots_packed_f16_haswell", nk_dots_packed_size_f16_haswell, nk_dots_pack_f16_haswell,
                         nk_dots_packed_f16_haswell);
+    dots_<bf16_k, f32_k>("dots_packed_bf16_haswell", nk_dots_packed_size_bf16_haswell, nk_dots_pack_bf16_haswell,
+                         nk_dots_packed_bf16_haswell);
+    dots_<e4m3_k, f32_k>("dots_packed_e4m3_haswell", nk_dots_packed_size_e4m3_haswell, nk_dots_pack_e4m3_haswell,
+                         nk_dots_packed_e4m3_haswell);
+    dots_<e5m2_k, f32_k>("dots_packed_e5m2_haswell", nk_dots_packed_size_e5m2_haswell, nk_dots_pack_e5m2_haswell,
+                         nk_dots_packed_e5m2_haswell);
+    dots_<i8_k, i32_k>("dots_packed_i8_haswell", nk_dots_packed_size_i8_haswell, nk_dots_pack_i8_haswell,
+                       nk_dots_packed_i8_haswell);
+    dots_<u8_k, u32_k>("dots_packed_u8_haswell", nk_dots_packed_size_u8_haswell, nk_dots_pack_u8_haswell,
+                       nk_dots_packed_u8_haswell);
 
 #endif
 

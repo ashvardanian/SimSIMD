@@ -23,18 +23,18 @@
 extern "C" {
 #endif
 
-/* BF16 GEMM: simd_width=8 (8 bf16s = 16 bytes = NEON register width) */
-nk_define_dots_pack_size_(neonbfdot, bf16, bf16, f32)
-nk_define_dots_pack_(neonbfdot, bf16, bf16, f32, nk_assign_from_to_)
-nk_define_dots_symmetric_(bf16_neonbfdot, bf16, f32, nk_b128_vec_t, nk_dot_bf16x8_state_neonbfdot_t, nk_b128_vec_t,
+/* BF16 GEMM: depth_simd_step=8 (8 bf16s = 16 bytes = NEON register width) */
+nk_define_dots_pack_size_(bf16, neonbfdot, bf16, f32, /*depth_simd_step=*/8)
+nk_define_dots_pack_(bf16, neonbfdot, bf16, f32, nk_assign_from_to_, /*depth_simd_step=*/8)
+nk_define_dots_symmetric_(bf16, neonbfdot, bf16, f32, nk_b128_vec_t, nk_dot_bf16x8_state_neonbfdot_t, nk_b128_vec_t,
                           nk_dot_bf16x8_init_neonbfdot, nk_load_b128_neon_, nk_partial_load_b16x8_serial_,
                           nk_dot_bf16x8_update_neonbfdot, nk_dot_bf16x8_finalize_neonbfdot,
-                          /*simd_width=*/8)
-nk_define_dots_packed_(bf16_neonbfdot, bf16, bf16, f32, nk_b128_vec_t, nk_dot_bf16x8_state_neonbfdot_t, nk_b128_vec_t,
+                          /*depth_simd_step=*/8)
+nk_define_dots_packed_(bf16, neonbfdot, bf16, bf16, f32, nk_b128_vec_t, nk_dot_bf16x8_state_neonbfdot_t, nk_b128_vec_t,
                        nk_dot_bf16x8_init_neonbfdot, nk_load_b128_neon_, nk_partial_load_b16x8_serial_,
                        nk_load_b128_neon_, nk_partial_load_b16x8_serial_, nk_dot_bf16x8_update_neonbfdot,
                        nk_dot_bf16x8_finalize_neonbfdot, nk_partial_store_b32x4_serial_,
-                       /*simd_width=*/8)
+                       /*depth_simd_step=*/8)
 
 #if defined(__cplusplus)
 } // extern "C"

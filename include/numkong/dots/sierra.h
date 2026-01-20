@@ -29,31 +29,31 @@
 extern "C" {
 #endif
 
-/* I8 GEMM: simd_width=32 (32 i8s = 32 bytes = AVX2 register width) */
-nk_define_dots_pack_size_(sierra, i8, i8, i32)
-nk_define_dots_pack_(sierra, i8, i8, i32, nk_assign_from_to_)
-nk_define_dots_symmetric_(i8_sierra, i8, i32, nk_b256_vec_t, nk_dot_i8x32_state_sierra_t, nk_b128_vec_t,
+/* I8 GEMM: depth_simd_step=32 (32 i8s = 32 bytes = AVX2 register width) */
+nk_define_dots_pack_size_(i8, sierra, i8, i8, i32, /*depth_simd_step=*/32)
+nk_define_dots_pack_(i8, sierra, i8, i8, i32, nk_assign_from_to_, /*depth_simd_step=*/32)
+nk_define_dots_symmetric_(i8, sierra, i8, i32, nk_b256_vec_t, nk_dot_i8x32_state_sierra_t, nk_b128_vec_t,
                           nk_dot_i8x32_init_sierra, nk_load_b256_haswell_, nk_partial_load_b8x32_serial_,
                           nk_dot_i8x32_update_sierra, nk_dot_i8x32_finalize_sierra,
-                          /*simd_width=*/32)
-nk_define_dots_packed_(i8_sierra, i8, i8, i32, nk_b256_vec_t, nk_dot_i8x32_state_sierra_t, nk_b128_vec_t,
+                          /*depth_simd_step=*/32)
+nk_define_dots_packed_(i8, sierra, i8, i8, i32, nk_b256_vec_t, nk_dot_i8x32_state_sierra_t, nk_b128_vec_t,
                        nk_dot_i8x32_init_sierra, nk_load_b256_haswell_, nk_partial_load_b8x32_serial_,
                        nk_load_b256_haswell_, nk_partial_load_b8x32_serial_, nk_dot_i8x32_update_sierra,
                        nk_dot_i8x32_finalize_sierra, nk_partial_store_b32x4_serial_,
-                       /*simd_width=*/32)
+                       /*depth_simd_step=*/32)
 
-/* U8 GEMM: simd_width=32 (32 u8s = 32 bytes = AVX2 register width) */
-nk_define_dots_pack_size_(sierra, u8, u8, u32)
-nk_define_dots_pack_(sierra, u8, u8, u32, nk_assign_from_to_)
-nk_define_dots_symmetric_(u8_sierra, u8, u32, nk_b256_vec_t, nk_dot_u8x32_state_sierra_t, nk_b128_vec_t,
+/* U8 GEMM: depth_simd_step=32 (32 u8s = 32 bytes = AVX2 register width) */
+nk_define_dots_pack_size_(u8, sierra, u8, u8, u32, /*depth_simd_step=*/32)
+nk_define_dots_pack_(u8, sierra, u8, u8, u32, nk_assign_from_to_, /*depth_simd_step=*/32)
+nk_define_dots_symmetric_(u8, sierra, u8, u32, nk_b256_vec_t, nk_dot_u8x32_state_sierra_t, nk_b128_vec_t,
                           nk_dot_u8x32_init_sierra, nk_load_b256_haswell_, nk_partial_load_b8x32_serial_,
                           nk_dot_u8x32_update_sierra, nk_dot_u8x32_finalize_sierra,
-                          /*simd_width=*/32)
-nk_define_dots_packed_(u8_sierra, u8, u8, u32, nk_b256_vec_t, nk_dot_u8x32_state_sierra_t, nk_b128_vec_t,
+                          /*depth_simd_step=*/32)
+nk_define_dots_packed_(u8, sierra, u8, u8, u32, nk_b256_vec_t, nk_dot_u8x32_state_sierra_t, nk_b128_vec_t,
                        nk_dot_u8x32_init_sierra, nk_load_b256_haswell_, nk_partial_load_b8x32_serial_,
                        nk_load_b256_haswell_, nk_partial_load_b8x32_serial_, nk_dot_u8x32_update_sierra,
                        nk_dot_u8x32_finalize_sierra, nk_partial_store_b32x4_serial_,
-                       /*simd_width=*/32)
+                       /*depth_simd_step=*/32)
 
 #if defined(__cplusplus)
 } // extern "C"

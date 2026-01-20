@@ -1004,6 +1004,14 @@ NK_INTERNAL void nk_partial_load_b4x64_serial_(void const *src, nk_b256_vec_t *d
     for (nk_size_t i = 0; i < n_bytes && i < 32; i++) dst->u8s[i] = s[i];
 }
 
+/** @brief Partial load for 4-bit nibbles (16 max = 8 bytes) into 64-bit vector (zeros in remaining slots). */
+NK_INTERNAL void nk_partial_load_b4x16_serial_(void const *src, nk_b64_vec_t *dst, nk_size_t n) {
+    dst->u64 = 0;
+    nk_u8_t const *s = (nk_u8_t const *)src;
+    nk_size_t n_bytes = (n + 1) / 2;
+    for (nk_size_t i = 0; i < n_bytes && i < 8; i++) ((nk_u8_t *)&dst->u64)[i] = s[i];
+}
+
 NK_INTERNAL void nk_partial_load_b64x2_serial_(void const *src, nk_b128_vec_t *dst, nk_size_t n) {
     dst->u64s[0] = 0, dst->u64s[1] = 0;
     nk_u64_t const *s = (nk_u64_t const *)src;
@@ -1579,6 +1587,34 @@ NK_PUBLIC void nk_e5m2_to_bf16(nk_e5m2_t const *src, nk_bf16_t *dest) {
     nk_f32_t temp;
     nk_e5m2_to_f32_serial(src, &temp);
     nk_f32_to_bf16_serial(&temp, dest);
+}
+
+/**
+ *  @brief Convert i4 (4-bit signed integer, -8 to 7) to i8.
+ *
+ *  Nibbles are packed: low nibble in bits [0:3], high nibble in bits [4:7].
+ *  Sign extension: XOR with 8 then subtract 8 converts unsigned nibble to signed.
+ */
+NK_PUBLIC void nk_i4_to_i8_serial_(nk_i4x2_t const *src, nk_i8_t *dest, nk_size_t count) {
+    nk_u8_t const *bytes = (nk_u8_t const *)src;
+    for (nk_size_t i = 0; i < count; ++i) {
+        nk_u8_t byte = bytes[i / 2];
+        nk_u8_t nibble = (i % 2 == 0) ? (byte & 0x0F) : (byte >> 4);
+        dest[i] = (nk_i8_t)((nibble ^ 8) - 8); // Sign extend: 0-7 → 0-7, 8-15 → -8 to -1
+    }
+}
+
+/**
+ *  @brief Convert u4 (4-bit unsigned integer, 0 to 15) to u8.
+ *
+ *  Nibbles are packed: low nibble in bits [0:3], high nibble in bits [4:7].
+ */
+NK_PUBLIC void nk_u4_to_u8_serial_(nk_u4x2_t const *src, nk_u8_t *dest, nk_size_t count) {
+    nk_u8_t const *bytes = (nk_u8_t const *)src;
+    for (nk_size_t i = 0; i < count; ++i) {
+        nk_u8_t byte = bytes[i / 2];
+        dest[i] = (i % 2 == 0) ? (byte & 0x0F) : (byte >> 4);
+    }
 }
 
 #pragma endregion - Public API

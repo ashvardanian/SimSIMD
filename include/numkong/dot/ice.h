@@ -479,6 +479,215 @@ nk_dot_u4_ice_cycle:
     *result = (nk_u32_t)_mm512_reduce_add_epi32(sum_i32x16);
 }
 
+typedef struct nk_dot_i4x128_state_ice_t {
+    __m512i product_sum_i32x16; // Main product: a_biased × b_biased
+    __m512i sum_a_biased_i64x8; // Correction term: sum(a_biased)
+    __m512i sum_b_biased_i64x8; // Correction term: sum(b_biased)
+} nk_dot_i4x128_state_ice_t;
+
+NK_INTERNAL void nk_dot_i4x128_init_ice(nk_dot_i4x128_state_ice_t *state) {
+    state->product_sum_i32x16 = _mm512_setzero_si512();
+    state->sum_a_biased_i64x8 = _mm512_setzero_si512();
+    state->sum_b_biased_i64x8 = _mm512_setzero_si512();
+}
+
+NK_INTERNAL void nk_dot_i4x128_update_ice(nk_dot_i4x128_state_ice_t *state, nk_b512_vec_t a, nk_b512_vec_t b) {
+    // i4 values are packed as nibbles: 128 nibbles in 64 bytes (512 bits)
+    // For signed i4, we use algebraic transformation:
+    // Signed values in [-8,7] are stored as unsigned [0,15].
+    // We XOR with 8 to bias them: a_biased = a_unsigned ^ 8
+    // Then: a×b = (a_biased - 8)×(b_biased - 8) = a_biased×b_biased - 8×(a_biased + b_biased) + 64
+    //
+    // Key optimization: Keep correction terms in vector form, reduce only at finalize time
+    __m512i const nibble_mask_u8x64 = _mm512_set1_epi8(0x0F);
+    __m512i const bias_xor_mask_u8x64 = _mm512_set1_epi8(0x08);
+    __m512i const zeros_u8x64 = _mm512_setzero_si512();
+
+    // Load 64 bytes containing 128 nibbles (full 512-bit register)
+    __m512i a_i4x128 = a.zmm;
+    __m512i b_i4x128 = b.zmm;
+
+    // Extract low and high nibbles (all 128 nibbles from 64 bytes)
+    __m512i a_lo_u8x64 = _mm512_and_si512(a_i4x128, nibble_mask_u8x64);
+    __m512i a_hi_u8x64 = _mm512_and_si512(_mm512_srli_epi16(a_i4x128, 4), nibble_mask_u8x64);
+    __m512i b_lo_u8x64 = _mm512_and_si512(b_i4x128, nibble_mask_u8x64);
+    __m512i b_hi_u8x64 = _mm512_and_si512(_mm512_srli_epi16(b_i4x128, 4), nibble_mask_u8x64);
+
+    // Apply bias transformation: XOR with 8
+    __m512i a_biased_lo_u8x64 = _mm512_xor_si512(a_lo_u8x64, bias_xor_mask_u8x64);
+    __m512i a_biased_hi_u8x64 = _mm512_xor_si512(a_hi_u8x64, bias_xor_mask_u8x64);
+    __m512i b_biased_lo_u8x64 = _mm512_xor_si512(b_lo_u8x64, bias_xor_mask_u8x64);
+    __m512i b_biased_hi_u8x64 = _mm512_xor_si512(b_hi_u8x64, bias_xor_mask_u8x64);
+
+    // Compute dot products of a_biased×b_biased for low and high nibbles
+    state->product_sum_i32x16 = _mm512_dpbusd_epi32(state->product_sum_i32x16, a_biased_lo_u8x64, b_biased_lo_u8x64);
+    state->product_sum_i32x16 = _mm512_dpbusd_epi32(state->product_sum_i32x16, a_biased_hi_u8x64, b_biased_hi_u8x64);
+
+    // Accumulate sums of biased values using SAD (stays in vector form)
+    state->sum_a_biased_i64x8 = _mm512_add_epi64(state->sum_a_biased_i64x8,
+                                                 _mm512_sad_epu8(a_biased_lo_u8x64, zeros_u8x64));
+    state->sum_a_biased_i64x8 = _mm512_add_epi64(state->sum_a_biased_i64x8,
+                                                 _mm512_sad_epu8(a_biased_hi_u8x64, zeros_u8x64));
+    state->sum_b_biased_i64x8 = _mm512_add_epi64(state->sum_b_biased_i64x8,
+                                                 _mm512_sad_epu8(b_biased_lo_u8x64, zeros_u8x64));
+    state->sum_b_biased_i64x8 = _mm512_add_epi64(state->sum_b_biased_i64x8,
+                                                 _mm512_sad_epu8(b_biased_hi_u8x64, zeros_u8x64));
+}
+
+NK_INTERNAL void nk_dot_i4x128_finalize_ice(                                            //
+    nk_dot_i4x128_state_ice_t const *state_a, nk_dot_i4x128_state_ice_t const *state_b, //
+    nk_dot_i4x128_state_ice_t const *state_c, nk_dot_i4x128_state_ice_t const *state_d, //
+    nk_b128_vec_t *results) {
+    // ILP-optimized 4-way hierarchical reduction for i4 with algebraic correction
+    // Formula: result = product_sum - 8×(sum_a_biased + sum_b_biased) + 64×nibble_count
+
+    // Reduce main products: zmm (i32x16) → ymm (i32x8)
+    __m256i product_a_i32x8 = _mm256_add_epi32(_mm512_castsi512_si256(state_a->product_sum_i32x16),
+                                               _mm512_extracti32x8_epi32(state_a->product_sum_i32x16, 1));
+    __m256i product_b_i32x8 = _mm256_add_epi32(_mm512_castsi512_si256(state_b->product_sum_i32x16),
+                                               _mm512_extracti32x8_epi32(state_b->product_sum_i32x16, 1));
+    __m256i product_c_i32x8 = _mm256_add_epi32(_mm512_castsi512_si256(state_c->product_sum_i32x16),
+                                               _mm512_extracti32x8_epi32(state_c->product_sum_i32x16, 1));
+    __m256i product_d_i32x8 = _mm256_add_epi32(_mm512_castsi512_si256(state_d->product_sum_i32x16),
+                                               _mm512_extracti32x8_epi32(state_d->product_sum_i32x16, 1));
+
+    // Reduce ymm (i32x8) → xmm (i32x4)
+    __m128i product_a_i32x4 = _mm_add_epi32(_mm256_castsi256_si128(product_a_i32x8),
+                                            _mm256_extracti128_si256(product_a_i32x8, 1));
+    __m128i product_b_i32x4 = _mm_add_epi32(_mm256_castsi256_si128(product_b_i32x8),
+                                            _mm256_extracti128_si256(product_b_i32x8, 1));
+    __m128i product_c_i32x4 = _mm_add_epi32(_mm256_castsi256_si128(product_c_i32x8),
+                                            _mm256_extracti128_si256(product_c_i32x8, 1));
+    __m128i product_d_i32x4 = _mm_add_epi32(_mm256_castsi256_si128(product_d_i32x8),
+                                            _mm256_extracti128_si256(product_d_i32x8, 1));
+
+    // 4-way transpose to get [a,b,c,d] in lanes
+    __m128i transpose_ab_low = _mm_unpacklo_epi32(product_a_i32x4, product_b_i32x4);
+    __m128i transpose_cd_low = _mm_unpacklo_epi32(product_c_i32x4, product_d_i32x4);
+    __m128i transpose_ab_high = _mm_unpackhi_epi32(product_a_i32x4, product_b_i32x4);
+    __m128i transpose_cd_high = _mm_unpackhi_epi32(product_c_i32x4, product_d_i32x4);
+    __m128i product_lane0 = _mm_unpacklo_epi64(transpose_ab_low, transpose_cd_low);
+    __m128i product_lane1 = _mm_unpackhi_epi64(transpose_ab_low, transpose_cd_low);
+    __m128i product_lane2 = _mm_unpacklo_epi64(transpose_ab_high, transpose_cd_high);
+    __m128i product_lane3 = _mm_unpackhi_epi64(transpose_ab_high, transpose_cd_high);
+    __m128i product_final = _mm_add_epi32(_mm_add_epi32(product_lane0, product_lane1),
+                                          _mm_add_epi32(product_lane2, product_lane3));
+
+    // Add bias terms together before reduction: sum_total_biased = sum_a_biased + sum_b_biased
+    __m512i sum_biased_a_i64x8 = _mm512_add_epi64(state_a->sum_a_biased_i64x8, state_a->sum_b_biased_i64x8);
+    __m512i sum_biased_b_i64x8 = _mm512_add_epi64(state_b->sum_a_biased_i64x8, state_b->sum_b_biased_i64x8);
+    __m512i sum_biased_c_i64x8 = _mm512_add_epi64(state_c->sum_a_biased_i64x8, state_c->sum_b_biased_i64x8);
+    __m512i sum_biased_d_i64x8 = _mm512_add_epi64(state_d->sum_a_biased_i64x8, state_d->sum_b_biased_i64x8);
+
+    // Hierarchical reduction: zmm (i64x8) → ymm (i64x4)
+    __m256i sum_biased_a_i64x4 = _mm256_add_epi64(_mm512_castsi512_si256(sum_biased_a_i64x8),
+                                                  _mm512_extracti64x4_epi64(sum_biased_a_i64x8, 1));
+    __m256i sum_biased_b_i64x4 = _mm256_add_epi64(_mm512_castsi512_si256(sum_biased_b_i64x8),
+                                                  _mm512_extracti64x4_epi64(sum_biased_b_i64x8, 1));
+    __m256i sum_biased_c_i64x4 = _mm256_add_epi64(_mm512_castsi512_si256(sum_biased_c_i64x8),
+                                                  _mm512_extracti64x4_epi64(sum_biased_c_i64x8, 1));
+    __m256i sum_biased_d_i64x4 = _mm256_add_epi64(_mm512_castsi512_si256(sum_biased_d_i64x8),
+                                                  _mm512_extracti64x4_epi64(sum_biased_d_i64x8, 1));
+
+    // Reduce ymm (i64x4) → xmm (i64x2)
+    __m128i sum_biased_a_i64x2 = _mm_add_epi64(_mm256_castsi256_si128(sum_biased_a_i64x4),
+                                               _mm256_extracti128_si256(sum_biased_a_i64x4, 1));
+    __m128i sum_biased_b_i64x2 = _mm_add_epi64(_mm256_castsi256_si128(sum_biased_b_i64x4),
+                                               _mm256_extracti128_si256(sum_biased_b_i64x4, 1));
+    __m128i sum_biased_c_i64x2 = _mm_add_epi64(_mm256_castsi256_si128(sum_biased_c_i64x4),
+                                               _mm256_extracti128_si256(sum_biased_c_i64x4, 1));
+    __m128i sum_biased_d_i64x2 = _mm_add_epi64(_mm256_castsi256_si128(sum_biased_d_i64x4),
+                                               _mm256_extracti128_si256(sum_biased_d_i64x4, 1));
+
+    // Horizontal add i64x2 → single i64 in lane 0 (stays in SIMD)
+    __m128i sum_biased_a_i64x1 = _mm_add_epi64(sum_biased_a_i64x2,
+                                               _mm_shuffle_epi32(sum_biased_a_i64x2, _MM_SHUFFLE(1, 0, 3, 2)));
+    __m128i sum_biased_b_i64x1 = _mm_add_epi64(sum_biased_b_i64x2,
+                                               _mm_shuffle_epi32(sum_biased_b_i64x2, _MM_SHUFFLE(1, 0, 3, 2)));
+    __m128i sum_biased_c_i64x1 = _mm_add_epi64(sum_biased_c_i64x2,
+                                               _mm_shuffle_epi32(sum_biased_c_i64x2, _MM_SHUFFLE(1, 0, 3, 2)));
+    __m128i sum_biased_d_i64x1 = _mm_add_epi64(sum_biased_d_i64x2,
+                                               _mm_shuffle_epi32(sum_biased_d_i64x2, _MM_SHUFFLE(1, 0, 3, 2)));
+
+    // Pack 4 i64 values into __m256i: [sum_a, sum_b, sum_c, sum_d]
+    __m256i sum_biased_all_i64x4 = _mm256_set_m128i(_mm_unpacklo_epi64(sum_biased_c_i64x1, sum_biased_d_i64x1),
+                                                    _mm_unpacklo_epi64(sum_biased_a_i64x1, sum_biased_b_i64x1));
+
+    // Apply correction factor: -4 × sum_biased (multiply by -4 using shift + negate)
+    // -4x = -(x << 2)
+    __m256i sum_biased_scaled_i64x4 = _mm256_slli_epi64(sum_biased_all_i64x4, 2);                // Multiply by 4
+    sum_biased_scaled_i64x4 = _mm256_sub_epi64(_mm256_setzero_si256(), sum_biased_scaled_i64x4); // Negate
+
+    // Convert i64 → i32 (extract low 32 bits from each i64)
+    __m128i correction_vec = _mm256_castsi256_si128(
+        _mm256_permutevar8x32_epi32(sum_biased_scaled_i64x4, _mm256_setr_epi32(0, 2, 4, 6, 1, 3, 5, 7)));
+
+    results->xmm = _mm_add_epi32(product_final, correction_vec);
+}
+
+typedef struct nk_dot_u4x128_state_ice_t {
+    __m512i sum_i32x16; // Direct unsigned accumulator
+} nk_dot_u4x128_state_ice_t;
+
+NK_INTERNAL void nk_dot_u4x128_init_ice(nk_dot_u4x128_state_ice_t *state) {
+    state->sum_i32x16 = _mm512_setzero_si512();
+}
+
+NK_INTERNAL void nk_dot_u4x128_update_ice(nk_dot_u4x128_state_ice_t *state, nk_b512_vec_t a, nk_b512_vec_t b) {
+    // u4 values are packed as nibbles: 128 nibbles in 64 bytes (512 bits)
+    // Values are ∈ [0,15], so DPBUSD can be used directly
+    __m512i const nibble_mask_u8x64 = _mm512_set1_epi8(0x0F);
+
+    // Load 64 bytes containing 128 nibbles (full 512-bit register)
+    __m512i a_u4x128 = a.zmm;
+    __m512i b_u4x128 = b.zmm;
+
+    // Extract low and high nibbles (all 128 nibbles from 64 bytes)
+    __m512i a_lo_u8x64 = _mm512_and_si512(a_u4x128, nibble_mask_u8x64);
+    __m512i a_hi_u8x64 = _mm512_and_si512(_mm512_srli_epi16(a_u4x128, 4), nibble_mask_u8x64);
+    __m512i b_lo_u8x64 = _mm512_and_si512(b_u4x128, nibble_mask_u8x64);
+    __m512i b_hi_u8x64 = _mm512_and_si512(_mm512_srli_epi16(b_u4x128, 4), nibble_mask_u8x64);
+
+    // DPBUSD works directly for u4 since values are ∈ [0,15]
+    state->sum_i32x16 = _mm512_dpbusd_epi32(state->sum_i32x16, a_lo_u8x64, b_lo_u8x64);
+    state->sum_i32x16 = _mm512_dpbusd_epi32(state->sum_i32x16, a_hi_u8x64, b_hi_u8x64);
+}
+
+NK_INTERNAL void nk_dot_u4x128_finalize_ice(                                            //
+    nk_dot_u4x128_state_ice_t const *state_a, nk_dot_u4x128_state_ice_t const *state_b, //
+    nk_dot_u4x128_state_ice_t const *state_c, nk_dot_u4x128_state_ice_t const *state_d, //
+    nk_b128_vec_t *results) {
+    // ILP-optimized 4-way hierarchical reduction for u4 (no correction needed)
+
+    // Reduce zmm (i32x16) → ymm (i32x8)
+    __m256i sum_a_i32x8 = _mm256_add_epi32(_mm512_castsi512_si256(state_a->sum_i32x16),
+                                           _mm512_extracti32x8_epi32(state_a->sum_i32x16, 1));
+    __m256i sum_b_i32x8 = _mm256_add_epi32(_mm512_castsi512_si256(state_b->sum_i32x16),
+                                           _mm512_extracti32x8_epi32(state_b->sum_i32x16, 1));
+    __m256i sum_c_i32x8 = _mm256_add_epi32(_mm512_castsi512_si256(state_c->sum_i32x16),
+                                           _mm512_extracti32x8_epi32(state_c->sum_i32x16, 1));
+    __m256i sum_d_i32x8 = _mm256_add_epi32(_mm512_castsi512_si256(state_d->sum_i32x16),
+                                           _mm512_extracti32x8_epi32(state_d->sum_i32x16, 1));
+
+    // Reduce ymm (i32x8) → xmm (i32x4)
+    __m128i sum_a_i32x4 = _mm_add_epi32(_mm256_castsi256_si128(sum_a_i32x8), _mm256_extracti128_si256(sum_a_i32x8, 1));
+    __m128i sum_b_i32x4 = _mm_add_epi32(_mm256_castsi256_si128(sum_b_i32x8), _mm256_extracti128_si256(sum_b_i32x8, 1));
+    __m128i sum_c_i32x4 = _mm_add_epi32(_mm256_castsi256_si128(sum_c_i32x8), _mm256_extracti128_si256(sum_c_i32x8, 1));
+    __m128i sum_d_i32x4 = _mm_add_epi32(_mm256_castsi256_si128(sum_d_i32x8), _mm256_extracti128_si256(sum_d_i32x8, 1));
+
+    // 4-way transpose to get [a,b,c,d] in lanes
+    __m128i transpose_ab_low = _mm_unpacklo_epi32(sum_a_i32x4, sum_b_i32x4);
+    __m128i transpose_cd_low = _mm_unpacklo_epi32(sum_c_i32x4, sum_d_i32x4);
+    __m128i transpose_ab_high = _mm_unpackhi_epi32(sum_a_i32x4, sum_b_i32x4);
+    __m128i transpose_cd_high = _mm_unpackhi_epi32(sum_c_i32x4, sum_d_i32x4);
+    __m128i sum_lane0 = _mm_unpacklo_epi64(transpose_ab_low, transpose_cd_low);
+    __m128i sum_lane1 = _mm_unpackhi_epi64(transpose_ab_low, transpose_cd_low);
+    __m128i sum_lane2 = _mm_unpacklo_epi64(transpose_ab_high, transpose_cd_high);
+    __m128i sum_lane3 = _mm_unpackhi_epi64(transpose_ab_high, transpose_cd_high);
+
+    results->xmm = _mm_add_epi32(_mm_add_epi32(sum_lane0, sum_lane1), _mm_add_epi32(sum_lane2, sum_lane3));
+}
+
 #if defined(__cplusplus)
 } // extern "C"
 #endif

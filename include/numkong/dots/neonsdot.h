@@ -23,31 +23,31 @@
 extern "C" {
 #endif
 
-/* I8 GEMM: simd_width=16 (16 i8s = 16 bytes = NEON register width) */
-nk_define_dots_pack_size_(neonsdot, i8, i8, i32)
-nk_define_dots_pack_(neonsdot, i8, i8, i32, nk_assign_from_to_)
-nk_define_dots_symmetric_(i8_neonsdot, i8, i32, nk_b128_vec_t, nk_dot_i8x16_state_neonsdot_t, nk_b128_vec_t,
+/* I8 GEMM: depth_simd_step=16 (16 i8s = 16 bytes = NEON register width) */
+nk_define_dots_pack_size_(i8, neonsdot, i8, i32, /*depth_simd_step=*/16)
+nk_define_dots_pack_(i8, neonsdot, i8, i32, nk_assign_from_to_, /*depth_simd_step=*/16)
+nk_define_dots_symmetric_(i8, neonsdot, i8, i32, nk_b128_vec_t, nk_dot_i8x16_state_neonsdot_t, nk_b128_vec_t,
                           nk_dot_i8x16_init_neonsdot, nk_load_b128_neon_, nk_partial_load_b8x16_serial_,
                           nk_dot_i8x16_update_neonsdot, nk_dot_i8x16_finalize_neonsdot,
-                          /*simd_width=*/16)
-nk_define_dots_packed_(i8_neonsdot, i8, i8, i32, nk_b128_vec_t, nk_dot_i8x16_state_neonsdot_t, nk_b128_vec_t,
+                          /*depth_simd_step=*/16)
+nk_define_dots_packed_(i8, neonsdot, i8, i8, i32, nk_b128_vec_t, nk_dot_i8x16_state_neonsdot_t, nk_b128_vec_t,
                        nk_dot_i8x16_init_neonsdot, nk_load_b128_neon_, nk_partial_load_b8x16_serial_,
                        nk_load_b128_neon_, nk_partial_load_b8x16_serial_, nk_dot_i8x16_update_neonsdot,
                        nk_dot_i8x16_finalize_neonsdot, nk_partial_store_b32x4_serial_,
-                       /*simd_width=*/16)
+                       /*depth_simd_step=*/16)
 
-/* U8 GEMM: simd_width=16 (16 u8s = 16 bytes = NEON register width) */
-nk_define_dots_pack_size_(neonsdot, u8, u8, u32)
-nk_define_dots_pack_(neonsdot, u8, u8, u32, nk_assign_from_to_)
-nk_define_dots_symmetric_(u8_neonsdot, u8, u32, nk_b128_vec_t, nk_dot_u8x16_state_neonsdot_t, nk_b128_vec_t,
+/* U8 GEMM: depth_simd_step=16 (16 u8s = 16 bytes = NEON register width) */
+nk_define_dots_pack_size_(u8, neonsdot, u8, u32, /*depth_simd_step=*/16)
+nk_define_dots_pack_(u8, neonsdot, u8, u32, nk_assign_from_to_, /*depth_simd_step=*/16)
+nk_define_dots_symmetric_(u8, neonsdot, u8, u32, nk_b128_vec_t, nk_dot_u8x16_state_neonsdot_t, nk_b128_vec_t,
                           nk_dot_u8x16_init_neonsdot, nk_load_b128_neon_, nk_partial_load_b8x16_serial_,
                           nk_dot_u8x16_update_neonsdot, nk_dot_u8x16_finalize_neonsdot,
-                          /*simd_width=*/16)
-nk_define_dots_packed_(u8_neonsdot, u8, u8, u32, nk_b128_vec_t, nk_dot_u8x16_state_neonsdot_t, nk_b128_vec_t,
+                          /*depth_simd_step=*/16)
+nk_define_dots_packed_(u8, neonsdot, u8, u8, u32, nk_b128_vec_t, nk_dot_u8x16_state_neonsdot_t, nk_b128_vec_t,
                        nk_dot_u8x16_init_neonsdot, nk_load_b128_neon_, nk_partial_load_b8x16_serial_,
                        nk_load_b128_neon_, nk_partial_load_b8x16_serial_, nk_dot_u8x16_update_neonsdot,
                        nk_dot_u8x16_finalize_neonsdot, nk_partial_store_b32x4_serial_,
-                       /*simd_width=*/16)
+                       /*depth_simd_step=*/16)
 
 #if defined(__cplusplus)
 } // extern "C"
