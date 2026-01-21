@@ -126,9 +126,11 @@ template <nk_dtype_t dtype_>
     nk_size_t bits_per_element = nk_dtype_bits(dtype_);
     nk_size_t bits_per_row = cols * bits_per_element;
     nk_size_t bytes_per_row = nk::divide_round_up(bits_per_row, NK_BITS_PER_BYTE);
-    nk_size_t total_elements = rows * bytes_per_row / sizeof(raw_t);
+    nk_size_t total_values = rows * bytes_per_row / sizeof(raw_t);
 
-    return make_vector<type_>(total_elements);
+    nk::vector<type_> result;
+    if (!result.resize_values(total_values)) throw std::bad_alloc();
+    return result;
 }
 
 /**
@@ -191,9 +193,9 @@ void measure_curved(bm::State &state, kernel_type_ kernel, std::size_t dimension
         first_vectors[index] = make_vector<input_t>(dimensions);
         second_vectors[index] = make_vector<input_t>(dimensions);
         tensors[index] = make_vector<input_t>(dimensions * dimensions);
-        nk::fill_uniform(generator, first_vectors[index].values_data(), first_vectors[index].size());
-        nk::fill_uniform(generator, second_vectors[index].values_data(), second_vectors[index].size());
-        nk::fill_uniform(generator, tensors[index].values_data(), tensors[index].size());
+        nk::fill_uniform(generator, first_vectors[index].values_data(), first_vectors[index].size_values());
+        nk::fill_uniform(generator, second_vectors[index].values_data(), second_vectors[index].size_values());
+        nk::fill_uniform(generator, tensors[index].values_data(), tensors[index].size_values());
     }
 
     // Benchmark loop
@@ -312,8 +314,8 @@ void measure_mesh(bm::State &state, kernel_type_ kernel, std::size_t points_coun
     for (std::size_t index = 0; index != clouds_count; ++index) {
         first_clouds[index] = make_vector<input_t>(points_count * 3);
         second_clouds[index] = make_vector<input_t>(points_count * 3);
-        nk::fill_uniform(generator, first_clouds[index].values_data(), first_clouds[index].size());
-        nk::fill_uniform(generator, second_clouds[index].values_data(), second_clouds[index].size());
+        nk::fill_uniform(generator, first_clouds[index].values_data(), first_clouds[index].size_values());
+        nk::fill_uniform(generator, second_clouds[index].values_data(), second_clouds[index].size_values());
     }
 
     // Benchmark loop
@@ -532,21 +534,21 @@ void measure_dots_packed(                                                       
     using raw_output_t = typename output_t::raw_t;
 
     // Calculate correct strides for sub-byte types (u4, i4, u1, etc.)
-    nk_size_t bits_per_element = nk_dtype_bits(input_dtype_);
-    nk_size_t a_stride_bytes = nk::divide_round_up(k * bits_per_element, NK_BITS_PER_BYTE);
-    nk_size_t b_stride_bytes = nk::divide_round_up(n * bits_per_element, NK_BITS_PER_BYTE);
+    nk_size_t values_per_row = nk::divide_round_up(k, nk::dimensions_per_value<input_t>());
+    nk_size_t a_stride_bytes = values_per_row * sizeof(typename input_t::raw_t);
+    nk_size_t b_stride_bytes = values_per_row * sizeof(typename input_t::raw_t); // B is n×k, so k columns per row
 
     // Allocate matrices with correct sizes for sub-byte types
     auto matrix_a = make_vector_for_matrix<input_dtype_>(m, k);
-    auto matrix_b = make_vector_for_matrix<input_dtype_>(k, n);
+    auto matrix_b = make_vector_for_matrix<input_dtype_>(n, k);
     nk_size_t packed_bytes = packed_size_fn(n, k);
     std::vector<char> matrix_b_packed(packed_bytes, 0);
     auto matrix_c = make_vector<output_t>(m * n);
 
     // Initialize with random values
     auto generator = make_random_engine();
-    nk::fill_uniform(generator, matrix_a.values_data(), matrix_a.size());
-    nk::fill_uniform(generator, matrix_b.values_data(), matrix_b.size());
+    nk::fill_uniform(generator, matrix_a.values_data(), matrix_a.size_values());
+    nk::fill_uniform(generator, matrix_b.values_data(), matrix_b.size_values());
 
     // Pack B matrix once (amortized cost for repeated inference) with correct stride
     pack_fn(matrix_b.raw_values_data(), n, k, b_stride_bytes, matrix_b_packed.data());
@@ -585,8 +587,8 @@ void measure_dots_symmetric(                                                   /
     using raw_output_t = typename output_t::raw_t;
 
     // Calculate correct strides for sub-byte types (u4, i4, u1, etc.)
-    nk_size_t input_bits_per_element = nk_dtype_bits(input_dtype_);
-    nk_size_t input_stride_bytes = nk::divide_round_up(k * input_bits_per_element, NK_BITS_PER_BYTE);
+    nk_size_t input_values_per_row = nk::divide_round_up(k, nk::dimensions_per_value<input_t>());
+    nk_size_t input_stride_bytes = input_values_per_row * sizeof(typename input_t::raw_t);
     nk_size_t output_stride_bytes = n * sizeof(raw_output_t);
 
     // Allocate matrix A (n vectors × k dimensions) and result matrix C (n × n)
@@ -595,7 +597,7 @@ void measure_dots_symmetric(                                                   /
 
     // Initialize with random values
     auto generator = make_random_engine();
-    nk::fill_uniform(generator, matrix_a.values_data(), matrix_a.size());
+    nk::fill_uniform(generator, matrix_a.values_data(), matrix_a.size_values());
 
     std::size_t iterations = 0;
     for (auto _ : state) {
