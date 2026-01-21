@@ -24,8 +24,8 @@ extern "C" {
 #endif
 
 /* BF16 GEMM: depth_simd_dimensions=8 (8 bf16s = 16 bytes = NEON register width) */
-nk_define_dots_pack_size_(bf16, neonbfdot, bf16, f32, /*depth_simd_dimensions=*/8, /*dimensions_per_value=*/1)
-nk_define_dots_pack_(bf16, neonbfdot, bf16, f32, nk_assign_from_to_, /*depth_simd_dimensions=*/8,
+nk_define_dots_pack_size_(bf16, neonbfdot, bf16, bf16, f32, /*depth_simd_dimensions=*/8, /*dimensions_per_value=*/1)
+nk_define_dots_pack_(bf16, neonbfdot, bf16, bf16, f32, nk_assign_from_to_, /*depth_simd_dimensions=*/8,
                      /*dimensions_per_value=*/1)
 nk_define_dots_symmetric_(bf16, neonbfdot, bf16, f32, nk_b128_vec_t, nk_dot_bf16x8_state_neonbfdot_t, nk_b128_vec_t,
                           nk_dot_bf16x8_init_neonbfdot, nk_load_b128_neon_, nk_partial_load_b16x8_serial_,

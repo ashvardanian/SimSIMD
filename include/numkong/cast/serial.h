@@ -1251,13 +1251,20 @@ NK_INTERNAL void nk_partial_load_b16x4_serial_(void const *src, nk_b64_vec_t *ds
     }
 }
 
-/** @brief Type-agnostic partial load for 64-bit elements (2 elements max) into 128-bit vector. */
 /** @brief Partial load for 4-bit nibbles (64 max = 32 bytes) into 256-bit vector (zeros in remaining slots). */
 NK_INTERNAL void nk_partial_load_b4x64_serial_(void const *src, nk_b256_vec_t *dst, nk_size_t n) {
     dst->u64s[0] = 0, dst->u64s[1] = 0, dst->u64s[2] = 0, dst->u64s[3] = 0;
     nk_u8_t const *s = (nk_u8_t const *)src;
     nk_size_t n_bytes = (n + 1) / 2;
     for (nk_size_t i = 0; i < n_bytes && i < 32; i++) dst->u8s[i] = s[i];
+}
+
+/** @brief Partial load for 4-bit nibbles (32 max = 16 bytes) into 128-bit vector (zeros in remaining slots). */
+NK_INTERNAL void nk_partial_load_b4x32_serial_(void const *src, nk_b128_vec_t *dst, nk_size_t n) {
+    dst->u64s[0] = 0, dst->u64s[1] = 0;
+    nk_u8_t const *s = (nk_u8_t const *)src;
+    nk_size_t n_bytes = (n + 1) / 2;
+    for (nk_size_t i = 0; i < n_bytes && i < 16; i++) dst->u8s[i] = s[i];
 }
 
 /** @brief Partial load for 4-bit nibbles (16 max = 8 bytes) into 64-bit vector (zeros in remaining slots). */
