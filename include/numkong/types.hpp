@@ -1151,7 +1151,7 @@ struct f16_t {
     static constexpr f16_t quiet_nan() noexcept { return from_bits(0x7E00); }
     static constexpr f16_t signaling_nan() noexcept { return from_bits(0x7C01); }
 
-    // Mathematical constants (from_f32 is not constexpr)
+    // Mathematical constants
     static inline f16_t pi_k() noexcept { return from_f32(3.14159265358979323846f); }
     static inline f16_t two_pi_k() noexcept { return from_f32(6.28318530717958647692f); }
     static inline f16_t half_pi_k() noexcept { return from_f32(1.57079632679489661923f); }
@@ -1360,7 +1360,7 @@ struct bf16_t {
     static constexpr bf16_t quiet_nan() noexcept { return from_bits(0x7FC0); }
     static constexpr bf16_t signaling_nan() noexcept { return from_bits(0x7F81); }
 
-    // Mathematical constants (from_f32 is not constexpr)
+    // Mathematical constants
     static inline bf16_t pi_k() noexcept { return from_f32(3.14159265358979323846f); }
     static inline bf16_t two_pi_k() noexcept { return from_f32(6.28318530717958647692f); }
     static inline bf16_t half_pi_k() noexcept { return from_f32(1.57079632679489661923f); }
@@ -1765,14 +1765,14 @@ struct e4m3_t {
     static constexpr e4m3_t subnormal_min() noexcept { return from_bits(0x01); } // Smallest positive subnormal
     static constexpr e4m3_t quiet_nan() noexcept { return from_bits(0x7F); }     // +NaN
 
-    // Mathematical constants (from_f32 is not constexpr)
-    static inline e4m3_t pi_k() noexcept { return from_f32(3.14159265358979323846f); }
-    static inline e4m3_t two_pi_k() noexcept { return from_f32(6.28318530717958647692f); }
-    static inline e4m3_t half_pi_k() noexcept { return from_f32(1.57079632679489661923f); }
-    static inline e4m3_t e_k() noexcept { return from_f32(2.71828182845904523536f); }
-    static inline e4m3_t sqrt2_k() noexcept { return from_f32(1.41421356237309504880f); }
-    static inline e4m3_t inv_sqrt2_k() noexcept { return from_f32(0.70710678118654752440f); }
-    static inline e4m3_t ln2_k() noexcept { return from_f32(0.69314718055994530942f); }
+    // Mathematical constants
+    static constexpr e4m3_t pi_k() noexcept { return from_bits(0x45); }        // 3.25 (closest to π)
+    static constexpr e4m3_t two_pi_k() noexcept { return from_bits(0x4D); }    // 6.5 (closest to 2π)
+    static constexpr e4m3_t half_pi_k() noexcept { return from_bits(0x3D); }   // 1.625 (closest to π/2)
+    static constexpr e4m3_t e_k() noexcept { return from_bits(0x43); }         // 2.75 (closest to e)
+    static constexpr e4m3_t sqrt2_k() noexcept { return from_bits(0x3B); }     // 1.375 (closest to √2)
+    static constexpr e4m3_t inv_sqrt2_k() noexcept { return from_bits(0x33); } // 0.6875 (closest to 1/√2)
+    static constexpr e4m3_t ln2_k() noexcept { return from_bits(0x33); }       // 0.6875 (closest to ln(2))
 
     constexpr bool is_nan() const noexcept { return (raw_ & 0x7F) == 0x7F; }
     constexpr bool is_infinite() const noexcept { return false; } // E4M3 has no infinity
@@ -1970,14 +1970,14 @@ struct e5m2_t {
     static constexpr e5m2_t quiet_nan() noexcept { return from_bits(0x7E); }
     static constexpr e5m2_t signaling_nan() noexcept { return from_bits(0x7D); }
 
-    // Mathematical constants (from_f32 is not constexpr)
-    static inline e5m2_t pi_k() noexcept { return from_f32(3.14159265358979323846f); }
-    static inline e5m2_t two_pi_k() noexcept { return from_f32(6.28318530717958647692f); }
-    static inline e5m2_t half_pi_k() noexcept { return from_f32(1.57079632679489661923f); }
-    static inline e5m2_t e_k() noexcept { return from_f32(2.71828182845904523536f); }
-    static inline e5m2_t sqrt2_k() noexcept { return from_f32(1.41421356237309504880f); }
-    static inline e5m2_t inv_sqrt2_k() noexcept { return from_f32(0.70710678118654752440f); }
-    static inline e5m2_t ln2_k() noexcept { return from_f32(0.69314718055994530942f); }
+    // Mathematical constants
+    static constexpr e5m2_t pi_k() noexcept { return from_bits(0x42); }        // 3.0 (closest to π)
+    static constexpr e5m2_t two_pi_k() noexcept { return from_bits(0x46); }    // 6.0 (closest to 2π)
+    static constexpr e5m2_t half_pi_k() noexcept { return from_bits(0x3E); }   // 1.5 (closest to π/2)
+    static constexpr e5m2_t e_k() noexcept { return from_bits(0x41); }         // 2.5 (closest to e)
+    static constexpr e5m2_t sqrt2_k() noexcept { return from_bits(0x3E); }     // 1.5 (closest to √2)
+    static constexpr e5m2_t inv_sqrt2_k() noexcept { return from_bits(0x3A); } // 0.75 (closest to 1/√2)
+    static constexpr e5m2_t ln2_k() noexcept { return from_bits(0x3A); }       // 0.75 (closest to ln(2))
 
     constexpr bool is_nan() const noexcept { return (raw_ & 0x7F) > 0x7C; }
     constexpr bool is_infinite() const noexcept { return (raw_ & 0x7F) == 0x7C; }
@@ -2169,14 +2169,14 @@ struct e2m3_t {
     static constexpr e2m3_t positive_min() noexcept { return from_bits(0x08); }  // Smallest positive normal (2^0 = 1.0)
     static constexpr e2m3_t subnormal_min() noexcept { return from_bits(0x01); } // Smallest positive subnormal
 
-    // Mathematical constants (precomputed for constexpr)
-    static constexpr e2m3_t pi_k() noexcept { return from_bits(0x15); }        // π ≈ 3.14159
-    static constexpr e2m3_t two_pi_k() noexcept { return from_bits(0x1D); }    // 2π ≈ 6.28319
-    static constexpr e2m3_t half_pi_k() noexcept { return from_bits(0x0D); }   // π/2 ≈ 1.57080
-    static constexpr e2m3_t e_k() noexcept { return from_bits(0x13); }         // e ≈ 2.71828
-    static constexpr e2m3_t sqrt2_k() noexcept { return from_bits(0x0B); }     // √2 ≈ 1.41421
-    static constexpr e2m3_t inv_sqrt2_k() noexcept { return from_bits(0x03); } // 1/√2 ≈ 0.70711
-    static constexpr e2m3_t ln2_k() noexcept { return from_bits(0x03); }       // ln(2) ≈ 0.69315
+    // Mathematical constants
+    static constexpr e2m3_t pi_k() noexcept { return from_bits(0x15); }        // 3.25 (closest to π)
+    static constexpr e2m3_t two_pi_k() noexcept { return from_bits(0x1D); }    // 6.5 (closest to 2π)
+    static constexpr e2m3_t half_pi_k() noexcept { return from_bits(0x0D); }   // 1.625 (closest to π/2)
+    static constexpr e2m3_t e_k() noexcept { return from_bits(0x13); }         // 2.75 (closest to e)
+    static constexpr e2m3_t sqrt2_k() noexcept { return from_bits(0x0B); }     // 1.375 (closest to √2)
+    static constexpr e2m3_t inv_sqrt2_k() noexcept { return from_bits(0x03); } // 0.375 (closest to 1/√2)
+    static constexpr e2m3_t ln2_k() noexcept { return from_bits(0x03); }       // 0.375 (closest to ln(2))
 
     constexpr bool is_nan() const noexcept { return false; }
     constexpr bool is_infinite() const noexcept { return false; }
@@ -2325,14 +2325,14 @@ struct e3m2_t {
     static constexpr e3m2_t positive_min() noexcept { return from_bits(0x0C); }  // Smallest positive normal (2^0 = 1.0)
     static constexpr e3m2_t subnormal_min() noexcept { return from_bits(0x01); } // Smallest positive subnormal
 
-    // Mathematical constants (precomputed for constexpr)
-    static constexpr e3m2_t pi_k() noexcept { return from_bits(0x12); }        // π ≈ 3.14159
-    static constexpr e3m2_t two_pi_k() noexcept { return from_bits(0x16); }    // 2π ≈ 6.28319
-    static constexpr e3m2_t half_pi_k() noexcept { return from_bits(0x0E); }   // π/2 ≈ 1.57080
-    static constexpr e3m2_t e_k() noexcept { return from_bits(0x11); }         // e ≈ 2.71828
-    static constexpr e3m2_t sqrt2_k() noexcept { return from_bits(0x0E); }     // √2 ≈ 1.41421
-    static constexpr e3m2_t inv_sqrt2_k() noexcept { return from_bits(0x0A); } // 1/√2 ≈ 0.70711
-    static constexpr e3m2_t ln2_k() noexcept { return from_bits(0x0A); }       // ln(2) ≈ 0.69315
+    // Mathematical constants
+    static constexpr e3m2_t pi_k() noexcept { return from_bits(0x12); }        // 3.0 (closest to π)
+    static constexpr e3m2_t two_pi_k() noexcept { return from_bits(0x16); }    // 6.0 (closest to 2π)
+    static constexpr e3m2_t half_pi_k() noexcept { return from_bits(0x0E); }   // 1.5 (closest to π/2)
+    static constexpr e3m2_t e_k() noexcept { return from_bits(0x11); }         // 2.5 (closest to e)
+    static constexpr e3m2_t sqrt2_k() noexcept { return from_bits(0x0E); }     // 1.5 (closest to √2)
+    static constexpr e3m2_t inv_sqrt2_k() noexcept { return from_bits(0x0A); } // 0.75 (closest to 1/√2)
+    static constexpr e3m2_t ln2_k() noexcept { return from_bits(0x0A); }       // 0.75 (closest to ln(2))
 
     constexpr bool is_nan() const noexcept { return false; }
     constexpr bool is_infinite() const noexcept { return false; }
@@ -3932,7 +3932,8 @@ struct u64_t {
 
     using reduce_add_result_t = u64_t; // `nk_reduce_add_u64` (no widening, already max)
 
-    using sparse_intersect_kernel_t = void (*)(raw_t const *, raw_t const *, nk_size_t, nk_size_t, raw_t *, nk_size_t *);
+    using sparse_intersect_kernel_t = void (*)(raw_t const *, raw_t const *, nk_size_t, nk_size_t, raw_t *,
+                                               nk_size_t *);
 
     static constexpr nk_dtype_t dtype() noexcept { return nk_u64_k; }
     static constexpr char const *dtype_name() noexcept { return "u64"; }

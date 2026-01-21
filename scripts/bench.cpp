@@ -191,9 +191,9 @@ void measure_curved(bm::State &state, kernel_type_ kernel, std::size_t dimension
         first_vectors[index] = make_vector<input_t>(dimensions);
         second_vectors[index] = make_vector<input_t>(dimensions);
         tensors[index] = make_vector<input_t>(dimensions * dimensions);
-        nk::fill_uniform(generator, first_vectors[index].values_data(), dimensions);
-        nk::fill_uniform(generator, second_vectors[index].values_data(), dimensions);
-        nk::fill_uniform(generator, tensors[index].values_data(), dimensions * dimensions);
+        nk::fill_uniform(generator, first_vectors[index].values_data(), first_vectors[index].size());
+        nk::fill_uniform(generator, second_vectors[index].values_data(), second_vectors[index].size());
+        nk::fill_uniform(generator, tensors[index].values_data(), tensors[index].size());
     }
 
     // Benchmark loop
@@ -312,8 +312,8 @@ void measure_mesh(bm::State &state, kernel_type_ kernel, std::size_t points_coun
     for (std::size_t index = 0; index != clouds_count; ++index) {
         first_clouds[index] = make_vector<input_t>(points_count * 3);
         second_clouds[index] = make_vector<input_t>(points_count * 3);
-        nk::fill_uniform(generator, first_clouds[index].values_data(), points_count * 3);
-        nk::fill_uniform(generator, second_clouds[index].values_data(), points_count * 3);
+        nk::fill_uniform(generator, first_clouds[index].values_data(), first_clouds[index].size());
+        nk::fill_uniform(generator, second_clouds[index].values_data(), second_clouds[index].size());
     }
 
     // Benchmark loop
@@ -543,7 +543,7 @@ void measure_dots_packed(                                                       
     std::vector<char> matrix_b_packed(packed_bytes, 0);
     auto matrix_c = make_vector<output_t>(m * n);
 
-    // Initialize with random values (fill_uniform handles sub-byte types correctly)
+    // Initialize with random values
     auto generator = make_random_engine();
     nk::fill_uniform(generator, matrix_a.values_data(), matrix_a.size());
     nk::fill_uniform(generator, matrix_b.values_data(), matrix_b.size());
@@ -585,12 +585,12 @@ void measure_dots_symmetric(                                                   /
     using raw_output_t = typename output_t::raw_t;
 
     // Allocate matrix A (n vectors × k dimensions) and result matrix C (n × n)
-    auto matrix_a = make_vector<input_t>(n * k);
+    auto matrix_a = make_vector_for_matrix<input_dtype_>(n, k);
     auto matrix_c = make_vector<output_t>(n * n);
 
     // Initialize with random values
     auto generator = make_random_engine();
-    nk::fill_uniform(generator, matrix_a.values_data(), n * k);
+    nk::fill_uniform(generator, matrix_a.values_data(), matrix_a.size());
 
     std::size_t iterations = 0;
     for (auto _ : state) {
@@ -1591,7 +1591,10 @@ int main(int argc, char **argv) {
 #endif
 
 #if NK_TARGET_ICE
+    dots_<i4_k, i32_k>("dots_packed_i4_ice", nk_dots_packed_size_i4_ice, nk_dots_pack_i4_ice, nk_dots_packed_i4_ice);
+    dots_<u4_k, u32_k>("dots_packed_u4_ice", nk_dots_packed_size_u4_ice, nk_dots_pack_u4_ice, nk_dots_packed_u4_ice);
     dots_<i8_k, i32_k>("dots_packed_i8_ice", nk_dots_packed_size_i8_ice, nk_dots_pack_i8_ice, nk_dots_packed_i8_ice);
+    dots_<u8_k, u32_k>("dots_packed_u8_ice", nk_dots_packed_size_u8_ice, nk_dots_pack_u8_ice, nk_dots_packed_u8_ice);
 
     dense_<i8_k, f32_k>("angular_i8_ice", nk_angular_i8_ice);
     dense_<i8_k, u32_k>("l2sq_i8_ice", nk_l2sq_i8_ice);
@@ -1828,9 +1831,9 @@ int main(int argc, char **argv) {
                        nk_dots_packed_i8_serial);
     dots_<f32_k, f32_k>("dots_packed_f32_serial", nk_dots_packed_size_f32_serial, nk_dots_pack_f32_serial,
                         nk_dots_packed_f32_serial);
-    dots_<u4_k, u32_k>("dots_packed_u4_serial", nk_dots_packed_size_u4x2_serial, nk_dots_pack_u4x2_serial,
+    dots_<u4_k, u32_k>("dots_packed_u4_serial", nk_dots_packed_size_u4_serial, nk_dots_pack_u4_serial,
                        nk_dots_packed_u4_serial);
-    dots_<i4_k, i32_k>("dots_packed_i4_serial", nk_dots_packed_size_i4x2_serial, nk_dots_pack_i4x2_serial,
+    dots_<i4_k, i32_k>("dots_packed_i4_serial", nk_dots_packed_size_i4_serial, nk_dots_pack_i4_serial,
                        nk_dots_packed_i4_serial);
 
     // Symmetric GEMM benchmarks (A × Aᵀ)

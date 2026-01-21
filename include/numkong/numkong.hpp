@@ -126,143 +126,138 @@ constexpr bool operator>=(double a, f118_t b) noexcept { return f118_t(a) >= b; 
 /**
  *  @brief Fill array with uniform random values.
  *
- *  @tparam scalar_type_ A NumKong wrapper type (e.g., f32_t, f64_t, i32_t).
+ *  @tparam value_type_ A NumKong wrapper type (e.g., f32_t, f64_t, i32_t).
  *  @tparam generator_type_ A random number generator type (e.g., std::mt19937_64).
- *  @tparam range_type_ The type used for range bounds (auto-detected from scalar_type_).
- *  @param data Pointer to the array to fill.
- *  @param n Number of elements to fill.
  *  @param generator The random number generator.
- *  @param min_val Minimum value (inclusive).
- *  @param max_val Maximum value (inclusive for integers, exclusive for floats).
+ *  @param values_ptr Pointer to the array to fill.
+ *  @param values_count Number of storage values to fill (not dimensions for sub-byte types).
  */
-template <typename scalar_type_, typename generator_type_>
-void fill_uniform(generator_type_ &generator, scalar_type_ *data, std::size_t n) noexcept {
+template <typename value_type_, typename generator_type_>
+void fill_uniform(generator_type_ &generator, value_type_ *values_ptr, std::size_t values_count) noexcept {
 
     // Packed types (u1x8, u4x2, i4x2) need special handling - just fill with random bytes
-    if constexpr (std::is_same_v<scalar_type_, u1x8_t> || std::is_same_v<scalar_type_, u4x2_t> ||
-                  std::is_same_v<scalar_type_, i4x2_t>) {
+    if constexpr (std::is_same_v<value_type_, u1x8_t> || std::is_same_v<value_type_, u4x2_t> ||
+                  std::is_same_v<value_type_, i4x2_t>) {
         std::uniform_int_distribution<std::uint32_t> distribution(0, 255);
-        std::size_t num_packed_values = divide_round_up(n, static_cast<std::size_t>(scalar_type_::elements()));
-        for (std::size_t i = 0; i < num_packed_values; ++i)
-            data[i].raw_ = static_cast<std::uint8_t>(distribution(generator));
+        for (std::size_t i = 0; i < values_count; ++i)
+            values_ptr[i].raw_ = static_cast<std::uint8_t>(distribution(generator));
     }
     // Integer distribution types aren't always defined
-    else if constexpr (is_integer<scalar_type_>()) {
-        using small_integer_t = std::conditional_t<is_signed<scalar_type_>(), std::int32_t, std::uint32_t>;
-        using large_integer_t = std::conditional_t<is_signed<scalar_type_>(), std::int64_t, std::uint64_t>;
-        using distribution_integer_t = std::conditional_t<sizeof(scalar_type_) <= 4, small_integer_t, large_integer_t>;
+    else if constexpr (is_integer<value_type_>()) {
+        using small_integer_t = std::conditional_t<is_signed<value_type_>(), std::int32_t, std::uint32_t>;
+        using large_integer_t = std::conditional_t<is_signed<value_type_>(), std::int64_t, std::uint64_t>;
+        using distribution_integer_t = std::conditional_t<sizeof(value_type_) <= 4, small_integer_t, large_integer_t>;
         std::uniform_int_distribution<distribution_integer_t> distribution(finite_min<distribution_integer_t>(),
                                                                            finite_max<distribution_integer_t>());
-        for (std::size_t i = 0; i < n; ++i) data[i] = static_cast<scalar_type_>(distribution(generator));
+        for (std::size_t i = 0; i < values_count; ++i)
+            values_ptr[i] = static_cast<value_type_>(distribution(generator));
     }
     // Complex types need both real and imaginary parts filled
-    else if constexpr (is_complex<scalar_type_>()) {
-        using component_t = typename scalar_type_::component_t;
+    else if constexpr (is_complex<value_type_>()) {
+        using component_t = typename value_type_::component_t;
         using distribution_float_t = std::conditional_t<sizeof(component_t) <= 4, float, double>;
         std::uniform_real_distribution<distribution_float_t> distribution(-10.0, 10.0);
-        for (std::size_t i = 0; i < n; ++i) {
+        for (std::size_t i = 0; i < values_count; ++i) {
             auto real = distribution(generator), imag = distribution(generator);
-            data[i] = scalar_type_(component_t(static_cast<distribution_float_t>(real)),
-                                   component_t(static_cast<distribution_float_t>(imag)));
+            values_ptr[i] = value_type_(component_t(static_cast<distribution_float_t>(real)),
+                                        component_t(static_cast<distribution_float_t>(imag)));
         }
     }
     // Floats and other types use a fixed range for better numerical stability
     else {
-        using distribution_float_t = std::conditional_t<sizeof(scalar_type_) <= 4, float, double>;
+        using distribution_float_t = std::conditional_t<sizeof(value_type_) <= 4, float, double>;
         std::uniform_real_distribution<distribution_float_t> distribution(-10.0, 10.0);
-        for (std::size_t i = 0; i < n; ++i) data[i] = static_cast<scalar_type_>(distribution(generator));
+        for (std::size_t i = 0; i < values_count; ++i)
+            values_ptr[i] = static_cast<value_type_>(distribution(generator));
     }
 }
 
 /**
- *  @brief Fill array with uniform random values.
+ *  @brief Fill array with uniform random values within specified range.
  *
- *  @tparam scalar_type_ A NumKong wrapper type (e.g., f32_t, f64_t, i32_t).
+ *  @tparam value_type_ A NumKong wrapper type (e.g., f32_t, f64_t, i32_t).
  *  @tparam generator_type_ A random number generator type (e.g., std::mt19937_64).
- *  @tparam range_type_ The type used for range bounds (auto-detected from scalar_type_).
- *  @param data Pointer to the array to fill.
- *  @param n Number of elements to fill.
  *  @param generator The random number generator.
+ *  @param values_ptr Pointer to the array to fill.
+ *  @param values_count Number of values to fill.
  *  @param min_val Minimum value (inclusive).
  *  @param max_val Maximum value (inclusive for integers, exclusive for floats).
  */
-template <typename scalar_type_, typename generator_type_>
-void fill_uniform(                                                 //
-    generator_type_ &generator, scalar_type_ *data, std::size_t n, //
-    scalar_type_ min_val, scalar_type_ max_val) noexcept {
+template <typename value_type_, typename generator_type_>
+void fill_uniform(generator_type_ &generator, value_type_ *values_ptr, std::size_t values_count, value_type_ min_val,
+                  value_type_ max_val) noexcept {
 
-    if constexpr (is_integer<scalar_type_>()) {
-        using small_integer_t = std::conditional_t<is_signed<scalar_type_>(), std::int32_t, std::uint32_t>;
-        using large_integer_t = std::conditional_t<is_signed<scalar_type_>(), std::int64_t, std::uint64_t>;
-        using distribution_integer_t = std::conditional_t<sizeof(scalar_type_) <= 4, small_integer_t, large_integer_t>;
-        std::uniform_int_distribution<distribution_integer_t> distribution( //
+    if constexpr (is_integer<value_type_>()) {
+        using small_integer_t = std::conditional_t<is_signed<value_type_>(), std::int32_t, std::uint32_t>;
+        using large_integer_t = std::conditional_t<is_signed<value_type_>(), std::int64_t, std::uint64_t>;
+        using distribution_integer_t = std::conditional_t<sizeof(value_type_) <= 4, small_integer_t, large_integer_t>;
+        std::uniform_int_distribution<distribution_integer_t> distribution(
             static_cast<distribution_integer_t>(min_val), static_cast<distribution_integer_t>(max_val));
-        for (std::size_t i = 0; i < n; ++i) data[i] = static_cast<scalar_type_>(distribution(generator));
+        for (std::size_t i = 0; i < values_count; ++i)
+            values_ptr[i] = static_cast<value_type_>(distribution(generator));
     }
     else {
-        using distribution_float_t = std::conditional_t<sizeof(scalar_type_) <= 4, float, double>;
-        std::uniform_real_distribution<distribution_float_t> distribution( //
-            static_cast<distribution_float_t>(min_val), static_cast<distribution_float_t>(max_val));
-        for (std::size_t i = 0; i < n; ++i) data[i] = static_cast<scalar_type_>(distribution(generator));
+        using distribution_float_t = std::conditional_t<sizeof(value_type_) <= 4, float, double>;
+        std::uniform_real_distribution<distribution_float_t> distribution(static_cast<distribution_float_t>(min_val),
+                                                                          static_cast<distribution_float_t>(max_val));
+        for (std::size_t i = 0; i < values_count; ++i)
+            values_ptr[i] = static_cast<value_type_>(distribution(generator));
     }
 }
 
 /**
  *  @brief Fill array with lognormal distribution (good for detecting numerical edge cases).
  *
- *
- *  @tparam scalar_type_ A NumKong wrapper type.
+ *  @tparam value_type_ A NumKong wrapper type.
  *  @tparam generator_type_ A random number generator type.
- *  @param data Pointer to the array to fill.
- *  @param n Number of elements to fill.
  *  @param generator The random number generator.
+ *  @param values_ptr Pointer to the array to fill.
+ *  @param values_count Number of values to fill.
  *  @param mean Mean of the underlying normal distribution.
  *  @param stddev Standard deviation of the underlying normal distribution.
  */
-template <typename scalar_type_, typename generator_type_>
-void fill_lognormal(                                               //
-    generator_type_ &generator, scalar_type_ *data, std::size_t n, //
-    scalar_type_ mean = scalar_type_(0), scalar_type_ stddev = scalar_type_(0.5)) noexcept {
+template <typename value_type_, typename generator_type_>
+void fill_lognormal(generator_type_ &generator, value_type_ *values_ptr, std::size_t values_count,
+                    value_type_ mean = value_type_(0), value_type_ stddev = value_type_(0.5)) noexcept {
 
-    using distribution_float_t = std::conditional_t<sizeof(scalar_type_) <= 4, float, double>;
+    using distribution_float_t = std::conditional_t<sizeof(value_type_) <= 4, float, double>;
     std::lognormal_distribution<distribution_float_t> distribution(mean, stddev);
     std::bernoulli_distribution sign_distribution(0.5);
-    distribution_float_t const clamp_max = finite_max<scalar_type_>();
+    distribution_float_t const clamp_max = finite_max<value_type_>();
 
-    for (std::size_t i = 0; i < n; ++i) {
+    for (std::size_t i = 0; i < values_count; ++i) {
         distribution_float_t val = distribution(generator);
         if (val > clamp_max) val = clamp_max;
         if (sign_distribution(generator)) val = -val;
-        data[i] = static_cast<scalar_type_>(val);
+        values_ptr[i] = static_cast<value_type_>(val);
     }
 }
 
 /**
  *  @brief Fill array with Cauchy distribution (heavy tails for stress testing).
  *
- *  @tparam scalar_type_ A NumKong wrapper type.
+ *  @tparam value_type_ A NumKong wrapper type.
  *  @tparam generator_type_ A random number generator type.
- *  @param data Pointer to the array to fill.
- *  @param n Number of elements to fill.
  *  @param generator The random number generator.
+ *  @param values_ptr Pointer to the array to fill.
+ *  @param values_count Number of values to fill.
  *  @param location Location parameter (median).
  *  @param scale Scale parameter.
  */
-template <typename scalar_type_, typename generator_type_>
-void fill_cauchy(                                                  //
-    generator_type_ &generator, scalar_type_ *data, std::size_t n, //
-    scalar_type_ location = 0, scalar_type_ scale = 1) noexcept {
+template <typename value_type_, typename generator_type_>
+void fill_cauchy(generator_type_ &generator, value_type_ *values_ptr, std::size_t values_count,
+                 value_type_ location = 0, value_type_ scale = 1) noexcept {
 
-    using distribution_float_t = std::conditional_t<sizeof(scalar_type_) <= 4, float, double>;
+    using distribution_float_t = std::conditional_t<sizeof(value_type_) <= 4, float, double>;
     std::cauchy_distribution<distribution_float_t> distribution(location, scale);
-    distribution_float_t const clamp_max = finite_max<scalar_type_>();
-    distribution_float_t const clamp_min = finite_min<scalar_type_>();
+    distribution_float_t const clamp_max = finite_max<value_type_>();
+    distribution_float_t const clamp_min = finite_min<value_type_>();
 
-    for (std::size_t i = 0; i < n; ++i) {
+    for (std::size_t i = 0; i < values_count; ++i) {
         distribution_float_t val = distribution(generator);
         if (val > clamp_max) val = clamp_max;
         else if (val < clamp_min) val = clamp_min;
-        data[i] = static_cast<scalar_type_>(val);
+        values_ptr[i] = static_cast<value_type_>(val);
     }
 }
 
@@ -272,50 +267,51 @@ void fill_cauchy(                                                  //
  *  Uses type-appropriate distribution precision.
  *  Useful for geospatial (latitude/longitude) benchmarks.
  *
- *  @tparam scalar_type_ A NumKong wrapper type.
+ *  @tparam value_type_ A NumKong wrapper type.
  *  @tparam generator_type_ A random number generator type.
- *  @param lats Pointer to the latitude array to fill (-π/2 to +π/2).
- *  @param lons Pointer to the longitude array to fill (-π to +π).
- *  @param n Number of elements to fill in each array.
  *  @param generator The random number generator.
+ *  @param lats_ptr Pointer to the latitude array to fill (-π/2 to +π/2).
+ *  @param lons_ptr Pointer to the longitude array to fill (-π to +π).
+ *  @param values_count Number of values to fill in each array.
  */
-template <typename scalar_type_, typename generator_type_>
-void fill_coordinates(generator_type_ &generator, scalar_type_ *lats, scalar_type_ *lons, std::size_t n) noexcept {
+template <typename value_type_, typename generator_type_>
+void fill_coordinates(generator_type_ &generator, value_type_ *lats_ptr, value_type_ *lons_ptr,
+                      std::size_t values_count) noexcept {
 
-    using distribution_float_t = std::conditional_t<sizeof(scalar_type_) <= 4, float, double>;
+    using distribution_float_t = std::conditional_t<sizeof(value_type_) <= 4, float, double>;
     constexpr distribution_float_t pi = distribution_float_t(3.14159265358979323846);
     std::uniform_real_distribution<distribution_float_t> lat_disttribution(-pi / 2, pi / 2);
     std::uniform_real_distribution<distribution_float_t> lon_disttribution(-pi, pi);
-    for (std::size_t i = 0; i < n; ++i) {
-        lats[i] = static_cast<scalar_type_>(lat_disttribution(generator));
-        lons[i] = static_cast<scalar_type_>(lon_disttribution(generator));
+    for (std::size_t i = 0; i < values_count; ++i) {
+        lats_ptr[i] = static_cast<value_type_>(lat_disttribution(generator));
+        lons_ptr[i] = static_cast<value_type_>(lon_disttribution(generator));
     }
 }
 
 /**
  *  @brief Fill array as a probability distribution (sums to 1.0).
  *
- *  @tparam scalar_type_ A NumKong wrapper type.
+ *  @tparam value_type_ A NumKong wrapper type.
  *  @tparam generator_type_ A random number generator type.
- *  @param data Pointer to the probability array.
- *  @param n Number of elements to fill.
  *  @param generator The random number generator.
+ *  @param values_ptr Pointer to the probability array.
+ *  @param values_count Number of values to fill.
  */
-template <typename scalar_type_, typename generator_type_>
-void fill_probability(generator_type_ &generator, scalar_type_ *data, std::size_t n) noexcept {
+template <typename value_type_, typename generator_type_>
+void fill_probability(generator_type_ &generator, value_type_ *values_ptr, std::size_t values_count) noexcept {
 
-    using distribution_float_t = std::conditional_t<sizeof(scalar_type_) <= 4, float, double>;
-    std::uniform_real_distribution<distribution_float_t> distribution( //
-        distribution_float_t(0.01), distribution_float_t(1));
+    using distribution_float_t = std::conditional_t<sizeof(value_type_) <= 4, float, double>;
+    std::uniform_real_distribution<distribution_float_t> distribution(distribution_float_t(0.01),
+                                                                      distribution_float_t(1));
 
     distribution_float_t sum = 0;
-    for (std::size_t i = 0; i < n; ++i) {
+    for (std::size_t i = 0; i < values_count; ++i) {
         distribution_float_t val = distribution(generator);
-        data[i] = static_cast<scalar_type_>(val);
+        values_ptr[i] = static_cast<value_type_>(val);
         sum += val;
     }
-    for (std::size_t i = 0; i < n; ++i)
-        data[i] = static_cast<scalar_type_>(static_cast<distribution_float_t>(data[i]) / sum);
+    for (std::size_t i = 0; i < values_count; ++i)
+        values_ptr[i] = static_cast<value_type_>(static_cast<distribution_float_t>(values_ptr[i]) / sum);
 }
 
 #pragma endregion Random
@@ -357,7 +353,7 @@ void dot(in_type_ const *a, in_type_ const *b, std::size_t d, result_type_ *r) n
     // Scalar fallback
     else {
         result_type_ sum {};
-        std::size_t n = d / bits_per_value<in_type_>();
+        std::size_t n = divide_round_up(d, dimensions_per_value<in_type_>());
         for (std::size_t i = 0; i < n; i++) sum = fused_multiply_add(sum, a[i], b[i]);
         *r = sum;
     }
@@ -2172,9 +2168,20 @@ NK_PUBLIC size_t dots_packed_size(size_t column_count, size_t depth) {
     else if constexpr (std::is_same_v<in_type_, u4x2_t> && simd) return nk_dots_packed_size_u4(column_count, depth);
     else if constexpr (std::is_same_v<in_type_, i4x2_t> && simd) return nk_dots_packed_size_i4(column_count, depth);
     else {
-        return column_count * divide_round_up(depth, dimensions_per_value<in_type_>()) *
-                   sizeof(typename in_type_::raw_t) +
-               sizeof(size_t);
+        // Calculate padded depth with power-of-2 breaking (matching C implementation)
+        constexpr std::size_t depth_simd_dimensions = 8; // Conservative SIMD width for generic path
+        std::size_t depth_dimensions_padded = ((depth + depth_simd_dimensions - 1) / depth_simd_dimensions) *
+                                              depth_simd_dimensions;
+        std::size_t depth_values_padded = divide_round_up(depth_dimensions_padded, dimensions_per_value<in_type_>());
+
+        // Power-of-2 breaking to avoid cache conflicts
+        std::size_t stride_bytes = depth_values_padded * sizeof(typename in_type_::raw_t);
+        if ((stride_bytes & (stride_bytes - 1)) == 0 && stride_bytes > 0) {
+            depth_values_padded += divide_round_up(depth_simd_dimensions, dimensions_per_value<in_type_>());
+        }
+
+        // Header (64 bytes) + data
+        return 64 + column_count * depth_values_padded * sizeof(typename in_type_::raw_t);
     }
 }
 
@@ -2216,20 +2223,46 @@ NK_PUBLIC void dots_pack(in_type_ const *b, size_t column_count, size_t depth, s
     else if constexpr (std::is_same_v<in_type_, i4x2_t> && simd)
         nk_dots_pack_i4(reinterpret_cast<raw_t const *>(b), column_count, depth, b_stride_in_bytes, b_packed);
     else {
-        std::size_t depth_values = divide_round_up(depth, dimensions_per_value<in_type_>());
+        // Calculate padded depth with power-of-2 breaking (matching C implementation)
+        constexpr std::size_t depth_simd_dimensions = 8; // Conservative SIMD width for generic path
+        std::size_t depth_dimensions_padded = ((depth + depth_simd_dimensions - 1) / depth_simd_dimensions) *
+                                              depth_simd_dimensions;
+        std::size_t depth_values_padded = divide_round_up(depth_dimensions_padded, dimensions_per_value<in_type_>());
 
-        // Transpose B from row-major [column_count × depth_values] to column-major
+        // Power-of-2 breaking to avoid cache conflicts
+        std::size_t stride_bytes = depth_values_padded * sizeof(raw_t);
+        if ((stride_bytes & (stride_bytes - 1)) == 0 && stride_bytes > 0) {
+            depth_values_padded += divide_round_up(depth_simd_dimensions, dimensions_per_value<in_type_>());
+        }
+
+        std::size_t depth_in_values = divide_round_up(depth, dimensions_per_value<in_type_>());
+
+        // Write header (matching C struct format)
+        struct header_t {
+            std::uint32_t column_count;
+            std::uint32_t depth;
+            std::uint32_t depth_padded;
+            std::uint32_t reserved[13]; // Pad to 64 bytes
+        };
+        header_t *header = static_cast<header_t *>(b_packed);
+        header->column_count = static_cast<std::uint32_t>(column_count);
+        header->depth = static_cast<std::uint32_t>(depth);
+        header->depth_padded = static_cast<std::uint32_t>(depth_values_padded);
+
+        // Data starts after header
+        in_type_ *packed = reinterpret_cast<in_type_ *>(static_cast<char *>(b_packed) + sizeof(header_t));
+
+        // Zero entire buffer for padding
+        std::size_t total_elements = column_count * depth_values_padded;
+        for (std::size_t i = 0; i < total_elements; ++i) packed[i] = in_type_(0);
+
+        // Copy B[column_count, depth] to packed[column_count, depth_padded]
         char const *b_bytes = reinterpret_cast<char const *>(b);
-        in_type_ *out = static_cast<in_type_ *>(b_packed);
         for (size_t j = 0; j < column_count; j++) {
             in_type_ const *b_row = reinterpret_cast<in_type_ const *>(b_bytes + j * b_stride_in_bytes);
-            for (size_t l = 0; l < depth_values; l++) out[j * depth_values + l] = b_row[l];
+            in_type_ *dest_row = packed + j * depth_values_padded;
+            for (size_t l = 0; l < depth_in_values; l++) dest_row[l] = b_row[l];
         }
-        // Append stride metadata
-        size_t packed_stride = depth_values * sizeof(raw_t);
-        size_t bytes_for_data = column_count * depth_values * sizeof(raw_t);
-        char *metadata_ptr = static_cast<char *>(b_packed) + bytes_for_data;
-        std::memcpy(metadata_ptr, &packed_stride, sizeof(size_t));
     }
 }
 
@@ -2280,25 +2313,33 @@ void dots_packed(in_type_ const *a, void const *b_packed, result_type_ *c, std::
     else if constexpr (std::is_same_v<in_type_, i4x2_t> && dispatch)
         nk_dots_packed_i4(&a->raw_, b_packed, c, row_count, column_count, depth, a_stride_in_bytes, c_stride_in_bytes);
     else {
-        // Extract b_stride from the end of packed data
-        std::size_t depth_values = divide_round_up(depth, dimensions_per_value<in_type_>());
-        std::size_t bytes_for_b = column_count * depth_values * sizeof(raw_t);
-        char const *metadata_ptr = static_cast<char const *>(b_packed) + bytes_for_b;
-        std::size_t b_stride_in_bytes;
-        std::memcpy(&b_stride_in_bytes, metadata_ptr, sizeof(std::size_t));
+        // Read header (matching C struct format)
+        struct header_t {
+            std::uint32_t column_count;
+            std::uint32_t depth;
+            std::uint32_t depth_padded;
+            std::uint32_t reserved[13]; // Pad to 64 bytes
+        };
+        header_t const *header = static_cast<header_t const *>(b_packed);
+        std::size_t depth_padded = header->depth_padded;
+        std::size_t depth_in_values = divide_round_up(depth, dimensions_per_value<in_type_>());
 
-        // Use byte pointers for strided access
+        // Data starts after header
+        in_type_ const *packed = reinterpret_cast<in_type_ const *>(static_cast<char const *>(b_packed) +
+                                                                    sizeof(header_t));
+
+        // Use byte pointers for strided access to A and C
         char const *a_bytes = reinterpret_cast<char const *>(a);
-        char const *b_bytes = static_cast<char const *>(b_packed);
         char *c_bytes = reinterpret_cast<char *>(c);
 
         for (std::size_t i = 0; i < row_count; i++) {
             in_type_ const *a_row = reinterpret_cast<in_type_ const *>(a_bytes + i * a_stride_in_bytes);
             result_type_ *c_row = reinterpret_cast<result_type_ *>(c_bytes + i * c_stride_in_bytes);
             for (std::size_t j = 0; j < column_count; j++) {
-                in_type_ const *b_col = reinterpret_cast<in_type_ const *>(b_bytes + j * b_stride_in_bytes);
+                in_type_ const *b_col = packed + j * depth_padded;
                 result_type_ sum {};
-                for (std::size_t l = 0; l < depth_values; l++) sum = fused_multiply_add(sum, a_row[l], b_col[l]);
+                // Only process actual depth, not padding
+                for (std::size_t l = 0; l < depth_in_values; l++) sum = fused_multiply_add(sum, a_row[l], b_col[l]);
                 c_row[j] = sum;
             }
         }
