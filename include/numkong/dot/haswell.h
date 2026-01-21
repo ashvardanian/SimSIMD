@@ -134,7 +134,7 @@ NK_PUBLIC void nk_dot_f32c_haswell(nk_f32c_t const *a_pairs, nk_f32c_t const *b_
         __m128 b_f32x4 = _mm_loadu_ps((nk_f32_t const *)(b_pairs + idx_pairs));
         __m256d a_f64x4 = _mm256_cvtps_pd(a_f32x4);
         __m256d b_f64x4 = _mm256_cvtps_pd(b_f32x4);
-        __m256d b_swapped_f64x4 = _mm256_permute_pd(b_f64x4, 0b0101);
+        __m256d b_swapped_f64x4 = _mm256_permute_pd(b_f64x4, 0x5); // 0b0101: swap adjacent pairs
         sum_real_f64x4 = _mm256_fmadd_pd(a_f64x4, b_f64x4, sum_real_f64x4);
         sum_imag_f64x4 = _mm256_fmadd_pd(a_f64x4, b_swapped_f64x4, sum_imag_f64x4);
     }
@@ -163,7 +163,7 @@ NK_PUBLIC void nk_vdot_f32c_haswell(nk_f32c_t const *a_pairs, nk_f32c_t const *b
         __m256d a_f64x4 = _mm256_cvtps_pd(a_f32x4);
         __m256d b_f64x4 = _mm256_cvtps_pd(b_f32x4);
         sum_real_f64x4 = _mm256_fmadd_pd(a_f64x4, b_f64x4, sum_real_f64x4);
-        __m256d b_swapped_f64x4 = _mm256_permute_pd(b_f64x4, 0b0101);
+        __m256d b_swapped_f64x4 = _mm256_permute_pd(b_f64x4, 0x5); // 0b0101: swap adjacent pairs
         sum_imag_f64x4 = _mm256_fmadd_pd(a_f64x4, b_swapped_f64x4, sum_imag_f64x4);
     }
     // Flip the sign bit in every second f64 before accumulation:
@@ -218,7 +218,7 @@ NK_PUBLIC void nk_dot_f64c_haswell(nk_f64c_t const *a_pairs, nk_f64c_t const *b_
     for (; idx_pairs + 2 <= count_pairs; idx_pairs += 2) {
         __m256d a_f64x4 = _mm256_loadu_pd((nk_f64_t const *)(a_pairs + idx_pairs));
         __m256d b_f64x4 = _mm256_loadu_pd((nk_f64_t const *)(b_pairs + idx_pairs));
-        __m256d b_swapped_f64x4 = _mm256_permute_pd(b_f64x4, 0b0101);
+        __m256d b_swapped_f64x4 = _mm256_permute_pd(b_f64x4, 0x5); // 0b0101: swap adjacent pairs
 
         // TwoProd for real part: a * b
         __m256d product_real_f64x4 = _mm256_mul_pd(a_f64x4, b_f64x4);
@@ -274,7 +274,7 @@ NK_PUBLIC void nk_vdot_f64c_haswell(nk_f64c_t const *a_pairs, nk_f64c_t const *b
     for (; idx_pairs + 2 <= count_pairs; idx_pairs += 2) {
         __m256d a_f64x4 = _mm256_loadu_pd((nk_f64_t const *)(a_pairs + idx_pairs));
         __m256d b_f64x4 = _mm256_loadu_pd((nk_f64_t const *)(b_pairs + idx_pairs));
-        __m256d b_swapped_f64x4 = _mm256_permute_pd(b_f64x4, 0b0101);
+        __m256d b_swapped_f64x4 = _mm256_permute_pd(b_f64x4, 0x5); // 0b0101: swap adjacent pairs
 
         // TwoProd for real part: a * b
         __m256d product_real_f64x4 = _mm256_mul_pd(a_f64x4, b_f64x4);
@@ -507,22 +507,16 @@ nk_dot_e5m2_haswell_cycle:
     *result = (nk_f32_t)nk_reduce_add_f32x8_haswell_(sum_f32x8);
 }
 
-/**
- *  @brief Running state for f32 dot accumulation using f64 for high precision on Haswell.
- *
- *  Processes 4 f32 values at a time, upcasting to f64 for accumulation to avoid
- *  catastrophic cancellation in long reductions.
- */
-typedef struct nk_dot_f32x4_state_haswell_t {
+struct nk_dot_f32x4_state_haswell_t {
     __m256d sum_f64x4;
-} nk_dot_f32x4_state_haswell_t;
+};
 
 NK_INTERNAL void nk_dot_f32x4_init_haswell(nk_dot_f32x4_state_haswell_t *state) {
     state->sum_f64x4 = _mm256_setzero_pd();
 }
 
 NK_INTERNAL void nk_dot_f32x4_update_haswell(nk_dot_f32x4_state_haswell_t *state, nk_b128_vec_t a, nk_b128_vec_t b,
-                                              nk_size_t depth_offset, nk_size_t active_dimensions) {
+                                             nk_size_t depth_offset, nk_size_t active_dimensions) {
     nk_unused_(depth_offset);
     nk_unused_(active_dimensions);
     // Upcast 4 f32s to f64s for high-precision accumulation
@@ -561,15 +555,6 @@ NK_INTERNAL void nk_dot_f32x4_finalize_haswell(                                 
     result->xmm = _mm_castps_si128(sum_f32x4);
 }
 
-typedef nk_dot_through_f32_state_haswell_t_ nk_dot_f16x8_state_haswell_t;
-
-/**
- *  @brief Upcasting load helpers for F16 → F32 GEMM optimization.
- *
- *  These helpers eliminate inner-loop conversions by:
- *  - Loading unpacked A (f16) and upcasting to f32 on-the-fly
- *  - Loading packed B (already stored as f32) directly
- */
 NK_INTERNAL void nk_load_f16x8_to_f32x8_haswell_(void const *src, nk_b256_vec_t *dst) {
     dst->ymm_ps = _mm256_cvtph_ps(_mm_loadu_si128((__m128i const *)src));
 }
@@ -580,11 +565,6 @@ NK_INTERNAL void nk_dots_partial_load_f16x8_to_f32x8_haswell_(void const *src, n
     dst->ymm_ps = _mm256_cvtph_ps(f16_partial.xmm);
 }
 
-typedef nk_dot_through_f32_state_haswell_t_ nk_dot_bf16x8_state_haswell_t;
-
-/**
- *  @brief Upcasting load helpers for BF16 → F32 GEMM optimization.
- */
 NK_INTERNAL void nk_load_bf16x8_to_f32x8_haswell_(void const *src, nk_b256_vec_t *dst) {
     dst->ymm_ps = nk_bf16x8_to_f32x8_haswell_(_mm_loadu_si128((__m128i const *)src));
 }
@@ -595,11 +575,7 @@ NK_INTERNAL void nk_dots_partial_load_bf16x8_to_f32x8_haswell_(void const *src, 
     dst->ymm_ps = nk_bf16x8_to_f32x8_haswell_(bf16_partial.xmm);
 }
 
-/**
- *  @brief Upcasting load helpers for E4M3 → F32 GEMM optimization.
- */
 NK_INTERNAL void nk_load_e4m3x16_to_f32x8_haswell_(void const *src, nk_b256_vec_t *dst) {
-    // Load 8 bytes (8x E4M3 values), convert to F32x8
     dst->ymm_ps = nk_e4m3x8_to_f32x8_haswell_(_mm_loadl_epi64((__m128i const *)src));
 }
 
@@ -609,11 +585,7 @@ NK_INTERNAL void nk_dots_partial_load_e4m3x16_to_f32x8_haswell_(void const *src,
     dst->ymm_ps = nk_e4m3x8_to_f32x8_haswell_(e4m3_partial.xmm);
 }
 
-/**
- *  @brief Upcasting load helpers for E5M2 → F32 GEMM optimization.
- */
 NK_INTERNAL void nk_load_e5m2x16_to_f32x8_haswell_(void const *src, nk_b256_vec_t *dst) {
-    // Load 8 bytes (8x E5M2 values), convert to F32x8
     dst->ymm_ps = nk_e5m2x8_to_f32x8_haswell_(_mm_loadl_epi64((__m128i const *)src));
 }
 
@@ -623,23 +595,16 @@ NK_INTERNAL void nk_dots_partial_load_e5m2x16_to_f32x8_haswell_(void const *src,
     dst->ymm_ps = nk_e5m2x8_to_f32x8_haswell_(e5m2_partial.xmm);
 }
 
-typedef nk_dot_through_f32_state_haswell_t_ nk_dot_e4m3x16_state_haswell_t;
-
-typedef nk_dot_through_f32_state_haswell_t_ nk_dot_e5m2x16_state_haswell_t;
-
-/**
- *  @brief Running state for 128-bit dot accumulation over i8 scalars on Haswell.
- */
-typedef struct nk_dot_i8x16_state_haswell_t {
+struct nk_dot_i8x16_state_haswell_t {
     __m256i sum_i32x8;
-} nk_dot_i8x16_state_haswell_t;
+};
 
 NK_INTERNAL void nk_dot_i8x16_init_haswell(nk_dot_i8x16_state_haswell_t *state) {
     state->sum_i32x8 = _mm256_setzero_si256();
 }
 
 NK_INTERNAL void nk_dot_i8x16_update_haswell(nk_dot_i8x16_state_haswell_t *state, nk_b128_vec_t a, nk_b128_vec_t b,
-                                              nk_size_t depth_offset, nk_size_t active_dimensions) {
+                                             nk_size_t depth_offset, nk_size_t active_dimensions) {
     nk_unused_(depth_offset);
     nk_unused_(active_dimensions);
     __m256i a_i16x16 = _mm256_cvtepi8_epi16(a.xmm);
@@ -680,16 +645,16 @@ NK_INTERNAL void nk_dot_i8x16_finalize_haswell(                                 
 /**
  *  @brief Running state for 128-bit dot accumulation over u8 scalars on Haswell.
  */
-typedef struct nk_dot_u8x16_state_haswell_t {
+struct nk_dot_u8x16_state_haswell_t {
     __m256i sum_i32x8;
-} nk_dot_u8x16_state_haswell_t;
+};
 
 NK_INTERNAL void nk_dot_u8x16_init_haswell(nk_dot_u8x16_state_haswell_t *state) {
     state->sum_i32x8 = _mm256_setzero_si256();
 }
 
 NK_INTERNAL void nk_dot_u8x16_update_haswell(nk_dot_u8x16_state_haswell_t *state, nk_b128_vec_t a, nk_b128_vec_t b,
-                                              nk_size_t depth_offset, nk_size_t active_dimensions) {
+                                             nk_size_t depth_offset, nk_size_t active_dimensions) {
     nk_unused_(depth_offset);
     nk_unused_(active_dimensions);
     __m256i a_i16x16 = _mm256_cvtepu8_epi16(a.xmm);
@@ -723,7 +688,7 @@ NK_INTERNAL void nk_dot_f64x4_init_haswell(nk_dot_f64x4_state_haswell_t *state) 
 }
 
 NK_INTERNAL void nk_dot_f64x4_update_haswell(nk_dot_f64x4_state_haswell_t *state, nk_b256_vec_t a, nk_b256_vec_t b,
-                                              nk_size_t depth_offset, nk_size_t active_dimensions) {
+                                             nk_size_t depth_offset, nk_size_t active_dimensions) {
     nk_unused_(depth_offset);
     nk_unused_(active_dimensions);
     __m256d sum_f64x4 = state->sum_f64x4;

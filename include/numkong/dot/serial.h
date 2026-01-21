@@ -194,10 +194,10 @@ NK_PUBLIC void nk_vdot_f64c_serial(nk_f64c_t const *a_pairs, nk_f64c_t const *b_
     result->imag = sum_imag + compensation_imag;
 }
 
-typedef struct nk_dot_f64x2_state_serial_t {
+struct nk_dot_f64x2_state_serial_t {
     nk_f64_t sums[2];
     nk_f64_t compensations[2];
-} nk_dot_f64x2_state_serial_t;
+};
 
 NK_INTERNAL void nk_dot_f64x2_init_serial(nk_dot_f64x2_state_serial_t *state) {
     state->sums[0] = 0, state->sums[1] = 0;
@@ -236,9 +236,9 @@ NK_INTERNAL void nk_dot_f64x2_finalize_serial(                                  
     result->f64s[3] = (state_d->sums[0] + state_d->compensations[0]) + (state_d->sums[1] + state_d->compensations[1]);
 }
 
-typedef struct nk_dot_f32x4_state_serial_t {
+struct nk_dot_f32x4_state_serial_t {
     nk_f32_t sums[4];
-} nk_dot_f32x4_state_serial_t;
+};
 
 NK_INTERNAL void nk_dot_f32x4_init_serial(nk_dot_f32x4_state_serial_t *state) {
     state->sums[0] = 0, state->sums[1] = 0, state->sums[2] = 0, state->sums[3] = 0;
@@ -268,9 +268,9 @@ NK_INTERNAL void nk_dot_f32x4_finalize_serial(                                  
     result->f32s[3] = state_d->sums[0] + state_d->sums[1] + state_d->sums[2] + state_d->sums[3];
 }
 
-typedef struct nk_dot_f16x8_state_serial_t {
+struct nk_dot_f16x8_state_serial_t {
     nk_f32_t sums[4];
-} nk_dot_f16x8_state_serial_t;
+};
 
 NK_INTERNAL void nk_dot_f16x8_init_serial(nk_dot_f16x8_state_serial_t *state) {
     state->sums[0] = 0, state->sums[1] = 0, state->sums[2] = 0, state->sums[3] = 0;
@@ -303,9 +303,9 @@ NK_INTERNAL void nk_dot_f16x8_finalize_serial(                                  
     result->f32s[3] = state_d->sums[0] + state_d->sums[1] + state_d->sums[2] + state_d->sums[3];
 }
 
-typedef struct nk_dot_bf16x8_state_serial_t {
+struct nk_dot_bf16x8_state_serial_t {
     nk_f32_t sums[4];
-} nk_dot_bf16x8_state_serial_t;
+};
 
 NK_INTERNAL void nk_dot_bf16x8_init_serial(nk_dot_bf16x8_state_serial_t *state) {
     state->sums[0] = 0, state->sums[1] = 0, state->sums[2] = 0, state->sums[3] = 0;
@@ -338,9 +338,9 @@ NK_INTERNAL void nk_dot_bf16x8_finalize_serial(                                 
     result->f32s[3] = state_d->sums[0] + state_d->sums[1] + state_d->sums[2] + state_d->sums[3];
 }
 
-typedef struct nk_dot_i8x16_state_serial_t {
+struct nk_dot_i8x16_state_serial_t {
     nk_i64_t sums[2];
-} nk_dot_i8x16_state_serial_t;
+};
 
 NK_INTERNAL void nk_dot_i8x16_init_serial(nk_dot_i8x16_state_serial_t *state) {
     state->sums[0] = 0, state->sums[1] = 0;
@@ -374,9 +374,9 @@ NK_INTERNAL void nk_dot_i8x16_finalize_serial(                                  
     result->i32s[3] = (nk_i32_t)(state_d->sums[0] + state_d->sums[1]);
 }
 
-typedef struct nk_dot_u8x16_state_serial_t {
+struct nk_dot_u8x16_state_serial_t {
     nk_u64_t sums[2];
-} nk_dot_u8x16_state_serial_t;
+};
 
 NK_INTERNAL void nk_dot_u8x16_init_serial(nk_dot_u8x16_state_serial_t *state) {
     state->sums[0] = 0, state->sums[1] = 0;
@@ -411,9 +411,9 @@ NK_INTERNAL void nk_dot_u8x16_finalize_serial(                                  
     result->u32s[3] = (nk_u32_t)(state_d->sums[0] + state_d->sums[1]);
 }
 
-typedef struct nk_dot_e4m3x16_state_serial_t {
+struct nk_dot_e4m3x16_state_serial_t {
     nk_f32_t sums[4];
-} nk_dot_e4m3x16_state_serial_t;
+};
 
 NK_INTERNAL void nk_dot_e4m3x16_init_serial(nk_dot_e4m3x16_state_serial_t *state) {
     state->sums[0] = 0, state->sums[1] = 0, state->sums[2] = 0, state->sums[3] = 0;
@@ -451,9 +451,9 @@ NK_INTERNAL void nk_dot_e4m3x16_finalize_serial(                                
     result->f32s[3] = state_d->sums[0] + state_d->sums[1] + state_d->sums[2] + state_d->sums[3];
 }
 
-typedef struct nk_dot_e5m2x16_state_serial_t {
+struct nk_dot_e5m2x16_state_serial_t {
     nk_f32_t sums[4];
-} nk_dot_e5m2x16_state_serial_t;
+};
 
 NK_INTERNAL void nk_dot_e5m2x16_init_serial(nk_dot_e5m2x16_state_serial_t *state) {
     state->sums[0] = 0, state->sums[1] = 0, state->sums[2] = 0, state->sums[3] = 0;
@@ -620,34 +620,19 @@ NK_INTERNAL void nk_dot_u4x16_finalize_serial(nk_dot_u4x16_state_serial_t const 
     result->u32s[3] = (nk_u32_t)(state_d->sums[0] + state_d->sums[1]);
 }
 
-/**
- *  @brief Load helper for i4→i8 conversion (asymmetric GEMM optimization).
- *
- *  Loads 8 bytes containing 16 packed i4 values and expands them to 16 i8 values.
- *  This matches the asymmetric pattern: A matrix expands on load, B matrix pre-expanded.
- */
 NK_INTERNAL void nk_load_i4x16_to_i8x16_serial_(void const *src, nk_b128_vec_t *dst) {
     nk_i4_to_i8_serial_((nk_i4x2_t const *)src, dst->i8s, 16);
 }
 
-/**
- *  @brief Partial load helper for i4→i8 conversion.
- */
 NK_INTERNAL void nk_partial_load_i4x16_to_i8x16_serial_(void const *src, nk_b128_vec_t *dst, nk_size_t n) {
     nk_i4_to_i8_serial_((nk_i4x2_t const *)src, dst->i8s, n);
     for (nk_size_t i = n; i < 16; ++i) dst->i8s[i] = 0;
 }
 
-/**
- *  @brief Load helper for u4→u8 conversion (asymmetric GEMM optimization).
- */
 NK_INTERNAL void nk_load_u4x16_to_u8x16_serial_(void const *src, nk_b128_vec_t *dst) {
     nk_u4_to_u8_serial_((nk_u4x2_t const *)src, dst->u8s, 16);
 }
 
-/**
- *  @brief Partial load helper for u4→u8 conversion.
- */
 NK_INTERNAL void nk_partial_load_u4x16_to_u8x16_serial_(void const *src, nk_b128_vec_t *dst, nk_size_t n) {
     nk_u4_to_u8_serial_((nk_u4x2_t const *)src, dst->u8s, n);
     for (nk_size_t i = n; i < 16; ++i) dst->u8s[i] = 0;

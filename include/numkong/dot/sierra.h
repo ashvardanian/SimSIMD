@@ -106,10 +106,10 @@ nk_dot_i8_sierra_cycle:
     *result = (nk_i32_t)(ab_sum - correction);
 }
 
-typedef struct nk_dot_i8x32_state_sierra_t {
+struct nk_dot_i8x32_state_sierra_t {
     __m256i sum_ab_i32x8; // Main dot product sum: (a+128)×b
     __m256i sum_b_i32x8;  // Correction term: sum(b) for algebraic transform
-} nk_dot_i8x32_state_sierra_t;
+};
 
 NK_INTERNAL void nk_dot_i8x32_init_sierra(nk_dot_i8x32_state_sierra_t *state) {
     state->sum_ab_i32x8 = _mm256_setzero_si256();

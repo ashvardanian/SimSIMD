@@ -231,9 +231,30 @@ NK_INTERNAL void nk_dot_through_bf16_finalize_genoa_(                           
         result, total_dimensions);
 }
 
-typedef nk_dot_through_bf16_state_genoa_t_ nk_dot_e4m3x32_state_genoa_t;
+struct nk_dot_bf16x32_state_genoa_t {
+    __m512 sum_f32x16;
+};
 
-typedef nk_dot_through_bf16_state_genoa_t_ nk_dot_e5m2x32_state_genoa_t;
+NK_INTERNAL void nk_dot_bf16x32_init_genoa(nk_dot_bf16x32_state_genoa_t *state) {
+    nk_dot_through_bf16_init_genoa_((nk_dot_through_bf16_state_genoa_t_ *)state);
+}
+
+NK_INTERNAL void nk_dot_bf16x32_update_genoa(nk_dot_bf16x32_state_genoa_t *state, nk_b512_vec_t a, nk_b512_vec_t b,
+                                             nk_size_t depth_offset, nk_size_t active_dimensions) {
+    nk_dot_through_bf16_update_genoa_((nk_dot_through_bf16_state_genoa_t_ *)state, a, b, depth_offset,
+                                      active_dimensions);
+}
+
+NK_INTERNAL void nk_dot_bf16x32_finalize_genoa(nk_dot_bf16x32_state_genoa_t const *state_a,
+                                               nk_dot_bf16x32_state_genoa_t const *state_b,
+                                               nk_dot_bf16x32_state_genoa_t const *state_c,
+                                               nk_dot_bf16x32_state_genoa_t const *state_d, nk_b128_vec_t *result,
+                                               nk_size_t total_dimensions) {
+    nk_dot_through_bf16_finalize_genoa_((nk_dot_through_bf16_state_genoa_t_ const *)state_a,
+                                        (nk_dot_through_bf16_state_genoa_t_ const *)state_b,
+                                        (nk_dot_through_bf16_state_genoa_t_ const *)state_c,
+                                        (nk_dot_through_bf16_state_genoa_t_ const *)state_d, result, total_dimensions);
+}
 
 #if defined(__cplusplus)
 } // extern "C"

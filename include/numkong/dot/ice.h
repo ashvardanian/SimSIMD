@@ -158,10 +158,10 @@ nk_dot_u8_ice_cycle:
     *result = (nk_u32_t)(ab_dot_signed + correction);
 }
 
-typedef struct nk_dot_i8x32_state_ice_t {
+struct nk_dot_i8x32_state_ice_t {
     __m512i sum_ab_i32x16; // Main dot product sum: (a+128)×b
     __m512i sum_b_i32x16;  // Correction term: sum(b) for algebraic transform
-} nk_dot_i8x32_state_ice_t;
+};
 
 NK_INTERNAL void nk_dot_i8x32_init_ice(nk_dot_i8x32_state_ice_t *state) {
     state->sum_ab_i32x16 = _mm512_setzero_si512();
@@ -268,10 +268,10 @@ NK_INTERNAL void nk_dot_i8x32_finalize_ice(                                     
     results->xmm = _mm_sub_epi32(sum_ab_final_i32x4, correction_i32x4);
 }
 
-typedef struct nk_dot_u8x64_state_ice_t {
+struct nk_dot_u8x64_state_ice_t {
     __m512i sum_ab_i32x16; // Main dot product sum: a×(b-128)
     __m512i sum_a_i64x8;   // Correction term: sum(a) for algebraic transform
-} nk_dot_u8x64_state_ice_t;
+};
 
 NK_INTERNAL void nk_dot_u8x64_init_ice(nk_dot_u8x64_state_ice_t *state) {
     state->sum_ab_i32x16 = _mm512_setzero_si512();

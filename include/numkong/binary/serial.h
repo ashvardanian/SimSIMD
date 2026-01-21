@@ -59,9 +59,9 @@ NK_PUBLIC void nk_jaccard_u16_serial(nk_u16_t const *a, nk_u16_t const *b, nk_si
     *result = (n != 0) ? 1.0f - (nk_f32_t)matches / (nk_f32_t)n : 1.0f;
 }
 
-typedef struct nk_jaccard_b128_state_serial_t {
+struct nk_jaccard_b128_state_serial_t {
     nk_u64_t intersection_count;
-} nk_jaccard_b128_state_serial_t;
+};
 
 NK_INTERNAL void nk_jaccard_b128_init_serial(nk_jaccard_b128_state_serial_t *state) { state->intersection_count = 0; }
 

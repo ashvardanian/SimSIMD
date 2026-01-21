@@ -526,10 +526,10 @@ NK_PUBLIC void nk_dot_u8_skylake(nk_u8_t const *a_scalars, nk_u8_t const *b_scal
     *result = sum;
 }
 
-typedef struct nk_dot_f64x8_state_skylake_t {
+struct nk_dot_f64x8_state_skylake_t {
     __m512d sum_f64x8;
     __m512d compensation_f64x8;
-} nk_dot_f64x8_state_skylake_t;
+};
 
 NK_INTERNAL void nk_dot_f64x8_init_skylake(nk_dot_f64x8_state_skylake_t *state) {
     state->sum_f64x8 = _mm512_setzero_pd();
@@ -589,9 +589,9 @@ NK_INTERNAL void nk_dot_f64x8_finalize_skylake(                                 
     result->ymm = _mm256_castpd_si256(_mm256_set_m128d(sum_cd_f64x2, sum_ab_f64x2));
 }
 
-typedef struct nk_dot_f32x8_state_skylake_t {
+struct nk_dot_f32x8_state_skylake_t {
     __m512d sum_f64x8;
-} nk_dot_f32x8_state_skylake_t;
+};
 
 NK_INTERNAL void nk_dot_f32x8_init_skylake(nk_dot_f32x8_state_skylake_t *state) {
     state->sum_f64x8 = _mm512_setzero_pd();
@@ -675,12 +675,6 @@ NK_INTERNAL void nk_partial_load_e5m2x16_to_f32x16_skylake_(void const *src, nk_
 typedef nk_dot_through_f32_state_skylake_t_ nk_dot_bf16x16_state_skylake_t;
 
 typedef nk_dot_through_f32_state_skylake_t_ nk_dot_f16x16_state_skylake_t;
-
-// E4M3 state is just an alias - only update does E4M3→F32 conversion
-typedef nk_dot_through_f32_state_skylake_t_ nk_dot_e4m3x16_state_skylake_t;
-
-// E5M2 state is just an alias - only update does E5M2→F32 conversion
-typedef nk_dot_through_f32_state_skylake_t_ nk_dot_e5m2x16_state_skylake_t;
 
 #if defined(__cplusplus)
 } // extern "C"

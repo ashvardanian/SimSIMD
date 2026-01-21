@@ -264,9 +264,9 @@ NK_PUBLIC void nk_jaccard_u16_ice(nk_u16_t const *a, nk_u16_t const *b, nk_size_
     *result = (n != 0) ? 1.0f - (nk_f32_t)matches / (nk_f32_t)n : 1.0f;
 }
 
-typedef struct nk_jaccard_b512_state_ice_t {
+struct nk_jaccard_b512_state_ice_t {
     __m512i intersection_count_i64x8;
-} nk_jaccard_b512_state_ice_t;
+};
 
 NK_INTERNAL void nk_jaccard_b512_init_ice(nk_jaccard_b512_state_ice_t *state) {
     state->intersection_count_i64x8 = _mm512_setzero_si512();

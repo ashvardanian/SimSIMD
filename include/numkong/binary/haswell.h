@@ -168,9 +168,9 @@ NK_PUBLIC void nk_jaccard_u16_haswell(nk_u16_t const *a, nk_u16_t const *b, nk_s
     *result = (n != 0) ? 1.0f - (nk_f32_t)matches / (nk_f32_t)n : 1.0f;
 }
 
-typedef struct nk_jaccard_b256_state_haswell_t {
+struct nk_jaccard_b256_state_haswell_t {
     nk_u32_t intersection_count;
-} nk_jaccard_b256_state_haswell_t;
+};
 
 NK_INTERNAL void nk_jaccard_b256_init_haswell(nk_jaccard_b256_state_haswell_t *state) { state->intersection_count = 0; }
 
