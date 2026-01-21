@@ -333,8 +333,8 @@ NK_INTERNAL void nk_fill_error_(void *ptr, nk_size_t bytes) {
 
 #define nk_dispatch_dots_symmetric_(name, input_type, output_type)                                                     \
     NK_DYNAMIC void nk_dots_symmetric_##name(nk_##input_type##_t const *vectors, nk_size_t n_vectors, nk_size_t depth, \
-                                             nk_size_t stride, nk_##output_type##_t *result,                           \
-                                             nk_size_t result_stride) {                                                \
+                                             nk_size_t stride, nk_##output_type##_t *result, nk_size_t result_stride,  \
+                                             nk_size_t row_start, nk_size_t row_count) {                               \
         static nk_dots_symmetric_punned_t kernel = 0;                                                                  \
         if (kernel == 0) {                                                                                             \
             nk_capability_t used_capability;                                                                           \
@@ -346,7 +346,7 @@ NK_INTERNAL void nk_fill_error_(void *ptr, nk_size_t bytes) {
                 return;                                                                                                \
             }                                                                                                          \
         }                                                                                                              \
-        kernel(vectors, n_vectors, depth, stride, result, result_stride);                                              \
+        kernel(vectors, n_vectors, depth, stride, result, result_stride, row_start, row_count);                        \
     }
 
 // Dot products
@@ -993,16 +993,16 @@ NK_DYNAMIC nk_capability_t nk_capabilities(void) {
     nk_dots_packed_e5m2((nk_e5m2_t *)x, (void *)&dummy_tensor_header, (nk_f32_t *)x, 0, 0, 0, 0, 0);
 
     // Symmetric Gram matrix (A × Aᵀ)
-    nk_dots_symmetric_f32((nk_f32_t *)x, 0, 0, 0, (nk_f32_t *)x, 0);
-    nk_dots_symmetric_f64((nk_f64_t *)x, 0, 0, 0, (nk_f64_t *)x, 0);
-    nk_dots_symmetric_f16((nk_f16_t *)x, 0, 0, 0, (nk_f32_t *)x, 0);
-    nk_dots_symmetric_bf16((nk_bf16_t *)x, 0, 0, 0, (nk_f32_t *)x, 0);
-    nk_dots_symmetric_i8((nk_i8_t *)x, 0, 0, 0, (nk_i32_t *)x, 0);
-    nk_dots_symmetric_u8((nk_u8_t *)x, 0, 0, 0, (nk_u32_t *)x, 0);
-    nk_dots_symmetric_e4m3((nk_e4m3_t *)x, 0, 0, 0, (nk_f32_t *)x, 0);
-    nk_dots_symmetric_e5m2((nk_e5m2_t *)x, 0, 0, 0, (nk_f32_t *)x, 0);
-    nk_dots_symmetric_u4((nk_u4x2_t *)x, 0, 0, 0, (nk_u32_t *)x, 0);
-    nk_dots_symmetric_i4((nk_i4x2_t *)x, 0, 0, 0, (nk_i32_t *)x, 0);
+    nk_dots_symmetric_f32((nk_f32_t *)x, 0, 0, 0, (nk_f32_t *)x, 0, 0, 0);
+    nk_dots_symmetric_f64((nk_f64_t *)x, 0, 0, 0, (nk_f64_t *)x, 0, 0, 0);
+    nk_dots_symmetric_f16((nk_f16_t *)x, 0, 0, 0, (nk_f32_t *)x, 0, 0, 0);
+    nk_dots_symmetric_bf16((nk_bf16_t *)x, 0, 0, 0, (nk_f32_t *)x, 0, 0, 0);
+    nk_dots_symmetric_i8((nk_i8_t *)x, 0, 0, 0, (nk_i32_t *)x, 0, 0, 0);
+    nk_dots_symmetric_u8((nk_u8_t *)x, 0, 0, 0, (nk_u32_t *)x, 0, 0, 0);
+    nk_dots_symmetric_e4m3((nk_e4m3_t *)x, 0, 0, 0, (nk_f32_t *)x, 0, 0, 0);
+    nk_dots_symmetric_e5m2((nk_e5m2_t *)x, 0, 0, 0, (nk_f32_t *)x, 0, 0, 0);
+    nk_dots_symmetric_u4((nk_u4x2_t *)x, 0, 0, 0, (nk_u32_t *)x, 0, 0, 0);
+    nk_dots_symmetric_i4((nk_i4x2_t *)x, 0, 0, 0, (nk_i32_t *)x, 0, 0, 0);
 
     return static_capabilities;
 }

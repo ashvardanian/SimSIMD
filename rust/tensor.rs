@@ -212,6 +212,8 @@ extern "C" {
         stride: u64size,
         result: *mut f32,
         result_stride: u64size,
+        row_start: u64size,
+        row_count: u64size,
     );
     fn nk_dots_symmetric_f64(
         vectors: *const f64,
@@ -220,6 +222,8 @@ extern "C" {
         stride: u64size,
         result: *mut f64,
         result_stride: u64size,
+        row_start: u64size,
+        row_count: u64size,
     );
     fn nk_dots_symmetric_f16(
         vectors: *const u16,
@@ -228,6 +232,8 @@ extern "C" {
         stride: u64size,
         result: *mut f32,
         result_stride: u64size,
+        row_start: u64size,
+        row_count: u64size,
     );
     fn nk_dots_symmetric_bf16(
         vectors: *const u16,
@@ -236,6 +242,8 @@ extern "C" {
         stride: u64size,
         result: *mut f32,
         result_stride: u64size,
+        row_start: u64size,
+        row_count: u64size,
     );
     fn nk_dots_symmetric_i8(
         vectors: *const i8,
@@ -244,6 +252,8 @@ extern "C" {
         stride: u64size,
         result: *mut i32,
         result_stride: u64size,
+        row_start: u64size,
+        row_count: u64size,
     );
     fn nk_dots_symmetric_u8(
         vectors: *const u8,
@@ -252,6 +262,8 @@ extern "C" {
         stride: u64size,
         result: *mut u32,
         result_stride: u64size,
+        row_start: u64size,
+        row_count: u64size,
     );
     fn nk_dots_symmetric_e4m3(
         vectors: *const u8,
@@ -260,6 +272,8 @@ extern "C" {
         stride: u64size,
         result: *mut f32,
         result_stride: u64size,
+        row_start: u64size,
+        row_count: u64size,
     );
     fn nk_dots_symmetric_e5m2(
         vectors: *const u8,
@@ -268,6 +282,8 @@ extern "C" {
         stride: u64size,
         result: *mut f32,
         result_stride: u64size,
+        row_start: u64size,
+        row_count: u64size,
     );
     fn nk_dots_symmetric_e2m3(
         vectors: *const u8,
@@ -276,6 +292,8 @@ extern "C" {
         stride: u64size,
         result: *mut f32,
         result_stride: u64size,
+        row_start: u64size,
+        row_count: u64size,
     );
     fn nk_dots_symmetric_e3m2(
         vectors: *const u8,
@@ -284,6 +302,8 @@ extern "C" {
         stride: u64size,
         result: *mut f32,
         result_stride: u64size,
+        row_start: u64size,
+        row_count: u64size,
     );
     fn nk_dots_symmetric_u4(
         vectors: *const u8,
@@ -292,6 +312,8 @@ extern "C" {
         stride: u64size,
         result: *mut u32,
         result_stride: u64size,
+        row_start: u64size,
+        row_count: u64size,
     );
     fn nk_dots_symmetric_i4(
         vectors: *const u8,
@@ -300,6 +322,8 @@ extern "C" {
         stride: u64size,
         result: *mut i32,
         result_stride: u64size,
+        row_start: u64size,
+        row_count: u64size,
     );
 }
 
@@ -1011,6 +1035,7 @@ pub trait DotsSymmetric: Sized + Clone {
     /// - `vectors` must point to valid memory for `n_vectors × depth` elements with given stride
     /// - `result` must point to valid memory for `n_vectors × n_vectors` elements with given stride
     /// - Strides are in bytes, not elements
+    /// - `row_start + row_count` must be <= `n_vectors`
     unsafe fn dots_symmetric(
         vectors: *const Self,
         n_vectors: usize,
@@ -1018,6 +1043,8 @@ pub trait DotsSymmetric: Sized + Clone {
         stride: usize,
         result: *mut Self::Accumulator,
         result_stride: usize,
+        row_start: usize,
+        row_count: usize,
     );
 }
 
@@ -1031,6 +1058,8 @@ impl DotsSymmetric for f32 {
         stride: usize,
         result: *mut Self::Accumulator,
         result_stride: usize,
+        row_start: usize,
+        row_count: usize,
     ) {
         nk_dots_symmetric_f32(
             vectors,
@@ -1039,6 +1068,8 @@ impl DotsSymmetric for f32 {
             stride as u64size,
             result,
             result_stride as u64size,
+            row_start as u64size,
+            row_count as u64size,
         )
     }
 }
@@ -1053,6 +1084,8 @@ impl DotsSymmetric for f64 {
         stride: usize,
         result: *mut Self::Accumulator,
         result_stride: usize,
+        row_start: usize,
+        row_count: usize,
     ) {
         nk_dots_symmetric_f64(
             vectors,
@@ -1061,6 +1094,8 @@ impl DotsSymmetric for f64 {
             stride as u64size,
             result,
             result_stride as u64size,
+            row_start as u64size,
+            row_count as u64size,
         )
     }
 }
@@ -1075,6 +1110,8 @@ impl DotsSymmetric for f16 {
         stride: usize,
         result: *mut Self::Accumulator,
         result_stride: usize,
+        row_start: usize,
+        row_count: usize,
     ) {
         nk_dots_symmetric_f16(
             vectors as *const u16,
@@ -1083,6 +1120,8 @@ impl DotsSymmetric for f16 {
             stride as u64size,
             result,
             result_stride as u64size,
+            row_start as u64size,
+            row_count as u64size,
         )
     }
 }
@@ -1097,6 +1136,8 @@ impl DotsSymmetric for bf16 {
         stride: usize,
         result: *mut Self::Accumulator,
         result_stride: usize,
+        row_start: usize,
+        row_count: usize,
     ) {
         nk_dots_symmetric_bf16(
             vectors as *const u16,
@@ -1105,6 +1146,8 @@ impl DotsSymmetric for bf16 {
             stride as u64size,
             result,
             result_stride as u64size,
+            row_start as u64size,
+            row_count as u64size,
         )
     }
 }
@@ -1119,6 +1162,8 @@ impl DotsSymmetric for i8 {
         stride: usize,
         result: *mut Self::Accumulator,
         result_stride: usize,
+        row_start: usize,
+        row_count: usize,
     ) {
         nk_dots_symmetric_i8(
             vectors,
@@ -1127,6 +1172,8 @@ impl DotsSymmetric for i8 {
             stride as u64size,
             result,
             result_stride as u64size,
+            row_start as u64size,
+            row_count as u64size,
         )
     }
 }
@@ -1141,6 +1188,8 @@ impl DotsSymmetric for u8 {
         stride: usize,
         result: *mut Self::Accumulator,
         result_stride: usize,
+        row_start: usize,
+        row_count: usize,
     ) {
         nk_dots_symmetric_u8(
             vectors,
@@ -1149,6 +1198,8 @@ impl DotsSymmetric for u8 {
             stride as u64size,
             result,
             result_stride as u64size,
+            row_start as u64size,
+            row_count as u64size,
         )
     }
 }
@@ -1163,6 +1214,8 @@ impl DotsSymmetric for e4m3 {
         stride: usize,
         result: *mut Self::Accumulator,
         result_stride: usize,
+        row_start: usize,
+        row_count: usize,
     ) {
         nk_dots_symmetric_e4m3(
             vectors as *const u8,
@@ -1171,6 +1224,8 @@ impl DotsSymmetric for e4m3 {
             stride as u64size,
             result,
             result_stride as u64size,
+            row_start as u64size,
+            row_count as u64size,
         )
     }
 }
@@ -1185,6 +1240,8 @@ impl DotsSymmetric for e5m2 {
         stride: usize,
         result: *mut Self::Accumulator,
         result_stride: usize,
+        row_start: usize,
+        row_count: usize,
     ) {
         nk_dots_symmetric_e5m2(
             vectors as *const u8,
@@ -1193,6 +1250,8 @@ impl DotsSymmetric for e5m2 {
             stride as u64size,
             result,
             result_stride as u64size,
+            row_start as u64size,
+            row_count as u64size,
         )
     }
 }
@@ -1207,6 +1266,8 @@ impl DotsSymmetric for e2m3 {
         stride: usize,
         result: *mut Self::Accumulator,
         result_stride: usize,
+        row_start: usize,
+        row_count: usize,
     ) {
         nk_dots_symmetric_e2m3(
             vectors as *const u8,
@@ -1215,6 +1276,8 @@ impl DotsSymmetric for e2m3 {
             stride as u64size,
             result,
             result_stride as u64size,
+            row_start as u64size,
+            row_count as u64size,
         )
     }
 }
@@ -1229,6 +1292,8 @@ impl DotsSymmetric for e3m2 {
         stride: usize,
         result: *mut Self::Accumulator,
         result_stride: usize,
+        row_start: usize,
+        row_count: usize,
     ) {
         nk_dots_symmetric_e3m2(
             vectors as *const u8,
@@ -1237,6 +1302,8 @@ impl DotsSymmetric for e3m2 {
             stride as u64size,
             result,
             result_stride as u64size,
+            row_start as u64size,
+            row_count as u64size,
         )
     }
 }
@@ -1251,6 +1318,8 @@ impl DotsSymmetric for u4x2 {
         stride: usize,
         result: *mut Self::Accumulator,
         result_stride: usize,
+        row_start: usize,
+        row_count: usize,
     ) {
         nk_dots_symmetric_u4(
             vectors as *const u8,
@@ -1259,6 +1328,8 @@ impl DotsSymmetric for u4x2 {
             stride as u64size,
             result,
             result_stride as u64size,
+            row_start as u64size,
+            row_count as u64size,
         )
     }
 }
@@ -1273,6 +1344,8 @@ impl DotsSymmetric for i4x2 {
         stride: usize,
         result: *mut Self::Accumulator,
         result_stride: usize,
+        row_start: usize,
+        row_count: usize,
     ) {
         nk_dots_symmetric_i4(
             vectors as *const u8,
@@ -1281,6 +1354,8 @@ impl DotsSymmetric for i4x2 {
             stride as u64size,
             result,
             result_stride as u64size,
+            row_start as u64size,
+            row_count as u64size,
         )
     }
 }
@@ -1835,6 +1910,8 @@ where
                 self.stride(0),
                 result.as_mut_ptr(),
                 result.stride(0),
+                0,
+                n_vectors,
             );
         }
 
@@ -2745,6 +2822,129 @@ where
         self.try_matmul_parallel(packed_b, pool)
             .expect("parallel matmul failed")
     }
+
+/// Compute row assignment for a thread without allocation
+#[inline]
+fn compute_thread_rows(thread_idx: usize, num_threads: usize, n: usize) -> (usize, usize) {
+    let total_work = n * (n + 1) / 2;
+    let work_per_thread = (total_work + num_threads - 1) / num_threads;
+
+    // Target work range for this thread
+    let work_start = thread_idx * work_per_thread;
+    let work_end = ((thread_idx + 1) * work_per_thread).min(total_work);
+
+    // Find start row using quadratic formula approximation
+    let start_row = if work_start == 0 {
+        0
+    } else {
+        // Approximate: row ≈ n - sqrt(2*(total_work - work_start))
+        let remaining = total_work.saturating_sub(work_start);
+        let approx = n.saturating_sub(((2 * remaining) as f64).sqrt() as usize);
+
+        // Refine by linear search (at most a few iterations)
+        let mut row = approx;
+        let mut acc = row * (2 * n - row + 1) / 2;
+        while acc < work_start && row < n {
+            row += 1;
+            acc += n - row + 1;
+        }
+        row
+    };
+
+    // Find end row similarly
+    let mut end_row = start_row;
+    let mut acc = start_row * (2 * n - start_row + 1) / 2;
+    while acc < work_end && end_row < n {
+        acc += n - end_row;
+        end_row += 1;
+    }
+
+    (start_row, end_row - start_row)
+}
+
+#[cfg(feature = "parallel")]
+impl<T: DotsSymmetric + Clone + Send + Sync, A: Allocator + Clone, const MAX_RANK: usize>
+    Tensor<T, A, MAX_RANK>
+where
+    T::Accumulator: Clone + Default + Send + Sync,
+{
+    /// Parallel computation of symmetric Gram matrix C = A × Aᵀ.
+    ///
+    /// Distributes rows across threads with balanced work distribution based on the
+    /// triangular structure of symmetric matrix computation.
+    ///
+    /// # Arguments
+    /// * `pool` - Pre-constructed thread pool
+    ///
+    /// # Example
+    /// ```ignore
+    /// use numkong::Tensor;
+    /// use fork_union::ThreadPool;
+    ///
+    /// let mut pool = ThreadPool::try_spawn(4).unwrap();
+    /// let vectors = Tensor::<f32>::try_new(&[100, 768], 1.0).unwrap();
+    /// let gram = vectors.try_gram_matrix_parallel(&mut pool).unwrap();
+    /// assert_eq!(gram.shape(), &[100, 100]);
+    /// ```
+    pub fn try_gram_matrix_parallel(
+        &self,
+        pool: &mut fork_union::ThreadPool,
+    ) -> Result<Tensor<T::Accumulator, Global, MAX_RANK>, TensorError> {
+        if self.ndim() != 2 {
+            return Err(TensorError::DimensionMismatch {
+                expected: 2,
+                got: self.ndim(),
+            });
+        }
+
+        let (n, k) = (self.shape()[0], self.shape()[1]);
+        let mut result = Tensor::<T::Accumulator, Global, MAX_RANK>::try_new(
+            &[n, n],
+            T::Accumulator::default(),
+        )?;
+
+        let num_threads = pool.threads().max(1);
+        let vectors_ptr = fork_union::SyncConstPtr::new(self.as_ptr());
+        let result_ptr = fork_union::SyncMutPtr::new(result.as_mut_ptr());
+        let stride = self.stride(0);
+        let result_stride = result.stride(0);
+
+        pool.for_threads(move |thread_idx, _colocation_idx| {
+            crate::capabilities::configure_thread();
+
+            // Compute row assignment inline (no heap allocation)
+            let (row_start, row_count) = compute_thread_rows(thread_idx, num_threads, n);
+
+            unsafe {
+                T::dots_symmetric(
+                    vectors_ptr.as_ptr(),
+                    n,
+                    k,
+                    stride,
+                    result_ptr.as_ptr(),
+                    result_stride,
+                    row_start,
+                    row_count,
+                );
+            }
+        })
+        .join();
+
+        Ok(result)
+    }
+
+    /// Parallel computation of symmetric Gram matrix (unwrapping version).
+    ///
+    /// # Panics
+    /// Panics if the operation fails (e.g., wrong tensor rank).
+    pub fn gram_matrix_parallel(
+        &self,
+        pool: &mut fork_union::ThreadPool,
+    ) -> Tensor<T::Accumulator, Global, MAX_RANK> {
+        self.try_gram_matrix_parallel(pool)
+            .expect("parallel gram_matrix failed")
+    }
+}
 }
 
 // endregion: Tensor GEMM
