@@ -186,32 +186,40 @@ NK_INTERNAL float16x8_t nk_e5m2x8_to_f16x8_neon_(uint8x8_t e5m2_u8x8) {
 
 /** @brief Convert 8x e2m3 → f16x8 via direct bit manipulation (NEON).
  *  E2M3FN (FP6): S EE MMM (bias=1) → F16: S EEEEE MMMMMMMMMM (bias=15).
- *  No Inf/NaN support. Direct conversion for normal values, subnormal handling simplified. */
+ *  Handles subnormals (exp=0) via arithmetic conversion. No Inf/NaN in E2M3FN. */
 NK_INTERNAL float16x8_t nk_e2m3x8_to_f16x8_neon_(uint8x8_t e2m3_u8x8) {
     // Widen to 16-bit for NEON operations
     uint16x8_t v_u16x8 = vmovl_u8(e2m3_u8x8);
 
-    // Extract fields: format is 0b00SEEMM (6 bits used)
+    // Extract fields: format is 0b00SEEMMM (6 bits used)
     uint16x8_t sign_u16x8 = vshlq_n_u16(vandq_u16(v_u16x8, vdupq_n_u16(0x20)), 10); // sign << 15
     uint16x8_t exp_u16x8 = vandq_u16(vshrq_n_u16(v_u16x8, 3), vdupq_n_u16(0x03));   // 2-bit exp
     uint16x8_t mant_u16x8 = vandq_u16(v_u16x8, vdupq_n_u16(0x07));                  // 3-bit mant
 
-    // Rebias exponent: F16_exp = E2M3_exp - 1 + 15 = E2M3_exp + 14
+    // Normal path: F16_exp = E2M3_exp + 14, F16_mant = E2M3_mant << 7
     uint16x8_t exp_rebiased = vaddq_u16(exp_u16x8, vdupq_n_u16(14));
-    uint16x8_t exp_positioned = vshlq_n_u16(exp_rebiased, 10); // Position at bits [14:10]
-
-    // Position mantissa: shift left by 7 (F16 has 10 mant bits, E2M3 has 3)
+    uint16x8_t exp_positioned = vshlq_n_u16(exp_rebiased, 10);
     uint16x8_t mant_positioned = vshlq_n_u16(mant_u16x8, 7);
+    uint16x8_t normal_bits = vorrq_u16(sign_u16x8, vorrq_u16(exp_positioned, mant_positioned));
 
-    // Combine: sign | exp | mant
-    uint16x8_t result = vorrq_u16(sign_u16x8, vorrq_u16(exp_positioned, mant_positioned));
+    // Subnormal path (exp=0): E2M3 subnormal = mant × 2^(-1) × (1/8) = mant / 16
+    // Compute via f32: mant → f32 → multiply → f16
+    float32x4_t subnorm_lo_f32x4 = vmulq_n_f32(vcvtq_f32_u32(vmovl_u16(vget_low_u16(mant_u16x8))), 1.0f / 16.0f);
+    float32x4_t subnorm_hi_f32x4 = vmulq_n_f32(vcvtq_f32_u32(vmovl_u16(vget_high_u16(mant_u16x8))), 1.0f / 16.0f);
+    uint16x8_t subnorm_abs = vreinterpretq_u16_f16(
+        vcombine_f16(vcvt_f16_f32(subnorm_lo_f32x4), vcvt_f16_f32(subnorm_hi_f32x4)));
+    uint16x8_t subnorm_bits = vorrq_u16(subnorm_abs, sign_u16x8);
+
+    // Blend: use subnormal result when exp=0, else normal
+    uint16x8_t exp_zero_mask = vceqq_u16(exp_u16x8, vdupq_n_u16(0));
+    uint16x8_t result = vbslq_u16(exp_zero_mask, subnorm_bits, normal_bits);
 
     return vreinterpretq_f16_u16(result);
 }
 
 /** @brief Convert 8x e3m2 → f16x8 via direct bit manipulation (NEON).
  *  E3M2FN (FP6): S EEE MM (bias=3) → F16: S EEEEE MMMMMMMMMM (bias=15).
- *  No Inf/NaN support. Direct conversion for normal values, subnormal handling simplified. */
+ *  Handles subnormals (exp=0) via arithmetic conversion. No Inf/NaN in E3M2FN. */
 NK_INTERNAL float16x8_t nk_e3m2x8_to_f16x8_neon_(uint8x8_t e3m2_u8x8) {
     // Widen to 16-bit for NEON operations
     uint16x8_t v_u16x8 = vmovl_u8(e3m2_u8x8);
@@ -221,17 +229,115 @@ NK_INTERNAL float16x8_t nk_e3m2x8_to_f16x8_neon_(uint8x8_t e3m2_u8x8) {
     uint16x8_t exp_u16x8 = vandq_u16(vshrq_n_u16(v_u16x8, 2), vdupq_n_u16(0x07));   // 3-bit exp
     uint16x8_t mant_u16x8 = vandq_u16(v_u16x8, vdupq_n_u16(0x03));                  // 2-bit mant
 
-    // Rebias exponent: F16_exp = E3M2_exp - 3 + 15 = E3M2_exp + 12
+    // Normal path: F16_exp = E3M2_exp + 12, F16_mant = E3M2_mant << 8
     uint16x8_t exp_rebiased = vaddq_u16(exp_u16x8, vdupq_n_u16(12));
-    uint16x8_t exp_positioned = vshlq_n_u16(exp_rebiased, 10); // Position at bits [14:10]
-
-    // Position mantissa: shift left by 8 (F16 has 10 mant bits, E3M2 has 2)
+    uint16x8_t exp_positioned = vshlq_n_u16(exp_rebiased, 10);
     uint16x8_t mant_positioned = vshlq_n_u16(mant_u16x8, 8);
+    uint16x8_t normal_bits = vorrq_u16(sign_u16x8, vorrq_u16(exp_positioned, mant_positioned));
 
-    // Combine: sign | exp | mant
-    uint16x8_t result = vorrq_u16(sign_u16x8, vorrq_u16(exp_positioned, mant_positioned));
+    // Subnormal path (exp=0): E3M2 subnormal = mant × 2^(-2) × (1/4) = mant / 16
+    // Compute via f32: mant → f32 → multiply → f16
+    float32x4_t subnorm_lo_f32x4 = vmulq_n_f32(vcvtq_f32_u32(vmovl_u16(vget_low_u16(mant_u16x8))), 1.0f / 16.0f);
+    float32x4_t subnorm_hi_f32x4 = vmulq_n_f32(vcvtq_f32_u32(vmovl_u16(vget_high_u16(mant_u16x8))), 1.0f / 16.0f);
+    uint16x8_t subnorm_abs = vreinterpretq_u16_f16(
+        vcombine_f16(vcvt_f16_f32(subnorm_lo_f32x4), vcvt_f16_f32(subnorm_hi_f32x4)));
+    uint16x8_t subnorm_bits = vorrq_u16(subnorm_abs, sign_u16x8);
+
+    // Blend: use subnormal result when exp=0, else normal
+    uint16x8_t exp_zero_mask = vceqq_u16(exp_u16x8, vdupq_n_u16(0));
+    uint16x8_t result = vbslq_u16(exp_zero_mask, subnorm_bits, normal_bits);
 
     return vreinterpretq_f16_u16(result);
+}
+
+/** @brief Convert 16x e2m3 → 2x f16x8 via TBL lookup (NEON).
+ *  E2M3FN (FP6): S EE MMM (bias=1) → F16: S EEEEE MMMMMMMMMM (bias=15).
+ *  Uses precomputed lookup tables for 64 possible 6-bit values.
+ *  TBL approach: ~6 instructions vs ~24 for calling x8 converter twice with vget_low/high. */
+NK_INTERNAL void nk_e2m3x16_to_f16x8x2_neon_(uint8x16_t input_u8x16, float16x8_t *result_low_f16x8,
+                                             float16x8_t *result_high_f16x8) {
+    // Precomputed lookup tables for E2M3FN → F16 conversion
+    // E2M3FN: sign(1) exp(2) mant(3), bias=1
+    // F16: sign(1) exp(5) mant(10), bias=15
+    // Normal (exp!=0): f16 = (sign << 15) | ((exp + 14) << 10) | (mant << 7)
+    // Subnormal (exp=0): f16 = mant/16 converted to f16
+    static nk_u8_t const table_low_u8x64[64] = {
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, // exp=0 (subnormals): low bytes all 0x00
+        0x00, 0x80, 0x00, 0x80, 0x00, 0x80, 0x00, 0x80, // exp=1, mant=0-7
+        0x00, 0x80, 0x00, 0x80, 0x00, 0x80, 0x00, 0x80, // exp=2, mant=0-7
+        0x00, 0x80, 0x00, 0x80, 0x00, 0x80, 0x00, 0x80, // exp=3, mant=0-7
+        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, // exp=0 (subnormals): low bytes all 0x00
+        0x00, 0x80, 0x00, 0x80, 0x00, 0x80, 0x00, 0x80, 0x00, 0x80, 0x00, 0x80,
+        0x00, 0x80, 0x00, 0x80, 0x00, 0x80, 0x00, 0x80, 0x00, 0x80, 0x00, 0x80,
+    };
+    static nk_u8_t const table_high_u8x64[64] = {
+        0x00, 0x2C, 0x30, 0x32, 0x34, 0x35, 0x36, 0x37, // exp=0 (subnormals)
+        0x3C, 0x3C, 0x3D, 0x3D, 0x3E, 0x3E, 0x3F, 0x3F, // exp=1 → f16_exp=15 (0x3C-0x3F)
+        0x40, 0x40, 0x41, 0x41, 0x42, 0x42, 0x43, 0x43, // exp=2 → f16_exp=16 (0x40-0x43)
+        0x44, 0x44, 0x45, 0x45, 0x46, 0x46, 0x47, 0x47, // exp=3 → f16_exp=17 (0x44-0x47)
+        0x80, 0xAC, 0xB0, 0xB2, 0xB4, 0xB5, 0xB6, 0xB7, // exp=0 (negative subnormals)
+        0xBC, 0xBC, 0xBD, 0xBD, 0xBE, 0xBE, 0xBF, 0xBF, 0xC0, 0xC0, 0xC1, 0xC1,
+        0xC2, 0xC2, 0xC3, 0xC3, 0xC4, 0xC4, 0xC5, 0xC5, 0xC6, 0xC6, 0xC7, 0xC7,
+    };
+
+    // Load lookup tables into NEON registers
+    uint8x16x4_t table_low_u8x16x4 = vld1q_u8_x4(table_low_u8x64);
+    uint8x16x4_t table_high_u8x16x4 = vld1q_u8_x4(table_high_u8x64);
+
+    // Mask to 6-bit indices (handle potential garbage in high 2 bits)
+    uint8x16_t indices_u8x16 = vandq_u8(input_u8x16, vdupq_n_u8(0x3F));
+
+    // Table lookup for both bytes of f16 results
+    uint8x16_t low_bytes_u8x16 = vqtbl4q_u8(table_low_u8x16x4, indices_u8x16);
+    uint8x16_t high_bytes_u8x16 = vqtbl4q_u8(table_high_u8x16x4, indices_u8x16);
+
+    // ZIP to interleave bytes into uint16 values: [l0,l1...l15] + [h0,h1...h15] → [l0,h0,l1,h1...]
+    uint8x16x2_t interleaved_u8x16x2 = vzipq_u8(low_bytes_u8x16, high_bytes_u8x16);
+
+    *result_low_f16x8 = vreinterpretq_f16_u8(interleaved_u8x16x2.val[0]);  // elements 0-7
+    *result_high_f16x8 = vreinterpretq_f16_u8(interleaved_u8x16x2.val[1]); // elements 8-15
+}
+
+/** @brief Convert 16x e3m2 → 2x f16x8 via TBL lookup (NEON).
+ *  E3M2FN (FP6): S EEE MM (bias=3) → F16: S EEEEE MMMMMMMMMM (bias=15).
+ *  Uses precomputed lookup tables for 64 possible 6-bit values.
+ *  TBL approach: ~6 instructions vs ~24 for calling x8 converter twice with vget_low/high. */
+NK_INTERNAL void nk_e3m2x16_to_f16x8x2_neon_(uint8x16_t input_u8x16, float16x8_t *result_low_f16x8,
+                                             float16x8_t *result_high_f16x8) {
+    // Precomputed lookup table for E3M2FN → F16 conversion (high byte only)
+    // E3M2FN: sign(1) exp(3) mant(2), bias=3
+    // F16: sign(1) exp(5) mant(10), bias=15
+    // Normal (exp!=0): f16 = (sign << 15) | ((exp + 12) << 10) | (mant << 8)
+    // Subnormal (exp=0): f16 = mant/16 converted to f16
+    // NOTE: E3M2 has only 2 mantissa bits which map to f16 bits 9-8, so bits 7-0 are always zero!
+    static nk_u8_t const table_high_u8x64[64] = {
+        0x00, 0x2C, 0x30, 0x32, // exp=0 (subnormals): 0, 1/16, 2/16, 3/16
+        0x34, 0x35, 0x36, 0x37, // exp=1 → f16_exp=13 (0x34-0x37)
+        0x38, 0x39, 0x3A, 0x3B, // exp=2 → f16_exp=14 (0x38-0x3B)
+        0x3C, 0x3D, 0x3E, 0x3F, // exp=3 → f16_exp=15 (0x3C-0x3F)
+        0x40, 0x41, 0x42, 0x43, // exp=4 → f16_exp=16 (0x40-0x43)
+        0x44, 0x45, 0x46, 0x47, // exp=5 → f16_exp=17 (0x44-0x47)
+        0x48, 0x49, 0x4A, 0x4B, // exp=6 → f16_exp=18 (0x48-0x4B)
+        0x4C, 0x4D, 0x4E, 0x4F, // exp=7 → f16_exp=19 (0x4C-0x4F)
+        0x80, 0xAC, 0xB0, 0xB2, // exp=0 (negative subnormals)
+        0xB4, 0xB5, 0xB6, 0xB7, 0xB8, 0xB9, 0xBA, 0xBB, 0xBC, 0xBD, 0xBE, 0xBF, 0xC0, 0xC1,
+        0xC2, 0xC3, 0xC4, 0xC5, 0xC6, 0xC7, 0xC8, 0xC9, 0xCA, 0xCB, 0xCC, 0xCD, 0xCE, 0xCF,
+    };
+
+    // Load only high byte table (4 registers instead of 8 - low bytes are always zero!)
+    uint8x16x4_t table_high_u8x16x4 = vld1q_u8_x4(table_high_u8x64);
+
+    // Mask to 6-bit indices (handle potential garbage in high 2 bits)
+    uint8x16_t indices_u8x16 = vandq_u8(input_u8x16, vdupq_n_u8(0x3F));
+
+    // Table lookup for high bytes only (low bytes are always zero for e3m2)
+    uint8x16_t high_bytes_u8x16 = vqtbl4q_u8(table_high_u8x16x4, indices_u8x16);
+
+    // ZIP zeros with high bytes: [0,0...0] + [h0,h1...h15] → [0,h0,0,h1...]
+    uint8x16x2_t interleaved_u8x16x2 = vzipq_u8(vdupq_n_u8(0), high_bytes_u8x16);
+
+    *result_low_f16x8 = vreinterpretq_f16_u8(interleaved_u8x16x2.val[0]);  // elements 0-7
+    *result_high_f16x8 = vreinterpretq_f16_u8(interleaved_u8x16x2.val[1]); // elements 8-15
 }
 
 /** @brief Convert f16x8 → 8x e4m3 with RNE rounding (NEON).
