@@ -3,7 +3,7 @@
  *  @file python/tensor.h
  *
  *  This header declares the Tensor N-dimensional array type, its iterator,
- *  and the MatrixMultiplier (pre-packed matrix for fast GEMM).
+ *  and the TransposedMatrixMultiplier (pre-packed matrix for fast GEMM).
  *  These types provide a NumPy-like interface with support for NumKong's
  *  extended type system including bfloat16, float8, and complex types.
  */
@@ -51,7 +51,7 @@ typedef struct TensorIter {
 
 #pragma endregion // Tensor Type
 
-#pragma region MatrixMultiplier Type
+#pragma region TransposedMatrixMultiplier Type
 
 /**
  *  @brief Pre-packed matrix optimized for matrix multiplication.
@@ -61,14 +61,14 @@ typedef struct TensorIter {
  *
  *  Supported dtypes: bfloat16, int8
  */
-typedef struct MatrixMultiplier {
+typedef struct TransposedMatrixMultiplier {
     PyObject_HEAD nk_dtype_t dtype; ///< Packed dtype (bf16 or i8)
     nk_size_t n;                    ///< Number of rows in original matrix
     nk_size_t k;                    ///< Number of columns in original matrix
     char start[];                   ///< Variable-length packed data
-} MatrixMultiplier;
+} TransposedMatrixMultiplier;
 
-#pragma endregion // MatrixMultiplier Type
+#pragma endregion // TransposedMatrixMultiplier Type
 
 #pragma region Type Objects
 
@@ -78,8 +78,8 @@ extern PyTypeObject TensorType;
 /**  @brief Tensor iterator Python type object.  */
 extern PyTypeObject TensorIterType;
 
-/**  @brief MatrixMultiplier Python type object.  */
-extern PyTypeObject MatrixMultiplierType;
+/**  @brief TransposedMatrixMultiplier Python type object.  */
+extern PyTypeObject TransposedMatrixMultiplierType;
 
 #pragma endregion // Type Objects
 

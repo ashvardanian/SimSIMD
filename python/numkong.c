@@ -2874,7 +2874,7 @@ PyMODINIT_FUNC PyInit_numkong(void) {
 
     if (PyType_Ready(&TensorType) < 0) return NULL;
     if (PyType_Ready(&TensorIterType) < 0) return NULL;
-    if (PyType_Ready(&MatrixMultiplierType) < 0) return NULL;
+    if (PyType_Ready(&TransposedMatrixMultiplierType) < 0) return NULL;
 
     m = PyModule_Create(&nk_module);
     if (m == NULL) return NULL;
@@ -2898,10 +2898,10 @@ PyMODINIT_FUNC PyInit_numkong(void) {
         return NULL;
     }
 
-    // Register MatrixMultiplier type (primary name)
-    Py_INCREF(&MatrixMultiplierType);
-    if (PyModule_AddObject(m, "MatrixMultiplier", (PyObject *)&MatrixMultiplierType) < 0) {
-        Py_XDECREF(&MatrixMultiplierType);
+    // Register TransposedMatrixMultiplier type (primary name)
+    Py_INCREF(&TransposedMatrixMultiplierType);
+    if (PyModule_AddObject(m, "TransposedMatrixMultiplier", (PyObject *)&TransposedMatrixMultiplierType) < 0) {
+        Py_XDECREF(&TransposedMatrixMultiplierType);
         Py_XDECREF(m);
         return NULL;
     }

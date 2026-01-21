@@ -3,7 +3,7 @@
  *  @file python/tensor.c
  *
  *  This file implements the Tensor N-dimensional array type with NumPy-like
- *  interface, the TensorIter iterator, and the MatrixMultiplier type
+ *  interface, the TensorIter iterator, and the TransposedMatrixMultiplier type
  *  for optimized matrix multiplication.
  *
  *  Features:
@@ -465,7 +465,7 @@ static PyObject *Tensor_multiply(PyObject *self, PyObject *other) {
     Py_RETURN_NOTIMPLEMENTED;
 }
 
-// Forward declaration for Tensor_matmul (implemented after MatrixMultiplierType is defined)
+// Forward declaration for Tensor_matmul (implemented after TransposedMatrixMultiplierType is defined)
 static PyObject *Tensor_matmul(PyObject *self, PyObject *other);
 
 static PyNumberMethods Tensor_as_number = {
@@ -1137,9 +1137,9 @@ PyTypeObject TensorType = {
     .tp_iter = Tensor_iter,
 };
 
-static void MatrixMultiplier_dealloc(PyObject *self) { Py_TYPE(self)->tp_free(self); }
+static void TransposedMatrixMultiplier_dealloc(PyObject *self) { Py_TYPE(self)->tp_free(self); }
 
-static size_t MatrixMultiplier_compute_packed_size(MatrixMultiplier *mm) {
+static size_t TransposedMatrixMultiplier_compute_packed_size(TransposedMatrixMultiplier *mm) {
     switch (mm->dtype) {
     case nk_bf16_k: return nk_dots_packed_size_bf16(mm->n, mm->k);
     case nk_i8_k: return nk_dots_packed_size_i8(mm->n, mm->k);
@@ -1151,50 +1151,50 @@ static size_t MatrixMultiplier_compute_packed_size(MatrixMultiplier *mm) {
     }
 }
 
-static PyObject *MatrixMultiplier_repr(PyObject *self) {
-    MatrixMultiplier *mm = (MatrixMultiplier *)self;
-    size_t packed_size = MatrixMultiplier_compute_packed_size(mm);
-    return PyUnicode_FromFormat("<MatrixMultiplier n=%zu k=%zu dtype='%s' nbytes=%zu>", (size_t)mm->n, (size_t)mm->k,
-                                dtype_to_string(mm->dtype), packed_size);
+static PyObject *TransposedMatrixMultiplier_repr(PyObject *self) {
+    TransposedMatrixMultiplier *mm = (TransposedMatrixMultiplier *)self;
+    size_t packed_size = TransposedMatrixMultiplier_compute_packed_size(mm);
+    return PyUnicode_FromFormat("<TransposedMatrixMultiplier n=%zu k=%zu dtype='%s' nbytes=%zu>", (size_t)mm->n,
+                                (size_t)mm->k, dtype_to_string(mm->dtype), packed_size);
 }
 
-static PyObject *MatrixMultiplier_get_n(PyObject *self, void *closure) {
+static PyObject *TransposedMatrixMultiplier_get_n(PyObject *self, void *closure) {
     (void)closure;
-    return PyLong_FromSize_t(((MatrixMultiplier *)self)->n);
+    return PyLong_FromSize_t(((TransposedMatrixMultiplier *)self)->n);
 }
 
-static PyObject *MatrixMultiplier_get_k(PyObject *self, void *closure) {
+static PyObject *TransposedMatrixMultiplier_get_k(PyObject *self, void *closure) {
     (void)closure;
-    return PyLong_FromSize_t(((MatrixMultiplier *)self)->k);
+    return PyLong_FromSize_t(((TransposedMatrixMultiplier *)self)->k);
 }
 
-static PyObject *MatrixMultiplier_get_dtype(PyObject *self, void *closure) {
+static PyObject *TransposedMatrixMultiplier_get_dtype(PyObject *self, void *closure) {
     (void)closure;
-    return PyUnicode_FromString(dtype_to_string(((MatrixMultiplier *)self)->dtype));
+    return PyUnicode_FromString(dtype_to_string(((TransposedMatrixMultiplier *)self)->dtype));
 }
 
-static PyObject *MatrixMultiplier_get_nbytes(PyObject *self, void *closure) {
+static PyObject *TransposedMatrixMultiplier_get_nbytes(PyObject *self, void *closure) {
     (void)closure;
-    return PyLong_FromSize_t(MatrixMultiplier_compute_packed_size((MatrixMultiplier *)self));
+    return PyLong_FromSize_t(TransposedMatrixMultiplier_compute_packed_size((TransposedMatrixMultiplier *)self));
 }
 
-static PyGetSetDef MatrixMultiplier_getset[] = {
-    {"n", MatrixMultiplier_get_n, NULL, "Number of rows in the original matrix", NULL},
-    {"k", MatrixMultiplier_get_k, NULL, "Number of columns in the original matrix", NULL},
-    {"dtype", MatrixMultiplier_get_dtype, NULL, "Data type of the matrix elements (bf16 or i8)", NULL},
-    {"nbytes", MatrixMultiplier_get_nbytes, NULL, "Size of the packed buffer in bytes", NULL},
+static PyGetSetDef TransposedMatrixMultiplier_getset[] = {
+    {"n", TransposedMatrixMultiplier_get_n, NULL, "Number of rows in the original matrix", NULL},
+    {"k", TransposedMatrixMultiplier_get_k, NULL, "Number of columns in the original matrix", NULL},
+    {"dtype", TransposedMatrixMultiplier_get_dtype, NULL, "Data type of the matrix elements (bf16 or i8)", NULL},
+    {"nbytes", TransposedMatrixMultiplier_get_nbytes, NULL, "Size of the packed buffer in bytes", NULL},
     {NULL, NULL, NULL, NULL, NULL},
 };
 
-PyTypeObject MatrixMultiplierType = {
-    PyVarObject_HEAD_INIT(NULL, 0).tp_name = "numkong.MatrixMultiplier",
+PyTypeObject TransposedMatrixMultiplierType = {
+    PyVarObject_HEAD_INIT(NULL, 0).tp_name = "numkong.TransposedMatrixMultiplier",
     .tp_doc = "Pre-packed matrix optimized for matrix multiplication (AMX backend)",
-    .tp_basicsize = sizeof(MatrixMultiplier),
+    .tp_basicsize = sizeof(TransposedMatrixMultiplier),
     .tp_itemsize = sizeof(char),
-    .tp_dealloc = MatrixMultiplier_dealloc,
+    .tp_dealloc = TransposedMatrixMultiplier_dealloc,
     .tp_flags = Py_TPFLAGS_DEFAULT,
-    .tp_getset = MatrixMultiplier_getset,
-    .tp_repr = MatrixMultiplier_repr,
+    .tp_getset = TransposedMatrixMultiplier_getset,
+    .tp_repr = TransposedMatrixMultiplier_repr,
 };
 
 /// @brief Parse a Python buffer format string into a NumKong dtype.
@@ -1321,19 +1321,20 @@ static nk_dtype_t matmul_output_dtype(nk_dtype_t packed_dtype) {
     }
 }
 
-/// @brief Matrix multiplication operator for Tensor @ MatrixMultiplier.
+/// @brief Matrix multiplication operator for Tensor @ TransposedMatrixMultiplier.
 static PyObject *Tensor_matmul(PyObject *self, PyObject *other) {
     if (!PyObject_TypeCheck(self, &TensorType)) { Py_RETURN_NOTIMPLEMENTED; }
     Tensor *a = (Tensor *)self;
 
-    // Only support Tensor @ MatrixMultiplier for now
-    if (!PyObject_TypeCheck(other, &MatrixMultiplierType)) {
-        PyErr_SetString(PyExc_TypeError,
-                        "matmul requires MatrixMultiplier as right operand " "(use nk.pack_matmul_argument() first)");
+    // Only support Tensor @ TransposedMatrixMultiplier for now
+    if (!PyObject_TypeCheck(other, &TransposedMatrixMultiplierType)) {
+        PyErr_SetString(
+            PyExc_TypeError,
+            "matmul requires TransposedMatrixMultiplier as right operand " "(use nk.pack_matmul_argument() first)");
         return NULL;
     }
 
-    MatrixMultiplier *packed = (MatrixMultiplier *)other;
+    TransposedMatrixMultiplier *packed = (TransposedMatrixMultiplier *)other;
 
     // Validate dimensions
     if (a->rank != 2) {
@@ -1775,14 +1776,22 @@ PyObject *api_argmax(PyObject *self, PyObject *const *args, Py_ssize_t const nar
     return NULL;
 }
 
-char const doc_pack_matmul_argument
-    [] = "pack_matmul_argument(b, dtype='bf16') -> MatrixMultiplier\n\n" "Pack a matrix for repeated matrix " "multi" "plica" "tion." "\n\n" "The packed format " "is opaque and " "backend-specific, " "optimized for the " "available\n" "hardwa" "re " "(AMX " "on " "Intel," " NEON/" "SVE " "on " "ARM, " "etc.)." "\n" "U" "s" "e" " " "w" "i" "t" "h" " " "m" "a" "t" "m" "u" "l" "(" ")" " " "o" "r" " " "t" "h" "e" " " "@" " " "o" "p" "e" "r" "a" "t" "o" "r" " " "t" "o" " " "c" "o" "m" "p" "u" "t" "e" " " "C" " " "=" " " "A" " " "@" " " "B" "." "\n\n" "Parameters:\n" "    b : array_like\n" "        The (n, k) matrix to pack. This is typically the 'database' or 'weights' matrix\n" "        that will be multiplied against multiple 'query' matrices.\n" "    dtype : str, optional\n" "        Data type for packing. Supported types:\n" "        - 'bf16'/'bfloat16' (default): BF16 with F32 accumulation\n" "        - 'f16'/'float16': F16 with F32 accumulation\n" "        - 'f32'/'float32': Native F32\n" "        - 'f64'/'float64': Native F64\n" "        - 'i8'/'int8': I8 with I32 accumulation\n" "        - 'u8'/'uint8': U8 with U32 accumulation\n\n" "Returns:\n" "    MatrixMultiplier : Opaque packed matrix for use with matmul() or @.\n\n" "Example:\n" "    >>> database = np.random.randn(1000, 768).astype(np.float32)\n" "    >>> packed = nk.pack_matmul_argument(database, dtype='bf16')\n" "    >>> queries = nk.zeros((10, 768), dtype='float32')\n" "    >>> result = queries @ packed  # (10, 1000) dot products\n";
+char const
+    doc_pack_matmul_argument[] =
+        "pack_matmul_argument(b, dtype='bf16') -> TransposedMatrixMultiplier\n\n" "Pack a matrix for repeated matrix " "multi" "plica" "tion." "\n\n" "The packed format " "is opaque and " "backend-specific, " "optimized for the " "available\n" "hardwa" "re " "(AMX " "on " "Intel," " NEON/" "SVE " "on " "ARM, " "etc.)." "\n" "U" "s" "e" " " "w" "i" "t" "h" " " "m" "a" "t" "m" "u" "l" "(" ")" " " "o" "r" " " "t" "h" "e" " " "@" " " "o" "p" "e" "r" "a" "t" "o" "r" " " "t" "o" " " "c" "o" "m" "p" "u" "t" "e" " " "C" " " "=" " " "A" " " "@" " " "B" "." "\n\n" "Parameters:\n" "    b : array_like\n" "        The (n, k) matrix to pack. This is typically the 'database' or 'weights' matrix\n" "        that will be multiplied against multiple 'query' matrices.\n" "    dtype : str, optional\n" "        Data type for packing. Supported types:\n" "        - 'bf16'/'bfloat16' (default): BF16 with F32 accumulation\n" "        - 'f16'/'float16': F16 with F32 accumulation\n" "        - 'f32'/'float32': Native F32\n" "        - 'f64'/'float64': Native F64\n" "        - 'i8'/'int8': I8 with I32 accumulation\n" "        - 'u8'/'uint8': U8 with U32 accumulation\n\n" "Returns:\n" "    TransposedMatrixMultiplier : Opaque packed matrix for use with matmul() or @.\n\n" "Example:\n" "    >>> database = np.random.randn(1000, 768).astype(np.float32)\n" "    >>> packed = nk.pack_matmul_argument(database, dtype='bf16')\n" "    >>> queries = nk.zeros((10, 768), dtype='float32')\n" "    >>> result = queries @ packed  # (10, 1000) dot products\n";
 
 char const doc_pack_matrix[] =
-    "pack_matrix(b, dtype='bf16') -> MatrixMultiplier\n\n" "Deprecated alias for pack_matmul_argument().\n";
+    "pack_matrix(b, dtype='bf16') -> TransposedMatrixMultiplier\n\n" "Deprecated alias for pack_matmul_argument().\n";
 
 char const doc_matmul[] =
-    "matmul(a, b, *, out=None) -> Tensor\n\n" "Compute matrix multiplication C = A @ B with a pre-packed B matrix.\n\n" "Parameters:\n" "    a : array_like\n" "        The (m, k) query/input matrix.\n" "    b : MatrixMultiplier\n" "        Pre-packed (n, k) matrix from pack_matmul_argument().\n" "    out : Tensor, optional\n" "        Pre-allocated output tensor. Must have correct shape (m, n),\n" "        correct dtype for the operation, and be C-contiguous.\n" "        If provided, no memory allocation is performed.\n\n" "Returns:\n" "    Tensor : (m, n) result matrix. If out is provided, returns out.\n\n" "Note:\n" "    The kernel computes C[i,j] = dot(a[i], b[j]) for all i,j.\n" "    This is equivalent to A @ B.T where B is the original unpacked matrix.\n\n" "    Output dtype depends on packed dtype:\n" "    - bf16, f16 -> float32\n" "    - f32 -> float32\n" "    - f64 -> float64\n" "    - i8 -> int32\n" "    - u8 -> uint32\n\n" "Example:\n" "    >>> database = np.random.randn(1000, 768).astype(np.float32)\n" "    >>> packed = nk.pack_matmul_argument(database, dtype='bf16')\n" "    >>> queries = np.random.randn(10, 768).astype(np.float32)\n" "    >>> result = nk.matmul(queries, packed)  # (10, 1000)\n" "    >>>\n" "    >>> # Reuse output buffer for zero-allocation inference:\n" "    >>> out = nk.empty((10, 1000), dtype='float32')\n" "    >>> nk.matmul(queries, packed, out=out)\n";
+    "matmul(a, b, *, out=None) -> Tensor\n\n" "Compute matrix multiplication C = A @ B with a pre-packed B " "matrix."
+                                                                                                             "\n\n" "Pa"
+                                                                                                                    "ra"
+                                                                                                                    "me"
+                                                                                                                    "te"
+                                                                                                                    "rs"
+                                                                                                                    ":"
+                                                                                                                    "\n" "    a : array_like\n" "        " "The (m, k) " "query/" "input " "matrix.\n" "    b : TransposedMatrixMultiplier\n" "        Pre-packed (n, k) matrix from pack_matmul_argument().\n" "    out : Tensor, optional\n" "        Pre-allocated output tensor. Must have correct shape (m, n),\n" "        correct dtype for the operation, and be C-contiguous.\n" "        If provided, no memory allocation is performed.\n\n" "Returns:\n" "    Tensor : (m, n) result matrix. If out is provided, returns out.\n\n" "Note:\n" "    The kernel computes C[i,j] = dot(a[i], b[j]) for all i,j.\n" "    This is equivalent to A @ B.T where B is the original unpacked matrix.\n\n" "    Output dtype depends on packed dtype:\n" "    - bf16, f16 -> float32\n" "    - f32 -> float32\n" "    - f64 -> float64\n" "    - i8 -> int32\n" "    - u8 -> uint32\n\n" "Example:\n" "    >>> database = np.random.randn(1000, 768).astype(np.float32)\n" "    >>> packed = nk.pack_matmul_argument(database, dtype='bf16')\n" "    >>> queries = np.random.randn(10, 768).astype(np.float32)\n" "    >>> result = nk.matmul(queries, packed)  # (10, 1000)\n" "    >>>\n" "    >>> # Reuse output buffer for zero-allocation inference:\n" "    >>> out = nk.empty((10, 1000), dtype='float32')\n" "    >>> nk.matmul(queries, packed, out=out)\n";
 
 PyObject *api_pack_matmul_argument(PyObject *self, PyObject *const *args, Py_ssize_t nargs, PyObject *kwnames) {
     (void)self;
@@ -1887,7 +1896,8 @@ PyObject *api_pack_matmul_argument(PyObject *self, PyObject *const *args, Py_ssi
         return NULL;
     }
 
-    MatrixMultiplier *packed = PyObject_NewVar(MatrixMultiplier, &MatrixMultiplierType, packed_size);
+    TransposedMatrixMultiplier *packed = PyObject_NewVar(TransposedMatrixMultiplier, &TransposedMatrixMultiplierType,
+                                                         packed_size);
     if (!packed) {
         PyBuffer_Release(&b_buffer);
         PyErr_NoMemory();
@@ -1981,12 +1991,12 @@ PyObject *api_matmul(PyObject *self, PyObject *const *args, Py_ssize_t nargs, Py
         }
     }
 
-    // Verify that b is a MatrixMultiplier
-    if (!PyObject_TypeCheck(b_obj, &MatrixMultiplierType)) {
-        PyErr_SetString(PyExc_TypeError, "b must be a MatrixMultiplier (use pack_matmul_argument() first)");
+    // Verify that b is a TransposedMatrixMultiplier
+    if (!PyObject_TypeCheck(b_obj, &TransposedMatrixMultiplierType)) {
+        PyErr_SetString(PyExc_TypeError, "b must be a TransposedMatrixMultiplier (use pack_matmul_argument() first)");
         return NULL;
     }
-    MatrixMultiplier *packed = (MatrixMultiplier *)b_obj;
+    TransposedMatrixMultiplier *packed = (TransposedMatrixMultiplier *)b_obj;
 
     // Get the input buffer for a
     Py_buffer a_buffer;

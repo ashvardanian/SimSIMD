@@ -6,18 +6,18 @@
 //! - [`TensorView`]: Immutable view into a tensor
 //! - [`TensorViewMut`]: Mutable view into a tensor
 //! - [`Matrix`]: Type alias for 2D tensors
-//! - [`MatrixMultiplier`]: Pre-packed matrix for efficient GEMM
+//! - [`TransposedMatrixMultiplier`]: Pre-packed matrix for efficient GEMM
 //!
 //! # Example
 //!
 //! ```rust,ignore
-//! use numkong::{Tensor, MatrixMultiplier};
+//! use numkong::{Tensor, TransposedMatrixMultiplier};
 //!
 //! let a = Tensor::<f32>::try_new(&[1024, 512], 1.0).unwrap();
 //! let b = Tensor::<f32>::try_new(&[256, 512], 1.0).unwrap();
 //!
 //! // Pack B once, multiply many times
-//! let packed_b = MatrixMultiplier::try_pack(&b).unwrap();
+//! let packed_b = TransposedMatrixMultiplier::try_pack(&b).unwrap();
 //! let c = a.matmul(&packed_b);  // Returns (1024 × 256)
 //! ```
 
@@ -338,7 +338,7 @@ pub const SIMD_ALIGNMENT: usize = 64;
 /// Memory allocator trait for custom allocation strategies.
 ///
 /// Implement this trait to use custom allocators (arena, pool, etc.) with
-/// [`Tensor`] and [`MatrixMultiplier`].
+/// [`Tensor`] and [`TransposedMatrixMultiplier`].
 ///
 /// # Safety
 ///
@@ -1370,7 +1370,7 @@ impl DotsSymmetric for i4x2 {
 ///
 /// Supports:
 /// - Slicing and subviews (zero-copy)
-/// - Matrix multiplication with [`MatrixMultiplier`]
+/// - Matrix multiplication with [`TransposedMatrixMultiplier`]
 /// - Reductions (sum, min, max)
 /// - Elementwise ops (scale, sum, wsum, fma)
 /// - Trigonometry (sin, cos, atan)
@@ -1378,13 +1378,13 @@ impl DotsSymmetric for i4x2 {
 /// # Example
 ///
 /// ```rust,ignore
-/// use numkong::{Tensor, MatrixMultiplier};
+/// use numkong::{Tensor, TransposedMatrixMultiplier};
 ///
 /// let a = Tensor::<f32>::try_new(&[1024, 512], 1.0).unwrap();
 /// let b = Tensor::<f32>::try_new(&[256, 512], 1.0).unwrap();
 ///
 /// // Pack B once, multiply many times
-/// let packed_b = MatrixMultiplier::try_pack(&b).unwrap();
+/// let packed_b = TransposedMatrixMultiplier::try_pack(&b).unwrap();
 /// let c = a.matmul(&packed_b);  // Returns (1024 × 256)
 /// ```
 pub struct Tensor<T, A: Allocator = Global, const MAX_RANK: usize = DEFAULT_MAX_RANK> {
@@ -2329,7 +2329,7 @@ pub type MatrixViewMut<'a, T> = TensorViewMut<'a, T, 2>;
 
 // endregion: Type Aliases
 
-// region: MatrixMultiplier
+// region: TransposedMatrixMultiplier
 
 /// Pre-packed B matrix for efficient repeated GEMM operations.
 ///
@@ -2342,16 +2342,16 @@ pub type MatrixViewMut<'a, T> = TensorViewMut<'a, T, 2>;
 ///
 /// For C = A × Bᵀ where B is (n × k):
 /// ```rust,ignore
-/// let packed_b = MatrixMultiplier::try_pack(&b_array).unwrap();
+/// let packed_b = TransposedMatrixMultiplier::try_pack(&b_array).unwrap();
 /// let c = a_array.matmul(&packed_b);
 /// ```
 ///
 /// For C = A × B where B is (k × n) (standard GEMM layout):
 /// ```rust,ignore
-/// let packed_b = MatrixMultiplier::try_pack_transposed(&b_array).unwrap();
+/// let packed_b = TransposedMatrixMultiplier::try_pack_transposed(&b_array).unwrap();
 /// let c = a_array.matmul(&packed_b);
 /// ```
-pub struct MatrixMultiplier<T: Dots, A: Allocator = Global> {
+pub struct TransposedMatrixMultiplier<T: Dots, A: Allocator = Global> {
     /// Raw pointer to packed data buffer.
     data: NonNull<u8>,
     /// Size of the packed buffer in bytes.
@@ -2365,11 +2365,11 @@ pub struct MatrixMultiplier<T: Dots, A: Allocator = Global> {
     _marker: PhantomData<T>,
 }
 
-// Safety: MatrixMultiplier owns its data and is just bytes
-unsafe impl<T: Dots + Send, A: Allocator + Send> Send for MatrixMultiplier<T, A> {}
-unsafe impl<T: Dots + Sync, A: Allocator + Sync> Sync for MatrixMultiplier<T, A> {}
+// Safety: TransposedMatrixMultiplier owns its data and is just bytes
+unsafe impl<T: Dots + Send, A: Allocator + Send> Send for TransposedMatrixMultiplier<T, A> {}
+unsafe impl<T: Dots + Sync, A: Allocator + Sync> Sync for TransposedMatrixMultiplier<T, A> {}
 
-impl<T: Dots, A: Allocator> Drop for MatrixMultiplier<T, A> {
+impl<T: Dots, A: Allocator> Drop for TransposedMatrixMultiplier<T, A> {
     fn drop(&mut self) {
         if self.size > 0 {
             unsafe {
@@ -2381,7 +2381,7 @@ impl<T: Dots, A: Allocator> Drop for MatrixMultiplier<T, A> {
     }
 }
 
-impl<T: Dots, A: Allocator + Clone> Clone for MatrixMultiplier<T, A> {
+impl<T: Dots, A: Allocator + Clone> Clone for TransposedMatrixMultiplier<T, A> {
     fn clone(&self) -> Self {
         if self.size == 0 {
             return Self {
@@ -2415,7 +2415,7 @@ impl<T: Dots, A: Allocator + Clone> Clone for MatrixMultiplier<T, A> {
 }
 
 // Generic allocator-aware methods
-impl<T: Dots, A: Allocator> MatrixMultiplier<T, A> {
+impl<T: Dots, A: Allocator> TransposedMatrixMultiplier<T, A> {
     /// Pack B matrix where B is (n × k) row-major using a custom allocator.
     ///
     /// Result computes: C = A × Bᵀ
@@ -2544,7 +2544,7 @@ impl<T: Dots, A: Allocator> MatrixMultiplier<T, A> {
 }
 
 // Convenience methods using Global allocator
-impl<T: Dots> MatrixMultiplier<T, Global> {
+impl<T: Dots> TransposedMatrixMultiplier<T, Global> {
     /// Pack B matrix where B is (n × k) row-major using the global allocator.
     ///
     /// Result computes: C = A × Bᵀ
@@ -2565,18 +2565,18 @@ impl<T: Dots> MatrixMultiplier<T, Global> {
 
     /// Convenience constructor that panics on error.
     pub fn pack<BA: Allocator, const MAX_RANK: usize>(b: &Tensor<T, BA, MAX_RANK>) -> Self {
-        Self::try_pack(b).expect("MatrixMultiplier::pack failed")
+        Self::try_pack(b).expect("TransposedMatrixMultiplier::pack failed")
     }
 
     /// Convenience constructor that panics on error.
     pub fn pack_transposed<BA: Allocator, const MAX_RANK: usize>(
         b: &Tensor<T, BA, MAX_RANK>,
     ) -> Self {
-        Self::try_pack_transposed(b).expect("MatrixMultiplier::pack_transposed failed")
+        Self::try_pack_transposed(b).expect("TransposedMatrixMultiplier::pack_transposed failed")
     }
 }
 
-// endregion: MatrixMultiplier
+// endregion: TransposedMatrixMultiplier
 
 // region: Tensor GEMM
 
@@ -2597,7 +2597,7 @@ where
     /// - output allocation fails
     pub fn try_matmul<BA: Allocator>(
         &self,
-        packed_b: &MatrixMultiplier<T, BA>,
+        packed_b: &TransposedMatrixMultiplier<T, BA>,
     ) -> Result<Tensor<T::Accumulator, A, MAX_RANK>, TensorError> {
         if self.ndim() != 2 {
             return Err(TensorError::DimensionMismatch {
@@ -2636,7 +2636,7 @@ where
     /// Convenience method that panics on error.
     pub fn matmul<BA: Allocator>(
         &self,
-        packed_b: &MatrixMultiplier<T, BA>,
+        packed_b: &TransposedMatrixMultiplier<T, BA>,
     ) -> Tensor<T::Accumulator, A, MAX_RANK> {
         self.try_matmul(packed_b).expect("matmul failed")
     }
@@ -2646,7 +2646,7 @@ impl<T: Dots, A: Allocator, const MAX_RANK: usize> Tensor<T, A, MAX_RANK> {
     /// Matrix multiply into existing output (avoids allocation).
     pub fn try_matmul_into<BA: Allocator, CA: Allocator, const CA_MAX_RANK: usize>(
         &self,
-        packed_b: &MatrixMultiplier<T, BA>,
+        packed_b: &TransposedMatrixMultiplier<T, BA>,
         c: &mut Tensor<T::Accumulator, CA, CA_MAX_RANK>,
     ) -> Result<(), TensorError> {
         if self.ndim() != 2 {
@@ -2705,25 +2705,25 @@ where
     /// This is a non-allocating interface - you provide the output tensor.
     ///
     /// # Arguments
-    /// * `packed_b` - Pre-packed B matrix from `MatrixMultiplier::try_pack[_transposed]`
+    /// * `packed_b` - Pre-packed B matrix from `TransposedMatrixMultiplier::try_pack[_transposed]`
     /// * `c` - Pre-allocated output tensor (m × n)
     /// * `pool` - Pre-constructed thread pool
     ///
     /// # Example
     /// ```ignore
-    /// use numkong::{Tensor, MatrixMultiplier};
+    /// use numkong::{Tensor, TransposedMatrixMultiplier};
     /// use fork_union::ThreadPool;
     ///
     /// let mut pool = ThreadPool::try_spawn(4).unwrap();
     /// let a = Tensor::<f32>::try_new(&[1024, 512], 1.0).unwrap();
     /// let b = Tensor::<f32>::try_new(&[256, 512], 1.0).unwrap();
-    /// let packed_b = MatrixMultiplier::try_pack(&b).unwrap();
+    /// let packed_b = TransposedMatrixMultiplier::try_pack(&b).unwrap();
     /// let mut c = Tensor::<f32>::try_new(&[1024, 256], 0.0).unwrap();
     /// a.try_matmul_parallel_into(&packed_b, &mut c, &mut pool).unwrap();
     /// ```
     pub fn try_matmul_parallel_into<BA: Allocator, CA: Allocator, const CA_MAX_RANK: usize>(
         &self,
-        packed_b: &MatrixMultiplier<T, BA>,
+        packed_b: &TransposedMatrixMultiplier<T, BA>,
         c: &mut Tensor<T::Accumulator, CA, CA_MAX_RANK>,
         pool: &mut fork_union::ThreadPool,
     ) -> Result<(), TensorError> {
@@ -2800,7 +2800,7 @@ where
     /// Prefer `try_matmul_parallel_into` for performance-critical code.
     pub fn try_matmul_parallel<BA: Allocator>(
         &self,
-        packed_b: &MatrixMultiplier<T, BA>,
+        packed_b: &TransposedMatrixMultiplier<T, BA>,
         pool: &mut fork_union::ThreadPool,
     ) -> Result<Tensor<T::Accumulator, Global, MAX_RANK>, TensorError> {
         let m = self.shape()[0];
@@ -2816,7 +2816,7 @@ where
     /// Convenience method that panics on error.
     pub fn matmul_parallel<BA: Allocator>(
         &self,
-        packed_b: &MatrixMultiplier<T, BA>,
+        packed_b: &TransposedMatrixMultiplier<T, BA>,
         pool: &mut fork_union::ThreadPool,
     ) -> Tensor<T::Accumulator, Global, MAX_RANK> {
         self.try_matmul_parallel(packed_b, pool)
@@ -3329,7 +3329,7 @@ mod tests {
         let a = Tensor::<f32>::try_new(&[4, 8], 1.0f32).unwrap();
         let b = Tensor::<f32>::try_new(&[16, 8], 1.0f32).unwrap();
 
-        let packed_b = MatrixMultiplier::try_pack(&b).unwrap();
+        let packed_b = TransposedMatrixMultiplier::try_pack(&b).unwrap();
         let c = a.matmul(&packed_b);
 
         assert_eq!(c.shape(), &[4, 16]);
@@ -3344,7 +3344,7 @@ mod tests {
         let a = Tensor::<f32>::try_new(&[4, 8], 1.0f32).unwrap();
         let b_transposed = Tensor::<f32>::try_new(&[8, 16], 1.0f32).unwrap(); // k × n
 
-        let packed_b = MatrixMultiplier::try_pack_transposed(&b_transposed).unwrap();
+        let packed_b = TransposedMatrixMultiplier::try_pack_transposed(&b_transposed).unwrap();
         let c = a.matmul(&packed_b);
 
         assert_eq!(c.shape(), &[4, 16]);
@@ -3358,7 +3358,7 @@ mod tests {
         let b = Tensor::<f32>::try_new(&[16, 8], 1.0f32).unwrap();
         let mut c = Tensor::<f32>::try_new(&[4, 16], 0.0f32).unwrap();
 
-        let packed_b = MatrixMultiplier::try_pack(&b).unwrap();
+        let packed_b = TransposedMatrixMultiplier::try_pack(&b).unwrap();
         a.try_matmul_into(&packed_b, &mut c).unwrap();
 
         assert!((c.as_slice()[0] - 8.0).abs() < 1e-5);
@@ -3370,7 +3370,7 @@ mod tests {
         let a = Tensor::<f64>::try_new(&[4, 8], 1.0f64).unwrap();
         let b = Tensor::<f64>::try_new(&[16, 8], 1.0f64).unwrap();
 
-        let packed_b = MatrixMultiplier::try_pack(&b).unwrap();
+        let packed_b = TransposedMatrixMultiplier::try_pack(&b).unwrap();
         let c = a.matmul(&packed_b);
 
         assert_eq!(c.shape(), &[4, 16]);
@@ -3383,7 +3383,7 @@ mod tests {
         let a = Tensor::<bf16>::try_new(&[4, 8], bf16::from_f32(1.0)).unwrap();
         let b = Tensor::<bf16>::try_new(&[16, 8], bf16::from_f32(1.0)).unwrap();
 
-        let packed_b = MatrixMultiplier::try_pack(&b).unwrap();
+        let packed_b = TransposedMatrixMultiplier::try_pack(&b).unwrap();
         let c = a.matmul(&packed_b);
 
         assert_eq!(c.shape(), &[4, 16]);
@@ -3396,7 +3396,7 @@ mod tests {
         let a = Tensor::<f16>::try_new(&[4, 8], f16::from_f32(1.0)).unwrap();
         let b = Tensor::<f16>::try_new(&[16, 8], f16::from_f32(1.0)).unwrap();
 
-        let packed_b = MatrixMultiplier::try_pack(&b).unwrap();
+        let packed_b = TransposedMatrixMultiplier::try_pack(&b).unwrap();
         let c = a.matmul(&packed_b);
 
         assert_eq!(c.shape(), &[4, 16]);
@@ -3409,7 +3409,7 @@ mod tests {
         let a = Tensor::<i8>::try_new(&[4, 8], 1i8).unwrap();
         let b = Tensor::<i8>::try_new(&[16, 8], 1i8).unwrap();
 
-        let packed_b = MatrixMultiplier::try_pack(&b).unwrap();
+        let packed_b = TransposedMatrixMultiplier::try_pack(&b).unwrap();
         let c = a.matmul(&packed_b);
 
         assert_eq!(c.shape(), &[4, 16]);
@@ -3422,7 +3422,7 @@ mod tests {
         let a = Tensor::<u8>::try_new(&[4, 8], 1u8).unwrap();
         let b = Tensor::<u8>::try_new(&[16, 8], 1u8).unwrap();
 
-        let packed_b = MatrixMultiplier::try_pack(&b).unwrap();
+        let packed_b = TransposedMatrixMultiplier::try_pack(&b).unwrap();
         let c = a.matmul(&packed_b);
 
         assert_eq!(c.shape(), &[4, 16]);
@@ -3435,7 +3435,7 @@ mod tests {
         let a = Tensor::<e4m3>::try_new(&[4, 8], e4m3::ONE).unwrap();
         let b = Tensor::<e4m3>::try_new(&[16, 8], e4m3::ONE).unwrap();
 
-        let packed_b = MatrixMultiplier::try_pack(&b).unwrap();
+        let packed_b = TransposedMatrixMultiplier::try_pack(&b).unwrap();
         let c = a.matmul(&packed_b);
 
         assert_eq!(c.shape(), &[4, 16]);
@@ -3448,7 +3448,7 @@ mod tests {
         let a = Tensor::<e4m3>::try_new(&[4, 8], e4m3::ONE).unwrap();
         let b_t = Tensor::<e4m3>::try_new(&[8, 16], e4m3::ONE).unwrap();
 
-        let packed_b = MatrixMultiplier::try_pack_transposed(&b_t).unwrap();
+        let packed_b = TransposedMatrixMultiplier::try_pack_transposed(&b_t).unwrap();
         let c = a.matmul(&packed_b);
 
         assert_eq!(c.shape(), &[4, 16]);
@@ -3461,7 +3461,7 @@ mod tests {
         let a = Tensor::<e5m2>::try_new(&[4, 8], e5m2::ONE).unwrap();
         let b = Tensor::<e5m2>::try_new(&[16, 8], e5m2::ONE).unwrap();
 
-        let packed_b = MatrixMultiplier::try_pack(&b).unwrap();
+        let packed_b = TransposedMatrixMultiplier::try_pack(&b).unwrap();
         let c = a.matmul(&packed_b);
 
         assert_eq!(c.shape(), &[4, 16]);
@@ -3474,7 +3474,7 @@ mod tests {
         let a = Tensor::<e5m2>::try_new(&[4, 8], e5m2::ONE).unwrap();
         let b_t = Tensor::<e5m2>::try_new(&[8, 16], e5m2::ONE).unwrap();
 
-        let packed_b = MatrixMultiplier::try_pack_transposed(&b_t).unwrap();
+        let packed_b = TransposedMatrixMultiplier::try_pack_transposed(&b_t).unwrap();
         let c = a.matmul(&packed_b);
 
         assert_eq!(c.shape(), &[4, 16]);
@@ -3487,7 +3487,7 @@ mod tests {
         let a = Tensor::<f32>::try_new(&[1, 8], 1.0f32).unwrap();
         let b = Tensor::<f32>::try_new(&[4, 8], 1.0f32).unwrap();
 
-        let packed_b = MatrixMultiplier::try_pack(&b).unwrap();
+        let packed_b = TransposedMatrixMultiplier::try_pack(&b).unwrap();
         let c = a.matmul(&packed_b);
 
         assert_eq!(c.shape(), &[1, 4]);
@@ -3500,7 +3500,7 @@ mod tests {
         let a = Tensor::<f32>::try_new(&[4, 8], 1.0f32).unwrap();
         let b = Tensor::<f32>::try_new(&[1, 8], 1.0f32).unwrap();
 
-        let packed_b = MatrixMultiplier::try_pack(&b).unwrap();
+        let packed_b = TransposedMatrixMultiplier::try_pack(&b).unwrap();
         let c = a.matmul(&packed_b);
 
         assert_eq!(c.shape(), &[4, 1]);
@@ -3515,7 +3515,7 @@ mod tests {
         let a = Tensor::<f32>::try_new(&[64, 128], 1.0f32).unwrap();
         let b = Tensor::<f32>::try_new(&[32, 128], 1.0f32).unwrap();
 
-        let packed_b = MatrixMultiplier::try_pack(&b).unwrap();
+        let packed_b = TransposedMatrixMultiplier::try_pack(&b).unwrap();
         let c = a.matmul_parallel(&packed_b, &mut pool);
 
         assert_eq!(c.shape(), &[64, 32]);
@@ -3532,7 +3532,7 @@ mod tests {
         let b = Tensor::<f32>::try_new(&[32, 128], 1.0f32).unwrap();
         let mut c = Tensor::<f32>::try_new(&[64, 32], 0.0f32).unwrap();
 
-        let packed_b = MatrixMultiplier::try_pack(&b).unwrap();
+        let packed_b = TransposedMatrixMultiplier::try_pack(&b).unwrap();
         a.try_matmul_parallel_into(&packed_b, &mut c, &mut pool)
             .unwrap();
 
@@ -3551,7 +3551,7 @@ mod tests {
         let a = Tensor::<bf16>::try_new(&[32, 64], bf16::from_f32(1.0)).unwrap();
         let b = Tensor::<bf16>::try_new(&[16, 64], bf16::from_f32(1.0)).unwrap();
 
-        let packed_b = MatrixMultiplier::try_pack(&b).unwrap();
+        let packed_b = TransposedMatrixMultiplier::try_pack(&b).unwrap();
         let c = a.matmul_parallel(&packed_b, &mut pool);
 
         assert_eq!(c.shape(), &[32, 16]);
