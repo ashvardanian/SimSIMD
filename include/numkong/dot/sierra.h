@@ -58,8 +58,9 @@ NK_PUBLIC void nk_dot_i8_sierra(nk_i8_t const *a_scalars, nk_i8_t const *b_scala
     //
     // Performance: ~1.3-1.4× speedup expected over cvtepi8_epi16 + dpwssd approach
     //   - Processes 32 elements/iteration (AVX2 width)
-    //   - Lower latency per iteration
-    //   - Better port utilization
+    //   - Lower latency per iteration: 4 cy (VPDPBUSD @ p05) vs 3+4 = 7 cy (VPMOVSXBW @ p5 + VPMADDWD @ p05)
+    //   - Better port utilization: VPDPBUSD (p05) runs in parallel with VPMOVSXBW (p5) + VPMADDWD (p05) for correction term,
+    //     enabling dual-issue execution on p0 and p5 simultaneously. Old approach bottlenecked on p5 for sign extension.
     //
     __m256i const xor_mask_u8x32 = _mm256_set1_epi8((char)0x80);
     __m256i sum_ab_i32x8 = _mm256_setzero_si256();
@@ -213,7 +214,7 @@ NK_PUBLIC void nk_dot_u8_sierra(nk_u8_t const *a_scalars, nk_u8_t const *b_scala
     // Where:
     //   - XOR with 0x80 converts unsigned u8 [0,255] to signed [-128,127]
     //   - dpbusd performs unsigned×signed multiply-accumulate
-    //   - sad_epu8 efficiently computes sum(a) as correction term
+    //   - sad_epu8 computes sum(a) as correction term
     //   - Correction term 128×sum(a) is added at the end
     //
     // Performance: ~1.8-2.0× speedup expected over unpack + dpwssd approach

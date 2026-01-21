@@ -26,7 +26,7 @@
  *      vor_vv_u8m1                     OR for Jaccard union
  *      vrgather_vv_u8m1                LUT lookup (16-entry nibble table)
  *      vsrl_vx_u8m1                    Right shift to extract high nibble
- *      vwaddu_vx_u16m2                 Widen u8→u16 for accumulation
+ *      vwaddu_vx_u16m2                 Widen u8 → u16 for accumulation
  *      vwredsumu_vs_u16m2_u32m1        Widening reduction sum
  */
 #ifndef NK_SET_SPACEMIT_H

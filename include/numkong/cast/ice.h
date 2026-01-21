@@ -53,7 +53,7 @@ NK_INTERNAL __m512i nk_e4m3x32_to_bf16x32_ice_(__m256i e4m3x32) {
         0x3CF0, 0x3CE0, 0x3CD0, 0x3CC0, 0x3CB0, 0x3CA0, 0x3C90, 0x3C80,  // idx 15-8
         0x3C60, 0x3C40, 0x3C20, 0x3C00, 0x3BC0, 0x3B80, 0x3B00, 0x0000); // idx 7-0
     __m512i const lut1_i16x32 = _mm512_set_epi16(                        // indices 32-63
-        0x3FF0, 0x3FE0, 0x3FD0, 0x3FC0, 0x3FB0, 0x3FA0, 0x3F90, 0x3F80,  // idx 63-56 (0x38=1.0→0x3F80)
+        0x3FF0, 0x3FE0, 0x3FD0, 0x3FC0, 0x3FB0, 0x3FA0, 0x3F90, 0x3F80,  // idx 63-56 (0x38=1.0 → 0x3F80)
         0x3F70, 0x3F60, 0x3F50, 0x3F40, 0x3F30, 0x3F20, 0x3F10, 0x3F00,  // idx 55-48
         0x3EF0, 0x3EE0, 0x3ED0, 0x3EC0, 0x3EB0, 0x3EA0, 0x3E90, 0x3E80,  // idx 47-40
         0x3E70, 0x3E60, 0x3E50, 0x3E40, 0x3E30, 0x3E20, 0x3E10, 0x3E00); // idx 39-32
@@ -133,7 +133,7 @@ NK_INTERNAL __m512i nk_e2m3x32_to_bf16x32_ice_(__m256i e2m3x32) {
     __m512i sign_i16x32 = _mm512_and_si512(e2m3_i16x32, _mm512_set1_epi16((short)0x80));
     __m512i idx_i16x32 = _mm512_and_si512(e2m3_i16x32, _mm512_set1_epi16(0x1F));
 
-    // 32-entry LUT for E2M3 magnitude (5 bits: bits 4-3=exp, bits 2-0=mant)
+    // 32-entry LUT for E2M3 magnitude (5 bits: bits [4:3]=exp, bits [2:0]=mant)
     // E2M3: bias=1, range [0, 7.5] for positive
     // BF16 = (bf16_exp << 7) | (bf16_mant), where bf16_exp = e2m3_exp + 126, bf16_mant = e2m3_mant << 4
     __m512i const lut_i16x32 = _mm512_set_epi16(                         //
@@ -158,7 +158,7 @@ NK_INTERNAL __m512i nk_e3m2x32_to_bf16x32_ice_(__m256i e3m2x32) {
     __m512i sign_i16x32 = _mm512_and_si512(e3m2_i16x32, _mm512_set1_epi16((short)0x80));
     __m512i idx_i16x32 = _mm512_and_si512(e3m2_i16x32, _mm512_set1_epi16(0x1F));
 
-    // 32-entry LUT for E3M2 magnitude (5 bits: bits 4-2=exp, bits 1-0=mant)
+    // 32-entry LUT for E3M2 magnitude (5 bits: bits [4:2]=exp, bits [1:0]=mant)
     // E3M2: bias=3, range [0, 28] for positive
     // BF16 = (bf16_exp << 7) | (bf16_mant), where bf16_exp = e3m2_exp + 124, bf16_mant = e3m2_mant << 5
     __m512i const lut_i16x32 = _mm512_set_epi16( //

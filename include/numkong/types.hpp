@@ -1148,7 +1148,7 @@ struct f16_t {
     static constexpr f16_t finite_min() noexcept { return from_bits(0xFBFF); }    // -65504.0
     static constexpr f16_t positive_min() noexcept { return from_bits(0x0400); }  // Smallest positive normal
     static constexpr f16_t subnormal_min() noexcept { return from_bits(0x0001); } // Smallest positive subnormal
-    static constexpr f16_t epsilon() noexcept { return from_bits(0x1400); }       // 2^-10 ≈ 0.00097656
+    static constexpr f16_t epsilon() noexcept { return from_bits(0x1400); }       // 2⁻¹⁰ ≈ 0.00097656
     static constexpr f16_t positive_infinity() noexcept { return from_bits(0x7C00); }
     static constexpr f16_t negative_infinity() noexcept { return from_bits(0xFC00); }
     static constexpr f16_t quiet_nan() noexcept { return from_bits(0x7E00); }
@@ -1358,7 +1358,7 @@ struct bf16_t {
     static constexpr bf16_t finite_min() noexcept { return from_bits(0xFF7F); }    // ~-3.39e38
     static constexpr bf16_t positive_min() noexcept { return from_bits(0x0080); }  // Smallest positive normal
     static constexpr bf16_t subnormal_min() noexcept { return from_bits(0x0001); } // Smallest positive subnormal
-    static constexpr bf16_t epsilon() noexcept { return from_bits(0x3C00); }       // 2^-7 ≈ 0.0078125
+    static constexpr bf16_t epsilon() noexcept { return from_bits(0x3C00); }       // 2⁻⁷ ≈ 0.0078125
     static constexpr bf16_t positive_infinity() noexcept { return from_bits(0x7F80); }
     static constexpr bf16_t negative_infinity() noexcept { return from_bits(0xFF80); }
     static constexpr bf16_t quiet_nan() noexcept { return from_bits(0x7FC0); }
@@ -1676,7 +1676,7 @@ struct bf16c_t {
  *  @brief FP8 E4M3 (8-bit float with 4-bit exponent, 3-bit mantissa) wrapper.
  *
  *  E4M3 is an 8-bit floating-point format optimized for machine learning inference.
- *  Range: ±448, smallest normal: 2^-6. No infinity representation (all exponent bits
+ *  Range: ±448, smallest normal: 2⁻⁶. No infinity representation (all exponent bits
  *  set = NaN). Provides strong type identity, compatible with NumKong kernels.
  *
  *  Features:
@@ -1766,7 +1766,7 @@ struct e4m3_t {
     // Exp all 1s (0xF) with non-zero mantissa = NaN, no infinity representation
     static constexpr e4m3_t finite_max() noexcept { return from_bits(0x7E); }    // 448.0
     static constexpr e4m3_t finite_min() noexcept { return from_bits(0xFE); }    // -448.0
-    static constexpr e4m3_t positive_min() noexcept { return from_bits(0x08); }  // Smallest positive normal (2^-6)
+    static constexpr e4m3_t positive_min() noexcept { return from_bits(0x08); }  // Smallest positive normal (2⁻⁶)
     static constexpr e4m3_t subnormal_min() noexcept { return from_bits(0x01); } // Smallest positive subnormal
     static constexpr e4m3_t quiet_nan() noexcept { return from_bits(0x7F); }     // +NaN
 
@@ -2173,7 +2173,7 @@ struct e2m3_t {
     // E2M3FN range: [-7.5, +7.5], no Inf/NaN
     static constexpr e2m3_t finite_max() noexcept { return from_bits(0x1F); }    // +7.5
     static constexpr e2m3_t finite_min() noexcept { return from_bits(0x3F); }    // -7.5
-    static constexpr e2m3_t positive_min() noexcept { return from_bits(0x08); }  // Smallest positive normal (2^0 = 1.0)
+    static constexpr e2m3_t positive_min() noexcept { return from_bits(0x08); }  // Smallest positive normal (2⁰ = 1.0)
     static constexpr e2m3_t subnormal_min() noexcept { return from_bits(0x01); } // Smallest positive subnormal
 
     // Mathematical constants
@@ -2330,7 +2330,7 @@ struct e3m2_t {
     // E3M2FN range: [-28, +28], no Inf/NaN
     static constexpr e3m2_t finite_max() noexcept { return from_bits(0x1F); }    // +28.0
     static constexpr e3m2_t finite_min() noexcept { return from_bits(0x3F); }    // -28.0
-    static constexpr e3m2_t positive_min() noexcept { return from_bits(0x0C); }  // Smallest positive normal (2^0 = 1.0)
+    static constexpr e3m2_t positive_min() noexcept { return from_bits(0x0C); }  // Smallest positive normal (2⁰ = 1.0)
     static constexpr e3m2_t subnormal_min() noexcept { return from_bits(0x01); } // Smallest positive subnormal
 
     // Mathematical constants

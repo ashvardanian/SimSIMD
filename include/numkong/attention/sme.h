@@ -597,7 +597,7 @@ NK_PUBLIC void nk_attention_bf16_sme(nk_bf16_t const *q, void const *kv_packed, 
  *  FlashAttention-2 algorithm with:
  *  - SME outer products for Q×Kᵀ computation
  *  - Vectorized softmax using nk_exp_f32_sve_ (no __builtin_expf)
- *  - F32→F16 downcast before P×V multiplication
+ *  - F32 → F16 downcast before P×V multiplication
  *  - Predicated SVE loops for unified body/tail handling
  */
 __arm_locally_streaming __arm_new("za") static void nk_attention_f16_sme_kernel_(
@@ -708,7 +708,7 @@ __arm_locally_streaming __arm_new("za") static void nk_attention_f16_sme_kernel_
             // Collect sum delta for later batch update
             sum_deltas[qi] = svaddv_f32(ptrue_s, p_vec);
 
-            // Downcast weights F32→F16→F32 (quantization step required before V multiplication)
+            // Downcast weights F32 → F16 → F32 (quantization step required before V multiplication)
             svfloat16_t weights_f16 = svcvt_f16_f32_x(ptrue_s, p_vec);
             svfloat32_t weights_quantized = svcvt_f32_f16_x(ptrue_s, weights_f16);
             svst1_f32(ptrue_s, all_weights[qi], weights_quantized);

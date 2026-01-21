@@ -23,7 +23,7 @@
  *      vdivq_f64         FDIV (V.2D, V.2D, V.2D)       15cy        0.5/cy  0.5/cy
  *
  *  Polynomial approximations for sin/cos/atan are FMA-dominated. On 4-pipe cores (Apple M4+,
- *  Graviton3+, Oryon), FMA throughput doubles from 2/cy to 4/cy, improving performance.
+ *  Graviton3+, Oryon), FMA throughput is 4/cy with 4cy latency.
  *
  *  Division (vdivq_f64) remains slow at 0.5/cy on all cores. For f32, use fast reciprocal
  *  (vrecpeq_f32 + Newton-Raphson) instead when precision allows.

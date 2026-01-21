@@ -446,7 +446,7 @@ NK_PUBLIC void nk_dots_symmetric_e3m2_serial(nk_e3m2_t const *vectors, nk_size_t
 
 /*  Genoa backends using AVX-512 with BF16 extensions.
  *  These use VDPBF16PS for BF16 dot products.
- *  Packing interleaves elements for efficient SIMD broadcast patterns.
+ *  Packing interleaves elements for SIMD broadcast patterns.
  */
 #if NK_TARGET_GENOA
 /** @copydoc nk_dots_packed_size_bf16 */

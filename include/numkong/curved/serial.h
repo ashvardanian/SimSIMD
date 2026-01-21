@@ -17,7 +17,7 @@
  *  - Inner accumulation: Σⱼ cᵢⱼ × bⱼ (O(n) terms per row)
  *  - Outer accumulation: Σᵢ aᵢ × inner_result (O(n) terms total)
  *
- *  Both levels apply Neumaier's improved Kahan-Babuška algorithm to achieve O(1) error growth.
+ *  Both levels apply Neumaier's Kahan-Babuška variant to achieve O(1) error growth.
  *
  *  @see Neumaier, A. (1974). "Rundungsfehleranalyse einiger Verfahren zur Summation endlicher Summen"
  */

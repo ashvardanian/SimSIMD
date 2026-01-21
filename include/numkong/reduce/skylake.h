@@ -17,7 +17,7 @@
  *
  *  After transformation, unsigned byte comparison preserves FP8 numeric order:
  *
- *      max_positive → 0xFE (highest)    [E4M3: 0x7E→0xFE, E5M2: 0x7B→0xFB]
+ *      max_positive → 0xFE (highest)    [E4M3: 0x7E → 0xFE, E5M2: 0x7B → 0xFB]
  *      +0           → 0x80
  *      -0           → 0x7F
  *      max_negative → 0x01 (lowest)

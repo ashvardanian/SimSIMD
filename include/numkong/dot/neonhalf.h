@@ -20,7 +20,7 @@
  *  workloads while halving memory footprint.
  *
  *  For dot products, inputs are widened from F16 to F32 for accumulation to preserve numerical
- *  precision. The FCVTL instruction handles this widening efficiently, allowing the FMA operations
+ *  precision. The FCVTL instruction handles this widening, allowing the FMA operations
  *  to maintain full F32 precision in the accumulator.
  */
 #ifndef NK_DOT_NEONHALF_H

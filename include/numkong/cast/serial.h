@@ -710,7 +710,7 @@ NK_INTERNAL void nk_f32_to_e3m2_serial(nk_f32_t const *src, nk_e3m2_t *dest) {
 
     // Clamp to E3M2FN range [-28, 28]
     // Max value: exp=7, mant=2 → (1 + 2/4) * 2^(7-3) = 1.5 * 16 = 24
-    // Actually max is exp=7, mant=3 → (1 + 3/4) * 2^4 = 1.75 * 16 = 28
+    // Actually max is exp=7, mant=3 → (1 + 3/4) * 2⁴ = 1.75 * 16 = 28
     if (abs_x >= 28.0f) {
         *dest = (nk_e3m2_t)(sign | 0x1Fu); // Max: 0b011111 (exp=7, mant=3)
         return;
@@ -1543,7 +1543,7 @@ NK_INTERNAL void nk_scalar_buffers_export_f64c_(            //
             temporary_f32 = (nk_f32_t)from_buffers[i].f64c.imag, nk_f32_to_bf16_serial(&temporary_f32, &p[i].imag);
         }
     } break;
-    // Sub-byte: u1 - 8 bits to 1 byte, MSB-first, non-zero→1
+    // Sub-byte: u1 - 8 bits to 1 byte, MSB-first, non-zero → 1
     case nk_u1_k: {
         nk_u8_t *p = (nk_u8_t *)to_ptr;
         nk_u8_t byte = 0;

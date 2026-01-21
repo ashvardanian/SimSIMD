@@ -41,7 +41,7 @@ NK_PUBLIC void nk_dot_i8_ice(nk_i8_t const *a_scalars, nk_i8_t const *b_scalars,
     // Optimized i8×i8 dot product using algebraic transformation with DPBUSD
     //
     // Old approach (Haswell/Skylake):
-    //   - Sign-extend i8→i16 using cvtepi8_epi16 (3cy latency @ p5, 32 elements/iteration)
+    //   - Sign-extend i8 → i16 using cvtepi8_epi16 (3cy latency @ p5, 32 elements/iteration)
     //   - Multiply i16×i16 using vpmaddwd + dpwssd
     //   - Bottleneck: cvtepi8_epi16 serializes on port 5
     //
@@ -111,7 +111,7 @@ NK_PUBLIC void nk_dot_u8_ice(nk_u8_t const *a_scalars, nk_u8_t const *b_scalars,
     // Where:
     //   - XOR with 0x80 converts unsigned u8 [0,255] to signed [-128,127]
     //   - dpbusd performs unsigned×signed multiply-accumulate
-    //   - sad_epu8 efficiently computes sum(a) as correction term
+    //   - sad_epu8 computes sum(a) as correction term
     //   - Correction term 128×sum(a) is added at the end
     //
     // Performance: 1.92× speedup over unpack + dpwssd approach

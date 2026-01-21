@@ -21,7 +21,7 @@
  *  into int32 lanes, processing 16 multiply-accumulates per instruction.
  *
  *  SDOT handles signed int8 operands while UDOT handles unsigned. The 3-cycle latency with 2/cy
- *  throughput on A76 (4/cy on newer cores) enables efficient int8 matrix multiplication for
+ *  throughput on A76 (4/cy on newer cores) enables int8 matrix multiplication for
  *  quantized neural network inference, where 8-bit weights reduce memory bandwidth by 4x vs FP32.
  */
 #ifndef NK_DOT_NEONSDOT_H

@@ -16,7 +16,7 @@
  *      _mm_sqrt_ps                 VSQRTPS (XMM, XMM)              11cy        7cy         p0
  *      _mm256_sqrt_ps              VSQRTPS (YMM, YMM)              12cy        14cy        p0
  *
- *  For angular distance normalization, `_mm_rsqrt_ps` provides ~12-bit precision (1.5 x 2^-12 error).
+ *  For angular distance normalization, `_mm_rsqrt_ps` provides ~12-bit precision (1.5 x 2⁻¹² error).
  *  Newton-Raphson refinement doubles precision to ~22-24 bits, sufficient for f32. For f64 we use
  *  the exact `_mm_sqrt_pd` instruction since fast rsqrt approximations lack f64 precision.
  */
@@ -515,7 +515,7 @@ NK_PUBLIC void nk_angular_f32_haswell(nk_f32_t const *a, nk_f32_t const *b, nk_s
 }
 
 NK_PUBLIC void nk_sqeuclidean_f64_haswell(nk_f64_t const *a, nk_f64_t const *b, nk_size_t n, nk_f64_t *result) {
-    // Neumaier summation for improved numerical stability
+    // Neumaier compensated summation
     __m256d sum_f64x4 = _mm256_setzero_pd();
     __m256d compensation_f64x4 = _mm256_setzero_pd();
     __m256d const sign_mask_f64x4 = _mm256_set1_pd(-0.0);

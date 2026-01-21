@@ -19,11 +19,11 @@
  *      vaddvq_u32                  ADDV (V.4S)                     4cy         1/cy        2/cy
  *
  *  The ARMv8.4-DotProd extension provides SDOT/UDOT for int8 dot products and SABD/UABD for
- *  absolute differences, enabling efficient L2 and angular distance on quantized embeddings.
+ *  absolute differences, enabling L2 and angular distance on quantized embeddings.
  *  For L2 distance, SABD computes |a-b| per byte, then UDOT squares and accumulates.
  *
  *  Angular distance uses SDOT/UDOT directly for dot product and norm computations. This enables
- *  efficient similarity search on int8-quantized embeddings, achieving 4x memory reduction vs FP32
+ *  similarity search on int8-quantized embeddings, achieving 4x memory reduction vs FP32
  *  while maintaining reasonable precision for nearest-neighbor search applications.
  */
 #ifndef NK_SPATIAL_NEONSDOT_H

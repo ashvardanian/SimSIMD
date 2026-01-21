@@ -35,7 +35,7 @@ extern "C" {
 /**
  *  @brief  Computes `1/√x` using RVV's `vfrsqrt7` instruction with Newton-Raphson refinement.
  *
- *  The `vfrsqrt7` instruction provides a ~7-bit accurate initial estimate (vs ~11 bits for x86 rsqrtps).
+ *  vfrsqrt7: 7-bit mantissa precision (±2⁻⁷ relative error).
  *  Two Newton-Raphson iterations refine this to ~28 bits, sufficient for f32's 23-bit mantissa.
  *  Formula: y' = y × (1.5 − 0.5 × x × y × y)
  */

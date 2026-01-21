@@ -16,8 +16,8 @@
  *  @section rvv_cast_instructions Key RVV Cast Instructions
  *
  *      Intrinsic                       Purpose
- *      vzext_vf4_u32m4                 Zero-extend u8→u32 (4x widening)
- *      vsext_vf4_i32m4                 Sign-extend i8→i32 (4x widening)
+ *      vzext_vf4_u32m4                 Zero-extend u8 → u32 (4x widening)
+ *      vsext_vf4_i32m4                 Sign-extend i8 → i32 (4x widening)
  *      vsll_vx / vsrl_vx               Bit shifts for field extraction
  *      vand_vx                         Bit masking
  *      vor_vv                          Combining bit fields
@@ -245,8 +245,8 @@ NK_INTERNAL vfloat32m4_t nk_e5m2m1_to_f32m4_spacemit_(vuint8m1_t e5m2_u8m1, nk_s
  *  @brief Unpack i4 (m1) nibbles to i8 (m2) register-to-register.
  *
  *  Packed format: byte[i] contains two nibbles:
- *  - High nibble (bits 7-4) → output[i*2]
- *  - Low nibble (bits 3-0) → output[i*2+1]
+ *  - High nibble (bits [7:4]) → output[i*2]
+ *  - Low nibble (bits [3:0]) → output[i*2+1]
  *
  *  Sign extension: 4-bit signed value [-8,7] extended to 8-bit.
  *  Trick: (x ^ 8) - 8 sign-extends a 4-bit value to larger type.

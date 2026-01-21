@@ -253,7 +253,7 @@ NK_INTERNAL float16x8_t nk_e3m2x8_to_f16x8_neon_(uint8x8_t e3m2_u8x8) {
 /** @brief Convert 16x e2m3 → 2x f16x8 via TBL lookup (NEON).
  *  E2M3FN (FP6): S EE MMM (bias=1) → F16: S EEEEE MMMMMMMMMM (bias=15).
  *  Uses precomputed lookup tables for 64 possible 6-bit values.
- *  TBL approach: ~6 instructions vs ~24 for calling x8 converter twice with vget_low/high. */
+ *  VQTBL4 byte shuffle (p01) + VZIP interleave (p01) (~6 instructions, parallel execution) */
 NK_INTERNAL void nk_e2m3x16_to_f16x8x2_neon_(uint8x16_t input_u8x16, float16x8_t *result_low_f16x8,
                                              float16x8_t *result_high_f16x8) {
     // Precomputed lookup tables for E2M3FN → F16 conversion
@@ -301,7 +301,13 @@ NK_INTERNAL void nk_e2m3x16_to_f16x8x2_neon_(uint8x16_t input_u8x16, float16x8_t
 /** @brief Convert 16x e3m2 → 2x f16x8 via TBL lookup (NEON).
  *  E3M2FN (FP6): S EEE MM (bias=3) → F16: S EEEEE MMMMMMMMMM (bias=15).
  *  Uses precomputed lookup tables for 64 possible 6-bit values.
- *  TBL approach: ~6 instructions vs ~24 for calling x8 converter twice with vget_low/high. */
+ *
+ *  Performance (per 16 elements):
+ *    VLD1Q x4 (4 loads)         4 cy latency, 1 cy throughput each
+ *    VAND (mask)                2 cy latency, 0.5 cy throughput
+ *    VQTBL4 (table lookup)      3 cy latency, 1 cy throughput
+ *    VZIP (interleave)          2 cy latency, 1 cy throughput
+ *  Total: ~6-8 cy latency, ~2.5 cy amortized throughput (dominated by table lookup + zip) */
 NK_INTERNAL void nk_e3m2x16_to_f16x8x2_neon_(uint8x16_t input_u8x16, float16x8_t *result_low_f16x8,
                                              float16x8_t *result_high_f16x8) {
     // Precomputed lookup table for E3M2FN → F16 conversion (high byte only)
@@ -309,7 +315,7 @@ NK_INTERNAL void nk_e3m2x16_to_f16x8x2_neon_(uint8x16_t input_u8x16, float16x8_t
     // F16: sign(1) exp(5) mant(10), bias=15
     // Normal (exp!=0): f16 = (sign << 15) | ((exp + 12) << 10) | (mant << 8)
     // Subnormal (exp=0): f16 = mant/16 converted to f16
-    // NOTE: E3M2 has only 2 mantissa bits which map to f16 bits 9-8, so bits 7-0 are always zero!
+    // E3M2 mantissa (2 bits) maps to F16 bits [9:8]; F16 bits [7:0] = 0
     static nk_u8_t const table_high_u8x64[64] = {
         0x00, 0x2C, 0x30, 0x32, // exp=0 (subnormals): 0, 1/16, 2/16, 3/16
         0x34, 0x35, 0x36, 0x37, // exp=1 → f16_exp=13 (0x34-0x37)

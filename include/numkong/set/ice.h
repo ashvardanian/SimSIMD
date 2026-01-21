@@ -297,7 +297,7 @@ NK_INTERNAL void nk_jaccard_b512_finalize_ice(nk_jaccard_b512_state_ice_t const 
     // - p5: Shuffles/extracts (`VEXTRACTI128`: 3cy latency, 1/cy throughput)
 
     // Step 1: Truncate 8x i64 → 8x i32 per state (fits in YMM)
-    // `VPMOVQD` (ZMM→YMM): 4cy latency, 0.5/cy throughput, port p01
+    // `VPMOVQD` (ZMM → YMM): 4cy latency, 0.5/cy throughput, port p01
     __m256i a_i32x8 = _mm512_cvtepi64_epi32(state_a->intersection_count_i64x8);
     __m256i b_i32x8 = _mm512_cvtepi64_epi32(state_b->intersection_count_i64x8);
     __m256i c_i32x8 = _mm512_cvtepi64_epi32(state_c->intersection_count_i64x8);

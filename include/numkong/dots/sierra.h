@@ -5,7 +5,7 @@
  *  @author Ash Vardanian
  *  @date December 27, 2025
  *
- *  Uses AVX-VNNI (256-bit) for efficient integer GEMM:
+ *  Uses AVX-VNNI (256-bit) for integer GEMM:
  *  - _mm256_dpbssds_epi32: i8 × i8 → i32 with saturation
  *  - _mm256_dpbuud_epi32: u8 × u8 → u32 without saturation
  */

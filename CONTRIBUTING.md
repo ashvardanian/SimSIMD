@@ -12,7 +12,7 @@ Primary kernels are implemented in header files under `include/numkong/`:
 
 - `dot.h` - dot products for real and complex vectors.
 - `spatial.h` - spatial distances: L2, cosine distance.
-- `binary.h` - binary distances: Hamming, Jaccard, etc.
+- `set.h` - set similarity measures: Hamming, Jaccard, etc.
 - `probability.h` - probability metrics: KL-divergence, Jensen-Shannon, etc.
 - `sparse.h` - sparse distances: weighted and normal set intersections.
 - `curved.h` - bilinear forms for real and complex vectors, and Mahalanobis distance.

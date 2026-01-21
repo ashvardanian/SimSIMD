@@ -136,8 +136,8 @@ NK_PUBLIC void nk_dot_u4_serial(nk_u4x2_t const *a, nk_u4x2_t const *b, nk_size_
 
 /*  Double-precision dot-produce variants
  *
- *  Implements Neumaier's improved Kahan-Babuška algorithm to minimize floating-point rounding errors.
- *  Unlike Kahan, Neumaier correctly handles the case where the term being added is larger than the
+ *  Implements Neumaier's Kahan-Babuška variant to minimize floating-point rounding errors.
+ *  Unlike Kahan, Neumaier handles the case where the term being added is larger than the
  *  running sum. Achieves O(1) error growth regardless of vector dimension.
  *
  *  Algorithm: For each term, compute t = sum + term, then:

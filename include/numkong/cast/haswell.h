@@ -137,7 +137,6 @@ NK_INTERNAL __m128i nk_f32x8_to_u8x8_haswell_(__m256 f32x8) {
  *  Subnormals (8 values): looked up via vpshufb from an 8-entry LUT.
  *  Handles all corner cases: zero, subnormals, normals, and NaN. */
 NK_INTERNAL __m256i nk_e4m3x16_to_bf16x16_haswell_(__m128i e4m3x16) {
-    // TODO: Consider removing this kernel
     __m256i e4m3_i16x16 = _mm256_cvtepu8_epi16(e4m3x16);
     __m256i sign_i16x16 = _mm256_and_si256(e4m3_i16x16, _mm256_set1_epi16((short)0x80));
     __m256i lower7_i16x16 = _mm256_and_si256(e4m3_i16x16, _mm256_set1_epi16(0x7F));
@@ -185,7 +184,6 @@ NK_INTERNAL __m256i nk_e4m3x16_to_bf16x16_haswell_(__m128i e4m3x16) {
  *  Subnormals (4 values): looked up via vpshufb from a 4-entry LUT.
  *  Handles all corner cases: zero, subnormals, normals, infinity, and NaN. */
 NK_INTERNAL __m256i nk_e5m2x16_to_bf16x16_haswell_(__m128i e5m2x16) {
-    // TODO: Consider removing this kernel
     __m256i e5m2_i16x16 = _mm256_cvtepu8_epi16(e5m2x16);
     __m256i sign_i16x16 = _mm256_and_si256(e5m2_i16x16, _mm256_set1_epi16((short)0x80));
     __m256i lower7_i16x16 = _mm256_and_si256(e5m2_i16x16, _mm256_set1_epi16(0x7F));
@@ -235,7 +233,6 @@ NK_INTERNAL __m256i nk_e5m2x16_to_bf16x16_haswell_(__m128i e5m2x16) {
  *  Subnormals (8 values): looked up via vpshufb from an 8-entry LUT.
  *  Handles all corner cases: zero, subnormals, normals, and NaN. */
 NK_INTERNAL __m256i nk_e4m3x16_to_f16x16_haswell_(__m128i e4m3x16) {
-    // TODO: Consider removing this kernel
     __m256i e4m3_i16x16 = _mm256_cvtepu8_epi16(e4m3x16);
     __m256i sign_i16x16 = _mm256_and_si256(e4m3_i16x16, _mm256_set1_epi16((short)0x80));
     __m256i lower7_i16x16 = _mm256_and_si256(e4m3_i16x16, _mm256_set1_epi16(0x7F));
@@ -281,7 +278,6 @@ NK_INTERNAL __m256i nk_e4m3x16_to_f16x16_haswell_(__m128i e4m3x16) {
  *  Same exponent bias means F16 = (lower7 << 8) | (sign << 15).
  *  Handles all corner cases: zero, subnormals, normals, infinity, and NaN. */
 NK_INTERNAL __m256i nk_e5m2x16_to_f16x16_haswell_(__m128i e5m2x16) {
-    // TODO: Consider removing this kernel
     __m256i e5m2_i16x16 = _mm256_cvtepu8_epi16(e5m2x16);
     __m256i sign_i16x16 = _mm256_and_si256(e5m2_i16x16, _mm256_set1_epi16((short)0x80));
     __m256i lower7_i16x16 = _mm256_and_si256(e5m2_i16x16, _mm256_set1_epi16(0x7F));

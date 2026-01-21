@@ -356,10 +356,10 @@ nk_define_sparse_dot_(u32, f32, f32, nk_assign_from_to_)     // nk_sparse_dot_u3
  *
  *  For R&D purposes, it's important to keep the following latencies in mind:
  *
- *   - `_mm512_permutex_epi64` - needs F - 3 cycles latency
- *   - `_mm512_shuffle_epi8` - needs BW - 1 cycle latency
- *   - `_mm512_permutexvar_epi16` - needs BW - 4-6 cycles latency
- *   - `_mm512_permutexvar_epi8` - needs VBMI - 3 cycles latency
+ *   - `_mm512_permutex_epi64` (VPERMQ) - needs F - 3 cy latency, 1 cy throughput @ p5
+ *   - `_mm512_shuffle_epi8` (VPSHUFB) - needs BW - 1 cy latency, 1 cy throughput @ p5
+ *   - `_mm512_permutexvar_epi16` (VPERMW) - needs BW - 4-6 cy latency, 1 cy throughput @ p5
+ *   - `_mm512_permutexvar_epi8` (VPERMB) - needs VBMI - 3 cy latency, 1 cy throughput @ p5
  */
 #if NK_TARGET_X86_
 #if NK_TARGET_ICE

@@ -18,8 +18,8 @@ extern "C" {
 /**
  *  @brief Macro for L2 squared distance with Neumaier compensated summation.
  *
- *  Implements Neumaier's improved Kahan-Babuška algorithm to minimize floating-point rounding errors.
- *  Unlike Kahan, Neumaier correctly handles the case where the term being added is larger than the
+ *  Implements Neumaier's Kahan-Babuška variant to minimize floating-point rounding errors.
+ *  Unlike Kahan, Neumaier handles the case where the term being added is larger than the
  *  running sum. Achieves O(1) error growth regardless of vector dimension.
  *
  *  Performance vs Accuracy Tradeoff:

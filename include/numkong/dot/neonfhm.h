@@ -17,12 +17,12 @@
  *      vaddvq_f32                  FADDP+FADDP (V.4S)              4cy         1/cy        2/cy
  *
  *  The ARMv8.4-FHM extension (FEAT_FHM) provides FMLAL/FMLSL instructions that fuse FP16 to FP32
- *  widening with multiply-accumulate in a single operation. This eliminates the 2-instruction
- *  sequence FCVTL (3cy) + FMLA (4cy) = 7cy, achieving 20-48% speedup over convert-then-FMA.
+ *  widening with multiply-accumulate in a single operation. FMLAL executes as a single fused op
+ *  (4cy latency, 2/cy throughput on A76, 4/cy on M4+/V1+/Oryon) rather than separate FCVTL + FMLA.
  *
  *  FMLAL preserves FP32 accumulator precision while accepting FP16 inputs, ideal for mixed-precision
  *  workloads. The _low variants process elements 0-3, _high variants process elements 4-7, enabling
- *  efficient processing of 8 FP16 elements per iteration with full precision accumulation.
+ *  processing of 8 FP16 elements per iteration with full precision accumulation.
  */
 #ifndef NK_DOT_NEONFHM_H
 #define NK_DOT_NEONFHM_H
@@ -87,7 +87,7 @@ NK_INTERNAL void nk_dot_f16x8_update_neonfhm(nk_dot_f16x8_state_neonfhm_t *state
     nk_unused_(active_dimensions);
     float16x8_t a_f16x8 = vreinterpretq_f16_u16(a.u16x8);
     float16x8_t b_f16x8 = vreinterpretq_f16_u16(b.u16x8);
-    // FMLAL: widening multiply-accumulate fp16 → f32 (faster than convert-then-FMA)
+    // FMLAL: widening multiply-accumulate fp16 → f32
     state->sum_f32x4 = vfmlalq_low_f16(state->sum_f32x4, a_f16x8, b_f16x8);
     state->sum_f32x4 = vfmlalq_high_f16(state->sum_f32x4, a_f16x8, b_f16x8);
 }
