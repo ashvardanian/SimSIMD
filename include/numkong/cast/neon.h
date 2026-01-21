@@ -256,20 +256,16 @@ NK_INTERNAL float16x8_t nk_e3m2x8_to_f16x8_neon_(uint8x8_t e3m2_u8x8) {
  *  TBL approach: ~6 instructions vs ~24 for calling x8 converter twice with vget_low/high. */
 NK_INTERNAL void nk_e2m3x16_to_f16x8x2_neon_(uint8x16_t input_u8x16, float16x8_t *result_low_f16x8,
                                              float16x8_t *result_high_f16x8) {
-    // Precomputed lookup tables for E2M3FN → F16 conversion
+    // E2M3FN → F16 conversion using TBL for high byte, arithmetic for low byte
     // E2M3FN: sign(1) exp(2) mant(3), bias=1
     // F16: sign(1) exp(5) mant(10), bias=15
     // Normal (exp!=0): f16 = (sign << 15) | ((exp + 14) << 10) | (mant << 7)
     // Subnormal (exp=0): f16 = mant/16 converted to f16
-    static nk_u8_t const table_low_u8x64[64] = {
-        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, // exp=0 (subnormals): low bytes all 0x00
-        0x00, 0x80, 0x00, 0x80, 0x00, 0x80, 0x00, 0x80, // exp=1, mant=0-7
-        0x00, 0x80, 0x00, 0x80, 0x00, 0x80, 0x00, 0x80, // exp=2, mant=0-7
-        0x00, 0x80, 0x00, 0x80, 0x00, 0x80, 0x00, 0x80, // exp=3, mant=0-7
-        0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, // exp=0 (subnormals): low bytes all 0x00
-        0x00, 0x80, 0x00, 0x80, 0x00, 0x80, 0x00, 0x80, 0x00, 0x80, 0x00, 0x80,
-        0x00, 0x80, 0x00, 0x80, 0x00, 0x80, 0x00, 0x80, 0x00, 0x80, 0x00, 0x80,
-    };
+    //
+    // Low byte pattern: E2M3 has 3 mantissa bits → f16 bits 9-7, so low byte (bits 7-0) is:
+    //   - Subnormals (exp=0): always 0x00
+    //   - Normals (exp≠0): (mant & 1) << 7 = 0x00 or 0x80
+    // This simple pattern can be computed arithmetically, saving 4 table registers!
     static nk_u8_t const table_high_u8x64[64] = {
         0x00, 0x2C, 0x30, 0x32, 0x34, 0x35, 0x36, 0x37, // exp=0 (subnormals)
         0x3C, 0x3C, 0x3D, 0x3D, 0x3E, 0x3E, 0x3F, 0x3F, // exp=1 → f16_exp=15 (0x3C-0x3F)
@@ -280,16 +276,21 @@ NK_INTERNAL void nk_e2m3x16_to_f16x8x2_neon_(uint8x16_t input_u8x16, float16x8_t
         0xC2, 0xC2, 0xC3, 0xC3, 0xC4, 0xC4, 0xC5, 0xC5, 0xC6, 0xC6, 0xC7, 0xC7,
     };
 
-    // Load lookup tables into NEON registers
-    uint8x16x4_t table_low_u8x16x4 = vld1q_u8_x4(table_low_u8x64);
+    // Load only high byte table (4 registers instead of 8)
     uint8x16x4_t table_high_u8x16x4 = vld1q_u8_x4(table_high_u8x64);
 
     // Mask to 6-bit indices (handle potential garbage in high 2 bits)
     uint8x16_t indices_u8x16 = vandq_u8(input_u8x16, vdupq_n_u8(0x3F));
 
-    // Table lookup for both bytes of f16 results
-    uint8x16_t low_bytes_u8x16 = vqtbl4q_u8(table_low_u8x16x4, indices_u8x16);
+    // High bytes via TBL lookup (complex subnormal handling)
     uint8x16_t high_bytes_u8x16 = vqtbl4q_u8(table_high_u8x16x4, indices_u8x16);
+
+    // Low bytes via arithmetic: (exp != 0) ? (bit0 << 7) : 0
+    // This uses shift/logic ports instead of permute port, and frees 4 registers
+    uint8x16_t shifted_u8x16 = vshlq_n_u8(input_u8x16, 7);                 // bit 0 → bit 7
+    uint8x16_t exp_bits_u8x16 = vandq_u8(input_u8x16, vdupq_n_u8(0x18));   // isolate exp (bits 4-3)
+    uint8x16_t is_normal_u8x16 = vcgtq_u8(exp_bits_u8x16, vdupq_n_u8(0));  // 0xFF if exp≠0
+    uint8x16_t low_bytes_u8x16 = vandq_u8(shifted_u8x16, is_normal_u8x16); // mask off subnormals
 
     // ZIP to interleave bytes into uint16 values: [l0,l1...l15] + [h0,h1...h15] → [l0,h0,l1,h1...]
     uint8x16x2_t interleaved_u8x16x2 = vzipq_u8(low_bytes_u8x16, high_bytes_u8x16);
