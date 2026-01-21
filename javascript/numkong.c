@@ -18,8 +18,8 @@ static nk_dtype_t kernel_output_dtype(nk_kernel_kind_t kind, nk_dtype_t input) {
     switch (kind) {
     case nk_kernel_dot_k: return nk_dot_output_dtype(input);
     case nk_kernel_angular_k: return nk_angular_output_dtype(input);
-    case nk_kernel_l2sq_k: return nk_l2sq_output_dtype(input);
-    case nk_kernel_l2_k: return nk_l2_output_dtype(input);
+    case nk_kernel_sqeuclidean_k: return nk_sqeuclidean_output_dtype(input);
+    case nk_kernel_euclidean_k: return nk_euclidean_output_dtype(input);
     default: return nk_f64_k;
     }
 }
@@ -89,11 +89,11 @@ napi_value api_ip(napi_env env, napi_callback_info info) {
 napi_value api_angular(napi_env env, napi_callback_info info) {
     return dense(env, info, nk_kernel_angular_k, nk_dtype_unknown_k);
 }
-napi_value api_l2sq(napi_env env, napi_callback_info info) {
-    return dense(env, info, nk_kernel_l2sq_k, nk_dtype_unknown_k);
+napi_value api_sqeuclidean(napi_env env, napi_callback_info info) {
+    return dense(env, info, nk_kernel_sqeuclidean_k, nk_dtype_unknown_k);
 }
-napi_value api_l2(napi_env env, napi_callback_info info) {
-    return dense(env, info, nk_kernel_l2_k, nk_dtype_unknown_k);
+napi_value api_euclidean(napi_env env, napi_callback_info info) {
+    return dense(env, info, nk_kernel_euclidean_k, nk_dtype_unknown_k);
 }
 napi_value api_kld(napi_env env, napi_callback_info info) {
     return dense(env, info, nk_kernel_kld_k, nk_dtype_unknown_k);
@@ -109,8 +109,8 @@ napi_value Init(napi_env env, napi_value exports) {
     // Define an array of property descriptors
     napi_property_descriptor dot_descriptor = {"dot", 0, api_ip, 0, 0, 0, napi_default, 0};
     napi_property_descriptor inner_descriptor = {"inner", 0, api_ip, 0, 0, 0, napi_default, 0};
-    napi_property_descriptor sqeuclidean_descriptor = {"sqeuclidean", 0, api_l2sq, 0, 0, 0, napi_default, 0};
-    napi_property_descriptor euclidean_descriptor = {"euclidean", 0, api_l2, 0, 0, 0, napi_default, 0};
+    napi_property_descriptor sqeuclidean_descriptor = {"sqeuclidean", 0, api_sqeuclidean, 0, 0, 0, napi_default, 0};
+    napi_property_descriptor euclidean_descriptor = {"euclidean", 0, api_euclidean, 0, 0, 0, napi_default, 0};
     napi_property_descriptor angular_descriptor = {"angular", 0, api_angular, 0, 0, 0, napi_default, 0};
     napi_property_descriptor hamming_descriptor = {"hamming", 0, api_hamming, 0, 0, 0, napi_default, 0};
     napi_property_descriptor jaccard_descriptor = {"jaccard", 0, api_jaccard, 0, 0, 0, napi_default, 0};

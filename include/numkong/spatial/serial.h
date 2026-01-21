@@ -34,29 +34,30 @@ extern "C" {
  *
  *  @see Neumaier, A. (1974). "Rundungsfehleranalyse einiger Verfahren zur Summation endlicher Summen"
  */
-#define nk_define_l2sq_(input_type, accumulator_type, output_type, load_and_convert)                         \
-    NK_PUBLIC void nk_l2sq_##input_type##_serial(nk_##input_type##_t const *a, nk_##input_type##_t const *b, \
-                                                 nk_size_t n, nk_##output_type##_t *result) {                \
-        nk_##accumulator_type##_t sum = 0, compensation = 0, a_element, b_element;                           \
-        for (nk_size_t i = 0; i != n; ++i) {                                                                 \
-            load_and_convert(a + i, &a_element);                                                             \
-            load_and_convert(b + i, &b_element);                                                             \
-            nk_##accumulator_type##_t diff = a_element - b_element;                                          \
-            nk_##accumulator_type##_t term = diff * diff, t = sum + term;                                    \
-            compensation += (nk_##accumulator_type##_abs_(sum) >= nk_##accumulator_type##_abs_(term))        \
-                                ? ((sum - t) + term)                                                         \
-                                : ((term - t) + sum);                                                        \
-            sum = t;                                                                                         \
-        }                                                                                                    \
-        *result = (nk_##output_type##_t)(sum + compensation);                                                \
+#define nk_define_sqeuclidean_(input_type, accumulator_type, output_type, load_and_convert)                         \
+    NK_PUBLIC void nk_sqeuclidean_##input_type##_serial(nk_##input_type##_t const *a, nk_##input_type##_t const *b, \
+                                                        nk_size_t n, nk_##output_type##_t *result) {                \
+        nk_##accumulator_type##_t sum = 0, compensation = 0, a_element, b_element;                                  \
+        for (nk_size_t i = 0; i != n; ++i) {                                                                        \
+            load_and_convert(a + i, &a_element);                                                                    \
+            load_and_convert(b + i, &b_element);                                                                    \
+            nk_##accumulator_type##_t diff = a_element - b_element;                                                 \
+            nk_##accumulator_type##_t term = diff * diff, t = sum + term;                                           \
+            compensation += (nk_##accumulator_type##_abs_(sum) >= nk_##accumulator_type##_abs_(term))               \
+                                ? ((sum - t) + term)                                                                \
+                                : ((term - t) + sum);                                                               \
+            sum = t;                                                                                                \
+        }                                                                                                           \
+        *result = (nk_##output_type##_t)(sum + compensation);                                                       \
     }
 
-#define nk_define_l2_(input_type, accumulator_type, l2sq_output_type, output_type, load_and_convert, compute_sqrt) \
-    NK_PUBLIC void nk_l2_##input_type##_serial(nk_##input_type##_t const *a, nk_##input_type##_t const *b,         \
-                                               nk_size_t n, nk_##output_type##_t *result) {                        \
-        nk_##l2sq_output_type##_t distance_sq;                                                                     \
-        nk_l2sq_##input_type##_serial(a, b, n, &distance_sq);                                                      \
-        *result = compute_sqrt((nk_##output_type##_t)distance_sq);                                                 \
+#define nk_define_euclidean_(input_type, accumulator_type, l2sq_output_type, output_type, load_and_convert,       \
+                             compute_sqrt)                                                                        \
+    NK_PUBLIC void nk_euclidean_##input_type##_serial(nk_##input_type##_t const *a, nk_##input_type##_t const *b, \
+                                                      nk_size_t n, nk_##output_type##_t *result) {                \
+        nk_##l2sq_output_type##_t distance_sq;                                                                    \
+        nk_sqeuclidean_##input_type##_serial(a, b, n, &distance_sq);                                              \
+        *result = compute_sqrt((nk_##output_type##_t)distance_sq);                                                \
     }
 
 /**
@@ -65,7 +66,7 @@ extern "C" {
  *  Uses Neumaier summation for all three accumulators (dot_product, a_norm_sq, b_norm_sq).
  *  Achieves O(1) error growth regardless of vector dimension.
  *
- *  @see nk_define_l2sq_ for detailed documentation on Neumaier summation.
+ *  @see nk_define_sqeuclidean_ for detailed documentation on Neumaier summation.
  */
 #define nk_define_angular_(input_type, accumulator_type, output_type, load_and_convert, compute_rsqrt)            \
     NK_PUBLIC void nk_angular_##input_type##_serial(nk_##input_type##_t const *a, nk_##input_type##_t const *b,   \
@@ -173,51 +174,51 @@ NK_INTERNAL nk_f64_t nk_f64_rsqrt_serial(nk_f64_t number) {
  */
 NK_INTERNAL nk_f64_t nk_f64_sqrt_serial(nk_f64_t number) { return number * nk_f64_rsqrt_serial(number); }
 
-nk_define_angular_(f64, f64, f64, nk_assign_from_to_, nk_f64_rsqrt_serial) // nk_angular_f64_serial
-nk_define_l2sq_(f64, f64, f64, nk_assign_from_to_)                         // nk_l2sq_f64_serial
-nk_define_l2_(f64, f64, f64, f64, nk_assign_from_to_, nk_f64_sqrt_serial)  // nk_l2_f64_serial
+nk_define_angular_(f64, f64, f64, nk_assign_from_to_, nk_f64_rsqrt_serial)           // nk_angular_f64_serial
+nk_define_sqeuclidean_(f64, f64, f64, nk_assign_from_to_)                            // nk_sqeuclidean_f64_serial
+    nk_define_euclidean_(f64, f64, f64, f64, nk_assign_from_to_, nk_f64_sqrt_serial) // nk_euclidean_f64_serial
 
-nk_define_angular_(f32, f64, f32, nk_assign_from_to_, nk_f64_rsqrt_serial) // nk_angular_f32_serial
-nk_define_l2sq_(f32, f64, f32, nk_assign_from_to_)                         // nk_l2sq_f32_serial
-nk_define_l2_(f32, f64, f32, f32, nk_assign_from_to_, nk_f64_sqrt_serial)  // nk_l2_f32_serial
+    nk_define_angular_(f32, f64, f32, nk_assign_from_to_, nk_f64_rsqrt_serial)       // nk_angular_f32_serial
+nk_define_sqeuclidean_(f32, f64, f32, nk_assign_from_to_)                            // nk_sqeuclidean_f32_serial
+    nk_define_euclidean_(f32, f64, f32, f32, nk_assign_from_to_, nk_f64_sqrt_serial) // nk_euclidean_f32_serial
 
-nk_define_angular_(f16, f32, f32, nk_f16_to_f32_serial, nk_f32_rsqrt_serial) // nk_angular_f16_serial
-nk_define_l2sq_(f16, f32, f32, nk_f16_to_f32_serial)                         // nk_l2sq_f16_serial
-nk_define_l2_(f16, f32, f32, f32, nk_f16_to_f32_serial, nk_f32_sqrt_serial)  // nk_l2_f16_serial
+    nk_define_angular_(f16, f32, f32, nk_f16_to_f32_serial, nk_f32_rsqrt_serial)       // nk_angular_f16_serial
+nk_define_sqeuclidean_(f16, f32, f32, nk_f16_to_f32_serial)                            // nk_sqeuclidean_f16_serial
+    nk_define_euclidean_(f16, f32, f32, f32, nk_f16_to_f32_serial, nk_f32_sqrt_serial) // nk_euclidean_f16_serial
 
-nk_define_angular_(bf16, f32, f32, nk_bf16_to_f32_serial, nk_f32_rsqrt_serial) // nk_angular_bf16_serial
-nk_define_l2sq_(bf16, f32, f32, nk_bf16_to_f32_serial)                         // nk_l2sq_bf16_serial
-nk_define_l2_(bf16, f32, f32, f32, nk_bf16_to_f32_serial, nk_f32_sqrt_serial)  // nk_l2_bf16_serial
+    nk_define_angular_(bf16, f32, f32, nk_bf16_to_f32_serial, nk_f32_rsqrt_serial)       // nk_angular_bf16_serial
+nk_define_sqeuclidean_(bf16, f32, f32, nk_bf16_to_f32_serial)                            // nk_sqeuclidean_bf16_serial
+    nk_define_euclidean_(bf16, f32, f32, f32, nk_bf16_to_f32_serial, nk_f32_sqrt_serial) // nk_euclidean_bf16_serial
 
-nk_define_angular_(e4m3, f32, f32, nk_e4m3_to_f32_serial, nk_f32_rsqrt_serial) // nk_angular_e4m3_serial
-nk_define_l2sq_(e4m3, f32, f32, nk_e4m3_to_f32_serial)                         // nk_l2sq_e4m3_serial
-nk_define_l2_(e4m3, f32, f32, f32, nk_e4m3_to_f32_serial, nk_f32_sqrt_serial)  // nk_l2_e4m3_serial
+    nk_define_angular_(e4m3, f32, f32, nk_e4m3_to_f32_serial, nk_f32_rsqrt_serial)       // nk_angular_e4m3_serial
+nk_define_sqeuclidean_(e4m3, f32, f32, nk_e4m3_to_f32_serial)                            // nk_sqeuclidean_e4m3_serial
+    nk_define_euclidean_(e4m3, f32, f32, f32, nk_e4m3_to_f32_serial, nk_f32_sqrt_serial) // nk_euclidean_e4m3_serial
 
-nk_define_angular_(e5m2, f32, f32, nk_e5m2_to_f32_serial, nk_f32_rsqrt_serial) // nk_angular_e5m2_serial
-nk_define_l2sq_(e5m2, f32, f32, nk_e5m2_to_f32_serial)                         // nk_l2sq_e5m2_serial
-nk_define_l2_(e5m2, f32, f32, f32, nk_e5m2_to_f32_serial, nk_f32_sqrt_serial)  // nk_l2_e5m2_serial
+    nk_define_angular_(e5m2, f32, f32, nk_e5m2_to_f32_serial, nk_f32_rsqrt_serial)       // nk_angular_e5m2_serial
+nk_define_sqeuclidean_(e5m2, f32, f32, nk_e5m2_to_f32_serial)                            // nk_sqeuclidean_e5m2_serial
+    nk_define_euclidean_(e5m2, f32, f32, f32, nk_e5m2_to_f32_serial, nk_f32_sqrt_serial) // nk_euclidean_e5m2_serial
 
-nk_define_angular_(e2m3, f32, f32, nk_e2m3_to_f32_serial, nk_f32_rsqrt_serial) // nk_angular_e2m3_serial
-nk_define_l2sq_(e2m3, f32, f32, nk_e2m3_to_f32_serial)                         // nk_l2sq_e2m3_serial
-nk_define_l2_(e2m3, f32, f32, f32, nk_e2m3_to_f32_serial, nk_f32_sqrt_serial)  // nk_l2_e2m3_serial
+    nk_define_angular_(e2m3, f32, f32, nk_e2m3_to_f32_serial, nk_f32_rsqrt_serial)       // nk_angular_e2m3_serial
+nk_define_sqeuclidean_(e2m3, f32, f32, nk_e2m3_to_f32_serial)                            // nk_sqeuclidean_e2m3_serial
+    nk_define_euclidean_(e2m3, f32, f32, f32, nk_e2m3_to_f32_serial, nk_f32_sqrt_serial) // nk_euclidean_e2m3_serial
 
-nk_define_angular_(e3m2, f32, f32, nk_e3m2_to_f32_serial, nk_f32_rsqrt_serial) // nk_angular_e3m2_serial
-nk_define_l2sq_(e3m2, f32, f32, nk_e3m2_to_f32_serial)                         // nk_l2sq_e3m2_serial
-nk_define_l2_(e3m2, f32, f32, f32, nk_e3m2_to_f32_serial, nk_f32_sqrt_serial)  // nk_l2_e3m2_serial
+    nk_define_angular_(e3m2, f32, f32, nk_e3m2_to_f32_serial, nk_f32_rsqrt_serial)       // nk_angular_e3m2_serial
+nk_define_sqeuclidean_(e3m2, f32, f32, nk_e3m2_to_f32_serial)                            // nk_sqeuclidean_e3m2_serial
+    nk_define_euclidean_(e3m2, f32, f32, f32, nk_e3m2_to_f32_serial, nk_f32_sqrt_serial) // nk_euclidean_e3m2_serial
 
-nk_define_angular_(i8, i32, f32, nk_assign_from_to_, nk_f32_rsqrt_serial) // nk_angular_i8_serial
-nk_define_l2sq_(i8, i32, u32, nk_assign_from_to_)                         // nk_l2sq_i8_serial
-nk_define_l2_(i8, i32, u32, f32, nk_assign_from_to_, nk_f32_sqrt_serial)  // nk_l2_i8_serial
+    nk_define_angular_(i8, i32, f32, nk_assign_from_to_, nk_f32_rsqrt_serial)       // nk_angular_i8_serial
+nk_define_sqeuclidean_(i8, i32, u32, nk_assign_from_to_)                            // nk_sqeuclidean_i8_serial
+    nk_define_euclidean_(i8, i32, u32, f32, nk_assign_from_to_, nk_f32_sqrt_serial) // nk_euclidean_i8_serial
 
-nk_define_angular_(u8, u32, f32, nk_assign_from_to_, nk_f32_rsqrt_serial) // nk_angular_u8_serial
-nk_define_l2sq_(u8, u32, u32, nk_assign_from_to_)                         // nk_l2sq_u8_serial
-nk_define_l2_(u8, u32, u32, f32, nk_assign_from_to_, nk_f32_sqrt_serial)  // nk_l2_u8_serial
+    nk_define_angular_(u8, u32, f32, nk_assign_from_to_, nk_f32_rsqrt_serial)       // nk_angular_u8_serial
+nk_define_sqeuclidean_(u8, u32, u32, nk_assign_from_to_)                            // nk_sqeuclidean_u8_serial
+    nk_define_euclidean_(u8, u32, u32, f32, nk_assign_from_to_, nk_f32_sqrt_serial) // nk_euclidean_u8_serial
 
-#undef nk_define_l2sq_
-#undef nk_define_l2_
+#undef nk_define_sqeuclidean_
+#undef nk_define_euclidean_
 #undef nk_define_angular_
 
-typedef nk_dot_f64x2_state_serial_t nk_angular_f64x2_state_serial_t;
+    typedef nk_dot_f64x2_state_serial_t nk_angular_f64x2_state_serial_t;
 
 NK_INTERNAL void nk_angular_f64x2_init_serial(nk_angular_f64x2_state_serial_t *state) {
     nk_dot_f64x2_init_serial(state);
@@ -269,21 +270,25 @@ NK_INTERNAL void nk_angular_f64x2_finalize_serial(nk_angular_f64x2_state_serial_
                                                                : (unclipped_distance_d > 0 ? unclipped_distance_d : 0);
 }
 
-typedef nk_dot_f64x2_state_serial_t nk_l2_f64x2_state_serial_t;
+typedef nk_dot_f64x2_state_serial_t nk_euclidean_f64x2_state_serial_t;
 
-NK_INTERNAL void nk_l2_f64x2_init_serial(nk_l2_f64x2_state_serial_t *state) { nk_dot_f64x2_init_serial(state); }
+NK_INTERNAL void nk_euclidean_f64x2_init_serial(nk_euclidean_f64x2_state_serial_t *state) {
+    nk_dot_f64x2_init_serial(state);
+}
 
-NK_INTERNAL void nk_l2_f64x2_update_serial(nk_l2_f64x2_state_serial_t *state, nk_b128_vec_t a, nk_b128_vec_t b,
-                                           nk_size_t depth_offset, nk_size_t active_dimensions) {
+NK_INTERNAL void nk_euclidean_f64x2_update_serial(nk_euclidean_f64x2_state_serial_t *state, nk_b128_vec_t a,
+                                                  nk_b128_vec_t b, nk_size_t depth_offset,
+                                                  nk_size_t active_dimensions) {
     nk_dot_f64x2_update_serial(state, a, b, depth_offset, active_dimensions);
 }
 
-NK_INTERNAL void nk_l2_f64x2_finalize_serial(nk_l2_f64x2_state_serial_t const *state_a,
-                                             nk_l2_f64x2_state_serial_t const *state_b,
-                                             nk_l2_f64x2_state_serial_t const *state_c,
-                                             nk_l2_f64x2_state_serial_t const *state_d, nk_f64_t query_norm,
-                                             nk_f64_t target_norm_a, nk_f64_t target_norm_b, nk_f64_t target_norm_c,
-                                             nk_f64_t target_norm_d, nk_size_t total_dimensions, nk_f64_t *results) {
+NK_INTERNAL void nk_euclidean_f64x2_finalize_serial(nk_euclidean_f64x2_state_serial_t const *state_a,
+                                                    nk_euclidean_f64x2_state_serial_t const *state_b,
+                                                    nk_euclidean_f64x2_state_serial_t const *state_c,
+                                                    nk_euclidean_f64x2_state_serial_t const *state_d,
+                                                    nk_f64_t query_norm, nk_f64_t target_norm_a, nk_f64_t target_norm_b,
+                                                    nk_f64_t target_norm_c, nk_f64_t target_norm_d,
+                                                    nk_size_t total_dimensions, nk_f64_t *results) {
     nk_unused_(total_dimensions);
     nk_f64_t dot_product_a = state_a->sums[0] + state_a->sums[1];
     nk_f64_t dot_product_b = state_b->sums[0] + state_b->sums[1];
@@ -360,21 +365,25 @@ NK_INTERNAL void nk_angular_f32x4_finalize_serial(nk_angular_f32x4_state_serial_
                                                                : (unclipped_distance_d > 0 ? unclipped_distance_d : 0);
 }
 
-typedef nk_dot_f32x4_state_serial_t nk_l2_f32x4_state_serial_t;
+typedef nk_dot_f32x4_state_serial_t nk_euclidean_f32x4_state_serial_t;
 
-NK_INTERNAL void nk_l2_f32x4_init_serial(nk_l2_f32x4_state_serial_t *state) { nk_dot_f32x4_init_serial(state); }
+NK_INTERNAL void nk_euclidean_f32x4_init_serial(nk_euclidean_f32x4_state_serial_t *state) {
+    nk_dot_f32x4_init_serial(state);
+}
 
-NK_INTERNAL void nk_l2_f32x4_update_serial(nk_l2_f32x4_state_serial_t *state, nk_b128_vec_t a, nk_b128_vec_t b,
-                                           nk_size_t depth_offset, nk_size_t active_dimensions) {
+NK_INTERNAL void nk_euclidean_f32x4_update_serial(nk_euclidean_f32x4_state_serial_t *state, nk_b128_vec_t a,
+                                                  nk_b128_vec_t b, nk_size_t depth_offset,
+                                                  nk_size_t active_dimensions) {
     nk_dot_f32x4_update_serial(state, a, b, depth_offset, active_dimensions);
 }
 
-NK_INTERNAL void nk_l2_f32x4_finalize_serial(nk_l2_f32x4_state_serial_t const *state_a,
-                                             nk_l2_f32x4_state_serial_t const *state_b,
-                                             nk_l2_f32x4_state_serial_t const *state_c,
-                                             nk_l2_f32x4_state_serial_t const *state_d, nk_f32_t query_norm,
-                                             nk_f32_t target_norm_a, nk_f32_t target_norm_b, nk_f32_t target_norm_c,
-                                             nk_f32_t target_norm_d, nk_size_t total_dimensions, nk_f32_t *results) {
+NK_INTERNAL void nk_euclidean_f32x4_finalize_serial(nk_euclidean_f32x4_state_serial_t const *state_a,
+                                                    nk_euclidean_f32x4_state_serial_t const *state_b,
+                                                    nk_euclidean_f32x4_state_serial_t const *state_c,
+                                                    nk_euclidean_f32x4_state_serial_t const *state_d,
+                                                    nk_f32_t query_norm, nk_f32_t target_norm_a, nk_f32_t target_norm_b,
+                                                    nk_f32_t target_norm_c, nk_f32_t target_norm_d,
+                                                    nk_size_t total_dimensions, nk_f32_t *results) {
     nk_b128_vec_t dots_vec;
     nk_dot_f32x4_finalize_serial(state_a, state_b, state_c, state_d, &dots_vec, total_dimensions);
     nk_f32_t dots[4] = {dots_vec.f32s[0], dots_vec.f32s[1], dots_vec.f32s[2], dots_vec.f32s[3]};
@@ -463,21 +472,25 @@ NK_INTERNAL void nk_angular_f16x8_finalize_serial(nk_angular_f16x8_state_serial_
     }
 }
 
-typedef nk_dot_f16x8_state_serial_t nk_l2_f16x8_state_serial_t;
+typedef nk_dot_f16x8_state_serial_t nk_euclidean_f16x8_state_serial_t;
 
-NK_INTERNAL void nk_l2_f16x8_init_serial(nk_l2_f16x8_state_serial_t *state) { nk_dot_f16x8_init_serial(state); }
+NK_INTERNAL void nk_euclidean_f16x8_init_serial(nk_euclidean_f16x8_state_serial_t *state) {
+    nk_dot_f16x8_init_serial(state);
+}
 
-NK_INTERNAL void nk_l2_f16x8_update_serial(nk_l2_f16x8_state_serial_t *state, nk_b128_vec_t a, nk_b128_vec_t b,
-                                           nk_size_t depth_offset, nk_size_t active_dimensions) {
+NK_INTERNAL void nk_euclidean_f16x8_update_serial(nk_euclidean_f16x8_state_serial_t *state, nk_b128_vec_t a,
+                                                  nk_b128_vec_t b, nk_size_t depth_offset,
+                                                  nk_size_t active_dimensions) {
     nk_dot_f16x8_update_serial(state, a, b, depth_offset, active_dimensions);
 }
 
-NK_INTERNAL void nk_l2_f16x8_finalize_serial(nk_l2_f16x8_state_serial_t const *state_a,
-                                             nk_l2_f16x8_state_serial_t const *state_b,
-                                             nk_l2_f16x8_state_serial_t const *state_c,
-                                             nk_l2_f16x8_state_serial_t const *state_d, nk_f32_t query_norm,
-                                             nk_f32_t target_norm_a, nk_f32_t target_norm_b, nk_f32_t target_norm_c,
-                                             nk_f32_t target_norm_d, nk_size_t total_dimensions, nk_f32_t *results) {
+NK_INTERNAL void nk_euclidean_f16x8_finalize_serial(nk_euclidean_f16x8_state_serial_t const *state_a,
+                                                    nk_euclidean_f16x8_state_serial_t const *state_b,
+                                                    nk_euclidean_f16x8_state_serial_t const *state_c,
+                                                    nk_euclidean_f16x8_state_serial_t const *state_d,
+                                                    nk_f32_t query_norm, nk_f32_t target_norm_a, nk_f32_t target_norm_b,
+                                                    nk_f32_t target_norm_c, nk_f32_t target_norm_d,
+                                                    nk_size_t total_dimensions, nk_f32_t *results) {
     nk_unused_(total_dimensions);
     // Extract dots from states by summing the 4 partial sums
     nk_f32_t dot_a = state_a->sums[0] + state_a->sums[1] + state_a->sums[2] + state_a->sums[3];
@@ -568,21 +581,23 @@ NK_INTERNAL void nk_angular_bf16x8_finalize_serial(nk_angular_bf16x8_state_seria
     }
 }
 
-typedef nk_dot_bf16x8_state_serial_t nk_l2_bf16x8_state_serial_t;
+typedef nk_dot_bf16x8_state_serial_t nk_euclidean_bf16x8_state_serial_t;
 
-NK_INTERNAL void nk_l2_bf16x8_init_serial(nk_l2_bf16x8_state_serial_t *state) { nk_dot_bf16x8_init_serial(state); }
+NK_INTERNAL void nk_euclidean_bf16x8_init_serial(nk_euclidean_bf16x8_state_serial_t *state) {
+    nk_dot_bf16x8_init_serial(state);
+}
 
-NK_INTERNAL void nk_l2_bf16x8_update_serial(nk_l2_bf16x8_state_serial_t *state, nk_b128_vec_t a, nk_b128_vec_t b,
-                                            nk_size_t depth_offset, nk_size_t active_dimensions) {
+NK_INTERNAL void nk_euclidean_bf16x8_update_serial(nk_euclidean_bf16x8_state_serial_t *state, nk_b128_vec_t a,
+                                                   nk_b128_vec_t b, nk_size_t depth_offset,
+                                                   nk_size_t active_dimensions) {
     nk_dot_bf16x8_update_serial(state, a, b, depth_offset, active_dimensions);
 }
 
-NK_INTERNAL void nk_l2_bf16x8_finalize_serial(nk_l2_bf16x8_state_serial_t const *state_a,
-                                              nk_l2_bf16x8_state_serial_t const *state_b,
-                                              nk_l2_bf16x8_state_serial_t const *state_c,
-                                              nk_l2_bf16x8_state_serial_t const *state_d, nk_f32_t query_norm,
-                                              nk_f32_t target_norm_a, nk_f32_t target_norm_b, nk_f32_t target_norm_c,
-                                              nk_f32_t target_norm_d, nk_size_t total_dimensions, nk_f32_t *results) {
+NK_INTERNAL void nk_euclidean_bf16x8_finalize_serial(
+    nk_euclidean_bf16x8_state_serial_t const *state_a, nk_euclidean_bf16x8_state_serial_t const *state_b,
+    nk_euclidean_bf16x8_state_serial_t const *state_c, nk_euclidean_bf16x8_state_serial_t const *state_d,
+    nk_f32_t query_norm, nk_f32_t target_norm_a, nk_f32_t target_norm_b, nk_f32_t target_norm_c, nk_f32_t target_norm_d,
+    nk_size_t total_dimensions, nk_f32_t *results) {
     nk_unused_(total_dimensions);
     // Extract dots from states by summing the 4 partial sums
     nk_f32_t dot_a = state_a->sums[0] + state_a->sums[1] + state_a->sums[2] + state_a->sums[3];
@@ -673,21 +688,25 @@ NK_INTERNAL void nk_angular_i8x16_finalize_serial(nk_angular_i8x16_state_serial_
     }
 }
 
-typedef nk_dot_i8x16_state_serial_t nk_l2_i8x16_state_serial_t;
+typedef nk_dot_i8x16_state_serial_t nk_euclidean_i8x16_state_serial_t;
 
-NK_INTERNAL void nk_l2_i8x16_init_serial(nk_l2_i8x16_state_serial_t *state) { nk_dot_i8x16_init_serial(state); }
+NK_INTERNAL void nk_euclidean_i8x16_init_serial(nk_euclidean_i8x16_state_serial_t *state) {
+    nk_dot_i8x16_init_serial(state);
+}
 
-NK_INTERNAL void nk_l2_i8x16_update_serial(nk_l2_i8x16_state_serial_t *state, nk_b128_vec_t a, nk_b128_vec_t b,
-                                           nk_size_t depth_offset, nk_size_t active_dimensions) {
+NK_INTERNAL void nk_euclidean_i8x16_update_serial(nk_euclidean_i8x16_state_serial_t *state, nk_b128_vec_t a,
+                                                  nk_b128_vec_t b, nk_size_t depth_offset,
+                                                  nk_size_t active_dimensions) {
     nk_dot_i8x16_update_serial(state, a, b, depth_offset, active_dimensions);
 }
 
-NK_INTERNAL void nk_l2_i8x16_finalize_serial(nk_l2_i8x16_state_serial_t const *state_a,
-                                             nk_l2_i8x16_state_serial_t const *state_b,
-                                             nk_l2_i8x16_state_serial_t const *state_c,
-                                             nk_l2_i8x16_state_serial_t const *state_d, nk_f32_t query_norm,
-                                             nk_f32_t target_norm_a, nk_f32_t target_norm_b, nk_f32_t target_norm_c,
-                                             nk_f32_t target_norm_d, nk_size_t total_dimensions, nk_f32_t *results) {
+NK_INTERNAL void nk_euclidean_i8x16_finalize_serial(nk_euclidean_i8x16_state_serial_t const *state_a,
+                                                    nk_euclidean_i8x16_state_serial_t const *state_b,
+                                                    nk_euclidean_i8x16_state_serial_t const *state_c,
+                                                    nk_euclidean_i8x16_state_serial_t const *state_d,
+                                                    nk_f32_t query_norm, nk_f32_t target_norm_a, nk_f32_t target_norm_b,
+                                                    nk_f32_t target_norm_c, nk_f32_t target_norm_d,
+                                                    nk_size_t total_dimensions, nk_f32_t *results) {
     nk_unused_(total_dimensions);
     // Extract dots from states by summing the 2 partial sums
     nk_i64_t dot_a = state_a->sums[0] + state_a->sums[1];
@@ -778,21 +797,25 @@ NK_INTERNAL void nk_angular_u8x16_finalize_serial(nk_angular_u8x16_state_serial_
     }
 }
 
-typedef nk_dot_u8x16_state_serial_t nk_l2_u8x16_state_serial_t;
+typedef nk_dot_u8x16_state_serial_t nk_euclidean_u8x16_state_serial_t;
 
-NK_INTERNAL void nk_l2_u8x16_init_serial(nk_l2_u8x16_state_serial_t *state) { nk_dot_u8x16_init_serial(state); }
+NK_INTERNAL void nk_euclidean_u8x16_init_serial(nk_euclidean_u8x16_state_serial_t *state) {
+    nk_dot_u8x16_init_serial(state);
+}
 
-NK_INTERNAL void nk_l2_u8x16_update_serial(nk_l2_u8x16_state_serial_t *state, nk_b128_vec_t a, nk_b128_vec_t b,
-                                           nk_size_t depth_offset, nk_size_t active_dimensions) {
+NK_INTERNAL void nk_euclidean_u8x16_update_serial(nk_euclidean_u8x16_state_serial_t *state, nk_b128_vec_t a,
+                                                  nk_b128_vec_t b, nk_size_t depth_offset,
+                                                  nk_size_t active_dimensions) {
     nk_dot_u8x16_update_serial(state, a, b, depth_offset, active_dimensions);
 }
 
-NK_INTERNAL void nk_l2_u8x16_finalize_serial(nk_l2_u8x16_state_serial_t const *state_a,
-                                             nk_l2_u8x16_state_serial_t const *state_b,
-                                             nk_l2_u8x16_state_serial_t const *state_c,
-                                             nk_l2_u8x16_state_serial_t const *state_d, nk_f32_t query_norm,
-                                             nk_f32_t target_norm_a, nk_f32_t target_norm_b, nk_f32_t target_norm_c,
-                                             nk_f32_t target_norm_d, nk_size_t total_dimensions, nk_f32_t *results) {
+NK_INTERNAL void nk_euclidean_u8x16_finalize_serial(nk_euclidean_u8x16_state_serial_t const *state_a,
+                                                    nk_euclidean_u8x16_state_serial_t const *state_b,
+                                                    nk_euclidean_u8x16_state_serial_t const *state_c,
+                                                    nk_euclidean_u8x16_state_serial_t const *state_d,
+                                                    nk_f32_t query_norm, nk_f32_t target_norm_a, nk_f32_t target_norm_b,
+                                                    nk_f32_t target_norm_c, nk_f32_t target_norm_d,
+                                                    nk_size_t total_dimensions, nk_f32_t *results) {
     nk_unused_(total_dimensions);
     // Extract dots from states by summing the 2 partial sums
     nk_u64_t dot_a = state_a->sums[0] + state_a->sums[1];
@@ -819,7 +842,7 @@ NK_INTERNAL void nk_l2_u8x16_finalize_serial(nk_l2_u8x16_state_serial_t const *s
     results[3] = dist_sq_d > 0 ? nk_f32_sqrt_serial(dist_sq_d) : 0;
 }
 
-NK_PUBLIC void nk_l2sq_i4_serial(nk_i4x2_t const *a, nk_i4x2_t const *b, nk_size_t n, nk_u32_t *result) {
+NK_PUBLIC void nk_sqeuclidean_i4_serial(nk_i4x2_t const *a, nk_i4x2_t const *b, nk_size_t n, nk_u32_t *result) {
     // i4 values are packed as nibbles: two 4-bit signed values per byte.
     // Parameter `n` is the number of 4-bit values (dimensions), not bytes.
     // Sign extension: (nibble ^ 8) - 8 maps [0,15] to [-8,7]
@@ -843,9 +866,9 @@ NK_PUBLIC void nk_l2sq_i4_serial(nk_i4x2_t const *a, nk_i4x2_t const *b, nk_size
     *result = (nk_u32_t)sum;
 }
 
-NK_PUBLIC void nk_l2_i4_serial(nk_i4x2_t const *a, nk_i4x2_t const *b, nk_size_t n, nk_f32_t *result) {
+NK_PUBLIC void nk_euclidean_i4_serial(nk_i4x2_t const *a, nk_i4x2_t const *b, nk_size_t n, nk_f32_t *result) {
     nk_u32_t distance_sq;
-    nk_l2sq_i4_serial(a, b, n, &distance_sq);
+    nk_sqeuclidean_i4_serial(a, b, n, &distance_sq);
     *result = nk_f32_sqrt_serial((nk_f32_t)distance_sq);
 }
 
@@ -878,7 +901,7 @@ NK_PUBLIC void nk_angular_i4_serial(nk_i4x2_t const *a, nk_i4x2_t const *b, nk_s
     }
 }
 
-NK_PUBLIC void nk_l2sq_u4_serial(nk_u4x2_t const *a, nk_u4x2_t const *b, nk_size_t n, nk_u32_t *result) {
+NK_PUBLIC void nk_sqeuclidean_u4_serial(nk_u4x2_t const *a, nk_u4x2_t const *b, nk_size_t n, nk_u32_t *result) {
     // u4 values are packed as nibbles: two 4-bit unsigned values per byte.
     // Parameter `n` is the number of 4-bit values (dimensions), not bytes.
     // No sign extension needed - values are in [0,15].
@@ -902,9 +925,9 @@ NK_PUBLIC void nk_l2sq_u4_serial(nk_u4x2_t const *a, nk_u4x2_t const *b, nk_size
     *result = sum;
 }
 
-NK_PUBLIC void nk_l2_u4_serial(nk_u4x2_t const *a, nk_u4x2_t const *b, nk_size_t n, nk_f32_t *result) {
+NK_PUBLIC void nk_euclidean_u4_serial(nk_u4x2_t const *a, nk_u4x2_t const *b, nk_size_t n, nk_f32_t *result) {
     nk_u32_t distance_sq;
-    nk_l2sq_u4_serial(a, b, n, &distance_sq);
+    nk_sqeuclidean_u4_serial(a, b, n, &distance_sq);
     *result = nk_f32_sqrt_serial((nk_f32_t)distance_sq);
 }
 

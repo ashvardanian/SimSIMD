@@ -1,6 +1,6 @@
 /**
- *  @brief SIMD-accelerated Binary Similarity Measures.
- *  @file include/numkong/binary.h
+ *  @brief SIMD-accelerated Set Similarity Measures.
+ *  @file include/numkong/set.h
  *  @author Ash Vardanian
  *  @date July 1, 2023
  *
@@ -131,8 +131,8 @@
  *  but the final ratio fits comfortably in f32.
  *
  */
-#ifndef NK_BINARY_H
-#define NK_BINARY_H
+#ifndef NK_SET_H
+#define NK_SET_H
 
 #include "numkong/types.h"
 
@@ -440,12 +440,12 @@ NK_INTERNAL void nk_jaccard_b512_finalize_ice(nk_jaccard_b512_state_ice_t const 
                                               nk_f32_t *results);
 #endif // NK_TARGET_ICE
 
-#include "numkong/binary/serial.h"
-#include "numkong/binary/neon.h"
-#include "numkong/binary/sve.h"
-#include "numkong/binary/ice.h"
-#include "numkong/binary/haswell.h"
-#include "numkong/binary/spacemit.h"
+#include "numkong/set/serial.h"
+#include "numkong/set/neon.h"
+#include "numkong/set/sve.h"
+#include "numkong/set/ice.h"
+#include "numkong/set/haswell.h"
+#include "numkong/set/spacemit.h"
 
 #if !NK_DYNAMIC_DISPATCH
 

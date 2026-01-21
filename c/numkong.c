@@ -384,30 +384,30 @@ nk_dispatch_dense_(angular, e4m3, e4m3, f32)
 nk_dispatch_dense_(angular, e5m2, e5m2, f32)
 nk_dispatch_dense_(angular, e2m3, e2m3, f32)
 nk_dispatch_dense_(angular, e3m2, e3m2, f32)
-nk_dispatch_dense_(l2sq, i8, i8, u32)
-nk_dispatch_dense_(l2sq, u8, u8, u32)
-nk_dispatch_dense_(l2sq, i4, i4x2, u32)
-nk_dispatch_dense_(l2sq, u4, u4x2, u32)
-nk_dispatch_dense_(l2sq, f16, f16, f32)
-nk_dispatch_dense_(l2sq, bf16, bf16, f32)
-nk_dispatch_dense_(l2sq, f32, f32, f32)
-nk_dispatch_dense_(l2sq, f64, f64, f64)
-nk_dispatch_dense_(l2sq, e4m3, e4m3, f32)
-nk_dispatch_dense_(l2sq, e5m2, e5m2, f32)
-nk_dispatch_dense_(l2sq, e2m3, e2m3, f32)
-nk_dispatch_dense_(l2sq, e3m2, e3m2, f32)
-nk_dispatch_dense_(l2, i8, i8, f32)
-nk_dispatch_dense_(l2, u8, u8, f32)
-nk_dispatch_dense_(l2, i4, i4x2, f32)
-nk_dispatch_dense_(l2, u4, u4x2, f32)
-nk_dispatch_dense_(l2, f16, f16, f32)
-nk_dispatch_dense_(l2, bf16, bf16, f32)
-nk_dispatch_dense_(l2, f32, f32, f32)
-nk_dispatch_dense_(l2, f64, f64, f64)
-nk_dispatch_dense_(l2, e4m3, e4m3, f32)
-nk_dispatch_dense_(l2, e5m2, e5m2, f32)
-nk_dispatch_dense_(l2, e2m3, e2m3, f32)
-nk_dispatch_dense_(l2, e3m2, e3m2, f32)
+nk_dispatch_dense_(sqeuclidean, i8, i8, u32)
+nk_dispatch_dense_(sqeuclidean, u8, u8, u32)
+nk_dispatch_dense_(sqeuclidean, i4, i4x2, u32)
+nk_dispatch_dense_(sqeuclidean, u4, u4x2, u32)
+nk_dispatch_dense_(sqeuclidean, f16, f16, f32)
+nk_dispatch_dense_(sqeuclidean, bf16, bf16, f32)
+nk_dispatch_dense_(sqeuclidean, f32, f32, f32)
+nk_dispatch_dense_(sqeuclidean, f64, f64, f64)
+nk_dispatch_dense_(sqeuclidean, e4m3, e4m3, f32)
+nk_dispatch_dense_(sqeuclidean, e5m2, e5m2, f32)
+nk_dispatch_dense_(sqeuclidean, e2m3, e2m3, f32)
+nk_dispatch_dense_(sqeuclidean, e3m2, e3m2, f32)
+nk_dispatch_dense_(euclidean, i8, i8, f32)
+nk_dispatch_dense_(euclidean, u8, u8, f32)
+nk_dispatch_dense_(euclidean, i4, i4x2, f32)
+nk_dispatch_dense_(euclidean, u4, u4x2, f32)
+nk_dispatch_dense_(euclidean, f16, f16, f32)
+nk_dispatch_dense_(euclidean, bf16, bf16, f32)
+nk_dispatch_dense_(euclidean, f32, f32, f32)
+nk_dispatch_dense_(euclidean, f64, f64, f64)
+nk_dispatch_dense_(euclidean, e4m3, e4m3, f32)
+nk_dispatch_dense_(euclidean, e5m2, e5m2, f32)
+nk_dispatch_dense_(euclidean, e2m3, e2m3, f32)
+nk_dispatch_dense_(euclidean, e3m2, e3m2, f32)
 
 // Geospatial distances
 nk_dispatch_geospatial_(haversine, f64, f64)
@@ -771,27 +771,27 @@ NK_DYNAMIC nk_capability_t nk_capabilities(void) {
     nk_angular_e4m3((nk_e4m3_t *)x, (nk_e4m3_t *)x, 0, dummy_results);
     nk_angular_e5m2((nk_e5m2_t *)x, (nk_e5m2_t *)x, 0, dummy_results);
 
-    nk_l2sq_i8((nk_i8_t *)x, (nk_i8_t *)x, 0, dummy_results);
-    nk_l2sq_u8((nk_u8_t *)x, (nk_u8_t *)x, 0, dummy_results);
-    nk_l2sq_i4((nk_i4x2_t *)x, (nk_i4x2_t *)x, 0, dummy_results);
-    nk_l2sq_u4((nk_u4x2_t *)x, (nk_u4x2_t *)x, 0, dummy_results);
-    nk_l2sq_f16((nk_f16_t *)x, (nk_f16_t *)x, 0, dummy_results);
-    nk_l2sq_bf16((nk_bf16_t *)x, (nk_bf16_t *)x, 0, dummy_results);
-    nk_l2sq_f32((nk_f32_t *)x, (nk_f32_t *)x, 0, dummy_results);
-    nk_l2sq_f64((nk_f64_t *)x, (nk_f64_t *)x, 0, dummy_results);
-    nk_l2sq_e4m3((nk_e4m3_t *)x, (nk_e4m3_t *)x, 0, dummy_results);
-    nk_l2sq_e5m2((nk_e5m2_t *)x, (nk_e5m2_t *)x, 0, dummy_results);
+    nk_sqeuclidean_i8((nk_i8_t *)x, (nk_i8_t *)x, 0, dummy_results);
+    nk_sqeuclidean_u8((nk_u8_t *)x, (nk_u8_t *)x, 0, dummy_results);
+    nk_sqeuclidean_i4((nk_i4x2_t *)x, (nk_i4x2_t *)x, 0, dummy_results);
+    nk_sqeuclidean_u4((nk_u4x2_t *)x, (nk_u4x2_t *)x, 0, dummy_results);
+    nk_sqeuclidean_f16((nk_f16_t *)x, (nk_f16_t *)x, 0, dummy_results);
+    nk_sqeuclidean_bf16((nk_bf16_t *)x, (nk_bf16_t *)x, 0, dummy_results);
+    nk_sqeuclidean_f32((nk_f32_t *)x, (nk_f32_t *)x, 0, dummy_results);
+    nk_sqeuclidean_f64((nk_f64_t *)x, (nk_f64_t *)x, 0, dummy_results);
+    nk_sqeuclidean_e4m3((nk_e4m3_t *)x, (nk_e4m3_t *)x, 0, dummy_results);
+    nk_sqeuclidean_e5m2((nk_e5m2_t *)x, (nk_e5m2_t *)x, 0, dummy_results);
 
-    nk_l2_i8((nk_i8_t *)x, (nk_i8_t *)x, 0, dummy_results);
-    nk_l2_u8((nk_u8_t *)x, (nk_u8_t *)x, 0, dummy_results);
-    nk_l2_i4((nk_i4x2_t *)x, (nk_i4x2_t *)x, 0, dummy_results);
-    nk_l2_u4((nk_u4x2_t *)x, (nk_u4x2_t *)x, 0, dummy_results);
-    nk_l2_f16((nk_f16_t *)x, (nk_f16_t *)x, 0, dummy_results);
-    nk_l2_bf16((nk_bf16_t *)x, (nk_bf16_t *)x, 0, dummy_results);
-    nk_l2_f32((nk_f32_t *)x, (nk_f32_t *)x, 0, dummy_results);
-    nk_l2_f64((nk_f64_t *)x, (nk_f64_t *)x, 0, dummy_results);
-    nk_l2_e4m3((nk_e4m3_t *)x, (nk_e4m3_t *)x, 0, dummy_results);
-    nk_l2_e5m2((nk_e5m2_t *)x, (nk_e5m2_t *)x, 0, dummy_results);
+    nk_euclidean_i8((nk_i8_t *)x, (nk_i8_t *)x, 0, dummy_results);
+    nk_euclidean_u8((nk_u8_t *)x, (nk_u8_t *)x, 0, dummy_results);
+    nk_euclidean_i4((nk_i4x2_t *)x, (nk_i4x2_t *)x, 0, dummy_results);
+    nk_euclidean_u4((nk_u4x2_t *)x, (nk_u4x2_t *)x, 0, dummy_results);
+    nk_euclidean_f16((nk_f16_t *)x, (nk_f16_t *)x, 0, dummy_results);
+    nk_euclidean_bf16((nk_bf16_t *)x, (nk_bf16_t *)x, 0, dummy_results);
+    nk_euclidean_f32((nk_f32_t *)x, (nk_f32_t *)x, 0, dummy_results);
+    nk_euclidean_f64((nk_f64_t *)x, (nk_f64_t *)x, 0, dummy_results);
+    nk_euclidean_e4m3((nk_e4m3_t *)x, (nk_e4m3_t *)x, 0, dummy_results);
+    nk_euclidean_e5m2((nk_e5m2_t *)x, (nk_e5m2_t *)x, 0, dummy_results);
 
     nk_haversine_f64((nk_f64_t *)x, (nk_f64_t *)x, (nk_f64_t *)x, (nk_f64_t *)x, 0, dummy_results);
     nk_haversine_f32((nk_f32_t *)x, (nk_f32_t *)x, (nk_f32_t *)x, (nk_f32_t *)x, 0, dummy_results);

@@ -101,8 +101,8 @@ NK_INTERNAL nk_f64_t nk_f64_rsqrt_spacemit(nk_f64_t number) {
  */
 NK_INTERNAL nk_f64_t nk_f64_sqrt_spacemit(nk_f64_t number) { return number * nk_f64_rsqrt_spacemit(number); }
 
-NK_PUBLIC void nk_l2sq_i8_spacemit(nk_i8_t const *a_scalars, nk_i8_t const *b_scalars, nk_size_t count_scalars,
-                                   nk_u32_t *result) {
+NK_PUBLIC void nk_sqeuclidean_i8_spacemit(nk_i8_t const *a_scalars, nk_i8_t const *b_scalars, nk_size_t count_scalars,
+                                          nk_u32_t *result) {
     vint32m1_t sum_i32m1 = __riscv_vmv_v_x_i32m1(0, 1);
     for (nk_size_t vector_length; count_scalars > 0;
          count_scalars -= vector_length, a_scalars += vector_length, b_scalars += vector_length) {
@@ -119,15 +119,15 @@ NK_PUBLIC void nk_l2sq_i8_spacemit(nk_i8_t const *a_scalars, nk_i8_t const *b_sc
     *result = (nk_u32_t)__riscv_vmv_x_s_i32m1_i32(sum_i32m1);
 }
 
-NK_PUBLIC void nk_l2_i8_spacemit(nk_i8_t const *a_scalars, nk_i8_t const *b_scalars, nk_size_t count_scalars,
-                                 nk_f32_t *result) {
+NK_PUBLIC void nk_euclidean_i8_spacemit(nk_i8_t const *a_scalars, nk_i8_t const *b_scalars, nk_size_t count_scalars,
+                                        nk_f32_t *result) {
     nk_u32_t d2;
-    nk_l2sq_i8_spacemit(a_scalars, b_scalars, count_scalars, &d2);
+    nk_sqeuclidean_i8_spacemit(a_scalars, b_scalars, count_scalars, &d2);
     *result = nk_f32_sqrt_spacemit((nk_f32_t)d2);
 }
 
-NK_PUBLIC void nk_l2sq_u8_spacemit(nk_u8_t const *a_scalars, nk_u8_t const *b_scalars, nk_size_t count_scalars,
-                                   nk_u32_t *result) {
+NK_PUBLIC void nk_sqeuclidean_u8_spacemit(nk_u8_t const *a_scalars, nk_u8_t const *b_scalars, nk_size_t count_scalars,
+                                          nk_u32_t *result) {
     vuint32m1_t sum_u32m1 = __riscv_vmv_v_x_u32m1(0, 1);
     for (nk_size_t vector_length; count_scalars > 0;
          count_scalars -= vector_length, a_scalars += vector_length, b_scalars += vector_length) {
@@ -146,15 +146,15 @@ NK_PUBLIC void nk_l2sq_u8_spacemit(nk_u8_t const *a_scalars, nk_u8_t const *b_sc
     *result = __riscv_vmv_x_s_u32m1_u32(sum_u32m1);
 }
 
-NK_PUBLIC void nk_l2_u8_spacemit(nk_u8_t const *a_scalars, nk_u8_t const *b_scalars, nk_size_t count_scalars,
-                                 nk_f32_t *result) {
+NK_PUBLIC void nk_euclidean_u8_spacemit(nk_u8_t const *a_scalars, nk_u8_t const *b_scalars, nk_size_t count_scalars,
+                                        nk_f32_t *result) {
     nk_u32_t d2;
-    nk_l2sq_u8_spacemit(a_scalars, b_scalars, count_scalars, &d2);
+    nk_sqeuclidean_u8_spacemit(a_scalars, b_scalars, count_scalars, &d2);
     *result = nk_f32_sqrt_spacemit((nk_f32_t)d2);
 }
 
-NK_PUBLIC void nk_l2sq_f32_spacemit(nk_f32_t const *a_scalars, nk_f32_t const *b_scalars, nk_size_t count_scalars,
-                                    nk_f32_t *result) {
+NK_PUBLIC void nk_sqeuclidean_f32_spacemit(nk_f32_t const *a_scalars, nk_f32_t const *b_scalars,
+                                           nk_size_t count_scalars, nk_f32_t *result) {
     vfloat64m1_t sum_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, 1);
     for (nk_size_t vector_length; count_scalars > 0;
          count_scalars -= vector_length, a_scalars += vector_length, b_scalars += vector_length) {
@@ -172,14 +172,14 @@ NK_PUBLIC void nk_l2sq_f32_spacemit(nk_f32_t const *a_scalars, nk_f32_t const *b
     *result = (nk_f32_t)__riscv_vfmv_f_s_f64m1_f64(sum_f64m1);
 }
 
-NK_PUBLIC void nk_l2_f32_spacemit(nk_f32_t const *a_scalars, nk_f32_t const *b_scalars, nk_size_t count_scalars,
-                                  nk_f32_t *result) {
-    nk_l2sq_f32_spacemit(a_scalars, b_scalars, count_scalars, result);
+NK_PUBLIC void nk_euclidean_f32_spacemit(nk_f32_t const *a_scalars, nk_f32_t const *b_scalars, nk_size_t count_scalars,
+                                         nk_f32_t *result) {
+    nk_sqeuclidean_f32_spacemit(a_scalars, b_scalars, count_scalars, result);
     *result = nk_f32_sqrt_spacemit(*result);
 }
 
-NK_PUBLIC void nk_l2sq_f64_spacemit(nk_f64_t const *a_scalars, nk_f64_t const *b_scalars, nk_size_t count_scalars,
-                                    nk_f64_t *result) {
+NK_PUBLIC void nk_sqeuclidean_f64_spacemit(nk_f64_t const *a_scalars, nk_f64_t const *b_scalars,
+                                           nk_size_t count_scalars, nk_f64_t *result) {
     nk_size_t vector_length_max = __riscv_vsetvlmax_e64m1();
     vfloat64m1_t sum_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, vector_length_max);
     for (nk_size_t vector_length; count_scalars > 0;
@@ -196,9 +196,9 @@ NK_PUBLIC void nk_l2sq_f64_spacemit(nk_f64_t const *a_scalars, nk_f64_t const *b
     *result = __riscv_vfmv_f_s_f64m1_f64(__riscv_vfredusum_vs_f64m1_f64m1(sum_f64m1, zero_f64m1, vector_length_max));
 }
 
-NK_PUBLIC void nk_l2_f64_spacemit(nk_f64_t const *a_scalars, nk_f64_t const *b_scalars, nk_size_t count_scalars,
-                                  nk_f64_t *result) {
-    nk_l2sq_f64_spacemit(a_scalars, b_scalars, count_scalars, result);
+NK_PUBLIC void nk_euclidean_f64_spacemit(nk_f64_t const *a_scalars, nk_f64_t const *b_scalars, nk_size_t count_scalars,
+                                         nk_f64_t *result) {
+    nk_sqeuclidean_f64_spacemit(a_scalars, b_scalars, count_scalars, result);
     *result = nk_f64_sqrt_spacemit(*result);
 }
 
@@ -357,8 +357,8 @@ NK_PUBLIC void nk_angular_f64_spacemit(nk_f64_t const *a_scalars, nk_f64_t const
     }
 }
 
-NK_PUBLIC void nk_l2sq_f16_spacemit(nk_f16_t const *a_scalars, nk_f16_t const *b_scalars, nk_size_t count_scalars,
-                                    nk_f32_t *result) {
+NK_PUBLIC void nk_sqeuclidean_f16_spacemit(nk_f16_t const *a_scalars, nk_f16_t const *b_scalars,
+                                           nk_size_t count_scalars, nk_f32_t *result) {
     vfloat32m1_t sum_f32m1 = __riscv_vfmv_v_f_f32m1(0.0f, 1);
     for (nk_size_t vector_length; count_scalars > 0;
          count_scalars -= vector_length, a_scalars += vector_length, b_scalars += vector_length) {
@@ -378,9 +378,9 @@ NK_PUBLIC void nk_l2sq_f16_spacemit(nk_f16_t const *a_scalars, nk_f16_t const *b
     *result = __riscv_vfmv_f_s_f32m1_f32(sum_f32m1);
 }
 
-NK_PUBLIC void nk_l2_f16_spacemit(nk_f16_t const *a_scalars, nk_f16_t const *b_scalars, nk_size_t count_scalars,
-                                  nk_f32_t *result) {
-    nk_l2sq_f16_spacemit(a_scalars, b_scalars, count_scalars, result);
+NK_PUBLIC void nk_euclidean_f16_spacemit(nk_f16_t const *a_scalars, nk_f16_t const *b_scalars, nk_size_t count_scalars,
+                                         nk_f32_t *result) {
+    nk_sqeuclidean_f16_spacemit(a_scalars, b_scalars, count_scalars, result);
     *result = nk_f32_sqrt_spacemit(*result);
 }
 
@@ -426,8 +426,8 @@ NK_PUBLIC void nk_angular_f16_spacemit(nk_f16_t const *a_scalars, nk_f16_t const
     }
 }
 
-NK_PUBLIC void nk_l2sq_bf16_spacemit(nk_bf16_t const *a_scalars, nk_bf16_t const *b_scalars, nk_size_t count_scalars,
-                                     nk_f32_t *result) {
+NK_PUBLIC void nk_sqeuclidean_bf16_spacemit(nk_bf16_t const *a_scalars, nk_bf16_t const *b_scalars,
+                                            nk_size_t count_scalars, nk_f32_t *result) {
     vfloat32m1_t sum_f32m1 = __riscv_vfmv_v_f_f32m1(0.0f, 1);
     for (nk_size_t vector_length; count_scalars > 0;
          count_scalars -= vector_length, a_scalars += vector_length, b_scalars += vector_length) {
@@ -447,9 +447,9 @@ NK_PUBLIC void nk_l2sq_bf16_spacemit(nk_bf16_t const *a_scalars, nk_bf16_t const
     *result = __riscv_vfmv_f_s_f32m1_f32(sum_f32m1);
 }
 
-NK_PUBLIC void nk_l2_bf16_spacemit(nk_bf16_t const *a_scalars, nk_bf16_t const *b_scalars, nk_size_t count_scalars,
-                                   nk_f32_t *result) {
-    nk_l2sq_bf16_spacemit(a_scalars, b_scalars, count_scalars, result);
+NK_PUBLIC void nk_euclidean_bf16_spacemit(nk_bf16_t const *a_scalars, nk_bf16_t const *b_scalars,
+                                          nk_size_t count_scalars, nk_f32_t *result) {
+    nk_sqeuclidean_bf16_spacemit(a_scalars, b_scalars, count_scalars, result);
     *result = nk_f32_sqrt_spacemit(*result);
 }
 
@@ -495,8 +495,8 @@ NK_PUBLIC void nk_angular_bf16_spacemit(nk_bf16_t const *a_scalars, nk_bf16_t co
     }
 }
 
-NK_PUBLIC void nk_l2sq_e4m3_spacemit(nk_e4m3_t const *a_scalars, nk_e4m3_t const *b_scalars, nk_size_t count_scalars,
-                                     nk_f32_t *result) {
+NK_PUBLIC void nk_sqeuclidean_e4m3_spacemit(nk_e4m3_t const *a_scalars, nk_e4m3_t const *b_scalars,
+                                            nk_size_t count_scalars, nk_f32_t *result) {
     vfloat32m1_t sum_f32m1 = __riscv_vfmv_v_f_f32m1(0.0f, 1);
     for (nk_size_t vector_length; count_scalars > 0;
          count_scalars -= vector_length, a_scalars += vector_length, b_scalars += vector_length) {
@@ -516,9 +516,9 @@ NK_PUBLIC void nk_l2sq_e4m3_spacemit(nk_e4m3_t const *a_scalars, nk_e4m3_t const
     *result = __riscv_vfmv_f_s_f32m1_f32(sum_f32m1);
 }
 
-NK_PUBLIC void nk_l2_e4m3_spacemit(nk_e4m3_t const *a_scalars, nk_e4m3_t const *b_scalars, nk_size_t count_scalars,
-                                   nk_f32_t *result) {
-    nk_l2sq_e4m3_spacemit(a_scalars, b_scalars, count_scalars, result);
+NK_PUBLIC void nk_euclidean_e4m3_spacemit(nk_e4m3_t const *a_scalars, nk_e4m3_t const *b_scalars,
+                                          nk_size_t count_scalars, nk_f32_t *result) {
+    nk_sqeuclidean_e4m3_spacemit(a_scalars, b_scalars, count_scalars, result);
     *result = nk_f32_sqrt_spacemit(*result);
 }
 
@@ -564,8 +564,8 @@ NK_PUBLIC void nk_angular_e4m3_spacemit(nk_e4m3_t const *a_scalars, nk_e4m3_t co
     }
 }
 
-NK_PUBLIC void nk_l2sq_e5m2_spacemit(nk_e5m2_t const *a_scalars, nk_e5m2_t const *b_scalars, nk_size_t count_scalars,
-                                     nk_f32_t *result) {
+NK_PUBLIC void nk_sqeuclidean_e5m2_spacemit(nk_e5m2_t const *a_scalars, nk_e5m2_t const *b_scalars,
+                                            nk_size_t count_scalars, nk_f32_t *result) {
     vfloat32m1_t sum_f32m1 = __riscv_vfmv_v_f_f32m1(0.0f, 1);
     for (nk_size_t vector_length; count_scalars > 0;
          count_scalars -= vector_length, a_scalars += vector_length, b_scalars += vector_length) {
@@ -585,9 +585,9 @@ NK_PUBLIC void nk_l2sq_e5m2_spacemit(nk_e5m2_t const *a_scalars, nk_e5m2_t const
     *result = __riscv_vfmv_f_s_f32m1_f32(sum_f32m1);
 }
 
-NK_PUBLIC void nk_l2_e5m2_spacemit(nk_e5m2_t const *a_scalars, nk_e5m2_t const *b_scalars, nk_size_t count_scalars,
-                                   nk_f32_t *result) {
-    nk_l2sq_e5m2_spacemit(a_scalars, b_scalars, count_scalars, result);
+NK_PUBLIC void nk_euclidean_e5m2_spacemit(nk_e5m2_t const *a_scalars, nk_e5m2_t const *b_scalars,
+                                          nk_size_t count_scalars, nk_f32_t *result) {
+    nk_sqeuclidean_e5m2_spacemit(a_scalars, b_scalars, count_scalars, result);
     *result = nk_f32_sqrt_spacemit(*result);
 }
 
@@ -633,8 +633,8 @@ NK_PUBLIC void nk_angular_e5m2_spacemit(nk_e5m2_t const *a_scalars, nk_e5m2_t co
     }
 }
 
-NK_PUBLIC void nk_l2sq_i4_spacemit(nk_i4x2_t const *a_scalars, nk_i4x2_t const *b_scalars, nk_size_t count_scalars,
-                                   nk_u32_t *result) {
+NK_PUBLIC void nk_sqeuclidean_i4_spacemit(nk_i4x2_t const *a_scalars, nk_i4x2_t const *b_scalars,
+                                          nk_size_t count_scalars, nk_u32_t *result) {
     nk_size_t n_bytes = count_scalars / 2;
     vint32m1_t sum_i32m1 = __riscv_vmv_v_x_i32m1(0, 1);
     for (nk_size_t vector_length; n_bytes > 0;
@@ -672,10 +672,10 @@ NK_PUBLIC void nk_l2sq_i4_spacemit(nk_i4x2_t const *a_scalars, nk_i4x2_t const *
     *result = (nk_u32_t)__riscv_vmv_x_s_i32m1_i32(sum_i32m1);
 }
 
-NK_PUBLIC void nk_l2_i4_spacemit(nk_i4x2_t const *a_scalars, nk_i4x2_t const *b_scalars, nk_size_t count_scalars,
-                                 nk_f32_t *result) {
+NK_PUBLIC void nk_euclidean_i4_spacemit(nk_i4x2_t const *a_scalars, nk_i4x2_t const *b_scalars, nk_size_t count_scalars,
+                                        nk_f32_t *result) {
     nk_u32_t d2;
-    nk_l2sq_i4_spacemit(a_scalars, b_scalars, count_scalars, &d2);
+    nk_sqeuclidean_i4_spacemit(a_scalars, b_scalars, count_scalars, &d2);
     *result = nk_f32_sqrt_spacemit((nk_f32_t)d2);
 }
 
@@ -735,8 +735,8 @@ NK_PUBLIC void nk_angular_i4_spacemit(nk_i4x2_t const *a_scalars, nk_i4x2_t cons
     }
 }
 
-NK_PUBLIC void nk_l2sq_u4_spacemit(nk_u4x2_t const *a_scalars, nk_u4x2_t const *b_scalars, nk_size_t count_scalars,
-                                   nk_u32_t *result) {
+NK_PUBLIC void nk_sqeuclidean_u4_spacemit(nk_u4x2_t const *a_scalars, nk_u4x2_t const *b_scalars,
+                                          nk_size_t count_scalars, nk_u32_t *result) {
     nk_size_t n_bytes = count_scalars / 2;
     vuint32m1_t sum_u32m1 = __riscv_vmv_v_x_u32m1(0, 1);
     for (nk_size_t vector_length; n_bytes > 0;
@@ -767,10 +767,10 @@ NK_PUBLIC void nk_l2sq_u4_spacemit(nk_u4x2_t const *a_scalars, nk_u4x2_t const *
     *result = __riscv_vmv_x_s_u32m1_u32(sum_u32m1);
 }
 
-NK_PUBLIC void nk_l2_u4_spacemit(nk_u4x2_t const *a_scalars, nk_u4x2_t const *b_scalars, nk_size_t count_scalars,
-                                 nk_f32_t *result) {
+NK_PUBLIC void nk_euclidean_u4_spacemit(nk_u4x2_t const *a_scalars, nk_u4x2_t const *b_scalars, nk_size_t count_scalars,
+                                        nk_f32_t *result) {
     nk_u32_t d2;
-    nk_l2sq_u4_spacemit(a_scalars, b_scalars, count_scalars, &d2);
+    nk_sqeuclidean_u4_spacemit(a_scalars, b_scalars, count_scalars, &d2);
     *result = nk_f32_sqrt_spacemit((nk_f32_t)d2);
 }
 

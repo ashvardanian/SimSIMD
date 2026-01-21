@@ -47,7 +47,7 @@
 extern "C" {
 #endif
 
-NK_PUBLIC void nk_l2sq_f32_sve(nk_f32_t const *a, nk_f32_t const *b, nk_size_t n, nk_f32_t *result) {
+NK_PUBLIC void nk_sqeuclidean_f32_sve(nk_f32_t const *a, nk_f32_t const *b, nk_size_t n, nk_f32_t *result) {
     nk_size_t i = 0;
     svfloat64_t d2_vec = svdupq_n_f64(0.0, 0.0);
     svbool_t pg_f64 = svptrue_b64();
@@ -65,8 +65,8 @@ NK_PUBLIC void nk_l2sq_f32_sve(nk_f32_t const *a, nk_f32_t const *b, nk_size_t n
     *result = (nk_f32_t)d2;
 }
 
-NK_PUBLIC void nk_l2_f32_sve(nk_f32_t const *a, nk_f32_t const *b, nk_size_t n, nk_f32_t *result) {
-    nk_l2sq_f32_sve(a, b, n, result);
+NK_PUBLIC void nk_euclidean_f32_sve(nk_f32_t const *a, nk_f32_t const *b, nk_size_t n, nk_f32_t *result) {
+    nk_sqeuclidean_f32_sve(a, b, n, result);
     *result = nk_f32_sqrt_neon(*result);
 }
 
@@ -95,7 +95,7 @@ NK_PUBLIC void nk_angular_f32_sve(nk_f32_t const *a, nk_f32_t const *b, nk_size_
     *result = (nk_f32_t)nk_angular_normalize_f64_neon_(ab, a2, b2);
 }
 
-NK_PUBLIC void nk_l2sq_f64_sve(nk_f64_t const *a, nk_f64_t const *b, nk_size_t n, nk_f64_t *result) {
+NK_PUBLIC void nk_sqeuclidean_f64_sve(nk_f64_t const *a, nk_f64_t const *b, nk_size_t n, nk_f64_t *result) {
     // Neumaier compensated summation for numerical stability
     nk_size_t i = 0;
     svfloat64_t sum_vec = svdupq_n_f64(0.0, 0.0);
@@ -124,8 +124,8 @@ NK_PUBLIC void nk_l2sq_f64_sve(nk_f64_t const *a, nk_f64_t const *b, nk_size_t n
     *result = d2;
 }
 
-NK_PUBLIC void nk_l2_f64_sve(nk_f64_t const *a, nk_f64_t const *b, nk_size_t n, nk_f64_t *result) {
-    nk_l2sq_f64_sve(a, b, n, result);
+NK_PUBLIC void nk_euclidean_f64_sve(nk_f64_t const *a, nk_f64_t const *b, nk_size_t n, nk_f64_t *result) {
+    nk_sqeuclidean_f64_sve(a, b, n, result);
     *result = nk_f64_sqrt_neon(*result);
 }
 

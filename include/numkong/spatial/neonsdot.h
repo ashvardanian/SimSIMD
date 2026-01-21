@@ -39,13 +39,13 @@
 #endif
 
 #include "numkong/types.h"
-#include "numkong/spatial/neon.h" // nk_angular_f32x4_finalize_neon_f32_, nk_l2_f32x4_finalize_neon_f32_
+#include "numkong/spatial/neon.h" // nk_angular_f32x4_finalize_neon_f32_, nk_euclidean_f32x4_finalize_neon_f32_
 
 #if defined(__cplusplus)
 extern "C" {
 #endif
 
-NK_PUBLIC void nk_l2sq_i8_neonsdot(nk_i8_t const *a, nk_i8_t const *b, nk_size_t n, nk_u32_t *result) {
+NK_PUBLIC void nk_sqeuclidean_i8_neonsdot(nk_i8_t const *a, nk_i8_t const *b, nk_size_t n, nk_u32_t *result) {
 
     // The naive approach is to upcast 8-bit signed integers into 16-bit signed integers
     // for subtraction, then multiply within 16-bit integers and accumulate the results
@@ -70,9 +70,9 @@ NK_PUBLIC void nk_l2sq_i8_neonsdot(nk_i8_t const *a, nk_i8_t const *b, nk_size_t
     }
     *result = distance_sq_u32;
 }
-NK_PUBLIC void nk_l2_i8_neonsdot(nk_i8_t const *a, nk_i8_t const *b, nk_size_t n, nk_f32_t *result) {
+NK_PUBLIC void nk_euclidean_i8_neonsdot(nk_i8_t const *a, nk_i8_t const *b, nk_size_t n, nk_f32_t *result) {
     nk_u32_t distance_sq_u32;
-    nk_l2sq_i8_neonsdot(a, b, n, &distance_sq_u32);
+    nk_sqeuclidean_i8_neonsdot(a, b, n, &distance_sq_u32);
     *result = nk_f32_sqrt_neon((nk_f32_t)distance_sq_u32);
 }
 
@@ -196,7 +196,7 @@ NK_PUBLIC void nk_angular_i8_neonsdot(nk_i8_t const *a, nk_i8_t const *b, nk_siz
     *result = nk_angular_normalize_f32_neon_(dot_product_i32, a_norm_sq_i32, b_norm_sq_i32);
 }
 
-NK_PUBLIC void nk_l2sq_u8_neonsdot(nk_u8_t const *a, nk_u8_t const *b, nk_size_t n, nk_u32_t *result) {
+NK_PUBLIC void nk_sqeuclidean_u8_neonsdot(nk_u8_t const *a, nk_u8_t const *b, nk_size_t n, nk_u32_t *result) {
     uint32x4_t distance_sq_u32x4 = vdupq_n_u32(0);
     nk_size_t i = 0;
     for (; i + 16 <= n; i += 16) {
@@ -212,9 +212,9 @@ NK_PUBLIC void nk_l2sq_u8_neonsdot(nk_u8_t const *a, nk_u8_t const *b, nk_size_t
     }
     *result = distance_sq_u32;
 }
-NK_PUBLIC void nk_l2_u8_neonsdot(nk_u8_t const *a, nk_u8_t const *b, nk_size_t n, nk_f32_t *result) {
+NK_PUBLIC void nk_euclidean_u8_neonsdot(nk_u8_t const *a, nk_u8_t const *b, nk_size_t n, nk_f32_t *result) {
     nk_u32_t d2;
-    nk_l2sq_u8_neonsdot(a, b, n, &d2);
+    nk_sqeuclidean_u8_neonsdot(a, b, n, &d2);
     *result = nk_f32_sqrt_neon((nk_f32_t)d2);
 }
 
@@ -267,23 +267,25 @@ NK_INTERNAL void nk_angular_i8x16_finalize_neonsdot(nk_angular_i8x16_state_neons
                                         target_norm_d, results);
 }
 
-typedef nk_dot_i8x16_state_neonsdot_t nk_l2_i8x16_state_neonsdot_t;
-NK_INTERNAL void nk_l2_i8x16_init_neonsdot(nk_l2_i8x16_state_neonsdot_t *state) { nk_dot_i8x16_init_neonsdot(state); }
-NK_INTERNAL void nk_l2_i8x16_update_neonsdot(nk_l2_i8x16_state_neonsdot_t *state, nk_b128_vec_t a, nk_b128_vec_t b,
-                                             nk_size_t depth_offset, nk_size_t active_dimensions) {
+typedef nk_dot_i8x16_state_neonsdot_t nk_euclidean_i8x16_state_neonsdot_t;
+NK_INTERNAL void nk_euclidean_i8x16_init_neonsdot(nk_euclidean_i8x16_state_neonsdot_t *state) {
+    nk_dot_i8x16_init_neonsdot(state);
+}
+NK_INTERNAL void nk_euclidean_i8x16_update_neonsdot(nk_euclidean_i8x16_state_neonsdot_t *state, nk_b128_vec_t a,
+                                                    nk_b128_vec_t b, nk_size_t depth_offset,
+                                                    nk_size_t active_dimensions) {
     nk_dot_i8x16_update_neonsdot(state, a, b, depth_offset, active_dimensions);
 }
-NK_INTERNAL void nk_l2_i8x16_finalize_neonsdot(nk_l2_i8x16_state_neonsdot_t const *state_a,
-                                               nk_l2_i8x16_state_neonsdot_t const *state_b,
-                                               nk_l2_i8x16_state_neonsdot_t const *state_c,
-                                               nk_l2_i8x16_state_neonsdot_t const *state_d, nk_f32_t query_norm,
-                                               nk_f32_t target_norm_a, nk_f32_t target_norm_b, nk_f32_t target_norm_c,
-                                               nk_f32_t target_norm_d, nk_size_t total_dimensions, nk_f32_t *results) {
+NK_INTERNAL void nk_euclidean_i8x16_finalize_neonsdot(
+    nk_euclidean_i8x16_state_neonsdot_t const *state_a, nk_euclidean_i8x16_state_neonsdot_t const *state_b,
+    nk_euclidean_i8x16_state_neonsdot_t const *state_c, nk_euclidean_i8x16_state_neonsdot_t const *state_d,
+    nk_f32_t query_norm, nk_f32_t target_norm_a, nk_f32_t target_norm_b, nk_f32_t target_norm_c, nk_f32_t target_norm_d,
+    nk_size_t total_dimensions, nk_f32_t *results) {
     nk_b128_vec_t dots_vec;
     nk_dot_i8x16_finalize_neonsdot(state_a, state_b, state_c, state_d, &dots_vec, total_dimensions);
     float32x4_t dots_f32x4 = vcvtq_f32_s32(dots_vec.i32x4);
-    nk_l2_f32x4_finalize_neon_f32_(dots_f32x4, query_norm, target_norm_a, target_norm_b, target_norm_c, target_norm_d,
-                                   results);
+    nk_euclidean_f32x4_finalize_neon_f32_(dots_f32x4, query_norm, target_norm_a, target_norm_b, target_norm_c,
+                                          target_norm_d, results);
 }
 
 typedef nk_dot_u8x16_state_neonsdot_t nk_angular_u8x16_state_neonsdot_t;
@@ -309,23 +311,25 @@ NK_INTERNAL void nk_angular_u8x16_finalize_neonsdot(nk_angular_u8x16_state_neons
                                         target_norm_d, results);
 }
 
-typedef nk_dot_u8x16_state_neonsdot_t nk_l2_u8x16_state_neonsdot_t;
-NK_INTERNAL void nk_l2_u8x16_init_neonsdot(nk_l2_u8x16_state_neonsdot_t *state) { nk_dot_u8x16_init_neonsdot(state); }
-NK_INTERNAL void nk_l2_u8x16_update_neonsdot(nk_l2_u8x16_state_neonsdot_t *state, nk_b128_vec_t a, nk_b128_vec_t b,
-                                             nk_size_t depth_offset, nk_size_t active_dimensions) {
+typedef nk_dot_u8x16_state_neonsdot_t nk_euclidean_u8x16_state_neonsdot_t;
+NK_INTERNAL void nk_euclidean_u8x16_init_neonsdot(nk_euclidean_u8x16_state_neonsdot_t *state) {
+    nk_dot_u8x16_init_neonsdot(state);
+}
+NK_INTERNAL void nk_euclidean_u8x16_update_neonsdot(nk_euclidean_u8x16_state_neonsdot_t *state, nk_b128_vec_t a,
+                                                    nk_b128_vec_t b, nk_size_t depth_offset,
+                                                    nk_size_t active_dimensions) {
     nk_dot_u8x16_update_neonsdot(state, a, b, depth_offset, active_dimensions);
 }
-NK_INTERNAL void nk_l2_u8x16_finalize_neonsdot(nk_l2_u8x16_state_neonsdot_t const *state_a,
-                                               nk_l2_u8x16_state_neonsdot_t const *state_b,
-                                               nk_l2_u8x16_state_neonsdot_t const *state_c,
-                                               nk_l2_u8x16_state_neonsdot_t const *state_d, nk_f32_t query_norm,
-                                               nk_f32_t target_norm_a, nk_f32_t target_norm_b, nk_f32_t target_norm_c,
-                                               nk_f32_t target_norm_d, nk_size_t total_dimensions, nk_f32_t *results) {
+NK_INTERNAL void nk_euclidean_u8x16_finalize_neonsdot(
+    nk_euclidean_u8x16_state_neonsdot_t const *state_a, nk_euclidean_u8x16_state_neonsdot_t const *state_b,
+    nk_euclidean_u8x16_state_neonsdot_t const *state_c, nk_euclidean_u8x16_state_neonsdot_t const *state_d,
+    nk_f32_t query_norm, nk_f32_t target_norm_a, nk_f32_t target_norm_b, nk_f32_t target_norm_c, nk_f32_t target_norm_d,
+    nk_size_t total_dimensions, nk_f32_t *results) {
     nk_b128_vec_t dots_vec;
     nk_dot_u8x16_finalize_neonsdot(state_a, state_b, state_c, state_d, &dots_vec, total_dimensions);
     float32x4_t dots_f32x4 = vcvtq_f32_u32(dots_vec.u32x4);
-    nk_l2_f32x4_finalize_neon_f32_(dots_f32x4, query_norm, target_norm_a, target_norm_b, target_norm_c, target_norm_d,
-                                   results);
+    nk_euclidean_f32x4_finalize_neon_f32_(dots_f32x4, query_norm, target_norm_a, target_norm_b, target_norm_c,
+                                          target_norm_d, results);
 }
 
 #if defined(__cplusplus)

@@ -1258,14 +1258,14 @@ int main(int argc, char **argv) {
 #if NK_TARGET_NEON
     dense_<f32_k, f32_k>("dot_f32_neon", nk_dot_f32_neon);
     dense_<f32_k, f32_k>("angular_f32_neon", nk_angular_f32_neon);
-    dense_<f32_k, f32_k>("l2sq_f32_neon", nk_l2sq_f32_neon);
-    dense_<f32_k, f32_k>("l2_f32_neon", nk_l2_f32_neon);
+    dense_<f32_k, f32_k>("sqeuclidean_f32_neon", nk_sqeuclidean_f32_neon);
+    dense_<f32_k, f32_k>("euclidean_f32_neon", nk_euclidean_f32_neon);
     dense_<f32_k, f32_k>("kld_f32_neon", nk_kld_f32_neon);
     dense_<f32_k, f32_k>("jsd_f32_neon", nk_jsd_f32_neon);
 
     dense_<f64_k, f64_k>("angular_f64_neon", nk_angular_f64_neon);
-    dense_<f64_k, f64_k>("l2sq_f64_neon", nk_l2sq_f64_neon);
-    dense_<f64_k, f64_k>("l2_f64_neon", nk_l2_f64_neon);
+    dense_<f64_k, f64_k>("sqeuclidean_f64_neon", nk_sqeuclidean_f64_neon);
+    dense_<f64_k, f64_k>("euclidean_f64_neon", nk_euclidean_f64_neon);
 
     dense_<u1_k, u32_k>("hamming_u1_neon", nk_hamming_u1_neon);
     dense_<u1_k, f32_k>("jaccard_u1_neon", nk_jaccard_u1_neon);
@@ -1302,13 +1302,13 @@ int main(int argc, char **argv) {
 
 #if NK_TARGET_NEONSDOT
     dense_<i8_k, f32_k>("angular_i8_neonsdot", nk_angular_i8_neonsdot);
-    dense_<i8_k, u32_k>("l2sq_i8_neonsdot", nk_l2sq_i8_neonsdot);
-    dense_<i8_k, f32_k>("l2_i8_neonsdot", nk_l2_i8_neonsdot);
+    dense_<i8_k, u32_k>("sqeuclidean_i8_neonsdot", nk_sqeuclidean_i8_neonsdot);
+    dense_<i8_k, f32_k>("euclidean_i8_neonsdot", nk_euclidean_i8_neonsdot);
     dense_<i8_k, i32_k>("dot_i8_neonsdot", nk_dot_i8_neonsdot);
 
     dense_<u8_k, f32_k>("angular_u8_neonsdot", nk_angular_u8_neonsdot);
-    dense_<u8_k, u32_k>("l2sq_u8_neonsdot", nk_l2sq_u8_neonsdot);
-    dense_<u8_k, f32_k>("l2_u8_neonsdot", nk_l2_u8_neonsdot);
+    dense_<u8_k, u32_k>("sqeuclidean_u8_neonsdot", nk_sqeuclidean_u8_neonsdot);
+    dense_<u8_k, f32_k>("euclidean_u8_neonsdot", nk_euclidean_u8_neonsdot);
     dense_<u8_k, u32_k>("dot_u8_neonsdot", nk_dot_u8_neonsdot);
 
     dots_<i8_k, i32_k>("dots_packed_i8_neonsdot", nk_dots_packed_size_i8_neonsdot, nk_dots_pack_i8_neonsdot,
@@ -1323,8 +1323,8 @@ int main(int argc, char **argv) {
 
     dense_<f16_k, f32_k>("dot_f16_neonhalf", nk_dot_f16_neonhalf);
     dense_<f16_k, f32_k>("angular_f16_neonhalf", nk_angular_f16_neonhalf);
-    dense_<f16_k, f32_k>("l2sq_f16_neonhalf", nk_l2sq_f16_neonhalf);
-    dense_<f16_k, f32_k>("l2_f16_neonhalf", nk_l2_f16_neonhalf);
+    dense_<f16_k, f32_k>("sqeuclidean_f16_neonhalf", nk_sqeuclidean_f16_neonhalf);
+    dense_<f16_k, f32_k>("euclidean_f16_neonhalf", nk_euclidean_f16_neonhalf);
     dense_<f16_k, f32_k>("kld_f16_neonhalf", nk_kld_f16_neonhalf);
     dense_<f16_k, f32_k>("jsd_f16_neonhalf", nk_jsd_f16_neonhalf);
 
@@ -1358,8 +1358,8 @@ int main(int argc, char **argv) {
 
     dense_<bf16_k, f32_k>("dot_bf16_neonbfdot", nk_dot_bf16_neonbfdot);
     dense_<bf16_k, f32_k>("angular_bf16_neonbfdot", nk_angular_bf16_neonbfdot);
-    dense_<bf16_k, f32_k>("l2sq_bf16_neonbfdot", nk_l2sq_bf16_neonbfdot);
-    dense_<bf16_k, f32_k>("l2_bf16_neonbfdot", nk_l2_bf16_neonbfdot);
+    dense_<bf16_k, f32_k>("sqeuclidean_bf16_neonbfdot", nk_sqeuclidean_bf16_neonbfdot);
+    dense_<bf16_k, f32_k>("euclidean_bf16_neonbfdot", nk_euclidean_bf16_neonbfdot);
 
     curved_<bf16_k, f32_k>("bilinear_bf16_neonbfdot", nk_bilinear_bf16_neonbfdot);
     curved_<bf16_k, f32_k>("mahalanobis_bf16_neonbfdot", nk_mahalanobis_bf16_neonbfdot);
@@ -1375,13 +1375,13 @@ int main(int argc, char **argv) {
 #if NK_TARGET_SVE
     dense_<f32_k, f32_k>("dot_f32_sve", nk_dot_f32_sve);
     dense_<f32_k, f32_k>("angular_f32_sve", nk_angular_f32_sve);
-    dense_<f32_k, f32_k>("l2sq_f32_sve", nk_l2sq_f32_sve);
-    dense_<f32_k, f32_k>("l2_f32_sve", nk_l2_f32_sve);
+    dense_<f32_k, f32_k>("sqeuclidean_f32_sve", nk_sqeuclidean_f32_sve);
+    dense_<f32_k, f32_k>("euclidean_f32_sve", nk_euclidean_f32_sve);
 
     dense_<f64_k, f64_k>("dot_f64_sve", nk_dot_f64_sve);
     dense_<f64_k, f64_k>("angular_f64_sve", nk_angular_f64_sve);
-    dense_<f64_k, f64_k>("l2sq_f64_sve", nk_l2sq_f64_sve);
-    dense_<f64_k, f64_k>("l2_f64_sve", nk_l2_f64_sve);
+    dense_<f64_k, f64_k>("sqeuclidean_f64_sve", nk_sqeuclidean_f64_sve);
+    dense_<f64_k, f64_k>("euclidean_f64_sve", nk_euclidean_f64_sve);
 
     dense_<u1_k, u32_k>("hamming_u1_sve", nk_hamming_u1_sve);
     dense_<u1_k, f32_k>("jaccard_u1_sve", nk_jaccard_u1_sve);
@@ -1395,16 +1395,16 @@ int main(int argc, char **argv) {
 #if NK_TARGET_SVEHALF
     dense_<f16_k, f32_k>("dot_f16_svehalf", nk_dot_f16_svehalf);
     dense_<f16_k, f32_k>("angular_f16_svehalf", nk_angular_f16_svehalf);
-    dense_<f16_k, f32_k>("l2sq_f16_svehalf", nk_l2sq_f16_svehalf);
-    dense_<f16_k, f32_k>("l2_f16_svehalf", nk_l2_f16_svehalf);
+    dense_<f16_k, f32_k>("sqeuclidean_f16_svehalf", nk_sqeuclidean_f16_svehalf);
+    dense_<f16_k, f32_k>("euclidean_f16_svehalf", nk_euclidean_f16_svehalf);
     dense_<f16c_k, f32c_k>("dot_f16c_svehalf", nk_dot_f16c_svehalf);
     dense_<f16c_k, f32c_k>("vdot_f16c_svehalf", nk_vdot_f16c_svehalf);
 #endif
 
 #if NK_TARGET_SVEBFDOT
     dense_<bf16_k, f32_k>("angular_bf16_svebfdot", nk_angular_bf16_svebfdot);
-    dense_<bf16_k, f32_k>("l2sq_bf16_svebfdot", nk_l2sq_bf16_svebfdot);
-    dense_<bf16_k, f32_k>("l2_bf16_svebfdot", nk_l2_bf16_svebfdot);
+    dense_<bf16_k, f32_k>("sqeuclidean_bf16_svebfdot", nk_sqeuclidean_bf16_svebfdot);
+    dense_<bf16_k, f32_k>("euclidean_bf16_svebfdot", nk_euclidean_bf16_svebfdot);
 #endif
 
 #if NK_TARGET_SVE2
@@ -1439,27 +1439,27 @@ int main(int argc, char **argv) {
 #if NK_TARGET_HASWELL
     dense_<f16_k, f32_k>("dot_f16_haswell", nk_dot_f16_haswell);
     dense_<f16_k, f32_k>("angular_f16_haswell", nk_angular_f16_haswell);
-    dense_<f16_k, f32_k>("l2sq_f16_haswell", nk_l2sq_f16_haswell);
-    dense_<f16_k, f32_k>("l2_f16_haswell", nk_l2_f16_haswell);
+    dense_<f16_k, f32_k>("sqeuclidean_f16_haswell", nk_sqeuclidean_f16_haswell);
+    dense_<f16_k, f32_k>("euclidean_f16_haswell", nk_euclidean_f16_haswell);
     dense_<f16_k, f32_k>("kld_f16_haswell", nk_kld_f16_haswell);
     dense_<f16_k, f32_k>("jsd_f16_haswell", nk_jsd_f16_haswell);
 
     dense_<bf16_k, f32_k>("dot_bf16_haswell", nk_dot_bf16_haswell);
     dense_<bf16_k, f32_k>("angular_bf16_haswell", nk_angular_bf16_haswell);
-    dense_<bf16_k, f32_k>("l2sq_bf16_haswell", nk_l2sq_bf16_haswell);
-    dense_<bf16_k, f32_k>("l2_bf16_haswell", nk_l2_bf16_haswell);
+    dense_<bf16_k, f32_k>("sqeuclidean_bf16_haswell", nk_sqeuclidean_bf16_haswell);
+    dense_<bf16_k, f32_k>("euclidean_bf16_haswell", nk_euclidean_bf16_haswell);
 
     dense_<e4m3_k, f32_k>("dot_e4m3_haswell", nk_dot_e4m3_haswell);
     dense_<e5m2_k, f32_k>("dot_e5m2_haswell", nk_dot_e5m2_haswell);
 
     dense_<i8_k, f32_k>("angular_i8_haswell", nk_angular_i8_haswell);
-    dense_<i8_k, u32_k>("l2sq_i8_haswell", nk_l2sq_i8_haswell);
-    dense_<i8_k, f32_k>("l2_i8_haswell", nk_l2_i8_haswell);
+    dense_<i8_k, u32_k>("sqeuclidean_i8_haswell", nk_sqeuclidean_i8_haswell);
+    dense_<i8_k, f32_k>("euclidean_i8_haswell", nk_euclidean_i8_haswell);
     dense_<i8_k, i32_k>("dot_i8_haswell", nk_dot_i8_haswell);
 
     dense_<u8_k, f32_k>("angular_u8_haswell", nk_angular_u8_haswell);
-    dense_<u8_k, u32_k>("l2sq_u8_haswell", nk_l2sq_u8_haswell);
-    dense_<u8_k, f32_k>("l2_u8_haswell", nk_l2_u8_haswell);
+    dense_<u8_k, u32_k>("sqeuclidean_u8_haswell", nk_sqeuclidean_u8_haswell);
+    dense_<u8_k, f32_k>("euclidean_u8_haswell", nk_euclidean_u8_haswell);
     dense_<u8_k, u32_k>("dot_u8_haswell", nk_dot_u8_haswell);
 
     dense_<u1_k, u32_k>("hamming_u1_haswell", nk_hamming_u1_haswell);
@@ -1532,8 +1532,8 @@ int main(int argc, char **argv) {
 #if NK_TARGET_SKYLAKE
     dense_<f32_k, f32_k>("dot_f32_skylake", nk_dot_f32_skylake);
     dense_<f32_k, f32_k>("angular_f32_skylake", nk_angular_f32_skylake);
-    dense_<f32_k, f32_k>("l2sq_f32_skylake", nk_l2sq_f32_skylake);
-    dense_<f32_k, f32_k>("l2_f32_skylake", nk_l2_f32_skylake);
+    dense_<f32_k, f32_k>("sqeuclidean_f32_skylake", nk_sqeuclidean_f32_skylake);
+    dense_<f32_k, f32_k>("euclidean_f32_skylake", nk_euclidean_f32_skylake);
     dense_<f32_k, f32_k>("kld_f32_skylake", nk_kld_f32_skylake);
     dense_<f32_k, f32_k>("jsd_f32_skylake", nk_jsd_f32_skylake);
 
@@ -1597,29 +1597,29 @@ int main(int argc, char **argv) {
     dots_<u8_k, u32_k>("dots_packed_u8_ice", nk_dots_packed_size_u8_ice, nk_dots_pack_u8_ice, nk_dots_packed_u8_ice);
 
     dense_<i8_k, f32_k>("angular_i8_ice", nk_angular_i8_ice);
-    dense_<i8_k, u32_k>("l2sq_i8_ice", nk_l2sq_i8_ice);
-    dense_<i8_k, f32_k>("l2_i8_ice", nk_l2_i8_ice);
+    dense_<i8_k, u32_k>("sqeuclidean_i8_ice", nk_sqeuclidean_i8_ice);
+    dense_<i8_k, f32_k>("euclidean_i8_ice", nk_euclidean_i8_ice);
     dense_<i8_k, i32_k>("dot_i8_ice", nk_dot_i8_ice);
 
     dense_<u8_k, f32_k>("angular_u8_ice", nk_angular_u8_ice);
-    dense_<u8_k, u32_k>("l2sq_u8_ice", nk_l2sq_u8_ice);
-    dense_<u8_k, f32_k>("l2_u8_ice", nk_l2_u8_ice);
+    dense_<u8_k, u32_k>("sqeuclidean_u8_ice", nk_sqeuclidean_u8_ice);
+    dense_<u8_k, f32_k>("euclidean_u8_ice", nk_euclidean_u8_ice);
     dense_<u8_k, u32_k>("dot_u8_ice", nk_dot_u8_ice);
 
     dense_<i4_k, f32_k>("angular_i4_ice", nk_angular_i4_ice);
-    dense_<i4_k, u32_k>("l2sq_i4_ice", nk_l2sq_i4_ice);
-    dense_<i4_k, f32_k>("l2_i4_ice", nk_l2_i4_ice);
+    dense_<i4_k, u32_k>("sqeuclidean_i4_ice", nk_sqeuclidean_i4_ice);
+    dense_<i4_k, f32_k>("euclidean_i4_ice", nk_euclidean_i4_ice);
     dense_<i4_k, i32_k>("dot_i4_ice", nk_dot_i4_ice);
 
     dense_<u4_k, f32_k>("angular_u4_ice", nk_angular_u4_ice);
-    dense_<u4_k, u32_k>("l2sq_u4_ice", nk_l2sq_u4_ice);
-    dense_<u4_k, f32_k>("l2_u4_ice", nk_l2_u4_ice);
+    dense_<u4_k, u32_k>("sqeuclidean_u4_ice", nk_sqeuclidean_u4_ice);
+    dense_<u4_k, f32_k>("euclidean_u4_ice", nk_euclidean_u4_ice);
     dense_<u4_k, u32_k>("dot_u4_ice", nk_dot_u4_ice);
 
     dense_<f64_k, f64_k>("dot_f64_skylake", nk_dot_f64_skylake);
     dense_<f64_k, f64_k>("angular_f64_skylake", nk_angular_f64_skylake);
-    dense_<f64_k, f64_k>("l2sq_f64_skylake", nk_l2sq_f64_skylake);
-    dense_<f64_k, f64_k>("l2_f64_skylake", nk_l2_f64_skylake);
+    dense_<f64_k, f64_k>("sqeuclidean_f64_skylake", nk_sqeuclidean_f64_skylake);
+    dense_<f64_k, f64_k>("euclidean_f64_skylake", nk_euclidean_f64_skylake);
 
     dense_<u1_k, u32_k>("hamming_u1_ice", nk_hamming_u1_ice);
     dense_<u1_k, f32_k>("jaccard_u1_ice", nk_jaccard_u1_ice);
@@ -1632,8 +1632,8 @@ int main(int argc, char **argv) {
 #if NK_TARGET_GENOA
     dense_<bf16_k, f32_k>("dot_bf16_genoa", nk_dot_bf16_genoa);
     dense_<bf16_k, f32_k>("angular_bf16_genoa", nk_angular_bf16_genoa);
-    dense_<bf16_k, f32_k>("l2sq_bf16_genoa", nk_l2sq_bf16_genoa);
-    dense_<bf16_k, f32_k>("l2_bf16_genoa", nk_l2_bf16_genoa);
+    dense_<bf16_k, f32_k>("sqeuclidean_bf16_genoa", nk_sqeuclidean_bf16_genoa);
+    dense_<bf16_k, f32_k>("euclidean_bf16_genoa", nk_euclidean_bf16_genoa);
     dense_<bf16c_k, f32c_k>("dot_bf16c_genoa", nk_dot_bf16c_genoa);
     dense_<bf16c_k, f32c_k>("vdot_bf16c_genoa", nk_vdot_bf16c_genoa);
 
@@ -1657,8 +1657,8 @@ int main(int argc, char **argv) {
 #if NK_TARGET_SAPPHIRE
     dense_<f16_k, f32_k>("kld_f16_sapphire", nk_kld_f16_sapphire);
     dense_<f16_k, f32_k>("jsd_f16_sapphire", nk_jsd_f16_sapphire);
-    dense_<e4m3_k, f32_k>("l2_e4m3_sapphire", nk_l2_e4m3_sapphire);
-    dense_<e4m3_k, f32_k>("l2sq_e4m3_sapphire", nk_l2sq_e4m3_sapphire);
+    dense_<e4m3_k, f32_k>("euclidean_e4m3_sapphire", nk_euclidean_e4m3_sapphire);
+    dense_<e4m3_k, f32_k>("sqeuclidean_e4m3_sapphire", nk_sqeuclidean_e4m3_sapphire);
 
     elementwise_<u8_k, fma_k, f32_k>("each_fma_u8_sapphire", nk_each_fma_u8_sapphire);
     elementwise_<u8_k, wsum_k, f32_k>("each_wsum_u8_sapphire", nk_each_blend_u8_sapphire);
@@ -1705,8 +1705,8 @@ int main(int argc, char **argv) {
     dense_<f64_k, f64_k>("dot_f64_spacemit", nk_dot_f64_spacemit);
 
     // Spatial operations
-    dense_<f32_k, f32_k>("l2sq_f32_spacemit", nk_l2sq_f32_spacemit);
-    dense_<f64_k, f64_k>("l2sq_f64_spacemit", nk_l2sq_f64_spacemit);
+    dense_<f32_k, f32_k>("sqeuclidean_f32_spacemit", nk_sqeuclidean_f32_spacemit);
+    dense_<f64_k, f64_k>("sqeuclidean_f64_spacemit", nk_sqeuclidean_f64_spacemit);
     dense_<f32_k, f32_k>("angular_f32_spacemit", nk_angular_f32_spacemit);
     dense_<f64_k, f64_k>("angular_f64_spacemit", nk_angular_f64_spacemit);
 #endif
@@ -1737,8 +1737,8 @@ int main(int argc, char **argv) {
 
     dense_<bf16_k, f32_k>("dot_bf16_serial", nk_dot_bf16_serial);
     dense_<bf16_k, f32_k>("angular_bf16_serial", nk_angular_bf16_serial);
-    dense_<bf16_k, f32_k>("l2sq_bf16_serial", nk_l2sq_bf16_serial);
-    dense_<bf16_k, f32_k>("l2_bf16_serial", nk_l2_bf16_serial);
+    dense_<bf16_k, f32_k>("sqeuclidean_bf16_serial", nk_sqeuclidean_bf16_serial);
+    dense_<bf16_k, f32_k>("euclidean_bf16_serial", nk_euclidean_bf16_serial);
     dense_<bf16_k, f32_k>("kld_bf16_serial", nk_kld_bf16_serial);
     dense_<bf16_k, f32_k>("jsd_bf16_serial", nk_jsd_bf16_serial);
 
@@ -1747,41 +1747,41 @@ int main(int argc, char **argv) {
 
     dense_<f16_k, f32_k>("dot_f16_serial", nk_dot_f16_serial);
     dense_<f16_k, f32_k>("angular_f16_serial", nk_angular_f16_serial);
-    dense_<f16_k, f32_k>("l2sq_f16_serial", nk_l2sq_f16_serial);
-    dense_<f16_k, f32_k>("l2_f16_serial", nk_l2_f16_serial);
+    dense_<f16_k, f32_k>("sqeuclidean_f16_serial", nk_sqeuclidean_f16_serial);
+    dense_<f16_k, f32_k>("euclidean_f16_serial", nk_euclidean_f16_serial);
     dense_<f16_k, f32_k>("kld_f16_serial", nk_kld_f16_serial);
     dense_<f16_k, f32_k>("jsd_f16_serial", nk_jsd_f16_serial);
 
     dense_<f32_k, f32_k>("dot_f32_serial", nk_dot_f32_serial);
     dense_<f32_k, f32_k>("angular_f32_serial", nk_angular_f32_serial);
-    dense_<f32_k, f32_k>("l2sq_f32_serial", nk_l2sq_f32_serial);
-    dense_<f32_k, f32_k>("l2_f32_serial", nk_l2_f32_serial);
+    dense_<f32_k, f32_k>("sqeuclidean_f32_serial", nk_sqeuclidean_f32_serial);
+    dense_<f32_k, f32_k>("euclidean_f32_serial", nk_euclidean_f32_serial);
     dense_<f32_k, f32_k>("kld_f32_serial", nk_kld_f32_serial);
     dense_<f32_k, f32_k>("jsd_f32_serial", nk_jsd_f32_serial);
 
     dense_<f64_k, f64_k>("dot_f64_serial", nk_dot_f64_serial);
     dense_<f64_k, f64_k>("angular_f64_serial", nk_angular_f64_serial);
-    dense_<f64_k, f64_k>("l2sq_f64_serial", nk_l2sq_f64_serial);
-    dense_<f64_k, f64_k>("l2_f64_serial", nk_l2_f64_serial);
+    dense_<f64_k, f64_k>("sqeuclidean_f64_serial", nk_sqeuclidean_f64_serial);
+    dense_<f64_k, f64_k>("euclidean_f64_serial", nk_euclidean_f64_serial);
 
     dense_<i8_k, f32_k>("angular_i8_serial", nk_angular_i8_serial);
-    dense_<i8_k, u32_k>("l2sq_i8_serial", nk_l2sq_i8_serial);
-    dense_<i8_k, f32_k>("l2_i8_serial", nk_l2_i8_serial);
+    dense_<i8_k, u32_k>("sqeuclidean_i8_serial", nk_sqeuclidean_i8_serial);
+    dense_<i8_k, f32_k>("euclidean_i8_serial", nk_euclidean_i8_serial);
     dense_<i8_k, i32_k>("dot_i8_serial", nk_dot_i8_serial);
 
     dense_<u8_k, f32_k>("angular_u8_serial", nk_angular_u8_serial);
-    dense_<u8_k, u32_k>("l2sq_u8_serial", nk_l2sq_u8_serial);
-    dense_<u8_k, f32_k>("l2_u8_serial", nk_l2_u8_serial);
+    dense_<u8_k, u32_k>("sqeuclidean_u8_serial", nk_sqeuclidean_u8_serial);
+    dense_<u8_k, f32_k>("euclidean_u8_serial", nk_euclidean_u8_serial);
     dense_<u8_k, u32_k>("dot_u8_serial", nk_dot_u8_serial);
 
     dense_<i4_k, f32_k>("angular_i4_serial", nk_angular_i4_serial);
-    dense_<i4_k, u32_k>("l2sq_i4_serial", nk_l2sq_i4_serial);
-    dense_<i4_k, f32_k>("l2_i4_serial", nk_l2_i4_serial);
+    dense_<i4_k, u32_k>("sqeuclidean_i4_serial", nk_sqeuclidean_i4_serial);
+    dense_<i4_k, f32_k>("euclidean_i4_serial", nk_euclidean_i4_serial);
     dense_<i4_k, i32_k>("dot_i4_serial", nk_dot_i4_serial);
 
     dense_<u4_k, f32_k>("angular_u4_serial", nk_angular_u4_serial);
-    dense_<u4_k, u32_k>("l2sq_u4_serial", nk_l2sq_u4_serial);
-    dense_<u4_k, f32_k>("l2_u4_serial", nk_l2_u4_serial);
+    dense_<u4_k, u32_k>("sqeuclidean_u4_serial", nk_sqeuclidean_u4_serial);
+    dense_<u4_k, f32_k>("euclidean_u4_serial", nk_euclidean_u4_serial);
     dense_<u4_k, u32_k>("dot_u4_serial", nk_dot_u4_serial);
 
     dense_<f64c_k, f64c_k>("dot_f64c_serial", nk_dot_f64c_serial);

@@ -26,8 +26,8 @@
 extern "C" {
 #endif
 
-NK_PUBLIC void nk_l2sq_bf16_xuantie(nk_bf16_t const *a_scalars, nk_bf16_t const *b_scalars, nk_size_t count_scalars,
-                                    nk_f32_t *result) {
+NK_PUBLIC void nk_sqeuclidean_bf16_xuantie(nk_bf16_t const *a_scalars, nk_bf16_t const *b_scalars,
+                                           nk_size_t count_scalars, nk_f32_t *result) {
     // Accumulate a² + b² and a × b separately
     vfloat32m1_t sq_sum_f32m1 = __riscv_vfmv_v_f_f32m1(0.0f, 1); // a² + b²
     vfloat32m1_t ab_sum_f32m1 = __riscv_vfmv_v_f_f32m1(0.0f, 1); // a × b
@@ -59,9 +59,9 @@ NK_PUBLIC void nk_l2sq_bf16_xuantie(nk_bf16_t const *a_scalars, nk_bf16_t const 
     *result = sq_sum - 2.0f * ab_sum;
 }
 
-NK_PUBLIC void nk_l2_bf16_xuantie(nk_bf16_t const *a_scalars, nk_bf16_t const *b_scalars, nk_size_t count_scalars,
-                                  nk_f32_t *result) {
-    nk_l2sq_bf16_xuantie(a_scalars, b_scalars, count_scalars, result);
+NK_PUBLIC void nk_euclidean_bf16_xuantie(nk_bf16_t const *a_scalars, nk_bf16_t const *b_scalars,
+                                         nk_size_t count_scalars, nk_f32_t *result) {
+    nk_sqeuclidean_bf16_xuantie(a_scalars, b_scalars, count_scalars, result);
     // Handle potential negative values from floating point errors
     *result = *result > 0.0f ? nk_f32_sqrt_spacemit(*result) : 0.0f;
 }

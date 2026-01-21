@@ -37,12 +37,12 @@
 extern "C" {
 #endif
 
-NK_PUBLIC void nk_l2_i8_ice(nk_i8_t const *a, nk_i8_t const *b, nk_size_t n, nk_f32_t *result) {
+NK_PUBLIC void nk_euclidean_i8_ice(nk_i8_t const *a, nk_i8_t const *b, nk_size_t n, nk_f32_t *result) {
     nk_u32_t d2;
-    nk_l2sq_i8_ice(a, b, n, &d2);
+    nk_sqeuclidean_i8_ice(a, b, n, &d2);
     *result = nk_sqrt_f32_haswell_((nk_f32_t)d2);
 }
-NK_PUBLIC void nk_l2sq_i8_ice(nk_i8_t const *a, nk_i8_t const *b, nk_size_t n, nk_u32_t *result) {
+NK_PUBLIC void nk_sqeuclidean_i8_ice(nk_i8_t const *a, nk_i8_t const *b, nk_size_t n, nk_u32_t *result) {
     // Optimized i8 L2-squared using saturating subtract + DPWSSD
     //
     // Old approach (Haswell/Skylake):
@@ -70,7 +70,7 @@ NK_PUBLIC void nk_l2sq_i8_ice(nk_i8_t const *a, nk_i8_t const *b, nk_size_t n, n
     __m512i diff_low_i16x32, diff_high_i16x32;
     __m512i a_i8x64, b_i8x64, diff_u8x64;
 
-nk_l2sq_i8_ice_cycle:
+nk_sqeuclidean_i8_ice_cycle:
     if (n < 64) {
         __mmask64 mask = (__mmask64)_bzhi_u64(0xFFFFFFFFFFFFFFFF, n);
         a_i8x64 = _mm512_maskz_loadu_epi8(mask, a);
@@ -95,7 +95,7 @@ nk_l2sq_i8_ice_cycle:
     // Multiply and accumulate at i16 level, accumulate at i32 level
     distance_sq_low_i32x16 = _mm512_dpwssd_epi32(distance_sq_low_i32x16, diff_low_i16x32, diff_low_i16x32);
     distance_sq_high_i32x16 = _mm512_dpwssd_epi32(distance_sq_high_i32x16, diff_high_i16x32, diff_high_i16x32);
-    if (n) goto nk_l2sq_i8_ice_cycle;
+    if (n) goto nk_sqeuclidean_i8_ice_cycle;
 
     *result = _mm512_reduce_add_epi32(_mm512_add_epi32(distance_sq_low_i32x16, distance_sq_high_i32x16));
 }
@@ -165,19 +165,19 @@ nk_angular_i8_ice_cycle:
     nk_i32_t b_norm_sq_i32 = _mm512_reduce_add_epi32(b_norm_sq_i32x16);
     *result = nk_angular_normalize_f32_haswell_(dot_product_i32, a_norm_sq_i32, b_norm_sq_i32);
 }
-NK_PUBLIC void nk_l2_u8_ice(nk_u8_t const *a, nk_u8_t const *b, nk_size_t n, nk_f32_t *result) {
+NK_PUBLIC void nk_euclidean_u8_ice(nk_u8_t const *a, nk_u8_t const *b, nk_size_t n, nk_f32_t *result) {
     nk_u32_t d2;
-    nk_l2sq_u8_ice(a, b, n, &d2);
+    nk_sqeuclidean_u8_ice(a, b, n, &d2);
     *result = nk_sqrt_f32_haswell_((nk_f32_t)d2);
 }
-NK_PUBLIC void nk_l2sq_u8_ice(nk_u8_t const *a, nk_u8_t const *b, nk_size_t n, nk_u32_t *result) {
+NK_PUBLIC void nk_sqeuclidean_u8_ice(nk_u8_t const *a, nk_u8_t const *b, nk_size_t n, nk_u32_t *result) {
     __m512i distance_sq_low_i32x16 = _mm512_setzero_si512();
     __m512i distance_sq_high_i32x16 = _mm512_setzero_si512();
     __m512i const zeros_i8x64 = _mm512_setzero_si512();
     __m512i diff_low_i16x32, diff_high_i16x32;
     __m512i a_u8x64, b_u8x64, diff_u8x64;
 
-nk_l2sq_u8_ice_cycle:
+nk_sqeuclidean_u8_ice_cycle:
     if (n < 64) {
         __mmask64 mask = (__mmask64)_bzhi_u64(0xFFFFFFFFFFFFFFFF, n);
         a_u8x64 = _mm512_maskz_loadu_epi8(mask, a);
@@ -198,7 +198,7 @@ nk_l2sq_u8_ice_cycle:
     // Multiply and accumulate at `int16` level, accumulate at `int32` level:
     distance_sq_low_i32x16 = _mm512_dpwssd_epi32(distance_sq_low_i32x16, diff_low_i16x32, diff_low_i16x32);
     distance_sq_high_i32x16 = _mm512_dpwssd_epi32(distance_sq_high_i32x16, diff_high_i16x32, diff_high_i16x32);
-    if (n) goto nk_l2sq_u8_ice_cycle;
+    if (n) goto nk_sqeuclidean_u8_ice_cycle;
 
     *result = _mm512_reduce_add_epi32(_mm512_add_epi32(distance_sq_low_i32x16, distance_sq_high_i32x16));
 }
@@ -251,12 +251,12 @@ nk_angular_u8_ice_cycle:
     *result = nk_angular_normalize_f32_haswell_(dot_product_i32, a_norm_sq_i32, b_norm_sq_i32);
 }
 
-NK_PUBLIC void nk_l2_i4_ice(nk_i4x2_t const *a, nk_i4x2_t const *b, nk_size_t n, nk_f32_t *result) {
+NK_PUBLIC void nk_euclidean_i4_ice(nk_i4x2_t const *a, nk_i4x2_t const *b, nk_size_t n, nk_f32_t *result) {
     nk_u32_t d2;
-    nk_l2sq_i4_ice(a, b, n, &d2);
+    nk_sqeuclidean_i4_ice(a, b, n, &d2);
     *result = nk_sqrt_f32_haswell_((nk_f32_t)d2);
 }
-NK_PUBLIC void nk_l2sq_i4_ice(nk_i4x2_t const *a, nk_i4x2_t const *b, nk_size_t n, nk_u32_t *result) {
+NK_PUBLIC void nk_sqeuclidean_i4_ice(nk_i4x2_t const *a, nk_i4x2_t const *b, nk_size_t n, nk_u32_t *result) {
     // i4 values are packed as nibbles: two 4-bit signed values per byte.
     // Parameter `n` is the number of 4-bit values (dimensions), not bytes.
     nk_size_t n_bytes = nk_size_divide_round_up_(n, 2);
@@ -285,7 +285,7 @@ NK_PUBLIC void nk_l2sq_i4_ice(nk_i4x2_t const *a, nk_i4x2_t const *b, nk_size_t 
     __m512i diff_low_u8x64, diff_high_u8x64;
     __m512i d2_i32x16 = _mm512_setzero_si512();
 
-nk_l2sq_i4_ice_cycle:
+nk_sqeuclidean_i4_ice_cycle:
     if (n_bytes < 64) {
         __mmask64 mask = (__mmask64)_bzhi_u64(0xFFFFFFFFFFFFFFFF, n_bytes);
         a_i4_vec = _mm512_maskz_loadu_epi8(mask, a);
@@ -320,7 +320,7 @@ nk_l2sq_i4_ice_cycle:
     // Since diff is ∈ [0,15], it's safe for both u8 and i8 interpretation.
     d2_i32x16 = _mm512_dpbusd_epi32(d2_i32x16, diff_low_u8x64, diff_low_u8x64);
     d2_i32x16 = _mm512_dpbusd_epi32(d2_i32x16, diff_high_u8x64, diff_high_u8x64);
-    if (n_bytes) goto nk_l2sq_i4_ice_cycle;
+    if (n_bytes) goto nk_sqeuclidean_i4_ice_cycle;
 
     *result = (nk_u32_t)_mm512_reduce_add_epi32(d2_i32x16);
 }
@@ -429,7 +429,7 @@ nk_angular_i4_ice_cycle:
     *result = nk_angular_normalize_f32_haswell_(ab, (nk_f32_t)a2, (nk_f32_t)b2);
 }
 
-NK_PUBLIC void nk_l2sq_u4_ice(nk_u4x2_t const *a, nk_u4x2_t const *b, nk_size_t n, nk_u32_t *result) {
+NK_PUBLIC void nk_sqeuclidean_u4_ice(nk_u4x2_t const *a, nk_u4x2_t const *b, nk_size_t n, nk_u32_t *result) {
     // u4 values are packed as nibbles: two 4-bit unsigned values per byte.
     // Parameter `n` is the number of 4-bit values (dimensions), not bytes.
     nk_size_t n_bytes = nk_size_divide_round_up_(n, 2);
@@ -447,7 +447,7 @@ NK_PUBLIC void nk_l2sq_u4_ice(nk_u4x2_t const *a, nk_u4x2_t const *b, nk_size_t 
     __m512i diff_low_u8x64, diff_high_u8x64;
     __m512i d2_i32x16 = _mm512_setzero_si512();
 
-nk_l2sq_u4_ice_cycle:
+nk_sqeuclidean_u4_ice_cycle:
     if (n_bytes < 64) {
         __mmask64 mask = (__mmask64)_bzhi_u64(0xFFFFFFFFFFFFFFFF, n_bytes);
         a_u4_vec = _mm512_maskz_loadu_epi8(mask, a);
@@ -475,13 +475,13 @@ nk_l2sq_u4_ice_cycle:
     // Square and accumulate using DPBUSD
     d2_i32x16 = _mm512_dpbusd_epi32(d2_i32x16, diff_low_u8x64, diff_low_u8x64);
     d2_i32x16 = _mm512_dpbusd_epi32(d2_i32x16, diff_high_u8x64, diff_high_u8x64);
-    if (n_bytes) goto nk_l2sq_u4_ice_cycle;
+    if (n_bytes) goto nk_sqeuclidean_u4_ice_cycle;
 
     *result = (nk_u32_t)_mm512_reduce_add_epi32(d2_i32x16);
 }
-NK_PUBLIC void nk_l2_u4_ice(nk_u4x2_t const *a, nk_u4x2_t const *b, nk_size_t n, nk_f32_t *result) {
+NK_PUBLIC void nk_euclidean_u4_ice(nk_u4x2_t const *a, nk_u4x2_t const *b, nk_size_t n, nk_f32_t *result) {
     nk_u32_t d2;
-    nk_l2sq_u4_ice(a, b, n, &d2);
+    nk_sqeuclidean_u4_ice(a, b, n, &d2);
     *result = nk_sqrt_f32_haswell_((nk_f32_t)d2);
 }
 
@@ -573,22 +573,23 @@ NK_INTERNAL void nk_angular_i8x32_finalize_ice(nk_angular_i8x32_state_ice_t cons
                                        target_norm_c, target_norm_d, results);
 }
 
-typedef nk_dot_i8x32_state_ice_t nk_l2_i8x32_state_ice_t;
-NK_INTERNAL void nk_l2_i8x32_init_ice(nk_l2_i8x32_state_ice_t *state) { nk_dot_i8x32_init_ice(state); }
-NK_INTERNAL void nk_l2_i8x32_update_ice(nk_l2_i8x32_state_ice_t *state, nk_b256_vec_t a, nk_b256_vec_t b,
-                                        nk_size_t depth_offset, nk_size_t active_dimensions) {
+typedef nk_dot_i8x32_state_ice_t nk_euclidean_i8x32_state_ice_t;
+NK_INTERNAL void nk_euclidean_i8x32_init_ice(nk_euclidean_i8x32_state_ice_t *state) { nk_dot_i8x32_init_ice(state); }
+NK_INTERNAL void nk_euclidean_i8x32_update_ice(nk_euclidean_i8x32_state_ice_t *state, nk_b256_vec_t a, nk_b256_vec_t b,
+                                               nk_size_t depth_offset, nk_size_t active_dimensions) {
     nk_dot_i8x32_update_ice(state, a, b, depth_offset, active_dimensions);
 }
-NK_INTERNAL void nk_l2_i8x32_finalize_ice(nk_l2_i8x32_state_ice_t const *state_a,
-                                          nk_l2_i8x32_state_ice_t const *state_b,
-                                          nk_l2_i8x32_state_ice_t const *state_c,
-                                          nk_l2_i8x32_state_ice_t const *state_d, nk_f32_t query_norm,
-                                          nk_f32_t target_norm_a, nk_f32_t target_norm_b, nk_f32_t target_norm_c,
-                                          nk_f32_t target_norm_d, nk_size_t total_dimensions, nk_f32_t *results) {
+NK_INTERNAL void nk_euclidean_i8x32_finalize_ice(nk_euclidean_i8x32_state_ice_t const *state_a,
+                                                 nk_euclidean_i8x32_state_ice_t const *state_b,
+                                                 nk_euclidean_i8x32_state_ice_t const *state_c,
+                                                 nk_euclidean_i8x32_state_ice_t const *state_d, nk_f32_t query_norm,
+                                                 nk_f32_t target_norm_a, nk_f32_t target_norm_b, nk_f32_t target_norm_c,
+                                                 nk_f32_t target_norm_d, nk_size_t total_dimensions,
+                                                 nk_f32_t *results) {
     nk_b128_vec_t dots_vec;
     nk_dot_i8x32_finalize_ice(state_a, state_b, state_c, state_d, &dots_vec, total_dimensions);
-    nk_l2_f32x4_finalize_haswell_(_mm_cvtepi32_ps(dots_vec.xmm), query_norm, target_norm_a, target_norm_b,
-                                  target_norm_c, target_norm_d, results);
+    nk_euclidean_f32x4_finalize_haswell_(_mm_cvtepi32_ps(dots_vec.xmm), query_norm, target_norm_a, target_norm_b,
+                                         target_norm_c, target_norm_d, results);
 }
 
 typedef nk_dot_u8x64_state_ice_t nk_angular_u8x64_state_ice_t;
@@ -609,22 +610,23 @@ NK_INTERNAL void nk_angular_u8x64_finalize_ice(nk_angular_u8x64_state_ice_t cons
                                        target_norm_c, target_norm_d, results);
 }
 
-typedef nk_dot_u8x64_state_ice_t nk_l2_u8x64_state_ice_t;
-NK_INTERNAL void nk_l2_u8x64_init_ice(nk_l2_u8x64_state_ice_t *state) { nk_dot_u8x64_init_ice(state); }
-NK_INTERNAL void nk_l2_u8x64_update_ice(nk_l2_u8x64_state_ice_t *state, nk_b512_vec_t a, nk_b512_vec_t b,
-                                        nk_size_t depth_offset, nk_size_t active_dimensions) {
+typedef nk_dot_u8x64_state_ice_t nk_euclidean_u8x64_state_ice_t;
+NK_INTERNAL void nk_euclidean_u8x64_init_ice(nk_euclidean_u8x64_state_ice_t *state) { nk_dot_u8x64_init_ice(state); }
+NK_INTERNAL void nk_euclidean_u8x64_update_ice(nk_euclidean_u8x64_state_ice_t *state, nk_b512_vec_t a, nk_b512_vec_t b,
+                                               nk_size_t depth_offset, nk_size_t active_dimensions) {
     nk_dot_u8x64_update_ice(state, a, b, depth_offset, active_dimensions);
 }
-NK_INTERNAL void nk_l2_u8x64_finalize_ice(nk_l2_u8x64_state_ice_t const *state_a,
-                                          nk_l2_u8x64_state_ice_t const *state_b,
-                                          nk_l2_u8x64_state_ice_t const *state_c,
-                                          nk_l2_u8x64_state_ice_t const *state_d, nk_f32_t query_norm,
-                                          nk_f32_t target_norm_a, nk_f32_t target_norm_b, nk_f32_t target_norm_c,
-                                          nk_f32_t target_norm_d, nk_size_t total_dimensions, nk_f32_t *results) {
+NK_INTERNAL void nk_euclidean_u8x64_finalize_ice(nk_euclidean_u8x64_state_ice_t const *state_a,
+                                                 nk_euclidean_u8x64_state_ice_t const *state_b,
+                                                 nk_euclidean_u8x64_state_ice_t const *state_c,
+                                                 nk_euclidean_u8x64_state_ice_t const *state_d, nk_f32_t query_norm,
+                                                 nk_f32_t target_norm_a, nk_f32_t target_norm_b, nk_f32_t target_norm_c,
+                                                 nk_f32_t target_norm_d, nk_size_t total_dimensions,
+                                                 nk_f32_t *results) {
     nk_b128_vec_t dots_vec;
     nk_dot_u8x64_finalize_ice(state_a, state_b, state_c, state_d, &dots_vec, total_dimensions);
-    nk_l2_f32x4_finalize_haswell_(_mm_cvtepi32_ps(dots_vec.xmm), query_norm, target_norm_a, target_norm_b,
-                                  target_norm_c, target_norm_d, results);
+    nk_euclidean_f32x4_finalize_haswell_(_mm_cvtepi32_ps(dots_vec.xmm), query_norm, target_norm_a, target_norm_b,
+                                         target_norm_c, target_norm_d, results);
 }
 
 #if defined(__cplusplus)

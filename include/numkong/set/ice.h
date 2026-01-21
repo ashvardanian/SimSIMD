@@ -1,12 +1,12 @@
 /**
- *  @brief SIMD-accelerated Binary Similarity Measures optimized for Intel Ice Lake CPUs.
- *  @file include/numkong/binary/ice.h
- *  @sa include/numkong/binary.h
+ *  @brief SIMD-accelerated Set Similarity Measures optimized for Intel Ice Lake CPUs.
+ *  @file include/numkong/set/ice.h
+ *  @sa include/numkong/set.h
  *  @author Ash Vardanian
  *  @date December 27, 2025
  */
-#ifndef NK_BINARY_ICE_H
-#define NK_BINARY_ICE_H
+#ifndef NK_SET_ICE_H
+#define NK_SET_ICE_H
 
 #if NK_TARGET_X86_
 #if NK_TARGET_ICE
@@ -363,4 +363,4 @@ NK_INTERNAL void nk_jaccard_b512_finalize_ice(nk_jaccard_b512_state_ice_t const 
 #endif // NK_TARGET_ICE
 #endif // NK_TARGET_X86_
 
-#endif // NK_BINARY_ICE_H
+#endif // NK_SET_ICE_H

@@ -1,11 +1,11 @@
 /**
- *  @brief SIMD-accelerated Binary Similarity Measures optimized for Arm SVE-capable CPUs.
- *  @file include/numkong/binary/sve.h
- *  @sa include/numkong/binary.h
+ *  @brief SIMD-accelerated Set Similarity Measures optimized for Arm SVE-capable CPUs.
+ *  @file include/numkong/set/sve.h
+ *  @sa include/numkong/set.h
  *  @author Ash Vardanian
  *  @date December 27, 2025
  *
- *  @section binary_sve_instructions ARM SVE Instructions
+ *  @section set_sve_instructions ARM SVE Instructions
  *
  *      Intrinsic                   Instruction                     Latency     Throughput
  *      svld1_u8                    LD1B (Z.B, P/Z, [Xn])           4-6cy       2/cy
@@ -25,8 +25,8 @@
  *      svcntb                      CNTB (Xd)                       1cy         2/cy
  *      svcntw                      CNTW (Xd)                       1cy         2/cy
  */
-#ifndef NK_BINARY_SVE_H
-#define NK_BINARY_SVE_H
+#ifndef NK_SET_SVE_H
+#define NK_SET_SVE_H
 
 #if NK_TARGET_ARM_
 #if NK_TARGET_SVE
@@ -38,9 +38,9 @@
 #endif
 
 #include "numkong/types.h"
-#include "numkong/binary/serial.h" // `nk_popcount_u1`
-#include "numkong/binary/neon.h"   // `nk_hamming_u1_neon`, `nk_jaccard_u1_neon`
-#include "numkong/reduce/neon.h"   // `nk_reduce_add_u8x16_neon_`
+#include "numkong/set/serial.h"  // `nk_popcount_u1`
+#include "numkong/set/neon.h"    // `nk_hamming_u1_neon`, `nk_jaccard_u1_neon`
+#include "numkong/reduce/neon.h" // `nk_reduce_add_u8x16_neon_`
 
 #if defined(__cplusplus)
 extern "C" {
@@ -174,4 +174,4 @@ NK_PUBLIC void nk_jaccard_u16_sve(nk_u16_t const *a, nk_u16_t const *b, nk_size_
 #endif // NK_TARGET_SVE
 #endif // NK_TARGET_ARM_
 
-#endif // NK_BINARY_SVE_H
+#endif // NK_SET_SVE_H

@@ -399,20 +399,20 @@ void vdot(in_type_ const *a, in_type_ const *b, std::size_t d, result_type_ *r) 
  */
 template <typename in_type_, typename result_type_ = typename in_type_::l2sq_result_t,
           allow_simd_t allow_simd_ = prefer_simd_k>
-void l2(in_type_ const *a, in_type_ const *b, std::size_t d, result_type_ *r) noexcept {
+void euclidean(in_type_ const *a, in_type_ const *b, std::size_t d, result_type_ *r) noexcept {
     constexpr bool simd = allow_simd_ == prefer_simd_k &&
                           std::is_same_v<result_type_, typename in_type_::l2sq_result_t>;
 
-    if constexpr (std::is_same_v<in_type_, f64_t> && simd) nk_l2_f64(&a->raw_, &b->raw_, d, &r->raw_);
-    else if constexpr (std::is_same_v<in_type_, f32_t> && simd) nk_l2_f32(&a->raw_, &b->raw_, d, &r->raw_);
-    else if constexpr (std::is_same_v<in_type_, f16_t> && simd) nk_l2_f16(&a->raw_, &b->raw_, d, &r->raw_);
-    else if constexpr (std::is_same_v<in_type_, bf16_t> && simd) nk_l2_bf16(&a->raw_, &b->raw_, d, &r->raw_);
-    else if constexpr (std::is_same_v<in_type_, e4m3_t> && simd) nk_l2_e4m3(&a->raw_, &b->raw_, d, &r->raw_);
-    else if constexpr (std::is_same_v<in_type_, e5m2_t> && simd) nk_l2_e5m2(&a->raw_, &b->raw_, d, &r->raw_);
-    else if constexpr (std::is_same_v<in_type_, i8_t> && simd) nk_l2_i8(&a->raw_, &b->raw_, d, &r->raw_);
-    else if constexpr (std::is_same_v<in_type_, u8_t> && simd) nk_l2_u8(&a->raw_, &b->raw_, d, &r->raw_);
-    else if constexpr (std::is_same_v<in_type_, i4x2_t> && simd) nk_l2_i4(&a->raw_, &b->raw_, d, &r->raw_);
-    else if constexpr (std::is_same_v<in_type_, u4x2_t> && simd) nk_l2_u4(&a->raw_, &b->raw_, d, &r->raw_);
+    if constexpr (std::is_same_v<in_type_, f64_t> && simd) nk_euclidean_f64(&a->raw_, &b->raw_, d, &r->raw_);
+    else if constexpr (std::is_same_v<in_type_, f32_t> && simd) nk_euclidean_f32(&a->raw_, &b->raw_, d, &r->raw_);
+    else if constexpr (std::is_same_v<in_type_, f16_t> && simd) nk_euclidean_f16(&a->raw_, &b->raw_, d, &r->raw_);
+    else if constexpr (std::is_same_v<in_type_, bf16_t> && simd) nk_euclidean_bf16(&a->raw_, &b->raw_, d, &r->raw_);
+    else if constexpr (std::is_same_v<in_type_, e4m3_t> && simd) nk_euclidean_e4m3(&a->raw_, &b->raw_, d, &r->raw_);
+    else if constexpr (std::is_same_v<in_type_, e5m2_t> && simd) nk_euclidean_e5m2(&a->raw_, &b->raw_, d, &r->raw_);
+    else if constexpr (std::is_same_v<in_type_, i8_t> && simd) nk_euclidean_i8(&a->raw_, &b->raw_, d, &r->raw_);
+    else if constexpr (std::is_same_v<in_type_, u8_t> && simd) nk_euclidean_u8(&a->raw_, &b->raw_, d, &r->raw_);
+    else if constexpr (std::is_same_v<in_type_, i4x2_t> && simd) nk_euclidean_i4(&a->raw_, &b->raw_, d, &r->raw_);
+    else if constexpr (std::is_same_v<in_type_, u4x2_t> && simd) nk_euclidean_u4(&a->raw_, &b->raw_, d, &r->raw_);
     // Scalar fallback
     else {
         result_type_ sum {};
@@ -434,20 +434,20 @@ void l2(in_type_ const *a, in_type_ const *b, std::size_t d, result_type_ *r) no
  */
 template <typename in_type_, typename result_type_ = typename in_type_::l2sq_result_t,
           allow_simd_t allow_simd_ = prefer_simd_k>
-void l2sq(in_type_ const *a, in_type_ const *b, std::size_t d, result_type_ *r) noexcept {
+void sqeuclidean(in_type_ const *a, in_type_ const *b, std::size_t d, result_type_ *r) noexcept {
     constexpr bool simd = allow_simd_ == prefer_simd_k &&
                           std::is_same_v<result_type_, typename in_type_::l2sq_result_t>;
 
-    if constexpr (std::is_same_v<in_type_, f64_t> && simd) nk_l2sq_f64(&a->raw_, &b->raw_, d, &r->raw_);
-    else if constexpr (std::is_same_v<in_type_, f32_t> && simd) nk_l2sq_f32(&a->raw_, &b->raw_, d, &r->raw_);
-    else if constexpr (std::is_same_v<in_type_, f16_t> && simd) nk_l2sq_f16(&a->raw_, &b->raw_, d, &r->raw_);
-    else if constexpr (std::is_same_v<in_type_, bf16_t> && simd) nk_l2sq_bf16(&a->raw_, &b->raw_, d, &r->raw_);
-    else if constexpr (std::is_same_v<in_type_, e4m3_t> && simd) nk_l2sq_e4m3(&a->raw_, &b->raw_, d, &r->raw_);
-    else if constexpr (std::is_same_v<in_type_, e5m2_t> && simd) nk_l2sq_e5m2(&a->raw_, &b->raw_, d, &r->raw_);
-    else if constexpr (std::is_same_v<in_type_, i8_t> && simd) nk_l2sq_i8(&a->raw_, &b->raw_, d, &r->raw_);
-    else if constexpr (std::is_same_v<in_type_, u8_t> && simd) nk_l2sq_u8(&a->raw_, &b->raw_, d, &r->raw_);
-    else if constexpr (std::is_same_v<in_type_, i4x2_t> && simd) nk_l2sq_i4(&a->raw_, &b->raw_, d, &r->raw_);
-    else if constexpr (std::is_same_v<in_type_, u4x2_t> && simd) nk_l2sq_u4(&a->raw_, &b->raw_, d, &r->raw_);
+    if constexpr (std::is_same_v<in_type_, f64_t> && simd) nk_sqeuclidean_f64(&a->raw_, &b->raw_, d, &r->raw_);
+    else if constexpr (std::is_same_v<in_type_, f32_t> && simd) nk_sqeuclidean_f32(&a->raw_, &b->raw_, d, &r->raw_);
+    else if constexpr (std::is_same_v<in_type_, f16_t> && simd) nk_sqeuclidean_f16(&a->raw_, &b->raw_, d, &r->raw_);
+    else if constexpr (std::is_same_v<in_type_, bf16_t> && simd) nk_sqeuclidean_bf16(&a->raw_, &b->raw_, d, &r->raw_);
+    else if constexpr (std::is_same_v<in_type_, e4m3_t> && simd) nk_sqeuclidean_e4m3(&a->raw_, &b->raw_, d, &r->raw_);
+    else if constexpr (std::is_same_v<in_type_, e5m2_t> && simd) nk_sqeuclidean_e5m2(&a->raw_, &b->raw_, d, &r->raw_);
+    else if constexpr (std::is_same_v<in_type_, i8_t> && simd) nk_sqeuclidean_i8(&a->raw_, &b->raw_, d, &r->raw_);
+    else if constexpr (std::is_same_v<in_type_, u8_t> && simd) nk_sqeuclidean_u8(&a->raw_, &b->raw_, d, &r->raw_);
+    else if constexpr (std::is_same_v<in_type_, i4x2_t> && simd) nk_sqeuclidean_i4(&a->raw_, &b->raw_, d, &r->raw_);
+    else if constexpr (std::is_same_v<in_type_, u4x2_t> && simd) nk_sqeuclidean_u4(&a->raw_, &b->raw_, d, &r->raw_);
     // Scalar fallback
     else {
         result_type_ sum {};

@@ -1,11 +1,11 @@
 /**
- *  @brief SIMD-accelerated Binary Similarity Measures optimized for Arm NEON-capable CPUs.
- *  @file include/numkong/binary/neon.h
- *  @sa include/numkong/binary.h
+ *  @brief SIMD-accelerated Set Similarity Measures optimized for Arm NEON-capable CPUs.
+ *  @file include/numkong/set/neon.h
+ *  @sa include/numkong/set.h
  *  @author Ash Vardanian
  *  @date December 27, 2025
  *
- *  @section neon_binary_instructions NEON Binary Instructions
+ *  @section neon_set_instructions NEON Set Instructions
  *
  *  Key NEON instructions for binary/bitwise operations (Cortex-A76 class):
  *
@@ -21,8 +21,8 @@
  *  identical across most Apple, Qualcomm, and AWS Graviton chips. As long as we avoid widening
  *  operations and horizontal reductions, we won't face any reasonable bottlenecks.
  */
-#ifndef NK_BINARY_NEON_H
-#define NK_BINARY_NEON_H
+#ifndef NK_SET_NEON_H
+#define NK_SET_NEON_H
 
 #if NK_TARGET_ARM_
 #if NK_TARGET_NEON
@@ -34,8 +34,8 @@
 #endif
 
 #include "numkong/types.h"
-#include "numkong/reduce/neon.h"   // `nk_reduce_add_u8x16_neon_`
-#include "numkong/binary/serial.h" // `nk_popcount_u1`
+#include "numkong/reduce/neon.h" // `nk_reduce_add_u8x16_neon_`
+#include "numkong/set/serial.h"  // `nk_popcount_u1`
 
 #if defined(__cplusplus)
 extern "C" {
@@ -248,4 +248,4 @@ NK_INTERNAL void nk_jaccard_b128_finalize_neon(nk_jaccard_b128_state_neon_t cons
 #endif // NK_TARGET_NEON
 #endif // NK_TARGET_ARM_
 
-#endif // NK_BINARY_NEON_H
+#endif // NK_SET_NEON_H

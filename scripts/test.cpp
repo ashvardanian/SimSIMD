@@ -150,7 +150,7 @@ static test_config_t global_config;
 
 /**
  *  @brief Run a test only if its full name matches the filter.
- *  @param name The test name (e.g., "dot_with_blas", "l2sq_haswell")
+ *  @param name The test name (e.g., "dot_with_blas", "sqeuclidean_haswell")
  *  @param type The type signature (e.g., "f32", "bf16")
  *  @param test_fn The test function that returns error_stats_t
  *  @param args Variadic arguments to forward to the test function
@@ -969,14 +969,14 @@ void test_dot() {
 #pragma region Spatial
 
 /**
- *  @brief Unified L2 squared distance test for float types.
+ *  @brief Unified squared Euclidean distance test for float types.
  *  Works with f32_t, f64_t, f16_t, bf16_t wrapper types.
  */
 template <typename scalar_type_>
-error_stats_t test_l2sq(typename scalar_type_::l2sq_kernel_t kernel) {
+error_stats_t test_sqeuclidean(typename scalar_type_::sqeuclidean_kernel_t kernel) {
     using scalar_t = scalar_type_;
     using raw_t = typename scalar_t::raw_t;
-    using result_t = typename scalar_t::l2sq_result_t;
+    using result_t = typename scalar_t::sqeuclidean_result_t;
 
     error_stats_t stats;
     std::mt19937 generator(global_config.seed);
@@ -990,7 +990,8 @@ error_stats_t test_l2sq(typename scalar_type_::l2sq_kernel_t kernel) {
         kernel(a.raw_values_data(), b.raw_values_data(), dense_dimensions, &result.raw_);
 
         f118_t reference;
-        nk::l2sq<scalar_t, f118_t, nk::no_simd_k>(a.values_data(), b.values_data(), dense_dimensions, &reference);
+        nk::sqeuclidean<scalar_t, f118_t, nk::no_simd_k>(a.values_data(), b.values_data(), dense_dimensions,
+                                                         &reference);
 
         stats.accumulate(result, reference);
     }
@@ -1031,47 +1032,47 @@ void test_spatial() {
 
 #if NK_DYNAMIC_DISPATCH
     // Dynamic dispatch - only test the dispatcher itself
-    run_if_matches("l2sq", "f32", test_l2sq<f32_t>, nk_l2sq_f32);
-    run_if_matches("l2sq", "f64", test_l2sq<f64_t>, nk_l2sq_f64);
-    run_if_matches("l2sq", "f16", test_l2sq<f16_t>, nk_l2sq_f16);
-    run_if_matches("l2sq", "bf16", test_l2sq<bf16_t>, nk_l2sq_bf16);
-    run_if_matches("l2sq", "e2m3", test_l2sq<e2m3_t>, nk_l2sq_e2m3);
-    run_if_matches("l2sq", "e3m2", test_l2sq<e3m2_t>, nk_l2sq_e3m2);
+    run_if_matches("sqeuclidean", "f32", test_sqeuclidean<f32_t>, nk_sqeuclidean_f32);
+    run_if_matches("sqeuclidean", "f64", test_sqeuclidean<f64_t>, nk_sqeuclidean_f64);
+    run_if_matches("sqeuclidean", "f16", test_sqeuclidean<f16_t>, nk_sqeuclidean_f16);
+    run_if_matches("sqeuclidean", "bf16", test_sqeuclidean<bf16_t>, nk_sqeuclidean_bf16);
+    run_if_matches("sqeuclidean", "e2m3", test_sqeuclidean<e2m3_t>, nk_sqeuclidean_e2m3);
+    run_if_matches("sqeuclidean", "e3m2", test_sqeuclidean<e3m2_t>, nk_sqeuclidean_e3m2);
     run_if_matches("angular", "f32", test_angular<f32_t>, nk_angular_f32);
     run_if_matches("angular", "f64", test_angular<f64_t>, nk_angular_f64);
     run_if_matches("angular", "f16", test_angular<f16_t>, nk_angular_f16);
     run_if_matches("angular", "bf16", test_angular<bf16_t>, nk_angular_bf16);
     run_if_matches("angular", "e2m3", test_angular<e2m3_t>, nk_angular_e2m3);
     run_if_matches("angular", "e3m2", test_angular<e3m2_t>, nk_angular_e3m2);
-    run_if_matches("l2sq", "i4", test_l2sq<i4x2_t>, nk_l2sq_i4);
-    run_if_matches("l2sq", "u4", test_l2sq<u4x2_t>, nk_l2sq_u4);
+    run_if_matches("sqeuclidean", "i4", test_sqeuclidean<i4x2_t>, nk_sqeuclidean_i4);
+    run_if_matches("sqeuclidean", "u4", test_sqeuclidean<u4x2_t>, nk_sqeuclidean_u4);
     run_if_matches("angular", "i4", test_angular<i4x2_t>, nk_angular_i4);
     run_if_matches("angular", "u4", test_angular<u4x2_t>, nk_angular_u4);
 #else
     // Static compilation - test all available ISA variants
 
 #if NK_TARGET_NEON
-    run_if_matches("l2sq_neon", "f32", test_l2sq<f32_t>, nk_l2sq_f32_neon);
-    run_if_matches("l2sq_neon", "f64", test_l2sq<f64_t>, nk_l2sq_f64_neon);
+    run_if_matches("sqeuclidean_neon", "f32", test_sqeuclidean<f32_t>, nk_sqeuclidean_f32_neon);
+    run_if_matches("sqeuclidean_neon", "f64", test_sqeuclidean<f64_t>, nk_sqeuclidean_f64_neon);
     run_if_matches("angular_neon", "f32", test_angular<f32_t>, nk_angular_f32_neon);
     run_if_matches("angular_neon", "f64", test_angular<f64_t>, nk_angular_f64_neon);
 #endif // NK_TARGET_NEON
 
 #if NK_TARGET_NEONHALF
-    run_if_matches("l2sq_neonhalf", "f16", test_l2sq<f16_t>, nk_l2sq_f16_neonhalf);
+    run_if_matches("sqeuclidean_neonhalf", "f16", test_sqeuclidean<f16_t>, nk_sqeuclidean_f16_neonhalf);
     run_if_matches("angular_neonhalf", "f16", test_angular<f16_t>, nk_angular_f16_neonhalf);
 #endif // NK_TARGET_NEONHALF
 
 #if NK_TARGET_NEONBFDOT
-    run_if_matches("l2sq_neonbfdot", "bf16", test_l2sq<bf16_t>, nk_l2sq_bf16_neonbfdot);
+    run_if_matches("sqeuclidean_neonbfdot", "bf16", test_sqeuclidean<bf16_t>, nk_sqeuclidean_bf16_neonbfdot);
     run_if_matches("angular_neonbfdot", "bf16", test_angular<bf16_t>, nk_angular_bf16_neonbfdot);
 #endif // NK_TARGET_NEONBFDOT
 
 #if NK_TARGET_HASWELL
-    run_if_matches("l2sq_haswell", "f32", test_l2sq<f32_t>, nk_l2sq_f32_haswell);
-    run_if_matches("l2sq_haswell", "f64", test_l2sq<f64_t>, nk_l2sq_f64_haswell);
-    run_if_matches("l2sq_haswell", "f16", test_l2sq<f16_t>, nk_l2sq_f16_haswell);
-    run_if_matches("l2sq_haswell", "bf16", test_l2sq<bf16_t>, nk_l2sq_bf16_haswell);
+    run_if_matches("sqeuclidean_haswell", "f32", test_sqeuclidean<f32_t>, nk_sqeuclidean_f32_haswell);
+    run_if_matches("sqeuclidean_haswell", "f64", test_sqeuclidean<f64_t>, nk_sqeuclidean_f64_haswell);
+    run_if_matches("sqeuclidean_haswell", "f16", test_sqeuclidean<f16_t>, nk_sqeuclidean_f16_haswell);
+    run_if_matches("sqeuclidean_haswell", "bf16", test_sqeuclidean<bf16_t>, nk_sqeuclidean_bf16_haswell);
     run_if_matches("angular_haswell", "f32", test_angular<f32_t>, nk_angular_f32_haswell);
     run_if_matches("angular_haswell", "f64", test_angular<f64_t>, nk_angular_f64_haswell);
     run_if_matches("angular_haswell", "f16", test_angular<f16_t>, nk_angular_f16_haswell);
@@ -1079,26 +1080,26 @@ void test_spatial() {
 #endif // NK_TARGET_HASWELL
 
 #if NK_TARGET_SKYLAKE
-    run_if_matches("l2sq_skylake", "f32", test_l2sq<f32_t>, nk_l2sq_f32_skylake);
-    run_if_matches("l2sq_skylake", "f64", test_l2sq<f64_t>, nk_l2sq_f64_skylake);
+    run_if_matches("sqeuclidean_skylake", "f32", test_sqeuclidean<f32_t>, nk_sqeuclidean_f32_skylake);
+    run_if_matches("sqeuclidean_skylake", "f64", test_sqeuclidean<f64_t>, nk_sqeuclidean_f64_skylake);
     run_if_matches("angular_skylake", "f32", test_angular<f32_t>, nk_angular_f32_skylake);
     run_if_matches("angular_skylake", "f64", test_angular<f64_t>, nk_angular_f64_skylake);
 #endif // NK_TARGET_SKYLAKE
 
 #if NK_TARGET_ICE
-    run_if_matches("l2sq_ice", "i4", test_l2sq<i4x2_t>, nk_l2sq_i4_ice);
-    run_if_matches("l2sq_ice", "u4", test_l2sq<u4x2_t>, nk_l2sq_u4_ice);
+    run_if_matches("sqeuclidean_ice", "i4", test_sqeuclidean<i4x2_t>, nk_sqeuclidean_i4_ice);
+    run_if_matches("sqeuclidean_ice", "u4", test_sqeuclidean<u4x2_t>, nk_sqeuclidean_u4_ice);
     run_if_matches("angular_ice", "i4", test_angular<i4x2_t>, nk_angular_i4_ice);
     run_if_matches("angular_ice", "u4", test_angular<u4x2_t>, nk_angular_u4_ice);
 #endif // NK_TARGET_ICE
 
 #if NK_TARGET_SPACEMIT
-    run_if_matches("l2sq_spacemit", "f32", test_l2sq<f32_t>, nk_l2sq_f32_spacemit);
-    run_if_matches("l2sq_spacemit", "f64", test_l2sq<f64_t>, nk_l2sq_f64_spacemit);
-    run_if_matches("l2sq_spacemit", "f16", test_l2sq<f16_t>, nk_l2sq_f16_spacemit);
-    run_if_matches("l2sq_spacemit", "bf16", test_l2sq<bf16_t>, nk_l2sq_bf16_spacemit);
-    run_if_matches("l2sq_spacemit", "i4", test_l2sq<i4x2_t>, nk_l2sq_i4_spacemit);
-    run_if_matches("l2sq_spacemit", "u4", test_l2sq<u4x2_t>, nk_l2sq_u4_spacemit);
+    run_if_matches("sqeuclidean_spacemit", "f32", test_sqeuclidean<f32_t>, nk_sqeuclidean_f32_spacemit);
+    run_if_matches("sqeuclidean_spacemit", "f64", test_sqeuclidean<f64_t>, nk_sqeuclidean_f64_spacemit);
+    run_if_matches("sqeuclidean_spacemit", "f16", test_sqeuclidean<f16_t>, nk_sqeuclidean_f16_spacemit);
+    run_if_matches("sqeuclidean_spacemit", "bf16", test_sqeuclidean<bf16_t>, nk_sqeuclidean_bf16_spacemit);
+    run_if_matches("sqeuclidean_spacemit", "i4", test_sqeuclidean<i4x2_t>, nk_sqeuclidean_i4_spacemit);
+    run_if_matches("sqeuclidean_spacemit", "u4", test_sqeuclidean<u4x2_t>, nk_sqeuclidean_u4_spacemit);
     run_if_matches("angular_spacemit", "f32", test_angular<f32_t>, nk_angular_f32_spacemit);
     run_if_matches("angular_spacemit", "f64", test_angular<f64_t>, nk_angular_f64_spacemit);
     run_if_matches("angular_spacemit", "f16", test_angular<f16_t>, nk_angular_f16_spacemit);
@@ -1108,26 +1109,26 @@ void test_spatial() {
 #endif // NK_TARGET_SPACEMIT
 
 #if NK_TARGET_SIFIVE
-    run_if_matches("l2sq_sifive", "f16", test_l2sq<f16_t>, nk_l2sq_f16_sifive);
+    run_if_matches("sqeuclidean_sifive", "f16", test_sqeuclidean<f16_t>, nk_sqeuclidean_f16_sifive);
     run_if_matches("angular_sifive", "f16", test_angular<f16_t>, nk_angular_f16_sifive);
 #endif // NK_TARGET_SIFIVE
 
 #if NK_TARGET_XUANTIE
-    run_if_matches("l2sq_xuantie", "bf16", test_l2sq<bf16_t>, nk_l2sq_bf16_xuantie);
+    run_if_matches("sqeuclidean_xuantie", "bf16", test_sqeuclidean<bf16_t>, nk_sqeuclidean_bf16_xuantie);
     run_if_matches("angular_xuantie", "bf16", test_angular<bf16_t>, nk_angular_bf16_xuantie);
 #endif // NK_TARGET_XUANTIE
 
     // Serial always runs - baseline test
-    run_if_matches("l2sq_serial", "f32", test_l2sq<f32_t>, nk_l2sq_f32_serial);
-    run_if_matches("l2sq_serial", "f64", test_l2sq<f64_t>, nk_l2sq_f64_serial);
-    run_if_matches("l2sq_serial", "f16", test_l2sq<f16_t>, nk_l2sq_f16_serial);
-    run_if_matches("l2sq_serial", "bf16", test_l2sq<bf16_t>, nk_l2sq_bf16_serial);
+    run_if_matches("sqeuclidean_serial", "f32", test_sqeuclidean<f32_t>, nk_sqeuclidean_f32_serial);
+    run_if_matches("sqeuclidean_serial", "f64", test_sqeuclidean<f64_t>, nk_sqeuclidean_f64_serial);
+    run_if_matches("sqeuclidean_serial", "f16", test_sqeuclidean<f16_t>, nk_sqeuclidean_f16_serial);
+    run_if_matches("sqeuclidean_serial", "bf16", test_sqeuclidean<bf16_t>, nk_sqeuclidean_bf16_serial);
     run_if_matches("angular_serial", "f32", test_angular<f32_t>, nk_angular_f32_serial);
     run_if_matches("angular_serial", "f64", test_angular<f64_t>, nk_angular_f64_serial);
     run_if_matches("angular_serial", "f16", test_angular<f16_t>, nk_angular_f16_serial);
     run_if_matches("angular_serial", "bf16", test_angular<bf16_t>, nk_angular_bf16_serial);
-    run_if_matches("l2sq_serial", "i4", test_l2sq<i4x2_t>, nk_l2sq_i4_serial);
-    run_if_matches("l2sq_serial", "u4", test_l2sq<u4x2_t>, nk_l2sq_u4_serial);
+    run_if_matches("sqeuclidean_serial", "i4", test_sqeuclidean<i4x2_t>, nk_sqeuclidean_i4_serial);
+    run_if_matches("sqeuclidean_serial", "u4", test_sqeuclidean<u4x2_t>, nk_sqeuclidean_u4_serial);
     run_if_matches("angular_serial", "i4", test_angular<i4x2_t>, nk_angular_i4_serial);
     run_if_matches("angular_serial", "u4", test_angular<u4x2_t>, nk_angular_u4_serial);
 

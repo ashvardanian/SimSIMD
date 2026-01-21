@@ -84,12 +84,12 @@ int main() {
     nk_angular_bf16(bf16s, bf16s, 1536, &distance);
 
     // Euclidean distance between two vectors
-    nk_l2sq_i8(i8s, i8s, 1536, &distance);
-    nk_l2sq_u8(u8s, u8s, 1536, &distance);
-    nk_l2sq_f16(f16s, f16s, 1536, &distance);
-    nk_l2sq_f32(f32s, f32s, 1536, &distance);
-    nk_l2sq_f64(f64s, f64s, 1536, &distance);
-    nk_l2sq_bf16(bf16s, bf16s, 1536, &distance);
+    nk_sqeuclidean_i8(i8s, i8s, 1536, &distance);
+    nk_sqeuclidean_u8(u8s, u8s, 1536, &distance);
+    nk_sqeuclidean_f16(f16s, f16s, 1536, &distance);
+    nk_sqeuclidean_f32(f32s, f32s, 1536, &distance);
+    nk_sqeuclidean_f64(f64s, f64s, 1536, &distance);
+    nk_sqeuclidean_bf16(bf16s, bf16s, 1536, &distance);
 
     return 0;
 }

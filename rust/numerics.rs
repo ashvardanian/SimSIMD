@@ -92,27 +92,27 @@ extern "C" {
     fn nk_angular_f32(a: *const f32, b: *const f32, c: u64size, d: *mut f32);
     fn nk_angular_f64(a: *const f64, b: *const f64, c: u64size, d: *mut f64);
 
-    fn nk_l2sq_i8(a: *const i8, b: *const i8, c: u64size, d: *mut u32);
-    fn nk_l2sq_u8(a: *const u8, b: *const u8, c: u64size, d: *mut u32);
-    fn nk_l2sq_f16(a: *const u16, b: *const u16, c: u64size, d: *mut f32);
-    fn nk_l2sq_bf16(a: *const u16, b: *const u16, c: u64size, d: *mut f32);
-    fn nk_l2sq_e4m3(a: *const u8, b: *const u8, c: u64size, d: *mut f32);
-    fn nk_l2sq_e5m2(a: *const u8, b: *const u8, c: u64size, d: *mut f32);
-    fn nk_l2sq_e2m3(a: *const u8, b: *const u8, c: u64size, d: *mut f32);
-    fn nk_l2sq_e3m2(a: *const u8, b: *const u8, c: u64size, d: *mut f32);
-    fn nk_l2sq_f32(a: *const f32, b: *const f32, c: u64size, d: *mut f32);
-    fn nk_l2sq_f64(a: *const f64, b: *const f64, c: u64size, d: *mut f64);
+    fn nk_sqeuclidean_i8(a: *const i8, b: *const i8, c: u64size, d: *mut u32);
+    fn nk_sqeuclidean_u8(a: *const u8, b: *const u8, c: u64size, d: *mut u32);
+    fn nk_sqeuclidean_f16(a: *const u16, b: *const u16, c: u64size, d: *mut f32);
+    fn nk_sqeuclidean_bf16(a: *const u16, b: *const u16, c: u64size, d: *mut f32);
+    fn nk_sqeuclidean_e4m3(a: *const u8, b: *const u8, c: u64size, d: *mut f32);
+    fn nk_sqeuclidean_e5m2(a: *const u8, b: *const u8, c: u64size, d: *mut f32);
+    fn nk_sqeuclidean_e2m3(a: *const u8, b: *const u8, c: u64size, d: *mut f32);
+    fn nk_sqeuclidean_e3m2(a: *const u8, b: *const u8, c: u64size, d: *mut f32);
+    fn nk_sqeuclidean_f32(a: *const f32, b: *const f32, c: u64size, d: *mut f32);
+    fn nk_sqeuclidean_f64(a: *const f64, b: *const f64, c: u64size, d: *mut f64);
 
-    fn nk_l2_i8(a: *const i8, b: *const i8, c: u64size, d: *mut f32);
-    fn nk_l2_u8(a: *const u8, b: *const u8, c: u64size, d: *mut f32);
-    fn nk_l2_f16(a: *const u16, b: *const u16, c: u64size, d: *mut f32);
-    fn nk_l2_bf16(a: *const u16, b: *const u16, c: u64size, d: *mut f32);
-    fn nk_l2_e4m3(a: *const u8, b: *const u8, c: u64size, d: *mut f32);
-    fn nk_l2_e5m2(a: *const u8, b: *const u8, c: u64size, d: *mut f32);
-    fn nk_l2_e2m3(a: *const u8, b: *const u8, c: u64size, d: *mut f32);
-    fn nk_l2_e3m2(a: *const u8, b: *const u8, c: u64size, d: *mut f32);
-    fn nk_l2_f32(a: *const f32, b: *const f32, c: u64size, d: *mut f32);
-    fn nk_l2_f64(a: *const f64, b: *const f64, c: u64size, d: *mut f64);
+    fn nk_euclidean_i8(a: *const i8, b: *const i8, c: u64size, d: *mut f32);
+    fn nk_euclidean_u8(a: *const u8, b: *const u8, c: u64size, d: *mut f32);
+    fn nk_euclidean_f16(a: *const u16, b: *const u16, c: u64size, d: *mut f32);
+    fn nk_euclidean_bf16(a: *const u16, b: *const u16, c: u64size, d: *mut f32);
+    fn nk_euclidean_e4m3(a: *const u8, b: *const u8, c: u64size, d: *mut f32);
+    fn nk_euclidean_e5m2(a: *const u8, b: *const u8, c: u64size, d: *mut f32);
+    fn nk_euclidean_e2m3(a: *const u8, b: *const u8, c: u64size, d: *mut f32);
+    fn nk_euclidean_e3m2(a: *const u8, b: *const u8, c: u64size, d: *mut f32);
+    fn nk_euclidean_f32(a: *const f32, b: *const f32, c: u64size, d: *mut f32);
+    fn nk_euclidean_f64(a: *const f64, b: *const f64, c: u64size, d: *mut f64);
 
     fn nk_hamming_u1(a: *const u8, b: *const u8, c: u64size, d: *mut u32);
     fn nk_jaccard_u1(a: *const u8, b: *const u8, c: u64size, d: *mut f32);
@@ -123,10 +123,10 @@ extern "C" {
     // 4-bit integer kernels
     fn nk_dot_i4(a: *const u8, b: *const u8, n: u64size, result: *mut i32);
     fn nk_dot_u4(a: *const u8, b: *const u8, n: u64size, result: *mut u32);
-    fn nk_l2sq_i4(a: *const u8, b: *const u8, n: u64size, result: *mut u32);
-    fn nk_l2sq_u4(a: *const u8, b: *const u8, n: u64size, result: *mut u32);
-    fn nk_l2_i4(a: *const u8, b: *const u8, n: u64size, result: *mut f32);
-    fn nk_l2_u4(a: *const u8, b: *const u8, n: u64size, result: *mut f32);
+    fn nk_sqeuclidean_i4(a: *const u8, b: *const u8, n: u64size, result: *mut u32);
+    fn nk_sqeuclidean_u4(a: *const u8, b: *const u8, n: u64size, result: *mut u32);
+    fn nk_euclidean_i4(a: *const u8, b: *const u8, n: u64size, result: *mut f32);
+    fn nk_euclidean_u4(a: *const u8, b: *const u8, n: u64size, result: *mut f32);
     fn nk_angular_i4(a: *const u8, b: *const u8, n: u64size, result: *mut f32);
     fn nk_angular_u4(a: *const u8, b: *const u8, n: u64size, result: *mut f32);
 
@@ -1646,78 +1646,73 @@ impl Angular for u4x2 {
 
 /// Computes the **Euclidean distance** (L2) between two vectors.
 pub trait Euclidean: Sized {
-    type L2sqOutput;
-    type L2Output;
+    type SqEuclideanOutput;
+    type EuclideanOutput;
 
-    /// Squared Euclidean distance (L2²). Faster than `l2` for comparisons.
-    fn l2sq(a: &[Self], b: &[Self]) -> Option<Self::L2sqOutput>;
+    /// Squared Euclidean distance (L2²). Faster than `euclidean` for comparisons.
+    fn sqeuclidean(a: &[Self], b: &[Self]) -> Option<Self::SqEuclideanOutput>;
 
     /// Euclidean distance (L2). True metric distance.
-    fn l2(a: &[Self], b: &[Self]) -> Option<Self::L2Output>;
-
-    /// Alias for `l2sq` (SciPy compatibility).
-    fn sqeuclidean(a: &[Self], b: &[Self]) -> Option<Self::L2sqOutput> {
-        Self::l2sq(a, b)
-    }
+    fn euclidean(a: &[Self], b: &[Self]) -> Option<Self::EuclideanOutput>;
 }
 
 impl Euclidean for f64 {
-    type L2sqOutput = f64;
-    type L2Output = f64;
+    type SqEuclideanOutput = f64;
+    type EuclideanOutput = f64;
 
-    fn l2sq(a: &[Self], b: &[Self]) -> Option<Self::L2sqOutput> {
+    fn sqeuclidean(a: &[Self], b: &[Self]) -> Option<Self::SqEuclideanOutput> {
         if a.len() != b.len() {
             return None;
         }
-        let mut result: Self::L2sqOutput = 0.0;
-        unsafe { nk_l2sq_f64(a.as_ptr(), b.as_ptr(), a.len() as u64size, &mut result) };
+        let mut result: Self::SqEuclideanOutput = 0.0;
+        unsafe { nk_sqeuclidean_f64(a.as_ptr(), b.as_ptr(), a.len() as u64size, &mut result) };
         Some(result)
     }
 
-    fn l2(a: &[Self], b: &[Self]) -> Option<Self::L2Output> {
+    fn euclidean(a: &[Self], b: &[Self]) -> Option<Self::EuclideanOutput> {
         if a.len() != b.len() {
             return None;
         }
-        let mut result: Self::L2Output = 0.0;
-        unsafe { nk_l2_f64(a.as_ptr(), b.as_ptr(), a.len() as u64size, &mut result) };
+        let mut result: Self::EuclideanOutput = 0.0;
+        unsafe { nk_euclidean_f64(a.as_ptr(), b.as_ptr(), a.len() as u64size, &mut result) };
         Some(result)
     }
 }
 
 impl Euclidean for f32 {
-    type L2sqOutput = f32;
-    type L2Output = f32;
+    type SqEuclideanOutput = f32;
+    type EuclideanOutput = f32;
 
-    fn l2sq(a: &[Self], b: &[Self]) -> Option<Self::L2sqOutput> {
+    fn sqeuclidean(a: &[Self], b: &[Self]) -> Option<Self::SqEuclideanOutput> {
         if a.len() != b.len() {
             return None;
         }
-        let mut result: Self::L2sqOutput = 0.0;
-        unsafe { nk_l2sq_f32(a.as_ptr(), b.as_ptr(), a.len() as u64size, &mut result) };
+        let mut result: Self::SqEuclideanOutput = 0.0;
+        unsafe { nk_sqeuclidean_f32(a.as_ptr(), b.as_ptr(), a.len() as u64size, &mut result) };
         Some(result)
     }
 
-    fn l2(a: &[Self], b: &[Self]) -> Option<Self::L2Output> {
+    fn euclidean(a: &[Self], b: &[Self]) -> Option<Self::EuclideanOutput> {
         if a.len() != b.len() {
             return None;
         }
-        let mut result: Self::L2Output = 0.0;
-        unsafe { nk_l2_f32(a.as_ptr(), b.as_ptr(), a.len() as u64size, &mut result) };
+        let mut result: Self::EuclideanOutput = 0.0;
+        unsafe { nk_euclidean_f32(a.as_ptr(), b.as_ptr(), a.len() as u64size, &mut result) };
         Some(result)
     }
 }
 
 impl Euclidean for f16 {
-    type L2sqOutput = f32;
-    type L2Output = f32;
+    type SqEuclideanOutput = f32;
+    type EuclideanOutput = f32;
 
-    fn l2sq(a: &[Self], b: &[Self]) -> Option<Self::L2sqOutput> {
+    fn sqeuclidean(a: &[Self], b: &[Self]) -> Option<Self::SqEuclideanOutput> {
         if a.len() != b.len() {
             return None;
         }
-        let mut result: Self::L2sqOutput = 0.0;
+        let mut result: Self::SqEuclideanOutput = 0.0;
         unsafe {
-            nk_l2sq_f16(
+            nk_sqeuclidean_f16(
                 a.as_ptr() as *const u16,
                 b.as_ptr() as *const u16,
                 a.len() as u64size,
@@ -1727,13 +1722,13 @@ impl Euclidean for f16 {
         Some(result)
     }
 
-    fn l2(a: &[Self], b: &[Self]) -> Option<Self::L2Output> {
+    fn euclidean(a: &[Self], b: &[Self]) -> Option<Self::EuclideanOutput> {
         if a.len() != b.len() {
             return None;
         }
-        let mut result: Self::L2Output = 0.0;
+        let mut result: Self::EuclideanOutput = 0.0;
         unsafe {
-            nk_l2_f16(
+            nk_euclidean_f16(
                 a.as_ptr() as *const u16,
                 b.as_ptr() as *const u16,
                 a.len() as u64size,
@@ -1745,16 +1740,16 @@ impl Euclidean for f16 {
 }
 
 impl Euclidean for bf16 {
-    type L2sqOutput = f32;
-    type L2Output = f32;
+    type SqEuclideanOutput = f32;
+    type EuclideanOutput = f32;
 
-    fn l2sq(a: &[Self], b: &[Self]) -> Option<Self::L2sqOutput> {
+    fn sqeuclidean(a: &[Self], b: &[Self]) -> Option<Self::SqEuclideanOutput> {
         if a.len() != b.len() {
             return None;
         }
-        let mut result: Self::L2sqOutput = 0.0;
+        let mut result: Self::SqEuclideanOutput = 0.0;
         unsafe {
-            nk_l2sq_bf16(
+            nk_sqeuclidean_bf16(
                 a.as_ptr() as *const u16,
                 b.as_ptr() as *const u16,
                 a.len() as u64size,
@@ -1764,13 +1759,13 @@ impl Euclidean for bf16 {
         Some(result)
     }
 
-    fn l2(a: &[Self], b: &[Self]) -> Option<Self::L2Output> {
+    fn euclidean(a: &[Self], b: &[Self]) -> Option<Self::EuclideanOutput> {
         if a.len() != b.len() {
             return None;
         }
-        let mut result: Self::L2Output = 0.0;
+        let mut result: Self::EuclideanOutput = 0.0;
         unsafe {
-            nk_l2_bf16(
+            nk_euclidean_bf16(
                 a.as_ptr() as *const u16,
                 b.as_ptr() as *const u16,
                 a.len() as u64size,
@@ -1782,62 +1777,62 @@ impl Euclidean for bf16 {
 }
 
 impl Euclidean for i8 {
-    type L2sqOutput = u32;
-    type L2Output = f32;
+    type SqEuclideanOutput = u32;
+    type EuclideanOutput = f32;
 
-    fn l2sq(a: &[Self], b: &[Self]) -> Option<Self::L2sqOutput> {
+    fn sqeuclidean(a: &[Self], b: &[Self]) -> Option<Self::SqEuclideanOutput> {
         if a.len() != b.len() {
             return None;
         }
-        let mut result: Self::L2sqOutput = 0;
-        unsafe { nk_l2sq_i8(a.as_ptr(), b.as_ptr(), a.len() as u64size, &mut result) };
+        let mut result: Self::SqEuclideanOutput = 0;
+        unsafe { nk_sqeuclidean_i8(a.as_ptr(), b.as_ptr(), a.len() as u64size, &mut result) };
         Some(result)
     }
 
-    fn l2(a: &[Self], b: &[Self]) -> Option<Self::L2Output> {
+    fn euclidean(a: &[Self], b: &[Self]) -> Option<Self::EuclideanOutput> {
         if a.len() != b.len() {
             return None;
         }
-        let mut result: Self::L2Output = 0.0;
-        unsafe { nk_l2_i8(a.as_ptr(), b.as_ptr(), a.len() as u64size, &mut result) };
+        let mut result: Self::EuclideanOutput = 0.0;
+        unsafe { nk_euclidean_i8(a.as_ptr(), b.as_ptr(), a.len() as u64size, &mut result) };
         Some(result)
     }
 }
 
 impl Euclidean for u8 {
-    type L2sqOutput = u32;
-    type L2Output = f32;
+    type SqEuclideanOutput = u32;
+    type EuclideanOutput = f32;
 
-    fn l2sq(a: &[Self], b: &[Self]) -> Option<Self::L2sqOutput> {
+    fn sqeuclidean(a: &[Self], b: &[Self]) -> Option<Self::SqEuclideanOutput> {
         if a.len() != b.len() {
             return None;
         }
-        let mut result: Self::L2sqOutput = 0;
-        unsafe { nk_l2sq_u8(a.as_ptr(), b.as_ptr(), a.len() as u64size, &mut result) };
+        let mut result: Self::SqEuclideanOutput = 0;
+        unsafe { nk_sqeuclidean_u8(a.as_ptr(), b.as_ptr(), a.len() as u64size, &mut result) };
         Some(result)
     }
 
-    fn l2(a: &[Self], b: &[Self]) -> Option<Self::L2Output> {
+    fn euclidean(a: &[Self], b: &[Self]) -> Option<Self::EuclideanOutput> {
         if a.len() != b.len() {
             return None;
         }
-        let mut result: Self::L2Output = 0.0;
-        unsafe { nk_l2_u8(a.as_ptr(), b.as_ptr(), a.len() as u64size, &mut result) };
+        let mut result: Self::EuclideanOutput = 0.0;
+        unsafe { nk_euclidean_u8(a.as_ptr(), b.as_ptr(), a.len() as u64size, &mut result) };
         Some(result)
     }
 }
 
 impl Euclidean for e4m3 {
-    type L2sqOutput = f32;
-    type L2Output = f32;
+    type SqEuclideanOutput = f32;
+    type EuclideanOutput = f32;
 
-    fn l2sq(a: &[Self], b: &[Self]) -> Option<Self::L2sqOutput> {
+    fn sqeuclidean(a: &[Self], b: &[Self]) -> Option<Self::SqEuclideanOutput> {
         if a.len() != b.len() {
             return None;
         }
-        let mut result: Self::L2sqOutput = 0.0;
+        let mut result: Self::SqEuclideanOutput = 0.0;
         unsafe {
-            nk_l2sq_e4m3(
+            nk_sqeuclidean_e4m3(
                 a.as_ptr() as *const u8,
                 b.as_ptr() as *const u8,
                 a.len() as u64size,
@@ -1847,13 +1842,13 @@ impl Euclidean for e4m3 {
         Some(result)
     }
 
-    fn l2(a: &[Self], b: &[Self]) -> Option<Self::L2Output> {
+    fn euclidean(a: &[Self], b: &[Self]) -> Option<Self::EuclideanOutput> {
         if a.len() != b.len() {
             return None;
         }
-        let mut result: Self::L2Output = 0.0;
+        let mut result: Self::EuclideanOutput = 0.0;
         unsafe {
-            nk_l2_e4m3(
+            nk_euclidean_e4m3(
                 a.as_ptr() as *const u8,
                 b.as_ptr() as *const u8,
                 a.len() as u64size,
@@ -1865,16 +1860,16 @@ impl Euclidean for e4m3 {
 }
 
 impl Euclidean for e5m2 {
-    type L2sqOutput = f32;
-    type L2Output = f32;
+    type SqEuclideanOutput = f32;
+    type EuclideanOutput = f32;
 
-    fn l2sq(a: &[Self], b: &[Self]) -> Option<Self::L2sqOutput> {
+    fn sqeuclidean(a: &[Self], b: &[Self]) -> Option<Self::SqEuclideanOutput> {
         if a.len() != b.len() {
             return None;
         }
-        let mut result: Self::L2sqOutput = 0.0;
+        let mut result: Self::SqEuclideanOutput = 0.0;
         unsafe {
-            nk_l2sq_e5m2(
+            nk_sqeuclidean_e5m2(
                 a.as_ptr() as *const u8,
                 b.as_ptr() as *const u8,
                 a.len() as u64size,
@@ -1884,13 +1879,13 @@ impl Euclidean for e5m2 {
         Some(result)
     }
 
-    fn l2(a: &[Self], b: &[Self]) -> Option<Self::L2Output> {
+    fn euclidean(a: &[Self], b: &[Self]) -> Option<Self::EuclideanOutput> {
         if a.len() != b.len() {
             return None;
         }
-        let mut result: Self::L2Output = 0.0;
+        let mut result: Self::EuclideanOutput = 0.0;
         unsafe {
-            nk_l2_e5m2(
+            nk_euclidean_e5m2(
                 a.as_ptr() as *const u8,
                 b.as_ptr() as *const u8,
                 a.len() as u64size,
@@ -1902,16 +1897,16 @@ impl Euclidean for e5m2 {
 }
 
 impl Euclidean for e2m3 {
-    type L2sqOutput = f32;
-    type L2Output = f32;
+    type SqEuclideanOutput = f32;
+    type EuclideanOutput = f32;
 
-    fn l2sq(a: &[Self], b: &[Self]) -> Option<Self::L2sqOutput> {
+    fn sqeuclidean(a: &[Self], b: &[Self]) -> Option<Self::SqEuclideanOutput> {
         if a.len() != b.len() {
             return None;
         }
-        let mut result: Self::L2sqOutput = 0.0;
+        let mut result: Self::SqEuclideanOutput = 0.0;
         unsafe {
-            nk_l2sq_e2m3(
+            nk_sqeuclidean_e2m3(
                 a.as_ptr() as *const u8,
                 b.as_ptr() as *const u8,
                 a.len() as u64size,
@@ -1921,13 +1916,13 @@ impl Euclidean for e2m3 {
         Some(result)
     }
 
-    fn l2(a: &[Self], b: &[Self]) -> Option<Self::L2Output> {
+    fn euclidean(a: &[Self], b: &[Self]) -> Option<Self::EuclideanOutput> {
         if a.len() != b.len() {
             return None;
         }
-        let mut result: Self::L2Output = 0.0;
+        let mut result: Self::EuclideanOutput = 0.0;
         unsafe {
-            nk_l2_e2m3(
+            nk_euclidean_e2m3(
                 a.as_ptr() as *const u8,
                 b.as_ptr() as *const u8,
                 a.len() as u64size,
@@ -1939,16 +1934,16 @@ impl Euclidean for e2m3 {
 }
 
 impl Euclidean for e3m2 {
-    type L2sqOutput = f32;
-    type L2Output = f32;
+    type SqEuclideanOutput = f32;
+    type EuclideanOutput = f32;
 
-    fn l2sq(a: &[Self], b: &[Self]) -> Option<Self::L2sqOutput> {
+    fn sqeuclidean(a: &[Self], b: &[Self]) -> Option<Self::SqEuclideanOutput> {
         if a.len() != b.len() {
             return None;
         }
-        let mut result: Self::L2sqOutput = 0.0;
+        let mut result: Self::SqEuclideanOutput = 0.0;
         unsafe {
-            nk_l2sq_e3m2(
+            nk_sqeuclidean_e3m2(
                 a.as_ptr() as *const u8,
                 b.as_ptr() as *const u8,
                 a.len() as u64size,
@@ -1958,13 +1953,13 @@ impl Euclidean for e3m2 {
         Some(result)
     }
 
-    fn l2(a: &[Self], b: &[Self]) -> Option<Self::L2Output> {
+    fn euclidean(a: &[Self], b: &[Self]) -> Option<Self::EuclideanOutput> {
         if a.len() != b.len() {
             return None;
         }
-        let mut result: Self::L2Output = 0.0;
+        let mut result: Self::EuclideanOutput = 0.0;
         unsafe {
-            nk_l2_e3m2(
+            nk_euclidean_e3m2(
                 a.as_ptr() as *const u8,
                 b.as_ptr() as *const u8,
                 a.len() as u64size,
@@ -1976,17 +1971,17 @@ impl Euclidean for e3m2 {
 }
 
 impl Euclidean for i4x2 {
-    type L2sqOutput = u32;
-    type L2Output = f32;
+    type SqEuclideanOutput = u32;
+    type EuclideanOutput = f32;
 
-    fn l2sq(a: &[Self], b: &[Self]) -> Option<Self::L2sqOutput> {
+    fn sqeuclidean(a: &[Self], b: &[Self]) -> Option<Self::SqEuclideanOutput> {
         if a.len() != b.len() {
             return None;
         }
-        let mut result: Self::L2sqOutput = 0;
+        let mut result: Self::SqEuclideanOutput = 0;
         let n = (a.len() * 2) as u64size; // Each i4x2 contains 2 elements
         unsafe {
-            nk_l2sq_i4(
+            nk_sqeuclidean_i4(
                 a.as_ptr() as *const u8,
                 b.as_ptr() as *const u8,
                 n,
@@ -1996,14 +1991,14 @@ impl Euclidean for i4x2 {
         Some(result)
     }
 
-    fn l2(a: &[Self], b: &[Self]) -> Option<Self::L2Output> {
+    fn euclidean(a: &[Self], b: &[Self]) -> Option<Self::EuclideanOutput> {
         if a.len() != b.len() {
             return None;
         }
-        let mut result: Self::L2Output = 0.0;
+        let mut result: Self::EuclideanOutput = 0.0;
         let n = (a.len() * 2) as u64size; // Each i4x2 contains 2 elements
         unsafe {
-            nk_l2_i4(
+            nk_euclidean_i4(
                 a.as_ptr() as *const u8,
                 b.as_ptr() as *const u8,
                 n,
@@ -2015,17 +2010,17 @@ impl Euclidean for i4x2 {
 }
 
 impl Euclidean for u4x2 {
-    type L2sqOutput = u32;
-    type L2Output = f32;
+    type SqEuclideanOutput = u32;
+    type EuclideanOutput = f32;
 
-    fn l2sq(a: &[Self], b: &[Self]) -> Option<Self::L2sqOutput> {
+    fn sqeuclidean(a: &[Self], b: &[Self]) -> Option<Self::SqEuclideanOutput> {
         if a.len() != b.len() {
             return None;
         }
-        let mut result: Self::L2sqOutput = 0;
+        let mut result: Self::SqEuclideanOutput = 0;
         let n = (a.len() * 2) as u64size; // Each u4x2 contains 2 elements
         unsafe {
-            nk_l2sq_u4(
+            nk_sqeuclidean_u4(
                 a.as_ptr() as *const u8,
                 b.as_ptr() as *const u8,
                 n,
@@ -2035,14 +2030,14 @@ impl Euclidean for u4x2 {
         Some(result)
     }
 
-    fn l2(a: &[Self], b: &[Self]) -> Option<Self::L2Output> {
+    fn euclidean(a: &[Self], b: &[Self]) -> Option<Self::EuclideanOutput> {
         if a.len() != b.len() {
             return None;
         }
-        let mut result: Self::L2Output = 0.0;
+        let mut result: Self::EuclideanOutput = 0.0;
         let n = (a.len() * 2) as u64size; // Each u4x2 contains 2 elements
         unsafe {
-            nk_l2_u4(
+            nk_euclidean_u4(
                 a.as_ptr() as *const u8,
                 b.as_ptr() as *const u8,
                 n,
@@ -5601,23 +5596,23 @@ mod tests {
     }
 
     #[test]
-    fn l2_f32() {
+    fn euclidean_f32() {
         let a = vec![1.0f32, 2.0, 3.0];
         let b = vec![4.0f32, 5.0, 6.0];
-        let result = f32::l2sq(&a, &b).unwrap();
+        let result = f32::sqeuclidean(&a, &b).unwrap();
         assert!((result - 27.0).abs() < 0.01);
     }
 
     #[test]
-    fn l2_f64() {
+    fn euclidean_f64() {
         let a = vec![1.0f64, 2.0, 3.0];
         let b = vec![4.0f64, 5.0, 6.0];
-        let result = f64::l2sq(&a, &b).unwrap();
+        let result = f64::sqeuclidean(&a, &b).unwrap();
         assert!((result - 27.0).abs() < 0.01);
     }
 
     #[test]
-    fn l2_f16() {
+    fn euclidean_f16() {
         let a: Vec<f16> = vec![1.0, 2.0, 3.0]
             .iter()
             .map(|&x| f16::from_f32(x))
@@ -5626,7 +5621,7 @@ mod tests {
             .iter()
             .map(|&x| f16::from_f32(x))
             .collect();
-        let result = f16::l2sq(&a, &b).unwrap();
+        let result = f16::sqeuclidean(&a, &b).unwrap();
         assert!((result - 27.0).abs() < 1.0);
     }
 

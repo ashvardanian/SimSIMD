@@ -43,7 +43,8 @@
 extern "C" {
 #endif
 
-NK_PUBLIC void nk_l2sq_f16_svehalf(nk_f16_t const *a_enum, nk_f16_t const *b_enum, nk_size_t n, nk_f32_t *result) {
+NK_PUBLIC void nk_sqeuclidean_f16_svehalf(nk_f16_t const *a_enum, nk_f16_t const *b_enum, nk_size_t n,
+                                          nk_f32_t *result) {
     nk_size_t i = 0;
     svfloat32_t d2_vec = svdup_n_f32(0.0f);
     nk_f16_for_arm_simd_t const *a = (nk_f16_for_arm_simd_t const *)(a_enum);
@@ -61,8 +62,8 @@ NK_PUBLIC void nk_l2sq_f16_svehalf(nk_f16_t const *a_enum, nk_f16_t const *b_enu
     *result = svaddv_f32(svptrue_b32(), d2_vec);
 }
 
-NK_PUBLIC void nk_l2_f16_svehalf(nk_f16_t const *a, nk_f16_t const *b, nk_size_t n, nk_f32_t *result) {
-    nk_l2sq_f16_svehalf(a, b, n, result);
+NK_PUBLIC void nk_euclidean_f16_svehalf(nk_f16_t const *a, nk_f16_t const *b, nk_size_t n, nk_f32_t *result) {
+    nk_sqeuclidean_f16_svehalf(a, b, n, result);
     *result = nk_f32_sqrt_neon(*result);
 }
 

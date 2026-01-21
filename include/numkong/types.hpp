@@ -109,7 +109,7 @@ struct f32_t {
 
     using dot_result_t = f32_t;         // `nk_dot_f32` output
     using reduce_add_result_t = f64_t;  // `nk_reduce_add_f32` widened output
-    using l2sq_result_t = f32_t;        // `nk_l2sq_f32` output
+    using sqeuclidean_result_t = f32_t; // `nk_sqeuclidean_f32` output
     using angular_result_t = f32_t;     // `nk_angular_f32` output
     using bilinear_result_t = f32_t;    // `nk_bilinear_f32` output
     using mahalanobis_result_t = f32_t; // `nk_mahalanobis_f32` output
@@ -140,7 +140,7 @@ struct f32_t {
     static constexpr double umeyama_tolerance() noexcept { return 1e-4; }
 
     using dot_kernel_t = void (*)(raw_t const *, raw_t const *, nk_size_t, nk_f32_t *);
-    using l2sq_kernel_t = void (*)(raw_t const *, raw_t const *, nk_size_t, nk_f32_t *);
+    using sqeuclidean_kernel_t = void (*)(raw_t const *, raw_t const *, nk_size_t, nk_f32_t *);
     using angular_kernel_t = void (*)(raw_t const *, raw_t const *, nk_size_t, nk_f32_t *);
     using kld_kernel_t = void (*)(raw_t const *, raw_t const *, nk_size_t, nk_f32_t *);
     using jsd_kernel_t = void (*)(raw_t const *, raw_t const *, nk_size_t, nk_f32_t *);
@@ -359,7 +359,7 @@ struct f64_t {
 
     using dot_result_t = f64_t;         // `nk_dot_f64` output
     using reduce_add_result_t = f64_t;  // `nk_reduce_add_f64` output
-    using l2sq_result_t = f64_t;        // `nk_l2sq_f64` output
+    using sqeuclidean_result_t = f64_t; // `nk_sqeuclidean_f64` output
     using angular_result_t = f64_t;     // `nk_angular_f64` output
     using bilinear_result_t = f64_t;    // `nk_bilinear_f64` output
     using mahalanobis_result_t = f64_t; // `nk_mahalanobis_f64` output
@@ -389,7 +389,7 @@ struct f64_t {
     static constexpr double umeyama_tolerance() noexcept { return 1e-9; }
 
     using dot_kernel_t = void (*)(raw_t const *, raw_t const *, nk_size_t, nk_f64_t *);
-    using l2sq_kernel_t = void (*)(raw_t const *, raw_t const *, nk_size_t, nk_f64_t *);
+    using sqeuclidean_kernel_t = void (*)(raw_t const *, raw_t const *, nk_size_t, nk_f64_t *);
     using angular_kernel_t = void (*)(raw_t const *, raw_t const *, nk_size_t, nk_f64_t *);
     using kld_kernel_t = void (*)(raw_t const *, raw_t const *, nk_size_t, nk_f64_t *);
     using jsd_kernel_t = void (*)(raw_t const *, raw_t const *, nk_size_t, nk_f64_t *);
@@ -1071,14 +1071,14 @@ struct f16_t {
     using raw_t = nk_f16_t;
     using uint_t = nk_u16_t;
 
-    using dot_result_t = f32_t;        // `nk_dot_f16` output (widened)
-    using reduce_add_result_t = f32_t; // `nk_reduce_add_f16` output (widened)
-    using l2sq_result_t = f32_t;       // `nk_l2sq_f16` output (widened)
-    using angular_result_t = f32_t;    // `nk_angular_f16` output (widened)
+    using dot_result_t = f32_t;         // `nk_dot_f16` output (widened)
+    using reduce_add_result_t = f32_t;  // `nk_reduce_add_f16` output (widened)
+    using sqeuclidean_result_t = f32_t; // `nk_sqeuclidean_f16` output (widened)
+    using angular_result_t = f32_t;     // `nk_angular_f16` output (widened)
     using scale_t = nk_f32_t;
 
     using dot_kernel_t = void (*)(raw_t const *, raw_t const *, nk_size_t, nk_f32_t *);
-    using l2sq_kernel_t = void (*)(raw_t const *, raw_t const *, nk_size_t, nk_f32_t *);
+    using sqeuclidean_kernel_t = void (*)(raw_t const *, raw_t const *, nk_size_t, nk_f32_t *);
     using angular_kernel_t = void (*)(raw_t const *, raw_t const *, nk_size_t, nk_f32_t *);
     using trig_kernel_t = void (*)(raw_t const *, nk_size_t, raw_t *);
     using dots_packed_size_kernel_t = nk_size_t (*)(nk_size_t, nk_size_t);
@@ -1278,14 +1278,14 @@ struct bf16_t {
     using raw_t = nk_bf16_t;
     using uint_t = nk_u16_t;
 
-    using dot_result_t = f32_t;        // `nk_dot_bf16` output (widened)
-    using reduce_add_result_t = f32_t; // `nk_reduce_add_bf16` output (widened)
-    using l2sq_result_t = f32_t;       // `nk_l2sq_bf16` output (widened)
-    using angular_result_t = f32_t;    // `nk_angular_bf16` output (widened)
+    using dot_result_t = f32_t;         // `nk_dot_bf16` output (widened)
+    using reduce_add_result_t = f32_t;  // `nk_reduce_add_bf16` output (widened)
+    using sqeuclidean_result_t = f32_t; // `nk_sqeuclidean_bf16` output (widened)
+    using angular_result_t = f32_t;     // `nk_angular_bf16` output (widened)
     using scale_t = nk_f32_t;
 
     using dot_kernel_t = void (*)(raw_t const *, raw_t const *, nk_size_t, nk_f32_t *);
-    using l2sq_kernel_t = void (*)(raw_t const *, raw_t const *, nk_size_t, nk_f32_t *);
+    using sqeuclidean_kernel_t = void (*)(raw_t const *, raw_t const *, nk_size_t, nk_f32_t *);
     using angular_kernel_t = void (*)(raw_t const *, raw_t const *, nk_size_t, nk_f32_t *);
     using dots_packed_size_kernel_t = nk_size_t (*)(nk_size_t, nk_size_t);
     using dots_pack_kernel_t = void (*)(raw_t const *, nk_size_t, nk_size_t, nk_size_t, void *);
@@ -1687,9 +1687,9 @@ struct e4m3_t {
     using raw_t = nk_e4m3_t;
     using uint_t = nk_u8_t;
 
-    using dot_result_t = f32_t;        // `nk_dot_e4m3` output (widened)
-    using reduce_add_result_t = f32_t; // `nk_reduce_add_e4m3` output (widened)
-    using l2sq_result_t = f32_t;       // `nk_l2sq_e4m3` output (widened)
+    using dot_result_t = f32_t;         // `nk_dot_e4m3` output (widened)
+    using reduce_add_result_t = f32_t;  // `nk_reduce_add_e4m3` output (widened)
+    using sqeuclidean_result_t = f32_t; // `nk_sqeuclidean_e4m3` output (widened)
     using scale_t = nk_f32_t;
 
     using dot_kernel_t = void (*)(raw_t const *, raw_t const *, nk_size_t, nk_f32_t *);
@@ -1890,9 +1890,9 @@ struct e5m2_t {
     using raw_t = nk_e5m2_t;
     using uint_t = nk_u8_t;
 
-    using dot_result_t = f32_t;        // `nk_dot_e5m2` output (widened)
-    using reduce_add_result_t = f32_t; // `nk_reduce_add_e5m2` output (widened)
-    using l2sq_result_t = f32_t;       // `nk_l2sq_e5m2` output (widened)
+    using dot_result_t = f32_t;         // `nk_dot_e5m2` output (widened)
+    using reduce_add_result_t = f32_t;  // `nk_reduce_add_e5m2` output (widened)
+    using sqeuclidean_result_t = f32_t; // `nk_sqeuclidean_e5m2` output (widened)
     using scale_t = nk_f32_t;
 
     using dot_kernel_t = void (*)(raw_t const *, raw_t const *, nk_size_t, nk_f32_t *);
@@ -2094,7 +2094,7 @@ struct e2m3_t {
 
     using dot_result_t = f32_t;
     using reduce_add_result_t = f32_t;
-    using l2sq_result_t = f32_t;
+    using sqeuclidean_result_t = f32_t;
     using scale_t = nk_f32_t;
 
     using dot_kernel_t = void (*)(raw_t const *, raw_t const *, nk_size_t, nk_f32_t *);
@@ -2250,7 +2250,7 @@ struct e3m2_t {
 
     using dot_result_t = f32_t;
     using reduce_add_result_t = f32_t;
-    using l2sq_result_t = f32_t;
+    using sqeuclidean_result_t = f32_t;
     using scale_t = nk_f32_t;
 
     using dot_kernel_t = void (*)(raw_t const *, raw_t const *, nk_size_t, nk_f32_t *);
@@ -3259,9 +3259,9 @@ struct i8_t {
     using raw_t = nk_i8_t;
     using unsigned_t = nk_u8_t;
 
-    using dot_result_t = i32_t;        // `nk_dot_i8` output (widened)
-    using reduce_add_result_t = i64_t; // `nk_reduce_add_i8` widened output
-    using l2sq_result_t = u32_t;       // `nk_l2sq_i8` output (widened)
+    using dot_result_t = i32_t;         // `nk_dot_i8` output (widened)
+    using reduce_add_result_t = i64_t;  // `nk_reduce_add_i8` widened output
+    using sqeuclidean_result_t = u32_t; // `nk_sqeuclidean_i8` output (widened)
 
     using dot_kernel_t = void (*)(raw_t const *, raw_t const *, nk_size_t, nk_i32_t *);
     using dots_symmetric_kernel_t = void (*)(raw_t const *, nk_size_t, nk_size_t, nk_size_t, nk_i32_t *, nk_size_t);
@@ -3403,10 +3403,10 @@ struct u8_t {
     using raw_t = nk_u8_t;
     using signed_t = nk_i8_t;
 
-    using dot_result_t = u32_t;        // `nk_dot_u8` output (widened)
-    using reduce_add_result_t = u64_t; // `nk_reduce_add_u8` widened output
-    using l2sq_result_t = u32_t;       // `nk_l2sq_u8` output (widened)
-    using hamming_result_t = u32_t;    // `nk_hamming_u8` output
+    using dot_result_t = u32_t;         // `nk_dot_u8` output (widened)
+    using reduce_add_result_t = u64_t;  // `nk_reduce_add_u8` widened output
+    using sqeuclidean_result_t = u32_t; // `nk_sqeuclidean_u8` output (widened)
+    using hamming_result_t = u32_t;     // `nk_hamming_u8` output
 
     using dots_symmetric_kernel_t = void (*)(raw_t const *, nk_size_t, nk_size_t, nk_size_t, nk_u32_t *, nk_size_t);
     using dot_kernel_t = void (*)(raw_t const *, raw_t const *, nk_size_t, nk_u32_t *);
@@ -4390,12 +4390,12 @@ struct i4x2_t {
     using element_t = nk_i8_t; // Elements widen to i8 for arithmetic
 
     using dot_result_t = i32_t;
-    using l2sq_result_t = u32_t;
+    using sqeuclidean_result_t = u32_t;
     using angular_result_t = f32_t;
 
     using dots_symmetric_kernel_t = void (*)(raw_t const *, nk_size_t, nk_size_t, nk_size_t, nk_i32_t *, nk_size_t);
     using dot_kernel_t = void (*)(raw_t const *, raw_t const *, nk_size_t, nk_i32_t *);
-    using l2sq_kernel_t = void (*)(raw_t const *, raw_t const *, nk_size_t, nk_u32_t *);
+    using sqeuclidean_kernel_t = void (*)(raw_t const *, raw_t const *, nk_size_t, nk_u32_t *);
     using angular_kernel_t = void (*)(raw_t const *, raw_t const *, nk_size_t, nk_f32_t *);
     using dots_packed_size_kernel_t = nk_size_t (*)(nk_size_t, nk_size_t);
     using dots_pack_kernel_t = void (*)(raw_t const *, nk_size_t, nk_size_t, nk_size_t, void *);
@@ -4492,12 +4492,12 @@ struct u4x2_t {
     using element_t = nk_u8_t; // Elements widen to u8 for arithmetic
 
     using dot_result_t = u32_t;
-    using l2sq_result_t = u32_t;
+    using sqeuclidean_result_t = u32_t;
     using angular_result_t = f32_t;
     using dots_symmetric_kernel_t = void (*)(raw_t const *, nk_size_t, nk_size_t, nk_size_t, nk_u32_t *, nk_size_t);
 
     using dot_kernel_t = void (*)(raw_t const *, raw_t const *, nk_size_t, nk_u32_t *);
-    using l2sq_kernel_t = void (*)(raw_t const *, raw_t const *, nk_size_t, nk_u32_t *);
+    using sqeuclidean_kernel_t = void (*)(raw_t const *, raw_t const *, nk_size_t, nk_u32_t *);
     using angular_kernel_t = void (*)(raw_t const *, raw_t const *, nk_size_t, nk_f32_t *);
     using dots_packed_size_kernel_t = nk_size_t (*)(nk_size_t, nk_size_t);
     using dots_pack_kernel_t = void (*)(raw_t const *, nk_size_t, nk_size_t, nk_size_t, void *);

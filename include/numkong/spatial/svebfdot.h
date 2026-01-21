@@ -47,7 +47,8 @@
 extern "C" {
 #endif
 
-NK_PUBLIC void nk_l2sq_bf16_svebfdot(nk_bf16_t const *a_enum, nk_bf16_t const *b_enum, nk_size_t n, nk_f32_t *result) {
+NK_PUBLIC void nk_sqeuclidean_bf16_svebfdot(nk_bf16_t const *a_enum, nk_bf16_t const *b_enum, nk_size_t n,
+                                            nk_f32_t *result) {
     nk_size_t i = 0;
     svfloat32_t d2_low_vec = svdupq_n_f32(0.f, 0.f, 0.f, 0.f);
     svfloat32_t d2_high_vec = svdupq_n_f32(0.f, 0.f, 0.f, 0.f);
@@ -75,8 +76,8 @@ NK_PUBLIC void nk_l2sq_bf16_svebfdot(nk_bf16_t const *a_enum, nk_bf16_t const *b
     nk_f32_t d2 = svaddv_f32(svptrue_b32(), d2_low_vec) + svaddv_f32(svptrue_b32(), d2_high_vec);
     *result = d2;
 }
-NK_PUBLIC void nk_l2_bf16_svebfdot(nk_bf16_t const *a, nk_bf16_t const *b, nk_size_t n, nk_f32_t *result) {
-    nk_l2sq_bf16_svebfdot(a, b, n, result);
+NK_PUBLIC void nk_euclidean_bf16_svebfdot(nk_bf16_t const *a, nk_bf16_t const *b, nk_size_t n, nk_f32_t *result) {
+    nk_sqeuclidean_bf16_svebfdot(a, b, n, result);
     *result = nk_f32_sqrt_neon(*result);
 }
 

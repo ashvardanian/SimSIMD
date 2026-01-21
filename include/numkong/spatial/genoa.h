@@ -73,11 +73,11 @@ NK_INTERNAL __m512i nk_substract_bf16x32_genoa_(__m512i a_i16, __m512i b_i16) {
     return d.zmm;
 }
 
-NK_PUBLIC void nk_l2sq_bf16_genoa(nk_bf16_t const *a, nk_bf16_t const *b, nk_size_t n, nk_f32_t *result) {
+NK_PUBLIC void nk_sqeuclidean_bf16_genoa(nk_bf16_t const *a, nk_bf16_t const *b, nk_size_t n, nk_f32_t *result) {
     __m512 distance_sq_f32x16 = _mm512_setzero_ps();
     __m512i a_bf16x32, b_bf16x32, diff_bf16x32;
 
-nk_l2sq_bf16_genoa_cycle:
+nk_sqeuclidean_bf16_genoa_cycle:
     if (n < 32) {
         __mmask32 mask = (__mmask32)_bzhi_u32(0xFFFFFFFF, n);
         a_bf16x32 = _mm512_maskz_loadu_epi16(mask, a);
@@ -91,13 +91,13 @@ nk_l2sq_bf16_genoa_cycle:
     }
     diff_bf16x32 = nk_substract_bf16x32_genoa_(a_bf16x32, b_bf16x32);
     distance_sq_f32x16 = _mm512_dpbf16_ps(distance_sq_f32x16, (__m512bh)(diff_bf16x32), (__m512bh)(diff_bf16x32));
-    if (n) goto nk_l2sq_bf16_genoa_cycle;
+    if (n) goto nk_sqeuclidean_bf16_genoa_cycle;
 
     *result = nk_reduce_add_f32x16_skylake_(distance_sq_f32x16);
 }
 
-NK_PUBLIC void nk_l2_bf16_genoa(nk_bf16_t const *a, nk_bf16_t const *b, nk_size_t n, nk_f32_t *result) {
-    nk_l2sq_bf16_genoa(a, b, n, result);
+NK_PUBLIC void nk_euclidean_bf16_genoa(nk_bf16_t const *a, nk_bf16_t const *b, nk_size_t n, nk_f32_t *result) {
+    nk_sqeuclidean_bf16_genoa(a, b, n, result);
     *result = nk_sqrt_f32_haswell_(*result);
 }
 
@@ -151,29 +151,31 @@ NK_INTERNAL void nk_angular_bf16x32_finalize_genoa(nk_angular_bf16x32_state_geno
                                        target_norm_d, results);
 }
 
-typedef nk_dot_bf16x32_state_genoa_t nk_l2_bf16x32_state_genoa_t;
-NK_INTERNAL void nk_l2_bf16x32_init_genoa(nk_l2_bf16x32_state_genoa_t *state) { nk_dot_bf16x32_init_genoa(state); }
-NK_INTERNAL void nk_l2_bf16x32_update_genoa(nk_l2_bf16x32_state_genoa_t *state, nk_b512_vec_t a, nk_b512_vec_t b,
-                                            nk_size_t depth_offset, nk_size_t active_dimensions) {
+typedef nk_dot_bf16x32_state_genoa_t nk_euclidean_bf16x32_state_genoa_t;
+NK_INTERNAL void nk_euclidean_bf16x32_init_genoa(nk_euclidean_bf16x32_state_genoa_t *state) {
+    nk_dot_bf16x32_init_genoa(state);
+}
+NK_INTERNAL void nk_euclidean_bf16x32_update_genoa(nk_euclidean_bf16x32_state_genoa_t *state, nk_b512_vec_t a,
+                                                   nk_b512_vec_t b, nk_size_t depth_offset,
+                                                   nk_size_t active_dimensions) {
     nk_dot_bf16x32_update_genoa(state, a, b, depth_offset, active_dimensions);
 }
-NK_INTERNAL void nk_l2_bf16x32_finalize_genoa(nk_l2_bf16x32_state_genoa_t const *state_a,
-                                              nk_l2_bf16x32_state_genoa_t const *state_b,
-                                              nk_l2_bf16x32_state_genoa_t const *state_c,
-                                              nk_l2_bf16x32_state_genoa_t const *state_d, nk_f32_t query_norm,
-                                              nk_f32_t target_norm_a, nk_f32_t target_norm_b, nk_f32_t target_norm_c,
-                                              nk_f32_t target_norm_d, nk_size_t total_dimensions, nk_f32_t *results) {
+NK_INTERNAL void nk_euclidean_bf16x32_finalize_genoa(
+    nk_euclidean_bf16x32_state_genoa_t const *state_a, nk_euclidean_bf16x32_state_genoa_t const *state_b,
+    nk_euclidean_bf16x32_state_genoa_t const *state_c, nk_euclidean_bf16x32_state_genoa_t const *state_d,
+    nk_f32_t query_norm, nk_f32_t target_norm_a, nk_f32_t target_norm_b, nk_f32_t target_norm_c, nk_f32_t target_norm_d,
+    nk_size_t total_dimensions, nk_f32_t *results) {
     nk_b128_vec_t dots_vec;
     nk_dot_bf16x32_finalize_genoa(state_a, state_b, state_c, state_d, &dots_vec, total_dimensions);
-    nk_l2_f32x4_finalize_haswell_(dots_vec.xmm_ps, query_norm, target_norm_a, target_norm_b, target_norm_c,
-                                  target_norm_d, results);
+    nk_euclidean_f32x4_finalize_haswell_(dots_vec.xmm_ps, query_norm, target_norm_a, target_norm_b, target_norm_c,
+                                         target_norm_d, results);
 }
 
-NK_PUBLIC void nk_l2sq_e4m3_genoa(nk_e4m3_t const *a, nk_e4m3_t const *b, nk_size_t n, nk_f32_t *result) {
+NK_PUBLIC void nk_sqeuclidean_e4m3_genoa(nk_e4m3_t const *a, nk_e4m3_t const *b, nk_size_t n, nk_f32_t *result) {
     __m512 distance_sq_f32x16 = _mm512_setzero_ps();
     __m256i a_e4m3x32, b_e4m3x32;
 
-nk_l2sq_e4m3_genoa_cycle:
+nk_sqeuclidean_e4m3_genoa_cycle:
     if (n < 32) {
         __mmask32 mask = (__mmask32)_bzhi_u32(0xFFFFFFFF, n);
         a_e4m3x32 = _mm256_maskz_loadu_epi8(mask, a);
@@ -189,13 +191,13 @@ nk_l2sq_e4m3_genoa_cycle:
     __m512i b_bf16x32 = nk_e4m3x32_to_bf16x32_ice_(b_e4m3x32);
     __m512i diff_bf16x32 = nk_substract_bf16x32_genoa_(a_bf16x32, b_bf16x32);
     distance_sq_f32x16 = _mm512_dpbf16_ps(distance_sq_f32x16, (__m512bh)(diff_bf16x32), (__m512bh)(diff_bf16x32));
-    if (n) goto nk_l2sq_e4m3_genoa_cycle;
+    if (n) goto nk_sqeuclidean_e4m3_genoa_cycle;
 
     *result = nk_reduce_add_f32x16_skylake_(distance_sq_f32x16);
 }
 
-NK_PUBLIC void nk_l2_e4m3_genoa(nk_e4m3_t const *a, nk_e4m3_t const *b, nk_size_t n, nk_f32_t *result) {
-    nk_l2sq_e4m3_genoa(a, b, n, result);
+NK_PUBLIC void nk_euclidean_e4m3_genoa(nk_e4m3_t const *a, nk_e4m3_t const *b, nk_size_t n, nk_f32_t *result) {
+    nk_sqeuclidean_e4m3_genoa(a, b, n, result);
     *result = nk_sqrt_f32_haswell_(*result);
 }
 
@@ -230,11 +232,11 @@ nk_angular_e4m3_genoa_cycle:
     *result = nk_angular_normalize_f32_haswell_(dot_f32, a_norm_sq_f32, b_norm_sq_f32);
 }
 
-NK_PUBLIC void nk_l2sq_e5m2_genoa(nk_e5m2_t const *a, nk_e5m2_t const *b, nk_size_t n, nk_f32_t *result) {
+NK_PUBLIC void nk_sqeuclidean_e5m2_genoa(nk_e5m2_t const *a, nk_e5m2_t const *b, nk_size_t n, nk_f32_t *result) {
     __m512 distance_sq_f32x16 = _mm512_setzero_ps();
     __m256i a_e5m2x32, b_e5m2x32;
 
-nk_l2sq_e5m2_genoa_cycle:
+nk_sqeuclidean_e5m2_genoa_cycle:
     if (n < 32) {
         __mmask32 mask = (__mmask32)_bzhi_u32(0xFFFFFFFF, n);
         a_e5m2x32 = _mm256_maskz_loadu_epi8(mask, a);
@@ -250,13 +252,13 @@ nk_l2sq_e5m2_genoa_cycle:
     __m512i b_bf16x32 = nk_e5m2x32_to_bf16x32_ice_(b_e5m2x32);
     __m512i diff_bf16x32 = nk_substract_bf16x32_genoa_(a_bf16x32, b_bf16x32);
     distance_sq_f32x16 = _mm512_dpbf16_ps(distance_sq_f32x16, (__m512bh)(diff_bf16x32), (__m512bh)(diff_bf16x32));
-    if (n) goto nk_l2sq_e5m2_genoa_cycle;
+    if (n) goto nk_sqeuclidean_e5m2_genoa_cycle;
 
     *result = nk_reduce_add_f32x16_skylake_(distance_sq_f32x16);
 }
 
-NK_PUBLIC void nk_l2_e5m2_genoa(nk_e5m2_t const *a, nk_e5m2_t const *b, nk_size_t n, nk_f32_t *result) {
-    nk_l2sq_e5m2_genoa(a, b, n, result);
+NK_PUBLIC void nk_euclidean_e5m2_genoa(nk_e5m2_t const *a, nk_e5m2_t const *b, nk_size_t n, nk_f32_t *result) {
+    nk_sqeuclidean_e5m2_genoa(a, b, n, result);
     *result = nk_sqrt_f32_haswell_(*result);
 }
 

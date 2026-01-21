@@ -65,10 +65,10 @@ NK_INTERNAL void nk_angular_f32x4_finalize_haswell_(__m128 dots_f32x4, nk_f32_t 
     _mm_storeu_ps(results, _mm_sub_ps(_mm_set1_ps(1.0f), normalized_f32x4));
 }
 
-/** @brief L2 distance finalize: computes √(query²+target²-2 × dot) for 4 pairs. */
-NK_INTERNAL void nk_l2_f32x4_finalize_haswell_(__m128 dots_f32x4, nk_f32_t query_norm, nk_f32_t target_norm_a,
-                                               nk_f32_t target_norm_b, nk_f32_t target_norm_c, nk_f32_t target_norm_d,
-                                               nk_f32_t *results) {
+/** @brief L2 distance finalize: computes √(query² + target² - 2 × dot) for 4 pairs. */
+NK_INTERNAL void nk_euclidean_f32x4_finalize_haswell_(__m128 dots_f32x4, nk_f32_t query_norm, nk_f32_t target_norm_a,
+                                                      nk_f32_t target_norm_b, nk_f32_t target_norm_c,
+                                                      nk_f32_t target_norm_d, nk_f32_t *results) {
     __m128 query_norm_f32x4 = _mm_set1_ps(query_norm);
     __m128 target_norms_f32x4 = _mm_set_ps(target_norm_d, target_norm_c, target_norm_b, target_norm_a);
     __m128 query_sq_f32x4 = _mm_mul_ps(query_norm_f32x4, query_norm_f32x4);
@@ -130,11 +130,11 @@ NK_INTERNAL nk_f32_t nk_angular_normalize_f32_haswell_(nk_f32_t ab, nk_f32_t a2,
     return result > 0 ? result : 0;
 }
 
-NK_PUBLIC void nk_l2sq_f16_haswell(nk_f16_t const *a, nk_f16_t const *b, nk_size_t n, nk_f32_t *result) {
+NK_PUBLIC void nk_sqeuclidean_f16_haswell(nk_f16_t const *a, nk_f16_t const *b, nk_size_t n, nk_f32_t *result) {
     __m256 a_f32x8, b_f32x8;
     __m256 distance_sq_f32x8 = _mm256_setzero_ps();
 
-nk_l2sq_f16_haswell_cycle:
+nk_sqeuclidean_f16_haswell_cycle:
     if (n < 8) {
         nk_b256_vec_t a_vec, b_vec;
         nk_partial_load_f16x8_to_f32x8_haswell_(a, &a_vec, n);
@@ -150,13 +150,13 @@ nk_l2sq_f16_haswell_cycle:
     }
     __m256 diff_f32x8 = _mm256_sub_ps(a_f32x8, b_f32x8);
     distance_sq_f32x8 = _mm256_fmadd_ps(diff_f32x8, diff_f32x8, distance_sq_f32x8);
-    if (n) goto nk_l2sq_f16_haswell_cycle;
+    if (n) goto nk_sqeuclidean_f16_haswell_cycle;
 
     *result = nk_reduce_add_f32x8_haswell_(distance_sq_f32x8);
 }
 
-NK_PUBLIC void nk_l2_f16_haswell(nk_f16_t const *a, nk_f16_t const *b, nk_size_t n, nk_f32_t *result) {
-    nk_l2sq_f16_haswell(a, b, n, result);
+NK_PUBLIC void nk_euclidean_f16_haswell(nk_f16_t const *a, nk_f16_t const *b, nk_size_t n, nk_f32_t *result) {
+    nk_sqeuclidean_f16_haswell(a, b, n, result);
     *result = nk_sqrt_f32_haswell_(*result);
 }
 
@@ -190,11 +190,11 @@ nk_angular_f16_haswell_cycle:
     *result = nk_angular_normalize_f32_haswell_(dot_product_f32, a_norm_sq_f32, b_norm_sq_f32);
 }
 
-NK_PUBLIC void nk_l2sq_bf16_haswell(nk_bf16_t const *a, nk_bf16_t const *b, nk_size_t n, nk_f32_t *result) {
+NK_PUBLIC void nk_sqeuclidean_bf16_haswell(nk_bf16_t const *a, nk_bf16_t const *b, nk_size_t n, nk_f32_t *result) {
     __m256 a_f32x8, b_f32x8;
     __m256 distance_sq_f32x8 = _mm256_setzero_ps();
 
-nk_l2sq_bf16_haswell_cycle:
+nk_sqeuclidean_bf16_haswell_cycle:
     if (n < 8) {
         nk_b256_vec_t a_vec, b_vec;
         nk_partial_load_bf16x8_to_f32x8_haswell_(a, &a_vec, n);
@@ -210,13 +210,13 @@ nk_l2sq_bf16_haswell_cycle:
     }
     __m256 diff_f32x8 = _mm256_sub_ps(a_f32x8, b_f32x8);
     distance_sq_f32x8 = _mm256_fmadd_ps(diff_f32x8, diff_f32x8, distance_sq_f32x8);
-    if (n) goto nk_l2sq_bf16_haswell_cycle;
+    if (n) goto nk_sqeuclidean_bf16_haswell_cycle;
 
     *result = nk_reduce_add_f32x8_haswell_(distance_sq_f32x8);
 }
 
-NK_PUBLIC void nk_l2_bf16_haswell(nk_bf16_t const *a, nk_bf16_t const *b, nk_size_t n, nk_f32_t *result) {
-    nk_l2sq_bf16_haswell(a, b, n, result);
+NK_PUBLIC void nk_euclidean_bf16_haswell(nk_bf16_t const *a, nk_bf16_t const *b, nk_size_t n, nk_f32_t *result) {
+    nk_sqeuclidean_bf16_haswell(a, b, n, result);
     *result = nk_sqrt_f32_haswell_(*result);
 }
 
@@ -250,7 +250,7 @@ nk_angular_bf16_haswell_cycle:
     *result = nk_angular_normalize_f32_haswell_(dot_product_f32, a_norm_sq_f32, b_norm_sq_f32);
 }
 
-NK_PUBLIC void nk_l2sq_i8_haswell(nk_i8_t const *a, nk_i8_t const *b, nk_size_t n, nk_u32_t *result) {
+NK_PUBLIC void nk_sqeuclidean_i8_haswell(nk_i8_t const *a, nk_i8_t const *b, nk_size_t n, nk_u32_t *result) {
 
     __m256i distance_sq_i32x8 = _mm256_setzero_si256();
 
@@ -281,9 +281,9 @@ NK_PUBLIC void nk_l2sq_i8_haswell(nk_i8_t const *a, nk_i8_t const *b, nk_size_t 
     *result = (nk_u32_t)distance_sq_i32;
 }
 
-NK_PUBLIC void nk_l2_i8_haswell(nk_i8_t const *a, nk_i8_t const *b, nk_size_t n, nk_f32_t *result) {
+NK_PUBLIC void nk_euclidean_i8_haswell(nk_i8_t const *a, nk_i8_t const *b, nk_size_t n, nk_f32_t *result) {
     nk_u32_t distance_sq_u32;
-    nk_l2sq_i8_haswell(a, b, n, &distance_sq_u32);
+    nk_sqeuclidean_i8_haswell(a, b, n, &distance_sq_u32);
     *result = nk_sqrt_f32_haswell_((nk_f32_t)distance_sq_u32);
 }
 
@@ -336,7 +336,7 @@ NK_PUBLIC void nk_angular_i8_haswell(nk_i8_t const *a, nk_i8_t const *b, nk_size
     *result = nk_angular_normalize_f32_haswell_(dot_product_i32, a_norm_sq_i32, b_norm_sq_i32);
 }
 
-NK_PUBLIC void nk_l2sq_u8_haswell(nk_u8_t const *a, nk_u8_t const *b, nk_size_t n, nk_u32_t *result) {
+NK_PUBLIC void nk_sqeuclidean_u8_haswell(nk_u8_t const *a, nk_u8_t const *b, nk_size_t n, nk_u32_t *result) {
 
     __m256i distance_sq_low_i32x8 = _mm256_setzero_si256();
     __m256i distance_sq_high_i32x8 = _mm256_setzero_si256();
@@ -375,9 +375,9 @@ NK_PUBLIC void nk_l2sq_u8_haswell(nk_u8_t const *a, nk_u8_t const *b, nk_size_t 
     *result = (nk_u32_t)distance_sq_i32;
 }
 
-NK_PUBLIC void nk_l2_u8_haswell(nk_u8_t const *a, nk_u8_t const *b, nk_size_t n, nk_f32_t *result) {
+NK_PUBLIC void nk_euclidean_u8_haswell(nk_u8_t const *a, nk_u8_t const *b, nk_size_t n, nk_f32_t *result) {
     nk_u32_t distance_sq_u32;
-    nk_l2sq_u8_haswell(a, b, n, &distance_sq_u32);
+    nk_sqeuclidean_u8_haswell(a, b, n, &distance_sq_u32);
     *result = nk_sqrt_f32_haswell_((nk_f32_t)distance_sq_u32);
 }
 
@@ -442,7 +442,7 @@ NK_PUBLIC void nk_angular_u8_haswell(nk_u8_t const *a, nk_u8_t const *b, nk_size
     *result = nk_angular_normalize_f32_haswell_(dot_product_i32, a_norm_sq_i32, b_norm_sq_i32);
 }
 
-NK_PUBLIC void nk_l2sq_f32_haswell(nk_f32_t const *a, nk_f32_t const *b, nk_size_t n, nk_f32_t *result) {
+NK_PUBLIC void nk_sqeuclidean_f32_haswell(nk_f32_t const *a, nk_f32_t const *b, nk_size_t n, nk_f32_t *result) {
     // Upcast to f64 for higher precision accumulation
     __m256d sum_f64x4 = _mm256_setzero_pd();
     nk_size_t i = 0;
@@ -464,7 +464,7 @@ NK_PUBLIC void nk_l2sq_f32_haswell(nk_f32_t const *a, nk_f32_t const *b, nk_size
     *result = (nk_f32_t)sum_f64;
 }
 
-NK_PUBLIC void nk_l2_f32_haswell(nk_f32_t const *a, nk_f32_t const *b, nk_size_t n, nk_f32_t *result) {
+NK_PUBLIC void nk_euclidean_f32_haswell(nk_f32_t const *a, nk_f32_t const *b, nk_size_t n, nk_f32_t *result) {
     // Upcast to f64 for higher precision accumulation, use f64 sqrt before downcasting
     __m256d sum_f64x4 = _mm256_setzero_pd();
     nk_size_t i = 0;
@@ -514,7 +514,7 @@ NK_PUBLIC void nk_angular_f32_haswell(nk_f32_t const *a, nk_f32_t const *b, nk_s
     *result = (nk_f32_t)nk_angular_normalize_f64_haswell_(dot_f64, a_norm_sq_f64, b_norm_sq_f64);
 }
 
-NK_PUBLIC void nk_l2sq_f64_haswell(nk_f64_t const *a, nk_f64_t const *b, nk_size_t n, nk_f64_t *result) {
+NK_PUBLIC void nk_sqeuclidean_f64_haswell(nk_f64_t const *a, nk_f64_t const *b, nk_size_t n, nk_f64_t *result) {
     // Neumaier summation for improved numerical stability
     __m256d sum_f64x4 = _mm256_setzero_pd();
     __m256d compensation_f64x4 = _mm256_setzero_pd();
@@ -550,8 +550,8 @@ NK_PUBLIC void nk_l2sq_f64_haswell(nk_f64_t const *a, nk_f64_t const *b, nk_size
     *result = sum_f64;
 }
 
-NK_PUBLIC void nk_l2_f64_haswell(nk_f64_t const *a, nk_f64_t const *b, nk_size_t n, nk_f64_t *result) {
-    nk_l2sq_f64_haswell(a, b, n, result);
+NK_PUBLIC void nk_euclidean_f64_haswell(nk_f64_t const *a, nk_f64_t const *b, nk_size_t n, nk_f64_t *result) {
+    nk_sqeuclidean_f64_haswell(a, b, n, result);
     *result = nk_sqrt_f64_haswell_(*result);
 }
 
@@ -651,21 +651,23 @@ NK_INTERNAL void nk_angular_f32x4_finalize_haswell(nk_angular_f32x4_state_haswel
     _mm_storeu_ps(results, angular_f32x4);
 }
 
-typedef nk_dot_f32x4_state_haswell_t nk_l2_f32x4_state_haswell_t;
+typedef nk_dot_f32x4_state_haswell_t nk_euclidean_f32x4_state_haswell_t;
 
-NK_INTERNAL void nk_l2_f32x4_init_haswell(nk_l2_f32x4_state_haswell_t *state) { nk_dot_f32x4_init_haswell(state); }
+NK_INTERNAL void nk_euclidean_f32x4_init_haswell(nk_euclidean_f32x4_state_haswell_t *state) {
+    nk_dot_f32x4_init_haswell(state);
+}
 
-NK_INTERNAL void nk_l2_f32x4_update_haswell(nk_l2_f32x4_state_haswell_t *state, nk_b128_vec_t a, nk_b128_vec_t b,
-                                            nk_size_t depth_offset, nk_size_t active_dimensions) {
+NK_INTERNAL void nk_euclidean_f32x4_update_haswell(nk_euclidean_f32x4_state_haswell_t *state, nk_b128_vec_t a,
+                                                   nk_b128_vec_t b, nk_size_t depth_offset,
+                                                   nk_size_t active_dimensions) {
     nk_dot_f32x4_update_haswell(state, a, b, depth_offset, active_dimensions);
 }
 
-NK_INTERNAL void nk_l2_f32x4_finalize_haswell(nk_l2_f32x4_state_haswell_t const *state_a,
-                                              nk_l2_f32x4_state_haswell_t const *state_b,
-                                              nk_l2_f32x4_state_haswell_t const *state_c,
-                                              nk_l2_f32x4_state_haswell_t const *state_d, nk_f32_t query_norm,
-                                              nk_f32_t target_norm_a, nk_f32_t target_norm_b, nk_f32_t target_norm_c,
-                                              nk_f32_t target_norm_d, nk_size_t total_dimensions, nk_f32_t *results) {
+NK_INTERNAL void nk_euclidean_f32x4_finalize_haswell(
+    nk_euclidean_f32x4_state_haswell_t const *state_a, nk_euclidean_f32x4_state_haswell_t const *state_b,
+    nk_euclidean_f32x4_state_haswell_t const *state_c, nk_euclidean_f32x4_state_haswell_t const *state_d,
+    nk_f32_t query_norm, nk_f32_t target_norm_a, nk_f32_t target_norm_b, nk_f32_t target_norm_c, nk_f32_t target_norm_d,
+    nk_size_t total_dimensions, nk_f32_t *results) {
     nk_unused_(total_dimensions);
     // Inline horizontal reduction: 4 f64s → 2 f64s → 1 f64 for each state
     __m256d sum_a_f64x4 = state_a->sum_f64x4;
@@ -732,27 +734,27 @@ NK_INTERNAL void nk_angular_f16x8_finalize_haswell(nk_angular_f16x8_state_haswel
                                        target_norm_d, results);
 }
 
-typedef nk_dot_f16x8_state_haswell_t nk_l2_f16x8_state_haswell_t;
+typedef nk_dot_f16x8_state_haswell_t nk_euclidean_f16x8_state_haswell_t;
 
-NK_INTERNAL void nk_l2_f16x8_init_haswell(nk_l2_f16x8_state_haswell_t *state) {
+NK_INTERNAL void nk_euclidean_f16x8_init_haswell(nk_euclidean_f16x8_state_haswell_t *state) {
     nk_dot_through_f32_init_haswell_(state);
 }
 
-NK_INTERNAL void nk_l2_f16x8_update_haswell(nk_l2_f16x8_state_haswell_t *state, nk_b256_vec_t a, nk_b256_vec_t b,
-                                            nk_size_t depth_offset, nk_size_t active_dimensions) {
+NK_INTERNAL void nk_euclidean_f16x8_update_haswell(nk_euclidean_f16x8_state_haswell_t *state, nk_b256_vec_t a,
+                                                   nk_b256_vec_t b, nk_size_t depth_offset,
+                                                   nk_size_t active_dimensions) {
     nk_dot_through_f32_update_haswell_(state, a, b, depth_offset, active_dimensions);
 }
 
-NK_INTERNAL void nk_l2_f16x8_finalize_haswell(nk_l2_f16x8_state_haswell_t const *state_a,
-                                              nk_l2_f16x8_state_haswell_t const *state_b,
-                                              nk_l2_f16x8_state_haswell_t const *state_c,
-                                              nk_l2_f16x8_state_haswell_t const *state_d, nk_f32_t query_norm,
-                                              nk_f32_t target_norm_a, nk_f32_t target_norm_b, nk_f32_t target_norm_c,
-                                              nk_f32_t target_norm_d, nk_size_t total_dimensions, nk_f32_t *results) {
+NK_INTERNAL void nk_euclidean_f16x8_finalize_haswell(
+    nk_euclidean_f16x8_state_haswell_t const *state_a, nk_euclidean_f16x8_state_haswell_t const *state_b,
+    nk_euclidean_f16x8_state_haswell_t const *state_c, nk_euclidean_f16x8_state_haswell_t const *state_d,
+    nk_f32_t query_norm, nk_f32_t target_norm_a, nk_f32_t target_norm_b, nk_f32_t target_norm_c, nk_f32_t target_norm_d,
+    nk_size_t total_dimensions, nk_f32_t *results) {
     nk_b128_vec_t dots_vec;
     nk_dot_through_f32_finalize_haswell_(state_a, state_b, state_c, state_d, &dots_vec, total_dimensions);
-    nk_l2_f32x4_finalize_haswell_(dots_vec.xmm_ps, query_norm, target_norm_a, target_norm_b, target_norm_c,
-                                  target_norm_d, results);
+    nk_euclidean_f32x4_finalize_haswell_(dots_vec.xmm_ps, query_norm, target_norm_a, target_norm_b, target_norm_c,
+                                         target_norm_d, results);
 }
 
 typedef nk_dot_bf16x8_state_haswell_t nk_angular_bf16x8_state_haswell_t;
@@ -780,27 +782,27 @@ NK_INTERNAL void nk_angular_bf16x8_finalize_haswell(nk_angular_bf16x8_state_hasw
                                        target_norm_d, results);
 }
 
-typedef nk_dot_bf16x8_state_haswell_t nk_l2_bf16x8_state_haswell_t;
+typedef nk_dot_bf16x8_state_haswell_t nk_euclidean_bf16x8_state_haswell_t;
 
-NK_INTERNAL void nk_l2_bf16x8_init_haswell(nk_l2_bf16x8_state_haswell_t *state) {
+NK_INTERNAL void nk_euclidean_bf16x8_init_haswell(nk_euclidean_bf16x8_state_haswell_t *state) {
     nk_dot_through_f32_init_haswell_(state);
 }
 
-NK_INTERNAL void nk_l2_bf16x8_update_haswell(nk_l2_bf16x8_state_haswell_t *state, nk_b256_vec_t a, nk_b256_vec_t b,
-                                             nk_size_t depth_offset, nk_size_t active_dimensions) {
+NK_INTERNAL void nk_euclidean_bf16x8_update_haswell(nk_euclidean_bf16x8_state_haswell_t *state, nk_b256_vec_t a,
+                                                    nk_b256_vec_t b, nk_size_t depth_offset,
+                                                    nk_size_t active_dimensions) {
     nk_dot_through_f32_update_haswell_(state, a, b, depth_offset, active_dimensions);
 }
 
-NK_INTERNAL void nk_l2_bf16x8_finalize_haswell(nk_l2_bf16x8_state_haswell_t const *state_a,
-                                               nk_l2_bf16x8_state_haswell_t const *state_b,
-                                               nk_l2_bf16x8_state_haswell_t const *state_c,
-                                               nk_l2_bf16x8_state_haswell_t const *state_d, nk_f32_t query_norm,
-                                               nk_f32_t target_norm_a, nk_f32_t target_norm_b, nk_f32_t target_norm_c,
-                                               nk_f32_t target_norm_d, nk_size_t total_dimensions, nk_f32_t *results) {
+NK_INTERNAL void nk_euclidean_bf16x8_finalize_haswell(
+    nk_euclidean_bf16x8_state_haswell_t const *state_a, nk_euclidean_bf16x8_state_haswell_t const *state_b,
+    nk_euclidean_bf16x8_state_haswell_t const *state_c, nk_euclidean_bf16x8_state_haswell_t const *state_d,
+    nk_f32_t query_norm, nk_f32_t target_norm_a, nk_f32_t target_norm_b, nk_f32_t target_norm_c, nk_f32_t target_norm_d,
+    nk_size_t total_dimensions, nk_f32_t *results) {
     nk_b128_vec_t dots_vec;
     nk_dot_through_f32_finalize_haswell_(state_a, state_b, state_c, state_d, &dots_vec, total_dimensions);
-    nk_l2_f32x4_finalize_haswell_(dots_vec.xmm_ps, query_norm, target_norm_a, target_norm_b, target_norm_c,
-                                  target_norm_d, results);
+    nk_euclidean_f32x4_finalize_haswell_(dots_vec.xmm_ps, query_norm, target_norm_a, target_norm_b, target_norm_c,
+                                         target_norm_d, results);
 }
 
 typedef nk_dot_i8x16_state_haswell_t nk_angular_i8x16_state_haswell_t;
@@ -827,25 +829,27 @@ NK_INTERNAL void nk_angular_i8x16_finalize_haswell(nk_angular_i8x16_state_haswel
                                        target_norm_c, target_norm_d, results);
 }
 
-typedef nk_dot_i8x16_state_haswell_t nk_l2_i8x16_state_haswell_t;
+typedef nk_dot_i8x16_state_haswell_t nk_euclidean_i8x16_state_haswell_t;
 
-NK_INTERNAL void nk_l2_i8x16_init_haswell(nk_l2_i8x16_state_haswell_t *state) { nk_dot_i8x16_init_haswell(state); }
+NK_INTERNAL void nk_euclidean_i8x16_init_haswell(nk_euclidean_i8x16_state_haswell_t *state) {
+    nk_dot_i8x16_init_haswell(state);
+}
 
-NK_INTERNAL void nk_l2_i8x16_update_haswell(nk_l2_i8x16_state_haswell_t *state, nk_b128_vec_t a, nk_b128_vec_t b,
-                                            nk_size_t depth_offset, nk_size_t active_dimensions) {
+NK_INTERNAL void nk_euclidean_i8x16_update_haswell(nk_euclidean_i8x16_state_haswell_t *state, nk_b128_vec_t a,
+                                                   nk_b128_vec_t b, nk_size_t depth_offset,
+                                                   nk_size_t active_dimensions) {
     nk_dot_i8x16_update_haswell(state, a, b, depth_offset, active_dimensions);
 }
 
-NK_INTERNAL void nk_l2_i8x16_finalize_haswell(nk_l2_i8x16_state_haswell_t const *state_a,
-                                              nk_l2_i8x16_state_haswell_t const *state_b,
-                                              nk_l2_i8x16_state_haswell_t const *state_c,
-                                              nk_l2_i8x16_state_haswell_t const *state_d, nk_f32_t query_norm,
-                                              nk_f32_t target_norm_a, nk_f32_t target_norm_b, nk_f32_t target_norm_c,
-                                              nk_f32_t target_norm_d, nk_size_t total_dimensions, nk_f32_t *results) {
+NK_INTERNAL void nk_euclidean_i8x16_finalize_haswell(
+    nk_euclidean_i8x16_state_haswell_t const *state_a, nk_euclidean_i8x16_state_haswell_t const *state_b,
+    nk_euclidean_i8x16_state_haswell_t const *state_c, nk_euclidean_i8x16_state_haswell_t const *state_d,
+    nk_f32_t query_norm, nk_f32_t target_norm_a, nk_f32_t target_norm_b, nk_f32_t target_norm_c, nk_f32_t target_norm_d,
+    nk_size_t total_dimensions, nk_f32_t *results) {
     nk_b128_vec_t dots_vec;
     nk_dot_i8x16_finalize_haswell(state_a, state_b, state_c, state_d, &dots_vec, total_dimensions);
-    nk_l2_f32x4_finalize_haswell_(_mm_cvtepi32_ps(dots_vec.xmm), query_norm, target_norm_a, target_norm_b,
-                                  target_norm_c, target_norm_d, results);
+    nk_euclidean_f32x4_finalize_haswell_(_mm_cvtepi32_ps(dots_vec.xmm), query_norm, target_norm_a, target_norm_b,
+                                         target_norm_c, target_norm_d, results);
 }
 
 typedef nk_dot_u8x16_state_haswell_t nk_angular_u8x16_state_haswell_t;
@@ -872,25 +876,27 @@ NK_INTERNAL void nk_angular_u8x16_finalize_haswell(nk_angular_u8x16_state_haswel
                                        target_norm_c, target_norm_d, results);
 }
 
-typedef nk_dot_u8x16_state_haswell_t nk_l2_u8x16_state_haswell_t;
+typedef nk_dot_u8x16_state_haswell_t nk_euclidean_u8x16_state_haswell_t;
 
-NK_INTERNAL void nk_l2_u8x16_init_haswell(nk_l2_u8x16_state_haswell_t *state) { nk_dot_u8x16_init_haswell(state); }
+NK_INTERNAL void nk_euclidean_u8x16_init_haswell(nk_euclidean_u8x16_state_haswell_t *state) {
+    nk_dot_u8x16_init_haswell(state);
+}
 
-NK_INTERNAL void nk_l2_u8x16_update_haswell(nk_l2_u8x16_state_haswell_t *state, nk_b128_vec_t a, nk_b128_vec_t b,
-                                            nk_size_t depth_offset, nk_size_t active_dimensions) {
+NK_INTERNAL void nk_euclidean_u8x16_update_haswell(nk_euclidean_u8x16_state_haswell_t *state, nk_b128_vec_t a,
+                                                   nk_b128_vec_t b, nk_size_t depth_offset,
+                                                   nk_size_t active_dimensions) {
     nk_dot_u8x16_update_haswell(state, a, b, depth_offset, active_dimensions);
 }
 
-NK_INTERNAL void nk_l2_u8x16_finalize_haswell(nk_l2_u8x16_state_haswell_t const *state_a,
-                                              nk_l2_u8x16_state_haswell_t const *state_b,
-                                              nk_l2_u8x16_state_haswell_t const *state_c,
-                                              nk_l2_u8x16_state_haswell_t const *state_d, nk_f32_t query_norm,
-                                              nk_f32_t target_norm_a, nk_f32_t target_norm_b, nk_f32_t target_norm_c,
-                                              nk_f32_t target_norm_d, nk_size_t total_dimensions, nk_f32_t *results) {
+NK_INTERNAL void nk_euclidean_u8x16_finalize_haswell(
+    nk_euclidean_u8x16_state_haswell_t const *state_a, nk_euclidean_u8x16_state_haswell_t const *state_b,
+    nk_euclidean_u8x16_state_haswell_t const *state_c, nk_euclidean_u8x16_state_haswell_t const *state_d,
+    nk_f32_t query_norm, nk_f32_t target_norm_a, nk_f32_t target_norm_b, nk_f32_t target_norm_c, nk_f32_t target_norm_d,
+    nk_size_t total_dimensions, nk_f32_t *results) {
     nk_b128_vec_t dots_vec;
     nk_dot_u8x16_finalize_haswell(state_a, state_b, state_c, state_d, &dots_vec, total_dimensions);
-    nk_l2_f32x4_finalize_haswell_(_mm_cvtepi32_ps(dots_vec.xmm), query_norm, target_norm_a, target_norm_b,
-                                  target_norm_c, target_norm_d, results);
+    nk_euclidean_f32x4_finalize_haswell_(_mm_cvtepi32_ps(dots_vec.xmm), query_norm, target_norm_a, target_norm_b,
+                                         target_norm_c, target_norm_d, results);
 }
 
 #if defined(__cplusplus)

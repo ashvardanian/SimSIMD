@@ -1,11 +1,11 @@
 /**
- *  @brief SIMD-accelerated Binary Similarity Measures optimized for Intel Haswell CPUs.
- *  @file include/numkong/binary/haswell.h
- *  @sa include/numkong/binary.h
+ *  @brief SIMD-accelerated Set Similarity Measures optimized for Intel Haswell CPUs.
+ *  @file include/numkong/set/haswell.h
+ *  @sa include/numkong/set.h
  *  @author Ash Vardanian
  *  @date December 27, 2025
  *
- *  @section haswell_binary_instructions Key POPCNT/AVX2 Binary Instructions
+ *  @section haswell_set_instructions Key POPCNT/AVX2 Set Instructions
  *
  *      Intrinsic                   Instruction                     Latency     Throughput  Ports
  *      _mm_popcnt_u64              POPCNT (R64, R64)               3cy         1/cy        p1
@@ -18,8 +18,8 @@
  *  bottleneck limits throughput to 1 popcount/cycle. For Hamming distance, XOR + POPCNT;
  *  for Jaccard, compute AND/OR + POPCNT separately to get intersection and union counts.
  */
-#ifndef NK_BINARY_HASWELL_H
-#define NK_BINARY_HASWELL_H
+#ifndef NK_SET_HASWELL_H
+#define NK_SET_HASWELL_H
 
 #if NK_TARGET_X86_
 #if NK_TARGET_HASWELL
@@ -31,7 +31,7 @@
 #endif
 
 #include "numkong/types.h"
-#include "numkong/binary/serial.h" // `nk_popcount_u1`
+#include "numkong/set/serial.h" // `nk_popcount_u1`
 
 #if defined(__cplusplus)
 extern "C" {
@@ -274,4 +274,4 @@ NK_INTERNAL void nk_jaccard_b256_finalize_haswell(nk_jaccard_b256_state_haswell_
 #endif // NK_TARGET_HASWELL
 #endif // NK_TARGET_X86_
 
-#endif // NK_BINARY_HASWELL_H
+#endif // NK_SET_HASWELL_H

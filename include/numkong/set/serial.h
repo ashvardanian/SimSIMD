@@ -1,12 +1,12 @@
 /**
- *  @brief SIMD-accelerated Binary Similarity Measures optimized for Serial (SIMD-free) CPUs.
- *  @file include/numkong/binary/serial.h
- *  @sa include/numkong/binary.h
+ *  @brief SIMD-accelerated Set Similarity Measures optimized for Serial (SIMD-free) CPUs.
+ *  @file include/numkong/set/serial.h
+ *  @sa include/numkong/set.h
  *  @author Ash Vardanian
  *  @date December 27, 2025
  */
-#ifndef NK_BINARY_SERIAL_H
-#define NK_BINARY_SERIAL_H
+#ifndef NK_SET_SERIAL_H
+#define NK_SET_SERIAL_H
 #include "numkong/types.h"
 
 #if defined(__cplusplus)
@@ -101,4 +101,4 @@ NK_INTERNAL void nk_jaccard_b128_finalize_serial(nk_jaccard_b128_state_serial_t 
 } // extern "C"
 #endif
 
-#endif // NK_BINARY_SERIAL_H
+#endif // NK_SET_SERIAL_H

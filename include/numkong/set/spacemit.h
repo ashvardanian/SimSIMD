@@ -1,7 +1,7 @@
 /**
- *  @brief SIMD-accelerated Binary Similarity Measures optimized for SpacemiT (RVV 1.0) CPUs.
- *  @file include/numkong/binary/spacemit.h
- *  @sa include/numkong/binary.h
+ *  @brief SIMD-accelerated Set Similarity Measures optimized for SpacemiT (RVV 1.0) CPUs.
+ *  @file include/numkong/set/spacemit.h
+ *  @sa include/numkong/set.h
  *  @author Ash Vardanian
  *  @date January 13, 2026
  *
@@ -18,7 +18,7 @@
  *  This approach is efficient on SpacemiT X60 cores which have optimized vrgather
  *  for small indices (LMUL=1 with indices 0-15).
  *
- *  @section rvv_binary_instructions Key RVV Binary Instructions
+ *  @section rvv_set_instructions Key RVV Set Instructions
  *
  *      Intrinsic                       Purpose
  *      vxor_vv_u8m1                    XOR for Hamming difference
@@ -29,14 +29,14 @@
  *      vwaddu_vx_u16m2                 Widen u8→u16 for accumulation
  *      vwredsumu_vs_u16m2_u32m1        Widening reduction sum
  */
-#ifndef NK_BINARY_SPACEMIT_H
-#define NK_BINARY_SPACEMIT_H
+#ifndef NK_SET_SPACEMIT_H
+#define NK_SET_SPACEMIT_H
 
 #if NK_TARGET_RISCV_
 #if NK_TARGET_SPACEMIT
 
 #include "numkong/types.h"
-#include "numkong/binary/serial.h" // nk_popcount_u1 for tail handling
+#include "numkong/set/serial.h" // nk_popcount_u1 for tail handling
 
 #if defined(__cplusplus)
 extern "C" {
@@ -205,4 +205,4 @@ NK_PUBLIC void nk_jaccard_u16_spacemit(nk_u16_t const *a, nk_u16_t const *b, nk_
 #endif // NK_TARGET_SPACEMIT
 #endif // NK_TARGET_RISCV_
 
-#endif // NK_BINARY_SPACEMIT_H
+#endif // NK_SET_SPACEMIT_H

@@ -104,8 +104,8 @@ static nk_dtype_t metric_kernel_output_dtype(nk_kernel_kind_t kind, nk_dtype_t i
     switch (kind) {
     case nk_kernel_dot_k:
     case nk_kernel_vdot_k: return nk_dot_output_dtype(input);
-    case nk_kernel_l2_k: return nk_l2_output_dtype(input);
-    case nk_kernel_l2sq_k: return nk_l2sq_output_dtype(input);
+    case nk_kernel_euclidean_k: return nk_euclidean_output_dtype(input);
+    case nk_kernel_sqeuclidean_k: return nk_sqeuclidean_output_dtype(input);
     case nk_kernel_angular_k: return nk_angular_output_dtype(input);
     default: return nk_f64_k;
     }
@@ -270,8 +270,8 @@ nk_dtype_t python_string_to_dtype(char const *name) {
 }
 
 nk_kernel_kind_t python_string_to_metric_kind(char const *name) {
-    if (same_string(name, "euclidean") || same_string(name, "l2")) return nk_kernel_l2_k;
-    else if (same_string(name, "sqeuclidean") || same_string(name, "l2sq")) return nk_kernel_l2sq_k;
+    if (same_string(name, "euclidean")) return nk_kernel_euclidean_k;
+    else if (same_string(name, "sqeuclidean")) return nk_kernel_sqeuclidean_k;
     else if (same_string(name, "dot") || same_string(name, "inner")) return nk_kernel_dot_k;
     else if (same_string(name, "vdot")) return nk_kernel_vdot_k;
     else if (same_string(name, "angular")) return nk_kernel_angular_k;
@@ -1358,7 +1358,7 @@ static PyObject *api_cdist( //
 
     /// Same default as in SciPy:
     /// https://docs.scipy.org/doc/scipy-1.11.4/reference/generated/scipy.spatial.distance.cdist.html
-    nk_kernel_kind_t metric_kind = nk_kernel_l2_k;
+    nk_kernel_kind_t metric_kind = nk_kernel_euclidean_k;
     char const *metric_str = NULL;
 
     // Parse the arguments
@@ -1448,13 +1448,13 @@ static PyObject *api_cdist( //
     return implement_cdist(a_obj, b_obj, out_obj, metric_kind, threads, dtype, out_dtype);
 }
 
-static char const doc_l2_pointer[] = "Return an integer pointer to the `numkong.l2` kernel.";
-static PyObject *api_l2_pointer(PyObject *self, PyObject *dtype_obj) {
-    return implement_pointer_access(nk_kernel_l2_k, dtype_obj);
+static char const doc_euclidean_pointer[] = "Return an integer pointer to the `numkong.euclidean` kernel.";
+static PyObject *api_euclidean_pointer(PyObject *self, PyObject *dtype_obj) {
+    return implement_pointer_access(nk_kernel_euclidean_k, dtype_obj);
 }
-static char const doc_l2sq_pointer[] = "Return an integer pointer to the `numkong.l2sq` kernel.";
-static PyObject *api_l2sq_pointer(PyObject *self, PyObject *dtype_obj) {
-    return implement_pointer_access(nk_kernel_l2sq_k, dtype_obj);
+static char const doc_sqeuclidean_pointer[] = "Return an integer pointer to the `numkong.sqeuclidean` kernel.";
+static PyObject *api_sqeuclidean_pointer(PyObject *self, PyObject *dtype_obj) {
+    return implement_pointer_access(nk_kernel_sqeuclidean_k, dtype_obj);
 }
 static char const doc_angular_pointer[] = "Return an integer pointer to the `numkong.angular` kernel.";
 static PyObject *api_angular_pointer(PyObject *self, PyObject *dtype_obj) {
@@ -1485,20 +1485,20 @@ static PyObject *api_jaccard_pointer(PyObject *self, PyObject *dtype_obj) {
     return implement_pointer_access(nk_kernel_jaccard_k, dtype_obj);
 }
 
-static char const doc_l2[] = //
-    "Compute Euclidean (L2) distances between two matrices.\n\n" "Parameters:\n" "    a (Tensor): First matrix or " "ve" "ct" "or" "." "\n" "    b (Tensor): Second " "matrix or vector.\n" "   " " dt" "ype" " (" "Uni" "on[" "Int" "egr" "alT" "ype" ", " "Flo" "atT" "ype" "], " "opt" "ion" "al)" ": " "Ove" "rri" "de " "the" " pr" "esu" "med" " in" "put" " ty" "pe " "nam" "e." "\n" "    out (Tensor, optional): Vector for resulting distances. Allocates a new tensor by default.\n" "    out_dtype (FloatType, optional): Result type, default is 'float64'.\n\n" "Returns:\n" "    Tensor: The distances if `out` is not provided.\n" "    None: If `out` is provided. Operation will be performed in-place.\n\n" "Equivalent to: `scipy.spatial.distance.euclidean`.\n" "Signature:\n" "    >>> def euclidean(a, b, /, dtype, *, out, out_dtype) -> Optional[Tensor]: ...";
+static char const doc_euclidean[] = //
+    "Compute Euclidean distances between two matrices.\n\n" "Parameters:\n" "    a (Tensor): First matrix or " "ve" "ct" "or" "." "\n" "    b (Tensor): Second " "matrix or vector.\n" "   " " dt" "ype" " (" "Uni" "on[" "Int" "egr" "alT" "ype" ", " "Flo" "atT" "ype" "], " "opt" "ion" "al)" ": " "Ove" "rri" "de " "the" " pr" "esu" "med" " in" "put" " ty" "pe " "nam" "e." "\n" "    out (Tensor, optional): Vector for resulting distances. Allocates a new tensor by default.\n" "    out_dtype (FloatType, optional): Result type, default is 'float64'.\n\n" "Returns:\n" "    Tensor: The distances if `out` is not provided.\n" "    None: If `out` is provided. Operation will be performed in-place.\n\n" "Equivalent to: `scipy.spatial.distance.euclidean`.\n" "Signature:\n" "    >>> def euclidean(a, b, /, dtype, *, out, out_dtype) -> Optional[Tensor]: ...";
 
-static PyObject *api_l2(PyObject *self, PyObject *const *args, Py_ssize_t const positional_args_count,
-                        PyObject *args_names_tuple) {
-    return implement_dense_metric(nk_kernel_l2_k, args, positional_args_count, args_names_tuple);
+static PyObject *api_euclidean(PyObject *self, PyObject *const *args, Py_ssize_t const positional_args_count,
+                               PyObject *args_names_tuple) {
+    return implement_dense_metric(nk_kernel_euclidean_k, args, positional_args_count, args_names_tuple);
 }
 
-static char const doc_l2sq[] = //
-    "Compute squared Euclidean (L2) distances between two matrices.\n\n" "Parameters:\n" "    a (Tensor): First matrix " "or vector.\n" "    b " "(Tensor): " "Second matrix " "or vector.\n" "    dtype (Union[IntegralType, FloatType], optional): Override the presumed input type name.\n" "    out (Tensor, optional): Vector for resulting distances. Allocates a new tensor by default.\n" "    out_dtype (FloatType, optional): Result type, default is 'float64'.\n\n" "Returns:\n" "    Tensor: The distances if `out` is not provided.\n" "    None: If `out` is provided. Operation will be performed in-place.\n\n" "Equivalent to: `scipy.spatial.distance.sqeuclidean`.\n" "Signature:\n" "    >>> def sqeuclidean(a, b, /, dtype, *, out, out_dtype) -> Optional[Tensor]: ...";
+static char const doc_sqeuclidean[] = //
+    "Compute squared Euclidean distances between two matrices.\n\n" "Parameters:\n" "    a (Tensor): First matrix " "or" " v" "ec" "to" "r." "\n" "    b " "(Tensor): " "Second matrix " "or vector.\n" "    dtype (Union[IntegralType, FloatType], optional): Override the presumed input type name.\n" "    out (Tensor, optional): Vector for resulting distances. Allocates a new tensor by default.\n" "    out_dtype (FloatType, optional): Result type, default is 'float64'.\n\n" "Returns:\n" "    Tensor: The distances if `out` is not provided.\n" "    None: If `out` is provided. Operation will be performed in-place.\n\n" "Equivalent to: `scipy.spatial.distance.sqeuclidean`.\n" "Signature:\n" "    >>> def sqeuclidean(a, b, /, dtype, *, out, out_dtype) -> Optional[Tensor]: ...";
 
-static PyObject *api_l2sq(PyObject *self, PyObject *const *args, Py_ssize_t const positional_args_count,
-                          PyObject *args_names_tuple) {
-    return implement_dense_metric(nk_kernel_l2sq_k, args, positional_args_count, args_names_tuple);
+static PyObject *api_sqeuclidean(PyObject *self, PyObject *const *args, Py_ssize_t const positional_args_count,
+                                 PyObject *args_names_tuple) {
+    return implement_dense_metric(nk_kernel_sqeuclidean_k, args, positional_args_count, args_names_tuple);
 }
 
 static char const doc_angular[] = //
@@ -2785,8 +2785,8 @@ static PyMethodDef nk_methods[] = {
     //  - A pair of vectors
     //  - A batch of vector pairs (two matrices of identical shape)
     //  - A matrix of vectors and a single vector
-    {"l2", (PyCFunction)api_l2, METH_FASTCALL | METH_KEYWORDS, doc_l2},
-    {"l2sq", (PyCFunction)api_l2sq, METH_FASTCALL | METH_KEYWORDS, doc_l2sq},
+    {"euclidean", (PyCFunction)api_euclidean, METH_FASTCALL | METH_KEYWORDS, doc_euclidean},
+    {"sqeuclidean", (PyCFunction)api_sqeuclidean, METH_FASTCALL | METH_KEYWORDS, doc_sqeuclidean},
     {"kld", (PyCFunction)api_kld, METH_FASTCALL | METH_KEYWORDS, doc_kld},
     {"jsd", (PyCFunction)api_jsd, METH_FASTCALL | METH_KEYWORDS, doc_jsd},
     {"angular", (PyCFunction)api_angular, METH_FASTCALL | METH_KEYWORDS, doc_angular},
@@ -2796,8 +2796,6 @@ static PyMethodDef nk_methods[] = {
     {"jaccard", (PyCFunction)api_jaccard, METH_FASTCALL | METH_KEYWORDS, doc_jaccard},
 
     // Aliases
-    {"euclidean", (PyCFunction)api_l2, METH_FASTCALL | METH_KEYWORDS, doc_l2},
-    {"sqeuclidean", (PyCFunction)api_l2sq, METH_FASTCALL | METH_KEYWORDS, doc_l2sq},
     {"inner", (PyCFunction)api_dot, METH_FASTCALL | METH_KEYWORDS, doc_dot},
     {"kullbackleibler", (PyCFunction)api_kld, METH_FASTCALL | METH_KEYWORDS, doc_kld},
     {"jensenshannon", (PyCFunction)api_jsd, METH_FASTCALL | METH_KEYWORDS, doc_jsd},
@@ -2806,8 +2804,8 @@ static PyMethodDef nk_methods[] = {
     {"cdist", (PyCFunction)api_cdist, METH_FASTCALL | METH_KEYWORDS, doc_cdist},
 
     // Exposing underlying API for USearch `CompiledMetric`
-    {"pointer_to_euclidean", (PyCFunction)api_l2_pointer, METH_O, doc_l2_pointer},
-    {"pointer_to_sqeuclidean", (PyCFunction)api_l2sq_pointer, METH_O, doc_l2sq_pointer},
+    {"pointer_to_euclidean", (PyCFunction)api_euclidean_pointer, METH_O, doc_euclidean_pointer},
+    {"pointer_to_sqeuclidean", (PyCFunction)api_sqeuclidean_pointer, METH_O, doc_sqeuclidean_pointer},
     {"pointer_to_angular", (PyCFunction)api_angular_pointer, METH_O, doc_angular_pointer},
     {"pointer_to_inner", (PyCFunction)api_dot_pointer, METH_O, doc_dot_pointer},
     {"pointer_to_dot", (PyCFunction)api_dot_pointer, METH_O, doc_dot_pointer},
@@ -2865,7 +2863,7 @@ static PyMethodDef nk_methods[] = {
     {NULL, NULL, 0, NULL}};
 
 static char const doc_module[] = //
-    "Portable mixed-precision BLAS-like vector math library for x86 and Arm.\n" "\n" "Performance Recommendations:\n" " - Avoid converting to NumPy arrays. NumKong works with any tensor implementation\n" "   compatible with the Python buffer protocol, including PyTorch and TensorFlow.\n" " - In low-latency environments, provide the output array with the `out=` parameter\n" "   to avoid expensive memory allocations on the hot path.\n" " - On modern CPUs, when the application allows, prefer low-precision numeric types.\n" "   Whenever possible, use 'bf16' and 'f16' over 'f32'. Consider quantizing to 'i8'\n" "   and 'u8' for highest hardware compatibility and performance.\n" " - If you only need relative proximity rather than absolute distance, prefer simpler\n" "   kernels such as squared Euclidean distance over Euclidean distance.\n" " - Use row-major contiguous matrix representations. Strides between rows do not have\n" "   a significant impact on performance, but most modern HPC packages explicitly ban\n" "   non-contiguous rows where nearby cells within a row have multi-byte gaps.\n" " - The CPython runtime has noticeable overhead for function calls, so consider batching\n" "   kernel invocations. Many kernels compute 1-to-1 distances between vectors, as well as\n" "   1-to-N and N-to-N distances between batches of vectors packed into matrices.\n" "\n" "Example:\n" "    >>> import numkong\n" "    >>> numkong.l2(a, b)\n" "\n" "Mixed-precision 1-to-N example with numeric types missing in NumPy, but present in PyTorch:\n" "    >>> import numkong\n" "    >>> import torch\n" "    >>> a = torch.randn(1536, dtype=torch.bfloat16)\n" "    >>> b = torch.randn((100, 1536), dtype=torch.bfloat16)\n" "    >>> c = torch.zeros(100, dtype=torch.float32)\n" "    >>> numkong.l2(a, b, dtype='bfloat16', out=c)\n";
+    "Portable mixed-precision BLAS-like vector math library for x86 and Arm.\n" "\n" "Performance Recommendations:\n" " - Avoid converting to NumPy arrays. NumKong works with any tensor implementation\n" "   compatible with the Python buffer protocol, including PyTorch and TensorFlow.\n" " - In low-latency environments, provide the output array with the `out=` parameter\n" "   to avoid expensive memory allocations on the hot path.\n" " - On modern CPUs, when the application allows, prefer low-precision numeric types.\n" "   Whenever possible, use 'bf16' and 'f16' over 'f32'. Consider quantizing to 'i8'\n" "   and 'u8' for highest hardware compatibility and performance.\n" " - If you only need relative proximity rather than absolute distance, prefer simpler\n" "   kernels such as squared Euclidean distance over Euclidean distance.\n" " - Use row-major contiguous matrix representations. Strides between rows do not have\n" "   a significant impact on performance, but most modern HPC packages explicitly ban\n" "   non-contiguous rows where nearby cells within a row have multi-byte gaps.\n" " - The CPython runtime has noticeable overhead for function calls, so consider batching\n" "   kernel invocations. Many kernels compute 1-to-1 distances between vectors, as well as\n" "   1-to-N and N-to-N distances between batches of vectors packed into matrices.\n" "\n" "Example:\n" "    >>> import numkong\n" "    >>> numkong.euclidean(a, b)\n" "\n" "Mixed-precision 1-to-N example with numeric types missing in NumPy, but present in PyTorch:\n" "    >>> import numkong\n" "    >>> import torch\n" "    >>> a = torch.randn(1536, dtype=torch.bfloat16)\n" "    >>> b = torch.randn((100, 1536), dtype=torch.bfloat16)\n" "    >>> c = torch.zeros(100, dtype=torch.float32)\n" "    >>> numkong.euclidean(a, b, dtype='bfloat16', out=c)\n";
 
 static PyModuleDef nk_module = {
     PyModuleDef_HEAD_INIT, .m_name = "NumKong", .m_doc = doc_module, .m_size = -1, .m_methods = nk_methods,

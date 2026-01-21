@@ -40,12 +40,12 @@
 extern "C" {
 #endif
 
-NK_PUBLIC void nk_l2sq_e4m3_sapphire(nk_e4m3_t const *a_scalars, nk_e4m3_t const *b_scalars, nk_size_t count_scalars,
-                                     nk_f32_t *result) {
+NK_PUBLIC void nk_sqeuclidean_e4m3_sapphire(nk_e4m3_t const *a_scalars, nk_e4m3_t const *b_scalars,
+                                            nk_size_t count_scalars, nk_f32_t *result) {
     __m128i a_e4m3x16, b_e4m3x16;
     __m512 sum_f32x16 = _mm512_setzero_ps();
 
-nk_l2sq_e4m3_sapphire_cycle:
+nk_sqeuclidean_e4m3_sapphire_cycle:
     if (count_scalars < 16) {
         __mmask16 mask = (__mmask16)_bzhi_u32(0xFFFF, count_scalars);
         a_e4m3x16 = _mm_maskz_loadu_epi8(mask, a_scalars);
@@ -71,14 +71,14 @@ nk_l2sq_e4m3_sapphire_cycle:
     // Square and accumulate in F32
     sum_f32x16 = _mm512_fmadd_ps(diff_f32x16, diff_f32x16, sum_f32x16);
 
-    if (count_scalars) goto nk_l2sq_e4m3_sapphire_cycle;
+    if (count_scalars) goto nk_sqeuclidean_e4m3_sapphire_cycle;
 
     *result = _mm512_reduce_add_ps(sum_f32x16);
 }
 
-NK_PUBLIC void nk_l2_e4m3_sapphire(nk_e4m3_t const *a_scalars, nk_e4m3_t const *b_scalars, nk_size_t count_scalars,
-                                   nk_f32_t *result) {
-    nk_l2sq_e4m3_sapphire(a_scalars, b_scalars, count_scalars, result);
+NK_PUBLIC void nk_euclidean_e4m3_sapphire(nk_e4m3_t const *a_scalars, nk_e4m3_t const *b_scalars,
+                                          nk_size_t count_scalars, nk_f32_t *result) {
+    nk_sqeuclidean_e4m3_sapphire(a_scalars, b_scalars, count_scalars, result);
     *result = nk_sqrt_f32_haswell_(*result);
 }
 
