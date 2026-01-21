@@ -869,6 +869,8 @@ void test_dot() {
 #if NK_TARGET_NEONSDOT
     run_if_matches("dot_neonsdot", "i8", test_dot<i8_t>, nk_dot_i8_neonsdot);
     run_if_matches("dot_neonsdot", "u8", test_dot<u8_t>, nk_dot_u8_neonsdot);
+    run_if_matches("dot_neonsdot", "i4", test_dot<i4x2_t>, nk_dot_i4_neonsdot);
+    run_if_matches("dot_neonsdot", "u4", test_dot<u4x2_t>, nk_dot_u4_neonsdot);
 #endif // NK_TARGET_NEONSDOT
 
 #if NK_TARGET_HASWELL
@@ -2167,6 +2169,17 @@ void test_dots() {
                    nk_dots_packed_e5m2_genoa);
 #endif // NK_TARGET_GENOA
 
+#if NK_TARGET_NEONSDOT
+    run_if_matches("dots_neonsdot", "i8", test_dots<i8_t>, nk_dots_packed_size_i8_neonsdot, nk_dots_pack_i8_neonsdot,
+                   nk_dots_packed_i8_neonsdot);
+    run_if_matches("dots_neonsdot", "u8", test_dots<u8_t>, nk_dots_packed_size_u8_neonsdot, nk_dots_pack_u8_neonsdot,
+                   nk_dots_packed_u8_neonsdot);
+    run_if_matches("dots_neonsdot", "i4", test_dots<i4x2_t>, nk_dots_packed_size_i4_neonsdot, nk_dots_pack_i4_neonsdot,
+                   nk_dots_packed_i4_neonsdot);
+    run_if_matches("dots_neonsdot", "u4", test_dots<u4x2_t>, nk_dots_packed_size_u4_neonsdot, nk_dots_pack_u4_neonsdot,
+                   nk_dots_packed_u4_neonsdot);
+#endif // NK_TARGET_NEONSDOT
+
 #if NK_TARGET_SME
     // SME precision validation tests (Arm Scalable Matrix Extension)
     run_if_matches("dots_sme", "f16", test_dots<f16_t>, nk_dots_packed_size_f16_sme, nk_dots_pack_f16_sme,
@@ -2293,6 +2306,8 @@ void test_dots_symmetric() {
 #if NK_TARGET_NEONSDOT
     run_if_matches("dots_symmetric_neonsdot", "i8", test_dots_symmetric<i8_t>, nk_dots_symmetric_i8_neonsdot);
     run_if_matches("dots_symmetric_neonsdot", "u8", test_dots_symmetric<u8_t>, nk_dots_symmetric_u8_neonsdot);
+    run_if_matches("dots_symmetric_neonsdot", "i4", test_dots_symmetric<i4x2_t>, nk_dots_symmetric_i4_neonsdot);
+    run_if_matches("dots_symmetric_neonsdot", "u4", test_dots_symmetric<u4x2_t>, nk_dots_symmetric_u4_neonsdot);
 #endif
 
 #if NK_TARGET_NEONFHM

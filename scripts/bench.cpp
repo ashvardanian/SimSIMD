@@ -1311,10 +1311,17 @@ int main(int argc, char **argv) {
     dense_<u8_k, f32_k>("l2_u8_neonsdot", nk_l2_u8_neonsdot);
     dense_<u8_k, u32_k>("dot_u8_neonsdot", nk_dot_u8_neonsdot);
 
+    dense_<i4_k, i32_k>("dot_i4_neonsdot", nk_dot_i4_neonsdot);
+    dense_<u4_k, u32_k>("dot_u4_neonsdot", nk_dot_u4_neonsdot);
+
     dots_<i8_k, i32_k>("dots_packed_i8_neonsdot", nk_dots_packed_size_i8_neonsdot, nk_dots_pack_i8_neonsdot,
                        nk_dots_packed_i8_neonsdot);
     dots_<u8_k, u32_k>("dots_packed_u8_neonsdot", nk_dots_packed_size_u8_neonsdot, nk_dots_pack_u8_neonsdot,
                        nk_dots_packed_u8_neonsdot);
+    dots_<i4_k, i32_k>("dots_packed_i4_neonsdot", nk_dots_packed_size_i4_neonsdot, nk_dots_pack_i4_neonsdot,
+                       nk_dots_packed_i4_neonsdot);
+    dots_<u4_k, u32_k>("dots_packed_u4_neonsdot", nk_dots_packed_size_u4_neonsdot, nk_dots_pack_u4_neonsdot,
+                       nk_dots_packed_u4_neonsdot);
 #endif
 
 #if NK_TARGET_NEONHALF
@@ -1888,6 +1895,8 @@ int main(int argc, char **argv) {
 #if NK_TARGET_NEONSDOT
     dots_symmetric_<i8_k, i32_k>("dots_symmetric_i8_neonsdot", nk_dots_symmetric_i8_neonsdot);
     dots_symmetric_<u8_k, u32_k>("dots_symmetric_u8_neonsdot", nk_dots_symmetric_u8_neonsdot);
+    dots_symmetric_<i4_k, i32_k>("dots_symmetric_i4_neonsdot", nk_dots_symmetric_i4_neonsdot);
+    dots_symmetric_<u4_k, u32_k>("dots_symmetric_u4_neonsdot", nk_dots_symmetric_u4_neonsdot);
 #endif
 
 #if NK_TARGET_NEONFHM
