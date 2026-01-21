@@ -2057,7 +2057,7 @@ error_stats_t test_dots_symmetric(typename scalar_type_::dots_symmetric_kernel_t
         fill_random(generator, a);
 
         // Run kernel being tested
-        kernel_fn(a.raw_values_data(), n, k, a_stride, c.raw_values_data(), c_stride);
+        kernel_fn(a.raw_values_data(), n, k, a_stride, c.raw_values_data(), c_stride, 0, n);
 
         // Compute f118_t reference using nk:: template
         nk::dots_symmetric<scalar_t, f118_t, nk::no_simd_k>(a.values_data(), n, k, a_stride, c_ref.raw_values_data(),

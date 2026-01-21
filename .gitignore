@@ -14,6 +14,7 @@ bun.lockb
 .build/
 .venv/
 .cache/
+tmp/
 
 # for Google Benchmark
 compare.py

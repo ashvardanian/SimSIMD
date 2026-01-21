@@ -394,14 +394,14 @@ void vdot(in_type_ const *a, in_type_ const *b, std::size_t d, result_type_ *r) 
  *  @param[out] r Pointer to output distance value
  *
  *  @tparam in_type_ Input vector element type
- *  @tparam result_type_ Accumulator type, defaults to `in_type_::l2sq_result_t`
+ *  @tparam result_type_ Accumulator type, defaults to `in_type_::euclidean_result_t`
  *  @tparam allow_simd_ Enable SIMD kernel dispatch when `prefer_simd_k`
  */
-template <typename in_type_, typename result_type_ = typename in_type_::l2sq_result_t,
+template <typename in_type_, typename result_type_ = typename in_type_::euclidean_result_t,
           allow_simd_t allow_simd_ = prefer_simd_k>
 void euclidean(in_type_ const *a, in_type_ const *b, std::size_t d, result_type_ *r) noexcept {
     constexpr bool simd = allow_simd_ == prefer_simd_k &&
-                          std::is_same_v<result_type_, typename in_type_::l2sq_result_t>;
+                          std::is_same_v<result_type_, typename in_type_::euclidean_result_t>;
 
     if constexpr (std::is_same_v<in_type_, f64_t> && simd) nk_euclidean_f64(&a->raw_, &b->raw_, d, &r->raw_);
     else if constexpr (std::is_same_v<in_type_, f32_t> && simd) nk_euclidean_f32(&a->raw_, &b->raw_, d, &r->raw_);
@@ -429,14 +429,14 @@ void euclidean(in_type_ const *a, in_type_ const *b, std::size_t d, result_type_
  *  @param[out] r Pointer to output distance value
  *
  *  @tparam in_type_ Input vector element type
- *  @tparam result_type_ Accumulator type, defaults to `in_type_::l2sq_result_t`
+ *  @tparam result_type_ Accumulator type, defaults to `in_type_::sqeuclidean_result_t`
  *  @tparam allow_simd_ Enable SIMD kernel dispatch when `prefer_simd_k`
  */
-template <typename in_type_, typename result_type_ = typename in_type_::l2sq_result_t,
+template <typename in_type_, typename result_type_ = typename in_type_::sqeuclidean_result_t,
           allow_simd_t allow_simd_ = prefer_simd_k>
 void sqeuclidean(in_type_ const *a, in_type_ const *b, std::size_t d, result_type_ *r) noexcept {
     constexpr bool simd = allow_simd_ == prefer_simd_k &&
-                          std::is_same_v<result_type_, typename in_type_::l2sq_result_t>;
+                          std::is_same_v<result_type_, typename in_type_::sqeuclidean_result_t>;
 
     if constexpr (std::is_same_v<in_type_, f64_t> && simd) nk_sqeuclidean_f64(&a->raw_, &b->raw_, d, &r->raw_);
     else if constexpr (std::is_same_v<in_type_, f32_t> && simd) nk_sqeuclidean_f32(&a->raw_, &b->raw_, d, &r->raw_);

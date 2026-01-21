@@ -584,6 +584,11 @@ void measure_dots_symmetric(                                                   /
     using raw_input_t = typename input_t::raw_t;
     using raw_output_t = typename output_t::raw_t;
 
+    // Calculate correct strides for sub-byte types (u4, i4, u1, etc.)
+    nk_size_t input_bits_per_element = nk_dtype_bits(input_dtype_);
+    nk_size_t input_stride_bytes = nk::divide_round_up(k * input_bits_per_element, NK_BITS_PER_BYTE);
+    nk_size_t output_stride_bytes = n * sizeof(raw_output_t);
+
     // Allocate matrix A (n vectors × k dimensions) and result matrix C (n × n)
     auto matrix_a = make_vector_for_matrix<input_dtype_>(n, k);
     auto matrix_c = make_vector<output_t>(n * n);
@@ -595,8 +600,8 @@ void measure_dots_symmetric(                                                   /
     std::size_t iterations = 0;
     for (auto _ : state) {
         bm::DoNotOptimize(matrix_c.raw_values_data());
-        kernel(matrix_a.raw_values_data(), n, k, k * sizeof(raw_input_t), //
-               matrix_c.raw_values_data(), n * sizeof(raw_output_t));
+        kernel(matrix_a.raw_values_data(), n, k, input_stride_bytes, //
+               matrix_c.raw_values_data(), output_stride_bytes, 0, n);
         ++iterations;
     }
 
@@ -1850,7 +1855,8 @@ int main(int argc, char **argv) {
     dots_symmetric_<f16_k, f32_k>("dots_symmetric_f16_serial", nk_dots_symmetric_f16_serial);
     dots_symmetric_<i8_k, i32_k>("dots_symmetric_i8_serial", nk_dots_symmetric_i8_serial);
     dots_symmetric_<u8_k, u32_k>("dots_symmetric_u8_serial", nk_dots_symmetric_u8_serial);
-    // Note: i4/u4 symmetric not implemented in serial baseline, only in Ice/SME
+    dots_symmetric_<i4_k, i32_k>("dots_symmetric_i4_serial", nk_dots_symmetric_i4_serial);
+    dots_symmetric_<u4_k, u32_k>("dots_symmetric_u4_serial", nk_dots_symmetric_u4_serial);
     dots_symmetric_<e4m3_k, f32_k>("dots_symmetric_e4m3_serial", nk_dots_symmetric_e4m3_serial);
     dots_symmetric_<e5m2_k, f32_k>("dots_symmetric_e5m2_serial", nk_dots_symmetric_e5m2_serial);
 

@@ -900,10 +900,22 @@ NK_INTERNAL void nk_dots_pack_i8_transposed_sapphire_amx( //
 
 NK_PUBLIC void nk_dots_symmetric_bf16_sapphire_amx(                 //
     nk_bf16_t const *vectors, nk_size_t n_vectors, nk_size_t depth, //
-    nk_size_t stride, nk_f32_t *result, nk_size_t result_stride) {
+    nk_size_t stride, nk_f32_t *result, nk_size_t result_stride,    //
+    nk_size_t row_start, nk_size_t row_count) {
 
     nk_size_t const stride_elements = stride / sizeof(nk_bf16_t);
     nk_size_t const result_stride_elements = result_stride / sizeof(nk_f32_t);
+
+    // Handle row slicing: compute rows [row_start, row_end)
+    nk_size_t const row_end = (row_count == 0)
+                                  ? n_vectors
+                                  : (row_start + row_count < n_vectors ? row_start + row_count : n_vectors);
+
+    // For symmetric dot product computation, we need to compute the full matrix since
+    // the current AMX implementation computes all pairs simultaneously
+    // TODO: Optimize to support partial row computation
+    (void)row_start; // Suppress unused parameter warning
+    (void)row_end;   // Suppress unused parameter warning
 
     // Round depth up to multiple of 96 (3 tiles × 32 elements)
     nk_size_t const depth_tiles = (depth + 31) / 32;
@@ -948,9 +960,21 @@ NK_PUBLIC void nk_dots_symmetric_bf16_sapphire_amx(                 //
 
 NK_PUBLIC void nk_dots_symmetric_i8_sapphire_amx(                 //
     nk_i8_t const *vectors, nk_size_t n_vectors, nk_size_t depth, //
-    nk_size_t stride, nk_i32_t *result, nk_size_t result_stride) {
+    nk_size_t stride, nk_i32_t *result, nk_size_t result_stride,  //
+    nk_size_t row_start, nk_size_t row_count) {
 
     nk_size_t const result_stride_elements = result_stride / sizeof(nk_i32_t);
+
+    // Handle row slicing: compute rows [row_start, row_end)
+    nk_size_t const row_end = (row_count == 0)
+                                  ? n_vectors
+                                  : (row_start + row_count < n_vectors ? row_start + row_count : n_vectors);
+
+    // For symmetric dot product computation, we need to compute the full matrix since
+    // the current AMX implementation computes all pairs simultaneously
+    // TODO: Optimize to support partial row computation
+    (void)row_start; // Suppress unused parameter warning
+    (void)row_end;   // Suppress unused parameter warning
 
     // Round depth up to multiple of 192 (3 tiles × 64 elements)
     nk_size_t const depth_tiles = (depth + 63) / 64;
