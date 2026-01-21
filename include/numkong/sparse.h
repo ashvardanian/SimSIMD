@@ -525,7 +525,7 @@ NK_PUBLIC void nk_sparse_intersect_u16_ice( //
     }
 
     nk_size_t tail_count = 0;
-    nk_sparse_intersect_u16_serial(a, b, a_end - a, b_end - b, result ? result + c : NULL, &tail_count);
+    nk_sparse_intersect_u16_serial(a, b, a_end - a, b_end - b, result ? result + c : 0, &tail_count);
     *count = c + tail_count;
 }
 
@@ -586,7 +586,7 @@ NK_PUBLIC void nk_sparse_intersect_u32_ice( //
     }
 
     nk_size_t tail_count = 0;
-    nk_sparse_intersect_u32_serial(a, b, a_end - a, b_end - b, result ? result + c : NULL, &tail_count);
+    nk_sparse_intersect_u32_serial(a, b, a_end - a, b_end - b, result ? result + c : 0, &tail_count);
     *count = c + tail_count;
 }
 
@@ -683,7 +683,7 @@ NK_PUBLIC void nk_sparse_intersect_u64_ice( //
     }
 
     nk_size_t tail_count = 0;
-    nk_sparse_intersect_u64_serial(a, b, a_end - a, b_end - b, result ? result + c : NULL, &tail_count);
+    nk_sparse_intersect_u64_serial(a, b, a_end - a, b_end - b, result ? result + c : 0, &tail_count);
     *count = c + tail_count;
 }
 
@@ -816,7 +816,7 @@ NK_PUBLIC void nk_sparse_intersect_u16_turin( //
     }
 
     nk_size_t tail_count = 0;
-    nk_sparse_intersect_u16_serial(a, b, a_end - a, b_end - b, result ? result + c : NULL, &tail_count);
+    nk_sparse_intersect_u16_serial(a, b, a_end - a, b_end - b, result ? result + c : 0, &tail_count);
     *count = c + tail_count;
 }
 
@@ -854,7 +854,7 @@ NK_PUBLIC void nk_sparse_intersect_u32_turin( //
     }
 
     nk_size_t tail_count = 0;
-    nk_sparse_intersect_u32_serial(a, b, a_end - a, b_end - b, result ? result + c : NULL, &tail_count);
+    nk_sparse_intersect_u32_serial(a, b, a_end - a, b_end - b, result ? result + c : 0, &tail_count);
     *count = c + tail_count;
 }
 
@@ -892,7 +892,7 @@ NK_PUBLIC void nk_sparse_intersect_u64_turin( //
     }
 
     nk_size_t tail_count = 0;
-    nk_sparse_intersect_u64_serial(a, b, a_end - a, b_end - b, result ? result + c : NULL, &tail_count);
+    nk_sparse_intersect_u64_serial(a, b, a_end - a, b_end - b, result ? result + c : 0, &tail_count);
     *count = c + tail_count;
 }
 
@@ -1193,7 +1193,7 @@ NK_PUBLIC void nk_sparse_intersect_u16_neon( //
     }
 
     nk_size_t tail_count = 0;
-    nk_sparse_intersect_u16_serial(a, b, a_end - a, b_end - b, NULL, &tail_count);
+    nk_sparse_intersect_u16_serial(a, b, a_end - a, b_end - b, 0, &tail_count);
     *count = tail_count + (nk_size_t)vaddvq_u16(c_counts_u16x8);
 }
 
@@ -1268,7 +1268,7 @@ NK_PUBLIC void nk_sparse_intersect_u32_neon( //
     }
 
     nk_size_t tail_count = 0;
-    nk_sparse_intersect_u32_serial(a, b, a_end - a, b_end - b, NULL, &tail_count);
+    nk_sparse_intersect_u32_serial(a, b, a_end - a, b_end - b, 0, &tail_count);
     *count = tail_count + (nk_size_t)vaddvq_u32(c_counts_u32x4);
 }
 
@@ -1344,7 +1344,7 @@ NK_PUBLIC void nk_sparse_intersect_u64_neon( //
     }
 
     nk_size_t tail_count = 0;
-    nk_sparse_intersect_u64_serial(a, b, a_end - a, b_end - b, NULL, &tail_count);
+    nk_sparse_intersect_u64_serial(a, b, a_end - a, b_end - b, 0, &tail_count);
     *count = tail_count + (nk_size_t)vaddvq_u64(c_counts_u64x2);
 }
 
