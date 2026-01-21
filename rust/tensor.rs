@@ -2822,42 +2822,42 @@ where
         self.try_matmul_parallel(packed_b, pool)
             .expect("parallel matmul failed")
     }
+}
 
 /// Compute row assignment for a thread without allocation
+///
+/// For a symmetric matrix, cumulative work up to row r is: r*(2n - r + 1)/2
+/// Solving r*(2n - r + 1)/2 = work using quadratic formula gives exact row.
+#[cfg(feature = "std")]
 #[inline]
 fn compute_thread_rows(thread_idx: usize, num_threads: usize, n: usize) -> (usize, usize) {
     let total_work = n * (n + 1) / 2;
     let work_per_thread = (total_work + num_threads - 1) / num_threads;
 
-    // Target work range for this thread
     let work_start = thread_idx * work_per_thread;
     let work_end = ((thread_idx + 1) * work_per_thread).min(total_work);
 
-    // Find start row using quadratic formula approximation
+    // Solve: r^2 - r(2n + 1) + 2*work = 0
+    // Using quadratic formula: r = (2n + 1 - sqrt((2n + 1)^2 - 8*work)) / 2
     let start_row = if work_start == 0 {
         0
     } else {
-        // Approximate: row ≈ n - sqrt(2*(total_work - work_start))
-        let remaining = total_work.saturating_sub(work_start);
-        let approx = n.saturating_sub(((2 * remaining) as f64).sqrt() as usize);
-
-        // Refine by linear search (at most a few iterations)
-        let mut row = approx;
-        let mut acc = row * (2 * n - row + 1) / 2;
-        while acc < work_start && row < n {
-            row += 1;
-            acc += n - row + 1;
-        }
-        row
+        let n_f64 = n as f64;
+        let work_f64 = work_start as f64;
+        let discriminant = (2.0 * n_f64 + 1.0).powi(2) - 8.0 * work_f64;
+        let row_f64 = (2.0 * n_f64 + 1.0 - discriminant.sqrt()) / 2.0;
+        row_f64.floor() as usize
     };
 
-    // Find end row similarly
-    let mut end_row = start_row;
-    let mut acc = start_row * (2 * n - start_row + 1) / 2;
-    while acc < work_end && end_row < n {
-        acc += n - end_row;
-        end_row += 1;
-    }
+    let end_row = if work_end >= total_work {
+        n
+    } else {
+        let n_f64 = n as f64;
+        let work_f64 = work_end as f64;
+        let discriminant = (2.0 * n_f64 + 1.0).powi(2) - 8.0 * work_f64;
+        let row_f64 = (2.0 * n_f64 + 1.0 - discriminant.sqrt()) / 2.0;
+        row_f64.ceil() as usize
+    };
 
     (start_row, end_row - start_row)
 }
@@ -2944,7 +2944,6 @@ where
         self.try_gram_matrix_parallel(pool)
             .expect("parallel gram_matrix failed")
     }
-}
 }
 
 // endregion: Tensor GEMM

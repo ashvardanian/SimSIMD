@@ -42,7 +42,7 @@ rpath = false     # On some systems, setting this to false can help with optimiz
 [features]
 default = []
 std = []
-parallel = ["dep:fork_union"]
+parallel = ["dep:fork_union", "std"]
 
 [dependencies]
 fork_union = { version = "2.3", optional = true }
