@@ -1859,6 +1859,8 @@ int main(int argc, char **argv) {
     // Note: i4/u4 symmetric not implemented in serial baseline, only in Ice/SME
     dots_symmetric_<e4m3_k, f32_k>("dots_symmetric_e4m3_serial", nk_dots_symmetric_e4m3_serial);
     dots_symmetric_<e5m2_k, f32_k>("dots_symmetric_e5m2_serial", nk_dots_symmetric_e5m2_serial);
+    dots_symmetric_<e2m3_k, f32_k>("dots_symmetric_e2m3_serial", nk_dots_symmetric_e2m3_serial);
+    dots_symmetric_<e3m2_k, f32_k>("dots_symmetric_e3m2_serial", nk_dots_symmetric_e3m2_serial);
 
 #if NK_TARGET_HASWELL
     dots_symmetric_<f32_k, f32_k>("dots_symmetric_f32_haswell", nk_dots_symmetric_f32_haswell);
@@ -1907,6 +1909,8 @@ int main(int argc, char **argv) {
 
 #if NK_TARGET_NEONFHM
     dots_symmetric_<f16_k, f32_k>("dots_symmetric_f16_neonfhm", nk_dots_symmetric_f16_neonfhm);
+    dots_symmetric_<e2m3_k, f32_k>("dots_symmetric_e2m3_neonfhm", nk_dots_symmetric_e2m3_neonfhm);
+    dots_symmetric_<e3m2_k, f32_k>("dots_symmetric_e3m2_neonfhm", nk_dots_symmetric_e3m2_neonfhm);
 #endif
 
 #if NK_TARGET_NEONHALF

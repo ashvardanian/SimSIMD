@@ -1627,9 +1627,9 @@ NK_PUBLIC void nk_dots_symmetric_u4(nk_u4x2_t const *vectors, nk_size_t n_vector
 #if NK_TARGET_SME
     nk_dots_symmetric_u4_sme(vectors, n_vectors, depth, stride, result, result_stride, row_start, row_count);
 #elif NK_TARGET_ICE
-    nk_dots_symmetric_u4_ice(vectors, n_vectors, depth, stride, result, result_stride);
+    nk_dots_symmetric_u4_ice(vectors, n_vectors, depth, stride, result, result_stride, row_start, row_count);
 #elif NK_TARGET_NEONSDOT
-    nk_dots_symmetric_u4_neonsdot(vectors, n_vectors, depth, stride, result, result_stride);
+    nk_dots_symmetric_u4_neonsdot(vectors, n_vectors, depth, stride, result, result_stride, row_start, row_count);
 #else
     nk_dots_symmetric_u4_serial(vectors, n_vectors, depth, stride, result, result_stride, row_start, row_count);
 #endif
@@ -1641,9 +1641,9 @@ NK_PUBLIC void nk_dots_symmetric_i4(nk_i4x2_t const *vectors, nk_size_t n_vector
 #if NK_TARGET_SME
     nk_dots_symmetric_i4_sme(vectors, n_vectors, depth, stride, result, result_stride, row_start, row_count);
 #elif NK_TARGET_ICE
-    nk_dots_symmetric_i4_ice(vectors, n_vectors, depth, stride, result, result_stride);
+    nk_dots_symmetric_i4_ice(vectors, n_vectors, depth, stride, result, result_stride, row_start, row_count);
 #elif NK_TARGET_NEONSDOT
-    nk_dots_symmetric_i4_neonsdot(vectors, n_vectors, depth, stride, result, result_stride);
+    nk_dots_symmetric_i4_neonsdot(vectors, n_vectors, depth, stride, result, result_stride, row_start, row_count);
 #else
     nk_dots_symmetric_i4_serial(vectors, n_vectors, depth, stride, result, result_stride, row_start, row_count);
 #endif

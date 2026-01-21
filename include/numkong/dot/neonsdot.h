@@ -228,7 +228,7 @@ nk_dot_u4_neonsdot_cycle:
 
 struct nk_dot_i4x32_state_neonsdot_t {
     int32x4_t product_sum_i32x4;
-} nk_dot_i4x32_state_neonsdot_t;
+};
 
 NK_INTERNAL void nk_dot_i4x32_init_neonsdot(nk_dot_i4x32_state_neonsdot_t *state) {
     state->product_sum_i32x4 = vdupq_n_s32(0);
@@ -273,7 +273,7 @@ NK_INTERNAL void nk_dot_i4x32_finalize_neonsdot(                                
 
 struct nk_dot_u4x32_state_neonsdot_t {
     uint32x4_t product_sum_u32x4;
-} nk_dot_u4x32_state_neonsdot_t;
+};
 
 NK_INTERNAL void nk_dot_u4x32_init_neonsdot(nk_dot_u4x32_state_neonsdot_t *state) {
     state->product_sum_u32x4 = vdupq_n_u32(0);
