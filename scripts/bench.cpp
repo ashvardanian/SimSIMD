@@ -596,7 +596,7 @@ void measure_dots_symmetric(                                                   /
     for (auto _ : state) {
         bm::DoNotOptimize(matrix_c.raw_values_data());
         kernel(matrix_a.raw_values_data(), n, k, k * sizeof(raw_input_t), //
-               matrix_c.raw_values_data(), n * sizeof(raw_output_t));
+               matrix_c.raw_values_data(), n * sizeof(raw_output_t), 0, n);
         ++iterations;
     }
 
@@ -1163,6 +1163,8 @@ int main(int argc, char **argv) {
     constexpr nk_dtype_t bf16_k = nk_bf16_k;
     constexpr nk_dtype_t e4m3_k = nk_e4m3_k;
     constexpr nk_dtype_t e5m2_k = nk_e5m2_k;
+    constexpr nk_dtype_t e2m3_k = nk_e2m3_k;
+    constexpr nk_dtype_t e3m2_k = nk_e3m2_k;
     constexpr nk_dtype_t f64c_k = nk_f64c_k;
     constexpr nk_dtype_t f32c_k = nk_f32c_k;
     constexpr nk_dtype_t f16c_k = nk_f16c_k;
@@ -1354,6 +1356,8 @@ int main(int argc, char **argv) {
 
 #if NK_TARGET_NEONFHM
     dense_<f16_k, f32_k>("dot_f16_neonfhm", nk_dot_f16_neonfhm);
+    dense_<e2m3_k, f32_k>("dot_e2m3_neonfhm", nk_dot_e2m3_neonfhm);
+    dense_<e3m2_k, f32_k>("dot_e3m2_neonfhm", nk_dot_e3m2_neonfhm);
 
     dots_<f16_k, f32_k>("dots_packed_f16_neonfhm", nk_dots_packed_size_f16_neonfhm, nk_dots_pack_f16_neonfhm,
                         nk_dots_packed_f16_neonfhm);
@@ -1751,6 +1755,8 @@ int main(int argc, char **argv) {
 
     dense_<e4m3_k, f32_k>("dot_e4m3_serial", nk_dot_e4m3_serial);
     dense_<e5m2_k, f32_k>("dot_e5m2_serial", nk_dot_e5m2_serial);
+    dense_<e2m3_k, f32_k>("dot_e2m3_serial", nk_dot_e2m3_serial);
+    dense_<e3m2_k, f32_k>("dot_e3m2_serial", nk_dot_e3m2_serial);
 
     dense_<f16_k, f32_k>("dot_f16_serial", nk_dot_f16_serial);
     dense_<f16_k, f32_k>("angular_f16_serial", nk_angular_f16_serial);
