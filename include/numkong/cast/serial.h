@@ -931,11 +931,15 @@ NK_INTERNAL void nk_u64_to_bf16_serial(nk_u64_t const *x, nk_bf16_t *y) {
 
 /** @brief Type-agnostic 256-bit full load. */
 NK_INTERNAL void nk_load_b256_serial_(void const *src, nk_b256_vec_t *dst) {
-    dst->u64s[0] = 0, dst->u64s[1] = 0, dst->u64s[2] = 0, dst->u64s[3] = 0;
+    nk_u64_t const *s = (nk_u64_t const *)src;
+    dst->u64s[0] = s[0], dst->u64s[1] = s[1], dst->u64s[2] = s[2], dst->u64s[3] = s[3];
 }
 
 /** @brief Type-agnostic 128-bit full load. */
-NK_INTERNAL void nk_load_b128_serial_(void const *src, nk_b128_vec_t *dst) { dst->u64s[0] = 0, dst->u64s[1] = 0; }
+NK_INTERNAL void nk_load_b128_serial_(void const *src, nk_b128_vec_t *dst) {
+    nk_u64_t const *s = (nk_u64_t const *)src;
+    dst->u64s[0] = s[0], dst->u64s[1] = s[1];
+}
 
 /** @brief Type-agnostic 64-bit full load. */
 NK_INTERNAL void nk_load_b64_serial_(void const *src, nk_b64_vec_t *dst) { dst->u64 = *(nk_u64_t const *)src; }
