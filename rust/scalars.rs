@@ -1149,29 +1149,209 @@ impl From<i4x2> for (i8, i8) {
 mod tests {
     use super::*;
 
+    // Test-only trait for type-specific tolerance values
+    trait TestableScalar: Sized {
+        const ABSOLUTE_TOLERANCE: f32;
+        const RELATIVE_TOLERANCE: f32;
+        const MAX_VALUE: f32;
+        const MIN_VALUE: f32;
+        const HAS_INFINITY: bool;
+        const HAS_NAN: bool;
+        const HAS_SUBNORMALS: bool;
+
+        fn from_f32(v: f32) -> Self;
+        fn to_f32(self) -> f32;
+    }
+
+    // f16: 10 mantissa bits, epsilon = 2^-10 = 0.000977
+    impl TestableScalar for f16 {
+        const ABSOLUTE_TOLERANCE: f32 = 0.002; // 2^(1-10) * 2 = 0.001953
+        const RELATIVE_TOLERANCE: f32 = 0.001; // 2^(-10+1) * 2 = 0.000977 * 2
+        const MAX_VALUE: f32 = 65504.0;
+        const MIN_VALUE: f32 = 6.1e-5;
+        const HAS_INFINITY: bool = true;
+        const HAS_NAN: bool = true;
+        const HAS_SUBNORMALS: bool = true;
+
+        fn from_f32(v: f32) -> Self {
+            f16::from_f32(v)
+        }
+        fn to_f32(self) -> f32 {
+            self.to_f32()
+        }
+    }
+
+    // bf16: 7 mantissa bits, epsilon = 2^-7 = 0.0078125
+    impl TestableScalar for bf16 {
+        const ABSOLUTE_TOLERANCE: f32 = 0.016; // 2^(1-7) * 2 = 0.015625
+        const RELATIVE_TOLERANCE: f32 = 0.008; // 2^(-7+1) * 2 = 0.015625
+        const MAX_VALUE: f32 = 3.4e38;
+        const MIN_VALUE: f32 = 1.2e-38;
+        const HAS_INFINITY: bool = true;
+        const HAS_NAN: bool = true;
+        const HAS_SUBNORMALS: bool = true;
+
+        fn from_f32(v: f32) -> Self {
+            bf16::from_f32(v)
+        }
+        fn to_f32(self) -> f32 {
+            self.to_f32()
+        }
+    }
+
+    // e4m3: 3 mantissa bits, epsilon = 2^-3 = 0.125
+    impl TestableScalar for e4m3 {
+        const ABSOLUTE_TOLERANCE: f32 = 0.25; // 2^(1-3) * 2 = 0.25
+        const RELATIVE_TOLERANCE: f32 = 0.125; // 2^(-3+1) * 2 = 0.25
+        const MAX_VALUE: f32 = 448.0;
+        const MIN_VALUE: f32 = 0.001953125; // 2^-9
+        const HAS_INFINITY: bool = false;
+        const HAS_NAN: bool = true;
+        const HAS_SUBNORMALS: bool = true;
+
+        fn from_f32(v: f32) -> Self {
+            e4m3::from_f32(v)
+        }
+        fn to_f32(self) -> f32 {
+            self.to_f32()
+        }
+    }
+
+    // e5m2: 2 mantissa bits, epsilon = 2^-2 = 0.25
+    impl TestableScalar for e5m2 {
+        const ABSOLUTE_TOLERANCE: f32 = 0.5; // 2^(1-2) * 2 = 0.5
+        const RELATIVE_TOLERANCE: f32 = 0.25; // 2^(-2+1) * 2 = 0.5
+        const MAX_VALUE: f32 = 57344.0;
+        const MIN_VALUE: f32 = 0.00006103515625; // 2^-14
+        const HAS_INFINITY: bool = true;
+        const HAS_NAN: bool = true;
+        const HAS_SUBNORMALS: bool = true;
+
+        fn from_f32(v: f32) -> Self {
+            e5m2::from_f32(v)
+        }
+        fn to_f32(self) -> f32 {
+            self.to_f32()
+        }
+    }
+
+    // e2m3: 3 mantissa bits, epsilon = 2^-3 = 0.125
+    impl TestableScalar for e2m3 {
+        const ABSOLUTE_TOLERANCE: f32 = 0.25; // 2^(1-3) * 2 = 0.25
+        const RELATIVE_TOLERANCE: f32 = 0.125; // 2^(-3+1) * 2 = 0.25
+        const MAX_VALUE: f32 = 7.5;
+        const MIN_VALUE: f32 = 0.0625; // 2^-4
+        const HAS_INFINITY: bool = false;
+        const HAS_NAN: bool = false;
+        const HAS_SUBNORMALS: bool = true;
+
+        fn from_f32(v: f32) -> Self {
+            e2m3::from_f32(v)
+        }
+        fn to_f32(self) -> f32 {
+            self.to_f32()
+        }
+    }
+
+    // e3m2: 2 mantissa bits, epsilon = 2^-2 = 0.25
+    impl TestableScalar for e3m2 {
+        const ABSOLUTE_TOLERANCE: f32 = 0.5; // 2^(1-2) * 2 = 0.5
+        const RELATIVE_TOLERANCE: f32 = 0.25; // 2^(-2+1) * 2 = 0.5
+        const MAX_VALUE: f32 = 28.0;
+        const MIN_VALUE: f32 = 0.125; // 2^-3
+        const HAS_INFINITY: bool = false;
+        const HAS_NAN: bool = false;
+        const HAS_SUBNORMALS: bool = true;
+
+        fn from_f32(v: f32) -> Self {
+            e3m2::from_f32(v)
+        }
+        fn to_f32(self) -> f32 {
+            self.to_f32()
+        }
+    }
+
+    // Generic helper function for roundtrip testing
+    fn assert_scalar_roundtrip<T: TestableScalar>(original: f32) {
+        let converted = T::from_f32(original);
+        let roundtrip = converted.to_f32();
+
+        if original == 0.0 {
+            assert_eq!(roundtrip, 0.0, "Zero should roundtrip exactly");
+            return;
+        }
+
+        let abs_error = (roundtrip - original).abs();
+        let rel_error = abs_error / original.abs();
+
+        assert!(
+            abs_error <= T::ABSOLUTE_TOLERANCE || rel_error <= T::RELATIVE_TOLERANCE,
+            "Roundtrip failed for {}: got {} (abs_err={:.6}, rel_err={:.6}, abs_tol={:.6}, rel_tol={:.6})",
+            original,
+            roundtrip,
+            abs_error,
+            rel_error,
+            T::ABSOLUTE_TOLERANCE,
+            T::RELATIVE_TOLERANCE
+        );
+    }
+
+    // Generic helper function for approximate equality testing
+    fn assert_scalar_almost_equal<T: TestableScalar>(actual: f32, expected: f32, context: &str) {
+        let abs_error = (actual - expected).abs();
+        let rel_error = if expected != 0.0 {
+            abs_error / expected.abs()
+        } else {
+            abs_error
+        };
+
+        assert!(
+            abs_error <= T::ABSOLUTE_TOLERANCE || rel_error <= T::RELATIVE_TOLERANCE,
+            "{}: expected {} but got {} (abs_err={:.6}, rel_err={:.6}, abs_tol={:.6}, rel_tol={:.6})",
+            context,
+            expected,
+            actual,
+            abs_error,
+            rel_error,
+            T::ABSOLUTE_TOLERANCE,
+            T::RELATIVE_TOLERANCE
+        );
+    }
+
     #[test]
     fn f16_arithmetic() {
         let a = f16::from_f32(3.5);
         let b = f16::from_f32(2.0);
 
-        assert!((a + b).to_f32() - 5.5 < 0.01);
-        assert!((a - b).to_f32() - 1.5 < 0.01);
-        assert!((a * b).to_f32() - 7.0 < 0.01);
-        assert!((a / b).to_f32() - 1.75 < 0.01);
-        assert!((-a).to_f32() + 3.5 < 0.01);
+        assert_scalar_almost_equal::<f16>((a + b).to_f32(), 5.5, "addition");
+        assert_scalar_almost_equal::<f16>((a - b).to_f32(), 1.5, "subtraction");
+        assert_scalar_almost_equal::<f16>((a * b).to_f32(), 7.0, "multiplication");
+        assert_scalar_almost_equal::<f16>((a / b).to_f32(), 1.75, "division");
+        assert_scalar_almost_equal::<f16>((-a).to_f32(), -3.5, "negation");
 
-        assert!(f16::ZERO.to_f32() == 0.0);
-        assert!((f16::ONE.to_f32() - 1.0).abs() < 0.01);
-        assert!((f16::NEG_ONE.to_f32() + 1.0).abs() < 0.01);
+        assert_eq!(f16::ZERO.to_f32(), 0.0);
+        assert_scalar_almost_equal::<f16>(f16::ONE.to_f32(), 1.0, "ONE constant");
+        assert_scalar_almost_equal::<f16>(f16::NEG_ONE.to_f32(), -1.0, "NEG_ONE constant");
 
         assert!(a > b);
         assert!(!(a < b));
         assert!(a == a);
 
-        assert!((-a).abs().to_f32() - 3.5 < 0.01);
+        assert_scalar_almost_equal::<f16>((-a).abs().to_f32(), 3.5, "abs");
         assert!(a.is_finite());
         assert!(!a.is_nan());
         assert!(!a.is_infinite());
+    }
+
+    #[test]
+    fn f16_roundtrip() {
+        let test_values = [
+            0.0f32, 1.0, -1.0, 0.5, 2.0, 4.0, 8.0, 16.0, 100.0, 1000.0, 10000.0, 0.001, 0.0001,
+            0.00001, -100.0, -1000.0,
+        ];
+        for &val in &test_values {
+            assert_scalar_roundtrip::<f16>(val);
+        }
     }
 
     #[test]
@@ -1179,24 +1359,34 @@ mod tests {
         let a = bf16::from_f32(3.5);
         let b = bf16::from_f32(2.0);
 
-        assert!((a + b).to_f32() - 5.5 < 0.1);
-        assert!((a - b).to_f32() - 1.5 < 0.1);
-        assert!((a * b).to_f32() - 7.0 < 0.1);
-        assert!((a / b).to_f32() - 1.75 < 0.1);
-        assert!((-a).to_f32() + 3.5 < 0.1);
+        assert_scalar_almost_equal::<bf16>((a + b).to_f32(), 5.5, "addition");
+        assert_scalar_almost_equal::<bf16>((a - b).to_f32(), 1.5, "subtraction");
+        assert_scalar_almost_equal::<bf16>((a * b).to_f32(), 7.0, "multiplication");
+        assert_scalar_almost_equal::<bf16>((a / b).to_f32(), 1.75, "division");
+        assert_scalar_almost_equal::<bf16>((-a).to_f32(), -3.5, "negation");
 
-        assert!(bf16::ZERO.to_f32() == 0.0);
-        assert!((bf16::ONE.to_f32() - 1.0).abs() < 0.01);
-        assert!((bf16::NEG_ONE.to_f32() + 1.0).abs() < 0.01);
+        assert_eq!(bf16::ZERO.to_f32(), 0.0);
+        assert_scalar_almost_equal::<bf16>(bf16::ONE.to_f32(), 1.0, "ONE constant");
+        assert_scalar_almost_equal::<bf16>(bf16::NEG_ONE.to_f32(), -1.0, "NEG_ONE constant");
 
         assert!(a > b);
         assert!(!(a < b));
         assert!(a == a);
 
-        assert!((-a).abs().to_f32() - 3.5 < 0.1);
+        assert_scalar_almost_equal::<bf16>((-a).abs().to_f32(), 3.5, "abs");
         assert!(a.is_finite());
         assert!(!a.is_nan());
         assert!(!a.is_infinite());
+    }
+
+    #[test]
+    fn bf16_roundtrip() {
+        let test_values = [
+            0.0f32, 1.0, -1.0, 0.5, 2.0, 10.0, 100.0, 1000.0, 1e6, 0.001, 1e-6, -100.0, -1000.0,
+        ];
+        for &val in &test_values {
+            assert_scalar_roundtrip::<bf16>(val);
+        }
     }
 
     #[test]
@@ -1204,23 +1394,24 @@ mod tests {
         let a = e4m3::from_f32(2.0);
         let b = e4m3::from_f32(1.5);
 
-        assert!((a + b).to_f32() - 3.5 < 0.5);
-        assert!((a - b).to_f32() - 0.5 < 0.5);
-        assert!((a * b).to_f32() - 3.0 < 0.5);
-        assert!((a / b).to_f32() - 1.333 < 0.5);
-        assert!((-a).to_f32() + 2.0 < 0.1);
+        assert_scalar_almost_equal::<e4m3>((a + b).to_f32(), 3.5, "addition");
+        assert_scalar_almost_equal::<e4m3>((a - b).to_f32(), 0.5, "subtraction");
+        assert_scalar_almost_equal::<e4m3>((a * b).to_f32(), 3.0, "multiplication");
+        assert_scalar_almost_equal::<e4m3>((a / b).to_f32(), 1.333, "division");
+        assert_scalar_almost_equal::<e4m3>((-a).to_f32(), -2.0, "negation");
 
-        assert!(e4m3::ZERO.to_f32() == 0.0);
-        assert!((e4m3::ONE.to_f32() - 1.0).abs() < 0.1);
-        assert!((e4m3::NEG_ONE.to_f32() + 1.0).abs() < 0.1);
+        assert_eq!(e4m3::ZERO.to_f32(), 0.0);
+        assert_scalar_almost_equal::<e4m3>(e4m3::ONE.to_f32(), 1.0, "ONE constant");
+        assert_scalar_almost_equal::<e4m3>(e4m3::NEG_ONE.to_f32(), -1.0, "NEG_ONE constant");
 
         assert!(a > b);
         assert!(!(a < b));
         assert!(a == a);
 
-        assert!((-a).abs().to_f32() - 2.0 < 0.1);
+        assert_scalar_almost_equal::<e4m3>((-a).abs().to_f32(), 2.0, "abs");
         assert!(a.is_finite());
         assert!(!a.is_nan());
+        // e4m3 has no infinities (no is_infinite() method available)
     }
 
     #[test]
@@ -1228,21 +1419,21 @@ mod tests {
         let a = e5m2::from_f32(2.0);
         let b = e5m2::from_f32(1.5);
 
-        assert!((a + b).to_f32() - 3.5 < 0.5);
-        assert!((a - b).to_f32() - 0.5 < 0.5);
-        assert!((a * b).to_f32() - 3.0 < 0.5);
-        assert!((a / b).to_f32() - 1.333 < 0.5);
-        assert!((-a).to_f32() + 2.0 < 0.1);
+        assert_scalar_almost_equal::<e5m2>((a + b).to_f32(), 3.5, "addition");
+        assert_scalar_almost_equal::<e5m2>((a - b).to_f32(), 0.5, "subtraction");
+        assert_scalar_almost_equal::<e5m2>((a * b).to_f32(), 3.0, "multiplication");
+        assert_scalar_almost_equal::<e5m2>((a / b).to_f32(), 1.333, "division");
+        assert_scalar_almost_equal::<e5m2>((-a).to_f32(), -2.0, "negation");
 
-        assert!(e5m2::ZERO.to_f32() == 0.0);
-        assert!((e5m2::ONE.to_f32() - 1.0).abs() < 0.1);
-        assert!((e5m2::NEG_ONE.to_f32() + 1.0).abs() < 0.1);
+        assert_eq!(e5m2::ZERO.to_f32(), 0.0);
+        assert_scalar_almost_equal::<e5m2>(e5m2::ONE.to_f32(), 1.0, "ONE constant");
+        assert_scalar_almost_equal::<e5m2>(e5m2::NEG_ONE.to_f32(), -1.0, "NEG_ONE constant");
 
         assert!(a > b);
         assert!(!(a < b));
         assert!(a == a);
 
-        assert!((-a).abs().to_f32() - 2.0 < 0.1);
+        assert_scalar_almost_equal::<e5m2>((-a).abs().to_f32(), 2.0, "abs");
         assert!(a.is_finite());
         assert!(!a.is_nan());
         assert!(!a.is_infinite());
@@ -1254,19 +1445,7 @@ mod tests {
             0.0f32, 1.0, -1.0, 0.5, 2.0, 4.0, 8.0, 16.0, 64.0, 128.0, 224.0,
         ];
         for &val in &test_values {
-            let fp8 = e4m3::from_f32(val);
-            let roundtrip = fp8.to_f32();
-            if val != 0.0 {
-                let rel_error = ((roundtrip - val) / val).abs();
-                assert!(
-                    rel_error < 0.5,
-                    "e4m3 roundtrip failed for {}: got {}",
-                    val,
-                    roundtrip
-                );
-            } else {
-                assert_eq!(roundtrip, 0.0);
-            }
+            assert_scalar_roundtrip::<e4m3>(val);
         }
     }
 
@@ -1276,19 +1455,7 @@ mod tests {
             0.0f32, 1.0, -1.0, 0.5, 2.0, 4.0, 8.0, 16.0, 64.0, 256.0, 1024.0,
         ];
         for &val in &test_values {
-            let fp8 = e5m2::from_f32(val);
-            let roundtrip = fp8.to_f32();
-            if val != 0.0 {
-                let rel_error = ((roundtrip - val) / val).abs();
-                assert!(
-                    rel_error < 0.5,
-                    "e5m2 roundtrip failed for {}: got {}",
-                    val,
-                    roundtrip
-                );
-            } else {
-                assert_eq!(roundtrip, 0.0);
-            }
+            assert_scalar_roundtrip::<e5m2>(val);
         }
     }
 
@@ -1297,21 +1464,21 @@ mod tests {
         let a = e2m3::from_f32(2.0);
         let b = e2m3::from_f32(1.5);
 
-        assert!((a + b).to_f32() - 3.5 < 1.0);
-        assert!((a - b).to_f32() - 0.5 < 1.0);
-        assert!((a * b).to_f32() - 3.0 < 1.0);
-        assert!((a / b).to_f32() - 1.333 < 1.0);
-        assert!((-a).to_f32() + 2.0 < 0.5);
+        assert_scalar_almost_equal::<e2m3>((a + b).to_f32(), 3.5, "addition");
+        assert_scalar_almost_equal::<e2m3>((a - b).to_f32(), 0.5, "subtraction");
+        assert_scalar_almost_equal::<e2m3>((a * b).to_f32(), 3.0, "multiplication");
+        assert_scalar_almost_equal::<e2m3>((a / b).to_f32(), 1.333, "division");
+        assert_scalar_almost_equal::<e2m3>((-a).to_f32(), -2.0, "negation");
 
-        assert!(e2m3::ZERO.to_f32() == 0.0);
-        assert!((e2m3::ONE.to_f32() - 1.0).abs() < 0.2);
-        assert!((e2m3::NEG_ONE.to_f32() + 1.0).abs() < 0.2);
+        assert_eq!(e2m3::ZERO.to_f32(), 0.0);
+        assert_scalar_almost_equal::<e2m3>(e2m3::ONE.to_f32(), 1.0, "ONE constant");
+        assert_scalar_almost_equal::<e2m3>(e2m3::NEG_ONE.to_f32(), -1.0, "NEG_ONE constant");
 
         assert!(a > b);
         assert!(!(a < b));
         assert!(a == a);
 
-        assert!((-a).abs().to_f32() - 2.0 < 0.5);
+        assert_scalar_almost_equal::<e2m3>((-a).abs().to_f32(), 2.0, "abs");
         assert!(a.is_finite());
         assert!(!a.is_nan());
         assert!(!a.is_infinite());
@@ -1322,21 +1489,21 @@ mod tests {
         let a = e3m2::from_f32(4.0);
         let b = e3m2::from_f32(2.0);
 
-        assert!((a + b).to_f32() - 6.0 < 1.0);
-        assert!((a - b).to_f32() - 2.0 < 1.0);
-        assert!((a * b).to_f32() - 8.0 < 1.0);
-        assert!((a / b).to_f32() - 2.0 < 1.0);
-        assert!((-a).to_f32() + 4.0 < 1.0);
+        assert_scalar_almost_equal::<e3m2>((a + b).to_f32(), 6.0, "addition");
+        assert_scalar_almost_equal::<e3m2>((a - b).to_f32(), 2.0, "subtraction");
+        assert_scalar_almost_equal::<e3m2>((a * b).to_f32(), 8.0, "multiplication");
+        assert_scalar_almost_equal::<e3m2>((a / b).to_f32(), 2.0, "division");
+        assert_scalar_almost_equal::<e3m2>((-a).to_f32(), -4.0, "negation");
 
-        assert!(e3m2::ZERO.to_f32() == 0.0);
-        assert!((e3m2::ONE.to_f32() - 1.0).abs() < 0.2);
-        assert!((e3m2::NEG_ONE.to_f32() + 1.0).abs() < 0.2);
+        assert_eq!(e3m2::ZERO.to_f32(), 0.0);
+        assert_scalar_almost_equal::<e3m2>(e3m2::ONE.to_f32(), 1.0, "ONE constant");
+        assert_scalar_almost_equal::<e3m2>(e3m2::NEG_ONE.to_f32(), -1.0, "NEG_ONE constant");
 
         assert!(a > b);
         assert!(!(a < b));
         assert!(a == a);
 
-        assert!((-a).abs().to_f32() - 4.0 < 1.0);
+        assert_scalar_almost_equal::<e3m2>((-a).abs().to_f32(), 4.0, "abs");
         assert!(a.is_finite());
         assert!(!a.is_nan());
         assert!(!a.is_infinite());
@@ -1344,41 +1511,186 @@ mod tests {
 
     #[test]
     fn e2m3_roundtrip() {
-        let test_values = [0.0f32, 1.0, -1.0, 0.5, 2.0, 3.0];
+        let test_values = [
+            0.0f32, 1.0, -1.0, 0.5, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 7.5, 0.25, -0.25, 0.125, -0.125,
+            -4.0, -6.0, -7.5,
+        ];
         for &val in &test_values {
-            let fp6 = e2m3::from_f32(val);
-            let roundtrip = fp6.to_f32();
-            if val != 0.0 {
-                let rel_error = ((roundtrip - val) / val).abs();
-                assert!(
-                    rel_error < 1.0,
-                    "e2m3 roundtrip failed for {}: got {}",
-                    val,
-                    roundtrip
-                );
-            } else {
-                assert_eq!(roundtrip, 0.0);
-            }
+            assert_scalar_roundtrip::<e2m3>(val);
         }
     }
 
     #[test]
     fn e3m2_roundtrip() {
-        let test_values = [0.0f32, 1.0, -1.0, 0.5, 2.0, 4.0, 8.0, 16.0];
+        let test_values = [
+            0.0f32, 1.0, -1.0, 0.5, 2.0, 4.0, 8.0, 16.0, 20.0, 24.0, 28.0, 0.25, -0.25, -20.0,
+            -28.0,
+        ];
         for &val in &test_values {
-            let fp6 = e3m2::from_f32(val);
-            let roundtrip = fp6.to_f32();
-            if val != 0.0 {
-                let rel_error = ((roundtrip - val) / val).abs();
-                assert!(
-                    rel_error < 1.0,
-                    "e3m2 roundtrip failed for {}: got {}",
-                    val,
-                    roundtrip
-                );
-            } else {
-                assert_eq!(roundtrip, 0.0);
-            }
+            assert_scalar_roundtrip::<e3m2>(val);
+        }
+    }
+
+    #[test]
+    fn f16_edge_cases() {
+        // Zero
+        assert_eq!(f16::from_f32(0.0).to_f32(), 0.0);
+        assert_eq!(f16::from_f32(-0.0).to_f32(), 0.0);
+
+        // Infinity
+        assert!(f16::from_f32(f32::INFINITY).to_f32().is_infinite());
+        assert!(f16::from_f32(f32::NEG_INFINITY).to_f32().is_infinite());
+
+        // NaN
+        assert!(f16::from_f32(f32::NAN).to_f32().is_nan());
+
+        // Overflow to infinity
+        let overflow = f16::from_f32(100000.0);
+        assert!(overflow.to_f32().is_infinite() || overflow.to_f32() >= 65504.0);
+    }
+
+    #[test]
+    fn bf16_edge_cases() {
+        // Zero
+        assert_eq!(bf16::from_f32(0.0).to_f32(), 0.0);
+        assert_eq!(bf16::from_f32(-0.0).to_f32(), 0.0);
+
+        // Infinity
+        assert!(bf16::from_f32(f32::INFINITY).to_f32().is_infinite());
+        assert!(bf16::from_f32(f32::NEG_INFINITY).to_f32().is_infinite());
+
+        // NaN
+        assert!(bf16::from_f32(f32::NAN).to_f32().is_nan());
+
+        // Overflow to infinity
+        let overflow = bf16::from_f32(f32::MAX);
+        assert!(overflow.to_f32().is_infinite());
+    }
+
+    #[test]
+    fn e4m3_edge_cases() {
+        // Zero
+        assert_eq!(e4m3::from_f32(0.0).to_f32(), 0.0);
+        assert_eq!(e4m3::from_f32(-0.0).to_f32(), 0.0);
+
+        // NaN (e4m3 has NaN but no infinities)
+        assert!(e4m3::from_f32(f32::NAN).to_f32().is_nan());
+
+        // Overflow saturates to max value, not infinity
+        let overflow = e4m3::from_f32(10000.0);
+        let overflow_val = overflow.to_f32();
+        assert!(!overflow_val.is_infinite());
+        assert!(overflow_val <= 448.0);
+
+        // Infinity input should not produce infinity output
+        assert!(!e4m3::from_f32(f32::INFINITY).to_f32().is_infinite());
+    }
+
+    #[test]
+    fn e5m2_edge_cases() {
+        // Zero
+        assert_eq!(e5m2::from_f32(0.0).to_f32(), 0.0);
+        assert_eq!(e5m2::from_f32(-0.0).to_f32(), 0.0);
+
+        // Infinity (e5m2 supports infinity)
+        assert!(e5m2::from_f32(f32::INFINITY).to_f32().is_infinite());
+        assert!(e5m2::from_f32(f32::NEG_INFINITY).to_f32().is_infinite());
+
+        // NaN
+        assert!(e5m2::from_f32(f32::NAN).to_f32().is_nan());
+
+        // Overflow to infinity
+        let overflow = e5m2::from_f32(1e10);
+        assert!(overflow.to_f32().is_infinite() || overflow.to_f32() >= 57344.0);
+    }
+
+    #[test]
+    fn e2m3_edge_cases() {
+        // Zero
+        assert_eq!(e2m3::from_f32(0.0).to_f32(), 0.0);
+        assert_eq!(e2m3::from_f32(-0.0).to_f32(), 0.0);
+
+        // e2m3 has no NaN or infinities, should saturate
+        let overflow_pos = e2m3::from_f32(100.0);
+        let overflow_val = overflow_pos.to_f32();
+        assert!(!overflow_val.is_infinite());
+        assert!(!overflow_val.is_nan());
+        assert!(overflow_val <= 7.5);
+
+        let overflow_neg = e2m3::from_f32(-100.0);
+        let overflow_val_neg = overflow_neg.to_f32();
+        assert!(!overflow_val_neg.is_infinite());
+        assert!(!overflow_val_neg.is_nan());
+        assert!(overflow_val_neg >= -7.5);
+
+        // Infinity and NaN inputs should not produce infinity/NaN outputs
+        assert!(!e2m3::from_f32(f32::INFINITY).to_f32().is_infinite());
+        assert!(!e2m3::from_f32(f32::NAN).to_f32().is_nan());
+    }
+
+    #[test]
+    fn e3m2_edge_cases() {
+        // Zero
+        assert_eq!(e3m2::from_f32(0.0).to_f32(), 0.0);
+        assert_eq!(e3m2::from_f32(-0.0).to_f32(), 0.0);
+
+        // e3m2 has no NaN or infinities, should saturate
+        let overflow_pos = e3m2::from_f32(1000.0);
+        let overflow_val = overflow_pos.to_f32();
+        assert!(!overflow_val.is_infinite());
+        assert!(!overflow_val.is_nan());
+        assert!(overflow_val <= 28.0);
+
+        let overflow_neg = e3m2::from_f32(-1000.0);
+        let overflow_val_neg = overflow_neg.to_f32();
+        assert!(!overflow_val_neg.is_infinite());
+        assert!(!overflow_val_neg.is_nan());
+        assert!(overflow_val_neg >= -28.0);
+
+        // Infinity and NaN inputs should not produce infinity/NaN outputs
+        assert!(!e3m2::from_f32(f32::INFINITY).to_f32().is_infinite());
+        assert!(!e3m2::from_f32(f32::NAN).to_f32().is_nan());
+    }
+
+    #[test]
+    fn f16_subnormals() {
+        // f16 normal minimum: ~6.1e-5
+        // f16 subnormal minimum: ~6.0e-8
+        // Test values in subnormal range
+        let subnormal_values = [1e-5f32, 1e-6, 1e-7, 5e-6, 5e-7];
+
+        for &val in &subnormal_values {
+            let converted = f16::from_f32(val);
+            let roundtrip = converted.to_f32();
+            // Should preserve small value or round to zero
+            // Subnormals should be non-negative and very small
+            assert!(
+                roundtrip >= 0.0 && roundtrip < 1e-4,
+                "f16 subnormal test failed for {}: got {}",
+                val,
+                roundtrip
+            );
+        }
+    }
+
+    #[test]
+    fn bf16_subnormals() {
+        // bf16 normal minimum: ~1.2e-38
+        // bf16 subnormal minimum: ~1.4e-45
+        // Test values in subnormal range
+        let subnormal_values = [1e-39f32, 1e-40, 1e-42];
+
+        for &val in &subnormal_values {
+            let converted = bf16::from_f32(val);
+            let roundtrip = converted.to_f32();
+            // Should preserve small value or round to zero
+            // Subnormals should be non-negative and very small
+            assert!(
+                roundtrip >= 0.0 && roundtrip < 1e-37,
+                "bf16 subnormal test failed for {}: got {}",
+                val,
+                roundtrip
+            );
         }
     }
 }
