@@ -116,7 +116,10 @@ NK_INTERNAL void nk_dot_i8x32_init_sierra(nk_dot_i8x32_state_sierra_t *state) {
     state->sum_b_i32x8 = _mm256_setzero_si256();
 }
 
-NK_INTERNAL void nk_dot_i8x32_update_sierra(nk_dot_i8x32_state_sierra_t *state, nk_b256_vec_t a, nk_b256_vec_t b) {
+NK_INTERNAL void nk_dot_i8x32_update_sierra(nk_dot_i8x32_state_sierra_t *state, nk_b256_vec_t a, nk_b256_vec_t b,
+                                            nk_size_t depth_offset, nk_size_t active_dimensions) {
+    nk_unused_(depth_offset);
+    nk_unused_(active_dimensions);
     // Optimized i8×i8 using DPBUSD with algebraic transformation
     // Transform: a×b = (a+128)×b - 128×sum(b)
     __m256i const xor_mask_u8x32 = _mm256_set1_epi8((char)0x80);
@@ -144,7 +147,8 @@ NK_INTERNAL void nk_dot_i8x32_update_sierra(nk_dot_i8x32_state_sierra_t *state, 
 NK_INTERNAL void nk_dot_i8x32_finalize_sierra(                                              //
     nk_dot_i8x32_state_sierra_t const *state_a, nk_dot_i8x32_state_sierra_t const *state_b, //
     nk_dot_i8x32_state_sierra_t const *state_c, nk_dot_i8x32_state_sierra_t const *state_d, //
-    nk_b128_vec_t *results) {
+    nk_b128_vec_t *results, nk_size_t total_dimensions) {
+    nk_unused_(total_dimensions);
     // ILP-optimized 4-way horizontal reduction for i32 with algebraic correction
     // For each accumulator: result = sum_ab - 128 × sum_b
 
@@ -276,7 +280,10 @@ NK_INTERNAL void nk_dot_u8x32_init_sierra(nk_dot_u8x32_state_sierra_t *state) {
     state->sum_a_i64x4 = _mm256_setzero_si256();
 }
 
-NK_INTERNAL void nk_dot_u8x32_update_sierra(nk_dot_u8x32_state_sierra_t *state, nk_b256_vec_t a, nk_b256_vec_t b) {
+NK_INTERNAL void nk_dot_u8x32_update_sierra(nk_dot_u8x32_state_sierra_t *state, nk_b256_vec_t a, nk_b256_vec_t b,
+                                            nk_size_t depth_offset, nk_size_t active_dimensions) {
+    nk_unused_(depth_offset);
+    nk_unused_(active_dimensions);
     // Optimized u8×u8 using DPBUSD with algebraic transformation
     // Transform: a×b = a×(b-128) + 128×sum(a)
     __m256i const xor_mask_u8x32 = _mm256_set1_epi8((char)0x80);
@@ -298,7 +305,8 @@ NK_INTERNAL void nk_dot_u8x32_update_sierra(nk_dot_u8x32_state_sierra_t *state, 
 NK_INTERNAL void nk_dot_u8x32_finalize_sierra(                                              //
     nk_dot_u8x32_state_sierra_t const *state_a, nk_dot_u8x32_state_sierra_t const *state_b, //
     nk_dot_u8x32_state_sierra_t const *state_c, nk_dot_u8x32_state_sierra_t const *state_d, //
-    nk_b128_vec_t *results) {
+    nk_b128_vec_t *results, nk_size_t total_dimensions) {
+    nk_unused_(total_dimensions);
     // ILP-optimized 4-way horizontal reduction for u32 with algebraic correction
     // For each accumulator: result = sum_ab + 128 × sum_a
 

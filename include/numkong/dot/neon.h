@@ -143,7 +143,10 @@ typedef struct nk_dot_f32x2_state_neon_t {
 
 NK_INTERNAL void nk_dot_f32x2_init_neon(nk_dot_f32x2_state_neon_t *state) { state->sum_f64x2 = vdupq_n_f64(0); }
 
-NK_INTERNAL void nk_dot_f32x2_update_neon(nk_dot_f32x2_state_neon_t *state, nk_b64_vec_t a, nk_b64_vec_t b) {
+NK_INTERNAL void nk_dot_f32x2_update_neon(nk_dot_f32x2_state_neon_t *state, nk_b64_vec_t a, nk_b64_vec_t b,
+                                          nk_size_t depth_offset, nk_size_t active_dimensions) {
+    nk_unused_(depth_offset);
+    nk_unused_(active_dimensions);
     // Upcast 2 f32s to f64s for high-precision accumulation
     float32x2_t a_f32x2 = vreinterpret_f32_u32(a.u32x2);
     float32x2_t b_f32x2 = vreinterpret_f32_u32(b.u32x2);
@@ -155,7 +158,8 @@ NK_INTERNAL void nk_dot_f32x2_update_neon(nk_dot_f32x2_state_neon_t *state, nk_b
 NK_INTERNAL void nk_dot_f32x2_finalize_neon(                                            //
     nk_dot_f32x2_state_neon_t const *state_a, nk_dot_f32x2_state_neon_t const *state_b, //
     nk_dot_f32x2_state_neon_t const *state_c, nk_dot_f32x2_state_neon_t const *state_d, //
-    nk_b128_vec_t *result) {
+    nk_b128_vec_t *result, nk_size_t total_dimensions) {
+    nk_unused_(total_dimensions);
     // Reduce each f64x2 → f64, downcast to f32, pack into f32x4
     float32x4_t sums_f32x4 = {(nk_f32_t)vaddvq_f64(state_a->sum_f64x2), (nk_f32_t)vaddvq_f64(state_b->sum_f64x2),
                               (nk_f32_t)vaddvq_f64(state_c->sum_f64x2), (nk_f32_t)vaddvq_f64(state_d->sum_f64x2)};
@@ -351,7 +355,10 @@ NK_INTERNAL void nk_dot_f64x2_init_neon(nk_dot_f64x2_state_neon_t *state) {
     state->compensation_f64x2 = vdupq_n_f64(0);
 }
 
-NK_INTERNAL void nk_dot_f64x2_update_neon(nk_dot_f64x2_state_neon_t *state, nk_b128_vec_t a, nk_b128_vec_t b) {
+NK_INTERNAL void nk_dot_f64x2_update_neon(nk_dot_f64x2_state_neon_t *state, nk_b128_vec_t a, nk_b128_vec_t b,
+                                          nk_size_t depth_offset, nk_size_t active_dimensions) {
+    nk_unused_(depth_offset);
+    nk_unused_(active_dimensions);
     float64x2_t sum_f64x2 = state->sum_f64x2;
     float64x2_t compensation_f64x2 = state->compensation_f64x2;
     float64x2_t a_f64x2 = vreinterpretq_f64_u64(a.u64x2);
@@ -375,7 +382,8 @@ NK_INTERNAL void nk_dot_f64x2_update_neon(nk_dot_f64x2_state_neon_t *state, nk_b
 NK_INTERNAL void nk_dot_f64x2_finalize_neon(                                            //
     nk_dot_f64x2_state_neon_t const *state_a, nk_dot_f64x2_state_neon_t const *state_b, //
     nk_dot_f64x2_state_neon_t const *state_c, nk_dot_f64x2_state_neon_t const *state_d, //
-    nk_b256_vec_t *result) {
+    nk_b256_vec_t *result, nk_size_t total_dimensions) {
+    nk_unused_(total_dimensions);
     // Combine sum + compensation before horizontal reduction, then pack and store
     float64x2_t sums_ab_f64x2 = {vaddvq_f64(vaddq_f64(state_a->sum_f64x2, state_a->compensation_f64x2)),
                                  vaddvq_f64(vaddq_f64(state_b->sum_f64x2, state_b->compensation_f64x2))};

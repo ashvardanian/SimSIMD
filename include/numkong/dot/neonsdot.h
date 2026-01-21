@@ -79,7 +79,10 @@ typedef struct nk_dot_i8x16_state_neonsdot_t {
 
 NK_INTERNAL void nk_dot_i8x16_init_neonsdot(nk_dot_i8x16_state_neonsdot_t *state) { state->sum_i32x4 = vdupq_n_s32(0); }
 
-NK_INTERNAL void nk_dot_i8x16_update_neonsdot(nk_dot_i8x16_state_neonsdot_t *state, nk_b128_vec_t a, nk_b128_vec_t b) {
+NK_INTERNAL void nk_dot_i8x16_update_neonsdot(nk_dot_i8x16_state_neonsdot_t *state, nk_b128_vec_t a, nk_b128_vec_t b,
+                                              nk_size_t depth_offset, nk_size_t active_dimensions) {
+    nk_unused_(depth_offset);
+    nk_unused_(active_dimensions);
     int32x4_t sum_i32x4 = state->sum_i32x4;
     sum_i32x4 = vdotq_s32(sum_i32x4, vreinterpretq_s8_u32(a.u32x4), vreinterpretq_s8_u32(b.u32x4));
     state->sum_i32x4 = sum_i32x4;
@@ -88,7 +91,8 @@ NK_INTERNAL void nk_dot_i8x16_update_neonsdot(nk_dot_i8x16_state_neonsdot_t *sta
 NK_INTERNAL void nk_dot_i8x16_finalize_neonsdot(                                                //
     nk_dot_i8x16_state_neonsdot_t const *state_a, nk_dot_i8x16_state_neonsdot_t const *state_b, //
     nk_dot_i8x16_state_neonsdot_t const *state_c, nk_dot_i8x16_state_neonsdot_t const *state_d, //
-    nk_b128_vec_t *result) {
+    nk_b128_vec_t *result, nk_size_t total_dimensions) {
+    nk_unused_(total_dimensions);
     int32x4_t sums = {vaddvq_s32(state_a->sum_i32x4), vaddvq_s32(state_b->sum_i32x4), vaddvq_s32(state_c->sum_i32x4),
                       vaddvq_s32(state_d->sum_i32x4)};
     result->u32x4 = vreinterpretq_u32_s32(sums);
@@ -103,7 +107,10 @@ typedef struct nk_dot_u8x16_state_neonsdot_t {
 
 NK_INTERNAL void nk_dot_u8x16_init_neonsdot(nk_dot_u8x16_state_neonsdot_t *state) { state->sum_u32x4 = vdupq_n_u32(0); }
 
-NK_INTERNAL void nk_dot_u8x16_update_neonsdot(nk_dot_u8x16_state_neonsdot_t *state, nk_b128_vec_t a, nk_b128_vec_t b) {
+NK_INTERNAL void nk_dot_u8x16_update_neonsdot(nk_dot_u8x16_state_neonsdot_t *state, nk_b128_vec_t a, nk_b128_vec_t b,
+                                              nk_size_t depth_offset, nk_size_t active_dimensions) {
+    nk_unused_(depth_offset);
+    nk_unused_(active_dimensions);
     uint32x4_t sum_u32x4 = state->sum_u32x4;
     sum_u32x4 = vdotq_u32(sum_u32x4, vreinterpretq_u8_u32(a.u32x4), vreinterpretq_u8_u32(b.u32x4));
     state->sum_u32x4 = sum_u32x4;
@@ -112,7 +119,8 @@ NK_INTERNAL void nk_dot_u8x16_update_neonsdot(nk_dot_u8x16_state_neonsdot_t *sta
 NK_INTERNAL void nk_dot_u8x16_finalize_neonsdot(                                                //
     nk_dot_u8x16_state_neonsdot_t const *state_a, nk_dot_u8x16_state_neonsdot_t const *state_b, //
     nk_dot_u8x16_state_neonsdot_t const *state_c, nk_dot_u8x16_state_neonsdot_t const *state_d, //
-    nk_b128_vec_t *result) {
+    nk_b128_vec_t *result, nk_size_t total_dimensions) {
+    nk_unused_(total_dimensions);
     uint32x4_t sums = {vaddvq_u32(state_a->sum_u32x4), vaddvq_u32(state_b->sum_u32x4), vaddvq_u32(state_c->sum_u32x4),
                        vaddvq_u32(state_d->sum_u32x4)};
     result->u32x4 = sums;

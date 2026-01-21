@@ -61,7 +61,10 @@ NK_INTERNAL void nk_dot_through_f32_init_skylake_(nk_dot_through_f32_state_skyla
  *  @sa nk_dot_e4m3x16_udpate_skylake, nk_dot_e5m2x16_udpate_skylake
  */
 NK_INTERNAL void nk_dot_through_f32_update_skylake_(nk_dot_through_f32_state_skylake_t_ *state, nk_b512_vec_t a,
-                                                    nk_b512_vec_t b) {
+                                                    nk_b512_vec_t b, nk_size_t depth_offset,
+                                                    nk_size_t active_dimensions) {
+    nk_unused_(depth_offset);
+    nk_unused_(active_dimensions);
     state->sum_f32x16 = _mm512_fmadd_ps(a.zmm_ps, b.zmm_ps, state->sum_f32x16);
 }
 
@@ -77,7 +80,8 @@ NK_INTERNAL void nk_dot_through_f32_update_skylake_(nk_dot_through_f32_state_sky
 NK_INTERNAL void nk_dot_through_f32_finalize_skylake_(                                                      //
     nk_dot_through_f32_state_skylake_t_ const *state_a, nk_dot_through_f32_state_skylake_t_ const *state_b, //
     nk_dot_through_f32_state_skylake_t_ const *state_c, nk_dot_through_f32_state_skylake_t_ const *state_d, //
-    nk_b128_vec_t *result) {
+    nk_b128_vec_t *result, nk_size_t total_dimensions) {
+    nk_unused_(total_dimensions);
 
     __m512 const sum_a_f32x16 = state_a->sum_f32x16, sum_b_f32x16 = state_b->sum_f32x16,
                  sum_c_f32x16 = state_c->sum_f32x16, sum_d_f32x16 = state_d->sum_f32x16;
@@ -532,7 +536,10 @@ NK_INTERNAL void nk_dot_f64x8_init_skylake(nk_dot_f64x8_state_skylake_t *state) 
     state->compensation_f64x8 = _mm512_setzero_pd();
 }
 
-NK_INTERNAL void nk_dot_f64x8_update_skylake(nk_dot_f64x8_state_skylake_t *state, nk_b512_vec_t a, nk_b512_vec_t b) {
+NK_INTERNAL void nk_dot_f64x8_update_skylake(nk_dot_f64x8_state_skylake_t *state, nk_b512_vec_t a, nk_b512_vec_t b,
+                                             nk_size_t depth_offset, nk_size_t active_dimensions) {
+    nk_unused_(depth_offset);
+    nk_unused_(active_dimensions);
     __m512d sum_f64x8 = state->sum_f64x8;
     __m512d compensation_f64x8 = state->compensation_f64x8;
     __m512d a_f64x8 = a.zmm_pd;
@@ -556,7 +563,8 @@ NK_INTERNAL void nk_dot_f64x8_update_skylake(nk_dot_f64x8_state_skylake_t *state
 NK_INTERNAL void nk_dot_f64x8_finalize_skylake(                                               //
     nk_dot_f64x8_state_skylake_t const *state_a, nk_dot_f64x8_state_skylake_t const *state_b, //
     nk_dot_f64x8_state_skylake_t const *state_c, nk_dot_f64x8_state_skylake_t const *state_d, //
-    nk_b256_vec_t *result) {
+    nk_b256_vec_t *result, nk_size_t total_dimensions) {
+    nk_unused_(total_dimensions);
     // Combine sum + compensation before horizontal reduction
     __m512d sum_a_f64x8 = _mm512_add_pd(state_a->sum_f64x8, state_a->compensation_f64x8);
     __m512d sum_b_f64x8 = _mm512_add_pd(state_b->sum_f64x8, state_b->compensation_f64x8);
@@ -589,7 +597,10 @@ NK_INTERNAL void nk_dot_f32x8_init_skylake(nk_dot_f32x8_state_skylake_t *state) 
     state->sum_f64x8 = _mm512_setzero_pd();
 }
 
-NK_INTERNAL void nk_dot_f32x8_update_skylake(nk_dot_f32x8_state_skylake_t *state, nk_b256_vec_t a, nk_b256_vec_t b) {
+NK_INTERNAL void nk_dot_f32x8_update_skylake(nk_dot_f32x8_state_skylake_t *state, nk_b256_vec_t a, nk_b256_vec_t b,
+                                             nk_size_t depth_offset, nk_size_t active_dimensions) {
+    nk_unused_(depth_offset);
+    nk_unused_(active_dimensions);
     // Upcast 8 f32s to f64 for high-precision accumulation
     __m512d a_f64x8 = _mm512_cvtps_pd(a.ymm_ps);
     __m512d b_f64x8 = _mm512_cvtps_pd(b.ymm_ps);
@@ -600,7 +611,8 @@ NK_INTERNAL void nk_dot_f32x8_update_skylake(nk_dot_f32x8_state_skylake_t *state
 NK_INTERNAL void nk_dot_f32x8_finalize_skylake(                                               //
     nk_dot_f32x8_state_skylake_t const *state_a, nk_dot_f32x8_state_skylake_t const *state_b, //
     nk_dot_f32x8_state_skylake_t const *state_c, nk_dot_f32x8_state_skylake_t const *state_d, //
-    nk_b128_vec_t *result) {
+    nk_b128_vec_t *result, nk_size_t total_dimensions) {
+    nk_unused_(total_dimensions);
     // ILP-optimized 4-way horizontal reduction for f64
     // Step 1: 8->4 for all 4 states (extract high 256-bit half and add to low half)
     __m256d sum_a_f64x4 = _mm256_add_pd(_mm512_castpd512_pd256(state_a->sum_f64x8),

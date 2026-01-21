@@ -433,6 +433,9 @@
 #define nk_copy_bytes_(destination_ptr, source_ptr, count) memcpy((destination_ptr), (source_ptr), count)
 #endif
 
+/** Macro to mark unused parameters (cleaner than (void)variable) */
+#define nk_unused_(x) ((void)(x))
+
 /**
  *  @brief C99 static array parameter annotation for minimum array size.
  *

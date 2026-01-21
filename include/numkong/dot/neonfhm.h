@@ -81,7 +81,10 @@ typedef struct nk_dot_f16x8_state_neonfhm_t {
 
 NK_INTERNAL void nk_dot_f16x8_init_neonfhm(nk_dot_f16x8_state_neonfhm_t *state) { state->sum_f32x4 = vdupq_n_f32(0); }
 
-NK_INTERNAL void nk_dot_f16x8_update_neonfhm(nk_dot_f16x8_state_neonfhm_t *state, nk_b128_vec_t a, nk_b128_vec_t b) {
+NK_INTERNAL void nk_dot_f16x8_update_neonfhm(nk_dot_f16x8_state_neonfhm_t *state, nk_b128_vec_t a, nk_b128_vec_t b,
+                                             nk_size_t depth_offset, nk_size_t active_dimensions) {
+    nk_unused_(depth_offset);
+    nk_unused_(active_dimensions);
     float16x8_t a_f16x8 = vreinterpretq_f16_u16(a.u16x8);
     float16x8_t b_f16x8 = vreinterpretq_f16_u16(b.u16x8);
     // FMLAL: widening multiply-accumulate fp16 → f32 (faster than convert-then-FMA)
@@ -92,7 +95,8 @@ NK_INTERNAL void nk_dot_f16x8_update_neonfhm(nk_dot_f16x8_state_neonfhm_t *state
 NK_INTERNAL void nk_dot_f16x8_finalize_neonfhm(                                               //
     nk_dot_f16x8_state_neonfhm_t const *state_a, nk_dot_f16x8_state_neonfhm_t const *state_b, //
     nk_dot_f16x8_state_neonfhm_t const *state_c, nk_dot_f16x8_state_neonfhm_t const *state_d, //
-    nk_b128_vec_t *result) {
+    nk_b128_vec_t *result, nk_size_t total_dimensions) {
+    nk_unused_(total_dimensions);
     float32x4_t sums = {vaddvq_f32(state_a->sum_f32x4), vaddvq_f32(state_b->sum_f32x4), vaddvq_f32(state_c->sum_f32x4),
                         vaddvq_f32(state_d->sum_f32x4)};
     result->u32x4 = vreinterpretq_u32_f32(sums);

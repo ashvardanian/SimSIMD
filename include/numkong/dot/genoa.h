@@ -214,18 +214,21 @@ NK_INTERNAL void nk_dot_through_bf16_init_genoa_(nk_dot_through_bf16_state_genoa
 }
 
 NK_INTERNAL void nk_dot_through_bf16_update_genoa_(nk_dot_through_bf16_state_genoa_t_ *state, nk_b512_vec_t a,
-                                                   nk_b512_vec_t b) {
+                                                   nk_b512_vec_t b, nk_size_t depth_offset,
+                                                   nk_size_t active_dimensions) {
+    nk_unused_(depth_offset);
+    nk_unused_(active_dimensions);
     state->sum_f32x16 = _mm512_dpbf16_ps(state->sum_f32x16, (__m512bh)(a.zmm), (__m512bh)(b.zmm));
 }
 
 NK_INTERNAL void nk_dot_through_bf16_finalize_genoa_(                                                     //
     nk_dot_through_bf16_state_genoa_t_ const *state_a, nk_dot_through_bf16_state_genoa_t_ const *state_b, //
     nk_dot_through_bf16_state_genoa_t_ const *state_c, nk_dot_through_bf16_state_genoa_t_ const *state_d, //
-    nk_b128_vec_t *result) {
-    nk_dot_through_f32_finalize_skylake_((nk_dot_through_f32_state_skylake_t_ const *)state_a,
-                                         (nk_dot_through_f32_state_skylake_t_ const *)state_b,
-                                         (nk_dot_through_f32_state_skylake_t_ const *)state_c,
-                                         (nk_dot_through_f32_state_skylake_t_ const *)state_d, result);
+    nk_b128_vec_t *result, nk_size_t total_dimensions) {
+    nk_dot_through_f32_finalize_skylake_(
+        (nk_dot_through_f32_state_skylake_t_ const *)state_a, (nk_dot_through_f32_state_skylake_t_ const *)state_b,
+        (nk_dot_through_f32_state_skylake_t_ const *)state_c, (nk_dot_through_f32_state_skylake_t_ const *)state_d,
+        result, total_dimensions);
 }
 
 typedef nk_dot_through_bf16_state_genoa_t_ nk_dot_e4m3x32_state_genoa_t;

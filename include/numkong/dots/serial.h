@@ -345,22 +345,38 @@ typedef struct {
                             load_b_fn(b_depth_ptr_3 + depth_index, &b_vector_3);                                       \
                                                                                                                        \
                             /* 16 FMAs: 4 A rows × 4 B columns */                                                      \
-                            update_fn(&accumulator_tiles[0][0], a_vector_0, b_vector_0);                               \
-                            update_fn(&accumulator_tiles[0][1], a_vector_0, b_vector_1);                               \
-                            update_fn(&accumulator_tiles[0][2], a_vector_0, b_vector_2);                               \
-                            update_fn(&accumulator_tiles[0][3], a_vector_0, b_vector_3);                               \
-                            update_fn(&accumulator_tiles[1][0], a_vector_1, b_vector_0);                               \
-                            update_fn(&accumulator_tiles[1][1], a_vector_1, b_vector_1);                               \
-                            update_fn(&accumulator_tiles[1][2], a_vector_1, b_vector_2);                               \
-                            update_fn(&accumulator_tiles[1][3], a_vector_1, b_vector_3);                               \
-                            update_fn(&accumulator_tiles[2][0], a_vector_2, b_vector_0);                               \
-                            update_fn(&accumulator_tiles[2][1], a_vector_2, b_vector_1);                               \
-                            update_fn(&accumulator_tiles[2][2], a_vector_2, b_vector_2);                               \
-                            update_fn(&accumulator_tiles[2][3], a_vector_2, b_vector_3);                               \
-                            update_fn(&accumulator_tiles[3][0], a_vector_3, b_vector_0);                               \
-                            update_fn(&accumulator_tiles[3][1], a_vector_3, b_vector_1);                               \
-                            update_fn(&accumulator_tiles[3][2], a_vector_3, b_vector_2);                               \
-                            update_fn(&accumulator_tiles[3][3], a_vector_3, b_vector_3);                               \
+                            update_fn(&accumulator_tiles[0][0], a_vector_0, b_vector_0,                                \
+                                      depth_index * dimensions_per_value, depth_simd_dimensions);                      \
+                            update_fn(&accumulator_tiles[0][1], a_vector_0, b_vector_1,                                \
+                                      depth_index * dimensions_per_value, depth_simd_dimensions);                      \
+                            update_fn(&accumulator_tiles[0][2], a_vector_0, b_vector_2,                                \
+                                      depth_index * dimensions_per_value, depth_simd_dimensions);                      \
+                            update_fn(&accumulator_tiles[0][3], a_vector_0, b_vector_3,                                \
+                                      depth_index * dimensions_per_value, depth_simd_dimensions);                      \
+                            update_fn(&accumulator_tiles[1][0], a_vector_1, b_vector_0,                                \
+                                      depth_index * dimensions_per_value, depth_simd_dimensions);                      \
+                            update_fn(&accumulator_tiles[1][1], a_vector_1, b_vector_1,                                \
+                                      depth_index * dimensions_per_value, depth_simd_dimensions);                      \
+                            update_fn(&accumulator_tiles[1][2], a_vector_1, b_vector_2,                                \
+                                      depth_index * dimensions_per_value, depth_simd_dimensions);                      \
+                            update_fn(&accumulator_tiles[1][3], a_vector_1, b_vector_3,                                \
+                                      depth_index * dimensions_per_value, depth_simd_dimensions);                      \
+                            update_fn(&accumulator_tiles[2][0], a_vector_2, b_vector_0,                                \
+                                      depth_index * dimensions_per_value, depth_simd_dimensions);                      \
+                            update_fn(&accumulator_tiles[2][1], a_vector_2, b_vector_1,                                \
+                                      depth_index * dimensions_per_value, depth_simd_dimensions);                      \
+                            update_fn(&accumulator_tiles[2][2], a_vector_2, b_vector_2,                                \
+                                      depth_index * dimensions_per_value, depth_simd_dimensions);                      \
+                            update_fn(&accumulator_tiles[2][3], a_vector_2, b_vector_3,                                \
+                                      depth_index * dimensions_per_value, depth_simd_dimensions);                      \
+                            update_fn(&accumulator_tiles[3][0], a_vector_3, b_vector_0,                                \
+                                      depth_index * dimensions_per_value, depth_simd_dimensions);                      \
+                            update_fn(&accumulator_tiles[3][1], a_vector_3, b_vector_1,                                \
+                                      depth_index * dimensions_per_value, depth_simd_dimensions);                      \
+                            update_fn(&accumulator_tiles[3][2], a_vector_3, b_vector_2,                                \
+                                      depth_index * dimensions_per_value, depth_simd_dimensions);                      \
+                            update_fn(&accumulator_tiles[3][3], a_vector_3, b_vector_3,                                \
+                                      depth_index * dimensions_per_value, depth_simd_dimensions);                      \
                         }                                                                                              \
                         /* Finalize and store register_rows x register_cols results using batched 4-way reduction */   \
                         result_vec_type result_vector;                                                                 \
@@ -368,25 +384,25 @@ typedef struct {
                                                                                      (tile_row_start_index + 0) *      \
                                                                                          c_stride_in_bytes);           \
                         finalize_fn(&accumulator_tiles[0][0], &accumulator_tiles[0][1], &accumulator_tiles[0][2],      \
-                                    &accumulator_tiles[0][3], &result_vector);                                         \
+                                    &accumulator_tiles[0][3], &result_vector, depth);                                  \
                         partial_store_fn(&result_vector, c_row_ptr_0 + tile_column_start_index, 4);                    \
                         nk_##output_type##_t *c_row_ptr_1 = (nk_##output_type##_t *)((char *)c_matrix +                \
                                                                                      (tile_row_start_index + 1) *      \
                                                                                          c_stride_in_bytes);           \
                         finalize_fn(&accumulator_tiles[1][0], &accumulator_tiles[1][1], &accumulator_tiles[1][2],      \
-                                    &accumulator_tiles[1][3], &result_vector);                                         \
+                                    &accumulator_tiles[1][3], &result_vector, depth);                                  \
                         partial_store_fn(&result_vector, c_row_ptr_1 + tile_column_start_index, 4);                    \
                         nk_##output_type##_t *c_row_ptr_2 = (nk_##output_type##_t *)((char *)c_matrix +                \
                                                                                      (tile_row_start_index + 2) *      \
                                                                                          c_stride_in_bytes);           \
                         finalize_fn(&accumulator_tiles[2][0], &accumulator_tiles[2][1], &accumulator_tiles[2][2],      \
-                                    &accumulator_tiles[2][3], &result_vector);                                         \
+                                    &accumulator_tiles[2][3], &result_vector, depth);                                  \
                         partial_store_fn(&result_vector, c_row_ptr_2 + tile_column_start_index, 4);                    \
                         nk_##output_type##_t *c_row_ptr_3 = (nk_##output_type##_t *)((char *)c_matrix +                \
                                                                                      (tile_row_start_index + 3) *      \
                                                                                          c_stride_in_bytes);           \
                         finalize_fn(&accumulator_tiles[3][0], &accumulator_tiles[3][1], &accumulator_tiles[3][2],      \
-                                    &accumulator_tiles[3][3], &result_vector);                                         \
+                                    &accumulator_tiles[3][3], &result_vector, depth);                                  \
                         partial_store_fn(&result_vector, c_row_ptr_3 + tile_column_start_index, 4);                    \
                     }                                                                                                  \
                 }                                                                                                      \
@@ -506,14 +522,22 @@ typedef struct {
                             load_b_fn(b_depth_ptr_7 + depth_index, &b_vector_7);                                       \
                                                                                                                        \
                             /* 8 FMAs: 1 A row × 8 B columns */                                                        \
-                            update_fn(&accumulator_0, a_vector, b_vector_0);                                           \
-                            update_fn(&accumulator_1, a_vector, b_vector_1);                                           \
-                            update_fn(&accumulator_2, a_vector, b_vector_2);                                           \
-                            update_fn(&accumulator_3, a_vector, b_vector_3);                                           \
-                            update_fn(&accumulator_4, a_vector, b_vector_4);                                           \
-                            update_fn(&accumulator_5, a_vector, b_vector_5);                                           \
-                            update_fn(&accumulator_6, a_vector, b_vector_6);                                           \
-                            update_fn(&accumulator_7, a_vector, b_vector_7);                                           \
+                            update_fn(&accumulator_0, a_vector, b_vector_0, depth_index * dimensions_per_value,        \
+                                      depth_simd_dimensions);                                                          \
+                            update_fn(&accumulator_1, a_vector, b_vector_1, depth_index * dimensions_per_value,        \
+                                      depth_simd_dimensions);                                                          \
+                            update_fn(&accumulator_2, a_vector, b_vector_2, depth_index * dimensions_per_value,        \
+                                      depth_simd_dimensions);                                                          \
+                            update_fn(&accumulator_3, a_vector, b_vector_3, depth_index * dimensions_per_value,        \
+                                      depth_simd_dimensions);                                                          \
+                            update_fn(&accumulator_4, a_vector, b_vector_4, depth_index * dimensions_per_value,        \
+                                      depth_simd_dimensions);                                                          \
+                            update_fn(&accumulator_5, a_vector, b_vector_5, depth_index * dimensions_per_value,        \
+                                      depth_simd_dimensions);                                                          \
+                            update_fn(&accumulator_6, a_vector, b_vector_6, depth_index * dimensions_per_value,        \
+                                      depth_simd_dimensions);                                                          \
+                            update_fn(&accumulator_7, a_vector, b_vector_7, depth_index * dimensions_per_value,        \
+                                      depth_simd_dimensions);                                                          \
                         }                                                                                              \
                                                                                                                        \
                         /* Finalize and store 1 × 8 results using two 4-way reductions */                              \
@@ -521,10 +545,12 @@ typedef struct {
                         nk_##output_type##_t *c_row_ptr = (nk_##output_type##_t *)((char *)c_matrix +                  \
                                                                                    row_index * c_stride_in_bytes);     \
                         /* First 4 columns */                                                                          \
-                        finalize_fn(&accumulator_0, &accumulator_1, &accumulator_2, &accumulator_3, &result_vector);   \
+                        finalize_fn(&accumulator_0, &accumulator_1, &accumulator_2, &accumulator_3, &result_vector,    \
+                                    depth);                                                                            \
                         partial_store_fn(&result_vector, c_row_ptr + tile_column_start_index, 4);                      \
                         /* Second 4 columns */                                                                         \
-                        finalize_fn(&accumulator_4, &accumulator_5, &accumulator_6, &accumulator_7, &result_vector);   \
+                        finalize_fn(&accumulator_4, &accumulator_5, &accumulator_6, &accumulator_7, &result_vector,    \
+                                    depth);                                                                            \
                         partial_store_fn(&result_vector, c_row_ptr + tile_column_start_index + 4, 4);                  \
                     }                                                                                                  \
                 }                                                                                                      \
@@ -680,22 +706,38 @@ typedef struct {
                             load_b_fn(b_depth_ptr_3 + k, &b_fourth_vec);                                               \
                                                                                                                        \
                             /* 16 FMAs: 4 A rows × 4 B columns */                                                      \
-                            update_fn(&accumulator_tiles[0][0], a_first_vec, b_first_vec);                             \
-                            update_fn(&accumulator_tiles[0][1], a_first_vec, b_second_vec);                            \
-                            update_fn(&accumulator_tiles[0][2], a_first_vec, b_third_vec);                             \
-                            update_fn(&accumulator_tiles[0][3], a_first_vec, b_fourth_vec);                            \
-                            update_fn(&accumulator_tiles[1][0], a_second_vec, b_first_vec);                            \
-                            update_fn(&accumulator_tiles[1][1], a_second_vec, b_second_vec);                           \
-                            update_fn(&accumulator_tiles[1][2], a_second_vec, b_third_vec);                            \
-                            update_fn(&accumulator_tiles[1][3], a_second_vec, b_fourth_vec);                           \
-                            update_fn(&accumulator_tiles[2][0], a_third_vec, b_first_vec);                             \
-                            update_fn(&accumulator_tiles[2][1], a_third_vec, b_second_vec);                            \
-                            update_fn(&accumulator_tiles[2][2], a_third_vec, b_third_vec);                             \
-                            update_fn(&accumulator_tiles[2][3], a_third_vec, b_fourth_vec);                            \
-                            update_fn(&accumulator_tiles[3][0], a_fourth_vec, b_first_vec);                            \
-                            update_fn(&accumulator_tiles[3][1], a_fourth_vec, b_second_vec);                           \
-                            update_fn(&accumulator_tiles[3][2], a_fourth_vec, b_third_vec);                            \
-                            update_fn(&accumulator_tiles[3][3], a_fourth_vec, b_fourth_vec);                           \
+                            update_fn(&accumulator_tiles[0][0], a_first_vec, b_first_vec, k * dimensions_per_value,    \
+                                      depth_simd_dimensions);                                                          \
+                            update_fn(&accumulator_tiles[0][1], a_first_vec, b_second_vec, k * dimensions_per_value,   \
+                                      depth_simd_dimensions);                                                          \
+                            update_fn(&accumulator_tiles[0][2], a_first_vec, b_third_vec, k * dimensions_per_value,    \
+                                      depth_simd_dimensions);                                                          \
+                            update_fn(&accumulator_tiles[0][3], a_first_vec, b_fourth_vec, k * dimensions_per_value,   \
+                                      depth_simd_dimensions);                                                          \
+                            update_fn(&accumulator_tiles[1][0], a_second_vec, b_first_vec, k * dimensions_per_value,   \
+                                      depth_simd_dimensions);                                                          \
+                            update_fn(&accumulator_tiles[1][1], a_second_vec, b_second_vec, k * dimensions_per_value,  \
+                                      depth_simd_dimensions);                                                          \
+                            update_fn(&accumulator_tiles[1][2], a_second_vec, b_third_vec, k * dimensions_per_value,   \
+                                      depth_simd_dimensions);                                                          \
+                            update_fn(&accumulator_tiles[1][3], a_second_vec, b_fourth_vec, k * dimensions_per_value,  \
+                                      depth_simd_dimensions);                                                          \
+                            update_fn(&accumulator_tiles[2][0], a_third_vec, b_first_vec, k * dimensions_per_value,    \
+                                      depth_simd_dimensions);                                                          \
+                            update_fn(&accumulator_tiles[2][1], a_third_vec, b_second_vec, k * dimensions_per_value,   \
+                                      depth_simd_dimensions);                                                          \
+                            update_fn(&accumulator_tiles[2][2], a_third_vec, b_third_vec, k * dimensions_per_value,    \
+                                      depth_simd_dimensions);                                                          \
+                            update_fn(&accumulator_tiles[2][3], a_third_vec, b_fourth_vec, k * dimensions_per_value,   \
+                                      depth_simd_dimensions);                                                          \
+                            update_fn(&accumulator_tiles[3][0], a_fourth_vec, b_first_vec, k * dimensions_per_value,   \
+                                      depth_simd_dimensions);                                                          \
+                            update_fn(&accumulator_tiles[3][1], a_fourth_vec, b_second_vec, k * dimensions_per_value,  \
+                                      depth_simd_dimensions);                                                          \
+                            update_fn(&accumulator_tiles[3][2], a_fourth_vec, b_third_vec, k * dimensions_per_value,   \
+                                      depth_simd_dimensions);                                                          \
+                            update_fn(&accumulator_tiles[3][3], a_fourth_vec, b_fourth_vec, k * dimensions_per_value,  \
+                                      depth_simd_dimensions);                                                          \
                         }                                                                                              \
                                                                                                                        \
                         /* Handle remainder k positions with partial loads */                                          \
@@ -713,29 +755,45 @@ typedef struct {
                             partial_load_b_fn(b_depth_ptr_3 + aligned_depth, &b_fourth_vec, remainder_dimensions);     \
                                                                                                                        \
                             /* 16 FMAs: 4 A rows × 4 B columns */                                                      \
-                            update_fn(&accumulator_tiles[0][0], a_first_vec, b_first_vec);                             \
-                            update_fn(&accumulator_tiles[0][1], a_first_vec, b_second_vec);                            \
-                            update_fn(&accumulator_tiles[0][2], a_first_vec, b_third_vec);                             \
-                            update_fn(&accumulator_tiles[0][3], a_first_vec, b_fourth_vec);                            \
-                            update_fn(&accumulator_tiles[1][0], a_second_vec, b_first_vec);                            \
-                            update_fn(&accumulator_tiles[1][1], a_second_vec, b_second_vec);                           \
-                            update_fn(&accumulator_tiles[1][2], a_second_vec, b_third_vec);                            \
-                            update_fn(&accumulator_tiles[1][3], a_second_vec, b_fourth_vec);                           \
-                            update_fn(&accumulator_tiles[2][0], a_third_vec, b_first_vec);                             \
-                            update_fn(&accumulator_tiles[2][1], a_third_vec, b_second_vec);                            \
-                            update_fn(&accumulator_tiles[2][2], a_third_vec, b_third_vec);                             \
-                            update_fn(&accumulator_tiles[2][3], a_third_vec, b_fourth_vec);                            \
-                            update_fn(&accumulator_tiles[3][0], a_fourth_vec, b_first_vec);                            \
-                            update_fn(&accumulator_tiles[3][1], a_fourth_vec, b_second_vec);                           \
-                            update_fn(&accumulator_tiles[3][2], a_fourth_vec, b_third_vec);                            \
-                            update_fn(&accumulator_tiles[3][3], a_fourth_vec, b_fourth_vec);                           \
+                            update_fn(&accumulator_tiles[0][0], a_first_vec, b_first_vec,                              \
+                                      aligned_depth * dimensions_per_value, remainder_dimensions);                     \
+                            update_fn(&accumulator_tiles[0][1], a_first_vec, b_second_vec,                             \
+                                      aligned_depth * dimensions_per_value, remainder_dimensions);                     \
+                            update_fn(&accumulator_tiles[0][2], a_first_vec, b_third_vec,                              \
+                                      aligned_depth * dimensions_per_value, remainder_dimensions);                     \
+                            update_fn(&accumulator_tiles[0][3], a_first_vec, b_fourth_vec,                             \
+                                      aligned_depth * dimensions_per_value, remainder_dimensions);                     \
+                            update_fn(&accumulator_tiles[1][0], a_second_vec, b_first_vec,                             \
+                                      aligned_depth * dimensions_per_value, remainder_dimensions);                     \
+                            update_fn(&accumulator_tiles[1][1], a_second_vec, b_second_vec,                            \
+                                      aligned_depth * dimensions_per_value, remainder_dimensions);                     \
+                            update_fn(&accumulator_tiles[1][2], a_second_vec, b_third_vec,                             \
+                                      aligned_depth * dimensions_per_value, remainder_dimensions);                     \
+                            update_fn(&accumulator_tiles[1][3], a_second_vec, b_fourth_vec,                            \
+                                      aligned_depth * dimensions_per_value, remainder_dimensions);                     \
+                            update_fn(&accumulator_tiles[2][0], a_third_vec, b_first_vec,                              \
+                                      aligned_depth * dimensions_per_value, remainder_dimensions);                     \
+                            update_fn(&accumulator_tiles[2][1], a_third_vec, b_second_vec,                             \
+                                      aligned_depth * dimensions_per_value, remainder_dimensions);                     \
+                            update_fn(&accumulator_tiles[2][2], a_third_vec, b_third_vec,                              \
+                                      aligned_depth * dimensions_per_value, remainder_dimensions);                     \
+                            update_fn(&accumulator_tiles[2][3], a_third_vec, b_fourth_vec,                             \
+                                      aligned_depth * dimensions_per_value, remainder_dimensions);                     \
+                            update_fn(&accumulator_tiles[3][0], a_fourth_vec, b_first_vec,                             \
+                                      aligned_depth * dimensions_per_value, remainder_dimensions);                     \
+                            update_fn(&accumulator_tiles[3][1], a_fourth_vec, b_second_vec,                            \
+                                      aligned_depth * dimensions_per_value, remainder_dimensions);                     \
+                            update_fn(&accumulator_tiles[3][2], a_fourth_vec, b_third_vec,                             \
+                                      aligned_depth * dimensions_per_value, remainder_dimensions);                     \
+                            update_fn(&accumulator_tiles[3][3], a_fourth_vec, b_fourth_vec,                            \
+                                      aligned_depth * dimensions_per_value, remainder_dimensions);                     \
                         }                                                                                              \
                                                                                                                        \
                         /* Finalize and store register_rows x register_cols results using batched 4-way reduction */   \
                         for (nk_size_t r = 0; r < tile_row_count; ++r) {                                               \
                             result_vec_type result_vector;                                                             \
                             finalize_fn(&accumulator_tiles[r][0], &accumulator_tiles[r][1], &accumulator_tiles[r][2],  \
-                                        &accumulator_tiles[r][3], &result_vector);                                     \
+                                        &accumulator_tiles[r][3], &result_vector, depth);                              \
                                                                                                                        \
                             nk_##output_type##_t *c_row = (nk_##output_type##_t *)((char *)c_matrix +                  \
                                                                                    (tile_row_start_index + r) *        \
@@ -794,7 +852,7 @@ typedef struct {
                     vec_type vec_i, vec_j;                                                                          \
                     load_fn(row_i + d, &vec_i);                                                                     \
                     load_fn(row_j + d, &vec_j);                                                                     \
-                    update_fn(&acc, vec_i, vec_j);                                                                  \
+                    update_fn(&acc, vec_i, vec_j, d * dimensions_per_value, depth_simd_dimensions);                 \
                 }                                                                                                   \
                                                                                                                     \
                 /* Handle remainder with partial load */                                                            \
@@ -802,7 +860,7 @@ typedef struct {
                     vec_type vec_i, vec_j;                                                                          \
                     partial_load_fn(row_i + aligned_depth, &vec_i, remainder_dimensions);                           \
                     partial_load_fn(row_j + aligned_depth, &vec_j, remainder_dimensions);                           \
-                    update_fn(&acc, vec_i, vec_j);                                                                  \
+                    update_fn(&acc, vec_i, vec_j, aligned_depth * dimensions_per_value, remainder_dimensions);      \
                 }                                                                                                   \
                                                                                                                     \
                 /* Finalize: horizontal reduction to scalar */                                                      \
@@ -811,7 +869,7 @@ typedef struct {
                 init_fn(&dummy_c);                                                                                  \
                 init_fn(&dummy_d);                                                                                  \
                 result_vec_type result_vec;                                                                         \
-                finalize_fn(&acc, &dummy_b, &dummy_c, &dummy_d, &result_vec);                                       \
+                finalize_fn(&acc, &dummy_b, &dummy_c, &dummy_d, &result_vec, depth);                                \
                                                                                                                     \
                 /* Store result and mirror to lower triangle */                                                     \
                 nk_##output_type##_t val = result_vec.output_type##s[0];                                            \

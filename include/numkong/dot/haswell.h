@@ -63,7 +63,10 @@ NK_INTERNAL void nk_dot_through_f32_init_haswell_(nk_dot_through_f32_state_haswe
  *  @sa nk_dot_e4m3x16_update_haswell, nk_dot_e5m2x16_update_haswell
  */
 NK_INTERNAL void nk_dot_through_f32_update_haswell_(nk_dot_through_f32_state_haswell_t_ *state, nk_b256_vec_t a,
-                                                    nk_b256_vec_t b) {
+                                                    nk_b256_vec_t b, nk_size_t depth_offset,
+                                                    nk_size_t active_dimensions) {
+    nk_unused_(depth_offset);
+    nk_unused_(active_dimensions);
     state->sum_f32x8 = _mm256_fmadd_ps(a.ymm_ps, b.ymm_ps, state->sum_f32x8);
 }
 
@@ -79,7 +82,8 @@ NK_INTERNAL void nk_dot_through_f32_update_haswell_(nk_dot_through_f32_state_has
 NK_INTERNAL void nk_dot_through_f32_finalize_haswell_(                                                      //
     nk_dot_through_f32_state_haswell_t_ const *state_a, nk_dot_through_f32_state_haswell_t_ const *state_b, //
     nk_dot_through_f32_state_haswell_t_ const *state_c, nk_dot_through_f32_state_haswell_t_ const *state_d, //
-    nk_b128_vec_t *result) {
+    nk_b128_vec_t *result, nk_size_t total_dimensions) {
+    nk_unused_(total_dimensions);
 
     __m256 const sum_a_f32x8 = state_a->sum_f32x8, sum_b_f32x8 = state_b->sum_f32x8, sum_c_f32x8 = state_c->sum_f32x8,
                  sum_d_f32x8 = state_d->sum_f32x8;
@@ -517,7 +521,10 @@ NK_INTERNAL void nk_dot_f32x4_init_haswell(nk_dot_f32x4_state_haswell_t *state) 
     state->sum_f64x4 = _mm256_setzero_pd();
 }
 
-NK_INTERNAL void nk_dot_f32x4_update_haswell(nk_dot_f32x4_state_haswell_t *state, nk_b128_vec_t a, nk_b128_vec_t b) {
+NK_INTERNAL void nk_dot_f32x4_update_haswell(nk_dot_f32x4_state_haswell_t *state, nk_b128_vec_t a, nk_b128_vec_t b,
+                                              nk_size_t depth_offset, nk_size_t active_dimensions) {
+    nk_unused_(depth_offset);
+    nk_unused_(active_dimensions);
     // Upcast 4 f32s to f64s for high-precision accumulation
     __m256d a_f64x4 = _mm256_cvtps_pd(_mm_castsi128_ps(a.xmm));
     __m256d b_f64x4 = _mm256_cvtps_pd(_mm_castsi128_ps(b.xmm));
@@ -528,7 +535,8 @@ NK_INTERNAL void nk_dot_f32x4_update_haswell(nk_dot_f32x4_state_haswell_t *state
 NK_INTERNAL void nk_dot_f32x4_finalize_haswell(                                               //
     nk_dot_f32x4_state_haswell_t const *state_a, nk_dot_f32x4_state_haswell_t const *state_b, //
     nk_dot_f32x4_state_haswell_t const *state_c, nk_dot_f32x4_state_haswell_t const *state_d, //
-    nk_b128_vec_t *result) {
+    nk_b128_vec_t *result, nk_size_t total_dimensions) {
+    nk_unused_(total_dimensions);
     // Horizontal reduction: 4 f64s → 1 f64 for each state
     // Then downcast final f64 results to f32
     __m256d sum_a_f64x4 = state_a->sum_f64x4;
@@ -630,7 +638,10 @@ NK_INTERNAL void nk_dot_i8x16_init_haswell(nk_dot_i8x16_state_haswell_t *state) 
     state->sum_i32x8 = _mm256_setzero_si256();
 }
 
-NK_INTERNAL void nk_dot_i8x16_update_haswell(nk_dot_i8x16_state_haswell_t *state, nk_b128_vec_t a, nk_b128_vec_t b) {
+NK_INTERNAL void nk_dot_i8x16_update_haswell(nk_dot_i8x16_state_haswell_t *state, nk_b128_vec_t a, nk_b128_vec_t b,
+                                              nk_size_t depth_offset, nk_size_t active_dimensions) {
+    nk_unused_(depth_offset);
+    nk_unused_(active_dimensions);
     __m256i a_i16x16 = _mm256_cvtepi8_epi16(a.xmm);
     __m256i b_i16x16 = _mm256_cvtepi8_epi16(b.xmm);
     state->sum_i32x8 = _mm256_add_epi32(state->sum_i32x8, _mm256_madd_epi16(a_i16x16, b_i16x16));
@@ -639,7 +650,8 @@ NK_INTERNAL void nk_dot_i8x16_update_haswell(nk_dot_i8x16_state_haswell_t *state
 NK_INTERNAL void nk_dot_i8x16_finalize_haswell(                                               //
     nk_dot_i8x16_state_haswell_t const *state_a, nk_dot_i8x16_state_haswell_t const *state_b, //
     nk_dot_i8x16_state_haswell_t const *state_c, nk_dot_i8x16_state_haswell_t const *state_d, //
-    nk_b128_vec_t *result) {
+    nk_b128_vec_t *result, nk_size_t total_dimensions) {
+    nk_unused_(total_dimensions);
     // ILP-optimized 4-way horizontal reduction for i32 in AVX2
     // Step 1: 8->4 for all 4 states
     __m128i sum_a_i32x4 = _mm_add_epi32(_mm256_castsi256_si128(state_a->sum_i32x8),
@@ -676,7 +688,10 @@ NK_INTERNAL void nk_dot_u8x16_init_haswell(nk_dot_u8x16_state_haswell_t *state) 
     state->sum_i32x8 = _mm256_setzero_si256();
 }
 
-NK_INTERNAL void nk_dot_u8x16_update_haswell(nk_dot_u8x16_state_haswell_t *state, nk_b128_vec_t a, nk_b128_vec_t b) {
+NK_INTERNAL void nk_dot_u8x16_update_haswell(nk_dot_u8x16_state_haswell_t *state, nk_b128_vec_t a, nk_b128_vec_t b,
+                                              nk_size_t depth_offset, nk_size_t active_dimensions) {
+    nk_unused_(depth_offset);
+    nk_unused_(active_dimensions);
     __m256i a_i16x16 = _mm256_cvtepu8_epi16(a.xmm);
     __m256i b_i16x16 = _mm256_cvtepu8_epi16(b.xmm);
     state->sum_i32x8 = _mm256_add_epi32(state->sum_i32x8, _mm256_madd_epi16(a_i16x16, b_i16x16));
@@ -685,10 +700,11 @@ NK_INTERNAL void nk_dot_u8x16_update_haswell(nk_dot_u8x16_state_haswell_t *state
 NK_INTERNAL void nk_dot_u8x16_finalize_haswell(                                               //
     nk_dot_u8x16_state_haswell_t const *state_a, nk_dot_u8x16_state_haswell_t const *state_b, //
     nk_dot_u8x16_state_haswell_t const *state_c, nk_dot_u8x16_state_haswell_t const *state_d, //
-    nk_b128_vec_t *result) {
+    nk_b128_vec_t *result, nk_size_t total_dimensions) {
     nk_dot_i8x16_finalize_haswell(                                                                    //
         (nk_dot_i8x16_state_haswell_t const *)state_a, (nk_dot_i8x16_state_haswell_t const *)state_b, //
-        (nk_dot_i8x16_state_haswell_t const *)state_c, (nk_dot_i8x16_state_haswell_t const *)state_d, result);
+        (nk_dot_i8x16_state_haswell_t const *)state_c, (nk_dot_i8x16_state_haswell_t const *)state_d, result,
+        total_dimensions);
 }
 
 /**
@@ -706,7 +722,10 @@ NK_INTERNAL void nk_dot_f64x4_init_haswell(nk_dot_f64x4_state_haswell_t *state) 
     state->compensation_f64x4 = _mm256_setzero_pd();
 }
 
-NK_INTERNAL void nk_dot_f64x4_update_haswell(nk_dot_f64x4_state_haswell_t *state, nk_b256_vec_t a, nk_b256_vec_t b) {
+NK_INTERNAL void nk_dot_f64x4_update_haswell(nk_dot_f64x4_state_haswell_t *state, nk_b256_vec_t a, nk_b256_vec_t b,
+                                              nk_size_t depth_offset, nk_size_t active_dimensions) {
+    nk_unused_(depth_offset);
+    nk_unused_(active_dimensions);
     __m256d sum_f64x4 = state->sum_f64x4;
     __m256d compensation_f64x4 = state->compensation_f64x4;
     __m256d a_f64x4 = a.ymm_pd;
@@ -730,7 +749,8 @@ NK_INTERNAL void nk_dot_f64x4_update_haswell(nk_dot_f64x4_state_haswell_t *state
 NK_INTERNAL void nk_dot_f64x4_finalize_haswell(                                               //
     nk_dot_f64x4_state_haswell_t const *state_a, nk_dot_f64x4_state_haswell_t const *state_b, //
     nk_dot_f64x4_state_haswell_t const *state_c, nk_dot_f64x4_state_haswell_t const *state_d, //
-    nk_b256_vec_t *result) {
+    nk_b256_vec_t *result, nk_size_t total_dimensions) {
+    nk_unused_(total_dimensions);
     // Combine sum + compensation before horizontal reduction
     __m256d sum_a_f64x4 = _mm256_add_pd(state_a->sum_f64x4, state_a->compensation_f64x4);
     __m256d sum_b_f64x4 = _mm256_add_pd(state_b->sum_f64x4, state_b->compensation_f64x4);

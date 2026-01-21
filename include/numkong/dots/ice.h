@@ -37,94 +37,62 @@
 extern "C" {
 #endif
 
-/* I8 GEMM: depth_simd_step=32 (32 i8s = 32 bytes = half cache line) */
-nk_define_dots_pack_size_(i8, ice, i8, i8, i32, /*depth_simd_step=*/32)
-nk_define_dots_pack_(i8, ice, i8, i8, i32, nk_assign_from_to_, /*depth_simd_step=*/32)
+/* I8 GEMM: depth_simd_dimensions=32 (32 i8s = 32 bytes = half cache line) */
+nk_define_dots_pack_size_(i8, ice, i8, i8, i32, /*depth_simd_dimensions=*/32, /*dimensions_per_value=*/1)
+nk_define_dots_pack_(i8, ice, i8, i8, i32, nk_assign_from_to_, /*depth_simd_dimensions=*/32, /*dimensions_per_value=*/1)
 nk_define_dots_symmetric_(i8, ice, i8, i32, nk_b256_vec_t, nk_dot_i8x32_state_ice_t, nk_b128_vec_t,
                           nk_dot_i8x32_init_ice, nk_load_b256_haswell_, nk_partial_load_b8x32_serial_,
                           nk_dot_i8x32_update_ice, nk_dot_i8x32_finalize_ice,
-                          /*depth_simd_step=*/32)
+                          /*depth_simd_dimensions=*/32, /*dimensions_per_value=*/1)
 nk_define_dots_packed_(i8, ice, i8, i8, i32, nk_b256_vec_t, nk_dot_i8x32_state_ice_t, nk_b128_vec_t,
                        nk_dot_i8x32_init_ice, nk_load_b256_haswell_, nk_partial_load_b8x32_serial_,
                        nk_load_b256_haswell_, nk_partial_load_b8x32_serial_, nk_dot_i8x32_update_ice,
                        nk_dot_i8x32_finalize_ice, nk_partial_store_b32x4_skylake_,
-                       /*depth_simd_step=*/32)
+                       /*depth_simd_dimensions=*/32, /*dimensions_per_value=*/1)
 
-/* U8 GEMM: depth_simd_step=64 (64 u8s = 64 bytes = 1 cache line) */
-nk_define_dots_pack_size_(u8, ice, u8, u8, u32, /*depth_simd_step=*/64)
-nk_define_dots_pack_(u8, ice, u8, u8, u32, nk_assign_from_to_, /*depth_simd_step=*/64)
+/* U8 GEMM: depth_simd_dimensions=64 (64 u8s = 64 bytes = 1 cache line) */
+nk_define_dots_pack_size_(u8, ice, u8, u8, u32, /*depth_simd_dimensions=*/64, /*dimensions_per_value=*/1)
+nk_define_dots_pack_(u8, ice, u8, u8, u32, nk_assign_from_to_, /*depth_simd_dimensions=*/64, /*dimensions_per_value=*/1)
 nk_define_dots_symmetric_(u8, ice, u8, u32, nk_b512_vec_t, nk_dot_u8x64_state_ice_t, nk_b128_vec_t,
                           nk_dot_u8x64_init_ice, nk_load_b512_skylake_, nk_partial_load_b8x64_skylake_,
                           nk_dot_u8x64_update_ice, nk_dot_u8x64_finalize_ice,
-                          /*depth_simd_step=*/64)
+                          /*depth_simd_dimensions=*/64, /*dimensions_per_value=*/1)
 nk_define_dots_packed_(u8, ice, u8, u8, u32, nk_b512_vec_t, nk_dot_u8x64_state_ice_t, nk_b128_vec_t,
                        nk_dot_u8x64_init_ice, nk_load_b512_skylake_, nk_partial_load_b8x64_skylake_,
                        nk_load_b512_skylake_, nk_partial_load_b8x64_skylake_, nk_dot_u8x64_update_ice,
                        nk_dot_u8x64_finalize_ice, nk_partial_store_b32x4_skylake_,
-                       /*depth_simd_step=*/64)
+                       /*depth_simd_dimensions=*/64, /*dimensions_per_value=*/1)
 
-/* I4 GEMM: depth_simd_step=128 (128 nibbles = 64 bytes = full cache line) */
-NK_PUBLIC nk_size_t nk_dots_packed_size_i4_ice(nk_size_t column_count, nk_size_t depth) {
-    nk_size_t const depth_simd_step = 128;         // Ice Lake processes 128 nibbles (64 bytes)
-    nk_size_t const depth_bytes = (depth + 1) / 2; // Nibble packing: 2 nibbles per byte
-
-    // Pad depth_bytes to SIMD width for vectorization
-    nk_size_t depth_bytes_padded = nk_round_up_to_multiple_(depth_bytes,
-                                                            depth_simd_step / 2); // 128 nibbles = 64 bytes
-
-    // Break power-of-2 stride for cache associativity
-    nk_size_t const stride_bytes = depth_bytes_padded;
-    if ((stride_bytes & (stride_bytes - 1)) == 0 && stride_bytes > 0) { depth_bytes_padded += depth_simd_step / 2; }
-
-    return sizeof(nk_dots_packed_buffer_header_t) + column_count * depth_bytes_padded;
-}
-
-NK_PUBLIC void nk_dots_pack_i4_ice(nk_i4x2_t const *b, nk_size_t column_count, nk_size_t depth,
-                                   nk_size_t b_stride_in_bytes, void *b_packed) {
-    nk_dots_pack_i4x2_serial(b, column_count, depth, b_stride_in_bytes, b_packed);
-}
+/* I4 GEMM: depth_simd_dimensions=128 (128 nibbles = 64 bytes = full cache line) */
+/* Specialized macros for i4 that pass depth to finalize for algebraic correction */
+nk_define_dots_pack_size_(i4, ice, i4x2, i4x2, i32, /*depth_simd_dimensions=*/128, /*dimensions_per_value=*/2)
+nk_define_dots_pack_(i4, ice, i4x2, i4x2, i32, nk_assign_from_to_, /*depth_simd_dimensions=*/128,
+                     /*dimensions_per_value=*/2)
 
 nk_define_dots_symmetric_(i4, ice, i4x2, i32, nk_b512_vec_t, nk_dot_i4x128_state_ice_t, nk_b128_vec_t,
                           nk_dot_i4x128_init_ice, nk_load_b512_skylake_, nk_partial_load_b4x128_skylake_,
                           nk_dot_i4x128_update_ice, nk_dot_i4x128_finalize_ice,
-                          /*depth_simd_step=*/128)
+                          /*depth_simd_dimensions=*/128, /*dimensions_per_value=*/2)
 nk_define_dots_packed_(i4, ice, i4x2, i4x2, i32, nk_b512_vec_t, nk_dot_i4x128_state_ice_t, nk_b128_vec_t,
                        nk_dot_i4x128_init_ice, nk_load_b512_skylake_, nk_partial_load_b4x128_skylake_,
                        nk_load_b512_skylake_, nk_partial_load_b4x128_skylake_, nk_dot_i4x128_update_ice,
                        nk_dot_i4x128_finalize_ice, nk_partial_store_b32x4_skylake_,
-                       /*depth_simd_step=*/128)
+                       /*depth_simd_dimensions=*/128, /*dimensions_per_value=*/2)
 
-/* U4 GEMM: depth_simd_step=128 (128 nibbles = 64 bytes = full cache line) */
-NK_PUBLIC nk_size_t nk_dots_packed_size_u4_ice(nk_size_t column_count, nk_size_t depth) {
-    nk_size_t const depth_simd_step = 128;         // Ice Lake processes 128 nibbles (64 bytes)
-    nk_size_t const depth_bytes = (depth + 1) / 2; // Nibble packing: 2 nibbles per byte
-
-    // Pad depth_bytes to SIMD width for vectorization
-    nk_size_t depth_bytes_padded = nk_round_up_to_multiple_(depth_bytes,
-                                                            depth_simd_step / 2); // 128 nibbles = 64 bytes
-
-    // Break power-of-2 stride for cache associativity
-    nk_size_t const stride_bytes = depth_bytes_padded;
-    if ((stride_bytes & (stride_bytes - 1)) == 0 && stride_bytes > 0) { depth_bytes_padded += depth_simd_step / 2; }
-
-    return sizeof(nk_dots_packed_buffer_header_t) + column_count * depth_bytes_padded;
-}
-
-NK_PUBLIC void nk_dots_pack_u4_ice(nk_u4x2_t const *b, nk_size_t column_count, nk_size_t depth,
-                                   nk_size_t b_stride_in_bytes, void *b_packed) {
-    // Delegate to serial implementation (same nibble packing logic)
-    nk_dots_pack_u4x2_serial(b, column_count, depth, b_stride_in_bytes, b_packed);
-}
+/* U4 GEMM: depth_simd_dimensions=128 (128 nibbles = 64 bytes = full cache line) */
+nk_define_dots_pack_size_(u4, ice, u4x2, u4x2, u32, /*depth_simd_dimensions=*/128, /*dimensions_per_value=*/2)
+nk_define_dots_pack_(u4, ice, u4x2, u4x2, u32, nk_assign_from_to_, /*depth_simd_dimensions=*/128,
+                     /*dimensions_per_value=*/2)
 
 nk_define_dots_symmetric_(u4, ice, u4x2, u32, nk_b512_vec_t, nk_dot_u4x128_state_ice_t, nk_b128_vec_t,
                           nk_dot_u4x128_init_ice, nk_load_b512_skylake_, nk_partial_load_b4x128_skylake_,
                           nk_dot_u4x128_update_ice, nk_dot_u4x128_finalize_ice,
-                          /*depth_simd_step=*/128)
+                          /*depth_simd_dimensions=*/128, /*dimensions_per_value=*/2)
 nk_define_dots_packed_(u4, ice, u4x2, u4x2, u32, nk_b512_vec_t, nk_dot_u4x128_state_ice_t, nk_b128_vec_t,
                        nk_dot_u4x128_init_ice, nk_load_b512_skylake_, nk_partial_load_b4x128_skylake_,
                        nk_load_b512_skylake_, nk_partial_load_b4x128_skylake_, nk_dot_u4x128_update_ice,
                        nk_dot_u4x128_finalize_ice, nk_partial_store_b32x4_skylake_,
-                       /*depth_simd_step=*/128)
+                       /*depth_simd_dimensions=*/128, /*dimensions_per_value=*/2)
 
 #if defined(__cplusplus)
 } // extern "C"
