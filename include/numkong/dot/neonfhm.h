@@ -74,10 +74,9 @@ NK_PUBLIC void nk_dot_f16_neonfhm(nk_f16_t const *a_scalars, nk_f16_t const *b_s
     *result = vaddvq_f32(sum_f32x4);
 }
 
-// State-based API for GEMM integration
-typedef struct nk_dot_f16x8_state_neonfhm_t {
+struct nk_dot_f16x8_state_neonfhm_t {
     float32x4_t sum_f32x4;
-} nk_dot_f16x8_state_neonfhm_t;
+};
 
 NK_INTERNAL void nk_dot_f16x8_init_neonfhm(nk_dot_f16x8_state_neonfhm_t *state) { state->sum_f32x4 = vdupq_n_f32(0); }
 
@@ -263,24 +262,29 @@ NK_PUBLIC void nk_dot_e2m3_neonfhm(nk_e2m3_t const *a_scalars, nk_e2m3_t const *
     float32x4_t sum_f32x4 = vdupq_n_f32(0);
     nk_size_t idx = 0;
 
-    // Main loop: process 8 elements at a time using FMLAL
-    for (; idx + 8 <= count_scalars; idx += 8) {
-        float16x8_t a_f16x8 = nk_e2m3x8_to_f16x8_neon_(vld1_u8(a_scalars + idx));
-        float16x8_t b_f16x8 = nk_e2m3x8_to_f16x8_neon_(vld1_u8(b_scalars + idx));
-        sum_f32x4 = vfmlalq_low_f16(sum_f32x4, a_f16x8, b_f16x8);
-        sum_f32x4 = vfmlalq_high_f16(sum_f32x4, a_f16x8, b_f16x8);
+    // Main loop: process 16 elements at a time using x16 converter + FMLAL
+    for (; idx + 16 <= count_scalars; idx += 16) {
+        float16x8_t a_low, a_high, b_low, b_high;
+        nk_e2m3x16_to_f16x8x2_neon_(vld1q_u8(a_scalars + idx), &a_low, &a_high);
+        nk_e2m3x16_to_f16x8x2_neon_(vld1q_u8(b_scalars + idx), &b_low, &b_high);
+        sum_f32x4 = vfmlalq_low_f16(sum_f32x4, a_low, b_low);
+        sum_f32x4 = vfmlalq_high_f16(sum_f32x4, a_low, b_low);
+        sum_f32x4 = vfmlalq_low_f16(sum_f32x4, a_high, b_high);
+        sum_f32x4 = vfmlalq_high_f16(sum_f32x4, a_high, b_high);
     }
 
-    // Handle remaining elements (0-7) using partial_load
+    // Handle remaining elements (0-15) using partial_load and x16 converter
     if (idx < count_scalars) {
-        nk_size_t remaining = count_scalars - idx;
-        nk_b64_vec_t a_vec, b_vec;
-        nk_partial_load_b8x8_serial_(a_scalars + idx, &a_vec, remaining);
-        nk_partial_load_b8x8_serial_(b_scalars + idx, &b_vec, remaining);
-        float16x8_t a_f16x8 = nk_e2m3x8_to_f16x8_neon_(a_vec.u8x8);
-        float16x8_t b_f16x8 = nk_e2m3x8_to_f16x8_neon_(b_vec.u8x8);
-        sum_f32x4 = vfmlalq_low_f16(sum_f32x4, a_f16x8, b_f16x8);
-        sum_f32x4 = vfmlalq_high_f16(sum_f32x4, a_f16x8, b_f16x8);
+        nk_b128_vec_t a_vec, b_vec;
+        nk_partial_load_b8x16_serial_(a_scalars + idx, &a_vec, count_scalars - idx);
+        nk_partial_load_b8x16_serial_(b_scalars + idx, &b_vec, count_scalars - idx);
+        float16x8_t a_low, a_high, b_low, b_high;
+        nk_e2m3x16_to_f16x8x2_neon_(a_vec.u8x16, &a_low, &a_high);
+        nk_e2m3x16_to_f16x8x2_neon_(b_vec.u8x16, &b_low, &b_high);
+        sum_f32x4 = vfmlalq_low_f16(sum_f32x4, a_low, b_low);
+        sum_f32x4 = vfmlalq_high_f16(sum_f32x4, a_low, b_low);
+        sum_f32x4 = vfmlalq_low_f16(sum_f32x4, a_high, b_high);
+        sum_f32x4 = vfmlalq_high_f16(sum_f32x4, a_high, b_high);
     }
 
     *result = vaddvq_f32(sum_f32x4);
@@ -291,33 +295,37 @@ NK_PUBLIC void nk_dot_e3m2_neonfhm(nk_e3m2_t const *a_scalars, nk_e3m2_t const *
     float32x4_t sum_f32x4 = vdupq_n_f32(0);
     nk_size_t idx = 0;
 
-    // Main loop: process 8 elements at a time using FMLAL
-    for (; idx + 8 <= count_scalars; idx += 8) {
-        float16x8_t a_f16x8 = nk_e3m2x8_to_f16x8_neon_(vld1_u8(a_scalars + idx));
-        float16x8_t b_f16x8 = nk_e3m2x8_to_f16x8_neon_(vld1_u8(b_scalars + idx));
-        sum_f32x4 = vfmlalq_low_f16(sum_f32x4, a_f16x8, b_f16x8);
-        sum_f32x4 = vfmlalq_high_f16(sum_f32x4, a_f16x8, b_f16x8);
+    // Main loop: process 16 elements at a time using x16 converter + FMLAL
+    for (; idx + 16 <= count_scalars; idx += 16) {
+        float16x8_t a_low, a_high, b_low, b_high;
+        nk_e3m2x16_to_f16x8x2_neon_(vld1q_u8(a_scalars + idx), &a_low, &a_high);
+        nk_e3m2x16_to_f16x8x2_neon_(vld1q_u8(b_scalars + idx), &b_low, &b_high);
+        sum_f32x4 = vfmlalq_low_f16(sum_f32x4, a_low, b_low);
+        sum_f32x4 = vfmlalq_high_f16(sum_f32x4, a_low, b_low);
+        sum_f32x4 = vfmlalq_low_f16(sum_f32x4, a_high, b_high);
+        sum_f32x4 = vfmlalq_high_f16(sum_f32x4, a_high, b_high);
     }
 
-    // Handle remaining elements (0-7) using partial_load
+    // Handle remaining elements (0-15) using partial_load and x16 converter
     if (idx < count_scalars) {
-        nk_size_t remaining = count_scalars - idx;
-        nk_b64_vec_t a_vec, b_vec;
-        nk_partial_load_b8x8_serial_(a_scalars + idx, &a_vec, remaining);
-        nk_partial_load_b8x8_serial_(b_scalars + idx, &b_vec, remaining);
-        float16x8_t a_f16x8 = nk_e3m2x8_to_f16x8_neon_(a_vec.u8x8);
-        float16x8_t b_f16x8 = nk_e3m2x8_to_f16x8_neon_(b_vec.u8x8);
-        sum_f32x4 = vfmlalq_low_f16(sum_f32x4, a_f16x8, b_f16x8);
-        sum_f32x4 = vfmlalq_high_f16(sum_f32x4, a_f16x8, b_f16x8);
+        nk_b128_vec_t a_vec, b_vec;
+        nk_partial_load_b8x16_serial_(a_scalars + idx, &a_vec, count_scalars - idx);
+        nk_partial_load_b8x16_serial_(b_scalars + idx, &b_vec, count_scalars - idx);
+        float16x8_t a_low, a_high, b_low, b_high;
+        nk_e3m2x16_to_f16x8x2_neon_(a_vec.u8x16, &a_low, &a_high);
+        nk_e3m2x16_to_f16x8x2_neon_(b_vec.u8x16, &b_low, &b_high);
+        sum_f32x4 = vfmlalq_low_f16(sum_f32x4, a_low, b_low);
+        sum_f32x4 = vfmlalq_high_f16(sum_f32x4, a_low, b_low);
+        sum_f32x4 = vfmlalq_low_f16(sum_f32x4, a_high, b_high);
+        sum_f32x4 = vfmlalq_high_f16(sum_f32x4, a_high, b_high);
     }
 
     *result = vaddvq_f32(sum_f32x4);
 }
 
-/** @brief E2M3FN GEMM state for NEONFHM (16 elements per vector). */
 struct nk_dot_e2m3x16_state_neonfhm_t {
     float32x4_t sum_f32x4;
-} nk_dot_e2m3x16_state_neonfhm_t;
+};
 
 NK_INTERNAL void nk_dot_e2m3x16_init_neonfhm(nk_dot_e2m3x16_state_neonfhm_t *state) {
     state->sum_f32x4 = vdupq_n_f32(0);
@@ -348,10 +356,9 @@ NK_INTERNAL void nk_dot_e2m3x16_finalize_neonfhm(                               
     result->u32x4 = vreinterpretq_u32_f32(sums);
 }
 
-/** @brief E3M2FN GEMM state for NEONFHM (16 elements per vector). */
 struct nk_dot_e3m2x16_state_neonfhm_t {
     float32x4_t sum_f32x4;
-} nk_dot_e3m2x16_state_neonfhm_t;
+};
 
 NK_INTERNAL void nk_dot_e3m2x16_init_neonfhm(nk_dot_e3m2x16_state_neonfhm_t *state) {
     state->sum_f32x4 = vdupq_n_f32(0);

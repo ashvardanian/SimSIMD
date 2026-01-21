@@ -405,6 +405,58 @@ NK_PUBLIC void nk_dot_f16_neonfhm(nk_f16_t const *a, nk_f16_t const *b, nk_size_
 NK_PUBLIC void nk_dot_f16c_neonfhm(nk_f16c_t const *a, nk_f16c_t const *b, nk_size_t n, nk_f32c_t *result);
 /** @copydoc nk_vdot_f16c */
 NK_PUBLIC void nk_vdot_f16c_neonfhm(nk_f16c_t const *a, nk_f16c_t const *b, nk_size_t n, nk_f32c_t *result);
+/** @copydoc nk_dot_e2m3 */
+NK_PUBLIC void nk_dot_e2m3_neonfhm(nk_e2m3_t const *a, nk_e2m3_t const *b, nk_size_t n, nk_f32_t *result);
+/** @copydoc nk_dot_e3m2 */
+NK_PUBLIC void nk_dot_e3m2_neonfhm(nk_e3m2_t const *a, nk_e3m2_t const *b, nk_size_t n, nk_f32_t *result);
+
+/**
+ *  @brief Running state for 128-bit dot accumulation over f16 scalars on NEON with FMLAL.
+ */
+typedef struct nk_dot_f16x8_state_neonfhm_t nk_dot_f16x8_state_neonfhm_t;
+/** @copydoc nk_dot_f16x8_state_neonfhm_t */
+NK_INTERNAL void nk_dot_f16x8_init_neonfhm(nk_dot_f16x8_state_neonfhm_t *state);
+/** @copydoc nk_dot_f16x8_state_neonfhm_t */
+NK_INTERNAL void nk_dot_f16x8_update_neonfhm(nk_dot_f16x8_state_neonfhm_t *state, nk_b128_vec_t a, nk_b128_vec_t b,
+                                             nk_size_t depth_offset, nk_size_t active_dimensions);
+/** @copydoc nk_dot_f16x8_state_neonfhm_t */
+NK_INTERNAL void nk_dot_f16x8_finalize_neonfhm(nk_dot_f16x8_state_neonfhm_t const *state_a,
+                                               nk_dot_f16x8_state_neonfhm_t const *state_b,
+                                               nk_dot_f16x8_state_neonfhm_t const *state_c,
+                                               nk_dot_f16x8_state_neonfhm_t const *state_d, nk_b128_vec_t *result,
+                                               nk_size_t total_dimensions);
+
+/**
+ *  @brief Running state for 128-bit dot accumulation over e2m3 scalars on NEON with FMLAL.
+ */
+typedef struct nk_dot_e2m3x16_state_neonfhm_t nk_dot_e2m3x16_state_neonfhm_t;
+/** @copydoc nk_dot_e2m3x16_state_neonfhm_t */
+NK_INTERNAL void nk_dot_e2m3x16_init_neonfhm(nk_dot_e2m3x16_state_neonfhm_t *state);
+/** @copydoc nk_dot_e2m3x16_state_neonfhm_t */
+NK_INTERNAL void nk_dot_e2m3x16_update_neonfhm(nk_dot_e2m3x16_state_neonfhm_t *state, nk_b128_vec_t a, nk_b128_vec_t b,
+                                               nk_size_t depth_offset, nk_size_t active_dimensions);
+/** @copydoc nk_dot_e2m3x16_state_neonfhm_t */
+NK_INTERNAL void nk_dot_e2m3x16_finalize_neonfhm(nk_dot_e2m3x16_state_neonfhm_t const *state_a,
+                                                 nk_dot_e2m3x16_state_neonfhm_t const *state_b,
+                                                 nk_dot_e2m3x16_state_neonfhm_t const *state_c,
+                                                 nk_dot_e2m3x16_state_neonfhm_t const *state_d, nk_b128_vec_t *result,
+                                                 nk_size_t total_dimensions);
+
+/**
+ *  @brief Running state for 128-bit dot accumulation over e3m2 scalars on NEON with FMLAL.
+ */
+typedef struct nk_dot_e3m2x16_state_neonfhm_t nk_dot_e3m2x16_state_neonfhm_t;
+/** @copydoc nk_dot_e3m2x16_state_neonfhm_t */
+NK_INTERNAL void nk_dot_e3m2x16_init_neonfhm(nk_dot_e3m2x16_state_neonfhm_t *state);
+/** @copydoc nk_dot_e3m2x16_state_neonfhm_t */
+NK_INTERNAL void nk_dot_e3m2x16_update_neonfhm(nk_dot_e3m2x16_state_neonfhm_t *state, nk_b128_vec_t a, nk_b128_vec_t b,
+                                               nk_size_t depth_offset, nk_size_t active_dimensions);
+/** @copydoc nk_dot_e3m2x16_state_neonfhm_t */
+NK_INTERNAL void nk_dot_e3m2x16_finalize_neonfhm(nk_dot_e3m2x16_state_neonfhm_t const *state_a,
+                                                 nk_dot_e3m2x16_state_neonfhm_t const *state_b,
+                                                 nk_dot_e3m2x16_state_neonfhm_t const *state_c,
+                                                 nk_dot_e3m2x16_state_neonfhm_t const *state_d, nk_b128_vec_t *result,
+                                                 nk_size_t total_dimensions);
 #endif // NK_TARGET_NEONFHM
 /**
  *  @brief Running state for 128-bit dot accumulation over f16 scalars on NEON.
@@ -454,6 +506,38 @@ NK_INTERNAL void nk_dot_u8x16_finalize_neon(nk_dot_u8x16_state_neon_t const *sta
                                             nk_dot_u8x16_state_neon_t const *state_c,
                                             nk_dot_u8x16_state_neon_t const *state_d, nk_b128_vec_t *result,
                                             nk_size_t total_dimensions);
+
+/**
+ *  @brief Running state for 128-bit dot accumulation over i4 scalars on NEON with SDOT.
+ */
+typedef struct nk_dot_i4x32_state_neonsdot_t nk_dot_i4x32_state_neonsdot_t;
+/** @copydoc nk_dot_i4x32_state_neonsdot_t */
+NK_INTERNAL void nk_dot_i4x32_init_neonsdot(nk_dot_i4x32_state_neonsdot_t *state);
+/** @copydoc nk_dot_i4x32_state_neonsdot_t */
+NK_INTERNAL void nk_dot_i4x32_update_neonsdot(nk_dot_i4x32_state_neonsdot_t *state, nk_b128_vec_t a, nk_b128_vec_t b,
+                                              nk_size_t depth_offset, nk_size_t active_dimensions);
+/** @copydoc nk_dot_i4x32_state_neonsdot_t */
+NK_INTERNAL void nk_dot_i4x32_finalize_neonsdot(nk_dot_i4x32_state_neonsdot_t const *state_a,
+                                                nk_dot_i4x32_state_neonsdot_t const *state_b,
+                                                nk_dot_i4x32_state_neonsdot_t const *state_c,
+                                                nk_dot_i4x32_state_neonsdot_t const *state_d, nk_b128_vec_t *result,
+                                                nk_size_t total_dimensions);
+
+/**
+ *  @brief Running state for 128-bit dot accumulation over u4 scalars on NEON with UDOT.
+ */
+typedef struct nk_dot_u4x32_state_neonsdot_t nk_dot_u4x32_state_neonsdot_t;
+/** @copydoc nk_dot_u4x32_state_neonsdot_t */
+NK_INTERNAL void nk_dot_u4x32_init_neonsdot(nk_dot_u4x32_state_neonsdot_t *state);
+/** @copydoc nk_dot_u4x32_state_neonsdot_t */
+NK_INTERNAL void nk_dot_u4x32_update_neonsdot(nk_dot_u4x32_state_neonsdot_t *state, nk_b128_vec_t a, nk_b128_vec_t b,
+                                              nk_size_t depth_offset, nk_size_t active_dimensions);
+/** @copydoc nk_dot_u4x32_state_neonsdot_t */
+NK_INTERNAL void nk_dot_u4x32_finalize_neonsdot(nk_dot_u4x32_state_neonsdot_t const *state_a,
+                                                nk_dot_u4x32_state_neonsdot_t const *state_b,
+                                                nk_dot_u4x32_state_neonsdot_t const *state_c,
+                                                nk_dot_u4x32_state_neonsdot_t const *state_d, nk_b128_vec_t *result,
+                                                nk_size_t total_dimensions);
 #endif // NK_TARGET_NEONSDOT
 
 #if NK_TARGET_NEONBFDOT

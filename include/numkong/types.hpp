@@ -4615,6 +4615,14 @@ struct type_for<nk_e5m2_k> {
     using type = e5m2_t;
 };
 template <>
+struct type_for<nk_e2m3_k> {
+    using type = e2m3_t;
+};
+template <>
+struct type_for<nk_e3m2_k> {
+    using type = e3m2_t;
+};
+template <>
 struct type_for<nk_f32c_k> {
     using type = f32c_t;
 };
