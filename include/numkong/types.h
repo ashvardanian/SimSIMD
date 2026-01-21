@@ -1203,13 +1203,13 @@ NK_INTERNAL void nk_i64_smul_(nk_i64_t const *a, nk_i64_t const *b, nk_i64_t *r)
 }
 
 /** @brief Divides the number rounding up to the next multiple of the given divisor. */
-NK_INTERNAL nk_size_t nk_size_divide_round_up_to_multiple_(nk_size_t number, nk_size_t divisor) {
+NK_INTERNAL nk_size_t nk_size_divide_round_up_(nk_size_t number, nk_size_t divisor) {
     return (number + divisor - 1) / divisor;
 }
 
 /** @brief Rounds up the number to the next multiple of the given divisor. */
-NK_INTERNAL nk_size_t nk_round_up_to_multiple_(nk_size_t number, nk_size_t divisor) {
-    return ((number + divisor - 1) / divisor) * divisor;
+NK_INTERNAL nk_size_t nk_size_round_up_to_multiple_(nk_size_t number, nk_size_t divisor) {
+    return nk_size_divide_round_up_(number, divisor) * divisor;
 }
 
 NK_INTERNAL nk_f64_t nk_f32_abs_(nk_f64_t x) { return x < 0 ? -x : x; }

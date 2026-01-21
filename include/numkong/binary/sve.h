@@ -47,7 +47,7 @@ extern "C" {
 #endif
 
 NK_PUBLIC void nk_hamming_u1_sve(nk_u1x8_t const *a, nk_u1x8_t const *b, nk_size_t n, nk_u32_t *result) {
-    nk_size_t n_bytes = nk_size_divide_round_up_to_multiple_(n, NK_BITS_PER_BYTE);
+    nk_size_t n_bytes = nk_size_divide_round_up_(n, NK_BITS_PER_BYTE);
 
     // On very small register sizes, NEON is at least as fast as SVE.
     nk_size_t const words_per_register = svcntb();
@@ -80,7 +80,7 @@ NK_PUBLIC void nk_hamming_u1_sve(nk_u1x8_t const *a, nk_u1x8_t const *b, nk_size
 }
 
 NK_PUBLIC void nk_jaccard_u1_sve(nk_u1x8_t const *a, nk_u1x8_t const *b, nk_size_t n, nk_f32_t *result) {
-    nk_size_t n_bytes = nk_size_divide_round_up_to_multiple_(n, NK_BITS_PER_BYTE);
+    nk_size_t n_bytes = nk_size_divide_round_up_(n, NK_BITS_PER_BYTE);
 
     // On very small register sizes, NEON is at least as fast as SVE.
     nk_size_t const words_per_register = svcntb();

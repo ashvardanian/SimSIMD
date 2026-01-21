@@ -94,7 +94,7 @@ NK_PUBLIC void nk_dot_i4_serial(nk_i4x2_t const *a, nk_i4x2_t const *b, nk_size_
     // i4 values are packed as nibbles: two 4-bit signed values per byte.
     // Parameter `n` is the number of 4-bit values (dimensions), not bytes.
     // Sign extension: (nibble ^ 8) - 8 maps [0,15] to [-8,7]
-    nk_size_t n_bytes = (n + 1) / 2;
+    nk_size_t n_bytes = nk_size_divide_round_up_(n, 2);
     nk_i32_t sum = 0;
     for (nk_size_t i = 0; i < n_bytes; ++i) {
         // Extract low nibbles
@@ -116,7 +116,7 @@ NK_PUBLIC void nk_dot_u4_serial(nk_u4x2_t const *a, nk_u4x2_t const *b, nk_size_
     // u4 values are packed as nibbles: two 4-bit unsigned values per byte.
     // Parameter `n` is the number of 4-bit values (dimensions), not bytes.
     // No sign extension needed - values are ∈ [0,15].
-    nk_size_t n_bytes = (n + 1) / 2;
+    nk_size_t n_bytes = nk_size_divide_round_up_(n, 2);
     nk_u32_t sum = 0;
     for (nk_size_t i = 0; i < n_bytes; ++i) {
         // Extract low nibbles

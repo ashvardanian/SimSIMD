@@ -27,14 +27,14 @@ NK_PUBLIC unsigned char nk_popcount_u1(nk_u1x8_t x) {
 }
 
 NK_PUBLIC void nk_hamming_u1_serial(nk_u1x8_t const *a, nk_u1x8_t const *b, nk_size_t n, nk_u32_t *result) {
-    nk_size_t n_bytes = nk_size_divide_round_up_to_multiple_(n, NK_BITS_PER_BYTE);
+    nk_size_t n_bytes = nk_size_divide_round_up_(n, NK_BITS_PER_BYTE);
     nk_u32_t differences = 0;
     for (nk_size_t i = 0; i != n_bytes; ++i) differences += nk_popcount_u1(a[i] ^ b[i]);
     *result = differences;
 }
 
 NK_PUBLIC void nk_jaccard_u1_serial(nk_u1x8_t const *a, nk_u1x8_t const *b, nk_size_t n, nk_f32_t *result) {
-    nk_size_t n_bytes = nk_size_divide_round_up_to_multiple_(n, NK_BITS_PER_BYTE);
+    nk_size_t n_bytes = nk_size_divide_round_up_(n, NK_BITS_PER_BYTE);
     nk_u32_t intersection_count = 0, union_count = 0;
     for (nk_size_t i = 0; i != n_bytes; ++i)
         intersection_count += nk_popcount_u1(a[i] & b[i]), union_count += nk_popcount_u1(a[i] | b[i]);

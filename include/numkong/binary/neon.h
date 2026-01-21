@@ -42,7 +42,7 @@ extern "C" {
 #endif
 
 NK_PUBLIC void nk_hamming_u1_neon(nk_u1x8_t const *a, nk_u1x8_t const *b, nk_size_t n, nk_u32_t *result) {
-    nk_size_t n_bytes = nk_size_divide_round_up_to_multiple_(n, NK_BITS_PER_BYTE);
+    nk_size_t n_bytes = nk_size_divide_round_up_(n, NK_BITS_PER_BYTE);
     nk_u32_t differences = 0;
     nk_size_t i = 0;
     // In each 8-bit word we may have up to 8 differences.
@@ -65,7 +65,7 @@ NK_PUBLIC void nk_hamming_u1_neon(nk_u1x8_t const *a, nk_u1x8_t const *b, nk_siz
 }
 
 NK_PUBLIC void nk_jaccard_u1_neon(nk_u1x8_t const *a, nk_u1x8_t const *b, nk_size_t n, nk_f32_t *result) {
-    nk_size_t n_bytes = nk_size_divide_round_up_to_multiple_(n, NK_BITS_PER_BYTE);
+    nk_size_t n_bytes = nk_size_divide_round_up_(n, NK_BITS_PER_BYTE);
     nk_u32_t intersection_count = 0, union_count = 0;
     nk_size_t i = 0;
     // In each 8-bit word we may have up to 8 intersections/unions.

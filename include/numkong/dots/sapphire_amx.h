@@ -1005,7 +1005,7 @@ NK_PUBLIC nk_size_t nk_dots_packed_size_bf16_sapphire_amx(nk_size_t column_count
     nk_size_t const tile_bytes = 512 * sizeof(nk_bf16_t); // 16 × 32 × 2 = 1KB
 
     nk_size_t const full_column_tiles = column_count / tmm_rows;
-    nk_size_t const tiles_along_depth = (depth + tmm_cols - 1) / tmm_cols; // Ceiling division
+    nk_size_t const tiles_along_depth = nk_size_divide_round_up_(depth, tmm_cols);
     nk_size_t const column_edge_rows = column_count - full_column_tiles * tmm_rows;
 
     // Header (64 bytes aligned)
@@ -1028,7 +1028,7 @@ NK_PUBLIC nk_size_t nk_dots_packed_size_i8_sapphire_amx(nk_size_t column_count, 
     nk_size_t const tile_bytes = 1024 * sizeof(nk_i8_t); // 16 × 64×1 = 1KB
 
     nk_size_t const full_column_tiles = column_count / tmm_rows;
-    nk_size_t const tiles_along_depth = (depth + tmm_cols - 1) / tmm_cols; // Ceiling division
+    nk_size_t const tiles_along_depth = nk_size_divide_round_up_(depth, tmm_cols);
     nk_size_t const column_edge_rows = column_count - full_column_tiles * tmm_rows;
 
     // Header (64 bytes aligned)
@@ -1084,7 +1084,7 @@ NK_PUBLIC void nk_dots_pack_bf16_sapphire_amx(                   //
 
     // Compute layout dimensions
     nk_size_t const num_column_tiles = column_count / tmm_rows;
-    nk_size_t const num_depth_tiles = (depth + tmm_cols - 1) / tmm_cols;
+    nk_size_t const num_depth_tiles = nk_size_divide_round_up_(depth, tmm_cols);
     nk_size_t const column_remainder_rows = column_count - num_column_tiles * tmm_rows;
     nk_size_t const total_tiles = num_column_tiles * num_depth_tiles;
 
@@ -1171,7 +1171,7 @@ NK_PUBLIC void nk_dots_pack_i8_sapphire_amx(                   //
 
     // Compute layout dimensions
     nk_size_t const num_column_tiles = column_count / tmm_rows;
-    nk_size_t const num_depth_tiles = (depth + tmm_cols - 1) / tmm_cols;
+    nk_size_t const num_depth_tiles = nk_size_divide_round_up_(depth, tmm_cols);
     nk_size_t const column_remainder_rows = column_count - num_column_tiles * tmm_rows;
     nk_size_t const total_tiles = num_column_tiles * num_depth_tiles;
 
@@ -1244,7 +1244,7 @@ NK_PUBLIC void nk_dots_pack_u8_sapphire_amx(                   //
     nk_size_t const tile_bytes = tile_elements * sizeof(nk_u8_t);
 
     nk_size_t const num_column_tiles = column_count / tmm_rows;
-    nk_size_t const num_depth_tiles = (depth + tmm_cols - 1) / tmm_cols;
+    nk_size_t const num_depth_tiles = nk_size_divide_round_up_(depth, tmm_cols);
     nk_size_t const column_remainder_rows = column_count - num_column_tiles * tmm_rows;
     nk_size_t const total_tiles = num_column_tiles * num_depth_tiles;
 
@@ -1306,7 +1306,7 @@ NK_PUBLIC void nk_dots_pack_e4m3_sapphire_amx(                   //
     nk_size_t const tile_bytes = tile_elements * sizeof(nk_bf16_t);
 
     nk_size_t const num_column_tiles = column_count / tmm_rows;
-    nk_size_t const num_depth_tiles = (depth + tmm_cols - 1) / tmm_cols;
+    nk_size_t const num_depth_tiles = nk_size_divide_round_up_(depth, tmm_cols);
     nk_size_t const column_remainder_rows = column_count - num_column_tiles * tmm_rows;
     nk_size_t const total_tiles = num_column_tiles * num_depth_tiles;
 
@@ -1379,7 +1379,7 @@ NK_PUBLIC void nk_dots_pack_e5m2_sapphire_amx(                   //
     nk_size_t const tile_bytes = tile_elements * sizeof(nk_bf16_t);
 
     nk_size_t const num_column_tiles = column_count / tmm_rows;
-    nk_size_t const num_depth_tiles = (depth + tmm_cols - 1) / tmm_cols;
+    nk_size_t const num_depth_tiles = nk_size_divide_round_up_(depth, tmm_cols);
     nk_size_t const column_remainder_rows = column_count - num_column_tiles * tmm_rows;
     nk_size_t const total_tiles = num_column_tiles * num_depth_tiles;
 

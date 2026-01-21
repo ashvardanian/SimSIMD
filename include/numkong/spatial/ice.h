@@ -259,7 +259,7 @@ NK_PUBLIC void nk_l2_i4_ice(nk_i4x2_t const *a, nk_i4x2_t const *b, nk_size_t n,
 NK_PUBLIC void nk_l2sq_i4_ice(nk_i4x2_t const *a, nk_i4x2_t const *b, nk_size_t n, nk_u32_t *result) {
     // i4 values are packed as nibbles: two 4-bit signed values per byte.
     // Parameter `n` is the number of 4-bit values (dimensions), not bytes.
-    nk_size_t n_bytes = nk_size_divide_round_up_to_multiple_(n, 2);
+    nk_size_t n_bytes = nk_size_divide_round_up_(n, 2);
 
     // While `int8_t` covers the range [-128, 127], `int4_t` covers only [-8, 7].
     // The absolute difference between two 4-bit integers is at most 15 and fits in `uint4_t`.
@@ -327,7 +327,7 @@ nk_l2sq_i4_ice_cycle:
 NK_PUBLIC void nk_angular_i4_ice(nk_i4x2_t const *a, nk_i4x2_t const *b, nk_size_t n, nk_f32_t *result) {
     // i4 values are packed as nibbles: two 4-bit signed values per byte.
     // Parameter `n` is the number of 4-bit values (dimensions), not bytes.
-    nk_size_t n_bytes = nk_size_divide_round_up_to_multiple_(n, 2);
+    nk_size_t n_bytes = nk_size_divide_round_up_(n, 2);
 
     // Angular distance for signed 4-bit integers requires computing:
     //   1. Dot product: ∑(aᵢ × bᵢ)
@@ -432,7 +432,7 @@ nk_angular_i4_ice_cycle:
 NK_PUBLIC void nk_l2sq_u4_ice(nk_u4x2_t const *a, nk_u4x2_t const *b, nk_size_t n, nk_u32_t *result) {
     // u4 values are packed as nibbles: two 4-bit unsigned values per byte.
     // Parameter `n` is the number of 4-bit values (dimensions), not bytes.
-    nk_size_t n_bytes = nk_size_divide_round_up_to_multiple_(n, 2);
+    nk_size_t n_bytes = nk_size_divide_round_up_(n, 2);
 
     // For unsigned 4-bit integers ∈ [0, 15], the L2 squared distance is straightforward:
     //   1. Extract nibbles as u8 values
@@ -488,7 +488,7 @@ NK_PUBLIC void nk_l2_u4_ice(nk_u4x2_t const *a, nk_u4x2_t const *b, nk_size_t n,
 NK_PUBLIC void nk_angular_u4_ice(nk_u4x2_t const *a, nk_u4x2_t const *b, nk_size_t n, nk_f32_t *result) {
     // u4 values are packed as nibbles: two 4-bit unsigned values per byte.
     // Parameter `n` is the number of 4-bit values (dimensions), not bytes.
-    nk_size_t n_bytes = nk_size_divide_round_up_to_multiple_(n, 2);
+    nk_size_t n_bytes = nk_size_divide_round_up_(n, 2);
 
     // Angular distance for unsigned 4-bit integers ∈ [0, 15].
     // Since values are unsigned and small, we can use DPBUSD directly for both

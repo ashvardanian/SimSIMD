@@ -73,7 +73,7 @@ NK_INTERNAL vuint8m1_t nk_popcount_u8m1_spacemit_(vuint8m1_t data_u8m1, nk_size_
 }
 
 NK_PUBLIC void nk_hamming_u1_spacemit(nk_u1x8_t const *a, nk_u1x8_t const *b, nk_size_t n, nk_u32_t *result) {
-    nk_size_t count_bytes = nk_size_divide_round_up_to_multiple_(n, NK_BITS_PER_BYTE);
+    nk_size_t count_bytes = nk_size_divide_round_up_(n, NK_BITS_PER_BYTE);
 
     // Accumulator for total differences
     vuint32m1_t sum_u32m1 = __riscv_vmv_v_x_u32m1(0, 1);
@@ -100,7 +100,7 @@ NK_PUBLIC void nk_hamming_u1_spacemit(nk_u1x8_t const *a, nk_u1x8_t const *b, nk
 }
 
 NK_PUBLIC void nk_jaccard_u1_spacemit(nk_u1x8_t const *a, nk_u1x8_t const *b, nk_size_t n, nk_f32_t *result) {
-    nk_size_t count_bytes = nk_size_divide_round_up_to_multiple_(n, NK_BITS_PER_BYTE);
+    nk_size_t count_bytes = nk_size_divide_round_up_(n, NK_BITS_PER_BYTE);
 
     // Accumulators for intersection and union counts
     vuint32m1_t intersection_sum_u32m1 = __riscv_vmv_v_x_u32m1(0, 1);

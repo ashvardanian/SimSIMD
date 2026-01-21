@@ -1256,7 +1256,7 @@ NK_INTERNAL void nk_partial_load_b16x4_serial_(void const *src, nk_b64_vec_t *ds
 NK_INTERNAL void nk_partial_load_b4x64_serial_(void const *src, nk_b256_vec_t *dst, nk_size_t n) {
     dst->u64s[0] = 0, dst->u64s[1] = 0, dst->u64s[2] = 0, dst->u64s[3] = 0;
     nk_u8_t const *s = (nk_u8_t const *)src;
-    nk_size_t n_bytes = (n + 1) / 2;
+    nk_size_t n_bytes = nk_size_divide_round_up_(n, 2);
     for (nk_size_t i = 0; i < n_bytes && i < 32; i++) dst->u8s[i] = s[i];
 }
 
@@ -1264,7 +1264,7 @@ NK_INTERNAL void nk_partial_load_b4x64_serial_(void const *src, nk_b256_vec_t *d
 NK_INTERNAL void nk_partial_load_b4x16_serial_(void const *src, nk_b64_vec_t *dst, nk_size_t n) {
     dst->u64 = 0;
     nk_u8_t const *s = (nk_u8_t const *)src;
-    nk_size_t n_bytes = (n + 1) / 2;
+    nk_size_t n_bytes = nk_size_divide_round_up_(n, 2);
     for (nk_size_t i = 0; i < n_bytes && i < 8; i++) ((nk_u8_t *)&dst->u64)[i] = s[i];
 }
 
@@ -1771,7 +1771,7 @@ NK_INTERNAL void nk_scalar_buffers_export_u64_(              //
 NK_PUBLIC void nk_cast_serial(void const *from, nk_dtype_t from_type, nk_size_t n, void *to, nk_dtype_t to_type) {
     if (from_type == to_type) {
         nk_size_t size_bits = nk_dtype_bits(from_type);
-        nk_size_t size_bytes = nk_size_divide_round_up_to_multiple_(n * size_bits, NK_BITS_PER_BYTE);
+        nk_size_t size_bytes = nk_size_divide_round_up_(n * size_bits, NK_BITS_PER_BYTE);
         if (size_bytes > 0) nk_copy_bytes_(to, from, size_bytes);
         return;
     }

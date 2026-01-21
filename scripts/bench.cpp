@@ -125,7 +125,7 @@ template <nk_dtype_t dtype_>
 
     nk_size_t bits_per_element = nk_dtype_bits(dtype_);
     nk_size_t bits_per_row = cols * bits_per_element;
-    nk_size_t bytes_per_row = nk_size_divide_round_up_to_multiple_(bits_per_row, 8);
+    nk_size_t bytes_per_row = nk::divide_round_up(bits_per_row, NK_BITS_PER_BYTE);
     nk_size_t total_elements = rows * bytes_per_row / sizeof(raw_t);
 
     return make_vector<type_>(total_elements);
@@ -533,8 +533,8 @@ void measure_dots_packed(                                                       
 
     // Calculate correct strides for sub-byte types (u4, i4, u1, etc.)
     nk_size_t bits_per_element = nk_dtype_bits(input_dtype_);
-    nk_size_t a_stride_bytes = nk_size_divide_round_up_to_multiple_(k * bits_per_element, 8);
-    nk_size_t b_stride_bytes = nk_size_divide_round_up_to_multiple_(n * bits_per_element, 8);
+    nk_size_t a_stride_bytes = nk::divide_round_up(k * bits_per_element, NK_BITS_PER_BYTE);
+    nk_size_t b_stride_bytes = nk::divide_round_up(n * bits_per_element, NK_BITS_PER_BYTE);
 
     // Allocate matrices with correct sizes for sub-byte types
     auto matrix_a = make_vector_for_matrix<input_dtype_>(m, k);

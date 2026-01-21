@@ -555,8 +555,7 @@ NK_PUBLIC void nk_cast_haswell(void const *from, nk_dtype_t from_type, nk_size_t
     // Same-type fast path
     if (from_type == to_type) {
         nk_size_t size_bits = nk_dtype_bits(from_type);
-        if (size_bits > 0)
-            nk_copy_bytes_(to, from, nk_size_divide_round_up_to_multiple_(n * size_bits, NK_BITS_PER_BYTE));
+        if (size_bits > 0) nk_copy_bytes_(to, from, nk_size_divide_round_up_(n * size_bits, NK_BITS_PER_BYTE));
         return;
     }
 

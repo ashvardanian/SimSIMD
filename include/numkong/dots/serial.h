@@ -110,31 +110,30 @@ typedef struct {
  *  @param output_type Result accumulator type (typically f32 or f64)
  *  @param depth_simd_dimensions SIMD vector width in elements for this platform/type combination
  */
-#define nk_define_dots_pack_size_(name, suffix, input_type, storage_type, output_type, depth_simd_dimensions,         \
-                                  dimensions_per_value)                                                               \
-    NK_PUBLIC nk_size_t nk_dots_packed_size_##name##_##suffix(nk_size_t column_count, nk_size_t depth) {              \
-        /* depth is always in logical dimensions (nibbles for i4, bytes for i8, etc.) */                              \
-        /* depth_simd_dimensions is also in logical dimensions */                                                     \
-                                                                                                                      \
-        /* Step 1: Pad depth in dimensions */                                                                         \
-        nk_size_t depth_dimensions_padded = nk_round_up_to_multiple_(depth, depth_simd_dimensions);                   \
-                                                                                                                      \
-        /* Step 2: Convert dimensions to storage values */                                                            \
-        nk_size_t depth_values_padded = nk_size_divide_round_up_to_multiple_(depth_dimensions_padded,                 \
-                                                                             dimensions_per_value);                   \
-                                                                                                                      \
-        /* Step 3: Calculate stride in bytes for power-of-2 check */                                                  \
-        nk_size_t const stride_bytes = depth_values_padded * sizeof(nk_##storage_type##_t);                           \
-                                                                                                                      \
-        /* Step 4: Break power-of-2 strides for cache associativity */                                                \
-        if ((stride_bytes & (stride_bytes - 1)) == 0 && stride_bytes > 0) {                                           \
-            /* Add one SIMD step worth of storage values */                                                           \
-            depth_values_padded += nk_size_divide_round_up_to_multiple_(depth_simd_dimensions, dimensions_per_value); \
-        }                                                                                                             \
-                                                                                                                      \
-        /* Step 5: Return total buffer size in bytes */                                                               \
-        return sizeof(nk_dots_packed_buffer_header_t) +                                                               \
-               column_count * depth_values_padded * sizeof(nk_##storage_type##_t);                                    \
+#define nk_define_dots_pack_size_(name, suffix, input_type, storage_type, output_type, depth_simd_dimensions,    \
+                                  dimensions_per_value)                                                          \
+    NK_PUBLIC nk_size_t nk_dots_packed_size_##name##_##suffix(nk_size_t column_count, nk_size_t depth) {         \
+        /* depth is always in logical dimensions (nibbles for i4, bytes for i8, etc.) */                         \
+        /* depth_simd_dimensions is also in logical dimensions */                                                \
+                                                                                                                 \
+        /* Step 1: Pad depth in dimensions */                                                                    \
+        nk_size_t depth_dimensions_padded = nk_size_round_up_to_multiple_(depth, depth_simd_dimensions);         \
+                                                                                                                 \
+        /* Step 2: Convert dimensions to storage values */                                                       \
+        nk_size_t depth_values_padded = nk_size_divide_round_up_(depth_dimensions_padded, dimensions_per_value); \
+                                                                                                                 \
+        /* Step 3: Calculate stride in bytes for power-of-2 check */                                             \
+        nk_size_t const stride_bytes = depth_values_padded * sizeof(nk_##storage_type##_t);                      \
+                                                                                                                 \
+        /* Step 4: Break power-of-2 strides for cache associativity */                                           \
+        if ((stride_bytes & (stride_bytes - 1)) == 0 && stride_bytes > 0) {                                      \
+            /* Add one SIMD step worth of storage values */                                                      \
+            depth_values_padded += nk_size_divide_round_up_(depth_simd_dimensions, dimensions_per_value);        \
+        }                                                                                                        \
+                                                                                                                 \
+        /* Step 5: Return total buffer size in bytes */                                                          \
+        return sizeof(nk_dots_packed_buffer_header_t) +                                                          \
+               column_count * depth_values_padded * sizeof(nk_##storage_type##_t);                               \
     }
 
 /**
@@ -166,47 +165,46 @@ typedef struct {
  *  @param scalar_convert_fn Element conversion function: void fn(input_type const*, storage_type*)
  *  @param depth_simd_dimensions SIMD vector width in elements for depth padding alignment
  */
-#define nk_define_dots_pack_(name, suffix, input_type, storage_type, output_type, scalar_convert_fn,                  \
-                             depth_simd_dimensions, dimensions_per_value)                                             \
-    NK_PUBLIC void nk_dots_pack_##name##_##suffix(nk_##input_type##_t const *b, nk_size_t column_count,               \
-                                                  nk_size_t depth, nk_size_t b_stride_in_bytes, void *b_packed) {     \
-        /* Use identical padding calculation as pack_size */                                                          \
-        nk_size_t depth_dimensions_padded = nk_round_up_to_multiple_(depth, depth_simd_dimensions);                   \
-        nk_size_t depth_values_padded = nk_size_divide_round_up_to_multiple_(depth_dimensions_padded,                 \
-                                                                             dimensions_per_value);                   \
-                                                                                                                      \
-        /* Power-of-2 breaking (same as pack_size) */                                                                 \
-        nk_size_t const stride_bytes = depth_values_padded * sizeof(nk_##storage_type##_t);                           \
-        if ((stride_bytes & (stride_bytes - 1)) == 0 && stride_bytes > 0) {                                           \
-            depth_values_padded += nk_size_divide_round_up_to_multiple_(depth_simd_dimensions, dimensions_per_value); \
-        }                                                                                                             \
-                                                                                                                      \
-        /* Calculate input depth in values */                                                                         \
-        nk_size_t const depth_in_values = nk_size_divide_round_up_to_multiple_(depth, dimensions_per_value);          \
-                                                                                                                      \
-        /* Store dimensions in header */                                                                              \
-        nk_dots_packed_buffer_header_t *header = (nk_dots_packed_buffer_header_t *)b_packed;                          \
-        header->column_count = (nk_u32_t)column_count;                                                                \
-        header->depth_dimensions = (nk_u32_t)depth;                  /* depth in dimensions (nibbles for i4/u4) */    \
-        header->depth_padded_values = (nk_u32_t)depth_values_padded; /* padded depth in VALUES (bytes for i4/u4) */   \
-                                                                                                                      \
-        nk_##storage_type##_t *packed = (nk_##storage_type##_t *)((char *)b_packed +                                  \
-                                                                  sizeof(nk_dots_packed_buffer_header_t));            \
-                                                                                                                      \
-        /* Zero entire buffer for depth padding */                                                                    \
-        nk_size_t const total_elements = column_count * depth_values_padded;                                          \
-        for (nk_size_t i = 0; i < total_elements; ++i) packed[i] = 0;                                                 \
-                                                                                                                      \
-        /* Copy/convert B[column_count, depth] to packed[column_count, depth_padded] - simple column-major */         \
-        for (nk_size_t column_index = 0; column_index < column_count; ++column_index) {                               \
-            nk_##storage_type##_t *destination_row = packed + column_index * depth_values_padded;                     \
-            nk_##input_type##_t const *source_row = (nk_##input_type##_t const *)((char const *)b +                   \
-                                                                                  column_index * b_stride_in_bytes);  \
-            for (nk_size_t depth_index = 0; depth_index < depth_in_values; ++depth_index) {                           \
-                scalar_convert_fn(&source_row[depth_index], &destination_row[depth_index]);                           \
-            }                                                                                                         \
-            /* Padding elements already zeroed above */                                                               \
-        }                                                                                                             \
+#define nk_define_dots_pack_(name, suffix, input_type, storage_type, output_type, scalar_convert_fn,                 \
+                             depth_simd_dimensions, dimensions_per_value)                                            \
+    NK_PUBLIC void nk_dots_pack_##name##_##suffix(nk_##input_type##_t const *b, nk_size_t column_count,              \
+                                                  nk_size_t depth, nk_size_t b_stride_in_bytes, void *b_packed) {    \
+        /* Use identical padding calculation as pack_size */                                                         \
+        nk_size_t depth_dimensions_padded = nk_size_round_up_to_multiple_(depth, depth_simd_dimensions);             \
+        nk_size_t depth_values_padded = nk_size_divide_round_up_(depth_dimensions_padded, dimensions_per_value);     \
+                                                                                                                     \
+        /* Power-of-2 breaking (same as pack_size) */                                                                \
+        nk_size_t const stride_bytes = depth_values_padded * sizeof(nk_##storage_type##_t);                          \
+        if ((stride_bytes & (stride_bytes - 1)) == 0 && stride_bytes > 0) {                                          \
+            depth_values_padded += nk_size_divide_round_up_(depth_simd_dimensions, dimensions_per_value);            \
+        }                                                                                                            \
+                                                                                                                     \
+        /* Calculate input depth in values */                                                                        \
+        nk_size_t const depth_in_values = nk_size_divide_round_up_(depth, dimensions_per_value);                     \
+                                                                                                                     \
+        /* Store dimensions in header */                                                                             \
+        nk_dots_packed_buffer_header_t *header = (nk_dots_packed_buffer_header_t *)b_packed;                         \
+        header->column_count = (nk_u32_t)column_count;                                                               \
+        header->depth_dimensions = (nk_u32_t)depth;                  /* depth in dimensions (nibbles for i4/u4) */   \
+        header->depth_padded_values = (nk_u32_t)depth_values_padded; /* padded depth in VALUES (bytes for i4/u4) */  \
+                                                                                                                     \
+        nk_##storage_type##_t *packed = (nk_##storage_type##_t *)((char *)b_packed +                                 \
+                                                                  sizeof(nk_dots_packed_buffer_header_t));           \
+                                                                                                                     \
+        /* Zero entire buffer for depth padding */                                                                   \
+        nk_size_t const total_elements = column_count * depth_values_padded;                                         \
+        for (nk_size_t i = 0; i < total_elements; ++i) packed[i] = 0;                                                \
+                                                                                                                     \
+        /* Copy/convert B[column_count, depth] to packed[column_count, depth_padded] - simple column-major */        \
+        for (nk_size_t column_index = 0; column_index < column_count; ++column_index) {                              \
+            nk_##storage_type##_t *destination_row = packed + column_index * depth_values_padded;                    \
+            nk_##input_type##_t const *source_row = (nk_##input_type##_t const *)((char const *)b +                  \
+                                                                                  column_index * b_stride_in_bytes); \
+            for (nk_size_t depth_index = 0; depth_index < depth_in_values; ++depth_index) {                          \
+                scalar_convert_fn(&source_row[depth_index], &destination_row[depth_index]);                          \
+            }                                                                                                        \
+            /* Padding elements already zeroed above */                                                              \
+        }                                                                                                            \
     }
 
 /**
@@ -259,11 +257,9 @@ typedef struct {
         nk_size_t const register_column_count = 4; /* Columns per register tile */                                     \
         /* Correct aligned_depth calculation for sub-byte types */                                                     \
         nk_size_t const depth_dimensions_aligned = (depth / depth_simd_dimensions) * depth_simd_dimensions;            \
-        nk_size_t const aligned_depth = nk_size_divide_round_up_to_multiple_(depth_dimensions_aligned,                 \
-                                                                             dimensions_per_value);                    \
+        nk_size_t const aligned_depth = nk_size_divide_round_up_(depth_dimensions_aligned, dimensions_per_value);      \
         /* Calculate step size in storage values for loop increment */                                                 \
-        nk_size_t const depth_step_values = nk_size_divide_round_up_to_multiple_(depth_simd_dimensions,                \
-                                                                                 dimensions_per_value);                \
+        nk_size_t const depth_step_values = nk_size_divide_round_up_(depth_simd_dimensions, dimensions_per_value);     \
                                                                                                                        \
         /* Zero output matrix */                                                                                       \
         for (nk_size_t row_index = 0; row_index < row_count; ++row_index) {                                            \
@@ -439,11 +435,9 @@ typedef struct {
         nk_size_t const register_column_count = 8; /* Columns per register tile (2 × 4) */                             \
         /* Correct aligned_depth calculation for sub-byte types */                                                     \
         nk_size_t const depth_dimensions_aligned = (depth / depth_simd_dimensions) * depth_simd_dimensions;            \
-        nk_size_t const aligned_depth = nk_size_divide_round_up_to_multiple_(depth_dimensions_aligned,                 \
-                                                                             dimensions_per_value);                    \
+        nk_size_t const aligned_depth = nk_size_divide_round_up_(depth_dimensions_aligned, dimensions_per_value);      \
         /* Calculate step size in storage values for loop increment */                                                 \
-        nk_size_t const depth_step_values = nk_size_divide_round_up_to_multiple_(depth_simd_dimensions,                \
-                                                                                 dimensions_per_value);                \
+        nk_size_t const depth_step_values = nk_size_divide_round_up_(depth_simd_dimensions, dimensions_per_value);     \
         (void)register_row_count; /* Used in comments, loop uses 1 directly */                                         \
                                                                                                                        \
         /* Zero output matrix */                                                                                       \
@@ -828,14 +822,12 @@ typedef struct {
         nk_size_t const result_stride_elements = result_stride / sizeof(nk_##output_type##_t);                      \
         /* Correct aligned_depth calculation for sub-byte types */                                                  \
         nk_size_t const depth_dimensions_aligned = (depth / depth_simd_dimensions) * depth_simd_dimensions;         \
-        nk_size_t const aligned_depth = nk_size_divide_round_up_to_multiple_(depth_dimensions_aligned,              \
-                                                                             dimensions_per_value);                 \
-        nk_size_t const depth_in_values = nk_size_divide_round_up_to_multiple_(depth, dimensions_per_value);        \
+        nk_size_t const aligned_depth = nk_size_divide_round_up_(depth_dimensions_aligned, dimensions_per_value);   \
+        nk_size_t const depth_in_values = nk_size_divide_round_up_(depth, dimensions_per_value);                    \
         nk_size_t const remainder_depth = depth_in_values - aligned_depth;                                          \
         nk_size_t const remainder_dimensions = depth - depth_dimensions_aligned;                                    \
         /* Calculate step size in storage values for loop increment */                                              \
-        nk_size_t const depth_step_values = nk_size_divide_round_up_to_multiple_(depth_simd_dimensions,             \
-                                                                                 dimensions_per_value);             \
+        nk_size_t const depth_step_values = nk_size_divide_round_up_(depth_simd_dimensions, dimensions_per_value);  \
                                                                                                                     \
         /* Compute upper triangle including diagonal */                                                             \
         for (nk_size_t i = 0; i < n_vectors; i++) {                                                                 \

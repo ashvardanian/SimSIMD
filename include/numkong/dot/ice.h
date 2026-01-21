@@ -394,7 +394,7 @@ NK_PUBLIC void nk_dot_i4_ice(nk_i4x2_t const *a, nk_i4x2_t const *b, nk_size_t n
     //
     // Note: When n is odd, the high nibble of the last byte should be zero-padded.
     //
-    nk_size_t n_bytes = (n + 1) / 2;
+    nk_size_t n_bytes = nk_size_divide_round_up_(n, 2);
     __m512i const nibble_mask_u8x64 = _mm512_set1_epi8(0x0F);
     __m512i const xor_mask_u8x64 = _mm512_set1_epi8(0x08);
     __m512i const zeros_u8x64 = _mm512_setzero_si512();
@@ -453,7 +453,7 @@ NK_PUBLIC void nk_dot_u4_ice(nk_u4x2_t const *a, nk_u4x2_t const *b, nk_size_t n
     //
     // Note: When n is odd, the high nibble of the last byte should be zero-padded.
     //
-    nk_size_t n_bytes = (n + 1) / 2;
+    nk_size_t n_bytes = nk_size_divide_round_up_(n, 2);
     __m512i const nibble_mask_u8x64 = _mm512_set1_epi8(0x0F);
     __m512i sum_i32x16 = _mm512_setzero_si512();
 
@@ -507,8 +507,9 @@ NK_INTERNAL void nk_dot_i4x128_update_ice(nk_dot_i4x128_state_ice_t *state, nk_b
     // We XOR with 8 to bias them: a_biased = a_unsigned ^ 8
     // Then: a×b = (a_biased - 8)×(b_biased - 8) = a_biased×b_biased - 8×(a_biased + b_biased) + 64
     //
-    // Key optimization: Keep correction terms in vector form, reduce only at finalize time
-    // NOTE: depth_offset and active_dimensions will be used in Phase 2 for partial dimensions
+    // Key optimization: Keep correction terms in vector form, reduce only at finalize time.
+    // When active_dimensions < 128, partial_load has zero-padded the unused nibbles.
+    // The partial load ensures unused bytes are zero, so the products and sums will be correct.
     nk_unused_(depth_offset);
     nk_unused_(active_dimensions);
     __m512i const nibble_mask_u8x64 = _mm512_set1_epi8(0x0F);
@@ -550,10 +551,15 @@ NK_INTERNAL void nk_dot_i4x128_finalize_ice(                                    
     nk_dot_i4x128_state_ice_t const *state_a, nk_dot_i4x128_state_ice_t const *state_b, //
     nk_dot_i4x128_state_ice_t const *state_c, nk_dot_i4x128_state_ice_t const *state_d, //
     nk_b128_vec_t *results, nk_size_t total_dimensions) {
-    // ILP-optimized 4-way hierarchical reduction for i4 with algebraic correction
-    // NOTE: total_dimensions is in DIMENSIONS (nibbles), not storage values
+    // ILP-optimized 4-way hierarchical reduction for i4 with algebraic correction.
     // Formula: result = product_sum - 8×(sum_a_biased + sum_b_biased) + 64×depth_nibbles
-    nk_size_t depth_nibbles = total_dimensions; // For i4x2, total_dimensions is in nibbles
+    //
+    // Note: total_dimensions is measured in nibbles (dimensions), not storage bytes.
+    //
+    // When total_dimensions < 128, partial loads zero-pad unused nibbles to 128.
+    // Zero-padded nibbles become biased value 8 after XOR, contributing to sums and products.
+    // The offset must account for all processed nibbles (rounded up to 128), not just valid ones.
+    nk_size_t depth_nibbles = nk_size_round_up_to_multiple_(total_dimensions, 128);
 
     // Reduce main products: zmm (i32x16) → ymm (i32x8)
     __m256i product_a_i32x8 = _mm256_add_epi32(_mm512_castsi512_si256(state_a->product_sum_i32x16),
@@ -623,16 +629,15 @@ NK_INTERNAL void nk_dot_i4x128_finalize_ice(                                    
     __m128i sum_biased_d_i64x1 = _mm_add_epi64(sum_biased_d_i64x2,
                                                _mm_shuffle_epi32(sum_biased_d_i64x2, _MM_SHUFFLE(1, 0, 3, 2)));
 
-    // Pack 4 i64 values into __m256i: [sum_a, sum_b, sum_c, sum_d]
-    __m256i sum_biased_all_i64x4 = _mm256_set_m128i(_mm_unpacklo_epi64(sum_biased_c_i64x1, sum_biased_d_i64x1),
-                                                    _mm_unpacklo_epi64(sum_biased_a_i64x1, sum_biased_b_i64x1));
+    // Pack 4 i64 sums into a single YMM register: [sum_a, sum_b, sum_c, sum_d]
+    __m256i sum_biased_i64x4 = _mm256_set_m128i(_mm_unpacklo_epi64(sum_biased_c_i64x1, sum_biased_d_i64x1),
+                                                _mm_unpacklo_epi64(sum_biased_a_i64x1, sum_biased_b_i64x1));
 
-    // Apply correction factor: -8 × sum_biased (multiply by -8 using shift + negate)
-    // -8x = -(x << 3)
-    __m256i sum_biased_scaled_i64x4 = _mm256_slli_epi64(sum_biased_all_i64x4, 3);                // Multiply by 8
-    sum_biased_scaled_i64x4 = _mm256_sub_epi64(_mm256_setzero_si256(), sum_biased_scaled_i64x4); // Negate
+    // Compute correction: -8 × sum_biased. Stay in i64 to avoid overflow during shift.
+    __m256i sum_biased_scaled_i64x4 = _mm256_slli_epi64(sum_biased_i64x4, 3);
+    sum_biased_scaled_i64x4 = _mm256_sub_epi64(_mm256_setzero_si256(), sum_biased_scaled_i64x4);
 
-    // Convert i64 → i32 (extract low 32 bits from each i64)
+    // Extract low 32 bits from each i64 to get i32x4 correction vector
     __m128i correction_vec = _mm256_castsi256_si128(
         _mm256_permutevar8x32_epi32(sum_biased_scaled_i64x4, _mm256_setr_epi32(0, 2, 4, 6, 1, 3, 5, 7)));
 

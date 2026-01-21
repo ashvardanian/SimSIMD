@@ -1315,7 +1315,7 @@ error_stats_t test_hamming(u1x8_t::hamming_kernel_t kernel) {
     error_stats_t stats;
     std::mt19937 generator(global_config.seed);
 
-    std::size_t n_bytes = dense_dimensions / 8;
+    std::size_t n_bytes = nk::divide_round_up(dense_dimensions, 8);
     auto a = make_vector<scalar_t>(n_bytes), b = make_vector<scalar_t>(n_bytes);
 
     for (auto start = test_start_time(); within_time_budget(start);) {
@@ -1326,7 +1326,7 @@ error_stats_t test_hamming(u1x8_t::hamming_kernel_t kernel) {
         kernel(a.raw_values_data(), b.raw_values_data(), dense_dimensions, &result.raw_);
 
         u32_t reference;
-        nk::hamming(a.values_data(), b.values_data(), n_bytes, &reference);
+        nk::hamming(a.values_data(), b.values_data(), dense_dimensions, &reference);
 
         stats.accumulate(result, reference);
     }
@@ -1343,7 +1343,7 @@ error_stats_t test_jaccard(u1x8_t::jaccard_kernel_t kernel) {
     error_stats_t stats;
     std::mt19937 generator(global_config.seed);
 
-    std::size_t n_bytes = dense_dimensions / 8;
+    std::size_t n_bytes = nk::divide_round_up(dense_dimensions, 8);
     auto a = make_vector<scalar_t>(n_bytes), b = make_vector<scalar_t>(n_bytes);
 
     for (auto start = test_start_time(); within_time_budget(start);) {
@@ -1354,7 +1354,7 @@ error_stats_t test_jaccard(u1x8_t::jaccard_kernel_t kernel) {
         kernel(a.raw_values_data(), b.raw_values_data(), dense_dimensions, &result.raw_);
 
         f32_t reference;
-        nk::jaccard(a.values_data(), b.values_data(), n_bytes, &reference);
+        nk::jaccard(a.values_data(), b.values_data(), dense_dimensions, &reference);
 
         stats.accumulate(result, reference);
     }
