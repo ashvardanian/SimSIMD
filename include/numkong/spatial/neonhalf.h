@@ -107,34 +107,36 @@ NK_INTERNAL void nk_angular_f16x4_init_neonhalf(nk_angular_f16x4_state_neonhalf_
     nk_dot_f16x4_init_neonhalf(state);
 }
 NK_INTERNAL void nk_angular_f16x4_update_neonhalf(nk_angular_f16x4_state_neonhalf_t *state, nk_b64_vec_t a,
-                                                  nk_b64_vec_t b) {
-    nk_dot_f16x4_update_neonhalf(state, a, b);
+                                                  nk_b64_vec_t b, nk_size_t depth_offset, nk_size_t active_dimensions) {
+    nk_dot_f16x4_update_neonhalf(state, a, b, depth_offset, active_dimensions);
 }
 NK_INTERNAL void nk_angular_f16x4_finalize_neonhalf(nk_angular_f16x4_state_neonhalf_t const *state_a,
                                                     nk_angular_f16x4_state_neonhalf_t const *state_b,
                                                     nk_angular_f16x4_state_neonhalf_t const *state_c,
                                                     nk_angular_f16x4_state_neonhalf_t const *state_d,
                                                     nk_f32_t query_norm, nk_f32_t target_norm_a, nk_f32_t target_norm_b,
-                                                    nk_f32_t target_norm_c, nk_f32_t target_norm_d, nk_f32_t *results) {
+                                                    nk_f32_t target_norm_c, nk_f32_t target_norm_d,
+                                                    nk_size_t total_dimensions, nk_f32_t *results) {
     nk_b128_vec_t dots_vec;
-    nk_dot_f16x4_finalize_neonhalf(state_a, state_b, state_c, state_d, &dots_vec);
+    nk_dot_f16x4_finalize_neonhalf(state_a, state_b, state_c, state_d, &dots_vec, total_dimensions);
     nk_angular_f32x4_finalize_neon_f32_(dots_vec.f32x4, query_norm, target_norm_a, target_norm_b, target_norm_c,
                                         target_norm_d, results);
 }
 
 typedef nk_dot_f16x4_state_neonhalf_t nk_l2_f16x4_state_neonhalf_t;
 NK_INTERNAL void nk_l2_f16x4_init_neonhalf(nk_l2_f16x4_state_neonhalf_t *state) { nk_dot_f16x4_init_neonhalf(state); }
-NK_INTERNAL void nk_l2_f16x4_update_neonhalf(nk_l2_f16x4_state_neonhalf_t *state, nk_b64_vec_t a, nk_b64_vec_t b) {
-    nk_dot_f16x4_update_neonhalf(state, a, b);
+NK_INTERNAL void nk_l2_f16x4_update_neonhalf(nk_l2_f16x4_state_neonhalf_t *state, nk_b64_vec_t a, nk_b64_vec_t b,
+                                             nk_size_t depth_offset, nk_size_t active_dimensions) {
+    nk_dot_f16x4_update_neonhalf(state, a, b, depth_offset, active_dimensions);
 }
 NK_INTERNAL void nk_l2_f16x4_finalize_neonhalf(nk_l2_f16x4_state_neonhalf_t const *state_a,
                                                nk_l2_f16x4_state_neonhalf_t const *state_b,
                                                nk_l2_f16x4_state_neonhalf_t const *state_c,
                                                nk_l2_f16x4_state_neonhalf_t const *state_d, nk_f32_t query_norm,
                                                nk_f32_t target_norm_a, nk_f32_t target_norm_b, nk_f32_t target_norm_c,
-                                               nk_f32_t target_norm_d, nk_f32_t *results) {
+                                               nk_f32_t target_norm_d, nk_size_t total_dimensions, nk_f32_t *results) {
     nk_b128_vec_t dots_vec;
-    nk_dot_f16x4_finalize_neonhalf(state_a, state_b, state_c, state_d, &dots_vec);
+    nk_dot_f16x4_finalize_neonhalf(state_a, state_b, state_c, state_d, &dots_vec, total_dimensions);
     nk_l2_f32x4_finalize_neon_f32_(dots_vec.f32x4, query_norm, target_norm_a, target_norm_b, target_norm_c,
                                    target_norm_d, results);
 }

@@ -224,8 +224,8 @@ NK_INTERNAL void nk_angular_f64x2_init_serial(nk_angular_f64x2_state_serial_t *s
 }
 
 NK_INTERNAL void nk_angular_f64x2_update_serial(nk_angular_f64x2_state_serial_t *state, nk_b128_vec_t a,
-                                                nk_b128_vec_t b) {
-    nk_dot_f64x2_update_serial(state, a, b);
+                                                nk_b128_vec_t b, nk_size_t depth_offset, nk_size_t active_dimensions) {
+    nk_dot_f64x2_update_serial(state, a, b, depth_offset, active_dimensions);
 }
 
 NK_INTERNAL void nk_angular_f64x2_finalize_serial(nk_angular_f64x2_state_serial_t const *state_a,
@@ -233,7 +233,9 @@ NK_INTERNAL void nk_angular_f64x2_finalize_serial(nk_angular_f64x2_state_serial_
                                                   nk_angular_f64x2_state_serial_t const *state_c,
                                                   nk_angular_f64x2_state_serial_t const *state_d, nk_f64_t query_norm,
                                                   nk_f64_t target_norm_a, nk_f64_t target_norm_b,
-                                                  nk_f64_t target_norm_c, nk_f64_t target_norm_d, nk_f64_t *results) {
+                                                  nk_f64_t target_norm_c, nk_f64_t target_norm_d,
+                                                  nk_size_t total_dimensions, nk_f64_t *results) {
+    nk_unused_(total_dimensions);
     nk_f64_t dot_product_a = state_a->sums[0] + state_a->sums[1];
     nk_f64_t dot_product_b = state_b->sums[0] + state_b->sums[1];
     nk_f64_t dot_product_c = state_c->sums[0] + state_c->sums[1];
@@ -271,8 +273,9 @@ typedef nk_dot_f64x2_state_serial_t nk_l2_f64x2_state_serial_t;
 
 NK_INTERNAL void nk_l2_f64x2_init_serial(nk_l2_f64x2_state_serial_t *state) { nk_dot_f64x2_init_serial(state); }
 
-NK_INTERNAL void nk_l2_f64x2_update_serial(nk_l2_f64x2_state_serial_t *state, nk_b128_vec_t a, nk_b128_vec_t b) {
-    nk_dot_f64x2_update_serial(state, a, b);
+NK_INTERNAL void nk_l2_f64x2_update_serial(nk_l2_f64x2_state_serial_t *state, nk_b128_vec_t a, nk_b128_vec_t b,
+                                           nk_size_t depth_offset, nk_size_t active_dimensions) {
+    nk_dot_f64x2_update_serial(state, a, b, depth_offset, active_dimensions);
 }
 
 NK_INTERNAL void nk_l2_f64x2_finalize_serial(nk_l2_f64x2_state_serial_t const *state_a,
@@ -280,7 +283,8 @@ NK_INTERNAL void nk_l2_f64x2_finalize_serial(nk_l2_f64x2_state_serial_t const *s
                                              nk_l2_f64x2_state_serial_t const *state_c,
                                              nk_l2_f64x2_state_serial_t const *state_d, nk_f64_t query_norm,
                                              nk_f64_t target_norm_a, nk_f64_t target_norm_b, nk_f64_t target_norm_c,
-                                             nk_f64_t target_norm_d, nk_f64_t *results) {
+                                             nk_f64_t target_norm_d, nk_size_t total_dimensions, nk_f64_t *results) {
+    nk_unused_(total_dimensions);
     nk_f64_t dot_product_a = state_a->sums[0] + state_a->sums[1];
     nk_f64_t dot_product_b = state_b->sums[0] + state_b->sums[1];
     nk_f64_t dot_product_c = state_c->sums[0] + state_c->sums[1];
@@ -310,8 +314,8 @@ NK_INTERNAL void nk_angular_f32x4_init_serial(nk_angular_f32x4_state_serial_t *s
 }
 
 NK_INTERNAL void nk_angular_f32x4_update_serial(nk_angular_f32x4_state_serial_t *state, nk_b128_vec_t a,
-                                                nk_b128_vec_t b) {
-    nk_dot_f32x4_update_serial(state, a, b);
+                                                nk_b128_vec_t b, nk_size_t depth_offset, nk_size_t active_dimensions) {
+    nk_dot_f32x4_update_serial(state, a, b, depth_offset, active_dimensions);
 }
 
 NK_INTERNAL void nk_angular_f32x4_finalize_serial(nk_angular_f32x4_state_serial_t const *state_a,
@@ -319,9 +323,10 @@ NK_INTERNAL void nk_angular_f32x4_finalize_serial(nk_angular_f32x4_state_serial_
                                                   nk_angular_f32x4_state_serial_t const *state_c,
                                                   nk_angular_f32x4_state_serial_t const *state_d, nk_f32_t query_norm,
                                                   nk_f32_t target_norm_a, nk_f32_t target_norm_b,
-                                                  nk_f32_t target_norm_c, nk_f32_t target_norm_d, nk_f32_t *results) {
+                                                  nk_f32_t target_norm_c, nk_f32_t target_norm_d,
+                                                  nk_size_t total_dimensions, nk_f32_t *results) {
     nk_b128_vec_t dots_vec;
-    nk_dot_f32x4_finalize_serial(state_a, state_b, state_c, state_d, &dots_vec);
+    nk_dot_f32x4_finalize_serial(state_a, state_b, state_c, state_d, &dots_vec, total_dimensions);
     nk_f32_t dots[4] = {dots_vec.f32s[0], dots_vec.f32s[1], dots_vec.f32s[2], dots_vec.f32s[3]};
 
     nk_f32_t dot_product_a = dots[0], dot_product_b = dots[1];
@@ -359,8 +364,9 @@ typedef nk_dot_f32x4_state_serial_t nk_l2_f32x4_state_serial_t;
 
 NK_INTERNAL void nk_l2_f32x4_init_serial(nk_l2_f32x4_state_serial_t *state) { nk_dot_f32x4_init_serial(state); }
 
-NK_INTERNAL void nk_l2_f32x4_update_serial(nk_l2_f32x4_state_serial_t *state, nk_b128_vec_t a, nk_b128_vec_t b) {
-    nk_dot_f32x4_update_serial(state, a, b);
+NK_INTERNAL void nk_l2_f32x4_update_serial(nk_l2_f32x4_state_serial_t *state, nk_b128_vec_t a, nk_b128_vec_t b,
+                                           nk_size_t depth_offset, nk_size_t active_dimensions) {
+    nk_dot_f32x4_update_serial(state, a, b, depth_offset, active_dimensions);
 }
 
 NK_INTERNAL void nk_l2_f32x4_finalize_serial(nk_l2_f32x4_state_serial_t const *state_a,
@@ -368,9 +374,9 @@ NK_INTERNAL void nk_l2_f32x4_finalize_serial(nk_l2_f32x4_state_serial_t const *s
                                              nk_l2_f32x4_state_serial_t const *state_c,
                                              nk_l2_f32x4_state_serial_t const *state_d, nk_f32_t query_norm,
                                              nk_f32_t target_norm_a, nk_f32_t target_norm_b, nk_f32_t target_norm_c,
-                                             nk_f32_t target_norm_d, nk_f32_t *results) {
+                                             nk_f32_t target_norm_d, nk_size_t total_dimensions, nk_f32_t *results) {
     nk_b128_vec_t dots_vec;
-    nk_dot_f32x4_finalize_serial(state_a, state_b, state_c, state_d, &dots_vec);
+    nk_dot_f32x4_finalize_serial(state_a, state_b, state_c, state_d, &dots_vec, total_dimensions);
     nk_f32_t dots[4] = {dots_vec.f32s[0], dots_vec.f32s[1], dots_vec.f32s[2], dots_vec.f32s[3]};
 
     nk_f32_t dot_product_a = dots[0], dot_product_b = dots[1];
@@ -400,8 +406,8 @@ NK_INTERNAL void nk_angular_f16x8_init_serial(nk_angular_f16x8_state_serial_t *s
 }
 
 NK_INTERNAL void nk_angular_f16x8_update_serial(nk_angular_f16x8_state_serial_t *state, nk_b128_vec_t a,
-                                                nk_b128_vec_t b) {
-    nk_dot_f16x8_update_serial(state, a, b);
+                                                nk_b128_vec_t b, nk_size_t depth_offset, nk_size_t active_dimensions) {
+    nk_dot_f16x8_update_serial(state, a, b, depth_offset, active_dimensions);
 }
 
 NK_INTERNAL void nk_angular_f16x8_finalize_serial(nk_angular_f16x8_state_serial_t const *state_a,
@@ -409,7 +415,9 @@ NK_INTERNAL void nk_angular_f16x8_finalize_serial(nk_angular_f16x8_state_serial_
                                                   nk_angular_f16x8_state_serial_t const *state_c,
                                                   nk_angular_f16x8_state_serial_t const *state_d, nk_f32_t query_norm,
                                                   nk_f32_t target_norm_a, nk_f32_t target_norm_b,
-                                                  nk_f32_t target_norm_c, nk_f32_t target_norm_d, nk_f32_t *results) {
+                                                  nk_f32_t target_norm_c, nk_f32_t target_norm_d,
+                                                  nk_size_t total_dimensions, nk_f32_t *results) {
+    nk_unused_(total_dimensions);
     // Extract dots from states by summing the 4 partial sums
     nk_f32_t dot_a = state_a->sums[0] + state_a->sums[1] + state_a->sums[2] + state_a->sums[3];
     nk_f32_t dot_b = state_b->sums[0] + state_b->sums[1] + state_b->sums[2] + state_b->sums[3];
@@ -459,8 +467,9 @@ typedef nk_dot_f16x8_state_serial_t nk_l2_f16x8_state_serial_t;
 
 NK_INTERNAL void nk_l2_f16x8_init_serial(nk_l2_f16x8_state_serial_t *state) { nk_dot_f16x8_init_serial(state); }
 
-NK_INTERNAL void nk_l2_f16x8_update_serial(nk_l2_f16x8_state_serial_t *state, nk_b128_vec_t a, nk_b128_vec_t b) {
-    nk_dot_f16x8_update_serial(state, a, b);
+NK_INTERNAL void nk_l2_f16x8_update_serial(nk_l2_f16x8_state_serial_t *state, nk_b128_vec_t a, nk_b128_vec_t b,
+                                           nk_size_t depth_offset, nk_size_t active_dimensions) {
+    nk_dot_f16x8_update_serial(state, a, b, depth_offset, active_dimensions);
 }
 
 NK_INTERNAL void nk_l2_f16x8_finalize_serial(nk_l2_f16x8_state_serial_t const *state_a,
@@ -468,7 +477,8 @@ NK_INTERNAL void nk_l2_f16x8_finalize_serial(nk_l2_f16x8_state_serial_t const *s
                                              nk_l2_f16x8_state_serial_t const *state_c,
                                              nk_l2_f16x8_state_serial_t const *state_d, nk_f32_t query_norm,
                                              nk_f32_t target_norm_a, nk_f32_t target_norm_b, nk_f32_t target_norm_c,
-                                             nk_f32_t target_norm_d, nk_f32_t *results) {
+                                             nk_f32_t target_norm_d, nk_size_t total_dimensions, nk_f32_t *results) {
+    nk_unused_(total_dimensions);
     // Extract dots from states by summing the 4 partial sums
     nk_f32_t dot_a = state_a->sums[0] + state_a->sums[1] + state_a->sums[2] + state_a->sums[3];
     nk_f32_t dot_b = state_b->sums[0] + state_b->sums[1] + state_b->sums[2] + state_b->sums[3];
@@ -501,8 +511,8 @@ NK_INTERNAL void nk_angular_bf16x8_init_serial(nk_angular_bf16x8_state_serial_t 
 }
 
 NK_INTERNAL void nk_angular_bf16x8_update_serial(nk_angular_bf16x8_state_serial_t *state, nk_b128_vec_t a,
-                                                 nk_b128_vec_t b) {
-    nk_dot_bf16x8_update_serial(state, a, b);
+                                                 nk_b128_vec_t b, nk_size_t depth_offset, nk_size_t active_dimensions) {
+    nk_dot_bf16x8_update_serial(state, a, b, depth_offset, active_dimensions);
 }
 
 NK_INTERNAL void nk_angular_bf16x8_finalize_serial(nk_angular_bf16x8_state_serial_t const *state_a,
@@ -510,7 +520,9 @@ NK_INTERNAL void nk_angular_bf16x8_finalize_serial(nk_angular_bf16x8_state_seria
                                                    nk_angular_bf16x8_state_serial_t const *state_c,
                                                    nk_angular_bf16x8_state_serial_t const *state_d, nk_f32_t query_norm,
                                                    nk_f32_t target_norm_a, nk_f32_t target_norm_b,
-                                                   nk_f32_t target_norm_c, nk_f32_t target_norm_d, nk_f32_t *results) {
+                                                   nk_f32_t target_norm_c, nk_f32_t target_norm_d,
+                                                   nk_size_t total_dimensions, nk_f32_t *results) {
+    nk_unused_(total_dimensions);
     // Extract dots from states by summing the 4 partial sums
     nk_f32_t dot_a = state_a->sums[0] + state_a->sums[1] + state_a->sums[2] + state_a->sums[3];
     nk_f32_t dot_b = state_b->sums[0] + state_b->sums[1] + state_b->sums[2] + state_b->sums[3];
@@ -560,8 +572,9 @@ typedef nk_dot_bf16x8_state_serial_t nk_l2_bf16x8_state_serial_t;
 
 NK_INTERNAL void nk_l2_bf16x8_init_serial(nk_l2_bf16x8_state_serial_t *state) { nk_dot_bf16x8_init_serial(state); }
 
-NK_INTERNAL void nk_l2_bf16x8_update_serial(nk_l2_bf16x8_state_serial_t *state, nk_b128_vec_t a, nk_b128_vec_t b) {
-    nk_dot_bf16x8_update_serial(state, a, b);
+NK_INTERNAL void nk_l2_bf16x8_update_serial(nk_l2_bf16x8_state_serial_t *state, nk_b128_vec_t a, nk_b128_vec_t b,
+                                            nk_size_t depth_offset, nk_size_t active_dimensions) {
+    nk_dot_bf16x8_update_serial(state, a, b, depth_offset, active_dimensions);
 }
 
 NK_INTERNAL void nk_l2_bf16x8_finalize_serial(nk_l2_bf16x8_state_serial_t const *state_a,
@@ -569,7 +582,8 @@ NK_INTERNAL void nk_l2_bf16x8_finalize_serial(nk_l2_bf16x8_state_serial_t const 
                                               nk_l2_bf16x8_state_serial_t const *state_c,
                                               nk_l2_bf16x8_state_serial_t const *state_d, nk_f32_t query_norm,
                                               nk_f32_t target_norm_a, nk_f32_t target_norm_b, nk_f32_t target_norm_c,
-                                              nk_f32_t target_norm_d, nk_f32_t *results) {
+                                              nk_f32_t target_norm_d, nk_size_t total_dimensions, nk_f32_t *results) {
+    nk_unused_(total_dimensions);
     // Extract dots from states by summing the 4 partial sums
     nk_f32_t dot_a = state_a->sums[0] + state_a->sums[1] + state_a->sums[2] + state_a->sums[3];
     nk_f32_t dot_b = state_b->sums[0] + state_b->sums[1] + state_b->sums[2] + state_b->sums[3];
@@ -602,8 +616,8 @@ NK_INTERNAL void nk_angular_i8x16_init_serial(nk_angular_i8x16_state_serial_t *s
 }
 
 NK_INTERNAL void nk_angular_i8x16_update_serial(nk_angular_i8x16_state_serial_t *state, nk_b128_vec_t a,
-                                                nk_b128_vec_t b) {
-    nk_dot_i8x16_update_serial(state, a, b);
+                                                nk_b128_vec_t b, nk_size_t depth_offset, nk_size_t active_dimensions) {
+    nk_dot_i8x16_update_serial(state, a, b, depth_offset, active_dimensions);
 }
 
 NK_INTERNAL void nk_angular_i8x16_finalize_serial(nk_angular_i8x16_state_serial_t const *state_a,
@@ -611,7 +625,9 @@ NK_INTERNAL void nk_angular_i8x16_finalize_serial(nk_angular_i8x16_state_serial_
                                                   nk_angular_i8x16_state_serial_t const *state_c,
                                                   nk_angular_i8x16_state_serial_t const *state_d, nk_f32_t query_norm,
                                                   nk_f32_t target_norm_a, nk_f32_t target_norm_b,
-                                                  nk_f32_t target_norm_c, nk_f32_t target_norm_d, nk_f32_t *results) {
+                                                  nk_f32_t target_norm_c, nk_f32_t target_norm_d,
+                                                  nk_size_t total_dimensions, nk_f32_t *results) {
+    nk_unused_(total_dimensions);
     // Extract dots from states by summing the 2 partial sums
     nk_i64_t dot_a = state_a->sums[0] + state_a->sums[1];
     nk_i64_t dot_b = state_b->sums[0] + state_b->sums[1];
@@ -661,8 +677,9 @@ typedef nk_dot_i8x16_state_serial_t nk_l2_i8x16_state_serial_t;
 
 NK_INTERNAL void nk_l2_i8x16_init_serial(nk_l2_i8x16_state_serial_t *state) { nk_dot_i8x16_init_serial(state); }
 
-NK_INTERNAL void nk_l2_i8x16_update_serial(nk_l2_i8x16_state_serial_t *state, nk_b128_vec_t a, nk_b128_vec_t b) {
-    nk_dot_i8x16_update_serial(state, a, b);
+NK_INTERNAL void nk_l2_i8x16_update_serial(nk_l2_i8x16_state_serial_t *state, nk_b128_vec_t a, nk_b128_vec_t b,
+                                           nk_size_t depth_offset, nk_size_t active_dimensions) {
+    nk_dot_i8x16_update_serial(state, a, b, depth_offset, active_dimensions);
 }
 
 NK_INTERNAL void nk_l2_i8x16_finalize_serial(nk_l2_i8x16_state_serial_t const *state_a,
@@ -670,7 +687,8 @@ NK_INTERNAL void nk_l2_i8x16_finalize_serial(nk_l2_i8x16_state_serial_t const *s
                                              nk_l2_i8x16_state_serial_t const *state_c,
                                              nk_l2_i8x16_state_serial_t const *state_d, nk_f32_t query_norm,
                                              nk_f32_t target_norm_a, nk_f32_t target_norm_b, nk_f32_t target_norm_c,
-                                             nk_f32_t target_norm_d, nk_f32_t *results) {
+                                             nk_f32_t target_norm_d, nk_size_t total_dimensions, nk_f32_t *results) {
+    nk_unused_(total_dimensions);
     // Extract dots from states by summing the 2 partial sums
     nk_i64_t dot_a = state_a->sums[0] + state_a->sums[1];
     nk_i64_t dot_b = state_b->sums[0] + state_b->sums[1];
@@ -703,8 +721,8 @@ NK_INTERNAL void nk_angular_u8x16_init_serial(nk_angular_u8x16_state_serial_t *s
 }
 
 NK_INTERNAL void nk_angular_u8x16_update_serial(nk_angular_u8x16_state_serial_t *state, nk_b128_vec_t a,
-                                                nk_b128_vec_t b) {
-    nk_dot_u8x16_update_serial(state, a, b);
+                                                nk_b128_vec_t b, nk_size_t depth_offset, nk_size_t active_dimensions) {
+    nk_dot_u8x16_update_serial(state, a, b, depth_offset, active_dimensions);
 }
 
 NK_INTERNAL void nk_angular_u8x16_finalize_serial(nk_angular_u8x16_state_serial_t const *state_a,
@@ -712,7 +730,9 @@ NK_INTERNAL void nk_angular_u8x16_finalize_serial(nk_angular_u8x16_state_serial_
                                                   nk_angular_u8x16_state_serial_t const *state_c,
                                                   nk_angular_u8x16_state_serial_t const *state_d, nk_f32_t query_norm,
                                                   nk_f32_t target_norm_a, nk_f32_t target_norm_b,
-                                                  nk_f32_t target_norm_c, nk_f32_t target_norm_d, nk_f32_t *results) {
+                                                  nk_f32_t target_norm_c, nk_f32_t target_norm_d,
+                                                  nk_size_t total_dimensions, nk_f32_t *results) {
+    nk_unused_(total_dimensions);
     // Extract dots from states by summing the 2 partial sums
     nk_u64_t dot_a = state_a->sums[0] + state_a->sums[1];
     nk_u64_t dot_b = state_b->sums[0] + state_b->sums[1];
@@ -762,8 +782,9 @@ typedef nk_dot_u8x16_state_serial_t nk_l2_u8x16_state_serial_t;
 
 NK_INTERNAL void nk_l2_u8x16_init_serial(nk_l2_u8x16_state_serial_t *state) { nk_dot_u8x16_init_serial(state); }
 
-NK_INTERNAL void nk_l2_u8x16_update_serial(nk_l2_u8x16_state_serial_t *state, nk_b128_vec_t a, nk_b128_vec_t b) {
-    nk_dot_u8x16_update_serial(state, a, b);
+NK_INTERNAL void nk_l2_u8x16_update_serial(nk_l2_u8x16_state_serial_t *state, nk_b128_vec_t a, nk_b128_vec_t b,
+                                           nk_size_t depth_offset, nk_size_t active_dimensions) {
+    nk_dot_u8x16_update_serial(state, a, b, depth_offset, active_dimensions);
 }
 
 NK_INTERNAL void nk_l2_u8x16_finalize_serial(nk_l2_u8x16_state_serial_t const *state_a,
@@ -771,7 +792,8 @@ NK_INTERNAL void nk_l2_u8x16_finalize_serial(nk_l2_u8x16_state_serial_t const *s
                                              nk_l2_u8x16_state_serial_t const *state_c,
                                              nk_l2_u8x16_state_serial_t const *state_d, nk_f32_t query_norm,
                                              nk_f32_t target_norm_a, nk_f32_t target_norm_b, nk_f32_t target_norm_c,
-                                             nk_f32_t target_norm_d, nk_f32_t *results) {
+                                             nk_f32_t target_norm_d, nk_size_t total_dimensions, nk_f32_t *results) {
+    nk_unused_(total_dimensions);
     // Extract dots from states by summing the 2 partial sums
     nk_u64_t dot_a = state_a->sums[0] + state_a->sums[1];
     nk_u64_t dot_b = state_b->sums[0] + state_b->sums[1];
@@ -801,7 +823,7 @@ NK_PUBLIC void nk_l2sq_i4_serial(nk_i4x2_t const *a, nk_i4x2_t const *b, nk_size
     // i4 values are packed as nibbles: two 4-bit signed values per byte.
     // Parameter `n` is the number of 4-bit values (dimensions), not bytes.
     // Sign extension: (nibble ^ 8) - 8 maps [0,15] to [-8,7]
-    nk_size_t n_bytes = (n + 1) / 2;
+    nk_size_t n_bytes = nk_size_divide_round_up_(n, 2);
     nk_i32_t sum = 0;
     for (nk_size_t i = 0; i < n_bytes; ++i) {
         // Extract low nibbles (first dimension of pair)
@@ -828,7 +850,7 @@ NK_PUBLIC void nk_l2_i4_serial(nk_i4x2_t const *a, nk_i4x2_t const *b, nk_size_t
 }
 
 NK_PUBLIC void nk_angular_i4_serial(nk_i4x2_t const *a, nk_i4x2_t const *b, nk_size_t n, nk_f32_t *result) {
-    nk_size_t n_bytes = (n + 1) / 2;
+    nk_size_t n_bytes = nk_size_divide_round_up_(n, 2);
     nk_i32_t dot_sum = 0, a_norm_sq = 0, b_norm_sq = 0;
     for (nk_size_t i = 0; i < n_bytes; ++i) {
         // Extract low nibbles
@@ -860,7 +882,7 @@ NK_PUBLIC void nk_l2sq_u4_serial(nk_u4x2_t const *a, nk_u4x2_t const *b, nk_size
     // u4 values are packed as nibbles: two 4-bit unsigned values per byte.
     // Parameter `n` is the number of 4-bit values (dimensions), not bytes.
     // No sign extension needed - values are in [0,15].
-    nk_size_t n_bytes = (n + 1) / 2;
+    nk_size_t n_bytes = nk_size_divide_round_up_(n, 2);
     nk_u32_t sum = 0;
     for (nk_size_t i = 0; i < n_bytes; ++i) {
         // Extract low nibbles
@@ -887,7 +909,7 @@ NK_PUBLIC void nk_l2_u4_serial(nk_u4x2_t const *a, nk_u4x2_t const *b, nk_size_t
 }
 
 NK_PUBLIC void nk_angular_u4_serial(nk_u4x2_t const *a, nk_u4x2_t const *b, nk_size_t n, nk_f32_t *result) {
-    nk_size_t n_bytes = (n + 1) / 2;
+    nk_size_t n_bytes = nk_size_divide_round_up_(n, 2);
     nk_u32_t dot_sum = 0, a_norm_sq = 0, b_norm_sq = 0;
     for (nk_size_t i = 0; i < n_bytes; ++i) {
         // Extract low nibbles
