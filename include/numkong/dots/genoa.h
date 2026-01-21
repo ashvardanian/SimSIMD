@@ -71,6 +71,38 @@ nk_define_dots_packed_(e5m2, genoa, e5m2, bf16, f32, nk_b512_vec_t, nk_dot_throu
                        nk_dot_through_bf16_finalize_genoa_, nk_partial_store_b32x4_serial_,
                        /*depth_simd_dimensions=*/32, /*dimensions_per_value=*/1)
 
+/* E2M3 GEMM: depth_simd_dimensions=32 (32 e2m3s = 32 bytes = half cache line), F32 accumulator */
+nk_define_dots_pack_size_(e2m3, genoa, e2m3, e2m3, f32, /*depth_simd_dimensions=*/32, /*dimensions_per_value=*/1)
+nk_define_dots_pack_(e2m3, genoa, e2m3, bf16, f32, nk_e2m3_to_bf16, /*depth_simd_dimensions=*/32,
+                     /*dimensions_per_value=*/1)
+nk_define_dots_symmetric_(e2m3, genoa, e2m3, f32, nk_b512_vec_t, nk_dot_through_bf16_state_genoa_t_, nk_b128_vec_t,
+                          nk_dot_through_bf16_init_genoa_, nk_load_e2m3x32_to_bf16x32_genoa_,
+                          nk_partial_load_e2m3x32_to_bf16x32_genoa_, nk_dot_through_bf16_update_genoa_,
+                          nk_dot_through_bf16_finalize_genoa_,
+                          /*depth_simd_dimensions=*/32, /*dimensions_per_value=*/1)
+nk_define_dots_packed_(e2m3, genoa, e2m3, bf16, f32, nk_b512_vec_t, nk_dot_through_bf16_state_genoa_t_, nk_b128_vec_t,
+                       nk_dot_through_bf16_init_genoa_, nk_load_e2m3x32_to_bf16x32_genoa_,
+                       nk_partial_load_e2m3x32_to_bf16x32_genoa_, nk_load_b512_skylake_,
+                       nk_partial_load_b16x32_skylake_, nk_dot_through_bf16_update_genoa_,
+                       nk_dot_through_bf16_finalize_genoa_, nk_partial_store_b32x4_serial_,
+                       /*depth_simd_dimensions=*/32, /*dimensions_per_value=*/1)
+
+/* E3M2 GEMM: depth_simd_dimensions=32 (32 e3m2s = 32 bytes = half cache line), F32 accumulator */
+nk_define_dots_pack_size_(e3m2, genoa, e3m2, e3m2, f32, /*depth_simd_dimensions=*/32, /*dimensions_per_value=*/1)
+nk_define_dots_pack_(e3m2, genoa, e3m2, bf16, f32, nk_e3m2_to_bf16, /*depth_simd_dimensions=*/32,
+                     /*dimensions_per_value=*/1)
+nk_define_dots_symmetric_(e3m2, genoa, e3m2, f32, nk_b512_vec_t, nk_dot_through_bf16_state_genoa_t_, nk_b128_vec_t,
+                          nk_dot_through_bf16_init_genoa_, nk_load_e3m2x32_to_bf16x32_genoa_,
+                          nk_partial_load_e3m2x32_to_bf16x32_genoa_, nk_dot_through_bf16_update_genoa_,
+                          nk_dot_through_bf16_finalize_genoa_,
+                          /*depth_simd_dimensions=*/32, /*dimensions_per_value=*/1)
+nk_define_dots_packed_(e3m2, genoa, e3m2, bf16, f32, nk_b512_vec_t, nk_dot_through_bf16_state_genoa_t_, nk_b128_vec_t,
+                       nk_dot_through_bf16_init_genoa_, nk_load_e3m2x32_to_bf16x32_genoa_,
+                       nk_partial_load_e3m2x32_to_bf16x32_genoa_, nk_load_b512_skylake_,
+                       nk_partial_load_b16x32_skylake_, nk_dot_through_bf16_update_genoa_,
+                       nk_dot_through_bf16_finalize_genoa_, nk_partial_store_b32x4_serial_,
+                       /*depth_simd_dimensions=*/32, /*dimensions_per_value=*/1)
+
 // Compact function: F32 → BF16 conversion (reuses serial implementation logic)
 NK_PUBLIC void nk_dots_compact_bf16_genoa(void *c, nk_size_t row_count, nk_size_t column_count, nk_size_t c_stride) {
     nk_dots_compact_bf16_serial(c, row_count, column_count, c_stride);

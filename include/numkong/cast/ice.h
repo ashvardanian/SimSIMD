@@ -125,6 +125,60 @@ NK_INTERNAL __m512i nk_e5m2x32_to_bf16x32_ice_(__m256i e5m2x32) {
     return _mm512_or_si512(result_i16x32, sign_i16x32);
 }
 
+/** @brief Convert 32x e2m3 → 32x bf16 via 32-entry LUT lookup (AVX-512BW).
+ *  E2M3 format: S EE MMM (bias=1, 6 bits total: sign at bit 7, magnitude bits 4-0).
+ *  BF16: S EEEEEEEE MMMMMMM (bias=127). Uses single permutexvar; sign handled separately. */
+NK_INTERNAL __m512i nk_e2m3x32_to_bf16x32_ice_(__m256i e2m3x32) {
+    __m512i e2m3_i16x32 = _mm512_cvtepu8_epi16(e2m3x32);
+    __m512i sign_i16x32 = _mm512_and_si512(e2m3_i16x32, _mm512_set1_epi16((short)0x80));
+    __m512i idx_i16x32 = _mm512_and_si512(e2m3_i16x32, _mm512_set1_epi16(0x1F));
+
+    // 32-entry LUT for E2M3 magnitude (5 bits: bits 4-3=exp, bits 2-0=mant)
+    // E2M3: bias=1, range [0, 7.5] for positive
+    // BF16 = (bf16_exp << 7) | (bf16_mant), where bf16_exp = e2m3_exp + 126, bf16_mant = e2m3_mant << 4
+    __m512i const lut_i16x32 = _mm512_set_epi16(                         //
+        0x40F0, 0x40E0, 0x40D0, 0x40C0, 0x40B0, 0x40A0, 0x4090, 0x4080,  // [31-24] exp=3: bf16_exp=129
+        0x4070, 0x4060, 0x4050, 0x4040, 0x4030, 0x4020, 0x4010, 0x4000,  // [23-16] exp=2: bf16_exp=128
+        0x3FF0, 0x3FE0, 0x3FD0, 0x3FC0, 0x3FB0, 0x3FA0, 0x3F90, 0x3F80,  // [15-8] exp=1: bf16_exp=127
+        0x3F60, 0x3F40, 0x3F20, 0x3F00, 0x3EC0, 0x3E80, 0x3E00, 0x0000); // [7-0] exp=0: subnormals
+
+    // Single permutexvar for 32-entry lookup (more efficient than permutex2var for small tables)
+    __m512i result_i16x32 = _mm512_permutexvar_epi16(idx_i16x32, lut_i16x32);
+
+    // Apply sign: shift sign bit to bit 15, then OR
+    sign_i16x32 = _mm512_slli_epi16(sign_i16x32, 8);
+    return _mm512_or_si512(result_i16x32, sign_i16x32);
+}
+
+/** @brief Convert 32x e3m2 → 32x bf16 via 32-entry LUT lookup (AVX-512BW).
+ *  E3M2 format: S EEE MM (bias=3, 6 bits total: sign at bit 7, magnitude bits 4-0).
+ *  BF16: S EEEEEEEE MMMMMMM (bias=127). Uses single permutexvar; sign handled separately. */
+NK_INTERNAL __m512i nk_e3m2x32_to_bf16x32_ice_(__m256i e3m2x32) {
+    __m512i e3m2_i16x32 = _mm512_cvtepu8_epi16(e3m2x32);
+    __m512i sign_i16x32 = _mm512_and_si512(e3m2_i16x32, _mm512_set1_epi16((short)0x80));
+    __m512i idx_i16x32 = _mm512_and_si512(e3m2_i16x32, _mm512_set1_epi16(0x1F));
+
+    // 32-entry LUT for E3M2 magnitude (5 bits: bits 4-2=exp, bits 1-0=mant)
+    // E3M2: bias=3, range [0, 28] for positive
+    // BF16 = (bf16_exp << 7) | (bf16_mant), where bf16_exp = e3m2_exp + 124, bf16_mant = e3m2_mant << 5
+    __m512i const lut_i16x32 = _mm512_set_epi16( //
+        0x41E0, 0x41C0, 0x41A0, 0x4180,          // [31-28] exp=7, mant=3-0: bf16_exp=131
+        0x40E0, 0x40C0, 0x40A0, 0x4080,          // [27-24] exp=6, mant=3-0: bf16_exp=130
+        0x3FE0, 0x3FC0, 0x3FA0, 0x3F80,          // [23-20] exp=5, mant=3-0: bf16_exp=129
+        0x3EE0, 0x3EC0, 0x3EA0, 0x3E80,          // [19-16] exp=4, mant=3-0: bf16_exp=128
+        0x3DE0, 0x3DC0, 0x3DA0, 0x3D80,          // [15-12] exp=3, mant=3-0: bf16_exp=127
+        0x3CE0, 0x3CC0, 0x3CA0, 0x3C80,          // [11-8] exp=2, mant=3-0: bf16_exp=126
+        0x3BE0, 0x3BC0, 0x3BA0, 0x3B80,          // [7-4] exp=1, mant=3-0: bf16_exp=125
+        0x3B40, 0x3B00, 0x3A80, 0x0000);         // [3-0] exp=0, mant=3-0: subnormals
+
+    // Single permutexvar for 32-entry lookup
+    __m512i result_i16x32 = _mm512_permutexvar_epi16(idx_i16x32, lut_i16x32);
+
+    // Apply sign: shift sign bit to bit 15, then OR
+    sign_i16x32 = _mm512_slli_epi16(sign_i16x32, 8);
+    return _mm512_or_si512(result_i16x32, sign_i16x32);
+}
+
 /** @brief Convert 32x e4m3 → 32x f16 via 128-entry LUT lookup (AVX-512BW).
  *  E4M3 format: S EEEE MMM (bias=7). F16: S EEEEE MMMMMMMMMM (bias=15).
  *  Uses permutex2var for fast LUT lookup; sign handled separately via shift+OR.

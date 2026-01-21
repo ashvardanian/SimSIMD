@@ -639,6 +639,7 @@ NK_INTERNAL void nk_dot_f32x8_finalize_skylake(                                 
 NK_INTERNAL void nk_load_f16x16_to_f32x16_skylake_(void const *src, nk_b512_vec_t *dst) {
     dst->zmm_ps = _mm512_cvtph_ps(_mm256_loadu_si256((__m256i const *)src));
 }
+
 NK_INTERNAL void nk_partial_load_f16x16_to_f32x16_skylake_(void const *src, nk_b512_vec_t *dst, nk_size_t n) {
     nk_b256_vec_t f16_partial;
     nk_partial_load_b16x16_skylake_(src, &f16_partial, n);
@@ -648,6 +649,7 @@ NK_INTERNAL void nk_partial_load_f16x16_to_f32x16_skylake_(void const *src, nk_b
 NK_INTERNAL void nk_load_bf16x16_to_f32x16_skylake_(void const *src, nk_b512_vec_t *dst) {
     dst->zmm_ps = nk_bf16x16_to_f32x16_skylake_(_mm256_loadu_si256((__m256i const *)src));
 }
+
 NK_INTERNAL void nk_partial_load_bf16x16_to_f32x16_skylake_(void const *src, nk_b512_vec_t *dst, nk_size_t n) {
     nk_b256_vec_t bf16_partial;
     nk_partial_load_b16x16_skylake_(src, &bf16_partial, n);
@@ -657,6 +659,7 @@ NK_INTERNAL void nk_partial_load_bf16x16_to_f32x16_skylake_(void const *src, nk_
 NK_INTERNAL void nk_load_e4m3x16_to_f32x16_skylake_(void const *src, nk_b512_vec_t *dst) {
     dst->zmm_ps = nk_e4m3x16_to_f32x16_skylake_(_mm_loadu_si128((__m128i const *)src));
 }
+
 NK_INTERNAL void nk_partial_load_e4m3x16_to_f32x16_skylake_(void const *src, nk_b512_vec_t *dst, nk_size_t n) {
     nk_b128_vec_t e4m3_partial;
     nk_partial_load_b8x16_skylake_(src, &e4m3_partial, n);
@@ -666,10 +669,31 @@ NK_INTERNAL void nk_partial_load_e4m3x16_to_f32x16_skylake_(void const *src, nk_
 NK_INTERNAL void nk_load_e5m2x16_to_f32x16_skylake_(void const *src, nk_b512_vec_t *dst) {
     dst->zmm_ps = nk_e5m2x16_to_f32x16_skylake_(_mm_loadu_si128((__m128i const *)src));
 }
+
 NK_INTERNAL void nk_partial_load_e5m2x16_to_f32x16_skylake_(void const *src, nk_b512_vec_t *dst, nk_size_t n) {
     nk_b128_vec_t e5m2_partial;
     nk_partial_load_b8x16_skylake_(src, &e5m2_partial, n);
     dst->zmm_ps = nk_e5m2x16_to_f32x16_skylake_(e5m2_partial.xmm);
+}
+
+NK_INTERNAL void nk_load_e2m3x16_to_f32x16_skylake_(void const *src, nk_b512_vec_t *dst) {
+    dst->zmm_ps = nk_e2m3x16_to_f32x16_skylake_(_mm_loadu_si128((__m128i const *)src));
+}
+
+NK_INTERNAL void nk_partial_load_e2m3x16_to_f32x16_skylake_(void const *src, nk_b512_vec_t *dst, nk_size_t n) {
+    nk_b128_vec_t e2m3_partial;
+    nk_partial_load_b8x16_skylake_(src, &e2m3_partial, n);
+    dst->zmm_ps = nk_e2m3x16_to_f32x16_skylake_(e2m3_partial.xmm);
+}
+
+NK_INTERNAL void nk_load_e3m2x16_to_f32x16_skylake_(void const *src, nk_b512_vec_t *dst) {
+    dst->zmm_ps = nk_e3m2x16_to_f32x16_skylake_(_mm_loadu_si128((__m128i const *)src));
+}
+
+NK_INTERNAL void nk_partial_load_e3m2x16_to_f32x16_skylake_(void const *src, nk_b512_vec_t *dst, nk_size_t n) {
+    nk_b128_vec_t e3m2_partial;
+    nk_partial_load_b8x16_skylake_(src, &e3m2_partial, n);
+    dst->zmm_ps = nk_e3m2x16_to_f32x16_skylake_(e3m2_partial.xmm);
 }
 
 typedef nk_dot_through_f32_state_skylake_t_ nk_dot_bf16x16_state_skylake_t;

@@ -190,6 +190,7 @@ nk_dot_e5m2_genoa_cycle:
 NK_INTERNAL void nk_load_e4m3x32_to_bf16x32_genoa_(void const *src, nk_b512_vec_t *dst) {
     dst->zmm = nk_e4m3x32_to_bf16x32_ice_(_mm256_loadu_si256((__m256i const *)src));
 }
+
 NK_INTERNAL void nk_partial_load_e4m3x32_to_bf16x32_genoa_(void const *src, nk_b512_vec_t *dst, nk_size_t n) {
     nk_b256_vec_t e4m3_partial;
     nk_partial_load_b8x32_serial_(src, &e4m3_partial, n);
@@ -199,10 +200,31 @@ NK_INTERNAL void nk_partial_load_e4m3x32_to_bf16x32_genoa_(void const *src, nk_b
 NK_INTERNAL void nk_load_e5m2x32_to_bf16x32_genoa_(void const *src, nk_b512_vec_t *dst) {
     dst->zmm = nk_e5m2x32_to_bf16x32_ice_(_mm256_loadu_si256((__m256i const *)src));
 }
+
 NK_INTERNAL void nk_partial_load_e5m2x32_to_bf16x32_genoa_(void const *src, nk_b512_vec_t *dst, nk_size_t n) {
     nk_b256_vec_t e5m2_partial;
     nk_partial_load_b8x32_serial_(src, &e5m2_partial, n);
     dst->zmm = nk_e5m2x32_to_bf16x32_ice_(e5m2_partial.ymm);
+}
+
+NK_INTERNAL void nk_load_e2m3x32_to_bf16x32_genoa_(void const *src, nk_b512_vec_t *dst) {
+    dst->zmm = nk_e2m3x32_to_bf16x32_ice_(_mm256_loadu_si256((__m256i const *)src));
+}
+
+NK_INTERNAL void nk_partial_load_e2m3x32_to_bf16x32_genoa_(void const *src, nk_b512_vec_t *dst, nk_size_t n) {
+    nk_b256_vec_t e2m3_partial;
+    nk_partial_load_b8x32_serial_(src, &e2m3_partial, n);
+    dst->zmm = nk_e2m3x32_to_bf16x32_ice_(e2m3_partial.ymm);
+}
+
+NK_INTERNAL void nk_load_e3m2x32_to_bf16x32_genoa_(void const *src, nk_b512_vec_t *dst) {
+    dst->zmm = nk_e3m2x32_to_bf16x32_ice_(_mm256_loadu_si256((__m256i const *)src));
+}
+
+NK_INTERNAL void nk_partial_load_e3m2x32_to_bf16x32_genoa_(void const *src, nk_b512_vec_t *dst, nk_size_t n) {
+    nk_b256_vec_t e3m2_partial;
+    nk_partial_load_b8x32_serial_(src, &e3m2_partial, n);
+    dst->zmm = nk_e3m2x32_to_bf16x32_ice_(e3m2_partial.ymm);
 }
 
 typedef struct nk_dot_through_bf16_state_genoa_t_ {

@@ -1852,6 +1852,20 @@ NK_PUBLIC void nk_e5m2_to_bf16(nk_e5m2_t const *src, nk_bf16_t *dest) {
     nk_f32_to_bf16_serial(&temp, dest);
 }
 
+/** @brief Convert E2M3 to BF16 via F32 intermediate. */
+NK_PUBLIC void nk_e2m3_to_bf16(nk_e2m3_t const *src, nk_bf16_t *dest) {
+    nk_f32_t temp;
+    nk_e2m3_to_f32_serial(src, &temp);
+    nk_f32_to_bf16_serial(&temp, dest);
+}
+
+/** @brief Convert E3M2 to BF16 via F32 intermediate. */
+NK_PUBLIC void nk_e3m2_to_bf16(nk_e3m2_t const *src, nk_bf16_t *dest) {
+    nk_f32_t temp;
+    nk_e3m2_to_f32_serial(src, &temp);
+    nk_f32_to_bf16_serial(&temp, dest);
+}
+
 /**
  *  @brief Convert i4 (4-bit signed integer, -8 to 7) to i8.
  *
