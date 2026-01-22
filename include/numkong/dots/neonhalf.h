@@ -29,7 +29,7 @@ nk_define_dots_pack_(f16, neonhalf, f16, f16, f32, nk_assign_from_to_, /*depth_s
                      /*dimensions_per_value=*/1)
 nk_define_dots_symmetric_(f16, neonhalf, f16, f32, nk_b64_vec_t, nk_dot_f16x4_state_neonhalf_t, nk_b128_vec_t,
                           nk_dot_f16x4_init_neonhalf, nk_load_b64_neon_, nk_partial_load_b16x4_serial_,
-                          nk_dot_f16x4_update_neonhalf, nk_dot_f16x4_finalize_neonhalf,
+                          nk_dot_f16x4_update_neonhalf, nk_dot_f16x4_finalize_neonhalf, nk_partial_store_b32x4_serial_,
                           /*depth_simd_dimensions=*/4, /*dimensions_per_value=*/1)
 nk_define_dots_packed_(f16, neonhalf, f16, f16, f32, nk_b64_vec_t, nk_dot_f16x4_state_neonhalf_t, nk_b128_vec_t,
                        nk_dot_f16x4_init_neonhalf, nk_load_b64_neon_, nk_partial_load_b16x4_serial_, nk_load_b64_neon_,

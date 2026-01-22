@@ -804,19 +804,13 @@ typedef struct {
 /* NK_INTERNAL helper for processing diagonal 32×32 macro-tiles */
 #define nk_define_dots_symmetric_diagonal_helper_(name, suffix, input_type, output_type, vec_type, state_type,        \
                                                   result_vec_type, init_fn, load_fn, partial_load_fn, update_fn,      \
-                                                  finalize_fn, depth_simd_dimensions, dimensions_per_value)           \
+                                                  finalize_fn, store_fn, depth_simd_dimensions, dimensions_per_value) \
     NK_INTERNAL void nk_dots_symmetric_diagonal_##name##_##suffix(                                                    \
         state_type accumulator_tiles[32][32], nk_##input_type##_t const *vectors, nk_size_t i_macro,                  \
         nk_size_t macro_size, nk_size_t vectors_stride_elements, nk_size_t aligned_depth, nk_size_t remainder_depth,  \
         nk_size_t remainder_dimensions, nk_size_t depth_step_values, nk_size_t dimensions_per_value_runtime,          \
         nk_##output_type##_t *result, nk_size_t result_stride_elements, nk_size_t finalizer_batch_size,               \
         nk_size_t depth) {                                                                                            \
-                                                                                                                      \
-        /* Setup row pointers */                                                                                      \
-        nk_##input_type##_t const *macro_rows[32];                                                                    \
-        for (nk_size_t i = 0; i < macro_size; i++) {                                                                  \
-            macro_rows[i] = vectors + (i_macro + i) * vectors_stride_elements;                                        \
-        }                                                                                                             \
                                                                                                                       \
         /* Initialize accumulators (upper triangle only) */                                                           \
         for (nk_size_t ii = 0; ii < macro_size; ii++) {                                                               \
@@ -826,7 +820,9 @@ typedef struct {
         /* Aligned depth loop */                                                                                      \
         vec_type vec[32];                                                                                             \
         for (nk_size_t d = 0; d < aligned_depth; d += depth_step_values) {                                            \
-            for (nk_size_t i = 0; i < macro_size; i++) { load_fn(macro_rows[i] + d, &vec[i]); }                       \
+            for (nk_size_t i = 0; i < macro_size; i++) {                                                              \
+                load_fn(vectors + (i_macro + i) * vectors_stride_elements + d, &vec[i]);                              \
+            }                                                                                                         \
             nk_size_t offset = d * dimensions_per_value;                                                              \
                                                                                                                       \
             for (nk_size_t i_tile = 0; i_tile < macro_size; i_tile += 4) {                                            \
@@ -894,7 +890,8 @@ typedef struct {
                                                                                                                       \
         if (remainder_depth > 0) {                                                                                    \
             for (nk_size_t i = 0; i < macro_size; i++) {                                                              \
-                partial_load_fn(macro_rows[i] + aligned_depth, &vec[i], remainder_dimensions);                        \
+                partial_load_fn(vectors + (i_macro + i) * vectors_stride_elements + aligned_depth, &vec[i],           \
+                                remainder_dimensions);                                                                \
             }                                                                                                         \
             nk_size_t offset = aligned_depth * dimensions_per_value;                                                  \
             for (nk_size_t i_tile = 0; i_tile < macro_size; i_tile += 4) {                                            \
@@ -923,128 +920,128 @@ typedef struct {
                                                                                                                       \
         /* Finalize and store (upper triangle only, no mirroring) */                                                  \
         for (nk_size_t ii = 0; ii < macro_size; ii++) {                                                               \
-            for (nk_size_t jj = ii; jj < macro_size; jj += finalizer_batch_size) {                                    \
-                nk_size_t batch_size = ((jj + finalizer_batch_size) <= macro_size) ? finalizer_batch_size             \
-                                                                                   : (macro_size - jj);               \
-                state_type dummy_b, dummy_c, dummy_d;                                                                 \
-                init_fn(&dummy_b);                                                                                    \
-                init_fn(&dummy_c);                                                                                    \
-                init_fn(&dummy_d);                                                                                    \
+            nk_size_t jj = ii;                                                                                        \
+            /* Process 4 at a time */                                                                                 \
+            for (; jj + 4 <= macro_size; jj += 4) {                                                                   \
                 result_vec_type result_vec;                                                                           \
-                finalize_fn(&accumulator_tiles[ii][jj], (batch_size > 1) ? &accumulator_tiles[ii][jj + 1] : &dummy_b, \
-                            (batch_size > 2) ? &accumulator_tiles[ii][jj + 2] : &dummy_c,                             \
-                            (batch_size > 3) ? &accumulator_tiles[ii][jj + 3] : &dummy_d, &result_vec, depth);        \
-                for (nk_size_t col = 0; col < batch_size; col++) {                                                    \
-                    nk_##output_type##_t val = result_vec.output_type##s[col];                                        \
-                    result[(i_macro + ii) * result_stride_elements + (i_macro + jj + col)] = val;                     \
-                }                                                                                                     \
+                finalize_fn(&accumulator_tiles[ii][jj], &accumulator_tiles[ii][jj + 1],                               \
+                            &accumulator_tiles[ii][jj + 2], &accumulator_tiles[ii][jj + 3], &result_vec, depth);      \
+                nk_##output_type##_t *out_ptr = &result[(i_macro + ii) * result_stride_elements + (i_macro + jj)];    \
+                store_fn(&result_vec, out_ptr, 4);                                                                    \
+            }                                                                                                         \
+            /* Handle remaining elements (< 4) */                                                                     \
+            if (jj < macro_size) {                                                                                    \
+                nk_size_t remaining = macro_size - jj;                                                                \
+                result_vec_type result_vec;                                                                           \
+                finalize_fn(&accumulator_tiles[ii][jj], &accumulator_tiles[ii][jj + 1],                               \
+                            &accumulator_tiles[ii][jj + 2], &accumulator_tiles[ii][jj + 3], &result_vec, depth);      \
+                nk_##output_type##_t *out_ptr = &result[(i_macro + ii) * result_stride_elements + (i_macro + jj)];    \
+                store_fn(&result_vec, out_ptr, remaining);                                                            \
             }                                                                                                         \
         }                                                                                                             \
     }
 
 /* NK_INTERNAL helper for processing off-diagonal 32×32 macro-tiles */
-#define nk_define_dots_symmetric_offdiagonal_helper_(name, suffix, input_type, output_type, vec_type, state_type,     \
-                                                     result_vec_type, init_fn, load_fn, partial_load_fn, update_fn,   \
-                                                     finalize_fn, depth_simd_dimensions, dimensions_per_value)        \
-    NK_INTERNAL void nk_dots_symmetric_offdiagonal_##name##_##suffix(                                                 \
-        state_type accumulator_tiles[32][32], nk_##input_type##_t const *vectors, nk_size_t i_macro,                  \
-        nk_size_t j_macro, nk_size_t macro_i_size, nk_size_t macro_j_size, nk_size_t vectors_stride_elements,         \
-        nk_size_t aligned_depth, nk_size_t remainder_depth, nk_size_t remainder_dimensions,                           \
-        nk_size_t depth_step_values, nk_size_t dimensions_per_value_runtime, nk_##output_type##_t *result,            \
-        nk_size_t result_stride_elements, nk_size_t finalizer_batch_size, nk_size_t depth) {                          \
-                                                                                                                      \
-        /* Setup row pointers */                                                                                      \
-        nk_##input_type##_t const *macro_rows_i[32];                                                                  \
-        nk_##input_type##_t const *macro_rows_j[32];                                                                  \
-        for (nk_size_t i = 0; i < macro_i_size; i++) {                                                                \
-            macro_rows_i[i] = vectors + (i_macro + i) * vectors_stride_elements;                                      \
-        }                                                                                                             \
-        for (nk_size_t j = 0; j < macro_j_size; j++) {                                                                \
-            macro_rows_j[j] = vectors + (j_macro + j) * vectors_stride_elements;                                      \
-        }                                                                                                             \
-                                                                                                                      \
-        /* Initialize accumulators (full rectangle) */                                                                \
-        for (nk_size_t ii = 0; ii < macro_i_size; ii++) {                                                             \
-            for (nk_size_t jj = 0; jj < macro_j_size; jj++) { init_fn(&accumulator_tiles[ii][jj]); }                  \
-        }                                                                                                             \
-                                                                                                                      \
-        /* Aligned depth loop */                                                                                      \
-        vec_type vec_i[32];                                                                                           \
-        vec_type vec_j[32];                                                                                           \
-        for (nk_size_t d = 0; d < aligned_depth; d += depth_step_values) {                                            \
-            for (nk_size_t i = 0; i < macro_i_size; i++) { load_fn(macro_rows_i[i] + d, &vec_i[i]); }                 \
-            for (nk_size_t j = 0; j < macro_j_size; j++) { load_fn(macro_rows_j[j] + d, &vec_j[j]); }                 \
-            nk_size_t offset = d * dimensions_per_value;                                                              \
-                                                                                                                      \
-            for (nk_size_t i_tile = 0; i_tile < macro_i_size; i_tile += 4) {                                          \
-                for (nk_size_t j_tile = 0; j_tile < macro_j_size; j_tile += 4) {                                      \
-                    nk_size_t tile_i_size = (i_tile + 4 <= macro_i_size) ? 4 : (macro_i_size - i_tile);               \
-                    nk_size_t tile_j_size = (j_tile + 4 <= macro_j_size) ? 4 : (macro_j_size - j_tile);               \
-                    if (tile_i_size == 4 && tile_j_size == 4) {                                                       \
-                        for (nk_size_t ii = 0; ii < 4; ii++) {                                                        \
-                            update_fn(&accumulator_tiles[i_tile + ii][j_tile + 0], vec_i[i_tile + ii],                \
-                                      vec_j[j_tile + 0], offset, depth_simd_dimensions);                              \
-                            update_fn(&accumulator_tiles[i_tile + ii][j_tile + 1], vec_i[i_tile + ii],                \
-                                      vec_j[j_tile + 1], offset, depth_simd_dimensions);                              \
-                            update_fn(&accumulator_tiles[i_tile + ii][j_tile + 2], vec_i[i_tile + ii],                \
-                                      vec_j[j_tile + 2], offset, depth_simd_dimensions);                              \
-                            update_fn(&accumulator_tiles[i_tile + ii][j_tile + 3], vec_i[i_tile + ii],                \
-                                      vec_j[j_tile + 3], offset, depth_simd_dimensions);                              \
-                        }                                                                                             \
-                    }                                                                                                 \
-                    else {                                                                                            \
-                        for (nk_size_t ii = 0; ii < tile_i_size; ii++) {                                              \
-                            for (nk_size_t jj = 0; jj < tile_j_size; jj++) {                                          \
-                                update_fn(&accumulator_tiles[i_tile + ii][j_tile + jj], vec_i[i_tile + ii],           \
-                                          vec_j[j_tile + jj], offset, depth_simd_dimensions);                         \
-                            }                                                                                         \
-                        }                                                                                             \
-                    }                                                                                                 \
-                }                                                                                                     \
-            }                                                                                                         \
-        }                                                                                                             \
-                                                                                                                      \
-        if (remainder_depth > 0) {                                                                                    \
-            for (nk_size_t i = 0; i < macro_i_size; i++) {                                                            \
-                partial_load_fn(macro_rows_i[i] + aligned_depth, &vec_i[i], remainder_dimensions);                    \
-            }                                                                                                         \
-            for (nk_size_t j = 0; j < macro_j_size; j++) {                                                            \
-                partial_load_fn(macro_rows_j[j] + aligned_depth, &vec_j[j], remainder_dimensions);                    \
-            }                                                                                                         \
-            nk_size_t offset = aligned_depth * dimensions_per_value;                                                  \
-            for (nk_size_t i_tile = 0; i_tile < macro_i_size; i_tile += 4) {                                          \
-                for (nk_size_t j_tile = 0; j_tile < macro_j_size; j_tile += 4) {                                      \
-                    nk_size_t tile_i_size = (i_tile + 4 <= macro_i_size) ? 4 : (macro_i_size - i_tile);               \
-                    nk_size_t tile_j_size = (j_tile + 4 <= macro_j_size) ? 4 : (macro_j_size - j_tile);               \
-                    for (nk_size_t ii = 0; ii < tile_i_size; ii++) {                                                  \
-                        for (nk_size_t jj = 0; jj < tile_j_size; jj++) {                                              \
-                            update_fn(&accumulator_tiles[i_tile + ii][j_tile + jj], vec_i[i_tile + ii],               \
-                                      vec_j[j_tile + jj], offset, remainder_dimensions);                              \
-                        }                                                                                             \
-                    }                                                                                                 \
-                }                                                                                                     \
-            }                                                                                                         \
-        }                                                                                                             \
-                                                                                                                      \
-        /* Finalize and store (no mirroring - off-diagonal already in upper triangle) */                              \
-        for (nk_size_t ii = 0; ii < macro_i_size; ii++) {                                                             \
-            for (nk_size_t jj = 0; jj < macro_j_size; jj += finalizer_batch_size) {                                   \
-                nk_size_t batch_size = ((jj + finalizer_batch_size) <= macro_j_size) ? finalizer_batch_size           \
-                                                                                     : (macro_j_size - jj);           \
-                state_type dummy_b, dummy_c, dummy_d;                                                                 \
-                init_fn(&dummy_b);                                                                                    \
-                init_fn(&dummy_c);                                                                                    \
-                init_fn(&dummy_d);                                                                                    \
-                result_vec_type result_vec;                                                                           \
-                finalize_fn(&accumulator_tiles[ii][jj], (batch_size > 1) ? &accumulator_tiles[ii][jj + 1] : &dummy_b, \
-                            (batch_size > 2) ? &accumulator_tiles[ii][jj + 2] : &dummy_c,                             \
-                            (batch_size > 3) ? &accumulator_tiles[ii][jj + 3] : &dummy_d, &result_vec, depth);        \
-                for (nk_size_t col = 0; col < batch_size; col++) {                                                    \
-                    nk_##output_type##_t val = result_vec.output_type##s[col];                                        \
-                    result[(i_macro + ii) * result_stride_elements + (j_macro + jj + col)] = val;                     \
-                }                                                                                                     \
-            }                                                                                                         \
-        }                                                                                                             \
+#define nk_define_dots_symmetric_offdiagonal_helper_(                                                                \
+    name, suffix, input_type, output_type, vec_type, state_type, result_vec_type, init_fn, load_fn, partial_load_fn, \
+    update_fn, finalize_fn, store_fn, depth_simd_dimensions, dimensions_per_value)                                   \
+    NK_INTERNAL void nk_dots_symmetric_offdiagonal_##name##_##suffix(                                                \
+        state_type accumulator_tiles[32][32], nk_##input_type##_t const *vectors, nk_size_t i_macro,                 \
+        nk_size_t j_macro, nk_size_t macro_i_size, nk_size_t macro_j_size, nk_size_t vectors_stride_elements,        \
+        nk_size_t aligned_depth, nk_size_t remainder_depth, nk_size_t remainder_dimensions,                          \
+        nk_size_t depth_step_values, nk_size_t dimensions_per_value_runtime, nk_##output_type##_t *result,           \
+        nk_size_t result_stride_elements, nk_size_t finalizer_batch_size, nk_size_t depth) {                         \
+                                                                                                                     \
+        /* Initialize accumulators (full rectangle) */                                                               \
+        for (nk_size_t ii = 0; ii < macro_i_size; ii++) {                                                            \
+            for (nk_size_t jj = 0; jj < macro_j_size; jj++) { init_fn(&accumulator_tiles[ii][jj]); }                 \
+        }                                                                                                            \
+                                                                                                                     \
+        /* Aligned depth loop */                                                                                     \
+        vec_type vec_i[32];                                                                                          \
+        vec_type vec_j[32];                                                                                          \
+        for (nk_size_t d = 0; d < aligned_depth; d += depth_step_values) {                                           \
+            for (nk_size_t i = 0; i < macro_i_size; i++) {                                                           \
+                load_fn(vectors + (i_macro + i) * vectors_stride_elements + d, &vec_i[i]);                           \
+            }                                                                                                        \
+            for (nk_size_t j = 0; j < macro_j_size; j++) {                                                           \
+                load_fn(vectors + (j_macro + j) * vectors_stride_elements + d, &vec_j[j]);                           \
+            }                                                                                                        \
+            nk_size_t offset = d * dimensions_per_value;                                                             \
+                                                                                                                     \
+            for (nk_size_t i_tile = 0; i_tile < macro_i_size; i_tile += 4) {                                         \
+                for (nk_size_t j_tile = 0; j_tile < macro_j_size; j_tile += 4) {                                     \
+                    nk_size_t tile_i_size = (i_tile + 4 <= macro_i_size) ? 4 : (macro_i_size - i_tile);              \
+                    nk_size_t tile_j_size = (j_tile + 4 <= macro_j_size) ? 4 : (macro_j_size - j_tile);              \
+                    if (tile_i_size == 4 && tile_j_size == 4) {                                                      \
+                        for (nk_size_t ii = 0; ii < 4; ii++) {                                                       \
+                            update_fn(&accumulator_tiles[i_tile + ii][j_tile + 0], vec_i[i_tile + ii],               \
+                                      vec_j[j_tile + 0], offset, depth_simd_dimensions);                             \
+                            update_fn(&accumulator_tiles[i_tile + ii][j_tile + 1], vec_i[i_tile + ii],               \
+                                      vec_j[j_tile + 1], offset, depth_simd_dimensions);                             \
+                            update_fn(&accumulator_tiles[i_tile + ii][j_tile + 2], vec_i[i_tile + ii],               \
+                                      vec_j[j_tile + 2], offset, depth_simd_dimensions);                             \
+                            update_fn(&accumulator_tiles[i_tile + ii][j_tile + 3], vec_i[i_tile + ii],               \
+                                      vec_j[j_tile + 3], offset, depth_simd_dimensions);                             \
+                        }                                                                                            \
+                    }                                                                                                \
+                    else {                                                                                           \
+                        for (nk_size_t ii = 0; ii < tile_i_size; ii++) {                                             \
+                            for (nk_size_t jj = 0; jj < tile_j_size; jj++) {                                         \
+                                update_fn(&accumulator_tiles[i_tile + ii][j_tile + jj], vec_i[i_tile + ii],          \
+                                          vec_j[j_tile + jj], offset, depth_simd_dimensions);                        \
+                            }                                                                                        \
+                        }                                                                                            \
+                    }                                                                                                \
+                }                                                                                                    \
+            }                                                                                                        \
+        }                                                                                                            \
+                                                                                                                     \
+        if (remainder_depth > 0) {                                                                                   \
+            for (nk_size_t i = 0; i < macro_i_size; i++) {                                                           \
+                partial_load_fn(vectors + (i_macro + i) * vectors_stride_elements + aligned_depth, &vec_i[i],        \
+                                remainder_dimensions);                                                               \
+            }                                                                                                        \
+            for (nk_size_t j = 0; j < macro_j_size; j++) {                                                           \
+                partial_load_fn(vectors + (j_macro + j) * vectors_stride_elements + aligned_depth, &vec_j[j],        \
+                                remainder_dimensions);                                                               \
+            }                                                                                                        \
+            nk_size_t offset = aligned_depth * dimensions_per_value;                                                 \
+            for (nk_size_t i_tile = 0; i_tile < macro_i_size; i_tile += 4) {                                         \
+                for (nk_size_t j_tile = 0; j_tile < macro_j_size; j_tile += 4) {                                     \
+                    nk_size_t tile_i_size = (i_tile + 4 <= macro_i_size) ? 4 : (macro_i_size - i_tile);              \
+                    nk_size_t tile_j_size = (j_tile + 4 <= macro_j_size) ? 4 : (macro_j_size - j_tile);              \
+                    for (nk_size_t ii = 0; ii < tile_i_size; ii++) {                                                 \
+                        for (nk_size_t jj = 0; jj < tile_j_size; jj++) {                                             \
+                            update_fn(&accumulator_tiles[i_tile + ii][j_tile + jj], vec_i[i_tile + ii],              \
+                                      vec_j[j_tile + jj], offset, remainder_dimensions);                             \
+                        }                                                                                            \
+                    }                                                                                                \
+                }                                                                                                    \
+            }                                                                                                        \
+        }                                                                                                            \
+                                                                                                                     \
+        /* Finalize and store (no mirroring - off-diagonal already in upper triangle) */                             \
+        for (nk_size_t ii = 0; ii < macro_i_size; ii++) {                                                            \
+            nk_size_t jj = 0;                                                                                        \
+            /* Process 4 at a time */                                                                                \
+            for (; jj + 4 <= macro_j_size; jj += 4) {                                                                \
+                result_vec_type result_vec;                                                                          \
+                finalize_fn(&accumulator_tiles[ii][jj], &accumulator_tiles[ii][jj + 1],                              \
+                            &accumulator_tiles[ii][jj + 2], &accumulator_tiles[ii][jj + 3], &result_vec, depth);     \
+                nk_##output_type##_t *out_ptr = &result[(i_macro + ii) * result_stride_elements + (j_macro + jj)];   \
+                store_fn(&result_vec, out_ptr, 4);                                                                   \
+            }                                                                                                        \
+            /* Handle remaining elements (< 4) */                                                                    \
+            if (jj < macro_j_size) {                                                                                 \
+                nk_size_t remaining = macro_j_size - jj;                                                             \
+                result_vec_type result_vec;                                                                          \
+                finalize_fn(&accumulator_tiles[ii][jj], &accumulator_tiles[ii][jj + 1],                              \
+                            &accumulator_tiles[ii][jj + 2], &accumulator_tiles[ii][jj + 3], &result_vec, depth);     \
+                nk_##output_type##_t *out_ptr = &result[(i_macro + ii) * result_stride_elements + (j_macro + jj)];   \
+                store_fn(&result_vec, out_ptr, remaining);                                                           \
+            }                                                                                                        \
+        }                                                                                                            \
     }
 
 /**
@@ -1067,17 +1064,18 @@ typedef struct {
  * - Parallelization support via row_start/row_count parameters
  */
 #define nk_define_dots_symmetric_(name, suffix, input_type, output_type, vec_type, state_type, result_vec_type,        \
-                                  init_fn, load_fn, partial_load_fn, update_fn, finalize_fn, depth_simd_dimensions,    \
-                                  dimensions_per_value)                                                                \
+                                  init_fn, load_fn, partial_load_fn, update_fn, finalize_fn, store_fn,                 \
+                                  depth_simd_dimensions, dimensions_per_value)                                         \
     nk_define_dots_symmetric_diagonal_helper_(name, suffix, input_type, output_type, vec_type, state_type,             \
                                               result_vec_type, init_fn, load_fn, partial_load_fn, update_fn,           \
-                                              finalize_fn, depth_simd_dimensions, dimensions_per_value)                \
+                                              finalize_fn, store_fn, depth_simd_dimensions, dimensions_per_value)      \
         nk_define_dots_symmetric_offdiagonal_helper_(                                                                  \
             name, suffix, input_type, output_type, vec_type, state_type, result_vec_type, init_fn, load_fn,            \
-            partial_load_fn, update_fn, finalize_fn, depth_simd_dimensions, dimensions_per_value) NK_PUBLIC void       \
-        nk_dots_symmetric_##name##_##suffix(nk_##input_type##_t const *vectors, nk_size_t n_vectors, nk_size_t depth,  \
-                                            nk_size_t stride, nk_##output_type##_t *result, nk_size_t result_stride,   \
-                                            nk_size_t row_start, nk_size_t row_count) {                                \
+            partial_load_fn, update_fn, finalize_fn, store_fn, depth_simd_dimensions, dimensions_per_value)            \
+            NK_PUBLIC void                                                                                             \
+            nk_dots_symmetric_##name##_##suffix(nk_##input_type##_t const *vectors, nk_size_t n_vectors,               \
+                                                nk_size_t depth, nk_size_t stride, nk_##output_type##_t *result,       \
+                                                nk_size_t result_stride, nk_size_t row_start, nk_size_t row_count) {   \
         nk_size_t const macro_tile_size = 32;                                                                          \
         nk_size_t const finalizer_batch_size = 4;                                                                      \
                                                                                                                        \
@@ -1126,8 +1124,8 @@ nk_define_dots_pack_(f64, serial, f64, f64, f64, nk_assign_from_to_, /*depth_sim
                      /*dimensions_per_value=*/1)
 nk_define_dots_symmetric_(f64, serial, f64, f64, nk_b128_vec_t, nk_dot_f64x2_state_serial_t, nk_b256_vec_t,
                           nk_dot_f64x2_init_serial, nk_load_b128_serial_, nk_partial_load_b64x2_serial_,
-                          nk_dot_f64x2_update_serial, nk_dot_f64x2_finalize_serial, /*depth_simd_dimensions=*/2,
-                          /*dimensions_per_value=*/1)
+                          nk_dot_f64x2_update_serial, nk_dot_f64x2_finalize_serial, nk_partial_store_b64x4_serial_,
+                          /*depth_simd_dimensions=*/2, /*dimensions_per_value=*/1)
 nk_define_dots_packed_(f64, serial, f64, f64, f64, nk_b128_vec_t, nk_dot_f64x2_state_serial_t, nk_b256_vec_t,
                        nk_dot_f64x2_init_serial, nk_load_b128_serial_, nk_partial_load_b64x2_serial_,
                        nk_load_b128_serial_, nk_partial_load_b64x2_serial_, nk_dot_f64x2_update_serial,
@@ -1140,8 +1138,8 @@ nk_define_dots_pack_(f32, serial, f32, f32, f32, nk_assign_from_to_, /*depth_sim
                      /*dimensions_per_value=*/1)
 nk_define_dots_symmetric_(f32, serial, f32, f32, nk_b128_vec_t, nk_dot_f32x4_state_serial_t, nk_b128_vec_t,
                           nk_dot_f32x4_init_serial, nk_load_b128_serial_, nk_partial_load_b32x4_serial_,
-                          nk_dot_f32x4_update_serial, nk_dot_f32x4_finalize_serial, /*depth_simd_dimensions=*/4,
-                          /*dimensions_per_value=*/1)
+                          nk_dot_f32x4_update_serial, nk_dot_f32x4_finalize_serial, nk_partial_store_b32x4_serial_,
+                          /*depth_simd_dimensions=*/4, /*dimensions_per_value=*/1)
 nk_define_dots_packed_(f32, serial, f32, f32, f32, nk_b128_vec_t, nk_dot_f32x4_state_serial_t, nk_b128_vec_t,
                        nk_dot_f32x4_init_serial, nk_load_b128_serial_, nk_partial_load_b32x4_serial_,
                        nk_load_b128_serial_, nk_partial_load_b32x4_serial_, nk_dot_f32x4_update_serial,
@@ -1154,8 +1152,8 @@ nk_define_dots_pack_(f16, serial, f16, f16, f32, nk_assign_from_to_, /*depth_sim
                      /*dimensions_per_value=*/1)
 nk_define_dots_symmetric_(f16, serial, f16, f32, nk_b128_vec_t, nk_dot_f16x8_state_serial_t, nk_b128_vec_t,
                           nk_dot_f16x8_init_serial, nk_load_b128_serial_, nk_partial_load_b16x8_serial_,
-                          nk_dot_f16x8_update_serial, nk_dot_f16x8_finalize_serial, /*depth_simd_dimensions=*/8,
-                          /*dimensions_per_value=*/1)
+                          nk_dot_f16x8_update_serial, nk_dot_f16x8_finalize_serial, nk_partial_store_b32x4_serial_,
+                          /*depth_simd_dimensions=*/8, /*dimensions_per_value=*/1)
 nk_define_dots_packed_(f16, serial, f16, f16, f32, nk_b128_vec_t, nk_dot_f16x8_state_serial_t, nk_b128_vec_t,
                        nk_dot_f16x8_init_serial, nk_load_b128_serial_, nk_partial_load_b16x8_serial_,
                        nk_load_b128_serial_, nk_partial_load_b16x8_serial_, nk_dot_f16x8_update_serial,
@@ -1168,8 +1166,8 @@ nk_define_dots_pack_(bf16, serial, bf16, bf16, f32, nk_assign_from_to_, /*depth_
                      /*dimensions_per_value=*/1)
 nk_define_dots_symmetric_(bf16, serial, bf16, f32, nk_b128_vec_t, nk_dot_bf16x8_state_serial_t, nk_b128_vec_t,
                           nk_dot_bf16x8_init_serial, nk_load_b128_serial_, nk_partial_load_b16x8_serial_,
-                          nk_dot_bf16x8_update_serial, nk_dot_bf16x8_finalize_serial, /*depth_simd_dimensions=*/8,
-                          /*dimensions_per_value=*/1)
+                          nk_dot_bf16x8_update_serial, nk_dot_bf16x8_finalize_serial, nk_partial_store_b32x4_serial_,
+                          /*depth_simd_dimensions=*/8, /*dimensions_per_value=*/1)
 nk_define_dots_packed_(bf16, serial, bf16, bf16, f32, nk_b128_vec_t, nk_dot_bf16x8_state_serial_t, nk_b128_vec_t,
                        nk_dot_bf16x8_init_serial, nk_load_b128_serial_, nk_partial_load_b16x8_serial_,
                        nk_load_b128_serial_, nk_partial_load_b16x8_serial_, nk_dot_bf16x8_update_serial,
@@ -1182,8 +1180,8 @@ nk_define_dots_pack_(i8, serial, i8, i8, i32, nk_assign_from_to_, /*depth_simd_d
                      /*dimensions_per_value=*/1)
 nk_define_dots_symmetric_(i8, serial, i8, i32, nk_b128_vec_t, nk_dot_i8x16_state_serial_t, nk_b128_vec_t,
                           nk_dot_i8x16_init_serial, nk_load_b128_serial_, nk_partial_load_b8x16_serial_,
-                          nk_dot_i8x16_update_serial, nk_dot_i8x16_finalize_serial, /*depth_simd_dimensions=*/16,
-                          /*dimensions_per_value=*/1)
+                          nk_dot_i8x16_update_serial, nk_dot_i8x16_finalize_serial, nk_partial_store_b32x4_serial_,
+                          /*depth_simd_dimensions=*/16, /*dimensions_per_value=*/1)
 nk_define_dots_packed_(i8, serial, i8, i8, i32, nk_b128_vec_t, nk_dot_i8x16_state_serial_t, nk_b128_vec_t,
                        nk_dot_i8x16_init_serial, nk_load_b128_serial_, nk_partial_load_b8x16_serial_,
                        nk_load_b128_serial_, nk_partial_load_b8x16_serial_, nk_dot_i8x16_update_serial,
@@ -1196,8 +1194,8 @@ nk_define_dots_pack_(u8, serial, u8, u8, u32, nk_assign_from_to_, /*depth_simd_d
                      /*dimensions_per_value=*/1)
 nk_define_dots_symmetric_(u8, serial, u8, u32, nk_b128_vec_t, nk_dot_u8x16_state_serial_t, nk_b128_vec_t,
                           nk_dot_u8x16_init_serial, nk_load_b128_serial_, nk_partial_load_b8x16_serial_,
-                          nk_dot_u8x16_update_serial, nk_dot_u8x16_finalize_serial, /*depth_simd_dimensions=*/16,
-                          /*dimensions_per_value=*/1)
+                          nk_dot_u8x16_update_serial, nk_dot_u8x16_finalize_serial, nk_partial_store_b32x4_serial_,
+                          /*depth_simd_dimensions=*/16, /*dimensions_per_value=*/1)
 nk_define_dots_packed_(u8, serial, u8, u8, u32, nk_b128_vec_t, nk_dot_u8x16_state_serial_t, nk_b128_vec_t,
                        nk_dot_u8x16_init_serial, nk_load_b128_serial_, nk_partial_load_b8x16_serial_,
                        nk_load_b128_serial_, nk_partial_load_b8x16_serial_, nk_dot_u8x16_update_serial,
@@ -1210,8 +1208,8 @@ nk_define_dots_pack_(e4m3, serial, e4m3, e4m3, f32, nk_assign_from_to_, /*depth_
                      /*dimensions_per_value=*/1)
 nk_define_dots_symmetric_(e4m3, serial, e4m3, f32, nk_b128_vec_t, nk_dot_e4m3x16_state_serial_t, nk_b128_vec_t,
                           nk_dot_e4m3x16_init_serial, nk_load_b128_serial_, nk_partial_load_b8x16_serial_,
-                          nk_dot_e4m3x16_update_serial, nk_dot_e4m3x16_finalize_serial, /*depth_simd_dimensions=*/16,
-                          /*dimensions_per_value=*/1)
+                          nk_dot_e4m3x16_update_serial, nk_dot_e4m3x16_finalize_serial, nk_partial_store_b32x4_serial_,
+                          /*depth_simd_dimensions=*/16, /*dimensions_per_value=*/1)
 nk_define_dots_packed_(e4m3, serial, e4m3, e4m3, f32, nk_b128_vec_t, nk_dot_e4m3x16_state_serial_t, nk_b128_vec_t,
                        nk_dot_e4m3x16_init_serial, nk_load_b128_serial_, nk_partial_load_b8x16_serial_,
                        nk_load_b128_serial_, nk_partial_load_b8x16_serial_, nk_dot_e4m3x16_update_serial,
@@ -1224,8 +1222,8 @@ nk_define_dots_pack_(e5m2, serial, e5m2, e5m2, f32, nk_assign_from_to_, /*depth_
                      /*dimensions_per_value=*/1)
 nk_define_dots_symmetric_(e5m2, serial, e5m2, f32, nk_b128_vec_t, nk_dot_e5m2x16_state_serial_t, nk_b128_vec_t,
                           nk_dot_e5m2x16_init_serial, nk_load_b128_serial_, nk_partial_load_b8x16_serial_,
-                          nk_dot_e5m2x16_update_serial, nk_dot_e5m2x16_finalize_serial, /*depth_simd_dimensions=*/16,
-                          /*dimensions_per_value=*/1)
+                          nk_dot_e5m2x16_update_serial, nk_dot_e5m2x16_finalize_serial, nk_partial_store_b32x4_serial_,
+                          /*depth_simd_dimensions=*/16, /*dimensions_per_value=*/1)
 nk_define_dots_packed_(e5m2, serial, e5m2, e5m2, f32, nk_b128_vec_t, nk_dot_e5m2x16_state_serial_t, nk_b128_vec_t,
                        nk_dot_e5m2x16_init_serial, nk_load_b128_serial_, nk_partial_load_b8x16_serial_,
                        nk_load_b128_serial_, nk_partial_load_b8x16_serial_, nk_dot_e5m2x16_update_serial,
@@ -1238,8 +1236,8 @@ nk_define_dots_pack_(e2m3, serial, e2m3, e2m3, f32, nk_assign_from_to_, /*depth_
                      /*dimensions_per_value=*/1)
 nk_define_dots_symmetric_(e2m3, serial, e2m3, f32, nk_b128_vec_t, nk_dot_e2m3x16_state_serial_t, nk_b128_vec_t,
                           nk_dot_e2m3x16_init_serial, nk_load_b128_serial_, nk_partial_load_b8x16_serial_,
-                          nk_dot_e2m3x16_update_serial, nk_dot_e2m3x16_finalize_serial, /*depth_simd_dimensions=*/16,
-                          /*dimensions_per_value=*/1)
+                          nk_dot_e2m3x16_update_serial, nk_dot_e2m3x16_finalize_serial, nk_partial_store_b32x4_serial_,
+                          /*depth_simd_dimensions=*/16, /*dimensions_per_value=*/1)
 nk_define_dots_packed_(e2m3, serial, e2m3, e2m3, f32, nk_b128_vec_t, nk_dot_e2m3x16_state_serial_t, nk_b128_vec_t,
                        nk_dot_e2m3x16_init_serial, nk_load_b128_serial_, nk_partial_load_b8x16_serial_,
                        nk_load_b128_serial_, nk_partial_load_b8x16_serial_, nk_dot_e2m3x16_update_serial,
@@ -1252,8 +1250,8 @@ nk_define_dots_pack_(e3m2, serial, e3m2, e3m2, f32, nk_assign_from_to_, /*depth_
                      /*dimensions_per_value=*/1)
 nk_define_dots_symmetric_(e3m2, serial, e3m2, f32, nk_b128_vec_t, nk_dot_e3m2x16_state_serial_t, nk_b128_vec_t,
                           nk_dot_e3m2x16_init_serial, nk_load_b128_serial_, nk_partial_load_b8x16_serial_,
-                          nk_dot_e3m2x16_update_serial, nk_dot_e3m2x16_finalize_serial, /*depth_simd_dimensions=*/16,
-                          /*dimensions_per_value=*/1)
+                          nk_dot_e3m2x16_update_serial, nk_dot_e3m2x16_finalize_serial, nk_partial_store_b32x4_serial_,
+                          /*depth_simd_dimensions=*/16, /*dimensions_per_value=*/1)
 nk_define_dots_packed_(e3m2, serial, e3m2, e3m2, f32, nk_b128_vec_t, nk_dot_e3m2x16_state_serial_t, nk_b128_vec_t,
                        nk_dot_e3m2x16_init_serial, nk_load_b128_serial_, nk_partial_load_b8x16_serial_,
                        nk_load_b128_serial_, nk_partial_load_b8x16_serial_, nk_dot_e3m2x16_update_serial,
@@ -1266,8 +1264,8 @@ nk_define_dots_pack_(u4, serial, u4x2, u4x2, u32, nk_assign_from_to_, /*depth_si
                      /*dimensions_per_value=*/2)
 nk_define_dots_symmetric_(u4, serial, u4x2, u32, nk_b64_vec_t, nk_dot_u4x16_state_serial_t, nk_b128_vec_t,
                           nk_dot_u4x16_init_serial, nk_load_b64_serial_, nk_partial_load_b4x16_serial_,
-                          nk_dot_u4x16_update_serial, nk_dot_u4x16_finalize_serial, /*depth_simd_dimensions=*/16,
-                          /*dimensions_per_value=*/2)
+                          nk_dot_u4x16_update_serial, nk_dot_u4x16_finalize_serial, nk_partial_store_b32x4_serial_,
+                          /*depth_simd_dimensions=*/16, /*dimensions_per_value=*/2)
 nk_define_dots_packed_(u4, serial, u4x2, u4x2, u32, nk_b64_vec_t, nk_dot_u4x16_state_serial_t, nk_b128_vec_t,
                        nk_dot_u4x16_init_serial, nk_load_b64_serial_, nk_partial_load_b4x16_serial_,
                        nk_load_b64_serial_, nk_partial_load_b4x16_serial_, nk_dot_u4x16_update_serial,
@@ -1280,8 +1278,8 @@ nk_define_dots_pack_(i4, serial, i4x2, i4x2, i32, nk_assign_from_to_, /*depth_si
                      /*dimensions_per_value=*/2)
 nk_define_dots_symmetric_(i4, serial, i4x2, i32, nk_b64_vec_t, nk_dot_i4x16_state_serial_t, nk_b128_vec_t,
                           nk_dot_i4x16_init_serial, nk_load_b64_serial_, nk_partial_load_b4x16_serial_,
-                          nk_dot_i4x16_update_serial, nk_dot_i4x16_finalize_serial, /*depth_simd_dimensions=*/16,
-                          /*dimensions_per_value=*/2)
+                          nk_dot_i4x16_update_serial, nk_dot_i4x16_finalize_serial, nk_partial_store_b32x4_serial_,
+                          /*depth_simd_dimensions=*/16, /*dimensions_per_value=*/2)
 nk_define_dots_packed_(i4, serial, i4x2, i4x2, i32, nk_b64_vec_t, nk_dot_i4x16_state_serial_t, nk_b128_vec_t,
                        nk_dot_i4x16_init_serial, nk_load_b64_serial_, nk_partial_load_b4x16_serial_,
                        nk_load_b64_serial_, nk_partial_load_b4x16_serial_, nk_dot_i4x16_update_serial,

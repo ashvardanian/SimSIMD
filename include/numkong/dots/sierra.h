@@ -35,7 +35,7 @@ nk_define_dots_pack_(i8, sierra, i8, i8, i32, nk_assign_from_to_, /*depth_simd_d
                      /*dimensions_per_value=*/1)
 nk_define_dots_symmetric_(i8, sierra, i8, i32, nk_b256_vec_t, nk_dot_i8x32_state_sierra_t, nk_b128_vec_t,
                           nk_dot_i8x32_init_sierra, nk_load_b256_haswell_, nk_partial_load_b8x32_serial_,
-                          nk_dot_i8x32_update_sierra, nk_dot_i8x32_finalize_sierra,
+                          nk_dot_i8x32_update_sierra, nk_dot_i8x32_finalize_sierra, nk_partial_store_b32x4_serial_,
                           /*depth_simd_dimensions=*/32, /*dimensions_per_value=*/1)
 nk_define_dots_packed_(i8, sierra, i8, i8, i32, nk_b256_vec_t, nk_dot_i8x32_state_sierra_t, nk_b128_vec_t,
                        nk_dot_i8x32_init_sierra, nk_load_b256_haswell_, nk_partial_load_b8x32_serial_,
@@ -49,7 +49,7 @@ nk_define_dots_pack_(u8, sierra, u8, u8, u32, nk_assign_from_to_, /*depth_simd_d
                      /*dimensions_per_value=*/1)
 nk_define_dots_symmetric_(u8, sierra, u8, u32, nk_b256_vec_t, nk_dot_u8x32_state_sierra_t, nk_b128_vec_t,
                           nk_dot_u8x32_init_sierra, nk_load_b256_haswell_, nk_partial_load_b8x32_serial_,
-                          nk_dot_u8x32_update_sierra, nk_dot_u8x32_finalize_sierra,
+                          nk_dot_u8x32_update_sierra, nk_dot_u8x32_finalize_sierra, nk_partial_store_b32x4_serial_,
                           /*depth_simd_dimensions=*/32, /*dimensions_per_value=*/1)
 nk_define_dots_packed_(u8, sierra, u8, u8, u32, nk_b256_vec_t, nk_dot_u8x32_state_sierra_t, nk_b128_vec_t,
                        nk_dot_u8x32_init_sierra, nk_load_b256_haswell_, nk_partial_load_b8x32_serial_,
