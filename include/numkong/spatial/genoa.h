@@ -293,6 +293,128 @@ nk_angular_e5m2_genoa_cycle:
     *result = nk_angular_normalize_f32_haswell_(dot_f32, a_norm_sq_f32, b_norm_sq_f32);
 }
 
+NK_PUBLIC void nk_sqeuclidean_e2m3_genoa(nk_e2m3_t const *a, nk_e2m3_t const *b, nk_size_t n, nk_f32_t *result) {
+    __m512 distance_sq_f32x16 = _mm512_setzero_ps();
+    __m256i a_e2m3x32, b_e2m3x32;
+
+nk_sqeuclidean_e2m3_genoa_cycle:
+    if (n < 32) {
+        __mmask32 mask = (__mmask32)_bzhi_u32(0xFFFFFFFF, n);
+        a_e2m3x32 = _mm256_maskz_loadu_epi8(mask, a);
+        b_e2m3x32 = _mm256_maskz_loadu_epi8(mask, b);
+        n = 0;
+    }
+    else {
+        a_e2m3x32 = _mm256_loadu_epi8(a);
+        b_e2m3x32 = _mm256_loadu_epi8(b);
+        a += 32, b += 32, n -= 32;
+    }
+    __m512i a_bf16x32 = nk_e2m3x32_to_bf16x32_ice_(a_e2m3x32);
+    __m512i b_bf16x32 = nk_e2m3x32_to_bf16x32_ice_(b_e2m3x32);
+    __m512i diff_bf16x32 = nk_substract_bf16x32_genoa_(a_bf16x32, b_bf16x32);
+    distance_sq_f32x16 = _mm512_dpbf16_ps(distance_sq_f32x16, (__m512bh)(diff_bf16x32), (__m512bh)(diff_bf16x32));
+    if (n) goto nk_sqeuclidean_e2m3_genoa_cycle;
+
+    *result = nk_reduce_add_f32x16_skylake_(distance_sq_f32x16);
+}
+
+NK_PUBLIC void nk_euclidean_e2m3_genoa(nk_e2m3_t const *a, nk_e2m3_t const *b, nk_size_t n, nk_f32_t *result) {
+    nk_sqeuclidean_e2m3_genoa(a, b, n, result);
+    *result = nk_sqrt_f32_haswell_(*result);
+}
+
+NK_PUBLIC void nk_angular_e2m3_genoa(nk_e2m3_t const *a, nk_e2m3_t const *b, nk_size_t n, nk_f32_t *result) {
+    __m512 dot_f32x16 = _mm512_setzero_ps();
+    __m512 a_norm_sq_f32x16 = _mm512_setzero_ps();
+    __m512 b_norm_sq_f32x16 = _mm512_setzero_ps();
+    __m256i a_e2m3x32, b_e2m3x32;
+
+nk_angular_e2m3_genoa_cycle:
+    if (n < 32) {
+        __mmask32 mask = (__mmask32)_bzhi_u32(0xFFFFFFFF, n);
+        a_e2m3x32 = _mm256_maskz_loadu_epi8(mask, a);
+        b_e2m3x32 = _mm256_maskz_loadu_epi8(mask, b);
+        n = 0;
+    }
+    else {
+        a_e2m3x32 = _mm256_loadu_epi8(a);
+        b_e2m3x32 = _mm256_loadu_epi8(b);
+        a += 32, b += 32, n -= 32;
+    }
+    __m512i a_bf16x32 = nk_e2m3x32_to_bf16x32_ice_(a_e2m3x32);
+    __m512i b_bf16x32 = nk_e2m3x32_to_bf16x32_ice_(b_e2m3x32);
+    dot_f32x16 = _mm512_dpbf16_ps(dot_f32x16, (__m512bh)(a_bf16x32), (__m512bh)(b_bf16x32));
+    a_norm_sq_f32x16 = _mm512_dpbf16_ps(a_norm_sq_f32x16, (__m512bh)(a_bf16x32), (__m512bh)(a_bf16x32));
+    b_norm_sq_f32x16 = _mm512_dpbf16_ps(b_norm_sq_f32x16, (__m512bh)(b_bf16x32), (__m512bh)(b_bf16x32));
+    if (n) goto nk_angular_e2m3_genoa_cycle;
+
+    nk_f32_t dot_f32 = nk_reduce_add_f32x16_skylake_(dot_f32x16);
+    nk_f32_t a_norm_sq_f32 = nk_reduce_add_f32x16_skylake_(a_norm_sq_f32x16);
+    nk_f32_t b_norm_sq_f32 = nk_reduce_add_f32x16_skylake_(b_norm_sq_f32x16);
+    *result = nk_angular_normalize_f32_haswell_(dot_f32, a_norm_sq_f32, b_norm_sq_f32);
+}
+
+NK_PUBLIC void nk_sqeuclidean_e3m2_genoa(nk_e3m2_t const *a, nk_e3m2_t const *b, nk_size_t n, nk_f32_t *result) {
+    __m512 distance_sq_f32x16 = _mm512_setzero_ps();
+    __m256i a_e3m2x32, b_e3m2x32;
+
+nk_sqeuclidean_e3m2_genoa_cycle:
+    if (n < 32) {
+        __mmask32 mask = (__mmask32)_bzhi_u32(0xFFFFFFFF, n);
+        a_e3m2x32 = _mm256_maskz_loadu_epi8(mask, a);
+        b_e3m2x32 = _mm256_maskz_loadu_epi8(mask, b);
+        n = 0;
+    }
+    else {
+        a_e3m2x32 = _mm256_loadu_epi8(a);
+        b_e3m2x32 = _mm256_loadu_epi8(b);
+        a += 32, b += 32, n -= 32;
+    }
+    __m512i a_bf16x32 = nk_e3m2x32_to_bf16x32_ice_(a_e3m2x32);
+    __m512i b_bf16x32 = nk_e3m2x32_to_bf16x32_ice_(b_e3m2x32);
+    __m512i diff_bf16x32 = nk_substract_bf16x32_genoa_(a_bf16x32, b_bf16x32);
+    distance_sq_f32x16 = _mm512_dpbf16_ps(distance_sq_f32x16, (__m512bh)(diff_bf16x32), (__m512bh)(diff_bf16x32));
+    if (n) goto nk_sqeuclidean_e3m2_genoa_cycle;
+
+    *result = nk_reduce_add_f32x16_skylake_(distance_sq_f32x16);
+}
+
+NK_PUBLIC void nk_euclidean_e3m2_genoa(nk_e3m2_t const *a, nk_e3m2_t const *b, nk_size_t n, nk_f32_t *result) {
+    nk_sqeuclidean_e3m2_genoa(a, b, n, result);
+    *result = nk_sqrt_f32_haswell_(*result);
+}
+
+NK_PUBLIC void nk_angular_e3m2_genoa(nk_e3m2_t const *a, nk_e3m2_t const *b, nk_size_t n, nk_f32_t *result) {
+    __m512 dot_f32x16 = _mm512_setzero_ps();
+    __m512 a_norm_sq_f32x16 = _mm512_setzero_ps();
+    __m512 b_norm_sq_f32x16 = _mm512_setzero_ps();
+    __m256i a_e3m2x32, b_e3m2x32;
+
+nk_angular_e3m2_genoa_cycle:
+    if (n < 32) {
+        __mmask32 mask = (__mmask32)_bzhi_u32(0xFFFFFFFF, n);
+        a_e3m2x32 = _mm256_maskz_loadu_epi8(mask, a);
+        b_e3m2x32 = _mm256_maskz_loadu_epi8(mask, b);
+        n = 0;
+    }
+    else {
+        a_e3m2x32 = _mm256_loadu_epi8(a);
+        b_e3m2x32 = _mm256_loadu_epi8(b);
+        a += 32, b += 32, n -= 32;
+    }
+    __m512i a_bf16x32 = nk_e3m2x32_to_bf16x32_ice_(a_e3m2x32);
+    __m512i b_bf16x32 = nk_e3m2x32_to_bf16x32_ice_(b_e3m2x32);
+    dot_f32x16 = _mm512_dpbf16_ps(dot_f32x16, (__m512bh)(a_bf16x32), (__m512bh)(b_bf16x32));
+    a_norm_sq_f32x16 = _mm512_dpbf16_ps(a_norm_sq_f32x16, (__m512bh)(a_bf16x32), (__m512bh)(a_bf16x32));
+    b_norm_sq_f32x16 = _mm512_dpbf16_ps(b_norm_sq_f32x16, (__m512bh)(b_bf16x32), (__m512bh)(b_bf16x32));
+    if (n) goto nk_angular_e3m2_genoa_cycle;
+
+    nk_f32_t dot_f32 = nk_reduce_add_f32x16_skylake_(dot_f32x16);
+    nk_f32_t a_norm_sq_f32 = nk_reduce_add_f32x16_skylake_(a_norm_sq_f32x16);
+    nk_f32_t b_norm_sq_f32 = nk_reduce_add_f32x16_skylake_(b_norm_sq_f32x16);
+    *result = nk_angular_normalize_f32_haswell_(dot_f32, a_norm_sq_f32, b_norm_sq_f32);
+}
+
 #if defined(__cplusplus)
 } // extern "C"
 #endif
