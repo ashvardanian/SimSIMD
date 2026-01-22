@@ -1562,6 +1562,18 @@ int main(int argc, char **argv) {
 
     dense_<e4m3_k, f32_k>("dot_e4m3_skylake", nk_dot_e4m3_skylake);
     dense_<e5m2_k, f32_k>("dot_e5m2_skylake", nk_dot_e5m2_skylake);
+    dense_<e4m3_k, f32_k>("angular_e4m3_skylake", nk_angular_e4m3_skylake);
+    dense_<e4m3_k, f32_k>("sqeuclidean_e4m3_skylake", nk_sqeuclidean_e4m3_skylake);
+    dense_<e4m3_k, f32_k>("euclidean_e4m3_skylake", nk_euclidean_e4m3_skylake);
+    dense_<e5m2_k, f32_k>("angular_e5m2_skylake", nk_angular_e5m2_skylake);
+    dense_<e5m2_k, f32_k>("sqeuclidean_e5m2_skylake", nk_sqeuclidean_e5m2_skylake);
+    dense_<e5m2_k, f32_k>("euclidean_e5m2_skylake", nk_euclidean_e5m2_skylake);
+    dense_<e2m3_k, f32_k>("angular_e2m3_skylake", nk_angular_e2m3_skylake);
+    dense_<e2m3_k, f32_k>("sqeuclidean_e2m3_skylake", nk_sqeuclidean_e2m3_skylake);
+    dense_<e2m3_k, f32_k>("euclidean_e2m3_skylake", nk_euclidean_e2m3_skylake);
+    dense_<e3m2_k, f32_k>("angular_e3m2_skylake", nk_angular_e3m2_skylake);
+    dense_<e3m2_k, f32_k>("sqeuclidean_e3m2_skylake", nk_sqeuclidean_e3m2_skylake);
+    dense_<e3m2_k, f32_k>("euclidean_e3m2_skylake", nk_euclidean_e3m2_skylake);
 
     dense_<i8_k, i32_k>("dot_i8_skylake", nk_dot_i8_skylake);
     dense_<u8_k, u32_k>("dot_u8_skylake", nk_dot_u8_skylake);
@@ -1657,6 +1669,18 @@ int main(int argc, char **argv) {
 
     dense_<e4m3_k, f32_k>("dot_e4m3_genoa", nk_dot_e4m3_genoa);
     dense_<e5m2_k, f32_k>("dot_e5m2_genoa", nk_dot_e5m2_genoa);
+    dense_<e4m3_k, f32_k>("angular_e4m3_genoa", nk_angular_e4m3_genoa);
+    dense_<e4m3_k, f32_k>("sqeuclidean_e4m3_genoa", nk_sqeuclidean_e4m3_genoa);
+    dense_<e4m3_k, f32_k>("euclidean_e4m3_genoa", nk_euclidean_e4m3_genoa);
+    dense_<e5m2_k, f32_k>("angular_e5m2_genoa", nk_angular_e5m2_genoa);
+    dense_<e5m2_k, f32_k>("sqeuclidean_e5m2_genoa", nk_sqeuclidean_e5m2_genoa);
+    dense_<e5m2_k, f32_k>("euclidean_e5m2_genoa", nk_euclidean_e5m2_genoa);
+    dense_<e2m3_k, f32_k>("angular_e2m3_genoa", nk_angular_e2m3_genoa);
+    dense_<e2m3_k, f32_k>("sqeuclidean_e2m3_genoa", nk_sqeuclidean_e2m3_genoa);
+    dense_<e2m3_k, f32_k>("euclidean_e2m3_genoa", nk_euclidean_e2m3_genoa);
+    dense_<e3m2_k, f32_k>("angular_e3m2_genoa", nk_angular_e3m2_genoa);
+    dense_<e3m2_k, f32_k>("sqeuclidean_e3m2_genoa", nk_sqeuclidean_e3m2_genoa);
+    dense_<e3m2_k, f32_k>("euclidean_e3m2_genoa", nk_euclidean_e3m2_genoa);
 
     curved_<bf16_k, f32_k>("bilinear_bf16_genoa", nk_bilinear_bf16_genoa);
     curved_<bf16_k, f32_k>("mahalanobis_bf16_genoa", nk_mahalanobis_bf16_genoa);
@@ -1762,8 +1786,20 @@ int main(int argc, char **argv) {
 
     dense_<e4m3_k, f32_k>("dot_e4m3_serial", nk_dot_e4m3_serial);
     dense_<e5m2_k, f32_k>("dot_e5m2_serial", nk_dot_e5m2_serial);
+    dense_<e4m3_k, f32_k>("angular_e4m3_serial", nk_angular_e4m3_serial);
+    dense_<e4m3_k, f32_k>("sqeuclidean_e4m3_serial", nk_sqeuclidean_e4m3_serial);
+    dense_<e4m3_k, f32_k>("euclidean_e4m3_serial", nk_euclidean_e4m3_serial);
+    dense_<e5m2_k, f32_k>("angular_e5m2_serial", nk_angular_e5m2_serial);
+    dense_<e5m2_k, f32_k>("sqeuclidean_e5m2_serial", nk_sqeuclidean_e5m2_serial);
+    dense_<e5m2_k, f32_k>("euclidean_e5m2_serial", nk_euclidean_e5m2_serial);
     dense_<e2m3_k, f32_k>("dot_e2m3_serial", nk_dot_e2m3_serial);
+    dense_<e2m3_k, f32_k>("angular_e2m3_serial", nk_angular_e2m3_serial);
+    dense_<e2m3_k, f32_k>("sqeuclidean_e2m3_serial", nk_sqeuclidean_e2m3_serial);
+    dense_<e2m3_k, f32_k>("euclidean_e2m3_serial", nk_euclidean_e2m3_serial);
     dense_<e3m2_k, f32_k>("dot_e3m2_serial", nk_dot_e3m2_serial);
+    dense_<e3m2_k, f32_k>("angular_e3m2_serial", nk_angular_e3m2_serial);
+    dense_<e3m2_k, f32_k>("sqeuclidean_e3m2_serial", nk_sqeuclidean_e3m2_serial);
+    dense_<e3m2_k, f32_k>("euclidean_e3m2_serial", nk_euclidean_e3m2_serial);
 
     dense_<f16_k, f32_k>("dot_f16_serial", nk_dot_f16_serial);
     dense_<f16_k, f32_k>("angular_f16_serial", nk_angular_f16_serial);
