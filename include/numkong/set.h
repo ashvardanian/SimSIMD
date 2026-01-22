@@ -7,6 +7,7 @@
  *  Contains following similarity measures:
  *
  *  - Bit-level Hamming distance → `u32` counter
+ *  - Byte-level Hamming distance → `u32` counter
  *  - Bit-level Jaccard distance (Tanimoto coefficient) → `f32` ratio
  *  - Jaccard distance for `u32` integral MinHash vectors from StringZilla → `f32` ratio
  *  - TODO: Weighted Jaccard distance for `u32` integral Count-Min-Sketch vectors → `f32` ratio

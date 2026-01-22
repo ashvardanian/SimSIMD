@@ -281,6 +281,10 @@
 #define NK_TARGET_SMEFA64 0
 #endif
 
+#if !defined(NK_TARGET_SMEBI32)
+#define NK_TARGET_SMEBI32 0
+#endif
+
 // Compiling for x86: NK_TARGET_HASWELL
 //
 // Starting with Ivy Bridge, Intel supports the `F16C` extensions for fast half-precision

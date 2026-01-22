@@ -144,7 +144,6 @@
 #define NK_DOTS_H
 
 #include "numkong/types.h"
-#include "numkong/dot.h" // nk_bf16x16_to_f32x16_skylake_
 
 #if defined(__cplusplus)
 extern "C" {
@@ -253,6 +252,8 @@ NK_DYNAMIC void nk_dots_packed_u4(nk_u4x2_t const *a, void const *b_packed, nk_u
  *  @param[in] stride Row stride in bytes for the input matrix.
  *  @param[out] result Output symmetric matrix (n_vectors × n_vectors).
  *  @param[in] result_stride Row stride in bytes for the result matrix.
+ *  @param[in] row_start Starting row offset of results to compute (needed for parallelism).
+ *  @param[in] row_count Number of rows of results to compute (needed for parallelism).
  */
 NK_DYNAMIC void nk_dots_symmetric_bf16(nk_bf16_t const *vectors, nk_size_t n_vectors, nk_size_t depth, nk_size_t stride,
                                        nk_f32_t *result, nk_size_t result_stride, nk_size_t row_start,
@@ -294,42 +295,6 @@ NK_DYNAMIC void nk_dots_symmetric_u4(nk_u4x2_t const *vectors, nk_size_t n_vecto
                                      nk_u32_t *result, nk_size_t result_stride, nk_size_t row_start,
                                      nk_size_t row_count);
 
-/** @copydoc nk_dots_packed_size_f32 */
-NK_PUBLIC nk_size_t nk_dots_packed_size_f32_serial(nk_size_t n, nk_size_t k);
-/** @copydoc nk_dots_pack_f32 */
-NK_PUBLIC void nk_dots_pack_f32_serial(nk_f32_t const *b, nk_size_t n, nk_size_t k, nk_size_t b_stride, void *b_packed);
-/** @copydoc nk_dots_packed_f32 */
-NK_PUBLIC void nk_dots_packed_f32_serial(nk_f32_t const *a, void const *b_packed, nk_f32_t *c, nk_size_t m, nk_size_t n,
-                                         nk_size_t k, nk_size_t a_stride, nk_size_t c_stride);
-/** @copydoc nk_dots_symmetric_f32 */
-NK_PUBLIC void nk_dots_symmetric_f32_serial(nk_f32_t const *vectors, nk_size_t n_vectors, nk_size_t depth,
-                                            nk_size_t stride, nk_f32_t *result, nk_size_t result_stride,
-                                            nk_size_t row_start, nk_size_t row_count);
-
-/** @copydoc nk_dots_packed_size_f64 */
-NK_PUBLIC nk_size_t nk_dots_packed_size_f64_serial(nk_size_t n, nk_size_t k);
-/** @copydoc nk_dots_pack_f64 */
-NK_PUBLIC void nk_dots_pack_f64_serial(nk_f64_t const *b, nk_size_t n, nk_size_t k, nk_size_t b_stride, void *b_packed);
-/** @copydoc nk_dots_packed_f64 */
-NK_PUBLIC void nk_dots_packed_f64_serial(nk_f64_t const *a, void const *b_packed, nk_f64_t *c, nk_size_t m, nk_size_t n,
-                                         nk_size_t k, nk_size_t a_stride, nk_size_t c_stride);
-/** @copydoc nk_dots_symmetric_f64 */
-NK_PUBLIC void nk_dots_symmetric_f64_serial(nk_f64_t const *vectors, nk_size_t n_vectors, nk_size_t depth,
-                                            nk_size_t stride, nk_f64_t *result, nk_size_t result_stride,
-                                            nk_size_t row_start, nk_size_t row_count);
-
-/** @copydoc nk_dots_packed_size_f16 */
-NK_PUBLIC nk_size_t nk_dots_packed_size_f16_serial(nk_size_t n, nk_size_t k);
-/** @copydoc nk_dots_pack_f16 */
-NK_PUBLIC void nk_dots_pack_f16_serial(nk_f16_t const *b, nk_size_t n, nk_size_t k, nk_size_t b_stride, void *b_packed);
-/** @copydoc nk_dots_packed_f16 */
-NK_PUBLIC void nk_dots_packed_f16_serial(nk_f16_t const *a, void const *b_packed, nk_f32_t *c, nk_size_t m, nk_size_t n,
-                                         nk_size_t k, nk_size_t a_stride, nk_size_t c_stride);
-/** @copydoc nk_dots_symmetric_f16 */
-NK_PUBLIC void nk_dots_symmetric_f16_serial(nk_f16_t const *vectors, nk_size_t n_vectors, nk_size_t depth,
-                                            nk_size_t stride, nk_f32_t *result, nk_size_t result_stride,
-                                            nk_size_t row_start, nk_size_t row_count);
-
 /**
  *  @brief Compacts f32 GEMM output to bf16 (in-place).
  *
@@ -361,6 +326,41 @@ NK_DYNAMIC void nk_dots_compact_bf16(void *c, nk_size_t m, nk_size_t n, nk_size_
  */
 NK_DYNAMIC void nk_dots_compact_i8(void *c, nk_size_t m, nk_size_t n, nk_size_t c_stride,
                                    nk_i32_t const *a_squared_norms, nk_i32_t const *b_squared_norms);
+
+/** @copydoc nk_dots_packed_size_f32 */
+NK_PUBLIC nk_size_t nk_dots_packed_size_f32_serial(nk_size_t n, nk_size_t k);
+/** @copydoc nk_dots_pack_f32 */
+NK_PUBLIC void nk_dots_pack_f32_serial(nk_f32_t const *b, nk_size_t n, nk_size_t k, nk_size_t b_stride, void *b_packed);
+/** @copydoc nk_dots_packed_f32 */
+NK_PUBLIC void nk_dots_packed_f32_serial(nk_f32_t const *a, void const *b_packed, nk_f32_t *c, nk_size_t m, nk_size_t n,
+                                         nk_size_t k, nk_size_t a_stride, nk_size_t c_stride);
+/** @copydoc nk_dots_symmetric_f32 */
+NK_PUBLIC void 11(nk_f32_t const *vectors, nk_size_t n_vectors, nk_size_t depth, nk_size_t stride, nk_f32_t *result,
+                  nk_size_t result_stride, nk_size_t row_start, nk_size_t row_count);
+
+/** @copydoc nk_dots_packed_size_f64 */
+NK_PUBLIC nk_size_t nk_dots_packed_size_f64_serial(nk_size_t n, nk_size_t k);
+/** @copydoc nk_dots_pack_f64 */
+NK_PUBLIC void nk_dots_pack_f64_serial(nk_f64_t const *b, nk_size_t n, nk_size_t k, nk_size_t b_stride, void *b_packed);
+/** @copydoc nk_dots_packed_f64 */
+NK_PUBLIC void nk_dots_packed_f64_serial(nk_f64_t const *a, void const *b_packed, nk_f64_t *c, nk_size_t m, nk_size_t n,
+                                         nk_size_t k, nk_size_t a_stride, nk_size_t c_stride);
+/** @copydoc nk_dots_symmetric_f64 */
+NK_PUBLIC void nk_dots_symmetric_f64_serial(nk_f64_t const *vectors, nk_size_t n_vectors, nk_size_t depth,
+                                            nk_size_t stride, nk_f64_t *result, nk_size_t result_stride,
+                                            nk_size_t row_start, nk_size_t row_count);
+
+/** @copydoc nk_dots_packed_size_f16 */
+NK_PUBLIC nk_size_t nk_dots_packed_size_f16_serial(nk_size_t n, nk_size_t k);
+/** @copydoc nk_dots_pack_f16 */
+NK_PUBLIC void nk_dots_pack_f16_serial(nk_f16_t const *b, nk_size_t n, nk_size_t k, nk_size_t b_stride, void *b_packed);
+/** @copydoc nk_dots_packed_f16 */
+NK_PUBLIC void nk_dots_packed_f16_serial(nk_f16_t const *a, void const *b_packed, nk_f32_t *c, nk_size_t m, nk_size_t n,
+                                         nk_size_t k, nk_size_t a_stride, nk_size_t c_stride);
+/** @copydoc nk_dots_symmetric_f16 */
+NK_PUBLIC void nk_dots_symmetric_f16_serial(nk_f16_t const *vectors, nk_size_t n_vectors, nk_size_t depth,
+                                            nk_size_t stride, nk_f32_t *result, nk_size_t result_stride,
+                                            nk_size_t row_start, nk_size_t row_count);
 
 /** @copydoc nk_dots_packed_size_bf16 */
 NK_PUBLIC nk_size_t nk_dots_packed_size_bf16_serial(nk_size_t n, nk_size_t k);

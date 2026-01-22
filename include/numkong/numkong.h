@@ -3384,6 +3384,7 @@ NK_DYNAMIC int nk_uses_smehalf(void);
 NK_DYNAMIC int nk_uses_smebf16(void);
 NK_DYNAMIC int nk_uses_smelut2(void);
 NK_DYNAMIC int nk_uses_smefa64(void);
+NK_DYNAMIC int nk_uses_smebi32(void);
 NK_DYNAMIC int nk_uses_haswell(void);
 NK_DYNAMIC int nk_uses_skylake(void);
 NK_DYNAMIC int nk_uses_ice(void);
@@ -3428,6 +3429,7 @@ NK_PUBLIC int nk_uses_smehalf(void) { return NK_TARGET_ARM_ && NK_TARGET_SMEHALF
 NK_PUBLIC int nk_uses_smebf16(void) { return NK_TARGET_ARM_ && NK_TARGET_SMEBF16; }
 NK_PUBLIC int nk_uses_smelut2(void) { return NK_TARGET_ARM_ && NK_TARGET_SMELUT2; }
 NK_PUBLIC int nk_uses_smefa64(void) { return NK_TARGET_ARM_ && NK_TARGET_SMEFA64; }
+NK_PUBLIC int nk_uses_smebi32(void) { return NK_TARGET_ARM_ && NK_TARGET_SMEBI32; }
 NK_PUBLIC int nk_uses_haswell(void) { return NK_TARGET_X86_ && NK_TARGET_HASWELL; }
 NK_PUBLIC int nk_uses_skylake(void) { return NK_TARGET_X86_ && NK_TARGET_SKYLAKE; }
 NK_PUBLIC int nk_uses_ice(void) { return NK_TARGET_X86_ && NK_TARGET_ICE; }
