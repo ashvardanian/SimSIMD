@@ -153,8 +153,8 @@ void measure_dense(bm::State &state, kernel_type_ kernel, std::size_t dimensions
     for (std::size_t index = 0; index != vectors_count; ++index) {
         first_vectors[index] = make_vector<input_t>(dimensions);
         second_vectors[index] = make_vector<input_t>(dimensions);
-        nk::fill_uniform(generator, first_vectors[index].values_data(), dimensions);
-        nk::fill_uniform(generator, second_vectors[index].values_data(), dimensions);
+        nk::fill_uniform(generator, first_vectors[index].values_data(), first_vectors[index].size_values());
+        nk::fill_uniform(generator, second_vectors[index].values_data(), second_vectors[index].size_values());
     }
 
     // Benchmark loop
