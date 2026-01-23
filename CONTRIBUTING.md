@@ -32,7 +32,7 @@ To rerun experiments utilize the following command:
 
 ```sh
 sudo apt install libopenblas-dev # BLAS installation is optional, but recommended for benchmarks
-cmake -D CMAKE_BUILD_TYPE=Release -D NK_BUILD_TESTS=1 -D NK_BUILD_BENCHMARKS=1 -D NK_BUILD_BENCHMARKS_WITH_CBLAS=1 -B build_release
+cmake -D CMAKE_BUILD_TYPE=Release -D NK_BUILD_TEST=1 -D NK_BUILD_BENCH=1 -D NK_COMPARE_TO_BLAS=1 -B build_release
 cmake --build build_release --config Release
 build_release/nk_bench
 build_release/nk_bench --benchmark_filter=js
@@ -53,8 +53,8 @@ sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-12 100
 To cross-compile for a different ISA, use CMake toolchains:
 
 ```sh
-cmake -B build_riscv -D CMAKE_TOOLCHAIN_FILE=cmake/riscv64-linux-gnu.cmake -D NK_BUILD_TESTS=1
-cmake -B build_arm64 -D CMAKE_TOOLCHAIN_FILE=cmake/aarch64-linux-gnu.cmake -D NK_BUILD_TESTS=1
+cmake -B build_riscv -D CMAKE_TOOLCHAIN_FILE=cmake/riscv64-linux-gnu.cmake -D NK_BUILD_TEST=1
+cmake -B build_arm64 -D CMAKE_TOOLCHAIN_FILE=cmake/aarch64-linux-gnu.cmake -D NK_BUILD_TEST=1
 ```
 
 To compile with the default Apple Clang on macOS, use:
@@ -62,9 +62,9 @@ To compile with the default Apple Clang on macOS, use:
 ```sh
 brew install openblas
 cmake -D CMAKE_BUILD_TYPE=Release \
-      -D NK_BUILD_TESTS=1 \
-      -D NK_BUILD_BENCHMARKS=1 \
-      -D NK_BUILD_BENCHMARKS_WITH_CBLAS=1 \
+      -D NK_BUILD_TEST=1 \
+      -D NK_BUILD_BENCH=1 \
+      -D NK_COMPARE_TO_BLAS=1 \
       -D CMAKE_PREFIX_PATH="$(brew --prefix openblas)" \
       -D CMAKE_CXX_STANDARD_INCLUDE_DIRECTORIES="$(brew --prefix openblas)/include" \
       -B build_release
@@ -78,9 +78,9 @@ Replacing the default compiler across the entire system is not recommended on ma
 brew install llvm openblas
 unset DEVELOPER_DIR
 cmake -D CMAKE_BUILD_TYPE=Release \
-      -D NK_BUILD_TESTS=1 \
-      -D NK_BUILD_BENCHMARKS=1 \
-      -D NK_BUILD_BENCHMARKS_WITH_CBLAS=1 \
+      -D NK_BUILD_TEST=1 \
+      -D NK_BUILD_BENCH=1 \
+      -D NK_COMPARE_TO_BLAS=1 \
       -D CMAKE_CXX_STANDARD_INCLUDE_DIRECTORIES="$(brew --prefix openblas)/include" \
       -D CMAKE_C_LINK_FLAGS="-L$(xcrun --sdk macosx --show-sdk-path)/usr/lib" \
       -D CMAKE_EXE_LINKER_FLAGS="-L$(xcrun --sdk macosx --show-sdk-path)/usr/lib" \

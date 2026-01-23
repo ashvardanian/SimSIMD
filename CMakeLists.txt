@@ -24,8 +24,8 @@ if(CMAKE_CURRENT_SOURCE_DIR STREQUAL CMAKE_SOURCE_DIR)
 endif()
 
 option(NK_BUILD_SHARED "Compile a dynamic library" ${NK_IS_MAIN_PROJECT})
-option(NK_BUILD_TESTS "Compile precision tests with ULP-based error analysis" OFF)
-option(NK_BUILD_BENCHMARKS "Compile micro-benchmarks for current ISA" OFF)
+option(NK_BUILD_TEST "Compile precision tests with ULP-based error analysis" OFF)
+option(NK_BUILD_BENCH "Compile micro-benchmarks for current ISA" OFF)
 
 # BLAS/MKL options: ON (require), OFF (disable), AUTO (detect if available)
 set(NK_COMPARE_TO_BLAS "AUTO" CACHE STRING "Include BLAS (OpenBLAS/Accelerate) in tests and benchmarks")
@@ -122,7 +122,7 @@ if(CMAKE_CROSSCOMPILING)
 endif()
 
 # Only attempt detection if building tests or benchmarks
-if(NK_BUILD_TESTS OR NK_BUILD_BENCHMARKS)
+if(NK_BUILD_TEST OR NK_BUILD_BENCH)
 
     # MKL detection
     if(NOT NK_COMPARE_TO_MKL STREQUAL "OFF")
@@ -212,7 +212,7 @@ endif()
 
 
 # Build benchmarks
-if(NK_BUILD_BENCHMARKS)
+if(NK_BUILD_BENCH)
     # Fetch external dependencies
     include(FetchContent)
 
@@ -268,7 +268,7 @@ endif()
 
 
 # Build tests
-if(NK_BUILD_TESTS)
+if(NK_BUILD_TEST)
     # C++ precision test (ULP-based error analysis)
     add_executable(nk_test scripts/test.cpp c/numkong.c)
     target_link_libraries(nk_test numkong m)
