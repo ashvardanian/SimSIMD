@@ -1560,8 +1560,14 @@ int main(int argc, char **argv) {
     dense_<f64c_k, f64c_k>("dot_f64c_skylake", nk_dot_f64c_skylake);
     dense_<f64c_k, f64c_k>("vdot_f64c_skylake", nk_vdot_f64c_skylake);
 
+    dense_<bf16_k, f32_k>("dot_bf16_skylake", nk_dot_bf16_skylake);
+    dense_<f16_k, f32_k>("dot_f16_skylake", nk_dot_f16_skylake);
+
     dense_<e4m3_k, f32_k>("dot_e4m3_skylake", nk_dot_e4m3_skylake);
     dense_<e5m2_k, f32_k>("dot_e5m2_skylake", nk_dot_e5m2_skylake);
+    dense_<e2m3_k, f32_k>("dot_e2m3_skylake", nk_dot_e2m3_skylake);
+    dense_<e3m2_k, f32_k>("dot_e3m2_skylake", nk_dot_e3m2_skylake);
+
     dense_<e4m3_k, f32_k>("angular_e4m3_skylake", nk_angular_e4m3_skylake);
     dense_<e4m3_k, f32_k>("sqeuclidean_e4m3_skylake", nk_sqeuclidean_e4m3_skylake);
     dense_<e4m3_k, f32_k>("euclidean_e4m3_skylake", nk_euclidean_e4m3_skylake);
@@ -1669,6 +1675,9 @@ int main(int argc, char **argv) {
 
     dense_<e4m3_k, f32_k>("dot_e4m3_genoa", nk_dot_e4m3_genoa);
     dense_<e5m2_k, f32_k>("dot_e5m2_genoa", nk_dot_e5m2_genoa);
+    dense_<e2m3_k, f32_k>("dot_e2m3_genoa", nk_dot_e2m3_genoa);
+    dense_<e3m2_k, f32_k>("dot_e3m2_genoa", nk_dot_e3m2_genoa);
+
     dense_<e4m3_k, f32_k>("angular_e4m3_genoa", nk_angular_e4m3_genoa);
     dense_<e4m3_k, f32_k>("sqeuclidean_e4m3_genoa", nk_sqeuclidean_e4m3_genoa);
     dense_<e4m3_k, f32_k>("euclidean_e4m3_genoa", nk_euclidean_e4m3_genoa);
@@ -1924,6 +1933,8 @@ int main(int argc, char **argv) {
     dots_symmetric_<f16_k, f32_k>("dots_symmetric_f16_skylake", nk_dots_symmetric_f16_skylake);
     dots_symmetric_<e4m3_k, f32_k>("dots_symmetric_e4m3_skylake", nk_dots_symmetric_e4m3_skylake);
     dots_symmetric_<e5m2_k, f32_k>("dots_symmetric_e5m2_skylake", nk_dots_symmetric_e5m2_skylake);
+    dots_symmetric_<e2m3_k, f32_k>("dots_symmetric_e2m3_skylake", nk_dots_symmetric_e2m3_skylake);
+    dots_symmetric_<e3m2_k, f32_k>("dots_symmetric_e3m2_skylake", nk_dots_symmetric_e3m2_skylake);
 #endif
 
 #if NK_TARGET_ICE
@@ -1937,6 +1948,8 @@ int main(int argc, char **argv) {
     dots_symmetric_<bf16_k, f32_k>("dots_symmetric_bf16_genoa", nk_dots_symmetric_bf16_genoa);
     dots_symmetric_<e4m3_k, f32_k>("dots_symmetric_e4m3_genoa", nk_dots_symmetric_e4m3_genoa);
     dots_symmetric_<e5m2_k, f32_k>("dots_symmetric_e5m2_genoa", nk_dots_symmetric_e5m2_genoa);
+    dots_symmetric_<e2m3_k, f32_k>("dots_symmetric_e2m3_genoa", nk_dots_symmetric_e2m3_genoa);
+    dots_symmetric_<e3m2_k, f32_k>("dots_symmetric_e3m2_genoa", nk_dots_symmetric_e3m2_genoa);
 #endif
 
 #if NK_TARGET_NEON

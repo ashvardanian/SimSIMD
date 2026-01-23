@@ -97,7 +97,7 @@ nk_define_dots_packed_(f16, skylake, f16, f32, f32, nk_b512_vec_t, nk_dot_throug
                        /*depth_simd_dimensions=*/16, /*dimensions_per_value=*/1)
 
 /* E4M3 GEMM: depth_simd_dimensions=16 (16 e4m3s = 16 bytes = quarter cache line), F32 accumulator */
-nk_define_dots_pack_size_(e4m3, skylake, e4m3, e4m3, f32, /*depth_simd_dimensions=*/16, /*dimensions_per_value=*/1)
+nk_define_dots_pack_size_(e4m3, skylake, e4m3, f32, f32, /*depth_simd_dimensions=*/16, /*dimensions_per_value=*/1)
 nk_define_dots_pack_(e4m3, skylake, e4m3, f32, f32, nk_e4m3_to_f32, /*depth_simd_dimensions=*/16,
                      /*dimensions_per_value=*/1)
 nk_define_dots_symmetric_(e4m3, skylake, e4m3, f32, nk_b512_vec_t, nk_dot_through_f32_state_skylake_t_, nk_b128_vec_t,
@@ -113,7 +113,7 @@ nk_define_dots_packed_(e4m3, skylake, e4m3, f32, f32, nk_b512_vec_t, nk_dot_thro
                        /*depth_simd_dimensions=*/16, /*dimensions_per_value=*/1)
 
 /* E5M2 GEMM: depth_simd_dimensions=16 (16 e5m2s = 16 bytes = quarter cache line), F32 accumulator */
-nk_define_dots_pack_size_(e5m2, skylake, e5m2, e5m2, f32, /*depth_simd_dimensions=*/16, /*dimensions_per_value=*/1)
+nk_define_dots_pack_size_(e5m2, skylake, e5m2, f32, f32, /*depth_simd_dimensions=*/16, /*dimensions_per_value=*/1)
 nk_define_dots_pack_(e5m2, skylake, e5m2, f32, f32, nk_e5m2_to_f32, /*depth_simd_dimensions=*/16,
                      /*dimensions_per_value=*/1)
 nk_define_dots_symmetric_(e5m2, skylake, e5m2, f32, nk_b512_vec_t, nk_dot_through_f32_state_skylake_t_, nk_b128_vec_t,
@@ -129,7 +129,7 @@ nk_define_dots_packed_(e5m2, skylake, e5m2, f32, f32, nk_b512_vec_t, nk_dot_thro
                        /*depth_simd_dimensions=*/16, /*dimensions_per_value=*/1)
 
 /* E2M3 GEMM: depth_simd_dimensions=16 (16 e2m3s = 16 bytes = quarter cache line), F32 accumulator */
-nk_define_dots_pack_size_(e2m3, skylake, e2m3, e2m3, f32, /*depth_simd_dimensions=*/16, /*dimensions_per_value=*/1)
+nk_define_dots_pack_size_(e2m3, skylake, e2m3, f32, f32, /*depth_simd_dimensions=*/16, /*dimensions_per_value=*/1)
 nk_define_dots_pack_(e2m3, skylake, e2m3, f32, f32, nk_e2m3_to_f32, /*depth_simd_dimensions=*/16,
                      /*dimensions_per_value=*/1)
 nk_define_dots_symmetric_(e2m3, skylake, e2m3, f32, nk_b512_vec_t, nk_dot_through_f32_state_skylake_t_, nk_b128_vec_t,
@@ -145,7 +145,7 @@ nk_define_dots_packed_(e2m3, skylake, e2m3, f32, f32, nk_b512_vec_t, nk_dot_thro
                        /*depth_simd_dimensions=*/16, /*dimensions_per_value=*/1)
 
 /* E3M2 GEMM: depth_simd_dimensions=16 (16 e3m2s = 16 bytes = quarter cache line), F32 accumulator */
-nk_define_dots_pack_size_(e3m2, skylake, e3m2, e3m2, f32, /*depth_simd_dimensions=*/16, /*dimensions_per_value=*/1)
+nk_define_dots_pack_size_(e3m2, skylake, e3m2, f32, f32, /*depth_simd_dimensions=*/16, /*dimensions_per_value=*/1)
 nk_define_dots_pack_(e3m2, skylake, e3m2, f32, f32, nk_e3m2_to_f32, /*depth_simd_dimensions=*/16,
                      /*dimensions_per_value=*/1)
 nk_define_dots_symmetric_(e3m2, skylake, e3m2, f32, nk_b512_vec_t, nk_dot_through_f32_state_skylake_t_, nk_b128_vec_t,

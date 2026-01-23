@@ -895,6 +895,8 @@ void test_dot() {
     run_if_matches("dot_skylake", "bf16", test_dot<bf16_t>, nk_dot_bf16_skylake);
     run_if_matches("dot_skylake", "e4m3", test_dot<e4m3_t>, nk_dot_e4m3_skylake);
     run_if_matches("dot_skylake", "e5m2", test_dot<e5m2_t>, nk_dot_e5m2_skylake);
+    run_if_matches("dot_skylake", "e2m3", test_dot<e2m3_t>, nk_dot_e2m3_skylake);
+    run_if_matches("dot_skylake", "e3m2", test_dot<e3m2_t>, nk_dot_e3m2_skylake);
     run_if_matches("dot_skylake", "i8", test_dot<i8_t>, nk_dot_i8_skylake);
     run_if_matches("dot_skylake", "u8", test_dot<u8_t>, nk_dot_u8_skylake);
     run_if_matches("dot_skylake", "f32c", test_dot<f32c_t>, nk_dot_f32c_skylake);
@@ -909,6 +911,14 @@ void test_dot() {
     run_if_matches("dot_ice", "i4", test_dot<i4x2_t>, nk_dot_i4_ice);
     run_if_matches("dot_ice", "u4", test_dot<u4x2_t>, nk_dot_u4_ice);
 #endif // NK_TARGET_ICE
+
+#if NK_TARGET_GENOA
+    run_if_matches("dot_genoa", "bf16", test_dot<bf16_t>, nk_dot_bf16_genoa);
+    run_if_matches("dot_genoa", "e4m3", test_dot<e4m3_t>, nk_dot_e4m3_genoa);
+    run_if_matches("dot_genoa", "e5m2", test_dot<e5m2_t>, nk_dot_e5m2_genoa);
+    run_if_matches("dot_genoa", "e2m3", test_dot<e2m3_t>, nk_dot_e2m3_genoa);
+    run_if_matches("dot_genoa", "e3m2", test_dot<e3m2_t>, nk_dot_e3m2_genoa);
+#endif // NK_TARGET_GENOA
 
 #if NK_TARGET_SPACEMIT
     run_if_matches("dot_spacemit", "i8", test_dot<i8_t>, nk_dot_i8_spacemit);
