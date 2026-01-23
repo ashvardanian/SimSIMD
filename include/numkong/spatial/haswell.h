@@ -515,33 +515,16 @@ NK_PUBLIC void nk_angular_f32_haswell(nk_f32_t const *a, nk_f32_t const *b, nk_s
 }
 
 NK_PUBLIC void nk_sqeuclidean_f64_haswell(nk_f64_t const *a, nk_f64_t const *b, nk_size_t n, nk_f64_t *result) {
-    // Neumaier compensated summation
     __m256d sum_f64x4 = _mm256_setzero_pd();
-    __m256d compensation_f64x4 = _mm256_setzero_pd();
-    __m256d const sign_mask_f64x4 = _mm256_set1_pd(-0.0);
     nk_size_t i = 0;
     for (; i + 4 <= n; i += 4) {
         __m256d a_f64x4 = _mm256_loadu_pd(a + i);
         __m256d b_f64x4 = _mm256_loadu_pd(b + i);
         __m256d diff_f64x4 = _mm256_sub_pd(a_f64x4, b_f64x4);
-        __m256d x_f64x4 = _mm256_mul_pd(diff_f64x4, diff_f64x4); // x = diff², always >= 0
-        // Neumaier TwoSum: t = sum + x
-        __m256d t_f64x4 = _mm256_add_pd(sum_f64x4, x_f64x4);
-        // Compare |sum| vs x (x is already non-negative, skip abs)
-        __m256d abs_sum_f64x4 = _mm256_andnot_pd(sign_mask_f64x4, sum_f64x4);
-        __m256d sum_ge_x_f64x4 = _mm256_cmp_pd(abs_sum_f64x4, x_f64x4, _CMP_GE_OQ);
-        // z = t - larger, error = smaller - z (using blendv for selection)
-        __m256d z_sum_large_f64x4 = _mm256_sub_pd(t_f64x4, sum_f64x4);
-        __m256d z_x_large_f64x4 = _mm256_sub_pd(t_f64x4, x_f64x4);
-        __m256d z_f64x4 = _mm256_blendv_pd(z_x_large_f64x4, z_sum_large_f64x4, sum_ge_x_f64x4);
-        __m256d err_sum_large_f64x4 = _mm256_sub_pd(x_f64x4, z_f64x4);
-        __m256d err_x_large_f64x4 = _mm256_sub_pd(sum_f64x4, z_f64x4);
-        __m256d error_f64x4 = _mm256_blendv_pd(err_x_large_f64x4, err_sum_large_f64x4, sum_ge_x_f64x4);
-        compensation_f64x4 = _mm256_add_pd(compensation_f64x4, error_f64x4);
-        sum_f64x4 = t_f64x4;
+        sum_f64x4 = _mm256_fmadd_pd(diff_f64x4, diff_f64x4, sum_f64x4);
     }
 
-    nk_f64_t sum_f64 = nk_reduce_add_f64x4_haswell_(_mm256_add_pd(sum_f64x4, compensation_f64x4));
+    nk_f64_t sum_f64 = nk_reduce_add_f64x4_haswell_(sum_f64x4);
     for (; i < n; ++i) {
         nk_f64_t diff_f64 = a[i] - b[i];
         sum_f64 += diff_f64 * diff_f64;

@@ -139,28 +139,15 @@ NK_PUBLIC void nk_angular_f32_neon(nk_f32_t const *a, nk_f32_t const *b, nk_size
 }
 
 NK_PUBLIC void nk_sqeuclidean_f64_neon(nk_f64_t const *a, nk_f64_t const *b, nk_size_t n, nk_f64_t *result) {
-    // Neumaier compensated summation for numerical stability
     float64x2_t sum_f64x2 = vdupq_n_f64(0);
-    float64x2_t compensation_f64x2 = vdupq_n_f64(0);
     nk_size_t i = 0;
     for (; i + 2 <= n; i += 2) {
         float64x2_t a_f64x2 = vld1q_f64(a + i);
         float64x2_t b_f64x2 = vld1q_f64(b + i);
         float64x2_t diff_f64x2 = vsubq_f64(a_f64x2, b_f64x2);
-        float64x2_t diff_sq_f64x2 = vmulq_f64(diff_f64x2, diff_f64x2);
-        // Neumaier: t = sum + x
-        float64x2_t t_f64x2 = vaddq_f64(sum_f64x2, diff_sq_f64x2);
-        float64x2_t abs_sum_f64x2 = vabsq_f64(sum_f64x2);
-        // diff_sq is already non-negative (it's a square), so vabsq is unnecessary
-        uint64x2_t sum_ge_x_u64x2 = vcgeq_f64(abs_sum_f64x2, diff_sq_f64x2);
-        // When |sum| ≥ |x|: comp += (sum - t) + x; when |x| > |sum|: comp += (x - t) + sum
-        float64x2_t comp_sum_large_f64x2 = vaddq_f64(vsubq_f64(sum_f64x2, t_f64x2), diff_sq_f64x2);
-        float64x2_t comp_x_large_f64x2 = vaddq_f64(vsubq_f64(diff_sq_f64x2, t_f64x2), sum_f64x2);
-        float64x2_t comp_update_f64x2 = vbslq_f64(sum_ge_x_u64x2, comp_sum_large_f64x2, comp_x_large_f64x2);
-        compensation_f64x2 = vaddq_f64(compensation_f64x2, comp_update_f64x2);
-        sum_f64x2 = t_f64x2;
+        sum_f64x2 = vfmaq_f64(sum_f64x2, diff_f64x2, diff_f64x2);
     }
-    nk_f64_t sum_f64 = vaddvq_f64(vaddq_f64(sum_f64x2, compensation_f64x2));
+    nk_f64_t sum_f64 = vaddvq_f64(sum_f64x2);
     for (; i < n; ++i) {
         nk_f64_t diff_f64 = a[i] - b[i];
         sum_f64 += diff_f64 * diff_f64;

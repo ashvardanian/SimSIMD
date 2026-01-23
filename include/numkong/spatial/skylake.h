@@ -129,9 +129,7 @@ nk_angular_f32_skylake_cycle:
 }
 
 NK_PUBLIC void nk_sqeuclidean_f64_skylake(nk_f64_t const *a, nk_f64_t const *b, nk_size_t n, nk_f64_t *result) {
-    // Neumaier summation for improved numerical stability
     __m512d sum_f64x8 = _mm512_setzero_pd();
-    __m512d compensation_f64x8 = _mm512_setzero_pd();
     __m512d a_f64x8, b_f64x8;
 
 nk_sqeuclidean_f64_skylake_cycle:
@@ -147,25 +145,10 @@ nk_sqeuclidean_f64_skylake_cycle:
         a += 8, b += 8, n -= 8;
     }
     __m512d diff_f64x8 = _mm512_sub_pd(a_f64x8, b_f64x8);
-    __m512d x_f64x8 = _mm512_mul_pd(diff_f64x8, diff_f64x8); // x = diff², always >= 0
-    // Neumaier TwoSum: t = sum + x
-    __m512d t_f64x8 = _mm512_add_pd(sum_f64x8, x_f64x8);
-    // Compare |sum| vs x (x is already non-negative, skip abs)
-    __m512d abs_sum_f64x8 = _mm512_abs_pd(sum_f64x8);
-    __mmask8 sum_ge_x = _mm512_cmp_pd_mask(abs_sum_f64x8, x_f64x8, _CMP_GE_OQ);
-    // z = t - larger: recovers approximately the smaller value
-    // When |sum| ≥ x: z = t - sum; else z = t - x
-    __m512d z_f64x8 = _mm512_sub_pd(t_f64x8, x_f64x8);
-    z_f64x8 = _mm512_mask_sub_pd(z_f64x8, sum_ge_x, t_f64x8, sum_f64x8);
-    // error = smaller - z: the rounding error from the addition
-    // When |sum| ≥ x: error = x - z; else error = sum - z
-    __m512d error_f64x8 = _mm512_sub_pd(sum_f64x8, z_f64x8);
-    error_f64x8 = _mm512_mask_sub_pd(error_f64x8, sum_ge_x, x_f64x8, z_f64x8);
-    compensation_f64x8 = _mm512_add_pd(compensation_f64x8, error_f64x8);
-    sum_f64x8 = t_f64x8;
+    sum_f64x8 = _mm512_fmadd_pd(diff_f64x8, diff_f64x8, sum_f64x8);
     if (n) goto nk_sqeuclidean_f64_skylake_cycle;
 
-    *result = _mm512_reduce_add_pd(_mm512_add_pd(sum_f64x8, compensation_f64x8));
+    *result = _mm512_reduce_add_pd(sum_f64x8);
 }
 
 NK_PUBLIC void nk_euclidean_f64_skylake(nk_f64_t const *a, nk_f64_t const *b, nk_size_t n, nk_f64_t *result) {
