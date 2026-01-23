@@ -1623,6 +1623,10 @@ int main(int argc, char **argv) {
                          nk_dots_packed_e4m3_skylake);
     dots_<e5m2_k, f32_k>("dots_packed_e5m2_skylake", nk_dots_packed_size_e5m2_skylake, nk_dots_pack_e5m2_skylake,
                          nk_dots_packed_e5m2_skylake);
+    dots_<e2m3_k, f32_k>("dots_packed_e2m3_skylake", nk_dots_packed_size_e2m3_skylake, nk_dots_pack_e2m3_skylake,
+                         nk_dots_packed_e2m3_skylake);
+    dots_<e3m2_k, f32_k>("dots_packed_e3m2_skylake", nk_dots_packed_size_e3m2_skylake, nk_dots_pack_e3m2_skylake,
+                         nk_dots_packed_e3m2_skylake);
 
 #endif
 
@@ -1702,6 +1706,10 @@ int main(int argc, char **argv) {
                          nk_dots_packed_e4m3_genoa);
     dots_<e5m2_k, f32_k>("dots_packed_e5m2_genoa", nk_dots_packed_size_e5m2_genoa, nk_dots_pack_e5m2_genoa,
                          nk_dots_packed_e5m2_genoa);
+    dots_<e2m3_k, f32_k>("dots_packed_e2m3_genoa", nk_dots_packed_size_e2m3_genoa, nk_dots_pack_e2m3_genoa,
+                         nk_dots_packed_e2m3_genoa);
+    dots_<e3m2_k, f32_k>("dots_packed_e3m2_genoa", nk_dots_packed_size_e3m2_genoa, nk_dots_pack_e3m2_genoa,
+                         nk_dots_packed_e3m2_genoa);
 
 #endif
 

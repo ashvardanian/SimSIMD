@@ -208,6 +208,252 @@ NK_PUBLIC void nk_angular_f64_neon(nk_f64_t const *a, nk_f64_t const *b, nk_size
     *result = nk_angular_normalize_f64_neon_(ab_f64, a2_f64, b2_f64);
 }
 
+NK_PUBLIC void nk_sqeuclidean_e2m3_neon(nk_e2m3_t const *a, nk_e2m3_t const *b, nk_size_t n, nk_f32_t *result) {
+    float32x4_t sum_f32x4 = vdupq_n_f32(0);
+    nk_b32_vec_t a_vec, b_vec;
+
+nk_sqeuclidean_e2m3_neon_cycle:
+    if (n < 4) {
+        a_vec = nk_partial_load_b8x4_serial_(a, n);
+        b_vec = nk_partial_load_b8x4_serial_(b, n);
+        n = 0;
+    }
+    else {
+        nk_load_b32_serial_(a, &a_vec);
+        nk_load_b32_serial_(b, &b_vec);
+        a += 4, b += 4, n -= 4;
+    }
+
+    float32x4_t a_f32x4 = nk_e2m3x4_to_f32x4_neon_(a_vec);
+    float32x4_t b_f32x4 = nk_e2m3x4_to_f32x4_neon_(b_vec);
+    float32x4_t diff_f32x4 = vsubq_f32(a_f32x4, b_f32x4);
+    sum_f32x4 = vfmaq_f32(sum_f32x4, diff_f32x4, diff_f32x4);
+    if (n) goto nk_sqeuclidean_e2m3_neon_cycle;
+
+    *result = vaddvq_f32(sum_f32x4);
+}
+
+NK_PUBLIC void nk_euclidean_e2m3_neon(nk_e2m3_t const *a, nk_e2m3_t const *b, nk_size_t n, nk_f32_t *result) {
+    nk_sqeuclidean_e2m3_neon(a, b, n, result);
+    *result = nk_sqrt_f32_neon_(*result);
+}
+
+NK_PUBLIC void nk_angular_e2m3_neon(nk_e2m3_t const *a, nk_e2m3_t const *b, nk_size_t n, nk_f32_t *result) {
+    float32x4_t ab_f32x4 = vdupq_n_f32(0);
+    float32x4_t a2_f32x4 = vdupq_n_f32(0);
+    float32x4_t b2_f32x4 = vdupq_n_f32(0);
+    nk_b32_vec_t a_vec, b_vec;
+
+nk_angular_e2m3_neon_cycle:
+    if (n < 4) {
+        a_vec = nk_partial_load_b8x4_serial_(a, n);
+        b_vec = nk_partial_load_b8x4_serial_(b, n);
+        n = 0;
+    }
+    else {
+        nk_load_b32_serial_(a, &a_vec);
+        nk_load_b32_serial_(b, &b_vec);
+        a += 4, b += 4, n -= 4;
+    }
+
+    float32x4_t a_f32x4 = nk_e2m3x4_to_f32x4_neon_(a_vec);
+    float32x4_t b_f32x4 = nk_e2m3x4_to_f32x4_neon_(b_vec);
+    ab_f32x4 = vfmaq_f32(ab_f32x4, a_f32x4, b_f32x4);
+    a2_f32x4 = vfmaq_f32(a2_f32x4, a_f32x4, a_f32x4);
+    b2_f32x4 = vfmaq_f32(b2_f32x4, b_f32x4, b_f32x4);
+    if (n) goto nk_angular_e2m3_neon_cycle;
+
+    nk_f32_t ab = vaddvq_f32(ab_f32x4);
+    nk_f32_t a2 = vaddvq_f32(a2_f32x4);
+    nk_f32_t b2 = vaddvq_f32(b2_f32x4);
+    *result = nk_angular_normalize_f32_neon_(ab, a2, b2);
+}
+
+NK_PUBLIC void nk_sqeuclidean_e3m2_neon(nk_e3m2_t const *a, nk_e3m2_t const *b, nk_size_t n, nk_f32_t *result) {
+    float32x4_t sum_f32x4 = vdupq_n_f32(0);
+    nk_b32_vec_t a_vec, b_vec;
+
+nk_sqeuclidean_e3m2_neon_cycle:
+    if (n < 4) {
+        a_vec = nk_partial_load_b8x4_serial_(a, n);
+        b_vec = nk_partial_load_b8x4_serial_(b, n);
+        n = 0;
+    }
+    else {
+        nk_load_b32_serial_(a, &a_vec);
+        nk_load_b32_serial_(b, &b_vec);
+        a += 4, b += 4, n -= 4;
+    }
+
+    float32x4_t a_f32x4 = nk_e3m2x4_to_f32x4_neon_(a_vec);
+    float32x4_t b_f32x4 = nk_e3m2x4_to_f32x4_neon_(b_vec);
+    float32x4_t diff_f32x4 = vsubq_f32(a_f32x4, b_f32x4);
+    sum_f32x4 = vfmaq_f32(sum_f32x4, diff_f32x4, diff_f32x4);
+    if (n) goto nk_sqeuclidean_e3m2_neon_cycle;
+
+    *result = vaddvq_f32(sum_f32x4);
+}
+
+NK_PUBLIC void nk_euclidean_e3m2_neon(nk_e3m2_t const *a, nk_e3m2_t const *b, nk_size_t n, nk_f32_t *result) {
+    nk_sqeuclidean_e3m2_neon(a, b, n, result);
+    *result = nk_sqrt_f32_neon_(*result);
+}
+
+NK_PUBLIC void nk_angular_e3m2_neon(nk_e3m2_t const *a, nk_e3m2_t const *b, nk_size_t n, nk_f32_t *result) {
+    float32x4_t ab_f32x4 = vdupq_n_f32(0);
+    float32x4_t a2_f32x4 = vdupq_n_f32(0);
+    float32x4_t b2_f32x4 = vdupq_n_f32(0);
+    nk_b32_vec_t a_vec, b_vec;
+
+nk_angular_e3m2_neon_cycle:
+    if (n < 4) {
+        a_vec = nk_partial_load_b8x4_serial_(a, n);
+        b_vec = nk_partial_load_b8x4_serial_(b, n);
+        n = 0;
+    }
+    else {
+        nk_load_b32_serial_(a, &a_vec);
+        nk_load_b32_serial_(b, &b_vec);
+        a += 4, b += 4, n -= 4;
+    }
+
+    float32x4_t a_f32x4 = nk_e3m2x4_to_f32x4_neon_(a_vec);
+    float32x4_t b_f32x4 = nk_e3m2x4_to_f32x4_neon_(b_vec);
+    ab_f32x4 = vfmaq_f32(ab_f32x4, a_f32x4, b_f32x4);
+    a2_f32x4 = vfmaq_f32(a2_f32x4, a_f32x4, a_f32x4);
+    b2_f32x4 = vfmaq_f32(b2_f32x4, b_f32x4, b_f32x4);
+    if (n) goto nk_angular_e3m2_neon_cycle;
+
+    nk_f32_t ab = vaddvq_f32(ab_f32x4);
+    nk_f32_t a2 = vaddvq_f32(a2_f32x4);
+    nk_f32_t b2 = vaddvq_f32(b2_f32x4);
+    *result = nk_angular_normalize_f32_neon_(ab, a2, b2);
+}
+
+NK_PUBLIC void nk_sqeuclidean_e4m3_neon(nk_e4m3_t const *a, nk_e4m3_t const *b, nk_size_t n, nk_f32_t *result) {
+    float32x4_t sum_f32x4 = vdupq_n_f32(0);
+    nk_b32_vec_t a_vec, b_vec;
+
+nk_sqeuclidean_e4m3_neon_cycle:
+    if (n < 4) {
+        a_vec = nk_partial_load_b8x4_serial_(a, n);
+        b_vec = nk_partial_load_b8x4_serial_(b, n);
+        n = 0;
+    }
+    else {
+        nk_load_b32_serial_(a, &a_vec);
+        nk_load_b32_serial_(b, &b_vec);
+        a += 4, b += 4, n -= 4;
+    }
+
+    float32x4_t a_f32x4 = nk_e4m3x4_to_f32x4_neon_(a_vec);
+    float32x4_t b_f32x4 = nk_e4m3x4_to_f32x4_neon_(b_vec);
+
+    float32x4_t diff_f32x4 = vsubq_f32(a_f32x4, b_f32x4);
+    sum_f32x4 = vfmaq_f32(sum_f32x4, diff_f32x4, diff_f32x4);
+
+    if (n) goto nk_sqeuclidean_e4m3_neon_cycle;
+
+    *result = vaddvq_f32(sum_f32x4);
+}
+
+NK_PUBLIC void nk_euclidean_e4m3_neon(nk_e4m3_t const *a, nk_e4m3_t const *b, nk_size_t n, nk_f32_t *result) {
+    nk_sqeuclidean_e4m3_neon(a, b, n, result);
+    *result = nk_sqrt_f32_neon_(*result);
+}
+
+NK_PUBLIC void nk_angular_e4m3_neon(nk_e4m3_t const *a, nk_e4m3_t const *b, nk_size_t n, nk_f32_t *result) {
+    float32x4_t ab_f32x4 = vdupq_n_f32(0);
+    float32x4_t a2_f32x4 = vdupq_n_f32(0);
+    float32x4_t b2_f32x4 = vdupq_n_f32(0);
+    nk_b32_vec_t a_vec, b_vec;
+
+nk_angular_e4m3_neon_cycle:
+    if (n < 4) {
+        a_vec = nk_partial_load_b8x4_serial_(a, n);
+        b_vec = nk_partial_load_b8x4_serial_(b, n);
+        n = 0;
+    }
+    else {
+        nk_load_b32_serial_(a, &a_vec);
+        nk_load_b32_serial_(b, &b_vec);
+        a += 4, b += 4, n -= 4;
+    }
+
+    float32x4_t a_f32x4 = nk_e4m3x4_to_f32x4_neon_(a_vec);
+    float32x4_t b_f32x4 = nk_e4m3x4_to_f32x4_neon_(b_vec);
+    ab_f32x4 = vfmaq_f32(ab_f32x4, a_f32x4, b_f32x4);
+    a2_f32x4 = vfmaq_f32(a2_f32x4, a_f32x4, a_f32x4);
+    b2_f32x4 = vfmaq_f32(b2_f32x4, b_f32x4, b_f32x4);
+    if (n) goto nk_angular_e4m3_neon_cycle;
+
+    nk_f32_t ab = vaddvq_f32(ab_f32x4);
+    nk_f32_t a2 = vaddvq_f32(a2_f32x4);
+    nk_f32_t b2 = vaddvq_f32(b2_f32x4);
+    *result = nk_angular_normalize_f32_neon_(ab, a2, b2);
+}
+
+NK_PUBLIC void nk_sqeuclidean_e5m2_neon(nk_e5m2_t const *a, nk_e5m2_t const *b, nk_size_t n, nk_f32_t *result) {
+    float32x4_t sum_f32x4 = vdupq_n_f32(0);
+    nk_b32_vec_t a_vec, b_vec;
+
+nk_sqeuclidean_e5m2_neon_cycle:
+    if (n < 4) {
+        a_vec = nk_partial_load_b8x4_serial_(a, n);
+        b_vec = nk_partial_load_b8x4_serial_(b, n);
+        n = 0;
+    }
+    else {
+        nk_load_b32_serial_(a, &a_vec);
+        nk_load_b32_serial_(b, &b_vec);
+        a += 4, b += 4, n -= 4;
+    }
+
+    float32x4_t a_f32x4 = nk_e5m2x4_to_f32x4_neon_(a_vec);
+    float32x4_t b_f32x4 = nk_e5m2x4_to_f32x4_neon_(b_vec);
+    float32x4_t diff_f32x4 = vsubq_f32(a_f32x4, b_f32x4);
+    sum_f32x4 = vfmaq_f32(sum_f32x4, diff_f32x4, diff_f32x4);
+    if (n) goto nk_sqeuclidean_e5m2_neon_cycle;
+
+    *result = vaddvq_f32(sum_f32x4);
+}
+
+NK_PUBLIC void nk_euclidean_e5m2_neon(nk_e5m2_t const *a, nk_e5m2_t const *b, nk_size_t n, nk_f32_t *result) {
+    nk_sqeuclidean_e5m2_neon(a, b, n, result);
+    *result = nk_sqrt_f32_neon_(*result);
+}
+
+NK_PUBLIC void nk_angular_e5m2_neon(nk_e5m2_t const *a, nk_e5m2_t const *b, nk_size_t n, nk_f32_t *result) {
+    float32x4_t ab_f32x4 = vdupq_n_f32(0);
+    float32x4_t a2_f32x4 = vdupq_n_f32(0);
+    float32x4_t b2_f32x4 = vdupq_n_f32(0);
+    nk_b32_vec_t a_vec, b_vec;
+
+nk_angular_e5m2_neon_cycle:
+    if (n < 4) {
+        a_vec = nk_partial_load_b8x4_serial_(a, n);
+        b_vec = nk_partial_load_b8x4_serial_(b, n);
+        n = 0;
+    }
+    else {
+        nk_load_b32_serial_(a, &a_vec);
+        nk_load_b32_serial_(b, &b_vec);
+        a += 4, b += 4, n -= 4;
+    }
+
+    float32x4_t a_f32x4 = nk_e5m2x4_to_f32x4_neon_(a_vec);
+    float32x4_t b_f32x4 = nk_e5m2x4_to_f32x4_neon_(b_vec);
+    ab_f32x4 = vfmaq_f32(ab_f32x4, a_f32x4, b_f32x4);
+    a2_f32x4 = vfmaq_f32(a2_f32x4, a_f32x4, a_f32x4);
+    b2_f32x4 = vfmaq_f32(b2_f32x4, b_f32x4, b_f32x4);
+    if (n) goto nk_angular_e5m2_neon_cycle;
+
+    nk_f32_t ab = vaddvq_f32(ab_f32x4);
+    nk_f32_t a2 = vaddvq_f32(a2_f32x4);
+    nk_f32_t b2 = vaddvq_f32(b2_f32x4);
+    *result = nk_angular_normalize_f32_neon_(ab, a2, b2);
+}
+
 /** @brief Angular distance finalize: computes 1 − dot/√(‖query‖ × ‖target‖) for 4 pairs in f64. */
 NK_INTERNAL void nk_angular_f32x4_finalize_neon_(float32x4_t dots_f32x4, nk_f32_t query_norm, nk_f32_t target_norm_a,
                                                  nk_f32_t target_norm_b, nk_f32_t target_norm_c, nk_f32_t target_norm_d,
