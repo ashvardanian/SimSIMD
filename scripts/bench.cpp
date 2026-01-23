@@ -607,7 +607,8 @@ void measure_dots_symmetric(                                                   /
         ++iterations;
     }
 
-    state.counters["tops"] = bm::Counter(iterations * 2.0 * n * n * k, bm::Counter::kIsRate);
+    // Symmetric operations compute upper triangle: N×(N+1)/2 elements = N×(N+1)×K operations
+    state.counters["tops"] = bm::Counter(iterations * n * (n + 1) * k, bm::Counter::kIsRate);
 }
 
 template <nk_dtype_t input_dtype_, nk_dtype_t output_dtype_>
@@ -859,8 +860,8 @@ void measure_dots_symmetric_unpacked(bm::State &state, std::size_t n, std::size_
         kernel(matrix_a.data(), matrix_c.data(), n, k);
         ++iterations;
     }
-    // For symmetric operations: n×n result from n×k × k×n = 2*n*n*k FLOPs
-    state.counters["tops"] = bm::Counter(iterations * 2.0 * n * n * k, bm::Counter::kIsRate);
+    // Symmetric operations compute upper triangle: N×(N+1)/2 elements = N×(N+1)×K operations
+    state.counters["tops"] = bm::Counter(iterations * n * (n + 1) * k, bm::Counter::kIsRate);
 }
 
 void measure_dots_symmetric_f32_with_blas(bm::State &state, std::size_t n, std::size_t k) {
