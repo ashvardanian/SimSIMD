@@ -1,5 +1,57 @@
-# NumKong library CMakeLists.txt
+# CMake is the preferred way to compile the C shared libraries, tests, and benchmarks.
+# Use like:
+#
+#   cmake -B build_release -D CMAKE_BUILD_TYPE=Release -D NK_BUILD_TESTS=ON
+#   cmake --build build_release --config Release
+#   build_release/nk_test
+#
+# CMake options:
+#
+#   -D CMAKE_BUILD_TYPE=<Release|Debug|RelWithDebInfo>
+#   -D NK_BUILD_TESTS=<ON|OFF>          (default: OFF)
+#   -D NK_BUILD_BENCHMARKS=<ON|OFF>     (default: OFF)
+#   -D NK_COMPARE_TO_BLAS=<ON|OFF>      (default: OFF)
+#   -D NK_COMPARE_TO_MKL=<ON|OFF>       (default: OFF)
+#   -D NK_BUILD_SHARED=<ON|OFF>         (default: OFF)
+#
+# Different SIMD ISA extensions reqiore different compiler versions:
+#
+#   - Basic functionality:  GCC 9+, Clang 10+, MSVC 2019+
+#   - Float16 support:      GCC 12+, Clang 16+
+#   - Intel AMX/Arm SME:    GCC 14+, Clang 18+
+#
+# To run on macOS with Homebrew LLVM:
+#
+#     brew install llvm openblas ccache
+#     cmake -B build_release -D CMAKE_BUILD_TYPE=Release \
+#           -D NK_BUILD_TESTS=ON \
+#           -D CMAKE_C_COMPILER="$(brew --prefix llvm)/bin/clang" \
+#           -D CMAKE_CXX_COMPILER="$(brew --prefix llvm)/bin/clang++" \
+#           -D CMAKE_CXX_STANDARD_INCLUDE_DIRECTORIES="$(brew --prefix openblas)/include"
+#     cmake --build build_release --config Release
+#
+# To cross-compile for ARM64:
+#
+#     cmake -B build_arm64 -D CMAKE_TOOLCHAIN_FILE=cmake/aarch64-linux-gnu.cmake \
+#           -D NK_BUILD_TESTS=ON
+#
+# To cross-compile for RISC-V:
+#
+#     cmake -B build_riscv -D CMAKE_TOOLCHAIN_FILE=cmake/riscv64-linux-gnu.cmake \
+#           -D NK_BUILD_TESTS=ON
+#
 cmake_minimum_required(VERSION 3.14 FATAL_ERROR)
+
+# Leverage `ccache` for incremental compilation
+find_program(CCACHE_PROGRAM ccache)
+if(CCACHE_PROGRAM)
+    set(CMAKE_C_COMPILER_LAUNCHER "${CCACHE_PROGRAM}")
+    set(CMAKE_CXX_COMPILER_LAUNCHER "${CCACHE_PROGRAM}")
+    message(STATUS "Using ccache: ${CCACHE_PROGRAM}")
+    message(STATUS "IMPORTANT: Set environment variable CCACHE_SLOPPINESS=pch_defines,time_macros")
+endif()
+
+# 
 project(
     numkong
     VERSION 6.5.12
