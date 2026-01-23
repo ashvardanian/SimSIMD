@@ -23,12 +23,6 @@
 extern "C" {
 #endif
 
-/**
- *  @brief  Dot product of two bf16 vectors with f32 accumulation on XuanTie.
- *
- *  Uses vfwmaccbf16 for widening bf16 multiply-accumulate to f32.
- *  VL-based loop handles all tail elements automatically.
- */
 NK_PUBLIC void nk_dot_bf16_xuantie(nk_bf16_t const *a_scalars, nk_bf16_t const *b_scalars, nk_nk_size_t count_scalars,
                                    nk_f32_t *result) {
     vfloat32m1_t sum_f32m1 = __riscv_vfmv_v_f_f32m1(0.0f, 1);

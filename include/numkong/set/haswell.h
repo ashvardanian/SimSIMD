@@ -168,55 +168,35 @@ NK_PUBLIC void nk_jaccard_u16_haswell(nk_u16_t const *a, nk_u16_t const *b, nk_s
     *result = (n != 0) ? 1.0f - (nk_f32_t)matches / (nk_f32_t)n : 1.0f;
 }
 
-struct nk_jaccard_b256_state_haswell_t {
+struct nk_hamming_b64_state_haswell_t {
     nk_u32_t intersection_count;
 };
 
-NK_INTERNAL void nk_jaccard_b256_init_haswell(nk_jaccard_b256_state_haswell_t *state) { state->intersection_count = 0; }
+NK_INTERNAL void nk_hamming_b64_init_haswell(nk_hamming_b64_state_haswell_t *state) { state->intersection_count = 0; }
 
-NK_INTERNAL void nk_jaccard_b256_update_haswell(nk_jaccard_b256_state_haswell_t *state, nk_b256_vec_t a,
-                                                nk_b256_vec_t b) {
-    // Process one 256-bit chunk (native Haswell AVX2 register size).
-    //
-    // Haswell port analysis:
-    // - `_mm256_and_si256`:      p015, 1cy latency, 0.33cy throughput
-    // - `_mm256_extracti128`:    p5, 3cy latency, 1cy throughput
-    // - `_mm_cvtsi128_si64`:     p0, 2cy latency (first u64 extraction)
-    // - `_mm_extract_epi64`:     p5, 3cy latency, 1cy throughput
-    // - `_mm_popcnt_u64`:        p1 ONLY, 3cy latency, 1cy throughput (BOTTLENECK)
-    //
-    // With 4 popcounts per update, p1 is the bottleneck at 4 cycles minimum.
-
-    // Step 1: Compute intersection bits (A AND B)
-    __m256i intersection_u8x32 = _mm256_and_si256(a.ymm, b.ymm);
-
-    // Step 2: Extract the two 128-bit halves
-    __m128i intersection_low_u8x16 = _mm256_castsi256_si128(intersection_u8x32);       // FREE (register view)
-    __m128i intersection_high_u8x16 = _mm256_extracti128_si256(intersection_u8x32, 1); // p5, 3cy
-
-    // Step 3: Extract individual 64-bit words for scalar popcount
-    nk_u64_t word_a = (nk_u64_t)_mm_cvtsi128_si64(intersection_low_u8x16);
-    nk_u64_t word_b = (nk_u64_t)_mm_extract_epi64(intersection_low_u8x16, 1);
-    nk_u64_t word_c = (nk_u64_t)_mm_cvtsi128_si64(intersection_high_u8x16);
-    nk_u64_t word_d = (nk_u64_t)_mm_extract_epi64(intersection_high_u8x16, 1);
-
-    // Step 4: Popcount each word (p1 bottleneck: 4 ops @ 1cy throughput = 4cy)
-    nk_u32_t partial_a = (nk_u32_t)_mm_popcnt_u64(word_a);
-    nk_u32_t partial_b = (nk_u32_t)_mm_popcnt_u64(word_b);
-    nk_u32_t partial_c = (nk_u32_t)_mm_popcnt_u64(word_c);
-    nk_u32_t partial_d = (nk_u32_t)_mm_popcnt_u64(word_d);
-
-    // Step 5: Sum all partials (associative grouping for parallel adds)
-    state->intersection_count += (partial_a + partial_b) + (partial_c + partial_d);
+NK_INTERNAL void nk_hamming_b64_update_haswell(nk_hamming_b64_state_haswell_t *state, nk_b64_vec_t a, nk_b64_vec_t b) {
+    state->intersection_count += (nk_u32_t)_mm_popcnt_u64(a.u64 ^ b.u64);
 }
 
-NK_INTERNAL void nk_jaccard_b256_finalize_haswell(nk_jaccard_b256_state_haswell_t const *state_a,
-                                                  nk_jaccard_b256_state_haswell_t const *state_b,
-                                                  nk_jaccard_b256_state_haswell_t const *state_c,
-                                                  nk_jaccard_b256_state_haswell_t const *state_d,
-                                                  nk_f32_t query_popcount, nk_f32_t target_popcount_a,
-                                                  nk_f32_t target_popcount_b, nk_f32_t target_popcount_c,
-                                                  nk_f32_t target_popcount_d, nk_f32_t *results) {
+NK_INTERNAL void nk_hamming_b64_finalize_haswell( //
+    nk_hamming_b64_state_haswell_t const *state_a, nk_hamming_b64_state_haswell_t const *state_b,
+    nk_hamming_b64_state_haswell_t const *state_c, nk_hamming_b64_state_haswell_t const *state_d, nk_u32_t *results) {}
+
+struct nk_jaccard_b64_state_haswell_t {
+    nk_u32_t intersection_count;
+};
+
+NK_INTERNAL void nk_jaccard_b64_init_haswell(nk_jaccard_b64_state_haswell_t *state) { state->intersection_count = 0; }
+
+NK_INTERNAL void nk_jaccard_b64_update_haswell(nk_jaccard_b64_state_haswell_t *state, nk_b64_vec_t a, nk_b64_vec_t b) {
+    state->intersection_count += (nk_u32_t)_mm_popcnt_u64(a.u64 & b.u64);
+}
+
+NK_INTERNAL void nk_jaccard_b64_finalize_haswell( //
+    nk_jaccard_b64_state_haswell_t const *state_a, nk_jaccard_b64_state_haswell_t const *state_b,
+    nk_jaccard_b64_state_haswell_t const *state_c, nk_jaccard_b64_state_haswell_t const *state_d,
+    nk_f32_t query_popcount, nk_f32_t target_popcount_a, nk_f32_t target_popcount_b, nk_f32_t target_popcount_c,
+    nk_f32_t target_popcount_d, nk_f32_t *results) {
 
     // 4-way SIMD Jaccard computation with fast reciprocal.
     //

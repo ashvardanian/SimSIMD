@@ -800,7 +800,6 @@ typedef struct {
         }                                                                                                              \
     }
 
-/**
 /* NK_INTERNAL helper for processing diagonal 32×32 macro-tiles */
 #define nk_define_dots_symmetric_diagonal_helper_(name, suffix, input_type, output_type, vec_type, state_type,        \
                                                   result_vec_type, init_fn, load_fn, partial_load_fn, update_fn,      \

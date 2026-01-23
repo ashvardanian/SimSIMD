@@ -151,29 +151,29 @@ NK_PUBLIC void nk_jaccard_u16_neon(nk_u16_t const *a, nk_u16_t const *b, nk_size
     *result = (n != 0) ? 1.0f - (nk_f32_t)matches / (nk_f32_t)n : 1.0f;
 }
 
-typedef struct nk_jaccard_b128_state_neon_t {
+struct nk_hamming_b128_state_neon_t {
     uint32x4_t intersection_count_u32x4;
-} nk_jaccard_b128_state_neon_t;
+};
 
-NK_INTERNAL void nk_jaccard_b128_init_neon(nk_jaccard_b128_state_neon_t *state) {
+NK_INTERNAL void nk_hamming_b128_init_neon(nk_hamming_b128_state_neon_t *state) {
     state->intersection_count_u32x4 = vdupq_n_u32(0);
 }
 
-NK_INTERNAL void nk_jaccard_b128_update_neon(nk_jaccard_b128_state_neon_t *state, uint8x16_t a, uint8x16_t b) {
+NK_INTERNAL void nk_hamming_b128_update_neon(nk_hamming_b128_state_neon_t *state, nk_b128_vec_t a, nk_b128_vec_t b) {
 
     // Process one 128-bit chunk (native ARM NEON register size).
     // Uses vector accumulation - horizontal sum deferred to finalize.
     //
     // ARM NEON instruction characteristics:
-    // - `vandq_u8`:    AND (V.16B, V.16B, V.16B)       1cy
+    // - `veorq_u8`:    XOR (V.16B, V.16B, V.16B)       1cy
     // - `vcntq_u8`:    CNT (V.16B, V.16B)              1-2cy, byte popcount
     // - `vpaddlq_u8`:  UADDLP (V.8H, V.16B)            1cy, pairwise widen u8 → u16
     // - `vpaddlq_u16`: UADDLP (V.4S, V.8H)             1cy, pairwise widen u16 → u32
     // - `vaddq_u32`:   ADD (V.4S, V.4S, V.4S)          1cy
     // Total: ~5-6cy per 128-bit chunk (horizontal sum deferred to finalize)
 
-    // Step 1: Compute intersection bits (A AND B)
-    uint8x16_t intersection_u8x16 = vandq_u8(a, b);
+    // Step 1: Compute intersection bits (A XOR B)
+    uint8x16_t intersection_u8x16 = veorq_u8(a.u8x16, b.u8x16);
 
     // Step 2: Byte-level popcount - each byte contains count of set bits (0-8)
     uint8x16_t popcount_u8x16 = vcntq_u8(intersection_u8x16);
@@ -188,30 +188,80 @@ NK_INTERNAL void nk_jaccard_b128_update_neon(nk_jaccard_b128_state_neon_t *state
     state->intersection_count_u32x4 = vaddq_u32(state->intersection_count_u32x4, popcount_u32x4);
 }
 
-NK_INTERNAL void nk_jaccard_b128_finalize_neon(nk_jaccard_b128_state_neon_t const *state_a,
-                                               nk_jaccard_b128_state_neon_t const *state_b,
-                                               nk_jaccard_b128_state_neon_t const *state_c,
-                                               nk_jaccard_b128_state_neon_t const *state_d, nk_f32_t query_popcount,
-                                               nk_f32_t target_popcount_a, nk_f32_t target_popcount_b,
-                                               nk_f32_t target_popcount_c, nk_f32_t target_popcount_d,
-                                               nk_f32_t *results) {
+NK_INTERNAL void nk_hamming_b128_finalize_neon( //
+    nk_hamming_b128_state_neon_t const *state_a, nk_hamming_b128_state_neon_t const *state_b,
+    nk_hamming_b128_state_neon_t const *state_c, nk_hamming_b128_state_neon_t const *state_d, nk_u32_t *results) {
 
-    // Horizontal sum via `vaddvq_u32` ~ ADDV (S, V.4S): 2-3cy [ARMv8.1+]
-    // Done once at finalize, not per-update, for better throughput.
-    nk_b128_vec_t intersection_vec;
-    intersection_vec.u32s[0] = vaddvq_u32(state_a->intersection_count_u32x4),
-    intersection_vec.u32s[1] = vaddvq_u32(state_b->intersection_count_u32x4),
-    intersection_vec.u32s[2] = vaddvq_u32(state_c->intersection_count_u32x4),
-    intersection_vec.u32s[3] = vaddvq_u32(state_d->intersection_count_u32x4);
-    uint32x4_t intersection_u32x4 = intersection_vec.u32x4;
+    // Horizontal sum using pairwise adds - same pattern as Jaccard.
+    // 3× ADDP to reduce 4 state vectors into [sum_a, sum_b, sum_c, sum_d].
+    uint32x4_t ab_sum = vpaddq_u32(state_a->intersection_count_u32x4, state_b->intersection_count_u32x4);
+    uint32x4_t cd_sum = vpaddq_u32(state_c->intersection_count_u32x4, state_d->intersection_count_u32x4);
+    uint32x4_t hamming_u32x4 = vpaddq_u32(ab_sum, cd_sum);
+
+    vst1q_u32(results, hamming_u32x4);
+}
+
+struct nk_jaccard_b128_state_neon_t {
+    uint32x4_t intersection_count_u32x4;
+};
+
+NK_INTERNAL void nk_jaccard_b128_init_neon(nk_jaccard_b128_state_neon_t *state) {
+    state->intersection_count_u32x4 = vdupq_n_u32(0);
+}
+
+NK_INTERNAL void nk_jaccard_b128_update_neon(nk_jaccard_b128_state_neon_t *state, nk_b128_vec_t a, nk_b128_vec_t b) {
+
+    // Process one 128-bit chunk (native ARM NEON register size).
+    // Uses vector accumulation - horizontal sum deferred to finalize.
+    //
+    // ARM NEON instruction characteristics:
+    // - `vandq_u8`:    AND (V.16B, V.16B, V.16B)       1cy
+    // - `vcntq_u8`:    CNT (V.16B, V.16B)              1-2cy, byte popcount
+    // - `vpaddlq_u8`:  UADDLP (V.8H, V.16B)            1cy, pairwise widen u8 → u16
+    // - `vpaddlq_u16`: UADDLP (V.4S, V.8H)             1cy, pairwise widen u16 → u32
+    // - `vaddq_u32`:   ADD (V.4S, V.4S, V.4S)          1cy
+    // Total: ~5-6cy per 128-bit chunk (horizontal sum deferred to finalize)
+
+    // Step 1: Compute intersection bits (A AND B)
+    uint8x16_t intersection_u8x16 = vandq_u8(a.u8x16, b.u8x16);
+
+    // Step 2: Byte-level popcount - each byte contains count of set bits (0-8)
+    uint8x16_t popcount_u8x16 = vcntq_u8(intersection_u8x16);
+
+    // Step 3: Pairwise widening reduction chain
+    // u8x16 → u16x8: pairs of adjacent bytes summed into 16-bit
+    uint16x8_t popcount_u16x8 = vpaddlq_u8(popcount_u8x16);
+    // u16x8 → u32x4: pairs of 16-bit values summed into 32-bit
+    uint32x4_t popcount_u32x4 = vpaddlq_u16(popcount_u16x8);
+
+    // Step 4: Vector accumulation (defers horizontal sum to finalize)
+    state->intersection_count_u32x4 = vaddq_u32(state->intersection_count_u32x4, popcount_u32x4);
+}
+
+NK_INTERNAL void nk_jaccard_b128_finalize_neon( //
+    nk_jaccard_b128_state_neon_t const *state_a, nk_jaccard_b128_state_neon_t const *state_b,
+    nk_jaccard_b128_state_neon_t const *state_c, nk_jaccard_b128_state_neon_t const *state_d, nk_f32_t query_popcount,
+    nk_f32_t target_popcount_a, nk_f32_t target_popcount_b, nk_f32_t target_popcount_c, nk_f32_t target_popcount_d,
+    nk_f32_t *results) {
+
+    // Horizontal sum using pairwise adds instead of `vaddvq_u32` (ADDV).
+    // `vpaddq_u32` (ADDP) has better throughput: 2/cy vs 1/cy for ADDV on Cortex-A76.
+    // 3 ADDP instructions vs 4 ADDV + union store/load.
+    //
+    // Step 1: vpaddq_u32(A, B) = [a0+a1, a2+a3, b0+b1, b2+b3]
+    uint32x4_t ab_sum = vpaddq_u32(state_a->intersection_count_u32x4, state_b->intersection_count_u32x4);
+    uint32x4_t cd_sum = vpaddq_u32(state_c->intersection_count_u32x4, state_d->intersection_count_u32x4);
+    // Step 2: Final pairwise reduction gives [sum_a, sum_b, sum_c, sum_d]
+    uint32x4_t intersection_u32x4 = vpaddq_u32(ab_sum, cd_sum);
     float32x4_t intersection_f32x4 = vcvtq_f32_u32(intersection_u32x4);
 
     // Compute union using |A ∪ B| = |A| + |B| - |A ∩ B|
+    // Build target popcounts vector using lane insertion (avoids union store/load round-trip).
     float32x4_t query_f32x4 = vdupq_n_f32(query_popcount);
-    nk_b128_vec_t targets_vec;
-    targets_vec.f32s[0] = target_popcount_a, targets_vec.f32s[1] = target_popcount_b,
-    targets_vec.f32s[2] = target_popcount_c, targets_vec.f32s[3] = target_popcount_d;
-    float32x4_t targets_f32x4 = targets_vec.f32x4;
+    float32x4_t targets_f32x4 = vdupq_n_f32(target_popcount_a);
+    targets_f32x4 = vsetq_lane_f32(target_popcount_b, targets_f32x4, 1);
+    targets_f32x4 = vsetq_lane_f32(target_popcount_c, targets_f32x4, 2);
+    targets_f32x4 = vsetq_lane_f32(target_popcount_d, targets_f32x4, 3);
     float32x4_t union_f32x4 = vsubq_f32(vaddq_f32(query_f32x4, targets_f32x4), intersection_f32x4);
 
     // Handle zero-union edge case (empty vectors → distance = 1.0)

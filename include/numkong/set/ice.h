@@ -264,6 +264,23 @@ NK_PUBLIC void nk_jaccard_u16_ice(nk_u16_t const *a, nk_u16_t const *b, nk_size_
     *result = (n != 0) ? 1.0f - (nk_f32_t)matches / (nk_f32_t)n : 1.0f;
 }
 
+struct nk_hamming_b512_state_ice_t {
+    __m512i intersection_count_i64x8;
+};
+
+NK_INTERNAL void nk_hamming_b512_init_ice(nk_hamming_b512_state_ice_t *state) {
+    state->intersection_count_i64x8 = _mm512_setzero_si512();
+}
+
+NK_INTERNAL void nk_hamming_b512_update_ice(nk_hamming_b512_state_ice_t *state, nk_b512_vec_t a, nk_b512_vec_t b) {
+    state->intersection_count_i64x8 = _mm512_add_epi64(state->intersection_count_i64x8,
+                                                       _mm512_popcnt_epi64(_mm512_xor_si512(a.zmm, b.zmm)));
+}
+
+NK_INTERNAL void nk_hamming_b512_finalize_ice( //
+    nk_hamming_b512_state_ice_t const *state_a, nk_hamming_b512_state_ice_t const *state_b,
+    nk_hamming_b512_state_ice_t const *state_c, nk_hamming_b512_state_ice_t const *state_d, nk_u32_t *results) {}
+
 struct nk_jaccard_b512_state_ice_t {
     __m512i intersection_count_i64x8;
 };
@@ -277,13 +294,11 @@ NK_INTERNAL void nk_jaccard_b512_update_ice(nk_jaccard_b512_state_ice_t *state, 
                                                        _mm512_popcnt_epi64(_mm512_and_si512(a.zmm, b.zmm)));
 }
 
-NK_INTERNAL void nk_jaccard_b512_finalize_ice(nk_jaccard_b512_state_ice_t const *state_a,
-                                              nk_jaccard_b512_state_ice_t const *state_b,
-                                              nk_jaccard_b512_state_ice_t const *state_c,
-                                              nk_jaccard_b512_state_ice_t const *state_d, nk_f32_t query_popcount,
-                                              nk_f32_t target_popcount_a, nk_f32_t target_popcount_b,
-                                              nk_f32_t target_popcount_c, nk_f32_t target_popcount_d,
-                                              nk_f32_t *results) {
+NK_INTERNAL void nk_jaccard_b512_finalize_ice( //
+    nk_jaccard_b512_state_ice_t const *state_a, nk_jaccard_b512_state_ice_t const *state_b,
+    nk_jaccard_b512_state_ice_t const *state_c, nk_jaccard_b512_state_ice_t const *state_d, nk_f32_t query_popcount,
+    nk_f32_t target_popcount_a, nk_f32_t target_popcount_b, nk_f32_t target_popcount_c, nk_f32_t target_popcount_d,
+    nk_f32_t *results) {
 
     // Port-optimized 4-way horizontal reduction using early i64 → i32 truncation.
     //
