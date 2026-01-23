@@ -469,6 +469,172 @@ NK_INTERNAL __m128i nk_f32x8_to_e5m2x8_haswell_(__m256 f32x8) {
     return packed_i8x8;
 }
 
+/** @brief Convert 8x e2m3 → 8x f32 via bit manipulation (AVX2).
+ *  E2M3 format: S EE MMM (bias=1). F32: sign<<31, (exp+126)<<23, mantissa<<20.
+ *  Subnormals (exp=0): value = mantissa × 2⁽¹⁻¹⁾ × 2⁻³ = mantissa ÷ 8. */
+NK_INTERNAL __m256 nk_e2m3x8_to_f32x8_haswell_(__m128i e2m3_i8x8) {
+    __m256i e2m3_i32x8 = _mm256_cvtepu8_epi32(e2m3_i8x8);
+
+    // Extract fields (only 6 bits used: S EE MMM)
+    __m256i exp_i32x8 = _mm256_and_si256(_mm256_srli_epi32(e2m3_i32x8, 3), _mm256_set1_epi32(0x03));
+    __m256i mant_i32x8 = _mm256_and_si256(e2m3_i32x8, _mm256_set1_epi32(0x07));
+
+    // Build F32 sign bit
+    __m256i f32_sign_i32x8 = _mm256_slli_epi32(_mm256_srli_epi32(e2m3_i32x8, 5), 31);
+
+    // Normal path: sign | ((exp+126)<<23) | (mant<<20)
+    __m256i f32_exp_i32x8 = _mm256_slli_epi32(_mm256_add_epi32(exp_i32x8, _mm256_set1_epi32(126)), 23);
+    __m256i f32_mant_i32x8 = _mm256_slli_epi32(mant_i32x8, 20);
+    __m256i normal_bits_i32x8 = _mm256_or_si256(f32_sign_i32x8, _mm256_or_si256(f32_exp_i32x8, f32_mant_i32x8));
+
+    // Subnormal path: value = mantissa / 8.0f, then apply sign
+    __m256 subnorm_abs_f32x8 = _mm256_mul_ps(_mm256_cvtepi32_ps(mant_i32x8), _mm256_set1_ps(1.0f / 8.0f));
+    __m256 subnorm_f32x8 = _mm256_or_ps(subnorm_abs_f32x8, _mm256_castsi256_ps(f32_sign_i32x8));
+
+    // Blend: if exp==0, use subnormal result; otherwise use normal bits
+    __m256i exp_zero_mask = _mm256_cmpeq_epi32(exp_i32x8, _mm256_setzero_si256());
+    return _mm256_blendv_ps(_mm256_castsi256_ps(normal_bits_i32x8), subnorm_f32x8, _mm256_castsi256_ps(exp_zero_mask));
+}
+
+/** @brief Convert 8x e3m2 → 8x f32 via bit manipulation (AVX2).
+ *  E3M2 format: S EEE MM (bias=3). F32: sign<<31, (exp+124)<<23, mantissa<<21.
+ *  Subnormals (exp=0): value = mantissa × 2⁽¹⁻³⁾ × 2⁻² = mantissa ÷ 16. */
+NK_INTERNAL __m256 nk_e3m2x8_to_f32x8_haswell_(__m128i e3m2_i8x8) {
+    __m256i e3m2_i32x8 = _mm256_cvtepu8_epi32(e3m2_i8x8);
+
+    // Extract fields (only 6 bits used: S EEE MM)
+    __m256i exp_i32x8 = _mm256_and_si256(_mm256_srli_epi32(e3m2_i32x8, 2), _mm256_set1_epi32(0x07));
+    __m256i mant_i32x8 = _mm256_and_si256(e3m2_i32x8, _mm256_set1_epi32(0x03));
+
+    // Build F32 sign bit
+    __m256i f32_sign_i32x8 = _mm256_slli_epi32(_mm256_srli_epi32(e3m2_i32x8, 5), 31);
+
+    // Normal path: sign | ((exp+124)<<23) | (mant<<21)
+    __m256i f32_exp_i32x8 = _mm256_slli_epi32(_mm256_add_epi32(exp_i32x8, _mm256_set1_epi32(124)), 23);
+    __m256i f32_mant_i32x8 = _mm256_slli_epi32(mant_i32x8, 21);
+    __m256i normal_bits_i32x8 = _mm256_or_si256(f32_sign_i32x8, _mm256_or_si256(f32_exp_i32x8, f32_mant_i32x8));
+
+    // Subnormal path: value = mantissa / 16.0f, then apply sign
+    __m256 subnorm_abs_f32x8 = _mm256_mul_ps(_mm256_cvtepi32_ps(mant_i32x8), _mm256_set1_ps(1.0f / 16.0f));
+    __m256 subnorm_f32x8 = _mm256_or_ps(subnorm_abs_f32x8, _mm256_castsi256_ps(f32_sign_i32x8));
+
+    // Blend: if exp==0, use subnormal result; otherwise use normal bits
+    __m256i exp_zero_mask = _mm256_cmpeq_epi32(exp_i32x8, _mm256_setzero_si256());
+    return _mm256_blendv_ps(_mm256_castsi256_ps(normal_bits_i32x8), subnorm_f32x8, _mm256_castsi256_ps(exp_zero_mask));
+}
+
+/** @brief Convert 8x f32 → 8x e2m3 via bit manipulation (AVX2).
+ *  E2M3 format: S EE MMM (bias=1). Handles normal, subnormal, and overflow cases.
+ *  Subnormals (f32_exp ≤ 126): mantissa = round(abs_f32 * 8), clamped to [0,7]. */
+NK_INTERNAL __m128i nk_f32x8_to_e2m3x8_haswell_(__m256 f32x8) {
+    __m256i bits_i32x8 = _mm256_castps_si256(f32x8);
+    __m256i sign_i32x8 = _mm256_srli_epi32(bits_i32x8, 31);
+    __m256i f32_exp_i32x8 = _mm256_and_si256(_mm256_srli_epi32(bits_i32x8, 23), _mm256_set1_epi32(0xFF));
+
+    // Round mantissa from 23 to 3 bits using RNE (round to nearest, ties to even)
+    __m256i significand_i32x8 = _mm256_or_si256(_mm256_and_si256(bits_i32x8, _mm256_set1_epi32(0x007FFFFF)),
+                                                _mm256_set1_epi32(0x00800000)); // Add implicit 1 bit
+    __m256i lsb_i32x8 = _mm256_and_si256(_mm256_srli_epi32(significand_i32x8, 20), _mm256_set1_epi32(1));
+    __m256i rounding_bias_i32x8 = _mm256_add_epi32(_mm256_set1_epi32(0x0007FFFF), lsb_i32x8);
+    __m256i rounded_sig_i32x8 = _mm256_add_epi32(significand_i32x8, rounding_bias_i32x8);
+    __m256i carry_i32x8 = _mm256_srli_epi32(rounded_sig_i32x8, 24); // Carry into exponent if bit 24 set
+    __m256i f32_mantissa_i32x8 = _mm256_and_si256(_mm256_srli_epi32(rounded_sig_i32x8, 20), _mm256_set1_epi32(0x07));
+    // If carry, mantissa becomes 0 (we rounded up to next power of 2)
+    f32_mantissa_i32x8 = _mm256_andnot_si256(_mm256_slli_epi32(carry_i32x8, 31), f32_mantissa_i32x8);
+    __m256i e2m3_exp_i32x8 = _mm256_sub_epi32(_mm256_add_epi32(f32_exp_i32x8, carry_i32x8), _mm256_set1_epi32(126));
+
+    // Detect underflow (exp <= 0, maps to subnormal/zero) and overflow (exp > 3)
+    __m256i is_subnormal_i32x8 = _mm256_cmpgt_epi32(_mm256_set1_epi32(1), e2m3_exp_i32x8);
+    __m256i overflow_i32x8 = _mm256_cmpgt_epi32(e2m3_exp_i32x8, _mm256_set1_epi32(3));
+
+    // Normal path: clamp exp to [1,3], extract mantissa bits
+    __m256i clamped_exp_i32x8 = _mm256_max_epi32(e2m3_exp_i32x8, _mm256_set1_epi32(1));
+    clamped_exp_i32x8 = _mm256_min_epi32(clamped_exp_i32x8, _mm256_set1_epi32(3));
+    __m256i normal_mantissa_i32x8 = _mm256_blendv_epi8(f32_mantissa_i32x8, _mm256_set1_epi32(0x07), overflow_i32x8);
+    __m256i normal_e2m3_i32x8 = _mm256_or_si256(
+        _mm256_slli_epi32(sign_i32x8, 5),
+        _mm256_or_si256(_mm256_slli_epi32(clamped_exp_i32x8, 3), normal_mantissa_i32x8));
+
+    // Subnormal path: mantissa = round(abs_f32 * 8)
+    // If mantissa rounds to 8 or higher, promote to first normal (exp_field=1, mantissa=0) = 0x08
+    __m256 abs_f32x8 = _mm256_and_ps(f32x8, _mm256_castsi256_ps(_mm256_set1_epi32(0x7FFFFFFF)));
+    __m256 scaled_f32x8 = _mm256_mul_ps(abs_f32x8, _mm256_set1_ps(8.0f));
+    __m256i subnorm_mantissa_i32x8 = _mm256_cvtps_epi32(scaled_f32x8);
+    __m256i promotes_to_normal_i32x8 = _mm256_cmpgt_epi32(subnorm_mantissa_i32x8, _mm256_set1_epi32(7));
+    subnorm_mantissa_i32x8 = _mm256_min_epi32(subnorm_mantissa_i32x8, _mm256_set1_epi32(7));
+    subnorm_mantissa_i32x8 = _mm256_max_epi32(subnorm_mantissa_i32x8, _mm256_setzero_si256());
+    __m256i subnorm_e2m3_i32x8 = _mm256_or_si256(_mm256_slli_epi32(sign_i32x8, 5), subnorm_mantissa_i32x8);
+    // When mantissa rounds to 8, use first normal value (0x08) instead of clamped subnormal
+    __m256i first_normal_e2m3_i32x8 = _mm256_or_si256(_mm256_slli_epi32(sign_i32x8, 5), _mm256_set1_epi32(0x08));
+    subnorm_e2m3_i32x8 = _mm256_blendv_epi8(subnorm_e2m3_i32x8, first_normal_e2m3_i32x8, promotes_to_normal_i32x8);
+
+    // Blend: use subnormal result when exp <= 0, else normal
+    __m256i e2m3_i32x8 = _mm256_blendv_epi8(normal_e2m3_i32x8, subnorm_e2m3_i32x8, is_subnormal_i32x8);
+
+    // Pack 8 i32s to 8 unsigned i8s (use unsigned saturation to preserve values 128-255)
+    __m128i low_i32x4 = _mm256_castsi256_si128(e2m3_i32x8);
+    __m128i high_i32x4 = _mm256_extracti128_si256(e2m3_i32x8, 1);
+    __m128i packed_i16x8 = _mm_packus_epi32(low_i32x4, high_i32x4);
+    __m128i packed_i8x8 = _mm_packus_epi16(packed_i16x8, packed_i16x8);
+    return packed_i8x8;
+}
+
+/** @brief Convert 8x f32 → 8x e3m2 via bit manipulation (AVX2).
+ *  E3M2 format: S EEE MM (bias=3). Handles normal, subnormal, and overflow cases.
+ *  Subnormals (f32_exp ≤ 124): mantissa = round(abs_f32 * 16), clamped to [0,3]. */
+NK_INTERNAL __m128i nk_f32x8_to_e3m2x8_haswell_(__m256 f32x8) {
+    __m256i bits_i32x8 = _mm256_castps_si256(f32x8);
+    __m256i sign_i32x8 = _mm256_srli_epi32(bits_i32x8, 31);
+    __m256i f32_exp_i32x8 = _mm256_and_si256(_mm256_srli_epi32(bits_i32x8, 23), _mm256_set1_epi32(0xFF));
+
+    // Round mantissa from 23 to 2 bits using RNE (round to nearest, ties to even)
+    __m256i significand_i32x8 = _mm256_or_si256(_mm256_and_si256(bits_i32x8, _mm256_set1_epi32(0x007FFFFF)),
+                                                _mm256_set1_epi32(0x00800000)); // Add implicit 1 bit
+    __m256i lsb_i32x8 = _mm256_and_si256(_mm256_srli_epi32(significand_i32x8, 21), _mm256_set1_epi32(1));
+    __m256i rounding_bias_i32x8 = _mm256_add_epi32(_mm256_set1_epi32(0x000FFFFF), lsb_i32x8);
+    __m256i rounded_sig_i32x8 = _mm256_add_epi32(significand_i32x8, rounding_bias_i32x8);
+    __m256i carry_i32x8 = _mm256_srli_epi32(rounded_sig_i32x8, 24); // Carry into exponent if bit 24 set
+    __m256i f32_mantissa_i32x8 = _mm256_and_si256(_mm256_srli_epi32(rounded_sig_i32x8, 21), _mm256_set1_epi32(0x03));
+    // If carry, mantissa becomes 0 (we rounded up to next power of 2)
+    f32_mantissa_i32x8 = _mm256_andnot_si256(_mm256_slli_epi32(carry_i32x8, 31), f32_mantissa_i32x8);
+    __m256i e3m2_exp_i32x8 = _mm256_sub_epi32(_mm256_add_epi32(f32_exp_i32x8, carry_i32x8), _mm256_set1_epi32(124));
+
+    // Detect underflow (exp <= 0, maps to subnormal/zero) and overflow (exp > 7)
+    __m256i is_subnormal_i32x8 = _mm256_cmpgt_epi32(_mm256_set1_epi32(1), e3m2_exp_i32x8);
+    __m256i overflow_i32x8 = _mm256_cmpgt_epi32(e3m2_exp_i32x8, _mm256_set1_epi32(7));
+
+    // Normal path: clamp exp to [1,7], extract mantissa bits
+    __m256i clamped_exp_i32x8 = _mm256_max_epi32(e3m2_exp_i32x8, _mm256_set1_epi32(1));
+    clamped_exp_i32x8 = _mm256_min_epi32(clamped_exp_i32x8, _mm256_set1_epi32(7));
+    __m256i normal_mantissa_i32x8 = _mm256_blendv_epi8(f32_mantissa_i32x8, _mm256_set1_epi32(0x03), overflow_i32x8);
+    __m256i normal_e3m2_i32x8 = _mm256_or_si256(
+        _mm256_slli_epi32(sign_i32x8, 5),
+        _mm256_or_si256(_mm256_slli_epi32(clamped_exp_i32x8, 2), normal_mantissa_i32x8));
+
+    // Subnormal path: mantissa = round(abs_f32 * 16)
+    // If mantissa rounds to 4 or higher, promote to first normal (exp_field=1, mantissa=0) = 0x04
+    __m256 abs_f32x8 = _mm256_and_ps(f32x8, _mm256_castsi256_ps(_mm256_set1_epi32(0x7FFFFFFF)));
+    __m256 scaled_f32x8 = _mm256_mul_ps(abs_f32x8, _mm256_set1_ps(16.0f));
+    __m256i subnorm_mantissa_i32x8 = _mm256_cvtps_epi32(scaled_f32x8);
+    __m256i promotes_to_normal_i32x8 = _mm256_cmpgt_epi32(subnorm_mantissa_i32x8, _mm256_set1_epi32(3));
+    subnorm_mantissa_i32x8 = _mm256_min_epi32(subnorm_mantissa_i32x8, _mm256_set1_epi32(3));
+    subnorm_mantissa_i32x8 = _mm256_max_epi32(subnorm_mantissa_i32x8, _mm256_setzero_si256());
+    __m256i subnorm_e3m2_i32x8 = _mm256_or_si256(_mm256_slli_epi32(sign_i32x8, 5), subnorm_mantissa_i32x8);
+    // When mantissa rounds to 4, use first normal value (0x04) instead of clamped subnormal
+    __m256i first_normal_e3m2_i32x8 = _mm256_or_si256(_mm256_slli_epi32(sign_i32x8, 5), _mm256_set1_epi32(0x04));
+    subnorm_e3m2_i32x8 = _mm256_blendv_epi8(subnorm_e3m2_i32x8, first_normal_e3m2_i32x8, promotes_to_normal_i32x8);
+
+    // Blend: use subnormal result when exp <= 0
+    __m256i e3m2_i32x8 = _mm256_blendv_epi8(normal_e3m2_i32x8, subnorm_e3m2_i32x8, is_subnormal_i32x8);
+
+    // Pack 8 i32s to 8 unsigned i8s (use unsigned saturation to preserve values 128-255)
+    __m128i low_i32x4 = _mm256_castsi256_si128(e3m2_i32x8);
+    __m128i high_i32x4 = _mm256_extracti128_si256(e3m2_i32x8, 1);
+    __m128i packed_i16x8 = _mm_packus_epi32(low_i32x4, high_i32x4);
+    __m128i packed_i8x8 = _mm_packus_epi16(packed_i16x8, packed_i16x8);
+    return packed_i8x8;
+}
+
 #pragma endregion - Vectorized Conversions
 
 #pragma region - Converting Loads and Stores
@@ -499,6 +665,20 @@ NK_INTERNAL void nk_partial_load_e5m2x8_to_f32x8_haswell_(nk_e5m2_t const *src, 
     nk_b64_vec_t vec;
     nk_partial_load_b8x8_serial_(src, &vec, n);
     dst->ymm_ps = nk_e5m2x8_to_f32x8_haswell_(_mm_cvtsi64_si128(vec.u64));
+}
+
+/** @brief Partial load for e2m3 elements (up to 8) with conversion to f32. */
+NK_INTERNAL void nk_partial_load_e2m3x8_to_f32x8_haswell_(nk_e2m3_t const *src, nk_b256_vec_t *dst, nk_size_t n) {
+    nk_b64_vec_t vec;
+    nk_partial_load_b8x8_serial_(src, &vec, n);
+    dst->ymm_ps = nk_e2m3x8_to_f32x8_haswell_(_mm_cvtsi64_si128(vec.u64));
+}
+
+/** @brief Partial load for e3m2 elements (up to 8) with conversion to f32. */
+NK_INTERNAL void nk_partial_load_e3m2x8_to_f32x8_haswell_(nk_e3m2_t const *src, nk_b256_vec_t *dst, nk_size_t n) {
+    nk_b64_vec_t vec;
+    nk_partial_load_b8x8_serial_(src, &vec, n);
+    dst->ymm_ps = nk_e3m2x8_to_f32x8_haswell_(_mm_cvtsi64_si128(vec.u64));
 }
 
 /** @brief Partial load for i8 elements (up to 8) with conversion to f32. */
@@ -555,14 +735,16 @@ NK_PUBLIC void nk_cast_haswell(void const *from, nk_dtype_t from_type, nk_size_t
         return;
     }
 
-    // Supported types: floats (f32, f16, bf16, e4m3, e5m2) and integers (i8, u8, i16, u16, i32, u32)
+    // Supported types: floats (f32, f16, bf16, e4m3, e5m2, e2m3, e3m2) and integers (i8, u8, i16, u16, i32, u32)
     int from_supported = (from_type == nk_f32_k || from_type == nk_f16_k || from_type == nk_bf16_k ||
-                          from_type == nk_e4m3_k || from_type == nk_e5m2_k || from_type == nk_i8_k ||
-                          from_type == nk_u8_k || from_type == nk_i16_k || from_type == nk_u16_k ||
-                          from_type == nk_i32_k || from_type == nk_u32_k);
+                          from_type == nk_e4m3_k || from_type == nk_e5m2_k || from_type == nk_e2m3_k ||
+                          from_type == nk_e3m2_k || from_type == nk_i8_k || from_type == nk_u8_k ||
+                          from_type == nk_i16_k || from_type == nk_u16_k || from_type == nk_i32_k ||
+                          from_type == nk_u32_k);
     int to_supported = (to_type == nk_f32_k || to_type == nk_f16_k || to_type == nk_bf16_k || to_type == nk_e4m3_k ||
-                        to_type == nk_e5m2_k || to_type == nk_i8_k || to_type == nk_u8_k || to_type == nk_i16_k ||
-                        to_type == nk_u16_k || to_type == nk_i32_k || to_type == nk_u32_k);
+                        to_type == nk_e5m2_k || to_type == nk_e2m3_k || to_type == nk_e3m2_k || to_type == nk_i8_k ||
+                        to_type == nk_u8_k || to_type == nk_i16_k || to_type == nk_u16_k || to_type == nk_i32_k ||
+                        to_type == nk_u32_k);
     if (!from_supported || !to_supported) {
         nk_cast_serial(from, from_type, n, to, to_type);
         return;
@@ -596,6 +778,10 @@ NK_PUBLIC void nk_cast_haswell(void const *from, nk_dtype_t from_type, nk_size_t
             hub.ymm_ps = nk_e4m3x8_to_f32x8_haswell_(_mm_loadl_epi64((__m128i const *)from_ptr));
         else if (from_type == nk_e5m2_k)
             hub.ymm_ps = nk_e5m2x8_to_f32x8_haswell_(_mm_loadl_epi64((__m128i const *)from_ptr));
+        else if (from_type == nk_e2m3_k)
+            hub.ymm_ps = nk_e2m3x8_to_f32x8_haswell_(_mm_loadl_epi64((__m128i const *)from_ptr));
+        else if (from_type == nk_e3m2_k)
+            hub.ymm_ps = nk_e3m2x8_to_f32x8_haswell_(_mm_loadl_epi64((__m128i const *)from_ptr));
         else if (from_type == nk_i8_k)
             hub.ymm_ps = nk_i8x8_to_f32x8_haswell_(_mm_loadl_epi64((__m128i const *)from_ptr));
         else if (from_type == nk_u8_k)
@@ -616,6 +802,8 @@ NK_PUBLIC void nk_cast_haswell(void const *from, nk_dtype_t from_type, nk_size_t
         else if (to_type == nk_bf16_k) _mm_storeu_si128((__m128i *)to_ptr, nk_f32x8_to_bf16x8_haswell_(hub.ymm_ps));
         else if (to_type == nk_e4m3_k) _mm_storel_epi64((__m128i *)to_ptr, nk_f32x8_to_e4m3x8_haswell_(hub.ymm_ps));
         else if (to_type == nk_e5m2_k) _mm_storel_epi64((__m128i *)to_ptr, nk_f32x8_to_e5m2x8_haswell_(hub.ymm_ps));
+        else if (to_type == nk_e2m3_k) _mm_storel_epi64((__m128i *)to_ptr, nk_f32x8_to_e2m3x8_haswell_(hub.ymm_ps));
+        else if (to_type == nk_e3m2_k) _mm_storel_epi64((__m128i *)to_ptr, nk_f32x8_to_e3m2x8_haswell_(hub.ymm_ps));
         else if (to_type == nk_i8_k) _mm_storel_epi64((__m128i *)to_ptr, nk_f32x8_to_i8x8_haswell_(hub.ymm_ps));
         else if (to_type == nk_u8_k) _mm_storel_epi64((__m128i *)to_ptr, nk_f32x8_to_u8x8_haswell_(hub.ymm_ps));
         else if (to_type == nk_i16_k) _mm_storeu_si128((__m128i *)to_ptr, nk_f32x8_to_i16x8_haswell_(hub.ymm_ps));
@@ -635,6 +823,10 @@ NK_PUBLIC void nk_cast_haswell(void const *from, nk_dtype_t from_type, nk_size_t
             nk_partial_load_e4m3x8_to_f32x8_haswell_((nk_e4m3_t const *)from_ptr, &hub, tail);
         else if (from_type == nk_e5m2_k)
             nk_partial_load_e5m2x8_to_f32x8_haswell_((nk_e5m2_t const *)from_ptr, &hub, tail);
+        else if (from_type == nk_e2m3_k)
+            nk_partial_load_e2m3x8_to_f32x8_haswell_((nk_e2m3_t const *)from_ptr, &hub, tail);
+        else if (from_type == nk_e3m2_k)
+            nk_partial_load_e3m2x8_to_f32x8_haswell_((nk_e3m2_t const *)from_ptr, &hub, tail);
         else if (from_type == nk_i8_k) nk_partial_load_i8x8_to_f32x8_haswell_((nk_i8_t const *)from_ptr, &hub, tail);
         else if (from_type == nk_u8_k) nk_partial_load_u8x8_to_f32x8_haswell_((nk_u8_t const *)from_ptr, &hub, tail);
         else if (from_type == nk_i16_k) nk_partial_load_i16x8_to_f32x8_haswell_((nk_i16_t const *)from_ptr, &hub, tail);
@@ -658,6 +850,14 @@ NK_PUBLIC void nk_cast_haswell(void const *from, nk_dtype_t from_type, nk_size_t
         }
         else if (to_type == nk_e5m2_k) {
             hub.xmms[0] = nk_f32x8_to_e5m2x8_haswell_(hub.ymm_ps);
+            nk_partial_store_b8x8_serial_((nk_b64_vec_t *)&hub, to_ptr, tail);
+        }
+        else if (to_type == nk_e2m3_k) {
+            hub.xmms[0] = nk_f32x8_to_e2m3x8_haswell_(hub.ymm_ps);
+            nk_partial_store_b8x8_serial_((nk_b64_vec_t *)&hub, to_ptr, tail);
+        }
+        else if (to_type == nk_e3m2_k) {
+            hub.xmms[0] = nk_f32x8_to_e3m2x8_haswell_(hub.ymm_ps);
             nk_partial_store_b8x8_serial_((nk_b64_vec_t *)&hub, to_ptr, tail);
         }
         else if (to_type == nk_i8_k) {

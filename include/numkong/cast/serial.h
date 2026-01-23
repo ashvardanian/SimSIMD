@@ -1368,6 +1368,18 @@ NK_INTERNAL void nk_scalar_buffers_fill_f64c_(                         //
             nk_e5m2_to_f32_serial(&p[i], &temporary_f32), to_buffers[i].f64c.real = temporary_f32,
                                                           to_buffers[i].f64c.imag = 0;
     } break;
+    case nk_e2m3_k: {
+        nk_u8_t const *p = (nk_u8_t const *)from_ptr;
+        for (i = 0; i < from_count; ++i)
+            nk_e2m3_to_f32_serial(&p[i], &temporary_f32), to_buffers[i].f64c.real = temporary_f32,
+                                                          to_buffers[i].f64c.imag = 0;
+    } break;
+    case nk_e3m2_k: {
+        nk_u8_t const *p = (nk_u8_t const *)from_ptr;
+        for (i = 0; i < from_count; ++i)
+            nk_e3m2_to_f32_serial(&p[i], &temporary_f32), to_buffers[i].f64c.real = temporary_f32,
+                                                          to_buffers[i].f64c.imag = 0;
+    } break;
     case nk_i64_k: {
         nk_i64_t const *p = (nk_i64_t const *)from_ptr;
         for (i = 0; i < from_count; ++i) to_buffers[i].f64c.real = (nk_f64_t)p[i], to_buffers[i].f64c.imag = 0;
@@ -1487,6 +1499,16 @@ NK_INTERNAL void nk_scalar_buffers_export_f64c_(            //
         nk_u8_t *p = (nk_u8_t *)to_ptr;
         for (i = 0; i < to_count; ++i)
             temporary_f32 = (nk_f32_t)from_buffers[i].f64c.real, nk_f32_to_e5m2_serial(&temporary_f32, &p[i]);
+    } break;
+    case nk_e2m3_k: {
+        nk_u8_t *p = (nk_u8_t *)to_ptr;
+        for (i = 0; i < to_count; ++i)
+            temporary_f32 = (nk_f32_t)from_buffers[i].f64c.real, nk_f32_to_e2m3_serial(&temporary_f32, &p[i]);
+    } break;
+    case nk_e3m2_k: {
+        nk_u8_t *p = (nk_u8_t *)to_ptr;
+        for (i = 0; i < to_count; ++i)
+            temporary_f32 = (nk_f32_t)from_buffers[i].f64c.real, nk_f32_to_e3m2_serial(&temporary_f32, &p[i]);
     } break;
     case nk_i64_k: {
         nk_i64_t *p = (nk_i64_t *)to_ptr;
