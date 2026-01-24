@@ -6,21 +6,23 @@
  *  like our `f118_t` double-double type, and reports ULP error statistics.
  *
  *  Environment Variables:
- *    NK_TEST_ASSERT=1             - Assert on ULP threshold violations (default: 0)
- *    NK_TEST_VERBOSE=1            - Show per-dimension ULP breakdown (default: 0)
- *    NK_TEST_FILTER=<pattern>     - Filter tests by name RegEx (default: run all)
- *    NK_TEST_ULP_THRESHOLD_F32=N  - Max allowed ULP for f32 (default: 4)
- *    NK_TEST_ULP_THRESHOLD_F16=N  - Max allowed ULP for f16 (default: 32)
- *    NK_TEST_ULP_THRESHOLD_BF16=N - Max allowed ULP for bf16 (default: 256)
- *    NK_TEST_TIME_BUDGET_MS=N     - Time budget per kernel in ms (default: 1000)
- *    NK_TEST_SEED=N               - RNG seed (default: 12345)
- *    NK_TEST_DISTRIBUTION=<type>  - Random distribution: uniform_k|lognormal_k|cauchy_k (default: lognormal_k)
+ *    NK_FILTER=<pattern>          - Filter tests by name RegEx (default: run all)
+ *    NK_SEED=N                    - RNG seed (default: 12345)
+ *
  *    NK_DENSE_DIMENSIONS=N        - Vector dimension for dot/spatial tests (default: 1024)
  *    NK_SPARSE_DIMENSIONS=N       - Vector dimension for sparse tests (default: 256)
  *    NK_MESH_POINTS=N             - Point count for mesh tests (default: 256)
  *    NK_MATRIX_HEIGHT=N           - GEMM M dimension (default: 64)
  *    NK_MATRIX_WIDTH=N            - GEMM N dimension (default: 64)
  *    NK_MATRIX_DEPTH=N            - GEMM K dimension (default: 64)
+ *
+ *    NK_TEST_ASSERT=1             - Assert on ULP threshold violations (default: 0)
+ *    NK_TEST_VERBOSE=1            - Show per-dimension ULP breakdown (default: 0)
+ *    NK_TEST_ULP_THRESHOLD_F32=N  - Max allowed ULP for f32 (default: 4)
+ *    NK_TEST_ULP_THRESHOLD_F16=N  - Max allowed ULP for f16 (default: 32)
+ *    NK_TEST_ULP_THRESHOLD_BF16=N - Max allowed ULP for bf16 (default: 256)
+ *    NK_TEST_TIME_BUDGET_MS=N     - Time budget per kernel in ms (default: 1000)
+ *    NK_TEST_DISTRIBUTION=<type>  - Random distribution: uniform_k|lognormal_k|cauchy_k (default: lognormal_k)
  */
 
 #include <algorithm>
@@ -2663,8 +2665,8 @@ int main(int argc, char **argv) {
     if (char const *env = std::getenv("NK_TEST_ULP_THRESHOLD_F16")) global_config.ulp_threshold_f16 = std::atoll(env);
     if (char const *env = std::getenv("NK_TEST_ULP_THRESHOLD_BF16")) global_config.ulp_threshold_bf16 = std::atoll(env);
     if (char const *env = std::getenv("NK_TEST_TIME_BUDGET_MS")) global_config.time_budget_ms = std::atoll(env);
-    if (char const *env = std::getenv("NK_TEST_SEED")) global_config.seed = std::atoll(env);
-    global_config.filter = std::getenv("NK_TEST_FILTER"); // e.g., "dot", "angular", "kld"
+    if (char const *env = std::getenv("NK_SEED")) global_config.seed = std::atoll(env);
+    global_config.filter = std::getenv("NK_FILTER"); // e.g., "dot", "angular", "kld"
     if (char const *env = std::getenv("NK_TEST_DISTRIBUTION")) {
         if (std::strcmp(env, "uniform_k") == 0) global_config.distribution = random_distribution_kind_t::uniform_k;
         else if (std::strcmp(env, "cauchy_k") == 0) global_config.distribution = random_distribution_kind_t::cauchy_k;

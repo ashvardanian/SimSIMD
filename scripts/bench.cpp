@@ -12,17 +12,19 @@
  *  ```
  *
  *  Environment Variables:
- *    NK_BENCH_FILTER=<pattern>       - Filter benchmarks by name regex (default: run all)
- *    NK_BENCH_SEED=N                 - RNG seed (default: 42)
- *    NK_BENCH_CURVED_DIMENSIONS=N    - Vector dimension for curved benchmarks (default: 64)
- *    NK_BENCH_SPARSE_FIRST_LENGTH=N  - First set size for sparse benchmarks (default: 1024)
- *    NK_BENCH_SPARSE_SECOND_LENGTH=N - Second set size for sparse benchmarks (default: 8192)
- *    NK_BENCH_SPARSE_INTERSECTION=F  - Intersection share 0.0-1.0 (default: 0.5)
+ *    NK_FILTER=<pattern>             - Filter benchmarks by name regex (default: run all)
+ *    NK_SEED=N                       - RNG seed (default: 42)
+ *
  *    NK_DENSE_DIMENSIONS=N           - Vector dimension for dot/spatial benchmarks (default: 1536)
  *    NK_MESH_POINTS=N                - Point count for mesh benchmarks (default: 1000)
  *    NK_MATRIX_HEIGHT=N              - GEMM M dimension (default: 128)
  *    NK_MATRIX_WIDTH=N               - GEMM N dimension (default: 512)
  *    NK_MATRIX_DEPTH=N               - GEMM K dimension (default: 256)
+ *
+ *    NK_BENCH_CURVED_DIMENSIONS=N    - Vector dimension for curved benchmarks (default: 64)
+ *    NK_BENCH_SPARSE_FIRST_LENGTH=N  - First set size for sparse benchmarks (default: 1024)
+ *    NK_BENCH_SPARSE_SECOND_LENGTH=N - Second set size for sparse benchmarks (default: 8192)
+ *    NK_BENCH_SPARSE_INTERSECTION=F  - Intersection share 0.0-1.0 (default: 0.5)
  */
 
 #include <array>         // `std::array`
@@ -88,7 +90,7 @@ std::size_t mesh_points = 1000;
 /// Can be overridden at runtime via `NK_MATRIX_HEIGHT/WIDTH/DEPTH` environment variables
 std::size_t matrix_height = 128, matrix_width = 512, matrix_depth = 256;
 /// Random seed for reproducible benchmarks
-/// Can be overridden at runtime via `NK_BENCH_SEED` environment variable
+/// Can be overridden at runtime via `NK_SEED` environment variable
 std::uint32_t random_seed = 42;
 /// Sparse set intersection benchmark globals
 /// Can be overridden at runtime via `NK_BENCH_SPARSE_*` environment variables
@@ -1108,10 +1110,10 @@ int main(int argc, char **argv) {
             std::printf("Using NK_MATRIX_DEPTH=%zu\n", matrix_depth);
         }
     }
-    if (char const *env_seed = std::getenv("NK_BENCH_SEED")) {
+    if (char const *env_seed = std::getenv("NK_SEED")) {
         std::uint32_t parsed = static_cast<std::uint32_t>(std::atoll(env_seed));
         random_seed = parsed;
-        std::printf("Overriding `random_seed` to %u from NK_BENCH_SEED\n", random_seed);
+        std::printf("Overriding `random_seed` to %u from NK_SEED\n", random_seed);
     }
     if (char const *env_sparse_first = std::getenv("NK_BENCH_SPARSE_FIRST_LENGTH")) {
         std::size_t parsed = static_cast<std::size_t>(std::atoll(env_sparse_first));
@@ -1139,13 +1141,13 @@ int main(int argc, char **argv) {
     }
     std::printf("\n");
 
-    // Handle NK_BENCH_FILTER environment variable by injecting --benchmark_filter argument
+    // Handle NK_FILTER environment variable by injecting --benchmark_filter argument
     std::vector<char *> modified_argv(argv, argv + argc);
     std::string filter_arg;
-    if (char const *env_filter = std::getenv("NK_BENCH_FILTER")) {
+    if (char const *env_filter = std::getenv("NK_FILTER")) {
         filter_arg = std::string("--benchmark_filter=") + env_filter;
         modified_argv.push_back(const_cast<char *>(filter_arg.c_str()));
-        std::printf("Applying benchmark filter from NK_BENCH_FILTER: %s\n\n", env_filter);
+        std::printf("Applying benchmark filter from NK_FILTER: %s\n\n", env_filter);
     }
     int modified_argc = static_cast<int>(modified_argv.size());
     char **modified_argv_ptr = modified_argv.data();

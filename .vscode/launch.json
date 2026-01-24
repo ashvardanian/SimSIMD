@@ -44,12 +44,16 @@
             "name": "Debug Test",
             "type": "cppdbg",
             "request": "launch",
-            "program": "${workspaceFolder}/build_debug/nk_test_run_time",
+            "program": "${workspaceFolder}/build_debug/nk_test",
             "cwd": "${workspaceFolder}",
             "environment": [
                 {
                     "name": "ASAN_OPTIONS",
                     "value": "detect_leaks=0:atexit=1:strict_init_order=1:strict_string_checks=1"
+                },
+                {
+                    "name": "NK_FILTER",
+                    "value": "i4"
                 }
             ],
             "stopAtEntry": false,
