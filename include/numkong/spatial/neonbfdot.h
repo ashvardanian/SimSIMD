@@ -39,7 +39,7 @@
 
 #include "numkong/types.h"
 #include "numkong/reduce/neon.h"  // nk_partial_load_b16x8_serial_
-#include "numkong/spatial/neon.h" // nk_angular_f32x4_finalize_neon_f32_, nk_euclidean_f32x4_finalize_neon_f32_
+#include "numkong/spatial/neon.h" // nk_angular_through_f32_finalize_neon_, nk_euclidean_through_f32_finalize_neon_
 
 #if defined(__cplusplus)
 extern "C" {
@@ -164,9 +164,9 @@ NK_INTERNAL void nk_angular_bf16x8_finalize_neonbfdot(
     nk_f32_t query_norm, nk_f32_t target_norm_a, nk_f32_t target_norm_b, nk_f32_t target_norm_c, nk_f32_t target_norm_d,
     nk_size_t total_dimensions, nk_f32_t *results) {
     nk_b128_vec_t dots_vec;
-    nk_dot_bf16x8_finalize_neonbfdot(state_a, state_b, state_c, state_d, &dots_vec, total_dimensions);
-    nk_angular_f32x4_finalize_neon_f32_(dots_vec.f32x4, query_norm, target_norm_a, target_norm_b, target_norm_c,
-                                        target_norm_d, results);
+    nk_dot_bf16x8_finalize_neonbfdot(state_a, state_b, state_c, state_d, total_dimensions, &dots_vec);
+    nk_angular_through_f32_finalize_neon_(dots_vec.f32x4, query_norm, target_norm_a, target_norm_b, target_norm_c,
+                                          target_norm_d, results);
 }
 
 typedef nk_dot_bf16x8_state_neonbfdot_t nk_euclidean_bf16x8_state_neonbfdot_t;
@@ -184,9 +184,9 @@ NK_INTERNAL void nk_euclidean_bf16x8_finalize_neonbfdot(
     nk_f32_t query_norm, nk_f32_t target_norm_a, nk_f32_t target_norm_b, nk_f32_t target_norm_c, nk_f32_t target_norm_d,
     nk_size_t total_dimensions, nk_f32_t *results) {
     nk_b128_vec_t dots_vec;
-    nk_dot_bf16x8_finalize_neonbfdot(state_a, state_b, state_c, state_d, &dots_vec, total_dimensions);
-    nk_euclidean_f32x4_finalize_neon_f32_(dots_vec.f32x4, query_norm, target_norm_a, target_norm_b, target_norm_c,
-                                          target_norm_d, results);
+    nk_dot_bf16x8_finalize_neonbfdot(state_a, state_b, state_c, state_d, total_dimensions, &dots_vec);
+    nk_euclidean_through_f32_finalize_neon_(dots_vec.f32x4, query_norm, target_norm_a, target_norm_b, target_norm_c,
+                                            target_norm_d, results);
 }
 
 #if defined(__cplusplus)

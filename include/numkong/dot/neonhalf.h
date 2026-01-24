@@ -144,11 +144,12 @@ NK_INTERNAL void nk_dot_f16x4_update_neonhalf(nk_dot_f16x4_state_neonhalf_t *sta
 NK_INTERNAL void nk_dot_f16x4_finalize_neonhalf(                                                //
     nk_dot_f16x4_state_neonhalf_t const *state_a, nk_dot_f16x4_state_neonhalf_t const *state_b, //
     nk_dot_f16x4_state_neonhalf_t const *state_c, nk_dot_f16x4_state_neonhalf_t const *state_d, //
-    nk_b128_vec_t *result, nk_size_t total_dimensions) {
+    nk_size_t total_dimensions, nk_b128_vec_t *result) {
     nk_unused_(total_dimensions);
-    float32x4_t sums_f32x4 = {vaddvq_f32(state_a->sum_f32x4), vaddvq_f32(state_b->sum_f32x4),
-                              vaddvq_f32(state_c->sum_f32x4), vaddvq_f32(state_d->sum_f32x4)};
-    result->u32x4 = vreinterpretq_u32_f32(sums_f32x4);
+    result->f32s[0] = vaddvq_f32(state_a->sum_f32x4);
+    result->f32s[1] = vaddvq_f32(state_b->sum_f32x4);
+    result->f32s[2] = vaddvq_f32(state_c->sum_f32x4);
+    result->f32s[3] = vaddvq_f32(state_d->sum_f32x4);
 }
 
 #if defined(__cplusplus)

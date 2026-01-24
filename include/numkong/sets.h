@@ -121,7 +121,7 @@ NK_PUBLIC void nk_jaccards_packed_u32(nk_u32_t const *a, void const *q_packed, n
                                       nk_size_t cols, nk_size_t d, nk_size_t v_stride_in_bytes,
                                       nk_size_t r_stride_in_bytes);
 /**
- *  @brief Computes C = A × Aᵀ symmetric Gram matrix of Hamming ditances.
+ *  @brief Computes C = A × Aᵀ symmetric Gram matrix of Hamming distances.
  *  @param[in] vectors Input matrix of row vectors in row-major order.
  *  @param[in] n_vectors Number of vectors (rows) in the input matrix.
  *  @param[in] d Dimension of each vector (columns).
@@ -137,7 +137,7 @@ NK_PUBLIC void nk_hammings_symmetric_u1(nk_u1x8_t const *vectors, nk_size_t n_ve
 NK_PUBLIC void nk_hammings_symmetric_u8(nk_u8_t const *vectors, nk_size_t n_vectors, nk_size_t d, nk_size_t stride,
                                         nk_u32_t *result, nk_size_t result_stride, nk_size_t row_start, nk_size_t n);
 /**
- *  @brief Computes C = A × Aᵀ symmetric Gram matrix of Jaccard ditances.
+ *  @brief Computes C = A × Aᵀ symmetric Gram matrix of Jaccard distances.
  *  @param[in] vectors Input matrix of row vectors in row-major order.
  *  @param[in] n_vectors Number of vectors (rows) in the input matrix.
  *  @param[in] d Dimension of each vector (columns).
@@ -169,7 +169,7 @@ NK_PUBLIC nk_size_t nk_hammings_packed_size_u1(nk_size_t n, nk_size_t d) {
 #elif NK_TARGET_HASWELL
     return nk_hammings_packed_size_u1_haswell(n, d);
 #else
-    return nk_sets_packed_size_u1_hamming_serial(n, d);
+    return nk_hammings_packed_size_u1_serial(n, d);
 #endif
 }
 

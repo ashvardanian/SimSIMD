@@ -380,25 +380,25 @@ typedef struct {
                                                                                      (tile_row_start_index + 0) *      \
                                                                                          c_stride_in_bytes);           \
                         finalize_fn(&accumulator_tiles[0][0], &accumulator_tiles[0][1], &accumulator_tiles[0][2],      \
-                                    &accumulator_tiles[0][3], &result_vector, depth);                                  \
+                                    &accumulator_tiles[0][3], depth, &result_vector);                                  \
                         partial_store_fn(&result_vector, c_row_ptr_0 + tile_column_start_index, 4);                    \
                         nk_##output_type##_t *c_row_ptr_1 = (nk_##output_type##_t *)((char *)c_matrix +                \
                                                                                      (tile_row_start_index + 1) *      \
                                                                                          c_stride_in_bytes);           \
                         finalize_fn(&accumulator_tiles[1][0], &accumulator_tiles[1][1], &accumulator_tiles[1][2],      \
-                                    &accumulator_tiles[1][3], &result_vector, depth);                                  \
+                                    &accumulator_tiles[1][3], depth, &result_vector);                                  \
                         partial_store_fn(&result_vector, c_row_ptr_1 + tile_column_start_index, 4);                    \
                         nk_##output_type##_t *c_row_ptr_2 = (nk_##output_type##_t *)((char *)c_matrix +                \
                                                                                      (tile_row_start_index + 2) *      \
                                                                                          c_stride_in_bytes);           \
                         finalize_fn(&accumulator_tiles[2][0], &accumulator_tiles[2][1], &accumulator_tiles[2][2],      \
-                                    &accumulator_tiles[2][3], &result_vector, depth);                                  \
+                                    &accumulator_tiles[2][3], depth, &result_vector);                                  \
                         partial_store_fn(&result_vector, c_row_ptr_2 + tile_column_start_index, 4);                    \
                         nk_##output_type##_t *c_row_ptr_3 = (nk_##output_type##_t *)((char *)c_matrix +                \
                                                                                      (tile_row_start_index + 3) *      \
                                                                                          c_stride_in_bytes);           \
                         finalize_fn(&accumulator_tiles[3][0], &accumulator_tiles[3][1], &accumulator_tiles[3][2],      \
-                                    &accumulator_tiles[3][3], &result_vector, depth);                                  \
+                                    &accumulator_tiles[3][3], depth, &result_vector);                    \
                         partial_store_fn(&result_vector, c_row_ptr_3 + tile_column_start_index, 4);                    \
                     }                                                                                                  \
                 }                                                                                                      \
@@ -539,12 +539,12 @@ typedef struct {
                         nk_##output_type##_t *c_row_ptr = (nk_##output_type##_t *)((char *)c_matrix +                  \
                                                                                    row_index * c_stride_in_bytes);     \
                         /* First 4 columns */                                                                          \
-                        finalize_fn(&accumulator_0, &accumulator_1, &accumulator_2, &accumulator_3, &result_vector,    \
-                                    depth);                                                                            \
+                        finalize_fn(&accumulator_0, &accumulator_1, &accumulator_2, &accumulator_3, depth,             \
+                                    &result_vector);                                                                   \
                         partial_store_fn(&result_vector, c_row_ptr + tile_column_start_index, 4);                      \
                         /* Second 4 columns */                                                                         \
-                        finalize_fn(&accumulator_4, &accumulator_5, &accumulator_6, &accumulator_7, &result_vector,    \
-                                    depth);                                                                            \
+                        finalize_fn(&accumulator_4, &accumulator_5, &accumulator_6, &accumulator_7, depth,             \
+                                    &result_vector);                                                     \
                         partial_store_fn(&result_vector, c_row_ptr + tile_column_start_index + 4, 4);                  \
                     }                                                                                                  \
                 }                                                                                                      \
@@ -787,7 +787,7 @@ typedef struct {
                         for (nk_size_t r = 0; r < tile_row_count; ++r) {                                               \
                             result_vec_type result_vector;                                                             \
                             finalize_fn(&accumulator_tiles[r][0], &accumulator_tiles[r][1], &accumulator_tiles[r][2],  \
-                                        &accumulator_tiles[r][3], &result_vector, depth);                              \
+                                        &accumulator_tiles[r][3], depth, &result_vector);                \
                                                                                                                        \
                             nk_##output_type##_t *c_row = (nk_##output_type##_t *)((char *)c_matrix +                  \
                                                                                    (tile_row_start_index + r) *        \
@@ -800,7 +800,6 @@ typedef struct {
         }                                                                                                              \
     }
 
-/**
 /* NK_INTERNAL helper for processing diagonal 32×32 macro-tiles */
 #define nk_define_dots_symmetric_diagonal_helper_(name, suffix, input_type, output_type, vec_type, state_type,        \
                                                   result_vec_type, init_fn, load_fn, partial_load_fn, update_fn,      \
@@ -921,7 +920,8 @@ typedef struct {
             for (; jj + 4 <= macro_size; jj += 4) {                                                                   \
                 result_vec_type result_vec;                                                                           \
                 finalize_fn(&accumulator_tiles[ii][jj], &accumulator_tiles[ii][jj + 1],                               \
-                            &accumulator_tiles[ii][jj + 2], &accumulator_tiles[ii][jj + 3], &result_vec, depth);      \
+                            &accumulator_tiles[ii][jj + 2], &accumulator_tiles[ii][jj + 3], depth,                    \
+                            &result_vec);                                                                             \
                 nk_##output_type##_t *out_ptr = &result[(i_macro + ii) * result_stride_elements + (i_macro + jj)];    \
                 store_fn(&result_vec, out_ptr, 4);                                                                    \
             }                                                                                                         \
@@ -930,7 +930,8 @@ typedef struct {
                 nk_size_t remaining = macro_size - jj;                                                                \
                 result_vec_type result_vec;                                                                           \
                 finalize_fn(&accumulator_tiles[ii][jj], &accumulator_tiles[ii][jj + 1],                               \
-                            &accumulator_tiles[ii][jj + 2], &accumulator_tiles[ii][jj + 3], &result_vec, depth);      \
+                            &accumulator_tiles[ii][jj + 2], &accumulator_tiles[ii][jj + 3], depth,                    \
+                            &result_vec);                                                                             \
                 nk_##output_type##_t *out_ptr = &result[(i_macro + ii) * result_stride_elements + (i_macro + jj)];    \
                 store_fn(&result_vec, out_ptr, remaining);                                                            \
             }                                                                                                         \
@@ -1018,7 +1019,8 @@ typedef struct {
             for (; jj + 4 <= macro_j_size; jj += 4) {                                                                 \
                 result_vec_type result_vec;                                                                           \
                 finalize_fn(&accumulator_tiles[ii][jj], &accumulator_tiles[ii][jj + 1],                               \
-                            &accumulator_tiles[ii][jj + 2], &accumulator_tiles[ii][jj + 3], &result_vec, depth);      \
+                            &accumulator_tiles[ii][jj + 2], &accumulator_tiles[ii][jj + 3], depth,                    \
+                            &result_vec);                                                                             \
                 nk_##output_type##_t *out_ptr = &result[(i_macro + ii) * result_stride_elements + (j_macro + jj)];    \
                 store_fn(&result_vec, out_ptr, 4);                                                                    \
             }                                                                                                         \
@@ -1027,7 +1029,8 @@ typedef struct {
                 nk_size_t remaining = macro_j_size - jj;                                                              \
                 result_vec_type result_vec;                                                                           \
                 finalize_fn(&accumulator_tiles[ii][jj], &accumulator_tiles[ii][jj + 1],                               \
-                            &accumulator_tiles[ii][jj + 2], &accumulator_tiles[ii][jj + 3], &result_vec, depth);      \
+                            &accumulator_tiles[ii][jj + 2], &accumulator_tiles[ii][jj + 3], depth,                    \
+                            &result_vec);                                                                             \
                 nk_##output_type##_t *out_ptr = &result[(i_macro + ii) * result_stride_elements + (j_macro + jj)];    \
                 store_fn(&result_vec, out_ptr, remaining);                                                            \
             }                                                                                                         \

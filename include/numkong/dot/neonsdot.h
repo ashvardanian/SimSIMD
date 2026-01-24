@@ -91,11 +91,12 @@ NK_INTERNAL void nk_dot_i8x16_update_neonsdot(nk_dot_i8x16_state_neonsdot_t *sta
 NK_INTERNAL void nk_dot_i8x16_finalize_neonsdot(                                                //
     nk_dot_i8x16_state_neonsdot_t const *state_a, nk_dot_i8x16_state_neonsdot_t const *state_b, //
     nk_dot_i8x16_state_neonsdot_t const *state_c, nk_dot_i8x16_state_neonsdot_t const *state_d, //
-    nk_b128_vec_t *result, nk_size_t total_dimensions) {
+    nk_size_t total_dimensions, nk_b128_vec_t *result) {
     nk_unused_(total_dimensions);
-    int32x4_t sums = {vaddvq_s32(state_a->sum_i32x4), vaddvq_s32(state_b->sum_i32x4), vaddvq_s32(state_c->sum_i32x4),
-                      vaddvq_s32(state_d->sum_i32x4)};
-    result->u32x4 = vreinterpretq_u32_s32(sums);
+    result->i32s[0] = vaddvq_s32(state_a->sum_i32x4);
+    result->i32s[1] = vaddvq_s32(state_b->sum_i32x4);
+    result->i32s[2] = vaddvq_s32(state_c->sum_i32x4);
+    result->i32s[3] = vaddvq_s32(state_d->sum_i32x4);
 }
 
 /**
@@ -119,11 +120,12 @@ NK_INTERNAL void nk_dot_u8x16_update_neonsdot(nk_dot_u8x16_state_neonsdot_t *sta
 NK_INTERNAL void nk_dot_u8x16_finalize_neonsdot(                                                //
     nk_dot_u8x16_state_neonsdot_t const *state_a, nk_dot_u8x16_state_neonsdot_t const *state_b, //
     nk_dot_u8x16_state_neonsdot_t const *state_c, nk_dot_u8x16_state_neonsdot_t const *state_d, //
-    nk_b128_vec_t *result, nk_size_t total_dimensions) {
+    nk_size_t total_dimensions, nk_b128_vec_t *result) {
     nk_unused_(total_dimensions);
-    uint32x4_t sums = {vaddvq_u32(state_a->sum_u32x4), vaddvq_u32(state_b->sum_u32x4), vaddvq_u32(state_c->sum_u32x4),
-                       vaddvq_u32(state_d->sum_u32x4)};
-    result->u32x4 = sums;
+    result->u32s[0] = vaddvq_u32(state_a->sum_u32x4);
+    result->u32s[1] = vaddvq_u32(state_b->sum_u32x4);
+    result->u32s[2] = vaddvq_u32(state_c->sum_u32x4);
+    result->u32s[3] = vaddvq_u32(state_d->sum_u32x4);
 }
 
 NK_PUBLIC void nk_dot_i4_neonsdot(nk_i4x2_t const *a, nk_i4x2_t const *b, nk_size_t n, nk_i32_t *result) {
@@ -263,12 +265,13 @@ NK_INTERNAL void nk_dot_i4x32_update_neonsdot(nk_dot_i4x32_state_neonsdot_t *sta
 NK_INTERNAL void nk_dot_i4x32_finalize_neonsdot(                                                //
     nk_dot_i4x32_state_neonsdot_t const *state_a, nk_dot_i4x32_state_neonsdot_t const *state_b, //
     nk_dot_i4x32_state_neonsdot_t const *state_c, nk_dot_i4x32_state_neonsdot_t const *state_d, //
-    nk_b128_vec_t *result, nk_size_t total_dimensions) {
+    nk_size_t total_dimensions, nk_b128_vec_t *result) {
     nk_unused_(total_dimensions);
     // Simple reduction - no correction formula needed with sign-extension approach!
-    int32x4_t results_i32x4 = {vaddvq_s32(state_a->product_sum_i32x4), vaddvq_s32(state_b->product_sum_i32x4),
-                               vaddvq_s32(state_c->product_sum_i32x4), vaddvq_s32(state_d->product_sum_i32x4)};
-    result->u32x4 = vreinterpretq_u32_s32(results_i32x4);
+    result->i32s[0] = vaddvq_s32(state_a->product_sum_i32x4);
+    result->i32s[1] = vaddvq_s32(state_b->product_sum_i32x4);
+    result->i32s[2] = vaddvq_s32(state_c->product_sum_i32x4);
+    result->i32s[3] = vaddvq_s32(state_d->product_sum_i32x4);
 }
 
 struct nk_dot_u4x32_state_neonsdot_t {
@@ -302,12 +305,13 @@ NK_INTERNAL void nk_dot_u4x32_update_neonsdot(nk_dot_u4x32_state_neonsdot_t *sta
 NK_INTERNAL void nk_dot_u4x32_finalize_neonsdot(                                                //
     nk_dot_u4x32_state_neonsdot_t const *state_a, nk_dot_u4x32_state_neonsdot_t const *state_b, //
     nk_dot_u4x32_state_neonsdot_t const *state_c, nk_dot_u4x32_state_neonsdot_t const *state_d, //
-    nk_b128_vec_t *result, nk_size_t total_dimensions) {
+    nk_size_t total_dimensions, nk_b128_vec_t *result) {
     nk_unused_(total_dimensions);
     // Simple reduction - no correction formula needed!
-    uint32x4_t results_u32x4 = {vaddvq_u32(state_a->product_sum_u32x4), vaddvq_u32(state_b->product_sum_u32x4),
-                                vaddvq_u32(state_c->product_sum_u32x4), vaddvq_u32(state_d->product_sum_u32x4)};
-    result->u32x4 = results_u32x4;
+    result->u32s[0] = vaddvq_u32(state_a->product_sum_u32x4);
+    result->u32s[1] = vaddvq_u32(state_b->product_sum_u32x4);
+    result->u32s[2] = vaddvq_u32(state_c->product_sum_u32x4);
+    result->u32s[3] = vaddvq_u32(state_d->product_sum_u32x4);
 }
 
 #if defined(__cplusplus)

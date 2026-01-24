@@ -308,7 +308,7 @@ NK_INTERNAL void nk_dot_u8x64_update_ice(nk_dot_u8x64_state_ice_t *state, nk_b51
 NK_INTERNAL void nk_dot_u8x64_finalize_ice(                                           //
     nk_dot_u8x64_state_ice_t const *state_a, nk_dot_u8x64_state_ice_t const *state_b, //
     nk_dot_u8x64_state_ice_t const *state_c, nk_dot_u8x64_state_ice_t const *state_d, //
-    nk_b128_vec_t *results, nk_size_t total_dimensions) {
+    nk_size_t total_dimensions, nk_b128_vec_t *result) {
     nk_unused_(total_dimensions);
     // ILP-optimized 4-way horizontal reduction for u32 with algebraic correction
     // For each accumulator: result = sum_ab + 128 × sum_a
@@ -382,7 +382,8 @@ NK_INTERNAL void nk_dot_u8x64_finalize_ice(                                     
     // Use shuffle to pack: [i64.lo, i64.lo, i64.lo, i64.lo] from 4 i64 values
     __m128i correction_i32x4 = _mm256_castsi256_si128(
         _mm256_permutevar8x32_epi32(correction_i64x4, _mm256_setr_epi32(0, 2, 4, 6, 1, 3, 5, 7)));
-    results->xmm = _mm_add_epi32(sum_ab_final_i32x4, correction_i32x4);
+    __m128i final_i32x4 = _mm_add_epi32(sum_ab_final_i32x4, correction_i32x4);
+    result->xmm = final_i32x4;
 }
 
 NK_PUBLIC void nk_dot_i4_ice(nk_i4x2_t const *a, nk_i4x2_t const *b, nk_size_t n, nk_i32_t *result) {
@@ -555,7 +556,7 @@ NK_INTERNAL void nk_dot_i4x128_update_ice(nk_dot_i4x128_state_ice_t *state, nk_b
 NK_INTERNAL void nk_dot_i4x128_finalize_ice(                                            //
     nk_dot_i4x128_state_ice_t const *state_a, nk_dot_i4x128_state_ice_t const *state_b, //
     nk_dot_i4x128_state_ice_t const *state_c, nk_dot_i4x128_state_ice_t const *state_d, //
-    nk_b128_vec_t *results, nk_size_t total_dimensions) {
+    nk_size_t total_dimensions, nk_b128_vec_t *result) {
     // ILP-optimized 4-way hierarchical reduction for i4 with algebraic correction.
     // Formula: result = product_sum - 8×(sum_a_biased + sum_b_biased) + 64×depth_nibbles
     //
@@ -650,7 +651,8 @@ NK_INTERNAL void nk_dot_i4x128_finalize_ice(                                    
     nk_i32_t offset = (nk_i32_t)(64 * depth_nibbles);
     __m128i offset_vec = _mm_set1_epi32(offset);
 
-    results->xmm = _mm_add_epi32(_mm_add_epi32(product_final, correction_vec), offset_vec);
+    __m128i final_i32x4 = _mm_add_epi32(_mm_add_epi32(product_final, correction_vec), offset_vec);
+    result->xmm = final_i32x4;
 }
 
 typedef struct nk_dot_u4x128_state_ice_t {
@@ -687,7 +689,7 @@ NK_INTERNAL void nk_dot_u4x128_update_ice(nk_dot_u4x128_state_ice_t *state, nk_b
 NK_INTERNAL void nk_dot_u4x128_finalize_ice(                                            //
     nk_dot_u4x128_state_ice_t const *state_a, nk_dot_u4x128_state_ice_t const *state_b, //
     nk_dot_u4x128_state_ice_t const *state_c, nk_dot_u4x128_state_ice_t const *state_d, //
-    nk_b128_vec_t *results, nk_size_t total_dimensions) {
+    nk_size_t total_dimensions, nk_b128_vec_t *result) {
     nk_unused_(total_dimensions);
     // ILP-optimized 4-way hierarchical reduction for u4 (no correction needed)
 
@@ -717,7 +719,8 @@ NK_INTERNAL void nk_dot_u4x128_finalize_ice(                                    
     __m128i sum_lane2 = _mm_unpacklo_epi64(transpose_ab_high, transpose_cd_high);
     __m128i sum_lane3 = _mm_unpackhi_epi64(transpose_ab_high, transpose_cd_high);
 
-    results->xmm = _mm_add_epi32(_mm_add_epi32(sum_lane0, sum_lane1), _mm_add_epi32(sum_lane2, sum_lane3));
+    __m128i final_i32x4 = _mm_add_epi32(_mm_add_epi32(sum_lane0, sum_lane1), _mm_add_epi32(sum_lane2, sum_lane3));
+    result->xmm = final_i32x4;
 }
 
 #if defined(__cplusplus)

@@ -14,7 +14,7 @@ extern "C" {
 #endif
 
 NK_PUBLIC unsigned char nk_popcount_u1(nk_u1x8_t x) {
-    static unsigned char lookup_table[] = {
+    static unsigned char lookup_table[256] = {
         0, 1, 1, 2, 1, 2, 2, 3, 1, 2, 2, 3, 2, 3, 3, 4, 1, 2, 2, 3, 2, 3, 3, 4, 2, 3, 3, 4, 3, 4, 4, 5, //
         1, 2, 2, 3, 2, 3, 3, 4, 2, 3, 3, 4, 3, 4, 4, 5, 2, 3, 3, 4, 3, 4, 4, 5, 3, 4, 4, 5, 4, 5, 5, 6,
         1, 2, 2, 3, 2, 3, 3, 4, 2, 3, 3, 4, 3, 4, 4, 5, 2, 3, 3, 4, 3, 4, 4, 5, 3, 4, 4, 5, 4, 5, 5, 6,
@@ -65,21 +65,22 @@ struct nk_jaccard_b128_state_serial_t {
 
 NK_INTERNAL void nk_jaccard_b128_init_serial(nk_jaccard_b128_state_serial_t *state) { state->intersection_count = 0; }
 
-NK_INTERNAL void nk_jaccard_b128_update_serial(nk_jaccard_b128_state_serial_t *state, nk_b128_vec_t a,
-                                               nk_b128_vec_t b) {
+NK_INTERNAL void nk_jaccard_b128_update_serial(nk_jaccard_b128_state_serial_t *state, nk_b128_vec_t a, nk_b128_vec_t b,
+                                               nk_size_t depth_offset, nk_size_t active_dimensions) {
+    nk_unused_(depth_offset);
+    nk_unused_(active_dimensions);
     nk_u64_t intersection_low = a.u64s[0] & b.u64s[0];
     nk_u64_t intersection_high = a.u64s[1] & b.u64s[1];
     state->intersection_count += nk_u64_popcount_(intersection_low);
     state->intersection_count += nk_u64_popcount_(intersection_high);
 }
 
-NK_INTERNAL void nk_jaccard_b128_finalize_serial(nk_jaccard_b128_state_serial_t const *state_a,
-                                                 nk_jaccard_b128_state_serial_t const *state_b,
-                                                 nk_jaccard_b128_state_serial_t const *state_c,
-                                                 nk_jaccard_b128_state_serial_t const *state_d, nk_f32_t query_popcount,
-                                                 nk_f32_t target_popcount_a, nk_f32_t target_popcount_b,
-                                                 nk_f32_t target_popcount_c, nk_f32_t target_popcount_d,
-                                                 nk_f32_t *results) {
+NK_INTERNAL void nk_jaccard_b128_finalize_serial( //
+    nk_jaccard_b128_state_serial_t const *state_a, nk_jaccard_b128_state_serial_t const *state_b,
+    nk_jaccard_b128_state_serial_t const *state_c, nk_jaccard_b128_state_serial_t const *state_d,
+    nk_f32_t query_popcount, nk_f32_t target_popcount_a, nk_f32_t target_popcount_b, nk_f32_t target_popcount_c,
+    nk_f32_t target_popcount_d, nk_size_t total_dimensions, nk_b128_vec_t *result) {
+    nk_unused_(total_dimensions);
 
     nk_f32_t intersection_a = (nk_f32_t)state_a->intersection_count;
     nk_f32_t intersection_b = (nk_f32_t)state_b->intersection_count;
@@ -91,10 +92,38 @@ NK_INTERNAL void nk_jaccard_b128_finalize_serial(nk_jaccard_b128_state_serial_t 
     nk_f32_t union_c = query_popcount + target_popcount_c - intersection_c;
     nk_f32_t union_d = query_popcount + target_popcount_d - intersection_d;
 
-    results[0] = (union_a != 0) ? 1.0f - intersection_a / union_a : 1.0f;
-    results[1] = (union_b != 0) ? 1.0f - intersection_b / union_b : 1.0f;
-    results[2] = (union_c != 0) ? 1.0f - intersection_c / union_c : 1.0f;
-    results[3] = (union_d != 0) ? 1.0f - intersection_d / union_d : 1.0f;
+    result->f32s[0] = (union_a != 0) ? 1.0f - intersection_a / union_a : 1.0f;
+    result->f32s[1] = (union_b != 0) ? 1.0f - intersection_b / union_b : 1.0f;
+    result->f32s[2] = (union_c != 0) ? 1.0f - intersection_c / union_c : 1.0f;
+    result->f32s[3] = (union_d != 0) ? 1.0f - intersection_d / union_d : 1.0f;
+}
+
+struct nk_hamming_b128_state_serial_t {
+    nk_u64_t intersection_count;
+};
+
+NK_INTERNAL void nk_hamming_b128_init_serial(nk_hamming_b128_state_serial_t *state) { state->intersection_count = 0; }
+
+NK_INTERNAL void nk_hamming_b128_update_serial(nk_hamming_b128_state_serial_t *state, nk_b128_vec_t a, nk_b128_vec_t b,
+                                               nk_size_t depth_offset, nk_size_t active_dimensions) {
+    nk_unused_(depth_offset);
+    nk_unused_(active_dimensions);
+    nk_u64_t intersection_low = a.u64s[0] ^ b.u64s[0];
+    nk_u64_t intersection_high = a.u64s[1] ^ b.u64s[1];
+    state->intersection_count += nk_u64_popcount_(intersection_low);
+    state->intersection_count += nk_u64_popcount_(intersection_high);
+}
+
+NK_INTERNAL void nk_hamming_b128_finalize_serial( //
+    nk_hamming_b128_state_serial_t const *state_a, nk_hamming_b128_state_serial_t const *state_b,
+    nk_hamming_b128_state_serial_t const *state_c, nk_hamming_b128_state_serial_t const *state_d,
+    nk_size_t total_dimensions, nk_b128_vec_t *result) {
+    nk_unused_(total_dimensions);
+
+    result->u32s[0] = (nk_u32_t)state_a->intersection_count;
+    result->u32s[1] = (nk_u32_t)state_b->intersection_count;
+    result->u32s[2] = (nk_u32_t)state_c->intersection_count;
+    result->u32s[3] = (nk_u32_t)state_d->intersection_count;
 }
 
 #if defined(__cplusplus)

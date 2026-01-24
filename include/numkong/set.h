@@ -9,13 +9,13 @@
  *  - Bit-level Hamming distance → `u32` counter
  *  - Byte-level Hamming distance → `u32` counter
  *  - Bit-level Jaccard distance (Tanimoto coefficient) → `f32` ratio
- *  - Jaccard distance for `u32` integral MinHash vectors from StringZilla → `f32` ratio
- *  - TODO: Weighted Jaccard distance for `u32` integral Count-Min-Sketch vectors → `f32` ratio
+ *  - Word-level Jaccard distance for `u16` and `u32` MinHash vectors from StringZilla → `f32` ratio
  *
  *  For hardware architectures:
  *
  *  - Arm: NEON, SVE
  *  - x86: Haswell, Ice Lake
+ *  - RISC-V: SpaceMIT
  *
  *  @section popcount_strategies Population Count Strategies
  *
@@ -96,14 +96,14 @@
  *  nk_jaccard_b512_init_ice(&state_second);
  *  nk_jaccard_b512_init_ice(&state_third);
  *  nk_jaccard_b512_init_ice(&state_fourth);
- *  nk_jaccard_b512_update_ice(&state_first, &query[0], &target_first[0]); // First 512 bits
- *  nk_jaccard_b512_update_ice(&state_first, &query[64], &target_first[64]); // Second 512 bits
+ *  nk_jaccard_b512_update_ice(&state_first, &query[0], &target_first[0], 0, 512); // First 512 bits
+ *  nk_jaccard_b512_update_ice(&state_first, &query[64], &target_first[64], 512, 512); // Second 512 bits
  *  // ... update state_second, state_third, state_fourth similarly ...
  *
  *  nk_f32_t results[4];
  *  nk_jaccard_b512_finalize_ice(&state_first, &state_second, &state_third, &state_fourth,
  *      query_popcount, target_popcount_first, target_popcount_second,
- *      target_popcount_third, target_popcount_fourth, results);
+ *      target_popcount_third, target_popcount_fourth, total_dimensions, results);
  *  @endcode
  *
  *  @section tail_handling Tail Handling
@@ -227,15 +227,31 @@ typedef struct nk_jaccard_b128_state_serial_t nk_jaccard_b128_state_serial_t;
 /** @copydoc nk_jaccard_b128_state_serial_t */
 NK_INTERNAL void nk_jaccard_b128_init_serial(nk_jaccard_b128_state_serial_t *state);
 /** @copydoc nk_jaccard_b128_state_serial_t */
-NK_INTERNAL void nk_jaccard_b128_update_serial(nk_jaccard_b128_state_serial_t *state, nk_b128_vec_t a, nk_b128_vec_t b);
+NK_INTERNAL void nk_jaccard_b128_update_serial(nk_jaccard_b128_state_serial_t *state, nk_b128_vec_t a, nk_b128_vec_t b,
+                                               nk_size_t depth_offset, nk_size_t active_dimensions);
 /** @copydoc nk_jaccard_b128_state_serial_t */
-NK_INTERNAL void nk_jaccard_b128_finalize_serial(nk_jaccard_b128_state_serial_t const *state_a,
-                                                 nk_jaccard_b128_state_serial_t const *state_b,
-                                                 nk_jaccard_b128_state_serial_t const *state_c,
-                                                 nk_jaccard_b128_state_serial_t const *state_d, nk_f32_t query_popcount,
-                                                 nk_f32_t target_popcount_a, nk_f32_t target_popcount_b,
-                                                 nk_f32_t target_popcount_c, nk_f32_t target_popcount_d,
-                                                 nk_f32_t *results);
+NK_INTERNAL void nk_jaccard_b128_finalize_serial( //
+    nk_jaccard_b128_state_serial_t const *state_a, nk_jaccard_b128_state_serial_t const *state_b,
+    nk_jaccard_b128_state_serial_t const *state_c, nk_jaccard_b128_state_serial_t const *state_d,
+    nk_f32_t query_popcount, nk_f32_t target_popcount_a, nk_f32_t target_popcount_b, nk_f32_t target_popcount_c,
+    nk_f32_t target_popcount_d, nk_size_t total_dimensions, nk_b128_vec_t *result);
+/**
+ *  @brief Running state for 128-bit Hamming accumulation (serial/portable).
+ *
+ *  Portable implementation using scalar popcount. The update receives 128-bit
+ *  chunks as `nk_b128_vec_t`. State uses u64 accumulator for large vectors.
+ */
+typedef struct nk_hamming_b128_state_serial_t nk_hamming_b128_state_serial_t;
+/** @copydoc nk_hamming_b128_state_serial_t */
+NK_INTERNAL void nk_hamming_b128_init_serial(nk_hamming_b128_state_serial_t *state);
+/** @copydoc nk_hamming_b128_state_serial_t */
+NK_INTERNAL void nk_hamming_b128_update_serial(nk_hamming_b128_state_serial_t *state, nk_b128_vec_t a, nk_b128_vec_t b,
+                                               nk_size_t depth_offset, nk_size_t active_dimensions);
+/** @copydoc nk_hamming_b128_state_serial_t */
+NK_INTERNAL void nk_hamming_b128_finalize_serial( //
+    nk_hamming_b128_state_serial_t const *state_a, nk_hamming_b128_state_serial_t const *state_b,
+    nk_hamming_b128_state_serial_t const *state_c, nk_hamming_b128_state_serial_t const *state_d,
+    nk_size_t total_dimensions, nk_b128_vec_t *result);
 
 #if NK_TARGET_NEON
 /** @copydoc nk_hamming_u1 */
@@ -291,22 +307,34 @@ NK_PUBLIC void nk_jaccard_u16_neon(nk_u16_t const *a, nk_u16_t const *b, nk_size
  *  // Finalize all 4 states at once
  *  nk_f32_t results[4];
  *  nk_jaccard_b128_finalize_neon(&state_a, &state_b, &state_c, &state_d,
- *      query_popcount, popcount_a, popcount_b, popcount_c, popcount_d, results);
+ *      query_popcount, popcount_a, popcount_b, popcount_c, popcount_d, total_dimensions, results);
  *  @endcode
  */
+typedef struct nk_hamming_b128_state_neon_t nk_hamming_b128_state_neon_t;
+/** @copydoc nk_hamming_b128_state_neon_t */
+NK_INTERNAL void nk_hamming_b128_init_neon(nk_hamming_b128_state_neon_t *state);
+/** @copydoc nk_hamming_b128_state_neon_t */
+NK_INTERNAL void nk_hamming_b128_update_neon(nk_hamming_b128_state_neon_t *state, nk_b128_vec_t a, nk_b128_vec_t b,
+                                             nk_size_t depth_offset, nk_size_t active_dimensions);
+/** @copydoc nk_hamming_b128_state_neon_t */
+NK_INTERNAL void nk_hamming_b128_finalize_neon( //
+    nk_hamming_b128_state_neon_t const *state_a, nk_hamming_b128_state_neon_t const *state_b,
+    nk_hamming_b128_state_neon_t const *state_c, nk_hamming_b128_state_neon_t const *state_d,
+    nk_size_t total_dimensions, nk_b128_vec_t *result);
+
 typedef struct nk_jaccard_b128_state_neon_t nk_jaccard_b128_state_neon_t;
 /** @copydoc nk_jaccard_b128_state_neon_t */
 NK_INTERNAL void nk_jaccard_b128_init_neon(nk_jaccard_b128_state_neon_t *state);
 /** @copydoc nk_jaccard_b128_state_neon_t */
-NK_INTERNAL void nk_jaccard_b128_update_neon(nk_jaccard_b128_state_neon_t *state, uint8x16_t a, uint8x16_t b);
+NK_INTERNAL void nk_jaccard_b128_update_neon(nk_jaccard_b128_state_neon_t *state, nk_b128_vec_t a, nk_b128_vec_t b,
+                                             nk_size_t depth_offset, nk_size_t active_dimensions);
 /** @copydoc nk_jaccard_b128_state_neon_t */
-NK_INTERNAL void nk_jaccard_b128_finalize_neon(nk_jaccard_b128_state_neon_t const *state_a,
-                                               nk_jaccard_b128_state_neon_t const *state_b,
-                                               nk_jaccard_b128_state_neon_t const *state_c,
-                                               nk_jaccard_b128_state_neon_t const *state_d, nk_f32_t query_popcount,
-                                               nk_f32_t target_popcount_a, nk_f32_t target_popcount_b,
-                                               nk_f32_t target_popcount_c, nk_f32_t target_popcount_d,
-                                               nk_f32_t *results);
+NK_INTERNAL void nk_jaccard_b128_finalize_neon( //
+    nk_jaccard_b128_state_neon_t const *state_a, nk_jaccard_b128_state_neon_t const *state_b,
+    nk_jaccard_b128_state_neon_t const *state_c, nk_jaccard_b128_state_neon_t const *state_d, nk_f32_t query_popcount,
+    nk_f32_t target_popcount_a, nk_f32_t target_popcount_b, nk_f32_t target_popcount_c, nk_f32_t target_popcount_d,
+    nk_size_t total_dimensions, nk_b128_vec_t *result);
+
 #endif // NK_TARGET_NEON
 
 #if NK_TARGET_SVE
@@ -348,46 +376,45 @@ NK_PUBLIC void nk_jaccard_u32_haswell(nk_u32_t const *a, nk_u32_t const *b, nk_s
  *  nk_f32_t query_popcount = 100.0f;
  *  nk_f32_t popcount_a = 95.0f, popcount_b = 110.0f, popcount_c = 88.0f, popcount_d = 102.0f;
  *
- *  nk_jaccard_b256_state_haswell_t state_a, state_b, state_c, state_d;
- *  nk_jaccard_b256_init_haswell(&state_a);
- *  nk_jaccard_b256_init_haswell(&state_b);
- *  nk_jaccard_b256_init_haswell(&state_c);
- *  nk_jaccard_b256_init_haswell(&state_d);
+ *  nk_jaccard_b64_state_haswell_t state_a, state_b, state_c, state_d;
+ *  nk_jaccard_b64_init_haswell(&state_a);
+ *  nk_jaccard_b64_init_haswell(&state_b);
+ *  nk_jaccard_b64_init_haswell(&state_c);
+ *  nk_jaccard_b64_init_haswell(&state_d);
  *
  *  // Update for first 256-bit chunk
  *  __m256i query_chunk0 = _mm256_loadu_si256((__m256i const *)query);
- *  nk_jaccard_b256_update_haswell(&state_a, query_chunk0, _mm256_loadu_si256((__m256i const *)target_a));
- *  nk_jaccard_b256_update_haswell(&state_b, query_chunk0, _mm256_loadu_si256((__m256i const *)target_b));
- *  nk_jaccard_b256_update_haswell(&state_c, query_chunk0, _mm256_loadu_si256((__m256i const *)target_c));
- *  nk_jaccard_b256_update_haswell(&state_d, query_chunk0, _mm256_loadu_si256((__m256i const *)target_d));
+ *  nk_jaccard_b64_update_haswell(&state_a, query_chunk0, _mm256_loadu_si256((__m256i const *)target_a));
+ *  nk_jaccard_b64_update_haswell(&state_b, query_chunk0, _mm256_loadu_si256((__m256i const *)target_b));
+ *  nk_jaccard_b64_update_haswell(&state_c, query_chunk0, _mm256_loadu_si256((__m256i const *)target_c));
+ *  nk_jaccard_b64_update_haswell(&state_d, query_chunk0, _mm256_loadu_si256((__m256i const *)target_d));
  *
  *  // Update for second 256-bit chunk
  *  __m256i query_chunk1 = _mm256_loadu_si256((__m256i const *)(query + 32));
- *  nk_jaccard_b256_update_haswell(&state_a, query_chunk1, _mm256_loadu_si256((__m256i const *)(target_a + 32)));
- *  nk_jaccard_b256_update_haswell(&state_b, query_chunk1, _mm256_loadu_si256((__m256i const *)(target_b + 32)));
- *  nk_jaccard_b256_update_haswell(&state_c, query_chunk1, _mm256_loadu_si256((__m256i const *)(target_c + 32)));
- *  nk_jaccard_b256_update_haswell(&state_d, query_chunk1, _mm256_loadu_si256((__m256i const *)(target_d + 32)));
+ *  nk_jaccard_b64_update_haswell(&state_a, query_chunk1, _mm256_loadu_si256((__m256i const *)(target_a + 32)));
+ *  nk_jaccard_b64_update_haswell(&state_b, query_chunk1, _mm256_loadu_si256((__m256i const *)(target_b + 32)));
+ *  nk_jaccard_b64_update_haswell(&state_c, query_chunk1, _mm256_loadu_si256((__m256i const *)(target_c + 32)));
+ *  nk_jaccard_b64_update_haswell(&state_d, query_chunk1, _mm256_loadu_si256((__m256i const *)(target_d + 32)));
  *
  *  // Finalize all 4 states at once
  *  nk_f32_t results[4];
- *  nk_jaccard_b256_finalize_haswell(&state_a, &state_b, &state_c, &state_d,
- *      query_popcount, popcount_a, popcount_b, popcount_c, popcount_d, results);
+ *  nk_jaccard_b64_finalize_haswell(&state_a, &state_b, &state_c, &state_d,
+ *      query_popcount, popcount_a, popcount_b, popcount_c, popcount_d, total_dimensions, results);
  *  @endcode
  */
-typedef struct nk_jaccard_b256_state_haswell_t nk_jaccard_b256_state_haswell_t;
-/** @copydoc nk_jaccard_b256_state_haswell_t */
-NK_INTERNAL void nk_jaccard_b256_init_haswell(nk_jaccard_b256_state_haswell_t *state);
-/** @copydoc nk_jaccard_b256_state_haswell_t */
-NK_INTERNAL void nk_jaccard_b256_update_haswell(nk_jaccard_b256_state_haswell_t *state, nk_b256_vec_t a,
-                                                nk_b256_vec_t b);
-/** @copydoc nk_jaccard_b256_state_haswell_t */
-NK_INTERNAL void nk_jaccard_b256_finalize_haswell(nk_jaccard_b256_state_haswell_t const *state_a,
-                                                  nk_jaccard_b256_state_haswell_t const *state_b,
-                                                  nk_jaccard_b256_state_haswell_t const *state_c,
-                                                  nk_jaccard_b256_state_haswell_t const *state_d,
-                                                  nk_f32_t query_popcount, nk_f32_t target_popcount_a,
-                                                  nk_f32_t target_popcount_b, nk_f32_t target_popcount_c,
-                                                  nk_f32_t target_popcount_d, nk_f32_t *results);
+typedef struct nk_jaccard_b64_state_haswell_t nk_jaccard_b64_state_haswell_t;
+/** @copydoc nk_jaccard_b64_state_haswell_t */
+NK_INTERNAL void nk_jaccard_b64_init_haswell(nk_jaccard_b64_state_haswell_t *state);
+/** @copydoc nk_jaccard_b64_state_haswell_t */
+NK_INTERNAL void nk_jaccard_b64_update_haswell(nk_jaccard_b64_state_haswell_t *state, nk_b256_vec_t a, nk_b256_vec_t b,
+                                               nk_size_t depth_offset, nk_size_t active_dimensions);
+/** @copydoc nk_jaccard_b64_state_haswell_t */
+NK_INTERNAL void nk_jaccard_b64_finalize_haswell( //
+    nk_jaccard_b64_state_haswell_t const *state_a, nk_jaccard_b64_state_haswell_t const *state_b,
+    nk_jaccard_b64_state_haswell_t const *state_c, nk_jaccard_b64_state_haswell_t const *state_d,
+    nk_f32_t query_popcount, nk_f32_t target_popcount_a, nk_f32_t target_popcount_b, nk_f32_t target_popcount_c,
+    nk_f32_t target_popcount_d, nk_size_t total_dimensions, nk_b128_vec_t *result);
+
 #endif // NK_TARGET_HASWELL
 
 #if NK_TARGET_ICE
@@ -416,29 +443,29 @@ NK_PUBLIC void nk_jaccard_u16_ice(nk_u16_t const *a, nk_u16_t const *b, nk_size_
  *  nk_jaccard_b512_init_ice(&state_second);
  *  nk_jaccard_b512_init_ice(&state_third);
  *  nk_jaccard_b512_init_ice(&state_fourth);
- *  nk_jaccard_b512_update_ice(&state_first, &query[0], &target_first[0]); // First 512 bits
- *  nk_jaccard_b512_update_ice(&state_first, &query[64], &target_first[64]); // Second 512 bits
+ *  nk_jaccard_b512_update_ice(&state_first, &query[0], &target_first[0], 0, 512); // First 512 bits
+ *  nk_jaccard_b512_update_ice(&state_first, &query[64], &target_first[64], 512, 512); // Second 512 bits
  *  // ... update state_second, state_third, state_fourth similarly ...
  *
  *  nk_f32_t results[4];
  *  nk_jaccard_b512_finalize_ice(&state_first, &state_second, &state_third, &state_fourth,
  *      query_popcount, target_popcount_first, target_popcount_second,
- *      target_popcount_third, target_popcount_fourth, results);
+ *      target_popcount_third, target_popcount_fourth, total_dimensions, results);
  *  @endcode
  */
 typedef struct nk_jaccard_b512_state_ice_t nk_jaccard_b512_state_ice_t;
 /** @copydoc nk_jaccard_b512_state_ice_t */
 NK_INTERNAL void nk_jaccard_b512_init_ice(nk_jaccard_b512_state_ice_t *state);
 /** @copydoc nk_jaccard_b512_state_ice_t */
-NK_INTERNAL void nk_jaccard_b512_update_ice(nk_jaccard_b512_state_ice_t *state, nk_b512_vec_t a, nk_b512_vec_t b);
+NK_INTERNAL void nk_jaccard_b512_update_ice(nk_jaccard_b512_state_ice_t *state, nk_b512_vec_t a, nk_b512_vec_t b,
+                                            nk_size_t depth_offset, nk_size_t active_dimensions);
 /** @copydoc nk_jaccard_b512_state_ice_t */
-NK_INTERNAL void nk_jaccard_b512_finalize_ice(nk_jaccard_b512_state_ice_t const *state_a,
-                                              nk_jaccard_b512_state_ice_t const *state_b,
-                                              nk_jaccard_b512_state_ice_t const *state_c,
-                                              nk_jaccard_b512_state_ice_t const *state_d, nk_f32_t query_popcount,
-                                              nk_f32_t target_popcount_a, nk_f32_t target_popcount_b,
-                                              nk_f32_t target_popcount_c, nk_f32_t target_popcount_d,
-                                              nk_f32_t *results);
+NK_INTERNAL void nk_jaccard_b512_finalize_ice( //
+    nk_jaccard_b512_state_ice_t const *state_a, nk_jaccard_b512_state_ice_t const *state_b,
+    nk_jaccard_b512_state_ice_t const *state_c, nk_jaccard_b512_state_ice_t const *state_d, nk_f32_t query_popcount,
+    nk_f32_t target_popcount_a, nk_f32_t target_popcount_b, nk_f32_t target_popcount_c, nk_f32_t target_popcount_d,
+    nk_size_t total_dimensions, nk_b128_vec_t *result);
+
 #endif // NK_TARGET_ICE
 
 #include "numkong/set/serial.h"

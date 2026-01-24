@@ -57,7 +57,7 @@ nk_define_dots_pack_(u8, ice, u8, u8, u32, nk_assign_from_to_, /*depth_simd_dime
                      /*dimensions_per_value=*/1)
 nk_define_dots_symmetric_(u8, ice, u8, u32, nk_b512_vec_t, nk_dot_u8x64_state_ice_t, nk_b128_vec_t,
                           nk_dot_u8x64_init_ice, nk_load_b512_skylake_, nk_partial_load_b8x64_skylake_,
-                          nk_dot_u8x64_update_ice, nk_dot_u8x64_finalize_ice, nk_partial_store_b32x4_serial_,
+                          nk_dot_u8x64_update_ice, nk_dot_u8x64_finalize_ice, nk_partial_store_b32x4_skylake_,
                           /*depth_simd_dimensions=*/64, /*dimensions_per_value=*/1)
 nk_define_dots_packed_(u8, ice, u8, u8, u32, nk_b512_vec_t, nk_dot_u8x64_state_ice_t, nk_b128_vec_t,
                        nk_dot_u8x64_init_ice, nk_load_b512_skylake_, nk_partial_load_b8x64_skylake_,
@@ -73,7 +73,7 @@ nk_define_dots_pack_(i4, ice, i4x2, i4x2, i32, nk_assign_from_to_, /*depth_simd_
 
 nk_define_dots_symmetric_(i4, ice, i4x2, i32, nk_b512_vec_t, nk_dot_i4x128_state_ice_t, nk_b128_vec_t,
                           nk_dot_i4x128_init_ice, nk_load_b512_skylake_, nk_partial_load_b4x128_skylake_,
-                          nk_dot_i4x128_update_ice, nk_dot_i4x128_finalize_ice, nk_partial_store_b32x4_serial_,
+                          nk_dot_i4x128_update_ice, nk_dot_i4x128_finalize_ice, nk_partial_store_b32x4_skylake_,
                           /*depth_simd_dimensions=*/128, /*dimensions_per_value=*/2)
 nk_define_dots_packed_(i4, ice, i4x2, i4x2, i32, nk_b512_vec_t, nk_dot_i4x128_state_ice_t, nk_b128_vec_t,
                        nk_dot_i4x128_init_ice, nk_load_b512_skylake_, nk_partial_load_b4x128_skylake_,
@@ -88,7 +88,7 @@ nk_define_dots_pack_(u4, ice, u4x2, u4x2, u32, nk_assign_from_to_, /*depth_simd_
 
 nk_define_dots_symmetric_(u4, ice, u4x2, u32, nk_b512_vec_t, nk_dot_u4x128_state_ice_t, nk_b128_vec_t,
                           nk_dot_u4x128_init_ice, nk_load_b512_skylake_, nk_partial_load_b4x128_skylake_,
-                          nk_dot_u4x128_update_ice, nk_dot_u4x128_finalize_ice, nk_partial_store_b32x4_serial_,
+                          nk_dot_u4x128_update_ice, nk_dot_u4x128_finalize_ice, nk_partial_store_b32x4_skylake_,
                           /*depth_simd_dimensions=*/128, /*dimensions_per_value=*/2)
 nk_define_dots_packed_(u4, ice, u4x2, u4x2, u32, nk_b512_vec_t, nk_dot_u4x128_state_ice_t, nk_b128_vec_t,
                        nk_dot_u4x128_init_ice, nk_load_b512_skylake_, nk_partial_load_b4x128_skylake_,

@@ -158,12 +158,13 @@ NK_INTERNAL void nk_dot_f32x2_update_neon(nk_dot_f32x2_state_neon_t *state, nk_b
 NK_INTERNAL void nk_dot_f32x2_finalize_neon(                                            //
     nk_dot_f32x2_state_neon_t const *state_a, nk_dot_f32x2_state_neon_t const *state_b, //
     nk_dot_f32x2_state_neon_t const *state_c, nk_dot_f32x2_state_neon_t const *state_d, //
-    nk_b128_vec_t *result, nk_size_t total_dimensions) {
+    nk_size_t total_dimensions, nk_b128_vec_t *result) {
     nk_unused_(total_dimensions);
-    // Reduce each f64x2 → f64, downcast to f32, pack into f32x4
-    float32x4_t sums_f32x4 = {(nk_f32_t)vaddvq_f64(state_a->sum_f64x2), (nk_f32_t)vaddvq_f64(state_b->sum_f64x2),
-                              (nk_f32_t)vaddvq_f64(state_c->sum_f64x2), (nk_f32_t)vaddvq_f64(state_d->sum_f64x2)};
-    result->u32x4 = vreinterpretq_u32_f32(sums_f32x4);
+    // Reduce each f64x2 → f64, downcast to f32
+    result->f32s[0] = (nk_f32_t)vaddvq_f64(state_a->sum_f64x2);
+    result->f32s[1] = (nk_f32_t)vaddvq_f64(state_b->sum_f64x2);
+    result->f32s[2] = (nk_f32_t)vaddvq_f64(state_c->sum_f64x2);
+    result->f32s[3] = (nk_f32_t)vaddvq_f64(state_d->sum_f64x2);
 }
 
 NK_PUBLIC void nk_dot_f64_neon(nk_f64_t const *a_scalars, nk_f64_t const *b_scalars, nk_size_t count_scalars,
@@ -382,15 +383,13 @@ NK_INTERNAL void nk_dot_f64x2_update_neon(nk_dot_f64x2_state_neon_t *state, nk_b
 NK_INTERNAL void nk_dot_f64x2_finalize_neon(                                            //
     nk_dot_f64x2_state_neon_t const *state_a, nk_dot_f64x2_state_neon_t const *state_b, //
     nk_dot_f64x2_state_neon_t const *state_c, nk_dot_f64x2_state_neon_t const *state_d, //
-    nk_b256_vec_t *result, nk_size_t total_dimensions) {
+    nk_size_t total_dimensions, nk_b256_vec_t *result) {
     nk_unused_(total_dimensions);
-    // Combine sum + compensation before horizontal reduction, then pack and store
-    float64x2_t sums_ab_f64x2 = {vaddvq_f64(vaddq_f64(state_a->sum_f64x2, state_a->compensation_f64x2)),
-                                 vaddvq_f64(vaddq_f64(state_b->sum_f64x2, state_b->compensation_f64x2))};
-    float64x2_t sums_cd_f64x2 = {vaddvq_f64(vaddq_f64(state_c->sum_f64x2, state_c->compensation_f64x2)),
-                                 vaddvq_f64(vaddq_f64(state_d->sum_f64x2, state_d->compensation_f64x2))};
-    vst1q_f64(result->f64s + 0, sums_ab_f64x2);
-    vst1q_f64(result->f64s + 2, sums_cd_f64x2);
+    // Combine sum + compensation before horizontal reduction
+    result->f64s[0] = vaddvq_f64(vaddq_f64(state_a->sum_f64x2, state_a->compensation_f64x2));
+    result->f64s[1] = vaddvq_f64(vaddq_f64(state_b->sum_f64x2, state_b->compensation_f64x2));
+    result->f64s[2] = vaddvq_f64(vaddq_f64(state_c->sum_f64x2, state_c->compensation_f64x2));
+    result->f64s[3] = vaddvq_f64(vaddq_f64(state_d->sum_f64x2, state_d->compensation_f64x2));
 }
 
 NK_PUBLIC void nk_dot_e4m3_neon(nk_e4m3_t const *a_scalars, nk_e4m3_t const *b_scalars, nk_size_t count_scalars,

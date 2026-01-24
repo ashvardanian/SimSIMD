@@ -57,7 +57,7 @@ jobs:
 
       - name: Build locally
         run: |
-          cmake -D CMAKE_BUILD_TYPE=Release -D NK_BUILD_TESTS=1 -D NK_BUILD_BENCHMARKS=1 -D NK_BUILD_BENCHMARKS_WITH_CBLAS=1 -B build_release
+          cmake -D CMAKE_BUILD_TYPE=Release -D NK_BUILD_TEST=1 -D NK_BUILD_BENCH=1 -D NK_COMPARE_TO_BLAS=1 -B build_release
           cmake --build build_release --config Release
 
       - name: Test
