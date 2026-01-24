@@ -777,19 +777,19 @@ NK_PUBLIC void nk_dot_i4_ice(nk_i4x2_t const *a, nk_i4x2_t const *b, nk_size_t n
 NK_PUBLIC void nk_dot_u4_ice(nk_u4x2_t const *a, nk_u4x2_t const *b, nk_size_t n, nk_u32_t *result);
 
 /**
- *  @brief Running state for 32-element dot accumulation over i8 scalars on Ice Lake.
+ *  @brief Running state for 64-element dot accumulation over i8 scalars on Ice Lake.
  */
-typedef struct nk_dot_i8x32_state_ice_t nk_dot_i8x32_state_ice_t;
-/** @copydoc nk_dot_i8x32_state_ice_t */
-NK_INTERNAL void nk_dot_i8x32_init_ice(nk_dot_i8x32_state_ice_t *state);
-/** @copydoc nk_dot_i8x32_state_ice_t */
-NK_INTERNAL void nk_dot_i8x32_update_ice(nk_dot_i8x32_state_ice_t *state, nk_b256_vec_t a, nk_b256_vec_t b,
+typedef struct nk_dot_i8x64_state_ice_t nk_dot_i8x64_state_ice_t;
+/** @copydoc nk_dot_i8x64_state_ice_t */
+NK_INTERNAL void nk_dot_i8x64_init_ice(nk_dot_i8x64_state_ice_t *state);
+/** @copydoc nk_dot_i8x64_state_ice_t */
+NK_INTERNAL void nk_dot_i8x64_update_ice(nk_dot_i8x64_state_ice_t *state, nk_b512_vec_t a, nk_b512_vec_t b,
                                          nk_size_t depth_offset, nk_size_t active_dimensions);
-/** @copydoc nk_dot_i8x32_state_ice_t */
-NK_INTERNAL void nk_dot_i8x32_finalize_ice(nk_dot_i8x32_state_ice_t const *state_a,
-                                           nk_dot_i8x32_state_ice_t const *state_b,
-                                           nk_dot_i8x32_state_ice_t const *state_c,
-                                           nk_dot_i8x32_state_ice_t const *state_d, nk_b128_vec_t *results,
+/** @copydoc nk_dot_i8x64_state_ice_t */
+NK_INTERNAL void nk_dot_i8x64_finalize_ice(nk_dot_i8x64_state_ice_t const *state_a,
+                                           nk_dot_i8x64_state_ice_t const *state_b,
+                                           nk_dot_i8x64_state_ice_t const *state_c,
+                                           nk_dot_i8x64_state_ice_t const *state_d, nk_b128_vec_t *results,
                                            nk_size_t total_dimensions);
 
 /**

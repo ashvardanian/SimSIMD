@@ -555,39 +555,39 @@ nk_angular_u4_ice_cycle:
     *result = nk_angular_normalize_f32_haswell_(ab, (nk_f32_t)a2, (nk_f32_t)b2);
 }
 
-typedef nk_dot_i8x32_state_ice_t nk_angular_i8x32_state_ice_t;
-NK_INTERNAL void nk_angular_i8x32_init_ice(nk_angular_i8x32_state_ice_t *state) { nk_dot_i8x32_init_ice(state); }
-NK_INTERNAL void nk_angular_i8x32_update_ice(nk_angular_i8x32_state_ice_t *state, nk_b256_vec_t a, nk_b256_vec_t b,
+typedef nk_dot_i8x64_state_ice_t nk_angular_i8x64_state_ice_t;
+NK_INTERNAL void nk_angular_i8x64_init_ice(nk_angular_i8x64_state_ice_t *state) { nk_dot_i8x64_init_ice(state); }
+NK_INTERNAL void nk_angular_i8x64_update_ice(nk_angular_i8x64_state_ice_t *state, nk_b512_vec_t a, nk_b512_vec_t b,
                                              nk_size_t depth_offset, nk_size_t active_dimensions) {
-    nk_dot_i8x32_update_ice(state, a, b, depth_offset, active_dimensions);
+    nk_dot_i8x64_update_ice(state, a, b, depth_offset, active_dimensions);
 }
-NK_INTERNAL void nk_angular_i8x32_finalize_ice(nk_angular_i8x32_state_ice_t const *state_a,
-                                               nk_angular_i8x32_state_ice_t const *state_b,
-                                               nk_angular_i8x32_state_ice_t const *state_c,
-                                               nk_angular_i8x32_state_ice_t const *state_d, nk_f32_t query_norm,
+NK_INTERNAL void nk_angular_i8x64_finalize_ice(nk_angular_i8x64_state_ice_t const *state_a,
+                                               nk_angular_i8x64_state_ice_t const *state_b,
+                                               nk_angular_i8x64_state_ice_t const *state_c,
+                                               nk_angular_i8x64_state_ice_t const *state_d, nk_f32_t query_norm,
                                                nk_f32_t target_norm_a, nk_f32_t target_norm_b, nk_f32_t target_norm_c,
                                                nk_f32_t target_norm_d, nk_size_t total_dimensions, nk_f32_t *results) {
     nk_b128_vec_t dots_vec;
-    nk_dot_i8x32_finalize_ice(state_a, state_b, state_c, state_d, &dots_vec, total_dimensions);
+    nk_dot_i8x64_finalize_ice(state_a, state_b, state_c, state_d, &dots_vec, total_dimensions);
     nk_angular_f32x4_finalize_haswell_(_mm_cvtepi32_ps(dots_vec.xmm), query_norm, target_norm_a, target_norm_b,
                                        target_norm_c, target_norm_d, results);
 }
 
-typedef nk_dot_i8x32_state_ice_t nk_euclidean_i8x32_state_ice_t;
-NK_INTERNAL void nk_euclidean_i8x32_init_ice(nk_euclidean_i8x32_state_ice_t *state) { nk_dot_i8x32_init_ice(state); }
-NK_INTERNAL void nk_euclidean_i8x32_update_ice(nk_euclidean_i8x32_state_ice_t *state, nk_b256_vec_t a, nk_b256_vec_t b,
+typedef nk_dot_i8x64_state_ice_t nk_euclidean_i8x64_state_ice_t;
+NK_INTERNAL void nk_euclidean_i8x64_init_ice(nk_euclidean_i8x64_state_ice_t *state) { nk_dot_i8x64_init_ice(state); }
+NK_INTERNAL void nk_euclidean_i8x64_update_ice(nk_euclidean_i8x64_state_ice_t *state, nk_b512_vec_t a, nk_b512_vec_t b,
                                                nk_size_t depth_offset, nk_size_t active_dimensions) {
-    nk_dot_i8x32_update_ice(state, a, b, depth_offset, active_dimensions);
+    nk_dot_i8x64_update_ice(state, a, b, depth_offset, active_dimensions);
 }
-NK_INTERNAL void nk_euclidean_i8x32_finalize_ice(nk_euclidean_i8x32_state_ice_t const *state_a,
-                                                 nk_euclidean_i8x32_state_ice_t const *state_b,
-                                                 nk_euclidean_i8x32_state_ice_t const *state_c,
-                                                 nk_euclidean_i8x32_state_ice_t const *state_d, nk_f32_t query_norm,
+NK_INTERNAL void nk_euclidean_i8x64_finalize_ice(nk_euclidean_i8x64_state_ice_t const *state_a,
+                                                 nk_euclidean_i8x64_state_ice_t const *state_b,
+                                                 nk_euclidean_i8x64_state_ice_t const *state_c,
+                                                 nk_euclidean_i8x64_state_ice_t const *state_d, nk_f32_t query_norm,
                                                  nk_f32_t target_norm_a, nk_f32_t target_norm_b, nk_f32_t target_norm_c,
                                                  nk_f32_t target_norm_d, nk_size_t total_dimensions,
                                                  nk_f32_t *results) {
     nk_b128_vec_t dots_vec;
-    nk_dot_i8x32_finalize_ice(state_a, state_b, state_c, state_d, &dots_vec, total_dimensions);
+    nk_dot_i8x64_finalize_ice(state_a, state_b, state_c, state_d, &dots_vec, total_dimensions);
     nk_euclidean_f32x4_finalize_haswell_(_mm_cvtepi32_ps(dots_vec.xmm), query_norm, target_norm_a, target_norm_b,
                                          target_norm_c, target_norm_d, results);
 }

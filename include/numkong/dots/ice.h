@@ -37,22 +37,24 @@
 extern "C" {
 #endif
 
-/* I8 GEMM: depth_simd_dimensions=32 (32 i8s = 32 bytes = half cache line) */
-nk_define_dots_pack_size_(i8, ice, i8, i8, i32, /*depth_simd_dimensions=*/32, /*dimensions_per_value=*/1)
-nk_define_dots_pack_(i8, ice, i8, i8, i32, nk_assign_from_to_, /*depth_simd_dimensions=*/32, /*dimensions_per_value=*/1)
-nk_define_dots_symmetric_(i8, ice, i8, i32, nk_b256_vec_t, nk_dot_i8x32_state_ice_t, nk_b128_vec_t,
-                          nk_dot_i8x32_init_ice, nk_load_b256_haswell_, nk_partial_load_b8x32_serial_,
-                          nk_dot_i8x32_update_ice, nk_dot_i8x32_finalize_ice, nk_partial_store_b32x4_serial_,
-                          /*depth_simd_dimensions=*/32, /*dimensions_per_value=*/1)
-nk_define_dots_packed_(i8, ice, i8, i8, i32, nk_b256_vec_t, nk_dot_i8x32_state_ice_t, nk_b128_vec_t,
-                       nk_dot_i8x32_init_ice, nk_load_b256_haswell_, nk_partial_load_b8x32_serial_,
-                       nk_load_b256_haswell_, nk_partial_load_b8x32_serial_, nk_dot_i8x32_update_ice,
-                       nk_dot_i8x32_finalize_ice, nk_partial_store_b32x4_skylake_,
-                       /*depth_simd_dimensions=*/32, /*dimensions_per_value=*/1)
+/* I8 GEMM: depth_simd_dimensions=64 (64 i8s = 64 bytes = 1 cache line) */
+nk_define_dots_pack_size_(i8, ice, i8, i8, i32, /*depth_simd_dimensions=*/64, /*dimensions_per_value=*/1)
+nk_define_dots_pack_(i8, ice, i8, i8, i32, nk_assign_from_to_, /*depth_simd_dimensions=*/64,
+                     /*dimensions_per_value=*/1)
+nk_define_dots_symmetric_(i8, ice, i8, i32, nk_b512_vec_t, nk_dot_i8x64_state_ice_t, nk_b128_vec_t,
+                          nk_dot_i8x64_init_ice, nk_load_b512_skylake_, nk_partial_load_b8x64_skylake_,
+                          nk_dot_i8x64_update_ice, nk_dot_i8x64_finalize_ice, nk_partial_store_b32x4_serial_,
+                          /*depth_simd_dimensions=*/64, /*dimensions_per_value=*/1)
+nk_define_dots_packed_(i8, ice, i8, i8, i32, nk_b512_vec_t, nk_dot_i8x64_state_ice_t, nk_b128_vec_t,
+                       nk_dot_i8x64_init_ice, nk_load_b512_skylake_, nk_partial_load_b8x64_skylake_,
+                       nk_load_b512_skylake_, nk_partial_load_b8x64_skylake_, nk_dot_i8x64_update_ice,
+                       nk_dot_i8x64_finalize_ice, nk_partial_store_b32x4_skylake_,
+                       /*depth_simd_dimensions=*/64, /*dimensions_per_value=*/1)
 
 /* U8 GEMM: depth_simd_dimensions=64 (64 u8s = 64 bytes = 1 cache line) */
 nk_define_dots_pack_size_(u8, ice, u8, u8, u32, /*depth_simd_dimensions=*/64, /*dimensions_per_value=*/1)
-nk_define_dots_pack_(u8, ice, u8, u8, u32, nk_assign_from_to_, /*depth_simd_dimensions=*/64, /*dimensions_per_value=*/1)
+nk_define_dots_pack_(u8, ice, u8, u8, u32, nk_assign_from_to_, /*depth_simd_dimensions=*/64,
+                     /*dimensions_per_value=*/1)
 nk_define_dots_symmetric_(u8, ice, u8, u32, nk_b512_vec_t, nk_dot_u8x64_state_ice_t, nk_b128_vec_t,
                           nk_dot_u8x64_init_ice, nk_load_b512_skylake_, nk_partial_load_b8x64_skylake_,
                           nk_dot_u8x64_update_ice, nk_dot_u8x64_finalize_ice, nk_partial_store_b32x4_serial_,
