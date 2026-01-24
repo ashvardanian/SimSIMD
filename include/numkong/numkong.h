@@ -220,6 +220,12 @@ typedef enum {
     nk_kernel_dots_compacting_k = 'g',  ///< GEMM computation with following renormalization
     nk_kernel_dots_symmetric_k = 'y',   ///< Symmetric Gram matrix (A × Aᵀ)
 
+    // Hamming distance operations:
+    nk_kernel_hammings_packed_size_k = 'H', ///< Hamming packed buffer size
+    nk_kernel_hammings_pack_k = 'J',        ///< Hamming B matrix packing
+    nk_kernel_hammings_k = 'M',             ///< Hamming distance computation
+    nk_kernel_hammings_symmetric_k = 'Y',   ///< Symmetric Hamming distance matrix (A × Aᵀ)
+
     nk_kernel_cast_k = '-', ///< Type casting from one type to another
 
 } nk_kernel_kind_t;

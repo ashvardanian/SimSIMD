@@ -147,8 +147,8 @@ NK_INTERNAL void nk_angular_bf16x32_finalize_genoa(nk_angular_bf16x32_state_geno
                                                    nk_size_t total_dimensions, nk_f32_t *results) {
     nk_b128_vec_t dots_vec;
     nk_dot_bf16x32_finalize_genoa(state_a, state_b, state_c, state_d, total_dimensions, &dots_vec);
-    nk_angular_f32x4_finalize_haswell_(dots_vec.xmm_ps, query_norm, target_norm_a, target_norm_b, target_norm_c,
-                                       target_norm_d, results);
+    nk_angular_through_f32_finalize_haswell_(dots_vec.xmm_ps, query_norm, target_norm_a, target_norm_b, target_norm_c,
+                                             target_norm_d, results);
 }
 
 typedef nk_dot_bf16x32_state_genoa_t nk_euclidean_bf16x32_state_genoa_t;
@@ -167,8 +167,8 @@ NK_INTERNAL void nk_euclidean_bf16x32_finalize_genoa(
     nk_size_t total_dimensions, nk_f32_t *results) {
     nk_b128_vec_t dots_vec;
     nk_dot_bf16x32_finalize_genoa(state_a, state_b, state_c, state_d, total_dimensions, &dots_vec);
-    nk_euclidean_f32x4_finalize_haswell_(dots_vec.xmm_ps, query_norm, target_norm_a, target_norm_b, target_norm_c,
-                                         target_norm_d, results);
+    nk_euclidean_through_f32_finalize_haswell_(dots_vec.xmm_ps, query_norm, target_norm_a, target_norm_b, target_norm_c,
+                                               target_norm_d, results);
 }
 
 NK_PUBLIC void nk_sqeuclidean_e4m3_genoa(nk_e4m3_t const *a, nk_e4m3_t const *b, nk_size_t n, nk_f32_t *result) {

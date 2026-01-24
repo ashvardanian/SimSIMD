@@ -636,7 +636,7 @@ NK_INTERNAL void nk_dot_f64x8_finalize_skylake(                                 
     __m128d sum_ab_f64x2 = _mm_hadd_pd(sum_a_f64x2, sum_b_f64x2);
     __m128d sum_cd_f64x2 = _mm_hadd_pd(sum_c_f64x2, sum_d_f64x2);
     // Store results in ymm register
-    result->ymm = _mm256_set_m128d(sum_cd_f64x2, sum_ab_f64x2);
+    result->ymm_pd = _mm256_set_m128d(sum_cd_f64x2, sum_ab_f64x2);
 }
 
 struct nk_dot_f32x8_state_skylake_t {

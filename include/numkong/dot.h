@@ -771,8 +771,8 @@ NK_INTERNAL void nk_dot_i8x64_update_ice(nk_dot_i8x64_state_ice_t *state, nk_b51
 /** @copydoc nk_dot_i8x64_state_ice_t */
 NK_INTERNAL void nk_dot_i8x64_finalize_ice( //
     nk_dot_i8x64_state_ice_t const *state_a, nk_dot_i8x64_state_ice_t const *state_b,
-    nk_dot_i8x64_state_ice_t const *state_c, nk_dot_i8x64_state_ice_t const *state_d, nk_b128_vec_t *results,
-    nk_size_t total_dimensions);
+    nk_dot_i8x64_state_ice_t const *state_c, nk_dot_i8x64_state_ice_t const *state_d,
+    nk_size_t total_dimensions, nk_b128_vec_t *results);
 
 /**
  *  @brief Running state for 64-element dot accumulation over u8 scalars on Ice Lake.
@@ -862,8 +862,8 @@ NK_INTERNAL void nk_dot_i8x32_update_sierra(nk_dot_i8x32_state_sierra_t *state, 
 /** @copydoc nk_dot_i8x32_state_sierra_t */
 NK_INTERNAL void nk_dot_i8x32_finalize_sierra( //
     nk_dot_i8x32_state_sierra_t const *state_a, nk_dot_i8x32_state_sierra_t const *state_b,
-    nk_dot_i8x32_state_sierra_t const *state_c, nk_dot_i8x32_state_sierra_t const *state_d, nk_size_t total_dimensions,
-    nk_b128_vec_t *result);
+    nk_dot_i8x32_state_sierra_t const *state_c, nk_dot_i8x32_state_sierra_t const *state_d,
+    nk_size_t total_dimensions, nk_b128_vec_t *result);
 
 #endif // NK_TARGET_SIERRA
 

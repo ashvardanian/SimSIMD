@@ -735,7 +735,7 @@ NK_DYNAMIC nk_capability_t nk_capabilities(void) {
     // Passing `NULL` as `x` will trigger all kinds of `nonull` warnings on GCC.
     // Same applies to alpha/beta scalars in FMA/WSUM functions.
     nk_scalar_buffer_t dummy_input;
-    nk_dots_packed_buffer_header_t dummy_tensor_header;
+    nk_cross_packed_buffer_header_t dummy_tensor_header;
     void *x = &dummy_input;
     nk_f64_t dummy_alpha = 1, dummy_beta = 1;
     nk_size_t dummy_index;

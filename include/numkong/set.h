@@ -355,6 +355,22 @@ NK_PUBLIC void nk_jaccard_u16_sve(nk_u16_t const *a, nk_u16_t const *b, nk_size_
 NK_PUBLIC void nk_hamming_u1_haswell(nk_u1x8_t const *a, nk_u1x8_t const *b, nk_size_t n, nk_u32_t *result);
 /** @copydoc nk_hamming_u8 */
 NK_PUBLIC void nk_hamming_u8_haswell(nk_u8_t const *a, nk_u8_t const *b, nk_size_t n, nk_u32_t *result);
+
+/**
+ *  @brief Running state for 256-bit Hamming distance accumulation on Haswell.
+ */
+typedef struct nk_hamming_b64_state_haswell_t nk_hamming_b64_state_haswell_t;
+/** @copydoc nk_hamming_b64_state_haswell_t */
+NK_INTERNAL void nk_hamming_b64_init_haswell(nk_hamming_b64_state_haswell_t *state);
+/** @copydoc nk_hamming_b64_state_haswell_t */
+NK_INTERNAL void nk_hamming_b64_update_haswell(nk_hamming_b64_state_haswell_t *state, nk_b64_vec_t a, nk_b64_vec_t b,
+                                               nk_size_t depth_offset, nk_size_t active_dimensions);
+/** @copydoc nk_hamming_b64_state_haswell_t */
+NK_INTERNAL void nk_hamming_b64_finalize_haswell( //
+    nk_hamming_b64_state_haswell_t const *state_a, nk_hamming_b64_state_haswell_t const *state_b,
+    nk_hamming_b64_state_haswell_t const *state_c, nk_hamming_b64_state_haswell_t const *state_d,
+    nk_size_t total_dimensions, nk_b128_vec_t *result);
+
 /** @copydoc nk_jaccard_u1 */
 NK_PUBLIC void nk_jaccard_u1_haswell(nk_u1x8_t const *a, nk_u1x8_t const *b, nk_size_t n, nk_f32_t *result);
 /** @copydoc nk_jaccard_u16 */
@@ -406,7 +422,7 @@ typedef struct nk_jaccard_b64_state_haswell_t nk_jaccard_b64_state_haswell_t;
 /** @copydoc nk_jaccard_b64_state_haswell_t */
 NK_INTERNAL void nk_jaccard_b64_init_haswell(nk_jaccard_b64_state_haswell_t *state);
 /** @copydoc nk_jaccard_b64_state_haswell_t */
-NK_INTERNAL void nk_jaccard_b64_update_haswell(nk_jaccard_b64_state_haswell_t *state, nk_b256_vec_t a, nk_b256_vec_t b,
+NK_INTERNAL void nk_jaccard_b64_update_haswell(nk_jaccard_b64_state_haswell_t *state, nk_b64_vec_t a, nk_b64_vec_t b,
                                                nk_size_t depth_offset, nk_size_t active_dimensions);
 /** @copydoc nk_jaccard_b64_state_haswell_t */
 NK_INTERNAL void nk_jaccard_b64_finalize_haswell( //
@@ -422,6 +438,22 @@ NK_INTERNAL void nk_jaccard_b64_finalize_haswell( //
 NK_PUBLIC void nk_hamming_u1_ice(nk_u1x8_t const *a, nk_u1x8_t const *b, nk_size_t n, nk_u32_t *result);
 /** @copydoc nk_hamming_u8 */
 NK_PUBLIC void nk_hamming_u8_ice(nk_u8_t const *a, nk_u8_t const *b, nk_size_t n, nk_u32_t *result);
+
+/**
+ *  @brief Running state for 512-bit Hamming distance accumulation on Ice Lake.
+ */
+typedef struct nk_hamming_b512_state_ice_t nk_hamming_b512_state_ice_t;
+/** @copydoc nk_hamming_b512_state_ice_t */
+NK_INTERNAL void nk_hamming_b512_init_ice(nk_hamming_b512_state_ice_t *state);
+/** @copydoc nk_hamming_b512_state_ice_t */
+NK_INTERNAL void nk_hamming_b512_update_ice(nk_hamming_b512_state_ice_t *state, nk_b512_vec_t a, nk_b512_vec_t b,
+                                            nk_size_t depth_offset, nk_size_t active_dimensions);
+/** @copydoc nk_hamming_b512_state_ice_t */
+NK_INTERNAL void nk_hamming_b512_finalize_ice( //
+    nk_hamming_b512_state_ice_t const *state_a, nk_hamming_b512_state_ice_t const *state_b,
+    nk_hamming_b512_state_ice_t const *state_c, nk_hamming_b512_state_ice_t const *state_d,
+    nk_size_t total_dimensions, nk_b128_vec_t *result);
+
 /** @copydoc nk_jaccard_u1 */
 NK_PUBLIC void nk_jaccard_u1_ice(nk_u1x8_t const *a, nk_u1x8_t const *b, nk_size_t n, nk_f32_t *result);
 /** @copydoc nk_jaccard_u32 */

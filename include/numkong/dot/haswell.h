@@ -668,8 +668,8 @@ NK_INTERNAL void nk_dot_u8x16_finalize_haswell(                                 
     nk_size_t total_dimensions, nk_b128_vec_t *result) {
     nk_dot_i8x16_finalize_haswell(                                                                    //
         (nk_dot_i8x16_state_haswell_t const *)state_a, (nk_dot_i8x16_state_haswell_t const *)state_b, //
-        (nk_dot_i8x16_state_haswell_t const *)state_c, (nk_dot_i8x16_state_haswell_t const *)state_d,
-        total_dimensions, result);
+        (nk_dot_i8x16_state_haswell_t const *)state_c, (nk_dot_i8x16_state_haswell_t const *)state_d, total_dimensions,
+        result);
 }
 
 /**
@@ -731,7 +731,7 @@ NK_INTERNAL void nk_dot_f64x4_finalize_haswell(                                 
     __m128d sum_ab_f64x2 = _mm_hadd_pd(sum_a_f64x2, sum_b_f64x2);
     __m128d sum_cd_f64x2 = _mm_hadd_pd(sum_c_f64x2, sum_d_f64x2);
     // Store results in ymm register
-    result->ymm = _mm256_set_m128d(sum_cd_f64x2, sum_ab_f64x2);
+    result->ymm_pd = _mm256_set_m128d(sum_cd_f64x2, sum_ab_f64x2);
 }
 
 #if defined(__cplusplus)

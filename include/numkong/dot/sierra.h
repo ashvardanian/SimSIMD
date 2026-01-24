@@ -147,7 +147,7 @@ NK_INTERNAL void nk_dot_i8x32_update_sierra(nk_dot_i8x32_state_sierra_t *state, 
 NK_INTERNAL void nk_dot_i8x32_finalize_sierra(                                              //
     nk_dot_i8x32_state_sierra_t const *state_a, nk_dot_i8x32_state_sierra_t const *state_b, //
     nk_dot_i8x32_state_sierra_t const *state_c, nk_dot_i8x32_state_sierra_t const *state_d, //
-    nk_b128_vec_t *results, nk_size_t total_dimensions) {
+    nk_size_t total_dimensions, nk_b128_vec_t *results) {
 
     // ILP-optimized 4-way horizontal reduction for i32 with algebraic correction
     // For each accumulator: result = sum_ab - 128 × sum_b

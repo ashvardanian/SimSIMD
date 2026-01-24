@@ -192,7 +192,7 @@ NK_INTERNAL void nk_dot_i8x64_update_ice(nk_dot_i8x64_state_ice_t *state, nk_b51
 NK_INTERNAL void nk_dot_i8x64_finalize_ice(                                           //
     nk_dot_i8x64_state_ice_t const *state_a, nk_dot_i8x64_state_ice_t const *state_b, //
     nk_dot_i8x64_state_ice_t const *state_c, nk_dot_i8x64_state_ice_t const *state_d, //
-    nk_b128_vec_t *results, nk_size_t total_dimensions) {
+    nk_size_t total_dimensions, nk_b128_vec_t *results) {
     // ILP-optimized 4-way horizontal reduction for i8x64 with algebraic correction
     // For each accumulator: result = sum_ab - 128 × sum_b
     nk_size_t depth_elements_rounded = nk_size_round_up_to_multiple_(total_dimensions, 64);

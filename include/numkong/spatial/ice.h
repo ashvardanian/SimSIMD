@@ -568,7 +568,7 @@ NK_INTERNAL void nk_angular_i8x64_finalize_ice(nk_angular_i8x64_state_ice_t cons
                                                nk_f32_t target_norm_a, nk_f32_t target_norm_b, nk_f32_t target_norm_c,
                                                nk_f32_t target_norm_d, nk_size_t total_dimensions, nk_f32_t *results) {
     nk_b128_vec_t dots_vec;
-    nk_dot_i8x64_finalize_ice(state_a, state_b, state_c, state_d, &dots_vec, total_dimensions);
+    nk_dot_i8x64_finalize_ice(state_a, state_b, state_c, state_d, total_dimensions, &dots_vec);
     nk_angular_through_f32_finalize_haswell_(_mm_cvtepi32_ps(dots_vec.xmm), query_norm, target_norm_a, target_norm_b,
                                              target_norm_c, target_norm_d, results);
 }
@@ -587,7 +587,7 @@ NK_INTERNAL void nk_euclidean_i8x64_finalize_ice(nk_euclidean_i8x64_state_ice_t 
                                                  nk_f32_t target_norm_d, nk_size_t total_dimensions,
                                                  nk_f32_t *results) {
     nk_b128_vec_t dots_vec;
-    nk_dot_i8x64_finalize_ice(state_a, state_b, state_c, state_d, &dots_vec, total_dimensions);
+    nk_dot_i8x64_finalize_ice(state_a, state_b, state_c, state_d, total_dimensions, &dots_vec);
     nk_euclidean_through_f32_finalize_haswell_(_mm_cvtepi32_ps(dots_vec.xmm), query_norm, target_norm_a, target_norm_b,
                                                target_norm_c, target_norm_d, results);
 }

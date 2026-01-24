@@ -24,18 +24,18 @@ extern "C" {
 #endif
 
 /* F16 GEMM: depth_simd_dimensions=4 (4 f16s = 8 bytes = 64-bit input for direct f32 conversion) */
-nk_define_dots_pack_size_(f16, neonhalf, f16, f16, f32, /*depth_simd_dimensions=*/4, /*dimensions_per_value=*/1)
-nk_define_dots_pack_(f16, neonhalf, f16, f16, f32, nk_assign_from_to_, /*depth_simd_dimensions=*/4,
-                     /*dimensions_per_value=*/1)
-nk_define_dots_symmetric_(f16, neonhalf, f16, f32, nk_b64_vec_t, nk_dot_f16x4_state_neonhalf_t, nk_b128_vec_t,
-                          nk_dot_f16x4_init_neonhalf, nk_load_b64_neon_, nk_partial_load_b16x4_serial_,
-                          nk_dot_f16x4_update_neonhalf, nk_dot_f16x4_finalize_neonhalf, nk_partial_store_b32x4_serial_,
-                          /*depth_simd_dimensions=*/4, /*dimensions_per_value=*/1)
-nk_define_dots_packed_(f16, neonhalf, f16, f16, f32, nk_b64_vec_t, nk_dot_f16x4_state_neonhalf_t, nk_b128_vec_t,
-                       nk_dot_f16x4_init_neonhalf, nk_load_b64_neon_, nk_partial_load_b16x4_serial_, nk_load_b64_neon_,
-                       nk_partial_load_b16x4_serial_, nk_dot_f16x4_update_neonhalf, nk_dot_f16x4_finalize_neonhalf,
-                       nk_partial_store_b32x4_serial_,
-                       /*depth_simd_dimensions=*/4, /*dimensions_per_value=*/1)
+nk_define_cross_pack_size_(dots, f16, neonhalf, f16, f16, /*depth_simd_dimensions=*/4, /*dimensions_per_value=*/1)
+nk_define_cross_pack_(dots, f16, neonhalf, f16, f16, nk_assign_from_to_, /*depth_simd_dimensions=*/4,
+                      /*dimensions_per_value=*/1)
+nk_define_cross_symmetric_(dots, f16, neonhalf, f16, f32, nk_b64_vec_t, nk_dot_f16x4_state_neonhalf_t, nk_b128_vec_t,
+                           nk_dot_f16x4_init_neonhalf, nk_load_b64_neon_, nk_partial_load_b16x4_serial_,
+                           nk_dot_f16x4_update_neonhalf, nk_dot_f16x4_finalize_neonhalf, nk_partial_store_b32x4_serial_,
+                           /*depth_simd_dimensions=*/4, /*dimensions_per_value=*/1)
+nk_define_cross_packed_(dots, f16, neonhalf, f16, f16, f32, nk_b64_vec_t, nk_dot_f16x4_state_neonhalf_t, nk_b128_vec_t,
+                        nk_dot_f16x4_init_neonhalf, nk_load_b64_neon_, nk_partial_load_b16x4_serial_, nk_load_b64_neon_,
+                        nk_partial_load_b16x4_serial_, nk_dot_f16x4_update_neonhalf, nk_dot_f16x4_finalize_neonhalf,
+                        nk_partial_store_b32x4_serial_,
+                        /*depth_simd_dimensions=*/4, /*dimensions_per_value=*/1)
 
 #if defined(__cplusplus)
 } // extern "C"
