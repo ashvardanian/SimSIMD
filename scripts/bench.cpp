@@ -12,19 +12,19 @@
  *  ```
  *
  *  Environment Variables:
- *    NK_FILTER=<pattern>             - Filter benchmarks by name regex (default: run all)
- *    NK_SEED=N                       - RNG seed (default: 42)
+ *    NK_FILTER=<pattern>           - Filter benchmarks by name regex (default: run all)
+ *    NK_SEED=N                     - RNG seed (default: 42)
  *
- *    NK_DENSE_DIMENSIONS=N           - Vector dimension for dot/spatial benchmarks (default: 1536)
- *    NK_MESH_POINTS=N                - Point count for mesh benchmarks (default: 1000)
- *    NK_MATRIX_HEIGHT=N              - GEMM M dimension (default: 128)
- *    NK_MATRIX_WIDTH=N               - GEMM N dimension (default: 512)
- *    NK_MATRIX_DEPTH=N               - GEMM K dimension (default: 256)
+ *    NK_DENSE_DIMENSIONS=N         - Vector dimension for dot/spatial benchmarks (default: 1536)
+ *    NK_MESH_POINTS=N              - Point count for mesh benchmarks (default: 1000)
+ *    NK_MATRIX_HEIGHT=N            - GEMM M dimension (default: 1024), like dataset size for kNN
+ *    NK_MATRIX_WIDTH=N             - GEMM N dimension (default: 128), like queries count for kNN
+ *    NK_MATRIX_DEPTH=N             - GEMM K dimension (default: 1536), like vector dimensions in KNN
  *
- *    NK_BENCH_CURVED_DIMENSIONS=N    - Vector dimension for curved benchmarks (default: 64)
- *    NK_BENCH_SPARSE_FIRST_LENGTH=N  - First set size for sparse benchmarks (default: 1024)
- *    NK_BENCH_SPARSE_SECOND_LENGTH=N - Second set size for sparse benchmarks (default: 8192)
- *    NK_BENCH_SPARSE_INTERSECTION=F  - Intersection share 0.0-1.0 (default: 0.5)
+ *    NK_CURVED_DIMENSIONS=N        - Vector dimension for curved benchmarks (default: 64)
+ *    NK_SPARSE_FIRST_LENGTH=N      - First set size for sparse benchmarks (default: 1024)
+ *    NK_SPARSE_SECOND_LENGTH=N     - Second set size for sparse benchmarks (default: 8192)
+ *    NK_SPARSE_INTERSECTION=F      - Intersection share 0.0-1.0 (default: 0.5)
  */
 
 #include <array>         // `std::array`
@@ -81,19 +81,19 @@ constexpr std::size_t default_threads = 1;
 /// Can be overridden at runtime via `NK_DENSE_DIMENSIONS` environment variable
 std::size_t dense_dimensions = 1536;
 /// Has quadratic impact on the number of operations
-/// Can be overridden at runtime via `NK_BENCH_CURVED_DIMENSIONS` environment variable
+/// Can be overridden at runtime via `NK_CURVED_DIMENSIONS` environment variable
 std::size_t curved_dimensions = 64;
 /// Number of 3D points for mesh metrics (RMSD, Kabsch)
 /// Can be overridden at runtime via `NK_MESH_POINTS` environment variable
 std::size_t mesh_points = 1000;
 /// Matrix multiplication benchmark globals
 /// Can be overridden at runtime via `NK_MATRIX_HEIGHT/WIDTH/DEPTH` environment variables
-std::size_t matrix_height = 128, matrix_width = 512, matrix_depth = 256;
+std::size_t matrix_height = 1024, matrix_width = 128, matrix_depth = 1536;
 /// Random seed for reproducible benchmarks
 /// Can be overridden at runtime via `NK_SEED` environment variable
 std::uint32_t random_seed = 42;
 /// Sparse set intersection benchmark globals
-/// Can be overridden at runtime via `NK_BENCH_SPARSE_*` environment variables
+/// Can be overridden at runtime via `NK_SPARSE_*` environment variables
 std::size_t sparse_first_length = 1024;
 std::size_t sparse_second_length = 8192;
 double sparse_intersection_share = 0.5;
@@ -148,8 +148,8 @@ void measure_dense(bm::State &state, kernel_type_ kernel, std::size_t dimensions
     using output_t = typename nk::type_for<output_dtype_>::type;
     using input_vector_t = nk::vector<input_t>;
 
-    // Preallocate inputs (128 vector pairs to avoid cache effects)
-    constexpr std::size_t vectors_count = 128;
+    // Preallocate inputs (1024 vector pairs to avoid cache effects)
+    constexpr std::size_t vectors_count = 1024;
     std::vector<input_vector_t> first_vectors(vectors_count), second_vectors(vectors_count);
     auto generator = make_random_engine();
     for (std::size_t index = 0; index != vectors_count; ++index) {
@@ -188,7 +188,7 @@ void measure_curved(bm::State &state, kernel_type_ kernel, std::size_t dimension
     using input_vector_t = nk::vector<input_t>;
 
     // Preallocate inputs: pairs of vectors + metric tensors (dimensions × dimensions)
-    constexpr std::size_t vectors_count = 128;
+    constexpr std::size_t vectors_count = 1024;
     std::vector<input_vector_t> first_vectors(vectors_count), second_vectors(vectors_count), tensors(vectors_count);
     auto generator = make_random_engine();
     for (std::size_t index = 0; index != vectors_count; ++index) {
@@ -232,7 +232,7 @@ void measure_sparse(bm::State &state, kernel_type_ kernel, std::size_t first_siz
     using scalar_t = typename input_t::raw_t;
 
     // Preallocate sorted unique set vectors
-    constexpr std::size_t vectors_count = 128;
+    constexpr std::size_t vectors_count = 1024;
     std::vector<input_vector_t> first_vectors(vectors_count), second_vectors(vectors_count);
     auto generator = make_random_engine();
     std::uniform_int_distribution<scalar_t> distribution(0, std::numeric_limits<scalar_t>::max());
@@ -310,7 +310,7 @@ void measure_mesh(bm::State &state, kernel_type_ kernel, std::size_t points_coun
     using input_vector_t = nk::vector<input_t>;
 
     // Preallocate point clouds: each contains points_count 3D points stored as [x0,y0,z0,x1,y1,z1,...]
-    constexpr std::size_t clouds_count = 128;
+    constexpr std::size_t clouds_count = 1024;
     std::vector<input_vector_t> first_clouds(clouds_count), second_clouds(clouds_count);
     auto generator = make_random_engine();
     for (std::size_t index = 0; index != clouds_count; ++index) {
@@ -359,7 +359,7 @@ void measure_elementwise(bm::State &state, kernel_type_ kernel, std::size_t dime
     // - fma: input_a, input_b, input_c + α, β -> output
     // - scale: input_a + α, β -> output
     // - trig (unknown): input_a -> output
-    constexpr std::size_t vectors_count = 128;
+    constexpr std::size_t vectors_count = 1024;
     std::vector<input_vector_t> input_a(vectors_count), input_b(vectors_count);
     std::vector<input_vector_t> input_c(vectors_count), output(vectors_count);
     auto generator = make_random_engine();
@@ -427,7 +427,7 @@ void measure_geospatial(bm::State &state, kernel_type_ kernel, std::size_t coord
     using output_vector_t = nk::vector<output_t>;
 
     // Preallocate coordinate arrays: latitude1, longitude1, latitude2, longitude2
-    constexpr std::size_t batches_count = 128;
+    constexpr std::size_t batches_count = 1024;
     std::vector<input_vector_t> latitudes_first(batches_count), longitudes_first(batches_count);
     std::vector<input_vector_t> latitudes_second(batches_count), longitudes_second(batches_count);
     auto generator = make_random_engine();
@@ -1079,11 +1079,11 @@ int main(int argc, char **argv) {
             std::printf("Using NK_DENSE_DIMENSIONS=%zu\n", dense_dimensions);
         }
     }
-    if (char const *env_curved = std::getenv("NK_BENCH_CURVED_DIMENSIONS")) {
+    if (char const *env_curved = std::getenv("NK_CURVED_DIMENSIONS")) {
         std::size_t parsed_curved = static_cast<std::size_t>(std::atoll(env_curved));
         if (parsed_curved > 0) {
             curved_dimensions = parsed_curved;
-            std::printf("Using NK_BENCH_CURVED_DIMENSIONS=%zu\n", curved_dimensions);
+            std::printf("Using NK_CURVED_DIMENSIONS=%zu\n", curved_dimensions);
         }
     }
     if (char const *env_mesh = std::getenv("NK_MESH_POINTS")) {
@@ -1119,27 +1119,26 @@ int main(int argc, char **argv) {
         random_seed = parsed;
         std::printf("Overriding `random_seed` to %u from NK_SEED\n", random_seed);
     }
-    if (char const *env_sparse_first = std::getenv("NK_BENCH_SPARSE_FIRST_LENGTH")) {
+    if (char const *env_sparse_first = std::getenv("NK_SPARSE_FIRST_LENGTH")) {
         std::size_t parsed = static_cast<std::size_t>(std::atoll(env_sparse_first));
         if (parsed > 0) {
             sparse_first_length = parsed;
-            std::printf("Overriding `sparse_first_length` to %zu from NK_BENCH_SPARSE_FIRST_LENGTH\n",
-                        sparse_first_length);
+            std::printf("Overriding `sparse_first_length` to %zu from NK_SPARSE_FIRST_LENGTH\n", sparse_first_length);
         }
     }
-    if (char const *env_sparse_second = std::getenv("NK_BENCH_SPARSE_SECOND_LENGTH")) {
+    if (char const *env_sparse_second = std::getenv("NK_SPARSE_SECOND_LENGTH")) {
         std::size_t parsed = static_cast<std::size_t>(std::atoll(env_sparse_second));
         if (parsed > 0) {
             sparse_second_length = parsed;
-            std::printf("Overriding `sparse_second_length` to %zu from NK_BENCH_SPARSE_SECOND_LENGTH\n",
+            std::printf("Overriding `sparse_second_length` to %zu from NK_SPARSE_SECOND_LENGTH\n",
                         sparse_second_length);
         }
     }
-    if (char const *env_sparse_intersection = std::getenv("NK_BENCH_SPARSE_INTERSECTION")) {
+    if (char const *env_sparse_intersection = std::getenv("NK_SPARSE_INTERSECTION")) {
         double parsed = std::atof(env_sparse_intersection);
         if (parsed >= 0.0 && parsed <= 1.0) {
             sparse_intersection_share = parsed;
-            std::printf("Overriding `sparse_intersection_share` to %.2f from NK_BENCH_SPARSE_INTERSECTION\n",
+            std::printf("Overriding `sparse_intersection_share` to %.2f from NK_SPARSE_INTERSECTION\n",
                         sparse_intersection_share);
         }
     }
