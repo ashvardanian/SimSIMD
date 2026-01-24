@@ -555,13 +555,15 @@ void measure_dots_packed(                                                       
     // Pack B matrix once (amortized cost for repeated inference) with correct stride
     pack_fn(matrix_b.raw_values_data(), n, k, b_stride_bytes, matrix_b_packed.data());
 
+    std::size_t iterations = 0;
     for (auto _ : state) {
         bm::DoNotOptimize(matrix_c.raw_values_data());
         kernel(matrix_a.raw_values_data(), matrix_b_packed.data(), matrix_c.raw_values_data(), //
                m, n, k, a_stride_bytes, n * sizeof(raw_output_t));
+        ++iterations;
     }
 
-    state.counters["tensor-ops"] = bm::Counter(2.0 * m * n * k, bm::Counter::kIsRate);
+    state.counters["scalar-ops"] = bm::Counter(iterations * 2.0 * m * n * k, bm::Counter::kIsRate);
 }
 
 template <nk_dtype_t input_dtype_, nk_dtype_t output_dtype_>
@@ -609,8 +611,9 @@ void measure_dots_symmetric(                                                   /
         ++iterations;
     }
 
-    // Symmetric operations compute upper triangle: N×(N+1)/2 elements = N×(N+1)×K operations
-    state.counters["tops"] = bm::Counter(iterations * n * (n + 1) * k, bm::Counter::kIsRate);
+    // Symmetric operations compute upper triangle: N×(N+1)/2 dot products × K multiply-adds × 2 scalar-ops = N×(N+1)×K
+    // total scalar-ops
+    state.counters["scalar-ops"] = bm::Counter(iterations * n * (n + 1) * k, bm::Counter::kIsRate);
 }
 
 template <nk_dtype_t input_dtype_, nk_dtype_t output_dtype_>
@@ -817,7 +820,7 @@ void measure_dots_unpacked(bm::State &state, std::size_t m, std::size_t n, std::
         kernel(matrix_a.data(), matrix_b.data(), matrix_c.data(), m, n, k);
         ++iterations;
     }
-    state.counters["tops"] = bm::Counter(iterations * 2.0 * m * n * k, bm::Counter::kIsRate);
+    state.counters["scalar-ops"] = bm::Counter(iterations * 2.0 * m * n * k, bm::Counter::kIsRate);
 }
 
 void measure_dots_f32_with_blas(bm::State &state, std::size_t m, std::size_t n, std::size_t k) {
@@ -862,8 +865,9 @@ void measure_dots_symmetric_unpacked(bm::State &state, std::size_t n, std::size_
         kernel(matrix_a.data(), matrix_c.data(), n, k);
         ++iterations;
     }
-    // Symmetric operations compute upper triangle: N×(N+1)/2 elements = N×(N+1)×K operations
-    state.counters["tops"] = bm::Counter(iterations * n * (n + 1) * k, bm::Counter::kIsRate);
+    // Symmetric operations compute upper triangle: N×(N+1)/2 dot products × K multiply-adds × 2 scalar-ops = N×(N+1)×K
+    // total scalar-ops
+    state.counters["scalar-ops"] = bm::Counter(iterations * n * (n + 1) * k, bm::Counter::kIsRate);
 }
 
 void measure_dots_symmetric_f32_with_blas(bm::State &state, std::size_t n, std::size_t k) {
