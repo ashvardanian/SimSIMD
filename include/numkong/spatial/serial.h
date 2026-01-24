@@ -331,11 +331,10 @@ NK_INTERNAL void nk_angular_f32x4_finalize_serial(nk_angular_f32x4_state_serial_
                                                   nk_f32_t target_norm_c, nk_f32_t target_norm_d,
                                                   nk_size_t total_dimensions, nk_f32_t *results) {
     nk_b128_vec_t dots_vec;
-    nk_dot_f32x4_finalize_serial(state_a, state_b, state_c, state_d, &dots_vec, total_dimensions);
-    nk_f32_t dots[4] = {dots_vec.f32s[0], dots_vec.f32s[1], dots_vec.f32s[2], dots_vec.f32s[3]};
+    nk_dot_f32x4_finalize_serial(state_a, state_b, state_c, state_d, total_dimensions, &dots_vec);
 
-    nk_f32_t dot_product_a = dots[0], dot_product_b = dots[1];
-    nk_f32_t dot_product_c = dots[2], dot_product_d = dots[3];
+    nk_f32_t dot_product_a = dots_vec.f32s[0], dot_product_b = dots_vec.f32s[1];
+    nk_f32_t dot_product_c = dots_vec.f32s[2], dot_product_d = dots_vec.f32s[3];
 
     nk_f32_t query_norm_sq = query_norm * query_norm;
     nk_f32_t target_norm_sq_a = target_norm_a * target_norm_a;
@@ -385,11 +384,10 @@ NK_INTERNAL void nk_euclidean_f32x4_finalize_serial(nk_euclidean_f32x4_state_ser
                                                     nk_f32_t target_norm_c, nk_f32_t target_norm_d,
                                                     nk_size_t total_dimensions, nk_f32_t *results) {
     nk_b128_vec_t dots_vec;
-    nk_dot_f32x4_finalize_serial(state_a, state_b, state_c, state_d, &dots_vec, total_dimensions);
-    nk_f32_t dots[4] = {dots_vec.f32s[0], dots_vec.f32s[1], dots_vec.f32s[2], dots_vec.f32s[3]};
+    nk_dot_f32x4_finalize_serial(state_a, state_b, state_c, state_d, total_dimensions, &dots_vec);
 
-    nk_f32_t dot_product_a = dots[0], dot_product_b = dots[1];
-    nk_f32_t dot_product_c = dots[2], dot_product_d = dots[3];
+    nk_f32_t dot_product_a = dots_vec.f32s[0], dot_product_b = dots_vec.f32s[1];
+    nk_f32_t dot_product_c = dots_vec.f32s[2], dot_product_d = dots_vec.f32s[3];
 
     nk_f32_t query_norm_sq = query_norm * query_norm;
     nk_f32_t target_norm_sq_a = target_norm_a * target_norm_a;

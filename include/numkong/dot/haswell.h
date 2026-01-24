@@ -82,7 +82,7 @@ NK_INTERNAL void nk_dot_through_f32_update_haswell_(nk_dot_through_f32_state_has
 NK_INTERNAL void nk_dot_through_f32_finalize_haswell_(                                                      //
     nk_dot_through_f32_state_haswell_t_ const *state_a, nk_dot_through_f32_state_haswell_t_ const *state_b, //
     nk_dot_through_f32_state_haswell_t_ const *state_c, nk_dot_through_f32_state_haswell_t_ const *state_d, //
-    nk_b128_vec_t *result, nk_size_t total_dimensions) {
+    nk_size_t total_dimensions, nk_b128_vec_t *result) {
     nk_unused_(total_dimensions);
 
     __m256 const sum_a_f32x8 = state_a->sum_f32x8, sum_b_f32x8 = state_b->sum_f32x8, sum_c_f32x8 = state_c->sum_f32x8,
@@ -529,7 +529,7 @@ NK_INTERNAL void nk_dot_f32x4_update_haswell(nk_dot_f32x4_state_haswell_t *state
 NK_INTERNAL void nk_dot_f32x4_finalize_haswell(                                               //
     nk_dot_f32x4_state_haswell_t const *state_a, nk_dot_f32x4_state_haswell_t const *state_b, //
     nk_dot_f32x4_state_haswell_t const *state_c, nk_dot_f32x4_state_haswell_t const *state_d, //
-    nk_b128_vec_t *result, nk_size_t total_dimensions) {
+    nk_size_t total_dimensions, nk_b128_vec_t *result) {
     nk_unused_(total_dimensions);
     // Horizontal reduction: 4 f64s → 1 f64 for each state
     // Then downcast final f64 results to f32
@@ -615,7 +615,7 @@ NK_INTERNAL void nk_dot_i8x16_update_haswell(nk_dot_i8x16_state_haswell_t *state
 NK_INTERNAL void nk_dot_i8x16_finalize_haswell(                                               //
     nk_dot_i8x16_state_haswell_t const *state_a, nk_dot_i8x16_state_haswell_t const *state_b, //
     nk_dot_i8x16_state_haswell_t const *state_c, nk_dot_i8x16_state_haswell_t const *state_d, //
-    nk_b128_vec_t *result, nk_size_t total_dimensions) {
+    nk_size_t total_dimensions, nk_b128_vec_t *result) {
     nk_unused_(total_dimensions);
     // ILP-optimized 4-way horizontal reduction for i32 in AVX2
     // Step 1: 8->4 for all 4 states
@@ -665,11 +665,11 @@ NK_INTERNAL void nk_dot_u8x16_update_haswell(nk_dot_u8x16_state_haswell_t *state
 NK_INTERNAL void nk_dot_u8x16_finalize_haswell(                                               //
     nk_dot_u8x16_state_haswell_t const *state_a, nk_dot_u8x16_state_haswell_t const *state_b, //
     nk_dot_u8x16_state_haswell_t const *state_c, nk_dot_u8x16_state_haswell_t const *state_d, //
-    nk_b128_vec_t *result, nk_size_t total_dimensions) {
+    nk_size_t total_dimensions, nk_b128_vec_t *result) {
     nk_dot_i8x16_finalize_haswell(                                                                    //
         (nk_dot_i8x16_state_haswell_t const *)state_a, (nk_dot_i8x16_state_haswell_t const *)state_b, //
-        (nk_dot_i8x16_state_haswell_t const *)state_c, (nk_dot_i8x16_state_haswell_t const *)state_d, result,
-        total_dimensions);
+        (nk_dot_i8x16_state_haswell_t const *)state_c, (nk_dot_i8x16_state_haswell_t const *)state_d,
+        total_dimensions, result);
 }
 
 /**
@@ -714,7 +714,7 @@ NK_INTERNAL void nk_dot_f64x4_update_haswell(nk_dot_f64x4_state_haswell_t *state
 NK_INTERNAL void nk_dot_f64x4_finalize_haswell(                                               //
     nk_dot_f64x4_state_haswell_t const *state_a, nk_dot_f64x4_state_haswell_t const *state_b, //
     nk_dot_f64x4_state_haswell_t const *state_c, nk_dot_f64x4_state_haswell_t const *state_d, //
-    nk_b256_vec_t *result, nk_size_t total_dimensions) {
+    nk_size_t total_dimensions, nk_b256_vec_t *result) {
     nk_unused_(total_dimensions);
     // Combine sum + compensation before horizontal reduction
     __m256d sum_a_f64x4 = _mm256_add_pd(state_a->sum_f64x4, state_a->compensation_f64x4);
@@ -730,8 +730,8 @@ NK_INTERNAL void nk_dot_f64x4_finalize_haswell(                                 
     // Horizontal add pairs: [a0+a1, b0+b1] and [c0+c1, d0+d1]
     __m128d sum_ab_f64x2 = _mm_hadd_pd(sum_a_f64x2, sum_b_f64x2);
     __m128d sum_cd_f64x2 = _mm_hadd_pd(sum_c_f64x2, sum_d_f64x2);
-    // Store results in vector
-    result->ymm = _mm256_castpd_si256(_mm256_set_m128d(sum_cd_f64x2, sum_ab_f64x2));
+    // Store results in ymm register
+    result->ymm = _mm256_set_m128d(sum_cd_f64x2, sum_ab_f64x2);
 }
 
 #if defined(__cplusplus)

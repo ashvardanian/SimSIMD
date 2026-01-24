@@ -159,7 +159,10 @@ NK_INTERNAL void nk_hamming_b128_init_neon(nk_hamming_b128_state_neon_t *state) 
     state->intersection_count_u32x4 = vdupq_n_u32(0);
 }
 
-NK_INTERNAL void nk_hamming_b128_update_neon(nk_hamming_b128_state_neon_t *state, nk_b128_vec_t a, nk_b128_vec_t b) {
+NK_INTERNAL void nk_hamming_b128_update_neon(nk_hamming_b128_state_neon_t *state, nk_b128_vec_t a, nk_b128_vec_t b,
+                                             nk_size_t depth_offset, nk_size_t active_dimensions) {
+    nk_unused_(depth_offset);
+    nk_unused_(active_dimensions);
 
     // Process one 128-bit chunk (native ARM NEON register size).
     // Uses vector accumulation - horizontal sum deferred to finalize.
@@ -190,15 +193,15 @@ NK_INTERNAL void nk_hamming_b128_update_neon(nk_hamming_b128_state_neon_t *state
 
 NK_INTERNAL void nk_hamming_b128_finalize_neon( //
     nk_hamming_b128_state_neon_t const *state_a, nk_hamming_b128_state_neon_t const *state_b,
-    nk_hamming_b128_state_neon_t const *state_c, nk_hamming_b128_state_neon_t const *state_d, nk_u32_t *results) {
+    nk_hamming_b128_state_neon_t const *state_c, nk_hamming_b128_state_neon_t const *state_d,
+    nk_size_t total_dimensions, nk_b128_vec_t *result) {
+    nk_unused_(total_dimensions);
 
     // Horizontal sum using pairwise adds - same pattern as Jaccard.
     // 3× ADDP to reduce 4 state vectors into [sum_a, sum_b, sum_c, sum_d].
     uint32x4_t ab_sum = vpaddq_u32(state_a->intersection_count_u32x4, state_b->intersection_count_u32x4);
     uint32x4_t cd_sum = vpaddq_u32(state_c->intersection_count_u32x4, state_d->intersection_count_u32x4);
-    uint32x4_t hamming_u32x4 = vpaddq_u32(ab_sum, cd_sum);
-
-    vst1q_u32(results, hamming_u32x4);
+    result->u32x4 = vpaddq_u32(ab_sum, cd_sum);
 }
 
 struct nk_jaccard_b128_state_neon_t {
@@ -209,7 +212,10 @@ NK_INTERNAL void nk_jaccard_b128_init_neon(nk_jaccard_b128_state_neon_t *state) 
     state->intersection_count_u32x4 = vdupq_n_u32(0);
 }
 
-NK_INTERNAL void nk_jaccard_b128_update_neon(nk_jaccard_b128_state_neon_t *state, nk_b128_vec_t a, nk_b128_vec_t b) {
+NK_INTERNAL void nk_jaccard_b128_update_neon(nk_jaccard_b128_state_neon_t *state, nk_b128_vec_t a, nk_b128_vec_t b,
+                                             nk_size_t depth_offset, nk_size_t active_dimensions) {
+    nk_unused_(depth_offset);
+    nk_unused_(active_dimensions);
 
     // Process one 128-bit chunk (native ARM NEON register size).
     // Uses vector accumulation - horizontal sum deferred to finalize.
@@ -242,7 +248,8 @@ NK_INTERNAL void nk_jaccard_b128_finalize_neon( //
     nk_jaccard_b128_state_neon_t const *state_a, nk_jaccard_b128_state_neon_t const *state_b,
     nk_jaccard_b128_state_neon_t const *state_c, nk_jaccard_b128_state_neon_t const *state_d, nk_f32_t query_popcount,
     nk_f32_t target_popcount_a, nk_f32_t target_popcount_b, nk_f32_t target_popcount_c, nk_f32_t target_popcount_d,
-    nk_f32_t *results) {
+    nk_size_t total_dimensions, nk_b128_vec_t *result) {
+    nk_unused_(total_dimensions);
 
     // Horizontal sum using pairwise adds instead of `vaddvq_u32` (ADDV).
     // `vpaddq_u32` (ADDP) has better throughput: 2/cy vs 1/cy for ADDV on Cortex-A76.
@@ -281,9 +288,7 @@ NK_INTERNAL void nk_jaccard_b128_finalize_neon( //
     // Compute Jaccard distance = 1 - intersection ÷ union
     float32x4_t ratio_f32x4 = vmulq_f32(intersection_f32x4, union_reciprocal_f32x4);
     float32x4_t jaccard_f32x4 = vsubq_f32(one_f32x4, ratio_f32x4);
-    float32x4_t result_f32x4 = vbslq_f32(zero_union_mask, one_f32x4, jaccard_f32x4);
-
-    vst1q_f32(results, result_f32x4);
+    result->f32x4 = vbslq_f32(zero_union_mask, one_f32x4, jaccard_f32x4);
 }
 
 #if defined(__cplusplus)

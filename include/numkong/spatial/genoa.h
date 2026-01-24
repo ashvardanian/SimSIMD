@@ -146,7 +146,7 @@ NK_INTERNAL void nk_angular_bf16x32_finalize_genoa(nk_angular_bf16x32_state_geno
                                                    nk_f32_t target_norm_c, nk_f32_t target_norm_d,
                                                    nk_size_t total_dimensions, nk_f32_t *results) {
     nk_b128_vec_t dots_vec;
-    nk_dot_bf16x32_finalize_genoa(state_a, state_b, state_c, state_d, &dots_vec, total_dimensions);
+    nk_dot_bf16x32_finalize_genoa(state_a, state_b, state_c, state_d, total_dimensions, &dots_vec);
     nk_angular_f32x4_finalize_haswell_(dots_vec.xmm_ps, query_norm, target_norm_a, target_norm_b, target_norm_c,
                                        target_norm_d, results);
 }
@@ -166,7 +166,7 @@ NK_INTERNAL void nk_euclidean_bf16x32_finalize_genoa(
     nk_f32_t query_norm, nk_f32_t target_norm_a, nk_f32_t target_norm_b, nk_f32_t target_norm_c, nk_f32_t target_norm_d,
     nk_size_t total_dimensions, nk_f32_t *results) {
     nk_b128_vec_t dots_vec;
-    nk_dot_bf16x32_finalize_genoa(state_a, state_b, state_c, state_d, &dots_vec, total_dimensions);
+    nk_dot_bf16x32_finalize_genoa(state_a, state_b, state_c, state_d, total_dimensions, &dots_vec);
     nk_euclidean_f32x4_finalize_haswell_(dots_vec.xmm_ps, query_norm, target_norm_a, target_norm_b, target_norm_c,
                                          target_norm_d, results);
 }

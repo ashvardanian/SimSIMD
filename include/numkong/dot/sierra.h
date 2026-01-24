@@ -148,7 +148,7 @@ NK_INTERNAL void nk_dot_i8x32_update_sierra(nk_dot_i8x32_state_sierra_t *state, 
 NK_INTERNAL void nk_dot_i8x32_finalize_sierra(                                              //
     nk_dot_i8x32_state_sierra_t const *state_a, nk_dot_i8x32_state_sierra_t const *state_b, //
     nk_dot_i8x32_state_sierra_t const *state_c, nk_dot_i8x32_state_sierra_t const *state_d, //
-    nk_b128_vec_t *results, nk_size_t total_dimensions) {
+    nk_size_t total_dimensions, nk_b128_vec_t *result) {
     nk_unused_(total_dimensions);
     // ILP-optimized 4-way horizontal reduction for i32 with algebraic correction
     // For each accumulator: result = sum_ab - 128 × sum_b
@@ -199,7 +199,8 @@ NK_INTERNAL void nk_dot_i8x32_finalize_sierra(                                  
 
     // Apply algebraic correction: result = sum_ab - 128 × sum_b
     __m128i correction_i32x4 = _mm_slli_epi32(sum_b_final_i32x4, 7); // multiply by 128
-    results->xmm = _mm_sub_epi32(sum_ab_final_i32x4, correction_i32x4);
+    __m128i final_i32x4 = _mm_sub_epi32(sum_ab_final_i32x4, correction_i32x4);
+    result->xmm = final_i32x4;
 }
 
 NK_PUBLIC void nk_dot_u8_sierra(nk_u8_t const *a_scalars, nk_u8_t const *b_scalars, nk_size_t count_scalars,
@@ -306,7 +307,7 @@ NK_INTERNAL void nk_dot_u8x32_update_sierra(nk_dot_u8x32_state_sierra_t *state, 
 NK_INTERNAL void nk_dot_u8x32_finalize_sierra(                                              //
     nk_dot_u8x32_state_sierra_t const *state_a, nk_dot_u8x32_state_sierra_t const *state_b, //
     nk_dot_u8x32_state_sierra_t const *state_c, nk_dot_u8x32_state_sierra_t const *state_d, //
-    nk_b128_vec_t *results, nk_size_t total_dimensions) {
+    nk_size_t total_dimensions, nk_b128_vec_t *result) {
     nk_unused_(total_dimensions);
     // ILP-optimized 4-way horizontal reduction for u32 with algebraic correction
     // For each accumulator: result = sum_ab + 128 × sum_a
@@ -364,7 +365,8 @@ NK_INTERNAL void nk_dot_u8x32_finalize_sierra(                                  
     __m128i correction_i32x4_ab = _mm_shuffle_epi32(correction_ab_i64x2, _MM_SHUFFLE(2, 0, 2, 0));
     __m128i correction_i32x4_cd = _mm_shuffle_epi32(correction_cd_i64x2, _MM_SHUFFLE(2, 0, 2, 0));
     __m128i correction_i32x4 = _mm_unpacklo_epi64(correction_i32x4_ab, correction_i32x4_cd);
-    results->xmm = _mm_add_epi32(sum_ab_final_i32x4, correction_i32x4);
+    __m128i final_u32x4 = _mm_add_epi32(sum_ab_final_i32x4, correction_i32x4);
+    result->xmm = final_u32x4;
 }
 
 #if defined(__cplusplus)

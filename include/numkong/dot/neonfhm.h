@@ -94,11 +94,12 @@ NK_INTERNAL void nk_dot_f16x8_update_neonfhm(nk_dot_f16x8_state_neonfhm_t *state
 NK_INTERNAL void nk_dot_f16x8_finalize_neonfhm(                                               //
     nk_dot_f16x8_state_neonfhm_t const *state_a, nk_dot_f16x8_state_neonfhm_t const *state_b, //
     nk_dot_f16x8_state_neonfhm_t const *state_c, nk_dot_f16x8_state_neonfhm_t const *state_d, //
-    nk_b128_vec_t *result, nk_size_t total_dimensions) {
+    nk_size_t total_dimensions, nk_b128_vec_t *result) {
     nk_unused_(total_dimensions);
-    float32x4_t sums = {vaddvq_f32(state_a->sum_f32x4), vaddvq_f32(state_b->sum_f32x4), vaddvq_f32(state_c->sum_f32x4),
-                        vaddvq_f32(state_d->sum_f32x4)};
-    result->u32x4 = vreinterpretq_u32_f32(sums);
+    result->f32s[0] = vaddvq_f32(state_a->sum_f32x4);
+    result->f32s[1] = vaddvq_f32(state_b->sum_f32x4);
+    result->f32s[2] = vaddvq_f32(state_c->sum_f32x4);
+    result->f32s[3] = vaddvq_f32(state_d->sum_f32x4);
 }
 
 /**
@@ -349,11 +350,12 @@ NK_INTERNAL void nk_dot_e2m3x16_update_neonfhm(nk_dot_e2m3x16_state_neonfhm_t *s
 NK_INTERNAL void nk_dot_e2m3x16_finalize_neonfhm(                                                 //
     nk_dot_e2m3x16_state_neonfhm_t const *state_a, nk_dot_e2m3x16_state_neonfhm_t const *state_b, //
     nk_dot_e2m3x16_state_neonfhm_t const *state_c, nk_dot_e2m3x16_state_neonfhm_t const *state_d, //
-    nk_b128_vec_t *result, nk_size_t total_dimensions) {
+    nk_size_t total_dimensions, nk_b128_vec_t *result) {
     nk_unused_(total_dimensions);
-    float32x4_t sums = {vaddvq_f32(state_a->sum_f32x4), vaddvq_f32(state_b->sum_f32x4), vaddvq_f32(state_c->sum_f32x4),
-                        vaddvq_f32(state_d->sum_f32x4)};
-    result->u32x4 = vreinterpretq_u32_f32(sums);
+    result->f32s[0] = vaddvq_f32(state_a->sum_f32x4);
+    result->f32s[1] = vaddvq_f32(state_b->sum_f32x4);
+    result->f32s[2] = vaddvq_f32(state_c->sum_f32x4);
+    result->f32s[3] = vaddvq_f32(state_d->sum_f32x4);
 }
 
 struct nk_dot_e3m2x16_state_neonfhm_t {
@@ -382,11 +384,12 @@ NK_INTERNAL void nk_dot_e3m2x16_update_neonfhm(nk_dot_e3m2x16_state_neonfhm_t *s
 NK_INTERNAL void nk_dot_e3m2x16_finalize_neonfhm(                                                 //
     nk_dot_e3m2x16_state_neonfhm_t const *state_a, nk_dot_e3m2x16_state_neonfhm_t const *state_b, //
     nk_dot_e3m2x16_state_neonfhm_t const *state_c, nk_dot_e3m2x16_state_neonfhm_t const *state_d, //
-    nk_b128_vec_t *result, nk_size_t total_dimensions) {
+    nk_size_t total_dimensions, nk_b128_vec_t *result) {
     nk_unused_(total_dimensions);
-    float32x4_t sums = {vaddvq_f32(state_a->sum_f32x4), vaddvq_f32(state_b->sum_f32x4), vaddvq_f32(state_c->sum_f32x4),
-                        vaddvq_f32(state_d->sum_f32x4)};
-    result->u32x4 = vreinterpretq_u32_f32(sums);
+    result->f32s[0] = vaddvq_f32(state_a->sum_f32x4);
+    result->f32s[1] = vaddvq_f32(state_b->sum_f32x4);
+    result->f32s[2] = vaddvq_f32(state_c->sum_f32x4);
+    result->f32s[3] = vaddvq_f32(state_d->sum_f32x4);
 }
 
 #if defined(__cplusplus)

@@ -223,11 +223,10 @@ NK_INTERNAL void nk_angular_f64x8_finalize_skylake(nk_angular_f64x8_state_skylak
                                                    nk_size_t total_dimensions, nk_f64_t *results) {
     // Extract all 4 dot products with single ILP-optimized call
     nk_b256_vec_t dots_vec;
-    nk_dot_f64x8_finalize_skylake(state_a, state_b, state_c, state_d, &dots_vec, total_dimensions);
-    nk_f64_t dots[4] = {dots_vec.f64s[0], dots_vec.f64s[1], dots_vec.f64s[2], dots_vec.f64s[3]};
+    nk_dot_f64x8_finalize_skylake(state_a, state_b, state_c, state_d, total_dimensions, &dots_vec);
 
     // Build 256-bit F64 vectors for parallel angular computation (use 4 F64 values = 256-bit)
-    __m256d dots_f64x4 = _mm256_loadu_pd(dots);
+    __m256d dots_f64x4 = dots_vec.ymm_pd;
     __m256d query_norm_f64x4 = _mm256_set1_pd(query_norm);
     __m256d target_norms_f64x4 = _mm256_set_pd(target_norm_d, target_norm_c, target_norm_b, target_norm_a);
 
@@ -263,11 +262,10 @@ NK_INTERNAL void nk_euclidean_f64x8_finalize_skylake(
     nk_size_t total_dimensions, nk_f64_t *results) {
     // Extract all 4 dot products with single ILP-optimized call
     nk_b256_vec_t dots_vec;
-    nk_dot_f64x8_finalize_skylake(state_a, state_b, state_c, state_d, &dots_vec, total_dimensions);
-    nk_f64_t dots[4] = {dots_vec.f64s[0], dots_vec.f64s[1], dots_vec.f64s[2], dots_vec.f64s[3]};
+    nk_dot_f64x8_finalize_skylake(state_a, state_b, state_c, state_d, total_dimensions, &dots_vec);
 
     // Build 256-bit F64 vectors for parallel L2 distance: √(q² + t² − 2 × dot)
-    __m256d dots_f64x4 = _mm256_loadu_pd(dots);
+    __m256d dots_f64x4 = dots_vec.ymm_pd;
     __m256d query_norm_f64x4 = _mm256_set1_pd(query_norm);
     __m256d target_norms_f64x4 = _mm256_set_pd(target_norm_d, target_norm_c, target_norm_b, target_norm_a);
 
@@ -309,7 +307,7 @@ NK_INTERNAL void nk_angular_f32x8_finalize_skylake(nk_angular_f32x8_state_skylak
                                                    nk_size_t total_dimensions, nk_f32_t *results) {
     // Extract all 4 dot products with single ILP-optimized call
     nk_b128_vec_t dots_vec;
-    nk_dot_f32x8_finalize_skylake(state_a, state_b, state_c, state_d, &dots_vec, total_dimensions);
+    nk_dot_f32x8_finalize_skylake(state_a, state_b, state_c, state_d, total_dimensions, &dots_vec);
 
     // Build 256-bit F64 vectors for higher precision angular computation
     __m256d dots_f64x4 = _mm256_cvtps_pd(dots_vec.xmm_ps);
@@ -350,7 +348,7 @@ NK_INTERNAL void nk_euclidean_f32x8_finalize_skylake(
     nk_size_t total_dimensions, nk_f32_t *results) {
     // Extract all 4 dot products with single ILP-optimized call
     nk_b128_vec_t dots_vec;
-    nk_dot_f32x8_finalize_skylake(state_a, state_b, state_c, state_d, &dots_vec, total_dimensions);
+    nk_dot_f32x8_finalize_skylake(state_a, state_b, state_c, state_d, total_dimensions, &dots_vec);
 
     // Build 256-bit F64 vectors for parallel L2 distance: √(q² + t² − 2 × dot)
     __m256d dots_f64x4 = _mm256_cvtps_pd(dots_vec.xmm_ps);

@@ -298,11 +298,11 @@ NK_INTERNAL void nk_dot_through_bf16_update_genoa_(nk_dot_through_bf16_state_gen
 NK_INTERNAL void nk_dot_through_bf16_finalize_genoa_(                                                     //
     nk_dot_through_bf16_state_genoa_t_ const *state_a, nk_dot_through_bf16_state_genoa_t_ const *state_b, //
     nk_dot_through_bf16_state_genoa_t_ const *state_c, nk_dot_through_bf16_state_genoa_t_ const *state_d, //
-    nk_b128_vec_t *result, nk_size_t total_dimensions) {
+    nk_size_t total_dimensions, nk_b128_vec_t *result) {
     nk_dot_through_f32_finalize_skylake_(
         (nk_dot_through_f32_state_skylake_t_ const *)state_a, (nk_dot_through_f32_state_skylake_t_ const *)state_b,
         (nk_dot_through_f32_state_skylake_t_ const *)state_c, (nk_dot_through_f32_state_skylake_t_ const *)state_d,
-        result, total_dimensions);
+        total_dimensions, result);
 }
 
 struct nk_dot_bf16x32_state_genoa_t {
@@ -322,12 +322,12 @@ NK_INTERNAL void nk_dot_bf16x32_update_genoa(nk_dot_bf16x32_state_genoa_t *state
 NK_INTERNAL void nk_dot_bf16x32_finalize_genoa(nk_dot_bf16x32_state_genoa_t const *state_a,
                                                nk_dot_bf16x32_state_genoa_t const *state_b,
                                                nk_dot_bf16x32_state_genoa_t const *state_c,
-                                               nk_dot_bf16x32_state_genoa_t const *state_d, nk_b128_vec_t *result,
-                                               nk_size_t total_dimensions) {
+                                               nk_dot_bf16x32_state_genoa_t const *state_d, nk_size_t total_dimensions,
+                                               nk_b128_vec_t *result) {
     nk_dot_through_bf16_finalize_genoa_((nk_dot_through_bf16_state_genoa_t_ const *)state_a,
                                         (nk_dot_through_bf16_state_genoa_t_ const *)state_b,
                                         (nk_dot_through_bf16_state_genoa_t_ const *)state_c,
-                                        (nk_dot_through_bf16_state_genoa_t_ const *)state_d, result, total_dimensions);
+                                        (nk_dot_through_bf16_state_genoa_t_ const *)state_d, total_dimensions, result);
 }
 
 #if defined(__cplusplus)

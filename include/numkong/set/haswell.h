@@ -174,13 +174,23 @@ struct nk_hamming_b64_state_haswell_t {
 
 NK_INTERNAL void nk_hamming_b64_init_haswell(nk_hamming_b64_state_haswell_t *state) { state->intersection_count = 0; }
 
-NK_INTERNAL void nk_hamming_b64_update_haswell(nk_hamming_b64_state_haswell_t *state, nk_b64_vec_t a, nk_b64_vec_t b) {
+NK_INTERNAL void nk_hamming_b64_update_haswell(nk_hamming_b64_state_haswell_t *state, nk_b64_vec_t a, nk_b64_vec_t b,
+                                               nk_size_t depth_offset, nk_size_t active_dimensions) {
+    nk_unused_(depth_offset);
+    nk_unused_(active_dimensions);
     state->intersection_count += (nk_u32_t)_mm_popcnt_u64(a.u64 ^ b.u64);
 }
 
 NK_INTERNAL void nk_hamming_b64_finalize_haswell( //
     nk_hamming_b64_state_haswell_t const *state_a, nk_hamming_b64_state_haswell_t const *state_b,
-    nk_hamming_b64_state_haswell_t const *state_c, nk_hamming_b64_state_haswell_t const *state_d, nk_u32_t *results) {}
+    nk_hamming_b64_state_haswell_t const *state_c, nk_hamming_b64_state_haswell_t const *state_d,
+    nk_size_t total_dimensions, nk_b128_vec_t *result) {
+    nk_unused_(total_dimensions);
+    result->u32s[0] = state_a->intersection_count;
+    result->u32s[1] = state_b->intersection_count;
+    result->u32s[2] = state_c->intersection_count;
+    result->u32s[3] = state_d->intersection_count;
+}
 
 struct nk_jaccard_b64_state_haswell_t {
     nk_u32_t intersection_count;
@@ -188,7 +198,10 @@ struct nk_jaccard_b64_state_haswell_t {
 
 NK_INTERNAL void nk_jaccard_b64_init_haswell(nk_jaccard_b64_state_haswell_t *state) { state->intersection_count = 0; }
 
-NK_INTERNAL void nk_jaccard_b64_update_haswell(nk_jaccard_b64_state_haswell_t *state, nk_b64_vec_t a, nk_b64_vec_t b) {
+NK_INTERNAL void nk_jaccard_b64_update_haswell(nk_jaccard_b64_state_haswell_t *state, nk_b64_vec_t a, nk_b64_vec_t b,
+                                               nk_size_t depth_offset, nk_size_t active_dimensions) {
+    nk_unused_(depth_offset);
+    nk_unused_(active_dimensions);
     state->intersection_count += (nk_u32_t)_mm_popcnt_u64(a.u64 & b.u64);
 }
 
@@ -196,7 +209,8 @@ NK_INTERNAL void nk_jaccard_b64_finalize_haswell( //
     nk_jaccard_b64_state_haswell_t const *state_a, nk_jaccard_b64_state_haswell_t const *state_b,
     nk_jaccard_b64_state_haswell_t const *state_c, nk_jaccard_b64_state_haswell_t const *state_d,
     nk_f32_t query_popcount, nk_f32_t target_popcount_a, nk_f32_t target_popcount_b, nk_f32_t target_popcount_c,
-    nk_f32_t target_popcount_d, nk_f32_t *results) {
+    nk_f32_t target_popcount_d, nk_size_t total_dimensions, nk_b128_vec_t *result) {
+    nk_unused_(total_dimensions);
 
     // 4-way SIMD Jaccard computation with fast reciprocal.
     //
@@ -237,9 +251,7 @@ NK_INTERNAL void nk_jaccard_b64_finalize_haswell( //
 
     __m128 ratio_f32x4 = _mm_mul_ps(intersection_f32x4, union_reciprocal_f32x4);
     __m128 jaccard_f32x4 = _mm_sub_ps(one_f32x4, ratio_f32x4);
-    __m128 result_f32x4 = _mm_blendv_ps(jaccard_f32x4, one_f32x4, zero_union_mask);
-
-    _mm_storeu_ps(results, result_f32x4);
+    result->xmm_ps = _mm_blendv_ps(jaccard_f32x4, one_f32x4, zero_union_mask);
 }
 
 #if defined(__cplusplus)

@@ -222,7 +222,7 @@ nk_sqeuclidean_e2m3_neon_cycle:
 
 NK_PUBLIC void nk_euclidean_e2m3_neon(nk_e2m3_t const *a, nk_e2m3_t const *b, nk_size_t n, nk_f32_t *result) {
     nk_sqeuclidean_e2m3_neon(a, b, n, result);
-    *result = nk_sqrt_f32_neon_(*result);
+    *result = nk_f32_sqrt_neon(*result);
 }
 
 NK_PUBLIC void nk_angular_e2m3_neon(nk_e2m3_t const *a, nk_e2m3_t const *b, nk_size_t n, nk_f32_t *result) {
@@ -283,7 +283,7 @@ nk_sqeuclidean_e3m2_neon_cycle:
 
 NK_PUBLIC void nk_euclidean_e3m2_neon(nk_e3m2_t const *a, nk_e3m2_t const *b, nk_size_t n, nk_f32_t *result) {
     nk_sqeuclidean_e3m2_neon(a, b, n, result);
-    *result = nk_sqrt_f32_neon_(*result);
+    *result = nk_f32_sqrt_neon(*result);
 }
 
 NK_PUBLIC void nk_angular_e3m2_neon(nk_e3m2_t const *a, nk_e3m2_t const *b, nk_size_t n, nk_f32_t *result) {
@@ -346,7 +346,7 @@ nk_sqeuclidean_e4m3_neon_cycle:
 
 NK_PUBLIC void nk_euclidean_e4m3_neon(nk_e4m3_t const *a, nk_e4m3_t const *b, nk_size_t n, nk_f32_t *result) {
     nk_sqeuclidean_e4m3_neon(a, b, n, result);
-    *result = nk_sqrt_f32_neon_(*result);
+    *result = nk_f32_sqrt_neon(*result);
 }
 
 NK_PUBLIC void nk_angular_e4m3_neon(nk_e4m3_t const *a, nk_e4m3_t const *b, nk_size_t n, nk_f32_t *result) {
@@ -407,7 +407,7 @@ nk_sqeuclidean_e5m2_neon_cycle:
 
 NK_PUBLIC void nk_euclidean_e5m2_neon(nk_e5m2_t const *a, nk_e5m2_t const *b, nk_size_t n, nk_f32_t *result) {
     nk_sqeuclidean_e5m2_neon(a, b, n, result);
-    *result = nk_sqrt_f32_neon_(*result);
+    *result = nk_f32_sqrt_neon(*result);
 }
 
 NK_PUBLIC void nk_angular_e5m2_neon(nk_e5m2_t const *a, nk_e5m2_t const *b, nk_size_t n, nk_f32_t *result) {
@@ -442,9 +442,10 @@ nk_angular_e5m2_neon_cycle:
 }
 
 /** @brief Angular distance finalize: computes 1 − dot/√(‖query‖ × ‖target‖) for 4 pairs in f64. */
-NK_INTERNAL void nk_angular_f32x4_finalize_neon_(float32x4_t dots_f32x4, nk_f32_t query_norm, nk_f32_t target_norm_a,
-                                                 nk_f32_t target_norm_b, nk_f32_t target_norm_c, nk_f32_t target_norm_d,
-                                                 nk_f32_t *results) {
+NK_INTERNAL void nk_angular_through_f64_finalize_neon_(float32x4_t dots_f32x4, nk_f32_t query_norm,
+                                                       nk_f32_t target_norm_a, nk_f32_t target_norm_b,
+                                                       nk_f32_t target_norm_c, nk_f32_t target_norm_d,
+                                                       nk_f32_t *results) {
     // Build F64 vectors for parallel processing (2x float64x2_t for precision)
     float64x2_t dots_ab_f64x2 = vcvt_f64_f32(vget_low_f32(dots_f32x4));
     float64x2_t dots_cd_f64x2 = vcvt_f64_f32(vget_high_f32(dots_f32x4));
@@ -509,9 +510,10 @@ NK_INTERNAL void nk_angular_f32x4_finalize_neon_(float32x4_t dots_f32x4, nk_f32_
 }
 
 /** @brief L2 distance finalize: computes √(query²+target²−2 × dot) for 4 pairs in f64. */
-NK_INTERNAL void nk_euclidean_f32x4_finalize_neon_(float32x4_t dots_f32x4, nk_f32_t query_norm, nk_f32_t target_norm_a,
-                                                   nk_f32_t target_norm_b, nk_f32_t target_norm_c,
-                                                   nk_f32_t target_norm_d, nk_f32_t *results) {
+NK_INTERNAL void nk_euclidean_through_f64_finalize_neon_(float32x4_t dots_f32x4, nk_f32_t query_norm,
+                                                         nk_f32_t target_norm_a, nk_f32_t target_norm_b,
+                                                         nk_f32_t target_norm_c, nk_f32_t target_norm_d,
+                                                         nk_f32_t *results) {
     // Build F64 vectors
     float64x2_t dots_ab_f64x2 = vcvt_f64_f32(vget_low_f32(dots_f32x4));
     float64x2_t dots_cd_f64x2 = vcvt_f64_f32(vget_high_f32(dots_f32x4));
@@ -545,10 +547,10 @@ NK_INTERNAL void nk_euclidean_f32x4_finalize_neon_(float32x4_t dots_f32x4, nk_f3
 }
 
 /** @brief Angular finalize with f32 numerics (for low-precision inputs f16/bf16/i8/u8). */
-NK_INTERNAL void nk_angular_f32x4_finalize_neon_f32_(float32x4_t dots_f32x4, nk_f32_t query_norm,
-                                                     nk_f32_t target_norm_a, nk_f32_t target_norm_b,
-                                                     nk_f32_t target_norm_c, nk_f32_t target_norm_d,
-                                                     nk_f32_t *results) {
+NK_INTERNAL void nk_angular_through_f32_finalize_neon_(float32x4_t dots_f32x4, nk_f32_t query_norm,
+                                                       nk_f32_t target_norm_a, nk_f32_t target_norm_b,
+                                                       nk_f32_t target_norm_c, nk_f32_t target_norm_d,
+                                                       nk_f32_t *results) {
     float32x4_t query_norm_f32x4 = vdupq_n_f32(query_norm);
     float32x4_t target_norms_f32x4 = {target_norm_a, target_norm_b, target_norm_c, target_norm_d};
     float32x4_t products_f32x4 = vmulq_f32(query_norm_f32x4, target_norms_f32x4);
@@ -567,10 +569,10 @@ NK_INTERNAL void nk_angular_f32x4_finalize_neon_f32_(float32x4_t dots_f32x4, nk_
 }
 
 /** @brief L2 finalize with f32 numerics (for low-precision inputs f16/bf16/i8/u8). */
-NK_INTERNAL void nk_euclidean_f32x4_finalize_neon_f32_(float32x4_t dots_f32x4, nk_f32_t query_norm,
-                                                       nk_f32_t target_norm_a, nk_f32_t target_norm_b,
-                                                       nk_f32_t target_norm_c, nk_f32_t target_norm_d,
-                                                       nk_f32_t *results) {
+NK_INTERNAL void nk_euclidean_through_f32_finalize_neon_(float32x4_t dots_f32x4, nk_f32_t query_norm,
+                                                         nk_f32_t target_norm_a, nk_f32_t target_norm_b,
+                                                         nk_f32_t target_norm_c, nk_f32_t target_norm_d,
+                                                         nk_f32_t *results) {
     float32x4_t query_norm_f32x4 = vdupq_n_f32(query_norm);
     float32x4_t target_norms_f32x4 = {target_norm_a, target_norm_b, target_norm_c, target_norm_d};
     float32x4_t query_sq_f32x4 = vmulq_f32(query_norm_f32x4, query_norm_f32x4);
@@ -596,10 +598,10 @@ NK_INTERNAL void nk_angular_f32x2_finalize_neon(nk_angular_f32x2_state_neon_t co
                                                 nk_angular_f32x2_state_neon_t const *state_d, nk_f32_t query_norm,
                                                 nk_f32_t target_norm_a, nk_f32_t target_norm_b, nk_f32_t target_norm_c,
                                                 nk_f32_t target_norm_d, nk_size_t total_dimensions, nk_f32_t *results) {
-    nk_b128_vec_t dots;
-    nk_dot_f32x2_finalize_neon(state_a, state_b, state_c, state_d, &dots, total_dimensions);
-    nk_angular_f32x4_finalize_neon_(dots.f32x4, query_norm, target_norm_a, target_norm_b, target_norm_c, target_norm_d,
-                                    results);
+    nk_b128_vec_t dots_vec;
+    nk_dot_f32x2_finalize_neon(state_a, state_b, state_c, state_d, total_dimensions, &dots_vec);
+    nk_angular_through_f64_finalize_neon_(dots_vec.f32x4, query_norm, target_norm_a, target_norm_b, target_norm_c,
+                                          target_norm_d, results);
 }
 
 typedef nk_dot_f32x2_state_neon_t nk_euclidean_f32x2_state_neon_t;
@@ -615,10 +617,10 @@ NK_INTERNAL void nk_euclidean_f32x2_finalize_neon(nk_euclidean_f32x2_state_neon_
                                                   nk_f32_t target_norm_a, nk_f32_t target_norm_b,
                                                   nk_f32_t target_norm_c, nk_f32_t target_norm_d,
                                                   nk_size_t total_dimensions, nk_f32_t *results) {
-    nk_b128_vec_t dots;
-    nk_dot_f32x2_finalize_neon(state_a, state_b, state_c, state_d, &dots, total_dimensions);
-    nk_euclidean_f32x4_finalize_neon_(dots.f32x4, query_norm, target_norm_a, target_norm_b, target_norm_c,
-                                      target_norm_d, results);
+    nk_b128_vec_t dots_vec;
+    nk_dot_f32x2_finalize_neon(state_a, state_b, state_c, state_d, total_dimensions, &dots_vec);
+    nk_euclidean_through_f64_finalize_neon_(dots_vec.f32x4, query_norm, target_norm_a, target_norm_b, target_norm_c,
+                                            target_norm_d, results);
 }
 
 #if defined(__cplusplus)
