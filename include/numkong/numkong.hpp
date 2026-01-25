@@ -344,6 +344,8 @@ void dot(in_type_ const *a, in_type_ const *b, std::size_t d, result_type_ *r) n
     else if constexpr (std::is_same_v<in_type_, bf16_t> && simd) nk_dot_bf16(&a->raw_, &b->raw_, d, &r->raw_);
     else if constexpr (std::is_same_v<in_type_, e4m3_t> && simd) nk_dot_e4m3(&a->raw_, &b->raw_, d, &r->raw_);
     else if constexpr (std::is_same_v<in_type_, e5m2_t> && simd) nk_dot_e5m2(&a->raw_, &b->raw_, d, &r->raw_);
+    else if constexpr (std::is_same_v<in_type_, e2m3_t> && simd) nk_dot_e2m3(&a->raw_, &b->raw_, d, &r->raw_);
+    else if constexpr (std::is_same_v<in_type_, e3m2_t> && simd) nk_dot_e3m2(&a->raw_, &b->raw_, d, &r->raw_);
     else if constexpr (std::is_same_v<in_type_, i8_t> && simd) nk_dot_i8(&a->raw_, &b->raw_, d, &r->raw_);
     else if constexpr (std::is_same_v<in_type_, u8_t> && simd) nk_dot_u8(&a->raw_, &b->raw_, d, &r->raw_);
     else if constexpr (std::is_same_v<in_type_, f32c_t> && simd) nk_dot_f32c(&a->raw_, &b->raw_, d, &r->raw_);
@@ -409,6 +411,8 @@ void euclidean(in_type_ const *a, in_type_ const *b, std::size_t d, result_type_
     else if constexpr (std::is_same_v<in_type_, bf16_t> && simd) nk_euclidean_bf16(&a->raw_, &b->raw_, d, &r->raw_);
     else if constexpr (std::is_same_v<in_type_, e4m3_t> && simd) nk_euclidean_e4m3(&a->raw_, &b->raw_, d, &r->raw_);
     else if constexpr (std::is_same_v<in_type_, e5m2_t> && simd) nk_euclidean_e5m2(&a->raw_, &b->raw_, d, &r->raw_);
+    else if constexpr (std::is_same_v<in_type_, e2m3_t> && simd) nk_euclidean_e2m3(&a->raw_, &b->raw_, d, &r->raw_);
+    else if constexpr (std::is_same_v<in_type_, e3m2_t> && simd) nk_euclidean_e3m2(&a->raw_, &b->raw_, d, &r->raw_);
     else if constexpr (std::is_same_v<in_type_, i8_t> && simd) nk_euclidean_i8(&a->raw_, &b->raw_, d, &r->raw_);
     else if constexpr (std::is_same_v<in_type_, u8_t> && simd) nk_euclidean_u8(&a->raw_, &b->raw_, d, &r->raw_);
     else if constexpr (std::is_same_v<in_type_, i4x2_t> && simd) nk_euclidean_i4(&a->raw_, &b->raw_, d, &r->raw_);
@@ -444,6 +448,8 @@ void sqeuclidean(in_type_ const *a, in_type_ const *b, std::size_t d, result_typ
     else if constexpr (std::is_same_v<in_type_, bf16_t> && simd) nk_sqeuclidean_bf16(&a->raw_, &b->raw_, d, &r->raw_);
     else if constexpr (std::is_same_v<in_type_, e4m3_t> && simd) nk_sqeuclidean_e4m3(&a->raw_, &b->raw_, d, &r->raw_);
     else if constexpr (std::is_same_v<in_type_, e5m2_t> && simd) nk_sqeuclidean_e5m2(&a->raw_, &b->raw_, d, &r->raw_);
+    else if constexpr (std::is_same_v<in_type_, e2m3_t> && simd) nk_sqeuclidean_e2m3(&a->raw_, &b->raw_, d, &r->raw_);
+    else if constexpr (std::is_same_v<in_type_, e3m2_t> && simd) nk_sqeuclidean_e3m2(&a->raw_, &b->raw_, d, &r->raw_);
     else if constexpr (std::is_same_v<in_type_, i8_t> && simd) nk_sqeuclidean_i8(&a->raw_, &b->raw_, d, &r->raw_);
     else if constexpr (std::is_same_v<in_type_, u8_t> && simd) nk_sqeuclidean_u8(&a->raw_, &b->raw_, d, &r->raw_);
     else if constexpr (std::is_same_v<in_type_, i4x2_t> && simd) nk_sqeuclidean_i4(&a->raw_, &b->raw_, d, &r->raw_);
@@ -479,6 +485,8 @@ void angular(in_type_ const *a, in_type_ const *b, std::size_t d, result_type_ *
     else if constexpr (std::is_same_v<in_type_, bf16_t> && simd) nk_angular_bf16(&a->raw_, &b->raw_, d, &r->raw_);
     else if constexpr (std::is_same_v<in_type_, e4m3_t> && simd) nk_angular_e4m3(&a->raw_, &b->raw_, d, &r->raw_);
     else if constexpr (std::is_same_v<in_type_, e5m2_t> && simd) nk_angular_e5m2(&a->raw_, &b->raw_, d, &r->raw_);
+    else if constexpr (std::is_same_v<in_type_, e2m3_t> && simd) nk_angular_e2m3(&a->raw_, &b->raw_, d, &r->raw_);
+    else if constexpr (std::is_same_v<in_type_, e3m2_t> && simd) nk_angular_e3m2(&a->raw_, &b->raw_, d, &r->raw_);
     else if constexpr (std::is_same_v<in_type_, i8_t> && simd) nk_angular_i8(&a->raw_, &b->raw_, d, &r->raw_);
     else if constexpr (std::is_same_v<in_type_, u8_t> && simd) nk_angular_u8(&a->raw_, &b->raw_, d, &r->raw_);
     else if constexpr (std::is_same_v<in_type_, i4x2_t> && simd) nk_angular_i4(&a->raw_, &b->raw_, d, &r->raw_);
@@ -2165,6 +2173,8 @@ NK_PUBLIC size_t dots_packed_size(size_t row_count, size_t depth) {
     else if constexpr (std::is_same_v<in_type_, u8_t> && simd) return nk_dots_packed_size_u8(row_count, depth);
     else if constexpr (std::is_same_v<in_type_, e4m3_t> && simd) return nk_dots_packed_size_e4m3(row_count, depth);
     else if constexpr (std::is_same_v<in_type_, e5m2_t> && simd) return nk_dots_packed_size_e5m2(row_count, depth);
+    else if constexpr (std::is_same_v<in_type_, e2m3_t> && simd) return nk_dots_packed_size_e2m3(row_count, depth);
+    else if constexpr (std::is_same_v<in_type_, e3m2_t> && simd) return nk_dots_packed_size_e3m2(row_count, depth);
     else if constexpr (std::is_same_v<in_type_, u4x2_t> && simd) return nk_dots_packed_size_u4(row_count, depth);
     else if constexpr (std::is_same_v<in_type_, i4x2_t> && simd) return nk_dots_packed_size_i4(row_count, depth);
     else {
@@ -2205,6 +2215,10 @@ NK_PUBLIC void dots_pack(in_type_ const *b, size_t row_count, size_t depth, size
         nk_dots_pack_e4m3(reinterpret_cast<raw_t const *>(b), row_count, depth, b_stride_in_bytes, b_packed);
     else if constexpr (std::is_same_v<in_type_, e5m2_t> && simd)
         nk_dots_pack_e5m2(reinterpret_cast<raw_t const *>(b), row_count, depth, b_stride_in_bytes, b_packed);
+    else if constexpr (std::is_same_v<in_type_, e2m3_t> && simd)
+        nk_dots_pack_e2m3(reinterpret_cast<raw_t const *>(b), row_count, depth, b_stride_in_bytes, b_packed);
+    else if constexpr (std::is_same_v<in_type_, e3m2_t> && simd)
+        nk_dots_pack_e3m2(reinterpret_cast<raw_t const *>(b), row_count, depth, b_stride_in_bytes, b_packed);
     else if constexpr (std::is_same_v<in_type_, u4x2_t> && simd)
         nk_dots_pack_u4(reinterpret_cast<raw_t const *>(b), row_count, depth, b_stride_in_bytes, b_packed);
     else if constexpr (std::is_same_v<in_type_, i4x2_t> && simd)
@@ -2297,6 +2311,12 @@ void dots_packed(in_type_ const *a, void const *b_packed, result_type_ *c, size_
     else if constexpr (std::is_same_v<in_type_, e5m2_t> && dispatch)
         nk_dots_packed_e5m2(&a->raw_, b_packed, c, row_count, column_count, depth, a_stride_in_bytes,
                             c_stride_in_bytes);
+    else if constexpr (std::is_same_v<in_type_, e2m3_t> && dispatch)
+        nk_dots_packed_e2m3(&a->raw_, b_packed, c, row_count, column_count, depth, a_stride_in_bytes,
+                            c_stride_in_bytes);
+    else if constexpr (std::is_same_v<in_type_, e3m2_t> && dispatch)
+        nk_dots_packed_e3m2(&a->raw_, b_packed, c, row_count, column_count, depth, a_stride_in_bytes,
+                            c_stride_in_bytes);
     else if constexpr (std::is_same_v<in_type_, u4x2_t> && dispatch)
         nk_dots_packed_u4(&a->raw_, b_packed, c, row_count, column_count, depth, a_stride_in_bytes, c_stride_in_bytes);
     else if constexpr (std::is_same_v<in_type_, i4x2_t> && dispatch)
@@ -2356,6 +2376,12 @@ void dots_symmetric(in_type_ const *a, std::size_t n_vectors, std::size_t depth,
                                row_count);
     else if constexpr (std::is_same_v<in_type_, e5m2_t> && dispatch)
         nk_dots_symmetric_e5m2(&a->raw_, n_vectors, depth, a_stride_in_bytes, c, c_stride_in_bytes, row_start,
+                               row_count);
+    else if constexpr (std::is_same_v<in_type_, e2m3_t> && dispatch)
+        nk_dots_symmetric_e2m3(&a->raw_, n_vectors, depth, a_stride_in_bytes, c, c_stride_in_bytes, row_start,
+                               row_count);
+    else if constexpr (std::is_same_v<in_type_, e3m2_t> && dispatch)
+        nk_dots_symmetric_e3m2(&a->raw_, n_vectors, depth, a_stride_in_bytes, c, c_stride_in_bytes, row_start,
                                row_count);
     else if constexpr (std::is_same_v<in_type_, u4x2_t> && dispatch)
         nk_dots_symmetric_u4(&a->raw_, n_vectors, depth, a_stride_in_bytes, c, c_stride_in_bytes, row_start, row_count);
