@@ -759,8 +759,8 @@ NK_PUBLIC void nk_cast_haswell(void const *from, nk_dtype_t from_type, nk_size_t
     }
 
     // Byte steps per 8 elements
-    nk_size_t from_step = nk_dtype_bits(from_type);
-    nk_size_t to_step = nk_dtype_bits(to_type);
+    nk_size_t from_step = 8 * nk_dtype_bits(from_type) / NK_BITS_PER_BYTE;
+    nk_size_t to_step = 8 * nk_dtype_bits(to_type) / NK_BITS_PER_BYTE;
 
     nk_u8_t const *from_ptr = (nk_u8_t const *)from;
     nk_u8_t *to_ptr = (nk_u8_t *)to;
