@@ -1410,17 +1410,25 @@ int main(int argc, char **argv) {
     elementwise_<f32_k, fma_k, f32_k>("each_fma_f32_serial", nk_each_fma_f32_serial);
     elementwise_<f32_k, wsum_k, f32_k>("each_wsum_f32_serial", nk_each_blend_f32_serial);
 
-    dots_<f32_k, f32_k>("dots_packed_f32_neon", nk_dots_packed_size_f32_neon, nk_dots_pack_f32_neon,
-                        nk_dots_packed_f32_neon);
-    dots_<f64_k, f64_k>("dots_packed_f64_neon", nk_dots_packed_size_f64_neon, nk_dots_pack_f64_neon,
-                        nk_dots_packed_f64_neon);
-
     mesh_<f32_k, f32_k>("rmsd_f32_neon", nk_rmsd_f32_neon);
     mesh_<f32_k, f32_k>("kabsch_f32_neon", nk_kabsch_f32_neon);
     mesh_<f32_k, f32_k>("umeyama_f32_neon", nk_umeyama_f32_neon);
     mesh_<f64_k, f64_k>("rmsd_f64_neon", nk_rmsd_f64_neon);
     mesh_<f64_k, f64_k>("kabsch_f64_neon", nk_kabsch_f64_neon);
     mesh_<f64_k, f64_k>("umeyama_f64_neon", nk_umeyama_f64_neon);
+
+    dots_<f32_k, f32_k>("dots_packed_f32_neon", nk_dots_packed_size_f32_neon, nk_dots_pack_f32_neon,
+                        nk_dots_packed_f32_neon);
+    dots_<f64_k, f64_k>("dots_packed_f64_neon", nk_dots_packed_size_f64_neon, nk_dots_pack_f64_neon,
+                        nk_dots_packed_f64_neon);
+
+    dots_symmetric_<f32_k, f32_k>("dots_symmetric_f32_neon", nk_dots_symmetric_f32_neon);
+    dots_symmetric_<f64_k, f64_k>("dots_symmetric_f64_neon", nk_dots_symmetric_f64_neon);
+
+    hammings_<nk_u1_k, nk_u32_k>("hammings_u1_neon", nk_hammings_packed_size_u1_neon, nk_hammings_pack_u1_neon,
+                                 nk_hammings_packed_u1_neon);
+
+    hammings_symmetric_<nk_u1_k, nk_u32_k>("hammings_symmetric_u1_neon", nk_hammings_symmetric_u1_neon);
 
 #endif
 
@@ -1446,6 +1454,12 @@ int main(int argc, char **argv) {
                        nk_dots_packed_i4_neonsdot);
     dots_<u4_k, u32_k>("dots_packed_u4_neonsdot", nk_dots_packed_size_u4_neonsdot, nk_dots_pack_u4_neonsdot,
                        nk_dots_packed_u4_neonsdot);
+
+    dots_symmetric_<i8_k, i32_k>("dots_symmetric_i8_neonsdot", nk_dots_symmetric_i8_neonsdot);
+    dots_symmetric_<u8_k, u32_k>("dots_symmetric_u8_neonsdot", nk_dots_symmetric_u8_neonsdot);
+    dots_symmetric_<i4_k, i32_k>("dots_symmetric_i4_neonsdot", nk_dots_symmetric_i4_neonsdot);
+    dots_symmetric_<u4_k, u32_k>("dots_symmetric_u4_neonsdot", nk_dots_symmetric_u4_neonsdot);
+
 #endif
 
 #if NK_TARGET_NEONHALF
@@ -1474,6 +1488,8 @@ int main(int argc, char **argv) {
 
     dots_<f16_k, f32_k>("dots_packed_f16_neonhalf", nk_dots_packed_size_f16_neonhalf, nk_dots_pack_f16_neonhalf,
                         nk_dots_packed_f16_neonhalf);
+
+    dots_symmetric_<f16_k, f32_k>("dots_symmetric_f16_neonhalf", nk_dots_symmetric_f16_neonhalf);
 #endif
 
 #if NK_TARGET_NEONFHM
@@ -1483,6 +1499,10 @@ int main(int argc, char **argv) {
 
     dots_<f16_k, f32_k>("dots_packed_f16_neonfhm", nk_dots_packed_size_f16_neonfhm, nk_dots_pack_f16_neonfhm,
                         nk_dots_packed_f16_neonfhm);
+
+    dots_symmetric_<f16_k, f32_k>("dots_symmetric_f16_neonfhm", nk_dots_symmetric_f16_neonfhm);
+    dots_symmetric_<e2m3_k, f32_k>("dots_symmetric_e2m3_neonfhm", nk_dots_symmetric_e2m3_neonfhm);
+    dots_symmetric_<e3m2_k, f32_k>("dots_symmetric_e3m2_neonfhm", nk_dots_symmetric_e3m2_neonfhm);
 #endif // NK_TARGET_NEONFHM
 
 #if NK_TARGET_NEONBFDOT
@@ -1557,6 +1577,15 @@ int main(int argc, char **argv) {
                          nk_dots_packed_e4m3_sme);
     dots_<e5m2_k, f32_k>("dots_packed_e5m2_sme", nk_dots_packed_size_e5m2_sme, nk_dots_pack_e5m2_sme,
                          nk_dots_packed_e5m2_sme);
+
+    dots_symmetric_<bf16_k, f32_k>("dots_symmetric_bf16_sme", nk_dots_symmetric_bf16_sme);
+    dots_symmetric_<f16_k, f32_k>("dots_symmetric_f16_sme", nk_dots_symmetric_f16_sme);
+    dots_symmetric_<i8_k, i32_k>("dots_symmetric_i8_sme", nk_dots_symmetric_i8_sme);
+    dots_symmetric_<u8_k, u32_k>("dots_symmetric_u8_sme", nk_dots_symmetric_u8_sme);
+    dots_symmetric_<e4m3_k, f32_k>("dots_symmetric_e4m3_sme", nk_dots_symmetric_e4m3_sme);
+    dots_symmetric_<e5m2_k, f32_k>("dots_symmetric_e5m2_sme", nk_dots_symmetric_e5m2_sme);
+    dots_symmetric_<i4_k, i32_k>("dots_symmetric_i4_sme", nk_dots_symmetric_i4_sme);
+    dots_symmetric_<u4_k, u32_k>("dots_symmetric_u4_sme", nk_dots_symmetric_u4_sme);
 #endif
 #if NK_TARGET_SMEF64
     dots_<f32_k, f32_k>("dots_packed_f32_smef64", nk_dots_packed_size_f32_smef64, nk_dots_pack_f32_smef64,
@@ -1631,17 +1660,17 @@ int main(int argc, char **argv) {
     elementwise_<u16_k, scale_k, f32_k>("each_scale_u16_haswell", nk_each_scale_u16_haswell);
     elementwise_<u16_k, fma_k, f32_k>("each_fma_u16_haswell", nk_each_fma_u16_haswell);
 
-    geospatial_<f32_k, f32_k>("haversine_f32_haswell", nk_haversine_f32_haswell);
-    geospatial_<f64_k, f64_k>("haversine_f64_haswell", nk_haversine_f64_haswell);
-    geospatial_<f32_k, f32_k>("vincenty_f32_haswell", nk_vincenty_f32_haswell);
-    geospatial_<f64_k, f64_k>("vincenty_f64_haswell", nk_vincenty_f64_haswell);
-
     elementwise_<f32_k, unknown_k, f32_k>("sin_f32_haswell", nk_sin_f32_haswell);
     elementwise_<f32_k, unknown_k, f32_k>("cos_f32_haswell", nk_cos_f32_haswell);
     elementwise_<f32_k, unknown_k, f32_k>("atan_f32_haswell", nk_atan_f32_haswell);
     elementwise_<f64_k, unknown_k, f64_k>("sin_f64_haswell", nk_sin_f64_haswell);
     elementwise_<f64_k, unknown_k, f64_k>("cos_f64_haswell", nk_cos_f64_haswell);
     elementwise_<f64_k, unknown_k, f64_k>("atan_f64_haswell", nk_atan_f64_haswell);
+
+    geospatial_<f32_k, f32_k>("haversine_f32_haswell", nk_haversine_f32_haswell);
+    geospatial_<f64_k, f64_k>("haversine_f64_haswell", nk_haversine_f64_haswell);
+    geospatial_<f32_k, f32_k>("vincenty_f32_haswell", nk_vincenty_f32_haswell);
+    geospatial_<f64_k, f64_k>("vincenty_f64_haswell", nk_vincenty_f64_haswell);
 
     dots_<f32_k, f32_k>("dots_packed_f32_haswell", nk_dots_packed_size_f32_haswell, nk_dots_pack_f32_haswell,
                         nk_dots_packed_f32_haswell);
@@ -1660,6 +1689,29 @@ int main(int argc, char **argv) {
     dots_<u8_k, u32_k>("dots_packed_u8_haswell", nk_dots_packed_size_u8_haswell, nk_dots_pack_u8_haswell,
                        nk_dots_packed_u8_haswell);
 
+    dots_symmetric_<f32_k, f32_k>("dots_symmetric_f32_haswell", nk_dots_symmetric_f32_haswell);
+    dots_symmetric_<f64_k, f64_k>("dots_symmetric_f64_haswell", nk_dots_symmetric_f64_haswell);
+    dots_symmetric_<bf16_k, f32_k>("dots_symmetric_bf16_haswell", nk_dots_symmetric_bf16_haswell);
+    dots_symmetric_<f16_k, f32_k>("dots_symmetric_f16_haswell", nk_dots_symmetric_f16_haswell);
+    dots_symmetric_<i8_k, i32_k>("dots_symmetric_i8_haswell", nk_dots_symmetric_i8_haswell);
+    dots_symmetric_<u8_k, u32_k>("dots_symmetric_u8_haswell", nk_dots_symmetric_u8_haswell);
+    dots_symmetric_<e4m3_k, f32_k>("dots_symmetric_e4m3_haswell", nk_dots_symmetric_e4m3_haswell);
+    dots_symmetric_<e5m2_k, f32_k>("dots_symmetric_e5m2_haswell", nk_dots_symmetric_e5m2_haswell);
+
+    hammings_<nk_u1_k, nk_u32_k>("hammings_u1_haswell", nk_hammings_packed_size_u1_haswell, nk_hammings_pack_u1_haswell,
+                                 nk_hammings_packed_u1_haswell);
+
+    hammings_symmetric_<nk_u1_k, nk_u32_k>("hammings_symmetric_u1_haswell", nk_hammings_symmetric_u1_haswell);
+
+    cast_<nk_f32_k, nk_f16_k>("cast_f32_to_f16_haswell", nk_cast_haswell);
+    cast_<nk_f16_k, nk_f32_k>("cast_f16_to_f32_haswell", nk_cast_haswell);
+    cast_<nk_f32_k, nk_bf16_k>("cast_f32_to_bf16_haswell", nk_cast_haswell);
+    cast_<nk_bf16_k, nk_f32_k>("cast_bf16_to_f32_haswell", nk_cast_haswell);
+    cast_<nk_f32_k, nk_e4m3_k>("cast_f32_to_e4m3_haswell", nk_cast_haswell);
+    cast_<nk_e4m3_k, nk_f32_k>("cast_e4m3_to_f32_haswell", nk_cast_haswell);
+    cast_<nk_f32_k, nk_e5m2_k>("cast_f32_to_e5m2_haswell", nk_cast_haswell);
+    cast_<nk_e5m2_k, nk_f32_k>("cast_e5m2_to_f32_haswell", nk_cast_haswell);
+
 #endif
 
 #if NK_TARGET_SKYLAKE
@@ -1670,10 +1722,10 @@ int main(int argc, char **argv) {
     dense_<f32_k, f32_k>("kld_f32_skylake", nk_kld_f32_skylake);
     dense_<f32_k, f32_k>("jsd_f32_skylake", nk_jsd_f32_skylake);
 
-    dense_<f32c_k, f32c_k>("dot_f32c_skylake", nk_dot_f32c_skylake);
-    dense_<f32c_k, f32c_k>("vdot_f32c_skylake", nk_vdot_f32c_skylake);
-    dense_<f64c_k, f64c_k>("dot_f64c_skylake", nk_dot_f64c_skylake);
-    dense_<f64c_k, f64c_k>("vdot_f64c_skylake", nk_vdot_f64c_skylake);
+    dense_<f64_k, f64_k>("dot_f64_skylake", nk_dot_f64_skylake);
+    dense_<f64_k, f64_k>("angular_f64_skylake", nk_angular_f64_skylake);
+    dense_<f64_k, f64_k>("sqeuclidean_f64_skylake", nk_sqeuclidean_f64_skylake);
+    dense_<f64_k, f64_k>("euclidean_f64_skylake", nk_euclidean_f64_skylake);
 
     dense_<bf16_k, f32_k>("dot_bf16_skylake", nk_dot_bf16_skylake);
     dense_<f16_k, f32_k>("dot_f16_skylake", nk_dot_f16_skylake);
@@ -1699,6 +1751,16 @@ int main(int argc, char **argv) {
     dense_<i8_k, i32_k>("dot_i8_skylake", nk_dot_i8_skylake);
     dense_<u8_k, u32_k>("dot_u8_skylake", nk_dot_u8_skylake);
 
+    dense_<f32c_k, f32c_k>("dot_f32c_skylake", nk_dot_f32c_skylake);
+    dense_<f32c_k, f32c_k>("vdot_f32c_skylake", nk_vdot_f32c_skylake);
+    dense_<f64c_k, f64c_k>("dot_f64c_skylake", nk_dot_f64c_skylake);
+    dense_<f64c_k, f64c_k>("vdot_f64c_skylake", nk_vdot_f64c_skylake);
+
+    curved_<f32_k, f32_k>("bilinear_f32_skylake", nk_bilinear_f32_skylake);
+    curved_<f32c_k, f32c_k>("bilinear_f32c_skylake", nk_bilinear_f32c_skylake);
+    curved_<f64_k, f64_k>("bilinear_f64_skylake", nk_bilinear_f64_skylake);
+    curved_<f64c_k, f64c_k>("bilinear_f64c_skylake", nk_bilinear_f64c_skylake);
+
     elementwise_<f64_k, fma_k, f64_k>("each_fma_f64_skylake", nk_each_fma_f64_skylake);
     elementwise_<f64_k, wsum_k, f64_k>("each_wsum_f64_skylake", nk_each_blend_f64_skylake);
     elementwise_<f32_k, fma_k, f32_k>("each_fma_f32_skylake", nk_each_fma_f32_skylake);
@@ -1712,11 +1774,6 @@ int main(int argc, char **argv) {
     elementwise_<f64_k, unknown_k, f64_k>("sin_f64_skylake", nk_sin_f64_skylake);
     elementwise_<f64_k, unknown_k, f64_k>("cos_f64_skylake", nk_cos_f64_skylake);
     elementwise_<f64_k, unknown_k, f64_k>("atan_f64_skylake", nk_atan_f64_skylake);
-
-    curved_<f32_k, f32_k>("bilinear_f32_skylake", nk_bilinear_f32_skylake);
-    curved_<f32c_k, f32c_k>("bilinear_f32c_skylake", nk_bilinear_f32c_skylake);
-    curved_<f64_k, f64_k>("bilinear_f64_skylake", nk_bilinear_f64_skylake);
-    curved_<f64c_k, f64c_k>("bilinear_f64c_skylake", nk_bilinear_f64c_skylake);
 
     geospatial_<f32_k, f32_k>("haversine_f32_skylake", nk_haversine_f32_skylake);
     geospatial_<f64_k, f64_k>("haversine_f64_skylake", nk_haversine_f64_skylake);
@@ -1743,14 +1800,27 @@ int main(int argc, char **argv) {
     dots_<e3m2_k, f32_k>("dots_packed_e3m2_skylake", nk_dots_packed_size_e3m2_skylake, nk_dots_pack_e3m2_skylake,
                          nk_dots_packed_e3m2_skylake);
 
+    dots_symmetric_<f32_k, f32_k>("dots_symmetric_f32_skylake", nk_dots_symmetric_f32_skylake);
+    dots_symmetric_<f64_k, f64_k>("dots_symmetric_f64_skylake", nk_dots_symmetric_f64_skylake);
+    dots_symmetric_<bf16_k, f32_k>("dots_symmetric_bf16_skylake", nk_dots_symmetric_bf16_skylake);
+    dots_symmetric_<f16_k, f32_k>("dots_symmetric_f16_skylake", nk_dots_symmetric_f16_skylake);
+    dots_symmetric_<e4m3_k, f32_k>("dots_symmetric_e4m3_skylake", nk_dots_symmetric_e4m3_skylake);
+    dots_symmetric_<e5m2_k, f32_k>("dots_symmetric_e5m2_skylake", nk_dots_symmetric_e5m2_skylake);
+    dots_symmetric_<e2m3_k, f32_k>("dots_symmetric_e2m3_skylake", nk_dots_symmetric_e2m3_skylake);
+    dots_symmetric_<e3m2_k, f32_k>("dots_symmetric_e3m2_skylake", nk_dots_symmetric_e3m2_skylake);
+
+    cast_<nk_f32_k, nk_f16_k>("cast_f32_to_f16_skylake", nk_cast_skylake);
+    cast_<nk_f16_k, nk_f32_k>("cast_f16_to_f32_skylake", nk_cast_skylake);
+    cast_<nk_f32_k, nk_bf16_k>("cast_f32_to_bf16_skylake", nk_cast_skylake);
+    cast_<nk_bf16_k, nk_f32_k>("cast_bf16_to_f32_skylake", nk_cast_skylake);
+    cast_<nk_f32_k, nk_e4m3_k>("cast_f32_to_e4m3_skylake", nk_cast_skylake);
+    cast_<nk_e4m3_k, nk_f32_k>("cast_e4m3_to_f32_skylake", nk_cast_skylake);
+    cast_<nk_f32_k, nk_e5m2_k>("cast_f32_to_e5m2_skylake", nk_cast_skylake);
+    cast_<nk_e5m2_k, nk_f32_k>("cast_e5m2_to_f32_skylake", nk_cast_skylake);
+
 #endif
 
 #if NK_TARGET_ICE
-    dots_<i4_k, i32_k>("dots_packed_i4_ice", nk_dots_packed_size_i4_ice, nk_dots_pack_i4_ice, nk_dots_packed_i4_ice);
-    dots_<u4_k, u32_k>("dots_packed_u4_ice", nk_dots_packed_size_u4_ice, nk_dots_pack_u4_ice, nk_dots_packed_u4_ice);
-    dots_<i8_k, i32_k>("dots_packed_i8_ice", nk_dots_packed_size_i8_ice, nk_dots_pack_i8_ice, nk_dots_packed_i8_ice);
-    dots_<u8_k, u32_k>("dots_packed_u8_ice", nk_dots_packed_size_u8_ice, nk_dots_pack_u8_ice, nk_dots_packed_u8_ice);
-
     dense_<i8_k, f32_k>("angular_i8_ice", nk_angular_i8_ice);
     dense_<i8_k, u32_k>("sqeuclidean_i8_ice", nk_sqeuclidean_i8_ice);
     dense_<i8_k, f32_k>("euclidean_i8_ice", nk_euclidean_i8_ice);
@@ -1771,17 +1841,32 @@ int main(int argc, char **argv) {
     dense_<u4_k, f32_k>("euclidean_u4_ice", nk_euclidean_u4_ice);
     dense_<u4_k, u32_k>("dot_u4_ice", nk_dot_u4_ice);
 
-    dense_<f64_k, f64_k>("dot_f64_skylake", nk_dot_f64_skylake);
-    dense_<f64_k, f64_k>("angular_f64_skylake", nk_angular_f64_skylake);
-    dense_<f64_k, f64_k>("sqeuclidean_f64_skylake", nk_sqeuclidean_f64_skylake);
-    dense_<f64_k, f64_k>("euclidean_f64_skylake", nk_euclidean_f64_skylake);
-
     dense_<u1_k, u32_k>("hamming_u1_ice", nk_hamming_u1_ice);
     dense_<u1_k, f32_k>("jaccard_u1_ice", nk_jaccard_u1_ice);
 
     sparse_<u16_k, u32_k>("sparse_intersect_u16_ice", nk_sparse_intersect_u16_ice);
     sparse_<u32_k, u32_k>("sparse_intersect_u32_ice", nk_sparse_intersect_u32_ice);
     sparse_<u64_k, u64_k>("sparse_intersect_u64_ice", nk_sparse_intersect_u64_ice);
+
+    dots_<i4_k, i32_k>("dots_packed_i4_ice", nk_dots_packed_size_i4_ice, nk_dots_pack_i4_ice, nk_dots_packed_i4_ice);
+    dots_<u4_k, u32_k>("dots_packed_u4_ice", nk_dots_packed_size_u4_ice, nk_dots_pack_u4_ice, nk_dots_packed_u4_ice);
+    dots_<i8_k, i32_k>("dots_packed_i8_ice", nk_dots_packed_size_i8_ice, nk_dots_pack_i8_ice, nk_dots_packed_i8_ice);
+    dots_<u8_k, u32_k>("dots_packed_u8_ice", nk_dots_packed_size_u8_ice, nk_dots_pack_u8_ice, nk_dots_packed_u8_ice);
+
+    dots_symmetric_<i8_k, i32_k>("dots_symmetric_i8_ice", nk_dots_symmetric_i8_ice);
+    dots_symmetric_<u8_k, u32_k>("dots_symmetric_u8_ice", nk_dots_symmetric_u8_ice);
+    dots_symmetric_<i4_k, i32_k>("dots_symmetric_i4_ice", nk_dots_symmetric_i4_ice);
+    dots_symmetric_<u4_k, u32_k>("dots_symmetric_u4_ice", nk_dots_symmetric_u4_ice);
+
+    hammings_<nk_u1_k, nk_u32_k>("hammings_u1_ice", nk_hammings_packed_size_u1_ice, nk_hammings_pack_u1_ice,
+                                 nk_hammings_packed_u1_ice);
+
+    hammings_symmetric_<nk_u1_k, nk_u32_k>("hammings_symmetric_u1_ice", nk_hammings_symmetric_u1_ice);
+
+    cast_<nk_f32_k, nk_f16_k>("cast_f32_to_f16_ice", nk_cast_ice);
+    cast_<nk_f16_k, nk_f32_k>("cast_f16_to_f32_ice", nk_cast_ice);
+    cast_<nk_f32_k, nk_e4m3_k>("cast_f32_to_e4m3_ice", nk_cast_ice);
+    cast_<nk_e4m3_k, nk_f32_k>("cast_e4m3_to_f32_ice", nk_cast_ice);
 #endif
 
 #if NK_TARGET_GENOA
@@ -1825,6 +1910,12 @@ int main(int argc, char **argv) {
                          nk_dots_packed_e2m3_genoa);
     dots_<e3m2_k, f32_k>("dots_packed_e3m2_genoa", nk_dots_packed_size_e3m2_genoa, nk_dots_pack_e3m2_genoa,
                          nk_dots_packed_e3m2_genoa);
+
+    dots_symmetric_<bf16_k, f32_k>("dots_symmetric_bf16_genoa", nk_dots_symmetric_bf16_genoa);
+    dots_symmetric_<e4m3_k, f32_k>("dots_symmetric_e4m3_genoa", nk_dots_symmetric_e4m3_genoa);
+    dots_symmetric_<e5m2_k, f32_k>("dots_symmetric_e5m2_genoa", nk_dots_symmetric_e5m2_genoa);
+    dots_symmetric_<e2m3_k, f32_k>("dots_symmetric_e2m3_genoa", nk_dots_symmetric_e2m3_genoa);
+    dots_symmetric_<e3m2_k, f32_k>("dots_symmetric_e3m2_genoa", nk_dots_symmetric_e3m2_genoa);
 
 #endif
 
@@ -2038,75 +2129,12 @@ int main(int argc, char **argv) {
     dots_symmetric_<e2m3_k, f32_k>("dots_symmetric_e2m3_serial", nk_dots_symmetric_e2m3_serial);
     dots_symmetric_<e3m2_k, f32_k>("dots_symmetric_e3m2_serial", nk_dots_symmetric_e3m2_serial);
 
-#if NK_TARGET_HASWELL
-    dots_symmetric_<f32_k, f32_k>("dots_symmetric_f32_haswell", nk_dots_symmetric_f32_haswell);
-    dots_symmetric_<f64_k, f64_k>("dots_symmetric_f64_haswell", nk_dots_symmetric_f64_haswell);
-    dots_symmetric_<bf16_k, f32_k>("dots_symmetric_bf16_haswell", nk_dots_symmetric_bf16_haswell);
-    dots_symmetric_<f16_k, f32_k>("dots_symmetric_f16_haswell", nk_dots_symmetric_f16_haswell);
-    dots_symmetric_<i8_k, i32_k>("dots_symmetric_i8_haswell", nk_dots_symmetric_i8_haswell);
-    dots_symmetric_<u8_k, u32_k>("dots_symmetric_u8_haswell", nk_dots_symmetric_u8_haswell);
-    dots_symmetric_<e4m3_k, f32_k>("dots_symmetric_e4m3_haswell", nk_dots_symmetric_e4m3_haswell);
-    dots_symmetric_<e5m2_k, f32_k>("dots_symmetric_e5m2_haswell", nk_dots_symmetric_e5m2_haswell);
-#endif
+    // Hamming distances - packed
+    hammings_<nk_u1_k, nk_u32_k>("hammings_u1_serial", nk_hammings_packed_size_u1_serial, nk_hammings_pack_u1_serial,
+                                 nk_hammings_packed_u1_serial);
 
-#if NK_TARGET_SKYLAKE
-    dots_symmetric_<f32_k, f32_k>("dots_symmetric_f32_skylake", nk_dots_symmetric_f32_skylake);
-    dots_symmetric_<f64_k, f64_k>("dots_symmetric_f64_skylake", nk_dots_symmetric_f64_skylake);
-    dots_symmetric_<bf16_k, f32_k>("dots_symmetric_bf16_skylake", nk_dots_symmetric_bf16_skylake);
-    dots_symmetric_<f16_k, f32_k>("dots_symmetric_f16_skylake", nk_dots_symmetric_f16_skylake);
-    dots_symmetric_<e4m3_k, f32_k>("dots_symmetric_e4m3_skylake", nk_dots_symmetric_e4m3_skylake);
-    dots_symmetric_<e5m2_k, f32_k>("dots_symmetric_e5m2_skylake", nk_dots_symmetric_e5m2_skylake);
-    dots_symmetric_<e2m3_k, f32_k>("dots_symmetric_e2m3_skylake", nk_dots_symmetric_e2m3_skylake);
-    dots_symmetric_<e3m2_k, f32_k>("dots_symmetric_e3m2_skylake", nk_dots_symmetric_e3m2_skylake);
-#endif
-
-#if NK_TARGET_ICE
-    dots_symmetric_<i8_k, i32_k>("dots_symmetric_i8_ice", nk_dots_symmetric_i8_ice);
-    dots_symmetric_<u8_k, u32_k>("dots_symmetric_u8_ice", nk_dots_symmetric_u8_ice);
-    dots_symmetric_<i4_k, i32_k>("dots_symmetric_i4_ice", nk_dots_symmetric_i4_ice);
-    dots_symmetric_<u4_k, u32_k>("dots_symmetric_u4_ice", nk_dots_symmetric_u4_ice);
-#endif
-
-#if NK_TARGET_GENOA
-    dots_symmetric_<bf16_k, f32_k>("dots_symmetric_bf16_genoa", nk_dots_symmetric_bf16_genoa);
-    dots_symmetric_<e4m3_k, f32_k>("dots_symmetric_e4m3_genoa", nk_dots_symmetric_e4m3_genoa);
-    dots_symmetric_<e5m2_k, f32_k>("dots_symmetric_e5m2_genoa", nk_dots_symmetric_e5m2_genoa);
-    dots_symmetric_<e2m3_k, f32_k>("dots_symmetric_e2m3_genoa", nk_dots_symmetric_e2m3_genoa);
-    dots_symmetric_<e3m2_k, f32_k>("dots_symmetric_e3m2_genoa", nk_dots_symmetric_e3m2_genoa);
-#endif
-
-#if NK_TARGET_NEON
-    dots_symmetric_<f32_k, f32_k>("dots_symmetric_f32_neon", nk_dots_symmetric_f32_neon);
-    dots_symmetric_<f64_k, f64_k>("dots_symmetric_f64_neon", nk_dots_symmetric_f64_neon);
-#endif
-
-#if NK_TARGET_NEONSDOT
-    dots_symmetric_<i8_k, i32_k>("dots_symmetric_i8_neonsdot", nk_dots_symmetric_i8_neonsdot);
-    dots_symmetric_<u8_k, u32_k>("dots_symmetric_u8_neonsdot", nk_dots_symmetric_u8_neonsdot);
-    dots_symmetric_<i4_k, i32_k>("dots_symmetric_i4_neonsdot", nk_dots_symmetric_i4_neonsdot);
-    dots_symmetric_<u4_k, u32_k>("dots_symmetric_u4_neonsdot", nk_dots_symmetric_u4_neonsdot);
-#endif
-
-#if NK_TARGET_NEONFHM
-    dots_symmetric_<f16_k, f32_k>("dots_symmetric_f16_neonfhm", nk_dots_symmetric_f16_neonfhm);
-    dots_symmetric_<e2m3_k, f32_k>("dots_symmetric_e2m3_neonfhm", nk_dots_symmetric_e2m3_neonfhm);
-    dots_symmetric_<e3m2_k, f32_k>("dots_symmetric_e3m2_neonfhm", nk_dots_symmetric_e3m2_neonfhm);
-#endif
-
-#if NK_TARGET_NEONHALF
-    dots_symmetric_<f16_k, f32_k>("dots_symmetric_f16_neonhalf", nk_dots_symmetric_f16_neonhalf);
-#endif
-
-#if NK_TARGET_SME
-    dots_symmetric_<bf16_k, f32_k>("dots_symmetric_bf16_sme", nk_dots_symmetric_bf16_sme);
-    dots_symmetric_<f16_k, f32_k>("dots_symmetric_f16_sme", nk_dots_symmetric_f16_sme);
-    dots_symmetric_<i8_k, i32_k>("dots_symmetric_i8_sme", nk_dots_symmetric_i8_sme);
-    dots_symmetric_<u8_k, u32_k>("dots_symmetric_u8_sme", nk_dots_symmetric_u8_sme);
-    dots_symmetric_<e4m3_k, f32_k>("dots_symmetric_e4m3_sme", nk_dots_symmetric_e4m3_sme);
-    dots_symmetric_<e5m2_k, f32_k>("dots_symmetric_e5m2_sme", nk_dots_symmetric_e5m2_sme);
-    dots_symmetric_<i4_k, i32_k>("dots_symmetric_i4_sme", nk_dots_symmetric_i4_sme);
-    dots_symmetric_<u4_k, u32_k>("dots_symmetric_u4_sme", nk_dots_symmetric_u4_sme);
-#endif
+    // Hamming distances - symmetric matrix
+    hammings_symmetric_<nk_u1_k, nk_u32_k>("hammings_symmetric_u1_serial", nk_hammings_symmetric_u1_serial);
 
     cast_<nk_f32_k, nk_f16_k>("cast_f32_to_f16_serial", nk_cast_serial);
     cast_<nk_f16_k, nk_f32_k>("cast_f16_to_f32_serial", nk_cast_serial);
@@ -2118,35 +2146,6 @@ int main(int argc, char **argv) {
     cast_<nk_e5m2_k, nk_f32_k>("cast_e5m2_to_f32_serial", nk_cast_serial);
     cast_<nk_f64_k, nk_f32_k>("cast_f64_to_f32_serial", nk_cast_serial);
     cast_<nk_f32_k, nk_f64_k>("cast_f32_to_f64_serial", nk_cast_serial);
-
-#if NK_TARGET_HASWELL
-    cast_<nk_f32_k, nk_f16_k>("cast_f32_to_f16_haswell", nk_cast_haswell);
-    cast_<nk_f16_k, nk_f32_k>("cast_f16_to_f32_haswell", nk_cast_haswell);
-    cast_<nk_f32_k, nk_bf16_k>("cast_f32_to_bf16_haswell", nk_cast_haswell);
-    cast_<nk_bf16_k, nk_f32_k>("cast_bf16_to_f32_haswell", nk_cast_haswell);
-    cast_<nk_f32_k, nk_e4m3_k>("cast_f32_to_e4m3_haswell", nk_cast_haswell);
-    cast_<nk_e4m3_k, nk_f32_k>("cast_e4m3_to_f32_haswell", nk_cast_haswell);
-    cast_<nk_f32_k, nk_e5m2_k>("cast_f32_to_e5m2_haswell", nk_cast_haswell);
-    cast_<nk_e5m2_k, nk_f32_k>("cast_e5m2_to_f32_haswell", nk_cast_haswell);
-#endif
-
-#if NK_TARGET_SKYLAKE
-    cast_<nk_f32_k, nk_f16_k>("cast_f32_to_f16_skylake", nk_cast_skylake);
-    cast_<nk_f16_k, nk_f32_k>("cast_f16_to_f32_skylake", nk_cast_skylake);
-    cast_<nk_f32_k, nk_bf16_k>("cast_f32_to_bf16_skylake", nk_cast_skylake);
-    cast_<nk_bf16_k, nk_f32_k>("cast_bf16_to_f32_skylake", nk_cast_skylake);
-    cast_<nk_f32_k, nk_e4m3_k>("cast_f32_to_e4m3_skylake", nk_cast_skylake);
-    cast_<nk_e4m3_k, nk_f32_k>("cast_e4m3_to_f32_skylake", nk_cast_skylake);
-    cast_<nk_f32_k, nk_e5m2_k>("cast_f32_to_e5m2_skylake", nk_cast_skylake);
-    cast_<nk_e5m2_k, nk_f32_k>("cast_e5m2_to_f32_skylake", nk_cast_skylake);
-#endif
-
-#if NK_TARGET_ICE
-    cast_<nk_f32_k, nk_f16_k>("cast_f32_to_f16_ice", nk_cast_ice);
-    cast_<nk_f16_k, nk_f32_k>("cast_f16_to_f32_ice", nk_cast_ice);
-    cast_<nk_f32_k, nk_e4m3_k>("cast_f32_to_e4m3_ice", nk_cast_ice);
-    cast_<nk_e4m3_k, nk_f32_k>("cast_e4m3_to_f32_ice", nk_cast_ice);
-#endif
 
 #if NK_TARGET_SAPPHIRE
     cast_<nk_f32_k, nk_f16_k>("cast_f32_to_f16_sapphire", nk_cast_sapphire);
