@@ -32,6 +32,10 @@
  *  - Arm implements E4M3 (meaning E4M3FN) and E5M2 with a shared `__mfp8` type and a `FPMR` format selector
  *
  *  For brevety, across NumKong, "E4M3" implies "E4M3FN".
+ *
+ *  @see https://www.opencompute.org/documents/ocp-8-bit-floating-point-specification-ofp8-revision-1-0-2023-12-01-pdf-1
+ *  @see FP8 Formats for Deep Learning: https://arxiv.org/pdf/2209.05433
+ *  @see ONNX Float8 Types: https://onnx.ai/onnx/technical/float8.html
  */
 #ifndef NK_TYPES_H
 #define NK_TYPES_H
