@@ -563,54 +563,68 @@ nk_dispatch_each_fma_(e4m3, f32)
 nk_dispatch_each_fma_(e5m2, f32)
 
 // Matrix multiplications (GEMM with packed B)
-nk_dispatch_cross_packed_size_(dots, f32, f32, f32) nk_dispatch_cross_packed_size_(dots, f64, f64, f64)
-    nk_dispatch_cross_packed_size_(dots, f16, f16, f32) nk_dispatch_cross_packed_size_(dots, bf16, bf16, f32)
-        nk_dispatch_cross_packed_size_(dots, i8, i8, i32) nk_dispatch_cross_packed_size_(
-            dots, u8, u8, u32) nk_dispatch_cross_packed_size_(dots, e4m3, e4m3,
-                                                              f32) nk_dispatch_cross_packed_size_(dots, e5m2, e5m2, f32)
-            nk_dispatch_cross_packed_size_(dots, e3m2, e3m2, f32) nk_dispatch_cross_packed_size_(dots, u1, u1x8, u32)
-                nk_dispatch_cross_packed_size_(dots, u4, u4x2, u32) nk_dispatch_cross_packed_size_(dots, i4, i4x2, i32)
-                    nk_dispatch_cross_pack_(dots, f32, f32, f32) nk_dispatch_cross_pack_(dots, f64, f64, f64)
-                        nk_dispatch_cross_pack_(dots, f16, f16, f32) nk_dispatch_cross_pack_(dots, bf16, bf16, f32)
-                            nk_dispatch_cross_pack_(dots, i8, i8, i32) nk_dispatch_cross_pack_(dots, u8, u8, u32)
-                                nk_dispatch_cross_pack_(dots, e4m3, e4m3, f32) nk_dispatch_cross_pack_(dots, e5m2, e5m2,
-                                                                                                       f32)
-                                    nk_dispatch_cross_pack_(dots, e3m2, e3m2, f32) nk_dispatch_cross_pack_(
-                                        dots, u1, u1x8,
-                                        u32) nk_dispatch_cross_pack_(dots, u4, u4x2,
-                                                                     u32) nk_dispatch_cross_pack_(dots, i4, i4x2, i32)
-                                        nk_dispatch_cross_packed_(dots, f32, f32, f32, f32) nk_dispatch_cross_packed_(
-                                            dots, f64, f64,
-                                            f64, f64) nk_dispatch_cross_packed_(dots, f16, f16, f32, f32)
-                                            nk_dispatch_cross_packed_(dots, bf16, bf16, f32, f32)
-                                                nk_dispatch_cross_packed_(dots, i8, i8, i32, i32)
-                                                    nk_dispatch_cross_packed_(dots, u8, u8, u32, u32)
-                                                        nk_dispatch_cross_packed_(dots, e4m3, e4m3, f32, f32)
-                                                            nk_dispatch_cross_packed_(dots, e5m2, e5m2, f32, f32)
-                                                                nk_dispatch_cross_packed_(dots, e3m2, e3m2, f32, f32)
-                                                                    nk_dispatch_cross_packed_(dots, u1, u1x8, u32, u32)
-                                                                        nk_dispatch_cross_packed_(dots, u4, u4x2, u32,
-                                                                                                  u32)
-                                                                            nk_dispatch_cross_packed_(dots, i4, i4x2,
-                                                                                                      i32, i32)
+nk_dispatch_cross_packed_size_(dots, f32, f32, f32)
+nk_dispatch_cross_packed_size_(dots, f64, f64, f64)
+nk_dispatch_cross_packed_size_(dots, f16, f16, f32)
+nk_dispatch_cross_packed_size_(dots, bf16, bf16, f32)
+nk_dispatch_cross_packed_size_(dots, i8, i8, i32)
+nk_dispatch_cross_packed_size_(dots, u8, u8, u32)
+nk_dispatch_cross_packed_size_(dots, e4m3, e4m3, f32)
+nk_dispatch_cross_packed_size_(dots, e5m2, e5m2, f32)
+nk_dispatch_cross_packed_size_(dots, e2m3, e2m3, f32)
+nk_dispatch_cross_packed_size_(dots, e3m2, e3m2, f32)
+nk_dispatch_cross_packed_size_(dots, u1, u1x8, u32)
+nk_dispatch_cross_packed_size_(dots, u4, u4x2, u32)
+nk_dispatch_cross_packed_size_(dots, i4, i4x2, i32)
+nk_dispatch_cross_pack_(dots, f32, f32, f32)
+nk_dispatch_cross_pack_(dots, f64, f64, f64)
+nk_dispatch_cross_pack_(dots, f16, f16, f32)
+nk_dispatch_cross_pack_(dots, bf16, bf16, f32)
+nk_dispatch_cross_pack_(dots, i8, i8, i32)
+nk_dispatch_cross_pack_(dots, u8, u8, u32)
+nk_dispatch_cross_pack_(dots, e4m3, e4m3, f32)
+nk_dispatch_cross_pack_(dots, e5m2, e5m2, f32)
+nk_dispatch_cross_pack_(dots, e2m3, e2m3, f32)
+nk_dispatch_cross_pack_(dots, e3m2, e3m2, f32)
+nk_dispatch_cross_pack_(dots, u1, u1x8, u32)
+nk_dispatch_cross_pack_(dots, u4, u4x2, u32)
+nk_dispatch_cross_pack_(dots, i4, i4x2, i32)
+nk_dispatch_cross_packed_(dots, f32, f32, f32, f32)
+nk_dispatch_cross_packed_(dots, f64, f64, f64, f64)
+nk_dispatch_cross_packed_(dots, f16, f16, f32, f32)
+nk_dispatch_cross_packed_(dots, bf16, bf16, f32, f32)
+nk_dispatch_cross_packed_(dots, i8, i8, i32, i32)
+nk_dispatch_cross_packed_(dots, u8, u8, u32, u32)
+nk_dispatch_cross_packed_(dots, e4m3, e4m3, f32, f32)
+nk_dispatch_cross_packed_(dots, e5m2, e5m2, f32, f32)
+nk_dispatch_cross_packed_(dots, e2m3, e2m3, f32, f32)
+nk_dispatch_cross_packed_(dots, e3m2, e3m2, f32, f32)
+nk_dispatch_cross_packed_(dots, u1, u1x8, u32, u32)
+nk_dispatch_cross_packed_(dots, u4, u4x2, u32, u32)
+nk_dispatch_cross_packed_(dots, i4, i4x2, i32, i32)
 
-    // Symmetric Gram matrix (A × Aᵀ)
-    nk_dispatch_cross_symmetric_(dots, f32, f32, f32) nk_dispatch_cross_symmetric_(dots, f64, f64, f64)
-        nk_dispatch_cross_symmetric_(dots, f16, f16, f32) nk_dispatch_cross_symmetric_(dots, bf16, bf16, f32)
-            nk_dispatch_cross_symmetric_(dots, i8, i8, i32) nk_dispatch_cross_symmetric_(dots, u8, u8, u32)
-                nk_dispatch_cross_symmetric_(dots, e4m3, e4m3, f32) nk_dispatch_cross_symmetric_(dots, e5m2, e5m2, f32)
-                    nk_dispatch_cross_symmetric_(dots, e3m2, e3m2, f32)
-                        nk_dispatch_cross_symmetric_(dots, u4, u4x2, u32)
-                            nk_dispatch_cross_symmetric_(dots, i4, i4x2, i32)
+// Symmetric Gram matrix (A × Aᵀ)
+nk_dispatch_cross_symmetric_(dots, f32, f32, f32)
+nk_dispatch_cross_symmetric_(dots, f64, f64, f64)
+nk_dispatch_cross_symmetric_(dots, f16, f16, f32)
+nk_dispatch_cross_symmetric_(dots, bf16, bf16, f32)
+nk_dispatch_cross_symmetric_(dots, i8, i8, i32)
+nk_dispatch_cross_symmetric_(dots, u8, u8, u32)
+nk_dispatch_cross_symmetric_(dots, e4m3, e4m3, f32)
+nk_dispatch_cross_symmetric_(dots, e5m2, e5m2, f32)
+nk_dispatch_cross_symmetric_(dots, e2m3, e2m3, f32)
+nk_dispatch_cross_symmetric_(dots, e3m2, e3m2, f32)
+nk_dispatch_cross_symmetric_(dots, u4, u4x2, u32)
+nk_dispatch_cross_symmetric_(dots, i4, i4x2, i32)
 
-    // Hamming distances (batched binary set computations)
-    nk_dispatch_cross_packed_size_(hammings, u1, u1x8, u32) nk_dispatch_cross_pack_(hammings, u1, u1x8, u32)
-        nk_dispatch_cross_packed_(hammings, u1, u1x8, u32, u32) nk_dispatch_cross_symmetric_(hammings, u1, u1x8, u32)
+// Hamming distances (batched binary set computations)
+nk_dispatch_cross_packed_size_(hammings, u1, u1x8, u32)
+nk_dispatch_cross_pack_(hammings, u1, u1x8, u32)
+nk_dispatch_cross_packed_(hammings, u1, u1x8, u32, u32)
+nk_dispatch_cross_symmetric_(hammings, u1, u1x8, u32)
 
-    // ARM NEON capabilities
-    NK_DYNAMIC int nk_uses_neon(void) {
-    return (nk_capabilities() & nk_cap_neon_k) != 0;
-}
+// ARM NEON capabilities
+NK_DYNAMIC int nk_uses_neon(void) { return (nk_capabilities() & nk_cap_neon_k) != 0; }
 NK_DYNAMIC int nk_uses_neonhalf(void) { return (nk_capabilities() & nk_cap_neonhalf_k) != 0; }
 NK_DYNAMIC int nk_uses_neonfhm(void) { return (nk_capabilities() & nk_cap_neonfhm_k) != 0; }
 NK_DYNAMIC int nk_uses_neonbfdot(void) { return (nk_capabilities() & nk_cap_neonbfdot_k) != 0; }
