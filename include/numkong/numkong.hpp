@@ -2380,6 +2380,173 @@ void dots_symmetric(in_type_ const *a, std::size_t n_vectors, std::size_t depth,
     }
 }
 
+/**
+ *  @brief Estimates memory requirements for packed B matrix (Hamming distances).
+ *  @param[in] row_count Number of rows in B (n)
+ *  @param[in] depth Number of dimensions per row in bits (k)
+ *  @return Size in bytes for row-major B data plus stride metadata
+ *
+ *  @tparam in_type_ Input element type (u1x8_t for binary vectors)
+ *  @tparam allow_simd_ Enable SIMD kernel dispatch when `prefer_simd_k`
+ */
+template <typename in_type_, allow_simd_t allow_simd_ = prefer_simd_k>
+NK_PUBLIC size_t hammings_packed_size(size_t row_count, size_t depth) {
+    constexpr bool simd = allow_simd_ == prefer_simd_k;
+
+    if constexpr (std::is_same_v<in_type_, u1x8_t> && simd) return nk_hammings_packed_size_u1(row_count, depth);
+    else {
+        // We need enough space for the pointer to the original B matrix and its stride
+        return sizeof(void *) + sizeof(size_t);
+    }
+}
+
+/**
+ *  @brief Packs matrix B into row-major form for efficient hammings_packed access.
+ *  @param[in] b Input matrix B in row-major form [row_count × depth]
+ *  @param[in] row_count Number of rows in B (n)
+ *  @param[in] depth Number of dimensions per row in bits (k)
+ *  @param[in] b_stride_in_bytes Stride between rows of B in bytes
+ *  @param[out] b_packed Output buffer for packed row-major B with metadata
+ *
+ *  @tparam in_type_ Input element type (u1x8_t for binary vectors)
+ *  @tparam allow_simd_ Enable SIMD kernel dispatch when `prefer_simd_k`
+ */
+template <typename in_type_, allow_simd_t allow_simd_ = prefer_simd_k>
+NK_PUBLIC void hammings_pack(in_type_ const *b, size_t row_count, size_t depth, size_t b_stride_in_bytes,
+                             void *b_packed) {
+    using raw_t = typename in_type_::raw_t;
+    constexpr bool simd = allow_simd_ == prefer_simd_k;
+
+    if constexpr (std::is_same_v<in_type_, u1x8_t> && simd)
+        nk_hammings_pack_u1(reinterpret_cast<raw_t const *>(b), row_count, depth, b_stride_in_bytes, b_packed);
+    else {
+        // Persist the pointer to the original B matrix and its stride
+        char *b_packed_bytes = reinterpret_cast<char *>(b_packed);
+        std::memcpy(b_packed_bytes, &b, sizeof(void *));
+        std::memcpy(b_packed_bytes + sizeof(void *), &b_stride_in_bytes, sizeof(size_t));
+    }
+}
+
+/**
+ *  @brief Symmetric Hamming distance matrix: C[i,j] = hamming(A[i], A[j])
+ *  @param[in] a Input matrix (n_vectors × depth)
+ *  @param[in] n_vectors Number of vectors
+ *  @param[in] depth Number of dimensions per vector
+ *  @param[in] a_stride_in_bytes Row stride in bytes
+ *  @param[out] c Output matrix (n_vectors × n_vectors)
+ *  @param[in] c_stride_in_bytes Output row stride in bytes
+ *  @param[in] row_start Starting row index (default 0)
+ *  @param[in] row_count Number of rows to compute (default all)
+ *
+ *  Computes Hamming distances between all pairs of binary vectors.
+ *  For u1x8_t inputs, distances are exact bit counts (u32_t outputs).
+ *
+ *  @tparam in_type_ Input element type (u1x8_t)
+ *  @tparam result_type_ Output type (u32_t for Hamming distances)
+ *  @tparam allow_simd_ Enable SIMD kernel dispatch when `prefer_simd_k`
+ */
+template <typename in_type_, typename result_type_ = u32_t, allow_simd_t allow_simd_ = prefer_simd_k>
+void hammings_symmetric(in_type_ const *a, std::size_t n_vectors, std::size_t depth, std::size_t a_stride_in_bytes,
+                        result_type_ *c, std::size_t c_stride_in_bytes, std::size_t row_start = 0,
+                        std::size_t row_count = std::numeric_limits<std::size_t>::max()) noexcept {
+    if (row_count == std::numeric_limits<std::size_t>::max()) row_count = n_vectors;
+    using raw_t = typename in_type_::raw_t;
+    constexpr bool dispatch = allow_simd_ == prefer_simd_k && std::is_same_v<in_type_, u1x8_t> &&
+                              std::is_same_v<result_type_, u32_t>;
+
+    if constexpr (dispatch)
+        nk_hammings_symmetric_u1(&a->raw_, n_vectors, depth, a_stride_in_bytes, &c->raw_, c_stride_in_bytes, row_start,
+                                 row_count);
+    else {
+        std::size_t depth_bytes = divide_round_up(depth, 8);
+        char const *a_bytes = reinterpret_cast<char const *>(a);
+        char *c_bytes = reinterpret_cast<char *>(c);
+        std::size_t row_end = row_start + row_count < n_vectors ? row_start + row_count : n_vectors;
+
+        for (std::size_t i = row_start; i < row_end; i++) {
+            raw_t const *a_i = reinterpret_cast<raw_t const *>(a_bytes + i * a_stride_in_bytes);
+            result_type_ *c_row = reinterpret_cast<result_type_ *>(c_bytes + i * c_stride_in_bytes);
+
+            for (std::size_t j = 0; j < n_vectors; j++) {
+                raw_t const *a_j = reinterpret_cast<raw_t const *>(a_bytes + j * a_stride_in_bytes);
+                typename result_type_::raw_t distance = 0;
+                for (std::size_t b = 0; b < depth_bytes; b++) {
+                    auto xor_val = a_i[b] ^ a_j[b];
+                    distance += std::popcount(static_cast<unsigned>(xor_val));
+                }
+                c_row[j] = result_type_::from_raw(distance);
+            }
+        }
+    }
+}
+
+/**
+ *  @brief Computes Hamming distances between rows of A and columns of packed B.
+ *  @param[in] a Pointer to the first matrix (m × k).
+ *  @param[in] b_packed Pointer to the packed second matrix (k × n).
+ *  @param[out] c Pointer to the output matrix (m × n).
+ *  @param[in] row_count Number of rows in A (m).
+ *  @param[in] column_count Number of columns in B (n).
+ *  @param[in] depth Depth dimension in bits (k).
+ *  @param[in] a_stride_in_bytes Stride between consecutive rows of A in bytes.
+ *  @param[in] c_stride_in_bytes Stride between consecutive rows of C in bytes.
+ *
+ *  Computes Hamming distances between binary vectors using optimized packed format.
+ *  For u1x8_t inputs, distances are exact bit counts (u32_t outputs).
+ *
+ *  @tparam in_type_ Input element type (u1x8_t)
+ *  @tparam result_type_ Output type (u32_t for Hamming distances)
+ *  @tparam allow_simd_ Enable SIMD kernel dispatch when `prefer_simd_k`
+ */
+template <typename in_type_, typename result_type_ = u32_t, allow_simd_t allow_simd_ = prefer_simd_k>
+void hammings_packed(in_type_ const *a, void const *b_packed, result_type_ *c, std::size_t row_count,
+                     std::size_t column_count, std::size_t depth, std::size_t a_stride_in_bytes = 0,
+                     std::size_t c_stride_in_bytes = 0) noexcept {
+    // Compute default strides
+    if (!a_stride_in_bytes) a_stride_in_bytes = divide_round_up(depth, 8) * sizeof(in_type_);
+    if (!c_stride_in_bytes) c_stride_in_bytes = column_count * sizeof(result_type_);
+
+    // SIMD dispatch for u1x8_t → u32_t
+    if constexpr (allow_simd_ && std::is_same_v<in_type_, u1x8_t> && std::is_same_v<result_type_, u32_t>) {
+        nk_hammings_packed_u1(reinterpret_cast<nk_u1x8_t const *>(a), b_packed, reinterpret_cast<nk_u32_t *>(c),
+                              row_count, column_count, depth, a_stride_in_bytes, c_stride_in_bytes);
+    }
+    else {
+
+        // Scalar fallback: extract pointer and stride from b_packed, then compute directly
+        in_type_ const *b;
+        size_t b_stride_in_bytes;
+        char const *b_packed_bytes = reinterpret_cast<char const *>(b_packed);
+        std::memcpy(&b, b_packed_bytes, sizeof(void *));
+        std::memcpy(&b_stride_in_bytes, b_packed_bytes + sizeof(void *), sizeof(size_t));
+
+        // Compute Hamming distances using unpacked matrices
+        char const *a_bytes = reinterpret_cast<char const *>(a);
+        char const *b_bytes = reinterpret_cast<char const *>(b);
+        char *c_bytes = reinterpret_cast<char *>(c);
+        std::size_t depth_bytes = divide_round_up(depth, 8);
+
+        for (std::size_t i = 0; i < row_count; i++) {
+            typename in_type_::raw_t const *a_row = reinterpret_cast<typename in_type_::raw_t const *>(
+                a_bytes + i * a_stride_in_bytes);
+            result_type_ *c_row = reinterpret_cast<result_type_ *>(c_bytes + i * c_stride_in_bytes);
+
+            for (std::size_t j = 0; j < column_count; j++) {
+                typename in_type_::raw_t const *b_row = reinterpret_cast<typename in_type_::raw_t const *>(
+                    b_bytes + j * b_stride_in_bytes);
+
+                // Compute Hamming distance: XOR then popcount
+                typename result_type_::raw_t distance = 0;
+                for (std::size_t byte_idx = 0; byte_idx < depth_bytes; byte_idx++) {
+                    auto xor_val = a_row[byte_idx] ^ b_row[byte_idx];
+                    distance += std::popcount(static_cast<unsigned>(xor_val));
+                }
+                c_row[j] = result_type_::from_raw(distance);
+            }
+        }
+    }
+}
+
 #pragma endregion Dots Kernels
 
 } // namespace ashvardanian::numkong

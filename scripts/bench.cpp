@@ -626,6 +626,115 @@ void dots_symmetric_(std::string name, //
         ->Threads(1); // Single-threaded for symmetric matmul
 }
 
+/**
+ *  @brief Measure packed Hamming distance computation.
+ */
+template <nk_dtype_t input_dtype_, nk_dtype_t output_dtype_>
+void measure_hammings_packed(                                                                //
+    bm::State &state,                                                                        //
+    typename nk::type_for<input_dtype_>::type::hammings_packed_size_kernel_t packed_size_fn, //
+    typename nk::type_for<input_dtype_>::type::hammings_pack_kernel_t pack_fn,               //
+    typename nk::type_for<input_dtype_>::type::hammings_packed_kernel_t kernel,              //
+    std::size_t m, std::size_t n, std::size_t k) {
+
+    using input_t = typename nk::type_for<input_dtype_>::type;
+    using output_t = typename nk::type_for<output_dtype_>::type;
+    using raw_input_t = typename input_t::raw_t;
+    using raw_output_t = typename output_t::raw_t;
+
+    // Calculate correct strides for binary data (k is in bits)
+    nk_size_t values_per_row = nk::divide_round_up(k, 8);
+    nk_size_t a_stride_bytes = values_per_row * sizeof(typename input_t::raw_t);
+    nk_size_t b_stride_bytes = values_per_row * sizeof(typename input_t::raw_t);
+
+    // Allocate matrices
+    auto matrix_a = make_vector<input_t>(m * values_per_row);
+    auto matrix_b = make_vector<input_t>(n * values_per_row);
+    nk_size_t packed_bytes = packed_size_fn(n, k);
+    std::vector<char> matrix_b_packed(packed_bytes, 0);
+    auto matrix_c = make_vector<output_t>(m * n);
+
+    // Initialize with random values
+    auto generator = make_random_engine();
+    nk::fill_uniform(generator, matrix_a.values_data(), matrix_a.size_values());
+    nk::fill_uniform(generator, matrix_b.values_data(), matrix_b.size_values());
+
+    // Pack B matrix once (amortized cost for repeated inference) with correct stride
+    pack_fn(matrix_b.raw_values_data(), n, k, b_stride_bytes, matrix_b_packed.data());
+
+    std::size_t iterations = 0;
+    for (auto _ : state) {
+        bm::DoNotOptimize(matrix_c.raw_values_data());
+        kernel(matrix_a.raw_values_data(), matrix_b_packed.data(), matrix_c.raw_values_data(), //
+               m, n, k, a_stride_bytes, n * sizeof(raw_output_t));
+        ++iterations;
+    }
+
+    state.counters["scalar-ops"] = bm::Counter(iterations * m * n * k, bm::Counter::kIsRate);
+}
+
+/**
+ *  @brief Measure symmetric Hamming distance matrix computation.
+ */
+template <nk_dtype_t input_dtype_, nk_dtype_t output_dtype_>
+void measure_hammings_symmetric(                                                   //
+    bm::State &state,                                                              //
+    typename nk::type_for<input_dtype_>::type::hammings_symmetric_kernel_t kernel, //
+    std::size_t n, std::size_t k) {
+
+    using input_t = typename nk::type_for<input_dtype_>::type;
+    using output_t = typename nk::type_for<output_dtype_>::type;
+    using raw_input_t = typename input_t::raw_t;
+    using raw_output_t = typename output_t::raw_t;
+
+    // Calculate correct strides for binary data (k is in bits)
+    nk_size_t input_values_per_row = nk::divide_round_up(k, 8);
+    nk_size_t input_stride_bytes = input_values_per_row * sizeof(typename input_t::raw_t);
+    nk_size_t output_stride_bytes = n * sizeof(raw_output_t);
+
+    // Allocate matrix A (n vectors × k bits) and result matrix C (n × n)
+    auto matrix_a = make_vector<input_t>(n * input_values_per_row);
+    auto matrix_c = make_vector<output_t>(n * n);
+
+    // Initialize with random values
+    auto generator = make_random_engine();
+    nk::fill_uniform(generator, matrix_a.values_data(), matrix_a.size_values());
+
+    std::size_t iterations = 0;
+    for (auto _ : state) {
+        bm::DoNotOptimize(matrix_c.raw_values_data());
+        kernel(matrix_a.raw_values_data(), n, k, input_stride_bytes, //
+               matrix_c.raw_values_data(), output_stride_bytes, 0, n);
+        ++iterations;
+    }
+
+    // Symmetric operations compute upper triangle: N×(N+1)/2 comparisons × K bits
+    state.counters["scalar-ops"] = bm::Counter(iterations * n * (n + 1) * k / 2, bm::Counter::kIsRate);
+}
+
+template <nk_dtype_t input_dtype_, nk_dtype_t output_dtype_>
+void hammings_(std::string name, //
+               typename nk::type_for<input_dtype_>::type::hammings_packed_size_kernel_t packed_size_fn,
+               typename nk::type_for<input_dtype_>::type::hammings_pack_kernel_t pack_fn,
+               typename nk::type_for<input_dtype_>::type::hammings_packed_kernel_t kernel) {
+    std::string bench_name = name + "<" + std::to_string(matrix_height) + "x" + std::to_string(matrix_width) + "x" +
+                             std::to_string(matrix_depth) + ">";
+    bm::RegisterBenchmark(bench_name.c_str(), measure_hammings_packed<input_dtype_, output_dtype_>, packed_size_fn,
+                          pack_fn, kernel, matrix_height, matrix_width, matrix_depth)
+        ->MinTime(default_seconds)
+        ->Threads(1); // Single-threaded for packed Hamming distances
+}
+
+template <nk_dtype_t input_dtype_, nk_dtype_t output_dtype_>
+void hammings_symmetric_(std::string name, //
+                         typename nk::type_for<input_dtype_>::type::hammings_symmetric_kernel_t kernel) {
+    std::string bench_name = name + "<" + std::to_string(matrix_height) + "x" + std::to_string(matrix_depth) + ">";
+    bm::RegisterBenchmark(bench_name.c_str(), measure_hammings_symmetric<input_dtype_, output_dtype_>, //
+                          kernel, matrix_height, matrix_depth)
+        ->MinTime(default_seconds)
+        ->Threads(1); // Single-threaded for symmetric Hamming distances
+}
+
 template <typename scalar_type_>
 struct sin_with_stl {
     scalar_type_ operator()(scalar_type_ x) const { return std::sin(x); }

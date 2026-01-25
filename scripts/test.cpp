@@ -2121,6 +2121,91 @@ error_stats_t test_dots_unpacked(kernel_type_ dots_fn) {
 }
 #endif // NK_COMPARE_TO_BLAS || NK_COMPARE_TO_MKL || NK_COMPARE_TO_ACCELERATE
 
+/**
+ *  @brief Test batched Hamming distance computation with packed B matrix.
+ */
+template <typename scalar_type_>
+error_stats_t test_hammings(typename scalar_type_::hammings_packed_size_kernel_t packed_size_fn,
+                            typename scalar_type_::hammings_pack_kernel_t pack_fn,
+                            typename scalar_type_::hammings_packed_kernel_t hammings_fn) {
+    using scalar_t = scalar_type_;
+    using result_t = u32_t;
+
+    error_stats_t stats;
+    std::mt19937 generator(global_config.seed);
+
+    std::size_t m = matrix_height, n = matrix_width, k = dense_dimensions;
+    std::size_t k_bytes = nk::divide_round_up(k, 8);
+    std::size_t a_stride = k_bytes * sizeof(scalar_t);
+    std::size_t b_stride = k_bytes * sizeof(scalar_t);
+    std::size_t c_stride = n * sizeof(result_t);
+
+    auto a = make_vector<scalar_t>(m * k_bytes), b = make_vector<scalar_t>(n * k_bytes);
+    auto c = make_vector<result_t>(m * n);
+    auto c_ref = make_vector<result_t>(m * n);
+
+    nk_size_t packed_size = packed_size_fn(n, k);
+    auto b_packed = make_vector<char>(packed_size);
+
+    // Allocate buffer for reference computation
+    nk_size_t packed_size_ref = nk::hammings_packed_size<scalar_t, nk::no_simd_k>(n, k);
+    auto b_packed_ref = make_vector<char>(packed_size_ref);
+
+    for (auto start = test_start_time(); within_time_budget(start);) {
+        fill_random(generator, a);
+        fill_random(generator, b);
+
+        // Run kernel being tested
+        pack_fn(b.raw_values_data(), n, k, b_stride, b_packed.raw_values_data());
+        hammings_fn(a.raw_values_data(), b_packed.raw_values_data(), c.raw_values_data(), m, n, k, a_stride, c_stride);
+
+        // Compute reference using C++ template with no_simd_k
+        nk::hammings_pack<scalar_t, nk::no_simd_k>(b.values_data(), n, k, b_stride, b_packed_ref.raw_values_data());
+        nk::hammings_packed<scalar_t, result_t, nk::no_simd_k>(a.values_data(), b_packed_ref.raw_values_data(),
+                                                               c_ref.values_data(), m, n, k, a_stride, c_stride);
+
+        // Hamming distances are exact integers - use exact comparison
+        for (std::size_t i = 0; i < m * n; i++) stats.accumulate(c[i], c_ref[i]);
+    }
+    return stats;
+}
+
+/**
+ *  @brief Test symmetric Hamming distance matrix computation.
+ */
+template <typename scalar_type_>
+error_stats_t test_hammings_symmetric(typename scalar_type_::hammings_symmetric_kernel_t kernel_fn) {
+    using scalar_t = scalar_type_;
+    using result_t = u32_t;
+
+    error_stats_t stats;
+    std::mt19937 generator(global_config.seed);
+
+    std::size_t n = matrix_height, k = dense_dimensions;
+    std::size_t k_bytes = nk::divide_round_up(k, 8);
+    std::size_t a_stride = k_bytes * sizeof(scalar_t);
+    std::size_t c_stride = n * sizeof(result_t);
+
+    auto a = make_vector<scalar_t>(n * k_bytes);
+    auto c = make_vector<result_t>(n * n);
+    auto c_ref = make_vector<result_t>(n * n);
+
+    for (auto start = test_start_time(); within_time_budget(start);) {
+        fill_random(generator, a);
+
+        // Run kernel being tested
+        kernel_fn(a.raw_values_data(), n, k, a_stride, c.raw_values_data(), c_stride, 0, n);
+
+        // Compute reference using nk:: template
+        nk::hammings_symmetric<scalar_t, result_t, nk::no_simd_k>(a.values_data(), n, k, a_stride, c_ref.values_data(),
+                                                                  n * sizeof(result_t));
+
+        // Hamming distances are exact integers - use exact comparison
+        for (std::size_t i = 0; i < n * n; i++) stats.accumulate(c[i], c_ref[i]);
+    }
+    return stats;
+}
+
 void test_dots() {
     std::printf("Testing batch dot products (GEMM)...\n");
 
@@ -2349,6 +2434,61 @@ void test_dots_symmetric() {
     // Note: i4/u4 symmetric not implemented in serial baseline, only in Ice/SME
     run_if_matches("dots_symmetric_e4m3_serial", test_dots_symmetric<e4m3_t>, nk_dots_symmetric_e4m3_serial);
     run_if_matches("dots_symmetric_e5m2_serial", test_dots_symmetric<e5m2_t>, nk_dots_symmetric_e5m2_serial);
+
+#endif // NK_DYNAMIC_DISPATCH
+}
+
+void test_sets() {
+    std::printf("Testing set operations (Hamming distances, Jaccard, etc.)...\n");
+
+#if NK_DYNAMIC_DISPATCH
+    run_if_matches("hammings_u1", test_hammings<u1x8_t>, nk_hammings_packed_size_u1, nk_hammings_pack_u1,
+                   nk_hammings_packed_u1);
+#else
+
+#if NK_TARGET_NEON
+    run_if_matches("hammings_u1_neon", test_hammings<u1x8_t>, nk_hammings_packed_size_u1_neon, nk_hammings_pack_u1_neon,
+                   nk_hammings_packed_u1_neon);
+#endif
+
+#if NK_TARGET_ICE
+    run_if_matches("hammings_u1_ice", test_hammings<u1x8_t>, nk_hammings_packed_size_u1_ice, nk_hammings_pack_u1_ice,
+                   nk_hammings_packed_u1_ice);
+#endif
+
+#if NK_TARGET_HASWELL
+    run_if_matches("hammings_u1_haswell", test_hammings<u1x8_t>, nk_hammings_packed_size_u1_haswell,
+                   nk_hammings_pack_u1_haswell, nk_hammings_packed_u1_haswell);
+#endif
+
+    // Serial always runs - baseline test
+    run_if_matches("hammings_u1_serial", test_hammings<u1x8_t>, nk_hammings_packed_size_u1_serial,
+                   nk_hammings_pack_u1_serial, nk_hammings_packed_u1_serial);
+
+#endif // NK_DYNAMIC_DISPATCH
+}
+
+void test_sets_symmetric() {
+    std::printf("Testing symmetric set operations (Hamming, Jaccard, etc.)...\n");
+
+#if NK_DYNAMIC_DISPATCH
+    run_if_matches("hammings_symmetric_u1", test_hammings_symmetric<u1x8_t>, nk_hammings_symmetric_u1);
+#else
+
+#if NK_TARGET_NEON
+    run_if_matches("hammings_symmetric_u1_neon", test_hammings_symmetric<u1x8_t>, nk_hammings_symmetric_u1_neon);
+#endif
+
+#if NK_TARGET_ICE
+    run_if_matches("hammings_symmetric_u1_ice", test_hammings_symmetric<u1x8_t>, nk_hammings_symmetric_u1_ice);
+#endif
+
+#if NK_TARGET_HASWELL
+    run_if_matches("hammings_symmetric_u1_haswell", test_hammings_symmetric<u1x8_t>, nk_hammings_symmetric_u1_haswell);
+#endif
+
+    // Serial always runs - baseline test
+    run_if_matches("hammings_symmetric_u1_serial", test_hammings_symmetric<u1x8_t>, nk_hammings_symmetric_u1_serial);
 
 #endif // NK_DYNAMIC_DISPATCH
 }
@@ -2816,6 +2956,8 @@ int main(int argc, char **argv) {
     test_mesh();
     test_dots();
     test_dots_symmetric();
+    test_sets();
+    test_sets_symmetric();
     test_sparse();
 
     std::printf("\n");

@@ -4324,6 +4324,12 @@ struct u1x8_t {
     using dots_pack_kernel_t = void (*)(raw_t const *, nk_size_t, nk_size_t, nk_size_t, void *);
     using dots_packed_kernel_t = void (*)(raw_t const *, void const *, nk_u32_t *, nk_size_t, nk_size_t, nk_size_t,
                                           nk_size_t, nk_size_t);
+    using hammings_packed_size_kernel_t = nk_size_t (*)(nk_size_t, nk_size_t);
+    using hammings_pack_kernel_t = void (*)(raw_t const *, nk_size_t, nk_size_t, nk_size_t, void *);
+    using hammings_packed_kernel_t = void (*)(raw_t const *, void const *, nk_u32_t *, nk_size_t, nk_size_t, nk_size_t,
+                                              nk_size_t, nk_size_t);
+    using hammings_symmetric_kernel_t = void (*)(raw_t const *, nk_size_t, nk_size_t, nk_size_t, nk_u32_t *, nk_size_t,
+                                                 nk_size_t, nk_size_t);
 
     static constexpr nk_dtype_t dtype() noexcept { return nk_u1_k; }
     static constexpr char const *dtype_name() noexcept { return "u1x8"; }
