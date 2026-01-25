@@ -132,22 +132,40 @@ NK_INTERNAL void nk_f32_to_f16_serial(nk_f32_t const *src, nk_f16_t *dest) {
         result = (unsigned short)(sign << 15);
     }
     else if (exponent < 113) {
-        // F16 denormal range
+        // F16 denormal range (exp 103-112) with IEEE 754 round-to-nearest-even
         unsigned int shift = 113 - exponent;
-        unsigned int mant = (0x00800000 | mantissa) >> (shift + 13);
+        unsigned int shift_amount = shift + 13;
+        unsigned long long full_mant = 0x00800000ULL | mantissa;
+
+        // Extract result before rounding
+        unsigned int mant = (unsigned int)(full_mant >> shift_amount);
+
+        // IEEE 754 round-to-nearest-even: round up if round_bit is set AND
+        // (sticky_bits are nonzero OR result is odd)
+        unsigned int round_bit = (full_mant >> (shift_amount - 1)) & 1;
+        unsigned long long sticky_bits = full_mant & ((1ULL << (shift_amount - 1)) - 1);
+
+        if (round_bit && (sticky_bits || (mant & 1))) { mant++; }
+
         result = (unsigned short)((sign << 15) | mant);
     }
     else if (exponent < 143) {
-        // Normal f16 range with rounding
+        // Normal f16 range with IEEE 754 round-to-nearest-even
         unsigned int f16_exp = exponent - 112;
         unsigned int f16_mant = mantissa >> 13;
-        if (mantissa & 0x1000) { // Round to nearest
+
+        // IEEE 754 rounding: check round bit (bit 12) and sticky bits (bits 0-11)
+        unsigned int round_bit = (mantissa >> 12) & 1;
+        unsigned int sticky_bits = mantissa & 0xFFF;
+
+        if (round_bit && (sticky_bits || (f16_mant & 1))) {
             f16_mant++;
             if (f16_mant > 0x3FF) {
                 f16_mant = 0;
                 f16_exp++;
             }
         }
+
         if (f16_exp > 30) result = (unsigned short)((sign << 15) | 0x7C00);
         else result = (unsigned short)((sign << 15) | (f16_exp << 10) | f16_mant);
     }
