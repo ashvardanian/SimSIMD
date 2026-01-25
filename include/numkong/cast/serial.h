@@ -209,7 +209,9 @@ NK_INTERNAL void nk_f32_to_bf16_serial(nk_f32_t const *src, nk_bf16_t *dest) {
 #else
     nk_fui32_t conv;
     conv.f = *src;
-    conv.u += 0x8000; // Rounding is optional
+    // IEEE 754 round-to-nearest-even: add (0x7FFF + LSB)
+    unsigned int lsb = (conv.u >> 16) & 1;
+    conv.u += 0x7FFF + lsb;
     conv.u >>= 16;
     // Use an intermediate variable to ensure correct behavior on big-endian systems.
     // Copying directly from `&conv.u` would copy the wrong bytes on big-endian,

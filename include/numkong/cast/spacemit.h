@@ -55,12 +55,15 @@ NK_INTERNAL vfloat32m2_t nk_bf16m1_to_f32m2_spacemit_(vuint16m1_t bf16_u16m1, nk
 /**
  *  @brief Convert f32 (m2) to bf16 (m1) register-to-register.
  *
- *  Conversion with round-to-nearest: add 0x8000 (half of truncated bits),
- *  then right shift by 16 and truncate.
+ *  Conversion with round-to-nearest-even (RNE): add (0x7FFF + lsb) to match hardware BF16 behavior.
  */
 NK_INTERNAL vuint16m1_t nk_f32m2_to_bf16m1_spacemit_(vfloat32m2_t f32_f32m2, nk_size_t vector_length) {
     vuint32m2_t bits_u32m2 = __riscv_vreinterpret_v_f32m2_u32m2(f32_f32m2);
-    vuint32m2_t rounded_u32m2 = __riscv_vadd_vx_u32m2(bits_u32m2, 0x8000, vector_length);
+    // Extract LSB of result (bit 16) for round-to-nearest-even
+    vuint32m2_t lsb_u32m2 = __riscv_vand_vx_u32m2(__riscv_vsrl_vx_u32m2(bits_u32m2, 16, vector_length), 1,
+                                                  vector_length);
+    vuint32m2_t rounding_u32m2 = __riscv_vadd_vx_u32m2(lsb_u32m2, 0x7FFF, vector_length);
+    vuint32m2_t rounded_u32m2 = __riscv_vadd_vv_u32m2(bits_u32m2, rounding_u32m2, vector_length);
     vuint32m2_t shifted_u32m2 = __riscv_vsrl_vx_u32m2(rounded_u32m2, 16, vector_length);
     return __riscv_vncvt_x_x_w_u16m1(shifted_u32m2, vector_length);
 }

@@ -130,8 +130,11 @@ NK_INTERNAL __m512 nk_bf16x16_to_f32x16_skylake_(__m256i a) {
 
 /** @brief Convert 16x f32 → 16x bf16 (Skylake AVX-512). */
 NK_INTERNAL __m256i nk_f32x16_to_bf16x16_skylake_(__m512 a) {
-    // Add 2¹⁵ and right shift 16 to do round-nearest
-    __m512i x = _mm512_srli_epi32(_mm512_add_epi32(_mm512_castps_si512(a), _mm512_set1_epi32(1 << 15)), 16);
+    // Round-to-nearest-even: add (0x7FFF + lsb) to match hardware BF16 behavior
+    __m512i bits = _mm512_castps_si512(a);
+    __m512i lsb = _mm512_and_si512(_mm512_srli_epi32(bits, 16), _mm512_set1_epi32(1));
+    __m512i rounded = _mm512_add_epi32(bits, _mm512_add_epi32(_mm512_set1_epi32(0x7FFF), lsb));
+    __m512i x = _mm512_srli_epi32(rounded, 16);
     return _mm512_cvtepi32_epi16(x);
 }
 
