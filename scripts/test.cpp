@@ -2242,6 +2242,10 @@ void test_dots() {
                    nk_dots_packed_e4m3_skylake);
     run_if_matches("dots_e5m2_skylake", test_dots<e5m2_t>, nk_dots_packed_size_e5m2_skylake, nk_dots_pack_e5m2_skylake,
                    nk_dots_packed_e5m2_skylake);
+    run_if_matches("dots_e2m3_skylake", test_dots<e2m3_t>, nk_dots_packed_size_e2m3_skylake, nk_dots_pack_e2m3_skylake,
+                   nk_dots_packed_e2m3_skylake);
+    run_if_matches("dots_e3m2_skylake", test_dots<e3m2_t>, nk_dots_packed_size_e3m2_skylake, nk_dots_pack_e3m2_skylake,
+                   nk_dots_packed_e3m2_skylake);
 #endif // NK_TARGET_SKYLAKE
 
 #if NK_TARGET_ICE
@@ -2262,6 +2266,10 @@ void test_dots() {
                    nk_dots_packed_e4m3_genoa);
     run_if_matches("dots_e5m2_genoa", test_dots<e5m2_t>, nk_dots_packed_size_e5m2_genoa, nk_dots_pack_e5m2_genoa,
                    nk_dots_packed_e5m2_genoa);
+    run_if_matches("dots_e2m3_genoa", test_dots<e2m3_t>, nk_dots_packed_size_e2m3_genoa, nk_dots_pack_e2m3_genoa,
+                   nk_dots_packed_e2m3_genoa);
+    run_if_matches("dots_e3m2_genoa", test_dots<e3m2_t>, nk_dots_packed_size_e3m2_genoa, nk_dots_pack_e3m2_genoa,
+                   nk_dots_packed_e3m2_genoa);
 #endif // NK_TARGET_GENOA
 
 #if NK_TARGET_NEONSDOT
@@ -2314,6 +2322,10 @@ void test_dots() {
                    nk_dots_packed_e4m3_serial);
     run_if_matches("dots_e5m2_serial", test_dots<e5m2_t>, nk_dots_packed_size_e5m2_serial, nk_dots_pack_e5m2_serial,
                    nk_dots_packed_e5m2_serial);
+    run_if_matches("dots_e2m3_serial", test_dots<e2m3_t>, nk_dots_packed_size_e2m3_serial, nk_dots_pack_e2m3_serial,
+                   nk_dots_packed_e2m3_serial);
+    run_if_matches("dots_e3m2_serial", test_dots<e3m2_t>, nk_dots_packed_size_e3m2_serial, nk_dots_pack_e3m2_serial,
+                   nk_dots_packed_e3m2_serial);
     run_if_matches("dots_u4_serial", test_dots<u4x2_t>, nk_dots_packed_size_u4_serial, nk_dots_pack_u4_serial,
                    nk_dots_packed_u4_serial);
     run_if_matches("dots_i4_serial", test_dots<i4x2_t>, nk_dots_packed_size_i4_serial, nk_dots_pack_i4_serial,
@@ -2383,6 +2395,8 @@ void test_dots_symmetric() {
     run_if_matches("dots_symmetric_f16_skylake", test_dots_symmetric<f16_t>, nk_dots_symmetric_f16_skylake);
     run_if_matches("dots_symmetric_e4m3_skylake", test_dots_symmetric<e4m3_t>, nk_dots_symmetric_e4m3_skylake);
     run_if_matches("dots_symmetric_e5m2_skylake", test_dots_symmetric<e5m2_t>, nk_dots_symmetric_e5m2_skylake);
+    run_if_matches("dots_symmetric_e2m3_skylake", test_dots_symmetric<e2m3_t>, nk_dots_symmetric_e2m3_skylake);
+    run_if_matches("dots_symmetric_e3m2_skylake", test_dots_symmetric<e3m2_t>, nk_dots_symmetric_e3m2_skylake);
 #endif
 
 #if NK_TARGET_ICE
@@ -2396,6 +2410,8 @@ void test_dots_symmetric() {
     run_if_matches("dots_symmetric_bf16_genoa", test_dots_symmetric<bf16_t>, nk_dots_symmetric_bf16_genoa);
     run_if_matches("dots_symmetric_e4m3_genoa", test_dots_symmetric<e4m3_t>, nk_dots_symmetric_e4m3_genoa);
     run_if_matches("dots_symmetric_e5m2_genoa", test_dots_symmetric<e5m2_t>, nk_dots_symmetric_e5m2_genoa);
+    run_if_matches("dots_symmetric_e2m3_genoa", test_dots_symmetric<e2m3_t>, nk_dots_symmetric_e2m3_genoa);
+    run_if_matches("dots_symmetric_e3m2_genoa", test_dots_symmetric<e3m2_t>, nk_dots_symmetric_e3m2_genoa);
 #endif
 
 #if NK_TARGET_NEONSDOT
@@ -2434,6 +2450,8 @@ void test_dots_symmetric() {
     // Note: i4/u4 symmetric not implemented in serial baseline, only in Ice/SME
     run_if_matches("dots_symmetric_e4m3_serial", test_dots_symmetric<e4m3_t>, nk_dots_symmetric_e4m3_serial);
     run_if_matches("dots_symmetric_e5m2_serial", test_dots_symmetric<e5m2_t>, nk_dots_symmetric_e5m2_serial);
+    run_if_matches("dots_symmetric_e2m3_serial", test_dots_symmetric<e2m3_t>, nk_dots_symmetric_e2m3_serial);
+    run_if_matches("dots_symmetric_e3m2_serial", test_dots_symmetric<e3m2_t>, nk_dots_symmetric_e3m2_serial);
 
 #endif // NK_DYNAMIC_DISPATCH
 }

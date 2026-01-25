@@ -2114,6 +2114,14 @@ int main(int argc, char **argv) {
                        nk_dots_packed_u4_serial);
     dots_<i4_k, i32_k>("dots_packed_i4_serial", nk_dots_packed_size_i4_serial, nk_dots_pack_i4_serial,
                        nk_dots_packed_i4_serial);
+    dots_<e4m3_k, f32_k>("dots_packed_e4m3_serial", nk_dots_packed_size_e4m3_serial, nk_dots_pack_e4m3_serial,
+                         nk_dots_packed_e4m3_serial);
+    dots_<e5m2_k, f32_k>("dots_packed_e5m2_serial", nk_dots_packed_size_e5m2_serial, nk_dots_pack_e5m2_serial,
+                         nk_dots_packed_e5m2_serial);
+    dots_<e2m3_k, f32_k>("dots_packed_e2m3_serial", nk_dots_packed_size_e2m3_serial, nk_dots_pack_e2m3_serial,
+                         nk_dots_packed_e2m3_serial);
+    dots_<e3m2_k, f32_k>("dots_packed_e3m2_serial", nk_dots_packed_size_e3m2_serial, nk_dots_pack_e3m2_serial,
+                         nk_dots_packed_e3m2_serial);
 
     // Symmetric GEMM benchmarks (A × Aᵀ)
     dots_symmetric_<f32_k, f32_k>("dots_symmetric_f32_serial", nk_dots_symmetric_f32_serial);

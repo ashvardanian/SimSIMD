@@ -2569,6 +2569,10 @@ NK_INTERNAL void nk_find_kernel_punned_e2m3_(nk_capability_t v, nk_kernel_kind_t
         case nk_kernel_euclidean_k: *m = (m_t)&nk_euclidean_e2m3_genoa, *c = nk_cap_genoa_k; return;
         case nk_kernel_sqeuclidean_k: *m = (m_t)&nk_sqeuclidean_e2m3_genoa, *c = nk_cap_genoa_k; return;
         case nk_kernel_angular_k: *m = (m_t)&nk_angular_e2m3_genoa, *c = nk_cap_genoa_k; return;
+        case nk_kernel_dots_packed_size_k: *m = (m_t)&nk_dots_packed_size_e2m3_genoa, *c = nk_cap_genoa_k; return;
+        case nk_kernel_dots_pack_k: *m = (m_t)&nk_dots_pack_e2m3_genoa, *c = nk_cap_genoa_k; return;
+        case nk_kernel_dots_k: *m = (m_t)&nk_dots_packed_e2m3_genoa, *c = nk_cap_genoa_k; return;
+        case nk_kernel_dots_symmetric_k: *m = (m_t)&nk_dots_symmetric_e2m3_genoa, *c = nk_cap_genoa_k; return;
         default: break;
         }
 #endif
@@ -2587,6 +2591,10 @@ NK_INTERNAL void nk_find_kernel_punned_e2m3_(nk_capability_t v, nk_kernel_kind_t
         case nk_kernel_euclidean_k: *m = (m_t)&nk_euclidean_e2m3_skylake, *c = nk_cap_skylake_k; return;
         case nk_kernel_sqeuclidean_k: *m = (m_t)&nk_sqeuclidean_e2m3_skylake, *c = nk_cap_skylake_k; return;
         case nk_kernel_angular_k: *m = (m_t)&nk_angular_e2m3_skylake, *c = nk_cap_skylake_k; return;
+        case nk_kernel_dots_packed_size_k: *m = (m_t)&nk_dots_packed_size_e2m3_skylake, *c = nk_cap_skylake_k; return;
+        case nk_kernel_dots_pack_k: *m = (m_t)&nk_dots_pack_e2m3_skylake, *c = nk_cap_skylake_k; return;
+        case nk_kernel_dots_k: *m = (m_t)&nk_dots_packed_e2m3_skylake, *c = nk_cap_skylake_k; return;
+        case nk_kernel_dots_symmetric_k: *m = (m_t)&nk_dots_symmetric_e2m3_skylake, *c = nk_cap_skylake_k; return;
         default: break;
         }
 #endif

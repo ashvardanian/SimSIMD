@@ -163,6 +163,10 @@ NK_DYNAMIC nk_size_t nk_dots_packed_size_e4m3(nk_size_t n, nk_size_t k);
 /** @copydoc nk_dots_packed_size_bf16 */
 NK_DYNAMIC nk_size_t nk_dots_packed_size_e5m2(nk_size_t n, nk_size_t k);
 /** @copydoc nk_dots_packed_size_bf16 */
+NK_DYNAMIC nk_size_t nk_dots_packed_size_e2m3(nk_size_t n, nk_size_t k);
+/** @copydoc nk_dots_packed_size_bf16 */
+NK_DYNAMIC nk_size_t nk_dots_packed_size_e3m2(nk_size_t n, nk_size_t k);
+/** @copydoc nk_dots_packed_size_bf16 */
 NK_DYNAMIC nk_size_t nk_dots_packed_size_f32(nk_size_t n, nk_size_t k);
 /** @copydoc nk_dots_packed_size_bf16 */
 NK_DYNAMIC nk_size_t nk_dots_packed_size_f64(nk_size_t n, nk_size_t k);
@@ -190,6 +194,10 @@ NK_DYNAMIC void nk_dots_pack_f16(nk_f16_t const *b, nk_size_t n, nk_size_t k, nk
 NK_DYNAMIC void nk_dots_pack_e4m3(nk_e4m3_t const *b, nk_size_t n, nk_size_t k, nk_size_t b_stride, void *b_packed);
 /** @copydoc nk_dots_pack_bf16 */
 NK_DYNAMIC void nk_dots_pack_e5m2(nk_e5m2_t const *b, nk_size_t n, nk_size_t k, nk_size_t b_stride, void *b_packed);
+/** @copydoc nk_dots_pack_bf16 */
+NK_DYNAMIC void nk_dots_pack_e2m3(nk_e2m3_t const *b, nk_size_t n, nk_size_t k, nk_size_t b_stride, void *b_packed);
+/** @copydoc nk_dots_pack_bf16 */
+NK_DYNAMIC void nk_dots_pack_e3m2(nk_e3m2_t const *b, nk_size_t n, nk_size_t k, nk_size_t b_stride, void *b_packed);
 /** @copydoc nk_dots_pack_bf16 */
 NK_DYNAMIC void nk_dots_pack_f32(nk_f32_t const *b, nk_size_t n, nk_size_t k, nk_size_t b_stride, void *b_packed);
 /** @copydoc nk_dots_pack_bf16 */
@@ -224,6 +232,12 @@ NK_DYNAMIC void nk_dots_packed_e4m3(nk_e4m3_t const *a, void const *b_packed, nk
                                     nk_size_t k, nk_size_t a_stride, nk_size_t c_stride);
 /** @copydoc nk_dots_packed_bf16 */
 NK_DYNAMIC void nk_dots_packed_e5m2(nk_e5m2_t const *a, void const *b_packed, nk_f32_t *c, nk_size_t m, nk_size_t n,
+                                    nk_size_t k, nk_size_t a_stride, nk_size_t c_stride);
+/** @copydoc nk_dots_packed_bf16 */
+NK_DYNAMIC void nk_dots_packed_e2m3(nk_e2m3_t const *a, void const *b_packed, nk_f32_t *c, nk_size_t m, nk_size_t n,
+                                    nk_size_t k, nk_size_t a_stride, nk_size_t c_stride);
+/** @copydoc nk_dots_packed_bf16 */
+NK_DYNAMIC void nk_dots_packed_e3m2(nk_e3m2_t const *a, void const *b_packed, nk_f32_t *c, nk_size_t m, nk_size_t n,
                                     nk_size_t k, nk_size_t a_stride, nk_size_t c_stride);
 /** @copydoc nk_dots_packed_bf16 */
 NK_DYNAMIC void nk_dots_packed_f32(nk_f32_t const *a, void const *b_packed, nk_f32_t *c, nk_size_t m, nk_size_t n,
@@ -268,6 +282,14 @@ NK_DYNAMIC void nk_dots_symmetric_e4m3(nk_e4m3_t const *vectors, nk_size_t n_vec
                                        nk_size_t row_count);
 /** @copydoc nk_dots_symmetric_bf16 */
 NK_DYNAMIC void nk_dots_symmetric_e5m2(nk_e5m2_t const *vectors, nk_size_t n_vectors, nk_size_t depth, nk_size_t stride,
+                                       nk_f32_t *result, nk_size_t result_stride, nk_size_t row_start,
+                                       nk_size_t row_count);
+/** @copydoc nk_dots_symmetric_bf16 */
+NK_DYNAMIC void nk_dots_symmetric_e2m3(nk_e2m3_t const *vectors, nk_size_t n_vectors, nk_size_t depth, nk_size_t stride,
+                                       nk_f32_t *result, nk_size_t result_stride, nk_size_t row_start,
+                                       nk_size_t row_count);
+/** @copydoc nk_dots_symmetric_bf16 */
+NK_DYNAMIC void nk_dots_symmetric_e3m2(nk_e3m2_t const *vectors, nk_size_t n_vectors, nk_size_t depth, nk_size_t stride,
                                        nk_f32_t *result, nk_size_t result_stride, nk_size_t row_start,
                                        nk_size_t row_count);
 /** @copydoc nk_dots_symmetric_bf16 */
@@ -444,6 +466,22 @@ NK_PUBLIC void nk_dots_symmetric_e2m3_serial(nk_e2m3_t const *vectors, nk_size_t
 NK_PUBLIC void nk_dots_symmetric_e3m2_serial(nk_e3m2_t const *vectors, nk_size_t n_vectors, nk_size_t depth,
                                              nk_size_t stride, nk_f32_t *result, nk_size_t result_stride,
                                              nk_size_t row_start, nk_size_t row_count);
+/** @copydoc nk_dots_packed_size_e2m3 */
+NK_PUBLIC nk_size_t nk_dots_packed_size_e2m3_serial(nk_size_t n, nk_size_t k);
+/** @copydoc nk_dots_pack_e2m3 */
+NK_PUBLIC void nk_dots_pack_e2m3_serial(nk_e2m3_t const *b, nk_size_t n, nk_size_t k, nk_size_t b_stride,
+                                        void *b_packed);
+/** @copydoc nk_dots_packed_e2m3 */
+NK_PUBLIC void nk_dots_packed_e2m3_serial(nk_e2m3_t const *a, void const *b_packed, nk_f32_t *c, nk_size_t m,
+                                          nk_size_t n, nk_size_t k, nk_size_t a_stride, nk_size_t c_stride);
+/** @copydoc nk_dots_packed_size_e3m2 */
+NK_PUBLIC nk_size_t nk_dots_packed_size_e3m2_serial(nk_size_t n, nk_size_t k);
+/** @copydoc nk_dots_pack_e3m2 */
+NK_PUBLIC void nk_dots_pack_e3m2_serial(nk_e3m2_t const *b, nk_size_t n, nk_size_t k, nk_size_t b_stride,
+                                        void *b_packed);
+/** @copydoc nk_dots_packed_e3m2 */
+NK_PUBLIC void nk_dots_packed_e3m2_serial(nk_e3m2_t const *a, void const *b_packed, nk_f32_t *c, nk_size_t m,
+                                          nk_size_t n, nk_size_t k, nk_size_t a_stride, nk_size_t c_stride);
 
 /*  Genoa backends using AVX-512 with BF16 extensions.
  *  These use VDPBF16PS for BF16 dot products.
@@ -464,6 +502,40 @@ NK_PUBLIC void nk_dots_compact_bf16_genoa(void *c, nk_size_t m, nk_size_t n, nk_
 NK_PUBLIC void nk_dots_symmetric_bf16_genoa(nk_bf16_t const *vectors, nk_size_t n_vectors, nk_size_t depth,
                                             nk_size_t stride, nk_f32_t *result, nk_size_t result_stride,
                                             nk_size_t row_start, nk_size_t row_count);
+
+/** @copydoc nk_dots_packed_size_e4m3 */
+NK_PUBLIC nk_size_t nk_dots_packed_size_e4m3_genoa(nk_size_t n, nk_size_t k);
+/** @copydoc nk_dots_pack_e4m3 */
+NK_PUBLIC void nk_dots_pack_e4m3_genoa(nk_e4m3_t const *b, nk_size_t n, nk_size_t k, nk_size_t b_stride,
+                                       void *b_packed);
+/** @copydoc nk_dots_packed_e4m3 */
+NK_PUBLIC void nk_dots_packed_e4m3_genoa(nk_e4m3_t const *a, void const *b_packed, nk_f32_t *c, nk_size_t m,
+                                         nk_size_t n, nk_size_t k, nk_size_t a_stride, nk_size_t c_stride);
+/** @copydoc nk_dots_packed_size_e5m2 */
+NK_PUBLIC nk_size_t nk_dots_packed_size_e5m2_genoa(nk_size_t n, nk_size_t k);
+/** @copydoc nk_dots_pack_e5m2 */
+NK_PUBLIC void nk_dots_pack_e5m2_genoa(nk_e5m2_t const *b, nk_size_t n, nk_size_t k, nk_size_t b_stride,
+                                       void *b_packed);
+/** @copydoc nk_dots_packed_e5m2 */
+NK_PUBLIC void nk_dots_packed_e5m2_genoa(nk_e5m2_t const *a, void const *b_packed, nk_f32_t *c, nk_size_t m,
+                                         nk_size_t n, nk_size_t k, nk_size_t a_stride, nk_size_t c_stride);
+/** @copydoc nk_dots_packed_size_e2m3 */
+NK_PUBLIC nk_size_t nk_dots_packed_size_e2m3_genoa(nk_size_t n, nk_size_t k);
+/** @copydoc nk_dots_pack_e2m3 */
+NK_PUBLIC void nk_dots_pack_e2m3_genoa(nk_e2m3_t const *b, nk_size_t n, nk_size_t k, nk_size_t b_stride,
+                                       void *b_packed);
+/** @copydoc nk_dots_packed_e2m3 */
+NK_PUBLIC void nk_dots_packed_e2m3_genoa(nk_e2m3_t const *a, void const *b_packed, nk_f32_t *c, nk_size_t m,
+                                         nk_size_t n, nk_size_t k, nk_size_t a_stride, nk_size_t c_stride);
+/** @copydoc nk_dots_packed_size_e3m2 */
+NK_PUBLIC nk_size_t nk_dots_packed_size_e3m2_genoa(nk_size_t n, nk_size_t k);
+/** @copydoc nk_dots_pack_e3m2 */
+NK_PUBLIC void nk_dots_pack_e3m2_genoa(nk_e3m2_t const *b, nk_size_t n, nk_size_t k, nk_size_t b_stride,
+                                       void *b_packed);
+/** @copydoc nk_dots_packed_e3m2 */
+NK_PUBLIC void nk_dots_packed_e3m2_genoa(nk_e3m2_t const *a, void const *b_packed, nk_f32_t *c, nk_size_t m,
+                                         nk_size_t n, nk_size_t k, nk_size_t a_stride, nk_size_t c_stride);
+
 /** @copydoc nk_dots_symmetric_e4m3 */
 NK_PUBLIC void nk_dots_symmetric_e4m3_genoa(nk_e4m3_t const *vectors, nk_size_t n_vectors, nk_size_t depth,
                                             nk_size_t stride, nk_f32_t *result, nk_size_t result_stride,
@@ -518,6 +590,24 @@ NK_PUBLIC void nk_dots_compact_i8_sapphire_amx(void *c, nk_size_t m, nk_size_t n
 NK_PUBLIC void nk_dots_symmetric_i8_sapphire_amx(nk_i8_t const *vectors, nk_size_t n_vectors, nk_size_t depth,
                                                  nk_size_t stride, nk_i32_t *result, nk_size_t result_stride,
                                                  nk_size_t row_start, nk_size_t row_count);
+
+/** @copydoc nk_dots_packed_size_e4m3 */
+NK_PUBLIC nk_size_t nk_dots_packed_size_e4m3_sapphire_amx(nk_size_t n, nk_size_t k);
+/** @copydoc nk_dots_pack_e4m3 */
+NK_PUBLIC void nk_dots_pack_e4m3_sapphire_amx(nk_e4m3_t const *b, nk_size_t n, nk_size_t k, nk_size_t b_stride,
+                                              void *b_packed);
+/** @copydoc nk_dots_packed_e4m3 */
+NK_PUBLIC void nk_dots_packed_e4m3_sapphire_amx(nk_e4m3_t const *a, void const *b_packed, nk_f32_t *c, nk_size_t m,
+                                                nk_size_t n, nk_size_t k, nk_size_t a_stride, nk_size_t c_stride);
+
+/** @copydoc nk_dots_packed_size_e5m2 */
+NK_PUBLIC nk_size_t nk_dots_packed_size_e5m2_sapphire_amx(nk_size_t n, nk_size_t k);
+/** @copydoc nk_dots_pack_e5m2 */
+NK_PUBLIC void nk_dots_pack_e5m2_sapphire_amx(nk_e5m2_t const *b, nk_size_t n, nk_size_t k, nk_size_t b_stride,
+                                              void *b_packed);
+/** @copydoc nk_dots_packed_e5m2 */
+NK_PUBLIC void nk_dots_packed_e5m2_sapphire_amx(nk_e5m2_t const *a, void const *b_packed, nk_f32_t *c, nk_size_t m,
+                                                nk_size_t n, nk_size_t k, nk_size_t a_stride, nk_size_t c_stride);
 #endif // NK_TARGET_SAPPHIRE_AMX
 
 /*  ARM SME backends using Scalable Matrix Extension.
@@ -581,6 +671,18 @@ NK_PUBLIC void nk_dots_packed_e4m3_sme(nk_e4m3_t const *a, void const *b_packed,
                                        nk_size_t k, nk_size_t a_stride, nk_size_t c_stride);
 /** @copydoc nk_dots_symmetric_e4m3 */
 NK_PUBLIC void nk_dots_symmetric_e4m3_sme(nk_e4m3_t const *vectors, nk_size_t n_vectors, nk_size_t depth,
+                                          nk_size_t stride, nk_f32_t *result, nk_size_t result_stride,
+                                          nk_size_t row_start, nk_size_t row_count);
+
+/** @copydoc nk_dots_packed_size_e5m2 */
+NK_PUBLIC nk_size_t nk_dots_packed_size_e5m2_sme(nk_size_t n, nk_size_t k);
+/** @copydoc nk_dots_pack_e5m2 */
+NK_PUBLIC void nk_dots_pack_e5m2_sme(nk_e5m2_t const *b, nk_size_t n, nk_size_t k, nk_size_t b_stride, void *b_packed);
+/** @copydoc nk_dots_packed_e5m2 */
+NK_PUBLIC void nk_dots_packed_e5m2_sme(nk_e5m2_t const *a, void const *b_packed, nk_f32_t *c, nk_size_t m, nk_size_t n,
+                                       nk_size_t k, nk_size_t a_stride, nk_size_t c_stride);
+/** @copydoc nk_dots_symmetric_e5m2 */
+NK_PUBLIC void nk_dots_symmetric_e5m2_sme(nk_e5m2_t const *vectors, nk_size_t n_vectors, nk_size_t depth,
                                           nk_size_t stride, nk_f32_t *result, nk_size_t result_stride,
                                           nk_size_t row_start, nk_size_t row_count);
 #endif // NK_TARGET_SME
