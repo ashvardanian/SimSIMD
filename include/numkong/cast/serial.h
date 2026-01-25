@@ -127,9 +127,12 @@ NK_INTERNAL void nk_f32_to_f16_serial(nk_f32_t const *src, nk_f16_t *dest) {
         if (mantissa != 0 && payload == 0) payload = 1; // Preserve NaN-ness
         result = (unsigned short)((sign << 15) | 0x7C00 | payload);
     }
-    else if (exponent < 103) {
-        // Too small for f16 denormal → zero
-        result = (unsigned short)(sign << 15);
+    else if (exponent <= 102) {
+        // Below or at f16 denormal threshold
+        // exp=102 with mant=0 is exactly 2^-25 (tie point, rounds to 0 per round-to-even)
+        // exp=102 with mant>0 is above tie point (rounds to smallest denormal 0x0001)
+        if (exponent == 102 && mantissa > 0) result = (unsigned short)((sign << 15) | 0x0001);
+        else result = (unsigned short)(sign << 15);
     }
     else if (exponent < 113) {
         // F16 denormal range (exp 103-112) with IEEE 754 round-to-nearest-even
@@ -145,7 +148,7 @@ NK_INTERNAL void nk_f32_to_f16_serial(nk_f32_t const *src, nk_f16_t *dest) {
         unsigned int round_bit = (full_mant >> (shift_amount - 1)) & 1;
         unsigned long long sticky_bits = full_mant & ((1ULL << (shift_amount - 1)) - 1);
 
-        if (round_bit && (sticky_bits || (mant & 1))) { mant++; }
+        if (round_bit && (sticky_bits || (mant & 1))) mant++;
 
         result = (unsigned short)((sign << 15) | mant);
     }
@@ -160,10 +163,7 @@ NK_INTERNAL void nk_f32_to_f16_serial(nk_f32_t const *src, nk_f16_t *dest) {
 
         if (round_bit && (sticky_bits || (f16_mant & 1))) {
             f16_mant++;
-            if (f16_mant > 0x3FF) {
-                f16_mant = 0;
-                f16_exp++;
-            }
+            if (f16_mant > 0x3FF) f16_mant = 0, f16_exp++;
         }
 
         if (f16_exp > 30) result = (unsigned short)((sign << 15) | 0x7C00);

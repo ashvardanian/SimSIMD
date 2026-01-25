@@ -159,6 +159,8 @@ NK_PUBLIC void nk_hammings_symmetric_u32(nk_u32_t const *vectors, nk_size_t n_ve
 #include "numkong/sets/ice.h"
 #include "numkong/sets/haswell.h"
 
+#if !NK_DYNAMIC_DISPATCH
+
 NK_PUBLIC nk_size_t nk_hammings_packed_size_u1(nk_size_t n, nk_size_t d) {
 #if NK_TARGET_SMEBI32
     return nk_hammings_packed_size_u1_smebi32(n, d);
@@ -279,6 +281,8 @@ NK_PUBLIC void nk_jaccards_symmetric_u1(nk_u1x8_t const *vectors, nk_size_t n_ve
     nk_jaccards_symmetric_u1_serial(vectors, n_vectors, d, stride, result, result_stride, row_start, n);
 #endif
 }
+
+#endif // !NK_DYNAMIC_DISPATCH
 
 #if defined(__cplusplus)
 } // extern "C"

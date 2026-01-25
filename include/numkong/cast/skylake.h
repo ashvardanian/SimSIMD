@@ -93,6 +93,13 @@ NK_INTERNAL void nk_partial_load_b8x16_skylake_(void const *src, nk_b128_vec_t *
     dst->xmm = _mm_maskz_loadu_epi8(mask, src);
 }
 
+/** @brief Partial load for 1-bit elements (512 max bits = 64 bytes) into 512-bit vector (Skylake AVX-512).
+ *  Wrapper that converts bit count to byte count and delegates to byte-level masked load. */
+NK_INTERNAL void nk_partial_load_b1x512_skylake_(void const *src, nk_b512_vec_t *dst, nk_size_t n_bits) {
+    nk_size_t n_bytes = nk_size_divide_round_up_(n_bits, 8);
+    nk_partial_load_b8x64_skylake_(src, dst, n_bytes);
+}
+
 /** @brief Type-agnostic partial store for 32-bit elements (16 elements max) from 512-bit vector (Skylake AVX-512). */
 NK_INTERNAL void nk_partial_store_b32x16_skylake_(nk_b512_vec_t const *src, void *dst, nk_size_t n) {
     __mmask16 mask = (__mmask16)_bzhi_u32(0xFFFF, (unsigned int)n);
