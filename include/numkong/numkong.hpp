@@ -2146,122 +2146,112 @@ void atan(in_type_ const *in, std::size_t n, in_type_ *out) noexcept {
 
 /**
  *  @brief Estimates the memory requirements for packed B matrix.
- *  @param[in] column_count Number of columns in B (n)
- *  @param[in] depth Number of dimensions per column (k)
- *  @return Size in bytes for column-major B data plus stride metadata
+ *  @param[in] row_count Number of rows in B (n)
+ *  @param[in] depth Number of dimensions per row (k)
+ *  @return Size in bytes for row-major B data plus stride metadata
  *
  *  @tparam in_type_ Input element type
  *  @tparam allow_simd_ Enable SIMD kernel dispatch when `prefer_simd_k`
  */
 template <typename in_type_, allow_simd_t allow_simd_ = prefer_simd_k>
-NK_PUBLIC size_t dots_packed_size(size_t column_count, size_t depth) {
+NK_PUBLIC size_t dots_packed_size(size_t row_count, size_t depth) {
     constexpr bool simd = allow_simd_ == prefer_simd_k;
 
-    if constexpr (std::is_same_v<in_type_, f64_t> && simd) return nk_dots_packed_size_f64(column_count, depth);
-    else if constexpr (std::is_same_v<in_type_, f32_t> && simd) return nk_dots_packed_size_f32(column_count, depth);
-    else if constexpr (std::is_same_v<in_type_, f16_t> && simd) return nk_dots_packed_size_f16(column_count, depth);
-    else if constexpr (std::is_same_v<in_type_, bf16_t> && simd) return nk_dots_packed_size_bf16(column_count, depth);
-    else if constexpr (std::is_same_v<in_type_, i8_t> && simd) return nk_dots_packed_size_i8(column_count, depth);
-    else if constexpr (std::is_same_v<in_type_, u8_t> && simd) return nk_dots_packed_size_u8(column_count, depth);
-    else if constexpr (std::is_same_v<in_type_, e4m3_t> && simd) return nk_dots_packed_size_e4m3(column_count, depth);
-    else if constexpr (std::is_same_v<in_type_, e5m2_t> && simd) return nk_dots_packed_size_e5m2(column_count, depth);
-    else if constexpr (std::is_same_v<in_type_, u4x2_t> && simd) return nk_dots_packed_size_u4(column_count, depth);
-    else if constexpr (std::is_same_v<in_type_, i4x2_t> && simd) return nk_dots_packed_size_i4(column_count, depth);
+    if constexpr (std::is_same_v<in_type_, f64_t> && simd) return nk_dots_packed_size_f64(row_count, depth);
+    else if constexpr (std::is_same_v<in_type_, f32_t> && simd) return nk_dots_packed_size_f32(row_count, depth);
+    else if constexpr (std::is_same_v<in_type_, f16_t> && simd) return nk_dots_packed_size_f16(row_count, depth);
+    else if constexpr (std::is_same_v<in_type_, bf16_t> && simd) return nk_dots_packed_size_bf16(row_count, depth);
+    else if constexpr (std::is_same_v<in_type_, i8_t> && simd) return nk_dots_packed_size_i8(row_count, depth);
+    else if constexpr (std::is_same_v<in_type_, u8_t> && simd) return nk_dots_packed_size_u8(row_count, depth);
+    else if constexpr (std::is_same_v<in_type_, e4m3_t> && simd) return nk_dots_packed_size_e4m3(row_count, depth);
+    else if constexpr (std::is_same_v<in_type_, e5m2_t> && simd) return nk_dots_packed_size_e5m2(row_count, depth);
+    else if constexpr (std::is_same_v<in_type_, u4x2_t> && simd) return nk_dots_packed_size_u4(row_count, depth);
+    else if constexpr (std::is_same_v<in_type_, i4x2_t> && simd) return nk_dots_packed_size_i4(row_count, depth);
     else {
-        // Calculate padded depth with power-of-2 breaking (matching C implementation)
-        constexpr std::size_t depth_simd_dimensions = 8; // Conservative SIMD width for generic path
-        std::size_t depth_dimensions_padded = ((depth + depth_simd_dimensions - 1) / depth_simd_dimensions) *
-                                              depth_simd_dimensions;
-        std::size_t depth_values_padded = divide_round_up(depth_dimensions_padded, dimensions_per_value<in_type_>());
-
-        // Power-of-2 breaking to avoid cache conflicts
-        std::size_t stride_bytes = depth_values_padded * sizeof(typename in_type_::raw_t);
-        if ((stride_bytes & (stride_bytes - 1)) == 0 && stride_bytes > 0) {
-            depth_values_padded += divide_round_up(depth_simd_dimensions, dimensions_per_value<in_type_>());
-        }
-
-        // Header (64 bytes) + data
-        return 64 + column_count * depth_values_padded * sizeof(typename in_type_::raw_t);
+        // We need enough space for the pointer to the original B matrix and its stride
+        return sizeof(void *) + sizeof(size_t);
     }
 }
 
 /**
- *  @brief Packs matrix B into column-major form for efficient dots_packed access.
- *  @param[in] b Input matrix B in row-major form [column_count × depth]
- *  @param[in] column_count Number of columns in B (n)
- *  @param[in] depth Number of dimensions per column (k)
+ *  @brief Packs matrix B into row-major form for efficient dots_packed access.
+ *  @param[in] b Input matrix B in row-major form [row_count × depth]
+ *  @param[in] row_count Number of rows in B (n)
+ *  @param[in] depth Number of dimensions per row (k)
  *  @param[in] b_stride_in_bytes Stride between rows of B in bytes
- *  @param[out] b_packed Output buffer for packed column-major B with metadata
+ *  @param[out] b_packed Output buffer for packed row-major B with metadata
  *
  *  @tparam in_type_ Input element type
  *  @tparam allow_simd_ Enable SIMD kernel dispatch when `prefer_simd_k`
  */
 template <typename in_type_, allow_simd_t allow_simd_ = prefer_simd_k>
-NK_PUBLIC void dots_pack(in_type_ const *b, size_t column_count, size_t depth, size_t b_stride_in_bytes,
-                         void *b_packed) {
+NK_PUBLIC void dots_pack(in_type_ const *b, size_t row_count, size_t depth, size_t b_stride_in_bytes, void *b_packed) {
     using raw_t = typename in_type_::raw_t;
     constexpr bool simd = allow_simd_ == prefer_simd_k;
 
     if constexpr (std::is_same_v<in_type_, f64_t> && simd)
-        nk_dots_pack_f64(reinterpret_cast<raw_t const *>(b), column_count, depth, b_stride_in_bytes, b_packed);
+        nk_dots_pack_f64(reinterpret_cast<raw_t const *>(b), row_count, depth, b_stride_in_bytes, b_packed);
     else if constexpr (std::is_same_v<in_type_, f32_t> && simd)
-        nk_dots_pack_f32(reinterpret_cast<raw_t const *>(b), column_count, depth, b_stride_in_bytes, b_packed);
+        nk_dots_pack_f32(reinterpret_cast<raw_t const *>(b), row_count, depth, b_stride_in_bytes, b_packed);
     else if constexpr (std::is_same_v<in_type_, f16_t> && simd)
-        nk_dots_pack_f16(reinterpret_cast<raw_t const *>(b), column_count, depth, b_stride_in_bytes, b_packed);
+        nk_dots_pack_f16(reinterpret_cast<raw_t const *>(b), row_count, depth, b_stride_in_bytes, b_packed);
     else if constexpr (std::is_same_v<in_type_, bf16_t> && simd)
-        nk_dots_pack_bf16(reinterpret_cast<raw_t const *>(b), column_count, depth, b_stride_in_bytes, b_packed);
+        nk_dots_pack_bf16(reinterpret_cast<raw_t const *>(b), row_count, depth, b_stride_in_bytes, b_packed);
     else if constexpr (std::is_same_v<in_type_, i8_t> && simd)
-        nk_dots_pack_i8(reinterpret_cast<raw_t const *>(b), column_count, depth, b_stride_in_bytes, b_packed);
+        nk_dots_pack_i8(reinterpret_cast<raw_t const *>(b), row_count, depth, b_stride_in_bytes, b_packed);
     else if constexpr (std::is_same_v<in_type_, u8_t> && simd)
-        nk_dots_pack_u8(reinterpret_cast<raw_t const *>(b), column_count, depth, b_stride_in_bytes, b_packed);
+        nk_dots_pack_u8(reinterpret_cast<raw_t const *>(b), row_count, depth, b_stride_in_bytes, b_packed);
     else if constexpr (std::is_same_v<in_type_, e4m3_t> && simd)
-        nk_dots_pack_e4m3(reinterpret_cast<raw_t const *>(b), column_count, depth, b_stride_in_bytes, b_packed);
+        nk_dots_pack_e4m3(reinterpret_cast<raw_t const *>(b), row_count, depth, b_stride_in_bytes, b_packed);
     else if constexpr (std::is_same_v<in_type_, e5m2_t> && simd)
-        nk_dots_pack_e5m2(reinterpret_cast<raw_t const *>(b), column_count, depth, b_stride_in_bytes, b_packed);
+        nk_dots_pack_e5m2(reinterpret_cast<raw_t const *>(b), row_count, depth, b_stride_in_bytes, b_packed);
     else if constexpr (std::is_same_v<in_type_, u4x2_t> && simd)
-        nk_dots_pack_u4(reinterpret_cast<raw_t const *>(b), column_count, depth, b_stride_in_bytes, b_packed);
+        nk_dots_pack_u4(reinterpret_cast<raw_t const *>(b), row_count, depth, b_stride_in_bytes, b_packed);
     else if constexpr (std::is_same_v<in_type_, i4x2_t> && simd)
-        nk_dots_pack_i4(reinterpret_cast<raw_t const *>(b), column_count, depth, b_stride_in_bytes, b_packed);
+        nk_dots_pack_i4(reinterpret_cast<raw_t const *>(b), row_count, depth, b_stride_in_bytes, b_packed);
     else {
-        // Calculate padded depth with power-of-2 breaking (matching C implementation)
-        constexpr std::size_t depth_simd_dimensions = 8; // Conservative SIMD width for generic path
-        std::size_t depth_dimensions_padded = ((depth + depth_simd_dimensions - 1) / depth_simd_dimensions) *
-                                              depth_simd_dimensions;
-        std::size_t depth_values_padded = divide_round_up(depth_dimensions_padded, dimensions_per_value<in_type_>());
+        // Persist the pointer to the original B matrix and its stride
+        char *b_packed_bytes = reinterpret_cast<char *>(b_packed);
+        std::memcpy(b_packed_bytes, &b, sizeof(void *));
+        std::memcpy(b_packed_bytes + sizeof(void *), &b_stride_in_bytes, sizeof(size_t));
+    }
+}
 
-        // Power-of-2 breaking to avoid cache conflicts
-        std::size_t stride_bytes = depth_values_padded * sizeof(raw_t);
-        if ((stride_bytes & (stride_bytes - 1)) == 0 && stride_bytes > 0) {
-            depth_values_padded += divide_round_up(depth_simd_dimensions, dimensions_per_value<in_type_>());
-        }
+/**
+ *  @brief Reference unpacked GEMM: C = A × Bᵀ (row-major A and B, B transposed).
+ *
+ *  This matches BLAS sgemm/dgemm with CblasNoTrans for A and CblasTrans for B.
+ *  Useful as a reference implementation for validating BLAS/MKL/Accelerate.
+ *
+ *  @param a Matrix A [m x k] row-major
+ *  @param b Matrix B [n x k] row-major (accessed as Bᵀ)
+ *  @param c Output matrix C [m x n] row-major
+ *  @param row_count Rows of A and C (m)
+ *  @param column_count Rows of B and columns of C (n)
+ *  @param depth Columns of A and B (k)
+ *  @param a_stride_in_bytes Stride between rows of A in bytes
+ *  @param b_stride_in_bytes Stride between rows of B in bytes
+ *  @param c_stride_in_bytes Stride between rows of C in bytes
+ *  @tparam in_type_ Input element type (e.g., f32_t, bf16_t)
+ *  @tparam result_type_ Accumulator/output type (e.g., f32_t, f118_t for high precision)
+ */
+template <typename in_type_, typename result_type_ = typename in_type_::dot_result_t>
+void dots_unpacked(in_type_ const *a, in_type_ const *b, result_type_ *c, size_t row_count, size_t column_count,
+                   size_t depth, size_t a_stride_in_bytes, size_t b_stride_in_bytes,
+                   size_t c_stride_in_bytes) noexcept {
+    char const *a_bytes = reinterpret_cast<char const *>(a);
+    char const *b_bytes = reinterpret_cast<char const *>(b);
+    char *c_bytes = reinterpret_cast<char *>(c);
+    std::size_t const depth_values = divide_round_up(depth, dimensions_per_value<in_type_>());
 
-        std::size_t depth_in_values = divide_round_up(depth, dimensions_per_value<in_type_>());
-
-        // Write header (matching C struct format)
-        struct header_t {
-            std::uint32_t column_count;
-            std::uint32_t depth;
-            std::uint32_t depth_padded;
-            std::uint32_t reserved[13]; // Pad to 64 bytes
-        };
-        header_t *header = static_cast<header_t *>(b_packed);
-        header->column_count = static_cast<std::uint32_t>(column_count);
-        header->depth = static_cast<std::uint32_t>(depth);
-        header->depth_padded = static_cast<std::uint32_t>(depth_values_padded);
-
-        // Data starts after header
-        in_type_ *packed = reinterpret_cast<in_type_ *>(static_cast<char *>(b_packed) + sizeof(header_t));
-
-        // Zero entire buffer for padding
-        std::size_t total_elements = column_count * depth_values_padded;
-        for (std::size_t i = 0; i < total_elements; ++i) packed[i] = in_type_(0);
-
-        // Copy B[column_count, depth] to packed[column_count, depth_padded]
-        char const *b_bytes = reinterpret_cast<char const *>(b);
+    for (size_t i = 0; i < row_count; i++) {
+        in_type_ const *a_row = reinterpret_cast<in_type_ const *>(a_bytes + i * a_stride_in_bytes);
+        result_type_ *c_row = reinterpret_cast<result_type_ *>(c_bytes + i * c_stride_in_bytes);
         for (size_t j = 0; j < column_count; j++) {
             in_type_ const *b_row = reinterpret_cast<in_type_ const *>(b_bytes + j * b_stride_in_bytes);
-            in_type_ *dest_row = packed + j * depth_values_padded;
-            for (size_t l = 0; l < depth_in_values; l++) dest_row[l] = b_row[l];
+            result_type_ sum {};
+            for (size_t l = 0; l < depth_values; l++) sum = fused_multiply_add(sum, a_row[l], b_row[l]);
+            c_row[j] = sum;
         }
     }
 }
@@ -2283,9 +2273,8 @@ NK_PUBLIC void dots_pack(in_type_ const *b, size_t column_count, size_t depth, s
  */
 template <typename in_type_, typename result_type_ = typename in_type_::dot_result_t,
           allow_simd_t allow_simd_ = prefer_simd_k>
-void dots_packed(in_type_ const *a, void const *b_packed, result_type_ *c, std::size_t row_count,
-                 std::size_t column_count, std::size_t depth, std::size_t a_stride_in_bytes,
-                 std::size_t c_stride_in_bytes) noexcept {
+void dots_packed(in_type_ const *a, void const *b_packed, result_type_ *c, size_t row_count, size_t column_count,
+                 size_t depth, size_t a_stride_in_bytes, size_t c_stride_in_bytes) noexcept {
     using raw_t = typename in_type_::raw_t;
     constexpr bool dispatch = allow_simd_ == prefer_simd_k &&
                               std::is_same_v<result_type_, typename in_type_::dot_result_t>;
@@ -2313,78 +2302,13 @@ void dots_packed(in_type_ const *a, void const *b_packed, result_type_ *c, std::
     else if constexpr (std::is_same_v<in_type_, i4x2_t> && dispatch)
         nk_dots_packed_i4(&a->raw_, b_packed, c, row_count, column_count, depth, a_stride_in_bytes, c_stride_in_bytes);
     else {
-        // Read header (matching C struct format)
-        struct header_t {
-            std::uint32_t column_count;
-            std::uint32_t depth;
-            std::uint32_t depth_padded;
-            std::uint32_t reserved[13]; // Pad to 64 bytes
-        };
-        header_t const *header = static_cast<header_t const *>(b_packed);
-        std::size_t depth_padded = header->depth_padded;
-        std::size_t depth_in_values = divide_round_up(depth, dimensions_per_value<in_type_>());
-
-        // Data starts after header
-        in_type_ const *packed = reinterpret_cast<in_type_ const *>(static_cast<char const *>(b_packed) +
-                                                                    sizeof(header_t));
-
-        // Use byte pointers for strided access to A and C
-        char const *a_bytes = reinterpret_cast<char const *>(a);
-        char *c_bytes = reinterpret_cast<char *>(c);
-
-        for (std::size_t i = 0; i < row_count; i++) {
-            in_type_ const *a_row = reinterpret_cast<in_type_ const *>(a_bytes + i * a_stride_in_bytes);
-            result_type_ *c_row = reinterpret_cast<result_type_ *>(c_bytes + i * c_stride_in_bytes);
-            for (std::size_t j = 0; j < column_count; j++) {
-                in_type_ const *b_col = packed + j * depth_padded;
-                result_type_ sum {};
-                // Only process actual depth, not padding
-                for (std::size_t l = 0; l < depth_in_values; l++) sum = fused_multiply_add(sum, a_row[l], b_col[l]);
-                c_row[j] = sum;
-            }
-        }
-    }
-}
-
-/**
- *  @brief Reference unpacked GEMM: C = A × Bᵀ (row-major A and B, B transposed).
- *
- *  This matches BLAS sgemm/dgemm with CblasNoTrans for A and CblasTrans for B.
- *  Useful as a reference implementation for validating BLAS/MKL/Accelerate.
- *
- *  @param a Matrix A [m x k] row-major
- *  @param b Matrix B [n x k] row-major (accessed as Bᵀ)
- *  @param c Output matrix C [m x n] row-major
- *  @param row_count Rows of A and C (m)
- *  @param column_count Rows of B and columns of C (n)
- *  @param depth Columns of A and B (k)
- *  @param a_stride_in_bytes Stride between rows of A in bytes
- *  @param b_stride_in_bytes Stride between rows of B in bytes
- *  @param c_stride_in_bytes Stride between rows of C in bytes
- *  @tparam in_type_ Input element type (e.g., f32_t, bf16_t)
- *  @tparam result_type_ Accumulator/output type (e.g., f32_t, f118_t for high precision)
- */
-template <typename in_type_, typename result_type_ = typename in_type_::dot_result_t>
-void dots_unpacked(in_type_ const *a, in_type_ const *b, result_type_ *c, std::size_t row_count,
-                   std::size_t column_count, std::size_t depth, std::size_t a_stride_in_bytes,
-                   std::size_t b_stride_in_bytes, std::size_t c_stride_in_bytes) noexcept {
-    char const *a_bytes = reinterpret_cast<char const *>(a);
-    char const *b_bytes = reinterpret_cast<char const *>(b);
-    char *c_bytes = reinterpret_cast<char *>(c);
-
-    // For sub-byte types, depth is dimensions but we iterate over values
-    constexpr unsigned dpv = dimensions_per_value<in_type_>();
-    std::size_t depth_values = (depth + dpv - 1) / dpv;
-
-    for (std::size_t i = 0; i < row_count; i++) {
-        in_type_ const *a_row = reinterpret_cast<in_type_ const *>(a_bytes + i * a_stride_in_bytes);
-        result_type_ *c_row = reinterpret_cast<result_type_ *>(c_bytes + i * c_stride_in_bytes);
-        for (std::size_t j = 0; j < column_count; j++) {
-            in_type_ const *b_row = reinterpret_cast<in_type_ const *>(b_bytes + j * b_stride_in_bytes);
-            result_type_ sum {};
-            for (std::size_t l = 0; l < depth_values; l++) sum = fused_multiply_add(sum, a_row[l], b_row[l]);
-            c_row[j] = sum;
-        }
+        in_type_ const *b;
+        size_t b_stride_in_bytes;
+        char const *b_packed_bytes = reinterpret_cast<char const *>(b_packed);
+        std::memcpy(&b, b_packed_bytes, sizeof(void *));
+        std::memcpy(&b_stride_in_bytes, b_packed_bytes + sizeof(void *), sizeof(size_t));
+        dots_unpacked<in_type_, result_type_>(a, b, c, row_count, column_count, depth, a_stride_in_bytes,
+                                              b_stride_in_bytes, c_stride_in_bytes);
     }
 }
 
@@ -2438,7 +2362,6 @@ void dots_symmetric(in_type_ const *a, std::size_t n_vectors, std::size_t depth,
     else if constexpr (std::is_same_v<in_type_, i4x2_t> && dispatch)
         nk_dots_symmetric_i4(&a->raw_, n_vectors, depth, a_stride_in_bytes, c, c_stride_in_bytes, row_start, row_count);
     else {
-        // Scalar fallback: C[i,j] = dot(A[i], A[j])
         std::size_t depth_values = divide_round_up(depth, dimensions_per_value<in_type_>());
         char const *a_bytes = reinterpret_cast<char const *>(a);
         char *c_bytes = reinterpret_cast<char *>(c);
@@ -2447,7 +2370,6 @@ void dots_symmetric(in_type_ const *a, std::size_t n_vectors, std::size_t depth,
         for (std::size_t i = row_start; i < row_end; i++) {
             in_type_ const *a_i = reinterpret_cast<in_type_ const *>(a_bytes + i * a_stride_in_bytes);
             result_type_ *c_row = reinterpret_cast<result_type_ *>(c_bytes + i * c_stride_in_bytes);
-
             for (std::size_t j = 0; j < n_vectors; j++) {
                 in_type_ const *a_j = reinterpret_cast<in_type_ const *>(a_bytes + j * a_stride_in_bytes);
                 result_type_ sum {};
