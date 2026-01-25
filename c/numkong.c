@@ -284,61 +284,61 @@ NK_INTERNAL void nk_fill_error_(void *ptr, nk_size_t bytes) {
         kernel(data, count, stride_bytes, value, index);                                                            \
     }
 
-#define nk_dispatch_dots_packed_size_(name, input_type, accum_type)                                             \
-    NK_DYNAMIC nk_size_t nk_dots_packed_size_##name(nk_size_t n, nk_size_t k) {                                 \
-        static nk_dots_packed_size_punned_t kernel = 0;                                                         \
-        if (kernel == 0) {                                                                                      \
-            nk_capability_t used_capability;                                                                    \
-            nk_find_kernel_punned(nk_kernel_dots_packed_size_k, nk_##name##_k, nk_capabilities(), nk_cap_any_k, \
-                                  (nk_kernel_punned_t *)&kernel, &used_capability);                             \
-            if (!kernel) return 0;                                                                              \
-        }                                                                                                       \
-        return kernel(n, k);                                                                                    \
+#define nk_dispatch_cross_packed_size_(api_name, name, input_type, accum_type)                            \
+    NK_DYNAMIC nk_size_t nk_##api_name##_packed_size_##name(nk_size_t n, nk_size_t k) {                   \
+        static nk_##api_name##_packed_size_punned_t kernel = 0;                                           \
+        if (kernel == 0) {                                                                                \
+            nk_capability_t used_capability;                                                              \
+            nk_find_kernel_punned(nk_kernel_##api_name##_packed_size_k, nk_##name##_k, nk_capabilities(), \
+                                  nk_cap_any_k, (nk_kernel_punned_t *)&kernel, &used_capability);         \
+            if (!kernel) return 0;                                                                        \
+        }                                                                                                 \
+        return kernel(n, k);                                                                              \
     }
 
-#define nk_dispatch_dots_pack_(name, input_type, accum_type)                                                        \
-    NK_DYNAMIC void nk_dots_pack_##name(nk_##input_type##_t const *b, nk_size_t n, nk_size_t k, nk_size_t b_stride, \
-                                        void *b_packed) {                                                           \
-        static nk_dots_pack_punned_t kernel = 0;                                                                    \
-        if (kernel == 0) {                                                                                          \
-            nk_capability_t used_capability;                                                                        \
-            nk_find_kernel_punned(nk_kernel_dots_pack_k, nk_##name##_k, nk_capabilities(), nk_cap_any_k,            \
-                                  (nk_kernel_punned_t *)&kernel, &used_capability);                                 \
-            if (!kernel) {                                                                                          \
-                nk_size_t packed_size = nk_dots_packed_size_##name(n, k);                                           \
-                if (packed_size) nk_fill_error_(b_packed, packed_size);                                             \
-                return;                                                                                             \
-            }                                                                                                       \
-        }                                                                                                           \
-        kernel(b, n, k, b_stride, b_packed);                                                                        \
+#define nk_dispatch_cross_pack_(api_name, name, input_type, accum_type)                                          \
+    NK_DYNAMIC void nk_##api_name##_pack_##name(nk_##input_type##_t const *b, nk_size_t n, nk_size_t k,          \
+                                                nk_size_t b_stride, void *b_packed) {                            \
+        static nk_##api_name##_pack_punned_t kernel = 0;                                                         \
+        if (kernel == 0) {                                                                                       \
+            nk_capability_t used_capability;                                                                     \
+            nk_find_kernel_punned(nk_kernel_##api_name##_pack_k, nk_##name##_k, nk_capabilities(), nk_cap_any_k, \
+                                  (nk_kernel_punned_t *)&kernel, &used_capability);                              \
+            if (!kernel) {                                                                                       \
+                nk_size_t packed_size = nk_##api_name##_packed_size_##name(n, k);                                \
+                if (packed_size) nk_fill_error_(b_packed, packed_size);                                          \
+                return;                                                                                          \
+            }                                                                                                    \
+        }                                                                                                        \
+        kernel(b, n, k, b_stride, b_packed);                                                                     \
     }
 
-#define nk_dispatch_dots_packed_(name, input_type, accum_type, output_type)                                            \
-    NK_DYNAMIC void nk_dots_packed_##name(nk_##input_type##_t const *a, void const *b_packed, nk_##output_type##_t *c, \
-                                          nk_size_t m, nk_size_t n, nk_size_t k, nk_size_t a_stride,                   \
-                                          nk_size_t c_stride) {                                                        \
-        static nk_dots_punned_t kernel = 0;                                                                            \
+#define nk_dispatch_cross_packed_(api_name, name, input_type, accum_type, output_type)                            \
+    NK_DYNAMIC void nk_##api_name##_packed_##name(nk_##input_type##_t const *a, void const *b_packed,             \
+                                                  nk_##output_type##_t *c, nk_size_t m, nk_size_t n, nk_size_t k, \
+                                                  nk_size_t a_stride, nk_size_t c_stride) {                       \
+        static nk_##api_name##_punned_t kernel = 0;                                                               \
+        if (kernel == 0) {                                                                                        \
+            nk_capability_t used_capability;                                                                      \
+            nk_find_kernel_punned(nk_kernel_##api_name##_k, nk_##name##_k, nk_capabilities(), nk_cap_any_k,       \
+                                  (nk_kernel_punned_t *)&kernel, &used_capability);                               \
+            if (!kernel) {                                                                                        \
+                for (nk_size_t row = 0; row < m; ++row)                                                           \
+                    nk_fill_error_((nk_u8_t *)c + row * c_stride, n * sizeof(nk_##output_type##_t));              \
+                return;                                                                                           \
+            }                                                                                                     \
+        }                                                                                                         \
+        kernel(a, b_packed, c, m, n, k, a_stride, c_stride);                                                      \
+    }
+
+#define nk_dispatch_cross_symmetric_(api_name, name, input_type, output_type)                                          \
+    NK_DYNAMIC void nk_##api_name##_symmetric_##name(                                                                  \
+        nk_##input_type##_t const *vectors, nk_size_t n_vectors, nk_size_t depth, nk_size_t stride,                    \
+        nk_##output_type##_t *result, nk_size_t result_stride, nk_size_t row_start, nk_size_t row_count) {             \
+        static nk_##api_name##_symmetric_punned_t kernel = 0;                                                          \
         if (kernel == 0) {                                                                                             \
             nk_capability_t used_capability;                                                                           \
-            nk_find_kernel_punned(nk_kernel_dots_k, nk_##name##_k, nk_capabilities(), nk_cap_any_k,                    \
-                                  (nk_kernel_punned_t *)&kernel, &used_capability);                                    \
-            if (!kernel) {                                                                                             \
-                for (nk_size_t row = 0; row < m; ++row)                                                                \
-                    nk_fill_error_((nk_u8_t *)c + row * c_stride, n * sizeof(nk_##output_type##_t));                   \
-                return;                                                                                                \
-            }                                                                                                          \
-        }                                                                                                              \
-        kernel(a, b_packed, c, m, n, k, a_stride, c_stride);                                                           \
-    }
-
-#define nk_dispatch_dots_symmetric_(name, input_type, output_type)                                                     \
-    NK_DYNAMIC void nk_dots_symmetric_##name(nk_##input_type##_t const *vectors, nk_size_t n_vectors, nk_size_t depth, \
-                                             nk_size_t stride, nk_##output_type##_t *result, nk_size_t result_stride,  \
-                                             nk_size_t row_start, nk_size_t row_count) {                               \
-        static nk_dots_symmetric_punned_t kernel = 0;                                                                  \
-        if (kernel == 0) {                                                                                             \
-            nk_capability_t used_capability;                                                                           \
-            nk_find_kernel_punned(nk_kernel_dots_symmetric_k, nk_##name##_k, nk_capabilities(), nk_cap_any_k,          \
+            nk_find_kernel_punned(nk_kernel_##api_name##_symmetric_k, nk_##name##_k, nk_capabilities(), nk_cap_any_k,  \
                                   (nk_kernel_punned_t *)&kernel, &used_capability);                                    \
             if (!kernel) {                                                                                             \
                 for (nk_size_t row = 0; row < n_vectors; ++row)                                                        \
@@ -563,54 +563,54 @@ nk_dispatch_each_fma_(e4m3, f32)
 nk_dispatch_each_fma_(e5m2, f32)
 
 // Matrix multiplications (GEMM with packed B)
-nk_dispatch_dots_packed_size_(f32, f32, f32)
-nk_dispatch_dots_packed_size_(f64, f64, f64)
-nk_dispatch_dots_packed_size_(f16, f16, f32)
-nk_dispatch_dots_packed_size_(bf16, bf16, f32)
-nk_dispatch_dots_packed_size_(i8, i8, i32)
-nk_dispatch_dots_packed_size_(u8, u8, u32)
-nk_dispatch_dots_packed_size_(e4m3, e4m3, f32)
-nk_dispatch_dots_packed_size_(e5m2, e5m2, f32)
-nk_dispatch_dots_packed_size_(u1, u1x8, u32)
-nk_dispatch_dots_packed_size_(u4, u4x2, u32)
-nk_dispatch_dots_packed_size_(i4, i4x2, i32)
-nk_dispatch_dots_pack_(f32, f32, f32)
-nk_dispatch_dots_pack_(f64, f64, f64)
-nk_dispatch_dots_pack_(f16, f16, f32)
-nk_dispatch_dots_pack_(bf16, bf16, f32)
-nk_dispatch_dots_pack_(i8, i8, i32)
-nk_dispatch_dots_pack_(u8, u8, u32)
-nk_dispatch_dots_pack_(e4m3, e4m3, f32)
-nk_dispatch_dots_pack_(e5m2, e5m2, f32)
-nk_dispatch_dots_pack_(u1, u1x8, u32)
-nk_dispatch_dots_pack_(u4, u4x2, u32)
-nk_dispatch_dots_pack_(i4, i4x2, i32)
-nk_dispatch_dots_packed_(f32, f32, f32, f32)
-nk_dispatch_dots_packed_(f64, f64, f64, f64)
-nk_dispatch_dots_packed_(f16, f16, f32, f32)
-nk_dispatch_dots_packed_(bf16, bf16, f32, f32)
-nk_dispatch_dots_packed_(i8, i8, i32, i32)
-nk_dispatch_dots_packed_(u8, u8, u32, u32)
-nk_dispatch_dots_packed_(e4m3, e4m3, f32, f32)
-nk_dispatch_dots_packed_(e5m2, e5m2, f32, f32)
-nk_dispatch_dots_packed_(u1, u1x8, u32, u32)
-nk_dispatch_dots_packed_(u4, u4x2, u32, u32)
-nk_dispatch_dots_packed_(i4, i4x2, i32, i32)
+nk_dispatch_cross_packed_size_(dots, f32, f32, f32) nk_dispatch_cross_packed_size_(dots, f64, f64, f64)
+    nk_dispatch_cross_packed_size_(dots, f16, f16, f32) nk_dispatch_cross_packed_size_(dots, bf16, bf16, f32)
+        nk_dispatch_cross_packed_size_(dots, i8, i8, i32) nk_dispatch_cross_packed_size_(
+            dots, u8, u8, u32) nk_dispatch_cross_packed_size_(dots, e4m3, e4m3,
+                                                              f32) nk_dispatch_cross_packed_size_(dots, e5m2, e5m2, f32)
+            nk_dispatch_cross_packed_size_(dots, e3m2, e3m2, f32) nk_dispatch_cross_packed_size_(dots, u1, u1x8, u32)
+                nk_dispatch_cross_packed_size_(dots, u4, u4x2, u32) nk_dispatch_cross_packed_size_(dots, i4, i4x2, i32)
+                    nk_dispatch_cross_pack_(dots, f32, f32, f32) nk_dispatch_cross_pack_(dots, f64, f64, f64)
+                        nk_dispatch_cross_pack_(dots, f16, f16, f32) nk_dispatch_cross_pack_(dots, bf16, bf16, f32)
+                            nk_dispatch_cross_pack_(dots, i8, i8, i32) nk_dispatch_cross_pack_(dots, u8, u8, u32)
+                                nk_dispatch_cross_pack_(dots, e4m3, e4m3, f32) nk_dispatch_cross_pack_(dots, e5m2, e5m2,
+                                                                                                       f32)
+                                    nk_dispatch_cross_pack_(dots, e3m2, e3m2, f32) nk_dispatch_cross_pack_(
+                                        dots, u1, u1x8,
+                                        u32) nk_dispatch_cross_pack_(dots, u4, u4x2,
+                                                                     u32) nk_dispatch_cross_pack_(dots, i4, i4x2, i32)
+                                        nk_dispatch_cross_packed_(dots, f32, f32, f32, f32) nk_dispatch_cross_packed_(
+                                            dots, f64, f64,
+                                            f64, f64) nk_dispatch_cross_packed_(dots, f16, f16, f32, f32)
+                                            nk_dispatch_cross_packed_(dots, bf16, bf16, f32, f32)
+                                                nk_dispatch_cross_packed_(dots, i8, i8, i32, i32)
+                                                    nk_dispatch_cross_packed_(dots, u8, u8, u32, u32)
+                                                        nk_dispatch_cross_packed_(dots, e4m3, e4m3, f32, f32)
+                                                            nk_dispatch_cross_packed_(dots, e5m2, e5m2, f32, f32)
+                                                                nk_dispatch_cross_packed_(dots, e3m2, e3m2, f32, f32)
+                                                                    nk_dispatch_cross_packed_(dots, u1, u1x8, u32, u32)
+                                                                        nk_dispatch_cross_packed_(dots, u4, u4x2, u32,
+                                                                                                  u32)
+                                                                            nk_dispatch_cross_packed_(dots, i4, i4x2,
+                                                                                                      i32, i32)
 
-// Symmetric Gram matrix (A × Aᵀ)
-nk_dispatch_dots_symmetric_(f32, f32, f32)
-nk_dispatch_dots_symmetric_(f64, f64, f64)
-nk_dispatch_dots_symmetric_(f16, f16, f32)
-nk_dispatch_dots_symmetric_(bf16, bf16, f32)
-nk_dispatch_dots_symmetric_(i8, i8, i32)
-nk_dispatch_dots_symmetric_(u8, u8, u32)
-nk_dispatch_dots_symmetric_(e4m3, e4m3, f32)
-nk_dispatch_dots_symmetric_(e5m2, e5m2, f32)
-nk_dispatch_dots_symmetric_(u4, u4x2, u32)
-nk_dispatch_dots_symmetric_(i4, i4x2, i32)
+    // Symmetric Gram matrix (A × Aᵀ)
+    nk_dispatch_cross_symmetric_(dots, f32, f32, f32) nk_dispatch_cross_symmetric_(dots, f64, f64, f64)
+        nk_dispatch_cross_symmetric_(dots, f16, f16, f32) nk_dispatch_cross_symmetric_(dots, bf16, bf16, f32)
+            nk_dispatch_cross_symmetric_(dots, i8, i8, i32) nk_dispatch_cross_symmetric_(dots, u8, u8, u32)
+                nk_dispatch_cross_symmetric_(dots, e4m3, e4m3, f32) nk_dispatch_cross_symmetric_(dots, e5m2, e5m2, f32)
+                    nk_dispatch_cross_symmetric_(dots, e3m2, e3m2, f32)
+                        nk_dispatch_cross_symmetric_(dots, u4, u4x2, u32)
+                            nk_dispatch_cross_symmetric_(dots, i4, i4x2, i32)
 
-// ARM NEON capabilities
-NK_DYNAMIC int nk_uses_neon(void) { return (nk_capabilities() & nk_cap_neon_k) != 0; }
+    // Hamming distances (batched binary set computations)
+    nk_dispatch_cross_packed_size_(hammings, u1, u1x8, u32) nk_dispatch_cross_pack_(hammings, u1, u1x8, u32)
+        nk_dispatch_cross_packed_(hammings, u1, u1x8, u32, u32) nk_dispatch_cross_symmetric_(hammings, u1, u1x8, u32)
+
+    // ARM NEON capabilities
+    NK_DYNAMIC int nk_uses_neon(void) {
+    return (nk_capabilities() & nk_cap_neon_k) != 0;
+}
 NK_DYNAMIC int nk_uses_neonhalf(void) { return (nk_capabilities() & nk_cap_neonhalf_k) != 0; }
 NK_DYNAMIC int nk_uses_neonfhm(void) { return (nk_capabilities() & nk_cap_neonfhm_k) != 0; }
 NK_DYNAMIC int nk_uses_neonbfdot(void) { return (nk_capabilities() & nk_cap_neonbfdot_k) != 0; }

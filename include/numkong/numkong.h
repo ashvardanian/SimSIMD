@@ -115,6 +115,7 @@
 #include "numkong/mesh.h"         // RMSD, Kabsch, Umeyama
 #include "numkong/probability.h"  // Kullback-Leibler, Jensen–Shannon
 #include "numkong/reduce.h"       // Horizontal reductions: sum, min, max
+#include "numkong/sets.h"         // Hamming & Jaccard distances for binary sets
 #include "numkong/sparse.h"       // Intersect
 #include "numkong/spatial.h"      // L2, Angular
 #include "numkong/trigonometry.h" // Sin, Cos, Atan
@@ -781,6 +782,29 @@ typedef void (*nk_dots_punned_t)(void const *a, void const *b_packed, void *c, n
 typedef void (*nk_dots_symmetric_punned_t)(void const *vectors, nk_size_t n_vectors, nk_size_t depth, nk_size_t stride,
                                            void *result, nk_size_t result_stride, nk_size_t row_start,
                                            nk_size_t row_count);
+
+/**
+ *  @brief  Type-punned function pointer for Hamming distances packed buffer size computation.
+ */
+typedef nk_size_t (*nk_hammings_packed_size_punned_t)(nk_size_t n, nk_size_t k);
+
+/**
+ *  @brief  Type-punned function pointer for Hamming distances B matrix packing.
+ */
+typedef void (*nk_hammings_pack_punned_t)(void const *b, nk_size_t n, nk_size_t k, nk_size_t b_stride, void *b_packed);
+
+/**
+ *  @brief  Type-punned function pointer for Hamming distances computation.
+ */
+typedef void (*nk_hammings_punned_t)(void const *a, void const *b_packed, void *c, nk_size_t m, nk_size_t n,
+                                     nk_size_t k, nk_size_t a_stride, nk_size_t c_stride);
+
+/**
+ *  @brief  Type-punned function pointer for symmetric Hamming distances matrix computation.
+ */
+typedef void (*nk_hammings_symmetric_punned_t)(void const *vectors, nk_size_t n_vectors, nk_size_t depth,
+                                               nk_size_t stride, void *result, nk_size_t result_stride,
+                                               nk_size_t row_start, nk_size_t row_count);
 
 /**
  *  @brief  Type-punned function pointer for type casting operations.
@@ -2603,6 +2627,10 @@ NK_INTERNAL void nk_find_kernel_punned_e3m2_(nk_capability_t v, nk_kernel_kind_t
         case nk_kernel_euclidean_k: *m = (m_t)&nk_euclidean_e3m2_genoa, *c = nk_cap_genoa_k; return;
         case nk_kernel_sqeuclidean_k: *m = (m_t)&nk_sqeuclidean_e3m2_genoa, *c = nk_cap_genoa_k; return;
         case nk_kernel_angular_k: *m = (m_t)&nk_angular_e3m2_genoa, *c = nk_cap_genoa_k; return;
+        case nk_kernel_dots_packed_size_k: *m = (m_t)&nk_dots_packed_size_e3m2_genoa, *c = nk_cap_genoa_k; return;
+        case nk_kernel_dots_pack_k: *m = (m_t)&nk_dots_pack_e3m2_genoa, *c = nk_cap_genoa_k; return;
+        case nk_kernel_dots_k: *m = (m_t)&nk_dots_packed_e3m2_genoa, *c = nk_cap_genoa_k; return;
+        case nk_kernel_dots_symmetric_k: *m = (m_t)&nk_dots_symmetric_e3m2_genoa, *c = nk_cap_genoa_k; return;
         default: break;
         }
 #endif
@@ -2621,6 +2649,10 @@ NK_INTERNAL void nk_find_kernel_punned_e3m2_(nk_capability_t v, nk_kernel_kind_t
         case nk_kernel_euclidean_k: *m = (m_t)&nk_euclidean_e3m2_skylake, *c = nk_cap_skylake_k; return;
         case nk_kernel_sqeuclidean_k: *m = (m_t)&nk_sqeuclidean_e3m2_skylake, *c = nk_cap_skylake_k; return;
         case nk_kernel_angular_k: *m = (m_t)&nk_angular_e3m2_skylake, *c = nk_cap_skylake_k; return;
+        case nk_kernel_dots_packed_size_k: *m = (m_t)&nk_dots_packed_size_e3m2_skylake, *c = nk_cap_skylake_k; return;
+        case nk_kernel_dots_pack_k: *m = (m_t)&nk_dots_pack_e3m2_skylake, *c = nk_cap_skylake_k; return;
+        case nk_kernel_dots_k: *m = (m_t)&nk_dots_packed_e3m2_skylake, *c = nk_cap_skylake_k; return;
+        case nk_kernel_dots_symmetric_k: *m = (m_t)&nk_dots_symmetric_e3m2_skylake, *c = nk_cap_skylake_k; return;
         default: break;
         }
 #endif
@@ -2667,6 +2699,10 @@ NK_INTERNAL void nk_find_kernel_punned_u1_(nk_capability_t v, nk_kernel_kind_t k
     if (v & nk_cap_neon_k) switch (k) {
         case nk_kernel_hamming_k: *m = (m_t)&nk_hamming_u1_neon, *c = nk_cap_neon_k; return;
         case nk_kernel_jaccard_k: *m = (m_t)&nk_jaccard_u1_neon, *c = nk_cap_neon_k; return;
+        case nk_kernel_hammings_packed_size_k: *m = (m_t)&nk_hammings_packed_size_u1_neon, *c = nk_cap_neon_k; return;
+        case nk_kernel_hammings_pack_k: *m = (m_t)&nk_hammings_pack_u1_neon, *c = nk_cap_neon_k; return;
+        case nk_kernel_hammings_k: *m = (m_t)&nk_hammings_packed_u1_neon, *c = nk_cap_neon_k; return;
+        case nk_kernel_hammings_symmetric_k: *m = (m_t)&nk_hammings_symmetric_u1_neon, *c = nk_cap_neon_k; return;
         default: break;
         }
 #endif
@@ -2674,6 +2710,10 @@ NK_INTERNAL void nk_find_kernel_punned_u1_(nk_capability_t v, nk_kernel_kind_t k
     if (v & nk_cap_ice_k) switch (k) {
         case nk_kernel_hamming_k: *m = (m_t)&nk_hamming_u1_ice, *c = nk_cap_ice_k; return;
         case nk_kernel_jaccard_k: *m = (m_t)&nk_jaccard_u1_ice, *c = nk_cap_ice_k; return;
+        case nk_kernel_hammings_packed_size_k: *m = (m_t)&nk_hammings_packed_size_u1_ice, *c = nk_cap_ice_k; return;
+        case nk_kernel_hammings_pack_k: *m = (m_t)&nk_hammings_pack_u1_ice, *c = nk_cap_ice_k; return;
+        case nk_kernel_hammings_k: *m = (m_t)&nk_hammings_packed_u1_ice, *c = nk_cap_ice_k; return;
+        case nk_kernel_hammings_symmetric_k: *m = (m_t)&nk_hammings_symmetric_u1_ice, *c = nk_cap_ice_k; return;
         default: break;
         }
 #endif
@@ -2681,6 +2721,12 @@ NK_INTERNAL void nk_find_kernel_punned_u1_(nk_capability_t v, nk_kernel_kind_t k
     if (v & nk_cap_haswell_k) switch (k) {
         case nk_kernel_hamming_k: *m = (m_t)&nk_hamming_u1_haswell, *c = nk_cap_haswell_k; return;
         case nk_kernel_jaccard_k: *m = (m_t)&nk_jaccard_u1_haswell, *c = nk_cap_haswell_k; return;
+        case nk_kernel_hammings_packed_size_k:
+            *m = (m_t)&nk_hammings_packed_size_u1_haswell, *c = nk_cap_haswell_k;
+            return;
+        case nk_kernel_hammings_pack_k: *m = (m_t)&nk_hammings_pack_u1_haswell, *c = nk_cap_haswell_k; return;
+        case nk_kernel_hammings_k: *m = (m_t)&nk_hammings_packed_u1_haswell, *c = nk_cap_haswell_k; return;
+        case nk_kernel_hammings_symmetric_k: *m = (m_t)&nk_hammings_symmetric_u1_haswell, *c = nk_cap_haswell_k; return;
         default: break;
         }
 #endif
@@ -2708,6 +2754,12 @@ NK_INTERNAL void nk_find_kernel_punned_u1_(nk_capability_t v, nk_kernel_kind_t k
     if (v & nk_cap_serial_k) switch (k) {
         case nk_kernel_hamming_k: *m = (m_t)&nk_hamming_u1_serial, *c = nk_cap_serial_k; return;
         case nk_kernel_jaccard_k: *m = (m_t)&nk_jaccard_u1_serial, *c = nk_cap_serial_k; return;
+        case nk_kernel_hammings_packed_size_k:
+            *m = (m_t)&nk_hammings_packed_size_u1_serial, *c = nk_cap_serial_k;
+            return;
+        case nk_kernel_hammings_pack_k: *m = (m_t)&nk_hammings_pack_u1_serial, *c = nk_cap_serial_k; return;
+        case nk_kernel_hammings_k: *m = (m_t)&nk_hammings_packed_u1_serial, *c = nk_cap_serial_k; return;
+        case nk_kernel_hammings_symmetric_k: *m = (m_t)&nk_hammings_symmetric_u1_serial, *c = nk_cap_serial_k; return;
         default: break;
         }
 }
