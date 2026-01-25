@@ -37,116 +37,101 @@ extern "C" {
 
 #pragma region - Vectorized Conversions
 
-/** @brief Convert 32x e4m3 → 32x bf16 via 128-entry LUT lookup (AVX-512BW).
+/** @brief Convert 32x e4m3 → 32x bf16 via arithmetic + 8-entry subnormal LUT (AVX-512BW).
  *  E4M3 format: S EEEE MMM (bias=7). BF16: S EEEEEEEE MMMMMMM (bias=127).
- *  Uses permutex2var for fast LUT lookup; sign handled separately via shift+OR.
- *  Handles all corner cases: zero, subnormals, normals, and NaN. */
+ *  Normal values (exp != 0): BF16 = sign | ((lower7 << 4) + 0x3C00).
+ *  Subnormals (exp == 0, 8 values): looked up from 8-entry LUT via permutexvar.
+ *  Memory: 16 bytes (8 × 16-bit entries) vs 256 bytes (128-entry LUT). OCP FP8 v1.0. */
 NK_INTERNAL __m512i nk_e4m3x32_to_bf16x32_ice_(__m256i e4m3x32) {
     __m512i e4m3_i16x32 = _mm512_cvtepu8_epi16(e4m3x32);
     __m512i sign_i16x32 = _mm512_and_si512(e4m3_i16x32, _mm512_set1_epi16((short)0x80));
-    __m512i idx_i16x32 = _mm512_and_si512(e4m3_i16x32, _mm512_set1_epi16(0x7F));
+    __m512i lower7_i16x32 = _mm512_and_si512(e4m3_i16x32, _mm512_set1_epi16(0x7F));
 
-    // 128-entry LUT for E4M3 absolute values, split into 4x32 chunks
-    __m512i const lut0_i16x32 = _mm512_set_epi16(                        // indices 0-31
-        0x3DF0, 0x3DE0, 0x3DD0, 0x3DC0, 0x3DB0, 0x3DA0, 0x3D90, 0x3D80,  // idx 31-24
-        0x3D70, 0x3D60, 0x3D50, 0x3D40, 0x3D30, 0x3D20, 0x3D10, 0x3D00,  // idx 23-16
-        0x3CF0, 0x3CE0, 0x3CD0, 0x3CC0, 0x3CB0, 0x3CA0, 0x3C90, 0x3C80,  // idx 15-8
-        0x3C60, 0x3C40, 0x3C20, 0x3C00, 0x3BC0, 0x3B80, 0x3B00, 0x0000); // idx 7-0
-    __m512i const lut1_i16x32 = _mm512_set_epi16(                        // indices 32-63
-        0x3FF0, 0x3FE0, 0x3FD0, 0x3FC0, 0x3FB0, 0x3FA0, 0x3F90, 0x3F80,  // idx 63-56 (0x38=1.0 → 0x3F80)
-        0x3F70, 0x3F60, 0x3F50, 0x3F40, 0x3F30, 0x3F20, 0x3F10, 0x3F00,  // idx 55-48
-        0x3EF0, 0x3EE0, 0x3ED0, 0x3EC0, 0x3EB0, 0x3EA0, 0x3E90, 0x3E80,  // idx 47-40
-        0x3E70, 0x3E60, 0x3E50, 0x3E40, 0x3E30, 0x3E20, 0x3E10, 0x3E00); // idx 39-32
-    __m512i const lut2_i16x32 = _mm512_set_epi16(                        // indices 64-95
-        0x41F0, 0x41E0, 0x41D0, 0x41C0, 0x41B0, 0x41A0, 0x4190, 0x4180,  // idx 95-88
-        0x4170, 0x4160, 0x4150, 0x4140, 0x4130, 0x4120, 0x4110, 0x4100,  // idx 87-80
-        0x40F0, 0x40E0, 0x40D0, 0x40C0, 0x40B0, 0x40A0, 0x4090, 0x4080,  // idx 79-72
-        0x4070, 0x4060, 0x4050, 0x4040, 0x4030, 0x4020, 0x4010, 0x4000); // idx 71-64
-    __m512i const lut3_i16x32 = _mm512_set_epi16(                        // indices 96-127, idx 127 is NaN
-        0x7FC0, 0x43E0, 0x43D0, 0x43C0, 0x43B0, 0x43A0, 0x4390, 0x4380,  // idx 127-120 (127=NaN)
-        0x4370, 0x4360, 0x4350, 0x4340, 0x4330, 0x4320, 0x4310, 0x4300,  // idx 119-112
-        0x42F0, 0x42E0, 0x42D0, 0x42C0, 0x42B0, 0x42A0, 0x4290, 0x4280,  // idx 111-104
-        0x4270, 0x4260, 0x4250, 0x4240, 0x4230, 0x4220, 0x4210, 0x4200); // idx 103-96
+    // Normal path: BF16 = ((lower7 << 4) + 0x3C00) | (sign << 8)
+    // Formula: E4M3 exp=e, mant=m → BF16 exp = e+120 (bias 7→127), mant = m<<4
+    __m512i normal_abs_i16x32 = _mm512_add_epi16(_mm512_slli_epi16(lower7_i16x32, 4), _mm512_set1_epi16(0x3C00));
 
-    // 2x permutex2var for 64-entry lookup each, then select based on bit 6
-    __m512i result_low_i16x32 = _mm512_permutex2var_epi16(lut0_i16x32, idx_i16x32, lut1_i16x32);
-    __m512i result_high_i16x32 = _mm512_permutex2var_epi16(lut2_i16x32, idx_i16x32, lut3_i16x32);
+    // Subnormal LUT (8 entries, repeated 4x for all lanes): E4M3 subnormals are mant × 2^(-9)
+    // Values: 0, 1/512, 2/512, 3/512, 4/512, 5/512, 6/512, 7/512
+    __m512i subn_lut_i16x32 = _mm512_set_epi16(                          //
+        0x3C60, 0x3C40, 0x3C20, 0x3C00, 0x3BC0, 0x3B80, 0x3B00, 0x0000,  // lane 3
+        0x3C60, 0x3C40, 0x3C20, 0x3C00, 0x3BC0, 0x3B80, 0x3B00, 0x0000,  // lane 2
+        0x3C60, 0x3C40, 0x3C20, 0x3C00, 0x3BC0, 0x3B80, 0x3B00, 0x0000,  // lane 1
+        0x3C60, 0x3C40, 0x3C20, 0x3C00, 0x3BC0, 0x3B80, 0x3B00, 0x0000); // lane 0
 
-    // Select between low (idx 0-63) and high (idx 64-127) based on bit 6
-    __mmask32 use_high_mask = _mm512_test_epi16_mask(idx_i16x32, _mm512_set1_epi16(0x40));
-    __m512i result_i16x32 = _mm512_mask_mov_epi16(result_low_i16x32, use_high_mask, result_high_i16x32);
+    // Lookup subnormals via permutexvar (use lower 3 bits of mantissa as index)
+    __m512i mant_idx_i16x32 = _mm512_and_si512(e4m3_i16x32, _mm512_set1_epi16(0x07));
+    __m512i subnorm_abs_i16x32 = _mm512_permutexvar_epi16(mant_idx_i16x32, subn_lut_i16x32);
 
-    // Apply sign: shift sign bit to bit 15, then OR
+    // Blend: if exponent == 0, use subnormal; else use normal
+    __m512i exp_bits_i16x32 = _mm512_and_si512(e4m3_i16x32, _mm512_set1_epi16(0x78));
+    __mmask32 is_subnormal = _mm512_cmpeq_epi16_mask(exp_bits_i16x32, _mm512_setzero_si512());
+    __m512i result_abs_i16x32 = _mm512_mask_blend_epi16(is_subnormal, normal_abs_i16x32, subnorm_abs_i16x32);
+
+    // Apply sign: shift E4M3 bit 7 to BF16 bit 15
     sign_i16x32 = _mm512_slli_epi16(sign_i16x32, 8);
-    return _mm512_or_si512(result_i16x32, sign_i16x32);
+    return _mm512_or_si512(result_abs_i16x32, sign_i16x32);
 }
 
-/** @brief Convert 32x e5m2 → 32x bf16 via 128-entry LUT lookup (AVX-512BW).
+/** @brief Convert 32x e5m2 → 32x bf16 via arithmetic + 4-entry subnormal LUT (AVX-512BW).
  *  E5M2 format: S EEEEE MM (bias=15). BF16: S EEEEEEEE MMMMMMM (bias=127).
- *  Uses permutex2var for fast LUT lookup; sign handled separately via shift+OR.
- *  Handles all corner cases: zero, subnormals, normals, infinity, and NaN. */
+ *  Normal values (exp != 0): BF16 = sign | ((lower7 << 5) + 0x3800).
+ *  Subnormals (exp == 0, 4 values): looked up from 4-entry LUT via permutexvar.
+ *  Memory: 8 bytes (4 × 16-bit entries) vs 256 bytes (128-entry LUT). OCP FP8 v1.0. */
 NK_INTERNAL __m512i nk_e5m2x32_to_bf16x32_ice_(__m256i e5m2x32) {
     __m512i e5m2_i16x32 = _mm512_cvtepu8_epi16(e5m2x32);
     __m512i sign_i16x32 = _mm512_and_si512(e5m2_i16x32, _mm512_set1_epi16((short)0x80));
-    __m512i idx_i16x32 = _mm512_and_si512(e5m2_i16x32, _mm512_set1_epi16(0x7F));
+    __m512i lower7_i16x32 = _mm512_and_si512(e5m2_i16x32, _mm512_set1_epi16(0x7F));
 
-    // 128-entry LUT for E5M2 absolute values, split into 4x32 chunks
-    __m512i const lut0_i16x32 = _mm512_set_epi16(                        // indices 0-31
-        0x3BE0, 0x3BC0, 0x3BA0, 0x3B80, 0x3B60, 0x3B40, 0x3B20, 0x3B00,  // idx 31-24
-        0x3AE0, 0x3AC0, 0x3AA0, 0x3A80, 0x3A60, 0x3A40, 0x3A20, 0x3A00,  // idx 23-16
-        0x39E0, 0x39C0, 0x39A0, 0x3980, 0x3960, 0x3940, 0x3920, 0x3900,  // idx 15-8
-        0x38E0, 0x38C0, 0x38A0, 0x3880, 0x3840, 0x3800, 0x3780, 0x0000); // idx 7-0
-    __m512i const lut1_i16x32 = _mm512_set_epi16(                        // indices 32-63
-        0x3FE0, 0x3FC0, 0x3FA0, 0x3F80, 0x3F60, 0x3F40, 0x3F20, 0x3F00,  // idx 63-56
-        0x3EE0, 0x3EC0, 0x3EA0, 0x3E80, 0x3E60, 0x3E40, 0x3E20, 0x3E00,  // idx 55-48
-        0x3DE0, 0x3DC0, 0x3DA0, 0x3D80, 0x3D60, 0x3D40, 0x3D20, 0x3D00,  // idx 47-40
-        0x3CE0, 0x3CC0, 0x3CA0, 0x3C80, 0x3C60, 0x3C40, 0x3C20, 0x3C00); // idx 39-32
-    __m512i const lut2_i16x32 = _mm512_set_epi16(                        // indices 64-95
-        0x43E0, 0x43C0, 0x43A0, 0x4380, 0x4360, 0x4340, 0x4320, 0x4300,  // idx 95-88
-        0x42E0, 0x42C0, 0x42A0, 0x4280, 0x4260, 0x4240, 0x4220, 0x4200,  // idx 87-80
-        0x41E0, 0x41C0, 0x41A0, 0x4180, 0x4160, 0x4140, 0x4120, 0x4100,  // idx 79-72
-        0x40E0, 0x40C0, 0x40A0, 0x4080, 0x4060, 0x4040, 0x4020, 0x4000); // idx 71-64
-    __m512i const lut3_i16x32 = _mm512_set_epi16(                        // indices 96-127 (124=Inf, 125-127=NaN)
-        0x7FC0, 0x7FC0, 0x7FC0, 0x7F80, 0x4760, 0x4740, 0x4720, 0x4700,  // idx 127-120 (124=Inf, 125-127=NaN)
-        0x46E0, 0x46C0, 0x46A0, 0x4680, 0x4660, 0x4640, 0x4620, 0x4600,  // idx 119-112
-        0x45E0, 0x45C0, 0x45A0, 0x4580, 0x4560, 0x4540, 0x4520, 0x4500,  // idx 111-104
-        0x44E0, 0x44C0, 0x44A0, 0x4480, 0x4460, 0x4440, 0x4420, 0x4400); // idx 103-96
+    // Normal path: BF16 = ((lower7 << 5) + 0x3800) | (sign << 8)
+    // Formula: E5M2 exp=e, mant=m → BF16 exp = e+112 (bias 15→127), mant = m<<5
+    __m512i normal_abs_i16x32 = _mm512_add_epi16(_mm512_slli_epi16(lower7_i16x32, 5), _mm512_set1_epi16(0x3800));
 
-    // 2x permutex2var for 64-entry lookup each, then select based on bit 6
-    __m512i result_low_i16x32 = _mm512_permutex2var_epi16(lut0_i16x32, idx_i16x32, lut1_i16x32);
-    __m512i result_high_i16x32 = _mm512_permutex2var_epi16(lut2_i16x32, idx_i16x32, lut3_i16x32);
+    // Subnormal LUT (4 entries, repeated 8x for all lanes): E5M2 subnormals are mant × 2^(-16)
+    // Values: 0, 1/65536, 2/65536, 3/65536 (4 entries, then zeros for padding to 8)
+    __m512i subn_lut_i16x32 = _mm512_set_epi16(                          //
+        0x0000, 0x0000, 0x0000, 0x0000, 0x3840, 0x3800, 0x3780, 0x0000,  // lanes 3-2 (16 entries)
+        0x0000, 0x0000, 0x0000, 0x0000, 0x3840, 0x3800, 0x3780, 0x0000,  // lanes 1-0 (16 entries)
+        0x0000, 0x0000, 0x0000, 0x0000, 0x3840, 0x3800, 0x3780, 0x0000,  // repeat for remaining
+        0x0000, 0x0000, 0x0000, 0x0000, 0x3840, 0x3800, 0x3780, 0x0000); // all 32 entries
 
-    // Select between low (idx 0-63) and high (idx 64-127) based on bit 6
-    __mmask32 use_high_mask = _mm512_test_epi16_mask(idx_i16x32, _mm512_set1_epi16(0x40));
-    __m512i result_i16x32 = _mm512_mask_mov_epi16(result_low_i16x32, use_high_mask, result_high_i16x32);
+    // Lookup subnormals via permutexvar (use lower 2 bits of mantissa as index)
+    __m512i mant_idx_i16x32 = _mm512_and_si512(e5m2_i16x32, _mm512_set1_epi16(0x03));
+    __m512i subnorm_abs_i16x32 = _mm512_permutexvar_epi16(mant_idx_i16x32, subn_lut_i16x32);
 
-    // Apply sign: shift sign bit to bit 15, then OR
+    // Blend: if exponent == 0, use subnormal; else use normal
+    __m512i exp_bits_i16x32 = _mm512_and_si512(e5m2_i16x32, _mm512_set1_epi16(0x7C));
+    __mmask32 is_subnormal = _mm512_cmpeq_epi16_mask(exp_bits_i16x32, _mm512_setzero_si512());
+    __m512i result_abs_i16x32 = _mm512_mask_blend_epi16(is_subnormal, normal_abs_i16x32, subnorm_abs_i16x32);
+
+    // Apply sign: shift E5M2 bit 7 to BF16 bit 15
     sign_i16x32 = _mm512_slli_epi16(sign_i16x32, 8);
-    return _mm512_or_si512(result_i16x32, sign_i16x32);
+    return _mm512_or_si512(result_abs_i16x32, sign_i16x32);
 }
 
 /** @brief Convert 32x e2m3 → 32x bf16 via 32-entry LUT lookup (AVX-512BW).
- *  E2M3 format: S EE MMM (bias=1, 6 bits total: sign at bit 7, magnitude bits 4-0).
- *  BF16: S EEEEEEEE MMMMMMM (bias=127). Uses single permutexvar; sign handled separately. */
+ *  E2M3 format: S EE MMM (bias=1, 6 bits total: sign at bit 5, magnitude bits 4-0).
+ *  BF16: S EEEEEEEE MMMMMMM (bias=127). Uses single permutexvar; sign handled separately.
+ *  Subnormals (exp=0): value = mant/16. OCP Microscaling Formats v1.0. */
 NK_INTERNAL __m512i nk_e2m3x32_to_bf16x32_ice_(__m256i e2m3x32) {
     __m512i e2m3_i16x32 = _mm512_cvtepu8_epi16(e2m3x32);
-    __m512i sign_i16x32 = _mm512_and_si512(e2m3_i16x32, _mm512_set1_epi16((short)0x80));
+    __m512i sign_i16x32 = _mm512_and_si512(e2m3_i16x32, _mm512_set1_epi16(0x20)); // E2M3 sign at bit 5
     __m512i idx_i16x32 = _mm512_and_si512(e2m3_i16x32, _mm512_set1_epi16(0x1F));
 
     // 32-entry LUT for E2M3 magnitude (5 bits: bits [4:3]=exp, bits [2:0]=mant)
-    // E2M3: bias=1, range [0, 7.5] for positive
+    // E2M3: bias=1, range [0, 7.5] for positive, subnormals = mant/16 (OCP MX v1.0)
     // BF16 = (bf16_exp << 7) | (bf16_mant), where bf16_exp = e2m3_exp + 126, bf16_mant = e2m3_mant << 4
     __m512i const lut_i16x32 = _mm512_set_epi16(                         //
         0x40F0, 0x40E0, 0x40D0, 0x40C0, 0x40B0, 0x40A0, 0x4090, 0x4080,  // [31-24] exp=3: bf16_exp=129
         0x4070, 0x4060, 0x4050, 0x4040, 0x4030, 0x4020, 0x4010, 0x4000,  // [23-16] exp=2: bf16_exp=128
         0x3FF0, 0x3FE0, 0x3FD0, 0x3FC0, 0x3FB0, 0x3FA0, 0x3F90, 0x3F80,  // [15-8] exp=1: bf16_exp=127
-        0x3EE0, 0x3EC0, 0x3EA0, 0x3E80, 0x3E40, 0x3E00, 0x3D80, 0x0000); // [7-0] exp=0: subnormals
+        0x3EE0, 0x3EC0, 0x3EA0, 0x3E80, 0x3E40, 0x3E00, 0x3D80, 0x0000); // [7-0] exp=0: subnormals 7/16..1/16, 0
 
-    // Single permutexvar for 32-entry lookup (more efficient than permutex2var for small tables)
+    // Single permutexvar for 32-entry lookup
     __m512i result_i16x32 = _mm512_permutexvar_epi16(idx_i16x32, lut_i16x32);
 
-    // Apply sign: shift sign bit to bit 15, then OR
-    sign_i16x32 = _mm512_slli_epi16(sign_i16x32, 8);
+    // Apply sign: shift E2M3 bit 5 to BF16 bit 15, then OR
+    sign_i16x32 = _mm512_slli_epi16(sign_i16x32, 10);
     return _mm512_or_si512(result_i16x32, sign_i16x32);
 }
 
