@@ -467,13 +467,21 @@
 extern "C" {
 #endif
 
-typedef unsigned char nk_u1x8_t; /// ? Eight boolean values packed in one byte
-typedef unsigned char nk_i4x2_t; /// ? Two 4-bit signed integers packed in one byte
-typedef unsigned char nk_u4x2_t; /// ? Two 4-bit unsigned integers packed in one byte
-typedef unsigned char nk_e4m3_t; /// ? FP8 E4M3 value encoded into one byte
-typedef unsigned char nk_e5m2_t; /// ? FP8 E5M2 value encoded into one byte
-typedef unsigned char nk_e2m3_t; /// ? FP6 E2M3FN value encoded into one byte (6 bits used, 2 bits unused)
-typedef unsigned char nk_e3m2_t; /// ? FP6 E3M2FN value encoded into one byte (6 bits used, 2 bits unused)
+/** @brief Eight boolean values packed in one byte */
+typedef unsigned char nk_u1x8_t;
+/** @brief Two 4-bit signed integers packed in one byte */
+typedef unsigned char nk_i4x2_t;
+/** @brief Two 4-bit unsigned integers packed in one byte */
+typedef unsigned char nk_u4x2_t;
+
+/** @brief FP8 E4M3FN (OCP v1.0): S EEEE MMM, bias=7, range ±448, no Inf, NaN at 0x7F/0xFF */
+typedef unsigned char nk_e4m3_t;
+/** @brief FP8 E5M2 (OCP v1.0): S EEEEE MM, bias=15, range ±57344, Inf at 0x7C/0xFC */
+typedef unsigned char nk_e5m2_t;
+/** @brief FP6 E2M3FN (OCP MX v1.0): S EE MMM (6-bit), bias=1, range ±7.5, no Inf/NaN */
+typedef unsigned char nk_e2m3_t;
+/** @brief FP6 E3M2FN (OCP MX v1.0): S EEE MM (6-bit), bias=3, range ±28, no Inf/NaN */
+typedef unsigned char nk_e3m2_t;
 
 typedef signed char nk_i8_t;
 typedef unsigned char nk_u8_t;
