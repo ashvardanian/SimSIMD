@@ -2285,6 +2285,16 @@ NK_INTERNAL void nk_find_kernel_punned_i4_(nk_capability_t v, nk_kernel_kind_t k
         default: break;
         }
 #endif
+#if NK_TARGET_HASWELL
+    if (v & nk_cap_haswell_k) switch (k) {
+        case nk_kernel_dot_k: *m = (m_t)&nk_dot_i4_haswell, *c = nk_cap_haswell_k; return;
+        case nk_kernel_dots_packed_size_k: *m = (m_t)&nk_dots_packed_size_i4_haswell, *c = nk_cap_haswell_k; return;
+        case nk_kernel_dots_pack_k: *m = (m_t)&nk_dots_pack_i4_haswell, *c = nk_cap_haswell_k; return;
+        case nk_kernel_dots_k: *m = (m_t)&nk_dots_packed_i4_haswell, *c = nk_cap_haswell_k; return;
+        case nk_kernel_dots_symmetric_k: *m = (m_t)&nk_dots_symmetric_i4_haswell, *c = nk_cap_haswell_k; return;
+        default: break;
+        }
+#endif
     if (v & nk_cap_serial_k) switch (k) {
         case nk_kernel_dot_k: *m = (m_t)&nk_dot_i4_serial, *c = nk_cap_serial_k; return;
         case nk_kernel_angular_k: *m = (m_t)&nk_angular_i4_serial, *c = nk_cap_serial_k; return;
@@ -2330,6 +2340,16 @@ NK_INTERNAL void nk_find_kernel_punned_u4_(nk_capability_t v, nk_kernel_kind_t k
         case nk_kernel_sqeuclidean_k: *m = (m_t)&nk_sqeuclidean_u4_spacemit, *c = nk_cap_spacemit_k; return;
         case nk_kernel_euclidean_k: *m = (m_t)&nk_euclidean_u4_spacemit, *c = nk_cap_spacemit_k; return;
         case nk_kernel_angular_k: *m = (m_t)&nk_angular_u4_spacemit, *c = nk_cap_spacemit_k; return;
+        default: break;
+        }
+#endif
+#if NK_TARGET_HASWELL
+    if (v & nk_cap_haswell_k) switch (k) {
+        case nk_kernel_dot_k: *m = (m_t)&nk_dot_u4_haswell, *c = nk_cap_haswell_k; return;
+        case nk_kernel_dots_packed_size_k: *m = (m_t)&nk_dots_packed_size_u4_haswell, *c = nk_cap_haswell_k; return;
+        case nk_kernel_dots_pack_k: *m = (m_t)&nk_dots_pack_u4_haswell, *c = nk_cap_haswell_k; return;
+        case nk_kernel_dots_k: *m = (m_t)&nk_dots_packed_u4_haswell, *c = nk_cap_haswell_k; return;
+        case nk_kernel_dots_symmetric_k: *m = (m_t)&nk_dots_symmetric_u4_haswell, *c = nk_cap_haswell_k; return;
         default: break;
         }
 #endif
@@ -2916,6 +2936,13 @@ NK_INTERNAL void nk_find_kernel_punned_bf16c_(nk_capability_t v, nk_kernel_kind_
         case nk_kernel_dot_k: *m = (m_t)&nk_dot_bf16c_genoa, *c = nk_cap_genoa_k; return;
         case nk_kernel_vdot_k: *m = (m_t)&nk_vdot_bf16c_genoa, *c = nk_cap_genoa_k; return;
         case nk_kernel_bilinear_k: *m = (m_t)&nk_bilinear_bf16c_genoa, *c = nk_cap_genoa_k; return;
+        default: break;
+        }
+#endif
+#if NK_TARGET_HASWELL
+    if (v & nk_cap_haswell_k) switch (k) {
+        case nk_kernel_dot_k: *m = (m_t)&nk_dot_bf16c_haswell, *c = nk_cap_haswell_k; return;
+        case nk_kernel_vdot_k: *m = (m_t)&nk_vdot_bf16c_haswell, *c = nk_cap_haswell_k; return;
         default: break;
         }
 #endif

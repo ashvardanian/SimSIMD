@@ -887,6 +887,10 @@ void test_dot() {
     run_if_matches("vdot_f32c_haswell", test_vdot<f32c_t>, nk_vdot_f32c_haswell);
     run_if_matches("dot_f16c_haswell", test_dot<f16c_t>, nk_dot_f16c_haswell);
     run_if_matches("vdot_f16c_haswell", test_vdot<f16c_t>, nk_vdot_f16c_haswell);
+    run_if_matches("dot_bf16c_haswell", test_dot<bf16c_t>, nk_dot_bf16c_haswell);
+    run_if_matches("vdot_bf16c_haswell", test_vdot<bf16c_t>, nk_vdot_bf16c_haswell);
+    run_if_matches("dot_i4_haswell", test_dot<i4x2_t>, nk_dot_i4_haswell);
+    run_if_matches("dot_u4_haswell", test_dot<u4x2_t>, nk_dot_u4_haswell);
 #endif // NK_TARGET_HASWELL
 
 #if NK_TARGET_SKYLAKE

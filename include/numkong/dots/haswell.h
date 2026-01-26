@@ -189,6 +189,36 @@ nk_define_cross_packed_(dots, u8, haswell, u8, u8, u32, nk_b128_vec_t, nk_dot_u8
                         nk_dot_u8x16_finalize_haswell, nk_partial_store_b32x4_serial_,
                         /*depth_simd_dimensions=*/16, /*dimensions_per_value=*/1)
 
+/* I4 GEMM: depth_simd_dimensions=32 (32 nibbles = 16 bytes = 128-bit input)
+ * Note: dimensions_per_value=2 because 2 nibbles (i4 values) are packed per byte */
+nk_define_cross_pack_size_(dots, i4, haswell, i4x2, i4x2, /*depth_simd_dimensions=*/32, /*dimensions_per_value=*/2)
+nk_define_cross_pack_(dots, i4, haswell, i4x2, i4x2, nk_assign_from_to_, /*depth_simd_dimensions=*/32,
+                      /*dimensions_per_value=*/2)
+nk_define_cross_symmetric_(dots, i4, haswell, i4x2, i32, nk_b128_vec_t, nk_dot_i4x32_state_haswell_t, nk_b128_vec_t,
+                           nk_dot_i4x32_init_haswell, nk_load_b128_haswell_, nk_partial_load_b8x16_serial_,
+                           nk_dot_i4x32_update_haswell, nk_dot_i4x32_finalize_haswell, nk_partial_store_b32x4_serial_,
+                           /*depth_simd_dimensions=*/32, /*dimensions_per_value=*/2)
+nk_define_cross_packed_(dots, i4, haswell, i4x2, i4x2, i32, nk_b128_vec_t, nk_dot_i4x32_state_haswell_t, nk_b128_vec_t,
+                        nk_dot_i4x32_init_haswell, nk_load_b128_haswell_, nk_partial_load_b8x16_serial_,
+                        nk_load_b128_haswell_, nk_partial_load_b8x16_serial_, nk_dot_i4x32_update_haswell,
+                        nk_dot_i4x32_finalize_haswell, nk_partial_store_b32x4_serial_,
+                        /*depth_simd_dimensions=*/32, /*dimensions_per_value=*/2)
+
+/* U4 GEMM: depth_simd_dimensions=32 (32 nibbles = 16 bytes = 128-bit input)
+ * Note: dimensions_per_value=2 because 2 nibbles (u4 values) are packed per byte */
+nk_define_cross_pack_size_(dots, u4, haswell, u4x2, u4x2, /*depth_simd_dimensions=*/32, /*dimensions_per_value=*/2)
+nk_define_cross_pack_(dots, u4, haswell, u4x2, u4x2, nk_assign_from_to_, /*depth_simd_dimensions=*/32,
+                      /*dimensions_per_value=*/2)
+nk_define_cross_symmetric_(dots, u4, haswell, u4x2, u32, nk_b128_vec_t, nk_dot_u4x32_state_haswell_t, nk_b128_vec_t,
+                           nk_dot_u4x32_init_haswell, nk_load_b128_haswell_, nk_partial_load_b8x16_serial_,
+                           nk_dot_u4x32_update_haswell, nk_dot_u4x32_finalize_haswell, nk_partial_store_b32x4_serial_,
+                           /*depth_simd_dimensions=*/32, /*dimensions_per_value=*/2)
+nk_define_cross_packed_(dots, u4, haswell, u4x2, u4x2, u32, nk_b128_vec_t, nk_dot_u4x32_state_haswell_t, nk_b128_vec_t,
+                        nk_dot_u4x32_init_haswell, nk_load_b128_haswell_, nk_partial_load_b8x16_serial_,
+                        nk_load_b128_haswell_, nk_partial_load_b8x16_serial_, nk_dot_u4x32_update_haswell,
+                        nk_dot_u4x32_finalize_haswell, nk_partial_store_b32x4_serial_,
+                        /*depth_simd_dimensions=*/32, /*dimensions_per_value=*/2)
+
 #if defined(__cplusplus)
 } // extern "C"
 #endif

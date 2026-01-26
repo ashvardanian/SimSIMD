@@ -606,6 +606,15 @@ NK_PUBLIC void nk_dot_e3m2_haswell(nk_e3m2_t const *a, nk_e3m2_t const *b, nk_si
 NK_PUBLIC void nk_dot_i8_haswell(nk_i8_t const *a, nk_i8_t const *b, nk_size_t n, nk_i32_t *result);
 /** @copydoc nk_dot_u8 */
 NK_PUBLIC void nk_dot_u8_haswell(nk_u8_t const *a, nk_u8_t const *b, nk_size_t n, nk_u32_t *result);
+/** @copydoc nk_dot_i4 */
+NK_PUBLIC void nk_dot_i4_haswell(nk_i4x2_t const *a, nk_i4x2_t const *b, nk_size_t n, nk_i32_t *result);
+/** @copydoc nk_dot_u4 */
+NK_PUBLIC void nk_dot_u4_haswell(nk_u4x2_t const *a, nk_u4x2_t const *b, nk_size_t n, nk_u32_t *result);
+
+/** @copydoc nk_dot_bf16c */
+NK_PUBLIC void nk_dot_bf16c_haswell(nk_bf16c_t const *a, nk_bf16c_t const *b, nk_size_t n, nk_f32c_t *result);
+/** @copydoc nk_vdot_bf16c */
+NK_PUBLIC void nk_vdot_bf16c_haswell(nk_bf16c_t const *a, nk_bf16c_t const *b, nk_size_t n, nk_f32c_t *result);
 
 /**
  *  @brief Running state for f32 dot accumulation using f64 for high precision on Haswell.
@@ -946,6 +955,8 @@ NK_PUBLIC void nk_dot_i4(nk_i4x2_t const *a, nk_i4x2_t const *b, nk_size_t n, nk
     nk_dot_i4_ice(a, b, n, result);
 #elif NK_TARGET_SPACEMIT
     nk_dot_i4_spacemit(a, b, n, result);
+#elif NK_TARGET_HASWELL
+    nk_dot_i4_haswell(a, b, n, result);
 #else
     nk_dot_i4_serial(a, b, n, result);
 #endif
@@ -955,6 +966,8 @@ NK_PUBLIC void nk_dot_u4(nk_u4x2_t const *a, nk_u4x2_t const *b, nk_size_t n, nk
     nk_dot_u4_ice(a, b, n, result);
 #elif NK_TARGET_SPACEMIT
     nk_dot_u4_spacemit(a, b, n, result);
+#elif NK_TARGET_HASWELL
+    nk_dot_u4_haswell(a, b, n, result);
 #else
     nk_dot_u4_serial(a, b, n, result);
 #endif
@@ -1105,6 +1118,8 @@ NK_PUBLIC void nk_dot_bf16c(nk_bf16c_t const *a, nk_bf16c_t const *b, nk_size_t 
     nk_dot_bf16c_genoa(a, b, n, result);
 #elif NK_TARGET_NEONBFDOT
     nk_dot_bf16c_neonbfdot(a, b, n, result);
+#elif NK_TARGET_HASWELL
+    nk_dot_bf16c_haswell(a, b, n, result);
 #else
     nk_dot_bf16c_serial(a, b, n, result);
 #endif
@@ -1151,6 +1166,8 @@ NK_PUBLIC void nk_vdot_bf16c(nk_bf16c_t const *a, nk_bf16c_t const *b, nk_size_t
     nk_vdot_bf16c_genoa(a, b, n, result);
 #elif NK_TARGET_NEONBFDOT
     nk_vdot_bf16c_neonbfdot(a, b, n, result);
+#elif NK_TARGET_HASWELL
+    nk_vdot_bf16c_haswell(a, b, n, result);
 #else
     nk_vdot_bf16c_serial(a, b, n, result);
 #endif

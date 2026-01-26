@@ -1633,6 +1633,10 @@ int main(int argc, char **argv) {
     dense_<f16c_k, f32c_k>("vdot_f16c_haswell", nk_vdot_f16c_haswell);
     dense_<f32c_k, f32c_k>("dot_f32c_haswell", nk_dot_f32c_haswell);
     dense_<f32c_k, f32c_k>("vdot_f32c_haswell", nk_vdot_f32c_haswell);
+    dense_<bf16c_k, f32c_k>("dot_bf16c_haswell", nk_dot_bf16c_haswell);
+    dense_<bf16c_k, f32c_k>("vdot_bf16c_haswell", nk_vdot_bf16c_haswell);
+    dense_<i4_k, i32_k>("dot_i4_haswell", nk_dot_i4_haswell);
+    dense_<u4_k, u32_k>("dot_u4_haswell", nk_dot_u4_haswell);
 
     curved_<f16_k, f32_k>("bilinear_f16_haswell", nk_bilinear_f16_haswell);
     curved_<f16_k, f32_k>("mahalanobis_f16_haswell", nk_mahalanobis_f16_haswell);
