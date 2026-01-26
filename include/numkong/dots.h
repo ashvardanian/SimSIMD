@@ -792,6 +792,30 @@ NK_PUBLIC void nk_dots_packed_e5m2_haswell(nk_e5m2_t const *a, void const *b_pac
 NK_PUBLIC void nk_dots_symmetric_e5m2_haswell(nk_e5m2_t const *vectors, nk_size_t n_vectors, nk_size_t depth,
                                               nk_size_t stride, nk_f32_t *result, nk_size_t result_stride,
                                               nk_size_t row_start, nk_size_t row_count);
+/** @copydoc nk_dots_packed_size_e2m3 */
+NK_PUBLIC nk_size_t nk_dots_packed_size_e2m3_haswell(nk_size_t n, nk_size_t k);
+/** @copydoc nk_dots_pack_e2m3 */
+NK_PUBLIC void nk_dots_pack_e2m3_haswell(nk_e2m3_t const *b, nk_size_t n, nk_size_t k, nk_size_t b_stride,
+                                         void *b_packed);
+/** @copydoc nk_dots_packed_e2m3 */
+NK_PUBLIC void nk_dots_packed_e2m3_haswell(nk_e2m3_t const *a, void const *b_packed, nk_f32_t *c, nk_size_t m,
+                                           nk_size_t n, nk_size_t k, nk_size_t a_stride, nk_size_t c_stride);
+/** @copydoc nk_dots_symmetric_e2m3 */
+NK_PUBLIC void nk_dots_symmetric_e2m3_haswell(nk_e2m3_t const *vectors, nk_size_t n_vectors, nk_size_t depth,
+                                              nk_size_t stride, nk_f32_t *result, nk_size_t result_stride,
+                                              nk_size_t row_start, nk_size_t row_count);
+/** @copydoc nk_dots_packed_size_e3m2 */
+NK_PUBLIC nk_size_t nk_dots_packed_size_e3m2_haswell(nk_size_t n, nk_size_t k);
+/** @copydoc nk_dots_pack_e3m2 */
+NK_PUBLIC void nk_dots_pack_e3m2_haswell(nk_e3m2_t const *b, nk_size_t n, nk_size_t k, nk_size_t b_stride,
+                                         void *b_packed);
+/** @copydoc nk_dots_packed_e3m2 */
+NK_PUBLIC void nk_dots_packed_e3m2_haswell(nk_e3m2_t const *a, void const *b_packed, nk_f32_t *c, nk_size_t m,
+                                           nk_size_t n, nk_size_t k, nk_size_t a_stride, nk_size_t c_stride);
+/** @copydoc nk_dots_symmetric_e3m2 */
+NK_PUBLIC void nk_dots_symmetric_e3m2_haswell(nk_e3m2_t const *vectors, nk_size_t n_vectors, nk_size_t depth,
+                                              nk_size_t stride, nk_f32_t *result, nk_size_t result_stride,
+                                              nk_size_t row_start, nk_size_t row_count);
 /** @copydoc nk_dots_packed_size_i8 */
 NK_PUBLIC nk_size_t nk_dots_packed_size_i8_haswell(nk_size_t n, nk_size_t k);
 /** @copydoc nk_dots_pack_i8 */
@@ -1593,6 +1617,8 @@ NK_PUBLIC nk_size_t nk_dots_packed_size_e2m3(nk_size_t n, nk_size_t k) {
     return nk_dots_packed_size_e2m3_genoa(n, k);
 #elif NK_TARGET_SKYLAKE
     return nk_dots_packed_size_e2m3_skylake(n, k);
+#elif NK_TARGET_HASWELL
+    return nk_dots_packed_size_e2m3_haswell(n, k);
 #else
     return nk_dots_packed_size_e2m3_serial(n, k);
 #endif
@@ -1605,6 +1631,8 @@ NK_PUBLIC void nk_dots_pack_e2m3(nk_e2m3_t const *b, nk_size_t n, nk_size_t k, n
     nk_dots_pack_e2m3_genoa(b, n, k, b_stride, b_packed);
 #elif NK_TARGET_SKYLAKE
     nk_dots_pack_e2m3_skylake(b, n, k, b_stride, b_packed);
+#elif NK_TARGET_HASWELL
+    nk_dots_pack_e2m3_haswell(b, n, k, b_stride, b_packed);
 #else
     nk_dots_pack_e2m3_serial(b, n, k, b_stride, b_packed);
 #endif
@@ -1618,6 +1646,8 @@ NK_PUBLIC void nk_dots_packed_e2m3(nk_e2m3_t const *a, void const *b_packed, nk_
     nk_dots_packed_e2m3_genoa(a, b_packed, c, m, n, k, a_stride, c_stride);
 #elif NK_TARGET_SKYLAKE
     nk_dots_packed_e2m3_skylake(a, b_packed, c, m, n, k, a_stride, c_stride);
+#elif NK_TARGET_HASWELL
+    nk_dots_packed_e2m3_haswell(a, b_packed, c, m, n, k, a_stride, c_stride);
 #else
     nk_dots_packed_e2m3_serial(a, b_packed, c, m, n, k, a_stride, c_stride);
 #endif
@@ -1630,6 +1660,8 @@ NK_PUBLIC nk_size_t nk_dots_packed_size_e3m2(nk_size_t n, nk_size_t k) {
     return nk_dots_packed_size_e3m2_genoa(n, k);
 #elif NK_TARGET_SKYLAKE
     return nk_dots_packed_size_e3m2_skylake(n, k);
+#elif NK_TARGET_HASWELL
+    return nk_dots_packed_size_e3m2_haswell(n, k);
 #else
     return nk_dots_packed_size_e3m2_serial(n, k);
 #endif
@@ -1642,6 +1674,8 @@ NK_PUBLIC void nk_dots_pack_e3m2(nk_e3m2_t const *b, nk_size_t n, nk_size_t k, n
     nk_dots_pack_e3m2_genoa(b, n, k, b_stride, b_packed);
 #elif NK_TARGET_SKYLAKE
     nk_dots_pack_e3m2_skylake(b, n, k, b_stride, b_packed);
+#elif NK_TARGET_HASWELL
+    nk_dots_pack_e3m2_haswell(b, n, k, b_stride, b_packed);
 #else
     nk_dots_pack_e3m2_serial(b, n, k, b_stride, b_packed);
 #endif
@@ -1655,6 +1689,8 @@ NK_PUBLIC void nk_dots_packed_e3m2(nk_e3m2_t const *a, void const *b_packed, nk_
     nk_dots_packed_e3m2_genoa(a, b_packed, c, m, n, k, a_stride, c_stride);
 #elif NK_TARGET_SKYLAKE
     nk_dots_packed_e3m2_skylake(a, b_packed, c, m, n, k, a_stride, c_stride);
+#elif NK_TARGET_HASWELL
+    nk_dots_packed_e3m2_haswell(a, b_packed, c, m, n, k, a_stride, c_stride);
 #else
     nk_dots_packed_e3m2_serial(a, b_packed, c, m, n, k, a_stride, c_stride);
 #endif
@@ -1839,6 +1875,8 @@ NK_PUBLIC void nk_dots_symmetric_e2m3(nk_e2m3_t const *vectors, nk_size_t n_vect
     nk_dots_symmetric_e2m3_genoa(vectors, n_vectors, depth, stride, result, result_stride, row_start, row_count);
 #elif NK_TARGET_SKYLAKE
     nk_dots_symmetric_e2m3_skylake(vectors, n_vectors, depth, stride, result, result_stride, row_start, row_count);
+#elif NK_TARGET_HASWELL
+    nk_dots_symmetric_e2m3_haswell(vectors, n_vectors, depth, stride, result, result_stride, row_start, row_count);
 #else
     nk_dots_symmetric_e2m3_serial(vectors, n_vectors, depth, stride, result, result_stride, row_start, row_count);
 #endif
@@ -1853,6 +1891,8 @@ NK_PUBLIC void nk_dots_symmetric_e3m2(nk_e3m2_t const *vectors, nk_size_t n_vect
     nk_dots_symmetric_e3m2_genoa(vectors, n_vectors, depth, stride, result, result_stride, row_start, row_count);
 #elif NK_TARGET_SKYLAKE
     nk_dots_symmetric_e3m2_skylake(vectors, n_vectors, depth, stride, result, result_stride, row_start, row_count);
+#elif NK_TARGET_HASWELL
+    nk_dots_symmetric_e3m2_haswell(vectors, n_vectors, depth, stride, result, result_stride, row_start, row_count);
 #else
     nk_dots_symmetric_e3m2_serial(vectors, n_vectors, depth, stride, result, result_stride, row_start, row_count);
 #endif

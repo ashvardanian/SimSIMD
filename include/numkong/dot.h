@@ -597,6 +597,10 @@ NK_PUBLIC void nk_dot_bf16_haswell(nk_bf16_t const *a, nk_bf16_t const *b, nk_si
 NK_PUBLIC void nk_dot_e4m3_haswell(nk_e4m3_t const *a, nk_e4m3_t const *b, nk_size_t n, nk_f32_t *result);
 /** @copydoc nk_dot_e5m2 */
 NK_PUBLIC void nk_dot_e5m2_haswell(nk_e5m2_t const *a, nk_e5m2_t const *b, nk_size_t n, nk_f32_t *result);
+/** @copydoc nk_dot_e2m3 */
+NK_PUBLIC void nk_dot_e2m3_haswell(nk_e2m3_t const *a, nk_e2m3_t const *b, nk_size_t n, nk_f32_t *result);
+/** @copydoc nk_dot_e3m2 */
+NK_PUBLIC void nk_dot_e3m2_haswell(nk_e3m2_t const *a, nk_e3m2_t const *b, nk_size_t n, nk_f32_t *result);
 
 /** @copydoc nk_dot_i8 */
 NK_PUBLIC void nk_dot_i8_haswell(nk_i8_t const *a, nk_i8_t const *b, nk_size_t n, nk_i32_t *result);
@@ -1017,6 +1021,40 @@ NK_PUBLIC void nk_dot_e5m2(nk_e5m2_t const *a, nk_e5m2_t const *b, nk_size_t n, 
     nk_dot_e5m2_neon(a, b, n, result);
 #else
     nk_dot_e5m2_serial(a, b, n, result);
+#endif
+}
+NK_PUBLIC void nk_dot_e2m3(nk_e2m3_t const *a, nk_e2m3_t const *b, nk_size_t n, nk_f32_t *result) {
+#if NK_TARGET_GENOA
+    nk_dot_e2m3_genoa(a, b, n, result);
+#elif NK_TARGET_SPACEMIT
+    nk_dot_e2m3_spacemit(a, b, n, result);
+#elif NK_TARGET_SKYLAKE
+    nk_dot_e2m3_skylake(a, b, n, result);
+#elif NK_TARGET_HASWELL
+    nk_dot_e2m3_haswell(a, b, n, result);
+#elif NK_TARGET_NEONFHM
+    nk_dot_e2m3_neonfhm(a, b, n, result);
+#elif NK_TARGET_NEON
+    nk_dot_e2m3_neon(a, b, n, result);
+#else
+    nk_dot_e2m3_serial(a, b, n, result);
+#endif
+}
+NK_PUBLIC void nk_dot_e3m2(nk_e3m2_t const *a, nk_e3m2_t const *b, nk_size_t n, nk_f32_t *result) {
+#if NK_TARGET_GENOA
+    nk_dot_e3m2_genoa(a, b, n, result);
+#elif NK_TARGET_SPACEMIT
+    nk_dot_e3m2_spacemit(a, b, n, result);
+#elif NK_TARGET_SKYLAKE
+    nk_dot_e3m2_skylake(a, b, n, result);
+#elif NK_TARGET_HASWELL
+    nk_dot_e3m2_haswell(a, b, n, result);
+#elif NK_TARGET_NEONFHM
+    nk_dot_e3m2_neonfhm(a, b, n, result);
+#elif NK_TARGET_NEON
+    nk_dot_e3m2_neon(a, b, n, result);
+#else
+    nk_dot_e3m2_serial(a, b, n, result);
 #endif
 }
 NK_PUBLIC void nk_dot_f32(nk_f32_t const *a, nk_f32_t const *b, nk_size_t n, nk_f32_t *result) {

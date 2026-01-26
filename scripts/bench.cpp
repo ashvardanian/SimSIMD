@@ -1613,6 +1613,8 @@ int main(int argc, char **argv) {
 
     dense_<e4m3_k, f32_k>("dot_e4m3_haswell", nk_dot_e4m3_haswell);
     dense_<e5m2_k, f32_k>("dot_e5m2_haswell", nk_dot_e5m2_haswell);
+    dense_<e2m3_k, f32_k>("dot_e2m3_haswell", nk_dot_e2m3_haswell);
+    dense_<e3m2_k, f32_k>("dot_e3m2_haswell", nk_dot_e3m2_haswell);
 
     dense_<i8_k, f32_k>("angular_i8_haswell", nk_angular_i8_haswell);
     dense_<i8_k, u32_k>("sqeuclidean_i8_haswell", nk_sqeuclidean_i8_haswell);
@@ -1684,6 +1686,10 @@ int main(int argc, char **argv) {
                          nk_dots_packed_e4m3_haswell);
     dots_<e5m2_k, f32_k>("dots_packed_e5m2_haswell", nk_dots_packed_size_e5m2_haswell, nk_dots_pack_e5m2_haswell,
                          nk_dots_packed_e5m2_haswell);
+    dots_<e2m3_k, f32_k>("dots_packed_e2m3_haswell", nk_dots_packed_size_e2m3_haswell, nk_dots_pack_e2m3_haswell,
+                         nk_dots_packed_e2m3_haswell);
+    dots_<e3m2_k, f32_k>("dots_packed_e3m2_haswell", nk_dots_packed_size_e3m2_haswell, nk_dots_pack_e3m2_haswell,
+                         nk_dots_packed_e3m2_haswell);
     dots_<i8_k, i32_k>("dots_packed_i8_haswell", nk_dots_packed_size_i8_haswell, nk_dots_pack_i8_haswell,
                        nk_dots_packed_i8_haswell);
     dots_<u8_k, u32_k>("dots_packed_u8_haswell", nk_dots_packed_size_u8_haswell, nk_dots_pack_u8_haswell,
@@ -1697,6 +1703,8 @@ int main(int argc, char **argv) {
     dots_symmetric_<u8_k, u32_k>("dots_symmetric_u8_haswell", nk_dots_symmetric_u8_haswell);
     dots_symmetric_<e4m3_k, f32_k>("dots_symmetric_e4m3_haswell", nk_dots_symmetric_e4m3_haswell);
     dots_symmetric_<e5m2_k, f32_k>("dots_symmetric_e5m2_haswell", nk_dots_symmetric_e5m2_haswell);
+    dots_symmetric_<e2m3_k, f32_k>("dots_symmetric_e2m3_haswell", nk_dots_symmetric_e2m3_haswell);
+    dots_symmetric_<e3m2_k, f32_k>("dots_symmetric_e3m2_haswell", nk_dots_symmetric_e3m2_haswell);
 
     hammings_<nk_u1_k, nk_u32_k>("hammings_u1_haswell", nk_hammings_packed_size_u1_haswell, nk_hammings_pack_u1_haswell,
                                  nk_hammings_packed_u1_haswell);

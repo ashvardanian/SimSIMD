@@ -879,6 +879,8 @@ void test_dot() {
     run_if_matches("dot_bf16_haswell", test_dot<bf16_t>, nk_dot_bf16_haswell);
     run_if_matches("dot_e4m3_haswell", test_dot<e4m3_t>, nk_dot_e4m3_haswell);
     run_if_matches("dot_e5m2_haswell", test_dot<e5m2_t>, nk_dot_e5m2_haswell);
+    run_if_matches("dot_e2m3_haswell", test_dot<e2m3_t>, nk_dot_e2m3_haswell);
+    run_if_matches("dot_e3m2_haswell", test_dot<e3m2_t>, nk_dot_e3m2_haswell);
     run_if_matches("dot_i8_haswell", test_dot<i8_t>, nk_dot_i8_haswell);
     run_if_matches("dot_u8_haswell", test_dot<u8_t>, nk_dot_u8_haswell);
     run_if_matches("dot_f32c_haswell", test_dot<f32c_t>, nk_dot_f32c_haswell);
@@ -2231,6 +2233,14 @@ void test_dots() {
                    nk_dots_packed_f32_haswell);
     run_if_matches("dots_f64_haswell", test_dots<f64_t>, nk_dots_packed_size_f64_haswell, nk_dots_pack_f64_haswell,
                    nk_dots_packed_f64_haswell);
+    run_if_matches("dots_e4m3_haswell", test_dots<e4m3_t>, nk_dots_packed_size_e4m3_haswell, nk_dots_pack_e4m3_haswell,
+                   nk_dots_packed_e4m3_haswell);
+    run_if_matches("dots_e5m2_haswell", test_dots<e5m2_t>, nk_dots_packed_size_e5m2_haswell, nk_dots_pack_e5m2_haswell,
+                   nk_dots_packed_e5m2_haswell);
+    run_if_matches("dots_e2m3_haswell", test_dots<e2m3_t>, nk_dots_packed_size_e2m3_haswell, nk_dots_pack_e2m3_haswell,
+                   nk_dots_packed_e2m3_haswell);
+    run_if_matches("dots_e3m2_haswell", test_dots<e3m2_t>, nk_dots_packed_size_e3m2_haswell, nk_dots_pack_e3m2_haswell,
+                   nk_dots_packed_e3m2_haswell);
 #endif // NK_TARGET_HASWELL
 
 #if NK_TARGET_SKYLAKE
@@ -2386,6 +2396,8 @@ void test_dots_symmetric() {
     run_if_matches("dots_symmetric_u8_haswell", test_dots_symmetric<u8_t>, nk_dots_symmetric_u8_haswell);
     run_if_matches("dots_symmetric_e4m3_haswell", test_dots_symmetric<e4m3_t>, nk_dots_symmetric_e4m3_haswell);
     run_if_matches("dots_symmetric_e5m2_haswell", test_dots_symmetric<e5m2_t>, nk_dots_symmetric_e5m2_haswell);
+    run_if_matches("dots_symmetric_e2m3_haswell", test_dots_symmetric<e2m3_t>, nk_dots_symmetric_e2m3_haswell);
+    run_if_matches("dots_symmetric_e3m2_haswell", test_dots_symmetric<e3m2_t>, nk_dots_symmetric_e3m2_haswell);
 #endif
 
 #if NK_TARGET_SKYLAKE
