@@ -807,7 +807,7 @@ NK_PUBLIC void nk_dot_bf16c_haswell(nk_bf16c_t const *a_pairs, nk_bf16c_t const 
     __m128i a_bf16x8, b_bf16x8;
     __m256 sum_real_f32x8 = _mm256_setzero_ps();
     __m256 sum_imag_f32x8 = _mm256_setzero_ps();
-    __m256i const sign_flip_i64x4 = _mm256_set_epi64x(0x8000000000000000, 0, 0x8000000000000000, 0);
+    __m256i const sign_flip_i64x4 = _mm256_set1_epi64x(0x8000000000000000);
     __m256i const swap_adjacent_i8x32 = _mm256_set_epi8( //
         11, 10, 9, 8, 15, 14, 13, 12, 3, 2, 1, 0, 7, 6, 5, 4, 11, 10, 9, 8, 15, 14, 13, 12, 3, 2, 1, 0, 7, 6, 5, 4);
 
@@ -852,7 +852,7 @@ NK_PUBLIC void nk_vdot_bf16c_haswell(nk_bf16c_t const *a_pairs, nk_bf16c_t const
     __m128i a_bf16x8, b_bf16x8;
     __m256 sum_real_f32x8 = _mm256_setzero_ps();
     __m256 sum_imag_f32x8 = _mm256_setzero_ps();
-    __m256i const sign_flip_i64x4 = _mm256_set_epi64x(0x8000000000000000, 0, 0x8000000000000000, 0);
+    __m256i const sign_flip_i64x4 = _mm256_set1_epi64x(0x8000000000000000);
     __m256i const swap_adjacent_i8x32 = _mm256_set_epi8( //
         11, 10, 9, 8, 15, 14, 13, 12, 3, 2, 1, 0, 7, 6, 5, 4, 11, 10, 9, 8, 15, 14, 13, 12, 3, 2, 1, 0, 7, 6, 5, 4);
 
