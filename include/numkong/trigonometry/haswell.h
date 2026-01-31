@@ -206,17 +206,26 @@ NK_INTERNAL __m256 nk_f32x8_atan2_haswell_(__m256 const ys_inputs, __m256 const 
     // Compute the result using masks for quadrant adjustments
     __m256 results = _mm256_fmadd_ps(ratio_cubed, polynomials, ratio);
 
-    // Adjust for xs_negative: result = result - π (when xs was negative)
-    __m256 pi_adjusted = _mm256_sub_ps(results, _mm256_set1_ps(3.14159265358979323846f));
-    results = _mm256_blendv_ps(results, pi_adjusted, xs_negative_mask);
+    // Compute quadrant value: 0 for x>=0 && !swap, 1 for x>=0 && swap,
+    //                        -2 for x<0 && !swap, -1 for x<0 && swap
+    __m256 quadrant = _mm256_setzero_ps();
+    __m256 neg_two = _mm256_set1_ps(-2.0f);
+    quadrant = _mm256_blendv_ps(quadrant, neg_two, xs_negative_mask);
+    __m256 one = _mm256_set1_ps(1.0f);
+    __m256 quadrant_incremented = _mm256_add_ps(quadrant, one);
+    quadrant = _mm256_blendv_ps(quadrant, quadrant_incremented, swap_mask);
 
-    // Adjust for swap: result = result + π/2 (when we swapped x and y)
-    __m256 half_pi_adjusted = _mm256_add_ps(results, _mm256_set1_ps(1.5707963267948966f));
-    results = _mm256_blendv_ps(results, half_pi_adjusted, swap_mask);
+    // Adjust for quadrant: result += quadrant * π/2
+    __m256 pi_half = _mm256_set1_ps(1.5707963267948966f);
+    results = _mm256_fmadd_ps(quadrant, pi_half, results);
 
-    // Adjust sign based on original xs sign (flip sign if xs was negative)
-    __m256 sign_flipped = _mm256_xor_ps(results, sign_mask);
-    results = _mm256_blendv_ps(results, sign_flipped, xs_negative_mask);
+    // Transfer sign from x (XOR with sign bit of x_input)
+    __m256 xs_sign_bits = _mm256_and_ps(xs_inputs, sign_mask);
+    results = _mm256_xor_ps(results, xs_sign_bits);
+
+    // Transfer sign from y (XOR with sign bit of y_input)
+    __m256 ys_sign_bits = _mm256_and_ps(ys_inputs, sign_mask);
+    results = _mm256_xor_ps(results, ys_sign_bits);
 
     return results;
 }
@@ -486,17 +495,26 @@ NK_INTERNAL __m256d nk_f64x4_atan2_haswell_(__m256d const ys_inputs, __m256d con
     // Compute the result using masks for quadrant adjustments
     __m256d results = _mm256_fmadd_pd(ratio_cubed, polynomials, ratio);
 
-    // Adjust for xs_negative: result = result - π (when xs was negative)
-    __m256d pi_adjusted = _mm256_sub_pd(results, _mm256_set1_pd(3.14159265358979323846));
-    results = _mm256_blendv_pd(results, pi_adjusted, xs_negative_mask);
+    // Compute quadrant value: 0 for x>=0 && !swap, 1 for x>=0 && swap,
+    //                        -2 for x<0 && !swap, -1 for x<0 && swap
+    __m256d quadrant = _mm256_setzero_pd();
+    __m256d neg_two = _mm256_set1_pd(-2.0);
+    quadrant = _mm256_blendv_pd(quadrant, neg_two, xs_negative_mask);
+    __m256d one = _mm256_set1_pd(1.0);
+    __m256d quadrant_incremented = _mm256_add_pd(quadrant, one);
+    quadrant = _mm256_blendv_pd(quadrant, quadrant_incremented, swap_mask);
 
-    // Adjust for swap: result = result + π/2 (when we swapped x and y)
-    __m256d half_pi_adjusted = _mm256_add_pd(results, _mm256_set1_pd(1.5707963267948966));
-    results = _mm256_blendv_pd(results, half_pi_adjusted, swap_mask);
+    // Adjust for quadrant: result += quadrant * π/2
+    __m256d pi_half = _mm256_set1_pd(1.5707963267948966);
+    results = _mm256_fmadd_pd(quadrant, pi_half, results);
 
-    // Adjust sign based on original xs sign (flip sign if xs was negative)
-    __m256d sign_flipped = _mm256_xor_pd(results, sign_mask);
-    results = _mm256_blendv_pd(results, sign_flipped, xs_negative_mask);
+    // Transfer sign from x (XOR with sign bit of x_input)
+    __m256d xs_sign_bits = _mm256_and_pd(xs_inputs, sign_mask);
+    results = _mm256_xor_pd(results, xs_sign_bits);
+
+    // Transfer sign from y (XOR with sign bit of y_input)
+    __m256d ys_sign_bits = _mm256_and_pd(ys_inputs, sign_mask);
+    results = _mm256_xor_pd(results, ys_sign_bits);
 
     return results;
 }

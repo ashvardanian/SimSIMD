@@ -299,9 +299,11 @@ NK_PUBLIC void nk_haversine_f64_serial(             //
         nk_f64_t cos_first_latitude = nk_f64_cos(first_latitude);
         nk_f64_t cos_second_latitude = nk_f64_cos(second_latitude);
 
-        nk_f64_t haversine_term = sin_latitude_delta_half * sin_latitude_delta_half +
-                                  cos_first_latitude * cos_second_latitude * sin_longitude_delta_half *
-                                      sin_longitude_delta_half;
+        // Use FMA for improved precision
+        nk_f64_t sin_lat_sq = sin_latitude_delta_half * sin_latitude_delta_half;
+        nk_f64_t sin_lon_sq = sin_longitude_delta_half * sin_longitude_delta_half;
+        nk_f64_t cos_product = cos_first_latitude * cos_second_latitude;
+        nk_f64_t haversine_term = nk_f64_fma_(cos_product, sin_lon_sq, sin_lat_sq);
         // Clamp haversine_term to [0, 1] to prevent NaN from sqrt of negative values
         haversine_term = (haversine_term < 0.0) ? 0.0 : ((haversine_term > 1.0) ? 1.0 : haversine_term);
 
@@ -336,9 +338,11 @@ NK_PUBLIC void nk_haversine_f32_serial(             //
         nk_f32_t cos_first_latitude = nk_f32_cos(first_latitude);
         nk_f32_t cos_second_latitude = nk_f32_cos(second_latitude);
 
-        nk_f32_t haversine_term = sin_latitude_delta_half * sin_latitude_delta_half +
-                                  cos_first_latitude * cos_second_latitude * sin_longitude_delta_half *
-                                      sin_longitude_delta_half;
+        // Use FMA for improved precision
+        nk_f32_t sin_lat_sq = sin_latitude_delta_half * sin_latitude_delta_half;
+        nk_f32_t sin_lon_sq = sin_longitude_delta_half * sin_longitude_delta_half;
+        nk_f32_t cos_product = cos_first_latitude * cos_second_latitude;
+        nk_f32_t haversine_term = nk_f32_fma_(cos_product, sin_lon_sq, sin_lat_sq);
 
         // Clamp to [0, 1] to avoid NaN from sqrt of negative numbers (due to floating point errors)
         if (haversine_term < 0.0f) haversine_term = 0.0f;

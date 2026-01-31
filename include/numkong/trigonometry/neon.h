@@ -216,17 +216,25 @@ NK_INTERNAL float32x4_t nk_f32x4_atan2_neon_(float32x4_t const ys_inputs, float3
     // Compute the result
     float32x4_t results = vfmaq_f32(ratio, ratio_cubed, polynomials);
 
-    // Adjust for xs_negative: result = result - π
-    float32x4_t pi_adjusted = vsubq_f32(results, pi);
-    results = vbslq_f32(xs_negative_mask, pi_adjusted, results);
+    // Compute quadrant value: 0 for x>=0 && !swap, 1 for x>=0 && swap,
+    //                        -2 for x<0 && !swap, -1 for x<0 && swap
+    float32x4_t quadrant = vdupq_n_f32(0.0f);
+    float32x4_t neg_two = vdupq_n_f32(-2.0f);
+    quadrant = vbslq_f32(xs_negative_mask, neg_two, quadrant);
+    float32x4_t quadrant_incremented = vaddq_f32(quadrant, vdupq_n_f32(1.0f));
+    quadrant = vbslq_f32(swap_mask, quadrant_incremented, quadrant);
 
-    // Adjust for swap: result = result + π/2
-    float32x4_t half_pi_adjusted = vaddq_f32(results, half_pi);
-    results = vbslq_f32(swap_mask, half_pi_adjusted, results);
+    // Adjust for quadrant: result += quadrant * π/2
+    results = vfmaq_f32(results, quadrant, half_pi);
 
-    // Adjust sign based on original xs sign (flip if xs was negative)
-    float32x4_t sign_flipped = vnegq_f32(results);
-    results = vbslq_f32(xs_negative_mask, sign_flipped, results);
+    // Transfer sign from x and y by XOR with sign bits
+    uint32x4_t sign_mask = vreinterpretq_u32_f32(vdupq_n_f32(-0.0f));
+    uint32x4_t xs_sign = vandq_u32(vreinterpretq_u32_f32(xs_inputs), sign_mask);
+    uint32x4_t ys_sign = vandq_u32(vreinterpretq_u32_f32(ys_inputs), sign_mask);
+    uint32x4_t result_bits = vreinterpretq_u32_f32(results);
+    result_bits = veorq_u32(result_bits, xs_sign);
+    result_bits = veorq_u32(result_bits, ys_sign);
+    results = vreinterpretq_f32_u32(result_bits);
 
     return results;
 }
@@ -480,17 +488,25 @@ NK_INTERNAL float64x2_t nk_f64x2_atan2_neon_(float64x2_t const ys_inputs, float6
     // Compute the result
     float64x2_t results = vfmaq_f64(ratio, ratio_cubed, polynomials);
 
-    // Adjust for xs_negative: result = result - π
-    float64x2_t pi_adjusted = vsubq_f64(results, pi);
-    results = vbslq_f64(xs_negative_mask, pi_adjusted, results);
+    // Compute quadrant value: 0 for x>=0 && !swap, 1 for x>=0 && swap,
+    //                        -2 for x<0 && !swap, -1 for x<0 && swap
+    float64x2_t quadrant = vdupq_n_f64(0.0);
+    float64x2_t neg_two = vdupq_n_f64(-2.0);
+    quadrant = vbslq_f64(xs_negative_mask, neg_two, quadrant);
+    float64x2_t quadrant_incremented = vaddq_f64(quadrant, vdupq_n_f64(1.0));
+    quadrant = vbslq_f64(swap_mask, quadrant_incremented, quadrant);
 
-    // Adjust for swap: result = result + π/2
-    float64x2_t half_pi_adjusted = vaddq_f64(results, half_pi);
-    results = vbslq_f64(swap_mask, half_pi_adjusted, results);
+    // Adjust for quadrant: result += quadrant * π/2
+    results = vfmaq_f64(results, quadrant, half_pi);
 
-    // Adjust sign based on original xs sign
-    float64x2_t sign_flipped = vnegq_f64(results);
-    results = vbslq_f64(xs_negative_mask, sign_flipped, results);
+    // Transfer sign from x and y by XOR with sign bits
+    uint64x2_t sign_mask = vreinterpretq_u64_f64(vdupq_n_f64(-0.0));
+    uint64x2_t xs_sign = vandq_u64(vreinterpretq_u64_f64(xs_inputs), sign_mask);
+    uint64x2_t ys_sign = vandq_u64(vreinterpretq_u64_f64(ys_inputs), sign_mask);
+    uint64x2_t result_bits = vreinterpretq_u64_f64(results);
+    result_bits = veorq_u64(result_bits, xs_sign);
+    result_bits = veorq_u64(result_bits, ys_sign);
+    results = vreinterpretq_f64_u64(result_bits);
 
     return results;
 }
