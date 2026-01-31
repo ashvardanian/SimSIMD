@@ -2895,10 +2895,43 @@ struct f118_t {
         constexpr double half_pi_low = 6.123233995736766e-17;
         f118_t half_pi(half_pi_high, half_pi_low);
 
+        constexpr double quarter_pi_high = 0.7853981633974483;
+        constexpr double quarter_pi_low = 3.061616997868383e-17;
+        f118_t quarter_pi(quarter_pi_high, quarter_pi_low);
+
         // Reduce to |x| <= 1 using atan(x) = sign(x)*π/2 - atan(1/x) for |x| > 1
         if (std::abs(high_) > 1.0) {
             f118_t recip_atan = recip().atan();
             return high_ > 0 ? half_pi - recip_atan : -half_pi - recip_atan;
+        }
+
+        // For x near ±1, apply argument reduction to accelerate Taylor convergence.
+        // The Taylor series for atan converges slowly when |x| ≈ 1 (needs ~30 terms).
+        // Using the identity atan(x) = π/4 + atan((x-1)/(x+1)) transforms the argument
+        // to be much smaller: at x=1, the reduced argument becomes 0 (instant convergence).
+        //
+        // Threshold analysis: For |x-1| < 0.5, the reduced argument satisfies:
+        //   |(x-1)/(x+1)| < 0.25, which converges in ~5 terms vs ~30 for the direct series.
+        // We use a slightly conservative threshold of 0.4 to ensure the reduction is beneficial
+        // while avoiding unnecessary overhead for x far from 1.
+        constexpr double reduction_threshold_near_one = 0.4; // Covers x ∈ [0.6, 1.4]
+
+        if (std::abs(high_ - 1.0) < reduction_threshold_near_one) {
+            // atan(x) = π/4 + atan((x-1)/(x+1))
+            // Reduces argument from |x| ≈ 1 to |(x-1)/(x+1)| < 0.25
+            f118_t numerator = *this - f118_t(1.0);
+            f118_t denominator = *this + f118_t(1.0);
+            f118_t reduced_arg = numerator / denominator;
+            return quarter_pi + reduced_arg.atan();
+        }
+
+        if (std::abs(high_ + 1.0) < reduction_threshold_near_one) {
+            // atan(x) = -π/4 + atan((x+1)/(1-x))
+            // Symmetric case for x near -1
+            f118_t numerator = *this + f118_t(1.0);
+            f118_t denominator = f118_t(1.0) - *this;
+            f118_t reduced_arg = numerator / denominator;
+            return -quarter_pi + reduced_arg.atan();
         }
 
         // Taylor: atan(x) = x − x³/3 + x⁵/5 − x⁷/7 + …
