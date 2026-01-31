@@ -671,8 +671,8 @@ NK_PUBLIC void nk_sparse_intersect_u64_ice( //
         __m512i b_max_u64x8 = _mm512_set1_epi64(*(long long const *)&b_max);
         __mmask8 a_step_mask = _mm512_cmple_epu64_mask(a_vec.zmm, b_max_u64x8);
         __mmask8 b_step_mask = _mm512_cmple_epu64_mask(b_vec.zmm, a_max_u64x8);
-        a += 16 - _lzcnt_u32((nk_u32_t)a_step_mask | 0x100);
-        b += 16 - _lzcnt_u32((nk_u32_t)b_step_mask | 0x100);
+        a += 32 - _lzcnt_u32((nk_u32_t)a_step_mask);
+        b += 32 - _lzcnt_u32((nk_u32_t)b_step_mask);
 
         // Now we are likely to have some overlap, so we can intersect the registers
         __mmask8 a_matches = nk_intersect_u64x8_ice_(a_vec.zmm, b_vec.zmm);
@@ -734,24 +734,28 @@ NK_PUBLIC void nk_sparse_dot_u32f32_ice(                  //
         __m512i b_max_u32x16 = _mm512_set1_epi32(*(int const *)&b_max);
         __mmask16 a_step_mask = _mm512_cmple_epu32_mask(a_vec.zmm, b_max_u32x16);
         __mmask16 b_step_mask = _mm512_cmple_epu32_mask(b_vec.zmm, a_max_u32x16);
-        a += 32 - _lzcnt_u32((nk_u32_t)a_step_mask);
-        a_weights += 32 - _lzcnt_u32((nk_u32_t)a_step_mask);
-        b += 32 - _lzcnt_u32((nk_u32_t)b_step_mask);
-        b_weights += 32 - _lzcnt_u32((nk_u32_t)b_step_mask);
+        nk_u32_t a_advance = 32 - _lzcnt_u32((nk_u32_t)a_step_mask);
+        nk_u32_t b_advance = 32 - _lzcnt_u32((nk_u32_t)b_step_mask);
 
         // Now we are likely to have some overlap, so we can intersect the registers
         __mmask16 a_matches = nk_intersect_u32x16_ice_(a_vec.zmm, b_vec.zmm);
         __mmask16 b_matches = nk_intersect_u32x16_ice_(b_vec.zmm, a_vec.zmm);
-        if (a_matches == 0) continue;
+        if (a_matches) {
+            // Load and compress matching weights at current position
+            __m512 a_weights_f32x16 = _mm512_loadu_ps(a_weights);
+            __m512 b_weights_f32x16 = _mm512_loadu_ps(b_weights);
+            __m512 a_matched_f32x16 = _mm512_maskz_compress_ps(a_matches, a_weights_f32x16);
+            __m512 b_matched_f32x16 = _mm512_maskz_compress_ps(b_matches, b_weights_f32x16);
 
-        // Load and compress matching weights
-        __m512 a_weights_f32x16 = _mm512_loadu_ps(a_weights - (32 - _lzcnt_u32((nk_u32_t)a_step_mask)));
-        __m512 b_weights_f32x16 = _mm512_loadu_ps(b_weights - (32 - _lzcnt_u32((nk_u32_t)b_step_mask)));
-        __m512 a_matched_f32x16 = _mm512_maskz_compress_ps(a_matches, a_weights_f32x16);
-        __m512 b_matched_f32x16 = _mm512_maskz_compress_ps(b_matches, b_weights_f32x16);
+            // FMA accumulation
+            product_f32x16 = _mm512_fmadd_ps(a_matched_f32x16, b_matched_f32x16, product_f32x16);
+        }
 
-        // FMA accumulation
-        product_f32x16 = _mm512_fmadd_ps(a_matched_f32x16, b_matched_f32x16, product_f32x16);
+        // Advance pointers after processing
+        a += a_advance;
+        a_weights += a_advance;
+        b += b_advance;
+        b_weights += b_advance;
     }
 
     nk_f32_t tail_product = 0;
