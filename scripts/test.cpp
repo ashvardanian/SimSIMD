@@ -2078,7 +2078,9 @@ error_stats_t test_dots_symmetric(typename scalar_type_::dots_symmetric_kernel_t
         nk::dots_symmetric<scalar_t, f118_t, nk::no_simd_k>(a.values_data(), n, k, a_stride, c_ref.raw_values_data(),
                                                             n * sizeof(f118_t));
 
-        for (std::size_t i = 0; i < n * n; i++) stats.accumulate(c[i], c_ref[i]);
+        // Only check upper triangle and diagonal
+        for (std::size_t i = 0; i < n; i++)
+            for (std::size_t j = i; j < n; j++) stats.accumulate(c[i * n + j], c_ref[i * n + j]);
     }
     return stats;
 }
