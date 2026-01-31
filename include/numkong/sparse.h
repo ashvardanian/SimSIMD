@@ -596,7 +596,7 @@ NK_PUBLIC void nk_sparse_intersect_u32_ice( //
  */
 NK_INTERNAL nk_u8_t nk_intersect_u64x8_ice_(__m512i a, __m512i b) {
     __m512i a1 = _mm512_alignr_epi64(a, a, 2);
-    __m512i b1 = _mm512_shuffle_i64x2(b, b, _MM_SHUFFLE(2, 1, 0, 3));
+    __m512i b1 = _mm512_permutex_epi64(b, _MM_PERM_ADCB);
     __mmask8 nm00 = _mm512_cmpneq_epi64_mask(a, b);
 
     __m512i a2 = _mm512_alignr_epi64(a, a, 4);
@@ -604,16 +604,16 @@ NK_INTERNAL nk_u8_t nk_intersect_u64x8_ice_(__m512i a, __m512i b) {
     __mmask8 nm01 = _mm512_cmpneq_epi64_mask(a1, b);
     __mmask8 nm02 = _mm512_cmpneq_epi64_mask(a2, b);
 
+    __m512i b2 = _mm512_permutex_epi64(b, _MM_PERM_BADC);
     __mmask8 nm03 = _mm512_cmpneq_epi64_mask(a3, b);
     __mmask8 nm10 = _mm512_mask_cmpneq_epi64_mask(nm00, a, b1);
     __mmask8 nm11 = _mm512_mask_cmpneq_epi64_mask(nm01, a1, b1);
 
-    __m512i b2 = _mm512_shuffle_i64x2(b, b, _MM_SHUFFLE(1, 0, 3, 2));
+    __m512i b3 = _mm512_permutex_epi64(b, _MM_PERM_CBAD);
     __mmask8 nm12 = _mm512_mask_cmpneq_epi64_mask(nm02, a2, b1);
     __mmask8 nm13 = _mm512_mask_cmpneq_epi64_mask(nm03, a3, b1);
     __mmask8 nm20 = _mm512_mask_cmpneq_epi64_mask(nm10, a, b2);
 
-    __m512i b3 = _mm512_shuffle_i64x2(b, b, _MM_SHUFFLE(0, 3, 2, 1));
     __mmask8 nm21 = _mm512_mask_cmpneq_epi64_mask(nm11, a1, b2);
     __mmask8 nm22 = _mm512_mask_cmpneq_epi64_mask(nm12, a2, b2);
     __mmask8 nm23 = _mm512_mask_cmpneq_epi64_mask(nm13, a3, b2);
