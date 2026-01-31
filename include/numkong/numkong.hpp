@@ -1117,7 +1117,7 @@ void vincenty(in_type_ const *a_lats, in_type_ const *a_lons, in_type_ const *b_
 
             // Iterative convergence of lambda (difference in longitude on auxiliary sphere)
             precision_type_ lambda = longitude_difference;
-            precision_type_ lambda_previous;
+            precision_type_ lambda_previous = longitude_difference;
             precision_type_ sin_angular_distance, cos_angular_distance, angular_distance;
             precision_type_ sin_azimuth, cos_squared_azimuth, cos_double_angular_midpoint;
             bool coincident = false;

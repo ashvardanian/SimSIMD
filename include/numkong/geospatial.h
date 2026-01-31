@@ -302,6 +302,8 @@ NK_PUBLIC void nk_haversine_f64_serial(             //
         nk_f64_t haversine_term = sin_latitude_delta_half * sin_latitude_delta_half +
                                   cos_first_latitude * cos_second_latitude * sin_longitude_delta_half *
                                       sin_longitude_delta_half;
+        // Clamp haversine_term to [0, 1] to prevent NaN from sqrt of negative values
+        haversine_term = (haversine_term < 0.0) ? 0.0 : ((haversine_term > 1.0) ? 1.0 : haversine_term);
 
         // Central angle: c = 2 × atan2(√a, √(1-a))
         nk_f64_t sqrt_haversine = nk_f64_sqrt_serial(haversine_term);
@@ -375,7 +377,7 @@ NK_PUBLIC void nk_vincenty_f64_serial(              //
 
         // Iterative convergence of lambda (difference in longitude on auxiliary sphere)
         nk_f64_t lambda = longitude_difference;
-        nk_f64_t lambda_previous;
+        nk_f64_t lambda_previous = longitude_difference;
         nk_f64_t sin_angular_distance, cos_angular_distance, angular_distance;
         nk_f64_t sin_azimuth, cos_squared_azimuth, cos_double_angular_midpoint;
         nk_u32_t iteration = 0;
@@ -475,7 +477,7 @@ NK_PUBLIC void nk_vincenty_f32_serial(              //
 
         // Iterative convergence of lambda (difference in longitude on auxiliary sphere)
         nk_f32_t lambda = longitude_difference;
-        nk_f32_t lambda_previous;
+        nk_f32_t lambda_previous = longitude_difference;
         nk_f32_t sin_angular_distance, cos_angular_distance, angular_distance;
         nk_f32_t sin_azimuth, cos_squared_azimuth, cos_double_angular_midpoint;
         nk_u32_t iteration = 0;
@@ -596,6 +598,9 @@ NK_INTERNAL float64x2_t nk_haversine_f64x2_neon_(              //
     // a = sin²(Δlat/2) + cos(lat1) × cos(lat2) × sin²(Δlon/2)
     float64x2_t haversine_term = vaddq_f64(sin_squared_latitude_delta_half,
                                            vmulq_f64(cos_latitude_product, sin_squared_longitude_delta_half));
+    // Clamp haversine_term to [0, 1] to prevent NaN from sqrt of negative values
+    float64x2_t zero = vdupq_n_f64(0.0);
+    haversine_term = vmaxq_f64(zero, vminq_f64(one, haversine_term));
 
     // Central angle: c = 2 × atan2(√a, √(1-a))
     float64x2_t sqrt_haversine = vsqrtq_f64(haversine_term);
@@ -845,7 +850,8 @@ NK_INTERNAL float64x2_t nk_vincenty_f64x2_neon_(               //
     series_b = vfmaq_f64(vdupq_n_f64(256.0), u_squared, series_b);
     series_b = vmulq_f64(vdivq_f64(u_squared, vdupq_n_f64(1024.0)), series_b);
 
-    // Δσ = B × sin(σ) × (cos(2σₘ) + B/4 × (cos(σ) × (-1 + 2 × cos²(2σₘ)) - B/6 × cos(2σₘ) × (-3 + 4 × sin²(σ)) × (-3 + 4 × cos²(2σₘ))))
+    // Δσ = B × sin(σ) × (cos(2σₘ) + B/4 × (cos(σ) × (-1 + 2 × cos²(2σₘ)) - B/6 × cos(2σₘ) × (-3 + 4 × sin²(σ)) × (-3 +
+    // 4 × cos²(2σₘ))))
     float64x2_t cos_2sm_sq = vmulq_f64(cos_double_angular_midpoint, cos_double_angular_midpoint);
     float64x2_t sin_sq = vmulq_f64(sin_angular_distance, sin_angular_distance);
     float64x2_t term1 = vfmaq_f64(vdupq_n_f64(-1.0), two, cos_2sm_sq);
@@ -1131,6 +1137,9 @@ NK_INTERNAL __m256d nk_haversine_f64x4_haswell_(       //
     // a = sin²(Δlat/2) + cos(lat1) × cos(lat2) × sin²(Δlon/2)
     __m256d haversine_term = _mm256_add_pd(sin_squared_latitude_delta_half,
                                            _mm256_mul_pd(cos_latitude_product, sin_squared_longitude_delta_half));
+    // Clamp haversine_term to [0, 1] to prevent NaN from sqrt of negative values
+    __m256d zero = _mm256_setzero_pd();
+    haversine_term = _mm256_max_pd(zero, _mm256_min_pd(one, haversine_term));
 
     // Central angle: c = 2 × atan2(√a, √(1-a))
     __m256d sqrt_haversine = _mm256_sqrt_pd(haversine_term);
@@ -1385,7 +1394,8 @@ NK_INTERNAL __m256d nk_vincenty_f64x4_haswell_(        //
     series_b = _mm256_fmadd_pd(u_squared, series_b, _mm256_set1_pd(256.0));
     series_b = _mm256_mul_pd(_mm256_div_pd(u_squared, _mm256_set1_pd(1024.0)), series_b);
 
-    // Δσ = B × sin(σ) × (cos(2σₘ) + B/4 × (cos(σ) × (-1 + 2 × cos²(2σₘ)) - B/6 × cos(2σₘ) × (-3 + 4 × sin²(σ)) × (-3 + 4 × cos²(2σₘ))))
+    // Δσ = B × sin(σ) × (cos(2σₘ) +
+    //      B/4 × (cos(σ) × (-1 + 2 × cos²(2σₘ)) - B/6 × cos(2σₘ) × (-3 + 4 × sin²(σ)) × (-3 + 4 × cos²(2σₘ))))
     __m256d cos_2sm_sq = _mm256_mul_pd(cos_double_angular_midpoint, cos_double_angular_midpoint);
     __m256d sin_sq = _mm256_mul_pd(sin_angular_distance, sin_angular_distance);
     __m256d term1 = _mm256_fmadd_pd(two, cos_2sm_sq, _mm256_set1_pd(-1.0));
@@ -1580,7 +1590,8 @@ NK_INTERNAL __m256 nk_vincenty_f32x8_haswell_(       //
     series_b = _mm256_fmadd_ps(u_squared, series_b, _mm256_set1_ps(256.0f));
     series_b = _mm256_mul_ps(_mm256_div_ps(u_squared, _mm256_set1_ps(1024.0f)), series_b);
 
-    // Δσ = B × sin(σ) × (cos(2σₘ) + B/4 × (cos(σ) × (-1 + 2 × cos²(2σₘ)) - B/6 × cos(2σₘ) × (-3 + 4 × sin²(σ)) × (-3 + 4 × cos²(2σₘ))))
+    // Δσ = B × sin(σ) × (cos(2σₘ) +
+    //      B/4 × (cos(σ) × (-1 + 2 × cos²(2σₘ)) - B/6 × cos(2σₘ) × (-3 + 4 × sin²(σ)) × (-3 + 4 × cos²(2σₘ))))
     __m256 cos_2sm_sq = _mm256_mul_ps(cos_double_angular_midpoint, cos_double_angular_midpoint);
     __m256 sin_sq = _mm256_mul_ps(sin_angular_distance, sin_angular_distance);
     __m256 term1 = _mm256_fmadd_ps(two, cos_2sm_sq, _mm256_set1_ps(-1.0f));
@@ -1681,6 +1692,9 @@ NK_INTERNAL __m512d nk_haversine_f64x8_skylake_(       //
     // a = sin²(Δlat/2) + cos(lat1) × cos(lat2) × sin²(Δlon/2)
     __m512d haversine_term = _mm512_add_pd(sin_squared_latitude_delta_half,
                                            _mm512_mul_pd(cos_latitude_product, sin_squared_longitude_delta_half));
+    // Clamp haversine_term to [0, 1] to prevent NaN from sqrt of negative values
+    __m512d zero = _mm512_setzero_pd();
+    haversine_term = _mm512_max_pd(zero, _mm512_min_pd(one, haversine_term));
 
     // Central angle: c = 2 × atan2(√a, √(1-a))
     __m512d sqrt_haversine = _mm512_sqrt_pd(haversine_term);
@@ -1852,7 +1866,8 @@ NK_INTERNAL __m512d nk_vincenty_f64x8_skylake_(        //
     series_b = _mm512_fmadd_pd(u_squared, series_b, _mm512_set1_pd(256.0));
     series_b = _mm512_mul_pd(_mm512_div_pd(u_squared, _mm512_set1_pd(1024.0)), series_b);
 
-    // Δσ = B × sin(σ) × (cos(2σₘ) + B/4 × (cos(σ) × (-1 + 2 × cos²(2σₘ)) - B/6 × cos(2σₘ) × (-3 + 4 × sin²(σ)) × (-3 + 4 × cos²(2σₘ))))
+    // Δσ = B × sin(σ) × (cos(2σₘ) +
+    //      B/4 × (cos(σ) × (-1 + 2 × cos²(2σₘ)) - B/6 × cos(2σₘ) × (-3 + 4 × sin²(σ)) × (-3 + 4 × cos²(2σₘ))))
     __m512d cos_2sm_sq = _mm512_mul_pd(cos_double_angular_midpoint, cos_double_angular_midpoint);
     __m512d sin_sq = _mm512_mul_pd(sin_angular_distance, sin_angular_distance);
     __m512d term1 = _mm512_fmadd_pd(two, cos_2sm_sq, _mm512_set1_pd(-1.0));
@@ -2111,7 +2126,8 @@ NK_INTERNAL __m512 nk_vincenty_f32x16_skylake_(      //
     series_b = _mm512_fmadd_ps(u_squared, series_b, _mm512_set1_ps(256.0f));
     series_b = _mm512_mul_ps(_mm512_div_ps(u_squared, _mm512_set1_ps(1024.0f)), series_b);
 
-    // Δσ = B × sin(σ) × (cos(2σₘ) + B/4 × (cos(σ) × (-1 + 2 × cos²(2σₘ)) - B/6 × cos(2σₘ) × (-3 + 4 × sin²(σ)) × (-3 + 4 × cos²(2σₘ))))
+    // Δσ = B × sin(σ) × (cos(2σₘ) +
+    //      B/4 × (cos(σ) × (-1 + 2 × cos²(2σₘ)) - B/6 × cos(2σₘ) × (-3 + 4 × sin²(σ)) × (-3 + 4 × cos²(2σₘ))))
     __m512 cos_2sm_sq = _mm512_mul_ps(cos_double_angular_midpoint, cos_double_angular_midpoint);
     __m512 sin_sq = _mm512_mul_ps(sin_angular_distance, sin_angular_distance);
     __m512 term1 = _mm512_fmadd_ps(two, cos_2sm_sq, _mm512_set1_ps(-1.0f));
