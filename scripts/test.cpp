@@ -2172,8 +2172,8 @@ error_stats_t test_hammings(typename scalar_type_::hammings_packed_size_kernel_t
         nk::hammings_packed<scalar_t, result_t, nk::no_simd_k>(a.values_data(), b_packed_ref.raw_values_data(),
                                                                c_ref.values_data(), m, n, k, a_stride, c_stride);
 
-        // Hamming distances are exact integers - use exact comparison
-        for (std::size_t i = 0; i < m * n; i++) stats.accumulate(c[i], c_ref[i]);
+        // Hamming distances are exact integers
+        for (std::size_t i = 0; i < m * n; i++) stats.accumulate_exact(c[i] == c_ref[i]);
     }
     return stats;
 }
@@ -2208,8 +2208,8 @@ error_stats_t test_hammings_symmetric(typename scalar_type_::hammings_symmetric_
         nk::hammings_symmetric<scalar_t, result_t, nk::no_simd_k>(a.values_data(), n, k, a_stride, c_ref.values_data(),
                                                                   n * sizeof(result_t));
 
-        // Hamming distances are exact integers - use exact comparison
-        for (std::size_t i = 0; i < n * n; i++) stats.accumulate(c[i], c_ref[i]);
+        // Hamming distances are exact integers
+        for (std::size_t i = 0; i < n * n; i++) stats.accumulate_exact(c[i] == c_ref[i]);
     }
     return stats;
 }
