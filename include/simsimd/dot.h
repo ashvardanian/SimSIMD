@@ -1819,8 +1819,8 @@ simsimd_dot_u8_ice_cycle:
 
 #if SIMSIMD_TARGET_SIERRA
 #pragma GCC push_options
-#pragma GCC target("avx2", "bmi2", "avx2vnni")
-#pragma clang attribute push(__attribute__((target("avx2,bmi2,avx2vnni"))), apply_to = function)
+#pragma GCC target("avx2", "bmi2", "avxvnni")
+#pragma clang attribute push(__attribute__((target("avx2,bmi2,avxvnni"))), apply_to = function)
 
 SIMSIMD_PUBLIC void simsimd_dot_i8_sierra(simsimd_i8_t const *a_scalars, simsimd_i8_t const *b_scalars,
                                           simsimd_size_t count_scalars, simsimd_distance_t *result) {
