@@ -66,7 +66,7 @@ nk_sqeuclidean_f32_skylake_cycle:
 
 NK_PUBLIC void nk_euclidean_f32_skylake(nk_f32_t const *a, nk_f32_t const *b, nk_size_t n, nk_f32_t *result) {
     nk_sqeuclidean_f32_skylake(a, b, n, result);
-    *result = nk_sqrt_f32_haswell_(*result);
+    *result = nk_f32_sqrt_haswell(*result);
 }
 
 NK_INTERNAL nk_f64_t nk_angular_normalize_f64_skylake_(nk_f64_t ab, nk_f64_t a2, nk_f64_t b2) {
@@ -153,7 +153,7 @@ nk_sqeuclidean_f64_skylake_cycle:
 
 NK_PUBLIC void nk_euclidean_f64_skylake(nk_f64_t const *a, nk_f64_t const *b, nk_size_t n, nk_f64_t *result) {
     nk_sqeuclidean_f64_skylake(a, b, n, result);
-    *result = nk_sqrt_f64_haswell_(*result);
+    *result = nk_f64_sqrt_haswell(*result);
 }
 
 NK_PUBLIC void nk_angular_f64_skylake(nk_f64_t const *a, nk_f64_t const *b, nk_size_t n, nk_f64_t *result) {
@@ -402,7 +402,7 @@ nk_sqeuclidean_f16_skylake_cycle:
 
 NK_PUBLIC void nk_euclidean_f16_skylake(nk_f16_t const *a, nk_f16_t const *b, nk_size_t n, nk_f32_t *result) {
     nk_sqeuclidean_f16_skylake(a, b, n, result);
-    *result = nk_sqrt_f32_haswell_(*result);
+    *result = nk_f32_sqrt_haswell(*result);
 }
 
 NK_PUBLIC void nk_angular_f16_skylake(nk_f16_t const *a, nk_f16_t const *b, nk_size_t n, nk_f32_t *result) {
@@ -463,7 +463,7 @@ nk_sqeuclidean_e4m3_skylake_cycle:
 
 NK_PUBLIC void nk_euclidean_e4m3_skylake(nk_e4m3_t const *a, nk_e4m3_t const *b, nk_size_t n, nk_f32_t *result) {
     nk_sqeuclidean_e4m3_skylake(a, b, n, result);
-    *result = nk_sqrt_f32_haswell_(*result);
+    *result = nk_f32_sqrt_haswell(*result);
 }
 
 NK_PUBLIC void nk_angular_e4m3_skylake(nk_e4m3_t const *a, nk_e4m3_t const *b, nk_size_t n, nk_f32_t *result) {
@@ -524,7 +524,7 @@ nk_sqeuclidean_e5m2_skylake_cycle:
 
 NK_PUBLIC void nk_euclidean_e5m2_skylake(nk_e5m2_t const *a, nk_e5m2_t const *b, nk_size_t n, nk_f32_t *result) {
     nk_sqeuclidean_e5m2_skylake(a, b, n, result);
-    *result = nk_sqrt_f32_haswell_(*result);
+    *result = nk_f32_sqrt_haswell(*result);
 }
 
 NK_PUBLIC void nk_angular_e5m2_skylake(nk_e5m2_t const *a, nk_e5m2_t const *b, nk_size_t n, nk_f32_t *result) {
@@ -585,7 +585,7 @@ nk_sqeuclidean_e2m3_skylake_cycle:
 
 NK_PUBLIC void nk_euclidean_e2m3_skylake(nk_e2m3_t const *a, nk_e2m3_t const *b, nk_size_t n, nk_f32_t *result) {
     nk_sqeuclidean_e2m3_skylake(a, b, n, result);
-    *result = nk_sqrt_f32_haswell_(*result);
+    *result = nk_f32_sqrt_haswell(*result);
 }
 
 NK_PUBLIC void nk_angular_e2m3_skylake(nk_e2m3_t const *a, nk_e2m3_t const *b, nk_size_t n, nk_f32_t *result) {
@@ -646,7 +646,7 @@ nk_sqeuclidean_e3m2_skylake_cycle:
 
 NK_PUBLIC void nk_euclidean_e3m2_skylake(nk_e3m2_t const *a, nk_e3m2_t const *b, nk_size_t n, nk_f32_t *result) {
     nk_sqeuclidean_e3m2_skylake(a, b, n, result);
-    *result = nk_sqrt_f32_haswell_(*result);
+    *result = nk_f32_sqrt_haswell(*result);
 }
 
 NK_PUBLIC void nk_angular_e3m2_skylake(nk_e3m2_t const *a, nk_e3m2_t const *b, nk_size_t n, nk_f32_t *result) {

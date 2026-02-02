@@ -1151,11 +1151,11 @@ int main(int argc, char **argv) {
     std::printf("  Arm SVE2:         %s\n", flags[NK_TARGET_SVE2]);
     std::printf("  x86 Haswell:      %s\n", flags[NK_TARGET_HASWELL]);
     std::printf("  x86 Skylake:      %s\n", flags[NK_TARGET_SKYLAKE]);
-    std::printf("  x86 Ice Lake:     %s\n", flags[NK_TARGET_ICE]);
+    std::printf("  x86 Ice Lake:     %s\n", flags[NK_TARGET_ICELAKE]);
     std::printf("  x86 Genoa:        %s\n", flags[NK_TARGET_GENOA]);
     std::printf("  x86 Sapphire:     %s\n", flags[NK_TARGET_SAPPHIRE]);
-    std::printf("  x86 Sapphire AMX: %s\n", flags[NK_TARGET_SAPPHIRE_AMX]);
-    std::printf("  x86 Granite AMX:  %s\n", flags[NK_TARGET_GRANITE_AMX]);
+    std::printf("  x86 Sapphire AMX: %s\n", flags[NK_TARGET_SAPPHIREAMX]);
+    std::printf("  x86 Granite AMX:  %s\n", flags[NK_TARGET_GRANITEAMX]);
     std::printf("  x86 Turin:        %s\n", flags[NK_TARGET_TURIN]);
     std::printf("  x86 Sierra:       %s\n", flags[NK_TARGET_SIERRA]);
     std::printf("\n");
@@ -1171,11 +1171,11 @@ int main(int argc, char **argv) {
     std::printf("  Arm SVE2:         %s\n", flags[(runtime_caps & nk_cap_sve2_k) != 0]);
     std::printf("  x86 Haswell:      %s\n", flags[(runtime_caps & nk_cap_haswell_k) != 0]);
     std::printf("  x86 Skylake:      %s\n", flags[(runtime_caps & nk_cap_skylake_k) != 0]);
-    std::printf("  x86 Ice Lake:     %s\n", flags[(runtime_caps & nk_cap_ice_k) != 0]);
+    std::printf("  x86 Ice Lake:     %s\n", flags[(runtime_caps & nk_cap_icelake_k) != 0]);
     std::printf("  x86 Genoa:        %s\n", flags[(runtime_caps & nk_cap_genoa_k) != 0]);
     std::printf("  x86 Sapphire:     %s\n", flags[(runtime_caps & nk_cap_sapphire_k) != 0]);
-    std::printf("  x86 Sapphire AMX: %s\n", flags[(runtime_caps & nk_cap_sapphire_amx_k) != 0]);
-    std::printf("  x86 Granite AMX:  %s\n", flags[(runtime_caps & nk_cap_granite_amx_k) != 0]);
+    std::printf("  x86 Sapphire AMX: %s\n", flags[(runtime_caps & nk_cap_sapphireamx_k) != 0]);
+    std::printf("  x86 Granite AMX:  %s\n", flags[(runtime_caps & nk_cap_graniteamx_k) != 0]);
     std::printf("  x86 Turin:        %s\n", flags[(runtime_caps & nk_cap_turin_k) != 0]);
     std::printf("  x86 Sierra:       %s\n", flags[(runtime_caps & nk_cap_sierra_k) != 0]);
     std::printf("\n");
@@ -1832,53 +1832,57 @@ int main(int argc, char **argv) {
 
 #endif
 
-#if NK_TARGET_ICE
-    dense_<i8_k, f32_k>("angular_i8_ice", nk_angular_i8_ice);
-    dense_<i8_k, u32_k>("sqeuclidean_i8_ice", nk_sqeuclidean_i8_ice);
-    dense_<i8_k, f32_k>("euclidean_i8_ice", nk_euclidean_i8_ice);
-    dense_<i8_k, i32_k>("dot_i8_ice", nk_dot_i8_ice);
+#if NK_TARGET_ICELAKE
+    dense_<i8_k, f32_k>("angular_i8_icelake", nk_angular_i8_icelake);
+    dense_<i8_k, u32_k>("sqeuclidean_i8_icelake", nk_sqeuclidean_i8_icelake);
+    dense_<i8_k, f32_k>("euclidean_i8_icelake", nk_euclidean_i8_icelake);
+    dense_<i8_k, i32_k>("dot_i8_icelake", nk_dot_i8_icelake);
 
-    dense_<u8_k, f32_k>("angular_u8_ice", nk_angular_u8_ice);
-    dense_<u8_k, u32_k>("sqeuclidean_u8_ice", nk_sqeuclidean_u8_ice);
-    dense_<u8_k, f32_k>("euclidean_u8_ice", nk_euclidean_u8_ice);
-    dense_<u8_k, u32_k>("dot_u8_ice", nk_dot_u8_ice);
+    dense_<u8_k, f32_k>("angular_u8_icelake", nk_angular_u8_icelake);
+    dense_<u8_k, u32_k>("sqeuclidean_u8_icelake", nk_sqeuclidean_u8_icelake);
+    dense_<u8_k, f32_k>("euclidean_u8_icelake", nk_euclidean_u8_icelake);
+    dense_<u8_k, u32_k>("dot_u8_icelake", nk_dot_u8_icelake);
 
-    dense_<i4_k, f32_k>("angular_i4_ice", nk_angular_i4_ice);
-    dense_<i4_k, u32_k>("sqeuclidean_i4_ice", nk_sqeuclidean_i4_ice);
-    dense_<i4_k, f32_k>("euclidean_i4_ice", nk_euclidean_i4_ice);
-    dense_<i4_k, i32_k>("dot_i4_ice", nk_dot_i4_ice);
+    dense_<i4_k, f32_k>("angular_i4_icelake", nk_angular_i4_icelake);
+    dense_<i4_k, u32_k>("sqeuclidean_i4_icelake", nk_sqeuclidean_i4_icelake);
+    dense_<i4_k, f32_k>("euclidean_i4_icelake", nk_euclidean_i4_icelake);
+    dense_<i4_k, i32_k>("dot_i4_icelake", nk_dot_i4_icelake);
 
-    dense_<u4_k, f32_k>("angular_u4_ice", nk_angular_u4_ice);
-    dense_<u4_k, u32_k>("sqeuclidean_u4_ice", nk_sqeuclidean_u4_ice);
-    dense_<u4_k, f32_k>("euclidean_u4_ice", nk_euclidean_u4_ice);
-    dense_<u4_k, u32_k>("dot_u4_ice", nk_dot_u4_ice);
+    dense_<u4_k, f32_k>("angular_u4_icelake", nk_angular_u4_icelake);
+    dense_<u4_k, u32_k>("sqeuclidean_u4_icelake", nk_sqeuclidean_u4_icelake);
+    dense_<u4_k, f32_k>("euclidean_u4_icelake", nk_euclidean_u4_icelake);
+    dense_<u4_k, u32_k>("dot_u4_icelake", nk_dot_u4_icelake);
 
-    dense_<u1_k, u32_k>("hamming_u1_ice", nk_hamming_u1_ice);
-    dense_<u1_k, f32_k>("jaccard_u1_ice", nk_jaccard_u1_ice);
+    dense_<u1_k, u32_k>("hamming_u1_icelake", nk_hamming_u1_icelake);
+    dense_<u1_k, f32_k>("jaccard_u1_icelake", nk_jaccard_u1_icelake);
 
-    sparse_<u16_k, u32_k>("sparse_intersect_u16_ice", nk_sparse_intersect_u16_ice);
-    sparse_<u32_k, u32_k>("sparse_intersect_u32_ice", nk_sparse_intersect_u32_ice);
-    sparse_<u64_k, u64_k>("sparse_intersect_u64_ice", nk_sparse_intersect_u64_ice);
+    sparse_<u16_k, u32_k>("sparse_intersect_u16_icelake", nk_sparse_intersect_u16_icelake);
+    sparse_<u32_k, u32_k>("sparse_intersect_u32_icelake", nk_sparse_intersect_u32_icelake);
+    sparse_<u64_k, u64_k>("sparse_intersect_u64_icelake", nk_sparse_intersect_u64_icelake);
 
-    dots_<i4_k, i32_k>("dots_packed_i4_ice", nk_dots_packed_size_i4_ice, nk_dots_pack_i4_ice, nk_dots_packed_i4_ice);
-    dots_<u4_k, u32_k>("dots_packed_u4_ice", nk_dots_packed_size_u4_ice, nk_dots_pack_u4_ice, nk_dots_packed_u4_ice);
-    dots_<i8_k, i32_k>("dots_packed_i8_ice", nk_dots_packed_size_i8_ice, nk_dots_pack_i8_ice, nk_dots_packed_i8_ice);
-    dots_<u8_k, u32_k>("dots_packed_u8_ice", nk_dots_packed_size_u8_ice, nk_dots_pack_u8_ice, nk_dots_packed_u8_ice);
+    dots_<i4_k, i32_k>("dots_packed_i4_icelake", nk_dots_packed_size_i4_icelake, nk_dots_pack_i4_icelake,
+                       nk_dots_packed_i4_icelake);
+    dots_<u4_k, u32_k>("dots_packed_u4_icelake", nk_dots_packed_size_u4_icelake, nk_dots_pack_u4_icelake,
+                       nk_dots_packed_u4_icelake);
+    dots_<i8_k, i32_k>("dots_packed_i8_icelake", nk_dots_packed_size_i8_icelake, nk_dots_pack_i8_icelake,
+                       nk_dots_packed_i8_icelake);
+    dots_<u8_k, u32_k>("dots_packed_u8_icelake", nk_dots_packed_size_u8_icelake, nk_dots_pack_u8_icelake,
+                       nk_dots_packed_u8_icelake);
 
-    dots_symmetric_<i8_k, i32_k>("dots_symmetric_i8_ice", nk_dots_symmetric_i8_ice);
-    dots_symmetric_<u8_k, u32_k>("dots_symmetric_u8_ice", nk_dots_symmetric_u8_ice);
-    dots_symmetric_<i4_k, i32_k>("dots_symmetric_i4_ice", nk_dots_symmetric_i4_ice);
-    dots_symmetric_<u4_k, u32_k>("dots_symmetric_u4_ice", nk_dots_symmetric_u4_ice);
+    dots_symmetric_<i8_k, i32_k>("dots_symmetric_i8_icelake", nk_dots_symmetric_i8_icelake);
+    dots_symmetric_<u8_k, u32_k>("dots_symmetric_u8_icelake", nk_dots_symmetric_u8_icelake);
+    dots_symmetric_<i4_k, i32_k>("dots_symmetric_i4_icelake", nk_dots_symmetric_i4_icelake);
+    dots_symmetric_<u4_k, u32_k>("dots_symmetric_u4_icelake", nk_dots_symmetric_u4_icelake);
 
-    hammings_<nk_u1_k, nk_u32_k>("hammings_u1_ice", nk_hammings_packed_size_u1_ice, nk_hammings_pack_u1_ice,
-                                 nk_hammings_packed_u1_ice);
+    hammings_<nk_u1_k, nk_u32_k>("hammings_u1_icelake", nk_hammings_packed_size_u1_icelake, nk_hammings_pack_u1_icelake,
+                                 nk_hammings_packed_u1_icelake);
 
-    hammings_symmetric_<nk_u1_k, nk_u32_k>("hammings_symmetric_u1_ice", nk_hammings_symmetric_u1_ice);
+    hammings_symmetric_<nk_u1_k, nk_u32_k>("hammings_symmetric_u1_icelake", nk_hammings_symmetric_u1_icelake);
 
-    cast_<nk_f32_k, nk_f16_k>("cast_f32_to_f16_ice", nk_cast_ice);
-    cast_<nk_f16_k, nk_f32_k>("cast_f16_to_f32_ice", nk_cast_ice);
-    cast_<nk_f32_k, nk_e4m3_k>("cast_f32_to_e4m3_ice", nk_cast_ice);
-    cast_<nk_e4m3_k, nk_f32_k>("cast_e4m3_to_f32_ice", nk_cast_ice);
+    cast_<nk_f32_k, nk_f16_k>("cast_f32_to_f16_icelake", nk_cast_icelake);
+    cast_<nk_f16_k, nk_f32_k>("cast_f16_to_f32_icelake", nk_cast_icelake);
+    cast_<nk_f32_k, nk_e4m3_k>("cast_f32_to_e4m3_icelake", nk_cast_icelake);
+    cast_<nk_e4m3_k, nk_f32_k>("cast_e4m3_to_f32_icelake", nk_cast_icelake);
 #endif
 
 #if NK_TARGET_GENOA
@@ -1950,14 +1954,14 @@ int main(int argc, char **argv) {
     elementwise_<f16_k, unknown_k, f32_k>("cos_f16_sapphire", nk_cos_f16_sapphire);
     elementwise_<f16_k, unknown_k, f32_k>("atan_f16_sapphire", nk_atan_f16_sapphire);
 
-    dots_<bf16_k, f32_k>("dots_packed_bf16_sapphire_amx", nk_dots_packed_size_bf16_sapphire_amx,
-                         nk_dots_pack_bf16_sapphire_amx, nk_dots_packed_bf16_sapphire_amx);
-    dots_<i8_k, i32_k>("dots_packed_i8_sapphire_amx", nk_dots_packed_size_i8_sapphire_amx, nk_dots_pack_i8_sapphire_amx,
-                       nk_dots_packed_i8_sapphire_amx);
-    dots_<e4m3_k, f32_k>("dots_packed_e4m3_sapphire_amx", nk_dots_packed_size_e4m3_sapphire_amx,
-                         nk_dots_pack_e4m3_sapphire_amx, nk_dots_packed_e4m3_sapphire_amx);
-    dots_<e5m2_k, f32_k>("dots_packed_e5m2_sapphire_amx", nk_dots_packed_size_e5m2_sapphire_amx,
-                         nk_dots_pack_e5m2_sapphire_amx, nk_dots_packed_e5m2_sapphire_amx);
+    dots_<bf16_k, f32_k>("dots_packed_bf16_sapphireamx", nk_dots_packed_size_bf16_sapphireamx,
+                         nk_dots_pack_bf16_sapphireamx, nk_dots_packed_bf16_sapphireamx);
+    dots_<i8_k, i32_k>("dots_packed_i8_sapphireamx", nk_dots_packed_size_i8_sapphireamx, nk_dots_pack_i8_sapphireamx,
+                       nk_dots_packed_i8_sapphireamx);
+    dots_<e4m3_k, f32_k>("dots_packed_e4m3_sapphireamx", nk_dots_packed_size_e4m3_sapphireamx,
+                         nk_dots_pack_e4m3_sapphireamx, nk_dots_packed_e4m3_sapphireamx);
+    dots_<e5m2_k, f32_k>("dots_packed_e5m2_sapphireamx", nk_dots_packed_size_e5m2_sapphireamx,
+                         nk_dots_pack_e5m2_sapphireamx, nk_dots_packed_e5m2_sapphireamx);
 
 #endif
 
@@ -1967,56 +1971,56 @@ int main(int argc, char **argv) {
     sparse_<u64_k, u64_k>("sparse_intersect_u64_turin", nk_sparse_intersect_u64_turin);
 #endif
 
-#if NK_TARGET_SPACEMIT
+#if NK_TARGET_RVV
     // Binary operations
-    dense_<u1_k, u32_k>("hamming_u1_spacemit", nk_hamming_u1_spacemit);
-    dense_<u1_k, f32_k>("jaccard_u1_spacemit", nk_jaccard_u1_spacemit);
-    dense_<u8_k, u32_k>("hamming_u8_spacemit", nk_hamming_u8_spacemit);
-    dense_<u16_k, f32_k>("jaccard_u16_spacemit", nk_jaccard_u16_spacemit);
-    dense_<u32_k, f32_k>("jaccard_u32_spacemit", nk_jaccard_u32_spacemit);
+    dense_<u1_k, u32_k>("hamming_u1_rvv", nk_hamming_u1_rvv);
+    dense_<u1_k, f32_k>("jaccard_u1_rvv", nk_jaccard_u1_rvv);
+    dense_<u8_k, u32_k>("hamming_u8_rvv", nk_hamming_u8_rvv);
+    dense_<u16_k, f32_k>("jaccard_u16_rvv", nk_jaccard_u16_rvv);
+    dense_<u32_k, f32_k>("jaccard_u32_rvv", nk_jaccard_u32_rvv);
 
     // Dot products
-    dense_<i8_k, i32_k>("dot_i8_spacemit", nk_dot_i8_spacemit);
-    dense_<u8_k, u32_k>("dot_u8_spacemit", nk_dot_u8_spacemit);
-    dense_<f32_k, f32_k>("dot_f32_spacemit", nk_dot_f32_spacemit);
-    dense_<f64_k, f64_k>("dot_f64_spacemit", nk_dot_f64_spacemit);
+    dense_<i8_k, i32_k>("dot_i8_rvv", nk_dot_i8_rvv);
+    dense_<u8_k, u32_k>("dot_u8_rvv", nk_dot_u8_rvv);
+    dense_<f32_k, f32_k>("dot_f32_rvv", nk_dot_f32_rvv);
+    dense_<f64_k, f64_k>("dot_f64_rvv", nk_dot_f64_rvv);
 
     // Spatial operations
-    dense_<f32_k, f32_k>("sqeuclidean_f32_spacemit", nk_sqeuclidean_f32_spacemit);
-    dense_<f64_k, f64_k>("sqeuclidean_f64_spacemit", nk_sqeuclidean_f64_spacemit);
-    dense_<f32_k, f32_k>("angular_f32_spacemit", nk_angular_f32_spacemit);
-    dense_<f64_k, f64_k>("angular_f64_spacemit", nk_angular_f64_spacemit);
+    dense_<f32_k, f32_k>("sqeuclidean_f32_rvv", nk_sqeuclidean_f32_rvv);
+    dense_<f64_k, f64_k>("sqeuclidean_f64_rvv", nk_sqeuclidean_f64_rvv);
+    dense_<f32_k, f32_k>("angular_f32_rvv", nk_angular_f32_rvv);
+    dense_<f64_k, f64_k>("angular_f64_rvv", nk_angular_f64_rvv);
 #endif
 
 #if NK_TARGET_V128RELAXED
     // Set operations
-    dense_<u1_k, u32_k>("hamming_u1_wasm", nk_hamming_u1_wasm);
-    dense_<u1_k, f32_k>("jaccard_u1_wasm", nk_jaccard_u1_wasm);
-    dense_<u8_k, u32_k>("hamming_u8_wasm", nk_hamming_u8_wasm);
-    dense_<u16_k, f32_k>("jaccard_u16_wasm", nk_jaccard_u16_wasm);
-    dense_<u32_k, f32_k>("jaccard_u32_wasm", nk_jaccard_u32_wasm);
+    dense_<u1_k, u32_k>("hamming_u1_v128relaxed", nk_hamming_u1_v128relaxed);
+    dense_<u1_k, f32_k>("jaccard_u1_v128relaxed", nk_jaccard_u1_v128relaxed);
+    dense_<u8_k, u32_k>("hamming_u8_v128relaxed", nk_hamming_u8_v128relaxed);
+    dense_<u16_k, f32_k>("jaccard_u16_v128relaxed", nk_jaccard_u16_v128relaxed);
+    dense_<u32_k, f32_k>("jaccard_u32_v128relaxed", nk_jaccard_u32_v128relaxed);
 
     // Dot products
-    dense_<f32_k, f32_k>("dot_f32_wasm", nk_dot_f32_wasm);
-    dense_<f64_k, f64_k>("dot_f64_wasm", nk_dot_f64_wasm);
-    dense_<f16_k, f32_k>("dot_f16_wasm", nk_dot_f16_wasm);
-    dense_<bf16_k, f32_k>("dot_bf16_wasm", nk_dot_bf16_wasm);
-    dense_<i8_k, i32_k>("dot_i8_wasm", nk_dot_i8_wasm);
-    dense_<u8_k, u32_k>("dot_u8_wasm", nk_dot_u8_wasm);
+    dense_<f32_k, f32_k>("dot_f32_v128relaxed", nk_dot_f32_v128relaxed);
+    dense_<f64_k, f64_k>("dot_f64_v128relaxed", nk_dot_f64_v128relaxed);
+    dense_<f16_k, f32_k>("dot_f16_v128relaxed", nk_dot_f16_v128relaxed);
+    dense_<bf16_k, f32_k>("dot_bf16_v128relaxed", nk_dot_bf16_v128relaxed);
+    dense_<i8_k, i32_k>("dot_i8_v128relaxed", nk_dot_i8_v128relaxed);
+    dense_<u8_k, u32_k>("dot_u8_v128relaxed", nk_dot_u8_v128relaxed);
 
     // Spatial distances
-    dense_<f32_k, f32_k>("sqeuclidean_f32_wasm", nk_sqeuclidean_f32_wasm);
-    dense_<f64_k, f64_k>("sqeuclidean_f64_wasm", nk_sqeuclidean_f64_wasm);
-    dense_<f16_k, f32_k>("sqeuclidean_f16_wasm", nk_sqeuclidean_f16_wasm);
-    dense_<bf16_k, f32_k>("sqeuclidean_bf16_wasm", nk_sqeuclidean_bf16_wasm);
-    dense_<f32_k, f32_k>("euclidean_f32_wasm", nk_euclidean_f32_wasm);
-    dense_<f64_k, f64_k>("euclidean_f64_wasm", nk_euclidean_f64_wasm);
-    dense_<f16_k, f32_k>("euclidean_f16_wasm", nk_euclidean_f16_wasm);
-    dense_<bf16_k, f32_k>("euclidean_bf16_wasm", nk_euclidean_bf16_wasm);
-    dense_<f32_k, f32_k>("angular_f32_wasm", nk_angular_f32_wasm);
-    dense_<f64_k, f64_k>("angular_f64_wasm", nk_angular_f64_wasm);
-    dense_<f16_k, f32_k>("angular_f16_wasm", nk_angular_f16_wasm);
-    dense_<bf16_k, f32_k>("angular_bf16_wasm", nk_angular_bf16_wasm);
+    dense_<f32_k, f32_k>("sqeuclidean_f32_v128relaxed", nk_sqeuclidean_f32_v128relaxed);
+    dense_<f64_k, f64_k>("sqeuclidean_f64_v128relaxed", nk_sqeuclidean_f64_v128relaxed);
+    dense_<f16_k, f32_k>("sqeuclidean_f16_v128relaxed", nk_sqeuclidean_f16_v128relaxed);
+    dense_<bf16_k, f32_k>("sqeuclidean_bf16_v128relaxed", nk_sqeuclidean_bf16_v128relaxed);
+    dense_<f32_k, f32_k>("euclidean_f32_v128relaxed", nk_euclidean_f32_v128relaxed);
+    dense_<f64_k, f64_k>("euclidean_f64_v128relaxed", nk_euclidean_f64_v128relaxed);
+    dense_<f16_k, f32_k>("euclidean_f16_v128relaxed", nk_euclidean_f16_v128relaxed);
+    dense_<bf16_k, f32_k>("euclidean_bf16_v128relaxed", nk_euclidean_bf16_v128relaxed);
+    dense_<f32_k, f32_k>("angular_f32_v128relaxed", nk_angular_f32_v128relaxed);
+    dense_<f64_k, f64_k>("angular_f64_v128relaxed", nk_angular_f64_v128relaxed);
+    dense_<f16_k, f32_k>("angular_f16_v128relaxed", nk_angular_f16_v128relaxed);
+    dense_<bf16_k, f32_k>("angular_bf16_v128relaxed", nk_angular_bf16_v128relaxed);
 #endif
 
     sparse_<u16_k, u32_k>("sparse_intersect_u16_serial", nk_sparse_intersect_u16_serial);

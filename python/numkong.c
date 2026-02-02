@@ -225,7 +225,7 @@ nk_dtype_t python_string_to_dtype(char const *name) {
              same_string(name, "<i2") || same_string(name, "h") || same_string(name, "<h"))
         return nk_i16_k;
 
-    // Platform-specific integer formats (Windows vs Unix):
+        // Platform-specific integer formats (Windows vs Unix):
 #if defined(_MSC_VER) || defined(__i386__)
     else if (same_string(name, "int32") || same_string(name, "i4") || same_string(name, "|i4") ||
              same_string(name, "<i4") || same_string(name, "l") || same_string(name, "<l"))
@@ -426,11 +426,11 @@ static PyObject *api_enable_capability(PyObject *self, PyObject *cap_name_obj) {
     // x86 capabilities
     else if (same_string(cap_name, "haswell")) { static_capabilities |= nk_cap_haswell_k; }
     else if (same_string(cap_name, "skylake")) { static_capabilities |= nk_cap_skylake_k; }
-    else if (same_string(cap_name, "ice")) { static_capabilities |= nk_cap_ice_k; }
+    else if (same_string(cap_name, "icelake")) { static_capabilities |= nk_cap_icelake_k; }
     else if (same_string(cap_name, "genoa")) { static_capabilities |= nk_cap_genoa_k; }
     else if (same_string(cap_name, "sapphire")) { static_capabilities |= nk_cap_sapphire_k; }
-    else if (same_string(cap_name, "sapphire_amx")) { static_capabilities |= nk_cap_sapphire_amx_k; }
-    else if (same_string(cap_name, "granite_amx")) { static_capabilities |= nk_cap_granite_amx_k; }
+    else if (same_string(cap_name, "sapphireamx")) { static_capabilities |= nk_cap_sapphireamx_k; }
+    else if (same_string(cap_name, "graniteamx")) { static_capabilities |= nk_cap_graniteamx_k; }
     else if (same_string(cap_name, "turin")) { static_capabilities |= nk_cap_turin_k; }
     else if (same_string(cap_name, "sierra")) { static_capabilities |= nk_cap_sierra_k; }
     else if (same_string(cap_name, "serial")) {
@@ -480,11 +480,11 @@ static PyObject *api_disable_capability(PyObject *self, PyObject *cap_name_obj) 
     // x86 capabilities
     else if (same_string(cap_name, "haswell")) { static_capabilities &= ~nk_cap_haswell_k; }
     else if (same_string(cap_name, "skylake")) { static_capabilities &= ~nk_cap_skylake_k; }
-    else if (same_string(cap_name, "ice")) { static_capabilities &= ~nk_cap_ice_k; }
+    else if (same_string(cap_name, "icelake")) { static_capabilities &= ~nk_cap_icelake_k; }
     else if (same_string(cap_name, "genoa")) { static_capabilities &= ~nk_cap_genoa_k; }
     else if (same_string(cap_name, "sapphire")) { static_capabilities &= ~nk_cap_sapphire_k; }
-    else if (same_string(cap_name, "sapphire_amx")) { static_capabilities &= ~nk_cap_sapphire_amx_k; }
-    else if (same_string(cap_name, "granite_amx")) { static_capabilities &= ~nk_cap_granite_amx_k; }
+    else if (same_string(cap_name, "sapphireamx")) { static_capabilities &= ~nk_cap_sapphireamx_k; }
+    else if (same_string(cap_name, "graniteamx")) { static_capabilities &= ~nk_cap_graniteamx_k; }
     else if (same_string(cap_name, "turin")) { static_capabilities &= ~nk_cap_turin_k; }
     else if (same_string(cap_name, "sierra")) { static_capabilities &= ~nk_cap_sierra_k; }
     else if (same_string(cap_name, "serial")) {
@@ -500,7 +500,7 @@ static PyObject *api_disable_capability(PyObject *self, PyObject *cap_name_obj) 
 }
 
 static char const doc_get_capabilities[] = //
-    "Get the current hardware SIMD capabilities as a dictionary of feature flags.\n" "On x86 it includes: 'serial', " "'haswell', 'skylake', 'ice', " "'genoa', 'sapphire', 'turin'.\n" "On Arm it includes: 'serial', 'neon', 'sve', 'sve2', and their extensions.\n";
+    "Get the current hardware SIMD capabilities as a dictionary of feature flags.\n" "On x86 it includes: 'serial', " "'haswell', 'skylake', 'icelake', " "'genoa', 'sapphire', 'turin'.\n" "On Arm it includes: 'serial', 'neon', 'sve', 'sve2', and their extensions.\n";
 
 static PyObject *api_get_capabilities(PyObject *self) {
     nk_capability_t caps = static_capabilities;
@@ -520,7 +520,7 @@ static PyObject *api_get_capabilities(PyObject *self) {
     ADD_CAP(svesdot);
     ADD_CAP(haswell);
     ADD_CAP(skylake);
-    ADD_CAP(ice);
+    ADD_CAP(icelake);
     ADD_CAP(genoa);
     ADD_CAP(sapphire);
     ADD_CAP(turin);

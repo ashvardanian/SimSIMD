@@ -1,6 +1,6 @@
 /**
  *  @brief SIMD-accelerated Dot Products for Real Numbers optimized for SpacemiT (RVV 1.0) CPUs.
- *  @file include/numkong/dot/spacemit.h
+ *  @file include/numkong/dot/rvv.h
  *  @sa include/numkong/dot.h
  *  @author Ash Vardanian
  *  @date January 5, 2026
@@ -12,27 +12,27 @@
  *  - No explicit masking needed for simple reductions
  *
  *  This file contains base RVV 1.0 operations (i8, u8, f32, f64).
- *  For f16 (Zvfh) see sifive.h, for bf16 (Zvfbfwma) see xuantie.h.
+ *  For f16 (Zvfh) see rvvhalf.h, for bf16 (Zvfbfwma) see rvvbf16.h.
  *
  *  Widening operations:
  *  - i8 ⨯ i8 → i16 via vwmul, then i16 reduction → i32 via vwredsum
  *  - f32 ⨯ f32 → f64 via vfwmul (for precision, like Skylake)
  */
-#ifndef NK_DOT_SPACEMIT_H
-#define NK_DOT_SPACEMIT_H
+#ifndef NK_DOT_RVV_H
+#define NK_DOT_RVV_H
 
 #if NK_TARGET_RISCV_
-#if NK_TARGET_SPACEMIT
+#if NK_TARGET_RVV
 
 #include "numkong/types.h"
-#include "numkong/cast/spacemit.h" // `nk_e4m3m1_to_f32m4_spacemit_`
+#include "numkong/cast/rvv.h" // `nk_e4m3m1_to_f32m4_rvv_`
 
 #if defined(__cplusplus)
 extern "C" {
 #endif
 
-NK_PUBLIC void nk_dot_i8_spacemit(nk_i8_t const *a_scalars, nk_i8_t const *b_scalars, nk_size_t count_scalars,
-                                  nk_i32_t *result) {
+NK_PUBLIC void nk_dot_i8_rvv(nk_i8_t const *a_scalars, nk_i8_t const *b_scalars, nk_size_t count_scalars,
+                             nk_i32_t *result) {
     vint32m1_t sum_i32m1 = __riscv_vmv_v_x_i32m1(0, 1);
     for (nk_size_t vector_length; count_scalars > 0;
          count_scalars -= vector_length, a_scalars += vector_length, b_scalars += vector_length) {
@@ -47,8 +47,8 @@ NK_PUBLIC void nk_dot_i8_spacemit(nk_i8_t const *a_scalars, nk_i8_t const *b_sca
     *result = __riscv_vmv_x_s_i32m1_i32(sum_i32m1);
 }
 
-NK_PUBLIC void nk_dot_u8_spacemit(nk_u8_t const *a_scalars, nk_u8_t const *b_scalars, nk_size_t count_scalars,
-                                  nk_u32_t *result) {
+NK_PUBLIC void nk_dot_u8_rvv(nk_u8_t const *a_scalars, nk_u8_t const *b_scalars, nk_size_t count_scalars,
+                             nk_u32_t *result) {
     vuint32m1_t sum_u32m1 = __riscv_vmv_v_x_u32m1(0, 1);
     for (nk_size_t vector_length; count_scalars > 0;
          count_scalars -= vector_length, a_scalars += vector_length, b_scalars += vector_length) {
@@ -63,8 +63,8 @@ NK_PUBLIC void nk_dot_u8_spacemit(nk_u8_t const *a_scalars, nk_u8_t const *b_sca
     *result = __riscv_vmv_x_s_u32m1_u32(sum_u32m1);
 }
 
-NK_PUBLIC void nk_dot_f32_spacemit(nk_f32_t const *a_scalars, nk_f32_t const *b_scalars, nk_size_t count_scalars,
-                                   nk_f32_t *result) {
+NK_PUBLIC void nk_dot_f32_rvv(nk_f32_t const *a_scalars, nk_f32_t const *b_scalars, nk_size_t count_scalars,
+                              nk_f32_t *result) {
     vfloat64m1_t sum_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, 1);
     for (nk_size_t vector_length; count_scalars > 0;
          count_scalars -= vector_length, a_scalars += vector_length, b_scalars += vector_length) {
@@ -80,8 +80,8 @@ NK_PUBLIC void nk_dot_f32_spacemit(nk_f32_t const *a_scalars, nk_f32_t const *b_
     *result = (nk_f32_t)__riscv_vfmv_f_s_f64m1_f64(sum_f64m1);
 }
 
-NK_PUBLIC void nk_dot_f64_spacemit(nk_f64_t const *a_scalars, nk_f64_t const *b_scalars, nk_size_t count_scalars,
-                                   nk_f64_t *result) {
+NK_PUBLIC void nk_dot_f64_rvv(nk_f64_t const *a_scalars, nk_f64_t const *b_scalars, nk_size_t count_scalars,
+                              nk_f64_t *result) {
     // Accumulate partial sums into vector lanes, then one final horizontal reduction
     nk_size_t vlmax = __riscv_vsetvlmax_e64m1();
     vfloat64m1_t sum_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, vlmax);
@@ -98,8 +98,8 @@ NK_PUBLIC void nk_dot_f64_spacemit(nk_f64_t const *a_scalars, nk_f64_t const *b_
     *result = __riscv_vfmv_f_s_f64m1_f64(__riscv_vfredusum_vs_f64m1_f64m1(sum_f64m1, zero_f64m1, vlmax));
 }
 
-NK_PUBLIC void nk_dot_f16_spacemit(nk_f16_t const *a_scalars, nk_f16_t const *b_scalars, nk_size_t count_scalars,
-                                   nk_f32_t *result) {
+NK_PUBLIC void nk_dot_f16_rvv(nk_f16_t const *a_scalars, nk_f16_t const *b_scalars, nk_size_t count_scalars,
+                              nk_f32_t *result) {
     vfloat32m1_t sum_f32m1 = __riscv_vfmv_v_f_f32m1(0.0f, 1);
     for (nk_size_t vector_length; count_scalars > 0;
          count_scalars -= vector_length, a_scalars += vector_length, b_scalars += vector_length) {
@@ -108,8 +108,8 @@ NK_PUBLIC void nk_dot_f16_spacemit(nk_f16_t const *a_scalars, nk_f16_t const *b_
         // Load f16 as u16 bits and convert to f32 via helper
         vuint16m1_t a_u16m1 = __riscv_vle16_v_u16m1((nk_u16_t const *)a_scalars, vector_length);
         vuint16m1_t b_u16m1 = __riscv_vle16_v_u16m1((nk_u16_t const *)b_scalars, vector_length);
-        vfloat32m2_t a_f32m2 = nk_f16m1_to_f32m2_spacemit_(a_u16m1, vector_length);
-        vfloat32m2_t b_f32m2 = nk_f16m1_to_f32m2_spacemit_(b_u16m1, vector_length);
+        vfloat32m2_t a_f32m2 = nk_f16m1_to_f32m2_rvv_(a_u16m1, vector_length);
+        vfloat32m2_t b_f32m2 = nk_f16m1_to_f32m2_rvv_(b_u16m1, vector_length);
 
         // Multiply and reduce in f32 (matching Skylake precision)
         vfloat32m2_t ab_f32m2 = __riscv_vfmul_vv_f32m2(a_f32m2, b_f32m2, vector_length);
@@ -118,8 +118,8 @@ NK_PUBLIC void nk_dot_f16_spacemit(nk_f16_t const *a_scalars, nk_f16_t const *b_
     *result = __riscv_vfmv_f_s_f32m1_f32(sum_f32m1);
 }
 
-NK_PUBLIC void nk_dot_bf16_spacemit(nk_bf16_t const *a_scalars, nk_bf16_t const *b_scalars, nk_size_t count_scalars,
-                                    nk_f32_t *result) {
+NK_PUBLIC void nk_dot_bf16_rvv(nk_bf16_t const *a_scalars, nk_bf16_t const *b_scalars, nk_size_t count_scalars,
+                               nk_f32_t *result) {
     vfloat32m1_t sum_f32m1 = __riscv_vfmv_v_f_f32m1(0.0f, 1);
     for (nk_size_t vector_length; count_scalars > 0;
          count_scalars -= vector_length, a_scalars += vector_length, b_scalars += vector_length) {
@@ -128,8 +128,8 @@ NK_PUBLIC void nk_dot_bf16_spacemit(nk_bf16_t const *a_scalars, nk_bf16_t const 
         // Load bf16 as u16 and convert to f32 via helper
         vuint16m1_t a_u16m1 = __riscv_vle16_v_u16m1((nk_u16_t const *)a_scalars, vector_length);
         vuint16m1_t b_u16m1 = __riscv_vle16_v_u16m1((nk_u16_t const *)b_scalars, vector_length);
-        vfloat32m2_t a_f32m2 = nk_bf16m1_to_f32m2_spacemit_(a_u16m1, vector_length);
-        vfloat32m2_t b_f32m2 = nk_bf16m1_to_f32m2_spacemit_(b_u16m1, vector_length);
+        vfloat32m2_t a_f32m2 = nk_bf16m1_to_f32m2_rvv_(a_u16m1, vector_length);
+        vfloat32m2_t b_f32m2 = nk_bf16m1_to_f32m2_rvv_(b_u16m1, vector_length);
 
         // Multiply and reduce in f32 (matching Skylake precision)
         vfloat32m2_t ab_f32m2 = __riscv_vfmul_vv_f32m2(a_f32m2, b_f32m2, vector_length);
@@ -138,8 +138,8 @@ NK_PUBLIC void nk_dot_bf16_spacemit(nk_bf16_t const *a_scalars, nk_bf16_t const 
     *result = __riscv_vfmv_f_s_f32m1_f32(sum_f32m1);
 }
 
-NK_PUBLIC void nk_dot_e4m3_spacemit(nk_e4m3_t const *a_scalars, nk_e4m3_t const *b_scalars, nk_size_t count_scalars,
-                                    nk_f32_t *result) {
+NK_PUBLIC void nk_dot_e4m3_rvv(nk_e4m3_t const *a_scalars, nk_e4m3_t const *b_scalars, nk_size_t count_scalars,
+                               nk_f32_t *result) {
     vfloat32m1_t sum_f32m1 = __riscv_vfmv_v_f_f32m1(0.0f, 1);
     for (nk_size_t vector_length; count_scalars > 0;
          count_scalars -= vector_length, a_scalars += vector_length, b_scalars += vector_length) {
@@ -148,8 +148,8 @@ NK_PUBLIC void nk_dot_e4m3_spacemit(nk_e4m3_t const *a_scalars, nk_e4m3_t const 
         // Load e4m3 as u8 and convert to f32 via helper
         vuint8m1_t a_u8m1 = __riscv_vle8_v_u8m1((nk_u8_t const *)a_scalars, vector_length);
         vuint8m1_t b_u8m1 = __riscv_vle8_v_u8m1((nk_u8_t const *)b_scalars, vector_length);
-        vfloat32m4_t a_f32m4 = nk_e4m3m1_to_f32m4_spacemit_(a_u8m1, vector_length);
-        vfloat32m4_t b_f32m4 = nk_e4m3m1_to_f32m4_spacemit_(b_u8m1, vector_length);
+        vfloat32m4_t a_f32m4 = nk_e4m3m1_to_f32m4_rvv_(a_u8m1, vector_length);
+        vfloat32m4_t b_f32m4 = nk_e4m3m1_to_f32m4_rvv_(b_u8m1, vector_length);
 
         // Multiply and reduce in f32 (matching Skylake precision)
         vfloat32m4_t ab_f32m4 = __riscv_vfmul_vv_f32m4(a_f32m4, b_f32m4, vector_length);
@@ -158,8 +158,8 @@ NK_PUBLIC void nk_dot_e4m3_spacemit(nk_e4m3_t const *a_scalars, nk_e4m3_t const 
     *result = __riscv_vfmv_f_s_f32m1_f32(sum_f32m1);
 }
 
-NK_PUBLIC void nk_dot_e5m2_spacemit(nk_e5m2_t const *a_scalars, nk_e5m2_t const *b_scalars, nk_size_t count_scalars,
-                                    nk_f32_t *result) {
+NK_PUBLIC void nk_dot_e5m2_rvv(nk_e5m2_t const *a_scalars, nk_e5m2_t const *b_scalars, nk_size_t count_scalars,
+                               nk_f32_t *result) {
     vfloat32m1_t sum_f32m1 = __riscv_vfmv_v_f_f32m1(0.0f, 1);
     for (nk_size_t vector_length; count_scalars > 0;
          count_scalars -= vector_length, a_scalars += vector_length, b_scalars += vector_length) {
@@ -168,8 +168,8 @@ NK_PUBLIC void nk_dot_e5m2_spacemit(nk_e5m2_t const *a_scalars, nk_e5m2_t const 
         // Load e5m2 as u8 and convert to f32 via helper
         vuint8m1_t a_u8m1 = __riscv_vle8_v_u8m1((nk_u8_t const *)a_scalars, vector_length);
         vuint8m1_t b_u8m1 = __riscv_vle8_v_u8m1((nk_u8_t const *)b_scalars, vector_length);
-        vfloat32m4_t a_f32m4 = nk_e5m2m1_to_f32m4_spacemit_(a_u8m1, vector_length);
-        vfloat32m4_t b_f32m4 = nk_e5m2m1_to_f32m4_spacemit_(b_u8m1, vector_length);
+        vfloat32m4_t a_f32m4 = nk_e5m2m1_to_f32m4_rvv_(a_u8m1, vector_length);
+        vfloat32m4_t b_f32m4 = nk_e5m2m1_to_f32m4_rvv_(b_u8m1, vector_length);
 
         // Multiply and reduce in f32 (matching Skylake precision)
         vfloat32m4_t ab_f32m4 = __riscv_vfmul_vv_f32m4(a_f32m4, b_f32m4, vector_length);
@@ -178,8 +178,8 @@ NK_PUBLIC void nk_dot_e5m2_spacemit(nk_e5m2_t const *a_scalars, nk_e5m2_t const 
     *result = __riscv_vfmv_f_s_f32m1_f32(sum_f32m1);
 }
 
-NK_PUBLIC void nk_dot_i4_spacemit(nk_i4x2_t const *a_scalars, nk_i4x2_t const *b_scalars, nk_size_t count_dimensions,
-                                  nk_i32_t *result) {
+NK_PUBLIC void nk_dot_i4_rvv(nk_i4x2_t const *a_scalars, nk_i4x2_t const *b_scalars, nk_size_t count_dimensions,
+                             nk_i32_t *result) {
     // count_dimensions = number of 4-bit values, not bytes
     nk_size_t n_full_bytes = count_dimensions / 2;
     nk_i32_t tail_contribution = 0;
@@ -224,8 +224,8 @@ NK_PUBLIC void nk_dot_i4_spacemit(nk_i4x2_t const *a_scalars, nk_i4x2_t const *b
     *result = __riscv_vmv_x_s_i32m1_i32(sum_i32m1) + tail_contribution;
 }
 
-NK_PUBLIC void nk_dot_u4_spacemit(nk_u4x2_t const *a_scalars, nk_u4x2_t const *b_scalars, nk_size_t count_dimensions,
-                                  nk_u32_t *result) {
+NK_PUBLIC void nk_dot_u4_rvv(nk_u4x2_t const *a_scalars, nk_u4x2_t const *b_scalars, nk_size_t count_dimensions,
+                             nk_u32_t *result) {
     // count_dimensions = number of 4-bit values, not bytes
     nk_size_t n_full_bytes = count_dimensions / 2;
     nk_u32_t tail_contribution = 0;
@@ -264,7 +264,7 @@ NK_PUBLIC void nk_dot_u4_spacemit(nk_u4x2_t const *a_scalars, nk_u4x2_t const *b
 } // extern "C"
 #endif
 
-#endif // NK_TARGET_SPACEMIT
+#endif // NK_TARGET_RVV
 #endif // NK_TARGET_RISCV_
 
-#endif // NK_DOT_SPACEMIT_H
+#endif // NK_DOT_RVV_H

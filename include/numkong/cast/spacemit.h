@@ -1,6 +1,6 @@
 /**
  *  @brief SIMD-accelerated type conversions for FP8/BF16 types optimized for SpacemiT (RVV 1.0) CPUs.
- *  @file include/numkong/cast/spacemit.h
+ *  @file include/numkong/cast/rvv.h
  *  @sa include/numkong/cast.h
  *  @author Ash Vardanian
  *  @date January 13, 2026
@@ -25,11 +25,11 @@
  *      vmseq_vx                        Compare for conditional selection
  *      vmerge_vvm                      Conditional select (blend)
  */
-#ifndef NK_CAST_SPACEMIT_H
-#define NK_CAST_SPACEMIT_H
+#ifndef NK_CAST_RVV_H
+#define NK_CAST_RVV_H
 
 #if NK_TARGET_RISCV_
-#if NK_TARGET_SPACEMIT
+#if NK_TARGET_RVV
 
 #include "numkong/types.h"
 #include "numkong/cast/serial.h" // `nk_cast_serial`
@@ -46,7 +46,7 @@ extern "C" {
  *  BF16 is the upper 16 bits of F32 (same sign + exponent + top 7 mantissa bits).
  *  Conversion is simply: f32_bits = bf16_bits << 16.
  */
-NK_INTERNAL vfloat32m2_t nk_bf16m1_to_f32m2_spacemit_(vuint16m1_t bf16_u16m1, nk_size_t vector_length) {
+NK_INTERNAL vfloat32m2_t nk_bf16m1_to_f32m2_rvv_(vuint16m1_t bf16_u16m1, nk_size_t vector_length) {
     vuint32m2_t bits_u32m2 = __riscv_vzext_vf2_u32m2(bf16_u16m1, vector_length);
     bits_u32m2 = __riscv_vsll_vx_u32m2(bits_u32m2, 16, vector_length);
     return __riscv_vreinterpret_v_u32m2_f32m2(bits_u32m2);
@@ -57,7 +57,7 @@ NK_INTERNAL vfloat32m2_t nk_bf16m1_to_f32m2_spacemit_(vuint16m1_t bf16_u16m1, nk
  *
  *  Conversion with round-to-nearest-even (RNE): add (0x7FFF + lsb) to match hardware BF16 behavior.
  */
-NK_INTERNAL vuint16m1_t nk_f32m2_to_bf16m1_spacemit_(vfloat32m2_t f32_f32m2, nk_size_t vector_length) {
+NK_INTERNAL vuint16m1_t nk_f32m2_to_bf16m1_rvv_(vfloat32m2_t f32_f32m2, nk_size_t vector_length) {
     vuint32m2_t bits_u32m2 = __riscv_vreinterpret_v_f32m2_u32m2(f32_f32m2);
     // Extract LSB of result (bit 16) for round-to-nearest-even
     vuint32m2_t lsb_u32m2 = __riscv_vand_vx_u32m2(__riscv_vsrl_vx_u32m2(bits_u32m2, 16, vector_length), 1,
@@ -76,7 +76,7 @@ NK_INTERNAL vuint16m1_t nk_f32m2_to_bf16m1_spacemit_(vfloat32m2_t f32_f32m2, nk_
  *
  *  Conversion: Rebias exponent from 15 to 127, extend mantissa from 10 to 23 bits.
  */
-NK_INTERNAL vfloat32m2_t nk_f16m1_to_f32m2_spacemit_(vuint16m1_t f16_u16m1, nk_size_t vector_length) {
+NK_INTERNAL vfloat32m2_t nk_f16m1_to_f32m2_rvv_(vuint16m1_t f16_u16m1, nk_size_t vector_length) {
     // Widen to 32-bit for manipulation
     vuint32m2_t bits_u32m2 = __riscv_vzext_vf2_u32m2(f16_u16m1, vector_length);
     // Extract sign: (raw >> 15) << 31
@@ -103,7 +103,7 @@ NK_INTERNAL vfloat32m2_t nk_f16m1_to_f32m2_spacemit_(vuint16m1_t f16_u16m1, nk_s
  *
  *  Conversion: Rebias exponent from 127 to 15, truncate mantissa from 23 to 10 bits with rounding.
  */
-NK_INTERNAL vuint16m1_t nk_f32m2_to_f16m1_spacemit_(vfloat32m2_t f32_f32m2, nk_size_t vector_length) {
+NK_INTERNAL vuint16m1_t nk_f32m2_to_f16m1_rvv_(vfloat32m2_t f32_f32m2, nk_size_t vector_length) {
     vuint32m2_t bits_u32m2 = __riscv_vreinterpret_v_f32m2_u32m2(f32_f32m2);
     // Extract sign: (raw >> 31) << 15
     vuint32m2_t sign_u32m2 = __riscv_vsll_vx_u32m2(__riscv_vsrl_vx_u32m2(bits_u32m2, 31, vector_length), 15,
@@ -142,7 +142,7 @@ NK_INTERNAL vuint16m1_t nk_f32m2_to_f16m1_spacemit_(vfloat32m2_t f32_f32m2, nk_s
  *  - NaN: E=15 and M=7 (0x7F or 0xFF)
  *  - No infinity in E4M3FN
  */
-NK_INTERNAL vfloat32m4_t nk_e4m3m1_to_f32m4_spacemit_(vuint8m1_t e4m3_u8m1, nk_size_t vector_length) {
+NK_INTERNAL vfloat32m4_t nk_e4m3m1_to_f32m4_rvv_(vuint8m1_t e4m3_u8m1, nk_size_t vector_length) {
     // Widen to u32 for bit manipulation (4x widening: e8m1 → e32m4)
     vuint16m2_t e4m3_u16m2 = __riscv_vzext_vf2_u16m2(e4m3_u8m1, vector_length);
     vuint32m4_t e4m3_u32m4 = __riscv_vzext_vf2_u32m4(e4m3_u16m2, vector_length);
@@ -194,7 +194,7 @@ NK_INTERNAL vfloat32m4_t nk_e4m3m1_to_f32m4_spacemit_(vuint8m1_t e4m3_u8m1, nk_s
  *  - Infinity: E=31 and M=0
  *  - NaN: E=31 and M!=0
  */
-NK_INTERNAL vfloat32m4_t nk_e5m2m1_to_f32m4_spacemit_(vuint8m1_t e5m2_u8m1, nk_size_t vector_length) {
+NK_INTERNAL vfloat32m4_t nk_e5m2m1_to_f32m4_rvv_(vuint8m1_t e5m2_u8m1, nk_size_t vector_length) {
     // Widen to u32 for bit manipulation
     vuint16m2_t e5m2_u16m2 = __riscv_vzext_vf2_u16m2(e5m2_u8m1, vector_length);
     vuint32m4_t e5m2_u32m4 = __riscv_vzext_vf2_u32m4(e5m2_u16m2, vector_length);
@@ -256,7 +256,7 @@ NK_INTERNAL vfloat32m4_t nk_e5m2m1_to_f32m4_spacemit_(vuint8m1_t e5m2_u8m1, nk_s
  *
  *  Returns a tuple of two m1 vectors (high nibbles, low nibbles) for segment store.
  */
-NK_INTERNAL vint8m1x2_t nk_i4m1_to_i8m2_spacemit_(vuint8m1_t packed_u8m1, nk_size_t vector_length) {
+NK_INTERNAL vint8m1x2_t nk_i4m1_to_i8m2_rvv_(vuint8m1_t packed_u8m1, nk_size_t vector_length) {
     // Extract high nibble (even indices in output)
     vuint8m1_t hi_u8m1 = __riscv_vsrl_vx_u8m1(packed_u8m1, 4, vector_length);
     // Sign extend: (x ^ 8) - 8
@@ -277,7 +277,7 @@ NK_INTERNAL vint8m1x2_t nk_i4m1_to_i8m2_spacemit_(vuint8m1_t packed_u8m1, nk_siz
  *
  *  Returns a tuple of two m1 vectors (high nibbles, low nibbles) for segment store.
  */
-NK_INTERNAL vuint8m1x2_t nk_u4m1_to_u8m2_spacemit_(vuint8m1_t packed_u8m1, nk_size_t vector_length) {
+NK_INTERNAL vuint8m1x2_t nk_u4m1_to_u8m2_rvv_(vuint8m1_t packed_u8m1, nk_size_t vector_length) {
     // Extract high nibble (even indices in output)
     vuint8m1_t hi_u8m1 = __riscv_vsrl_vx_u8m1(packed_u8m1, 4, vector_length);
 
@@ -293,7 +293,7 @@ NK_INTERNAL vuint8m1x2_t nk_u4m1_to_u8m2_spacemit_(vuint8m1_t packed_u8m1, nk_si
  *  Takes a tuple of two m1 vectors (high nibbles, low nibbles from segment load).
  *  Values are clamped to [-8, 7] before packing.
  */
-NK_INTERNAL vuint8m1_t nk_i8m2_to_i4m1_spacemit_(vint8m1_t hi_i8m1, vint8m1_t lo_i8m1, nk_size_t vector_length) {
+NK_INTERNAL vuint8m1_t nk_i8m2_to_i4m1_rvv_(vint8m1_t hi_i8m1, vint8m1_t lo_i8m1, nk_size_t vector_length) {
     // Clamp to [-8, 7]
     hi_i8m1 = __riscv_vmax_vx_i8m1(__riscv_vmin_vx_i8m1(hi_i8m1, 7, vector_length), -8, vector_length);
     lo_i8m1 = __riscv_vmax_vx_i8m1(__riscv_vmin_vx_i8m1(lo_i8m1, 7, vector_length), -8, vector_length);
@@ -312,7 +312,7 @@ NK_INTERNAL vuint8m1_t nk_i8m2_to_i4m1_spacemit_(vint8m1_t hi_i8m1, vint8m1_t lo
  *  Takes a tuple of two m1 vectors (high nibbles, low nibbles from segment load).
  *  Values are clamped to [0, 15] before packing.
  */
-NK_INTERNAL vuint8m1_t nk_u8m2_to_u4m1_spacemit_(vuint8m1_t hi_u8m1, vuint8m1_t lo_u8m1, nk_size_t vector_length) {
+NK_INTERNAL vuint8m1_t nk_u8m2_to_u4m1_rvv_(vuint8m1_t hi_u8m1, vuint8m1_t lo_u8m1, nk_size_t vector_length) {
     // Clamp to [0, 15]
     hi_u8m1 = __riscv_vminu_vx_u8m1(hi_u8m1, 15, vector_length);
     lo_u8m1 = __riscv_vminu_vx_u8m1(lo_u8m1, 15, vector_length);
@@ -325,7 +325,7 @@ NK_INTERNAL vuint8m1_t nk_u8m2_to_u4m1_spacemit_(vuint8m1_t hi_u8m1, vuint8m1_t 
 
 #pragma region - Unified Cast Dispatcher
 
-NK_PUBLIC void nk_cast_spacemit(void const *from, nk_dtype_t from_type, nk_size_t count, void *to, nk_dtype_t to_type) {
+NK_PUBLIC void nk_cast_rvv(void const *from, nk_dtype_t from_type, nk_size_t count, void *to, nk_dtype_t to_type) {
     // bf16 → f32
     if (from_type == nk_bf16_k && to_type == nk_f32_k) {
         nk_bf16_t const *source = (nk_bf16_t const *)from;
@@ -334,7 +334,7 @@ NK_PUBLIC void nk_cast_spacemit(void const *from, nk_dtype_t from_type, nk_size_
              count -= vector_length, source += vector_length, destination += vector_length) {
             vector_length = __riscv_vsetvl_e16m1(count);
             vuint16m1_t bf16_u16m1 = __riscv_vle16_v_u16m1((nk_u16_t const *)source, vector_length);
-            vfloat32m2_t f32_f32m2 = nk_bf16m1_to_f32m2_spacemit_(bf16_u16m1, vector_length);
+            vfloat32m2_t f32_f32m2 = nk_bf16m1_to_f32m2_rvv_(bf16_u16m1, vector_length);
             __riscv_vse32_v_f32m2(destination, f32_f32m2, vector_length);
         }
         return;
@@ -348,7 +348,7 @@ NK_PUBLIC void nk_cast_spacemit(void const *from, nk_dtype_t from_type, nk_size_
              count -= vector_length, source += vector_length, destination += vector_length) {
             vector_length = __riscv_vsetvl_e32m2(count);
             vfloat32m2_t f32_f32m2 = __riscv_vle32_v_f32m2(source, vector_length);
-            vuint16m1_t bf16_u16m1 = nk_f32m2_to_bf16m1_spacemit_(f32_f32m2, vector_length);
+            vuint16m1_t bf16_u16m1 = nk_f32m2_to_bf16m1_rvv_(f32_f32m2, vector_length);
             __riscv_vse16_v_u16m1((nk_u16_t *)destination, bf16_u16m1, vector_length);
         }
         return;
@@ -362,7 +362,7 @@ NK_PUBLIC void nk_cast_spacemit(void const *from, nk_dtype_t from_type, nk_size_
              count -= vector_length, source += vector_length, destination += vector_length) {
             vector_length = __riscv_vsetvl_e16m1(count);
             vuint16m1_t f16_u16m1 = __riscv_vle16_v_u16m1((nk_u16_t const *)source, vector_length);
-            vfloat32m2_t f32_f32m2 = nk_f16m1_to_f32m2_spacemit_(f16_u16m1, vector_length);
+            vfloat32m2_t f32_f32m2 = nk_f16m1_to_f32m2_rvv_(f16_u16m1, vector_length);
             __riscv_vse32_v_f32m2(destination, f32_f32m2, vector_length);
         }
         return;
@@ -376,7 +376,7 @@ NK_PUBLIC void nk_cast_spacemit(void const *from, nk_dtype_t from_type, nk_size_
              count -= vector_length, source += vector_length, destination += vector_length) {
             vector_length = __riscv_vsetvl_e32m2(count);
             vfloat32m2_t f32_f32m2 = __riscv_vle32_v_f32m2(source, vector_length);
-            vuint16m1_t f16_u16m1 = nk_f32m2_to_f16m1_spacemit_(f32_f32m2, vector_length);
+            vuint16m1_t f16_u16m1 = nk_f32m2_to_f16m1_rvv_(f32_f32m2, vector_length);
             __riscv_vse16_v_u16m1((nk_u16_t *)destination, f16_u16m1, vector_length);
         }
         return;
@@ -390,7 +390,7 @@ NK_PUBLIC void nk_cast_spacemit(void const *from, nk_dtype_t from_type, nk_size_
              count -= vector_length, source += vector_length, destination += vector_length) {
             vector_length = __riscv_vsetvl_e8m1(count);
             vuint8m1_t e4m3_u8m1 = __riscv_vle8_v_u8m1((nk_u8_t const *)source, vector_length);
-            vfloat32m4_t f32_f32m4 = nk_e4m3m1_to_f32m4_spacemit_(e4m3_u8m1, vector_length);
+            vfloat32m4_t f32_f32m4 = nk_e4m3m1_to_f32m4_rvv_(e4m3_u8m1, vector_length);
             __riscv_vse32_v_f32m4(destination, f32_f32m4, vector_length);
         }
         return;
@@ -404,7 +404,7 @@ NK_PUBLIC void nk_cast_spacemit(void const *from, nk_dtype_t from_type, nk_size_
              count -= vector_length, source += vector_length, destination += vector_length) {
             vector_length = __riscv_vsetvl_e8m1(count);
             vuint8m1_t e5m2_u8m1 = __riscv_vle8_v_u8m1((nk_u8_t const *)source, vector_length);
-            vfloat32m4_t f32_f32m4 = nk_e5m2m1_to_f32m4_spacemit_(e5m2_u8m1, vector_length);
+            vfloat32m4_t f32_f32m4 = nk_e5m2m1_to_f32m4_rvv_(e5m2_u8m1, vector_length);
             __riscv_vse32_v_f32m4(destination, f32_f32m4, vector_length);
         }
         return;
@@ -419,7 +419,7 @@ NK_PUBLIC void nk_cast_spacemit(void const *from, nk_dtype_t from_type, nk_size_
              n_bytes -= vector_length, source += vector_length, destination += vector_length * 2) {
             vector_length = __riscv_vsetvl_e8m1(n_bytes);
             vuint8m1_t packed_u8m1 = __riscv_vle8_v_u8m1((nk_u8_t const *)source, vector_length);
-            vint8m1x2_t unpacked_i8m1x2 = nk_i4m1_to_i8m2_spacemit_(packed_u8m1, vector_length);
+            vint8m1x2_t unpacked_i8m1x2 = nk_i4m1_to_i8m2_rvv_(packed_u8m1, vector_length);
             __riscv_vsseg2e8_v_i8m1x2(destination, unpacked_i8m1x2, vector_length);
         }
         return;
@@ -434,7 +434,7 @@ NK_PUBLIC void nk_cast_spacemit(void const *from, nk_dtype_t from_type, nk_size_
              n_bytes -= vector_length, source += vector_length, destination += vector_length * 2) {
             vector_length = __riscv_vsetvl_e8m1(n_bytes);
             vuint8m1_t packed_u8m1 = __riscv_vle8_v_u8m1((nk_u8_t const *)source, vector_length);
-            vuint8m1x2_t unpacked_u8m1x2 = nk_u4m1_to_u8m2_spacemit_(packed_u8m1, vector_length);
+            vuint8m1x2_t unpacked_u8m1x2 = nk_u4m1_to_u8m2_rvv_(packed_u8m1, vector_length);
             __riscv_vsseg2e8_v_u8m1x2(destination, unpacked_u8m1x2, vector_length);
         }
         return;
@@ -451,7 +451,7 @@ NK_PUBLIC void nk_cast_spacemit(void const *from, nk_dtype_t from_type, nk_size_
             vint8m1x2_t loaded_i8m1x2 = __riscv_vlseg2e8_v_i8m1x2(source, vector_length);
             vint8m1_t hi_i8m1 = __riscv_vget_v_i8m1x2_i8m1(loaded_i8m1x2, 0);
             vint8m1_t lo_i8m1 = __riscv_vget_v_i8m1x2_i8m1(loaded_i8m1x2, 1);
-            vuint8m1_t packed_u8m1 = nk_i8m2_to_i4m1_spacemit_(hi_i8m1, lo_i8m1, vector_length);
+            vuint8m1_t packed_u8m1 = nk_i8m2_to_i4m1_rvv_(hi_i8m1, lo_i8m1, vector_length);
             __riscv_vse8_v_u8m1((nk_u8_t *)destination, packed_u8m1, vector_length);
         }
         return;
@@ -468,7 +468,7 @@ NK_PUBLIC void nk_cast_spacemit(void const *from, nk_dtype_t from_type, nk_size_
             vuint8m1x2_t loaded_u8m1x2 = __riscv_vlseg2e8_v_u8m1x2(source, vector_length);
             vuint8m1_t hi_u8m1 = __riscv_vget_v_u8m1x2_u8m1(loaded_u8m1x2, 0);
             vuint8m1_t lo_u8m1 = __riscv_vget_v_u8m1x2_u8m1(loaded_u8m1x2, 1);
-            vuint8m1_t packed_u8m1 = nk_u8m2_to_u4m1_spacemit_(hi_u8m1, lo_u8m1, vector_length);
+            vuint8m1_t packed_u8m1 = nk_u8m2_to_u4m1_rvv_(hi_u8m1, lo_u8m1, vector_length);
             __riscv_vse8_v_u8m1((nk_u8_t *)destination, packed_u8m1, vector_length);
         }
         return;
@@ -484,7 +484,7 @@ NK_PUBLIC void nk_cast_spacemit(void const *from, nk_dtype_t from_type, nk_size_
 } // extern "C"
 #endif
 
-#endif // NK_TARGET_SPACEMIT
+#endif // NK_TARGET_RVV
 #endif // NK_TARGET_RISCV_
 
-#endif // NK_CAST_SPACEMIT_H
+#endif // NK_CAST_RVV_H

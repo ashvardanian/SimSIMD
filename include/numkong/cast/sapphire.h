@@ -242,7 +242,7 @@ NK_PUBLIC void nk_cast_sapphire(void const *from, nk_dtype_t from_type, nk_size_
     }
 
     // Default: delegate to Ice for all other conversions
-    else nk_cast_ice(from, from_type, n, to, to_type);
+    else nk_cast_icelake(from, from_type, n, to, to_type);
 }
 
 #pragma endregion - Public API

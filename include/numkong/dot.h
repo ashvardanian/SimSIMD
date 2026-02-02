@@ -762,47 +762,47 @@ typedef struct nk_dot_through_f32_state_skylake_t_ nk_dot_e4m3x16_state_skylake_
 typedef struct nk_dot_through_f32_state_skylake_t_ nk_dot_e5m2x16_state_skylake_t;
 #endif // NK_TARGET_SKYLAKE
 
-#if NK_TARGET_ICE
+#if NK_TARGET_ICELAKE
 /** @copydoc nk_dot_i8 */
-NK_PUBLIC void nk_dot_i8_ice(nk_i8_t const *a, nk_i8_t const *b, nk_size_t n, nk_i32_t *result);
+NK_PUBLIC void nk_dot_i8_icelake(nk_i8_t const *a, nk_i8_t const *b, nk_size_t n, nk_i32_t *result);
 /** @copydoc nk_dot_u8 */
-NK_PUBLIC void nk_dot_u8_ice(nk_u8_t const *a, nk_u8_t const *b, nk_size_t n, nk_u32_t *result);
+NK_PUBLIC void nk_dot_u8_icelake(nk_u8_t const *a, nk_u8_t const *b, nk_size_t n, nk_u32_t *result);
 /** @copydoc nk_dot_i8 */
-NK_PUBLIC void nk_dot_i4_ice(nk_i4x2_t const *a, nk_i4x2_t const *b, nk_size_t n, nk_i32_t *result);
+NK_PUBLIC void nk_dot_i4_icelake(nk_i4x2_t const *a, nk_i4x2_t const *b, nk_size_t n, nk_i32_t *result);
 /** @copydoc nk_dot_u8 */
-NK_PUBLIC void nk_dot_u4_ice(nk_u4x2_t const *a, nk_u4x2_t const *b, nk_size_t n, nk_u32_t *result);
+NK_PUBLIC void nk_dot_u4_icelake(nk_u4x2_t const *a, nk_u4x2_t const *b, nk_size_t n, nk_u32_t *result);
 
 /**
  *  @brief Running state for 64-element dot accumulation over i8 scalars on Ice Lake.
  */
-typedef struct nk_dot_i8x64_state_ice_t nk_dot_i8x64_state_ice_t;
-/** @copydoc nk_dot_i8x64_state_ice_t */
-NK_INTERNAL void nk_dot_i8x64_init_ice(nk_dot_i8x64_state_ice_t *state);
-/** @copydoc nk_dot_i8x64_state_ice_t */
-NK_INTERNAL void nk_dot_i8x64_update_ice(nk_dot_i8x64_state_ice_t *state, nk_b512_vec_t a, nk_b512_vec_t b,
-                                         nk_size_t depth_offset, nk_size_t active_dimensions);
-/** @copydoc nk_dot_i8x64_state_ice_t */
-NK_INTERNAL void nk_dot_i8x64_finalize_ice(                                           //
-    nk_dot_i8x64_state_ice_t const *state_a, nk_dot_i8x64_state_ice_t const *state_b, //
-    nk_dot_i8x64_state_ice_t const *state_c, nk_dot_i8x64_state_ice_t const *state_d, //
+typedef struct nk_dot_i8x64_state_icelake_t nk_dot_i8x64_state_icelake_t;
+/** @copydoc nk_dot_i8x64_state_icelake_t */
+NK_INTERNAL void nk_dot_i8x64_init_icelake(nk_dot_i8x64_state_icelake_t *state);
+/** @copydoc nk_dot_i8x64_state_icelake_t */
+NK_INTERNAL void nk_dot_i8x64_update_icelake(nk_dot_i8x64_state_icelake_t *state, nk_b512_vec_t a, nk_b512_vec_t b,
+                                             nk_size_t depth_offset, nk_size_t active_dimensions);
+/** @copydoc nk_dot_i8x64_state_icelake_t */
+NK_INTERNAL void nk_dot_i8x64_finalize_icelake(                                               //
+    nk_dot_i8x64_state_icelake_t const *state_a, nk_dot_i8x64_state_icelake_t const *state_b, //
+    nk_dot_i8x64_state_icelake_t const *state_c, nk_dot_i8x64_state_icelake_t const *state_d, //
     nk_size_t total_dimensions, nk_b128_vec_t *results);
 
 /**
  *  @brief Running state for 64-element dot accumulation over u8 scalars on Ice Lake.
  */
-typedef struct nk_dot_u8x64_state_ice_t nk_dot_u8x64_state_ice_t;
-/** @copydoc nk_dot_u8x64_state_ice_t */
-NK_INTERNAL void nk_dot_u8x64_init_ice(nk_dot_u8x64_state_ice_t *state);
-/** @copydoc nk_dot_u8x64_state_ice_t */
-NK_INTERNAL void nk_dot_u8x64_update_ice(nk_dot_u8x64_state_ice_t *state, nk_b512_vec_t a, nk_b512_vec_t b,
-                                         nk_size_t depth_offset, nk_size_t active_dimensions);
-/** @copydoc nk_dot_u8x64_state_ice_t */
-NK_INTERNAL void nk_dot_u8x64_finalize_ice(                                           //
-    nk_dot_u8x64_state_ice_t const *state_a, nk_dot_u8x64_state_ice_t const *state_b, //
-    nk_dot_u8x64_state_ice_t const *state_c, nk_dot_u8x64_state_ice_t const *state_d, //
+typedef struct nk_dot_u8x64_state_icelake_t nk_dot_u8x64_state_icelake_t;
+/** @copydoc nk_dot_u8x64_state_icelake_t */
+NK_INTERNAL void nk_dot_u8x64_init_icelake(nk_dot_u8x64_state_icelake_t *state);
+/** @copydoc nk_dot_u8x64_state_icelake_t */
+NK_INTERNAL void nk_dot_u8x64_update_icelake(nk_dot_u8x64_state_icelake_t *state, nk_b512_vec_t a, nk_b512_vec_t b,
+                                             nk_size_t depth_offset, nk_size_t active_dimensions);
+/** @copydoc nk_dot_u8x64_state_icelake_t */
+NK_INTERNAL void nk_dot_u8x64_finalize_icelake(                                               //
+    nk_dot_u8x64_state_icelake_t const *state_a, nk_dot_u8x64_state_icelake_t const *state_b, //
+    nk_dot_u8x64_state_icelake_t const *state_c, nk_dot_u8x64_state_icelake_t const *state_d, //
     nk_size_t total_dimensions, nk_b128_vec_t *result);
 
-#endif // NK_TARGET_ICE
+#endif // NK_TARGET_ICELAKE
 
 #if NK_TARGET_GENOA
 /** @copydoc nk_dot_bf16 */
@@ -882,17 +882,17 @@ NK_INTERNAL void nk_dot_i8x32_finalize_sierra(                                  
 
 #if NK_TARGET_V128RELAXED
 /** @copydoc nk_dot_f32 */
-NK_PUBLIC void nk_dot_f32_wasm(nk_f32_t const *a, nk_f32_t const *b, nk_size_t n, nk_f32_t *result);
+NK_PUBLIC void nk_dot_f32_v128relaxed(nk_f32_t const *a, nk_f32_t const *b, nk_size_t n, nk_f32_t *result);
 /** @copydoc nk_dot_f64 */
-NK_PUBLIC void nk_dot_f64_wasm(nk_f64_t const *a, nk_f64_t const *b, nk_size_t n, nk_f64_t *result);
+NK_PUBLIC void nk_dot_f64_v128relaxed(nk_f64_t const *a, nk_f64_t const *b, nk_size_t n, nk_f64_t *result);
 /** @copydoc nk_dot_f16 */
-NK_PUBLIC void nk_dot_f16_wasm(nk_f16_t const *a, nk_f16_t const *b, nk_size_t n, nk_f32_t *result);
+NK_PUBLIC void nk_dot_f16_v128relaxed(nk_f16_t const *a, nk_f16_t const *b, nk_size_t n, nk_f32_t *result);
 /** @copydoc nk_dot_bf16 */
-NK_PUBLIC void nk_dot_bf16_wasm(nk_bf16_t const *a, nk_bf16_t const *b, nk_size_t n, nk_f32_t *result);
+NK_PUBLIC void nk_dot_bf16_v128relaxed(nk_bf16_t const *a, nk_bf16_t const *b, nk_size_t n, nk_f32_t *result);
 /** @copydoc nk_dot_i8 */
-NK_PUBLIC void nk_dot_i8_wasm(nk_i8_t const *a, nk_i8_t const *b, nk_size_t n, nk_i32_t *result);
+NK_PUBLIC void nk_dot_i8_v128relaxed(nk_i8_t const *a, nk_i8_t const *b, nk_size_t n, nk_i32_t *result);
 /** @copydoc nk_dot_u8 */
-NK_PUBLIC void nk_dot_u8_wasm(nk_u8_t const *a, nk_u8_t const *b, nk_size_t n, nk_u32_t *result);
+NK_PUBLIC void nk_dot_u8_v128relaxed(nk_u8_t const *a, nk_u8_t const *b, nk_size_t n, nk_u32_t *result);
 #endif // NK_TARGET_V128RELAXED
 
 /**
@@ -926,25 +926,25 @@ NK_INTERNAL nk_dtype_t nk_dot_output_dtype(nk_dtype_t dtype) {
 #include "numkong/dot/svehalf.h"
 #include "numkong/dot/haswell.h"
 #include "numkong/dot/skylake.h"
-#include "numkong/dot/ice.h"
+#include "numkong/dot/icelake.h"
 #include "numkong/dot/genoa.h"
 #include "numkong/dot/sierra.h"
-#include "numkong/dot/spacemit.h"
-#include "numkong/dot/sifive.h"
-#include "numkong/dot/xuantie.h"
-#include "numkong/dot/wasm.h"
+#include "numkong/dot/rvv.h"
+#include "numkong/dot/rvvhalf.h"
+#include "numkong/dot/rvvbf16.h"
+#include "numkong/dot/v128relaxed.h"
 
 #if !NK_DYNAMIC_DISPATCH
 
 NK_PUBLIC void nk_dot_i8(nk_i8_t const *a, nk_i8_t const *b, nk_size_t n, nk_i32_t *result) {
 #if NK_TARGET_V128RELAXED
-    nk_dot_i8_wasm(a, b, n, result);
-#elif NK_TARGET_SPACEMIT
-    nk_dot_i8_spacemit(a, b, n, result);
+    nk_dot_i8_v128relaxed(a, b, n, result);
+#elif NK_TARGET_RVV
+    nk_dot_i8_rvv(a, b, n, result);
 #elif NK_TARGET_NEONSDOT
     nk_dot_i8_neonsdot(a, b, n, result);
-#elif NK_TARGET_ICE
-    nk_dot_i8_ice(a, b, n, result);
+#elif NK_TARGET_ICELAKE
+    nk_dot_i8_icelake(a, b, n, result);
 #elif NK_TARGET_SKYLAKE
     nk_dot_i8_skylake(a, b, n, result);
 #elif NK_TARGET_HASWELL
@@ -955,13 +955,13 @@ NK_PUBLIC void nk_dot_i8(nk_i8_t const *a, nk_i8_t const *b, nk_size_t n, nk_i32
 }
 NK_PUBLIC void nk_dot_u8(nk_u8_t const *a, nk_u8_t const *b, nk_size_t n, nk_u32_t *result) {
 #if NK_TARGET_V128RELAXED
-    nk_dot_u8_wasm(a, b, n, result);
-#elif NK_TARGET_SPACEMIT
-    nk_dot_u8_spacemit(a, b, n, result);
+    nk_dot_u8_v128relaxed(a, b, n, result);
+#elif NK_TARGET_RVV
+    nk_dot_u8_rvv(a, b, n, result);
 #elif NK_TARGET_NEONSDOT
     nk_dot_u8_neonsdot(a, b, n, result);
-#elif NK_TARGET_ICE
-    nk_dot_u8_ice(a, b, n, result);
+#elif NK_TARGET_ICELAKE
+    nk_dot_u8_icelake(a, b, n, result);
 #elif NK_TARGET_SKYLAKE
     nk_dot_u8_skylake(a, b, n, result);
 #elif NK_TARGET_HASWELL
@@ -971,10 +971,10 @@ NK_PUBLIC void nk_dot_u8(nk_u8_t const *a, nk_u8_t const *b, nk_size_t n, nk_u32
 #endif
 }
 NK_PUBLIC void nk_dot_i4(nk_i4x2_t const *a, nk_i4x2_t const *b, nk_size_t n, nk_i32_t *result) {
-#if NK_TARGET_ICE
-    nk_dot_i4_ice(a, b, n, result);
-#elif NK_TARGET_SPACEMIT
-    nk_dot_i4_spacemit(a, b, n, result);
+#if NK_TARGET_ICELAKE
+    nk_dot_i4_icelake(a, b, n, result);
+#elif NK_TARGET_RVV
+    nk_dot_i4_rvv(a, b, n, result);
 #elif NK_TARGET_HASWELL
     nk_dot_i4_haswell(a, b, n, result);
 #else
@@ -982,10 +982,10 @@ NK_PUBLIC void nk_dot_i4(nk_i4x2_t const *a, nk_i4x2_t const *b, nk_size_t n, nk
 #endif
 }
 NK_PUBLIC void nk_dot_u4(nk_u4x2_t const *a, nk_u4x2_t const *b, nk_size_t n, nk_u32_t *result) {
-#if NK_TARGET_ICE
-    nk_dot_u4_ice(a, b, n, result);
-#elif NK_TARGET_SPACEMIT
-    nk_dot_u4_spacemit(a, b, n, result);
+#if NK_TARGET_ICELAKE
+    nk_dot_u4_icelake(a, b, n, result);
+#elif NK_TARGET_RVV
+    nk_dot_u4_rvv(a, b, n, result);
 #elif NK_TARGET_HASWELL
     nk_dot_u4_haswell(a, b, n, result);
 #else
@@ -994,11 +994,11 @@ NK_PUBLIC void nk_dot_u4(nk_u4x2_t const *a, nk_u4x2_t const *b, nk_size_t n, nk
 }
 NK_PUBLIC void nk_dot_f16(nk_f16_t const *a, nk_f16_t const *b, nk_size_t n, nk_f32_t *result) {
 #if NK_TARGET_V128RELAXED
-    nk_dot_f16_wasm(a, b, n, result);
-#elif NK_TARGET_SIFIVE
-    nk_dot_f16_sifive(a, b, n, result);
-#elif NK_TARGET_SPACEMIT
-    nk_dot_f16_spacemit(a, b, n, result);
+    nk_dot_f16_v128relaxed(a, b, n, result);
+#elif NK_TARGET_RVVHALF
+    nk_dot_f16_rvvhalf(a, b, n, result);
+#elif NK_TARGET_RVV
+    nk_dot_f16_rvv(a, b, n, result);
 #elif NK_TARGET_SVEHALF
     nk_dot_f16_svehalf(a, b, n, result);
 #elif NK_TARGET_NEONFHM
@@ -1015,11 +1015,11 @@ NK_PUBLIC void nk_dot_f16(nk_f16_t const *a, nk_f16_t const *b, nk_size_t n, nk_
 }
 NK_PUBLIC void nk_dot_bf16(nk_bf16_t const *a, nk_bf16_t const *b, nk_size_t n, nk_f32_t *result) {
 #if NK_TARGET_V128RELAXED
-    nk_dot_bf16_wasm(a, b, n, result);
+    nk_dot_bf16_v128relaxed(a, b, n, result);
 #elif NK_TARGET_GENOA
     nk_dot_bf16_genoa(a, b, n, result);
-#elif NK_TARGET_SPACEMIT
-    nk_dot_bf16_spacemit(a, b, n, result);
+#elif NK_TARGET_RVV
+    nk_dot_bf16_rvv(a, b, n, result);
 #elif NK_TARGET_SKYLAKE
     nk_dot_bf16_skylake(a, b, n, result);
 #elif NK_TARGET_HASWELL
@@ -1033,8 +1033,8 @@ NK_PUBLIC void nk_dot_bf16(nk_bf16_t const *a, nk_bf16_t const *b, nk_size_t n, 
 NK_PUBLIC void nk_dot_e4m3(nk_e4m3_t const *a, nk_e4m3_t const *b, nk_size_t n, nk_f32_t *result) {
 #if NK_TARGET_GENOA
     nk_dot_e4m3_genoa(a, b, n, result);
-#elif NK_TARGET_SPACEMIT
-    nk_dot_e4m3_spacemit(a, b, n, result);
+#elif NK_TARGET_RVV
+    nk_dot_e4m3_rvv(a, b, n, result);
 #elif NK_TARGET_SKYLAKE
     nk_dot_e4m3_skylake(a, b, n, result);
 #elif NK_TARGET_HASWELL
@@ -1048,8 +1048,8 @@ NK_PUBLIC void nk_dot_e4m3(nk_e4m3_t const *a, nk_e4m3_t const *b, nk_size_t n, 
 NK_PUBLIC void nk_dot_e5m2(nk_e5m2_t const *a, nk_e5m2_t const *b, nk_size_t n, nk_f32_t *result) {
 #if NK_TARGET_GENOA
     nk_dot_e5m2_genoa(a, b, n, result);
-#elif NK_TARGET_SPACEMIT
-    nk_dot_e5m2_spacemit(a, b, n, result);
+#elif NK_TARGET_RVV
+    nk_dot_e5m2_rvv(a, b, n, result);
 #elif NK_TARGET_SKYLAKE
     nk_dot_e5m2_skylake(a, b, n, result);
 #elif NK_TARGET_HASWELL
@@ -1063,8 +1063,8 @@ NK_PUBLIC void nk_dot_e5m2(nk_e5m2_t const *a, nk_e5m2_t const *b, nk_size_t n, 
 NK_PUBLIC void nk_dot_e2m3(nk_e2m3_t const *a, nk_e2m3_t const *b, nk_size_t n, nk_f32_t *result) {
 #if NK_TARGET_GENOA
     nk_dot_e2m3_genoa(a, b, n, result);
-#elif NK_TARGET_SPACEMIT
-    nk_dot_e2m3_spacemit(a, b, n, result);
+#elif NK_TARGET_RVV
+    nk_dot_e2m3_rvv(a, b, n, result);
 #elif NK_TARGET_SKYLAKE
     nk_dot_e2m3_skylake(a, b, n, result);
 #elif NK_TARGET_HASWELL
@@ -1080,8 +1080,8 @@ NK_PUBLIC void nk_dot_e2m3(nk_e2m3_t const *a, nk_e2m3_t const *b, nk_size_t n, 
 NK_PUBLIC void nk_dot_e3m2(nk_e3m2_t const *a, nk_e3m2_t const *b, nk_size_t n, nk_f32_t *result) {
 #if NK_TARGET_GENOA
     nk_dot_e3m2_genoa(a, b, n, result);
-#elif NK_TARGET_SPACEMIT
-    nk_dot_e3m2_spacemit(a, b, n, result);
+#elif NK_TARGET_RVV
+    nk_dot_e3m2_rvv(a, b, n, result);
 #elif NK_TARGET_SKYLAKE
     nk_dot_e3m2_skylake(a, b, n, result);
 #elif NK_TARGET_HASWELL
@@ -1096,9 +1096,9 @@ NK_PUBLIC void nk_dot_e3m2(nk_e3m2_t const *a, nk_e3m2_t const *b, nk_size_t n, 
 }
 NK_PUBLIC void nk_dot_f32(nk_f32_t const *a, nk_f32_t const *b, nk_size_t n, nk_f32_t *result) {
 #if NK_TARGET_V128RELAXED
-    nk_dot_f32_wasm(a, b, n, result);
-#elif NK_TARGET_SPACEMIT
-    nk_dot_f32_spacemit(a, b, n, result);
+    nk_dot_f32_v128relaxed(a, b, n, result);
+#elif NK_TARGET_RVV
+    nk_dot_f32_rvv(a, b, n, result);
 #elif NK_TARGET_SVE
     nk_dot_f32_sve(a, b, n, result);
 #elif NK_TARGET_NEON
@@ -1113,9 +1113,9 @@ NK_PUBLIC void nk_dot_f32(nk_f32_t const *a, nk_f32_t const *b, nk_size_t n, nk_
 }
 NK_PUBLIC void nk_dot_f64(nk_f64_t const *a, nk_f64_t const *b, nk_size_t n, nk_f64_t *result) {
 #if NK_TARGET_V128RELAXED
-    nk_dot_f64_wasm(a, b, n, result);
-#elif NK_TARGET_SPACEMIT
-    nk_dot_f64_spacemit(a, b, n, result);
+    nk_dot_f64_v128relaxed(a, b, n, result);
+#elif NK_TARGET_RVV
+    nk_dot_f64_rvv(a, b, n, result);
 #elif NK_TARGET_SVE
     nk_dot_f64_sve(a, b, n, result);
 #elif NK_TARGET_NEON

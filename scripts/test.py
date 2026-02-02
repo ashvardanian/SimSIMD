@@ -590,7 +590,7 @@ NK_ATOL = 0.1
 
 # We will run all the tests many times using different instruction sets under the hood.
 available_capabilities: Dict[str, str] = nk.get_capabilities()
-possible_x86_capabilities: List[str] = ["haswell", "ice", "skylake", "sapphire", "turin", "genoa", "sierra"]
+possible_x86_capabilities: List[str] = ["haswell", "icelake", "skylake", "sapphire", "turin", "genoa", "sierra"]
 possible_arm_capabilities: List[str] = [
     "neon",
     "neonhalf",
@@ -806,7 +806,7 @@ def test_capabilities_list():
     assert "svebfdot" in nk.get_capabilities()
     assert "svesdot" in nk.get_capabilities()
     assert "haswell" in nk.get_capabilities()
-    assert "ice" in nk.get_capabilities()
+    assert "icelake" in nk.get_capabilities()
     assert "skylake" in nk.get_capabilities()
     assert "genoa" in nk.get_capabilities()
     assert "sapphire" in nk.get_capabilities()

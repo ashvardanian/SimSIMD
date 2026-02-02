@@ -1,6 +1,6 @@
 /**
  *  @brief SIMD-accelerated Dot Products for f16 optimized for SiFive (RVV + Zvfh) CPUs.
- *  @file include/numkong/dot/sifive.h
+ *  @file include/numkong/dot/rvvhalf.h
  *  @sa include/numkong/dot.h
  *  @author Ash Vardanian
  *  @date January 5, 2026
@@ -11,11 +11,11 @@
  *
  *  Requires: RVV 1.0 + Zvfh extension (GCC 14+ or Clang 18+)
  */
-#ifndef NK_DOT_SIFIVE_H
-#define NK_DOT_SIFIVE_H
+#ifndef NK_DOT_RVVHALF_H
+#define NK_DOT_RVVHALF_H
 
 #if NK_TARGET_RISCV_
-#if NK_TARGET_SIFIVE
+#if NK_TARGET_RVVHALF
 
 #include "numkong/types.h"
 
@@ -23,8 +23,8 @@
 extern "C" {
 #endif
 
-NK_PUBLIC void nk_dot_f16_sifive(nk_f16_t const *a_scalars, nk_f16_t const *b_scalars, nk_nk_size_t count_scalars,
-                                 nk_f32_t *result) {
+NK_PUBLIC void nk_dot_f16_rvvhalf(nk_f16_t const *a_scalars, nk_f16_t const *b_scalars, nk_nk_size_t count_scalars,
+                                  nk_f32_t *result) {
     vfloat32m1_t sum_f32m1 = __riscv_vfmv_v_f_f32m1(0.0f, 1);
     for (nk_size_t vl; count_scalars > 0; count_scalars -= vl, a_scalars += vl, b_scalars += vl) {
         vl = __riscv_vsetvl_e16m1(count_scalars);
@@ -42,7 +42,7 @@ NK_PUBLIC void nk_dot_f16_sifive(nk_f16_t const *a_scalars, nk_f16_t const *b_sc
 } // extern "C"
 #endif
 
-#endif // NK_TARGET_SIFIVE
+#endif // NK_TARGET_RVVHALF
 #endif // NK_TARGET_RISCV_
 
-#endif // NK_DOT_SIFIVE_H
+#endif // NK_DOT_RVVHALF_H

@@ -31,7 +31,7 @@
 #endif
 
 #include "numkong/types.h"
-#include "numkong/set/serial.h" // `nk_popcount_u1`
+#include "numkong/set/serial.h" // `nk_u1x8_popcount_`
 
 #if defined(__cplusplus)
 extern "C" {
@@ -55,7 +55,7 @@ NK_PUBLIC void nk_jaccard_u1_haswell(nk_u1x8_t const *a, nk_u1x8_t const *b, nk_
         intersection_count += (nk_u32_t)_mm_popcnt_u64(*(nk_u64_t const *)a & *(nk_u64_t const *)b),
             union_count += (nk_u32_t)_mm_popcnt_u64(*(nk_u64_t const *)a | *(nk_u64_t const *)b);
     for (; n_bytes; --n_bytes, ++a, ++b)
-        intersection_count += nk_popcount_u1(*a & *b), union_count += nk_popcount_u1(*a | *b);
+        intersection_count += nk_u1x8_popcount_(*a & *b), union_count += nk_u1x8_popcount_(*a | *b);
     *result = (union_count != 0) ? 1.0f - (nk_f32_t)intersection_count / (nk_f32_t)union_count : 1.0f;
 }
 

@@ -100,7 +100,7 @@ NK_PUBLIC void nk_mahalanobis_f16_haswell(nk_f16_t const *a, nk_f16_t const *b, 
         }
     }
 
-    *result = nk_sqrt_f32_haswell_(sum);
+    *result = nk_f32_sqrt_haswell(sum);
 }
 
 NK_PUBLIC void nk_bilinear_bf16_haswell(nk_bf16_t const *a, nk_bf16_t const *b, nk_bf16_t const *c, nk_size_t n,
@@ -185,7 +185,7 @@ NK_PUBLIC void nk_mahalanobis_bf16_haswell(nk_bf16_t const *a, nk_bf16_t const *
         }
     }
 
-    *result = nk_sqrt_f32_haswell_(sum);
+    *result = nk_f32_sqrt_haswell(sum);
 }
 
 #if defined(__cplusplus)

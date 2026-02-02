@@ -1,6 +1,6 @@
 /**
  *  @brief SIMD-accelerated type conversions for FP8/BF16/F16 types optimized for Intel Ice Lake CPUs.
- *  @file include/numkong/cast/ice.h
+ *  @file include/numkong/cast/icelake.h
  *  @author Ash Vardanian
  *  @date January 2, 2026
  *
@@ -16,11 +16,11 @@
  *  FP8-to-BF16/F16 conversions use 4 ZMM LUT registers with VPTESTMW for range selection, achieving
  *  ~6 cycles for 32 FP8 conversions. E5M2-to-F16 simplifies to VPSLLW due to matching exponent bias.
  */
-#ifndef NK_CAST_ICE_H
-#define NK_CAST_ICE_H
+#ifndef NK_CAST_ICELAKE_H
+#define NK_CAST_ICELAKE_H
 
 #if NK_TARGET_X86_
-#if NK_TARGET_ICE
+#if NK_TARGET_ICELAKE
 #if defined(__clang__)
 #pragma clang attribute push(__attribute__((target("avx2,avx512f,avx512vl,avx512bw,avx512dq,f16c,fma,bmi,bmi2"))), \
                              apply_to = function)
@@ -42,7 +42,7 @@ extern "C" {
  *  Normal values (exp != 0): BF16 = sign | ((lower7 << 4) + 0x3C00).
  *  Subnormals (exp == 0, 8 values): looked up from 8-entry LUT via permutexvar.
  *  Memory: 16 bytes (8 × 16-bit entries) vs 256 bytes (128-entry LUT). OCP FP8 v1.0. */
-NK_INTERNAL __m512i nk_e4m3x32_to_bf16x32_ice_(__m256i e4m3x32) {
+NK_INTERNAL __m512i nk_e4m3x32_to_bf16x32_icelake_(__m256i e4m3x32) {
     __m512i e4m3_i16x32 = _mm512_cvtepu8_epi16(e4m3x32);
     __m512i sign_i16x32 = _mm512_and_si512(e4m3_i16x32, _mm512_set1_epi16((short)0x80));
     __m512i lower7_i16x32 = _mm512_and_si512(e4m3_i16x32, _mm512_set1_epi16(0x7F));
@@ -78,7 +78,7 @@ NK_INTERNAL __m512i nk_e4m3x32_to_bf16x32_ice_(__m256i e4m3x32) {
  *  Normal values (exp != 0): BF16 = sign | ((lower7 << 5) + 0x3800).
  *  Subnormals (exp == 0, 4 values): looked up from 4-entry LUT via permutexvar.
  *  Memory: 8 bytes (4 × 16-bit entries) vs 256 bytes (128-entry LUT). OCP FP8 v1.0. */
-NK_INTERNAL __m512i nk_e5m2x32_to_bf16x32_ice_(__m256i e5m2x32) {
+NK_INTERNAL __m512i nk_e5m2x32_to_bf16x32_icelake_(__m256i e5m2x32) {
     __m512i e5m2_i16x32 = _mm512_cvtepu8_epi16(e5m2x32);
     __m512i sign_i16x32 = _mm512_and_si512(e5m2_i16x32, _mm512_set1_epi16((short)0x80));
     __m512i lower7_i16x32 = _mm512_and_si512(e5m2_i16x32, _mm512_set1_epi16(0x7F));
@@ -113,7 +113,7 @@ NK_INTERNAL __m512i nk_e5m2x32_to_bf16x32_ice_(__m256i e5m2x32) {
  *  E2M3 format: S EE MMM (bias=1, 6 bits total: sign at bit 5, magnitude bits 4-0).
  *  BF16: S EEEEEEEE MMMMMMM (bias=127). Uses single permutexvar; sign handled separately.
  *  Subnormals (exp=0): value = mant/16. OCP Microscaling Formats v1.0. */
-NK_INTERNAL __m512i nk_e2m3x32_to_bf16x32_ice_(__m256i e2m3x32) {
+NK_INTERNAL __m512i nk_e2m3x32_to_bf16x32_icelake_(__m256i e2m3x32) {
     __m512i e2m3_i16x32 = _mm512_cvtepu8_epi16(e2m3x32);
     __m512i sign_i16x32 = _mm512_and_si512(e2m3_i16x32, _mm512_set1_epi16(0x20)); // E2M3 sign at bit 5
     __m512i idx_i16x32 = _mm512_and_si512(e2m3_i16x32, _mm512_set1_epi16(0x1F));
@@ -138,7 +138,7 @@ NK_INTERNAL __m512i nk_e2m3x32_to_bf16x32_ice_(__m256i e2m3x32) {
 /** @brief Convert 32x e3m2 → 32x bf16 via 32-entry LUT lookup (AVX-512BW).
  *  E3M2 format: S EEE MM (bias=3, 6 bits total: sign at bit 7, magnitude bits 4-0).
  *  BF16: S EEEEEEEE MMMMMMM (bias=127). Uses single permutexvar; sign handled separately. */
-NK_INTERNAL __m512i nk_e3m2x32_to_bf16x32_ice_(__m256i e3m2x32) {
+NK_INTERNAL __m512i nk_e3m2x32_to_bf16x32_icelake_(__m256i e3m2x32) {
     __m512i e3m2_i16x32 = _mm512_cvtepu8_epi16(e3m2x32);
     __m512i sign_i16x32 = _mm512_and_si512(e3m2_i16x32, _mm512_set1_epi16(0x20)); // E3M2 sign at bit 5
     __m512i idx_i16x32 = _mm512_and_si512(e3m2_i16x32, _mm512_set1_epi16(0x1F));
@@ -168,7 +168,7 @@ NK_INTERNAL __m512i nk_e3m2x32_to_bf16x32_ice_(__m256i e3m2x32) {
  *  E4M3 format: S EEEE MMM (bias=7). F16: S EEEEE MMMMMMMMMM (bias=15).
  *  Uses permutex2var for fast LUT lookup; sign handled separately via shift+OR.
  *  Handles all corner cases: zero, subnormals, normals, and NaN. */
-NK_INTERNAL __m512i nk_e4m3x32_to_f16x32_ice_(__m256i e4m3x32) {
+NK_INTERNAL __m512i nk_e4m3x32_to_f16x32_icelake_(__m256i e4m3x32) {
     __m512i e4m3_i16x32 = _mm512_cvtepu8_epi16(e4m3x32);
     __m512i sign_i16x32 = _mm512_and_si512(e4m3_i16x32, _mm512_set1_epi16((short)0x80));
     __m512i idx_i16x32 = _mm512_and_si512(e4m3_i16x32, _mm512_set1_epi16(0x7F));
@@ -215,7 +215,7 @@ NK_INTERNAL __m512i nk_e4m3x32_to_f16x32_ice_(__m256i e4m3x32) {
  *  E5M2 format: S EEEEE MM (bias=15). F16: S EEEEE MMMMMMMMMM (bias=15).
  *  Same exponent bias means F16 = (lower7 << 8) | (sign << 15).
  *  Handles all corner cases: zero, subnormals, normals, infinity, and NaN. */
-NK_INTERNAL __m512i nk_e5m2x32_to_f16x32_ice_(__m256i e5m2x32) {
+NK_INTERNAL __m512i nk_e5m2x32_to_f16x32_icelake_(__m256i e5m2x32) {
     __m512i e5m2_i16x32 = _mm512_cvtepu8_epi16(e5m2x32);
     __m512i sign_i16x32 = _mm512_and_si512(e5m2_i16x32, _mm512_set1_epi16((short)0x80));
     __m512i lower7_i16x32 = _mm512_and_si512(e5m2_i16x32, _mm512_set1_epi16(0x7F));
@@ -230,7 +230,7 @@ NK_INTERNAL __m512i nk_e5m2x32_to_f16x32_ice_(__m256i e5m2x32) {
 /** @brief Convert 32x bf16 → 32x e4m3 via bit manipulation (AVX-512BW).
  *  BF16: S EEEEEEEE MMMMMMM (bias=127). E4M3: S EEEE MMM (bias=7).
  *  Handles normal, subnormal, and overflow cases with RNE rounding. */
-NK_INTERNAL __m256i nk_bf16x32_to_e4m3x32_ice_(__m512i bf16x32) {
+NK_INTERNAL __m256i nk_bf16x32_to_e4m3x32_icelake_(__m512i bf16x32) {
     __m512i sign_i16x32 = _mm512_srli_epi16(bf16x32, 15);
     __m512i bf16_exp_i16x32 = _mm512_and_si512(_mm512_srli_epi16(bf16x32, 7), _mm512_set1_epi16(0xFF));
 
@@ -295,7 +295,7 @@ NK_INTERNAL __m256i nk_bf16x32_to_e4m3x32_ice_(__m512i bf16x32) {
 /** @brief Convert 32x bf16 → 32x e5m2 via bit manipulation (AVX-512BW).
  *  BF16: S EEEEEEEE MMMMMMM (bias=127). E5M2: S EEEEE MM (bias=15).
  *  Handles normal, subnormal, and overflow cases with RNE rounding. */
-NK_INTERNAL __m256i nk_bf16x32_to_e5m2x32_ice_(__m512i bf16x32) {
+NK_INTERNAL __m256i nk_bf16x32_to_e5m2x32_icelake_(__m512i bf16x32) {
     __m512i sign_i16x32 = _mm512_srli_epi16(bf16x32, 15);
     __m512i bf16_exp_i16x32 = _mm512_and_si512(_mm512_srli_epi16(bf16x32, 7), _mm512_set1_epi16(0xFF));
 
@@ -356,7 +356,7 @@ NK_INTERNAL __m256i nk_bf16x32_to_e5m2x32_ice_(__m512i bf16x32) {
 
 #pragma region - Public API
 
-NK_PUBLIC void nk_cast_ice(void const *from, nk_dtype_t from_type, nk_size_t n, void *to, nk_dtype_t to_type) {
+NK_PUBLIC void nk_cast_icelake(void const *from, nk_dtype_t from_type, nk_size_t n, void *to, nk_dtype_t to_type) {
     // Group 1: Conversions to bf16 (e4m3 → bf16, e5m2 → bf16)
     if (to_type == nk_bf16_k && (from_type == nk_e4m3_k || from_type == nk_e5m2_k)) {
         nk_e4m3_t const *from_ptr = (nk_e4m3_t const *)from;
@@ -365,8 +365,8 @@ NK_PUBLIC void nk_cast_ice(void const *from, nk_dtype_t from_type, nk_size_t n, 
             nk_size_t remaining = n - idx;
             __mmask32 mask = (remaining >= 32) ? 0xFFFFFFFF : _bzhi_u32(0xFFFFFFFF, (unsigned)remaining);
             __m256i in_f8x32 = _mm256_maskz_loadu_epi8(mask, from_ptr + idx);
-            __m512i out_bf16x32 = (from_type == nk_e4m3_k) ? nk_e4m3x32_to_bf16x32_ice_(in_f8x32)
-                                                           : nk_e5m2x32_to_bf16x32_ice_(in_f8x32);
+            __m512i out_bf16x32 = (from_type == nk_e4m3_k) ? nk_e4m3x32_to_bf16x32_icelake_(in_f8x32)
+                                                           : nk_e5m2x32_to_bf16x32_icelake_(in_f8x32);
             _mm512_mask_storeu_epi16(to_ptr + idx, mask, out_bf16x32);
         }
     }
@@ -379,8 +379,8 @@ NK_PUBLIC void nk_cast_ice(void const *from, nk_dtype_t from_type, nk_size_t n, 
             nk_size_t remaining = n - idx;
             __mmask32 mask = (remaining >= 32) ? 0xFFFFFFFF : _bzhi_u32(0xFFFFFFFF, (unsigned)remaining);
             __m512i in_bf16x32 = _mm512_maskz_loadu_epi16(mask, from_ptr + idx);
-            __m256i out_f8x32 = (to_type == nk_e4m3_k) ? nk_bf16x32_to_e4m3x32_ice_(in_bf16x32)
-                                                       : nk_bf16x32_to_e5m2x32_ice_(in_bf16x32);
+            __m256i out_f8x32 = (to_type == nk_e4m3_k) ? nk_bf16x32_to_e4m3x32_icelake_(in_bf16x32)
+                                                       : nk_bf16x32_to_e5m2x32_icelake_(in_bf16x32);
             _mm256_mask_storeu_epi8(to_ptr + idx, mask, out_f8x32);
         }
     }
@@ -393,8 +393,8 @@ NK_PUBLIC void nk_cast_ice(void const *from, nk_dtype_t from_type, nk_size_t n, 
             nk_size_t remaining = n - idx;
             __mmask32 mask = (remaining >= 32) ? 0xFFFFFFFF : _bzhi_u32(0xFFFFFFFF, (unsigned)remaining);
             __m256i in_f8x32 = _mm256_maskz_loadu_epi8(mask, from_ptr + idx);
-            __m512i out_f16x32 = (from_type == nk_e4m3_k) ? nk_e4m3x32_to_f16x32_ice_(in_f8x32)
-                                                          : nk_e5m2x32_to_f16x32_ice_(in_f8x32);
+            __m512i out_f16x32 = (from_type == nk_e4m3_k) ? nk_e4m3x32_to_f16x32_icelake_(in_f8x32)
+                                                          : nk_e5m2x32_to_f16x32_icelake_(in_f8x32);
             _mm512_mask_storeu_epi16(to_ptr + idx, mask, out_f16x32);
         }
     }
@@ -414,7 +414,7 @@ NK_PUBLIC void nk_cast_ice(void const *from, nk_dtype_t from_type, nk_size_t n, 
 #elif defined(__GNUC__)
 #pragma GCC pop_options
 #endif
-#endif // NK_TARGET_ICE
+#endif // NK_TARGET_ICELAKE
 #endif // NK_TARGET_X86_
 
-#endif // NK_CAST_ICE_H
+#endif // NK_CAST_ICELAKE_H

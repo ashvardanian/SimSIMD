@@ -1,6 +1,6 @@
 /**
  *  @brief SIMD-accelerated Set Similarity Measures optimized for SpacemiT (RVV 1.0) CPUs.
- *  @file include/numkong/set/spacemit.h
+ *  @file include/numkong/set/rvv.h
  *  @sa include/numkong/set.h
  *  @author Ash Vardanian
  *  @date January 13, 2026
@@ -29,14 +29,14 @@
  *      vwaddu_vx_u16m2                 Widen u8 → u16 for accumulation
  *      vwredsumu_vs_u16m2_u32m1        Widening reduction sum
  */
-#ifndef NK_SET_SPACEMIT_H
-#define NK_SET_SPACEMIT_H
+#ifndef NK_SET_RVV_H
+#define NK_SET_RVV_H
 
 #if NK_TARGET_RISCV_
-#if NK_TARGET_SPACEMIT
+#if NK_TARGET_RVV
 
 #include "numkong/types.h"
-#include "numkong/set/serial.h" // nk_popcount_u1 for tail handling
+#include "numkong/set/serial.h" // `nk_u1x8_popcount_`
 
 #if defined(__cplusplus)
 extern "C" {
@@ -55,7 +55,7 @@ extern "C" {
  *  @param vector_length    Vector length
  *  @return                 Vector where each byte contains its popcount (0-8)
  */
-NK_INTERNAL vuint8m1_t nk_popcount_u8m1_spacemit_(vuint8m1_t data_u8m1, nk_size_t vector_length) {
+NK_INTERNAL vuint8m1_t nk_popcount_u8m1_rvv_(vuint8m1_t data_u8m1, nk_size_t vector_length) {
     // LUT for nibble popcount (0-15 → 0-4)
     static nk_u8_t const popcount_nibble_lut[16] = {0, 1, 1, 2, 1, 2, 2, 3, 1, 2, 2, 3, 2, 3, 3, 4};
     vuint8m1_t lut_u8m1 = __riscv_vle8_v_u8m1(popcount_nibble_lut, 16);
@@ -72,7 +72,7 @@ NK_INTERNAL vuint8m1_t nk_popcount_u8m1_spacemit_(vuint8m1_t data_u8m1, nk_size_
     return __riscv_vadd_vv_u8m1(low_popcount_u8m1, high_popcount_u8m1, vector_length);
 }
 
-NK_PUBLIC void nk_hamming_u1_spacemit(nk_u1x8_t const *a, nk_u1x8_t const *b, nk_size_t n, nk_u32_t *result) {
+NK_PUBLIC void nk_hamming_u1_rvv(nk_u1x8_t const *a, nk_u1x8_t const *b, nk_size_t n, nk_u32_t *result) {
     nk_size_t count_bytes = nk_size_divide_round_up_(n, NK_BITS_PER_BYTE);
 
     // Accumulator for total differences
@@ -88,7 +88,7 @@ NK_PUBLIC void nk_hamming_u1_spacemit(nk_u1x8_t const *a, nk_u1x8_t const *b, nk
         vuint8m1_t xor_u8m1 = __riscv_vxor_vv_u8m1(a_u8m1, b_u8m1, vector_length);
 
         // Popcount each byte (0-8 per byte)
-        vuint8m1_t popcount_u8m1 = nk_popcount_u8m1_spacemit_(xor_u8m1, vector_length);
+        vuint8m1_t popcount_u8m1 = nk_popcount_u8m1_rvv_(xor_u8m1, vector_length);
 
         // Widen to u16 and accumulate via widening reduction sum
         // u8 → u16 widening add with zero, then u16 → u32 widening reduction
@@ -99,7 +99,7 @@ NK_PUBLIC void nk_hamming_u1_spacemit(nk_u1x8_t const *a, nk_u1x8_t const *b, nk
     *result = __riscv_vmv_x_s_u32m1_u32(sum_u32m1);
 }
 
-NK_PUBLIC void nk_jaccard_u1_spacemit(nk_u1x8_t const *a, nk_u1x8_t const *b, nk_size_t n, nk_f32_t *result) {
+NK_PUBLIC void nk_jaccard_u1_rvv(nk_u1x8_t const *a, nk_u1x8_t const *b, nk_size_t n, nk_f32_t *result) {
     nk_size_t count_bytes = nk_size_divide_round_up_(n, NK_BITS_PER_BYTE);
 
     // Accumulators for intersection and union counts
@@ -119,8 +119,8 @@ NK_PUBLIC void nk_jaccard_u1_spacemit(nk_u1x8_t const *a, nk_u1x8_t const *b, nk
         vuint8m1_t union_u8m1 = __riscv_vor_vv_u8m1(a_u8m1, b_u8m1, vector_length);
 
         // Popcount each
-        vuint8m1_t intersection_popcount_u8m1 = nk_popcount_u8m1_spacemit_(intersection_u8m1, vector_length);
-        vuint8m1_t union_popcount_u8m1 = nk_popcount_u8m1_spacemit_(union_u8m1, vector_length);
+        vuint8m1_t intersection_popcount_u8m1 = nk_popcount_u8m1_rvv_(intersection_u8m1, vector_length);
+        vuint8m1_t union_popcount_u8m1 = nk_popcount_u8m1_rvv_(union_u8m1, vector_length);
 
         // Widen and accumulate
         vuint16m2_t intersection_popcount_u16m2 = __riscv_vwaddu_vx_u16m2(intersection_popcount_u8m1, 0, vector_length);
@@ -135,7 +135,7 @@ NK_PUBLIC void nk_jaccard_u1_spacemit(nk_u1x8_t const *a, nk_u1x8_t const *b, nk
     *result = (union_count_u32 != 0) ? 1.0f - (nk_f32_t)intersection_count_u32 / (nk_f32_t)union_count_u32 : 1.0f;
 }
 
-NK_PUBLIC void nk_hamming_u8_spacemit(nk_u8_t const *a, nk_u8_t const *b, nk_size_t n, nk_u32_t *result) {
+NK_PUBLIC void nk_hamming_u8_rvv(nk_u8_t const *a, nk_u8_t const *b, nk_size_t n, nk_u32_t *result) {
     vuint32m1_t difference_count_u32m1 = __riscv_vmv_v_x_u32m1(0, 1);
 
     nk_size_t i = 0;
@@ -158,7 +158,7 @@ NK_PUBLIC void nk_hamming_u8_spacemit(nk_u8_t const *a, nk_u8_t const *b, nk_siz
     *result = __riscv_vmv_x_s_u32m1_u32(difference_count_u32m1);
 }
 
-NK_PUBLIC void nk_jaccard_u32_spacemit(nk_u32_t const *a, nk_u32_t const *b, nk_size_t n, nk_f32_t *result) {
+NK_PUBLIC void nk_jaccard_u32_rvv(nk_u32_t const *a, nk_u32_t const *b, nk_size_t n, nk_f32_t *result) {
     nk_u32_t match_count_u32 = 0;
 
     nk_size_t i = 0;
@@ -178,7 +178,7 @@ NK_PUBLIC void nk_jaccard_u32_spacemit(nk_u32_t const *a, nk_u32_t const *b, nk_
     *result = (n != 0) ? 1.0f - (nk_f32_t)match_count_u32 / (nk_f32_t)n : 1.0f;
 }
 
-NK_PUBLIC void nk_jaccard_u16_spacemit(nk_u16_t const *a, nk_u16_t const *b, nk_size_t n, nk_f32_t *result) {
+NK_PUBLIC void nk_jaccard_u16_rvv(nk_u16_t const *a, nk_u16_t const *b, nk_size_t n, nk_f32_t *result) {
     nk_u32_t match_count_u32 = 0;
 
     nk_size_t i = 0;
@@ -202,7 +202,7 @@ NK_PUBLIC void nk_jaccard_u16_spacemit(nk_u16_t const *a, nk_u16_t const *b, nk_
 } // extern "C"
 #endif
 
-#endif // NK_TARGET_SPACEMIT
+#endif // NK_TARGET_RVV
 #endif // NK_TARGET_RISCV_
 
-#endif // NK_SET_SPACEMIT_H
+#endif // NK_SET_RVV_H

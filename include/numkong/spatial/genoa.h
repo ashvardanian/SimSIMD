@@ -21,7 +21,7 @@
 
 #include "numkong/types.h"
 #include "numkong/reduce/skylake.h" // nk_reduce_add_f32x16_skylake_
-#include "numkong/cast/ice.h"       // nk_e4m3x32_to_bf16x32_ice_, nk_e5m2x32_to_bf16x32_ice_
+#include "numkong/cast/icelake.h"   // nk_e4m3x32_to_bf16x32_icelake_, nk_e5m2x32_to_bf16x32_icelake_
 
 #if defined(__cplusplus)
 extern "C" {
@@ -98,7 +98,7 @@ nk_sqeuclidean_bf16_genoa_cycle:
 
 NK_PUBLIC void nk_euclidean_bf16_genoa(nk_bf16_t const *a, nk_bf16_t const *b, nk_size_t n, nk_f32_t *result) {
     nk_sqeuclidean_bf16_genoa(a, b, n, result);
-    *result = nk_sqrt_f32_haswell_(*result);
+    *result = nk_f32_sqrt_haswell(*result);
 }
 
 NK_PUBLIC void nk_angular_bf16_genoa(nk_bf16_t const *a, nk_bf16_t const *b, nk_size_t n, nk_f32_t *result) {
@@ -187,8 +187,8 @@ nk_sqeuclidean_e4m3_genoa_cycle:
         b_e4m3x32 = _mm256_loadu_epi8(b);
         a += 32, b += 32, n -= 32;
     }
-    __m512i a_bf16x32 = nk_e4m3x32_to_bf16x32_ice_(a_e4m3x32);
-    __m512i b_bf16x32 = nk_e4m3x32_to_bf16x32_ice_(b_e4m3x32);
+    __m512i a_bf16x32 = nk_e4m3x32_to_bf16x32_icelake_(a_e4m3x32);
+    __m512i b_bf16x32 = nk_e4m3x32_to_bf16x32_icelake_(b_e4m3x32);
     __m512i diff_bf16x32 = nk_substract_bf16x32_genoa_(a_bf16x32, b_bf16x32);
     distance_sq_f32x16 = _mm512_dpbf16_ps(distance_sq_f32x16, (__m512bh)(diff_bf16x32), (__m512bh)(diff_bf16x32));
     if (n) goto nk_sqeuclidean_e4m3_genoa_cycle;
@@ -198,7 +198,7 @@ nk_sqeuclidean_e4m3_genoa_cycle:
 
 NK_PUBLIC void nk_euclidean_e4m3_genoa(nk_e4m3_t const *a, nk_e4m3_t const *b, nk_size_t n, nk_f32_t *result) {
     nk_sqeuclidean_e4m3_genoa(a, b, n, result);
-    *result = nk_sqrt_f32_haswell_(*result);
+    *result = nk_f32_sqrt_haswell(*result);
 }
 
 NK_PUBLIC void nk_angular_e4m3_genoa(nk_e4m3_t const *a, nk_e4m3_t const *b, nk_size_t n, nk_f32_t *result) {
@@ -219,8 +219,8 @@ nk_angular_e4m3_genoa_cycle:
         b_e4m3x32 = _mm256_loadu_epi8(b);
         a += 32, b += 32, n -= 32;
     }
-    __m512i a_bf16x32 = nk_e4m3x32_to_bf16x32_ice_(a_e4m3x32);
-    __m512i b_bf16x32 = nk_e4m3x32_to_bf16x32_ice_(b_e4m3x32);
+    __m512i a_bf16x32 = nk_e4m3x32_to_bf16x32_icelake_(a_e4m3x32);
+    __m512i b_bf16x32 = nk_e4m3x32_to_bf16x32_icelake_(b_e4m3x32);
     dot_f32x16 = _mm512_dpbf16_ps(dot_f32x16, (__m512bh)(a_bf16x32), (__m512bh)(b_bf16x32));
     a_norm_sq_f32x16 = _mm512_dpbf16_ps(a_norm_sq_f32x16, (__m512bh)(a_bf16x32), (__m512bh)(a_bf16x32));
     b_norm_sq_f32x16 = _mm512_dpbf16_ps(b_norm_sq_f32x16, (__m512bh)(b_bf16x32), (__m512bh)(b_bf16x32));
@@ -248,8 +248,8 @@ nk_sqeuclidean_e5m2_genoa_cycle:
         b_e5m2x32 = _mm256_loadu_epi8(b);
         a += 32, b += 32, n -= 32;
     }
-    __m512i a_bf16x32 = nk_e5m2x32_to_bf16x32_ice_(a_e5m2x32);
-    __m512i b_bf16x32 = nk_e5m2x32_to_bf16x32_ice_(b_e5m2x32);
+    __m512i a_bf16x32 = nk_e5m2x32_to_bf16x32_icelake_(a_e5m2x32);
+    __m512i b_bf16x32 = nk_e5m2x32_to_bf16x32_icelake_(b_e5m2x32);
     __m512i diff_bf16x32 = nk_substract_bf16x32_genoa_(a_bf16x32, b_bf16x32);
     distance_sq_f32x16 = _mm512_dpbf16_ps(distance_sq_f32x16, (__m512bh)(diff_bf16x32), (__m512bh)(diff_bf16x32));
     if (n) goto nk_sqeuclidean_e5m2_genoa_cycle;
@@ -259,7 +259,7 @@ nk_sqeuclidean_e5m2_genoa_cycle:
 
 NK_PUBLIC void nk_euclidean_e5m2_genoa(nk_e5m2_t const *a, nk_e5m2_t const *b, nk_size_t n, nk_f32_t *result) {
     nk_sqeuclidean_e5m2_genoa(a, b, n, result);
-    *result = nk_sqrt_f32_haswell_(*result);
+    *result = nk_f32_sqrt_haswell(*result);
 }
 
 NK_PUBLIC void nk_angular_e5m2_genoa(nk_e5m2_t const *a, nk_e5m2_t const *b, nk_size_t n, nk_f32_t *result) {
@@ -280,8 +280,8 @@ nk_angular_e5m2_genoa_cycle:
         b_e5m2x32 = _mm256_loadu_epi8(b);
         a += 32, b += 32, n -= 32;
     }
-    __m512i a_bf16x32 = nk_e5m2x32_to_bf16x32_ice_(a_e5m2x32);
-    __m512i b_bf16x32 = nk_e5m2x32_to_bf16x32_ice_(b_e5m2x32);
+    __m512i a_bf16x32 = nk_e5m2x32_to_bf16x32_icelake_(a_e5m2x32);
+    __m512i b_bf16x32 = nk_e5m2x32_to_bf16x32_icelake_(b_e5m2x32);
     dot_f32x16 = _mm512_dpbf16_ps(dot_f32x16, (__m512bh)(a_bf16x32), (__m512bh)(b_bf16x32));
     a_norm_sq_f32x16 = _mm512_dpbf16_ps(a_norm_sq_f32x16, (__m512bh)(a_bf16x32), (__m512bh)(a_bf16x32));
     b_norm_sq_f32x16 = _mm512_dpbf16_ps(b_norm_sq_f32x16, (__m512bh)(b_bf16x32), (__m512bh)(b_bf16x32));
@@ -309,8 +309,8 @@ nk_sqeuclidean_e2m3_genoa_cycle:
         b_e2m3x32 = _mm256_loadu_epi8(b);
         a += 32, b += 32, n -= 32;
     }
-    __m512i a_bf16x32 = nk_e2m3x32_to_bf16x32_ice_(a_e2m3x32);
-    __m512i b_bf16x32 = nk_e2m3x32_to_bf16x32_ice_(b_e2m3x32);
+    __m512i a_bf16x32 = nk_e2m3x32_to_bf16x32_icelake_(a_e2m3x32);
+    __m512i b_bf16x32 = nk_e2m3x32_to_bf16x32_icelake_(b_e2m3x32);
     __m512i diff_bf16x32 = nk_substract_bf16x32_genoa_(a_bf16x32, b_bf16x32);
     distance_sq_f32x16 = _mm512_dpbf16_ps(distance_sq_f32x16, (__m512bh)(diff_bf16x32), (__m512bh)(diff_bf16x32));
     if (n) goto nk_sqeuclidean_e2m3_genoa_cycle;
@@ -320,7 +320,7 @@ nk_sqeuclidean_e2m3_genoa_cycle:
 
 NK_PUBLIC void nk_euclidean_e2m3_genoa(nk_e2m3_t const *a, nk_e2m3_t const *b, nk_size_t n, nk_f32_t *result) {
     nk_sqeuclidean_e2m3_genoa(a, b, n, result);
-    *result = nk_sqrt_f32_haswell_(*result);
+    *result = nk_f32_sqrt_haswell(*result);
 }
 
 NK_PUBLIC void nk_angular_e2m3_genoa(nk_e2m3_t const *a, nk_e2m3_t const *b, nk_size_t n, nk_f32_t *result) {
@@ -341,8 +341,8 @@ nk_angular_e2m3_genoa_cycle:
         b_e2m3x32 = _mm256_loadu_epi8(b);
         a += 32, b += 32, n -= 32;
     }
-    __m512i a_bf16x32 = nk_e2m3x32_to_bf16x32_ice_(a_e2m3x32);
-    __m512i b_bf16x32 = nk_e2m3x32_to_bf16x32_ice_(b_e2m3x32);
+    __m512i a_bf16x32 = nk_e2m3x32_to_bf16x32_icelake_(a_e2m3x32);
+    __m512i b_bf16x32 = nk_e2m3x32_to_bf16x32_icelake_(b_e2m3x32);
     dot_f32x16 = _mm512_dpbf16_ps(dot_f32x16, (__m512bh)(a_bf16x32), (__m512bh)(b_bf16x32));
     a_norm_sq_f32x16 = _mm512_dpbf16_ps(a_norm_sq_f32x16, (__m512bh)(a_bf16x32), (__m512bh)(a_bf16x32));
     b_norm_sq_f32x16 = _mm512_dpbf16_ps(b_norm_sq_f32x16, (__m512bh)(b_bf16x32), (__m512bh)(b_bf16x32));
@@ -370,8 +370,8 @@ nk_sqeuclidean_e3m2_genoa_cycle:
         b_e3m2x32 = _mm256_loadu_epi8(b);
         a += 32, b += 32, n -= 32;
     }
-    __m512i a_bf16x32 = nk_e3m2x32_to_bf16x32_ice_(a_e3m2x32);
-    __m512i b_bf16x32 = nk_e3m2x32_to_bf16x32_ice_(b_e3m2x32);
+    __m512i a_bf16x32 = nk_e3m2x32_to_bf16x32_icelake_(a_e3m2x32);
+    __m512i b_bf16x32 = nk_e3m2x32_to_bf16x32_icelake_(b_e3m2x32);
     __m512i diff_bf16x32 = nk_substract_bf16x32_genoa_(a_bf16x32, b_bf16x32);
     distance_sq_f32x16 = _mm512_dpbf16_ps(distance_sq_f32x16, (__m512bh)(diff_bf16x32), (__m512bh)(diff_bf16x32));
     if (n) goto nk_sqeuclidean_e3m2_genoa_cycle;
@@ -381,7 +381,7 @@ nk_sqeuclidean_e3m2_genoa_cycle:
 
 NK_PUBLIC void nk_euclidean_e3m2_genoa(nk_e3m2_t const *a, nk_e3m2_t const *b, nk_size_t n, nk_f32_t *result) {
     nk_sqeuclidean_e3m2_genoa(a, b, n, result);
-    *result = nk_sqrt_f32_haswell_(*result);
+    *result = nk_f32_sqrt_haswell(*result);
 }
 
 NK_PUBLIC void nk_angular_e3m2_genoa(nk_e3m2_t const *a, nk_e3m2_t const *b, nk_size_t n, nk_f32_t *result) {
@@ -402,8 +402,8 @@ nk_angular_e3m2_genoa_cycle:
         b_e3m2x32 = _mm256_loadu_epi8(b);
         a += 32, b += 32, n -= 32;
     }
-    __m512i a_bf16x32 = nk_e3m2x32_to_bf16x32_ice_(a_e3m2x32);
-    __m512i b_bf16x32 = nk_e3m2x32_to_bf16x32_ice_(b_e3m2x32);
+    __m512i a_bf16x32 = nk_e3m2x32_to_bf16x32_icelake_(a_e3m2x32);
+    __m512i b_bf16x32 = nk_e3m2x32_to_bf16x32_icelake_(b_e3m2x32);
     dot_f32x16 = _mm512_dpbf16_ps(dot_f32x16, (__m512bh)(a_bf16x32), (__m512bh)(b_bf16x32));
     a_norm_sq_f32x16 = _mm512_dpbf16_ps(a_norm_sq_f32x16, (__m512bh)(a_bf16x32), (__m512bh)(a_bf16x32));
     b_norm_sq_f32x16 = _mm512_dpbf16_ps(b_norm_sq_f32x16, (__m512bh)(b_bf16x32), (__m512bh)(b_bf16x32));

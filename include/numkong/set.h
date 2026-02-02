@@ -91,17 +91,17 @@
  *  nk_f32_t query_popcount = ...;
  *  nk_f32_t target_popcount_first = ..., target_popcount_second = ...;
  *
- *  nk_jaccard_b512_state_ice_t state_first, state_second, state_third, state_fourth;
- *  nk_jaccard_b512_init_ice(&state_first);
- *  nk_jaccard_b512_init_ice(&state_second);
- *  nk_jaccard_b512_init_ice(&state_third);
- *  nk_jaccard_b512_init_ice(&state_fourth);
- *  nk_jaccard_b512_update_ice(&state_first, &query[0], &target_first[0], 0, 512); // First 512 bits
- *  nk_jaccard_b512_update_ice(&state_first, &query[64], &target_first[64], 512, 512); // Second 512 bits
+ *  nk_jaccard_b512_state_icelake_t state_first, state_second, state_third, state_fourth;
+ *  nk_jaccard_b512_init_icelake(&state_first);
+ *  nk_jaccard_b512_init_icelake(&state_second);
+ *  nk_jaccard_b512_init_icelake(&state_third);
+ *  nk_jaccard_b512_init_icelake(&state_fourth);
+ *  nk_jaccard_b512_update_icelake(&state_first, &query[0], &target_first[0], 0, 512); // First 512 bits
+ *  nk_jaccard_b512_update_icelake(&state_first, &query[64], &target_first[64], 512, 512); // Second 512 bits
  *  // ... update state_second, state_third, state_fourth similarly ...
  *
  *  nk_f32_t results[4];
- *  nk_jaccard_b512_finalize_ice(&state_first, &state_second, &state_third, &state_fourth,
+ *  nk_jaccard_b512_finalize_icelake(&state_first, &state_second, &state_third, &state_fourth,
  *      query_popcount, target_popcount_first, target_popcount_second,
  *      target_popcount_third, target_popcount_fourth, total_dimensions, results);
  *  @endcode
@@ -433,33 +433,33 @@ NK_INTERNAL void nk_jaccard_b64_finalize_haswell( //
 
 #endif // NK_TARGET_HASWELL
 
-#if NK_TARGET_ICE
+#if NK_TARGET_ICELAKE
 /** @copydoc nk_hamming_u1 */
-NK_PUBLIC void nk_hamming_u1_ice(nk_u1x8_t const *a, nk_u1x8_t const *b, nk_size_t n, nk_u32_t *result);
+NK_PUBLIC void nk_hamming_u1_icelake(nk_u1x8_t const *a, nk_u1x8_t const *b, nk_size_t n, nk_u32_t *result);
 /** @copydoc nk_hamming_u8 */
-NK_PUBLIC void nk_hamming_u8_ice(nk_u8_t const *a, nk_u8_t const *b, nk_size_t n, nk_u32_t *result);
+NK_PUBLIC void nk_hamming_u8_icelake(nk_u8_t const *a, nk_u8_t const *b, nk_size_t n, nk_u32_t *result);
 
 /**
  *  @brief Running state for 512-bit Hamming distance accumulation on Ice Lake.
  */
-typedef struct nk_hamming_b512_state_ice_t nk_hamming_b512_state_ice_t;
-/** @copydoc nk_hamming_b512_state_ice_t */
-NK_INTERNAL void nk_hamming_b512_init_ice(nk_hamming_b512_state_ice_t *state);
-/** @copydoc nk_hamming_b512_state_ice_t */
-NK_INTERNAL void nk_hamming_b512_update_ice(nk_hamming_b512_state_ice_t *state, nk_b512_vec_t a, nk_b512_vec_t b,
-                                            nk_size_t depth_offset, nk_size_t active_dimensions);
-/** @copydoc nk_hamming_b512_state_ice_t */
-NK_INTERNAL void nk_hamming_b512_finalize_ice(                                              //
-    nk_hamming_b512_state_ice_t const *state_a, nk_hamming_b512_state_ice_t const *state_b, //
-    nk_hamming_b512_state_ice_t const *state_c, nk_hamming_b512_state_ice_t const *state_d, //
+typedef struct nk_hamming_b512_state_icelake_t nk_hamming_b512_state_icelake_t;
+/** @copydoc nk_hamming_b512_state_icelake_t */
+NK_INTERNAL void nk_hamming_b512_init_icelake(nk_hamming_b512_state_icelake_t *state);
+/** @copydoc nk_hamming_b512_state_icelake_t */
+NK_INTERNAL void nk_hamming_b512_update_icelake(nk_hamming_b512_state_icelake_t *state, nk_b512_vec_t a,
+                                                nk_b512_vec_t b, nk_size_t depth_offset, nk_size_t active_dimensions);
+/** @copydoc nk_hamming_b512_state_icelake_t */
+NK_INTERNAL void nk_hamming_b512_finalize_icelake(                                                  //
+    nk_hamming_b512_state_icelake_t const *state_a, nk_hamming_b512_state_icelake_t const *state_b, //
+    nk_hamming_b512_state_icelake_t const *state_c, nk_hamming_b512_state_icelake_t const *state_d, //
     nk_size_t total_dimensions, nk_b128_vec_t *result);
 
 /** @copydoc nk_jaccard_u1 */
-NK_PUBLIC void nk_jaccard_u1_ice(nk_u1x8_t const *a, nk_u1x8_t const *b, nk_size_t n, nk_f32_t *result);
+NK_PUBLIC void nk_jaccard_u1_icelake(nk_u1x8_t const *a, nk_u1x8_t const *b, nk_size_t n, nk_f32_t *result);
 /** @copydoc nk_jaccard_u32 */
-NK_PUBLIC void nk_jaccard_u32_ice(nk_u32_t const *a, nk_u32_t const *b, nk_size_t n, nk_f32_t *result);
+NK_PUBLIC void nk_jaccard_u32_icelake(nk_u32_t const *a, nk_u32_t const *b, nk_size_t n, nk_f32_t *result);
 /** @copydoc nk_jaccard_u16 */
-NK_PUBLIC void nk_jaccard_u16_ice(nk_u16_t const *a, nk_u16_t const *b, nk_size_t n, nk_f32_t *result);
+NK_PUBLIC void nk_jaccard_u16_icelake(nk_u16_t const *a, nk_u16_t const *b, nk_size_t n, nk_f32_t *result);
 
 /**
  *  @brief Running state for 512-bit Jaccard accumulation on Ice Lake.
@@ -470,72 +470,72 @@ NK_PUBLIC void nk_jaccard_u16_ice(nk_u16_t const *a, nk_u16_t const *b, nk_size_
  *  nk_f32_t query_popcount = ...;
  *  nk_f32_t target_popcount_first = ..., target_popcount_second = ...;
  *
- *  nk_jaccard_b512_state_ice_t state_first, state_second, state_third, state_fourth;
- *  nk_jaccard_b512_init_ice(&state_first);
- *  nk_jaccard_b512_init_ice(&state_second);
- *  nk_jaccard_b512_init_ice(&state_third);
- *  nk_jaccard_b512_init_ice(&state_fourth);
- *  nk_jaccard_b512_update_ice(&state_first, &query[0], &target_first[0], 0, 512); // First 512 bits
- *  nk_jaccard_b512_update_ice(&state_first, &query[64], &target_first[64], 512, 512); // Second 512 bits
+ *  nk_jaccard_b512_state_icelake_t state_first, state_second, state_third, state_fourth;
+ *  nk_jaccard_b512_init_icelake(&state_first);
+ *  nk_jaccard_b512_init_icelake(&state_second);
+ *  nk_jaccard_b512_init_icelake(&state_third);
+ *  nk_jaccard_b512_init_icelake(&state_fourth);
+ *  nk_jaccard_b512_update_icelake(&state_first, &query[0], &target_first[0], 0, 512); // First 512 bits
+ *  nk_jaccard_b512_update_icelake(&state_first, &query[64], &target_first[64], 512, 512); // Second 512 bits
  *  // ... update state_second, state_third, state_fourth similarly ...
  *
  *  nk_f32_t results[4];
- *  nk_jaccard_b512_finalize_ice(&state_first, &state_second, &state_third, &state_fourth,
+ *  nk_jaccard_b512_finalize_icelake(&state_first, &state_second, &state_third, &state_fourth,
  *      query_popcount, target_popcount_first, target_popcount_second,
  *      target_popcount_third, target_popcount_fourth, total_dimensions, results);
  *  @endcode
  */
-typedef struct nk_jaccard_b512_state_ice_t nk_jaccard_b512_state_ice_t;
-/** @copydoc nk_jaccard_b512_state_ice_t */
-NK_INTERNAL void nk_jaccard_b512_init_ice(nk_jaccard_b512_state_ice_t *state);
-/** @copydoc nk_jaccard_b512_state_ice_t */
-NK_INTERNAL void nk_jaccard_b512_update_ice(nk_jaccard_b512_state_ice_t *state, nk_b512_vec_t a, nk_b512_vec_t b,
-                                            nk_size_t depth_offset, nk_size_t active_dimensions);
-/** @copydoc nk_jaccard_b512_state_ice_t */
-NK_INTERNAL void nk_jaccard_b512_finalize_ice( //
-    nk_jaccard_b512_state_ice_t const *state_a, nk_jaccard_b512_state_ice_t const *state_b,
-    nk_jaccard_b512_state_ice_t const *state_c, nk_jaccard_b512_state_ice_t const *state_d, nk_f32_t query_popcount,
-    nk_f32_t target_popcount_a, nk_f32_t target_popcount_b, nk_f32_t target_popcount_c, nk_f32_t target_popcount_d,
-    nk_size_t total_dimensions, nk_b128_vec_t *result);
+typedef struct nk_jaccard_b512_state_icelake_t nk_jaccard_b512_state_icelake_t;
+/** @copydoc nk_jaccard_b512_state_icelake_t */
+NK_INTERNAL void nk_jaccard_b512_init_icelake(nk_jaccard_b512_state_icelake_t *state);
+/** @copydoc nk_jaccard_b512_state_icelake_t */
+NK_INTERNAL void nk_jaccard_b512_update_icelake(nk_jaccard_b512_state_icelake_t *state, nk_b512_vec_t a,
+                                                nk_b512_vec_t b, nk_size_t depth_offset, nk_size_t active_dimensions);
+/** @copydoc nk_jaccard_b512_state_icelake_t */
+NK_INTERNAL void nk_jaccard_b512_finalize_icelake( //
+    nk_jaccard_b512_state_icelake_t const *state_a, nk_jaccard_b512_state_icelake_t const *state_b,
+    nk_jaccard_b512_state_icelake_t const *state_c, nk_jaccard_b512_state_icelake_t const *state_d,
+    nk_f32_t query_popcount, nk_f32_t target_popcount_a, nk_f32_t target_popcount_b, nk_f32_t target_popcount_c,
+    nk_f32_t target_popcount_d, nk_size_t total_dimensions, nk_b128_vec_t *result);
 
-#endif // NK_TARGET_ICE
+#endif // NK_TARGET_ICELAKE
 
 #if NK_TARGET_V128RELAXED
 /** @copydoc nk_hamming_u1 */
-NK_PUBLIC void nk_hamming_u1_wasm(nk_u1x8_t const *a, nk_u1x8_t const *b, nk_size_t n, nk_u32_t *result);
+NK_PUBLIC void nk_hamming_u1_v128relaxed(nk_u1x8_t const *a, nk_u1x8_t const *b, nk_size_t n, nk_u32_t *result);
 /** @copydoc nk_hamming_u8 */
-NK_PUBLIC void nk_hamming_u8_wasm(nk_u8_t const *a, nk_u8_t const *b, nk_size_t n, nk_u32_t *result);
+NK_PUBLIC void nk_hamming_u8_v128relaxed(nk_u8_t const *a, nk_u8_t const *b, nk_size_t n, nk_u32_t *result);
 /** @copydoc nk_jaccard_u1 */
-NK_PUBLIC void nk_jaccard_u1_wasm(nk_u1x8_t const *a, nk_u1x8_t const *b, nk_size_t n, nk_f32_t *result);
+NK_PUBLIC void nk_jaccard_u1_v128relaxed(nk_u1x8_t const *a, nk_u1x8_t const *b, nk_size_t n, nk_f32_t *result);
 /** @copydoc nk_jaccard_u16 */
-NK_PUBLIC void nk_jaccard_u16_wasm(nk_u16_t const *a, nk_u16_t const *b, nk_size_t n, nk_f32_t *result);
+NK_PUBLIC void nk_jaccard_u16_v128relaxed(nk_u16_t const *a, nk_u16_t const *b, nk_size_t n, nk_f32_t *result);
 /** @copydoc nk_jaccard_u32 */
-NK_PUBLIC void nk_jaccard_u32_wasm(nk_u32_t const *a, nk_u32_t const *b, nk_size_t n, nk_f32_t *result);
+NK_PUBLIC void nk_jaccard_u32_v128relaxed(nk_u32_t const *a, nk_u32_t const *b, nk_size_t n, nk_f32_t *result);
 #endif // NK_TARGET_V128RELAXED
 
 #include "numkong/set/serial.h"
 #include "numkong/set/neon.h"
 #include "numkong/set/sve.h"
-#include "numkong/set/ice.h"
+#include "numkong/set/icelake.h"
 #include "numkong/set/haswell.h"
-#include "numkong/set/wasm.h"
-#include "numkong/set/spacemit.h"
+#include "numkong/set/v128relaxed.h"
+#include "numkong/set/rvv.h"
 
 #if !NK_DYNAMIC_DISPATCH
 
 NK_PUBLIC void nk_hamming_u1(nk_u1x8_t const *a, nk_u1x8_t const *b, nk_size_t n, nk_u32_t *result) {
 #if NK_TARGET_V128RELAXED
-    nk_hamming_u1_wasm(a, b, n, result);
+    nk_hamming_u1_v128relaxed(a, b, n, result);
 #elif NK_TARGET_SVE
     nk_hamming_u1_sve(a, b, n, result);
 #elif NK_TARGET_NEON
     nk_hamming_u1_neon(a, b, n, result);
-#elif NK_TARGET_ICE
-    nk_hamming_u1_ice(a, b, n, result);
+#elif NK_TARGET_ICELAKE
+    nk_hamming_u1_icelake(a, b, n, result);
 #elif NK_TARGET_HASWELL
     nk_hamming_u1_haswell(a, b, n, result);
-#elif NK_TARGET_SPACEMIT
-    nk_hamming_u1_spacemit(a, b, n, result);
+#elif NK_TARGET_RVV
+    nk_hamming_u1_rvv(a, b, n, result);
 #else
     nk_hamming_u1_serial(a, b, n, result);
 #endif
@@ -543,17 +543,17 @@ NK_PUBLIC void nk_hamming_u1(nk_u1x8_t const *a, nk_u1x8_t const *b, nk_size_t n
 
 NK_PUBLIC void nk_jaccard_u1(nk_u1x8_t const *a, nk_u1x8_t const *b, nk_size_t n, nk_f32_t *result) {
 #if NK_TARGET_V128RELAXED
-    nk_jaccard_u1_wasm(a, b, n, result);
+    nk_jaccard_u1_v128relaxed(a, b, n, result);
 #elif NK_TARGET_SVE
     nk_jaccard_u1_sve(a, b, n, result);
 #elif NK_TARGET_NEON
     nk_jaccard_u1_neon(a, b, n, result);
-#elif NK_TARGET_ICE
-    nk_jaccard_u1_ice(a, b, n, result);
+#elif NK_TARGET_ICELAKE
+    nk_jaccard_u1_icelake(a, b, n, result);
 #elif NK_TARGET_HASWELL
     nk_jaccard_u1_haswell(a, b, n, result);
-#elif NK_TARGET_SPACEMIT
-    nk_jaccard_u1_spacemit(a, b, n, result);
+#elif NK_TARGET_RVV
+    nk_jaccard_u1_rvv(a, b, n, result);
 #else
     nk_jaccard_u1_serial(a, b, n, result);
 #endif
@@ -561,17 +561,17 @@ NK_PUBLIC void nk_jaccard_u1(nk_u1x8_t const *a, nk_u1x8_t const *b, nk_size_t n
 
 NK_PUBLIC void nk_jaccard_u32(nk_u32_t const *a, nk_u32_t const *b, nk_size_t n, nk_f32_t *result) {
 #if NK_TARGET_V128RELAXED
-    nk_jaccard_u32_wasm(a, b, n, result);
+    nk_jaccard_u32_v128relaxed(a, b, n, result);
 #elif NK_TARGET_SVE
     nk_jaccard_u32_sve(a, b, n, result);
 #elif NK_TARGET_NEON
     nk_jaccard_u32_neon(a, b, n, result);
-#elif NK_TARGET_ICE
-    nk_jaccard_u32_ice(a, b, n, result);
+#elif NK_TARGET_ICELAKE
+    nk_jaccard_u32_icelake(a, b, n, result);
 #elif NK_TARGET_HASWELL
     nk_jaccard_u32_haswell(a, b, n, result);
-#elif NK_TARGET_SPACEMIT
-    nk_jaccard_u32_spacemit(a, b, n, result);
+#elif NK_TARGET_RVV
+    nk_jaccard_u32_rvv(a, b, n, result);
 #else
     nk_jaccard_u32_serial(a, b, n, result);
 #endif
@@ -579,17 +579,17 @@ NK_PUBLIC void nk_jaccard_u32(nk_u32_t const *a, nk_u32_t const *b, nk_size_t n,
 
 NK_PUBLIC void nk_hamming_u8(nk_u8_t const *a, nk_u8_t const *b, nk_size_t n, nk_u32_t *result) {
 #if NK_TARGET_V128RELAXED
-    nk_hamming_u8_wasm(a, b, n, result);
+    nk_hamming_u8_v128relaxed(a, b, n, result);
 #elif NK_TARGET_SVE
     nk_hamming_u8_sve(a, b, n, result);
 #elif NK_TARGET_NEON
     nk_hamming_u8_neon(a, b, n, result);
-#elif NK_TARGET_ICE
-    nk_hamming_u8_ice(a, b, n, result);
+#elif NK_TARGET_ICELAKE
+    nk_hamming_u8_icelake(a, b, n, result);
 #elif NK_TARGET_HASWELL
     nk_hamming_u8_haswell(a, b, n, result);
-#elif NK_TARGET_SPACEMIT
-    nk_hamming_u8_spacemit(a, b, n, result);
+#elif NK_TARGET_RVV
+    nk_hamming_u8_rvv(a, b, n, result);
 #else
     nk_hamming_u8_serial(a, b, n, result);
 #endif
@@ -597,17 +597,17 @@ NK_PUBLIC void nk_hamming_u8(nk_u8_t const *a, nk_u8_t const *b, nk_size_t n, nk
 
 NK_PUBLIC void nk_jaccard_u16(nk_u16_t const *a, nk_u16_t const *b, nk_size_t n, nk_f32_t *result) {
 #if NK_TARGET_V128RELAXED
-    nk_jaccard_u16_wasm(a, b, n, result);
+    nk_jaccard_u16_v128relaxed(a, b, n, result);
 #elif NK_TARGET_SVE
     nk_jaccard_u16_sve(a, b, n, result);
 #elif NK_TARGET_NEON
     nk_jaccard_u16_neon(a, b, n, result);
-#elif NK_TARGET_ICE
-    nk_jaccard_u16_ice(a, b, n, result);
+#elif NK_TARGET_ICELAKE
+    nk_jaccard_u16_icelake(a, b, n, result);
 #elif NK_TARGET_HASWELL
     nk_jaccard_u16_haswell(a, b, n, result);
-#elif NK_TARGET_SPACEMIT
-    nk_jaccard_u16_spacemit(a, b, n, result);
+#elif NK_TARGET_RVV
+    nk_jaccard_u16_rvv(a, b, n, result);
 #else
     nk_jaccard_u16_serial(a, b, n, result);
 #endif

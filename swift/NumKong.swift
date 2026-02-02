@@ -637,7 +637,7 @@ public enum Capabilities {
     // x86
     public static var usesHaswell: Bool { nk_uses_haswell() != 0 }
     public static var usesSkylake: Bool { nk_uses_skylake() != 0 }
-    public static var usesIce: Bool { nk_uses_ice() != 0 }
+    public static var usesIcelake: Bool { nk_uses_icelake() != 0 }
     public static var usesGenoa: Bool { nk_uses_genoa() != 0 }
     public static var usesSapphire: Bool { nk_uses_sapphire() != 0 }
     public static var usesTurin: Bool { nk_uses_turin() != 0 }

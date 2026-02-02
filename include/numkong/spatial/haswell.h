@@ -39,8 +39,8 @@
 extern "C" {
 #endif
 
-NK_INTERNAL nk_f32_t nk_sqrt_f32_haswell_(nk_f32_t x) { return _mm_cvtss_f32(_mm_sqrt_ps(_mm_set_ss(x))); }
-NK_INTERNAL nk_f64_t nk_sqrt_f64_haswell_(nk_f64_t x) { return _mm_cvtsd_f64(_mm_sqrt_pd(_mm_set_sd(x))); }
+NK_INTERNAL nk_f32_t nk_f32_sqrt_haswell(nk_f32_t x) { return _mm_cvtss_f32(_mm_sqrt_ps(_mm_set_ss(x))); }
+NK_INTERNAL nk_f64_t nk_f64_sqrt_haswell(nk_f64_t x) { return _mm_cvtsd_f64(_mm_sqrt_pd(_mm_set_sd(x))); }
 
 /** @brief Reciprocal square root of 4 floats with Newton-Raphson refinement. */
 NK_INTERNAL __m128 nk_rsqrt_f32x4_haswell_(__m128 x) {
@@ -159,7 +159,7 @@ nk_sqeuclidean_f16_haswell_cycle:
 
 NK_PUBLIC void nk_euclidean_f16_haswell(nk_f16_t const *a, nk_f16_t const *b, nk_size_t n, nk_f32_t *result) {
     nk_sqeuclidean_f16_haswell(a, b, n, result);
-    *result = nk_sqrt_f32_haswell_(*result);
+    *result = nk_f32_sqrt_haswell(*result);
 }
 
 NK_PUBLIC void nk_angular_f16_haswell(nk_f16_t const *a, nk_f16_t const *b, nk_size_t n, nk_f32_t *result) {
@@ -219,7 +219,7 @@ nk_sqeuclidean_bf16_haswell_cycle:
 
 NK_PUBLIC void nk_euclidean_bf16_haswell(nk_bf16_t const *a, nk_bf16_t const *b, nk_size_t n, nk_f32_t *result) {
     nk_sqeuclidean_bf16_haswell(a, b, n, result);
-    *result = nk_sqrt_f32_haswell_(*result);
+    *result = nk_f32_sqrt_haswell(*result);
 }
 
 NK_PUBLIC void nk_angular_bf16_haswell(nk_bf16_t const *a, nk_bf16_t const *b, nk_size_t n, nk_f32_t *result) {
@@ -286,7 +286,7 @@ NK_PUBLIC void nk_sqeuclidean_i8_haswell(nk_i8_t const *a, nk_i8_t const *b, nk_
 NK_PUBLIC void nk_euclidean_i8_haswell(nk_i8_t const *a, nk_i8_t const *b, nk_size_t n, nk_f32_t *result) {
     nk_u32_t distance_sq_u32;
     nk_sqeuclidean_i8_haswell(a, b, n, &distance_sq_u32);
-    *result = nk_sqrt_f32_haswell_((nk_f32_t)distance_sq_u32);
+    *result = nk_f32_sqrt_haswell((nk_f32_t)distance_sq_u32);
 }
 
 NK_PUBLIC void nk_angular_i8_haswell(nk_i8_t const *a, nk_i8_t const *b, nk_size_t n, nk_f32_t *result) {
@@ -380,7 +380,7 @@ NK_PUBLIC void nk_sqeuclidean_u8_haswell(nk_u8_t const *a, nk_u8_t const *b, nk_
 NK_PUBLIC void nk_euclidean_u8_haswell(nk_u8_t const *a, nk_u8_t const *b, nk_size_t n, nk_f32_t *result) {
     nk_u32_t distance_sq_u32;
     nk_sqeuclidean_u8_haswell(a, b, n, &distance_sq_u32);
-    *result = nk_sqrt_f32_haswell_((nk_f32_t)distance_sq_u32);
+    *result = nk_f32_sqrt_haswell((nk_f32_t)distance_sq_u32);
 }
 
 NK_PUBLIC void nk_angular_u8_haswell(nk_u8_t const *a, nk_u8_t const *b, nk_size_t n, nk_f32_t *result) {
@@ -485,7 +485,7 @@ NK_PUBLIC void nk_euclidean_f32_haswell(nk_f32_t const *a, nk_f32_t const *b, nk
         sum_f64 += diff_f64 * diff_f64;
     }
 
-    *result = (nk_f32_t)nk_sqrt_f64_haswell_(sum_f64);
+    *result = (nk_f32_t)nk_f64_sqrt_haswell(sum_f64);
 }
 
 NK_PUBLIC void nk_angular_f32_haswell(nk_f32_t const *a, nk_f32_t const *b, nk_size_t n, nk_f32_t *result) {
@@ -537,7 +537,7 @@ NK_PUBLIC void nk_sqeuclidean_f64_haswell(nk_f64_t const *a, nk_f64_t const *b, 
 
 NK_PUBLIC void nk_euclidean_f64_haswell(nk_f64_t const *a, nk_f64_t const *b, nk_size_t n, nk_f64_t *result) {
     nk_sqeuclidean_f64_haswell(a, b, n, result);
-    *result = nk_sqrt_f64_haswell_(*result);
+    *result = nk_f64_sqrt_haswell(*result);
 }
 
 NK_PUBLIC void nk_angular_f64_haswell(nk_f64_t const *a, nk_f64_t const *b, nk_size_t n, nk_f64_t *result) {
@@ -608,7 +608,7 @@ nk_sqeuclidean_e2m3_haswell_cycle:
 
 NK_PUBLIC void nk_euclidean_e2m3_haswell(nk_e2m3_t const *a, nk_e2m3_t const *b, nk_size_t n, nk_f32_t *result) {
     nk_sqeuclidean_e2m3_haswell(a, b, n, result);
-    *result = nk_sqrt_f32_haswell_(*result);
+    *result = nk_f32_sqrt_haswell(*result);
 }
 
 NK_PUBLIC void nk_angular_e2m3_haswell(nk_e2m3_t const *a, nk_e2m3_t const *b, nk_size_t n, nk_f32_t *result) {
@@ -670,7 +670,7 @@ nk_sqeuclidean_e3m2_haswell_cycle:
 
 NK_PUBLIC void nk_euclidean_e3m2_haswell(nk_e3m2_t const *a, nk_e3m2_t const *b, nk_size_t n, nk_f32_t *result) {
     nk_sqeuclidean_e3m2_haswell(a, b, n, result);
-    *result = nk_sqrt_f32_haswell_(*result);
+    *result = nk_f32_sqrt_haswell(*result);
 }
 
 NK_PUBLIC void nk_angular_e3m2_haswell(nk_e3m2_t const *a, nk_e3m2_t const *b, nk_size_t n, nk_f32_t *result) {
@@ -732,7 +732,7 @@ nk_sqeuclidean_e4m3_haswell_cycle:
 
 NK_PUBLIC void nk_euclidean_e4m3_haswell(nk_e4m3_t const *a, nk_e4m3_t const *b, nk_size_t n, nk_f32_t *result) {
     nk_sqeuclidean_e4m3_haswell(a, b, n, result);
-    *result = nk_sqrt_f32_haswell_(*result);
+    *result = nk_f32_sqrt_haswell(*result);
 }
 
 NK_PUBLIC void nk_angular_e4m3_haswell(nk_e4m3_t const *a, nk_e4m3_t const *b, nk_size_t n, nk_f32_t *result) {
@@ -794,7 +794,7 @@ nk_sqeuclidean_e5m2_haswell_cycle:
 
 NK_PUBLIC void nk_euclidean_e5m2_haswell(nk_e5m2_t const *a, nk_e5m2_t const *b, nk_size_t n, nk_f32_t *result) {
     nk_sqeuclidean_e5m2_haswell(a, b, n, result);
-    *result = nk_sqrt_f32_haswell_(*result);
+    *result = nk_f32_sqrt_haswell(*result);
 }
 
 NK_PUBLIC void nk_angular_e5m2_haswell(nk_e5m2_t const *a, nk_e5m2_t const *b, nk_size_t n, nk_f32_t *result) {

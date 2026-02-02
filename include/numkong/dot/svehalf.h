@@ -38,7 +38,7 @@
 #endif
 
 #include "numkong/types.h"
-#include "numkong/dot/serial.h"  // `nk_popcount_u1`
+#include "numkong/dot/serial.h"  // `nk_u1x8_popcount_`
 #include "numkong/reduce/neon.h" // `nk_reduce_add_u8x16_neon_`
 
 #if defined(__cplusplus)

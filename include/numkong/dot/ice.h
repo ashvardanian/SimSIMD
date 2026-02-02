@@ -1,6 +1,6 @@
 /**
  *  @brief SIMD-accelerated Dot Products for Real and Complex Numbers optimized for Intel Ice Lake CPUs.
- *  @file include/numkong/dot/ice.h
+ *  @file include/numkong/dot/icelake.h
  *  @sa include/numkong/dot.h
  *  @author Ash Vardanian
  *  @date December 27, 2025
@@ -16,11 +16,11 @@
  *  on port 0, limiting throughput to 1/cy. AMD Genoa dual-issues on ports 0-1, achieving 0.5/cy throughput.
  *  We use VPDPWSSD for signed i8 inputs after widening to i16, since VPDPBUSD is asymmetric (unsigned x signed).
  */
-#ifndef NK_DOT_ICE_H
-#define NK_DOT_ICE_H
+#ifndef NK_DOT_ICELAKE_H
+#define NK_DOT_ICELAKE_H
 
 #if NK_TARGET_X86_
-#if NK_TARGET_ICE
+#if NK_TARGET_ICELAKE
 #if defined(__clang__)
 #pragma clang attribute push(                                                                        \
     __attribute__((target("avx2,avx512f,avx512vl,avx512bw,avx512dq,avx512vnni,f16c,fma,bmi,bmi2"))), \
@@ -36,8 +36,8 @@
 extern "C" {
 #endif
 
-NK_PUBLIC void nk_dot_i8_ice(nk_i8_t const *a_scalars, nk_i8_t const *b_scalars, nk_size_t count_scalars,
-                             nk_i32_t *result) {
+NK_PUBLIC void nk_dot_i8_icelake(nk_i8_t const *a_scalars, nk_i8_t const *b_scalars, nk_size_t count_scalars,
+                                 nk_i32_t *result) {
     // Optimized i8×i8 dot product using algebraic transformation with DPBUSD
     //
     // Old approach (Haswell/Skylake):
@@ -59,7 +59,7 @@ NK_PUBLIC void nk_dot_i8_ice(nk_i8_t const *a_scalars, nk_i8_t const *b_scalars,
     __m512i a_i8x64, b_i8x64;
     nk_size_t count_original = count_scalars;
 
-nk_dot_i8_ice_cycle:
+nk_dot_i8_icelake_cycle:
     if (count_scalars < 64) {
         __mmask64 mask = (__mmask64)_bzhi_u64(0xFFFFFFFFFFFFFFFF, count_scalars);
         a_i8x64 = _mm512_maskz_loadu_epi8(mask, a_scalars);
@@ -82,7 +82,7 @@ nk_dot_i8_ice_cycle:
     __m512i b_biased_u8x64 = _mm512_xor_si512(b_i8x64, xor_mask_u8x64);
     sum_b_biased_i64x8 = _mm512_add_epi64(sum_b_biased_i64x8, _mm512_sad_epu8(b_biased_u8x64, zeros_u8x64));
 
-    if (count_scalars) goto nk_dot_i8_ice_cycle;
+    if (count_scalars) goto nk_dot_i8_icelake_cycle;
 
     // Apply algebraic correction: a×b = (a+128)×b - 128×sum(b)
     // sum_b = sum_b_biased - 128×count_rounded
@@ -95,8 +95,8 @@ nk_dot_i8_ice_cycle:
     *result = (nk_i32_t)(ab_sum - correction);
 }
 
-NK_PUBLIC void nk_dot_u8_ice(nk_u8_t const *a_scalars, nk_u8_t const *b_scalars, nk_size_t count_scalars,
-                             nk_u32_t *result) {
+NK_PUBLIC void nk_dot_u8_icelake(nk_u8_t const *a_scalars, nk_u8_t const *b_scalars, nk_size_t count_scalars,
+                                 nk_u32_t *result) {
     // Optimized u8×u8 dot product using algebraic transformation with DPBUSD
     //
     // Algebraic transformation:
@@ -122,7 +122,7 @@ NK_PUBLIC void nk_dot_u8_ice(nk_u8_t const *a_scalars, nk_u8_t const *b_scalars,
     __m512i sum_a_i64x8 = _mm512_setzero_si512();
     __m512i a_u8x64, b_u8x64;
 
-nk_dot_u8_ice_cycle:
+nk_dot_u8_icelake_cycle:
     if (count_scalars < 64) {
         __mmask64 mask = (__mmask64)_bzhi_u64(0xFFFFFFFFFFFFFFFF, count_scalars);
         a_u8x64 = _mm512_maskz_loadu_epi8(mask, a_scalars);
@@ -144,7 +144,7 @@ nk_dot_u8_ice_cycle:
     // Accumulate sum(a) for correction term using sad_epu8 (1cy @ p5)
     sum_a_i64x8 = _mm512_add_epi64(sum_a_i64x8, _mm512_sad_epu8(a_u8x64, zeros_u8x64));
 
-    if (count_scalars) goto nk_dot_u8_ice_cycle;
+    if (count_scalars) goto nk_dot_u8_icelake_cycle;
 
     // Apply algebraic correction: a×b = a×(b-128) + 128×sum(a)
     nk_i32_t ab_dot_signed = _mm512_reduce_add_epi32(sum_ab_i32x16);
@@ -154,18 +154,18 @@ nk_dot_u8_ice_cycle:
     *result = (nk_u32_t)(ab_dot_signed + correction);
 }
 
-struct nk_dot_i8x64_state_ice_t {
+struct nk_dot_i8x64_state_icelake_t {
     __m512i sum_ab_i32x16;      // Main dot product sum: (a+128)×b
     __m512i sum_b_biased_i64x8; // Correction term: sum(b+128) for algebraic transform
 };
 
-NK_INTERNAL void nk_dot_i8x64_init_ice(nk_dot_i8x64_state_ice_t *state) {
+NK_INTERNAL void nk_dot_i8x64_init_icelake(nk_dot_i8x64_state_icelake_t *state) {
     state->sum_ab_i32x16 = _mm512_setzero_si512();
     state->sum_b_biased_i64x8 = _mm512_setzero_si512();
 }
 
-NK_INTERNAL void nk_dot_i8x64_update_ice(nk_dot_i8x64_state_ice_t *state, nk_b512_vec_t a, nk_b512_vec_t b,
-                                         nk_size_t depth_offset, nk_size_t active_dimensions) {
+NK_INTERNAL void nk_dot_i8x64_update_icelake(nk_dot_i8x64_state_icelake_t *state, nk_b512_vec_t a, nk_b512_vec_t b,
+                                             nk_size_t depth_offset, nk_size_t active_dimensions) {
     nk_unused_(depth_offset);
     nk_unused_(active_dimensions);
     // Optimized i8×i8 using DPBUSD with algebraic transformation
@@ -189,9 +189,9 @@ NK_INTERNAL void nk_dot_i8x64_update_ice(nk_dot_i8x64_state_ice_t *state, nk_b51
                                                  _mm512_sad_epu8(b_biased_u8x64, zeros_u8x64));
 }
 
-NK_INTERNAL void nk_dot_i8x64_finalize_ice(                                           //
-    nk_dot_i8x64_state_ice_t const *state_a, nk_dot_i8x64_state_ice_t const *state_b, //
-    nk_dot_i8x64_state_ice_t const *state_c, nk_dot_i8x64_state_ice_t const *state_d, //
+NK_INTERNAL void nk_dot_i8x64_finalize_icelake(                                               //
+    nk_dot_i8x64_state_icelake_t const *state_a, nk_dot_i8x64_state_icelake_t const *state_b, //
+    nk_dot_i8x64_state_icelake_t const *state_c, nk_dot_i8x64_state_icelake_t const *state_d, //
     nk_size_t total_dimensions, nk_b128_vec_t *results) {
     // ILP-optimized 4-way horizontal reduction for i8x64 with algebraic correction
     // For each accumulator: result = sum_ab - 128 × sum_b
@@ -273,18 +273,18 @@ NK_INTERNAL void nk_dot_i8x64_finalize_ice(                                     
     results->xmm = _mm_sub_epi32(sum_ab_final, correction_i32x4);
 }
 
-struct nk_dot_u8x64_state_ice_t {
+struct nk_dot_u8x64_state_icelake_t {
     __m512i sum_ab_i32x16; // Main dot product sum: a×(b-128)
     __m512i sum_a_i64x8;   // Correction term: sum(a) for algebraic transform
 };
 
-NK_INTERNAL void nk_dot_u8x64_init_ice(nk_dot_u8x64_state_ice_t *state) {
+NK_INTERNAL void nk_dot_u8x64_init_icelake(nk_dot_u8x64_state_icelake_t *state) {
     state->sum_ab_i32x16 = _mm512_setzero_si512();
     state->sum_a_i64x8 = _mm512_setzero_si512();
 }
 
-NK_INTERNAL void nk_dot_u8x64_update_ice(nk_dot_u8x64_state_ice_t *state, nk_b512_vec_t a, nk_b512_vec_t b,
-                                         nk_size_t depth_offset, nk_size_t active_dimensions) {
+NK_INTERNAL void nk_dot_u8x64_update_icelake(nk_dot_u8x64_state_icelake_t *state, nk_b512_vec_t a, nk_b512_vec_t b,
+                                             nk_size_t depth_offset, nk_size_t active_dimensions) {
     nk_unused_(depth_offset);
     nk_unused_(active_dimensions);
     // Optimized u8×u8 using DPBUSD with algebraic transformation
@@ -305,9 +305,9 @@ NK_INTERNAL void nk_dot_u8x64_update_ice(nk_dot_u8x64_state_ice_t *state, nk_b51
     state->sum_a_i64x8 = _mm512_add_epi64(state->sum_a_i64x8, _mm512_sad_epu8(a_u8x64, zeros_u8x64));
 }
 
-NK_INTERNAL void nk_dot_u8x64_finalize_ice(                                           //
-    nk_dot_u8x64_state_ice_t const *state_a, nk_dot_u8x64_state_ice_t const *state_b, //
-    nk_dot_u8x64_state_ice_t const *state_c, nk_dot_u8x64_state_ice_t const *state_d, //
+NK_INTERNAL void nk_dot_u8x64_finalize_icelake(                                               //
+    nk_dot_u8x64_state_icelake_t const *state_a, nk_dot_u8x64_state_icelake_t const *state_b, //
+    nk_dot_u8x64_state_icelake_t const *state_c, nk_dot_u8x64_state_icelake_t const *state_d, //
     nk_size_t total_dimensions, nk_b128_vec_t *result) {
     nk_unused_(total_dimensions);
     // ILP-optimized 4-way horizontal reduction for u32 with algebraic correction
@@ -386,7 +386,7 @@ NK_INTERNAL void nk_dot_u8x64_finalize_ice(                                     
     result->xmm = final_i32x4;
 }
 
-NK_PUBLIC void nk_dot_i4_ice(nk_i4x2_t const *a, nk_i4x2_t const *b, nk_size_t n, nk_i32_t *result) {
+NK_PUBLIC void nk_dot_i4_icelake(nk_i4x2_t const *a, nk_i4x2_t const *b, nk_size_t n, nk_i32_t *result) {
     // i4 values are packed as nibbles: two 4-bit signed values per byte.
     // Parameter `n` is the number of 4-bit values (dimensions), not bytes.
     //
@@ -409,7 +409,7 @@ NK_PUBLIC void nk_dot_i4_ice(nk_i4x2_t const *a, nk_i4x2_t const *b, nk_size_t n
     __m512i sum_dx_i64x8 = _mm512_setzero_si512();
     __m512i a_i4x128, b_i4x128;
 
-nk_dot_i4_ice_cycle:
+nk_dot_i4_icelake_cycle:
     if (n_bytes < 64) {
         __mmask64 mask = (__mmask64)_bzhi_u64(0xFFFFFFFFFFFFFFFF, n_bytes);
         a_i4x128 = _mm512_maskz_loadu_epi8(mask, a);
@@ -443,7 +443,7 @@ nk_dot_i4_ice_cycle:
     sum_cx_i64x8 = _mm512_add_epi64(sum_cx_i64x8, _mm512_sad_epu8(c_hi_u8x64, zeros_u8x64));
     sum_dx_i64x8 = _mm512_add_epi64(sum_dx_i64x8, _mm512_sad_epu8(d_lo_u8x64, zeros_u8x64));
     sum_dx_i64x8 = _mm512_add_epi64(sum_dx_i64x8, _mm512_sad_epu8(d_hi_u8x64, zeros_u8x64));
-    if (n_bytes) goto nk_dot_i4_ice_cycle;
+    if (n_bytes) goto nk_dot_i4_icelake_cycle;
 
     // Reduce partial sums and apply algebraic correction
     nk_i32_t cd_dot = _mm512_reduce_add_epi32(sum_cd_i32x16);
@@ -452,7 +452,7 @@ nk_dot_i4_ice_cycle:
     *result = (nk_i32_t)(cd_dot - 8 * (sum_cx + sum_dx) + 64 * (nk_i64_t)n);
 }
 
-NK_PUBLIC void nk_dot_u4_ice(nk_u4x2_t const *a, nk_u4x2_t const *b, nk_size_t n, nk_u32_t *result) {
+NK_PUBLIC void nk_dot_u4_icelake(nk_u4x2_t const *a, nk_u4x2_t const *b, nk_size_t n, nk_u32_t *result) {
     // u4 values are packed as nibbles: two 4-bit unsigned values per byte.
     // Parameter `n` is the number of 4-bit values (dimensions), not bytes.
     // Values are ∈ [0,15], so DPBUSD can be used directly.
@@ -465,7 +465,7 @@ NK_PUBLIC void nk_dot_u4_ice(nk_u4x2_t const *a, nk_u4x2_t const *b, nk_size_t n
 
     __m512i a_u4x128, b_u4x128;
 
-nk_dot_u4_ice_cycle:
+nk_dot_u4_icelake_cycle:
     if (n_bytes < 64) {
         __mmask64 mask = (__mmask64)_bzhi_u64(0xFFFFFFFFFFFFFFFF, n_bytes);
         a_u4x128 = _mm512_maskz_loadu_epi8(mask, a);
@@ -488,25 +488,25 @@ nk_dot_u4_ice_cycle:
     // and the signed interpretation of [0,15] is the same as unsigned
     sum_i32x16 = _mm512_dpbusd_epi32(sum_i32x16, a_lo_u8x64, b_lo_u8x64);
     sum_i32x16 = _mm512_dpbusd_epi32(sum_i32x16, a_hi_u8x64, b_hi_u8x64);
-    if (n_bytes) goto nk_dot_u4_ice_cycle;
+    if (n_bytes) goto nk_dot_u4_icelake_cycle;
 
     *result = (nk_u32_t)_mm512_reduce_add_epi32(sum_i32x16);
 }
 
-typedef struct nk_dot_i4x128_state_ice_t {
+typedef struct nk_dot_i4x128_state_icelake_t {
     __m512i product_sum_i32x16; // Main product: a_biased × b_biased
     __m512i sum_a_biased_i64x8; // Correction term: sum(a_biased)
     __m512i sum_b_biased_i64x8; // Correction term: sum(b_biased)
-} nk_dot_i4x128_state_ice_t;
+} nk_dot_i4x128_state_icelake_t;
 
-NK_INTERNAL void nk_dot_i4x128_init_ice(nk_dot_i4x128_state_ice_t *state) {
+NK_INTERNAL void nk_dot_i4x128_init_icelake(nk_dot_i4x128_state_icelake_t *state) {
     state->product_sum_i32x16 = _mm512_setzero_si512();
     state->sum_a_biased_i64x8 = _mm512_setzero_si512();
     state->sum_b_biased_i64x8 = _mm512_setzero_si512();
 }
 
-NK_INTERNAL void nk_dot_i4x128_update_ice(nk_dot_i4x128_state_ice_t *state, nk_b512_vec_t a, nk_b512_vec_t b,
-                                          nk_size_t depth_offset, nk_size_t active_dimensions) {
+NK_INTERNAL void nk_dot_i4x128_update_icelake(nk_dot_i4x128_state_icelake_t *state, nk_b512_vec_t a, nk_b512_vec_t b,
+                                              nk_size_t depth_offset, nk_size_t active_dimensions) {
     // i4 values are packed as nibbles: 128 nibbles in 64 bytes (512 bits)
     // For signed i4, we use algebraic transformation:
     // Signed values in [-8,7] are stored as unsigned [0,15].
@@ -553,9 +553,9 @@ NK_INTERNAL void nk_dot_i4x128_update_ice(nk_dot_i4x128_state_ice_t *state, nk_b
                                                  _mm512_sad_epu8(b_biased_hi_u8x64, zeros_u8x64));
 }
 
-NK_INTERNAL void nk_dot_i4x128_finalize_ice(                                            //
-    nk_dot_i4x128_state_ice_t const *state_a, nk_dot_i4x128_state_ice_t const *state_b, //
-    nk_dot_i4x128_state_ice_t const *state_c, nk_dot_i4x128_state_ice_t const *state_d, //
+NK_INTERNAL void nk_dot_i4x128_finalize_icelake(                                                //
+    nk_dot_i4x128_state_icelake_t const *state_a, nk_dot_i4x128_state_icelake_t const *state_b, //
+    nk_dot_i4x128_state_icelake_t const *state_c, nk_dot_i4x128_state_icelake_t const *state_d, //
     nk_size_t total_dimensions, nk_b128_vec_t *result) {
     // ILP-optimized 4-way hierarchical reduction for i4 with algebraic correction.
     // Formula: result = product_sum - 8×(sum_a_biased + sum_b_biased) + 64×depth_nibbles
@@ -655,16 +655,16 @@ NK_INTERNAL void nk_dot_i4x128_finalize_ice(                                    
     result->xmm = final_i32x4;
 }
 
-typedef struct nk_dot_u4x128_state_ice_t {
+typedef struct nk_dot_u4x128_state_icelake_t {
     __m512i sum_i32x16; // Direct unsigned accumulator
-} nk_dot_u4x128_state_ice_t;
+} nk_dot_u4x128_state_icelake_t;
 
-NK_INTERNAL void nk_dot_u4x128_init_ice(nk_dot_u4x128_state_ice_t *state) {
+NK_INTERNAL void nk_dot_u4x128_init_icelake(nk_dot_u4x128_state_icelake_t *state) {
     state->sum_i32x16 = _mm512_setzero_si512();
 }
 
-NK_INTERNAL void nk_dot_u4x128_update_ice(nk_dot_u4x128_state_ice_t *state, nk_b512_vec_t a, nk_b512_vec_t b,
-                                          nk_size_t depth_offset, nk_size_t active_dimensions) {
+NK_INTERNAL void nk_dot_u4x128_update_icelake(nk_dot_u4x128_state_icelake_t *state, nk_b512_vec_t a, nk_b512_vec_t b,
+                                              nk_size_t depth_offset, nk_size_t active_dimensions) {
     nk_unused_(depth_offset);
     nk_unused_(active_dimensions);
     // u4 values are packed as nibbles: 128 nibbles in 64 bytes (512 bits)
@@ -686,9 +686,9 @@ NK_INTERNAL void nk_dot_u4x128_update_ice(nk_dot_u4x128_state_ice_t *state, nk_b
     state->sum_i32x16 = _mm512_dpbusd_epi32(state->sum_i32x16, a_hi_u8x64, b_hi_u8x64);
 }
 
-NK_INTERNAL void nk_dot_u4x128_finalize_ice(                                            //
-    nk_dot_u4x128_state_ice_t const *state_a, nk_dot_u4x128_state_ice_t const *state_b, //
-    nk_dot_u4x128_state_ice_t const *state_c, nk_dot_u4x128_state_ice_t const *state_d, //
+NK_INTERNAL void nk_dot_u4x128_finalize_icelake(                                                //
+    nk_dot_u4x128_state_icelake_t const *state_a, nk_dot_u4x128_state_icelake_t const *state_b, //
+    nk_dot_u4x128_state_icelake_t const *state_c, nk_dot_u4x128_state_icelake_t const *state_d, //
     nk_size_t total_dimensions, nk_b128_vec_t *result) {
     nk_unused_(total_dimensions);
     // ILP-optimized 4-way hierarchical reduction for u4 (no correction needed)
@@ -732,7 +732,7 @@ NK_INTERNAL void nk_dot_u4x128_finalize_ice(                                    
 #elif defined(__GNUC__)
 #pragma GCC pop_options
 #endif
-#endif // NK_TARGET_ICE
+#endif // NK_TARGET_ICELAKE
 #endif // NK_TARGET_X86_
 
-#endif // NK_DOT_ICE_H
+#endif // NK_DOT_ICELAKE_H

@@ -551,16 +551,18 @@ NK_PUBLIC void nk_reduce_max_u64_skylake(nk_u64_t const *data, nk_size_t count, 
                                          nk_u64_t *max_value, nk_size_t *max_index);
 #endif // NK_TARGET_SKYLAKE
 
-#if NK_TARGET_ICE
+#if NK_TARGET_ICELAKE
 /** @copydoc nk_reduce_add_i8 */
-NK_PUBLIC void nk_reduce_add_i8_ice(nk_i8_t const *data, nk_size_t count, nk_size_t stride_bytes, nk_i64_t *result);
+NK_PUBLIC void nk_reduce_add_i8_icelake(nk_i8_t const *data, nk_size_t count, nk_size_t stride_bytes, nk_i64_t *result);
 /** @copydoc nk_reduce_add_u8 */
-NK_PUBLIC void nk_reduce_add_u8_ice(nk_u8_t const *data, nk_size_t count, nk_size_t stride_bytes, nk_u64_t *result);
+NK_PUBLIC void nk_reduce_add_u8_icelake(nk_u8_t const *data, nk_size_t count, nk_size_t stride_bytes, nk_u64_t *result);
 /** @copydoc nk_reduce_add_i16 */
-NK_PUBLIC void nk_reduce_add_i16_ice(nk_i16_t const *data, nk_size_t count, nk_size_t stride_bytes, nk_i64_t *result);
+NK_PUBLIC void nk_reduce_add_i16_icelake(nk_i16_t const *data, nk_size_t count, nk_size_t stride_bytes,
+                                         nk_i64_t *result);
 /** @copydoc nk_reduce_add_u16 */
-NK_PUBLIC void nk_reduce_add_u16_ice(nk_u16_t const *data, nk_size_t count, nk_size_t stride_bytes, nk_u64_t *result);
-#endif // NK_TARGET_ICE
+NK_PUBLIC void nk_reduce_add_u16_icelake(nk_u16_t const *data, nk_size_t count, nk_size_t stride_bytes,
+                                         nk_u64_t *result);
+#endif // NK_TARGET_ICELAKE
 
 #include "numkong/reduce/serial.h"
 #include "numkong/reduce/neon.h"
@@ -570,7 +572,7 @@ NK_PUBLIC void nk_reduce_add_u16_ice(nk_u16_t const *data, nk_size_t count, nk_s
 #include "numkong/reduce/neonfhm.h"
 #include "numkong/reduce/haswell.h"
 #include "numkong/reduce/skylake.h"
-#include "numkong/reduce/ice.h"
+#include "numkong/reduce/icelake.h"
 #include "numkong/reduce/sierra.h"
 
 #if !NK_DYNAMIC_DISPATCH
@@ -668,8 +670,8 @@ NK_PUBLIC void nk_reduce_add_bf16(nk_bf16_t const *data, nk_size_t count, nk_siz
 }
 
 NK_PUBLIC void nk_reduce_add_i8(nk_i8_t const *data, nk_size_t count, nk_size_t stride_bytes, nk_i64_t *result) {
-#if NK_TARGET_ICE
-    nk_reduce_add_i8_ice(data, count, stride_bytes, result);
+#if NK_TARGET_ICELAKE
+    nk_reduce_add_i8_icelake(data, count, stride_bytes, result);
 #elif NK_TARGET_SKYLAKE
     nk_reduce_add_i8_skylake(data, count, stride_bytes, result);
 #elif NK_TARGET_HASWELL
@@ -684,8 +686,8 @@ NK_PUBLIC void nk_reduce_add_i8(nk_i8_t const *data, nk_size_t count, nk_size_t 
 }
 
 NK_PUBLIC void nk_reduce_add_u8(nk_u8_t const *data, nk_size_t count, nk_size_t stride_bytes, nk_u64_t *result) {
-#if NK_TARGET_ICE
-    nk_reduce_add_u8_ice(data, count, stride_bytes, result);
+#if NK_TARGET_ICELAKE
+    nk_reduce_add_u8_icelake(data, count, stride_bytes, result);
 #elif NK_TARGET_SKYLAKE
     nk_reduce_add_u8_skylake(data, count, stride_bytes, result);
 #elif NK_TARGET_HASWELL
@@ -700,8 +702,8 @@ NK_PUBLIC void nk_reduce_add_u8(nk_u8_t const *data, nk_size_t count, nk_size_t 
 }
 
 NK_PUBLIC void nk_reduce_add_i16(nk_i16_t const *data, nk_size_t count, nk_size_t stride_bytes, nk_i64_t *result) {
-#if NK_TARGET_ICE
-    nk_reduce_add_i16_ice(data, count, stride_bytes, result);
+#if NK_TARGET_ICELAKE
+    nk_reduce_add_i16_icelake(data, count, stride_bytes, result);
 #elif NK_TARGET_SKYLAKE
     nk_reduce_add_i16_skylake(data, count, stride_bytes, result);
 #elif NK_TARGET_HASWELL
@@ -714,8 +716,8 @@ NK_PUBLIC void nk_reduce_add_i16(nk_i16_t const *data, nk_size_t count, nk_size_
 }
 
 NK_PUBLIC void nk_reduce_add_u16(nk_u16_t const *data, nk_size_t count, nk_size_t stride_bytes, nk_u64_t *result) {
-#if NK_TARGET_ICE
-    nk_reduce_add_u16_ice(data, count, stride_bytes, result);
+#if NK_TARGET_ICELAKE
+    nk_reduce_add_u16_icelake(data, count, stride_bytes, result);
 #elif NK_TARGET_SKYLAKE
     nk_reduce_add_u16_skylake(data, count, stride_bytes, result);
 #elif NK_TARGET_HASWELL

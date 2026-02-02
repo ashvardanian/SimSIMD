@@ -219,21 +219,21 @@ NK_PUBLIC void nk_sparse_dot_u16bf16_sve2(nk_u16_t const *a, nk_u16_t const *b, 
                                           nk_f32_t *product);
 #endif // NK_TARGET_SVE2 && NK_TARGET_SVEBFDOT
 
-#if NK_TARGET_ICE
+#if NK_TARGET_ICELAKE
 /** @copydoc nk_sparse_intersect_u16 */
-NK_PUBLIC void nk_sparse_intersect_u16_ice(nk_u16_t const *a, nk_u16_t const *b, nk_size_t a_length, nk_size_t b_length,
-                                           nk_u16_t *result, nk_size_t *count);
+NK_PUBLIC void nk_sparse_intersect_u16_icelake(nk_u16_t const *a, nk_u16_t const *b, nk_size_t a_length,
+                                               nk_size_t b_length, nk_u16_t *result, nk_size_t *count);
 /** @copydoc nk_sparse_intersect_u32 */
-NK_PUBLIC void nk_sparse_intersect_u32_ice(nk_u32_t const *a, nk_u32_t const *b, nk_size_t a_length, nk_size_t b_length,
-                                           nk_u32_t *result, nk_size_t *count);
+NK_PUBLIC void nk_sparse_intersect_u32_icelake(nk_u32_t const *a, nk_u32_t const *b, nk_size_t a_length,
+                                               nk_size_t b_length, nk_u32_t *result, nk_size_t *count);
 /** @copydoc nk_sparse_intersect_u64 */
-NK_PUBLIC void nk_sparse_intersect_u64_ice(nk_u64_t const *a, nk_u64_t const *b, nk_size_t a_length, nk_size_t b_length,
-                                           nk_u64_t *result, nk_size_t *count);
+NK_PUBLIC void nk_sparse_intersect_u64_icelake(nk_u64_t const *a, nk_u64_t const *b, nk_size_t a_length,
+                                               nk_size_t b_length, nk_u64_t *result, nk_size_t *count);
 /** @copydoc nk_sparse_dot_u32f32 */
-NK_PUBLIC void nk_sparse_dot_u32f32_ice(nk_u32_t const *a, nk_u32_t const *b, nk_f32_t const *a_weights,
-                                        nk_f32_t const *b_weights, nk_size_t a_length, nk_size_t b_length,
-                                        nk_f32_t *product);
-#endif // NK_TARGET_ICE
+NK_PUBLIC void nk_sparse_dot_u32f32_icelake(nk_u32_t const *a, nk_u32_t const *b, nk_f32_t const *a_weights,
+                                            nk_f32_t const *b_weights, nk_size_t a_length, nk_size_t b_length,
+                                            nk_f32_t *product);
+#endif // NK_TARGET_ICELAKE
 
 #if NK_TARGET_TURIN
 /** @copydoc nk_sparse_intersect_u16 */
@@ -362,7 +362,7 @@ nk_define_sparse_dot_(u32, f32, f32, nk_assign_from_to_)     // nk_sparse_dot_u3
  *   - `_mm512_permutexvar_epi8` (VPERMB) - needs VBMI - 3 cy latency, 1 cy throughput @ p5
  */
 #if NK_TARGET_X86_
-#if NK_TARGET_ICE
+#if NK_TARGET_ICELAKE
 #if defined(__clang__)
 #pragma clang attribute push(__attribute__((target("avx2,avx512f,avx512vl,bmi2,lzcnt,popcnt,avx512bw,avx512vbmi2"))), \
                              apply_to = function)
@@ -375,7 +375,7 @@ nk_define_sparse_dot_(u32, f32, f32, nk_assign_from_to_)     // nk_sparse_dot_u3
  *  @brief  Analogous to `_mm512_2intersect_epi16_mask`, but compatible with Ice Lake CPUs,
  *          slightly faster than the native Tiger Lake implementation, but returns only one mask.
  */
-NK_INTERNAL nk_u32_t nk_intersect_u16x32_ice_(__m512i a, __m512i b) {
+NK_INTERNAL nk_u32_t nk_intersect_u16x32_icelake_(__m512i a, __m512i b) {
     __m512i a1 = _mm512_alignr_epi32(a, a, 4);
     __m512i a2 = _mm512_alignr_epi32(a, a, 8);
     __m512i a3 = _mm512_alignr_epi32(a, a, 12);
@@ -436,7 +436,7 @@ NK_INTERNAL nk_u32_t nk_intersect_u16x32_ice_(__m512i a, __m512i b) {
  *  @brief  Analogous to `_mm512_2intersect_epi32`, but compatible with Ice Lake CPUs,
  *          slightly faster than the native Tiger Lake implementation, but returns only one mask.
  */
-NK_INTERNAL nk_u16_t nk_intersect_u32x16_ice_(__m512i a, __m512i b) {
+NK_INTERNAL nk_u16_t nk_intersect_u32x16_icelake_(__m512i a, __m512i b) {
     __m512i a1 = _mm512_alignr_epi32(a, a, 4);
     __m512i b1 = _mm512_shuffle_epi32(b, _MM_PERM_ADCB);
     __mmask16 nm00 = _mm512_cmpneq_epi32_mask(a, b);
@@ -468,9 +468,9 @@ NK_INTERNAL nk_u16_t nk_intersect_u32x16_ice_(__m512i a, __m512i b) {
     return ~(nk_u16_t)(nm0 & nk_u16_rol(nm1, 4) & nk_u16_rol(nm2, 8) & nk_u16_ror(nm3, 4));
 }
 
-NK_PUBLIC void nk_sparse_intersect_u16_ice( //
-    nk_u16_t const *a, nk_u16_t const *b,   //
-    nk_size_t a_length, nk_size_t b_length, //
+NK_PUBLIC void nk_sparse_intersect_u16_icelake( //
+    nk_u16_t const *a, nk_u16_t const *b,       //
+    nk_size_t a_length, nk_size_t b_length,     //
     nk_u16_t *result, nk_size_t *count) {
 
     // The baseline implementation for very small arrays (2 registers or less) can be quite simple:
@@ -488,7 +488,7 @@ NK_PUBLIC void nk_sparse_intersect_u16_ice( //
         a_vec.zmm = _mm512_loadu_si512((__m512i const *)a);
         b_vec.zmm = _mm512_loadu_si512((__m512i const *)b);
 
-        // Intersecting registers with `nk_intersect_u16x32_ice_` involves a lot of shuffling
+        // Intersecting registers with `nk_intersect_u16x32_icelake_` involves a lot of shuffling
         // and comparisons, so we want to avoid it if the slices don't overlap at all..
         nk_u16_t a_min;
         nk_u16_t a_max = a_vec.u16s[31];
@@ -517,7 +517,7 @@ NK_PUBLIC void nk_sparse_intersect_u16_ice( //
         b += 32 - _lzcnt_u32((nk_u32_t)b_step_mask);
 
         // Now we are likely to have some overlap, so we can intersect the registers
-        __mmask32 a_matches = nk_intersect_u16x32_ice_(a_vec.zmm, b_vec.zmm);
+        __mmask32 a_matches = nk_intersect_u16x32_icelake_(a_vec.zmm, b_vec.zmm);
 
         // Export matches if result buffer is provided
         if (result) { _mm512_mask_compressstoreu_epi16(result + c, a_matches, a_vec.zmm); }
@@ -529,9 +529,9 @@ NK_PUBLIC void nk_sparse_intersect_u16_ice( //
     *count = c + tail_count;
 }
 
-NK_PUBLIC void nk_sparse_intersect_u32_ice( //
-    nk_u32_t const *a, nk_u32_t const *b,   //
-    nk_size_t a_length, nk_size_t b_length, //
+NK_PUBLIC void nk_sparse_intersect_u32_icelake( //
+    nk_u32_t const *a, nk_u32_t const *b,       //
+    nk_size_t a_length, nk_size_t b_length,     //
     nk_u32_t *result, nk_size_t *count) {
 
     // The baseline implementation for very small arrays (2 registers or less) can be quite simple:
@@ -549,7 +549,7 @@ NK_PUBLIC void nk_sparse_intersect_u32_ice( //
         a_vec.zmm = _mm512_loadu_si512((__m512i const *)a);
         b_vec.zmm = _mm512_loadu_si512((__m512i const *)b);
 
-        // Intersecting registers with `nk_intersect_u32x16_ice_` involves a lot of shuffling
+        // Intersecting registers with `nk_intersect_u32x16_icelake_` involves a lot of shuffling
         // and comparisons, so we want to avoid it if the slices don't overlap at all..
         nk_u32_t a_min;
         nk_u32_t a_max = a_vec.u32s[15];
@@ -578,7 +578,7 @@ NK_PUBLIC void nk_sparse_intersect_u32_ice( //
         b += 32 - _lzcnt_u32((nk_u32_t)b_step_mask);
 
         // Now we are likely to have some overlap, so we can intersect the registers
-        __mmask16 a_matches = nk_intersect_u32x16_ice_(a_vec.zmm, b_vec.zmm);
+        __mmask16 a_matches = nk_intersect_u32x16_icelake_(a_vec.zmm, b_vec.zmm);
 
         // Export matches if result buffer is provided
         if (result) { _mm512_mask_compressstoreu_epi32(result + c, a_matches, a_vec.zmm); }
@@ -594,7 +594,7 @@ NK_PUBLIC void nk_sparse_intersect_u32_ice( //
  *  @brief  Analogous to `_mm512_2intersect_epi64`, but compatible with Ice Lake CPUs,
  *          returns only one mask indicating which elements in `a` have a match in `b`.
  */
-NK_INTERNAL nk_u8_t nk_intersect_u64x8_ice_(__m512i a, __m512i b) {
+NK_INTERNAL nk_u8_t nk_intersect_u64x8_icelake_(__m512i a, __m512i b) {
     __m512i a1 = _mm512_alignr_epi64(a, a, 2);
     __m512i b1 = _mm512_permutex_epi64(b, _MM_PERM_ADCB);
     __mmask8 nm00 = _mm512_cmpneq_epi64_mask(a, b);
@@ -626,9 +626,9 @@ NK_INTERNAL nk_u8_t nk_intersect_u64x8_ice_(__m512i a, __m512i b) {
     return ~(nk_u8_t)(nm0 & nk_u8_rol(nm1, 2) & nk_u8_rol(nm2, 4) & nk_u8_ror(nm3, 2));
 }
 
-NK_PUBLIC void nk_sparse_intersect_u64_ice( //
-    nk_u64_t const *a, nk_u64_t const *b,   //
-    nk_size_t a_length, nk_size_t b_length, //
+NK_PUBLIC void nk_sparse_intersect_u64_icelake( //
+    nk_u64_t const *a, nk_u64_t const *b,       //
+    nk_size_t a_length, nk_size_t b_length,     //
     nk_u64_t *result, nk_size_t *count) {
 
     // The baseline implementation for very small arrays (2 registers or less) can be quite simple:
@@ -646,7 +646,7 @@ NK_PUBLIC void nk_sparse_intersect_u64_ice( //
         a_vec.zmm = _mm512_loadu_si512((__m512i const *)a);
         b_vec.zmm = _mm512_loadu_si512((__m512i const *)b);
 
-        // Intersecting registers with `nk_intersect_u64x8_ice_` involves a lot of shuffling
+        // Intersecting registers with `nk_intersect_u64x8_icelake_` involves a lot of shuffling
         // and comparisons, so we want to avoid it if the slices don't overlap at all.
         nk_u64_t a_min;
         nk_u64_t a_max = a_vec.u64s[7];
@@ -675,7 +675,7 @@ NK_PUBLIC void nk_sparse_intersect_u64_ice( //
         b += 32 - _lzcnt_u32((nk_u32_t)b_step_mask);
 
         // Now we are likely to have some overlap, so we can intersect the registers
-        __mmask8 a_matches = nk_intersect_u64x8_ice_(a_vec.zmm, b_vec.zmm);
+        __mmask8 a_matches = nk_intersect_u64x8_icelake_(a_vec.zmm, b_vec.zmm);
 
         // Export matches if result buffer is provided
         if (result) { _mm512_mask_compressstoreu_epi64(result + c, a_matches, a_vec.zmm); }
@@ -687,7 +687,7 @@ NK_PUBLIC void nk_sparse_intersect_u64_ice( //
     *count = c + tail_count;
 }
 
-NK_PUBLIC void nk_sparse_dot_u32f32_ice(                  //
+NK_PUBLIC void nk_sparse_dot_u32f32_icelake(              //
     nk_u32_t const *a, nk_u32_t const *b,                 //
     nk_f32_t const *a_weights, nk_f32_t const *b_weights, //
     nk_size_t a_length, nk_size_t b_length, nk_f32_t *product) {
@@ -707,7 +707,7 @@ NK_PUBLIC void nk_sparse_dot_u32f32_ice(                  //
         a_vec.zmm = _mm512_loadu_si512((__m512i const *)a);
         b_vec.zmm = _mm512_loadu_si512((__m512i const *)b);
 
-        // Intersecting registers with `nk_intersect_u32x16_ice_` involves a lot of shuffling
+        // Intersecting registers with `nk_intersect_u32x16_icelake_` involves a lot of shuffling
         // and comparisons, so we want to avoid it if the slices don't overlap at all.
         nk_u32_t a_min;
         nk_u32_t a_max = a_vec.u32s[15];
@@ -738,8 +738,8 @@ NK_PUBLIC void nk_sparse_dot_u32f32_ice(                  //
         nk_u32_t b_advance = 32 - _lzcnt_u32((nk_u32_t)b_step_mask);
 
         // Now we are likely to have some overlap, so we can intersect the registers
-        __mmask16 a_matches = nk_intersect_u32x16_ice_(a_vec.zmm, b_vec.zmm);
-        __mmask16 b_matches = nk_intersect_u32x16_ice_(b_vec.zmm, a_vec.zmm);
+        __mmask16 a_matches = nk_intersect_u32x16_icelake_(a_vec.zmm, b_vec.zmm);
+        __mmask16 b_matches = nk_intersect_u32x16_icelake_(b_vec.zmm, a_vec.zmm);
         if (a_matches) {
             // Load and compress matching weights at current position
             __m512 a_weights_f32x16 = _mm512_loadu_ps(a_weights);
@@ -768,7 +768,7 @@ NK_PUBLIC void nk_sparse_dot_u32f32_ice(                  //
 #elif defined(__GNUC__)
 #pragma GCC pop_options
 #endif
-#endif // NK_TARGET_ICE
+#endif // NK_TARGET_ICELAKE
 
 #if NK_TARGET_TURIN
 #if defined(__clang__)
@@ -1829,8 +1829,8 @@ NK_PUBLIC void nk_sparse_intersect_u16(nk_u16_t const *a, nk_u16_t const *b, nk_
     nk_sparse_intersect_u16_neon(a, b, a_length, b_length, result, count);
 #elif NK_TARGET_TURIN
     nk_sparse_intersect_u16_turin(a, b, a_length, b_length, result, count);
-#elif NK_TARGET_ICE
-    nk_sparse_intersect_u16_ice(a, b, a_length, b_length, result, count);
+#elif NK_TARGET_ICELAKE
+    nk_sparse_intersect_u16_icelake(a, b, a_length, b_length, result, count);
 #else
     nk_sparse_intersect_u16_serial(a, b, a_length, b_length, result, count);
 #endif
@@ -1844,8 +1844,8 @@ NK_PUBLIC void nk_sparse_intersect_u32(nk_u32_t const *a, nk_u32_t const *b, nk_
     nk_sparse_intersect_u32_neon(a, b, a_length, b_length, result, count);
 #elif NK_TARGET_TURIN
     nk_sparse_intersect_u32_turin(a, b, a_length, b_length, result, count);
-#elif NK_TARGET_ICE
-    nk_sparse_intersect_u32_ice(a, b, a_length, b_length, result, count);
+#elif NK_TARGET_ICELAKE
+    nk_sparse_intersect_u32_icelake(a, b, a_length, b_length, result, count);
 #else
     nk_sparse_intersect_u32_serial(a, b, a_length, b_length, result, count);
 #endif
@@ -1859,8 +1859,8 @@ NK_PUBLIC void nk_sparse_intersect_u64(nk_u64_t const *a, nk_u64_t const *b, nk_
     nk_sparse_intersect_u64_neon(a, b, a_length, b_length, result, count);
 #elif NK_TARGET_TURIN
     nk_sparse_intersect_u64_turin(a, b, a_length, b_length, result, count);
-#elif NK_TARGET_ICE
-    nk_sparse_intersect_u64_ice(a, b, a_length, b_length, result, count);
+#elif NK_TARGET_ICELAKE
+    nk_sparse_intersect_u64_icelake(a, b, a_length, b_length, result, count);
 #else
     nk_sparse_intersect_u64_serial(a, b, a_length, b_length, result, count);
 #endif
@@ -1885,8 +1885,8 @@ NK_PUBLIC void nk_sparse_dot_u32f32(nk_u32_t const *a, nk_u32_t const *b, nk_f32
     nk_sparse_dot_u32f32_sve2(a, b, a_weights, b_weights, a_length, b_length, product);
 #elif NK_TARGET_TURIN
     nk_sparse_dot_u32f32_turin(a, b, a_weights, b_weights, a_length, b_length, product);
-#elif NK_TARGET_ICE
-    nk_sparse_dot_u32f32_ice(a, b, a_weights, b_weights, a_length, b_length, product);
+#elif NK_TARGET_ICELAKE
+    nk_sparse_dot_u32f32_icelake(a, b, a_weights, b_weights, a_length, b_length, product);
 #else
     nk_sparse_dot_u32f32_serial(a, b, a_weights, b_weights, a_length, b_length, product);
 #endif

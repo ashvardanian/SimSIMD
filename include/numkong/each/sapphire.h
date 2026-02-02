@@ -63,7 +63,7 @@ nk_each_sum_f16_sapphire_cycle:
 }
 
 NK_PUBLIC void nk_each_scale_f16_sapphire(nk_f16_t const *a, nk_size_t n, nk_f32_t const *alpha, nk_f32_t const *beta,
-                                     nk_f16_t *result) {
+                                          nk_f16_t *result) {
     short alpha_short, beta_short;
     nk_f32_to_f16_sapphire(alpha, (nk_f16_t *)&alpha_short);
     nk_f32_to_f16_sapphire(beta, (nk_f16_t *)&beta_short);
@@ -88,7 +88,7 @@ nk_each_scale_f16_sapphire_cycle:
     if (n) goto nk_each_scale_f16_sapphire_cycle;
 }
 
-NK_PUBLIC void nk_each_blend_f16_sapphire(                   //
+NK_PUBLIC void nk_each_blend_f16_sapphire(             //
     nk_f16_t const *a, nk_f16_t const *b, nk_size_t n, //
     nk_f32_t const *alpha, nk_f32_t const *beta, nk_f16_t *result) {
 
@@ -139,7 +139,7 @@ nk_each_blend_f16_sapphire_cycle:
     if (n) goto nk_each_blend_f16_sapphire_cycle;
 }
 
-NK_PUBLIC void nk_each_fma_f16_sapphire(                                       //
+NK_PUBLIC void nk_each_fma_f16_sapphire(                                  //
     nk_f16_t const *a, nk_f16_t const *b, nk_f16_t const *c, nk_size_t n, //
     nk_f32_t const *alpha, nk_f32_t const *beta, nk_f16_t *result) {
 
@@ -174,7 +174,7 @@ nk_each_fma_f16_sapphire_cycle:
 }
 
 NK_PUBLIC void nk_each_scale_u8_sapphire(nk_u8_t const *a, nk_size_t n, nk_f32_t const *alpha, nk_f32_t const *beta,
-                                    nk_u8_t *result) {
+                                         nk_u8_t *result) {
     short alpha_short, beta_short;
     nk_f32_to_f16_sapphire(alpha, (nk_f16_t *)&alpha_short);
     nk_f32_to_f16_sapphire(beta, (nk_f16_t *)&beta_short);
@@ -210,7 +210,7 @@ nk_each_scale_u8_sapphire_cycle:
     if (n) goto nk_each_scale_u8_sapphire_cycle;
 }
 
-NK_PUBLIC void nk_each_blend_u8_sapphire(                  //
+NK_PUBLIC void nk_each_blend_u8_sapphire(            //
     nk_u8_t const *a, nk_u8_t const *b, nk_size_t n, //
     nk_f32_t const *alpha, nk_f32_t const *beta, nk_u8_t *result) {
 
@@ -221,7 +221,7 @@ NK_PUBLIC void nk_each_blend_u8_sapphire(                  //
     // 1. Simple addition, when both weights are equal to 1.0.
     if (alpha_val == 1 && beta_val == 1) {
         // In this case we can avoid expensive multiplications.
-        nk_each_sum_u8_ice(a, b, n, result);
+        nk_each_sum_u8_icelake(a, b, n, result);
         return;
     }
     // 2. Just scaling, when one of the weights is equal to zero.
@@ -277,7 +277,7 @@ nk_each_blend_u8_sapphire_cycle:
 }
 
 NK_PUBLIC void nk_each_scale_i8_sapphire(nk_i8_t const *a, nk_size_t n, nk_f32_t const *alpha, nk_f32_t const *beta,
-                                    nk_i8_t *result) {
+                                         nk_i8_t *result) {
     short alpha_short, beta_short;
     nk_f32_to_f16_sapphire(alpha, (nk_f16_t *)&alpha_short);
     nk_f32_to_f16_sapphire(beta, (nk_f16_t *)&beta_short);
@@ -320,7 +320,7 @@ nk_each_scale_i8_sapphire_cycle:
     if (n) goto nk_each_scale_i8_sapphire_cycle;
 }
 
-NK_PUBLIC void nk_each_blend_i8_sapphire(                  //
+NK_PUBLIC void nk_each_blend_i8_sapphire(            //
     nk_i8_t const *a, nk_i8_t const *b, nk_size_t n, //
     nk_f32_t const *alpha, nk_f32_t const *beta, nk_i8_t *result) {
 
@@ -331,7 +331,7 @@ NK_PUBLIC void nk_each_blend_i8_sapphire(                  //
     // 1. Simple addition, when both weights are equal to 1.0.
     if (alpha_val == 1 && beta_val == 1) {
         // In this case we can avoid expensive multiplications.
-        nk_each_sum_i8_ice(a, b, n, result);
+        nk_each_sum_i8_icelake(a, b, n, result);
         return;
     }
     // 2. Just scaling, when one of the weights is equal to zero.
@@ -396,7 +396,7 @@ nk_each_blend_i8_sapphire_cycle:
     if (n) goto nk_each_blend_i8_sapphire_cycle;
 }
 
-NK_PUBLIC void nk_each_fma_i8_sapphire(                                     //
+NK_PUBLIC void nk_each_fma_i8_sapphire(                                //
     nk_i8_t const *a, nk_i8_t const *b, nk_i8_t const *c, nk_size_t n, //
     nk_f32_t const *alpha, nk_f32_t const *beta, nk_i8_t *result) {
 
@@ -470,7 +470,7 @@ nk_each_fma_i8_sapphire_cycle:
     if (n) goto nk_each_fma_i8_sapphire_cycle;
 }
 
-NK_PUBLIC void nk_each_fma_u8_sapphire(                                     //
+NK_PUBLIC void nk_each_fma_u8_sapphire(                                //
     nk_u8_t const *a, nk_u8_t const *b, nk_u8_t const *c, nk_size_t n, //
     nk_f32_t const *alpha, nk_f32_t const *beta, nk_u8_t *result) {
 

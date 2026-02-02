@@ -66,8 +66,8 @@ NK_PUBLIC void nk_each_sum_bf16_neonbfdot(nk_bf16_t const *a, nk_bf16_t const *b
     }
 }
 
-NK_PUBLIC void nk_each_scale_bf16_neonbfdot(nk_bf16_t const *a, nk_size_t n, nk_f32_t const *alpha, nk_f32_t const *beta,
-                                       nk_bf16_t *result) {
+NK_PUBLIC void nk_each_scale_bf16_neonbfdot(nk_bf16_t const *a, nk_size_t n, nk_f32_t const *alpha,
+                                            nk_f32_t const *beta, nk_bf16_t *result) {
     nk_f32_t alpha_val = *alpha;
     nk_f32_t beta_val = *beta;
     float32x4_t alpha_f32x4 = vdupq_n_f32(alpha_val);
@@ -90,7 +90,7 @@ NK_PUBLIC void nk_each_scale_bf16_neonbfdot(nk_bf16_t const *a, nk_size_t n, nk_
     }
 }
 
-NK_PUBLIC void nk_each_blend_bf16_neonbfdot(                   //
+NK_PUBLIC void nk_each_blend_bf16_neonbfdot(             //
     nk_bf16_t const *a, nk_bf16_t const *b, nk_size_t n, //
     nk_f32_t const *alpha, nk_f32_t const *beta, nk_bf16_t *result) {
 
@@ -135,7 +135,7 @@ NK_PUBLIC void nk_each_blend_bf16_neonbfdot(                   //
     }
 }
 
-NK_PUBLIC void nk_each_fma_bf16_neonbfdot(                           //
+NK_PUBLIC void nk_each_fma_bf16_neonbfdot(                      //
     nk_bf16_t const *a, nk_bf16_t const *b, nk_bf16_t const *c, //
     nk_size_t n, nk_f32_t const *alpha, nk_f32_t const *beta, nk_bf16_t *result) {
     nk_f32_t alpha_val = *alpha;

@@ -45,16 +45,16 @@ extern "C" {
     fn nk_uses_smefa64() -> i32;
     fn nk_uses_haswell() -> i32;
     fn nk_uses_skylake() -> i32;
-    fn nk_uses_ice() -> i32;
+    fn nk_uses_icelake() -> i32;
     fn nk_uses_genoa() -> i32;
     fn nk_uses_sapphire() -> i32;
     fn nk_uses_turin() -> i32;
     fn nk_uses_sierra() -> i32;
-    fn nk_uses_sapphire_amx() -> i32;
-    fn nk_uses_granite_amx() -> i32;
-    fn nk_uses_spacemit() -> i32;
-    fn nk_uses_sifive() -> i32;
-    fn nk_uses_xuantie() -> i32;
+    fn nk_uses_sapphireamx() -> i32;
+    fn nk_uses_graniteamx() -> i32;
+    fn nk_uses_rvv() -> i32;
+    fn nk_uses_rvvhalf() -> i32;
+    fn nk_uses_rvvbf16() -> i32;
     fn nk_configure_thread(capabilities: u64) -> i32;
     fn nk_uses_dynamic_dispatch() -> i32;
 
@@ -1003,8 +1003,8 @@ pub mod capabilities {
     pub fn uses_skylake() -> bool {
         unsafe { super::nk_uses_skylake() != 0 }
     }
-    pub fn uses_ice() -> bool {
-        unsafe { super::nk_uses_ice() != 0 }
+    pub fn uses_icelake() -> bool {
+        unsafe { super::nk_uses_icelake() != 0 }
     }
     pub fn uses_genoa() -> bool {
         unsafe { super::nk_uses_genoa() != 0 }
@@ -1018,20 +1018,20 @@ pub mod capabilities {
     pub fn uses_sierra() -> bool {
         unsafe { super::nk_uses_sierra() != 0 }
     }
-    pub fn uses_sapphire_amx() -> bool {
-        unsafe { super::nk_uses_sapphire_amx() != 0 }
+    pub fn uses_sapphireamx() -> bool {
+        unsafe { super::nk_uses_sapphireamx() != 0 }
     }
-    pub fn uses_granite_amx() -> bool {
-        unsafe { super::nk_uses_granite_amx() != 0 }
+    pub fn uses_graniteamx() -> bool {
+        unsafe { super::nk_uses_graniteamx() != 0 }
     }
-    pub fn uses_spacemit() -> bool {
-        unsafe { super::nk_uses_spacemit() != 0 }
+    pub fn uses_rvv() -> bool {
+        unsafe { super::nk_uses_rvv() != 0 }
     }
-    pub fn uses_sifive() -> bool {
-        unsafe { super::nk_uses_sifive() != 0 }
+    pub fn uses_rvvhalf() -> bool {
+        unsafe { super::nk_uses_rvvhalf() != 0 }
     }
-    pub fn uses_xuantie() -> bool {
-        unsafe { super::nk_uses_xuantie() != 0 }
+    pub fn uses_rvvbf16() -> bool {
+        unsafe { super::nk_uses_rvvbf16() != 0 }
     }
 
     /// Configures the current thread for optimal SIMD performance.

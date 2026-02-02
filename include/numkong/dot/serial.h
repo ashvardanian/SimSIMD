@@ -611,8 +611,8 @@ NK_INTERNAL void nk_dot_u4x16_update_serial(nk_dot_u4x16_state_serial_t *state, 
 NK_INTERNAL void nk_dot_u4x16_finalize_serial(nk_dot_u4x16_state_serial_t const *state_a,
                                               nk_dot_u4x16_state_serial_t const *state_b,
                                               nk_dot_u4x16_state_serial_t const *state_c,
-                                              nk_dot_u4x16_state_serial_t const *state_d,
-                                              nk_size_t total_dimensions, nk_b128_vec_t *result) {
+                                              nk_dot_u4x16_state_serial_t const *state_d, nk_size_t total_dimensions,
+                                              nk_b128_vec_t *result) {
     nk_unused_(total_dimensions);
     result->u32s[0] = (nk_u32_t)(state_a->sums[0] + state_a->sums[1]);
     result->u32s[1] = (nk_u32_t)(state_b->sums[0] + state_b->sums[1]);
@@ -677,8 +677,8 @@ NK_INTERNAL void nk_dot_i4x16_update_serial(nk_dot_i4x16_state_serial_t *state, 
 NK_INTERNAL void nk_dot_i4x16_finalize_serial(nk_dot_i4x16_state_serial_t const *state_a,
                                               nk_dot_i4x16_state_serial_t const *state_b,
                                               nk_dot_i4x16_state_serial_t const *state_c,
-                                              nk_dot_i4x16_state_serial_t const *state_d,
-                                              nk_size_t total_dimensions, nk_b128_vec_t *result) {
+                                              nk_dot_i4x16_state_serial_t const *state_d, nk_size_t total_dimensions,
+                                              nk_b128_vec_t *result) {
     nk_unused_(total_dimensions);
     result->i32s[0] = (nk_i32_t)(state_a->sums[0] + state_a->sums[1]);
     result->i32s[1] = (nk_i32_t)(state_b->sums[0] + state_b->sums[1]);

@@ -1,6 +1,6 @@
 /**
  *  @brief SIMD-accelerated Dot Products for bf16 optimized for XuanTie (RVV + Zvfbfwma) CPUs.
- *  @file include/numkong/dot/xuantie.h
+ *  @file include/numkong/dot/rvvbf16.h
  *  @sa include/numkong/dot.h
  *  @author Ash Vardanian
  *  @date January 5, 2026
@@ -11,11 +11,11 @@
  *
  *  Requires: RVV 1.0 + Zvfbfwma extension (GCC 14+ or Clang 18+)
  */
-#ifndef NK_DOT_XUANTIE_H
-#define NK_DOT_XUANTIE_H
+#ifndef NK_DOT_RVVBF16_H
+#define NK_DOT_RVVBF16_H
 
 #if NK_TARGET_RISCV_
-#if NK_TARGET_XUANTIE
+#if NK_TARGET_RVVBF16
 
 #include "numkong/types.h"
 
@@ -23,7 +23,7 @@
 extern "C" {
 #endif
 
-NK_PUBLIC void nk_dot_bf16_xuantie(nk_bf16_t const *a_scalars, nk_bf16_t const *b_scalars, nk_nk_size_t count_scalars,
+NK_PUBLIC void nk_dot_bf16_rvvbf16(nk_bf16_t const *a_scalars, nk_bf16_t const *b_scalars, nk_nk_size_t count_scalars,
                                    nk_f32_t *result) {
     vfloat32m1_t sum_f32m1 = __riscv_vfmv_v_f_f32m1(0.0f, 1);
     for (nk_size_t vl; count_scalars > 0; count_scalars -= vl, a_scalars += vl, b_scalars += vl) {
@@ -43,7 +43,7 @@ NK_PUBLIC void nk_dot_bf16_xuantie(nk_bf16_t const *a_scalars, nk_bf16_t const *
 } // extern "C"
 #endif
 
-#endif // NK_TARGET_XUANTIE
+#endif // NK_TARGET_RVVBF16
 #endif // NK_TARGET_RISCV_
 
-#endif // NK_DOT_XUANTIE_H
+#endif // NK_DOT_RVVBF16_H

@@ -79,7 +79,7 @@ nk_sqeuclidean_e4m3_sapphire_cycle:
 NK_PUBLIC void nk_euclidean_e4m3_sapphire(nk_e4m3_t const *a_scalars, nk_e4m3_t const *b_scalars,
                                           nk_size_t count_scalars, nk_f32_t *result) {
     nk_sqeuclidean_e4m3_sapphire(a_scalars, b_scalars, count_scalars, result);
-    *result = nk_sqrt_f32_haswell_(*result);
+    *result = nk_f32_sqrt_haswell(*result);
 }
 
 #if defined(__cplusplus)

@@ -1,6 +1,6 @@
 /**
  *  @brief SIMD-accelerated Spatial Distances for f16 optimized for SiFive (RVV + Zvfh) CPUs.
- *  @file include/numkong/spatial/sifive.h
+ *  @file include/numkong/spatial/rvvhalf.h
  *  @sa include/numkong/spatial.h
  *  @author Ash Vardanian
  *  @date January 5, 2026
@@ -10,21 +10,21 @@
  *
  *  Requires: RVV 1.0 + Zvfh extension (GCC 14+ or Clang 18+)
  */
-#ifndef NK_SPATIAL_SIFIVE_H
-#define NK_SPATIAL_SIFIVE_H
+#ifndef NK_SPATIAL_RVVHALF_H
+#define NK_SPATIAL_RVVHALF_H
 
 #if NK_TARGET_RISCV_
-#if NK_TARGET_SIFIVE
+#if NK_TARGET_RVVHALF
 
 #include "numkong/types.h"
-#include "numkong/spatial/spacemit.h" // `nk_f32_sqrt_spacemit`
+#include "numkong/spatial/rvv.h" // `nk_f32_sqrt_rvv`
 
 #if defined(__cplusplus)
 extern "C" {
 #endif
 
-NK_PUBLIC void nk_sqeuclidean_f16_sifive(nk_f16_t const *a_scalars, nk_f16_t const *b_scalars, nk_size_t count_scalars,
-                                         nk_f32_t *result) {
+NK_PUBLIC void nk_sqeuclidean_f16_rvvhalf(nk_f16_t const *a_scalars, nk_f16_t const *b_scalars, nk_size_t count_scalars,
+                                          nk_f32_t *result) {
     vfloat32m1_t sum_f32m1 = __riscv_vfmv_v_f_f32m1(0.0f, 1);
     for (nk_size_t vl; count_scalars > 0; count_scalars -= vl, a_scalars += vl, b_scalars += vl) {
         vl = __riscv_vsetvl_e16m1(count_scalars);
@@ -40,14 +40,14 @@ NK_PUBLIC void nk_sqeuclidean_f16_sifive(nk_f16_t const *a_scalars, nk_f16_t con
     *result = __riscv_vfmv_f_s_f32m1_f32(sum_f32m1);
 }
 
-NK_PUBLIC void nk_euclidean_f16_sifive(nk_f16_t const *a_scalars, nk_f16_t const *b_scalars, nk_size_t count_scalars,
-                                       nk_f32_t *result) {
-    nk_sqeuclidean_f16_sifive(a_scalars, b_scalars, count_scalars, result);
-    *result = nk_f32_sqrt_spacemit(*result);
+NK_PUBLIC void nk_euclidean_f16_rvvhalf(nk_f16_t const *a_scalars, nk_f16_t const *b_scalars, nk_size_t count_scalars,
+                                        nk_f32_t *result) {
+    nk_sqeuclidean_f16_rvvhalf(a_scalars, b_scalars, count_scalars, result);
+    *result = nk_f32_sqrt_rvv(*result);
 }
 
-NK_PUBLIC void nk_angular_f16_sifive(nk_f16_t const *a_scalars, nk_f16_t const *b_scalars, nk_size_t count_scalars,
-                                     nk_f32_t *result) {
+NK_PUBLIC void nk_angular_f16_rvvhalf(nk_f16_t const *a_scalars, nk_f16_t const *b_scalars, nk_size_t count_scalars,
+                                      nk_f32_t *result) {
     vfloat32m1_t dot_f32m1 = __riscv_vfmv_v_f_f32m1(0.0f, 1);
     vfloat32m1_t a_sq_f32m1 = __riscv_vfmv_v_f_f32m1(0.0f, 1);
     vfloat32m1_t b_sq_f32m1 = __riscv_vfmv_v_f_f32m1(0.0f, 1);
@@ -79,7 +79,7 @@ NK_PUBLIC void nk_angular_f16_sifive(nk_f16_t const *a_scalars, nk_f16_t const *
     if (a_sq == 0.0f && b_sq == 0.0f) { *result = 0.0f; }
     else if (dot == 0.0f) { *result = 1.0f; }
     else {
-        nk_f32_t unclipped = 1.0f - dot * nk_f32_rsqrt_spacemit(a_sq) * nk_f32_rsqrt_spacemit(b_sq);
+        nk_f32_t unclipped = 1.0f - dot * nk_f32_rsqrt_rvv(a_sq) * nk_f32_rsqrt_rvv(b_sq);
         *result = unclipped > 0.0f ? unclipped : 0.0f;
     }
 }
@@ -88,7 +88,7 @@ NK_PUBLIC void nk_angular_f16_sifive(nk_f16_t const *a_scalars, nk_f16_t const *
 } // extern "C"
 #endif
 
-#endif // NK_TARGET_SIFIVE
+#endif // NK_TARGET_RVVHALF
 #endif // NK_TARGET_RISCV_
 
-#endif // NK_SPATIAL_SIFIVE_H
+#endif // NK_SPATIAL_RVVHALF_H

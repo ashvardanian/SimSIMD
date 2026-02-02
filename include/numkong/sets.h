@@ -154,9 +154,8 @@ NK_PUBLIC void nk_hammings_symmetric_u32(nk_u32_t const *vectors, nk_size_t n_ve
                                          nk_u32_t *result, nk_size_t result_stride, nk_size_t row_start, nk_size_t n);
 
 #include "numkong/sets/serial.h"
-#include "numkong/sets/smebi32.h"
 #include "numkong/sets/neon.h"
-#include "numkong/sets/ice.h"
+#include "numkong/sets/icelake.h"
 #include "numkong/sets/haswell.h"
 
 #if !NK_DYNAMIC_DISPATCH
@@ -166,8 +165,8 @@ NK_PUBLIC nk_size_t nk_hammings_packed_size_u1(nk_size_t n, nk_size_t d) {
     return nk_hammings_packed_size_u1_smebi32(n, d);
 #elif NK_TARGET_NEON
     return nk_hammings_packed_size_u1_neon(n, d);
-#elif NK_TARGET_ICE
-    return nk_hammings_packed_size_u1_ice(n, d);
+#elif NK_TARGET_ICELAKE
+    return nk_hammings_packed_size_u1_icelake(n, d);
 #elif NK_TARGET_HASWELL
     return nk_hammings_packed_size_u1_haswell(n, d);
 #else
@@ -180,8 +179,8 @@ NK_PUBLIC void nk_hammings_pack_u1(nk_u1x8_t const *b, nk_size_t n, nk_size_t d,
     nk_hammings_pack_u1_smebi32(b, n, d, q_stride, q_packed);
 #elif NK_TARGET_NEON
     nk_hammings_pack_u1_neon(b, n, d, q_stride, q_packed);
-#elif NK_TARGET_ICE
-    nk_hammings_pack_u1_ice(b, n, d, q_stride, q_packed);
+#elif NK_TARGET_ICELAKE
+    nk_hammings_pack_u1_icelake(b, n, d, q_stride, q_packed);
 #elif NK_TARGET_HASWELL
     nk_hammings_pack_u1_haswell(b, n, d, q_stride, q_packed);
 #else
@@ -196,8 +195,8 @@ NK_PUBLIC void nk_hammings_packed_u1(nk_u1x8_t const *a, void const *q_packed, n
     nk_hammings_packed_u1_smebi32(a, q_packed, result, n, column_count, d, v_stride_in_bytes, r_stride_in_bytes);
 #elif NK_TARGET_NEON
     nk_hammings_packed_u1_neon(a, q_packed, result, n, column_count, d, v_stride_in_bytes, r_stride_in_bytes);
-#elif NK_TARGET_ICE
-    nk_hammings_packed_u1_ice(a, q_packed, result, n, column_count, d, v_stride_in_bytes, r_stride_in_bytes);
+#elif NK_TARGET_ICELAKE
+    nk_hammings_packed_u1_icelake(a, q_packed, result, n, column_count, d, v_stride_in_bytes, r_stride_in_bytes);
 #elif NK_TARGET_HASWELL
     nk_hammings_packed_u1_haswell(a, q_packed, result, n, column_count, d, v_stride_in_bytes, r_stride_in_bytes);
 #else
@@ -211,74 +210,12 @@ NK_PUBLIC void nk_hammings_symmetric_u1(nk_u1x8_t const *vectors, nk_size_t n_ve
     nk_hammings_symmetric_u1_smebi32(vectors, n_vectors, d, stride, result, result_stride, row_start, n);
 #elif NK_TARGET_NEON
     nk_hammings_symmetric_u1_neon(vectors, n_vectors, d, stride, result, result_stride, row_start, n);
-#elif NK_TARGET_ICE
-    nk_hammings_symmetric_u1_ice(vectors, n_vectors, d, stride, result, result_stride, row_start, n);
+#elif NK_TARGET_ICELAKE
+    nk_hammings_symmetric_u1_icelake(vectors, n_vectors, d, stride, result, result_stride, row_start, n);
 #elif NK_TARGET_HASWELL
     nk_hammings_symmetric_u1_haswell(vectors, n_vectors, d, stride, result, result_stride, row_start, n);
 #else
     nk_hammings_symmetric_u1_serial(vectors, n_vectors, d, stride, result, result_stride, row_start, n);
-#endif
-}
-
-NK_PUBLIC nk_size_t nk_jaccards_packed_size_u1(nk_size_t n, nk_size_t d) {
-#if NK_TARGET_SMEBI32
-    return nk_jaccards_packed_size_u1_smebi32(n, d);
-#elif NK_TARGET_NEON
-    return nk_jaccards_packed_size_u1_neon(n, d);
-#elif NK_TARGET_ICE
-    return nk_jaccards_packed_size_u1_ice(n, d);
-#elif NK_TARGET_HASWELL
-    return nk_jaccards_packed_size_u1_haswell(n, d);
-#else
-    return nk_jaccards_packed_size_u1_serial(n, d);
-#endif
-}
-
-NK_PUBLIC void nk_jaccards_pack_u1(nk_u1x8_t const *b, nk_size_t n, nk_size_t d, nk_size_t q_stride, void *q_packed) {
-#if NK_TARGET_SMEBI32
-    nk_jaccards_pack_u1_smebi32(b, n, d, q_stride, q_packed);
-#elif NK_TARGET_NEON
-    nk_jaccards_pack_u1_neon(b, n, d, q_stride, q_packed);
-#elif NK_TARGET_ICE
-    nk_jaccards_pack_u1_ice(b, n, d, q_stride, q_packed);
-#elif NK_TARGET_HASWELL
-    nk_jaccards_pack_u1_haswell(b, n, d, q_stride, q_packed);
-#else
-    nk_jaccards_pack_u1_serial(b, n, d, q_stride, q_packed);
-#endif
-}
-
-NK_PUBLIC void nk_jaccards_packed_u1(nk_u1x8_t const *a, void const *q_packed, nk_f32_t *result, nk_size_t n,
-                                     nk_size_t column_count, nk_size_t d, nk_size_t v_stride_in_bytes,
-                                     nk_size_t r_stride_in_bytes, nk_f32_t const *a_norms) {
-#if NK_TARGET_SMEBI32
-    nk_jaccards_packed_u1_smebi32(a, q_packed, result, n, column_count, d, v_stride_in_bytes, r_stride_in_bytes,
-                                  a_norms);
-#elif NK_TARGET_NEON
-    nk_jaccards_packed_u1_neon(a, q_packed, result, n, column_count, d, v_stride_in_bytes, r_stride_in_bytes, a_norms);
-#elif NK_TARGET_ICE
-    nk_jaccards_packed_u1_ice(a, q_packed, result, n, column_count, d, v_stride_in_bytes, r_stride_in_bytes, a_norms);
-#elif NK_TARGET_HASWELL
-    nk_jaccards_packed_u1_haswell(a, q_packed, result, n, column_count, d, v_stride_in_bytes, r_stride_in_bytes,
-                                  a_norms);
-#else
-    nk_jaccards_packed_u1_serial(a, q_packed, result, n, column_count, d, v_stride_in_bytes, r_stride_in_bytes,
-                                 a_norms);
-#endif
-}
-
-NK_PUBLIC void nk_jaccards_symmetric_u1(nk_u1x8_t const *vectors, nk_size_t n_vectors, nk_size_t d, nk_size_t stride,
-                                        nk_f32_t *result, nk_size_t result_stride, nk_size_t row_start, nk_size_t n) {
-#if NK_TARGET_SMEBI32
-    nk_jaccards_symmetric_u1_smebi32(vectors, n_vectors, d, stride, result, result_stride, row_start, n);
-#elif NK_TARGET_NEON
-    nk_jaccards_symmetric_u1_neon(vectors, n_vectors, d, stride, result, result_stride, row_start, n);
-#elif NK_TARGET_ICE
-    nk_jaccards_symmetric_u1_ice(vectors, n_vectors, d, stride, result, result_stride, row_start, n);
-#elif NK_TARGET_HASWELL
-    nk_jaccards_symmetric_u1_haswell(vectors, n_vectors, d, stride, result, result_stride, row_start, n);
-#else
-    nk_jaccards_symmetric_u1_serial(vectors, n_vectors, d, stride, result, result_stride, row_start, n);
 #endif
 }
 

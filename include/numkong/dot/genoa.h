@@ -20,7 +20,7 @@
 #endif
 
 #include "numkong/types.h"
-#include "numkong/cast/ice.h"       // `nk_e4m3x32_to_bf16x32_ice_`
+#include "numkong/cast/icelake.h"   // `nk_e4m3x32_to_bf16x32_icelake_`
 #include "numkong/reduce/skylake.h" // `nk_reduce_add_f32x16_skylake_`
 #include "numkong/dot/skylake.h"    // `nk_dot_through_f32_finalize_skylake_`
 
@@ -153,8 +153,8 @@ nk_dot_e4m3_genoa_cycle:
         a_scalars += 32, b_scalars += 32, count_scalars -= 32;
     }
     // Convert E4M3 to BF16 and compute dot product
-    __m512i a_bf16x32 = nk_e4m3x32_to_bf16x32_ice_(a_e4m3x32);
-    __m512i b_bf16x32 = nk_e4m3x32_to_bf16x32_ice_(b_e4m3x32);
+    __m512i a_bf16x32 = nk_e4m3x32_to_bf16x32_icelake_(a_e4m3x32);
+    __m512i b_bf16x32 = nk_e4m3x32_to_bf16x32_icelake_(b_e4m3x32);
     sum_f32x16 = _mm512_dpbf16_ps(sum_f32x16, (__m512bh)(a_bf16x32), (__m512bh)(b_bf16x32));
     if (count_scalars) goto nk_dot_e4m3_genoa_cycle;
 
@@ -179,8 +179,8 @@ nk_dot_e5m2_genoa_cycle:
         a_scalars += 32, b_scalars += 32, count_scalars -= 32;
     }
     // Convert E5M2 to BF16 and compute dot product
-    __m512i a_bf16x32 = nk_e5m2x32_to_bf16x32_ice_(a_e5m2x32);
-    __m512i b_bf16x32 = nk_e5m2x32_to_bf16x32_ice_(b_e5m2x32);
+    __m512i a_bf16x32 = nk_e5m2x32_to_bf16x32_icelake_(a_e5m2x32);
+    __m512i b_bf16x32 = nk_e5m2x32_to_bf16x32_icelake_(b_e5m2x32);
     sum_f32x16 = _mm512_dpbf16_ps(sum_f32x16, (__m512bh)(a_bf16x32), (__m512bh)(b_bf16x32));
     if (count_scalars) goto nk_dot_e5m2_genoa_cycle;
 
@@ -205,8 +205,8 @@ nk_dot_e2m3_genoa_cycle:
         a_scalars += 32, b_scalars += 32, count_scalars -= 32;
     }
     // Convert E2M3 to BF16 and compute dot product
-    __m512i a_bf16x32 = nk_e2m3x32_to_bf16x32_ice_(a_e2m3x32);
-    __m512i b_bf16x32 = nk_e2m3x32_to_bf16x32_ice_(b_e2m3x32);
+    __m512i a_bf16x32 = nk_e2m3x32_to_bf16x32_icelake_(a_e2m3x32);
+    __m512i b_bf16x32 = nk_e2m3x32_to_bf16x32_icelake_(b_e2m3x32);
     sum_f32x16 = _mm512_dpbf16_ps(sum_f32x16, (__m512bh)(a_bf16x32), (__m512bh)(b_bf16x32));
     if (count_scalars) goto nk_dot_e2m3_genoa_cycle;
 
@@ -231,8 +231,8 @@ nk_dot_e3m2_genoa_cycle:
         a_scalars += 32, b_scalars += 32, count_scalars -= 32;
     }
     // Convert E3M2 to BF16 and compute dot product
-    __m512i a_bf16x32 = nk_e3m2x32_to_bf16x32_ice_(a_e3m2x32);
-    __m512i b_bf16x32 = nk_e3m2x32_to_bf16x32_ice_(b_e3m2x32);
+    __m512i a_bf16x32 = nk_e3m2x32_to_bf16x32_icelake_(a_e3m2x32);
+    __m512i b_bf16x32 = nk_e3m2x32_to_bf16x32_icelake_(b_e3m2x32);
     sum_f32x16 = _mm512_dpbf16_ps(sum_f32x16, (__m512bh)(a_bf16x32), (__m512bh)(b_bf16x32));
     if (count_scalars) goto nk_dot_e3m2_genoa_cycle;
 
@@ -240,43 +240,43 @@ nk_dot_e3m2_genoa_cycle:
 }
 
 NK_INTERNAL void nk_load_e4m3x32_to_bf16x32_genoa_(void const *src, nk_b512_vec_t *dst) {
-    dst->zmm = nk_e4m3x32_to_bf16x32_ice_(_mm256_loadu_si256((__m256i const *)src));
+    dst->zmm = nk_e4m3x32_to_bf16x32_icelake_(_mm256_loadu_si256((__m256i const *)src));
 }
 
 NK_INTERNAL void nk_partial_load_e4m3x32_to_bf16x32_genoa_(void const *src, nk_b512_vec_t *dst, nk_size_t n) {
     nk_b256_vec_t e4m3_partial;
     nk_partial_load_b8x32_serial_(src, &e4m3_partial, n);
-    dst->zmm = nk_e4m3x32_to_bf16x32_ice_(e4m3_partial.ymm);
+    dst->zmm = nk_e4m3x32_to_bf16x32_icelake_(e4m3_partial.ymm);
 }
 
 NK_INTERNAL void nk_load_e5m2x32_to_bf16x32_genoa_(void const *src, nk_b512_vec_t *dst) {
-    dst->zmm = nk_e5m2x32_to_bf16x32_ice_(_mm256_loadu_si256((__m256i const *)src));
+    dst->zmm = nk_e5m2x32_to_bf16x32_icelake_(_mm256_loadu_si256((__m256i const *)src));
 }
 
 NK_INTERNAL void nk_partial_load_e5m2x32_to_bf16x32_genoa_(void const *src, nk_b512_vec_t *dst, nk_size_t n) {
     nk_b256_vec_t e5m2_partial;
     nk_partial_load_b8x32_serial_(src, &e5m2_partial, n);
-    dst->zmm = nk_e5m2x32_to_bf16x32_ice_(e5m2_partial.ymm);
+    dst->zmm = nk_e5m2x32_to_bf16x32_icelake_(e5m2_partial.ymm);
 }
 
 NK_INTERNAL void nk_load_e2m3x32_to_bf16x32_genoa_(void const *src, nk_b512_vec_t *dst) {
-    dst->zmm = nk_e2m3x32_to_bf16x32_ice_(_mm256_loadu_si256((__m256i const *)src));
+    dst->zmm = nk_e2m3x32_to_bf16x32_icelake_(_mm256_loadu_si256((__m256i const *)src));
 }
 
 NK_INTERNAL void nk_partial_load_e2m3x32_to_bf16x32_genoa_(void const *src, nk_b512_vec_t *dst, nk_size_t n) {
     nk_b256_vec_t e2m3_partial;
     nk_partial_load_b8x32_serial_(src, &e2m3_partial, n);
-    dst->zmm = nk_e2m3x32_to_bf16x32_ice_(e2m3_partial.ymm);
+    dst->zmm = nk_e2m3x32_to_bf16x32_icelake_(e2m3_partial.ymm);
 }
 
 NK_INTERNAL void nk_load_e3m2x32_to_bf16x32_genoa_(void const *src, nk_b512_vec_t *dst) {
-    dst->zmm = nk_e3m2x32_to_bf16x32_ice_(_mm256_loadu_si256((__m256i const *)src));
+    dst->zmm = nk_e3m2x32_to_bf16x32_icelake_(_mm256_loadu_si256((__m256i const *)src));
 }
 
 NK_INTERNAL void nk_partial_load_e3m2x32_to_bf16x32_genoa_(void const *src, nk_b512_vec_t *dst, nk_size_t n) {
     nk_b256_vec_t e3m2_partial;
     nk_partial_load_b8x32_serial_(src, &e3m2_partial, n);
-    dst->zmm = nk_e3m2x32_to_bf16x32_ice_(e3m2_partial.ymm);
+    dst->zmm = nk_e3m2x32_to_bf16x32_icelake_(e3m2_partial.ymm);
 }
 
 typedef struct nk_dot_through_bf16_state_genoa_t_ {

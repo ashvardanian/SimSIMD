@@ -36,8 +36,7 @@ cmake -D CMAKE_BUILD_TYPE=Release -D NK_BUILD_TEST=1 -D NK_BUILD_BENCH=1 -D NK_C
 cmake --build build_release --config Release
 build_release/nk_bench
 build_release/nk_bench --benchmark_filter=js
-build_release/nk_test_run_time
-build_release/nk_test_compile_time # no need to run this one, it's just a compile-time test
+build_release/nk_test
 ```
 
 To utilize `f16` instructions, use GCC 12+ or Clang 16+.

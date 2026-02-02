@@ -219,7 +219,7 @@ println!("uses neon: {}", capabilities::uses_neon());
 println!("uses sve: {}", capabilities::uses_sve());
 println!("uses haswell: {}", capabilities::uses_haswell());
 println!("uses skylake: {}", capabilities::uses_skylake());
-println!("uses ice: {}", capabilities::uses_ice());
+println!("uses ice: {}", capabilities::uses_icelake());
 println!("uses genoa: {}", capabilities::uses_genoa());
 println!("uses sapphire: {}", capabilities::uses_sapphire());
 println!("uses turin: {}", capabilities::uses_turin());

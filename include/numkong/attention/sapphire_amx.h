@@ -1,6 +1,6 @@
 /**
  *  @brief FlashAttention-style kernels for Intel Sapphire Rapids AMX.
- *  @file include/numkong/attention/sapphire_amx.h
+ *  @file include/numkong/attention/sapphireamx.h
  *  @author Ash Vardanian
  *  @date January 5, 2026
  *
@@ -43,7 +43,7 @@
  *      O = rescale(O) + P × V using AMX
  *    Finalize: normalize O by row sums
  *
- *  @section sapphire_amx_attention_instructions Relevant Instructions
+ *  @section sapphireamx_attention_instructions Relevant Instructions
  *
  *      Intrinsic                   Instruction                     Sapphire
  *      _tile_dpbf16ps              TDPBF16PS (TMM, TMM, TMM)       ~16cy (16x16x32 BF16)
@@ -57,11 +57,11 @@
  *      _mm512_reduce_max_ps        (pseudo: VHADDPS chain)         ~8cy
  *      _mm512_reduce_add_ps        (pseudo: VHADDPS chain)         ~8cy
  */
-#ifndef NK_ATTENTION_SAPPHIRE_AMX_H
-#define NK_ATTENTION_SAPPHIRE_AMX_H
+#ifndef NK_ATTENTION_SAPPHIREAMX_H
+#define NK_ATTENTION_SAPPHIREAMX_H
 
 #if NK_TARGET_X86_
-#if NK_TARGET_SAPPHIRE_AMX
+#if NK_TARGET_SAPPHIREAMX
 #if defined(__clang__)
 #pragma clang attribute push(__attribute__((target("avx2,avx512f,avx512vl,bmi2,avx512bw,avx512fp16,avx512bf16"))), \
                              apply_to = function)
@@ -71,7 +71,7 @@
 #endif
 
 #include "numkong/types.h"
-#include "numkong/dots/sapphire_amx.h"
+#include "numkong/dots/sapphireamx.h"
 
 #include <float.h> // FLT_MAX
 
@@ -505,8 +505,8 @@ NK_INTERNAL void nk_attention_rescale_output_(nk_f32_t *output, nk_size_t head_d
  *  @param max_seq_len  Maximum sequence length
  *  @return Required buffer size in bytes (64-byte aligned)
  */
-NK_PUBLIC nk_size_t nk_attention_kv_packed_size_sapphire_amx(nk_size_t num_kv_heads, nk_size_t head_dim,
-                                                             nk_size_t max_seq_len) {
+NK_PUBLIC nk_size_t nk_attention_kv_packed_size_sapphireamx(nk_size_t num_kv_heads, nk_size_t head_dim,
+                                                            nk_size_t max_seq_len) {
 
     // Pad head_dim to multiple of 32 for AMX tiles
     nk_size_t head_dim_padded = (head_dim + 31) / 32 * 32;
@@ -540,8 +540,8 @@ NK_PUBLIC nk_size_t nk_attention_kv_packed_size_sapphire_amx(nk_size_t num_kv_he
  *  @param seq_len      Sequence length
  *  @param head_dim     Head dimension
  */
-NK_PUBLIC void nk_attention_pack_k_sapphire_amx(nk_bf16_t const *k, void *kv_packed, nk_size_t num_kv_heads,
-                                                nk_size_t seq_len, nk_size_t head_dim) {
+NK_PUBLIC void nk_attention_pack_k_sapphireamx(nk_bf16_t const *k, void *kv_packed, nk_size_t num_kv_heads,
+                                               nk_size_t seq_len, nk_size_t head_dim) {
 
     nk_attention_kv_packed_header_t *header = (nk_attention_kv_packed_header_t *)kv_packed;
 
@@ -624,8 +624,8 @@ NK_PUBLIC void nk_attention_pack_k_sapphire_amx(nk_bf16_t const *k, void *kv_pac
  *  @param seq_len      Sequence length
  *  @param head_dim     Head dimension
  */
-NK_PUBLIC void nk_attention_pack_v_sapphire_amx(nk_bf16_t const *v, void *kv_packed, nk_size_t num_kv_heads,
-                                                nk_size_t seq_len, nk_size_t head_dim) {
+NK_PUBLIC void nk_attention_pack_v_sapphireamx(nk_bf16_t const *v, void *kv_packed, nk_size_t num_kv_heads,
+                                               nk_size_t seq_len, nk_size_t head_dim) {
 
     nk_attention_kv_packed_header_t *header = (nk_attention_kv_packed_header_t *)kv_packed;
     nk_size_t head_dim_padded = header->head_dim_padded;
@@ -785,9 +785,9 @@ NK_INTERNAL void nk_attention_extract_v_block_(nk_bf16_t const *v_packed, nk_f32
  *  @param head_dim     Head dimension (64, 112, or 128)
  *  @param scale        Scaling factor, typically 1/√head_dim
  */
-NK_PUBLIC void nk_attention_bf16_sapphire_amx(nk_bf16_t const *q, void const *kv_packed, nk_f32_t *output,
-                                              nk_size_t num_heads, nk_size_t num_kv_heads, nk_size_t query_len,
-                                              nk_size_t kv_len, nk_size_t head_dim, nk_f32_t scale) {
+NK_PUBLIC void nk_attention_bf16_sapphireamx(nk_bf16_t const *q, void const *kv_packed, nk_f32_t *output,
+                                             nk_size_t num_heads, nk_size_t num_kv_heads, nk_size_t query_len,
+                                             nk_size_t kv_len, nk_size_t head_dim, nk_f32_t scale) {
 
     nk_attention_kv_packed_header_t const *header = (nk_attention_kv_packed_header_t const *)kv_packed;
     nk_size_t head_dim_padded = header->head_dim_padded;
@@ -798,7 +798,7 @@ NK_PUBLIC void nk_attention_bf16_sapphire_amx(nk_bf16_t const *q, void const *kv
     nk_size_t const Bc = 16; // KV block columns
 
     // Configure AMX tiles
-    nk_amx_tile_configure_sapphire_amx_();
+    nk_amx_tile_configure_sapphireamx_();
 
     // Temporary buffers (aligned to 64 bytes)
     NK_ALIGN64 nk_f32_t scores[16 * 16];  // S = Q × Kᵀ block
@@ -936,9 +936,9 @@ NK_PUBLIC void nk_attention_bf16_sapphire_amx(nk_bf16_t const *q, void const *kv
  *
  *  Block sizes: Bᵣ=16, Bᶜ=32
  */
-NK_PUBLIC void nk_attention_bf16_amx_bc32_sapphire_amx(nk_bf16_t const *q, void const *kv_packed, nk_f32_t *output,
-                                                       nk_size_t num_heads, nk_size_t num_kv_heads, nk_size_t query_len,
-                                                       nk_size_t kv_len, nk_size_t head_dim, nk_f32_t scale) {
+NK_PUBLIC void nk_attention_bf16_amx_bc32_sapphireamx(nk_bf16_t const *q, void const *kv_packed, nk_f32_t *output,
+                                                      nk_size_t num_heads, nk_size_t num_kv_heads, nk_size_t query_len,
+                                                      nk_size_t kv_len, nk_size_t head_dim, nk_f32_t scale) {
 
     nk_attention_kv_packed_header_t const *header = (nk_attention_kv_packed_header_t const *)kv_packed;
     nk_size_t head_dim_padded = header->head_dim_padded;
@@ -949,7 +949,7 @@ NK_PUBLIC void nk_attention_bf16_amx_bc32_sapphire_amx(nk_bf16_t const *q, void 
     nk_size_t const Bc = 32;
 
     // Configure AMX tiles
-    nk_amx_tile_configure_sapphire_amx_();
+    nk_amx_tile_configure_sapphireamx_();
 
     // Buffers
     NK_ALIGN64 nk_f32_t scores[16 * 32];  // S [16, 32]
@@ -1185,7 +1185,7 @@ NK_PUBLIC void nk_attention_bf16_amx_bc32_sapphire_amx(nk_bf16_t const *q, void 
 /**
  *  @brief Optimized AMX attention kernel with hoisted tile operations.
  *
- *  Optimizations over nk_attention_bf16_amx_bc32_sapphire_amx:
+ *  Optimizations over nk_attention_bf16_amx_bc32_sapphireamx:
  *  1. Q tiles pre-packed ONCE per query block (not per KV block)
  *  2. P tile loaded ONCE per KV block (not per head_dim tile)
  *  3. Direct tile stores to score buffer (no intermediate copy)
@@ -1201,10 +1201,10 @@ NK_PUBLIC void nk_attention_bf16_amx_bc32_sapphire_amx(nk_bf16_t const *q, void 
  *  - TMM₆: P tile (loaded once per KV block)
  *  - TMM₇: V tile
  */
-NK_PUBLIC void nk_attention_bf16_amx_optimized_sapphire_amx(nk_bf16_t const *q, void const *kv_packed, nk_f32_t *output,
-                                                            nk_size_t num_heads, nk_size_t num_kv_heads,
-                                                            nk_size_t query_len, nk_size_t kv_len, nk_size_t head_dim,
-                                                            nk_f32_t scale) {
+NK_PUBLIC void nk_attention_bf16_amx_optimized_sapphireamx(nk_bf16_t const *q, void const *kv_packed, nk_f32_t *output,
+                                                           nk_size_t num_heads, nk_size_t num_kv_heads,
+                                                           nk_size_t query_len, nk_size_t kv_len, nk_size_t head_dim,
+                                                           nk_f32_t scale) {
 
     nk_attention_kv_packed_header_t const *header = (nk_attention_kv_packed_header_t const *)kv_packed;
     nk_size_t head_dim_padded = header->head_dim_padded;
@@ -1214,7 +1214,7 @@ NK_PUBLIC void nk_attention_bf16_amx_optimized_sapphire_amx(nk_bf16_t const *q, 
     nk_size_t const Bc = 32;
 
     // Configure AMX tiles once
-    nk_amx_tile_configure_sapphire_amx_();
+    nk_amx_tile_configure_sapphireamx_();
 
     // Tile dimensions
     nk_size_t tiles_per_depth = head_dim_padded / 32;         // 4 for d=128
@@ -1424,15 +1424,15 @@ NK_PUBLIC void nk_attention_bf16_amx_optimized_sapphire_amx(nk_bf16_t const *q, 
 /**
  *  @brief Causal (masked) scaled dot-product attention.
  *
- *  Same as nk_attention_bf16_sapphire_amx but applies causal mask:
+ *  Same as nk_attention_bf16_sapphireamx but applies causal mask:
  *  - For position i, only attend to positions 0..i (mask future tokens)
  *  - Masked positions get -∞ before softmax
  *
  *  Optimization: Completely skip KV blocks where all positions would be masked.
  */
-NK_PUBLIC void nk_attention_causal_bf16_sapphire_amx(nk_bf16_t const *q, void const *kv_packed, nk_f32_t *output,
-                                                     nk_size_t num_heads, nk_size_t num_kv_heads, nk_size_t query_len,
-                                                     nk_size_t kv_len, nk_size_t head_dim, nk_f32_t scale) {
+NK_PUBLIC void nk_attention_causal_bf16_sapphireamx(nk_bf16_t const *q, void const *kv_packed, nk_f32_t *output,
+                                                    nk_size_t num_heads, nk_size_t num_kv_heads, nk_size_t query_len,
+                                                    nk_size_t kv_len, nk_size_t head_dim, nk_f32_t scale) {
 
     // For causal attention in autoregressive decode:
     // Query position q_pos can only attend to KV positions 0..q_pos
@@ -1441,7 +1441,7 @@ NK_PUBLIC void nk_attention_causal_bf16_sapphire_amx(nk_bf16_t const *q, void co
 
     // Simplified: just call full attention for now
     // TODO: Implement proper causal masking with block skipping
-    nk_attention_bf16_sapphire_amx(q, kv_packed, output, num_heads, num_kv_heads, query_len, kv_len, head_dim, scale);
+    nk_attention_bf16_sapphireamx(q, kv_packed, output, num_heads, num_kv_heads, query_len, kv_len, head_dim, scale);
 }
 
 #if defined(__cplusplus)
@@ -1453,6 +1453,6 @@ NK_PUBLIC void nk_attention_causal_bf16_sapphire_amx(nk_bf16_t const *q, void co
 #elif defined(__GNUC__)
 #pragma GCC pop_options
 #endif
-#endif // NK_TARGET_SAPPHIRE_AMX
+#endif // NK_TARGET_SAPPHIREAMX
 #endif // NK_TARGET_X86_
-#endif // NK_ATTENTION_SAPPHIRE_AMX_H
+#endif // NK_ATTENTION_SAPPHIREAMX_H

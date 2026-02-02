@@ -1,6 +1,6 @@
 /**
  *  @brief WASM SIMD (Relaxed SIMD) bit-level set similarity kernels.
- *  @file wasm.h
+ *  @file v128relaxed.h
  *  @author Ash Vardanian
  *  @date February 1, 2026
  *
@@ -13,19 +13,19 @@
  *  31 × 8 = 248 < 255 (u8 max) without overflow.
  */
 
-#ifndef NK_SET_WASM_H
-#define NK_SET_WASM_H
+#ifndef NK_SET_V128RELAXED_H
+#define NK_SET_V128RELAXED_H
 
 #if NK_TARGET_V128RELAXED
 #include "numkong/types.h"
-#include "numkong/reduce/wasm.h"
+#include "numkong/reduce/v128relaxed.h"
 #include "numkong/set/serial.h"
 
 #if defined(__cplusplus)
 extern "C" {
 #endif
 
-NK_PUBLIC void nk_hamming_u1_wasm(nk_u1x8_t const *a, nk_u1x8_t const *b, nk_size_t n, nk_u32_t *result) {
+NK_PUBLIC void nk_hamming_u1_v128relaxed(nk_u1x8_t const *a, nk_u1x8_t const *b, nk_size_t n, nk_u32_t *result) {
     nk_u8_t const *a_bytes = (nk_u8_t const *)a;
     nk_u8_t const *b_bytes = (nk_u8_t const *)b;
     nk_size_t n_bytes = nk_size_divide_round_up_(n, NK_BITS_PER_BYTE);
@@ -54,7 +54,7 @@ NK_PUBLIC void nk_hamming_u1_wasm(nk_u1x8_t const *a, nk_u1x8_t const *b, nk_siz
         }
 
         // Widen once per window: u8 → u16 → u32
-        differences += nk_reduce_add_u8x16_wasm_(popcount_u8x16);
+        differences += nk_reduce_add_u8x16_v128relaxed_(popcount_u8x16);
     }
 
     // Handle tail bytes
@@ -66,7 +66,7 @@ NK_PUBLIC void nk_hamming_u1_wasm(nk_u1x8_t const *a, nk_u1x8_t const *b, nk_siz
     *result = differences;
 }
 
-NK_PUBLIC void nk_jaccard_u1_wasm(nk_u1x8_t const *a, nk_u1x8_t const *b, nk_size_t n, nk_f32_t *result) {
+NK_PUBLIC void nk_jaccard_u1_v128relaxed(nk_u1x8_t const *a, nk_u1x8_t const *b, nk_size_t n, nk_f32_t *result) {
     nk_u8_t const *a_bytes = (nk_u8_t const *)a;
     nk_u8_t const *b_bytes = (nk_u8_t const *)b;
     nk_size_t n_bytes = nk_size_divide_round_up_(n, NK_BITS_PER_BYTE);
@@ -98,8 +98,8 @@ NK_PUBLIC void nk_jaccard_u1_wasm(nk_u1x8_t const *a, nk_u1x8_t const *b, nk_siz
         }
 
         // Widen once per window
-        intersection += nk_reduce_add_u8x16_wasm_(popcount_and_u8x16);
-        union_count += nk_reduce_add_u8x16_wasm_(popcount_or_u8x16);
+        intersection += nk_reduce_add_u8x16_v128relaxed_(popcount_and_u8x16);
+        union_count += nk_reduce_add_u8x16_v128relaxed_(popcount_or_u8x16);
     }
 
     // Handle tail bytes
@@ -114,7 +114,7 @@ NK_PUBLIC void nk_jaccard_u1_wasm(nk_u1x8_t const *a, nk_u1x8_t const *b, nk_siz
     *result = union_count > 0 ? 1.0f - ((nk_f32_t)intersection / (nk_f32_t)union_count) : 0.0f;
 }
 
-NK_PUBLIC void nk_hamming_u8_wasm(nk_u8_t const *a, nk_u8_t const *b, nk_size_t n, nk_u32_t *result) {
+NK_PUBLIC void nk_hamming_u8_v128relaxed(nk_u8_t const *a, nk_u8_t const *b, nk_size_t n, nk_u32_t *result) {
     nk_u32_t sum_total = 0;
     nk_size_t i = 0;
 
@@ -132,14 +132,14 @@ NK_PUBLIC void nk_hamming_u8_wasm(nk_u8_t const *a, nk_u8_t const *b, nk_size_t 
             v128_t neq_mask_u8x16 = wasm_i8x16_ne(a_u8x16, b_u8x16);
 
             // Convert mask to count: 0xFF → 1, 0x00 → 0
-            v128_t neq_count_u8x16 = wasm_v128_and(neq_mask_u8x16, wasm_i8x16_splat(1));
+            v128_t neq_count_u8x16 = wasm_v128_and(neq_mask_u8x16, v128relaxed_i8x16_splat(1));
 
             // Accumulate counts
             sum_u8x16 = wasm_i8x16_add(sum_u8x16, neq_count_u8x16);
         }
 
         // Widen and reduce once per window
-        sum_total += nk_reduce_add_u8x16_wasm_(sum_u8x16);
+        sum_total += nk_reduce_add_u8x16_v128relaxed_(sum_u8x16);
     }
 
     // Traditional tail loop: handle remaining bytes (0-15) scalar-style
@@ -148,7 +148,7 @@ NK_PUBLIC void nk_hamming_u8_wasm(nk_u8_t const *a, nk_u8_t const *b, nk_size_t 
     *result = sum_total;
 }
 
-NK_PUBLIC void nk_jaccard_u32_wasm(nk_u32_t const *a, nk_u32_t const *b, nk_size_t n, nk_f32_t *result) {
+NK_PUBLIC void nk_jaccard_u32_v128relaxed(nk_u32_t const *a, nk_u32_t const *b, nk_size_t n, nk_f32_t *result) {
     nk_u32_t const *a_scalars = a, *b_scalars = b;
     nk_size_t count_scalars = n;
     nk_b128_vec_t a_vec, b_vec;
@@ -157,7 +157,7 @@ NK_PUBLIC void nk_jaccard_u32_wasm(nk_u32_t const *a, nk_u32_t const *b, nk_size
     v128_t intersection_u32x4 = wasm_i32x4_splat(0);
     v128_t union_count_u32x4 = wasm_i32x4_splat(0);
 
-nk_jaccard_u32_wasm_cycle:
+nk_jaccard_u32_v128relaxed_cycle:
     if (count_scalars < 4) {
         nk_partial_load_b32x4_serial_(a_scalars, &a_vec, count_scalars);
         nk_partial_load_b32x4_serial_(b_scalars, &b_vec, count_scalars);
@@ -178,22 +178,22 @@ nk_jaccard_u32_wasm_cycle:
     v128_t intersection_mask_u32x4 = wasm_v128_and(eq_mask_u32x4, a_nonzero_mask_u32x4);
     v128_t union_mask_u32x4 = wasm_v128_or(a_nonzero_mask_u32x4, b_nonzero_mask_u32x4);
 
-    v128_t inter_count_u32x4 = wasm_v128_and(intersection_mask_u32x4, wasm_i32x4_splat(1));
-    v128_t union_count_vec_u32x4 = wasm_v128_and(union_mask_u32x4, wasm_i32x4_splat(1));
+    v128_t inter_count_u32x4 = wasm_v128_and(intersection_mask_u32x4, v128relaxed_i32x4_splat(1));
+    v128_t union_count_vec_u32x4 = wasm_v128_and(union_mask_u32x4, v128relaxed_i32x4_splat(1));
 
     // Accumulate in vector registers (no reduction in hot loop!)
     intersection_u32x4 = wasm_i32x4_add(intersection_u32x4, inter_count_u32x4);
     union_count_u32x4 = wasm_i32x4_add(union_count_u32x4, union_count_vec_u32x4);
 
-    if (count_scalars) goto nk_jaccard_u32_wasm_cycle;
+    if (count_scalars) goto nk_jaccard_u32_v128relaxed_cycle;
 
     // Reduce once at the end
-    nk_u32_t intersection = nk_reduce_add_u32x4_wasm_(intersection_u32x4);
-    nk_u32_t union_count = nk_reduce_add_u32x4_wasm_(union_count_u32x4);
+    nk_u32_t intersection = nk_reduce_add_u32x4_v128relaxed_(intersection_u32x4);
+    nk_u32_t union_count = nk_reduce_add_u32x4_v128relaxed_(union_count_u32x4);
     *result = union_count > 0 ? 1.0f - (nk_f32_t)intersection / (nk_f32_t)union_count : 1.0f;
 }
 
-NK_PUBLIC void nk_jaccard_u16_wasm(nk_u16_t const *a, nk_u16_t const *b, nk_size_t n, nk_f32_t *result) {
+NK_PUBLIC void nk_jaccard_u16_v128relaxed(nk_u16_t const *a, nk_u16_t const *b, nk_size_t n, nk_f32_t *result) {
     nk_u16_t const *a_scalars = a, *b_scalars = b;
     nk_size_t count_scalars = n;
     nk_b128_vec_t a_vec, b_vec;
@@ -202,7 +202,7 @@ NK_PUBLIC void nk_jaccard_u16_wasm(nk_u16_t const *a, nk_u16_t const *b, nk_size
     v128_t intersection_u16x8 = wasm_i16x8_splat(0);
     v128_t union_count_u16x8 = wasm_i16x8_splat(0);
 
-nk_jaccard_u16_wasm_cycle:
+nk_jaccard_u16_v128relaxed_cycle:
     if (count_scalars < 8) {
         nk_partial_load_b16x8_serial_(a_scalars, &a_vec, count_scalars);
         nk_partial_load_b16x8_serial_(b_scalars, &b_vec, count_scalars);
@@ -223,14 +223,14 @@ nk_jaccard_u16_wasm_cycle:
     v128_t intersection_mask_u16x8 = wasm_v128_and(eq_mask_u16x8, a_nonzero_mask_u16x8);
     v128_t union_mask_u16x8 = wasm_v128_or(a_nonzero_mask_u16x8, b_nonzero_mask_u16x8);
 
-    v128_t inter_count_u16x8 = wasm_v128_and(intersection_mask_u16x8, wasm_i16x8_splat(1));
-    v128_t union_count_vec_u16x8 = wasm_v128_and(union_mask_u16x8, wasm_i16x8_splat(1));
+    v128_t inter_count_u16x8 = wasm_v128_and(intersection_mask_u16x8, v128relaxed_i16x8_splat(1));
+    v128_t union_count_vec_u16x8 = wasm_v128_and(union_mask_u16x8, v128relaxed_i16x8_splat(1));
 
     // Accumulate in u16 vectors (no extend/reduce in hot loop!)
     intersection_u16x8 = wasm_i16x8_add(intersection_u16x8, inter_count_u16x8);
     union_count_u16x8 = wasm_i16x8_add(union_count_u16x8, union_count_vec_u16x8);
 
-    if (count_scalars) goto nk_jaccard_u16_wasm_cycle;
+    if (count_scalars) goto nk_jaccard_u16_v128relaxed_cycle;
 
     // Widen and reduce once at the end
     v128_t intersection_low_u32x4 = wasm_u32x4_extend_low_u16x8(intersection_u16x8);
@@ -238,9 +238,10 @@ nk_jaccard_u16_wasm_cycle:
     v128_t union_low_u32x4 = wasm_u32x4_extend_low_u16x8(union_count_u16x8);
     v128_t union_high_u32x4 = wasm_u32x4_extend_high_u16x8(union_count_u16x8);
 
-    nk_u32_t intersection = nk_reduce_add_u32x4_wasm_(intersection_low_u32x4) +
-                            nk_reduce_add_u32x4_wasm_(intersection_high_u32x4);
-    nk_u32_t union_count = nk_reduce_add_u32x4_wasm_(union_low_u32x4) + nk_reduce_add_u32x4_wasm_(union_high_u32x4);
+    nk_u32_t intersection = nk_reduce_add_u32x4_v128relaxed_(intersection_low_u32x4) +
+                            nk_reduce_add_u32x4_v128relaxed_(intersection_high_u32x4);
+    nk_u32_t union_count = nk_reduce_add_u32x4_v128relaxed_(union_low_u32x4) +
+                           nk_reduce_add_u32x4_v128relaxed_(union_high_u32x4);
     *result = union_count > 0 ? 1.0f - (nk_f32_t)intersection / (nk_f32_t)union_count : 1.0f;
 }
 
@@ -249,4 +250,4 @@ nk_jaccard_u16_wasm_cycle:
 #endif
 
 #endif // NK_TARGET_V128RELAXED
-#endif // NK_SET_WASM_H
+#endif // NK_SET_V128RELAXED_H

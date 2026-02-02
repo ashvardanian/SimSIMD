@@ -266,9 +266,13 @@ struct error_stats_t {
 
     template <typename actual_type_, typename expected_type_>
     void accumulate(actual_type_ actual, expected_type_ expected) noexcept {
-        if constexpr (std::is_class_v<actual_type_> && actual_type_::is_complex()) {
-            accumulate_scalar(actual.real(), expected.real());
-            accumulate_scalar(actual.imag(), expected.imag());
+        if constexpr (std::is_class_v<actual_type_>) {
+            // Check if it's a complex type
+            if constexpr (actual_type_::is_complex()) {
+                accumulate_scalar(actual.real(), expected.real());
+                accumulate_scalar(actual.imag(), expected.imag());
+            }
+            else { accumulate_scalar(actual, expected); }
         }
         else { accumulate_scalar(actual, expected); }
     }
@@ -278,34 +282,33 @@ struct error_stats_t {
         actual_type_ expected_as_actual;
         if constexpr (std::is_same_v<expected_type_, f118_t>) expected_as_actual = expected.template to<actual_type_>();
         else expected_as_actual = static_cast<actual_type_>(expected);
+
+        // Compute ULP distance (handles both integers and floats)
         std::uint64_t ulps = ulp_distance(actual, expected_as_actual);
-        nk_f64_t exp_f64 = static_cast<nk_f64_t>(expected);
-        nk_f64_t act_f64 = static_cast<nk_f64_t>(actual);
 
-        nk_f64_t abs_err = std::fabs(exp_f64 - act_f64);
-        nk_f64_t rel_err = exp_f64 != 0 ? abs_err / std::fabs(exp_f64) : abs_err;
+        // Only compute floating-point error metrics for non-integer types
+        if constexpr (!nk::is_integer<actual_type_>()) {
+            nk_f64_t exp_f64 = static_cast<nk_f64_t>(expected);
+            nk_f64_t act_f64 = static_cast<nk_f64_t>(actual);
 
-        min_abs_err = std::min(min_abs_err, abs_err);
-        max_abs_err = std::max(max_abs_err, abs_err);
-        sum_abs_err += abs_err;
-        min_rel_err = std::min(min_rel_err, rel_err);
-        max_rel_err = std::max(max_rel_err, rel_err);
-        sum_rel_err += rel_err;
+            nk_f64_t abs_err = std::fabs(exp_f64 - act_f64);
+            nk_f64_t rel_err = exp_f64 != 0 ? abs_err / std::fabs(exp_f64) : abs_err;
+
+            min_abs_err = std::min(min_abs_err, abs_err);
+            max_abs_err = std::max(max_abs_err, abs_err);
+            sum_abs_err += abs_err;
+            min_rel_err = std::min(min_rel_err, rel_err);
+            max_rel_err = std::max(max_rel_err, rel_err);
+            sum_rel_err += rel_err;
+        }
+
+        // Always update ULP metrics (works for both integer and float)
         min_ulp = std::min(min_ulp, ulps);
         max_ulp = std::max(max_ulp, ulps);
         sum_ulp += ulps;
 
         count++;
         if (ulps == 0) exact_matches++;
-    }
-
-    void accumulate_exact(bool matches) noexcept {
-        std::uint64_t ulps = matches ? 0 : std::numeric_limits<std::uint64_t>::max();
-        min_ulp = std::min(min_ulp, ulps);
-        max_ulp = std::max(max_ulp, ulps);
-        sum_ulp += ulps;
-        count++;
-        if (matches) exact_matches++;
     }
 
     nk_f64_t mean_abs_err() const noexcept { return count > 0 ? sum_abs_err / count : 0; }
@@ -604,8 +607,7 @@ error_stats_t test_cast(cast_t kernel) {
         kernel(src.raw_values_data(), from_type_::dtype(), dense_dimensions, dst_simd.raw_values_data(),
                to_type_::dtype());
 
-        for (std::size_t i = 0; i < dense_dimensions; ++i)
-            stats.accumulate_exact(dst_simd[i].raw_ == dst_serial[i].raw_);
+        for (std::size_t i = 0; i < dense_dimensions; ++i) stats.accumulate(dst_simd[i].raw_, dst_serial[i].raw_);
     }
     return stats;
 }
@@ -662,14 +664,14 @@ void test_casts() {
     run_if_matches("cast_bf16_to_e5m2_skylake", test_cast<bf16_t, e5m2_t>, nk_cast_skylake);
 #endif
 
-#if NK_TARGET_ICE
+#if NK_TARGET_ICELAKE
 
-    run_if_matches("cast_e4m3_to_bf16_ice", test_cast<e4m3_t, bf16_t>, nk_cast_ice);
-    run_if_matches("cast_bf16_to_e4m3_ice", test_cast<bf16_t, e4m3_t>, nk_cast_ice);
-    run_if_matches("cast_e5m2_to_bf16_ice", test_cast<e5m2_t, bf16_t>, nk_cast_ice);
-    run_if_matches("cast_bf16_to_e5m2_ice", test_cast<bf16_t, e5m2_t>, nk_cast_ice);
-    run_if_matches("cast_e4m3_to_f16_ice", test_cast<e4m3_t, f16_t>, nk_cast_ice);
-    run_if_matches("cast_e5m2_to_f16_ice", test_cast<e5m2_t, f16_t>, nk_cast_ice);
+    run_if_matches("cast_e4m3_to_bf16_icelake", test_cast<e4m3_t, bf16_t>, nk_cast_icelake);
+    run_if_matches("cast_bf16_to_e4m3_icelake", test_cast<bf16_t, e4m3_t>, nk_cast_icelake);
+    run_if_matches("cast_e5m2_to_bf16_icelake", test_cast<e5m2_t, bf16_t>, nk_cast_icelake);
+    run_if_matches("cast_bf16_to_e5m2_icelake", test_cast<bf16_t, e5m2_t>, nk_cast_icelake);
+    run_if_matches("cast_e4m3_to_f16_icelake", test_cast<e4m3_t, f16_t>, nk_cast_icelake);
+    run_if_matches("cast_e5m2_to_f16_icelake", test_cast<e5m2_t, f16_t>, nk_cast_icelake);
 #endif
 
 #if NK_TARGET_SAPPHIRE
@@ -686,11 +688,11 @@ void test_casts() {
     run_if_matches("cast_f32_to_e5m2_neon", test_cast<f32_t, e5m2_t>, nk_cast_neon);
 #endif
 
-#if NK_TARGET_SPACEMIT
-    run_if_matches("cast_bf16_to_f32_spacemit", test_cast<bf16_t, f32_t>, nk_cast_spacemit);
-    run_if_matches("cast_f32_to_bf16_spacemit", test_cast<f32_t, bf16_t>, nk_cast_spacemit);
-    run_if_matches("cast_e4m3_to_f32_spacemit", test_cast<e4m3_t, f32_t>, nk_cast_spacemit);
-    run_if_matches("cast_e5m2_to_f32_spacemit", test_cast<e5m2_t, f32_t>, nk_cast_spacemit);
+#if NK_TARGET_RVV
+    run_if_matches("cast_bf16_to_f32_rvv", test_cast<bf16_t, f32_t>, nk_cast_rvv);
+    run_if_matches("cast_f32_to_bf16_rvv", test_cast<f32_t, bf16_t>, nk_cast_rvv);
+    run_if_matches("cast_e4m3_to_f32_rvv", test_cast<e4m3_t, f32_t>, nk_cast_rvv);
+    run_if_matches("cast_e5m2_to_f32_rvv", test_cast<e5m2_t, f32_t>, nk_cast_rvv);
 #endif
 }
 
@@ -924,12 +926,12 @@ void test_dot() {
     run_if_matches("vdot_f64c_skylake", test_vdot<f64c_t>, nk_vdot_f64c_skylake);
 #endif // NK_TARGET_SKYLAKE
 
-#if NK_TARGET_ICE
-    run_if_matches("dot_i8_ice", test_dot<i8_t>, nk_dot_i8_ice);
-    run_if_matches("dot_u8_ice", test_dot<u8_t>, nk_dot_u8_ice);
-    run_if_matches("dot_i4_ice", test_dot<i4x2_t>, nk_dot_i4_ice);
-    run_if_matches("dot_u4_ice", test_dot<u4x2_t>, nk_dot_u4_ice);
-#endif // NK_TARGET_ICE
+#if NK_TARGET_ICELAKE
+    run_if_matches("dot_i8_icelake", test_dot<i8_t>, nk_dot_i8_icelake);
+    run_if_matches("dot_u8_icelake", test_dot<u8_t>, nk_dot_u8_icelake);
+    run_if_matches("dot_i4_icelake", test_dot<i4x2_t>, nk_dot_i4_icelake);
+    run_if_matches("dot_u4_icelake", test_dot<u4x2_t>, nk_dot_u4_icelake);
+#endif // NK_TARGET_ICELAKE
 
 #if NK_TARGET_GENOA
     run_if_matches("dot_bf16_genoa", test_dot<bf16_t>, nk_dot_bf16_genoa);
@@ -939,35 +941,35 @@ void test_dot() {
     run_if_matches("dot_e3m2_genoa", test_dot<e3m2_t>, nk_dot_e3m2_genoa);
 #endif // NK_TARGET_GENOA
 
-#if NK_TARGET_SPACEMIT
-    run_if_matches("dot_spacemit_i8", test_dot<i8_t>, nk_dot_i8_spacemit);
-    run_if_matches("dot_spacemit_u8", test_dot<u8_t>, nk_dot_u8_spacemit);
-    run_if_matches("dot_spacemit_f32", test_dot<f32_t>, nk_dot_f32_spacemit);
-    run_if_matches("dot_spacemit_f64", test_dot<f64_t>, nk_dot_f64_spacemit);
-    run_if_matches("dot_spacemit_f16", test_dot<f16_t>, nk_dot_f16_spacemit);
-    run_if_matches("dot_spacemit_bf16", test_dot<bf16_t>, nk_dot_bf16_spacemit);
-    run_if_matches("dot_spacemit_e4m3", test_dot<e4m3_t>, nk_dot_e4m3_spacemit);
-    run_if_matches("dot_spacemit_e5m2", test_dot<e5m2_t>, nk_dot_e5m2_spacemit);
-    run_if_matches("dot_spacemit_i4", test_dot<i4x2_t>, nk_dot_i4_spacemit);
-    run_if_matches("dot_spacemit_u4", test_dot<u4x2_t>, nk_dot_u4_spacemit);
-#endif // NK_TARGET_SPACEMIT
+#if NK_TARGET_RVV
+    run_if_matches("dot_rvv_i8", test_dot<i8_t>, nk_dot_i8_rvv);
+    run_if_matches("dot_rvv_u8", test_dot<u8_t>, nk_dot_u8_rvv);
+    run_if_matches("dot_rvv_f32", test_dot<f32_t>, nk_dot_f32_rvv);
+    run_if_matches("dot_rvv_f64", test_dot<f64_t>, nk_dot_f64_rvv);
+    run_if_matches("dot_rvv_f16", test_dot<f16_t>, nk_dot_f16_rvv);
+    run_if_matches("dot_rvv_bf16", test_dot<bf16_t>, nk_dot_bf16_rvv);
+    run_if_matches("dot_rvv_e4m3", test_dot<e4m3_t>, nk_dot_e4m3_rvv);
+    run_if_matches("dot_rvv_e5m2", test_dot<e5m2_t>, nk_dot_e5m2_rvv);
+    run_if_matches("dot_rvv_i4", test_dot<i4x2_t>, nk_dot_i4_rvv);
+    run_if_matches("dot_rvv_u4", test_dot<u4x2_t>, nk_dot_u4_rvv);
+#endif // NK_TARGET_RVV
 
 #if NK_TARGET_V128RELAXED
-    run_if_matches("dot_f32_wasm", test_dot<f32_t>, nk_dot_f32_wasm);
-    run_if_matches("dot_f64_wasm", test_dot<f64_t>, nk_dot_f64_wasm);
-    run_if_matches("dot_f16_wasm", test_dot<f16_t>, nk_dot_f16_wasm);
-    run_if_matches("dot_bf16_wasm", test_dot<bf16_t>, nk_dot_bf16_wasm);
-    run_if_matches("dot_i8_wasm", test_dot<i8_t>, nk_dot_i8_wasm);
-    run_if_matches("dot_u8_wasm", test_dot<u8_t>, nk_dot_u8_wasm);
+    run_if_matches("dot_f32_v128relaxed", test_dot<f32_t>, nk_dot_f32_v128relaxed);
+    run_if_matches("dot_f64_v128relaxed", test_dot<f64_t>, nk_dot_f64_v128relaxed);
+    run_if_matches("dot_f16_v128relaxed", test_dot<f16_t>, nk_dot_f16_v128relaxed);
+    run_if_matches("dot_bf16_v128relaxed", test_dot<bf16_t>, nk_dot_bf16_v128relaxed);
+    run_if_matches("dot_i8_v128relaxed", test_dot<i8_t>, nk_dot_i8_v128relaxed);
+    run_if_matches("dot_u8_v128relaxed", test_dot<u8_t>, nk_dot_u8_v128relaxed);
 #endif // NK_TARGET_V128RELAXED
 
-#if NK_TARGET_SIFIVE
-    run_if_matches("dot_sifive_f16", test_dot<f16_t>, nk_dot_f16_sifive);
-#endif // NK_TARGET_SIFIVE
+#if NK_TARGET_RVVHALF
+    run_if_matches("dot_rvvhalf_f16", test_dot<f16_t>, nk_dot_f16_rvvhalf);
+#endif // NK_TARGET_RVVHALF
 
-#if NK_TARGET_XUANTIE
-    run_if_matches("dot_xuantie_bf16", test_dot<bf16_t>, nk_dot_bf16_xuantie);
-#endif // NK_TARGET_XUANTIE
+#if NK_TARGET_RVVBF16
+    run_if_matches("dot_rvvbf16_bf16", test_dot<bf16_t>, nk_dot_bf16_rvvbf16);
+#endif // NK_TARGET_RVVBF16
 
     // Serial always runs - baseline test
     run_if_matches("dot_f32_serial", test_dot<f32_t>, nk_dot_f32_serial);
@@ -1126,52 +1128,52 @@ void test_spatial() {
     run_if_matches("angular_f64_skylake", test_angular<f64_t>, nk_angular_f64_skylake);
 #endif // NK_TARGET_SKYLAKE
 
-#if NK_TARGET_ICE
-    run_if_matches("sqeuclidean_i4_ice", test_sqeuclidean<i4x2_t>, nk_sqeuclidean_i4_ice);
-    run_if_matches("sqeuclidean_u4_ice", test_sqeuclidean<u4x2_t>, nk_sqeuclidean_u4_ice);
-    run_if_matches("angular_i4_ice", test_angular<i4x2_t>, nk_angular_i4_ice);
-    run_if_matches("angular_u4_ice", test_angular<u4x2_t>, nk_angular_u4_ice);
-#endif // NK_TARGET_ICE
+#if NK_TARGET_ICELAKE
+    run_if_matches("sqeuclidean_i4_icelake", test_sqeuclidean<i4x2_t>, nk_sqeuclidean_i4_icelake);
+    run_if_matches("sqeuclidean_u4_icelake", test_sqeuclidean<u4x2_t>, nk_sqeuclidean_u4_icelake);
+    run_if_matches("angular_i4_icelake", test_angular<i4x2_t>, nk_angular_i4_icelake);
+    run_if_matches("angular_u4_icelake", test_angular<u4x2_t>, nk_angular_u4_icelake);
+#endif // NK_TARGET_ICELAKE
 
-#if NK_TARGET_SPACEMIT
-    run_if_matches("sqeuclidean_spacemit_f32", test_sqeuclidean<f32_t>, nk_sqeuclidean_f32_spacemit);
-    run_if_matches("sqeuclidean_spacemit_f64", test_sqeuclidean<f64_t>, nk_sqeuclidean_f64_spacemit);
-    run_if_matches("sqeuclidean_spacemit_f16", test_sqeuclidean<f16_t>, nk_sqeuclidean_f16_spacemit);
-    run_if_matches("sqeuclidean_spacemit_bf16", test_sqeuclidean<bf16_t>, nk_sqeuclidean_bf16_spacemit);
-    run_if_matches("sqeuclidean_spacemit_i4", test_sqeuclidean<i4x2_t>, nk_sqeuclidean_i4_spacemit);
-    run_if_matches("sqeuclidean_spacemit_u4", test_sqeuclidean<u4x2_t>, nk_sqeuclidean_u4_spacemit);
-    run_if_matches("angular_spacemit_f32", test_angular<f32_t>, nk_angular_f32_spacemit);
-    run_if_matches("angular_spacemit_f64", test_angular<f64_t>, nk_angular_f64_spacemit);
-    run_if_matches("angular_spacemit_f16", test_angular<f16_t>, nk_angular_f16_spacemit);
-    run_if_matches("angular_spacemit_bf16", test_angular<bf16_t>, nk_angular_bf16_spacemit);
-    run_if_matches("angular_spacemit_i4", test_angular<i4x2_t>, nk_angular_i4_spacemit);
-    run_if_matches("angular_spacemit_u4", test_angular<u4x2_t>, nk_angular_u4_spacemit);
-#endif // NK_TARGET_SPACEMIT
+#if NK_TARGET_RVV
+    run_if_matches("sqeuclidean_rvv_f32", test_sqeuclidean<f32_t>, nk_sqeuclidean_f32_rvv);
+    run_if_matches("sqeuclidean_rvv_f64", test_sqeuclidean<f64_t>, nk_sqeuclidean_f64_rvv);
+    run_if_matches("sqeuclidean_rvv_f16", test_sqeuclidean<f16_t>, nk_sqeuclidean_f16_rvv);
+    run_if_matches("sqeuclidean_rvv_bf16", test_sqeuclidean<bf16_t>, nk_sqeuclidean_bf16_rvv);
+    run_if_matches("sqeuclidean_rvv_i4", test_sqeuclidean<i4x2_t>, nk_sqeuclidean_i4_rvv);
+    run_if_matches("sqeuclidean_rvv_u4", test_sqeuclidean<u4x2_t>, nk_sqeuclidean_u4_rvv);
+    run_if_matches("angular_rvv_f32", test_angular<f32_t>, nk_angular_f32_rvv);
+    run_if_matches("angular_rvv_f64", test_angular<f64_t>, nk_angular_f64_rvv);
+    run_if_matches("angular_rvv_f16", test_angular<f16_t>, nk_angular_f16_rvv);
+    run_if_matches("angular_rvv_bf16", test_angular<bf16_t>, nk_angular_bf16_rvv);
+    run_if_matches("angular_rvv_i4", test_angular<i4x2_t>, nk_angular_i4_rvv);
+    run_if_matches("angular_rvv_u4", test_angular<u4x2_t>, nk_angular_u4_rvv);
+#endif // NK_TARGET_RVV
 
 #if NK_TARGET_V128RELAXED
-    run_if_matches("sqeuclidean_f32_wasm", test_sqeuclidean<f32_t>, nk_sqeuclidean_f32_wasm);
-    run_if_matches("sqeuclidean_f64_wasm", test_sqeuclidean<f64_t>, nk_sqeuclidean_f64_wasm);
-    run_if_matches("sqeuclidean_f16_wasm", test_sqeuclidean<f16_t>, nk_sqeuclidean_f16_wasm);
-    run_if_matches("sqeuclidean_bf16_wasm", test_sqeuclidean<bf16_t>, nk_sqeuclidean_bf16_wasm);
-    run_if_matches("euclidean_f32_wasm", test_euclidean<f32_t>, nk_euclidean_f32_wasm);
-    run_if_matches("euclidean_f64_wasm", test_euclidean<f64_t>, nk_euclidean_f64_wasm);
-    run_if_matches("euclidean_f16_wasm", test_euclidean<f16_t>, nk_euclidean_f16_wasm);
-    run_if_matches("euclidean_bf16_wasm", test_euclidean<bf16_t>, nk_euclidean_bf16_wasm);
-    run_if_matches("angular_f32_wasm", test_angular<f32_t>, nk_angular_f32_wasm);
-    run_if_matches("angular_f64_wasm", test_angular<f64_t>, nk_angular_f64_wasm);
-    run_if_matches("angular_f16_wasm", test_angular<f16_t>, nk_angular_f16_wasm);
-    run_if_matches("angular_bf16_wasm", test_angular<bf16_t>, nk_angular_bf16_wasm);
+    run_if_matches("sqeuclidean_f32_v128relaxed", test_sqeuclidean<f32_t>, nk_sqeuclidean_f32_v128relaxed);
+    run_if_matches("sqeuclidean_f64_v128relaxed", test_sqeuclidean<f64_t>, nk_sqeuclidean_f64_v128relaxed);
+    run_if_matches("sqeuclidean_f16_v128relaxed", test_sqeuclidean<f16_t>, nk_sqeuclidean_f16_v128relaxed);
+    run_if_matches("sqeuclidean_bf16_v128relaxed", test_sqeuclidean<bf16_t>, nk_sqeuclidean_bf16_v128relaxed);
+    run_if_matches("euclidean_f32_v128relaxed", test_euclidean<f32_t>, nk_euclidean_f32_v128relaxed);
+    run_if_matches("euclidean_f64_v128relaxed", test_euclidean<f64_t>, nk_euclidean_f64_v128relaxed);
+    run_if_matches("euclidean_f16_v128relaxed", test_euclidean<f16_t>, nk_euclidean_f16_v128relaxed);
+    run_if_matches("euclidean_bf16_v128relaxed", test_euclidean<bf16_t>, nk_euclidean_bf16_v128relaxed);
+    run_if_matches("angular_f32_v128relaxed", test_angular<f32_t>, nk_angular_f32_v128relaxed);
+    run_if_matches("angular_f64_v128relaxed", test_angular<f64_t>, nk_angular_f64_v128relaxed);
+    run_if_matches("angular_f16_v128relaxed", test_angular<f16_t>, nk_angular_f16_v128relaxed);
+    run_if_matches("angular_bf16_v128relaxed", test_angular<bf16_t>, nk_angular_bf16_v128relaxed);
 #endif // NK_TARGET_V128RELAXED
 
-#if NK_TARGET_SIFIVE
-    run_if_matches("sqeuclidean_sifive_f16", test_sqeuclidean<f16_t>, nk_sqeuclidean_f16_sifive);
-    run_if_matches("angular_sifive_f16", test_angular<f16_t>, nk_angular_f16_sifive);
-#endif // NK_TARGET_SIFIVE
+#if NK_TARGET_RVVHALF
+    run_if_matches("sqeuclidean_rvvhalf_f16", test_sqeuclidean<f16_t>, nk_sqeuclidean_f16_rvvhalf);
+    run_if_matches("angular_rvvhalf_f16", test_angular<f16_t>, nk_angular_f16_rvvhalf);
+#endif // NK_TARGET_RVVHALF
 
-#if NK_TARGET_XUANTIE
-    run_if_matches("sqeuclidean_xuantie_bf16", test_sqeuclidean<bf16_t>, nk_sqeuclidean_bf16_xuantie);
-    run_if_matches("angular_xuantie_bf16", test_angular<bf16_t>, nk_angular_bf16_xuantie);
-#endif // NK_TARGET_XUANTIE
+#if NK_TARGET_RVVBF16
+    run_if_matches("sqeuclidean_rvvbf16_bf16", test_sqeuclidean<bf16_t>, nk_sqeuclidean_bf16_rvvbf16);
+    run_if_matches("angular_rvvbf16_bf16", test_angular<bf16_t>, nk_angular_bf16_rvvbf16);
+#endif // NK_TARGET_RVVBF16
 
     // Serial always runs - baseline test
     run_if_matches("sqeuclidean_f32_serial", test_sqeuclidean<f32_t>, nk_sqeuclidean_f32_serial);
@@ -1438,19 +1440,19 @@ void test_binary() {
     run_if_matches("jaccard_u1_haswell", test_jaccard, nk_jaccard_u1_haswell);
 #endif // NK_TARGET_HASWELL
 
-#if NK_TARGET_ICE
-    run_if_matches("hamming_u1_ice", test_hamming, nk_hamming_u1_ice);
-    run_if_matches("jaccard_u1_ice", test_jaccard, nk_jaccard_u1_ice);
-#endif // NK_TARGET_ICE
+#if NK_TARGET_ICELAKE
+    run_if_matches("hamming_u1_icelake", test_hamming, nk_hamming_u1_icelake);
+    run_if_matches("jaccard_u1_icelake", test_jaccard, nk_jaccard_u1_icelake);
+#endif // NK_TARGET_ICELAKE
 
-#if NK_TARGET_SPACEMIT
-    run_if_matches("hamming_spacemit_u1", test_hamming, nk_hamming_u1_spacemit);
-    run_if_matches("jaccard_spacemit_u1", test_jaccard, nk_jaccard_u1_spacemit);
-#endif // NK_TARGET_SPACEMIT
+#if NK_TARGET_RVV
+    run_if_matches("hamming_rvv_u1", test_hamming, nk_hamming_u1_rvv);
+    run_if_matches("jaccard_rvv_u1", test_jaccard, nk_jaccard_u1_rvv);
+#endif // NK_TARGET_RVV
 
 #if NK_TARGET_V128RELAXED
-    run_if_matches("hamming_u1_wasm", test_hamming, nk_hamming_u1_wasm);
-    run_if_matches("jaccard_u1_wasm", test_jaccard, nk_jaccard_u1_wasm);
+    run_if_matches("hamming_u1_v128relaxed", test_hamming, nk_hamming_u1_v128relaxed);
+    run_if_matches("jaccard_u1_v128relaxed", test_jaccard, nk_jaccard_u1_v128relaxed);
 #endif // NK_TARGET_V128RELAXED
 
     // Serial always runs - baseline test
@@ -2216,7 +2218,7 @@ error_stats_t test_hammings(typename scalar_type_::hammings_packed_size_kernel_t
                                                                c_ref.values_data(), m, n, k, a_stride, c_stride);
 
         // Hamming distances are exact integers
-        for (std::size_t i = 0; i < m * n; i++) stats.accumulate_exact(c[i] == c_ref[i]);
+        for (std::size_t i = 0; i < m * n; i++) stats.accumulate(c[i], c_ref[i]);
     }
     return stats;
 }
@@ -2252,7 +2254,7 @@ error_stats_t test_hammings_symmetric(typename scalar_type_::hammings_symmetric_
                                                                   n * sizeof(result_t));
 
         // Hamming distances are exact integers
-        for (std::size_t i = 0; i < n * n; i++) stats.accumulate_exact(c[i] == c_ref[i]);
+        for (std::size_t i = 0; i < n * n; i++) stats.accumulate(c[i], c_ref[i]);
     }
     return stats;
 }
@@ -2307,16 +2309,16 @@ void test_dots() {
                    nk_dots_packed_e3m2_skylake);
 #endif // NK_TARGET_SKYLAKE
 
-#if NK_TARGET_ICE
-    run_if_matches("dots_i4_ice", test_dots<i4x2_t>, nk_dots_packed_size_i4_ice, nk_dots_pack_i4_ice,
-                   nk_dots_packed_i4_ice);
-    run_if_matches("dots_u4_ice", test_dots<u4x2_t>, nk_dots_packed_size_u4_ice, nk_dots_pack_u4_ice,
-                   nk_dots_packed_u4_ice);
-    run_if_matches("dots_i8_ice", test_dots<i8_t>, nk_dots_packed_size_i8_ice, nk_dots_pack_i8_ice,
-                   nk_dots_packed_i8_ice);
-    run_if_matches("dots_u8_ice", test_dots<u8_t>, nk_dots_packed_size_u8_ice, nk_dots_pack_u8_ice,
-                   nk_dots_packed_u8_ice);
-#endif // NK_TARGET_ICE
+#if NK_TARGET_ICELAKE
+    run_if_matches("dots_i4_icelake", test_dots<i4x2_t>, nk_dots_packed_size_i4_icelake, nk_dots_pack_i4_icelake,
+                   nk_dots_packed_i4_icelake);
+    run_if_matches("dots_u4_icelake", test_dots<u4x2_t>, nk_dots_packed_size_u4_icelake, nk_dots_pack_u4_icelake,
+                   nk_dots_packed_u4_icelake);
+    run_if_matches("dots_i8_icelake", test_dots<i8_t>, nk_dots_packed_size_i8_icelake, nk_dots_pack_i8_icelake,
+                   nk_dots_packed_i8_icelake);
+    run_if_matches("dots_u8_icelake", test_dots<u8_t>, nk_dots_packed_size_u8_icelake, nk_dots_pack_u8_icelake,
+                   nk_dots_packed_u8_icelake);
+#endif // NK_TARGET_ICELAKE
 
 #if NK_TARGET_GENOA
     run_if_matches("dots_bf16_genoa", test_dots<bf16_t>, nk_dots_packed_size_bf16_genoa, nk_dots_pack_bf16_genoa,
@@ -2460,11 +2462,11 @@ void test_dots_symmetric() {
     run_if_matches("dots_symmetric_e3m2_skylake", test_dots_symmetric<e3m2_t>, nk_dots_symmetric_e3m2_skylake);
 #endif
 
-#if NK_TARGET_ICE
-    run_if_matches("dots_symmetric_i8_ice", test_dots_symmetric<i8_t>, nk_dots_symmetric_i8_ice);
-    run_if_matches("dots_symmetric_u8_ice", test_dots_symmetric<u8_t>, nk_dots_symmetric_u8_ice);
-    run_if_matches("dots_symmetric_i4_ice", test_dots_symmetric<i4x2_t>, nk_dots_symmetric_i4_ice);
-    run_if_matches("dots_symmetric_u4_ice", test_dots_symmetric<u4x2_t>, nk_dots_symmetric_u4_ice);
+#if NK_TARGET_ICELAKE
+    run_if_matches("dots_symmetric_i8_icelake", test_dots_symmetric<i8_t>, nk_dots_symmetric_i8_icelake);
+    run_if_matches("dots_symmetric_u8_icelake", test_dots_symmetric<u8_t>, nk_dots_symmetric_u8_icelake);
+    run_if_matches("dots_symmetric_i4_icelake", test_dots_symmetric<i4x2_t>, nk_dots_symmetric_i4_icelake);
+    run_if_matches("dots_symmetric_u4_icelake", test_dots_symmetric<u4x2_t>, nk_dots_symmetric_u4_icelake);
 #endif
 
 #if NK_TARGET_GENOA
@@ -2530,9 +2532,9 @@ void test_sets() {
                    nk_hammings_packed_u1_neon);
 #endif
 
-#if NK_TARGET_ICE
-    run_if_matches("hammings_u1_ice", test_hammings<u1x8_t>, nk_hammings_packed_size_u1_ice, nk_hammings_pack_u1_ice,
-                   nk_hammings_packed_u1_ice);
+#if NK_TARGET_ICELAKE
+    run_if_matches("hammings_u1_icelake", test_hammings<u1x8_t>, nk_hammings_packed_size_u1_icelake,
+                   nk_hammings_pack_u1_icelake, nk_hammings_packed_u1_icelake);
 #endif
 
 #if NK_TARGET_HASWELL
@@ -2558,8 +2560,8 @@ void test_sets_symmetric() {
     run_if_matches("hammings_symmetric_u1_neon", test_hammings_symmetric<u1x8_t>, nk_hammings_symmetric_u1_neon);
 #endif
 
-#if NK_TARGET_ICE
-    run_if_matches("hammings_symmetric_u1_ice", test_hammings_symmetric<u1x8_t>, nk_hammings_symmetric_u1_ice);
+#if NK_TARGET_ICELAKE
+    run_if_matches("hammings_symmetric_u1_icelake", test_hammings_symmetric<u1x8_t>, nk_hammings_symmetric_u1_icelake);
 #endif
 
 #if NK_TARGET_HASWELL
@@ -2621,7 +2623,7 @@ error_stats_t test_intersect(typename index_type_::sparse_intersect_kernel_t ker
 
         nk_size_t ref;
         nk::sparse_intersect<index_t, nk::no_simd_k>(a.values_data(), b.values_data(), dim, dim, &ref);
-        stats.accumulate_exact(count == ref);
+        stats.accumulate(count, ref);
     }
     return stats;
 }
@@ -2687,12 +2689,12 @@ void test_sparse() {
     run_if_matches("sparse_dot_u16bf16_sve2", test_sparse_dot<bf16_t>, nk_sparse_dot_u16bf16_sve2);
 #endif // NK_TARGET_SVE
 
-#if NK_TARGET_ICE
-    run_if_matches("sparse_intersect_u16_ice", test_intersect<u16_t>, nk_sparse_intersect_u16_ice);
-    run_if_matches("sparse_intersect_u32_ice", test_intersect<u32_t>, nk_sparse_intersect_u32_ice);
-    run_if_matches("sparse_intersect_u64_ice", test_intersect<u64_t>, nk_sparse_intersect_u64_ice);
-    run_if_matches("sparse_dot_u32f32_ice", test_sparse_dot<f32_t>, nk_sparse_dot_u32f32_ice);
-#endif // NK_TARGET_ICE
+#if NK_TARGET_ICELAKE
+    run_if_matches("sparse_intersect_u16_icelake", test_intersect<u16_t>, nk_sparse_intersect_u16_icelake);
+    run_if_matches("sparse_intersect_u32_icelake", test_intersect<u32_t>, nk_sparse_intersect_u32_icelake);
+    run_if_matches("sparse_intersect_u64_icelake", test_intersect<u64_t>, nk_sparse_intersect_u64_icelake);
+    run_if_matches("sparse_dot_u32f32_icelake", test_sparse_dot<f32_t>, nk_sparse_dot_u32f32_icelake);
+#endif // NK_TARGET_ICELAKE
 
 #if NK_TARGET_TURIN
     run_if_matches("sparse_intersect_u16_turin", test_intersect<u16_t>, nk_sparse_intersect_u16_turin);
@@ -2961,11 +2963,11 @@ int main(int argc, char **argv) {
     std::printf("  Arm SVE2:         %s\n", flags[NK_TARGET_SVE2]);
     std::printf("  x86 Haswell:      %s\n", flags[NK_TARGET_HASWELL]);
     std::printf("  x86 Skylake:      %s\n", flags[NK_TARGET_SKYLAKE]);
-    std::printf("  x86 Ice Lake:     %s\n", flags[NK_TARGET_ICE]);
+    std::printf("  x86 Ice Lake:     %s\n", flags[NK_TARGET_ICELAKE]);
     std::printf("  x86 Genoa:        %s\n", flags[NK_TARGET_GENOA]);
     std::printf("  x86 Sapphire:     %s\n", flags[NK_TARGET_SAPPHIRE]);
-    std::printf("  x86 Sapphire AMX: %s\n", flags[NK_TARGET_SAPPHIRE_AMX]);
-    std::printf("  x86 Granite AMX:  %s\n", flags[NK_TARGET_GRANITE_AMX]);
+    std::printf("  x86 Sapphire AMX: %s\n", flags[NK_TARGET_SAPPHIREAMX]);
+    std::printf("  x86 Granite AMX:  %s\n", flags[NK_TARGET_GRANITEAMX]);
     std::printf("  x86 Turin:        %s\n", flags[NK_TARGET_TURIN]);
     std::printf("  x86 Sierra:       %s\n", flags[NK_TARGET_SIERRA]);
     std::printf("\n");
@@ -2982,11 +2984,11 @@ int main(int argc, char **argv) {
     std::printf("  Arm SVE2:         %s\n", flags[(runtime_caps & nk_cap_sve2_k) != 0]);
     std::printf("  x86 Haswell:      %s\n", flags[(runtime_caps & nk_cap_haswell_k) != 0]);
     std::printf("  x86 Skylake:      %s\n", flags[(runtime_caps & nk_cap_skylake_k) != 0]);
-    std::printf("  x86 Ice Lake:     %s\n", flags[(runtime_caps & nk_cap_ice_k) != 0]);
+    std::printf("  x86 Ice Lake:     %s\n", flags[(runtime_caps & nk_cap_icelake_k) != 0]);
     std::printf("  x86 Genoa:        %s\n", flags[(runtime_caps & nk_cap_genoa_k) != 0]);
     std::printf("  x86 Sapphire:     %s\n", flags[(runtime_caps & nk_cap_sapphire_k) != 0]);
-    std::printf("  x86 Sapphire AMX: %s\n", flags[(runtime_caps & nk_cap_sapphire_amx_k) != 0]);
-    std::printf("  x86 Granite AMX:  %s\n", flags[(runtime_caps & nk_cap_granite_amx_k) != 0]);
+    std::printf("  x86 Sapphire AMX: %s\n", flags[(runtime_caps & nk_cap_sapphireamx_k) != 0]);
+    std::printf("  x86 Granite AMX:  %s\n", flags[(runtime_caps & nk_cap_graniteamx_k) != 0]);
     std::printf("  x86 Turin:        %s\n", flags[(runtime_caps & nk_cap_turin_k) != 0]);
     std::printf("  x86 Sierra:       %s\n", flags[(runtime_caps & nk_cap_sierra_k) != 0]);
     std::printf("\n");

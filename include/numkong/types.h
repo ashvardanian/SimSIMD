@@ -112,7 +112,7 @@
 
 // Compiling for WASM: NK_TARGET_WASM_
 #if !defined(NK_TARGET_WASM_)
-#if defined(__wasm__) || defined(__EMSCRIPTEN__)
+#if defined(__v128relaxed__) || defined(__EMSCRIPTEN__)
 #define NK_TARGET_WASM_ 1
 #else
 #define NK_TARGET_WASM_ 0
@@ -122,7 +122,7 @@
 // Compiling for WASM with Relaxed SIMD: NK_TARGET_V128RELAXED
 // Requires -mrelaxed-simd for FMA instructions (f32x4.relaxed_madd, f64x2.relaxed_madd)
 #if !defined(NK_TARGET_V128RELAXED) || (NK_TARGET_V128RELAXED && !NK_TARGET_WASM_)
-#if defined(__wasm_relaxed_simd__)
+#if defined(__v128relaxed_relaxed_simd__)
 #define NK_TARGET_V128RELAXED NK_TARGET_WASM_
 #else
 #undef NK_TARGET_V128RELAXED
@@ -130,37 +130,37 @@
 #endif
 #endif // !defined(NK_TARGET_V128RELAXED) || ...
 
-// Compiling for RISC-V Vector: NK_TARGET_SPACEMIT
-#if !defined(NK_TARGET_SPACEMIT) || (NK_TARGET_SPACEMIT && !NK_TARGET_RISCV_)
+// Compiling for RISC-V Vector: NK_TARGET_RVV
+#if !defined(NK_TARGET_RVV) || (NK_TARGET_RVV && !NK_TARGET_RISCV_)
 #if defined(__riscv_v) && (__riscv_v >= 1000000)
-#define NK_TARGET_SPACEMIT NK_TARGET_RISCV_
+#define NK_TARGET_RVV NK_TARGET_RISCV_
 #else
-#undef NK_TARGET_SPACEMIT
-#define NK_TARGET_SPACEMIT 0
+#undef NK_TARGET_RVV
+#define NK_TARGET_RVV 0
 #endif // defined(__riscv_v) && (__riscv_v >= 1000000)
-#endif // !defined(NK_TARGET_SPACEMIT) || ...
+#endif // !defined(NK_TARGET_RVV) || ...
 
-// Compiling for RISC-V Vector with Zvfh (f16): NK_TARGET_SIFIVE
+// Compiling for RISC-V Vector with Zvfh (f16): NK_TARGET_RVVHALF
 // Requires GCC 14+ or Clang 18+ for full intrinsic support
-#if !defined(NK_TARGET_SIFIVE) || (NK_TARGET_SIFIVE && !NK_TARGET_SPACEMIT)
+#if !defined(NK_TARGET_RVVHALF) || (NK_TARGET_RVVHALF && !NK_TARGET_RVV)
 #if defined(__riscv_zvfh) && (__riscv_zvfh > 0)
-#define NK_TARGET_SIFIVE NK_TARGET_SPACEMIT
+#define NK_TARGET_RVVHALF NK_TARGET_RVV
 #else
-#undef NK_TARGET_SIFIVE
-#define NK_TARGET_SIFIVE 0
+#undef NK_TARGET_RVVHALF
+#define NK_TARGET_RVVHALF 0
 #endif // defined(__riscv_zvfh) && (__riscv_zvfh > 0)
-#endif // !defined(NK_TARGET_SIFIVE) || ...
+#endif // !defined(NK_TARGET_RVVHALF) || ...
 
-// Compiling for RISC-V Vector with Zvfbfwma (bf16 widening FMA): NK_TARGET_XUANTIE
+// Compiling for RISC-V Vector with Zvfbfwma (bf16 widening FMA): NK_TARGET_RVVBF16
 // Requires GCC 14+ or Clang 18+ for full intrinsic support
-#if !defined(NK_TARGET_XUANTIE) || (NK_TARGET_XUANTIE && !NK_TARGET_SPACEMIT)
+#if !defined(NK_TARGET_RVVBF16) || (NK_TARGET_RVVBF16 && !NK_TARGET_RVV)
 #if defined(__riscv_zvfbfwma) && (__riscv_zvfbfwma > 0)
-#define NK_TARGET_XUANTIE NK_TARGET_SPACEMIT
+#define NK_TARGET_RVVBF16 NK_TARGET_RVV
 #else
-#undef NK_TARGET_XUANTIE
-#define NK_TARGET_XUANTIE 0
+#undef NK_TARGET_RVVBF16
+#define NK_TARGET_RVVBF16 0
 #endif // defined(__riscv_zvfbfwma) && (__riscv_zvfbfwma > 0)
-#endif // !defined(NK_TARGET_XUANTIE) || ...
+#endif // !defined(NK_TARGET_RVVBF16) || ...
 
 // Compiling for Arm: NK_TARGET_NEON
 #if !defined(NK_TARGET_NEON) || (NK_TARGET_NEON && !NK_TARGET_ARM_)
@@ -325,7 +325,7 @@
 #endif // defined(__AVX2__)
 #endif // !defined(NK_TARGET_HASWELL) || ...
 
-// Compiling for x86: NK_TARGET_SKYLAKE, NK_TARGET_ICE, NK_TARGET_GENOA,
+// Compiling for x86: NK_TARGET_SKYLAKE, NK_TARGET_ICELAKE, NK_TARGET_GENOA,
 // NK_TARGET_SAPPHIRE, NK_TARGET_TURIN, NK_TARGET_SIERRA
 //
 // To list all available macros for x86, take a recent compiler, like GCC 12 and run:
@@ -342,15 +342,15 @@
 #endif
 #endif // !defined(NK_TARGET_SKYLAKE) || ...
 
-#if !defined(NK_TARGET_ICE) || (NK_TARGET_ICE && !NK_TARGET_X86_)
+#if !defined(NK_TARGET_ICELAKE) || (NK_TARGET_ICELAKE && !NK_TARGET_X86_)
 #if defined(__AVX512VNNI__) && defined(__AVX512IFMA__) && defined(__AVX512BITALG__) && defined(__AVX512VBMI2__) && \
     defined(__AVX512VPOPCNTDQ__)
-#define NK_TARGET_ICE 1
+#define NK_TARGET_ICELAKE 1
 #else
-#undef NK_TARGET_ICE
-#define NK_TARGET_ICE 0
+#undef NK_TARGET_ICELAKE
+#define NK_TARGET_ICELAKE 0
 #endif
-#endif // !defined(NK_TARGET_ICE) || ...
+#endif // !defined(NK_TARGET_ICELAKE) || ...
 
 #if !defined(NK_TARGET_GENOA) || (NK_TARGET_GENOA && !NK_TARGET_X86_)
 #if defined(__AVX512BF16__)
@@ -370,23 +370,23 @@
 #endif
 #endif // !defined(NK_TARGET_SAPPHIRE) || ...
 
-#if !defined(NK_TARGET_SAPPHIRE_AMX) || (NK_TARGET_SAPPHIRE_AMX && !NK_TARGET_X86_)
+#if !defined(NK_TARGET_SAPPHIREAMX) || (NK_TARGET_SAPPHIREAMX && !NK_TARGET_X86_)
 #if defined(__AMX_TILE__) && defined(__AMX_BF16__) && defined(__AMX_INT8__)
-#define NK_TARGET_SAPPHIRE_AMX 1
+#define NK_TARGET_SAPPHIREAMX 1
 #else
-#undef NK_TARGET_SAPPHIRE_AMX
-#define NK_TARGET_SAPPHIRE_AMX 0
+#undef NK_TARGET_SAPPHIREAMX
+#define NK_TARGET_SAPPHIREAMX 0
 #endif
-#endif // !defined(NK_TARGET_SAPPHIRE_AMX) || ...
+#endif // !defined(NK_TARGET_SAPPHIREAMX) || ...
 
-#if !defined(NK_TARGET_GRANITE_AMX) || (NK_TARGET_GRANITE_AMX && !NK_TARGET_X86_)
+#if !defined(NK_TARGET_GRANITEAMX) || (NK_TARGET_GRANITEAMX && !NK_TARGET_X86_)
 #if defined(__AMX_TILE__) && defined(__AMX_FP16__)
-#define NK_TARGET_GRANITE_AMX 1
+#define NK_TARGET_GRANITEAMX 1
 #else
-#undef NK_TARGET_GRANITE_AMX
-#define NK_TARGET_GRANITE_AMX 0
+#undef NK_TARGET_GRANITEAMX
+#define NK_TARGET_GRANITEAMX 0
 #endif
-#endif // !defined(NK_TARGET_GRANITE_AMX) || ...
+#endif // !defined(NK_TARGET_GRANITEAMX) || ...
 
 #if !defined(NK_TARGET_TURIN) || (NK_TARGET_TURIN && !NK_TARGET_X86_)
 #if defined(__AVX512VP2INTERSECT__)
@@ -418,7 +418,7 @@
 #endif
 #elif NK_TARGET_HASWELL || NK_TARGET_SKYLAKE
 #include <immintrin.h>
-#elif NK_TARGET_SPACEMIT
+#elif NK_TARGET_RVV
 #include <riscv_vector.h>
 #elif NK_TARGET_V128RELAXED
 #include <wasm_simd128.h>
@@ -977,7 +977,8 @@ typedef union nk_b256_vec_t {
  *  member of the union, which in our case is a register-based calling convention for SIMD types.
  */
 typedef union nk_b512_vec_t {
-#if NK_TARGET_SKYLAKE || NK_TARGET_ICE || NK_TARGET_GENOA || NK_TARGET_SAPPHIRE || NK_TARGET_TURIN || NK_TARGET_SIERRA
+#if NK_TARGET_SKYLAKE || NK_TARGET_ICELAKE || NK_TARGET_GENOA || NK_TARGET_SAPPHIRE || NK_TARGET_TURIN || \
+    NK_TARGET_SIERRA
     __m512i zmm;
     __m512d zmm_pd;
     __m512 zmm_ps;

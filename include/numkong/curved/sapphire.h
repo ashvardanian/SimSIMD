@@ -166,7 +166,7 @@ NK_PUBLIC void nk_mahalanobis_f16_sapphire(nk_f16_t const *a, nk_f16_t const *b,
         sum_f16x32 = _mm512_fmadd_ph(diff_i_f16x32, cdiff_j_f16x32, sum_f16x32);
     }
 
-    *result = nk_sqrt_f32_haswell_(_mm512_reduce_add_ph(sum_f16x32));
+    *result = nk_f32_sqrt_haswell(_mm512_reduce_add_ph(sum_f16x32));
 }
 
 NK_PUBLIC void nk_bilinear_f16c_sapphire(nk_f16c_t const *a, nk_f16c_t const *b, nk_f16c_t const *c, nk_size_t n,

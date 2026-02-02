@@ -1,6 +1,6 @@
 /**
  *  @brief SIMD-accelerated Spatial Distances for bf16 optimized for XuanTie (RVV + Zvfbfwma) CPUs.
- *  @file include/numkong/spatial/xuantie.h
+ *  @file include/numkong/spatial/rvvbf16.h
  *  @sa include/numkong/spatial.h
  *  @author Ash Vardanian
  *  @date January 5, 2026
@@ -13,20 +13,20 @@
  *
  *  Requires: RVV 1.0 + Zvfbfwma extension (GCC 14+ or Clang 18+)
  */
-#ifndef NK_SPATIAL_XUANTIE_H
-#define NK_SPATIAL_XUANTIE_H
+#ifndef NK_SPATIAL_RVVBF16_H
+#define NK_SPATIAL_RVVBF16_H
 
 #if NK_TARGET_RISCV_
-#if NK_TARGET_XUANTIE
+#if NK_TARGET_RVVBF16
 
 #include "numkong/types.h"
-#include "numkong/spatial/spacemit.h" // `nk_f32_sqrt_spacemit`
+#include "numkong/spatial/rvv.h" // `nk_f32_sqrt_rvv`
 
 #if defined(__cplusplus)
 extern "C" {
 #endif
 
-NK_PUBLIC void nk_sqeuclidean_bf16_xuantie(nk_bf16_t const *a_scalars, nk_bf16_t const *b_scalars,
+NK_PUBLIC void nk_sqeuclidean_bf16_rvvbf16(nk_bf16_t const *a_scalars, nk_bf16_t const *b_scalars,
                                            nk_size_t count_scalars, nk_f32_t *result) {
     // Accumulate a² + b² and a × b separately
     vfloat32m1_t sq_sum_f32m1 = __riscv_vfmv_v_f_f32m1(0.0f, 1); // a² + b²
@@ -59,14 +59,14 @@ NK_PUBLIC void nk_sqeuclidean_bf16_xuantie(nk_bf16_t const *a_scalars, nk_bf16_t
     *result = sq_sum - 2.0f * ab_sum;
 }
 
-NK_PUBLIC void nk_euclidean_bf16_xuantie(nk_bf16_t const *a_scalars, nk_bf16_t const *b_scalars,
+NK_PUBLIC void nk_euclidean_bf16_rvvbf16(nk_bf16_t const *a_scalars, nk_bf16_t const *b_scalars,
                                          nk_size_t count_scalars, nk_f32_t *result) {
-    nk_sqeuclidean_bf16_xuantie(a_scalars, b_scalars, count_scalars, result);
+    nk_sqeuclidean_bf16_rvvbf16(a_scalars, b_scalars, count_scalars, result);
     // Handle potential negative values from floating point errors
-    *result = *result > 0.0f ? nk_f32_sqrt_spacemit(*result) : 0.0f;
+    *result = *result > 0.0f ? nk_f32_sqrt_rvv(*result) : 0.0f;
 }
 
-NK_PUBLIC void nk_angular_bf16_xuantie(nk_bf16_t const *a_scalars, nk_bf16_t const *b_scalars, nk_size_t count_scalars,
+NK_PUBLIC void nk_angular_bf16_rvvbf16(nk_bf16_t const *a_scalars, nk_bf16_t const *b_scalars, nk_size_t count_scalars,
                                        nk_f32_t *result) {
     vfloat32m1_t dot_f32m1 = __riscv_vfmv_v_f_f32m1(0.0f, 1);
     vfloat32m1_t a_sq_f32m1 = __riscv_vfmv_v_f_f32m1(0.0f, 1);
@@ -102,7 +102,7 @@ NK_PUBLIC void nk_angular_bf16_xuantie(nk_bf16_t const *a_scalars, nk_bf16_t con
     if (a_sq == 0.0f && b_sq == 0.0f) { *result = 0.0f; }
     else if (dot == 0.0f) { *result = 1.0f; }
     else {
-        nk_f32_t unclipped = 1.0f - dot * nk_f32_rsqrt_spacemit(a_sq) * nk_f32_rsqrt_spacemit(b_sq);
+        nk_f32_t unclipped = 1.0f - dot * nk_f32_rsqrt_rvv(a_sq) * nk_f32_rsqrt_rvv(b_sq);
         *result = unclipped > 0.0f ? unclipped : 0.0f;
     }
 }
@@ -111,7 +111,7 @@ NK_PUBLIC void nk_angular_bf16_xuantie(nk_bf16_t const *a_scalars, nk_bf16_t con
 } // extern "C"
 #endif
 
-#endif // NK_TARGET_XUANTIE
+#endif // NK_TARGET_RVVBF16
 #endif // NK_TARGET_RISCV_
 
-#endif // NK_SPATIAL_XUANTIE_H
+#endif // NK_SPATIAL_RVVBF16_H

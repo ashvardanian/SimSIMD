@@ -1,6 +1,6 @@
 /**
  *  @brief SIMD-accelerated Hamming and Jaccard distances for binary sets optimized for Intel Ice Lake CPUs.
- *  @file include/numkong/sets/ice.h
+ *  @file include/numkong/sets/icelake.h
  *  @sa include/numkong/sets.h
  *  @author Ash Vardanian
  *  @date January 25, 2026
@@ -20,11 +20,11 @@
  *  Masked loads handle partial vector fills for non-multiple-of-512 bit depths.
  */
 
-#ifndef NK_SETS_ICE_H
-#define NK_SETS_ICE_H
+#ifndef NK_SETS_ICELAKE_H
+#define NK_SETS_ICELAKE_H
 
 #if NK_TARGET_X86_
-#if NK_TARGET_ICE
+#if NK_TARGET_ICELAKE
 #if defined(__clang__)
 #pragma clang attribute push(                                                                                        \
     __attribute__((target("avx2,avx512f,avx512vl,avx512bw,avx512dq,avx512vnni,avx512vpopcntdq,f16c,fma,bmi,bmi2"))), \
@@ -36,7 +36,7 @@
 #endif
 
 #include "numkong/types.h"
-#include "numkong/set/ice.h"      // For nk_hamming_b512_state_ice_t
+#include "numkong/set/icelake.h"  // For nk_hamming_b512_state_icelake_t
 #include "numkong/cast/skylake.h" // For load functions including nk_partial_load_b1x512_skylake_
 
 #if defined(__cplusplus)
@@ -44,24 +44,26 @@ extern "C" {
 #endif
 
 // Four macro invocations for u1 - Ice Lake processes 512 bits at a time!
-nk_define_cross_pack_size_(hammings, u1, ice, u1x8, u32,
+nk_define_cross_pack_size_(hammings, u1, icelake, u1x8, u32,
                            /*depth_simd_dimensions=*/512,
                            /*dimensions_per_value=*/8)
 
-nk_define_cross_pack_(hammings, u1, ice, u1x8, u32, nk_assign_from_to_,
+nk_define_cross_pack_(hammings, u1, icelake, u1x8, u32, nk_assign_from_to_,
                       /*depth_simd_dimensions=*/512,
                       /*dimensions_per_value=*/8)
 
-nk_define_cross_symmetric_(hammings, u1, ice, u1x8, u32, nk_b512_vec_t, nk_hamming_b512_state_ice_t, nk_b128_vec_t,
-                           nk_hamming_b512_init_ice, nk_load_b512_skylake_, nk_partial_load_b1x512_skylake_,
-                           nk_hamming_b512_update_ice, nk_hamming_b512_finalize_ice, nk_partial_store_b32x4_skylake_,
+nk_define_cross_symmetric_(hammings, u1, icelake, u1x8, u32, nk_b512_vec_t, nk_hamming_b512_state_icelake_t,
+                           nk_b128_vec_t, nk_hamming_b512_init_icelake, nk_load_b512_skylake_,
+                           nk_partial_load_b1x512_skylake_, nk_hamming_b512_update_icelake,
+                           nk_hamming_b512_finalize_icelake, nk_partial_store_b32x4_skylake_,
                            /*depth_simd_dimensions=*/512,
                            /*dimensions_per_value=*/8)
 
-nk_define_cross_packed_(hammings, u1, ice, u1x8, u32, u32, nk_b512_vec_t, nk_hamming_b512_state_ice_t, nk_b128_vec_t,
-                        nk_hamming_b512_init_ice, nk_load_b512_skylake_, nk_partial_load_b1x512_skylake_,
-                        nk_load_b512_skylake_, nk_partial_load_b1x512_skylake_, nk_hamming_b512_update_ice,
-                        nk_hamming_b512_finalize_ice, nk_partial_store_b32x4_skylake_,
+nk_define_cross_packed_(hammings, u1, icelake, u1x8, u32, u32, nk_b512_vec_t, nk_hamming_b512_state_icelake_t,
+                        nk_b128_vec_t, nk_hamming_b512_init_icelake, nk_load_b512_skylake_,
+                        nk_partial_load_b1x512_skylake_, nk_load_b512_skylake_, nk_partial_load_b1x512_skylake_,
+                        nk_hamming_b512_update_icelake, nk_hamming_b512_finalize_icelake,
+                        nk_partial_store_b32x4_skylake_,
                         /*depth_simd_dimensions=*/512,
                         /*dimensions_per_value=*/8)
 
@@ -74,7 +76,7 @@ nk_define_cross_packed_(hammings, u1, ice, u1x8, u32, u32, nk_b512_vec_t, nk_ham
 #elif defined(__GNUC__)
 #pragma GCC pop_options
 #endif
-#endif // NK_TARGET_ICE
+#endif // NK_TARGET_ICELAKE
 #endif // NK_TARGET_X86_
 
-#endif // NK_SETS_ICE_H
+#endif // NK_SETS_ICELAKE_H

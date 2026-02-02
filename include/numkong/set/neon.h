@@ -35,7 +35,7 @@
 
 #include "numkong/types.h"
 #include "numkong/reduce/neon.h" // `nk_reduce_add_u8x16_neon_`
-#include "numkong/set/serial.h"  // `nk_popcount_u1`
+#include "numkong/set/serial.h"  // `nk_u1x8_popcount_`
 
 #if defined(__cplusplus)
 extern "C" {
@@ -60,7 +60,7 @@ NK_PUBLIC void nk_hamming_u1_neon(nk_u1x8_t const *a, nk_u1x8_t const *b, nk_siz
         differences += nk_reduce_add_u8x16_neon_(popcount_u8x16);
     }
     // Handle the tail
-    for (; i != n_bytes; ++i) differences += nk_popcount_u1(a[i] ^ b[i]);
+    for (; i != n_bytes; ++i) differences += nk_u1x8_popcount_(a[i] ^ b[i]);
     *result = differences;
 }
 
@@ -86,7 +86,7 @@ NK_PUBLIC void nk_jaccard_u1_neon(nk_u1x8_t const *a, nk_u1x8_t const *b, nk_siz
     }
     // Handle the tail
     for (; i != n_bytes; ++i)
-        intersection_count += nk_popcount_u1(a[i] & b[i]), union_count += nk_popcount_u1(a[i] | b[i]);
+        intersection_count += nk_u1x8_popcount_(a[i] & b[i]), union_count += nk_u1x8_popcount_(a[i] | b[i]);
     *result = (union_count != 0) ? 1.0f - (nk_f32_t)intersection_count / (nk_f32_t)union_count : 1.0f;
 }
 

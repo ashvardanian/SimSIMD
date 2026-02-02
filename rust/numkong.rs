@@ -193,7 +193,7 @@ mod tests {
         let uses_arm = capabilities::uses_neon() || capabilities::uses_sve();
         let uses_x86 = capabilities::uses_haswell()
             || capabilities::uses_skylake()
-            || capabilities::uses_ice()
+            || capabilities::uses_icelake()
             || capabilities::uses_genoa()
             || capabilities::uses_sapphire()
             || capabilities::uses_turin();
@@ -215,7 +215,7 @@ mod tests {
         println!("- uses_svesdot: {}", capabilities::uses_svesdot());
         println!("- uses_haswell: {}", capabilities::uses_haswell());
         println!("- uses_skylake: {}", capabilities::uses_skylake());
-        println!("- uses_ice: {}", capabilities::uses_ice());
+        println!("- uses_icelake: {}", capabilities::uses_icelake());
         println!("- uses_genoa: {}", capabilities::uses_genoa());
         println!("- uses_sapphire: {}", capabilities::uses_sapphire());
         println!("- uses_turin: {}", capabilities::uses_turin());

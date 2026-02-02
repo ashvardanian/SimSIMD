@@ -92,8 +92,8 @@ StatementMacros:
   - nk_define_each_sum_
   - nk_define_each_blend_
   - nk_define_each_fma_
-  - nk_define_l2sq_
-  - nk_define_l2_
+  - nk_define_sqeuclidean_
+  - nk_define_euclidean_
   - nk_define_angular_
   - nk_define_rmsd_
   - nk_define_kabsch_

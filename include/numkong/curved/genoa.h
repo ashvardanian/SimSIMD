@@ -99,7 +99,7 @@ NK_PUBLIC void nk_mahalanobis_bf16_genoa(nk_bf16_t const *a, nk_bf16_t const *b,
         sum_f32x16 = _mm512_fmadd_ps(diff_i_f32x16, cdiff_j_f32x16, sum_f32x16);
     }
 
-    *result = nk_sqrt_f32_haswell_(_mm512_reduce_add_ps(sum_f32x16));
+    *result = nk_f32_sqrt_haswell(_mm512_reduce_add_ps(sum_f32x16));
 }
 
 NK_PUBLIC void nk_bilinear_bf16c_genoa(nk_bf16c_t const *a, nk_bf16c_t const *b, nk_bf16c_t const *c, nk_size_t n,

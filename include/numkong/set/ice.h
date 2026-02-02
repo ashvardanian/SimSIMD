@@ -1,15 +1,15 @@
 /**
  *  @brief SIMD-accelerated Set Similarity Measures optimized for Intel Ice Lake CPUs.
- *  @file include/numkong/set/ice.h
+ *  @file include/numkong/set/icelake.h
  *  @sa include/numkong/set.h
  *  @author Ash Vardanian
  *  @date December 27, 2025
  */
-#ifndef NK_SET_ICE_H
-#define NK_SET_ICE_H
+#ifndef NK_SET_ICELAKE_H
+#define NK_SET_ICELAKE_H
 
 #if NK_TARGET_X86_
-#if NK_TARGET_ICE
+#if NK_TARGET_ICELAKE
 #if defined(__clang__)
 #pragma clang attribute push( \
     __attribute__((target("avx2,avx512f,avx512vl,avx512bw,avx512vpopcntdq,f16c,fma,bmi,bmi2"))), apply_to = function)
@@ -24,7 +24,7 @@
 extern "C" {
 #endif
 
-NK_PUBLIC void nk_hamming_u1_ice(nk_u1x8_t const *a, nk_u1x8_t const *b, nk_size_t n, nk_u32_t *result) {
+NK_PUBLIC void nk_hamming_u1_icelake(nk_u1x8_t const *a, nk_u1x8_t const *b, nk_size_t n, nk_u32_t *result) {
     nk_size_t n_bytes = nk_size_divide_round_up_(n, NK_BITS_PER_BYTE);
 
     nk_u32_t xor_count;
@@ -82,7 +82,7 @@ NK_PUBLIC void nk_hamming_u1_ice(nk_u1x8_t const *a, nk_u1x8_t const *b, nk_size
         __m512i xor_popcount_u64x8 = _mm512_setzero_si512();
         __m512i a_u8x64, b_u8x64;
 
-    nk_hamming_u1_ice_cycle:
+    nk_hamming_u1_icelake_cycle:
         if (n_bytes < 64) {
             __mmask64 mask = (__mmask64)_bzhi_u64(0xFFFFFFFFFFFFFFFF, n_bytes);
             a_u8x64 = _mm512_maskz_loadu_epi8(mask, a);
@@ -96,14 +96,14 @@ NK_PUBLIC void nk_hamming_u1_ice(nk_u1x8_t const *a, nk_u1x8_t const *b, nk_size
         }
         __m512i xor_u8x64 = _mm512_xor_si512(a_u8x64, b_u8x64);
         xor_popcount_u64x8 = _mm512_add_epi64(xor_popcount_u64x8, _mm512_popcnt_epi64(xor_u8x64));
-        if (n_bytes) goto nk_hamming_u1_ice_cycle;
+        if (n_bytes) goto nk_hamming_u1_icelake_cycle;
 
         xor_count = _mm512_reduce_add_epi64(xor_popcount_u64x8);
     }
     *result = xor_count;
 }
 
-NK_PUBLIC void nk_jaccard_u1_ice(nk_u1x8_t const *a, nk_u1x8_t const *b, nk_size_t n, nk_f32_t *result) {
+NK_PUBLIC void nk_jaccard_u1_icelake(nk_u1x8_t const *a, nk_u1x8_t const *b, nk_size_t n, nk_f32_t *result) {
     nk_size_t n_bytes = nk_size_divide_round_up_(n, NK_BITS_PER_BYTE);
 
     nk_u32_t intersection_count = 0, union_count = 0;
@@ -182,7 +182,7 @@ NK_PUBLIC void nk_jaccard_u1_ice(nk_u1x8_t const *a, nk_u1x8_t const *b, nk_size
         __m512i union_popcount_u64x8 = _mm512_setzero_si512();
         __m512i a_u8x64, b_u8x64;
 
-    nk_jaccard_u1_ice_cycle:
+    nk_jaccard_u1_icelake_cycle:
         if (n_bytes < 64) {
             __mmask64 load_mask = (__mmask64)_bzhi_u64(0xFFFFFFFFFFFFFFFF, n_bytes);
             a_u8x64 = _mm512_maskz_loadu_epi8(load_mask, a);
@@ -199,7 +199,7 @@ NK_PUBLIC void nk_jaccard_u1_ice(nk_u1x8_t const *a, nk_u1x8_t const *b, nk_size
         intersection_popcount_u64x8 = _mm512_add_epi64(intersection_popcount_u64x8,
                                                        _mm512_popcnt_epi64(intersection_u8x64));
         union_popcount_u64x8 = _mm512_add_epi64(union_popcount_u64x8, _mm512_popcnt_epi64(union_u8x64));
-        if (n_bytes) goto nk_jaccard_u1_ice_cycle;
+        if (n_bytes) goto nk_jaccard_u1_icelake_cycle;
 
         intersection_count = _mm512_reduce_add_epi64(intersection_popcount_u64x8);
         union_count = _mm512_reduce_add_epi64(union_popcount_u64x8);
@@ -207,7 +207,7 @@ NK_PUBLIC void nk_jaccard_u1_ice(nk_u1x8_t const *a, nk_u1x8_t const *b, nk_size
     *result = (union_count != 0) ? 1.0f - (nk_f32_t)intersection_count / (nk_f32_t)union_count : 1.0f;
 }
 
-NK_PUBLIC void nk_jaccard_u32_ice(nk_u32_t const *a, nk_u32_t const *b, nk_size_t n, nk_f32_t *result) {
+NK_PUBLIC void nk_jaccard_u32_icelake(nk_u32_t const *a, nk_u32_t const *b, nk_size_t n, nk_f32_t *result) {
     nk_u32_t intersection_count = 0;
     nk_size_t n_remaining = n;
     for (; n_remaining >= 16; n_remaining -= 16, a += 16, b += 16) {
@@ -226,7 +226,7 @@ NK_PUBLIC void nk_jaccard_u32_ice(nk_u32_t const *a, nk_u32_t const *b, nk_size_
     *result = (n != 0) ? 1.0f - (nk_f32_t)intersection_count / (nk_f32_t)n : 1.0f;
 }
 
-NK_PUBLIC void nk_hamming_u8_ice(nk_u8_t const *a, nk_u8_t const *b, nk_size_t n, nk_u32_t *result) {
+NK_PUBLIC void nk_hamming_u8_icelake(nk_u8_t const *a, nk_u8_t const *b, nk_size_t n, nk_u32_t *result) {
     nk_u32_t differences = 0;
     nk_size_t n_remaining = n;
     for (; n_remaining >= 64; n_remaining -= 64, a += 64, b += 64) {
@@ -245,7 +245,7 @@ NK_PUBLIC void nk_hamming_u8_ice(nk_u8_t const *a, nk_u8_t const *b, nk_size_t n
     *result = differences;
 }
 
-NK_PUBLIC void nk_jaccard_u16_ice(nk_u16_t const *a, nk_u16_t const *b, nk_size_t n, nk_f32_t *result) {
+NK_PUBLIC void nk_jaccard_u16_icelake(nk_u16_t const *a, nk_u16_t const *b, nk_size_t n, nk_f32_t *result) {
     nk_u32_t matches = 0;
     nk_size_t n_remaining = n;
     for (; n_remaining >= 32; n_remaining -= 32, a += 32, b += 32) {
@@ -264,26 +264,26 @@ NK_PUBLIC void nk_jaccard_u16_ice(nk_u16_t const *a, nk_u16_t const *b, nk_size_
     *result = (n != 0) ? 1.0f - (nk_f32_t)matches / (nk_f32_t)n : 1.0f;
 }
 
-struct nk_hamming_b512_state_ice_t {
+struct nk_hamming_b512_state_icelake_t {
     __m512i intersection_count_i64x8;
 };
 
-NK_INTERNAL void nk_hamming_b512_init_ice(nk_hamming_b512_state_ice_t *state) {
+NK_INTERNAL void nk_hamming_b512_init_icelake(nk_hamming_b512_state_icelake_t *state) {
     state->intersection_count_i64x8 = _mm512_setzero_si512();
 }
 
-NK_INTERNAL void nk_hamming_b512_update_ice(nk_hamming_b512_state_ice_t *state, nk_b512_vec_t a, nk_b512_vec_t b,
-                                            nk_size_t depth_offset, nk_size_t active_dimensions) {
+NK_INTERNAL void nk_hamming_b512_update_icelake(nk_hamming_b512_state_icelake_t *state, nk_b512_vec_t a,
+                                                nk_b512_vec_t b, nk_size_t depth_offset, nk_size_t active_dimensions) {
     nk_unused_(depth_offset);
     nk_unused_(active_dimensions);
     state->intersection_count_i64x8 = _mm512_add_epi64(state->intersection_count_i64x8,
                                                        _mm512_popcnt_epi64(_mm512_xor_si512(a.zmm, b.zmm)));
 }
 
-NK_INTERNAL void nk_hamming_b512_finalize_ice( //
-    nk_hamming_b512_state_ice_t const *state_a, nk_hamming_b512_state_ice_t const *state_b,
-    nk_hamming_b512_state_ice_t const *state_c, nk_hamming_b512_state_ice_t const *state_d, nk_size_t total_dimensions,
-    nk_b128_vec_t *result) {
+NK_INTERNAL void nk_hamming_b512_finalize_icelake( //
+    nk_hamming_b512_state_icelake_t const *state_a, nk_hamming_b512_state_icelake_t const *state_b,
+    nk_hamming_b512_state_icelake_t const *state_c, nk_hamming_b512_state_icelake_t const *state_d,
+    nk_size_t total_dimensions, nk_b128_vec_t *result) {
     nk_unused_(total_dimensions);
     result->u32s[0] = (nk_u32_t)_mm512_reduce_add_epi64(state_a->intersection_count_i64x8);
     result->u32s[1] = (nk_u32_t)_mm512_reduce_add_epi64(state_b->intersection_count_i64x8);
@@ -291,27 +291,27 @@ NK_INTERNAL void nk_hamming_b512_finalize_ice( //
     result->u32s[3] = (nk_u32_t)_mm512_reduce_add_epi64(state_d->intersection_count_i64x8);
 }
 
-struct nk_jaccard_b512_state_ice_t {
+struct nk_jaccard_b512_state_icelake_t {
     __m512i intersection_count_i64x8;
 };
 
-NK_INTERNAL void nk_jaccard_b512_init_ice(nk_jaccard_b512_state_ice_t *state) {
+NK_INTERNAL void nk_jaccard_b512_init_icelake(nk_jaccard_b512_state_icelake_t *state) {
     state->intersection_count_i64x8 = _mm512_setzero_si512();
 }
 
-NK_INTERNAL void nk_jaccard_b512_update_ice(nk_jaccard_b512_state_ice_t *state, nk_b512_vec_t a, nk_b512_vec_t b,
-                                            nk_size_t depth_offset, nk_size_t active_dimensions) {
+NK_INTERNAL void nk_jaccard_b512_update_icelake(nk_jaccard_b512_state_icelake_t *state, nk_b512_vec_t a,
+                                                nk_b512_vec_t b, nk_size_t depth_offset, nk_size_t active_dimensions) {
     nk_unused_(depth_offset);
     nk_unused_(active_dimensions);
     state->intersection_count_i64x8 = _mm512_add_epi64(state->intersection_count_i64x8,
                                                        _mm512_popcnt_epi64(_mm512_and_si512(a.zmm, b.zmm)));
 }
 
-NK_INTERNAL void nk_jaccard_b512_finalize_ice( //
-    nk_jaccard_b512_state_ice_t const *state_a, nk_jaccard_b512_state_ice_t const *state_b,
-    nk_jaccard_b512_state_ice_t const *state_c, nk_jaccard_b512_state_ice_t const *state_d, nk_f32_t query_popcount,
-    nk_f32_t target_popcount_a, nk_f32_t target_popcount_b, nk_f32_t target_popcount_c, nk_f32_t target_popcount_d,
-    nk_size_t total_dimensions, nk_b128_vec_t *result) {
+NK_INTERNAL void nk_jaccard_b512_finalize_icelake( //
+    nk_jaccard_b512_state_icelake_t const *state_a, nk_jaccard_b512_state_icelake_t const *state_b,
+    nk_jaccard_b512_state_icelake_t const *state_c, nk_jaccard_b512_state_icelake_t const *state_d,
+    nk_f32_t query_popcount, nk_f32_t target_popcount_a, nk_f32_t target_popcount_b, nk_f32_t target_popcount_c,
+    nk_f32_t target_popcount_d, nk_size_t total_dimensions, nk_b128_vec_t *result) {
     nk_unused_(total_dimensions);
 
     // Port-optimized 4-way horizontal reduction using early i64 → i32 truncation.
@@ -387,7 +387,7 @@ NK_INTERNAL void nk_jaccard_b512_finalize_ice( //
 #elif defined(__GNUC__)
 #pragma GCC pop_options
 #endif
-#endif // NK_TARGET_ICE
+#endif // NK_TARGET_ICELAKE
 #endif // NK_TARGET_X86_
 
-#endif // NK_SET_ICE_H
+#endif // NK_SET_ICELAKE_H

@@ -1,6 +1,6 @@
 /**
  *  @brief SIMD-accelerated horizontal reduction operations for Intel Ice Lake CPUs.
- *  @file include/numkong/reduce/ice.h
+ *  @file include/numkong/reduce/icelake.h
  *  @sa include/numkong/reduce.h
  *  @author Ash Vardanian
  *  @date December 27, 2025
@@ -19,11 +19,11 @@
  *  vector of ones. This approach achieves better throughput than sequential addition for large arrays.
  *  Shuffle operations bottleneck on port 5, making horizontal reductions inherently latency-bound.
  */
-#ifndef NK_REDUCE_ICE_H
-#define NK_REDUCE_ICE_H
+#ifndef NK_REDUCE_ICELAKE_H
+#define NK_REDUCE_ICELAKE_H
 
 #if NK_TARGET_X86_
-#if NK_TARGET_ICE
+#if NK_TARGET_ICELAKE
 #if defined(__clang__)
 #pragma clang attribute push(                                                                        \
     __attribute__((target("avx2,avx512f,avx512vl,avx512bw,avx512dq,avx512vnni,f16c,fma,bmi,bmi2"))), \
@@ -40,7 +40,7 @@
 extern "C" {
 #endif
 
-NK_INTERNAL __mmask64 nk_stride_mask_u1x64_ice_(nk_size_t stride) {
+NK_INTERNAL __mmask64 nk_stride_mask_u1x64_icelake_(nk_size_t stride) {
     switch (stride) {
     case 2: return (__mmask64)0x5555555555555555ull;
     case 3: return (__mmask64)0x1249249249249249ull;
@@ -53,7 +53,7 @@ NK_INTERNAL __mmask64 nk_stride_mask_u1x64_ice_(nk_size_t stride) {
     }
 }
 
-NK_INTERNAL __mmask32 nk_stride_mask_b16x32_ice_(nk_size_t stride) {
+NK_INTERNAL __mmask32 nk_stride_mask_b16x32_icelake_(nk_size_t stride) {
     switch (stride) {
     case 2: return (__mmask32)0x55555555;
     case 3: return (__mmask32)0x09249249;
@@ -66,7 +66,7 @@ NK_INTERNAL __mmask32 nk_stride_mask_b16x32_ice_(nk_size_t stride) {
     }
 }
 
-NK_INTERNAL void nk_reduce_add_i16_ice_contiguous_( //
+NK_INTERNAL void nk_reduce_add_i16_icelake_contiguous_( //
     nk_i16_t const *data, nk_size_t count, nk_i64_t *result) {
     __m512i ones_i16x32 = _mm512_set1_epi16(1);
     nk_i64_t sum_i64 = 0;
@@ -95,10 +95,10 @@ NK_INTERNAL void nk_reduce_add_i16_ice_contiguous_( //
     *result = sum_i64 + _mm512_reduce_add_epi32(sum_i32x16);
 }
 
-NK_INTERNAL void nk_reduce_add_i16_ice_strided_(                      //
+NK_INTERNAL void nk_reduce_add_i16_icelake_strided_(                  //
     nk_i16_t const *data, nk_size_t count, nk_size_t stride_elements, //
     nk_i64_t *result) {
-    __mmask32 stride_mask_m32 = nk_stride_mask_b16x32_ice_(stride_elements);
+    __mmask32 stride_mask_m32 = nk_stride_mask_b16x32_icelake_(stride_elements);
     __m512i ones_i16x32 = _mm512_set1_epi16(1);
     nk_i64_t sum_i64 = 0;
     nk_size_t idx_scalars = 0;
@@ -134,18 +134,18 @@ NK_INTERNAL void nk_reduce_add_i16_ice_strided_(                      //
     *result = sum_i64;
 }
 
-NK_PUBLIC void nk_reduce_add_i16_ice(                              //
+NK_PUBLIC void nk_reduce_add_i16_icelake(                          //
     nk_i16_t const *data, nk_size_t count, nk_size_t stride_bytes, //
     nk_i64_t *result) {
     nk_size_t stride_elements = stride_bytes / sizeof(nk_i16_t);
     int aligned = (stride_bytes % sizeof(nk_i16_t) == 0);
     if (!aligned) nk_reduce_add_i16_serial(data, count, stride_bytes, result);
-    else if (stride_elements == 1) nk_reduce_add_i16_ice_contiguous_(data, count, result);
-    else if (stride_elements <= 8) nk_reduce_add_i16_ice_strided_(data, count, stride_elements, result);
+    else if (stride_elements == 1) nk_reduce_add_i16_icelake_contiguous_(data, count, result);
+    else if (stride_elements <= 8) nk_reduce_add_i16_icelake_strided_(data, count, stride_elements, result);
     else nk_reduce_add_i16_serial(data, count, stride_bytes, result);
 }
 
-NK_INTERNAL void nk_reduce_add_u16_ice_contiguous_( //
+NK_INTERNAL void nk_reduce_add_u16_icelake_contiguous_( //
     nk_u16_t const *data, nk_size_t count, nk_u64_t *result) {
     __m512i ones_i16x32 = _mm512_set1_epi16(1);
     nk_u64_t sum_u64 = 0;
@@ -174,10 +174,10 @@ NK_INTERNAL void nk_reduce_add_u16_ice_contiguous_( //
     *result = sum_u64 + (nk_u64_t)_mm512_reduce_add_epi32(sum_i32x16);
 }
 
-NK_INTERNAL void nk_reduce_add_u16_ice_strided_(                      //
+NK_INTERNAL void nk_reduce_add_u16_icelake_strided_(                  //
     nk_u16_t const *data, nk_size_t count, nk_size_t stride_elements, //
     nk_u64_t *result) {
-    __mmask32 stride_mask_m32 = nk_stride_mask_b16x32_ice_(stride_elements);
+    __mmask32 stride_mask_m32 = nk_stride_mask_b16x32_icelake_(stride_elements);
     __m512i ones_i16x32 = _mm512_set1_epi16(1);
     nk_u64_t sum_u64 = 0;
     nk_size_t idx_scalars = 0;
@@ -212,18 +212,18 @@ NK_INTERNAL void nk_reduce_add_u16_ice_strided_(                      //
     *result = sum_u64;
 }
 
-NK_PUBLIC void nk_reduce_add_u16_ice(                              //
+NK_PUBLIC void nk_reduce_add_u16_icelake(                          //
     nk_u16_t const *data, nk_size_t count, nk_size_t stride_bytes, //
     nk_u64_t *result) {
     nk_size_t stride_elements = stride_bytes / sizeof(nk_u16_t);
     int aligned = (stride_bytes % sizeof(nk_u16_t) == 0);
     if (!aligned) nk_reduce_add_u16_serial(data, count, stride_bytes, result);
-    else if (stride_elements == 1) nk_reduce_add_u16_ice_contiguous_(data, count, result);
-    else if (stride_elements <= 8) nk_reduce_add_u16_ice_strided_(data, count, stride_elements, result);
+    else if (stride_elements == 1) nk_reduce_add_u16_icelake_contiguous_(data, count, result);
+    else if (stride_elements <= 8) nk_reduce_add_u16_icelake_strided_(data, count, stride_elements, result);
     else nk_reduce_add_u16_serial(data, count, stride_bytes, result);
 }
 
-NK_INTERNAL void nk_reduce_add_i8_ice_contiguous_( //
+NK_INTERNAL void nk_reduce_add_i8_icelake_contiguous_( //
     nk_i8_t const *data, nk_size_t count, nk_i64_t *result) {
     __m512i ones_i16x32 = _mm512_set1_epi16(1);
     __m512i sum_i32x16 = _mm512_setzero_si512();
@@ -243,10 +243,10 @@ NK_INTERNAL void nk_reduce_add_i8_ice_contiguous_( //
     *result = _mm512_reduce_add_epi32(sum_i32x16);
 }
 
-NK_INTERNAL void nk_reduce_add_i8_ice_strided_(                      //
+NK_INTERNAL void nk_reduce_add_i8_icelake_strided_(                  //
     nk_i8_t const *data, nk_size_t count, nk_size_t stride_elements, //
     nk_i64_t *result) {
-    __mmask64 stride_mask_m64 = nk_stride_mask_u1x64_ice_(stride_elements);
+    __mmask64 stride_mask_m64 = nk_stride_mask_u1x64_icelake_(stride_elements);
     __m512i ones_i16x32 = _mm512_set1_epi16(1);
     __m512i sum_i32x16 = _mm512_setzero_si512();
     nk_size_t idx_scalars = 0;
@@ -280,18 +280,18 @@ NK_INTERNAL void nk_reduce_add_i8_ice_strided_(                      //
     *result = sum;
 }
 
-NK_PUBLIC void nk_reduce_add_i8_ice(                              //
+NK_PUBLIC void nk_reduce_add_i8_icelake(                          //
     nk_i8_t const *data, nk_size_t count, nk_size_t stride_bytes, //
     nk_i64_t *result) {
     nk_size_t stride_elements = stride_bytes / sizeof(nk_i8_t);
     int aligned = (stride_bytes % sizeof(nk_i8_t) == 0);
     if (!aligned) nk_reduce_add_i8_serial(data, count, stride_bytes, result);
-    else if (stride_elements == 1) nk_reduce_add_i8_ice_contiguous_(data, count, result);
-    else if (stride_elements <= 8) nk_reduce_add_i8_ice_strided_(data, count, stride_elements, result);
+    else if (stride_elements == 1) nk_reduce_add_i8_icelake_contiguous_(data, count, result);
+    else if (stride_elements <= 8) nk_reduce_add_i8_icelake_strided_(data, count, stride_elements, result);
     else nk_reduce_add_i8_serial(data, count, stride_bytes, result);
 }
 
-NK_INTERNAL void nk_reduce_add_u8_ice_contiguous_( //
+NK_INTERNAL void nk_reduce_add_u8_icelake_contiguous_( //
     nk_u8_t const *data, nk_size_t count, nk_u64_t *result) {
     __m512i ones_i16x32 = _mm512_set1_epi16(1);
     __m512i zeros_i8x64 = _mm512_setzero_si512();
@@ -321,10 +321,10 @@ NK_INTERNAL void nk_reduce_add_u8_ice_contiguous_( //
     *result = (nk_u64_t)_mm512_reduce_add_epi32(sum_i32x16);
 }
 
-NK_INTERNAL void nk_reduce_add_u8_ice_strided_(                      //
+NK_INTERNAL void nk_reduce_add_u8_icelake_strided_(                  //
     nk_u8_t const *data, nk_size_t count, nk_size_t stride_elements, //
     nk_u64_t *result) {
-    __mmask64 stride_mask_m64 = nk_stride_mask_u1x64_ice_(stride_elements);
+    __mmask64 stride_mask_m64 = nk_stride_mask_u1x64_icelake_(stride_elements);
     __m512i ones_i16x32 = _mm512_set1_epi16(1);
     __m512i sum_i32x16 = _mm512_setzero_si512();
     nk_size_t idx_scalars = 0;
@@ -358,14 +358,14 @@ NK_INTERNAL void nk_reduce_add_u8_ice_strided_(                      //
     *result = sum;
 }
 
-NK_PUBLIC void nk_reduce_add_u8_ice(                              //
+NK_PUBLIC void nk_reduce_add_u8_icelake(                          //
     nk_u8_t const *data, nk_size_t count, nk_size_t stride_bytes, //
     nk_u64_t *result) {
     nk_size_t stride_elements = stride_bytes / sizeof(nk_u8_t);
     int aligned = (stride_bytes % sizeof(nk_u8_t) == 0);
     if (!aligned) nk_reduce_add_u8_serial(data, count, stride_bytes, result);
-    else if (stride_elements == 1) nk_reduce_add_u8_ice_contiguous_(data, count, result);
-    else if (stride_elements <= 8) nk_reduce_add_u8_ice_strided_(data, count, stride_elements, result);
+    else if (stride_elements == 1) nk_reduce_add_u8_icelake_contiguous_(data, count, result);
+    else if (stride_elements <= 8) nk_reduce_add_u8_icelake_strided_(data, count, stride_elements, result);
     else nk_reduce_add_u8_serial(data, count, stride_bytes, result);
 }
 
@@ -378,7 +378,7 @@ NK_PUBLIC void nk_reduce_add_u8_ice(                              //
 #elif defined(__GNUC__)
 #pragma GCC pop_options
 #endif
-#endif // NK_TARGET_ICE
+#endif // NK_TARGET_ICELAKE
 #endif // NK_TARGET_X86_
 
-#endif // NK_REDUCE_ICE_H
+#endif // NK_REDUCE_ICELAKE_H
