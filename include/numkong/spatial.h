@@ -542,6 +542,33 @@ NK_PUBLIC void nk_sqeuclidean_e4m3_sapphire(nk_e4m3_t const *a, nk_e4m3_t const 
 NK_PUBLIC void nk_angular_i8_sierra(nk_i8_t const *a, nk_i8_t const *b, nk_size_t n, nk_f32_t *result);
 #endif // NK_TARGET_SIERRA
 
+#if NK_TARGET_V128RELAXED
+/** @copydoc nk_sqeuclidean_f32 */
+NK_PUBLIC void nk_sqeuclidean_f32_wasm(nk_f32_t const *a, nk_f32_t const *b, nk_size_t n, nk_f32_t *result);
+/** @copydoc nk_sqeuclidean_f64 */
+NK_PUBLIC void nk_sqeuclidean_f64_wasm(nk_f64_t const *a, nk_f64_t const *b, nk_size_t n, nk_f64_t *result);
+/** @copydoc nk_euclidean_f32 */
+NK_PUBLIC void nk_euclidean_f32_wasm(nk_f32_t const *a, nk_f32_t const *b, nk_size_t n, nk_f32_t *result);
+/** @copydoc nk_euclidean_f64 */
+NK_PUBLIC void nk_euclidean_f64_wasm(nk_f64_t const *a, nk_f64_t const *b, nk_size_t n, nk_f64_t *result);
+/** @copydoc nk_angular_f32 */
+NK_PUBLIC void nk_angular_f32_wasm(nk_f32_t const *a, nk_f32_t const *b, nk_size_t n, nk_f32_t *result);
+/** @copydoc nk_angular_f64 */
+NK_PUBLIC void nk_angular_f64_wasm(nk_f64_t const *a, nk_f64_t const *b, nk_size_t n, nk_f64_t *result);
+/** @copydoc nk_sqeuclidean_f16 */
+NK_PUBLIC void nk_sqeuclidean_f16_wasm(nk_f16_t const *a, nk_f16_t const *b, nk_size_t n, nk_f32_t *result);
+/** @copydoc nk_sqeuclidean_bf16 */
+NK_PUBLIC void nk_sqeuclidean_bf16_wasm(nk_bf16_t const *a, nk_bf16_t const *b, nk_size_t n, nk_f32_t *result);
+/** @copydoc nk_euclidean_f16 */
+NK_PUBLIC void nk_euclidean_f16_wasm(nk_f16_t const *a, nk_f16_t const *b, nk_size_t n, nk_f32_t *result);
+/** @copydoc nk_euclidean_bf16 */
+NK_PUBLIC void nk_euclidean_bf16_wasm(nk_bf16_t const *a, nk_bf16_t const *b, nk_size_t n, nk_f32_t *result);
+/** @copydoc nk_angular_f16 */
+NK_PUBLIC void nk_angular_f16_wasm(nk_f16_t const *a, nk_f16_t const *b, nk_size_t n, nk_f32_t *result);
+/** @copydoc nk_angular_bf16 */
+NK_PUBLIC void nk_angular_bf16_wasm(nk_bf16_t const *a, nk_bf16_t const *b, nk_size_t n, nk_f32_t *result);
+#endif // NK_TARGET_V128RELAXED
+
 /**
  *  @brief  Returns the output dtype for L2 (Euclidean) distance.
  */
@@ -610,11 +637,14 @@ NK_INTERNAL nk_dtype_t nk_angular_output_dtype(nk_dtype_t dtype) {
 #include "numkong/spatial/spacemit.h"
 #include "numkong/spatial/sifive.h"
 #include "numkong/spatial/xuantie.h"
+#include "numkong/spatial/wasm.h"
 
 #if !NK_DYNAMIC_DISPATCH
 
 NK_PUBLIC void nk_euclidean_f64(nk_f64_t const *a, nk_f64_t const *b, nk_size_t n, nk_f64_t *result) {
-#if NK_TARGET_SPACEMIT
+#if NK_TARGET_V128RELAXED
+    nk_euclidean_f64_wasm(a, b, n, result);
+#elif NK_TARGET_SPACEMIT
     nk_euclidean_f64_spacemit(a, b, n, result);
 #elif NK_TARGET_SVE
     nk_euclidean_f64_sve(a, b, n, result);
@@ -630,7 +660,9 @@ NK_PUBLIC void nk_euclidean_f64(nk_f64_t const *a, nk_f64_t const *b, nk_size_t 
 }
 
 NK_PUBLIC void nk_sqeuclidean_f64(nk_f64_t const *a, nk_f64_t const *b, nk_size_t n, nk_f64_t *result) {
-#if NK_TARGET_SPACEMIT
+#if NK_TARGET_V128RELAXED
+    nk_sqeuclidean_f64_wasm(a, b, n, result);
+#elif NK_TARGET_SPACEMIT
     nk_sqeuclidean_f64_spacemit(a, b, n, result);
 #elif NK_TARGET_SVE
     nk_sqeuclidean_f64_sve(a, b, n, result);
@@ -646,7 +678,9 @@ NK_PUBLIC void nk_sqeuclidean_f64(nk_f64_t const *a, nk_f64_t const *b, nk_size_
 }
 
 NK_PUBLIC void nk_angular_f64(nk_f64_t const *a, nk_f64_t const *b, nk_size_t n, nk_f64_t *result) {
-#if NK_TARGET_SPACEMIT
+#if NK_TARGET_V128RELAXED
+    nk_angular_f64_wasm(a, b, n, result);
+#elif NK_TARGET_SPACEMIT
     nk_angular_f64_spacemit(a, b, n, result);
 #elif NK_TARGET_SVE
     nk_angular_f64_sve(a, b, n, result);
@@ -662,7 +696,9 @@ NK_PUBLIC void nk_angular_f64(nk_f64_t const *a, nk_f64_t const *b, nk_size_t n,
 }
 
 NK_PUBLIC void nk_euclidean_f32(nk_f32_t const *a, nk_f32_t const *b, nk_size_t n, nk_f32_t *result) {
-#if NK_TARGET_SPACEMIT
+#if NK_TARGET_V128RELAXED
+    nk_euclidean_f32_wasm(a, b, n, result);
+#elif NK_TARGET_SPACEMIT
     nk_euclidean_f32_spacemit(a, b, n, result);
 #elif NK_TARGET_SVE
     nk_euclidean_f32_sve(a, b, n, result);
@@ -678,7 +714,9 @@ NK_PUBLIC void nk_euclidean_f32(nk_f32_t const *a, nk_f32_t const *b, nk_size_t 
 }
 
 NK_PUBLIC void nk_sqeuclidean_f32(nk_f32_t const *a, nk_f32_t const *b, nk_size_t n, nk_f32_t *result) {
-#if NK_TARGET_SPACEMIT
+#if NK_TARGET_V128RELAXED
+    nk_sqeuclidean_f32_wasm(a, b, n, result);
+#elif NK_TARGET_SPACEMIT
     nk_sqeuclidean_f32_spacemit(a, b, n, result);
 #elif NK_TARGET_SVE
     nk_sqeuclidean_f32_sve(a, b, n, result);
@@ -694,7 +732,9 @@ NK_PUBLIC void nk_sqeuclidean_f32(nk_f32_t const *a, nk_f32_t const *b, nk_size_
 }
 
 NK_PUBLIC void nk_angular_f32(nk_f32_t const *a, nk_f32_t const *b, nk_size_t n, nk_f32_t *result) {
-#if NK_TARGET_SPACEMIT
+#if NK_TARGET_V128RELAXED
+    nk_angular_f32_wasm(a, b, n, result);
+#elif NK_TARGET_SPACEMIT
     nk_angular_f32_spacemit(a, b, n, result);
 #elif NK_TARGET_SVE
     nk_angular_f32_sve(a, b, n, result);
@@ -710,7 +750,9 @@ NK_PUBLIC void nk_angular_f32(nk_f32_t const *a, nk_f32_t const *b, nk_size_t n,
 }
 
 NK_PUBLIC void nk_euclidean_f16(nk_f16_t const *a, nk_f16_t const *b, nk_size_t n, nk_f32_t *result) {
-#if NK_TARGET_SIFIVE
+#if NK_TARGET_V128RELAXED
+    nk_euclidean_f16_wasm(a, b, n, result);
+#elif NK_TARGET_SIFIVE
     nk_euclidean_f16_sifive(a, b, n, result);
 #elif NK_TARGET_SPACEMIT
     nk_euclidean_f16_spacemit(a, b, n, result);
@@ -726,7 +768,9 @@ NK_PUBLIC void nk_euclidean_f16(nk_f16_t const *a, nk_f16_t const *b, nk_size_t 
 }
 
 NK_PUBLIC void nk_sqeuclidean_f16(nk_f16_t const *a, nk_f16_t const *b, nk_size_t n, nk_f32_t *result) {
-#if NK_TARGET_SIFIVE
+#if NK_TARGET_V128RELAXED
+    nk_sqeuclidean_f16_wasm(a, b, n, result);
+#elif NK_TARGET_SIFIVE
     nk_sqeuclidean_f16_sifive(a, b, n, result);
 #elif NK_TARGET_SPACEMIT
     nk_sqeuclidean_f16_spacemit(a, b, n, result);
@@ -742,7 +786,9 @@ NK_PUBLIC void nk_sqeuclidean_f16(nk_f16_t const *a, nk_f16_t const *b, nk_size_
 }
 
 NK_PUBLIC void nk_angular_f16(nk_f16_t const *a, nk_f16_t const *b, nk_size_t n, nk_f32_t *result) {
-#if NK_TARGET_SIFIVE
+#if NK_TARGET_V128RELAXED
+    nk_angular_f16_wasm(a, b, n, result);
+#elif NK_TARGET_SIFIVE
     nk_angular_f16_sifive(a, b, n, result);
 #elif NK_TARGET_SPACEMIT
     nk_angular_f16_spacemit(a, b, n, result);
@@ -758,7 +804,9 @@ NK_PUBLIC void nk_angular_f16(nk_f16_t const *a, nk_f16_t const *b, nk_size_t n,
 }
 
 NK_PUBLIC void nk_euclidean_bf16(nk_bf16_t const *a, nk_bf16_t const *b, nk_size_t n, nk_f32_t *result) {
-#if NK_TARGET_XUANTIE
+#if NK_TARGET_V128RELAXED
+    nk_euclidean_bf16_wasm(a, b, n, result);
+#elif NK_TARGET_XUANTIE
     nk_euclidean_bf16_xuantie(a, b, n, result);
 #elif NK_TARGET_SPACEMIT
     nk_euclidean_bf16_spacemit(a, b, n, result);
@@ -776,7 +824,9 @@ NK_PUBLIC void nk_euclidean_bf16(nk_bf16_t const *a, nk_bf16_t const *b, nk_size
 }
 
 NK_PUBLIC void nk_sqeuclidean_bf16(nk_bf16_t const *a, nk_bf16_t const *b, nk_size_t n, nk_f32_t *result) {
-#if NK_TARGET_XUANTIE
+#if NK_TARGET_V128RELAXED
+    nk_sqeuclidean_bf16_wasm(a, b, n, result);
+#elif NK_TARGET_XUANTIE
     nk_sqeuclidean_bf16_xuantie(a, b, n, result);
 #elif NK_TARGET_SPACEMIT
     nk_sqeuclidean_bf16_spacemit(a, b, n, result);
@@ -794,7 +844,9 @@ NK_PUBLIC void nk_sqeuclidean_bf16(nk_bf16_t const *a, nk_bf16_t const *b, nk_si
 }
 
 NK_PUBLIC void nk_angular_bf16(nk_bf16_t const *a, nk_bf16_t const *b, nk_size_t n, nk_f32_t *result) {
-#if NK_TARGET_XUANTIE
+#if NK_TARGET_V128RELAXED
+    nk_angular_bf16_wasm(a, b, n, result);
+#elif NK_TARGET_XUANTIE
     nk_angular_bf16_xuantie(a, b, n, result);
 #elif NK_TARGET_SPACEMIT
     nk_angular_bf16_spacemit(a, b, n, result);

@@ -155,6 +155,11 @@
 #include <processthreadsapi.h> // `IsProcessorFeaturePresent`
 #endif
 
+// On WASM with Emscripten, we use EM_ASM for runtime capability detection
+#if NK_TARGET_WASM_ && defined(__EMSCRIPTEN__)
+#include <emscripten.h> // `EM_ASM_INT`
+#endif
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -584,6 +589,19 @@ typedef nk_u64_t nk_capability_t;
  *  Detection: Compile-time via __riscv_zvfbfwma. Runtime detection requires parsing /proc/cpuinfo or HWCAP2.
  */
 #define nk_cap_xuantie_k ((nk_capability_t)1 << 58)
+
+/**
+ *  @brief  WASM SIMD capability with Relaxed SIMD support.
+ *
+ *  Instructions: f32x4.relaxed_madd, f64x2.relaxed_madd, i32x4.relaxed_dot_i8x16_i7x16_add_s
+ *  Used for: Browser-based ML/AI workloads with SIMD acceleration.
+ *
+ *  Requirements: Emscripten 3.1.27+ with -msimd128 -mrelaxed-simd flags.
+ *  Provides 2× FMA throughput via relaxed SIMD instructions.
+ *
+ *  Detection: Compile-time via __wasm_relaxed_simd__ (no runtime API in current WASM spec).
+ */
+#define nk_cap_v128relaxed_k ((nk_capability_t)1 << 60)
 
 /**
  *  @brief  Type-punned function pointer for dense vector representations and simplest similarity measures.
@@ -1265,6 +1283,58 @@ NK_PUBLIC nk_capability_t nk_capabilities_riscv_(void) {
 
 #endif // NK_TARGET_RISCV_
 
+#if NK_TARGET_WASM_
+
+/**
+ *  @brief  Detects WASM SIMD capabilities using dual-tier detection.
+ *  @return Capability bitmask with nk_cap_v128relaxed_k if Relaxed SIMD available.
+ *
+ *  Unlike x86 (CPUID) or ARM (HWCAP), WASM cannot query hardware directly.
+ *  Instead, we use EM_ASM to call JavaScript's WebAssembly.validate() from within WASM.
+ */
+NK_PUBLIC nk_capability_t nk_capabilities_wasm_(void) {
+
+#if defined(__EMSCRIPTEN__)
+    // Call JavaScript from WASM to detect features
+    int has_simd128 = EM_ASM_INT({
+        // Minimal WASM module with v128.const instruction
+        var test = new Uint8Array([
+            0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, // Magic + version
+            0x01, 0x05, 0x01, 0x60, 0x00, 0x01, 0x7b,       // Type: [] -> [v128]
+            0x03, 0x02, 0x01, 0x00,                         // Function section
+            0x0a, 0x09, 0x01, 0x07, 0x00, 0xfd, 0x0c,       // Code: v128.const
+            0x00, 0x00, 0x00, 0x00, 0x0b                    // i32x4 [0,0,0,0] + end
+        ]);
+        try {
+            return WebAssembly.validate(test) ? 1 : 0;
+        }
+        catch (e) {
+            return 0;
+        }
+    });
+
+    int has_relaxed = EM_ASM_INT({
+        // WASM module with f32x4.relaxed_madd instruction
+        var test = new Uint8Array([
+            0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x08, 0x01, 0x60, 0x03,
+            0x7b, 0x7b, 0x7b, 0x01, 0x7b, 0x03, 0x02, 0x01, 0x00, 0x0a, 0x09, 0x01, 0x07,
+            0x00, 0x20, 0x00, 0x20, 0x01, 0x20, 0x02, 0xfd, 0xaf, 0x01, 0x0b // f32x4.relaxed_madd
+        ]);
+        try {
+            return WebAssembly.validate(test) ? 1 : 0;
+        }
+        catch (e) {
+            return 0;
+        }
+    });
+
+    if (!has_simd128 || !has_relaxed) return nk_cap_serial_k;
+#endif
+    return nk_cap_v128relaxed_k;
+}
+
+#endif // NK_TARGET_WASM_
+
 /**
  *  @brief  Function to flush @b denormalized numbers to zero to avoid performance penalties.
  *  @param  capabilities A bitmask of capabilities. If `nk_cap_sapphire_amx_k` is set,
@@ -1299,6 +1369,9 @@ NK_PUBLIC nk_capability_t nk_capabilities_(void) {
 #if NK_TARGET_RISCV_
     return nk_capabilities_riscv_();
 #endif // NK_TARGET_RISCV_
+#if NK_TARGET_WASM_
+    return nk_capabilities_wasm_();
+#endif // NK_TARGET_WASM_
     return nk_cap_serial_k;
 }
 
@@ -1316,6 +1389,15 @@ NK_PUBLIC nk_capability_t nk_capabilities_(void) {
 NK_INTERNAL void nk_find_kernel_punned_f64_(nk_capability_t v, nk_kernel_kind_t k, nk_kernel_punned_t *m,
                                             nk_capability_t *c) {
     typedef nk_kernel_punned_t m_t;
+#if NK_TARGET_V128RELAXED
+    if (v & nk_cap_v128relaxed_k) switch (k) {
+        case nk_kernel_dot_k: *m = (m_t)&nk_dot_f64_wasm, *c = nk_cap_v128relaxed_k; return;
+        case nk_kernel_angular_k: *m = (m_t)&nk_angular_f64_wasm, *c = nk_cap_v128relaxed_k; return;
+        case nk_kernel_sqeuclidean_k: *m = (m_t)&nk_sqeuclidean_f64_wasm, *c = nk_cap_v128relaxed_k; return;
+        case nk_kernel_euclidean_k: *m = (m_t)&nk_euclidean_f64_wasm, *c = nk_cap_v128relaxed_k; return;
+        default: break;
+        }
+#endif
 #if NK_TARGET_SMEF64
     if (v & nk_cap_smef64_k) switch (k) {
         case nk_kernel_dots_packed_size_k: *m = (m_t)&nk_dots_packed_size_f64_smef64, *c = nk_cap_smef64_k; return;
@@ -1468,6 +1550,15 @@ NK_INTERNAL void nk_find_kernel_punned_f64_(nk_capability_t v, nk_kernel_kind_t 
 NK_INTERNAL void nk_find_kernel_punned_f32_(nk_capability_t v, nk_kernel_kind_t k, nk_kernel_punned_t *m,
                                             nk_capability_t *c) {
     typedef nk_kernel_punned_t m_t;
+#if NK_TARGET_V128RELAXED
+    if (v & nk_cap_v128relaxed_k) switch (k) {
+        case nk_kernel_dot_k: *m = (m_t)&nk_dot_f32_wasm, *c = nk_cap_v128relaxed_k; return;
+        case nk_kernel_angular_k: *m = (m_t)&nk_angular_f32_wasm, *c = nk_cap_v128relaxed_k; return;
+        case nk_kernel_sqeuclidean_k: *m = (m_t)&nk_sqeuclidean_f32_wasm, *c = nk_cap_v128relaxed_k; return;
+        case nk_kernel_euclidean_k: *m = (m_t)&nk_euclidean_f32_wasm, *c = nk_cap_v128relaxed_k; return;
+        default: break;
+        }
+#endif
 #if NK_TARGET_SMEF64
     if (v & nk_cap_smef64_k) switch (k) {
         case nk_kernel_dots_packed_size_k: *m = (m_t)&nk_dots_packed_size_f32_smef64, *c = nk_cap_smef64_k; return;
@@ -1756,6 +1847,15 @@ NK_INTERNAL void nk_find_kernel_punned_f16_(nk_capability_t v, nk_kernel_kind_t 
         default: break;
         }
 #endif
+#if NK_TARGET_V128RELAXED
+    if (v & nk_cap_v128relaxed_k) switch (k) {
+        case nk_kernel_dot_k: *m = (m_t)&nk_dot_f16_wasm, *c = nk_cap_v128relaxed_k; return;
+        case nk_kernel_angular_k: *m = (m_t)&nk_angular_f16_wasm, *c = nk_cap_v128relaxed_k; return;
+        case nk_kernel_sqeuclidean_k: *m = (m_t)&nk_sqeuclidean_f16_wasm, *c = nk_cap_v128relaxed_k; return;
+        case nk_kernel_euclidean_k: *m = (m_t)&nk_euclidean_f16_wasm, *c = nk_cap_v128relaxed_k; return;
+        default: break;
+        }
+#endif
     if (v & nk_cap_serial_k) switch (k) {
         case nk_kernel_dot_k: *m = (m_t)&nk_dot_f16_serial, *c = nk_cap_serial_k; return;
         case nk_kernel_angular_k: *m = (m_t)&nk_angular_f16_serial, *c = nk_cap_serial_k; return;
@@ -1915,6 +2015,15 @@ NK_INTERNAL void nk_find_kernel_punned_bf16_(nk_capability_t v, nk_kernel_kind_t
         default: break;
         }
 #endif
+#if NK_TARGET_V128RELAXED
+    if (v & nk_cap_v128relaxed_k) switch (k) {
+        case nk_kernel_dot_k: *m = (m_t)&nk_dot_bf16_wasm, *c = nk_cap_v128relaxed_k; return;
+        case nk_kernel_angular_k: *m = (m_t)&nk_angular_bf16_wasm, *c = nk_cap_v128relaxed_k; return;
+        case nk_kernel_sqeuclidean_k: *m = (m_t)&nk_sqeuclidean_bf16_wasm, *c = nk_cap_v128relaxed_k; return;
+        case nk_kernel_euclidean_k: *m = (m_t)&nk_euclidean_bf16_wasm, *c = nk_cap_v128relaxed_k; return;
+        default: break;
+        }
+#endif
     if (v & nk_cap_serial_k) switch (k) {
         case nk_kernel_dot_k: *m = (m_t)&nk_dot_bf16_serial, *c = nk_cap_serial_k; return;
         case nk_kernel_angular_k: *m = (m_t)&nk_angular_bf16_serial, *c = nk_cap_serial_k; return;
@@ -1945,6 +2054,12 @@ NK_INTERNAL void nk_find_kernel_punned_bf16_(nk_capability_t v, nk_kernel_kind_t
 NK_INTERNAL void nk_find_kernel_punned_i8_(nk_capability_t v, nk_kernel_kind_t k, nk_kernel_punned_t *m,
                                            nk_capability_t *c) {
     typedef nk_kernel_punned_t m_t;
+#if NK_TARGET_V128RELAXED
+    if (v & nk_cap_v128relaxed_k) switch (k) {
+        case nk_kernel_dot_k: *m = (m_t)&nk_dot_i8_wasm, *c = nk_cap_v128relaxed_k; return;
+        default: break;
+        }
+#endif
 #if NK_TARGET_SME
     if (v & nk_cap_sme_k) switch (k) {
         case nk_kernel_dots_packed_size_k: *m = (m_t)&nk_dots_packed_size_i8_sme, *c = nk_cap_sme_k; return;
@@ -2088,6 +2203,13 @@ NK_INTERNAL void nk_find_kernel_punned_i8_(nk_capability_t v, nk_kernel_kind_t k
 NK_INTERNAL void nk_find_kernel_punned_u8_(nk_capability_t v, nk_kernel_kind_t k, nk_kernel_punned_t *m,
                                            nk_capability_t *c) {
     typedef nk_kernel_punned_t m_t;
+#if NK_TARGET_V128RELAXED
+    if (v & nk_cap_v128relaxed_k) switch (k) {
+        case nk_kernel_dot_k: *m = (m_t)&nk_dot_u8_wasm, *c = nk_cap_v128relaxed_k; return;
+        case nk_kernel_hamming_k: *m = (m_t)&nk_hamming_u8_wasm, *c = nk_cap_v128relaxed_k; return;
+        default: break;
+        }
+#endif
 #if NK_TARGET_SME
     if (v & nk_cap_sme_k) switch (k) {
         case nk_kernel_dots_packed_size_k: *m = (m_t)&nk_dots_packed_size_u8_sme, *c = nk_cap_sme_k; return;
@@ -2726,6 +2848,13 @@ NK_INTERNAL void nk_find_kernel_punned_e3m2_(nk_capability_t v, nk_kernel_kind_t
 NK_INTERNAL void nk_find_kernel_punned_u1_(nk_capability_t v, nk_kernel_kind_t k, nk_kernel_punned_t *m,
                                            nk_capability_t *c) {
     typedef nk_kernel_punned_t m_t;
+#if NK_TARGET_V128RELAXED
+    if (v & nk_cap_v128relaxed_k) switch (k) {
+        case nk_kernel_hamming_k: *m = (m_t)&nk_hamming_u1_wasm, *c = nk_cap_v128relaxed_k; return;
+        case nk_kernel_jaccard_k: *m = (m_t)&nk_jaccard_u1_wasm, *c = nk_cap_v128relaxed_k; return;
+        default: break;
+        }
+#endif
 #if NK_TARGET_SVE
     if (v & nk_cap_sve_k) switch (k) {
         case nk_kernel_hamming_k: *m = (m_t)&nk_hamming_u1_sve, *c = nk_cap_sve_k; return;
@@ -2957,6 +3086,12 @@ NK_INTERNAL void nk_find_kernel_punned_bf16c_(nk_capability_t v, nk_kernel_kind_
 NK_INTERNAL void nk_find_kernel_punned_u16_(nk_capability_t v, nk_kernel_kind_t k, nk_kernel_punned_t *m,
                                             nk_capability_t *c) {
     typedef nk_kernel_punned_t m_t;
+#if NK_TARGET_V128RELAXED
+    if (v & nk_cap_v128relaxed_k) switch (k) {
+        case nk_kernel_jaccard_k: *m = (m_t)&nk_jaccard_u16_wasm, *c = nk_cap_v128relaxed_k; return;
+        default: break;
+        }
+#endif
 #if NK_TARGET_SVE2
     if (v & nk_cap_sve2_k) switch (k) {
         case nk_kernel_sparse_intersect_k: *m = (m_t)&nk_sparse_intersect_u16_sve2, *c = nk_cap_sve2_k; return;
@@ -3108,6 +3243,12 @@ NK_INTERNAL void nk_find_kernel_punned_i16_(nk_capability_t v, nk_kernel_kind_t 
 NK_INTERNAL void nk_find_kernel_punned_u32_(nk_capability_t v, nk_kernel_kind_t k, nk_kernel_punned_t *m,
                                             nk_capability_t *c) {
     typedef nk_kernel_punned_t m_t;
+#if NK_TARGET_V128RELAXED
+    if (v & nk_cap_v128relaxed_k) switch (k) {
+        case nk_kernel_jaccard_k: *m = (m_t)&nk_jaccard_u32_wasm, *c = nk_cap_v128relaxed_k; return;
+        default: break;
+        }
+#endif
 #if NK_TARGET_SVE2
     if (v & nk_cap_sve2_k) switch (k) {
         case nk_kernel_sparse_intersect_k: *m = (m_t)&nk_sparse_intersect_u32_sve2, *c = nk_cap_sve2_k; return;
@@ -3609,6 +3750,7 @@ NK_PUBLIC int nk_uses_granite_amx(void) { return NK_TARGET_X86_ && NK_TARGET_GRA
 NK_PUBLIC int nk_uses_spacemit(void) { return NK_TARGET_RISCV_ && NK_TARGET_SPACEMIT; }
 NK_PUBLIC int nk_uses_sifive(void) { return NK_TARGET_RISCV_ && NK_TARGET_SIFIVE; }
 NK_PUBLIC int nk_uses_xuantie(void) { return NK_TARGET_RISCV_ && NK_TARGET_XUANTIE; }
+NK_PUBLIC int nk_uses_v128relaxed(void) { return NK_TARGET_WASM_ && NK_TARGET_V128RELAXED; }
 NK_PUBLIC int nk_uses_dynamic_dispatch(void) { return 0; }
 NK_PUBLIC int nk_configure_thread(nk_capability_t c) { return nk_configure_thread_(c); }
 NK_PUBLIC nk_capability_t nk_capabilities(void) { return nk_capabilities_(); }

@@ -449,9 +449,9 @@ NK_INTERNAL void nk_hamming_b512_init_ice(nk_hamming_b512_state_ice_t *state);
 NK_INTERNAL void nk_hamming_b512_update_ice(nk_hamming_b512_state_ice_t *state, nk_b512_vec_t a, nk_b512_vec_t b,
                                             nk_size_t depth_offset, nk_size_t active_dimensions);
 /** @copydoc nk_hamming_b512_state_ice_t */
-NK_INTERNAL void nk_hamming_b512_finalize_ice( //
-    nk_hamming_b512_state_ice_t const *state_a, nk_hamming_b512_state_ice_t const *state_b,
-    nk_hamming_b512_state_ice_t const *state_c, nk_hamming_b512_state_ice_t const *state_d,
+NK_INTERNAL void nk_hamming_b512_finalize_ice(                                              //
+    nk_hamming_b512_state_ice_t const *state_a, nk_hamming_b512_state_ice_t const *state_b, //
+    nk_hamming_b512_state_ice_t const *state_c, nk_hamming_b512_state_ice_t const *state_d, //
     nk_size_t total_dimensions, nk_b128_vec_t *result);
 
 /** @copydoc nk_jaccard_u1 */
@@ -500,17 +500,33 @@ NK_INTERNAL void nk_jaccard_b512_finalize_ice( //
 
 #endif // NK_TARGET_ICE
 
+#if NK_TARGET_V128RELAXED
+/** @copydoc nk_hamming_u1 */
+NK_PUBLIC void nk_hamming_u1_wasm(nk_u1x8_t const *a, nk_u1x8_t const *b, nk_size_t n, nk_u32_t *result);
+/** @copydoc nk_hamming_u8 */
+NK_PUBLIC void nk_hamming_u8_wasm(nk_u8_t const *a, nk_u8_t const *b, nk_size_t n, nk_u32_t *result);
+/** @copydoc nk_jaccard_u1 */
+NK_PUBLIC void nk_jaccard_u1_wasm(nk_u1x8_t const *a, nk_u1x8_t const *b, nk_size_t n, nk_f32_t *result);
+/** @copydoc nk_jaccard_u16 */
+NK_PUBLIC void nk_jaccard_u16_wasm(nk_u16_t const *a, nk_u16_t const *b, nk_size_t n, nk_f32_t *result);
+/** @copydoc nk_jaccard_u32 */
+NK_PUBLIC void nk_jaccard_u32_wasm(nk_u32_t const *a, nk_u32_t const *b, nk_size_t n, nk_f32_t *result);
+#endif // NK_TARGET_V128RELAXED
+
 #include "numkong/set/serial.h"
 #include "numkong/set/neon.h"
 #include "numkong/set/sve.h"
 #include "numkong/set/ice.h"
 #include "numkong/set/haswell.h"
+#include "numkong/set/wasm.h"
 #include "numkong/set/spacemit.h"
 
 #if !NK_DYNAMIC_DISPATCH
 
 NK_PUBLIC void nk_hamming_u1(nk_u1x8_t const *a, nk_u1x8_t const *b, nk_size_t n, nk_u32_t *result) {
-#if NK_TARGET_SVE
+#if NK_TARGET_V128RELAXED
+    nk_hamming_u1_wasm(a, b, n, result);
+#elif NK_TARGET_SVE
     nk_hamming_u1_sve(a, b, n, result);
 #elif NK_TARGET_NEON
     nk_hamming_u1_neon(a, b, n, result);
@@ -526,7 +542,9 @@ NK_PUBLIC void nk_hamming_u1(nk_u1x8_t const *a, nk_u1x8_t const *b, nk_size_t n
 }
 
 NK_PUBLIC void nk_jaccard_u1(nk_u1x8_t const *a, nk_u1x8_t const *b, nk_size_t n, nk_f32_t *result) {
-#if NK_TARGET_SVE
+#if NK_TARGET_V128RELAXED
+    nk_jaccard_u1_wasm(a, b, n, result);
+#elif NK_TARGET_SVE
     nk_jaccard_u1_sve(a, b, n, result);
 #elif NK_TARGET_NEON
     nk_jaccard_u1_neon(a, b, n, result);
@@ -542,7 +560,9 @@ NK_PUBLIC void nk_jaccard_u1(nk_u1x8_t const *a, nk_u1x8_t const *b, nk_size_t n
 }
 
 NK_PUBLIC void nk_jaccard_u32(nk_u32_t const *a, nk_u32_t const *b, nk_size_t n, nk_f32_t *result) {
-#if NK_TARGET_SVE
+#if NK_TARGET_V128RELAXED
+    nk_jaccard_u32_wasm(a, b, n, result);
+#elif NK_TARGET_SVE
     nk_jaccard_u32_sve(a, b, n, result);
 #elif NK_TARGET_NEON
     nk_jaccard_u32_neon(a, b, n, result);
@@ -558,7 +578,9 @@ NK_PUBLIC void nk_jaccard_u32(nk_u32_t const *a, nk_u32_t const *b, nk_size_t n,
 }
 
 NK_PUBLIC void nk_hamming_u8(nk_u8_t const *a, nk_u8_t const *b, nk_size_t n, nk_u32_t *result) {
-#if NK_TARGET_SVE
+#if NK_TARGET_V128RELAXED
+    nk_hamming_u8_wasm(a, b, n, result);
+#elif NK_TARGET_SVE
     nk_hamming_u8_sve(a, b, n, result);
 #elif NK_TARGET_NEON
     nk_hamming_u8_neon(a, b, n, result);
@@ -574,7 +596,9 @@ NK_PUBLIC void nk_hamming_u8(nk_u8_t const *a, nk_u8_t const *b, nk_size_t n, nk
 }
 
 NK_PUBLIC void nk_jaccard_u16(nk_u16_t const *a, nk_u16_t const *b, nk_size_t n, nk_f32_t *result) {
-#if NK_TARGET_SVE
+#if NK_TARGET_V128RELAXED
+    nk_jaccard_u16_wasm(a, b, n, result);
+#elif NK_TARGET_SVE
     nk_jaccard_u16_sve(a, b, n, result);
 #elif NK_TARGET_NEON
     nk_jaccard_u16_neon(a, b, n, result);

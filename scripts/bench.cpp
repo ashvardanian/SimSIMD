@@ -1988,6 +1988,37 @@ int main(int argc, char **argv) {
     dense_<f64_k, f64_k>("angular_f64_spacemit", nk_angular_f64_spacemit);
 #endif
 
+#if NK_TARGET_V128RELAXED
+    // Set operations
+    dense_<u1_k, u32_k>("hamming_u1_wasm", nk_hamming_u1_wasm);
+    dense_<u1_k, f32_k>("jaccard_u1_wasm", nk_jaccard_u1_wasm);
+    dense_<u8_k, u32_k>("hamming_u8_wasm", nk_hamming_u8_wasm);
+    dense_<u16_k, f32_k>("jaccard_u16_wasm", nk_jaccard_u16_wasm);
+    dense_<u32_k, f32_k>("jaccard_u32_wasm", nk_jaccard_u32_wasm);
+
+    // Dot products
+    dense_<f32_k, f32_k>("dot_f32_wasm", nk_dot_f32_wasm);
+    dense_<f64_k, f64_k>("dot_f64_wasm", nk_dot_f64_wasm);
+    dense_<f16_k, f32_k>("dot_f16_wasm", nk_dot_f16_wasm);
+    dense_<bf16_k, f32_k>("dot_bf16_wasm", nk_dot_bf16_wasm);
+    dense_<i8_k, i32_k>("dot_i8_wasm", nk_dot_i8_wasm);
+    dense_<u8_k, u32_k>("dot_u8_wasm", nk_dot_u8_wasm);
+
+    // Spatial distances
+    dense_<f32_k, f32_k>("sqeuclidean_f32_wasm", nk_sqeuclidean_f32_wasm);
+    dense_<f64_k, f64_k>("sqeuclidean_f64_wasm", nk_sqeuclidean_f64_wasm);
+    dense_<f16_k, f32_k>("sqeuclidean_f16_wasm", nk_sqeuclidean_f16_wasm);
+    dense_<bf16_k, f32_k>("sqeuclidean_bf16_wasm", nk_sqeuclidean_bf16_wasm);
+    dense_<f32_k, f32_k>("euclidean_f32_wasm", nk_euclidean_f32_wasm);
+    dense_<f64_k, f64_k>("euclidean_f64_wasm", nk_euclidean_f64_wasm);
+    dense_<f16_k, f32_k>("euclidean_f16_wasm", nk_euclidean_f16_wasm);
+    dense_<bf16_k, f32_k>("euclidean_bf16_wasm", nk_euclidean_bf16_wasm);
+    dense_<f32_k, f32_k>("angular_f32_wasm", nk_angular_f32_wasm);
+    dense_<f64_k, f64_k>("angular_f64_wasm", nk_angular_f64_wasm);
+    dense_<f16_k, f32_k>("angular_f16_wasm", nk_angular_f16_wasm);
+    dense_<bf16_k, f32_k>("angular_bf16_wasm", nk_angular_bf16_wasm);
+#endif
+
     sparse_<u16_k, u32_k>("sparse_intersect_u16_serial", nk_sparse_intersect_u16_serial);
     sparse_<u32_k, u32_k>("sparse_intersect_u32_serial", nk_sparse_intersect_u32_serial);
     sparse_<u64_k, u64_k>("sparse_intersect_u64_serial", nk_sparse_intersect_u64_serial);

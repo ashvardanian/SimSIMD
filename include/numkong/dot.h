@@ -880,6 +880,21 @@ NK_INTERNAL void nk_dot_i8x32_finalize_sierra(                                  
 
 #endif // NK_TARGET_SIERRA
 
+#if NK_TARGET_V128RELAXED
+/** @copydoc nk_dot_f32 */
+NK_PUBLIC void nk_dot_f32_wasm(nk_f32_t const *a, nk_f32_t const *b, nk_size_t n, nk_f32_t *result);
+/** @copydoc nk_dot_f64 */
+NK_PUBLIC void nk_dot_f64_wasm(nk_f64_t const *a, nk_f64_t const *b, nk_size_t n, nk_f64_t *result);
+/** @copydoc nk_dot_f16 */
+NK_PUBLIC void nk_dot_f16_wasm(nk_f16_t const *a, nk_f16_t const *b, nk_size_t n, nk_f32_t *result);
+/** @copydoc nk_dot_bf16 */
+NK_PUBLIC void nk_dot_bf16_wasm(nk_bf16_t const *a, nk_bf16_t const *b, nk_size_t n, nk_f32_t *result);
+/** @copydoc nk_dot_i8 */
+NK_PUBLIC void nk_dot_i8_wasm(nk_i8_t const *a, nk_i8_t const *b, nk_size_t n, nk_i32_t *result);
+/** @copydoc nk_dot_u8 */
+NK_PUBLIC void nk_dot_u8_wasm(nk_u8_t const *a, nk_u8_t const *b, nk_size_t n, nk_u32_t *result);
+#endif // NK_TARGET_V128RELAXED
+
 /**
  *  @brief  Returns the output dtype for dot products.
  */
@@ -917,11 +932,14 @@ NK_INTERNAL nk_dtype_t nk_dot_output_dtype(nk_dtype_t dtype) {
 #include "numkong/dot/spacemit.h"
 #include "numkong/dot/sifive.h"
 #include "numkong/dot/xuantie.h"
+#include "numkong/dot/wasm.h"
 
 #if !NK_DYNAMIC_DISPATCH
 
 NK_PUBLIC void nk_dot_i8(nk_i8_t const *a, nk_i8_t const *b, nk_size_t n, nk_i32_t *result) {
-#if NK_TARGET_SPACEMIT
+#if NK_TARGET_V128RELAXED
+    nk_dot_i8_wasm(a, b, n, result);
+#elif NK_TARGET_SPACEMIT
     nk_dot_i8_spacemit(a, b, n, result);
 #elif NK_TARGET_NEONSDOT
     nk_dot_i8_neonsdot(a, b, n, result);
@@ -936,7 +954,9 @@ NK_PUBLIC void nk_dot_i8(nk_i8_t const *a, nk_i8_t const *b, nk_size_t n, nk_i32
 #endif
 }
 NK_PUBLIC void nk_dot_u8(nk_u8_t const *a, nk_u8_t const *b, nk_size_t n, nk_u32_t *result) {
-#if NK_TARGET_SPACEMIT
+#if NK_TARGET_V128RELAXED
+    nk_dot_u8_wasm(a, b, n, result);
+#elif NK_TARGET_SPACEMIT
     nk_dot_u8_spacemit(a, b, n, result);
 #elif NK_TARGET_NEONSDOT
     nk_dot_u8_neonsdot(a, b, n, result);
@@ -973,7 +993,9 @@ NK_PUBLIC void nk_dot_u4(nk_u4x2_t const *a, nk_u4x2_t const *b, nk_size_t n, nk
 #endif
 }
 NK_PUBLIC void nk_dot_f16(nk_f16_t const *a, nk_f16_t const *b, nk_size_t n, nk_f32_t *result) {
-#if NK_TARGET_SIFIVE
+#if NK_TARGET_V128RELAXED
+    nk_dot_f16_wasm(a, b, n, result);
+#elif NK_TARGET_SIFIVE
     nk_dot_f16_sifive(a, b, n, result);
 #elif NK_TARGET_SPACEMIT
     nk_dot_f16_spacemit(a, b, n, result);
@@ -992,7 +1014,9 @@ NK_PUBLIC void nk_dot_f16(nk_f16_t const *a, nk_f16_t const *b, nk_size_t n, nk_
 #endif
 }
 NK_PUBLIC void nk_dot_bf16(nk_bf16_t const *a, nk_bf16_t const *b, nk_size_t n, nk_f32_t *result) {
-#if NK_TARGET_GENOA
+#if NK_TARGET_V128RELAXED
+    nk_dot_bf16_wasm(a, b, n, result);
+#elif NK_TARGET_GENOA
     nk_dot_bf16_genoa(a, b, n, result);
 #elif NK_TARGET_SPACEMIT
     nk_dot_bf16_spacemit(a, b, n, result);
@@ -1071,7 +1095,9 @@ NK_PUBLIC void nk_dot_e3m2(nk_e3m2_t const *a, nk_e3m2_t const *b, nk_size_t n, 
 #endif
 }
 NK_PUBLIC void nk_dot_f32(nk_f32_t const *a, nk_f32_t const *b, nk_size_t n, nk_f32_t *result) {
-#if NK_TARGET_SPACEMIT
+#if NK_TARGET_V128RELAXED
+    nk_dot_f32_wasm(a, b, n, result);
+#elif NK_TARGET_SPACEMIT
     nk_dot_f32_spacemit(a, b, n, result);
 #elif NK_TARGET_SVE
     nk_dot_f32_sve(a, b, n, result);
@@ -1086,7 +1112,9 @@ NK_PUBLIC void nk_dot_f32(nk_f32_t const *a, nk_f32_t const *b, nk_size_t n, nk_
 #endif
 }
 NK_PUBLIC void nk_dot_f64(nk_f64_t const *a, nk_f64_t const *b, nk_size_t n, nk_f64_t *result) {
-#if NK_TARGET_SPACEMIT
+#if NK_TARGET_V128RELAXED
+    nk_dot_f64_wasm(a, b, n, result);
+#elif NK_TARGET_SPACEMIT
     nk_dot_f64_spacemit(a, b, n, result);
 #elif NK_TARGET_SVE
     nk_dot_f64_sve(a, b, n, result);

@@ -62,7 +62,12 @@ project(
 
 set(CMAKE_C_STANDARD 99)
 set(CMAKE_C_STANDARD_REQUIRED YES)
-set(CMAKE_C_EXTENSIONS NO)
+# Enable GNU extensions for WASM (required for EM_ASM runtime detection)
+if(CMAKE_SYSTEM_NAME STREQUAL "Emscripten")
+    set(CMAKE_C_EXTENSIONS YES)
+else()
+    set(CMAKE_C_EXTENSIONS NO)
+endif()
 
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED YES)

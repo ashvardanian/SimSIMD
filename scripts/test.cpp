@@ -678,6 +678,20 @@ void test_casts() {
     run_if_matches("cast_e5m2_to_f16_sapphire", test_cast<e5m2_t, f16_t>, nk_cast_sapphire);
     run_if_matches("cast_f16_to_e5m2_sapphire", test_cast<f16_t, e5m2_t>, nk_cast_sapphire);
 #endif
+
+#if NK_TARGET_NEON
+    run_if_matches("cast_e4m3_to_f32_neon", test_cast<e4m3_t, f32_t>, nk_cast_neon);
+    run_if_matches("cast_f32_to_e4m3_neon", test_cast<f32_t, e4m3_t>, nk_cast_neon);
+    run_if_matches("cast_e5m2_to_f32_neon", test_cast<e5m2_t, f32_t>, nk_cast_neon);
+    run_if_matches("cast_f32_to_e5m2_neon", test_cast<f32_t, e5m2_t>, nk_cast_neon);
+#endif
+
+#if NK_TARGET_SPACEMIT
+    run_if_matches("cast_bf16_to_f32_spacemit", test_cast<bf16_t, f32_t>, nk_cast_spacemit);
+    run_if_matches("cast_f32_to_bf16_spacemit", test_cast<f32_t, bf16_t>, nk_cast_spacemit);
+    run_if_matches("cast_e4m3_to_f32_spacemit", test_cast<e4m3_t, f32_t>, nk_cast_spacemit);
+    run_if_matches("cast_e5m2_to_f32_spacemit", test_cast<e5m2_t, f32_t>, nk_cast_spacemit);
+#endif
 }
 
 #pragma endregion // Cast
@@ -938,6 +952,15 @@ void test_dot() {
     run_if_matches("dot_spacemit_u4", test_dot<u4x2_t>, nk_dot_u4_spacemit);
 #endif // NK_TARGET_SPACEMIT
 
+#if NK_TARGET_V128RELAXED
+    run_if_matches("dot_f32_wasm", test_dot<f32_t>, nk_dot_f32_wasm);
+    run_if_matches("dot_f64_wasm", test_dot<f64_t>, nk_dot_f64_wasm);
+    run_if_matches("dot_f16_wasm", test_dot<f16_t>, nk_dot_f16_wasm);
+    run_if_matches("dot_bf16_wasm", test_dot<bf16_t>, nk_dot_bf16_wasm);
+    run_if_matches("dot_i8_wasm", test_dot<i8_t>, nk_dot_i8_wasm);
+    run_if_matches("dot_u8_wasm", test_dot<u8_t>, nk_dot_u8_wasm);
+#endif // NK_TARGET_V128RELAXED
+
 #if NK_TARGET_SIFIVE
     run_if_matches("dot_sifive_f16", test_dot<f16_t>, nk_dot_f16_sifive);
 #endif // NK_TARGET_SIFIVE
@@ -1124,6 +1147,21 @@ void test_spatial() {
     run_if_matches("angular_spacemit_i4", test_angular<i4x2_t>, nk_angular_i4_spacemit);
     run_if_matches("angular_spacemit_u4", test_angular<u4x2_t>, nk_angular_u4_spacemit);
 #endif // NK_TARGET_SPACEMIT
+
+#if NK_TARGET_V128RELAXED
+    run_if_matches("sqeuclidean_f32_wasm", test_sqeuclidean<f32_t>, nk_sqeuclidean_f32_wasm);
+    run_if_matches("sqeuclidean_f64_wasm", test_sqeuclidean<f64_t>, nk_sqeuclidean_f64_wasm);
+    run_if_matches("sqeuclidean_f16_wasm", test_sqeuclidean<f16_t>, nk_sqeuclidean_f16_wasm);
+    run_if_matches("sqeuclidean_bf16_wasm", test_sqeuclidean<bf16_t>, nk_sqeuclidean_bf16_wasm);
+    run_if_matches("euclidean_f32_wasm", test_euclidean<f32_t>, nk_euclidean_f32_wasm);
+    run_if_matches("euclidean_f64_wasm", test_euclidean<f64_t>, nk_euclidean_f64_wasm);
+    run_if_matches("euclidean_f16_wasm", test_euclidean<f16_t>, nk_euclidean_f16_wasm);
+    run_if_matches("euclidean_bf16_wasm", test_euclidean<bf16_t>, nk_euclidean_bf16_wasm);
+    run_if_matches("angular_f32_wasm", test_angular<f32_t>, nk_angular_f32_wasm);
+    run_if_matches("angular_f64_wasm", test_angular<f64_t>, nk_angular_f64_wasm);
+    run_if_matches("angular_f16_wasm", test_angular<f16_t>, nk_angular_f16_wasm);
+    run_if_matches("angular_bf16_wasm", test_angular<bf16_t>, nk_angular_bf16_wasm);
+#endif // NK_TARGET_V128RELAXED
 
 #if NK_TARGET_SIFIVE
     run_if_matches("sqeuclidean_sifive_f16", test_sqeuclidean<f16_t>, nk_sqeuclidean_f16_sifive);
@@ -1409,6 +1447,11 @@ void test_binary() {
     run_if_matches("hamming_spacemit_u1", test_hamming, nk_hamming_u1_spacemit);
     run_if_matches("jaccard_spacemit_u1", test_jaccard, nk_jaccard_u1_spacemit);
 #endif // NK_TARGET_SPACEMIT
+
+#if NK_TARGET_V128RELAXED
+    run_if_matches("hamming_u1_wasm", test_hamming, nk_hamming_u1_wasm);
+    run_if_matches("jaccard_u1_wasm", test_jaccard, nk_jaccard_u1_wasm);
+#endif // NK_TARGET_V128RELAXED
 
     // Serial always runs - baseline test
     run_if_matches("hamming_u1_serial", test_hamming, nk_hamming_u1_serial);

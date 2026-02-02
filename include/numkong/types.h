@@ -110,6 +110,26 @@
 #endif // defined(__riscv) && (__riscv_xlen == 64)
 #endif // !defined(NK_TARGET_RISCV_)
 
+// Compiling for WASM: NK_TARGET_WASM_
+#if !defined(NK_TARGET_WASM_)
+#if defined(__wasm__) || defined(__EMSCRIPTEN__)
+#define NK_TARGET_WASM_ 1
+#else
+#define NK_TARGET_WASM_ 0
+#endif
+#endif // !defined(NK_TARGET_WASM_)
+
+// Compiling for WASM with Relaxed SIMD: NK_TARGET_V128RELAXED
+// Requires -mrelaxed-simd for FMA instructions (f32x4.relaxed_madd, f64x2.relaxed_madd)
+#if !defined(NK_TARGET_V128RELAXED) || (NK_TARGET_V128RELAXED && !NK_TARGET_WASM_)
+#if defined(__wasm_relaxed_simd__)
+#define NK_TARGET_V128RELAXED NK_TARGET_WASM_
+#else
+#undef NK_TARGET_V128RELAXED
+#define NK_TARGET_V128RELAXED 0
+#endif
+#endif // !defined(NK_TARGET_V128RELAXED) || ...
+
 // Compiling for RISC-V Vector: NK_TARGET_SPACEMIT
 #if !defined(NK_TARGET_SPACEMIT) || (NK_TARGET_SPACEMIT && !NK_TARGET_RISCV_)
 #if defined(__riscv_v) && (__riscv_v >= 1000000)
@@ -400,6 +420,8 @@
 #include <immintrin.h>
 #elif NK_TARGET_SPACEMIT
 #include <riscv_vector.h>
+#elif NK_TARGET_V128RELAXED
+#include <wasm_simd128.h>
 #endif
 
 #if !defined(NK_F64_DIVISION_EPSILON)
@@ -877,6 +899,9 @@ typedef union nk_b128_vec_t {
     __m128i xmm;
     __m128d xmm_pd;
     __m128 xmm_ps;
+#endif
+#if NK_TARGET_V128RELAXED
+    v128_t v128;
 #endif
 #if NK_TARGET_NEON
     uint8x16_t u8x16;
