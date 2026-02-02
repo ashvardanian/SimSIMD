@@ -34,8 +34,10 @@ NK_PUBLIC void nk_sqeuclidean_bf16_rvvbf16(nk_bf16_t const *a_scalars, nk_bf16_t
 
     for (nk_size_t vl; count_scalars > 0; count_scalars -= vl, a_scalars += vl, b_scalars += vl) {
         vl = __riscv_vsetvl_e16m1(count_scalars);
-        vbfloat16m1_t a_bf16m1 = __riscv_vle16_v_bf16m1((bfloat16_t const *)a_scalars, vl);
-        vbfloat16m1_t b_bf16m1 = __riscv_vle16_v_bf16m1((bfloat16_t const *)b_scalars, vl);
+        vuint16m1_t a_u16m1 = __riscv_vle16_v_u16m1((unsigned short const *)a_scalars, vl);
+        vuint16m1_t b_u16m1 = __riscv_vle16_v_u16m1((unsigned short const *)b_scalars, vl);
+        vbfloat16m1_t a_bf16m1 = __riscv_vreinterpret_v_u16m1_bf16m1(a_u16m1);
+        vbfloat16m1_t b_bf16m1 = __riscv_vreinterpret_v_u16m1_bf16m1(b_u16m1);
 
         // Compute a² using vfwmaccbf16
         vfloat32m2_t aa_f32m2 = __riscv_vfmv_v_f_f32m2(0.0f, vl);
@@ -74,8 +76,10 @@ NK_PUBLIC void nk_angular_bf16_rvvbf16(nk_bf16_t const *a_scalars, nk_bf16_t con
 
     for (nk_size_t vl; count_scalars > 0; count_scalars -= vl, a_scalars += vl, b_scalars += vl) {
         vl = __riscv_vsetvl_e16m1(count_scalars);
-        vbfloat16m1_t a_bf16m1 = __riscv_vle16_v_bf16m1((bfloat16_t const *)a_scalars, vl);
-        vbfloat16m1_t b_bf16m1 = __riscv_vle16_v_bf16m1((bfloat16_t const *)b_scalars, vl);
+        vuint16m1_t a_u16m1 = __riscv_vle16_v_u16m1((unsigned short const *)a_scalars, vl);
+        vuint16m1_t b_u16m1 = __riscv_vle16_v_u16m1((unsigned short const *)b_scalars, vl);
+        vbfloat16m1_t a_bf16m1 = __riscv_vreinterpret_v_u16m1_bf16m1(a_u16m1);
+        vbfloat16m1_t b_bf16m1 = __riscv_vreinterpret_v_u16m1_bf16m1(b_u16m1);
 
         // dot += a × b
         vfloat32m2_t ab_f32m2 = __riscv_vfmv_v_f_f32m2(0.0f, vl);

@@ -28,8 +28,10 @@ NK_PUBLIC void nk_dot_f16_rvvhalf(nk_f16_t const *a_scalars, nk_f16_t const *b_s
     vfloat32m1_t sum_f32m1 = __riscv_vfmv_v_f_f32m1(0.0f, 1);
     for (nk_size_t vl; count_scalars > 0; count_scalars -= vl, a_scalars += vl, b_scalars += vl) {
         vl = __riscv_vsetvl_e16m1(count_scalars);
-        vfloat16m1_t a_f16m1 = __riscv_vle16_v_f16m1((float16_t const *)a_scalars, vl);
-        vfloat16m1_t b_f16m1 = __riscv_vle16_v_f16m1((float16_t const *)b_scalars, vl);
+        vuint16m1_t a_u16m1 = __riscv_vle16_v_u16m1((unsigned short const *)a_scalars, vl);
+        vuint16m1_t b_u16m1 = __riscv_vle16_v_u16m1((unsigned short const *)b_scalars, vl);
+        vfloat16m1_t a_f16m1 = __riscv_vreinterpret_v_u16m1_f16m1(a_u16m1);
+        vfloat16m1_t b_f16m1 = __riscv_vreinterpret_v_u16m1_f16m1(b_u16m1);
         // Widening multiply: f16 ⨯ f16 → f32
         vfloat32m2_t ab_f32m2 = __riscv_vfwmul_vv_f32m2(a_f16m1, b_f16m1, vl);
         // Ordered reduction sum

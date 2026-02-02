@@ -2335,20 +2335,6 @@ NK_INTERNAL void nk_find_kernel_punned_u8_(nk_capability_t v, nk_kernel_kind_t k
         default: break;
         }
 #endif
-#if NK_TARGET_RVVHALF
-    if (v & nk_cap_rvvhalf_k) switch (k) {
-        case nk_kernel_hamming_k: *m = (m_t)&nk_hamming_u8_rvv, *c = nk_cap_rvvhalf_k; return;
-        case nk_kernel_jaccard_k: *m = (m_t)&nk_jaccard_u8_rvv, *c = nk_cap_rvvhalf_k; return;
-        default: break;
-        }
-#endif
-#if NK_TARGET_RVVBF16
-    if (v & nk_cap_rvvbf16_k) switch (k) {
-        case nk_kernel_hamming_k: *m = (m_t)&nk_hamming_u8_rvv, *c = nk_cap_rvvbf16_k; return;
-        case nk_kernel_jaccard_k: *m = (m_t)&nk_jaccard_u8_rvv, *c = nk_cap_rvvbf16_k; return;
-        default: break;
-        }
-#endif
     if (v & nk_cap_serial_k) switch (k) {
         case nk_kernel_dot_k: *m = (m_t)&nk_dot_u8_serial, *c = nk_cap_serial_k; return;
         case nk_kernel_angular_k: *m = (m_t)&nk_angular_u8_serial, *c = nk_cap_serial_k; return;
@@ -2897,20 +2883,6 @@ NK_INTERNAL void nk_find_kernel_punned_u1_(nk_capability_t v, nk_kernel_kind_t k
         default: break;
         }
 #endif
-#if NK_TARGET_RVVHALF
-    if (v & nk_cap_rvvhalf_k) switch (k) {
-        case nk_kernel_hamming_k: *m = (m_t)&nk_hamming_u1_rvv, *c = nk_cap_rvvhalf_k; return;
-        case nk_kernel_jaccard_k: *m = (m_t)&nk_jaccard_u1_rvv, *c = nk_cap_rvvhalf_k; return;
-        default: break;
-        }
-#endif
-#if NK_TARGET_RVVBF16
-    if (v & nk_cap_rvvbf16_k) switch (k) {
-        case nk_kernel_hamming_k: *m = (m_t)&nk_hamming_u1_rvv, *c = nk_cap_rvvbf16_k; return;
-        case nk_kernel_jaccard_k: *m = (m_t)&nk_jaccard_u1_rvv, *c = nk_cap_rvvbf16_k; return;
-        default: break;
-        }
-#endif
 #if NK_TARGET_RVV
     if (v & nk_cap_rvv_k) switch (k) {
         case nk_kernel_hamming_k: *m = (m_t)&nk_hamming_u1_rvv, *c = nk_cap_rvv_k; return;
@@ -3153,20 +3125,6 @@ NK_INTERNAL void nk_find_kernel_punned_u16_(nk_capability_t v, nk_kernel_kind_t 
         default: break;
         }
 #endif
-#if NK_TARGET_RVVHALF
-    if (v & nk_cap_rvvhalf_k) switch (k) {
-        case nk_kernel_hamming_k: *m = (m_t)&nk_hamming_u16_rvv, *c = nk_cap_rvvhalf_k; return;
-        case nk_kernel_jaccard_k: *m = (m_t)&nk_jaccard_u16_rvv, *c = nk_cap_rvvhalf_k; return;
-        default: break;
-        }
-#endif
-#if NK_TARGET_RVVBF16
-    if (v & nk_cap_rvvbf16_k) switch (k) {
-        case nk_kernel_hamming_k: *m = (m_t)&nk_hamming_u16_rvv, *c = nk_cap_rvvbf16_k; return;
-        case nk_kernel_jaccard_k: *m = (m_t)&nk_jaccard_u16_rvv, *c = nk_cap_rvvbf16_k; return;
-        default: break;
-        }
-#endif
 #if NK_TARGET_RVV
     if (v & nk_cap_rvv_k) switch (k) {
         case nk_kernel_jaccard_k: *m = (m_t)&nk_jaccard_u16_rvv, *c = nk_cap_rvv_k; return;
@@ -3307,20 +3265,6 @@ NK_INTERNAL void nk_find_kernel_punned_u32_(nk_capability_t v, nk_kernel_kind_t 
         case nk_kernel_reduce_min_k: *m = (m_t)&nk_reduce_min_u32_haswell, *c = nk_cap_haswell_k; return;
         case nk_kernel_reduce_max_k: *m = (m_t)&nk_reduce_max_u32_haswell, *c = nk_cap_haswell_k; return;
         case nk_kernel_jaccard_k: *m = (m_t)&nk_jaccard_u32_haswell, *c = nk_cap_haswell_k; return;
-        default: break;
-        }
-#endif
-#if NK_TARGET_RVVHALF
-    if (v & nk_cap_rvvhalf_k) switch (k) {
-        case nk_kernel_hamming_k: *m = (m_t)&nk_hamming_u32_rvv, *c = nk_cap_rvvhalf_k; return;
-        case nk_kernel_jaccard_k: *m = (m_t)&nk_jaccard_u32_rvv, *c = nk_cap_rvvhalf_k; return;
-        default: break;
-        }
-#endif
-#if NK_TARGET_RVVBF16
-    if (v & nk_cap_rvvbf16_k) switch (k) {
-        case nk_kernel_hamming_k: *m = (m_t)&nk_hamming_u32_rvv, *c = nk_cap_rvvbf16_k; return;
-        case nk_kernel_jaccard_k: *m = (m_t)&nk_jaccard_u32_rvv, *c = nk_cap_rvvbf16_k; return;
         default: break;
         }
 #endif
