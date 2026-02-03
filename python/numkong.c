@@ -423,6 +423,12 @@ static PyObject *api_enable_capability(PyObject *self, PyObject *cap_name_obj) {
     else if (same_string(cap_name, "smebf16")) { static_capabilities |= nk_cap_smebf16_k; }
     else if (same_string(cap_name, "smelut2")) { static_capabilities |= nk_cap_smelut2_k; }
     else if (same_string(cap_name, "smefa64")) { static_capabilities |= nk_cap_smefa64_k; }
+    // RISC-V capabilities
+    else if (same_string(cap_name, "rvv")) { static_capabilities |= nk_cap_rvv_k; }
+    else if (same_string(cap_name, "rvvhalf")) { static_capabilities |= nk_cap_rvvhalf_k; }
+    else if (same_string(cap_name, "rvvbf16")) { static_capabilities |= nk_cap_rvvbf16_k; }
+    // WASM capabilities
+    else if (same_string(cap_name, "v128relaxed")) { static_capabilities |= nk_cap_v128relaxed_k; }
     // x86 capabilities
     else if (same_string(cap_name, "haswell")) { static_capabilities |= nk_cap_haswell_k; }
     else if (same_string(cap_name, "skylake")) { static_capabilities |= nk_cap_skylake_k; }
@@ -477,6 +483,12 @@ static PyObject *api_disable_capability(PyObject *self, PyObject *cap_name_obj) 
     else if (same_string(cap_name, "smebf16")) { static_capabilities &= ~nk_cap_smebf16_k; }
     else if (same_string(cap_name, "smelut2")) { static_capabilities &= ~nk_cap_smelut2_k; }
     else if (same_string(cap_name, "smefa64")) { static_capabilities &= ~nk_cap_smefa64_k; }
+    // RISC-V capabilities
+    else if (same_string(cap_name, "rvv")) { static_capabilities &= ~nk_cap_rvv_k; }
+    else if (same_string(cap_name, "rvvhalf")) { static_capabilities &= ~nk_cap_rvvhalf_k; }
+    else if (same_string(cap_name, "rvvbf16")) { static_capabilities &= ~nk_cap_rvvbf16_k; }
+    // WASM capabilities
+    else if (same_string(cap_name, "v128relaxed")) { static_capabilities &= ~nk_cap_v128relaxed_k; }
     // x86 capabilities
     else if (same_string(cap_name, "haswell")) { static_capabilities &= ~nk_cap_haswell_k; }
     else if (same_string(cap_name, "skylake")) { static_capabilities &= ~nk_cap_skylake_k; }
@@ -509,22 +521,46 @@ static PyObject *api_get_capabilities(PyObject *self) {
 
 #define ADD_CAP(name) PyDict_SetItemString(cap_dict, #name, PyBool_FromLong((caps) & nk_cap_##name##_k))
 
+    // Always available
     ADD_CAP(serial);
+    // ARM NEON capabilities
     ADD_CAP(neon);
-    ADD_CAP(sve);
     ADD_CAP(neonhalf);
-    ADD_CAP(svehalf);
-    ADD_CAP(neonbfdot);
-    ADD_CAP(svebfdot);
     ADD_CAP(neonsdot);
+    ADD_CAP(neonfhm);
+    ADD_CAP(neonbfdot);
+    // ARM SVE capabilities
+    ADD_CAP(sve);
+    ADD_CAP(svehalf);
     ADD_CAP(svesdot);
+    ADD_CAP(svebfdot);
+    ADD_CAP(sve2);
+    ADD_CAP(sve2p1);
+    // ARM SME capabilities
+    ADD_CAP(sme);
+    ADD_CAP(sme2);
+    ADD_CAP(sme2p1);
+    ADD_CAP(smef64);
+    ADD_CAP(smehalf);
+    ADD_CAP(smebf16);
+    ADD_CAP(smelut2);
+    ADD_CAP(smefa64);
+    // x86 capabilities
     ADD_CAP(haswell);
     ADD_CAP(skylake);
     ADD_CAP(icelake);
     ADD_CAP(genoa);
     ADD_CAP(sapphire);
+    ADD_CAP(sapphireamx);
+    ADD_CAP(graniteamx);
     ADD_CAP(turin);
     ADD_CAP(sierra);
+    // RISC-V capabilities
+    ADD_CAP(rvv);
+    ADD_CAP(rvvhalf);
+    ADD_CAP(rvvbf16);
+    // WASM capabilities
+    ADD_CAP(v128relaxed);
 
 #undef ADD_CAP
 

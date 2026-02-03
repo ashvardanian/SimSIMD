@@ -623,42 +623,6 @@ nk_dispatch_cross_pack_(hammings, u1, u1x8, u32)
 nk_dispatch_cross_packed_(hammings, u1, u1x8, u32, u32)
 nk_dispatch_cross_symmetric_(hammings, u1, u1x8, u32)
 
-// ARM NEON capabilities
-NK_DYNAMIC int nk_uses_neon(void) { return (nk_capabilities() & nk_cap_neon_k) != 0; }
-NK_DYNAMIC int nk_uses_neonhalf(void) { return (nk_capabilities() & nk_cap_neonhalf_k) != 0; }
-NK_DYNAMIC int nk_uses_neonfhm(void) { return (nk_capabilities() & nk_cap_neonfhm_k) != 0; }
-NK_DYNAMIC int nk_uses_neonbfdot(void) { return (nk_capabilities() & nk_cap_neonbfdot_k) != 0; }
-NK_DYNAMIC int nk_uses_neonsdot(void) { return (nk_capabilities() & nk_cap_neonsdot_k) != 0; }
-// ARM SVE capabilities
-NK_DYNAMIC int nk_uses_sve(void) { return (nk_capabilities() & nk_cap_sve_k) != 0; }
-NK_DYNAMIC int nk_uses_svehalf(void) { return (nk_capabilities() & nk_cap_svehalf_k) != 0; }
-NK_DYNAMIC int nk_uses_svebfdot(void) { return (nk_capabilities() & nk_cap_svebfdot_k) != 0; }
-NK_DYNAMIC int nk_uses_svesdot(void) { return (nk_capabilities() & nk_cap_svesdot_k) != 0; }
-NK_DYNAMIC int nk_uses_sve2(void) { return (nk_capabilities() & nk_cap_sve2_k) != 0; }
-NK_DYNAMIC int nk_uses_sve2p1(void) { return (nk_capabilities() & nk_cap_sve2p1_k) != 0; }
-// ARM SME capabilities
-NK_DYNAMIC int nk_uses_sme(void) { return (nk_capabilities() & nk_cap_sme_k) != 0; }
-NK_DYNAMIC int nk_uses_sme2(void) { return (nk_capabilities() & nk_cap_sme2_k) != 0; }
-NK_DYNAMIC int nk_uses_sme2p1(void) { return (nk_capabilities() & nk_cap_sme2p1_k) != 0; }
-NK_DYNAMIC int nk_uses_smef64(void) { return (nk_capabilities() & nk_cap_smef64_k) != 0; }
-NK_DYNAMIC int nk_uses_smehalf(void) { return (nk_capabilities() & nk_cap_smehalf_k) != 0; }
-NK_DYNAMIC int nk_uses_smebf16(void) { return (nk_capabilities() & nk_cap_smebf16_k) != 0; }
-NK_DYNAMIC int nk_uses_smelut2(void) { return (nk_capabilities() & nk_cap_smelut2_k) != 0; }
-NK_DYNAMIC int nk_uses_smefa64(void) { return (nk_capabilities() & nk_cap_smefa64_k) != 0; }
-// x86 capabilities
-NK_DYNAMIC int nk_uses_haswell(void) { return (nk_capabilities() & nk_cap_haswell_k) != 0; }
-NK_DYNAMIC int nk_uses_skylake(void) { return (nk_capabilities() & nk_cap_skylake_k) != 0; }
-NK_DYNAMIC int nk_uses_icelake(void) { return (nk_capabilities() & nk_cap_icelake_k) != 0; }
-NK_DYNAMIC int nk_uses_genoa(void) { return (nk_capabilities() & nk_cap_genoa_k) != 0; }
-NK_DYNAMIC int nk_uses_sapphire(void) { return (nk_capabilities() & nk_cap_sapphire_k) != 0; }
-NK_DYNAMIC int nk_uses_sapphireamx(void) { return (nk_capabilities() & nk_cap_sapphireamx_k) != 0; }
-NK_DYNAMIC int nk_uses_graniteamx(void) { return (nk_capabilities() & nk_cap_graniteamx_k) != 0; }
-NK_DYNAMIC int nk_uses_turin(void) { return (nk_capabilities() & nk_cap_turin_k) != 0; }
-NK_DYNAMIC int nk_uses_sierra(void) { return (nk_capabilities() & nk_cap_sierra_k) != 0; }
-// RISC-V capabilities
-NK_DYNAMIC int nk_uses_rvv(void) { return (nk_capabilities() & nk_cap_rvv_k) != 0; }
-NK_DYNAMIC int nk_uses_rvvhalf(void) { return (nk_capabilities() & nk_cap_rvvhalf_k) != 0; }
-NK_DYNAMIC int nk_uses_rvvbf16(void) { return (nk_capabilities() & nk_cap_rvvbf16_k) != 0; }
 NK_DYNAMIC int nk_uses_dynamic_dispatch(void) { return 1; }
 NK_DYNAMIC int nk_configure_thread(nk_capability_t c) { return nk_configure_thread_(c); }
 
