@@ -122,7 +122,7 @@
 // Compiling for WASM with Relaxed SIMD: NK_TARGET_V128RELAXED
 // Requires -mrelaxed-simd for FMA instructions (f32x4.relaxed_madd, f64x2.relaxed_madd)
 #if !defined(NK_TARGET_V128RELAXED) || (NK_TARGET_V128RELAXED && !NK_TARGET_WASM_)
-#if defined(__v128relaxed_relaxed_simd__)
+#if defined(__wasm_relaxed_simd__)
 #define NK_TARGET_V128RELAXED NK_TARGET_WASM_
 #else
 #undef NK_TARGET_V128RELAXED

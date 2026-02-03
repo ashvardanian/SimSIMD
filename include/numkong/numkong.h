@@ -599,7 +599,7 @@ typedef nk_u64_t nk_capability_t;
  *  Requirements: Emscripten 3.1.27+ with -msimd128 -mrelaxed-simd flags.
  *  Provides 2× FMA throughput via relaxed SIMD instructions.
  *
- *  Detection: Compile-time via __v128relaxed_relaxed_simd__ (no runtime API in current WASM spec).
+ *  Detection: Compile-time via __wasm_relaxed_simd__ (no runtime API in current WASM spec).
  */
 #define nk_cap_v128relaxed_k ((nk_capability_t)1 << 60)
 

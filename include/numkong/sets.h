@@ -200,7 +200,7 @@ NK_PUBLIC void nk_hammings_packed_u1(nk_u1x8_t const *a, void const *q_packed, n
 #elif NK_TARGET_HASWELL
     nk_hammings_packed_u1_haswell(a, q_packed, result, n, column_count, d, v_stride_in_bytes, r_stride_in_bytes);
 #else
-    nk_hammings_pack_u1_serial(a, q_packed, result, n, column_count, d, v_stride_in_bytes, r_stride_in_bytes);
+    nk_hammings_packed_u1_serial(a, q_packed, result, n, column_count, d, v_stride_in_bytes, r_stride_in_bytes);
 #endif
 }
 

@@ -1450,11 +1450,17 @@ NK_PUBLIC void nk_sparse_intersect_u16_sve2( //
         }
         nk_size_t equal_count = svcntp_b16(svptrue_b16(), equal_mask);
 
-        // Use SVE2 svcompact to compress matching elements and store to result buffer
+        // Manually compact and store matching elements (svcompact_u16 is not defined)
         if (result) {
-            svuint16_t compacted = svcompact_u16(equal_mask, a_vec);
-            svbool_t store_predicate = svwhilelt_b16_u64(0, equal_count);
-            svst1_u16(store_predicate, result + c, compacted);
+            nk_u16_t a_data[16];
+            nk_u16_t mask_data[16];
+
+            svst1_u16(svptrue_b16(), a_data, a_vec);
+            svst1_u16(svptrue_b16(), mask_data, svdup_n_u16_z(equal_mask, 1));
+
+            for (nk_size_t i = 0; i < svcnth(); i++)
+                if (mask_data[i]) result[c++] = a_data[i];
+            c -= equal_count;
         }
 
         // Advance
