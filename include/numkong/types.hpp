@@ -111,11 +111,9 @@ struct f32_t {
     using reduce_add_result_t = f64_t;  // `nk_reduce_add_f32` widened output
     using sqeuclidean_result_t = f32_t; // `nk_sqeuclidean_f32` output
     using angular_result_t = f32_t;     // `nk_angular_f32` output
-    using bilinear_result_t = f32_t;    // `nk_bilinear_f32` output
-    using mahalanobis_result_t = f32_t; // `nk_mahalanobis_f32` output
-    using haversine_result_t = f32_t;   // `nk_haversine_f32` output
-    using kld_result_t = f32_t;         // `nk_kld_f32` output
-    using jsd_result_t = f32_t;         // `nk_jsd_f32` output
+    using curved_result_t = f32_t;      // bilinear, mahalanobis
+    using geospatial_result_t = f32_t;  // haversine, vincenty
+    using probability_result_t = f32_t; // kld, jsd
     using mesh_result_t = f32_t;        // `nk_rmsd_f32` output
     using scale_t = nk_f32_t;
 
@@ -362,10 +360,8 @@ struct f64_t {
     using reduce_add_result_t = f64_t;  // `nk_reduce_add_f64` output
     using sqeuclidean_result_t = f64_t; // `nk_sqeuclidean_f64` output
     using angular_result_t = f64_t;     // `nk_angular_f64` output
-    using bilinear_result_t = f64_t;    // `nk_bilinear_f64` output
-    using mahalanobis_result_t = f64_t; // `nk_mahalanobis_f64` output
-    using kld_result_t = f64_t;         // `nk_kld_f64` output
-    using jsd_result_t = f64_t;         // `nk_jsd_f64` output
+    using curved_result_t = f64_t;      // bilinear, mahalanobis
+    using probability_result_t = f64_t; // kld, jsd
     using mesh_result_t = f64_t;        // `nk_rmsd_f64` output
     using scale_t = nk_f64_t;
 
@@ -607,7 +603,7 @@ struct f32c_t {
 
     using dot_result_t = f32c_t;
     using vdot_result_t = f32c_t;
-    using bilinear_result_t = f32c_t;
+    using curved_result_t = f32c_t; // bilinear
 
     using dot_kernel_t = void (*)(raw_t const *, raw_t const *, nk_size_t, nk_f32c_t *);
     using vdot_kernel_t = void (*)(raw_t const *, raw_t const *, nk_size_t, nk_f32c_t *);
@@ -840,7 +836,7 @@ struct f64c_t {
 
     using dot_result_t = f64c_t;
     using vdot_result_t = f64c_t;
-    using bilinear_result_t = f64c_t;
+    using curved_result_t = f64c_t; // bilinear
 
     using dot_kernel_t = void (*)(raw_t const *, raw_t const *, nk_size_t, nk_f64c_t *);
     using vdot_kernel_t = void (*)(raw_t const *, raw_t const *, nk_size_t, nk_f64c_t *);
@@ -1493,9 +1489,9 @@ struct f16c_t {
     using component_t = f16_t;
     using raw_t = nk_f16c_t;
 
-    using dot_result_t = f32c_t;      // widened to f32c
-    using vdot_result_t = f32c_t;     // widened to f32c
-    using bilinear_result_t = f32c_t; // widened to f32c
+    using dot_result_t = f32c_t;    // widened to f32c
+    using vdot_result_t = f32c_t;   // widened to f32c
+    using curved_result_t = f32c_t; // widened to f32c
 
     // Kernel signatures: input f16c, output widened to f32c
     using dot_kernel_t = void (*)(raw_t const *, raw_t const *, nk_size_t, nk_f32c_t *);
@@ -1594,9 +1590,9 @@ struct bf16c_t {
     using component_t = bf16_t;
     using raw_t = nk_bf16c_t;
 
-    using dot_result_t = f32c_t;      // widened to f32c
-    using vdot_result_t = f32c_t;     // widened to f32c
-    using bilinear_result_t = f32c_t; // widened to f32c
+    using dot_result_t = f32c_t;    // widened to f32c
+    using vdot_result_t = f32c_t;   // widened to f32c
+    using curved_result_t = f32c_t; // widened to f32c
 
     // Kernel signatures: input bf16c, output widened to f32c
     using dot_kernel_t = void (*)(raw_t const *, raw_t const *, nk_size_t, nk_f32c_t *);

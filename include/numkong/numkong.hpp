@@ -517,13 +517,14 @@ void angular(in_type_ const *a, in_type_ const *b, std::size_t d, result_type_ *
  *  @param[out] r Pointer to output divergence value
  *
  *  @tparam in_type_ Input distribution type (probability vectors)
- *  @tparam result_type_ Accumulator type, defaults to `in_type_::kld_result_t`
+ *  @tparam result_type_ Accumulator type, defaults to `in_type_::probability_result_t`
  *  @tparam allow_simd_ Enable SIMD kernel dispatch when `prefer_simd_k`
  */
-template <typename in_type_, typename result_type_ = typename in_type_::kld_result_t,
+template <typename in_type_, typename result_type_ = typename in_type_::probability_result_t,
           allow_simd_t allow_simd_ = prefer_simd_k>
 void kld(in_type_ const *p, in_type_ const *q, std::size_t d, result_type_ *r) noexcept {
-    constexpr bool simd = allow_simd_ == prefer_simd_k && std::is_same_v<result_type_, typename in_type_::kld_result_t>;
+    constexpr bool simd = allow_simd_ == prefer_simd_k &&
+                          std::is_same_v<result_type_, typename in_type_::probability_result_t>;
 
     if constexpr (std::is_same_v<in_type_, f64_t> && simd) nk_kld_f64(&p->raw_, &q->raw_, d, &r->raw_);
     else if constexpr (std::is_same_v<in_type_, f32_t> && simd) nk_kld_f32(&p->raw_, &q->raw_, d, &r->raw_);
@@ -547,13 +548,14 @@ void kld(in_type_ const *p, in_type_ const *q, std::size_t d, result_type_ *r) n
  *  @param[out] r Pointer to output divergence value
  *
  *  @tparam in_type_ Input distribution type (probability vectors)
- *  @tparam result_type_ Accumulator type, defaults to `in_type_::jsd_result_t`
+ *  @tparam result_type_ Accumulator type, defaults to `in_type_::probability_result_t`
  *  @tparam allow_simd_ Enable SIMD kernel dispatch when `prefer_simd_k`
  */
-template <typename in_type_, typename result_type_ = typename in_type_::jsd_result_t,
+template <typename in_type_, typename result_type_ = typename in_type_::probability_result_t,
           allow_simd_t allow_simd_ = prefer_simd_k>
 void jsd(in_type_ const *p, in_type_ const *q, std::size_t d, result_type_ *r) noexcept {
-    constexpr bool simd = allow_simd_ == prefer_simd_k && std::is_same_v<result_type_, typename in_type_::jsd_result_t>;
+    constexpr bool simd = allow_simd_ == prefer_simd_k &&
+                          std::is_same_v<result_type_, typename in_type_::probability_result_t>;
 
     if constexpr (std::is_same_v<in_type_, f64_t> && simd) nk_jsd_f64(&p->raw_, &q->raw_, d, &r->raw_);
     else if constexpr (std::is_same_v<in_type_, f32_t> && simd) nk_jsd_f32(&p->raw_, &q->raw_, d, &r->raw_);
@@ -929,16 +931,16 @@ void reduce_max(in_type_ const *data, std::size_t count, std::size_t stride_byte
  *  @param[out] r Pointer to output value
  *
  *  @tparam in_type_ Input vector element type (real or complex)
- *  @tparam result_type_ Accumulator type, defaults to `in_type_::bilinear_result_t`
+ *  @tparam result_type_ Accumulator type, defaults to `in_type_::curved_result_t`
  *  @tparam allow_simd_ Enable SIMD kernel dispatch when `prefer_simd_k`
  *
  *  @note For weighted inner products, Mahalanobis distance, etc.
  */
-template <typename in_type_, typename result_type_ = typename in_type_::bilinear_result_t,
+template <typename in_type_, typename result_type_ = typename in_type_::curved_result_t,
           allow_simd_t allow_simd_ = prefer_simd_k>
 void bilinear(in_type_ const *a, in_type_ const *b, in_type_ const *c, std::size_t d, result_type_ *r) noexcept {
     constexpr bool simd = allow_simd_ == prefer_simd_k &&
-                          std::is_same_v<result_type_, typename in_type_::bilinear_result_t>;
+                          std::is_same_v<result_type_, typename in_type_::curved_result_t>;
 
     // Real types
     if constexpr (std::is_same_v<in_type_, f64_t> && simd) nk_bilinear_f64(&a->raw_, &b->raw_, &c->raw_, d, &r->raw_);
@@ -977,14 +979,14 @@ void bilinear(in_type_ const *a, in_type_ const *b, in_type_ const *c, std::size
  *  @param[out] r Pointer to output distance value
  *
  *  @tparam in_type_ Input vector element type
- *  @tparam result_type_ Accumulator type, defaults to `in_type_::mahalanobis_result_t`
+ *  @tparam result_type_ Accumulator type, defaults to `in_type_::curved_result_t`
  *  @tparam allow_simd_ Enable SIMD kernel dispatch when `prefer_simd_k`
  */
-template <typename in_type_, typename result_type_ = typename in_type_::mahalanobis_result_t,
+template <typename in_type_, typename result_type_ = typename in_type_::curved_result_t,
           allow_simd_t allow_simd_ = prefer_simd_k>
 void mahalanobis(in_type_ const *a, in_type_ const *b, in_type_ const *c, std::size_t d, result_type_ *r) noexcept {
     constexpr bool simd = allow_simd_ == prefer_simd_k &&
-                          std::is_same_v<result_type_, typename in_type_::mahalanobis_result_t>;
+                          std::is_same_v<result_type_, typename in_type_::curved_result_t>;
 
     if constexpr (std::is_same_v<in_type_, f64_t> && simd)
         nk_mahalanobis_f64(&a->raw_, &b->raw_, &c->raw_, d, &r->raw_);
