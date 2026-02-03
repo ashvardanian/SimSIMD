@@ -2095,9 +2095,9 @@ template <typename in_type_, typename precision_type_ = in_type_, allow_simd_t a
 void sin(in_type_ const *in, std::size_t n, in_type_ *out) noexcept {
     constexpr bool simd = allow_simd_ == prefer_simd_k && std::is_same_v<in_type_, precision_type_>;
 
-    if constexpr (std::is_same_v<in_type_, f64_t> && simd) nk_sin_f64(&in->raw_, n, &out->raw_);
-    else if constexpr (std::is_same_v<in_type_, f32_t> && simd) nk_sin_f32(&in->raw_, n, &out->raw_);
-    else if constexpr (std::is_same_v<in_type_, f16_t> && simd) nk_sin_f16(&in->raw_, n, &out->raw_);
+    if constexpr (std::is_same_v<in_type_, f64_t> && simd) nk_each_sin_f64(&in->raw_, n, &out->raw_);
+    else if constexpr (std::is_same_v<in_type_, f32_t> && simd) nk_each_sin_f32(&in->raw_, n, &out->raw_);
+    else if constexpr (std::is_same_v<in_type_, f16_t> && simd) nk_each_sin_f16(&in->raw_, n, &out->raw_);
     // Scalar fallback
     else {
         for (std::size_t i = 0; i < n; i++) out[i] = precision_type_(in[i]).sin().template to<in_type_>();
@@ -2118,9 +2118,9 @@ template <typename in_type_, typename precision_type_ = in_type_, allow_simd_t a
 void cos(in_type_ const *in, std::size_t n, in_type_ *out) noexcept {
     constexpr bool simd = allow_simd_ == prefer_simd_k && std::is_same_v<in_type_, precision_type_>;
 
-    if constexpr (std::is_same_v<in_type_, f64_t> && simd) nk_cos_f64(&in->raw_, n, &out->raw_);
-    else if constexpr (std::is_same_v<in_type_, f32_t> && simd) nk_cos_f32(&in->raw_, n, &out->raw_);
-    else if constexpr (std::is_same_v<in_type_, f16_t> && simd) nk_cos_f16(&in->raw_, n, &out->raw_);
+    if constexpr (std::is_same_v<in_type_, f64_t> && simd) nk_each_cos_f64(&in->raw_, n, &out->raw_);
+    else if constexpr (std::is_same_v<in_type_, f32_t> && simd) nk_each_cos_f32(&in->raw_, n, &out->raw_);
+    else if constexpr (std::is_same_v<in_type_, f16_t> && simd) nk_each_cos_f16(&in->raw_, n, &out->raw_);
     // Scalar fallback
     else {
         for (std::size_t i = 0; i < n; i++) out[i] = precision_type_(in[i]).cos().template to<in_type_>();
@@ -2141,9 +2141,9 @@ template <typename in_type_, typename precision_type_ = in_type_, allow_simd_t a
 void atan(in_type_ const *in, std::size_t n, in_type_ *out) noexcept {
     constexpr bool simd = allow_simd_ == prefer_simd_k && std::is_same_v<in_type_, precision_type_>;
 
-    if constexpr (std::is_same_v<in_type_, f64_t> && simd) nk_atan_f64(&in->raw_, n, &out->raw_);
-    else if constexpr (std::is_same_v<in_type_, f32_t> && simd) nk_atan_f32(&in->raw_, n, &out->raw_);
-    else if constexpr (std::is_same_v<in_type_, f16_t> && simd) nk_atan_f16(&in->raw_, n, &out->raw_);
+    if constexpr (std::is_same_v<in_type_, f64_t> && simd) nk_each_atan_f64(&in->raw_, n, &out->raw_);
+    else if constexpr (std::is_same_v<in_type_, f32_t> && simd) nk_each_atan_f32(&in->raw_, n, &out->raw_);
+    else if constexpr (std::is_same_v<in_type_, f16_t> && simd) nk_each_atan_f16(&in->raw_, n, &out->raw_);
     // Scalar fallback
     else {
         for (std::size_t i = 0; i < n; i++) out[i] = precision_type_(in[i]).atan().template to<in_type_>();
