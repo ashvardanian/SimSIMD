@@ -305,8 +305,8 @@ template <nk_dtype_t input_dtype_, nk_dtype_t output_dtype_, typename kernel_typ
 void measure_mesh(bm::State &state, kernel_type_ kernel, std::size_t points_count) {
 
     using input_t = typename nk::type_for<input_dtype_>::type;
-    using raw_input_t = typename input_t::raw_t;
     using output_t = typename nk::type_for<output_dtype_>::type;
+    using raw_output_t = typename output_t::raw_t;
     using input_vector_t = nk::vector<input_t>;
 
     // Preallocate point clouds: each contains points_count 3D points stored as [x0,y0,z0,x1,y1,z1,...]
@@ -324,7 +324,7 @@ void measure_mesh(bm::State &state, kernel_type_ kernel, std::size_t points_coun
     std::size_t iterations = 0;
     for (auto _ : state) {
         output_t result, scale;
-        raw_input_t first_centroid[3], second_centroid[3], rotation[9];
+        raw_output_t first_centroid[3], second_centroid[3], rotation[9];
         std::size_t const index = iterations & (clouds_count - 1);
         kernel(first_clouds[index].raw_values_data(), second_clouds[index].raw_values_data(), points_count,
                first_centroid, second_centroid, rotation, &scale.raw_, &result.raw_);

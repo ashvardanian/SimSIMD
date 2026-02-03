@@ -116,7 +116,7 @@ struct f32_t {
     using haversine_result_t = f32_t;   // `nk_haversine_f32` output
     using kld_result_t = f32_t;         // `nk_kld_f32` output
     using jsd_result_t = f32_t;         // `nk_jsd_f32` output
-    using rmsd_result_t = f32_t;        // `nk_rmsd_f32` output
+    using mesh_result_t = f32_t;        // `nk_rmsd_f32` output
     using scale_t = nk_f32_t;
 
     static constexpr nk_dtype_t dtype() noexcept { return nk_f32_k; }
@@ -366,7 +366,7 @@ struct f64_t {
     using mahalanobis_result_t = f64_t; // `nk_mahalanobis_f64` output
     using kld_result_t = f64_t;         // `nk_kld_f64` output
     using jsd_result_t = f64_t;         // `nk_jsd_f64` output
-    using rmsd_result_t = f64_t;        // `nk_rmsd_f64` output
+    using mesh_result_t = f64_t;        // `nk_rmsd_f64` output
     using scale_t = nk_f64_t;
 
     static constexpr nk_dtype_t dtype() noexcept { return nk_f64_k; }
@@ -1077,6 +1077,7 @@ struct f16_t {
     using reduce_add_result_t = f32_t;  // `nk_reduce_add_f16` output (widened)
     using sqeuclidean_result_t = f32_t; // `nk_sqeuclidean_f16` output (widened)
     using angular_result_t = f32_t;     // `nk_angular_f16` output (widened)
+    using mesh_result_t = f32_t;        // `nk_rmsd_f16` etc. output (widened)
     using scale_t = nk_f32_t;
 
     using dot_kernel_t = void (*)(raw_t const *, raw_t const *, nk_size_t, nk_f32_t *);
@@ -1089,6 +1090,8 @@ struct f16_t {
                                           nk_size_t, nk_size_t);
     using dots_symmetric_kernel_t = void (*)(raw_t const *, nk_size_t, nk_size_t, nk_size_t, nk_f32_t *, nk_size_t,
                                              nk_size_t, nk_size_t);
+    using mesh_kernel_t = void (*)(raw_t const *, raw_t const *, nk_size_t, nk_f32_t *, nk_f32_t *, nk_f32_t *,
+                                   nk_f32_t *, nk_f32_t *);
 
     static constexpr nk_dtype_t dtype() noexcept { return nk_f16_k; }
     static constexpr char const *dtype_name() noexcept { return "f16"; }
@@ -1119,7 +1122,7 @@ struct f16_t {
         return r;
     }
 
-    f16_t() noexcept : raw_(0) {}
+    constexpr f16_t() noexcept : raw_(0) {}
     f16_t(float v) noexcept { nk_f32_to_f16(&v, &raw_); }
     explicit f16_t(double v) noexcept {
         float f = static_cast<float>(v);
@@ -1285,6 +1288,7 @@ struct bf16_t {
     using reduce_add_result_t = f32_t;  // `nk_reduce_add_bf16` output (widened)
     using sqeuclidean_result_t = f32_t; // `nk_sqeuclidean_bf16` output (widened)
     using angular_result_t = f32_t;     // `nk_angular_bf16` output (widened)
+    using mesh_result_t = f32_t;        // `nk_rmsd_bf16` etc. output (widened)
     using scale_t = nk_f32_t;
 
     using dot_kernel_t = void (*)(raw_t const *, raw_t const *, nk_size_t, nk_f32_t *);
@@ -1296,6 +1300,8 @@ struct bf16_t {
                                           nk_size_t, nk_size_t);
     using dots_symmetric_kernel_t = void (*)(raw_t const *, nk_size_t, nk_size_t, nk_size_t, nk_f32_t *, nk_size_t,
                                              nk_size_t, nk_size_t);
+    using mesh_kernel_t = void (*)(raw_t const *, raw_t const *, nk_size_t, nk_f32_t *, nk_f32_t *, nk_f32_t *,
+                                   nk_f32_t *, nk_f32_t *);
     using sparse_dot_index_t = u16_t;
     using sparse_dot_kernel_t = void (*)(nk_u16_t const *, nk_u16_t const *, raw_t const *, raw_t const *, nk_size_t,
                                          nk_size_t, nk_f32_t *);
@@ -1329,7 +1335,7 @@ struct bf16_t {
         return r;
     }
 
-    bf16_t() noexcept : raw_(0) {}
+    constexpr bf16_t() noexcept : raw_(0) {}
     bf16_t(float v) noexcept { nk_f32_to_bf16(&v, &raw_); }
     explicit bf16_t(double v) noexcept {
         float f = static_cast<float>(v);

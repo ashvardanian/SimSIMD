@@ -1921,6 +1921,7 @@ void test_geospatial() {
 template <typename scalar_type_>
 error_stats_t test_rmsd(typename scalar_type_::mesh_kernel_t kernel) {
     using scalar_t = scalar_type_;
+    using output_t = typename scalar_t::dot_result_t;
 
     error_stats_t stats;
     std::mt19937 generator(global_config.seed);
@@ -1932,7 +1933,7 @@ error_stats_t test_rmsd(typename scalar_type_::mesh_kernel_t kernel) {
         fill_random(generator, a);
         fill_random(generator, b);
 
-        scalar_t a_centroid[3], b_centroid[3], rot[9], scale, result;
+        output_t a_centroid[3], b_centroid[3], rot[9], scale, result;
         kernel(a.raw_values_data(), b.raw_values_data(), n, &a_centroid[0].raw_, &b_centroid[0].raw_, &rot[0].raw_,
                &scale.raw_, &result.raw_);
 
@@ -1951,6 +1952,7 @@ error_stats_t test_rmsd(typename scalar_type_::mesh_kernel_t kernel) {
 template <typename scalar_type_>
 error_stats_t test_kabsch(typename scalar_type_::mesh_kernel_t kernel) {
     using scalar_t = scalar_type_;
+    using output_t = typename scalar_t::dot_result_t;
 
     error_stats_t stats;
     std::mt19937 generator(global_config.seed);
@@ -1962,7 +1964,7 @@ error_stats_t test_kabsch(typename scalar_type_::mesh_kernel_t kernel) {
         fill_random(generator, a);
         fill_random(generator, b);
 
-        scalar_t a_centroid[3], b_centroid[3], rot[9], scale, result;
+        output_t a_centroid[3], b_centroid[3], rot[9], scale, result;
         kernel(a.raw_values_data(), b.raw_values_data(), n, &a_centroid[0].raw_, &b_centroid[0].raw_, &rot[0].raw_,
                &scale.raw_, &result.raw_);
 
@@ -1981,6 +1983,7 @@ error_stats_t test_kabsch(typename scalar_type_::mesh_kernel_t kernel) {
 template <typename scalar_type_>
 error_stats_t test_umeyama(typename scalar_type_::mesh_kernel_t kernel) {
     using scalar_t = scalar_type_;
+    using output_t = typename scalar_t::dot_result_t;
 
     error_stats_t stats;
     std::mt19937 generator(global_config.seed);
@@ -1992,7 +1995,7 @@ error_stats_t test_umeyama(typename scalar_type_::mesh_kernel_t kernel) {
         fill_random(generator, a);
         fill_random(generator, b);
 
-        scalar_t a_centroid[3], b_centroid[3], rot[9], scale, result;
+        output_t a_centroid[3], b_centroid[3], rot[9], scale, result;
         kernel(a.raw_values_data(), b.raw_values_data(), n, &a_centroid[0].raw_, &b_centroid[0].raw_, &rot[0].raw_,
                &scale.raw_, &result.raw_);
 

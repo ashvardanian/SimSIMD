@@ -1664,17 +1664,17 @@ void svd3x3_(scalar_type_ const *a, scalar_type_ *svd_u, scalar_type_ *svd_s, sc
  *  @param[out] result Output RMSD value
  *
  *  @tparam in_type_ Input point type (f32_t, f64_t, f16_t, bf16_t)
- *  @tparam result_type_ Result type for outputs, defaults to `in_type_::rmsd_result_t`
+ *  @tparam result_type_ Result type for outputs, defaults to `in_type_::mesh_result_t`
  *  @tparam allow_simd_ Enable SIMD kernel dispatch when `prefer_simd_k`
  */
-template <typename in_type_, typename result_type_ = typename in_type_::rmsd_result_t,
+template <typename in_type_, typename result_type_ = typename in_type_::mesh_result_t,
           allow_simd_t allow_simd_ = prefer_simd_k>
 void rmsd(                                               //
     in_type_ const *a, in_type_ const *b, std::size_t n, //
     result_type_ *a_centroid, result_type_ *b_centroid,  //
     result_type_ *rotation, result_type_ *scale, result_type_ *result) noexcept {
     constexpr bool simd = allow_simd_ == prefer_simd_k &&
-                          std::is_same_v<result_type_, typename in_type_::rmsd_result_t>;
+                          std::is_same_v<result_type_, typename in_type_::mesh_result_t>;
 
     if constexpr (std::is_same_v<in_type_, f64_t> && simd)
         nk_rmsd_f64(&a->raw_, &b->raw_, n, &a_centroid->raw_, &b_centroid->raw_, &rotation->raw_, &scale->raw_,
@@ -1765,17 +1765,17 @@ void rmsd(                                               //
  *  @param[out] result Output RMSD after optimal rotation
  *
  *  @tparam in_type_ Input point type (f32_t, f64_t, f16_t, bf16_t)
- *  @tparam result_type_ Result type for outputs, defaults to `in_type_::rmsd_result_t`
+ *  @tparam result_type_ Result type for outputs, defaults to `in_type_::mesh_result_t`
  *  @tparam allow_simd_ Enable SIMD kernel dispatch when `prefer_simd_k`
  */
-template <typename in_type_, typename result_type_ = typename in_type_::rmsd_result_t,
+template <typename in_type_, typename result_type_ = typename in_type_::mesh_result_t,
           allow_simd_t allow_simd_ = prefer_simd_k>
 void kabsch(                                             //
     in_type_ const *a, in_type_ const *b, std::size_t n, //
     result_type_ *a_centroid, result_type_ *b_centroid,  //
     result_type_ *rotation, result_type_ *scale, result_type_ *result) noexcept {
     constexpr bool simd = allow_simd_ == prefer_simd_k &&
-                          std::is_same_v<result_type_, typename in_type_::rmsd_result_t>;
+                          std::is_same_v<result_type_, typename in_type_::mesh_result_t>;
 
     if constexpr (std::is_same_v<in_type_, f64_t> && simd)
         nk_kabsch_f64(&a->raw_, &b->raw_, n, a_centroid ? &a_centroid->raw_ : nullptr, &b_centroid->raw_,
@@ -1926,7 +1926,7 @@ template <typename in_type_, typename result_type_ = typename in_type_::dot_resu
 void umeyama(in_type_ const *a, in_type_ const *b, std::size_t n, result_type_ *a_centroid, result_type_ *b_centroid,
              result_type_ *rotation, result_type_ *scale, result_type_ *result) noexcept {
     constexpr bool simd = allow_simd_ == prefer_simd_k &&
-                          std::is_same_v<result_type_, typename in_type_::rmsd_result_t>;
+                          std::is_same_v<result_type_, typename in_type_::mesh_result_t>;
 
     if constexpr (std::is_same_v<in_type_, f64_t> && simd)
         nk_umeyama_f64(&a->raw_, &b->raw_, n, &a_centroid->raw_, &b_centroid->raw_, &rotation->raw_, &scale->raw_,
