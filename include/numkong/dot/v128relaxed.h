@@ -131,15 +131,14 @@ nk_dot_f64_v128relaxed_cycle:
         a_scalars += 2, b_scalars += 2, count_scalars -= 2;
     }
     v128_t product_f64x2 = wasm_f64x2_mul(a_vec.v128, b_vec.v128);
-    v128_t product_error_f64x2 = wasm_f64x2_sub(
-        wasm_f64x2_relaxed_madd(a_vec.v128, b_vec.v128, v128relaxed_f64x2_splat(0.0)), product_f64x2);
+    v128_t product_error_f64x2 = wasm_f64x2_sub(wasm_f64x2_relaxed_madd(a_vec.v128, b_vec.v128, wasm_f64x2_splat(0.0)),
+                                                product_f64x2);
     v128_t t_f64x2 = wasm_f64x2_add(sum_f64x2, product_f64x2);
     v128_t z_f64x2 = wasm_f64x2_sub(t_f64x2, sum_f64x2);
-    v128_t sum_error_f64x2 = wasm_f64x2_add(wasm_f64x2_sub(sum_f64x2, v128relaxed_f64x2_sub(t_f64x2, z_f64x2)),
+    v128_t sum_error_f64x2 = wasm_f64x2_add(wasm_f64x2_sub(sum_f64x2, wasm_f64x2_sub(t_f64x2, z_f64x2)),
                                             wasm_f64x2_sub(product_f64x2, z_f64x2));
     sum_f64x2 = t_f64x2;
-    compensation_f64x2 = wasm_f64x2_add(compensation_f64x2,
-                                        v128relaxed_f64x2_add(sum_error_f64x2, product_error_f64x2));
+    compensation_f64x2 = wasm_f64x2_add(compensation_f64x2, wasm_f64x2_add(sum_error_f64x2, product_error_f64x2));
     if (count_scalars) goto nk_dot_f64_v128relaxed_cycle;
 
     v128_t final_sum_f64x2 = wasm_f64x2_add(sum_f64x2, compensation_f64x2);
@@ -162,10 +161,10 @@ NK_PUBLIC void nk_dot_i8_v128relaxed(nk_i8_t const *a, nk_i8_t const *b, nk_size
             v128_t b_i8x16 = wasm_v128_load(b + i);
 
             // Extract sign bit: b_neg_mask = (b < 0) ? 0xFF : 0x00
-            v128_t b_neg_mask_i8x16 = wasm_i8x16_lt(b_i8x16, v128relaxed_i8x16_splat(0));
+            v128_t b_neg_mask_i8x16 = wasm_i8x16_lt(b_i8x16, wasm_i8x16_splat(0));
 
             // b_7bit = b & 0x7F (clears sign bit)
-            v128_t b_7bit_i8x16 = wasm_v128_and(b_i8x16, v128relaxed_i8x16_splat(0x7F));
+            v128_t b_7bit_i8x16 = wasm_v128_and(b_i8x16, wasm_i8x16_splat(0x7F));
 
             // Fast path: a · b_7bit
             sum_i32x4 = wasm_i32x4_relaxed_dot_i8x16_i7x16_add(a_i8x16, b_7bit_i8x16, sum_i32x4);
@@ -180,7 +179,7 @@ NK_PUBLIC void nk_dot_i8_v128relaxed(nk_i8_t const *a, nk_i8_t const *b, nk_size
         v128_t corr_i32x4 = wasm_i32x4_extadd_pairwise_i16x8(correction_i16x8);
 
         // Apply correction: sum -= 128 × correction
-        v128_t corr_scaled_i32x4 = wasm_i32x4_mul(corr_i32x4, v128relaxed_i32x4_splat(-128));
+        v128_t corr_scaled_i32x4 = wasm_i32x4_mul(corr_i32x4, wasm_i32x4_splat(-128));
         sum_i32x4 = wasm_i32x4_add(sum_i32x4, corr_scaled_i32x4);
 
         // Reduce window to scalar
@@ -203,7 +202,7 @@ nk_dot_u8_v128relaxed_cycle:
     if (count_scalars >= 16) {
         v128_t a_u8x16 = wasm_v128_load(a_scalars);
         v128_t b_u8x16 = wasm_v128_load(b_scalars);
-        v128_t b_signed_i8x16 = wasm_v128_xor(b_u8x16, v128relaxed_i8x16_splat(0x80));
+        v128_t b_signed_i8x16 = wasm_v128_xor(b_u8x16, wasm_i8x16_splat(0x80));
         sum_dot_i32x4 = wasm_i32x4_relaxed_dot_i8x16_i7x16_add(a_u8x16, b_signed_i8x16, sum_dot_i32x4);
         v128_t a_u16x8 = wasm_u16x8_extadd_pairwise_u8x16(a_u8x16);
         v128_t a_u32x4 = wasm_u32x4_extadd_pairwise_u16x8(a_u16x8);

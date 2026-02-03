@@ -132,7 +132,7 @@ NK_PUBLIC void nk_hamming_u8_v128relaxed(nk_u8_t const *a, nk_u8_t const *b, nk_
             v128_t neq_mask_u8x16 = wasm_i8x16_ne(a_u8x16, b_u8x16);
 
             // Convert mask to count: 0xFF → 1, 0x00 → 0
-            v128_t neq_count_u8x16 = wasm_v128_and(neq_mask_u8x16, v128relaxed_i8x16_splat(1));
+            v128_t neq_count_u8x16 = wasm_v128_and(neq_mask_u8x16, wasm_i8x16_splat(1));
 
             // Accumulate counts
             sum_u8x16 = wasm_i8x16_add(sum_u8x16, neq_count_u8x16);
@@ -178,8 +178,8 @@ nk_jaccard_u32_v128relaxed_cycle:
     v128_t intersection_mask_u32x4 = wasm_v128_and(eq_mask_u32x4, a_nonzero_mask_u32x4);
     v128_t union_mask_u32x4 = wasm_v128_or(a_nonzero_mask_u32x4, b_nonzero_mask_u32x4);
 
-    v128_t inter_count_u32x4 = wasm_v128_and(intersection_mask_u32x4, v128relaxed_i32x4_splat(1));
-    v128_t union_count_vec_u32x4 = wasm_v128_and(union_mask_u32x4, v128relaxed_i32x4_splat(1));
+    v128_t inter_count_u32x4 = wasm_v128_and(intersection_mask_u32x4, wasm_i32x4_splat(1));
+    v128_t union_count_vec_u32x4 = wasm_v128_and(union_mask_u32x4, wasm_i32x4_splat(1));
 
     // Accumulate in vector registers (no reduction in hot loop!)
     intersection_u32x4 = wasm_i32x4_add(intersection_u32x4, inter_count_u32x4);
@@ -223,8 +223,8 @@ nk_jaccard_u16_v128relaxed_cycle:
     v128_t intersection_mask_u16x8 = wasm_v128_and(eq_mask_u16x8, a_nonzero_mask_u16x8);
     v128_t union_mask_u16x8 = wasm_v128_or(a_nonzero_mask_u16x8, b_nonzero_mask_u16x8);
 
-    v128_t inter_count_u16x8 = wasm_v128_and(intersection_mask_u16x8, v128relaxed_i16x8_splat(1));
-    v128_t union_count_vec_u16x8 = wasm_v128_and(union_mask_u16x8, v128relaxed_i16x8_splat(1));
+    v128_t inter_count_u16x8 = wasm_v128_and(intersection_mask_u16x8, wasm_i16x8_splat(1));
+    v128_t union_count_vec_u16x8 = wasm_v128_and(union_mask_u16x8, wasm_i16x8_splat(1));
 
     // Accumulate in u16 vectors (no extend/reduce in hot loop!)
     intersection_u16x8 = wasm_i16x8_add(intersection_u16x8, inter_count_u16x8);

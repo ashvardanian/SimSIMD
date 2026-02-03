@@ -38,9 +38,9 @@ NK_INTERNAL nk_b128_vec_t nk_f16x4_to_f32x4_v128relaxed_(nk_b64_vec_t f16_vec) {
     v128_t f16_u32x4 = wasm_u32x4_extend_low_u16x8(f16_u16x4_in_u64);
 
     // Extract bit fields
-    v128_t sign_u32x4 = wasm_v128_and(f16_u32x4, v128relaxed_i32x4_splat(0x8000));                  // Bit 15
-    v128_t exp_u32x4 = wasm_v128_and(wasm_u32x4_shr(f16_u32x4, 10), v128relaxed_i32x4_splat(0x1F)); // Bits 14-10
-    v128_t mant_u32x4 = wasm_v128_and(f16_u32x4, v128relaxed_i32x4_splat(0x03FF));                  // Bits 9-0
+    v128_t sign_u32x4 = wasm_v128_and(f16_u32x4, wasm_i32x4_splat(0x8000));                  // Bit 15
+    v128_t exp_u32x4 = wasm_v128_and(wasm_u32x4_shr(f16_u32x4, 10), wasm_i32x4_splat(0x1F)); // Bits 14-10
+    v128_t mant_u32x4 = wasm_v128_and(f16_u32x4, wasm_i32x4_splat(0x03FF));                  // Bits 9-0
 
     // Shift sign to F32 position (bit 31)
     v128_t sign_f32_u32x4 = wasm_i32x4_shl(sign_u32x4, 16);
@@ -48,10 +48,10 @@ NK_INTERNAL nk_b128_vec_t nk_f16x4_to_f32x4_v128relaxed_(nk_b64_vec_t f16_vec) {
     // Normal (exp ∈ [1, 30])
     // Rebias exponent: F16 bias=15, F32 bias=127 → add 112
     // Shift mantissa: 10 bits → 23 bits (shift left by 13)
-    v128_t exp_rebiased_u32x4 = wasm_i32x4_add(exp_u32x4, v128relaxed_i32x4_splat(112));
+    v128_t exp_rebiased_u32x4 = wasm_i32x4_add(exp_u32x4, wasm_i32x4_splat(112));
     v128_t normal_exp_u32x4 = wasm_i32x4_shl(exp_rebiased_u32x4, 23);
     v128_t normal_mant_u32x4 = wasm_i32x4_shl(mant_u32x4, 13);
-    v128_t normal_bits_u32x4 = wasm_v128_or(sign_f32_u32x4, v128relaxed_v128_or(normal_exp_u32x4, normal_mant_u32x4));
+    v128_t normal_bits_u32x4 = wasm_v128_or(sign_f32_u32x4, wasm_v128_or(normal_exp_u32x4, normal_mant_u32x4));
 
     // Zero (exp=0, mant=0)
     v128_t zero_bits_u32x4 = sign_f32_u32x4; // Just sign bit
@@ -60,7 +60,7 @@ NK_INTERNAL nk_b128_vec_t nk_f16x4_to_f32x4_v128relaxed_(nk_b64_vec_t f16_vec) {
     // Infinity: 0x7F800000 | sign
     // NaN: 0x7F800000 | sign | (mant << 13) [preserves NaN payload]
     v128_t inf_nan_bits_u32x4 = wasm_v128_or(
-        sign_f32_u32x4, v128relaxed_v128_or(wasm_i32x4_splat(0x7F800000), v128relaxed_i32x4_shl(mant_u32x4, 13)));
+        sign_f32_u32x4, wasm_v128_or(wasm_i32x4_splat(0x7F800000), wasm_i32x4_shl(mant_u32x4, 13)));
 
     // Denormal (exp=0, mant≠0) - FPU-based normalization
     // F16 denormal value = 2^-14 × (0.mantissa_bits) = mantissa_bits × 2^-24
@@ -85,9 +85,9 @@ NK_INTERNAL nk_b128_vec_t nk_f16x4_to_f32x4_v128relaxed_(nk_b64_vec_t f16_vec) {
     denorm_bits_u32x4 = wasm_v128_or(denorm_bits_u32x4, sign_f32_u32x4);
 
     // Build Masks
-    v128_t exp_zero_mask = wasm_i32x4_eq(exp_u32x4, v128relaxed_i32x4_splat(0));
-    v128_t mant_zero_mask = wasm_i32x4_eq(mant_u32x4, v128relaxed_i32x4_splat(0));
-    v128_t exp_max_mask = wasm_i32x4_eq(exp_u32x4, v128relaxed_i32x4_splat(31));
+    v128_t exp_zero_mask = wasm_i32x4_eq(exp_u32x4, wasm_i32x4_splat(0));
+    v128_t mant_zero_mask = wasm_i32x4_eq(mant_u32x4, wasm_i32x4_splat(0));
+    v128_t exp_max_mask = wasm_i32x4_eq(exp_u32x4, wasm_i32x4_splat(31));
 
     v128_t is_zero_mask = wasm_v128_and(exp_zero_mask, mant_zero_mask);        // exp=0 AND mant=0
     v128_t is_denormal_mask = wasm_v128_andnot(exp_zero_mask, mant_zero_mask); // exp=0 AND mant≠0
