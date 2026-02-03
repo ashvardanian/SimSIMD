@@ -132,8 +132,6 @@ NK_DYNAMIC void nk_bilinear_f16c(nk_f16c_t const *a, nk_f16c_t const *b, nk_f16c
 NK_DYNAMIC void nk_bilinear_bf16c(nk_bf16c_t const *a, nk_bf16c_t const *b, nk_bf16c_t const *c, nk_size_t n,
                                   nk_f32c_t *results);
 
-/*  Serial implementation forward declarations */
-
 /** @copydoc nk_bilinear_f64 */
 NK_PUBLIC void nk_bilinear_f64_serial(nk_f64_t const *a, nk_f64_t const *b, nk_f64_t const *c, nk_size_t n,
                                       nk_f64_t *result);
@@ -170,8 +168,6 @@ NK_PUBLIC void nk_bilinear_bf16c_serial(nk_bf16c_t const *a, nk_bf16c_t const *b
 /** @copydoc nk_mahalanobis_bf16 */
 NK_PUBLIC void nk_mahalanobis_bf16_serial(nk_bf16_t const *a, nk_bf16_t const *b, nk_bf16_t const *c, nk_size_t n,
                                           nk_f32_t *result);
-
-/*  NEON implementation forward declarations (Arm) */
 
 #if NK_TARGET_NEON
 /** @copydoc nk_bilinear_f32 */
@@ -220,8 +216,6 @@ NK_PUBLIC void nk_bilinear_f32c_smef64(nk_f32c_t const *a, nk_f32c_t const *b, n
 NK_PUBLIC void nk_mahalanobis_f32_smef64(nk_f32_t const *a, nk_f32_t const *b, nk_f32_t const *c, nk_size_t n,
                                          nk_f32_t *result);
 #endif // NK_TARGET_SMEF64
-
-/*  x86 implementation forward declarations */
 
 #if NK_TARGET_HASWELL
 /** @copydoc nk_bilinear_f16 */

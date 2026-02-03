@@ -71,9 +71,10 @@
 #ifndef NK_DOTS_SERIAL_H
 #define NK_DOTS_SERIAL_H
 #include "numkong/types.h"
-#include "numkong/set/serial.h"  // `nk_u1x8_popcount_`
-#include "numkong/cast/serial.h" // `nk_partial_load_b32x4_serial_`
-#include "numkong/dot/serial.h"  // `nk_dot_f32x4_state_serial_t`
+#include "numkong/set/serial.h"     // `nk_u1x8_popcount_`
+#include "numkong/cast/serial.h"    // `nk_partial_load_b32x4_serial_`
+#include "numkong/dot/serial.h"     // `nk_dot_f32x4_state_serial_t`
+#include "numkong/spatial/serial.h" // `nk_f32_sqrt_serial`
 
 #if defined(__cplusplus)
 extern "C" {

@@ -339,10 +339,22 @@ if(NK_BUILD_BENCH)
 endif()
 
 
+# Dtype-specific dispatch sources (for parallel compilation)
+set(NK_DTYPE_SOURCES
+    c/dispatch_f64.c c/dispatch_f32.c c/dispatch_f16.c c/dispatch_bf16.c
+    c/dispatch_i8.c c/dispatch_u8.c c/dispatch_i4.c c/dispatch_u4.c
+    c/dispatch_e4m3.c c/dispatch_e5m2.c c/dispatch_e2m3.c c/dispatch_e3m2.c
+    c/dispatch_u1.c
+    c/dispatch_f64c.c c/dispatch_f32c.c c/dispatch_f16c.c c/dispatch_bf16c.c
+    c/dispatch_i16.c c/dispatch_u16.c c/dispatch_i32.c c/dispatch_u32.c
+    c/dispatch_i64.c c/dispatch_u64.c
+    c/dispatch_cast.c
+)
+
 # Build tests
 if(NK_BUILD_TEST)
     # C++ precision test (ULP-based error analysis)
-    add_executable(nk_test scripts/test.cpp c/numkong.c)
+    add_executable(nk_test scripts/test.cpp)
     target_link_libraries(nk_test numkong m)
 
     if(OpenMP_FOUND)
@@ -376,7 +388,7 @@ endif()
 
 # Shared library
 if(NK_BUILD_SHARED)
-    set(NK_SOURCES ${NK_SOURCES} c/numkong.c)
+    set(NK_SOURCES ${NK_SOURCES} c/numkong.c ${NK_DTYPE_SOURCES})
     add_library(nk_shared SHARED ${NK_SOURCES})
     target_include_directories(nk_shared PUBLIC "${PROJECT_SOURCE_DIR}/include")
     set_target_properties(nk_shared PROPERTIES OUTPUT_NAME numkong)
