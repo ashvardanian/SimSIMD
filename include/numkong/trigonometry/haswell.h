@@ -519,7 +519,7 @@ NK_INTERNAL __m256d nk_f64x4_atan2_haswell_(__m256d const ys_inputs, __m256d con
     return results;
 }
 
-NK_PUBLIC void nk_sin_f32_haswell(nk_f32_t const *ins, nk_size_t n, nk_f32_t *outs) {
+NK_PUBLIC void nk_each_sin_f32_haswell(nk_f32_t const *ins, nk_size_t n, nk_f32_t *outs) {
     nk_size_t i = 0;
     for (; i + 8 <= n; i += 8) {
         __m256 angles = _mm256_loadu_ps(ins + i);
@@ -536,7 +536,7 @@ NK_PUBLIC void nk_sin_f32_haswell(nk_f32_t const *ins, nk_size_t n, nk_f32_t *ou
     }
 }
 
-NK_PUBLIC void nk_cos_f32_haswell(nk_f32_t const *ins, nk_size_t n, nk_f32_t *outs) {
+NK_PUBLIC void nk_each_cos_f32_haswell(nk_f32_t const *ins, nk_size_t n, nk_f32_t *outs) {
     nk_size_t i = 0;
     for (; i + 8 <= n; i += 8) {
         __m256 angles = _mm256_loadu_ps(ins + i);
@@ -553,7 +553,7 @@ NK_PUBLIC void nk_cos_f32_haswell(nk_f32_t const *ins, nk_size_t n, nk_f32_t *ou
     }
 }
 
-NK_PUBLIC void nk_atan_f32_haswell(nk_f32_t const *ins, nk_size_t n, nk_f32_t *outs) {
+NK_PUBLIC void nk_each_atan_f32_haswell(nk_f32_t const *ins, nk_size_t n, nk_f32_t *outs) {
     nk_size_t i = 0;
     for (; i + 8 <= n; i += 8) {
         __m256 values = _mm256_loadu_ps(ins + i);
@@ -570,7 +570,7 @@ NK_PUBLIC void nk_atan_f32_haswell(nk_f32_t const *ins, nk_size_t n, nk_f32_t *o
     }
 }
 
-NK_PUBLIC void nk_sin_f64_haswell(nk_f64_t const *ins, nk_size_t n, nk_f64_t *outs) {
+NK_PUBLIC void nk_each_sin_f64_haswell(nk_f64_t const *ins, nk_size_t n, nk_f64_t *outs) {
     nk_size_t i = 0;
     for (; i + 4 <= n; i += 4) {
         __m256d angles = _mm256_loadu_pd(ins + i);
@@ -587,7 +587,7 @@ NK_PUBLIC void nk_sin_f64_haswell(nk_f64_t const *ins, nk_size_t n, nk_f64_t *ou
     }
 }
 
-NK_PUBLIC void nk_cos_f64_haswell(nk_f64_t const *ins, nk_size_t n, nk_f64_t *outs) {
+NK_PUBLIC void nk_each_cos_f64_haswell(nk_f64_t const *ins, nk_size_t n, nk_f64_t *outs) {
     nk_size_t i = 0;
     for (; i + 4 <= n; i += 4) {
         __m256d angles = _mm256_loadu_pd(ins + i);
@@ -604,7 +604,7 @@ NK_PUBLIC void nk_cos_f64_haswell(nk_f64_t const *ins, nk_size_t n, nk_f64_t *ou
     }
 }
 
-NK_PUBLIC void nk_atan_f64_haswell(nk_f64_t const *ins, nk_size_t n, nk_f64_t *outs) {
+NK_PUBLIC void nk_each_atan_f64_haswell(nk_f64_t const *ins, nk_size_t n, nk_f64_t *outs) {
     nk_size_t i = 0;
     for (; i + 4 <= n; i += 4) {
         __m256d values = _mm256_loadu_pd(ins + i);

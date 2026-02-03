@@ -204,15 +204,15 @@ typedef enum {
     nk_kernel_sparse_intersect_k = 'x', ///< Equivalent to unnormalized Jaccard
 
     // BLAS-like operations:
-    nk_kernel_each_scale_k = '*', ///< Scale
-    nk_kernel_each_sum_k = '+',   ///< Sum
-    nk_kernel_each_blend_k = 'w', ///< Weighted Sum
-    nk_kernel_each_fma_k = 'f',   ///< Fused Multiply-Add
+    nk_kernel_each_scale_k = '*', ///< Element-wise Scale
+    nk_kernel_each_sum_k = '+',   ///< Element-wise Sum
+    nk_kernel_each_blend_k = 'w', ///< Element-wise Weighted Sum
+    nk_kernel_each_fma_k = 'f',   ///< Element-wise Fused Multiply-Add
 
     // Trigonometric functions:
-    nk_kernel_sin_k = 'S',  ///< Element-wise sine
-    nk_kernel_cos_k = 'C',  ///< Element-wise cosine
-    nk_kernel_atan_k = 'A', ///< Element-wise arctangent
+    nk_kernel_each_sin_k = 'S',  ///< Element-wise sine
+    nk_kernel_each_cos_k = 'C',  ///< Element-wise cosine
+    nk_kernel_each_atan_k = 'A', ///< Element-wise arctangent
 
     // Horizontal reductions:
     nk_kernel_reduce_add_k = 'R', ///< Horizontal sum reduction
@@ -567,7 +567,6 @@ typedef nk_u64_t nk_capability_t;
  *  Detection: ID_AA64SMFR0_EL1.LUTv2 == 1
  */
 #define nk_cap_smelut2_k ((nk_capability_t)1 << 32)
-
 
 /**
  *  @brief  Type-punned function pointer for dense vector representations and simplest similarity measures.
@@ -1403,9 +1402,9 @@ NK_INTERNAL void nk_find_kernel_punned_f64_(nk_capability_t v, nk_kernel_kind_t 
         case nk_kernel_each_blend_k: *m = (m_t)&nk_each_blend_f64_neon, *c = nk_cap_neon_k; return;
         case nk_kernel_each_scale_k: *m = (m_t)&nk_each_scale_f64_neon, *c = nk_cap_neon_k; return;
         case nk_kernel_each_sum_k: *m = (m_t)&nk_each_sum_f64_neon, *c = nk_cap_neon_k; return;
-        case nk_kernel_sin_k: *m = (m_t)&nk_sin_f64_neon, *c = nk_cap_neon_k; return;
-        case nk_kernel_cos_k: *m = (m_t)&nk_cos_f64_neon, *c = nk_cap_neon_k; return;
-        case nk_kernel_atan_k: *m = (m_t)&nk_atan_f64_neon, *c = nk_cap_neon_k; return;
+        case nk_kernel_each_sin_k: *m = (m_t)&nk_each_sin_f64_neon, *c = nk_cap_neon_k; return;
+        case nk_kernel_each_cos_k: *m = (m_t)&nk_each_cos_f64_neon, *c = nk_cap_neon_k; return;
+        case nk_kernel_each_atan_k: *m = (m_t)&nk_each_atan_f64_neon, *c = nk_cap_neon_k; return;
         case nk_kernel_rmsd_k: *m = (m_t)&nk_rmsd_f64_neon, *c = nk_cap_neon_k; return;
         case nk_kernel_kabsch_k: *m = (m_t)&nk_kabsch_f64_neon, *c = nk_cap_neon_k; return;
         case nk_kernel_umeyama_k: *m = (m_t)&nk_umeyama_f64_neon, *c = nk_cap_neon_k; return;
@@ -1431,9 +1430,9 @@ NK_INTERNAL void nk_find_kernel_punned_f64_(nk_capability_t v, nk_kernel_kind_t 
         case nk_kernel_each_blend_k: *m = (m_t)&nk_each_blend_f64_skylake, *c = nk_cap_skylake_k; return;
         case nk_kernel_each_scale_k: *m = (m_t)&nk_each_scale_f64_skylake, *c = nk_cap_skylake_k; return;
         case nk_kernel_each_sum_k: *m = (m_t)&nk_each_sum_f64_skylake, *c = nk_cap_skylake_k; return;
-        case nk_kernel_sin_k: *m = (m_t)&nk_sin_f64_skylake, *c = nk_cap_skylake_k; return;
-        case nk_kernel_cos_k: *m = (m_t)&nk_cos_f64_skylake, *c = nk_cap_skylake_k; return;
-        case nk_kernel_atan_k: *m = (m_t)&nk_atan_f64_skylake, *c = nk_cap_skylake_k; return;
+        case nk_kernel_each_sin_k: *m = (m_t)&nk_each_sin_f64_skylake, *c = nk_cap_skylake_k; return;
+        case nk_kernel_each_cos_k: *m = (m_t)&nk_each_cos_f64_skylake, *c = nk_cap_skylake_k; return;
+        case nk_kernel_each_atan_k: *m = (m_t)&nk_each_atan_f64_skylake, *c = nk_cap_skylake_k; return;
         case nk_kernel_rmsd_k: *m = (m_t)&nk_rmsd_f64_skylake, *c = nk_cap_skylake_k; return;
         case nk_kernel_kabsch_k: *m = (m_t)&nk_kabsch_f64_skylake, *c = nk_cap_skylake_k; return;
         case nk_kernel_umeyama_k: *m = (m_t)&nk_umeyama_f64_skylake, *c = nk_cap_skylake_k; return;
@@ -1469,9 +1468,9 @@ NK_INTERNAL void nk_find_kernel_punned_f64_(nk_capability_t v, nk_kernel_kind_t 
         case nk_kernel_reduce_add_k: *m = (m_t)&nk_reduce_add_f64_haswell, *c = nk_cap_haswell_k; return;
         case nk_kernel_reduce_min_k: *m = (m_t)&nk_reduce_min_f64_haswell, *c = nk_cap_haswell_k; return;
         case nk_kernel_reduce_max_k: *m = (m_t)&nk_reduce_max_f64_haswell, *c = nk_cap_haswell_k; return;
-        case nk_kernel_sin_k: *m = (m_t)&nk_sin_f64_haswell, *c = nk_cap_haswell_k; return;
-        case nk_kernel_cos_k: *m = (m_t)&nk_cos_f64_haswell, *c = nk_cap_haswell_k; return;
-        case nk_kernel_atan_k: *m = (m_t)&nk_atan_f64_haswell, *c = nk_cap_haswell_k; return;
+        case nk_kernel_each_sin_k: *m = (m_t)&nk_each_sin_f64_haswell, *c = nk_cap_haswell_k; return;
+        case nk_kernel_each_cos_k: *m = (m_t)&nk_each_cos_f64_haswell, *c = nk_cap_haswell_k; return;
+        case nk_kernel_each_atan_k: *m = (m_t)&nk_each_atan_f64_haswell, *c = nk_cap_haswell_k; return;
         case nk_kernel_kld_k: *m = (m_t)&nk_kld_f64_haswell, *c = nk_cap_haswell_k; return;
         case nk_kernel_jsd_k: *m = (m_t)&nk_jsd_f64_haswell, *c = nk_cap_haswell_k; return;
         case nk_kernel_dots_packed_size_k: *m = (m_t)&nk_dots_packed_size_f64_haswell, *c = nk_cap_haswell_k; return;
@@ -1496,9 +1495,9 @@ NK_INTERNAL void nk_find_kernel_punned_f64_(nk_capability_t v, nk_kernel_kind_t 
         case nk_kernel_each_blend_k: *m = (m_t)&nk_each_blend_f64_serial, *c = nk_cap_serial_k; return;
         case nk_kernel_each_scale_k: *m = (m_t)&nk_each_scale_f64_serial, *c = nk_cap_serial_k; return;
         case nk_kernel_each_sum_k: *m = (m_t)&nk_each_sum_f64_serial, *c = nk_cap_serial_k; return;
-        case nk_kernel_sin_k: *m = (m_t)&nk_sin_f64_serial, *c = nk_cap_serial_k; return;
-        case nk_kernel_cos_k: *m = (m_t)&nk_cos_f64_serial, *c = nk_cap_serial_k; return;
-        case nk_kernel_atan_k: *m = (m_t)&nk_atan_f64_serial, *c = nk_cap_serial_k; return;
+        case nk_kernel_each_sin_k: *m = (m_t)&nk_each_sin_f64_serial, *c = nk_cap_serial_k; return;
+        case nk_kernel_each_cos_k: *m = (m_t)&nk_each_cos_f64_serial, *c = nk_cap_serial_k; return;
+        case nk_kernel_each_atan_k: *m = (m_t)&nk_each_atan_f64_serial, *c = nk_cap_serial_k; return;
         case nk_kernel_rmsd_k: *m = (m_t)&nk_rmsd_f64_serial, *c = nk_cap_serial_k; return;
         case nk_kernel_kabsch_k: *m = (m_t)&nk_kabsch_f64_serial, *c = nk_cap_serial_k; return;
         case nk_kernel_umeyama_k: *m = (m_t)&nk_umeyama_f64_serial, *c = nk_cap_serial_k; return;
@@ -1572,9 +1571,9 @@ NK_INTERNAL void nk_find_kernel_punned_f32_(nk_capability_t v, nk_kernel_kind_t 
         case nk_kernel_each_blend_k: *m = (m_t)&nk_each_blend_f32_neon, *c = nk_cap_neon_k; return;
         case nk_kernel_each_scale_k: *m = (m_t)&nk_each_scale_f32_neon, *c = nk_cap_neon_k; return;
         case nk_kernel_each_sum_k: *m = (m_t)&nk_each_sum_f32_neon, *c = nk_cap_neon_k; return;
-        case nk_kernel_sin_k: *m = (m_t)&nk_sin_f32_neon, *c = nk_cap_neon_k; return;
-        case nk_kernel_cos_k: *m = (m_t)&nk_cos_f32_neon, *c = nk_cap_neon_k; return;
-        case nk_kernel_atan_k: *m = (m_t)&nk_atan_f32_neon, *c = nk_cap_neon_k; return;
+        case nk_kernel_each_sin_k: *m = (m_t)&nk_each_sin_f32_neon, *c = nk_cap_neon_k; return;
+        case nk_kernel_each_cos_k: *m = (m_t)&nk_each_cos_f32_neon, *c = nk_cap_neon_k; return;
+        case nk_kernel_each_atan_k: *m = (m_t)&nk_each_atan_f32_neon, *c = nk_cap_neon_k; return;
         case nk_kernel_bilinear_k: *m = (m_t)&nk_bilinear_f32_neon, *c = nk_cap_neon_k; return;
         case nk_kernel_mahalanobis_k: *m = (m_t)&nk_mahalanobis_f32_neon, *c = nk_cap_neon_k; return;
         case nk_kernel_rmsd_k: *m = (m_t)&nk_rmsd_f32_neon, *c = nk_cap_neon_k; return;
@@ -1612,9 +1611,9 @@ NK_INTERNAL void nk_find_kernel_punned_f32_(nk_capability_t v, nk_kernel_kind_t 
         case nk_kernel_each_blend_k: *m = (m_t)&nk_each_blend_f32_skylake, *c = nk_cap_skylake_k; return;
         case nk_kernel_each_scale_k: *m = (m_t)&nk_each_scale_f32_skylake, *c = nk_cap_skylake_k; return;
         case nk_kernel_each_sum_k: *m = (m_t)&nk_each_sum_f32_skylake, *c = nk_cap_skylake_k; return;
-        case nk_kernel_sin_k: *m = (m_t)&nk_sin_f32_skylake, *c = nk_cap_skylake_k; return;
-        case nk_kernel_cos_k: *m = (m_t)&nk_cos_f32_skylake, *c = nk_cap_skylake_k; return;
-        case nk_kernel_atan_k: *m = (m_t)&nk_atan_f32_skylake, *c = nk_cap_skylake_k; return;
+        case nk_kernel_each_sin_k: *m = (m_t)&nk_each_sin_f32_skylake, *c = nk_cap_skylake_k; return;
+        case nk_kernel_each_cos_k: *m = (m_t)&nk_each_cos_f32_skylake, *c = nk_cap_skylake_k; return;
+        case nk_kernel_each_atan_k: *m = (m_t)&nk_each_atan_f32_skylake, *c = nk_cap_skylake_k; return;
         case nk_kernel_rmsd_k: *m = (m_t)&nk_rmsd_f32_skylake, *c = nk_cap_skylake_k; return;
         case nk_kernel_kabsch_k: *m = (m_t)&nk_kabsch_f32_skylake, *c = nk_cap_skylake_k; return;
         case nk_kernel_umeyama_k: *m = (m_t)&nk_umeyama_f32_skylake, *c = nk_cap_skylake_k; return;
@@ -1652,9 +1651,9 @@ NK_INTERNAL void nk_find_kernel_punned_f32_(nk_capability_t v, nk_kernel_kind_t 
         case nk_kernel_reduce_add_k: *m = (m_t)&nk_reduce_add_f32_haswell, *c = nk_cap_haswell_k; return;
         case nk_kernel_reduce_min_k: *m = (m_t)&nk_reduce_min_f32_haswell, *c = nk_cap_haswell_k; return;
         case nk_kernel_reduce_max_k: *m = (m_t)&nk_reduce_max_f32_haswell, *c = nk_cap_haswell_k; return;
-        case nk_kernel_sin_k: *m = (m_t)&nk_sin_f32_haswell, *c = nk_cap_haswell_k; return;
-        case nk_kernel_cos_k: *m = (m_t)&nk_cos_f32_haswell, *c = nk_cap_haswell_k; return;
-        case nk_kernel_atan_k: *m = (m_t)&nk_atan_f32_haswell, *c = nk_cap_haswell_k; return;
+        case nk_kernel_each_sin_k: *m = (m_t)&nk_each_sin_f32_haswell, *c = nk_cap_haswell_k; return;
+        case nk_kernel_each_cos_k: *m = (m_t)&nk_each_cos_f32_haswell, *c = nk_cap_haswell_k; return;
+        case nk_kernel_each_atan_k: *m = (m_t)&nk_each_atan_f32_haswell, *c = nk_cap_haswell_k; return;
         case nk_kernel_dots_packed_size_k: *m = (m_t)&nk_dots_packed_size_f32_haswell, *c = nk_cap_haswell_k; return;
         case nk_kernel_dots_pack_k: *m = (m_t)&nk_dots_pack_f32_haswell, *c = nk_cap_haswell_k; return;
         case nk_kernel_dots_k: *m = (m_t)&nk_dots_packed_f32_haswell, *c = nk_cap_haswell_k; return;
@@ -1677,9 +1676,9 @@ NK_INTERNAL void nk_find_kernel_punned_f32_(nk_capability_t v, nk_kernel_kind_t 
         case nk_kernel_each_blend_k: *m = (m_t)&nk_each_blend_f32_serial, *c = nk_cap_serial_k; return;
         case nk_kernel_each_scale_k: *m = (m_t)&nk_each_scale_f32_serial, *c = nk_cap_serial_k; return;
         case nk_kernel_each_sum_k: *m = (m_t)&nk_each_sum_f32_serial, *c = nk_cap_serial_k; return;
-        case nk_kernel_sin_k: *m = (m_t)&nk_sin_f32_serial, *c = nk_cap_serial_k; return;
-        case nk_kernel_cos_k: *m = (m_t)&nk_cos_f32_serial, *c = nk_cap_serial_k; return;
-        case nk_kernel_atan_k: *m = (m_t)&nk_atan_f32_serial, *c = nk_cap_serial_k; return;
+        case nk_kernel_each_sin_k: *m = (m_t)&nk_each_sin_f32_serial, *c = nk_cap_serial_k; return;
+        case nk_kernel_each_cos_k: *m = (m_t)&nk_each_cos_f32_serial, *c = nk_cap_serial_k; return;
+        case nk_kernel_each_atan_k: *m = (m_t)&nk_each_atan_f32_serial, *c = nk_cap_serial_k; return;
         case nk_kernel_rmsd_k: *m = (m_t)&nk_rmsd_f32_serial, *c = nk_cap_serial_k; return;
         case nk_kernel_kabsch_k: *m = (m_t)&nk_kabsch_f32_serial, *c = nk_cap_serial_k; return;
         case nk_kernel_umeyama_k: *m = (m_t)&nk_umeyama_f32_serial, *c = nk_cap_serial_k; return;

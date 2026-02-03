@@ -1666,12 +1666,12 @@ int main(int argc, char **argv) {
     elementwise_<u16_k, scale_k, f32_k>("each_scale_u16_haswell", nk_each_scale_u16_haswell);
     elementwise_<u16_k, fma_k, f32_k>("each_fma_u16_haswell", nk_each_fma_u16_haswell);
 
-    elementwise_<f32_k, unknown_k, f32_k>("sin_f32_haswell", nk_sin_f32_haswell);
-    elementwise_<f32_k, unknown_k, f32_k>("cos_f32_haswell", nk_cos_f32_haswell);
-    elementwise_<f32_k, unknown_k, f32_k>("atan_f32_haswell", nk_atan_f32_haswell);
-    elementwise_<f64_k, unknown_k, f64_k>("sin_f64_haswell", nk_sin_f64_haswell);
-    elementwise_<f64_k, unknown_k, f64_k>("cos_f64_haswell", nk_cos_f64_haswell);
-    elementwise_<f64_k, unknown_k, f64_k>("atan_f64_haswell", nk_atan_f64_haswell);
+    elementwise_<f32_k, unknown_k, f32_k>("each_sin_f32_haswell", nk_each_sin_f32_haswell);
+    elementwise_<f32_k, unknown_k, f32_k>("each_cos_f32_haswell", nk_each_cos_f32_haswell);
+    elementwise_<f32_k, unknown_k, f32_k>("each_atan_f32_haswell", nk_each_atan_f32_haswell);
+    elementwise_<f64_k, unknown_k, f64_k>("each_sin_f64_haswell", nk_each_sin_f64_haswell);
+    elementwise_<f64_k, unknown_k, f64_k>("each_cos_f64_haswell", nk_each_cos_f64_haswell);
+    elementwise_<f64_k, unknown_k, f64_k>("each_atan_f64_haswell", nk_each_atan_f64_haswell);
 
     geospatial_<f32_k, f32_k>("haversine_f32_haswell", nk_haversine_f32_haswell);
     geospatial_<f64_k, f64_k>("haversine_f64_haswell", nk_haversine_f64_haswell);
@@ -1780,12 +1780,12 @@ int main(int argc, char **argv) {
     elementwise_<bf16_k, fma_k, f32_k>("each_fma_bf16_skylake", nk_each_fma_bf16_skylake);
     elementwise_<bf16_k, wsum_k, f32_k>("each_wsum_bf16_skylake", nk_each_blend_bf16_skylake);
 
-    elementwise_<f32_k, unknown_k, f32_k>("sin_f32_skylake", nk_sin_f32_skylake);
-    elementwise_<f32_k, unknown_k, f32_k>("cos_f32_skylake", nk_cos_f32_skylake);
-    elementwise_<f32_k, unknown_k, f32_k>("atan_f32_skylake", nk_atan_f32_skylake);
-    elementwise_<f64_k, unknown_k, f64_k>("sin_f64_skylake", nk_sin_f64_skylake);
-    elementwise_<f64_k, unknown_k, f64_k>("cos_f64_skylake", nk_cos_f64_skylake);
-    elementwise_<f64_k, unknown_k, f64_k>("atan_f64_skylake", nk_atan_f64_skylake);
+    elementwise_<f32_k, unknown_k, f32_k>("each_sin_f32_skylake", nk_each_sin_f32_skylake);
+    elementwise_<f32_k, unknown_k, f32_k>("each_cos_f32_skylake", nk_each_cos_f32_skylake);
+    elementwise_<f32_k, unknown_k, f32_k>("each_atan_f32_skylake", nk_each_atan_f32_skylake);
+    elementwise_<f64_k, unknown_k, f64_k>("each_sin_f64_skylake", nk_each_sin_f64_skylake);
+    elementwise_<f64_k, unknown_k, f64_k>("each_cos_f64_skylake", nk_each_cos_f64_skylake);
+    elementwise_<f64_k, unknown_k, f64_k>("each_atan_f64_skylake", nk_each_atan_f64_skylake);
 
     geospatial_<f32_k, f32_k>("haversine_f32_skylake", nk_haversine_f32_skylake);
     geospatial_<f64_k, f64_k>("haversine_f64_skylake", nk_haversine_f64_skylake);
@@ -1950,9 +1950,9 @@ int main(int argc, char **argv) {
     curved_<f16_k, f32_k>("mahalanobis_f16_sapphire", nk_mahalanobis_f16_sapphire);
     curved_<f16c_k, f32c_k>("bilinear_f16c_sapphire", nk_bilinear_f16c_sapphire);
 
-    elementwise_<f16_k, unknown_k, f32_k>("sin_f16_sapphire", nk_sin_f16_sapphire);
-    elementwise_<f16_k, unknown_k, f32_k>("cos_f16_sapphire", nk_cos_f16_sapphire);
-    elementwise_<f16_k, unknown_k, f32_k>("atan_f16_sapphire", nk_atan_f16_sapphire);
+    elementwise_<f16_k, unknown_k, f32_k>("each_sin_f16_sapphire", nk_each_sin_f16_sapphire);
+    elementwise_<f16_k, unknown_k, f32_k>("each_cos_f16_sapphire", nk_each_cos_f16_sapphire);
+    elementwise_<f16_k, unknown_k, f32_k>("each_atan_f16_sapphire", nk_each_atan_f16_sapphire);
 
     dots_<bf16_k, f32_k>("dots_packed_bf16_sapphireamx", nk_dots_packed_size_bf16_sapphireamx,
                          nk_dots_pack_bf16_sapphireamx, nk_dots_packed_bf16_sapphireamx);
@@ -2122,22 +2122,22 @@ int main(int argc, char **argv) {
     dense_<u1_k, u32_k>("hamming_u1_serial", nk_hamming_u1_serial);
     dense_<u1_k, f32_k>("jaccard_u1_serial", nk_jaccard_u1_serial);
 
-    elementwise_<f32_k, unknown_k, f32_k>("sin_f32_stl", elementwise_with_stl<nk_f32_t, sin_with_stl<nk_f32_t>>);
-    elementwise_<f32_k, unknown_k, f32_k>("cos_f32_stl", elementwise_with_stl<nk_f32_t, cos_with_stl<nk_f32_t>>);
-    elementwise_<f32_k, unknown_k, f32_k>("atan_f32_stl", elementwise_with_stl<nk_f32_t, atan_with_stl<nk_f32_t>>);
-    elementwise_<f32_k, unknown_k, f32_k>("sin_f32_serial", nk_sin_f32_serial);
-    elementwise_<f32_k, unknown_k, f32_k>("cos_f32_serial", nk_cos_f32_serial);
-    elementwise_<f32_k, unknown_k, f32_k>("atan_f32_serial", nk_atan_f32_serial);
-    elementwise_<f64_k, unknown_k, f64_k>("sin_f64_stl", elementwise_with_stl<nk_f64_t, sin_with_stl<nk_f64_t>>);
-    elementwise_<f64_k, unknown_k, f64_k>("cos_f64_stl", elementwise_with_stl<nk_f64_t, cos_with_stl<nk_f64_t>>);
-    elementwise_<f64_k, unknown_k, f64_k>("atan_f64_stl", elementwise_with_stl<nk_f64_t, atan_with_stl<nk_f64_t>>);
-    elementwise_<f64_k, unknown_k, f64_k>("sin_f64_serial", nk_sin_f64_serial);
-    elementwise_<f64_k, unknown_k, f64_k>("cos_f64_serial", nk_cos_f64_serial);
-    elementwise_<f64_k, unknown_k, f64_k>("atan_f64_serial", nk_atan_f64_serial);
+    elementwise_<f32_k, unknown_k, f32_k>("each_sin_f32_stl", elementwise_with_stl<nk_f32_t, sin_with_stl<nk_f32_t>>);
+    elementwise_<f32_k, unknown_k, f32_k>("each_cos_f32_stl", elementwise_with_stl<nk_f32_t, cos_with_stl<nk_f32_t>>);
+    elementwise_<f32_k, unknown_k, f32_k>("each_atan_f32_stl", elementwise_with_stl<nk_f32_t, atan_with_stl<nk_f32_t>>);
+    elementwise_<f32_k, unknown_k, f32_k>("each_sin_f32_serial", nk_each_sin_f32_serial);
+    elementwise_<f32_k, unknown_k, f32_k>("each_cos_f32_serial", nk_each_cos_f32_serial);
+    elementwise_<f32_k, unknown_k, f32_k>("each_atan_f32_serial", nk_each_atan_f32_serial);
+    elementwise_<f64_k, unknown_k, f64_k>("each_sin_f64_stl", elementwise_with_stl<nk_f64_t, sin_with_stl<nk_f64_t>>);
+    elementwise_<f64_k, unknown_k, f64_k>("each_cos_f64_stl", elementwise_with_stl<nk_f64_t, cos_with_stl<nk_f64_t>>);
+    elementwise_<f64_k, unknown_k, f64_k>("each_atan_f64_stl", elementwise_with_stl<nk_f64_t, atan_with_stl<nk_f64_t>>);
+    elementwise_<f64_k, unknown_k, f64_k>("each_sin_f64_serial", nk_each_sin_f64_serial);
+    elementwise_<f64_k, unknown_k, f64_k>("each_cos_f64_serial", nk_each_cos_f64_serial);
+    elementwise_<f64_k, unknown_k, f64_k>("each_atan_f64_serial", nk_each_atan_f64_serial);
 
-    elementwise_<f16_k, unknown_k, f32_k>("sin_f16_serial", nk_sin_f16_serial);
-    elementwise_<f16_k, unknown_k, f32_k>("cos_f16_serial", nk_cos_f16_serial);
-    elementwise_<f16_k, unknown_k, f32_k>("atan_f16_serial", nk_atan_f16_serial);
+    elementwise_<f16_k, unknown_k, f32_k>("each_sin_f16_serial", nk_each_sin_f16_serial);
+    elementwise_<f16_k, unknown_k, f32_k>("each_cos_f16_serial", nk_each_cos_f16_serial);
+    elementwise_<f16_k, unknown_k, f32_k>("each_atan_f16_serial", nk_each_atan_f16_serial);
 
     elementwise_<f16_k, fma_k, f32_k>("each_fma_f16_serial", nk_each_fma_f16_serial);
     elementwise_<f16_k, wsum_k, f32_k>("each_wsum_f16_serial", nk_each_blend_f16_serial);

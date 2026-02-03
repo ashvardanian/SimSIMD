@@ -212,20 +212,20 @@ NK_INTERNAL void nk_fill_error_(void *ptr, nk_size_t bytes) {
         kernel(a, b, n, result);                                                                                   \
     }
 
-#define nk_dispatch_trigonometry_(name, extension)                                                           \
-    NK_DYNAMIC void nk_##name##_##extension(nk_##extension##_t const *inputs, nk_size_t n,                   \
-                                            nk_##extension##_t *outputs) {                                   \
-        static nk_kernel_trigonometry_punned_t kernel = 0;                                                   \
-        if (kernel == 0) {                                                                                   \
-            nk_capability_t used_capability;                                                                 \
-            nk_find_kernel_punned(nk_kernel_##name##_k, nk_##extension##_k, nk_capabilities(), nk_cap_any_k, \
-                                  (nk_kernel_punned_t *)(&kernel), &used_capability);                        \
-            if (!kernel) {                                                                                   \
-                nk_fill_error_(outputs, n * sizeof(nk_##extension##_t));                                     \
-                return;                                                                                      \
-            }                                                                                                \
-        }                                                                                                    \
-        kernel(inputs, n, outputs);                                                                          \
+#define nk_dispatch_trigonometry_(name, extension)                                                                \
+    NK_DYNAMIC void nk_each_##name##_##extension(nk_##extension##_t const *inputs, nk_size_t n,                   \
+                                                 nk_##extension##_t *outputs) {                                   \
+        static nk_kernel_trigonometry_punned_t kernel = 0;                                                        \
+        if (kernel == 0) {                                                                                        \
+            nk_capability_t used_capability;                                                                      \
+            nk_find_kernel_punned(nk_kernel_each_##name##_k, nk_##extension##_k, nk_capabilities(), nk_cap_any_k, \
+                                  (nk_kernel_punned_t *)(&kernel), &used_capability);                             \
+            if (!kernel) {                                                                                        \
+                nk_fill_error_(outputs, n * sizeof(nk_##extension##_t));                                          \
+                return;                                                                                           \
+            }                                                                                                     \
+        }                                                                                                         \
+        kernel(inputs, n, outputs);                                                                               \
     }
 
 #define nk_dispatch_mesh_(name, extension, mesh_type)                                                              \
@@ -836,12 +836,12 @@ NK_DYNAMIC nk_capability_t nk_capabilities(void) {
     nk_sparse_dot_u32f32((nk_u32_t *)x, (nk_u32_t *)x, (nk_f32_t *)x, (nk_f32_t *)x, 0, 0, dummy_results);
 
     // Trigonometry
-    nk_sin_f32((nk_f32_t *)x, 0, (nk_f32_t *)x);
-    nk_sin_f64((nk_f64_t *)x, 0, (nk_f64_t *)x);
-    nk_cos_f32((nk_f32_t *)x, 0, (nk_f32_t *)x);
-    nk_cos_f64((nk_f64_t *)x, 0, (nk_f64_t *)x);
-    nk_atan_f32((nk_f32_t *)x, 0, (nk_f32_t *)x);
-    nk_atan_f64((nk_f64_t *)x, 0, (nk_f64_t *)x);
+    nk_each_sin_f32((nk_f32_t *)x, 0, (nk_f32_t *)x);
+    nk_each_sin_f64((nk_f64_t *)x, 0, (nk_f64_t *)x);
+    nk_each_cos_f32((nk_f32_t *)x, 0, (nk_f32_t *)x);
+    nk_each_cos_f64((nk_f64_t *)x, 0, (nk_f64_t *)x);
+    nk_each_atan_f32((nk_f32_t *)x, 0, (nk_f32_t *)x);
+    nk_each_atan_f64((nk_f64_t *)x, 0, (nk_f64_t *)x);
 
     // Mesh alignment
     nk_rmsd_f32((nk_f32_t *)x, (nk_f32_t *)x, 0, (nk_f32_t *)x, (nk_f32_t *)x, (nk_f32_t *)x, (nk_f32_t *)x,

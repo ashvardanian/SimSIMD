@@ -98,11 +98,11 @@ pub use numerics::{ComplexProductF32, ComplexProductF64};
 
 // Re-export all numeric traits
 pub use numerics::{
-    ATan, Angular, Bilinear, BinarySimilarity, ComplexDot, ComplexProducts, ComplexVDot, Cos, Dot,
-    EachBlend, EachFMA, EachScale, EachSum, Elementwise, Euclidean, Hamming, Haversine, Jaccard,
-    JensenShannon, KullbackLeibler, Mahalanobis, MeshAlignment, MeshAlignmentResult,
-    ProbabilitySimilarity, ReduceAdd, ReduceMax, ReduceMin, Reductions, Sin, SparseDot,
-    SparseIntersect, SpatialSimilarity, Trigonometry, Vincenty,
+    Angular, Bilinear, BinarySimilarity, ComplexDot, ComplexProducts, ComplexVDot, Dot, EachATan,
+    EachBlend, EachCos, EachFMA, EachScale, EachSin, EachSum, Elementwise, Euclidean, Hamming,
+    Haversine, Jaccard, JensenShannon, KullbackLeibler, Mahalanobis, MeshAlignment,
+    MeshAlignmentResult, ProbabilitySimilarity, ReduceAdd, ReduceMax, ReduceMin, Reductions,
+    SparseDot, SparseIntersect, SpatialSimilarity, Trigonometry, Vincenty,
 };
 
 // Re-export cast operations

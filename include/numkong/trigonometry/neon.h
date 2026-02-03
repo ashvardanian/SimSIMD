@@ -511,8 +511,7 @@ NK_INTERNAL float64x2_t nk_f64x2_atan2_neon_(float64x2_t const ys_inputs, float6
     return results;
 }
 
-// Public wrapper functions with tail handling via SIMD partial loads/stores
-NK_PUBLIC void nk_sin_f32_neon(nk_f32_t const *ins, nk_size_t n, nk_f32_t *outs) {
+NK_PUBLIC void nk_each_sin_f32_neon(nk_f32_t const *ins, nk_size_t n, nk_f32_t *outs) {
     nk_size_t i = 0;
     for (; i + 4 <= n; i += 4) {
         float32x4_t angles = vld1q_f32(ins + i);
@@ -529,7 +528,7 @@ NK_PUBLIC void nk_sin_f32_neon(nk_f32_t const *ins, nk_size_t n, nk_f32_t *outs)
     }
 }
 
-NK_PUBLIC void nk_cos_f32_neon(nk_f32_t const *ins, nk_size_t n, nk_f32_t *outs) {
+NK_PUBLIC void nk_each_cos_f32_neon(nk_f32_t const *ins, nk_size_t n, nk_f32_t *outs) {
     nk_size_t i = 0;
     for (; i + 4 <= n; i += 4) {
         float32x4_t angles = vld1q_f32(ins + i);
@@ -546,7 +545,7 @@ NK_PUBLIC void nk_cos_f32_neon(nk_f32_t const *ins, nk_size_t n, nk_f32_t *outs)
     }
 }
 
-NK_PUBLIC void nk_atan_f32_neon(nk_f32_t const *ins, nk_size_t n, nk_f32_t *outs) {
+NK_PUBLIC void nk_each_atan_f32_neon(nk_f32_t const *ins, nk_size_t n, nk_f32_t *outs) {
     nk_size_t i = 0;
     for (; i + 4 <= n; i += 4) {
         float32x4_t values = vld1q_f32(ins + i);
@@ -563,7 +562,7 @@ NK_PUBLIC void nk_atan_f32_neon(nk_f32_t const *ins, nk_size_t n, nk_f32_t *outs
     }
 }
 
-NK_PUBLIC void nk_sin_f64_neon(nk_f64_t const *ins, nk_size_t n, nk_f64_t *outs) {
+NK_PUBLIC void nk_each_sin_f64_neon(nk_f64_t const *ins, nk_size_t n, nk_f64_t *outs) {
     nk_size_t i = 0;
     for (; i + 2 <= n; i += 2) {
         float64x2_t angles = vld1q_f64(ins + i);
@@ -580,7 +579,7 @@ NK_PUBLIC void nk_sin_f64_neon(nk_f64_t const *ins, nk_size_t n, nk_f64_t *outs)
     }
 }
 
-NK_PUBLIC void nk_cos_f64_neon(nk_f64_t const *ins, nk_size_t n, nk_f64_t *outs) {
+NK_PUBLIC void nk_each_cos_f64_neon(nk_f64_t const *ins, nk_size_t n, nk_f64_t *outs) {
     nk_size_t i = 0;
     for (; i + 2 <= n; i += 2) {
         float64x2_t angles = vld1q_f64(ins + i);
@@ -597,7 +596,7 @@ NK_PUBLIC void nk_cos_f64_neon(nk_f64_t const *ins, nk_size_t n, nk_f64_t *outs)
     }
 }
 
-NK_PUBLIC void nk_atan_f64_neon(nk_f64_t const *ins, nk_size_t n, nk_f64_t *outs) {
+NK_PUBLIC void nk_each_atan_f64_neon(nk_f64_t const *ins, nk_size_t n, nk_f64_t *outs) {
     nk_size_t i = 0;
     for (; i + 2 <= n; i += 2) {
         float64x2_t values = vld1q_f64(ins + i);

@@ -7,7 +7,7 @@
 //! - **Probability divergence**: [`KullbackLeibler`], [`JensenShannon`]
 //! - **Complex products**: [`ComplexDot`], [`ComplexVDot`]
 //! - **Elementwise operations**: [`EachScale`], [`EachSum`], [`EachBlend`], [`EachFMA`]
-//! - **Trigonometry**: [`Sin`], [`Cos`], [`ATan`]
+//! - **Trigonometry**: [`EachSin`], [`EachCos`], [`EachATan`]
 //! - **Reductions**: [`ReduceAdd`], [`ReduceMin`], [`ReduceMax`]
 //! - **Geospatial**: [`Haversine`], [`Vincenty`]
 //! - **Mesh alignment**: [`MeshAlignment`]
@@ -156,15 +156,15 @@ extern "C" {
     );
 
     // Trigonometry functions
-    fn nk_sin_f32(inputs: *const f32, n: u64size, outputs: *mut f32);
-    fn nk_sin_f64(inputs: *const f64, n: u64size, outputs: *mut f64);
-    fn nk_sin_f16(inputs: *const u16, n: u64size, outputs: *mut u16);
-    fn nk_cos_f32(inputs: *const f32, n: u64size, outputs: *mut f32);
-    fn nk_cos_f64(inputs: *const f64, n: u64size, outputs: *mut f64);
-    fn nk_cos_f16(inputs: *const u16, n: u64size, outputs: *mut u16);
-    fn nk_atan_f32(inputs: *const f32, n: u64size, outputs: *mut f32);
-    fn nk_atan_f64(inputs: *const f64, n: u64size, outputs: *mut f64);
-    fn nk_atan_f16(inputs: *const u16, n: u64size, outputs: *mut u16);
+    fn nk_each_sin_f32(inputs: *const f32, n: u64size, outputs: *mut f32);
+    fn nk_each_sin_f64(inputs: *const f64, n: u64size, outputs: *mut f64);
+    fn nk_each_sin_f16(inputs: *const u16, n: u64size, outputs: *mut u16);
+    fn nk_each_cos_f32(inputs: *const f32, n: u64size, outputs: *mut f32);
+    fn nk_each_cos_f64(inputs: *const f64, n: u64size, outputs: *mut f64);
+    fn nk_each_cos_f16(inputs: *const u16, n: u64size, outputs: *mut u16);
+    fn nk_each_atan_f32(inputs: *const f32, n: u64size, outputs: *mut f32);
+    fn nk_each_atan_f64(inputs: *const f64, n: u64size, outputs: *mut f64);
+    fn nk_each_atan_f16(inputs: *const u16, n: u64size, outputs: *mut u16);
 
     // Elementwise operations
     fn nk_each_scale_f64(
@@ -2758,20 +2758,20 @@ impl SparseDot for u32 {
 
 // endregion: SparseDot
 
-// region: Sin
+// region: EachSin
 
 /// Computes **element-wise sine** of a vector.
-pub trait Sin: Sized {
+pub trait EachSin: Sized {
     fn sin(inputs: &[Self], outputs: &mut [Self]) -> Option<()>;
 }
 
-impl Sin for f64 {
+impl EachSin for f64 {
     fn sin(inputs: &[Self], outputs: &mut [Self]) -> Option<()> {
         if inputs.len() != outputs.len() {
             return None;
         }
         unsafe {
-            nk_sin_f64(
+            nk_each_sin_f64(
                 inputs.as_ptr(),
                 inputs.len() as u64size,
                 outputs.as_mut_ptr(),
@@ -2781,13 +2781,13 @@ impl Sin for f64 {
     }
 }
 
-impl Sin for f32 {
+impl EachSin for f32 {
     fn sin(inputs: &[Self], outputs: &mut [Self]) -> Option<()> {
         if inputs.len() != outputs.len() {
             return None;
         }
         unsafe {
-            nk_sin_f32(
+            nk_each_sin_f32(
                 inputs.as_ptr(),
                 inputs.len() as u64size,
                 outputs.as_mut_ptr(),
@@ -2797,13 +2797,13 @@ impl Sin for f32 {
     }
 }
 
-impl Sin for f16 {
+impl EachSin for f16 {
     fn sin(inputs: &[Self], outputs: &mut [Self]) -> Option<()> {
         if inputs.len() != outputs.len() {
             return None;
         }
         unsafe {
-            nk_sin_f16(
+            nk_each_sin_f16(
                 inputs.as_ptr() as *const u16,
                 inputs.len() as u64size,
                 outputs.as_mut_ptr() as *mut u16,
@@ -2813,22 +2813,22 @@ impl Sin for f16 {
     }
 }
 
-// endregion: Sin
+// endregion: EachSin
 
-// region: Cos
+// region: EachCos
 
 /// Computes **element-wise cosine** of a vector.
-pub trait Cos: Sized {
+pub trait EachCos: Sized {
     fn cos(inputs: &[Self], outputs: &mut [Self]) -> Option<()>;
 }
 
-impl Cos for f64 {
+impl EachCos for f64 {
     fn cos(inputs: &[Self], outputs: &mut [Self]) -> Option<()> {
         if inputs.len() != outputs.len() {
             return None;
         }
         unsafe {
-            nk_cos_f64(
+            nk_each_cos_f64(
                 inputs.as_ptr(),
                 inputs.len() as u64size,
                 outputs.as_mut_ptr(),
@@ -2838,13 +2838,13 @@ impl Cos for f64 {
     }
 }
 
-impl Cos for f32 {
+impl EachCos for f32 {
     fn cos(inputs: &[Self], outputs: &mut [Self]) -> Option<()> {
         if inputs.len() != outputs.len() {
             return None;
         }
         unsafe {
-            nk_cos_f32(
+            nk_each_cos_f32(
                 inputs.as_ptr(),
                 inputs.len() as u64size,
                 outputs.as_mut_ptr(),
@@ -2854,13 +2854,13 @@ impl Cos for f32 {
     }
 }
 
-impl Cos for f16 {
+impl EachCos for f16 {
     fn cos(inputs: &[Self], outputs: &mut [Self]) -> Option<()> {
         if inputs.len() != outputs.len() {
             return None;
         }
         unsafe {
-            nk_cos_f16(
+            nk_each_cos_f16(
                 inputs.as_ptr() as *const u16,
                 inputs.len() as u64size,
                 outputs.as_mut_ptr() as *mut u16,
@@ -2870,22 +2870,22 @@ impl Cos for f16 {
     }
 }
 
-// endregion: Cos
+// endregion: EachCos
 
-// region: ATan
+// region: EachATan
 
 /// Computes **element-wise arctangent** (inverse tangent) of a vector.
-pub trait ATan: Sized {
+pub trait EachATan: Sized {
     fn atan(inputs: &[Self], outputs: &mut [Self]) -> Option<()>;
 }
 
-impl ATan for f64 {
+impl EachATan for f64 {
     fn atan(inputs: &[Self], outputs: &mut [Self]) -> Option<()> {
         if inputs.len() != outputs.len() {
             return None;
         }
         unsafe {
-            nk_atan_f64(
+            nk_each_atan_f64(
                 inputs.as_ptr(),
                 inputs.len() as u64size,
                 outputs.as_mut_ptr(),
@@ -2895,13 +2895,13 @@ impl ATan for f64 {
     }
 }
 
-impl ATan for f32 {
+impl EachATan for f32 {
     fn atan(inputs: &[Self], outputs: &mut [Self]) -> Option<()> {
         if inputs.len() != outputs.len() {
             return None;
         }
         unsafe {
-            nk_atan_f32(
+            nk_each_atan_f32(
                 inputs.as_ptr(),
                 inputs.len() as u64size,
                 outputs.as_mut_ptr(),
@@ -2911,13 +2911,13 @@ impl ATan for f32 {
     }
 }
 
-impl ATan for f16 {
+impl EachATan for f16 {
     fn atan(inputs: &[Self], outputs: &mut [Self]) -> Option<()> {
         if inputs.len() != outputs.len() {
             return None;
         }
         unsafe {
-            nk_atan_f16(
+            nk_each_atan_f16(
                 inputs.as_ptr() as *const u16,
                 inputs.len() as u64size,
                 outputs.as_mut_ptr() as *mut u16,
@@ -2927,7 +2927,7 @@ impl ATan for f16 {
     }
 }
 
-// endregion: ATan
+// endregion: EachATan
 
 // region: Scale
 
@@ -5497,9 +5497,9 @@ impl<T: ComplexDot + ComplexVDot> ComplexProducts for T {}
 pub trait Elementwise: EachScale + EachSum + EachBlend + EachFMA {}
 impl<T: EachScale + EachSum + EachBlend + EachFMA> Elementwise for T {}
 
-/// `Trigonometry` bundles trigonometric functions: Sin, Cos, and ATan.
-pub trait Trigonometry: Sin + Cos + ATan {}
-impl<T: Sin + Cos + ATan> Trigonometry for T {}
+/// `Trigonometry` bundles trigonometric functions: EachSin, EachCos, and EachATan.
+pub trait Trigonometry: EachSin + EachCos + EachATan {}
+impl<T: EachSin + EachCos + EachATan> Trigonometry for T {}
 
 /// `Reductions` bundles reduction operations: ReduceAdd, ReduceMin, and ReduceMax.
 pub trait Reductions: ReduceAdd + ReduceMin + ReduceMax {}
@@ -5638,7 +5638,7 @@ mod tests {
         let inputs: Vec<f32> = (0..11).map(|i| (i as f32) * PI / 10.0).collect();
         let expected: Vec<f32> = inputs.iter().map(|x| x.sin()).collect();
         let mut result = vec![0.0f32; inputs.len()];
-        <f32 as Sin>::sin(&inputs, &mut result).unwrap();
+        <f32 as EachSin>::sin(&inputs, &mut result).unwrap();
         for (r, e) in result.iter().zip(expected.iter()) {
             assert!((r - e).abs() < 0.1, "sin mismatch: {} vs {}", r, e);
         }
@@ -5650,7 +5650,7 @@ mod tests {
         let inputs: Vec<f32> = (0..11).map(|i| (i as f32) * PI / 10.0).collect();
         let expected: Vec<f32> = inputs.iter().map(|x| x.cos()).collect();
         let mut result = vec![0.0f32; inputs.len()];
-        <f32 as Cos>::cos(&inputs, &mut result).unwrap();
+        <f32 as EachCos>::cos(&inputs, &mut result).unwrap();
         for (r, e) in result.iter().zip(expected.iter()) {
             assert!((r - e).abs() < 0.1, "cos mismatch: {} vs {}", r, e);
         }

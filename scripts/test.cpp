@@ -1757,46 +1757,52 @@ void test_trigonometry() {
     std::printf("Testing trigonometry...\n");
 
 #if NK_DYNAMIC_DISPATCH
-    run_if_matches("sin_f32", test_sin<f32_t>, nk_sin_f32);
-    run_if_matches("cos_f32", test_cos<f32_t>, nk_cos_f32);
-    run_if_matches("sin_f64", test_sin<f64_t>, nk_sin_f64);
-    run_if_matches("cos_f64", test_cos<f64_t>, nk_cos_f64);
+    run_if_matches("each_sin_f32", test_sin<f32_t>, nk_each_sin_f32);
+    run_if_matches("each_cos_f32", test_cos<f32_t>, nk_each_cos_f32);
+    run_if_matches("each_atan_f32", test_atan<f32_t>, nk_each_atan_f32);
+    run_if_matches("each_sin_f64", test_sin<f64_t>, nk_each_sin_f64);
+    run_if_matches("each_cos_f64", test_cos<f64_t>, nk_each_cos_f64);
+    run_if_matches("each_atan_f64", test_atan<f64_t>, nk_each_atan_f64);
 #else
 
 #if NK_TARGET_NEON
-    run_if_matches("sin_f32_neon", test_sin<f32_t>, nk_sin_f32_neon);
-    run_if_matches("cos_f32_neon", test_cos<f32_t>, nk_cos_f32_neon);
-    run_if_matches("sin_f64_neon", test_sin<f64_t>, nk_sin_f64_neon);
-    run_if_matches("cos_f64_neon", test_cos<f64_t>, nk_cos_f64_neon);
+    run_if_matches("each_sin_f32_neon", test_sin<f32_t>, nk_each_sin_f32_neon);
+    run_if_matches("each_cos_f32_neon", test_cos<f32_t>, nk_each_cos_f32_neon);
+    run_if_matches("each_atan_f32_neon", test_atan<f32_t>, nk_each_atan_f32_neon);
+    run_if_matches("each_sin_f64_neon", test_sin<f64_t>, nk_each_sin_f64_neon);
+    run_if_matches("each_cos_f64_neon", test_cos<f64_t>, nk_each_cos_f64_neon);
+    run_if_matches("each_atan_f64_neon", test_atan<f64_t>, nk_each_atan_f64_neon);
 #endif
 
 #if NK_TARGET_HASWELL
-    run_if_matches("sin_f32_haswell", test_sin<f32_t>, nk_sin_f32_haswell);
-    run_if_matches("cos_f32_haswell", test_cos<f32_t>, nk_cos_f32_haswell);
-    run_if_matches("sin_f64_haswell", test_sin<f64_t>, nk_sin_f64_haswell);
-    run_if_matches("cos_f64_haswell", test_cos<f64_t>, nk_cos_f64_haswell);
+    run_if_matches("each_sin_f32_haswell", test_sin<f32_t>, nk_each_sin_f32_haswell);
+    run_if_matches("each_cos_f32_haswell", test_cos<f32_t>, nk_each_cos_f32_haswell);
+    run_if_matches("each_atan_f32_haswell", test_atan<f32_t>, nk_each_atan_f32_haswell);
+    run_if_matches("each_sin_f64_haswell", test_sin<f64_t>, nk_each_sin_f64_haswell);
+    run_if_matches("each_cos_f64_haswell", test_cos<f64_t>, nk_each_cos_f64_haswell);
+    run_if_matches("each_atan_f64_haswell", test_atan<f64_t>, nk_each_atan_f64_haswell);
 #endif
 
 #if NK_TARGET_SKYLAKE
-    run_if_matches("sin_f32_skylake", test_sin<f32_t>, nk_sin_f32_skylake);
-    run_if_matches("cos_f32_skylake", test_cos<f32_t>, nk_cos_f32_skylake);
-    run_if_matches("sin_f64_skylake", test_sin<f64_t>, nk_sin_f64_skylake);
-    run_if_matches("cos_f64_skylake", test_cos<f64_t>, nk_cos_f64_skylake);
+    run_if_matches("each_sin_f32_skylake", test_sin<f32_t>, nk_each_sin_f32_skylake);
+    run_if_matches("each_cos_f32_skylake", test_cos<f32_t>, nk_each_cos_f32_skylake);
+    run_if_matches("each_sin_f64_skylake", test_sin<f64_t>, nk_each_sin_f64_skylake);
+    run_if_matches("each_cos_f64_skylake", test_cos<f64_t>, nk_each_cos_f64_skylake);
 #endif
 
 #if NK_TARGET_SAPPHIRE
-    run_if_matches("sin_f16_sapphire", test_sin<f16_t>, nk_sin_f16_sapphire);
-    run_if_matches("cos_f16_sapphire", test_cos<f16_t>, nk_cos_f16_sapphire);
-    run_if_matches("atan_f16_sapphire", test_atan<f16_t>, nk_atan_f16_sapphire);
+    run_if_matches("each_sin_f16_sapphire", test_sin<f16_t>, nk_each_sin_f16_sapphire);
+    run_if_matches("each_cos_f16_sapphire", test_cos<f16_t>, nk_each_cos_f16_sapphire);
+    run_if_matches("each_atan_f16_sapphire", test_atan<f16_t>, nk_each_atan_f16_sapphire);
 #endif
 
-    run_if_matches("sin_f32_serial", test_sin<f32_t>, nk_sin_f32_serial);
-    run_if_matches("cos_f32_serial", test_cos<f32_t>, nk_cos_f32_serial);
-    run_if_matches("sin_f64_serial", test_sin<f64_t>, nk_sin_f64_serial);
-    run_if_matches("cos_f64_serial", test_cos<f64_t>, nk_cos_f64_serial);
-    run_if_matches("sin_f16_serial", test_sin<f16_t>, nk_sin_f16_serial);
-    run_if_matches("cos_f16_serial", test_cos<f16_t>, nk_cos_f16_serial);
-    run_if_matches("atan_f16_serial", test_atan<f16_t>, nk_atan_f16_serial);
+    run_if_matches("each_sin_f32_serial", test_sin<f32_t>, nk_each_sin_f32_serial);
+    run_if_matches("each_cos_f32_serial", test_cos<f32_t>, nk_each_cos_f32_serial);
+    run_if_matches("each_sin_f64_serial", test_sin<f64_t>, nk_each_sin_f64_serial);
+    run_if_matches("each_cos_f64_serial", test_cos<f64_t>, nk_each_cos_f64_serial);
+    run_if_matches("each_sin_f16_serial", test_sin<f16_t>, nk_each_sin_f16_serial);
+    run_if_matches("each_cos_f16_serial", test_cos<f16_t>, nk_each_cos_f16_serial);
+    run_if_matches("each_atan_f16_serial", test_atan<f16_t>, nk_each_atan_f16_serial);
 
 #endif
 }

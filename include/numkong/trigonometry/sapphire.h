@@ -154,7 +154,7 @@ NK_INTERNAL __m512h nk_f16x32_atan_sapphire_(__m512h const inputs) {
     return result;
 }
 
-NK_PUBLIC void nk_sin_f16_sapphire(nk_f16_t const *ins, nk_size_t n, nk_f16_t *outs) {
+NK_PUBLIC void nk_each_sin_f16_sapphire(nk_f16_t const *ins, nk_size_t n, nk_f16_t *outs) {
     nk_size_t i = 0;
     for (; i + 32 <= n; i += 32) {
         __m512h angles = _mm512_loadu_ph(ins + i);
@@ -169,7 +169,7 @@ NK_PUBLIC void nk_sin_f16_sapphire(nk_f16_t const *ins, nk_size_t n, nk_f16_t *o
     }
 }
 
-NK_PUBLIC void nk_cos_f16_sapphire(nk_f16_t const *ins, nk_size_t n, nk_f16_t *outs) {
+NK_PUBLIC void nk_each_cos_f16_sapphire(nk_f16_t const *ins, nk_size_t n, nk_f16_t *outs) {
     nk_size_t i = 0;
     for (; i + 32 <= n; i += 32) {
         __m512h angles = _mm512_loadu_ph(ins + i);
@@ -184,7 +184,7 @@ NK_PUBLIC void nk_cos_f16_sapphire(nk_f16_t const *ins, nk_size_t n, nk_f16_t *o
     }
 }
 
-NK_PUBLIC void nk_atan_f16_sapphire(nk_f16_t const *ins, nk_size_t n, nk_f16_t *outs) {
+NK_PUBLIC void nk_each_atan_f16_sapphire(nk_f16_t const *ins, nk_size_t n, nk_f16_t *outs) {
     nk_size_t i = 0;
     for (; i + 32 <= n; i += 32) {
         __m512h values = _mm512_loadu_ph(ins + i);
