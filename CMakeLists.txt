@@ -135,7 +135,7 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "^(Apple)?Clang$")
         add_compile_options(-march=native)
     endif()
 
-    add_compile_options(-pedantic -ferror-limit=1)
+    add_compile_options(-pedantic -ferror-limit=1 -Wno-typedef-redefinition)
 elseif(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
     if(NOT CMAKE_CROSSCOMPILING)
         add_compile_options(-march=native)
@@ -150,6 +150,21 @@ file(GLOB NK_SOURCES include/numkong/*.h)
 add_library(numkong INTERFACE)
 target_sources(numkong INTERFACE ${NK_SOURCES})
 target_include_directories(numkong INTERFACE "${PROJECT_SOURCE_DIR}/include")
+
+# Enable Clang C modules for incremental compilation
+if(CMAKE_C_COMPILER_ID MATCHES "Clang")
+    target_compile_options(numkong INTERFACE
+        -fmodules
+        -fimplicit-module-maps
+        -fmodules-cache-path=${CMAKE_BINARY_DIR}/module-cache
+    )
+
+    # Install module map
+    install(FILES ${CMAKE_SOURCE_DIR}/include/module.modulemap
+        DESTINATION include)
+
+    message(STATUS "Clang C modules enabled: cache at ${CMAKE_BINARY_DIR}/module-cache")
+endif()
 
 
 # Find OpenMP
