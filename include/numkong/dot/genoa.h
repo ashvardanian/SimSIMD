@@ -1,9 +1,10 @@
 /**
- *  @brief SIMD-accelerated Dot Products for Real and Complex Numbers optimized for AMD Genoa CPUs.
+ *  @brief SIMD-accelerated Dot Products for Genoa.
  *  @file include/numkong/dot/genoa.h
- *  @sa include/numkong/dot.h
  *  @author Ash Vardanian
  *  @date December 27, 2025
+ *
+ *  @sa include/numkong/dot.h
  */
 #ifndef NK_DOT_GENOA_H
 #define NK_DOT_GENOA_H

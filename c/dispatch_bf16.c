@@ -1,6 +1,8 @@
 /**
- *  @brief Dispatch initialization for bf16 (brain floating point) data types.
+ *  @brief Dispatch Initialization for BF16 Data Types.
  *  @file c/dispatch_bf16.c
+ *  @author Ash Vardanian
+ *  @date February 3, 2026
  */
 #include "dispatch.h"
 

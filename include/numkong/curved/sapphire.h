@@ -1,9 +1,10 @@
 /**
- *  @brief SIMD-accelerated Bilinear Forms for Curved Spaces - Intel Sapphire Rapids (AVX-512-FP16) implementations.
+ *  @brief SIMD-accelerated Curved Space Similarity for Sapphire Rapids.
  *  @file include/numkong/curved/sapphire.h
- *  @sa include/numkong/curved.h
  *  @author Ash Vardanian
  *  @date January 14, 2026
+ *
+ *  @sa include/numkong/curved.h
  *
  *  Implements f16 bilinear forms using AVX-512 with native FP16 support.
  */

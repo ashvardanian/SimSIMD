@@ -1,6 +1,6 @@
 /**
- *  @brief NumKong strong types for C++ 23 and newer.
- *  @file include/types.hpp
+ *  @brief NumKong strong types for C++23 and newer.
+ *  @file include/numkong/types.hpp
  *  @author Ash Vardanian
  *  @date January 7, 2026
  *

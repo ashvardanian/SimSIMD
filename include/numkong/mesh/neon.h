@@ -1,9 +1,10 @@
 /**
- *  @brief SIMD-accelerated mesh alignment functions optimized for Arm NEON-capable CPUs.
+ *  @brief SIMD-accelerated Point Cloud Alignment for NEON.
  *  @file include/numkong/mesh/neon.h
- *  @sa include/numkong/mesh.h
  *  @author Ash Vardanian
  *  @date December 27, 2025
+ *
+ *  @sa include/numkong/mesh.h
  *
  *  @section neon_mesh_instructions Key NEON Mesh Instructions
  *

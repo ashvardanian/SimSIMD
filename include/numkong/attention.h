@@ -1,5 +1,5 @@
 /**
- *  @brief SIMD-accelerated Transformer Dense Attention kernels.
+ *  @brief SIMD-accelerated Transformer Attention.
  *  @file include/numkong/attention.h
  *  @author Ash Vardanian
  *  @date January 11, 2026

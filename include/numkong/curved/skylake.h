@@ -1,9 +1,10 @@
 /**
- *  @brief SIMD-accelerated Bilinear Forms for Curved Spaces - x86 Skylake (AVX-512) implementations.
+ *  @brief SIMD-accelerated Curved Space Similarity for Skylake.
  *  @file include/numkong/curved/skylake.h
- *  @sa include/numkong/curved.h
  *  @author Ash Vardanian
  *  @date January 14, 2026
+ *
+ *  @sa include/numkong/curved.h
  *
  *  Implements f32 and f64 bilinear forms and Mahalanobis distance using AVX-512:
  *  - f32 inputs accumulate in f64 to avoid catastrophic cancellation

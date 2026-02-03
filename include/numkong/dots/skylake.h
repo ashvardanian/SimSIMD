@@ -1,9 +1,10 @@
 /**
- *  @brief SIMD-accelerated batch dot products (GEMM micro-kernels) optimized for Intel Skylake-X CPUs.
+ *  @brief SIMD-accelerated Batched Dot Products for Skylake.
  *  @file include/numkong/dots/skylake.h
- *  @sa include/numkong/dots.h
  *  @author Ash Vardanian
  *  @date December 27, 2025
+ *
+ *  @sa include/numkong/dots.h
  *
  *  @section skylake_dots_instructions Relevant Instructions
  *

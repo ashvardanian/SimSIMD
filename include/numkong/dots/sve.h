@@ -1,9 +1,10 @@
 /**
- *  @brief SIMD-accelerated Dot Products for Real and Complex Numbers optimized for Arm SVE-capable CPUs.
+ *  @brief SIMD-accelerated Batched Dot Products for SVE.
  *  @file include/numkong/dots/sve.h
- *  @sa include/numkong/dots.h
  *  @author Ash Vardanian
  *  @date December 27, 2025
+ *
+ *  @sa include/numkong/dots.h
  *
  *  @section dots_sve_instructions ARM SVE Instructions
  *

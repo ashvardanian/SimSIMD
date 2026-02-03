@@ -1,5 +1,5 @@
 /**
- *  @brief SIMD-accelerated 1-to-N dot product kernels for similarity and distance.
+ *  @brief SIMD-accelerated Batched Dot Products.
  *  @file include/numkong/dots.h
  *  @author Ash Vardanian
  *  @date September 14, 2024

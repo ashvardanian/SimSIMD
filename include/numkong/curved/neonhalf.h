@@ -1,9 +1,10 @@
 /**
- *  @brief SIMD-accelerated Bilinear Forms for Curved Spaces - ARM NEON FP16 implementations.
+ *  @brief SIMD-accelerated Curved Space Similarity for NEON FP16.
  *  @file include/numkong/curved/neonhalf.h
- *  @sa include/numkong/curved.h
  *  @author Ash Vardanian
  *  @date January 14, 2026
+ *
+ *  @sa include/numkong/curved.h
  *
  *  Implements f16 bilinear forms and Mahalanobis distance using ARM NEON with FP16 extensions.
  *

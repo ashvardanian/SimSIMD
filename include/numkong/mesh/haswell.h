@@ -1,9 +1,10 @@
 /**
- *  @brief SIMD-accelerated Dot Products for Real and Complex Numbers optimized for Intel Haswell CPUs.
+ *  @brief SIMD-accelerated Point Cloud Alignment for Haswell.
  *  @file include/numkong/mesh/haswell.h
- *  @sa include/numkong/mesh.h
  *  @author Ash Vardanian
  *  @date December 27, 2025
+ *
+ *  @sa include/numkong/mesh.h
  *
  *  @section haswell_mesh_instructions Key AVX2 Mesh Instructions
  *

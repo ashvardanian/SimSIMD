@@ -1,9 +1,10 @@
 /**
- *  @brief SIMD-accelerated type conversions for FP8/BF16/F16 types optimized for Intel Skylake-X CPUs.
+ *  @brief SIMD-accelerated Type Conversions for Skylake.
  *  @file include/numkong/cast/skylake.h
- *  @sa include/numkong/cast.h
  *  @author Ash Vardanian
  *  @date December 27, 2025
+ *
+ *  @sa include/numkong/cast.h
  *
  *  @section skylake_cast_instructions AVX-512 Conversion Instructions
  *

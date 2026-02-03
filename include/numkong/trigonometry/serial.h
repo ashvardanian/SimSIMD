@@ -1,9 +1,11 @@
 /**
- *  @brief SIMD-accelerated trigonometric element-wise operations, based on SLEEF, optimized for SIMD-free CPUs.
+ *  @brief SWAR-accelerated Trigonometric Functions for SIMD-free CPUs.
  *  @file include/numkong/trigonometry/serial.h
- *  @sa include/numkong/trigonometry.h
  *  @author Ash Vardanian
  *  @date December 27, 2025
+ *
+ *  @sa include/numkong/trigonometry.h
+ *  @see https://sleef.org
  */
 #ifndef NK_TRIGONOMETRY_SERIAL_H
 #define NK_TRIGONOMETRY_SERIAL_H

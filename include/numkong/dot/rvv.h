@@ -1,9 +1,10 @@
 /**
- *  @brief SIMD-accelerated Dot Products for Real Numbers optimized for SpacemiT (RVV 1.0) CPUs.
+ *  @brief SIMD-accelerated Dot Products for RISC-V.
  *  @file include/numkong/dot/rvv.h
- *  @sa include/numkong/dot.h
  *  @author Ash Vardanian
  *  @date January 5, 2026
+ *
+ *  @sa include/numkong/dot.h
  *
  *  SpacemiT K1 and similar chips implement base RVV 1.0 without half-precision extensions.
  *  RVV uses vector length agnostic programming where:

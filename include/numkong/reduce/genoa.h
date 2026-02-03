@@ -1,9 +1,10 @@
 /**
- *  @brief SIMD-accelerated horizontal reduction operations for AMD Genoa CPUs.
+ *  @brief SIMD-accelerated Vector Reductions for Genoa.
  *  @file include/numkong/reduce/genoa.h
- *  @sa include/numkong/reduce.h
  *  @author Ash Vardanian
  *  @date December 27, 2025
+ *
+ *  @sa include/numkong/reduce.h
  */
 #ifndef NK_REDUCE_GENOA_H
 #define NK_REDUCE_GENOA_H

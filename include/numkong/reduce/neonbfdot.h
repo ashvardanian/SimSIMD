@@ -1,9 +1,10 @@
 /**
- *  @brief SIMD-accelerated horizontal reduction operations for Arm NEON-capable CPUs.
+ *  @brief SIMD-accelerated Vector Reductions for NEON BF16.
  *  @file include/numkong/reduce/neonbfdot.h
- *  @sa include/numkong/reduce.h
  *  @author Ash Vardanian
  *  @date December 27, 2025
+ *
+ *  @sa include/numkong/reduce.h
  *
  *  @section reduce_neonbfdot_instructions ARM NEON BF16 Instructions (ARMv8.6-BF16)
  *

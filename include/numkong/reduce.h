@@ -1,5 +1,5 @@
 /**
- *  @brief SIMD-accelerated horizontal reduction operations.
+ *  @brief SIMD-accelerated Vector Reductions.
  *  @file include/numkong/reduce.h
  *  @author Ash Vardanian
  *  @date December 27, 2024

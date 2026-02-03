@@ -1,9 +1,10 @@
 /**
- *  @brief SIMD-accelerated Hamming and Jaccard distances for binary sets optimized for Intel Haswell CPUs.
+ *  @brief SIMD-accelerated Batched Set Distances for Haswell.
  *  @file include/numkong/sets/haswell.h
- *  @sa include/numkong/sets.h
  *  @author Ash Vardanian
  *  @date January 25, 2026
+ *
+ *  @sa include/numkong/sets.h
  *
  *  @section haswell_sets_instructions Key AVX2 Set Instructions
  *

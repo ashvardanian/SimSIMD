@@ -1,9 +1,10 @@
 /**
- *  @brief SIMD-accelerated Spatial Similarity Measures optimized for AMD Genoa CPUs.
+ *  @brief SIMD-accelerated Spatial Similarity Measures for Genoa.
  *  @file include/numkong/spatial/genoa.h
- *  @sa include/numkong/spatial.h
  *  @author Ash Vardanian
  *  @date December 27, 2025
+ *
+ *  @sa include/numkong/spatial.h
  */
 #ifndef NK_SPATIAL_GENOA_H
 #define NK_SPATIAL_GENOA_H

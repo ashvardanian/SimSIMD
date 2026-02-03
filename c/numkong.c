@@ -1,7 +1,8 @@
 /**
  *  @brief Dynamic dispatch library for NumKong.
- *  @note Compile with the most recent compiler available.
  *  @file c/numkong.c
+ *  @author Ash Vardanian
+ *  @date March 13, 2024
  */
 #include "dispatch.h"
 

@@ -1,9 +1,10 @@
 /**
- *  @brief SIMD-accelerated Dot Products using FMLAL (FEAT_FHM) for Arm NEON-capable CPUs.
+ *  @brief SIMD-accelerated Dot Products for NEON FHM.
  *  @file include/numkong/dot/neonfhm.h
- *  @sa include/numkong/dot.h
  *  @author Ash Vardanian
  *  @date December 28, 2025
+ *
+ *  @sa include/numkong/dot.h
  *
  *  @section neonfhm_instructions ARM NEON FP16 Matrix Instructions (ARMv8.4-FHM)
  *

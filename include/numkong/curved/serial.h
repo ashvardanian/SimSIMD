@@ -1,9 +1,10 @@
 /**
- *  @brief SIMD-accelerated Similarity Measures for Curved Spaces - Serial (SIMD-free) implementations.
+ *  @brief SWAR-accelerated Curved Space Similarity for SIMD-free CPUs.
  *  @file include/numkong/curved/serial.h
- *  @sa include/numkong/curved.h
  *  @author Ash Vardanian
  *  @date January 14, 2026
+ *
+ *  @sa include/numkong/curved.h
  *
  *  Implements bilinear forms and Mahalanobis distance with enhanced numerical precision:
  *  - f32 inputs use f64 accumulators to avoid catastrophic cancellation

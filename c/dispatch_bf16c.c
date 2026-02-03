@@ -1,6 +1,8 @@
 /**
- *  @brief Dtype dispatch for bf16c (brain float 16-bit complex).
+ *  @brief Dispatch Initialization for BF16C Data Types.
  *  @file c/dispatch_bf16c.c
+ *  @author Ash Vardanian
+ *  @date February 3, 2026
  */
 #include "dispatch.h"
 

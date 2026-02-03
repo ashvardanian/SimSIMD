@@ -1,9 +1,10 @@
 /**
- *  @brief SIMD-accelerated Dot Products for Real and Complex Numbers optimized for Intel Ice Lake CPUs.
+ *  @brief SIMD-accelerated Dot Products for Ice Lake.
  *  @file include/numkong/dot/icelake.h
- *  @sa include/numkong/dot.h
  *  @author Ash Vardanian
  *  @date December 27, 2025
+ *
+ *  @sa include/numkong/dot.h
  *
  *  @section vnni_instructions VNNI Instructions Performance
  *

@@ -1,9 +1,10 @@
 /**
- *  @brief SIMD-accelerated Dot Products for bf16 optimized for XuanTie (RVV + Zvfbfwma) CPUs.
+ *  @brief SIMD-accelerated Dot Products for RISC-V BF16.
  *  @file include/numkong/dot/rvvbf16.h
- *  @sa include/numkong/dot.h
  *  @author Ash Vardanian
  *  @date January 5, 2026
+ *
+ *  @sa include/numkong/dot.h
  *
  *  Alibaba XuanTie C930 and similar chips implement RVV 1.0 with Zvfbfwma extension.
  *  Zvfbfwma provides widening bf16 fused multiply-accumulate to f32:

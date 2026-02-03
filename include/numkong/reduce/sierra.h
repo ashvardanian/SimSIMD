@@ -1,9 +1,10 @@
 /**
- *  @brief SIMD-accelerated horizontal reduction operations for Intel Sierra Forest CPUs.
+ *  @brief SIMD-accelerated Vector Reductions for Sierra Forest.
  *  @file include/numkong/reduce/sierra.h
- *  @sa include/numkong/reduce.h
  *  @author Ash Vardanian
  *  @date December 27, 2025
+ *
+ *  @sa include/numkong/reduce.h
  *
  *  Uses AVX-VNNI (256-bit) for efficient widening dot-products:
  *  - `_mm256_dpwssd_epi32`: i16 × i16 → i32 accumulation (sum via dot with ones)

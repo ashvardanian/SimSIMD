@@ -1,9 +1,10 @@
 /**
- *  @brief SIMD-accelerated Dot Products for Real and Complex Numbers optimized for Arm NEON-capable CPUs.
+ *  @brief SIMD-accelerated Dot Products for NEON FP16.
  *  @file include/numkong/dot/neonhalf.h
- *  @sa include/numkong/dot.h
  *  @author Ash Vardanian
  *  @date December 27, 2025
+ *
+ *  @sa include/numkong/dot.h
  *
  *  @section dot_neonhalf_instructions ARM NEON FP16 Instructions (ARMv8.2-FP16)
  *

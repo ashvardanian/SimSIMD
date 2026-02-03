@@ -1,6 +1,8 @@
 /**
- *  @brief Dispatch initialization for u8 (unsigned 8-bit integer) data types.
+ *  @brief Dispatch Initialization for U8 Data Types.
  *  @file c/dispatch_u8.c
+ *  @author Ash Vardanian
+ *  @date February 3, 2026
  */
 #include "dispatch.h"
 

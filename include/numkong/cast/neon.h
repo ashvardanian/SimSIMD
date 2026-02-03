@@ -1,9 +1,10 @@
 /**
- *  @brief SIMD-accelerated type casting operations for Arm NEON-capable CPUs.
+ *  @brief SIMD-accelerated Type Conversions for NEON.
  *  @file include/numkong/cast/neon.h
- *  @sa include/numkong/cast.h
  *  @author Ash Vardanian
  *  @date December 27, 2025
+ *
+ *  @sa include/numkong/cast.h
  *
  *  @section neon_cast_instructions ARM NEON Conversion Instructions
  *

@@ -1,9 +1,10 @@
 /**
- *  @brief SIMD-accelerated Set Similarity Measures optimized for Intel Haswell CPUs.
+ *  @brief SIMD-accelerated Set Similarity Measures for Haswell.
  *  @file include/numkong/set/haswell.h
- *  @sa include/numkong/set.h
  *  @author Ash Vardanian
  *  @date December 27, 2025
+ *
+ *  @sa include/numkong/set.h
  *
  *  @section haswell_set_instructions Key POPCNT/AVX2 Set Instructions
  *

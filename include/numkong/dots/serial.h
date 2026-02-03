@@ -1,8 +1,10 @@
 /**
- *  @brief Portable GEMM macros and serial implementations for matrix multiplication.
+ *  @brief SWAR-accelerated Batched Dot Products for SIMD-free CPUs.
  *  @file include/numkong/dots/serial.h
- *  @sa include/numkong/dots.h for API overview and use cases
  *  @author Ash Vardanian
+ *  @date December 27, 2025
+ *
+ *  @sa include/numkong/dots.h for API overview and use cases
  *
  *  This file provides two macro families for generating GEMM kernels:
  *

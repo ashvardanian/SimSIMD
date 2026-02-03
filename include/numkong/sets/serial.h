@@ -1,8 +1,10 @@
 /**
- *  @brief Portable macros and serial implementations for batched binary set computations.
+ *  @brief SWAR-accelerated Batched Set Distances for SIMD-free CPUs.
  *  @file include/numkong/sets/serial.h
- *  @sa include/numkong/sets.h for API overview and use cases
  *  @author Ash Vardanian
+ *  @date January 24, 2026
+ *
+ *  @sa include/numkong/sets.h for API overview and use cases
  *
  *  This file provides macro families for generating batched Hamming and Jaccard distance kernels:
  *

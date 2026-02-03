@@ -1,6 +1,8 @@
 /**
- *  @brief Dispatch initialization for f32 (single precision) data types.
+ *  @brief Dispatch Initialization for F32 Data Types.
  *  @file c/dispatch_f32.c
+ *  @author Ash Vardanian
+ *  @date February 3, 2026
  */
 #include "dispatch.h"
 

@@ -1,9 +1,10 @@
 /**
- *  @brief SIMD-accelerated Spatial Distances for f16 optimized for SiFive (RVV + Zvfh) CPUs.
+ *  @brief SIMD-accelerated Spatial Similarity Measures for RISC-V FP16.
  *  @file include/numkong/spatial/rvvhalf.h
- *  @sa include/numkong/spatial.h
  *  @author Ash Vardanian
  *  @date January 5, 2026
+ *
+ *  @sa include/numkong/spatial.h
  *
  *  Zvfh provides native half-precision (f16) vector operations.
  *  Uses widening operations (f16 → f32) for precision accumulation.

@@ -1,9 +1,10 @@
 /**
- *  @brief SIMD-accelerated horizontal reduction operations for Intel Skylake-X CPUs.
+ *  @brief SIMD-accelerated Vector Reductions for Skylake.
  *  @file include/numkong/reduce/skylake.h
- *  @sa include/numkong/reduce.h
  *  @author Ash Vardanian
  *  @date December 27, 2025
+ *
+ *  @sa include/numkong/reduce.h
  *
  *  @section float_as_int Float-as-Int Comparison Trick
  *

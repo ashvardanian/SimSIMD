@@ -1,9 +1,10 @@
 /**
- *  @brief SIMD-accelerated point cloud and mesh operations optimized for Intel Skylake-X CPUs.
+ *  @brief SIMD-accelerated Point Cloud Alignment for Skylake.
  *  @file include/numkong/mesh/skylake.h
- *  @sa include/numkong/mesh.h
  *  @author Ash Vardanian
  *  @date December 27, 2025
+ *
+ *  @sa include/numkong/mesh.h
  *
  *  @section skylake_mesh_instructions Key AVX-512 Mesh Instructions
  *

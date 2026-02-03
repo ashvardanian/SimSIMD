@@ -1,9 +1,10 @@
 /**
- *  @brief SIMD-accelerated elementwise operations optimized for Intel Skylake-X CPUs.
+ *  @brief SIMD-accelerated Elementwise Arithmetic for Skylake.
  *  @file include/numkong/each/skylake.h
- *  @sa include/numkong/each.h
  *  @author Ash Vardanian
  *  @date December 27, 2025
+ *
+ *  @sa include/numkong/each.h
  *
  *  @section skylake_elementwise_instructions Relevant Instructions
  *

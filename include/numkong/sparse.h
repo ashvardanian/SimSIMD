@@ -1,5 +1,5 @@
 /**
- *  @brief SIMD-accelerated sparse set operations and dot products.
+ *  @brief SIMD-accelerated Sparse Vector Dot Products.
  *  @file include/numkong/sparse.h
  *  @author Ash Vardanian
  *  @date March 21, 2024

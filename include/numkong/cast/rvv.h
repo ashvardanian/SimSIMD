@@ -1,9 +1,10 @@
 /**
- *  @brief SIMD-accelerated type conversions for FP8/BF16 types optimized for SpacemiT (RVV 1.0) CPUs.
+ *  @brief SIMD-accelerated Type Conversions for RISC-V.
  *  @file include/numkong/cast/rvv.h
- *  @sa include/numkong/cast.h
  *  @author Ash Vardanian
  *  @date January 13, 2026
+ *
+ *  @sa include/numkong/cast.h
  *
  *  SpacemiT K1 and similar chips implement RVA22 profile with base RVV 1.0.
  *  This file provides vectorized type conversions for:

@@ -1,9 +1,10 @@
 /**
- *  @brief SIMD-accelerated batch dot products (GEMM micro-kernels) optimized for Intel Ice Lake CPUs.
+ *  @brief SIMD-accelerated Batched Dot Products for Ice Lake.
  *  @file include/numkong/dots/icelake.h
- *  @sa include/numkong/dots.h
  *  @author Ash Vardanian
  *  @date December 27, 2025
+ *
+ *  @sa include/numkong/dots.h
  *
  *  @section ice_dots_instructions Relevant Instructions
  *

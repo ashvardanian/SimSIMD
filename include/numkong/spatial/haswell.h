@@ -1,9 +1,10 @@
 /**
- *  @brief SIMD-accelerated Spatial Similarity Measures optimized for Intel Haswell CPUs.
+ *  @brief SIMD-accelerated Spatial Similarity Measures for Haswell.
  *  @file include/numkong/spatial/haswell.h
- *  @sa include/numkong/spatial.h
  *  @author Ash Vardanian
  *  @date December 27, 2025
+ *
+ *  @sa include/numkong/spatial.h
  *
  *  @section haswell_spatial_instructions Key AVX2 Spatial Instructions
  *

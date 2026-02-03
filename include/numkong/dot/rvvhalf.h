@@ -1,9 +1,10 @@
 /**
- *  @brief SIMD-accelerated Dot Products for f16 optimized for SiFive (RVV + Zvfh) CPUs.
+ *  @brief SIMD-accelerated Dot Products for RISC-V FP16.
  *  @file include/numkong/dot/rvvhalf.h
- *  @sa include/numkong/dot.h
  *  @author Ash Vardanian
  *  @date January 5, 2026
+ *
+ *  @sa include/numkong/dot.h
  *
  *  SiFive P670/X280 and similar chips implement RVV 1.0 with Zvfh extension.
  *  Zvfh provides native half-precision (f16) vector operations.

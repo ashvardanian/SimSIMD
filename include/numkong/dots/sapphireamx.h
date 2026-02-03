@@ -1,9 +1,10 @@
 /**
- *  @brief SIMD-accelerated Dot Products for Real and Complex Numbers optimized for Intel Sapphire Rapids CPUs.
+ *  @brief SIMD-accelerated Batched Dot Products for Sapphire Rapids.
  *  @file include/numkong/dots/sapphire.h
- *  @sa include/numkong/dots.h
  *  @author Ash Vardanian
  *  @date December 27, 2025
+ *
+ *  @sa include/numkong/dots.h
  *
  *  This file contains tiled matrix-multiplication kernels optimized for Intel AMX instructions,
  *  leveraging the new TMM registers on Intel Sapphire Rapids CPUs. Those are much larger than ZMM:

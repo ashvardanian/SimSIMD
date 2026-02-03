@@ -1,9 +1,10 @@
 /**
- *  @brief SIMD-accelerated horizontal reduction operations for Arm NEON-capable CPUs.
+ *  @brief SIMD-accelerated Vector Reductions for NEON SDOT.
  *  @file include/numkong/reduce/neonsdot.h
- *  @sa include/numkong/reduce.h
  *  @author Ash Vardanian
  *  @date December 27, 2025
+ *
+ *  @sa include/numkong/reduce.h
  *
  *  @section reduce_neonsdot_instructions ARM NEON SDOT/UDOT Instructions (ARMv8.4-DotProd)
  *

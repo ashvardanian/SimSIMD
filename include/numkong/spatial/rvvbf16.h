@@ -1,9 +1,10 @@
 /**
- *  @brief SIMD-accelerated Spatial Distances for bf16 optimized for XuanTie (RVV + Zvfbfwma) CPUs.
+ *  @brief SIMD-accelerated Spatial Similarity Measures for RISC-V BF16.
  *  @file include/numkong/spatial/rvvbf16.h
- *  @sa include/numkong/spatial.h
  *  @author Ash Vardanian
  *  @date January 5, 2026
+ *
+ *  @sa include/numkong/spatial.h
  *
  *  Zvfbfwma provides widening bf16 fused multiply-accumulate to f32:
  *    vfwmaccbf16: f32 ← bf16 × bf16

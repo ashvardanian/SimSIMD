@@ -1,9 +1,10 @@
 /**
- *  @brief SIMD-accelerated Elementwise Operations using BF16 for Arm NEON-capable CPUs.
+ *  @brief SIMD-accelerated Elementwise Arithmetic for NEON BF16.
  *  @file include/numkong/each/neonbfdot.h
- *  @sa include/numkong/each.h
  *  @author Ash Vardanian
  *  @date December 27, 2025
+ *
+ *  @sa include/numkong/each.h
  *
  *  @section elementwise_neonbfdot_instructions ARM NEON BF16 Instructions (ARMv8.6-BF16)
  *

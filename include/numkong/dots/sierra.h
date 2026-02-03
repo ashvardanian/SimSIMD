@@ -1,9 +1,10 @@
 /**
- *  @brief SIMD-accelerated GEMM for Integer Datatypes optimized for Intel Sierra Forest CPUs.
+ *  @brief SIMD-accelerated Batched Dot Products for Sierra Forest.
  *  @file include/numkong/dots/sierra.h
- *  @sa include/numkong/dots.h
  *  @author Ash Vardanian
  *  @date December 27, 2025
+ *
+ *  @sa include/numkong/dots.h
  *
  *  Uses AVX-VNNI (256-bit) for integer GEMM:
  *  - _mm256_dpbssds_epi32: i8 × i8 → i32 with saturation

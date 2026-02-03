@@ -1,9 +1,10 @@
 /**
- *  @brief SIMD-accelerated elementwise operations optimized for Intel Ice Lake CPUs.
+ *  @brief SIMD-accelerated Elementwise Arithmetic for Ice Lake.
  *  @file include/numkong/each/icelake.h
- *  @sa include/numkong/each.h
  *  @author Ash Vardanian
  *  @date December 27, 2025
+ *
+ *  @sa include/numkong/each.h
  *
  *  @section ice_elementwise_instructions Relevant Instructions
  *

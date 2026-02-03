@@ -1,6 +1,8 @@
 /**
- *  @brief Dtype dispatch file for u32 (unsigned 32-bit integer) kernels.
+ *  @brief Dispatch Initialization for U32 Data Types.
  *  @file c/dispatch_u32.c
+ *  @author Ash Vardanian
+ *  @date February 3, 2026
  */
 #include "dispatch.h"
 

@@ -1,9 +1,10 @@
 /**
- *  @brief SIMD-accelerated Dot Products for Real and Complex Numbers optimized for Intel Haswell CPUs.
+ *  @brief SIMD-accelerated Batched Dot Products for Haswell.
  *  @file include/numkong/dots/haswell.h
- *  @sa include/numkong/dots.h
  *  @author Ash Vardanian
  *  @date December 27, 2025
+ *
+ *  @sa include/numkong/dots.h
  *
  *  @section haswell_dots_instructions Key AVX2/FMA GEMM Instructions
  *

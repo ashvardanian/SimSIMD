@@ -1,9 +1,10 @@
 /**
- *  @brief SIMD-accelerated Hamming and Jaccard distances for binary sets optimized for ARM NEON.
+ *  @brief SIMD-accelerated Batched Set Distances for NEON.
  *  @file include/numkong/sets/neon.h
- *  @sa include/numkong/sets.h
  *  @author Ash Vardanian
  *  @date January 25, 2026
+ *
+ *  @sa include/numkong/sets.h
  *
  *  @section neon_sets_instructions Key NEON Set Instructions
  *

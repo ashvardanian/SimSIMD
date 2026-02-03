@@ -1,6 +1,8 @@
 /**
- *  @brief Dispatch initialization for f16 (half precision) data types.
+ *  @brief Dispatch Initialization for F16 Data Types.
  *  @file c/dispatch_f16.c
+ *  @author Ash Vardanian
+ *  @date February 3, 2026
  */
 #include "dispatch.h"
 

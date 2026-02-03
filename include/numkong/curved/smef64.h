@@ -1,9 +1,10 @@
 /**
- *  @brief SIMD-accelerated Bilinear Forms for Curved Spaces - ARM SVE f64 implementations.
+ *  @brief SIMD-accelerated Curved Space Similarity for SME F64.
  *  @file include/numkong/curved/smef64.h
- *  @sa include/numkong/curved.h
  *  @author Ash Vardanian
  *  @date January 14, 2026
+ *
+ *  @sa include/numkong/curved.h
  *
  *  Implements bilinear forms and Mahalanobis distance using ARM SVE:
  *  - f32 inputs with f64 accumulation for higher precision

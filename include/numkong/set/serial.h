@@ -1,9 +1,10 @@
 /**
- *  @brief SIMD-accelerated Set Similarity Measures optimized for Serial (SIMD-free) CPUs.
+ *  @brief SWAR-accelerated Set Similarity Measures for SIMD-free CPUs.
  *  @file include/numkong/set/serial.h
- *  @sa include/numkong/set.h
  *  @author Ash Vardanian
  *  @date December 27, 2025
+ *
+ *  @sa include/numkong/set.h
  */
 #ifndef NK_SET_SERIAL_H
 #define NK_SET_SERIAL_H

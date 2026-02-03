@@ -1,5 +1,5 @@
 /**
- *  @brief SIMD-accelerated type-casting operations.
+ *  @brief SIMD-accelerated Type Conversions.
  *  @file include/numkong/cast.h
  *  @author Ash Vardanian
  *  @date January 2, 2026

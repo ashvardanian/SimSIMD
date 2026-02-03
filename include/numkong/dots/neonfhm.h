@@ -1,9 +1,10 @@
 /**
- *  @brief SIMD-accelerated Dot Products for Real and Complex Numbers optimized for Arm NEON CPUs with FMLAL.
+ *  @brief SIMD-accelerated Batched Dot Products for NEON FHM.
  *  @file include/numkong/dots/neonfhm.h
- *  @sa include/numkong/dots.h
  *  @author Ash Vardanian
  *  @date December 28, 2025
+ *
+ *  @sa include/numkong/dots.h
  *
  *  Uses FMLAL (FEAT_FHM) for widening fp16->f32 multiply-accumulate, which is 20-48% faster
  *  than the convert-then-FMA approach used in neonhalf.h.

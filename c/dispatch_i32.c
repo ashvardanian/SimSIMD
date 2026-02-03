@@ -1,6 +1,8 @@
 /**
- *  @brief Dtype dispatch file for i32 (signed 32-bit integer) kernels.
+ *  @brief Dispatch Initialization for I32 Data Types.
  *  @file c/dispatch_i32.c
+ *  @author Ash Vardanian
+ *  @date February 3, 2026
  */
 #include "dispatch.h"
 

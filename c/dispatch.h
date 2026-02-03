@@ -1,6 +1,8 @@
 /**
- *  @brief Common definitions for dtype dispatch files.
+ *  @brief Common Definitions for Dispatch Files.
  *  @file c/dispatch.h
+ *  @author Ash Vardanian
+ *  @date February 3, 2026
  */
 #ifndef NK_DISPATCH_H
 #define NK_DISPATCH_H

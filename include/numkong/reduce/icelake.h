@@ -1,9 +1,10 @@
 /**
- *  @brief SIMD-accelerated horizontal reduction operations for Intel Ice Lake CPUs.
+ *  @brief SIMD-accelerated Vector Reductions for Ice Lake.
  *  @file include/numkong/reduce/icelake.h
- *  @sa include/numkong/reduce.h
  *  @author Ash Vardanian
  *  @date December 27, 2025
+ *
+ *  @sa include/numkong/reduce.h
  *
  *  @section ice_reduce_instructions Relevant Instructions
  *

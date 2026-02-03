@@ -1,9 +1,10 @@
 /**
- *  @brief SIMD-accelerated horizontal reduction operations for Arm NEON with FHM (FEAT_FP16FML).
+ *  @brief SIMD-accelerated Vector Reductions for NEON FHM.
  *  @file include/numkong/reduce/neonfhm.h
- *  @sa include/numkong/reduce.h
  *  @author Ash Vardanian
  *  @date December 29, 2025
+ *
+ *  @sa include/numkong/reduce.h
  *
  *  @section reduce_neonfhm_instructions ARM NEON FP16 Matrix Instructions (ARMv8.4-FHM)
  *

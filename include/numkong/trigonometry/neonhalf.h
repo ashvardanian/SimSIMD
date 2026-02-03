@@ -1,9 +1,11 @@
 /**
- *  @brief SIMD-accelerated trigonometric element-wise operations, based on SLEEF, optimized for Arm NEON-capable CPUs.
+ *  @brief SIMD-accelerated Trigonometric Functions for NEON FP16.
  *  @file include/numkong/trigonometry/neonhalf.h
- *  @sa include/numkong/trigonometry.h
  *  @author Ash Vardanian
  *  @date December 27, 2025
+ *
+ *  @sa include/numkong/trigonometry.h
+ *  @see https://sleef.org
  *
  *  @section trigonometry_neonhalf_instructions ARM NEON FP16 Instructions (ARMv8.2-FP16)
  *

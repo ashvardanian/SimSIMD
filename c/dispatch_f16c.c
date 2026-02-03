@@ -1,6 +1,8 @@
 /**
- *  @brief Dtype dispatch for f16c (16-bit complex floating point).
+ *  @brief Dispatch Initialization for F16C Data Types.
  *  @file c/dispatch_f16c.c
+ *  @author Ash Vardanian
+ *  @date February 3, 2026
  */
 #include "dispatch.h"
 

@@ -1,9 +1,10 @@
 /**
- *  @brief SIMD-accelerated Dot Products for Real and Complex Numbers optimized for Arm NEON-capable CPUs.
+ *  @brief SIMD-accelerated Batched Dot Products for NEON BF16.
  *  @file include/numkong/dots/neonbfdot.h
- *  @sa include/numkong/dots.h
  *  @author Ash Vardanian
  *  @date December 27, 2025
+ *
+ *  @sa include/numkong/dots.h
  */
 #ifndef NK_DOTS_NEONBFDOT_H
 #define NK_DOTS_NEONBFDOT_H

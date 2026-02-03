@@ -1,6 +1,8 @@
 /**
- *  @brief Dtype dispatch file for u16 (unsigned 16-bit integer) kernels.
+ *  @brief Dispatch Initialization for U16 Data Types.
  *  @file c/dispatch_u16.c
+ *  @author Ash Vardanian
+ *  @date February 3, 2026
  */
 #include "dispatch.h"
 

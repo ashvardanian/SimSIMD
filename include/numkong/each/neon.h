@@ -1,9 +1,10 @@
 /**
- *  @brief SIMD-accelerated Elementwise Operations optimized for Arm NEON-capable CPUs.
+ *  @brief SIMD-accelerated Elementwise Arithmetic for NEON.
  *  @file include/numkong/each/neon.h
- *  @sa include/numkong/each.h
  *  @author Ash Vardanian
  *  @date December 27, 2025
+ *
+ *  @sa include/numkong/each.h
  *
  *  @section elementwise_neon_instructions ARM NEON Instructions
  *

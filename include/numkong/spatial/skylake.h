@@ -1,9 +1,10 @@
 /**
- *  @brief SIMD-accelerated Spatial Similarity Measures optimized for Intel Skylake-X CPUs.
+ *  @brief SIMD-accelerated Spatial Similarity Measures for Skylake.
  *  @file include/numkong/spatial/skylake.h
- *  @sa include/numkong/spatial.h
  *  @author Ash Vardanian
  *  @date December 27, 2025
+ *
+ *  @sa include/numkong/spatial.h
  *
  *  @section skylake_spatial_instructions Key AVX-512 Spatial Instructions
  *

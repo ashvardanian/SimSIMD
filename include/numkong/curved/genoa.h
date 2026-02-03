@@ -1,9 +1,10 @@
 /**
- *  @brief SIMD-accelerated Bilinear Forms for Curved Spaces - AMD Genoa (AVX-512-BF16) implementations.
+ *  @brief SIMD-accelerated Curved Space Similarity for Genoa.
  *  @file include/numkong/curved/genoa.h
- *  @sa include/numkong/curved.h
  *  @author Ash Vardanian
  *  @date January 14, 2026
+ *
+ *  @sa include/numkong/curved.h
  *
  *  Implements bf16 bilinear forms using AVX-512 with BF16 extensions.
  */

@@ -1,9 +1,11 @@
 /**
- *  @brief SIMD-accelerated trigonometric element-wise operations optimized for Intel Sapphire Rapids CPUs.
+ *  @brief SIMD-accelerated Trigonometric Functions for Sapphire Rapids.
  *  @file include/numkong/trigonometry/sapphire.h
- *  @sa include/numkong/trigonometry.h
  *  @author Ash Vardanian
  *  @date December 27, 2025
+ *
+ *  @sa include/numkong/trigonometry.h
+ *  @see https://sleef.org
  *
  *  Uses AVX-512 FP16 for native half-precision trigonometry:
  *  - 32 FP16 values per 512-bit register

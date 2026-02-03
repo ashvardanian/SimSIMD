@@ -1,6 +1,8 @@
 /**
- *  @brief Dispatch initialization for i4 (signed 4-bit integer) data types.
+ *  @brief Dispatch Initialization for I4 Data Types.
  *  @file c/dispatch_i4.c
+ *  @author Ash Vardanian
+ *  @date February 3, 2026
  */
 #include "dispatch.h"
 

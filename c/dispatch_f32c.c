@@ -1,6 +1,8 @@
 /**
- *  @brief Dtype dispatch for f32c (32-bit complex floating point).
+ *  @brief Dispatch Initialization for F32C Data Types.
  *  @file c/dispatch_f32c.c
+ *  @author Ash Vardanian
+ *  @date February 3, 2026
  */
 #include "dispatch.h"
 

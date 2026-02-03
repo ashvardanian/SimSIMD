@@ -1,9 +1,10 @@
 /**
- *  @brief SIMD-accelerated Dot Products for Real and Complex Numbers optimized for Serial (SIMD-free) CPUs.
+ *  @brief SWAR-accelerated Point Cloud Alignment for SIMD-free CPUs.
  *  @file include/numkong/mesh/serial.h
- *  @sa include/numkong/mesh.h
  *  @author Ash Vardanian
  *  @date December 27, 2025
+ *
+ *  @sa include/numkong/mesh.h
  */
 #ifndef NK_MESH_SERIAL_H
 #define NK_MESH_SERIAL_H

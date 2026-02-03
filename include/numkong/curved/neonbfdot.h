@@ -1,9 +1,10 @@
 /**
- *  @brief SIMD-accelerated Bilinear Forms for Curved Spaces - ARM NEON BF16 implementations.
+ *  @brief SIMD-accelerated Curved Space Similarity for NEON BF16.
  *  @file include/numkong/curved/neonbfdot.h
- *  @sa include/numkong/curved.h
  *  @author Ash Vardanian
  *  @date January 14, 2026
+ *
+ *  @sa include/numkong/curved.h
  *
  *  Implements bf16 bilinear forms and Mahalanobis distance using ARM NEON with BF16 extensions.
  *

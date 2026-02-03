@@ -1,6 +1,8 @@
 /**
  *  @brief NumKong C++ Benchmark Suite using Google Benchmark.
  *  @file scripts/bench.cpp
+ *  @author Ash Vardanian
+ *  @date March 14, 2023
  *
  *  Comprehensive benchmarks for NumKong SIMD-optimized functions measuring
  *  throughput performance. Run with:

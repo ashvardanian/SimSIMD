@@ -1,6 +1,8 @@
 /**
- *  @brief Dispatch functions for e3m2 (FP6) data type.
+ *  @brief Dispatch Initialization for E3M2 Data Types.
  *  @file c/dispatch_e3m2.c
+ *  @author Ash Vardanian
+ *  @date February 3, 2026
  */
 #include "dispatch.h"
 

@@ -1,9 +1,10 @@
 /**
- *  @brief SIMD-accelerated Set Similarity Measures optimized for Intel Ice Lake CPUs.
+ *  @brief SIMD-accelerated Set Similarity Measures for Ice Lake.
  *  @file include/numkong/set/icelake.h
- *  @sa include/numkong/set.h
  *  @author Ash Vardanian
  *  @date December 27, 2025
+ *
+ *  @sa include/numkong/set.h
  */
 #ifndef NK_SET_ICELAKE_H
 #define NK_SET_ICELAKE_H

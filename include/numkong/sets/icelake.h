@@ -1,9 +1,10 @@
 /**
- *  @brief SIMD-accelerated Hamming and Jaccard distances for binary sets optimized for Intel Ice Lake CPUs.
+ *  @brief SIMD-accelerated Batched Set Distances for Ice Lake.
  *  @file include/numkong/sets/icelake.h
- *  @sa include/numkong/sets.h
  *  @author Ash Vardanian
  *  @date January 25, 2026
+ *
+ *  @sa include/numkong/sets.h
  *
  *  @section ice_sets_instructions Key AVX-512 Set Instructions
  *

@@ -1,9 +1,10 @@
 /**
- *  @brief SIMD-accelerated Spatial Similarity Measures optimized for Intel Sierra Forest CPUs.
+ *  @brief SIMD-accelerated Spatial Similarity Measures for Sierra Forest.
  *  @file include/numkong/spatial/sierra.h
- *  @sa include/numkong/spatial.h
  *  @author Ash Vardanian
  *  @date December 27, 2025
+ *
+ *  @sa include/numkong/spatial.h
  */
 #ifndef NK_SPATIAL_SIERRA_H
 #define NK_SPATIAL_SIERRA_H

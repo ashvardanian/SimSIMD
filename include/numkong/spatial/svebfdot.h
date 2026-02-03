@@ -1,9 +1,10 @@
 /**
- *  @brief SIMD-accelerated Spatial Similarity Measures optimized for Arm SVE-capable CPUs.
+ *  @brief SIMD-accelerated Spatial Similarity Measures for SVE BF16.
  *  @file include/numkong/spatial/sve.h
- *  @sa include/numkong/spatial.h
  *  @author Ash Vardanian
  *  @date December 27, 2025
+ *
+ *  @sa include/numkong/spatial.h
  *
  *  @section spatial_svebfdot_instructions ARM SVE+BF16 Instructions
  *

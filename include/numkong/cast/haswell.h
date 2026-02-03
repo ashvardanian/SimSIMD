@@ -1,5 +1,5 @@
 /**
- *  @brief SIMD-accelerated type conversions for FP8/BF16/F16 types optimized for Intel Haswell CPUs.
+ *  @brief SIMD-accelerated Type Conversions for Haswell.
  *  @file include/numkong/cast/haswell.h
  *  @author Ash Vardanian
  *  @date January 2, 2026

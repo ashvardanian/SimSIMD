@@ -1,9 +1,10 @@
 /**
- *  @brief SIMD-accelerated Set Similarity Measures optimized for Arm NEON-capable CPUs.
+ *  @brief SIMD-accelerated Set Similarity Measures for NEON.
  *  @file include/numkong/set/neon.h
- *  @sa include/numkong/set.h
  *  @author Ash Vardanian
  *  @date December 27, 2025
+ *
+ *  @sa include/numkong/set.h
  *
  *  @section neon_set_instructions NEON Set Instructions
  *

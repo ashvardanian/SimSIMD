@@ -1,9 +1,10 @@
 /**
- *  @brief SIMD-accelerated Dot Products for Real and Complex Numbers optimized for Intel Skylake-X CPUs.
+ *  @brief SIMD-accelerated Dot Products for Skylake.
  *  @file include/numkong/dot/skylake.h
- *  @sa include/numkong/dot.h
  *  @author Ash Vardanian
  *  @date December 27, 2025
+ *
+ *  @sa include/numkong/dot.h
  *
  *  @section skylake_instructions Key AVX-512 Instructions
  *

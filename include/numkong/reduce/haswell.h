@@ -1,9 +1,10 @@
 /**
- *  @brief SIMD-accelerated horizontal reduction operations for Intel Haswell CPUs.
+ *  @brief SIMD-accelerated Vector Reductions for Haswell.
  *  @file include/numkong/reduce/haswell.h
- *  @sa include/numkong/reduce.h
  *  @author Ash Vardanian
  *  @date December 27, 2025
+ *
+ *  @sa include/numkong/reduce.h
  *
  *  @section haswell_reduce_instructions Key AVX2 Reduction Instructions
  *

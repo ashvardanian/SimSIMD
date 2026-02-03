@@ -1,9 +1,10 @@
 /**
- *  @brief SIMD-accelerated Spatial Similarity Measures optimized for Intel Sapphire Rapids CPUs.
+ *  @brief SIMD-accelerated Spatial Similarity Measures for Sapphire Rapids.
  *  @file include/numkong/spatial/sapphire.h
- *  @sa include/numkong/spatial.h
  *  @author Ash Vardanian
  *  @date December 27, 2025
+ *
+ *  @sa include/numkong/spatial.h
  *
  *  Sapphire Rapids adds native FP16 support via AVX-512 FP16 extension.
  *  For e4m3 L2 distance, we can leverage F16 for the subtraction step:

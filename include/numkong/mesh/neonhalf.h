@@ -1,9 +1,10 @@
 /**
- *  @brief SIMD-accelerated mesh alignment functions optimized for Arm NEON-capable CPUs with FP16 support.
+ *  @brief SIMD-accelerated Point Cloud Alignment for NEON FP16.
  *  @file include/numkong/mesh/neonhalf.h
- *  @sa include/numkong/mesh.h
  *  @author Ash Vardanian
  *  @date December 27, 2025
+ *
+ *  @sa include/numkong/mesh.h
  *
  *  @section mesh_neonhalf_instructions ARM NEON FP16 Instructions (ARMv8.2-FP16)
  *

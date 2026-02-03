@@ -1,9 +1,10 @@
 /**
- *  @brief SIMD-accelerated Set Similarity Measures optimized for SpacemiT (RVV 1.0) CPUs.
+ *  @brief SIMD-accelerated Set Similarity Measures for RISC-V.
  *  @file include/numkong/set/rvv.h
- *  @sa include/numkong/set.h
  *  @author Ash Vardanian
  *  @date January 13, 2026
+ *
+ *  @sa include/numkong/set.h
  *
  *  SpacemiT K1 and similar chips implement RVA22 profile with base RVV 1.0.
  *  This does NOT include the Zvbb extension, so we lack native element-wise popcount (`vcpop.v`).

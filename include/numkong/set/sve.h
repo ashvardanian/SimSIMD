@@ -1,9 +1,10 @@
 /**
- *  @brief SIMD-accelerated Set Similarity Measures optimized for Arm SVE-capable CPUs.
+ *  @brief SIMD-accelerated Set Similarity Measures for SVE.
  *  @file include/numkong/set/sve.h
- *  @sa include/numkong/set.h
  *  @author Ash Vardanian
  *  @date December 27, 2025
+ *
+ *  @sa include/numkong/set.h
  *
  *  @section set_sve_instructions ARM SVE Instructions
  *

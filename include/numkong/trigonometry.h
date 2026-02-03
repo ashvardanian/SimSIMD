@@ -1,8 +1,9 @@
 /**
- *  @brief SIMD-accelerated trigonometric element-wise operations, based on SLEEF.
+ *  @brief SIMD-accelerated Trigonometric Functions.
  *  @file include/numkong/trigonometry.h
  *  @author Ash Vardanian
  *  @date July 1, 2023
+ *  @see SLEEF: https://sleef.org/
  *
  *  Contains:
  *

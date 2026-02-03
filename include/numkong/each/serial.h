@@ -1,9 +1,10 @@
 /**
- *  @brief SIMD-accelerated Dot Products for Real and Complex Numbers optimized for Serial (SIMD-free) CPUs.
+ *  @brief SWAR-accelerated Elementwise Arithmetic for SIMD-free CPUs.
  *  @file include/numkong/each/serial.h
- *  @sa include/numkong/each.h
  *  @author Ash Vardanian
  *  @date December 27, 2025
+ *
+ *  @sa include/numkong/each.h
  */
 #ifndef NK_EACH_SERIAL_H
 #define NK_EACH_SERIAL_H

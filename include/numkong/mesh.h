@@ -1,5 +1,5 @@
 /**
- *  @brief SIMD-accelerated similarity measures for meshes and rigid 3D bodies.
+ *  @brief SIMD-accelerated Point Cloud Alignment.
  *  @file include/numkong/mesh.h
  *  @author Ash Vardanian
  *  @date June 19, 2024

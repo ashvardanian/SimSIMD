@@ -1,9 +1,10 @@
 /**
- *  @brief SIMD-accelerated Dot Products for Real and Complex Numbers optimized for Arm NEON-capable CPUs.
+ *  @brief SIMD-accelerated Dot Products for NEON SDOT.
  *  @file include/numkong/dot/neonsdot.h
- *  @sa include/numkong/dot.h
  *  @author Ash Vardanian
  *  @date December 27, 2025
+ *
+ *  @sa include/numkong/dot.h
  *
  *  @section dot_neonsdot_instructions ARM NEON SDOT/UDOT Instructions (ARMv8.4-DotProd)
  *

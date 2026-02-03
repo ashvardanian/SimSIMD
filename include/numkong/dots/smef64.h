@@ -1,9 +1,10 @@
 /**
- *  @brief SIMD-accelerated GEMM for `f32`/`f64` using ARM SME with `f64` accumulators.
+ *  @brief SIMD-accelerated Batched Dot Products for SME F64.
  *  @file include/numkong/dots/smef64.h
- *  @sa include/numkong/dots.h
  *  @author Ash Vardanian
  *  @date January 2, 2026
+ *
+ *  @sa include/numkong/dots.h
  *
  *  Uses ARM SME with `FEAT_SME_F64F64` for high-precision GEMM.
  *  Requires Apple M4 or equivalent with `f64` outer product support.

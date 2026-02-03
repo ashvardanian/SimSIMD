@@ -1,9 +1,10 @@
 /**
- *  @brief SIMD-accelerated Bilinear Forms for Curved Spaces - x86 Haswell (AVX2) implementations.
+ *  @brief SIMD-accelerated Curved Space Similarity for Haswell.
  *  @file include/numkong/curved/haswell.h
- *  @sa include/numkong/curved.h
  *  @author Ash Vardanian
  *  @date January 14, 2026
+ *
+ *  @sa include/numkong/curved.h
  *
  *  Implements f16 and bf16 bilinear forms using AVX2 with F16C conversion.
  */

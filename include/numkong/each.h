@@ -1,5 +1,5 @@
 /**
- *  @brief SIMD-accelerated mixed-precision element-wise operations.
+ *  @brief SIMD-accelerated Elementwise Arithmetic.
  *  @file include/numkong/each.h
  *  @author Ash Vardanian
  *  @date October 16, 2024

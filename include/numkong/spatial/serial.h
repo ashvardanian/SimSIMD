@@ -1,9 +1,10 @@
 /**
- *  @brief SIMD-accelerated Spatial Similarity Measures optimized for Serial (SIMD-free) CPUs.
+ *  @brief SWAR-accelerated Spatial Similarity Measures for SIMD-free CPUs.
  *  @file include/numkong/spatial/serial.h
- *  @sa include/numkong/spatial.h
  *  @author Ash Vardanian
  *  @date December 27, 2025
+ *
+ *  @sa include/numkong/spatial.h
  */
 #ifndef NK_SPATIAL_SERIAL_H
 #define NK_SPATIAL_SERIAL_H

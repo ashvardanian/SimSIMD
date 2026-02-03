@@ -1,9 +1,10 @@
 /**
- *  @brief SIMD-accelerated mesh alignment functions for bf16 data on Arm NEON BF16 capable CPUs.
+ *  @brief SIMD-accelerated Point Cloud Alignment for NEON BF16.
  *  @file include/numkong/mesh/neonbfdot.h
- *  @sa include/numkong/mesh.h
  *  @author Ash Vardanian
  *  @date December 27, 2025
+ *
+ *  @sa include/numkong/mesh.h
  *
  *  @section mesh_neonbfdot_instructions ARM NEON BF16 Instructions (ARMv8.6-BF16)
  *

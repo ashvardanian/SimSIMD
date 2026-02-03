@@ -1,9 +1,10 @@
 /**
- *  @brief SIMD-accelerated Spatial Similarity Measures optimized for Arm NEON-capable CPUs.
+ *  @brief SIMD-accelerated Spatial Similarity Measures for NEON.
  *  @file include/numkong/spatial/neon.h
- *  @sa include/numkong/spatial.h
  *  @author Ash Vardanian
  *  @date December 27, 2025
+ *
+ *  @sa include/numkong/spatial.h
  *
  *  @section neon_spatial_instructions Key NEON Spatial Instructions
  *

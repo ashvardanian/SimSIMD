@@ -1,6 +1,8 @@
 /**
- *  @brief Numeric operations for NumKong Python bindings.
+ *  @brief NumKong Numeric Operations for Python.
  *  @file python/numerics.h
+ *  @author Ash Vardanian
+ *  @date December 30, 2025
  *
  *  This header declares numeric API functions including elementwise operations,
  *  reductions, trigonometry, and mesh alignment (Kabsch/Umeyama).

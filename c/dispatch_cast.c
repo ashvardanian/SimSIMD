@@ -1,6 +1,8 @@
 /**
- *  @brief Dispatch functions for type casting and scalar conversions.
+ *  @brief Dispatch Initialization for Type Conversions.
  *  @file c/dispatch_cast.c
+ *  @author Ash Vardanian
+ *  @date February 3, 2026
  */
 #include "dispatch.h"
 

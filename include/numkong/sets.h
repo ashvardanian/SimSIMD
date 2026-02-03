@@ -1,5 +1,5 @@
 /**
- *  @brief Batched pairwise binary set computations (Hamming and Jaccard distances).
+ *  @brief SIMD-accelerated Batched Set Distances.
  *  @file include/numkong/sets.h
  *  @author Ash Vardanian
  *

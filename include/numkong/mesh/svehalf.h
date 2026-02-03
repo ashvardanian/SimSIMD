@@ -1,9 +1,10 @@
 /**
- *  @brief SIMD-accelerated Dot Products for Real and Complex Numbers optimized for Arm SVE-capable CPUs.
- *  @file include/numkong/mesh/sve.h
- *  @sa include/numkong/mesh.h
+ *  @brief SIMD-accelerated Point Cloud Alignment for SVE FP16.
+ *  @file include/numkong/mesh/svehalf.h
  *  @author Ash Vardanian
  *  @date December 27, 2025
+ *
+ *  @sa include/numkong/mesh.h
  *
  *  @section mesh_svehalf_instructions ARM SVE+FP16 Instructions
  *

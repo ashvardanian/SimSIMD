@@ -1,9 +1,10 @@
 /**
- *  @brief SIMD-accelerated GEMM for Half-Precision Datatypes optimized for ARM SME.
+ *  @brief SIMD-accelerated Batched Dot Products for SME.
  *  @file include/numkong/dots/sme.h
- *  @sa include/numkong/dots.h
  *  @author Ash Vardanian
  *  @date January 2, 2026
+ *
+ *  @sa include/numkong/dots.h
  *
  *  Uses ARM Scalable Matrix Extension (SME) for efficient matrix multiplication
  *  with `ZA32` tiles supporting `f16`, `bf16`, `i8`, `u8`, and `e4m3` input types:

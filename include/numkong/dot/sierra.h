@@ -1,9 +1,10 @@
 /**
- *  @brief SIMD-accelerated Dot Products for Real and Complex Numbers optimized for Intel Sierra Forest CPUs.
+ *  @brief SIMD-accelerated Dot Products for Sierra Forest.
  *  @file include/numkong/dot/sierra.h
- *  @sa include/numkong/dot.h
  *  @author Ash Vardanian
  *  @date December 27, 2025
+ *
+ *  @sa include/numkong/dot.h
  *
  *  @section avx_vnni_instructions AVX-VNNI Instructions Performance
  *

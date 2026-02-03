@@ -1,6 +1,6 @@
 /**
- *  @brief NumKong Tensor class for C++ 23 and newer.
- *  @file include/tensor.hpp
+ *  @brief NumKong Tensor class for C++23 and newer.
+ *  @file include/numkong/tensor.hpp
  *  @author Ash Vardanian
  *  @date January 7, 2026
  *

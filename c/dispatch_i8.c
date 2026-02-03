@@ -1,6 +1,8 @@
 /**
- *  @brief Dispatch initialization for i8 (signed 8-bit integer) data types.
+ *  @brief Dispatch Initialization for I8 Data Types.
  *  @file c/dispatch_i8.c
+ *  @author Ash Vardanian
+ *  @date February 3, 2026
  */
 #include "dispatch.h"
 

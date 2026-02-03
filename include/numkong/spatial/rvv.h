@@ -1,9 +1,10 @@
 /**
- *  @brief SIMD-accelerated Spatial Similarity Measures optimized for SpacemiT (RVV 1.0) CPUs.
+ *  @brief SIMD-accelerated Spatial Similarity Measures for RISC-V.
  *  @file include/numkong/spatial/rvv.h
- *  @sa include/numkong/spatial.h
  *  @author Ash Vardanian
  *  @date January 5, 2026
+ *
+ *  @sa include/numkong/spatial.h
  *
  *  RVV uses vector length agnostic programming where:
  *  - `vsetvl_e*m*(n)` sets VL = min(n, VLMAX) and returns actual VL

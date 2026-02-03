@@ -1,9 +1,11 @@
 /**
- *  @brief SIMD-accelerated trigonometric element-wise operations, based on SLEEF, optimized for Arm SVE-capable CPUs.
+ *  @brief SIMD-accelerated Trigonometric Functions for SVE.
  *  @file include/numkong/trigonometry/sve.h
- *  @sa include/numkong/each.h
  *  @author Ash Vardanian
  *  @date December 27, 2025
+ *
+ *  @sa include/numkong/each.h
+ *  @see https://sleef.org
  *
  *  @section trigonometry_sve_instructions ARM SVE Instructions
  *

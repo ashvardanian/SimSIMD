@@ -1,5 +1,5 @@
 /**
- *  @brief SIMD-accelerated Geo-Spatial distance functions.
+ *  @brief SIMD-accelerated Geographic Distances.
  *  @file include/numkong/geospatial.h
  *  @author Ash Vardanian
  *  @date July 1, 2023

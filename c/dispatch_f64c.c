@@ -1,6 +1,8 @@
 /**
- *  @brief Dtype dispatch for f64c (64-bit complex floating point).
+ *  @brief Dispatch Initialization for F64C Data Types.
  *  @file c/dispatch_f64c.c
+ *  @author Ash Vardanian
+ *  @date February 3, 2026
  */
 #include "dispatch.h"
 

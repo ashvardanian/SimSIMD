@@ -1,5 +1,5 @@
 /**
- *  @brief SIMD-accelerated type conversions for FP8/BF16/F16 types optimized for Intel Ice Lake CPUs.
+ *  @brief SIMD-accelerated Type Conversions for Ice Lake.
  *  @file include/numkong/cast/icelake.h
  *  @author Ash Vardanian
  *  @date January 2, 2026

@@ -1,6 +1,8 @@
 /**
- *  @brief Dispatch initialization for u1 (1-bit unsigned) data type.
+ *  @brief Dispatch Initialization for U1 Data Types.
  *  @file c/dispatch_u1.c
+ *  @author Ash Vardanian
+ *  @date February 3, 2026
  */
 #include "dispatch.h"
 

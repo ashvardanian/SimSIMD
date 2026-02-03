@@ -1,6 +1,8 @@
 /**
- *  @brief Dtype dispatch file for u64 (unsigned 64-bit integer) kernels.
+ *  @brief Dispatch Initialization for U64 Data Types.
  *  @file c/dispatch_u64.c
+ *  @author Ash Vardanian
+ *  @date February 3, 2026
  */
 #include "dispatch.h"
 

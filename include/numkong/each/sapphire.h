@@ -1,9 +1,10 @@
 /**
- *  @brief SIMD-accelerated Dot Products for Real and Complex Numbers optimized for Intel Sapphire Rapids CPUs.
+ *  @brief SIMD-accelerated Elementwise Arithmetic for Sapphire Rapids.
  *  @file include/numkong/each/sapphire.h
- *  @sa include/numkong/each.h
  *  @author Ash Vardanian
  *  @date December 27, 2025
+ *
+ *  @sa include/numkong/each.h
  *
  *  @section sapphire_elementwise_instructions Relevant Instructions
  *

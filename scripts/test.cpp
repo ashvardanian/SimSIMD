@@ -1,6 +1,8 @@
 /**
  *  @brief C++ test suite with precision analysis using double-double arithmetic.
  *  @file scripts/test.cpp
+ *  @author Ash Vardanian
+ *  @date December 28, 2025
  *
  *  This test suite compares NumKong operations against high-precision references,
  *  like our `f118_t` double-double type, and reports ULP error statistics.

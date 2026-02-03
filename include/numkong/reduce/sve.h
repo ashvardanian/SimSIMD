@@ -1,9 +1,10 @@
 /**
- *  @brief SIMD-accelerated horizontal reduction operations for Arm SVE-capable CPUs.
+ *  @brief SIMD-accelerated Vector Reductions for SVE.
  *  @file include/numkong/reduce/sve.h
- *  @sa include/numkong/reduce.h
  *  @author Ash Vardanian
  *  @date December 27, 2025
+ *
+ *  @sa include/numkong/reduce.h
  *
  *  @section reduce_sve_instructions ARM SVE Instructions
  *
