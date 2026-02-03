@@ -1786,8 +1786,10 @@ void test_trigonometry() {
 #if NK_TARGET_SKYLAKE
     run_if_matches("each_sin_f32_skylake", test_sin<f32_t>, nk_each_sin_f32_skylake);
     run_if_matches("each_cos_f32_skylake", test_cos<f32_t>, nk_each_cos_f32_skylake);
+    run_if_matches("each_atan_f32_skylake", test_atan<f32_t>, nk_each_atan_f32_skylake);
     run_if_matches("each_sin_f64_skylake", test_sin<f64_t>, nk_each_sin_f64_skylake);
     run_if_matches("each_cos_f64_skylake", test_cos<f64_t>, nk_each_cos_f64_skylake);
+    run_if_matches("each_atan_f64_skylake", test_atan<f64_t>, nk_each_atan_f64_skylake);
 #endif
 
 #if NK_TARGET_SAPPHIRE
@@ -1798,8 +1800,10 @@ void test_trigonometry() {
 
     run_if_matches("each_sin_f32_serial", test_sin<f32_t>, nk_each_sin_f32_serial);
     run_if_matches("each_cos_f32_serial", test_cos<f32_t>, nk_each_cos_f32_serial);
+    run_if_matches("each_atan_f32_serial", test_atan<f32_t>, nk_each_atan_f32_serial);
     run_if_matches("each_sin_f64_serial", test_sin<f64_t>, nk_each_sin_f64_serial);
     run_if_matches("each_cos_f64_serial", test_cos<f64_t>, nk_each_cos_f64_serial);
+    run_if_matches("each_atan_f64_serial", test_atan<f64_t>, nk_each_atan_f64_serial);
     run_if_matches("each_sin_f16_serial", test_sin<f16_t>, nk_each_sin_f16_serial);
     run_if_matches("each_cos_f16_serial", test_cos<f16_t>, nk_each_cos_f16_serial);
     run_if_matches("each_atan_f16_serial", test_atan<f16_t>, nk_each_atan_f16_serial);
@@ -1874,30 +1878,35 @@ void test_geospatial() {
     run_if_matches("haversine_f64", test_haversine<f64_t>, nk_haversine_f64);
     run_if_matches("haversine_f32", test_haversine<f32_t>, nk_haversine_f32);
     run_if_matches("vincenty_f64", test_vincenty<f64_t>, nk_vincenty_f64);
+    run_if_matches("vincenty_f32", test_vincenty<f32_t>, nk_vincenty_f32);
 #else
 
 #if NK_TARGET_NEON
     run_if_matches("haversine_f64_neon", test_haversine<f64_t>, nk_haversine_f64_neon);
     run_if_matches("haversine_f32_neon", test_haversine<f32_t>, nk_haversine_f32_neon);
     run_if_matches("vincenty_f64_neon", test_vincenty<f64_t>, nk_vincenty_f64_neon);
+    run_if_matches("vincenty_f32_neon", test_vincenty<f32_t>, nk_vincenty_f32_neon);
 #endif // NK_TARGET_NEON
 
 #if NK_TARGET_HASWELL
     run_if_matches("haversine_f64_haswell", test_haversine<f64_t>, nk_haversine_f64_haswell);
     run_if_matches("haversine_f32_haswell", test_haversine<f32_t>, nk_haversine_f32_haswell);
     run_if_matches("vincenty_f64_haswell", test_vincenty<f64_t>, nk_vincenty_f64_haswell);
+    run_if_matches("vincenty_f32_haswell", test_vincenty<f32_t>, nk_vincenty_f32_haswell);
 #endif // NK_TARGET_HASWELL
 
 #if NK_TARGET_SKYLAKE
     run_if_matches("haversine_f64_skylake", test_haversine<f64_t>, nk_haversine_f64_skylake);
     run_if_matches("haversine_f32_skylake", test_haversine<f32_t>, nk_haversine_f32_skylake);
     run_if_matches("vincenty_f64_skylake", test_vincenty<f64_t>, nk_vincenty_f64_skylake);
+    run_if_matches("vincenty_f32_skylake", test_vincenty<f32_t>, nk_vincenty_f32_skylake);
 #endif // NK_TARGET_SKYLAKE
 
     // Serial always runs - baseline test
     run_if_matches("haversine_f64_serial", test_haversine<f64_t>, nk_haversine_f64_serial);
     run_if_matches("haversine_f32_serial", test_haversine<f32_t>, nk_haversine_f32_serial);
     run_if_matches("vincenty_f64_serial", test_vincenty<f64_t>, nk_vincenty_f64_serial);
+    run_if_matches("vincenty_f32_serial", test_vincenty<f32_t>, nk_vincenty_f32_serial);
 
 #endif // NK_DYNAMIC_DISPATCH
 }
@@ -2024,6 +2033,12 @@ void test_mesh() {
     run_if_matches("kabsch_f32_haswell", test_kabsch<f32_t>, nk_kabsch_f32_haswell);
     run_if_matches("umeyama_f64_haswell", test_umeyama<f64_t>, nk_umeyama_f64_haswell);
     run_if_matches("umeyama_f32_haswell", test_umeyama<f32_t>, nk_umeyama_f32_haswell);
+    run_if_matches("rmsd_f16_haswell", test_rmsd<f16_t>, nk_rmsd_f16_haswell);
+    run_if_matches("kabsch_f16_haswell", test_kabsch<f16_t>, nk_kabsch_f16_haswell);
+    run_if_matches("umeyama_f16_haswell", test_umeyama<f16_t>, nk_umeyama_f16_haswell);
+    run_if_matches("rmsd_bf16_haswell", test_rmsd<bf16_t>, nk_rmsd_bf16_haswell);
+    run_if_matches("kabsch_bf16_haswell", test_kabsch<bf16_t>, nk_kabsch_bf16_haswell);
+    run_if_matches("umeyama_bf16_haswell", test_umeyama<bf16_t>, nk_umeyama_bf16_haswell);
 #endif // NK_TARGET_HASWELL
 
 #if NK_TARGET_SKYLAKE

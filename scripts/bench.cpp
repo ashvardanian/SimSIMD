@@ -1417,6 +1417,18 @@ int main(int argc, char **argv) {
     mesh_<f64_k, f64_k>("kabsch_f64_neon", nk_kabsch_f64_neon);
     mesh_<f64_k, f64_k>("umeyama_f64_neon", nk_umeyama_f64_neon);
 
+    elementwise_<f32_k, unknown_k, f32_k>("sin_f32_neon", nk_each_sin_f32_neon);
+    elementwise_<f32_k, unknown_k, f32_k>("cos_f32_neon", nk_each_cos_f32_neon);
+    elementwise_<f32_k, unknown_k, f32_k>("atan_f32_neon", nk_each_atan_f32_neon);
+    elementwise_<f64_k, unknown_k, f64_k>("sin_f64_neon", nk_each_sin_f64_neon);
+    elementwise_<f64_k, unknown_k, f64_k>("cos_f64_neon", nk_each_cos_f64_neon);
+    elementwise_<f64_k, unknown_k, f64_k>("atan_f64_neon", nk_each_atan_f64_neon);
+
+    geospatial_<f32_k, f32_k>("haversine_f32_neon", nk_haversine_f32_neon);
+    geospatial_<f64_k, f64_k>("haversine_f64_neon", nk_haversine_f64_neon);
+    geospatial_<f32_k, f32_k>("vincenty_f32_neon", nk_vincenty_f32_neon);
+    geospatial_<f64_k, f64_k>("vincenty_f64_neon", nk_vincenty_f64_neon);
+
     dots_<f32_k, f32_k>("dots_packed_f32_neon", nk_dots_packed_size_f32_neon, nk_dots_pack_f32_neon,
                         nk_dots_packed_f32_neon);
     dots_<f64_k, f64_k>("dots_packed_f64_neon", nk_dots_packed_size_f64_neon, nk_dots_pack_f64_neon,
@@ -1677,6 +1689,19 @@ int main(int argc, char **argv) {
     geospatial_<f64_k, f64_k>("haversine_f64_haswell", nk_haversine_f64_haswell);
     geospatial_<f32_k, f32_k>("vincenty_f32_haswell", nk_vincenty_f32_haswell);
     geospatial_<f64_k, f64_k>("vincenty_f64_haswell", nk_vincenty_f64_haswell);
+
+    mesh_<f32_k, f32_k>("rmsd_f32_haswell", nk_rmsd_f32_haswell);
+    mesh_<f32_k, f32_k>("kabsch_f32_haswell", nk_kabsch_f32_haswell);
+    mesh_<f32_k, f32_k>("umeyama_f32_haswell", nk_umeyama_f32_haswell);
+    mesh_<f64_k, f64_k>("rmsd_f64_haswell", nk_rmsd_f64_haswell);
+    mesh_<f64_k, f64_k>("kabsch_f64_haswell", nk_kabsch_f64_haswell);
+    mesh_<f64_k, f64_k>("umeyama_f64_haswell", nk_umeyama_f64_haswell);
+    mesh_<f16_k, f32_k>("rmsd_f16_haswell", nk_rmsd_f16_haswell);
+    mesh_<f16_k, f32_k>("kabsch_f16_haswell", nk_kabsch_f16_haswell);
+    mesh_<f16_k, f32_k>("umeyama_f16_haswell", nk_umeyama_f16_haswell);
+    mesh_<bf16_k, f32_k>("rmsd_bf16_haswell", nk_rmsd_bf16_haswell);
+    mesh_<bf16_k, f32_k>("kabsch_bf16_haswell", nk_kabsch_bf16_haswell);
+    mesh_<bf16_k, f32_k>("umeyama_bf16_haswell", nk_umeyama_bf16_haswell);
 
     dots_<f32_k, f32_k>("dots_packed_f32_haswell", nk_dots_packed_size_f32_haswell, nk_dots_pack_f32_haswell,
                         nk_dots_packed_f32_haswell);
