@@ -639,18 +639,33 @@ NK_INTERNAL __m128i nk_f32x8_to_e3m2x8_haswell_(__m256 f32x8) {
 
 #pragma region - Converting Loads and Stores
 
+/** @brief Full load for f16 elements (8) with conversion to f32 via F16C. */
+NK_INTERNAL void nk_load_f16x8_to_f32x8_haswell_(void const *src, nk_b256_vec_t *dst) {
+    dst->ymm_ps = _mm256_cvtph_ps(_mm_loadu_si128((__m128i const *)src));
+}
+
 /** @brief Partial load for f16 elements (up to 8) with conversion to f32 via F16C. */
 NK_INTERNAL void nk_partial_load_f16x8_to_f32x8_haswell_(nk_f16_t const *src, nk_b256_vec_t *dst, nk_size_t n) {
-    nk_b256_vec_t vec;
-    nk_partial_load_b16x16_serial_(src, &vec, n);
-    dst->ymm_ps = _mm256_cvtph_ps(vec.xmms[0]);
+    nk_b128_vec_t vec;
+    nk_partial_load_b16x8_serial_(src, &vec, n);
+    dst->ymm_ps = _mm256_cvtph_ps(vec.xmm);
+}
+
+/** @brief Full load for bf16 elements (8) with conversion to f32. */
+NK_INTERNAL void nk_load_bf16x8_to_f32x8_haswell_(void const *src, nk_b256_vec_t *dst) {
+    dst->ymm_ps = nk_bf16x8_to_f32x8_haswell_(_mm_loadu_si128((__m128i const *)src));
 }
 
 /** @brief Partial load for bf16 elements (up to 8) with conversion to f32. */
 NK_INTERNAL void nk_partial_load_bf16x8_to_f32x8_haswell_(nk_bf16_t const *src, nk_b256_vec_t *dst, nk_size_t n) {
-    nk_b256_vec_t vec;
-    nk_partial_load_b16x16_serial_(src, &vec, n);
-    dst->ymm_ps = nk_bf16x8_to_f32x8_haswell_(vec.xmms[0]);
+    nk_b128_vec_t vec;
+    nk_partial_load_b16x8_serial_(src, &vec, n);
+    dst->ymm_ps = nk_bf16x8_to_f32x8_haswell_(vec.xmm);
+}
+
+/** @brief Full load for e4m3 elements (8) with conversion to f32. */
+NK_INTERNAL void nk_load_e4m3x8_to_f32x8_haswell_(void const *src, nk_b256_vec_t *dst) {
+    dst->ymm_ps = nk_e4m3x8_to_f32x8_haswell_(_mm_loadl_epi64((__m128i const *)src));
 }
 
 /** @brief Partial load for e4m3 elements (up to 8) with conversion to f32. */
@@ -660,6 +675,11 @@ NK_INTERNAL void nk_partial_load_e4m3x8_to_f32x8_haswell_(nk_e4m3_t const *src, 
     dst->ymm_ps = nk_e4m3x8_to_f32x8_haswell_(_mm_cvtsi64_si128(vec.u64));
 }
 
+/** @brief Full load for e5m2 elements (8) with conversion to f32. */
+NK_INTERNAL void nk_load_e5m2x8_to_f32x8_haswell_(void const *src, nk_b256_vec_t *dst) {
+    dst->ymm_ps = nk_e5m2x8_to_f32x8_haswell_(_mm_loadl_epi64((__m128i const *)src));
+}
+
 /** @brief Partial load for e5m2 elements (up to 8) with conversion to f32. */
 NK_INTERNAL void nk_partial_load_e5m2x8_to_f32x8_haswell_(nk_e5m2_t const *src, nk_b256_vec_t *dst, nk_size_t n) {
     nk_b64_vec_t vec;
@@ -667,11 +687,21 @@ NK_INTERNAL void nk_partial_load_e5m2x8_to_f32x8_haswell_(nk_e5m2_t const *src, 
     dst->ymm_ps = nk_e5m2x8_to_f32x8_haswell_(_mm_cvtsi64_si128(vec.u64));
 }
 
+/** @brief Full load for e2m3 elements (8) with conversion to f32. */
+NK_INTERNAL void nk_load_e2m3x8_to_f32x8_haswell_(void const *src, nk_b256_vec_t *dst) {
+    dst->ymm_ps = nk_e2m3x8_to_f32x8_haswell_(_mm_loadl_epi64((__m128i const *)src));
+}
+
 /** @brief Partial load for e2m3 elements (up to 8) with conversion to f32. */
 NK_INTERNAL void nk_partial_load_e2m3x8_to_f32x8_haswell_(nk_e2m3_t const *src, nk_b256_vec_t *dst, nk_size_t n) {
     nk_b64_vec_t vec;
     nk_partial_load_b8x8_serial_(src, &vec, n);
     dst->ymm_ps = nk_e2m3x8_to_f32x8_haswell_(_mm_cvtsi64_si128(vec.u64));
+}
+
+/** @brief Full load for e3m2 elements (8) with conversion to f32. */
+NK_INTERNAL void nk_load_e3m2x8_to_f32x8_haswell_(void const *src, nk_b256_vec_t *dst) {
+    dst->ymm_ps = nk_e3m2x8_to_f32x8_haswell_(_mm_loadl_epi64((__m128i const *)src));
 }
 
 /** @brief Partial load for e3m2 elements (up to 8) with conversion to f32. */
