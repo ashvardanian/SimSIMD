@@ -273,6 +273,9 @@ NK_PUBLIC void nk_vincenty_f32_skylake(             //
     nk_size_t n, nk_f32_t *results);
 #endif // NK_TARGET_SKYLAKE
 
+#include "spatial/serial.h"      // `nk_f64_sqrt_serial`
+#include "trigonometry/serial.h" // `nk_f64_atan2`
+
 /*  Serial implementations of geospatial distance functions.
  *  These use the trigonometric functions from trigonometry.h for sin, cos, and atan2.
  */

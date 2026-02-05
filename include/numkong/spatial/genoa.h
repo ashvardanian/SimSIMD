@@ -21,8 +21,9 @@
 #endif
 
 #include "numkong/types.h"
-#include "numkong/reduce/skylake.h" // nk_reduce_add_f32x16_skylake_
-#include "numkong/cast/icelake.h"   // nk_e4m3x32_to_bf16x32_icelake_, nk_e5m2x32_to_bf16x32_icelake_
+#include "numkong/reduce/skylake.h" // `nk_reduce_add_f32x16_skylake_`
+#include "numkong/cast/icelake.h"   // `nk_e4m3x32_to_bf16x32_icelake_`
+#include "numkong/dot/genoa.h"      // `nk_dot_bf16x32_state_genoa_t`
 
 #if defined(__cplusplus)
 extern "C" {

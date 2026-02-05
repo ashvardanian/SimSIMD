@@ -19,7 +19,8 @@
 #endif
 
 #include "numkong/types.h"
-#include "numkong/reduce/haswell.h" // nk_reduce_add_i32x8_haswell_
+#include "numkong/reduce/haswell.h" // `nk_reduce_add_i32x8_haswell_`
+#include "numkong/dot/sierra.h"     // `nk_dot_i8x32_state_sierra_t`
 
 #if defined(__cplusplus)
 extern "C" {

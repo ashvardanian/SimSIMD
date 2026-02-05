@@ -548,6 +548,8 @@ nk_jsd_f16_neonhalf_cycle:
 #pragma GCC target("avx2", "f16c", "fma", "bmi", "bmi2")
 #endif
 
+#include "numkong/spatial/haswell.h" // `nk_f32_sqrt_haswell`
+
 NK_INTERNAL __m256 nk_log2_f32_haswell_(__m256 x) {
     // Extracting the exponent
     __m256i bits_i32x8 = _mm256_castps_si256(x);
@@ -672,6 +674,8 @@ NK_PUBLIC void nk_jsd_f64_haswell(nk_f64_t const *a, nk_f64_t const *b, nk_size_
 #pragma GCC push_options
 #pragma GCC target("avx2", "avx512f", "avx512vl", "avx512bw", "avx512dq", "f16c", "fma", "bmi", "bmi2")
 #endif
+
+#include "numkong/spatial/skylake.h" // `nk_f64_sqrt_haswell`
 
 NK_INTERNAL __m512 nk_log2_f32_skylake_(__m512 x) {
     // Extract the exponent and mantissa
@@ -878,6 +882,8 @@ nk_jsd_f64_skylake_cycle:
 #pragma GCC push_options
 #pragma GCC target("avx2", "avx512f", "avx512vl", "avx512bw", "avx512fp16", "f16c", "fma", "bmi", "bmi2")
 #endif
+
+#include "numkong/spatial/sapphire.h" // `nk_f32_sqrt_haswell`
 
 NK_INTERNAL __m512h nk_log2_f16_sapphire_(__m512h x) {
     // Extract the exponent and mantissa

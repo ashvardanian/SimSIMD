@@ -40,7 +40,8 @@
 #endif
 
 #include "numkong/types.h"
-#include "numkong/spatial/neon.h" // nk_angular_through_f32_finalize_neon_, nk_euclidean_through_f32_finalize_neon_
+#include "numkong/spatial/neon.h" // `nk_angular_through_f32_finalize_neon_`
+#include "numkong/dot/neonsdot.h" // `nk_dot_i8x16_state_neonsdot_t`, `nk_dot_u8x16_state_neonsdot_t`
 
 #if defined(__cplusplus)
 extern "C" {

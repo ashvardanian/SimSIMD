@@ -33,7 +33,8 @@
 #endif
 
 #include "numkong/types.h"
-#include "numkong/reduce/skylake.h" // nk_reduce_add_f32x16_skylake_
+#include "numkong/reduce/skylake.h" // `nk_reduce_add_f32x16_skylake_`
+#include "numkong/dot/skylake.h"    // `nk_dot_f64x8_state_skylake_t`, `nk_dot_f32x8_state_skylake_t`
 
 #if defined(__cplusplus)
 extern "C" {

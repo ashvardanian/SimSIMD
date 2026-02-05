@@ -39,8 +39,9 @@
 #endif
 
 #include "numkong/types.h"
-#include "numkong/reduce/neon.h"  // nk_partial_load_b16x8_serial_
-#include "numkong/spatial/neon.h" // nk_angular_through_f32_finalize_neon_, nk_euclidean_through_f32_finalize_neon_
+#include "numkong/reduce/neon.h"   // `nk_partial_load_b16x8_serial_`
+#include "numkong/spatial/neon.h"  // `nk_angular_through_f32_finalize_neon_`
+#include "numkong/dot/neonbfdot.h" // `nk_dot_bf16x8_state_neonbfdot_t`
 
 #if defined(__cplusplus)
 extern "C" {

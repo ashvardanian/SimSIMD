@@ -33,6 +33,7 @@
 #endif
 
 #include "numkong/types.h"
+#include "numkong/dot/icelake.h" // `nk_dot_i8x64_state_icelake_t`, `nk_dot_u8x64_state_icelake_t`
 
 #if defined(__cplusplus)
 extern "C" {

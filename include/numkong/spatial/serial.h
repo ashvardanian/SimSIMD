@@ -11,6 +11,7 @@
 
 #include "numkong/types.h"
 #include "numkong/cast/serial.h"
+#include "numkong/dot/serial.h" // `nk_dot_f64x2_state_serial_t`
 
 #if defined(__cplusplus)
 extern "C" {
