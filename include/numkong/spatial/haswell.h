@@ -6,7 +6,7 @@
  *
  *  @sa include/numkong/spatial.h
  *
- *  @section haswell_spatial_instructions Key AVX2 Spatial Instructions
+ *  @section spatial_haswell_instructions Key AVX2 Spatial Instructions
  *
  *      Intrinsic                   Instruction                     Latency     Throughput  Ports
  *      _mm256_fmadd_ps             VFMADD (YMM, YMM, YMM)          5cy         0.5/cy      p01
@@ -24,6 +24,10 @@
 #ifndef NK_SPATIAL_HASWELL_H
 #define NK_SPATIAL_HASWELL_H
 
+#if defined(__cplusplus)
+extern "C" {
+#endif
+
 #if NK_TARGET_X86_
 #if NK_TARGET_HASWELL
 #if defined(__clang__)
@@ -35,10 +39,6 @@
 
 #include "numkong/types.h"
 #include "numkong/reduce/haswell.h" // nk_reduce_add_f32x8_haswell_, nk_reduce_add_i32x8_haswell_
-
-#if defined(__cplusplus)
-extern "C" {
-#endif
 
 NK_INTERNAL nk_f32_t nk_f32_sqrt_haswell(nk_f32_t x) { return _mm_cvtss_f32(_mm_sqrt_ps(_mm_set_ss(x))); }
 NK_INTERNAL nk_f64_t nk_f64_sqrt_haswell(nk_f64_t x) { return _mm_cvtsd_f64(_mm_sqrt_pd(_mm_set_sd(x))); }
@@ -1133,10 +1133,6 @@ NK_INTERNAL void nk_euclidean_u8x16_finalize_haswell(
                                                target_norm_c, target_norm_d, results);
 }
 
-#if defined(__cplusplus)
-} // extern "C"
-#endif
-
 #if defined(__clang__)
 #pragma clang attribute pop
 #elif defined(__GNUC__)
@@ -1144,5 +1140,9 @@ NK_INTERNAL void nk_euclidean_u8x16_finalize_haswell(
 #endif
 #endif // NK_TARGET_HASWELL
 #endif // NK_TARGET_X86_
+
+#if defined(__cplusplus)
+} // extern "C"
+#endif
 
 #endif // NK_SPATIAL_HASWELL_H

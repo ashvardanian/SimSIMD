@@ -6,7 +6,7 @@
  *
  *  @sa include/numkong/sets.h
  *
- *  @section ice_sets_instructions Key AVX-512 Set Instructions
+ *  @section sets_icelake_instructions Key AVX-512 Set Instructions
  *
  *      Intrinsic                   Instruction                     Latency     Throughput  Ports
  *      _mm512_xor_si512            VPXORQ (ZMM, ZMM, ZMM)          1cy         0.33/cy     p05
@@ -24,6 +24,10 @@
 #ifndef NK_SETS_ICELAKE_H
 #define NK_SETS_ICELAKE_H
 
+#if defined(__cplusplus)
+extern "C" {
+#endif
+
 #if NK_TARGET_X86_
 #if NK_TARGET_ICELAKE
 #if defined(__clang__)
@@ -37,12 +41,8 @@
 #endif
 
 #include "numkong/types.h"
-#include "numkong/set/icelake.h"  // For nk_hamming_b512_state_icelake_t
+#include "numkong/set/icelake.h"  // For nk_hamming_u1x512_state_icelake_t
 #include "numkong/cast/skylake.h" // For load functions including nk_partial_load_b1x512_skylake_
-
-#if defined(__cplusplus)
-extern "C" {
-#endif
 
 // Four macro invocations for u1 - Ice Lake processes 512 bits at a time!
 nk_define_cross_pack_size_(hammings, u1, icelake, u1x8, u32,
@@ -53,24 +53,20 @@ nk_define_cross_pack_(hammings, u1, icelake, u1x8, u32, nk_assign_from_to_,
                       /*depth_simd_dimensions=*/512,
                       /*dimensions_per_value=*/8)
 
-nk_define_cross_symmetric_(hammings, u1, icelake, u1x8, u32, nk_b512_vec_t, nk_hamming_b512_state_icelake_t,
-                           nk_b128_vec_t, nk_hamming_b512_init_icelake, nk_load_b512_skylake_,
-                           nk_partial_load_b1x512_skylake_, nk_hamming_b512_update_icelake,
-                           nk_hamming_b512_finalize_icelake, nk_partial_store_b32x4_skylake_,
+nk_define_cross_symmetric_(hammings, u1, icelake, u1x8, u32, nk_b512_vec_t, nk_hamming_u1x512_state_icelake_t,
+                           nk_b128_vec_t, nk_hamming_u1x512_init_icelake, nk_load_b512_skylake_,
+                           nk_partial_load_b1x512_skylake_, nk_hamming_u1x512_update_icelake,
+                           nk_hamming_u1x512_finalize_icelake, nk_partial_store_b32x4_skylake_,
                            /*depth_simd_dimensions=*/512,
                            /*dimensions_per_value=*/8)
 
-nk_define_cross_packed_(hammings, u1, icelake, u1x8, u32, u32, nk_b512_vec_t, nk_hamming_b512_state_icelake_t,
-                        nk_b128_vec_t, nk_hamming_b512_init_icelake, nk_load_b512_skylake_,
+nk_define_cross_packed_(hammings, u1, icelake, u1x8, u32, u32, nk_b512_vec_t, nk_hamming_u1x512_state_icelake_t,
+                        nk_b128_vec_t, nk_hamming_u1x512_init_icelake, nk_load_b512_skylake_,
                         nk_partial_load_b1x512_skylake_, nk_load_b512_skylake_, nk_partial_load_b1x512_skylake_,
-                        nk_hamming_b512_update_icelake, nk_hamming_b512_finalize_icelake,
+                        nk_hamming_u1x512_update_icelake, nk_hamming_u1x512_finalize_icelake,
                         nk_partial_store_b32x4_skylake_,
                         /*depth_simd_dimensions=*/512,
                         /*dimensions_per_value=*/8)
-
-#if defined(__cplusplus)
-}
-#endif
 
 #if defined(__clang__)
 #pragma clang attribute pop
@@ -79,5 +75,9 @@ nk_define_cross_packed_(hammings, u1, icelake, u1x8, u32, u32, nk_b512_vec_t, nk
 #endif
 #endif // NK_TARGET_ICELAKE
 #endif // NK_TARGET_X86_
+
+#if defined(__cplusplus)
+} // extern "C"
+#endif
 
 #endif // NK_SETS_ICELAKE_H

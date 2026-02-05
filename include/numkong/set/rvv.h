@@ -19,7 +19,7 @@
  *  This approach is efficient on SpacemiT X60 cores which have optimized vrgather
  *  for small indices (LMUL=1 with indices 0-15).
  *
- *  @section rvv_set_instructions Key RVV Set Instructions
+ *  @section set_rvv_instructions Key RVV Set Instructions
  *
  *      Intrinsic                       Purpose
  *      vxor_vv_u8m1                    XOR for Hamming difference
@@ -33,15 +33,17 @@
 #ifndef NK_SET_RVV_H
 #define NK_SET_RVV_H
 
+#if defined(__cplusplus)
+extern "C" {
+#endif
+
 #if NK_TARGET_RISCV_
 #if NK_TARGET_RVV
 
 #include "numkong/types.h"
 #include "numkong/set/serial.h" // `nk_u1x8_popcount_`
 
-#if defined(__cplusplus)
-extern "C" {
-#endif
+#pragma region Binary Sets
 
 /**
  *  @brief  Compute byte-level popcount using vrgather LUT.
@@ -136,6 +138,10 @@ NK_PUBLIC void nk_jaccard_u1_rvv(nk_u1x8_t const *a, nk_u1x8_t const *b, nk_size
     *result = (union_count_u32 != 0) ? 1.0f - (nk_f32_t)intersection_count_u32 / (nk_f32_t)union_count_u32 : 1.0f;
 }
 
+#pragma endregion Binary Sets
+
+#pragma region Integer Sets
+
 NK_PUBLIC void nk_hamming_u8_rvv(nk_u8_t const *a, nk_u8_t const *b, nk_size_t n, nk_u32_t *result) {
     vuint32m1_t difference_count_u32m1 = __riscv_vmv_v_x_u32m1(0, 1);
 
@@ -199,11 +205,13 @@ NK_PUBLIC void nk_jaccard_u16_rvv(nk_u16_t const *a, nk_u16_t const *b, nk_size_
     *result = (n != 0) ? 1.0f - (nk_f32_t)match_count_u32 / (nk_f32_t)n : 1.0f;
 }
 
-#if defined(__cplusplus)
-} // extern "C"
-#endif
+#pragma endregion Integer Sets
 
 #endif // NK_TARGET_RVV
 #endif // NK_TARGET_RISCV_
+
+#if defined(__cplusplus)
+} // extern "C"
+#endif
 
 #endif // NK_SET_RVV_H

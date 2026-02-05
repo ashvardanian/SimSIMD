@@ -32,6 +32,10 @@
 #ifndef NK_SPATIAL_SVE_H
 #define NK_SPATIAL_SVE_H
 
+#if defined(__cplusplus)
+extern "C" {
+#endif
+
 #if NK_TARGET_ARM_
 #if NK_TARGET_SVE
 #if defined(__clang__)
@@ -43,10 +47,6 @@
 
 #include "numkong/types.h"
 #include "numkong/spatial/neon.h" // `nk_f32_sqrt_neon`
-
-#if defined(__cplusplus)
-extern "C" {
-#endif
 
 NK_PUBLIC void nk_sqeuclidean_f32_sve(nk_f32_t const *a, nk_f32_t const *b, nk_size_t n, nk_f32_t *result) {
     nk_size_t i = 0;
@@ -167,10 +167,6 @@ NK_PUBLIC void nk_angular_f64_sve(nk_f64_t const *a, nk_f64_t const *b, nk_size_
     *result = nk_angular_normalize_f64_neon_(ab, a2, b2);
 }
 
-#if defined(__cplusplus)
-} // extern "C"
-#endif
-
 #if defined(__clang__)
 #pragma clang attribute pop
 #elif defined(__GNUC__)
@@ -178,5 +174,9 @@ NK_PUBLIC void nk_angular_f64_sve(nk_f64_t const *a, nk_f64_t const *b, nk_size_
 #endif
 #endif // NK_TARGET_SVE
 #endif // NK_TARGET_ARM_
+
+#if defined(__cplusplus)
+} // extern "C"
+#endif
 
 #endif // NK_SPATIAL_SVE_H

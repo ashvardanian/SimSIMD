@@ -12,7 +12,7 @@
  *  - But squared differences overflow F16 (896² = 802816 > 65504)
  *  - So: subtract in F16, convert to F32, then square and accumulate
  *
- *  @section sapphire_spatial_instructions Relevant Instructions
+ *  @section spatial_sapphire_instructions Relevant Instructions
  *
  *      Intrinsic                   Instruction                     Sapphire    Genoa
  *      _mm256_sub_ph               VSUBPH (YMM, YMM, YMM)          4cy @ p05   3cy @ p01
@@ -23,6 +23,10 @@
  */
 #ifndef NK_SPATIAL_SAPPHIRE_H
 #define NK_SPATIAL_SAPPHIRE_H
+
+#if defined(__cplusplus)
+extern "C" {
+#endif
 
 #if NK_TARGET_X86_
 #if NK_TARGET_SAPPHIRE
@@ -37,9 +41,7 @@
 #include "numkong/types.h"
 #include "numkong/cast/sapphire.h" // `nk_e4m3x16_to_f16x16_sapphire_`
 
-#if defined(__cplusplus)
-extern "C" {
-#endif
+#pragma region Smaller Floats
 
 NK_PUBLIC void nk_sqeuclidean_e4m3_sapphire(nk_e4m3_t const *a_scalars, nk_e4m3_t const *b_scalars,
                                             nk_size_t count_scalars, nk_f32_t *result) {
@@ -83,9 +85,7 @@ NK_PUBLIC void nk_euclidean_e4m3_sapphire(nk_e4m3_t const *a_scalars, nk_e4m3_t 
     *result = nk_f32_sqrt_haswell(*result);
 }
 
-#if defined(__cplusplus)
-} // extern "C"
-#endif
+#pragma endregion Smaller Floats
 
 #if defined(__clang__)
 #pragma clang attribute pop
@@ -94,5 +94,9 @@ NK_PUBLIC void nk_euclidean_e4m3_sapphire(nk_e4m3_t const *a_scalars, nk_e4m3_t 
 #endif
 #endif // NK_TARGET_SAPPHIRE
 #endif // NK_TARGET_X86_
+
+#if defined(__cplusplus)
+} // extern "C"
+#endif
 
 #endif // NK_SPATIAL_SAPPHIRE_H

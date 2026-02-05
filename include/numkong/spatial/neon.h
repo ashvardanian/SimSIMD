@@ -6,7 +6,7 @@
  *
  *  @sa include/numkong/spatial.h
  *
- *  @section neon_spatial_instructions Key NEON Spatial Instructions
+ *  @section spatial_neon_instructions Key NEON Spatial Instructions
  *
  *  ARM NEON instructions for distance computations:
  *
@@ -29,6 +29,10 @@
 #ifndef NK_SPATIAL_NEON_H
 #define NK_SPATIAL_NEON_H
 
+#if defined(__cplusplus)
+extern "C" {
+#endif
+
 #if NK_TARGET_ARM_
 #if NK_TARGET_NEON
 #if defined(__clang__)
@@ -40,10 +44,6 @@
 
 #include "numkong/types.h"
 #include "numkong/dot/neon.h" // For nk_dot_f32x2_state_neon_t
-
-#if defined(__cplusplus)
-extern "C" {
-#endif
 
 NK_INTERNAL nk_f32_t nk_f32_sqrt_neon(nk_f32_t x) { return vget_lane_f32(vsqrt_f32(vdup_n_f32(x)), 0); }
 NK_INTERNAL nk_f64_t nk_f64_sqrt_neon(nk_f64_t x) { return vget_lane_f64(vsqrt_f64(vdup_n_f64(x)), 0); }
@@ -624,10 +624,6 @@ NK_INTERNAL void nk_euclidean_f32x2_finalize_neon(nk_euclidean_f32x2_state_neon_
                                             target_norm_d, results);
 }
 
-#if defined(__cplusplus)
-} // extern "C"
-#endif
-
 #if defined(__clang__)
 #pragma clang attribute pop
 #elif defined(__GNUC__)
@@ -635,5 +631,9 @@ NK_INTERNAL void nk_euclidean_f32x2_finalize_neon(nk_euclidean_f32x2_state_neon_
 #endif
 #endif // NK_TARGET_NEON
 #endif // NK_TARGET_ARM_
+
+#if defined(__cplusplus)
+} // extern "C"
+#endif
 
 #endif // NK_SPATIAL_NEON_H

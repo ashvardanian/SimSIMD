@@ -28,6 +28,10 @@
 #ifndef NK_SPATIAL_SVEHALF_H
 #define NK_SPATIAL_SVEHALF_H
 
+#if defined(__cplusplus)
+extern "C" {
+#endif
+
 #if NK_TARGET_ARM_
 #if NK_TARGET_SVEHALF
 #if defined(__clang__)
@@ -39,10 +43,6 @@
 
 #include "numkong/types.h"
 #include "numkong/spatial/neon.h" // `nk_f32_sqrt_neon`
-
-#if defined(__cplusplus)
-extern "C" {
-#endif
 
 NK_PUBLIC void nk_sqeuclidean_f16_svehalf(nk_f16_t const *a_enum, nk_f16_t const *b_enum, nk_size_t n,
                                           nk_f32_t *result) {
@@ -93,10 +93,6 @@ NK_PUBLIC void nk_angular_f16_svehalf(nk_f16_t const *a_enum, nk_f16_t const *b_
     *result = nk_angular_normalize_f32_neon_(ab, a2, b2);
 }
 
-#if defined(__cplusplus)
-} // extern "C"
-#endif
-
 #if defined(__clang__)
 #pragma clang attribute pop
 #elif defined(__GNUC__)
@@ -104,5 +100,9 @@ NK_PUBLIC void nk_angular_f16_svehalf(nk_f16_t const *a_enum, nk_f16_t const *b_
 #endif
 #endif // NK_TARGET_SVEHALF
 #endif // NK_TARGET_ARM_
+
+#if defined(__cplusplus)
+} // extern "C"
+#endif
 
 #endif // NK_SPATIAL_SVEHALF_H

@@ -29,15 +29,15 @@
 #ifndef NK_SPATIAL_V128RELAXED_H
 #define NK_SPATIAL_V128RELAXED_H
 
+#if defined(__cplusplus)
+extern "C" {
+#endif
+
 #if NK_TARGET_V128RELAXED
 #include "numkong/types.h"
 #include "numkong/reduce/v128relaxed.h"
 #include "numkong/cast/serial.h"
 #include "numkong/cast/v128relaxed.h"
-
-#if defined(__cplusplus)
-extern "C" {
-#endif
 
 NK_INTERNAL nk_f32_t nk_f32_sqrt_v128relaxed_(nk_f32_t x) {
     return wasm_f32x4_extract_lane(wasm_f32x4_sqrt(wasm_f32x4_splat(x)), 0);
@@ -355,9 +355,10 @@ nk_angular_bf16_v128relaxed_cycle:
     *result = (nk_f32_t)nk_angular_normalize_f64_v128relaxed_((nk_f64_t)ab, (nk_f64_t)a2, (nk_f64_t)b2);
 }
 
+#endif // NK_TARGET_V128RELAXED
+
 #if defined(__cplusplus)
-}
+} // extern "C"
 #endif
 
-#endif // NK_TARGET_V128RELAXED
 #endif // NK_SPATIAL_V128RELAXED_H

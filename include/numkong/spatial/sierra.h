@@ -9,6 +9,10 @@
 #ifndef NK_SPATIAL_SIERRA_H
 #define NK_SPATIAL_SIERRA_H
 
+#if defined(__cplusplus)
+extern "C" {
+#endif
+
 #if NK_TARGET_X86_
 #if NK_TARGET_SIERRA
 #if defined(__clang__)
@@ -21,10 +25,6 @@
 #include "numkong/types.h"
 #include "numkong/reduce/haswell.h" // `nk_reduce_add_i32x8_haswell_`
 #include "numkong/dot/sierra.h"     // `nk_dot_i8x32_state_sierra_t`
-
-#if defined(__cplusplus)
-extern "C" {
-#endif
 
 NK_PUBLIC void nk_angular_i8_sierra(nk_i8_t const *a, nk_i8_t const *b, nk_size_t n, nk_f32_t *result) {
 
@@ -100,10 +100,6 @@ NK_INTERNAL void nk_euclidean_i8x32_finalize_sierra(nk_euclidean_i8x32_state_sie
                                                target_norm_c, target_norm_d, results);
 }
 
-#if defined(__cplusplus)
-} // extern "C"
-#endif
-
 #if defined(__clang__)
 #pragma clang attribute pop
 #elif defined(__GNUC__)
@@ -111,5 +107,9 @@ NK_INTERNAL void nk_euclidean_i8x32_finalize_sierra(nk_euclidean_i8x32_state_sie
 #endif
 #endif // NK_TARGET_SIERRA
 #endif // NK_TARGET_X86_
+
+#if defined(__cplusplus)
+} // extern "C"
+#endif
 
 #endif // NK_SPATIAL_SIERRA_H

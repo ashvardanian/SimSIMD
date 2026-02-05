@@ -6,7 +6,7 @@
  *
  *  @sa include/numkong/spatial.h
  *
- *  @section skylake_spatial_instructions Key AVX-512 Spatial Instructions
+ *  @section spatial_skylake_instructions Key AVX-512 Spatial Instructions
  *
  *      Intrinsic                   Instruction                     Latency     Throughput  Ports
  *      _mm512_fmadd_ps             VFMADD132PS (ZMM, ZMM, ZMM)     4cy         0.5/cy      p05
@@ -22,6 +22,10 @@
 #ifndef NK_SPATIAL_SKYLAKE_H
 #define NK_SPATIAL_SKYLAKE_H
 
+#if defined(__cplusplus)
+extern "C" {
+#endif
+
 #if NK_TARGET_X86_
 #if NK_TARGET_SKYLAKE
 #if defined(__clang__)
@@ -35,10 +39,6 @@
 #include "numkong/types.h"
 #include "numkong/reduce/skylake.h" // `nk_reduce_add_f32x16_skylake_`
 #include "numkong/dot/skylake.h"    // `nk_dot_f64x8_state_skylake_t`, `nk_dot_f32x8_state_skylake_t`
-
-#if defined(__cplusplus)
-extern "C" {
-#endif
 
 NK_PUBLIC void nk_sqeuclidean_f32_skylake(nk_f32_t const *a, nk_f32_t const *b, nk_size_t n, nk_f32_t *result) {
     // Upcast to f64 for higher precision accumulation
@@ -682,10 +682,6 @@ nk_angular_e3m2_skylake_cycle:
     *result = nk_angular_normalize_f32_haswell_(dot_f32, a_norm_sq_f32, b_norm_sq_f32);
 }
 
-#if defined(__cplusplus)
-} // extern "C"
-#endif
-
 #if defined(__clang__)
 #pragma clang attribute pop
 #elif defined(__GNUC__)
@@ -693,5 +689,9 @@ nk_angular_e3m2_skylake_cycle:
 #endif
 #endif // NK_TARGET_SKYLAKE
 #endif // NK_TARGET_X86_
+
+#if defined(__cplusplus)
+} // extern "C"
+#endif
 
 #endif // NK_SPATIAL_SKYLAKE_H

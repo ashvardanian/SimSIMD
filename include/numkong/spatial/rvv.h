@@ -23,15 +23,15 @@
 #ifndef NK_SPATIAL_RVV_H
 #define NK_SPATIAL_RVV_H
 
+#if defined(__cplusplus)
+extern "C" {
+#endif
+
 #if NK_TARGET_RISCV_
 #if NK_TARGET_RVV
 
 #include "numkong/types.h"
 #include "numkong/cast/rvv.h" // `nk_e4m3m1_to_f32m4_rvv_`
-
-#if defined(__cplusplus)
-extern "C" {
-#endif
 
 /**
  *  @brief  Computes `1/√x` using RVV's `vfrsqrt7` instruction with Newton-Raphson refinement.
@@ -817,11 +817,11 @@ NK_PUBLIC void nk_angular_u4_rvv(nk_u4x2_t const *a_scalars, nk_u4x2_t const *b_
     }
 }
 
+#endif // NK_TARGET_RVV
+#endif // NK_TARGET_RISCV_
+
 #if defined(__cplusplus)
 } // extern "C"
 #endif
-
-#endif // NK_TARGET_RVV
-#endif // NK_TARGET_RISCV_
 
 #endif // NK_SPATIAL_RVV_H

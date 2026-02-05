@@ -5,6 +5,27 @@
  *  @date December 27, 2025
  *
  *  @sa include/numkong/set.h
+ *
+ *  @section set_serial_instructions Key SWAR Set Instructions
+ *
+ *  Serial backend uses lookup-table-based popcount for bit operations.
+ *  No SIMD instructions required - works on any architecture.
+ *
+ *  @section set_serial_stateful Stateful Streaming Logic
+ *
+ *  To build memory-optimal tiled algorithms, this file defines:
+ *
+ *  - nk_hamming_u1x128_state_serial_t for streaming Hamming distance
+ *  - nk_jaccard_u1x128_state_serial_t for streaming Jaccard similarity
+ *
+ *  @code{c}
+ *  nk_jaccard_u1x128_state_serial_t state_first, state_second, state_third, state_fourth;
+ *  nk_jaccard_u1x128_init_serial(&state_first);
+ *  // ... stream through packed binary vectors ...
+ *  nk_jaccard_u1x128_finalize_serial(&state_first, &state_second, &state_third, &state_fourth,
+ *      query_popcount, target_popcount_a, target_popcount_b, target_popcount_c, target_popcount_d,
+ *      total_dimensions, &results);
+ *  @endcode
  */
 #ifndef NK_SET_SERIAL_H
 #define NK_SET_SERIAL_H
@@ -13,6 +34,8 @@
 #if defined(__cplusplus)
 extern "C" {
 #endif
+
+#pragma region Binary Sets
 
 NK_INTERNAL unsigned char nk_u1x8_popcount_(nk_u1x8_t x) {
     static unsigned char lookup_table[256] = {
@@ -42,6 +65,10 @@ NK_PUBLIC void nk_jaccard_u1_serial(nk_u1x8_t const *a, nk_u1x8_t const *b, nk_s
     *result = (union_count != 0) ? 1.0f - (nk_f32_t)intersection_count / (nk_f32_t)union_count : 1.0f;
 }
 
+#pragma endregion Binary Sets
+
+#pragma region Integer Sets
+
 NK_PUBLIC void nk_jaccard_u32_serial(nk_u32_t const *a, nk_u32_t const *b, nk_size_t n, nk_f32_t *result) {
     nk_u32_t intersection_count = 0;
     for (nk_size_t i = 0; i != n; ++i) intersection_count += (a[i] == b[i]);
@@ -60,14 +87,20 @@ NK_PUBLIC void nk_jaccard_u16_serial(nk_u16_t const *a, nk_u16_t const *b, nk_si
     *result = (n != 0) ? 1.0f - (nk_f32_t)matches / (nk_f32_t)n : 1.0f;
 }
 
-struct nk_jaccard_b128_state_serial_t {
+#pragma endregion Integer Sets
+
+#pragma region Stateful Streaming
+
+typedef struct nk_jaccard_u1x128_state_serial_t {
     nk_u64_t intersection_count;
-};
+} nk_jaccard_u1x128_state_serial_t;
 
-NK_INTERNAL void nk_jaccard_b128_init_serial(nk_jaccard_b128_state_serial_t *state) { state->intersection_count = 0; }
+NK_INTERNAL void nk_jaccard_u1x128_init_serial(nk_jaccard_u1x128_state_serial_t *state) {
+    state->intersection_count = 0;
+}
 
-NK_INTERNAL void nk_jaccard_b128_update_serial(nk_jaccard_b128_state_serial_t *state, nk_b128_vec_t a, nk_b128_vec_t b,
-                                               nk_size_t depth_offset, nk_size_t active_dimensions) {
+NK_INTERNAL void nk_jaccard_u1x128_update_serial(nk_jaccard_u1x128_state_serial_t *state, nk_b128_vec_t a,
+                                                 nk_b128_vec_t b, nk_size_t depth_offset, nk_size_t active_dimensions) {
     nk_unused_(depth_offset);
     nk_unused_(active_dimensions);
     nk_u64_t intersection_low = a.u64s[0] & b.u64s[0];
@@ -76,9 +109,9 @@ NK_INTERNAL void nk_jaccard_b128_update_serial(nk_jaccard_b128_state_serial_t *s
     state->intersection_count += nk_u64_popcount_(intersection_high);
 }
 
-NK_INTERNAL void nk_jaccard_b128_finalize_serial( //
-    nk_jaccard_b128_state_serial_t const *state_a, nk_jaccard_b128_state_serial_t const *state_b,
-    nk_jaccard_b128_state_serial_t const *state_c, nk_jaccard_b128_state_serial_t const *state_d,
+NK_INTERNAL void nk_jaccard_u1x128_finalize_serial( //
+    nk_jaccard_u1x128_state_serial_t const *state_a, nk_jaccard_u1x128_state_serial_t const *state_b,
+    nk_jaccard_u1x128_state_serial_t const *state_c, nk_jaccard_u1x128_state_serial_t const *state_d,
     nk_f32_t query_popcount, nk_f32_t target_popcount_a, nk_f32_t target_popcount_b, nk_f32_t target_popcount_c,
     nk_f32_t target_popcount_d, nk_size_t total_dimensions, nk_b128_vec_t *result) {
     nk_unused_(total_dimensions);
@@ -99,14 +132,16 @@ NK_INTERNAL void nk_jaccard_b128_finalize_serial( //
     result->f32s[3] = (union_d != 0) ? 1.0f - intersection_d / union_d : 1.0f;
 }
 
-struct nk_hamming_b128_state_serial_t {
+typedef struct nk_hamming_u1x128_state_serial_t {
     nk_u64_t intersection_count;
-};
+} nk_hamming_u1x128_state_serial_t;
 
-NK_INTERNAL void nk_hamming_b128_init_serial(nk_hamming_b128_state_serial_t *state) { state->intersection_count = 0; }
+NK_INTERNAL void nk_hamming_u1x128_init_serial(nk_hamming_u1x128_state_serial_t *state) {
+    state->intersection_count = 0;
+}
 
-NK_INTERNAL void nk_hamming_b128_update_serial(nk_hamming_b128_state_serial_t *state, nk_b128_vec_t a, nk_b128_vec_t b,
-                                               nk_size_t depth_offset, nk_size_t active_dimensions) {
+NK_INTERNAL void nk_hamming_u1x128_update_serial(nk_hamming_u1x128_state_serial_t *state, nk_b128_vec_t a,
+                                                 nk_b128_vec_t b, nk_size_t depth_offset, nk_size_t active_dimensions) {
     nk_unused_(depth_offset);
     nk_unused_(active_dimensions);
     nk_u64_t intersection_low = a.u64s[0] ^ b.u64s[0];
@@ -115,9 +150,9 @@ NK_INTERNAL void nk_hamming_b128_update_serial(nk_hamming_b128_state_serial_t *s
     state->intersection_count += nk_u64_popcount_(intersection_high);
 }
 
-NK_INTERNAL void nk_hamming_b128_finalize_serial( //
-    nk_hamming_b128_state_serial_t const *state_a, nk_hamming_b128_state_serial_t const *state_b,
-    nk_hamming_b128_state_serial_t const *state_c, nk_hamming_b128_state_serial_t const *state_d,
+NK_INTERNAL void nk_hamming_u1x128_finalize_serial( //
+    nk_hamming_u1x128_state_serial_t const *state_a, nk_hamming_u1x128_state_serial_t const *state_b,
+    nk_hamming_u1x128_state_serial_t const *state_c, nk_hamming_u1x128_state_serial_t const *state_d,
     nk_size_t total_dimensions, nk_b128_vec_t *result) {
     nk_unused_(total_dimensions);
 
@@ -126,6 +161,8 @@ NK_INTERNAL void nk_hamming_b128_finalize_serial( //
     result->u32s[2] = (nk_u32_t)state_c->intersection_count;
     result->u32s[3] = (nk_u32_t)state_d->intersection_count;
 }
+
+#pragma endregion Stateful Streaming
 
 #if defined(__cplusplus)
 } // extern "C"

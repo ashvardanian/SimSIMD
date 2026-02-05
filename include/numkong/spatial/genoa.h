@@ -9,6 +9,10 @@
 #ifndef NK_SPATIAL_GENOA_H
 #define NK_SPATIAL_GENOA_H
 
+#if defined(__cplusplus)
+extern "C" {
+#endif
+
 #if NK_TARGET_X86_
 #if NK_TARGET_GENOA
 #if defined(__clang__)
@@ -25,9 +29,7 @@
 #include "numkong/cast/icelake.h"   // `nk_e4m3x32_to_bf16x32_icelake_`
 #include "numkong/dot/genoa.h"      // `nk_dot_bf16x32_state_genoa_t`
 
-#if defined(__cplusplus)
-extern "C" {
-#endif
+#pragma region Smaller Floats
 
 NK_INTERNAL __m512i nk_substract_bf16x32_genoa_(__m512i a_i16, __m512i b_i16) {
 
@@ -417,9 +419,7 @@ nk_angular_e3m2_genoa_cycle:
     *result = nk_angular_normalize_f32_haswell_(dot_f32, a_norm_sq_f32, b_norm_sq_f32);
 }
 
-#if defined(__cplusplus)
-} // extern "C"
-#endif
+#pragma endregion Smaller Floats
 
 #if defined(__clang__)
 #pragma clang attribute pop
@@ -428,5 +428,9 @@ nk_angular_e3m2_genoa_cycle:
 #endif
 #endif // NK_TARGET_GENOA
 #endif // NK_TARGET_X86_
+
+#if defined(__cplusplus)
+} // extern "C"
+#endif
 
 #endif // NK_SPATIAL_GENOA_H

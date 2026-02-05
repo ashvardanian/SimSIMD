@@ -14,15 +14,15 @@
 #ifndef NK_SPATIAL_RVVHALF_H
 #define NK_SPATIAL_RVVHALF_H
 
+#if defined(__cplusplus)
+extern "C" {
+#endif
+
 #if NK_TARGET_RISCV_
 #if NK_TARGET_RVVHALF
 
 #include "numkong/types.h"
 #include "numkong/spatial/rvv.h" // `nk_f32_sqrt_rvv`
-
-#if defined(__cplusplus)
-extern "C" {
-#endif
 
 NK_PUBLIC void nk_sqeuclidean_f16_rvvhalf(nk_f16_t const *a_scalars, nk_f16_t const *b_scalars, nk_size_t count_scalars,
                                           nk_f32_t *result) {
@@ -89,11 +89,11 @@ NK_PUBLIC void nk_angular_f16_rvvhalf(nk_f16_t const *a_scalars, nk_f16_t const 
     }
 }
 
+#endif // NK_TARGET_RVVHALF
+#endif // NK_TARGET_RISCV_
+
 #if defined(__cplusplus)
 } // extern "C"
 #endif
-
-#endif // NK_TARGET_RVVHALF
-#endif // NK_TARGET_RISCV_
 
 #endif // NK_SPATIAL_RVVHALF_H

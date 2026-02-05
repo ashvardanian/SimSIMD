@@ -6,7 +6,7 @@
  *
  *  @sa include/numkong/spatial.h
  *
- *  @section ice_spatial_instructions Key AVX-512 VNNI Spatial Instructions
+ *  @section spatial_icelake_instructions Key AVX-512 VNNI Spatial Instructions
  *
  *      Intrinsic                   Instruction                     Ice         Genoa
  *      _mm512_dpwssd_epi32         VPDPWSSD (ZMM, ZMM, ZMM)        5cy @ p0    4cy @ p01
@@ -21,6 +21,10 @@
 #ifndef NK_SPATIAL_ICELAKE_H
 #define NK_SPATIAL_ICELAKE_H
 
+#if defined(__cplusplus)
+extern "C" {
+#endif
+
 #if NK_TARGET_X86_
 #if NK_TARGET_ICELAKE
 #if defined(__clang__)
@@ -34,10 +38,6 @@
 
 #include "numkong/types.h"
 #include "numkong/dot/icelake.h" // `nk_dot_i8x64_state_icelake_t`, `nk_dot_u8x64_state_icelake_t`
-
-#if defined(__cplusplus)
-extern "C" {
-#endif
 
 NK_PUBLIC void nk_euclidean_i8_icelake(nk_i8_t const *a, nk_i8_t const *b, nk_size_t n, nk_f32_t *result) {
     nk_u32_t d2;
@@ -639,10 +639,6 @@ NK_INTERNAL void nk_euclidean_u8x64_finalize_icelake(
                                                target_norm_c, target_norm_d, results);
 }
 
-#if defined(__cplusplus)
-} // extern "C"
-#endif
-
 #if defined(__clang__)
 #pragma clang attribute pop
 #elif defined(__GNUC__)
@@ -650,5 +646,9 @@ NK_INTERNAL void nk_euclidean_u8x64_finalize_icelake(
 #endif
 #endif // NK_TARGET_ICELAKE
 #endif // NK_TARGET_X86_
+
+#if defined(__cplusplus)
+} // extern "C"
+#endif
 
 #endif // NK_SPATIAL_ICELAKE_H

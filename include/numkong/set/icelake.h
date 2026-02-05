@@ -5,9 +5,41 @@
  *  @date December 27, 2025
  *
  *  @sa include/numkong/set.h
+ *
+ *  @section set_icelake_instructions Key AVX-512 Set Instructions
+ *
+ *      Intrinsic                   Instruction                     Latency     Throughput  Ports
+ *      _mm512_popcnt_epi64         VPOPCNTQ (ZMM, ZMM)             3cy         1/cy        p5
+ *      _mm512_and_si512            VPANDQ (ZMM, ZMM, ZMM)          1cy         0.33/cy     p05
+ *      _mm512_or_si512             VPORQ (ZMM, ZMM, ZMM)           1cy         0.33/cy     p05
+ *      _mm512_xor_si512            VPXORQ (ZMM, ZMM, ZMM)          1cy         0.33/cy     p05
+ *      _mm512_maskz_loadu_epi8     VMOVDQU8 (ZMM, mem, k1)         7cy         0.5/cy      p23
+ *
+ *  Ice Lake has native VPOPCNTQ instruction via AVX-512 VPOPCNTDQ extension, enabling
+ *  efficient 64-bit element-wise popcount. We process 512 bits per iteration.
+ *
+ *  @section set_icelake_stateful Stateful Streaming Logic
+ *
+ *  To build memory-optimal tiled algorithms, this file defines:
+ *
+ *  - nk_hamming_u1x512_state_icelake_t for streaming Hamming distance
+ *  - nk_jaccard_u1x512_state_icelake_t for streaming Jaccard similarity
+ *
+ *  @code{c}
+ *  nk_jaccard_u1x512_state_icelake_t state_first, state_second, state_third, state_fourth;
+ *  nk_jaccard_u1x512_init_icelake(&state_first);
+ *  // ... stream through packed binary vectors ...
+ *  nk_jaccard_u1x512_finalize_icelake(&state_first, &state_second, &state_third, &state_fourth,
+ *      query_popcount, target_popcount_a, target_popcount_b, target_popcount_c, target_popcount_d,
+ *      total_dimensions, &results);
+ *  @endcode
  */
 #ifndef NK_SET_ICELAKE_H
 #define NK_SET_ICELAKE_H
+
+#if defined(__cplusplus)
+extern "C" {
+#endif
 
 #if NK_TARGET_X86_
 #if NK_TARGET_ICELAKE
@@ -21,9 +53,7 @@
 
 #include "numkong/types.h"
 
-#if defined(__cplusplus)
-extern "C" {
-#endif
+#pragma region Binary Sets
 
 NK_PUBLIC void nk_hamming_u1_icelake(nk_u1x8_t const *a, nk_u1x8_t const *b, nk_size_t n, nk_u32_t *result) {
     nk_size_t n_bytes = nk_size_divide_round_up_(n, NK_BITS_PER_BYTE);
@@ -208,6 +238,10 @@ NK_PUBLIC void nk_jaccard_u1_icelake(nk_u1x8_t const *a, nk_u1x8_t const *b, nk_
     *result = (union_count != 0) ? 1.0f - (nk_f32_t)intersection_count / (nk_f32_t)union_count : 1.0f;
 }
 
+#pragma endregion Binary Sets
+
+#pragma region Integer Sets
+
 NK_PUBLIC void nk_jaccard_u32_icelake(nk_u32_t const *a, nk_u32_t const *b, nk_size_t n, nk_f32_t *result) {
     nk_u32_t intersection_count = 0;
     nk_size_t n_remaining = n;
@@ -265,25 +299,30 @@ NK_PUBLIC void nk_jaccard_u16_icelake(nk_u16_t const *a, nk_u16_t const *b, nk_s
     *result = (n != 0) ? 1.0f - (nk_f32_t)matches / (nk_f32_t)n : 1.0f;
 }
 
-struct nk_hamming_b512_state_icelake_t {
-    __m512i intersection_count_i64x8;
-};
+#pragma endregion Integer Sets
 
-NK_INTERNAL void nk_hamming_b512_init_icelake(nk_hamming_b512_state_icelake_t *state) {
+#pragma region Stateful Streaming
+
+typedef struct nk_hamming_u1x512_state_icelake_t {
+    __m512i intersection_count_i64x8;
+} nk_hamming_u1x512_state_icelake_t;
+
+NK_INTERNAL void nk_hamming_u1x512_init_icelake(nk_hamming_u1x512_state_icelake_t *state) {
     state->intersection_count_i64x8 = _mm512_setzero_si512();
 }
 
-NK_INTERNAL void nk_hamming_b512_update_icelake(nk_hamming_b512_state_icelake_t *state, nk_b512_vec_t a,
-                                                nk_b512_vec_t b, nk_size_t depth_offset, nk_size_t active_dimensions) {
+NK_INTERNAL void nk_hamming_u1x512_update_icelake(nk_hamming_u1x512_state_icelake_t *state, nk_b512_vec_t a,
+                                                  nk_b512_vec_t b, nk_size_t depth_offset,
+                                                  nk_size_t active_dimensions) {
     nk_unused_(depth_offset);
     nk_unused_(active_dimensions);
     state->intersection_count_i64x8 = _mm512_add_epi64(state->intersection_count_i64x8,
                                                        _mm512_popcnt_epi64(_mm512_xor_si512(a.zmm, b.zmm)));
 }
 
-NK_INTERNAL void nk_hamming_b512_finalize_icelake( //
-    nk_hamming_b512_state_icelake_t const *state_a, nk_hamming_b512_state_icelake_t const *state_b,
-    nk_hamming_b512_state_icelake_t const *state_c, nk_hamming_b512_state_icelake_t const *state_d,
+NK_INTERNAL void nk_hamming_u1x512_finalize_icelake( //
+    nk_hamming_u1x512_state_icelake_t const *state_a, nk_hamming_u1x512_state_icelake_t const *state_b,
+    nk_hamming_u1x512_state_icelake_t const *state_c, nk_hamming_u1x512_state_icelake_t const *state_d,
     nk_size_t total_dimensions, nk_b128_vec_t *result) {
     nk_unused_(total_dimensions);
     result->u32s[0] = (nk_u32_t)_mm512_reduce_add_epi64(state_a->intersection_count_i64x8);
@@ -292,25 +331,26 @@ NK_INTERNAL void nk_hamming_b512_finalize_icelake( //
     result->u32s[3] = (nk_u32_t)_mm512_reduce_add_epi64(state_d->intersection_count_i64x8);
 }
 
-struct nk_jaccard_b512_state_icelake_t {
+typedef struct nk_jaccard_u1x512_state_icelake_t {
     __m512i intersection_count_i64x8;
-};
+} nk_jaccard_u1x512_state_icelake_t;
 
-NK_INTERNAL void nk_jaccard_b512_init_icelake(nk_jaccard_b512_state_icelake_t *state) {
+NK_INTERNAL void nk_jaccard_u1x512_init_icelake(nk_jaccard_u1x512_state_icelake_t *state) {
     state->intersection_count_i64x8 = _mm512_setzero_si512();
 }
 
-NK_INTERNAL void nk_jaccard_b512_update_icelake(nk_jaccard_b512_state_icelake_t *state, nk_b512_vec_t a,
-                                                nk_b512_vec_t b, nk_size_t depth_offset, nk_size_t active_dimensions) {
+NK_INTERNAL void nk_jaccard_u1x512_update_icelake(nk_jaccard_u1x512_state_icelake_t *state, nk_b512_vec_t a,
+                                                  nk_b512_vec_t b, nk_size_t depth_offset,
+                                                  nk_size_t active_dimensions) {
     nk_unused_(depth_offset);
     nk_unused_(active_dimensions);
     state->intersection_count_i64x8 = _mm512_add_epi64(state->intersection_count_i64x8,
                                                        _mm512_popcnt_epi64(_mm512_and_si512(a.zmm, b.zmm)));
 }
 
-NK_INTERNAL void nk_jaccard_b512_finalize_icelake( //
-    nk_jaccard_b512_state_icelake_t const *state_a, nk_jaccard_b512_state_icelake_t const *state_b,
-    nk_jaccard_b512_state_icelake_t const *state_c, nk_jaccard_b512_state_icelake_t const *state_d,
+NK_INTERNAL void nk_jaccard_u1x512_finalize_icelake( //
+    nk_jaccard_u1x512_state_icelake_t const *state_a, nk_jaccard_u1x512_state_icelake_t const *state_b,
+    nk_jaccard_u1x512_state_icelake_t const *state_c, nk_jaccard_u1x512_state_icelake_t const *state_d,
     nk_f32_t query_popcount, nk_f32_t target_popcount_a, nk_f32_t target_popcount_b, nk_f32_t target_popcount_c,
     nk_f32_t target_popcount_d, nk_size_t total_dimensions, nk_b128_vec_t *result) {
     nk_unused_(total_dimensions);
@@ -379,9 +419,7 @@ NK_INTERNAL void nk_jaccard_b512_finalize_icelake( //
     result->xmm_ps = _mm_blendv_ps(jaccard_f32x4, one_f32x4, zero_union_mask);
 }
 
-#if defined(__cplusplus)
-} // extern "C"
-#endif
+#pragma endregion Stateful Streaming
 
 #if defined(__clang__)
 #pragma clang attribute pop
@@ -390,5 +428,9 @@ NK_INTERNAL void nk_jaccard_b512_finalize_icelake( //
 #endif
 #endif // NK_TARGET_ICELAKE
 #endif // NK_TARGET_X86_
+
+#if defined(__cplusplus)
+} // extern "C"
+#endif
 
 #endif // NK_SET_ICELAKE_H

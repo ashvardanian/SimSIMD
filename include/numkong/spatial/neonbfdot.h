@@ -29,6 +29,10 @@
 #ifndef NK_SPATIAL_NEONBFDOT_H
 #define NK_SPATIAL_NEONBFDOT_H
 
+#if defined(__cplusplus)
+extern "C" {
+#endif
+
 #if NK_TARGET_ARM_
 #if NK_TARGET_NEONBFDOT
 #if defined(__clang__)
@@ -42,10 +46,6 @@
 #include "numkong/reduce/neon.h"   // `nk_partial_load_b16x8_serial_`
 #include "numkong/spatial/neon.h"  // `nk_angular_through_f32_finalize_neon_`
 #include "numkong/dot/neonbfdot.h" // `nk_dot_bf16x8_state_neonbfdot_t`
-
-#if defined(__cplusplus)
-extern "C" {
-#endif
 
 NK_PUBLIC void nk_angular_bf16_neonbfdot(nk_bf16_t const *a, nk_bf16_t const *b, nk_size_t n, nk_f32_t *result) {
 
@@ -191,10 +191,6 @@ NK_INTERNAL void nk_euclidean_bf16x8_finalize_neonbfdot(
                                             target_norm_d, results);
 }
 
-#if defined(__cplusplus)
-} // extern "C"
-#endif
-
 #if defined(__clang__)
 #pragma clang attribute pop
 #elif defined(__GNUC__)
@@ -202,5 +198,9 @@ NK_INTERNAL void nk_euclidean_bf16x8_finalize_neonbfdot(
 #endif
 #endif // NK_TARGET_NEONBFDOT
 #endif // NK_TARGET_ARM_
+
+#if defined(__cplusplus)
+} // extern "C"
+#endif
 
 #endif // NK_SPATIAL_NEONBFDOT_H

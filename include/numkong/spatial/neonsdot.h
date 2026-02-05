@@ -30,6 +30,10 @@
 #ifndef NK_SPATIAL_NEONSDOT_H
 #define NK_SPATIAL_NEONSDOT_H
 
+#if defined(__cplusplus)
+extern "C" {
+#endif
+
 #if NK_TARGET_ARM_
 #if NK_TARGET_NEONSDOT
 #if defined(__clang__)
@@ -42,10 +46,6 @@
 #include "numkong/types.h"
 #include "numkong/spatial/neon.h" // `nk_angular_through_f32_finalize_neon_`
 #include "numkong/dot/neonsdot.h" // `nk_dot_i8x16_state_neonsdot_t`, `nk_dot_u8x16_state_neonsdot_t`
-
-#if defined(__cplusplus)
-extern "C" {
-#endif
 
 NK_PUBLIC void nk_sqeuclidean_i8_neonsdot(nk_i8_t const *a, nk_i8_t const *b, nk_size_t n, nk_u32_t *result) {
 
@@ -334,10 +334,6 @@ NK_INTERNAL void nk_euclidean_u8x16_finalize_neonsdot(
                                             target_norm_d, results);
 }
 
-#if defined(__cplusplus)
-} // extern "C"
-#endif
-
 #if defined(__clang__)
 #pragma clang attribute pop
 #elif defined(__GNUC__)
@@ -345,5 +341,9 @@ NK_INTERNAL void nk_euclidean_u8x16_finalize_neonsdot(
 #endif
 #endif // NK_TARGET_NEONSDOT
 #endif // NK_TARGET_ARM_
+
+#if defined(__cplusplus)
+} // extern "C"
+#endif
 
 #endif // NK_SPATIAL_NEONSDOT_H
