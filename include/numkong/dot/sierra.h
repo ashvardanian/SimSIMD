@@ -6,7 +6,7 @@
  *
  *  @sa include/numkong/dot.h
  *
- *  @section avx_vnni_instructions AVX-VNNI Instructions Performance
+ *  @section dot_sierra_instructions AVX-VNNI Instructions Performance
  *
  *      Intrinsic                   Instruction                     Alder Lake  Raptor Lake
  *      _mm256_dpbusd_epi32         VPDPBUSD (YMM, YMM, YMM)        4cy @ p05   4cy @ p05
@@ -22,9 +22,67 @@
  *    - i8×i8: 1.3-1.4× speedup using dpbusd with XOR transformation (a+128)×b - 128×sum(b)
  *    - u8×u8: 1.8-2.0× speedup using dpbusd with XOR transformation a×(b-128) + 128×sum(a)
  *  These match the speedups achieved on Ice Lake (AVX-512 VNNI) but with 256-bit vectors.
+ *
+ *  @section dot_sierra_stateful Stateful Streaming Logic
+ *
+ *  To build memory-optimal tiled algorithms, this file defines following structures and force-inlined
+ *  `NK_INTERNAL` functions:
+ *
+ *  - nk_dot_i8x32 for 8-bit signed integer inputs using DPBUSD with algebraic transformation,
+ *  - nk_dot_u8x32 for 8-bit unsigned integer inputs using DPBUSD with algebraic transformation.
+ *
+ *  @code{c}
+ *  nk_dot_i8x32_state_sierra_t state_first, state_second, state_third, state_fourth;
+ *  nk_b256_vec_t query_i8x32, target_first_i8x32, target_second_i8x32, target_third_i8x32, target_fourth_i8x32;
+ *  nk_dot_i8x32_init_sierra(&state_first);
+ *  nk_dot_i8x32_init_sierra(&state_second);
+ *  nk_dot_i8x32_init_sierra(&state_third);
+ *  nk_dot_i8x32_init_sierra(&state_fourth);
+ *  for (nk_size_t idx = 0; idx + 32 <= depth; idx += 32) {
+ *      query_i8x32.ymm = _mm256_loadu_si256(query_ptr + idx);
+ *      target_first_i8x32.ymm = _mm256_loadu_si256(target_first_ptr + idx);
+ *      target_second_i8x32.ymm = _mm256_loadu_si256(target_second_ptr + idx);
+ *      target_third_i8x32.ymm = _mm256_loadu_si256(target_third_ptr + idx);
+ *      target_fourth_i8x32.ymm = _mm256_loadu_si256(target_fourth_ptr + idx);
+ *      nk_dot_i8x32_update_sierra(&state_first, query_i8x32, target_first_i8x32, idx, 32);
+ *      nk_dot_i8x32_update_sierra(&state_second, query_i8x32, target_second_i8x32, idx, 32);
+ *      nk_dot_i8x32_update_sierra(&state_third, query_i8x32, target_third_i8x32, idx, 32);
+ *      nk_dot_i8x32_update_sierra(&state_fourth, query_i8x32, target_fourth_i8x32, idx, 32);
+ *  }
+ *  nk_b128_vec_t results_i32x4;
+ *  nk_dot_i8x32_finalize_sierra(&state_first, &state_second, &state_third, &state_fourth, depth, &results_i32x4);
+ *  @endcode
+ *
+ *  The unsigned variant follows the same pattern with appropriate type changes:
+ *
+ *  @code{c}
+ *  nk_dot_u8x32_state_sierra_t state_first, state_second, state_third, state_fourth;
+ *  nk_b256_vec_t query_u8x32, target_first_u8x32, target_second_u8x32, target_third_u8x32, target_fourth_u8x32;
+ *  nk_dot_u8x32_init_sierra(&state_first);
+ *  nk_dot_u8x32_init_sierra(&state_second);
+ *  nk_dot_u8x32_init_sierra(&state_third);
+ *  nk_dot_u8x32_init_sierra(&state_fourth);
+ *  for (nk_size_t idx = 0; idx + 32 <= depth; idx += 32) {
+ *      query_u8x32.ymm = _mm256_loadu_si256(query_ptr + idx);
+ *      target_first_u8x32.ymm = _mm256_loadu_si256(target_first_ptr + idx);
+ *      target_second_u8x32.ymm = _mm256_loadu_si256(target_second_ptr + idx);
+ *      target_third_u8x32.ymm = _mm256_loadu_si256(target_third_ptr + idx);
+ *      target_fourth_u8x32.ymm = _mm256_loadu_si256(target_fourth_ptr + idx);
+ *      nk_dot_u8x32_update_sierra(&state_first, query_u8x32, target_first_u8x32, idx, 32);
+ *      nk_dot_u8x32_update_sierra(&state_second, query_u8x32, target_second_u8x32, idx, 32);
+ *      nk_dot_u8x32_update_sierra(&state_third, query_u8x32, target_third_u8x32, idx, 32);
+ *      nk_dot_u8x32_update_sierra(&state_fourth, query_u8x32, target_fourth_u8x32, idx, 32);
+ *  }
+ *  nk_b128_vec_t results_u32x4;
+ *  nk_dot_u8x32_finalize_sierra(&state_first, &state_second, &state_third, &state_fourth, depth, &results_u32x4);
+ *  @endcode
  */
 #ifndef NK_DOT_SIERRA_H
 #define NK_DOT_SIERRA_H
+
+#if defined(__cplusplus)
+extern "C" {
+#endif
 
 #if NK_TARGET_X86_
 #if NK_TARGET_SIERRA
@@ -39,9 +97,7 @@
 #include "numkong/cast/serial.h"    // nk_partial_load_b8x32_serial_
 #include "numkong/reduce/haswell.h" // nk_reduce_add_i32x8_haswell_
 
-#if defined(__cplusplus)
-extern "C" {
-#endif
+#pragma region Small Integers
 
 NK_PUBLIC void nk_dot_i8_sierra(nk_i8_t const *a_scalars, nk_i8_t const *b_scalars, nk_size_t count_scalars,
                                 nk_i32_t *result) {
@@ -109,10 +165,10 @@ nk_dot_i8_sierra_cycle:
     *result = (nk_i32_t)(ab_sum - correction);
 }
 
-struct nk_dot_i8x32_state_sierra_t {
+typedef struct nk_dot_i8x32_state_sierra_t {
     __m256i sum_ab_i32x8;       // Main dot product sum: (a+128)×b
     __m256i sum_b_biased_i64x4; // Correction term: sum(b+128) for algebraic transform
-};
+} nk_dot_i8x32_state_sierra_t;
 
 NK_INTERNAL void nk_dot_i8x32_init_sierra(nk_dot_i8x32_state_sierra_t *state) {
     state->sum_ab_i32x8 = _mm256_setzero_si256();
@@ -376,9 +432,7 @@ NK_INTERNAL void nk_dot_u8x32_finalize_sierra(                                  
     result->xmm = final_u32x4;
 }
 
-#if defined(__cplusplus)
-} // extern "C"
-#endif
+#pragma endregion Small Integers
 
 #if defined(__clang__)
 #pragma clang attribute pop
@@ -387,5 +441,9 @@ NK_INTERNAL void nk_dot_u8x32_finalize_sierra(                                  
 #endif
 #endif // NK_TARGET_SIERRA
 #endif // NK_TARGET_X86_
+
+#if defined(__cplusplus)
+} // extern "C"
+#endif
 
 #endif // NK_DOT_SIERRA_H

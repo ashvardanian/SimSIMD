@@ -5,9 +5,80 @@
  *  @date December 27, 2025
  *
  *  @sa include/numkong/dot.h
+ *
+ *  @section dot_genoa_instructions Key AVX-512 BF16 Instructions
+ *
+ *      Intrinsic                   Instruction                     Latency     Throughput  Ports
+ *      _mm512_dpbf16_ps            VDPBF16PS (ZMM, ZMM, ZMM)       4cy         0.5/cy      p01
+ *      _mm512_fmadd_ps             VFMADD132PS (ZMM, ZMM, ZMM)     4cy         0.5/cy      p01
+ *      _mm512_add_ps               VADDPS (ZMM, ZMM, ZMM)          4cy         0.5/cy      p01
+ *
+ *  AMD Genoa introduces native AVX-512 BF16 support with VDPBF16PS, which computes two BF16 dot products
+ *  per 32-bit lane (32 BF16 multiplies accumulated into 16 FP32 values per instruction). This provides
+ *  twice the throughput of FP32 FMA for BF16 workloads, ideal for machine learning inference.
+ *
+ *  @section dot_genoa_stateful Stateful Streaming Logic
+ *
+ *  To build memory-optimal tiled algorithms, this file defines following structures and force-inlined
+ *  `NK_INTERNAL` functions:
+ *
+ *  - nk_dot_bf16x32 state with native BF16 dot-products using VDPBF16PS,
+ *  - nk_dot_through_bf16 state for FP8 inputs (e4m3, e5m2, e2m3, e3m2) converted to BF16.
+ *
+ *  @code{c}
+ *  nk_dot_bf16x32_state_genoa_t state_first, state_second, state_third, state_fourth;
+ *  nk_b512_vec_t query_bf16x32, target_first_bf16x32, target_second_bf16x32, target_third_bf16x32, target_fourth;
+ *  nk_dot_bf16x32_init_genoa(&state_first);
+ *  nk_dot_bf16x32_init_genoa(&state_second);
+ *  nk_dot_bf16x32_init_genoa(&state_third);
+ *  nk_dot_bf16x32_init_genoa(&state_fourth);
+ *  for (nk_size_t idx = 0; idx + 32 <= depth; idx += 32) {
+ *      query_bf16x32.zmm = _mm512_loadu_si512(query_ptr + idx);
+ *      target_first_bf16x32.zmm = _mm512_loadu_si512(target_first_ptr + idx);
+ *      target_second_bf16x32.zmm = _mm512_loadu_si512(target_second_ptr + idx);
+ *      target_third_bf16x32.zmm = _mm512_loadu_si512(target_third_ptr + idx);
+ *      target_fourth.zmm = _mm512_loadu_si512(target_fourth_ptr + idx);
+ *      nk_dot_bf16x32_update_genoa(&state_first, query_bf16x32, target_first_bf16x32, idx, 32);
+ *      nk_dot_bf16x32_update_genoa(&state_second, query_bf16x32, target_second_bf16x32, idx, 32);
+ *      nk_dot_bf16x32_update_genoa(&state_third, query_bf16x32, target_third_bf16x32, idx, 32);
+ *      nk_dot_bf16x32_update_genoa(&state_fourth, query_bf16x32, target_fourth, idx, 32);
+ *  }
+ *  nk_b128_vec_t results_f32x4;
+ *  nk_dot_bf16x32_finalize_genoa(&state_first, &state_second, &state_third, &state_fourth, depth, &results_f32x4);
+ *  @endcode
+ *
+ *  FP8 types (e4m3, e5m2, e2m3, e3m2) are upcast to BF16 using Ice Lake conversion functions, then
+ *  accumulated using the native BF16 dot-product circuitry:
+ *
+ *  @code{c}
+ *  nk_dot_through_bf16_state_genoa_t_ state_first, state_second, state_third, state_fourth;
+ *  nk_b512_vec_t query_bf16x32, target_first_bf16x32, target_second_bf16x32, target_third_bf16x32, target_fourth;
+ *  nk_dot_through_bf16_init_genoa_(&state_first);
+ *  nk_dot_through_bf16_init_genoa_(&state_second);
+ *  nk_dot_through_bf16_init_genoa_(&state_third);
+ *  nk_dot_through_bf16_init_genoa_(&state_fourth);
+ *  for (nk_size_t idx = 0; idx + 32 <= depth; idx += 32) {
+ *      nk_load_e4m3x32_to_bf16x32_icelake_(query_ptr + idx, &query_bf16x32);
+ *      nk_load_e4m3x32_to_bf16x32_icelake_(target_first_ptr + idx, &target_first_bf16x32);
+ *      nk_load_e4m3x32_to_bf16x32_icelake_(target_second_ptr + idx, &target_second_bf16x32);
+ *      nk_load_e4m3x32_to_bf16x32_icelake_(target_third_ptr + idx, &target_third_bf16x32);
+ *      nk_load_e4m3x32_to_bf16x32_icelake_(target_fourth_ptr + idx, &target_fourth);
+ *      nk_dot_through_bf16_update_genoa_(&state_first, query_bf16x32, target_first_bf16x32, idx, 32);
+ *      nk_dot_through_bf16_update_genoa_(&state_second, query_bf16x32, target_second_bf16x32, idx, 32);
+ *      nk_dot_through_bf16_update_genoa_(&state_third, query_bf16x32, target_third_bf16x32, idx, 32);
+ *      nk_dot_through_bf16_update_genoa_(&state_fourth, query_bf16x32, target_fourth, idx, 32);
+ *  }
+ *  nk_b128_vec_t results_f32x4;
+ *  nk_dot_through_bf16_finalize_genoa_(&state_first, &state_second, &state_third, &state_fourth,
+ *      depth, &results_f32x4);
+ *  @endcode
  */
 #ifndef NK_DOT_GENOA_H
 #define NK_DOT_GENOA_H
+
+#if defined(__cplusplus)
+extern "C" {
+#endif
 
 #if NK_TARGET_X86_
 #if NK_TARGET_GENOA
@@ -25,9 +96,7 @@
 #include "numkong/reduce/skylake.h" // `nk_reduce_add_f32x16_skylake_`
 #include "numkong/dot/skylake.h"    // `nk_dot_through_f32_finalize_skylake_`
 
-#if defined(__cplusplus)
-extern "C" {
-#endif
+#pragma region Smaller Floats
 
 NK_PUBLIC void nk_dot_bf16_genoa(nk_bf16_t const *a_scalars, nk_bf16_t const *b_scalars, nk_size_t count_scalars,
                                  nk_f32_t *result) {
@@ -240,46 +309,6 @@ nk_dot_e3m2_genoa_cycle:
     *result = nk_reduce_add_f32x16_skylake_(sum_f32x16);
 }
 
-NK_INTERNAL void nk_load_e4m3x32_to_bf16x32_genoa_(void const *src, nk_b512_vec_t *dst) {
-    dst->zmm = nk_e4m3x32_to_bf16x32_icelake_(_mm256_loadu_si256((__m256i const *)src));
-}
-
-NK_INTERNAL void nk_partial_load_e4m3x32_to_bf16x32_genoa_(void const *src, nk_b512_vec_t *dst, nk_size_t n) {
-    nk_b256_vec_t e4m3_partial;
-    nk_partial_load_b8x32_serial_(src, &e4m3_partial, n);
-    dst->zmm = nk_e4m3x32_to_bf16x32_icelake_(e4m3_partial.ymm);
-}
-
-NK_INTERNAL void nk_load_e5m2x32_to_bf16x32_genoa_(void const *src, nk_b512_vec_t *dst) {
-    dst->zmm = nk_e5m2x32_to_bf16x32_icelake_(_mm256_loadu_si256((__m256i const *)src));
-}
-
-NK_INTERNAL void nk_partial_load_e5m2x32_to_bf16x32_genoa_(void const *src, nk_b512_vec_t *dst, nk_size_t n) {
-    nk_b256_vec_t e5m2_partial;
-    nk_partial_load_b8x32_serial_(src, &e5m2_partial, n);
-    dst->zmm = nk_e5m2x32_to_bf16x32_icelake_(e5m2_partial.ymm);
-}
-
-NK_INTERNAL void nk_load_e2m3x32_to_bf16x32_genoa_(void const *src, nk_b512_vec_t *dst) {
-    dst->zmm = nk_e2m3x32_to_bf16x32_icelake_(_mm256_loadu_si256((__m256i const *)src));
-}
-
-NK_INTERNAL void nk_partial_load_e2m3x32_to_bf16x32_genoa_(void const *src, nk_b512_vec_t *dst, nk_size_t n) {
-    nk_b256_vec_t e2m3_partial;
-    nk_partial_load_b8x32_serial_(src, &e2m3_partial, n);
-    dst->zmm = nk_e2m3x32_to_bf16x32_icelake_(e2m3_partial.ymm);
-}
-
-NK_INTERNAL void nk_load_e3m2x32_to_bf16x32_genoa_(void const *src, nk_b512_vec_t *dst) {
-    dst->zmm = nk_e3m2x32_to_bf16x32_icelake_(_mm256_loadu_si256((__m256i const *)src));
-}
-
-NK_INTERNAL void nk_partial_load_e3m2x32_to_bf16x32_genoa_(void const *src, nk_b512_vec_t *dst, nk_size_t n) {
-    nk_b256_vec_t e3m2_partial;
-    nk_partial_load_b8x32_serial_(src, &e3m2_partial, n);
-    dst->zmm = nk_e3m2x32_to_bf16x32_icelake_(e3m2_partial.ymm);
-}
-
 typedef struct nk_dot_through_bf16_state_genoa_t_ {
     __m512 sum_f32x16;
 } nk_dot_through_bf16_state_genoa_t_;
@@ -306,9 +335,9 @@ NK_INTERNAL void nk_dot_through_bf16_finalize_genoa_(                           
         total_dimensions, result);
 }
 
-struct nk_dot_bf16x32_state_genoa_t {
+typedef struct nk_dot_bf16x32_state_genoa_t {
     __m512 sum_f32x16;
-};
+} nk_dot_bf16x32_state_genoa_t;
 
 NK_INTERNAL void nk_dot_bf16x32_init_genoa(nk_dot_bf16x32_state_genoa_t *state) {
     nk_dot_through_bf16_init_genoa_((nk_dot_through_bf16_state_genoa_t_ *)state);
@@ -331,9 +360,7 @@ NK_INTERNAL void nk_dot_bf16x32_finalize_genoa(nk_dot_bf16x32_state_genoa_t cons
                                         (nk_dot_through_bf16_state_genoa_t_ const *)state_d, total_dimensions, result);
 }
 
-#if defined(__cplusplus)
-} // extern "C"
-#endif
+#pragma endregion Smaller Floats
 
 #if defined(__clang__)
 #pragma clang attribute pop
@@ -342,5 +369,9 @@ NK_INTERNAL void nk_dot_bf16x32_finalize_genoa(nk_dot_bf16x32_state_genoa_t cons
 #endif
 #endif // NK_TARGET_GENOA
 #endif // NK_TARGET_X86_
+
+#if defined(__cplusplus)
+} // extern "C"
+#endif
 
 #endif // NK_DOT_GENOA_H

@@ -23,9 +23,42 @@
  *  For dot products, inputs are widened from F16 to F32 for accumulation to preserve numerical
  *  precision. The FCVTL instruction handles this widening, allowing the FMA operations
  *  to maintain full F32 precision in the accumulator.
+ *
+ *  @section dot_neonhalf_stateful Stateful Streaming Logic
+ *
+ *  To build memory-optimal tiled algorithms, this file defines following structures and force-inlined
+ *  `NK_INTERNAL` functions:
+ *
+ *  - nk_dot_f16x4 state with f16 inputs widened to f32 for accumulation.
+ *
+ *  @code{c}
+ *  nk_dot_f16x4_state_neonhalf_t state_first, state_second, state_third, state_fourth;
+ *  float16x4_t query_f16x4, target_first_f16x4, target_second_f16x4, target_third_f16x4, target_fourth_f16x4;
+ *  nk_dot_f16x4_init_neonhalf(&state_first);
+ *  nk_dot_f16x4_init_neonhalf(&state_second);
+ *  nk_dot_f16x4_init_neonhalf(&state_third);
+ *  nk_dot_f16x4_init_neonhalf(&state_fourth);
+ *  for (nk_size_t idx = 0; idx + 4 <= depth; idx += 4) {
+ *      query_f16x4 = vld1_f16(query_ptr + idx);
+ *      target_first_f16x4 = vld1_f16(target_first_ptr + idx);
+ *      target_second_f16x4 = vld1_f16(target_second_ptr + idx);
+ *      target_third_f16x4 = vld1_f16(target_third_ptr + idx);
+ *      target_fourth_f16x4 = vld1_f16(target_fourth_ptr + idx);
+ *      nk_dot_f16x4_update_neonhalf(&state_first, query_f16x4, target_first_f16x4, idx, 4);
+ *      nk_dot_f16x4_update_neonhalf(&state_second, query_f16x4, target_second_f16x4, idx, 4);
+ *      nk_dot_f16x4_update_neonhalf(&state_third, query_f16x4, target_third_f16x4, idx, 4);
+ *      nk_dot_f16x4_update_neonhalf(&state_fourth, query_f16x4, target_fourth_f16x4, idx, 4);
+ *  }
+ *  float32x4_t results_f32x4;
+ *  nk_dot_f16x4_finalize_neonhalf(&state_first, &state_second, &state_third, &state_fourth, depth, &results_f32x4);
+ *  @endcode
  */
 #ifndef NK_DOT_NEONHALF_H
 #define NK_DOT_NEONHALF_H
+
+#if defined(__cplusplus)
+extern "C" {
+#endif
 
 #if NK_TARGET_ARM_
 #if NK_TARGET_NEONHALF
@@ -39,9 +72,7 @@
 #include "numkong/types.h"
 #include "numkong/cast/serial.h" // `nk_partial_load_b16x4_serial_`
 
-#if defined(__cplusplus)
-extern "C" {
-#endif
+#pragma region Smaller Floats
 
 NK_PUBLIC void nk_dot_f16_neonhalf(nk_f16_t const *a_scalars, nk_f16_t const *b_scalars, nk_size_t count_scalars,
                                    nk_f32_t *result) {
@@ -153,9 +184,7 @@ NK_INTERNAL void nk_dot_f16x4_finalize_neonhalf(                                
     result->f32s[3] = vaddvq_f32(state_d->sum_f32x4);
 }
 
-#if defined(__cplusplus)
-} // extern "C"
-#endif
+#pragma endregion Smaller Floats
 
 #if defined(__clang__)
 #pragma clang attribute pop
@@ -164,5 +193,9 @@ NK_INTERNAL void nk_dot_f16x4_finalize_neonhalf(                                
 #endif
 #endif // NK_TARGET_NEONHALF
 #endif // NK_TARGET_ARM_
+
+#if defined(__cplusplus)
+} // extern "C"
+#endif
 
 #endif // NK_DOT_NEONHALF_H

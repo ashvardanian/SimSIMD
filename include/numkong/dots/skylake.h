@@ -21,6 +21,10 @@
 #ifndef NK_DOTS_SKYLAKE_H
 #define NK_DOTS_SKYLAKE_H
 
+#if defined(__cplusplus)
+extern "C" {
+#endif
+
 #if NK_TARGET_X86_
 #if NK_TARGET_SKYLAKE
 #if defined(__clang__)
@@ -32,10 +36,6 @@
 #endif
 
 #include "numkong/types.h"
-
-#if defined(__cplusplus)
-extern "C" {
-#endif
 
 /* F64 GEMM: depth_simd_dimensions=8 (8 f64s = 64 bytes = 1 cache line) */
 nk_define_cross_pack_size_(dots, f64, skylake, f64, f64, /*depth_simd_dimensions=*/8, /*dimensions_per_value=*/1)
@@ -161,10 +161,6 @@ nk_define_cross_packed_(dots, e3m2, skylake, e3m2, f32, f32, nk_b512_vec_t, nk_d
                         nk_dot_through_f32_finalize_skylake_, nk_partial_store_b32x4_skylake_,
                         /*depth_simd_dimensions=*/16, /*dimensions_per_value=*/1)
 
-#if defined(__cplusplus)
-} // extern "C"
-#endif
-
 #if defined(__clang__)
 #pragma clang attribute pop
 #elif defined(__GNUC__)
@@ -172,5 +168,9 @@ nk_define_cross_packed_(dots, e3m2, skylake, e3m2, f32, f32, nk_b512_vec_t, nk_d
 #endif
 #endif // NK_TARGET_SKYLAKE
 #endif // NK_TARGET_X86_
+
+#if defined(__cplusplus)
+} // extern "C"
+#endif
 
 #endif // NK_DOTS_SKYLAKE_H

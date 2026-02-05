@@ -23,6 +23,10 @@
 #ifndef NK_CAST_SKYLAKE_H
 #define NK_CAST_SKYLAKE_H
 
+#if defined(__cplusplus)
+extern "C" {
+#endif
+
 #if NK_TARGET_X86_
 #if NK_TARGET_SKYLAKE
 #if defined(__clang__)
@@ -35,10 +39,6 @@
 
 #include "numkong/types.h"
 #include "numkong/cast/serial.h" // `nk_dtype_bits`, `nk_copy_bytes_`, scalar fallbacks
-
-#if defined(__cplusplus)
-extern "C" {
-#endif
 
 #pragma region - Type Punned Loads and Stores
 
@@ -550,6 +550,82 @@ NK_INTERNAL __m256i nk_f64x8_to_u32x8_skylake_(__m512d f64x8) {
 
 #pragma endregion - Vectorized Conversions
 
+#pragma region - Converting Loads and Stores
+
+/** @brief Load 16 f16 values and convert to 16 f32 (Skylake AVX-512). */
+NK_INTERNAL void nk_load_f16x16_to_f32x16_skylake_(void const *src, nk_b512_vec_t *dst) {
+    dst->zmm_ps = _mm512_cvtph_ps(_mm256_loadu_si256((__m256i const *)src));
+}
+
+/** @brief Partial load of up to 16 f16 values with conversion to f32 (Skylake AVX-512). */
+NK_INTERNAL void nk_partial_load_f16x16_to_f32x16_skylake_(void const *src, nk_b512_vec_t *dst, nk_size_t n) {
+    nk_b256_vec_t f16_partial;
+    nk_partial_load_b16x16_skylake_(src, &f16_partial, n);
+    dst->zmm_ps = _mm512_cvtph_ps(f16_partial.ymm);
+}
+
+/** @brief Load 16 bf16 values and convert to 16 f32 (Skylake AVX-512). */
+NK_INTERNAL void nk_load_bf16x16_to_f32x16_skylake_(void const *src, nk_b512_vec_t *dst) {
+    dst->zmm_ps = nk_bf16x16_to_f32x16_skylake_(_mm256_loadu_si256((__m256i const *)src));
+}
+
+/** @brief Partial load of up to 16 bf16 values with conversion to f32 (Skylake AVX-512). */
+NK_INTERNAL void nk_partial_load_bf16x16_to_f32x16_skylake_(void const *src, nk_b512_vec_t *dst, nk_size_t n) {
+    nk_b256_vec_t bf16_partial;
+    nk_partial_load_b16x16_skylake_(src, &bf16_partial, n);
+    dst->zmm_ps = nk_bf16x16_to_f32x16_skylake_(bf16_partial.ymm);
+}
+
+/** @brief Load 16 e4m3 values and convert to 16 f32 (Skylake AVX-512). */
+NK_INTERNAL void nk_load_e4m3x16_to_f32x16_skylake_(void const *src, nk_b512_vec_t *dst) {
+    dst->zmm_ps = nk_e4m3x16_to_f32x16_skylake_(_mm_loadu_si128((__m128i const *)src));
+}
+
+/** @brief Partial load of up to 16 e4m3 values with conversion to f32 (Skylake AVX-512). */
+NK_INTERNAL void nk_partial_load_e4m3x16_to_f32x16_skylake_(void const *src, nk_b512_vec_t *dst, nk_size_t n) {
+    nk_b128_vec_t e4m3_partial;
+    nk_partial_load_b8x16_skylake_(src, &e4m3_partial, n);
+    dst->zmm_ps = nk_e4m3x16_to_f32x16_skylake_(e4m3_partial.xmm);
+}
+
+/** @brief Load 16 e5m2 values and convert to 16 f32 (Skylake AVX-512). */
+NK_INTERNAL void nk_load_e5m2x16_to_f32x16_skylake_(void const *src, nk_b512_vec_t *dst) {
+    dst->zmm_ps = nk_e5m2x16_to_f32x16_skylake_(_mm_loadu_si128((__m128i const *)src));
+}
+
+/** @brief Partial load of up to 16 e5m2 values with conversion to f32 (Skylake AVX-512). */
+NK_INTERNAL void nk_partial_load_e5m2x16_to_f32x16_skylake_(void const *src, nk_b512_vec_t *dst, nk_size_t n) {
+    nk_b128_vec_t e5m2_partial;
+    nk_partial_load_b8x16_skylake_(src, &e5m2_partial, n);
+    dst->zmm_ps = nk_e5m2x16_to_f32x16_skylake_(e5m2_partial.xmm);
+}
+
+/** @brief Load 16 e2m3 values and convert to 16 f32 (Skylake AVX-512). */
+NK_INTERNAL void nk_load_e2m3x16_to_f32x16_skylake_(void const *src, nk_b512_vec_t *dst) {
+    dst->zmm_ps = nk_e2m3x16_to_f32x16_skylake_(_mm_loadu_si128((__m128i const *)src));
+}
+
+/** @brief Partial load of up to 16 e2m3 values with conversion to f32 (Skylake AVX-512). */
+NK_INTERNAL void nk_partial_load_e2m3x16_to_f32x16_skylake_(void const *src, nk_b512_vec_t *dst, nk_size_t n) {
+    nk_b128_vec_t e2m3_partial;
+    nk_partial_load_b8x16_skylake_(src, &e2m3_partial, n);
+    dst->zmm_ps = nk_e2m3x16_to_f32x16_skylake_(e2m3_partial.xmm);
+}
+
+/** @brief Load 16 e3m2 values and convert to 16 f32 (Skylake AVX-512). */
+NK_INTERNAL void nk_load_e3m2x16_to_f32x16_skylake_(void const *src, nk_b512_vec_t *dst) {
+    dst->zmm_ps = nk_e3m2x16_to_f32x16_skylake_(_mm_loadu_si128((__m128i const *)src));
+}
+
+/** @brief Partial load of up to 16 e3m2 values with conversion to f32 (Skylake AVX-512). */
+NK_INTERNAL void nk_partial_load_e3m2x16_to_f32x16_skylake_(void const *src, nk_b512_vec_t *dst, nk_size_t n) {
+    nk_b128_vec_t e3m2_partial;
+    nk_partial_load_b8x16_skylake_(src, &e3m2_partial, n);
+    dst->zmm_ps = nk_e3m2x16_to_f32x16_skylake_(e3m2_partial.xmm);
+}
+
+#pragma endregion - Converting Loads and Stores
+
 #pragma region - Public API
 
 NK_PUBLIC void nk_cast_skylake(void const *from, nk_dtype_t from_type, nk_size_t n, void *to, nk_dtype_t to_type) {
@@ -748,10 +824,6 @@ NK_PUBLIC void nk_cast_skylake(void const *from, nk_dtype_t from_type, nk_size_t
 
 #pragma endregion - Public API
 
-#if defined(__cplusplus)
-} // extern "C"
-#endif
-
 #if defined(__clang__)
 #pragma clang attribute pop
 #elif defined(__GNUC__)
@@ -759,5 +831,9 @@ NK_PUBLIC void nk_cast_skylake(void const *from, nk_dtype_t from_type, nk_size_t
 #endif
 #endif // NK_TARGET_SKYLAKE
 #endif // NK_TARGET_X86_
+
+#if defined(__cplusplus)
+} // extern "C"
+#endif
 
 #endif // NK_CAST_SKYLAKE_H

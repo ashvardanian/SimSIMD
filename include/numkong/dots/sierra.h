@@ -13,6 +13,10 @@
 #ifndef NK_DOTS_SIERRA_H
 #define NK_DOTS_SIERRA_H
 
+#if defined(__cplusplus)
+extern "C" {
+#endif
+
 #if NK_TARGET_X86_
 #if NK_TARGET_SIERRA
 #if defined(__clang__)
@@ -25,10 +29,6 @@
 #include "numkong/dot/sierra.h"  // Sierra-specific dot product helpers
 #include "numkong/dot/haswell.h" // Haswell partial load functions
 #include "numkong/dots/serial.h" // GEMM macro definitions
-
-#if defined(__cplusplus)
-extern "C" {
-#endif
 
 /* I8 GEMM: depth_simd_dimensions=32 (32 i8s = 32 bytes = AVX2 register width) */
 nk_define_cross_pack_size_(dots, i8, sierra, i8, i8, /*depth_simd_dimensions=*/32, /*dimensions_per_value=*/1)
@@ -58,10 +58,6 @@ nk_define_cross_packed_(dots, u8, sierra, u8, u8, u32, nk_b256_vec_t, nk_dot_u8x
                         nk_dot_u8x32_finalize_sierra, nk_partial_store_b32x4_serial_,
                         /*depth_simd_dimensions=*/32, /*dimensions_per_value=*/1)
 
-#if defined(__cplusplus)
-} // extern "C"
-#endif
-
 #if defined(__clang__)
 #pragma clang attribute pop
 #elif defined(__GNUC__)
@@ -69,5 +65,9 @@ nk_define_cross_packed_(dots, u8, sierra, u8, u8, u32, nk_b256_vec_t, nk_dot_u8x
 #endif
 #endif // NK_TARGET_SIERRA
 #endif // NK_TARGET_X86_
+
+#if defined(__cplusplus)
+} // extern "C"
+#endif
 
 #endif // NK_DOTS_SIERRA_H

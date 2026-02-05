@@ -23,6 +23,10 @@
 #ifndef NK_DOTS_HASWELL_H
 #define NK_DOTS_HASWELL_H
 
+#if defined(__cplusplus)
+extern "C" {
+#endif
+
 #if NK_TARGET_X86_
 #if NK_TARGET_HASWELL
 #if defined(__clang__)
@@ -33,10 +37,6 @@
 #endif
 
 #include "numkong/types.h"
-
-#if defined(__cplusplus)
-extern "C" {
-#endif
 
 /* F32 GEMM: depth_simd_dimensions=4 (4 f32s = 16 bytes for f32->f64 upcast accumulation) */
 nk_define_cross_pack_size_(dots, f32, haswell, f32, f32, /*depth_simd_dimensions=*/4, /*dimensions_per_value=*/1)
@@ -220,10 +220,6 @@ nk_define_cross_packed_(dots, u4, haswell, u4x2, u4x2, u32, nk_b128_vec_t, nk_do
                         nk_dot_u4x32_finalize_haswell, nk_partial_store_b32x4_serial_,
                         /*depth_simd_dimensions=*/32, /*dimensions_per_value=*/2)
 
-#if defined(__cplusplus)
-} // extern "C"
-#endif
-
 #if defined(__clang__)
 #pragma clang attribute pop
 #elif defined(__GNUC__)
@@ -231,5 +227,9 @@ nk_define_cross_packed_(dots, u4, haswell, u4x2, u4x2, u32, nk_b128_vec_t, nk_do
 #endif
 #endif // NK_TARGET_HASWELL
 #endif // NK_TARGET_X86_
+
+#if defined(__cplusplus)
+} // extern "C"
+#endif
 
 #endif // NK_DOTS_HASWELL_H

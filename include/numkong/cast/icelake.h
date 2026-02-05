@@ -19,6 +19,10 @@
 #ifndef NK_CAST_ICELAKE_H
 #define NK_CAST_ICELAKE_H
 
+#if defined(__cplusplus)
+extern "C" {
+#endif
+
 #if NK_TARGET_X86_
 #if NK_TARGET_ICELAKE
 #if defined(__clang__)
@@ -30,10 +34,6 @@
 #endif
 
 #include "numkong/types.h"
-
-#if defined(__cplusplus)
-extern "C" {
-#endif
 
 #pragma region - Vectorized Conversions
 
@@ -352,6 +352,54 @@ NK_INTERNAL __m256i nk_bf16x32_to_e5m2x32_icelake_(__m512i bf16x32) {
     return _mm512_cvtepi16_epi8(e5m2_i16x32);
 }
 
+/** @brief Load 32x e4m3 from memory and convert to 32x bf16 (Ice Lake AVX-512BW). */
+NK_INTERNAL void nk_load_e4m3x32_to_bf16x32_icelake_(void const *src, nk_b512_vec_t *dst) {
+    dst->zmm = nk_e4m3x32_to_bf16x32_icelake_(_mm256_loadu_si256((__m256i const *)src));
+}
+
+/** @brief Partial load n e4m3 elements from memory and convert to bf16 (Ice Lake AVX-512BW). */
+NK_INTERNAL void nk_partial_load_e4m3x32_to_bf16x32_icelake_(void const *src, nk_b512_vec_t *dst, nk_size_t n) {
+    __mmask32 mask = (__mmask32)_bzhi_u32(0xFFFFFFFF, (unsigned int)n);
+    __m256i e4m3_partial = _mm256_maskz_loadu_epi8(mask, src);
+    dst->zmm = nk_e4m3x32_to_bf16x32_icelake_(e4m3_partial);
+}
+
+/** @brief Load 32x e5m2 from memory and convert to 32x bf16 (Ice Lake AVX-512BW). */
+NK_INTERNAL void nk_load_e5m2x32_to_bf16x32_icelake_(void const *src, nk_b512_vec_t *dst) {
+    dst->zmm = nk_e5m2x32_to_bf16x32_icelake_(_mm256_loadu_si256((__m256i const *)src));
+}
+
+/** @brief Partial load n e5m2 elements from memory and convert to bf16 (Ice Lake AVX-512BW). */
+NK_INTERNAL void nk_partial_load_e5m2x32_to_bf16x32_icelake_(void const *src, nk_b512_vec_t *dst, nk_size_t n) {
+    __mmask32 mask = (__mmask32)_bzhi_u32(0xFFFFFFFF, (unsigned int)n);
+    __m256i e5m2_partial = _mm256_maskz_loadu_epi8(mask, src);
+    dst->zmm = nk_e5m2x32_to_bf16x32_icelake_(e5m2_partial);
+}
+
+/** @brief Load 32x e2m3 from memory and convert to 32x bf16 (Ice Lake AVX-512BW). */
+NK_INTERNAL void nk_load_e2m3x32_to_bf16x32_icelake_(void const *src, nk_b512_vec_t *dst) {
+    dst->zmm = nk_e2m3x32_to_bf16x32_icelake_(_mm256_loadu_si256((__m256i const *)src));
+}
+
+/** @brief Partial load n e2m3 elements from memory and convert to bf16 (Ice Lake AVX-512BW). */
+NK_INTERNAL void nk_partial_load_e2m3x32_to_bf16x32_icelake_(void const *src, nk_b512_vec_t *dst, nk_size_t n) {
+    __mmask32 mask = (__mmask32)_bzhi_u32(0xFFFFFFFF, (unsigned int)n);
+    __m256i e2m3_partial = _mm256_maskz_loadu_epi8(mask, src);
+    dst->zmm = nk_e2m3x32_to_bf16x32_icelake_(e2m3_partial);
+}
+
+/** @brief Load 32x e3m2 from memory and convert to 32x bf16 (Ice Lake AVX-512BW). */
+NK_INTERNAL void nk_load_e3m2x32_to_bf16x32_icelake_(void const *src, nk_b512_vec_t *dst) {
+    dst->zmm = nk_e3m2x32_to_bf16x32_icelake_(_mm256_loadu_si256((__m256i const *)src));
+}
+
+/** @brief Partial load n e3m2 elements from memory and convert to bf16 (Ice Lake AVX-512BW). */
+NK_INTERNAL void nk_partial_load_e3m2x32_to_bf16x32_icelake_(void const *src, nk_b512_vec_t *dst, nk_size_t n) {
+    __mmask32 mask = (__mmask32)_bzhi_u32(0xFFFFFFFF, (unsigned int)n);
+    __m256i e3m2_partial = _mm256_maskz_loadu_epi8(mask, src);
+    dst->zmm = nk_e3m2x32_to_bf16x32_icelake_(e3m2_partial);
+}
+
 #pragma endregion - Vectorized Conversions
 
 #pragma region - Public API
@@ -405,10 +453,6 @@ NK_PUBLIC void nk_cast_icelake(void const *from, nk_dtype_t from_type, nk_size_t
 
 #pragma endregion - Public API
 
-#if defined(__cplusplus)
-} // extern "C"
-#endif
-
 #if defined(__clang__)
 #pragma clang attribute pop
 #elif defined(__GNUC__)
@@ -416,5 +460,9 @@ NK_PUBLIC void nk_cast_icelake(void const *from, nk_dtype_t from_type, nk_size_t
 #endif
 #endif // NK_TARGET_ICELAKE
 #endif // NK_TARGET_X86_
+
+#if defined(__cplusplus)
+} // extern "C"
+#endif
 
 #endif // NK_CAST_ICELAKE_H

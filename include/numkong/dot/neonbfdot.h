@@ -24,9 +24,42 @@
  *  BFDOT computes two BF16 dot products per lane, accumulating directly into FP32 without explicit
  *  conversion. This provides higher throughput than FP16 convert-then-FMA sequences for ML inference
  *  where the reduced precision is acceptable.
+ *
+ *  @section dot_neonbfdot_stateful Stateful Streaming Logic
+ *
+ *  To build memory-optimal tiled algorithms, this file defines following structures and force-inlined
+ *  `NK_INTERNAL` functions:
+ *
+ *  - nk_dot_bf16x8 state with native BFDOT bf16 dot-products.
+ *
+ *  @code{c}
+ *  nk_dot_bf16x8_state_neonbfdot_t state_first, state_second, state_third, state_fourth;
+ *  bfloat16x8_t query_bf16x8, target_first_bf16x8, target_second_bf16x8, target_third_bf16x8, target_fourth_bf16x8;
+ *  nk_dot_bf16x8_init_neonbfdot(&state_first);
+ *  nk_dot_bf16x8_init_neonbfdot(&state_second);
+ *  nk_dot_bf16x8_init_neonbfdot(&state_third);
+ *  nk_dot_bf16x8_init_neonbfdot(&state_fourth);
+ *  for (nk_size_t idx = 0; idx + 8 <= depth; idx += 8) {
+ *      query_bf16x8 = vld1q_bf16(query_ptr + idx);
+ *      target_first_bf16x8 = vld1q_bf16(target_first_ptr + idx);
+ *      target_second_bf16x8 = vld1q_bf16(target_second_ptr + idx);
+ *      target_third_bf16x8 = vld1q_bf16(target_third_ptr + idx);
+ *      target_fourth_bf16x8 = vld1q_bf16(target_fourth_ptr + idx);
+ *      nk_dot_bf16x8_update_neonbfdot(&state_first, query_bf16x8, target_first_bf16x8, idx, 8);
+ *      nk_dot_bf16x8_update_neonbfdot(&state_second, query_bf16x8, target_second_bf16x8, idx, 8);
+ *      nk_dot_bf16x8_update_neonbfdot(&state_third, query_bf16x8, target_third_bf16x8, idx, 8);
+ *      nk_dot_bf16x8_update_neonbfdot(&state_fourth, query_bf16x8, target_fourth_bf16x8, idx, 8);
+ *  }
+ *  float32x4_t results_f32x4;
+ *  nk_dot_bf16x8_finalize_neonbfdot(&state_first, &state_second, &state_third, &state_fourth, depth, &results_f32x4);
+ *  @endcode
  */
 #ifndef NK_DOT_NEONBFDOT_H
 #define NK_DOT_NEONBFDOT_H
+
+#if defined(__cplusplus)
+extern "C" {
+#endif
 
 #if NK_TARGET_ARM_
 #if NK_TARGET_NEONBFDOT
@@ -41,9 +74,7 @@
 #include "numkong/cast/serial.h" // `nk_partial_load_b8x8_serial_`
 #include "numkong/cast/neon.h"   // `nk_e4m3x8_to_bf16x8_neon_`
 
-#if defined(__cplusplus)
-extern "C" {
-#endif
+#pragma region Smaller Floats
 
 NK_PUBLIC void nk_dot_bf16_neonbfdot(nk_bf16_t const *a_scalars, nk_bf16_t const *b_scalars, nk_size_t count_scalars,
                                      nk_f32_t *result) {
@@ -199,9 +230,7 @@ NK_INTERNAL void nk_dot_bf16x8_finalize_neonbfdot(                              
     result->f32s[3] = vaddvq_f32(state_d->sum_f32x4);
 }
 
-#if defined(__cplusplus)
-} // extern "C"
-#endif
+#pragma endregion Smaller Floats
 
 #if defined(__clang__)
 #pragma clang attribute pop
@@ -210,5 +239,9 @@ NK_INTERNAL void nk_dot_bf16x8_finalize_neonbfdot(                              
 #endif
 #endif // NK_TARGET_NEONBFDOT
 #endif // NK_TARGET_ARM_
+
+#if defined(__cplusplus)
+} // extern "C"
+#endif
 
 #endif // NK_DOT_NEONBFDOT_H

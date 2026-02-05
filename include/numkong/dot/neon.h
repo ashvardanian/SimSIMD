@@ -6,7 +6,7 @@
  *
  *  @sa include/numkong/dot.h
  *
- *  @section neon_dot_instructions NEON Dot Product Instructions
+ *  @section dot_neon_instructions NEON Dot Product Instructions
  *
  *  Key NEON instructions for dot products:
  *
@@ -25,9 +25,67 @@
  *
  *  For f32 dot products, we upcast to f64 for accumulation to preserve precision and
  *  avoid catastrophic cancellation in large-magnitude sums.
+ *
+ *  @section dot_neon_stateful Stateful Streaming Logic
+ *
+ *  To build memory-optimal tiled algorithms, this file defines following structures and force-inlined
+ *  `NK_INTERNAL` functions:
+ *
+ *  - nk_dot_f32x2 state for f32 inputs with double-precision accumulation,
+ *  - nk_dot_f64x2 state with Dot2 stable dot-products for f64 inputs.
+ *
+ *  @code{c}
+ *  nk_dot_f32x2_state_neon_t state_first, state_second, state_third, state_fourth;
+ *  float32x2_t query_f32x2, target_first_f32x2, target_second_f32x2, target_third_f32x2, target_fourth_f32x2;
+ *  nk_dot_f32x2_init_neon(&state_first);
+ *  nk_dot_f32x2_init_neon(&state_second);
+ *  nk_dot_f32x2_init_neon(&state_third);
+ *  nk_dot_f32x2_init_neon(&state_fourth);
+ *  for (nk_size_t idx = 0; idx + 2 <= depth; idx += 2) {
+ *      query_f32x2 = vld1_f32(query_ptr + idx);
+ *      target_first_f32x2 = vld1_f32(target_first_ptr + idx);
+ *      target_second_f32x2 = vld1_f32(target_second_ptr + idx);
+ *      target_third_f32x2 = vld1_f32(target_third_ptr + idx);
+ *      target_fourth_f32x2 = vld1_f32(target_fourth_ptr + idx);
+ *      nk_dot_f32x2_update_neon(&state_first, query_f32x2, target_first_f32x2, idx, 2);
+ *      nk_dot_f32x2_update_neon(&state_second, query_f32x2, target_second_f32x2, idx, 2);
+ *      nk_dot_f32x2_update_neon(&state_third, query_f32x2, target_third_f32x2, idx, 2);
+ *      nk_dot_f32x2_update_neon(&state_fourth, query_f32x2, target_fourth_f32x2, idx, 2);
+ *  }
+ *  float32x4_t results_f32x4;
+ *  nk_dot_f32x2_finalize_neon(&state_first, &state_second, &state_third, &state_fourth, depth, &results_f32x4);
+ *  @endcode
+ *
+ *  For f64 inputs, Dot2 compensated summation provides numerical stability:
+ *
+ *  @code{c}
+ *  nk_dot_f64x2_state_neon_t state_first, state_second, state_third, state_fourth;
+ *  float64x2_t query_f64x2, target_first_f64x2, target_second_f64x2, target_third_f64x2, target_fourth_f64x2;
+ *  nk_dot_f64x2_init_neon(&state_first);
+ *  nk_dot_f64x2_init_neon(&state_second);
+ *  nk_dot_f64x2_init_neon(&state_third);
+ *  nk_dot_f64x2_init_neon(&state_fourth);
+ *  for (nk_size_t idx = 0; idx + 2 <= depth; idx += 2) {
+ *      query_f64x2 = vld1q_f64(query_ptr + idx);
+ *      target_first_f64x2 = vld1q_f64(target_first_ptr + idx);
+ *      target_second_f64x2 = vld1q_f64(target_second_ptr + idx);
+ *      target_third_f64x2 = vld1q_f64(target_third_ptr + idx);
+ *      target_fourth_f64x2 = vld1q_f64(target_fourth_ptr + idx);
+ *      nk_dot_f64x2_update_neon(&state_first, query_f64x2, target_first_f64x2, idx, 2);
+ *      nk_dot_f64x2_update_neon(&state_second, query_f64x2, target_second_f64x2, idx, 2);
+ *      nk_dot_f64x2_update_neon(&state_third, query_f64x2, target_third_f64x2, idx, 2);
+ *      nk_dot_f64x2_update_neon(&state_fourth, query_f64x2, target_fourth_f64x2, idx, 2);
+ *  }
+ *  float64x4_t results_f64x4;
+ *  nk_dot_f64x2_finalize_neon(&state_first, &state_second, &state_third, &state_fourth, depth, &results_f64x4);
+ *  @endcode
  */
 #ifndef NK_DOT_NEON_H
 #define NK_DOT_NEON_H
+
+#if defined(__cplusplus)
+extern "C" {
+#endif
 
 #if NK_TARGET_ARM_
 #if NK_TARGET_NEON
@@ -40,9 +98,7 @@
 
 #include "numkong/reduce/neon.h"
 
-#if defined(__cplusplus)
-extern "C" {
-#endif
+#pragma region Traditional Floats
 
 NK_PUBLIC void nk_dot_f32_neon(nk_f32_t const *a_scalars, nk_f32_t const *b_scalars, nk_size_t count_scalars,
                                nk_f32_t *result) {
@@ -393,6 +449,10 @@ NK_INTERNAL void nk_dot_f64x2_finalize_neon(                                    
     result->f64s[3] = vaddvq_f64(vaddq_f64(state_d->sum_f64x2, state_d->compensation_f64x2));
 }
 
+#pragma endregion Traditional Floats
+
+#pragma region Smaller Floats
+
 NK_PUBLIC void nk_dot_e4m3_neon(nk_e4m3_t const *a_scalars, nk_e4m3_t const *b_scalars, nk_size_t count_scalars,
                                 nk_f32_t *result) {
     float32x4_t a_f32x4, b_f32x4;
@@ -439,9 +499,7 @@ nk_dot_e5m2_neon_cycle:
     *result = vaddvq_f32(sum_f32x4);
 }
 
-#if defined(__cplusplus)
-} // extern "C"
-#endif
+#pragma endregion Smaller Floats
 
 #if defined(__clang__)
 #pragma clang attribute pop
@@ -450,5 +508,9 @@ nk_dot_e5m2_neon_cycle:
 #endif
 #endif // NK_TARGET_NEON
 #endif // NK_TARGET_ARM_
+
+#if defined(__cplusplus)
+} // extern "C"
+#endif
 
 #endif // NK_DOT_NEON_H

@@ -21,6 +21,10 @@
 #ifndef NK_DOTS_ICELAKE_H
 #define NK_DOTS_ICELAKE_H
 
+#if defined(__cplusplus)
+extern "C" {
+#endif
+
 #if NK_TARGET_X86_
 #if NK_TARGET_ICELAKE
 #if defined(__clang__)
@@ -33,10 +37,6 @@
 #endif
 
 #include "numkong/types.h"
-
-#if defined(__cplusplus)
-extern "C" {
-#endif
 
 /* I8 GEMM: depth_simd_dimensions=64 (64 i8s = 64 bytes = 1 cache line) */
 nk_define_cross_pack_size_(dots, i8, icelake, i8, i8, /*depth_simd_dimensions=*/64, /*dimensions_per_value=*/1)
@@ -99,10 +99,6 @@ nk_define_cross_packed_(dots, u4, icelake, u4x2, u4x2, u32, nk_b512_vec_t, nk_do
                         nk_dot_u4x128_finalize_icelake, nk_partial_store_b32x4_skylake_,
                         /*depth_simd_dimensions=*/128, /*dimensions_per_value=*/2)
 
-#if defined(__cplusplus)
-} // extern "C"
-#endif
-
 #if defined(__clang__)
 #pragma clang attribute pop
 #elif defined(__GNUC__)
@@ -110,5 +106,9 @@ nk_define_cross_packed_(dots, u4, icelake, u4x2, u4x2, u32, nk_b512_vec_t, nk_do
 #endif
 #endif // NK_TARGET_ICELAKE
 #endif // NK_TARGET_X86_
+
+#if defined(__cplusplus)
+} // extern "C"
+#endif
 
 #endif // NK_DOTS_ICELAKE_H

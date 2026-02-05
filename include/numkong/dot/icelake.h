@@ -6,7 +6,7 @@
  *
  *  @sa include/numkong/dot.h
  *
- *  @section vnni_instructions VNNI Instructions Performance
+ *  @section dot_icelake_instructions VNNI Instructions Performance
  *
  *      Intrinsic                   Instruction                     Ice         Genoa
  *      _mm512_dpwssd_epi32         VPDPWSSD (ZMM, ZMM, ZMM)        5cy @ p0    4cy @ p01
@@ -16,9 +16,69 @@
  *  Ice Lake introduces AVX-512 VNNI for accelerated integer dot products. VNNI instructions bottleneck
  *  on port 0, limiting throughput to 1/cy. AMD Genoa dual-issues on ports 0-1, achieving 0.5/cy throughput.
  *  We use VPDPWSSD for signed i8 inputs after widening to i16, since VPDPBUSD is asymmetric (unsigned x signed).
+ *
+ *  @section dot_icelake_stateful Stateful Streaming Logic
+ *
+ *  To build memory-optimal tiled algorithms, this file defines following structures and force-inlined
+ *  `NK_INTERNAL` functions:
+ *
+ *  - nk_dot_i8x64 for 8-bit signed integer inputs using DPBUSD with algebraic transformation,
+ *  - nk_dot_u8x64 for 8-bit unsigned integer inputs using DPBUSD with algebraic transformation,
+ *  - nk_dot_i4x128 for 4-bit signed integer products with correction terms,
+ *  - nk_dot_u4x128 for 4-bit unsigned integer products.
+ *
+ *  @code{c}
+ *  nk_dot_i8x64_state_icelake_t state_first, state_second, state_third, state_fourth;
+ *  nk_b512_vec_t query_i8x64, target_first_i8x64, target_second_i8x64, target_third_i8x64, target_fourth_i8x64;
+ *  nk_dot_i8x64_init_icelake(&state_first);
+ *  nk_dot_i8x64_init_icelake(&state_second);
+ *  nk_dot_i8x64_init_icelake(&state_third);
+ *  nk_dot_i8x64_init_icelake(&state_fourth);
+ *  for (nk_size_t idx = 0; idx + 64 <= depth; idx += 64) {
+ *      query_i8x64.zmm = _mm512_loadu_si512(query_ptr + idx);
+ *      target_first_i8x64.zmm = _mm512_loadu_si512(target_first_ptr + idx);
+ *      target_second_i8x64.zmm = _mm512_loadu_si512(target_second_ptr + idx);
+ *      target_third_i8x64.zmm = _mm512_loadu_si512(target_third_ptr + idx);
+ *      target_fourth_i8x64.zmm = _mm512_loadu_si512(target_fourth_ptr + idx);
+ *      nk_dot_i8x64_update_icelake(&state_first, query_i8x64, target_first_i8x64, idx, 64);
+ *      nk_dot_i8x64_update_icelake(&state_second, query_i8x64, target_second_i8x64, idx, 64);
+ *      nk_dot_i8x64_update_icelake(&state_third, query_i8x64, target_third_i8x64, idx, 64);
+ *      nk_dot_i8x64_update_icelake(&state_fourth, query_i8x64, target_fourth_i8x64, idx, 64);
+ *  }
+ *  nk_b128_vec_t results_i32x4;
+ *  nk_dot_i8x64_finalize_icelake(&state_first, &state_second, &state_third, &state_fourth, depth, &results_i32x4);
+ *  @endcode
+ *
+ *  For 4-bit integers, the state manages the complex unpacking and correction term accumulation:
+ *
+ *  @code{c}
+ *  nk_dot_i4x128_state_icelake_t state_first, state_second, state_third, state_fourth;
+ *  nk_b512_vec_t query_i4x128, target_first_i4x128, target_second_i4x128, target_third_i4x128, target_fourth_i4x128;
+ *  nk_dot_i4x128_init_icelake(&state_first);
+ *  nk_dot_i4x128_init_icelake(&state_second);
+ *  nk_dot_i4x128_init_icelake(&state_third);
+ *  nk_dot_i4x128_init_icelake(&state_fourth);
+ *  for (nk_size_t idx = 0; idx + 128 <= depth; idx += 128) {
+ *      query_i4x128.zmm = _mm512_loadu_si512(query_ptr + idx / 2);
+ *      target_first_i4x128.zmm = _mm512_loadu_si512(target_first_ptr + idx / 2);
+ *      target_second_i4x128.zmm = _mm512_loadu_si512(target_second_ptr + idx / 2);
+ *      target_third_i4x128.zmm = _mm512_loadu_si512(target_third_ptr + idx / 2);
+ *      target_fourth_i4x128.zmm = _mm512_loadu_si512(target_fourth_ptr + idx / 2);
+ *      nk_dot_i4x128_update_icelake(&state_first, query_i4x128, target_first_i4x128, idx, 128);
+ *      nk_dot_i4x128_update_icelake(&state_second, query_i4x128, target_second_i4x128, idx, 128);
+ *      nk_dot_i4x128_update_icelake(&state_third, query_i4x128, target_third_i4x128, idx, 128);
+ *      nk_dot_i4x128_update_icelake(&state_fourth, query_i4x128, target_fourth_i4x128, idx, 128);
+ *  }
+ *  nk_b128_vec_t results_i32x4;
+ *  nk_dot_i4x128_finalize_icelake(&state_first, &state_second, &state_third, &state_fourth, depth, &results_i32x4);
+ *  @endcode
  */
 #ifndef NK_DOT_ICELAKE_H
 #define NK_DOT_ICELAKE_H
+
+#if defined(__cplusplus)
+extern "C" {
+#endif
 
 #if NK_TARGET_X86_
 #if NK_TARGET_ICELAKE
@@ -33,9 +93,7 @@
 
 #include "numkong/types.h"
 
-#if defined(__cplusplus)
-extern "C" {
-#endif
+#pragma region Small Integers
 
 NK_PUBLIC void nk_dot_i8_icelake(nk_i8_t const *a_scalars, nk_i8_t const *b_scalars, nk_size_t count_scalars,
                                  nk_i32_t *result) {
@@ -155,10 +213,10 @@ nk_dot_u8_icelake_cycle:
     *result = (nk_u32_t)(ab_dot_signed + correction);
 }
 
-struct nk_dot_i8x64_state_icelake_t {
+typedef struct nk_dot_i8x64_state_icelake_t {
     __m512i sum_ab_i32x16;      // Main dot product sum: (a+128)×b
     __m512i sum_b_biased_i64x8; // Correction term: sum(b+128) for algebraic transform
-};
+} nk_dot_i8x64_state_icelake_t;
 
 NK_INTERNAL void nk_dot_i8x64_init_icelake(nk_dot_i8x64_state_icelake_t *state) {
     state->sum_ab_i32x16 = _mm512_setzero_si512();
@@ -274,10 +332,10 @@ NK_INTERNAL void nk_dot_i8x64_finalize_icelake(                                 
     results->xmm = _mm_sub_epi32(sum_ab_final, correction_i32x4);
 }
 
-struct nk_dot_u8x64_state_icelake_t {
+typedef struct nk_dot_u8x64_state_icelake_t {
     __m512i sum_ab_i32x16; // Main dot product sum: a×(b-128)
     __m512i sum_a_i64x8;   // Correction term: sum(a) for algebraic transform
-};
+} nk_dot_u8x64_state_icelake_t;
 
 NK_INTERNAL void nk_dot_u8x64_init_icelake(nk_dot_u8x64_state_icelake_t *state) {
     state->sum_ab_i32x16 = _mm512_setzero_si512();
@@ -724,9 +782,7 @@ NK_INTERNAL void nk_dot_u4x128_finalize_icelake(                                
     result->xmm = final_i32x4;
 }
 
-#if defined(__cplusplus)
-} // extern "C"
-#endif
+#pragma endregion Small Integers
 
 #if defined(__clang__)
 #pragma clang attribute pop
@@ -735,5 +791,9 @@ NK_INTERNAL void nk_dot_u4x128_finalize_icelake(                                
 #endif
 #endif // NK_TARGET_ICELAKE
 #endif // NK_TARGET_X86_
+
+#if defined(__cplusplus)
+} // extern "C"
+#endif
 
 #endif // NK_DOT_ICELAKE_H

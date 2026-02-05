@@ -6,7 +6,7 @@
  *
  *  @sa include/numkong/dot.h
  *
- *  @section skylake_instructions Key AVX-512 Instructions
+ *  @section dot_skylake_instructions Key AVX-512 Instructions
  *
  *      Intrinsic                   Instruction                     Latency     Throughput  Ports
  *      _mm512_madd_epi16           VPMADDWD (ZMM, ZMM, ZMM)        5cy         0.5/cy      p05
@@ -17,9 +17,70 @@
  *  Skylake-X server chips feature dual 512-bit FMA units on ports 0 and 5, enabling 0.5cy throughput for
  *  VFMADD and arithmetic operations. Client Skylake variants have only one FMA unit with 1cy throughput.
  *  Without VNNI support, integer dot products use VPMADDWD for i16 pair multiplication with i32 accumulation.
+ *
+ *  @section dot_skylake_stateful Stateful Streaming Logic
+ *
+ *  To build memory-optimal tiled algorithms, this file defines following structures and force-inlined
+ *  `NK_INTERNAL` functions:
+ *
+ *  - nk_dot_f64x8 state with Dot2 stable dot-products,
+ *  - nk_dot_f32x8 state with double-precision numerics,
+ *  - nk_dot_through_f32 state for 16-bit float inputs with single-precision numerics.
+ *
+ *  @code{c}
+ *  nk_dot_f64x8_state_skylake_t state_first, state_second, state_third, state_fourth;
+ *  nk_b512_vec_t query_f64x8, target_first_f64x8, target_second_f64x8, target_third_f64x8, target_fourth_f64x8;
+ *  nk_dot_f64x8_init_skylake(&state_first);
+ *  nk_dot_f64x8_init_skylake(&state_second);
+ *  nk_dot_f64x8_init_skylake(&state_third);
+ *  nk_dot_f64x8_init_skylake(&state_fourth);
+ *  for (nk_size_t idx = 0; idx + 8 <= depth; idx += 8) {
+ *      query_f64x8.zmm_pd = _mm512_loadu_pd(query_ptr + idx);
+ *      target_first_f64x8.zmm_pd = _mm512_loadu_pd(target_first_ptr + idx);
+ *      target_second_f64x8.zmm_pd = _mm512_loadu_pd(target_second_ptr + idx);
+ *      target_third_f64x8.zmm_pd = _mm512_loadu_pd(target_third_ptr + idx);
+ *      target_fourth_f64x8.zmm_pd = _mm512_loadu_pd(target_fourth_ptr + idx);
+ *      nk_dot_f64x8_update_skylake(&state_first, query_f64x8, target_first_f64x8, idx, 8);
+ *      nk_dot_f64x8_update_skylake(&state_second, query_f64x8, target_second_f64x8, idx, 8);
+ *      nk_dot_f64x8_update_skylake(&state_third, query_f64x8, target_third_f64x8, idx, 8);
+ *      nk_dot_f64x8_update_skylake(&state_fourth, query_f64x8, target_fourth_f64x8, idx, 8);
+ *  }
+ *  nk_b256_vec_t results_f64x4;
+ *  nk_dot_f64x8_finalize_skylake(&state_first, &state_second, &state_third, &state_fourth, depth, &results_f64x4);
+ *  @endcode
+ *
+ *  Smaller float types like f16 and bf16 on Skylake use ISA-specific upcasting to f32 combined with native
+ *  FMA instructions, sharing the `nk_dot_through_f32` accumulation logic:
+ *
+ *  @code{c}
+ *  nk_dot_f16x16_state_skylake_t state_first, state_second, state_third, state_fourth;
+ *  nk_b512_vec_t query_f32x16, target_first_f32x16, target_second_f32x16, target_third_f32x16, target_fourth_f32x16;
+ *  nk_dot_through_f32_init_skylake_(&state_first);
+ *  nk_dot_through_f32_init_skylake_(&state_second);
+ *  nk_dot_through_f32_init_skylake_(&state_third);
+ *  nk_dot_through_f32_init_skylake_(&state_fourth);
+ *  for (nk_size_t idx = 0; idx + 16 <= depth; idx += 16) {
+ *      nk_load_f16x16_to_f32x16_skylake_(query_ptr + idx, &query_f32x16);
+ *      nk_load_f16x16_to_f32x16_skylake_(target_first_ptr + idx, &target_first_f32x16);
+ *      nk_load_f16x16_to_f32x16_skylake_(target_second_ptr + idx, &target_second_f32x16);
+ *      nk_load_f16x16_to_f32x16_skylake_(target_third_ptr + idx, &target_third_f32x16);
+ *      nk_load_f16x16_to_f32x16_skylake_(target_fourth_ptr + idx, &target_fourth_f32x16);
+ *      nk_dot_through_f32_update_skylake_(&state_first, query_f32x16, target_first_f32x16, idx, 16);
+ *      nk_dot_through_f32_update_skylake_(&state_second, query_f32x16, target_second_f32x16, idx, 16);
+ *      nk_dot_through_f32_update_skylake_(&state_third, query_f32x16, target_third_f32x16, idx, 16);
+ *      nk_dot_through_f32_update_skylake_(&state_fourth, query_f32x16, target_fourth_f32x16, idx, 16);
+ *  }
+ *  nk_b128_vec_t results_f32x4;
+ *  nk_dot_through_f32_finalize_skylake_(&state_first, &state_second, &state_third, &state_fourth,
+ *      depth, &results_f32x4);
+ *  @endcode
  */
 #ifndef NK_DOT_SKYLAKE_H
 #define NK_DOT_SKYLAKE_H
+
+#if defined(__cplusplus)
+extern "C" {
+#endif
 
 #if NK_TARGET_X86_
 #if NK_TARGET_SKYLAKE
@@ -34,9 +95,7 @@
 #include "numkong/cast/skylake.h"   // `nk_bf16x16_to_f32x16_skylake_`
 #include "numkong/reduce/skylake.h" // `nk_reduce_add_f32x16_skylake_`
 
-#if defined(__cplusplus)
-extern "C" {
-#endif
+#pragma region Traditional Floats
 
 /**
  *  @brief Internal helper state for dot-products of low-precision types, where 32-bit accumulation is enough.
@@ -391,6 +450,8 @@ nk_vdot_f64c_skylake_cycle:
     result->imag = _mm512_reduce_add_pd(_mm512_add_pd(sum_imag_f64x8, compensation_imag_f64x8));
 }
 
+#pragma region Smaller Floats
+
 NK_PUBLIC void nk_dot_f16_skylake(nk_f16_t const *a_scalars, nk_f16_t const *b_scalars, nk_size_t count_scalars,
                                   nk_f32_t *result) {
     __m256i a_f16x16, b_f16x16;
@@ -541,6 +602,10 @@ nk_dot_e3m2_skylake_cycle:
     *result = nk_reduce_add_f32x16_skylake_(sum_f32x16);
 }
 
+#pragma endregion Smaller Floats
+
+#pragma region Small Integers
+
 NK_PUBLIC void nk_dot_i8_skylake(nk_i8_t const *a_scalars, nk_i8_t const *b_scalars, nk_size_t count_scalars,
                                  nk_i32_t *result) {
     __m512i sum_i32x16 = _mm512_setzero_si512();
@@ -577,10 +642,10 @@ NK_PUBLIC void nk_dot_u8_skylake(nk_u8_t const *a_scalars, nk_u8_t const *b_scal
     *result = sum;
 }
 
-struct nk_dot_f64x8_state_skylake_t {
+typedef struct nk_dot_f64x8_state_skylake_t {
     __m512d sum_f64x8;
     __m512d compensation_f64x8;
-};
+} nk_dot_f64x8_state_skylake_t;
 
 NK_INTERNAL void nk_dot_f64x8_init_skylake(nk_dot_f64x8_state_skylake_t *state) {
     state->sum_f64x8 = _mm512_setzero_pd();
@@ -640,9 +705,9 @@ NK_INTERNAL void nk_dot_f64x8_finalize_skylake(                                 
     result->ymm_pd = _mm256_set_m128d(sum_cd_f64x2, sum_ab_f64x2);
 }
 
-struct nk_dot_f32x8_state_skylake_t {
+typedef struct nk_dot_f32x8_state_skylake_t {
     __m512d sum_f64x8;
-};
+} nk_dot_f32x8_state_skylake_t;
 
 NK_INTERNAL void nk_dot_f32x8_init_skylake(nk_dot_f32x8_state_skylake_t *state) {
     state->sum_f64x8 = _mm512_setzero_pd();
@@ -687,73 +752,13 @@ NK_INTERNAL void nk_dot_f32x8_finalize_skylake(                                 
     result->xmm = _mm_castps_si128(result_f32x4);
 }
 
-NK_INTERNAL void nk_load_f16x16_to_f32x16_skylake_(void const *src, nk_b512_vec_t *dst) {
-    dst->zmm_ps = _mm512_cvtph_ps(_mm256_loadu_si256((__m256i const *)src));
-}
-
-NK_INTERNAL void nk_partial_load_f16x16_to_f32x16_skylake_(void const *src, nk_b512_vec_t *dst, nk_size_t n) {
-    nk_b256_vec_t f16_partial;
-    nk_partial_load_b16x16_skylake_(src, &f16_partial, n);
-    dst->zmm_ps = _mm512_cvtph_ps(f16_partial.ymm);
-}
-
-NK_INTERNAL void nk_load_bf16x16_to_f32x16_skylake_(void const *src, nk_b512_vec_t *dst) {
-    dst->zmm_ps = nk_bf16x16_to_f32x16_skylake_(_mm256_loadu_si256((__m256i const *)src));
-}
-
-NK_INTERNAL void nk_partial_load_bf16x16_to_f32x16_skylake_(void const *src, nk_b512_vec_t *dst, nk_size_t n) {
-    nk_b256_vec_t bf16_partial;
-    nk_partial_load_b16x16_skylake_(src, &bf16_partial, n);
-    dst->zmm_ps = nk_bf16x16_to_f32x16_skylake_(bf16_partial.ymm);
-}
-
-NK_INTERNAL void nk_load_e4m3x16_to_f32x16_skylake_(void const *src, nk_b512_vec_t *dst) {
-    dst->zmm_ps = nk_e4m3x16_to_f32x16_skylake_(_mm_loadu_si128((__m128i const *)src));
-}
-
-NK_INTERNAL void nk_partial_load_e4m3x16_to_f32x16_skylake_(void const *src, nk_b512_vec_t *dst, nk_size_t n) {
-    nk_b128_vec_t e4m3_partial;
-    nk_partial_load_b8x16_skylake_(src, &e4m3_partial, n);
-    dst->zmm_ps = nk_e4m3x16_to_f32x16_skylake_(e4m3_partial.xmm);
-}
-
-NK_INTERNAL void nk_load_e5m2x16_to_f32x16_skylake_(void const *src, nk_b512_vec_t *dst) {
-    dst->zmm_ps = nk_e5m2x16_to_f32x16_skylake_(_mm_loadu_si128((__m128i const *)src));
-}
-
-NK_INTERNAL void nk_partial_load_e5m2x16_to_f32x16_skylake_(void const *src, nk_b512_vec_t *dst, nk_size_t n) {
-    nk_b128_vec_t e5m2_partial;
-    nk_partial_load_b8x16_skylake_(src, &e5m2_partial, n);
-    dst->zmm_ps = nk_e5m2x16_to_f32x16_skylake_(e5m2_partial.xmm);
-}
-
-NK_INTERNAL void nk_load_e2m3x16_to_f32x16_skylake_(void const *src, nk_b512_vec_t *dst) {
-    dst->zmm_ps = nk_e2m3x16_to_f32x16_skylake_(_mm_loadu_si128((__m128i const *)src));
-}
-
-NK_INTERNAL void nk_partial_load_e2m3x16_to_f32x16_skylake_(void const *src, nk_b512_vec_t *dst, nk_size_t n) {
-    nk_b128_vec_t e2m3_partial;
-    nk_partial_load_b8x16_skylake_(src, &e2m3_partial, n);
-    dst->zmm_ps = nk_e2m3x16_to_f32x16_skylake_(e2m3_partial.xmm);
-}
-
-NK_INTERNAL void nk_load_e3m2x16_to_f32x16_skylake_(void const *src, nk_b512_vec_t *dst) {
-    dst->zmm_ps = nk_e3m2x16_to_f32x16_skylake_(_mm_loadu_si128((__m128i const *)src));
-}
-
-NK_INTERNAL void nk_partial_load_e3m2x16_to_f32x16_skylake_(void const *src, nk_b512_vec_t *dst, nk_size_t n) {
-    nk_b128_vec_t e3m2_partial;
-    nk_partial_load_b8x16_skylake_(src, &e3m2_partial, n);
-    dst->zmm_ps = nk_e3m2x16_to_f32x16_skylake_(e3m2_partial.xmm);
-}
+#pragma endregion Traditional Floats
 
 typedef nk_dot_through_f32_state_skylake_t_ nk_dot_bf16x16_state_skylake_t;
 
 typedef nk_dot_through_f32_state_skylake_t_ nk_dot_f16x16_state_skylake_t;
 
-#if defined(__cplusplus)
-} // extern "C"
-#endif
+#pragma endregion Small Integers
 
 #if defined(__clang__)
 #pragma clang attribute pop
@@ -762,5 +767,9 @@ typedef nk_dot_through_f32_state_skylake_t_ nk_dot_f16x16_state_skylake_t;
 #endif
 #endif // NK_TARGET_SKYLAKE
 #endif // NK_TARGET_X86_
+
+#if defined(__cplusplus)
+} // extern "C"
+#endif
 
 #endif // NK_DOT_SKYLAKE_H
