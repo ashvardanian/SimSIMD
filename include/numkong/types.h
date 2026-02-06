@@ -112,7 +112,7 @@
 
 // Compiling for WASM: NK_TARGET_WASM_
 #if !defined(NK_TARGET_WASM_)
-#if defined(__v128relaxed__) || defined(__EMSCRIPTEN__)
+#if defined(__wasm__) || defined(__EMSCRIPTEN__)
 #define NK_TARGET_WASM_ 1
 #else
 #define NK_TARGET_WASM_ 0
@@ -511,9 +511,9 @@ typedef signed short nk_i16_t;
 typedef unsigned short nk_u16_t;
 typedef signed int nk_i32_t;
 typedef unsigned int nk_u32_t;
-// On ARM64 (LP64), both `long` and `long long` are 64-bit but distinct types.
-// Apple's NEON intrinsics expect `long long*`, while Linux ARM64 expects `long*`.
-#if NK_TARGET_ARM_ && !defined(NK_DEFINED_APPLE_)
+// On LP64 targets (Linux ARM64, RISC-V 64), `long` and `long long` are both 64-bit but distinct types.
+// NEON/RVV intrinsics on Linux expect `long*`, while Apple's NEON intrinsics expect `long long*`.
+#if (NK_TARGET_ARM_ && !defined(NK_DEFINED_APPLE_)) || NK_TARGET_RISCV_
 typedef signed long nk_i64_t;
 typedef unsigned long nk_u64_t;
 #else
