@@ -105,19 +105,18 @@ NK_INTERNAL nk_size_t nk_sme_tile_dimension_(void) __arm_streaming_compatible { 
  */
 NK_INTERNAL void nk_sme_zero_za32_(void) __arm_streaming __arm_inout("za") { svzero_za(); }
 
+/*
+ *  f16/bf16 → f32 GEMM using FMOPA/BFMOPA with ZA32 tiles.
+ *
+ *  Tile layout (SVL=512, Apple M4):
+ *  - ZA32 output tile: 16 × 16 f32 elements (1 KB)
+ *  - Input vectors: 32 f16/bf16 elements (SVL/16)
+ *  - Depth per FMOPA: 2 f16 pairs → 1 f32 (widening 2:1)
+ *  - FMOPA predicates: b16 (input granularity), not b32
+ *  - 4-tile path: ZA0-ZA3 process 4 column tiles simultaneously
+ */
 #pragma region Half-Precision Floats (f16, bf16)
 
-/*  `f16` packed buffer size calculation.
- *  Layout: header + ceiling tile counts with zero-padding for predicates.
- *
- *  SME `f16` tile dimensions:
- *  - Each `f16` vector has SVL/16 elements: 32 for 512-bit SVL
- *  - Each `ZA32` tile is SVL/32 × SVL/32: 16 × 16 for 512-bit SVL
- *  - We tile N in increments of SVL/32: 16 rows
- *  - We tile K in increments of SVL/16: 32 columns
- *
- *  Predicate-based approach: allocate ceiling tile counts, zero-pad partial tiles.
- */
 NK_PUBLIC nk_size_t nk_dots_packed_size_f16_sme(nk_size_t n, nk_size_t k) {
     nk_size_t const tile_dimension = svcntsw();  // rows per tile: number of `f32` elements
     nk_size_t const depth_tile_size = svcntsh(); // K elements per tile: number of `f16` elements
@@ -134,22 +133,11 @@ NK_PUBLIC nk_size_t nk_dots_packed_size_f16_sme(nk_size_t n, nk_size_t k) {
     return size;
 }
 
-/*  `bf16` packed buffer size calculation.
- */
 NK_PUBLIC nk_size_t nk_dots_packed_size_bf16_sme(nk_size_t n, nk_size_t k) {
     // Same dimensions as `f16` since both are 16-bit
     return nk_dots_packed_size_f16_sme(n, k);
 }
 
-/*  Pack `f16` B matrix for SME outer product access.
- *
- *  SME outer product: ZA[i,j] += A[i] × B[j]
- *  For GEMM C = A × Bᵀ, we need B stored column-major so that
- *  loading a column of B gives us the elements for one N output row.
- *
- *  Layout: tiles are stored in (column_tile, depth_tile) order with column-major
- *  element ordering within each tile. Partial tiles are zero-padded for predicates.
- */
 NK_PUBLIC void nk_dots_pack_f16_sme(             //
     nk_f16_t const *b, nk_size_t n, nk_size_t k, //
     nk_size_t b_stride, void *b_packed) {
@@ -201,9 +189,6 @@ NK_PUBLIC void nk_dots_pack_f16_sme(             //
     }
 }
 
-/*  Pack `bf16` B matrix for SME outer product access.
- *  Partial tiles are zero-padded for predicate-based edge handling.
- */
 NK_PUBLIC void nk_dots_pack_bf16_sme(             //
     nk_bf16_t const *b, nk_size_t n, nk_size_t k, //
     nk_size_t b_stride, void *b_packed) {
@@ -252,7 +237,8 @@ NK_PUBLIC void nk_dots_pack_bf16_sme(             //
     }
 }
 
-/*  `f16` → `f32` GEMM core kernel using SME outer products with predicate-based edge handling.
+/**
+ *  `f16` → `f32` GEMM core kernel using SME outer products with predicate-based edge handling.
  *
  *  Uses predicates for all tile processing, eliminating scalar edge handlers.
  *  Multi-tile optimization: Processes 4 column tiles simultaneously using ZA0-ZA3.
@@ -275,6 +261,8 @@ __arm_locally_streaming __arm_new("za") static void nk_dots_f16_kernel_( //
 
     svbool_t const predicate_half = svptrue_b16();
     svbool_t const predicate_single = svptrue_b32();
+    // FMOPA f16→f32 uses b16 predicates (input element granularity), not b32 (output granularity)
+    svbool_t const predicate_fmopa_full = svptrue_b16();
 
     nk_size_t const row_tile_index_count = (rows + tile_dimension - 1) / tile_dimension;
 
@@ -283,6 +271,8 @@ __arm_locally_streaming __arm_new("za") static void nk_dots_f16_kernel_( //
         nk_size_t const row_start = row_tile_index * tile_dimension;
         nk_size_t const rows_remaining = (row_start + tile_dimension <= rows) ? tile_dimension : (rows - row_start);
         svbool_t const predicate_valid_rows = svwhilelt_b32((uint32_t)0, (uint32_t)rows_remaining);
+        // FMOPA row predicate: b16 with 2x elements for widening operation
+        svbool_t const predicate_valid_rows_b16 = svwhilelt_b16((uint32_t)0, (uint32_t)(rows_remaining * 2));
 
         nk_size_t column_tile_index = 0;
 
@@ -321,11 +311,11 @@ __arm_locally_streaming __arm_new("za") static void nk_dots_f16_kernel_( //
                     svfloat16_t vector_b_tile_3 = svld1_f16(predicate_half,
                                                             (float16_t const *)(b_tile3 + row * depth_tile_size));
 
-                    // Outer products to all 4 ZA tiles (full tiles, no predication needed)
-                    svmopa_za32_f16_m(0, predicate_valid_rows, predicate_single, vector_a, vector_b_tile_0);
-                    svmopa_za32_f16_m(1, predicate_valid_rows, predicate_single, vector_a, vector_b_tile_1);
-                    svmopa_za32_f16_m(2, predicate_valid_rows, predicate_single, vector_a, vector_b_tile_2);
-                    svmopa_za32_f16_m(3, predicate_valid_rows, predicate_single, vector_a, vector_b_tile_3);
+                    // Outer products to all 4 ZA tiles (b16 predicates for f16→f32 widening)
+                    svmopa_za32_f16_m(0, predicate_valid_rows_b16, predicate_fmopa_full, vector_a, vector_b_tile_0);
+                    svmopa_za32_f16_m(1, predicate_valid_rows_b16, predicate_fmopa_full, vector_a, vector_b_tile_1);
+                    svmopa_za32_f16_m(2, predicate_valid_rows_b16, predicate_fmopa_full, vector_a, vector_b_tile_2);
+                    svmopa_za32_f16_m(3, predicate_valid_rows_b16, predicate_fmopa_full, vector_a, vector_b_tile_3);
                 }
             }
 
@@ -348,6 +338,8 @@ __arm_locally_streaming __arm_new("za") static void nk_dots_f16_kernel_( //
             nk_size_t const cols_remaining = (col_start + tile_dimension <= columns) ? tile_dimension
                                                                                      : (columns - col_start);
             svbool_t const predicate_valid_columns = svwhilelt_b32((uint32_t)0, (uint32_t)cols_remaining);
+            // FMOPA column predicate: b16 with 2x elements for widening operation
+            svbool_t const predicate_valid_columns_b16 = svwhilelt_b16((uint32_t)0, (uint32_t)(cols_remaining * 2));
 
             // Zero ZA tile 0
             svzero_za();
@@ -369,12 +361,12 @@ __arm_locally_streaming __arm_new("za") static void nk_dots_f16_kernel_( //
                     svfloat16_t vector_b = svld1_f16(predicate_half,
                                                      (float16_t const *)(b_tile + row * depth_tile_size));
 
-                    // Predicated outer product (only accumulates valid rows/cols)
-                    svmopa_za32_f16_m(0, predicate_valid_rows, predicate_valid_columns, vector_a, vector_b);
+                    // Predicated outer product (b16 predicates for f16→f32 widening)
+                    svmopa_za32_f16_m(0, predicate_valid_rows_b16, predicate_valid_columns_b16, vector_a, vector_b);
                 }
             }
 
-            // Predicated store to C
+            // Predicated store to C (b32 predicates for f32 output elements)
             for (nk_size_t row = 0; row < rows_remaining; row++) {
                 svst1_hor_za32(0, row, predicate_valid_columns, c + (row_start + row) * c_stride_elements + col_start);
             }
@@ -382,7 +374,8 @@ __arm_locally_streaming __arm_new("za") static void nk_dots_f16_kernel_( //
     }
 }
 
-/*  `bf16` → `f32` GEMM core kernel using SME outer products with predicate-based edge handling.
+/**
+ *  `bf16` → `f32` GEMM core kernel using SME outer products with predicate-based edge handling.
  *
  *  Uses predicates for all tile processing, eliminating scalar edge handlers.
  *  Multi-tile optimization: Processes 4 column tiles simultaneously using ZA0-ZA3.
@@ -404,6 +397,8 @@ __arm_locally_streaming __arm_new("za") static void nk_dots_bf16_kernel_( //
 
     svbool_t const predicate_half = svptrue_b16();
     svbool_t const predicate_single = svptrue_b32();
+    // BFMOPA bf16→f32 uses b16 predicates (input element granularity), not b32 (output granularity)
+    svbool_t const predicate_fmopa_full = svptrue_b16();
 
     nk_size_t const row_tile_index_count = (rows + tile_dimension - 1) / tile_dimension;
 
@@ -412,6 +407,8 @@ __arm_locally_streaming __arm_new("za") static void nk_dots_bf16_kernel_( //
         nk_size_t const row_start = row_tile_index * tile_dimension;
         nk_size_t const rows_remaining = (row_start + tile_dimension <= rows) ? tile_dimension : (rows - row_start);
         svbool_t const predicate_valid_rows = svwhilelt_b32((uint32_t)0, (uint32_t)rows_remaining);
+        // BFMOPA row predicate: b16 with 2x elements for widening operation
+        svbool_t const predicate_valid_rows_b16 = svwhilelt_b16((uint32_t)0, (uint32_t)(rows_remaining * 2));
 
         nk_size_t column_tile_index = 0;
 
@@ -450,11 +447,11 @@ __arm_locally_streaming __arm_new("za") static void nk_dots_bf16_kernel_( //
                     svbfloat16_t vector_b_tile_3 = svld1_bf16(predicate_half,
                                                               (bfloat16_t const *)(b_tile3 + row * depth_tile_size));
 
-                    // Outer products to all 4 ZA tiles
-                    svmopa_za32_bf16_m(0, predicate_valid_rows, predicate_single, vector_a, vector_b_tile_0);
-                    svmopa_za32_bf16_m(1, predicate_valid_rows, predicate_single, vector_a, vector_b_tile_1);
-                    svmopa_za32_bf16_m(2, predicate_valid_rows, predicate_single, vector_a, vector_b_tile_2);
-                    svmopa_za32_bf16_m(3, predicate_valid_rows, predicate_single, vector_a, vector_b_tile_3);
+                    // Outer products to all 4 ZA tiles (b16 predicates for bf16→f32 widening)
+                    svmopa_za32_bf16_m(0, predicate_valid_rows_b16, predicate_fmopa_full, vector_a, vector_b_tile_0);
+                    svmopa_za32_bf16_m(1, predicate_valid_rows_b16, predicate_fmopa_full, vector_a, vector_b_tile_1);
+                    svmopa_za32_bf16_m(2, predicate_valid_rows_b16, predicate_fmopa_full, vector_a, vector_b_tile_2);
+                    svmopa_za32_bf16_m(3, predicate_valid_rows_b16, predicate_fmopa_full, vector_a, vector_b_tile_3);
                 }
             }
 
@@ -477,6 +474,8 @@ __arm_locally_streaming __arm_new("za") static void nk_dots_bf16_kernel_( //
             nk_size_t const cols_remaining = (col_start + tile_dimension <= columns) ? tile_dimension
                                                                                      : (columns - col_start);
             svbool_t const predicate_valid_columns = svwhilelt_b32((uint32_t)0, (uint32_t)cols_remaining);
+            // BFMOPA column predicate: b16 with 2x elements for widening operation
+            svbool_t const predicate_valid_columns_b16 = svwhilelt_b16((uint32_t)0, (uint32_t)(cols_remaining * 2));
 
             // Zero ZA tile 0
             svzero_za();
@@ -498,12 +497,12 @@ __arm_locally_streaming __arm_new("za") static void nk_dots_bf16_kernel_( //
                     svbfloat16_t vector_b = svld1_bf16(predicate_half,
                                                        (bfloat16_t const *)(b_tile + row * depth_tile_size));
 
-                    // Predicated outer product
-                    svmopa_za32_bf16_m(0, predicate_valid_rows, predicate_valid_columns, vector_a, vector_b);
+                    // Predicated outer product (b16 predicates for bf16→f32 widening)
+                    svmopa_za32_bf16_m(0, predicate_valid_rows_b16, predicate_valid_columns_b16, vector_a, vector_b);
                 }
             }
 
-            // Predicated store to C
+            // Predicated store to C (b32 predicates for f32 output elements)
             for (nk_size_t row = 0; row < rows_remaining; row++) {
                 svst1_hor_za32(0, row, predicate_valid_columns, c + (row_start + row) * c_stride_elements + col_start);
             }
@@ -511,18 +510,6 @@ __arm_locally_streaming __arm_new("za") static void nk_dots_bf16_kernel_( //
     }
 }
 
-/*  `f16` → `f32` GEMM public interface.
- *  Predicate-based edge handling eliminates scalar fallbacks.
- *
- *  @param a         Input matrix A (rows × depth), row-major
- *  @param b_packed  Pre-packed B matrix from `nk_dots_pack_f16_sme`
- *  @param c         Output matrix C (rows × columns), row-major
- *  @param rows      Number of rows in A and C (M dimension)
- *  @param columns   Number of columns in C (N dimension)
- *  @param depth     Shared dimension (K dimension)
- *  @param a_stride  Byte stride between rows of A
- *  @param c_stride  Byte stride between rows of C
- */
 NK_PUBLIC void nk_dots_packed_f16_sme(                    //
     nk_f16_t const *a, void const *b_packed, nk_f32_t *c, //
     nk_size_t rows, nk_size_t columns, nk_size_t depth,   //
@@ -550,9 +537,7 @@ NK_PUBLIC void nk_dots_packed_bf16_sme(                    //
 
 #pragma endregion
 
-#pragma region Signed 8-bit Integers (i8)
-
-/**
+/*
  *  `i8` × `i8` → `i32` GEMM using SME outer products.
  *
  *  Uses `svmopa_za32_s8_m` for signed 8-bit integer outer product accumulate.
@@ -566,17 +551,8 @@ NK_PUBLIC void nk_dots_packed_bf16_sme(                    //
  *  Expected performance: ~2 TOPS (4× `f16` due to 4:1 element packing)
  */
 
-/*  `i8` packed buffer size calculation.
- *
- *  For `i8` → `i32` outer product:
- *  - Each `i8` vector has SVL/8 elements: 64 for 512-bit SVL
- *  - Each `ZA32` tile is SVL/32 × SVL/32: 16 × 16 for 512-bit SVL
- *  - `SMOPA` computes: for each 4 `i8` pairs, produce 1 `i32` output
- *  - We tile N in increments of 16 rows: output tile dimension
- *  - We tile K in increments of 64 columns: input vector width
- *
- *  Predicate-based approach: allocate ceiling tile counts, zero-pad partial tiles.
- */
+#pragma region Signed 8-bit Integers (i8)
+
 NK_PUBLIC nk_size_t nk_dots_packed_size_i8_sme(nk_size_t n, nk_size_t k) {
     nk_size_t const tile_dimension = svcntsw();  // rows per ZA32 tile: number of `i32` elements
     nk_size_t const depth_tile_size = svcntsb(); // K elements per tile: number of `i8` elements
@@ -593,9 +569,6 @@ NK_PUBLIC nk_size_t nk_dots_packed_size_i8_sme(nk_size_t n, nk_size_t k) {
     return size;
 }
 
-/*  Pack `i8` B matrix for SME outer product access.
- *  Partial tiles are zero-padded for predicate-based edge handling.
- */
 NK_PUBLIC void nk_dots_pack_i8_sme(             //
     nk_i8_t const *b, nk_size_t n, nk_size_t k, //
     nk_size_t b_stride, void *b_packed) {
@@ -647,7 +620,8 @@ NK_PUBLIC void nk_dots_pack_i8_sme(             //
     }
 }
 
-/*  `i8` × `i8` → `i32` GEMM core kernel using SME outer products with predicate-based edge handling.
+/**
+ *  `i8` × `i8` → `i32` GEMM core kernel using SME outer products with predicate-based edge handling.
  *
  *  Uses `svmopa_za32_s8_m` for signed `i8` × `i8` → `i32` outer product accumulate.
  *  Each `SMOPA` instruction processes:
@@ -674,6 +648,8 @@ __arm_locally_streaming __arm_new("za") static void nk_dots_i8_kernel_( //
 
     svbool_t const predicate_byte = svptrue_b8();
     svbool_t const predicate_single = svptrue_b32();
+    // SMOPA i8→i32 uses b8 predicates (input element granularity), not b32 (output granularity)
+    svbool_t const predicate_smopa_full = svptrue_b8();
 
     nk_size_t const row_tile_index_count = (rows + tile_dimension - 1) / tile_dimension;
 
@@ -682,6 +658,8 @@ __arm_locally_streaming __arm_new("za") static void nk_dots_i8_kernel_( //
         nk_size_t const row_start = row_tile_index * tile_dimension;
         nk_size_t const rows_remaining = (row_start + tile_dimension <= rows) ? tile_dimension : (rows - row_start);
         svbool_t const predicate_valid_rows = svwhilelt_b32((uint32_t)0, (uint32_t)rows_remaining);
+        // SMOPA row predicate: b8 with 4x elements for widening operation
+        svbool_t const predicate_valid_rows_b8 = svwhilelt_b8((uint32_t)0, (uint32_t)(rows_remaining * 4));
 
         nk_size_t column_tile_index = 0;
 
@@ -710,10 +688,11 @@ __arm_locally_streaming __arm_new("za") static void nk_dots_i8_kernel_( //
                     svint8_t vector_b_tile_2 = svld1_s8(predicate_byte, b_tile2 + row * depth_tile_size);
                     svint8_t vector_b_tile_3 = svld1_s8(predicate_byte, b_tile3 + row * depth_tile_size);
 
-                    svmopa_za32_s8_m(0, predicate_valid_rows, predicate_single, vector_a, vector_b_tile_0);
-                    svmopa_za32_s8_m(1, predicate_valid_rows, predicate_single, vector_a, vector_b_tile_1);
-                    svmopa_za32_s8_m(2, predicate_valid_rows, predicate_single, vector_a, vector_b_tile_2);
-                    svmopa_za32_s8_m(3, predicate_valid_rows, predicate_single, vector_a, vector_b_tile_3);
+                    // Outer products (b8 predicates for i8→i32 widening)
+                    svmopa_za32_s8_m(0, predicate_valid_rows_b8, predicate_smopa_full, vector_a, vector_b_tile_0);
+                    svmopa_za32_s8_m(1, predicate_valid_rows_b8, predicate_smopa_full, vector_a, vector_b_tile_1);
+                    svmopa_za32_s8_m(2, predicate_valid_rows_b8, predicate_smopa_full, vector_a, vector_b_tile_2);
+                    svmopa_za32_s8_m(3, predicate_valid_rows_b8, predicate_smopa_full, vector_a, vector_b_tile_3);
                 }
             }
 
@@ -735,6 +714,8 @@ __arm_locally_streaming __arm_new("za") static void nk_dots_i8_kernel_( //
             nk_size_t const cols_remaining = (col_start + tile_dimension <= columns) ? tile_dimension
                                                                                      : (columns - col_start);
             svbool_t const predicate_valid_columns = svwhilelt_b32((uint32_t)0, (uint32_t)cols_remaining);
+            // SMOPA column predicate: b8 with 4x elements for widening operation
+            svbool_t const predicate_valid_columns_b8 = svwhilelt_b8((uint32_t)0, (uint32_t)(cols_remaining * 4));
 
             svzero_za();
 
@@ -748,10 +729,12 @@ __arm_locally_streaming __arm_new("za") static void nk_dots_i8_kernel_( //
                     nk_i8_t const *pointer_a = a + (row_start + row) * a_stride_elements + depth_offset;
                     svint8_t vector_a = svld1_s8(predicate_byte, pointer_a);
                     svint8_t vector_b = svld1_s8(predicate_byte, b_tile + row * depth_tile_size);
-                    svmopa_za32_s8_m(0, predicate_valid_rows, predicate_valid_columns, vector_a, vector_b);
+                    // Predicated outer product (b8 predicates for i8→i32 widening)
+                    svmopa_za32_s8_m(0, predicate_valid_rows_b8, predicate_valid_columns_b8, vector_a, vector_b);
                 }
             }
 
+            // Predicated store to C (b32 predicates for i32 output elements)
             for (nk_size_t row = 0; row < rows_remaining; row++) {
                 svst1_hor_za32(0, row, predicate_valid_columns, c + (row_start + row) * c_stride_elements + col_start);
             }
@@ -759,18 +742,6 @@ __arm_locally_streaming __arm_new("za") static void nk_dots_i8_kernel_( //
     }
 }
 
-/*  `i8` × `i8` → `i32` GEMM public interface.
- *  Predicate-based edge handling eliminates scalar fallbacks.
- *
- *  @param a         Input matrix A (rows × depth), row-major, `i8`
- *  @param b_packed  Pre-packed B matrix from `nk_dots_pack_i8_sme`
- *  @param c         Output matrix C (rows × columns), row-major, `i32`
- *  @param rows      Number of rows in A and C (M dimension)
- *  @param columns   Number of columns in C (N dimension)
- *  @param depth     Shared dimension (K dimension)
- *  @param a_stride  Byte stride between rows of A
- *  @param c_stride  Byte stride between rows of C
- */
 NK_PUBLIC void nk_dots_packed_i8_sme(                    //
     nk_i8_t const *a, void const *b_packed, nk_i32_t *c, //
     nk_size_t rows, nk_size_t columns, nk_size_t depth,  //
@@ -784,9 +755,19 @@ NK_PUBLIC void nk_dots_packed_i8_sme(                    //
 
 #pragma endregion
 
+/*
+ *  e4m3 × e4m3 → f32 GEMM using inline SSVE conversion + FMOPA.
+ *
+ *  Pipeline: e4m3 bytes → svunpklo → arithmetic → f16 → FMOPA → f32
+ *  - Load: 64 bytes via svld1_u8, convert lower 32 to f16 inline
+ *  - Accumulate: FMOPA f16→f32 into ZA32 tiles
+ *  - No memory round-trip for format conversion
+ *  - FMOPA predicates: b16 (f16 input granularity)
+ */
 #pragma region FP8 E4M3 (e4m3)
 
-/*  Inline `e4m3` → `f16` conversion returning `svfloat16_t` for direct use in GEMM.
+/**
+ *  Inline `e4m3` → `f16` conversion returning `svfloat16_t` for direct use in GEMM.
  *  This avoids memory round-trip when used inside a streaming kernel.
  *
  *  @param pg16   Predicate for 16-bit elements: use `svptrue_b16()`
@@ -820,7 +801,8 @@ NK_INTERNAL svfloat16_t nk_e4m3x_to_f16x_ssve_(svbool_t pg16, svuint8_t bytes) {
     return svreinterpret_f16_u16(result);
 }
 
-/*  Inline `e5m2` → `f16` conversion returning `svfloat16_t` for direct use in GEMM.
+/**
+ *  Inline `e5m2` → `f16` conversion returning `svfloat16_t` for direct use in GEMM.
  *  This avoids memory round-trip when used inside a streaming kernel.
  *
  *  E5M2 format: S EEEEE MM (1+5+2 bits, bias=15, range [-57344, 57344])
@@ -875,7 +857,8 @@ NK_INTERNAL svfloat16_t nk_e5m2x_to_f16x_ssve_(svbool_t pg16, svuint8_t bytes) {
     return svreinterpret_f16_u16(result);
 }
 
-/*  Fused `e4m3` × `e4m3` → `f32` GEMM kernel with predicate-based edge handling.
+/**
+ *  Fused `e4m3` × `e4m3` → `f32` GEMM kernel with predicate-based edge handling.
  *
  *  Uses predicates for all tile processing, eliminating scalar edge handlers.
  *  Converts `e4m3` → `f16` inline using SSVE arithmetic operations.
@@ -905,12 +888,16 @@ __arm_locally_streaming __arm_new("za") __attribute__((noinline)) static void nk
         nk_size_t const row_start = row_tile_index * tile_dimension;
         nk_size_t const rows_remaining = (row_start + tile_dimension <= rows) ? tile_dimension : (rows - row_start);
         svbool_t const predicate_valid_rows = svwhilelt_b32((uint32_t)0, (uint32_t)rows_remaining);
+        // FMOPA row predicate: b16 with 2x elements for widening operation
+        svbool_t const predicate_valid_rows_b16 = svwhilelt_b16((uint32_t)0, (uint32_t)(rows_remaining * 2));
 
         for (nk_size_t column_tile_index = 0; column_tile_index < column_tile_count; column_tile_index++) {
             nk_size_t const col_start = column_tile_index * tile_dimension;
             nk_size_t const cols_remaining = (col_start + tile_dimension <= columns) ? tile_dimension
                                                                                      : (columns - col_start);
             svbool_t const predicate_valid_columns = svwhilelt_b32((uint32_t)0, (uint32_t)cols_remaining);
+            // FMOPA column predicate: b16 with 2x elements for widening operation
+            svbool_t const predicate_valid_columns_b16 = svwhilelt_b16((uint32_t)0, (uint32_t)(cols_remaining * 2));
 
             // Zero ZA tile 0
             svzero_za();
@@ -929,11 +916,12 @@ __arm_locally_streaming __arm_new("za") __attribute__((noinline)) static void nk
                     svfloat16_t vector_a = nk_e4m3x_to_f16x_ssve_(predicate_half, a_bytes);
                     svfloat16_t vector_b = svld1_f16(predicate_half,
                                                      (float16_t const *)(b_tile + row * depth_tile_size));
-                    svmopa_za32_f16_m(0, predicate_valid_rows, predicate_valid_columns, vector_a, vector_b);
+                    // Predicated outer product (b16 predicates for f16→f32 widening)
+                    svmopa_za32_f16_m(0, predicate_valid_rows_b16, predicate_valid_columns_b16, vector_a, vector_b);
                 }
             }
 
-            // Predicated store to C
+            // Predicated store to C (b32 predicates for f32 output elements)
             for (nk_size_t row = 0; row < rows_remaining; row++) {
                 svst1_hor_za32(0, row, predicate_valid_columns, c + (row_start + row) * c_stride_elements + col_start);
             }
@@ -946,9 +934,6 @@ NK_PUBLIC nk_size_t nk_dots_packed_size_e4m3_sme(nk_size_t n, nk_size_t k) {
     return nk_dots_packed_size_f16_sme(n, k);
 }
 
-/*  Pack `e4m3` B matrix for SME with conversion to `f16`.
- *  Partial tiles are zero-padded for predicate-based edge handling.
- */
 NK_PUBLIC void nk_dots_pack_e4m3_sme(             //
     nk_e4m3_t const *b, nk_size_t n, nk_size_t k, //
     nk_size_t b_stride, void *b_packed) {
@@ -998,16 +983,6 @@ NK_PUBLIC void nk_dots_pack_e4m3_sme(             //
     }
 }
 
-/*  `e4m3` × `e4m3` → `f32` GEMM: fused kernel with SSVE inline `e4m3` → `f16` conversion.
- *
- *  Uses a fully fused kernel that converts `e4m3` → `f16` inline in streaming mode,
- *  eliminating buffer allocation and `SMSTART`/`SMSTOP` overhead for the tile-aligned
- *  portion. Falls back to NEON conversion for edge cases.
- *
- *  @param a         Input matrix A (M × K), row-major, `e4m3`
- *  @param b_packed  Pre-packed B matrix from `nk_dots_pack_e4m3_sme`: contains `f16`
- *  @param c         Output matrix C (M × N), row-major, `f32`
- */
 NK_PUBLIC void nk_dots_packed_e4m3_sme(                    //
     nk_e4m3_t const *a, void const *b_packed, nk_f32_t *c, //
     nk_size_t rows, nk_size_t columns, nk_size_t depth,    //
@@ -1021,9 +996,18 @@ NK_PUBLIC void nk_dots_packed_e4m3_sme(                    //
 
 #pragma endregion
 
+/*
+ *  e5m2 × e5m2 → f32 GEMM using inline SSVE conversion + FMOPA.
+ *
+ *  Pipeline: e5m2 bytes → svunpklo → arithmetic → f16 → FMOPA → f32
+ *  - Same tile layout as e4m3 (both convert to f16 before FMOPA)
+ *  - E5M2 shares F16 exponent bias (15), so normal conversion is a shift
+ *  - Handles infinity (mag=0x7C) and NaN (mag>0x7C)
+ */
 #pragma region FP8 E5M2 (e5m2)
 
-/*  Fused `e5m2` × `e5m2` → `f32` GEMM kernel using SSVE inline conversion.
+/**
+ *  Fused `e5m2` × `e5m2` → `f32` GEMM kernel using SSVE inline conversion.
  *
  *  This kernel stays entirely in streaming mode, converting `e5m2` → `f16` inline
  *  using arithmetic operations. Uses predicate-based edge handling.
@@ -1053,12 +1037,16 @@ __arm_locally_streaming __arm_new("za") __attribute__((noinline)) static void nk
         nk_size_t const row_start = row_tile_index * tile_dimension;
         nk_size_t const rows_remaining = (row_start + tile_dimension <= rows) ? tile_dimension : (rows - row_start);
         svbool_t const predicate_valid_rows = svwhilelt_b32((uint32_t)0, (uint32_t)rows_remaining);
+        // FMOPA row predicate: b16 with 2x elements for widening operation
+        svbool_t const predicate_valid_rows_b16 = svwhilelt_b16((uint32_t)0, (uint32_t)(rows_remaining * 2));
 
         for (nk_size_t column_tile_index = 0; column_tile_index < column_tile_count; column_tile_index++) {
             nk_size_t const col_start = column_tile_index * tile_dimension;
             nk_size_t const cols_remaining = (col_start + tile_dimension <= columns) ? tile_dimension
                                                                                      : (columns - col_start);
             svbool_t const predicate_valid_columns = svwhilelt_b32((uint32_t)0, (uint32_t)cols_remaining);
+            // FMOPA column predicate: b16 with 2x elements for widening operation
+            svbool_t const predicate_valid_columns_b16 = svwhilelt_b16((uint32_t)0, (uint32_t)(cols_remaining * 2));
 
             // Zero ZA tile 0
             svzero_za();
@@ -1077,11 +1065,12 @@ __arm_locally_streaming __arm_new("za") __attribute__((noinline)) static void nk
                     svfloat16_t vector_a = nk_e5m2x_to_f16x_ssve_(predicate_half, a_bytes);
                     svfloat16_t vector_b = svld1_f16(predicate_half,
                                                      (float16_t const *)(b_tile + row * depth_tile_size));
-                    svmopa_za32_f16_m(0, predicate_valid_rows, predicate_valid_columns, vector_a, vector_b);
+                    // Predicated outer product (b16 predicates for f16→f32 widening)
+                    svmopa_za32_f16_m(0, predicate_valid_rows_b16, predicate_valid_columns_b16, vector_a, vector_b);
                 }
             }
 
-            // Predicated store to C
+            // Predicated store to C (b32 predicates for f32 output elements)
             for (nk_size_t row = 0; row < rows_remaining; row++) {
                 svst1_hor_za32(0, row, predicate_valid_columns, c + (row_start + row) * c_stride_elements + col_start);
             }
@@ -1089,13 +1078,8 @@ __arm_locally_streaming __arm_new("za") __attribute__((noinline)) static void nk
     }
 }
 
-/*  `e5m2` × `e5m2` → `f32` GEMM: packed size calculation.
- */
 NK_PUBLIC nk_size_t nk_dots_packed_size_e5m2_sme(nk_size_t n, nk_size_t k) { return nk_dots_packed_size_f16_sme(n, k); }
 
-/*  Pack `e5m2` matrix B with conversion to `f16` for SME GEMM.
- *  Partial tiles are zero-padded for predicate-based edge handling.
- */
 NK_PUBLIC void nk_dots_pack_e5m2_sme(nk_e5m2_t const *b, nk_size_t n, nk_size_t k, nk_size_t b_stride, void *b_packed) {
 
     nk_size_t const svl_bytes = svcntsw() * sizeof(nk_f32_t);
@@ -1230,7 +1214,8 @@ NK_PUBLIC void nk_dots_pack_u8_sme(             //
     }
 }
 
-/*  `u8` × `u8` → `u32` GEMM kernel with predicate-based edge handling.
+/**
+ * `u8` × `u8` → `u32` GEMM kernel with predicate-based edge handling.
  *  Multi-tile optimization: Processes 4 column tiles simultaneously using ZA0-ZA3.
  */
 __arm_locally_streaming __arm_new("za") static void nk_dots_u8_kernel_( //
@@ -1250,6 +1235,8 @@ __arm_locally_streaming __arm_new("za") static void nk_dots_u8_kernel_( //
 
     svbool_t const predicate_byte = svptrue_b8();
     svbool_t const predicate_single = svptrue_b32();
+    // UMOPA u8→u32 uses b8 predicates (input element granularity), not b32 (output granularity)
+    svbool_t const predicate_umopa_full = svptrue_b8();
 
     nk_size_t const row_tile_index_count = (rows + tile_dimension - 1) / tile_dimension;
 
@@ -1257,6 +1244,8 @@ __arm_locally_streaming __arm_new("za") static void nk_dots_u8_kernel_( //
         nk_size_t const row_start = row_tile_index * tile_dimension;
         nk_size_t const rows_remaining = (row_start + tile_dimension <= rows) ? tile_dimension : (rows - row_start);
         svbool_t const predicate_valid_rows = svwhilelt_b32((uint32_t)0, (uint32_t)rows_remaining);
+        // UMOPA row predicate: b8 with 4x elements for widening operation
+        svbool_t const predicate_valid_rows_b8 = svwhilelt_b8((uint32_t)0, (uint32_t)(rows_remaining * 4));
 
         nk_size_t column_tile_index = 0;
 
@@ -1290,10 +1279,11 @@ __arm_locally_streaming __arm_new("za") static void nk_dots_u8_kernel_( //
                     svuint8_t vector_b_tile_2 = svld1_u8(predicate_byte, b_tile2 + row * depth_tile_size);
                     svuint8_t vector_b_tile_3 = svld1_u8(predicate_byte, b_tile3 + row * depth_tile_size);
 
-                    svmopa_za32_u8_m(0, predicate_valid_rows, predicate_single, vector_a, vector_b_tile_0);
-                    svmopa_za32_u8_m(1, predicate_valid_rows, predicate_single, vector_a, vector_b_tile_1);
-                    svmopa_za32_u8_m(2, predicate_valid_rows, predicate_single, vector_a, vector_b_tile_2);
-                    svmopa_za32_u8_m(3, predicate_valid_rows, predicate_single, vector_a, vector_b_tile_3);
+                    // Outer products (b8 predicates for u8→u32 widening)
+                    svmopa_za32_u8_m(0, predicate_valid_rows_b8, predicate_umopa_full, vector_a, vector_b_tile_0);
+                    svmopa_za32_u8_m(1, predicate_valid_rows_b8, predicate_umopa_full, vector_a, vector_b_tile_1);
+                    svmopa_za32_u8_m(2, predicate_valid_rows_b8, predicate_umopa_full, vector_a, vector_b_tile_2);
+                    svmopa_za32_u8_m(3, predicate_valid_rows_b8, predicate_umopa_full, vector_a, vector_b_tile_3);
                 }
             }
 
@@ -1319,6 +1309,8 @@ __arm_locally_streaming __arm_new("za") static void nk_dots_u8_kernel_( //
             nk_size_t const cols_remaining = (col_start + tile_dimension <= columns) ? tile_dimension
                                                                                      : (columns - col_start);
             svbool_t const predicate_valid_columns = svwhilelt_b32((uint32_t)0, (uint32_t)cols_remaining);
+            // UMOPA column predicate: b8 with 4x elements for widening operation
+            svbool_t const predicate_valid_columns_b8 = svwhilelt_b8((uint32_t)0, (uint32_t)(cols_remaining * 4));
 
             svzero_za();
 
@@ -1337,10 +1329,12 @@ __arm_locally_streaming __arm_new("za") static void nk_dots_u8_kernel_( //
                     svbool_t const pred_k = svwhilelt_b8((uint32_t)0, (uint32_t)depth_remaining);
                     svuint8_t vector_a = svld1_u8(pred_k, pointer_a);
                     svuint8_t vector_b = svld1_u8(predicate_byte, b_tile + row * depth_tile_size);
-                    svmopa_za32_u8_m(0, predicate_valid_rows, predicate_valid_columns, vector_a, vector_b);
+                    // Predicated outer product (b8 predicates for u8→u32 widening)
+                    svmopa_za32_u8_m(0, predicate_valid_rows_b8, predicate_valid_columns_b8, vector_a, vector_b);
                 }
             }
 
+            // Predicated store to C (b32 predicates for u32 output elements)
             for (nk_size_t row = 0; row < rows_remaining; row++) {
                 svst1_hor_za32(0, row, predicate_valid_columns,
                                (nk_i32_t *)(c + (row_start + row) * c_stride_elements + col_start));
@@ -1349,9 +1343,6 @@ __arm_locally_streaming __arm_new("za") static void nk_dots_u8_kernel_( //
     }
 }
 
-/*  `u8` × `u8` → `u32` GEMM: public interface.
- *  Predicate-based edge handling eliminates scalar fallbacks.
- */
 NK_PUBLIC void nk_dots_packed_u8_sme(                    //
     nk_u8_t const *a, void const *b_packed, nk_u32_t *c, //
     nk_size_t rows, nk_size_t columns, nk_size_t depth,  //
@@ -1365,14 +1356,20 @@ NK_PUBLIC void nk_dots_packed_u8_sme(                    //
 
 #pragma endregion
 
+/*
+ *  Symmetric pairwise dot products using streaming SVE.
+ *
+ *  Computes upper triangle of C[i,j] = dot(vectors[i], vectors[j]).
+ *  Uses streaming mode for wider SVE vectors (512-bit on M4).
+ *  Each kernel uses type-appropriate accumulation:
+ *  - f16: f32 accumulation via svcvt_f32_f16 + svadd
+ *  - bf16: f32 accumulation via svbfdot_f32
+ *  - i8/u8: i32/u32 accumulation via svdot_s32/svdot_u32
+ */
 #pragma region Symmetric GEMM
 
 /**
- *  Symmetric GEMM-like computations using SME.
- *  Computes C[i,j] = dot(vectors[i], vectors[j]) for all pairs.
- */
-
-/*  `f16` × `f16` → `f32` symmetric kernel using streaming SVE.
+ *   `f16` × `f16` → `f32` symmetric kernel using streaming SVE.
  */
 __arm_locally_streaming static void nk_dots_symmetric_f16_sme_kernel_(nk_f16_t const *vectors, nk_size_t n_vectors,
                                                                       nk_size_t depth, nk_size_t stride_elements,
@@ -1428,7 +1425,8 @@ NK_PUBLIC void nk_dots_symmetric_f16_sme(nk_f16_t const *vectors, nk_size_t n_ve
                                       row_start, row_count);
 }
 
-/*  `bf16` × `bf16` → `f32` symmetric kernel using streaming SVE.
+/**
+ * `bf16` × `bf16` → `f32` symmetric kernel using streaming SVE.
  */
 __arm_locally_streaming static void nk_dots_symmetric_bf16_sme_kernel_(nk_bf16_t const *vectors, nk_size_t n_vectors,
                                                                        nk_size_t depth, nk_size_t stride_elements,
@@ -1530,7 +1528,8 @@ NK_PUBLIC void nk_dots_symmetric_i8_sme(nk_i8_t const *vectors, nk_size_t n_vect
                                      row_start, row_count);
 }
 
-/*  `u8` × `u8` → `u32` symmetric kernel using streaming SVE.
+/**
+ * `u8` × `u8` → `u32` symmetric kernel using streaming SVE.
  *  Uses predicated vector loads and `svdot_u32` for vectorized dot product.
  */
 __arm_locally_streaming static void nk_dots_symmetric_u8_sme_kernel_(nk_u8_t const *vectors, nk_size_t n_vectors,
@@ -1579,7 +1578,8 @@ NK_PUBLIC void nk_dots_symmetric_u8_sme(nk_u8_t const *vectors, nk_size_t n_vect
                                      row_start, row_count);
 }
 
-/*  `e4m3` × `e4m3` → `f32` symmetric kernel using streaming SVE.
+/**
+ * `e4m3` × `e4m3` → `f32` symmetric kernel using streaming SVE.
  *  Uses inline e4m3 → f16 conversion.
  */
 __arm_locally_streaming static void nk_dots_symmetric_e4m3_sme_kernel_(nk_e4m3_t const *vectors, nk_size_t n_vectors,
@@ -1640,7 +1640,8 @@ NK_PUBLIC void nk_dots_symmetric_e4m3_sme(nk_e4m3_t const *vectors, nk_size_t n_
                                        row_start, row_count);
 }
 
-/*  `e5m2` × `e5m2` → `f32` symmetric kernel using streaming SVE.
+/**
+ * `e5m2` × `e5m2` → `f32` symmetric kernel using streaming SVE.
  *  Uses inline e5m2 → f16 conversion.
  */
 __arm_locally_streaming static void nk_dots_symmetric_e5m2_sme_kernel_(nk_e5m2_t const *vectors, nk_size_t n_vectors,
@@ -1700,7 +1701,8 @@ NK_PUBLIC void nk_dots_symmetric_e5m2_sme(nk_e5m2_t const *vectors, nk_size_t n_
                                        row_start, row_count);
 }
 
-/*  `u4` × `u4` → `u32` symmetric kernel using streaming SVE.
+/**
+ * `u4` × `u4` → `u32` symmetric kernel using streaming SVE.
  *  Unpacks 4-bit values to 8-bit, then uses vectorized dot product.
  */
 __arm_locally_streaming static void nk_dots_symmetric_u4_sme_kernel_(nk_u4x2_t const *vectors, nk_size_t n_vectors,
@@ -1771,7 +1773,8 @@ NK_PUBLIC void nk_dots_symmetric_u4_sme(nk_u4x2_t const *vectors, nk_size_t n_ve
                                      row_start, row_count);
 }
 
-/*  `i4` × `i4` → `i32` symmetric kernel using streaming SVE.
+/**
+ * `i4` × `i4` → `i32` symmetric kernel using streaming SVE.
  *  Unpacks 4-bit values to 8-bit with sign extension, then uses vectorized dot product.
  */
 __arm_locally_streaming static void nk_dots_symmetric_i4_sme_kernel_(nk_i4x2_t const *vectors, nk_size_t n_vectors,
