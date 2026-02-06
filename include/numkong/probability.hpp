@@ -1,0 +1,88 @@
+/**
+ *  @brief C++ wrappers for SIMD-accelerated Similarity Measures for Probability Distributions.
+ *  @file include/numkong/probability.hpp
+ *  @author Ash Vardanian
+ *  @date February 5, 2026
+ */
+#ifndef NK_PROBABILITY_HPP
+#define NK_PROBABILITY_HPP
+
+#include <cstdint>
+#include <type_traits>
+
+#include "numkong/probability.h"
+
+#include "numkong/types.hpp"
+
+namespace ashvardanian::numkong {
+
+/**
+ *  @brief Kullback-Leibler divergence: Σ pᵢ × log(pᵢ / qᵢ)
+ *  @param[in] p,q First and second probability distributions
+ *  @param[in] d Number of dimensions in input vectors
+ *  @param[out] r Pointer to output divergence value
+ *
+ *  @tparam in_type_ Input distribution type (probability vectors)
+ *  @tparam result_type_ Accumulator type, defaults to `in_type_::probability_result_t`
+ *  @tparam allow_simd_ Enable SIMD kernel dispatch when `prefer_simd_k`
+ */
+template <typename in_type_, typename result_type_ = typename in_type_::probability_result_t,
+          allow_simd_t allow_simd_ = prefer_simd_k>
+void kld(in_type_ const *p, in_type_ const *q, std::size_t d, result_type_ *r) noexcept {
+    constexpr bool simd = allow_simd_ == prefer_simd_k &&
+                          std::is_same_v<result_type_, typename in_type_::probability_result_t>;
+
+    if constexpr (std::is_same_v<in_type_, f64_t> && simd) nk_kld_f64(&p->raw_, &q->raw_, d, &r->raw_);
+    else if constexpr (std::is_same_v<in_type_, f32_t> && simd) nk_kld_f32(&p->raw_, &q->raw_, d, &r->raw_);
+    else if constexpr (std::is_same_v<in_type_, f16_t> && simd) nk_kld_f16(&p->raw_, &q->raw_, d, &r->raw_);
+    else if constexpr (std::is_same_v<in_type_, bf16_t> && simd) nk_kld_bf16(&p->raw_, &q->raw_, d, &r->raw_);
+    // Scalar fallback
+    else {
+        result_type_ sum {};
+        for (std::size_t i = 0; i < d; i++) {
+            result_type_ pi(p[i]), qi(q[i]);
+            if (pi > result_type_(0)) sum = sum + pi * (pi / qi).log();
+        }
+        *r = sum;
+    }
+}
+
+/**
+ *  @brief Jensen-Shannon divergence: ½ × (KL(p‖m) + KL(q‖m)) where m = (p + q) / 2
+ *  @param[in] p,q First and second probability distributions
+ *  @param[in] d Number of dimensions in input vectors
+ *  @param[out] r Pointer to output divergence value
+ *
+ *  @tparam in_type_ Input distribution type (probability vectors)
+ *  @tparam result_type_ Accumulator type, defaults to `in_type_::probability_result_t`
+ *  @tparam allow_simd_ Enable SIMD kernel dispatch when `prefer_simd_k`
+ */
+template <typename in_type_, typename result_type_ = typename in_type_::probability_result_t,
+          allow_simd_t allow_simd_ = prefer_simd_k>
+void jsd(in_type_ const *p, in_type_ const *q, std::size_t d, result_type_ *r) noexcept {
+    constexpr bool simd = allow_simd_ == prefer_simd_k &&
+                          std::is_same_v<result_type_, typename in_type_::probability_result_t>;
+
+    if constexpr (std::is_same_v<in_type_, f64_t> && simd) nk_jsd_f64(&p->raw_, &q->raw_, d, &r->raw_);
+    else if constexpr (std::is_same_v<in_type_, f32_t> && simd) nk_jsd_f32(&p->raw_, &q->raw_, d, &r->raw_);
+    else if constexpr (std::is_same_v<in_type_, f16_t> && simd) nk_jsd_f16(&p->raw_, &q->raw_, d, &r->raw_);
+    else if constexpr (std::is_same_v<in_type_, bf16_t> && simd) nk_jsd_bf16(&p->raw_, &q->raw_, d, &r->raw_);
+    // Scalar fallback
+    else {
+        result_type_ sum {};
+        result_type_ half(0.5);
+        for (std::size_t i = 0; i < d; i++) {
+            result_type_ pi(p[i]), qi(q[i]);
+            result_type_ mi = half * (pi + qi);
+            if (pi > result_type_(0)) sum = sum + pi * (pi / mi).log();
+            if (qi > result_type_(0)) sum = sum + qi * (qi / mi).log();
+        }
+        // JSD distance = sqrt(divergence / 2), clamped to non-negative
+        result_type_ divergence = half * sum;
+        *r = divergence > result_type_(0) ? divergence.sqrt() : result_type_(0);
+    }
+}
+
+} // namespace ashvardanian::numkong
+
+#endif // NK_PROBABILITY_HPP
