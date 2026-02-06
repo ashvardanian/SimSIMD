@@ -43,7 +43,7 @@ extern "C" {
 #endif // defined(__cplusplus)
 
 #if defined(__cplusplus)
-}
+} // extern "C"
 #endif // defined(__cplusplus)
 
 #endif // NK_ATTENTION_H

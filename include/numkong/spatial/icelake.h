@@ -21,12 +21,16 @@
 #ifndef NK_SPATIAL_ICELAKE_H
 #define NK_SPATIAL_ICELAKE_H
 
+#if NK_TARGET_X86_
+#if NK_TARGET_ICELAKE
+
+#include "numkong/types.h"
+#include "numkong/dot/icelake.h" // `nk_dot_i8x64_state_icelake_t`
+
 #if defined(__cplusplus)
 extern "C" {
 #endif
 
-#if NK_TARGET_X86_
-#if NK_TARGET_ICELAKE
 #if defined(__clang__)
 #pragma clang attribute push(                                                                        \
     __attribute__((target("avx2,avx512f,avx512vl,avx512bw,avx512dq,avx512vnni,f16c,fma,bmi,bmi2"))), \
@@ -36,14 +40,6 @@ extern "C" {
 #pragma GCC target("avx2", "avx512f", "avx512vl", "avx512bw", "avx512dq", "avx512vnni", "f16c", "fma", "bmi", "bmi2")
 #endif
 
-#include "numkong/types.h"
-#include "numkong/dot/icelake.h" // `nk_dot_i8x64_state_icelake_t`, `nk_dot_u8x64_state_icelake_t`
-
-NK_PUBLIC void nk_euclidean_i8_icelake(nk_i8_t const *a, nk_i8_t const *b, nk_size_t n, nk_f32_t *result) {
-    nk_u32_t d2;
-    nk_sqeuclidean_i8_icelake(a, b, n, &d2);
-    *result = nk_f32_sqrt_haswell((nk_f32_t)d2);
-}
 NK_PUBLIC void nk_sqeuclidean_i8_icelake(nk_i8_t const *a, nk_i8_t const *b, nk_size_t n, nk_u32_t *result) {
     // Optimized i8 L2-squared using saturating subtract + DPWSSD
     //
@@ -100,6 +96,11 @@ nk_sqeuclidean_i8_icelake_cycle:
     if (n) goto nk_sqeuclidean_i8_icelake_cycle;
 
     *result = _mm512_reduce_add_epi32(_mm512_add_epi32(distance_sq_low_i32x16, distance_sq_high_i32x16));
+}
+NK_PUBLIC void nk_euclidean_i8_icelake(nk_i8_t const *a, nk_i8_t const *b, nk_size_t n, nk_f32_t *result) {
+    nk_u32_t d2;
+    nk_sqeuclidean_i8_icelake(a, b, n, &d2);
+    *result = nk_f32_sqrt_haswell((nk_f32_t)d2);
 }
 
 NK_PUBLIC void nk_angular_i8_icelake(nk_i8_t const *a, nk_i8_t const *b, nk_size_t n, nk_f32_t *result) {
@@ -167,11 +168,6 @@ nk_angular_i8_icelake_cycle:
     nk_i32_t b_norm_sq_i32 = _mm512_reduce_add_epi32(b_norm_sq_i32x16);
     *result = nk_angular_normalize_f32_haswell_(dot_product_i32, a_norm_sq_i32, b_norm_sq_i32);
 }
-NK_PUBLIC void nk_euclidean_u8_icelake(nk_u8_t const *a, nk_u8_t const *b, nk_size_t n, nk_f32_t *result) {
-    nk_u32_t d2;
-    nk_sqeuclidean_u8_icelake(a, b, n, &d2);
-    *result = nk_f32_sqrt_haswell((nk_f32_t)d2);
-}
 NK_PUBLIC void nk_sqeuclidean_u8_icelake(nk_u8_t const *a, nk_u8_t const *b, nk_size_t n, nk_u32_t *result) {
     __m512i distance_sq_low_i32x16 = _mm512_setzero_si512();
     __m512i distance_sq_high_i32x16 = _mm512_setzero_si512();
@@ -203,6 +199,11 @@ nk_sqeuclidean_u8_icelake_cycle:
     if (n) goto nk_sqeuclidean_u8_icelake_cycle;
 
     *result = _mm512_reduce_add_epi32(_mm512_add_epi32(distance_sq_low_i32x16, distance_sq_high_i32x16));
+}
+NK_PUBLIC void nk_euclidean_u8_icelake(nk_u8_t const *a, nk_u8_t const *b, nk_size_t n, nk_f32_t *result) {
+    nk_u32_t d2;
+    nk_sqeuclidean_u8_icelake(a, b, n, &d2);
+    *result = nk_f32_sqrt_haswell((nk_f32_t)d2);
 }
 
 NK_PUBLIC void nk_angular_u8_icelake(nk_u8_t const *a, nk_u8_t const *b, nk_size_t n, nk_f32_t *result) {
@@ -253,11 +254,6 @@ nk_angular_u8_icelake_cycle:
     *result = nk_angular_normalize_f32_haswell_(dot_product_i32, a_norm_sq_i32, b_norm_sq_i32);
 }
 
-NK_PUBLIC void nk_euclidean_i4_icelake(nk_i4x2_t const *a, nk_i4x2_t const *b, nk_size_t n, nk_f32_t *result) {
-    nk_u32_t d2;
-    nk_sqeuclidean_i4_icelake(a, b, n, &d2);
-    *result = nk_f32_sqrt_haswell((nk_f32_t)d2);
-}
 NK_PUBLIC void nk_sqeuclidean_i4_icelake(nk_i4x2_t const *a, nk_i4x2_t const *b, nk_size_t n, nk_u32_t *result) {
     // i4 values are packed as nibbles: two 4-bit signed values per byte.
     // Parameter `n` is the number of 4-bit values (dimensions), not bytes.
@@ -325,6 +321,11 @@ nk_sqeuclidean_i4_icelake_cycle:
     if (n_bytes) goto nk_sqeuclidean_i4_icelake_cycle;
 
     *result = (nk_u32_t)_mm512_reduce_add_epi32(d2_i32x16);
+}
+NK_PUBLIC void nk_euclidean_i4_icelake(nk_i4x2_t const *a, nk_i4x2_t const *b, nk_size_t n, nk_f32_t *result) {
+    nk_u32_t d2;
+    nk_sqeuclidean_i4_icelake(a, b, n, &d2);
+    *result = nk_f32_sqrt_haswell((nk_f32_t)d2);
 }
 NK_PUBLIC void nk_angular_i4_icelake(nk_i4x2_t const *a, nk_i4x2_t const *b, nk_size_t n, nk_f32_t *result) {
     // i4 values are packed as nibbles: two 4-bit signed values per byte.
@@ -644,11 +645,11 @@ NK_INTERNAL void nk_euclidean_u8x64_finalize_icelake(
 #elif defined(__GNUC__)
 #pragma GCC pop_options
 #endif
-#endif // NK_TARGET_ICELAKE
-#endif // NK_TARGET_X86_
 
 #if defined(__cplusplus)
 } // extern "C"
 #endif
 
+#endif // NK_TARGET_ICELAKE
+#endif // NK_TARGET_X86_
 #endif // NK_SPATIAL_ICELAKE_H

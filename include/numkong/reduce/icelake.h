@@ -25,6 +25,14 @@
 
 #if NK_TARGET_X86_
 #if NK_TARGET_ICELAKE
+
+#include "numkong/types.h"
+#include "numkong/reduce/serial.h"
+
+#if defined(__cplusplus)
+extern "C" {
+#endif
+
 #if defined(__clang__)
 #pragma clang attribute push(                                                                        \
     __attribute__((target("avx2,avx512f,avx512vl,avx512bw,avx512dq,avx512vnni,f16c,fma,bmi,bmi2"))), \
@@ -32,13 +40,6 @@
 #elif defined(__GNUC__)
 #pragma GCC push_options
 #pragma GCC target("avx2", "avx512f", "avx512vl", "avx512bw", "avx512dq", "avx512vnni", "f16c", "fma", "bmi", "bmi2")
-#endif
-
-#include "numkong/types.h"
-#include "numkong/reduce/serial.h"
-
-#if defined(__cplusplus)
-extern "C" {
 #endif
 
 NK_INTERNAL __mmask64 nk_stride_mask_u1x64_icelake_(nk_size_t stride) {
@@ -370,16 +371,16 @@ NK_PUBLIC void nk_reduce_add_u8_icelake(                          //
     else nk_reduce_add_u8_serial(data, count, stride_bytes, result);
 }
 
-#if defined(__cplusplus)
-} // extern "C"
-#endif
-
 #if defined(__clang__)
 #pragma clang attribute pop
 #elif defined(__GNUC__)
 #pragma GCC pop_options
 #endif
+
+#if defined(__cplusplus)
+} // extern "C"
+#endif
+
 #endif // NK_TARGET_ICELAKE
 #endif // NK_TARGET_X86_
-
 #endif // NK_REDUCE_ICELAKE_H

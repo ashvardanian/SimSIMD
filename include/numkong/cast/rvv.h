@@ -487,5 +487,4 @@ NK_PUBLIC void nk_cast_rvv(void const *from, nk_dtype_t from_type, nk_size_t cou
 
 #endif // NK_TARGET_RVV
 #endif // NK_TARGET_RISCV_
-
 #endif // NK_CAST_RVV_H

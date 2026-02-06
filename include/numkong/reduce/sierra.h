@@ -15,12 +15,6 @@
 
 #if NK_TARGET_X86_
 #if NK_TARGET_SIERRA
-#if defined(__clang__)
-#pragma clang attribute push(__attribute__((target("avx2,f16c,fma,bmi,bmi2,avxvnni,avxvnniint8"))), apply_to = function)
-#elif defined(__GNUC__)
-#pragma GCC push_options
-#pragma GCC target("avx2", "f16c", "fma", "bmi", "bmi2", "avxvnni", "avxvnniint8")
-#endif
 
 #include "numkong/types.h"
 #include "numkong/reduce/haswell.h"
@@ -28,6 +22,13 @@
 
 #if defined(__cplusplus)
 extern "C" {
+#endif
+
+#if defined(__clang__)
+#pragma clang attribute push(__attribute__((target("avx2,f16c,fma,bmi,bmi2,avxvnni,avxvnniint8"))), apply_to = function)
+#elif defined(__GNUC__)
+#pragma GCC push_options
+#pragma GCC target("avx2", "f16c", "fma", "bmi", "bmi2", "avxvnni", "avxvnniint8")
 #endif
 
 NK_INTERNAL void nk_reduce_add_i16_sierra_contiguous_( //
@@ -294,16 +295,16 @@ NK_PUBLIC void nk_reduce_add_u8_sierra( //
     else nk_reduce_add_u8_serial(data, count, stride_bytes, result);
 }
 
-#if defined(__cplusplus)
-} // extern "C"
-#endif
-
 #if defined(__clang__)
 #pragma clang attribute pop
 #elif defined(__GNUC__)
 #pragma GCC pop_options
 #endif
+
+#if defined(__cplusplus)
+} // extern "C"
+#endif
+
 #endif // NK_TARGET_SIERRA
 #endif // NK_TARGET_X86_
-
 #endif // NK_REDUCE_SIERRA_H

@@ -76,12 +76,18 @@
 #ifndef NK_DOT_GENOA_H
 #define NK_DOT_GENOA_H
 
+#if NK_TARGET_X86_
+#if NK_TARGET_GENOA
+
+#include "numkong/types.h"
+#include "numkong/cast/icelake.h"   // `nk_e4m3x32_to_bf16x32_icelake_`
+#include "numkong/reduce/skylake.h" // `nk_reduce_add_f32x16_skylake_`
+#include "numkong/dot/skylake.h"    // `nk_dot_through_f32_finalize_skylake_`
+
 #if defined(__cplusplus)
 extern "C" {
 #endif
 
-#if NK_TARGET_X86_
-#if NK_TARGET_GENOA
 #if defined(__clang__)
 #pragma clang attribute push(                                                                        \
     __attribute__((target("avx2,avx512f,avx512vl,avx512bw,avx512dq,avx512bf16,f16c,fma,bmi,bmi2"))), \
@@ -90,13 +96,6 @@ extern "C" {
 #pragma GCC push_options
 #pragma GCC target("avx2", "avx512f", "avx512vl", "avx512bw", "avx512dq", "avx512bf16", "f16c", "fma", "bmi", "bmi2")
 #endif
-
-#include "numkong/types.h"
-#include "numkong/cast/icelake.h"   // `nk_e4m3x32_to_bf16x32_icelake_`
-#include "numkong/reduce/skylake.h" // `nk_reduce_add_f32x16_skylake_`
-#include "numkong/dot/skylake.h"    // `nk_dot_through_f32_finalize_skylake_`
-
-#pragma region Smaller Floats
 
 NK_PUBLIC void nk_dot_bf16_genoa(nk_bf16_t const *a_scalars, nk_bf16_t const *b_scalars, nk_size_t count_scalars,
                                  nk_f32_t *result) {
@@ -360,18 +359,16 @@ NK_INTERNAL void nk_dot_bf16x32_finalize_genoa(nk_dot_bf16x32_state_genoa_t cons
                                         (nk_dot_through_bf16_state_genoa_t_ const *)state_d, total_dimensions, result);
 }
 
-#pragma endregion Smaller Floats
-
 #if defined(__clang__)
 #pragma clang attribute pop
 #elif defined(__GNUC__)
 #pragma GCC pop_options
 #endif
-#endif // NK_TARGET_GENOA
-#endif // NK_TARGET_X86_
 
 #if defined(__cplusplus)
 } // extern "C"
 #endif
 
+#endif // NK_TARGET_GENOA
+#endif // NK_TARGET_X86_
 #endif // NK_DOT_GENOA_H

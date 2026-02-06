@@ -83,12 +83,15 @@
 #ifndef NK_DOT_NEON_H
 #define NK_DOT_NEON_H
 
+#if NK_TARGET_ARM_
+#if NK_TARGET_NEON
+
+#include "numkong/reduce/neon.h"
+
 #if defined(__cplusplus)
 extern "C" {
 #endif
 
-#if NK_TARGET_ARM_
-#if NK_TARGET_NEON
 #if defined(__clang__)
 #pragma clang attribute push(__attribute__((target("arch=armv8-a+simd"))), apply_to = function)
 #elif defined(__GNUC__)
@@ -96,9 +99,7 @@ extern "C" {
 #pragma GCC target("arch=armv8-a+simd")
 #endif
 
-#include "numkong/reduce/neon.h"
-
-#pragma region Traditional Floats
+#pragma region - Traditional Floats
 
 NK_PUBLIC void nk_dot_f32_neon(nk_f32_t const *a_scalars, nk_f32_t const *b_scalars, nk_size_t count_scalars,
                                nk_f32_t *result) {
@@ -449,9 +450,9 @@ NK_INTERNAL void nk_dot_f64x2_finalize_neon(                                    
     result->f64s[3] = vaddvq_f64(vaddq_f64(state_d->sum_f64x2, state_d->compensation_f64x2));
 }
 
-#pragma endregion Traditional Floats
+#pragma endregion - Traditional Floats
 
-#pragma region Smaller Floats
+#pragma region - Smaller Floats
 
 NK_PUBLIC void nk_dot_e4m3_neon(nk_e4m3_t const *a_scalars, nk_e4m3_t const *b_scalars, nk_size_t count_scalars,
                                 nk_f32_t *result) {
@@ -499,18 +500,18 @@ nk_dot_e5m2_neon_cycle:
     *result = vaddvq_f32(sum_f32x4);
 }
 
-#pragma endregion Smaller Floats
+#pragma endregion - Smaller Floats
 
 #if defined(__clang__)
 #pragma clang attribute pop
 #elif defined(__GNUC__)
 #pragma GCC pop_options
 #endif
-#endif // NK_TARGET_NEON
-#endif // NK_TARGET_ARM_
 
 #if defined(__cplusplus)
 } // extern "C"
 #endif
 
+#endif // NK_TARGET_NEON
+#endif // NK_TARGET_ARM_
 #endif // NK_DOT_NEON_H

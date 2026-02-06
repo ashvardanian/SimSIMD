@@ -27,23 +27,24 @@
 #ifndef NK_SPATIAL_NEONHALF_H
 #define NK_SPATIAL_NEONHALF_H
 
+#if NK_TARGET_ARM_
+#if NK_TARGET_NEONHALF
+
+#include "numkong/types.h"
+#include "numkong/cast/serial.h"  // `nk_partial_load_b16x4_serial_`
+#include "numkong/spatial/neon.h" // `nk_angular_through_f32_finalize_neon_`
+#include "numkong/dot/neonhalf.h" // `nk_dot_f16x4_state_neonhalf_t`
+
 #if defined(__cplusplus)
 extern "C" {
 #endif
 
-#if NK_TARGET_ARM_
-#if NK_TARGET_NEONHALF
 #if defined(__clang__)
 #pragma clang attribute push(__attribute__((target("arch=armv8.2-a+simd+fp16"))), apply_to = function)
 #elif defined(__GNUC__)
 #pragma GCC push_options
 #pragma GCC target("arch=armv8.2-a+simd+fp16")
 #endif
-
-#include "numkong/types.h"
-#include "numkong/cast/serial.h"  // `nk_partial_load_b16x4_serial_`
-#include "numkong/spatial/neon.h" // nk_angular_through_f32_finalize_neon_, nk_euclidean_through_f32_finalize_neon_
-#include "numkong/dot/neonhalf.h" // `nk_dot_f16x4_state_neonhalf_t`
 
 NK_PUBLIC void nk_sqeuclidean_f16_neonhalf(nk_f16_t const *a, nk_f16_t const *b, nk_size_t n, nk_f32_t *result) {
     float32x4_t a_f32x4, b_f32x4;
@@ -149,11 +150,11 @@ NK_INTERNAL void nk_euclidean_f16x4_finalize_neonhalf(
 #elif defined(__GNUC__)
 #pragma GCC pop_options
 #endif
-#endif // NK_TARGET_NEONHALF
-#endif // NK_TARGET_ARM_
 
 #if defined(__cplusplus)
 } // extern "C"
 #endif
 
+#endif // NK_TARGET_NEONHALF
+#endif // NK_TARGET_ARM_
 #endif // NK_SPATIAL_NEONHALF_H

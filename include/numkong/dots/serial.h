@@ -1556,7 +1556,7 @@ NK_PUBLIC void nk_dots_compact_i8_serial(void *c, nk_size_t row_count, nk_size_t
 }
 
 #if defined(__cplusplus)
-}
+} // extern "C"
 #endif
 
 #endif // NK_DOTS_SERIAL_H

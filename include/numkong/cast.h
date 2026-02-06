@@ -84,6 +84,10 @@ NK_PUBLIC void nk_cast_sapphire(void const *from, nk_dtype_t from_type, nk_size_
 NK_PUBLIC void nk_cast_rvv(void const *from, nk_dtype_t from_type, nk_size_t n, void *to, nk_dtype_t to_type);
 #endif // NK_TARGET_RVV
 
+#if defined(__cplusplus)
+} // extern "C"
+#endif
+
 #include "numkong/cast/serial.h"
 #include "numkong/cast/neon.h"
 #include "numkong/cast/haswell.h"
@@ -91,6 +95,10 @@ NK_PUBLIC void nk_cast_rvv(void const *from, nk_dtype_t from_type, nk_size_t n, 
 #include "numkong/cast/icelake.h"
 #include "numkong/cast/sapphire.h"
 #include "numkong/cast/rvv.h"
+
+#if defined(__cplusplus)
+extern "C" {
+#endif
 
 #if !NK_DYNAMIC_DISPATCH
 
@@ -151,7 +159,7 @@ NK_PUBLIC void nk_f32_to_e3m2(nk_f32_t const *src, nk_e3m2_t *dest) { nk_f32_to_
 #endif // !NK_DYNAMIC_DISPATCH
 
 #if defined(__cplusplus)
-}
+} // extern "C"
 #endif
 
 #endif // NK_CAST_H

@@ -454,6 +454,10 @@ NK_INTERNAL nk_dtype_t nk_dot_output_dtype(nk_dtype_t dtype) {
     }
 }
 
+#if defined(__cplusplus)
+} // extern "C"
+#endif
+
 #include "numkong/dot/serial.h"
 #include "numkong/dot/neon.h"
 #include "numkong/dot/neonsdot.h"
@@ -471,6 +475,10 @@ NK_INTERNAL nk_dtype_t nk_dot_output_dtype(nk_dtype_t dtype) {
 #include "numkong/dot/rvvhalf.h"
 #include "numkong/dot/rvvbf16.h"
 #include "numkong/dot/v128relaxed.h"
+
+#if defined(__cplusplus)
+extern "C" {
+#endif
 
 #if !NK_DYNAMIC_DISPATCH
 
@@ -766,7 +774,7 @@ NK_PUBLIC void nk_vdot_f64c(nk_f64c_t const *a, nk_f64c_t const *b, nk_size_t n,
 #endif // !NK_DYNAMIC_DISPATCH
 
 #if defined(__cplusplus)
-}
+} // extern "C"
 #endif
 
 #endif

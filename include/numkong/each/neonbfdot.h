@@ -34,17 +34,18 @@
 
 #if NK_TARGET_ARM_
 #if NK_TARGET_NEONBFDOT
-#if defined(__clang__)
-#pragma clang attribute push(__attribute__((target("arch=armv8.6-a+simd+bf16"))), apply_to = function)
-#elif defined(__GNUC__)
-#pragma GCC push_options
-#pragma GCC target("arch=armv8.6-a+simd+bf16")
-#endif
 
 #include "numkong/types.h"
 
 #if defined(__cplusplus)
 extern "C" {
+#endif
+
+#if defined(__clang__)
+#pragma clang attribute push(__attribute__((target("arch=armv8.6-a+simd+bf16"))), apply_to = function)
+#elif defined(__GNUC__)
+#pragma GCC push_options
+#pragma GCC target("arch=armv8.6-a+simd+bf16")
 #endif
 
 NK_PUBLIC void nk_each_sum_bf16_neonbfdot(nk_bf16_t const *a, nk_bf16_t const *b, nk_size_t n, nk_bf16_t *result) {
@@ -165,16 +166,16 @@ NK_PUBLIC void nk_each_fma_bf16_neonbfdot(                      //
     }
 }
 
-#if defined(__cplusplus)
-} // extern "C"
-#endif
-
 #if defined(__clang__)
 #pragma clang attribute pop
 #elif defined(__GNUC__)
 #pragma GCC pop_options
 #endif
+
+#if defined(__cplusplus)
+} // extern "C"
+#endif
+
 #endif // NK_TARGET_NEONBFDOT
 #endif // NK_TARGET_ARM_
-
 #endif // NK_EACH_NEONBFDOT_H

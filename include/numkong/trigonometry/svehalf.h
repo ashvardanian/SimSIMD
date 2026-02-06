@@ -28,12 +28,6 @@
 
 #if NK_TARGET_ARM_
 #if NK_TARGET_SVEHALF
-#if defined(__clang__)
-#pragma clang attribute push(__attribute__((target("arch=armv8.2-a+sve+fp16"))), apply_to = function)
-#elif defined(__GNUC__)
-#pragma GCC push_options
-#pragma GCC target("arch=armv8.2-a+sve+fp16")
-#endif
 
 #include "numkong/types.h"
 
@@ -41,8 +35,11 @@
 extern "C" {
 #endif
 
-#if defined(__cplusplus)
-} // extern "C"
+#if defined(__clang__)
+#pragma clang attribute push(__attribute__((target("arch=armv8.2-a+sve+fp16"))), apply_to = function)
+#elif defined(__GNUC__)
+#pragma GCC push_options
+#pragma GCC target("arch=armv8.2-a+sve+fp16")
 #endif
 
 #if defined(__clang__)
@@ -50,7 +47,11 @@ extern "C" {
 #elif defined(__GNUC__)
 #pragma GCC pop_options
 #endif
+
+#if defined(__cplusplus)
+} // extern "C"
+#endif
+
 #endif // NK_TARGET_SVEHALF
 #endif // NK_TARGET_ARM_
-
 #endif // NK_TRIGONOMETRY_SVEHALF_H

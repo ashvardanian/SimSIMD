@@ -81,12 +81,12 @@
 #ifndef NK_DOT_SERIAL_H
 #define NK_DOT_SERIAL_H
 
+#include "numkong/types.h"
+#include "numkong/reduce/serial.h" // `nk_f64_abs_`
+
 #if defined(__cplusplus)
 extern "C" {
 #endif
-
-#include "numkong/types.h"
-#include "numkong/reduce/serial.h" // `nk_f64_abs_`
 
 /**
  *  @brief Macro for dot product with simple accumulation.
@@ -139,15 +139,15 @@ extern "C" {
         result->imag = sum_imag;                                                                            \
     }
 
-#pragma region Traditional Floats
+#pragma region - Traditional Floats
 
 nk_define_dot_(f32, f32, f32, nk_assign_from_to_)            // nk_dot_f32_serial
 nk_define_dot_complex_(f32c, f32, f32c, nk_assign_from_to_)  // nk_dot_f32c_serial
 nk_define_vdot_complex_(f32c, f32, f32c, nk_assign_from_to_) // nk_vdot_f32c_serial
 
-#pragma endregion Traditional Floats
+#pragma endregion - Traditional Floats
 
-#pragma region Smaller Floats
+#pragma region - Smaller Floats
 
 nk_define_dot_(f16, f32, f32, nk_f16_to_f32_serial)            // nk_dot_f16_serial
 nk_define_dot_complex_(f16c, f32, f32c, nk_f16_to_f32_serial)  // nk_dot_f16c_serial
@@ -162,9 +162,9 @@ nk_define_dot_(e5m2, f32, f32, nk_e5m2_to_f32_serial) // nk_dot_e5m2_serial
 nk_define_dot_(e2m3, f32, f32, nk_e2m3_to_f32_serial) // nk_dot_e2m3_serial
 nk_define_dot_(e3m2, f32, f32, nk_e3m2_to_f32_serial) // nk_dot_e3m2_serial
 
-#pragma endregion Smaller Floats
+#pragma endregion - Smaller Floats
 
-#pragma region Small Integers
+#pragma region - Small Integers
 
 nk_define_dot_(i8, i32, i32, nk_assign_from_to_) // nk_dot_i8_serial
 nk_define_dot_(u8, u32, u32, nk_assign_from_to_) // nk_dot_u8_serial
@@ -217,9 +217,9 @@ NK_PUBLIC void nk_dot_u4_serial(nk_u4x2_t const *a, nk_u4x2_t const *b, nk_size_
     *result = sum;
 }
 
-#pragma endregion Small Integers
+#pragma endregion - Small Integers
 
-#pragma region Traditional Floats
+#pragma region - Traditional Floats
 
 /*  Double-precision dot-produce variants
  *
@@ -355,9 +355,9 @@ NK_INTERNAL void nk_dot_f32x4_finalize_serial(                                  
     result->f32s[3] = state_d->sums[0] + state_d->sums[1] + state_d->sums[2] + state_d->sums[3];
 }
 
-#pragma endregion Traditional Floats
+#pragma endregion - Traditional Floats
 
-#pragma region Smaller Floats
+#pragma region - Smaller Floats
 
 typedef struct nk_dot_f16x8_state_serial_t {
     nk_f32_t sums[4];
@@ -429,9 +429,9 @@ NK_INTERNAL void nk_dot_bf16x8_finalize_serial(                                 
     result->f32s[3] = state_d->sums[0] + state_d->sums[1] + state_d->sums[2] + state_d->sums[3];
 }
 
-#pragma endregion Smaller Floats
+#pragma endregion - Smaller Floats
 
-#pragma region Small Integers
+#pragma region - Small Integers
 
 typedef struct nk_dot_i8x16_state_serial_t {
     nk_i64_t sums[2];
@@ -506,9 +506,9 @@ NK_INTERNAL void nk_dot_u8x16_finalize_serial(                                  
     result->u32s[3] = (nk_u32_t)(state_d->sums[0] + state_d->sums[1]);
 }
 
-#pragma endregion Small Integers
+#pragma endregion - Small Integers
 
-#pragma region Smaller Floats
+#pragma region - Smaller Floats
 
 typedef struct nk_dot_e4m3x16_state_serial_t {
     nk_f32_t sums[4];
@@ -670,9 +670,9 @@ NK_INTERNAL void nk_dot_e3m2x16_finalize_serial(                                
     result->f32s[3] = state_d->sums[0] + state_d->sums[1] + state_d->sums[2] + state_d->sums[3];
 }
 
-#pragma endregion Smaller Floats
+#pragma endregion - Smaller Floats
 
-#pragma region Small Integers
+#pragma region - Small Integers
 
 // U4x2 state: processes 16 nibbles (8 bytes = 64 bits) per update
 typedef struct nk_dot_u4x16_state_serial_t {
@@ -789,7 +789,7 @@ NK_INTERNAL void nk_dot_i4x16_finalize_serial(nk_dot_i4x16_state_serial_t const 
     result->i32s[3] = (nk_i32_t)(state_d->sums[0] + state_d->sums[1]);
 }
 
-#pragma endregion Small Integers
+#pragma endregion - Small Integers
 
 #if defined(__cplusplus)
 } // extern "C"

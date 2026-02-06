@@ -283,6 +283,33 @@ NK_PUBLIC void nk_jaccard_u16_v128relaxed(nk_u16_t const *a, nk_u16_t const *b, 
 NK_PUBLIC void nk_jaccard_u32_v128relaxed(nk_u32_t const *a, nk_u32_t const *b, nk_size_t n, nk_f32_t *result);
 #endif // NK_TARGET_V128RELAXED
 
+/**
+ *  @brief  Returns the output dtype for Hamming distance.
+ */
+NK_INTERNAL nk_dtype_t nk_hamming_output_dtype(nk_dtype_t dtype) {
+    switch (dtype) {
+    case nk_u1_k: return nk_u32_k;
+    case nk_u8_k: return nk_u32_k;
+    default: return nk_dtype_unknown_k;
+    }
+}
+
+/**
+ *  @brief  Returns the output dtype for Jaccard distance.
+ */
+NK_INTERNAL nk_dtype_t nk_jaccard_output_dtype(nk_dtype_t dtype) {
+    switch (dtype) {
+    case nk_u1_k: return nk_f32_k;
+    case nk_u16_k: return nk_f32_k;
+    case nk_u32_k: return nk_f32_k;
+    default: return nk_dtype_unknown_k;
+    }
+}
+
+#if defined(__cplusplus)
+} // extern "C"
+#endif
+
 #include "numkong/set/serial.h"
 #include "numkong/set/neon.h"
 #include "numkong/set/sve.h"
@@ -290,6 +317,10 @@ NK_PUBLIC void nk_jaccard_u32_v128relaxed(nk_u32_t const *a, nk_u32_t const *b, 
 #include "numkong/set/haswell.h"
 #include "numkong/set/v128relaxed.h"
 #include "numkong/set/rvv.h"
+
+#if defined(__cplusplus)
+extern "C" {
+#endif
 
 #if !NK_DYNAMIC_DISPATCH
 
@@ -386,7 +417,7 @@ NK_PUBLIC void nk_jaccard_u16(nk_u16_t const *a, nk_u16_t const *b, nk_size_t n,
 #endif // !NK_DYNAMIC_DISPATCH
 
 #if defined(__cplusplus)
-}
+} // extern "C"
 #endif
 
 #endif

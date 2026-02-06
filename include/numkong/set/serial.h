@@ -35,7 +35,7 @@
 extern "C" {
 #endif
 
-#pragma region Binary Sets
+#pragma region - Binary Sets
 
 NK_INTERNAL unsigned char nk_u1x8_popcount_(nk_u1x8_t x) {
     static unsigned char lookup_table[256] = {
@@ -65,9 +65,9 @@ NK_PUBLIC void nk_jaccard_u1_serial(nk_u1x8_t const *a, nk_u1x8_t const *b, nk_s
     *result = (union_count != 0) ? 1.0f - (nk_f32_t)intersection_count / (nk_f32_t)union_count : 1.0f;
 }
 
-#pragma endregion Binary Sets
+#pragma endregion - Binary Sets
 
-#pragma region Integer Sets
+#pragma region - Integer Sets
 
 NK_PUBLIC void nk_jaccard_u32_serial(nk_u32_t const *a, nk_u32_t const *b, nk_size_t n, nk_f32_t *result) {
     nk_u32_t intersection_count = 0;
@@ -87,9 +87,9 @@ NK_PUBLIC void nk_jaccard_u16_serial(nk_u16_t const *a, nk_u16_t const *b, nk_si
     *result = (n != 0) ? 1.0f - (nk_f32_t)matches / (nk_f32_t)n : 1.0f;
 }
 
-#pragma endregion Integer Sets
+#pragma endregion - Integer Sets
 
-#pragma region Stateful Streaming
+#pragma region - Stateful Streaming
 
 typedef struct nk_jaccard_u1x128_state_serial_t {
     nk_u64_t intersection_count;
@@ -162,7 +162,7 @@ NK_INTERNAL void nk_hamming_u1x128_finalize_serial( //
     result->u32s[3] = (nk_u32_t)state_d->intersection_count;
 }
 
-#pragma endregion Stateful Streaming
+#pragma endregion - Stateful Streaming
 
 #if defined(__cplusplus)
 } // extern "C"

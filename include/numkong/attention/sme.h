@@ -37,21 +37,22 @@
 
 #if NK_TARGET_ARM_
 #if NK_TARGET_SME
-#pragma GCC push_options
-#pragma GCC target("+sme")
-#pragma clang attribute push(__attribute__((target("sme"))), apply_to = function)
 
 #include "numkong/types.h"
-
-#include <arm_sme.h>
-#include <arm_sve.h>
-#include <float.h>
 
 #if defined(__cplusplus)
 extern "C" {
 #endif
 
-/* In-register BF16 ↔ F32 conversions using SVE bit manipulation */
+#if defined(__clang__)
+#pragma clang attribute push(__attribute__((target("sme"))), apply_to = function)
+#elif defined(__GNUC__)
+#pragma GCC push_options
+#pragma GCC target("+sme")
+#endif
+
+#include <arm_sme.h>
+#include <arm_sve.h>
 
 /**
  *  @brief Convert bf16 vector to f32 in registers (streaming SVE compatible).
@@ -85,8 +86,6 @@ NK_INTERNAL svbfloat16_t nk_f32_to_bf16_sve_(svbool_t pg, svfloat32_t x) __arm_s
     return svreinterpret_bf16_u16(u16);
 }
 
-/* Packed KV Cache Structures */
-
 /**
  *  @brief Packed KV cache header for attention (64-byte aligned).
  *
@@ -103,8 +102,6 @@ typedef struct {
     nk_u32_t v_offset;        ///< Byte offset to V data from header start
     nk_u32_t reserved[9];     ///< Pad to 64 bytes
 } nk_attention_sme_kv_packed_header_t;
-
-/* Streaming SVE Math Functions (no NEON) */
 
 /**
  *  @brief Fast exp approximation in Streaming SVE.
@@ -161,8 +158,6 @@ NK_INTERNAL nk_f32_t nk_reduce_add_f32_sve_(svbool_t pg, svfloat32_t x) __arm_st
  *  @brief Horizontal max reduction in Streaming SVE.
  */
 NK_INTERNAL nk_f32_t nk_reduce_max_f32_sve_(svbool_t pg, svfloat32_t x) __arm_streaming { return svmaxv_f32(pg, x); }
-
-/* KV Cache Size and Packing Functions */
 
 /**
  *  @brief Calculate packed KV cache size in bytes for bf16.
@@ -298,8 +293,6 @@ NK_PUBLIC void nk_attention_pack_kv_f16_sme(nk_f16_t const *k, nk_f16_t const *v
     }
 }
 
-/* Main Attention Kernel - SME Streaming Implementation */
-
 /**
  *  @brief Internal: bf16 attention kernel - OPTIMIZED version.
  *
@@ -323,8 +316,8 @@ __arm_locally_streaming __arm_new("za") static void nk_attention_bf16_sme_kernel
     nk_size_t const valid_q = (query_len < 16) ? query_len : 16;
 
     // State in SVE registers instead of arrays.
-    svfloat32_t row_max_v = svdup_f32(-FLT_MAX); // All 16 row maxes
-    svfloat32_t row_sum_v = svdup_f32(0.0f);     // All 16 row sums
+    svfloat32_t row_max_v = svdup_f32(NK_F32_MIN); // All 16 row maxes
+    svfloat32_t row_sum_v = svdup_f32(0.0f);       // All 16 row sums
 
     // Output accumulator - still needs array but with vectorized init
     NK_ALIGN64 nk_f32_t o_acc[16 * 256];
@@ -615,7 +608,7 @@ __arm_locally_streaming __arm_new("za") static void nk_attention_f16_sme_kernel_
     NK_ALIGN64 nk_f32_t o_acc[16 * 256]; // Max head_dim=256
 
     // Initialize state using vectorized SVE stores
-    svst1_f32(ptrue_s, row_max, svdup_f32(-FLT_MAX));
+    svst1_f32(ptrue_s, row_max, svdup_f32(NK_F32_MIN));
     svst1_f32(ptrue_s, row_sum, svdup_f32(0.0f));
 
     // Vectorized init of o_acc using SVE loop
@@ -838,13 +831,16 @@ NK_PUBLIC void nk_attention_causal_f16_sme(nk_f16_t const *q, void const *kv_pac
     nk_attention_f16_sme(q, kv_packed, output, num_heads, num_kv_heads, query_len, kv_len, head_dim, scale);
 }
 
+#if defined(__clang__)
+#pragma clang attribute pop
+#elif defined(__GNUC__)
+#pragma GCC pop_options
+#endif
+
 #if defined(__cplusplus)
 } // extern "C"
 #endif
 
-#pragma clang attribute pop
-#pragma GCC pop_options
 #endif // NK_TARGET_SME
 #endif // NK_TARGET_ARM_
-
 #endif // NK_ATTENTION_SME_H

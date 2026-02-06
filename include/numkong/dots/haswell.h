@@ -23,20 +23,22 @@
 #ifndef NK_DOTS_HASWELL_H
 #define NK_DOTS_HASWELL_H
 
+#if NK_TARGET_X86_
+#if NK_TARGET_HASWELL
+
+#include "numkong/types.h"
+#include "numkong/cast.h" // `nk_f16_to_f32`
+
 #if defined(__cplusplus)
 extern "C" {
 #endif
 
-#if NK_TARGET_X86_
-#if NK_TARGET_HASWELL
 #if defined(__clang__)
 #pragma clang attribute push(__attribute__((target("avx2,f16c,fma,bmi,bmi2"))), apply_to = function)
 #elif defined(__GNUC__)
 #pragma GCC push_options
 #pragma GCC target("avx2", "f16c", "fma", "bmi", "bmi2")
 #endif
-
-#include "numkong/types.h"
 
 /* F32 GEMM: depth_simd_dimensions=4 (4 f32s = 16 bytes for f32->f64 upcast accumulation) */
 nk_define_cross_pack_size_(dots, f32, haswell, f32, f32, /*depth_simd_dimensions=*/4, /*dimensions_per_value=*/1)
@@ -225,11 +227,11 @@ nk_define_cross_packed_(dots, u4, haswell, u4x2, u4x2, u32, nk_b128_vec_t, nk_do
 #elif defined(__GNUC__)
 #pragma GCC pop_options
 #endif
-#endif // NK_TARGET_HASWELL
-#endif // NK_TARGET_X86_
 
 #if defined(__cplusplus)
 } // extern "C"
 #endif
 
+#endif // NK_TARGET_HASWELL
+#endif // NK_TARGET_X86_
 #endif // NK_DOTS_HASWELL_H

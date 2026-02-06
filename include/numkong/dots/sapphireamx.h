@@ -71,6 +71,14 @@
 
 #if NK_TARGET_X86_
 #if NK_TARGET_SAPPHIREAMX
+
+#include "numkong/types.h"
+#include "numkong/cast/icelake.h" // For FP8 ↔ BF16 conversions
+
+#if defined(__cplusplus)
+extern "C" {
+#endif
+
 #if defined(__clang__)
 #pragma clang attribute push(                                                                                        \
     __attribute__((                                                                                                  \
@@ -80,13 +88,6 @@
 #pragma GCC push_options
 #pragma GCC target("avx2", "avx512f", "avx512vl", "avx512bw", "avx512dq", "avx512fp16", "f16c", "fma", "bmi", "bmi2", \
                    "amx-tile", "amx-bf16", "amx-int8")
-#endif
-
-#include "numkong/types.h"
-#include "numkong/cast/icelake.h" // For FP8 ↔ BF16 conversions
-
-#if defined(__cplusplus)
-extern "C" {
 #endif
 
 /*  AMX-specific packed buffer header (64-byte aligned).
@@ -2965,16 +2966,16 @@ NK_PUBLIC void nk_dots_compact_i8_sapphireamx( //
     }
 }
 
-#if defined(__cplusplus)
-} // extern "C"
-#endif
-
 #if defined(__clang__)
 #pragma clang attribute pop
 #elif defined(__GNUC__)
 #pragma GCC pop_options
 #endif
+
+#if defined(__cplusplus)
+} // extern "C"
+#endif
+
 #endif // NK_TARGET_SAPPHIREAMX
 #endif // NK_TARGET_X86_
-
 #endif // NK_DOTS_SAPPHIREAMX_H

@@ -16,16 +16,17 @@
 #ifndef NK_SET_V128RELAXED_H
 #define NK_SET_V128RELAXED_H
 
-#if defined(__cplusplus)
-extern "C" {
-#endif
-
 #if NK_TARGET_V128RELAXED
+
 #include "numkong/types.h"
 #include "numkong/reduce/v128relaxed.h"
 #include "numkong/set/serial.h"
 
-#pragma region Binary Sets
+#if defined(__cplusplus)
+extern "C" {
+#endif
+
+#pragma region - Binary Sets
 
 NK_PUBLIC void nk_hamming_u1_v128relaxed(nk_u1x8_t const *a, nk_u1x8_t const *b, nk_size_t n, nk_u32_t *result) {
     nk_u8_t const *a_bytes = (nk_u8_t const *)a;
@@ -116,9 +117,9 @@ NK_PUBLIC void nk_jaccard_u1_v128relaxed(nk_u1x8_t const *a, nk_u1x8_t const *b,
     *result = union_count > 0 ? 1.0f - ((nk_f32_t)intersection / (nk_f32_t)union_count) : 0.0f;
 }
 
-#pragma endregion Binary Sets
+#pragma endregion - Binary Sets
 
-#pragma region Integer Sets
+#pragma region - Integer Sets
 
 NK_PUBLIC void nk_hamming_u8_v128relaxed(nk_u8_t const *a, nk_u8_t const *b, nk_size_t n, nk_u32_t *result) {
     nk_u32_t sum_total = 0;
@@ -251,12 +252,11 @@ nk_jaccard_u16_v128relaxed_cycle:
     *result = union_count > 0 ? 1.0f - (nk_f32_t)intersection / (nk_f32_t)union_count : 1.0f;
 }
 
-#pragma endregion Integer Sets
-
-#endif // NK_TARGET_V128RELAXED
+#pragma endregion - Integer Sets
 
 #if defined(__cplusplus)
 } // extern "C"
 #endif
 
+#endif // NK_TARGET_V128RELAXED
 #endif // NK_SET_V128RELAXED_H

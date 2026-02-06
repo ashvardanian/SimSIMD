@@ -9,6 +9,7 @@
 #define NK_REDUCE_V128RELAXED_H
 
 #if NK_TARGET_V128RELAXED
+
 #include "numkong/types.h"
 
 #if defined(__cplusplus)
@@ -61,7 +62,7 @@ NK_INTERNAL nk_u32_t nk_reduce_add_u8x16_v128relaxed_(v128_t vec_u8x16) {
 }
 
 #if defined(__cplusplus)
-}
+} // extern "C"
 #endif
 
 #endif // NK_TARGET_V128RELAXED

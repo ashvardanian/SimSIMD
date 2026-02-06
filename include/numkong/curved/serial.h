@@ -26,8 +26,8 @@
 #define NK_CURVED_SERIAL_H
 
 #include "numkong/types.h"
-#include "numkong/reduce/serial.h"  // `nk_f64_abs_`, `nk_f32_abs_`
-#include "numkong/spatial/serial.h" // `nk_f64_sqrt_serial`, `nk_f32_sqrt_serial`
+#include "numkong/reduce/serial.h"  // `nk_f64_abs_`
+#include "numkong/spatial/serial.h" // `nk_f64_sqrt_serial`
 
 #if defined(__cplusplus)
 extern "C" {
@@ -211,7 +211,7 @@ nk_define_mahalanobis_(bf16, f32, f32, nk_bf16_to_f32_serial)       // nk_mahala
 #undef nk_define_mahalanobis_
 
 #if defined(__cplusplus)
-}
+} // extern "C"
 #endif
 
 #endif // NK_CURVED_SERIAL_H

@@ -46,13 +46,6 @@
 
 #if NK_TARGET_X86_
 #if NK_TARGET_SKYLAKE
-#if defined(__clang__)
-#pragma clang attribute push(__attribute__((target("avx2,avx512f,avx512vl,avx512bw,avx512dq,f16c,fma,bmi,bmi2"))), \
-                             apply_to = function)
-#elif defined(__GNUC__)
-#pragma GCC push_options
-#pragma GCC target("avx2", "avx512f", "avx512vl", "avx512bw", "avx512dq", "f16c", "fma", "bmi", "bmi2")
-#endif
 
 #include "numkong/types.h"
 #include "numkong/reduce/serial.h" // `nk_e4m3_to_f32_serial`
@@ -60,6 +53,14 @@
 
 #if defined(__cplusplus)
 extern "C" {
+#endif
+
+#if defined(__clang__)
+#pragma clang attribute push(__attribute__((target("avx2,avx512f,avx512vl,avx512bw,avx512dq,f16c,fma,bmi,bmi2"))), \
+                             apply_to = function)
+#elif defined(__GNUC__)
+#pragma GCC push_options
+#pragma GCC target("avx2", "avx512f", "avx512vl", "avx512bw", "avx512dq", "f16c", "fma", "bmi", "bmi2")
 #endif
 
 /** @brief Horizontal sum of 16 floats in a ZMM register (native f32 precision). */
@@ -2419,16 +2420,16 @@ NK_PUBLIC void nk_reduce_max_e5m2_skylake(                          //
     else nk_reduce_max_e5m2_serial(data, count, stride_bytes, max_value, max_index);
 }
 
-#if defined(__cplusplus)
-} // extern "C"
-#endif
-
 #if defined(__clang__)
 #pragma clang attribute pop
 #elif defined(__GNUC__)
 #pragma GCC pop_options
 #endif
+
+#if defined(__cplusplus)
+} // extern "C"
+#endif
+
 #endif // NK_TARGET_SKYLAKE
 #endif // NK_TARGET_X86_
-
 #endif // NK_REDUCE_SKYLAKE_H

@@ -80,24 +80,23 @@
 #ifndef NK_DOT_SIERRA_H
 #define NK_DOT_SIERRA_H
 
+#if NK_TARGET_X86_
+#if NK_TARGET_SIERRA
+
+#include "numkong/types.h"
+#include "numkong/cast/serial.h"    // `nk_partial_load_b8x32_serial_`
+#include "numkong/reduce/haswell.h" // `nk_reduce_add_i32x8_haswell_`
+
 #if defined(__cplusplus)
 extern "C" {
 #endif
 
-#if NK_TARGET_X86_
-#if NK_TARGET_SIERRA
 #if defined(__clang__)
 #pragma clang attribute push(__attribute__((target("avx2,f16c,fma,bmi,bmi2,avxvnni,avxvnniint8"))), apply_to = function)
 #elif defined(__GNUC__)
 #pragma GCC push_options
 #pragma GCC target("avx2", "f16c", "fma", "bmi", "bmi2", "avxvnni", "avxvnniint8")
 #endif
-
-#include "numkong/types.h"
-#include "numkong/cast/serial.h"    // nk_partial_load_b8x32_serial_
-#include "numkong/reduce/haswell.h" // nk_reduce_add_i32x8_haswell_
-
-#pragma region Small Integers
 
 NK_PUBLIC void nk_dot_i8_sierra(nk_i8_t const *a_scalars, nk_i8_t const *b_scalars, nk_size_t count_scalars,
                                 nk_i32_t *result) {
@@ -432,18 +431,16 @@ NK_INTERNAL void nk_dot_u8x32_finalize_sierra(                                  
     result->xmm = final_u32x4;
 }
 
-#pragma endregion Small Integers
-
 #if defined(__clang__)
 #pragma clang attribute pop
 #elif defined(__GNUC__)
 #pragma GCC pop_options
 #endif
-#endif // NK_TARGET_SIERRA
-#endif // NK_TARGET_X86_
 
 #if defined(__cplusplus)
 } // extern "C"
 #endif
 
+#endif // NK_TARGET_SIERRA
+#endif // NK_TARGET_X86_
 #endif // NK_DOT_SIERRA_H

@@ -24,12 +24,17 @@
 #ifndef NK_SETS_ICELAKE_H
 #define NK_SETS_ICELAKE_H
 
+#if NK_TARGET_X86_
+#if NK_TARGET_ICELAKE
+
+#include "numkong/types.h"
+#include "numkong/set/icelake.h"  // `nk_hamming_u1x512_state_icelake_t`
+#include "numkong/cast/skylake.h" // `nk_partial_load_b1x512_skylake_`
+
 #if defined(__cplusplus)
 extern "C" {
 #endif
 
-#if NK_TARGET_X86_
-#if NK_TARGET_ICELAKE
 #if defined(__clang__)
 #pragma clang attribute push(                                                                                        \
     __attribute__((target("avx2,avx512f,avx512vl,avx512bw,avx512dq,avx512vnni,avx512vpopcntdq,f16c,fma,bmi,bmi2"))), \
@@ -39,10 +44,6 @@ extern "C" {
 #pragma GCC target("avx2", "avx512f", "avx512vl", "avx512bw", "avx512dq", "avx512vnni", "avx512vpopcntdq", "f16c", \
                    "fma", "bmi", "bmi2")
 #endif
-
-#include "numkong/types.h"
-#include "numkong/set/icelake.h"  // For nk_hamming_u1x512_state_icelake_t
-#include "numkong/cast/skylake.h" // For load functions including nk_partial_load_b1x512_skylake_
 
 // Four macro invocations for u1 - Ice Lake processes 512 bits at a time!
 nk_define_cross_pack_size_(hammings, u1, icelake, u1x8, u32,
@@ -73,11 +74,11 @@ nk_define_cross_packed_(hammings, u1, icelake, u1x8, u32, u32, nk_b512_vec_t, nk
 #elif defined(__GNUC__)
 #pragma GCC pop_options
 #endif
-#endif // NK_TARGET_ICELAKE
-#endif // NK_TARGET_X86_
 
 #if defined(__cplusplus)
 } // extern "C"
 #endif
 
+#endif // NK_TARGET_ICELAKE
+#endif // NK_TARGET_X86_
 #endif // NK_SETS_ICELAKE_H

@@ -58,19 +58,23 @@
 
 #if NK_TARGET_ARM_
 #if NK_TARGET_SME
-#pragma GCC push_options
-#pragma GCC target("+sme")
-#pragma clang attribute push(__attribute__((target("sme"))), apply_to = function)
 
 #include "numkong/types.h"
-
 #include <stdlib.h> // aligned_alloc, free
-#include <arm_sme.h>
-#include <arm_sve.h>
 
 #if defined(__cplusplus)
 extern "C" {
 #endif
+
+#if defined(__clang__)
+#pragma clang attribute push(__attribute__((target("sme"))), apply_to = function)
+#elif defined(__GNUC__)
+#pragma GCC push_options
+#pragma GCC target("+sme")
+#endif
+
+#include <arm_sme.h>
+#include <arm_sve.h>
 
 /**
  *  SME-specific packed buffer header (64-byte aligned).
@@ -1359,13 +1363,16 @@ NK_PUBLIC void nk_dots_packed_u8_sme(                    //
     nk_dots_u8_kernel_(a, b_packed, c, rows, columns, depth, a_stride_elements, c_stride_elements);
 }
 
+#if defined(__clang__)
+#pragma clang attribute pop
+#elif defined(__GNUC__)
+#pragma GCC pop_options
+#endif
+
 #if defined(__cplusplus)
 } // extern "C"
 #endif
 
-#pragma clang attribute pop
-#pragma GCC pop_options
 #endif // NK_TARGET_SME
 #endif // NK_TARGET_ARM_
-
 #endif // NK_DOTS_SME_H

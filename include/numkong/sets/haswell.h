@@ -23,22 +23,23 @@
 #ifndef NK_SETS_HASWELL_H
 #define NK_SETS_HASWELL_H
 
+#if NK_TARGET_X86_
+#if NK_TARGET_HASWELL
+
+#include "numkong/types.h"
+#include "numkong/set/serial.h"   // `nk_hamming_u1x128_state_serial_t`
+#include "numkong/cast/haswell.h" // `nk_partial_load_b8x32_haswell_`
+
 #if defined(__cplusplus)
 extern "C" {
 #endif
 
-#if NK_TARGET_X86_
-#if NK_TARGET_HASWELL
 #if defined(__clang__)
 #pragma clang attribute push(__attribute__((target("avx2,f16c,fma,bmi,bmi2,popcnt"))), apply_to = function)
 #elif defined(__GNUC__)
 #pragma GCC push_options
 #pragma GCC target("avx2", "f16c", "fma", "bmi", "bmi2", "popcnt")
 #endif
-
-#include "numkong/types.h"
-#include "numkong/set/serial.h"   // For nk_hamming_u1x128_state_serial_t
-#include "numkong/cast/haswell.h" // For load functions
 
 // Four macro invocations for u1 - matching serial pattern
 nk_define_cross_pack_size_(hammings, u1, haswell, u1x8, u32,
@@ -69,11 +70,11 @@ nk_define_cross_packed_(hammings, u1, haswell, u1x8, u32, u32, nk_b128_vec_t, nk
 #elif defined(__GNUC__)
 #pragma GCC pop_options
 #endif
-#endif // NK_TARGET_HASWELL
-#endif // NK_TARGET_X86_
 
 #if defined(__cplusplus)
 } // extern "C"
 #endif
 
+#endif // NK_TARGET_HASWELL
+#endif // NK_TARGET_X86_
 #endif // NK_SETS_HASWELL_H

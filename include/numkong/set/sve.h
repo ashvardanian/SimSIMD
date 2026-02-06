@@ -29,12 +29,17 @@
 #ifndef NK_SET_SVE_H
 #define NK_SET_SVE_H
 
+#if NK_TARGET_ARM_
+#if NK_TARGET_SVE
+
+#include "numkong/types.h"
+#include "numkong/set/neon.h"    // `nk_hamming_u1_neon`
+#include "numkong/reduce/neon.h" // `nk_reduce_add_u8x16_neon_`
+
 #if defined(__cplusplus)
 extern "C" {
 #endif
 
-#if NK_TARGET_ARM_
-#if NK_TARGET_SVE
 #if defined(__clang__)
 #pragma clang attribute push(__attribute__((target("arch=armv8.2-a+sve"))), apply_to = function)
 #elif defined(__GNUC__)
@@ -42,11 +47,7 @@ extern "C" {
 #pragma GCC target("arch=armv8.2-a+sve")
 #endif
 
-#include "numkong/types.h"
-#include "numkong/set/neon.h"    // `nk_hamming_u1_neon`
-#include "numkong/reduce/neon.h" // `nk_reduce_add_u8x16_neon_`
-
-#pragma region Binary Sets
+#pragma region - Binary Sets
 
 NK_PUBLIC void nk_hamming_u1_sve(nk_u1x8_t const *a, nk_u1x8_t const *b, nk_size_t n, nk_u32_t *result) {
     nk_size_t n_bytes = nk_size_divide_round_up_(n, NK_BITS_PER_BYTE);
@@ -119,9 +120,9 @@ NK_PUBLIC void nk_jaccard_u1_sve(nk_u1x8_t const *a, nk_u1x8_t const *b, nk_size
     *result = (union_count != 0) ? 1.0f - (nk_f32_t)intersection_count / (nk_f32_t)union_count : 1.0f;
 }
 
-#pragma endregion Binary Sets
+#pragma endregion - Binary Sets
 
-#pragma region Integer Sets
+#pragma region - Integer Sets
 
 NK_PUBLIC void nk_jaccard_u32_sve(nk_u32_t const *a, nk_u32_t const *b, nk_size_t n, nk_f32_t *result) {
     nk_size_t const words_per_register = svcntw();
@@ -168,18 +169,18 @@ NK_PUBLIC void nk_jaccard_u16_sve(nk_u16_t const *a, nk_u16_t const *b, nk_size_
     *result = (n != 0) ? 1.0f - (nk_f32_t)intersection_count / (nk_f32_t)n : 1.0f;
 }
 
-#pragma endregion Integer Sets
+#pragma endregion - Integer Sets
 
 #if defined(__clang__)
 #pragma clang attribute pop
 #elif defined(__GNUC__)
 #pragma GCC pop_options
 #endif
-#endif // NK_TARGET_SVE
-#endif // NK_TARGET_ARM_
 
 #if defined(__cplusplus)
 } // extern "C"
 #endif
 
+#endif // NK_TARGET_SVE
+#endif // NK_TARGET_ARM_
 #endif // NK_SET_SVE_H

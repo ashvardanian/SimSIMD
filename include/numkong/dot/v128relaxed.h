@@ -26,6 +26,7 @@
 #define NK_DOT_V128RELAXED_H
 
 #if NK_TARGET_V128RELAXED
+
 #include "numkong/types.h"
 #include "numkong/reduce/v128relaxed.h"
 #include "numkong/cast/serial.h"
@@ -223,7 +224,7 @@ nk_dot_u8_v128relaxed_cycle:
 }
 
 #if defined(__cplusplus)
-}
+} // extern "C"
 #endif
 
 #endif // NK_TARGET_V128RELAXED

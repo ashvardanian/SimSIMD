@@ -285,11 +285,19 @@ NK_PUBLIC void nk_each_cos_f16_sapphire(nk_f16_t const *ins, nk_size_t n, nk_f16
 NK_PUBLIC void nk_each_atan_f16_sapphire(nk_f16_t const *ins, nk_size_t n, nk_f16_t *outs);
 #endif // NK_TARGET_SAPPHIRE
 
+#if defined(__cplusplus)
+} // extern "C"
+#endif
+
 #include "numkong/trigonometry/serial.h"
 #include "numkong/trigonometry/neon.h"
 #include "numkong/trigonometry/haswell.h"
 #include "numkong/trigonometry/skylake.h"
 #include "numkong/trigonometry/sapphire.h"
+
+#if defined(__cplusplus)
+extern "C" {
+#endif
 
 #if !NK_DYNAMIC_DISPATCH
 
@@ -392,7 +400,7 @@ NK_PUBLIC void nk_each_atan_f16(nk_f16_t const *ins, nk_size_t n, nk_f16_t *outs
 #endif // !NK_DYNAMIC_DISPATCH
 
 #if defined(__cplusplus)
-}
+} // extern "C"
 #endif
 
-#endif
+#endif // NK_TRIGONOMETRY_H

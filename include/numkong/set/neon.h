@@ -41,12 +41,17 @@
 #ifndef NK_SET_NEON_H
 #define NK_SET_NEON_H
 
+#if NK_TARGET_ARM_
+#if NK_TARGET_NEON
+
+#include "numkong/types.h"
+#include "numkong/reduce/neon.h" // `nk_reduce_add_u8x16_neon_`
+#include "numkong/set/serial.h"  // `nk_u1x8_popcount_`
+
 #if defined(__cplusplus)
 extern "C" {
 #endif
 
-#if NK_TARGET_ARM_
-#if NK_TARGET_NEON
 #if defined(__clang__)
 #pragma clang attribute push(__attribute__((target("arch=armv8-a+simd"))), apply_to = function)
 #elif defined(__GNUC__)
@@ -54,11 +59,7 @@ extern "C" {
 #pragma GCC target("arch=armv8-a+simd")
 #endif
 
-#include "numkong/types.h"
-#include "numkong/reduce/neon.h" // `nk_reduce_add_u8x16_neon_`
-#include "numkong/set/serial.h"  // `nk_u1x8_popcount_`
-
-#pragma region Binary Sets
+#pragma region - Binary Sets
 
 NK_PUBLIC void nk_hamming_u1_neon(nk_u1x8_t const *a, nk_u1x8_t const *b, nk_size_t n, nk_u32_t *result) {
     nk_size_t n_bytes = nk_size_divide_round_up_(n, NK_BITS_PER_BYTE);
@@ -109,9 +110,9 @@ NK_PUBLIC void nk_jaccard_u1_neon(nk_u1x8_t const *a, nk_u1x8_t const *b, nk_siz
     *result = (union_count != 0) ? 1.0f - (nk_f32_t)intersection_count / (nk_f32_t)union_count : 1.0f;
 }
 
-#pragma endregion Binary Sets
+#pragma endregion - Binary Sets
 
-#pragma region Integer Sets
+#pragma region - Integer Sets
 
 NK_PUBLIC void nk_jaccard_u32_neon(nk_u32_t const *a, nk_u32_t const *b, nk_size_t n, nk_f32_t *result) {
     nk_u32_t intersection_count = 0;
@@ -174,9 +175,9 @@ NK_PUBLIC void nk_jaccard_u16_neon(nk_u16_t const *a, nk_u16_t const *b, nk_size
     *result = (n != 0) ? 1.0f - (nk_f32_t)matches / (nk_f32_t)n : 1.0f;
 }
 
-#pragma endregion Integer Sets
+#pragma endregion - Integer Sets
 
-#pragma region Stateful Streaming
+#pragma region - Stateful Streaming
 
 typedef struct nk_hamming_u1x128_state_neon_t {
     uint32x4_t intersection_count_u32x4;
@@ -318,18 +319,18 @@ NK_INTERNAL void nk_jaccard_u1x128_finalize_neon( //
     result->f32x4 = vbslq_f32(zero_union_mask, one_f32x4, jaccard_f32x4);
 }
 
-#pragma endregion Stateful Streaming
+#pragma endregion - Stateful Streaming
 
 #if defined(__clang__)
 #pragma clang attribute pop
 #elif defined(__GNUC__)
 #pragma GCC pop_options
 #endif
-#endif // NK_TARGET_NEON
-#endif // NK_TARGET_ARM_
 
 #if defined(__cplusplus)
 } // extern "C"
 #endif
 
+#endif // NK_TARGET_NEON
+#endif // NK_TARGET_ARM_
 #endif // NK_SET_NEON_H

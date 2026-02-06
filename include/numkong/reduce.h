@@ -564,6 +564,10 @@ NK_PUBLIC void nk_reduce_add_u16_icelake(nk_u16_t const *data, nk_size_t count, 
                                          nk_u64_t *result);
 #endif // NK_TARGET_ICELAKE
 
+#ifdef __cplusplus
+} // extern "C"
+#endif
+
 #include "numkong/reduce/serial.h"
 #include "numkong/reduce/neon.h"
 #include "numkong/reduce/neonhalf.h"
@@ -574,6 +578,10 @@ NK_PUBLIC void nk_reduce_add_u16_icelake(nk_u16_t const *data, nk_size_t count, 
 #include "numkong/reduce/skylake.h"
 #include "numkong/reduce/icelake.h"
 #include "numkong/reduce/sierra.h"
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 #if !NK_DYNAMIC_DISPATCH
 
@@ -1072,7 +1080,7 @@ NK_PUBLIC void nk_reduce_max_e5m2(nk_e5m2_t const *data, nk_size_t count, nk_siz
 #endif // !NK_DYNAMIC_DISPATCH
 
 #ifdef __cplusplus
-}
+} // extern "C"
 #endif
 
 #endif // NK_REDUCE_H

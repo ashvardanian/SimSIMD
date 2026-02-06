@@ -44,7 +44,7 @@ extern "C" {
 #endif // defined(__cplusplus)
 
 #if defined(__cplusplus)
-}
+} // extern "C"
 #endif // defined(__cplusplus)
 
 #endif // NK_RANDOM_H

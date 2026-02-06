@@ -33,18 +33,19 @@
 
 #if NK_TARGET_ARM_
 #if NK_TARGET_NEONBFDOT
-#if defined(__clang__)
-#pragma clang attribute push(__attribute__((target("arch=armv8.6-a+simd+bf16"))), apply_to = function)
-#elif defined(__GNUC__)
-#pragma GCC push_options
-#pragma GCC target("arch=armv8.6-a+simd+bf16")
-#endif
 
 #include "numkong/types.h"
 #include "numkong/spatial/neon.h" // `nk_f32_sqrt_neon`
 
 #if defined(__cplusplus)
 extern "C" {
+#endif
+
+#if defined(__clang__)
+#pragma clang attribute push(__attribute__((target("arch=armv8.6-a+simd+bf16"))), apply_to = function)
+#elif defined(__GNUC__)
+#pragma GCC push_options
+#pragma GCC target("arch=armv8.6-a+simd+bf16")
 #endif
 
 /*  Load 4 bf16 xyz points (12 bf16 values) → 3x float32x4_t.
@@ -793,16 +794,16 @@ NK_PUBLIC void nk_umeyama_bf16_neonbfdot(nk_bf16_t const *a, nk_bf16_t const *b,
     *result = nk_f32_sqrt_neon(sum_squared * inv_n);
 }
 
-#if defined(__cplusplus)
-} // extern "C"
-#endif
-
 #if defined(__clang__)
 #pragma clang attribute pop
 #elif defined(__GNUC__)
 #pragma GCC pop_options
 #endif
+
+#if defined(__cplusplus)
+} // extern "C"
+#endif
+
 #endif // NK_TARGET_NEONBFDOT
 #endif // NK_TARGET_ARM_
-
 #endif // NK_MESH_NEONBFDOT_H

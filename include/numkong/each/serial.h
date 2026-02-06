@@ -8,7 +8,9 @@
  */
 #ifndef NK_EACH_SERIAL_H
 #define NK_EACH_SERIAL_H
+
 #include "numkong/types.h"
+#include "numkong/cast/serial.h" // `nk_f16_to_f32_serial`
 
 #if defined(__cplusplus)
 extern "C" {

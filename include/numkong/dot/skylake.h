@@ -78,12 +78,16 @@
 #ifndef NK_DOT_SKYLAKE_H
 #define NK_DOT_SKYLAKE_H
 
+#if NK_TARGET_X86_
+#if NK_TARGET_SKYLAKE
+
+#include "numkong/cast/skylake.h"   // `nk_bf16x16_to_f32x16_skylake_`
+#include "numkong/reduce/skylake.h" // `nk_reduce_add_f32x16_skylake_`
+
 #if defined(__cplusplus)
 extern "C" {
 #endif
 
-#if NK_TARGET_X86_
-#if NK_TARGET_SKYLAKE
 #if defined(__clang__)
 #pragma clang attribute push(__attribute__((target("avx2,avx512f,avx512vl,avx512bw,avx512dq,f16c,fma,bmi,bmi2"))), \
                              apply_to = function)
@@ -92,10 +96,7 @@ extern "C" {
 #pragma GCC target("avx2", "avx512f", "avx512vl", "avx512bw", "avx512dq", "f16c", "fma", "bmi", "bmi2")
 #endif
 
-#include "numkong/cast/skylake.h"   // `nk_bf16x16_to_f32x16_skylake_`
-#include "numkong/reduce/skylake.h" // `nk_reduce_add_f32x16_skylake_`
-
-#pragma region Traditional Floats
+#pragma region - Traditional Floats
 
 /**
  *  @brief Internal helper state for dot-products of low-precision types, where 32-bit accumulation is enough.
@@ -450,7 +451,7 @@ nk_vdot_f64c_skylake_cycle:
     result->imag = _mm512_reduce_add_pd(_mm512_add_pd(sum_imag_f64x8, compensation_imag_f64x8));
 }
 
-#pragma region Smaller Floats
+#pragma region - Smaller Floats
 
 NK_PUBLIC void nk_dot_f16_skylake(nk_f16_t const *a_scalars, nk_f16_t const *b_scalars, nk_size_t count_scalars,
                                   nk_f32_t *result) {
@@ -602,9 +603,9 @@ nk_dot_e3m2_skylake_cycle:
     *result = nk_reduce_add_f32x16_skylake_(sum_f32x16);
 }
 
-#pragma endregion Smaller Floats
+#pragma endregion - Smaller Floats
 
-#pragma region Small Integers
+#pragma region - Small Integers
 
 NK_PUBLIC void nk_dot_i8_skylake(nk_i8_t const *a_scalars, nk_i8_t const *b_scalars, nk_size_t count_scalars,
                                  nk_i32_t *result) {
@@ -752,24 +753,24 @@ NK_INTERNAL void nk_dot_f32x8_finalize_skylake(                                 
     result->xmm = _mm_castps_si128(result_f32x4);
 }
 
-#pragma endregion Traditional Floats
+#pragma endregion - Traditional Floats
 
 typedef nk_dot_through_f32_state_skylake_t_ nk_dot_bf16x16_state_skylake_t;
 
 typedef nk_dot_through_f32_state_skylake_t_ nk_dot_f16x16_state_skylake_t;
 
-#pragma endregion Small Integers
+#pragma endregion - Small Integers
 
 #if defined(__clang__)
 #pragma clang attribute pop
 #elif defined(__GNUC__)
 #pragma GCC pop_options
 #endif
-#endif // NK_TARGET_SKYLAKE
-#endif // NK_TARGET_X86_
 
 #if defined(__cplusplus)
 } // extern "C"
 #endif
 
+#endif // NK_TARGET_SKYLAKE
+#endif // NK_TARGET_X86_
 #endif // NK_DOT_SKYLAKE_H

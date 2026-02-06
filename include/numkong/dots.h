@@ -1176,6 +1176,10 @@ NK_INTERNAL nk_dtype_t nk_dots_packed_output_dtype(nk_dtype_t dtype) {
     }
 }
 
+#if defined(__cplusplus)
+} // extern "C"
+#endif
+
 #include "numkong/dots/serial.h"
 #include "numkong/dots/haswell.h"
 #include "numkong/dots/skylake.h"
@@ -1192,6 +1196,10 @@ NK_INTERNAL nk_dtype_t nk_dots_packed_output_dtype(nk_dtype_t dtype) {
 #include "numkong/dots/svehalf.h"
 #include "numkong/dots/sme.h"
 #include "numkong/dots/smef64.h"
+
+#if defined(__cplusplus)
+extern "C" {
+#endif
 
 #if !NK_DYNAMIC_DISPATCH
 
@@ -1963,7 +1971,7 @@ NK_PUBLIC void nk_dots_symmetric_f64(nk_f64_t const *vectors, nk_size_t n_vector
 #endif // !NK_DYNAMIC_DISPATCH
 
 #if defined(__cplusplus)
-}
+} // extern "C"
 #endif
 
 #endif

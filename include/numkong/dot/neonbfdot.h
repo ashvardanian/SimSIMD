@@ -57,24 +57,23 @@
 #ifndef NK_DOT_NEONBFDOT_H
 #define NK_DOT_NEONBFDOT_H
 
+#if NK_TARGET_ARM_
+#if NK_TARGET_NEONBFDOT
+
+#include "numkong/types.h"
+#include "numkong/cast/serial.h" // `nk_partial_load_b8x8_serial_`
+#include "numkong/cast/neon.h"   // `nk_e4m3x8_to_bf16x8_neon_`
+
 #if defined(__cplusplus)
 extern "C" {
 #endif
 
-#if NK_TARGET_ARM_
-#if NK_TARGET_NEONBFDOT
 #if defined(__clang__)
 #pragma clang attribute push(__attribute__((target("arch=armv8.6-a+simd+bf16"))), apply_to = function)
 #elif defined(__GNUC__)
 #pragma GCC push_options
 #pragma GCC target("arch=armv8.6-a+simd+bf16")
 #endif
-
-#include "numkong/types.h"
-#include "numkong/cast/serial.h" // `nk_partial_load_b8x8_serial_`
-#include "numkong/cast/neon.h"   // `nk_e4m3x8_to_bf16x8_neon_`
-
-#pragma region Smaller Floats
 
 NK_PUBLIC void nk_dot_bf16_neonbfdot(nk_bf16_t const *a_scalars, nk_bf16_t const *b_scalars, nk_size_t count_scalars,
                                      nk_f32_t *result) {
@@ -230,18 +229,16 @@ NK_INTERNAL void nk_dot_bf16x8_finalize_neonbfdot(                              
     result->f32s[3] = vaddvq_f32(state_d->sum_f32x4);
 }
 
-#pragma endregion Smaller Floats
-
 #if defined(__clang__)
 #pragma clang attribute pop
 #elif defined(__GNUC__)
 #pragma GCC pop_options
 #endif
-#endif // NK_TARGET_NEONBFDOT
-#endif // NK_TARGET_ARM_
 
 #if defined(__cplusplus)
 } // extern "C"
 #endif
 
+#endif // NK_TARGET_NEONBFDOT
+#endif // NK_TARGET_ARM_
 #endif // NK_DOT_NEONBFDOT_H

@@ -62,6 +62,14 @@
 
 #if NK_TARGET_X86_
 #if NK_TARGET_SAPPHIREAMX
+
+#include "numkong/types.h"
+#include "numkong/dots/sapphireamx.h"
+
+#if defined(__cplusplus)
+extern "C" {
+#endif
+
 #if defined(__clang__)
 #pragma clang attribute push(__attribute__((target("avx2,avx512f,avx512vl,bmi2,avx512bw,avx512fp16,avx512bf16"))), \
                              apply_to = function)
@@ -69,17 +77,6 @@
 #pragma GCC push_options
 #pragma GCC target("avx2", "avx512f", "avx512vl", "bmi2", "avx512bw", "avx512fp16", "avx512bf16")
 #endif
-
-#include "numkong/types.h"
-#include "numkong/dots/sapphireamx.h"
-
-#include <float.h> // FLT_MAX
-
-#if defined(__cplusplus)
-extern "C" {
-#endif
-
-/* Packed KV Cache Structures */
 
 /**
  *  @brief Packed KV cache header for attention (64-byte aligned).
@@ -407,7 +404,7 @@ NK_INTERNAL void nk_attention_softmax_update_bc32_fast_(nk_attention_softmax_row
  *  @brief Initialize online softmax state.
  */
 NK_INTERNAL void nk_attention_softmax_init_(nk_attention_softmax_row_state_t *state) {
-    state->row_max = _mm512_set1_ps(-FLT_MAX);
+    state->row_max = _mm512_set1_ps(NK_F32_MIN);
     state->row_sum = _mm512_setzero_ps();
 }
 
@@ -494,8 +491,6 @@ NK_INTERNAL void nk_attention_rescale_output_(nk_f32_t *output, nk_size_t head_d
         }
     }
 }
-
-/* KV Cache Packing Functions */
 
 /**
  *  @brief Calculate packed KV cache size in bytes.
@@ -870,11 +865,11 @@ NK_PUBLIC void nk_attention_bf16_sapphireamx(nk_bf16_t const *q, void const *kv_
                         scores[qi * 16 + ki] = sum;
                     }
                     // Zero out invalid KV positions
-                    for (nk_size_t ki = valid_kv; ki < 16; ki++) { scores[qi * 16 + ki] = -FLT_MAX; }
+                    for (nk_size_t ki = valid_kv; ki < 16; ki++) { scores[qi * 16 + ki] = NK_F32_MIN; }
                 }
                 // Zero out invalid query rows
                 for (nk_size_t qi = valid_q; qi < 16; qi++) {
-                    for (nk_size_t ki = 0; ki < 16; ki++) { scores[qi * 16 + ki] = -FLT_MAX; }
+                    for (nk_size_t ki = 0; ki < 16; ki++) { scores[qi * 16 + ki] = NK_F32_MIN; }
                 }
 
                 // Phase 2: Online softmax update
@@ -1060,7 +1055,7 @@ NK_PUBLIC void nk_attention_bf16_amx_bc32_sapphireamx(nk_bf16_t const *q, void c
                 // Use SIMD for fast extraction
                 _tile_stored(0, s_tile, 64);
 
-                __m512 neg_inf = _mm512_set1_ps(-FLT_MAX);
+                __m512 neg_inf = _mm512_set1_ps(NK_F32_MIN);
 
                 if (valid_q == 16 && valid_kv >= 16) {
                     // Fast path: full first half, just copy
@@ -1238,7 +1233,7 @@ NK_PUBLIC void nk_attention_bf16_amx_optimized_sapphireamx(nk_bf16_t const *q, v
     NK_ALIGN64 nk_f32_t o_tile[16][16];      // Output tile buffer
     NK_ALIGN64 nk_f32_t o_acc[16][256];      // Output accumulator (max d=256)
 
-    __m512 neg_inf = _mm512_set1_ps(-FLT_MAX);
+    __m512 neg_inf = _mm512_set1_ps(NK_F32_MIN);
 
     for (nk_size_t h = 0; h < num_heads; h++) {
         nk_size_t kv_h = h / gqa_ratio;
@@ -1444,15 +1439,16 @@ NK_PUBLIC void nk_attention_causal_bf16_sapphireamx(nk_bf16_t const *q, void con
     nk_attention_bf16_sapphireamx(q, kv_packed, output, num_heads, num_kv_heads, query_len, kv_len, head_dim, scale);
 }
 
-#if defined(__cplusplus)
-} // extern "C"
-#endif
-
 #if defined(__clang__)
 #pragma clang attribute pop
 #elif defined(__GNUC__)
 #pragma GCC pop_options
 #endif
+
+#if defined(__cplusplus)
+} // extern "C"
+#endif
+
 #endif // NK_TARGET_SAPPHIREAMX
 #endif // NK_TARGET_X86_
 #endif // NK_ATTENTION_SAPPHIREAMX_H

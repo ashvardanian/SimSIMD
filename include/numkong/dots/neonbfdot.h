@@ -9,20 +9,21 @@
 #ifndef NK_DOTS_NEONBFDOT_H
 #define NK_DOTS_NEONBFDOT_H
 
+#if NK_TARGET_ARM_
+#if NK_TARGET_NEONBFDOT
+
+#include "numkong/types.h"
+
 #if defined(__cplusplus)
 extern "C" {
 #endif
 
-#if NK_TARGET_ARM_
-#if NK_TARGET_NEONBFDOT
 #if defined(__clang__)
 #pragma clang attribute push(__attribute__((target("arch=armv8.6-a+simd+bf16"))), apply_to = function)
 #elif defined(__GNUC__)
 #pragma GCC push_options
 #pragma GCC target("arch=armv8.6-a+simd+bf16")
 #endif
-
-#include "numkong/types.h"
 
 /* BF16 GEMM: depth_simd_dimensions=8 (8 bf16s = 16 bytes = NEON register width) */
 nk_define_cross_pack_size_(dots, bf16, neonbfdot, bf16, bf16, /*depth_simd_dimensions=*/8, /*dimensions_per_value=*/1)
@@ -44,11 +45,11 @@ nk_define_cross_packed_(dots, bf16, neonbfdot, bf16, bf16, f32, nk_b128_vec_t, n
 #elif defined(__GNUC__)
 #pragma GCC pop_options
 #endif
-#endif // NK_TARGET_NEONBFDOT
-#endif // NK_TARGET_ARM_
 
 #if defined(__cplusplus)
 } // extern "C"
 #endif
 
+#endif // NK_TARGET_NEONBFDOT
+#endif // NK_TARGET_ARM_
 #endif // NK_DOTS_NEONBFDOT_H

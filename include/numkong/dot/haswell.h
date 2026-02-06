@@ -84,12 +84,18 @@
 #ifndef NK_DOT_HASWELL_H
 #define NK_DOT_HASWELL_H
 
+#if NK_TARGET_X86_
+#if NK_TARGET_HASWELL
+
+#include "numkong/types.h"
+#include "numkong/dot/serial.h"
+#include "numkong/reduce/haswell.h"
+#include "numkong/cast/haswell.h" // `nk_f32x8_to_bf16x8_haswell_`
+
 #if defined(__cplusplus)
 extern "C" {
 #endif
 
-#if NK_TARGET_X86_
-#if NK_TARGET_HASWELL
 #if defined(__clang__)
 #pragma clang attribute push(__attribute__((target("avx2,f16c,fma,bmi,bmi2"))), apply_to = function)
 #elif defined(__GNUC__)
@@ -97,12 +103,7 @@ extern "C" {
 #pragma GCC target("avx2", "f16c", "fma", "bmi", "bmi2")
 #endif
 
-#include "numkong/types.h"
-#include "numkong/dot/serial.h"
-#include "numkong/reduce/haswell.h"
-#include "numkong/cast/haswell.h" // `nk_f32x8_to_bf16x8_haswell_`
-
-#pragma region Traditional Floats
+#pragma region - Traditional Floats
 
 NK_PUBLIC void nk_dot_f32_haswell(nk_f32_t const *a_scalars, nk_f32_t const *b_scalars, nk_size_t count_scalars,
                                   nk_f32_t *result) {
@@ -426,9 +427,9 @@ NK_INTERNAL void nk_dot_f32x4_finalize_haswell(                                 
     result->xmm = _mm_castps_si128(sum_f32x4);
 }
 
-#pragma endregion Traditional Floats
+#pragma endregion - Traditional Floats
 
-#pragma region Smaller Floats
+#pragma region - Smaller Floats
 
 NK_PUBLIC void nk_dot_bf16_haswell(nk_bf16_t const *a_scalars, nk_bf16_t const *b_scalars, nk_size_t count_scalars,
                                    nk_f32_t *result) {
@@ -810,9 +811,9 @@ typedef struct nk_dot_through_f32_state_haswell_t_ nk_dot_e2m3x16_state_haswell_
  */
 typedef struct nk_dot_through_f32_state_haswell_t_ nk_dot_e3m2x16_state_haswell_t;
 
-#pragma endregion Smaller Floats
+#pragma endregion - Smaller Floats
 
-#pragma region Small Integers
+#pragma region - Small Integers
 
 NK_PUBLIC void nk_dot_i8_haswell(nk_i8_t const *a_scalars, nk_i8_t const *b_scalars, nk_size_t count_scalars,
                                  nk_i32_t *result) {
@@ -1267,18 +1268,18 @@ NK_INTERNAL void nk_dot_u4x32_finalize_haswell(                                 
                                 _mm_add_epi32(product_lane2, product_lane3));
 }
 
-#pragma endregion Small Integers
+#pragma endregion - Small Integers
 
 #if defined(__clang__)
 #pragma clang attribute pop
 #elif defined(__GNUC__)
 #pragma GCC pop_options
 #endif
-#endif // NK_TARGET_HASWELL
-#endif // NK_TARGET_X86_
 
 #if defined(__cplusplus)
 } // extern "C"
 #endif
 
+#endif // NK_TARGET_HASWELL
+#endif // NK_TARGET_X86_
 #endif // NK_DOT_HASWELL_H

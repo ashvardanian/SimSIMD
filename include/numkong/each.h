@@ -859,6 +859,10 @@ NK_INTERNAL nk_dtype_t nk_each_blend_output_dtype(nk_dtype_t dtype) { return nk_
 /** @copydoc nk_each_scale_output_dtype */
 NK_INTERNAL nk_dtype_t nk_each_fma_output_dtype(nk_dtype_t dtype) { return nk_each_scale_output_dtype(dtype); }
 
+#if defined(__cplusplus)
+} // extern "C"
+#endif
+
 #include "numkong/each/serial.h"
 #include "numkong/each/neon.h"
 #include "numkong/each/neonhalf.h"
@@ -867,6 +871,10 @@ NK_INTERNAL nk_dtype_t nk_each_fma_output_dtype(nk_dtype_t dtype) { return nk_ea
 #include "numkong/each/skylake.h"
 #include "numkong/each/icelake.h"
 #include "numkong/each/sapphire.h"
+
+#if defined(__cplusplus)
+extern "C" {
+#endif
 
 #if !NK_DYNAMIC_DISPATCH
 
@@ -1507,7 +1515,7 @@ NK_PUBLIC void nk_each_fma_e5m2(nk_e5m2_t const *a, nk_e5m2_t const *b, nk_e5m2_
 #endif // !NK_DYNAMIC_DISPATCH
 
 #if defined(__cplusplus)
-}
+} // extern "C"
 #endif
 
 #endif // NK_EACH_H

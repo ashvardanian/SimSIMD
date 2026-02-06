@@ -22,12 +22,17 @@
 #ifndef NK_SPATIAL_SKYLAKE_H
 #define NK_SPATIAL_SKYLAKE_H
 
+#if NK_TARGET_X86_
+#if NK_TARGET_SKYLAKE
+
+#include "numkong/types.h"
+#include "numkong/reduce/skylake.h" // `nk_reduce_add_f32x16_skylake_`
+#include "numkong/dot/skylake.h"    // `nk_dot_f64x8_state_skylake_t`
+
 #if defined(__cplusplus)
 extern "C" {
 #endif
 
-#if NK_TARGET_X86_
-#if NK_TARGET_SKYLAKE
 #if defined(__clang__)
 #pragma clang attribute push(__attribute__((target("avx2,avx512f,avx512vl,avx512bw,avx512dq,f16c,fma,bmi,bmi2"))), \
                              apply_to = function)
@@ -36,9 +41,7 @@ extern "C" {
 #pragma GCC target("avx2", "avx512f", "avx512vl", "avx512bw", "avx512dq", "f16c", "fma", "bmi", "bmi2")
 #endif
 
-#include "numkong/types.h"
-#include "numkong/reduce/skylake.h" // `nk_reduce_add_f32x16_skylake_`
-#include "numkong/dot/skylake.h"    // `nk_dot_f64x8_state_skylake_t`, `nk_dot_f32x8_state_skylake_t`
+#pragma region - Traditional Floats
 
 NK_PUBLIC void nk_sqeuclidean_f32_skylake(nk_f32_t const *a, nk_f32_t const *b, nk_size_t n, nk_f32_t *result) {
     // Upcast to f64 for higher precision accumulation
@@ -377,6 +380,9 @@ NK_INTERNAL void nk_euclidean_f32x8_finalize_skylake(
     _mm_storeu_ps(results, dist_f32x4);
 }
 
+#pragma endregion - Traditional Floats
+#pragma region - Smaller Floats
+
 NK_PUBLIC void nk_sqeuclidean_f16_skylake(nk_f16_t const *a, nk_f16_t const *b, nk_size_t n, nk_f32_t *result) {
     __m512 sum_f32x16 = _mm512_setzero_ps();
     __m256i a_f16x16, b_f16x16;
@@ -687,11 +693,12 @@ nk_angular_e3m2_skylake_cycle:
 #elif defined(__GNUC__)
 #pragma GCC pop_options
 #endif
-#endif // NK_TARGET_SKYLAKE
-#endif // NK_TARGET_X86_
 
 #if defined(__cplusplus)
 } // extern "C"
 #endif
 
+#pragma endregion - Smaller Floats
+#endif // NK_TARGET_SKYLAKE
+#endif // NK_TARGET_X86_
 #endif // NK_SPATIAL_SKYLAKE_H

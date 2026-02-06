@@ -29,15 +29,16 @@
 #ifndef NK_SPATIAL_V128RELAXED_H
 #define NK_SPATIAL_V128RELAXED_H
 
-#if defined(__cplusplus)
-extern "C" {
-#endif
-
 #if NK_TARGET_V128RELAXED
+
 #include "numkong/types.h"
 #include "numkong/reduce/v128relaxed.h"
 #include "numkong/cast/serial.h"
 #include "numkong/cast/v128relaxed.h"
+
+#if defined(__cplusplus)
+extern "C" {
+#endif
 
 NK_INTERNAL nk_f32_t nk_f32_sqrt_v128relaxed_(nk_f32_t x) {
     return wasm_f32x4_extract_lane(wasm_f32x4_sqrt(wasm_f32x4_splat(x)), 0);
@@ -65,6 +66,8 @@ NK_INTERNAL nk_f64_t nk_angular_normalize_f64_v128relaxed_(nk_f64_t ab, nk_f64_t
     // Clamp negative results to 0 (can occur due to floating-point rounding)
     return result > 0.0 ? result : 0.0;
 }
+
+#pragma region - Traditional Floats
 
 NK_PUBLIC void nk_sqeuclidean_f32_v128relaxed(nk_f32_t const *a, nk_f32_t const *b, nk_size_t n, nk_f32_t *result) {
     v128_t sum_f32x4 = wasm_f32x4_splat(0.0f);
@@ -198,6 +201,9 @@ nk_angular_f64_v128relaxed_cycle:
     nk_f64_t b2 = nk_reduce_add_f64x2_v128relaxed_(b2_f64x2);
     *result = nk_angular_normalize_f64_v128relaxed_(ab, a2, b2);
 }
+
+#pragma endregion - Traditional Floats
+#pragma region - Smaller Floats
 
 NK_PUBLIC void nk_sqeuclidean_f16_v128relaxed(nk_f16_t const *a, nk_f16_t const *b, nk_size_t n, nk_f32_t *result) {
     v128_t sum_f32x4 = wasm_f32x4_splat(0.0f);
@@ -355,10 +361,10 @@ nk_angular_bf16_v128relaxed_cycle:
     *result = (nk_f32_t)nk_angular_normalize_f64_v128relaxed_((nk_f64_t)ab, (nk_f64_t)a2, (nk_f64_t)b2);
 }
 
-#endif // NK_TARGET_V128RELAXED
-
+#pragma endregion - Smaller Floats
 #if defined(__cplusplus)
 } // extern "C"
 #endif
 
+#endif // NK_TARGET_V128RELAXED
 #endif // NK_SPATIAL_V128RELAXED_H

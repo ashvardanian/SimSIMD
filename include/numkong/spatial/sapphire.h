@@ -24,12 +24,16 @@
 #ifndef NK_SPATIAL_SAPPHIRE_H
 #define NK_SPATIAL_SAPPHIRE_H
 
+#if NK_TARGET_X86_
+#if NK_TARGET_SAPPHIRE
+
+#include "numkong/types.h"
+#include "numkong/cast/sapphire.h" // `nk_e4m3x16_to_f16x16_sapphire_`
+
 #if defined(__cplusplus)
 extern "C" {
 #endif
 
-#if NK_TARGET_X86_
-#if NK_TARGET_SAPPHIRE
 #if defined(__clang__)
 #pragma clang attribute push(__attribute__((target("avx2,avx512f,avx512vl,avx512bw,avx512fp16,f16c,fma,bmi,bmi2"))), \
                              apply_to = function)
@@ -37,11 +41,6 @@ extern "C" {
 #pragma GCC push_options
 #pragma GCC target("avx2", "avx512f", "avx512vl", "avx512bw", "avx512fp16", "f16c", "fma", "bmi", "bmi2")
 #endif
-
-#include "numkong/types.h"
-#include "numkong/cast/sapphire.h" // `nk_e4m3x16_to_f16x16_sapphire_`
-
-#pragma region Smaller Floats
 
 NK_PUBLIC void nk_sqeuclidean_e4m3_sapphire(nk_e4m3_t const *a_scalars, nk_e4m3_t const *b_scalars,
                                             nk_size_t count_scalars, nk_f32_t *result) {
@@ -85,18 +84,16 @@ NK_PUBLIC void nk_euclidean_e4m3_sapphire(nk_e4m3_t const *a_scalars, nk_e4m3_t 
     *result = nk_f32_sqrt_haswell(*result);
 }
 
-#pragma endregion Smaller Floats
-
 #if defined(__clang__)
 #pragma clang attribute pop
 #elif defined(__GNUC__)
 #pragma GCC pop_options
 #endif
-#endif // NK_TARGET_SAPPHIRE
-#endif // NK_TARGET_X86_
 
 #if defined(__cplusplus)
 } // extern "C"
 #endif
 
+#endif // NK_TARGET_SAPPHIRE
+#endif // NK_TARGET_X86_
 #endif // NK_SPATIAL_SAPPHIRE_H

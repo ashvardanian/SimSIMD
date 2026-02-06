@@ -267,5 +267,4 @@ NK_PUBLIC void nk_dot_u4_rvv(nk_u4x2_t const *a_scalars, nk_u4x2_t const *b_scal
 
 #endif // NK_TARGET_RVV
 #endif // NK_TARGET_RISCV_
-
 #endif // NK_DOT_RVV_H

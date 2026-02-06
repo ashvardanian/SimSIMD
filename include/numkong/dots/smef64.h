@@ -27,19 +27,23 @@
 
 #if NK_TARGET_ARM_
 #if NK_TARGET_SME
-#pragma GCC push_options
-#pragma GCC target("+sme+sme-f64f64")
-#pragma clang attribute push(__attribute__((target("sme,sme-f64f64"))), apply_to = function)
 
 #include "numkong/types.h"
-#include "numkong/dots/sme.h" // For nk_dots_sme_packed_header_t
-
-#include <arm_sme.h>
-#include <arm_sve.h>
+#include "numkong/dots/sme.h" // `nk_dots_sme_packed_header_t`
 
 #if defined(__cplusplus)
 extern "C" {
 #endif
+
+#if defined(__clang__)
+#pragma clang attribute push(__attribute__((target("sme,sme-f64f64"))), apply_to = function)
+#elif defined(__GNUC__)
+#pragma GCC push_options
+#pragma GCC target("+sme+sme-f64f64")
+#endif
+
+#include <arm_sme.h>
+#include <arm_sve.h>
 
 /**
  *  @brief Returns packed buffer size in bytes for `f32` B matrix.
@@ -524,13 +528,16 @@ NK_PUBLIC void nk_dots_symmetric_f64_smef64(nk_f64_t const *vectors, nk_size_t n
     }
 }
 
+#if defined(__clang__)
+#pragma clang attribute pop
+#elif defined(__GNUC__)
+#pragma GCC pop_options
+#endif
+
 #if defined(__cplusplus)
 } // extern "C"
 #endif
 
-#pragma clang attribute pop
-#pragma GCC pop_options
 #endif // NK_TARGET_SME
 #endif // NK_TARGET_ARM_
-
 #endif // NK_DOTS_SMEF64_H

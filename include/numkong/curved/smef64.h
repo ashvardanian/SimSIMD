@@ -28,10 +28,15 @@
 #ifndef NK_CURVED_SMEF64_H
 #define NK_CURVED_SMEF64_H
 
-#include "numkong/types.h"
-
 #if NK_TARGET_ARM_
 #if NK_TARGET_SMEF64
+
+#include "numkong/types.h"
+#include "numkong/spatial/neon.h" // `nk_f64_sqrt_neon`
+
+#if defined(__cplusplus)
+extern "C" {
+#endif
 
 #if defined(__clang__)
 #pragma clang attribute push(__attribute__((target("sve"))), apply_to = function)
@@ -41,12 +46,6 @@
 #endif
 
 #include <arm_sve.h>
-
-#include "numkong/spatial/neon.h" // nk_f64_sqrt_neon, nk_f32_sqrt_neon
-
-#if defined(__cplusplus)
-extern "C" {
-#endif
 
 NK_PUBLIC void nk_bilinear_f32_smef64(nk_f32_t const *a, nk_f32_t const *b, nk_f32_t const *c, nk_size_t n,
                                       nk_f32_t *result) {
@@ -353,14 +352,14 @@ NK_PUBLIC void nk_bilinear_f64c_smef64(nk_f64c_t const *a_pairs, nk_f64c_t const
     results->imag = outer_sum_imag + outer_comp_imag;
 }
 
-#if defined(__cplusplus)
-}
-#endif
-
 #if defined(__clang__)
 #pragma clang attribute pop
 #elif defined(__GNUC__)
 #pragma GCC pop_options
+#endif
+
+#if defined(__cplusplus)
+} // extern "C"
 #endif
 
 #endif // NK_TARGET_SMEF64

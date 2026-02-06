@@ -48,5 +48,4 @@ NK_PUBLIC void nk_dot_bf16_rvvbf16(nk_bf16_t const *a_scalars, nk_bf16_t const *
 
 #endif // NK_TARGET_RVVBF16
 #endif // NK_TARGET_RISCV_
-
 #endif // NK_DOT_RVVBF16_H

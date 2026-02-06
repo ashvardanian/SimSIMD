@@ -9,6 +9,7 @@
 #define NK_CAST_V128RELAXED_H
 
 #if NK_TARGET_V128RELAXED
+
 #include "numkong/types.h"
 #include "numkong/cast/serial.h" // For scalar fallback
 
@@ -110,7 +111,7 @@ NK_INTERNAL nk_b128_vec_t nk_f16x4_to_f32x4_v128relaxed_(nk_b64_vec_t f16_vec) {
 }
 
 #if defined(__cplusplus)
-}
+} // extern "C"
 #endif
 
 #endif // NK_TARGET_V128RELAXED

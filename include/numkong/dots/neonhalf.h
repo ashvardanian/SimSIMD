@@ -9,20 +9,21 @@
 #ifndef NK_DOTS_NEONHALF_H
 #define NK_DOTS_NEONHALF_H
 
+#if NK_TARGET_ARM_
+#if NK_TARGET_NEONHALF
+
+#include "numkong/dot/neonhalf.h"
+
 #if defined(__cplusplus)
 extern "C" {
 #endif
 
-#if NK_TARGET_ARM_
-#if NK_TARGET_NEONHALF
 #if defined(__clang__)
 #pragma clang attribute push(__attribute__((target("arch=armv8.2-a+simd+fp16"))), apply_to = function)
 #elif defined(__GNUC__)
 #pragma GCC push_options
 #pragma GCC target("arch=armv8.2-a+simd+fp16")
 #endif
-
-#include "numkong/dot/neonhalf.h"
 
 /* F16 GEMM: depth_simd_dimensions=4 (4 f16s = 8 bytes = 64-bit input for direct f32 conversion) */
 nk_define_cross_pack_size_(dots, f16, neonhalf, f16, f16, /*depth_simd_dimensions=*/4, /*dimensions_per_value=*/1)
@@ -43,11 +44,11 @@ nk_define_cross_packed_(dots, f16, neonhalf, f16, f16, f32, nk_b64_vec_t, nk_dot
 #elif defined(__GNUC__)
 #pragma GCC pop_options
 #endif
-#endif // NK_TARGET_NEONHALF
-#endif // NK_TARGET_ARM_
 
 #if defined(__cplusplus)
 } // extern "C"
 #endif
 
+#endif // NK_TARGET_NEONHALF
+#endif // NK_TARGET_ARM_
 #endif // NK_DOTS_NEONHALF_H

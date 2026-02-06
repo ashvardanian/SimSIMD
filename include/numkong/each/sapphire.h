@@ -26,19 +26,20 @@
 
 #if NK_TARGET_X86_
 #if NK_TARGET_SAPPHIRE
+
+#include "numkong/types.h"
+#include "numkong/cast/sapphire.h" // `nk_f32_to_f16_sapphire`
+
+#if defined(__cplusplus)
+extern "C" {
+#endif
+
 #if defined(__clang__)
 #pragma clang attribute push(__attribute__((target("avx2,avx512f,avx512vl,avx512bw,avx512fp16,f16c,fma,bmi,bmi2"))), \
                              apply_to = function)
 #elif defined(__GNUC__)
 #pragma GCC push_options
 #pragma GCC target("avx2", "avx512f", "avx512vl", "avx512bw", "avx512fp16", "f16c", "fma", "bmi", "bmi2")
-#endif
-
-#include "numkong/types.h"
-#include "numkong/cast/sapphire.h" // nk_f32_to_f16_sapphire, nk_e4m3x16_to_f16x16_sapphire_
-
-#if defined(__cplusplus)
-extern "C" {
 #endif
 
 NK_PUBLIC void nk_each_sum_f16_sapphire(nk_f16_t const *a, nk_f16_t const *b, nk_size_t n, nk_f16_t *result) {
@@ -572,16 +573,16 @@ nk_each_sum_e4m3_sapphire_cycle:
     if (n) goto nk_each_sum_e4m3_sapphire_cycle;
 }
 
-#if defined(__cplusplus)
-} // extern "C"
-#endif
-
 #if defined(__clang__)
 #pragma clang attribute pop
 #elif defined(__GNUC__)
 #pragma GCC pop_options
 #endif
+
+#if defined(__cplusplus)
+} // extern "C"
+#endif
+
 #endif // NK_TARGET_SAPPHIRE
 #endif // NK_TARGET_X86_
-
 #endif // NK_EACH_SAPPHIRE_H

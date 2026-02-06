@@ -9,12 +9,16 @@
 #ifndef NK_DOTS_GENOA_H
 #define NK_DOTS_GENOA_H
 
+#if NK_TARGET_X86_
+#if NK_TARGET_GENOA
+
+#include "numkong/types.h"
+#include "numkong/cast/icelake.h" // `nk_load_e4m3x32_to_bf16x32_icelake_`
+
 #if defined(__cplusplus)
 extern "C" {
 #endif
 
-#if NK_TARGET_X86_
-#if NK_TARGET_GENOA
 #if defined(__clang__)
 #pragma clang attribute push(                                                                        \
     __attribute__((target("avx2,avx512f,avx512vl,avx512bw,avx512dq,avx512bf16,f16c,fma,bmi,bmi2"))), \
@@ -23,9 +27,6 @@ extern "C" {
 #pragma GCC push_options
 #pragma GCC target("avx2", "avx512f", "avx512vl", "avx512bw", "avx512dq", "avx512bf16", "f16c", "fma", "bmi", "bmi2")
 #endif
-
-#include "numkong/types.h"
-#include "numkong/cast/icelake.h" // `nk_load_e4m3x32_to_bf16x32_icelake_`
 
 /* BF16 GEMM: depth_simd_dimensions=32 (32 bf16s = 64 bytes = 1 cache line) */
 nk_define_cross_pack_size_(dots, bf16, genoa, bf16, bf16, /*depth_simd_dimensions=*/32, /*dimensions_per_value=*/1)
@@ -117,11 +118,11 @@ NK_PUBLIC void nk_dots_compact_bf16_genoa(void *c, nk_size_t row_count, nk_size_
 #elif defined(__GNUC__)
 #pragma GCC pop_options
 #endif
-#endif // NK_TARGET_GENOA
-#endif // NK_TARGET_X86_
 
 #if defined(__cplusplus)
 } // extern "C"
 #endif
 
+#endif // NK_TARGET_GENOA
+#endif // NK_TARGET_X86_
 #endif // NK_DOTS_GENOA_H

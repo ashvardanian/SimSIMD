@@ -36,18 +36,19 @@
 
 #if NK_TARGET_ARM_
 #if NK_TARGET_NEON
+
+#include "numkong/types.h"
+#include "numkong/cast/neon.h" // `nk_partial_load_b8x16_neon_`
+
+#if defined(__cplusplus)
+extern "C" {
+#endif
+
 #if defined(__clang__)
 #pragma clang attribute push(__attribute__((target("arch=armv8-a+simd"))), apply_to = function)
 #elif defined(__GNUC__)
 #pragma GCC push_options
 #pragma GCC target("arch=armv8-a+simd")
-#endif
-
-#include "numkong/types.h"
-#include "numkong/cast/neon.h" // Partial loads/stores: nk_partial_load_b*_neon_, nk_partial_store_b*_neon_
-
-#if defined(__cplusplus)
-extern "C" {
 #endif
 
 /** @brief Horizontal sum of 4 floats in a NEON register. */
@@ -2336,16 +2337,16 @@ NK_PUBLIC void nk_reduce_max_u16_neon(                             //
     else nk_reduce_max_u16_serial(data, count, stride_bytes, max_value, max_index);
 }
 
-#if defined(__cplusplus)
-} // extern "C"
-#endif
-
 #if defined(__clang__)
 #pragma clang attribute pop
 #elif defined(__GNUC__)
 #pragma GCC pop_options
 #endif
+
+#if defined(__cplusplus)
+} // extern "C"
+#endif
+
 #endif // NK_TARGET_NEON
 #endif // NK_TARGET_ARM_
-
 #endif // NK_REDUCE_NEON_H

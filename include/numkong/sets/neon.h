@@ -24,22 +24,23 @@
 #ifndef NK_SETS_NEON_H
 #define NK_SETS_NEON_H
 
+#if NK_TARGET_ARM_
+#if NK_TARGET_NEON
+
+#include "numkong/types.h"
+#include "numkong/set/serial.h" // `nk_hamming_u1x128_state_serial_t`
+#include "numkong/cast/neon.h"  // `nk_partial_load_b8x16_neon_`
+
 #if defined(__cplusplus)
 extern "C" {
 #endif
 
-#if NK_TARGET_ARM_
-#if NK_TARGET_NEON
 #if defined(__clang__)
 #pragma clang attribute push(__attribute__((target("arch=armv8-a+simd"))), apply_to = function)
 #elif defined(__GNUC__)
 #pragma GCC push_options
 #pragma GCC target("arch=armv8-a+simd")
 #endif
-
-#include "numkong/types.h"
-#include "numkong/set/serial.h" // For nk_hamming_u1x128_state_serial_t
-#include "numkong/cast/neon.h"  // For load functions
 
 // Four macro invocations for u1 - matching serial pattern
 nk_define_cross_pack_size_(hammings, u1, neon, u1x8, u32,
@@ -69,11 +70,11 @@ nk_define_cross_packed_(hammings, u1, neon, u1x8, u32, u32, nk_b128_vec_t, nk_ha
 #elif defined(__GNUC__)
 #pragma GCC pop_options
 #endif
-#endif // NK_TARGET_NEON
-#endif // NK_TARGET_ARM_
 
 #if defined(__cplusplus)
 } // extern "C"
 #endif
 
+#endif // NK_TARGET_NEON
+#endif // NK_TARGET_ARM_
 #endif // NK_SETS_NEON_H

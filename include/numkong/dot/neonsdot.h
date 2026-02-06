@@ -84,22 +84,21 @@
 #ifndef NK_DOT_NEONSDOT_H
 #define NK_DOT_NEONSDOT_H
 
+#if NK_TARGET_ARM_
+#if NK_TARGET_NEONSDOT
+
+#include "numkong/types.h"
+
 #if defined(__cplusplus)
 extern "C" {
 #endif
 
-#if NK_TARGET_ARM_
-#if NK_TARGET_NEONSDOT
 #if defined(__clang__)
 #pragma clang attribute push(__attribute__((target("arch=armv8.2-a+dotprod"))), apply_to = function)
 #elif defined(__GNUC__)
 #pragma GCC push_options
 #pragma GCC target("arch=armv8.2-a+dotprod")
 #endif
-
-#include "numkong/types.h"
-
-#pragma region Small Integers
 
 NK_PUBLIC void nk_dot_i8_neonsdot(nk_i8_t const *a_scalars, nk_i8_t const *b_scalars, nk_size_t count_scalars,
                                   nk_i32_t *result) {
@@ -373,18 +372,16 @@ NK_INTERNAL void nk_dot_u4x32_finalize_neonsdot(                                
     result->u32s[3] = vaddvq_u32(state_d->product_sum_u32x4);
 }
 
-#pragma endregion Small Integers
-
 #if defined(__clang__)
 #pragma clang attribute pop
 #elif defined(__GNUC__)
 #pragma GCC pop_options
 #endif
-#endif // NK_TARGET_NEONSDOT
-#endif // NK_TARGET_ARM_
 
 #if defined(__cplusplus)
 } // extern "C"
 #endif
 
+#endif // NK_TARGET_NEONSDOT
+#endif // NK_TARGET_ARM_
 #endif // NK_DOT_NEONSDOT_H

@@ -23,15 +23,15 @@
 #ifndef NK_SPATIAL_RVV_H
 #define NK_SPATIAL_RVV_H
 
-#if defined(__cplusplus)
-extern "C" {
-#endif
-
 #if NK_TARGET_RISCV_
 #if NK_TARGET_RVV
 
 #include "numkong/types.h"
 #include "numkong/cast/rvv.h" // `nk_e4m3m1_to_f32m4_rvv_`
+
+#if defined(__cplusplus)
+extern "C" {
+#endif
 
 /**
  *  @brief  Computes `1/√x` using RVV's `vfrsqrt7` instruction with Newton-Raphson refinement.
@@ -102,6 +102,8 @@ NK_INTERNAL nk_f64_t nk_f64_rsqrt_rvv(nk_f64_t number) {
  */
 NK_INTERNAL nk_f64_t nk_f64_sqrt_rvv(nk_f64_t number) { return number * nk_f64_rsqrt_rvv(number); }
 
+#pragma region - Small Integers
+
 NK_PUBLIC void nk_sqeuclidean_i8_rvv(nk_i8_t const *a_scalars, nk_i8_t const *b_scalars, nk_size_t count_scalars,
                                      nk_u32_t *result) {
     vint32m1_t sum_i32m1 = __riscv_vmv_v_x_i32m1(0, 1);
@@ -154,6 +156,9 @@ NK_PUBLIC void nk_euclidean_u8_rvv(nk_u8_t const *a_scalars, nk_u8_t const *b_sc
     *result = nk_f32_sqrt_rvv((nk_f32_t)d2);
 }
 
+#pragma endregion - Small Integers
+#pragma region - Traditional Floats
+
 NK_PUBLIC void nk_sqeuclidean_f32_rvv(nk_f32_t const *a_scalars, nk_f32_t const *b_scalars, nk_size_t count_scalars,
                                       nk_f32_t *result) {
     vfloat64m1_t sum_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, 1);
@@ -202,6 +207,9 @@ NK_PUBLIC void nk_euclidean_f64_rvv(nk_f64_t const *a_scalars, nk_f64_t const *b
     nk_sqeuclidean_f64_rvv(a_scalars, b_scalars, count_scalars, result);
     *result = nk_f64_sqrt_rvv(*result);
 }
+
+#pragma endregion - Traditional Floats
+#pragma region - Small Integers
 
 NK_PUBLIC void nk_angular_i8_rvv(nk_i8_t const *a_scalars, nk_i8_t const *b_scalars, nk_size_t count_scalars,
                                  nk_f32_t *result) {
@@ -281,6 +289,9 @@ NK_PUBLIC void nk_angular_u8_rvv(nk_u8_t const *a_scalars, nk_u8_t const *b_scal
     }
 }
 
+#pragma endregion - Small Integers
+#pragma region - Traditional Floats
+
 NK_PUBLIC void nk_angular_f32_rvv(nk_f32_t const *a_scalars, nk_f32_t const *b_scalars, nk_size_t count_scalars,
                                   nk_f32_t *result) {
     vfloat64m1_t dot_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, 1);
@@ -355,6 +366,9 @@ NK_PUBLIC void nk_angular_f64_rvv(nk_f64_t const *a_scalars, nk_f64_t const *b_s
         *result = unclipped > 0 ? unclipped : 0;
     }
 }
+
+#pragma endregion - Traditional Floats
+#pragma region - Smaller Floats
 
 NK_PUBLIC void nk_sqeuclidean_f16_rvv(nk_f16_t const *a_scalars, nk_f16_t const *b_scalars, nk_size_t count_scalars,
                                       nk_f32_t *result) {
@@ -628,6 +642,9 @@ NK_PUBLIC void nk_angular_e5m2_rvv(nk_e5m2_t const *a_scalars, nk_e5m2_t const *
     }
 }
 
+#pragma endregion - Smaller Floats
+#pragma region - Small Integers
+
 NK_PUBLIC void nk_sqeuclidean_i4_rvv(nk_i4x2_t const *a_scalars, nk_i4x2_t const *b_scalars, nk_size_t count_scalars,
                                      nk_u32_t *result) {
     nk_size_t n_bytes = count_scalars / 2;
@@ -817,11 +834,11 @@ NK_PUBLIC void nk_angular_u4_rvv(nk_u4x2_t const *a_scalars, nk_u4x2_t const *b_
     }
 }
 
-#endif // NK_TARGET_RVV
-#endif // NK_TARGET_RISCV_
-
 #if defined(__cplusplus)
 } // extern "C"
 #endif
 
+#pragma endregion - Small Integers
+#endif // NK_TARGET_RVV
+#endif // NK_TARGET_RISCV_
 #endif // NK_SPATIAL_RVV_H

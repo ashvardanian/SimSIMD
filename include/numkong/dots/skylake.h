@@ -21,12 +21,15 @@
 #ifndef NK_DOTS_SKYLAKE_H
 #define NK_DOTS_SKYLAKE_H
 
+#if NK_TARGET_X86_
+#if NK_TARGET_SKYLAKE
+
+#include "numkong/types.h"
+
 #if defined(__cplusplus)
 extern "C" {
 #endif
 
-#if NK_TARGET_X86_
-#if NK_TARGET_SKYLAKE
 #if defined(__clang__)
 #pragma clang attribute push(__attribute__((target("avx2,avx512f,avx512vl,avx512bw,avx512dq,f16c,fma,bmi,bmi2"))), \
                              apply_to = function)
@@ -34,8 +37,6 @@ extern "C" {
 #pragma GCC push_options
 #pragma GCC target("avx2", "avx512f", "avx512vl", "avx512bw", "avx512dq", "f16c", "fma", "bmi", "bmi2")
 #endif
-
-#include "numkong/types.h"
 
 /* F64 GEMM: depth_simd_dimensions=8 (8 f64s = 64 bytes = 1 cache line) */
 nk_define_cross_pack_size_(dots, f64, skylake, f64, f64, /*depth_simd_dimensions=*/8, /*dimensions_per_value=*/1)
@@ -166,11 +167,11 @@ nk_define_cross_packed_(dots, e3m2, skylake, e3m2, f32, f32, nk_b512_vec_t, nk_d
 #elif defined(__GNUC__)
 #pragma GCC pop_options
 #endif
-#endif // NK_TARGET_SKYLAKE
-#endif // NK_TARGET_X86_
 
 #if defined(__cplusplus)
 } // extern "C"
 #endif
 
+#endif // NK_TARGET_SKYLAKE
+#endif // NK_TARGET_X86_
 #endif // NK_DOTS_SKYLAKE_H

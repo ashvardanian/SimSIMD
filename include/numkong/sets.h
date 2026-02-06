@@ -153,10 +153,18 @@ NK_PUBLIC void nk_jaccards_symmetric_u1(nk_u1x8_t const *vectors, nk_size_t n_ve
 NK_PUBLIC void nk_hammings_symmetric_u32(nk_u32_t const *vectors, nk_size_t n_vectors, nk_size_t d, nk_size_t stride,
                                          nk_u32_t *result, nk_size_t result_stride, nk_size_t row_start, nk_size_t n);
 
+#if defined(__cplusplus)
+} // extern "C"
+#endif
+
 #include "numkong/sets/serial.h"
 #include "numkong/sets/neon.h"
 #include "numkong/sets/icelake.h"
 #include "numkong/sets/haswell.h"
+
+#if defined(__cplusplus)
+extern "C" {
+#endif
 
 #if !NK_DYNAMIC_DISPATCH
 

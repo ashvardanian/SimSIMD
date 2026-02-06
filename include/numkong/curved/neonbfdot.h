@@ -25,24 +25,23 @@
 #ifndef NK_CURVED_NEONBFDOT_H
 #define NK_CURVED_NEONBFDOT_H
 
-#include "numkong/types.h"
-
 #if NK_TARGET_ARM_
 #if NK_TARGET_NEONBFDOT
+
+#include "numkong/types.h"
+#include "numkong/spatial/neon.h" // `nk_f32_sqrt_neon`
+#include "numkong/reduce/neon.h"  // `nk_reduce_add_f32x4_neon_`
+#include "numkong/cast/serial.h"  // `nk_bf16_to_f32_serial`
+
+#if defined(__cplusplus)
+extern "C" {
+#endif
 
 #if defined(__clang__)
 #pragma clang attribute push(__attribute__((target("arch=armv8.6-a+simd+bf16"))), apply_to = function)
 #elif defined(__GNUC__)
 #pragma GCC push_options
 #pragma GCC target("arch=armv8.6-a+simd+bf16")
-#endif
-
-#include "numkong/spatial/neon.h" // nk_f32_sqrt_neon
-#include "numkong/reduce/neon.h"  // nk_reduce_add_f32x4_neon_
-#include "numkong/cast/serial.h"  // nk_bf16_to_f32_serial
-
-#if defined(__cplusplus)
-extern "C" {
 #endif
 
 NK_PUBLIC void nk_bilinear_bf16_neonbfdot(nk_bf16_t const *a, nk_bf16_t const *b, nk_bf16_t const *c, nk_size_t n,
@@ -195,14 +194,14 @@ NK_PUBLIC void nk_bilinear_bf16c_neonbfdot(nk_bf16c_t const *a_pairs, nk_bf16c_t
     result->imag = outer_sum_imag;
 }
 
-#if defined(__cplusplus)
-}
-#endif
-
 #if defined(__clang__)
 #pragma clang attribute pop
 #elif defined(__GNUC__)
 #pragma GCC pop_options
+#endif
+
+#if defined(__cplusplus)
+} // extern "C"
 #endif
 
 #endif // NK_TARGET_NEONBFDOT

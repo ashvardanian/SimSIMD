@@ -50,9 +50,6 @@
 #ifndef NK_TYPES_HPP
 #define NK_TYPES_HPP
 
-#include "numkong/types.h"
-#include "numkong/cast.h"
-
 #include <bit>      // `std::bit_cast`
 #include <compare>  // `std::strong_ordering`
 #include <concepts> // `std::integral`
@@ -61,6 +58,9 @@
 #include <cstdint>  // `nk_u32_t`
 #include <limits>   // `std::numeric_limits`
 #include <utility>  // `std::swap`
+
+#include "numkong/types.h"
+#include "numkong/cast.h"
 
 namespace ashvardanian::numkong {
 
@@ -2173,9 +2173,9 @@ struct e2m3_t {
     constexpr uint_t to_bits() const noexcept { return raw_; }
 
     // E2M3FN range: [-7.5, +7.5], no Inf/NaN
-    static constexpr e2m3_t finite_max() noexcept { return from_bits(0x1F); }    // +7.5
-    static constexpr e2m3_t finite_min() noexcept { return from_bits(0x3F); }    // -7.5
-    static constexpr e2m3_t positive_min() noexcept { return from_bits(0x08); }  // Smallest positive normal (2⁰ = 1.0)
+    static constexpr e2m3_t finite_max() noexcept { return from_bits(0x1F); }   // +7.5
+    static constexpr e2m3_t finite_min() noexcept { return from_bits(0x3F); }   // -7.5
+    static constexpr e2m3_t positive_min() noexcept { return from_bits(0x08); } // Smallest positive normal (2⁰ = 1.0)
     static constexpr e2m3_t subnormal_min() noexcept { return from_bits(0x01); } // Smallest positive subnormal
 
     // Mathematical constants
@@ -2330,9 +2330,9 @@ struct e3m2_t {
     constexpr uint_t to_bits() const noexcept { return raw_; }
 
     // E3M2FN range: [-28, +28], no Inf/NaN
-    static constexpr e3m2_t finite_max() noexcept { return from_bits(0x1F); }    // +28.0
-    static constexpr e3m2_t finite_min() noexcept { return from_bits(0x3F); }    // -28.0
-    static constexpr e3m2_t positive_min() noexcept { return from_bits(0x0C); }  // Smallest positive normal (2⁰ = 1.0)
+    static constexpr e3m2_t finite_max() noexcept { return from_bits(0x1F); }   // +28.0
+    static constexpr e3m2_t finite_min() noexcept { return from_bits(0x3F); }   // -28.0
+    static constexpr e3m2_t positive_min() noexcept { return from_bits(0x0C); } // Smallest positive normal (2⁰ = 1.0)
     static constexpr e3m2_t subnormal_min() noexcept { return from_bits(0x01); } // Smallest positive subnormal
 
     // Mathematical constants
@@ -4622,7 +4622,7 @@ struct u4x2_t {
     constexpr auto operator<=>(u4x2_t const &o) const noexcept = default;
 };
 
-#pragma region Enum Conversion
+#pragma region - Enum Conversion
 
 /**
  *  @brief Maps `nk_dtype_t` enum values to their corresponding C++ wrapper types.
@@ -4724,9 +4724,9 @@ struct type_for<nk_u4_k> {
     using type = u4x2_t;
 };
 
-#pragma endregion Enum Conversion
+#pragma endregion - Enum Conversion
 
-#pragma region Numeric Limits
+#pragma region - Numeric Limits
 
 /** @brief Detect NumKong wrapper types with required static members. */
 template <typename scalar_type_>
@@ -4860,7 +4860,89 @@ constexpr std::size_t round_up_to_multiple(std::size_t n) {
     return divide_round_up<multiple_>(n) * multiple_;
 }
 
-#pragma endregion Numeric Limits
+#pragma endregion - Numeric Limits
+
+#pragma region - SIMD Dispatch Helpers
+
+/** @brief Controls whether template wrappers dispatch to SIMD C kernels. */
+enum allow_simd_t {
+    prefer_simd_k = 0,
+    no_simd_k = 1,
+};
+
+/** @brief FMA helper template for baseline dot-product implementations. */
+template <typename in_type_, typename accumulator_type_>
+    requires(in_type_::bits_per_value() >= NK_BITS_PER_BYTE)
+inline accumulator_type_ fused_multiply_add(accumulator_type_ acc, in_type_ a, in_type_ b) noexcept {
+    return acc + static_cast<accumulator_type_>(a) * static_cast<accumulator_type_>(b);
+}
+
+/** @brief FMA helper template for baseline conjugate complex dot-product implementations. */
+template <typename in_type_, typename accumulator_type_>
+    requires(in_type_::bits_per_value() >= NK_BITS_PER_BYTE)
+inline accumulator_type_ fused_conjugate_multiply_add(accumulator_type_ acc, in_type_ a, in_type_ b) noexcept {
+    return acc + static_cast<accumulator_type_>(a.conj()) * static_cast<accumulator_type_>(b);
+}
+
+/** @brief Fused addition of squared differences for baseline L2 implementations. */
+template <typename in_type_, typename accumulator_type_>
+    requires(in_type_::bits_per_value() >= NK_BITS_PER_BYTE)
+constexpr accumulator_type_ fused_difference_squared_add(accumulator_type_ acc, in_type_ a, in_type_ b) noexcept {
+    auto d = static_cast<accumulator_type_>(a) - static_cast<accumulator_type_>(b);
+    return acc + d * d;
+}
+
+/** @brief FMA specialization for i4x2_t (signed 4-bit packed pairs). */
+template <typename accumulator_type_>
+inline accumulator_type_ fused_multiply_add(accumulator_type_ acc, i4x2_t a, i4x2_t b) noexcept {
+    return acc + accumulator_type_(nk_i32_t(a.low()) * nk_i32_t(b.low()) + nk_i32_t(a.high()) * nk_i32_t(b.high()));
+}
+
+/** @brief FMA specialization for u4x2_t (unsigned 4-bit packed pairs). */
+template <typename accumulator_type_>
+inline accumulator_type_ fused_multiply_add(accumulator_type_ acc, u4x2_t a, u4x2_t b) noexcept {
+    return acc + accumulator_type_(nk_u32_t(a.low()) * nk_u32_t(b.low()) + nk_u32_t(a.high()) * nk_u32_t(b.high()));
+}
+
+/** @brief FMA specialization for u1x8_t (8 packed bits). Counts matching set bits (popcount of AND). */
+template <typename accumulator_type_>
+inline accumulator_type_ fused_multiply_add(accumulator_type_ acc, u1x8_t a, u1x8_t b) noexcept {
+    return acc + accumulator_type_(std::popcount(static_cast<unsigned>(a.raw() & b.raw())));
+}
+
+/** @brief Squared difference specialization for i4x2_t (signed 4-bit packed pairs). */
+template <typename accumulator_type_>
+constexpr accumulator_type_ fused_difference_squared_add(accumulator_type_ acc, i4x2_t a, i4x2_t b) noexcept {
+    nk_i32_t low_difference = nk_i32_t(a.low()) - nk_i32_t(b.low());
+    nk_i32_t high_difference = nk_i32_t(a.high()) - nk_i32_t(b.high());
+    return acc + accumulator_type_(low_difference * low_difference + high_difference * high_difference);
+}
+
+/** @brief Squared difference specialization for u4x2_t (unsigned 4-bit packed pairs). */
+template <typename accumulator_type_>
+constexpr accumulator_type_ fused_difference_squared_add(accumulator_type_ acc, u4x2_t a, u4x2_t b) noexcept {
+    nk_i32_t low_difference = nk_i32_t(a.low()) - nk_i32_t(b.low());
+    nk_i32_t high_difference = nk_i32_t(a.high()) - nk_i32_t(b.high());
+    return acc + accumulator_type_(low_difference * low_difference + high_difference * high_difference);
+}
+
+#pragma endregion - SIMD Dispatch Helpers
+
+#pragma region - f118_t Mixed Operators
+
+constexpr f118_t operator+(double a, f118_t b) noexcept { return f118_t(a) + b; }
+constexpr f118_t operator-(double a, f118_t b) noexcept { return f118_t(a) - b; }
+constexpr f118_t operator*(double a, f118_t b) noexcept { return f118_t(a) * b; }
+constexpr f118_t operator/(double a, f118_t b) noexcept { return f118_t(a) / b; }
+
+constexpr bool operator==(double a, f118_t b) noexcept { return f118_t(a) == b; }
+constexpr bool operator!=(double a, f118_t b) noexcept { return f118_t(a) != b; }
+constexpr bool operator<(double a, f118_t b) noexcept { return f118_t(a) < b; }
+constexpr bool operator>(double a, f118_t b) noexcept { return f118_t(a) > b; }
+constexpr bool operator<=(double a, f118_t b) noexcept { return f118_t(a) <= b; }
+constexpr bool operator>=(double a, f118_t b) noexcept { return f118_t(a) >= b; }
+
+#pragma endregion - f118_t Mixed Operators
 
 } // namespace ashvardanian::numkong
 

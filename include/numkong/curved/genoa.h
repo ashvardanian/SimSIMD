@@ -11,10 +11,16 @@
 #ifndef NK_CURVED_GENOA_H
 #define NK_CURVED_GENOA_H
 
-#include "numkong/types.h"
-
 #if NK_TARGET_X86_
 #if NK_TARGET_GENOA
+
+#include "numkong/types.h"
+#include "numkong/spatial/genoa.h"  // `nk_substract_bf16x32_genoa_`
+#include "numkong/reduce/skylake.h" // `nk_reduce_add_f32x16_skylake_`
+
+#if defined(__cplusplus)
+extern "C" {
+#endif
 
 #if defined(__clang__)
 #pragma clang attribute push(                                                                        \
@@ -23,13 +29,6 @@
 #elif defined(__GNUC__)
 #pragma GCC push_options
 #pragma GCC target("avx2", "avx512f", "avx512vl", "avx512bw", "avx512dq", "avx512bf16", "f16c", "fma", "bmi", "bmi2")
-#endif
-
-#include "numkong/spatial/genoa.h"  // `nk_substract_bf16x32_genoa_`
-#include "numkong/reduce/skylake.h" // `nk_reduce_add_f32x16_skylake_`
-
-#if defined(__cplusplus)
-extern "C" {
 #endif
 
 NK_PUBLIC void nk_bilinear_bf16_genoa(nk_bf16_t const *a, nk_bf16_t const *b, nk_bf16_t const *c, nk_size_t n,
@@ -165,14 +164,14 @@ NK_PUBLIC void nk_bilinear_bf16c_genoa(nk_bf16c_t const *a, nk_bf16c_t const *b,
     results->imag = sum_imag;
 }
 
-#if defined(__cplusplus)
-}
-#endif
-
 #if defined(__clang__)
 #pragma clang attribute pop
 #elif defined(__GNUC__)
 #pragma GCC pop_options
+#endif
+
+#if defined(__cplusplus)
+} // extern "C"
 #endif
 
 #endif // NK_TARGET_GENOA

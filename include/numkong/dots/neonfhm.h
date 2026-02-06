@@ -12,20 +12,21 @@
 #ifndef NK_DOTS_NEONFHM_H
 #define NK_DOTS_NEONFHM_H
 
+#if NK_TARGET_ARM_
+#if NK_TARGET_NEONFHM
+
+#include "numkong/dot/neonfhm.h"
+
 #if defined(__cplusplus)
 extern "C" {
 #endif
 
-#if NK_TARGET_ARM_
-#if NK_TARGET_NEONFHM
 #if defined(__clang__)
 #pragma clang attribute push(__attribute__((target("arch=armv8.2-a+simd+fp16+fp16fml"))), apply_to = function)
 #elif defined(__GNUC__)
 #pragma GCC push_options
 #pragma GCC target("arch=armv8.2-a+simd+fp16+fp16fml")
 #endif
-
-#include "numkong/dot/neonfhm.h"
 
 /* F16 GEMM using FMLAL: depth_simd_dimensions=8 (8 f16s = 16 bytes = NEON register width) */
 nk_define_cross_pack_size_(dots, f16, neonfhm, f16, f16, /*depth_simd_dimensions=*/8, /*dimensions_per_value=*/1)
@@ -76,11 +77,11 @@ nk_define_cross_packed_(dots, e3m2, neonfhm, e3m2, e3m2, f32, nk_b128_vec_t, nk_
 #elif defined(__GNUC__)
 #pragma GCC pop_options
 #endif
-#endif // NK_TARGET_NEONFHM
-#endif // NK_TARGET_ARM_
 
 #if defined(__cplusplus)
 } // extern "C"
 #endif
 
+#endif // NK_TARGET_NEONFHM
+#endif // NK_TARGET_ARM_
 #endif // NK_DOTS_NEONFHM_H

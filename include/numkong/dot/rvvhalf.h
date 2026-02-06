@@ -47,5 +47,4 @@ NK_PUBLIC void nk_dot_f16_rvvhalf(nk_f16_t const *a_scalars, nk_f16_t const *b_s
 
 #endif // NK_TARGET_RVVHALF
 #endif // NK_TARGET_RISCV_
-
 #endif // NK_DOT_RVVHALF_H

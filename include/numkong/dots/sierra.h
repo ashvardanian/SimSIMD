@@ -13,22 +13,23 @@
 #ifndef NK_DOTS_SIERRA_H
 #define NK_DOTS_SIERRA_H
 
+#if NK_TARGET_X86_
+#if NK_TARGET_SIERRA
+
+#include "numkong/dot/sierra.h"  // Sierra-specific dot product helpers
+#include "numkong/dot/haswell.h" // Haswell partial load functions
+#include "numkong/dots/serial.h" // GEMM macro definitions
+
 #if defined(__cplusplus)
 extern "C" {
 #endif
 
-#if NK_TARGET_X86_
-#if NK_TARGET_SIERRA
 #if defined(__clang__)
 #pragma clang attribute push(__attribute__((target("avx2,f16c,fma,bmi,bmi2,avxvnni,avxvnniint8"))), apply_to = function)
 #elif defined(__GNUC__)
 #pragma GCC push_options
 #pragma GCC target("avx2", "f16c", "fma", "bmi", "bmi2", "avxvnni", "avxvnniint8")
 #endif
-
-#include "numkong/dot/sierra.h"  // Sierra-specific dot product helpers
-#include "numkong/dot/haswell.h" // Haswell partial load functions
-#include "numkong/dots/serial.h" // GEMM macro definitions
 
 /* I8 GEMM: depth_simd_dimensions=32 (32 i8s = 32 bytes = AVX2 register width) */
 nk_define_cross_pack_size_(dots, i8, sierra, i8, i8, /*depth_simd_dimensions=*/32, /*dimensions_per_value=*/1)
@@ -63,11 +64,11 @@ nk_define_cross_packed_(dots, u8, sierra, u8, u8, u32, nk_b256_vec_t, nk_dot_u8x
 #elif defined(__GNUC__)
 #pragma GCC pop_options
 #endif
-#endif // NK_TARGET_SIERRA
-#endif // NK_TARGET_X86_
 
 #if defined(__cplusplus)
 } // extern "C"
 #endif
 
+#endif // NK_TARGET_SIERRA
+#endif // NK_TARGET_X86_
 #endif // NK_DOTS_SIERRA_H
