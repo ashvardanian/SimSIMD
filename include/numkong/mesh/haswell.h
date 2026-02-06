@@ -1,9 +1,10 @@
 /**
- *  @brief SIMD-accelerated Dot Products for Real and Complex Numbers optimized for Intel Haswell CPUs.
+ *  @brief SIMD-accelerated Point Cloud Alignment for Haswell.
  *  @file include/numkong/mesh/haswell.h
- *  @sa include/numkong/mesh.h
  *  @author Ash Vardanian
  *  @date December 27, 2025
+ *
+ *  @sa include/numkong/mesh.h
  *
  *  @section haswell_mesh_instructions Key AVX2 Mesh Instructions
  *
@@ -23,19 +24,20 @@
 
 #if NK_TARGET_X86_
 #if NK_TARGET_HASWELL
+
+#include "numkong/types.h"
+#include "numkong/reduce/haswell.h"  // `nk_reduce_add_f32x8_haswell_`
+#include "numkong/spatial/haswell.h" // `nk_f32_sqrt_haswell`
+
+#if defined(__cplusplus)
+extern "C" {
+#endif
+
 #if defined(__clang__)
 #pragma clang attribute push(__attribute__((target("avx2,f16c,fma,bmi,bmi2"))), apply_to = function)
 #elif defined(__GNUC__)
 #pragma GCC push_options
 #pragma GCC target("avx2", "f16c", "fma", "bmi", "bmi2")
-#endif
-
-#include "numkong/types.h"
-#include "numkong/reduce/haswell.h"  // nk_reduce_add_f32x8_haswell_, nk_reduce_add_f64x4_haswell_
-#include "numkong/spatial/haswell.h" // nk_sqrt_f32_haswell_, nk_sqrt_f64_haswell_
-
-#if defined(__cplusplus)
-extern "C" {
 #endif
 
 /*  Deinterleave 24 floats (8 xyz triplets) into separate x, y, z vectors.
@@ -376,7 +378,7 @@ NK_PUBLIC void nk_rmsd_f32_haswell(nk_f32_t const *a, nk_f32_t const *b, nk_size
     nk_f32_t sum_squared = total_sq_x + total_sq_y + total_sq_z;
     nk_f32_t mean_diff_sq = mean_diff_x * mean_diff_x + mean_diff_y * mean_diff_y + mean_diff_z * mean_diff_z;
 
-    *result = nk_sqrt_f32_haswell_(sum_squared * inv_n - mean_diff_sq);
+    *result = nk_f32_sqrt_haswell(sum_squared * inv_n - mean_diff_sq);
 }
 
 NK_PUBLIC void nk_rmsd_f64_haswell(nk_f64_t const *a, nk_f64_t const *b, nk_size_t n, nk_f64_t *a_centroid,
@@ -515,7 +517,7 @@ NK_PUBLIC void nk_rmsd_f64_haswell(nk_f64_t const *a, nk_f64_t const *b, nk_size
     nk_f64_t sum_squared = total_sq_x + total_sq_y + total_sq_z;
     nk_f64_t mean_diff_sq = mean_diff_x * mean_diff_x + mean_diff_y * mean_diff_y + mean_diff_z * mean_diff_z;
 
-    *result = nk_sqrt_f64_haswell_(sum_squared * inv_n - mean_diff_sq);
+    *result = nk_f64_sqrt_haswell(sum_squared * inv_n - mean_diff_sq);
 }
 
 NK_PUBLIC void nk_kabsch_f32_haswell(nk_f32_t const *a, nk_f32_t const *b, nk_size_t n, nk_f32_t *a_centroid,
@@ -673,7 +675,7 @@ NK_PUBLIC void nk_kabsch_f32_haswell(nk_f32_t const *a, nk_f32_t const *b, nk_si
     // Compute RMSD after optimal rotation
     nk_f32_t sum_squared = nk_transformed_ssd_f32_haswell_(a, b, n, r, 1.0f, centroid_a_x, centroid_a_y, centroid_a_z,
                                                            centroid_b_x, centroid_b_y, centroid_b_z);
-    *result = nk_sqrt_f32_haswell_(sum_squared * inv_n);
+    *result = nk_f32_sqrt_haswell(sum_squared * inv_n);
 }
 
 NK_PUBLIC void nk_kabsch_f64_haswell(nk_f64_t const *a, nk_f64_t const *b, nk_size_t n, nk_f64_t *a_centroid,
@@ -827,7 +829,7 @@ NK_PUBLIC void nk_kabsch_f64_haswell(nk_f64_t const *a, nk_f64_t const *b, nk_si
     // Compute RMSD after optimal rotation
     nk_f64_t sum_squared = nk_transformed_ssd_f64_haswell_(a, b, n, r, 1.0, centroid_a_x, centroid_a_y, centroid_a_z,
                                                            centroid_b_x, centroid_b_y, centroid_b_z);
-    *result = nk_sqrt_f64_haswell_(sum_squared * inv_n);
+    *result = nk_f64_sqrt_haswell(sum_squared * inv_n);
 }
 
 NK_PUBLIC void nk_umeyama_f32_haswell(nk_f32_t const *a, nk_f32_t const *b, nk_size_t n, nk_f32_t *a_centroid,
@@ -984,7 +986,7 @@ NK_PUBLIC void nk_umeyama_f32_haswell(nk_f32_t const *a, nk_f32_t const *b, nk_s
     // Compute RMSD with scaling
     nk_f32_t sum_squared = nk_transformed_ssd_f32_haswell_(a, b, n, r, c, centroid_a_x, centroid_a_y, centroid_a_z,
                                                            centroid_b_x, centroid_b_y, centroid_b_z);
-    *result = nk_sqrt_f32_haswell_(sum_squared * inv_n);
+    *result = nk_f32_sqrt_haswell(sum_squared * inv_n);
 }
 
 NK_PUBLIC void nk_umeyama_f64_haswell(nk_f64_t const *a, nk_f64_t const *b, nk_size_t n, nk_f64_t *a_centroid,
@@ -1137,7 +1139,7 @@ NK_PUBLIC void nk_umeyama_f64_haswell(nk_f64_t const *a, nk_f64_t const *b, nk_s
     // Compute RMSD with scaling
     nk_f64_t sum_squared = nk_transformed_ssd_f64_haswell_(a, b, n, r, c, centroid_a_x, centroid_a_y, centroid_a_z,
                                                            centroid_b_x, centroid_b_y, centroid_b_z);
-    *result = nk_sqrt_f64_haswell_(sum_squared * inv_n);
+    *result = nk_f64_sqrt_haswell(sum_squared * inv_n);
 }
 
 /*  Deinterleave 8 f16 xyz triplets (24 f16 values) and convert to 3 x __m256 f32.
@@ -1466,7 +1468,7 @@ NK_PUBLIC void nk_rmsd_f16_haswell(nk_f16_t const *a, nk_f16_t const *b, nk_size
     nk_f32_t sum_squared = total_sq_x + total_sq_y + total_sq_z;
     nk_f32_t mean_diff_sq = mean_diff_x * mean_diff_x + mean_diff_y * mean_diff_y + mean_diff_z * mean_diff_z;
 
-    *result = nk_sqrt_f32_haswell_(sum_squared * inv_n - mean_diff_sq);
+    *result = nk_f32_sqrt_haswell(sum_squared * inv_n - mean_diff_sq);
 }
 
 NK_PUBLIC void nk_rmsd_bf16_haswell(nk_bf16_t const *a, nk_bf16_t const *b, nk_size_t n, nk_f32_t *a_centroid,
@@ -1569,7 +1571,7 @@ NK_PUBLIC void nk_rmsd_bf16_haswell(nk_bf16_t const *a, nk_bf16_t const *b, nk_s
     nk_f32_t sum_squared = total_sq_x + total_sq_y + total_sq_z;
     nk_f32_t mean_diff_sq = mean_diff_x * mean_diff_x + mean_diff_y * mean_diff_y + mean_diff_z * mean_diff_z;
 
-    *result = nk_sqrt_f32_haswell_(sum_squared * inv_n - mean_diff_sq);
+    *result = nk_f32_sqrt_haswell(sum_squared * inv_n - mean_diff_sq);
 }
 
 NK_PUBLIC void nk_kabsch_f16_haswell(nk_f16_t const *a, nk_f16_t const *b, nk_size_t n, nk_f32_t *a_centroid,
@@ -1730,7 +1732,7 @@ NK_PUBLIC void nk_kabsch_f16_haswell(nk_f16_t const *a, nk_f16_t const *b, nk_si
     // Compute RMSD after optimal rotation
     nk_f32_t sum_squared = nk_transformed_ssd_f16_haswell_(a, b, n, r, 1.0f, centroid_a_x, centroid_a_y, centroid_a_z,
                                                            centroid_b_x, centroid_b_y, centroid_b_z);
-    *result = nk_sqrt_f32_haswell_(sum_squared * inv_n);
+    *result = nk_f32_sqrt_haswell(sum_squared * inv_n);
 }
 
 NK_PUBLIC void nk_kabsch_bf16_haswell(nk_bf16_t const *a, nk_bf16_t const *b, nk_size_t n, nk_f32_t *a_centroid,
@@ -1891,7 +1893,7 @@ NK_PUBLIC void nk_kabsch_bf16_haswell(nk_bf16_t const *a, nk_bf16_t const *b, nk
     // Compute RMSD after optimal rotation
     nk_f32_t sum_squared = nk_transformed_ssd_bf16_haswell_(a, b, n, r, 1.0f, centroid_a_x, centroid_a_y, centroid_a_z,
                                                             centroid_b_x, centroid_b_y, centroid_b_z);
-    *result = nk_sqrt_f32_haswell_(sum_squared * inv_n);
+    *result = nk_f32_sqrt_haswell(sum_squared * inv_n);
 }
 
 NK_PUBLIC void nk_umeyama_f16_haswell(nk_f16_t const *a, nk_f16_t const *b, nk_size_t n, nk_f32_t *a_centroid,
@@ -2053,7 +2055,7 @@ NK_PUBLIC void nk_umeyama_f16_haswell(nk_f16_t const *a, nk_f16_t const *b, nk_s
     // Compute RMSD with scaling
     nk_f32_t sum_squared = nk_transformed_ssd_f16_haswell_(a, b, n, r, c, centroid_a_x, centroid_a_y, centroid_a_z,
                                                            centroid_b_x, centroid_b_y, centroid_b_z);
-    *result = nk_sqrt_f32_haswell_(sum_squared * inv_n);
+    *result = nk_f32_sqrt_haswell(sum_squared * inv_n);
 }
 
 NK_PUBLIC void nk_umeyama_bf16_haswell(nk_bf16_t const *a, nk_bf16_t const *b, nk_size_t n, nk_f32_t *a_centroid,
@@ -2215,19 +2217,19 @@ NK_PUBLIC void nk_umeyama_bf16_haswell(nk_bf16_t const *a, nk_bf16_t const *b, n
     // Compute RMSD with scaling
     nk_f32_t sum_squared = nk_transformed_ssd_bf16_haswell_(a, b, n, r, c, centroid_a_x, centroid_a_y, centroid_a_z,
                                                             centroid_b_x, centroid_b_y, centroid_b_z);
-    *result = nk_sqrt_f32_haswell_(sum_squared * inv_n);
+    *result = nk_f32_sqrt_haswell(sum_squared * inv_n);
 }
-
-#if defined(__cplusplus)
-} // extern "C"
-#endif
 
 #if defined(__clang__)
 #pragma clang attribute pop
 #elif defined(__GNUC__)
 #pragma GCC pop_options
 #endif
+
+#if defined(__cplusplus)
+} // extern "C"
+#endif
+
 #endif // NK_TARGET_HASWELL
 #endif // NK_TARGET_X86_
-
 #endif // NK_MESH_HASWELL_H

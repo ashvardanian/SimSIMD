@@ -225,7 +225,7 @@ nk_dtype_t python_string_to_dtype(char const *name) {
              same_string(name, "<i2") || same_string(name, "h") || same_string(name, "<h"))
         return nk_i16_k;
 
-    // Platform-specific integer formats (Windows vs Unix):
+        // Platform-specific integer formats (Windows vs Unix):
 #if defined(_MSC_VER) || defined(__i386__)
     else if (same_string(name, "int32") || same_string(name, "i4") || same_string(name, "|i4") ||
              same_string(name, "<i4") || same_string(name, "l") || same_string(name, "<l"))
@@ -423,14 +423,20 @@ static PyObject *api_enable_capability(PyObject *self, PyObject *cap_name_obj) {
     else if (same_string(cap_name, "smebf16")) { static_capabilities |= nk_cap_smebf16_k; }
     else if (same_string(cap_name, "smelut2")) { static_capabilities |= nk_cap_smelut2_k; }
     else if (same_string(cap_name, "smefa64")) { static_capabilities |= nk_cap_smefa64_k; }
+    // RISC-V capabilities
+    else if (same_string(cap_name, "rvv")) { static_capabilities |= nk_cap_rvv_k; }
+    else if (same_string(cap_name, "rvvhalf")) { static_capabilities |= nk_cap_rvvhalf_k; }
+    else if (same_string(cap_name, "rvvbf16")) { static_capabilities |= nk_cap_rvvbf16_k; }
+    // WASM capabilities
+    else if (same_string(cap_name, "v128relaxed")) { static_capabilities |= nk_cap_v128relaxed_k; }
     // x86 capabilities
     else if (same_string(cap_name, "haswell")) { static_capabilities |= nk_cap_haswell_k; }
     else if (same_string(cap_name, "skylake")) { static_capabilities |= nk_cap_skylake_k; }
-    else if (same_string(cap_name, "ice")) { static_capabilities |= nk_cap_ice_k; }
+    else if (same_string(cap_name, "icelake")) { static_capabilities |= nk_cap_icelake_k; }
     else if (same_string(cap_name, "genoa")) { static_capabilities |= nk_cap_genoa_k; }
     else if (same_string(cap_name, "sapphire")) { static_capabilities |= nk_cap_sapphire_k; }
-    else if (same_string(cap_name, "sapphire_amx")) { static_capabilities |= nk_cap_sapphire_amx_k; }
-    else if (same_string(cap_name, "granite_amx")) { static_capabilities |= nk_cap_granite_amx_k; }
+    else if (same_string(cap_name, "sapphireamx")) { static_capabilities |= nk_cap_sapphireamx_k; }
+    else if (same_string(cap_name, "graniteamx")) { static_capabilities |= nk_cap_graniteamx_k; }
     else if (same_string(cap_name, "turin")) { static_capabilities |= nk_cap_turin_k; }
     else if (same_string(cap_name, "sierra")) { static_capabilities |= nk_cap_sierra_k; }
     else if (same_string(cap_name, "serial")) {
@@ -477,14 +483,20 @@ static PyObject *api_disable_capability(PyObject *self, PyObject *cap_name_obj) 
     else if (same_string(cap_name, "smebf16")) { static_capabilities &= ~nk_cap_smebf16_k; }
     else if (same_string(cap_name, "smelut2")) { static_capabilities &= ~nk_cap_smelut2_k; }
     else if (same_string(cap_name, "smefa64")) { static_capabilities &= ~nk_cap_smefa64_k; }
+    // RISC-V capabilities
+    else if (same_string(cap_name, "rvv")) { static_capabilities &= ~nk_cap_rvv_k; }
+    else if (same_string(cap_name, "rvvhalf")) { static_capabilities &= ~nk_cap_rvvhalf_k; }
+    else if (same_string(cap_name, "rvvbf16")) { static_capabilities &= ~nk_cap_rvvbf16_k; }
+    // WASM capabilities
+    else if (same_string(cap_name, "v128relaxed")) { static_capabilities &= ~nk_cap_v128relaxed_k; }
     // x86 capabilities
     else if (same_string(cap_name, "haswell")) { static_capabilities &= ~nk_cap_haswell_k; }
     else if (same_string(cap_name, "skylake")) { static_capabilities &= ~nk_cap_skylake_k; }
-    else if (same_string(cap_name, "ice")) { static_capabilities &= ~nk_cap_ice_k; }
+    else if (same_string(cap_name, "icelake")) { static_capabilities &= ~nk_cap_icelake_k; }
     else if (same_string(cap_name, "genoa")) { static_capabilities &= ~nk_cap_genoa_k; }
     else if (same_string(cap_name, "sapphire")) { static_capabilities &= ~nk_cap_sapphire_k; }
-    else if (same_string(cap_name, "sapphire_amx")) { static_capabilities &= ~nk_cap_sapphire_amx_k; }
-    else if (same_string(cap_name, "granite_amx")) { static_capabilities &= ~nk_cap_granite_amx_k; }
+    else if (same_string(cap_name, "sapphireamx")) { static_capabilities &= ~nk_cap_sapphireamx_k; }
+    else if (same_string(cap_name, "graniteamx")) { static_capabilities &= ~nk_cap_graniteamx_k; }
     else if (same_string(cap_name, "turin")) { static_capabilities &= ~nk_cap_turin_k; }
     else if (same_string(cap_name, "sierra")) { static_capabilities &= ~nk_cap_sierra_k; }
     else if (same_string(cap_name, "serial")) {
@@ -500,7 +512,7 @@ static PyObject *api_disable_capability(PyObject *self, PyObject *cap_name_obj) 
 }
 
 static char const doc_get_capabilities[] = //
-    "Get the current hardware SIMD capabilities as a dictionary of feature flags.\n" "On x86 it includes: 'serial', " "'haswell', 'skylake', 'ice', " "'genoa', 'sapphire', 'turin'.\n" "On Arm it includes: 'serial', 'neon', 'sve', 'sve2', and their extensions.\n";
+    "Get the current hardware SIMD capabilities as a dictionary of feature flags.\n" "On x86 it includes: 'serial', " "'haswell', 'skylake', 'icelake', " "'genoa', 'sapphire', 'turin'.\n" "On Arm it includes: 'serial', 'neon', 'sve', 'sve2', and their extensions.\n";
 
 static PyObject *api_get_capabilities(PyObject *self) {
     nk_capability_t caps = static_capabilities;
@@ -509,22 +521,46 @@ static PyObject *api_get_capabilities(PyObject *self) {
 
 #define ADD_CAP(name) PyDict_SetItemString(cap_dict, #name, PyBool_FromLong((caps) & nk_cap_##name##_k))
 
+    // Always available
     ADD_CAP(serial);
+    // ARM NEON capabilities
     ADD_CAP(neon);
-    ADD_CAP(sve);
     ADD_CAP(neonhalf);
-    ADD_CAP(svehalf);
-    ADD_CAP(neonbfdot);
-    ADD_CAP(svebfdot);
     ADD_CAP(neonsdot);
+    ADD_CAP(neonfhm);
+    ADD_CAP(neonbfdot);
+    // ARM SVE capabilities
+    ADD_CAP(sve);
+    ADD_CAP(svehalf);
     ADD_CAP(svesdot);
+    ADD_CAP(svebfdot);
+    ADD_CAP(sve2);
+    ADD_CAP(sve2p1);
+    // ARM SME capabilities
+    ADD_CAP(sme);
+    ADD_CAP(sme2);
+    ADD_CAP(sme2p1);
+    ADD_CAP(smef64);
+    ADD_CAP(smehalf);
+    ADD_CAP(smebf16);
+    ADD_CAP(smelut2);
+    ADD_CAP(smefa64);
+    // x86 capabilities
     ADD_CAP(haswell);
     ADD_CAP(skylake);
-    ADD_CAP(ice);
+    ADD_CAP(icelake);
     ADD_CAP(genoa);
     ADD_CAP(sapphire);
+    ADD_CAP(sapphireamx);
+    ADD_CAP(graniteamx);
     ADD_CAP(turin);
     ADD_CAP(sierra);
+    // RISC-V capabilities
+    ADD_CAP(rvv);
+    ADD_CAP(rvvhalf);
+    ADD_CAP(rvvbf16);
+    // WASM capabilities
+    ADD_CAP(v128relaxed);
 
 #undef ADD_CAP
 

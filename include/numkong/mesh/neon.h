@@ -1,9 +1,10 @@
 /**
- *  @brief SIMD-accelerated mesh alignment functions optimized for Arm NEON-capable CPUs.
+ *  @brief SIMD-accelerated Point Cloud Alignment for NEON.
  *  @file include/numkong/mesh/neon.h
- *  @sa include/numkong/mesh.h
  *  @author Ash Vardanian
  *  @date December 27, 2025
+ *
+ *  @sa include/numkong/mesh.h
  *
  *  @section neon_mesh_instructions Key NEON Mesh Instructions
  *
@@ -29,18 +30,19 @@
 
 #if NK_TARGET_ARM_
 #if NK_TARGET_NEON
-#if defined(__clang__)
-#pragma clang attribute push(__attribute__((target("arch=armv8-a+simd"))), apply_to = function)
-#elif defined(__GNUC__)
-#pragma GCC push_options
-#pragma GCC target("arch=armv8-a+simd")
-#endif
 
 #include "numkong/types.h"
 #include "numkong/spatial/neon.h" // `nk_f32_sqrt_neon`
 
 #if defined(__cplusplus)
 extern "C" {
+#endif
+
+#if defined(__clang__)
+#pragma clang attribute push(__attribute__((target("arch=armv8-a+simd"))), apply_to = function)
+#elif defined(__GNUC__)
+#pragma GCC push_options
+#pragma GCC target("arch=armv8-a+simd")
 #endif
 
 NK_INTERNAL void nk_deinterleave_f32x4_neon_(nk_f32_t const *ptr, float32x4_t *x_out, float32x4_t *y_out,
@@ -1443,16 +1445,16 @@ NK_PUBLIC void nk_umeyama_f64_neon(nk_f64_t const *a, nk_f64_t const *b, nk_size
     *result = nk_f64_sqrt_neon(sum_squared * inv_n);
 }
 
-#if defined(__cplusplus)
-} // extern "C"
-#endif
-
 #if defined(__clang__)
 #pragma clang attribute pop
 #elif defined(__GNUC__)
 #pragma GCC pop_options
 #endif
+
+#if defined(__cplusplus)
+} // extern "C"
+#endif
+
 #endif // NK_TARGET_NEON
 #endif // NK_TARGET_ARM_
-
 #endif // NK_MESH_NEON_H

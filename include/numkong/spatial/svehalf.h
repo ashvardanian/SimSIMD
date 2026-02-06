@@ -1,9 +1,10 @@
 /**
- *  @brief SIMD-accelerated Spatial Similarity Measures optimized for Arm SVE-capable CPUs.
+ *  @brief SIMD-accelerated Spatial Similarity Measures for SVE FP16.
  *  @file include/numkong/spatial/sve.h
- *  @sa include/numkong/spatial.h
  *  @author Ash Vardanian
  *  @date December 27, 2025
+ *
+ *  @sa include/numkong/spatial.h
  *
  *  @section spatial_svehalf_instructions ARM SVE+FP16 Instructions
  *
@@ -29,18 +30,19 @@
 
 #if NK_TARGET_ARM_
 #if NK_TARGET_SVEHALF
-#if defined(__clang__)
-#pragma clang attribute push(__attribute__((target("arch=armv8.2-a+sve+fp16"))), apply_to = function)
-#elif defined(__GNUC__)
-#pragma GCC push_options
-#pragma GCC target("arch=armv8.2-a+sve+fp16")
-#endif
 
 #include "numkong/types.h"
 #include "numkong/spatial/neon.h" // `nk_f32_sqrt_neon`
 
 #if defined(__cplusplus)
 extern "C" {
+#endif
+
+#if defined(__clang__)
+#pragma clang attribute push(__attribute__((target("arch=armv8.2-a+sve+fp16"))), apply_to = function)
+#elif defined(__GNUC__)
+#pragma GCC push_options
+#pragma GCC target("arch=armv8.2-a+sve+fp16")
 #endif
 
 NK_PUBLIC void nk_sqeuclidean_f16_svehalf(nk_f16_t const *a_enum, nk_f16_t const *b_enum, nk_size_t n,
@@ -92,16 +94,16 @@ NK_PUBLIC void nk_angular_f16_svehalf(nk_f16_t const *a_enum, nk_f16_t const *b_
     *result = nk_angular_normalize_f32_neon_(ab, a2, b2);
 }
 
-#if defined(__cplusplus)
-} // extern "C"
-#endif
-
 #if defined(__clang__)
 #pragma clang attribute pop
 #elif defined(__GNUC__)
 #pragma GCC pop_options
 #endif
+
+#if defined(__cplusplus)
+} // extern "C"
+#endif
+
 #endif // NK_TARGET_SVEHALF
 #endif // NK_TARGET_ARM_
-
 #endif // NK_SPATIAL_SVEHALF_H

@@ -50,14 +50,10 @@
 #define NK_CURVED_H
 
 #include "numkong/types.h"
-#include "numkong/dot.h"     // Required for spatial/serial.h dependency chain
-#include "numkong/spatial.h" // `nk_f32_sqrt_serial`, `nk_f64_sqrt_serial`
 
 #if defined(__cplusplus)
 extern "C" {
 #endif
-
-/*  Real-valued bilinear forms: aᵀ × C × b */
 
 /**
  *  @brief Bilinear form between vectors a and b under metric tensor C.
@@ -80,8 +76,6 @@ NK_DYNAMIC void nk_bilinear_f16(nk_f16_t const *a, nk_f16_t const *b, nk_f16_t c
 /** @copydoc nk_bilinear_f64 */
 NK_DYNAMIC void nk_bilinear_bf16(nk_bf16_t const *a, nk_bf16_t const *b, nk_bf16_t const *c, nk_size_t n,
                                  nk_f32_t *result);
-
-/*  Mahalanobis distance: √((a-b)ᵀ × C × (a-b)) */
 
 /**
  *  @brief Mahalanobis distance between vectors a and b under metric tensor C.
@@ -109,8 +103,6 @@ NK_DYNAMIC void nk_mahalanobis_f16(nk_f16_t const *a, nk_f16_t const *b, nk_f16_
 NK_DYNAMIC void nk_mahalanobis_bf16(nk_bf16_t const *a, nk_bf16_t const *b, nk_bf16_t const *c, nk_size_t n,
                                     nk_f32_t *result);
 
-/*  Complex-valued bilinear forms */
-
 /**
  *  @brief Complex bilinear form between vectors a and b under metric tensor C.
  *
@@ -131,8 +123,6 @@ NK_DYNAMIC void nk_bilinear_f16c(nk_f16c_t const *a, nk_f16c_t const *b, nk_f16c
 /** @copydoc nk_bilinear_f64c */
 NK_DYNAMIC void nk_bilinear_bf16c(nk_bf16c_t const *a, nk_bf16c_t const *b, nk_bf16c_t const *c, nk_size_t n,
                                   nk_f32c_t *results);
-
-/*  Serial implementation forward declarations */
 
 /** @copydoc nk_bilinear_f64 */
 NK_PUBLIC void nk_bilinear_f64_serial(nk_f64_t const *a, nk_f64_t const *b, nk_f64_t const *c, nk_size_t n,
@@ -170,8 +160,6 @@ NK_PUBLIC void nk_bilinear_bf16c_serial(nk_bf16c_t const *a, nk_bf16c_t const *b
 /** @copydoc nk_mahalanobis_bf16 */
 NK_PUBLIC void nk_mahalanobis_bf16_serial(nk_bf16_t const *a, nk_bf16_t const *b, nk_bf16_t const *c, nk_size_t n,
                                           nk_f32_t *result);
-
-/*  NEON implementation forward declarations (Arm) */
 
 #if NK_TARGET_NEON
 /** @copydoc nk_bilinear_f32 */
@@ -220,8 +208,6 @@ NK_PUBLIC void nk_bilinear_f32c_smef64(nk_f32c_t const *a, nk_f32c_t const *b, n
 NK_PUBLIC void nk_mahalanobis_f32_smef64(nk_f32_t const *a, nk_f32_t const *b, nk_f32_t const *c, nk_size_t n,
                                          nk_f32_t *result);
 #endif // NK_TARGET_SMEF64
-
-/*  x86 implementation forward declarations */
 
 #if NK_TARGET_HASWELL
 /** @copydoc nk_bilinear_f16 */
@@ -283,6 +269,10 @@ NK_PUBLIC void nk_mahalanobis_f16_sapphire(nk_f16_t const *a, nk_f16_t const *b,
                                            nk_f32_t *result);
 #endif // NK_TARGET_SAPPHIRE
 
+#if defined(__cplusplus)
+} // extern "C"
+#endif
+
 #include "numkong/curved/serial.h"
 #include "numkong/curved/neon.h"
 #include "numkong/curved/neonhalf.h"
@@ -292,6 +282,10 @@ NK_PUBLIC void nk_mahalanobis_f16_sapphire(nk_f16_t const *a, nk_f16_t const *b,
 #include "numkong/curved/skylake.h"
 #include "numkong/curved/genoa.h"
 #include "numkong/curved/sapphire.h"
+
+#if defined(__cplusplus)
+extern "C" {
+#endif
 
 #if !NK_DYNAMIC_DISPATCH
 
@@ -429,7 +423,7 @@ NK_PUBLIC void nk_mahalanobis_bf16(nk_bf16_t const *a, nk_bf16_t const *b, nk_bf
 #endif // !NK_DYNAMIC_DISPATCH
 
 #if defined(__cplusplus)
-}
+} // extern "C"
 #endif
 
 #endif // NK_CURVED_H

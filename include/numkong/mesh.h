@@ -1,5 +1,5 @@
 /**
- *  @brief SIMD-accelerated similarity measures for meshes and rigid 3D bodies.
+ *  @brief SIMD-accelerated Point Cloud Alignment.
  *  @file include/numkong/mesh.h
  *  @author Ash Vardanian
  *  @date June 19, 2024
@@ -361,12 +361,20 @@ NK_INTERNAL nk_dtype_t nk_umeyama_output_dtype(nk_dtype_t dtype) {
     }
 }
 
+#if defined(__cplusplus)
+} // extern "C"
+#endif
+
 #include "numkong/mesh/serial.h"
 #include "numkong/mesh/neon.h"
 #include "numkong/mesh/neonhalf.h"
 #include "numkong/mesh/neonbfdot.h"
 #include "numkong/mesh/haswell.h"
 #include "numkong/mesh/skylake.h"
+
+#if defined(__cplusplus)
+extern "C" {
+#endif
 
 #if !NK_DYNAMIC_DISPATCH
 
@@ -517,7 +525,7 @@ NK_PUBLIC void nk_umeyama_bf16(nk_bf16_t const *a, nk_bf16_t const *b, nk_size_t
 #endif // !NK_DYNAMIC_DISPATCH
 
 #if defined(__cplusplus)
-}
+} // extern "C"
 #endif
 
 #endif // NK_MESH_H

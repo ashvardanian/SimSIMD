@@ -26,7 +26,7 @@ extern crate alloc;
 use core::marker::PhantomData;
 use core::ptr::NonNull;
 
-use crate::numerics::{ATan, Cos, Dot, EachBlend, EachFMA, EachScale, EachSum, Sin};
+use crate::numerics::{Dot, EachATan, EachBlend, EachCos, EachFMA, EachScale, EachSin, EachSum};
 use crate::scalars::{bf16, e2m3, e3m2, e4m3, e5m2, f16, i4x2, u1x8, u4x2};
 
 /// Size type used in C FFI to match `nk_size_t` which is always `uint64_t`.
@@ -3078,7 +3078,7 @@ impl<T: Clone + EachFMA, const MAX_RANK: usize> Tensor<T, Global, MAX_RANK> {
 
 // region: Tensor Trigonometry
 
-impl<T: Clone + Sin, const MAX_RANK: usize> Tensor<T, Global, MAX_RANK> {
+impl<T: Clone + EachSin, const MAX_RANK: usize> Tensor<T, Global, MAX_RANK> {
     /// Element-wise sine: result[i] = sin(self[i])
     ///
     /// Input values are in radians.
@@ -3099,7 +3099,7 @@ impl<T: Clone + Sin, const MAX_RANK: usize> Tensor<T, Global, MAX_RANK> {
     }
 }
 
-impl<T: Clone + Cos, const MAX_RANK: usize> Tensor<T, Global, MAX_RANK> {
+impl<T: Clone + EachCos, const MAX_RANK: usize> Tensor<T, Global, MAX_RANK> {
     /// Element-wise cosine: result[i] = cos(self[i])
     ///
     /// Input values are in radians.
@@ -3120,7 +3120,7 @@ impl<T: Clone + Cos, const MAX_RANK: usize> Tensor<T, Global, MAX_RANK> {
     }
 }
 
-impl<T: Clone + ATan, const MAX_RANK: usize> Tensor<T, Global, MAX_RANK> {
+impl<T: Clone + EachATan, const MAX_RANK: usize> Tensor<T, Global, MAX_RANK> {
     /// Element-wise arctangent: result[i] = atan(self[i])
     ///
     /// Output values are in radians in the range (-π/2, π/2).

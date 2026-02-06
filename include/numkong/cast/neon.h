@@ -1,9 +1,10 @@
 /**
- *  @brief SIMD-accelerated type casting operations for Arm NEON-capable CPUs.
+ *  @brief SIMD-accelerated Type Conversions for NEON.
  *  @file include/numkong/cast/neon.h
- *  @sa include/numkong/cast.h
  *  @author Ash Vardanian
  *  @date December 27, 2025
+ *
+ *  @sa include/numkong/cast.h
  *
  *  @section neon_cast_instructions ARM NEON Conversion Instructions
  *
@@ -50,18 +51,19 @@
 
 #if NK_TARGET_ARM_
 #if NK_TARGET_NEON
-#if defined(__clang__)
-#pragma clang attribute push(__attribute__((target("arch=armv8-a+simd"))), apply_to = function)
-#elif defined(__GNUC__)
-#pragma GCC push_options
-#pragma GCC target("arch=armv8-a+simd")
-#endif
 
 #include "numkong/types.h"
 #include "numkong/reduce/serial.h" // Serial fallbacks
 
 #if defined(__cplusplus)
 extern "C" {
+#endif
+
+#if defined(__clang__)
+#pragma clang attribute push(__attribute__((target("arch=armv8-a+simd"))), apply_to = function)
+#elif defined(__GNUC__)
+#pragma GCC push_options
+#pragma GCC target("arch=armv8-a+simd")
 #endif
 
 #pragma region - Type Punned Loads and Stores
@@ -1073,16 +1075,16 @@ NK_PUBLIC void nk_cast_neon(void const *from, nk_dtype_t from_type, nk_size_t n,
 
 #pragma endregion - Public API
 
-#if defined(__cplusplus)
-} // extern "C"
-#endif
-
 #if defined(__clang__)
 #pragma clang attribute pop
 #elif defined(__GNUC__)
 #pragma GCC pop_options
 #endif
+
+#if defined(__cplusplus)
+} // extern "C"
+#endif
+
 #endif // NK_TARGET_NEON
 #endif // NK_TARGET_ARM_
-
 #endif // NK_CAST_NEON_H

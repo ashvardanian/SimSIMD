@@ -1,11 +1,12 @@
 /**
- *  @brief SIMD-accelerated Hamming and Jaccard distances for binary sets optimized for ARM NEON.
+ *  @brief SIMD-accelerated Batched Set Distances for NEON.
  *  @file include/numkong/sets/neon.h
- *  @sa include/numkong/sets.h
  *  @author Ash Vardanian
  *  @date January 25, 2026
  *
- *  @section neon_sets_instructions Key NEON Set Instructions
+ *  @sa include/numkong/sets.h
+ *
+ *  @section sets_neon_instructions Key NEON Set Instructions
  *
  *      Intrinsic                   Instruction                     Latency     Throughput  Ports
  *      veorq_u8                    EOR (Vd.16B, Vn.16B, Vm.16B)    2cy         2/cy        -
@@ -25,6 +26,15 @@
 
 #if NK_TARGET_ARM_
 #if NK_TARGET_NEON
+
+#include "numkong/types.h"
+#include "numkong/set/serial.h" // `nk_hamming_u1x128_state_serial_t`
+#include "numkong/cast/neon.h"  // `nk_partial_load_b8x16_neon_`
+
+#if defined(__cplusplus)
+extern "C" {
+#endif
+
 #if defined(__clang__)
 #pragma clang attribute push(__attribute__((target("arch=armv8-a+simd"))), apply_to = function)
 #elif defined(__GNUC__)
@@ -32,53 +42,39 @@
 #pragma GCC target("arch=armv8-a+simd")
 #endif
 
-#include "numkong/types.h"
-#include "numkong/set/serial.h" // For nk_hamming_b128_state_serial_t
-#include "numkong/cast/neon.h"  // For load functions
-
-#if defined(__cplusplus)
-extern "C" {
-#endif
-
 // Four macro invocations for u1 - matching serial pattern
 nk_define_cross_pack_size_(hammings, u1, neon, u1x8, u32,
                            /*depth_simd_dimensions=*/128,
                            /*dimensions_per_value=*/128)
 
-nk_define_cross_pack_(hammings, u1, neon, u1x8, u32,
-                      nk_assign_from_to_,
+nk_define_cross_pack_(hammings, u1, neon, u1x8, u32, nk_assign_from_to_,
                       /*depth_simd_dimensions=*/128,
                       /*dimensions_per_value=*/128)
 
-nk_define_cross_symmetric_(hammings, u1, neon, u1x8, u32,
-                           nk_b128_vec_t, nk_hamming_b128_state_serial_t,
-                           nk_b128_vec_t, nk_hamming_b128_init_serial,
-                           nk_load_b128_neon_, nk_partial_load_b32x4_serial_,
-                           nk_hamming_b128_update_serial, nk_hamming_b128_finalize_serial,
-                           nk_partial_store_b32x4_serial_,
+nk_define_cross_symmetric_(hammings, u1, neon, u1x8, u32, nk_b128_vec_t, nk_hamming_u1x128_state_serial_t,
+                           nk_b128_vec_t, nk_hamming_u1x128_init_serial, nk_load_b128_neon_,
+                           nk_partial_load_b32x4_serial_, nk_hamming_u1x128_update_serial,
+                           nk_hamming_u1x128_finalize_serial, nk_partial_store_b32x4_serial_,
                            /*depth_simd_dimensions=*/128,
                            /*dimensions_per_value=*/128)
 
-nk_define_cross_packed_(hammings, u1, neon, u1x8, u32, u32,
-                        nk_b128_vec_t, nk_hamming_b128_state_serial_t, nk_b128_vec_t,
-                        nk_hamming_b128_init_serial,
-                        nk_load_b128_neon_, nk_partial_load_b32x4_serial_,
-                        nk_load_b128_neon_, nk_partial_load_b32x4_serial_,
-                        nk_hamming_b128_update_serial, nk_hamming_b128_finalize_serial,
-                        nk_partial_store_b32x4_serial_,
+nk_define_cross_packed_(hammings, u1, neon, u1x8, u32, u32, nk_b128_vec_t, nk_hamming_u1x128_state_serial_t,
+                        nk_b128_vec_t, nk_hamming_u1x128_init_serial, nk_load_b128_neon_, nk_partial_load_b32x4_serial_,
+                        nk_load_b128_neon_, nk_partial_load_b32x4_serial_, nk_hamming_u1x128_update_serial,
+                        nk_hamming_u1x128_finalize_serial, nk_partial_store_b32x4_serial_,
                         /*depth_simd_dimensions=*/128,
                         /*dimensions_per_value=*/128)
-
-#if defined(__cplusplus)
-}
-#endif
 
 #if defined(__clang__)
 #pragma clang attribute pop
 #elif defined(__GNUC__)
 #pragma GCC pop_options
 #endif
+
+#if defined(__cplusplus)
+} // extern "C"
+#endif
+
 #endif // NK_TARGET_NEON
 #endif // NK_TARGET_ARM_
-
 #endif // NK_SETS_NEON_H

@@ -1,9 +1,10 @@
 /**
- *  @brief SIMD-accelerated Elementwise Operations optimized for Arm NEON-capable CPUs.
+ *  @brief SIMD-accelerated Elementwise Arithmetic for NEON.
  *  @file include/numkong/each/neon.h
- *  @sa include/numkong/each.h
  *  @author Ash Vardanian
  *  @date December 27, 2025
+ *
+ *  @sa include/numkong/each.h
  *
  *  @section elementwise_neon_instructions ARM NEON Instructions
  *
@@ -33,18 +34,19 @@
 
 #if NK_TARGET_ARM_
 #if NK_TARGET_NEON
-#if defined(__clang__)
-#pragma clang attribute push(__attribute__((target("arch=armv8-a+simd"))), apply_to = function)
-#elif defined(__GNUC__)
-#pragma GCC push_options
-#pragma GCC target("arch=armv8-a+simd")
-#endif
 
 #include "numkong/types.h"
 #include "numkong/cast/neon.h"
 
 #if defined(__cplusplus)
 extern "C" {
+#endif
+
+#if defined(__clang__)
+#pragma clang attribute push(__attribute__((target("arch=armv8-a+simd"))), apply_to = function)
+#elif defined(__GNUC__)
+#pragma GCC push_options
+#pragma GCC target("arch=armv8-a+simd")
 #endif
 
 NK_PUBLIC void nk_each_sum_f32_neon(nk_f32_t const *a, nk_f32_t const *b, nk_size_t n, nk_f32_t *result) {
@@ -828,16 +830,16 @@ NK_PUBLIC void nk_each_fma_e5m2_neon(nk_e5m2_t const *a, nk_e5m2_t const *b, nk_
     }
 }
 
-#if defined(__cplusplus)
-} // extern "C"
-#endif
-
 #if defined(__clang__)
 #pragma clang attribute pop
 #elif defined(__GNUC__)
 #pragma GCC pop_options
 #endif
+
+#if defined(__cplusplus)
+} // extern "C"
+#endif
+
 #endif // NK_TARGET_NEON
 #endif // NK_TARGET_ARM_
-
 #endif // NK_EACH_NEON_H

@@ -1,9 +1,10 @@
 /**
- *  @brief SIMD-accelerated Bilinear Forms for Curved Spaces - x86 Skylake (AVX-512) implementations.
+ *  @brief SIMD-accelerated Curved Space Similarity for Skylake.
  *  @file include/numkong/curved/skylake.h
- *  @sa include/numkong/curved.h
  *  @author Ash Vardanian
  *  @date January 14, 2026
+ *
+ *  @sa include/numkong/curved.h
  *
  *  Implements f32 and f64 bilinear forms and Mahalanobis distance using AVX-512:
  *  - f32 inputs accumulate in f64 to avoid catastrophic cancellation
@@ -12,10 +13,15 @@
 #ifndef NK_CURVED_SKYLAKE_H
 #define NK_CURVED_SKYLAKE_H
 
-#include "numkong/types.h"
-
 #if NK_TARGET_X86_
 #if NK_TARGET_SKYLAKE
+
+#include "numkong/types.h"
+#include "numkong/spatial/haswell.h" // `nk_f64_sqrt_haswell`
+
+#if defined(__cplusplus)
+extern "C" {
+#endif
 
 #if defined(__clang__)
 #pragma clang attribute push(__attribute__((target("avx2,avx512f,avx512vl,avx512bw,avx512dq,f16c,fma,bmi,bmi2"))), \
@@ -23,10 +29,6 @@
 #elif defined(__GNUC__)
 #pragma GCC push_options
 #pragma GCC target("avx2", "avx512f", "avx512vl", "avx512bw", "avx512dq", "f16c", "fma", "bmi", "bmi2")
-#endif
-
-#if defined(__cplusplus)
-extern "C" {
 #endif
 
 NK_PUBLIC void nk_bilinear_f32_skylake(nk_f32_t const *a, nk_f32_t const *b, nk_f32_t const *c, nk_size_t n,
@@ -95,7 +97,7 @@ NK_PUBLIC void nk_mahalanobis_f32_skylake(nk_f32_t const *a, nk_f32_t const *b, 
         sum_f64x8 = _mm512_fmadd_pd(diff_i_f64x8, cdiff_j_f64x8, sum_f64x8);
     }
 
-    *result = (nk_f32_t)nk_sqrt_f64_haswell_(_mm512_reduce_add_pd(sum_f64x8));
+    *result = (nk_f32_t)nk_f64_sqrt_haswell(_mm512_reduce_add_pd(sum_f64x8));
 }
 
 NK_PUBLIC void nk_bilinear_f32c_skylake(nk_f32c_t const *a, nk_f32c_t const *b, nk_f32c_t const *c, nk_size_t n,
@@ -292,7 +294,7 @@ NK_PUBLIC void nk_mahalanobis_f64_skylake(nk_f64_t const *a, nk_f64_t const *b, 
     }
 
     // Final: combine sum + compensation before reduce
-    *result = nk_sqrt_f64_haswell_(_mm512_reduce_add_pd(_mm512_add_pd(sum_f64x8, compensation_f64x8)));
+    *result = nk_f64_sqrt_haswell(_mm512_reduce_add_pd(_mm512_add_pd(sum_f64x8, compensation_f64x8)));
 }
 
 NK_PUBLIC void nk_bilinear_f64c_skylake(nk_f64c_t const *a, nk_f64c_t const *b, nk_f64c_t const *c, nk_size_t n,
@@ -432,14 +434,14 @@ NK_PUBLIC void nk_bilinear_f64c_skylake(nk_f64c_t const *a, nk_f64c_t const *b, 
     results->imag = sum_imag + compensation_imag;
 }
 
-#if defined(__cplusplus)
-}
-#endif
-
 #if defined(__clang__)
 #pragma clang attribute pop
 #elif defined(__GNUC__)
 #pragma GCC pop_options
+#endif
+
+#if defined(__cplusplus)
+} // extern "C"
 #endif
 
 #endif // NK_TARGET_SKYLAKE

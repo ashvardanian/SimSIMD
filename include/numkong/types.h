@@ -1,6 +1,6 @@
 /**
  *  @brief Shared definitions for the NumKong library.
- *  @file numkong/types.h
+ *  @file include/numkong/types.h
  *  @author Ash Vardanian
  *  @date October 2, 2023
  *
@@ -32,6 +32,10 @@
  *  - Arm implements E4M3 (meaning E4M3FN) and E5M2 with a shared `__mfp8` type and a `FPMR` format selector
  *
  *  For brevety, across NumKong, "E4M3" implies "E4M3FN".
+ *
+ *  @see https://www.opencompute.org/documents/ocp-8-bit-floating-point-specification-ofp8-revision-1-0-2023-12-01-pdf-1
+ *  @see FP8 Formats for Deep Learning: https://arxiv.org/pdf/2209.05433
+ *  @see ONNX Float8 Types: https://onnx.ai/onnx/technical/float8.html
  */
 #ifndef NK_TYPES_H
 #define NK_TYPES_H
@@ -106,37 +110,57 @@
 #endif // defined(__riscv) && (__riscv_xlen == 64)
 #endif // !defined(NK_TARGET_RISCV_)
 
-// Compiling for RISC-V Vector: NK_TARGET_SPACEMIT
-#if !defined(NK_TARGET_SPACEMIT) || (NK_TARGET_SPACEMIT && !NK_TARGET_RISCV_)
+// Compiling for WASM: NK_TARGET_WASM_
+#if !defined(NK_TARGET_WASM_)
+#if defined(__wasm__) || defined(__EMSCRIPTEN__)
+#define NK_TARGET_WASM_ 1
+#else
+#define NK_TARGET_WASM_ 0
+#endif
+#endif // !defined(NK_TARGET_WASM_)
+
+// Compiling for WASM with Relaxed SIMD: NK_TARGET_V128RELAXED
+// Requires -mrelaxed-simd for FMA instructions (f32x4.relaxed_madd, f64x2.relaxed_madd)
+#if !defined(NK_TARGET_V128RELAXED) || (NK_TARGET_V128RELAXED && !NK_TARGET_WASM_)
+#if defined(__wasm_relaxed_simd__)
+#define NK_TARGET_V128RELAXED NK_TARGET_WASM_
+#else
+#undef NK_TARGET_V128RELAXED
+#define NK_TARGET_V128RELAXED 0
+#endif
+#endif // !defined(NK_TARGET_V128RELAXED) || ...
+
+// Compiling for RISC-V Vector: NK_TARGET_RVV
+#if !defined(NK_TARGET_RVV) || (NK_TARGET_RVV && !NK_TARGET_RISCV_)
 #if defined(__riscv_v) && (__riscv_v >= 1000000)
-#define NK_TARGET_SPACEMIT NK_TARGET_RISCV_
+#define NK_TARGET_RVV NK_TARGET_RISCV_
 #else
-#undef NK_TARGET_SPACEMIT
-#define NK_TARGET_SPACEMIT 0
+#undef NK_TARGET_RVV
+#define NK_TARGET_RVV 0
 #endif // defined(__riscv_v) && (__riscv_v >= 1000000)
-#endif // !defined(NK_TARGET_SPACEMIT) || ...
+#endif // !defined(NK_TARGET_RVV) || ...
 
-// Compiling for RISC-V Vector with Zvfh (f16): NK_TARGET_SIFIVE
+// Compiling for RISC-V Vector with Zvfh (f16): NK_TARGET_RVVHALF
 // Requires GCC 14+ or Clang 18+ for full intrinsic support
-#if !defined(NK_TARGET_SIFIVE) || (NK_TARGET_SIFIVE && !NK_TARGET_SPACEMIT)
+#if !defined(NK_TARGET_RVVHALF) || (NK_TARGET_RVVHALF && !NK_TARGET_RVV)
 #if defined(__riscv_zvfh) && (__riscv_zvfh > 0)
-#define NK_TARGET_SIFIVE NK_TARGET_SPACEMIT
+#define NK_TARGET_RVVHALF NK_TARGET_RVV
 #else
-#undef NK_TARGET_SIFIVE
-#define NK_TARGET_SIFIVE 0
+#undef NK_TARGET_RVVHALF
+#define NK_TARGET_RVVHALF 0
 #endif // defined(__riscv_zvfh) && (__riscv_zvfh > 0)
-#endif // !defined(NK_TARGET_SIFIVE) || ...
+#endif // !defined(NK_TARGET_RVVHALF) || ...
 
-// Compiling for RISC-V Vector with Zvfbfwma (bf16 widening FMA): NK_TARGET_XUANTIE
+// Compiling for RISC-V Vector with Zvfbfwma (bf16 widening FMA): NK_TARGET_RVVBF16
 // Requires GCC 14+ or Clang 18+ for full intrinsic support
-#if !defined(NK_TARGET_XUANTIE) || (NK_TARGET_XUANTIE && !NK_TARGET_SPACEMIT)
+#if !defined(NK_TARGET_RVVBF16) || (NK_TARGET_RVVBF16 && !NK_TARGET_RVV)
 #if defined(__riscv_zvfbfwma) && (__riscv_zvfbfwma > 0)
-#define NK_TARGET_XUANTIE NK_TARGET_SPACEMIT
+#define NK_TARGET_RVVBF16 NK_TARGET_RVV
 #else
-#undef NK_TARGET_XUANTIE
-#define NK_TARGET_XUANTIE 0
+#undef NK_TARGET_RVVBF16
+#define NK_TARGET_RVVBF16 0
 #endif // defined(__riscv_zvfbfwma) && (__riscv_zvfbfwma > 0)
-#endif // !defined(NK_TARGET_XUANTIE) || ...
+#endif // !defined(NK_TARGET_RVVBF16) || ...
 
 // Compiling for Arm: NK_TARGET_NEON
 #if !defined(NK_TARGET_NEON) || (NK_TARGET_NEON && !NK_TARGET_ARM_)
@@ -301,7 +325,7 @@
 #endif // defined(__AVX2__)
 #endif // !defined(NK_TARGET_HASWELL) || ...
 
-// Compiling for x86: NK_TARGET_SKYLAKE, NK_TARGET_ICE, NK_TARGET_GENOA,
+// Compiling for x86: NK_TARGET_SKYLAKE, NK_TARGET_ICELAKE, NK_TARGET_GENOA,
 // NK_TARGET_SAPPHIRE, NK_TARGET_TURIN, NK_TARGET_SIERRA
 //
 // To list all available macros for x86, take a recent compiler, like GCC 12 and run:
@@ -318,15 +342,15 @@
 #endif
 #endif // !defined(NK_TARGET_SKYLAKE) || ...
 
-#if !defined(NK_TARGET_ICE) || (NK_TARGET_ICE && !NK_TARGET_X86_)
+#if !defined(NK_TARGET_ICELAKE) || (NK_TARGET_ICELAKE && !NK_TARGET_X86_)
 #if defined(__AVX512VNNI__) && defined(__AVX512IFMA__) && defined(__AVX512BITALG__) && defined(__AVX512VBMI2__) && \
     defined(__AVX512VPOPCNTDQ__)
-#define NK_TARGET_ICE 1
+#define NK_TARGET_ICELAKE 1
 #else
-#undef NK_TARGET_ICE
-#define NK_TARGET_ICE 0
+#undef NK_TARGET_ICELAKE
+#define NK_TARGET_ICELAKE 0
 #endif
-#endif // !defined(NK_TARGET_ICE) || ...
+#endif // !defined(NK_TARGET_ICELAKE) || ...
 
 #if !defined(NK_TARGET_GENOA) || (NK_TARGET_GENOA && !NK_TARGET_X86_)
 #if defined(__AVX512BF16__)
@@ -346,23 +370,23 @@
 #endif
 #endif // !defined(NK_TARGET_SAPPHIRE) || ...
 
-#if !defined(NK_TARGET_SAPPHIRE_AMX) || (NK_TARGET_SAPPHIRE_AMX && !NK_TARGET_X86_)
+#if !defined(NK_TARGET_SAPPHIREAMX) || (NK_TARGET_SAPPHIREAMX && !NK_TARGET_X86_)
 #if defined(__AMX_TILE__) && defined(__AMX_BF16__) && defined(__AMX_INT8__)
-#define NK_TARGET_SAPPHIRE_AMX 1
+#define NK_TARGET_SAPPHIREAMX 1
 #else
-#undef NK_TARGET_SAPPHIRE_AMX
-#define NK_TARGET_SAPPHIRE_AMX 0
+#undef NK_TARGET_SAPPHIREAMX
+#define NK_TARGET_SAPPHIREAMX 0
 #endif
-#endif // !defined(NK_TARGET_SAPPHIRE_AMX) || ...
+#endif // !defined(NK_TARGET_SAPPHIREAMX) || ...
 
-#if !defined(NK_TARGET_GRANITE_AMX) || (NK_TARGET_GRANITE_AMX && !NK_TARGET_X86_)
+#if !defined(NK_TARGET_GRANITEAMX) || (NK_TARGET_GRANITEAMX && !NK_TARGET_X86_)
 #if defined(__AMX_TILE__) && defined(__AMX_FP16__)
-#define NK_TARGET_GRANITE_AMX 1
+#define NK_TARGET_GRANITEAMX 1
 #else
-#undef NK_TARGET_GRANITE_AMX
-#define NK_TARGET_GRANITE_AMX 0
+#undef NK_TARGET_GRANITEAMX
+#define NK_TARGET_GRANITEAMX 0
 #endif
-#endif // !defined(NK_TARGET_GRANITE_AMX) || ...
+#endif // !defined(NK_TARGET_GRANITEAMX) || ...
 
 #if !defined(NK_TARGET_TURIN) || (NK_TARGET_TURIN && !NK_TARGET_X86_)
 #if defined(__AVX512VP2INTERSECT__)
@@ -394,8 +418,10 @@
 #endif
 #elif NK_TARGET_HASWELL || NK_TARGET_SKYLAKE
 #include <immintrin.h>
-#elif NK_TARGET_SPACEMIT
+#elif NK_TARGET_RVV
 #include <riscv_vector.h>
+#elif NK_TARGET_V128RELAXED
+#include <wasm_simd128.h>
 #endif
 
 #if !defined(NK_F64_DIVISION_EPSILON)
@@ -463,13 +489,21 @@
 extern "C" {
 #endif
 
-typedef unsigned char nk_u1x8_t; /// ? Eight boolean values packed in one byte
-typedef unsigned char nk_i4x2_t; /// ? Two 4-bit signed integers packed in one byte
-typedef unsigned char nk_u4x2_t; /// ? Two 4-bit unsigned integers packed in one byte
-typedef unsigned char nk_e4m3_t; /// ? FP8 E4M3 value encoded into one byte
-typedef unsigned char nk_e5m2_t; /// ? FP8 E5M2 value encoded into one byte
-typedef unsigned char nk_e2m3_t; /// ? FP6 E2M3FN value encoded into one byte (6 bits used, 2 bits unused)
-typedef unsigned char nk_e3m2_t; /// ? FP6 E3M2FN value encoded into one byte (6 bits used, 2 bits unused)
+/** @brief Eight boolean values packed in one byte */
+typedef unsigned char nk_u1x8_t;
+/** @brief Two 4-bit signed integers packed in one byte */
+typedef unsigned char nk_i4x2_t;
+/** @brief Two 4-bit unsigned integers packed in one byte */
+typedef unsigned char nk_u4x2_t;
+
+/** @brief FP8 E4M3FN (OCP v1.0): S EEEE MMM, bias=7, range ±448, no Inf, NaN at 0x7F/0xFF */
+typedef unsigned char nk_e4m3_t;
+/** @brief FP8 E5M2 (OCP v1.0): S EEEEE MM, bias=15, range ±57344, Inf at 0x7C/0xFC */
+typedef unsigned char nk_e5m2_t;
+/** @brief FP6 E2M3FN (OCP MX v1.0): S EE MMM (6-bit), bias=1, range ±7.5, no Inf/NaN */
+typedef unsigned char nk_e2m3_t;
+/** @brief FP6 E3M2FN (OCP MX v1.0): S EEE MM (6-bit), bias=3, range ±28, no Inf/NaN */
+typedef unsigned char nk_e3m2_t;
 
 typedef signed char nk_i8_t;
 typedef unsigned char nk_u8_t;
@@ -477,9 +511,9 @@ typedef signed short nk_i16_t;
 typedef unsigned short nk_u16_t;
 typedef signed int nk_i32_t;
 typedef unsigned int nk_u32_t;
-// On ARM64 (LP64), both `long` and `long long` are 64-bit but distinct types.
-// Apple's NEON intrinsics expect `long long*`, while Linux ARM64 expects `long*`.
-#if NK_TARGET_ARM_ && !defined(NK_DEFINED_APPLE_)
+// On LP64 targets (Linux ARM64, RISC-V 64), `long` and `long long` are both 64-bit but distinct types.
+// NEON/RVV intrinsics on Linux expect `long*`, while Apple's NEON intrinsics expect `long long*`.
+#if (NK_TARGET_ARM_ && !defined(NK_DEFINED_APPLE_)) || NK_TARGET_RISCV_
 typedef signed long nk_i64_t;
 typedef unsigned long nk_u64_t;
 #else
@@ -866,6 +900,9 @@ typedef union nk_b128_vec_t {
     __m128d xmm_pd;
     __m128 xmm_ps;
 #endif
+#if NK_TARGET_V128RELAXED
+    v128_t v128;
+#endif
 #if NK_TARGET_NEON
     uint8x16_t u8x16;
     uint16x8_t u16x8;
@@ -940,7 +977,8 @@ typedef union nk_b256_vec_t {
  *  member of the union, which in our case is a register-based calling convention for SIMD types.
  */
 typedef union nk_b512_vec_t {
-#if NK_TARGET_SKYLAKE || NK_TARGET_ICE || NK_TARGET_GENOA || NK_TARGET_SAPPHIRE || NK_TARGET_TURIN || NK_TARGET_SIERRA
+#if NK_TARGET_SKYLAKE || NK_TARGET_ICELAKE || NK_TARGET_GENOA || NK_TARGET_SAPPHIRE || NK_TARGET_TURIN || \
+    NK_TARGET_SIERRA
     __m512i zmm;
     __m512d zmm_pd;
     __m512 zmm_ps;

@@ -1,5 +1,5 @@
 /**
- *  @brief SIMD-accelerated type conversions for FP8/BF16/F16 types optimized for Serial (SIMD-free) CPUs.
+ *  @brief SWAR-accelerated Type Conversions for SIMD-free CPUs.
  *  @file include/numkong/cast/serial.h
  *  @author Ash Vardanian
  *  @date January 2, 2026

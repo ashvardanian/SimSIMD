@@ -1,26 +1,28 @@
 /**
- *  @brief SIMD-accelerated Dot Products for Real and Complex Numbers optimized for Arm NEON-capable CPUs.
+ *  @brief SIMD-accelerated Batched Dot Products for NEON BF16.
  *  @file include/numkong/dots/neonbfdot.h
- *  @sa include/numkong/dots.h
  *  @author Ash Vardanian
  *  @date December 27, 2025
+ *
+ *  @sa include/numkong/dots.h
  */
 #ifndef NK_DOTS_NEONBFDOT_H
 #define NK_DOTS_NEONBFDOT_H
 
 #if NK_TARGET_ARM_
 #if NK_TARGET_NEONBFDOT
-#if defined(__clang__)
-#pragma clang attribute push(__attribute__((target("arch=armv8.6-a+simd+bf16"))), apply_to = function)
-#elif defined(__GNUC__)
-#pragma GCC push_options
-#pragma GCC target("arch=armv8.6-a+simd+bf16")
-#endif
 
 #include "numkong/types.h"
 
 #if defined(__cplusplus)
 extern "C" {
+#endif
+
+#if defined(__clang__)
+#pragma clang attribute push(__attribute__((target("arch=armv8.6-a+simd+bf16"))), apply_to = function)
+#elif defined(__GNUC__)
+#pragma GCC push_options
+#pragma GCC target("arch=armv8.6-a+simd+bf16")
 #endif
 
 /* BF16 GEMM: depth_simd_dimensions=8 (8 bf16s = 16 bytes = NEON register width) */
@@ -38,16 +40,16 @@ nk_define_cross_packed_(dots, bf16, neonbfdot, bf16, bf16, f32, nk_b128_vec_t, n
                         nk_dot_bf16x8_finalize_neonbfdot, nk_partial_store_b32x4_serial_, /*depth_simd_dimensions=*/8,
                         /*dimensions_per_value=*/1)
 
-#if defined(__cplusplus)
-} // extern "C"
-#endif
-
 #if defined(__clang__)
 #pragma clang attribute pop
 #elif defined(__GNUC__)
 #pragma GCC pop_options
 #endif
+
+#if defined(__cplusplus)
+} // extern "C"
+#endif
+
 #endif // NK_TARGET_NEONBFDOT
 #endif // NK_TARGET_ARM_
-
 #endif // NK_DOTS_NEONBFDOT_H

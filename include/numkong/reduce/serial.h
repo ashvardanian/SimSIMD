@@ -1,9 +1,10 @@
 /**
- *  @brief SIMD-accelerated horizontal reduction operations optimized for Serial (SIMD-free) CPUs.
+ *  @brief SWAR-accelerated Vector Reductions for SIMD-free CPUs.
  *  @file include/numkong/reduce/serial.h
- *  @sa include/numkong/reduce.h
  *  @author Ash Vardanian
  *  @date December 27, 2025
+ *
+ *  @sa include/numkong/reduce.h
  */
 #ifndef NK_REDUCE_SERIAL_H
 #define NK_REDUCE_SERIAL_H

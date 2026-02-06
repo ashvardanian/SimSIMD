@@ -1,9 +1,10 @@
 /**
- *  @brief SIMD-accelerated GEMM for `f32`/`f64` using ARM SME with `f64` accumulators.
+ *  @brief SIMD-accelerated Batched Dot Products for SME F64.
  *  @file include/numkong/dots/smef64.h
- *  @sa include/numkong/dots.h
  *  @author Ash Vardanian
  *  @date January 2, 2026
+ *
+ *  @sa include/numkong/dots.h
  *
  *  Uses ARM SME with `FEAT_SME_F64F64` for high-precision GEMM.
  *  Requires Apple M4 or equivalent with `f64` outer product support.
@@ -26,21 +27,25 @@
 
 #if NK_TARGET_ARM_
 #if NK_TARGET_SME
-#pragma GCC push_options
-#pragma GCC target("+sme+sme-f64f64")
-#pragma clang attribute push(__attribute__((target("sme,sme-f64f64"))), apply_to = function)
 
 #include "numkong/types.h"
-#include "numkong/dots/sme.h" // For nk_dots_sme_packed_header_t
-
-#include <arm_sme.h>
-#include <arm_sve.h>
+#include "numkong/dots/sme.h" // `nk_dots_sme_packed_header_t`
 
 #if defined(__cplusplus)
 extern "C" {
 #endif
 
-/*
+#if defined(__clang__)
+#pragma clang attribute push(__attribute__((target("sme,sme-f64f64"))), apply_to = function)
+#elif defined(__GNUC__)
+#pragma GCC push_options
+#pragma GCC target("+sme+sme-f64f64")
+#endif
+
+#include <arm_sme.h>
+#include <arm_sve.h>
+
+/**
  *  f32 → f64 → f32 GEMM using FMOPA with ZA64 tiles (FEAT_SME_F64F64).
  *
  *  Tile layout (SVL=512, Apple M4):
@@ -722,15 +727,16 @@ NK_PUBLIC void nk_dots_symmetric_f64_smef64(nk_f64_t const *vectors, nk_size_t n
                                          row_start, row_count);
 }
 
-#pragma endregion
+#if defined(__clang__)
+#pragma clang attribute pop
+#elif defined(__GNUC__)
+#pragma GCC pop_options
+#endif
 
 #if defined(__cplusplus)
 } // extern "C"
 #endif
 
-#pragma clang attribute pop
-#pragma GCC pop_options
 #endif // NK_TARGET_SME
 #endif // NK_TARGET_ARM_
-
 #endif // NK_DOTS_SMEF64_H

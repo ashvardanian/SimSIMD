@@ -1,19 +1,24 @@
 /**
- *  @brief SIMD-accelerated Bilinear Forms for Curved Spaces - Intel Sapphire Rapids (AVX-512-FP16) implementations.
+ *  @brief SIMD-accelerated Curved Space Similarity for Sapphire Rapids.
  *  @file include/numkong/curved/sapphire.h
- *  @sa include/numkong/curved.h
  *  @author Ash Vardanian
  *  @date January 14, 2026
+ *
+ *  @sa include/numkong/curved.h
  *
  *  Implements f16 bilinear forms using AVX-512 with native FP16 support.
  */
 #ifndef NK_CURVED_SAPPHIRE_H
 #define NK_CURVED_SAPPHIRE_H
 
-#include "numkong/types.h"
-
 #if NK_TARGET_X86_
 #if NK_TARGET_SAPPHIRE
+
+#include "numkong/types.h"
+
+#if defined(__cplusplus)
+extern "C" {
+#endif
 
 #if defined(__clang__)
 #pragma clang attribute push(__attribute__((target("avx2,avx512f,avx512vl,avx512bw,avx512fp16,f16c,fma,bmi,bmi2"))), \
@@ -21,10 +26,6 @@
 #elif defined(__GNUC__)
 #pragma GCC push_options
 #pragma GCC target("avx2", "avx512f", "avx512vl", "avx512bw", "avx512fp16", "f16c", "fma", "bmi", "bmi2")
-#endif
-
-#if defined(__cplusplus)
-extern "C" {
 #endif
 
 NK_PUBLIC void nk_bilinear_f16_sapphire_under32unrolled(nk_f16_t const *a, nk_f16_t const *b, nk_f16_t const *c,
@@ -166,7 +167,7 @@ NK_PUBLIC void nk_mahalanobis_f16_sapphire(nk_f16_t const *a, nk_f16_t const *b,
         sum_f16x32 = _mm512_fmadd_ph(diff_i_f16x32, cdiff_j_f16x32, sum_f16x32);
     }
 
-    *result = nk_sqrt_f32_haswell_(_mm512_reduce_add_ph(sum_f16x32));
+    *result = nk_f32_sqrt_haswell(_mm512_reduce_add_ph(sum_f16x32));
 }
 
 NK_PUBLIC void nk_bilinear_f16c_sapphire(nk_f16c_t const *a, nk_f16c_t const *b, nk_f16c_t const *c, nk_size_t n,
@@ -229,14 +230,14 @@ NK_PUBLIC void nk_bilinear_f16c_sapphire(nk_f16c_t const *a, nk_f16c_t const *b,
     results->imag = sum_imag;
 }
 
-#if defined(__cplusplus)
-}
-#endif
-
 #if defined(__clang__)
 #pragma clang attribute pop
 #elif defined(__GNUC__)
 #pragma GCC pop_options
+#endif
+
+#if defined(__cplusplus)
+} // extern "C"
 #endif
 
 #endif // NK_TARGET_SAPPHIRE

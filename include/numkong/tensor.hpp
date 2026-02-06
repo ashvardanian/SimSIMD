@@ -1,6 +1,6 @@
 /**
- *  @brief NumKong Tensor class for C++ 23 and newer.
- *  @file include/tensor.hpp
+ *  @brief NumKong Tensor class for C++23 and newer.
+ *  @file include/numkong/tensor.hpp
  *  @author Ash Vardanian
  *  @date January 7, 2026
  *
@@ -43,7 +43,7 @@
 
 namespace ashvardanian::numkong {
 
-#pragma region Aligned Allocator
+#pragma region - Aligned Allocator
 
 /**
  *  @brief Cache-aligned allocator with non-throwing allocation.
@@ -86,9 +86,9 @@ struct aligned_allocator {
     }
 };
 
-#pragma endregion Aligned Allocator
+#pragma endregion - Aligned Allocator
 
-#pragma region Sub-byte Proxy References
+#pragma region - Sub-byte Proxy References
 
 /**
  *  @brief Proxy reference for sub-byte scalar access in packed vectors.
@@ -156,9 +156,9 @@ struct sub_byte_ref<nk_u4_k> {
     }
 };
 
-#pragma endregion Sub - byte Proxy References
+#pragma endregion - Sub - byte Proxy References
 
-#pragma region Vector
+#pragma region - Vector
 
 template <typename value_type_, typename allocator_type_>
 struct vector;
@@ -506,7 +506,7 @@ void swap(vector<value_type_, allocator_type_> &a, vector<value_type_, allocator
     a.swap(b);
 }
 
-#pragma endregion Vector
+#pragma endregion - Vector
 
 } // namespace ashvardanian::numkong
 

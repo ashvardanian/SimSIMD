@@ -1,29 +1,32 @@
 /**
- *  @brief SIMD-accelerated Bilinear Forms for Curved Spaces - x86 Haswell (AVX2) implementations.
+ *  @brief SIMD-accelerated Curved Space Similarity for Haswell.
  *  @file include/numkong/curved/haswell.h
- *  @sa include/numkong/curved.h
  *  @author Ash Vardanian
  *  @date January 14, 2026
+ *
+ *  @sa include/numkong/curved.h
  *
  *  Implements f16 and bf16 bilinear forms using AVX2 with F16C conversion.
  */
 #ifndef NK_CURVED_HASWELL_H
 #define NK_CURVED_HASWELL_H
 
-#include "numkong/types.h"
-
 #if NK_TARGET_X86_
 #if NK_TARGET_HASWELL
+
+#include "numkong/types.h"
+#include "numkong/reduce/haswell.h"  // `nk_reduce_add_f32x8_haswell_`
+#include "numkong/spatial/haswell.h" // `nk_f32_sqrt_haswell`
+
+#if defined(__cplusplus)
+extern "C" {
+#endif
 
 #if defined(__clang__)
 #pragma clang attribute push(__attribute__((target("avx2,f16c,fma,bmi,bmi2"))), apply_to = function)
 #elif defined(__GNUC__)
 #pragma GCC push_options
 #pragma GCC target("avx2", "f16c", "fma", "bmi", "bmi2")
-#endif
-
-#if defined(__cplusplus)
-extern "C" {
 #endif
 
 NK_PUBLIC void nk_bilinear_f16_haswell(nk_f16_t const *a, nk_f16_t const *b, nk_f16_t const *c, nk_size_t n,
@@ -100,7 +103,7 @@ NK_PUBLIC void nk_mahalanobis_f16_haswell(nk_f16_t const *a, nk_f16_t const *b, 
         }
     }
 
-    *result = nk_sqrt_f32_haswell_(sum);
+    *result = nk_f32_sqrt_haswell(sum);
 }
 
 NK_PUBLIC void nk_bilinear_bf16_haswell(nk_bf16_t const *a, nk_bf16_t const *b, nk_bf16_t const *c, nk_size_t n,
@@ -185,17 +188,17 @@ NK_PUBLIC void nk_mahalanobis_bf16_haswell(nk_bf16_t const *a, nk_bf16_t const *
         }
     }
 
-    *result = nk_sqrt_f32_haswell_(sum);
+    *result = nk_f32_sqrt_haswell(sum);
 }
-
-#if defined(__cplusplus)
-}
-#endif
 
 #if defined(__clang__)
 #pragma clang attribute pop
 #elif defined(__GNUC__)
 #pragma GCC pop_options
+#endif
+
+#if defined(__cplusplus)
+} // extern "C"
 #endif
 
 #endif // NK_TARGET_HASWELL

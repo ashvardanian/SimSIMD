@@ -1,0 +1,230 @@
+/**
+ *  @brief Dispatch Initialization for F32 Data Types.
+ *  @file c/dispatch_f32.c
+ *  @author Ash Vardanian
+ *  @date February 3, 2026
+ */
+#include "dispatch.h"
+
+void nk_dispatch_f32_find_(nk_capability_t v, nk_kernel_kind_t k, nk_kernel_punned_t *m, nk_capability_t *c) {
+    typedef nk_kernel_punned_t m_t;
+#if NK_TARGET_V128RELAXED
+    if (v & nk_cap_v128relaxed_k) switch (k) {
+        case nk_kernel_dot_k: *m = (m_t)&nk_dot_f32_v128relaxed, *c = nk_cap_v128relaxed_k; return;
+        case nk_kernel_angular_k: *m = (m_t)&nk_angular_f32_v128relaxed, *c = nk_cap_v128relaxed_k; return;
+        case nk_kernel_sqeuclidean_k: *m = (m_t)&nk_sqeuclidean_f32_v128relaxed, *c = nk_cap_v128relaxed_k; return;
+        case nk_kernel_euclidean_k: *m = (m_t)&nk_euclidean_f32_v128relaxed, *c = nk_cap_v128relaxed_k; return;
+        case nk_kernel_haversine_k: *m = (m_t)&nk_haversine_f32_v128relaxed, *c = nk_cap_v128relaxed_k; return;
+        case nk_kernel_vincenty_k: *m = (m_t)&nk_vincenty_f32_v128relaxed, *c = nk_cap_v128relaxed_k; return;
+        case nk_kernel_each_sin_k: *m = (m_t)&nk_each_sin_f32_v128relaxed, *c = nk_cap_v128relaxed_k; return;
+        case nk_kernel_each_cos_k: *m = (m_t)&nk_each_cos_f32_v128relaxed, *c = nk_cap_v128relaxed_k; return;
+        case nk_kernel_each_atan_k: *m = (m_t)&nk_each_atan_f32_v128relaxed, *c = nk_cap_v128relaxed_k; return;
+        default: break;
+        }
+#endif
+#if NK_TARGET_SMEF64
+    if (v & nk_cap_smef64_k) switch (k) {
+        case nk_kernel_dots_packed_size_k: *m = (m_t)&nk_dots_packed_size_f32_smef64, *c = nk_cap_smef64_k; return;
+        case nk_kernel_dots_pack_k: *m = (m_t)&nk_dots_pack_f32_smef64, *c = nk_cap_smef64_k; return;
+        case nk_kernel_dots_k: *m = (m_t)&nk_dots_packed_f32_smef64, *c = nk_cap_smef64_k; return;
+        case nk_kernel_dots_symmetric_k: *m = (m_t)&nk_dots_symmetric_f32_smef64, *c = nk_cap_smef64_k; return;
+        default: break;
+        }
+#endif
+#if NK_TARGET_RVV
+    if (v & nk_cap_rvv_k) switch (k) {
+        case nk_kernel_dot_k: *m = (m_t)&nk_dot_f32_rvv, *c = nk_cap_rvv_k; return;
+        case nk_kernel_angular_k: *m = (m_t)&nk_angular_f32_rvv, *c = nk_cap_rvv_k; return;
+        case nk_kernel_sqeuclidean_k: *m = (m_t)&nk_sqeuclidean_f32_rvv, *c = nk_cap_rvv_k; return;
+        case nk_kernel_euclidean_k: *m = (m_t)&nk_euclidean_f32_rvv, *c = nk_cap_rvv_k; return;
+        default: break;
+        }
+#endif
+#if NK_TARGET_SVE2
+    if (v & nk_cap_sve2_k) switch (k) {
+        case nk_kernel_sparse_dot_k: *m = (m_t)&nk_sparse_dot_u32f32_sve2, *c = nk_cap_sve2_k; return;
+        default: break;
+        }
+#endif
+#if NK_TARGET_SVE
+    if (v & nk_cap_sve_k) switch (k) {
+        case nk_kernel_dot_k: *m = (m_t)&nk_dot_f32_sve, *c = nk_cap_sve_k; return;
+        case nk_kernel_angular_k: *m = (m_t)&nk_angular_f32_sve, *c = nk_cap_sve_k; return;
+        case nk_kernel_sqeuclidean_k: *m = (m_t)&nk_sqeuclidean_f32_sve, *c = nk_cap_sve_k; return;
+        case nk_kernel_euclidean_k: *m = (m_t)&nk_euclidean_f32_sve, *c = nk_cap_sve_k; return;
+        default: break;
+        }
+#endif
+#if NK_TARGET_NEON
+    if (v & nk_cap_neon_k) switch (k) {
+        case nk_kernel_dot_k: *m = (m_t)&nk_dot_f32_neon, *c = nk_cap_neon_k; return;
+        case nk_kernel_angular_k: *m = (m_t)&nk_angular_f32_neon, *c = nk_cap_neon_k; return;
+        case nk_kernel_sqeuclidean_k: *m = (m_t)&nk_sqeuclidean_f32_neon, *c = nk_cap_neon_k; return;
+        case nk_kernel_euclidean_k: *m = (m_t)&nk_euclidean_f32_neon, *c = nk_cap_neon_k; return;
+        case nk_kernel_jsd_k: *m = (m_t)&nk_jsd_f32_neon, *c = nk_cap_neon_k; return;
+        case nk_kernel_kld_k: *m = (m_t)&nk_kld_f32_neon, *c = nk_cap_neon_k; return;
+        case nk_kernel_haversine_k: *m = (m_t)&nk_haversine_f32_neon, *c = nk_cap_neon_k; return;
+        case nk_kernel_vincenty_k: *m = (m_t)&nk_vincenty_f32_neon, *c = nk_cap_neon_k; return;
+        case nk_kernel_each_fma_k: *m = (m_t)&nk_each_fma_f32_neon, *c = nk_cap_neon_k; return;
+        case nk_kernel_each_blend_k: *m = (m_t)&nk_each_blend_f32_neon, *c = nk_cap_neon_k; return;
+        case nk_kernel_each_scale_k: *m = (m_t)&nk_each_scale_f32_neon, *c = nk_cap_neon_k; return;
+        case nk_kernel_each_sum_k: *m = (m_t)&nk_each_sum_f32_neon, *c = nk_cap_neon_k; return;
+        case nk_kernel_each_sin_k: *m = (m_t)&nk_each_sin_f32_neon, *c = nk_cap_neon_k; return;
+        case nk_kernel_each_cos_k: *m = (m_t)&nk_each_cos_f32_neon, *c = nk_cap_neon_k; return;
+        case nk_kernel_each_atan_k: *m = (m_t)&nk_each_atan_f32_neon, *c = nk_cap_neon_k; return;
+        case nk_kernel_bilinear_k: *m = (m_t)&nk_bilinear_f32_neon, *c = nk_cap_neon_k; return;
+        case nk_kernel_mahalanobis_k: *m = (m_t)&nk_mahalanobis_f32_neon, *c = nk_cap_neon_k; return;
+        case nk_kernel_rmsd_k: *m = (m_t)&nk_rmsd_f32_neon, *c = nk_cap_neon_k; return;
+        case nk_kernel_kabsch_k: *m = (m_t)&nk_kabsch_f32_neon, *c = nk_cap_neon_k; return;
+        case nk_kernel_umeyama_k: *m = (m_t)&nk_umeyama_f32_neon, *c = nk_cap_neon_k; return;
+        case nk_kernel_reduce_add_k: *m = (m_t)&nk_reduce_add_f32_neon, *c = nk_cap_neon_k; return;
+        case nk_kernel_reduce_min_k: *m = (m_t)&nk_reduce_min_f32_neon, *c = nk_cap_neon_k; return;
+        case nk_kernel_reduce_max_k: *m = (m_t)&nk_reduce_max_f32_neon, *c = nk_cap_neon_k; return;
+        case nk_kernel_dots_packed_size_k: *m = (m_t)&nk_dots_packed_size_f32_neon, *c = nk_cap_neon_k; return;
+        case nk_kernel_dots_pack_k: *m = (m_t)&nk_dots_pack_f32_neon, *c = nk_cap_neon_k; return;
+        case nk_kernel_dots_k: *m = (m_t)&nk_dots_packed_f32_neon, *c = nk_cap_neon_k; return;
+        case nk_kernel_dots_symmetric_k: *m = (m_t)&nk_dots_symmetric_f32_neon, *c = nk_cap_neon_k; return;
+        default: break;
+        }
+#endif
+#if NK_TARGET_TURIN
+    if (v & nk_cap_turin_k) switch (k) {
+        case nk_kernel_sparse_dot_k: *m = (m_t)&nk_sparse_dot_u32f32_turin, *c = nk_cap_turin_k; return;
+        default: break;
+        }
+#endif
+#if NK_TARGET_SKYLAKE
+    if (v & nk_cap_skylake_k) switch (k) {
+        case nk_kernel_dot_k: *m = (m_t)&nk_dot_f32_skylake, *c = nk_cap_skylake_k; return;
+        case nk_kernel_angular_k: *m = (m_t)&nk_angular_f32_skylake, *c = nk_cap_skylake_k; return;
+        case nk_kernel_sqeuclidean_k: *m = (m_t)&nk_sqeuclidean_f32_skylake, *c = nk_cap_skylake_k; return;
+        case nk_kernel_euclidean_k: *m = (m_t)&nk_euclidean_f32_skylake, *c = nk_cap_skylake_k; return;
+        case nk_kernel_jsd_k: *m = (m_t)&nk_jsd_f32_skylake, *c = nk_cap_skylake_k; return;
+        case nk_kernel_kld_k: *m = (m_t)&nk_kld_f32_skylake, *c = nk_cap_skylake_k; return;
+        case nk_kernel_bilinear_k: *m = (m_t)&nk_bilinear_f32_skylake, *c = nk_cap_skylake_k; return;
+        case nk_kernel_mahalanobis_k: *m = (m_t)&nk_mahalanobis_f32_skylake, *c = nk_cap_skylake_k; return;
+        case nk_kernel_haversine_k: *m = (m_t)&nk_haversine_f32_skylake, *c = nk_cap_skylake_k; return;
+        case nk_kernel_vincenty_k: *m = (m_t)&nk_vincenty_f32_skylake, *c = nk_cap_skylake_k; return;
+        case nk_kernel_each_fma_k: *m = (m_t)&nk_each_fma_f32_skylake, *c = nk_cap_skylake_k; return;
+        case nk_kernel_each_blend_k: *m = (m_t)&nk_each_blend_f32_skylake, *c = nk_cap_skylake_k; return;
+        case nk_kernel_each_scale_k: *m = (m_t)&nk_each_scale_f32_skylake, *c = nk_cap_skylake_k; return;
+        case nk_kernel_each_sum_k: *m = (m_t)&nk_each_sum_f32_skylake, *c = nk_cap_skylake_k; return;
+        case nk_kernel_each_sin_k: *m = (m_t)&nk_each_sin_f32_skylake, *c = nk_cap_skylake_k; return;
+        case nk_kernel_each_cos_k: *m = (m_t)&nk_each_cos_f32_skylake, *c = nk_cap_skylake_k; return;
+        case nk_kernel_each_atan_k: *m = (m_t)&nk_each_atan_f32_skylake, *c = nk_cap_skylake_k; return;
+        case nk_kernel_rmsd_k: *m = (m_t)&nk_rmsd_f32_skylake, *c = nk_cap_skylake_k; return;
+        case nk_kernel_kabsch_k: *m = (m_t)&nk_kabsch_f32_skylake, *c = nk_cap_skylake_k; return;
+        case nk_kernel_umeyama_k: *m = (m_t)&nk_umeyama_f32_skylake, *c = nk_cap_skylake_k; return;
+        case nk_kernel_reduce_add_k: *m = (m_t)&nk_reduce_add_f32_skylake, *c = nk_cap_skylake_k; return;
+        case nk_kernel_reduce_min_k: *m = (m_t)&nk_reduce_min_f32_skylake, *c = nk_cap_skylake_k; return;
+        case nk_kernel_reduce_max_k: *m = (m_t)&nk_reduce_max_f32_skylake, *c = nk_cap_skylake_k; return;
+        case nk_kernel_dots_packed_size_k: *m = (m_t)&nk_dots_packed_size_f32_skylake, *c = nk_cap_skylake_k; return;
+        case nk_kernel_dots_pack_k: *m = (m_t)&nk_dots_pack_f32_skylake, *c = nk_cap_skylake_k; return;
+        case nk_kernel_dots_k: *m = (m_t)&nk_dots_packed_f32_skylake, *c = nk_cap_skylake_k; return;
+        case nk_kernel_dots_symmetric_k: *m = (m_t)&nk_dots_symmetric_f32_skylake, *c = nk_cap_skylake_k; return;
+        default: break;
+        }
+#endif
+#if NK_TARGET_ICELAKE
+    if (v & nk_cap_icelake_k) switch (k) {
+        case nk_kernel_sparse_dot_k: *m = (m_t)&nk_sparse_dot_u32f32_icelake, *c = nk_cap_icelake_k; return;
+        default: break;
+        }
+#endif
+#if NK_TARGET_HASWELL
+    if (v & nk_cap_haswell_k) switch (k) {
+        case nk_kernel_dot_k: *m = (m_t)&nk_dot_f32_haswell, *c = nk_cap_haswell_k; return;
+        case nk_kernel_angular_k: *m = (m_t)&nk_angular_f32_haswell, *c = nk_cap_haswell_k; return;
+        case nk_kernel_sqeuclidean_k: *m = (m_t)&nk_sqeuclidean_f32_haswell, *c = nk_cap_haswell_k; return;
+        case nk_kernel_euclidean_k: *m = (m_t)&nk_euclidean_f32_haswell, *c = nk_cap_haswell_k; return;
+        case nk_kernel_haversine_k: *m = (m_t)&nk_haversine_f32_haswell, *c = nk_cap_haswell_k; return;
+        case nk_kernel_vincenty_k: *m = (m_t)&nk_vincenty_f32_haswell, *c = nk_cap_haswell_k; return;
+        case nk_kernel_each_fma_k: *m = (m_t)&nk_each_fma_f32_haswell, *c = nk_cap_haswell_k; return;
+        case nk_kernel_each_blend_k: *m = (m_t)&nk_each_blend_f32_haswell, *c = nk_cap_haswell_k; return;
+        case nk_kernel_each_scale_k: *m = (m_t)&nk_each_scale_f32_haswell, *c = nk_cap_haswell_k; return;
+        case nk_kernel_each_sum_k: *m = (m_t)&nk_each_sum_f32_haswell, *c = nk_cap_haswell_k; return;
+        case nk_kernel_rmsd_k: *m = (m_t)&nk_rmsd_f32_haswell, *c = nk_cap_haswell_k; return;
+        case nk_kernel_kabsch_k: *m = (m_t)&nk_kabsch_f32_haswell, *c = nk_cap_haswell_k; return;
+        case nk_kernel_umeyama_k: *m = (m_t)&nk_umeyama_f32_haswell, *c = nk_cap_haswell_k; return;
+        case nk_kernel_reduce_add_k: *m = (m_t)&nk_reduce_add_f32_haswell, *c = nk_cap_haswell_k; return;
+        case nk_kernel_reduce_min_k: *m = (m_t)&nk_reduce_min_f32_haswell, *c = nk_cap_haswell_k; return;
+        case nk_kernel_reduce_max_k: *m = (m_t)&nk_reduce_max_f32_haswell, *c = nk_cap_haswell_k; return;
+        case nk_kernel_each_sin_k: *m = (m_t)&nk_each_sin_f32_haswell, *c = nk_cap_haswell_k; return;
+        case nk_kernel_each_cos_k: *m = (m_t)&nk_each_cos_f32_haswell, *c = nk_cap_haswell_k; return;
+        case nk_kernel_each_atan_k: *m = (m_t)&nk_each_atan_f32_haswell, *c = nk_cap_haswell_k; return;
+        case nk_kernel_dots_packed_size_k: *m = (m_t)&nk_dots_packed_size_f32_haswell, *c = nk_cap_haswell_k; return;
+        case nk_kernel_dots_pack_k: *m = (m_t)&nk_dots_pack_f32_haswell, *c = nk_cap_haswell_k; return;
+        case nk_kernel_dots_k: *m = (m_t)&nk_dots_packed_f32_haswell, *c = nk_cap_haswell_k; return;
+        case nk_kernel_dots_symmetric_k: *m = (m_t)&nk_dots_symmetric_f32_haswell, *c = nk_cap_haswell_k; return;
+        default: break;
+        }
+#endif
+    if (v & nk_cap_serial_k) switch (k) {
+        case nk_kernel_dot_k: *m = (m_t)&nk_dot_f32_serial, *c = nk_cap_serial_k; return;
+        case nk_kernel_angular_k: *m = (m_t)&nk_angular_f32_serial, *c = nk_cap_serial_k; return;
+        case nk_kernel_sqeuclidean_k: *m = (m_t)&nk_sqeuclidean_f32_serial, *c = nk_cap_serial_k; return;
+        case nk_kernel_euclidean_k: *m = (m_t)&nk_euclidean_f32_serial, *c = nk_cap_serial_k; return;
+        case nk_kernel_jsd_k: *m = (m_t)&nk_jsd_f32_serial, *c = nk_cap_serial_k; return;
+        case nk_kernel_kld_k: *m = (m_t)&nk_kld_f32_serial, *c = nk_cap_serial_k; return;
+        case nk_kernel_bilinear_k: *m = (m_t)&nk_bilinear_f32_serial, *c = nk_cap_serial_k; return;
+        case nk_kernel_mahalanobis_k: *m = (m_t)&nk_mahalanobis_f32_serial, *c = nk_cap_serial_k; return;
+        case nk_kernel_haversine_k: *m = (m_t)&nk_haversine_f32_serial, *c = nk_cap_serial_k; return;
+        case nk_kernel_vincenty_k: *m = (m_t)&nk_vincenty_f32_serial, *c = nk_cap_serial_k; return;
+        case nk_kernel_each_fma_k: *m = (m_t)&nk_each_fma_f32_serial, *c = nk_cap_serial_k; return;
+        case nk_kernel_each_blend_k: *m = (m_t)&nk_each_blend_f32_serial, *c = nk_cap_serial_k; return;
+        case nk_kernel_each_scale_k: *m = (m_t)&nk_each_scale_f32_serial, *c = nk_cap_serial_k; return;
+        case nk_kernel_each_sum_k: *m = (m_t)&nk_each_sum_f32_serial, *c = nk_cap_serial_k; return;
+        case nk_kernel_each_sin_k: *m = (m_t)&nk_each_sin_f32_serial, *c = nk_cap_serial_k; return;
+        case nk_kernel_each_cos_k: *m = (m_t)&nk_each_cos_f32_serial, *c = nk_cap_serial_k; return;
+        case nk_kernel_each_atan_k: *m = (m_t)&nk_each_atan_f32_serial, *c = nk_cap_serial_k; return;
+        case nk_kernel_rmsd_k: *m = (m_t)&nk_rmsd_f32_serial, *c = nk_cap_serial_k; return;
+        case nk_kernel_kabsch_k: *m = (m_t)&nk_kabsch_f32_serial, *c = nk_cap_serial_k; return;
+        case nk_kernel_umeyama_k: *m = (m_t)&nk_umeyama_f32_serial, *c = nk_cap_serial_k; return;
+        case nk_kernel_sparse_dot_k: *m = (m_t)&nk_sparse_dot_u32f32_serial, *c = nk_cap_serial_k; return;
+        case nk_kernel_reduce_add_k: *m = (m_t)&nk_reduce_add_f32_serial, *c = nk_cap_serial_k; return;
+        case nk_kernel_reduce_min_k: *m = (m_t)&nk_reduce_min_f32_serial, *c = nk_cap_serial_k; return;
+        case nk_kernel_reduce_max_k: *m = (m_t)&nk_reduce_max_f32_serial, *c = nk_cap_serial_k; return;
+        case nk_kernel_dots_packed_size_k: *m = (m_t)&nk_dots_packed_size_f32_serial, *c = nk_cap_serial_k; return;
+        case nk_kernel_dots_pack_k: *m = (m_t)&nk_dots_pack_f32_serial, *c = nk_cap_serial_k; return;
+        case nk_kernel_dots_k: *m = (m_t)&nk_dots_packed_f32_serial, *c = nk_cap_serial_k; return;
+        case nk_kernel_dots_symmetric_k: *m = (m_t)&nk_dots_symmetric_f32_serial, *c = nk_cap_serial_k; return;
+        default: break;
+        }
+
+    // Error fallback - zero capability signals lookup failure
+    *m = (m_t)nk_error_dense_, *c = 0;
+}
+
+void nk_dispatch_f32_init_(nk_capability_t caps) {
+    nk_implementations_t *t = &nk_dispatch_table;
+    nk_capability_t used;
+
+    nk_dispatch_f32_find_(caps, nk_kernel_dot_k, (nk_kernel_punned_t *)&t->dot_f32, &used);
+    nk_dispatch_f32_find_(caps, nk_kernel_angular_k, (nk_kernel_punned_t *)&t->angular_f32, &used);
+    nk_dispatch_f32_find_(caps, nk_kernel_sqeuclidean_k, (nk_kernel_punned_t *)&t->sqeuclidean_f32, &used);
+    nk_dispatch_f32_find_(caps, nk_kernel_euclidean_k, (nk_kernel_punned_t *)&t->euclidean_f32, &used);
+    nk_dispatch_f32_find_(caps, nk_kernel_haversine_k, (nk_kernel_punned_t *)&t->haversine_f32, &used);
+    nk_dispatch_f32_find_(caps, nk_kernel_vincenty_k, (nk_kernel_punned_t *)&t->vincenty_f32, &used);
+    nk_dispatch_f32_find_(caps, nk_kernel_kld_k, (nk_kernel_punned_t *)&t->kld_f32, &used);
+    nk_dispatch_f32_find_(caps, nk_kernel_jsd_k, (nk_kernel_punned_t *)&t->jsd_f32, &used);
+    nk_dispatch_f32_find_(caps, nk_kernel_sparse_dot_k, (nk_kernel_punned_t *)&t->sparse_dot_u32f32, &used);
+    nk_dispatch_f32_find_(caps, nk_kernel_bilinear_k, (nk_kernel_punned_t *)&t->bilinear_f32, &used);
+    nk_dispatch_f32_find_(caps, nk_kernel_mahalanobis_k, (nk_kernel_punned_t *)&t->mahalanobis_f32, &used);
+    nk_dispatch_f32_find_(caps, nk_kernel_each_fma_k, (nk_kernel_punned_t *)&t->each_fma_f32, &used);
+    nk_dispatch_f32_find_(caps, nk_kernel_each_blend_k, (nk_kernel_punned_t *)&t->each_blend_f32, &used);
+    nk_dispatch_f32_find_(caps, nk_kernel_each_scale_k, (nk_kernel_punned_t *)&t->each_scale_f32, &used);
+    nk_dispatch_f32_find_(caps, nk_kernel_each_sum_k, (nk_kernel_punned_t *)&t->each_sum_f32, &used);
+    nk_dispatch_f32_find_(caps, nk_kernel_each_sin_k, (nk_kernel_punned_t *)&t->each_sin_f32, &used);
+    nk_dispatch_f32_find_(caps, nk_kernel_each_cos_k, (nk_kernel_punned_t *)&t->each_cos_f32, &used);
+    nk_dispatch_f32_find_(caps, nk_kernel_each_atan_k, (nk_kernel_punned_t *)&t->each_atan_f32, &used);
+    nk_dispatch_f32_find_(caps, nk_kernel_rmsd_k, (nk_kernel_punned_t *)&t->rmsd_f32, &used);
+    nk_dispatch_f32_find_(caps, nk_kernel_kabsch_k, (nk_kernel_punned_t *)&t->kabsch_f32, &used);
+    nk_dispatch_f32_find_(caps, nk_kernel_umeyama_k, (nk_kernel_punned_t *)&t->umeyama_f32, &used);
+    nk_dispatch_f32_find_(caps, nk_kernel_reduce_add_k, (nk_kernel_punned_t *)&t->reduce_add_f32, &used);
+    nk_dispatch_f32_find_(caps, nk_kernel_reduce_min_k, (nk_kernel_punned_t *)&t->reduce_min_f32, &used);
+    nk_dispatch_f32_find_(caps, nk_kernel_reduce_max_k, (nk_kernel_punned_t *)&t->reduce_max_f32, &used);
+    nk_dispatch_f32_find_(caps, nk_kernel_dots_packed_size_k, (nk_kernel_punned_t *)&t->dots_packed_size_f32, &used);
+    nk_dispatch_f32_find_(caps, nk_kernel_dots_pack_k, (nk_kernel_punned_t *)&t->dots_pack_f32, &used);
+    nk_dispatch_f32_find_(caps, nk_kernel_dots_k, (nk_kernel_punned_t *)&t->dots_packed_f32, &used);
+    nk_dispatch_f32_find_(caps, nk_kernel_dots_symmetric_k, (nk_kernel_punned_t *)&t->dots_symmetric_f32, &used);
+}

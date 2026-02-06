@@ -44,15 +44,16 @@ To test which CPU features are available on the machine at runtime, use the foll
 
 ```c
 int uses_dynamic_dispatch = nk_uses_dynamic_dispatch(); // Check if dynamic dispatch was enabled
-nk_capability_t capabilities = nk_capabilities();  // Returns a bitmask
+nk_capability_t capabilities = nk_capabilities();       // Returns a bitmask of all available capabilities
 
-int uses_neon = nk_uses_neon();
-int uses_sve = nk_uses_sve();
-int uses_haswell = nk_uses_haswell();
-int uses_skylake = nk_uses_skylake();
-int uses_ice = nk_uses_ice();
-int uses_genoa = nk_uses_genoa();
-int uses_sapphire = nk_uses_sapphire();
+// Check for specific capabilities using bit masks
+int has_neon = (capabilities & nk_cap_neon_k) != 0;
+int has_sve = (capabilities & nk_cap_sve_k) != 0;
+int has_haswell = (capabilities & nk_cap_haswell_k) != 0;
+int has_skylake = (capabilities & nk_cap_skylake_k) != 0;
+int has_icelake = (capabilities & nk_cap_icelake_k) != 0;
+int has_genoa = (capabilities & nk_cap_genoa_k) != 0;
+int has_sapphire = (capabilities & nk_cap_sapphire_k) != 0;
 ```
 
 To override compilation settings and switch between runtime and compile-time dispatch, define the following macro:

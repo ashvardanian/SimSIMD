@@ -1,6 +1,8 @@
 /**
- *  @brief Tensor type declarations for NumKong Python bindings.
+ *  @brief NumKong Tensor Type for Python.
  *  @file python/tensor.h
+ *  @author Ash Vardanian
+ *  @date December 30, 2025
  *
  *  This header declares the Tensor N-dimensional array type, its iterator,
  *  and the TransposedMatrixMultiplier (pre-packed matrix for fast GEMM).

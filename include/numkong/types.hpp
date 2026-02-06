@@ -1,6 +1,6 @@
 /**
- *  @brief NumKong strong types for C++ 23 and newer.
- *  @file include/types.hpp
+ *  @brief NumKong strong types for C++23 and newer.
+ *  @file include/numkong/types.hpp
  *  @author Ash Vardanian
  *  @date January 7, 2026
  *
@@ -50,9 +50,6 @@
 #ifndef NK_TYPES_HPP
 #define NK_TYPES_HPP
 
-#include "numkong/types.h"
-#include "numkong/cast.h"
-
 #include <bit>      // `std::bit_cast`
 #include <compare>  // `std::strong_ordering`
 #include <concepts> // `std::integral`
@@ -62,9 +59,11 @@
 #include <limits>   // `std::numeric_limits`
 #include <utility>  // `std::swap`
 
+#include "numkong/types.h"
+#include "numkong/cast.h"
+
 namespace ashvardanian::numkong {
 
-/* Forward declarations for all numeric wrapper types */
 struct f32_t;
 struct f64_t;
 struct f16_t;
@@ -111,12 +110,10 @@ struct f32_t {
     using reduce_add_result_t = f64_t;  // `nk_reduce_add_f32` widened output
     using sqeuclidean_result_t = f32_t; // `nk_sqeuclidean_f32` output
     using angular_result_t = f32_t;     // `nk_angular_f32` output
-    using bilinear_result_t = f32_t;    // `nk_bilinear_f32` output
-    using mahalanobis_result_t = f32_t; // `nk_mahalanobis_f32` output
-    using haversine_result_t = f32_t;   // `nk_haversine_f32` output
-    using kld_result_t = f32_t;         // `nk_kld_f32` output
-    using jsd_result_t = f32_t;         // `nk_jsd_f32` output
-    using rmsd_result_t = f32_t;        // `nk_rmsd_f32` output
+    using curved_result_t = f32_t;      // bilinear, mahalanobis
+    using geospatial_result_t = f32_t;  // haversine, vincenty
+    using probability_result_t = f32_t; // kld, jsd
+    using mesh_result_t = f32_t;        // `nk_rmsd_f32` output
     using scale_t = nk_f32_t;
 
     static constexpr nk_dtype_t dtype() noexcept { return nk_f32_k; }
@@ -362,11 +359,9 @@ struct f64_t {
     using reduce_add_result_t = f64_t;  // `nk_reduce_add_f64` output
     using sqeuclidean_result_t = f64_t; // `nk_sqeuclidean_f64` output
     using angular_result_t = f64_t;     // `nk_angular_f64` output
-    using bilinear_result_t = f64_t;    // `nk_bilinear_f64` output
-    using mahalanobis_result_t = f64_t; // `nk_mahalanobis_f64` output
-    using kld_result_t = f64_t;         // `nk_kld_f64` output
-    using jsd_result_t = f64_t;         // `nk_jsd_f64` output
-    using rmsd_result_t = f64_t;        // `nk_rmsd_f64` output
+    using curved_result_t = f64_t;      // bilinear, mahalanobis
+    using probability_result_t = f64_t; // kld, jsd
+    using mesh_result_t = f64_t;        // `nk_rmsd_f64` output
     using scale_t = nk_f64_t;
 
     static constexpr nk_dtype_t dtype() noexcept { return nk_f64_k; }
@@ -607,7 +602,7 @@ struct f32c_t {
 
     using dot_result_t = f32c_t;
     using vdot_result_t = f32c_t;
-    using bilinear_result_t = f32c_t;
+    using curved_result_t = f32c_t; // bilinear
 
     using dot_kernel_t = void (*)(raw_t const *, raw_t const *, nk_size_t, nk_f32c_t *);
     using vdot_kernel_t = void (*)(raw_t const *, raw_t const *, nk_size_t, nk_f32c_t *);
@@ -840,7 +835,7 @@ struct f64c_t {
 
     using dot_result_t = f64c_t;
     using vdot_result_t = f64c_t;
-    using bilinear_result_t = f64c_t;
+    using curved_result_t = f64c_t; // bilinear
 
     using dot_kernel_t = void (*)(raw_t const *, raw_t const *, nk_size_t, nk_f64c_t *);
     using vdot_kernel_t = void (*)(raw_t const *, raw_t const *, nk_size_t, nk_f64c_t *);
@@ -1077,6 +1072,7 @@ struct f16_t {
     using reduce_add_result_t = f32_t;  // `nk_reduce_add_f16` output (widened)
     using sqeuclidean_result_t = f32_t; // `nk_sqeuclidean_f16` output (widened)
     using angular_result_t = f32_t;     // `nk_angular_f16` output (widened)
+    using mesh_result_t = f32_t;        // `nk_rmsd_f16` etc. output (widened)
     using scale_t = nk_f32_t;
 
     using dot_kernel_t = void (*)(raw_t const *, raw_t const *, nk_size_t, nk_f32_t *);
@@ -1089,6 +1085,8 @@ struct f16_t {
                                           nk_size_t, nk_size_t);
     using dots_symmetric_kernel_t = void (*)(raw_t const *, nk_size_t, nk_size_t, nk_size_t, nk_f32_t *, nk_size_t,
                                              nk_size_t, nk_size_t);
+    using mesh_kernel_t = void (*)(raw_t const *, raw_t const *, nk_size_t, nk_f32_t *, nk_f32_t *, nk_f32_t *,
+                                   nk_f32_t *, nk_f32_t *);
 
     static constexpr nk_dtype_t dtype() noexcept { return nk_f16_k; }
     static constexpr char const *dtype_name() noexcept { return "f16"; }
@@ -1119,7 +1117,7 @@ struct f16_t {
         return r;
     }
 
-    f16_t() noexcept : raw_(0) {}
+    constexpr f16_t() noexcept : raw_(0) {}
     f16_t(float v) noexcept { nk_f32_to_f16(&v, &raw_); }
     explicit f16_t(double v) noexcept {
         float f = static_cast<float>(v);
@@ -1132,7 +1130,7 @@ struct f16_t {
     }
     operator float() const noexcept { return to_f32(); }
     float raw() const noexcept { return to_f32(); }
-    static f16_t from_raw(raw_t r) noexcept {
+    static constexpr f16_t from_raw(raw_t r) noexcept {
         f16_t v;
         v.raw_ = r;
         return v;
@@ -1177,7 +1175,7 @@ struct f16_t {
     constexpr bool is_sign_negative() const noexcept { return (to_bits() & 0x8000) != 0; }
 
     inline f16_t operator+() const noexcept { return *this; }
-    inline f16_t operator-() const noexcept { return from_bits(to_bits() ^ 0x8000); }
+    constexpr f16_t operator-() const noexcept { return from_bits(to_bits() ^ 0x8000); }
     inline f16_t operator+(f16_t o) const noexcept { return from_f32(to_f32() + o.to_f32()); }
     inline f16_t operator-(f16_t o) const noexcept { return from_f32(to_f32() - o.to_f32()); }
     inline f16_t operator*(f16_t o) const noexcept { return from_f32(to_f32() * o.to_f32()); }
@@ -1285,6 +1283,7 @@ struct bf16_t {
     using reduce_add_result_t = f32_t;  // `nk_reduce_add_bf16` output (widened)
     using sqeuclidean_result_t = f32_t; // `nk_sqeuclidean_bf16` output (widened)
     using angular_result_t = f32_t;     // `nk_angular_bf16` output (widened)
+    using mesh_result_t = f32_t;        // `nk_rmsd_bf16` etc. output (widened)
     using scale_t = nk_f32_t;
 
     using dot_kernel_t = void (*)(raw_t const *, raw_t const *, nk_size_t, nk_f32_t *);
@@ -1296,6 +1295,8 @@ struct bf16_t {
                                           nk_size_t, nk_size_t);
     using dots_symmetric_kernel_t = void (*)(raw_t const *, nk_size_t, nk_size_t, nk_size_t, nk_f32_t *, nk_size_t,
                                              nk_size_t, nk_size_t);
+    using mesh_kernel_t = void (*)(raw_t const *, raw_t const *, nk_size_t, nk_f32_t *, nk_f32_t *, nk_f32_t *,
+                                   nk_f32_t *, nk_f32_t *);
     using sparse_dot_index_t = u16_t;
     using sparse_dot_kernel_t = void (*)(nk_u16_t const *, nk_u16_t const *, raw_t const *, raw_t const *, nk_size_t,
                                          nk_size_t, nk_f32_t *);
@@ -1329,7 +1330,7 @@ struct bf16_t {
         return r;
     }
 
-    bf16_t() noexcept : raw_(0) {}
+    constexpr bf16_t() noexcept : raw_(0) {}
     bf16_t(float v) noexcept { nk_f32_to_bf16(&v, &raw_); }
     explicit bf16_t(double v) noexcept {
         float f = static_cast<float>(v);
@@ -1342,7 +1343,7 @@ struct bf16_t {
     }
     operator float() const noexcept { return to_f32(); }
     float raw() const noexcept { return to_f32(); }
-    static bf16_t from_raw(raw_t r) noexcept {
+    static constexpr bf16_t from_raw(raw_t r) noexcept {
         bf16_t v;
         v.raw_ = r;
         return v;
@@ -1385,7 +1386,7 @@ struct bf16_t {
     constexpr bool is_sign_negative() const noexcept { return (to_bits() & 0x8000) != 0; }
 
     inline bf16_t operator+() const noexcept { return *this; }
-    inline bf16_t operator-() const noexcept { return from_bits(to_bits() ^ 0x8000); }
+    constexpr bf16_t operator-() const noexcept { return from_bits(to_bits() ^ 0x8000); }
     inline bf16_t operator+(bf16_t o) const noexcept { return from_f32(to_f32() + o.to_f32()); }
     inline bf16_t operator-(bf16_t o) const noexcept { return from_f32(to_f32() - o.to_f32()); }
     inline bf16_t operator*(bf16_t o) const noexcept { return from_f32(to_f32() * o.to_f32()); }
@@ -1487,9 +1488,9 @@ struct f16c_t {
     using component_t = f16_t;
     using raw_t = nk_f16c_t;
 
-    using dot_result_t = f32c_t;      // widened to f32c
-    using vdot_result_t = f32c_t;     // widened to f32c
-    using bilinear_result_t = f32c_t; // widened to f32c
+    using dot_result_t = f32c_t;    // widened to f32c
+    using vdot_result_t = f32c_t;   // widened to f32c
+    using curved_result_t = f32c_t; // widened to f32c
 
     // Kernel signatures: input f16c, output widened to f32c
     using dot_kernel_t = void (*)(raw_t const *, raw_t const *, nk_size_t, nk_f32c_t *);
@@ -1588,9 +1589,9 @@ struct bf16c_t {
     using component_t = bf16_t;
     using raw_t = nk_bf16c_t;
 
-    using dot_result_t = f32c_t;      // widened to f32c
-    using vdot_result_t = f32c_t;     // widened to f32c
-    using bilinear_result_t = f32c_t; // widened to f32c
+    using dot_result_t = f32c_t;    // widened to f32c
+    using vdot_result_t = f32c_t;   // widened to f32c
+    using curved_result_t = f32c_t; // widened to f32c
 
     // Kernel signatures: input bf16c, output widened to f32c
     using dot_kernel_t = void (*)(raw_t const *, raw_t const *, nk_size_t, nk_f32c_t *);
@@ -1738,7 +1739,7 @@ struct e4m3_t {
         return r;
     }
 
-    e4m3_t() noexcept : raw_(0) {}
+    constexpr e4m3_t() noexcept : raw_(0) {}
     e4m3_t(float v) noexcept { nk_f32_to_e4m3(&v, &raw_); }
     explicit e4m3_t(double v) noexcept {
         float f = static_cast<float>(v);
@@ -1751,7 +1752,7 @@ struct e4m3_t {
     }
     operator float() const noexcept { return to_f32(); }
     float raw() const noexcept { return to_f32(); }
-    static e4m3_t from_raw(raw_t r) noexcept {
+    static constexpr e4m3_t from_raw(raw_t r) noexcept {
         e4m3_t v;
         v.raw_ = r;
         return v;
@@ -1791,7 +1792,7 @@ struct e4m3_t {
     constexpr bool is_sign_negative() const noexcept { return (raw_ & 0x80) != 0; }
 
     inline e4m3_t operator+() const noexcept { return *this; }
-    inline e4m3_t operator-() const noexcept { return from_bits(raw_ ^ 0x80); }
+    constexpr e4m3_t operator-() const noexcept { return from_bits(raw_ ^ 0x80); }
     inline e4m3_t operator+(e4m3_t o) const noexcept { return from_f32(to_f32() + o.to_f32()); }
     inline e4m3_t operator-(e4m3_t o) const noexcept { return from_f32(to_f32() - o.to_f32()); }
     inline e4m3_t operator*(e4m3_t o) const noexcept { return from_f32(to_f32() * o.to_f32()); }
@@ -1942,7 +1943,7 @@ struct e5m2_t {
         return r;
     }
 
-    e5m2_t() noexcept : raw_(0) {}
+    constexpr e5m2_t() noexcept : raw_(0) {}
     e5m2_t(float v) noexcept { nk_f32_to_e5m2(&v, &raw_); }
     explicit e5m2_t(double v) noexcept {
         float f = static_cast<float>(v);
@@ -1955,7 +1956,7 @@ struct e5m2_t {
     }
     operator float() const noexcept { return to_f32(); }
     float raw() const noexcept { return to_f32(); }
-    static e5m2_t from_raw(raw_t r) noexcept {
+    static constexpr e5m2_t from_raw(raw_t r) noexcept {
         e5m2_t v;
         v.raw_ = r;
         return v;
@@ -1997,7 +1998,7 @@ struct e5m2_t {
     constexpr bool is_sign_negative() const noexcept { return (raw_ & 0x80) != 0; }
 
     inline e5m2_t operator+() const noexcept { return *this; }
-    inline e5m2_t operator-() const noexcept { return from_bits(raw_ ^ 0x80); }
+    constexpr e5m2_t operator-() const noexcept { return from_bits(raw_ ^ 0x80); }
     inline e5m2_t operator+(e5m2_t o) const noexcept { return from_f32(to_f32() + o.to_f32()); }
     inline e5m2_t operator-(e5m2_t o) const noexcept { return from_f32(to_f32() - o.to_f32()); }
     inline e5m2_t operator*(e5m2_t o) const noexcept { return from_f32(to_f32() * o.to_f32()); }
@@ -2145,7 +2146,7 @@ struct e2m3_t {
         return r;
     }
 
-    inline e2m3_t() noexcept : raw_(0) {}
+    constexpr e2m3_t() noexcept : raw_(0) {}
     inline e2m3_t(float v) noexcept { nk_f32_to_e2m3(&v, &raw_); }
     explicit e2m3_t(double v) noexcept {
         float f = static_cast<float>(v);
@@ -2171,9 +2172,9 @@ struct e2m3_t {
     constexpr uint_t to_bits() const noexcept { return raw_; }
 
     // E2M3FN range: [-7.5, +7.5], no Inf/NaN
-    static constexpr e2m3_t finite_max() noexcept { return from_bits(0x1F); }    // +7.5
-    static constexpr e2m3_t finite_min() noexcept { return from_bits(0x3F); }    // -7.5
-    static constexpr e2m3_t positive_min() noexcept { return from_bits(0x08); }  // Smallest positive normal (2⁰ = 1.0)
+    static constexpr e2m3_t finite_max() noexcept { return from_bits(0x1F); }   // +7.5
+    static constexpr e2m3_t finite_min() noexcept { return from_bits(0x3F); }   // -7.5
+    static constexpr e2m3_t positive_min() noexcept { return from_bits(0x08); } // Smallest positive normal (2⁰ = 1.0)
     static constexpr e2m3_t subnormal_min() noexcept { return from_bits(0x01); } // Smallest positive subnormal
 
     // Mathematical constants
@@ -2197,7 +2198,7 @@ struct e2m3_t {
     constexpr bool is_sign_negative() const noexcept { return (raw_ & 0x20) != 0; }
 
     inline e2m3_t operator+() const noexcept { return *this; }
-    inline e2m3_t operator-() const noexcept { return from_bits(raw_ ^ 0x20); }
+    constexpr e2m3_t operator-() const noexcept { return from_bits(raw_ ^ 0x20); }
     inline e2m3_t operator+(e2m3_t o) const noexcept { return from_f32(to_f32() + o.to_f32()); }
     inline e2m3_t operator-(e2m3_t o) const noexcept { return from_f32(to_f32() - o.to_f32()); }
     inline e2m3_t operator*(e2m3_t o) const noexcept { return from_f32(to_f32() * o.to_f32()); }
@@ -2302,7 +2303,7 @@ struct e3m2_t {
         return r;
     }
 
-    inline e3m2_t() noexcept : raw_(0) {}
+    constexpr e3m2_t() noexcept : raw_(0) {}
     inline e3m2_t(float v) noexcept { nk_f32_to_e3m2(&v, &raw_); }
     explicit e3m2_t(double v) noexcept {
         float f = static_cast<float>(v);
@@ -2328,9 +2329,9 @@ struct e3m2_t {
     constexpr uint_t to_bits() const noexcept { return raw_; }
 
     // E3M2FN range: [-28, +28], no Inf/NaN
-    static constexpr e3m2_t finite_max() noexcept { return from_bits(0x1F); }    // +28.0
-    static constexpr e3m2_t finite_min() noexcept { return from_bits(0x3F); }    // -28.0
-    static constexpr e3m2_t positive_min() noexcept { return from_bits(0x0C); }  // Smallest positive normal (2⁰ = 1.0)
+    static constexpr e3m2_t finite_max() noexcept { return from_bits(0x1F); }   // +28.0
+    static constexpr e3m2_t finite_min() noexcept { return from_bits(0x3F); }   // -28.0
+    static constexpr e3m2_t positive_min() noexcept { return from_bits(0x0C); } // Smallest positive normal (2⁰ = 1.0)
     static constexpr e3m2_t subnormal_min() noexcept { return from_bits(0x01); } // Smallest positive subnormal
 
     // Mathematical constants
@@ -2354,7 +2355,7 @@ struct e3m2_t {
     constexpr bool is_sign_negative() const noexcept { return (raw_ & 0x20) != 0; }
 
     inline e3m2_t operator+() const noexcept { return *this; }
-    inline e3m2_t operator-() const noexcept { return from_bits(raw_ ^ 0x20); }
+    constexpr e3m2_t operator-() const noexcept { return from_bits(raw_ ^ 0x20); }
     inline e3m2_t operator+(e3m2_t o) const noexcept { return from_f32(to_f32() + o.to_f32()); }
     inline e3m2_t operator-(e3m2_t o) const noexcept { return from_f32(to_f32() - o.to_f32()); }
     inline e3m2_t operator*(e3m2_t o) const noexcept { return from_f32(to_f32() * o.to_f32()); }
@@ -2895,10 +2896,43 @@ struct f118_t {
         constexpr double half_pi_low = 6.123233995736766e-17;
         f118_t half_pi(half_pi_high, half_pi_low);
 
+        constexpr double quarter_pi_high = 0.7853981633974483;
+        constexpr double quarter_pi_low = 3.061616997868383e-17;
+        f118_t quarter_pi(quarter_pi_high, quarter_pi_low);
+
         // Reduce to |x| <= 1 using atan(x) = sign(x)*π/2 - atan(1/x) for |x| > 1
         if (std::abs(high_) > 1.0) {
             f118_t recip_atan = recip().atan();
             return high_ > 0 ? half_pi - recip_atan : -half_pi - recip_atan;
+        }
+
+        // For x near ±1, apply argument reduction to accelerate Taylor convergence.
+        // The Taylor series for atan converges slowly when |x| ≈ 1 (needs ~30 terms).
+        // Using the identity atan(x) = π/4 + atan((x-1)/(x+1)) transforms the argument
+        // to be much smaller: at x=1, the reduced argument becomes 0 (instant convergence).
+        //
+        // Threshold analysis: For |x-1| < 0.5, the reduced argument satisfies:
+        //   |(x-1)/(x+1)| < 0.25, which converges in ~5 terms vs ~30 for the direct series.
+        // We use a slightly conservative threshold of 0.4 to ensure the reduction is beneficial
+        // while avoiding unnecessary overhead for x far from 1.
+        constexpr double reduction_threshold_near_one = 0.4; // Covers x ∈ [0.6, 1.4]
+
+        if (std::abs(high_ - 1.0) < reduction_threshold_near_one) {
+            // atan(x) = π/4 + atan((x-1)/(x+1))
+            // Reduces argument from |x| ≈ 1 to |(x-1)/(x+1)| < 0.25
+            f118_t numerator = *this - f118_t(1.0);
+            f118_t denominator = *this + f118_t(1.0);
+            f118_t reduced_arg = numerator / denominator;
+            return quarter_pi + reduced_arg.atan();
+        }
+
+        if (std::abs(high_ + 1.0) < reduction_threshold_near_one) {
+            // atan(x) = -π/4 + atan((x+1)/(1-x))
+            // Symmetric case for x near -1
+            f118_t numerator = *this + f118_t(1.0);
+            f118_t denominator = f118_t(1.0) - *this;
+            f118_t reduced_arg = numerator / denominator;
+            return -quarter_pi + reduced_arg.atan();
         }
 
         // Taylor: atan(x) = x − x³/3 + x⁵/5 − x⁷/7 + …
@@ -4587,7 +4621,7 @@ struct u4x2_t {
     constexpr auto operator<=>(u4x2_t const &o) const noexcept = default;
 };
 
-#pragma region Enum Conversion
+#pragma region - Enum Conversion
 
 /**
  *  @brief Maps `nk_dtype_t` enum values to their corresponding C++ wrapper types.
@@ -4689,9 +4723,9 @@ struct type_for<nk_u4_k> {
     using type = u4x2_t;
 };
 
-#pragma endregion Enum Conversion
+#pragma endregion - Enum Conversion
 
-#pragma region Numeric Limits
+#pragma region - Numeric Limits
 
 /** @brief Detect NumKong wrapper types with required static members. */
 template <typename scalar_type_>
@@ -4825,7 +4859,89 @@ constexpr std::size_t round_up_to_multiple(std::size_t n) {
     return divide_round_up<multiple_>(n) * multiple_;
 }
 
-#pragma endregion Numeric Limits
+#pragma endregion - Numeric Limits
+
+#pragma region - SIMD Dispatch Helpers
+
+/** @brief Controls whether template wrappers dispatch to SIMD C kernels. */
+enum allow_simd_t {
+    prefer_simd_k = 0,
+    no_simd_k = 1,
+};
+
+/** @brief FMA helper template for baseline dot-product implementations. */
+template <typename in_type_, typename accumulator_type_>
+    requires(in_type_::bits_per_value() >= NK_BITS_PER_BYTE)
+inline accumulator_type_ fused_multiply_add(accumulator_type_ acc, in_type_ a, in_type_ b) noexcept {
+    return acc + static_cast<accumulator_type_>(a) * static_cast<accumulator_type_>(b);
+}
+
+/** @brief FMA helper template for baseline conjugate complex dot-product implementations. */
+template <typename in_type_, typename accumulator_type_>
+    requires(in_type_::bits_per_value() >= NK_BITS_PER_BYTE)
+inline accumulator_type_ fused_conjugate_multiply_add(accumulator_type_ acc, in_type_ a, in_type_ b) noexcept {
+    return acc + static_cast<accumulator_type_>(a.conj()) * static_cast<accumulator_type_>(b);
+}
+
+/** @brief Fused addition of squared differences for baseline L2 implementations. */
+template <typename in_type_, typename accumulator_type_>
+    requires(in_type_::bits_per_value() >= NK_BITS_PER_BYTE)
+constexpr accumulator_type_ fused_difference_squared_add(accumulator_type_ acc, in_type_ a, in_type_ b) noexcept {
+    auto d = static_cast<accumulator_type_>(a) - static_cast<accumulator_type_>(b);
+    return acc + d * d;
+}
+
+/** @brief FMA specialization for i4x2_t (signed 4-bit packed pairs). */
+template <typename accumulator_type_>
+constexpr accumulator_type_ fused_multiply_add(accumulator_type_ acc, i4x2_t a, i4x2_t b) noexcept {
+    return acc + accumulator_type_(nk_i32_t(a.low()) * nk_i32_t(b.low()) + nk_i32_t(a.high()) * nk_i32_t(b.high()));
+}
+
+/** @brief FMA specialization for u4x2_t (unsigned 4-bit packed pairs). */
+template <typename accumulator_type_>
+constexpr accumulator_type_ fused_multiply_add(accumulator_type_ acc, u4x2_t a, u4x2_t b) noexcept {
+    return acc + accumulator_type_(nk_u32_t(a.low()) * nk_u32_t(b.low()) + nk_u32_t(a.high()) * nk_u32_t(b.high()));
+}
+
+/** @brief FMA specialization for u1x8_t (8 packed bits). Counts matching set bits (popcount of AND). */
+template <typename accumulator_type_>
+constexpr accumulator_type_ fused_multiply_add(accumulator_type_ acc, u1x8_t a, u1x8_t b) noexcept {
+    return acc + accumulator_type_(std::popcount(static_cast<unsigned>(a.raw() & b.raw())));
+}
+
+/** @brief Squared difference specialization for i4x2_t (signed 4-bit packed pairs). */
+template <typename accumulator_type_>
+constexpr accumulator_type_ fused_difference_squared_add(accumulator_type_ acc, i4x2_t a, i4x2_t b) noexcept {
+    nk_i32_t low_difference = nk_i32_t(a.low()) - nk_i32_t(b.low());
+    nk_i32_t high_difference = nk_i32_t(a.high()) - nk_i32_t(b.high());
+    return acc + accumulator_type_(low_difference * low_difference + high_difference * high_difference);
+}
+
+/** @brief Squared difference specialization for u4x2_t (unsigned 4-bit packed pairs). */
+template <typename accumulator_type_>
+constexpr accumulator_type_ fused_difference_squared_add(accumulator_type_ acc, u4x2_t a, u4x2_t b) noexcept {
+    nk_i32_t low_difference = nk_i32_t(a.low()) - nk_i32_t(b.low());
+    nk_i32_t high_difference = nk_i32_t(a.high()) - nk_i32_t(b.high());
+    return acc + accumulator_type_(low_difference * low_difference + high_difference * high_difference);
+}
+
+#pragma endregion - SIMD Dispatch Helpers
+
+#pragma region - f118_t Mixed Operators
+
+constexpr f118_t operator+(double a, f118_t b) noexcept { return f118_t(a) + b; }
+constexpr f118_t operator-(double a, f118_t b) noexcept { return f118_t(a) - b; }
+constexpr f118_t operator*(double a, f118_t b) noexcept { return f118_t(a) * b; }
+constexpr f118_t operator/(double a, f118_t b) noexcept { return f118_t(a) / b; }
+
+constexpr bool operator==(double a, f118_t b) noexcept { return f118_t(a) == b; }
+constexpr bool operator!=(double a, f118_t b) noexcept { return f118_t(a) != b; }
+constexpr bool operator<(double a, f118_t b) noexcept { return f118_t(a) < b; }
+constexpr bool operator>(double a, f118_t b) noexcept { return f118_t(a) > b; }
+constexpr bool operator<=(double a, f118_t b) noexcept { return f118_t(a) <= b; }
+constexpr bool operator>=(double a, f118_t b) noexcept { return f118_t(a) >= b; }
+
+#pragma endregion - f118_t Mixed Operators
 
 } // namespace ashvardanian::numkong
 

@@ -1,6 +1,8 @@
 /**
- *  @brief Core utilities for NumKong Python bindings.
+ *  @brief NumKong Python Bindings.
  *  @file python/numkong.h
+ *  @author Ash Vardanian
+ *  @date December 30, 2025
  *
  *  This header provides common data types, buffer protocol helpers, and
  *  dtype conversion utilities used across the NumKong Python extension modules.

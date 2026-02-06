@@ -1,9 +1,10 @@
 /**
- *  @brief SIMD-accelerated GEMM for Half-Precision Datatypes optimized for ARM SME.
+ *  @brief SIMD-accelerated Batched Dot Products for SME.
  *  @file include/numkong/dots/sme.h
- *  @sa include/numkong/dots.h
  *  @author Ash Vardanian
  *  @date January 2, 2026
+ *
+ *  @sa include/numkong/dots.h
  *
  *  Uses ARM Scalable Matrix Extension (SME) for efficient matrix multiplication
  *  with `ZA32` tiles supporting `f16`, `bf16`, `i8`, `u8`, and `e4m3` input types:
@@ -57,20 +58,23 @@
 
 #if NK_TARGET_ARM_
 #if NK_TARGET_SME
-#pragma GCC push_options
-#pragma GCC target("+sme")
-#pragma clang attribute push(__attribute__((target("sme"))), apply_to = function)
 
 #include "numkong/types.h"
-#include "numkong/cast/serial.h" // nk_e4m3_to_f16_serial, nk_e5m2_to_f16_serial
-
-#include <stdlib.h> // aligned_alloc, free
-#include <arm_sme.h>
-#include <arm_sve.h>
+#include "numkong/cast/serial.h" // `nk_e4m3_to_f16_serial`, `nk_e5m2_to_f16_serial`
 
 #if defined(__cplusplus)
 extern "C" {
 #endif
+
+#if defined(__clang__)
+#pragma clang attribute push(__attribute__((target("sme"))), apply_to = function)
+#elif defined(__GNUC__)
+#pragma GCC push_options
+#pragma GCC target("+sme")
+#endif
+
+#include <arm_sme.h>
+#include <arm_sve.h>
 
 /**
  *  SME-specific packed buffer header (64-byte aligned).
@@ -1852,14 +1856,16 @@ NK_PUBLIC void nk_dots_symmetric_i4_sme(nk_i4x2_t const *vectors, nk_size_t n_ve
 }
 
 #pragma endregion
+#if defined(__clang__)
+#pragma clang attribute pop
+#elif defined(__GNUC__)
+#pragma GCC pop_options
+#endif
 
 #if defined(__cplusplus)
 } // extern "C"
 #endif
 
-#pragma clang attribute pop
-#pragma GCC pop_options
 #endif // NK_TARGET_SME
 #endif // NK_TARGET_ARM_
-
 #endif // NK_DOTS_SME_H

@@ -1,5 +1,5 @@
 /**
- *  @brief SIMD-accelerated type conversions for FP8/BF16/F16 types optimized for Intel Haswell CPUs.
+ *  @brief SIMD-accelerated Type Conversions for Haswell.
  *  @file include/numkong/cast/haswell.h
  *  @author Ash Vardanian
  *  @date January 2, 2026
@@ -22,18 +22,19 @@
 
 #if NK_TARGET_X86_
 #if NK_TARGET_HASWELL
-#if defined(__clang__)
-#pragma clang attribute push(__attribute__((target("avx2,f16c,fma,bmi,bmi2"))), apply_to = function)
-#elif defined(__GNUC__)
-#pragma GCC push_options
-#pragma GCC target("avx2", "f16c", "fma", "bmi", "bmi2")
-#endif
 
 #include "numkong/types.h"
 #include "numkong/cast/serial.h" // `nk_partial_load_b16x16_serial_`
 
 #if defined(__cplusplus)
 extern "C" {
+#endif
+
+#if defined(__clang__)
+#pragma clang attribute push(__attribute__((target("avx2,f16c,fma,bmi,bmi2"))), apply_to = function)
+#elif defined(__GNUC__)
+#pragma GCC push_options
+#pragma GCC target("avx2", "f16c", "fma", "bmi", "bmi2")
 #endif
 
 /** @brief Convert f32 scalar to f16 bit pattern using F16C. */
@@ -471,7 +472,7 @@ NK_INTERNAL __m128i nk_f32x8_to_e5m2x8_haswell_(__m256 f32x8) {
 
 /** @brief Convert 8x e2m3 → 8x f32 via bit manipulation (AVX2).
  *  E2M3 format: S EE MMM (bias=1). F32: sign<<31, (exp+126)<<23, mantissa<<20.
- *  Subnormals (exp=0): value = mantissa × 2⁽¹⁻¹⁾ × 2⁻³ = mantissa ÷ 8. */
+ *  Subnormals (exp=0): value = mantissa × 2⁽¹⁻¹⁾ × 2⁻⁴ = mantissa ÷ 16. */
 NK_INTERNAL __m256 nk_e2m3x8_to_f32x8_haswell_(__m128i e2m3_i8x8) {
     __m256i e2m3_i32x8 = _mm256_cvtepu8_epi32(e2m3_i8x8);
 
@@ -487,8 +488,8 @@ NK_INTERNAL __m256 nk_e2m3x8_to_f32x8_haswell_(__m128i e2m3_i8x8) {
     __m256i f32_mant_i32x8 = _mm256_slli_epi32(mant_i32x8, 20);
     __m256i normal_bits_i32x8 = _mm256_or_si256(f32_sign_i32x8, _mm256_or_si256(f32_exp_i32x8, f32_mant_i32x8));
 
-    // Subnormal path: value = mantissa / 8.0f, then apply sign
-    __m256 subnorm_abs_f32x8 = _mm256_mul_ps(_mm256_cvtepi32_ps(mant_i32x8), _mm256_set1_ps(1.0f / 8.0f));
+    // Subnormal path: value = mantissa / 16.0f, then apply sign
+    __m256 subnorm_abs_f32x8 = _mm256_mul_ps(_mm256_cvtepi32_ps(mant_i32x8), _mm256_set1_ps(1.0f / 16.0f));
     __m256 subnorm_f32x8 = _mm256_or_ps(subnorm_abs_f32x8, _mm256_castsi256_ps(f32_sign_i32x8));
 
     // Blend: if exp==0, use subnormal result; otherwise use normal bits
@@ -639,18 +640,33 @@ NK_INTERNAL __m128i nk_f32x8_to_e3m2x8_haswell_(__m256 f32x8) {
 
 #pragma region - Converting Loads and Stores
 
+/** @brief Full load for f16 elements (8) with conversion to f32 via F16C. */
+NK_INTERNAL void nk_load_f16x8_to_f32x8_haswell_(void const *src, nk_b256_vec_t *dst) {
+    dst->ymm_ps = _mm256_cvtph_ps(_mm_loadu_si128((__m128i const *)src));
+}
+
 /** @brief Partial load for f16 elements (up to 8) with conversion to f32 via F16C. */
 NK_INTERNAL void nk_partial_load_f16x8_to_f32x8_haswell_(nk_f16_t const *src, nk_b256_vec_t *dst, nk_size_t n) {
-    nk_b256_vec_t vec;
-    nk_partial_load_b16x16_serial_(src, &vec, n);
-    dst->ymm_ps = _mm256_cvtph_ps(vec.xmms[0]);
+    nk_b128_vec_t vec;
+    nk_partial_load_b16x8_serial_(src, &vec, n);
+    dst->ymm_ps = _mm256_cvtph_ps(vec.xmm);
+}
+
+/** @brief Full load for bf16 elements (8) with conversion to f32. */
+NK_INTERNAL void nk_load_bf16x8_to_f32x8_haswell_(void const *src, nk_b256_vec_t *dst) {
+    dst->ymm_ps = nk_bf16x8_to_f32x8_haswell_(_mm_loadu_si128((__m128i const *)src));
 }
 
 /** @brief Partial load for bf16 elements (up to 8) with conversion to f32. */
 NK_INTERNAL void nk_partial_load_bf16x8_to_f32x8_haswell_(nk_bf16_t const *src, nk_b256_vec_t *dst, nk_size_t n) {
-    nk_b256_vec_t vec;
-    nk_partial_load_b16x16_serial_(src, &vec, n);
-    dst->ymm_ps = nk_bf16x8_to_f32x8_haswell_(vec.xmms[0]);
+    nk_b128_vec_t vec;
+    nk_partial_load_b16x8_serial_(src, &vec, n);
+    dst->ymm_ps = nk_bf16x8_to_f32x8_haswell_(vec.xmm);
+}
+
+/** @brief Full load for e4m3 elements (8) with conversion to f32. */
+NK_INTERNAL void nk_load_e4m3x8_to_f32x8_haswell_(void const *src, nk_b256_vec_t *dst) {
+    dst->ymm_ps = nk_e4m3x8_to_f32x8_haswell_(_mm_loadl_epi64((__m128i const *)src));
 }
 
 /** @brief Partial load for e4m3 elements (up to 8) with conversion to f32. */
@@ -660,6 +676,11 @@ NK_INTERNAL void nk_partial_load_e4m3x8_to_f32x8_haswell_(nk_e4m3_t const *src, 
     dst->ymm_ps = nk_e4m3x8_to_f32x8_haswell_(_mm_cvtsi64_si128(vec.u64));
 }
 
+/** @brief Full load for e5m2 elements (8) with conversion to f32. */
+NK_INTERNAL void nk_load_e5m2x8_to_f32x8_haswell_(void const *src, nk_b256_vec_t *dst) {
+    dst->ymm_ps = nk_e5m2x8_to_f32x8_haswell_(_mm_loadl_epi64((__m128i const *)src));
+}
+
 /** @brief Partial load for e5m2 elements (up to 8) with conversion to f32. */
 NK_INTERNAL void nk_partial_load_e5m2x8_to_f32x8_haswell_(nk_e5m2_t const *src, nk_b256_vec_t *dst, nk_size_t n) {
     nk_b64_vec_t vec;
@@ -667,11 +688,21 @@ NK_INTERNAL void nk_partial_load_e5m2x8_to_f32x8_haswell_(nk_e5m2_t const *src, 
     dst->ymm_ps = nk_e5m2x8_to_f32x8_haswell_(_mm_cvtsi64_si128(vec.u64));
 }
 
+/** @brief Full load for e2m3 elements (8) with conversion to f32. */
+NK_INTERNAL void nk_load_e2m3x8_to_f32x8_haswell_(void const *src, nk_b256_vec_t *dst) {
+    dst->ymm_ps = nk_e2m3x8_to_f32x8_haswell_(_mm_loadl_epi64((__m128i const *)src));
+}
+
 /** @brief Partial load for e2m3 elements (up to 8) with conversion to f32. */
 NK_INTERNAL void nk_partial_load_e2m3x8_to_f32x8_haswell_(nk_e2m3_t const *src, nk_b256_vec_t *dst, nk_size_t n) {
     nk_b64_vec_t vec;
     nk_partial_load_b8x8_serial_(src, &vec, n);
     dst->ymm_ps = nk_e2m3x8_to_f32x8_haswell_(_mm_cvtsi64_si128(vec.u64));
+}
+
+/** @brief Full load for e3m2 elements (8) with conversion to f32. */
+NK_INTERNAL void nk_load_e3m2x8_to_f32x8_haswell_(void const *src, nk_b256_vec_t *dst) {
+    dst->ymm_ps = nk_e3m2x8_to_f32x8_haswell_(_mm_loadl_epi64((__m128i const *)src));
 }
 
 /** @brief Partial load for e3m2 elements (up to 8) with conversion to f32. */
@@ -889,16 +920,16 @@ NK_PUBLIC void nk_cast_haswell(void const *from, nk_dtype_t from_type, nk_size_t
 
 #pragma endregion - Public API
 
-#if defined(__cplusplus)
-} // extern "C"
-#endif
-
 #if defined(__clang__)
 #pragma clang attribute pop
 #elif defined(__GNUC__)
 #pragma GCC pop_options
 #endif
+
+#if defined(__cplusplus)
+} // extern "C"
+#endif
+
 #endif // NK_TARGET_HASWELL
 #endif // NK_TARGET_X86_
-
 #endif // NK_CAST_HASWELL_H

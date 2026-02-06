@@ -1,8 +1,10 @@
 /**
- *  @brief Portable macros and serial implementations for batched binary set computations.
+ *  @brief SWAR-accelerated Batched Set Distances for SIMD-free CPUs.
  *  @file include/numkong/sets/serial.h
- *  @sa include/numkong/sets.h for API overview and use cases
  *  @author Ash Vardanian
+ *  @date January 24, 2026
+ *
+ *  @sa include/numkong/sets.h for API overview and use cases
  *
  *  This file provides macro families for generating batched Hamming and Jaccard distance kernels:
  *
@@ -34,7 +36,7 @@
 #define NK_SETS_SERIAL_H
 
 #include "numkong/dots/serial.h" // `nk_define_cross_symmetric_`
-#include "numkong/set/serial.h"  // `nk_hamming_b128_state_serial_t`
+#include "numkong/set/serial.h"  // `nk_hamming_u1x128_state_serial_t`
 #include "numkong/cast/serial.h" // `nk_load_b128_serial_`
 
 #if defined(__cplusplus)
@@ -45,15 +47,16 @@ nk_define_cross_pack_size_(hammings, u1, serial, u1x8, u32, /*depth_simd_dimensi
                            /*dimensions_per_value=*/128)
 nk_define_cross_pack_(hammings, u1, serial, u1x8, u32, nk_assign_from_to_, /*depth_simd_dimensions=*/128,
                       /*dimensions_per_value=*/128)
-nk_define_cross_symmetric_(hammings, u1, serial, u1x8, u32, nk_b128_vec_t, nk_hamming_b128_state_serial_t,
-                           nk_b128_vec_t, nk_hamming_b128_init_serial, nk_load_b128_serial_,
-                           nk_partial_load_b32x4_serial_, nk_hamming_b128_update_serial,
-                           nk_hamming_b128_finalize_serial, nk_partial_store_b32x4_serial_,
+nk_define_cross_symmetric_(hammings, u1, serial, u1x8, u32, nk_b128_vec_t, nk_hamming_u1x128_state_serial_t,
+                           nk_b128_vec_t, nk_hamming_u1x128_init_serial, nk_load_b128_serial_,
+                           nk_partial_load_b32x4_serial_, nk_hamming_u1x128_update_serial,
+                           nk_hamming_u1x128_finalize_serial, nk_partial_store_b32x4_serial_,
                            /*depth_simd_dimensions=*/128, /*dimensions_per_value=*/128)
-nk_define_cross_packed_(hammings, u1, serial, u1x8, u32, u32, nk_b128_vec_t, nk_hamming_b128_state_serial_t,
-                        nk_b128_vec_t, nk_hamming_b128_init_serial, nk_load_b128_serial_, nk_partial_load_b32x4_serial_,
-                        nk_load_b128_serial_, nk_partial_load_b32x4_serial_, nk_hamming_b128_update_serial,
-                        nk_hamming_b128_finalize_serial, nk_partial_store_b32x4_serial_,
+nk_define_cross_packed_(hammings, u1, serial, u1x8, u32, u32, nk_b128_vec_t, nk_hamming_u1x128_state_serial_t,
+                        nk_b128_vec_t, nk_hamming_u1x128_init_serial, nk_load_b128_serial_,
+                        nk_partial_load_b32x4_serial_, nk_load_b128_serial_, nk_partial_load_b32x4_serial_,
+                        nk_hamming_u1x128_update_serial, nk_hamming_u1x128_finalize_serial,
+                        nk_partial_store_b32x4_serial_,
                         /*depth_simd_dimensions=*/128, /*dimensions_per_value=*/128)
 
 #if defined(__cplusplus)

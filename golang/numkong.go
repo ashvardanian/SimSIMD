@@ -11,6 +11,43 @@ package numkong
 import "C"
 import "unsafe"
 
+// CPU capability bit masks in chronological order (by first commercial silicon)
+const (
+	CapSerial      uint64 = 1 << 0  // Always: Fallback
+	CapNeon        uint64 = 1 << 1  // 2013: ARM NEON
+	CapHaswell     uint64 = 1 << 2  // 2013: Intel AVX2
+	CapSkylake     uint64 = 1 << 3  // 2017: Intel AVX-512
+	CapNeonHalf    uint64 = 1 << 4  // 2017: ARM NEON FP16
+	CapNeonSdot    uint64 = 1 << 5  // 2017: ARM NEON i8 dot
+	CapNeonFhm     uint64 = 1 << 6  // 2018: ARM NEON FP16 FML
+	CapIcelake     uint64 = 1 << 7  // 2019: Intel AVX-512 VNNI
+	CapGenoa       uint64 = 1 << 8  // 2020: AMD AVX-512 BF16
+	CapNeonBfDot   uint64 = 1 << 9  // 2020: ARM NEON BF16
+	CapSve         uint64 = 1 << 10 // 2020: ARM SVE
+	CapSveHalf     uint64 = 1 << 11 // 2020: ARM SVE FP16
+	CapSveSdot     uint64 = 1 << 12 // 2020: ARM SVE i8 dot
+	CapSierra      uint64 = 1 << 13 // 2021: Intel AVX2+VNNI
+	CapSveBfDot    uint64 = 1 << 14 // 2021: ARM SVE BF16
+	CapSve2        uint64 = 1 << 15 // 2022: ARM SVE2
+	CapV128Relaxed uint64 = 1 << 16 // 2022: WASM Relaxed SIMD
+	CapSapphire    uint64 = 1 << 17 // 2023: Intel AVX-512 FP16
+	CapSapphireAmx uint64 = 1 << 18 // 2023: Intel Sapphire AMX
+	CapRvv         uint64 = 1 << 19 // 2023: RISC-V Vector
+	CapRvvHalf     uint64 = 1 << 20 // 2023: RISC-V Zvfh
+	CapRvvBf16     uint64 = 1 << 21 // 2023: RISC-V Zvfbfwma
+	CapGraniteAmx  uint64 = 1 << 22 // 2024: Intel Granite AMX FP16
+	CapTurin       uint64 = 1 << 23 // 2024: AMD Turin AVX-512 CD
+	CapSme         uint64 = 1 << 24 // 2024: ARM SME
+	CapSme2        uint64 = 1 << 25 // 2024: ARM SME2
+	CapSmeF64      uint64 = 1 << 26 // 2024: ARM SME F64
+	CapSmeFa64     uint64 = 1 << 27 // 2024: ARM SME FA64
+	CapSve2p1      uint64 = 1 << 28 // 2025+: ARM SVE2.1
+	CapSme2p1      uint64 = 1 << 29 // 2025+: ARM SME2.1
+	CapSmeHalf     uint64 = 1 << 30 // 2025+: ARM SME F16F16
+	CapSmeBf16     uint64 = 1 << 31 // 2025+: ARM SME B16B16
+	CapSmeLut2     uint64 = 1 << 32 // 2025+: ARM SME LUTv2
+)
+
 // region Dot Product
 
 // DotF64 computes the inner product (dot product) of two float64 vectors.

@@ -17,6 +17,46 @@ try {
 }
 
 /**
+ * CPU capability bit masks in chronological order (by first commercial silicon).
+ * Use these with getCapabilities() to check for specific SIMD support.
+ */
+export const Capability = {
+  SERIAL: 1n << 0n,          // Always: Fallback
+  NEON: 1n << 1n,            // 2013: ARM NEON
+  HASWELL: 1n << 2n,         // 2013: Intel AVX2
+  SKYLAKE: 1n << 3n,         // 2017: Intel AVX-512
+  NEONHALF: 1n << 4n,        // 2017: ARM NEON FP16
+  NEONSDOT: 1n << 5n,        // 2017: ARM NEON i8 dot
+  NEONFHM: 1n << 6n,         // 2018: ARM NEON FP16 FML
+  ICELAKE: 1n << 7n,         // 2019: Intel AVX-512 VNNI
+  GENOA: 1n << 8n,           // 2020: Intel/AMD AVX-512 BF16
+  NEONBFDOT: 1n << 9n,       // 2020: ARM NEON BF16
+  SVE: 1n << 10n,            // 2020: ARM SVE
+  SVEHALF: 1n << 11n,        // 2020: ARM SVE FP16
+  SVESDOT: 1n << 12n,        // 2020: ARM SVE i8 dot
+  SIERRA: 1n << 13n,         // 2021: Intel AVX2+VNNI
+  SVEBFDOT: 1n << 14n,       // 2021: ARM SVE BF16
+  SVE2: 1n << 15n,           // 2022: ARM SVE2
+  V128RELAXED: 1n << 16n,    // 2022: WASM Relaxed SIMD
+  SAPPHIRE: 1n << 17n,       // 2023: Intel AVX-512 FP16
+  SAPPHIREAMX: 1n << 18n,    // 2023: Intel Sapphire AMX
+  RVV: 1n << 19n,            // 2023: RISC-V Vector
+  RVVHALF: 1n << 20n,        // 2023: RISC-V Zvfh
+  RVVBF16: 1n << 21n,        // 2023: RISC-V Zvfbfwma
+  GRANITEAMX: 1n << 22n,     // 2024: Intel Granite AMX FP16
+  TURIN: 1n << 23n,          // 2024: AMD Turin AVX-512 CD
+  SME: 1n << 24n,            // 2024: ARM SME
+  SME2: 1n << 25n,           // 2024: ARM SME2
+  SMEF64: 1n << 26n,         // 2024: ARM SME F64
+  SMEFA64: 1n << 27n,        // 2024: ARM SME FA64
+  SVE2P1: 1n << 28n,         // 2025+: ARM SVE2.1
+  SME2P1: 1n << 29n,         // 2025+: ARM SME2.1
+  SMEHALF: 1n << 30n,        // 2025+: ARM SME F16F16
+  SMEBF16: 1n << 31n,        // 2025+: ARM SME B16B16
+  SMELUT2: 1n << 32n,        // 2025+: ARM SME LUTv2
+} as const;
+
+/**
  * @brief Computes the squared Euclidean distance between two vectors.
  * @param {Float64Array|Float32Array|Int8Array|Uint8Array} a - The first vector.
  * @param {Float64Array|Float32Array|Int8Array|Uint8Array} b - The second vector.

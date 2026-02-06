@@ -1,9 +1,10 @@
 /**
- *  @brief SIMD-accelerated Dot Products for Real and Complex Numbers optimized for Arm NEON-capable CPUs.
+ *  @brief SIMD-accelerated Dot Products for NEON SDOT.
  *  @file include/numkong/dot/neonsdot.h
- *  @sa include/numkong/dot.h
  *  @author Ash Vardanian
  *  @date December 27, 2025
+ *
+ *  @sa include/numkong/dot.h
  *
  *  @section dot_neonsdot_instructions ARM NEON SDOT/UDOT Instructions (ARMv8.4-DotProd)
  *
@@ -23,23 +24,80 @@
  *  SDOT handles signed int8 operands while UDOT handles unsigned. The 3-cycle latency with 2/cy
  *  throughput on A76 (4/cy on newer cores) enables int8 matrix multiplication for
  *  quantized neural network inference, where 8-bit weights reduce memory bandwidth by 4x vs FP32.
+ *
+ *  @section dot_neonsdot_stateful Stateful Streaming Logic
+ *
+ *  To build memory-optimal tiled algorithms, this file defines following structures and force-inlined
+ *  `NK_INTERNAL` functions:
+ *
+ *  - nk_dot_i8x16 for 8-bit signed integer inputs using SDOT,
+ *  - nk_dot_u8x16 for 8-bit unsigned integer inputs using UDOT,
+ *  - nk_dot_i4x32 for 4-bit signed integer products,
+ *  - nk_dot_u4x32 for 4-bit unsigned integer products.
+ *
+ *  @code{c}
+ *  nk_dot_i8x16_state_neonsdot_t state_first, state_second, state_third, state_fourth;
+ *  int8x16_t query_i8x16, target_first_i8x16, target_second_i8x16, target_third_i8x16, target_fourth_i8x16;
+ *  nk_dot_i8x16_init_neonsdot(&state_first);
+ *  nk_dot_i8x16_init_neonsdot(&state_second);
+ *  nk_dot_i8x16_init_neonsdot(&state_third);
+ *  nk_dot_i8x16_init_neonsdot(&state_fourth);
+ *  for (nk_size_t idx = 0; idx + 16 <= depth; idx += 16) {
+ *      query_i8x16 = vld1q_s8(query_ptr + idx);
+ *      target_first_i8x16 = vld1q_s8(target_first_ptr + idx);
+ *      target_second_i8x16 = vld1q_s8(target_second_ptr + idx);
+ *      target_third_i8x16 = vld1q_s8(target_third_ptr + idx);
+ *      target_fourth_i8x16 = vld1q_s8(target_fourth_ptr + idx);
+ *      nk_dot_i8x16_update_neonsdot(&state_first, query_i8x16, target_first_i8x16, idx, 16);
+ *      nk_dot_i8x16_update_neonsdot(&state_second, query_i8x16, target_second_i8x16, idx, 16);
+ *      nk_dot_i8x16_update_neonsdot(&state_third, query_i8x16, target_third_i8x16, idx, 16);
+ *      nk_dot_i8x16_update_neonsdot(&state_fourth, query_i8x16, target_fourth_i8x16, idx, 16);
+ *  }
+ *  int32x4_t results_i32x4;
+ *  nk_dot_i8x16_finalize_neonsdot(&state_first, &state_second, &state_third, &state_fourth, depth, &results_i32x4);
+ *  @endcode
+ *
+ *  For 4-bit integers, the state manages unpacking and accumulation:
+ *
+ *  @code{c}
+ *  nk_dot_i4x32_state_neonsdot_t state_first, state_second, state_third, state_fourth;
+ *  uint8x8_t query_packed, target_first_packed, target_second_packed, target_third_packed, target_fourth_packed;
+ *  nk_dot_i4x32_init_neonsdot(&state_first);
+ *  nk_dot_i4x32_init_neonsdot(&state_second);
+ *  nk_dot_i4x32_init_neonsdot(&state_third);
+ *  nk_dot_i4x32_init_neonsdot(&state_fourth);
+ *  for (nk_size_t idx = 0; idx + 16 <= depth; idx += 16) {
+ *      query_packed = vld1_u8(query_ptr + idx / 2);
+ *      target_first_packed = vld1_u8(target_first_ptr + idx / 2);
+ *      target_second_packed = vld1_u8(target_second_ptr + idx / 2);
+ *      target_third_packed = vld1_u8(target_third_ptr + idx / 2);
+ *      target_fourth_packed = vld1_u8(target_fourth_ptr + idx / 2);
+ *      nk_dot_i4x32_update_neonsdot(&state_first, query_packed, target_first_packed, idx, 16);
+ *      nk_dot_i4x32_update_neonsdot(&state_second, query_packed, target_second_packed, idx, 16);
+ *      nk_dot_i4x32_update_neonsdot(&state_third, query_packed, target_third_packed, idx, 16);
+ *      nk_dot_i4x32_update_neonsdot(&state_fourth, query_packed, target_fourth_packed, idx, 16);
+ *  }
+ *  int32x4_t results_i32x4;
+ *  nk_dot_i4x32_finalize_neonsdot(&state_first, &state_second, &state_third, &state_fourth, depth, &results_i32x4);
+ *  @endcode
  */
 #ifndef NK_DOT_NEONSDOT_H
 #define NK_DOT_NEONSDOT_H
 
 #if NK_TARGET_ARM_
 #if NK_TARGET_NEONSDOT
-#if defined(__clang__)
-#pragma clang attribute push(__attribute__((target("arch=armv8.2-a+dotprod"))), apply_to = function)
-#elif defined(__GNUC__)
-#pragma GCC push_options
-#pragma GCC target("arch=armv8.2-a+dotprod")
-#endif
 
 #include "numkong/types.h"
 
 #if defined(__cplusplus)
 extern "C" {
+#endif
+
+#if defined(__clang__)
+#pragma clang attribute push(__attribute__((target("arch=armv8.2-a+dotprod"))), apply_to = function)
+#elif defined(__GNUC__)
+#pragma GCC push_options
+#pragma GCC target("arch=armv8.2-a+dotprod")
 #endif
 
 NK_PUBLIC void nk_dot_i8_neonsdot(nk_i8_t const *a_scalars, nk_i8_t const *b_scalars, nk_size_t count_scalars,
@@ -228,9 +286,9 @@ nk_dot_u4_neonsdot_cycle:
     *result = vaddvq_u32(sum_u32x4);
 }
 
-struct nk_dot_i4x32_state_neonsdot_t {
+typedef struct nk_dot_i4x32_state_neonsdot_t {
     int32x4_t product_sum_i32x4;
-};
+} nk_dot_i4x32_state_neonsdot_t;
 
 NK_INTERNAL void nk_dot_i4x32_init_neonsdot(nk_dot_i4x32_state_neonsdot_t *state) {
     state->product_sum_i32x4 = vdupq_n_s32(0);
@@ -274,9 +332,9 @@ NK_INTERNAL void nk_dot_i4x32_finalize_neonsdot(                                
     result->i32s[3] = vaddvq_s32(state_d->product_sum_i32x4);
 }
 
-struct nk_dot_u4x32_state_neonsdot_t {
+typedef struct nk_dot_u4x32_state_neonsdot_t {
     uint32x4_t product_sum_u32x4;
-};
+} nk_dot_u4x32_state_neonsdot_t;
 
 NK_INTERNAL void nk_dot_u4x32_init_neonsdot(nk_dot_u4x32_state_neonsdot_t *state) {
     state->product_sum_u32x4 = vdupq_n_u32(0);
@@ -314,16 +372,16 @@ NK_INTERNAL void nk_dot_u4x32_finalize_neonsdot(                                
     result->u32s[3] = vaddvq_u32(state_d->product_sum_u32x4);
 }
 
-#if defined(__cplusplus)
-} // extern "C"
-#endif
-
 #if defined(__clang__)
 #pragma clang attribute pop
 #elif defined(__GNUC__)
 #pragma GCC pop_options
 #endif
+
+#if defined(__cplusplus)
+} // extern "C"
+#endif
+
 #endif // NK_TARGET_NEONSDOT
 #endif // NK_TARGET_ARM_
-
 #endif // NK_DOT_NEONSDOT_H

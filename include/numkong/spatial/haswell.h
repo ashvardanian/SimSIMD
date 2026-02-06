@@ -1,11 +1,12 @@
 /**
- *  @brief SIMD-accelerated Spatial Similarity Measures optimized for Intel Haswell CPUs.
+ *  @brief SIMD-accelerated Spatial Similarity Measures for Haswell.
  *  @file include/numkong/spatial/haswell.h
- *  @sa include/numkong/spatial.h
  *  @author Ash Vardanian
  *  @date December 27, 2025
  *
- *  @section haswell_spatial_instructions Key AVX2 Spatial Instructions
+ *  @sa include/numkong/spatial.h
+ *
+ *  @section spatial_haswell_instructions Key AVX2 Spatial Instructions
  *
  *      Intrinsic                   Instruction                     Latency     Throughput  Ports
  *      _mm256_fmadd_ps             VFMADD (YMM, YMM, YMM)          5cy         0.5/cy      p01
@@ -25,6 +26,15 @@
 
 #if NK_TARGET_X86_
 #if NK_TARGET_HASWELL
+
+#include "numkong/types.h"
+#include "numkong/dot/haswell.h"    // `nk_dot_f32x4_state_haswell_t`
+#include "numkong/reduce/haswell.h" // `nk_reduce_add_f32x8_haswell_`
+
+#if defined(__cplusplus)
+extern "C" {
+#endif
+
 #if defined(__clang__)
 #pragma clang attribute push(__attribute__((target("avx2,f16c,fma,bmi,bmi2"))), apply_to = function)
 #elif defined(__GNUC__)
@@ -32,15 +42,8 @@
 #pragma GCC target("avx2", "f16c", "fma", "bmi", "bmi2")
 #endif
 
-#include "numkong/types.h"
-#include "numkong/reduce/haswell.h" // nk_reduce_add_f32x8_haswell_, nk_reduce_add_i32x8_haswell_
-
-#if defined(__cplusplus)
-extern "C" {
-#endif
-
-NK_INTERNAL nk_f32_t nk_sqrt_f32_haswell_(nk_f32_t x) { return _mm_cvtss_f32(_mm_sqrt_ps(_mm_set_ss(x))); }
-NK_INTERNAL nk_f64_t nk_sqrt_f64_haswell_(nk_f64_t x) { return _mm_cvtsd_f64(_mm_sqrt_pd(_mm_set_sd(x))); }
+NK_INTERNAL nk_f32_t nk_f32_sqrt_haswell(nk_f32_t x) { return _mm_cvtss_f32(_mm_sqrt_ps(_mm_set_ss(x))); }
+NK_INTERNAL nk_f64_t nk_f64_sqrt_haswell(nk_f64_t x) { return _mm_cvtsd_f64(_mm_sqrt_pd(_mm_set_sd(x))); }
 
 /** @brief Reciprocal square root of 4 floats with Newton-Raphson refinement. */
 NK_INTERNAL __m128 nk_rsqrt_f32x4_haswell_(__m128 x) {
@@ -132,6 +135,8 @@ NK_INTERNAL nk_f32_t nk_angular_normalize_f32_haswell_(nk_f32_t ab, nk_f32_t a2,
     return result > 0 ? result : 0;
 }
 
+#pragma region - Smaller Floats
+
 NK_PUBLIC void nk_sqeuclidean_f16_haswell(nk_f16_t const *a, nk_f16_t const *b, nk_size_t n, nk_f32_t *result) {
     __m256 a_f32x8, b_f32x8;
     __m256 distance_sq_f32x8 = _mm256_setzero_ps();
@@ -159,7 +164,7 @@ nk_sqeuclidean_f16_haswell_cycle:
 
 NK_PUBLIC void nk_euclidean_f16_haswell(nk_f16_t const *a, nk_f16_t const *b, nk_size_t n, nk_f32_t *result) {
     nk_sqeuclidean_f16_haswell(a, b, n, result);
-    *result = nk_sqrt_f32_haswell_(*result);
+    *result = nk_f32_sqrt_haswell(*result);
 }
 
 NK_PUBLIC void nk_angular_f16_haswell(nk_f16_t const *a, nk_f16_t const *b, nk_size_t n, nk_f32_t *result) {
@@ -219,7 +224,7 @@ nk_sqeuclidean_bf16_haswell_cycle:
 
 NK_PUBLIC void nk_euclidean_bf16_haswell(nk_bf16_t const *a, nk_bf16_t const *b, nk_size_t n, nk_f32_t *result) {
     nk_sqeuclidean_bf16_haswell(a, b, n, result);
-    *result = nk_sqrt_f32_haswell_(*result);
+    *result = nk_f32_sqrt_haswell(*result);
 }
 
 NK_PUBLIC void nk_angular_bf16_haswell(nk_bf16_t const *a, nk_bf16_t const *b, nk_size_t n, nk_f32_t *result) {
@@ -251,6 +256,9 @@ nk_angular_bf16_haswell_cycle:
     nk_f32_t b_norm_sq_f32 = nk_reduce_add_f32x8_haswell_(b_norm_sq_f32x8);
     *result = nk_angular_normalize_f32_haswell_(dot_product_f32, a_norm_sq_f32, b_norm_sq_f32);
 }
+
+#pragma endregion - Smaller Floats
+#pragma region - Small Integers
 
 NK_PUBLIC void nk_sqeuclidean_i8_haswell(nk_i8_t const *a, nk_i8_t const *b, nk_size_t n, nk_u32_t *result) {
 
@@ -286,7 +294,7 @@ NK_PUBLIC void nk_sqeuclidean_i8_haswell(nk_i8_t const *a, nk_i8_t const *b, nk_
 NK_PUBLIC void nk_euclidean_i8_haswell(nk_i8_t const *a, nk_i8_t const *b, nk_size_t n, nk_f32_t *result) {
     nk_u32_t distance_sq_u32;
     nk_sqeuclidean_i8_haswell(a, b, n, &distance_sq_u32);
-    *result = nk_sqrt_f32_haswell_((nk_f32_t)distance_sq_u32);
+    *result = nk_f32_sqrt_haswell((nk_f32_t)distance_sq_u32);
 }
 
 NK_PUBLIC void nk_angular_i8_haswell(nk_i8_t const *a, nk_i8_t const *b, nk_size_t n, nk_f32_t *result) {
@@ -380,7 +388,7 @@ NK_PUBLIC void nk_sqeuclidean_u8_haswell(nk_u8_t const *a, nk_u8_t const *b, nk_
 NK_PUBLIC void nk_euclidean_u8_haswell(nk_u8_t const *a, nk_u8_t const *b, nk_size_t n, nk_f32_t *result) {
     nk_u32_t distance_sq_u32;
     nk_sqeuclidean_u8_haswell(a, b, n, &distance_sq_u32);
-    *result = nk_sqrt_f32_haswell_((nk_f32_t)distance_sq_u32);
+    *result = nk_f32_sqrt_haswell((nk_f32_t)distance_sq_u32);
 }
 
 NK_PUBLIC void nk_angular_u8_haswell(nk_u8_t const *a, nk_u8_t const *b, nk_size_t n, nk_f32_t *result) {
@@ -444,6 +452,9 @@ NK_PUBLIC void nk_angular_u8_haswell(nk_u8_t const *a, nk_u8_t const *b, nk_size
     *result = nk_angular_normalize_f32_haswell_(dot_product_i32, a_norm_sq_i32, b_norm_sq_i32);
 }
 
+#pragma endregion - Small Integers
+#pragma region - Traditional Floats
+
 NK_PUBLIC void nk_sqeuclidean_f32_haswell(nk_f32_t const *a, nk_f32_t const *b, nk_size_t n, nk_f32_t *result) {
     // Upcast to f64 for higher precision accumulation
     __m256d sum_f64x4 = _mm256_setzero_pd();
@@ -485,7 +496,7 @@ NK_PUBLIC void nk_euclidean_f32_haswell(nk_f32_t const *a, nk_f32_t const *b, nk
         sum_f64 += diff_f64 * diff_f64;
     }
 
-    *result = (nk_f32_t)nk_sqrt_f64_haswell_(sum_f64);
+    *result = (nk_f32_t)nk_f64_sqrt_haswell(sum_f64);
 }
 
 NK_PUBLIC void nk_angular_f32_haswell(nk_f32_t const *a, nk_f32_t const *b, nk_size_t n, nk_f32_t *result) {
@@ -537,7 +548,7 @@ NK_PUBLIC void nk_sqeuclidean_f64_haswell(nk_f64_t const *a, nk_f64_t const *b, 
 
 NK_PUBLIC void nk_euclidean_f64_haswell(nk_f64_t const *a, nk_f64_t const *b, nk_size_t n, nk_f64_t *result) {
     nk_sqeuclidean_f64_haswell(a, b, n, result);
-    *result = nk_sqrt_f64_haswell_(*result);
+    *result = nk_f64_sqrt_haswell(*result);
 }
 
 NK_PUBLIC void nk_angular_f64_haswell(nk_f64_t const *a, nk_f64_t const *b, nk_size_t n, nk_f64_t *result) {
@@ -581,6 +592,9 @@ NK_PUBLIC void nk_angular_f64_haswell(nk_f64_t const *a, nk_f64_t const *b, nk_s
     *result = nk_angular_normalize_f64_haswell_(dot_product_f64, a_norm_sq_f64, b_norm_sq_f64);
 }
 
+#pragma endregion - Traditional Floats
+#pragma region - Smaller Floats
+
 NK_PUBLIC void nk_sqeuclidean_e2m3_haswell(nk_e2m3_t const *a, nk_e2m3_t const *b, nk_size_t n, nk_f32_t *result) {
     __m256 distance_sq_f32x8 = _mm256_setzero_ps();
 
@@ -608,7 +622,7 @@ nk_sqeuclidean_e2m3_haswell_cycle:
 
 NK_PUBLIC void nk_euclidean_e2m3_haswell(nk_e2m3_t const *a, nk_e2m3_t const *b, nk_size_t n, nk_f32_t *result) {
     nk_sqeuclidean_e2m3_haswell(a, b, n, result);
-    *result = nk_sqrt_f32_haswell_(*result);
+    *result = nk_f32_sqrt_haswell(*result);
 }
 
 NK_PUBLIC void nk_angular_e2m3_haswell(nk_e2m3_t const *a, nk_e2m3_t const *b, nk_size_t n, nk_f32_t *result) {
@@ -670,7 +684,7 @@ nk_sqeuclidean_e3m2_haswell_cycle:
 
 NK_PUBLIC void nk_euclidean_e3m2_haswell(nk_e3m2_t const *a, nk_e3m2_t const *b, nk_size_t n, nk_f32_t *result) {
     nk_sqeuclidean_e3m2_haswell(a, b, n, result);
-    *result = nk_sqrt_f32_haswell_(*result);
+    *result = nk_f32_sqrt_haswell(*result);
 }
 
 NK_PUBLIC void nk_angular_e3m2_haswell(nk_e3m2_t const *a, nk_e3m2_t const *b, nk_size_t n, nk_f32_t *result) {
@@ -732,7 +746,7 @@ nk_sqeuclidean_e4m3_haswell_cycle:
 
 NK_PUBLIC void nk_euclidean_e4m3_haswell(nk_e4m3_t const *a, nk_e4m3_t const *b, nk_size_t n, nk_f32_t *result) {
     nk_sqeuclidean_e4m3_haswell(a, b, n, result);
-    *result = nk_sqrt_f32_haswell_(*result);
+    *result = nk_f32_sqrt_haswell(*result);
 }
 
 NK_PUBLIC void nk_angular_e4m3_haswell(nk_e4m3_t const *a, nk_e4m3_t const *b, nk_size_t n, nk_f32_t *result) {
@@ -794,7 +808,7 @@ nk_sqeuclidean_e5m2_haswell_cycle:
 
 NK_PUBLIC void nk_euclidean_e5m2_haswell(nk_e5m2_t const *a, nk_e5m2_t const *b, nk_size_t n, nk_f32_t *result) {
     nk_sqeuclidean_e5m2_haswell(a, b, n, result);
-    *result = nk_sqrt_f32_haswell_(*result);
+    *result = nk_f32_sqrt_haswell(*result);
 }
 
 NK_PUBLIC void nk_angular_e5m2_haswell(nk_e5m2_t const *a, nk_e5m2_t const *b, nk_size_t n, nk_f32_t *result) {
@@ -1132,16 +1146,17 @@ NK_INTERNAL void nk_euclidean_u8x16_finalize_haswell(
                                                target_norm_c, target_norm_d, results);
 }
 
-#if defined(__cplusplus)
-} // extern "C"
-#endif
-
 #if defined(__clang__)
 #pragma clang attribute pop
 #elif defined(__GNUC__)
 #pragma GCC pop_options
 #endif
+
+#if defined(__cplusplus)
+} // extern "C"
+#endif
+
+#pragma endregion - Smaller Floats
 #endif // NK_TARGET_HASWELL
 #endif // NK_TARGET_X86_
-
 #endif // NK_SPATIAL_HASWELL_H

@@ -1,13 +1,15 @@
 /**
- *  @brief SIMD-accelerated Dot Products for Real and Complex Numbers optimized for Serial (SIMD-free) CPUs.
+ *  @brief SWAR-accelerated Point Cloud Alignment for SIMD-free CPUs.
  *  @file include/numkong/mesh/serial.h
- *  @sa include/numkong/mesh.h
  *  @author Ash Vardanian
  *  @date December 27, 2025
+ *
+ *  @sa include/numkong/mesh.h
  */
 #ifndef NK_MESH_SERIAL_H
 #define NK_MESH_SERIAL_H
 #include "numkong/types.h"
+#include "numkong/spatial/serial.h" // `nk_f32_sqrt_serial`
 
 #if defined(__cplusplus)
 extern "C" {
@@ -285,7 +287,6 @@ extern "C" {
                m[2] * (m[3] * m[7] - m[4] * m[6]);                                       \
     }
 
-/* Generate f32 SVD helpers */
 nk_define_cond_swap_(f32)
 nk_define_conditional_negating_swap_(f32)
 nk_define_approximate_givens_quaternion_(f32, NK_F32_SVD_GAMMA_, NK_F32_SVD_CSTAR_, NK_F32_SVD_SSTAR_,
@@ -299,7 +300,6 @@ nk_define_qr_decomposition_(f32)
 nk_define_svd3x3_(f32, nk_f32_sqrt_serial)
 nk_define_det3x3_(f32)
 
-/* Generate f64 SVD helpers */
 nk_define_cond_swap_(f64)
 nk_define_conditional_negating_swap_(f64)
 nk_define_approximate_givens_quaternion_(f64, NK_F64_SVD_GAMMA_, NK_F64_SVD_CSTAR_, NK_F64_SVD_SSTAR_,

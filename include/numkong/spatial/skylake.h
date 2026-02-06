@@ -1,11 +1,12 @@
 /**
- *  @brief SIMD-accelerated Spatial Similarity Measures optimized for Intel Skylake-X CPUs.
+ *  @brief SIMD-accelerated Spatial Similarity Measures for Skylake.
  *  @file include/numkong/spatial/skylake.h
- *  @sa include/numkong/spatial.h
  *  @author Ash Vardanian
  *  @date December 27, 2025
  *
- *  @section skylake_spatial_instructions Key AVX-512 Spatial Instructions
+ *  @sa include/numkong/spatial.h
+ *
+ *  @section spatial_skylake_instructions Key AVX-512 Spatial Instructions
  *
  *      Intrinsic                   Instruction                     Latency     Throughput  Ports
  *      _mm512_fmadd_ps             VFMADD132PS (ZMM, ZMM, ZMM)     4cy         0.5/cy      p05
@@ -23,6 +24,15 @@
 
 #if NK_TARGET_X86_
 #if NK_TARGET_SKYLAKE
+
+#include "numkong/types.h"
+#include "numkong/reduce/skylake.h" // `nk_reduce_add_f32x16_skylake_`
+#include "numkong/dot/skylake.h"    // `nk_dot_f64x8_state_skylake_t`
+
+#if defined(__cplusplus)
+extern "C" {
+#endif
+
 #if defined(__clang__)
 #pragma clang attribute push(__attribute__((target("avx2,avx512f,avx512vl,avx512bw,avx512dq,f16c,fma,bmi,bmi2"))), \
                              apply_to = function)
@@ -31,12 +41,7 @@
 #pragma GCC target("avx2", "avx512f", "avx512vl", "avx512bw", "avx512dq", "f16c", "fma", "bmi", "bmi2")
 #endif
 
-#include "numkong/types.h"
-#include "numkong/reduce/skylake.h" // nk_reduce_add_f32x16_skylake_
-
-#if defined(__cplusplus)
-extern "C" {
-#endif
+#pragma region - Traditional Floats
 
 NK_PUBLIC void nk_sqeuclidean_f32_skylake(nk_f32_t const *a, nk_f32_t const *b, nk_size_t n, nk_f32_t *result) {
     // Upcast to f64 for higher precision accumulation
@@ -66,7 +71,7 @@ nk_sqeuclidean_f32_skylake_cycle:
 
 NK_PUBLIC void nk_euclidean_f32_skylake(nk_f32_t const *a, nk_f32_t const *b, nk_size_t n, nk_f32_t *result) {
     nk_sqeuclidean_f32_skylake(a, b, n, result);
-    *result = nk_sqrt_f32_haswell_(*result);
+    *result = nk_f32_sqrt_haswell(*result);
 }
 
 NK_INTERNAL nk_f64_t nk_angular_normalize_f64_skylake_(nk_f64_t ab, nk_f64_t a2, nk_f64_t b2) {
@@ -153,7 +158,7 @@ nk_sqeuclidean_f64_skylake_cycle:
 
 NK_PUBLIC void nk_euclidean_f64_skylake(nk_f64_t const *a, nk_f64_t const *b, nk_size_t n, nk_f64_t *result) {
     nk_sqeuclidean_f64_skylake(a, b, n, result);
-    *result = nk_sqrt_f64_haswell_(*result);
+    *result = nk_f64_sqrt_haswell(*result);
 }
 
 NK_PUBLIC void nk_angular_f64_skylake(nk_f64_t const *a, nk_f64_t const *b, nk_size_t n, nk_f64_t *result) {
@@ -375,6 +380,9 @@ NK_INTERNAL void nk_euclidean_f32x8_finalize_skylake(
     _mm_storeu_ps(results, dist_f32x4);
 }
 
+#pragma endregion - Traditional Floats
+#pragma region - Smaller Floats
+
 NK_PUBLIC void nk_sqeuclidean_f16_skylake(nk_f16_t const *a, nk_f16_t const *b, nk_size_t n, nk_f32_t *result) {
     __m512 sum_f32x16 = _mm512_setzero_ps();
     __m256i a_f16x16, b_f16x16;
@@ -402,7 +410,7 @@ nk_sqeuclidean_f16_skylake_cycle:
 
 NK_PUBLIC void nk_euclidean_f16_skylake(nk_f16_t const *a, nk_f16_t const *b, nk_size_t n, nk_f32_t *result) {
     nk_sqeuclidean_f16_skylake(a, b, n, result);
-    *result = nk_sqrt_f32_haswell_(*result);
+    *result = nk_f32_sqrt_haswell(*result);
 }
 
 NK_PUBLIC void nk_angular_f16_skylake(nk_f16_t const *a, nk_f16_t const *b, nk_size_t n, nk_f32_t *result) {
@@ -463,7 +471,7 @@ nk_sqeuclidean_e4m3_skylake_cycle:
 
 NK_PUBLIC void nk_euclidean_e4m3_skylake(nk_e4m3_t const *a, nk_e4m3_t const *b, nk_size_t n, nk_f32_t *result) {
     nk_sqeuclidean_e4m3_skylake(a, b, n, result);
-    *result = nk_sqrt_f32_haswell_(*result);
+    *result = nk_f32_sqrt_haswell(*result);
 }
 
 NK_PUBLIC void nk_angular_e4m3_skylake(nk_e4m3_t const *a, nk_e4m3_t const *b, nk_size_t n, nk_f32_t *result) {
@@ -524,7 +532,7 @@ nk_sqeuclidean_e5m2_skylake_cycle:
 
 NK_PUBLIC void nk_euclidean_e5m2_skylake(nk_e5m2_t const *a, nk_e5m2_t const *b, nk_size_t n, nk_f32_t *result) {
     nk_sqeuclidean_e5m2_skylake(a, b, n, result);
-    *result = nk_sqrt_f32_haswell_(*result);
+    *result = nk_f32_sqrt_haswell(*result);
 }
 
 NK_PUBLIC void nk_angular_e5m2_skylake(nk_e5m2_t const *a, nk_e5m2_t const *b, nk_size_t n, nk_f32_t *result) {
@@ -585,7 +593,7 @@ nk_sqeuclidean_e2m3_skylake_cycle:
 
 NK_PUBLIC void nk_euclidean_e2m3_skylake(nk_e2m3_t const *a, nk_e2m3_t const *b, nk_size_t n, nk_f32_t *result) {
     nk_sqeuclidean_e2m3_skylake(a, b, n, result);
-    *result = nk_sqrt_f32_haswell_(*result);
+    *result = nk_f32_sqrt_haswell(*result);
 }
 
 NK_PUBLIC void nk_angular_e2m3_skylake(nk_e2m3_t const *a, nk_e2m3_t const *b, nk_size_t n, nk_f32_t *result) {
@@ -646,7 +654,7 @@ nk_sqeuclidean_e3m2_skylake_cycle:
 
 NK_PUBLIC void nk_euclidean_e3m2_skylake(nk_e3m2_t const *a, nk_e3m2_t const *b, nk_size_t n, nk_f32_t *result) {
     nk_sqeuclidean_e3m2_skylake(a, b, n, result);
-    *result = nk_sqrt_f32_haswell_(*result);
+    *result = nk_f32_sqrt_haswell(*result);
 }
 
 NK_PUBLIC void nk_angular_e3m2_skylake(nk_e3m2_t const *a, nk_e3m2_t const *b, nk_size_t n, nk_f32_t *result) {
@@ -680,16 +688,17 @@ nk_angular_e3m2_skylake_cycle:
     *result = nk_angular_normalize_f32_haswell_(dot_f32, a_norm_sq_f32, b_norm_sq_f32);
 }
 
-#if defined(__cplusplus)
-} // extern "C"
-#endif
-
 #if defined(__clang__)
 #pragma clang attribute pop
 #elif defined(__GNUC__)
 #pragma GCC pop_options
 #endif
+
+#if defined(__cplusplus)
+} // extern "C"
+#endif
+
+#pragma endregion - Smaller Floats
 #endif // NK_TARGET_SKYLAKE
 #endif // NK_TARGET_X86_
-
 #endif // NK_SPATIAL_SKYLAKE_H

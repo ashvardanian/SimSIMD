@@ -1,9 +1,10 @@
 /**
- *  @brief SIMD-accelerated point cloud and mesh operations optimized for Intel Skylake-X CPUs.
+ *  @brief SIMD-accelerated Point Cloud Alignment for Skylake.
  *  @file include/numkong/mesh/skylake.h
- *  @sa include/numkong/mesh.h
  *  @author Ash Vardanian
  *  @date December 27, 2025
+ *
+ *  @sa include/numkong/mesh.h
  *
  *  @section skylake_mesh_instructions Key AVX-512 Mesh Instructions
  *
@@ -22,19 +23,20 @@
 
 #if NK_TARGET_X86_
 #if NK_TARGET_SKYLAKE
-#if defined(__clang__)
-#pragma clang attribute push(__attribute__((target("avx2,avx512f,avx512vl,avx512bw,avx512dq,f16c,fma,bmi,bmi2"))), \
-                             apply_to = function)
-#elif defined(__GNUC__)
-#pragma GCC push_options
-#pragma GCC target("avx2", "avx512f", "avx512vl", "avx512bw", "avx512dq", "f16c", "fma", "bmi", "bmi2")
-#endif
 
 #include "numkong/types.h"
 #include "numkong/spatial/haswell.h"
 
 #if defined(__cplusplus)
 extern "C" {
+#endif
+
+#if defined(__clang__)
+#pragma clang attribute push(__attribute__((target("avx2,avx512f,avx512vl,avx512bw,avx512dq,f16c,fma,bmi,bmi2"))), \
+                             apply_to = function)
+#elif defined(__GNUC__)
+#pragma GCC push_options
+#pragma GCC target("avx2", "avx512f", "avx512vl", "avx512bw", "avx512dq", "f16c", "fma", "bmi", "bmi2")
 #endif
 
 /*  Deinterleave 48 floats (16 xyz triplets) into separate x, y, z vectors.
@@ -428,7 +430,7 @@ NK_PUBLIC void nk_rmsd_f32_skylake(nk_f32_t const *a, nk_f32_t const *b, nk_size
     nk_f32_t sum_squared = _mm512_reduce_add_ps(sum_squared_total_f32x16);
     nk_f32_t mean_diff_sq = mean_diff_x * mean_diff_x + mean_diff_y * mean_diff_y + mean_diff_z * mean_diff_z;
 
-    *result = nk_sqrt_f32_haswell_(sum_squared * inv_n - mean_diff_sq);
+    *result = nk_f32_sqrt_haswell(sum_squared * inv_n - mean_diff_sq);
 }
 
 NK_PUBLIC void nk_kabsch_f32_skylake(nk_f32_t const *a, nk_f32_t const *b, nk_size_t n, nk_f32_t *a_centroid,
@@ -589,7 +591,7 @@ NK_PUBLIC void nk_kabsch_f32_skylake(nk_f32_t const *a, nk_f32_t const *b, nk_si
     // Compute RMSD after optimal rotation
     nk_f32_t sum_squared = nk_transformed_ssd_f32_skylake_(a, b, n, r, 1.0f, centroid_a_x, centroid_a_y, centroid_a_z,
                                                            centroid_b_x, centroid_b_y, centroid_b_z);
-    *result = nk_sqrt_f32_haswell_(sum_squared * inv_n);
+    *result = nk_f32_sqrt_haswell(sum_squared * inv_n);
 }
 
 NK_PUBLIC void nk_rmsd_f64_skylake(nk_f64_t const *a, nk_f64_t const *b, nk_size_t n, nk_f64_t *a_centroid,
@@ -732,7 +734,7 @@ NK_PUBLIC void nk_rmsd_f64_skylake(nk_f64_t const *a, nk_f64_t const *b, nk_size
     nk_f64_t sum_squared = _mm512_reduce_add_pd(sum_squared_total_f64x8);
     nk_f64_t mean_diff_sq = mean_diff_x * mean_diff_x + mean_diff_y * mean_diff_y + mean_diff_z * mean_diff_z;
 
-    *result = nk_sqrt_f64_haswell_(sum_squared * inv_n - mean_diff_sq);
+    *result = nk_f64_sqrt_haswell(sum_squared * inv_n - mean_diff_sq);
 }
 
 NK_PUBLIC void nk_kabsch_f64_skylake(nk_f64_t const *a, nk_f64_t const *b, nk_size_t n, nk_f64_t *a_centroid,
@@ -877,7 +879,7 @@ NK_PUBLIC void nk_kabsch_f64_skylake(nk_f64_t const *a, nk_f64_t const *b, nk_si
     // Compute RMSD after optimal rotation
     nk_f64_t sum_squared = nk_transformed_ssd_f64_skylake_(a, b, n, r, 1.0, centroid_a_x, centroid_a_y, centroid_a_z,
                                                            centroid_b_x, centroid_b_y, centroid_b_z);
-    *result = nk_sqrt_f64_haswell_(sum_squared * inv_n);
+    *result = nk_f64_sqrt_haswell(sum_squared * inv_n);
 }
 
 NK_PUBLIC void nk_umeyama_f32_skylake(nk_f32_t const *a, nk_f32_t const *b, nk_size_t n, nk_f32_t *a_centroid,
@@ -1037,7 +1039,7 @@ NK_PUBLIC void nk_umeyama_f32_skylake(nk_f32_t const *a, nk_f32_t const *b, nk_s
     // Compute RMSD with scaling
     nk_f32_t sum_squared = nk_transformed_ssd_f32_skylake_(a, b, n, r, c, centroid_a_x, centroid_a_y, centroid_a_z,
                                                            centroid_b_x, centroid_b_y, centroid_b_z);
-    *result = nk_sqrt_f32_haswell_(sum_squared * inv_n);
+    *result = nk_f32_sqrt_haswell(sum_squared * inv_n);
 }
 
 NK_PUBLIC void nk_umeyama_f64_skylake(nk_f64_t const *a, nk_f64_t const *b, nk_size_t n, nk_f64_t *a_centroid,
@@ -1190,19 +1192,19 @@ NK_PUBLIC void nk_umeyama_f64_skylake(nk_f64_t const *a, nk_f64_t const *b, nk_s
     // Compute RMSD with scaling
     nk_f64_t sum_squared = nk_transformed_ssd_f64_skylake_(a, b, n, r, c, centroid_a_x, centroid_a_y, centroid_a_z,
                                                            centroid_b_x, centroid_b_y, centroid_b_z);
-    *result = nk_sqrt_f64_haswell_(sum_squared * inv_n);
+    *result = nk_f64_sqrt_haswell(sum_squared * inv_n);
 }
-
-#if defined(__cplusplus)
-} // extern "C"
-#endif
 
 #if defined(__clang__)
 #pragma clang attribute pop
 #elif defined(__GNUC__)
 #pragma GCC pop_options
 #endif
+
+#if defined(__cplusplus)
+} // extern "C"
+#endif
+
 #endif // NK_TARGET_SKYLAKE
 #endif // NK_TARGET_X86_
-
 #endif // NK_MESH_SKYLAKE_H

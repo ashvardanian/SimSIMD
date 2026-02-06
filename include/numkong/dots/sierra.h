@@ -1,9 +1,10 @@
 /**
- *  @brief SIMD-accelerated GEMM for Integer Datatypes optimized for Intel Sierra Forest CPUs.
+ *  @brief SIMD-accelerated Batched Dot Products for Sierra Forest.
  *  @file include/numkong/dots/sierra.h
- *  @sa include/numkong/dots.h
  *  @author Ash Vardanian
  *  @date December 27, 2025
+ *
+ *  @sa include/numkong/dots.h
  *
  *  Uses AVX-VNNI (256-bit) for integer GEMM:
  *  - _mm256_dpbssds_epi32: i8 × i8 → i32 with saturation
@@ -14,12 +15,6 @@
 
 #if NK_TARGET_X86_
 #if NK_TARGET_SIERRA
-#if defined(__clang__)
-#pragma clang attribute push(__attribute__((target("avx2,f16c,fma,bmi,bmi2,avxvnni,avxvnniint8"))), apply_to = function)
-#elif defined(__GNUC__)
-#pragma GCC push_options
-#pragma GCC target("avx2", "f16c", "fma", "bmi", "bmi2", "avxvnni", "avxvnniint8")
-#endif
 
 #include "numkong/dot/sierra.h"  // Sierra-specific dot product helpers
 #include "numkong/dot/haswell.h" // Haswell partial load functions
@@ -27,6 +22,13 @@
 
 #if defined(__cplusplus)
 extern "C" {
+#endif
+
+#if defined(__clang__)
+#pragma clang attribute push(__attribute__((target("avx2,f16c,fma,bmi,bmi2,avxvnni,avxvnniint8"))), apply_to = function)
+#elif defined(__GNUC__)
+#pragma GCC push_options
+#pragma GCC target("avx2", "f16c", "fma", "bmi", "bmi2", "avxvnni", "avxvnniint8")
 #endif
 
 /* I8 GEMM: depth_simd_dimensions=32 (32 i8s = 32 bytes = AVX2 register width) */
@@ -57,16 +59,16 @@ nk_define_cross_packed_(dots, u8, sierra, u8, u8, u32, nk_b256_vec_t, nk_dot_u8x
                         nk_dot_u8x32_finalize_sierra, nk_partial_store_b32x4_serial_,
                         /*depth_simd_dimensions=*/32, /*dimensions_per_value=*/1)
 
-#if defined(__cplusplus)
-} // extern "C"
-#endif
-
 #if defined(__clang__)
 #pragma clang attribute pop
 #elif defined(__GNUC__)
 #pragma GCC pop_options
 #endif
+
+#if defined(__cplusplus)
+} // extern "C"
+#endif
+
 #endif // NK_TARGET_SIERRA
 #endif // NK_TARGET_X86_
-
 #endif // NK_DOTS_SIERRA_H

@@ -1,5 +1,5 @@
 /**
- *  @brief SIMD-accelerated type-casting operations.
+ *  @brief SIMD-accelerated Type Conversions.
  *  @file include/numkong/cast.h
  *  @author Ash Vardanian
  *  @date January 2, 2026
@@ -69,42 +69,50 @@ NK_PUBLIC void nk_cast_haswell(void const *from, nk_dtype_t from_type, nk_size_t
 NK_PUBLIC void nk_cast_skylake(void const *from, nk_dtype_t from_type, nk_size_t n, void *to, nk_dtype_t to_type);
 #endif // NK_TARGET_SKYLAKE
 
-#if NK_TARGET_ICE
+#if NK_TARGET_ICELAKE
 /** @copydoc nk_cast */
-NK_PUBLIC void nk_cast_ice(void const *from, nk_dtype_t from_type, nk_size_t n, void *to, nk_dtype_t to_type);
-#endif // NK_TARGET_ICE
+NK_PUBLIC void nk_cast_icelake(void const *from, nk_dtype_t from_type, nk_size_t n, void *to, nk_dtype_t to_type);
+#endif // NK_TARGET_ICELAKE
 
 #if NK_TARGET_SAPPHIRE
 /** @copydoc nk_cast */
 NK_PUBLIC void nk_cast_sapphire(void const *from, nk_dtype_t from_type, nk_size_t n, void *to, nk_dtype_t to_type);
 #endif // NK_TARGET_SAPPHIRE
 
-#if NK_TARGET_SPACEMIT
+#if NK_TARGET_RVV
 /** @copydoc nk_cast */
-NK_PUBLIC void nk_cast_spacemit(void const *from, nk_dtype_t from_type, nk_size_t n, void *to, nk_dtype_t to_type);
-#endif // NK_TARGET_SPACEMIT
+NK_PUBLIC void nk_cast_rvv(void const *from, nk_dtype_t from_type, nk_size_t n, void *to, nk_dtype_t to_type);
+#endif // NK_TARGET_RVV
+
+#if defined(__cplusplus)
+} // extern "C"
+#endif
 
 #include "numkong/cast/serial.h"
 #include "numkong/cast/neon.h"
 #include "numkong/cast/haswell.h"
 #include "numkong/cast/skylake.h"
-#include "numkong/cast/ice.h"
+#include "numkong/cast/icelake.h"
 #include "numkong/cast/sapphire.h"
-#include "numkong/cast/spacemit.h"
+#include "numkong/cast/rvv.h"
+
+#if defined(__cplusplus)
+extern "C" {
+#endif
 
 #if !NK_DYNAMIC_DISPATCH
 
 NK_PUBLIC void nk_cast(void const *from, nk_dtype_t from_type, nk_size_t n, void *to, nk_dtype_t to_type) {
 #if NK_TARGET_SAPPHIRE
     nk_cast_sapphire(from, from_type, n, to, to_type);
-#elif NK_TARGET_ICE
-    nk_cast_ice(from, from_type, n, to, to_type);
+#elif NK_TARGET_ICELAKE
+    nk_cast_icelake(from, from_type, n, to, to_type);
 #elif NK_TARGET_SKYLAKE
     nk_cast_skylake(from, from_type, n, to, to_type);
 #elif NK_TARGET_HASWELL
     nk_cast_haswell(from, from_type, n, to, to_type);
-#elif NK_TARGET_SPACEMIT
-    nk_cast_spacemit(from, from_type, n, to, to_type);
+#elif NK_TARGET_RVV
+    nk_cast_rvv(from, from_type, n, to, to_type);
 #elif NK_TARGET_NEON
     nk_cast_neon(from, from_type, n, to, to_type);
 #else
@@ -151,7 +159,7 @@ NK_PUBLIC void nk_f32_to_e3m2(nk_f32_t const *src, nk_e3m2_t *dest) { nk_f32_to_
 #endif // !NK_DYNAMIC_DISPATCH
 
 #if defined(__cplusplus)
-}
+} // extern "C"
 #endif
 
 #endif // NK_CAST_H

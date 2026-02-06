@@ -1,9 +1,11 @@
 /**
- *  @brief SIMD-accelerated trigonometric element-wise operations, based on SLEEF, optimized for Intel Skylake-X CPUs.
+ *  @brief SIMD-accelerated Trigonometric Functions for Skylake.
  *  @file include/numkong/trigonometry/skylake.h
- *  @sa include/numkong/trigonometry.h
  *  @author Ash Vardanian
  *  @date December 27, 2025
+ *
+ *  @sa include/numkong/trigonometry.h
+ *  @see https://sleef.org
  *
  *  @section skylake_trig_instructions Key AVX-512 Trigonometry Instructions
  *
@@ -23,18 +25,19 @@
 
 #if NK_TARGET_X86_
 #if NK_TARGET_SKYLAKE
+
+#include "numkong/types.h"
+
+#if defined(__cplusplus)
+extern "C" {
+#endif
+
 #if defined(__clang__)
 #pragma clang attribute push(__attribute__((target("avx2,avx512f,avx512vl,avx512bw,avx512dq,f16c,fma,bmi,bmi2"))), \
                              apply_to = function)
 #elif defined(__GNUC__)
 #pragma GCC push_options
 #pragma GCC target("avx2", "avx512f", "avx512vl", "avx512bw", "avx512dq", "f16c", "fma", "bmi", "bmi2")
-#endif
-
-#include "numkong/types.h"
-
-#if defined(__cplusplus)
-extern "C" {
 #endif
 
 NK_INTERNAL __m512 nk_f32x16_sin_skylake_(__m512 const angles_radians) {
@@ -175,38 +178,32 @@ NK_INTERNAL __m512 nk_f32x16_atan2_skylake_(__m512 const ys_inputs, __m512 const
     polynomials = _mm512_fmadd_ps(polynomials, ratio_squared, coeff_7);
     polynomials = _mm512_fmadd_ps(polynomials, ratio_squared, coeff_8);
 
-    // Compute the result, but unlike the serial version, we don't keep the quadrant index
-    // in a form of an integer to compute the `quadrant * (π/2)` term, instead we use the
-    // masks to achieve the same.
+    // Compute quadrant value: 0 for x>=0 && !swap, 1 for x>=0 && swap,
+    //                        -2 for x<0 && !swap, -1 for x<0 && swap
     __m512 results = _mm512_fmadd_ps(ratio_cubed, polynomials, ratio);
-    results = _mm512_mask_sub_ps(results, xs_negative_mask, results, _mm512_set1_ps(3.14159265358979323846f));
-    results = _mm512_mask_add_ps(results, swap_mask, results, _mm512_set1_ps(1.5707963267948966f));
+    __m512 quadrant = _mm512_setzero_ps();
+    __m512 neg_two = _mm512_set1_ps(-2.0f);
+    quadrant = _mm512_mask_blend_ps(xs_negative_mask, quadrant, neg_two);
+    __m512 one = _mm512_set1_ps(1.0f);
+    __m512 quadrant_incremented = _mm512_add_ps(quadrant, one);
+    quadrant = _mm512_mask_blend_ps(swap_mask, quadrant, quadrant_incremented);
 
-    // Special cases handling doesn't even require constants, as AVX-512 can automatically classify infinities.
-    // However, those `_mm512_fpclass_ps_mask` ~ `VFPCLASSPS (K, ZMM, I8)` instructions aren't free:
-    //
-    // - On Intel they generally cost 4 cycles and operate only on port 5.
-    // - On AMD, its 5 cycles and two ports: 0 and 1.
-    //
-    // The alternative is to use equality comparions like `_mm512_cmpeq_ps_mask` ~ `VCMPPS (K, ZMM, ZMM, I8)`:
-    //
-    // - On Intel they generally cost 4 cycles and operate only on port 5.
-    // - On AMD, its 5 cycles and two ports: 0 and 1.
-    //
-    // ! Same as before, so not much space for latency hiding!
-    // ! Integer comparison for 32 bit types also have the same cost on the same ports.
-    __mmask16 const xs_is_inf = _mm512_fpclass_ps_mask(xs, 0x18);
-    __mmask16 const ys_is_inf = _mm512_fpclass_ps_mask(ys, 0x18);
-    __mmask16 const xs_is_zero = _mm512_fpclass_ps_mask(xs, 0x06);
-    __mmask16 const ys_is_zero = _mm512_fpclass_ps_mask(ys, 0x06);
+    // Adjust for quadrant: result += quadrant * π/2
+    __m512 pi_half = _mm512_set1_ps(1.5707963267948966f);
+    results = _mm512_fmadd_ps(quadrant, pi_half, results);
 
-    // Adjust sign based on x
-    results = _mm512_mask_xor_ps(results, xs_negative_mask, results, _mm512_set1_ps(-0.0f));
+    // Transfer sign from x (XOR with sign bit of x_input)
+    __m512 xs_sign_bits = _mm512_and_ps(xs_inputs, _mm512_set1_ps(-0.0f));
+    results = _mm512_xor_ps(results, xs_sign_bits);
+
+    // Transfer sign from y (XOR with sign bit of y_input)
+    __m512 ys_sign_bits = _mm512_and_ps(ys_inputs, _mm512_set1_ps(-0.0f));
+    results = _mm512_xor_ps(results, ys_sign_bits);
 
     return results;
 }
 
-NK_PUBLIC void nk_sin_f32_skylake(nk_f32_t const *ins, nk_size_t n, nk_f32_t *outs) {
+NK_PUBLIC void nk_each_sin_f32_skylake(nk_f32_t const *ins, nk_size_t n, nk_f32_t *outs) {
     nk_size_t i = 0;
     for (; i + 16 <= n; i += 16) {
         __m512 angles = _mm512_loadu_ps(ins + i);
@@ -220,7 +217,7 @@ NK_PUBLIC void nk_sin_f32_skylake(nk_f32_t const *ins, nk_size_t n, nk_f32_t *ou
         _mm512_mask_storeu_ps(outs + i, mask, results);
     }
 }
-NK_PUBLIC void nk_cos_f32_skylake(nk_f32_t const *ins, nk_size_t n, nk_f32_t *outs) {
+NK_PUBLIC void nk_each_cos_f32_skylake(nk_f32_t const *ins, nk_size_t n, nk_f32_t *outs) {
     nk_size_t i = 0;
     for (; i + 16 <= n; i += 16) {
         __m512 angles = _mm512_loadu_ps(ins + i);
@@ -234,7 +231,7 @@ NK_PUBLIC void nk_cos_f32_skylake(nk_f32_t const *ins, nk_size_t n, nk_f32_t *ou
         _mm512_mask_storeu_ps(outs + i, mask, results);
     }
 }
-NK_PUBLIC void nk_atan_f32_skylake(nk_f32_t const *ins, nk_size_t n, nk_f32_t *outs) {
+NK_PUBLIC void nk_each_atan_f32_skylake(nk_f32_t const *ins, nk_size_t n, nk_f32_t *outs) {
     nk_size_t i = 0;
     for (; i + 16 <= n; i += 16) {
         __m512 angles = _mm512_loadu_ps(ins + i);
@@ -481,18 +478,29 @@ NK_INTERNAL __m512d nk_f64x8_atan2_skylake_(__m512d const ys_inputs, __m512d con
 
     // Compute the result with quadrant adjustments
     __m512d results = _mm512_fmadd_pd(ratio_cubed, polynomials, ratio);
-    results = _mm512_mask_sub_pd(results, xs_negative_mask, results, _mm512_set1_pd(3.14159265358979323846));
-    results = _mm512_mask_add_pd(results, swap_mask, results, _mm512_set1_pd(1.5707963267948966));
 
-    // Adjust sign based on original x and y signs (matching scalar atan2 behavior)
-    __m512d const y_sign = _mm512_and_pd(ys_inputs, _mm512_set1_pd(-0.0));
-    results = _mm512_mask_xor_pd(results, xs_negative_mask, results, _mm512_set1_pd(-0.0));
-    results = _mm512_xor_pd(results, y_sign);
+    // Compute quadrant value: 0 for x>=0 && !swap, 1 for x>=0 && swap,
+    //                        -2 for x<0 && !swap, -1 for x<0 && swap
+    __m512d quadrant = _mm512_setzero_pd();
+    quadrant = _mm512_mask_blend_pd(xs_negative_mask, quadrant, _mm512_set1_pd(-2.0));
+    __m512d quadrant_incremented = _mm512_add_pd(quadrant, _mm512_set1_pd(1.0));
+    quadrant = _mm512_mask_blend_pd(swap_mask, quadrant, quadrant_incremented);
+
+    // Adjust for quadrant: result += quadrant * π/2
+    results = _mm512_fmadd_pd(quadrant, _mm512_set1_pd(1.5707963267948966), results);
+
+    // Transfer sign from x (XOR with sign bit of x_input)
+    __m512d xs_sign = _mm512_and_pd(xs_inputs, _mm512_set1_pd(-0.0));
+    results = _mm512_xor_pd(results, xs_sign);
+
+    // Transfer sign from y (XOR with sign bit of y_input)
+    __m512d ys_sign = _mm512_and_pd(ys_inputs, _mm512_set1_pd(-0.0));
+    results = _mm512_xor_pd(results, ys_sign);
 
     return results;
 }
 
-NK_PUBLIC void nk_sin_f64_skylake(nk_f64_t const *ins, nk_size_t n, nk_f64_t *outs) {
+NK_PUBLIC void nk_each_sin_f64_skylake(nk_f64_t const *ins, nk_size_t n, nk_f64_t *outs) {
     nk_size_t i = 0;
     for (; i + 8 <= n; i += 8) {
         __m512d angles = _mm512_loadu_pd(ins + i);
@@ -506,7 +514,7 @@ NK_PUBLIC void nk_sin_f64_skylake(nk_f64_t const *ins, nk_size_t n, nk_f64_t *ou
         _mm512_mask_storeu_pd(outs + i, mask, results);
     }
 }
-NK_PUBLIC void nk_cos_f64_skylake(nk_f64_t const *ins, nk_size_t n, nk_f64_t *outs) {
+NK_PUBLIC void nk_each_cos_f64_skylake(nk_f64_t const *ins, nk_size_t n, nk_f64_t *outs) {
     nk_size_t i = 0;
     for (; i + 8 <= n; i += 8) {
         __m512d angles = _mm512_loadu_pd(ins + i);
@@ -520,7 +528,7 @@ NK_PUBLIC void nk_cos_f64_skylake(nk_f64_t const *ins, nk_size_t n, nk_f64_t *ou
         _mm512_mask_storeu_pd(outs + i, mask, results);
     }
 }
-NK_PUBLIC void nk_atan_f64_skylake(nk_f64_t const *ins, nk_size_t n, nk_f64_t *outs) {
+NK_PUBLIC void nk_each_atan_f64_skylake(nk_f64_t const *ins, nk_size_t n, nk_f64_t *outs) {
     nk_size_t i = 0;
     for (; i + 8 <= n; i += 8) {
         __m512d angles = _mm512_loadu_pd(ins + i);
@@ -534,17 +542,17 @@ NK_PUBLIC void nk_atan_f64_skylake(nk_f64_t const *ins, nk_size_t n, nk_f64_t *o
         _mm512_mask_storeu_pd(outs + i, mask, results);
     }
 }
-
-#if defined(__cplusplus)
-} // extern "C"
-#endif
 
 #if defined(__clang__)
 #pragma clang attribute pop
 #elif defined(__GNUC__)
 #pragma GCC pop_options
 #endif
+
+#if defined(__cplusplus)
+} // extern "C"
+#endif
+
 #endif // NK_TARGET_SKYLAKE
 #endif // NK_TARGET_X86_
-
 #endif // NK_TRIGONOMETRY_SKYLAKE_H

@@ -1,11 +1,12 @@
 /**
- *  @brief SIMD-accelerated Spatial Similarity Measures optimized for Arm NEON-capable CPUs.
+ *  @brief SIMD-accelerated Spatial Similarity Measures for NEON.
  *  @file include/numkong/spatial/neon.h
- *  @sa include/numkong/spatial.h
  *  @author Ash Vardanian
  *  @date December 27, 2025
  *
- *  @section neon_spatial_instructions Key NEON Spatial Instructions
+ *  @sa include/numkong/spatial.h
+ *
+ *  @section spatial_neon_instructions Key NEON Spatial Instructions
  *
  *  ARM NEON instructions for distance computations:
  *
@@ -30,6 +31,14 @@
 
 #if NK_TARGET_ARM_
 #if NK_TARGET_NEON
+
+#include "numkong/types.h"
+#include "numkong/dot/neon.h" // `nk_dot_f32x2_state_neon_t`
+
+#if defined(__cplusplus)
+extern "C" {
+#endif
+
 #if defined(__clang__)
 #pragma clang attribute push(__attribute__((target("arch=armv8-a+simd"))), apply_to = function)
 #elif defined(__GNUC__)
@@ -37,15 +46,8 @@
 #pragma GCC target("arch=armv8-a+simd")
 #endif
 
-#include "numkong/types.h"
-#include "numkong/dot/neon.h" // For nk_dot_f32x2_state_neon_t
-
-#if defined(__cplusplus)
-extern "C" {
-#endif
-
-NK_PUBLIC nk_f32_t nk_f32_sqrt_neon(nk_f32_t x) { return vget_lane_f32(vsqrt_f32(vdup_n_f32(x)), 0); }
-NK_PUBLIC nk_f64_t nk_f64_sqrt_neon(nk_f64_t x) { return vget_lane_f64(vsqrt_f64(vdup_n_f64(x)), 0); }
+NK_INTERNAL nk_f32_t nk_f32_sqrt_neon(nk_f32_t x) { return vget_lane_f32(vsqrt_f32(vdup_n_f32(x)), 0); }
+NK_INTERNAL nk_f64_t nk_f64_sqrt_neon(nk_f64_t x) { return vget_lane_f64(vsqrt_f64(vdup_n_f64(x)), 0); }
 
 NK_INTERNAL nk_f32_t nk_angular_normalize_f32_neon_(nk_f32_t ab, nk_f32_t a2, nk_f32_t b2) {
     if (a2 == 0 && b2 == 0) return 0;
@@ -88,6 +90,8 @@ NK_INTERNAL nk_f64_t nk_angular_normalize_f64_neon_(nk_f64_t ab, nk_f64_t a2, nk
     nk_f64_t result = 1 - ab * squares_arr[0] * squares_arr[1];
     return result > 0 ? result : 0;
 }
+
+#pragma region - Traditional Floats
 
 NK_PUBLIC void nk_sqeuclidean_f32_neon(nk_f32_t const *a, nk_f32_t const *b, nk_size_t n, nk_f32_t *result) {
     // Accumulate in f64 for numerical stability (2 f32s per iteration, avoids slow vget_low/high)
@@ -194,6 +198,9 @@ NK_PUBLIC void nk_angular_f64_neon(nk_f64_t const *a, nk_f64_t const *b, nk_size
     }
     *result = nk_angular_normalize_f64_neon_(ab_f64, a2_f64, b2_f64);
 }
+
+#pragma endregion - Traditional Floats
+#pragma region - Smaller Floats
 
 NK_PUBLIC void nk_sqeuclidean_e2m3_neon(nk_e2m3_t const *a, nk_e2m3_t const *b, nk_size_t n, nk_f32_t *result) {
     float32x4_t sum_f32x4 = vdupq_n_f32(0);
@@ -623,16 +630,17 @@ NK_INTERNAL void nk_euclidean_f32x2_finalize_neon(nk_euclidean_f32x2_state_neon_
                                             target_norm_d, results);
 }
 
-#if defined(__cplusplus)
-} // extern "C"
-#endif
-
 #if defined(__clang__)
 #pragma clang attribute pop
 #elif defined(__GNUC__)
 #pragma GCC pop_options
 #endif
+
+#if defined(__cplusplus)
+} // extern "C"
+#endif
+
+#pragma endregion - Smaller Floats
 #endif // NK_TARGET_NEON
 #endif // NK_TARGET_ARM_
-
 #endif // NK_SPATIAL_NEON_H

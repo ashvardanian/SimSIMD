@@ -212,5 +212,7 @@
         "scripts/test.py"
     ],
     "python.testing.pytestEnabled": true,
-    "python.testing.unittestEnabled": false
+    "python.testing.unittestEnabled": false,
+    "diffEditor.diffAlgorithm": "legacy",
+    "diffEditor.maxComputationTime": 0
 }

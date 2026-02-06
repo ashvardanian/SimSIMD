@@ -1,5 +1,5 @@
 /**
- *  @brief SIMD-accelerated mixed-precision element-wise operations.
+ *  @brief SIMD-accelerated Elementwise Arithmetic.
  *  @file include/numkong/each.h
  *  @author Ash Vardanian
  *  @date October 16, 2024
@@ -776,24 +776,24 @@ NK_PUBLIC void nk_each_fma_e5m2_skylake(nk_e5m2_t const *a, nk_e5m2_t const *b, 
                                         nk_f32_t const *alpha, nk_f32_t const *beta, nk_e5m2_t *result);
 #endif // NK_TARGET_SKYLAKE
 
-#if NK_TARGET_ICE
+#if NK_TARGET_ICELAKE
 /** @copydoc nk_each_sum_i8 */
-NK_PUBLIC void nk_each_sum_i8_ice(nk_i8_t const *a, nk_i8_t const *b, nk_size_t n, nk_i8_t *result);
+NK_PUBLIC void nk_each_sum_i8_icelake(nk_i8_t const *a, nk_i8_t const *b, nk_size_t n, nk_i8_t *result);
 /** @copydoc nk_each_sum_u8 */
-NK_PUBLIC void nk_each_sum_u8_ice(nk_u8_t const *a, nk_u8_t const *b, nk_size_t n, nk_u8_t *result);
+NK_PUBLIC void nk_each_sum_u8_icelake(nk_u8_t const *a, nk_u8_t const *b, nk_size_t n, nk_u8_t *result);
 /** @copydoc nk_each_sum_i16 */
-NK_PUBLIC void nk_each_sum_i16_ice(nk_i16_t const *a, nk_i16_t const *b, nk_size_t n, nk_i16_t *result);
+NK_PUBLIC void nk_each_sum_i16_icelake(nk_i16_t const *a, nk_i16_t const *b, nk_size_t n, nk_i16_t *result);
 /** @copydoc nk_each_sum_u16 */
-NK_PUBLIC void nk_each_sum_u16_ice(nk_u16_t const *a, nk_u16_t const *b, nk_size_t n, nk_u16_t *result);
+NK_PUBLIC void nk_each_sum_u16_icelake(nk_u16_t const *a, nk_u16_t const *b, nk_size_t n, nk_u16_t *result);
 /** @copydoc nk_each_sum_i32 */
-NK_PUBLIC void nk_each_sum_i32_ice(nk_i32_t const *a, nk_i32_t const *b, nk_size_t n, nk_i32_t *result);
+NK_PUBLIC void nk_each_sum_i32_icelake(nk_i32_t const *a, nk_i32_t const *b, nk_size_t n, nk_i32_t *result);
 /** @copydoc nk_each_sum_u32 */
-NK_PUBLIC void nk_each_sum_u32_ice(nk_u32_t const *a, nk_u32_t const *b, nk_size_t n, nk_u32_t *result);
+NK_PUBLIC void nk_each_sum_u32_icelake(nk_u32_t const *a, nk_u32_t const *b, nk_size_t n, nk_u32_t *result);
 /** @copydoc nk_each_sum_i64 */
-NK_PUBLIC void nk_each_sum_i64_ice(nk_i64_t const *a, nk_i64_t const *b, nk_size_t n, nk_i64_t *result);
+NK_PUBLIC void nk_each_sum_i64_icelake(nk_i64_t const *a, nk_i64_t const *b, nk_size_t n, nk_i64_t *result);
 /** @copydoc nk_each_sum_u64 */
-NK_PUBLIC void nk_each_sum_u64_ice(nk_u64_t const *a, nk_u64_t const *b, nk_size_t n, nk_u64_t *result);
-#endif // NK_TARGET_ICE
+NK_PUBLIC void nk_each_sum_u64_icelake(nk_u64_t const *a, nk_u64_t const *b, nk_size_t n, nk_u64_t *result);
+#endif // NK_TARGET_ICELAKE
 
 #if NK_TARGET_SAPPHIRE
 /** @copydoc nk_each_scale_f16 */
@@ -859,14 +859,22 @@ NK_INTERNAL nk_dtype_t nk_each_blend_output_dtype(nk_dtype_t dtype) { return nk_
 /** @copydoc nk_each_scale_output_dtype */
 NK_INTERNAL nk_dtype_t nk_each_fma_output_dtype(nk_dtype_t dtype) { return nk_each_scale_output_dtype(dtype); }
 
+#if defined(__cplusplus)
+} // extern "C"
+#endif
+
 #include "numkong/each/serial.h"
 #include "numkong/each/neon.h"
 #include "numkong/each/neonhalf.h"
 #include "numkong/each/neonbfdot.h"
 #include "numkong/each/haswell.h"
 #include "numkong/each/skylake.h"
-#include "numkong/each/ice.h"
+#include "numkong/each/icelake.h"
 #include "numkong/each/sapphire.h"
+
+#if defined(__cplusplus)
+extern "C" {
+#endif
 
 #if !NK_DYNAMIC_DISPATCH
 
@@ -919,8 +927,8 @@ NK_PUBLIC void nk_each_sum_f16(nk_f16_t const *a, nk_f16_t const *b, nk_size_t n
 }
 
 NK_PUBLIC void nk_each_sum_i8(nk_i8_t const *a, nk_i8_t const *b, nk_size_t n, nk_i8_t *r) {
-#if NK_TARGET_ICE
-    nk_each_sum_i8_ice(a, b, n, r);
+#if NK_TARGET_ICELAKE
+    nk_each_sum_i8_icelake(a, b, n, r);
 #elif NK_TARGET_HASWELL
     nk_each_sum_i8_haswell(a, b, n, r);
 #elif NK_TARGET_NEONHALF
@@ -931,8 +939,8 @@ NK_PUBLIC void nk_each_sum_i8(nk_i8_t const *a, nk_i8_t const *b, nk_size_t n, n
 }
 
 NK_PUBLIC void nk_each_sum_u8(nk_u8_t const *a, nk_u8_t const *b, nk_size_t n, nk_u8_t *r) {
-#if NK_TARGET_ICE
-    nk_each_sum_u8_ice(a, b, n, r);
+#if NK_TARGET_ICELAKE
+    nk_each_sum_u8_icelake(a, b, n, r);
 #elif NK_TARGET_HASWELL
     nk_each_sum_u8_haswell(a, b, n, r);
 #elif NK_TARGET_NEONHALF
@@ -943,8 +951,8 @@ NK_PUBLIC void nk_each_sum_u8(nk_u8_t const *a, nk_u8_t const *b, nk_size_t n, n
 }
 
 NK_PUBLIC void nk_each_sum_i16(nk_i16_t const *a, nk_i16_t const *b, nk_size_t n, nk_i16_t *r) {
-#if NK_TARGET_ICE
-    nk_each_sum_i16_ice(a, b, n, r);
+#if NK_TARGET_ICELAKE
+    nk_each_sum_i16_icelake(a, b, n, r);
 #elif NK_TARGET_HASWELL
     nk_each_sum_i16_haswell(a, b, n, r);
 #elif NK_TARGET_NEON
@@ -955,8 +963,8 @@ NK_PUBLIC void nk_each_sum_i16(nk_i16_t const *a, nk_i16_t const *b, nk_size_t n
 }
 
 NK_PUBLIC void nk_each_sum_u16(nk_u16_t const *a, nk_u16_t const *b, nk_size_t n, nk_u16_t *r) {
-#if NK_TARGET_ICE
-    nk_each_sum_u16_ice(a, b, n, r);
+#if NK_TARGET_ICELAKE
+    nk_each_sum_u16_icelake(a, b, n, r);
 #elif NK_TARGET_HASWELL
     nk_each_sum_u16_haswell(a, b, n, r);
 #elif NK_TARGET_NEON
@@ -967,8 +975,8 @@ NK_PUBLIC void nk_each_sum_u16(nk_u16_t const *a, nk_u16_t const *b, nk_size_t n
 }
 
 NK_PUBLIC void nk_each_sum_i32(nk_i32_t const *a, nk_i32_t const *b, nk_size_t n, nk_i32_t *r) {
-#if NK_TARGET_ICE
-    nk_each_sum_i32_ice(a, b, n, r);
+#if NK_TARGET_ICELAKE
+    nk_each_sum_i32_icelake(a, b, n, r);
 #elif NK_TARGET_HASWELL
     nk_each_sum_i32_haswell(a, b, n, r);
 #elif NK_TARGET_NEON
@@ -979,8 +987,8 @@ NK_PUBLIC void nk_each_sum_i32(nk_i32_t const *a, nk_i32_t const *b, nk_size_t n
 }
 
 NK_PUBLIC void nk_each_sum_u32(nk_u32_t const *a, nk_u32_t const *b, nk_size_t n, nk_u32_t *r) {
-#if NK_TARGET_ICE
-    nk_each_sum_u32_ice(a, b, n, r);
+#if NK_TARGET_ICELAKE
+    nk_each_sum_u32_icelake(a, b, n, r);
 #elif NK_TARGET_HASWELL
     nk_each_sum_u32_haswell(a, b, n, r);
 #elif NK_TARGET_NEON
@@ -991,8 +999,8 @@ NK_PUBLIC void nk_each_sum_u32(nk_u32_t const *a, nk_u32_t const *b, nk_size_t n
 }
 
 NK_PUBLIC void nk_each_sum_i64(nk_i64_t const *a, nk_i64_t const *b, nk_size_t n, nk_i64_t *r) {
-#if NK_TARGET_ICE
-    nk_each_sum_i64_ice(a, b, n, r);
+#if NK_TARGET_ICELAKE
+    nk_each_sum_i64_icelake(a, b, n, r);
 #elif NK_TARGET_NEON
     nk_each_sum_i64_neon(a, b, n, r);
 #else
@@ -1001,8 +1009,8 @@ NK_PUBLIC void nk_each_sum_i64(nk_i64_t const *a, nk_i64_t const *b, nk_size_t n
 }
 
 NK_PUBLIC void nk_each_sum_u64(nk_u64_t const *a, nk_u64_t const *b, nk_size_t n, nk_u64_t *r) {
-#if NK_TARGET_ICE
-    nk_each_sum_u64_ice(a, b, n, r);
+#if NK_TARGET_ICELAKE
+    nk_each_sum_u64_icelake(a, b, n, r);
 #elif NK_TARGET_NEON
     nk_each_sum_u64_neon(a, b, n, r);
 #else
@@ -1507,7 +1515,7 @@ NK_PUBLIC void nk_each_fma_e5m2(nk_e5m2_t const *a, nk_e5m2_t const *b, nk_e5m2_
 #endif // !NK_DYNAMIC_DISPATCH
 
 #if defined(__cplusplus)
-}
+} // extern "C"
 #endif
 
 #endif // NK_EACH_H

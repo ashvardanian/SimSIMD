@@ -1,9 +1,10 @@
 /**
- *  @brief SIMD-accelerated mesh alignment functions optimized for Arm NEON-capable CPUs with FP16 support.
+ *  @brief SIMD-accelerated Point Cloud Alignment for NEON FP16.
  *  @file include/numkong/mesh/neonhalf.h
- *  @sa include/numkong/mesh.h
  *  @author Ash Vardanian
  *  @date December 27, 2025
+ *
+ *  @sa include/numkong/mesh.h
  *
  *  @section mesh_neonhalf_instructions ARM NEON FP16 Instructions (ARMv8.2-FP16)
  *
@@ -31,18 +32,19 @@
 
 #if NK_TARGET_ARM_
 #if NK_TARGET_NEONHALF
-#if defined(__clang__)
-#pragma clang attribute push(__attribute__((target("arch=armv8.2-a+simd+fp16"))), apply_to = function)
-#elif defined(__GNUC__)
-#pragma GCC push_options
-#pragma GCC target("arch=armv8.2-a+simd+fp16")
-#endif
 
 #include "numkong/types.h"
 #include "numkong/spatial/neon.h" // `nk_f32_sqrt_neon`
 
 #if defined(__cplusplus)
 extern "C" {
+#endif
+
+#if defined(__clang__)
+#pragma clang attribute push(__attribute__((target("arch=armv8.2-a+simd+fp16"))), apply_to = function)
+#elif defined(__GNUC__)
+#pragma GCC push_options
+#pragma GCC target("arch=armv8.2-a+simd+fp16")
 #endif
 
 NK_INTERNAL void nk_deinterleave_f16x4_to_f32x4_neonhalf_(nk_f16_t const *ptr, float32x4_t *x_out, float32x4_t *y_out,
@@ -575,16 +577,16 @@ NK_PUBLIC void nk_umeyama_f16_neonhalf(nk_f16_t const *a, nk_f16_t const *b, nk_
     *result = nk_f32_sqrt_neon(sum_squared * inv_n);
 }
 
-#if defined(__cplusplus)
-} // extern "C"
-#endif
-
 #if defined(__clang__)
 #pragma clang attribute pop
 #elif defined(__GNUC__)
 #pragma GCC pop_options
 #endif
+
+#if defined(__cplusplus)
+} // extern "C"
+#endif
+
 #endif // NK_TARGET_NEONHALF
 #endif // NK_TARGET_ARM_
-
 #endif // NK_MESH_NEONHALF_H

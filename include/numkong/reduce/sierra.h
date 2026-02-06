@@ -1,9 +1,10 @@
 /**
- *  @brief SIMD-accelerated horizontal reduction operations for Intel Sierra Forest CPUs.
+ *  @brief SIMD-accelerated Vector Reductions for Sierra Forest.
  *  @file include/numkong/reduce/sierra.h
- *  @sa include/numkong/reduce.h
  *  @author Ash Vardanian
  *  @date December 27, 2025
+ *
+ *  @sa include/numkong/reduce.h
  *
  *  Uses AVX-VNNI (256-bit) for efficient widening dot-products:
  *  - `_mm256_dpwssd_epi32`: i16 × i16 → i32 accumulation (sum via dot with ones)
@@ -14,12 +15,6 @@
 
 #if NK_TARGET_X86_
 #if NK_TARGET_SIERRA
-#if defined(__clang__)
-#pragma clang attribute push(__attribute__((target("avx2,f16c,fma,bmi,bmi2,avxvnni,avxvnniint8"))), apply_to = function)
-#elif defined(__GNUC__)
-#pragma GCC push_options
-#pragma GCC target("avx2", "f16c", "fma", "bmi", "bmi2", "avxvnni", "avxvnniint8")
-#endif
 
 #include "numkong/types.h"
 #include "numkong/reduce/haswell.h"
@@ -27,6 +22,13 @@
 
 #if defined(__cplusplus)
 extern "C" {
+#endif
+
+#if defined(__clang__)
+#pragma clang attribute push(__attribute__((target("avx2,f16c,fma,bmi,bmi2,avxvnni,avxvnniint8"))), apply_to = function)
+#elif defined(__GNUC__)
+#pragma GCC push_options
+#pragma GCC target("avx2", "f16c", "fma", "bmi", "bmi2", "avxvnni", "avxvnniint8")
 #endif
 
 NK_INTERNAL void nk_reduce_add_i16_sierra_contiguous_( //
@@ -293,16 +295,16 @@ NK_PUBLIC void nk_reduce_add_u8_sierra( //
     else nk_reduce_add_u8_serial(data, count, stride_bytes, result);
 }
 
-#if defined(__cplusplus)
-} // extern "C"
-#endif
-
 #if defined(__clang__)
 #pragma clang attribute pop
 #elif defined(__GNUC__)
 #pragma GCC pop_options
 #endif
+
+#if defined(__cplusplus)
+} // extern "C"
+#endif
+
 #endif // NK_TARGET_SIERRA
 #endif // NK_TARGET_X86_
-
 #endif // NK_REDUCE_SIERRA_H

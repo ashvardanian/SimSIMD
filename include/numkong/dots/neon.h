@@ -1,26 +1,28 @@
 /**
- *  @brief SIMD-accelerated Dot Products for Real and Complex Numbers optimized for Arm NEON-capable CPUs.
+ *  @brief SIMD-accelerated Batched Dot Products for NEON.
  *  @file include/numkong/dots/neon.h
- *  @sa include/numkong/dots.h
  *  @author Ash Vardanian
  *  @date December 27, 2025
+ *
+ *  @sa include/numkong/dots.h
  */
 #ifndef NK_DOTS_NEON_H
 #define NK_DOTS_NEON_H
 
 #if NK_TARGET_ARM_
 #if NK_TARGET_NEON
-#if defined(__clang__)
-#pragma clang attribute push(__attribute__((target("arch=armv8-a+simd"))), apply_to = function)
-#elif defined(__GNUC__)
-#pragma GCC push_options
-#pragma GCC target("arch=armv8-a+simd")
-#endif
 
 #include "numkong/dot/neon.h"
 
 #if defined(__cplusplus)
 extern "C" {
+#endif
+
+#if defined(__clang__)
+#pragma clang attribute push(__attribute__((target("arch=armv8-a+simd"))), apply_to = function)
+#elif defined(__GNUC__)
+#pragma GCC push_options
+#pragma GCC target("arch=armv8-a+simd")
 #endif
 
 /* F32 GEMM: depth_simd_dimensions=2 (2 f32s = 8 bytes = 64-bit input for f64 upcast accumulation) */
@@ -51,16 +53,16 @@ nk_define_cross_packed_(dots, f64, neon, f64, f64, f64, nk_b128_vec_t, nk_dot_f6
                         nk_partial_store_b64x4_serial_,
                         /*depth_simd_dimensions=*/2, /*dimensions_per_value=*/1)
 
-#if defined(__cplusplus)
-} // extern "C"
-#endif
-
 #if defined(__clang__)
 #pragma clang attribute pop
 #elif defined(__GNUC__)
 #pragma GCC pop_options
 #endif
+
+#if defined(__cplusplus)
+} // extern "C"
+#endif
+
 #endif // NK_TARGET_NEON
 #endif // NK_TARGET_ARM_
-
 #endif // NK_DOTS_NEON_H

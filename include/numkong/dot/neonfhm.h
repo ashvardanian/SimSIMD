@@ -1,11 +1,12 @@
 /**
- *  @brief SIMD-accelerated Dot Products using FMLAL (FEAT_FHM) for Arm NEON-capable CPUs.
+ *  @brief SIMD-accelerated Dot Products for NEON FHM.
  *  @file include/numkong/dot/neonfhm.h
- *  @sa include/numkong/dot.h
  *  @author Ash Vardanian
  *  @date December 28, 2025
  *
- *  @section neonfhm_instructions ARM NEON FP16 Matrix Instructions (ARMv8.4-FHM)
+ *  @sa include/numkong/dot.h
+ *
+ *  @section dot_neonfhm_instructions ARM NEON FP16 Matrix Instructions (ARMv8.4-FHM)
  *
  *      Intrinsic                   Instruction                     Latency     Throughput
  *                                                                              A76         M4+/V1+/Oryon
@@ -23,18 +24,67 @@
  *  FMLAL preserves FP32 accumulator precision while accepting FP16 inputs, ideal for mixed-precision
  *  workloads. The _low variants process elements 0-3, _high variants process elements 4-7, enabling
  *  processing of 8 FP16 elements per iteration with full precision accumulation.
+ *
+ *  @section dot_neonfhm_stateful Stateful Streaming Logic
+ *
+ *  To build memory-optimal tiled algorithms, this file defines following structures and force-inlined
+ *  `NK_INTERNAL` functions:
+ *
+ *  - nk_dot_f16x8 state with native FMLAL f16 dot-products,
+ *  - nk_dot_e2m3x16 state for 6-bit float inputs via f16 upcasting,
+ *  - nk_dot_e3m2x16 state for 6-bit float inputs via f16 upcasting.
+ *
+ *  @code{c}
+ *  nk_dot_f16x8_state_neonfhm_t state_first, state_second, state_third, state_fourth;
+ *  float16x8_t query_f16x8, target_first_f16x8, target_second_f16x8, target_third_f16x8, target_fourth_f16x8;
+ *  nk_dot_f16x8_init_neonfhm(&state_first);
+ *  nk_dot_f16x8_init_neonfhm(&state_second);
+ *  nk_dot_f16x8_init_neonfhm(&state_third);
+ *  nk_dot_f16x8_init_neonfhm(&state_fourth);
+ *  for (nk_size_t idx = 0; idx + 8 <= depth; idx += 8) {
+ *      query_f16x8 = vld1q_f16(query_ptr + idx);
+ *      target_first_f16x8 = vld1q_f16(target_first_ptr + idx);
+ *      target_second_f16x8 = vld1q_f16(target_second_ptr + idx);
+ *      target_third_f16x8 = vld1q_f16(target_third_ptr + idx);
+ *      target_fourth_f16x8 = vld1q_f16(target_fourth_ptr + idx);
+ *      nk_dot_f16x8_update_neonfhm(&state_first, query_f16x8, target_first_f16x8, idx, 8);
+ *      nk_dot_f16x8_update_neonfhm(&state_second, query_f16x8, target_second_f16x8, idx, 8);
+ *      nk_dot_f16x8_update_neonfhm(&state_third, query_f16x8, target_third_f16x8, idx, 8);
+ *      nk_dot_f16x8_update_neonfhm(&state_fourth, query_f16x8, target_fourth_f16x8, idx, 8);
+ *  }
+ *  float32x4_t results_f32x4;
+ *  nk_dot_f16x8_finalize_neonfhm(&state_first, &state_second, &state_third, &state_fourth, depth, &results_f32x4);
+ *  @endcode
+ *
+ *  For 6-bit float types (e2m3, e3m2), elements are upcast to f16 before using the native FMLAL logic:
+ *
+ *  @code{c}
+ *  nk_dot_e2m3x16_state_neonfhm_t state_first, state_second, state_third, state_fourth;
+ *  float16x8_t query_f16x8, target_first_f16x8, target_second_f16x8, target_third_f16x8, target_fourth_f16x8;
+ *  nk_dot_e2m3x16_init_neonfhm(&state_first);
+ *  nk_dot_e2m3x16_init_neonfhm(&state_second);
+ *  nk_dot_e2m3x16_init_neonfhm(&state_third);
+ *  nk_dot_e2m3x16_init_neonfhm(&state_fourth);
+ *  for (nk_size_t idx = 0; idx + 8 <= depth; idx += 8) {
+ *      query_f16x8 = nk_e2m3x8_to_f16x8_neon_(vld1_u8(query_ptr + idx));
+ *      target_first_f16x8 = nk_e2m3x8_to_f16x8_neon_(vld1_u8(target_first_ptr + idx));
+ *      target_second_f16x8 = nk_e2m3x8_to_f16x8_neon_(vld1_u8(target_second_ptr + idx));
+ *      target_third_f16x8 = nk_e2m3x8_to_f16x8_neon_(vld1_u8(target_third_ptr + idx));
+ *      target_fourth_f16x8 = nk_e2m3x8_to_f16x8_neon_(vld1_u8(target_fourth_ptr + idx));
+ *      nk_dot_e2m3x16_update_neonfhm(&state_first, query_f16x8, target_first_f16x8, idx, 8);
+ *      nk_dot_e2m3x16_update_neonfhm(&state_second, query_f16x8, target_second_f16x8, idx, 8);
+ *      nk_dot_e2m3x16_update_neonfhm(&state_third, query_f16x8, target_third_f16x8, idx, 8);
+ *      nk_dot_e2m3x16_update_neonfhm(&state_fourth, query_f16x8, target_fourth_f16x8, idx, 8);
+ *  }
+ *  float32x4_t results_f32x4;
+ *  nk_dot_e2m3x16_finalize_neonfhm(&state_first, &state_second, &state_third, &state_fourth, depth, &results_f32x4);
+ *  @endcode
  */
 #ifndef NK_DOT_NEONFHM_H
 #define NK_DOT_NEONFHM_H
 
 #if NK_TARGET_ARM_
 #if NK_TARGET_NEONFHM
-#if defined(__clang__)
-#pragma clang attribute push(__attribute__((target("arch=armv8.2-a+simd+fp16+fp16fml"))), apply_to = function)
-#elif defined(__GNUC__)
-#pragma GCC push_options
-#pragma GCC target("arch=armv8.2-a+simd+fp16+fp16fml")
-#endif
 
 #include "numkong/types.h"
 #include "numkong/cast/serial.h" // `nk_partial_load_b8x8_serial_`
@@ -42,6 +92,13 @@
 
 #if defined(__cplusplus)
 extern "C" {
+#endif
+
+#if defined(__clang__)
+#pragma clang attribute push(__attribute__((target("arch=armv8.2-a+simd+fp16+fp16fml"))), apply_to = function)
+#elif defined(__GNUC__)
+#pragma GCC push_options
+#pragma GCC target("arch=armv8.2-a+simd+fp16+fp16fml")
 #endif
 
 NK_PUBLIC void nk_dot_f16_neonfhm(nk_f16_t const *a_scalars, nk_f16_t const *b_scalars, nk_size_t count_scalars,
@@ -74,9 +131,9 @@ NK_PUBLIC void nk_dot_f16_neonfhm(nk_f16_t const *a_scalars, nk_f16_t const *b_s
     *result = vaddvq_f32(sum_f32x4);
 }
 
-struct nk_dot_f16x8_state_neonfhm_t {
+typedef struct nk_dot_f16x8_state_neonfhm_t {
     float32x4_t sum_f32x4;
-};
+} nk_dot_f16x8_state_neonfhm_t;
 
 NK_INTERNAL void nk_dot_f16x8_init_neonfhm(nk_dot_f16x8_state_neonfhm_t *state) { state->sum_f32x4 = vdupq_n_f32(0); }
 
@@ -324,9 +381,9 @@ NK_PUBLIC void nk_dot_e3m2_neonfhm(nk_e3m2_t const *a_scalars, nk_e3m2_t const *
     *result = vaddvq_f32(sum_f32x4);
 }
 
-struct nk_dot_e2m3x16_state_neonfhm_t {
+typedef struct nk_dot_e2m3x16_state_neonfhm_t {
     float32x4_t sum_f32x4;
-};
+} nk_dot_e2m3x16_state_neonfhm_t;
 
 NK_INTERNAL void nk_dot_e2m3x16_init_neonfhm(nk_dot_e2m3x16_state_neonfhm_t *state) {
     state->sum_f32x4 = vdupq_n_f32(0);
@@ -358,9 +415,9 @@ NK_INTERNAL void nk_dot_e2m3x16_finalize_neonfhm(                               
     result->f32s[3] = vaddvq_f32(state_d->sum_f32x4);
 }
 
-struct nk_dot_e3m2x16_state_neonfhm_t {
+typedef struct nk_dot_e3m2x16_state_neonfhm_t {
     float32x4_t sum_f32x4;
-};
+} nk_dot_e3m2x16_state_neonfhm_t;
 
 NK_INTERNAL void nk_dot_e3m2x16_init_neonfhm(nk_dot_e3m2x16_state_neonfhm_t *state) {
     state->sum_f32x4 = vdupq_n_f32(0);
@@ -392,16 +449,16 @@ NK_INTERNAL void nk_dot_e3m2x16_finalize_neonfhm(                               
     result->f32s[3] = vaddvq_f32(state_d->sum_f32x4);
 }
 
-#if defined(__cplusplus)
-} // extern "C"
-#endif
-
 #if defined(__clang__)
 #pragma clang attribute pop
 #elif defined(__GNUC__)
 #pragma GCC pop_options
 #endif
+
+#if defined(__cplusplus)
+} // extern "C"
+#endif
+
 #endif // NK_TARGET_NEONFHM
 #endif // NK_TARGET_ARM_
-
 #endif // NK_DOT_NEONFHM_H

@@ -1,9 +1,10 @@
 /**
- *  @brief SIMD-accelerated Spatial Similarity Measures optimized for Arm NEON-capable CPUs.
+ *  @brief SIMD-accelerated Spatial Similarity Measures for NEON BF16.
  *  @file include/numkong/spatial/neonbfdot.h
- *  @sa include/numkong/spatial.h
  *  @author Ash Vardanian
  *  @date December 27, 2025
+ *
+ *  @sa include/numkong/spatial.h
  *
  *  @section spatial_neonbfdot_instructions ARM NEON BF16 Instructions (ARMv8.6-BF16)
  *
@@ -30,19 +31,21 @@
 
 #if NK_TARGET_ARM_
 #if NK_TARGET_NEONBFDOT
+
+#include "numkong/types.h"
+#include "numkong/reduce/neon.h"   // `nk_partial_load_b16x8_serial_`
+#include "numkong/spatial/neon.h"  // `nk_angular_through_f32_finalize_neon_`
+#include "numkong/dot/neonbfdot.h" // `nk_dot_bf16x8_state_neonbfdot_t`
+
+#if defined(__cplusplus)
+extern "C" {
+#endif
+
 #if defined(__clang__)
 #pragma clang attribute push(__attribute__((target("arch=armv8.6-a+simd+bf16"))), apply_to = function)
 #elif defined(__GNUC__)
 #pragma GCC push_options
 #pragma GCC target("arch=armv8.6-a+simd+bf16")
-#endif
-
-#include "numkong/types.h"
-#include "numkong/reduce/neon.h"  // nk_partial_load_b16x8_serial_
-#include "numkong/spatial/neon.h" // nk_angular_through_f32_finalize_neon_, nk_euclidean_through_f32_finalize_neon_
-
-#if defined(__cplusplus)
-extern "C" {
 #endif
 
 NK_PUBLIC void nk_angular_bf16_neonbfdot(nk_bf16_t const *a, nk_bf16_t const *b, nk_size_t n, nk_f32_t *result) {
@@ -189,16 +192,16 @@ NK_INTERNAL void nk_euclidean_bf16x8_finalize_neonbfdot(
                                             target_norm_d, results);
 }
 
-#if defined(__cplusplus)
-} // extern "C"
-#endif
-
 #if defined(__clang__)
 #pragma clang attribute pop
 #elif defined(__GNUC__)
 #pragma GCC pop_options
 #endif
+
+#if defined(__cplusplus)
+} // extern "C"
+#endif
+
 #endif // NK_TARGET_NEONBFDOT
 #endif // NK_TARGET_ARM_
-
 #endif // NK_SPATIAL_NEONBFDOT_H

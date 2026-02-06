@@ -1,27 +1,30 @@
 /**
- *  @brief SIMD-accelerated Spatial Similarity Measures optimized for Intel Sierra Forest CPUs.
+ *  @brief SIMD-accelerated Spatial Similarity Measures for Sierra Forest.
  *  @file include/numkong/spatial/sierra.h
- *  @sa include/numkong/spatial.h
  *  @author Ash Vardanian
  *  @date December 27, 2025
+ *
+ *  @sa include/numkong/spatial.h
  */
 #ifndef NK_SPATIAL_SIERRA_H
 #define NK_SPATIAL_SIERRA_H
 
 #if NK_TARGET_X86_
 #if NK_TARGET_SIERRA
+
+#include "numkong/types.h"
+#include "numkong/reduce/haswell.h" // `nk_reduce_add_i32x8_haswell_`
+#include "numkong/dot/sierra.h"     // `nk_dot_i8x32_state_sierra_t`
+
+#if defined(__cplusplus)
+extern "C" {
+#endif
+
 #if defined(__clang__)
 #pragma clang attribute push(__attribute__((target("avx2,f16c,fma,bmi,bmi2,avxvnni,avxvnniint8"))), apply_to = function)
 #elif defined(__GNUC__)
 #pragma GCC push_options
 #pragma GCC target("avx2", "f16c", "fma", "bmi", "bmi2", "avxvnni", "avxvnniint8")
-#endif
-
-#include "numkong/types.h"
-#include "numkong/reduce/haswell.h" // nk_reduce_add_i32x8_haswell_
-
-#if defined(__cplusplus)
-extern "C" {
 #endif
 
 NK_PUBLIC void nk_angular_i8_sierra(nk_i8_t const *a, nk_i8_t const *b, nk_size_t n, nk_f32_t *result) {
@@ -98,16 +101,16 @@ NK_INTERNAL void nk_euclidean_i8x32_finalize_sierra(nk_euclidean_i8x32_state_sie
                                                target_norm_c, target_norm_d, results);
 }
 
-#if defined(__cplusplus)
-} // extern "C"
-#endif
-
 #if defined(__clang__)
 #pragma clang attribute pop
 #elif defined(__GNUC__)
 #pragma GCC pop_options
 #endif
+
+#if defined(__cplusplus)
+} // extern "C"
+#endif
+
 #endif // NK_TARGET_SIERRA
 #endif // NK_TARGET_X86_
-
 #endif // NK_SPATIAL_SIERRA_H

@@ -1,9 +1,10 @@
 /**
- *  @brief SIMD-accelerated Similarity Measures for Curved Spaces - Serial (SIMD-free) implementations.
+ *  @brief SWAR-accelerated Curved Space Similarity for SIMD-free CPUs.
  *  @file include/numkong/curved/serial.h
- *  @sa include/numkong/curved.h
  *  @author Ash Vardanian
  *  @date January 14, 2026
+ *
+ *  @sa include/numkong/curved.h
  *
  *  Implements bilinear forms and Mahalanobis distance with enhanced numerical precision:
  *  - f32 inputs use f64 accumulators to avoid catastrophic cancellation
@@ -25,8 +26,8 @@
 #define NK_CURVED_SERIAL_H
 
 #include "numkong/types.h"
-#include "numkong/reduce/serial.h"  // `nk_f64_abs_`, `nk_f32_abs_`
-#include "numkong/spatial/serial.h" // `nk_f64_sqrt_serial`, `nk_f32_sqrt_serial`
+#include "numkong/reduce/serial.h"  // `nk_f64_abs_`
+#include "numkong/spatial/serial.h" // `nk_f64_sqrt_serial`
 
 #if defined(__cplusplus)
 extern "C" {
@@ -71,7 +72,7 @@ extern "C" {
                                       : ((outer_product - outer_running) + outer_sum);                           \
             outer_sum = outer_running;                                                                           \
         }                                                                                                        \
-        *result = (nk_##output_type##_t)(outer_sum + outer_compensation);                                         \
+        *result = (nk_##output_type##_t)(outer_sum + outer_compensation);                                        \
     }
 
 /**
@@ -83,63 +84,63 @@ extern "C" {
  *  Complex multiplication: (a + bi)(c + di) = (ac - bd) + (ad + bc)i
  *  Each real and imaginary accumulator has independent Neumaier compensation.
  */
-#define nk_define_bilinear_complex_(input_type, accumulator_type, output_type, load_and_convert)                    \
-    NK_PUBLIC void nk_bilinear_##input_type##_serial(                                                               \
-        nk_##input_type##_t const *a_pairs, nk_##input_type##_t const *b_pairs, nk_##input_type##_t const *c_pairs, \
-        nk_size_t n, nk_##output_type##c_t *results) {                                                              \
-        nk_##accumulator_type##_t outer_sum_real = 0, outer_sum_imag = 0;                                           \
-        nk_##accumulator_type##_t outer_compensation_real = 0, outer_compensation_imag = 0;                         \
-        nk_##accumulator_type##_t a_real, a_imag, b_real, b_imag, c_real, c_imag;                                   \
-        for (nk_size_t row = 0; row != n; ++row) {                                                                  \
-            nk_##accumulator_type##_t inner_sum_real = 0, inner_sum_imag = 0;                                       \
-            nk_##accumulator_type##_t inner_compensation_real = 0, inner_compensation_imag = 0;                     \
-            load_and_convert(&(a_pairs + row)->real, &a_real);                                                      \
-            load_and_convert(&(a_pairs + row)->imag, &a_imag);                                                      \
-            for (nk_size_t column = 0; column != n; ++column) {                                                     \
-                load_and_convert(&(b_pairs + column)->real, &b_real);                                               \
-                load_and_convert(&(b_pairs + column)->imag, &b_imag);                                               \
-                load_and_convert(&(c_pairs + row * n + column)->real, &c_real);                                     \
-                load_and_convert(&(c_pairs + row * n + column)->imag, &c_imag);                                     \
+#define nk_define_bilinear_complex_(input_type, accumulator_type, output_type, load_and_convert)                                 \
+    NK_PUBLIC void nk_bilinear_##input_type##_serial(                                                                            \
+        nk_##input_type##_t const *a_pairs, nk_##input_type##_t const *b_pairs, nk_##input_type##_t const *c_pairs,              \
+        nk_size_t n, nk_##output_type##c_t *results) {                                                                           \
+        nk_##accumulator_type##_t outer_sum_real = 0, outer_sum_imag = 0;                                                        \
+        nk_##accumulator_type##_t outer_compensation_real = 0, outer_compensation_imag = 0;                                      \
+        nk_##accumulator_type##_t a_real, a_imag, b_real, b_imag, c_real, c_imag;                                                \
+        for (nk_size_t row = 0; row != n; ++row) {                                                                               \
+            nk_##accumulator_type##_t inner_sum_real = 0, inner_sum_imag = 0;                                                    \
+            nk_##accumulator_type##_t inner_compensation_real = 0, inner_compensation_imag = 0;                                  \
+            load_and_convert(&(a_pairs + row)->real, &a_real);                                                                   \
+            load_and_convert(&(a_pairs + row)->imag, &a_imag);                                                                   \
+            for (nk_size_t column = 0; column != n; ++column) {                                                                  \
+                load_and_convert(&(b_pairs + column)->real, &b_real);                                                            \
+                load_and_convert(&(b_pairs + column)->imag, &b_imag);                                                            \
+                load_and_convert(&(c_pairs + row * n + column)->real, &c_real);                                                  \
+                load_and_convert(&(c_pairs + row * n + column)->imag, &c_imag);                                                  \
                 /* Complex multiply: cᵢⱼ × bⱼ = (c_real×b_real - c_imag×b_imag) + (c_real×b_imag + c_imag×b_real)i */ \
-                nk_##accumulator_type##_t product_real = c_real * b_real - c_imag * b_imag;                         \
-                nk_##accumulator_type##_t product_imag = c_real * b_imag + c_imag * b_real;                         \
-                /* Neumaier for real part */                                                                        \
-                nk_##accumulator_type##_t running_real = inner_sum_real + product_real;                             \
-                inner_compensation_real += (nk_##accumulator_type##_abs_(inner_sum_real) >=                         \
-                                            nk_##accumulator_type##_abs_(product_real))                             \
-                                               ? ((inner_sum_real - running_real) + product_real)                   \
-                                               : ((product_real - running_real) + inner_sum_real);                  \
-                inner_sum_real = running_real;                                                                      \
-                /* Neumaier for imaginary part */                                                                   \
-                nk_##accumulator_type##_t running_imag = inner_sum_imag + product_imag;                             \
-                inner_compensation_imag += (nk_##accumulator_type##_abs_(inner_sum_imag) >=                         \
-                                            nk_##accumulator_type##_abs_(product_imag))                             \
-                                               ? ((inner_sum_imag - running_imag) + product_imag)                   \
-                                               : ((product_imag - running_imag) + inner_sum_imag);                  \
-                inner_sum_imag = running_imag;                                                                      \
-            }                                                                                                       \
-            inner_sum_real += inner_compensation_real;                                                              \
-            inner_sum_imag += inner_compensation_imag;                                                              \
-            /* Complex multiply: aᵢ × inner_result */                                                               \
-            nk_##accumulator_type##_t outer_product_real = a_real * inner_sum_real - a_imag * inner_sum_imag;       \
-            nk_##accumulator_type##_t outer_product_imag = a_real * inner_sum_imag + a_imag * inner_sum_real;       \
-            /* Neumaier for outer real */                                                                           \
-            nk_##accumulator_type##_t outer_running_real = outer_sum_real + outer_product_real;                     \
-            outer_compensation_real += (nk_##accumulator_type##_abs_(outer_sum_real) >=                             \
-                                        nk_##accumulator_type##_abs_(outer_product_real))                           \
-                                           ? ((outer_sum_real - outer_running_real) + outer_product_real)           \
-                                           : ((outer_product_real - outer_running_real) + outer_sum_real);          \
-            outer_sum_real = outer_running_real;                                                                    \
-            /* Neumaier for outer imaginary */                                                                      \
-            nk_##accumulator_type##_t outer_running_imag = outer_sum_imag + outer_product_imag;                     \
-            outer_compensation_imag += (nk_##accumulator_type##_abs_(outer_sum_imag) >=                             \
-                                        nk_##accumulator_type##_abs_(outer_product_imag))                           \
-                                           ? ((outer_sum_imag - outer_running_imag) + outer_product_imag)           \
-                                           : ((outer_product_imag - outer_running_imag) + outer_sum_imag);          \
-            outer_sum_imag = outer_running_imag;                                                                    \
-        }                                                                                                           \
-        results->real = outer_sum_real + outer_compensation_real;                                                   \
-        results->imag = outer_sum_imag + outer_compensation_imag;                                                   \
+                nk_##accumulator_type##_t product_real = c_real * b_real - c_imag * b_imag;                                      \
+                nk_##accumulator_type##_t product_imag = c_real * b_imag + c_imag * b_real;                                      \
+                /* Neumaier for real part */                                                                                     \
+                nk_##accumulator_type##_t running_real = inner_sum_real + product_real;                                          \
+                inner_compensation_real += (nk_##accumulator_type##_abs_(inner_sum_real) >=                                      \
+                                            nk_##accumulator_type##_abs_(product_real))                                          \
+                                               ? ((inner_sum_real - running_real) + product_real)                                \
+                                               : ((product_real - running_real) + inner_sum_real);                               \
+                inner_sum_real = running_real;                                                                                   \
+                /* Neumaier for imaginary part */                                                                                \
+                nk_##accumulator_type##_t running_imag = inner_sum_imag + product_imag;                                          \
+                inner_compensation_imag += (nk_##accumulator_type##_abs_(inner_sum_imag) >=                                      \
+                                            nk_##accumulator_type##_abs_(product_imag))                                          \
+                                               ? ((inner_sum_imag - running_imag) + product_imag)                                \
+                                               : ((product_imag - running_imag) + inner_sum_imag);                               \
+                inner_sum_imag = running_imag;                                                                                   \
+            }                                                                                                                    \
+            inner_sum_real += inner_compensation_real;                                                                           \
+            inner_sum_imag += inner_compensation_imag;                                                                           \
+            /* Complex multiply: aᵢ × inner_result */                                                                         \
+            nk_##accumulator_type##_t outer_product_real = a_real * inner_sum_real - a_imag * inner_sum_imag;                    \
+            nk_##accumulator_type##_t outer_product_imag = a_real * inner_sum_imag + a_imag * inner_sum_real;                    \
+            /* Neumaier for outer real */                                                                                        \
+            nk_##accumulator_type##_t outer_running_real = outer_sum_real + outer_product_real;                                  \
+            outer_compensation_real += (nk_##accumulator_type##_abs_(outer_sum_real) >=                                          \
+                                        nk_##accumulator_type##_abs_(outer_product_real))                                        \
+                                           ? ((outer_sum_real - outer_running_real) + outer_product_real)                        \
+                                           : ((outer_product_real - outer_running_real) + outer_sum_real);                       \
+            outer_sum_real = outer_running_real;                                                                                 \
+            /* Neumaier for outer imaginary */                                                                                   \
+            nk_##accumulator_type##_t outer_running_imag = outer_sum_imag + outer_product_imag;                                  \
+            outer_compensation_imag += (nk_##accumulator_type##_abs_(outer_sum_imag) >=                                          \
+                                        nk_##accumulator_type##_abs_(outer_product_imag))                                        \
+                                           ? ((outer_sum_imag - outer_running_imag) + outer_product_imag)                        \
+                                           : ((outer_product_imag - outer_running_imag) + outer_sum_imag);                       \
+            outer_sum_imag = outer_running_imag;                                                                                 \
+        }                                                                                                                        \
+        results->real = outer_sum_real + outer_compensation_real;                                                                \
+        results->imag = outer_sum_imag + outer_compensation_imag;                                                                \
     }
 
 /**
@@ -210,7 +211,7 @@ nk_define_mahalanobis_(bf16, f32, f32, nk_bf16_to_f32_serial)       // nk_mahala
 #undef nk_define_mahalanobis_
 
 #if defined(__cplusplus)
-}
+} // extern "C"
 #endif
 
 #endif // NK_CURVED_SERIAL_H

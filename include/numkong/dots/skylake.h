@@ -1,9 +1,10 @@
 /**
- *  @brief SIMD-accelerated batch dot products (GEMM micro-kernels) optimized for Intel Skylake-X CPUs.
+ *  @brief SIMD-accelerated Batched Dot Products for Skylake.
  *  @file include/numkong/dots/skylake.h
- *  @sa include/numkong/dots.h
  *  @author Ash Vardanian
  *  @date December 27, 2025
+ *
+ *  @sa include/numkong/dots.h
  *
  *  @section skylake_dots_instructions Relevant Instructions
  *
@@ -22,18 +23,19 @@
 
 #if NK_TARGET_X86_
 #if NK_TARGET_SKYLAKE
+
+#include "numkong/types.h"
+
+#if defined(__cplusplus)
+extern "C" {
+#endif
+
 #if defined(__clang__)
 #pragma clang attribute push(__attribute__((target("avx2,avx512f,avx512vl,avx512bw,avx512dq,f16c,fma,bmi,bmi2"))), \
                              apply_to = function)
 #elif defined(__GNUC__)
 #pragma GCC push_options
 #pragma GCC target("avx2", "avx512f", "avx512vl", "avx512bw", "avx512dq", "f16c", "fma", "bmi", "bmi2")
-#endif
-
-#include "numkong/types.h"
-
-#if defined(__cplusplus)
-extern "C" {
 #endif
 
 /* F64 GEMM: depth_simd_dimensions=8 (8 f64s = 64 bytes = 1 cache line) */
@@ -160,16 +162,16 @@ nk_define_cross_packed_(dots, e3m2, skylake, e3m2, f32, f32, nk_b512_vec_t, nk_d
                         nk_dot_through_f32_finalize_skylake_, nk_partial_store_b32x4_skylake_,
                         /*depth_simd_dimensions=*/16, /*dimensions_per_value=*/1)
 
-#if defined(__cplusplus)
-} // extern "C"
-#endif
-
 #if defined(__clang__)
 #pragma clang attribute pop
 #elif defined(__GNUC__)
 #pragma GCC pop_options
 #endif
+
+#if defined(__cplusplus)
+} // extern "C"
+#endif
+
 #endif // NK_TARGET_SKYLAKE
 #endif // NK_TARGET_X86_
-
 #endif // NK_DOTS_SKYLAKE_H

@@ -1,9 +1,10 @@
 /**
- *  @brief SIMD-accelerated Spatial Similarity Measures optimized for Intel Sapphire Rapids CPUs.
+ *  @brief SIMD-accelerated Spatial Similarity Measures for Sapphire Rapids.
  *  @file include/numkong/spatial/sapphire.h
- *  @sa include/numkong/spatial.h
  *  @author Ash Vardanian
  *  @date December 27, 2025
+ *
+ *  @sa include/numkong/spatial.h
  *
  *  Sapphire Rapids adds native FP16 support via AVX-512 FP16 extension.
  *  For e4m3 L2 distance, we can leverage F16 for the subtraction step:
@@ -11,7 +12,7 @@
  *  - But squared differences overflow F16 (896² = 802816 > 65504)
  *  - So: subtract in F16, convert to F32, then square and accumulate
  *
- *  @section sapphire_spatial_instructions Relevant Instructions
+ *  @section spatial_sapphire_instructions Relevant Instructions
  *
  *      Intrinsic                   Instruction                     Sapphire    Genoa
  *      _mm256_sub_ph               VSUBPH (YMM, YMM, YMM)          4cy @ p05   3cy @ p01
@@ -25,19 +26,20 @@
 
 #if NK_TARGET_X86_
 #if NK_TARGET_SAPPHIRE
-#if defined(__clang__)
-#pragma clang attribute push(__attribute__((target("avx2,avx512f,avx512vl,avx512bw,avx512fp16,f16c,fma,bmi,bmi2"))), \
-                             apply_to = function)
-#elif defined(__GNUC__)
-#pragma GCC push_options
-#pragma GCC target("avx2", "avx512f", "avx512vl", "avx512bw", "avx512fp16", "f16c", "fma", "bmi", "bmi2")
-#endif
 
 #include "numkong/types.h"
 #include "numkong/cast/sapphire.h" // `nk_e4m3x16_to_f16x16_sapphire_`
 
 #if defined(__cplusplus)
 extern "C" {
+#endif
+
+#if defined(__clang__)
+#pragma clang attribute push(__attribute__((target("avx2,avx512f,avx512vl,avx512bw,avx512fp16,f16c,fma,bmi,bmi2"))), \
+                             apply_to = function)
+#elif defined(__GNUC__)
+#pragma GCC push_options
+#pragma GCC target("avx2", "avx512f", "avx512vl", "avx512bw", "avx512fp16", "f16c", "fma", "bmi", "bmi2")
 #endif
 
 NK_PUBLIC void nk_sqeuclidean_e4m3_sapphire(nk_e4m3_t const *a_scalars, nk_e4m3_t const *b_scalars,
@@ -79,19 +81,19 @@ nk_sqeuclidean_e4m3_sapphire_cycle:
 NK_PUBLIC void nk_euclidean_e4m3_sapphire(nk_e4m3_t const *a_scalars, nk_e4m3_t const *b_scalars,
                                           nk_size_t count_scalars, nk_f32_t *result) {
     nk_sqeuclidean_e4m3_sapphire(a_scalars, b_scalars, count_scalars, result);
-    *result = nk_sqrt_f32_haswell_(*result);
+    *result = nk_f32_sqrt_haswell(*result);
 }
-
-#if defined(__cplusplus)
-} // extern "C"
-#endif
 
 #if defined(__clang__)
 #pragma clang attribute pop
 #elif defined(__GNUC__)
 #pragma GCC pop_options
 #endif
+
+#if defined(__cplusplus)
+} // extern "C"
+#endif
+
 #endif // NK_TARGET_SAPPHIRE
 #endif // NK_TARGET_X86_
-
 #endif // NK_SPATIAL_SAPPHIRE_H

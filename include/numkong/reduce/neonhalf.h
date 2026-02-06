@@ -1,9 +1,10 @@
 /**
- *  @brief SIMD-accelerated horizontal reduction operations for Arm NEON-capable CPUs.
+ *  @brief SIMD-accelerated Vector Reductions for NEON FP16.
  *  @file include/numkong/reduce/neonhalf.h
- *  @sa include/numkong/reduce.h
  *  @author Ash Vardanian
  *  @date December 27, 2025
+ *
+ *  @sa include/numkong/reduce.h
  *
  *  @section reduce_neonhalf_instructions ARM NEON FP16 Instructions (ARMv8.2-FP16)
  *
@@ -33,18 +34,19 @@
 
 #if NK_TARGET_ARM_
 #if NK_TARGET_NEONHALF
-#if defined(__clang__)
-#pragma clang attribute push(__attribute__((target("arch=armv8.2-a+simd+fp16"))), apply_to = function)
-#elif defined(__GNUC__)
-#pragma GCC push_options
-#pragma GCC target("arch=armv8.2-a+simd+fp16")
-#endif
 
 #include "numkong/types.h"
 #include "numkong/cast/neon.h"
 
 #if defined(__cplusplus)
 extern "C" {
+#endif
+
+#if defined(__clang__)
+#pragma clang attribute push(__attribute__((target("arch=armv8.2-a+simd+fp16"))), apply_to = function)
+#elif defined(__GNUC__)
+#pragma GCC push_options
+#pragma GCC target("arch=armv8.2-a+simd+fp16")
 #endif
 
 /** @brief Horizontal sum of 8 f16s in a NEON register, returning f32. */
@@ -483,16 +485,16 @@ NK_PUBLIC void nk_reduce_max_f16_neonhalf(                         //
     else nk_reduce_max_f16_serial(data, count, stride_bytes, max_value, max_index);
 }
 
-#if defined(__cplusplus)
-} // extern "C"
-#endif
-
 #if defined(__clang__)
 #pragma clang attribute pop
 #elif defined(__GNUC__)
 #pragma GCC pop_options
 #endif
+
+#if defined(__cplusplus)
+} // extern "C"
+#endif
+
 #endif // NK_TARGET_NEONHALF
 #endif // NK_TARGET_ARM_
-
 #endif // NK_REDUCE_NEONHALF_H

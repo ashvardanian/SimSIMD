@@ -1,9 +1,10 @@
 /**
- *  @brief SIMD-accelerated horizontal reduction operations for Arm SVE-capable CPUs.
+ *  @brief SIMD-accelerated Vector Reductions for SVE FP16.
  *  @file include/numkong/reduce/sve.h
- *  @sa include/numkong/reduce.h
  *  @author Ash Vardanian
  *  @date December 27, 2025
+ *
+ *  @sa include/numkong/reduce.h
  *
  *  @section reduce_svehalf_instructions ARM SVE+FP16 Instructions
  *
@@ -34,6 +35,15 @@
 
 #if NK_TARGET_ARM_
 #if NK_TARGET_SVEHALF
+
+#include "numkong/types.h"
+#include "numkong/reduce/serial.h" // `nk_u1x8_popcount_`
+#include "numkong/reduce/neon.h"   // `nk_reduce_add_u8x16_neon_`
+
+#if defined(__cplusplus)
+extern "C" {
+#endif
+
 #if defined(__clang__)
 #pragma clang attribute push(__attribute__((target("arch=armv8.2-a+sve+fp16"))), apply_to = function)
 #elif defined(__GNUC__)
@@ -41,24 +51,16 @@
 #pragma GCC target("arch=armv8.2-a+sve+fp16")
 #endif
 
-#include "numkong/types.h"
-#include "numkong/reduce/serial.h" // `nk_popcount_u1`
-#include "numkong/reduce/neon.h"   // `nk_reduce_add_u8x16_neon_`
-
-#if defined(__cplusplus)
-extern "C" {
+#if defined(__clang__)
+#pragma clang attribute pop
+#elif defined(__GNUC__)
+#pragma GCC pop_options
 #endif
 
 #if defined(__cplusplus)
 } // extern "C"
 #endif
 
-#if defined(__clang__)
-#pragma clang attribute pop
-#elif defined(__GNUC__)
-#pragma GCC pop_options
-#endif
 #endif // NK_TARGET_SVEHALF
 #endif // NK_TARGET_ARM_
-
 #endif // NK_REDUCE_SVEHALF_H

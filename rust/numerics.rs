@@ -7,7 +7,7 @@
 //! - **Probability divergence**: [`KullbackLeibler`], [`JensenShannon`]
 //! - **Complex products**: [`ComplexDot`], [`ComplexVDot`]
 //! - **Elementwise operations**: [`EachScale`], [`EachSum`], [`EachBlend`], [`EachFMA`]
-//! - **Trigonometry**: [`Sin`], [`Cos`], [`ATan`]
+//! - **Trigonometry**: [`EachSin`], [`EachCos`], [`EachATan`]
 //! - **Reductions**: [`ReduceAdd`], [`ReduceMin`], [`ReduceMax`]
 //! - **Geospatial**: [`Haversine`], [`Vincenty`]
 //! - **Mesh alignment**: [`MeshAlignment`]
@@ -24,39 +24,9 @@ type u64size = u64;
 #[link(name = "numkong")]
 extern "C" {
     // Capability detection
-    fn nk_uses_neon() -> i32;
-    fn nk_uses_neonhalf() -> i32;
-    fn nk_uses_neonbfdot() -> i32;
-    fn nk_uses_neonsdot() -> i32;
-    fn nk_uses_sve() -> i32;
-    fn nk_uses_svehalf() -> i32;
-    fn nk_uses_svebfdot() -> i32;
-    fn nk_uses_svesdot() -> i32;
-    fn nk_uses_sve2() -> i32;
-    fn nk_uses_sve2p1() -> i32;
-    fn nk_uses_neonfhm() -> i32;
-    fn nk_uses_sme() -> i32;
-    fn nk_uses_sme2() -> i32;
-    fn nk_uses_sme2p1() -> i32;
-    fn nk_uses_smef64() -> i32;
-    fn nk_uses_smehalf() -> i32;
-    fn nk_uses_smebf16() -> i32;
-    fn nk_uses_smelut2() -> i32;
-    fn nk_uses_smefa64() -> i32;
-    fn nk_uses_haswell() -> i32;
-    fn nk_uses_skylake() -> i32;
-    fn nk_uses_ice() -> i32;
-    fn nk_uses_genoa() -> i32;
-    fn nk_uses_sapphire() -> i32;
-    fn nk_uses_turin() -> i32;
-    fn nk_uses_sierra() -> i32;
-    fn nk_uses_sapphire_amx() -> i32;
-    fn nk_uses_granite_amx() -> i32;
-    fn nk_uses_spacemit() -> i32;
-    fn nk_uses_sifive() -> i32;
-    fn nk_uses_xuantie() -> i32;
     fn nk_configure_thread(capabilities: u64) -> i32;
     fn nk_uses_dynamic_dispatch() -> i32;
+    fn nk_capabilities() -> u64;
 
     // Vector dot products
     fn nk_dot_i8(a: *const i8, b: *const i8, c: u64size, d: *mut i32);
@@ -186,15 +156,15 @@ extern "C" {
     );
 
     // Trigonometry functions
-    fn nk_sin_f32(inputs: *const f32, n: u64size, outputs: *mut f32);
-    fn nk_sin_f64(inputs: *const f64, n: u64size, outputs: *mut f64);
-    fn nk_sin_f16(inputs: *const u16, n: u64size, outputs: *mut u16);
-    fn nk_cos_f32(inputs: *const f32, n: u64size, outputs: *mut f32);
-    fn nk_cos_f64(inputs: *const f64, n: u64size, outputs: *mut f64);
-    fn nk_cos_f16(inputs: *const u16, n: u64size, outputs: *mut u16);
-    fn nk_atan_f32(inputs: *const f32, n: u64size, outputs: *mut f32);
-    fn nk_atan_f64(inputs: *const f64, n: u64size, outputs: *mut f64);
-    fn nk_atan_f16(inputs: *const u16, n: u64size, outputs: *mut u16);
+    fn nk_each_sin_f32(inputs: *const f32, n: u64size, outputs: *mut f32);
+    fn nk_each_sin_f64(inputs: *const f64, n: u64size, outputs: *mut f64);
+    fn nk_each_sin_f16(inputs: *const u16, n: u64size, outputs: *mut u16);
+    fn nk_each_cos_f32(inputs: *const f32, n: u64size, outputs: *mut f32);
+    fn nk_each_cos_f64(inputs: *const f64, n: u64size, outputs: *mut f64);
+    fn nk_each_cos_f16(inputs: *const u16, n: u64size, outputs: *mut u16);
+    fn nk_each_atan_f32(inputs: *const f32, n: u64size, outputs: *mut f32);
+    fn nk_each_atan_f64(inputs: *const f64, n: u64size, outputs: *mut f64);
+    fn nk_each_atan_f16(inputs: *const u16, n: u64size, outputs: *mut u16);
 
     // Elementwise operations
     fn nk_each_scale_f64(
@@ -940,98 +910,23 @@ extern "C" {
 
 /// Hardware capability detection functions.
 pub mod capabilities {
-    pub fn uses_neon() -> bool {
-        unsafe { super::nk_uses_neon() != 0 }
-    }
-    pub fn uses_neonhalf() -> bool {
-        unsafe { super::nk_uses_neonhalf() != 0 }
-    }
-    pub fn uses_neonbfdot() -> bool {
-        unsafe { super::nk_uses_neonbfdot() != 0 }
-    }
-    pub fn uses_neonsdot() -> bool {
-        unsafe { super::nk_uses_neonsdot() != 0 }
-    }
-    pub fn uses_sve() -> bool {
-        unsafe { super::nk_uses_sve() != 0 }
-    }
-    pub fn uses_svehalf() -> bool {
-        unsafe { super::nk_uses_svehalf() != 0 }
-    }
-    pub fn uses_svebfdot() -> bool {
-        unsafe { super::nk_uses_svebfdot() != 0 }
-    }
-    pub fn uses_svesdot() -> bool {
-        unsafe { super::nk_uses_svesdot() != 0 }
-    }
-    pub fn uses_sve2() -> bool {
-        unsafe { super::nk_uses_sve2() != 0 }
-    }
-    pub fn uses_sve2p1() -> bool {
-        unsafe { super::nk_uses_sve2p1() != 0 }
-    }
-    pub fn uses_neonfhm() -> bool {
-        unsafe { super::nk_uses_neonfhm() != 0 }
-    }
-    pub fn uses_sme() -> bool {
-        unsafe { super::nk_uses_sme() != 0 }
-    }
-    pub fn uses_sme2() -> bool {
-        unsafe { super::nk_uses_sme2() != 0 }
-    }
-    pub fn uses_sme2p1() -> bool {
-        unsafe { super::nk_uses_sme2p1() != 0 }
-    }
-    pub fn uses_smef64() -> bool {
-        unsafe { super::nk_uses_smef64() != 0 }
-    }
-    pub fn uses_smehalf() -> bool {
-        unsafe { super::nk_uses_smehalf() != 0 }
-    }
-    pub fn uses_smebf16() -> bool {
-        unsafe { super::nk_uses_smebf16() != 0 }
-    }
-    pub fn uses_smelut2() -> bool {
-        unsafe { super::nk_uses_smelut2() != 0 }
-    }
-    pub fn uses_smefa64() -> bool {
-        unsafe { super::nk_uses_smefa64() != 0 }
-    }
-    pub fn uses_haswell() -> bool {
-        unsafe { super::nk_uses_haswell() != 0 }
-    }
-    pub fn uses_skylake() -> bool {
-        unsafe { super::nk_uses_skylake() != 0 }
-    }
-    pub fn uses_ice() -> bool {
-        unsafe { super::nk_uses_ice() != 0 }
-    }
-    pub fn uses_genoa() -> bool {
-        unsafe { super::nk_uses_genoa() != 0 }
-    }
-    pub fn uses_sapphire() -> bool {
-        unsafe { super::nk_uses_sapphire() != 0 }
-    }
-    pub fn uses_turin() -> bool {
-        unsafe { super::nk_uses_turin() != 0 }
-    }
-    pub fn uses_sierra() -> bool {
-        unsafe { super::nk_uses_sierra() != 0 }
-    }
-    pub fn uses_sapphire_amx() -> bool {
-        unsafe { super::nk_uses_sapphire_amx() != 0 }
-    }
-    pub fn uses_granite_amx() -> bool {
-        unsafe { super::nk_uses_granite_amx() != 0 }
-    }
-    pub fn uses_spacemit() -> bool {
-        unsafe { super::nk_uses_spacemit() != 0 }
-    }
-    pub fn uses_sifive() -> bool {
-        unsafe { super::nk_uses_sifive() != 0 }
-    }
-    pub fn uses_xuantie() -> bool {
-        unsafe { super::nk_uses_xuantie() != 0 }
+    /// Returns the bitmask of available CPU capabilities.
+    /// Use with `cap::*` constants to check for specific features.
+    ///
+    /// # Example
+    /// ```
+    /// use numkong::{capabilities, cap};
+    ///
+    /// let caps = capabilities::available();
+    /// if caps & cap::NEON != 0 {
+    ///     println!("NEON is available");
+    /// }
+    /// if caps & cap::SKYLAKE != 0 {
+    ///     println!("AVX-512 (Skylake) is available");
+    /// }
+    /// ```
+    pub fn available() -> u64 {
+        unsafe { super::nk_capabilities() }
     }
 
     /// Configures the current thread for optimal SIMD performance.
@@ -1046,6 +941,43 @@ pub mod capabilities {
     pub fn uses_dynamic_dispatch() -> bool {
         unsafe { super::nk_uses_dynamic_dispatch() != 0 }
     }
+}
+
+/// Capability bit masks in chronological order (by first commercial silicon).
+pub mod cap {
+    pub const SERIAL: u64 = 1 << 0; // Always: Fallback
+    pub const NEON: u64 = 1 << 1; // 2013: ARM NEON
+    pub const HASWELL: u64 = 1 << 2; // 2013: Intel AVX2
+    pub const SKYLAKE: u64 = 1 << 3; // 2017: Intel AVX-512
+    pub const NEONHALF: u64 = 1 << 4; // 2017: ARM NEON FP16
+    pub const NEONSDOT: u64 = 1 << 5; // 2017: ARM NEON i8 dot
+    pub const NEONFHM: u64 = 1 << 6; // 2018: ARM NEON FP16 FML
+    pub const ICELAKE: u64 = 1 << 7; // 2019: Intel AVX-512 VNNI
+    pub const GENOA: u64 = 1 << 8; // 2020: Intel/AMD AVX-512 BF16
+    pub const NEONBFDOT: u64 = 1 << 9; // 2020: ARM NEON BF16
+    pub const SVE: u64 = 1 << 10; // 2020: ARM SVE
+    pub const SVEHALF: u64 = 1 << 11; // 2020: ARM SVE FP16
+    pub const SVESDOT: u64 = 1 << 12; // 2020: ARM SVE i8 dot
+    pub const SIERRA: u64 = 1 << 13; // 2021: Intel AVX2+VNNI
+    pub const SVEBFDOT: u64 = 1 << 14; // 2021: ARM SVE BF16
+    pub const SVE2: u64 = 1 << 15; // 2022: ARM SVE2
+    pub const V128RELAXED: u64 = 1 << 16; // 2022: WASM Relaxed SIMD
+    pub const SAPPHIRE: u64 = 1 << 17; // 2023: Intel AVX-512 FP16
+    pub const SAPPHIREAMX: u64 = 1 << 18; // 2023: Intel Sapphire AMX
+    pub const RVV: u64 = 1 << 19; // 2023: RISC-V Vector
+    pub const RVVHALF: u64 = 1 << 20; // 2023: RISC-V Zvfh
+    pub const RVVBF16: u64 = 1 << 21; // 2023: RISC-V Zvfbfwma
+    pub const GRANITEAMX: u64 = 1 << 22; // 2024: Intel Granite AMX FP16
+    pub const TURIN: u64 = 1 << 23; // 2024: AMD Turin AVX-512 CD
+    pub const SME: u64 = 1 << 24; // 2024: ARM SME
+    pub const SME2: u64 = 1 << 25; // 2024: ARM SME2
+    pub const SMEF64: u64 = 1 << 26; // 2024: ARM SME F64
+    pub const SMEFA64: u64 = 1 << 27; // 2024: ARM SME FA64
+    pub const SVE2P1: u64 = 1 << 28; // 2025+: ARM SVE2.1
+    pub const SME2P1: u64 = 1 << 29; // 2025+: ARM SME2.1
+    pub const SMEHALF: u64 = 1 << 30; // 2025+: ARM SME F16F16
+    pub const SMEBF16: u64 = 1 << 31; // 2025+: ARM SME B16B16
+    pub const SMELUT2: u64 = 1 << 32; // 2025+: ARM SME LUTv2
 }
 
 // endregion: Capabilities
@@ -2826,20 +2758,20 @@ impl SparseDot for u32 {
 
 // endregion: SparseDot
 
-// region: Sin
+// region: EachSin
 
 /// Computes **element-wise sine** of a vector.
-pub trait Sin: Sized {
+pub trait EachSin: Sized {
     fn sin(inputs: &[Self], outputs: &mut [Self]) -> Option<()>;
 }
 
-impl Sin for f64 {
+impl EachSin for f64 {
     fn sin(inputs: &[Self], outputs: &mut [Self]) -> Option<()> {
         if inputs.len() != outputs.len() {
             return None;
         }
         unsafe {
-            nk_sin_f64(
+            nk_each_sin_f64(
                 inputs.as_ptr(),
                 inputs.len() as u64size,
                 outputs.as_mut_ptr(),
@@ -2849,13 +2781,13 @@ impl Sin for f64 {
     }
 }
 
-impl Sin for f32 {
+impl EachSin for f32 {
     fn sin(inputs: &[Self], outputs: &mut [Self]) -> Option<()> {
         if inputs.len() != outputs.len() {
             return None;
         }
         unsafe {
-            nk_sin_f32(
+            nk_each_sin_f32(
                 inputs.as_ptr(),
                 inputs.len() as u64size,
                 outputs.as_mut_ptr(),
@@ -2865,13 +2797,13 @@ impl Sin for f32 {
     }
 }
 
-impl Sin for f16 {
+impl EachSin for f16 {
     fn sin(inputs: &[Self], outputs: &mut [Self]) -> Option<()> {
         if inputs.len() != outputs.len() {
             return None;
         }
         unsafe {
-            nk_sin_f16(
+            nk_each_sin_f16(
                 inputs.as_ptr() as *const u16,
                 inputs.len() as u64size,
                 outputs.as_mut_ptr() as *mut u16,
@@ -2881,22 +2813,22 @@ impl Sin for f16 {
     }
 }
 
-// endregion: Sin
+// endregion: EachSin
 
-// region: Cos
+// region: EachCos
 
 /// Computes **element-wise cosine** of a vector.
-pub trait Cos: Sized {
+pub trait EachCos: Sized {
     fn cos(inputs: &[Self], outputs: &mut [Self]) -> Option<()>;
 }
 
-impl Cos for f64 {
+impl EachCos for f64 {
     fn cos(inputs: &[Self], outputs: &mut [Self]) -> Option<()> {
         if inputs.len() != outputs.len() {
             return None;
         }
         unsafe {
-            nk_cos_f64(
+            nk_each_cos_f64(
                 inputs.as_ptr(),
                 inputs.len() as u64size,
                 outputs.as_mut_ptr(),
@@ -2906,13 +2838,13 @@ impl Cos for f64 {
     }
 }
 
-impl Cos for f32 {
+impl EachCos for f32 {
     fn cos(inputs: &[Self], outputs: &mut [Self]) -> Option<()> {
         if inputs.len() != outputs.len() {
             return None;
         }
         unsafe {
-            nk_cos_f32(
+            nk_each_cos_f32(
                 inputs.as_ptr(),
                 inputs.len() as u64size,
                 outputs.as_mut_ptr(),
@@ -2922,13 +2854,13 @@ impl Cos for f32 {
     }
 }
 
-impl Cos for f16 {
+impl EachCos for f16 {
     fn cos(inputs: &[Self], outputs: &mut [Self]) -> Option<()> {
         if inputs.len() != outputs.len() {
             return None;
         }
         unsafe {
-            nk_cos_f16(
+            nk_each_cos_f16(
                 inputs.as_ptr() as *const u16,
                 inputs.len() as u64size,
                 outputs.as_mut_ptr() as *mut u16,
@@ -2938,22 +2870,22 @@ impl Cos for f16 {
     }
 }
 
-// endregion: Cos
+// endregion: EachCos
 
-// region: ATan
+// region: EachATan
 
 /// Computes **element-wise arctangent** (inverse tangent) of a vector.
-pub trait ATan: Sized {
+pub trait EachATan: Sized {
     fn atan(inputs: &[Self], outputs: &mut [Self]) -> Option<()>;
 }
 
-impl ATan for f64 {
+impl EachATan for f64 {
     fn atan(inputs: &[Self], outputs: &mut [Self]) -> Option<()> {
         if inputs.len() != outputs.len() {
             return None;
         }
         unsafe {
-            nk_atan_f64(
+            nk_each_atan_f64(
                 inputs.as_ptr(),
                 inputs.len() as u64size,
                 outputs.as_mut_ptr(),
@@ -2963,13 +2895,13 @@ impl ATan for f64 {
     }
 }
 
-impl ATan for f32 {
+impl EachATan for f32 {
     fn atan(inputs: &[Self], outputs: &mut [Self]) -> Option<()> {
         if inputs.len() != outputs.len() {
             return None;
         }
         unsafe {
-            nk_atan_f32(
+            nk_each_atan_f32(
                 inputs.as_ptr(),
                 inputs.len() as u64size,
                 outputs.as_mut_ptr(),
@@ -2979,13 +2911,13 @@ impl ATan for f32 {
     }
 }
 
-impl ATan for f16 {
+impl EachATan for f16 {
     fn atan(inputs: &[Self], outputs: &mut [Self]) -> Option<()> {
         if inputs.len() != outputs.len() {
             return None;
         }
         unsafe {
-            nk_atan_f16(
+            nk_each_atan_f16(
                 inputs.as_ptr() as *const u16,
                 inputs.len() as u64size,
                 outputs.as_mut_ptr() as *mut u16,
@@ -2995,7 +2927,7 @@ impl ATan for f16 {
     }
 }
 
-// endregion: ATan
+// endregion: EachATan
 
 // region: Scale
 
@@ -5565,9 +5497,9 @@ impl<T: ComplexDot + ComplexVDot> ComplexProducts for T {}
 pub trait Elementwise: EachScale + EachSum + EachBlend + EachFMA {}
 impl<T: EachScale + EachSum + EachBlend + EachFMA> Elementwise for T {}
 
-/// `Trigonometry` bundles trigonometric functions: Sin, Cos, and ATan.
-pub trait Trigonometry: Sin + Cos + ATan {}
-impl<T: Sin + Cos + ATan> Trigonometry for T {}
+/// `Trigonometry` bundles trigonometric functions: EachSin, EachCos, and EachATan.
+pub trait Trigonometry: EachSin + EachCos + EachATan {}
+impl<T: EachSin + EachCos + EachATan> Trigonometry for T {}
 
 /// `Reductions` bundles reduction operations: ReduceAdd, ReduceMin, and ReduceMax.
 pub trait Reductions: ReduceAdd + ReduceMin + ReduceMax {}
@@ -5706,7 +5638,7 @@ mod tests {
         let inputs: Vec<f32> = (0..11).map(|i| (i as f32) * PI / 10.0).collect();
         let expected: Vec<f32> = inputs.iter().map(|x| x.sin()).collect();
         let mut result = vec![0.0f32; inputs.len()];
-        <f32 as Sin>::sin(&inputs, &mut result).unwrap();
+        <f32 as EachSin>::sin(&inputs, &mut result).unwrap();
         for (r, e) in result.iter().zip(expected.iter()) {
             assert!((r - e).abs() < 0.1, "sin mismatch: {} vs {}", r, e);
         }
@@ -5718,7 +5650,7 @@ mod tests {
         let inputs: Vec<f32> = (0..11).map(|i| (i as f32) * PI / 10.0).collect();
         let expected: Vec<f32> = inputs.iter().map(|x| x.cos()).collect();
         let mut result = vec![0.0f32; inputs.len()];
-        <f32 as Cos>::cos(&inputs, &mut result).unwrap();
+        <f32 as EachCos>::cos(&inputs, &mut result).unwrap();
         for (r, e) in result.iter().zip(expected.iter()) {
             assert!((r - e).abs() < 0.1, "cos mismatch: {} vs {}", r, e);
         }

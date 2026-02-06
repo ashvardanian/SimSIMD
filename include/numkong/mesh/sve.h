@@ -1,9 +1,10 @@
 /**
- *  @brief SIMD-accelerated Dot Products for Real and Complex Numbers optimized for Arm SVE-capable CPUs.
+ *  @brief SIMD-accelerated Point Cloud Alignment for SVE.
  *  @file include/numkong/mesh/sve.h
- *  @sa include/numkong/mesh.h
  *  @author Ash Vardanian
  *  @date December 27, 2025
+ *
+ *  @sa include/numkong/mesh.h
  *
  *  @section mesh_sve_instructions ARM SVE Instructions
  *
@@ -26,12 +27,6 @@
 
 #if NK_TARGET_ARM_
 #if NK_TARGET_SVE
-#if defined(__clang__)
-#pragma clang attribute push(__attribute__((target("arch=armv8.2-a+sve"))), apply_to = function)
-#elif defined(__GNUC__)
-#pragma GCC push_options
-#pragma GCC target("arch=armv8.2-a+sve")
-#endif
 
 #include "numkong/types.h"
 
@@ -39,8 +34,11 @@
 extern "C" {
 #endif
 
-#if defined(__cplusplus)
-} // extern "C"
+#if defined(__clang__)
+#pragma clang attribute push(__attribute__((target("arch=armv8.2-a+sve"))), apply_to = function)
+#elif defined(__GNUC__)
+#pragma GCC push_options
+#pragma GCC target("arch=armv8.2-a+sve")
 #endif
 
 #if defined(__clang__)
@@ -48,7 +46,11 @@ extern "C" {
 #elif defined(__GNUC__)
 #pragma GCC pop_options
 #endif
+
+#if defined(__cplusplus)
+} // extern "C"
+#endif
+
 #endif // NK_TARGET_SVE
 #endif // NK_TARGET_ARM_
-
 #endif // NK_MESH_SVE_H

@@ -1,9 +1,11 @@
 /**
- *  @brief SIMD-accelerated trigonometric element-wise operations optimized for Intel Sapphire Rapids CPUs.
+ *  @brief SIMD-accelerated Trigonometric Functions for Sapphire Rapids.
  *  @file include/numkong/trigonometry/sapphire.h
- *  @sa include/numkong/trigonometry.h
  *  @author Ash Vardanian
  *  @date December 27, 2025
+ *
+ *  @sa include/numkong/trigonometry.h
+ *  @see https://sleef.org
  *
  *  Uses AVX-512 FP16 for native half-precision trigonometry:
  *  - 32 FP16 values per 512-bit register
@@ -29,18 +31,19 @@
 
 #if NK_TARGET_X86_
 #if NK_TARGET_SAPPHIRE
+
+#include "numkong/types.h"
+
+#if defined(__cplusplus)
+extern "C" {
+#endif
+
 #if defined(__clang__)
 #pragma clang attribute push(__attribute__((target("avx2,avx512f,avx512vl,avx512bw,avx512fp16,f16c,fma,bmi,bmi2"))), \
                              apply_to = function)
 #elif defined(__GNUC__)
 #pragma GCC push_options
 #pragma GCC target("avx2", "avx512f", "avx512vl", "avx512bw", "avx512fp16", "f16c", "fma", "bmi", "bmi2")
-#endif
-
-#include "numkong/types.h"
-
-#if defined(__cplusplus)
-extern "C" {
 #endif
 
 /**
@@ -154,7 +157,7 @@ NK_INTERNAL __m512h nk_f16x32_atan_sapphire_(__m512h const inputs) {
     return result;
 }
 
-NK_PUBLIC void nk_sin_f16_sapphire(nk_f16_t const *ins, nk_size_t n, nk_f16_t *outs) {
+NK_PUBLIC void nk_each_sin_f16_sapphire(nk_f16_t const *ins, nk_size_t n, nk_f16_t *outs) {
     nk_size_t i = 0;
     for (; i + 32 <= n; i += 32) {
         __m512h angles = _mm512_loadu_ph(ins + i);
@@ -169,7 +172,7 @@ NK_PUBLIC void nk_sin_f16_sapphire(nk_f16_t const *ins, nk_size_t n, nk_f16_t *o
     }
 }
 
-NK_PUBLIC void nk_cos_f16_sapphire(nk_f16_t const *ins, nk_size_t n, nk_f16_t *outs) {
+NK_PUBLIC void nk_each_cos_f16_sapphire(nk_f16_t const *ins, nk_size_t n, nk_f16_t *outs) {
     nk_size_t i = 0;
     for (; i + 32 <= n; i += 32) {
         __m512h angles = _mm512_loadu_ph(ins + i);
@@ -184,7 +187,7 @@ NK_PUBLIC void nk_cos_f16_sapphire(nk_f16_t const *ins, nk_size_t n, nk_f16_t *o
     }
 }
 
-NK_PUBLIC void nk_atan_f16_sapphire(nk_f16_t const *ins, nk_size_t n, nk_f16_t *outs) {
+NK_PUBLIC void nk_each_atan_f16_sapphire(nk_f16_t const *ins, nk_size_t n, nk_f16_t *outs) {
     nk_size_t i = 0;
     for (; i + 32 <= n; i += 32) {
         __m512h values = _mm512_loadu_ph(ins + i);
@@ -199,16 +202,16 @@ NK_PUBLIC void nk_atan_f16_sapphire(nk_f16_t const *ins, nk_size_t n, nk_f16_t *
     }
 }
 
-#if defined(__cplusplus)
-} // extern "C"
-#endif
-
 #if defined(__clang__)
 #pragma clang attribute pop
 #elif defined(__GNUC__)
 #pragma GCC pop_options
 #endif
+
+#if defined(__cplusplus)
+} // extern "C"
+#endif
+
 #endif // NK_TARGET_SAPPHIRE
 #endif // NK_TARGET_X86_
-
 #endif // NK_TRIGONOMETRY_SAPPHIRE_H

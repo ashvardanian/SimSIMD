@@ -619,27 +619,37 @@ extension Float32: NumKongVincenty {
 public enum Capabilities {
     public static var available: UInt64 { nk_capabilities() }
 
-    // ARM NEON
-    public static var usesNeon: Bool { nk_uses_neon() != 0 }
-    public static var usesNeonHalf: Bool { nk_uses_neonhalf() != 0 }
-    public static var usesNeonFhm: Bool { nk_uses_neonfhm() != 0 }
-    public static var usesNeonBfDot: Bool { nk_uses_neonbfdot() != 0 }
-    public static var usesNeonSDot: Bool { nk_uses_neonsdot() != 0 }
-
-    // ARM SVE
-    public static var usesSve: Bool { nk_uses_sve() != 0 }
-    public static var usesSveHalf: Bool { nk_uses_svehalf() != 0 }
-    public static var usesSveBfDot: Bool { nk_uses_svebfdot() != 0 }
-    public static var usesSveSDot: Bool { nk_uses_svesdot() != 0 }
-    public static var usesSve2: Bool { nk_uses_sve2() != 0 }
-    public static var usesSve2p1: Bool { nk_uses_sve2p1() != 0 }
-
-    // x86
-    public static var usesHaswell: Bool { nk_uses_haswell() != 0 }
-    public static var usesSkylake: Bool { nk_uses_skylake() != 0 }
-    public static var usesIce: Bool { nk_uses_ice() != 0 }
-    public static var usesGenoa: Bool { nk_uses_genoa() != 0 }
-    public static var usesSapphire: Bool { nk_uses_sapphire() != 0 }
-    public static var usesTurin: Bool { nk_uses_turin() != 0 }
-    public static var usesSierra: Bool { nk_uses_sierra() != 0 }
+    // Chronologically-ordered capability bit positions
+    public static let neon: UInt64 = 1 << 1
+    public static let haswell: UInt64 = 1 << 2
+    public static let skylake: UInt64 = 1 << 3
+    public static let neonHalf: UInt64 = 1 << 4
+    public static let neonSDot: UInt64 = 1 << 5
+    public static let neonFhm: UInt64 = 1 << 6
+    public static let icelake: UInt64 = 1 << 7
+    public static let genoa: UInt64 = 1 << 8
+    public static let neonBfDot: UInt64 = 1 << 9
+    public static let sve: UInt64 = 1 << 10
+    public static let sveHalf: UInt64 = 1 << 11
+    public static let sveSDot: UInt64 = 1 << 12
+    public static let sierra: UInt64 = 1 << 13
+    public static let sveBfDot: UInt64 = 1 << 14
+    public static let sve2: UInt64 = 1 << 15
+    public static let v128Relaxed: UInt64 = 1 << 16
+    public static let sapphire: UInt64 = 1 << 17
+    public static let sapphireAmx: UInt64 = 1 << 18
+    public static let rvv: UInt64 = 1 << 19
+    public static let rvvHalf: UInt64 = 1 << 20
+    public static let rvvBf16: UInt64 = 1 << 21
+    public static let graniteAmx: UInt64 = 1 << 22
+    public static let turin: UInt64 = 1 << 23
+    public static let sme: UInt64 = 1 << 24
+    public static let sme2: UInt64 = 1 << 25
+    public static let smeF64: UInt64 = 1 << 26
+    public static let smeFa64: UInt64 = 1 << 27
+    public static let sve2p1: UInt64 = 1 << 28
+    public static let sme2p1: UInt64 = 1 << 29
+    public static let smeHalf: UInt64 = 1 << 30
+    public static let smeBf16: UInt64 = 1 << 31
+    public static let smeLut2: UInt64 = 1 << 32
 }

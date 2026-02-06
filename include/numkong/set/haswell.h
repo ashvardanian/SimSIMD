@@ -1,11 +1,12 @@
 /**
- *  @brief SIMD-accelerated Set Similarity Measures optimized for Intel Haswell CPUs.
+ *  @brief SIMD-accelerated Set Similarity Measures for Haswell.
  *  @file include/numkong/set/haswell.h
- *  @sa include/numkong/set.h
  *  @author Ash Vardanian
  *  @date December 27, 2025
  *
- *  @section haswell_set_instructions Key POPCNT/AVX2 Set Instructions
+ *  @sa include/numkong/set.h
+ *
+ *  @section set_haswell_instructions Key POPCNT/AVX2 Set Instructions
  *
  *      Intrinsic                   Instruction                     Latency     Throughput  Ports
  *      _mm_popcnt_u64              POPCNT (R64, R64)               3cy         1/cy        p1
@@ -17,12 +18,36 @@
  *  Haswell lacks SIMD popcount; we extract 64-bit words and use scalar POPCNT. The p1 port
  *  bottleneck limits throughput to 1 popcount/cycle. For Hamming distance, XOR + POPCNT;
  *  for Jaccard, compute AND/OR + POPCNT separately to get intersection and union counts.
+ *
+ *  @section set_haswell_stateful Stateful Streaming Logic
+ *
+ *  To build memory-optimal tiled algorithms, this file defines:
+ *
+ *  - nk_hamming_u1x64_state_haswell_t for streaming Hamming distance
+ *  - nk_jaccard_u1x64_state_haswell_t for streaming Jaccard similarity
+ *
+ *  @code{c}
+ *  nk_jaccard_u1x64_state_haswell_t state_first, state_second, state_third, state_fourth;
+ *  nk_jaccard_u1x64_init_haswell(&state_first);
+ *  // ... stream through packed binary vectors ...
+ *  nk_jaccard_u1x64_finalize_haswell(&state_first, &state_second, &state_third, &state_fourth,
+ *      query_popcount, target_popcount_a, target_popcount_b, target_popcount_c, target_popcount_d,
+ *      total_dimensions, &results);
+ *  @endcode
  */
 #ifndef NK_SET_HASWELL_H
 #define NK_SET_HASWELL_H
 
 #if NK_TARGET_X86_
 #if NK_TARGET_HASWELL
+
+#include "numkong/types.h"
+#include "numkong/set/serial.h" // `nk_u1x8_popcount_`
+
+#if defined(__cplusplus)
+extern "C" {
+#endif
+
 #if defined(__clang__)
 #pragma clang attribute push(__attribute__((target("avx2,sse4.1,popcnt"))), apply_to = function)
 #elif defined(__GNUC__)
@@ -30,12 +55,7 @@
 #pragma GCC target("avx2", "sse4.1", "popcnt")
 #endif
 
-#include "numkong/types.h"
-#include "numkong/set/serial.h" // `nk_popcount_u1`
-
-#if defined(__cplusplus)
-extern "C" {
-#endif
+#pragma region - Binary Sets
 
 NK_PUBLIC void nk_hamming_u1_haswell(nk_u1x8_t const *a, nk_u1x8_t const *b, nk_size_t n, nk_u32_t *result) {
     nk_size_t n_bytes = nk_size_divide_round_up_(n, NK_BITS_PER_BYTE);
@@ -55,9 +75,13 @@ NK_PUBLIC void nk_jaccard_u1_haswell(nk_u1x8_t const *a, nk_u1x8_t const *b, nk_
         intersection_count += (nk_u32_t)_mm_popcnt_u64(*(nk_u64_t const *)a & *(nk_u64_t const *)b),
             union_count += (nk_u32_t)_mm_popcnt_u64(*(nk_u64_t const *)a | *(nk_u64_t const *)b);
     for (; n_bytes; --n_bytes, ++a, ++b)
-        intersection_count += nk_popcount_u1(*a & *b), union_count += nk_popcount_u1(*a | *b);
+        intersection_count += nk_u1x8_popcount_(*a & *b), union_count += nk_u1x8_popcount_(*a | *b);
     *result = (union_count != 0) ? 1.0f - (nk_f32_t)intersection_count / (nk_f32_t)union_count : 1.0f;
 }
+
+#pragma endregion - Binary Sets
+
+#pragma region - Integer Sets
 
 NK_PUBLIC void nk_jaccard_u32_haswell(nk_u32_t const *a, nk_u32_t const *b, nk_size_t n, nk_f32_t *result) {
     nk_u32_t intersection_count = 0;
@@ -168,22 +192,28 @@ NK_PUBLIC void nk_jaccard_u16_haswell(nk_u16_t const *a, nk_u16_t const *b, nk_s
     *result = (n != 0) ? 1.0f - (nk_f32_t)matches / (nk_f32_t)n : 1.0f;
 }
 
-struct nk_hamming_b64_state_haswell_t {
+#pragma endregion - Integer Sets
+
+#pragma region - Stateful Streaming
+
+typedef struct nk_hamming_u1x64_state_haswell_t {
     nk_u32_t intersection_count;
-};
+} nk_hamming_u1x64_state_haswell_t;
 
-NK_INTERNAL void nk_hamming_b64_init_haswell(nk_hamming_b64_state_haswell_t *state) { state->intersection_count = 0; }
+NK_INTERNAL void nk_hamming_u1x64_init_haswell(nk_hamming_u1x64_state_haswell_t *state) {
+    state->intersection_count = 0;
+}
 
-NK_INTERNAL void nk_hamming_b64_update_haswell(nk_hamming_b64_state_haswell_t *state, nk_b64_vec_t a, nk_b64_vec_t b,
-                                               nk_size_t depth_offset, nk_size_t active_dimensions) {
+NK_INTERNAL void nk_hamming_u1x64_update_haswell(nk_hamming_u1x64_state_haswell_t *state, nk_b64_vec_t a,
+                                                 nk_b64_vec_t b, nk_size_t depth_offset, nk_size_t active_dimensions) {
     nk_unused_(depth_offset);
     nk_unused_(active_dimensions);
     state->intersection_count += (nk_u32_t)_mm_popcnt_u64(a.u64 ^ b.u64);
 }
 
-NK_INTERNAL void nk_hamming_b64_finalize_haswell( //
-    nk_hamming_b64_state_haswell_t const *state_a, nk_hamming_b64_state_haswell_t const *state_b,
-    nk_hamming_b64_state_haswell_t const *state_c, nk_hamming_b64_state_haswell_t const *state_d,
+NK_INTERNAL void nk_hamming_u1x64_finalize_haswell( //
+    nk_hamming_u1x64_state_haswell_t const *state_a, nk_hamming_u1x64_state_haswell_t const *state_b,
+    nk_hamming_u1x64_state_haswell_t const *state_c, nk_hamming_u1x64_state_haswell_t const *state_d,
     nk_size_t total_dimensions, nk_b128_vec_t *result) {
     nk_unused_(total_dimensions);
     result->u32s[0] = state_a->intersection_count;
@@ -192,22 +222,24 @@ NK_INTERNAL void nk_hamming_b64_finalize_haswell( //
     result->u32s[3] = state_d->intersection_count;
 }
 
-struct nk_jaccard_b64_state_haswell_t {
+typedef struct nk_jaccard_u1x64_state_haswell_t {
     nk_u32_t intersection_count;
-};
+} nk_jaccard_u1x64_state_haswell_t;
 
-NK_INTERNAL void nk_jaccard_b64_init_haswell(nk_jaccard_b64_state_haswell_t *state) { state->intersection_count = 0; }
+NK_INTERNAL void nk_jaccard_u1x64_init_haswell(nk_jaccard_u1x64_state_haswell_t *state) {
+    state->intersection_count = 0;
+}
 
-NK_INTERNAL void nk_jaccard_b64_update_haswell(nk_jaccard_b64_state_haswell_t *state, nk_b64_vec_t a, nk_b64_vec_t b,
-                                               nk_size_t depth_offset, nk_size_t active_dimensions) {
+NK_INTERNAL void nk_jaccard_u1x64_update_haswell(nk_jaccard_u1x64_state_haswell_t *state, nk_b64_vec_t a,
+                                                 nk_b64_vec_t b, nk_size_t depth_offset, nk_size_t active_dimensions) {
     nk_unused_(depth_offset);
     nk_unused_(active_dimensions);
     state->intersection_count += (nk_u32_t)_mm_popcnt_u64(a.u64 & b.u64);
 }
 
-NK_INTERNAL void nk_jaccard_b64_finalize_haswell( //
-    nk_jaccard_b64_state_haswell_t const *state_a, nk_jaccard_b64_state_haswell_t const *state_b,
-    nk_jaccard_b64_state_haswell_t const *state_c, nk_jaccard_b64_state_haswell_t const *state_d,
+NK_INTERNAL void nk_jaccard_u1x64_finalize_haswell( //
+    nk_jaccard_u1x64_state_haswell_t const *state_a, nk_jaccard_u1x64_state_haswell_t const *state_b,
+    nk_jaccard_u1x64_state_haswell_t const *state_c, nk_jaccard_u1x64_state_haswell_t const *state_d,
     nk_f32_t query_popcount, nk_f32_t target_popcount_a, nk_f32_t target_popcount_b, nk_f32_t target_popcount_c,
     nk_f32_t target_popcount_d, nk_size_t total_dimensions, nk_b128_vec_t *result) {
     nk_unused_(total_dimensions);
@@ -254,16 +286,18 @@ NK_INTERNAL void nk_jaccard_b64_finalize_haswell( //
     result->xmm_ps = _mm_blendv_ps(jaccard_f32x4, one_f32x4, zero_union_mask);
 }
 
-#if defined(__cplusplus)
-} // extern "C"
-#endif
+#pragma endregion - Stateful Streaming
 
 #if defined(__clang__)
 #pragma clang attribute pop
 #elif defined(__GNUC__)
 #pragma GCC pop_options
 #endif
+
+#if defined(__cplusplus)
+} // extern "C"
+#endif
+
 #endif // NK_TARGET_HASWELL
 #endif // NK_TARGET_X86_
-
 #endif // NK_SET_HASWELL_H

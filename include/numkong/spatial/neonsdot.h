@@ -1,9 +1,10 @@
 /**
- *  @brief SIMD-accelerated Spatial Similarity Measures optimized for Arm NEON-capable CPUs.
+ *  @brief SIMD-accelerated Spatial Similarity Measures for NEON SDOT.
  *  @file include/numkong/spatial/neonsdot.h
- *  @sa include/numkong/spatial.h
  *  @author Ash Vardanian
  *  @date December 27, 2025
+ *
+ *  @sa include/numkong/spatial.h
  *
  *  @section spatial_neonsdot_instructions ARM NEON SDOT/UDOT Instructions (ARMv8.4-DotProd)
  *
@@ -31,18 +32,20 @@
 
 #if NK_TARGET_ARM_
 #if NK_TARGET_NEONSDOT
+
+#include "numkong/types.h"
+#include "numkong/spatial/neon.h" // `nk_angular_through_f32_finalize_neon_`
+#include "numkong/dot/neonsdot.h" // `nk_dot_i8x16_state_neonsdot_t`
+
+#if defined(__cplusplus)
+extern "C" {
+#endif
+
 #if defined(__clang__)
 #pragma clang attribute push(__attribute__((target("arch=armv8.2-a+dotprod"))), apply_to = function)
 #elif defined(__GNUC__)
 #pragma GCC push_options
 #pragma GCC target("arch=armv8.2-a+dotprod")
-#endif
-
-#include "numkong/types.h"
-#include "numkong/spatial/neon.h" // nk_angular_through_f32_finalize_neon_, nk_euclidean_through_f32_finalize_neon_
-
-#if defined(__cplusplus)
-extern "C" {
 #endif
 
 NK_PUBLIC void nk_sqeuclidean_i8_neonsdot(nk_i8_t const *a, nk_i8_t const *b, nk_size_t n, nk_u32_t *result) {
@@ -332,16 +335,16 @@ NK_INTERNAL void nk_euclidean_u8x16_finalize_neonsdot(
                                             target_norm_d, results);
 }
 
-#if defined(__cplusplus)
-} // extern "C"
-#endif
-
 #if defined(__clang__)
 #pragma clang attribute pop
 #elif defined(__GNUC__)
 #pragma GCC pop_options
 #endif
+
+#if defined(__cplusplus)
+} // extern "C"
+#endif
+
 #endif // NK_TARGET_NEONSDOT
 #endif // NK_TARGET_ARM_
-
 #endif // NK_SPATIAL_NEONSDOT_H

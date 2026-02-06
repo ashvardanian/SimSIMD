@@ -1,9 +1,10 @@
 /**
- *  @brief SIMD-accelerated horizontal reduction operations for Arm NEON-capable CPUs.
+ *  @brief SIMD-accelerated Vector Reductions for NEON BF16.
  *  @file include/numkong/reduce/neonbfdot.h
- *  @sa include/numkong/reduce.h
  *  @author Ash Vardanian
  *  @date December 27, 2025
+ *
+ *  @sa include/numkong/reduce.h
  *
  *  @section reduce_neonbfdot_instructions ARM NEON BF16 Instructions (ARMv8.6-BF16)
  *
@@ -33,17 +34,18 @@
 
 #if NK_TARGET_ARM_
 #if NK_TARGET_NEONBFDOT
-#if defined(__clang__)
-#pragma clang attribute push(__attribute__((target("arch=armv8.6-a+simd+bf16"))), apply_to = function)
-#elif defined(__GNUC__)
-#pragma GCC push_options
-#pragma GCC target("arch=armv8.6-a+simd+bf16")
-#endif
 
 #include "numkong/reduce/neon.h"
 
 #if defined(__cplusplus)
 extern "C" {
+#endif
+
+#if defined(__clang__)
+#pragma clang attribute push(__attribute__((target("arch=armv8.6-a+simd+bf16"))), apply_to = function)
+#elif defined(__GNUC__)
+#pragma GCC push_options
+#pragma GCC target("arch=armv8.6-a+simd+bf16")
 #endif
 
 NK_INTERNAL void nk_reduce_add_bf16_neonbfdot_contiguous_( //
@@ -392,16 +394,16 @@ NK_PUBLIC void nk_reduce_max_bf16_neonbfdot(                        //
     else nk_reduce_max_bf16_serial(data, count, stride_bytes, max_value, max_index);
 }
 
-#if defined(__cplusplus)
-} // extern "C"
-#endif
-
 #if defined(__clang__)
 #pragma clang attribute pop
 #elif defined(__GNUC__)
 #pragma GCC pop_options
 #endif
+
+#if defined(__cplusplus)
+} // extern "C"
+#endif
+
 #endif // NK_TARGET_NEONBFDOT
 #endif // NK_TARGET_ARM_
-
 #endif // NK_REDUCE_NEONBFDOT_H

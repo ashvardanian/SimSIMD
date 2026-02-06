@@ -1,6 +1,8 @@
 /**
- *  @brief Scalar types for NumKong low-precision types.
+ *  @brief Low-Precision Scalar Wrappers for Python.
  *  @file python/scalars.h
+ *  @author Ash Vardanian
+ *  @date December 30, 2025
  *
  *  Pure Python C API scalar types for bfloat16, float8_e4m3, and float8_e5m2.
  *  These work without NumPy - they're standalone Python objects:

@@ -1,9 +1,10 @@
 /**
- *  @brief SIMD-accelerated Dot Products for Real and Complex Numbers optimized for Arm NEON CPUs with FMLAL.
+ *  @brief SIMD-accelerated Batched Dot Products for NEON FHM.
  *  @file include/numkong/dots/neonfhm.h
- *  @sa include/numkong/dots.h
  *  @author Ash Vardanian
  *  @date December 28, 2025
+ *
+ *  @sa include/numkong/dots.h
  *
  *  Uses FMLAL (FEAT_FHM) for widening fp16->f32 multiply-accumulate, which is 20-48% faster
  *  than the convert-then-FMA approach used in neonhalf.h.
@@ -13,17 +14,18 @@
 
 #if NK_TARGET_ARM_
 #if NK_TARGET_NEONFHM
-#if defined(__clang__)
-#pragma clang attribute push(__attribute__((target("arch=armv8.2-a+simd+fp16+fp16fml"))), apply_to = function)
-#elif defined(__GNUC__)
-#pragma GCC push_options
-#pragma GCC target("arch=armv8.2-a+simd+fp16+fp16fml")
-#endif
 
 #include "numkong/dot/neonfhm.h"
 
 #if defined(__cplusplus)
 extern "C" {
+#endif
+
+#if defined(__clang__)
+#pragma clang attribute push(__attribute__((target("arch=armv8.2-a+simd+fp16+fp16fml"))), apply_to = function)
+#elif defined(__GNUC__)
+#pragma GCC push_options
+#pragma GCC target("arch=armv8.2-a+simd+fp16+fp16fml")
 #endif
 
 /* F16 GEMM using FMLAL: depth_simd_dimensions=8 (8 f16s = 16 bytes = NEON register width) */
@@ -70,16 +72,16 @@ nk_define_cross_packed_(dots, e3m2, neonfhm, e3m2, e3m2, f32, nk_b128_vec_t, nk_
                         nk_dot_e3m2x16_finalize_neonfhm, nk_partial_store_b32x4_serial_,
                         /*depth_simd_dimensions=*/16, /*dimensions_per_value=*/1)
 
-#if defined(__cplusplus)
-} // extern "C"
-#endif
-
 #if defined(__clang__)
 #pragma clang attribute pop
 #elif defined(__GNUC__)
 #pragma GCC pop_options
 #endif
+
+#if defined(__cplusplus)
+} // extern "C"
+#endif
+
 #endif // NK_TARGET_NEONFHM
 #endif // NK_TARGET_ARM_
-
 #endif // NK_DOTS_NEONFHM_H

@@ -1,9 +1,10 @@
 /**
- *  @brief SIMD-accelerated Bilinear Forms for Curved Spaces - ARM NEON FP16 implementations.
+ *  @brief SIMD-accelerated Curved Space Similarity for NEON FP16.
  *  @file include/numkong/curved/neonhalf.h
- *  @sa include/numkong/curved.h
  *  @author Ash Vardanian
  *  @date January 14, 2026
+ *
+ *  @sa include/numkong/curved.h
  *
  *  Implements f16 bilinear forms and Mahalanobis distance using ARM NEON with FP16 extensions.
  *
@@ -28,22 +29,22 @@
 #ifndef NK_CURVED_NEONHALF_H
 #define NK_CURVED_NEONHALF_H
 
+#if NK_TARGET_ARM_
+#if NK_TARGET_NEONHALF
+
 #include "numkong/types.h"
 #include "numkong/spatial/neon.h" // `nk_f32_sqrt_neon`
 #include "numkong/cast/serial.h"  // `nk_f16_to_f32_serial`
 
-#if NK_TARGET_ARM_
-#if NK_TARGET_NEONHALF
+#if defined(__cplusplus)
+extern "C" {
+#endif
 
 #if defined(__clang__)
 #pragma clang attribute push(__attribute__((target("arch=armv8.2-a+simd+fp16"))), apply_to = function)
 #elif defined(__GNUC__)
 #pragma GCC push_options
 #pragma GCC target("arch=armv8.2-a+simd+fp16")
-#endif
-
-#if defined(__cplusplus)
-extern "C" {
 #endif
 
 NK_PUBLIC void nk_bilinear_f16_neonhalf(nk_f16_t const *a, nk_f16_t const *b, nk_f16_t const *c, nk_size_t n,
@@ -195,14 +196,14 @@ NK_PUBLIC void nk_bilinear_f16c_neonhalf(nk_f16c_t const *a_pairs, nk_f16c_t con
     results->imag = outer_sum_imag;
 }
 
-#if defined(__cplusplus)
-}
-#endif
-
 #if defined(__clang__)
 #pragma clang attribute pop
 #elif defined(__GNUC__)
 #pragma GCC pop_options
+#endif
+
+#if defined(__cplusplus)
+} // extern "C"
 #endif
 
 #endif // NK_TARGET_NEONHALF

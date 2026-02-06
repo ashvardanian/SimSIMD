@@ -1,19 +1,26 @@
 /**
- *  @brief SIMD-accelerated Bilinear Forms for Curved Spaces - AMD Genoa (AVX-512-BF16) implementations.
+ *  @brief SIMD-accelerated Curved Space Similarity for Genoa.
  *  @file include/numkong/curved/genoa.h
- *  @sa include/numkong/curved.h
  *  @author Ash Vardanian
  *  @date January 14, 2026
+ *
+ *  @sa include/numkong/curved.h
  *
  *  Implements bf16 bilinear forms using AVX-512 with BF16 extensions.
  */
 #ifndef NK_CURVED_GENOA_H
 #define NK_CURVED_GENOA_H
 
-#include "numkong/types.h"
-
 #if NK_TARGET_X86_
 #if NK_TARGET_GENOA
+
+#include "numkong/types.h"
+#include "numkong/spatial/genoa.h"  // `nk_substract_bf16x32_genoa_`
+#include "numkong/reduce/skylake.h" // `nk_reduce_add_f32x16_skylake_`
+
+#if defined(__cplusplus)
+extern "C" {
+#endif
 
 #if defined(__clang__)
 #pragma clang attribute push(                                                                        \
@@ -22,13 +29,6 @@
 #elif defined(__GNUC__)
 #pragma GCC push_options
 #pragma GCC target("avx2", "avx512f", "avx512vl", "avx512bw", "avx512dq", "avx512bf16", "f16c", "fma", "bmi", "bmi2")
-#endif
-
-#include "numkong/spatial/genoa.h"  // `nk_substract_bf16x32_genoa_`
-#include "numkong/reduce/skylake.h" // `nk_reduce_add_f32x16_skylake_`
-
-#if defined(__cplusplus)
-extern "C" {
 #endif
 
 NK_PUBLIC void nk_bilinear_bf16_genoa(nk_bf16_t const *a, nk_bf16_t const *b, nk_bf16_t const *c, nk_size_t n,
@@ -99,7 +99,7 @@ NK_PUBLIC void nk_mahalanobis_bf16_genoa(nk_bf16_t const *a, nk_bf16_t const *b,
         sum_f32x16 = _mm512_fmadd_ps(diff_i_f32x16, cdiff_j_f32x16, sum_f32x16);
     }
 
-    *result = nk_sqrt_f32_haswell_(_mm512_reduce_add_ps(sum_f32x16));
+    *result = nk_f32_sqrt_haswell(_mm512_reduce_add_ps(sum_f32x16));
 }
 
 NK_PUBLIC void nk_bilinear_bf16c_genoa(nk_bf16c_t const *a, nk_bf16c_t const *b, nk_bf16c_t const *c, nk_size_t n,
@@ -164,14 +164,14 @@ NK_PUBLIC void nk_bilinear_bf16c_genoa(nk_bf16c_t const *a, nk_bf16c_t const *b,
     results->imag = sum_imag;
 }
 
-#if defined(__cplusplus)
-}
-#endif
-
 #if defined(__clang__)
 #pragma clang attribute pop
 #elif defined(__GNUC__)
 #pragma GCC pop_options
+#endif
+
+#if defined(__cplusplus)
+} // extern "C"
 #endif
 
 #endif // NK_TARGET_GENOA

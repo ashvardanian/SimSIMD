@@ -1,5 +1,5 @@
 /**
- *  @brief SIMD-accelerated type conversions for FP8/BF16/F16 types optimized for Intel Sapphire Rapids CPUs.
+ *  @brief SIMD-accelerated Type Conversions for Sapphire Rapids.
  *  @file include/numkong/cast/sapphire.h
  *  @author Ash Vardanian
  *  @date January 2, 2026
@@ -24,18 +24,20 @@
 
 #if NK_TARGET_X86_
 #if NK_TARGET_SAPPHIRE
+
+#include "numkong/types.h"
+#include "numkong/cast/icelake.h" // `nk_cast_icelake`
+
+#if defined(__cplusplus)
+extern "C" {
+#endif
+
 #if defined(__clang__)
 #pragma clang attribute push(__attribute__((target("avx2,avx512f,avx512vl,avx512bw,avx512fp16,f16c,fma,bmi,bmi2"))), \
                              apply_to = function)
 #elif defined(__GNUC__)
 #pragma GCC push_options
 #pragma GCC target("avx2", "avx512f", "avx512vl", "avx512bw", "avx512fp16", "f16c", "fma", "bmi", "bmi2")
-#endif
-
-#include "numkong/types.h"
-
-#if defined(__cplusplus)
-extern "C" {
 #endif
 
 /** @brief Convert f32 scalar to f16 bit pattern using AVX512FP16. */
@@ -242,21 +244,21 @@ NK_PUBLIC void nk_cast_sapphire(void const *from, nk_dtype_t from_type, nk_size_
     }
 
     // Default: delegate to Ice for all other conversions
-    else nk_cast_ice(from, from_type, n, to, to_type);
+    else nk_cast_icelake(from, from_type, n, to, to_type);
 }
 
 #pragma endregion - Public API
-
-#if defined(__cplusplus)
-} // extern "C"
-#endif
 
 #if defined(__clang__)
 #pragma clang attribute pop
 #elif defined(__GNUC__)
 #pragma GCC pop_options
 #endif
+
+#if defined(__cplusplus)
+} // extern "C"
+#endif
+
 #endif // NK_TARGET_SAPPHIRE
 #endif // NK_TARGET_X86_
-
 #endif // NK_CAST_SAPPHIRE_H

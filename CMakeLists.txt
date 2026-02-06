@@ -62,7 +62,12 @@ project(
 
 set(CMAKE_C_STANDARD 99)
 set(CMAKE_C_STANDARD_REQUIRED YES)
-set(CMAKE_C_EXTENSIONS NO)
+# Enable GNU extensions for WASM (required for EM_ASM runtime detection)
+if(CMAKE_SYSTEM_NAME STREQUAL "Emscripten")
+    set(CMAKE_C_EXTENSIONS YES)
+else()
+    set(CMAKE_C_EXTENSIONS NO)
+endif()
 
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED YES)
@@ -70,9 +75,13 @@ set(CMAKE_CXX_EXTENSIONS NO)
 
 # Determine if NumKong is built as a sub-project (using `add_subdirectory`) or if it is the main project
 set(NK_IS_MAIN_PROJECT OFF)
+set(NK_IS_WASI_PROJECT OFF)
 
 if(CMAKE_CURRENT_SOURCE_DIR STREQUAL CMAKE_SOURCE_DIR)
     set(NK_IS_MAIN_PROJECT ON)
+endif()
+if(CMAKE_SYSTEM_NAME STREQUAL "WASI")
+    set(NK_IS_WASI_PROJECT ON)
 endif()
 
 option(NK_BUILD_SHARED "Compile a dynamic library" ${NK_IS_MAIN_PROJECT})
@@ -119,9 +128,20 @@ else()
 endif()
 
 # Global compiler flags for debug and release
-set(CMAKE_CXX_FLAGS_DEBUG "-g -fsanitize=address")
+include(CheckCXXSourceCompiles)
+set(CMAKE_REQUIRED_FLAGS "-fsanitize=address")
+check_cxx_source_compiles("int main(){return 0;}" NK_HAS_ASAN)
+unset(CMAKE_REQUIRED_FLAGS)
+
+if(NK_HAS_ASAN)
+    set(CMAKE_CXX_FLAGS_DEBUG "-g -fsanitize=address")
+    set(CMAKE_C_FLAGS_DEBUG "-g -fsanitize=address")
+else()
+    set(CMAKE_CXX_FLAGS_DEBUG "-g")
+    set(CMAKE_C_FLAGS_DEBUG "-g")
+    message(STATUS "AddressSanitizer not available, Debug builds without ASAN")
+endif()
 set(CMAKE_CXX_FLAGS_RELEASE "-O3")
-set(CMAKE_C_FLAGS_DEBUG "-g -fsanitize=address")
 set(CMAKE_C_FLAGS_RELEASE "-O3")
 
 # Compiler-specific flags
@@ -130,7 +150,7 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "^(Apple)?Clang$")
         add_compile_options(-march=native)
     endif()
 
-    add_compile_options(-pedantic -ferror-limit=1)
+    add_compile_options(-pedantic -ferror-limit=1 -Wno-typedef-redefinition)
 elseif(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
     if(NOT CMAKE_CROSSCOMPILING)
         add_compile_options(-march=native)
@@ -145,6 +165,21 @@ file(GLOB NK_SOURCES include/numkong/*.h)
 add_library(numkong INTERFACE)
 target_sources(numkong INTERFACE ${NK_SOURCES})
 target_include_directories(numkong INTERFACE "${PROJECT_SOURCE_DIR}/include")
+
+# Enable Clang C modules for incremental compilation
+if(CMAKE_C_COMPILER_ID MATCHES "Clang")
+    target_compile_options(numkong INTERFACE
+        $<$<COMPILE_LANGUAGE:C>:-fmodules>
+        $<$<COMPILE_LANGUAGE:C>:-fimplicit-module-maps>
+        $<$<COMPILE_LANGUAGE:C>:-fmodules-cache-path=${CMAKE_BINARY_DIR}/module-cache>
+    )
+
+    # Install module map
+    install(FILES ${CMAKE_SOURCE_DIR}/include/module.modulemap
+        DESTINATION include)
+
+    message(STATUS "Clang C modules enabled: cache at ${CMAKE_BINARY_DIR}/module-cache")
+endif()
 
 
 # Find OpenMP
@@ -290,7 +325,28 @@ if(NK_BUILD_BENCH)
     endif()
 
     find_package(Threads REQUIRED)
-    add_executable(nk_bench scripts/bench.cpp)
+    add_executable(nk_bench
+        bench/bench.cpp
+        bench/bench_dot.cpp
+        bench/bench_spatial.cpp
+        bench/bench_set.cpp
+        bench/bench_curved.cpp
+        bench/bench_probability.cpp
+        bench/bench_each.cpp
+        bench/bench_trigonometry.cpp
+        bench/bench_geospatial.cpp
+        bench/bench_mesh.cpp
+        bench/bench_sparse.cpp
+        bench/bench_cast.cpp
+        bench/bench_reduce.cpp
+        # ISA-family cross/batch files for parallel compilation
+        bench/bench_cross_serial.cpp
+        bench/bench_cross_x86.cpp
+        bench/bench_cross_amx.cpp
+        bench/bench_cross_arm.cpp
+        bench/bench_cross_sme.cpp
+        bench/bench_cross_blas.cpp
+    )
     target_link_libraries(nk_bench numkong Threads::Threads benchmark)
 
     if(OpenMP_FOUND)
@@ -319,31 +375,78 @@ if(NK_BUILD_BENCH)
 endif()
 
 
+# Dtype-specific dispatch sources (for parallel compilation)
+set(NK_DTYPE_SOURCES
+    c/dispatch_f64.c c/dispatch_f32.c c/dispatch_f16.c c/dispatch_bf16.c
+    c/dispatch_i8.c c/dispatch_u8.c c/dispatch_i4.c c/dispatch_u4.c
+    c/dispatch_e4m3.c c/dispatch_e5m2.c c/dispatch_e2m3.c c/dispatch_e3m2.c
+    c/dispatch_u1.c
+    c/dispatch_f64c.c c/dispatch_f32c.c c/dispatch_f16c.c c/dispatch_bf16c.c
+    c/dispatch_i16.c c/dispatch_u16.c c/dispatch_i32.c c/dispatch_u32.c
+    c/dispatch_i64.c c/dispatch_u64.c
+    c/dispatch_cast.c
+)
+
 # Build tests
 if(NK_BUILD_TEST)
     # C++ precision test (ULP-based error analysis)
-    add_executable(nk_test scripts/test.cpp c/numkong.c)
+    add_executable(nk_test
+        test/test.cpp
+        test/test_dot.cpp
+        test/test_spatial.cpp
+        test/test_set.cpp
+        test/test_curved.cpp
+        test/test_probability.cpp
+        test/test_each.cpp
+        test/test_trigonometry.cpp
+        test/test_geospatial.cpp
+        test/test_mesh.cpp
+        test/test_cast.cpp
+        test/test_reduce.cpp
+        test/test_sparse.cpp
+        # ISA-family cross/batch files for parallel compilation
+        test/test_cross_serial.cpp
+        test/test_cross_x86.cpp
+        test/test_cross_amx.cpp
+        test/test_cross_arm.cpp
+        test/test_cross_sme.cpp
+        test/test_cross_blas.cpp
+        test/test_tensor.cpp
+    )
     target_link_libraries(nk_test numkong m)
 
-    if(OpenMP_FOUND)
+    # WASI-specific configuration
+    if(NK_IS_WASI_PROJECT)
+        target_compile_definitions(nk_test PRIVATE
+            NK_WASI_BUILD=1
+            NK_DYNAMIC_DISPATCH=1)
+        set_target_properties(nk_test PROPERTIES OUTPUT_NAME "test.wasm")
+        target_link_options(nk_test PRIVATE
+            -Wl,--export=main
+            -Wl,--export=_start)
+        message(STATUS "NumKong: Building tests for WASI (output: test.wasm)")
+    endif()
+
+    # Native-only dependencies (not available in WASI)
+    if(OpenMP_FOUND AND NOT NK_IS_WASI_PROJECT)
         target_compile_options(nk_test PRIVATE ${OpenMP_CXX_FLAGS})
         target_link_libraries(nk_test OpenMP::OpenMP_CXX)
         target_compile_definitions(nk_test PRIVATE NK_TEST_USE_OPENMP=1)
     endif()
 
-    if(NK_BLAS_FOUND)
+    if(NK_BLAS_FOUND AND NOT NK_IS_WASI_PROJECT)
         target_compile_definitions(nk_test PRIVATE NK_COMPARE_TO_BLAS=1)
         target_include_directories(nk_test PRIVATE ${NK_BLAS_INCLUDE_DIRS})
         target_link_libraries(nk_test ${NK_BLAS_LIBRARIES})
     endif()
 
-    if(NK_ACCELERATE_FOUND)
+    if(NK_ACCELERATE_FOUND AND NOT NK_IS_WASI_PROJECT)
         target_compile_definitions(nk_test PRIVATE NK_COMPARE_TO_ACCELERATE=1 ACCELERATE_NEW_LAPACK)
         target_include_directories(nk_test PRIVATE ${NK_ACCELERATE_INCLUDE_DIRS})
         target_link_libraries(nk_test ${NK_ACCELERATE_LIBRARIES})
     endif()
 
-    if(NK_MKL_FOUND)
+    if(NK_MKL_FOUND AND NOT NK_IS_WASI_PROJECT)
         target_compile_definitions(nk_test PRIVATE NK_COMPARE_TO_MKL=1)
         target_include_directories(nk_test PRIVATE ${NK_MKL_INCLUDE_DIRS})
         target_link_libraries(nk_test ${NK_MKL_LIBRARIES})
@@ -353,10 +456,31 @@ if(NK_BUILD_TEST)
     enable_testing()
 endif()
 
-
-# Shared library
+# Shared library (or Emscripten JS module)
 if(NK_BUILD_SHARED)
-    set(NK_SOURCES ${NK_SOURCES} c/numkong.c)
+    set(NK_SOURCES ${NK_SOURCES} c/numkong.c ${NK_DTYPE_SOURCES})
+
+    # Emscripten requires building as executable to generate JS bindings
+    if(EMSCRIPTEN)
+        # Create a minimal main() wrapper for Emscripten
+        file(WRITE "${CMAKE_BINARY_DIR}/emscripten_stub.c"
+            "// Stub main for Emscripten to generate JS bindings\nint main() { return 0; }\n")
+
+        add_executable(nk_shared ${NK_SOURCES} "${CMAKE_BINARY_DIR}/emscripten_stub.c")
+        target_include_directories(nk_shared PUBLIC "${PROJECT_SOURCE_DIR}/include")
+        set_target_properties(nk_shared PROPERTIES OUTPUT_NAME "numkong")
+
+        target_link_options(nk_shared PRIVATE
+            "SHELL:-s EXPORT_ES6=1" # Generate ES6 module
+            "SHELL:-s MODULARIZE=1" # Wrap in module factory
+            "SHELL:-s EXPORT_NAME=NumKongModule" # Export name
+            "SHELL:-s EXPORTED_FUNCTIONS=_malloc,_free" # Memory management
+            "SHELL:-s EXPORTED_RUNTIME_METHODS=ccall,cwrap,getValue,setValue" # Runtime helpers
+            "SHELL:-s ALLOW_MEMORY_GROWTH=1" # Dynamic memory
+            "SHELL:-s ENVIRONMENT=web,node" # Both browser and Node.js
+        )
+    endif()
+
     add_library(nk_shared SHARED ${NK_SOURCES})
     target_include_directories(nk_shared PUBLIC "${PROJECT_SOURCE_DIR}/include")
     set_target_properties(nk_shared PROPERTIES OUTPUT_NAME numkong)
