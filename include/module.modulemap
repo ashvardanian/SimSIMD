@@ -84,11 +84,20 @@ module CNumKongKernels {
     export *
 }
 
-// Layer 3: Capability detection and unified API (top-level module)
+// Layer 3: Capability detection (depends on Core, used by umbrella)
+module CNumKongCapabilities {
+    use CNumKongCore
+
+    header "numkong/capabilities.h"
+    export *
+}
+
+// Layer 4: Unified API (top-level umbrella module)
 module CNumKong {
-    // Depends on both Core and Kernels
+    // Depends on Core, Kernels, and Capabilities
     use CNumKongCore
     use CNumKongKernels
+    use CNumKongCapabilities
 
     header "numkong/numkong.h"
     export *
