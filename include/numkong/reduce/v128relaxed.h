@@ -16,6 +16,10 @@
 extern "C" {
 #endif
 
+#if defined(__clang__)
+#pragma clang attribute push(__attribute__((target("relaxed-simd"))), apply_to = function)
+#endif
+
 /** @brief Horizontal sum of 4 floats using shuffle tree. */
 NK_INTERNAL nk_f32_t nk_reduce_add_f32x4_v128relaxed_(v128_t vec) {
     // First reduction: add lanes [0,2] and [1,3]
@@ -60,6 +64,10 @@ NK_INTERNAL nk_u32_t nk_reduce_add_u8x16_v128relaxed_(v128_t vec_u8x16) {
     v128_t sum_u32x4 = wasm_u32x4_extadd_pairwise_u16x8(sum_u16x8);
     return nk_reduce_add_u32x4_v128relaxed_(sum_u32x4);
 }
+
+#if defined(__clang__)
+#pragma clang attribute pop
+#endif
 
 #if defined(__cplusplus)
 } // extern "C"

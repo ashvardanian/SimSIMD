@@ -17,6 +17,10 @@
 extern "C" {
 #endif
 
+#if defined(__clang__)
+#pragma clang attribute push(__attribute__((target("relaxed-simd"))), apply_to = function)
+#endif
+
 NK_INTERNAL nk_b128_vec_t nk_bf16x4_to_f32x4_v128relaxed_(nk_b64_vec_t bf16_vec) {
     // Load 4x u16 (64 bits) into lower half of v128, zero upper half
     v128_t bf16_u16x4_in_u64 = wasm_v128_load64_zero(&bf16_vec.u64);
@@ -109,6 +113,10 @@ NK_INTERNAL nk_b128_vec_t nk_f16x4_to_f32x4_v128relaxed_(nk_b64_vec_t f16_vec) {
     result.v128 = result_u32x4;
     return result;
 }
+
+#if defined(__clang__)
+#pragma clang attribute pop
+#endif
 
 #if defined(__cplusplus)
 } // extern "C"

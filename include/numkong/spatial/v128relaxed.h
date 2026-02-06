@@ -40,6 +40,10 @@
 extern "C" {
 #endif
 
+#if defined(__clang__)
+#pragma clang attribute push(__attribute__((target("relaxed-simd"))), apply_to = function)
+#endif
+
 NK_INTERNAL nk_f32_t nk_f32_sqrt_v128relaxed_(nk_f32_t x) {
     return wasm_f32x4_extract_lane(wasm_f32x4_sqrt(wasm_f32x4_splat(x)), 0);
 }
@@ -362,6 +366,11 @@ nk_angular_bf16_v128relaxed_cycle:
 }
 
 #pragma endregion - Smaller Floats
+
+#if defined(__clang__)
+#pragma clang attribute pop
+#endif
+
 #if defined(__cplusplus)
 } // extern "C"
 #endif

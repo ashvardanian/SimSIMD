@@ -26,6 +26,10 @@
 extern "C" {
 #endif
 
+#if defined(__clang__)
+#pragma clang attribute push(__attribute__((target("relaxed-simd"))), apply_to = function)
+#endif
+
 #pragma region - Binary Sets
 
 NK_PUBLIC void nk_hamming_u1_v128relaxed(nk_u1x8_t const *a, nk_u1x8_t const *b, nk_size_t n, nk_u32_t *result) {
@@ -253,6 +257,10 @@ nk_jaccard_u16_v128relaxed_cycle:
 }
 
 #pragma endregion - Integer Sets
+
+#if defined(__clang__)
+#pragma clang attribute pop
+#endif
 
 #if defined(__cplusplus)
 } // extern "C"

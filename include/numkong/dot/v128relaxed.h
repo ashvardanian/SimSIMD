@@ -36,6 +36,10 @@
 extern "C" {
 #endif
 
+#if defined(__clang__)
+#pragma clang attribute push(__attribute__((target("relaxed-simd"))), apply_to = function)
+#endif
+
 NK_PUBLIC void nk_dot_f32_v128relaxed(nk_f32_t const *a, nk_f32_t const *b, nk_size_t n, nk_f32_t *result) {
     v128_t sum_f64x2 = wasm_f64x2_splat(0.0);
     nk_f32_t const *a_scalars = a, *b_scalars = b;
@@ -222,6 +226,10 @@ nk_dot_u8_v128relaxed_cycle:
 
     *result = (nk_u32_t)total;
 }
+
+#if defined(__clang__)
+#pragma clang attribute pop
+#endif
 
 #if defined(__cplusplus)
 } // extern "C"
