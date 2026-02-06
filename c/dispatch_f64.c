@@ -14,6 +14,11 @@ void nk_dispatch_f64_find_(nk_capability_t v, nk_kernel_kind_t k, nk_kernel_punn
         case nk_kernel_angular_k: *m = (m_t)&nk_angular_f64_v128relaxed, *c = nk_cap_v128relaxed_k; return;
         case nk_kernel_sqeuclidean_k: *m = (m_t)&nk_sqeuclidean_f64_v128relaxed, *c = nk_cap_v128relaxed_k; return;
         case nk_kernel_euclidean_k: *m = (m_t)&nk_euclidean_f64_v128relaxed, *c = nk_cap_v128relaxed_k; return;
+        case nk_kernel_haversine_k: *m = (m_t)&nk_haversine_f64_v128relaxed, *c = nk_cap_v128relaxed_k; return;
+        case nk_kernel_vincenty_k: *m = (m_t)&nk_vincenty_f64_v128relaxed, *c = nk_cap_v128relaxed_k; return;
+        case nk_kernel_each_sin_k: *m = (m_t)&nk_each_sin_f64_v128relaxed, *c = nk_cap_v128relaxed_k; return;
+        case nk_kernel_each_cos_k: *m = (m_t)&nk_each_cos_f64_v128relaxed, *c = nk_cap_v128relaxed_k; return;
+        case nk_kernel_each_atan_k: *m = (m_t)&nk_each_atan_f64_v128relaxed, *c = nk_cap_v128relaxed_k; return;
         default: break;
         }
 #endif

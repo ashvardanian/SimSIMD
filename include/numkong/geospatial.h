@@ -273,6 +273,29 @@ NK_PUBLIC void nk_vincenty_f32_skylake(             //
     nk_size_t n, nk_f32_t *results);
 #endif // NK_TARGET_SKYLAKE
 
+#if NK_TARGET_V128RELAXED
+/** @copydoc nk_haversine_f64 */
+NK_PUBLIC void nk_haversine_f64_v128relaxed(        //
+    nk_f64_t const *a_lats, nk_f64_t const *a_lons, //
+    nk_f64_t const *b_lats, nk_f64_t const *b_lons, //
+    nk_size_t n, nk_f64_t *results);
+/** @copydoc nk_vincenty_f64 */
+NK_PUBLIC void nk_vincenty_f64_v128relaxed(         //
+    nk_f64_t const *a_lats, nk_f64_t const *a_lons, //
+    nk_f64_t const *b_lats, nk_f64_t const *b_lons, //
+    nk_size_t n, nk_f64_t *results);
+/** @copydoc nk_haversine_f32 */
+NK_PUBLIC void nk_haversine_f32_v128relaxed(        //
+    nk_f32_t const *a_lats, nk_f32_t const *a_lons, //
+    nk_f32_t const *b_lats, nk_f32_t const *b_lons, //
+    nk_size_t n, nk_f32_t *results);
+/** @copydoc nk_vincenty_f32 */
+NK_PUBLIC void nk_vincenty_f32_v128relaxed(         //
+    nk_f32_t const *a_lats, nk_f32_t const *a_lons, //
+    nk_f32_t const *b_lats, nk_f32_t const *b_lons, //
+    nk_size_t n, nk_f32_t *results);
+#endif // NK_TARGET_V128RELAXED
+
 /**
  *  @brief  Returns the output dtype for Haversine distance.
  */
@@ -300,10 +323,10 @@ NK_INTERNAL nk_dtype_t nk_vincenty_output_dtype(nk_dtype_t dtype) {
 #endif
 
 #include "numkong/geospatial/serial.h"
-
 #include "numkong/geospatial/neon.h"
 #include "numkong/geospatial/haswell.h"
 #include "numkong/geospatial/skylake.h"
+#include "numkong/geospatial/v128relaxed.h"
 
 #if defined(__cplusplus)
 extern "C" {
@@ -321,6 +344,8 @@ NK_PUBLIC void nk_haversine_f64(                    //
     nk_haversine_f64_haswell(a_lats, a_lons, b_lats, b_lons, n, results);
 #elif NK_TARGET_NEON
     nk_haversine_f64_neon(a_lats, a_lons, b_lats, b_lons, n, results);
+#elif NK_TARGET_V128RELAXED
+    nk_haversine_f64_v128relaxed(a_lats, a_lons, b_lats, b_lons, n, results);
 #else
     nk_haversine_f64_serial(a_lats, a_lons, b_lats, b_lons, n, results);
 #endif
@@ -336,6 +361,8 @@ NK_PUBLIC void nk_haversine_f32(                    //
     nk_haversine_f32_haswell(a_lats, a_lons, b_lats, b_lons, n, results);
 #elif NK_TARGET_NEON
     nk_haversine_f32_neon(a_lats, a_lons, b_lats, b_lons, n, results);
+#elif NK_TARGET_V128RELAXED
+    nk_haversine_f32_v128relaxed(a_lats, a_lons, b_lats, b_lons, n, results);
 #else
     nk_haversine_f32_serial(a_lats, a_lons, b_lats, b_lons, n, results);
 #endif
@@ -351,6 +378,8 @@ NK_PUBLIC void nk_vincenty_f64(                     //
     nk_vincenty_f64_haswell(a_lats, a_lons, b_lats, b_lons, n, results);
 #elif NK_TARGET_NEON
     nk_vincenty_f64_neon(a_lats, a_lons, b_lats, b_lons, n, results);
+#elif NK_TARGET_V128RELAXED
+    nk_vincenty_f64_v128relaxed(a_lats, a_lons, b_lats, b_lons, n, results);
 #else
     nk_vincenty_f64_serial(a_lats, a_lons, b_lats, b_lons, n, results);
 #endif
@@ -366,6 +395,8 @@ NK_PUBLIC void nk_vincenty_f32(                     //
     nk_vincenty_f32_haswell(a_lats, a_lons, b_lats, b_lons, n, results);
 #elif NK_TARGET_NEON
     nk_vincenty_f32_neon(a_lats, a_lons, b_lats, b_lons, n, results);
+#elif NK_TARGET_V128RELAXED
+    nk_vincenty_f32_v128relaxed(a_lats, a_lons, b_lats, b_lons, n, results);
 #else
     nk_vincenty_f32_serial(a_lats, a_lons, b_lats, b_lons, n, results);
 #endif
