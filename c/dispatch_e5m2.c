@@ -17,6 +17,18 @@ void nk_dispatch_e5m2_find_(nk_capability_t v, nk_kernel_kind_t k, nk_kernel_pun
         default: break;
         }
 #endif
+#if NK_TARGET_RVVHALF
+    if (v & nk_cap_rvvhalf_k) switch (k) {
+        case nk_kernel_dot_k: *m = (m_t)&nk_dot_e5m2_rvvhalf, *c = nk_cap_rvvhalf_k; return;
+        default: break;
+        }
+#endif
+#if NK_TARGET_RVVBF16
+    if (v & nk_cap_rvvbf16_k) switch (k) {
+        case nk_kernel_dot_k: *m = (m_t)&nk_dot_e5m2_rvvbf16, *c = nk_cap_rvvbf16_k; return;
+        default: break;
+        }
+#endif
 #if NK_TARGET_RVV
     if (v & nk_cap_rvv_k) switch (k) {
         case nk_kernel_dot_k: *m = (m_t)&nk_dot_e5m2_rvv, *c = nk_cap_rvv_k; return;

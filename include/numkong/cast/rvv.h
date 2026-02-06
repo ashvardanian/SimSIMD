@@ -246,6 +246,99 @@ NK_INTERNAL vfloat32m4_t nk_e5m2m1_to_f32m4_rvv_(vuint8m1_t e5m2_u8m1, nk_size_t
 }
 
 /**
+ *  @brief Convert e2m3 (m1) to f32 (m4) register-to-register.
+ *
+ *  E2M3FN format: S EE MMM (1 sign, 2 exponent bits with bias=1, 3 mantissa bits)
+ *  - Normal: value = (-1)^S * 2^(E-1) * (1 + M/8)
+ *  - Subnormal (E=0): value = (-1)^S * M / 8
+ *  - No NaN or infinity in E2M3FN
+ */
+NK_INTERNAL vfloat32m4_t nk_e2m3m1_to_f32m4_rvv_(vuint8m1_t e2m3_u8m1, nk_size_t vector_length) {
+    // Widen to u32 for bit manipulation (4x widening: e8m1 → e32m4)
+    vuint16m2_t e2m3_u16m2 = __riscv_vzext_vf2_u16m2(e2m3_u8m1, vector_length);
+    vuint32m4_t e2m3_u32m4 = __riscv_vzext_vf2_u32m4(e2m3_u16m2, vector_length);
+
+    // Extract sign: ((raw >> 5) & 1) << 31  (sign bit is bit 5 in 6-bit format, mask needed for 8-bit storage)
+    vuint32m4_t sign_u32m4 = __riscv_vsll_vx_u32m4(
+        __riscv_vand_vx_u32m4(__riscv_vsrl_vx_u32m4(e2m3_u32m4, 5, vector_length), 1, vector_length), 31,
+        vector_length);
+
+    // Extract exponent: (raw >> 3) & 0x03
+    vuint32m4_t exponent_u32m4 = __riscv_vand_vx_u32m4(__riscv_vsrl_vx_u32m4(e2m3_u32m4, 3, vector_length), 0x03,
+                                                       vector_length);
+
+    // Extract mantissa: raw & 0x07
+    vuint32m4_t mantissa_u32m4 = __riscv_vand_vx_u32m4(e2m3_u32m4, 0x07, vector_length);
+
+    // Normal case: f32 = sign | ((exp + 126) << 23) | (mant << 20)
+    // E2M3 bias=1, F32 bias=127, so delta = 127-1 = 126
+    vuint32m4_t f32_exponent_u32m4 = __riscv_vsll_vx_u32m4(__riscv_vadd_vx_u32m4(exponent_u32m4, 126, vector_length),
+                                                           23, vector_length);
+    vuint32m4_t f32_mantissa_u32m4 = __riscv_vsll_vx_u32m4(mantissa_u32m4, 20, vector_length);
+    vuint32m4_t normal_u32m4 = __riscv_vor_vv_u32m4(
+        sign_u32m4, __riscv_vor_vv_u32m4(f32_exponent_u32m4, f32_mantissa_u32m4, vector_length), vector_length);
+
+    // Subnormal case (exp == 0): value = sign | (mant / 16.0f as f32 bits)
+    // E2M3 subnormal: (-1)^S * 2^(-1) * (mantissa / 8) = mantissa / 16
+    vfloat32m4_t subnorm_abs_f32m4 = __riscv_vfmul_vf_f32m4(__riscv_vfcvt_f_xu_v_f32m4(mantissa_u32m4, vector_length),
+                                                            1.0f / 16.0f, vector_length);
+    vuint32m4_t subnorm_bits_u32m4 = __riscv_vreinterpret_v_f32m4_u32m4(subnorm_abs_f32m4);
+    vuint32m4_t subnorm_u32m4 = __riscv_vor_vv_u32m4(sign_u32m4, subnorm_bits_u32m4, vector_length);
+
+    // Select: if exp == 0, use subnormal; else use normal
+    vbool8_t is_subnorm_b8 = __riscv_vmseq_vx_u32m4_b8(exponent_u32m4, 0, vector_length);
+    vuint32m4_t result_u32m4 = __riscv_vmerge_vvm_u32m4(normal_u32m4, subnorm_u32m4, is_subnorm_b8, vector_length);
+
+    return __riscv_vreinterpret_v_u32m4_f32m4(result_u32m4);
+}
+
+/**
+ *  @brief Convert e3m2 (m1) to f32 (m4) register-to-register.
+ *
+ *  E3M2FN format: S EEE MM (1 sign, 3 exponent bits with bias=3, 2 mantissa bits)
+ *  - Normal: value = (-1)^S * 2^(E-3) * (1 + M/4)
+ *  - Subnormal (E=0): value = (-1)^S * M / 16
+ *  - No NaN or infinity in E3M2FN
+ */
+NK_INTERNAL vfloat32m4_t nk_e3m2m1_to_f32m4_rvv_(vuint8m1_t e3m2_u8m1, nk_size_t vector_length) {
+    // Widen to u32 for bit manipulation (4x widening: e8m1 → e32m4)
+    vuint16m2_t e3m2_u16m2 = __riscv_vzext_vf2_u16m2(e3m2_u8m1, vector_length);
+    vuint32m4_t e3m2_u32m4 = __riscv_vzext_vf2_u32m4(e3m2_u16m2, vector_length);
+
+    // Extract sign: ((raw >> 5) & 1) << 31  (sign bit is bit 5 in 6-bit format, mask needed for 8-bit storage)
+    vuint32m4_t sign_u32m4 = __riscv_vsll_vx_u32m4(
+        __riscv_vand_vx_u32m4(__riscv_vsrl_vx_u32m4(e3m2_u32m4, 5, vector_length), 1, vector_length), 31,
+        vector_length);
+
+    // Extract exponent: (raw >> 2) & 0x07
+    vuint32m4_t exponent_u32m4 = __riscv_vand_vx_u32m4(__riscv_vsrl_vx_u32m4(e3m2_u32m4, 2, vector_length), 0x07,
+                                                       vector_length);
+
+    // Extract mantissa: raw & 0x03
+    vuint32m4_t mantissa_u32m4 = __riscv_vand_vx_u32m4(e3m2_u32m4, 0x03, vector_length);
+
+    // Normal case: f32 = sign | ((exp + 124) << 23) | (mant << 21)
+    // E3M2 bias=3, F32 bias=127, so delta = 127-3 = 124
+    vuint32m4_t f32_exponent_u32m4 = __riscv_vsll_vx_u32m4(__riscv_vadd_vx_u32m4(exponent_u32m4, 124, vector_length),
+                                                           23, vector_length);
+    vuint32m4_t f32_mantissa_u32m4 = __riscv_vsll_vx_u32m4(mantissa_u32m4, 21, vector_length);
+    vuint32m4_t normal_u32m4 = __riscv_vor_vv_u32m4(
+        sign_u32m4, __riscv_vor_vv_u32m4(f32_exponent_u32m4, f32_mantissa_u32m4, vector_length), vector_length);
+
+    // Subnormal case (exp == 0): value = sign | (mant / 16.0f as f32 bits)
+    vfloat32m4_t subnorm_abs_f32m4 = __riscv_vfmul_vf_f32m4(__riscv_vfcvt_f_xu_v_f32m4(mantissa_u32m4, vector_length),
+                                                            1.0f / 16.0f, vector_length);
+    vuint32m4_t subnorm_bits_u32m4 = __riscv_vreinterpret_v_f32m4_u32m4(subnorm_abs_f32m4);
+    vuint32m4_t subnorm_u32m4 = __riscv_vor_vv_u32m4(sign_u32m4, subnorm_bits_u32m4, vector_length);
+
+    // Select: if exp == 0, use subnormal; else use normal
+    vbool8_t is_subnorm_b8 = __riscv_vmseq_vx_u32m4_b8(exponent_u32m4, 0, vector_length);
+    vuint32m4_t result_u32m4 = __riscv_vmerge_vvm_u32m4(normal_u32m4, subnorm_u32m4, is_subnorm_b8, vector_length);
+
+    return __riscv_vreinterpret_v_u32m4_f32m4(result_u32m4);
+}
+
+/**
  *  @brief Unpack i4 (m1) nibbles to i8 (m2) register-to-register.
  *
  *  Packed format: byte[i] contains two nibbles:

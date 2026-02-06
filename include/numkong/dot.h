@@ -564,6 +564,8 @@ NK_PUBLIC void nk_dot_bf16(nk_bf16_t const *a, nk_bf16_t const *b, nk_size_t n, 
     nk_dot_bf16_v128relaxed(a, b, n, result);
 #elif NK_TARGET_GENOA
     nk_dot_bf16_genoa(a, b, n, result);
+#elif NK_TARGET_RVVBF16
+    nk_dot_bf16_rvvbf16(a, b, n, result);
 #elif NK_TARGET_RVV
     nk_dot_bf16_rvv(a, b, n, result);
 #elif NK_TARGET_SKYLAKE
@@ -579,6 +581,10 @@ NK_PUBLIC void nk_dot_bf16(nk_bf16_t const *a, nk_bf16_t const *b, nk_size_t n, 
 NK_PUBLIC void nk_dot_e4m3(nk_e4m3_t const *a, nk_e4m3_t const *b, nk_size_t n, nk_f32_t *result) {
 #if NK_TARGET_GENOA
     nk_dot_e4m3_genoa(a, b, n, result);
+#elif NK_TARGET_RVVHALF
+    nk_dot_e4m3_rvvhalf(a, b, n, result);
+#elif NK_TARGET_RVVBF16
+    nk_dot_e4m3_rvvbf16(a, b, n, result);
 #elif NK_TARGET_RVV
     nk_dot_e4m3_rvv(a, b, n, result);
 #elif NK_TARGET_SKYLAKE
@@ -594,6 +600,10 @@ NK_PUBLIC void nk_dot_e4m3(nk_e4m3_t const *a, nk_e4m3_t const *b, nk_size_t n, 
 NK_PUBLIC void nk_dot_e5m2(nk_e5m2_t const *a, nk_e5m2_t const *b, nk_size_t n, nk_f32_t *result) {
 #if NK_TARGET_GENOA
     nk_dot_e5m2_genoa(a, b, n, result);
+#elif NK_TARGET_RVVHALF
+    nk_dot_e5m2_rvvhalf(a, b, n, result);
+#elif NK_TARGET_RVVBF16
+    nk_dot_e5m2_rvvbf16(a, b, n, result);
 #elif NK_TARGET_RVV
     nk_dot_e5m2_rvv(a, b, n, result);
 #elif NK_TARGET_SKYLAKE
@@ -609,6 +619,10 @@ NK_PUBLIC void nk_dot_e5m2(nk_e5m2_t const *a, nk_e5m2_t const *b, nk_size_t n, 
 NK_PUBLIC void nk_dot_e2m3(nk_e2m3_t const *a, nk_e2m3_t const *b, nk_size_t n, nk_f32_t *result) {
 #if NK_TARGET_GENOA
     nk_dot_e2m3_genoa(a, b, n, result);
+#elif NK_TARGET_RVVHALF
+    nk_dot_e2m3_rvvhalf(a, b, n, result);
+#elif NK_TARGET_RVVBF16
+    nk_dot_e2m3_rvvbf16(a, b, n, result);
 #elif NK_TARGET_RVV
     nk_dot_e2m3_rvv(a, b, n, result);
 #elif NK_TARGET_SKYLAKE
@@ -626,6 +640,10 @@ NK_PUBLIC void nk_dot_e2m3(nk_e2m3_t const *a, nk_e2m3_t const *b, nk_size_t n, 
 NK_PUBLIC void nk_dot_e3m2(nk_e3m2_t const *a, nk_e3m2_t const *b, nk_size_t n, nk_f32_t *result) {
 #if NK_TARGET_GENOA
     nk_dot_e3m2_genoa(a, b, n, result);
+#elif NK_TARGET_RVVHALF
+    nk_dot_e3m2_rvvhalf(a, b, n, result);
+#elif NK_TARGET_RVVBF16
+    nk_dot_e3m2_rvvbf16(a, b, n, result);
 #elif NK_TARGET_RVV
     nk_dot_e3m2_rvv(a, b, n, result);
 #elif NK_TARGET_SKYLAKE

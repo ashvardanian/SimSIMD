@@ -179,6 +179,46 @@ NK_PUBLIC void nk_dot_e5m2_rvv(nk_e5m2_t const *a_scalars, nk_e5m2_t const *b_sc
     *result = __riscv_vfmv_f_s_f32m1_f32(sum_f32m1);
 }
 
+NK_PUBLIC void nk_dot_e2m3_rvv(nk_e2m3_t const *a_scalars, nk_e2m3_t const *b_scalars, nk_size_t count_scalars,
+                               nk_f32_t *result) {
+    vfloat32m1_t sum_f32m1 = __riscv_vfmv_v_f_f32m1(0.0f, 1);
+    for (nk_size_t vector_length; count_scalars > 0;
+         count_scalars -= vector_length, a_scalars += vector_length, b_scalars += vector_length) {
+        vector_length = __riscv_vsetvl_e8m1(count_scalars);
+
+        // Load e2m3 as u8 and convert to f32 via helper
+        vuint8m1_t a_u8m1 = __riscv_vle8_v_u8m1((nk_u8_t const *)a_scalars, vector_length);
+        vuint8m1_t b_u8m1 = __riscv_vle8_v_u8m1((nk_u8_t const *)b_scalars, vector_length);
+        vfloat32m4_t a_f32m4 = nk_e2m3m1_to_f32m4_rvv_(a_u8m1, vector_length);
+        vfloat32m4_t b_f32m4 = nk_e2m3m1_to_f32m4_rvv_(b_u8m1, vector_length);
+
+        // Multiply and reduce in f32
+        vfloat32m4_t ab_f32m4 = __riscv_vfmul_vv_f32m4(a_f32m4, b_f32m4, vector_length);
+        sum_f32m1 = __riscv_vfredusum_vs_f32m4_f32m1(ab_f32m4, sum_f32m1, vector_length);
+    }
+    *result = __riscv_vfmv_f_s_f32m1_f32(sum_f32m1);
+}
+
+NK_PUBLIC void nk_dot_e3m2_rvv(nk_e3m2_t const *a_scalars, nk_e3m2_t const *b_scalars, nk_size_t count_scalars,
+                               nk_f32_t *result) {
+    vfloat32m1_t sum_f32m1 = __riscv_vfmv_v_f_f32m1(0.0f, 1);
+    for (nk_size_t vector_length; count_scalars > 0;
+         count_scalars -= vector_length, a_scalars += vector_length, b_scalars += vector_length) {
+        vector_length = __riscv_vsetvl_e8m1(count_scalars);
+
+        // Load e3m2 as u8 and convert to f32 via helper
+        vuint8m1_t a_u8m1 = __riscv_vle8_v_u8m1((nk_u8_t const *)a_scalars, vector_length);
+        vuint8m1_t b_u8m1 = __riscv_vle8_v_u8m1((nk_u8_t const *)b_scalars, vector_length);
+        vfloat32m4_t a_f32m4 = nk_e3m2m1_to_f32m4_rvv_(a_u8m1, vector_length);
+        vfloat32m4_t b_f32m4 = nk_e3m2m1_to_f32m4_rvv_(b_u8m1, vector_length);
+
+        // Multiply and reduce in f32
+        vfloat32m4_t ab_f32m4 = __riscv_vfmul_vv_f32m4(a_f32m4, b_f32m4, vector_length);
+        sum_f32m1 = __riscv_vfredusum_vs_f32m4_f32m1(ab_f32m4, sum_f32m1, vector_length);
+    }
+    *result = __riscv_vfmv_f_s_f32m1_f32(sum_f32m1);
+}
+
 NK_PUBLIC void nk_dot_i4_rvv(nk_i4x2_t const *a_scalars, nk_i4x2_t const *b_scalars, nk_size_t count_dimensions,
                              nk_i32_t *result) {
     // count_dimensions = number of 4-bit values, not bytes
