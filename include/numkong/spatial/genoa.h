@@ -13,9 +13,10 @@
 #if NK_TARGET_GENOA
 
 #include "numkong/types.h"
-#include "numkong/reduce/skylake.h" // `nk_reduce_add_f32x16_skylake_`
-#include "numkong/cast/icelake.h"   // `nk_e4m3x32_to_bf16x32_icelake_`
-#include "numkong/dot/genoa.h"      // `nk_dot_bf16x32_state_genoa_t`
+#include "numkong/spatial/haswell.h" // `nk_angular_normalize_f32_haswell_`, `nk_*_through_f32_finalize_haswell_`
+#include "numkong/reduce/skylake.h"  // `nk_reduce_add_f32x16_skylake_`
+#include "numkong/cast/icelake.h"    // `nk_e4m3x32_to_bf16x32_icelake_`
+#include "numkong/dot/genoa.h"       // `nk_dot_bf16x32_state_genoa_t`
 
 #if defined(__cplusplus)
 extern "C" {

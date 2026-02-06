@@ -68,7 +68,6 @@ nk_define_cross_packed_(dots, u8, icelake, u8, u8, u32, nk_b512_vec_t, nk_dot_u8
                         /*depth_simd_dimensions=*/64, /*dimensions_per_value=*/1)
 
 /* I4 GEMM: depth_simd_dimensions=128 (128 nibbles = 64 bytes = full cache line) */
-/* Specialized macros for i4 that pass depth to finalize for algebraic correction */
 nk_define_cross_pack_size_(dots, i4, icelake, i4x2, i4x2, /*depth_simd_dimensions=*/128, /*dimensions_per_value=*/2)
 nk_define_cross_pack_(dots, i4, icelake, i4x2, i4x2, nk_assign_from_to_, /*depth_simd_dimensions=*/128,
                       /*dimensions_per_value=*/2)

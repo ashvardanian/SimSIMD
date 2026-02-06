@@ -15,6 +15,8 @@
 #if NK_TARGET_HASWELL
 
 #include "numkong/types.h"
+#include "numkong/reduce/haswell.h"  // `nk_reduce_add_f32x8_haswell_`
+#include "numkong/spatial/haswell.h" // `nk_f32_sqrt_haswell`
 
 #if defined(__cplusplus)
 extern "C" {

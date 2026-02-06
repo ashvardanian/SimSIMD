@@ -13,7 +13,9 @@
 #if NK_TARGET_HASWELL
 
 #include "numkong/types.h"
-#include "numkong/cast/serial.h" // `nk_partial_load_f16x8_to_f32x8_haswell_`
+#include "numkong/reduce/haswell.h"  // `nk_reduce_add_f32x8_haswell_`
+#include "numkong/spatial/haswell.h" // `nk_f32_sqrt_haswell`
+#include "numkong/cast/serial.h"     // `nk_partial_load_f16x8_to_f32x8_haswell_`
 
 #if defined(__cplusplus)
 extern "C" {

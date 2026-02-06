@@ -13,6 +13,7 @@
 #if NK_TARGET_SAPPHIRE
 
 #include "numkong/types.h"
+#include "numkong/spatial/haswell.h"  // `nk_f32_sqrt_haswell`
 #include "numkong/spatial/sapphire.h"
 
 #if defined(__cplusplus)

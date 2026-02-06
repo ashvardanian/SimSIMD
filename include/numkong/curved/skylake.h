@@ -17,6 +17,7 @@
 #if NK_TARGET_SKYLAKE
 
 #include "numkong/types.h"
+#include "numkong/spatial/haswell.h" // `nk_f64_sqrt_haswell`
 
 #if defined(__cplusplus)
 extern "C" {
