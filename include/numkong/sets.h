@@ -94,13 +94,13 @@ NK_DYNAMIC void nk_jaccards_pack_u32(nk_u1x8_t const *q, nk_size_t n, nk_size_t 
  *  @param[in] v_stride_in_bytes Byte stride between rows of A
  *  @param[in] r_stride_in_bytes Byte stride between rows of C
  */
-NK_PUBLIC void nk_hammings_packed_u1(nk_u1x8_t const *a, void const *q_packed, nk_u32_t *result, nk_size_t rows,
-                                     nk_size_t cols, nk_size_t d, nk_size_t v_stride_in_bytes,
-                                     nk_size_t r_stride_in_bytes);
+NK_DYNAMIC void nk_hammings_packed_u1(nk_u1x8_t const *a, void const *q_packed, nk_u32_t *result, nk_size_t rows,
+                                      nk_size_t cols, nk_size_t d, nk_size_t v_stride_in_bytes,
+                                      nk_size_t r_stride_in_bytes);
 /** @copydoc nk_hammings_packed_u1 */
-NK_PUBLIC void nk_hammings_packed_u8(nk_u8_t const *a, void const *q_packed, nk_u32_t *result, nk_size_t rows,
-                                     nk_size_t cols, nk_size_t d, nk_size_t v_stride_in_bytes,
-                                     nk_size_t r_stride_in_bytes);
+NK_DYNAMIC void nk_hammings_packed_u8(nk_u8_t const *a, void const *q_packed, nk_u32_t *result, nk_size_t rows,
+                                      nk_size_t cols, nk_size_t d, nk_size_t v_stride_in_bytes,
+                                      nk_size_t r_stride_in_bytes);
 
 /**
  *  @brief Compute Jaccard distances between V rows and packed Q rows.
@@ -113,13 +113,13 @@ NK_PUBLIC void nk_hammings_packed_u8(nk_u8_t const *a, void const *q_packed, nk_
  *  @param[in] v_stride_in_bytes Byte stride between rows of A
  *  @param[in] r_stride_in_bytes Byte stride between rows of C
  */
-NK_PUBLIC void nk_jaccards_packed_u1(nk_u1x8_t const *a, void const *q_packed, nk_u32_t *result, nk_size_t rows,
-                                     nk_size_t cols, nk_size_t d, nk_size_t v_stride_in_bytes,
-                                     nk_size_t r_stride_in_bytes);
-/** @copydoc nk_jaccards_packed_u1 */
-NK_PUBLIC void nk_jaccards_packed_u32(nk_u32_t const *a, void const *q_packed, nk_u32_t *result, nk_size_t rows,
+NK_DYNAMIC void nk_jaccards_packed_u1(nk_u1x8_t const *a, void const *q_packed, nk_u32_t *result, nk_size_t rows,
                                       nk_size_t cols, nk_size_t d, nk_size_t v_stride_in_bytes,
                                       nk_size_t r_stride_in_bytes);
+/** @copydoc nk_jaccards_packed_u1 */
+NK_DYNAMIC void nk_jaccards_packed_u32(nk_u32_t const *a, void const *q_packed, nk_u32_t *result, nk_size_t rows,
+                                       nk_size_t cols, nk_size_t d, nk_size_t v_stride_in_bytes,
+                                       nk_size_t r_stride_in_bytes);
 /**
  *  @brief Computes C = A × Aᵀ symmetric Gram matrix of Hamming distances.
  *  @param[in] vectors Input matrix of row vectors in row-major order.
@@ -131,11 +131,11 @@ NK_PUBLIC void nk_jaccards_packed_u32(nk_u32_t const *a, void const *q_packed, n
  *  @param[in] row_start Starting row offset of results to compute (needed for parallelism).
  *  @param[in] row_count Number of rows of results to compute (needed for parallelism).
  */
-NK_PUBLIC void nk_hammings_symmetric_u1(nk_u1x8_t const *vectors, nk_size_t n_vectors, nk_size_t d, nk_size_t stride,
-                                        nk_u32_t *result, nk_size_t result_stride, nk_size_t row_start, nk_size_t n);
+NK_DYNAMIC void nk_hammings_symmetric_u1(nk_u1x8_t const *vectors, nk_size_t n_vectors, nk_size_t d, nk_size_t stride,
+                                         nk_u32_t *result, nk_size_t result_stride, nk_size_t row_start, nk_size_t n);
 /** @copydoc nk_hammings_packed_u1 */
-NK_PUBLIC void nk_hammings_symmetric_u8(nk_u8_t const *vectors, nk_size_t n_vectors, nk_size_t d, nk_size_t stride,
-                                        nk_u32_t *result, nk_size_t result_stride, nk_size_t row_start, nk_size_t n);
+NK_DYNAMIC void nk_hammings_symmetric_u8(nk_u8_t const *vectors, nk_size_t n_vectors, nk_size_t d, nk_size_t stride,
+                                         nk_u32_t *result, nk_size_t result_stride, nk_size_t row_start, nk_size_t n);
 /**
  *  @brief Computes C = A × Aᵀ symmetric Gram matrix of Jaccard distances.
  *  @param[in] vectors Input matrix of row vectors in row-major order.
@@ -147,11 +147,11 @@ NK_PUBLIC void nk_hammings_symmetric_u8(nk_u8_t const *vectors, nk_size_t n_vect
  *  @param[in] row_start Starting row offset of results to compute (needed for parallelism).
  *  @param[in] row_count Number of rows of results to compute (needed for parallelism).
  */
-NK_PUBLIC void nk_jaccards_symmetric_u1(nk_u1x8_t const *vectors, nk_size_t n_vectors, nk_size_t d, nk_size_t stride,
-                                        nk_u32_t *result, nk_size_t result_stride, nk_size_t row_start, nk_size_t n);
-/** @copydoc nk_jaccards_packed_u1 */
-NK_PUBLIC void nk_hammings_symmetric_u32(nk_u32_t const *vectors, nk_size_t n_vectors, nk_size_t d, nk_size_t stride,
+NK_DYNAMIC void nk_jaccards_symmetric_u1(nk_u1x8_t const *vectors, nk_size_t n_vectors, nk_size_t d, nk_size_t stride,
                                          nk_u32_t *result, nk_size_t result_stride, nk_size_t row_start, nk_size_t n);
+/** @copydoc nk_jaccards_packed_u1 */
+NK_DYNAMIC void nk_hammings_symmetric_u32(nk_u32_t const *vectors, nk_size_t n_vectors, nk_size_t d, nk_size_t stride,
+                                          nk_u32_t *result, nk_size_t result_stride, nk_size_t row_start, nk_size_t n);
 
 #if defined(__cplusplus)
 } // extern "C"
