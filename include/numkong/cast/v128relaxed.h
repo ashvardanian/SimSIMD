@@ -3,6 +3,11 @@
  *  @brief      WASM SIMD (v128) type conversion helpers for BF16/F16 to F32.
  *  @author     Ash Vardanian
  *  @date       January 31, 2026
+ *
+ *  @section cast_wasm_instructions Key WASM SIMD Instructions
+ *
+ *      Intrinsic                               Operation
+ *      wasm_i32x4_relaxed_laneselect(a, b, m)  Lane select (1 instr vs 3 on x86)
  */
 
 #ifndef NK_CAST_V128RELAXED_H
@@ -98,16 +103,18 @@ NK_INTERNAL nk_b128_vec_t nk_f16x4_to_f32x4_v128relaxed_(nk_b64_vec_t f16_vec) {
     v128_t is_denormal_mask = wasm_v128_andnot(exp_zero_mask, mant_zero_mask); // exp=0 AND mant≠0
 
     // Blend the results
+    // relaxed_laneselect: 1 instruction (vblendvps) vs 3 (vpand+vpandn+vpor) on x86.
+    // Safe because masks are from comparison (all-ones or all-zeros per lane).
     v128_t result_u32x4 = normal_bits_u32x4;
 
     // Apply zero where exp=0 && mant=0
-    result_u32x4 = wasm_v128_bitselect(zero_bits_u32x4, result_u32x4, is_zero_mask);
+    result_u32x4 = wasm_i32x4_relaxed_laneselect(zero_bits_u32x4, result_u32x4, is_zero_mask);
 
     // Apply denormal where exp=0 && mant≠0
-    result_u32x4 = wasm_v128_bitselect(denorm_bits_u32x4, result_u32x4, is_denormal_mask);
+    result_u32x4 = wasm_i32x4_relaxed_laneselect(denorm_bits_u32x4, result_u32x4, is_denormal_mask);
 
     // Apply inf/NaN where exp=31
-    result_u32x4 = wasm_v128_bitselect(inf_nan_bits_u32x4, result_u32x4, exp_max_mask);
+    result_u32x4 = wasm_i32x4_relaxed_laneselect(inf_nan_bits_u32x4, result_u32x4, exp_max_mask);
 
     nk_b128_vec_t result;
     result.v128 = result_u32x4;

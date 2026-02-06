@@ -13,14 +13,18 @@
  *
  *  @section geospatial_wasm_instructions Key WASM SIMD Instructions (beyond trig)
  *
- *      Intrinsic                       Operation
- *      wasm_f32x4_sqrt(a)              Square root (4-way f32)
- *      wasm_f64x2_sqrt(a)              Square root (2-way f64)
- *      wasm_f32x4_div(a, b)            Division (4-way f32)
- *      wasm_f64x2_div(a, b)            Division (2-way f64)
- *      wasm_f32x4_min/max(a, b)        Clamping for Haversine
- *      wasm_f64x2_min/max(a, b)        Clamping for Haversine
- *      wasm_i8x16_all_true(a)          Vincenty convergence check (all lanes at once)
+ *      Intrinsic                               Operation
+ *      wasm_f32x4_sqrt(a)                      Square root (4-way f32)
+ *      wasm_f64x2_sqrt(a)                      Square root (2-way f64)
+ *      wasm_f32x4_div(a, b)                    Division (4-way f32)
+ *      wasm_f64x2_div(a, b)                    Division (2-way f64)
+ *      wasm_f32x4_min/max(a, b)                Clamping for Haversine
+ *      wasm_f64x2_min/max(a, b)                Clamping for Haversine
+ *      wasm_f32x4_relaxed_min/max(a, b)        Min/max without NaN fixup (1 vs 6-9 on x86)
+ *      wasm_f64x2_relaxed_min/max(a, b)        Min/max without NaN fixup (1 vs 6-9 on x86)
+ *      wasm_i32x4_relaxed_laneselect(a, b, m)  Lane select (1 instr vs 3 on x86)
+ *      wasm_i64x2_relaxed_laneselect(a, b, m)  Lane select for f64 masks
+ *      wasm_i8x16_all_true(a)                  Vincenty convergence check (all lanes at once)
  */
 #ifndef NK_GEOSPATIAL_V128RELAXED_H
 #define NK_GEOSPATIAL_V128RELAXED_H
@@ -71,8 +75,10 @@ NK_INTERNAL v128_t nk_haversine_f64x2_v128relaxed_(  //
     v128_t haversine_term = wasm_f64x2_add(sin_squared_latitude_delta_half,
                                            wasm_f64x2_mul(cos_latitude_product, sin_squared_longitude_delta_half));
     // Clamp haversine_term to [0, 1] to prevent NaN from sqrt of negative values
+    // relaxed_min/max: 1 instruction (minpd/maxpd) vs 6-9 (with NaN/signed-zero fixup) on x86.
+    // Safe because haversine_term is a product of finite sin/cos values — NaN is impossible.
     v128_t zero = wasm_f64x2_splat(0.0);
-    haversine_term = wasm_f64x2_max(zero, wasm_f64x2_min(one, haversine_term));
+    haversine_term = wasm_f64x2_relaxed_max(zero, wasm_f64x2_relaxed_min(one, haversine_term));
 
     // Central angle: c = 2 * atan2(sqrt(a), sqrt(1-a))
     v128_t sqrt_haversine = wasm_f64x2_sqrt(haversine_term);
@@ -144,8 +150,10 @@ NK_INTERNAL v128_t nk_haversine_f32x4_v128relaxed_(  //
                                            wasm_f32x4_mul(cos_latitude_product, sin_squared_longitude_delta_half));
 
     // Clamp to [0, 1] to avoid NaN from sqrt of negative numbers (due to floating point errors)
+    // relaxed_min/max: 1 instruction (minps/maxps) vs 6-9 (with NaN/signed-zero fixup) on x86.
+    // Safe because haversine_term is a product of finite sin/cos values — NaN is impossible.
     v128_t zero = wasm_f32x4_splat(0.0f);
-    haversine_term = wasm_f32x4_max(zero, wasm_f32x4_min(one, haversine_term));
+    haversine_term = wasm_f32x4_relaxed_max(zero, wasm_f32x4_relaxed_min(one, haversine_term));
 
     // Central angle: c = 2 * atan2(sqrt(a), sqrt(1-a))
     v128_t sqrt_haversine = wasm_f32x4_sqrt(haversine_term);
@@ -265,21 +273,23 @@ NK_INTERNAL v128_t nk_vincenty_f64x2_v128relaxed_(   //
 
         // sin(azimuth) = cos(U1) * cos(U2) * sin(l) / sin(angular_distance)
         // Avoid division by zero by using blending
-        v128_t safe_sin_angular = wasm_v128_bitselect(one, sin_angular_distance, coincident_mask);
+        // relaxed_laneselect: 1 instruction (vblendvpd) vs 3 (vpand+vpandn+vpor) on x86.
+        // Safe because mask is from comparison (all-ones or all-zeros per lane).
+        v128_t safe_sin_angular = wasm_i64x2_relaxed_laneselect(one, sin_angular_distance, coincident_mask);
         sin_azimuth = wasm_f64x2_div(wasm_f64x2_mul(wasm_f64x2_mul(cos_reduced_first, cos_reduced_second), sin_lambda),
                                      safe_sin_angular);
         cos_squared_azimuth = wasm_f64x2_sub(one, wasm_f64x2_mul(sin_azimuth, sin_azimuth));
 
         // Handle equatorial case: cos^2(a) ~ 0
         v128_t equatorial_mask = wasm_f64x2_lt(cos_squared_azimuth, epsilon);
-        v128_t safe_cos_sq_azimuth = wasm_v128_bitselect(one, cos_squared_azimuth, equatorial_mask);
+        v128_t safe_cos_sq_azimuth = wasm_i64x2_relaxed_laneselect(one, cos_squared_azimuth, equatorial_mask);
 
         // cos(2sm) = cos(s) - 2 * sin(U1) * sin(U2) / cos^2(a)
         v128_t sin_product = wasm_f64x2_mul(sin_reduced_first, sin_reduced_second);
         cos_double_angular_midpoint = wasm_f64x2_sub(
             cos_angular_distance, wasm_f64x2_div(wasm_f64x2_mul(two, sin_product), safe_cos_sq_azimuth));
-        cos_double_angular_midpoint = wasm_v128_bitselect(wasm_f64x2_splat(0.0), cos_double_angular_midpoint,
-                                                          equatorial_mask);
+        cos_double_angular_midpoint = wasm_i64x2_relaxed_laneselect(wasm_f64x2_splat(0.0), cos_double_angular_midpoint,
+                                                                    equatorial_mask);
 
         // C = f/16 * cos^2(a) * (4 + f*(4 - 3*cos^2(a)))
         v128_t correction_factor = wasm_f64x2_mul(
@@ -310,7 +320,9 @@ NK_INTERNAL v128_t nk_vincenty_f64x2_v128relaxed_(   //
         converged_mask = wasm_v128_or(converged_mask, newly_converged);
 
         // Only update lambda for non-converged lanes
-        lambda = wasm_v128_bitselect(lambda, lambda_new, converged_mask);
+        // relaxed_laneselect: 1 instruction (vblendvpd) vs 3 (vpand+vpandn+vpor) on x86.
+        // Safe because mask is from comparison (all-ones or all-zeros per lane).
+        lambda = wasm_i64x2_relaxed_laneselect(lambda, lambda_new, converged_mask);
     }
 
     // Final distance calculation
@@ -350,7 +362,9 @@ NK_INTERNAL v128_t nk_vincenty_f64x2_v128relaxed_(   //
                                       wasm_f64x2_sub(angular_distance, delta_sigma));
 
     // Set coincident points to zero
-    distances = wasm_v128_bitselect(wasm_f64x2_splat(0.0), distances, coincident_mask);
+    // relaxed_laneselect: 1 instruction (vblendvpd) vs 3 (vpand+vpandn+vpor) on x86.
+    // Safe because mask is from comparison (all-ones or all-zeros per lane).
+    distances = wasm_i64x2_relaxed_laneselect(wasm_f64x2_splat(0.0), distances, coincident_mask);
 
     return distances;
 }
@@ -464,21 +478,23 @@ NK_INTERNAL v128_t nk_vincenty_f32x4_v128relaxed_(   //
         angular_distance = nk_f32x4_atan2_v128relaxed_(sin_angular_distance, cos_angular_distance);
 
         // sin(azimuth) = cos(U1) * cos(U2) * sin(l) / sin(angular_distance)
-        v128_t safe_sin_angular = wasm_v128_bitselect(one, sin_angular_distance, coincident_mask);
+        // relaxed_laneselect: 1 instruction (vblendvps) vs 3 (vpand+vpandn+vpor) on x86.
+        // Safe because mask is from comparison (all-ones or all-zeros per lane).
+        v128_t safe_sin_angular = wasm_i32x4_relaxed_laneselect(one, sin_angular_distance, coincident_mask);
         sin_azimuth = wasm_f32x4_div(wasm_f32x4_mul(wasm_f32x4_mul(cos_reduced_first, cos_reduced_second), sin_lambda),
                                      safe_sin_angular);
         cos_squared_azimuth = wasm_f32x4_sub(one, wasm_f32x4_mul(sin_azimuth, sin_azimuth));
 
         // Handle equatorial case: cos^2(a) ~ 0
         v128_t equatorial_mask = wasm_f32x4_lt(cos_squared_azimuth, epsilon);
-        v128_t safe_cos_sq_azimuth = wasm_v128_bitselect(one, cos_squared_azimuth, equatorial_mask);
+        v128_t safe_cos_sq_azimuth = wasm_i32x4_relaxed_laneselect(one, cos_squared_azimuth, equatorial_mask);
 
         // cos(2sm) = cos(s) - 2 * sin(U1) * sin(U2) / cos^2(a)
         v128_t sin_product = wasm_f32x4_mul(sin_reduced_first, sin_reduced_second);
         cos_double_angular_midpoint = wasm_f32x4_sub(
             cos_angular_distance, wasm_f32x4_div(wasm_f32x4_mul(two, sin_product), safe_cos_sq_azimuth));
-        cos_double_angular_midpoint = wasm_v128_bitselect(wasm_f32x4_splat(0.0f), cos_double_angular_midpoint,
-                                                          equatorial_mask);
+        cos_double_angular_midpoint = wasm_i32x4_relaxed_laneselect(wasm_f32x4_splat(0.0f), cos_double_angular_midpoint,
+                                                                    equatorial_mask);
 
         // C = f/16 * cos^2(a) * (4 + f*(4 - 3*cos^2(a)))
         v128_t correction_factor = wasm_f32x4_mul(
@@ -505,7 +521,9 @@ NK_INTERNAL v128_t nk_vincenty_f32x4_v128relaxed_(   //
         converged_mask = wasm_v128_or(converged_mask, newly_converged);
 
         // Only update lambda for non-converged lanes
-        lambda = wasm_v128_bitselect(lambda, lambda_new, converged_mask);
+        // relaxed_laneselect: 1 instruction (vblendvps) vs 3 (vpand+vpandn+vpor) on x86.
+        // Safe because mask is from comparison (all-ones or all-zeros per lane).
+        lambda = wasm_i32x4_relaxed_laneselect(lambda, lambda_new, converged_mask);
     }
 
     // Final distance calculation
@@ -544,7 +562,9 @@ NK_INTERNAL v128_t nk_vincenty_f32x4_v128relaxed_(   //
                                       wasm_f32x4_sub(angular_distance, delta_sigma));
 
     // Set coincident points to zero
-    distances = wasm_v128_bitselect(wasm_f32x4_splat(0.0f), distances, coincident_mask);
+    // relaxed_laneselect: 1 instruction (vblendvps) vs 3 (vpand+vpandn+vpor) on x86.
+    // Safe because mask is from comparison (all-ones or all-zeros per lane).
+    distances = wasm_i32x4_relaxed_laneselect(wasm_f32x4_splat(0.0f), distances, coincident_mask);
 
     return distances;
 }

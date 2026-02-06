@@ -26,6 +26,10 @@
  *      wasm_f32x4_nearest(a)                   Round to nearest integer
  *      wasm_f64x2_nearest(a)                   Round to nearest integer
  *      wasm_v128_bitselect(true, false, mask)  Bitwise select
+ *      wasm_i32x4_relaxed_laneselect(a, b, m)  Lane select (1 instr vs 3 on x86)
+ *      wasm_i64x2_relaxed_laneselect(a, b, m)  Lane select for f64 masks
+ *      wasm_i32x4_relaxed_trunc_f32x4(a)       Truncate without sat fixup (1 vs 7 on x86)
+ *      wasm_i32x4_relaxed_trunc_f64x2_zero(a)  Truncate f64→i32 without sat fixup (1 vs 7 on x86)
  */
 #ifndef NK_TRIGONOMETRY_V128RELAXED_H
 #define NK_TRIGONOMETRY_V128RELAXED_H
@@ -57,7 +61,9 @@ NK_INTERNAL v128_t nk_f32x4_sin_v128relaxed_(v128_t const angles_radians) {
     // Compute (multiples_of_pi) = round(angle / pi) using nearest rounding
     v128_t quotients = wasm_f32x4_mul(angles_radians, pi_reciprocal);
     v128_t rounded_quotients = wasm_f32x4_nearest(quotients);
-    v128_t multiples_of_pi = wasm_i32x4_trunc_sat_f32x4(rounded_quotients);
+    // relaxed_trunc: 1 instruction (cvttps2dq) vs 7 (with NaN/overflow fixup) on x86.
+    // Safe because rounded_quotients are small integers from nearest(), never NaN or out of i32 range.
+    v128_t multiples_of_pi = wasm_i32x4_relaxed_trunc_f32x4(rounded_quotients);
 
     // Reduce the angle: angle - rounded_quotients * pi
     // vfmsq_f32(acc, a, b) = acc - a*b -> wasm_f32x4_relaxed_nmadd(a, b, acc)
@@ -76,7 +82,9 @@ NK_INTERNAL v128_t nk_f32x4_sin_v128relaxed_(v128_t const angles_radians) {
     v128_t parity = wasm_v128_and(multiples_of_pi, wasm_i32x4_splat(1));
     v128_t odd_mask = wasm_i32x4_eq(parity, wasm_i32x4_splat(1));
     v128_t negated = wasm_f32x4_neg(results);
-    results = wasm_v128_bitselect(negated, results, odd_mask);
+    // relaxed_laneselect: 1 instruction (vblendvps) vs 3 (vpand+vpandn+vpor) on x86.
+    // Safe because mask is from comparison (all-ones or all-zeros per lane).
+    results = wasm_i32x4_relaxed_laneselect(negated, results, odd_mask);
     return results;
 }
 
@@ -92,7 +100,9 @@ NK_INTERNAL v128_t nk_f32x4_cos_v128relaxed_(v128_t const angles_radians) {
     // Compute round((angle / pi) - 0.5)
     v128_t quotients = wasm_f32x4_sub(wasm_f32x4_mul(angles_radians, pi_reciprocal), wasm_f32x4_splat(0.5f));
     v128_t rounded_quotients = wasm_f32x4_nearest(quotients);
-    v128_t multiples_of_pi = wasm_i32x4_trunc_sat_f32x4(rounded_quotients);
+    // relaxed_trunc: 1 instruction (cvttps2dq) vs 7 (with NaN/overflow fixup) on x86.
+    // Safe because rounded_quotients are small integers from nearest(), never NaN or out of i32 range.
+    v128_t multiples_of_pi = wasm_i32x4_relaxed_trunc_f32x4(rounded_quotients);
 
     // Reduce the angle: (angle - pi/2) - rounded_quotients * pi
     v128_t shifted = wasm_f32x4_sub(angles_radians, pi_half);
@@ -110,7 +120,9 @@ NK_INTERNAL v128_t nk_f32x4_cos_v128relaxed_(v128_t const angles_radians) {
     v128_t parity = wasm_v128_and(multiples_of_pi, wasm_i32x4_splat(1));
     v128_t even_mask = wasm_i32x4_eq(parity, wasm_i32x4_splat(0));
     v128_t negated = wasm_f32x4_neg(results);
-    results = wasm_v128_bitselect(negated, results, even_mask);
+    // relaxed_laneselect: 1 instruction (vblendvps) vs 3 (vpand+vpandn+vpor) on x86.
+    // Safe because mask is from comparison (all-ones or all-zeros per lane).
+    results = wasm_i32x4_relaxed_laneselect(negated, results, even_mask);
     return results;
 }
 
@@ -136,7 +148,9 @@ NK_INTERNAL v128_t nk_f32x4_atan_v128relaxed_(v128_t const inputs) {
 
     // No fast reciprocal in WASM — use division
     v128_t recip = wasm_f32x4_div(wasm_f32x4_splat(1.0f), values);
-    values = wasm_v128_bitselect(recip, values, reciprocal_mask);
+    // relaxed_laneselect: 1 instruction (vblendvps) vs 3 (vpand+vpandn+vpor) on x86.
+    // Safe because mask is from comparison (all-ones or all-zeros per lane).
+    values = wasm_i32x4_relaxed_laneselect(recip, values, reciprocal_mask);
 
     // Compute powers
     v128_t const values_squared = wasm_f32x4_mul(values, values);
@@ -157,11 +171,15 @@ NK_INTERNAL v128_t nk_f32x4_atan_v128relaxed_(v128_t const inputs) {
 
     // Adjust for reciprocal: result = pi/2 - result
     v128_t adjusted = wasm_f32x4_sub(half_pi, result);
-    result = wasm_v128_bitselect(adjusted, result, reciprocal_mask);
+    // relaxed_laneselect: 1 instruction (vblendvps) vs 3 (vpand+vpandn+vpor) on x86.
+    // Safe because mask is from comparison (all-ones or all-zeros per lane).
+    result = wasm_i32x4_relaxed_laneselect(adjusted, result, reciprocal_mask);
 
     // Adjust for negative: result = -result
     v128_t negated = wasm_f32x4_neg(result);
-    result = wasm_v128_bitselect(negated, result, negative_mask);
+    // relaxed_laneselect: 1 instruction (vblendvps) vs 3 (vpand+vpandn+vpor) on x86.
+    // Safe because mask is from comparison (all-ones or all-zeros per lane).
+    result = wasm_i32x4_relaxed_laneselect(negated, result, negative_mask);
     return result;
 }
 
@@ -187,8 +205,10 @@ NK_INTERNAL v128_t nk_f32x4_atan2_v128relaxed_(v128_t const ys_inputs, v128_t co
     // Ensure proper fraction where numerator < denominator
     v128_t swap_mask = wasm_f32x4_gt(ys, xs);
     v128_t temps = xs;
-    xs = wasm_v128_bitselect(ys, xs, swap_mask);
-    ys = wasm_v128_bitselect(wasm_f32x4_neg(temps), ys, swap_mask);
+    // relaxed_laneselect: 1 instruction (vblendvps) vs 3 (vpand+vpandn+vpor) on x86.
+    // Safe because mask is from comparison (all-ones or all-zeros per lane).
+    xs = wasm_i32x4_relaxed_laneselect(ys, xs, swap_mask);
+    ys = wasm_i32x4_relaxed_laneselect(wasm_f32x4_neg(temps), ys, swap_mask);
 
     // Division for ratio: ratio = ys / xs
     v128_t const ratio = wasm_f32x4_div(ys, xs);
@@ -212,9 +232,11 @@ NK_INTERNAL v128_t nk_f32x4_atan2_v128relaxed_(v128_t const ys_inputs, v128_t co
     //                        -2 for x<0 && !swap, -1 for x<0 && swap
     v128_t quadrant = wasm_f32x4_splat(0.0f);
     v128_t neg_two = wasm_f32x4_splat(-2.0f);
-    quadrant = wasm_v128_bitselect(neg_two, quadrant, xs_negative_mask);
+    // relaxed_laneselect: 1 instruction (vblendvps) vs 3 (vpand+vpandn+vpor) on x86.
+    // Safe because mask is from comparison (all-ones or all-zeros per lane).
+    quadrant = wasm_i32x4_relaxed_laneselect(neg_two, quadrant, xs_negative_mask);
     v128_t quadrant_incremented = wasm_f32x4_add(quadrant, wasm_f32x4_splat(1.0f));
-    quadrant = wasm_v128_bitselect(quadrant_incremented, quadrant, swap_mask);
+    quadrant = wasm_i32x4_relaxed_laneselect(quadrant_incremented, quadrant, swap_mask);
 
     // Adjust for quadrant: result += quadrant * pi/2
     results = wasm_f32x4_relaxed_madd(quadrant, half_pi, results);
@@ -249,18 +271,25 @@ NK_INTERNAL v128_t nk_f64x2_sin_v128relaxed_(v128_t const angles_radians) {
     // Compute round(angle / pi)
     v128_t const quotients = wasm_f64x2_mul(angles_radians, pi_reciprocal);
     v128_t rounded_quotients = wasm_f64x2_nearest(quotients);
-    v128_t multiples_of_pi = wasm_i64x2_trunc_sat_f64x2(rounded_quotients);
+    // relaxed_trunc: 1 instruction (cvttpd2dq) vs 7 (with NaN/overflow fixup) on x86.
+    // Safe because rounded_quotients are small integers from nearest(), never NaN or out of i32 range.
+    v128_t multiples_i32 = wasm_i32x4_relaxed_trunc_f64x2_zero(rounded_quotients);
 
     // Two-step Cody-Waite reduction: angle - rounded * pi_high - rounded * pi_low
     v128_t angles = angles_radians;
     angles = wasm_f64x2_relaxed_nmadd(rounded_quotients, pi_high, angles);
     angles = wasm_f64x2_relaxed_nmadd(rounded_quotients, pi_low, angles);
 
-    // If multiples_of_pi is odd, negate the angle
-    v128_t parity = wasm_v128_and(multiples_of_pi, wasm_i64x2_splat(1));
-    v128_t odd_mask = wasm_i64x2_eq(parity, wasm_i64x2_splat(1));
+    // Check parity in i32, then widen to i64 mask for laneselect
+    v128_t parity_i32 = wasm_v128_and(multiples_i32, wasm_i32x4_splat(1));
+    v128_t odd_i32 = wasm_i32x4_eq(parity_i32, wasm_i32x4_splat(1));
+    // Widen: lane0 of i32 -> lanes 0-1 of i64, lane1 -> lanes 2-3
+    // Shuffle i32 lanes [0,0,1,1] to broadcast each i32 parity into both halves of each i64
+    v128_t odd_mask = wasm_i32x4_shuffle(odd_i32, odd_i32, 0, 0, 1, 1);
     v128_t negated_angles = wasm_f64x2_neg(angles);
-    angles = wasm_v128_bitselect(negated_angles, angles, odd_mask);
+    // relaxed_laneselect: 1 instruction (vblendvpd) vs 3 (vpand+vpandn+vpor) on x86.
+    // Safe because mask is lane-granular at i64 width (all-ones or all-zeros per 64-bit lane).
+    angles = wasm_i64x2_relaxed_laneselect(negated_angles, angles, odd_mask);
 
     v128_t const angles_squared = wasm_f64x2_mul(angles, angles);
     v128_t const angles_cubed = wasm_f64x2_mul(angles, angles_squared);
@@ -283,7 +312,9 @@ NK_INTERNAL v128_t nk_f64x2_sin_v128relaxed_(v128_t const angles_radians) {
 
     // Handle zero input (preserve sign of zero)
     v128_t const non_zero_mask = wasm_f64x2_eq(angles_radians, wasm_f64x2_splat(0));
-    results = wasm_v128_bitselect(angles_radians, results, non_zero_mask);
+    // relaxed_laneselect: 1 instruction (vblendvpd) vs 3 (vpand+vpandn+vpor) on x86.
+    // Safe because mask is from comparison (all-ones or all-zeros per lane).
+    results = wasm_i64x2_relaxed_laneselect(angles_radians, results, non_zero_mask);
     return results;
 }
 
@@ -308,18 +339,23 @@ NK_INTERNAL v128_t nk_f64x2_cos_v128relaxed_(v128_t const angles_radians) {
     v128_t const quotients = wasm_f64x2_sub(wasm_f64x2_mul(angles_radians, pi_reciprocal), wasm_f64x2_splat(0.5));
     v128_t const rounded = wasm_f64x2_nearest(quotients);
     v128_t const rounded_quotients = wasm_f64x2_relaxed_madd(wasm_f64x2_splat(2.0), rounded, wasm_f64x2_splat(1.0));
-    v128_t quotients_i64 = wasm_i64x2_trunc_sat_f64x2(rounded_quotients);
+    // relaxed_trunc: 1 instruction (cvttpd2dq) vs 7 (with NaN/overflow fixup) on x86.
+    // Safe because rounded_quotients are small integers from nearest(), never NaN or out of i32 range.
+    v128_t quotients_i32 = wasm_i32x4_relaxed_trunc_f64x2_zero(rounded_quotients);
 
     // Two-step Cody-Waite reduction
     v128_t angles = angles_radians;
     angles = wasm_f64x2_relaxed_nmadd(rounded_quotients, pi_high_half, angles);
     angles = wasm_f64x2_relaxed_nmadd(rounded_quotients, pi_low_half, angles);
 
-    // If (rounded_quotients & 2) == 0, negate the angle
-    v128_t bit2 = wasm_v128_and(quotients_i64, wasm_i64x2_splat(2));
-    v128_t flip_mask = wasm_i64x2_eq(bit2, wasm_i64x2_splat(0));
+    // Check bit 1 in i32, then widen to i64 mask for laneselect
+    v128_t bit2_i32 = wasm_v128_and(quotients_i32, wasm_i32x4_splat(2));
+    v128_t flip_i32 = wasm_i32x4_eq(bit2_i32, wasm_i32x4_splat(0));
+    v128_t flip_mask = wasm_i32x4_shuffle(flip_i32, flip_i32, 0, 0, 1, 1);
     v128_t negated_angles = wasm_f64x2_neg(angles);
-    angles = wasm_v128_bitselect(negated_angles, angles, flip_mask);
+    // relaxed_laneselect: 1 instruction (vblendvpd) vs 3 (vpand+vpandn+vpor) on x86.
+    // Safe because mask is lane-granular at i64 width (all-ones or all-zeros per 64-bit lane).
+    angles = wasm_i64x2_relaxed_laneselect(negated_angles, angles, flip_mask);
 
     v128_t const angles_squared = wasm_f64x2_mul(angles, angles);
     v128_t const angles_cubed = wasm_f64x2_mul(angles, angles_squared);
@@ -373,7 +409,9 @@ NK_INTERNAL v128_t nk_f64x2_atan_v128relaxed_(v128_t const inputs) {
     // Check if values > 1 (need reciprocal) - use division for f64 precision
     v128_t reciprocal_mask = wasm_f64x2_gt(values, wasm_f64x2_splat(1.0));
     v128_t reciprocal_values = wasm_f64x2_div(wasm_f64x2_splat(1.0), values);
-    values = wasm_v128_bitselect(reciprocal_values, values, reciprocal_mask);
+    // relaxed_laneselect: 1 instruction (vblendvpd) vs 3 (vpand+vpandn+vpor) on x86.
+    // Safe because mask is from comparison (all-ones or all-zeros per lane).
+    values = wasm_i64x2_relaxed_laneselect(reciprocal_values, values, reciprocal_mask);
 
     // Compute powers
     v128_t const values_squared = wasm_f64x2_mul(values, values);
@@ -405,11 +443,15 @@ NK_INTERNAL v128_t nk_f64x2_atan_v128relaxed_(v128_t const inputs) {
 
     // Adjust for reciprocal: result = pi/2 - result
     v128_t adjusted = wasm_f64x2_sub(half_pi, result);
-    result = wasm_v128_bitselect(adjusted, result, reciprocal_mask);
+    // relaxed_laneselect: 1 instruction (vblendvpd) vs 3 (vpand+vpandn+vpor) on x86.
+    // Safe because mask is from comparison (all-ones or all-zeros per lane).
+    result = wasm_i64x2_relaxed_laneselect(adjusted, result, reciprocal_mask);
 
     // Adjust for negative: result = -result
     v128_t negated = wasm_f64x2_neg(result);
-    result = wasm_v128_bitselect(negated, result, negative_mask);
+    // relaxed_laneselect: 1 instruction (vblendvpd) vs 3 (vpand+vpandn+vpor) on x86.
+    // Safe because mask is from comparison (all-ones or all-zeros per lane).
+    result = wasm_i64x2_relaxed_laneselect(negated, result, negative_mask);
     return result;
 }
 
@@ -446,8 +488,10 @@ NK_INTERNAL v128_t nk_f64x2_atan2_v128relaxed_(v128_t const ys_inputs, v128_t co
     // Ensure proper fraction where numerator < denominator
     v128_t swap_mask = wasm_f64x2_gt(ys, xs);
     v128_t temps = xs;
-    xs = wasm_v128_bitselect(ys, xs, swap_mask);
-    ys = wasm_v128_bitselect(wasm_f64x2_neg(temps), ys, swap_mask);
+    // relaxed_laneselect: 1 instruction (vblendvpd) vs 3 (vpand+vpandn+vpor) on x86.
+    // Safe because mask is from comparison (all-ones or all-zeros per lane).
+    xs = wasm_i64x2_relaxed_laneselect(ys, xs, swap_mask);
+    ys = wasm_i64x2_relaxed_laneselect(wasm_f64x2_neg(temps), ys, swap_mask);
 
     // Division for f64 precision
     v128_t const ratio = wasm_f64x2_div(ys, xs);
@@ -482,9 +526,11 @@ NK_INTERNAL v128_t nk_f64x2_atan2_v128relaxed_(v128_t const ys_inputs, v128_t co
     //                        -2 for x<0 && !swap, -1 for x<0 && swap
     v128_t quadrant = wasm_f64x2_splat(0.0);
     v128_t neg_two = wasm_f64x2_splat(-2.0);
-    quadrant = wasm_v128_bitselect(neg_two, quadrant, xs_negative_mask);
+    // relaxed_laneselect: 1 instruction (vblendvpd) vs 3 (vpand+vpandn+vpor) on x86.
+    // Safe because mask is from comparison (all-ones or all-zeros per lane).
+    quadrant = wasm_i64x2_relaxed_laneselect(neg_two, quadrant, xs_negative_mask);
     v128_t quadrant_incremented = wasm_f64x2_add(quadrant, wasm_f64x2_splat(1.0));
-    quadrant = wasm_v128_bitselect(quadrant_incremented, quadrant, swap_mask);
+    quadrant = wasm_i64x2_relaxed_laneselect(quadrant_incremented, quadrant, swap_mask);
 
     // Adjust for quadrant: result += quadrant * pi/2
     results = wasm_f64x2_relaxed_madd(quadrant, half_pi, results);
