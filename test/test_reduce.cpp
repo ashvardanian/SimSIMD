@@ -37,6 +37,58 @@ error_stats_t test_reduce_add(typename scalar_type_::reduce_add_kernel_t kernel)
     return stats;
 }
 
+template <typename scalar_type_>
+error_stats_t test_reduce_min(typename scalar_type_::reduce_extremum_kernel_t kernel) {
+    using scalar_t = scalar_type_;
+    using raw_t = typename scalar_t::raw_t;
+
+    error_stats_t stats;
+    std::mt19937 generator(global_config.seed);
+    auto buffer = make_vector<scalar_t>(dense_dimensions);
+
+    for (auto start = test_start_time(); within_time_budget(start);) {
+        fill_random(generator, buffer);
+
+        scalar_t min_val;
+        nk_size_t min_idx;
+        kernel(buffer.raw_values_data(), dense_dimensions, sizeof(raw_t), &min_val.raw_, &min_idx);
+
+        scalar_t ref_val;
+        std::size_t ref_idx;
+        nk::reduce_min<scalar_t, nk::no_simd_k>(buffer.values_data(), dense_dimensions, sizeof(raw_t), &ref_val,
+                                                &ref_idx);
+
+        stats.accumulate(min_val, ref_val);
+    }
+    return stats;
+}
+
+template <typename scalar_type_>
+error_stats_t test_reduce_max(typename scalar_type_::reduce_extremum_kernel_t kernel) {
+    using scalar_t = scalar_type_;
+    using raw_t = typename scalar_t::raw_t;
+
+    error_stats_t stats;
+    std::mt19937 generator(global_config.seed);
+    auto buffer = make_vector<scalar_t>(dense_dimensions);
+
+    for (auto start = test_start_time(); within_time_budget(start);) {
+        fill_random(generator, buffer);
+
+        scalar_t max_val;
+        nk_size_t max_idx;
+        kernel(buffer.raw_values_data(), dense_dimensions, sizeof(raw_t), &max_val.raw_, &max_idx);
+
+        scalar_t ref_val;
+        std::size_t ref_idx;
+        nk::reduce_max<scalar_t, scalar_t, nk::no_simd_k>(buffer.values_data(), dense_dimensions, sizeof(raw_t),
+                                                          &ref_val, &ref_idx);
+
+        stats.accumulate(max_val, ref_val);
+    }
+    return stats;
+}
+
 void test_reduce() {
     std::puts("");
     std::printf("Reductions:\n");

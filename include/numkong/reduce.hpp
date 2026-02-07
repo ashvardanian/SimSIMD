@@ -46,6 +46,16 @@ void reduce_add(in_type_ const *data, std::size_t count, std::size_t stride_byte
         nk_reduce_add_e4m3(&data->raw_, count, stride_bytes, &result->raw_);
     else if constexpr (std::is_same_v<in_type_, e5m2_t> && simd)
         nk_reduce_add_e5m2(&data->raw_, count, stride_bytes, &result->raw_);
+    else if constexpr (std::is_same_v<in_type_, e2m3_t> && simd)
+        nk_reduce_add_e2m3(&data->raw_, count, stride_bytes, &result->raw_);
+    else if constexpr (std::is_same_v<in_type_, e3m2_t> && simd)
+        nk_reduce_add_e3m2(&data->raw_, count, stride_bytes, &result->raw_);
+    else if constexpr (std::is_same_v<in_type_, i4x2_t> && simd)
+        nk_reduce_add_i4(&data->raw_, count, stride_bytes, &result->raw_);
+    else if constexpr (std::is_same_v<in_type_, u4x2_t> && simd)
+        nk_reduce_add_u4(&data->raw_, count, stride_bytes, &result->raw_);
+    else if constexpr (std::is_same_v<in_type_, u1x8_t> && simd)
+        nk_reduce_add_u1(&data->raw_, count, stride_bytes, &result->raw_);
     else if constexpr (std::is_same_v<in_type_, i8_t> && simd)
         nk_reduce_add_i8(&data->raw_, count, stride_bytes, &result->raw_);
     else if constexpr (std::is_same_v<in_type_, u8_t> && simd)
@@ -100,6 +110,16 @@ void reduce_min(in_type_ const *data, std::size_t count, std::size_t stride_byte
         nk_reduce_min_e4m3(&data->raw_, count, stride_bytes, &min_value->raw_, min_index);
     else if constexpr (std::is_same_v<in_type_, e5m2_t> && simd)
         nk_reduce_min_e5m2(&data->raw_, count, stride_bytes, &min_value->raw_, min_index);
+    else if constexpr (std::is_same_v<in_type_, e2m3_t> && simd)
+        nk_reduce_min_e2m3(&data->raw_, count, stride_bytes, &min_value->raw_, min_index);
+    else if constexpr (std::is_same_v<in_type_, e3m2_t> && simd)
+        nk_reduce_min_e3m2(&data->raw_, count, stride_bytes, &min_value->raw_, min_index);
+    else if constexpr (std::is_same_v<in_type_, i4x2_t> && simd)
+        nk_reduce_min_i4(&data->raw_, count, stride_bytes, &min_value->raw_, min_index);
+    else if constexpr (std::is_same_v<in_type_, u4x2_t> && simd)
+        nk_reduce_min_u4(&data->raw_, count, stride_bytes, &min_value->raw_, min_index);
+    else if constexpr (std::is_same_v<in_type_, u1x8_t> && simd)
+        nk_reduce_min_u1(&data->raw_, count, stride_bytes, &min_value->raw_, min_index);
     else if constexpr (std::is_same_v<in_type_, i8_t> && simd)
         nk_reduce_min_i8(&data->raw_, count, stride_bytes, &min_value->raw_, min_index);
     else if constexpr (std::is_same_v<in_type_, u8_t> && simd)
@@ -159,6 +179,16 @@ void reduce_max(in_type_ const *data, std::size_t count, std::size_t stride_byte
         nk_reduce_max_e4m3(&data->raw_, count, stride_bytes, &max_value->raw_, max_index);
     else if constexpr (std::is_same_v<in_type_, e5m2_t> && simd)
         nk_reduce_max_e5m2(&data->raw_, count, stride_bytes, &max_value->raw_, max_index);
+    else if constexpr (std::is_same_v<in_type_, e2m3_t> && simd)
+        nk_reduce_max_e2m3(&data->raw_, count, stride_bytes, &max_value->raw_, max_index);
+    else if constexpr (std::is_same_v<in_type_, e3m2_t> && simd)
+        nk_reduce_max_e3m2(&data->raw_, count, stride_bytes, &max_value->raw_, max_index);
+    else if constexpr (std::is_same_v<in_type_, i4x2_t> && simd)
+        nk_reduce_max_i4(&data->raw_, count, stride_bytes, &max_value->raw_, max_index);
+    else if constexpr (std::is_same_v<in_type_, u4x2_t> && simd)
+        nk_reduce_max_u4(&data->raw_, count, stride_bytes, &max_value->raw_, max_index);
+    else if constexpr (std::is_same_v<in_type_, u1x8_t> && simd)
+        nk_reduce_max_u1(&data->raw_, count, stride_bytes, &max_value->raw_, max_index);
     else if constexpr (std::is_same_v<in_type_, i8_t> && simd)
         nk_reduce_max_i8(&data->raw_, count, stride_bytes, &max_value->raw_, max_index);
     else if constexpr (std::is_same_v<in_type_, u8_t> && simd)
