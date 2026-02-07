@@ -203,7 +203,6 @@
 
 #ifdef NK_TARGET_SME
 
-#include <arm_sme.h>
 #include "numkong/types.h"
 
 /**

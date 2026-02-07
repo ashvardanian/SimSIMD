@@ -416,6 +416,9 @@
 #if NK_TARGET_SVE || NK_TARGET_SVE2
 #include <arm_sve.h>
 #endif
+#if NK_TARGET_SME || NK_TARGET_SME2 || NK_TARGET_SMEBI32
+#include <arm_sme.h>
+#endif
 #elif NK_TARGET_HASWELL || NK_TARGET_SKYLAKE
 #include <immintrin.h>
 #elif NK_TARGET_RVV

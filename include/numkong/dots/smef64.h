@@ -42,10 +42,7 @@ extern "C" {
 #pragma GCC target("+sme+sme-f64f64")
 #endif
 
-#include <arm_sme.h>
-#include <arm_sve.h>
-
-/**
+/*
  *  f32 → f64 → f32 GEMM using FMOPA with ZA64 tiles (FEAT_SME_F64F64).
  *
  *  Tile layout (SVL=512, Apple M4):
@@ -57,7 +54,7 @@ extern "C" {
  *  - 4-tile path: ZA0-ZA3 process 4 column tiles simultaneously
  *  - Output: f64 results converted back to f32 via svcvt_f32_f64
  */
-#pragma region Single-Precision Floats (f32)
+#pragma region Single Precision Floats
 
 NK_PUBLIC nk_size_t nk_dots_packed_size_f32_smef64(nk_size_t columns, nk_size_t depth) {
     nk_size_t const tile_dimension = svcntsd();  // rows per `ZA64` tile (8 for SVL=512)
@@ -297,7 +294,66 @@ NK_PUBLIC void nk_dots_packed_f32_smef64(nk_f32_t const *a, void const *b_packed
     nk_dots_f32_sme_kernel_(a, b_packed, c, rows, columns, depth, a_stride_elements, c_stride_elements);
 }
 
-#pragma endregion
+__arm_locally_streaming static void nk_dots_symmetric_f32_smef64_kernel_(nk_f32_t const *vectors, nk_size_t n_vectors,
+                                                                         nk_size_t depth, nk_size_t stride_elements,
+                                                                         nk_f32_t *result,
+                                                                         nk_size_t result_stride_elements,
+                                                                         nk_size_t row_start, nk_size_t row_count) {
+
+    nk_size_t const vector_length_d = svcntd(); // f64 elements per vector (half of f32)
+    svbool_t const predicate_double = svptrue_b64();
+
+    nk_size_t const row_end = row_start + row_count;
+
+    // Compute specified rows of symmetric matrix
+    for (nk_size_t i = row_start; i < row_end && i < n_vectors; i++) {
+        nk_f32_t const *pointer_row_i = vectors + i * stride_elements;
+        for (nk_size_t j = i; j < n_vectors; j++) {
+            nk_f32_t const *pointer_row_j = vectors + j * stride_elements;
+
+            // SVE vectorized dot product with f64 accumulation
+            svfloat64_t accumulator = svdup_f64(0.0);
+            nk_size_t depth_index = 0;
+
+            // Process in chunks of vector_length_d f32 elements (converts to f64)
+            while (depth_index + vector_length_d <= depth) {
+                svbool_t predicate_single = svwhilelt_b32((uint32_t)0, (uint32_t)vector_length_d);
+                svfloat32_t vector_i_f32 = svld1_f32(predicate_single, pointer_row_i + depth_index);
+                svfloat32_t vector_j_f32 = svld1_f32(predicate_single, pointer_row_j + depth_index);
+                svfloat64_t vector_i = svcvt_f64_f32_x(predicate_double, vector_i_f32);
+                svfloat64_t vector_j = svcvt_f64_f32_x(predicate_double, vector_j_f32);
+                accumulator = svmla_f64_x(predicate_double, accumulator, vector_i, vector_j);
+                depth_index += vector_length_d;
+            }
+            // Handle remainder
+            if (depth_index < depth) {
+                nk_size_t remaining = depth - depth_index;
+                svbool_t predicate_single_tail = svwhilelt_b32((uint32_t)0, (uint32_t)remaining);
+                svbool_t predicate_double_tail = svwhilelt_b64((uint64_t)0, remaining);
+                svfloat32_t vector_i_f32 = svld1_f32(predicate_single_tail, pointer_row_i + depth_index);
+                svfloat32_t vector_j_f32 = svld1_f32(predicate_single_tail, pointer_row_j + depth_index);
+                svfloat64_t vector_i = svcvt_f64_f32_x(predicate_double_tail, vector_i_f32);
+                svfloat64_t vector_j = svcvt_f64_f32_x(predicate_double_tail, vector_j_f32);
+                accumulator = svmla_f64_x(predicate_double_tail, accumulator, vector_i, vector_j);
+            }
+            nk_f32_t dot = (nk_f32_t)svaddv_f64(predicate_double, accumulator);
+            result[i * result_stride_elements + j] = dot;
+            if (i != j) result[j * result_stride_elements + i] = dot;
+        }
+    }
+}
+
+NK_PUBLIC void nk_dots_symmetric_f32_smef64(nk_f32_t const *vectors, nk_size_t n_vectors, nk_size_t depth,
+                                            nk_size_t stride, nk_f32_t *result, nk_size_t result_stride,
+                                            nk_size_t row_start, nk_size_t row_count) {
+
+    nk_size_t const stride_elements = stride / sizeof(nk_f32_t);
+    nk_size_t const result_stride_elements = result_stride / sizeof(nk_f32_t);
+    nk_dots_symmetric_f32_smef64_kernel_(vectors, n_vectors, depth, stride_elements, result, result_stride_elements,
+                                         row_start, row_count);
+}
+
+#pragma endregion // Single Precision Floats
 
 /*
  *  Native f64 GEMM using FMOPA with ZA64 tiles and Kahan compensation.
@@ -310,7 +366,7 @@ NK_PUBLIC void nk_dots_packed_f32_smef64(nk_f32_t const *a, void const *b_packed
  *  - 4-tile path: ZA0-ZA3 with independent Kahan accumulators
  *  - Kahan summation: ~16-17 decimal digits precision
  */
-#pragma region Double-Precision Floats (f64)
+#pragma region Double Precision Floats
 
 NK_PUBLIC nk_size_t nk_dots_packed_size_f64_smef64(nk_size_t columns, nk_size_t depth) {
     nk_size_t const tile_dimension = svcntsd();  // rows per `ZA64` tile (8 for SVL=512)
@@ -606,77 +662,6 @@ NK_PUBLIC void nk_dots_packed_f64_smef64(nk_f64_t const *a, void const *b_packed
     nk_dots_f64_sme_kernel_(a, b_packed, c, rows, columns, depth, a_stride_elements, c_stride_elements);
 }
 
-#pragma endregion
-
-/*
- *  Symmetric pairwise dot products with f64 accumulation.
- *
- *  f32 variant: loads f32 pairs, converts to f64 via svcvt_f64_f32, accumulates
- *  with svmla_f64. Provides higher precision than ZA32-based f32 symmetric.
- *  f64 variant: native f64 dot products with streaming SVE.
- *  Both use upper-triangle computation with mirror writes.
- */
-#pragma region Symmetric GEMM
-
-__arm_locally_streaming static void nk_dots_symmetric_f32_smef64_kernel_(nk_f32_t const *vectors, nk_size_t n_vectors,
-                                                                         nk_size_t depth, nk_size_t stride_elements,
-                                                                         nk_f32_t *result,
-                                                                         nk_size_t result_stride_elements,
-                                                                         nk_size_t row_start, nk_size_t row_count) {
-
-    nk_size_t const vector_length_d = svcntd(); // f64 elements per vector (half of f32)
-    svbool_t const predicate_double = svptrue_b64();
-
-    nk_size_t const row_end = row_start + row_count;
-
-    // Compute specified rows of symmetric matrix
-    for (nk_size_t i = row_start; i < row_end && i < n_vectors; i++) {
-        nk_f32_t const *pointer_row_i = vectors + i * stride_elements;
-        for (nk_size_t j = i; j < n_vectors; j++) {
-            nk_f32_t const *pointer_row_j = vectors + j * stride_elements;
-
-            // SVE vectorized dot product with f64 accumulation
-            svfloat64_t accumulator = svdup_f64(0.0);
-            nk_size_t depth_index = 0;
-
-            // Process in chunks of vector_length_d f32 elements (converts to f64)
-            while (depth_index + vector_length_d <= depth) {
-                svbool_t predicate_single = svwhilelt_b32((uint32_t)0, (uint32_t)vector_length_d);
-                svfloat32_t vector_i_f32 = svld1_f32(predicate_single, pointer_row_i + depth_index);
-                svfloat32_t vector_j_f32 = svld1_f32(predicate_single, pointer_row_j + depth_index);
-                svfloat64_t vector_i = svcvt_f64_f32_x(predicate_double, vector_i_f32);
-                svfloat64_t vector_j = svcvt_f64_f32_x(predicate_double, vector_j_f32);
-                accumulator = svmla_f64_x(predicate_double, accumulator, vector_i, vector_j);
-                depth_index += vector_length_d;
-            }
-            // Handle remainder
-            if (depth_index < depth) {
-                nk_size_t remaining = depth - depth_index;
-                svbool_t predicate_single_tail = svwhilelt_b32((uint32_t)0, (uint32_t)remaining);
-                svbool_t predicate_double_tail = svwhilelt_b64((uint64_t)0, remaining);
-                svfloat32_t vector_i_f32 = svld1_f32(predicate_single_tail, pointer_row_i + depth_index);
-                svfloat32_t vector_j_f32 = svld1_f32(predicate_single_tail, pointer_row_j + depth_index);
-                svfloat64_t vector_i = svcvt_f64_f32_x(predicate_double_tail, vector_i_f32);
-                svfloat64_t vector_j = svcvt_f64_f32_x(predicate_double_tail, vector_j_f32);
-                accumulator = svmla_f64_x(predicate_double_tail, accumulator, vector_i, vector_j);
-            }
-            nk_f32_t dot = (nk_f32_t)svaddv_f64(predicate_double, accumulator);
-            result[i * result_stride_elements + j] = dot;
-            if (i != j) result[j * result_stride_elements + i] = dot;
-        }
-    }
-}
-
-NK_PUBLIC void nk_dots_symmetric_f32_smef64(nk_f32_t const *vectors, nk_size_t n_vectors, nk_size_t depth,
-                                            nk_size_t stride, nk_f32_t *result, nk_size_t result_stride,
-                                            nk_size_t row_start, nk_size_t row_count) {
-
-    nk_size_t const stride_elements = stride / sizeof(nk_f32_t);
-    nk_size_t const result_stride_elements = result_stride / sizeof(nk_f32_t);
-    nk_dots_symmetric_f32_smef64_kernel_(vectors, n_vectors, depth, stride_elements, result, result_stride_elements,
-                                         row_start, row_count);
-}
-
 __arm_locally_streaming static void nk_dots_symmetric_f64_smef64_kernel_(nk_f64_t const *vectors, nk_size_t n_vectors,
                                                                          nk_size_t depth, nk_size_t stride_elements,
                                                                          nk_f64_t *result,
@@ -726,6 +711,8 @@ NK_PUBLIC void nk_dots_symmetric_f64_smef64(nk_f64_t const *vectors, nk_size_t n
     nk_dots_symmetric_f64_smef64_kernel_(vectors, n_vectors, depth, stride_elements, result, result_stride_elements,
                                          row_start, row_count);
 }
+
+#pragma endregion // Double Precision Floats
 
 #if defined(__clang__)
 #pragma clang attribute pop

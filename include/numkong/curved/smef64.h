@@ -45,8 +45,6 @@ extern "C" {
 #pragma GCC target("sve")
 #endif
 
-#include <arm_sve.h>
-
 NK_PUBLIC void nk_bilinear_f32_smef64(nk_f32_t const *a, nk_f32_t const *b, nk_f32_t const *c, nk_size_t n,
                                       nk_f32_t *result) {
     svbool_t pg_true = svptrue_b64();

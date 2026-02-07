@@ -20,9 +20,14 @@
  *  to FP32 every 16 (E2M3) or 64 (E3M2) depth steps.
  *
  *  Requires: SME with FEAT_SME_F16F16 for native FP16 outer products.
+ *
+ *  @sa include/numkong/dots.h
  */
 #ifndef NK_DOTS_SMEHALF_H
 #define NK_DOTS_SMEHALF_H
+
+#if NK_TARGET_ARM_
+#if NK_TARGET_SMEHALF
 
 #if defined(__cplusplus)
 extern "C" {
@@ -35,5 +40,8 @@ extern "C" {
 #if defined(__cplusplus)
 }
 #endif
+
+#endif // NK_TARGET_SMEHALF
+#endif // NK_TARGET_ARM_
 
 #endif // NK_DOTS_SMEHALF_H

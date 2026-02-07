@@ -4,6 +4,8 @@
  *  @author Ash Vardanian
  *  @date January 5, 2026
  *
+ *  @sa include/numkong/attention.h
+ *
  *  This file implements FlashAttention-2 style scaled dot-product attention (SDPA) optimized
  *  for Intel AMX instructions on Sapphire Rapids CPUs. The kernel computes:
  *
@@ -71,11 +73,11 @@ extern "C" {
 #endif
 
 #if defined(__clang__)
-#pragma clang attribute push(__attribute__((target("avx2,avx512f,avx512vl,bmi2,avx512bw,avx512fp16,avx512bf16"))), \
+#pragma clang attribute push(__attribute__((target("avx2,avx512f,avx512vl,avx512bw,avx512dq,avx512fp16,avx512bf16,f16c,fma,bmi,bmi2"))), \
                              apply_to = function)
 #elif defined(__GNUC__)
 #pragma GCC push_options
-#pragma GCC target("avx2", "avx512f", "avx512vl", "bmi2", "avx512bw", "avx512fp16", "avx512bf16")
+#pragma GCC target("avx2", "avx512f", "avx512vl", "avx512bw", "avx512dq", "avx512fp16", "avx512bf16", "f16c", "fma", "bmi", "bmi2")
 #endif
 
 /**
@@ -492,14 +494,6 @@ NK_INTERNAL void nk_attention_rescale_output_(nk_f32_t *output, nk_size_t head_d
     }
 }
 
-/**
- *  @brief Calculate packed KV cache size in bytes.
- *
- *  @param num_kv_heads Number of K/V heads
- *  @param head_dim     Head dimension (will be padded to multiple of 32)
- *  @param max_seq_len  Maximum sequence length
- *  @return Required buffer size in bytes (64-byte aligned)
- */
 NK_PUBLIC nk_size_t nk_attention_kv_packed_size_sapphireamx(nk_size_t num_kv_heads, nk_size_t head_dim,
                                                             nk_size_t max_seq_len) {
 
@@ -520,21 +514,6 @@ NK_PUBLIC nk_size_t nk_attention_kv_packed_size_sapphireamx(nk_size_t num_kv_hea
     return sizeof(nk_attention_kv_packed_header_t) + k_size + v_size;
 }
 
-/**
- *  @brief Pack K matrix into AMX-optimized format.
- *
- *  Input layout: [num_kv_heads, seq_len, head_dim] in BF16, row-major
- *  Output: Packed tiles suitable for TDPBF16PS
- *
- *  For attention, K is transposed (Kᵀ), so we pack with that in mind.
- *  K[h, s, d] accessed as Kᵀ[h, d, s] → pack as B matrix for Q × Kᵀ
- *
- *  @param k            Source K matrix
- *  @param kv_packed    Destination packed buffer (header must be initialized)
- *  @param num_kv_heads Number of K/V heads
- *  @param seq_len      Sequence length
- *  @param head_dim     Head dimension
- */
 NK_PUBLIC void nk_attention_pack_k_sapphireamx(nk_bf16_t const *k, void *kv_packed, nk_size_t num_kv_heads,
                                                nk_size_t seq_len, nk_size_t head_dim) {
 
@@ -604,21 +583,6 @@ NK_PUBLIC void nk_attention_pack_k_sapphireamx(nk_bf16_t const *k, void *kv_pack
     header->v_offset = header->k_offset + (nk_u32_t)k_size;
 }
 
-/**
- *  @brief Pack V matrix into AMX-optimized format.
- *
- *  Input layout: [num_kv_heads, seq_len, head_dim] in BF16, row-major
- *  Output: Packed tiles suitable for TDPBF16PS
- *
- *  For P × V, V acts as B matrix (no transpose needed).
- *  V[h, s, d] → pack as B matrix
- *
- *  @param v            Source V matrix
- *  @param kv_packed    Destination packed buffer (K must be packed first)
- *  @param num_kv_heads Number of K/V heads
- *  @param seq_len      Sequence length
- *  @param head_dim     Head dimension
- */
 NK_PUBLIC void nk_attention_pack_v_sapphireamx(nk_bf16_t const *v, void *kv_packed, nk_size_t num_kv_heads,
                                                nk_size_t seq_len, nk_size_t head_dim) {
 
@@ -760,26 +724,6 @@ NK_INTERNAL void nk_attention_extract_v_block_(nk_bf16_t const *v_packed, nk_f32
     }
 }
 
-/**
- *  @brief Scaled dot-product attention with pre-packed KV cache.
- *
- *  Computes: O = softmax(Q × Kᵀ × scale) × V
- *
- *  Uses FlashAttention-2 algorithm:
- *  - Process KV in blocks to maintain O(N) memory
- *  - Online softmax for numerical stability
- *  - AMX TDPBF16PS for matrix multiplications
- *
- *  @param q            Query tensor [num_heads, query_len, head_dim] in BF16
- *  @param kv_packed    Pre-packed K and V cache
- *  @param output       Output tensor [num_heads, query_len, head_dim] in F32
- *  @param num_heads    Number of query heads
- *  @param num_kv_heads Number of K/V heads (for GQA: num_heads / num_kv_heads = group size)
- *  @param query_len    Number of query positions (1 for decode, batch for prefill)
- *  @param kv_len       Context length (K/V sequence length)
- *  @param head_dim     Head dimension (64, 112, or 128)
- *  @param scale        Scaling factor, typically 1/√head_dim
- */
 NK_PUBLIC void nk_attention_bf16_sapphireamx(nk_bf16_t const *q, void const *kv_packed, nk_f32_t *output,
                                              nk_size_t num_heads, nk_size_t num_kv_heads, nk_size_t query_len,
                                              nk_size_t kv_len, nk_size_t head_dim, nk_f32_t scale) {
@@ -920,17 +864,6 @@ NK_PUBLIC void nk_attention_bf16_sapphireamx(nk_bf16_t const *q, void const *kv_
     }
 }
 
-/**
- *  @brief AMX-optimized attention kernel using TDPBF16PS for both matmuls.
- *
- *  This variant uses:
- *  - Bᶜ=32 blocking to align with V packing (32 seq positions per tile)
- *  - `_tile_dpbf16ps` for Q × Kᵀ (using 2 K tiles per block for 32 columns)
- *  - `_mm512_cvtneps_pbh` for F32 → BF16 conversion (P weights)
- *  - `_tile_dpbf16ps` for P × V (using pre-packed V tiles directly)
- *
- *  Block sizes: Bᵣ=16, Bᶜ=32
- */
 NK_PUBLIC void nk_attention_bf16_amx_bc32_sapphireamx(nk_bf16_t const *q, void const *kv_packed, nk_f32_t *output,
                                                       nk_size_t num_heads, nk_size_t num_kv_heads, nk_size_t query_len,
                                                       nk_size_t kv_len, nk_size_t head_dim, nk_f32_t scale) {
@@ -1177,25 +1110,6 @@ NK_PUBLIC void nk_attention_bf16_amx_bc32_sapphireamx(nk_bf16_t const *q, void c
     }
 }
 
-/**
- *  @brief Optimized AMX attention kernel with hoisted tile operations.
- *
- *  Optimizations over nk_attention_bf16_amx_bc32_sapphireamx:
- *  1. Q tiles pre-packed ONCE per query block (not per KV block)
- *  2. P tile loaded ONCE per KV block (not per head_dim tile)
- *  3. Direct tile stores to score buffer (no intermediate copy)
- *  4. Scores stored directly to softmax input buffer
- *
- *  Tile register allocation:
- *  - TMM₀: Score accumulator (cols 0:16)
- *  - TMM₁: Q tile (reloaded per depth iteration)
- *  - TMM₂: K tile 0
- *  - TMM₃: Score accumulator (cols 16:32)
- *  - TMM₄: K tile 1
- *  - TMM₅: Output accumulator
- *  - TMM₆: P tile (loaded once per KV block)
- *  - TMM₇: V tile
- */
 NK_PUBLIC void nk_attention_bf16_amx_optimized_sapphireamx(nk_bf16_t const *q, void const *kv_packed, nk_f32_t *output,
                                                            nk_size_t num_heads, nk_size_t num_kv_heads,
                                                            nk_size_t query_len, nk_size_t kv_len, nk_size_t head_dim,
@@ -1416,15 +1330,6 @@ NK_PUBLIC void nk_attention_bf16_amx_optimized_sapphireamx(nk_bf16_t const *q, v
     }
 }
 
-/**
- *  @brief Causal (masked) scaled dot-product attention.
- *
- *  Same as nk_attention_bf16_sapphireamx but applies causal mask:
- *  - For position i, only attend to positions 0..i (mask future tokens)
- *  - Masked positions get -∞ before softmax
- *
- *  Optimization: Completely skip KV blocks where all positions would be masked.
- */
 NK_PUBLIC void nk_attention_causal_bf16_sapphireamx(nk_bf16_t const *q, void const *kv_packed, nk_f32_t *output,
                                                     nk_size_t num_heads, nk_size_t num_kv_heads, nk_size_t query_len,
                                                     nk_size_t kv_len, nk_size_t head_dim, nk_f32_t scale) {

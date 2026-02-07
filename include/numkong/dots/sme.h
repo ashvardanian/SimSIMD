@@ -73,9 +73,6 @@ extern "C" {
 #pragma GCC target("+sme")
 #endif
 
-#include <arm_sme.h>
-#include <arm_sve.h>
-
 /**
  *  SME-specific packed buffer header (64-byte aligned).
  *  Layout optimized for SME outer product access patterns with predicate-based edge handling.
@@ -119,7 +116,7 @@ NK_INTERNAL void nk_sme_zero_za32_(void) __arm_streaming __arm_inout("za") { svz
  *  - FMOPA predicates: b16 (input granularity), not b32
  *  - 4-tile path: ZA0-ZA3 process 4 column tiles simultaneously
  */
-#pragma region Half-Precision Floats (f16, bf16)
+#pragma region Half Precision Floats
 
 NK_PUBLIC nk_size_t nk_dots_packed_size_f16_sme(nk_size_t n, nk_size_t k) {
     nk_size_t const tile_dimension = svcntsw();  // rows per tile: number of `f32` elements
@@ -525,9 +522,6 @@ NK_PUBLIC void nk_dots_packed_f16_sme(                    //
     nk_dots_f16_kernel_(a, b_packed, c, rows, columns, depth, a_stride_elements, c_stride_elements);
 }
 
-/*  `bf16` → `f32` GEMM public interface.
- *  Predicate-based edge handling eliminates scalar fallbacks.
- */
 NK_PUBLIC void nk_dots_packed_bf16_sme(                    //
     nk_bf16_t const *a, void const *b_packed, nk_f32_t *c, //
     nk_size_t rows, nk_size_t columns, nk_size_t depth,    //
@@ -537,6 +531,117 @@ NK_PUBLIC void nk_dots_packed_bf16_sme(                    //
     nk_size_t const c_stride_elements = c_stride / sizeof(nk_f32_t);
 
     nk_dots_bf16_kernel_(a, b_packed, c, rows, columns, depth, a_stride_elements, c_stride_elements);
+}
+
+/**
+ *   `f16` × `f16` → `f32` symmetric kernel using streaming SVE.
+ */
+__arm_locally_streaming static void nk_dots_symmetric_f16_sme_kernel_(nk_f16_t const *vectors, nk_size_t n_vectors,
+                                                                      nk_size_t depth, nk_size_t stride_elements,
+                                                                      nk_f32_t *result,
+                                                                      nk_size_t result_stride_elements,
+                                                                      nk_size_t row_start, nk_size_t row_count) {
+
+    nk_size_t const vector_length = svcnth(); // f16 elements per vector
+    svbool_t const predicate_half = svptrue_b16();
+
+    nk_size_t const row_end = row_start + row_count;
+
+    // Compute specified rows of symmetric matrix
+    for (nk_size_t i = row_start; i < row_end && i < n_vectors; i++) {
+        nk_f16_t const *pointer_row_i = vectors + i * stride_elements;
+        // Only compute upper triangle including diagonal
+        for (nk_size_t j = i; j < n_vectors; j++) {
+            nk_f16_t const *pointer_row_j = vectors + j * stride_elements;
+
+            // SVE vectorized dot product with f32 accumulation
+            svfloat32_t accumulator = svdup_f32(0.0f);
+            nk_size_t depth_index = 0;
+            while (depth_index + vector_length <= depth) {
+                svfloat16_t vector_i = svld1_f16(predicate_half, (float16_t const *)(pointer_row_i + depth_index));
+                svfloat16_t vector_j = svld1_f16(predicate_half, (float16_t const *)(pointer_row_j + depth_index));
+                // Multiply and accumulate with widening
+                svfloat32_t prod = svcvt_f32_f16_x(svptrue_b32(), svmul_f16_x(predicate_half, vector_i, vector_j));
+                accumulator = svadd_f32_x(svptrue_b32(), accumulator, prod);
+                depth_index += vector_length;
+            }
+            // Handle remainder
+            if (depth_index < depth) {
+                svbool_t predicate_tail = svwhilelt_b16((uint32_t)depth_index, (uint32_t)depth);
+                svfloat16_t vector_i = svld1_f16(predicate_tail, (float16_t const *)(pointer_row_i + depth_index));
+                svfloat16_t vector_j = svld1_f16(predicate_tail, (float16_t const *)(pointer_row_j + depth_index));
+                svfloat32_t prod = svcvt_f32_f16_x(svptrue_b32(), svmul_f16_x(predicate_tail, vector_i, vector_j));
+                accumulator = svadd_f32_x(svptrue_b32(), accumulator, prod);
+            }
+            nk_f32_t dot = svaddv_f32(svptrue_b32(), accumulator);
+            result[i * result_stride_elements + j] = dot;
+            if (i != j) result[j * result_stride_elements + i] = dot;
+        }
+    }
+}
+
+NK_PUBLIC void nk_dots_symmetric_f16_sme(nk_f16_t const *vectors, nk_size_t n_vectors, nk_size_t depth,
+                                         nk_size_t stride, nk_f32_t *result, nk_size_t result_stride,
+                                         nk_size_t row_start, nk_size_t row_count) {
+
+    nk_size_t const stride_elements = stride / sizeof(nk_f16_t);
+    nk_size_t const result_stride_elements = result_stride / sizeof(nk_f32_t);
+    nk_dots_symmetric_f16_sme_kernel_(vectors, n_vectors, depth, stride_elements, result, result_stride_elements,
+                                      row_start, row_count);
+}
+
+/**
+ * `bf16` × `bf16` → `f32` symmetric kernel using streaming SVE.
+ */
+__arm_locally_streaming static void nk_dots_symmetric_bf16_sme_kernel_(nk_bf16_t const *vectors, nk_size_t n_vectors,
+                                                                       nk_size_t depth, nk_size_t stride_elements,
+                                                                       nk_f32_t *result,
+                                                                       nk_size_t result_stride_elements,
+                                                                       nk_size_t row_start, nk_size_t row_count) {
+
+    nk_size_t const vector_length = svcnth(); // bf16 elements per vector
+    svbool_t const predicate_half = svptrue_b16();
+
+    nk_size_t const row_end = row_start + row_count;
+
+    // Compute specified rows of symmetric matrix
+    for (nk_size_t i = row_start; i < row_end && i < n_vectors; i++) {
+        nk_bf16_t const *pointer_row_i = vectors + i * stride_elements;
+        for (nk_size_t j = i; j < n_vectors; j++) {
+            nk_bf16_t const *pointer_row_j = vectors + j * stride_elements;
+
+            // SVE vectorized dot product with f32 accumulation
+            svfloat32_t accumulator = svdup_f32(0.0f);
+            nk_size_t depth_index = 0;
+            while (depth_index + vector_length <= depth) {
+                svbfloat16_t vector_i = svld1_bf16(predicate_half, (bfloat16_t const *)(pointer_row_i + depth_index));
+                svbfloat16_t vector_j = svld1_bf16(predicate_half, (bfloat16_t const *)(pointer_row_j + depth_index));
+                // Multiply using bfdot (bf16 → f32 fused dot product)
+                accumulator = svbfdot_f32(accumulator, vector_i, vector_j);
+                depth_index += vector_length;
+            }
+            // Handle remainder
+            if (depth_index < depth) {
+                svbool_t predicate_tail = svwhilelt_b16((uint32_t)depth_index, (uint32_t)depth);
+                svbfloat16_t vector_i = svld1_bf16(predicate_tail, (bfloat16_t const *)(pointer_row_i + depth_index));
+                svbfloat16_t vector_j = svld1_bf16(predicate_tail, (bfloat16_t const *)(pointer_row_j + depth_index));
+                accumulator = svbfdot_f32(accumulator, vector_i, vector_j);
+            }
+            nk_f32_t dot = svaddv_f32(svptrue_b32(), accumulator);
+            result[i * result_stride_elements + j] = dot;
+            if (i != j) result[j * result_stride_elements + i] = dot;
+        }
+    }
+}
+
+NK_PUBLIC void nk_dots_symmetric_bf16_sme(nk_bf16_t const *vectors, nk_size_t n_vectors, nk_size_t depth,
+                                          nk_size_t stride, nk_f32_t *result, nk_size_t result_stride,
+                                          nk_size_t row_start, nk_size_t row_count) {
+
+    nk_size_t const stride_elements = stride / sizeof(nk_bf16_t);
+    nk_size_t const result_stride_elements = result_stride / sizeof(nk_f32_t);
+    nk_dots_symmetric_bf16_sme_kernel_(vectors, n_vectors, depth, stride_elements, result, result_stride_elements,
+                                       row_start, row_count);
 }
 
 #pragma endregion
@@ -555,7 +660,7 @@ NK_PUBLIC void nk_dots_packed_bf16_sme(                    //
  *  Expected performance: ~2 TOPS (4× `f16` due to 4:1 element packing)
  */
 
-#pragma region Signed 8-bit Integers (i8)
+#pragma region Signed Integers
 
 NK_PUBLIC nk_size_t nk_dots_packed_size_i8_sme(nk_size_t n, nk_size_t k) {
     nk_size_t const tile_dimension = svcntsw();  // rows per ZA32 tile: number of `i32` elements
@@ -757,6 +862,55 @@ NK_PUBLIC void nk_dots_packed_i8_sme(                    //
     nk_dots_i8_kernel_(a, b_packed, c, rows, columns, depth, a_stride_elements, c_stride_elements);
 }
 
+/*  `i8` × `i8` → `i32` symmetric kernel using streaming SVE.
+ *  Uses predicated vector loads and `svdot_s32` for vectorized dot product.
+ */
+__arm_locally_streaming static void nk_dots_symmetric_i8_sme_kernel_(nk_i8_t const *vectors, nk_size_t n_vectors,
+                                                                     nk_size_t depth, nk_size_t stride_elements,
+                                                                     nk_i32_t *result, nk_size_t result_stride_elements,
+                                                                     nk_size_t row_start, nk_size_t row_count) {
+
+    nk_size_t const vector_length = svcntb();
+    svbool_t const predicate_byte = svptrue_b8();
+
+    nk_size_t const row_end = row_start + row_count;
+
+    for (nk_size_t i = row_start; i < row_end && i < n_vectors; i++) {
+        nk_i8_t const *pointer_source_i = vectors + i * stride_elements;
+        for (nk_size_t j = i; j < n_vectors; j++) {
+            nk_i8_t const *pointer_source_j = vectors + j * stride_elements;
+
+            svint32_t accumulator = svdup_s32(0);
+            nk_size_t depth_index = 0;
+            while (depth_index + vector_length <= depth) {
+                svint8_t vector_i = svld1_s8(predicate_byte, pointer_source_i + depth_index);
+                svint8_t vector_j = svld1_s8(predicate_byte, pointer_source_j + depth_index);
+                accumulator = svdot_s32(accumulator, vector_i, vector_j);
+                depth_index += vector_length;
+            }
+            if (depth_index < depth) {
+                svbool_t predicate_tail = svwhilelt_b8((uint32_t)depth_index, (uint32_t)depth);
+                svint8_t vector_i = svld1_s8(predicate_tail, pointer_source_i + depth_index);
+                svint8_t vector_j = svld1_s8(predicate_tail, pointer_source_j + depth_index);
+                accumulator = svdot_s32(accumulator, vector_i, vector_j);
+            }
+            nk_i32_t dot = svaddv_s32(svptrue_b32(), accumulator);
+            result[i * result_stride_elements + j] = dot;
+            if (i != j) result[j * result_stride_elements + i] = dot;
+        }
+    }
+}
+
+NK_PUBLIC void nk_dots_symmetric_i8_sme(nk_i8_t const *vectors, nk_size_t n_vectors, nk_size_t depth, nk_size_t stride,
+                                        nk_i32_t *result, nk_size_t result_stride, nk_size_t row_start,
+                                        nk_size_t row_count) {
+
+    nk_size_t const stride_elements = stride / sizeof(nk_i8_t);
+    nk_size_t const result_stride_elements = result_stride / sizeof(nk_i32_t);
+    nk_dots_symmetric_i8_sme_kernel_(vectors, n_vectors, depth, stride_elements, result, result_stride_elements,
+                                     row_start, row_count);
+}
+
 #pragma endregion
 
 /*
@@ -768,7 +922,7 @@ NK_PUBLIC void nk_dots_packed_i8_sme(                    //
  *  - No memory round-trip for format conversion
  *  - FMOPA predicates: b16 (f16 input granularity)
  */
-#pragma region FP8 E4M3 (e4m3)
+#pragma region Quarter Precision E4M3
 
 /**
  *  Inline `e4m3` → `f16` conversion returning `svfloat16_t` for direct use in GEMM.
@@ -998,6 +1152,68 @@ NK_PUBLIC void nk_dots_packed_e4m3_sme(                    //
     nk_dots_e4m3_kernel_(a, b_packed, c, rows, columns, depth, a_stride_elements, c_stride_elements);
 }
 
+/**
+ * `e4m3` × `e4m3` → `f32` symmetric kernel using streaming SVE.
+ *  Uses inline e4m3 → f16 conversion.
+ */
+__arm_locally_streaming static void nk_dots_symmetric_e4m3_sme_kernel_(nk_e4m3_t const *vectors, nk_size_t n_vectors,
+                                                                       nk_size_t depth, nk_size_t stride_elements,
+                                                                       nk_f32_t *result,
+                                                                       nk_size_t result_stride_elements,
+                                                                       nk_size_t row_start, nk_size_t row_count) {
+
+    nk_size_t const vector_length = svcnth(); // f16 elements per vector (after conversion)
+    svbool_t const predicate_half = svptrue_b16();
+    svbool_t const predicate_byte = svptrue_b8();
+
+    nk_size_t const row_end = row_start + row_count;
+
+    for (nk_size_t i = row_start; i < row_end && i < n_vectors; i++) {
+        nk_e4m3_t const *pointer_row_i = vectors + i * stride_elements;
+        for (nk_size_t j = i; j < n_vectors; j++) {
+            nk_e4m3_t const *pointer_row_j = vectors + j * stride_elements;
+
+            svfloat32_t accumulator = svdup_f32(0.0f);
+            nk_size_t depth_index = 0;
+            while (depth_index + vector_length <= depth) {
+                // Load e4m3 bytes and convert to f16
+                svuint8_t vector_i_bytes = svld1_u8(predicate_byte, (uint8_t const *)(pointer_row_i + depth_index));
+                svuint8_t vector_j_bytes = svld1_u8(predicate_byte, (uint8_t const *)(pointer_row_j + depth_index));
+                svfloat16_t vector_i = nk_e4m3x_to_f16x_ssve_(predicate_half, vector_i_bytes);
+                svfloat16_t vector_j = nk_e4m3x_to_f16x_ssve_(predicate_half, vector_j_bytes);
+                svfloat32_t prod = svcvt_f32_f16_x(svptrue_b32(), svmul_f16_x(predicate_half, vector_i, vector_j));
+                accumulator = svadd_f32_x(svptrue_b32(), accumulator, prod);
+                depth_index += vector_length;
+            }
+            if (depth_index < depth) {
+                svbool_t predicate_byte_tail = svwhilelt_b8((uint32_t)depth_index, (uint32_t)depth);
+                svbool_t predicate_half_tail = svwhilelt_b16((uint32_t)depth_index, (uint32_t)depth);
+                svuint8_t vector_i_bytes = svld1_u8(predicate_byte_tail,
+                                                    (uint8_t const *)(pointer_row_i + depth_index));
+                svuint8_t vector_j_bytes = svld1_u8(predicate_byte_tail,
+                                                    (uint8_t const *)(pointer_row_j + depth_index));
+                svfloat16_t vector_i = nk_e4m3x_to_f16x_ssve_(predicate_half_tail, vector_i_bytes);
+                svfloat16_t vector_j = nk_e4m3x_to_f16x_ssve_(predicate_half_tail, vector_j_bytes);
+                svfloat32_t prod = svcvt_f32_f16_x(svptrue_b32(), svmul_f16_x(predicate_half_tail, vector_i, vector_j));
+                accumulator = svadd_f32_x(svptrue_b32(), accumulator, prod);
+            }
+            nk_f32_t dot = svaddv_f32(svptrue_b32(), accumulator);
+            result[i * result_stride_elements + j] = dot;
+            if (i != j) result[j * result_stride_elements + i] = dot;
+        }
+    }
+}
+
+NK_PUBLIC void nk_dots_symmetric_e4m3_sme(nk_e4m3_t const *vectors, nk_size_t n_vectors, nk_size_t depth,
+                                          nk_size_t stride, nk_f32_t *result, nk_size_t result_stride,
+                                          nk_size_t row_start, nk_size_t row_count) {
+
+    nk_size_t const stride_elements = stride / sizeof(nk_e4m3_t);
+    nk_size_t const result_stride_elements = result_stride / sizeof(nk_f32_t);
+    nk_dots_symmetric_e4m3_sme_kernel_(vectors, n_vectors, depth, stride_elements, result, result_stride_elements,
+                                       row_start, row_count);
+}
+
 #pragma endregion
 
 /*
@@ -1008,7 +1224,7 @@ NK_PUBLIC void nk_dots_packed_e4m3_sme(                    //
  *  - E5M2 shares F16 exponent bias (15), so normal conversion is a shift
  *  - Handles infinity (mag=0x7C) and NaN (mag>0x7C)
  */
-#pragma region FP8 E5M2 (e5m2)
+#pragma region Quarter Precision E5M2
 
 /**
  *  Fused `e5m2` × `e5m2` → `f32` GEMM kernel using SSVE inline conversion.
@@ -1145,11 +1361,70 @@ NK_PUBLIC void nk_dots_packed_e5m2_sme(                    //
     nk_dots_e5m2_kernel_(a, b_packed, c, rows, columns, depth, a_stride_elements, c_stride_elements);
 }
 
+/**
+ * `e5m2` × `e5m2` → `f32` symmetric kernel using streaming SVE.
+ *  Uses inline e5m2 → f16 conversion.
+ */
+__arm_locally_streaming static void nk_dots_symmetric_e5m2_sme_kernel_(nk_e5m2_t const *vectors, nk_size_t n_vectors,
+                                                                       nk_size_t depth, nk_size_t stride_elements,
+                                                                       nk_f32_t *result,
+                                                                       nk_size_t result_stride_elements,
+                                                                       nk_size_t row_start, nk_size_t row_count) {
+
+    nk_size_t const vector_length = svcnth(); // f16 elements per vector (after conversion)
+    svbool_t const predicate_half = svptrue_b16();
+    svbool_t const predicate_byte = svptrue_b8();
+
+    nk_size_t const row_end = row_start + row_count;
+
+    for (nk_size_t i = row_start; i < row_end && i < n_vectors; i++) {
+        nk_e5m2_t const *pointer_row_i = vectors + i * stride_elements;
+        for (nk_size_t j = i; j < n_vectors; j++) {
+            nk_e5m2_t const *pointer_row_j = vectors + j * stride_elements;
+
+            svfloat32_t accumulator = svdup_f32(0.0f);
+            nk_size_t depth_index = 0;
+            while (depth_index + vector_length <= depth) {
+                svuint8_t vector_i_bytes = svld1_u8(predicate_byte, (uint8_t const *)(pointer_row_i + depth_index));
+                svuint8_t vector_j_bytes = svld1_u8(predicate_byte, (uint8_t const *)(pointer_row_j + depth_index));
+                svfloat16_t vector_i = nk_e5m2x_to_f16x_ssve_(predicate_half, vector_i_bytes);
+                svfloat16_t vector_j = nk_e5m2x_to_f16x_ssve_(predicate_half, vector_j_bytes);
+                svfloat32_t prod = svcvt_f32_f16_x(svptrue_b32(), svmul_f16_x(predicate_half, vector_i, vector_j));
+                accumulator = svadd_f32_x(svptrue_b32(), accumulator, prod);
+                depth_index += vector_length;
+            }
+            if (depth_index < depth) {
+                svbool_t predicate_byte_tail = svwhilelt_b8((uint32_t)depth_index, (uint32_t)depth);
+                svbool_t predicate_half_tail = svwhilelt_b16((uint32_t)depth_index, (uint32_t)depth);
+                svuint8_t vector_i_bytes = svld1_u8(predicate_byte_tail,
+                                                    (uint8_t const *)(pointer_row_i + depth_index));
+                svuint8_t vector_j_bytes = svld1_u8(predicate_byte_tail,
+                                                    (uint8_t const *)(pointer_row_j + depth_index));
+                svfloat16_t vector_i = nk_e5m2x_to_f16x_ssve_(predicate_half_tail, vector_i_bytes);
+                svfloat16_t vector_j = nk_e5m2x_to_f16x_ssve_(predicate_half_tail, vector_j_bytes);
+                svfloat32_t prod = svcvt_f32_f16_x(svptrue_b32(), svmul_f16_x(predicate_half_tail, vector_i, vector_j));
+                accumulator = svadd_f32_x(svptrue_b32(), accumulator, prod);
+            }
+            nk_f32_t dot = svaddv_f32(svptrue_b32(), accumulator);
+            result[i * result_stride_elements + j] = dot;
+            if (i != j) result[j * result_stride_elements + i] = dot;
+        }
+    }
+}
+
+NK_PUBLIC void nk_dots_symmetric_e5m2_sme(nk_e5m2_t const *vectors, nk_size_t n_vectors, nk_size_t depth,
+                                          nk_size_t stride, nk_f32_t *result, nk_size_t result_stride,
+                                          nk_size_t row_start, nk_size_t row_count) {
+
+    nk_size_t const stride_elements = stride / sizeof(nk_e5m2_t);
+    nk_size_t const result_stride_elements = result_stride / sizeof(nk_f32_t);
+    nk_dots_symmetric_e5m2_sme_kernel_(vectors, n_vectors, depth, stride_elements, result, result_stride_elements,
+                                       row_start, row_count);
+}
+
 #pragma endregion
 
-#pragma region Unsigned 8-bit Integers (u8)
-
-/**
+/*
  *  `u8` × `u8` → `u32` GEMM using SME outer products.
  *
  *  Uses `svmopa_za32_u8_m` for unsigned 8-bit integer outer product accumulate.
@@ -1161,14 +1436,13 @@ NK_PUBLIC void nk_dots_packed_e5m2_sme(                    //
  *  - Each output `u32` is a dot product of 4 `u8` pairs
  */
 
+#pragma region Unsigned Integers
+
 NK_PUBLIC nk_size_t nk_dots_packed_size_u8_sme(nk_size_t n, nk_size_t k) {
     // Same dimensions as `i8` → `i32` since both are 8-bit
     return nk_dots_packed_size_i8_sme(n, k);
 }
 
-/*  Pack `u8` matrix B for SME GEMM.
- *  Partial tiles are zero-padded for predicate-based edge handling.
- */
 NK_PUBLIC void nk_dots_pack_u8_sme(             //
     nk_u8_t const *b, nk_size_t n, nk_size_t k, //
     nk_size_t b_stride, void *b_packed) {
@@ -1358,180 +1632,6 @@ NK_PUBLIC void nk_dots_packed_u8_sme(                    //
     nk_dots_u8_kernel_(a, b_packed, c, rows, columns, depth, a_stride_elements, c_stride_elements);
 }
 
-#pragma endregion
-
-/*
- *  Symmetric pairwise dot products using streaming SVE.
- *
- *  Computes upper triangle of C[i,j] = dot(vectors[i], vectors[j]).
- *  Uses streaming mode for wider SVE vectors (512-bit on M4).
- *  Each kernel uses type-appropriate accumulation:
- *  - f16: f32 accumulation via svcvt_f32_f16 + svadd
- *  - bf16: f32 accumulation via svbfdot_f32
- *  - i8/u8: i32/u32 accumulation via svdot_s32/svdot_u32
- */
-#pragma region Symmetric GEMM
-
-/**
- *   `f16` × `f16` → `f32` symmetric kernel using streaming SVE.
- */
-__arm_locally_streaming static void nk_dots_symmetric_f16_sme_kernel_(nk_f16_t const *vectors, nk_size_t n_vectors,
-                                                                      nk_size_t depth, nk_size_t stride_elements,
-                                                                      nk_f32_t *result,
-                                                                      nk_size_t result_stride_elements,
-                                                                      nk_size_t row_start, nk_size_t row_count) {
-
-    nk_size_t const vector_length = svcnth(); // f16 elements per vector
-    svbool_t const predicate_half = svptrue_b16();
-
-    nk_size_t const row_end = row_start + row_count;
-
-    // Compute specified rows of symmetric matrix
-    for (nk_size_t i = row_start; i < row_end && i < n_vectors; i++) {
-        nk_f16_t const *pointer_row_i = vectors + i * stride_elements;
-        // Only compute upper triangle including diagonal
-        for (nk_size_t j = i; j < n_vectors; j++) {
-            nk_f16_t const *pointer_row_j = vectors + j * stride_elements;
-
-            // SVE vectorized dot product with f32 accumulation
-            svfloat32_t accumulator = svdup_f32(0.0f);
-            nk_size_t depth_index = 0;
-            while (depth_index + vector_length <= depth) {
-                svfloat16_t vector_i = svld1_f16(predicate_half, (float16_t const *)(pointer_row_i + depth_index));
-                svfloat16_t vector_j = svld1_f16(predicate_half, (float16_t const *)(pointer_row_j + depth_index));
-                // Multiply and accumulate with widening
-                svfloat32_t prod = svcvt_f32_f16_x(svptrue_b32(), svmul_f16_x(predicate_half, vector_i, vector_j));
-                accumulator = svadd_f32_x(svptrue_b32(), accumulator, prod);
-                depth_index += vector_length;
-            }
-            // Handle remainder
-            if (depth_index < depth) {
-                svbool_t predicate_tail = svwhilelt_b16((uint32_t)depth_index, (uint32_t)depth);
-                svfloat16_t vector_i = svld1_f16(predicate_tail, (float16_t const *)(pointer_row_i + depth_index));
-                svfloat16_t vector_j = svld1_f16(predicate_tail, (float16_t const *)(pointer_row_j + depth_index));
-                svfloat32_t prod = svcvt_f32_f16_x(svptrue_b32(), svmul_f16_x(predicate_tail, vector_i, vector_j));
-                accumulator = svadd_f32_x(svptrue_b32(), accumulator, prod);
-            }
-            nk_f32_t dot = svaddv_f32(svptrue_b32(), accumulator);
-            result[i * result_stride_elements + j] = dot;
-            if (i != j) result[j * result_stride_elements + i] = dot;
-        }
-    }
-}
-
-NK_PUBLIC void nk_dots_symmetric_f16_sme(nk_f16_t const *vectors, nk_size_t n_vectors, nk_size_t depth,
-                                         nk_size_t stride, nk_f32_t *result, nk_size_t result_stride,
-                                         nk_size_t row_start, nk_size_t row_count) {
-
-    nk_size_t const stride_elements = stride / sizeof(nk_f16_t);
-    nk_size_t const result_stride_elements = result_stride / sizeof(nk_f32_t);
-    nk_dots_symmetric_f16_sme_kernel_(vectors, n_vectors, depth, stride_elements, result, result_stride_elements,
-                                      row_start, row_count);
-}
-
-/**
- * `bf16` × `bf16` → `f32` symmetric kernel using streaming SVE.
- */
-__arm_locally_streaming static void nk_dots_symmetric_bf16_sme_kernel_(nk_bf16_t const *vectors, nk_size_t n_vectors,
-                                                                       nk_size_t depth, nk_size_t stride_elements,
-                                                                       nk_f32_t *result,
-                                                                       nk_size_t result_stride_elements,
-                                                                       nk_size_t row_start, nk_size_t row_count) {
-
-    nk_size_t const vector_length = svcnth(); // bf16 elements per vector
-    svbool_t const predicate_half = svptrue_b16();
-
-    nk_size_t const row_end = row_start + row_count;
-
-    // Compute specified rows of symmetric matrix
-    for (nk_size_t i = row_start; i < row_end && i < n_vectors; i++) {
-        nk_bf16_t const *pointer_row_i = vectors + i * stride_elements;
-        for (nk_size_t j = i; j < n_vectors; j++) {
-            nk_bf16_t const *pointer_row_j = vectors + j * stride_elements;
-
-            // SVE vectorized dot product with f32 accumulation
-            svfloat32_t accumulator = svdup_f32(0.0f);
-            nk_size_t depth_index = 0;
-            while (depth_index + vector_length <= depth) {
-                svbfloat16_t vector_i = svld1_bf16(predicate_half, (bfloat16_t const *)(pointer_row_i + depth_index));
-                svbfloat16_t vector_j = svld1_bf16(predicate_half, (bfloat16_t const *)(pointer_row_j + depth_index));
-                // Multiply using bfdot (bf16 → f32 fused dot product)
-                accumulator = svbfdot_f32(accumulator, vector_i, vector_j);
-                depth_index += vector_length;
-            }
-            // Handle remainder
-            if (depth_index < depth) {
-                svbool_t predicate_tail = svwhilelt_b16((uint32_t)depth_index, (uint32_t)depth);
-                svbfloat16_t vector_i = svld1_bf16(predicate_tail, (bfloat16_t const *)(pointer_row_i + depth_index));
-                svbfloat16_t vector_j = svld1_bf16(predicate_tail, (bfloat16_t const *)(pointer_row_j + depth_index));
-                accumulator = svbfdot_f32(accumulator, vector_i, vector_j);
-            }
-            nk_f32_t dot = svaddv_f32(svptrue_b32(), accumulator);
-            result[i * result_stride_elements + j] = dot;
-            if (i != j) result[j * result_stride_elements + i] = dot;
-        }
-    }
-}
-
-NK_PUBLIC void nk_dots_symmetric_bf16_sme(nk_bf16_t const *vectors, nk_size_t n_vectors, nk_size_t depth,
-                                          nk_size_t stride, nk_f32_t *result, nk_size_t result_stride,
-                                          nk_size_t row_start, nk_size_t row_count) {
-
-    nk_size_t const stride_elements = stride / sizeof(nk_bf16_t);
-    nk_size_t const result_stride_elements = result_stride / sizeof(nk_f32_t);
-    nk_dots_symmetric_bf16_sme_kernel_(vectors, n_vectors, depth, stride_elements, result, result_stride_elements,
-                                       row_start, row_count);
-}
-
-/*  `i8` × `i8` → `i32` symmetric kernel using streaming SVE.
- *  Uses predicated vector loads and `svdot_s32` for vectorized dot product.
- */
-__arm_locally_streaming static void nk_dots_symmetric_i8_sme_kernel_(nk_i8_t const *vectors, nk_size_t n_vectors,
-                                                                     nk_size_t depth, nk_size_t stride_elements,
-                                                                     nk_i32_t *result, nk_size_t result_stride_elements,
-                                                                     nk_size_t row_start, nk_size_t row_count) {
-
-    nk_size_t const vector_length = svcntb();
-    svbool_t const predicate_byte = svptrue_b8();
-
-    nk_size_t const row_end = row_start + row_count;
-
-    for (nk_size_t i = row_start; i < row_end && i < n_vectors; i++) {
-        nk_i8_t const *pointer_source_i = vectors + i * stride_elements;
-        for (nk_size_t j = i; j < n_vectors; j++) {
-            nk_i8_t const *pointer_source_j = vectors + j * stride_elements;
-
-            svint32_t accumulator = svdup_s32(0);
-            nk_size_t depth_index = 0;
-            while (depth_index + vector_length <= depth) {
-                svint8_t vector_i = svld1_s8(predicate_byte, pointer_source_i + depth_index);
-                svint8_t vector_j = svld1_s8(predicate_byte, pointer_source_j + depth_index);
-                accumulator = svdot_s32(accumulator, vector_i, vector_j);
-                depth_index += vector_length;
-            }
-            if (depth_index < depth) {
-                svbool_t predicate_tail = svwhilelt_b8((uint32_t)depth_index, (uint32_t)depth);
-                svint8_t vector_i = svld1_s8(predicate_tail, pointer_source_i + depth_index);
-                svint8_t vector_j = svld1_s8(predicate_tail, pointer_source_j + depth_index);
-                accumulator = svdot_s32(accumulator, vector_i, vector_j);
-            }
-            nk_i32_t dot = svaddv_s32(svptrue_b32(), accumulator);
-            result[i * result_stride_elements + j] = dot;
-            if (i != j) result[j * result_stride_elements + i] = dot;
-        }
-    }
-}
-
-NK_PUBLIC void nk_dots_symmetric_i8_sme(nk_i8_t const *vectors, nk_size_t n_vectors, nk_size_t depth, nk_size_t stride,
-                                        nk_i32_t *result, nk_size_t result_stride, nk_size_t row_start,
-                                        nk_size_t row_count) {
-
-    nk_size_t const stride_elements = stride / sizeof(nk_i8_t);
-    nk_size_t const result_stride_elements = result_stride / sizeof(nk_i32_t);
-    nk_dots_symmetric_i8_sme_kernel_(vectors, n_vectors, depth, stride_elements, result, result_stride_elements,
-                                     row_start, row_count);
-}
-
 /**
  * `u8` × `u8` → `u32` symmetric kernel using streaming SVE.
  *  Uses predicated vector loads and `svdot_u32` for vectorized dot product.
@@ -1582,131 +1682,21 @@ NK_PUBLIC void nk_dots_symmetric_u8_sme(nk_u8_t const *vectors, nk_size_t n_vect
                                      row_start, row_count);
 }
 
-/**
- * `e4m3` × `e4m3` → `f32` symmetric kernel using streaming SVE.
- *  Uses inline e4m3 → f16 conversion.
+#pragma endregion
+
+/*
+ *  4-bit integer GEMM (u4, i4) using SVE unpacking + FMOPA.
+ *
+ *  Each byte packs two 4-bit values (nk_u4x2_t / nk_i4x2_t).
+ *  Unpacking: extract low/high nibbles via AND/LSR, extend to f16.
+ *  Accumulation: standard f16→f32 FMOPA path after unpacking.
+ *  Packed GEMM converts to f16 and uses the standard FMOPA path.
  */
-__arm_locally_streaming static void nk_dots_symmetric_e4m3_sme_kernel_(nk_e4m3_t const *vectors, nk_size_t n_vectors,
-                                                                       nk_size_t depth, nk_size_t stride_elements,
-                                                                       nk_f32_t *result,
-                                                                       nk_size_t result_stride_elements,
-                                                                       nk_size_t row_start, nk_size_t row_count) {
 
-    nk_size_t const vector_length = svcnth(); // f16 elements per vector (after conversion)
-    svbool_t const predicate_half = svptrue_b16();
-    svbool_t const predicate_byte = svptrue_b8();
-
-    nk_size_t const row_end = row_start + row_count;
-
-    for (nk_size_t i = row_start; i < row_end && i < n_vectors; i++) {
-        nk_e4m3_t const *pointer_row_i = vectors + i * stride_elements;
-        for (nk_size_t j = i; j < n_vectors; j++) {
-            nk_e4m3_t const *pointer_row_j = vectors + j * stride_elements;
-
-            svfloat32_t accumulator = svdup_f32(0.0f);
-            nk_size_t depth_index = 0;
-            while (depth_index + vector_length <= depth) {
-                // Load e4m3 bytes and convert to f16
-                svuint8_t vector_i_bytes = svld1_u8(predicate_byte, (uint8_t const *)(pointer_row_i + depth_index));
-                svuint8_t vector_j_bytes = svld1_u8(predicate_byte, (uint8_t const *)(pointer_row_j + depth_index));
-                svfloat16_t vector_i = nk_e4m3x_to_f16x_ssve_(predicate_half, vector_i_bytes);
-                svfloat16_t vector_j = nk_e4m3x_to_f16x_ssve_(predicate_half, vector_j_bytes);
-                svfloat32_t prod = svcvt_f32_f16_x(svptrue_b32(), svmul_f16_x(predicate_half, vector_i, vector_j));
-                accumulator = svadd_f32_x(svptrue_b32(), accumulator, prod);
-                depth_index += vector_length;
-            }
-            if (depth_index < depth) {
-                svbool_t predicate_byte_tail = svwhilelt_b8((uint32_t)depth_index, (uint32_t)depth);
-                svbool_t predicate_half_tail = svwhilelt_b16((uint32_t)depth_index, (uint32_t)depth);
-                svuint8_t vector_i_bytes = svld1_u8(predicate_byte_tail,
-                                                    (uint8_t const *)(pointer_row_i + depth_index));
-                svuint8_t vector_j_bytes = svld1_u8(predicate_byte_tail,
-                                                    (uint8_t const *)(pointer_row_j + depth_index));
-                svfloat16_t vector_i = nk_e4m3x_to_f16x_ssve_(predicate_half_tail, vector_i_bytes);
-                svfloat16_t vector_j = nk_e4m3x_to_f16x_ssve_(predicate_half_tail, vector_j_bytes);
-                svfloat32_t prod = svcvt_f32_f16_x(svptrue_b32(), svmul_f16_x(predicate_half_tail, vector_i, vector_j));
-                accumulator = svadd_f32_x(svptrue_b32(), accumulator, prod);
-            }
-            nk_f32_t dot = svaddv_f32(svptrue_b32(), accumulator);
-            result[i * result_stride_elements + j] = dot;
-            if (i != j) result[j * result_stride_elements + i] = dot;
-        }
-    }
-}
-
-NK_PUBLIC void nk_dots_symmetric_e4m3_sme(nk_e4m3_t const *vectors, nk_size_t n_vectors, nk_size_t depth,
-                                          nk_size_t stride, nk_f32_t *result, nk_size_t result_stride,
-                                          nk_size_t row_start, nk_size_t row_count) {
-
-    nk_size_t const stride_elements = stride / sizeof(nk_e4m3_t);
-    nk_size_t const result_stride_elements = result_stride / sizeof(nk_f32_t);
-    nk_dots_symmetric_e4m3_sme_kernel_(vectors, n_vectors, depth, stride_elements, result, result_stride_elements,
-                                       row_start, row_count);
-}
+#pragma region Nibble Integers
 
 /**
- * `e5m2` × `e5m2` → `f32` symmetric kernel using streaming SVE.
- *  Uses inline e5m2 → f16 conversion.
- */
-__arm_locally_streaming static void nk_dots_symmetric_e5m2_sme_kernel_(nk_e5m2_t const *vectors, nk_size_t n_vectors,
-                                                                       nk_size_t depth, nk_size_t stride_elements,
-                                                                       nk_f32_t *result,
-                                                                       nk_size_t result_stride_elements,
-                                                                       nk_size_t row_start, nk_size_t row_count) {
-
-    nk_size_t const vector_length = svcnth(); // f16 elements per vector (after conversion)
-    svbool_t const predicate_half = svptrue_b16();
-    svbool_t const predicate_byte = svptrue_b8();
-
-    nk_size_t const row_end = row_start + row_count;
-
-    for (nk_size_t i = row_start; i < row_end && i < n_vectors; i++) {
-        nk_e5m2_t const *pointer_row_i = vectors + i * stride_elements;
-        for (nk_size_t j = i; j < n_vectors; j++) {
-            nk_e5m2_t const *pointer_row_j = vectors + j * stride_elements;
-
-            svfloat32_t accumulator = svdup_f32(0.0f);
-            nk_size_t depth_index = 0;
-            while (depth_index + vector_length <= depth) {
-                svuint8_t vector_i_bytes = svld1_u8(predicate_byte, (uint8_t const *)(pointer_row_i + depth_index));
-                svuint8_t vector_j_bytes = svld1_u8(predicate_byte, (uint8_t const *)(pointer_row_j + depth_index));
-                svfloat16_t vector_i = nk_e5m2x_to_f16x_ssve_(predicate_half, vector_i_bytes);
-                svfloat16_t vector_j = nk_e5m2x_to_f16x_ssve_(predicate_half, vector_j_bytes);
-                svfloat32_t prod = svcvt_f32_f16_x(svptrue_b32(), svmul_f16_x(predicate_half, vector_i, vector_j));
-                accumulator = svadd_f32_x(svptrue_b32(), accumulator, prod);
-                depth_index += vector_length;
-            }
-            if (depth_index < depth) {
-                svbool_t predicate_byte_tail = svwhilelt_b8((uint32_t)depth_index, (uint32_t)depth);
-                svbool_t predicate_half_tail = svwhilelt_b16((uint32_t)depth_index, (uint32_t)depth);
-                svuint8_t vector_i_bytes = svld1_u8(predicate_byte_tail,
-                                                    (uint8_t const *)(pointer_row_i + depth_index));
-                svuint8_t vector_j_bytes = svld1_u8(predicate_byte_tail,
-                                                    (uint8_t const *)(pointer_row_j + depth_index));
-                svfloat16_t vector_i = nk_e5m2x_to_f16x_ssve_(predicate_half_tail, vector_i_bytes);
-                svfloat16_t vector_j = nk_e5m2x_to_f16x_ssve_(predicate_half_tail, vector_j_bytes);
-                svfloat32_t prod = svcvt_f32_f16_x(svptrue_b32(), svmul_f16_x(predicate_half_tail, vector_i, vector_j));
-                accumulator = svadd_f32_x(svptrue_b32(), accumulator, prod);
-            }
-            nk_f32_t dot = svaddv_f32(svptrue_b32(), accumulator);
-            result[i * result_stride_elements + j] = dot;
-            if (i != j) result[j * result_stride_elements + i] = dot;
-        }
-    }
-}
-
-NK_PUBLIC void nk_dots_symmetric_e5m2_sme(nk_e5m2_t const *vectors, nk_size_t n_vectors, nk_size_t depth,
-                                          nk_size_t stride, nk_f32_t *result, nk_size_t result_stride,
-                                          nk_size_t row_start, nk_size_t row_count) {
-
-    nk_size_t const stride_elements = stride / sizeof(nk_e5m2_t);
-    nk_size_t const result_stride_elements = result_stride / sizeof(nk_f32_t);
-    nk_dots_symmetric_e5m2_sme_kernel_(vectors, n_vectors, depth, stride_elements, result, result_stride_elements,
-                                       row_start, row_count);
-}
-
-/**
- * `u4` × `u4` → `u32` symmetric kernel using streaming SVE.
+ *  `u4` × `u4` → `u32` symmetric kernel using streaming SVE.
  *  Unpacks 4-bit values to 8-bit, then uses vectorized dot product.
  */
 __arm_locally_streaming static void nk_dots_symmetric_u4_sme_kernel_(nk_u4x2_t const *vectors, nk_size_t n_vectors,
@@ -1778,7 +1768,7 @@ NK_PUBLIC void nk_dots_symmetric_u4_sme(nk_u4x2_t const *vectors, nk_size_t n_ve
 }
 
 /**
- * `i4` × `i4` → `i32` symmetric kernel using streaming SVE.
+ *  `i4` × `i4` → `i32` symmetric kernel using streaming SVE.
  *  Unpacks 4-bit values to 8-bit with sign extension, then uses vectorized dot product.
  */
 __arm_locally_streaming static void nk_dots_symmetric_i4_sme_kernel_(nk_i4x2_t const *vectors, nk_size_t n_vectors,

@@ -4,6 +4,8 @@
  *  @author Ash Vardanian
  *  @date January 11, 2026
  *
+ *  @sa include/numkong/attention.h
+ *
  *  This file implements FlashAttention-2 style scaled dot-product attention (SDPA) optimized
  *  for ARM SME instructions on Apple M4 and similar processors. The kernel computes:
  *
@@ -50,9 +52,6 @@ extern "C" {
 #pragma GCC push_options
 #pragma GCC target("+sme")
 #endif
-
-#include <arm_sme.h>
-#include <arm_sve.h>
 
 /**
  *  @brief Convert bf16 vector to f32 in registers (streaming SVE compatible).
@@ -149,24 +148,12 @@ NK_INTERNAL svfloat32_t nk_exp_f32_sve_(svbool_t pg, svfloat32_t x) __arm_stream
     return svmul_f32_m(pg, p, pow2n);
 }
 
-/**
- *  @brief Horizontal sum reduction in Streaming SVE.
- */
+/* Horizontal f32 sum (streaming SVE). */
 NK_INTERNAL nk_f32_t nk_reduce_add_f32_sve_(svbool_t pg, svfloat32_t x) __arm_streaming { return svaddv_f32(pg, x); }
 
-/**
- *  @brief Horizontal max reduction in Streaming SVE.
- */
+/* Horizontal f32 max (streaming SVE). */
 NK_INTERNAL nk_f32_t nk_reduce_max_f32_sve_(svbool_t pg, svfloat32_t x) __arm_streaming { return svmaxv_f32(pg, x); }
 
-/**
- *  @brief Calculate packed KV cache size in bytes for bf16.
- *
- *  @param num_kv_heads Number of K/V heads
- *  @param head_dim     Head dimension (will be padded to multiple of 32)
- *  @param max_seq_len  Maximum sequence length
- *  @return Required buffer size in bytes (64-byte aligned)
- */
 NK_PUBLIC nk_size_t nk_attention_packed_kv_size_bf16_sme(nk_size_t num_kv_heads, nk_size_t head_dim,
                                                          nk_size_t max_seq_len) {
     // Pad head_dim to multiple of 32 for SME
@@ -179,26 +166,11 @@ NK_PUBLIC nk_size_t nk_attention_packed_kv_size_bf16_sme(nk_size_t num_kv_heads,
     return sizeof(nk_attention_sme_kv_packed_header_t) + 2 * kv_size;
 }
 
-/**
- *  @brief Calculate packed KV cache size in bytes for f16.
- */
 NK_PUBLIC nk_size_t nk_attention_packed_kv_size_f16_sme(nk_size_t num_kv_heads, nk_size_t head_dim,
                                                         nk_size_t max_seq_len) {
     return nk_attention_packed_kv_size_bf16_sme(num_kv_heads, head_dim, max_seq_len);
 }
 
-/**
- *  @brief Pack K and V tensors into SME-optimized format for bf16.
- *
- *  @param k            K tensor [num_kv_heads, seq_len, head_dim]
- *  @param v            V tensor [num_kv_heads, seq_len, head_dim]
- *  @param num_kv_heads Number of K/V heads
- *  @param head_dim     Head dimension
- *  @param seq_len      Current sequence length
- *  @param k_stride     Stride between K heads (typically seq_len * head_dim)
- *  @param v_stride     Stride between V heads
- *  @param kv_packed    Output packed buffer
- */
 NK_PUBLIC void nk_attention_pack_kv_bf16_sme(nk_bf16_t const *k, nk_bf16_t const *v, nk_size_t num_kv_heads,
                                              nk_size_t head_dim, nk_size_t seq_len, nk_size_t k_stride,
                                              nk_size_t v_stride, void *kv_packed) {
@@ -246,9 +218,6 @@ NK_PUBLIC void nk_attention_pack_kv_bf16_sme(nk_bf16_t const *k, nk_bf16_t const
     }
 }
 
-/**
- *  @brief Pack K and V tensors for f16.
- */
 NK_PUBLIC void nk_attention_pack_kv_f16_sme(nk_f16_t const *k, nk_f16_t const *v, nk_size_t num_kv_heads,
                                             nk_size_t head_dim, nk_size_t seq_len, nk_size_t k_stride,
                                             nk_size_t v_stride, void *kv_packed) {
@@ -537,21 +506,6 @@ __arm_locally_streaming __arm_new("za") static void nk_attention_bf16_sme_kernel
     }
 }
 
-/**
- *  @brief Scaled dot-product attention using bf16 with SME.
- *
- *  Computes: O = softmax(Q × Kᵀ / √d) × V
- *
- *  @param q            Query tensor [num_heads, query_len, head_dim]
- *  @param kv_packed    Packed KV cache (from nk_attention_pack_kv_bf16_sme)
- *  @param output       Output tensor [num_heads, query_len, head_dim]
- *  @param num_heads    Number of query heads
- *  @param num_kv_heads Number of KV heads (for GQA: num_heads / num_kv_heads = group size)
- *  @param query_len    Number of query positions
- *  @param kv_len       Number of key-value positions
- *  @param head_dim     Head dimension
- *  @param scale        Scaling factor (typically 1/√head_dim)
- */
 NK_PUBLIC void nk_attention_bf16_sme(nk_bf16_t const *q, void const *kv_packed, nk_bf16_t *output, nk_size_t num_heads,
                                      nk_size_t num_kv_heads, nk_size_t query_len, nk_size_t kv_len, nk_size_t head_dim,
                                      nk_f32_t scale) {
@@ -768,9 +722,6 @@ __arm_locally_streaming __arm_new("za") static void nk_attention_f16_sme_kernel_
     }
 }
 
-/**
- *  @brief Scaled dot-product attention using f16 with SME.
- */
 NK_PUBLIC void nk_attention_f16_sme(nk_f16_t const *q, void const *kv_packed, nk_f16_t *output, nk_size_t num_heads,
                                     nk_size_t num_kv_heads, nk_size_t query_len, nk_size_t kv_len, nk_size_t head_dim,
                                     nk_f32_t scale) {
@@ -801,15 +752,6 @@ NK_PUBLIC void nk_attention_f16_sme(nk_f16_t const *q, void const *kv_packed, nk
     }
 }
 
-/**
- *  @brief Causal (masked) scaled dot-product attention for bf16.
- *
- *  Same as nk_attention_bf16_sme but applies causal mask:
- *  - For position i, only attend to positions 0..i (mask future tokens)
- *  - Masked positions get -∞ before softmax
- *
- *  Optimization: Completely skip KV blocks where all positions would be masked.
- */
 NK_PUBLIC void nk_attention_causal_bf16_sme(nk_bf16_t const *q, void const *kv_packed, nk_bf16_t *output,
                                             nk_size_t num_heads, nk_size_t num_kv_heads, nk_size_t query_len,
                                             nk_size_t kv_len, nk_size_t head_dim, nk_f32_t scale) {
@@ -818,11 +760,6 @@ NK_PUBLIC void nk_attention_causal_bf16_sme(nk_bf16_t const *q, void const *kv_p
     nk_attention_bf16_sme(q, kv_packed, output, num_heads, num_kv_heads, query_len, kv_len, head_dim, scale);
 }
 
-/**
- *  @brief Causal (masked) scaled dot-product attention for f16.
- *
- *  Same as nk_attention_f16_sme but applies causal mask.
- */
 NK_PUBLIC void nk_attention_causal_f16_sme(nk_f16_t const *q, void const *kv_packed, nk_f16_t *output,
                                            nk_size_t num_heads, nk_size_t num_kv_heads, nk_size_t query_len,
                                            nk_size_t kv_len, nk_size_t head_dim, nk_f32_t scale) {
