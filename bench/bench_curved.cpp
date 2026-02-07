@@ -163,6 +163,9 @@ void bench_curved() {
     curved_<f32_k, f32_k>("bilinear_f32_smef64", nk_bilinear_f32_smef64);
     curved_<f32c_k, f32c_k>("bilinear_f32c_smef64", nk_bilinear_f32c_smef64);
     curved_<f32_k, f32_k>("mahalanobis_f32_smef64", nk_mahalanobis_f32_smef64);
+    curved_<f64_k, f64_k>("bilinear_f64_smef64", nk_bilinear_f64_smef64);
+    curved_<f64c_k, f64c_k>("bilinear_f64c_smef64", nk_bilinear_f64c_smef64);
+    curved_<f64_k, f64_k>("mahalanobis_f64_smef64", nk_mahalanobis_f64_smef64);
 #endif
 
 #if NK_TARGET_HASWELL
