@@ -39,6 +39,13 @@
 #include "numkong/types.h"
 #include "numkong/trigonometry/rvv.h" // nk_f64m4_sin_rvv_, nk_f64m4_cos_rvv_, nk_f64m4_atan2_rvv_, etc.
 
+#if defined(__clang__)
+#pragma clang attribute push(__attribute__((target("arch=+v"))), apply_to = function)
+#elif defined(__GNUC__)
+#pragma GCC push_options
+#pragma GCC target("arch=+v")
+#endif
+
 #if defined(__cplusplus)
 extern "C" {
 #endif
@@ -650,6 +657,12 @@ NK_PUBLIC void nk_vincenty_f32_rvv(                            //
 
 #if defined(__cplusplus)
 } // extern "C"
+#endif
+
+#if defined(__clang__)
+#pragma clang attribute pop
+#elif defined(__GNUC__)
+#pragma GCC pop_options
 #endif
 
 #endif // NK_TARGET_RVV

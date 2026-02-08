@@ -24,6 +24,13 @@
 
 #include "numkong/types.h"
 
+#if defined(__clang__)
+#pragma clang attribute push(__attribute__((target("arch=+v,+zvfh"))), apply_to = function)
+#elif defined(__GNUC__)
+#pragma GCC push_options
+#pragma GCC target("arch=+v,+zvfh")
+#endif
+
 #if defined(__cplusplus)
 extern "C" {
 #endif
@@ -194,6 +201,12 @@ NK_PUBLIC void nk_dot_e5m2_rvvhalf(nk_e5m2_t const *a_scalars, nk_e5m2_t const *
 
 #if defined(__cplusplus)
 } // extern "C"
+#endif
+
+#if defined(__clang__)
+#pragma clang attribute pop
+#elif defined(__GNUC__)
+#pragma GCC pop_options
 #endif
 
 #endif // NK_TARGET_RVVHALF

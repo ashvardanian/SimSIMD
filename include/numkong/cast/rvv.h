@@ -35,6 +35,13 @@
 #include "numkong/types.h"
 #include "numkong/cast/serial.h" // `nk_cast_serial`
 
+#if defined(__clang__)
+#pragma clang attribute push(__attribute__((target("arch=+v"))), apply_to = function)
+#elif defined(__GNUC__)
+#pragma GCC push_options
+#pragma GCC target("arch=+v")
+#endif
+
 #if defined(__cplusplus)
 extern "C" {
 #endif
@@ -576,6 +583,12 @@ NK_PUBLIC void nk_cast_rvv(void const *from, nk_dtype_t from_type, nk_size_t cou
 
 #if defined(__cplusplus)
 } // extern "C"
+#endif
+
+#if defined(__clang__)
+#pragma clang attribute pop
+#elif defined(__GNUC__)
+#pragma GCC pop_options
 #endif
 
 #endif // NK_TARGET_RVV

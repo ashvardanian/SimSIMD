@@ -23,6 +23,13 @@
 #include "numkong/types.h"
 #include "numkong/spatial/rvv.h" // `nk_f32_sqrt_rvv`
 
+#if defined(__clang__)
+#pragma clang attribute push(__attribute__((target("arch=+v,+zvfbfwma"))), apply_to = function)
+#elif defined(__GNUC__)
+#pragma GCC push_options
+#pragma GCC target("arch=+v,+zvfbfwma")
+#endif
+
 #if defined(__cplusplus)
 extern "C" {
 #endif
@@ -114,6 +121,12 @@ NK_PUBLIC void nk_angular_bf16_rvvbf16(nk_bf16_t const *a_scalars, nk_bf16_t con
 
 #if defined(__cplusplus)
 } // extern "C"
+#endif
+
+#if defined(__clang__)
+#pragma clang attribute pop
+#elif defined(__GNUC__)
+#pragma GCC pop_options
 #endif
 
 #endif // NK_TARGET_RVVBF16

@@ -29,6 +29,13 @@
 #include "numkong/types.h"
 #include "numkong/cast/rvv.h" // `nk_e4m3m1_to_f32m4_rvv_`
 
+#if defined(__clang__)
+#pragma clang attribute push(__attribute__((target("arch=+v"))), apply_to = function)
+#elif defined(__GNUC__)
+#pragma GCC push_options
+#pragma GCC target("arch=+v")
+#endif
+
 #if defined(__cplusplus)
 extern "C" {
 #endif
@@ -836,6 +843,12 @@ NK_PUBLIC void nk_angular_u4_rvv(nk_u4x2_t const *a_scalars, nk_u4x2_t const *b_
 
 #if defined(__cplusplus)
 } // extern "C"
+#endif
+
+#if defined(__clang__)
+#pragma clang attribute pop
+#elif defined(__GNUC__)
+#pragma GCC pop_options
 #endif
 
 #pragma endregion - Small Integers
