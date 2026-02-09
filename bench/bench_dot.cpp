@@ -101,6 +101,8 @@ void bench_dot() {
     dense_<f32_k, f32_k>("dot_f32_neon", nk_dot_f32_neon);
     dense_<f32c_k, f32c_k>("dot_f32c_neon", nk_dot_f32c_neon);
     dense_<f32c_k, f32c_k>("vdot_f32c_neon", nk_vdot_f32c_neon);
+    dense_<e4m3_k, f32_k>("dot_e4m3_neon", nk_dot_e4m3_neon);
+    dense_<e5m2_k, f32_k>("dot_e5m2_neon", nk_dot_e5m2_neon);
 #endif
 
 #if NK_TARGET_NEONSDOT
@@ -120,12 +122,16 @@ void bench_dot() {
     dense_<f16_k, f32_k>("dot_f16_neonfhm", nk_dot_f16_neonfhm);
     dense_<e2m3_k, f32_k>("dot_e2m3_neonfhm", nk_dot_e2m3_neonfhm);
     dense_<e3m2_k, f32_k>("dot_e3m2_neonfhm", nk_dot_e3m2_neonfhm);
+    dense_<e4m3_k, f32_k>("dot_e4m3_neonfhm", nk_dot_e4m3_neonfhm);
+    dense_<e5m2_k, f32_k>("dot_e5m2_neonfhm", nk_dot_e5m2_neonfhm);
 #endif
 
 #if NK_TARGET_NEONBFDOT
     dense_<bf16c_k, f32c_k>("dot_bf16c_neonbfdot", nk_dot_bf16c_neonbfdot);
     dense_<bf16c_k, f32c_k>("vdot_bf16c_neonbfdot", nk_vdot_bf16c_neonbfdot);
     dense_<bf16_k, f32_k>("dot_bf16_neonbfdot", nk_dot_bf16_neonbfdot);
+    dense_<e4m3_k, f32_k>("dot_e4m3_neonbfdot", nk_dot_e4m3_neonbfdot);
+    dense_<e5m2_k, f32_k>("dot_e5m2_neonbfdot", nk_dot_e5m2_neonbfdot);
 #endif
 
 #if NK_TARGET_SVE

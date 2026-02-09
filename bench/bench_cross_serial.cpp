@@ -46,6 +46,12 @@ void bench_cross_serial() {
                          nk_dots_packed_e2m3_serial);
     dots_<e3m2_k, f32_k>("dots_packed_e3m2_serial", nk_dots_packed_size_e3m2_serial, nk_dots_pack_e3m2_serial,
                          nk_dots_packed_e3m2_serial);
+    dots_<f64_k, f64_k>("dots_packed_f64_serial", nk_dots_packed_size_f64_serial, nk_dots_pack_f64_serial,
+                        nk_dots_packed_f64_serial);
+    dots_<f16_k, f32_k>("dots_packed_f16_serial", nk_dots_packed_size_f16_serial, nk_dots_pack_f16_serial,
+                        nk_dots_packed_f16_serial);
+    dots_<u8_k, u32_k>("dots_packed_u8_serial", nk_dots_packed_size_u8_serial, nk_dots_pack_u8_serial,
+                       nk_dots_packed_u8_serial);
     dots_symmetric_<f32_k, f32_k>("dots_symmetric_f32_serial", nk_dots_symmetric_f32_serial);
     dots_symmetric_<f64_k, f64_k>("dots_symmetric_f64_serial", nk_dots_symmetric_f64_serial);
     dots_symmetric_<bf16_k, f32_k>("dots_symmetric_bf16_serial", nk_dots_symmetric_bf16_serial);

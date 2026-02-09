@@ -178,6 +178,12 @@ int main(int argc, char **argv) {
     print_isa("SVE2P1", NK_TARGET_SVE2P1, nk_cap_sve2p1_k, runtime_caps);
     print_isa("SME", NK_TARGET_SME, nk_cap_sme_k, runtime_caps);
     print_isa("SME2", NK_TARGET_SME2, nk_cap_sme2_k, runtime_caps);
+    print_isa("SME2P1", NK_TARGET_SME2P1, nk_cap_sme2p1_k, runtime_caps);
+    print_isa("SME F64", NK_TARGET_SMEF64, nk_cap_smef64_k, runtime_caps);
+    print_isa("SME F16", NK_TARGET_SMEHALF, nk_cap_smehalf_k, runtime_caps);
+    print_isa("SME BF16", NK_TARGET_SMEBF16, nk_cap_smebf16_k, runtime_caps);
+    print_isa("SME FA64", NK_TARGET_SMEFA64, nk_cap_smefa64_k, runtime_caps);
+    print_isa("SME LUT2", NK_TARGET_SMELUT2, nk_cap_smelut2_k, runtime_caps);
     // RISC-V
     print_isa("RVV", NK_TARGET_RVV, nk_cap_rvv_k, runtime_caps);
     print_isa("RVV HALF", NK_TARGET_RVVHALF, nk_cap_rvvhalf_k, runtime_caps);
