@@ -60,6 +60,15 @@ NK_INTERNAL void nk_deinterleave_f16x4_to_f32x4_neonhalf_(nk_f16_t const *ptr, f
     *z_out = vcvt_f32_f16(xyz.val[2]);
 }
 
+NK_INTERNAL void nk_partial_deinterleave_f16_to_f32x4_neonhalf_(nk_f16_t const *ptr, nk_size_t n_points,
+                                                                float32x4_t *x_out, float32x4_t *y_out,
+                                                                float32x4_t *z_out) {
+    nk_u16_t buf[12] = {0};
+    nk_u16_t const *src = (nk_u16_t const *)ptr;
+    for (nk_size_t k = 0; k < n_points * 3; ++k) buf[k] = src[k];
+    nk_deinterleave_f16x4_to_f32x4_neonhalf_((nk_f16_t const *)buf, x_out, y_out, z_out);
+}
+
 NK_INTERNAL nk_f32_t nk_transformed_ssd_f16_neonhalf_(nk_f16_t const *a, nk_f16_t const *b, nk_size_t n,
                                                       nk_f32_t const *r, nk_f32_t scale, nk_f32_t centroid_a_x,
                                                       nk_f32_t centroid_a_y, nk_f32_t centroid_a_z,
@@ -120,25 +129,46 @@ NK_INTERNAL nk_f32_t nk_transformed_ssd_f16_neonhalf_(nk_f16_t const *a, nk_f16_
     // Reduce to scalar
     nk_f32_t sum_squared = vaddvq_f32(sum_squared_f32x4);
 
-    // Scalar tail
-    for (; j < n; ++j) {
-        nk_f32_t ax, ay, az, bx, by, bz;
-        nk_f16_to_f32(&a[j * 3 + 0], &ax);
-        nk_f16_to_f32(&a[j * 3 + 1], &ay);
-        nk_f16_to_f32(&a[j * 3 + 2], &az);
-        nk_f16_to_f32(&b[j * 3 + 0], &bx);
-        nk_f16_to_f32(&b[j * 3 + 1], &by);
-        nk_f16_to_f32(&b[j * 3 + 2], &bz);
+    if (j < n) {
+        float32x4_t a_x_f32x4, a_y_f32x4, a_z_f32x4, b_x_f32x4, b_y_f32x4, b_z_f32x4;
+        nk_partial_deinterleave_f16_to_f32x4_neonhalf_(a + j * 3, n - j, &a_x_f32x4, &a_y_f32x4, &a_z_f32x4);
+        nk_partial_deinterleave_f16_to_f32x4_neonhalf_(b + j * 3, n - j, &b_x_f32x4, &b_y_f32x4, &b_z_f32x4);
 
-        nk_f32_t pa_x = ax - centroid_a_x, pa_y = ay - centroid_a_y, pa_z = az - centroid_a_z;
-        nk_f32_t pb_x = bx - centroid_b_x, pb_y = by - centroid_b_y, pb_z = bz - centroid_b_z;
+        uint32x4_t lane_u32x4 = {0, 1, 2, 3};
+        uint32x4_t valid_u32x4 = vcltq_u32(lane_u32x4, vdupq_n_u32((uint32_t)(n - j)));
+        float32x4_t zero_f32x4 = vdupq_n_f32(0);
+        a_x_f32x4 = vbslq_f32(valid_u32x4, a_x_f32x4, zero_f32x4);
+        a_y_f32x4 = vbslq_f32(valid_u32x4, a_y_f32x4, zero_f32x4);
+        a_z_f32x4 = vbslq_f32(valid_u32x4, a_z_f32x4, zero_f32x4);
+        b_x_f32x4 = vbslq_f32(valid_u32x4, b_x_f32x4, zero_f32x4);
+        b_y_f32x4 = vbslq_f32(valid_u32x4, b_y_f32x4, zero_f32x4);
+        b_z_f32x4 = vbslq_f32(valid_u32x4, b_z_f32x4, zero_f32x4);
 
-        nk_f32_t ra_x = scale * (r[0] * pa_x + r[1] * pa_y + r[2] * pa_z);
-        nk_f32_t ra_y = scale * (r[3] * pa_x + r[4] * pa_y + r[5] * pa_z);
-        nk_f32_t ra_z = scale * (r[6] * pa_x + r[7] * pa_y + r[8] * pa_z);
+        float32x4_t pa_x_f32x4 = vsubq_f32(a_x_f32x4, centroid_a_x_f32x4);
+        float32x4_t pa_y_f32x4 = vsubq_f32(a_y_f32x4, centroid_a_y_f32x4);
+        float32x4_t pa_z_f32x4 = vsubq_f32(a_z_f32x4, centroid_a_z_f32x4);
+        float32x4_t pb_x_f32x4 = vsubq_f32(b_x_f32x4, centroid_b_x_f32x4);
+        float32x4_t pb_y_f32x4 = vsubq_f32(b_y_f32x4, centroid_b_y_f32x4);
+        float32x4_t pb_z_f32x4 = vsubq_f32(b_z_f32x4, centroid_b_z_f32x4);
 
-        nk_f32_t dx = ra_x - pb_x, dy = ra_y - pb_y, dz = ra_z - pb_z;
-        sum_squared += dx * dx + dy * dy + dz * dz;
+        float32x4_t ra_x_f32x4 = vmulq_f32(
+            scale_f32x4,
+            vfmaq_f32(vfmaq_f32(vmulq_f32(r00_f32x4, pa_x_f32x4), r01_f32x4, pa_y_f32x4), r02_f32x4, pa_z_f32x4));
+        float32x4_t ra_y_f32x4 = vmulq_f32(
+            scale_f32x4,
+            vfmaq_f32(vfmaq_f32(vmulq_f32(r10_f32x4, pa_x_f32x4), r11_f32x4, pa_y_f32x4), r12_f32x4, pa_z_f32x4));
+        float32x4_t ra_z_f32x4 = vmulq_f32(
+            scale_f32x4,
+            vfmaq_f32(vfmaq_f32(vmulq_f32(r20_f32x4, pa_x_f32x4), r21_f32x4, pa_y_f32x4), r22_f32x4, pa_z_f32x4));
+
+        float32x4_t delta_x_f32x4 = vsubq_f32(ra_x_f32x4, pb_x_f32x4);
+        float32x4_t delta_y_f32x4 = vsubq_f32(ra_y_f32x4, pb_y_f32x4);
+        float32x4_t delta_z_f32x4 = vsubq_f32(ra_z_f32x4, pb_z_f32x4);
+
+        float32x4_t tail_sum_f32x4 = vmulq_f32(delta_x_f32x4, delta_x_f32x4);
+        tail_sum_f32x4 = vfmaq_f32(tail_sum_f32x4, delta_y_f32x4, delta_y_f32x4);
+        tail_sum_f32x4 = vfmaq_f32(tail_sum_f32x4, delta_z_f32x4, delta_z_f32x4);
+        sum_squared += vaddvq_f32(tail_sum_f32x4);
     }
 
     return sum_squared;
@@ -189,6 +219,26 @@ NK_PUBLIC void nk_rmsd_f16_neonhalf(nk_f16_t const *a, nk_f16_t const *b, nk_siz
         sum_squared_z_f32x4 = vfmaq_f32(sum_squared_z_f32x4, delta_z_f32x4, delta_z_f32x4);
     }
 
+    if (i < n) {
+        nk_partial_deinterleave_f16_to_f32x4_neonhalf_(a + i * 3, n - i, &a_x_f32x4, &a_y_f32x4, &a_z_f32x4);
+        nk_partial_deinterleave_f16_to_f32x4_neonhalf_(b + i * 3, n - i, &b_x_f32x4, &b_y_f32x4, &b_z_f32x4);
+
+        sum_a_x_f32x4 = vaddq_f32(sum_a_x_f32x4, a_x_f32x4);
+        sum_a_y_f32x4 = vaddq_f32(sum_a_y_f32x4, a_y_f32x4);
+        sum_a_z_f32x4 = vaddq_f32(sum_a_z_f32x4, a_z_f32x4);
+        sum_b_x_f32x4 = vaddq_f32(sum_b_x_f32x4, b_x_f32x4);
+        sum_b_y_f32x4 = vaddq_f32(sum_b_y_f32x4, b_y_f32x4);
+        sum_b_z_f32x4 = vaddq_f32(sum_b_z_f32x4, b_z_f32x4);
+
+        float32x4_t delta_x_f32x4 = vsubq_f32(a_x_f32x4, b_x_f32x4);
+        float32x4_t delta_y_f32x4 = vsubq_f32(a_y_f32x4, b_y_f32x4);
+        float32x4_t delta_z_f32x4 = vsubq_f32(a_z_f32x4, b_z_f32x4);
+
+        sum_squared_x_f32x4 = vfmaq_f32(sum_squared_x_f32x4, delta_x_f32x4, delta_x_f32x4);
+        sum_squared_y_f32x4 = vfmaq_f32(sum_squared_y_f32x4, delta_y_f32x4, delta_y_f32x4);
+        sum_squared_z_f32x4 = vfmaq_f32(sum_squared_z_f32x4, delta_z_f32x4, delta_z_f32x4);
+    }
+
     // Reduce vectors to scalars
     nk_f32_t total_ax = vaddvq_f32(sum_a_x_f32x4);
     nk_f32_t total_ay = vaddvq_f32(sum_a_y_f32x4);
@@ -199,27 +249,6 @@ NK_PUBLIC void nk_rmsd_f16_neonhalf(nk_f16_t const *a, nk_f16_t const *b, nk_siz
     nk_f32_t total_sq_x = vaddvq_f32(sum_squared_x_f32x4);
     nk_f32_t total_sq_y = vaddvq_f32(sum_squared_y_f32x4);
     nk_f32_t total_sq_z = vaddvq_f32(sum_squared_z_f32x4);
-
-    // Scalar tail
-    for (; i < n; ++i) {
-        nk_f32_t ax, ay, az, bx, by, bz;
-        nk_f16_to_f32(&a[i * 3 + 0], &ax);
-        nk_f16_to_f32(&a[i * 3 + 1], &ay);
-        nk_f16_to_f32(&a[i * 3 + 2], &az);
-        nk_f16_to_f32(&b[i * 3 + 0], &bx);
-        nk_f16_to_f32(&b[i * 3 + 1], &by);
-        nk_f16_to_f32(&b[i * 3 + 2], &bz);
-        total_ax += ax;
-        total_ay += ay;
-        total_az += az;
-        total_bx += bx;
-        total_by += by;
-        total_bz += bz;
-        nk_f32_t delta_x = ax - bx, delta_y = ay - by, delta_z = az - bz;
-        total_sq_x += delta_x * delta_x;
-        total_sq_y += delta_y * delta_y;
-        total_sq_z += delta_z * delta_z;
-    }
 
     // Compute centroids
     nk_f32_t inv_n = 1.0f / (nk_f32_t)n;
@@ -296,6 +325,28 @@ NK_PUBLIC void nk_kabsch_f16_neonhalf(nk_f16_t const *a, nk_f16_t const *b, nk_s
         cov_zz_f32x4 = vfmaq_f32(cov_zz_f32x4, a_z_f32x4, b_z_f32x4);
     }
 
+    if (i < n) {
+        nk_partial_deinterleave_f16_to_f32x4_neonhalf_(a + i * 3, n - i, &a_x_f32x4, &a_y_f32x4, &a_z_f32x4);
+        nk_partial_deinterleave_f16_to_f32x4_neonhalf_(b + i * 3, n - i, &b_x_f32x4, &b_y_f32x4, &b_z_f32x4);
+
+        sum_a_x_f32x4 = vaddq_f32(sum_a_x_f32x4, a_x_f32x4);
+        sum_a_y_f32x4 = vaddq_f32(sum_a_y_f32x4, a_y_f32x4);
+        sum_a_z_f32x4 = vaddq_f32(sum_a_z_f32x4, a_z_f32x4);
+        sum_b_x_f32x4 = vaddq_f32(sum_b_x_f32x4, b_x_f32x4);
+        sum_b_y_f32x4 = vaddq_f32(sum_b_y_f32x4, b_y_f32x4);
+        sum_b_z_f32x4 = vaddq_f32(sum_b_z_f32x4, b_z_f32x4);
+
+        cov_xx_f32x4 = vfmaq_f32(cov_xx_f32x4, a_x_f32x4, b_x_f32x4);
+        cov_xy_f32x4 = vfmaq_f32(cov_xy_f32x4, a_x_f32x4, b_y_f32x4);
+        cov_xz_f32x4 = vfmaq_f32(cov_xz_f32x4, a_x_f32x4, b_z_f32x4);
+        cov_yx_f32x4 = vfmaq_f32(cov_yx_f32x4, a_y_f32x4, b_x_f32x4);
+        cov_yy_f32x4 = vfmaq_f32(cov_yy_f32x4, a_y_f32x4, b_y_f32x4);
+        cov_yz_f32x4 = vfmaq_f32(cov_yz_f32x4, a_y_f32x4, b_z_f32x4);
+        cov_zx_f32x4 = vfmaq_f32(cov_zx_f32x4, a_z_f32x4, b_x_f32x4);
+        cov_zy_f32x4 = vfmaq_f32(cov_zy_f32x4, a_z_f32x4, b_y_f32x4);
+        cov_zz_f32x4 = vfmaq_f32(cov_zz_f32x4, a_z_f32x4, b_z_f32x4);
+    }
+
     // Reduce vector accumulators
     nk_f32_t sum_a_x = vaddvq_f32(sum_a_x_f32x4);
     nk_f32_t sum_a_y = vaddvq_f32(sum_a_y_f32x4);
@@ -313,32 +364,6 @@ NK_PUBLIC void nk_kabsch_f16_neonhalf(nk_f16_t const *a, nk_f16_t const *b, nk_s
     nk_f32_t h20 = vaddvq_f32(cov_zx_f32x4);
     nk_f32_t h21 = vaddvq_f32(cov_zy_f32x4);
     nk_f32_t h22 = vaddvq_f32(cov_zz_f32x4);
-
-    // Scalar tail
-    for (; i < n; ++i) {
-        nk_f32_t ax, ay, az, bx, by, bz;
-        nk_f16_to_f32(&a[i * 3 + 0], &ax);
-        nk_f16_to_f32(&a[i * 3 + 1], &ay);
-        nk_f16_to_f32(&a[i * 3 + 2], &az);
-        nk_f16_to_f32(&b[i * 3 + 0], &bx);
-        nk_f16_to_f32(&b[i * 3 + 1], &by);
-        nk_f16_to_f32(&b[i * 3 + 2], &bz);
-        sum_a_x += ax;
-        sum_a_y += ay;
-        sum_a_z += az;
-        sum_b_x += bx;
-        sum_b_y += by;
-        sum_b_z += bz;
-        h00 += ax * bx;
-        h01 += ax * by;
-        h02 += ax * bz;
-        h10 += ay * bx;
-        h11 += ay * by;
-        h12 += ay * bz;
-        h20 += az * bx;
-        h21 += az * by;
-        h22 += az * bz;
-    }
 
     // Compute centroids
     nk_f32_t inv_n = 1.0f / (nk_f32_t)n;
@@ -461,6 +486,32 @@ NK_PUBLIC void nk_umeyama_f16_neonhalf(nk_f16_t const *a, nk_f16_t const *b, nk_
         variance_a_f32x4 = vfmaq_f32(variance_a_f32x4, a_z_f32x4, a_z_f32x4);
     }
 
+    if (i < n) {
+        nk_partial_deinterleave_f16_to_f32x4_neonhalf_(a + i * 3, n - i, &a_x_f32x4, &a_y_f32x4, &a_z_f32x4);
+        nk_partial_deinterleave_f16_to_f32x4_neonhalf_(b + i * 3, n - i, &b_x_f32x4, &b_y_f32x4, &b_z_f32x4);
+
+        sum_a_x_f32x4 = vaddq_f32(sum_a_x_f32x4, a_x_f32x4);
+        sum_a_y_f32x4 = vaddq_f32(sum_a_y_f32x4, a_y_f32x4);
+        sum_a_z_f32x4 = vaddq_f32(sum_a_z_f32x4, a_z_f32x4);
+        sum_b_x_f32x4 = vaddq_f32(sum_b_x_f32x4, b_x_f32x4);
+        sum_b_y_f32x4 = vaddq_f32(sum_b_y_f32x4, b_y_f32x4);
+        sum_b_z_f32x4 = vaddq_f32(sum_b_z_f32x4, b_z_f32x4);
+
+        cov_xx_f32x4 = vfmaq_f32(cov_xx_f32x4, a_x_f32x4, b_x_f32x4);
+        cov_xy_f32x4 = vfmaq_f32(cov_xy_f32x4, a_x_f32x4, b_y_f32x4);
+        cov_xz_f32x4 = vfmaq_f32(cov_xz_f32x4, a_x_f32x4, b_z_f32x4);
+        cov_yx_f32x4 = vfmaq_f32(cov_yx_f32x4, a_y_f32x4, b_x_f32x4);
+        cov_yy_f32x4 = vfmaq_f32(cov_yy_f32x4, a_y_f32x4, b_y_f32x4);
+        cov_yz_f32x4 = vfmaq_f32(cov_yz_f32x4, a_y_f32x4, b_z_f32x4);
+        cov_zx_f32x4 = vfmaq_f32(cov_zx_f32x4, a_z_f32x4, b_x_f32x4);
+        cov_zy_f32x4 = vfmaq_f32(cov_zy_f32x4, a_z_f32x4, b_y_f32x4);
+        cov_zz_f32x4 = vfmaq_f32(cov_zz_f32x4, a_z_f32x4, b_z_f32x4);
+
+        variance_a_f32x4 = vfmaq_f32(variance_a_f32x4, a_x_f32x4, a_x_f32x4);
+        variance_a_f32x4 = vfmaq_f32(variance_a_f32x4, a_y_f32x4, a_y_f32x4);
+        variance_a_f32x4 = vfmaq_f32(variance_a_f32x4, a_z_f32x4, a_z_f32x4);
+    }
+
     // Reduce vector accumulators
     nk_f32_t sum_a_x = vaddvq_f32(sum_a_x_f32x4);
     nk_f32_t sum_a_y = vaddvq_f32(sum_a_y_f32x4);
@@ -478,33 +529,6 @@ NK_PUBLIC void nk_umeyama_f16_neonhalf(nk_f16_t const *a, nk_f16_t const *b, nk_
     nk_f32_t h21 = vaddvq_f32(cov_zy_f32x4);
     nk_f32_t h22 = vaddvq_f32(cov_zz_f32x4);
     nk_f32_t variance_a_sum = vaddvq_f32(variance_a_f32x4);
-
-    // Scalar tail
-    for (; i < n; ++i) {
-        nk_f32_t ax, ay, az, bx, by, bz;
-        nk_f16_to_f32(&a[i * 3 + 0], &ax);
-        nk_f16_to_f32(&a[i * 3 + 1], &ay);
-        nk_f16_to_f32(&a[i * 3 + 2], &az);
-        nk_f16_to_f32(&b[i * 3 + 0], &bx);
-        nk_f16_to_f32(&b[i * 3 + 1], &by);
-        nk_f16_to_f32(&b[i * 3 + 2], &bz);
-        sum_a_x += ax;
-        sum_a_y += ay;
-        sum_a_z += az;
-        sum_b_x += bx;
-        sum_b_y += by;
-        sum_b_z += bz;
-        h00 += ax * bx;
-        h01 += ax * by;
-        h02 += ax * bz;
-        h10 += ay * bx;
-        h11 += ay * by;
-        h12 += ay * bz;
-        h20 += az * bx;
-        h21 += az * by;
-        h22 += az * bz;
-        variance_a_sum += ax * ax + ay * ay + az * az;
-    }
 
     // Compute centroids
     nk_f32_t inv_n = 1.0f / (nk_f32_t)n;
