@@ -37,18 +37,14 @@ set(CMAKE_SYSROOT ${RISCV_TOOLCHAIN_PATH}/sysroot)
 #   v       : Vector extension (RVV 1.0)
 #   lp64d   : 64-bit pointers, double-precision floats in FP registers
 #
-# NumKong RISC-V targets and required extensions:
-#   NK_TARGET_SPACEMIT : Base RVV 1.0 (v)
-#   NK_TARGET_SIFIVE   : +zvfh (vector half-precision float)
-#   NK_TARGET_XUANTIE  : +zvfbfwma (bf16 widening FMA)
-#
 # Common profiles:
 #   rv64gcv                     : Base RVV 1.0 only
 #   rv64gcv_zvfh                : RVV + fp16 (SiFive-class)
-#   rv64gcv_zvfh_zvfbfwma       : RVV + fp16 + bf16 (full NumKong support)
+#   rv64gcv_zvfh_zvfbfwma       : RVV + fp16 + bf16
+#   rv64gcv_zvfh_zvfbfwma_zvbb  : RVV + fp16 + bf16 + bit-manip (full NumKong support)
 #
 if(NOT DEFINED RISCV_MARCH)
-    set(RISCV_MARCH "rv64gcv_zvfh_zvfbfwma")
+    set(RISCV_MARCH "rv64gcv_zvfh_zvfbfwma_zvbb")
 endif()
 
 if(NOT DEFINED RISCV_MABI)

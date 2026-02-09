@@ -162,6 +162,17 @@
 #endif // defined(__riscv_zvfbfwma) && (__riscv_zvfbfwma > 0)
 #endif // !defined(NK_TARGET_RVVBF16) || ...
 
+// Compiling for RISC-V Vector with Zvbb (basic bit-manipulation): NK_TARGET_RVVBB
+// Provides vcpop.v (per-element popcount), vclz.v, vctz.v, vbrev.v, vrol.v, vror.v
+#if !defined(NK_TARGET_RVVBB) || (NK_TARGET_RVVBB && !NK_TARGET_RVV)
+#if defined(__riscv_zvbb) && (__riscv_zvbb > 0)
+#define NK_TARGET_RVVBB NK_TARGET_RVV
+#else
+#undef NK_TARGET_RVVBB
+#define NK_TARGET_RVVBB 0
+#endif // defined(__riscv_zvbb) && (__riscv_zvbb > 0)
+#endif // !defined(NK_TARGET_RVVBB) || ...
+
 // Compiling for Arm: NK_TARGET_NEON
 #if !defined(NK_TARGET_NEON) || (NK_TARGET_NEON && !NK_TARGET_ARM_)
 #if defined(__ARM_NEON)
