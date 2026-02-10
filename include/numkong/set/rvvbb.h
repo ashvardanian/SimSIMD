@@ -39,8 +39,10 @@ extern "C" {
  *
  *  Replaces the 11-instruction SWAR approach in nk_popcount_u8m4_rvv_.
  */
-NK_INTERNAL vuint8m4_t nk_popcount_u8m4_rvvbb_(vuint8m4_t v_u8m4, nk_size_t vector_length) {
-    return __riscv_vcpop_v_u8m4(v_u8m4, vector_length);
+NK_INTERNAL vuint8m4_t nk_popcount_u8m4_rvvbb_(vuint8m4_t v_u8m4) {
+    vuint8m4_t result;
+    __asm__ volatile("vcpop.v %0, %1" : "=vr"(result) : "vr"(v_u8m4));
+    return result;
 }
 
 NK_PUBLIC void nk_hamming_u1_rvvbb(nk_u1x8_t const *a, nk_u1x8_t const *b, nk_size_t n, nk_u32_t *result) {
@@ -57,7 +59,7 @@ NK_PUBLIC void nk_hamming_u1_rvvbb(nk_u1x8_t const *a, nk_u1x8_t const *b, nk_si
         vuint8m4_t xor_u8m4 = __riscv_vxor_vv_u8m4(a_u8m4, b_u8m4, vector_length);
 
         // Native per-element popcount via Zvbb (1 instruction vs 11 SWAR)
-        vuint8m4_t popcount_u8m4 = nk_popcount_u8m4_rvvbb_(xor_u8m4, vector_length);
+        vuint8m4_t popcount_u8m4 = nk_popcount_u8m4_rvvbb_(xor_u8m4);
 
         // Widen to u16 and accumulate via widening reduction sum
         vuint16m8_t popcount_u16m8 = __riscv_vwaddu_vx_u16m8(popcount_u8m4, 0, vector_length);
@@ -84,8 +86,8 @@ NK_PUBLIC void nk_jaccard_u1_rvvbb(nk_u1x8_t const *a, nk_u1x8_t const *b, nk_si
         vuint8m4_t union_u8m4 = __riscv_vor_vv_u8m4(a_u8m4, b_u8m4, vector_length);
 
         // Native per-element popcount via Zvbb
-        vuint8m4_t intersection_popcount_u8m4 = nk_popcount_u8m4_rvvbb_(intersection_u8m4, vector_length);
-        vuint8m4_t union_popcount_u8m4 = nk_popcount_u8m4_rvvbb_(union_u8m4, vector_length);
+        vuint8m4_t intersection_popcount_u8m4 = nk_popcount_u8m4_rvvbb_(intersection_u8m4);
+        vuint8m4_t union_popcount_u8m4 = nk_popcount_u8m4_rvvbb_(union_u8m4);
 
         // Widen and accumulate
         vuint16m8_t intersection_popcount_u16m8 = __riscv_vwaddu_vx_u16m8(intersection_popcount_u8m4, 0, vector_length);

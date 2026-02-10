@@ -327,6 +327,7 @@ NK_INTERNAL nk_dtype_t nk_vincenty_output_dtype(nk_dtype_t dtype) {
 #include "numkong/geospatial/haswell.h"
 #include "numkong/geospatial/skylake.h"
 #include "numkong/geospatial/v128relaxed.h"
+#include "numkong/geospatial/rvv.h"
 
 #if defined(__cplusplus)
 extern "C" {
@@ -346,6 +347,8 @@ NK_PUBLIC void nk_haversine_f64(                    //
     nk_haversine_f64_neon(a_lats, a_lons, b_lats, b_lons, n, results);
 #elif NK_TARGET_V128RELAXED
     nk_haversine_f64_v128relaxed(a_lats, a_lons, b_lats, b_lons, n, results);
+#elif NK_TARGET_RVV
+    nk_haversine_f64_rvv(a_lats, a_lons, b_lats, b_lons, n, results);
 #else
     nk_haversine_f64_serial(a_lats, a_lons, b_lats, b_lons, n, results);
 #endif
@@ -363,6 +366,8 @@ NK_PUBLIC void nk_haversine_f32(                    //
     nk_haversine_f32_neon(a_lats, a_lons, b_lats, b_lons, n, results);
 #elif NK_TARGET_V128RELAXED
     nk_haversine_f32_v128relaxed(a_lats, a_lons, b_lats, b_lons, n, results);
+#elif NK_TARGET_RVV
+    nk_haversine_f32_rvv(a_lats, a_lons, b_lats, b_lons, n, results);
 #else
     nk_haversine_f32_serial(a_lats, a_lons, b_lats, b_lons, n, results);
 #endif
@@ -380,6 +385,8 @@ NK_PUBLIC void nk_vincenty_f64(                     //
     nk_vincenty_f64_neon(a_lats, a_lons, b_lats, b_lons, n, results);
 #elif NK_TARGET_V128RELAXED
     nk_vincenty_f64_v128relaxed(a_lats, a_lons, b_lats, b_lons, n, results);
+#elif NK_TARGET_RVV
+    nk_vincenty_f64_rvv(a_lats, a_lons, b_lats, b_lons, n, results);
 #else
     nk_vincenty_f64_serial(a_lats, a_lons, b_lats, b_lons, n, results);
 #endif
@@ -397,6 +404,8 @@ NK_PUBLIC void nk_vincenty_f32(                     //
     nk_vincenty_f32_neon(a_lats, a_lons, b_lats, b_lons, n, results);
 #elif NK_TARGET_V128RELAXED
     nk_vincenty_f32_v128relaxed(a_lats, a_lons, b_lats, b_lons, n, results);
+#elif NK_TARGET_RVV
+    nk_vincenty_f32_rvv(a_lats, a_lons, b_lats, b_lons, n, results);
 #else
     nk_vincenty_f32_serial(a_lats, a_lons, b_lats, b_lons, n, results);
 #endif

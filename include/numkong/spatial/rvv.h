@@ -789,9 +789,6 @@ NK_PUBLIC void nk_angular_i4_rvv(nk_i4x2_t const *a_scalars, nk_i4x2_t const *b_
     vuint32m4_t a_norm_sq_u32m4 = __riscv_vmv_v_x_u32m4(0, vlmax);
     vuint32m4_t b_norm_sq_u32m4 = __riscv_vmv_v_x_u32m4(0, vlmax);
 
-    // Load 16-entry squaring LUT for vrgather
-    vuint8m1_t sq_lut_u8m1 = __riscv_vle8_v_u8m1(nk_i4_sq_lut_, 16);
-
     for (nk_size_t vector_length; n_bytes > 0;
          n_bytes -= vector_length, a_scalars += vector_length, b_scalars += vector_length) {
         vector_length = __riscv_vsetvl_e8m1(n_bytes);
@@ -815,14 +812,14 @@ NK_PUBLIC void nk_angular_i4_rvv(nk_i4x2_t const *a_scalars, nk_i4x2_t const *b_
         vint16m2_t dot_combined_i16m2 = __riscv_vwadd_vv_i16m2(dot_hi_i8m1, dot_lo_i8m1, vector_length);
         dot_i32m4 = __riscv_vwadd_wv_i32m4(dot_i32m4, dot_combined_i16m2, vector_length);
 
-        // Norms via 16-entry squaring LUT + vrgather (1 cycle at LMUL=1)
-        vuint8m1_t a_hi_sq_u8m1 = __riscv_vrgather_vv_u8m1(sq_lut_u8m1, a_hi_u8m1, vector_length);
-        vuint8m1_t a_lo_sq_u8m1 = __riscv_vrgather_vv_u8m1(sq_lut_u8m1, a_lo_u8m1, vector_length);
+        // Norms via 16-entry squaring LUT + vluxei8
+        vuint8m1_t a_hi_sq_u8m1 = __riscv_vluxei8_v_u8m1(nk_i4_sq_lut_, a_hi_u8m1, vector_length);
+        vuint8m1_t a_lo_sq_u8m1 = __riscv_vluxei8_v_u8m1(nk_i4_sq_lut_, a_lo_u8m1, vector_length);
         vuint16m2_t a_sq_combined_u16m2 = __riscv_vwaddu_vv_u16m2(a_hi_sq_u8m1, a_lo_sq_u8m1, vector_length);
         a_norm_sq_u32m4 = __riscv_vwaddu_wv_u32m4(a_norm_sq_u32m4, a_sq_combined_u16m2, vector_length);
 
-        vuint8m1_t b_hi_sq_u8m1 = __riscv_vrgather_vv_u8m1(sq_lut_u8m1, b_hi_u8m1, vector_length);
-        vuint8m1_t b_lo_sq_u8m1 = __riscv_vrgather_vv_u8m1(sq_lut_u8m1, b_lo_u8m1, vector_length);
+        vuint8m1_t b_hi_sq_u8m1 = __riscv_vluxei8_v_u8m1(nk_i4_sq_lut_, b_hi_u8m1, vector_length);
+        vuint8m1_t b_lo_sq_u8m1 = __riscv_vluxei8_v_u8m1(nk_i4_sq_lut_, b_lo_u8m1, vector_length);
         vuint16m2_t b_sq_combined_u16m2 = __riscv_vwaddu_vv_u16m2(b_hi_sq_u8m1, b_lo_sq_u8m1, vector_length);
         b_norm_sq_u32m4 = __riscv_vwaddu_wv_u32m4(b_norm_sq_u32m4, b_sq_combined_u16m2, vector_length);
     }
@@ -927,9 +924,6 @@ NK_PUBLIC void nk_angular_u4_rvv(nk_u4x2_t const *a_scalars, nk_u4x2_t const *b_
     vuint32m4_t a_norm_sq_u32m4 = __riscv_vmv_v_x_u32m4(0, vlmax);
     vuint32m4_t b_norm_sq_u32m4 = __riscv_vmv_v_x_u32m4(0, vlmax);
 
-    // Load 16-entry squaring LUT for vrgather
-    vuint8m1_t sq_lut_u8m1 = __riscv_vle8_v_u8m1(nk_u4_sq_lut_, 16);
-
     for (nk_size_t vector_length; n_bytes > 0;
          n_bytes -= vector_length, a_scalars += vector_length, b_scalars += vector_length) {
         vector_length = __riscv_vsetvl_e8m1(n_bytes);
@@ -953,14 +947,14 @@ NK_PUBLIC void nk_angular_u4_rvv(nk_u4x2_t const *a_scalars, nk_u4x2_t const *b_
         vuint16m2_t dot_combined_u16m2 = __riscv_vwaddu_vv_u16m2(dot_hi_u8m1, dot_lo_u8m1, vector_length);
         dot_u32m4 = __riscv_vwaddu_wv_u32m4(dot_u32m4, dot_combined_u16m2, vector_length);
 
-        // Norms via 16-entry squaring LUT + vrgather
-        vuint8m1_t a_hi_sq_u8m1 = __riscv_vrgather_vv_u8m1(sq_lut_u8m1, a_hi_u8m1, vector_length);
-        vuint8m1_t a_lo_sq_u8m1 = __riscv_vrgather_vv_u8m1(sq_lut_u8m1, a_lo_u8m1, vector_length);
+        // Norms via 16-entry squaring LUT + vluxei8
+        vuint8m1_t a_hi_sq_u8m1 = __riscv_vluxei8_v_u8m1(nk_u4_sq_lut_, a_hi_u8m1, vector_length);
+        vuint8m1_t a_lo_sq_u8m1 = __riscv_vluxei8_v_u8m1(nk_u4_sq_lut_, a_lo_u8m1, vector_length);
         vuint16m2_t a_sq_combined_u16m2 = __riscv_vwaddu_vv_u16m2(a_hi_sq_u8m1, a_lo_sq_u8m1, vector_length);
         a_norm_sq_u32m4 = __riscv_vwaddu_wv_u32m4(a_norm_sq_u32m4, a_sq_combined_u16m2, vector_length);
 
-        vuint8m1_t b_hi_sq_u8m1 = __riscv_vrgather_vv_u8m1(sq_lut_u8m1, b_hi_u8m1, vector_length);
-        vuint8m1_t b_lo_sq_u8m1 = __riscv_vrgather_vv_u8m1(sq_lut_u8m1, b_lo_u8m1, vector_length);
+        vuint8m1_t b_hi_sq_u8m1 = __riscv_vluxei8_v_u8m1(nk_u4_sq_lut_, b_hi_u8m1, vector_length);
+        vuint8m1_t b_lo_sq_u8m1 = __riscv_vluxei8_v_u8m1(nk_u4_sq_lut_, b_lo_u8m1, vector_length);
         vuint16m2_t b_sq_combined_u16m2 = __riscv_vwaddu_vv_u16m2(b_hi_sq_u8m1, b_lo_sq_u8m1, vector_length);
         b_norm_sq_u32m4 = __riscv_vwaddu_wv_u32m4(b_norm_sq_u32m4, b_sq_combined_u16m2, vector_length);
     }
