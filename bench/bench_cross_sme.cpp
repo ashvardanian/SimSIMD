@@ -56,11 +56,11 @@ void bench_cross_sme() {
 
 #if NK_TARGET_SMEF64
 
-    dots_<f32_k_, f32_k_>("dots_packed_f32_smef64", nk_dots_packed_size_f32_smef64, nk_dots_pack_f32_smef64,
-                          nk_dots_packed_f32_smef64);
+    dots_<f32_k, f32_k>("dots_packed_f32_smef64", nk_dots_packed_size_f32_smef64, nk_dots_pack_f32_smef64,
+                        nk_dots_packed_f32_smef64);
     dots_<f64_k, f64_k>("dots_packed_f64_smef64", nk_dots_packed_size_f64_smef64, nk_dots_pack_f64_smef64,
                         nk_dots_packed_f64_smef64);
-    dots_symmetric_<f32_k_, f32_k_>("dots_symmetric_f32_smef64", nk_dots_symmetric_f32_smef64);
+    dots_symmetric_<f32_k, f32_k>("dots_symmetric_f32_smef64", nk_dots_symmetric_f32_smef64);
     dots_symmetric_<f64_k, f64_k>("dots_symmetric_f64_smef64", nk_dots_symmetric_f64_smef64);
 #endif
 }
