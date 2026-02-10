@@ -161,6 +161,7 @@ NK_DYNAMIC void nk_hammings_symmetric_u32(nk_u32_t const *vectors, nk_size_t n_v
 #include "numkong/sets/neon.h"
 #include "numkong/sets/icelake.h"
 #include "numkong/sets/haswell.h"
+#include "numkong/sets/smebi32.h"
 
 #if defined(__cplusplus)
 extern "C" {
