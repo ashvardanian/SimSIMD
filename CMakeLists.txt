@@ -468,22 +468,30 @@ if(NK_BUILD_SHARED)
 
         add_executable(nk_shared ${NK_SOURCES} "${CMAKE_BINARY_DIR}/emscripten_stub.c")
         target_include_directories(nk_shared PUBLIC "${PROJECT_SOURCE_DIR}/include")
-        set_target_properties(nk_shared PROPERTIES OUTPUT_NAME "numkong")
+        set_target_properties(nk_shared PROPERTIES
+            OUTPUT_NAME "numkong"
+            SUFFIX ".js" # Generates numkong.js + numkong.wasm
+        )
 
         target_link_options(nk_shared PRIVATE
             "SHELL:-s EXPORT_ES6=1" # Generate ES6 module
             "SHELL:-s MODULARIZE=1" # Wrap in module factory
             "SHELL:-s EXPORT_NAME=NumKongModule" # Export name
-            "SHELL:-s EXPORTED_FUNCTIONS=_malloc,_free" # Memory management
-            "SHELL:-s EXPORTED_RUNTIME_METHODS=ccall,cwrap,getValue,setValue" # Runtime helpers
+            "SHELL:-s EXPORTED_FUNCTIONS=_malloc,_free,_nk_dot_f32,_nk_dot_f64,_nk_dot_f16,_nk_dot_bf16,_nk_dot_i8,_nk_dot_u8,_nk_angular_f32,_nk_angular_f64,_nk_angular_f16,_nk_angular_bf16,_nk_angular_i8,_nk_angular_u8,_nk_sqeuclidean_f32,_nk_sqeuclidean_f64,_nk_sqeuclidean_f16,_nk_sqeuclidean_bf16,_nk_sqeuclidean_i8,_nk_sqeuclidean_u8,_nk_euclidean_f32,_nk_euclidean_f64,_nk_euclidean_f16,_nk_euclidean_bf16,_nk_euclidean_i8,_nk_euclidean_u8,_nk_hamming_u1,_nk_hamming_u8,_nk_jaccard_u1,_nk_jaccard_u16,_nk_kld_f32,_nk_kld_f64,_nk_jsd_f32,_nk_jsd_f64,_nk_capabilities" # Direct exports (35 functions)
+            "SHELL:-s EXPORTED_RUNTIME_METHODS=wasmMemory" # Export memory object
             "SHELL:-s ALLOW_MEMORY_GROWTH=1" # Dynamic memory
             "SHELL:-s ENVIRONMENT=web,node" # Both browser and Node.js
+            "SHELL:-s SINGLE_FILE=0" # Separate .wasm file (recommended)
+            "SHELL:-s EXPORT_ALL=0" # Security - don't export everything
+            "SHELL:-s STANDALONE_WASM=0" # Keep JS wrapper (required for browser)
+            "SHELL:-s INITIAL_MEMORY=16MB" # Initial heap size
+            "SHELL:-s STACK_SIZE=5MB" # Stack size for recursion
         )
+    else()
+        add_library(nk_shared SHARED ${NK_SOURCES})
+        target_include_directories(nk_shared PUBLIC "${PROJECT_SOURCE_DIR}/include")
+        set_target_properties(nk_shared PROPERTIES OUTPUT_NAME numkong)
     endif()
-
-    add_library(nk_shared SHARED ${NK_SOURCES})
-    target_include_directories(nk_shared PUBLIC "${PROJECT_SOURCE_DIR}/include")
-    set_target_properties(nk_shared PROPERTIES OUTPUT_NAME numkong)
 
     install(
         TARGETS nk_shared

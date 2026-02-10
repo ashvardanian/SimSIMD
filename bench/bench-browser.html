@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NumKong Browser Benchmarks</title>
+    <style>
+        body {
+            font-family: 'Courier New', monospace;
+            max-width: 1200px;
+            margin: 40px auto;
+            padding: 20px;
+            background: #1e1e1e;
+            color: #d4d4d4;
+        }
+
+        h1 {
+            color: #4ec9b0;
+            border-bottom: 2px solid #4ec9b0;
+            padding-bottom: 10px;
+        }
+
+        h2 {
+            color: #569cd6;
+            margin-top: 30px;
+        }
+
+        #progress {
+            background: #264f78;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 20px 0;
+            font-weight: bold;
+        }
+
+        #results {
+            background: #252526;
+            padding: 20px;
+            border-radius: 5px;
+            margin-top: 20px;
+        }
+
+        .result-row {
+            padding: 8px 0;
+            border-bottom: 1px solid #3e3e42;
+        }
+
+        .result-row:last-child {
+            border-bottom: none;
+        }
+
+        .test-name {
+            color: #ce9178;
+            display: inline-block;
+            width: 250px;
+        }
+
+        .ops-sec {
+            color: #b5cea8;
+            display: inline-block;
+            width: 150px;
+            text-align: right;
+        }
+
+        .time {
+            color: #9cdcfe;
+            display: inline-block;
+            margin-left: 20px;
+        }
+
+        .error {
+            color: #f48771;
+            background: #5a1d1d;
+            padding: 10px;
+            border-radius: 5px;
+            margin: 10px 0;
+        }
+
+        .complete {
+            color: #4ec9b0;
+            font-weight: bold;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>NumKong Browser Benchmarks</h1>
+
+    <div id="config">
+        <h2>Configuration</h2>
+        <div id="config-info">Loading...</div>
+    </div>
+
+    <div id="progress">Initializing NumKong WASM module...</div>
+
+    <div id="results"></div>
+
+    <script src="https://cdn.jsdelivr.net/npm/benchmark@2.1.4/benchmark.min.js"></script>
+    <script type="module">
+        // Configuration from URL parameters or defaults
+        const urlParams = new URLSearchParams(window.location.search);
+        const CONFIG = {
+            dimensions: parseInt(urlParams.get('dimensions') || '1536'),
+            filter: new RegExp(urlParams.get('filter') || '.*'),
+            seed: parseInt(urlParams.get('seed') || '42')
+        };
+
+        // Benchmark matrix (same as bench-multi-runtime.mjs)
+        const BENCHMARK_MATRIX = {
+            functions: ['dot', 'inner', 'angular', 'sqeuclidean', 'euclidean', 'hamming', 'jaccard', 'kullbackleibler', 'jensenshannon'],
+            dtypes: ['f64', 'f32', 'f16', 'bf16', 'e4m3', 'e5m2', 'i8', 'u8', 'u1'],
+        };
+
+        const FUNCTION_DTYPE_SUPPORT = {
+            'dot': ['f64', 'f32', 'f16', 'bf16', 'e4m3', 'e5m2', 'i8', 'u8'],
+            'inner': ['f64', 'f32', 'f16', 'bf16', 'e4m3', 'e5m2', 'i8', 'u8'],
+            'angular': ['f64', 'f32', 'f16', 'bf16', 'e4m3', 'e5m2', 'i8'],
+            'sqeuclidean': ['f64', 'f32', 'f16', 'bf16', 'e4m3', 'e5m2', 'i8', 'u8'],
+            'euclidean': ['f64', 'f32', 'f16', 'bf16', 'e4m3', 'e5m2', 'i8', 'u8'],
+            'hamming': ['u1'],
+            'jaccard': ['u1'],
+            'kullbackleibler': ['f64', 'f32'],
+            'jensenshannon': ['f64', 'f32']
+        };
+
+        // Simple PRNG for reproducible benchmarks
+        class Random {
+            constructor(seed) {
+                this.seed = seed;
+            }
+
+            next() {
+                this.seed = (this.seed * 1103515245 + 12345) & 0x7fffffff;
+                return this.seed / 0x7fffffff;
+            }
+        }
+
+        // Generate test data
+        function generateTestData(dtype, length, seed) {
+            const rng = new Random(seed);
+
+            switch (dtype) {
+                case 'f64':
+                    return Float64Array.from({ length }, () => rng.next() * 2 - 1);
+                case 'f32':
+                    return Float32Array.from({ length }, () => rng.next() * 2 - 1);
+                case 'f16':
+                case 'bf16':
+                case 'e4m3':
+                case 'e5m2':
+                    return Float32Array.from({ length }, () => rng.next() * 2 - 1);
+                case 'i8':
+                    return Int8Array.from({ length }, () => Math.floor(rng.next() * 256) - 128);
+                case 'u8':
+                    return Uint8Array.from({ length }, () => Math.floor(rng.next() * 256));
+                case 'u1':
+                    const byteLength = Math.ceil(length / 8);
+                    return Uint8Array.from({ length: byteLength }, () => Math.floor(rng.next() * 256));
+                default:
+                    throw new Error(`Unknown dtype: ${dtype}`);
+            }
+        }
+
+        // Update UI
+        function updateProgress(message) {
+            document.getElementById('progress').textContent = message;
+        }
+
+        function addResult(testName, opsPerSec, meanTime, stdDev) {
+            const resultsDiv = document.getElementById('results');
+            const row = document.createElement('div');
+            row.className = 'result-row';
+            row.innerHTML = `
+                <span class="test-name">${testName}</span>
+                <span class="ops-sec">${opsPerSec.toFixed(0).padStart(10)} ops/sec</span>
+                <span class="time">(${meanTime.toFixed(3)}ms ± ${stdDev.toFixed(3)}ms)</span>
+            `;
+            resultsDiv.appendChild(row);
+        }
+
+        function showError(message) {
+            const resultsDiv = document.getElementById('results');
+            const errorDiv = document.createElement('div');
+            errorDiv.className = 'error';
+            errorDiv.textContent = `❌ Error: ${message}`;
+            resultsDiv.appendChild(errorDiv);
+        }
+
+        // Main benchmark execution
+        async function runBenchmarks() {
+            try {
+                // Display configuration
+                document.getElementById('config-info').innerHTML = `
+                    <div>Dimensions: ${CONFIG.dimensions}</div>
+                    <div>Filter: ${CONFIG.filter.source}</div>
+                    <div>Seed: ${CONFIG.seed}</div>
+                    <div>Runtime: Browser (Chromium)</div>
+                `;
+
+                // Load NumKong WASM module
+                updateProgress('Loading NumKong WASM module...');
+
+                const wasmPath = '../build-wasm/numkong_js.js';
+                const NumKongModule = await import(wasmPath);
+                const numkong = await NumKongModule.default();
+
+                updateProgress('NumKong WASM loaded successfully. Running benchmarks...');
+
+                const results = [];
+                let testCount = 0;
+                let totalTests = 0;
+
+                // Count total tests
+                for (const func of BENCHMARK_MATRIX.functions) {
+                    const supportedDtypes = FUNCTION_DTYPE_SUPPORT[func] || [];
+                    for (const dtype of supportedDtypes) {
+                        const testName = `${func}-${dtype}`;
+                        if (CONFIG.filter.test(testName)) {
+                            totalTests++;
+                        }
+                    }
+                }
+
+                // Run benchmarks
+                for (const func of BENCHMARK_MATRIX.functions) {
+                    const supportedDtypes = FUNCTION_DTYPE_SUPPORT[func] || [];
+
+                    for (const dtype of supportedDtypes) {
+                        const testName = `${func}-${dtype}`;
+
+                        // Apply filter
+                        if (!CONFIG.filter.test(testName)) {
+                            continue;
+                        }
+
+                        testCount++;
+                        updateProgress(`Running ${testCount}/${totalTests}: ${testName}...`);
+
+                        // Generate test data
+                        const a = generateTestData(dtype, CONFIG.dimensions, CONFIG.seed);
+                        const b = generateTestData(dtype, CONFIG.dimensions, CONFIG.seed + 1);
+
+                        // Run benchmark
+                        await new Promise((resolve) => {
+                            const suite = new Benchmark.Suite();
+
+                            suite.add(testName, () => {
+                                numkong[func](a, b);
+                            });
+
+                            suite.on('cycle', (event) => {
+                                const bench = event.target;
+                                const opsPerSec = bench.hz;
+                                const meanTime = bench.stats.mean * 1000; // ms
+                                const stdDev = bench.stats.deviation * 1000; // ms
+
+                                addResult(testName, opsPerSec, meanTime, stdDev);
+
+                                results.push({
+                                    function: func,
+                                    dtype: dtype,
+                                    runtime: 'browser',
+                                    dimensions: CONFIG.dimensions,
+                                    opsPerSec: opsPerSec,
+                                    meanTime: meanTime,
+                                    stdDev: stdDev,
+                                    timestamp: new Date().toISOString()
+                                });
+                            });
+
+                            suite.on('complete', resolve);
+
+                            suite.run({ async: false });
+                        });
+                    }
+                }
+
+                // Make results available to Playwright
+                window.benchmarkResults = results;
+                window.benchmarkComplete = true;
+
+                updateProgress(`✅ Benchmark complete! Total tests run: ${results.length}`);
+
+                const completeDiv = document.createElement('div');
+                completeDiv.className = 'complete';
+                completeDiv.style.marginTop = '20px';
+                completeDiv.textContent = `All ${results.length} benchmarks completed successfully.`;
+                document.getElementById('results').appendChild(completeDiv);
+
+            } catch (error) {
+                showError(error.message);
+                updateProgress(`❌ Benchmark failed: ${error.message}`);
+                window.benchmarkError = error.message;
+                window.benchmarkComplete = true;
+            }
+        }
+
+        // Start benchmarks when page loads
+        runBenchmarks();
+    </script>
+</body>
+
+</html>

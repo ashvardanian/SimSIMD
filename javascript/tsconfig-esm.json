@@ -3,6 +3,6 @@
     "compilerOptions": {
         "module": "esnext",
         "outDir": "dist/esm",
-        "target": "esnext"
+        "target": "ES2020"
     }
 }
