@@ -161,13 +161,13 @@ nk_dot_e4m3_neonbfdot_cycle:
         nk_b64_vec_t a_vec, b_vec;
         nk_partial_load_b8x8_serial_(a_scalars, &a_vec, count_scalars);
         nk_partial_load_b8x8_serial_(b_scalars, &b_vec, count_scalars);
-        a_bf16x8 = nk_e4m3x8_to_bf16x8_neon_(a_vec.u8x8);
-        b_bf16x8 = nk_e4m3x8_to_bf16x8_neon_(b_vec.u8x8);
+        a_bf16x8 = vreinterpretq_bf16_u16(nk_e4m3x8_to_bf16x8_neon_(a_vec.u8x8));
+        b_bf16x8 = vreinterpretq_bf16_u16(nk_e4m3x8_to_bf16x8_neon_(b_vec.u8x8));
         count_scalars = 0;
     }
     else {
-        a_bf16x8 = nk_e4m3x8_to_bf16x8_neon_(vld1_u8(a_scalars));
-        b_bf16x8 = nk_e4m3x8_to_bf16x8_neon_(vld1_u8(b_scalars));
+        a_bf16x8 = vreinterpretq_bf16_u16(nk_e4m3x8_to_bf16x8_neon_(vld1_u8(a_scalars)));
+        b_bf16x8 = vreinterpretq_bf16_u16(nk_e4m3x8_to_bf16x8_neon_(vld1_u8(b_scalars)));
         a_scalars += 8, b_scalars += 8, count_scalars -= 8;
     }
     sum_f32x4 = vbfdotq_f32(sum_f32x4, a_bf16x8, b_bf16x8);
@@ -184,13 +184,13 @@ nk_dot_e5m2_neonbfdot_cycle:
         nk_b64_vec_t a_vec, b_vec;
         nk_partial_load_b8x8_serial_(a_scalars, &a_vec, count_scalars);
         nk_partial_load_b8x8_serial_(b_scalars, &b_vec, count_scalars);
-        a_bf16x8 = nk_e5m2x8_to_bf16x8_neon_(a_vec.u8x8);
-        b_bf16x8 = nk_e5m2x8_to_bf16x8_neon_(b_vec.u8x8);
+        a_bf16x8 = vreinterpretq_bf16_u16(nk_e5m2x8_to_bf16x8_neon_(a_vec.u8x8));
+        b_bf16x8 = vreinterpretq_bf16_u16(nk_e5m2x8_to_bf16x8_neon_(b_vec.u8x8));
         count_scalars = 0;
     }
     else {
-        a_bf16x8 = nk_e5m2x8_to_bf16x8_neon_(vld1_u8(a_scalars));
-        b_bf16x8 = nk_e5m2x8_to_bf16x8_neon_(vld1_u8(b_scalars));
+        a_bf16x8 = vreinterpretq_bf16_u16(nk_e5m2x8_to_bf16x8_neon_(vld1_u8(a_scalars)));
+        b_bf16x8 = vreinterpretq_bf16_u16(nk_e5m2x8_to_bf16x8_neon_(vld1_u8(b_scalars)));
         a_scalars += 8, b_scalars += 8, count_scalars -= 8;
     }
     sum_f32x4 = vbfdotq_f32(sum_f32x4, a_bf16x8, b_bf16x8);

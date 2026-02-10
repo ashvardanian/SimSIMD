@@ -244,10 +244,16 @@ NK_PUBLIC void nk_dot_f64c_neon(nk_f64c_t const *a, nk_f64c_t const *b, nk_size_
 /** @copydoc nk_vdot_f64c */
 NK_PUBLIC void nk_vdot_f64c_neon(nk_f64c_t const *a, nk_f64c_t const *b, nk_size_t n, nk_f64c_t *result);
 
+/** @copydoc nk_dot_bf16 */
+NK_PUBLIC void nk_dot_bf16_neon(nk_bf16_t const *a, nk_bf16_t const *b, nk_size_t n, nk_f32_t *result);
 /** @copydoc nk_dot_e4m3 */
 NK_PUBLIC void nk_dot_e4m3_neon(nk_e4m3_t const *a, nk_e4m3_t const *b, nk_size_t n, nk_f32_t *result);
 /** @copydoc nk_dot_e5m2 */
 NK_PUBLIC void nk_dot_e5m2_neon(nk_e5m2_t const *a, nk_e5m2_t const *b, nk_size_t n, nk_f32_t *result);
+/** @copydoc nk_dot_e2m3 */
+NK_PUBLIC void nk_dot_e2m3_neon(nk_e2m3_t const *a, nk_e2m3_t const *b, nk_size_t n, nk_f32_t *result);
+/** @copydoc nk_dot_e3m2 */
+NK_PUBLIC void nk_dot_e3m2_neon(nk_e3m2_t const *a, nk_e3m2_t const *b, nk_size_t n, nk_f32_t *result);
 #endif // NK_TARGET_NEON
 
 #if NK_TARGET_NEONHALF
@@ -582,6 +588,8 @@ NK_PUBLIC void nk_dot_bf16(nk_bf16_t const *a, nk_bf16_t const *b, nk_size_t n, 
     nk_dot_bf16_haswell(a, b, n, result);
 #elif NK_TARGET_NEONBFDOT
     nk_dot_bf16_neonbfdot(a, b, n, result);
+#elif NK_TARGET_NEON
+    nk_dot_bf16_neon(a, b, n, result);
 #else
     nk_dot_bf16_serial(a, b, n, result);
 #endif

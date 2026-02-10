@@ -454,49 +454,165 @@ NK_INTERNAL void nk_dot_f64x2_finalize_neon(                                    
 
 #pragma region - Smaller Floats
 
+NK_PUBLIC void nk_dot_bf16_neon(nk_bf16_t const *a_scalars, nk_bf16_t const *b_scalars, nk_size_t count_scalars,
+                                nk_f32_t *result) {
+    float32x4_t sum_f32x4 = vdupq_n_f32(0);
+    nk_size_t idx = 0;
+    for (; idx + 8 <= count_scalars; idx += 8) {
+        uint16x8_t a_u16x8 = vld1q_u16((nk_u16_t const *)(a_scalars + idx));
+        uint16x8_t b_u16x8 = vld1q_u16((nk_u16_t const *)(b_scalars + idx));
+        float32x4_t a_low_f32x4 = vreinterpretq_f32_u32(vshll_n_u16(vget_low_u16(a_u16x8), 16));
+        float32x4_t a_high_f32x4 = vreinterpretq_f32_u32(vshll_n_u16(vget_high_u16(a_u16x8), 16));
+        float32x4_t b_low_f32x4 = vreinterpretq_f32_u32(vshll_n_u16(vget_low_u16(b_u16x8), 16));
+        float32x4_t b_high_f32x4 = vreinterpretq_f32_u32(vshll_n_u16(vget_high_u16(b_u16x8), 16));
+        sum_f32x4 = vfmaq_f32(sum_f32x4, a_low_f32x4, b_low_f32x4);
+        sum_f32x4 = vfmaq_f32(sum_f32x4, a_high_f32x4, b_high_f32x4);
+    }
+    if (idx < count_scalars) {
+        nk_b128_vec_t a_vec, b_vec;
+        nk_partial_load_b16x8_serial_(a_scalars + idx, &a_vec, count_scalars - idx);
+        nk_partial_load_b16x8_serial_(b_scalars + idx, &b_vec, count_scalars - idx);
+        float32x4_t a_low_f32x4 = vreinterpretq_f32_u32(vshll_n_u16(vget_low_u16(a_vec.u16x8), 16));
+        float32x4_t a_high_f32x4 = vreinterpretq_f32_u32(vshll_n_u16(vget_high_u16(a_vec.u16x8), 16));
+        float32x4_t b_low_f32x4 = vreinterpretq_f32_u32(vshll_n_u16(vget_low_u16(b_vec.u16x8), 16));
+        float32x4_t b_high_f32x4 = vreinterpretq_f32_u32(vshll_n_u16(vget_high_u16(b_vec.u16x8), 16));
+        sum_f32x4 = vfmaq_f32(sum_f32x4, a_low_f32x4, b_low_f32x4);
+        sum_f32x4 = vfmaq_f32(sum_f32x4, a_high_f32x4, b_high_f32x4);
+    }
+    *result = vaddvq_f32(sum_f32x4);
+}
+
 NK_PUBLIC void nk_dot_e4m3_neon(nk_e4m3_t const *a_scalars, nk_e4m3_t const *b_scalars, nk_size_t count_scalars,
                                 nk_f32_t *result) {
-    float32x4_t a_f32x4, b_f32x4;
     float32x4_t sum_f32x4 = vdupq_n_f32(0);
-    nk_b32_vec_t a_vec, b_vec;
-nk_dot_e4m3_neon_cycle:
-    if (count_scalars < 4) {
-        a_vec = nk_partial_load_b8x4_serial_(a_scalars, count_scalars);
-        b_vec = nk_partial_load_b8x4_serial_(b_scalars, count_scalars);
-        count_scalars = 0;
+    nk_size_t idx = 0;
+    for (; idx + 8 <= count_scalars; idx += 8) {
+        float16x8_t a_f16x8 = nk_e4m3x8_to_f16x8_neon_(vld1_u8(a_scalars + idx));
+        float16x8_t b_f16x8 = nk_e4m3x8_to_f16x8_neon_(vld1_u8(b_scalars + idx));
+        float32x4_t a_low_f32x4 = vcvt_f32_f16(vget_low_f16(a_f16x8));
+        float32x4_t a_high_f32x4 = vcvt_f32_f16(vget_high_f16(a_f16x8));
+        float32x4_t b_low_f32x4 = vcvt_f32_f16(vget_low_f16(b_f16x8));
+        float32x4_t b_high_f32x4 = vcvt_f32_f16(vget_high_f16(b_f16x8));
+        sum_f32x4 = vfmaq_f32(sum_f32x4, a_low_f32x4, b_low_f32x4);
+        sum_f32x4 = vfmaq_f32(sum_f32x4, a_high_f32x4, b_high_f32x4);
     }
-    else {
-        nk_load_b32_serial_(a_scalars, &a_vec);
-        nk_load_b32_serial_(b_scalars, &b_vec);
-        a_scalars += 4, b_scalars += 4, count_scalars -= 4;
+    if (idx < count_scalars) {
+        nk_b64_vec_t a_vec, b_vec;
+        nk_partial_load_b8x8_serial_(a_scalars + idx, &a_vec, count_scalars - idx);
+        nk_partial_load_b8x8_serial_(b_scalars + idx, &b_vec, count_scalars - idx);
+        float16x8_t a_f16x8 = nk_e4m3x8_to_f16x8_neon_(a_vec.u8x8);
+        float16x8_t b_f16x8 = nk_e4m3x8_to_f16x8_neon_(b_vec.u8x8);
+        float32x4_t a_low_f32x4 = vcvt_f32_f16(vget_low_f16(a_f16x8));
+        float32x4_t a_high_f32x4 = vcvt_f32_f16(vget_high_f16(a_f16x8));
+        float32x4_t b_low_f32x4 = vcvt_f32_f16(vget_low_f16(b_f16x8));
+        float32x4_t b_high_f32x4 = vcvt_f32_f16(vget_high_f16(b_f16x8));
+        sum_f32x4 = vfmaq_f32(sum_f32x4, a_low_f32x4, b_low_f32x4);
+        sum_f32x4 = vfmaq_f32(sum_f32x4, a_high_f32x4, b_high_f32x4);
     }
-    a_f32x4 = nk_e4m3x4_to_f32x4_neon_(a_vec);
-    b_f32x4 = nk_e4m3x4_to_f32x4_neon_(b_vec);
-    sum_f32x4 = vfmaq_f32(sum_f32x4, a_f32x4, b_f32x4);
-    if (count_scalars) goto nk_dot_e4m3_neon_cycle;
     *result = vaddvq_f32(sum_f32x4);
 }
 
 NK_PUBLIC void nk_dot_e5m2_neon(nk_e5m2_t const *a_scalars, nk_e5m2_t const *b_scalars, nk_size_t count_scalars,
                                 nk_f32_t *result) {
-    float32x4_t a_f32x4, b_f32x4;
     float32x4_t sum_f32x4 = vdupq_n_f32(0);
-    nk_b32_vec_t a_vec, b_vec;
-nk_dot_e5m2_neon_cycle:
-    if (count_scalars < 4) {
-        a_vec = nk_partial_load_b8x4_serial_(a_scalars, count_scalars);
-        b_vec = nk_partial_load_b8x4_serial_(b_scalars, count_scalars);
-        count_scalars = 0;
+    nk_size_t idx = 0;
+    for (; idx + 8 <= count_scalars; idx += 8) {
+        float16x8_t a_f16x8 = vreinterpretq_f16_u16(vshll_n_u8(vld1_u8(a_scalars + idx), 8));
+        float16x8_t b_f16x8 = vreinterpretq_f16_u16(vshll_n_u8(vld1_u8(b_scalars + idx), 8));
+        float32x4_t a_low_f32x4 = vcvt_f32_f16(vget_low_f16(a_f16x8));
+        float32x4_t a_high_f32x4 = vcvt_f32_f16(vget_high_f16(a_f16x8));
+        float32x4_t b_low_f32x4 = vcvt_f32_f16(vget_low_f16(b_f16x8));
+        float32x4_t b_high_f32x4 = vcvt_f32_f16(vget_high_f16(b_f16x8));
+        sum_f32x4 = vfmaq_f32(sum_f32x4, a_low_f32x4, b_low_f32x4);
+        sum_f32x4 = vfmaq_f32(sum_f32x4, a_high_f32x4, b_high_f32x4);
     }
-    else {
-        nk_load_b32_serial_(a_scalars, &a_vec);
-        nk_load_b32_serial_(b_scalars, &b_vec);
-        a_scalars += 4, b_scalars += 4, count_scalars -= 4;
+    if (idx < count_scalars) {
+        nk_b64_vec_t a_vec, b_vec;
+        nk_partial_load_b8x8_serial_(a_scalars + idx, &a_vec, count_scalars - idx);
+        nk_partial_load_b8x8_serial_(b_scalars + idx, &b_vec, count_scalars - idx);
+        float16x8_t a_f16x8 = vreinterpretq_f16_u16(vshll_n_u8(a_vec.u8x8, 8));
+        float16x8_t b_f16x8 = vreinterpretq_f16_u16(vshll_n_u8(b_vec.u8x8, 8));
+        float32x4_t a_low_f32x4 = vcvt_f32_f16(vget_low_f16(a_f16x8));
+        float32x4_t a_high_f32x4 = vcvt_f32_f16(vget_high_f16(a_f16x8));
+        float32x4_t b_low_f32x4 = vcvt_f32_f16(vget_low_f16(b_f16x8));
+        float32x4_t b_high_f32x4 = vcvt_f32_f16(vget_high_f16(b_f16x8));
+        sum_f32x4 = vfmaq_f32(sum_f32x4, a_low_f32x4, b_low_f32x4);
+        sum_f32x4 = vfmaq_f32(sum_f32x4, a_high_f32x4, b_high_f32x4);
     }
-    a_f32x4 = nk_e5m2x4_to_f32x4_neon_(a_vec);
-    b_f32x4 = nk_e5m2x4_to_f32x4_neon_(b_vec);
-    sum_f32x4 = vfmaq_f32(sum_f32x4, a_f32x4, b_f32x4);
-    if (count_scalars) goto nk_dot_e5m2_neon_cycle;
+    *result = vaddvq_f32(sum_f32x4);
+}
+
+NK_PUBLIC void nk_dot_e2m3_neon(nk_e2m3_t const *a_scalars, nk_e2m3_t const *b_scalars, nk_size_t count_scalars,
+                                nk_f32_t *result) {
+    float32x4_t sum_f32x4 = vdupq_n_f32(0);
+    nk_size_t idx = 0;
+    // x16 TBL path: process 16 elements per iteration via lookup table upcast
+    for (; idx + 16 <= count_scalars; idx += 16) {
+        float16x8_t a_low_f16x8, a_high_f16x8, b_low_f16x8, b_high_f16x8;
+        nk_e2m3x16_to_f16x8x2_neon_(vld1q_u8(a_scalars + idx), &a_low_f16x8, &a_high_f16x8);
+        nk_e2m3x16_to_f16x8x2_neon_(vld1q_u8(b_scalars + idx), &b_low_f16x8, &b_high_f16x8);
+        sum_f32x4 = vfmaq_f32(sum_f32x4, vcvt_f32_f16(vget_low_f16(a_low_f16x8)),
+                              vcvt_f32_f16(vget_low_f16(b_low_f16x8)));
+        sum_f32x4 = vfmaq_f32(sum_f32x4, vcvt_f32_f16(vget_high_f16(a_low_f16x8)),
+                              vcvt_f32_f16(vget_high_f16(b_low_f16x8)));
+        sum_f32x4 = vfmaq_f32(sum_f32x4, vcvt_f32_f16(vget_low_f16(a_high_f16x8)),
+                              vcvt_f32_f16(vget_low_f16(b_high_f16x8)));
+        sum_f32x4 = vfmaq_f32(sum_f32x4, vcvt_f32_f16(vget_high_f16(a_high_f16x8)),
+                              vcvt_f32_f16(vget_high_f16(b_high_f16x8)));
+    }
+    if (idx < count_scalars) {
+        nk_b128_vec_t a_vec, b_vec;
+        nk_partial_load_b8x16_serial_(a_scalars + idx, &a_vec, count_scalars - idx);
+        nk_partial_load_b8x16_serial_(b_scalars + idx, &b_vec, count_scalars - idx);
+        float16x8_t a_low_f16x8, a_high_f16x8, b_low_f16x8, b_high_f16x8;
+        nk_e2m3x16_to_f16x8x2_neon_(a_vec.u8x16, &a_low_f16x8, &a_high_f16x8);
+        nk_e2m3x16_to_f16x8x2_neon_(b_vec.u8x16, &b_low_f16x8, &b_high_f16x8);
+        sum_f32x4 = vfmaq_f32(sum_f32x4, vcvt_f32_f16(vget_low_f16(a_low_f16x8)),
+                              vcvt_f32_f16(vget_low_f16(b_low_f16x8)));
+        sum_f32x4 = vfmaq_f32(sum_f32x4, vcvt_f32_f16(vget_high_f16(a_low_f16x8)),
+                              vcvt_f32_f16(vget_high_f16(b_low_f16x8)));
+        sum_f32x4 = vfmaq_f32(sum_f32x4, vcvt_f32_f16(vget_low_f16(a_high_f16x8)),
+                              vcvt_f32_f16(vget_low_f16(b_high_f16x8)));
+        sum_f32x4 = vfmaq_f32(sum_f32x4, vcvt_f32_f16(vget_high_f16(a_high_f16x8)),
+                              vcvt_f32_f16(vget_high_f16(b_high_f16x8)));
+    }
+    *result = vaddvq_f32(sum_f32x4);
+}
+
+NK_PUBLIC void nk_dot_e3m2_neon(nk_e3m2_t const *a_scalars, nk_e3m2_t const *b_scalars, nk_size_t count_scalars,
+                                nk_f32_t *result) {
+    float32x4_t sum_f32x4 = vdupq_n_f32(0);
+    nk_size_t idx = 0;
+    // x16 TBL path: process 16 elements per iteration via lookup table upcast
+    for (; idx + 16 <= count_scalars; idx += 16) {
+        float16x8_t a_low_f16x8, a_high_f16x8, b_low_f16x8, b_high_f16x8;
+        nk_e3m2x16_to_f16x8x2_neon_(vld1q_u8(a_scalars + idx), &a_low_f16x8, &a_high_f16x8);
+        nk_e3m2x16_to_f16x8x2_neon_(vld1q_u8(b_scalars + idx), &b_low_f16x8, &b_high_f16x8);
+        sum_f32x4 = vfmaq_f32(sum_f32x4, vcvt_f32_f16(vget_low_f16(a_low_f16x8)),
+                              vcvt_f32_f16(vget_low_f16(b_low_f16x8)));
+        sum_f32x4 = vfmaq_f32(sum_f32x4, vcvt_f32_f16(vget_high_f16(a_low_f16x8)),
+                              vcvt_f32_f16(vget_high_f16(b_low_f16x8)));
+        sum_f32x4 = vfmaq_f32(sum_f32x4, vcvt_f32_f16(vget_low_f16(a_high_f16x8)),
+                              vcvt_f32_f16(vget_low_f16(b_high_f16x8)));
+        sum_f32x4 = vfmaq_f32(sum_f32x4, vcvt_f32_f16(vget_high_f16(a_high_f16x8)),
+                              vcvt_f32_f16(vget_high_f16(b_high_f16x8)));
+    }
+    if (idx < count_scalars) {
+        nk_b128_vec_t a_vec, b_vec;
+        nk_partial_load_b8x16_serial_(a_scalars + idx, &a_vec, count_scalars - idx);
+        nk_partial_load_b8x16_serial_(b_scalars + idx, &b_vec, count_scalars - idx);
+        float16x8_t a_low_f16x8, a_high_f16x8, b_low_f16x8, b_high_f16x8;
+        nk_e3m2x16_to_f16x8x2_neon_(a_vec.u8x16, &a_low_f16x8, &a_high_f16x8);
+        nk_e3m2x16_to_f16x8x2_neon_(b_vec.u8x16, &b_low_f16x8, &b_high_f16x8);
+        sum_f32x4 = vfmaq_f32(sum_f32x4, vcvt_f32_f16(vget_low_f16(a_low_f16x8)),
+                              vcvt_f32_f16(vget_low_f16(b_low_f16x8)));
+        sum_f32x4 = vfmaq_f32(sum_f32x4, vcvt_f32_f16(vget_high_f16(a_low_f16x8)),
+                              vcvt_f32_f16(vget_high_f16(b_low_f16x8)));
+        sum_f32x4 = vfmaq_f32(sum_f32x4, vcvt_f32_f16(vget_low_f16(a_high_f16x8)),
+                              vcvt_f32_f16(vget_low_f16(b_high_f16x8)));
+        sum_f32x4 = vfmaq_f32(sum_f32x4, vcvt_f32_f16(vget_high_f16(a_high_f16x8)),
+                              vcvt_f32_f16(vget_high_f16(b_high_f16x8)));
+    }
     *result = vaddvq_f32(sum_f32x4);
 }
 

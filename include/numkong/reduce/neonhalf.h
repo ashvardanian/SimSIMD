@@ -19,7 +19,7 @@
  *      vcgtq_f16                   FCMGT (V.8H, V.8H, V.8H)        2cy         2/cy        4/cy
  *      vbslq_f16                   BSL (V.16B, V.16B, V.16B)       2cy         2/cy        4/cy
  *      vmovl_u16                   UXTL (V.4S, V.4H)               2cy         2/cy        4/cy
- *      vbslq_s32                   BSL (V.16B, V.16B, V.16B)       2cy         2/cy        4/cy
+ *      vbslq_u32                   BSL (V.16B, V.16B, V.16B)       2cy         2/cy        4/cy
  *
  *  The ARMv8.2-FP16 extension enables native half-precision reductions, processing 8 F16 elements
  *  per vector operation. For sum reductions, accumulation is performed in F16 then converted to F32
@@ -37,6 +37,7 @@
 
 #include "numkong/types.h"
 #include "numkong/cast/neon.h"
+#include "numkong/cast/serial.h"
 
 #if defined(__cplusplus)
 extern "C" {
@@ -61,25 +62,25 @@ NK_INTERNAL nk_f32_t nk_reduce_add_f16x8_neonhalf_(float16x8_t sum_f16x8) {
 
 NK_INTERNAL void nk_reduce_add_f16_neonhalf_contiguous_( //
     nk_f16_t const *data, nk_size_t count, nk_f32_t *result) {
-    // Use native f16 arithmetic for accumulation
     float16x8_t sum_f16x8 = vdupq_n_f16(0);
+    float16x8_t data_f16x8;
     nk_size_t idx = 0;
 
-    for (; idx + 8 <= count; idx += 8) {
-        float16x8_t data_f16x8 = vld1q_f16((nk_f16_for_arm_simd_t const *)(data + idx));
-        sum_f16x8 = vaddq_f16(sum_f16x8, data_f16x8);
+nk_reduce_add_f16_neonhalf_contiguous_cycle:
+    if (idx + 8 <= count) {
+        data_f16x8 = vld1q_f16((nk_f16_for_arm_simd_t const *)(data + idx));
+        idx += 8;
     }
-
-    nk_f32_t sum = nk_reduce_add_f16x8_neonhalf_(sum_f16x8);
-
-    // Scalar tail - convert to f32
-    for (; idx < count; ++idx) {
-        nk_f32_t val;
-        nk_f16_to_f32_serial(&data[idx], &val);
-        sum += val;
+    else {
+        nk_b128_vec_t tail_vec;
+        nk_partial_load_b16x8_serial_(data + idx, &tail_vec, count - idx);
+        data_f16x8 = vreinterpretq_f16_u16(tail_vec.u16x8);
+        idx = count;
     }
+    sum_f16x8 = vaddq_f16(sum_f16x8, data_f16x8);
+    if (idx < count) goto nk_reduce_add_f16_neonhalf_contiguous_cycle;
 
-    *result = sum;
+    *result = nk_reduce_add_f16x8_neonhalf_(sum_f16x8);
 }
 
 NK_INTERNAL void nk_reduce_add_f16_neonhalf_strided_(                 //
@@ -110,14 +111,15 @@ NK_INTERNAL void nk_reduce_add_f16_neonhalf_strided_(                 //
         }
     }
 
-    nk_f32_t sum = nk_reduce_add_f16x8_neonhalf_(sum_f16x8);
-    for (; idx < count; ++idx) {
-        nk_f32_t val;
-        nk_f16_to_f32_serial(&data[idx * stride_elements], &val);
-        sum += val;
+    if (idx < count) {
+        nk_b128_vec_t tail_vec = {{0}};
+        nk_size_t remaining = count - idx;
+        for (nk_size_t k = 0; k < remaining; ++k)
+            tail_vec.u16s[k] = *(nk_u16_t const *)(data + (idx + k) * stride_elements);
+        float16x8_t data_f16x8 = vreinterpretq_f16_u16(tail_vec.u16x8);
+        sum_f16x8 = vaddq_f16(sum_f16x8, data_f16x8);
     }
-
-    *result = sum;
+    *result = nk_reduce_add_f16x8_neonhalf_(sum_f16x8);
 }
 
 NK_PUBLIC void nk_reduce_add_f16_neonhalf(                         //
@@ -135,63 +137,59 @@ NK_INTERNAL void nk_reduce_min_f16_neonhalf_contiguous_( //
     nk_f16_t const *data, nk_size_t count,               //
     nk_f32_t *min_value, nk_size_t *min_index) {
 
-    // Track min values in native f16, indices in 2x int32x4 (for 8 lanes)
     float16x8_t min_f16x8 = vdupq_n_f16(NK_F32_MAX);
-    int32x4_t min_idx_lo_i32x4 = vdupq_n_s32(0);
-    int32x4_t min_idx_hi_i32x4 = vdupq_n_s32(0);
-    int32x4_t idx_lo_i32x4 = {0, 1, 2, 3};
-    int32x4_t idx_hi_i32x4 = {4, 5, 6, 7};
-    int32x4_t step_i32x4 = vdupq_n_s32(8);
+    uint32x4_t min_idx_low_u32x4 = vdupq_n_u32(0);
+    uint32x4_t min_idx_high_u32x4 = vdupq_n_u32(0);
+    uint32x4_t idx_low_u32x4 = {0, 1, 2, 3};
+    uint32x4_t idx_high_u32x4 = {4, 5, 6, 7};
+    uint32x4_t step_u32x4 = vdupq_n_u32(8);
+    float16x8_t data_f16x8;
     nk_size_t idx = 0;
 
-    for (; idx + 8 <= count; idx += 8) {
-        float16x8_t data_f16x8 = vld1q_f16((nk_f16_for_arm_simd_t const *)(data + idx));
-        uint16x8_t lt_u16x8 = vcltq_f16(data_f16x8, min_f16x8);
-        // Split mask into low/high 4-lane portions and widen to 32-bit
-        uint16x4_t lt_lo_u16x4 = vget_low_u16(lt_u16x8);
-        uint16x4_t lt_hi_u16x4 = vget_high_u16(lt_u16x8);
-        uint32x4_t lt_lo_u32x4 = vmovl_u16(lt_lo_u16x4);
-        uint32x4_t lt_hi_u32x4 = vmovl_u16(lt_hi_u16x4);
-        min_f16x8 = vbslq_f16(lt_u16x8, data_f16x8, min_f16x8);
-        min_idx_lo_i32x4 = vbslq_s32(lt_lo_u32x4, idx_lo_i32x4, min_idx_lo_i32x4);
-        min_idx_hi_i32x4 = vbslq_s32(lt_hi_u32x4, idx_hi_i32x4, min_idx_hi_i32x4);
-        idx_lo_i32x4 = vaddq_s32(idx_lo_i32x4, step_i32x4);
-        idx_hi_i32x4 = vaddq_s32(idx_hi_i32x4, step_i32x4);
+nk_reduce_min_f16_neonhalf_contiguous_cycle:
+    if (idx + 8 <= count) {
+        data_f16x8 = vld1q_f16((nk_f16_for_arm_simd_t const *)(data + idx));
+        idx += 8;
     }
+    else {
+        nk_b128_vec_t tail_vec;
+        nk_partial_load_b16x8_serial_(data + idx, &tail_vec, count - idx);
+        data_f16x8 = vreinterpretq_f16_u16(tail_vec.u16x8);
+        // Mask invalid lanes to current min (so they can't win comparison)
+        nk_size_t valid = count - idx;
+        uint16x8_t lane_u16x8 = {0, 1, 2, 3, 4, 5, 6, 7};
+        uint16x8_t valid_u16x8 = vcltq_u16(lane_u16x8, vdupq_n_u16((uint16_t)valid));
+        data_f16x8 = vbslq_f16(valid_u16x8, data_f16x8, min_f16x8);
+        idx = count;
+    }
+    uint16x8_t lt_u16x8 = vcltq_f16(data_f16x8, min_f16x8);
+    uint16x4_t lt_low_u16x4 = vget_low_u16(lt_u16x8);
+    uint16x4_t lt_high_u16x4 = vget_high_u16(lt_u16x8);
+    uint32x4_t lt_low_u32x4 = vmovl_u16(lt_low_u16x4);
+    uint32x4_t lt_high_u32x4 = vmovl_u16(lt_high_u16x4);
+    min_f16x8 = vbslq_f16(lt_u16x8, data_f16x8, min_f16x8);
+    min_idx_low_u32x4 = vbslq_u32(lt_low_u32x4, idx_low_u32x4, min_idx_low_u32x4);
+    min_idx_high_u32x4 = vbslq_u32(lt_high_u32x4, idx_high_u32x4, min_idx_high_u32x4);
+    idx_low_u32x4 = vaddq_u32(idx_low_u32x4, step_u32x4);
+    idx_high_u32x4 = vaddq_u32(idx_high_u32x4, step_u32x4);
+    if (idx < count) goto nk_reduce_min_f16_neonhalf_contiguous_cycle;
 
     // Horizontal reduction: convert f16x8 to f32 and find best lane
-    float32x4_t min_lo_f32x4 = vcvt_f32_f16(vget_low_f16(min_f16x8));
-    float32x4_t min_hi_f32x4 = vcvt_f32_f16(vget_high_f16(min_f16x8));
-    nk_b128_vec_t min_lo_vec, min_hi_vec, idx_lo_vec, idx_hi_vec;
-    min_lo_vec.f32x4 = min_lo_f32x4;
-    min_hi_vec.f32x4 = min_hi_f32x4;
-    idx_lo_vec.i32x4 = min_idx_lo_i32x4;
-    idx_hi_vec.i32x4 = min_idx_hi_i32x4;
+    float32x4_t min_low_f32x4 = vcvt_f32_f16(vget_low_f16(min_f16x8));
+    float32x4_t min_high_f32x4 = vcvt_f32_f16(vget_high_f16(min_f16x8));
+    nk_b128_vec_t min_low_vec, min_high_vec, idx_low_vec, idx_high_vec;
+    min_low_vec.f32x4 = min_low_f32x4;
+    min_high_vec.f32x4 = min_high_f32x4;
+    idx_low_vec.u32x4 = min_idx_low_u32x4;
+    idx_high_vec.u32x4 = min_idx_high_u32x4;
 
-    nk_f32_t best_val = min_lo_vec.f32s[0];
-    nk_size_t best_idx = (nk_size_t)idx_lo_vec.i32s[0];
-    for (int i = 1; i < 4; ++i) {
-        if (min_lo_vec.f32s[i] < best_val) {
-            best_val = min_lo_vec.f32s[i];
-            best_idx = (nk_size_t)idx_lo_vec.i32s[i];
-        }
-    }
-    for (int i = 0; i < 4; ++i) {
-        if (min_hi_vec.f32s[i] < best_val) {
-            best_val = min_hi_vec.f32s[i];
-            best_idx = (nk_size_t)idx_hi_vec.i32s[i];
-        }
-    }
-
-    // Scalar tail - convert to f32
-    for (; idx < count; ++idx) {
-        nk_f32_t val;
-        nk_f16_to_f32_serial(&data[idx], &val);
-        if (val < best_val) {
-            best_val = val;
-            best_idx = idx;
-        }
-    }
+    nk_f32_t best_val = min_low_vec.f32s[0];
+    nk_size_t best_idx = (nk_size_t)idx_low_vec.u32s[0];
+    for (int i = 1; i < 4; ++i)
+        if (min_low_vec.f32s[i] < best_val) best_val = min_low_vec.f32s[i], best_idx = (nk_size_t)idx_low_vec.u32s[i];
+    for (int i = 0; i < 4; ++i)
+        if (min_high_vec.f32s[i] < best_val)
+            best_val = min_high_vec.f32s[i], best_idx = (nk_size_t)idx_high_vec.u32s[i];
 
     *min_value = best_val;
     *min_index = best_idx;
@@ -202,11 +200,11 @@ NK_INTERNAL void nk_reduce_min_f16_neonhalf_strided_(                 //
     nk_f32_t *min_value, nk_size_t *min_index) {
 
     float16x8_t min_f16x8 = vdupq_n_f16(NK_F32_MAX);
-    int32x4_t min_idx_lo_i32x4 = vdupq_n_s32(0);
-    int32x4_t min_idx_hi_i32x4 = vdupq_n_s32(0);
-    int32x4_t idx_lo_i32x4 = {0, 1, 2, 3};
-    int32x4_t idx_hi_i32x4 = {4, 5, 6, 7};
-    int32x4_t step_i32x4 = vdupq_n_s32(8);
+    uint32x4_t min_idx_low_u32x4 = vdupq_n_u32(0);
+    uint32x4_t min_idx_high_u32x4 = vdupq_n_u32(0);
+    uint32x4_t idx_low_u32x4 = {0, 1, 2, 3};
+    uint32x4_t idx_high_u32x4 = {4, 5, 6, 7};
+    uint32x4_t step_u32x4 = vdupq_n_u32(8);
     nk_size_t idx = 0;
 
     if (stride_elements == 2) {
@@ -214,15 +212,15 @@ NK_INTERNAL void nk_reduce_min_f16_neonhalf_strided_(                 //
             uint16x8x2_t loaded_u16x8x2 = vld2q_u16((uint16_t const *)(data + idx * 2));
             float16x8_t data_f16x8 = vreinterpretq_f16_u16(loaded_u16x8x2.val[0]);
             uint16x8_t lt_u16x8 = vcltq_f16(data_f16x8, min_f16x8);
-            uint16x4_t lt_lo_u16x4 = vget_low_u16(lt_u16x8);
-            uint16x4_t lt_hi_u16x4 = vget_high_u16(lt_u16x8);
-            uint32x4_t lt_lo_u32x4 = vmovl_u16(lt_lo_u16x4);
-            uint32x4_t lt_hi_u32x4 = vmovl_u16(lt_hi_u16x4);
+            uint16x4_t lt_low_u16x4 = vget_low_u16(lt_u16x8);
+            uint16x4_t lt_high_u16x4 = vget_high_u16(lt_u16x8);
+            uint32x4_t lt_low_u32x4 = vmovl_u16(lt_low_u16x4);
+            uint32x4_t lt_high_u32x4 = vmovl_u16(lt_high_u16x4);
             min_f16x8 = vbslq_f16(lt_u16x8, data_f16x8, min_f16x8);
-            min_idx_lo_i32x4 = vbslq_s32(lt_lo_u32x4, idx_lo_i32x4, min_idx_lo_i32x4);
-            min_idx_hi_i32x4 = vbslq_s32(lt_hi_u32x4, idx_hi_i32x4, min_idx_hi_i32x4);
-            idx_lo_i32x4 = vaddq_s32(idx_lo_i32x4, step_i32x4);
-            idx_hi_i32x4 = vaddq_s32(idx_hi_i32x4, step_i32x4);
+            min_idx_low_u32x4 = vbslq_u32(lt_low_u32x4, idx_low_u32x4, min_idx_low_u32x4);
+            min_idx_high_u32x4 = vbslq_u32(lt_high_u32x4, idx_high_u32x4, min_idx_high_u32x4);
+            idx_low_u32x4 = vaddq_u32(idx_low_u32x4, step_u32x4);
+            idx_high_u32x4 = vaddq_u32(idx_high_u32x4, step_u32x4);
         }
     }
     else if (stride_elements == 3) {
@@ -230,15 +228,15 @@ NK_INTERNAL void nk_reduce_min_f16_neonhalf_strided_(                 //
             uint16x8x3_t loaded_u16x8x3 = vld3q_u16((uint16_t const *)(data + idx * 3));
             float16x8_t data_f16x8 = vreinterpretq_f16_u16(loaded_u16x8x3.val[0]);
             uint16x8_t lt_u16x8 = vcltq_f16(data_f16x8, min_f16x8);
-            uint16x4_t lt_lo_u16x4 = vget_low_u16(lt_u16x8);
-            uint16x4_t lt_hi_u16x4 = vget_high_u16(lt_u16x8);
-            uint32x4_t lt_lo_u32x4 = vmovl_u16(lt_lo_u16x4);
-            uint32x4_t lt_hi_u32x4 = vmovl_u16(lt_hi_u16x4);
+            uint16x4_t lt_low_u16x4 = vget_low_u16(lt_u16x8);
+            uint16x4_t lt_high_u16x4 = vget_high_u16(lt_u16x8);
+            uint32x4_t lt_low_u32x4 = vmovl_u16(lt_low_u16x4);
+            uint32x4_t lt_high_u32x4 = vmovl_u16(lt_high_u16x4);
             min_f16x8 = vbslq_f16(lt_u16x8, data_f16x8, min_f16x8);
-            min_idx_lo_i32x4 = vbslq_s32(lt_lo_u32x4, idx_lo_i32x4, min_idx_lo_i32x4);
-            min_idx_hi_i32x4 = vbslq_s32(lt_hi_u32x4, idx_hi_i32x4, min_idx_hi_i32x4);
-            idx_lo_i32x4 = vaddq_s32(idx_lo_i32x4, step_i32x4);
-            idx_hi_i32x4 = vaddq_s32(idx_hi_i32x4, step_i32x4);
+            min_idx_low_u32x4 = vbslq_u32(lt_low_u32x4, idx_low_u32x4, min_idx_low_u32x4);
+            min_idx_high_u32x4 = vbslq_u32(lt_high_u32x4, idx_high_u32x4, min_idx_high_u32x4);
+            idx_low_u32x4 = vaddq_u32(idx_low_u32x4, step_u32x4);
+            idx_high_u32x4 = vaddq_u32(idx_high_u32x4, step_u32x4);
         }
     }
     else if (stride_elements == 4) {
@@ -246,51 +244,56 @@ NK_INTERNAL void nk_reduce_min_f16_neonhalf_strided_(                 //
             uint16x8x4_t loaded_u16x8x4 = vld4q_u16((uint16_t const *)(data + idx * 4));
             float16x8_t data_f16x8 = vreinterpretq_f16_u16(loaded_u16x8x4.val[0]);
             uint16x8_t lt_u16x8 = vcltq_f16(data_f16x8, min_f16x8);
-            uint16x4_t lt_lo_u16x4 = vget_low_u16(lt_u16x8);
-            uint16x4_t lt_hi_u16x4 = vget_high_u16(lt_u16x8);
-            uint32x4_t lt_lo_u32x4 = vmovl_u16(lt_lo_u16x4);
-            uint32x4_t lt_hi_u32x4 = vmovl_u16(lt_hi_u16x4);
+            uint16x4_t lt_low_u16x4 = vget_low_u16(lt_u16x8);
+            uint16x4_t lt_high_u16x4 = vget_high_u16(lt_u16x8);
+            uint32x4_t lt_low_u32x4 = vmovl_u16(lt_low_u16x4);
+            uint32x4_t lt_high_u32x4 = vmovl_u16(lt_high_u16x4);
             min_f16x8 = vbslq_f16(lt_u16x8, data_f16x8, min_f16x8);
-            min_idx_lo_i32x4 = vbslq_s32(lt_lo_u32x4, idx_lo_i32x4, min_idx_lo_i32x4);
-            min_idx_hi_i32x4 = vbslq_s32(lt_hi_u32x4, idx_hi_i32x4, min_idx_hi_i32x4);
-            idx_lo_i32x4 = vaddq_s32(idx_lo_i32x4, step_i32x4);
-            idx_hi_i32x4 = vaddq_s32(idx_hi_i32x4, step_i32x4);
+            min_idx_low_u32x4 = vbslq_u32(lt_low_u32x4, idx_low_u32x4, min_idx_low_u32x4);
+            min_idx_high_u32x4 = vbslq_u32(lt_high_u32x4, idx_high_u32x4, min_idx_high_u32x4);
+            idx_low_u32x4 = vaddq_u32(idx_low_u32x4, step_u32x4);
+            idx_high_u32x4 = vaddq_u32(idx_high_u32x4, step_u32x4);
         }
+    }
+
+    // Handle tail with gather-into-buffer
+    if (idx < count) {
+        nk_b128_vec_t tail_vec = {{0}};
+        nk_size_t remaining = count - idx;
+        for (nk_size_t k = 0; k < remaining; ++k)
+            tail_vec.u16s[k] = *(nk_u16_t const *)(data + (idx + k) * stride_elements);
+        float16x8_t data_f16x8 = vreinterpretq_f16_u16(tail_vec.u16x8);
+        // Mask invalid lanes
+        uint16x8_t lane_u16x8 = {0, 1, 2, 3, 4, 5, 6, 7};
+        uint16x8_t valid_u16x8 = vcltq_u16(lane_u16x8, vdupq_n_u16((uint16_t)remaining));
+        data_f16x8 = vbslq_f16(valid_u16x8, data_f16x8, min_f16x8);
+
+        uint16x8_t lt_u16x8 = vcltq_f16(data_f16x8, min_f16x8);
+        uint16x4_t lt_low_u16x4 = vget_low_u16(lt_u16x8);
+        uint16x4_t lt_high_u16x4 = vget_high_u16(lt_u16x8);
+        uint32x4_t lt_low_u32x4 = vmovl_u16(lt_low_u16x4);
+        uint32x4_t lt_high_u32x4 = vmovl_u16(lt_high_u16x4);
+        min_f16x8 = vbslq_f16(lt_u16x8, data_f16x8, min_f16x8);
+        min_idx_low_u32x4 = vbslq_u32(lt_low_u32x4, idx_low_u32x4, min_idx_low_u32x4);
+        min_idx_high_u32x4 = vbslq_u32(lt_high_u32x4, idx_high_u32x4, min_idx_high_u32x4);
     }
 
     // Horizontal reduction
-    float32x4_t min_lo_f32x4 = vcvt_f32_f16(vget_low_f16(min_f16x8));
-    float32x4_t min_hi_f32x4 = vcvt_f32_f16(vget_high_f16(min_f16x8));
-    nk_b128_vec_t min_lo_vec, min_hi_vec, idx_lo_vec, idx_hi_vec;
-    min_lo_vec.f32x4 = min_lo_f32x4;
-    min_hi_vec.f32x4 = min_hi_f32x4;
-    idx_lo_vec.i32x4 = min_idx_lo_i32x4;
-    idx_hi_vec.i32x4 = min_idx_hi_i32x4;
+    float32x4_t min_low_f32x4 = vcvt_f32_f16(vget_low_f16(min_f16x8));
+    float32x4_t min_high_f32x4 = vcvt_f32_f16(vget_high_f16(min_f16x8));
+    nk_b128_vec_t min_low_vec, min_high_vec, idx_low_vec, idx_high_vec;
+    min_low_vec.f32x4 = min_low_f32x4;
+    min_high_vec.f32x4 = min_high_f32x4;
+    idx_low_vec.u32x4 = min_idx_low_u32x4;
+    idx_high_vec.u32x4 = min_idx_high_u32x4;
 
-    nk_f32_t best_val = min_lo_vec.f32s[0];
-    nk_size_t best_idx = (nk_size_t)idx_lo_vec.i32s[0];
-    for (int i = 1; i < 4; ++i) {
-        if (min_lo_vec.f32s[i] < best_val) {
-            best_val = min_lo_vec.f32s[i];
-            best_idx = (nk_size_t)idx_lo_vec.i32s[i];
-        }
-    }
-    for (int i = 0; i < 4; ++i) {
-        if (min_hi_vec.f32s[i] < best_val) {
-            best_val = min_hi_vec.f32s[i];
-            best_idx = (nk_size_t)idx_hi_vec.i32s[i];
-        }
-    }
-
-    // Scalar tail
-    for (; idx < count; ++idx) {
-        nk_f32_t val;
-        nk_f16_to_f32_serial(&data[idx * stride_elements], &val);
-        if (val < best_val) {
-            best_val = val;
-            best_idx = idx;
-        }
-    }
+    nk_f32_t best_val = min_low_vec.f32s[0];
+    nk_size_t best_idx = (nk_size_t)idx_low_vec.u32s[0];
+    for (int i = 1; i < 4; ++i)
+        if (min_low_vec.f32s[i] < best_val) best_val = min_low_vec.f32s[i], best_idx = (nk_size_t)idx_low_vec.u32s[i];
+    for (int i = 0; i < 4; ++i)
+        if (min_high_vec.f32s[i] < best_val)
+            best_val = min_high_vec.f32s[i], best_idx = (nk_size_t)idx_high_vec.u32s[i];
 
     *min_value = best_val;
     *min_index = best_idx;
@@ -312,63 +315,59 @@ NK_INTERNAL void nk_reduce_max_f16_neonhalf_contiguous_( //
     nk_f16_t const *data, nk_size_t count,               //
     nk_f32_t *max_value, nk_size_t *max_index) {
 
-    // Track max values in native f16, indices in 2x int32x4 (for 8 lanes)
     float16x8_t max_f16x8 = vdupq_n_f16(NK_F32_MIN);
-    int32x4_t max_idx_lo_i32x4 = vdupq_n_s32(0);
-    int32x4_t max_idx_hi_i32x4 = vdupq_n_s32(0);
-    int32x4_t idx_lo_i32x4 = {0, 1, 2, 3};
-    int32x4_t idx_hi_i32x4 = {4, 5, 6, 7};
-    int32x4_t step_i32x4 = vdupq_n_s32(8);
+    uint32x4_t max_idx_low_u32x4 = vdupq_n_u32(0);
+    uint32x4_t max_idx_high_u32x4 = vdupq_n_u32(0);
+    uint32x4_t idx_low_u32x4 = {0, 1, 2, 3};
+    uint32x4_t idx_high_u32x4 = {4, 5, 6, 7};
+    uint32x4_t step_u32x4 = vdupq_n_u32(8);
+    float16x8_t data_f16x8;
     nk_size_t idx = 0;
 
-    for (; idx + 8 <= count; idx += 8) {
-        float16x8_t data_f16x8 = vld1q_f16((nk_f16_for_arm_simd_t const *)(data + idx));
-        uint16x8_t gt_u16x8 = vcgtq_f16(data_f16x8, max_f16x8);
-        // Split mask into low/high 4-lane portions and widen to 32-bit
-        uint16x4_t gt_lo_u16x4 = vget_low_u16(gt_u16x8);
-        uint16x4_t gt_hi_u16x4 = vget_high_u16(gt_u16x8);
-        uint32x4_t gt_lo_u32x4 = vmovl_u16(gt_lo_u16x4);
-        uint32x4_t gt_hi_u32x4 = vmovl_u16(gt_hi_u16x4);
-        max_f16x8 = vbslq_f16(gt_u16x8, data_f16x8, max_f16x8);
-        max_idx_lo_i32x4 = vbslq_s32(gt_lo_u32x4, idx_lo_i32x4, max_idx_lo_i32x4);
-        max_idx_hi_i32x4 = vbslq_s32(gt_hi_u32x4, idx_hi_i32x4, max_idx_hi_i32x4);
-        idx_lo_i32x4 = vaddq_s32(idx_lo_i32x4, step_i32x4);
-        idx_hi_i32x4 = vaddq_s32(idx_hi_i32x4, step_i32x4);
+nk_reduce_max_f16_neonhalf_contiguous_cycle:
+    if (idx + 8 <= count) {
+        data_f16x8 = vld1q_f16((nk_f16_for_arm_simd_t const *)(data + idx));
+        idx += 8;
     }
+    else {
+        nk_b128_vec_t tail_vec;
+        nk_partial_load_b16x8_serial_(data + idx, &tail_vec, count - idx);
+        data_f16x8 = vreinterpretq_f16_u16(tail_vec.u16x8);
+        // Mask invalid lanes to current max (so they can't win comparison)
+        nk_size_t valid = count - idx;
+        uint16x8_t lane_u16x8 = {0, 1, 2, 3, 4, 5, 6, 7};
+        uint16x8_t valid_u16x8 = vcltq_u16(lane_u16x8, vdupq_n_u16((uint16_t)valid));
+        data_f16x8 = vbslq_f16(valid_u16x8, data_f16x8, max_f16x8);
+        idx = count;
+    }
+    uint16x8_t gt_u16x8 = vcgtq_f16(data_f16x8, max_f16x8);
+    uint16x4_t gt_low_u16x4 = vget_low_u16(gt_u16x8);
+    uint16x4_t gt_high_u16x4 = vget_high_u16(gt_u16x8);
+    uint32x4_t gt_low_u32x4 = vmovl_u16(gt_low_u16x4);
+    uint32x4_t gt_high_u32x4 = vmovl_u16(gt_high_u16x4);
+    max_f16x8 = vbslq_f16(gt_u16x8, data_f16x8, max_f16x8);
+    max_idx_low_u32x4 = vbslq_u32(gt_low_u32x4, idx_low_u32x4, max_idx_low_u32x4);
+    max_idx_high_u32x4 = vbslq_u32(gt_high_u32x4, idx_high_u32x4, max_idx_high_u32x4);
+    idx_low_u32x4 = vaddq_u32(idx_low_u32x4, step_u32x4);
+    idx_high_u32x4 = vaddq_u32(idx_high_u32x4, step_u32x4);
+    if (idx < count) goto nk_reduce_max_f16_neonhalf_contiguous_cycle;
 
     // Horizontal reduction: convert f16x8 to f32 and find best lane
-    float32x4_t max_lo_f32x4 = vcvt_f32_f16(vget_low_f16(max_f16x8));
-    float32x4_t max_hi_f32x4 = vcvt_f32_f16(vget_high_f16(max_f16x8));
-    nk_b128_vec_t max_lo_vec, max_hi_vec, idx_lo_vec, idx_hi_vec;
-    max_lo_vec.f32x4 = max_lo_f32x4;
-    max_hi_vec.f32x4 = max_hi_f32x4;
-    idx_lo_vec.i32x4 = max_idx_lo_i32x4;
-    idx_hi_vec.i32x4 = max_idx_hi_i32x4;
+    float32x4_t max_low_f32x4 = vcvt_f32_f16(vget_low_f16(max_f16x8));
+    float32x4_t max_high_f32x4 = vcvt_f32_f16(vget_high_f16(max_f16x8));
+    nk_b128_vec_t max_low_vec, max_high_vec, idx_low_vec, idx_high_vec;
+    max_low_vec.f32x4 = max_low_f32x4;
+    max_high_vec.f32x4 = max_high_f32x4;
+    idx_low_vec.u32x4 = max_idx_low_u32x4;
+    idx_high_vec.u32x4 = max_idx_high_u32x4;
 
-    nk_f32_t best_val = max_lo_vec.f32s[0];
-    nk_size_t best_idx = (nk_size_t)idx_lo_vec.i32s[0];
-    for (int i = 1; i < 4; ++i) {
-        if (max_lo_vec.f32s[i] > best_val) {
-            best_val = max_lo_vec.f32s[i];
-            best_idx = (nk_size_t)idx_lo_vec.i32s[i];
-        }
-    }
-    for (int i = 0; i < 4; ++i) {
-        if (max_hi_vec.f32s[i] > best_val) {
-            best_val = max_hi_vec.f32s[i];
-            best_idx = (nk_size_t)idx_hi_vec.i32s[i];
-        }
-    }
-
-    // Scalar tail - convert to f32
-    for (; idx < count; ++idx) {
-        nk_f32_t val;
-        nk_f16_to_f32_serial(&data[idx], &val);
-        if (val > best_val) {
-            best_val = val;
-            best_idx = idx;
-        }
-    }
+    nk_f32_t best_val = max_low_vec.f32s[0];
+    nk_size_t best_idx = (nk_size_t)idx_low_vec.u32s[0];
+    for (int i = 1; i < 4; ++i)
+        if (max_low_vec.f32s[i] > best_val) best_val = max_low_vec.f32s[i], best_idx = (nk_size_t)idx_low_vec.u32s[i];
+    for (int i = 0; i < 4; ++i)
+        if (max_high_vec.f32s[i] > best_val)
+            best_val = max_high_vec.f32s[i], best_idx = (nk_size_t)idx_high_vec.u32s[i];
 
     *max_value = best_val;
     *max_index = best_idx;
@@ -379,11 +378,11 @@ NK_INTERNAL void nk_reduce_max_f16_neonhalf_strided_(                 //
     nk_f32_t *max_value, nk_size_t *max_index) {
 
     float16x8_t max_f16x8 = vdupq_n_f16(NK_F32_MIN);
-    int32x4_t max_idx_lo_i32x4 = vdupq_n_s32(0);
-    int32x4_t max_idx_hi_i32x4 = vdupq_n_s32(0);
-    int32x4_t idx_lo_i32x4 = {0, 1, 2, 3};
-    int32x4_t idx_hi_i32x4 = {4, 5, 6, 7};
-    int32x4_t step_i32x4 = vdupq_n_s32(8);
+    uint32x4_t max_idx_low_u32x4 = vdupq_n_u32(0);
+    uint32x4_t max_idx_high_u32x4 = vdupq_n_u32(0);
+    uint32x4_t idx_low_u32x4 = {0, 1, 2, 3};
+    uint32x4_t idx_high_u32x4 = {4, 5, 6, 7};
+    uint32x4_t step_u32x4 = vdupq_n_u32(8);
     nk_size_t idx = 0;
 
     if (stride_elements == 2) {
@@ -391,15 +390,15 @@ NK_INTERNAL void nk_reduce_max_f16_neonhalf_strided_(                 //
             uint16x8x2_t loaded_u16x8x2 = vld2q_u16((uint16_t const *)(data + idx * 2));
             float16x8_t data_f16x8 = vreinterpretq_f16_u16(loaded_u16x8x2.val[0]);
             uint16x8_t gt_u16x8 = vcgtq_f16(data_f16x8, max_f16x8);
-            uint16x4_t gt_lo_u16x4 = vget_low_u16(gt_u16x8);
-            uint16x4_t gt_hi_u16x4 = vget_high_u16(gt_u16x8);
-            uint32x4_t gt_lo_u32x4 = vmovl_u16(gt_lo_u16x4);
-            uint32x4_t gt_hi_u32x4 = vmovl_u16(gt_hi_u16x4);
+            uint16x4_t gt_low_u16x4 = vget_low_u16(gt_u16x8);
+            uint16x4_t gt_high_u16x4 = vget_high_u16(gt_u16x8);
+            uint32x4_t gt_low_u32x4 = vmovl_u16(gt_low_u16x4);
+            uint32x4_t gt_high_u32x4 = vmovl_u16(gt_high_u16x4);
             max_f16x8 = vbslq_f16(gt_u16x8, data_f16x8, max_f16x8);
-            max_idx_lo_i32x4 = vbslq_s32(gt_lo_u32x4, idx_lo_i32x4, max_idx_lo_i32x4);
-            max_idx_hi_i32x4 = vbslq_s32(gt_hi_u32x4, idx_hi_i32x4, max_idx_hi_i32x4);
-            idx_lo_i32x4 = vaddq_s32(idx_lo_i32x4, step_i32x4);
-            idx_hi_i32x4 = vaddq_s32(idx_hi_i32x4, step_i32x4);
+            max_idx_low_u32x4 = vbslq_u32(gt_low_u32x4, idx_low_u32x4, max_idx_low_u32x4);
+            max_idx_high_u32x4 = vbslq_u32(gt_high_u32x4, idx_high_u32x4, max_idx_high_u32x4);
+            idx_low_u32x4 = vaddq_u32(idx_low_u32x4, step_u32x4);
+            idx_high_u32x4 = vaddq_u32(idx_high_u32x4, step_u32x4);
         }
     }
     else if (stride_elements == 3) {
@@ -407,15 +406,15 @@ NK_INTERNAL void nk_reduce_max_f16_neonhalf_strided_(                 //
             uint16x8x3_t loaded_u16x8x3 = vld3q_u16((uint16_t const *)(data + idx * 3));
             float16x8_t data_f16x8 = vreinterpretq_f16_u16(loaded_u16x8x3.val[0]);
             uint16x8_t gt_u16x8 = vcgtq_f16(data_f16x8, max_f16x8);
-            uint16x4_t gt_lo_u16x4 = vget_low_u16(gt_u16x8);
-            uint16x4_t gt_hi_u16x4 = vget_high_u16(gt_u16x8);
-            uint32x4_t gt_lo_u32x4 = vmovl_u16(gt_lo_u16x4);
-            uint32x4_t gt_hi_u32x4 = vmovl_u16(gt_hi_u16x4);
+            uint16x4_t gt_low_u16x4 = vget_low_u16(gt_u16x8);
+            uint16x4_t gt_high_u16x4 = vget_high_u16(gt_u16x8);
+            uint32x4_t gt_low_u32x4 = vmovl_u16(gt_low_u16x4);
+            uint32x4_t gt_high_u32x4 = vmovl_u16(gt_high_u16x4);
             max_f16x8 = vbslq_f16(gt_u16x8, data_f16x8, max_f16x8);
-            max_idx_lo_i32x4 = vbslq_s32(gt_lo_u32x4, idx_lo_i32x4, max_idx_lo_i32x4);
-            max_idx_hi_i32x4 = vbslq_s32(gt_hi_u32x4, idx_hi_i32x4, max_idx_hi_i32x4);
-            idx_lo_i32x4 = vaddq_s32(idx_lo_i32x4, step_i32x4);
-            idx_hi_i32x4 = vaddq_s32(idx_hi_i32x4, step_i32x4);
+            max_idx_low_u32x4 = vbslq_u32(gt_low_u32x4, idx_low_u32x4, max_idx_low_u32x4);
+            max_idx_high_u32x4 = vbslq_u32(gt_high_u32x4, idx_high_u32x4, max_idx_high_u32x4);
+            idx_low_u32x4 = vaddq_u32(idx_low_u32x4, step_u32x4);
+            idx_high_u32x4 = vaddq_u32(idx_high_u32x4, step_u32x4);
         }
     }
     else if (stride_elements == 4) {
@@ -423,51 +422,56 @@ NK_INTERNAL void nk_reduce_max_f16_neonhalf_strided_(                 //
             uint16x8x4_t loaded_u16x8x4 = vld4q_u16((uint16_t const *)(data + idx * 4));
             float16x8_t data_f16x8 = vreinterpretq_f16_u16(loaded_u16x8x4.val[0]);
             uint16x8_t gt_u16x8 = vcgtq_f16(data_f16x8, max_f16x8);
-            uint16x4_t gt_lo_u16x4 = vget_low_u16(gt_u16x8);
-            uint16x4_t gt_hi_u16x4 = vget_high_u16(gt_u16x8);
-            uint32x4_t gt_lo_u32x4 = vmovl_u16(gt_lo_u16x4);
-            uint32x4_t gt_hi_u32x4 = vmovl_u16(gt_hi_u16x4);
+            uint16x4_t gt_low_u16x4 = vget_low_u16(gt_u16x8);
+            uint16x4_t gt_high_u16x4 = vget_high_u16(gt_u16x8);
+            uint32x4_t gt_low_u32x4 = vmovl_u16(gt_low_u16x4);
+            uint32x4_t gt_high_u32x4 = vmovl_u16(gt_high_u16x4);
             max_f16x8 = vbslq_f16(gt_u16x8, data_f16x8, max_f16x8);
-            max_idx_lo_i32x4 = vbslq_s32(gt_lo_u32x4, idx_lo_i32x4, max_idx_lo_i32x4);
-            max_idx_hi_i32x4 = vbslq_s32(gt_hi_u32x4, idx_hi_i32x4, max_idx_hi_i32x4);
-            idx_lo_i32x4 = vaddq_s32(idx_lo_i32x4, step_i32x4);
-            idx_hi_i32x4 = vaddq_s32(idx_hi_i32x4, step_i32x4);
+            max_idx_low_u32x4 = vbslq_u32(gt_low_u32x4, idx_low_u32x4, max_idx_low_u32x4);
+            max_idx_high_u32x4 = vbslq_u32(gt_high_u32x4, idx_high_u32x4, max_idx_high_u32x4);
+            idx_low_u32x4 = vaddq_u32(idx_low_u32x4, step_u32x4);
+            idx_high_u32x4 = vaddq_u32(idx_high_u32x4, step_u32x4);
         }
+    }
+
+    // Handle tail with gather-into-buffer
+    if (idx < count) {
+        nk_b128_vec_t tail_vec = {{0}};
+        nk_size_t remaining = count - idx;
+        for (nk_size_t k = 0; k < remaining; ++k)
+            tail_vec.u16s[k] = *(nk_u16_t const *)(data + (idx + k) * stride_elements);
+        float16x8_t data_f16x8 = vreinterpretq_f16_u16(tail_vec.u16x8);
+        // Mask invalid lanes
+        uint16x8_t lane_u16x8 = {0, 1, 2, 3, 4, 5, 6, 7};
+        uint16x8_t valid_u16x8 = vcltq_u16(lane_u16x8, vdupq_n_u16((uint16_t)remaining));
+        data_f16x8 = vbslq_f16(valid_u16x8, data_f16x8, max_f16x8);
+
+        uint16x8_t gt_u16x8 = vcgtq_f16(data_f16x8, max_f16x8);
+        uint16x4_t gt_low_u16x4 = vget_low_u16(gt_u16x8);
+        uint16x4_t gt_high_u16x4 = vget_high_u16(gt_u16x8);
+        uint32x4_t gt_low_u32x4 = vmovl_u16(gt_low_u16x4);
+        uint32x4_t gt_high_u32x4 = vmovl_u16(gt_high_u16x4);
+        max_f16x8 = vbslq_f16(gt_u16x8, data_f16x8, max_f16x8);
+        max_idx_low_u32x4 = vbslq_u32(gt_low_u32x4, idx_low_u32x4, max_idx_low_u32x4);
+        max_idx_high_u32x4 = vbslq_u32(gt_high_u32x4, idx_high_u32x4, max_idx_high_u32x4);
     }
 
     // Horizontal reduction
-    float32x4_t max_lo_f32x4 = vcvt_f32_f16(vget_low_f16(max_f16x8));
-    float32x4_t max_hi_f32x4 = vcvt_f32_f16(vget_high_f16(max_f16x8));
-    nk_b128_vec_t max_lo_vec, max_hi_vec, idx_lo_vec, idx_hi_vec;
-    max_lo_vec.f32x4 = max_lo_f32x4;
-    max_hi_vec.f32x4 = max_hi_f32x4;
-    idx_lo_vec.i32x4 = max_idx_lo_i32x4;
-    idx_hi_vec.i32x4 = max_idx_hi_i32x4;
+    float32x4_t max_low_f32x4 = vcvt_f32_f16(vget_low_f16(max_f16x8));
+    float32x4_t max_high_f32x4 = vcvt_f32_f16(vget_high_f16(max_f16x8));
+    nk_b128_vec_t max_low_vec, max_high_vec, idx_low_vec, idx_high_vec;
+    max_low_vec.f32x4 = max_low_f32x4;
+    max_high_vec.f32x4 = max_high_f32x4;
+    idx_low_vec.u32x4 = max_idx_low_u32x4;
+    idx_high_vec.u32x4 = max_idx_high_u32x4;
 
-    nk_f32_t best_val = max_lo_vec.f32s[0];
-    nk_size_t best_idx = (nk_size_t)idx_lo_vec.i32s[0];
-    for (int i = 1; i < 4; ++i) {
-        if (max_lo_vec.f32s[i] > best_val) {
-            best_val = max_lo_vec.f32s[i];
-            best_idx = (nk_size_t)idx_lo_vec.i32s[i];
-        }
-    }
-    for (int i = 0; i < 4; ++i) {
-        if (max_hi_vec.f32s[i] > best_val) {
-            best_val = max_hi_vec.f32s[i];
-            best_idx = (nk_size_t)idx_hi_vec.i32s[i];
-        }
-    }
-
-    // Scalar tail
-    for (; idx < count; ++idx) {
-        nk_f32_t val;
-        nk_f16_to_f32_serial(&data[idx * stride_elements], &val);
-        if (val > best_val) {
-            best_val = val;
-            best_idx = idx;
-        }
-    }
+    nk_f32_t best_val = max_low_vec.f32s[0];
+    nk_size_t best_idx = (nk_size_t)idx_low_vec.u32s[0];
+    for (int i = 1; i < 4; ++i)
+        if (max_low_vec.f32s[i] > best_val) best_val = max_low_vec.f32s[i], best_idx = (nk_size_t)idx_low_vec.u32s[i];
+    for (int i = 0; i < 4; ++i)
+        if (max_high_vec.f32s[i] > best_val)
+            best_val = max_high_vec.f32s[i], best_idx = (nk_size_t)idx_high_vec.u32s[i];
 
     *max_value = best_val;
     *max_index = best_idx;

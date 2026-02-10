@@ -209,14 +209,14 @@ typedef enum {
     // Matrix multiplication (GEMM):
     nk_kernel_dots_packed_size_k = 'P', ///< GEMM packed buffer size
     nk_kernel_dots_pack_k = 'Q',        ///< GEMM B matrix packing
-    nk_kernel_dots_k = 'G',             ///< GEMM computation
+    nk_kernel_dots_packed_k = 'G',      ///< GEMM computation
     nk_kernel_dots_compacting_k = 'g',  ///< GEMM computation with following renormalization
     nk_kernel_dots_symmetric_k = 'y',   ///< Symmetric Gram matrix (A x At)
 
     // Hamming distance operations:
     nk_kernel_hammings_packed_size_k = 'H', ///< Hamming packed buffer size
     nk_kernel_hammings_pack_k = 'J',        ///< Hamming B matrix packing
-    nk_kernel_hammings_k = 'M',             ///< Hamming distance computation
+    nk_kernel_hammings_packed_k = 'M',      ///< Hamming distance computation
     nk_kernel_hammings_symmetric_k = 'Y',   ///< Symmetric Hamming distance matrix (A x At)
 
     nk_kernel_cast_k = '-', ///< Type casting from one type to another
@@ -456,9 +456,9 @@ NK_PUBLIC int nk_configure_thread_arm_(nk_capability_t capabilities) {
 
 NK_PUBLIC nk_capability_t nk_capabilities_arm_(void) {
 #if defined(NK_DEFINED_APPLE_)
+    size_t size = sizeof(unsigned);
     unsigned supports_neon = 0, supports_fp16 = 0, supports_fhm = 0, supports_bf16 = 0, supports_i8mm = 0;
-    unsigned supports_sme = 0, supports_sme2 = 0;
-    size_t size = sizeof(supports_neon);
+    unsigned supports_sme = 0, supports_sme2 = 0, supports_smef64 = 0, supports_smehalf = 0, supports_sme2p1 = 0;
     if (sysctlbyname("hw.optional.neon", &supports_neon, &size, NULL, 0) != 0) supports_neon = 0;
     if (sysctlbyname("hw.optional.arm.FEAT_FP16", &supports_fp16, &size, NULL, 0) != 0) supports_fp16 = 0;
     if (sysctlbyname("hw.optional.arm.FEAT_FHM", &supports_fhm, &size, NULL, 0) != 0) supports_fhm = 0;
@@ -466,13 +466,18 @@ NK_PUBLIC nk_capability_t nk_capabilities_arm_(void) {
     if (sysctlbyname("hw.optional.arm.FEAT_I8MM", &supports_i8mm, &size, NULL, 0) != 0) supports_i8mm = 0;
     if (sysctlbyname("hw.optional.arm.FEAT_SME", &supports_sme, &size, NULL, 0) != 0) supports_sme = 0;
     if (sysctlbyname("hw.optional.arm.FEAT_SME2", &supports_sme2, &size, NULL, 0) != 0) supports_sme2 = 0;
+    if (sysctlbyname("hw.optional.arm.FEAT_SME_F64F64", &supports_smef64, &size, NULL, 0) != 0) supports_smef64 = 0;
+    if (sysctlbyname("hw.optional.arm.FEAT_SME_F16F16", &supports_smehalf, &size, NULL, 0) != 0) supports_smehalf = 0;
+    if (sysctlbyname("hw.optional.arm.FEAT_SME2p1", &supports_sme2p1, &size, NULL, 0) != 0) supports_sme2p1 = 0;
 
     return (nk_capability_t)((nk_cap_neon_k * (supports_neon)) |
                              (nk_cap_neonhalf_k * (supports_neon && supports_fp16)) |
                              (nk_cap_neonfhm_k * (supports_neon && supports_fhm)) |
                              (nk_cap_neonbfdot_k * (supports_neon && supports_bf16)) |
                              (nk_cap_neonsdot_k * (supports_neon && supports_i8mm)) | (nk_cap_sme_k * (supports_sme)) |
-                             (nk_cap_sme2_k * (supports_sme2)) | (nk_cap_serial_k));
+                             (nk_cap_sme2_k * (supports_sme2)) | (nk_cap_sme2p1_k * (supports_sme2p1)) |
+                             (nk_cap_smef64_k * (supports_smef64)) | (nk_cap_smehalf_k * (supports_smehalf)) |
+                             (nk_cap_smebf16_k * (supports_sme)) | (nk_cap_serial_k));
 
 #elif defined(NK_DEFINED_LINUX_)
 

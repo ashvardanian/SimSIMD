@@ -12,7 +12,8 @@
 #if NK_TARGET_ARM_
 
 #include "numkong/types.h"
-#include "numkong/cast/serial.h" // `nk_partial_load_b16x4_serial_`, `nk_partial_load_b32x4_serial_`
+#include "numkong/cast/serial.h"  // `nk_partial_load_b16x4_serial_`, `nk_partial_load_b32x4_serial_`
+#include "numkong/spatial/neon.h" // `nk_f32_sqrt_neon`
 
 #if defined(__cplusplus)
 extern "C" {

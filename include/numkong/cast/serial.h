@@ -385,6 +385,43 @@ NK_INTERNAL void nk_f32_to_e4m3_serial(nk_f32_t const *src, nk_e4m3_t *dest) {
 }
 
 /**
+ *  @brief Convert FP8 E4M3 to IEEE 754 half-precision float.
+ *
+ *  E4M3 format: 1 sign bit, 4 exponent bits (bias=7), 3 mantissa bits.
+ *  F16 format:  1 sign bit, 5 exponent bits (bias=15), 10 mantissa bits.
+ *
+ *  Conversion notes:
+ *  - Normal values: F16_exp = E4M3_exp + 8, mantissa shifted left by 7 bits
+ *  - Subnormals: mant × 2⁻⁹ (where 2⁻⁹ = 0x1800 in F16)
+ *  - NaN (0x7F): maps to F16 quiet NaN (0x7E00)
+ */
+NK_INTERNAL void nk_e4m3_to_f16_serial(nk_e4m3_t const *src, nk_f16_t *dest) {
+    nk_u8_t raw = *src;
+    nk_u16_t sign = ((nk_u16_t)(raw & 0x80)) << 8;
+    nk_u16_t mag = raw & 0x7F;
+    nk_u16_t mant = raw & 0x07;
+    nk_u16_t exp = (raw >> 3) & 0x0F;
+    nk_fui16_t result;
+
+    if (mag == 0x7F) {
+        result.u = sign | 0x7E00; // NaN
+    }
+    else if (exp == 0) {
+        // Subnormal: mant × 2⁻⁹, where 2⁻⁹ = 0x1800 in F16
+        nk_fui16_t scale = {.u = 0x1800};
+        nk_fui16_t mant_f16;
+        mant_f16.f = (nk_f16_t)mant;
+        result.f = mant_f16.f * scale.f;
+        result.u |= sign;
+    }
+    else {
+        // Normal: F16 = sign | ((mag << 7) + 0x2000)
+        result.u = sign | ((mag << 7) + 0x2000);
+    }
+    *dest = result.f;
+}
+
+/**
  *  @brief Convert FP8 E5M2 to IEEE 754 single-precision float.
  *
  *  E5M2 (FP8) format: 1 sign bit, 5 exponent bits (bias=15), 2 mantissa bits.
@@ -537,6 +574,55 @@ NK_INTERNAL void nk_f32_to_e5m2_serial(nk_f32_t const *src, nk_e5m2_t *dest) {
     nk_u8_t exp_field = (nk_u8_t)(exp + 15);
     nk_u8_t mant_field = (nk_u8_t)(significand_rounded & 0x03u);
     *dest = (nk_e5m2_t)(sign | (exp_field << 2) | mant_field);
+}
+
+/**
+ *  @brief Convert FP8 E5M2 to IEEE 754 half-precision float.
+ *
+ *  E5M2 format: 1 sign bit, 5 exponent bits (bias=15), 2 mantissa bits.
+ *  F16 format:  1 sign bit, 5 exponent bits (bias=15), 10 mantissa bits.
+ *
+ *  Since E5M2 and F16 share the same exponent bias (15), normal values
+ *  convert by simply shifting the magnitude left by 8 bits.
+ *
+ *  Conversion notes:
+ *  - Normal values: F16 = sign | (mag << 8)
+ *  - Subnormals: mant × 2⁻¹⁶ (where 2⁻¹⁶ = 0x0100 in F16)
+ *  - Infinity (0x7C): maps to F16 infinity (0x7C00)
+ *  - NaN (0x7D-0x7F): maps to F16 quiet NaN (0x7E00)
+ */
+NK_INTERNAL void nk_e5m2_to_f16_serial(nk_e5m2_t const *src, nk_f16_t *dest) {
+    nk_u8_t raw = *src;
+    nk_u16_t sign = ((nk_u16_t)(raw & 0x80)) << 8;
+    nk_u16_t mag = raw & 0x7F;
+    nk_u16_t mant = raw & 0x03;
+    nk_u16_t exp = (raw >> 2) & 0x1F;
+    nk_fui16_t result;
+
+    if (exp == 0) {
+        if (mant == 0) {
+            result.u = sign; // Zero
+        }
+        else {
+            // Subnormal: mant × 2⁻¹⁶, where 2⁻¹⁶ = 0x0100 in F16
+            nk_fui16_t scale = {.u = 0x0100};
+            nk_fui16_t mant_f16;
+            mant_f16.f = (nk_f16_t)mant;
+            result.f = mant_f16.f * scale.f;
+            result.u |= sign;
+        }
+    }
+    else if (mag == 0x7C) {
+        result.u = sign | 0x7C00; // Infinity
+    }
+    else if (mag > 0x7C) {
+        result.u = sign | 0x7E00; // NaN
+    }
+    else {
+        // Normal: E5M2 and F16 have same bias (15), just shift magnitude
+        result.u = sign | ((nk_u16_t)mag << 8);
+    }
+    *dest = result.f;
 }
 
 /**
@@ -1193,6 +1279,19 @@ NK_INTERNAL void nk_partial_store_b16x8_serial_(nk_b128_vec_t const *src, void *
     case 7: d[6] = src->u16s[6]; // fallthrough
     case 6: d[5] = src->u16s[5]; // fallthrough
     case 5: d[4] = src->u16s[4]; // fallthrough
+    case 4: d[3] = src->u16s[3]; // fallthrough
+    case 3: d[2] = src->u16s[2]; // fallthrough
+    case 2: d[1] = src->u16s[1]; // fallthrough
+    case 1: d[0] = src->u16s[0]; // fallthrough
+    case 0: break;
+    }
+}
+
+/** @brief Type-agnostic partial store for 16-bit elements (4 elements max) from 64-bit vector. */
+NK_INTERNAL void nk_partial_store_b16x4_serial_(void *dst, nk_b64_vec_t const *src, nk_size_t n) {
+    nk_u16_t *d = (nk_u16_t *)dst;
+    switch (n) {
+    default:
     case 4: d[3] = src->u16s[3]; // fallthrough
     case 3: d[2] = src->u16s[2]; // fallthrough
     case 2: d[1] = src->u16s[1]; // fallthrough

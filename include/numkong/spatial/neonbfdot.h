@@ -33,6 +33,7 @@
 #if NK_TARGET_NEONBFDOT
 
 #include "numkong/types.h"
+#include "numkong/cast/serial.h"   // `nk_partial_load_b16x4_serial_`
 #include "numkong/reduce/neon.h"   // `nk_partial_load_b16x8_serial_`
 #include "numkong/spatial/neon.h"  // `nk_angular_through_f32_finalize_neon_`
 #include "numkong/dot/neonbfdot.h" // `nk_dot_bf16x8_state_neonbfdot_t`
@@ -120,32 +121,30 @@ nk_angular_bf16_neonbfdot_cycle:
 }
 
 NK_PUBLIC void nk_sqeuclidean_bf16_neonbfdot(nk_bf16_t const *a, nk_bf16_t const *b, nk_size_t n, nk_f32_t *result) {
-    // Process 4 bf16s per iteration with 64-bit loads (avoids slow vget_low/high_bf16)
-    // Accumulate in f64 for numerical stability
-    float64x2_t sum_f64x2 = vdupq_n_f64(0);
-    nk_size_t i = 0;
-    for (; i + 4 <= n; i += 4) {
-        bfloat16x4_t a_bf16x4 = vld1_bf16((nk_bf16_for_arm_simd_t const *)(a + i));
-        bfloat16x4_t b_bf16x4 = vld1_bf16((nk_bf16_for_arm_simd_t const *)(b + i));
-        float32x4_t a_f32x4 = vcvt_f32_bf16(a_bf16x4);
-        float32x4_t b_f32x4 = vcvt_f32_bf16(b_bf16x4);
-        float32x4_t diff_f32x4 = vsubq_f32(a_f32x4, b_f32x4);
-        // Upcast to f64 for accumulation: process 2+2 elements
-        float64x2_t diff_low_f64x2 = vcvt_f64_f32(vget_low_f32(diff_f32x4));
-        float64x2_t diff_high_f64x2 = vcvt_f64_f32(vget_high_f32(diff_f32x4));
-        sum_f64x2 = vfmaq_f64(sum_f64x2, diff_low_f64x2, diff_low_f64x2);
-        sum_f64x2 = vfmaq_f64(sum_f64x2, diff_high_f64x2, diff_high_f64x2);
+    float32x4_t sum_f32x4 = vdupq_n_f32(0);
+    bfloat16x4_t a_bf16x4, b_bf16x4;
+
+nk_sqeuclidean_bf16_neonbfdot_cycle:
+    if (n < 4) {
+        nk_b64_vec_t a_tail, b_tail;
+        nk_partial_load_b16x4_serial_(a, &a_tail, n);
+        nk_partial_load_b16x4_serial_(b, &b_tail, n);
+        a_bf16x4 = vreinterpret_bf16_u16(a_tail.u16x4);
+        b_bf16x4 = vreinterpret_bf16_u16(b_tail.u16x4);
+        n = 0;
     }
-    nk_f64_t sum_f64 = vaddvq_f64(sum_f64x2);
-    // Tail handling
-    for (; i < n; ++i) {
-        nk_f32_t a_f32, b_f32;
-        nk_bf16_to_f32(&a[i], &a_f32);
-        nk_bf16_to_f32(&b[i], &b_f32);
-        nk_f64_t diff_f64 = (nk_f64_t)a_f32 - (nk_f64_t)b_f32;
-        sum_f64 += diff_f64 * diff_f64;
+    else {
+        a_bf16x4 = vld1_bf16((nk_bf16_for_arm_simd_t const *)a);
+        b_bf16x4 = vld1_bf16((nk_bf16_for_arm_simd_t const *)b);
+        n -= 4, a += 4, b += 4;
     }
-    *result = (nk_f32_t)sum_f64;
+    float32x4_t a_f32x4 = vcvt_f32_bf16(a_bf16x4);
+    float32x4_t b_f32x4 = vcvt_f32_bf16(b_bf16x4);
+    float32x4_t diff_f32x4 = vsubq_f32(a_f32x4, b_f32x4);
+    sum_f32x4 = vfmaq_f32(sum_f32x4, diff_f32x4, diff_f32x4);
+    if (n) goto nk_sqeuclidean_bf16_neonbfdot_cycle;
+
+    *result = vaddvq_f32(sum_f32x4);
 }
 NK_PUBLIC void nk_euclidean_bf16_neonbfdot(nk_bf16_t const *a, nk_bf16_t const *b, nk_size_t n, nk_f32_t *result) {
     nk_sqeuclidean_bf16_neonbfdot(a, b, n, result);

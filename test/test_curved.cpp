@@ -92,6 +92,18 @@ void test_curved() {
     run_if_matches("mahalanobis_f32_neon", test_mahalanobis<f32_t>, nk_mahalanobis_f32_neon);
 #endif // NK_TARGET_NEON
 
+#if NK_TARGET_NEONHALF
+    run_if_matches("bilinear_f16_neonhalf", test_bilinear<f16_t>, nk_bilinear_f16_neonhalf);
+    run_if_matches("bilinear_f16c_neonhalf", test_bilinear<f16c_t>, nk_bilinear_f16c_neonhalf);
+    run_if_matches("mahalanobis_f16_neonhalf", test_mahalanobis<f16_t>, nk_mahalanobis_f16_neonhalf);
+#endif // NK_TARGET_NEONHALF
+
+#if NK_TARGET_NEONBFDOT
+    run_if_matches("bilinear_bf16_neonbfdot", test_bilinear<bf16_t>, nk_bilinear_bf16_neonbfdot);
+    run_if_matches("bilinear_bf16c_neonbfdot", test_bilinear<bf16c_t>, nk_bilinear_bf16c_neonbfdot);
+    run_if_matches("mahalanobis_bf16_neonbfdot", test_mahalanobis<bf16_t>, nk_mahalanobis_bf16_neonbfdot);
+#endif // NK_TARGET_NEONBFDOT
+
 #if NK_TARGET_SKYLAKE
     run_if_matches("bilinear_f32_skylake", test_bilinear<f32_t>, nk_bilinear_f32_skylake);
     run_if_matches("bilinear_f64_skylake", test_bilinear<f64_t>, nk_bilinear_f64_skylake);
@@ -105,6 +117,9 @@ void test_curved() {
     run_if_matches("bilinear_smef64_f32", test_bilinear<f32_t>, nk_bilinear_f32_smef64);
     run_if_matches("bilinear_smef64_f32c", test_bilinear<f32c_t>, nk_bilinear_f32c_smef64);
     run_if_matches("mahalanobis_f32_smef64", test_mahalanobis<f32_t>, nk_mahalanobis_f32_smef64);
+    run_if_matches("bilinear_f64_smef64", test_bilinear<f64_t>, nk_bilinear_f64_smef64);
+    run_if_matches("bilinear_f64c_smef64", test_bilinear<f64c_t>, nk_bilinear_f64c_smef64);
+    run_if_matches("mahalanobis_f64_smef64", test_mahalanobis<f64_t>, nk_mahalanobis_f64_smef64);
 #endif // NK_TARGET_SMEF64
 
     // Serial always runs - baseline test
@@ -114,6 +129,12 @@ void test_curved() {
     run_if_matches("bilinear_f64c_serial", test_bilinear<f64c_t>, nk_bilinear_f64c_serial);
     run_if_matches("mahalanobis_f32_serial", test_mahalanobis<f32_t>, nk_mahalanobis_f32_serial);
     run_if_matches("mahalanobis_f64_serial", test_mahalanobis<f64_t>, nk_mahalanobis_f64_serial);
+    run_if_matches("bilinear_f16_serial", test_bilinear<f16_t>, nk_bilinear_f16_serial);
+    run_if_matches("bilinear_f16c_serial", test_bilinear<f16c_t>, nk_bilinear_f16c_serial);
+    run_if_matches("mahalanobis_f16_serial", test_mahalanobis<f16_t>, nk_mahalanobis_f16_serial);
+    run_if_matches("bilinear_bf16_serial", test_bilinear<bf16_t>, nk_bilinear_bf16_serial);
+    run_if_matches("bilinear_bf16c_serial", test_bilinear<bf16c_t>, nk_bilinear_bf16c_serial);
+    run_if_matches("mahalanobis_bf16_serial", test_mahalanobis<bf16_t>, nk_mahalanobis_bf16_serial);
 
 #endif // NK_DYNAMIC_DISPATCH
 }
