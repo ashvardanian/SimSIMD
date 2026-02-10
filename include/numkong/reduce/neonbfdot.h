@@ -104,15 +104,17 @@ NK_INTERNAL void nk_reduce_add_bf16_neonbfdot_strided_(                //
         }
     }
 
-    // Scalar tail
-    nk_f32_t sum = vaddvq_f32(sum_f32x4);
-    for (; idx < count; ++idx) {
-        nk_f32_t val;
-        nk_bf16_to_f32_serial(&data[idx * stride_elements], &val);
-        sum += val;
+    // Gather tail into contiguous buffer, then dot with ones
+    if (idx < count) {
+        nk_b128_vec_t tail_vec = {{0}};
+        nk_size_t remaining = count - idx;
+        for (nk_size_t k = 0; k < remaining; ++k)
+            tail_vec.u16s[k] = *(nk_u16_t const *)(data + (idx + k) * stride_elements);
+        bfloat16x8_t data_bf16x8 = vreinterpretq_bf16_u16(tail_vec.u16x8);
+        sum_f32x4 = vbfdotq_f32(sum_f32x4, data_bf16x8, ones_bf16x8);
     }
 
-    *result = sum;
+    *result = vaddvq_f32(sum_f32x4);
 }
 
 NK_PUBLIC void nk_reduce_add_bf16_neonbfdot(                        //
@@ -130,47 +132,52 @@ NK_INTERNAL void nk_reduce_min_bf16_neonbfdot_contiguous_( //
     nk_bf16_t const *data, nk_size_t count,                //
     nk_f32_t *min_value, nk_size_t *min_index) {
 
-    // Track min values in f32 (converted from bf16), process 4 at a time
     float32x4_t min_f32x4 = vdupq_n_f32(NK_F32_MAX);
-    int32x4_t min_idx_i32x4 = vdupq_n_s32(0);
-    int32x4_t idx_i32x4 = {0, 1, 2, 3};
-    int32x4_t step_i32x4 = vdupq_n_s32(4);
+    uint32x4_t min_idx_u32x4 = vdupq_n_u32(0);
+    uint32x4_t idx_u32x4 = {0, 1, 2, 3};
+    uint32x4_t step_u32x4 = vdupq_n_u32(4);
+    uint16x4_t data_u16x4;
     nk_size_t idx = 0;
 
-    for (; idx + 4 <= count; idx += 4) {
-        // Load 4 bf16 values and convert to f32 via bit shift
-        uint16x4_t data_u16x4 = vld1_u16((uint16_t const *)(data + idx));
+nk_reduce_min_bf16_neonbfdot_contiguous_cycle:
+    if (idx + 4 <= count) {
+        data_u16x4 = vld1_u16((uint16_t const *)(data + idx));
+        idx += 4;
         uint32x4_t data_u32x4 = vshll_n_u16(data_u16x4, 16);
         float32x4_t data_f32x4 = vreinterpretq_f32_u32(data_u32x4);
         uint32x4_t lt_u32x4 = vcltq_f32(data_f32x4, min_f32x4);
         min_f32x4 = vbslq_f32(lt_u32x4, data_f32x4, min_f32x4);
-        min_idx_i32x4 = vbslq_s32(lt_u32x4, idx_i32x4, min_idx_i32x4);
-        idx_i32x4 = vaddq_s32(idx_i32x4, step_i32x4);
+        min_idx_u32x4 = vbslq_u32(lt_u32x4, idx_u32x4, min_idx_u32x4);
+        idx_u32x4 = vaddq_u32(idx_u32x4, step_u32x4);
     }
+    else {
+        nk_b64_vec_t tail_vec;
+        nk_partial_load_b16x4_serial_(data + idx, &tail_vec, count - idx);
+        data_u16x4 = tail_vec.u16x4;
+        nk_size_t valid = count - idx;
+        idx = count;
+        uint32x4_t data_u32x4 = vshll_n_u16(data_u16x4, 16);
+        float32x4_t data_f32x4 = vreinterpretq_f32_u32(data_u32x4);
+        // Mask invalid lanes to current min
+        uint32x4_t lane_u32x4 = {0, 1, 2, 3};
+        uint32x4_t valid_u32x4 = vcltq_u32(lane_u32x4, vdupq_n_u32((uint32_t)valid));
+        data_f32x4 = vbslq_f32(valid_u32x4, data_f32x4, min_f32x4);
+        uint32x4_t lt_u32x4 = vcltq_f32(data_f32x4, min_f32x4);
+        min_f32x4 = vbslq_f32(lt_u32x4, data_f32x4, min_f32x4);
+        min_idx_u32x4 = vbslq_u32(lt_u32x4, idx_u32x4, min_idx_u32x4);
+        idx_u32x4 = vaddq_u32(idx_u32x4, step_u32x4);
+    }
+    if (idx < count) goto nk_reduce_min_bf16_neonbfdot_contiguous_cycle;
 
     // Horizontal reduction
     nk_b128_vec_t min_vec, idx_vec;
     min_vec.f32x4 = min_f32x4;
-    idx_vec.i32x4 = min_idx_i32x4;
+    idx_vec.u32x4 = min_idx_u32x4;
 
     nk_f32_t best_val = min_vec.f32s[0];
-    nk_size_t best_idx = (nk_size_t)idx_vec.i32s[0];
-    for (int i = 1; i < 4; ++i) {
-        if (min_vec.f32s[i] < best_val) {
-            best_val = min_vec.f32s[i];
-            best_idx = (nk_size_t)idx_vec.i32s[i];
-        }
-    }
-
-    // Scalar tail
-    for (; idx < count; ++idx) {
-        nk_f32_t val;
-        nk_bf16_to_f32_serial(&data[idx], &val);
-        if (val < best_val) {
-            best_val = val;
-            best_idx = idx;
-        }
-    }
+    nk_size_t best_idx = (nk_size_t)idx_vec.u32s[0];
+    for (int i = 1; i < 4; ++i)
+        if (min_vec.f32s[i] < best_val) best_val = min_vec.f32s[i], best_idx = (nk_size_t)idx_vec.u32s[i];
 
     *min_value = best_val;
     *min_index = best_idx;
@@ -181,9 +188,9 @@ NK_INTERNAL void nk_reduce_min_bf16_neonbfdot_strided_(                //
     nk_f32_t *min_value, nk_size_t *min_index) {
 
     float32x4_t min_f32x4 = vdupq_n_f32(NK_F32_MAX);
-    int32x4_t min_idx_i32x4 = vdupq_n_s32(0);
-    int32x4_t idx_i32x4 = {0, 1, 2, 3};
-    int32x4_t step_i32x4 = vdupq_n_s32(4);
+    uint32x4_t min_idx_u32x4 = vdupq_n_u32(0);
+    uint32x4_t idx_u32x4 = {0, 1, 2, 3};
+    uint32x4_t step_u32x4 = vdupq_n_u32(4);
     nk_size_t idx = 0;
 
     if (stride_elements == 2) {
@@ -193,8 +200,8 @@ NK_INTERNAL void nk_reduce_min_bf16_neonbfdot_strided_(                //
             float32x4_t data_f32x4 = vreinterpretq_f32_u32(data_u32x4);
             uint32x4_t lt_u32x4 = vcltq_f32(data_f32x4, min_f32x4);
             min_f32x4 = vbslq_f32(lt_u32x4, data_f32x4, min_f32x4);
-            min_idx_i32x4 = vbslq_s32(lt_u32x4, idx_i32x4, min_idx_i32x4);
-            idx_i32x4 = vaddq_s32(idx_i32x4, step_i32x4);
+            min_idx_u32x4 = vbslq_u32(lt_u32x4, idx_u32x4, min_idx_u32x4);
+            idx_u32x4 = vaddq_u32(idx_u32x4, step_u32x4);
         }
     }
     else if (stride_elements == 3) {
@@ -204,8 +211,8 @@ NK_INTERNAL void nk_reduce_min_bf16_neonbfdot_strided_(                //
             float32x4_t data_f32x4 = vreinterpretq_f32_u32(data_u32x4);
             uint32x4_t lt_u32x4 = vcltq_f32(data_f32x4, min_f32x4);
             min_f32x4 = vbslq_f32(lt_u32x4, data_f32x4, min_f32x4);
-            min_idx_i32x4 = vbslq_s32(lt_u32x4, idx_i32x4, min_idx_i32x4);
-            idx_i32x4 = vaddq_s32(idx_i32x4, step_i32x4);
+            min_idx_u32x4 = vbslq_u32(lt_u32x4, idx_u32x4, min_idx_u32x4);
+            idx_u32x4 = vaddq_u32(idx_u32x4, step_u32x4);
         }
     }
     else if (stride_elements == 4) {
@@ -215,34 +222,36 @@ NK_INTERNAL void nk_reduce_min_bf16_neonbfdot_strided_(                //
             float32x4_t data_f32x4 = vreinterpretq_f32_u32(data_u32x4);
             uint32x4_t lt_u32x4 = vcltq_f32(data_f32x4, min_f32x4);
             min_f32x4 = vbslq_f32(lt_u32x4, data_f32x4, min_f32x4);
-            min_idx_i32x4 = vbslq_s32(lt_u32x4, idx_i32x4, min_idx_i32x4);
-            idx_i32x4 = vaddq_s32(idx_i32x4, step_i32x4);
+            min_idx_u32x4 = vbslq_u32(lt_u32x4, idx_u32x4, min_idx_u32x4);
+            idx_u32x4 = vaddq_u32(idx_u32x4, step_u32x4);
         }
+    }
+
+    // Gather tail into contiguous buffer with lane masking
+    if (idx < count) {
+        nk_b64_vec_t tail_vec = {{0}};
+        nk_size_t remaining = count - idx;
+        for (nk_size_t k = 0; k < remaining; ++k)
+            tail_vec.u16s[k] = *(nk_u16_t const *)(data + (idx + k) * stride_elements);
+        uint32x4_t data_u32x4 = vshll_n_u16(tail_vec.u16x4, 16);
+        float32x4_t data_f32x4 = vreinterpretq_f32_u32(data_u32x4);
+        uint32x4_t lane_u32x4 = {0, 1, 2, 3};
+        uint32x4_t valid_u32x4 = vcltq_u32(lane_u32x4, vdupq_n_u32((uint32_t)remaining));
+        data_f32x4 = vbslq_f32(valid_u32x4, data_f32x4, min_f32x4);
+        uint32x4_t lt_u32x4 = vcltq_f32(data_f32x4, min_f32x4);
+        min_f32x4 = vbslq_f32(lt_u32x4, data_f32x4, min_f32x4);
+        min_idx_u32x4 = vbslq_u32(lt_u32x4, idx_u32x4, min_idx_u32x4);
     }
 
     // Horizontal reduction
     nk_b128_vec_t min_vec, idx_vec;
     min_vec.f32x4 = min_f32x4;
-    idx_vec.i32x4 = min_idx_i32x4;
+    idx_vec.u32x4 = min_idx_u32x4;
 
     nk_f32_t best_val = min_vec.f32s[0];
-    nk_size_t best_idx = (nk_size_t)idx_vec.i32s[0];
-    for (int i = 1; i < 4; ++i) {
-        if (min_vec.f32s[i] < best_val) {
-            best_val = min_vec.f32s[i];
-            best_idx = (nk_size_t)idx_vec.i32s[i];
-        }
-    }
-
-    // Scalar tail
-    for (; idx < count; ++idx) {
-        nk_f32_t val;
-        nk_bf16_to_f32_serial(&data[idx * stride_elements], &val);
-        if (val < best_val) {
-            best_val = val;
-            best_idx = idx;
-        }
-    }
+    nk_size_t best_idx = (nk_size_t)idx_vec.u32s[0];
+    for (int i = 1; i < 4; ++i)
+        if (min_vec.f32s[i] < best_val) best_val = min_vec.f32s[i], best_idx = (nk_size_t)idx_vec.u32s[i];
 
     *min_value = best_val;
     *min_index = best_idx;
@@ -264,47 +273,52 @@ NK_INTERNAL void nk_reduce_max_bf16_neonbfdot_contiguous_( //
     nk_bf16_t const *data, nk_size_t count,                //
     nk_f32_t *max_value, nk_size_t *max_index) {
 
-    // Track max values in f32 (converted from bf16), process 4 at a time
     float32x4_t max_f32x4 = vdupq_n_f32(NK_F32_MIN);
-    int32x4_t max_idx_i32x4 = vdupq_n_s32(0);
-    int32x4_t idx_i32x4 = {0, 1, 2, 3};
-    int32x4_t step_i32x4 = vdupq_n_s32(4);
+    uint32x4_t max_idx_u32x4 = vdupq_n_u32(0);
+    uint32x4_t idx_u32x4 = {0, 1, 2, 3};
+    uint32x4_t step_u32x4 = vdupq_n_u32(4);
+    uint16x4_t data_u16x4;
     nk_size_t idx = 0;
 
-    for (; idx + 4 <= count; idx += 4) {
-        // Load 4 bf16 values and convert to f32 via bit shift
-        uint16x4_t data_u16x4 = vld1_u16((uint16_t const *)(data + idx));
+nk_reduce_max_bf16_neonbfdot_contiguous_cycle:
+    if (idx + 4 <= count) {
+        data_u16x4 = vld1_u16((uint16_t const *)(data + idx));
+        idx += 4;
         uint32x4_t data_u32x4 = vshll_n_u16(data_u16x4, 16);
         float32x4_t data_f32x4 = vreinterpretq_f32_u32(data_u32x4);
         uint32x4_t gt_u32x4 = vcgtq_f32(data_f32x4, max_f32x4);
         max_f32x4 = vbslq_f32(gt_u32x4, data_f32x4, max_f32x4);
-        max_idx_i32x4 = vbslq_s32(gt_u32x4, idx_i32x4, max_idx_i32x4);
-        idx_i32x4 = vaddq_s32(idx_i32x4, step_i32x4);
+        max_idx_u32x4 = vbslq_u32(gt_u32x4, idx_u32x4, max_idx_u32x4);
+        idx_u32x4 = vaddq_u32(idx_u32x4, step_u32x4);
     }
+    else {
+        nk_b64_vec_t tail_vec;
+        nk_partial_load_b16x4_serial_(data + idx, &tail_vec, count - idx);
+        data_u16x4 = tail_vec.u16x4;
+        nk_size_t valid = count - idx;
+        idx = count;
+        uint32x4_t data_u32x4 = vshll_n_u16(data_u16x4, 16);
+        float32x4_t data_f32x4 = vreinterpretq_f32_u32(data_u32x4);
+        // Mask invalid lanes to current max
+        uint32x4_t lane_u32x4 = {0, 1, 2, 3};
+        uint32x4_t valid_u32x4 = vcltq_u32(lane_u32x4, vdupq_n_u32((uint32_t)valid));
+        data_f32x4 = vbslq_f32(valid_u32x4, data_f32x4, max_f32x4);
+        uint32x4_t gt_u32x4 = vcgtq_f32(data_f32x4, max_f32x4);
+        max_f32x4 = vbslq_f32(gt_u32x4, data_f32x4, max_f32x4);
+        max_idx_u32x4 = vbslq_u32(gt_u32x4, idx_u32x4, max_idx_u32x4);
+        idx_u32x4 = vaddq_u32(idx_u32x4, step_u32x4);
+    }
+    if (idx < count) goto nk_reduce_max_bf16_neonbfdot_contiguous_cycle;
 
     // Horizontal reduction
     nk_b128_vec_t max_vec, idx_vec;
     max_vec.f32x4 = max_f32x4;
-    idx_vec.i32x4 = max_idx_i32x4;
+    idx_vec.u32x4 = max_idx_u32x4;
 
     nk_f32_t best_val = max_vec.f32s[0];
-    nk_size_t best_idx = (nk_size_t)idx_vec.i32s[0];
-    for (int i = 1; i < 4; ++i) {
-        if (max_vec.f32s[i] > best_val) {
-            best_val = max_vec.f32s[i];
-            best_idx = (nk_size_t)idx_vec.i32s[i];
-        }
-    }
-
-    // Scalar tail
-    for (; idx < count; ++idx) {
-        nk_f32_t val;
-        nk_bf16_to_f32_serial(&data[idx], &val);
-        if (val > best_val) {
-            best_val = val;
-            best_idx = idx;
-        }
-    }
+    nk_size_t best_idx = (nk_size_t)idx_vec.u32s[0];
+    for (int i = 1; i < 4; ++i)
+        if (max_vec.f32s[i] > best_val) best_val = max_vec.f32s[i], best_idx = (nk_size_t)idx_vec.u32s[i];
 
     *max_value = best_val;
     *max_index = best_idx;
@@ -315,9 +329,9 @@ NK_INTERNAL void nk_reduce_max_bf16_neonbfdot_strided_(                //
     nk_f32_t *max_value, nk_size_t *max_index) {
 
     float32x4_t max_f32x4 = vdupq_n_f32(NK_F32_MIN);
-    int32x4_t max_idx_i32x4 = vdupq_n_s32(0);
-    int32x4_t idx_i32x4 = {0, 1, 2, 3};
-    int32x4_t step_i32x4 = vdupq_n_s32(4);
+    uint32x4_t max_idx_u32x4 = vdupq_n_u32(0);
+    uint32x4_t idx_u32x4 = {0, 1, 2, 3};
+    uint32x4_t step_u32x4 = vdupq_n_u32(4);
     nk_size_t idx = 0;
 
     if (stride_elements == 2) {
@@ -327,8 +341,8 @@ NK_INTERNAL void nk_reduce_max_bf16_neonbfdot_strided_(                //
             float32x4_t data_f32x4 = vreinterpretq_f32_u32(data_u32x4);
             uint32x4_t gt_u32x4 = vcgtq_f32(data_f32x4, max_f32x4);
             max_f32x4 = vbslq_f32(gt_u32x4, data_f32x4, max_f32x4);
-            max_idx_i32x4 = vbslq_s32(gt_u32x4, idx_i32x4, max_idx_i32x4);
-            idx_i32x4 = vaddq_s32(idx_i32x4, step_i32x4);
+            max_idx_u32x4 = vbslq_u32(gt_u32x4, idx_u32x4, max_idx_u32x4);
+            idx_u32x4 = vaddq_u32(idx_u32x4, step_u32x4);
         }
     }
     else if (stride_elements == 3) {
@@ -338,8 +352,8 @@ NK_INTERNAL void nk_reduce_max_bf16_neonbfdot_strided_(                //
             float32x4_t data_f32x4 = vreinterpretq_f32_u32(data_u32x4);
             uint32x4_t gt_u32x4 = vcgtq_f32(data_f32x4, max_f32x4);
             max_f32x4 = vbslq_f32(gt_u32x4, data_f32x4, max_f32x4);
-            max_idx_i32x4 = vbslq_s32(gt_u32x4, idx_i32x4, max_idx_i32x4);
-            idx_i32x4 = vaddq_s32(idx_i32x4, step_i32x4);
+            max_idx_u32x4 = vbslq_u32(gt_u32x4, idx_u32x4, max_idx_u32x4);
+            idx_u32x4 = vaddq_u32(idx_u32x4, step_u32x4);
         }
     }
     else if (stride_elements == 4) {
@@ -349,34 +363,36 @@ NK_INTERNAL void nk_reduce_max_bf16_neonbfdot_strided_(                //
             float32x4_t data_f32x4 = vreinterpretq_f32_u32(data_u32x4);
             uint32x4_t gt_u32x4 = vcgtq_f32(data_f32x4, max_f32x4);
             max_f32x4 = vbslq_f32(gt_u32x4, data_f32x4, max_f32x4);
-            max_idx_i32x4 = vbslq_s32(gt_u32x4, idx_i32x4, max_idx_i32x4);
-            idx_i32x4 = vaddq_s32(idx_i32x4, step_i32x4);
+            max_idx_u32x4 = vbslq_u32(gt_u32x4, idx_u32x4, max_idx_u32x4);
+            idx_u32x4 = vaddq_u32(idx_u32x4, step_u32x4);
         }
+    }
+
+    // Gather tail into contiguous buffer with lane masking
+    if (idx < count) {
+        nk_b64_vec_t tail_vec = {{0}};
+        nk_size_t remaining = count - idx;
+        for (nk_size_t k = 0; k < remaining; ++k)
+            tail_vec.u16s[k] = *(nk_u16_t const *)(data + (idx + k) * stride_elements);
+        uint32x4_t data_u32x4 = vshll_n_u16(tail_vec.u16x4, 16);
+        float32x4_t data_f32x4 = vreinterpretq_f32_u32(data_u32x4);
+        uint32x4_t lane_u32x4 = {0, 1, 2, 3};
+        uint32x4_t valid_u32x4 = vcltq_u32(lane_u32x4, vdupq_n_u32((uint32_t)remaining));
+        data_f32x4 = vbslq_f32(valid_u32x4, data_f32x4, max_f32x4);
+        uint32x4_t gt_u32x4 = vcgtq_f32(data_f32x4, max_f32x4);
+        max_f32x4 = vbslq_f32(gt_u32x4, data_f32x4, max_f32x4);
+        max_idx_u32x4 = vbslq_u32(gt_u32x4, idx_u32x4, max_idx_u32x4);
     }
 
     // Horizontal reduction
     nk_b128_vec_t max_vec, idx_vec;
     max_vec.f32x4 = max_f32x4;
-    idx_vec.i32x4 = max_idx_i32x4;
+    idx_vec.u32x4 = max_idx_u32x4;
 
     nk_f32_t best_val = max_vec.f32s[0];
-    nk_size_t best_idx = (nk_size_t)idx_vec.i32s[0];
-    for (int i = 1; i < 4; ++i) {
-        if (max_vec.f32s[i] > best_val) {
-            best_val = max_vec.f32s[i];
-            best_idx = (nk_size_t)idx_vec.i32s[i];
-        }
-    }
-
-    // Scalar tail
-    for (; idx < count; ++idx) {
-        nk_f32_t val;
-        nk_bf16_to_f32_serial(&data[idx * stride_elements], &val);
-        if (val > best_val) {
-            best_val = val;
-            best_idx = idx;
-        }
-    }
+    nk_size_t best_idx = (nk_size_t)idx_vec.u32s[0];
+    for (int i = 1; i < 4; ++i)
+        if (max_vec.f32s[i] > best_val) best_val = max_vec.f32s[i], best_idx = (nk_size_t)idx_vec.u32s[i];
 
     *max_value = best_val;
     *max_index = best_idx;

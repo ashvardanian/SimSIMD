@@ -1287,6 +1287,19 @@ NK_INTERNAL void nk_partial_store_b16x8_serial_(nk_b128_vec_t const *src, void *
     }
 }
 
+/** @brief Type-agnostic partial store for 16-bit elements (4 elements max) from 64-bit vector. */
+NK_INTERNAL void nk_partial_store_b16x4_serial_(void *dst, nk_b64_vec_t const *src, nk_size_t n) {
+    nk_u16_t *d = (nk_u16_t *)dst;
+    switch (n) {
+    default:
+    case 4: d[3] = src->u16s[3]; // fallthrough
+    case 3: d[2] = src->u16s[2]; // fallthrough
+    case 2: d[1] = src->u16s[1]; // fallthrough
+    case 1: d[0] = src->u16s[0]; // fallthrough
+    case 0: break;
+    }
+}
+
 /** @brief Type-agnostic partial store for 8-bit elements (8 elements max) from 64-bit vector. */
 NK_INTERNAL void nk_partial_store_b8x8_serial_(nk_b64_vec_t const *src, void *dst, nk_size_t n) {
     nk_u8_t *d = (nk_u8_t *)dst;
