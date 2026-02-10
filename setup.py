@@ -11,6 +11,7 @@ from __future__ import annotations
 import os
 import sys
 import platform
+import glob
 from pathlib import Path
 from typing import List, Tuple
 
@@ -235,16 +236,21 @@ if _is_editable_install():
     print("[NumKong] Editable install detected - skipping bundled type stubs.")
 
 
+# Use glob to find all dispatch files
+base_sources = [
+    "python/numkong.c",
+    "python/numerics.c",
+    "python/tensor.c",
+    "python/scalars.c",
+    "c/numkong.c",
+]
+
+dispatch_sources = sorted(glob.glob("c/dispatch_*.c"))
+
 ext_modules = [
     Extension(
         "numkong",
-        sources=[
-            "python/numkong.c",
-            "python/numerics.c",
-            "python/tensor.c",
-            "python/scalars.c",
-            "c/numkong.c",
-        ],
+        sources=base_sources + dispatch_sources,
         include_dirs=["include", "python"],
         language="c",
         extra_compile_args=compile_args,
