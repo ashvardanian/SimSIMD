@@ -68,7 +68,7 @@ NK_INTERNAL __m512h nk_e2m3x32_to_f16x32_sapphire_(__m256i e2m3x32) {
         0x4780, 0x4700, 0x4680, 0x4600, 0x4580, 0x4500, 0x4480, 0x4400,  // [31-24] exp=3: f16_exp=17
         0x4380, 0x4300, 0x4280, 0x4200, 0x4180, 0x4100, 0x4080, 0x4000,  // [23-16] exp=2: f16_exp=16
         0x3F80, 0x3F00, 0x3E80, 0x3E00, 0x3D80, 0x3D00, 0x3C80, 0x3C00,  // [15-8] exp=1: f16_exp=15
-        0x3700, 0x3600, 0x3500, 0x3400, 0x3200, 0x3000, 0x2C00, 0x0000); // [7-0] exp=0: subnormals
+        0x3B00, 0x3A00, 0x3900, 0x3800, 0x3600, 0x3400, 0x3000, 0x0000); // [7-0] exp=0: subnormals (0, 1/8..7/8)
 
     // 32-entry LUT for negative E2M3 magnitudes → F16 (= positive | 0x8000)
     __m512i const lut_neg_i16x32 = _mm512_set_epi16(                 //
@@ -78,8 +78,8 @@ NK_INTERNAL __m512h nk_e2m3x32_to_f16x32_sapphire_(__m256i e2m3x32) {
         (short)0xC180, (short)0xC100, (short)0xC080, (short)0xC000,  // [23-16] exp=2
         (short)0xBF80, (short)0xBF00, (short)0xBE80, (short)0xBE00,  //
         (short)0xBD80, (short)0xBD00, (short)0xBC80, (short)0xBC00,  // [15-8] exp=1
-        (short)0xB700, (short)0xB600, (short)0xB500, (short)0xB400,  //
-        (short)0xB200, (short)0xB000, (short)0xAC00, (short)0x8000); // [7-0] exp=0
+        (short)0xBB00, (short)0xBA00, (short)0xB900, (short)0xB800,  //
+        (short)0xB600, (short)0xB400, (short)0xB000, (short)0x8000); // [7-0] exp=0
 
     return (__m512h)_mm512_permutex2var_epi16(lut_pos_i16x32, idx_i16x32, lut_neg_i16x32);
 }

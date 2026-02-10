@@ -204,10 +204,10 @@ NK_INTERNAL float16x8_t nk_e2m3x8_to_f16x8_neon_(uint8x8_t e2m3_u8x8) {
     uint16x8_t mant_positioned = vshlq_n_u16(mant_u16x8, 7);
     uint16x8_t normal_bits = vorrq_u16(sign_u16x8, vorrq_u16(exp_positioned, mant_positioned));
 
-    // Subnormal path (exp=0): E2M3 subnormal = mant × 2^(-1) × (1/8) = mant / 16
+    // Subnormal path (exp=0): E2M3 subnormal = mant / 8
     // Compute via f32: mant → f32 → multiply → f16
-    float32x4_t subnorm_lo_f32x4 = vmulq_n_f32(vcvtq_f32_u32(vmovl_u16(vget_low_u16(mant_u16x8))), 1.0f / 16.0f);
-    float32x4_t subnorm_hi_f32x4 = vmulq_n_f32(vcvtq_f32_u32(vmovl_u16(vget_high_u16(mant_u16x8))), 1.0f / 16.0f);
+    float32x4_t subnorm_lo_f32x4 = vmulq_n_f32(vcvtq_f32_u32(vmovl_u16(vget_low_u16(mant_u16x8))), 1.0f / 8.0f);
+    float32x4_t subnorm_hi_f32x4 = vmulq_n_f32(vcvtq_f32_u32(vmovl_u16(vget_high_u16(mant_u16x8))), 1.0f / 8.0f);
     uint16x8_t subnorm_abs = vreinterpretq_u16_f16(
         vcombine_f16(vcvt_f16_f32(subnorm_lo_f32x4), vcvt_f16_f32(subnorm_hi_f32x4)));
     uint16x8_t subnorm_bits = vorrq_u16(subnorm_abs, sign_u16x8);
@@ -262,18 +262,18 @@ NK_INTERNAL void nk_e2m3x16_to_f16x8x2_neon_(uint8x16_t input_u8x16, float16x8_t
     // E2M3FN: sign(1) exp(2) mant(3), bias=1
     // F16: sign(1) exp(5) mant(10), bias=15
     // Normal (exp!=0): f16 = (sign << 15) | ((exp + 14) << 10) | (mant << 7)
-    // Subnormal (exp=0): f16 = mant/16 converted to f16
+    // Subnormal (exp=0): f16 = mant/8 converted to f16
     //
     // Low byte pattern: E2M3 has 3 mantissa bits → f16 bits 9-7, so low byte (bits 7-0) is:
     //   - Subnormals (exp=0): always 0x00
     //   - Normals (exp≠0): (mant & 1) << 7 = 0x00 or 0x80
     // This simple pattern can be computed arithmetically, saving 4 table registers!
     static nk_u8_t const table_high_u8x64[64] = {
-        0x00, 0x2C, 0x30, 0x32, 0x34, 0x35, 0x36, 0x37, // exp=0 (subnormals)
+        0x00, 0x30, 0x34, 0x36, 0x38, 0x39, 0x3A, 0x3B, // exp=0 (subnormals: 0, 1/8..7/8)
         0x3C, 0x3C, 0x3D, 0x3D, 0x3E, 0x3E, 0x3F, 0x3F, // exp=1 → f16_exp=15 (0x3C-0x3F)
         0x40, 0x40, 0x41, 0x41, 0x42, 0x42, 0x43, 0x43, // exp=2 → f16_exp=16 (0x40-0x43)
         0x44, 0x44, 0x45, 0x45, 0x46, 0x46, 0x47, 0x47, // exp=3 → f16_exp=17 (0x44-0x47)
-        0x80, 0xAC, 0xB0, 0xB2, 0xB4, 0xB5, 0xB6, 0xB7, // exp=0 (negative subnormals)
+        0x80, 0xB0, 0xB4, 0xB6, 0xB8, 0xB9, 0xBA, 0xBB, // exp=0 (negative subnormals)
         0xBC, 0xBC, 0xBD, 0xBD, 0xBE, 0xBE, 0xBF, 0xBF, 0xC0, 0xC0, 0xC1, 0xC1,
         0xC2, 0xC2, 0xC3, 0xC3, 0xC4, 0xC4, 0xC5, 0xC5, 0xC6, 0xC6, 0xC7, 0xC7,
     };
