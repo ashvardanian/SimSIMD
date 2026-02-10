@@ -77,6 +77,8 @@ void nk_dispatch_u64_init_(nk_capability_t caps) {
     nk_implementations_t *t = &nk_dispatch_table;
     nk_capability_t used;
 
+    nk_dispatch_u64_find_(caps, nk_kernel_each_fma_k, (nk_kernel_punned_t *)&t->each_fma_u64, &used);
+    nk_dispatch_u64_find_(caps, nk_kernel_each_blend_k, (nk_kernel_punned_t *)&t->each_blend_u64, &used);
     nk_dispatch_u64_find_(caps, nk_kernel_each_scale_k, (nk_kernel_punned_t *)&t->each_scale_u64, &used);
     nk_dispatch_u64_find_(caps, nk_kernel_each_sum_k, (nk_kernel_punned_t *)&t->each_sum_u64, &used);
     nk_dispatch_u64_find_(caps, nk_kernel_reduce_add_k, (nk_kernel_punned_t *)&t->reduce_add_u64, &used);

@@ -1118,7 +1118,7 @@ NK_PUBLIC void nk_each_blend_e4m3_skylake(nk_e4m3_t const *a, nk_e4m3_t const *b
     __m512 alpha_f32x16 = _mm512_set1_ps(*alpha);
     __m512 beta_f32x16 = _mm512_set1_ps(*beta);
     __m128i a_e4m3x16, b_e4m3x16, result_e4m3x16;
-    __m512 a_f32x16, b_f32x16, a_scaled_f32x16, b_scaled_f32x16, result_f32x16;
+    __m512 a_f32x16, b_f32x16, a_scaled_f32x16, result_f32x16;
     __mmask16 mask = 0xFFFF;
 nk_each_blend_e4m3_skylake_cycle:
     if (n < 16) {
@@ -1147,7 +1147,7 @@ NK_PUBLIC void nk_each_blend_e5m2_skylake(nk_e5m2_t const *a, nk_e5m2_t const *b
     __m512 alpha_f32x16 = _mm512_set1_ps(*alpha);
     __m512 beta_f32x16 = _mm512_set1_ps(*beta);
     __m128i a_e5m2x16, b_e5m2x16, result_e5m2x16;
-    __m512 a_f32x16, b_f32x16, a_scaled_f32x16, b_scaled_f32x16, result_f32x16;
+    __m512 a_f32x16, b_f32x16, a_scaled_f32x16, result_f32x16;
     __mmask16 mask = 0xFFFF;
 nk_each_blend_e5m2_skylake_cycle:
     if (n < 16) {

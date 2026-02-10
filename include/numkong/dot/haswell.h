@@ -1187,10 +1187,10 @@ NK_INTERNAL void nk_dot_i4x32_finalize_haswell(                                 
 
     // Apply algebraic correction: result = product - 8×(cx + dx) + 64×depth
     nk_i64_t offset_term = 64 * (nk_i64_t)depth_nibbles;
-    nk_i32_t result_a = (nk_i32_t)(product_sum_i32x4[0] - 8 * (cx_a + dx_a) + offset_term);
-    nk_i32_t result_b = (nk_i32_t)(product_sum_i32x4[1] - 8 * (cx_b + dx_b) + offset_term);
-    nk_i32_t result_c = (nk_i32_t)(product_sum_i32x4[2] - 8 * (cx_c + dx_c) + offset_term);
-    nk_i32_t result_d = (nk_i32_t)(product_sum_i32x4[3] - 8 * (cx_d + dx_d) + offset_term);
+    nk_i32_t result_a = (nk_i32_t)(_mm_extract_epi32(product_sum_i32x4, 0) - 8 * (cx_a + dx_a) + offset_term);
+    nk_i32_t result_b = (nk_i32_t)(_mm_extract_epi32(product_sum_i32x4, 1) - 8 * (cx_b + dx_b) + offset_term);
+    nk_i32_t result_c = (nk_i32_t)(_mm_extract_epi32(product_sum_i32x4, 2) - 8 * (cx_c + dx_c) + offset_term);
+    nk_i32_t result_d = (nk_i32_t)(_mm_extract_epi32(product_sum_i32x4, 3) - 8 * (cx_d + dx_d) + offset_term);
 
     result->xmm = _mm_set_epi32(result_d, result_c, result_b, result_a);
 }

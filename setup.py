@@ -70,7 +70,7 @@ def linux_settings() -> Tuple[List[str], List[str], List[Tuple[str, str]]]:
         # x86 targets
         ("NK_TARGET_HASWELL", "1" if is_64bit_x86() else "0"),
         ("NK_TARGET_SKYLAKE", "1" if is_64bit_x86() else "0"),
-        ("NK_TARGET_ICE", "1" if is_64bit_x86() else "0"),
+        ("NK_TARGET_ICELAKE", "1" if is_64bit_x86() else "0"),
         ("NK_TARGET_GENOA", "1" if is_64bit_x86() else "0"),
         ("NK_TARGET_SAPPHIRE", "1" if is_64bit_x86() else "0"),
         ("NK_TARGET_TURIN", "1" if is_64bit_x86() else "0"),
@@ -117,7 +117,7 @@ def darwin_settings() -> Tuple[List[str], List[str], List[Tuple[str, str]]]:
         # x86 targets - conservative for macOS compatibility
         ("NK_TARGET_HASWELL", "1" if is_64bit_x86() else "0"),
         ("NK_TARGET_SKYLAKE", "0"),  # AVX-512 not common on Mac
-        ("NK_TARGET_ICE", "0"),
+        ("NK_TARGET_ICELAKE", "0"),
         ("NK_TARGET_GENOA", "0"),
         ("NK_TARGET_SAPPHIRE", "0"),
         ("NK_TARGET_TURIN", "0"),
@@ -167,7 +167,7 @@ def windows_settings() -> Tuple[List[str], List[str], List[Tuple[str, str]]]:
         # x86 targets - conservative for MSVC compatibility
         ("NK_TARGET_HASWELL", "1" if is_64bit_x86() else "0"),
         ("NK_TARGET_SKYLAKE", "1" if is_64bit_x86() else "0"),
-        ("NK_TARGET_ICE", "1" if is_64bit_x86() else "0"),
+        ("NK_TARGET_ICELAKE", "1" if is_64bit_x86() else "0"),
         ("NK_TARGET_GENOA", "0"),  # BF16 intrinsics broken in MSVC
         ("NK_TARGET_SAPPHIRE", "0"),  # FP16 intrinsics broken in MSVC
         ("NK_TARGET_TURIN", "0"),  # `VP2INTERSECT` limited in MSVC

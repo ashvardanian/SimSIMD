@@ -123,7 +123,7 @@ fn build_simsimd() -> HashMap<String, bool> {
             "NK_TARGET_TURIN",
             "NK_TARGET_SAPPHIRE",
             "NK_TARGET_GENOA",
-            "NK_TARGET_ICE",
+            "NK_TARGET_ICELAKE",
             "NK_TARGET_SKYLAKE",
             "NK_TARGET_HASWELL",
         ],
