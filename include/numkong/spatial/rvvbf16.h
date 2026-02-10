@@ -23,15 +23,23 @@
 #include "numkong/types.h"
 #include "numkong/spatial/rvv.h" // `nk_f32_sqrt_rvv`
 
+#if defined(__clang__)
+#pragma clang attribute push(__attribute__((target("arch=+v,+zvfbfwma"))), apply_to = function)
+#elif defined(__GNUC__)
+#pragma GCC push_options
+#pragma GCC target("arch=+v,+zvfbfwma")
+#endif
+
 #if defined(__cplusplus)
 extern "C" {
 #endif
 
 NK_PUBLIC void nk_sqeuclidean_bf16_rvvbf16(nk_bf16_t const *a_scalars, nk_bf16_t const *b_scalars,
                                            nk_size_t count_scalars, nk_f32_t *result) {
-    // Accumulate a² + b² and a × b separately
-    vfloat32m1_t sq_sum_f32m1 = __riscv_vfmv_v_f_f32m1(0.0f, 1); // a² + b²
-    vfloat32m1_t ab_sum_f32m1 = __riscv_vfmv_v_f_f32m1(0.0f, 1); // a × b
+    // Per-lane accumulators — deferred horizontal reduction
+    nk_size_t vlmax = __riscv_vsetvlmax_e32m2();
+    vfloat32m2_t sq_sum_f32m2 = __riscv_vfmv_v_f_f32m2(0.0f, vlmax); // a² + b²
+    vfloat32m2_t ab_sum_f32m2 = __riscv_vfmv_v_f_f32m2(0.0f, vlmax); // a × b
 
     for (nk_size_t vl; count_scalars > 0; count_scalars -= vl, a_scalars += vl, b_scalars += vl) {
         vl = __riscv_vsetvl_e16m1(count_scalars);
@@ -40,25 +48,16 @@ NK_PUBLIC void nk_sqeuclidean_bf16_rvvbf16(nk_bf16_t const *a_scalars, nk_bf16_t
         vbfloat16m1_t a_bf16m1 = __riscv_vreinterpret_v_u16m1_bf16m1(a_u16m1);
         vbfloat16m1_t b_bf16m1 = __riscv_vreinterpret_v_u16m1_bf16m1(b_u16m1);
 
-        // Compute a² using vfwmaccbf16
-        vfloat32m2_t aa_f32m2 = __riscv_vfmv_v_f_f32m2(0.0f, vl);
-        aa_f32m2 = __riscv_vfwmaccbf16_vv_f32m2(aa_f32m2, a_bf16m1, a_bf16m1, vl);
-        sq_sum_f32m1 = __riscv_vfredusum_vs_f32m2_f32m1(aa_f32m2, sq_sum_f32m1, vl);
-
-        // Compute b² using vfwmaccbf16
-        vfloat32m2_t bb_f32m2 = __riscv_vfmv_v_f_f32m2(0.0f, vl);
-        bb_f32m2 = __riscv_vfwmaccbf16_vv_f32m2(bb_f32m2, b_bf16m1, b_bf16m1, vl);
-        sq_sum_f32m1 = __riscv_vfredusum_vs_f32m2_f32m1(bb_f32m2, sq_sum_f32m1, vl);
-
-        // Compute a × b using vfwmaccbf16
-        vfloat32m2_t ab_f32m2 = __riscv_vfmv_v_f_f32m2(0.0f, vl);
-        ab_f32m2 = __riscv_vfwmaccbf16_vv_f32m2(ab_f32m2, a_bf16m1, b_bf16m1, vl);
-        ab_sum_f32m1 = __riscv_vfredusum_vs_f32m2_f32m1(ab_f32m2, ab_sum_f32m1, vl);
+        // Accumulate a², b², and a×b per-lane (no per-iteration reduction)
+        sq_sum_f32m2 = __riscv_vfwmaccbf16_vv_f32m2(sq_sum_f32m2, a_bf16m1, a_bf16m1, vl);
+        sq_sum_f32m2 = __riscv_vfwmaccbf16_vv_f32m2(sq_sum_f32m2, b_bf16m1, b_bf16m1, vl);
+        ab_sum_f32m2 = __riscv_vfwmaccbf16_vv_f32m2(ab_sum_f32m2, a_bf16m1, b_bf16m1, vl);
     }
 
-    // Final: (a² + b²) − 2 × (a × b)
-    nk_f32_t sq_sum = __riscv_vfmv_f_s_f32m1_f32(sq_sum_f32m1);
-    nk_f32_t ab_sum = __riscv_vfmv_f_s_f32m1_f32(ab_sum_f32m1);
+    // Single horizontal reduction after the loop
+    vfloat32m1_t zero_f32m1 = __riscv_vfmv_v_f_f32m1(0.0f, 1);
+    nk_f32_t sq_sum = __riscv_vfmv_f_s_f32m1_f32(__riscv_vfredusum_vs_f32m2_f32m1(sq_sum_f32m2, zero_f32m1, vlmax));
+    nk_f32_t ab_sum = __riscv_vfmv_f_s_f32m1_f32(__riscv_vfredusum_vs_f32m2_f32m1(ab_sum_f32m2, zero_f32m1, vlmax));
     *result = sq_sum - 2.0f * ab_sum;
 }
 
@@ -71,9 +70,11 @@ NK_PUBLIC void nk_euclidean_bf16_rvvbf16(nk_bf16_t const *a_scalars, nk_bf16_t c
 
 NK_PUBLIC void nk_angular_bf16_rvvbf16(nk_bf16_t const *a_scalars, nk_bf16_t const *b_scalars, nk_size_t count_scalars,
                                        nk_f32_t *result) {
-    vfloat32m1_t dot_f32m1 = __riscv_vfmv_v_f_f32m1(0.0f, 1);
-    vfloat32m1_t a_sq_f32m1 = __riscv_vfmv_v_f_f32m1(0.0f, 1);
-    vfloat32m1_t b_sq_f32m1 = __riscv_vfmv_v_f_f32m1(0.0f, 1);
+    // Per-lane accumulators — deferred horizontal reduction
+    nk_size_t vlmax = __riscv_vsetvlmax_e32m2();
+    vfloat32m2_t dot_f32m2 = __riscv_vfmv_v_f_f32m2(0.0f, vlmax);
+    vfloat32m2_t a_sq_f32m2 = __riscv_vfmv_v_f_f32m2(0.0f, vlmax);
+    vfloat32m2_t b_sq_f32m2 = __riscv_vfmv_v_f_f32m2(0.0f, vlmax);
 
     for (nk_size_t vl; count_scalars > 0; count_scalars -= vl, a_scalars += vl, b_scalars += vl) {
         vl = __riscv_vsetvl_e16m1(count_scalars);
@@ -83,27 +84,20 @@ NK_PUBLIC void nk_angular_bf16_rvvbf16(nk_bf16_t const *a_scalars, nk_bf16_t con
         vbfloat16m1_t b_bf16m1 = __riscv_vreinterpret_v_u16m1_bf16m1(b_u16m1);
 
         // dot += a × b
-        vfloat32m2_t ab_f32m2 = __riscv_vfmv_v_f_f32m2(0.0f, vl);
-        ab_f32m2 = __riscv_vfwmaccbf16_vv_f32m2(ab_f32m2, a_bf16m1, b_bf16m1, vl);
-        dot_f32m1 = __riscv_vfredusum_vs_f32m2_f32m1(ab_f32m2, dot_f32m1, vl);
-
+        dot_f32m2 = __riscv_vfwmaccbf16_vv_f32m2(dot_f32m2, a_bf16m1, b_bf16m1, vl);
         // a_sq += a × a
-        vfloat32m2_t aa_f32m2 = __riscv_vfmv_v_f_f32m2(0.0f, vl);
-        aa_f32m2 = __riscv_vfwmaccbf16_vv_f32m2(aa_f32m2, a_bf16m1, a_bf16m1, vl);
-        a_sq_f32m1 = __riscv_vfredusum_vs_f32m2_f32m1(aa_f32m2, a_sq_f32m1, vl);
-
+        a_sq_f32m2 = __riscv_vfwmaccbf16_vv_f32m2(a_sq_f32m2, a_bf16m1, a_bf16m1, vl);
         // b_sq += b × b
-        vfloat32m2_t bb_f32m2 = __riscv_vfmv_v_f_f32m2(0.0f, vl);
-        bb_f32m2 = __riscv_vfwmaccbf16_vv_f32m2(bb_f32m2, b_bf16m1, b_bf16m1, vl);
-        b_sq_f32m1 = __riscv_vfredusum_vs_f32m2_f32m1(bb_f32m2, b_sq_f32m1, vl);
+        b_sq_f32m2 = __riscv_vfwmaccbf16_vv_f32m2(b_sq_f32m2, b_bf16m1, b_bf16m1, vl);
     }
 
-    // Finalize: 1 − dot / √(‖a‖² × ‖b‖²)
-    nk_f32_t dot = __riscv_vfmv_f_s_f32m1_f32(dot_f32m1);
-    nk_f32_t a_sq = __riscv_vfmv_f_s_f32m1_f32(a_sq_f32m1);
-    nk_f32_t b_sq = __riscv_vfmv_f_s_f32m1_f32(b_sq_f32m1);
+    // Single horizontal reduction after the loop
+    vfloat32m1_t zero_f32m1 = __riscv_vfmv_v_f_f32m1(0.0f, 1);
+    nk_f32_t dot = __riscv_vfmv_f_s_f32m1_f32(__riscv_vfredusum_vs_f32m2_f32m1(dot_f32m2, zero_f32m1, vlmax));
+    nk_f32_t a_sq = __riscv_vfmv_f_s_f32m1_f32(__riscv_vfredusum_vs_f32m2_f32m1(a_sq_f32m2, zero_f32m1, vlmax));
+    nk_f32_t b_sq = __riscv_vfmv_f_s_f32m1_f32(__riscv_vfredusum_vs_f32m2_f32m1(b_sq_f32m2, zero_f32m1, vlmax));
 
-    // Normalize: 1 − dot / √(‖a‖² × ‖b‖²)
+    // Normalize: 1 − dot / sqrt(‖a‖² × ‖b‖²)
     if (a_sq == 0.0f && b_sq == 0.0f) { *result = 0.0f; }
     else if (dot == 0.0f) { *result = 1.0f; }
     else {
@@ -114,6 +108,12 @@ NK_PUBLIC void nk_angular_bf16_rvvbf16(nk_bf16_t const *a_scalars, nk_bf16_t con
 
 #if defined(__cplusplus)
 } // extern "C"
+#endif
+
+#if defined(__clang__)
+#pragma clang attribute pop
+#elif defined(__GNUC__)
+#pragma GCC pop_options
 #endif
 
 #endif // NK_TARGET_RVVBF16

@@ -10,6 +10,38 @@
 extern "C" {
 #endif
 
+// WASM capability detection for Emscripten
+#if defined(__EMSCRIPTEN__)
+#include <emscripten.h>
+
+EM_JS(int, nk_detect_v128_, (), {
+    var test = new Uint8Array([
+        0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x05, 0x01, 0x60, 0x00, 0x01, 0x7b, 0x03,
+        0x02, 0x01, 0x00, 0x0a, 0x09, 0x01, 0x07, 0x00, 0xfd, 0x0c, 0x00, 0x00, 0x00, 0x00, 0x0b
+    ]);
+    try {
+        return WebAssembly.validate(test) ? 1 : 0;
+    }
+    catch (e) {
+        return 0;
+    }
+});
+
+EM_JS(int, nk_detect_relaxed_, (), {
+    var test = new Uint8Array([
+        0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x08, 0x01, 0x60, 0x03,
+        0x7b, 0x7b, 0x7b, 0x01, 0x7b, 0x03, 0x02, 0x01, 0x00, 0x0a, 0x09, 0x01, 0x07,
+        0x00, 0x20, 0x00, 0x20, 0x01, 0x20, 0x02, 0xfd, 0xaf, 0x01, 0x0b
+    ]);
+    try {
+        return WebAssembly.validate(test) ? 1 : 0;
+    }
+    catch (e) {
+        return 0;
+    }
+});
+#endif // defined(__EMSCRIPTEN__)
+
 /**
  *  @brief Fill memory with 0xFF - produces NaN for floats, -1/MAX for integers.
  *  Avoids libc dependency on memset.
@@ -396,6 +428,8 @@ nk_dispatch_each_fma_(i8, f32)
 nk_dispatch_each_fma_(u8, f32)
 nk_dispatch_each_fma_(e4m3, f32)
 nk_dispatch_each_fma_(e5m2, f32)
+nk_dispatch_each_fma_(e2m3, f32)
+nk_dispatch_each_fma_(e3m2, f32)
 nk_dispatch_each_blend_(f64, f64)
 nk_dispatch_each_blend_(f32, f32)
 nk_dispatch_each_blend_(f16, f32)
@@ -404,6 +438,20 @@ nk_dispatch_each_blend_(i8, f32)
 nk_dispatch_each_blend_(u8, f32)
 nk_dispatch_each_blend_(e4m3, f32)
 nk_dispatch_each_blend_(e5m2, f32)
+nk_dispatch_each_blend_(e2m3, f32)
+nk_dispatch_each_blend_(e3m2, f32)
+nk_dispatch_each_fma_(i16, f32)
+nk_dispatch_each_fma_(u16, f32)
+nk_dispatch_each_fma_(i32, f64)
+nk_dispatch_each_fma_(u32, f64)
+nk_dispatch_each_fma_(i64, f64)
+nk_dispatch_each_fma_(u64, f64)
+nk_dispatch_each_blend_(i16, f32)
+nk_dispatch_each_blend_(u16, f32)
+nk_dispatch_each_blend_(i32, f64)
+nk_dispatch_each_blend_(u32, f64)
+nk_dispatch_each_blend_(i64, f64)
+nk_dispatch_each_blend_(u64, f64)
 nk_dispatch_each_scale_(f64, f64)
 nk_dispatch_each_scale_(f32, f32)
 nk_dispatch_each_scale_(f16, f32)
@@ -418,6 +466,8 @@ nk_dispatch_each_scale_(i64, f64)
 nk_dispatch_each_scale_(u64, f64)
 nk_dispatch_each_scale_(e4m3, f32)
 nk_dispatch_each_scale_(e5m2, f32)
+nk_dispatch_each_scale_(e2m3, f32)
+nk_dispatch_each_scale_(e3m2, f32)
 nk_dispatch_each_sum_(f64)
 nk_dispatch_each_sum_(f32)
 nk_dispatch_each_sum_(f16)
@@ -432,6 +482,8 @@ nk_dispatch_each_sum_(i64)
 nk_dispatch_each_sum_(u64)
 nk_dispatch_each_sum_(e4m3)
 nk_dispatch_each_sum_(e5m2)
+nk_dispatch_each_sum_(e2m3)
+nk_dispatch_each_sum_(e3m2)
 
 // Trigonometry functions
 nk_dispatch_trigonometry_(sin, f32)
@@ -484,6 +536,8 @@ nk_dispatch_reduce_add_(f16, f32)
 nk_dispatch_reduce_add_(bf16, f32)
 nk_dispatch_reduce_add_(e4m3, f32)
 nk_dispatch_reduce_add_(e5m2, f32)
+nk_dispatch_reduce_add_(e2m3, f32)
+nk_dispatch_reduce_add_(e3m2, f32)
 nk_dispatch_reduce_minmax_(min, f16, f32)
 nk_dispatch_reduce_minmax_(max, f16, f32)
 nk_dispatch_reduce_minmax_(min, bf16, f32)
@@ -492,6 +546,10 @@ nk_dispatch_reduce_minmax_(min, e4m3, f32)
 nk_dispatch_reduce_minmax_(max, e4m3, f32)
 nk_dispatch_reduce_minmax_(min, e5m2, f32)
 nk_dispatch_reduce_minmax_(max, e5m2, f32)
+nk_dispatch_reduce_minmax_(min, e2m3, e2m3)
+nk_dispatch_reduce_minmax_(max, e2m3, e2m3)
+nk_dispatch_reduce_minmax_(min, e3m2, e3m2)
+nk_dispatch_reduce_minmax_(max, e3m2, e3m2)
 
 // Matrix multiplications (GEMM with packed B)
 nk_dispatch_cross_packed_size_(dots, f32, f32, f32)
@@ -706,6 +764,7 @@ __attribute__((constructor)) static void nk_auto_init(void) {
     nk_capabilities(); // Triggers dispatch table initialization
 }
 #elif defined(_MSC_VER)
+static void nk_auto_init(void);
 #pragma section(".CRT$XCU", read)
 __declspec(allocate(".CRT$XCU")) static void (*nk_auto_init_ptr)(void) = nk_auto_init;
 static void nk_auto_init(void) {

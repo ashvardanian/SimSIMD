@@ -259,10 +259,10 @@ NK_INTERNAL float16x8_t nk_e2m3x8_to_f16x8_neon_(uint8x8_t e2m3_u8x8) {
     uint16x8_t mant_positioned_u16x8 = vshlq_n_u16(mant_u16x8, 7);
     uint16x8_t normal_bits = vorrq_u16(sign_u16x8, vorrq_u16(exp_positioned_u16x8, mant_positioned_u16x8));
 
-    // Subnormal path (exp=0): E2M3 subnormal = mant × 2^(-1) × (1/8) = mant / 16
+    // Subnormal path (exp=0): E2M3 subnormal = mant / 8
     // Compute via f32: mant → f32 → multiply → f16
-    float32x4_t subnorm_lo_f32x4 = vmulq_n_f32(vcvtq_f32_u32(vmovl_u16(vget_low_u16(mant_u16x8))), 1.0f / 16.0f);
-    float32x4_t subnorm_hi_f32x4 = vmulq_n_f32(vcvtq_f32_u32(vmovl_u16(vget_high_u16(mant_u16x8))), 1.0f / 16.0f);
+    float32x4_t subnorm_lo_f32x4 = vmulq_n_f32(vcvtq_f32_u32(vmovl_u16(vget_low_u16(mant_u16x8))), 1.0f / 8.0f);
+    float32x4_t subnorm_hi_f32x4 = vmulq_n_f32(vcvtq_f32_u32(vmovl_u16(vget_high_u16(mant_u16x8))), 1.0f / 8.0f);
     uint16x8_t subnorm_abs = vreinterpretq_u16_f16(
         vcombine_f16(vcvt_f16_f32(subnorm_lo_f32x4), vcvt_f16_f32(subnorm_hi_f32x4)));
     uint16x8_t subnorm_bits = vorrq_u16(subnorm_abs, sign_u16x8);
@@ -319,7 +319,7 @@ NK_INTERNAL void nk_e2m3x16_to_f16x8x2_neon_(uint8x16_t input_u8x16, float16x8_t
     // E2M3FN: sign(1) exp(2) mant(3), bias=1
     // F16: sign(1) exp(5) mant(10), bias=15
     // Normal (exp!=0): f16 = (sign << 15) | ((exp + 14) << 10) | (mant << 7)
-    // Subnormal (exp=0): f16 = mant/16 converted to f16
+    // Subnormal (exp=0): f16 = mant/8 converted to f16
     //
     // Low byte pattern: E2M3 has 3 mantissa bits → f16 bits 9-7, so low byte (bits 7-0) is:
     //   - Subnormals (exp=0): always 0x00

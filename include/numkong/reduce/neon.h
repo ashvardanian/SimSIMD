@@ -2083,25 +2083,53 @@ NK_PUBLIC void nk_reduce_add_i16_neon(                             //
 NK_INTERNAL void nk_reduce_min_i16_neon_contiguous_( //
     nk_i16_t const *data, nk_size_t count,           //
     nk_i16_t *min_value, nk_size_t *min_index) {
-    int16x8_t min_i16x8 = vdupq_n_s16(32767);
-    nk_size_t idx = 0;
+    // Single-pass: track both min value and index in SIMD
+    int16x8_t min_i16x8 = vld1q_s16(data);
+    // 8 i16 lanes → 2 index registers (4 i32 each)
+    int32x4_t min_index_low_i32x4 = (int32x4_t) {0, 1, 2, 3};
+    int32x4_t min_index_high_i32x4 = (int32x4_t) {4, 5, 6, 7};
+    int32x4_t current_index_low_i32x4 = (int32x4_t) {8, 9, 10, 11};
+    int32x4_t current_index_high_i32x4 = (int32x4_t) {12, 13, 14, 15};
+    int32x4_t step_i32x4 = vdupq_n_s32(8);
+
+    nk_size_t idx = 8;
     for (; idx + 8 <= count; idx += 8) {
         int16x8_t data_i16x8 = vld1q_s16(data + idx);
-        min_i16x8 = vminq_s16(min_i16x8, data_i16x8);
+        uint16x8_t lt_u16x8 = vcltq_s16(data_i16x8, min_i16x8);
+        min_i16x8 = vbslq_s16(lt_u16x8, data_i16x8, min_i16x8);
+        // Sign-extend i16 mask → i32 for index selection
+        int16x8_t lt_signed_i16x8 = vreinterpretq_s16_u16(lt_u16x8);
+        uint32x4_t low_mask_u32x4 = vreinterpretq_u32_s32(vmovl_s16(vget_low_s16(lt_signed_i16x8)));
+        uint32x4_t high_mask_u32x4 = vreinterpretq_u32_s32(vmovl_s16(vget_high_s16(lt_signed_i16x8)));
+        min_index_low_i32x4 = vbslq_s32(low_mask_u32x4, current_index_low_i32x4, min_index_low_i32x4);
+        min_index_high_i32x4 = vbslq_s32(high_mask_u32x4, current_index_high_i32x4, min_index_high_i32x4);
+        current_index_low_i32x4 = vaddq_s32(current_index_low_i32x4, step_i32x4);
+        current_index_high_i32x4 = vaddq_s32(current_index_high_i32x4, step_i32x4);
     }
-    nk_i16_t best_val = vminvq_s16(min_i16x8);
-    // Handle tail
-    for (; idx < count; ++idx) {
-        if (data[idx] < best_val) best_val = data[idx];
-    }
-    // Find first occurrence
-    nk_size_t best_idx = 0;
-    for (nk_size_t i = 0; i < count; ++i) {
-        if (data[i] == best_val) {
-            best_idx = i;
-            break;
+
+    // Horizontal reduction using union
+    nk_b128_vec_t val_union, idx_low_union, idx_high_union;
+    val_union.i16x8 = min_i16x8;
+    idx_low_union.i32x4 = min_index_low_i32x4;
+    idx_high_union.i32x4 = min_index_high_i32x4;
+
+    nk_i16_t best_val = val_union.i16s[0];
+    nk_size_t best_idx = (nk_size_t)idx_low_union.i32s[0];
+    for (int i = 1; i < 8; ++i) {
+        if (val_union.i16s[i] < best_val) {
+            best_val = val_union.i16s[i];
+            best_idx = (nk_size_t)(i < 4 ? idx_low_union.i32s[i] : idx_high_union.i32s[i - 4]);
         }
     }
+
+    // Scalar tail
+    for (; idx < count; ++idx) {
+        if (data[idx] < best_val) {
+            best_val = data[idx];
+            best_idx = idx;
+        }
+    }
+
     *min_value = best_val;
     *min_index = best_idx;
 }
@@ -2119,25 +2147,53 @@ NK_PUBLIC void nk_reduce_min_i16_neon(                             //
 NK_INTERNAL void nk_reduce_max_i16_neon_contiguous_( //
     nk_i16_t const *data, nk_size_t count,           //
     nk_i16_t *max_value, nk_size_t *max_index) {
-    int16x8_t max_i16x8 = vdupq_n_s16(-32768);
-    nk_size_t idx = 0;
+    // Single-pass: track both max value and index in SIMD
+    int16x8_t max_i16x8 = vld1q_s16(data);
+    // 8 i16 lanes → 2 index registers (4 i32 each)
+    int32x4_t max_index_low_i32x4 = (int32x4_t) {0, 1, 2, 3};
+    int32x4_t max_index_high_i32x4 = (int32x4_t) {4, 5, 6, 7};
+    int32x4_t current_index_low_i32x4 = (int32x4_t) {8, 9, 10, 11};
+    int32x4_t current_index_high_i32x4 = (int32x4_t) {12, 13, 14, 15};
+    int32x4_t step_i32x4 = vdupq_n_s32(8);
+
+    nk_size_t idx = 8;
     for (; idx + 8 <= count; idx += 8) {
         int16x8_t data_i16x8 = vld1q_s16(data + idx);
-        max_i16x8 = vmaxq_s16(max_i16x8, data_i16x8);
+        uint16x8_t gt_u16x8 = vcgtq_s16(data_i16x8, max_i16x8);
+        max_i16x8 = vbslq_s16(gt_u16x8, data_i16x8, max_i16x8);
+        // Sign-extend i16 mask → i32 for index selection
+        int16x8_t gt_signed_i16x8 = vreinterpretq_s16_u16(gt_u16x8);
+        uint32x4_t low_mask_u32x4 = vreinterpretq_u32_s32(vmovl_s16(vget_low_s16(gt_signed_i16x8)));
+        uint32x4_t high_mask_u32x4 = vreinterpretq_u32_s32(vmovl_s16(vget_high_s16(gt_signed_i16x8)));
+        max_index_low_i32x4 = vbslq_s32(low_mask_u32x4, current_index_low_i32x4, max_index_low_i32x4);
+        max_index_high_i32x4 = vbslq_s32(high_mask_u32x4, current_index_high_i32x4, max_index_high_i32x4);
+        current_index_low_i32x4 = vaddq_s32(current_index_low_i32x4, step_i32x4);
+        current_index_high_i32x4 = vaddq_s32(current_index_high_i32x4, step_i32x4);
     }
-    nk_i16_t best_val = vmaxvq_s16(max_i16x8);
-    // Handle tail
-    for (; idx < count; ++idx) {
-        if (data[idx] > best_val) best_val = data[idx];
-    }
-    // Find first occurrence
-    nk_size_t best_idx = 0;
-    for (nk_size_t i = 0; i < count; ++i) {
-        if (data[i] == best_val) {
-            best_idx = i;
-            break;
+
+    // Horizontal reduction using union
+    nk_b128_vec_t val_union, idx_low_union, idx_high_union;
+    val_union.i16x8 = max_i16x8;
+    idx_low_union.i32x4 = max_index_low_i32x4;
+    idx_high_union.i32x4 = max_index_high_i32x4;
+
+    nk_i16_t best_val = val_union.i16s[0];
+    nk_size_t best_idx = (nk_size_t)idx_low_union.i32s[0];
+    for (int i = 1; i < 8; ++i) {
+        if (val_union.i16s[i] > best_val) {
+            best_val = val_union.i16s[i];
+            best_idx = (nk_size_t)(i < 4 ? idx_low_union.i32s[i] : idx_high_union.i32s[i - 4]);
         }
     }
+
+    // Scalar tail
+    for (; idx < count; ++idx) {
+        if (data[idx] > best_val) {
+            best_val = data[idx];
+            best_idx = idx;
+        }
+    }
+
     *max_value = best_val;
     *max_index = best_idx;
 }
@@ -2178,25 +2234,55 @@ NK_PUBLIC void nk_reduce_add_u16_neon(                             //
 NK_INTERNAL void nk_reduce_min_u16_neon_contiguous_( //
     nk_u16_t const *data, nk_size_t count,           //
     nk_u16_t *min_value, nk_size_t *min_index) {
-    uint16x8_t min_u16x8 = vdupq_n_u16(65535);
-    nk_size_t idx = 0;
+    // Single-pass: track both min value and index in SIMD
+    uint16x8_t min_u16x8 = vld1q_u16(data);
+    // 8 u16 lanes → 2 index registers (4 i32 each)
+    int32x4_t min_index_low_i32x4 = (int32x4_t) {0, 1, 2, 3};
+    int32x4_t min_index_high_i32x4 = (int32x4_t) {4, 5, 6, 7};
+    int32x4_t current_index_low_i32x4 = (int32x4_t) {8, 9, 10, 11};
+    int32x4_t current_index_high_i32x4 = (int32x4_t) {12, 13, 14, 15};
+    int32x4_t step_i32x4 = vdupq_n_s32(8);
+
+    nk_size_t idx = 8;
     for (; idx + 8 <= count; idx += 8) {
         uint16x8_t data_u16x8 = vld1q_u16(data + idx);
-        min_u16x8 = vminq_u16(min_u16x8, data_u16x8);
+        uint16x8_t lt_u16x8 = vcltq_u16(data_u16x8, min_u16x8);
+        min_u16x8 = vbslq_u16(lt_u16x8, data_u16x8, min_u16x8);
+        // Sign-extend u16 mask → i32 for index selection (reinterpret as signed for vmovl)
+        int16x8_t lt_signed_i16x8 = vreinterpretq_s16_u16(lt_u16x8);
+        uint32x4_t low_mask_u32x4 = vreinterpretq_u32_s32(vmovl_s16(vget_low_s16(lt_signed_i16x8)));
+        uint32x4_t high_mask_u32x4 = vreinterpretq_u32_s32(vmovl_s16(vget_high_s16(lt_signed_i16x8)));
+        min_index_low_i32x4 = vbslq_s32(low_mask_u32x4, current_index_low_i32x4, min_index_low_i32x4);
+        min_index_high_i32x4 = vbslq_s32(high_mask_u32x4, current_index_high_i32x4, min_index_high_i32x4);
+        current_index_low_i32x4 = vaddq_s32(current_index_low_i32x4, step_i32x4);
+        current_index_high_i32x4 = vaddq_s32(current_index_high_i32x4, step_i32x4);
     }
-    nk_u16_t best_val = vminvq_u16(min_u16x8);
-    // Handle tail
-    for (; idx < count; ++idx) {
-        if (data[idx] < best_val) best_val = data[idx];
-    }
-    // Find first occurrence
-    nk_size_t best_idx = 0;
-    for (nk_size_t i = 0; i < count; ++i) {
-        if (data[i] == best_val) {
-            best_idx = i;
-            break;
+
+    // Horizontal reduction using union
+    nk_b128_vec_t idx_low_union, idx_high_union;
+    idx_low_union.i32x4 = min_index_low_i32x4;
+    idx_high_union.i32x4 = min_index_high_i32x4;
+
+    // For u16 we need to manually extract lanes
+    nk_u16_t lane_vals[8];
+    vst1q_u16(lane_vals, min_u16x8);
+    nk_u16_t best_val = lane_vals[0];
+    nk_size_t best_idx = (nk_size_t)idx_low_union.i32s[0];
+    for (int i = 1; i < 8; ++i) {
+        if (lane_vals[i] < best_val) {
+            best_val = lane_vals[i];
+            best_idx = (nk_size_t)(i < 4 ? idx_low_union.i32s[i] : idx_high_union.i32s[i - 4]);
         }
     }
+
+    // Scalar tail
+    for (; idx < count; ++idx) {
+        if (data[idx] < best_val) {
+            best_val = data[idx];
+            best_idx = idx;
+        }
+    }
+
     *min_value = best_val;
     *min_index = best_idx;
 }
@@ -2214,25 +2300,54 @@ NK_PUBLIC void nk_reduce_min_u16_neon(                             //
 NK_INTERNAL void nk_reduce_max_u16_neon_contiguous_( //
     nk_u16_t const *data, nk_size_t count,           //
     nk_u16_t *max_value, nk_size_t *max_index) {
-    uint16x8_t max_u16x8 = vdupq_n_u16(0);
-    nk_size_t idx = 0;
+    // Single-pass: track both max value and index in SIMD
+    uint16x8_t max_u16x8 = vld1q_u16(data);
+    // 8 u16 lanes → 2 index registers (4 i32 each)
+    int32x4_t max_index_low_i32x4 = (int32x4_t) {0, 1, 2, 3};
+    int32x4_t max_index_high_i32x4 = (int32x4_t) {4, 5, 6, 7};
+    int32x4_t current_index_low_i32x4 = (int32x4_t) {8, 9, 10, 11};
+    int32x4_t current_index_high_i32x4 = (int32x4_t) {12, 13, 14, 15};
+    int32x4_t step_i32x4 = vdupq_n_s32(8);
+
+    nk_size_t idx = 8;
     for (; idx + 8 <= count; idx += 8) {
         uint16x8_t data_u16x8 = vld1q_u16(data + idx);
-        max_u16x8 = vmaxq_u16(max_u16x8, data_u16x8);
+        uint16x8_t gt_u16x8 = vcgtq_u16(data_u16x8, max_u16x8);
+        max_u16x8 = vbslq_u16(gt_u16x8, data_u16x8, max_u16x8);
+        // Sign-extend u16 mask → i32 for index selection
+        int16x8_t gt_signed_i16x8 = vreinterpretq_s16_u16(gt_u16x8);
+        uint32x4_t low_mask_u32x4 = vreinterpretq_u32_s32(vmovl_s16(vget_low_s16(gt_signed_i16x8)));
+        uint32x4_t high_mask_u32x4 = vreinterpretq_u32_s32(vmovl_s16(vget_high_s16(gt_signed_i16x8)));
+        max_index_low_i32x4 = vbslq_s32(low_mask_u32x4, current_index_low_i32x4, max_index_low_i32x4);
+        max_index_high_i32x4 = vbslq_s32(high_mask_u32x4, current_index_high_i32x4, max_index_high_i32x4);
+        current_index_low_i32x4 = vaddq_s32(current_index_low_i32x4, step_i32x4);
+        current_index_high_i32x4 = vaddq_s32(current_index_high_i32x4, step_i32x4);
     }
-    nk_u16_t best_val = vmaxvq_u16(max_u16x8);
-    // Handle tail
-    for (; idx < count; ++idx) {
-        if (data[idx] > best_val) best_val = data[idx];
-    }
-    // Find first occurrence
-    nk_size_t best_idx = 0;
-    for (nk_size_t i = 0; i < count; ++i) {
-        if (data[i] == best_val) {
-            best_idx = i;
-            break;
+
+    // Horizontal reduction using union
+    nk_b128_vec_t idx_low_union, idx_high_union;
+    idx_low_union.i32x4 = max_index_low_i32x4;
+    idx_high_union.i32x4 = max_index_high_i32x4;
+
+    nk_u16_t lane_vals[8];
+    vst1q_u16(lane_vals, max_u16x8);
+    nk_u16_t best_val = lane_vals[0];
+    nk_size_t best_idx = (nk_size_t)idx_low_union.i32s[0];
+    for (int i = 1; i < 8; ++i) {
+        if (lane_vals[i] > best_val) {
+            best_val = lane_vals[i];
+            best_idx = (nk_size_t)(i < 4 ? idx_low_union.i32s[i] : idx_high_union.i32s[i - 4]);
         }
     }
+
+    // Scalar tail
+    for (; idx < count; ++idx) {
+        if (data[idx] > best_val) {
+            best_val = data[idx];
+            best_idx = idx;
+        }
+    }
+
     *max_value = best_val;
     *max_index = best_idx;
 }

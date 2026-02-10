@@ -652,8 +652,8 @@ NK_INTERNAL void nk_e2m3_to_f32_serial(nk_e2m3_t const *src, nk_f32_t *dest) {
 
     // Handle subnormal (exp=0, mant!=0)
     if (exponent == 0) {
-        // Subnormal: value = 2^(-1) * (mantissa / 8)
-        nk_f32_t value = (nk_f32_t)mantissa * (1.0f / 16.0f); // 2^(-1) * (1/8) = 1/16
+        // Subnormal: value = 2^(1-bias) * (mantissa / 2^p) = 2^0 * (mantissa / 8) = mantissa / 8
+        nk_f32_t value = (nk_f32_t)mantissa * (1.0f / 8.0f);
         *dest = sign ? -value : value;
         return;
     }

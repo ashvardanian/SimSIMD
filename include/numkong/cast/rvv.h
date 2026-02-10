@@ -14,6 +14,14 @@
  *  - E5M2 ↔ F32 (FP8 format for ML training)
  *  - i4/u4 unpacking to i8/u8
  *
+ *  Mini-float conversions use sign-symmetric magnitude LUTs: every mini-float
+ *  format is sign|magnitude, so we store only the positive-half (magnitude)
+ *  entries and extract the sign bit separately. This cuts LUT memory by 50-87%
+ *  and fixes the E2M3FN NaN bug (E2M3FN has NO NaN; index 31 is +7.5, not NaN).
+ *
+ *  8-bit formats (e4m3, e5m2): sign = bit 7, magnitude = bits 6:0 (128 entries)
+ *  6-bit formats (e2m3, e3m2): sign = bit 5, magnitude = bits 4:0 (32 entries)
+ *
  *  @section rvv_cast_instructions Key RVV Cast Instructions
  *
  *      Intrinsic                       Purpose
@@ -34,6 +42,13 @@
 
 #include "numkong/types.h"
 #include "numkong/cast/serial.h" // `nk_cast_serial`
+
+#if defined(__clang__)
+#pragma clang attribute push(__attribute__((target("arch=+v"))), apply_to = function)
+#elif defined(__GNUC__)
+#pragma GCC push_options
+#pragma GCC target("arch=+v")
+#endif
 
 #if defined(__cplusplus)
 extern "C" {
@@ -135,207 +150,310 @@ NK_INTERNAL vuint16m1_t nk_f32m2_to_f16m1_rvv_(vfloat32m2_t f32_f32m2, nk_size_t
 }
 
 /**
- *  @brief Convert e4m3 (m1) to f32 (m4) register-to-register.
- *
- *  E4M3FN format: S EEEE MMM (1 sign, 4 exponent bits with bias=7, 3 mantissa bits)
- *  - Normal: value = (-1)^S * 2^(E-7) * (1 + M/8)
- *  - Subnormal (E=0): value = (-1)^S * M / 512
- *  - NaN: E=15 and M=7 (0x7F or 0xFF)
- *  - No infinity in E4M3FN
+ *  @brief Convert e4m3 (m1) to f32 (m4) via sign-symmetric magnitude LUT.
+ *  E4M3FN: sign = bit 7, magnitude = bits 6:0 (128 entries). Sign bit 7 → f32 bit 31 (<<24).
  */
 NK_INTERNAL vfloat32m4_t nk_e4m3m1_to_f32m4_rvv_(vuint8m1_t e4m3_u8m1, nk_size_t vector_length) {
-    // Widen to u32 for bit manipulation (4x widening: e8m1 → e32m4)
-    vuint16m2_t e4m3_u16m2 = __riscv_vzext_vf2_u16m2(e4m3_u8m1, vector_length);
-    vuint32m4_t e4m3_u32m4 = __riscv_vzext_vf2_u32m4(e4m3_u16m2, vector_length);
-
-    // Extract sign: (raw >> 7) << 31
-    vuint32m4_t sign_u32m4 = __riscv_vsll_vx_u32m4(__riscv_vsrl_vx_u32m4(e4m3_u32m4, 7, vector_length), 31,
+    static nk_u32_t const nk_e4m3_mag_to_f32_lut_[128] = {
+        0x00000000u, 0x3B000000u, 0x3B800000u, 0x3BC00000u,
+        0x3C000000u, 0x3C200000u, 0x3C400000u, 0x3C600000u, /* [  0..  7] */
+        0x3C800000u, 0x3C900000u, 0x3CA00000u, 0x3CB00000u,
+        0x3CC00000u, 0x3CD00000u, 0x3CE00000u, 0x3CF00000u, /* [  8.. 15] */
+        0x3D000000u, 0x3D100000u, 0x3D200000u, 0x3D300000u,
+        0x3D400000u, 0x3D500000u, 0x3D600000u, 0x3D700000u, /* [ 16.. 23] */
+        0x3D800000u, 0x3D900000u, 0x3DA00000u, 0x3DB00000u,
+        0x3DC00000u, 0x3DD00000u, 0x3DE00000u, 0x3DF00000u, /* [ 24.. 31] */
+        0x3E000000u, 0x3E100000u, 0x3E200000u, 0x3E300000u,
+        0x3E400000u, 0x3E500000u, 0x3E600000u, 0x3E700000u, /* [ 32.. 39] */
+        0x3E800000u, 0x3E900000u, 0x3EA00000u, 0x3EB00000u,
+        0x3EC00000u, 0x3ED00000u, 0x3EE00000u, 0x3EF00000u, /* [ 40.. 47] */
+        0x3F000000u, 0x3F100000u, 0x3F200000u, 0x3F300000u,
+        0x3F400000u, 0x3F500000u, 0x3F600000u, 0x3F700000u, /* [ 48.. 55] */
+        0x3F800000u, 0x3F900000u, 0x3FA00000u, 0x3FB00000u,
+        0x3FC00000u, 0x3FD00000u, 0x3FE00000u, 0x3FF00000u, /* [ 56.. 63] */
+        0x40000000u, 0x40100000u, 0x40200000u, 0x40300000u,
+        0x40400000u, 0x40500000u, 0x40600000u, 0x40700000u, /* [ 64.. 71] */
+        0x40800000u, 0x40900000u, 0x40A00000u, 0x40B00000u,
+        0x40C00000u, 0x40D00000u, 0x40E00000u, 0x40F00000u, /* [ 72.. 79] */
+        0x41000000u, 0x41100000u, 0x41200000u, 0x41300000u,
+        0x41400000u, 0x41500000u, 0x41600000u, 0x41700000u, /* [ 80.. 87] */
+        0x41800000u, 0x41900000u, 0x41A00000u, 0x41B00000u,
+        0x41C00000u, 0x41D00000u, 0x41E00000u, 0x41F00000u, /* [ 88.. 95] */
+        0x42000000u, 0x42100000u, 0x42200000u, 0x42300000u,
+        0x42400000u, 0x42500000u, 0x42600000u, 0x42700000u, /* [ 96..103] */
+        0x42800000u, 0x42900000u, 0x42A00000u, 0x42B00000u,
+        0x42C00000u, 0x42D00000u, 0x42E00000u, 0x42F00000u, /* [104..111] */
+        0x43000000u, 0x43100000u, 0x43200000u, 0x43300000u,
+        0x43400000u, 0x43500000u, 0x43600000u, 0x43700000u, /* [112..119] */
+        0x43800000u, 0x43900000u, 0x43A00000u, 0x43B00000u,
+        0x43C00000u, 0x43D00000u, 0x43E00000u, 0x7FC00000u /* [120..127] */
+    };
+    vuint8m1_t sign_u8m1 = __riscv_vand_vx_u8m1(e4m3_u8m1, 0x80, vector_length);
+    vuint8m1_t mag_u8m1 = __riscv_vand_vx_u8m1(e4m3_u8m1, 0x7F, vector_length);
+    vuint32m4_t offsets_u32m4 = __riscv_vsll_vx_u32m4(__riscv_vzext_vf4_u32m4(mag_u8m1, vector_length), 2,
+                                                      vector_length);
+    vuint32m4_t result_u32m4 = __riscv_vluxei32_v_u32m4(nk_e4m3_mag_to_f32_lut_, offsets_u32m4, vector_length);
+    vuint32m4_t sign_u32m4 = __riscv_vsll_vx_u32m4(__riscv_vzext_vf4_u32m4(sign_u8m1, vector_length), 24,
                                                    vector_length);
-
-    // Extract exponent: (raw >> 3) & 0x0F
-    vuint32m4_t exponent_u32m4 = __riscv_vand_vx_u32m4(__riscv_vsrl_vx_u32m4(e4m3_u32m4, 3, vector_length), 0x0F,
-                                                       vector_length);
-
-    // Extract mantissa: raw & 0x07
-    vuint32m4_t mantissa_u32m4 = __riscv_vand_vx_u32m4(e4m3_u32m4, 0x07, vector_length);
-
-    // Normal case: f32 = sign | ((exp + 120) << 23) | (mant << 20)
-    vuint32m4_t f32_exponent_u32m4 = __riscv_vsll_vx_u32m4(__riscv_vadd_vx_u32m4(exponent_u32m4, 120, vector_length),
-                                                           23, vector_length);
-    vuint32m4_t f32_mantissa_u32m4 = __riscv_vsll_vx_u32m4(mantissa_u32m4, 20, vector_length);
-    vuint32m4_t normal_u32m4 = __riscv_vor_vv_u32m4(
-        sign_u32m4, __riscv_vor_vv_u32m4(f32_exponent_u32m4, f32_mantissa_u32m4, vector_length), vector_length);
-
-    // Subnormal case (exp == 0): value = sign | (mant / 512.0f as f32 bits)
-    vfloat32m4_t subnorm_abs_f32m4 = __riscv_vfmul_vf_f32m4(__riscv_vfcvt_f_xu_v_f32m4(mantissa_u32m4, vector_length),
-                                                            1.0f / 512.0f, vector_length);
-    vuint32m4_t subnorm_bits_u32m4 = __riscv_vreinterpret_v_f32m4_u32m4(subnorm_abs_f32m4);
-    vuint32m4_t subnorm_u32m4 = __riscv_vor_vv_u32m4(sign_u32m4, subnorm_bits_u32m4, vector_length);
-
-    // Select: if exp == 0, use subnormal; else use normal
-    vbool8_t is_subnorm_b8 = __riscv_vmseq_vx_u32m4_b8(exponent_u32m4, 0, vector_length);
-    vuint32m4_t result_u32m4 = __riscv_vmerge_vvm_u32m4(normal_u32m4, subnorm_u32m4, is_subnorm_b8, vector_length);
-
-    // NaN case: E4M3FN has NaN when exp=15 AND mant=7
-    vbool8_t exp_is_15_b8 = __riscv_vmseq_vx_u32m4_b8(exponent_u32m4, 15, vector_length);
-    vbool8_t mant_is_7_b8 = __riscv_vmseq_vx_u32m4_b8(mantissa_u32m4, 7, vector_length);
-    vbool8_t is_nan_b8 = __riscv_vmand_mm_b8(exp_is_15_b8, mant_is_7_b8, vector_length);
-    vuint32m4_t nan_bits_u32m4 = __riscv_vor_vx_u32m4(sign_u32m4, 0x7FC00000, vector_length); // F32 quiet NaN
-    result_u32m4 = __riscv_vmerge_vvm_u32m4(result_u32m4, nan_bits_u32m4, is_nan_b8, vector_length);
-
-    return __riscv_vreinterpret_v_u32m4_f32m4(result_u32m4);
+    return __riscv_vreinterpret_v_u32m4_f32m4(__riscv_vor_vv_u32m4(result_u32m4, sign_u32m4, vector_length));
 }
 
 /**
- *  @brief Convert e5m2 (m1) to f32 (m4) register-to-register.
- *
- *  E5M2 format: S EEEEE MM (1 sign, 5 exponent bits with bias=15, 2 mantissa bits)
- *  - Normal: value = (-1)^S * 2^(E-15) * (1 + M/4)
- *  - Subnormal (E=0): value = (-1)^S * M / 65536
- *  - Infinity: E=31 and M=0
- *  - NaN: E=31 and M!=0
+ *  @brief Convert e5m2 (m1) to f32 (m4) via sign-symmetric magnitude LUT.
+ *  E5M2: sign = bit 7, magnitude = bits 6:0 (128 entries). Sign bit 7 → f32 bit 31 (<<24).
  */
 NK_INTERNAL vfloat32m4_t nk_e5m2m1_to_f32m4_rvv_(vuint8m1_t e5m2_u8m1, nk_size_t vector_length) {
-    // Widen to u32 for bit manipulation
-    vuint16m2_t e5m2_u16m2 = __riscv_vzext_vf2_u16m2(e5m2_u8m1, vector_length);
-    vuint32m4_t e5m2_u32m4 = __riscv_vzext_vf2_u32m4(e5m2_u16m2, vector_length);
-
-    // Extract sign: (raw >> 7) << 31
-    vuint32m4_t sign_u32m4 = __riscv_vsll_vx_u32m4(__riscv_vsrl_vx_u32m4(e5m2_u32m4, 7, vector_length), 31,
+    static nk_u32_t const nk_e5m2_mag_to_f32_lut_[128] = {
+        0x00000000u, 0x37800000u, 0x38000000u, 0x38400000u,
+        0x38800000u, 0x38A00000u, 0x38C00000u, 0x38E00000u, /* [  0..  7] */
+        0x39000000u, 0x39200000u, 0x39400000u, 0x39600000u,
+        0x39800000u, 0x39A00000u, 0x39C00000u, 0x39E00000u, /* [  8.. 15] */
+        0x3A000000u, 0x3A200000u, 0x3A400000u, 0x3A600000u,
+        0x3A800000u, 0x3AA00000u, 0x3AC00000u, 0x3AE00000u, /* [ 16.. 23] */
+        0x3B000000u, 0x3B200000u, 0x3B400000u, 0x3B600000u,
+        0x3B800000u, 0x3BA00000u, 0x3BC00000u, 0x3BE00000u, /* [ 24.. 31] */
+        0x3C000000u, 0x3C200000u, 0x3C400000u, 0x3C600000u,
+        0x3C800000u, 0x3CA00000u, 0x3CC00000u, 0x3CE00000u, /* [ 32.. 39] */
+        0x3D000000u, 0x3D200000u, 0x3D400000u, 0x3D600000u,
+        0x3D800000u, 0x3DA00000u, 0x3DC00000u, 0x3DE00000u, /* [ 40.. 47] */
+        0x3E000000u, 0x3E200000u, 0x3E400000u, 0x3E600000u,
+        0x3E800000u, 0x3EA00000u, 0x3EC00000u, 0x3EE00000u, /* [ 48.. 55] */
+        0x3F000000u, 0x3F200000u, 0x3F400000u, 0x3F600000u,
+        0x3F800000u, 0x3FA00000u, 0x3FC00000u, 0x3FE00000u, /* [ 56.. 63] */
+        0x40000000u, 0x40200000u, 0x40400000u, 0x40600000u,
+        0x40800000u, 0x40A00000u, 0x40C00000u, 0x40E00000u, /* [ 64.. 71] */
+        0x41000000u, 0x41200000u, 0x41400000u, 0x41600000u,
+        0x41800000u, 0x41A00000u, 0x41C00000u, 0x41E00000u, /* [ 72.. 79] */
+        0x42000000u, 0x42200000u, 0x42400000u, 0x42600000u,
+        0x42800000u, 0x42A00000u, 0x42C00000u, 0x42E00000u, /* [ 80.. 87] */
+        0x43000000u, 0x43200000u, 0x43400000u, 0x43600000u,
+        0x43800000u, 0x43A00000u, 0x43C00000u, 0x43E00000u, /* [ 88.. 95] */
+        0x44000000u, 0x44200000u, 0x44400000u, 0x44600000u,
+        0x44800000u, 0x44A00000u, 0x44C00000u, 0x44E00000u, /* [ 96..103] */
+        0x45000000u, 0x45200000u, 0x45400000u, 0x45600000u,
+        0x45800000u, 0x45A00000u, 0x45C00000u, 0x45E00000u, /* [104..111] */
+        0x46000000u, 0x46200000u, 0x46400000u, 0x46600000u,
+        0x46800000u, 0x46A00000u, 0x46C00000u, 0x46E00000u, /* [112..119] */
+        0x47000000u, 0x47200000u, 0x47400000u, 0x47600000u,
+        0x7F800000u, 0x7FC00000u, 0x7FC00000u, 0x7FC00000u /* [120..127] */
+    };
+    vuint8m1_t sign_u8m1 = __riscv_vand_vx_u8m1(e5m2_u8m1, 0x80, vector_length);
+    vuint8m1_t mag_u8m1 = __riscv_vand_vx_u8m1(e5m2_u8m1, 0x7F, vector_length);
+    vuint32m4_t offsets_u32m4 = __riscv_vsll_vx_u32m4(__riscv_vzext_vf4_u32m4(mag_u8m1, vector_length), 2,
+                                                      vector_length);
+    vuint32m4_t result_u32m4 = __riscv_vluxei32_v_u32m4(nk_e5m2_mag_to_f32_lut_, offsets_u32m4, vector_length);
+    vuint32m4_t sign_u32m4 = __riscv_vsll_vx_u32m4(__riscv_vzext_vf4_u32m4(sign_u8m1, vector_length), 24,
                                                    vector_length);
-
-    // Extract exponent: (raw >> 2) & 0x1F
-    vuint32m4_t exponent_u32m4 = __riscv_vand_vx_u32m4(__riscv_vsrl_vx_u32m4(e5m2_u32m4, 2, vector_length), 0x1F,
-                                                       vector_length);
-
-    // Extract mantissa: raw & 0x03
-    vuint32m4_t mantissa_u32m4 = __riscv_vand_vx_u32m4(e5m2_u32m4, 0x03, vector_length);
-
-    // Normal case: f32 = sign | ((exp + 112) << 23) | (mant << 21)
-    // E5M2 bias=15, F32 bias=127, so delta = 127-15 = 112
-    vuint32m4_t f32_exponent_u32m4 = __riscv_vsll_vx_u32m4(__riscv_vadd_vx_u32m4(exponent_u32m4, 112, vector_length),
-                                                           23, vector_length);
-    vuint32m4_t f32_mantissa_u32m4 = __riscv_vsll_vx_u32m4(mantissa_u32m4, 21, vector_length);
-    vuint32m4_t normal_u32m4 = __riscv_vor_vv_u32m4(
-        sign_u32m4, __riscv_vor_vv_u32m4(f32_exponent_u32m4, f32_mantissa_u32m4, vector_length), vector_length);
-
-    // Subnormal case (exp == 0): value = sign | (mant / 65536.0f as f32 bits)
-    vfloat32m4_t subnorm_abs_f32m4 = __riscv_vfmul_vf_f32m4(__riscv_vfcvt_f_xu_v_f32m4(mantissa_u32m4, vector_length),
-                                                            1.0f / 65536.0f, vector_length);
-    vuint32m4_t subnorm_bits_u32m4 = __riscv_vreinterpret_v_f32m4_u32m4(subnorm_abs_f32m4);
-    vuint32m4_t subnorm_u32m4 = __riscv_vor_vv_u32m4(sign_u32m4, subnorm_bits_u32m4, vector_length);
-
-    // Select: if exp == 0, use subnormal; else use normal
-    vbool8_t is_subnorm_b8 = __riscv_vmseq_vx_u32m4_b8(exponent_u32m4, 0, vector_length);
-    vuint32m4_t result_u32m4 = __riscv_vmerge_vvm_u32m4(normal_u32m4, subnorm_u32m4, is_subnorm_b8, vector_length);
-
-    // Infinity case: E=31 and M=0
-    vbool8_t exp_is_31_b8 = __riscv_vmseq_vx_u32m4_b8(exponent_u32m4, 31, vector_length);
-    vbool8_t mant_is_0_b8 = __riscv_vmseq_vx_u32m4_b8(mantissa_u32m4, 0, vector_length);
-    vbool8_t is_inf_b8 = __riscv_vmand_mm_b8(exp_is_31_b8, mant_is_0_b8, vector_length);
-    vuint32m4_t inf_bits_u32m4 = __riscv_vor_vx_u32m4(sign_u32m4, 0x7F800000, vector_length); // F32 infinity
-    result_u32m4 = __riscv_vmerge_vvm_u32m4(result_u32m4, inf_bits_u32m4, is_inf_b8, vector_length);
-
-    // NaN case: E=31 and M!=0
-    vbool8_t mant_not_0_b8 = __riscv_vmsne_vx_u32m4_b8(mantissa_u32m4, 0, vector_length);
-    vbool8_t is_nan_b8 = __riscv_vmand_mm_b8(exp_is_31_b8, mant_not_0_b8, vector_length);
-    vuint32m4_t nan_bits_u32m4 = __riscv_vor_vx_u32m4(sign_u32m4, 0x7FC00000, vector_length); // F32 quiet NaN
-    result_u32m4 = __riscv_vmerge_vvm_u32m4(result_u32m4, nan_bits_u32m4, is_nan_b8, vector_length);
-
-    return __riscv_vreinterpret_v_u32m4_f32m4(result_u32m4);
+    return __riscv_vreinterpret_v_u32m4_f32m4(__riscv_vor_vv_u32m4(result_u32m4, sign_u32m4, vector_length));
 }
 
 /**
- *  @brief Convert e2m3 (m1) to f32 (m4) register-to-register.
- *
- *  E2M3FN format: S EE MMM (1 sign, 2 exponent bits with bias=1, 3 mantissa bits)
- *  - Normal: value = (-1)^S * 2^(E-1) * (1 + M/8)
- *  - Subnormal (E=0): value = (-1)^S * M / 8
- *  - No NaN or infinity in E2M3FN
+ *  @brief Convert e2m3 (m1) to f32 (m4) via sign-symmetric magnitude LUT.
+ *  E2M3FN: sign = bit 5, magnitude = bits 4:0 (32 entries). Sign bit 5 → f32 bit 31 (<<26).
  */
 NK_INTERNAL vfloat32m4_t nk_e2m3m1_to_f32m4_rvv_(vuint8m1_t e2m3_u8m1, nk_size_t vector_length) {
-    // Widen to u32 for bit manipulation (4x widening: e8m1 → e32m4)
-    vuint16m2_t e2m3_u16m2 = __riscv_vzext_vf2_u16m2(e2m3_u8m1, vector_length);
-    vuint32m4_t e2m3_u32m4 = __riscv_vzext_vf2_u32m4(e2m3_u16m2, vector_length);
-
-    // Extract sign: ((raw >> 5) & 1) << 31  (sign bit is bit 5 in 6-bit format, mask needed for 8-bit storage)
-    vuint32m4_t sign_u32m4 = __riscv_vsll_vx_u32m4(
-        __riscv_vand_vx_u32m4(__riscv_vsrl_vx_u32m4(e2m3_u32m4, 5, vector_length), 1, vector_length), 31,
-        vector_length);
-
-    // Extract exponent: (raw >> 3) & 0x03
-    vuint32m4_t exponent_u32m4 = __riscv_vand_vx_u32m4(__riscv_vsrl_vx_u32m4(e2m3_u32m4, 3, vector_length), 0x03,
-                                                       vector_length);
-
-    // Extract mantissa: raw & 0x07
-    vuint32m4_t mantissa_u32m4 = __riscv_vand_vx_u32m4(e2m3_u32m4, 0x07, vector_length);
-
-    // Normal case: f32 = sign | ((exp + 126) << 23) | (mant << 20)
-    // E2M3 bias=1, F32 bias=127, so delta = 127-1 = 126
-    vuint32m4_t f32_exponent_u32m4 = __riscv_vsll_vx_u32m4(__riscv_vadd_vx_u32m4(exponent_u32m4, 126, vector_length),
-                                                           23, vector_length);
-    vuint32m4_t f32_mantissa_u32m4 = __riscv_vsll_vx_u32m4(mantissa_u32m4, 20, vector_length);
-    vuint32m4_t normal_u32m4 = __riscv_vor_vv_u32m4(
-        sign_u32m4, __riscv_vor_vv_u32m4(f32_exponent_u32m4, f32_mantissa_u32m4, vector_length), vector_length);
-
-    // Subnormal case (exp == 0): value = sign | (mant / 16.0f as f32 bits)
-    // E2M3 subnormal: (-1)^S * 2^(-1) * (mantissa / 8) = mantissa / 16
-    vfloat32m4_t subnorm_abs_f32m4 = __riscv_vfmul_vf_f32m4(__riscv_vfcvt_f_xu_v_f32m4(mantissa_u32m4, vector_length),
-                                                            1.0f / 16.0f, vector_length);
-    vuint32m4_t subnorm_bits_u32m4 = __riscv_vreinterpret_v_f32m4_u32m4(subnorm_abs_f32m4);
-    vuint32m4_t subnorm_u32m4 = __riscv_vor_vv_u32m4(sign_u32m4, subnorm_bits_u32m4, vector_length);
-
-    // Select: if exp == 0, use subnormal; else use normal
-    vbool8_t is_subnorm_b8 = __riscv_vmseq_vx_u32m4_b8(exponent_u32m4, 0, vector_length);
-    vuint32m4_t result_u32m4 = __riscv_vmerge_vvm_u32m4(normal_u32m4, subnorm_u32m4, is_subnorm_b8, vector_length);
-
-    return __riscv_vreinterpret_v_u32m4_f32m4(result_u32m4);
+    static nk_u32_t const nk_e2m3_mag_to_f32_lut_[32] = {
+        0x00000000u, 0x3E000000u, 0x3E800000u, 0x3EC00000u,
+        0x3F000000u, 0x3F200000u, 0x3F400000u, 0x3F600000u, /* [  0..  7] */
+        0x3F800000u, 0x3F900000u, 0x3FA00000u, 0x3FB00000u,
+        0x3FC00000u, 0x3FD00000u, 0x3FE00000u, 0x3FF00000u, /* [  8.. 15] */
+        0x40000000u, 0x40100000u, 0x40200000u, 0x40300000u,
+        0x40400000u, 0x40500000u, 0x40600000u, 0x40700000u, /* [ 16.. 23] */
+        0x40800000u, 0x40900000u, 0x40A00000u, 0x40B00000u,
+        0x40C00000u, 0x40D00000u, 0x40E00000u, 0x40F00000u /* [ 24.. 31] */
+    };
+    vuint8m1_t sign_u8m1 = __riscv_vand_vx_u8m1(e2m3_u8m1, 0x20, vector_length);
+    vuint8m1_t mag_u8m1 = __riscv_vand_vx_u8m1(e2m3_u8m1, 0x1F, vector_length);
+    vuint32m4_t offsets_u32m4 = __riscv_vsll_vx_u32m4(__riscv_vzext_vf4_u32m4(mag_u8m1, vector_length), 2,
+                                                      vector_length);
+    vuint32m4_t result_u32m4 = __riscv_vluxei32_v_u32m4(nk_e2m3_mag_to_f32_lut_, offsets_u32m4, vector_length);
+    vuint32m4_t sign_u32m4 = __riscv_vsll_vx_u32m4(__riscv_vzext_vf4_u32m4(sign_u8m1, vector_length), 26,
+                                                   vector_length);
+    return __riscv_vreinterpret_v_u32m4_f32m4(__riscv_vor_vv_u32m4(result_u32m4, sign_u32m4, vector_length));
 }
 
 /**
- *  @brief Convert e3m2 (m1) to f32 (m4) register-to-register.
- *
- *  E3M2FN format: S EEE MM (1 sign, 3 exponent bits with bias=3, 2 mantissa bits)
- *  - Normal: value = (-1)^S * 2^(E-3) * (1 + M/4)
- *  - Subnormal (E=0): value = (-1)^S * M / 16
- *  - No NaN or infinity in E3M2FN
+ *  @brief Convert e3m2 (m1) to f32 (m4) via sign-symmetric magnitude LUT.
+ *  E3M2FN: sign = bit 5, magnitude = bits 4:0 (32 entries). Sign bit 5 → f32 bit 31 (<<26).
  */
 NK_INTERNAL vfloat32m4_t nk_e3m2m1_to_f32m4_rvv_(vuint8m1_t e3m2_u8m1, nk_size_t vector_length) {
-    // Widen to u32 for bit manipulation (4x widening: e8m1 → e32m4)
-    vuint16m2_t e3m2_u16m2 = __riscv_vzext_vf2_u16m2(e3m2_u8m1, vector_length);
-    vuint32m4_t e3m2_u32m4 = __riscv_vzext_vf2_u32m4(e3m2_u16m2, vector_length);
+    static nk_u32_t const nk_e3m2_mag_to_f32_lut_[32] = {
+        0x00000000u, 0x3D800000u, 0x3E000000u, 0x3E400000u,
+        0x3E800000u, 0x3EA00000u, 0x3EC00000u, 0x3EE00000u, /* [  0..  7] */
+        0x3F000000u, 0x3F200000u, 0x3F400000u, 0x3F600000u,
+        0x3F800000u, 0x3FA00000u, 0x3FC00000u, 0x3FE00000u, /* [  8.. 15] */
+        0x40000000u, 0x40200000u, 0x40400000u, 0x40600000u,
+        0x40800000u, 0x40A00000u, 0x40C00000u, 0x40E00000u, /* [ 16.. 23] */
+        0x41000000u, 0x41200000u, 0x41400000u, 0x41600000u,
+        0x41800000u, 0x41A00000u, 0x41C00000u, 0x41E00000u /* [ 24.. 31] */
+    };
+    vuint8m1_t sign_u8m1 = __riscv_vand_vx_u8m1(e3m2_u8m1, 0x20, vector_length);
+    vuint8m1_t mag_u8m1 = __riscv_vand_vx_u8m1(e3m2_u8m1, 0x1F, vector_length);
+    vuint32m4_t offsets_u32m4 = __riscv_vsll_vx_u32m4(__riscv_vzext_vf4_u32m4(mag_u8m1, vector_length), 2,
+                                                      vector_length);
+    vuint32m4_t result_u32m4 = __riscv_vluxei32_v_u32m4(nk_e3m2_mag_to_f32_lut_, offsets_u32m4, vector_length);
+    vuint32m4_t sign_u32m4 = __riscv_vsll_vx_u32m4(__riscv_vzext_vf4_u32m4(sign_u8m1, vector_length), 26,
+                                                   vector_length);
+    return __riscv_vreinterpret_v_u32m4_f32m4(__riscv_vor_vv_u32m4(result_u32m4, sign_u32m4, vector_length));
+}
 
-    // Extract sign: ((raw >> 5) & 1) << 31  (sign bit is bit 5 in 6-bit format, mask needed for 8-bit storage)
-    vuint32m4_t sign_u32m4 = __riscv_vsll_vx_u32m4(
-        __riscv_vand_vx_u32m4(__riscv_vsrl_vx_u32m4(e3m2_u32m4, 5, vector_length), 1, vector_length), 31,
-        vector_length);
+/** @brief Convert e4m3 (m1) to bf16 (m2) via sign-symmetric magnitude LUT. Sign bit 7 → bf16 bit 15 (<<8). */
+NK_INTERNAL vuint16m2_t nk_e4m3m1_to_bf16m2_rvv_(vuint8m1_t e4m3_u8m1, nk_size_t vector_length) {
+    static nk_u16_t const nk_e4m3_mag_to_bf16_lut_[128] = {
+        0x0000u, 0x3B00u, 0x3B80u, 0x3BC0u, 0x3C00u, 0x3C20u, 0x3C40u, 0x3C60u, /* [  0..  7] */
+        0x3C80u, 0x3C90u, 0x3CA0u, 0x3CB0u, 0x3CC0u, 0x3CD0u, 0x3CE0u, 0x3CF0u, /* [  8.. 15] */
+        0x3D00u, 0x3D10u, 0x3D20u, 0x3D30u, 0x3D40u, 0x3D50u, 0x3D60u, 0x3D70u, /* [ 16.. 23] */
+        0x3D80u, 0x3D90u, 0x3DA0u, 0x3DB0u, 0x3DC0u, 0x3DD0u, 0x3DE0u, 0x3DF0u, /* [ 24.. 31] */
+        0x3E00u, 0x3E10u, 0x3E20u, 0x3E30u, 0x3E40u, 0x3E50u, 0x3E60u, 0x3E70u, /* [ 32.. 39] */
+        0x3E80u, 0x3E90u, 0x3EA0u, 0x3EB0u, 0x3EC0u, 0x3ED0u, 0x3EE0u, 0x3EF0u, /* [ 40.. 47] */
+        0x3F00u, 0x3F10u, 0x3F20u, 0x3F30u, 0x3F40u, 0x3F50u, 0x3F60u, 0x3F70u, /* [ 48.. 55] */
+        0x3F80u, 0x3F90u, 0x3FA0u, 0x3FB0u, 0x3FC0u, 0x3FD0u, 0x3FE0u, 0x3FF0u, /* [ 56.. 63] */
+        0x4000u, 0x4010u, 0x4020u, 0x4030u, 0x4040u, 0x4050u, 0x4060u, 0x4070u, /* [ 64.. 71] */
+        0x4080u, 0x4090u, 0x40A0u, 0x40B0u, 0x40C0u, 0x40D0u, 0x40E0u, 0x40F0u, /* [ 72.. 79] */
+        0x4100u, 0x4110u, 0x4120u, 0x4130u, 0x4140u, 0x4150u, 0x4160u, 0x4170u, /* [ 80.. 87] */
+        0x4180u, 0x4190u, 0x41A0u, 0x41B0u, 0x41C0u, 0x41D0u, 0x41E0u, 0x41F0u, /* [ 88.. 95] */
+        0x4200u, 0x4210u, 0x4220u, 0x4230u, 0x4240u, 0x4250u, 0x4260u, 0x4270u, /* [ 96..103] */
+        0x4280u, 0x4290u, 0x42A0u, 0x42B0u, 0x42C0u, 0x42D0u, 0x42E0u, 0x42F0u, /* [104..111] */
+        0x4300u, 0x4310u, 0x4320u, 0x4330u, 0x4340u, 0x4350u, 0x4360u, 0x4370u, /* [112..119] */
+        0x4380u, 0x4390u, 0x43A0u, 0x43B0u, 0x43C0u, 0x43D0u, 0x43E0u, 0x7FC0u  /* [120..127] */
+    };
+    vuint8m1_t sign_u8m1 = __riscv_vand_vx_u8m1(e4m3_u8m1, 0x80, vector_length);
+    vuint8m1_t mag_u8m1 = __riscv_vand_vx_u8m1(e4m3_u8m1, 0x7F, vector_length);
+    vuint16m2_t offsets_u16m2 = __riscv_vsll_vx_u16m2(__riscv_vzext_vf2_u16m2(mag_u8m1, vector_length), 1,
+                                                      vector_length);
+    vuint16m2_t result_u16m2 = __riscv_vluxei16_v_u16m2(nk_e4m3_mag_to_bf16_lut_, offsets_u16m2, vector_length);
+    vuint16m2_t sign_u16m2 = __riscv_vsll_vx_u16m2(__riscv_vzext_vf2_u16m2(sign_u8m1, vector_length), 8, vector_length);
+    return __riscv_vor_vv_u16m2(result_u16m2, sign_u16m2, vector_length);
+}
 
-    // Extract exponent: (raw >> 2) & 0x07
-    vuint32m4_t exponent_u32m4 = __riscv_vand_vx_u32m4(__riscv_vsrl_vx_u32m4(e3m2_u32m4, 2, vector_length), 0x07,
-                                                       vector_length);
+/** @brief Convert e5m2 (m1) to bf16 (m2) via sign-symmetric magnitude LUT. Sign bit 7 → bf16 bit 15 (<<8). */
+NK_INTERNAL vuint16m2_t nk_e5m2m1_to_bf16m2_rvv_(vuint8m1_t e5m2_u8m1, nk_size_t vector_length) {
+    static nk_u16_t const nk_e5m2_mag_to_bf16_lut_[128] = {
+        0x0000u, 0x3780u, 0x3800u, 0x3840u, 0x3880u, 0x38A0u, 0x38C0u, 0x38E0u, /* [  0..  7] */
+        0x3900u, 0x3920u, 0x3940u, 0x3960u, 0x3980u, 0x39A0u, 0x39C0u, 0x39E0u, /* [  8.. 15] */
+        0x3A00u, 0x3A20u, 0x3A40u, 0x3A60u, 0x3A80u, 0x3AA0u, 0x3AC0u, 0x3AE0u, /* [ 16.. 23] */
+        0x3B00u, 0x3B20u, 0x3B40u, 0x3B60u, 0x3B80u, 0x3BA0u, 0x3BC0u, 0x3BE0u, /* [ 24.. 31] */
+        0x3C00u, 0x3C20u, 0x3C40u, 0x3C60u, 0x3C80u, 0x3CA0u, 0x3CC0u, 0x3CE0u, /* [ 32.. 39] */
+        0x3D00u, 0x3D20u, 0x3D40u, 0x3D60u, 0x3D80u, 0x3DA0u, 0x3DC0u, 0x3DE0u, /* [ 40.. 47] */
+        0x3E00u, 0x3E20u, 0x3E40u, 0x3E60u, 0x3E80u, 0x3EA0u, 0x3EC0u, 0x3EE0u, /* [ 48.. 55] */
+        0x3F00u, 0x3F20u, 0x3F40u, 0x3F60u, 0x3F80u, 0x3FA0u, 0x3FC0u, 0x3FE0u, /* [ 56.. 63] */
+        0x4000u, 0x4020u, 0x4040u, 0x4060u, 0x4080u, 0x40A0u, 0x40C0u, 0x40E0u, /* [ 64.. 71] */
+        0x4100u, 0x4120u, 0x4140u, 0x4160u, 0x4180u, 0x41A0u, 0x41C0u, 0x41E0u, /* [ 72.. 79] */
+        0x4200u, 0x4220u, 0x4240u, 0x4260u, 0x4280u, 0x42A0u, 0x42C0u, 0x42E0u, /* [ 80.. 87] */
+        0x4300u, 0x4320u, 0x4340u, 0x4360u, 0x4380u, 0x43A0u, 0x43C0u, 0x43E0u, /* [ 88.. 95] */
+        0x4400u, 0x4420u, 0x4440u, 0x4460u, 0x4480u, 0x44A0u, 0x44C0u, 0x44E0u, /* [ 96..103] */
+        0x4500u, 0x4520u, 0x4540u, 0x4560u, 0x4580u, 0x45A0u, 0x45C0u, 0x45E0u, /* [104..111] */
+        0x4600u, 0x4620u, 0x4640u, 0x4660u, 0x4680u, 0x46A0u, 0x46C0u, 0x46E0u, /* [112..119] */
+        0x4700u, 0x4720u, 0x4740u, 0x4760u, 0x7F80u, 0x7FC0u, 0x7FC0u, 0x7FC0u  /* [120..127] */
+    };
+    vuint8m1_t sign_u8m1 = __riscv_vand_vx_u8m1(e5m2_u8m1, 0x80, vector_length);
+    vuint8m1_t mag_u8m1 = __riscv_vand_vx_u8m1(e5m2_u8m1, 0x7F, vector_length);
+    vuint16m2_t offsets_u16m2 = __riscv_vsll_vx_u16m2(__riscv_vzext_vf2_u16m2(mag_u8m1, vector_length), 1,
+                                                      vector_length);
+    vuint16m2_t result_u16m2 = __riscv_vluxei16_v_u16m2(nk_e5m2_mag_to_bf16_lut_, offsets_u16m2, vector_length);
+    vuint16m2_t sign_u16m2 = __riscv_vsll_vx_u16m2(__riscv_vzext_vf2_u16m2(sign_u8m1, vector_length), 8, vector_length);
+    return __riscv_vor_vv_u16m2(result_u16m2, sign_u16m2, vector_length);
+}
 
-    // Extract mantissa: raw & 0x03
-    vuint32m4_t mantissa_u32m4 = __riscv_vand_vx_u32m4(e3m2_u32m4, 0x03, vector_length);
+/** @brief Convert e2m3 (m1) to bf16 (m2) via sign-symmetric magnitude LUT. Sign bit 5 → bf16 bit 15 (<<10). */
+NK_INTERNAL vuint16m2_t nk_e2m3m1_to_bf16m2_rvv_(vuint8m1_t e2m3_u8m1, nk_size_t vector_length) {
+    static nk_u16_t const nk_e2m3_mag_to_bf16_lut_[32] = {
+        0x0000u, 0x3E00u, 0x3E80u, 0x3EC0u, 0x3F00u, 0x3F20u, 0x3F40u, 0x3F60u, /* [  0..  7] */
+        0x3F80u, 0x3F90u, 0x3FA0u, 0x3FB0u, 0x3FC0u, 0x3FD0u, 0x3FE0u, 0x3FF0u, /* [  8.. 15] */
+        0x4000u, 0x4010u, 0x4020u, 0x4030u, 0x4040u, 0x4050u, 0x4060u, 0x4070u, /* [ 16.. 23] */
+        0x4080u, 0x4090u, 0x40A0u, 0x40B0u, 0x40C0u, 0x40D0u, 0x40E0u, 0x40F0u  /* [ 24.. 31] */
+    };
+    vuint8m1_t sign_u8m1 = __riscv_vand_vx_u8m1(e2m3_u8m1, 0x20, vector_length);
+    vuint8m1_t mag_u8m1 = __riscv_vand_vx_u8m1(e2m3_u8m1, 0x1F, vector_length);
+    vuint16m2_t offsets_u16m2 = __riscv_vsll_vx_u16m2(__riscv_vzext_vf2_u16m2(mag_u8m1, vector_length), 1,
+                                                      vector_length);
+    vuint16m2_t result_u16m2 = __riscv_vluxei16_v_u16m2(nk_e2m3_mag_to_bf16_lut_, offsets_u16m2, vector_length);
+    vuint16m2_t sign_u16m2 = __riscv_vsll_vx_u16m2(__riscv_vzext_vf2_u16m2(sign_u8m1, vector_length), 10,
+                                                   vector_length);
+    return __riscv_vor_vv_u16m2(result_u16m2, sign_u16m2, vector_length);
+}
 
-    // Normal case: f32 = sign | ((exp + 124) << 23) | (mant << 21)
-    // E3M2 bias=3, F32 bias=127, so delta = 127-3 = 124
-    vuint32m4_t f32_exponent_u32m4 = __riscv_vsll_vx_u32m4(__riscv_vadd_vx_u32m4(exponent_u32m4, 124, vector_length),
-                                                           23, vector_length);
-    vuint32m4_t f32_mantissa_u32m4 = __riscv_vsll_vx_u32m4(mantissa_u32m4, 21, vector_length);
-    vuint32m4_t normal_u32m4 = __riscv_vor_vv_u32m4(
-        sign_u32m4, __riscv_vor_vv_u32m4(f32_exponent_u32m4, f32_mantissa_u32m4, vector_length), vector_length);
+/** @brief Convert e3m2 (m1) to bf16 (m2) via sign-symmetric magnitude LUT. Sign bit 5 → bf16 bit 15 (<<10). */
+NK_INTERNAL vuint16m2_t nk_e3m2m1_to_bf16m2_rvv_(vuint8m1_t e3m2_u8m1, nk_size_t vector_length) {
+    static nk_u16_t const nk_e3m2_mag_to_bf16_lut_[32] = {
+        0x0000u, 0x3D80u, 0x3E00u, 0x3E40u, 0x3E80u, 0x3EA0u, 0x3EC0u, 0x3EE0u, /* [  0..  7] */
+        0x3F00u, 0x3F20u, 0x3F40u, 0x3F60u, 0x3F80u, 0x3FA0u, 0x3FC0u, 0x3FE0u, /* [  8.. 15] */
+        0x4000u, 0x4020u, 0x4040u, 0x4060u, 0x4080u, 0x40A0u, 0x40C0u, 0x40E0u, /* [ 16.. 23] */
+        0x4100u, 0x4120u, 0x4140u, 0x4160u, 0x4180u, 0x41A0u, 0x41C0u, 0x41E0u  /* [ 24.. 31] */
+    };
+    vuint8m1_t sign_u8m1 = __riscv_vand_vx_u8m1(e3m2_u8m1, 0x20, vector_length);
+    vuint8m1_t mag_u8m1 = __riscv_vand_vx_u8m1(e3m2_u8m1, 0x1F, vector_length);
+    vuint16m2_t offsets_u16m2 = __riscv_vsll_vx_u16m2(__riscv_vzext_vf2_u16m2(mag_u8m1, vector_length), 1,
+                                                      vector_length);
+    vuint16m2_t result_u16m2 = __riscv_vluxei16_v_u16m2(nk_e3m2_mag_to_bf16_lut_, offsets_u16m2, vector_length);
+    vuint16m2_t sign_u16m2 = __riscv_vsll_vx_u16m2(__riscv_vzext_vf2_u16m2(sign_u8m1, vector_length), 10,
+                                                   vector_length);
+    return __riscv_vor_vv_u16m2(result_u16m2, sign_u16m2, vector_length);
+}
 
-    // Subnormal case (exp == 0): value = sign | (mant / 16.0f as f32 bits)
-    vfloat32m4_t subnorm_abs_f32m4 = __riscv_vfmul_vf_f32m4(__riscv_vfcvt_f_xu_v_f32m4(mantissa_u32m4, vector_length),
-                                                            1.0f / 16.0f, vector_length);
-    vuint32m4_t subnorm_bits_u32m4 = __riscv_vreinterpret_v_f32m4_u32m4(subnorm_abs_f32m4);
-    vuint32m4_t subnorm_u32m4 = __riscv_vor_vv_u32m4(sign_u32m4, subnorm_bits_u32m4, vector_length);
+/** @brief Convert e4m3 (m1) to f16 (m2) via sign-symmetric magnitude LUT. Sign bit 7 → f16 bit 15 (<<8). */
+NK_INTERNAL vuint16m2_t nk_e4m3m1_to_f16m2_rvv_(vuint8m1_t e4m3_u8m1, nk_size_t vector_length) {
+    static nk_u16_t const nk_e4m3_mag_to_f16_lut_[128] = {
+        0x0000u, 0x1800u, 0x1C00u, 0x1E00u, 0x2000u, 0x2100u, 0x2200u, 0x2300u, /* [  0..  7] */
+        0x2400u, 0x2480u, 0x2500u, 0x2580u, 0x2600u, 0x2680u, 0x2700u, 0x2780u, /* [  8.. 15] */
+        0x2800u, 0x2880u, 0x2900u, 0x2980u, 0x2A00u, 0x2A80u, 0x2B00u, 0x2B80u, /* [ 16.. 23] */
+        0x2C00u, 0x2C80u, 0x2D00u, 0x2D80u, 0x2E00u, 0x2E80u, 0x2F00u, 0x2F80u, /* [ 24.. 31] */
+        0x3000u, 0x3080u, 0x3100u, 0x3180u, 0x3200u, 0x3280u, 0x3300u, 0x3380u, /* [ 32.. 39] */
+        0x3400u, 0x3480u, 0x3500u, 0x3580u, 0x3600u, 0x3680u, 0x3700u, 0x3780u, /* [ 40.. 47] */
+        0x3800u, 0x3880u, 0x3900u, 0x3980u, 0x3A00u, 0x3A80u, 0x3B00u, 0x3B80u, /* [ 48.. 55] */
+        0x3C00u, 0x3C80u, 0x3D00u, 0x3D80u, 0x3E00u, 0x3E80u, 0x3F00u, 0x3F80u, /* [ 56.. 63] */
+        0x4000u, 0x4080u, 0x4100u, 0x4180u, 0x4200u, 0x4280u, 0x4300u, 0x4380u, /* [ 64.. 71] */
+        0x4400u, 0x4480u, 0x4500u, 0x4580u, 0x4600u, 0x4680u, 0x4700u, 0x4780u, /* [ 72.. 79] */
+        0x4800u, 0x4880u, 0x4900u, 0x4980u, 0x4A00u, 0x4A80u, 0x4B00u, 0x4B80u, /* [ 80.. 87] */
+        0x4C00u, 0x4C80u, 0x4D00u, 0x4D80u, 0x4E00u, 0x4E80u, 0x4F00u, 0x4F80u, /* [ 88.. 95] */
+        0x5000u, 0x5080u, 0x5100u, 0x5180u, 0x5200u, 0x5280u, 0x5300u, 0x5380u, /* [ 96..103] */
+        0x5400u, 0x5480u, 0x5500u, 0x5580u, 0x5600u, 0x5680u, 0x5700u, 0x5780u, /* [104..111] */
+        0x5800u, 0x5880u, 0x5900u, 0x5980u, 0x5A00u, 0x5A80u, 0x5B00u, 0x5B80u, /* [112..119] */
+        0x5C00u, 0x5C80u, 0x5D00u, 0x5D80u, 0x5E00u, 0x5E80u, 0x5F00u, 0x7E00u  /* [120..127] */
+    };
+    vuint8m1_t sign_u8m1 = __riscv_vand_vx_u8m1(e4m3_u8m1, 0x80, vector_length);
+    vuint8m1_t mag_u8m1 = __riscv_vand_vx_u8m1(e4m3_u8m1, 0x7F, vector_length);
+    vuint16m2_t offsets_u16m2 = __riscv_vsll_vx_u16m2(__riscv_vzext_vf2_u16m2(mag_u8m1, vector_length), 1,
+                                                      vector_length);
+    vuint16m2_t result_u16m2 = __riscv_vluxei16_v_u16m2(nk_e4m3_mag_to_f16_lut_, offsets_u16m2, vector_length);
+    vuint16m2_t sign_u16m2 = __riscv_vsll_vx_u16m2(__riscv_vzext_vf2_u16m2(sign_u8m1, vector_length), 8, vector_length);
+    return __riscv_vor_vv_u16m2(result_u16m2, sign_u16m2, vector_length);
+}
 
-    // Select: if exp == 0, use subnormal; else use normal
-    vbool8_t is_subnorm_b8 = __riscv_vmseq_vx_u32m4_b8(exponent_u32m4, 0, vector_length);
-    vuint32m4_t result_u32m4 = __riscv_vmerge_vvm_u32m4(normal_u32m4, subnorm_u32m4, is_subnorm_b8, vector_length);
+/** @brief Convert e2m3 (m1) to f16 (m2) via sign-symmetric magnitude LUT. Sign bit 5 → f16 bit 15 (<<10). */
+NK_INTERNAL vuint16m2_t nk_e2m3m1_to_f16m2_rvv_(vuint8m1_t e2m3_u8m1, nk_size_t vector_length) {
+    static nk_u16_t const nk_e2m3_mag_to_f16_lut_[32] = {
+        0x0000u, 0x3000u, 0x3400u, 0x3600u, 0x3800u, 0x3900u, 0x3A00u, 0x3B00u, /* [  0..  7] */
+        0x3C00u, 0x3C80u, 0x3D00u, 0x3D80u, 0x3E00u, 0x3E80u, 0x3F00u, 0x3F80u, /* [  8.. 15] */
+        0x4000u, 0x4080u, 0x4100u, 0x4180u, 0x4200u, 0x4280u, 0x4300u, 0x4380u, /* [ 16.. 23] */
+        0x4400u, 0x4480u, 0x4500u, 0x4580u, 0x4600u, 0x4680u, 0x4700u, 0x4780u  /* [ 24.. 31] */
+    };
+    vuint8m1_t sign_u8m1 = __riscv_vand_vx_u8m1(e2m3_u8m1, 0x20, vector_length);
+    vuint8m1_t mag_u8m1 = __riscv_vand_vx_u8m1(e2m3_u8m1, 0x1F, vector_length);
+    vuint16m2_t offsets_u16m2 = __riscv_vsll_vx_u16m2(__riscv_vzext_vf2_u16m2(mag_u8m1, vector_length), 1,
+                                                      vector_length);
+    vuint16m2_t result_u16m2 = __riscv_vluxei16_v_u16m2(nk_e2m3_mag_to_f16_lut_, offsets_u16m2, vector_length);
+    vuint16m2_t sign_u16m2 = __riscv_vsll_vx_u16m2(__riscv_vzext_vf2_u16m2(sign_u8m1, vector_length), 10,
+                                                   vector_length);
+    return __riscv_vor_vv_u16m2(result_u16m2, sign_u16m2, vector_length);
+}
 
-    return __riscv_vreinterpret_v_u32m4_f32m4(result_u32m4);
+/** @brief Convert e3m2 (m1) to f16 (m2) via sign-symmetric magnitude LUT. Sign bit 5 → f16 bit 15 (<<10). */
+NK_INTERNAL vuint16m2_t nk_e3m2m1_to_f16m2_rvv_(vuint8m1_t e3m2_u8m1, nk_size_t vector_length) {
+    static nk_u16_t const nk_e3m2_mag_to_f16_lut_[32] = {
+        0x0000u, 0x2C00u, 0x3000u, 0x3200u, 0x3400u, 0x3500u, 0x3600u, 0x3700u, /* [  0..  7] */
+        0x3800u, 0x3900u, 0x3A00u, 0x3B00u, 0x3C00u, 0x3D00u, 0x3E00u, 0x3F00u, /* [  8.. 15] */
+        0x4000u, 0x4100u, 0x4200u, 0x4300u, 0x4400u, 0x4500u, 0x4600u, 0x4700u, /* [ 16.. 23] */
+        0x4800u, 0x4900u, 0x4A00u, 0x4B00u, 0x4C00u, 0x4D00u, 0x4E00u, 0x4F00u  /* [ 24.. 31] */
+    };
+    vuint8m1_t sign_u8m1 = __riscv_vand_vx_u8m1(e3m2_u8m1, 0x20, vector_length);
+    vuint8m1_t mag_u8m1 = __riscv_vand_vx_u8m1(e3m2_u8m1, 0x1F, vector_length);
+    vuint16m2_t offsets_u16m2 = __riscv_vsll_vx_u16m2(__riscv_vzext_vf2_u16m2(mag_u8m1, vector_length), 1,
+                                                      vector_length);
+    vuint16m2_t result_u16m2 = __riscv_vluxei16_v_u16m2(nk_e3m2_mag_to_f16_lut_, offsets_u16m2, vector_length);
+    vuint16m2_t sign_u16m2 = __riscv_vsll_vx_u16m2(__riscv_vzext_vf2_u16m2(sign_u8m1, vector_length), 10,
+                                                   vector_length);
+    return __riscv_vor_vv_u16m2(result_u16m2, sign_u16m2, vector_length);
 }
 
 /**
@@ -413,6 +531,163 @@ NK_INTERNAL vuint8m1_t nk_u8m2_to_u4m1_rvv_(vuint8m1_t hi_u8m1, vuint8m1_t lo_u8
 
     // Pack: (hi << 4) | lo
     return __riscv_vor_vv_u8m1(__riscv_vsll_vx_u8m1(hi_u8m1, 4, vector_length), lo_u8m1, vector_length);
+}
+
+/**
+ *  @brief Convert f32 (m4) to e4m3 (m1) register-to-register.
+ *
+ *  E4M3FN format: S EEEE MMM (1 sign, 4 exponent bits with bias=7, 3 mantissa bits)
+ *  Handles normal, subnormal, overflow, and NaN. Uses RNE mantissa rounding.
+ *  E4M3FN quirk: exp=15 with mant=7 is NaN (0x7F), so max finite is 0x7E (exp=15, mant=6).
+ */
+NK_INTERNAL vuint8m1_t nk_f32m4_to_e4m3m1_rvv_(vfloat32m4_t f32_f32m4, nk_size_t vector_length) {
+    vuint32m4_t bits_u32m4 = __riscv_vreinterpret_v_f32m4_u32m4(f32_f32m4);
+    vuint32m4_t sign_u32m4 = __riscv_vsrl_vx_u32m4(bits_u32m4, 31, vector_length);
+    vuint32m4_t abs_bits_u32m4 = __riscv_vand_vx_u32m4(bits_u32m4, 0x7FFFFFFF, vector_length);
+    vuint32m4_t f32_exp_u32m4 = __riscv_vand_vx_u32m4(__riscv_vsrl_vx_u32m4(bits_u32m4, 23, vector_length), 0xFF,
+                                                      vector_length);
+
+    // Round mantissa from 23 to 3 bits using RNE (round to nearest, ties to even)
+    vuint32m4_t significand_u32m4 = __riscv_vor_vx_u32m4(__riscv_vand_vx_u32m4(bits_u32m4, 0x007FFFFF, vector_length),
+                                                         0x00800000, vector_length);
+    vuint32m4_t lsb_u32m4 = __riscv_vand_vx_u32m4(__riscv_vsrl_vx_u32m4(significand_u32m4, 20, vector_length), 1,
+                                                  vector_length);
+    vuint32m4_t rounding_bias_u32m4 = __riscv_vadd_vx_u32m4(lsb_u32m4, 0x0007FFFF, vector_length);
+    vuint32m4_t rounded_sig_u32m4 = __riscv_vadd_vv_u32m4(significand_u32m4, rounding_bias_u32m4, vector_length);
+    vuint32m4_t carry_u32m4 = __riscv_vsrl_vx_u32m4(rounded_sig_u32m4, 24, vector_length);
+    vuint32m4_t f32_mantissa_u32m4 = __riscv_vand_vx_u32m4(__riscv_vsrl_vx_u32m4(rounded_sig_u32m4, 20, vector_length),
+                                                           0x07, vector_length);
+    // If carry, mantissa becomes 0 (rounded up to next power of 2)
+    vbool8_t has_carry_b8 = __riscv_vmsne_vx_u32m4_b8(carry_u32m4, 0, vector_length);
+    f32_mantissa_u32m4 = __riscv_vmerge_vxm_u32m4(f32_mantissa_u32m4, 0, has_carry_b8, vector_length);
+
+    // e4m3_exp = f32_exp + carry - 120
+    vint32m4_t e4m3_exp_i32m4 = __riscv_vsub_vx_i32m4(
+        __riscv_vreinterpret_v_u32m4_i32m4(__riscv_vadd_vv_u32m4(f32_exp_u32m4, carry_u32m4, vector_length)), 120,
+        vector_length);
+
+    // Detect subnormal (exp <= 0) and overflow (exp > 15)
+    vbool8_t is_subnormal_b8 = __riscv_vmsle_vx_i32m4_b8(e4m3_exp_i32m4, 0, vector_length);
+    vbool8_t is_overflow_b8 = __riscv_vmsgt_vx_i32m4_b8(e4m3_exp_i32m4, 15, vector_length);
+
+    // Normal path: clamp exp to [1,15]
+    vint32m4_t clamped_exp_i32m4 = __riscv_vmax_vx_i32m4(e4m3_exp_i32m4, 1, vector_length);
+    clamped_exp_i32m4 = __riscv_vmin_vx_i32m4(clamped_exp_i32m4, 15, vector_length);
+    // E4M3FN quirk: exp=15 with mant=7 is NaN, so cap mantissa to 6 when exp=15
+    vbool8_t is_max_exp_b8 = __riscv_vmseq_vx_i32m4_b8(clamped_exp_i32m4, 15, vector_length);
+    vuint32m4_t max_mant_u32m4 = __riscv_vmerge_vxm_u32m4(__riscv_vmv_v_x_u32m4(7, vector_length), 6, is_max_exp_b8,
+                                                          vector_length);
+    vuint32m4_t normal_mant_u32m4 = __riscv_vminu_vv_u32m4(f32_mantissa_u32m4, max_mant_u32m4, vector_length);
+    // On overflow, saturate to max finite (exp=15, mant=6 = 0x7E with sign)
+    normal_mant_u32m4 = __riscv_vmerge_vxm_u32m4(normal_mant_u32m4, 0x06, is_overflow_b8, vector_length);
+    vuint32m4_t normal_u32m4 = __riscv_vor_vv_u32m4(
+        __riscv_vsll_vx_u32m4(sign_u32m4, 7, vector_length),
+        __riscv_vor_vv_u32m4(
+            __riscv_vsll_vx_u32m4(__riscv_vreinterpret_v_i32m4_u32m4(clamped_exp_i32m4), 3, vector_length),
+            normal_mant_u32m4, vector_length),
+        vector_length);
+
+    // Subnormal path: mantissa = round(|f32| * 512)
+    vfloat32m4_t abs_f32m4 = __riscv_vreinterpret_v_u32m4_f32m4(abs_bits_u32m4);
+    vfloat32m4_t scaled_f32m4 = __riscv_vfmul_vf_f32m4(abs_f32m4, 512.0f, vector_length);
+    vint32m4_t subnorm_mant_i32m4 = __riscv_vfcvt_x_f_v_i32m4(scaled_f32m4, vector_length); // RNE rounding
+    // If rounds to 8+, promote to first normal (exp=1, mant=0 = 0x08)
+    vbool8_t promotes_b8 = __riscv_vmsgt_vx_i32m4_b8(subnorm_mant_i32m4, 7, vector_length);
+    subnorm_mant_i32m4 = __riscv_vmin_vx_i32m4(subnorm_mant_i32m4, 7, vector_length);
+    subnorm_mant_i32m4 = __riscv_vmax_vx_i32m4(subnorm_mant_i32m4, 0, vector_length);
+    vuint32m4_t subnorm_u32m4 = __riscv_vor_vv_u32m4(__riscv_vsll_vx_u32m4(sign_u32m4, 7, vector_length),
+                                                     __riscv_vreinterpret_v_i32m4_u32m4(subnorm_mant_i32m4),
+                                                     vector_length);
+    vuint32m4_t first_normal_u32m4 = __riscv_vor_vx_u32m4(__riscv_vsll_vx_u32m4(sign_u32m4, 7, vector_length), 0x08,
+                                                          vector_length);
+    subnorm_u32m4 = __riscv_vmerge_vvm_u32m4(subnorm_u32m4, first_normal_u32m4, promotes_b8, vector_length);
+
+    // Select: subnormal when exp <= 0, else normal
+    vuint32m4_t result_u32m4 = __riscv_vmerge_vvm_u32m4(normal_u32m4, subnorm_u32m4, is_subnormal_b8, vector_length);
+
+    // Handle NaN: f32 NaN (abs_bits > 0x7F800000) → e4m3 NaN (sign | 0x7F)
+    vbool8_t is_nan_b8 = __riscv_vmsgtu_vx_u32m4_b8(abs_bits_u32m4, 0x7F800000, vector_length);
+    vuint32m4_t nan_u32m4 = __riscv_vor_vx_u32m4(__riscv_vsll_vx_u32m4(sign_u32m4, 7, vector_length), 0x7F,
+                                                 vector_length);
+    result_u32m4 = __riscv_vmerge_vvm_u32m4(result_u32m4, nan_u32m4, is_nan_b8, vector_length);
+
+    // Narrow u32m4 → u16m2 → u8m1
+    vuint16m2_t result_u16m2 = __riscv_vncvt_x_x_w_u16m2(result_u32m4, vector_length);
+    return __riscv_vncvt_x_x_w_u8m1(result_u16m2, vector_length);
+}
+
+/**
+ *  @brief Convert f32 (m4) to e5m2 (m1) register-to-register.
+ *
+ *  E5M2 format: S EEEEE MM (1 sign, 5 exponent bits with bias=15, 2 mantissa bits)
+ *  Handles normal, subnormal, overflow (→ infinity), and NaN. Uses RNE mantissa rounding.
+ */
+NK_INTERNAL vuint8m1_t nk_f32m4_to_e5m2m1_rvv_(vfloat32m4_t f32_f32m4, nk_size_t vector_length) {
+    vuint32m4_t bits_u32m4 = __riscv_vreinterpret_v_f32m4_u32m4(f32_f32m4);
+    vuint32m4_t sign_u32m4 = __riscv_vsrl_vx_u32m4(bits_u32m4, 31, vector_length);
+    vuint32m4_t abs_bits_u32m4 = __riscv_vand_vx_u32m4(bits_u32m4, 0x7FFFFFFF, vector_length);
+    vuint32m4_t f32_exp_u32m4 = __riscv_vand_vx_u32m4(__riscv_vsrl_vx_u32m4(bits_u32m4, 23, vector_length), 0xFF,
+                                                      vector_length);
+
+    // Round mantissa from 23 to 2 bits using RNE
+    vuint32m4_t significand_u32m4 = __riscv_vor_vx_u32m4(__riscv_vand_vx_u32m4(bits_u32m4, 0x007FFFFF, vector_length),
+                                                         0x00800000, vector_length);
+    vuint32m4_t lsb_u32m4 = __riscv_vand_vx_u32m4(__riscv_vsrl_vx_u32m4(significand_u32m4, 21, vector_length), 1,
+                                                  vector_length);
+    vuint32m4_t rounding_bias_u32m4 = __riscv_vadd_vx_u32m4(lsb_u32m4, 0x000FFFFF, vector_length);
+    vuint32m4_t rounded_sig_u32m4 = __riscv_vadd_vv_u32m4(significand_u32m4, rounding_bias_u32m4, vector_length);
+    vuint32m4_t carry_u32m4 = __riscv_vsrl_vx_u32m4(rounded_sig_u32m4, 24, vector_length);
+    vuint32m4_t f32_mantissa_u32m4 = __riscv_vand_vx_u32m4(__riscv_vsrl_vx_u32m4(rounded_sig_u32m4, 21, vector_length),
+                                                           0x03, vector_length);
+    vbool8_t has_carry_b8 = __riscv_vmsne_vx_u32m4_b8(carry_u32m4, 0, vector_length);
+    f32_mantissa_u32m4 = __riscv_vmerge_vxm_u32m4(f32_mantissa_u32m4, 0, has_carry_b8, vector_length);
+
+    // e5m2_exp = f32_exp + carry - 112
+    vint32m4_t e5m2_exp_i32m4 = __riscv_vsub_vx_i32m4(
+        __riscv_vreinterpret_v_u32m4_i32m4(__riscv_vadd_vv_u32m4(f32_exp_u32m4, carry_u32m4, vector_length)), 112,
+        vector_length);
+
+    // Detect subnormal (exp <= 0) and overflow (exp > 31)
+    vbool8_t is_subnormal_b8 = __riscv_vmsle_vx_i32m4_b8(e5m2_exp_i32m4, 0, vector_length);
+    vbool8_t is_overflow_b8 = __riscv_vmsgt_vx_i32m4_b8(e5m2_exp_i32m4, 31, vector_length);
+
+    // Normal path: clamp exp to [1,31], on overflow return infinity (exp=31, mant=0)
+    vint32m4_t clamped_exp_i32m4 = __riscv_vmax_vx_i32m4(e5m2_exp_i32m4, 1, vector_length);
+    clamped_exp_i32m4 = __riscv_vmin_vx_i32m4(clamped_exp_i32m4, 31, vector_length);
+    vuint32m4_t normal_mant_u32m4 = __riscv_vmerge_vxm_u32m4(f32_mantissa_u32m4, 0, is_overflow_b8, vector_length);
+    vuint32m4_t normal_u32m4 = __riscv_vor_vv_u32m4(
+        __riscv_vsll_vx_u32m4(sign_u32m4, 7, vector_length),
+        __riscv_vor_vv_u32m4(
+            __riscv_vsll_vx_u32m4(__riscv_vreinterpret_v_i32m4_u32m4(clamped_exp_i32m4), 2, vector_length),
+            normal_mant_u32m4, vector_length),
+        vector_length);
+
+    // Subnormal path: mantissa = round(|f32| * 65536)
+    vfloat32m4_t abs_f32m4 = __riscv_vreinterpret_v_u32m4_f32m4(abs_bits_u32m4);
+    vfloat32m4_t scaled_f32m4 = __riscv_vfmul_vf_f32m4(abs_f32m4, 65536.0f, vector_length);
+    vint32m4_t subnorm_mant_i32m4 = __riscv_vfcvt_x_f_v_i32m4(scaled_f32m4, vector_length);
+    vbool8_t promotes_b8 = __riscv_vmsgt_vx_i32m4_b8(subnorm_mant_i32m4, 3, vector_length);
+    subnorm_mant_i32m4 = __riscv_vmin_vx_i32m4(subnorm_mant_i32m4, 3, vector_length);
+    subnorm_mant_i32m4 = __riscv_vmax_vx_i32m4(subnorm_mant_i32m4, 0, vector_length);
+    vuint32m4_t subnorm_u32m4 = __riscv_vor_vv_u32m4(__riscv_vsll_vx_u32m4(sign_u32m4, 7, vector_length),
+                                                     __riscv_vreinterpret_v_i32m4_u32m4(subnorm_mant_i32m4),
+                                                     vector_length);
+    vuint32m4_t first_normal_u32m4 = __riscv_vor_vx_u32m4(__riscv_vsll_vx_u32m4(sign_u32m4, 7, vector_length), 0x04,
+                                                          vector_length);
+    subnorm_u32m4 = __riscv_vmerge_vvm_u32m4(subnorm_u32m4, first_normal_u32m4, promotes_b8, vector_length);
+
+    // Select: subnormal when exp <= 0, else normal
+    vuint32m4_t result_u32m4 = __riscv_vmerge_vvm_u32m4(normal_u32m4, subnorm_u32m4, is_subnormal_b8, vector_length);
+
+    // Handle NaN: f32 NaN (abs_bits > 0x7F800000) → e5m2 NaN (sign | 0x7D)
+    vbool8_t is_nan_b8 = __riscv_vmsgtu_vx_u32m4_b8(abs_bits_u32m4, 0x7F800000, vector_length);
+    vuint32m4_t nan_u32m4 = __riscv_vor_vx_u32m4(__riscv_vsll_vx_u32m4(sign_u32m4, 7, vector_length), 0x7D,
+                                                 vector_length);
+    result_u32m4 = __riscv_vmerge_vvm_u32m4(result_u32m4, nan_u32m4, is_nan_b8, vector_length);
+
+    // Narrow u32m4 → u16m2 → u8m1
+    vuint16m2_t result_u16m2 = __riscv_vncvt_x_x_w_u16m2(result_u32m4, vector_length);
+    return __riscv_vncvt_x_x_w_u8m1(result_u16m2, vector_length);
 }
 
 #pragma endregion - Register - to - Register Helpers
@@ -504,6 +779,132 @@ NK_PUBLIC void nk_cast_rvv(void const *from, nk_dtype_t from_type, nk_size_t cou
         return;
     }
 
+    // e2m3 → f32
+    if (from_type == nk_e2m3_k && to_type == nk_f32_k) {
+        nk_e2m3_t const *source = (nk_e2m3_t const *)from;
+        nk_f32_t *destination = (nk_f32_t *)to;
+        for (nk_size_t vector_length; count > 0;
+             count -= vector_length, source += vector_length, destination += vector_length) {
+            vector_length = __riscv_vsetvl_e8m1(count);
+            vuint8m1_t e2m3_u8m1 = __riscv_vle8_v_u8m1((nk_u8_t const *)source, vector_length);
+            vfloat32m4_t f32_f32m4 = nk_e2m3m1_to_f32m4_rvv_(e2m3_u8m1, vector_length);
+            __riscv_vse32_v_f32m4(destination, f32_f32m4, vector_length);
+        }
+        return;
+    }
+
+    // e3m2 → f32
+    if (from_type == nk_e3m2_k && to_type == nk_f32_k) {
+        nk_e3m2_t const *source = (nk_e3m2_t const *)from;
+        nk_f32_t *destination = (nk_f32_t *)to;
+        for (nk_size_t vector_length; count > 0;
+             count -= vector_length, source += vector_length, destination += vector_length) {
+            vector_length = __riscv_vsetvl_e8m1(count);
+            vuint8m1_t e3m2_u8m1 = __riscv_vle8_v_u8m1((nk_u8_t const *)source, vector_length);
+            vfloat32m4_t f32_f32m4 = nk_e3m2m1_to_f32m4_rvv_(e3m2_u8m1, vector_length);
+            __riscv_vse32_v_f32m4(destination, f32_f32m4, vector_length);
+        }
+        return;
+    }
+
+    // e4m3 → bf16
+    if (from_type == nk_e4m3_k && to_type == nk_bf16_k) {
+        nk_e4m3_t const *source = (nk_e4m3_t const *)from;
+        nk_bf16_t *destination = (nk_bf16_t *)to;
+        for (nk_size_t vector_length; count > 0;
+             count -= vector_length, source += vector_length, destination += vector_length) {
+            vector_length = __riscv_vsetvl_e8m1(count);
+            vuint8m1_t e4m3_u8m1 = __riscv_vle8_v_u8m1((nk_u8_t const *)source, vector_length);
+            vuint16m2_t bf16_u16m2 = nk_e4m3m1_to_bf16m2_rvv_(e4m3_u8m1, vector_length);
+            __riscv_vse16_v_u16m2((nk_u16_t *)destination, bf16_u16m2, vector_length);
+        }
+        return;
+    }
+
+    // e5m2 → bf16
+    if (from_type == nk_e5m2_k && to_type == nk_bf16_k) {
+        nk_e5m2_t const *source = (nk_e5m2_t const *)from;
+        nk_bf16_t *destination = (nk_bf16_t *)to;
+        for (nk_size_t vector_length; count > 0;
+             count -= vector_length, source += vector_length, destination += vector_length) {
+            vector_length = __riscv_vsetvl_e8m1(count);
+            vuint8m1_t e5m2_u8m1 = __riscv_vle8_v_u8m1((nk_u8_t const *)source, vector_length);
+            vuint16m2_t bf16_u16m2 = nk_e5m2m1_to_bf16m2_rvv_(e5m2_u8m1, vector_length);
+            __riscv_vse16_v_u16m2((nk_u16_t *)destination, bf16_u16m2, vector_length);
+        }
+        return;
+    }
+
+    // e2m3 → bf16
+    if (from_type == nk_e2m3_k && to_type == nk_bf16_k) {
+        nk_e2m3_t const *source = (nk_e2m3_t const *)from;
+        nk_bf16_t *destination = (nk_bf16_t *)to;
+        for (nk_size_t vector_length; count > 0;
+             count -= vector_length, source += vector_length, destination += vector_length) {
+            vector_length = __riscv_vsetvl_e8m1(count);
+            vuint8m1_t e2m3_u8m1 = __riscv_vle8_v_u8m1((nk_u8_t const *)source, vector_length);
+            vuint16m2_t bf16_u16m2 = nk_e2m3m1_to_bf16m2_rvv_(e2m3_u8m1, vector_length);
+            __riscv_vse16_v_u16m2((nk_u16_t *)destination, bf16_u16m2, vector_length);
+        }
+        return;
+    }
+
+    // e3m2 → bf16
+    if (from_type == nk_e3m2_k && to_type == nk_bf16_k) {
+        nk_e3m2_t const *source = (nk_e3m2_t const *)from;
+        nk_bf16_t *destination = (nk_bf16_t *)to;
+        for (nk_size_t vector_length; count > 0;
+             count -= vector_length, source += vector_length, destination += vector_length) {
+            vector_length = __riscv_vsetvl_e8m1(count);
+            vuint8m1_t e3m2_u8m1 = __riscv_vle8_v_u8m1((nk_u8_t const *)source, vector_length);
+            vuint16m2_t bf16_u16m2 = nk_e3m2m1_to_bf16m2_rvv_(e3m2_u8m1, vector_length);
+            __riscv_vse16_v_u16m2((nk_u16_t *)destination, bf16_u16m2, vector_length);
+        }
+        return;
+    }
+
+    // e4m3 → f16
+    if (from_type == nk_e4m3_k && to_type == nk_f16_k) {
+        nk_e4m3_t const *source = (nk_e4m3_t const *)from;
+        nk_f16_t *destination = (nk_f16_t *)to;
+        for (nk_size_t vector_length; count > 0;
+             count -= vector_length, source += vector_length, destination += vector_length) {
+            vector_length = __riscv_vsetvl_e8m1(count);
+            vuint8m1_t e4m3_u8m1 = __riscv_vle8_v_u8m1((nk_u8_t const *)source, vector_length);
+            vuint16m2_t f16_u16m2 = nk_e4m3m1_to_f16m2_rvv_(e4m3_u8m1, vector_length);
+            __riscv_vse16_v_u16m2((nk_u16_t *)destination, f16_u16m2, vector_length);
+        }
+        return;
+    }
+
+    // e2m3 → f16
+    if (from_type == nk_e2m3_k && to_type == nk_f16_k) {
+        nk_e2m3_t const *source = (nk_e2m3_t const *)from;
+        nk_f16_t *destination = (nk_f16_t *)to;
+        for (nk_size_t vector_length; count > 0;
+             count -= vector_length, source += vector_length, destination += vector_length) {
+            vector_length = __riscv_vsetvl_e8m1(count);
+            vuint8m1_t e2m3_u8m1 = __riscv_vle8_v_u8m1((nk_u8_t const *)source, vector_length);
+            vuint16m2_t f16_u16m2 = nk_e2m3m1_to_f16m2_rvv_(e2m3_u8m1, vector_length);
+            __riscv_vse16_v_u16m2((nk_u16_t *)destination, f16_u16m2, vector_length);
+        }
+        return;
+    }
+
+    // e3m2 → f16
+    if (from_type == nk_e3m2_k && to_type == nk_f16_k) {
+        nk_e3m2_t const *source = (nk_e3m2_t const *)from;
+        nk_f16_t *destination = (nk_f16_t *)to;
+        for (nk_size_t vector_length; count > 0;
+             count -= vector_length, source += vector_length, destination += vector_length) {
+            vector_length = __riscv_vsetvl_e8m1(count);
+            vuint8m1_t e3m2_u8m1 = __riscv_vle8_v_u8m1((nk_u8_t const *)source, vector_length);
+            vuint16m2_t f16_u16m2 = nk_e3m2m1_to_f16m2_rvv_(e3m2_u8m1, vector_length);
+            __riscv_vse16_v_u16m2((nk_u16_t *)destination, f16_u16m2, vector_length);
+        }
+        return;
+    }
+
     // i4 → i8
     if (from_type == nk_i4_k && to_type == nk_i8_k) {
         nk_i4x2_t const *source = (nk_i4x2_t const *)from;
@@ -576,6 +977,12 @@ NK_PUBLIC void nk_cast_rvv(void const *from, nk_dtype_t from_type, nk_size_t cou
 
 #if defined(__cplusplus)
 } // extern "C"
+#endif
+
+#if defined(__clang__)
+#pragma clang attribute pop
+#elif defined(__GNUC__)
+#pragma GCC pop_options
 #endif
 
 #endif // NK_TARGET_RVV

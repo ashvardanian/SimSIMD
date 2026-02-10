@@ -32,6 +32,12 @@ void nk_dispatch_cast_find_(nk_capability_t v, nk_kernel_kind_t k, nk_kernel_pun
         default: break;
         }
 #endif
+#if NK_TARGET_RVV
+    if (v & nk_cap_rvv_k) switch (k) {
+        case nk_kernel_cast_k: *m = (m_t)&nk_cast_rvv, *c = nk_cap_rvv_k; return;
+        default: break;
+        }
+#endif
 #if NK_TARGET_NEON
     if (v & nk_cap_neon_k) switch (k) {
         case nk_kernel_cast_k: *m = (m_t)&nk_cast_neon, *c = nk_cap_neon_k; return;

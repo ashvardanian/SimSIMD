@@ -229,6 +229,36 @@ NK_PUBLIC void nk_kld_f16_sapphire(nk_f16_t const *a, nk_f16_t const *b, nk_size
 NK_PUBLIC void nk_jsd_f16_sapphire(nk_f16_t const *a, nk_f16_t const *b, nk_size_t n, nk_f32_t *result);
 #endif // NK_TARGET_SAPPHIRE
 
+#if NK_TARGET_RVV
+/** @copydoc nk_kld_f32 */
+NK_PUBLIC void nk_kld_f32_rvv(nk_f32_t const *a, nk_f32_t const *b, nk_size_t n, nk_f32_t *result);
+/** @copydoc nk_jsd_f32 */
+NK_PUBLIC void nk_jsd_f32_rvv(nk_f32_t const *a, nk_f32_t const *b, nk_size_t n, nk_f32_t *result);
+/** @copydoc nk_kld_f64 */
+NK_PUBLIC void nk_kld_f64_rvv(nk_f64_t const *a, nk_f64_t const *b, nk_size_t n, nk_f64_t *result);
+/** @copydoc nk_jsd_f64 */
+NK_PUBLIC void nk_jsd_f64_rvv(nk_f64_t const *a, nk_f64_t const *b, nk_size_t n, nk_f64_t *result);
+/** @copydoc nk_kld_f16 */
+NK_PUBLIC void nk_kld_f16_rvv(nk_f16_t const *a, nk_f16_t const *b, nk_size_t n, nk_f32_t *result);
+/** @copydoc nk_jsd_f16 */
+NK_PUBLIC void nk_jsd_f16_rvv(nk_f16_t const *a, nk_f16_t const *b, nk_size_t n, nk_f32_t *result);
+/** @copydoc nk_kld_bf16 */
+NK_PUBLIC void nk_kld_bf16_rvv(nk_bf16_t const *a, nk_bf16_t const *b, nk_size_t n, nk_f32_t *result);
+/** @copydoc nk_jsd_bf16 */
+NK_PUBLIC void nk_jsd_bf16_rvv(nk_bf16_t const *a, nk_bf16_t const *b, nk_size_t n, nk_f32_t *result);
+#endif // NK_TARGET_RVV
+
+/** @brief Returns the output dtype for probability divergences (KLD, JSD). */
+NK_INTERNAL nk_dtype_t nk_probability_output_dtype(nk_dtype_t dtype) {
+    switch (dtype) {
+    case nk_f64_k: return nk_f64_k;
+    case nk_f32_k: return nk_f32_k;
+    case nk_f16_k: return nk_f32_k;
+    case nk_bf16_k: return nk_f32_k;
+    default: return nk_dtype_unknown_k;
+    }
+}
+
 #if defined(__cplusplus)
 } // extern "C"
 #endif
@@ -238,6 +268,7 @@ NK_PUBLIC void nk_jsd_f16_sapphire(nk_f16_t const *a, nk_f16_t const *b, nk_size
 #include "numkong/probability/haswell.h"
 #include "numkong/probability/skylake.h"
 #include "numkong/probability/sapphire.h"
+#include "numkong/probability/rvv.h"
 
 #if defined(__cplusplus)
 extern "C" {
@@ -250,13 +281,19 @@ NK_PUBLIC void nk_kld_f16(nk_f16_t const *a, nk_f16_t const *b, nk_size_t n, nk_
     nk_kld_f16_neonhalf(a, b, n, result);
 #elif NK_TARGET_HASWELL
     nk_kld_f16_haswell(a, b, n, result);
+#elif NK_TARGET_RVV
+    nk_kld_f16_rvv(a, b, n, result);
 #else
     nk_kld_f16_serial(a, b, n, result);
 #endif
 }
 
 NK_PUBLIC void nk_kld_bf16(nk_bf16_t const *a, nk_bf16_t const *b, nk_size_t n, nk_f32_t *result) {
+#if NK_TARGET_RVV
+    nk_kld_bf16_rvv(a, b, n, result);
+#else
     nk_kld_bf16_serial(a, b, n, result);
+#endif
 }
 
 NK_PUBLIC void nk_kld_f32(nk_f32_t const *a, nk_f32_t const *b, nk_size_t n, nk_f32_t *result) {
@@ -264,6 +301,8 @@ NK_PUBLIC void nk_kld_f32(nk_f32_t const *a, nk_f32_t const *b, nk_size_t n, nk_
     nk_kld_f32_neon(a, b, n, result);
 #elif NK_TARGET_SKYLAKE
     nk_kld_f32_skylake(a, b, n, result);
+#elif NK_TARGET_RVV
+    nk_kld_f32_rvv(a, b, n, result);
 #else
     nk_kld_f32_serial(a, b, n, result);
 #endif
@@ -274,6 +313,8 @@ NK_PUBLIC void nk_kld_f64(nk_f64_t const *a, nk_f64_t const *b, nk_size_t n, nk_
     nk_kld_f64_skylake(a, b, n, result);
 #elif NK_TARGET_HASWELL
     nk_kld_f64_haswell(a, b, n, result);
+#elif NK_TARGET_RVV
+    nk_kld_f64_rvv(a, b, n, result);
 #else
     nk_kld_f64_serial(a, b, n, result);
 #endif
@@ -284,13 +325,19 @@ NK_PUBLIC void nk_jsd_f16(nk_f16_t const *a, nk_f16_t const *b, nk_size_t n, nk_
     nk_jsd_f16_neonhalf(a, b, n, result);
 #elif NK_TARGET_HASWELL
     nk_jsd_f16_haswell(a, b, n, result);
+#elif NK_TARGET_RVV
+    nk_jsd_f16_rvv(a, b, n, result);
 #else
     nk_jsd_f16_serial(a, b, n, result);
 #endif
 }
 
 NK_PUBLIC void nk_jsd_bf16(nk_bf16_t const *a, nk_bf16_t const *b, nk_size_t n, nk_f32_t *result) {
+#if NK_TARGET_RVV
+    nk_jsd_bf16_rvv(a, b, n, result);
+#else
     nk_jsd_bf16_serial(a, b, n, result);
+#endif
 }
 
 NK_PUBLIC void nk_jsd_f32(nk_f32_t const *a, nk_f32_t const *b, nk_size_t n, nk_f32_t *result) {
@@ -298,6 +345,8 @@ NK_PUBLIC void nk_jsd_f32(nk_f32_t const *a, nk_f32_t const *b, nk_size_t n, nk_
     nk_jsd_f32_neon(a, b, n, result);
 #elif NK_TARGET_SKYLAKE
     nk_jsd_f32_skylake(a, b, n, result);
+#elif NK_TARGET_RVV
+    nk_jsd_f32_rvv(a, b, n, result);
 #else
     nk_jsd_f32_serial(a, b, n, result);
 #endif
@@ -308,6 +357,8 @@ NK_PUBLIC void nk_jsd_f64(nk_f64_t const *a, nk_f64_t const *b, nk_size_t n, nk_
     nk_jsd_f64_skylake(a, b, n, result);
 #elif NK_TARGET_HASWELL
     nk_jsd_f64_haswell(a, b, n, result);
+#elif NK_TARGET_RVV
+    nk_jsd_f64_rvv(a, b, n, result);
 #else
     nk_jsd_f64_serial(a, b, n, result);
 #endif

@@ -967,6 +967,7 @@ pub mod cap {
     pub const RVV: u64 = 1 << 19; // 2023: RISC-V Vector
     pub const RVVHALF: u64 = 1 << 20; // 2023: RISC-V Zvfh
     pub const RVVBF16: u64 = 1 << 21; // 2023: RISC-V Zvfbfwma
+    pub const RVVBB: u64 = 1 << 33; // 2024: RISC-V Zvbb
     pub const GRANITEAMX: u64 = 1 << 22; // 2024: Intel Granite AMX FP16
     pub const TURIN: u64 = 1 << 23; // 2024: AMD Turin AVX-512 CD
     pub const SME: u64 = 1 << 24; // 2024: ARM SME

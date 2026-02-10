@@ -209,14 +209,15 @@ NK_PUBLIC nk_float_class_t nk_f32_classify(nk_f32_t const input) {
     nk_u32_t const exponent_mask = 0x7F800000u;     // Mask for exponent bits
     nk_u32_t const mantissa_mask = 0x007FFFFFu;     // Mask for mantissa bits
 
-    nk_u32_t const bits = *(nk_u32_t *)&input;
-    if (bits == positive_zero) return nk_float_positive_zero_k;
-    if (bits == negative_zero) return nk_float_negative_zero_k;
-    if (bits == positive_infinity) return nk_float_positive_infinity_k;
-    if (bits == negative_infinity) return nk_float_negative_infinity_k;
+    nk_fui32_t bits;
+    bits.f = input;
+    if (bits.u == positive_zero) return nk_float_positive_zero_k;
+    if (bits.u == negative_zero) return nk_float_negative_zero_k;
+    if (bits.u == positive_infinity) return nk_float_positive_infinity_k;
+    if (bits.u == negative_infinity) return nk_float_negative_infinity_k;
 
     // Check for NaN (exponent all 1s and non-zero mantissa)
-    if ((bits & exponent_mask) == exponent_mask && (bits & mantissa_mask) != 0) return nk_float_nan_k;
+    if ((bits.u & exponent_mask) == exponent_mask && (bits.u & mantissa_mask) != 0) return nk_float_nan_k;
     return input > 0.0f ? nk_float_positive_finite_k : nk_float_negative_finite_k;
 }
 

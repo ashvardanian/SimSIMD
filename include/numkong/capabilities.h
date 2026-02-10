@@ -266,6 +266,7 @@ typedef nk_u64_t nk_capability_t;
 #define nk_cap_smehalf_k     ((nk_capability_t)1 << 30)
 #define nk_cap_smebf16_k     ((nk_capability_t)1 << 31)
 #define nk_cap_smelut2_k     ((nk_capability_t)1 << 32)
+#define nk_cap_rvvbb_k       ((nk_capability_t)1 << 33)
 
 typedef void (*nk_metric_dense_punned_t)(void const *a, void const *b, nk_size_t n, void *d);
 
@@ -594,6 +595,7 @@ NK_PUBLIC nk_capability_t nk_capabilities_riscv_(void) {
         if (syscall(258, pairs, 1, 0, (void *)0, 0) == 0) {
             if (pairs[0].value & (1ULL << 30)) caps |= nk_cap_rvvhalf_k;
             if (pairs[0].value & (1ULL << 54)) caps |= nk_cap_rvvbf16_k;
+            if (pairs[0].value & (1ULL << 48)) caps |= nk_cap_rvvbb_k; // Zvbb
         }
     }
     return caps;
@@ -607,31 +609,8 @@ NK_PUBLIC nk_capability_t nk_capabilities_riscv_(void) {
 #if NK_TARGET_WASM_
 
 #if defined(__EMSCRIPTEN__)
-EM_JS(int, nk_detect_v128_, (), {
-    var test = new Uint8Array([
-        0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x05, 0x01, 0x60, 0x00, 0x01, 0x7b, 0x03,
-        0x02, 0x01, 0x00, 0x0a, 0x09, 0x01, 0x07, 0x00, 0xfd, 0x0c, 0x00, 0x00, 0x00, 0x00, 0x0b
-    ]);
-    try {
-        return WebAssembly.validate(test) ? 1 : 0;
-    }
-    catch (e) {
-        return 0;
-    }
-});
-EM_JS(int, nk_detect_relaxed_, (), {
-    var test = new Uint8Array([
-        0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x08, 0x01, 0x60, 0x03,
-        0x7b, 0x7b, 0x7b, 0x01, 0x7b, 0x03, 0x02, 0x01, 0x00, 0x0a, 0x09, 0x01, 0x07,
-        0x00, 0x20, 0x00, 0x20, 0x01, 0x20, 0x02, 0xfd, 0xaf, 0x01, 0x0b
-    ]);
-    try {
-        return WebAssembly.validate(test) ? 1 : 0;
-    }
-    catch (e) {
-        return 0;
-    }
-});
+extern int nk_detect_v128_(void);
+extern int nk_detect_relaxed_(void);
 #elif defined(__wasi__)
 __attribute__((__import_module__("env"), __import_name__("nk_has_v128"))) extern int nk_has_v128(void);
 __attribute__((__import_module__("env"), __import_name__("nk_has_relaxed"))) extern int nk_has_relaxed(void);

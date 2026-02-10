@@ -527,10 +527,22 @@ NK_PUBLIC void nk_angular_e5m2_genoa(nk_e5m2_t const *a, nk_e5m2_t const *b, nk_
 #endif // NK_TARGET_GENOA
 
 #if NK_TARGET_SAPPHIRE
-/** @copydoc nk_euclidean_e4m3 */
+/** @copydoc nk_euclidean_f64 */
 NK_PUBLIC void nk_euclidean_e4m3_sapphire(nk_e4m3_t const *a, nk_e4m3_t const *b, nk_size_t n, nk_f32_t *result);
-/** @copydoc nk_sqeuclidean_e4m3 */
+/** @copydoc nk_euclidean_f64 */
 NK_PUBLIC void nk_sqeuclidean_e4m3_sapphire(nk_e4m3_t const *a, nk_e4m3_t const *b, nk_size_t n, nk_f32_t *result);
+/** @copydoc nk_euclidean_f64 */
+NK_PUBLIC void nk_sqeuclidean_e2m3_sapphire(nk_e2m3_t const *a, nk_e2m3_t const *b, nk_size_t n, nk_f32_t *result);
+/** @copydoc nk_euclidean_f64 */
+NK_PUBLIC void nk_sqeuclidean_e3m2_sapphire(nk_e3m2_t const *a, nk_e3m2_t const *b, nk_size_t n, nk_f32_t *result);
+/** @copydoc nk_euclidean_f64 */
+NK_PUBLIC void nk_euclidean_e2m3_sapphire(nk_e2m3_t const *a, nk_e2m3_t const *b, nk_size_t n, nk_f32_t *result);
+/** @copydoc nk_euclidean_f64 */
+NK_PUBLIC void nk_euclidean_e3m2_sapphire(nk_e3m2_t const *a, nk_e3m2_t const *b, nk_size_t n, nk_f32_t *result);
+/** @copydoc nk_angular_f64 */
+NK_PUBLIC void nk_angular_e2m3_sapphire(nk_e2m3_t const *a, nk_e2m3_t const *b, nk_size_t n, nk_f32_t *result);
+/** @copydoc nk_angular_f64 */
+NK_PUBLIC void nk_angular_e3m2_sapphire(nk_e3m2_t const *a, nk_e3m2_t const *b, nk_size_t n, nk_f32_t *result);
 #endif // NK_TARGET_SAPPHIRE
 
 /*  SIMD-powered backends for AVX-INT8-VNNI extensions on Xeon 6 CPUs, including Sierra Forest and Granite Rapids.
@@ -543,41 +555,43 @@ NK_PUBLIC void nk_angular_i8_sierra(nk_i8_t const *a, nk_i8_t const *b, nk_size_
 #endif // NK_TARGET_SIERRA
 
 #if NK_TARGET_V128RELAXED
-/** @copydoc nk_sqeuclidean_f32 */
+/** @copydoc nk_sqeuclidean_f64 */
 NK_PUBLIC void nk_sqeuclidean_f32_v128relaxed(nk_f32_t const *a, nk_f32_t const *b, nk_size_t n, nk_f32_t *result);
 /** @copydoc nk_sqeuclidean_f64 */
 NK_PUBLIC void nk_sqeuclidean_f64_v128relaxed(nk_f64_t const *a, nk_f64_t const *b, nk_size_t n, nk_f64_t *result);
-/** @copydoc nk_euclidean_f32 */
+/** @copydoc nk_euclidean_f64 */
 NK_PUBLIC void nk_euclidean_f32_v128relaxed(nk_f32_t const *a, nk_f32_t const *b, nk_size_t n, nk_f32_t *result);
 /** @copydoc nk_euclidean_f64 */
 NK_PUBLIC void nk_euclidean_f64_v128relaxed(nk_f64_t const *a, nk_f64_t const *b, nk_size_t n, nk_f64_t *result);
-/** @copydoc nk_angular_f32 */
+/** @copydoc nk_angular_f64 */
 NK_PUBLIC void nk_angular_f32_v128relaxed(nk_f32_t const *a, nk_f32_t const *b, nk_size_t n, nk_f32_t *result);
 /** @copydoc nk_angular_f64 */
 NK_PUBLIC void nk_angular_f64_v128relaxed(nk_f64_t const *a, nk_f64_t const *b, nk_size_t n, nk_f64_t *result);
-/** @copydoc nk_sqeuclidean_f16 */
+/** @copydoc nk_sqeuclidean_f64 */
 NK_PUBLIC void nk_sqeuclidean_f16_v128relaxed(nk_f16_t const *a, nk_f16_t const *b, nk_size_t n, nk_f32_t *result);
-/** @copydoc nk_sqeuclidean_bf16 */
+/** @copydoc nk_sqeuclidean_f64 */
 NK_PUBLIC void nk_sqeuclidean_bf16_v128relaxed(nk_bf16_t const *a, nk_bf16_t const *b, nk_size_t n, nk_f32_t *result);
-/** @copydoc nk_euclidean_f16 */
+/** @copydoc nk_euclidean_f64 */
 NK_PUBLIC void nk_euclidean_f16_v128relaxed(nk_f16_t const *a, nk_f16_t const *b, nk_size_t n, nk_f32_t *result);
-/** @copydoc nk_euclidean_bf16 */
+/** @copydoc nk_euclidean_f64 */
 NK_PUBLIC void nk_euclidean_bf16_v128relaxed(nk_bf16_t const *a, nk_bf16_t const *b, nk_size_t n, nk_f32_t *result);
-/** @copydoc nk_angular_f16 */
+/** @copydoc nk_angular_f64 */
 NK_PUBLIC void nk_angular_f16_v128relaxed(nk_f16_t const *a, nk_f16_t const *b, nk_size_t n, nk_f32_t *result);
-/** @copydoc nk_angular_bf16 */
+/** @copydoc nk_angular_f64 */
 NK_PUBLIC void nk_angular_bf16_v128relaxed(nk_bf16_t const *a, nk_bf16_t const *b, nk_size_t n, nk_f32_t *result);
 #endif // NK_TARGET_V128RELAXED
 
-/**
- *  @brief  Returns the output dtype for L2 (Euclidean) distance.
- */
+/** @brief Returns the output dtype for L2 (Euclidean) distance. */
 NK_INTERNAL nk_dtype_t nk_euclidean_output_dtype(nk_dtype_t dtype) {
     switch (dtype) {
     case nk_f64_k: return nk_f64_k;
     case nk_f32_k: return nk_f32_k;
     case nk_f16_k: return nk_f32_k;
     case nk_bf16_k: return nk_f32_k;
+    case nk_e4m3_k: return nk_f32_k;
+    case nk_e5m2_k: return nk_f32_k;
+    case nk_e2m3_k: return nk_f32_k;
+    case nk_e3m2_k: return nk_f32_k;
     case nk_i8_k: return nk_f32_k;
     case nk_u8_k: return nk_f32_k;
     case nk_i4_k: return nk_f32_k;
@@ -586,15 +600,17 @@ NK_INTERNAL nk_dtype_t nk_euclidean_output_dtype(nk_dtype_t dtype) {
     }
 }
 
-/**
- *  @brief  Returns the output dtype for L2 squared distance.
- */
+/** @brief Returns the output dtype for L2 squared distance. */
 NK_INTERNAL nk_dtype_t nk_sqeuclidean_output_dtype(nk_dtype_t dtype) {
     switch (dtype) {
     case nk_f64_k: return nk_f64_k;
     case nk_f32_k: return nk_f32_k;
     case nk_f16_k: return nk_f32_k;
     case nk_bf16_k: return nk_f32_k;
+    case nk_e4m3_k: return nk_f32_k;
+    case nk_e5m2_k: return nk_f32_k;
+    case nk_e2m3_k: return nk_f32_k;
+    case nk_e3m2_k: return nk_f32_k;
     case nk_i8_k: return nk_u32_k;
     case nk_u8_k: return nk_u32_k;
     case nk_i4_k: return nk_u32_k;
@@ -603,15 +619,17 @@ NK_INTERNAL nk_dtype_t nk_sqeuclidean_output_dtype(nk_dtype_t dtype) {
     }
 }
 
-/**
- *  @brief  Returns the output dtype for angular/cosine distance.
- */
+/** @brief Returns the output dtype for angular/cosine distance. */
 NK_INTERNAL nk_dtype_t nk_angular_output_dtype(nk_dtype_t dtype) {
     switch (dtype) {
     case nk_f64_k: return nk_f64_k;
     case nk_f32_k: return nk_f32_k;
     case nk_f16_k: return nk_f32_k;
     case nk_bf16_k: return nk_f32_k;
+    case nk_e4m3_k: return nk_f32_k;
+    case nk_e5m2_k: return nk_f32_k;
+    case nk_e2m3_k: return nk_f32_k;
+    case nk_e3m2_k: return nk_f32_k;
     case nk_i8_k: return nk_f32_k;
     case nk_u8_k: return nk_f32_k;
     case nk_i4_k: return nk_f32_k;

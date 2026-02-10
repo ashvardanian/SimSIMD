@@ -427,6 +427,7 @@ static PyObject *api_enable_capability(PyObject *self, PyObject *cap_name_obj) {
     else if (same_string(cap_name, "rvv")) { static_capabilities |= nk_cap_rvv_k; }
     else if (same_string(cap_name, "rvvhalf")) { static_capabilities |= nk_cap_rvvhalf_k; }
     else if (same_string(cap_name, "rvvbf16")) { static_capabilities |= nk_cap_rvvbf16_k; }
+    else if (same_string(cap_name, "rvvbb")) { static_capabilities |= nk_cap_rvvbb_k; }
     // WASM capabilities
     else if (same_string(cap_name, "v128relaxed")) { static_capabilities |= nk_cap_v128relaxed_k; }
     // x86 capabilities
@@ -487,6 +488,7 @@ static PyObject *api_disable_capability(PyObject *self, PyObject *cap_name_obj) 
     else if (same_string(cap_name, "rvv")) { static_capabilities &= ~nk_cap_rvv_k; }
     else if (same_string(cap_name, "rvvhalf")) { static_capabilities &= ~nk_cap_rvvhalf_k; }
     else if (same_string(cap_name, "rvvbf16")) { static_capabilities &= ~nk_cap_rvvbf16_k; }
+    else if (same_string(cap_name, "rvvbb")) { static_capabilities &= ~nk_cap_rvvbb_k; }
     // WASM capabilities
     else if (same_string(cap_name, "v128relaxed")) { static_capabilities &= ~nk_cap_v128relaxed_k; }
     // x86 capabilities
@@ -559,6 +561,7 @@ static PyObject *api_get_capabilities(PyObject *self) {
     ADD_CAP(rvv);
     ADD_CAP(rvvhalf);
     ADD_CAP(rvvbf16);
+    ADD_CAP(rvvbb);
     // WASM capabilities
     ADD_CAP(v128relaxed);
 

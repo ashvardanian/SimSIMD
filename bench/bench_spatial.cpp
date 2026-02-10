@@ -147,6 +147,12 @@ void bench_spatial() {
 #if NK_TARGET_SAPPHIRE
     dense_<e4m3_k, f32_k>("euclidean_e4m3_sapphire", nk_euclidean_e4m3_sapphire);
     dense_<e4m3_k, f32_k>("sqeuclidean_e4m3_sapphire", nk_sqeuclidean_e4m3_sapphire);
+    dense_<e2m3_k, f32_k>("angular_e2m3_sapphire", nk_angular_e2m3_sapphire);
+    dense_<e2m3_k, f32_k>("sqeuclidean_e2m3_sapphire", nk_sqeuclidean_e2m3_sapphire);
+    dense_<e2m3_k, f32_k>("euclidean_e2m3_sapphire", nk_euclidean_e2m3_sapphire);
+    dense_<e3m2_k, f32_k>("angular_e3m2_sapphire", nk_angular_e3m2_sapphire);
+    dense_<e3m2_k, f32_k>("sqeuclidean_e3m2_sapphire", nk_sqeuclidean_e3m2_sapphire);
+    dense_<e3m2_k, f32_k>("euclidean_e3m2_sapphire", nk_euclidean_e3m2_sapphire);
 #endif
 
 #if NK_TARGET_RVV

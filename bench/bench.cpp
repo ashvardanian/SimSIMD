@@ -180,6 +180,7 @@ int main(int argc, char **argv) {
     print_isa("RVV", NK_TARGET_RVV, nk_cap_rvv_k, runtime_caps);
     print_isa("RVV HALF", NK_TARGET_RVVHALF, nk_cap_rvvhalf_k, runtime_caps);
     print_isa("RVV BF16", NK_TARGET_RVVBF16, nk_cap_rvvbf16_k, runtime_caps);
+    print_isa("RVV BB", NK_TARGET_RVVBB, nk_cap_rvvbb_k, runtime_caps);
     // WASM
     print_isa("V128 Relaxed", NK_TARGET_V128RELAXED, nk_cap_v128relaxed_k, runtime_caps);
     std::printf("\n");

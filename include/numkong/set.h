@@ -270,6 +270,13 @@ NK_PUBLIC void nk_jaccard_u32_icelake(nk_u32_t const *a, nk_u32_t const *b, nk_s
 NK_PUBLIC void nk_jaccard_u16_icelake(nk_u16_t const *a, nk_u16_t const *b, nk_size_t n, nk_f32_t *result);
 #endif // NK_TARGET_ICELAKE
 
+#if NK_TARGET_RVVBB
+/** @copydoc nk_hamming_u1 */
+NK_PUBLIC void nk_hamming_u1_rvvbb(nk_u1x8_t const *a, nk_u1x8_t const *b, nk_size_t n, nk_u32_t *result);
+/** @copydoc nk_jaccard_u1 */
+NK_PUBLIC void nk_jaccard_u1_rvvbb(nk_u1x8_t const *a, nk_u1x8_t const *b, nk_size_t n, nk_f32_t *result);
+#endif // NK_TARGET_RVVBB
+
 #if NK_TARGET_V128RELAXED
 /** @copydoc nk_hamming_u1 */
 NK_PUBLIC void nk_hamming_u1_v128relaxed(nk_u1x8_t const *a, nk_u1x8_t const *b, nk_size_t n, nk_u32_t *result);
@@ -317,6 +324,7 @@ NK_INTERNAL nk_dtype_t nk_jaccard_output_dtype(nk_dtype_t dtype) {
 #include "numkong/set/haswell.h"
 #include "numkong/set/v128relaxed.h"
 #include "numkong/set/rvv.h"
+#include "numkong/set/rvvbb.h"
 
 #if defined(__cplusplus)
 extern "C" {
@@ -335,6 +343,8 @@ NK_PUBLIC void nk_hamming_u1(nk_u1x8_t const *a, nk_u1x8_t const *b, nk_size_t n
     nk_hamming_u1_icelake(a, b, n, result);
 #elif NK_TARGET_HASWELL
     nk_hamming_u1_haswell(a, b, n, result);
+#elif NK_TARGET_RVVBB
+    nk_hamming_u1_rvvbb(a, b, n, result);
 #elif NK_TARGET_RVV
     nk_hamming_u1_rvv(a, b, n, result);
 #else
@@ -353,6 +363,8 @@ NK_PUBLIC void nk_jaccard_u1(nk_u1x8_t const *a, nk_u1x8_t const *b, nk_size_t n
     nk_jaccard_u1_icelake(a, b, n, result);
 #elif NK_TARGET_HASWELL
     nk_jaccard_u1_haswell(a, b, n, result);
+#elif NK_TARGET_RVVBB
+    nk_jaccard_u1_rvvbb(a, b, n, result);
 #elif NK_TARGET_RVV
     nk_jaccard_u1_rvv(a, b, n, result);
 #else

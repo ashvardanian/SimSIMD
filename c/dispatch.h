@@ -165,6 +165,14 @@ typedef struct {
     nk_each_fma_punned_t each_fma_u8;
     nk_each_fma_punned_t each_fma_e4m3;
     nk_each_fma_punned_t each_fma_e5m2;
+    nk_each_fma_punned_t each_fma_e2m3;
+    nk_each_fma_punned_t each_fma_e3m2;
+    nk_each_fma_punned_t each_fma_i16;
+    nk_each_fma_punned_t each_fma_u16;
+    nk_each_fma_punned_t each_fma_i32;
+    nk_each_fma_punned_t each_fma_u32;
+    nk_each_fma_punned_t each_fma_i64;
+    nk_each_fma_punned_t each_fma_u64;
     // Element-wise blend
     nk_each_blend_punned_t each_blend_f64;
     nk_each_blend_punned_t each_blend_f32;
@@ -174,6 +182,14 @@ typedef struct {
     nk_each_blend_punned_t each_blend_u8;
     nk_each_blend_punned_t each_blend_e4m3;
     nk_each_blend_punned_t each_blend_e5m2;
+    nk_each_blend_punned_t each_blend_e2m3;
+    nk_each_blend_punned_t each_blend_e3m2;
+    nk_each_blend_punned_t each_blend_i16;
+    nk_each_blend_punned_t each_blend_u16;
+    nk_each_blend_punned_t each_blend_i32;
+    nk_each_blend_punned_t each_blend_u32;
+    nk_each_blend_punned_t each_blend_i64;
+    nk_each_blend_punned_t each_blend_u64;
     // Element-wise scale
     nk_each_scale_punned_t each_scale_f64;
     nk_each_scale_punned_t each_scale_f32;
@@ -189,6 +205,8 @@ typedef struct {
     nk_each_scale_punned_t each_scale_u64;
     nk_each_scale_punned_t each_scale_e4m3;
     nk_each_scale_punned_t each_scale_e5m2;
+    nk_each_scale_punned_t each_scale_e2m3;
+    nk_each_scale_punned_t each_scale_e3m2;
     // Element-wise sum
     nk_each_sum_punned_t each_sum_f64;
     nk_each_sum_punned_t each_sum_f32;
@@ -204,6 +222,8 @@ typedef struct {
     nk_each_sum_punned_t each_sum_u64;
     nk_each_sum_punned_t each_sum_e4m3;
     nk_each_sum_punned_t each_sum_e5m2;
+    nk_each_sum_punned_t each_sum_e2m3;
+    nk_each_sum_punned_t each_sum_e3m2;
     // Trigonometry
     nk_kernel_trigonometry_punned_t each_sin_f32;
     nk_kernel_trigonometry_punned_t each_sin_f64;
@@ -233,6 +253,8 @@ typedef struct {
     nk_kernel_reduce_add_punned_t reduce_add_bf16;
     nk_kernel_reduce_add_punned_t reduce_add_e4m3;
     nk_kernel_reduce_add_punned_t reduce_add_e5m2;
+    nk_kernel_reduce_add_punned_t reduce_add_e2m3;
+    nk_kernel_reduce_add_punned_t reduce_add_e3m2;
     // Reduce minmax
     nk_kernel_reduce_minmax_punned_t reduce_min_f32;
     nk_kernel_reduce_minmax_punned_t reduce_max_f32;
@@ -262,6 +284,10 @@ typedef struct {
     nk_kernel_reduce_minmax_punned_t reduce_max_e4m3;
     nk_kernel_reduce_minmax_punned_t reduce_min_e5m2;
     nk_kernel_reduce_minmax_punned_t reduce_max_e5m2;
+    nk_kernel_reduce_minmax_punned_t reduce_min_e2m3;
+    nk_kernel_reduce_minmax_punned_t reduce_max_e2m3;
+    nk_kernel_reduce_minmax_punned_t reduce_min_e3m2;
+    nk_kernel_reduce_minmax_punned_t reduce_max_e3m2;
     // Dots packed size
     nk_dots_packed_size_punned_t dots_packed_size_f32;
     nk_dots_packed_size_punned_t dots_packed_size_f64;

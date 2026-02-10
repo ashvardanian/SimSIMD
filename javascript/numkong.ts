@@ -1,18 +1,60 @@
+/**
+ * @fileoverview NumKong - Portable mixed-precision BLAS-like vector math library
+ *
+ * NumKong provides SIMD-accelerated distance metrics and vector operations for
+ * x86, ARM, RISC-V, and WASM platforms. The library automatically detects and uses
+ * the best available SIMD instruction set at runtime.
+ *
+ * @module numkong
+ * @author Ash Vardanian
+ *
+ * @example
+ * ```typescript
+ * import { dot, euclidean, Float16Array } from 'numkong';
+ *
+ * // Auto-detected types
+ * const a = new Float32Array([1, 2, 3]);
+ * const b = new Float32Array([4, 5, 6]);
+ * dot(a, b);        // 32
+ * euclidean(a, b);  // 5.196...
+ *
+ * // Custom types with explicit dtype
+ * const c = new Float16Array([1, 2, 3]);
+ * const d = new Float16Array([4, 5, 6]);
+ * dot(c, d, 'f16'); // 32
+ * ```
+ */
+
 import build from "node-gyp-build";
 import * as path from "node:path";
 import { existsSync } from "node:fs";
 import { getFileName, getRoot } from "bindings";
-import * as fallback from "./fallback.js";
+import { setConversionFunctions, Float16Array, BFloat16Array, E4M3Array, E5M2Array, BinaryArray } from "./dtypes.js";
 
 let compiled: any;
 
 try {
   let builddir = getBuildDir(getDirName());
   compiled = build(builddir);
+
+  // Initialize conversion functions for dtypes.ts
+  setConversionFunctions({
+    castF16ToF32: compiled.castF16ToF32,
+    castF32ToF16: compiled.castF32ToF16,
+    castBF16ToF32: compiled.castBF16ToF32,
+    castF32ToBF16: compiled.castF32ToBF16,
+    castE4M3ToF32: compiled.castE4M3ToF32,
+    castF32ToE4M3: compiled.castF32ToE4M3,
+    castE5M2ToF32: compiled.castE5M2ToF32,
+    castF32ToE5M2: compiled.castF32ToE5M2,
+    cast: compiled.cast,
+  });
 } catch (e) {
-  compiled = fallback;
-  console.warn(
-    "It seems like your environment doesn't support the native numkong module, so we are providing a JS fallback."
+  // Native addon not available
+  // For WASM usage, import the Emscripten module directly (see test/test-wasm.mjs)
+  throw new Error(
+    "NumKong native addon not found. Build with `npm run build` or use WASM " +
+    "by importing the Emscripten module directly. See test/test-wasm.mjs for examples."
   );
 }
 
@@ -54,119 +96,279 @@ export const Capability = {
   SMEHALF: 1n << 30n,        // 2025+: ARM SME F16F16
   SMEBF16: 1n << 31n,        // 2025+: ARM SME B16B16
   SMELUT2: 1n << 32n,        // 2025+: ARM SME LUTv2
+  RVVBB: 1n << 33n,          // 2025+: RISC-V Zvbb
 } as const;
+
+/* #region Custom Numeric Types */
+
+export { Float16Array, BFloat16Array, E4M3Array, E5M2Array, BinaryArray };
+
+/* #endregion Custom Numeric Types */
+
+/* #region Type Conversion Functions */
+
+/** Convert a single FP16 value (as uint16 bits) to FP32 */
+export const castF16ToF32 = compiled.castF16ToF32;
+/** Convert a single FP32 value to FP16 (returns uint16 bits) */
+export const castF32ToF16 = compiled.castF32ToF16;
+/** Convert a single BF16 value (as uint16 bits) to FP32 */
+export const castBF16ToF32 = compiled.castBF16ToF32;
+/** Convert a single FP32 value to BF16 (returns uint16 bits) */
+export const castF32ToBF16 = compiled.castF32ToBF16;
+/** Convert a single E4M3 value (as uint8 bits) to FP32 */
+export const castE4M3ToF32 = compiled.castE4M3ToF32;
+/** Convert a single FP32 value to E4M3 (returns uint8 bits) */
+export const castF32ToE4M3 = compiled.castF32ToE4M3;
+/** Convert a single E5M2 value (as uint8 bits) to FP32 */
+export const castE5M2ToF32 = compiled.castE5M2ToF32;
+/** Convert a single FP32 value to E5M2 (returns uint8 bits) */
+export const castF32ToE5M2 = compiled.castF32ToE5M2;
+/** Bulk conversion between different numeric types (modifies destination array in-place) */
+export const cast = compiled.cast;
+
+/* #endregion Type Conversion Functions */
+
+/* #region Types */
+
+/**
+ * @brief Data type enum for explicit dtype specification
+ */
+export type DType = 'f64' | 'f32' | 'f16' | 'bf16' | 'e4m3' | 'e5m2' | 'e2m3' | 'e3m2' | 'i8' | 'u8' | 'u1';
+
+/**
+ * @brief Numeric arrays supported by distance metrics with auto-detected dtype.
+ *
+ * These standard TypedArrays are auto-detected by the N-API binding.
+ */
+export type NumericArray = Float64Array | Float32Array | Int8Array | Uint8Array;
+
+/**
+ * @brief Extended array types supported by distance metrics with explicit dtype parameter.
+ *
+ * Includes Uint16Array (backing type for Float16Array and BFloat16Array) in addition
+ * to the auto-detected types. Pass a dtype string as the third argument to distance
+ * functions when using custom types.
+ */
+export type DistanceArray = Float64Array | Float32Array | Int8Array | Uint8Array | Uint16Array;
+
+/**
+ * @brief Union type for all array types (including custom types for conversions)
+ */
+export type NumKongArray =
+  | Float64Array
+  | Float32Array
+  | Float16Array
+  | BFloat16Array
+  | E4M3Array
+  | E5M2Array
+  | Int8Array
+  | Uint8Array
+  | BinaryArray;
+
+/* #endregion Types */
+
+/* #region Distance Metrics and Similarity Functions */
+
+/**
+ * @brief Returns the runtime-detected SIMD capabilities as a bitmask.
+ *
+ * The bitmask includes flags for various SIMD instruction sets like AVX2, AVX-512,
+ * ARM NEON, ARM SVE, ARM SME, RISC-V Vector, and WASM SIMD extensions.
+ * Use with Capability constants to check for specific instruction sets.
+ *
+ * @returns {bigint} Bitmask of capability flags (use with Capability constants)
+ *
+ * @code{.ts}
+ * import { getCapabilities, Capability } from 'numkong';
+ *
+ * const caps = getCapabilities();
+ * console.log(`Capabilities: 0x${caps.toString(16)}`);
+ *
+ * // Check for specific SIMD support
+ * if (caps & Capability.HASWELL) {
+ *   console.log('AVX2 available');
+ * }
+ * @endcode
+ */
+export const getCapabilities = (): bigint => {
+  return compiled.getCapabilities();
+};
+
+/**
+ * @brief Checks if a specific SIMD capability is available at runtime.
+ *
+ * This is a convenience wrapper around getCapabilities() that tests for a single capability.
+ *
+ * @param {bigint} cap - Capability flag to check (from Capability constants)
+ * @returns {boolean} True if the capability is available, false otherwise
+ *
+ * @code{.ts}
+ * import { hasCapability, Capability } from 'numkong';
+ *
+ * if (hasCapability(Capability.HASWELL)) {
+ *   console.log('Intel AVX2 (Haswell) available');
+ * }
+ * if (hasCapability(Capability.NEON)) {
+ *   console.log('ARM NEON available');
+ * }
+ * if (hasCapability(Capability.V128RELAXED)) {
+ *   console.log('WASM Relaxed SIMD available');
+ * }
+ * @endcode
+ */
+export const hasCapability = (cap: bigint): boolean => {
+  return (getCapabilities() & cap) !== 0n;
+};
 
 /**
  * @brief Computes the squared Euclidean distance between two vectors.
- * @param {Float64Array|Float32Array|Int8Array|Uint8Array} a - The first vector.
- * @param {Float64Array|Float32Array|Int8Array|Uint8Array} b - The second vector.
+ * @param a - The first vector.
+ * @param b - The second vector (must match the type of a).
+ * @param dtype - Optional dtype string for custom types (e.g. 'f16', 'bf16', 'e4m3').
  * @returns {number} The squared Euclidean distance between vectors a and b.
  */
-export const sqeuclidean = (
-  a: Float64Array | Float32Array | Int8Array | Uint8Array,
-  b: Float64Array | Float32Array | Int8Array | Uint8Array
-): number => {
-  return compiled.sqeuclidean(a, b);
-};
+export function sqeuclidean(a: NumericArray, b: NumericArray): number;
+export function sqeuclidean(a: DistanceArray, b: DistanceArray, dtype: DType): number;
+export function sqeuclidean(a: DistanceArray, b: DistanceArray, dtype?: DType): number {
+  return dtype ? compiled.sqeuclidean(a, b, dtype) : compiled.sqeuclidean(a, b);
+}
 
 /**
  * @brief Computes the Euclidean distance between two vectors.
- * @param {Float64Array|Float32Array|Int8Array|Uint8Array} a - The first vector.
- * @param {Float64Array|Float32Array|Int8Array|Uint8Array} b - The second vector.
+ * @param a - The first vector.
+ * @param b - The second vector (must match the type of a).
+ * @param dtype - Optional dtype string for custom types (e.g. 'f16', 'bf16', 'e4m3').
  * @returns {number} The Euclidean distance between vectors a and b.
  */
-export const euclidean = (
-  a: Float64Array | Float32Array | Int8Array | Uint8Array,
-  b: Float64Array | Float32Array | Int8Array | Uint8Array
-): number => {
-  return compiled.euclidean(a, b);
-};
+export function euclidean(a: NumericArray, b: NumericArray): number;
+export function euclidean(a: DistanceArray, b: DistanceArray, dtype: DType): number;
+export function euclidean(a: DistanceArray, b: DistanceArray, dtype?: DType): number {
+  return dtype ? compiled.euclidean(a, b, dtype) : compiled.euclidean(a, b);
+}
 
 /**
  * @brief Computes the angular distance between two vectors.
- * @param {Float64Array|Float32Array|Int8Array|Uint8Array} a - The first vector.
- * @param {Float64Array|Float32Array|Int8Array|Uint8Array} b - The second vector.
+ * @param a - The first vector.
+ * @param b - The second vector (must match the type of a).
+ * @param dtype - Optional dtype string for custom types (e.g. 'f16', 'bf16', 'e4m3').
  * @returns {number} The angular distance between vectors a and b.
  */
-export const angular = (
-  a: Float64Array | Float32Array | Int8Array | Uint8Array,
-  b: Float64Array | Float32Array | Int8Array | Uint8Array
-): number => {
-  return compiled.angular(a, b);
-};
+export function angular(a: NumericArray, b: NumericArray): number;
+export function angular(a: DistanceArray, b: DistanceArray, dtype: DType): number;
+export function angular(a: DistanceArray, b: DistanceArray, dtype?: DType): number {
+  return dtype ? compiled.angular(a, b, dtype) : compiled.angular(a, b);
+}
 
 /**
  * @brief Computes the inner product of two vectors (same as dot product).
- * @param {Float64Array|Float32Array|Int8Array|Uint8Array} a - The first vector.
- * @param {Float64Array|Float32Array|Int8Array|Uint8Array} b - The second vector.
+ * @param a - The first vector.
+ * @param b - The second vector (must match the type of a).
+ * @param dtype - Optional dtype string for custom types (e.g. 'f16', 'bf16', 'e4m3').
  * @returns {number} The inner product of vectors a and b.
  */
-export const inner = (
-  a: Float64Array | Float32Array | Int8Array | Uint8Array,
-  b: Float64Array | Float32Array | Int8Array | Uint8Array
-): number => {
-  return compiled.inner(a, b);
-};
+export function inner(a: NumericArray, b: NumericArray): number;
+export function inner(a: DistanceArray, b: DistanceArray, dtype: DType): number;
+export function inner(a: DistanceArray, b: DistanceArray, dtype?: DType): number {
+  return dtype ? compiled.inner(a, b, dtype) : compiled.inner(a, b);
+}
 
 /**
  * @brief Computes the dot product of two vectors (same as inner product).
- * @param {Float64Array|Float32Array|Int8Array|Uint8Array} a - The first vector.
- * @param {Float64Array|Float32Array|Int8Array|Uint8Array} b - The second vector.
+ * @param a - The first vector.
+ * @param b - The second vector (must match the type of a).
+ * @param dtype - Optional dtype string for custom types (e.g. 'f16', 'bf16', 'e4m3').
  * @returns {number} The dot product of vectors a and b.
  */
-export const dot = (
-  a: Float64Array | Float32Array | Int8Array | Uint8Array,
-  b: Float64Array | Float32Array | Int8Array | Uint8Array
-): number => {
-  return compiled.dot(a, b);
-};
+export function dot(a: NumericArray, b: NumericArray): number;
+export function dot(a: DistanceArray, b: DistanceArray, dtype: DType): number;
+export function dot(a: DistanceArray, b: DistanceArray, dtype?: DType): number {
+  return dtype ? compiled.dot(a, b, dtype) : compiled.dot(a, b);
+}
 
 /**
  * @brief Computes the bitwise Hamming distance between two vectors.
- * @param {Uint8Array} a - The first vector.
- * @param {Uint8Array} b - The second vector.
- * @returns {number} The Hamming distance between vectors a and b.
+ *
+ * Both vectors are treated as bit-packed (u1 dtype), where each byte contains 8 bits.
+ * Use toBinary() to convert numeric arrays to bit-packed format.
+ *
+ * @param {Uint8Array | BinaryArray} a - The first bit-packed vector.
+ * @param {Uint8Array | BinaryArray} b - The second bit-packed vector.
+ * @returns {number} The Hamming distance (number of differing bits) between vectors a and b.
  */
-export const hamming = (a: Uint8Array, b: Uint8Array): number => {
+export const hamming = (a: Uint8Array | BinaryArray, b: Uint8Array | BinaryArray): number => {
   return compiled.hamming(a, b);
 };
 
 /**
  * @brief Computes the bitwise Jaccard distance between two vectors.
- * @param {Uint8Array} a - The first vector.
- * @param {Uint8Array} b - The second vector.
- * @returns {number} The Jaccard distance between vectors a and b.
+ *
+ * Both vectors are treated as bit-packed (u1 dtype), where each byte contains 8 bits.
+ * Use toBinary() to convert numeric arrays to bit-packed format.
+ *
+ * @param {Uint8Array | BinaryArray} a - The first bit-packed vector.
+ * @param {Uint8Array | BinaryArray} b - The second bit-packed vector.
+ * @returns {number} The Jaccard distance (1 - Jaccard similarity) between vectors a and b.
  */
-export const jaccard = (a: Uint8Array, b: Uint8Array): number => {
+export const jaccard = (a: Uint8Array | BinaryArray, b: Uint8Array | BinaryArray): number => {
   return compiled.jaccard(a, b);
 };
 
 /**
- * @brief Computes the Kullback-Leibler divergence between two vectors.
- * @param {Float64Array|Float32Array} a - The first vector.
- * @param {Float64Array|Float32Array} b - The second vector.
- * @returns {number} The Kullback-Leibler divergence between vectors a and b.
+ * @brief Computes the Kullback-Leibler divergence between two probability distributions.
+ *
+ * Both vectors must represent valid probability distributions (non-negative, sum to 1).
+ * Supports f64, f32 (auto-detected) and f16, bf16 (with explicit dtype).
+ *
+ * @param a - The first probability distribution.
+ * @param b - The second probability distribution (must match the type of a).
+ * @param dtype - Optional dtype string for custom types (e.g. 'f16', 'bf16').
+ * @returns {number} The Kullback-Leibler divergence KL(a || b) = Σ a[i] * log(a[i] / b[i]).
  */
-export const kullbackleibler = (a: Float64Array | Float32Array, b: Float64Array | Float32Array): number => {
-  return compiled.kullbackleibler(a, b);
-};
+export function kullbackleibler(a: Float64Array | Float32Array, b: Float64Array | Float32Array): number;
+export function kullbackleibler(a: Float64Array | Float32Array | Uint16Array, b: Float64Array | Float32Array | Uint16Array, dtype: DType): number;
+export function kullbackleibler(a: Float64Array | Float32Array | Uint16Array, b: Float64Array | Float32Array | Uint16Array, dtype?: DType): number {
+  return dtype ? compiled.kullbackleibler(a, b, dtype) : compiled.kullbackleibler(a, b);
+}
 
 /**
- * @brief Computes the Jensen-Shannon divergence between two vectors.
- * @param {Float64Array|Float32Array} a - The first vector.
- * @param {Float64Array|Float32Array} b - The second vector.
- * @returns {number} The Jensen-Shannon divergence between vectors a and b.
+ * @brief Computes the Jensen-Shannon divergence between two probability distributions.
+ *
+ * Both vectors must represent valid probability distributions (non-negative, sum to 1).
+ * Supports f64, f32 (auto-detected) and f16, bf16 (with explicit dtype).
+ * JSD is the symmetrized version of KL divergence.
+ *
+ * @param a - The first probability distribution.
+ * @param b - The second probability distribution (must match the type of a).
+ * @param dtype - Optional dtype string for custom types (e.g. 'f16', 'bf16').
+ * @returns {number} The Jensen-Shannon divergence JS(a, b) = 0.5 * (KL(a || m) + KL(b || m)) where m = (a + b) / 2.
  */
-export const jensenshannon = (a: Float64Array | Float32Array, b: Float64Array | Float32Array): number => {
-  return compiled.jensenshannon(a, b);
-};
+export function jensenshannon(a: Float64Array | Float32Array, b: Float64Array | Float32Array): number;
+export function jensenshannon(a: Float64Array | Float32Array | Uint16Array, b: Float64Array | Float32Array | Uint16Array, dtype: DType): number;
+export function jensenshannon(a: Float64Array | Float32Array | Uint16Array, b: Float64Array | Float32Array | Uint16Array, dtype?: DType): number {
+  return dtype ? compiled.jensenshannon(a, b, dtype) : compiled.jensenshannon(a, b);
+}
 
 /**
- * Quantizes a floating-point vector into a binary vector (1 for positive values, 0 for non-positive values) and packs the result into a Uint8Array, where each element represents 8 binary values from the original vector.
- * This function is useful for preparing data for bitwise distance computations, such as Hamming or Jaccard indices.
- * 
- * @param {Float32Array | Float64Array | Int8Array} vector The floating-point vector to be quantized and packed.
- * @returns {Uint8Array} A Uint8Array where each byte represents 8 binary quantized values from the input vector.
+ * @brief Quantizes a numeric vector into a bit-packed binary representation.
+ *
+ * Converts each element to a single bit: 1 for positive values, 0 for non-positive values.
+ * The bits are packed into bytes (8 bits per byte) in big-endian bit order within each byte.
+ * This is the required format for hamming() and jaccard() distance functions.
+ *
+ * @param {Float32Array | Float64Array | Int8Array} vector - The vector to quantize and pack.
+ * @returns {Uint8Array} A bit-packed array where each byte contains 8 binary values.
+ *
+ * @code{.ts}
+ * const vec = new Float32Array([1.5, -2.3, 0.0, 3.1, -1.0, 2.0, 0.5, -0.5]);
+ * const binary = toBinary(vec);
+ * // Result: Uint8Array([0b10010110]) = [0x96]
+ * //   bits: [1, 0, 0, 1, 0, 1, 1, 0] for elements [+, -, 0, +, -, +, +, -]
+ *
+ * // Use with Hamming distance
+ * const a = toBinary(new Float32Array([1, 2, 3]));
+ * const b = toBinary(new Float32Array([1, -2, 3]));
+ * const dist = hamming(a, b); // Counts differing bits
+ * @endcode
  */
 export const toBinary = (vector: Float32Array | Float64Array | Int8Array): Uint8Array => {
   const byteLength = Math.ceil(vector.length / 8);
@@ -182,6 +384,9 @@ export const toBinary = (vector: Float32Array | Float64Array | Int8Array): Uint8
 
   return packedVector;
 };
+
+/* #endregion Distance Metrics and Similarity Functions */
+
 export default {
   dot,
   inner,
@@ -193,6 +398,20 @@ export default {
   kullbackleibler,
   jensenshannon,
   toBinary,
+  Float16Array,
+  BFloat16Array,
+  E4M3Array,
+  E5M2Array,
+  BinaryArray,
+  castF16ToF32,
+  castF32ToF16,
+  castBF16ToF32,
+  castF32ToBF16,
+  castE4M3ToF32,
+  castF32ToE4M3,
+  castE5M2ToF32,
+  castF32ToE5M2,
+  cast,
 };
 
 /**

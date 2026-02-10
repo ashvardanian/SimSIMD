@@ -82,6 +82,8 @@ nk_define_each_sum_(f16, f32, nk_f16_to_f32_serial, nk_f32_to_f16_serial)    // 
 nk_define_each_sum_(bf16, f32, nk_bf16_to_f32_serial, nk_f32_to_bf16_serial) // nk_each_sum_bf16_serial
 nk_define_each_sum_(e4m3, f32, nk_e4m3_to_f32_serial, nk_f32_to_e4m3_serial) // nk_each_sum_e4m3_serial
 nk_define_each_sum_(e5m2, f32, nk_e5m2_to_f32_serial, nk_f32_to_e5m2_serial) // nk_each_sum_e5m2_serial
+nk_define_each_sum_(e2m3, f32, nk_e2m3_to_f32_serial, nk_f32_to_e2m3_serial) // nk_each_sum_e2m3_serial
+nk_define_each_sum_(e3m2, f32, nk_e3m2_to_f32_serial, nk_f32_to_e3m2_serial) // nk_each_sum_e3m2_serial
 nk_define_each_sum_(i8, i64, nk_assign_from_to_, nk_i64_to_i8_serial)        // nk_each_sum_i8_serial
 nk_define_each_sum_(u8, i64, nk_assign_from_to_, nk_i64_to_u8_serial)        // nk_each_sum_u8_serial
 nk_define_each_sum_(i16, i64, nk_assign_from_to_, nk_i64_to_i16_serial)      // nk_each_sum_i16_serial
@@ -97,6 +99,8 @@ nk_define_each_scale_(f16, f32, nk_f16_to_f32_serial, nk_f32_to_f16_serial)    /
 nk_define_each_scale_(bf16, f32, nk_bf16_to_f32_serial, nk_f32_to_bf16_serial) // nk_each_scale_bf16_serial
 nk_define_each_scale_(e4m3, f32, nk_e4m3_to_f32_serial, nk_f32_to_e4m3_serial) // nk_each_scale_e4m3_serial
 nk_define_each_scale_(e5m2, f32, nk_e5m2_to_f32_serial, nk_f32_to_e5m2_serial) // nk_each_scale_e5m2_serial
+nk_define_each_scale_(e2m3, f32, nk_e2m3_to_f32_serial, nk_f32_to_e2m3_serial) // nk_each_scale_e2m3_serial
+nk_define_each_scale_(e3m2, f32, nk_e3m2_to_f32_serial, nk_f32_to_e3m2_serial) // nk_each_scale_e3m2_serial
 nk_define_each_scale_(i8, f32, nk_assign_from_to_, nk_f32_to_i8_serial)        // nk_each_scale_i8_serial
 nk_define_each_scale_(u8, f32, nk_assign_from_to_, nk_f32_to_u8_serial)        // nk_each_scale_u8_serial
 nk_define_each_scale_(i16, f32, nk_assign_from_to_, nk_f32_to_i16_serial)      // nk_each_scale_i16_serial
@@ -112,6 +116,8 @@ nk_define_each_blend_(f16, f32, nk_f16_to_f32_serial, nk_f32_to_f16_serial)    /
 nk_define_each_blend_(bf16, f32, nk_bf16_to_f32_serial, nk_f32_to_bf16_serial) // nk_each_blend_bf16_serial
 nk_define_each_blend_(e4m3, f32, nk_e4m3_to_f32_serial, nk_f32_to_e4m3_serial) // nk_each_blend_e4m3_serial
 nk_define_each_blend_(e5m2, f32, nk_e5m2_to_f32_serial, nk_f32_to_e5m2_serial) // nk_each_blend_e5m2_serial
+nk_define_each_blend_(e2m3, f32, nk_e2m3_to_f32_serial, nk_f32_to_e2m3_serial) // nk_each_blend_e2m3_serial
+nk_define_each_blend_(e3m2, f32, nk_e3m2_to_f32_serial, nk_f32_to_e3m2_serial) // nk_each_blend_e3m2_serial
 nk_define_each_blend_(i8, f32, nk_assign_from_to_, nk_f32_to_i8_serial)        // nk_each_blend_i8_serial
 nk_define_each_blend_(u8, f32, nk_assign_from_to_, nk_f32_to_u8_serial)        // nk_each_blend_u8_serial
 nk_define_each_blend_(i16, f32, nk_assign_from_to_, nk_f32_to_i16_serial)      // nk_each_blend_i16_serial
@@ -127,6 +133,8 @@ nk_define_each_fma_(f16, f32, nk_f16_to_f32_serial, nk_f32_to_f16_serial)    // 
 nk_define_each_fma_(bf16, f32, nk_bf16_to_f32_serial, nk_f32_to_bf16_serial) // nk_each_fma_bf16_serial
 nk_define_each_fma_(e4m3, f32, nk_e4m3_to_f32_serial, nk_f32_to_e4m3_serial) // nk_each_fma_e4m3_serial
 nk_define_each_fma_(e5m2, f32, nk_e5m2_to_f32_serial, nk_f32_to_e5m2_serial) // nk_each_fma_e5m2_serial
+nk_define_each_fma_(e2m3, f32, nk_e2m3_to_f32_serial, nk_f32_to_e2m3_serial) // nk_each_fma_e2m3_serial
+nk_define_each_fma_(e3m2, f32, nk_e3m2_to_f32_serial, nk_f32_to_e3m2_serial) // nk_each_fma_e3m2_serial
 nk_define_each_fma_(i8, f32, nk_assign_from_to_, nk_f32_to_i8_serial)        // nk_each_fma_i8_serial
 nk_define_each_fma_(u8, f32, nk_assign_from_to_, nk_f32_to_u8_serial)        // nk_each_fma_u8_serial
 nk_define_each_fma_(i16, f32, nk_assign_from_to_, nk_f32_to_i16_serial)      // nk_each_fma_i16_serial

@@ -11,6 +11,7 @@ from __future__ import annotations
 import os
 import sys
 import platform
+import glob
 from pathlib import Path
 from typing import List, Tuple
 
@@ -69,7 +70,7 @@ def linux_settings() -> Tuple[List[str], List[str], List[Tuple[str, str]]]:
         # x86 targets
         ("NK_TARGET_HASWELL", "1" if is_64bit_x86() else "0"),
         ("NK_TARGET_SKYLAKE", "1" if is_64bit_x86() else "0"),
-        ("NK_TARGET_ICE", "1" if is_64bit_x86() else "0"),
+        ("NK_TARGET_ICELAKE", "1" if is_64bit_x86() else "0"),
         ("NK_TARGET_GENOA", "1" if is_64bit_x86() else "0"),
         ("NK_TARGET_SAPPHIRE", "1" if is_64bit_x86() else "0"),
         ("NK_TARGET_TURIN", "1" if is_64bit_x86() else "0"),
@@ -116,7 +117,7 @@ def darwin_settings() -> Tuple[List[str], List[str], List[Tuple[str, str]]]:
         # x86 targets - conservative for macOS compatibility
         ("NK_TARGET_HASWELL", "1" if is_64bit_x86() else "0"),
         ("NK_TARGET_SKYLAKE", "0"),  # AVX-512 not common on Mac
-        ("NK_TARGET_ICE", "0"),
+        ("NK_TARGET_ICELAKE", "0"),
         ("NK_TARGET_GENOA", "0"),
         ("NK_TARGET_SAPPHIRE", "0"),
         ("NK_TARGET_TURIN", "0"),
@@ -166,7 +167,7 @@ def windows_settings() -> Tuple[List[str], List[str], List[Tuple[str, str]]]:
         # x86 targets - conservative for MSVC compatibility
         ("NK_TARGET_HASWELL", "1" if is_64bit_x86() else "0"),
         ("NK_TARGET_SKYLAKE", "1" if is_64bit_x86() else "0"),
-        ("NK_TARGET_ICE", "1" if is_64bit_x86() else "0"),
+        ("NK_TARGET_ICELAKE", "1" if is_64bit_x86() else "0"),
         ("NK_TARGET_GENOA", "0"),  # BF16 intrinsics broken in MSVC
         ("NK_TARGET_SAPPHIRE", "0"),  # FP16 intrinsics broken in MSVC
         ("NK_TARGET_TURIN", "0"),  # `VP2INTERSECT` limited in MSVC
@@ -235,16 +236,21 @@ if _is_editable_install():
     print("[NumKong] Editable install detected - skipping bundled type stubs.")
 
 
+# Use glob to find all dispatch files
+base_sources = [
+    "python/numkong.c",
+    "python/numerics.c",
+    "python/tensor.c",
+    "python/scalars.c",
+    "c/numkong.c",
+]
+
+dispatch_sources = sorted(glob.glob("c/dispatch_*.c"))
+
 ext_modules = [
     Extension(
         "numkong",
-        sources=[
-            "python/numkong.c",
-            "python/numerics.c",
-            "python/tensor.c",
-            "python/scalars.c",
-            "c/numkong.c",
-        ],
+        sources=base_sources + dispatch_sources,
         include_dirs=["include", "python"],
         language="c",
         extra_compile_args=compile_args,

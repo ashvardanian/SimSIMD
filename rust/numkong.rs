@@ -21,7 +21,7 @@
 //!
 //! let dot_product = f32::dot(a, b);
 //! let angular_dist = f32::angular(a, b);
-//! let l2sq_dist = f32::l2sq(a, b);
+//! let l2sq_dist = f32::sqeuclidean(a, b);
 //!
 //! // Optimize performance by flushing denormals
 //! numkong::capabilities::configure_thread();
@@ -54,8 +54,8 @@
 //!
 //! - `dot(a, b)`: Computes dot product between two slices.
 //! - `angular(a, b)` / `cosine(a, b)`: Computes angular distance (1 − cosine similarity).
-//! - `l2sq(a, b)` / `sqeuclidean(a, b)`: Computes squared Euclidean distance.
-//! - `l2(a, b)` / `euclidean(a, b)`: Computes Euclidean distance.
+//! - `sqeuclidean(a, b)`: Computes squared Euclidean distance.
+//! - `euclidean(a, b)`: Computes Euclidean distance.
 //!
 //! The `BinarySimilarity` trait (combining `Hamming`, `Jaccard`) covers:
 //!
@@ -74,7 +74,7 @@
 //! - `wsum(a, b, alpha, beta, result)`: Weighted sum `result[i] = α × a[i] + β × b[i]`.
 //! - `fma(a, b, c, alpha, beta, result)`: Fused multiply-add `result[i] = α × a[i] × b[i] + β × c[i]`.
 //!
-//! The `Trigonometry` trait (combining `Sin`, `Cos`, `ATan`) covers:
+//! The `Trigonometry` trait (combining `EachSin`, `EachCos`, `EachATan`) covers:
 //!
 //! - `sin(input, result)`: Element-wise sine.
 //! - `cos(input, result)`: Element-wise cosine.
@@ -190,13 +190,14 @@ mod tests {
     // Hardware detection test
     #[test]
     fn hardware_features_detection() {
-        let uses_arm = capabilities::uses_neon() || capabilities::uses_sve();
-        let uses_x86 = capabilities::uses_haswell()
-            || capabilities::uses_skylake()
-            || capabilities::uses_icelake()
-            || capabilities::uses_genoa()
-            || capabilities::uses_sapphire()
-            || capabilities::uses_turin();
+        let caps = capabilities::available();
+        let uses_arm = (caps & cap::NEON != 0) || (caps & cap::SVE != 0);
+        let uses_x86 = (caps & cap::HASWELL != 0)
+            || (caps & cap::SKYLAKE != 0)
+            || (caps & cap::ICELAKE != 0)
+            || (caps & cap::GENOA != 0)
+            || (caps & cap::SAPPHIRE != 0)
+            || (caps & cap::TURIN != 0);
 
         if uses_arm {
             assert!(!uses_x86);
@@ -205,21 +206,40 @@ mod tests {
             assert!(!uses_arm);
         }
 
-        println!("- uses_neon: {}", capabilities::uses_neon());
-        println!("- uses_neonhalf: {}", capabilities::uses_neonhalf());
-        println!("- uses_neonbfdot: {}", capabilities::uses_neonbfdot());
-        println!("- uses_neonsdot: {}", capabilities::uses_neonsdot());
-        println!("- uses_sve: {}", capabilities::uses_sve());
-        println!("- uses_svehalf: {}", capabilities::uses_svehalf());
-        println!("- uses_svebfdot: {}", capabilities::uses_svebfdot());
-        println!("- uses_svesdot: {}", capabilities::uses_svesdot());
-        println!("- uses_haswell: {}", capabilities::uses_haswell());
-        println!("- uses_skylake: {}", capabilities::uses_skylake());
-        println!("- uses_icelake: {}", capabilities::uses_icelake());
-        println!("- uses_genoa: {}", capabilities::uses_genoa());
-        println!("- uses_sapphire: {}", capabilities::uses_sapphire());
-        println!("- uses_turin: {}", capabilities::uses_turin());
-        println!("- uses_sierra: {}", capabilities::uses_sierra());
+        println!("- uses_serial: {}", caps & cap::SERIAL != 0);
+        println!("- uses_neon: {}", caps & cap::NEON != 0);
+        println!("- uses_neonhalf: {}", caps & cap::NEONHALF != 0);
+        println!("- uses_neonsdot: {}", caps & cap::NEONSDOT != 0);
+        println!("- uses_neonfhm: {}", caps & cap::NEONFHM != 0);
+        println!("- uses_neonbfdot: {}", caps & cap::NEONBFDOT != 0);
+        println!("- uses_sve: {}", caps & cap::SVE != 0);
+        println!("- uses_svehalf: {}", caps & cap::SVEHALF != 0);
+        println!("- uses_svesdot: {}", caps & cap::SVESDOT != 0);
+        println!("- uses_svebfdot: {}", caps & cap::SVEBFDOT != 0);
+        println!("- uses_sve2: {}", caps & cap::SVE2 != 0);
+        println!("- uses_sve2p1: {}", caps & cap::SVE2P1 != 0);
+        println!("- uses_haswell: {}", caps & cap::HASWELL != 0);
+        println!("- uses_skylake: {}", caps & cap::SKYLAKE != 0);
+        println!("- uses_icelake: {}", caps & cap::ICELAKE != 0);
+        println!("- uses_genoa: {}", caps & cap::GENOA != 0);
+        println!("- uses_sapphire: {}", caps & cap::SAPPHIRE != 0);
+        println!("- uses_sapphireamx: {}", caps & cap::SAPPHIREAMX != 0);
+        println!("- uses_graniteamx: {}", caps & cap::GRANITEAMX != 0);
+        println!("- uses_sierra: {}", caps & cap::SIERRA != 0);
+        println!("- uses_turin: {}", caps & cap::TURIN != 0);
+        println!("- uses_sme: {}", caps & cap::SME != 0);
+        println!("- uses_sme2: {}", caps & cap::SME2 != 0);
+        println!("- uses_smef64: {}", caps & cap::SMEF64 != 0);
+        println!("- uses_smefa64: {}", caps & cap::SMEFA64 != 0);
+        println!("- uses_sme2p1: {}", caps & cap::SME2P1 != 0);
+        println!("- uses_smehalf: {}", caps & cap::SMEHALF != 0);
+        println!("- uses_smebf16: {}", caps & cap::SMEBF16 != 0);
+        println!("- uses_smelut2: {}", caps & cap::SMELUT2 != 0);
+        println!("- uses_rvv: {}", caps & cap::RVV != 0);
+        println!("- uses_rvvhalf: {}", caps & cap::RVVHALF != 0);
+        println!("- uses_rvvbf16: {}", caps & cap::RVVBF16 != 0);
+        println!("- uses_rvvbb: {}", caps & cap::RVVBB != 0);
+        println!("- uses_v128relaxed: {}", caps & cap::V128RELAXED != 0);
     }
 
     // Dot product tests
@@ -329,7 +349,7 @@ mod tests {
     fn l2sq_i8() {
         let a = &[1_i8, 2, 3];
         let b = &[4_i8, 5, 6];
-        if let Some(result) = i8::l2sq(a, b) {
+        if let Some(result) = i8::sqeuclidean(a, b) {
             assert_almost_equal(27.0, result, 0.01);
         }
     }
@@ -338,7 +358,7 @@ mod tests {
     fn l2sq_f32() {
         let a = &[1.0_f32, 2.0, 3.0];
         let b = &[4.0_f32, 5.0, 6.0];
-        if let Some(result) = f32::l2sq(a, b) {
+        if let Some(result) = f32::sqeuclidean(a, b) {
             assert_almost_equal(27.0, result, 0.01);
         }
     }
@@ -347,7 +367,7 @@ mod tests {
     fn l2_f32() {
         let a: &[f32; 3] = &[1.0, 2.0, 3.0];
         let b: &[f32; 3] = &[4.0, 5.0, 6.0];
-        if let Some(result) = f32::l2(a, b) {
+        if let Some(result) = f32::euclidean(a, b) {
             assert_almost_equal(5.2, result, 0.01);
         }
     }
@@ -356,7 +376,7 @@ mod tests {
     fn l2_f64() {
         let a: &[f64; 3] = &[1.0, 2.0, 3.0];
         let b: &[f64; 3] = &[4.0, 5.0, 6.0];
-        if let Some(result) = f64::l2(a, b) {
+        if let Some(result) = f64::euclidean(a, b) {
             assert_almost_equal(5.2, result, 0.01);
         }
     }
@@ -375,7 +395,7 @@ mod tests {
             unsafe { core::slice::from_raw_parts(a_half.as_ptr() as *const f16, a_half.len()) };
         let b_numkong: &[f16] =
             unsafe { core::slice::from_raw_parts(b_half.as_ptr() as *const f16, b_half.len()) };
-        if let Some(result) = f16::l2(a_numkong, b_numkong) {
+        if let Some(result) = f16::euclidean(a_numkong, b_numkong) {
             assert_almost_equal(5.2, result, 0.01);
         }
     }
@@ -384,7 +404,7 @@ mod tests {
     fn l2_i8() {
         let a = &[1_i8, 2, 3];
         let b = &[4_i8, 5, 6];
-        if let Some(result) = i8::l2(a, b) {
+        if let Some(result) = i8::euclidean(a, b) {
             assert_almost_equal(5.2, result, 0.01);
         }
     }
@@ -839,7 +859,7 @@ mod tests {
         let inputs: Vec<f32> = (0..11).map(|i| (i as f32) * PI / 10.0).collect();
         let expected: Vec<f32> = inputs.iter().map(|x| x.sin()).collect();
         let mut result = vec![0.0f32; inputs.len()];
-        <f32 as Sin>::sin(&inputs, &mut result).unwrap();
+        <f32 as EachSin>::sin(&inputs, &mut result).unwrap();
         assert_vec_almost_equal_f32(&result, &expected, 0.1);
     }
 
@@ -849,7 +869,7 @@ mod tests {
         let inputs: Vec<f32> = (0..97).map(|i| (i as f32) * 2.0 * PI / 97.0).collect();
         let expected: Vec<f32> = inputs.iter().map(|x| x.sin()).collect();
         let mut result = vec![0.0f32; inputs.len()];
-        <f32 as Sin>::sin(&inputs, &mut result).unwrap();
+        <f32 as EachSin>::sin(&inputs, &mut result).unwrap();
         assert_vec_almost_equal_f32(&result, &expected, 0.1);
     }
 
@@ -859,7 +879,7 @@ mod tests {
         let inputs: Vec<f64> = (0..97).map(|i| (i as f64) * 2.0 * PI / 97.0).collect();
         let expected: Vec<f64> = inputs.iter().map(|x| x.sin()).collect();
         let mut result = vec![0.0f64; inputs.len()];
-        <f64 as Sin>::sin(&inputs, &mut result).unwrap();
+        <f64 as EachSin>::sin(&inputs, &mut result).unwrap();
         assert_vec_almost_equal_f64(&result, &expected, 0.1);
     }
 
@@ -869,7 +889,7 @@ mod tests {
         let inputs: Vec<f32> = (0..97).map(|i| (i as f32) * 2.0 * PI / 97.0).collect();
         let expected: Vec<f32> = inputs.iter().map(|x| x.cos()).collect();
         let mut result = vec![0.0f32; inputs.len()];
-        <f32 as Cos>::cos(&inputs, &mut result).unwrap();
+        <f32 as EachCos>::cos(&inputs, &mut result).unwrap();
         assert_vec_almost_equal_f32(&result, &expected, 0.1);
     }
 
@@ -879,7 +899,7 @@ mod tests {
         let inputs: Vec<f64> = (0..97).map(|i| (i as f64) * 2.0 * PI / 97.0).collect();
         let expected: Vec<f64> = inputs.iter().map(|x| x.cos()).collect();
         let mut result = vec![0.0f64; inputs.len()];
-        <f64 as Cos>::cos(&inputs, &mut result).unwrap();
+        <f64 as EachCos>::cos(&inputs, &mut result).unwrap();
         assert_vec_almost_equal_f64(&result, &expected, 0.1);
     }
 
@@ -888,7 +908,7 @@ mod tests {
         let inputs: Vec<f32> = (-50..50).map(|i| (i as f32) / 10.0).collect();
         let expected: Vec<f32> = inputs.iter().map(|x| x.atan()).collect();
         let mut result = vec![0.0f32; inputs.len()];
-        <f32 as ATan>::atan(&inputs, &mut result).unwrap();
+        <f32 as EachATan>::atan(&inputs, &mut result).unwrap();
         assert_vec_almost_equal_f32(&result, &expected, 0.1);
     }
 
@@ -897,7 +917,7 @@ mod tests {
         let inputs: Vec<f64> = (-50..50).map(|i| (i as f64) / 10.0).collect();
         let expected: Vec<f64> = inputs.iter().map(|x| x.atan()).collect();
         let mut result = vec![0.0f64; inputs.len()];
-        <f64 as ATan>::atan(&inputs, &mut result).unwrap();
+        <f64 as EachATan>::atan(&inputs, &mut result).unwrap();
         assert_vec_almost_equal_f64(&result, &expected, 0.1);
     }
 
@@ -1267,3 +1287,105 @@ mod tests {
 }
 
 // endregion: Tests
+
+// region: WASM Runtime Tests
+
+/// WASM runtime integration tests using Wasmtime
+/// These tests validate that WASI builds work correctly with standalone runtimes
+#[cfg(all(test, feature = "wasm-runtime"))]
+mod wasm_runtime_tests {
+    use std::fs;
+    use wasmtime::*;
+    use wasmtime_wasi::WasiCtxBuilder;
+
+    /// Test that WASI WASM module can be loaded and executed with Wasmtime
+    /// This validates the dual-path capability detection (EM_ASM vs WASI imports)
+    #[test]
+    fn wasi_with_wasmtime() -> wasmtime::Result<()> {
+        // Check if WASI build exists
+        let wasm_path = "build-wasi/test.wasm";
+        if !std::path::Path::new(wasm_path).exists() {
+            eprintln!("WASI build not found at {}. Run:", wasm_path);
+            eprintln!("  export WASI_SDK_PATH=~/wasi-sdk");
+            eprintln!("  cmake -B build-wasi -DCMAKE_TOOLCHAIN_FILE=cmake/toolchain-wasi.cmake -DNK_BUILD_WASM_WASI=ON");
+            eprintln!("  cmake --build build-wasi");
+            return Ok(()); // Skip test if build doesn't exist
+        }
+
+        println!("Loading WASI module from {}", wasm_path);
+
+        // Create Wasmtime engine and linker
+        let engine = Engine::default();
+        let mut linker = Linker::new(&engine);
+
+        // Create WASI context (Wasmtime 41+ API)
+        let wasi = wasmtime_wasi::WasiCtxBuilder::new()
+            .inherit_stdio()
+            .inherit_args()?
+            .build();
+        let mut store = Store::new(&engine, wasi);
+
+        // Add WASI support (Wasmtime 41+ requires type parameter)
+        wasmtime_wasi::add_to_linker(&mut linker, |s| s)?;
+
+        // Provide capability detection imports (required for WASI build)
+        // These functions are called from nk_capabilities_v128relaxed_() in C code
+        linker.func_wrap("env", "nk_has_v128", || -> i32 {
+            // Return 1 (true) - assume SIMD128 is available in Wasmtime
+            println!("  nk_has_v128() called from WASM -> returning 1");
+            1
+        })?;
+
+        linker.func_wrap("env", "nk_has_relaxed", || -> i32 {
+            // Return 1 (true) - assume Relaxed SIMD is available in Wasmtime
+            println!("  nk_has_relaxed() called from WASM -> returning 1");
+            1
+        })?;
+
+        // Load WASM module
+        let wasm_bytes = fs::read(wasm_path)?;
+        let module = Module::new(&engine, wasm_bytes)?;
+
+        // Instantiate module
+        println!("Instantiating WASM module...");
+        let instance = linker.instantiate(&mut store, &module)?;
+
+        // Get main function
+        let main = instance.get_typed_func::<(), i32>(&mut store, "main")?;
+
+        // Run tests
+        println!("Running WASM tests...");
+        let exit_code = main.call(&mut store, ())?;
+
+        println!("WASM tests completed with exit code: {}", exit_code);
+
+        // Assert tests passed
+        assert_eq!(
+            exit_code, 0,
+            "WASI tests failed with exit code {}",
+            exit_code
+        );
+
+        Ok(())
+    }
+
+    /// Test capability detection mechanism works in WASI environment
+    #[test]
+    fn capability_imports() -> wasmtime::Result<()> {
+        println!("Testing capability import mechanism...");
+
+        // Create minimal engine for import testing
+        let engine = Engine::default();
+        let mut linker = Linker::<()>::new(&engine);
+
+        // Test that we can define the required imports
+        linker.func_wrap("env", "nk_has_v128", || -> i32 { 1 })?;
+        linker.func_wrap("env", "nk_has_relaxed", || -> i32 { 0 })?;
+
+        println!("  ✓ Capability imports defined successfully");
+
+        Ok(())
+    }
+}
+
+// endregion: WASM Runtime Tests

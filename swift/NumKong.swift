@@ -95,7 +95,7 @@ extension Float64: NumKongL2 {
         a.withContiguousStorageIfAvailable { aPtr in
             b.withContiguousStorageIfAvailable { bPtr in
                 guard aPtr.count > 0 && aPtr.count == bPtr.count else { return }
-                nk_l2_f64(
+                nk_euclidean_f64(
                     aPtr.baseAddress!,
                     bPtr.baseAddress!,
                     UInt64(aPtr.count),
@@ -117,7 +117,7 @@ extension Float64: NumKongL2sq {
         a.withContiguousStorageIfAvailable { aPtr in
             b.withContiguousStorageIfAvailable { bPtr in
                 guard aPtr.count > 0 && aPtr.count == bPtr.count else { return }
-                nk_l2sq_f64(
+                nk_sqeuclidean_f64(
                     aPtr.baseAddress!,
                     bPtr.baseAddress!,
                     UInt64(aPtr.count),
@@ -187,7 +187,7 @@ extension Float32: NumKongL2 {
         a.withContiguousStorageIfAvailable { aPtr in
             b.withContiguousStorageIfAvailable { bPtr in
                 guard aPtr.count > 0 && aPtr.count == bPtr.count else { return }
-                nk_l2_f32(
+                nk_euclidean_f32(
                     aPtr.baseAddress!,
                     bPtr.baseAddress!,
                     UInt64(aPtr.count),
@@ -209,7 +209,7 @@ extension Float32: NumKongL2sq {
         a.withContiguousStorageIfAvailable { aPtr in
             b.withContiguousStorageIfAvailable { bPtr in
                 guard aPtr.count > 0 && aPtr.count == bPtr.count else { return }
-                nk_l2sq_f32(
+                nk_sqeuclidean_f32(
                     aPtr.baseAddress!,
                     bPtr.baseAddress!,
                     UInt64(aPtr.count),
@@ -295,7 +295,7 @@ extension Float32: NumKongL2sq {
                     guard aPtr.count > 0 && aPtr.count == bPtr.count else {
                         return
                     }
-                    nk_l2_f16(
+                    nk_euclidean_f16(
                         aPtr.baseAddress!,
                         bPtr.baseAddress!,
                         UInt64(aPtr.count),
@@ -322,7 +322,7 @@ extension Float32: NumKongL2sq {
                     guard aPtr.count > 0 && aPtr.count == bPtr.count else {
                         return
                     }
-                    nk_l2sq_f16(
+                    nk_sqeuclidean_f16(
                         aPtr.baseAddress!,
                         bPtr.baseAddress!,
                         UInt64(aPtr.count),
@@ -397,7 +397,7 @@ extension Int8: NumKongL2 {
         a.withContiguousStorageIfAvailable { aPtr in
             b.withContiguousStorageIfAvailable { bPtr in
                 guard aPtr.count > 0 && aPtr.count == bPtr.count else { return }
-                nk_l2_i8(
+                nk_euclidean_i8(
                     aPtr.baseAddress!,
                     bPtr.baseAddress!,
                     UInt64(aPtr.count),
@@ -421,7 +421,7 @@ extension Int8: NumKongL2sq {
         a.withContiguousStorageIfAvailable { aPtr in
             b.withContiguousStorageIfAvailable { bPtr in
                 guard aPtr.count > 0 && aPtr.count == bPtr.count else { return }
-                nk_l2sq_i8(
+                nk_sqeuclidean_i8(
                     aPtr.baseAddress!,
                     bPtr.baseAddress!,
                     UInt64(aPtr.count),

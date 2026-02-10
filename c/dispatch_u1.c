@@ -68,6 +68,13 @@ void nk_dispatch_u1_find_(nk_capability_t v, nk_kernel_kind_t k, nk_kernel_punne
         default: break;
         }
 #endif
+#if NK_TARGET_RVVBB
+    if (v & nk_cap_rvvbb_k) switch (k) {
+        case nk_kernel_hamming_k: *m = (m_t)&nk_hamming_u1_rvvbb, *c = nk_cap_rvvbb_k; return;
+        case nk_kernel_jaccard_k: *m = (m_t)&nk_jaccard_u1_rvvbb, *c = nk_cap_rvvbb_k; return;
+        default: break;
+        }
+#endif
 #if NK_TARGET_RVV
     if (v & nk_cap_rvv_k) switch (k) {
         case nk_kernel_hamming_k: *m = (m_t)&nk_hamming_u1_rvv, *c = nk_cap_rvv_k; return;
