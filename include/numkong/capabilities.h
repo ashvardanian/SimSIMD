@@ -266,6 +266,7 @@ typedef nk_u64_t nk_capability_t;
 #define nk_cap_smehalf_k     ((nk_capability_t)1 << 30)
 #define nk_cap_smebf16_k     ((nk_capability_t)1 << 31)
 #define nk_cap_smelut2_k     ((nk_capability_t)1 << 32)
+#define nk_cap_rvvbb_k       ((nk_capability_t)1 << 33)
 
 typedef void (*nk_metric_dense_punned_t)(void const *a, void const *b, nk_size_t n, void *d);
 
@@ -589,6 +590,7 @@ NK_PUBLIC nk_capability_t nk_capabilities_riscv_(void) {
         if (syscall(258, pairs, 1, 0, (void *)0, 0) == 0) {
             if (pairs[0].value & (1ULL << 30)) caps |= nk_cap_rvvhalf_k;
             if (pairs[0].value & (1ULL << 54)) caps |= nk_cap_rvvbf16_k;
+            if (pairs[0].value & (1ULL << 48)) caps |= nk_cap_rvvbb_k; // Zvbb
         }
     }
     return caps;
