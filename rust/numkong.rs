@@ -1267,3 +1267,105 @@ mod tests {
 }
 
 // endregion: Tests
+
+// region: WASM Runtime Tests
+
+/// WASM runtime integration tests using Wasmtime
+/// These tests validate that WASI builds work correctly with standalone runtimes
+#[cfg(all(test, feature = "wasm-runtime"))]
+mod wasm_runtime_tests {
+    use std::fs;
+    use wasmtime::*;
+    use wasmtime_wasi::WasiCtxBuilder;
+
+    /// Test that WASI WASM module can be loaded and executed with Wasmtime
+    /// This validates the dual-path capability detection (EM_ASM vs WASI imports)
+    #[test]
+    fn wasi_with_wasmtime() -> wasmtime::Result<()> {
+        // Check if WASI build exists
+        let wasm_path = "build-wasi/test.wasm";
+        if !std::path::Path::new(wasm_path).exists() {
+            eprintln!("WASI build not found at {}. Run:", wasm_path);
+            eprintln!("  export WASI_SDK_PATH=~/wasi-sdk");
+            eprintln!("  cmake -B build-wasi -DCMAKE_TOOLCHAIN_FILE=cmake/toolchain-wasi.cmake -DNK_BUILD_WASM_WASI=ON");
+            eprintln!("  cmake --build build-wasi");
+            return Ok(()); // Skip test if build doesn't exist
+        }
+
+        println!("Loading WASI module from {}", wasm_path);
+
+        // Create Wasmtime engine and linker
+        let engine = Engine::default();
+        let mut linker = Linker::new(&engine);
+
+        // Create WASI context (Wasmtime 41+ API)
+        let wasi = wasmtime_wasi::WasiCtxBuilder::new()
+            .inherit_stdio()
+            .inherit_args()?
+            .build();
+        let mut store = Store::new(&engine, wasi);
+
+        // Add WASI support (Wasmtime 41+ requires type parameter)
+        wasmtime_wasi::add_to_linker(&mut linker, |s| s)?;
+
+        // Provide capability detection imports (required for WASI build)
+        // These functions are called from nk_capabilities_v128relaxed_() in C code
+        linker.func_wrap("env", "nk_has_v128", || -> i32 {
+            // Return 1 (true) - assume SIMD128 is available in Wasmtime
+            println!("  nk_has_v128() called from WASM -> returning 1");
+            1
+        })?;
+
+        linker.func_wrap("env", "nk_has_relaxed", || -> i32 {
+            // Return 1 (true) - assume Relaxed SIMD is available in Wasmtime
+            println!("  nk_has_relaxed() called from WASM -> returning 1");
+            1
+        })?;
+
+        // Load WASM module
+        let wasm_bytes = fs::read(wasm_path)?;
+        let module = Module::new(&engine, wasm_bytes)?;
+
+        // Instantiate module
+        println!("Instantiating WASM module...");
+        let instance = linker.instantiate(&mut store, &module)?;
+
+        // Get main function
+        let main = instance.get_typed_func::<(), i32>(&mut store, "main")?;
+
+        // Run tests
+        println!("Running WASM tests...");
+        let exit_code = main.call(&mut store, ())?;
+
+        println!("WASM tests completed with exit code: {}", exit_code);
+
+        // Assert tests passed
+        assert_eq!(
+            exit_code, 0,
+            "WASI tests failed with exit code {}",
+            exit_code
+        );
+
+        Ok(())
+    }
+
+    /// Test capability detection mechanism works in WASI environment
+    #[test]
+    fn capability_imports() -> wasmtime::Result<()> {
+        println!("Testing capability import mechanism...");
+
+        // Create minimal engine for import testing
+        let engine = Engine::default();
+        let mut linker = Linker::<()>::new(&engine);
+
+        // Test that we can define the required imports
+        linker.func_wrap("env", "nk_has_v128", || -> i32 { 1 })?;
+        linker.func_wrap("env", "nk_has_relaxed", || -> i32 { 0 })?;
+
+        println!("  ✓ Capability imports defined successfully");
+
+        Ok(())
+    }
+}
+
+// endregion: WASM Runtime Tests

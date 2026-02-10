@@ -15,6 +15,34 @@ fn build_simsimd() -> HashMap<String, bool> {
         // Prefer portable flags to support MSVC and older toolchains
         .std("c99") // Enforce C99 standard when supported
         .file("c/numkong.c")
+        // Data type dispatch files
+        .file("c/dispatch_f64.c")
+        .file("c/dispatch_f32.c")
+        .file("c/dispatch_f16.c")
+        .file("c/dispatch_bf16.c")
+        .file("c/dispatch_i8.c")
+        .file("c/dispatch_u8.c")
+        .file("c/dispatch_i4.c")
+        .file("c/dispatch_u4.c")
+        .file("c/dispatch_e4m3.c")
+        .file("c/dispatch_e5m2.c")
+        .file("c/dispatch_e2m3.c")
+        .file("c/dispatch_e3m2.c")
+        .file("c/dispatch_u1.c")
+        // Complex type dispatch files
+        .file("c/dispatch_f64c.c")
+        .file("c/dispatch_f32c.c")
+        .file("c/dispatch_f16c.c")
+        .file("c/dispatch_bf16c.c")
+        // Integer dispatch files
+        .file("c/dispatch_i16.c")
+        .file("c/dispatch_u16.c")
+        .file("c/dispatch_i32.c")
+        .file("c/dispatch_u32.c")
+        .file("c/dispatch_i64.c")
+        .file("c/dispatch_u64.c")
+        // Special dispatch files
+        .file("c/dispatch_cast.c")
         .include("include")
         .define("NK_NATIVE_F16", "0")
         .define("NK_NATIVE_BF16", "0")
@@ -152,6 +180,31 @@ fn build_simsimd() -> HashMap<String, bool> {
 
     // Declare file dependencies
     println!("cargo:rerun-if-changed=c/numkong.c");
+    println!("cargo:rerun-if-changed=c/dispatch_f64.c");
+    println!("cargo:rerun-if-changed=c/dispatch_f32.c");
+    println!("cargo:rerun-if-changed=c/dispatch_f16.c");
+    println!("cargo:rerun-if-changed=c/dispatch_bf16.c");
+    println!("cargo:rerun-if-changed=c/dispatch_i8.c");
+    println!("cargo:rerun-if-changed=c/dispatch_u8.c");
+    println!("cargo:rerun-if-changed=c/dispatch_i4.c");
+    println!("cargo:rerun-if-changed=c/dispatch_u4.c");
+    println!("cargo:rerun-if-changed=c/dispatch_e4m3.c");
+    println!("cargo:rerun-if-changed=c/dispatch_e5m2.c");
+    println!("cargo:rerun-if-changed=c/dispatch_e2m3.c");
+    println!("cargo:rerun-if-changed=c/dispatch_e3m2.c");
+    println!("cargo:rerun-if-changed=c/dispatch_u1.c");
+    println!("cargo:rerun-if-changed=c/dispatch_f64c.c");
+    println!("cargo:rerun-if-changed=c/dispatch_f32c.c");
+    println!("cargo:rerun-if-changed=c/dispatch_f16c.c");
+    println!("cargo:rerun-if-changed=c/dispatch_bf16c.c");
+    println!("cargo:rerun-if-changed=c/dispatch_i16.c");
+    println!("cargo:rerun-if-changed=c/dispatch_u16.c");
+    println!("cargo:rerun-if-changed=c/dispatch_i32.c");
+    println!("cargo:rerun-if-changed=c/dispatch_u32.c");
+    println!("cargo:rerun-if-changed=c/dispatch_i64.c");
+    println!("cargo:rerun-if-changed=c/dispatch_u64.c");
+    println!("cargo:rerun-if-changed=c/dispatch_cast.c");
+    println!("cargo:rerun-if-changed=c/dispatch.h");
     println!("cargo:rerun-if-changed=rust/numkong.rs");
     // Top-level headers
     println!("cargo:rerun-if-changed=include/numkong/numkong.h");
