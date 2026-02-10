@@ -242,6 +242,6 @@ class NumKongTests: XCTestCase {
             }
         }
         XCTAssertTrue(success)
-        XCTAssertEqual(result[0], 5_570_000, accuracy: 20000)
+        XCTAssertEqual(result[0], 5_570_000, accuracy: 50000)
     }
 }

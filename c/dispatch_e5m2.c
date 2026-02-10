@@ -88,6 +88,7 @@ void nk_dispatch_e5m2_find_(nk_capability_t v, nk_kernel_kind_t k, nk_kernel_pun
         case nk_kernel_dots_pack_k: *m = (m_t)&nk_dots_pack_e5m2_skylake, *c = nk_cap_skylake_k; return;
         case nk_kernel_dots_packed_k: *m = (m_t)&nk_dots_packed_e5m2_skylake, *c = nk_cap_skylake_k; return;
         case nk_kernel_dots_symmetric_k: *m = (m_t)&nk_dots_symmetric_e5m2_skylake, *c = nk_cap_skylake_k; return;
+        case nk_kernel_reduce_add_k: *m = (m_t)&nk_reduce_add_e5m2_skylake, *c = nk_cap_skylake_k; return;
         case nk_kernel_reduce_min_k: *m = (m_t)&nk_reduce_min_e5m2_skylake, *c = nk_cap_skylake_k; return;
         case nk_kernel_reduce_max_k: *m = (m_t)&nk_reduce_max_e5m2_skylake, *c = nk_cap_skylake_k; return;
         default: break;

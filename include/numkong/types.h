@@ -542,7 +542,6 @@ typedef nk_u64_t nk_size_t;
 typedef nk_i64_t nk_ssize_t;
 typedef nk_f64_t nk_fmax_t;
 
-#define NK_F64_INF (1e999)
 #define NK_F64_MAX 1.7976931348623157e+308
 #define NK_F64_MIN (-1.7976931348623157e+308)
 #define NK_F32_MAX 3.402823466e+38f

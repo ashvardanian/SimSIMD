@@ -147,7 +147,7 @@ func EuclideanF64(a, b []float64) float64 {
 		return 0
 	}
 	var result C.nk_f64_t
-	C.nk_l2_f64((*C.nk_f64_t)(&a[0]), (*C.nk_f64_t)(&b[0]), C.nk_size_t(len(a)), &result)
+	C.nk_euclidean_f64((*C.nk_f64_t)(&a[0]), (*C.nk_f64_t)(&b[0]), C.nk_size_t(len(a)), &result)
 	return float64(result)
 }
 
@@ -160,7 +160,7 @@ func EuclideanF32(a, b []float32) float32 {
 		return 0
 	}
 	var result C.nk_f32_t
-	C.nk_l2_f32((*C.nk_f32_t)(&a[0]), (*C.nk_f32_t)(&b[0]), C.nk_size_t(len(a)), &result)
+	C.nk_euclidean_f32((*C.nk_f32_t)(&a[0]), (*C.nk_f32_t)(&b[0]), C.nk_size_t(len(a)), &result)
 	return float32(result)
 }
 
@@ -174,7 +174,7 @@ func EuclideanI8(a, b []int8) float32 {
 		return 0
 	}
 	var result C.nk_f32_t
-	C.nk_l2_i8((*C.nk_i8_t)(&a[0]), (*C.nk_i8_t)(&b[0]), C.nk_size_t(len(a)), &result)
+	C.nk_euclidean_i8((*C.nk_i8_t)(&a[0]), (*C.nk_i8_t)(&b[0]), C.nk_size_t(len(a)), &result)
 	return float32(result)
 }
 
@@ -200,7 +200,7 @@ func SqEuclideanF64(a, b []float64) float64 {
 		return 0
 	}
 	var result C.nk_f64_t
-	C.nk_l2sq_f64((*C.nk_f64_t)(&a[0]), (*C.nk_f64_t)(&b[0]), C.nk_size_t(len(a)), &result)
+	C.nk_sqeuclidean_f64((*C.nk_f64_t)(&a[0]), (*C.nk_f64_t)(&b[0]), C.nk_size_t(len(a)), &result)
 	return float64(result)
 }
 
@@ -213,7 +213,7 @@ func SqEuclideanF32(a, b []float32) float32 {
 		return 0
 	}
 	var result C.nk_f32_t
-	C.nk_l2sq_f32((*C.nk_f32_t)(&a[0]), (*C.nk_f32_t)(&b[0]), C.nk_size_t(len(a)), &result)
+	C.nk_sqeuclidean_f32((*C.nk_f32_t)(&a[0]), (*C.nk_f32_t)(&b[0]), C.nk_size_t(len(a)), &result)
 	return float32(result)
 }
 
@@ -227,7 +227,7 @@ func SqEuclideanI8(a, b []int8) uint32 {
 		return 0
 	}
 	var result C.nk_u32_t
-	C.nk_l2sq_i8((*C.nk_i8_t)(&a[0]), (*C.nk_i8_t)(&b[0]), C.nk_size_t(len(a)), &result)
+	C.nk_sqeuclidean_i8((*C.nk_i8_t)(&a[0]), (*C.nk_i8_t)(&b[0]), C.nk_size_t(len(a)), &result)
 	return uint32(result)
 }
 
