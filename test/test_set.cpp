@@ -17,8 +17,7 @@ error_stats_t test_hamming(u1x8_t::hamming_kernel_t kernel) {
     error_stats_t stats;
     std::mt19937 generator(global_config.seed);
 
-    std::size_t n_bytes = nk::divide_round_up(dense_dimensions, 8);
-    auto a = make_vector<scalar_t>(n_bytes), b = make_vector<scalar_t>(n_bytes);
+    auto a = make_vector<scalar_t>(dense_dimensions), b = make_vector<scalar_t>(dense_dimensions);
 
     for (auto start = test_start_time(); within_time_budget(start);) {
         fill_random(generator, a);
@@ -45,8 +44,7 @@ error_stats_t test_jaccard(u1x8_t::jaccard_kernel_t kernel) {
     error_stats_t stats;
     std::mt19937 generator(global_config.seed);
 
-    std::size_t n_bytes = nk::divide_round_up(dense_dimensions, 8);
-    auto a = make_vector<scalar_t>(n_bytes), b = make_vector<scalar_t>(n_bytes);
+    auto a = make_vector<scalar_t>(dense_dimensions), b = make_vector<scalar_t>(dense_dimensions);
 
     for (auto start = test_start_time(); within_time_budget(start);) {
         fill_random(generator, a);
