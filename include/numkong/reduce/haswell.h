@@ -553,6 +553,68 @@ NK_INTERNAL __m256i nk_stride_blend_b64x4_(nk_size_t stride) {
     }
 }
 
+/**
+ *  @brief Returns initial logical index vector for 32-bit strided access (8-element register).
+ *
+ *  For min/max with index tracking: non-stride positions get 0 (don't matter, masked out).
+ *  Stride positions get sequential logical indices: 0, 1, 2, ...
+ */
+NK_INTERNAL __m256i nk_stride_logidx_i32x8_(nk_size_t stride) {
+    switch (stride) {
+    case 2: return _mm256_setr_epi32(0, 0, 1, 0, 2, 0, 3, 0); // 4 elems
+    case 3: return _mm256_setr_epi32(0, 0, 0, 1, 0, 0, 2, 0); // 3 elems (partial)
+    case 4: return _mm256_setr_epi32(0, 0, 0, 0, 1, 0, 0, 0); // 2 elems
+    case 5: return _mm256_setr_epi32(0, 0, 0, 0, 0, 1, 0, 0); // 2 elems (partial)
+    case 6: return _mm256_setr_epi32(0, 0, 0, 0, 0, 0, 1, 0); // 2 elems (partial)
+    case 7: return _mm256_setr_epi32(0, 0, 0, 0, 0, 0, 0, 1); // 2 elems (partial)
+    case 8: return _mm256_setr_epi32(0, 0, 0, 0, 0, 0, 0, 0); // 1 elem
+    default: return _mm256_setzero_si256();
+    }
+}
+
+/**
+ *  @brief Returns initial logical index vector for 64-bit strided access (4-element register).
+ *
+ *  For min/max with index tracking: non-stride positions get 0 (don't matter, masked out).
+ *  Stride positions get sequential logical indices: 0, 1, 2, ...
+ */
+NK_INTERNAL __m256i nk_stride_logidx_i64x4_(nk_size_t stride) {
+    switch (stride) {
+    case 2: return _mm256_setr_epi64x(0, 0, 1, 0);  // 2 elems
+    case 3: return _mm256_setr_epi64x(0, 0, 0, 1);  // 2 elems (wraps)
+    case 4: return _mm256_setr_epi64x(0, 0, 0, 0);  // 1 elem
+    default: return _mm256_setr_epi64x(0, 0, 0, 0); // 1 elem for stride 5+
+    }
+}
+
+/**
+ *  @brief Returns number of logical elements per 8-scalar chunk for given stride (32-bit).
+ */
+NK_INTERNAL nk_size_t nk_stride_elems_b32x8_(nk_size_t stride) {
+    switch (stride) {
+    case 2: return 4;
+    case 3: return 3;
+    case 4: return 2;
+    case 5: return 2;
+    case 6: return 2;
+    case 7: return 2;
+    case 8: return 1;
+    default: return 0;
+    }
+}
+
+/**
+ *  @brief Returns number of logical elements per 4-scalar chunk for given stride (64-bit).
+ */
+NK_INTERNAL nk_size_t nk_stride_elems_b64x4_(nk_size_t stride) {
+    switch (stride) {
+    case 2: return 2;
+    case 3: return 2;
+    case 4: return 1;
+    default: return 1;
+    }
+}
+
 NK_INTERNAL void nk_reduce_add_f32_haswell_contiguous_( //
     nk_f32_t const *data, nk_size_t count, nk_f64_t *result) {
     // Use dual accumulators to hide VADDPD latency (3 cycles on Haswell) and two
@@ -771,38 +833,53 @@ NK_INTERNAL void nk_reduce_min_f32_haswell_contiguous_( //
 NK_INTERNAL void nk_reduce_min_f32_haswell_strided_(                  //
     nk_f32_t const *data, nk_size_t count, nk_size_t stride_elements, //
     nk_f32_t *min_value, nk_size_t *min_index) {
-    // Blend-based strided access: load full register, blend with +inf, find min
+    // Single-pass: track both min value and index in SIMD
     __m256i blend_mask_i32x8 = nk_stride_blend_b32x8_(stride_elements);
     __m256 pos_inf_f32x8 = _mm256_set1_ps(NK_F32_MAX);
     __m256 min_f32x8 = pos_inf_f32x8;
+    __m256i min_index_i32x8 = _mm256_setzero_si256();
     nk_size_t idx_scalars = 0;
     nk_size_t total_scalars = count * stride_elements;
 
+    // Precompute logical index vector and step for this stride
+    __m256i logical_index_i32x8 = nk_stride_logidx_i32x8_(stride_elements);
+    nk_size_t elems_per_chunk = nk_stride_elems_b32x8_(stride_elements);
+    __m256i step_i32x8 = _mm256_set1_epi32((nk_i32_t)elems_per_chunk);
+
     for (; idx_scalars + 8 <= total_scalars; idx_scalars += 8) {
         __m256 data_f32x8 = _mm256_loadu_ps(data + idx_scalars);
-        // Blend: keep stride elements, replace others with +inf
         __m256 masked_f32x8 = _mm256_blendv_ps(pos_inf_f32x8, data_f32x8, _mm256_castsi256_ps(blend_mask_i32x8));
-        min_f32x8 = _mm256_min_ps(min_f32x8, masked_f32x8);
+        __m256 lt_mask_f32x8 = _mm256_cmp_ps(masked_f32x8, min_f32x8, _CMP_LT_OQ);
+        min_f32x8 = _mm256_blendv_ps(min_f32x8, masked_f32x8, lt_mask_f32x8);
+        min_index_i32x8 = _mm256_blendv_epi8(min_index_i32x8, logical_index_i32x8, _mm256_castps_si256(lt_mask_f32x8));
+        logical_index_i32x8 = _mm256_add_epi32(logical_index_i32x8, step_i32x8);
     }
 
-    // Scalar tail + horizontal reduce
+    // Scalar tail
     nk_f32_t min_val = nk_reduce_min_f32x8_haswell_(min_f32x8);
+    nk_size_t min_idx = 0;
     nk_f32_t const *ptr = data + idx_scalars;
-    nk_size_t remaining = count - idx_scalars / stride_elements;
+    nk_size_t logical_start = idx_scalars / stride_elements;
+    nk_size_t remaining = count - logical_start;
     for (nk_size_t i = 0; i < remaining; ++i, ptr += stride_elements) {
-        if (*ptr < min_val) min_val = *ptr;
+        if (*ptr < min_val) {
+            min_val = *ptr;
+            min_idx = logical_start + i;
+        }
     }
 
-    // Second pass: find first index (logical index in column)
-    ptr = data;
-    for (nk_size_t i = 0; i < count; ++i, ptr += stride_elements) {
-        if (*ptr != min_val) continue;
-        *min_value = min_val;
-        *min_index = i;
-        return;
+    // Find winning lane
+    __m256 eq_mask_f32x8 = _mm256_cmp_ps(min_f32x8, _mm256_set1_ps(min_val), _CMP_EQ_OQ);
+    int eq_bits = _mm256_movemask_ps(eq_mask_f32x8);
+    if (eq_bits) {
+        unsigned int first_lane = _tzcnt_u32((unsigned int)eq_bits);
+        nk_i32_t indices[8];
+        _mm256_storeu_si256((__m256i *)indices, min_index_i32x8);
+        nk_size_t vec_idx = (nk_size_t)indices[first_lane];
+        *min_index = (min_idx && min_idx < vec_idx) ? min_idx : vec_idx;
     }
+    else { *min_index = min_idx; }
     *min_value = min_val;
-    *min_index = 0;
 }
 
 NK_PUBLIC void nk_reduce_min_f32_haswell(                          //
@@ -864,38 +941,53 @@ NK_INTERNAL void nk_reduce_max_f32_haswell_contiguous_( //
 NK_INTERNAL void nk_reduce_max_f32_haswell_strided_(                  //
     nk_f32_t const *data, nk_size_t count, nk_size_t stride_elements, //
     nk_f32_t *max_value, nk_size_t *max_index) {
-    // Blend-based strided access: load full register, blend with -inf, find max
+    // Single-pass: track both max value and index in SIMD
     __m256i blend_mask_i32x8 = nk_stride_blend_b32x8_(stride_elements);
     __m256 neg_inf_f32x8 = _mm256_set1_ps(NK_F32_MIN);
     __m256 max_f32x8 = neg_inf_f32x8;
+    __m256i max_index_i32x8 = _mm256_setzero_si256();
     nk_size_t idx_scalars = 0;
     nk_size_t total_scalars = count * stride_elements;
 
+    // Precompute logical index vector and step for this stride
+    __m256i logical_index_i32x8 = nk_stride_logidx_i32x8_(stride_elements);
+    nk_size_t elems_per_chunk = nk_stride_elems_b32x8_(stride_elements);
+    __m256i step_i32x8 = _mm256_set1_epi32((nk_i32_t)elems_per_chunk);
+
     for (; idx_scalars + 8 <= total_scalars; idx_scalars += 8) {
         __m256 data_f32x8 = _mm256_loadu_ps(data + idx_scalars);
-        // Blend: keep stride elements, replace others with -inf
         __m256 masked_f32x8 = _mm256_blendv_ps(neg_inf_f32x8, data_f32x8, _mm256_castsi256_ps(blend_mask_i32x8));
-        max_f32x8 = _mm256_max_ps(max_f32x8, masked_f32x8);
+        __m256 gt_mask_f32x8 = _mm256_cmp_ps(masked_f32x8, max_f32x8, _CMP_GT_OQ);
+        max_f32x8 = _mm256_blendv_ps(max_f32x8, masked_f32x8, gt_mask_f32x8);
+        max_index_i32x8 = _mm256_blendv_epi8(max_index_i32x8, logical_index_i32x8, _mm256_castps_si256(gt_mask_f32x8));
+        logical_index_i32x8 = _mm256_add_epi32(logical_index_i32x8, step_i32x8);
     }
 
-    // Scalar tail + horizontal reduce
+    // Scalar tail
     nk_f32_t max_val = nk_reduce_max_f32x8_haswell_(max_f32x8);
+    nk_size_t max_idx = 0;
     nk_f32_t const *ptr = data + idx_scalars;
-    nk_size_t remaining = count - idx_scalars / stride_elements;
+    nk_size_t logical_start = idx_scalars / stride_elements;
+    nk_size_t remaining = count - logical_start;
     for (nk_size_t i = 0; i < remaining; ++i, ptr += stride_elements) {
-        if (*ptr > max_val) max_val = *ptr;
+        if (*ptr > max_val) {
+            max_val = *ptr;
+            max_idx = logical_start + i;
+        }
     }
 
-    // Second pass: find first index (logical index in column)
-    ptr = data;
-    for (nk_size_t i = 0; i < count; ++i, ptr += stride_elements) {
-        if (*ptr != max_val) continue;
-        *max_value = max_val;
-        *max_index = i;
-        return;
+    // Find winning lane
+    __m256 eq_mask_f32x8 = _mm256_cmp_ps(max_f32x8, _mm256_set1_ps(max_val), _CMP_EQ_OQ);
+    int eq_bits = _mm256_movemask_ps(eq_mask_f32x8);
+    if (eq_bits) {
+        unsigned int first_lane = _tzcnt_u32((unsigned int)eq_bits);
+        nk_i32_t indices[8];
+        _mm256_storeu_si256((__m256i *)indices, max_index_i32x8);
+        nk_size_t vec_idx = (nk_size_t)indices[first_lane];
+        *max_index = (max_idx && max_idx < vec_idx) ? max_idx : vec_idx;
     }
+    else { *max_index = max_idx; }
     *max_value = max_val;
-    *max_index = 0;
 }
 
 NK_PUBLIC void nk_reduce_max_f32_haswell(                          //
@@ -957,38 +1049,53 @@ NK_INTERNAL void nk_reduce_min_f64_haswell_contiguous_( //
 NK_INTERNAL void nk_reduce_min_f64_haswell_strided_(                  //
     nk_f64_t const *data, nk_size_t count, nk_size_t stride_elements, //
     nk_f64_t *min_value, nk_size_t *min_index) {
-    // Blend-based strided access: load full register, blend with +inf, find min
+    // Single-pass: track both min value and index in SIMD
     __m256i blend_mask_i64x4 = nk_stride_blend_b64x4_(stride_elements);
     __m256d pos_inf_f64x4 = _mm256_set1_pd(NK_F64_MAX);
     __m256d min_f64x4 = pos_inf_f64x4;
+    __m256i min_index_i64x4 = _mm256_setzero_si256();
     nk_size_t idx_scalars = 0;
     nk_size_t total_scalars = count * stride_elements;
 
+    // Precompute logical index vector and step for this stride
+    __m256i logical_index_i64x4 = nk_stride_logidx_i64x4_(stride_elements);
+    nk_size_t elems_per_chunk = nk_stride_elems_b64x4_(stride_elements);
+    __m256i step_i64x4 = _mm256_set1_epi64x((nk_i64_t)elems_per_chunk);
+
     for (; idx_scalars + 4 <= total_scalars; idx_scalars += 4) {
         __m256d data_f64x4 = _mm256_loadu_pd(data + idx_scalars);
-        // Blend: keep stride elements, replace others with +inf
         __m256d masked_f64x4 = _mm256_blendv_pd(pos_inf_f64x4, data_f64x4, _mm256_castsi256_pd(blend_mask_i64x4));
-        min_f64x4 = _mm256_min_pd(min_f64x4, masked_f64x4);
+        __m256d lt_mask_f64x4 = _mm256_cmp_pd(masked_f64x4, min_f64x4, _CMP_LT_OQ);
+        min_f64x4 = _mm256_blendv_pd(min_f64x4, masked_f64x4, lt_mask_f64x4);
+        min_index_i64x4 = _mm256_blendv_epi8(min_index_i64x4, logical_index_i64x4, _mm256_castpd_si256(lt_mask_f64x4));
+        logical_index_i64x4 = _mm256_add_epi64(logical_index_i64x4, step_i64x4);
     }
 
-    // Scalar tail + horizontal reduce
+    // Scalar tail
     nk_f64_t min_val = nk_reduce_min_f64x4_haswell_(min_f64x4);
+    nk_size_t min_idx = 0;
     nk_f64_t const *ptr = data + idx_scalars;
-    nk_size_t remaining = count - idx_scalars / stride_elements;
+    nk_size_t logical_start = idx_scalars / stride_elements;
+    nk_size_t remaining = count - logical_start;
     for (nk_size_t i = 0; i < remaining; ++i, ptr += stride_elements) {
-        if (*ptr < min_val) min_val = *ptr;
+        if (*ptr < min_val) {
+            min_val = *ptr;
+            min_idx = logical_start + i;
+        }
     }
 
-    // Second pass: find first index (logical index in column)
-    ptr = data;
-    for (nk_size_t i = 0; i < count; ++i, ptr += stride_elements) {
-        if (*ptr != min_val) continue;
-        *min_value = min_val;
-        *min_index = i;
-        return;
+    // Find winning lane
+    __m256d eq_mask_f64x4 = _mm256_cmp_pd(min_f64x4, _mm256_set1_pd(min_val), _CMP_EQ_OQ);
+    int eq_bits = _mm256_movemask_pd(eq_mask_f64x4);
+    if (eq_bits) {
+        unsigned int first_lane = _tzcnt_u32((unsigned int)eq_bits);
+        nk_i64_t indices[4];
+        _mm256_storeu_si256((__m256i *)indices, min_index_i64x4);
+        nk_size_t vec_idx = (nk_size_t)indices[first_lane];
+        *min_index = (min_idx && min_idx < vec_idx) ? min_idx : vec_idx;
     }
+    else { *min_index = min_idx; }
     *min_value = min_val;
-    *min_index = 0;
 }
 
 NK_PUBLIC void nk_reduce_min_f64_haswell(                          //
@@ -1050,38 +1157,53 @@ NK_INTERNAL void nk_reduce_max_f64_haswell_contiguous_( //
 NK_INTERNAL void nk_reduce_max_f64_haswell_strided_(                  //
     nk_f64_t const *data, nk_size_t count, nk_size_t stride_elements, //
     nk_f64_t *max_value, nk_size_t *max_index) {
-    // Blend-based strided access: load full register, blend with -inf, find max
+    // Single-pass: track both max value and index in SIMD
     __m256i blend_mask_i64x4 = nk_stride_blend_b64x4_(stride_elements);
     __m256d neg_inf_f64x4 = _mm256_set1_pd(NK_F64_MIN);
     __m256d max_f64x4 = neg_inf_f64x4;
+    __m256i max_index_i64x4 = _mm256_setzero_si256();
     nk_size_t idx_scalars = 0;
     nk_size_t total_scalars = count * stride_elements;
 
+    // Precompute logical index vector and step for this stride
+    __m256i logical_index_i64x4 = nk_stride_logidx_i64x4_(stride_elements);
+    nk_size_t elems_per_chunk = nk_stride_elems_b64x4_(stride_elements);
+    __m256i step_i64x4 = _mm256_set1_epi64x((nk_i64_t)elems_per_chunk);
+
     for (; idx_scalars + 4 <= total_scalars; idx_scalars += 4) {
         __m256d data_f64x4 = _mm256_loadu_pd(data + idx_scalars);
-        // Blend: keep stride elements, replace others with -inf
         __m256d masked_f64x4 = _mm256_blendv_pd(neg_inf_f64x4, data_f64x4, _mm256_castsi256_pd(blend_mask_i64x4));
-        max_f64x4 = _mm256_max_pd(max_f64x4, masked_f64x4);
+        __m256d gt_mask_f64x4 = _mm256_cmp_pd(masked_f64x4, max_f64x4, _CMP_GT_OQ);
+        max_f64x4 = _mm256_blendv_pd(max_f64x4, masked_f64x4, gt_mask_f64x4);
+        max_index_i64x4 = _mm256_blendv_epi8(max_index_i64x4, logical_index_i64x4, _mm256_castpd_si256(gt_mask_f64x4));
+        logical_index_i64x4 = _mm256_add_epi64(logical_index_i64x4, step_i64x4);
     }
 
-    // Scalar tail + horizontal reduce
+    // Scalar tail
     nk_f64_t max_val = nk_reduce_max_f64x4_haswell_(max_f64x4);
+    nk_size_t max_idx = 0;
     nk_f64_t const *ptr = data + idx_scalars;
-    nk_size_t remaining = count - idx_scalars / stride_elements;
+    nk_size_t logical_start = idx_scalars / stride_elements;
+    nk_size_t remaining = count - logical_start;
     for (nk_size_t i = 0; i < remaining; ++i, ptr += stride_elements) {
-        if (*ptr > max_val) max_val = *ptr;
+        if (*ptr > max_val) {
+            max_val = *ptr;
+            max_idx = logical_start + i;
+        }
     }
 
-    // Second pass: find first index (logical index in column)
-    ptr = data;
-    for (nk_size_t i = 0; i < count; ++i, ptr += stride_elements) {
-        if (*ptr != max_val) continue;
-        *max_value = max_val;
-        *max_index = i;
-        return;
+    // Find winning lane
+    __m256d eq_mask_f64x4 = _mm256_cmp_pd(max_f64x4, _mm256_set1_pd(max_val), _CMP_EQ_OQ);
+    int eq_bits = _mm256_movemask_pd(eq_mask_f64x4);
+    if (eq_bits) {
+        unsigned int first_lane = _tzcnt_u32((unsigned int)eq_bits);
+        nk_i64_t indices[4];
+        _mm256_storeu_si256((__m256i *)indices, max_index_i64x4);
+        nk_size_t vec_idx = (nk_size_t)indices[first_lane];
+        *max_index = (max_idx && max_idx < vec_idx) ? max_idx : vec_idx;
     }
+    else { *max_index = max_idx; }
     *max_value = max_val;
-    *max_index = 0;
 }
 
 NK_PUBLIC void nk_reduce_max_f64_haswell(                          //
@@ -1291,380 +1413,868 @@ NK_INTERNAL void nk_reduce_add_u64_haswell_contiguous_( //
 
 NK_INTERNAL void nk_reduce_min_i8_haswell_contiguous_( //
     nk_i8_t const *data, nk_size_t count, nk_i8_t *min_value, nk_size_t *min_index) {
-    __m256i min_i8x32 = _mm256_set1_epi8(127);
-    nk_size_t idx = 0;
+    // Single-pass: track both min value and index in SIMD
+    __m256i min_i8x32 = _mm256_loadu_si256((__m256i const *)data);
+    // 32 i8 lanes -> 4 index registers (8 i32 each)
+    __m256i min_index_q0_i32x8 = _mm256_setr_epi32(0, 1, 2, 3, 4, 5, 6, 7);
+    __m256i min_index_q1_i32x8 = _mm256_setr_epi32(8, 9, 10, 11, 12, 13, 14, 15);
+    __m256i min_index_q2_i32x8 = _mm256_setr_epi32(16, 17, 18, 19, 20, 21, 22, 23);
+    __m256i min_index_q3_i32x8 = _mm256_setr_epi32(24, 25, 26, 27, 28, 29, 30, 31);
+    __m256i current_index_q0_i32x8 = _mm256_setr_epi32(32, 33, 34, 35, 36, 37, 38, 39);
+    __m256i current_index_q1_i32x8 = _mm256_setr_epi32(40, 41, 42, 43, 44, 45, 46, 47);
+    __m256i current_index_q2_i32x8 = _mm256_setr_epi32(48, 49, 50, 51, 52, 53, 54, 55);
+    __m256i current_index_q3_i32x8 = _mm256_setr_epi32(56, 57, 58, 59, 60, 61, 62, 63);
+    __m256i step_i32x8 = _mm256_set1_epi32(32);
+
+    nk_size_t idx = 32;
     for (; idx + 32 <= count; idx += 32) {
         __m256i data_i8x32 = _mm256_loadu_si256((__m256i const *)(data + idx));
-        min_i8x32 = _mm256_min_epi8(min_i8x32, data_i8x32);
+        __m256i lt_mask_i8x32 = _mm256_cmpgt_epi8(min_i8x32, data_i8x32);
+        min_i8x32 = _mm256_blendv_epi8(min_i8x32, data_i8x32, lt_mask_i8x32);
+        // Sign-extend i8 mask -> i32 for index blending (4 quarters)
+        __m128i mask_lo_i8x16 = _mm256_castsi256_si128(lt_mask_i8x32);
+        __m128i mask_hi_i8x16 = _mm256_extracti128_si256(lt_mask_i8x32, 1);
+        __m256i q0_mask_i32x8 = _mm256_cvtepi8_epi32(mask_lo_i8x16);
+        __m256i q1_mask_i32x8 = _mm256_cvtepi8_epi32(_mm_srli_si128(mask_lo_i8x16, 8));
+        __m256i q2_mask_i32x8 = _mm256_cvtepi8_epi32(mask_hi_i8x16);
+        __m256i q3_mask_i32x8 = _mm256_cvtepi8_epi32(_mm_srli_si128(mask_hi_i8x16, 8));
+        min_index_q0_i32x8 = _mm256_blendv_epi8(min_index_q0_i32x8, current_index_q0_i32x8, q0_mask_i32x8);
+        min_index_q1_i32x8 = _mm256_blendv_epi8(min_index_q1_i32x8, current_index_q1_i32x8, q1_mask_i32x8);
+        min_index_q2_i32x8 = _mm256_blendv_epi8(min_index_q2_i32x8, current_index_q2_i32x8, q2_mask_i32x8);
+        min_index_q3_i32x8 = _mm256_blendv_epi8(min_index_q3_i32x8, current_index_q3_i32x8, q3_mask_i32x8);
+        current_index_q0_i32x8 = _mm256_add_epi32(current_index_q0_i32x8, step_i32x8);
+        current_index_q1_i32x8 = _mm256_add_epi32(current_index_q1_i32x8, step_i32x8);
+        current_index_q2_i32x8 = _mm256_add_epi32(current_index_q2_i32x8, step_i32x8);
+        current_index_q3_i32x8 = _mm256_add_epi32(current_index_q3_i32x8, step_i32x8);
     }
+
+    // Scalar tail
     nk_i8_t min_val = nk_reduce_min_i8x32_haswell_(min_i8x32);
-    for (; idx < count; ++idx) min_val = data[idx] < min_val ? data[idx] : min_val;
-    // Second pass for index
-    for (idx = 0; idx < count; ++idx) {
-        if (data[idx] == min_val) {
-            *min_value = min_val;
-            *min_index = idx;
-            return;
+    nk_size_t min_idx = 0;
+    for (; idx < count; ++idx) {
+        if (data[idx] < min_val) {
+            min_val = data[idx];
+            min_idx = idx;
         }
     }
+
+    // Find winning lane
+    __m256i eq_mask_i8x32 = _mm256_cmpeq_epi8(min_i8x32, _mm256_set1_epi8(min_val));
+    int eq_bits = _mm256_movemask_epi8(eq_mask_i8x32);
+    if (eq_bits) {
+        unsigned int first_lane = _tzcnt_u32((unsigned int)eq_bits);
+        unsigned int quarter = first_lane / 8, pos = first_lane % 8;
+        nk_i32_t indices[8];
+        switch (quarter) {
+        case 0: _mm256_storeu_si256((__m256i *)indices, min_index_q0_i32x8); break;
+        case 1: _mm256_storeu_si256((__m256i *)indices, min_index_q1_i32x8); break;
+        case 2: _mm256_storeu_si256((__m256i *)indices, min_index_q2_i32x8); break;
+        default: _mm256_storeu_si256((__m256i *)indices, min_index_q3_i32x8); break;
+        }
+        nk_size_t vec_idx = (nk_size_t)indices[pos];
+        *min_index = (min_idx && min_idx < vec_idx) ? min_idx : vec_idx;
+    }
+    else { *min_index = min_idx; }
     *min_value = min_val;
-    *min_index = 0;
 }
 
 NK_INTERNAL void nk_reduce_max_i8_haswell_contiguous_( //
     nk_i8_t const *data, nk_size_t count, nk_i8_t *max_value, nk_size_t *max_index) {
-    __m256i max_i8x32 = _mm256_set1_epi8(-128);
-    nk_size_t idx = 0;
+    // Single-pass: track both max value and index in SIMD
+    __m256i max_i8x32 = _mm256_loadu_si256((__m256i const *)data);
+    __m256i max_index_q0_i32x8 = _mm256_setr_epi32(0, 1, 2, 3, 4, 5, 6, 7);
+    __m256i max_index_q1_i32x8 = _mm256_setr_epi32(8, 9, 10, 11, 12, 13, 14, 15);
+    __m256i max_index_q2_i32x8 = _mm256_setr_epi32(16, 17, 18, 19, 20, 21, 22, 23);
+    __m256i max_index_q3_i32x8 = _mm256_setr_epi32(24, 25, 26, 27, 28, 29, 30, 31);
+    __m256i current_index_q0_i32x8 = _mm256_setr_epi32(32, 33, 34, 35, 36, 37, 38, 39);
+    __m256i current_index_q1_i32x8 = _mm256_setr_epi32(40, 41, 42, 43, 44, 45, 46, 47);
+    __m256i current_index_q2_i32x8 = _mm256_setr_epi32(48, 49, 50, 51, 52, 53, 54, 55);
+    __m256i current_index_q3_i32x8 = _mm256_setr_epi32(56, 57, 58, 59, 60, 61, 62, 63);
+    __m256i step_i32x8 = _mm256_set1_epi32(32);
+
+    nk_size_t idx = 32;
     for (; idx + 32 <= count; idx += 32) {
         __m256i data_i8x32 = _mm256_loadu_si256((__m256i const *)(data + idx));
-        max_i8x32 = _mm256_max_epi8(max_i8x32, data_i8x32);
+        __m256i gt_mask_i8x32 = _mm256_cmpgt_epi8(data_i8x32, max_i8x32);
+        max_i8x32 = _mm256_blendv_epi8(max_i8x32, data_i8x32, gt_mask_i8x32);
+        __m128i mask_lo_i8x16 = _mm256_castsi256_si128(gt_mask_i8x32);
+        __m128i mask_hi_i8x16 = _mm256_extracti128_si256(gt_mask_i8x32, 1);
+        __m256i q0_mask_i32x8 = _mm256_cvtepi8_epi32(mask_lo_i8x16);
+        __m256i q1_mask_i32x8 = _mm256_cvtepi8_epi32(_mm_srli_si128(mask_lo_i8x16, 8));
+        __m256i q2_mask_i32x8 = _mm256_cvtepi8_epi32(mask_hi_i8x16);
+        __m256i q3_mask_i32x8 = _mm256_cvtepi8_epi32(_mm_srli_si128(mask_hi_i8x16, 8));
+        max_index_q0_i32x8 = _mm256_blendv_epi8(max_index_q0_i32x8, current_index_q0_i32x8, q0_mask_i32x8);
+        max_index_q1_i32x8 = _mm256_blendv_epi8(max_index_q1_i32x8, current_index_q1_i32x8, q1_mask_i32x8);
+        max_index_q2_i32x8 = _mm256_blendv_epi8(max_index_q2_i32x8, current_index_q2_i32x8, q2_mask_i32x8);
+        max_index_q3_i32x8 = _mm256_blendv_epi8(max_index_q3_i32x8, current_index_q3_i32x8, q3_mask_i32x8);
+        current_index_q0_i32x8 = _mm256_add_epi32(current_index_q0_i32x8, step_i32x8);
+        current_index_q1_i32x8 = _mm256_add_epi32(current_index_q1_i32x8, step_i32x8);
+        current_index_q2_i32x8 = _mm256_add_epi32(current_index_q2_i32x8, step_i32x8);
+        current_index_q3_i32x8 = _mm256_add_epi32(current_index_q3_i32x8, step_i32x8);
     }
+
     nk_i8_t max_val = nk_reduce_max_i8x32_haswell_(max_i8x32);
-    for (; idx < count; ++idx) max_val = data[idx] > max_val ? data[idx] : max_val;
-    for (idx = 0; idx < count; ++idx) {
-        if (data[idx] == max_val) {
-            *max_value = max_val;
-            *max_index = idx;
-            return;
+    nk_size_t max_idx = 0;
+    for (; idx < count; ++idx) {
+        if (data[idx] > max_val) {
+            max_val = data[idx];
+            max_idx = idx;
         }
     }
+
+    __m256i eq_mask_i8x32 = _mm256_cmpeq_epi8(max_i8x32, _mm256_set1_epi8(max_val));
+    int eq_bits = _mm256_movemask_epi8(eq_mask_i8x32);
+    if (eq_bits) {
+        unsigned int first_lane = _tzcnt_u32((unsigned int)eq_bits);
+        unsigned int quarter = first_lane / 8, pos = first_lane % 8;
+        nk_i32_t indices[8];
+        switch (quarter) {
+        case 0: _mm256_storeu_si256((__m256i *)indices, max_index_q0_i32x8); break;
+        case 1: _mm256_storeu_si256((__m256i *)indices, max_index_q1_i32x8); break;
+        case 2: _mm256_storeu_si256((__m256i *)indices, max_index_q2_i32x8); break;
+        default: _mm256_storeu_si256((__m256i *)indices, max_index_q3_i32x8); break;
+        }
+        nk_size_t vec_idx = (nk_size_t)indices[pos];
+        *max_index = (max_idx && max_idx < vec_idx) ? max_idx : vec_idx;
+    }
+    else { *max_index = max_idx; }
     *max_value = max_val;
-    *max_index = 0;
 }
 
 NK_INTERNAL void nk_reduce_min_u8_haswell_contiguous_( //
     nk_u8_t const *data, nk_size_t count, nk_u8_t *min_value, nk_size_t *min_index) {
-    __m256i min_u8x32 = _mm256_set1_epi8((char)255);
-    nk_size_t idx = 0;
+    // Single-pass: track both min value and index in SIMD
+    __m256i min_u8x32 = _mm256_loadu_si256((__m256i const *)data);
+    __m256i sign_flip_i8x32 = _mm256_set1_epi8((char)0x80);
+    __m256i min_index_q0_i32x8 = _mm256_setr_epi32(0, 1, 2, 3, 4, 5, 6, 7);
+    __m256i min_index_q1_i32x8 = _mm256_setr_epi32(8, 9, 10, 11, 12, 13, 14, 15);
+    __m256i min_index_q2_i32x8 = _mm256_setr_epi32(16, 17, 18, 19, 20, 21, 22, 23);
+    __m256i min_index_q3_i32x8 = _mm256_setr_epi32(24, 25, 26, 27, 28, 29, 30, 31);
+    __m256i current_index_q0_i32x8 = _mm256_setr_epi32(32, 33, 34, 35, 36, 37, 38, 39);
+    __m256i current_index_q1_i32x8 = _mm256_setr_epi32(40, 41, 42, 43, 44, 45, 46, 47);
+    __m256i current_index_q2_i32x8 = _mm256_setr_epi32(48, 49, 50, 51, 52, 53, 54, 55);
+    __m256i current_index_q3_i32x8 = _mm256_setr_epi32(56, 57, 58, 59, 60, 61, 62, 63);
+    __m256i step_i32x8 = _mm256_set1_epi32(32);
+
+    nk_size_t idx = 32;
     for (; idx + 32 <= count; idx += 32) {
         __m256i data_u8x32 = _mm256_loadu_si256((__m256i const *)(data + idx));
-        min_u8x32 = _mm256_min_epu8(min_u8x32, data_u8x32);
+        // Unsigned comparison via sign-flip: XOR with 0x80 then signed compare
+        __m256i lt_mask_i8x32 = _mm256_cmpgt_epi8( //
+            _mm256_xor_si256(min_u8x32, sign_flip_i8x32), _mm256_xor_si256(data_u8x32, sign_flip_i8x32));
+        min_u8x32 = _mm256_blendv_epi8(min_u8x32, data_u8x32, lt_mask_i8x32);
+        __m128i mask_lo_i8x16 = _mm256_castsi256_si128(lt_mask_i8x32);
+        __m128i mask_hi_i8x16 = _mm256_extracti128_si256(lt_mask_i8x32, 1);
+        __m256i q0_mask_i32x8 = _mm256_cvtepi8_epi32(mask_lo_i8x16);
+        __m256i q1_mask_i32x8 = _mm256_cvtepi8_epi32(_mm_srli_si128(mask_lo_i8x16, 8));
+        __m256i q2_mask_i32x8 = _mm256_cvtepi8_epi32(mask_hi_i8x16);
+        __m256i q3_mask_i32x8 = _mm256_cvtepi8_epi32(_mm_srli_si128(mask_hi_i8x16, 8));
+        min_index_q0_i32x8 = _mm256_blendv_epi8(min_index_q0_i32x8, current_index_q0_i32x8, q0_mask_i32x8);
+        min_index_q1_i32x8 = _mm256_blendv_epi8(min_index_q1_i32x8, current_index_q1_i32x8, q1_mask_i32x8);
+        min_index_q2_i32x8 = _mm256_blendv_epi8(min_index_q2_i32x8, current_index_q2_i32x8, q2_mask_i32x8);
+        min_index_q3_i32x8 = _mm256_blendv_epi8(min_index_q3_i32x8, current_index_q3_i32x8, q3_mask_i32x8);
+        current_index_q0_i32x8 = _mm256_add_epi32(current_index_q0_i32x8, step_i32x8);
+        current_index_q1_i32x8 = _mm256_add_epi32(current_index_q1_i32x8, step_i32x8);
+        current_index_q2_i32x8 = _mm256_add_epi32(current_index_q2_i32x8, step_i32x8);
+        current_index_q3_i32x8 = _mm256_add_epi32(current_index_q3_i32x8, step_i32x8);
     }
+
     nk_u8_t min_val = nk_reduce_min_u8x32_haswell_(min_u8x32);
-    for (; idx < count; ++idx) min_val = data[idx] < min_val ? data[idx] : min_val;
-    for (idx = 0; idx < count; ++idx) {
-        if (data[idx] == min_val) {
-            *min_value = min_val;
-            *min_index = idx;
-            return;
+    nk_size_t min_idx = 0;
+    for (; idx < count; ++idx) {
+        if (data[idx] < min_val) {
+            min_val = data[idx];
+            min_idx = idx;
         }
     }
+
+    __m256i eq_mask_i8x32 = _mm256_cmpeq_epi8(min_u8x32, _mm256_set1_epi8((char)min_val));
+    int eq_bits = _mm256_movemask_epi8(eq_mask_i8x32);
+    if (eq_bits) {
+        unsigned int first_lane = _tzcnt_u32((unsigned int)eq_bits);
+        unsigned int quarter = first_lane / 8, pos = first_lane % 8;
+        nk_i32_t indices[8];
+        switch (quarter) {
+        case 0: _mm256_storeu_si256((__m256i *)indices, min_index_q0_i32x8); break;
+        case 1: _mm256_storeu_si256((__m256i *)indices, min_index_q1_i32x8); break;
+        case 2: _mm256_storeu_si256((__m256i *)indices, min_index_q2_i32x8); break;
+        default: _mm256_storeu_si256((__m256i *)indices, min_index_q3_i32x8); break;
+        }
+        nk_size_t vec_idx = (nk_size_t)indices[pos];
+        *min_index = (min_idx && min_idx < vec_idx) ? min_idx : vec_idx;
+    }
+    else { *min_index = min_idx; }
     *min_value = min_val;
-    *min_index = 0;
 }
 
 NK_INTERNAL void nk_reduce_max_u8_haswell_contiguous_( //
     nk_u8_t const *data, nk_size_t count, nk_u8_t *max_value, nk_size_t *max_index) {
-    __m256i max_u8x32 = _mm256_setzero_si256();
-    nk_size_t idx = 0;
+    // Single-pass: track both max value and index in SIMD
+    __m256i max_u8x32 = _mm256_loadu_si256((__m256i const *)data);
+    __m256i sign_flip_i8x32 = _mm256_set1_epi8((char)0x80);
+    __m256i max_index_q0_i32x8 = _mm256_setr_epi32(0, 1, 2, 3, 4, 5, 6, 7);
+    __m256i max_index_q1_i32x8 = _mm256_setr_epi32(8, 9, 10, 11, 12, 13, 14, 15);
+    __m256i max_index_q2_i32x8 = _mm256_setr_epi32(16, 17, 18, 19, 20, 21, 22, 23);
+    __m256i max_index_q3_i32x8 = _mm256_setr_epi32(24, 25, 26, 27, 28, 29, 30, 31);
+    __m256i current_index_q0_i32x8 = _mm256_setr_epi32(32, 33, 34, 35, 36, 37, 38, 39);
+    __m256i current_index_q1_i32x8 = _mm256_setr_epi32(40, 41, 42, 43, 44, 45, 46, 47);
+    __m256i current_index_q2_i32x8 = _mm256_setr_epi32(48, 49, 50, 51, 52, 53, 54, 55);
+    __m256i current_index_q3_i32x8 = _mm256_setr_epi32(56, 57, 58, 59, 60, 61, 62, 63);
+    __m256i step_i32x8 = _mm256_set1_epi32(32);
+
+    nk_size_t idx = 32;
     for (; idx + 32 <= count; idx += 32) {
         __m256i data_u8x32 = _mm256_loadu_si256((__m256i const *)(data + idx));
-        max_u8x32 = _mm256_max_epu8(max_u8x32, data_u8x32);
+        // Unsigned comparison via sign-flip: data > max
+        __m256i gt_mask_i8x32 = _mm256_cmpgt_epi8( //
+            _mm256_xor_si256(data_u8x32, sign_flip_i8x32), _mm256_xor_si256(max_u8x32, sign_flip_i8x32));
+        max_u8x32 = _mm256_blendv_epi8(max_u8x32, data_u8x32, gt_mask_i8x32);
+        __m128i mask_lo_i8x16 = _mm256_castsi256_si128(gt_mask_i8x32);
+        __m128i mask_hi_i8x16 = _mm256_extracti128_si256(gt_mask_i8x32, 1);
+        __m256i q0_mask_i32x8 = _mm256_cvtepi8_epi32(mask_lo_i8x16);
+        __m256i q1_mask_i32x8 = _mm256_cvtepi8_epi32(_mm_srli_si128(mask_lo_i8x16, 8));
+        __m256i q2_mask_i32x8 = _mm256_cvtepi8_epi32(mask_hi_i8x16);
+        __m256i q3_mask_i32x8 = _mm256_cvtepi8_epi32(_mm_srli_si128(mask_hi_i8x16, 8));
+        max_index_q0_i32x8 = _mm256_blendv_epi8(max_index_q0_i32x8, current_index_q0_i32x8, q0_mask_i32x8);
+        max_index_q1_i32x8 = _mm256_blendv_epi8(max_index_q1_i32x8, current_index_q1_i32x8, q1_mask_i32x8);
+        max_index_q2_i32x8 = _mm256_blendv_epi8(max_index_q2_i32x8, current_index_q2_i32x8, q2_mask_i32x8);
+        max_index_q3_i32x8 = _mm256_blendv_epi8(max_index_q3_i32x8, current_index_q3_i32x8, q3_mask_i32x8);
+        current_index_q0_i32x8 = _mm256_add_epi32(current_index_q0_i32x8, step_i32x8);
+        current_index_q1_i32x8 = _mm256_add_epi32(current_index_q1_i32x8, step_i32x8);
+        current_index_q2_i32x8 = _mm256_add_epi32(current_index_q2_i32x8, step_i32x8);
+        current_index_q3_i32x8 = _mm256_add_epi32(current_index_q3_i32x8, step_i32x8);
     }
+
     nk_u8_t max_val = nk_reduce_max_u8x32_haswell_(max_u8x32);
-    for (; idx < count; ++idx) max_val = data[idx] > max_val ? data[idx] : max_val;
-    for (idx = 0; idx < count; ++idx) {
-        if (data[idx] == max_val) {
-            *max_value = max_val;
-            *max_index = idx;
-            return;
+    nk_size_t max_idx = 0;
+    for (; idx < count; ++idx) {
+        if (data[idx] > max_val) {
+            max_val = data[idx];
+            max_idx = idx;
         }
     }
+
+    __m256i eq_mask_i8x32 = _mm256_cmpeq_epi8(max_u8x32, _mm256_set1_epi8((char)max_val));
+    int eq_bits = _mm256_movemask_epi8(eq_mask_i8x32);
+    if (eq_bits) {
+        unsigned int first_lane = _tzcnt_u32((unsigned int)eq_bits);
+        unsigned int quarter = first_lane / 8, pos = first_lane % 8;
+        nk_i32_t indices[8];
+        switch (quarter) {
+        case 0: _mm256_storeu_si256((__m256i *)indices, max_index_q0_i32x8); break;
+        case 1: _mm256_storeu_si256((__m256i *)indices, max_index_q1_i32x8); break;
+        case 2: _mm256_storeu_si256((__m256i *)indices, max_index_q2_i32x8); break;
+        default: _mm256_storeu_si256((__m256i *)indices, max_index_q3_i32x8); break;
+        }
+        nk_size_t vec_idx = (nk_size_t)indices[pos];
+        *max_index = (max_idx && max_idx < vec_idx) ? max_idx : vec_idx;
+    }
+    else { *max_index = max_idx; }
     *max_value = max_val;
-    *max_index = 0;
 }
 
 NK_INTERNAL void nk_reduce_min_i16_haswell_contiguous_( //
     nk_i16_t const *data, nk_size_t count, nk_i16_t *min_value, nk_size_t *min_index) {
-    __m256i min_i16x16 = _mm256_set1_epi16(32767);
-    nk_size_t idx = 0;
+    // Single-pass: track both min value and index in SIMD
+    __m256i min_i16x16 = _mm256_loadu_si256((__m256i const *)data);
+    // 16 i16 lanes -> 2 index registers (8 i32 each)
+    __m256i min_index_lo_i32x8 = _mm256_setr_epi32(0, 1, 2, 3, 4, 5, 6, 7);
+    __m256i min_index_hi_i32x8 = _mm256_setr_epi32(8, 9, 10, 11, 12, 13, 14, 15);
+    __m256i current_index_lo_i32x8 = _mm256_setr_epi32(16, 17, 18, 19, 20, 21, 22, 23);
+    __m256i current_index_hi_i32x8 = _mm256_setr_epi32(24, 25, 26, 27, 28, 29, 30, 31);
+    __m256i step_i32x8 = _mm256_set1_epi32(16);
+
+    nk_size_t idx = 16;
     for (; idx + 16 <= count; idx += 16) {
         __m256i data_i16x16 = _mm256_loadu_si256((__m256i const *)(data + idx));
-        min_i16x16 = _mm256_min_epi16(min_i16x16, data_i16x16);
+        __m256i lt_mask_i16x16 = _mm256_cmpgt_epi16(min_i16x16, data_i16x16);
+        min_i16x16 = _mm256_blendv_epi8(min_i16x16, data_i16x16, lt_mask_i16x16);
+        // Sign-extend i16 mask -> i32 for index blending (2 halves)
+        __m256i lo_mask_i32x8 = _mm256_cvtepi16_epi32(_mm256_castsi256_si128(lt_mask_i16x16));
+        __m256i hi_mask_i32x8 = _mm256_cvtepi16_epi32(_mm256_extracti128_si256(lt_mask_i16x16, 1));
+        min_index_lo_i32x8 = _mm256_blendv_epi8(min_index_lo_i32x8, current_index_lo_i32x8, lo_mask_i32x8);
+        min_index_hi_i32x8 = _mm256_blendv_epi8(min_index_hi_i32x8, current_index_hi_i32x8, hi_mask_i32x8);
+        current_index_lo_i32x8 = _mm256_add_epi32(current_index_lo_i32x8, step_i32x8);
+        current_index_hi_i32x8 = _mm256_add_epi32(current_index_hi_i32x8, step_i32x8);
     }
+
     nk_i16_t min_val = nk_reduce_min_i16x16_haswell_(min_i16x16);
-    for (; idx < count; ++idx) min_val = data[idx] < min_val ? data[idx] : min_val;
-    for (idx = 0; idx < count; ++idx) {
-        if (data[idx] == min_val) {
-            *min_value = min_val;
-            *min_index = idx;
-            return;
+    nk_size_t min_idx = 0;
+    for (; idx < count; ++idx) {
+        if (data[idx] < min_val) {
+            min_val = data[idx];
+            min_idx = idx;
         }
     }
+
+    __m256i eq_mask_i16x16 = _mm256_cmpeq_epi16(min_i16x16, _mm256_set1_epi16(min_val));
+    int eq_bits = _mm256_movemask_epi8(eq_mask_i16x16);
+    if (eq_bits) {
+        unsigned int first_byte = _tzcnt_u32((unsigned int)eq_bits);
+        unsigned int lane = first_byte / 2; // 2 bytes per i16
+        nk_i32_t indices[8];
+        if (lane < 8) { _mm256_storeu_si256((__m256i *)indices, min_index_lo_i32x8); }
+        else {
+            _mm256_storeu_si256((__m256i *)indices, min_index_hi_i32x8);
+            lane -= 8;
+        }
+        nk_size_t vec_idx = (nk_size_t)indices[lane];
+        *min_index = (min_idx && min_idx < vec_idx) ? min_idx : vec_idx;
+    }
+    else { *min_index = min_idx; }
     *min_value = min_val;
-    *min_index = 0;
 }
 
 NK_INTERNAL void nk_reduce_max_i16_haswell_contiguous_( //
     nk_i16_t const *data, nk_size_t count, nk_i16_t *max_value, nk_size_t *max_index) {
-    __m256i max_i16x16 = _mm256_set1_epi16(-32768);
-    nk_size_t idx = 0;
+    // Single-pass: track both max value and index in SIMD
+    __m256i max_i16x16 = _mm256_loadu_si256((__m256i const *)data);
+    __m256i max_index_lo_i32x8 = _mm256_setr_epi32(0, 1, 2, 3, 4, 5, 6, 7);
+    __m256i max_index_hi_i32x8 = _mm256_setr_epi32(8, 9, 10, 11, 12, 13, 14, 15);
+    __m256i current_index_lo_i32x8 = _mm256_setr_epi32(16, 17, 18, 19, 20, 21, 22, 23);
+    __m256i current_index_hi_i32x8 = _mm256_setr_epi32(24, 25, 26, 27, 28, 29, 30, 31);
+    __m256i step_i32x8 = _mm256_set1_epi32(16);
+
+    nk_size_t idx = 16;
     for (; idx + 16 <= count; idx += 16) {
         __m256i data_i16x16 = _mm256_loadu_si256((__m256i const *)(data + idx));
-        max_i16x16 = _mm256_max_epi16(max_i16x16, data_i16x16);
+        __m256i gt_mask_i16x16 = _mm256_cmpgt_epi16(data_i16x16, max_i16x16);
+        max_i16x16 = _mm256_blendv_epi8(max_i16x16, data_i16x16, gt_mask_i16x16);
+        __m256i lo_mask_i32x8 = _mm256_cvtepi16_epi32(_mm256_castsi256_si128(gt_mask_i16x16));
+        __m256i hi_mask_i32x8 = _mm256_cvtepi16_epi32(_mm256_extracti128_si256(gt_mask_i16x16, 1));
+        max_index_lo_i32x8 = _mm256_blendv_epi8(max_index_lo_i32x8, current_index_lo_i32x8, lo_mask_i32x8);
+        max_index_hi_i32x8 = _mm256_blendv_epi8(max_index_hi_i32x8, current_index_hi_i32x8, hi_mask_i32x8);
+        current_index_lo_i32x8 = _mm256_add_epi32(current_index_lo_i32x8, step_i32x8);
+        current_index_hi_i32x8 = _mm256_add_epi32(current_index_hi_i32x8, step_i32x8);
     }
+
     nk_i16_t max_val = nk_reduce_max_i16x16_haswell_(max_i16x16);
-    for (; idx < count; ++idx) max_val = data[idx] > max_val ? data[idx] : max_val;
-    for (idx = 0; idx < count; ++idx) {
-        if (data[idx] == max_val) {
-            *max_value = max_val;
-            *max_index = idx;
-            return;
+    nk_size_t max_idx = 0;
+    for (; idx < count; ++idx) {
+        if (data[idx] > max_val) {
+            max_val = data[idx];
+            max_idx = idx;
         }
     }
+
+    __m256i eq_mask_i16x16 = _mm256_cmpeq_epi16(max_i16x16, _mm256_set1_epi16(max_val));
+    int eq_bits = _mm256_movemask_epi8(eq_mask_i16x16);
+    if (eq_bits) {
+        unsigned int first_byte = _tzcnt_u32((unsigned int)eq_bits);
+        unsigned int lane = first_byte / 2;
+        nk_i32_t indices[8];
+        if (lane < 8) { _mm256_storeu_si256((__m256i *)indices, max_index_lo_i32x8); }
+        else {
+            _mm256_storeu_si256((__m256i *)indices, max_index_hi_i32x8);
+            lane -= 8;
+        }
+        nk_size_t vec_idx = (nk_size_t)indices[lane];
+        *max_index = (max_idx && max_idx < vec_idx) ? max_idx : vec_idx;
+    }
+    else { *max_index = max_idx; }
     *max_value = max_val;
-    *max_index = 0;
 }
 
 NK_INTERNAL void nk_reduce_min_u16_haswell_contiguous_( //
     nk_u16_t const *data, nk_size_t count, nk_u16_t *min_value, nk_size_t *min_index) {
-    __m256i min_u16x16 = _mm256_set1_epi16((short)65535);
-    nk_size_t idx = 0;
+    // Single-pass: track both min value and index in SIMD
+    __m256i min_u16x16 = _mm256_loadu_si256((__m256i const *)data);
+    __m256i sign_flip_i16x16 = _mm256_set1_epi16((short)0x8000);
+    __m256i min_index_lo_i32x8 = _mm256_setr_epi32(0, 1, 2, 3, 4, 5, 6, 7);
+    __m256i min_index_hi_i32x8 = _mm256_setr_epi32(8, 9, 10, 11, 12, 13, 14, 15);
+    __m256i current_index_lo_i32x8 = _mm256_setr_epi32(16, 17, 18, 19, 20, 21, 22, 23);
+    __m256i current_index_hi_i32x8 = _mm256_setr_epi32(24, 25, 26, 27, 28, 29, 30, 31);
+    __m256i step_i32x8 = _mm256_set1_epi32(16);
+
+    nk_size_t idx = 16;
     for (; idx + 16 <= count; idx += 16) {
         __m256i data_u16x16 = _mm256_loadu_si256((__m256i const *)(data + idx));
-        min_u16x16 = _mm256_min_epu16(min_u16x16, data_u16x16);
+        // Unsigned comparison via sign-flip
+        __m256i lt_mask_i16x16 = _mm256_cmpgt_epi16( //
+            _mm256_xor_si256(min_u16x16, sign_flip_i16x16), _mm256_xor_si256(data_u16x16, sign_flip_i16x16));
+        min_u16x16 = _mm256_blendv_epi8(min_u16x16, data_u16x16, lt_mask_i16x16);
+        __m256i lo_mask_i32x8 = _mm256_cvtepi16_epi32(_mm256_castsi256_si128(lt_mask_i16x16));
+        __m256i hi_mask_i32x8 = _mm256_cvtepi16_epi32(_mm256_extracti128_si256(lt_mask_i16x16, 1));
+        min_index_lo_i32x8 = _mm256_blendv_epi8(min_index_lo_i32x8, current_index_lo_i32x8, lo_mask_i32x8);
+        min_index_hi_i32x8 = _mm256_blendv_epi8(min_index_hi_i32x8, current_index_hi_i32x8, hi_mask_i32x8);
+        current_index_lo_i32x8 = _mm256_add_epi32(current_index_lo_i32x8, step_i32x8);
+        current_index_hi_i32x8 = _mm256_add_epi32(current_index_hi_i32x8, step_i32x8);
     }
+
     nk_u16_t min_val = nk_reduce_min_u16x16_haswell_(min_u16x16);
-    for (; idx < count; ++idx) min_val = data[idx] < min_val ? data[idx] : min_val;
-    for (idx = 0; idx < count; ++idx) {
-        if (data[idx] == min_val) {
-            *min_value = min_val;
-            *min_index = idx;
-            return;
+    nk_size_t min_idx = 0;
+    for (; idx < count; ++idx) {
+        if (data[idx] < min_val) {
+            min_val = data[idx];
+            min_idx = idx;
         }
     }
+
+    __m256i eq_mask_i16x16 = _mm256_cmpeq_epi16(min_u16x16, _mm256_set1_epi16((short)min_val));
+    int eq_bits = _mm256_movemask_epi8(eq_mask_i16x16);
+    if (eq_bits) {
+        unsigned int first_byte = _tzcnt_u32((unsigned int)eq_bits);
+        unsigned int lane = first_byte / 2;
+        nk_i32_t indices[8];
+        if (lane < 8) { _mm256_storeu_si256((__m256i *)indices, min_index_lo_i32x8); }
+        else {
+            _mm256_storeu_si256((__m256i *)indices, min_index_hi_i32x8);
+            lane -= 8;
+        }
+        nk_size_t vec_idx = (nk_size_t)indices[lane];
+        *min_index = (min_idx && min_idx < vec_idx) ? min_idx : vec_idx;
+    }
+    else { *min_index = min_idx; }
     *min_value = min_val;
-    *min_index = 0;
 }
 
 NK_INTERNAL void nk_reduce_max_u16_haswell_contiguous_( //
     nk_u16_t const *data, nk_size_t count, nk_u16_t *max_value, nk_size_t *max_index) {
-    __m256i max_u16x16 = _mm256_setzero_si256();
-    nk_size_t idx = 0;
+    // Single-pass: track both max value and index in SIMD
+    __m256i max_u16x16 = _mm256_loadu_si256((__m256i const *)data);
+    __m256i sign_flip_i16x16 = _mm256_set1_epi16((short)0x8000);
+    __m256i max_index_lo_i32x8 = _mm256_setr_epi32(0, 1, 2, 3, 4, 5, 6, 7);
+    __m256i max_index_hi_i32x8 = _mm256_setr_epi32(8, 9, 10, 11, 12, 13, 14, 15);
+    __m256i current_index_lo_i32x8 = _mm256_setr_epi32(16, 17, 18, 19, 20, 21, 22, 23);
+    __m256i current_index_hi_i32x8 = _mm256_setr_epi32(24, 25, 26, 27, 28, 29, 30, 31);
+    __m256i step_i32x8 = _mm256_set1_epi32(16);
+
+    nk_size_t idx = 16;
     for (; idx + 16 <= count; idx += 16) {
         __m256i data_u16x16 = _mm256_loadu_si256((__m256i const *)(data + idx));
-        max_u16x16 = _mm256_max_epu16(max_u16x16, data_u16x16);
+        // Unsigned comparison via sign-flip: data > max
+        __m256i gt_mask_i16x16 = _mm256_cmpgt_epi16( //
+            _mm256_xor_si256(data_u16x16, sign_flip_i16x16), _mm256_xor_si256(max_u16x16, sign_flip_i16x16));
+        max_u16x16 = _mm256_blendv_epi8(max_u16x16, data_u16x16, gt_mask_i16x16);
+        __m256i lo_mask_i32x8 = _mm256_cvtepi16_epi32(_mm256_castsi256_si128(gt_mask_i16x16));
+        __m256i hi_mask_i32x8 = _mm256_cvtepi16_epi32(_mm256_extracti128_si256(gt_mask_i16x16, 1));
+        max_index_lo_i32x8 = _mm256_blendv_epi8(max_index_lo_i32x8, current_index_lo_i32x8, lo_mask_i32x8);
+        max_index_hi_i32x8 = _mm256_blendv_epi8(max_index_hi_i32x8, current_index_hi_i32x8, hi_mask_i32x8);
+        current_index_lo_i32x8 = _mm256_add_epi32(current_index_lo_i32x8, step_i32x8);
+        current_index_hi_i32x8 = _mm256_add_epi32(current_index_hi_i32x8, step_i32x8);
     }
+
     nk_u16_t max_val = nk_reduce_max_u16x16_haswell_(max_u16x16);
-    for (; idx < count; ++idx) max_val = data[idx] > max_val ? data[idx] : max_val;
-    for (idx = 0; idx < count; ++idx) {
-        if (data[idx] == max_val) {
-            *max_value = max_val;
-            *max_index = idx;
-            return;
+    nk_size_t max_idx = 0;
+    for (; idx < count; ++idx) {
+        if (data[idx] > max_val) {
+            max_val = data[idx];
+            max_idx = idx;
         }
     }
+
+    __m256i eq_mask_i16x16 = _mm256_cmpeq_epi16(max_u16x16, _mm256_set1_epi16((short)max_val));
+    int eq_bits = _mm256_movemask_epi8(eq_mask_i16x16);
+    if (eq_bits) {
+        unsigned int first_byte = _tzcnt_u32((unsigned int)eq_bits);
+        unsigned int lane = first_byte / 2;
+        nk_i32_t indices[8];
+        if (lane < 8) { _mm256_storeu_si256((__m256i *)indices, max_index_lo_i32x8); }
+        else {
+            _mm256_storeu_si256((__m256i *)indices, max_index_hi_i32x8);
+            lane -= 8;
+        }
+        nk_size_t vec_idx = (nk_size_t)indices[lane];
+        *max_index = (max_idx && max_idx < vec_idx) ? max_idx : vec_idx;
+    }
+    else { *max_index = max_idx; }
     *max_value = max_val;
-    *max_index = 0;
 }
 
 NK_INTERNAL void nk_reduce_min_i32_haswell_contiguous_( //
     nk_i32_t const *data, nk_size_t count, nk_i32_t *min_value, nk_size_t *min_index) {
-    __m256i min_i32x8 = _mm256_set1_epi32(0x7FFFFFFF);
-    nk_size_t idx = 0;
+    // Single-pass: track both min value and index in SIMD
+    __m256i min_i32x8 = _mm256_loadu_si256((__m256i const *)data);
+    __m256i min_index_i32x8 = _mm256_setr_epi32(0, 1, 2, 3, 4, 5, 6, 7);
+    __m256i current_index_i32x8 = _mm256_setr_epi32(8, 9, 10, 11, 12, 13, 14, 15);
+    __m256i step_i32x8 = _mm256_set1_epi32(8);
+
+    nk_size_t idx = 8;
     for (; idx + 8 <= count; idx += 8) {
         __m256i data_i32x8 = _mm256_loadu_si256((__m256i const *)(data + idx));
-        min_i32x8 = _mm256_min_epi32(min_i32x8, data_i32x8);
+        __m256i lt_mask_i32x8 = _mm256_cmpgt_epi32(min_i32x8, data_i32x8);
+        min_i32x8 = _mm256_blendv_epi8(min_i32x8, data_i32x8, lt_mask_i32x8);
+        min_index_i32x8 = _mm256_blendv_epi8(min_index_i32x8, current_index_i32x8, lt_mask_i32x8);
+        current_index_i32x8 = _mm256_add_epi32(current_index_i32x8, step_i32x8);
     }
+
     nk_i32_t min_val = nk_reduce_min_i32x8_haswell_(min_i32x8);
-    for (; idx < count; ++idx) min_val = data[idx] < min_val ? data[idx] : min_val;
-    for (idx = 0; idx < count; ++idx) {
-        if (data[idx] == min_val) {
-            *min_value = min_val;
-            *min_index = idx;
-            return;
+    nk_size_t min_idx = 0;
+    for (; idx < count; ++idx) {
+        if (data[idx] < min_val) {
+            min_val = data[idx];
+            min_idx = idx;
         }
     }
+
+    __m256i eq_mask_i32x8 = _mm256_cmpeq_epi32(min_i32x8, _mm256_set1_epi32(min_val));
+    int eq_bits = _mm256_movemask_epi8(eq_mask_i32x8);
+    if (eq_bits) {
+        unsigned int first_byte = _tzcnt_u32((unsigned int)eq_bits);
+        unsigned int lane = first_byte / 4; // 4 bytes per i32
+        nk_i32_t indices[8];
+        _mm256_storeu_si256((__m256i *)indices, min_index_i32x8);
+        nk_size_t vec_idx = (nk_size_t)indices[lane];
+        *min_index = (min_idx && min_idx < vec_idx) ? min_idx : vec_idx;
+    }
+    else { *min_index = min_idx; }
     *min_value = min_val;
-    *min_index = 0;
 }
 
 NK_INTERNAL void nk_reduce_max_i32_haswell_contiguous_( //
     nk_i32_t const *data, nk_size_t count, nk_i32_t *max_value, nk_size_t *max_index) {
-    __m256i max_i32x8 = _mm256_set1_epi32((nk_i32_t)0x80000000);
-    nk_size_t idx = 0;
+    // Single-pass: track both max value and index in SIMD
+    __m256i max_i32x8 = _mm256_loadu_si256((__m256i const *)data);
+    __m256i max_index_i32x8 = _mm256_setr_epi32(0, 1, 2, 3, 4, 5, 6, 7);
+    __m256i current_index_i32x8 = _mm256_setr_epi32(8, 9, 10, 11, 12, 13, 14, 15);
+    __m256i step_i32x8 = _mm256_set1_epi32(8);
+
+    nk_size_t idx = 8;
     for (; idx + 8 <= count; idx += 8) {
         __m256i data_i32x8 = _mm256_loadu_si256((__m256i const *)(data + idx));
-        max_i32x8 = _mm256_max_epi32(max_i32x8, data_i32x8);
+        __m256i gt_mask_i32x8 = _mm256_cmpgt_epi32(data_i32x8, max_i32x8);
+        max_i32x8 = _mm256_blendv_epi8(max_i32x8, data_i32x8, gt_mask_i32x8);
+        max_index_i32x8 = _mm256_blendv_epi8(max_index_i32x8, current_index_i32x8, gt_mask_i32x8);
+        current_index_i32x8 = _mm256_add_epi32(current_index_i32x8, step_i32x8);
     }
+
     nk_i32_t max_val = nk_reduce_max_i32x8_haswell_(max_i32x8);
-    for (; idx < count; ++idx) max_val = data[idx] > max_val ? data[idx] : max_val;
-    for (idx = 0; idx < count; ++idx) {
-        if (data[idx] == max_val) {
-            *max_value = max_val;
-            *max_index = idx;
-            return;
+    nk_size_t max_idx = 0;
+    for (; idx < count; ++idx) {
+        if (data[idx] > max_val) {
+            max_val = data[idx];
+            max_idx = idx;
         }
     }
+
+    __m256i eq_mask_i32x8 = _mm256_cmpeq_epi32(max_i32x8, _mm256_set1_epi32(max_val));
+    int eq_bits = _mm256_movemask_epi8(eq_mask_i32x8);
+    if (eq_bits) {
+        unsigned int first_byte = _tzcnt_u32((unsigned int)eq_bits);
+        unsigned int lane = first_byte / 4;
+        nk_i32_t indices[8];
+        _mm256_storeu_si256((__m256i *)indices, max_index_i32x8);
+        nk_size_t vec_idx = (nk_size_t)indices[lane];
+        *max_index = (max_idx && max_idx < vec_idx) ? max_idx : vec_idx;
+    }
+    else { *max_index = max_idx; }
     *max_value = max_val;
-    *max_index = 0;
 }
 
 NK_INTERNAL void nk_reduce_min_u32_haswell_contiguous_( //
     nk_u32_t const *data, nk_size_t count, nk_u32_t *min_value, nk_size_t *min_index) {
-    __m256i min_u32x8 = _mm256_set1_epi32((nk_i32_t)0xFFFFFFFF);
-    nk_size_t idx = 0;
+    // Single-pass: track both min value and index in SIMD
+    __m256i min_u32x8 = _mm256_loadu_si256((__m256i const *)data);
+    __m256i sign_flip_i32x8 = _mm256_set1_epi32((int)0x80000000);
+    __m256i min_index_i32x8 = _mm256_setr_epi32(0, 1, 2, 3, 4, 5, 6, 7);
+    __m256i current_index_i32x8 = _mm256_setr_epi32(8, 9, 10, 11, 12, 13, 14, 15);
+    __m256i step_i32x8 = _mm256_set1_epi32(8);
+
+    nk_size_t idx = 8;
     for (; idx + 8 <= count; idx += 8) {
         __m256i data_u32x8 = _mm256_loadu_si256((__m256i const *)(data + idx));
-        min_u32x8 = _mm256_min_epu32(min_u32x8, data_u32x8);
+        // Unsigned comparison via sign-flip
+        __m256i lt_mask_i32x8 = _mm256_cmpgt_epi32( //
+            _mm256_xor_si256(min_u32x8, sign_flip_i32x8), _mm256_xor_si256(data_u32x8, sign_flip_i32x8));
+        min_u32x8 = _mm256_blendv_epi8(min_u32x8, data_u32x8, lt_mask_i32x8);
+        min_index_i32x8 = _mm256_blendv_epi8(min_index_i32x8, current_index_i32x8, lt_mask_i32x8);
+        current_index_i32x8 = _mm256_add_epi32(current_index_i32x8, step_i32x8);
     }
+
     nk_u32_t min_val = nk_reduce_min_u32x8_haswell_(min_u32x8);
-    for (; idx < count; ++idx) min_val = data[idx] < min_val ? data[idx] : min_val;
-    for (idx = 0; idx < count; ++idx) {
-        if (data[idx] == min_val) {
-            *min_value = min_val;
-            *min_index = idx;
-            return;
+    nk_size_t min_idx = 0;
+    for (; idx < count; ++idx) {
+        if (data[idx] < min_val) {
+            min_val = data[idx];
+            min_idx = idx;
         }
     }
+
+    __m256i eq_mask_i32x8 = _mm256_cmpeq_epi32(min_u32x8, _mm256_set1_epi32((nk_i32_t)min_val));
+    int eq_bits = _mm256_movemask_epi8(eq_mask_i32x8);
+    if (eq_bits) {
+        unsigned int first_byte = _tzcnt_u32((unsigned int)eq_bits);
+        unsigned int lane = first_byte / 4;
+        nk_i32_t indices[8];
+        _mm256_storeu_si256((__m256i *)indices, min_index_i32x8);
+        nk_size_t vec_idx = (nk_size_t)indices[lane];
+        *min_index = (min_idx && min_idx < vec_idx) ? min_idx : vec_idx;
+    }
+    else { *min_index = min_idx; }
     *min_value = min_val;
-    *min_index = 0;
 }
 
 NK_INTERNAL void nk_reduce_max_u32_haswell_contiguous_( //
     nk_u32_t const *data, nk_size_t count, nk_u32_t *max_value, nk_size_t *max_index) {
-    __m256i max_u32x8 = _mm256_setzero_si256();
-    nk_size_t idx = 0;
+    // Single-pass: track both max value and index in SIMD
+    __m256i max_u32x8 = _mm256_loadu_si256((__m256i const *)data);
+    __m256i sign_flip_i32x8 = _mm256_set1_epi32((int)0x80000000);
+    __m256i max_index_i32x8 = _mm256_setr_epi32(0, 1, 2, 3, 4, 5, 6, 7);
+    __m256i current_index_i32x8 = _mm256_setr_epi32(8, 9, 10, 11, 12, 13, 14, 15);
+    __m256i step_i32x8 = _mm256_set1_epi32(8);
+
+    nk_size_t idx = 8;
     for (; idx + 8 <= count; idx += 8) {
         __m256i data_u32x8 = _mm256_loadu_si256((__m256i const *)(data + idx));
-        max_u32x8 = _mm256_max_epu32(max_u32x8, data_u32x8);
+        // Unsigned comparison via sign-flip: data > max
+        __m256i gt_mask_i32x8 = _mm256_cmpgt_epi32( //
+            _mm256_xor_si256(data_u32x8, sign_flip_i32x8), _mm256_xor_si256(max_u32x8, sign_flip_i32x8));
+        max_u32x8 = _mm256_blendv_epi8(max_u32x8, data_u32x8, gt_mask_i32x8);
+        max_index_i32x8 = _mm256_blendv_epi8(max_index_i32x8, current_index_i32x8, gt_mask_i32x8);
+        current_index_i32x8 = _mm256_add_epi32(current_index_i32x8, step_i32x8);
     }
+
     nk_u32_t max_val = nk_reduce_max_u32x8_haswell_(max_u32x8);
-    for (; idx < count; ++idx) max_val = data[idx] > max_val ? data[idx] : max_val;
-    for (idx = 0; idx < count; ++idx) {
-        if (data[idx] == max_val) {
-            *max_value = max_val;
-            *max_index = idx;
-            return;
+    nk_size_t max_idx = 0;
+    for (; idx < count; ++idx) {
+        if (data[idx] > max_val) {
+            max_val = data[idx];
+            max_idx = idx;
         }
     }
+
+    __m256i eq_mask_i32x8 = _mm256_cmpeq_epi32(max_u32x8, _mm256_set1_epi32((nk_i32_t)max_val));
+    int eq_bits = _mm256_movemask_epi8(eq_mask_i32x8);
+    if (eq_bits) {
+        unsigned int first_byte = _tzcnt_u32((unsigned int)eq_bits);
+        unsigned int lane = first_byte / 4;
+        nk_i32_t indices[8];
+        _mm256_storeu_si256((__m256i *)indices, max_index_i32x8);
+        nk_size_t vec_idx = (nk_size_t)indices[lane];
+        *max_index = (max_idx && max_idx < vec_idx) ? max_idx : vec_idx;
+    }
+    else { *max_index = max_idx; }
     *max_value = max_val;
-    *max_index = 0;
 }
 
 NK_INTERNAL void nk_reduce_min_i64_haswell_contiguous_( //
     nk_i64_t const *data, nk_size_t count, nk_i64_t *min_value, nk_size_t *min_index) {
-    __m256i min_i64x4 = _mm256_set1_epi64x(0x7FFFFFFFFFFFFFFFLL);
-    __m128i sign_bit_i64 = _mm_set1_epi64x((nk_i64_t)0x8000000000000000ull);
-    nk_size_t idx = 0;
+    // Single-pass: track both min value and index in SIMD
+    __m256i min_i64x4 = _mm256_loadu_si256((__m256i const *)data);
+    __m256i min_index_i64x4 = _mm256_setr_epi64x(0, 1, 2, 3);
+    __m256i current_index_i64x4 = _mm256_setr_epi64x(4, 5, 6, 7);
+    __m256i step_i64x4 = _mm256_set1_epi64x(4);
+
+    nk_size_t idx = 4;
     for (; idx + 4 <= count; idx += 4) {
         __m256i data_i64x4 = _mm256_loadu_si256((__m256i const *)(data + idx));
-        // Manual 64-bit signed min using comparison
-        __m128i lo_data_i64x2 = _mm256_castsi256_si128(data_i64x4);
-        __m128i hi_data_i64x2 = _mm256_extracti128_si256(data_i64x4, 1);
-        __m128i lo_min_i64x2 = _mm256_castsi256_si128(min_i64x4);
-        __m128i hi_min_i64x2 = _mm256_extracti128_si256(min_i64x4, 1);
-        __m128i lo_cmp = _mm_cmpgt_epi64(lo_min_i64x2, lo_data_i64x2);
-        __m128i hi_cmp = _mm_cmpgt_epi64(hi_min_i64x2, hi_data_i64x2);
-        lo_min_i64x2 = _mm_blendv_epi8(lo_min_i64x2, lo_data_i64x2, lo_cmp);
-        hi_min_i64x2 = _mm_blendv_epi8(hi_min_i64x2, hi_data_i64x2, hi_cmp);
-        min_i64x4 = _mm256_setr_m128i(lo_min_i64x2, hi_min_i64x2);
+        // Manual 64-bit signed comparison using 128-bit halves
+        __m128i lo_data = _mm256_castsi256_si128(data_i64x4);
+        __m128i hi_data = _mm256_extracti128_si256(data_i64x4, 1);
+        __m128i lo_min = _mm256_castsi256_si128(min_i64x4);
+        __m128i hi_min = _mm256_extracti128_si256(min_i64x4, 1);
+        __m128i lo_cmp = _mm_cmpgt_epi64(lo_min, lo_data);
+        __m128i hi_cmp = _mm_cmpgt_epi64(hi_min, hi_data);
+        lo_min = _mm_blendv_epi8(lo_min, lo_data, lo_cmp);
+        hi_min = _mm_blendv_epi8(hi_min, hi_data, hi_cmp);
+        min_i64x4 = _mm256_setr_m128i(lo_min, hi_min);
+        // Blend indices
+        __m128i lo_min_idx = _mm256_castsi256_si128(min_index_i64x4);
+        __m128i hi_min_idx = _mm256_extracti128_si256(min_index_i64x4, 1);
+        __m128i lo_cur_idx = _mm256_castsi256_si128(current_index_i64x4);
+        __m128i hi_cur_idx = _mm256_extracti128_si256(current_index_i64x4, 1);
+        lo_min_idx = _mm_blendv_epi8(lo_min_idx, lo_cur_idx, lo_cmp);
+        hi_min_idx = _mm_blendv_epi8(hi_min_idx, hi_cur_idx, hi_cmp);
+        min_index_i64x4 = _mm256_setr_m128i(lo_min_idx, hi_min_idx);
+        current_index_i64x4 = _mm256_add_epi64(current_index_i64x4, step_i64x4);
     }
+
     nk_i64_t min_val = nk_reduce_min_i64x4_haswell_(min_i64x4);
-    for (; idx < count; ++idx) min_val = data[idx] < min_val ? data[idx] : min_val;
-    for (idx = 0; idx < count; ++idx) {
-        if (data[idx] == min_val) {
-            *min_value = min_val;
-            *min_index = idx;
-            return;
+    nk_size_t min_idx = 0;
+    for (; idx < count; ++idx) {
+        if (data[idx] < min_val) {
+            min_val = data[idx];
+            min_idx = idx;
         }
     }
+
+    // Find winning lane: compare each i64 lane for equality
+    __m256i eq_val = _mm256_set1_epi64x(min_val);
+    __m128i lo_eq = _mm_cmpeq_epi64(_mm256_castsi256_si128(min_i64x4), _mm256_castsi256_si128(eq_val));
+    __m128i hi_eq = _mm_cmpeq_epi64(_mm256_extracti128_si256(min_i64x4, 1), _mm256_extracti128_si256(eq_val, 1));
+    __m256i eq_mask_i64x4 = _mm256_setr_m128i(lo_eq, hi_eq);
+    int eq_bits = _mm256_movemask_epi8(eq_mask_i64x4);
+    if (eq_bits) {
+        unsigned int first_byte = _tzcnt_u32((unsigned int)eq_bits);
+        unsigned int lane = first_byte / 8; // 8 bytes per i64
+        nk_i64_t indices[4];
+        _mm256_storeu_si256((__m256i *)indices, min_index_i64x4);
+        nk_size_t vec_idx = (nk_size_t)indices[lane];
+        *min_index = (min_idx && min_idx < vec_idx) ? min_idx : vec_idx;
+    }
+    else { *min_index = min_idx; }
     *min_value = min_val;
-    *min_index = 0;
 }
 
 NK_INTERNAL void nk_reduce_max_i64_haswell_contiguous_( //
     nk_i64_t const *data, nk_size_t count, nk_i64_t *max_value, nk_size_t *max_index) {
-    __m256i max_i64x4 = _mm256_set1_epi64x((nk_i64_t)0x8000000000000000LL);
-    nk_size_t idx = 0;
+    // Single-pass: track both max value and index in SIMD
+    __m256i max_i64x4 = _mm256_loadu_si256((__m256i const *)data);
+    __m256i max_index_i64x4 = _mm256_setr_epi64x(0, 1, 2, 3);
+    __m256i current_index_i64x4 = _mm256_setr_epi64x(4, 5, 6, 7);
+    __m256i step_i64x4 = _mm256_set1_epi64x(4);
+
+    nk_size_t idx = 4;
     for (; idx + 4 <= count; idx += 4) {
         __m256i data_i64x4 = _mm256_loadu_si256((__m256i const *)(data + idx));
-        __m128i lo_data_i64x2 = _mm256_castsi256_si128(data_i64x4);
-        __m128i hi_data_i64x2 = _mm256_extracti128_si256(data_i64x4, 1);
-        __m128i lo_max_i64x2 = _mm256_castsi256_si128(max_i64x4);
-        __m128i hi_max_i64x2 = _mm256_extracti128_si256(max_i64x4, 1);
-        __m128i lo_cmp = _mm_cmpgt_epi64(lo_data_i64x2, lo_max_i64x2);
-        __m128i hi_cmp = _mm_cmpgt_epi64(hi_data_i64x2, hi_max_i64x2);
-        lo_max_i64x2 = _mm_blendv_epi8(lo_max_i64x2, lo_data_i64x2, lo_cmp);
-        hi_max_i64x2 = _mm_blendv_epi8(hi_max_i64x2, hi_data_i64x2, hi_cmp);
-        max_i64x4 = _mm256_setr_m128i(lo_max_i64x2, hi_max_i64x2);
+        __m128i lo_data = _mm256_castsi256_si128(data_i64x4);
+        __m128i hi_data = _mm256_extracti128_si256(data_i64x4, 1);
+        __m128i lo_max = _mm256_castsi256_si128(max_i64x4);
+        __m128i hi_max = _mm256_extracti128_si256(max_i64x4, 1);
+        __m128i lo_cmp = _mm_cmpgt_epi64(lo_data, lo_max);
+        __m128i hi_cmp = _mm_cmpgt_epi64(hi_data, hi_max);
+        lo_max = _mm_blendv_epi8(lo_max, lo_data, lo_cmp);
+        hi_max = _mm_blendv_epi8(hi_max, hi_data, hi_cmp);
+        max_i64x4 = _mm256_setr_m128i(lo_max, hi_max);
+        __m128i lo_max_idx = _mm256_castsi256_si128(max_index_i64x4);
+        __m128i hi_max_idx = _mm256_extracti128_si256(max_index_i64x4, 1);
+        __m128i lo_cur_idx = _mm256_castsi256_si128(current_index_i64x4);
+        __m128i hi_cur_idx = _mm256_extracti128_si256(current_index_i64x4, 1);
+        lo_max_idx = _mm_blendv_epi8(lo_max_idx, lo_cur_idx, lo_cmp);
+        hi_max_idx = _mm_blendv_epi8(hi_max_idx, hi_cur_idx, hi_cmp);
+        max_index_i64x4 = _mm256_setr_m128i(lo_max_idx, hi_max_idx);
+        current_index_i64x4 = _mm256_add_epi64(current_index_i64x4, step_i64x4);
     }
+
     nk_i64_t max_val = nk_reduce_max_i64x4_haswell_(max_i64x4);
-    for (; idx < count; ++idx) max_val = data[idx] > max_val ? data[idx] : max_val;
-    for (idx = 0; idx < count; ++idx) {
-        if (data[idx] == max_val) {
-            *max_value = max_val;
-            *max_index = idx;
-            return;
+    nk_size_t max_idx = 0;
+    for (; idx < count; ++idx) {
+        if (data[idx] > max_val) {
+            max_val = data[idx];
+            max_idx = idx;
         }
     }
+
+    __m256i eq_val = _mm256_set1_epi64x(max_val);
+    __m128i lo_eq = _mm_cmpeq_epi64(_mm256_castsi256_si128(max_i64x4), _mm256_castsi256_si128(eq_val));
+    __m128i hi_eq = _mm_cmpeq_epi64(_mm256_extracti128_si256(max_i64x4, 1), _mm256_extracti128_si256(eq_val, 1));
+    __m256i eq_mask_i64x4 = _mm256_setr_m128i(lo_eq, hi_eq);
+    int eq_bits = _mm256_movemask_epi8(eq_mask_i64x4);
+    if (eq_bits) {
+        unsigned int first_byte = _tzcnt_u32((unsigned int)eq_bits);
+        unsigned int lane = first_byte / 8;
+        nk_i64_t indices[4];
+        _mm256_storeu_si256((__m256i *)indices, max_index_i64x4);
+        nk_size_t vec_idx = (nk_size_t)indices[lane];
+        *max_index = (max_idx && max_idx < vec_idx) ? max_idx : vec_idx;
+    }
+    else { *max_index = max_idx; }
     *max_value = max_val;
-    *max_index = 0;
 }
 
 NK_INTERNAL void nk_reduce_min_u64_haswell_contiguous_( //
     nk_u64_t const *data, nk_size_t count, nk_u64_t *min_value, nk_size_t *min_index) {
-    __m256i min_u64x4 = _mm256_set1_epi64x((nk_i64_t)0xFFFFFFFFFFFFFFFFULL);
+    // Single-pass: track both min value and index in SIMD
+    __m256i min_u64x4 = _mm256_loadu_si256((__m256i const *)data);
     __m128i sign_bit_i64 = _mm_set1_epi64x((nk_i64_t)0x8000000000000000ull);
-    nk_size_t idx = 0;
+    __m256i min_index_i64x4 = _mm256_setr_epi64x(0, 1, 2, 3);
+    __m256i current_index_i64x4 = _mm256_setr_epi64x(4, 5, 6, 7);
+    __m256i step_i64x4 = _mm256_set1_epi64x(4);
+
+    nk_size_t idx = 4;
     for (; idx + 4 <= count; idx += 4) {
         __m256i data_u64x4 = _mm256_loadu_si256((__m256i const *)(data + idx));
         // Unsigned comparison via XOR with sign bit
-        __m128i lo_data_u64x2 = _mm256_castsi256_si128(data_u64x4);
-        __m128i hi_data_u64x2 = _mm256_extracti128_si256(data_u64x4, 1);
-        __m128i lo_min_u64x2 = _mm256_castsi256_si128(min_u64x4);
-        __m128i hi_min_u64x2 = _mm256_extracti128_si256(min_u64x4, 1);
-        __m128i lo_cmp = _mm_cmpgt_epi64(_mm_xor_si128(lo_min_u64x2, sign_bit_i64),
-                                         _mm_xor_si128(lo_data_u64x2, sign_bit_i64));
-        __m128i hi_cmp = _mm_cmpgt_epi64(_mm_xor_si128(hi_min_u64x2, sign_bit_i64),
-                                         _mm_xor_si128(hi_data_u64x2, sign_bit_i64));
-        lo_min_u64x2 = _mm_blendv_epi8(lo_min_u64x2, lo_data_u64x2, lo_cmp);
-        hi_min_u64x2 = _mm_blendv_epi8(hi_min_u64x2, hi_data_u64x2, hi_cmp);
-        min_u64x4 = _mm256_setr_m128i(lo_min_u64x2, hi_min_u64x2);
+        __m128i lo_data = _mm256_castsi256_si128(data_u64x4);
+        __m128i hi_data = _mm256_extracti128_si256(data_u64x4, 1);
+        __m128i lo_min = _mm256_castsi256_si128(min_u64x4);
+        __m128i hi_min = _mm256_extracti128_si256(min_u64x4, 1);
+        __m128i lo_cmp = _mm_cmpgt_epi64(_mm_xor_si128(lo_min, sign_bit_i64), _mm_xor_si128(lo_data, sign_bit_i64));
+        __m128i hi_cmp = _mm_cmpgt_epi64(_mm_xor_si128(hi_min, sign_bit_i64), _mm_xor_si128(hi_data, sign_bit_i64));
+        lo_min = _mm_blendv_epi8(lo_min, lo_data, lo_cmp);
+        hi_min = _mm_blendv_epi8(hi_min, hi_data, hi_cmp);
+        min_u64x4 = _mm256_setr_m128i(lo_min, hi_min);
+        __m128i lo_min_idx = _mm256_castsi256_si128(min_index_i64x4);
+        __m128i hi_min_idx = _mm256_extracti128_si256(min_index_i64x4, 1);
+        __m128i lo_cur_idx = _mm256_castsi256_si128(current_index_i64x4);
+        __m128i hi_cur_idx = _mm256_extracti128_si256(current_index_i64x4, 1);
+        lo_min_idx = _mm_blendv_epi8(lo_min_idx, lo_cur_idx, lo_cmp);
+        hi_min_idx = _mm_blendv_epi8(hi_min_idx, hi_cur_idx, hi_cmp);
+        min_index_i64x4 = _mm256_setr_m128i(lo_min_idx, hi_min_idx);
+        current_index_i64x4 = _mm256_add_epi64(current_index_i64x4, step_i64x4);
     }
+
     nk_u64_t min_val = nk_reduce_min_u64x4_haswell_(min_u64x4);
-    for (; idx < count; ++idx) min_val = data[idx] < min_val ? data[idx] : min_val;
-    for (idx = 0; idx < count; ++idx) {
-        if (data[idx] == min_val) {
-            *min_value = min_val;
-            *min_index = idx;
-            return;
+    nk_size_t min_idx = 0;
+    for (; idx < count; ++idx) {
+        if (data[idx] < min_val) {
+            min_val = data[idx];
+            min_idx = idx;
         }
     }
+
+    __m256i eq_val = _mm256_set1_epi64x((nk_i64_t)min_val);
+    __m128i lo_eq = _mm_cmpeq_epi64(_mm256_castsi256_si128(min_u64x4), _mm256_castsi256_si128(eq_val));
+    __m128i hi_eq = _mm_cmpeq_epi64(_mm256_extracti128_si256(min_u64x4, 1), _mm256_extracti128_si256(eq_val, 1));
+    __m256i eq_mask_i64x4 = _mm256_setr_m128i(lo_eq, hi_eq);
+    int eq_bits = _mm256_movemask_epi8(eq_mask_i64x4);
+    if (eq_bits) {
+        unsigned int first_byte = _tzcnt_u32((unsigned int)eq_bits);
+        unsigned int lane = first_byte / 8;
+        nk_i64_t indices[4];
+        _mm256_storeu_si256((__m256i *)indices, min_index_i64x4);
+        nk_size_t vec_idx = (nk_size_t)indices[lane];
+        *min_index = (min_idx && min_idx < vec_idx) ? min_idx : vec_idx;
+    }
+    else { *min_index = min_idx; }
     *min_value = min_val;
-    *min_index = 0;
 }
 
 NK_INTERNAL void nk_reduce_max_u64_haswell_contiguous_( //
     nk_u64_t const *data, nk_size_t count, nk_u64_t *max_value, nk_size_t *max_index) {
-    __m256i max_u64x4 = _mm256_setzero_si256();
+    // Single-pass: track both max value and index in SIMD
+    __m256i max_u64x4 = _mm256_loadu_si256((__m256i const *)data);
     __m128i sign_bit_i64 = _mm_set1_epi64x((nk_i64_t)0x8000000000000000ull);
-    nk_size_t idx = 0;
+    __m256i max_index_i64x4 = _mm256_setr_epi64x(0, 1, 2, 3);
+    __m256i current_index_i64x4 = _mm256_setr_epi64x(4, 5, 6, 7);
+    __m256i step_i64x4 = _mm256_set1_epi64x(4);
+
+    nk_size_t idx = 4;
     for (; idx + 4 <= count; idx += 4) {
         __m256i data_u64x4 = _mm256_loadu_si256((__m256i const *)(data + idx));
-        __m128i lo_data_u64x2 = _mm256_castsi256_si128(data_u64x4);
-        __m128i hi_data_u64x2 = _mm256_extracti128_si256(data_u64x4, 1);
-        __m128i lo_max_u64x2 = _mm256_castsi256_si128(max_u64x4);
-        __m128i hi_max_u64x2 = _mm256_extracti128_si256(max_u64x4, 1);
-        __m128i lo_cmp = _mm_cmpgt_epi64(_mm_xor_si128(lo_data_u64x2, sign_bit_i64),
-                                         _mm_xor_si128(lo_max_u64x2, sign_bit_i64));
-        __m128i hi_cmp = _mm_cmpgt_epi64(_mm_xor_si128(hi_data_u64x2, sign_bit_i64),
-                                         _mm_xor_si128(hi_max_u64x2, sign_bit_i64));
-        lo_max_u64x2 = _mm_blendv_epi8(lo_max_u64x2, lo_data_u64x2, lo_cmp);
-        hi_max_u64x2 = _mm_blendv_epi8(hi_max_u64x2, hi_data_u64x2, hi_cmp);
-        max_u64x4 = _mm256_setr_m128i(lo_max_u64x2, hi_max_u64x2);
+        __m128i lo_data = _mm256_castsi256_si128(data_u64x4);
+        __m128i hi_data = _mm256_extracti128_si256(data_u64x4, 1);
+        __m128i lo_max = _mm256_castsi256_si128(max_u64x4);
+        __m128i hi_max = _mm256_extracti128_si256(max_u64x4, 1);
+        __m128i lo_cmp = _mm_cmpgt_epi64(_mm_xor_si128(lo_data, sign_bit_i64), _mm_xor_si128(lo_max, sign_bit_i64));
+        __m128i hi_cmp = _mm_cmpgt_epi64(_mm_xor_si128(hi_data, sign_bit_i64), _mm_xor_si128(hi_max, sign_bit_i64));
+        lo_max = _mm_blendv_epi8(lo_max, lo_data, lo_cmp);
+        hi_max = _mm_blendv_epi8(hi_max, hi_data, hi_cmp);
+        max_u64x4 = _mm256_setr_m128i(lo_max, hi_max);
+        __m128i lo_max_idx = _mm256_castsi256_si128(max_index_i64x4);
+        __m128i hi_max_idx = _mm256_extracti128_si256(max_index_i64x4, 1);
+        __m128i lo_cur_idx = _mm256_castsi256_si128(current_index_i64x4);
+        __m128i hi_cur_idx = _mm256_extracti128_si256(current_index_i64x4, 1);
+        lo_max_idx = _mm_blendv_epi8(lo_max_idx, lo_cur_idx, lo_cmp);
+        hi_max_idx = _mm_blendv_epi8(hi_max_idx, hi_cur_idx, hi_cmp);
+        max_index_i64x4 = _mm256_setr_m128i(lo_max_idx, hi_max_idx);
+        current_index_i64x4 = _mm256_add_epi64(current_index_i64x4, step_i64x4);
     }
+
     nk_u64_t max_val = nk_reduce_max_u64x4_haswell_(max_u64x4);
-    for (; idx < count; ++idx) max_val = data[idx] > max_val ? data[idx] : max_val;
-    for (idx = 0; idx < count; ++idx) {
-        if (data[idx] == max_val) {
-            *max_value = max_val;
-            *max_index = idx;
-            return;
+    nk_size_t max_idx = 0;
+    for (; idx < count; ++idx) {
+        if (data[idx] > max_val) {
+            max_val = data[idx];
+            max_idx = idx;
         }
     }
+
+    __m256i eq_val = _mm256_set1_epi64x((nk_i64_t)max_val);
+    __m128i lo_eq = _mm_cmpeq_epi64(_mm256_castsi256_si128(max_u64x4), _mm256_castsi256_si128(eq_val));
+    __m128i hi_eq = _mm_cmpeq_epi64(_mm256_extracti128_si256(max_u64x4, 1), _mm256_extracti128_si256(eq_val, 1));
+    __m256i eq_mask_i64x4 = _mm256_setr_m128i(lo_eq, hi_eq);
+    int eq_bits = _mm256_movemask_epi8(eq_mask_i64x4);
+    if (eq_bits) {
+        unsigned int first_byte = _tzcnt_u32((unsigned int)eq_bits);
+        unsigned int lane = first_byte / 8;
+        nk_i64_t indices[4];
+        _mm256_storeu_si256((__m256i *)indices, max_index_i64x4);
+        nk_size_t vec_idx = (nk_size_t)indices[lane];
+        *max_index = (max_idx && max_idx < vec_idx) ? max_idx : vec_idx;
+    }
+    else { *max_index = max_idx; }
     *max_value = max_val;
-    *max_index = 0;
 }
 
 NK_PUBLIC void nk_reduce_add_i8_haswell(                          //
@@ -1727,7 +2337,8 @@ NK_PUBLIC void nk_reduce_min_i8_haswell(                          //
     nk_i8_t const *data, nk_size_t count, nk_size_t stride_bytes, //
     nk_i8_t *min_value, nk_size_t *min_index) {
     if (count == 0) *min_value = NK_I8_MAX, *min_index = count;
-    else if (stride_bytes == sizeof(nk_i8_t)) nk_reduce_min_i8_haswell_contiguous_(data, count, min_value, min_index);
+    else if (stride_bytes == sizeof(nk_i8_t) && count >= 32)
+        nk_reduce_min_i8_haswell_contiguous_(data, count, min_value, min_index);
     else nk_reduce_min_i8_serial(data, count, stride_bytes, min_value, min_index);
 }
 
@@ -1735,7 +2346,8 @@ NK_PUBLIC void nk_reduce_max_i8_haswell(                          //
     nk_i8_t const *data, nk_size_t count, nk_size_t stride_bytes, //
     nk_i8_t *max_value, nk_size_t *max_index) {
     if (count == 0) *max_value = NK_I8_MIN, *max_index = count;
-    else if (stride_bytes == sizeof(nk_i8_t)) nk_reduce_max_i8_haswell_contiguous_(data, count, max_value, max_index);
+    else if (stride_bytes == sizeof(nk_i8_t) && count >= 32)
+        nk_reduce_max_i8_haswell_contiguous_(data, count, max_value, max_index);
     else nk_reduce_max_i8_serial(data, count, stride_bytes, max_value, max_index);
 }
 
@@ -1743,7 +2355,8 @@ NK_PUBLIC void nk_reduce_min_u8_haswell(                          //
     nk_u8_t const *data, nk_size_t count, nk_size_t stride_bytes, //
     nk_u8_t *min_value, nk_size_t *min_index) {
     if (count == 0) *min_value = NK_U8_MAX, *min_index = count;
-    else if (stride_bytes == sizeof(nk_u8_t)) nk_reduce_min_u8_haswell_contiguous_(data, count, min_value, min_index);
+    else if (stride_bytes == sizeof(nk_u8_t) && count >= 32)
+        nk_reduce_min_u8_haswell_contiguous_(data, count, min_value, min_index);
     else nk_reduce_min_u8_serial(data, count, stride_bytes, min_value, min_index);
 }
 
@@ -1751,7 +2364,8 @@ NK_PUBLIC void nk_reduce_max_u8_haswell(                          //
     nk_u8_t const *data, nk_size_t count, nk_size_t stride_bytes, //
     nk_u8_t *max_value, nk_size_t *max_index) {
     if (count == 0) *max_value = NK_U8_MIN, *max_index = count;
-    else if (stride_bytes == sizeof(nk_u8_t)) nk_reduce_max_u8_haswell_contiguous_(data, count, max_value, max_index);
+    else if (stride_bytes == sizeof(nk_u8_t) && count >= 32)
+        nk_reduce_max_u8_haswell_contiguous_(data, count, max_value, max_index);
     else nk_reduce_max_u8_serial(data, count, stride_bytes, max_value, max_index);
 }
 
@@ -1759,7 +2373,8 @@ NK_PUBLIC void nk_reduce_min_i16_haswell(                          //
     nk_i16_t const *data, nk_size_t count, nk_size_t stride_bytes, //
     nk_i16_t *min_value, nk_size_t *min_index) {
     if (count == 0) *min_value = NK_I16_MAX, *min_index = count;
-    else if (stride_bytes == sizeof(nk_i16_t)) nk_reduce_min_i16_haswell_contiguous_(data, count, min_value, min_index);
+    else if (stride_bytes == sizeof(nk_i16_t) && count >= 16)
+        nk_reduce_min_i16_haswell_contiguous_(data, count, min_value, min_index);
     else nk_reduce_min_i16_serial(data, count, stride_bytes, min_value, min_index);
 }
 
@@ -1767,7 +2382,8 @@ NK_PUBLIC void nk_reduce_max_i16_haswell(                          //
     nk_i16_t const *data, nk_size_t count, nk_size_t stride_bytes, //
     nk_i16_t *max_value, nk_size_t *max_index) {
     if (count == 0) *max_value = NK_I16_MIN, *max_index = count;
-    else if (stride_bytes == sizeof(nk_i16_t)) nk_reduce_max_i16_haswell_contiguous_(data, count, max_value, max_index);
+    else if (stride_bytes == sizeof(nk_i16_t) && count >= 16)
+        nk_reduce_max_i16_haswell_contiguous_(data, count, max_value, max_index);
     else nk_reduce_max_i16_serial(data, count, stride_bytes, max_value, max_index);
 }
 
@@ -1775,7 +2391,8 @@ NK_PUBLIC void nk_reduce_min_u16_haswell(                          //
     nk_u16_t const *data, nk_size_t count, nk_size_t stride_bytes, //
     nk_u16_t *min_value, nk_size_t *min_index) {
     if (count == 0) *min_value = NK_U16_MAX, *min_index = count;
-    else if (stride_bytes == sizeof(nk_u16_t)) nk_reduce_min_u16_haswell_contiguous_(data, count, min_value, min_index);
+    else if (stride_bytes == sizeof(nk_u16_t) && count >= 16)
+        nk_reduce_min_u16_haswell_contiguous_(data, count, min_value, min_index);
     else nk_reduce_min_u16_serial(data, count, stride_bytes, min_value, min_index);
 }
 
@@ -1783,7 +2400,8 @@ NK_PUBLIC void nk_reduce_max_u16_haswell(                          //
     nk_u16_t const *data, nk_size_t count, nk_size_t stride_bytes, //
     nk_u16_t *max_value, nk_size_t *max_index) {
     if (count == 0) *max_value = NK_U16_MIN, *max_index = count;
-    else if (stride_bytes == sizeof(nk_u16_t)) nk_reduce_max_u16_haswell_contiguous_(data, count, max_value, max_index);
+    else if (stride_bytes == sizeof(nk_u16_t) && count >= 16)
+        nk_reduce_max_u16_haswell_contiguous_(data, count, max_value, max_index);
     else nk_reduce_max_u16_serial(data, count, stride_bytes, max_value, max_index);
 }
 
@@ -1791,7 +2409,8 @@ NK_PUBLIC void nk_reduce_min_i32_haswell(                          //
     nk_i32_t const *data, nk_size_t count, nk_size_t stride_bytes, //
     nk_i32_t *min_value, nk_size_t *min_index) {
     if (count == 0) *min_value = NK_I32_MAX, *min_index = count;
-    else if (stride_bytes == sizeof(nk_i32_t)) nk_reduce_min_i32_haswell_contiguous_(data, count, min_value, min_index);
+    else if (stride_bytes == sizeof(nk_i32_t) && count >= 8)
+        nk_reduce_min_i32_haswell_contiguous_(data, count, min_value, min_index);
     else nk_reduce_min_i32_serial(data, count, stride_bytes, min_value, min_index);
 }
 
@@ -1799,7 +2418,8 @@ NK_PUBLIC void nk_reduce_max_i32_haswell(                          //
     nk_i32_t const *data, nk_size_t count, nk_size_t stride_bytes, //
     nk_i32_t *max_value, nk_size_t *max_index) {
     if (count == 0) *max_value = NK_I32_MIN, *max_index = count;
-    else if (stride_bytes == sizeof(nk_i32_t)) nk_reduce_max_i32_haswell_contiguous_(data, count, max_value, max_index);
+    else if (stride_bytes == sizeof(nk_i32_t) && count >= 8)
+        nk_reduce_max_i32_haswell_contiguous_(data, count, max_value, max_index);
     else nk_reduce_max_i32_serial(data, count, stride_bytes, max_value, max_index);
 }
 
@@ -1807,7 +2427,8 @@ NK_PUBLIC void nk_reduce_min_u32_haswell(                          //
     nk_u32_t const *data, nk_size_t count, nk_size_t stride_bytes, //
     nk_u32_t *min_value, nk_size_t *min_index) {
     if (count == 0) *min_value = NK_U32_MAX, *min_index = count;
-    else if (stride_bytes == sizeof(nk_u32_t)) nk_reduce_min_u32_haswell_contiguous_(data, count, min_value, min_index);
+    else if (stride_bytes == sizeof(nk_u32_t) && count >= 8)
+        nk_reduce_min_u32_haswell_contiguous_(data, count, min_value, min_index);
     else nk_reduce_min_u32_serial(data, count, stride_bytes, min_value, min_index);
 }
 
@@ -1815,7 +2436,8 @@ NK_PUBLIC void nk_reduce_max_u32_haswell(                          //
     nk_u32_t const *data, nk_size_t count, nk_size_t stride_bytes, //
     nk_u32_t *max_value, nk_size_t *max_index) {
     if (count == 0) *max_value = NK_U32_MIN, *max_index = count;
-    else if (stride_bytes == sizeof(nk_u32_t)) nk_reduce_max_u32_haswell_contiguous_(data, count, max_value, max_index);
+    else if (stride_bytes == sizeof(nk_u32_t) && count >= 8)
+        nk_reduce_max_u32_haswell_contiguous_(data, count, max_value, max_index);
     else nk_reduce_max_u32_serial(data, count, stride_bytes, max_value, max_index);
 }
 
@@ -1823,7 +2445,8 @@ NK_PUBLIC void nk_reduce_min_i64_haswell(                          //
     nk_i64_t const *data, nk_size_t count, nk_size_t stride_bytes, //
     nk_i64_t *min_value, nk_size_t *min_index) {
     if (count == 0) *min_value = NK_I64_MAX, *min_index = count;
-    else if (stride_bytes == sizeof(nk_i64_t)) nk_reduce_min_i64_haswell_contiguous_(data, count, min_value, min_index);
+    else if (stride_bytes == sizeof(nk_i64_t) && count >= 4)
+        nk_reduce_min_i64_haswell_contiguous_(data, count, min_value, min_index);
     else nk_reduce_min_i64_serial(data, count, stride_bytes, min_value, min_index);
 }
 
@@ -1831,7 +2454,8 @@ NK_PUBLIC void nk_reduce_max_i64_haswell(                          //
     nk_i64_t const *data, nk_size_t count, nk_size_t stride_bytes, //
     nk_i64_t *max_value, nk_size_t *max_index) {
     if (count == 0) *max_value = NK_I64_MIN, *max_index = count;
-    else if (stride_bytes == sizeof(nk_i64_t)) nk_reduce_max_i64_haswell_contiguous_(data, count, max_value, max_index);
+    else if (stride_bytes == sizeof(nk_i64_t) && count >= 4)
+        nk_reduce_max_i64_haswell_contiguous_(data, count, max_value, max_index);
     else nk_reduce_max_i64_serial(data, count, stride_bytes, max_value, max_index);
 }
 
@@ -1839,7 +2463,8 @@ NK_PUBLIC void nk_reduce_min_u64_haswell(                          //
     nk_u64_t const *data, nk_size_t count, nk_size_t stride_bytes, //
     nk_u64_t *min_value, nk_size_t *min_index) {
     if (count == 0) *min_value = NK_U64_MAX, *min_index = count;
-    else if (stride_bytes == sizeof(nk_u64_t)) nk_reduce_min_u64_haswell_contiguous_(data, count, min_value, min_index);
+    else if (stride_bytes == sizeof(nk_u64_t) && count >= 4)
+        nk_reduce_min_u64_haswell_contiguous_(data, count, min_value, min_index);
     else nk_reduce_min_u64_serial(data, count, stride_bytes, min_value, min_index);
 }
 
@@ -1847,7 +2472,8 @@ NK_PUBLIC void nk_reduce_max_u64_haswell(                          //
     nk_u64_t const *data, nk_size_t count, nk_size_t stride_bytes, //
     nk_u64_t *max_value, nk_size_t *max_index) {
     if (count == 0) *max_value = NK_U64_MIN, *max_index = count;
-    else if (stride_bytes == sizeof(nk_u64_t)) nk_reduce_max_u64_haswell_contiguous_(data, count, max_value, max_index);
+    else if (stride_bytes == sizeof(nk_u64_t) && count >= 4)
+        nk_reduce_max_u64_haswell_contiguous_(data, count, max_value, max_index);
     else nk_reduce_max_u64_serial(data, count, stride_bytes, max_value, max_index);
 }
 
@@ -1963,7 +2589,11 @@ NK_INTERNAL void nk_reduce_min_f16_haswell_strided_(                  //
         *min_index = 0;
         return;
     }
+    // Single-pass: track both min value and index in SIMD
     __m256 min_f32x8 = _mm256_set1_ps(NK_F32_MAX);
+    __m256i min_index_i32x8 = _mm256_setzero_si256();
+    __m256i current_index_i32x8 = _mm256_setr_epi32(0, 1, 2, 3, 4, 5, 6, 7);
+    __m256i step_i32x8 = _mm256_set1_epi32(8);
     nk_f16_t const *ptr = data;
     nk_size_t idx = 0;
     for (; idx + 8 <= count; idx += 8) {
@@ -1974,27 +2604,36 @@ NK_INTERNAL void nk_reduce_min_f16_haswell_strided_(                  //
             ptr += stride_elements;
         }
         __m256 data_f32x8 = _mm256_cvtph_ps(vec.xmms[0]);
-        min_f32x8 = _mm256_min_ps(min_f32x8, data_f32x8);
+        __m256 lt_mask_f32x8 = _mm256_cmp_ps(data_f32x8, min_f32x8, _CMP_LT_OQ);
+        min_f32x8 = _mm256_blendv_ps(min_f32x8, data_f32x8, lt_mask_f32x8);
+        min_index_i32x8 = _mm256_blendv_epi8(min_index_i32x8, current_index_i32x8, _mm256_castps_si256(lt_mask_f32x8));
+        current_index_i32x8 = _mm256_add_epi32(current_index_i32x8, step_i32x8);
     }
+
+    // Scalar tail
     nk_f32_t min_val = nk_reduce_min_f32x8_haswell_(min_f32x8);
+    nk_size_t min_idx = 0;
     for (; idx < count; idx++, ptr += stride_elements) {
         nk_f32_t val;
         nk_f16_to_f32_haswell(ptr, &val);
-        if (val < min_val) min_val = val;
-    }
-    // Second pass for index
-    ptr = data;
-    for (idx = 0; idx < count; idx++, ptr += stride_elements) {
-        nk_f32_t val;
-        nk_f16_to_f32_haswell(ptr, &val);
-        if (val == min_val) {
-            *min_value = min_val;
-            *min_index = idx;
-            return;
+        if (val < min_val) {
+            min_val = val;
+            min_idx = idx;
         }
     }
+
+    // Find winning lane
+    __m256 eq_mask_f32x8 = _mm256_cmp_ps(min_f32x8, _mm256_set1_ps(min_val), _CMP_EQ_OQ);
+    int eq_bits = _mm256_movemask_ps(eq_mask_f32x8);
+    if (eq_bits) {
+        unsigned int first_lane = _tzcnt_u32((unsigned int)eq_bits);
+        nk_i32_t indices[8];
+        _mm256_storeu_si256((__m256i *)indices, min_index_i32x8);
+        nk_size_t vec_idx = (nk_size_t)indices[first_lane];
+        *min_index = (min_idx && min_idx < vec_idx) ? min_idx : vec_idx;
+    }
+    else { *min_index = min_idx; }
     *min_value = min_val;
-    *min_index = 0;
 }
 
 NK_PUBLIC void nk_reduce_min_f16_haswell(                          //
@@ -2065,7 +2704,11 @@ NK_INTERNAL void nk_reduce_max_f16_haswell_strided_(                  //
         *max_index = 0;
         return;
     }
+    // Single-pass: track both max value and index in SIMD
     __m256 max_f32x8 = _mm256_set1_ps(NK_F32_MIN);
+    __m256i max_index_i32x8 = _mm256_setzero_si256();
+    __m256i current_index_i32x8 = _mm256_setr_epi32(0, 1, 2, 3, 4, 5, 6, 7);
+    __m256i step_i32x8 = _mm256_set1_epi32(8);
     nk_f16_t const *ptr = data;
     nk_size_t idx = 0;
     for (; idx + 8 <= count; idx += 8) {
@@ -2076,27 +2719,36 @@ NK_INTERNAL void nk_reduce_max_f16_haswell_strided_(                  //
             ptr += stride_elements;
         }
         __m256 data_f32x8 = _mm256_cvtph_ps(vec.xmms[0]);
-        max_f32x8 = _mm256_max_ps(max_f32x8, data_f32x8);
+        __m256 gt_mask_f32x8 = _mm256_cmp_ps(data_f32x8, max_f32x8, _CMP_GT_OQ);
+        max_f32x8 = _mm256_blendv_ps(max_f32x8, data_f32x8, gt_mask_f32x8);
+        max_index_i32x8 = _mm256_blendv_epi8(max_index_i32x8, current_index_i32x8, _mm256_castps_si256(gt_mask_f32x8));
+        current_index_i32x8 = _mm256_add_epi32(current_index_i32x8, step_i32x8);
     }
+
+    // Scalar tail
     nk_f32_t max_val = nk_reduce_max_f32x8_haswell_(max_f32x8);
+    nk_size_t max_idx = 0;
     for (; idx < count; idx++, ptr += stride_elements) {
         nk_f32_t val;
         nk_f16_to_f32_haswell(ptr, &val);
-        if (val > max_val) max_val = val;
-    }
-    // Second pass for index
-    ptr = data;
-    for (idx = 0; idx < count; idx++, ptr += stride_elements) {
-        nk_f32_t val;
-        nk_f16_to_f32_haswell(ptr, &val);
-        if (val == max_val) {
-            *max_value = max_val;
-            *max_index = idx;
-            return;
+        if (val > max_val) {
+            max_val = val;
+            max_idx = idx;
         }
     }
+
+    // Find winning lane
+    __m256 eq_mask_f32x8 = _mm256_cmp_ps(max_f32x8, _mm256_set1_ps(max_val), _CMP_EQ_OQ);
+    int eq_bits = _mm256_movemask_ps(eq_mask_f32x8);
+    if (eq_bits) {
+        unsigned int first_lane = _tzcnt_u32((unsigned int)eq_bits);
+        nk_i32_t indices[8];
+        _mm256_storeu_si256((__m256i *)indices, max_index_i32x8);
+        nk_size_t vec_idx = (nk_size_t)indices[first_lane];
+        *max_index = (max_idx && max_idx < vec_idx) ? max_idx : vec_idx;
+    }
+    else { *max_index = max_idx; }
     *max_value = max_val;
-    *max_index = 0;
 }
 
 NK_PUBLIC void nk_reduce_max_f16_haswell(                          //
@@ -2932,6 +3584,802 @@ NK_PUBLIC void nk_reduce_max_e5m2_haswell(                          //
     else if (!aligned) nk_reduce_max_e5m2_serial(data, count, stride_bytes, max_value, max_index);
     else if (stride_elements == 1) nk_reduce_max_e5m2_haswell_contiguous_(data, count, max_value, max_index);
     else nk_reduce_max_e5m2_haswell_strided_(data, count, stride_elements, max_value, max_index);
+}
+
+NK_INTERNAL __m256i nk_fp6x32_to_u8x32_comparable_haswell_(__m256i raw_i8x32) {
+    raw_i8x32 = _mm256_and_si256(raw_i8x32, _mm256_set1_epi8(0x3F)); // mask to 6 valid bits
+    __m256i sign_mask = _mm256_set1_epi8(0x20);
+    __m256i neg_i8x32 = _mm256_cmpeq_epi8(_mm256_and_si256(raw_i8x32, sign_mask), sign_mask);
+    __m256i pos_xor_i8x32 = sign_mask;              // flip sign bit only
+    __m256i neg_xor_i8x32 = _mm256_set1_epi8(0x3F); // flip all 6 bits
+    __m256i xor_i8x32 = _mm256_blendv_epi8(pos_xor_i8x32, neg_xor_i8x32, neg_i8x32);
+    return _mm256_xor_si256(raw_i8x32, xor_i8x32);
+}
+
+NK_INTERNAL __m256i nk_u8x32_comparable_to_fp6x32_haswell_(__m256i cmp_i8x32) {
+    __m256i sign_mask_i8x32 = _mm256_set1_epi8(0x20);
+    __m256i was_neg_i8x32 = _mm256_cmpeq_epi8(_mm256_and_si256(cmp_i8x32, sign_mask_i8x32), _mm256_setzero_si256());
+    __m256i neg_xor_i8x32 = _mm256_set1_epi8(0x3F);
+    __m256i pos_xor_i8x32 = sign_mask_i8x32;
+    __m256i xor_i8x32 = _mm256_blendv_epi8(pos_xor_i8x32, neg_xor_i8x32, was_neg_i8x32);
+    return _mm256_xor_si256(cmp_i8x32, xor_i8x32);
+}
+
+NK_INTERNAL void nk_reduce_add_e2m3_haswell_contiguous_( //
+    nk_e2m3_t const *data, nk_size_t count, nk_f32_t *result) {
+    __m256 data_f32x8;
+    __m256 sum_f32x8 = _mm256_setzero_ps();
+nk_reduce_add_e2m3_haswell_contiguous_cycle:
+    if (count < 8) {
+        nk_b256_vec_t vec;
+        nk_partial_load_e2m3x8_to_f32x8_haswell_(data, &vec, count);
+        data_f32x8 = vec.ymm_ps;
+        count = 0;
+    }
+    else {
+        data_f32x8 = nk_e2m3x8_to_f32x8_haswell_(_mm_loadl_epi64((__m128i const *)data));
+        data += 8, count -= 8;
+    }
+    sum_f32x8 = _mm256_add_ps(sum_f32x8, data_f32x8);
+    if (count) goto nk_reduce_add_e2m3_haswell_contiguous_cycle;
+    *result = nk_reduce_add_f32x8_haswell_(sum_f32x8);
+}
+
+NK_INTERNAL void nk_reduce_add_e2m3_haswell_strided_(                  //
+    nk_e2m3_t const *data, nk_size_t count, nk_size_t stride_elements, //
+    nk_f32_t *result) {
+    __m256 sum_f32x8 = _mm256_setzero_ps();
+    nk_e2m3_t const *ptr = data;
+nk_reduce_add_e2m3_haswell_strided_cycle:;
+    nk_e2m3_t buf[8];
+    nk_size_t const chunk = count < 8 ? count : 8;
+    for (nk_size_t i = 0; i < chunk; i++, ptr += stride_elements) buf[i] = *ptr;
+    count -= chunk;
+    nk_b256_vec_t vec;
+    nk_partial_load_e2m3x8_to_f32x8_haswell_(buf, &vec, chunk);
+    sum_f32x8 = _mm256_add_ps(sum_f32x8, vec.ymm_ps);
+    if (count) goto nk_reduce_add_e2m3_haswell_strided_cycle;
+    *result = nk_reduce_add_f32x8_haswell_(sum_f32x8);
+}
+
+NK_PUBLIC void nk_reduce_add_e2m3_haswell(                          //
+    nk_e2m3_t const *data, nk_size_t count, nk_size_t stride_bytes, //
+    nk_f32_t *result) {
+    nk_size_t stride_elements = stride_bytes / sizeof(nk_e2m3_t);
+    int aligned = (stride_bytes % sizeof(nk_e2m3_t) == 0);
+    if (!aligned) nk_reduce_add_e2m3_serial(data, count, stride_bytes, result);
+    else if (stride_elements == 1) nk_reduce_add_e2m3_haswell_contiguous_(data, count, result);
+    else nk_reduce_add_e2m3_haswell_strided_(data, count, stride_elements, result);
+}
+
+NK_INTERNAL void nk_reduce_add_e3m2_haswell_contiguous_( //
+    nk_e3m2_t const *data, nk_size_t count, nk_f32_t *result) {
+    __m256 data_f32x8;
+    __m256 sum_f32x8 = _mm256_setzero_ps();
+nk_reduce_add_e3m2_haswell_contiguous_cycle:
+    if (count < 8) {
+        nk_b256_vec_t vec;
+        nk_partial_load_e3m2x8_to_f32x8_haswell_(data, &vec, count);
+        data_f32x8 = vec.ymm_ps;
+        count = 0;
+    }
+    else {
+        data_f32x8 = nk_e3m2x8_to_f32x8_haswell_(_mm_loadl_epi64((__m128i const *)data));
+        data += 8, count -= 8;
+    }
+    sum_f32x8 = _mm256_add_ps(sum_f32x8, data_f32x8);
+    if (count) goto nk_reduce_add_e3m2_haswell_contiguous_cycle;
+    *result = nk_reduce_add_f32x8_haswell_(sum_f32x8);
+}
+
+NK_INTERNAL void nk_reduce_add_e3m2_haswell_strided_(                  //
+    nk_e3m2_t const *data, nk_size_t count, nk_size_t stride_elements, //
+    nk_f32_t *result) {
+    __m256 sum_f32x8 = _mm256_setzero_ps();
+    nk_e3m2_t const *ptr = data;
+nk_reduce_add_e3m2_haswell_strided_cycle:;
+    nk_e3m2_t buf[8];
+    nk_size_t const chunk = count < 8 ? count : 8;
+    for (nk_size_t i = 0; i < chunk; i++, ptr += stride_elements) buf[i] = *ptr;
+    count -= chunk;
+    nk_b256_vec_t vec;
+    nk_partial_load_e3m2x8_to_f32x8_haswell_(buf, &vec, chunk);
+    sum_f32x8 = _mm256_add_ps(sum_f32x8, vec.ymm_ps);
+    if (count) goto nk_reduce_add_e3m2_haswell_strided_cycle;
+    *result = nk_reduce_add_f32x8_haswell_(sum_f32x8);
+}
+
+NK_PUBLIC void nk_reduce_add_e3m2_haswell(                          //
+    nk_e3m2_t const *data, nk_size_t count, nk_size_t stride_bytes, //
+    nk_f32_t *result) {
+    nk_size_t stride_elements = stride_bytes / sizeof(nk_e3m2_t);
+    int aligned = (stride_bytes % sizeof(nk_e3m2_t) == 0);
+    if (!aligned) nk_reduce_add_e3m2_serial(data, count, stride_bytes, result);
+    else if (stride_elements == 1) nk_reduce_add_e3m2_haswell_contiguous_(data, count, result);
+    else nk_reduce_add_e3m2_haswell_strided_(data, count, stride_elements, result);
+}
+
+NK_INTERNAL void nk_reduce_min_e2m3_haswell_contiguous_( //
+    nk_e2m3_t const *data, nk_size_t count,              //
+    nk_e2m3_t *min_value, nk_size_t *min_index) {
+    __m256i one_i64x4 = _mm256_set1_epi64x(1);
+    __m256i bit_isolate_i64x4 = _mm256_setr_epi64x(1, 2, 4, 8);
+    nk_b256_vec_t min_vec, argmin_vec;
+    min_vec.ymm = _mm256_set1_epi8((char)0xFF);
+    argmin_vec.ymm = _mm256_setzero_si256();
+    __m256i current_chunk_i64x4 = _mm256_setzero_si256();
+    __m256i data_i8x32;
+nk_reduce_min_e2m3_haswell_cycle_:
+    if (count < 32) {
+        nk_b256_vec_t data_vec;
+        nk_partial_load_b8x32_serial_(data, &data_vec, count);
+        __m256i indices_i8x32 = _mm256_setr_epi8(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19,
+                                                 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31);
+        __m256i tail_mask_i8x32 = _mm256_cmpgt_epi8(indices_i8x32, _mm256_set1_epi8((char)(count - 1)));
+        // Pad tail with 0x1F (most positive fp6 raw → comparable 0x3F, never becomes min)
+        data_i8x32 = _mm256_blendv_epi8(data_vec.ymm, _mm256_set1_epi8(0x1F), tail_mask_i8x32);
+        count = 0;
+    }
+    else {
+        data_i8x32 = _mm256_loadu_si256((__m256i const *)data);
+        data += 32, count -= 32;
+    }
+    __m256i data_cmp_u8x32 = nk_fp6x32_to_u8x32_comparable_haswell_(data_i8x32);
+    __m256i new_min_cmp_u8x32 = _mm256_min_epu8(min_vec.ymm, data_cmp_u8x32);
+    __m256i changed_i8x32 = _mm256_xor_si256(_mm256_cmpeq_epi8(new_min_cmp_u8x32, min_vec.ymm),
+                                             _mm256_set1_epi8((char)0xFF));
+    int changed_bits = _mm256_movemask_epi8(changed_i8x32);
+    nk_u32_t changed_bytes_u32 = (nk_u32_t)changed_bits;
+    changed_bytes_u32 |= changed_bytes_u32 >> 1;
+    changed_bytes_u32 |= changed_bytes_u32 >> 2;
+    changed_bytes_u32 |= changed_bytes_u32 >> 4;
+    nk_u32_t mask4 = _pext_u32(changed_bytes_u32, 0x01010101);
+    __m256i mask_broadcast_i64x4 = _mm256_set1_epi64x((nk_i64_t)mask4);
+    __m256i chunk_updated_i64x4 = _mm256_cmpeq_epi64(_mm256_and_si256(mask_broadcast_i64x4, bit_isolate_i64x4),
+                                                     bit_isolate_i64x4);
+    argmin_vec.ymm = _mm256_blendv_epi8(argmin_vec.ymm, current_chunk_i64x4, chunk_updated_i64x4);
+    min_vec.ymm = new_min_cmp_u8x32;
+    current_chunk_i64x4 = _mm256_add_epi64(current_chunk_i64x4, one_i64x4);
+    if (count) goto nk_reduce_min_e2m3_haswell_cycle_;
+
+    nk_size_t first_lane = nk_argmin_u8x32_haswell_(min_vec.ymm);
+    nk_size_t chunk_idx = (nk_size_t)argmin_vec.i64s[first_lane / 8];
+    *min_index = chunk_idx * 32 + (first_lane % 32);
+    min_vec.ymm = nk_u8x32_comparable_to_fp6x32_haswell_(min_vec.ymm);
+    *min_value = min_vec.e2m3s[first_lane];
+}
+
+NK_PUBLIC void nk_reduce_min_e2m3_haswell(                          //
+    nk_e2m3_t const *data, nk_size_t count, nk_size_t stride_bytes, //
+    nk_e2m3_t *min_value, nk_size_t *min_index) {
+    if (count == 0) *(nk_u8_t *)min_value = 0, *min_index = count;
+    else if (stride_bytes == sizeof(nk_e2m3_t))
+        nk_reduce_min_e2m3_haswell_contiguous_(data, count, min_value, min_index);
+    else nk_reduce_min_e2m3_serial(data, count, stride_bytes, min_value, min_index);
+}
+
+NK_INTERNAL void nk_reduce_max_e2m3_haswell_contiguous_( //
+    nk_e2m3_t const *data, nk_size_t count,              //
+    nk_e2m3_t *max_value, nk_size_t *max_index) {
+    __m256i one_i64x4 = _mm256_set1_epi64x(1);
+    __m256i bit_isolate_i64x4 = _mm256_setr_epi64x(1, 2, 4, 8);
+    nk_b256_vec_t max_vec, argmax_vec;
+    max_vec.ymm = _mm256_setzero_si256();
+    argmax_vec.ymm = _mm256_setzero_si256();
+    __m256i current_chunk_i64x4 = _mm256_setzero_si256();
+    __m256i data_i8x32;
+nk_reduce_max_e2m3_haswell_cycle_:
+    if (count < 32) {
+        nk_b256_vec_t data_vec;
+        nk_partial_load_b8x32_serial_(data, &data_vec, count);
+        __m256i indices_i8x32 = _mm256_setr_epi8(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19,
+                                                 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31);
+        __m256i tail_mask_i8x32 = _mm256_cmpgt_epi8(indices_i8x32, _mm256_set1_epi8((char)(count - 1)));
+        // Pad tail with 0x3F (most negative fp6 raw → comparable 0x00, never becomes max)
+        data_i8x32 = _mm256_blendv_epi8(data_vec.ymm, _mm256_set1_epi8(0x3F), tail_mask_i8x32);
+        count = 0;
+    }
+    else {
+        data_i8x32 = _mm256_loadu_si256((__m256i const *)data);
+        data += 32, count -= 32;
+    }
+    __m256i data_cmp_u8x32 = nk_fp6x32_to_u8x32_comparable_haswell_(data_i8x32);
+    __m256i new_max_cmp_u8x32 = _mm256_max_epu8(max_vec.ymm, data_cmp_u8x32);
+    __m256i changed_i8x32 = _mm256_xor_si256(_mm256_cmpeq_epi8(new_max_cmp_u8x32, max_vec.ymm),
+                                             _mm256_set1_epi8((char)0xFF));
+    int changed_bits = _mm256_movemask_epi8(changed_i8x32);
+    nk_u32_t changed_bytes_u32 = (nk_u32_t)changed_bits;
+    changed_bytes_u32 |= changed_bytes_u32 >> 1;
+    changed_bytes_u32 |= changed_bytes_u32 >> 2;
+    changed_bytes_u32 |= changed_bytes_u32 >> 4;
+    nk_u32_t mask4 = _pext_u32(changed_bytes_u32, 0x01010101);
+    __m256i mask_broadcast_i64x4 = _mm256_set1_epi64x((nk_i64_t)mask4);
+    __m256i chunk_updated_i64x4 = _mm256_cmpeq_epi64(_mm256_and_si256(mask_broadcast_i64x4, bit_isolate_i64x4),
+                                                     bit_isolate_i64x4);
+    argmax_vec.ymm = _mm256_blendv_epi8(argmax_vec.ymm, current_chunk_i64x4, chunk_updated_i64x4);
+    max_vec.ymm = new_max_cmp_u8x32;
+    current_chunk_i64x4 = _mm256_add_epi64(current_chunk_i64x4, one_i64x4);
+    if (count) goto nk_reduce_max_e2m3_haswell_cycle_;
+
+    nk_size_t first_lane = nk_argmax_u8x32_haswell_(max_vec.ymm);
+    nk_size_t chunk_idx = (nk_size_t)argmax_vec.i64s[first_lane / 8];
+    *max_index = chunk_idx * 32 + (first_lane % 32);
+    max_vec.ymm = nk_u8x32_comparable_to_fp6x32_haswell_(max_vec.ymm);
+    *max_value = max_vec.e2m3s[first_lane];
+}
+
+NK_PUBLIC void nk_reduce_max_e2m3_haswell(                          //
+    nk_e2m3_t const *data, nk_size_t count, nk_size_t stride_bytes, //
+    nk_e2m3_t *max_value, nk_size_t *max_index) {
+    if (count == 0) *(nk_u8_t *)max_value = 0, *max_index = count;
+    else if (stride_bytes == sizeof(nk_e2m3_t))
+        nk_reduce_max_e2m3_haswell_contiguous_(data, count, max_value, max_index);
+    else nk_reduce_max_e2m3_serial(data, count, stride_bytes, max_value, max_index);
+}
+
+NK_INTERNAL void nk_reduce_min_e3m2_haswell_contiguous_( //
+    nk_e3m2_t const *data, nk_size_t count,              //
+    nk_e3m2_t *min_value, nk_size_t *min_index) {
+    __m256i one_i64x4 = _mm256_set1_epi64x(1);
+    __m256i bit_isolate_i64x4 = _mm256_setr_epi64x(1, 2, 4, 8);
+    nk_b256_vec_t min_vec, argmin_vec;
+    min_vec.ymm = _mm256_set1_epi8((char)0xFF);
+    argmin_vec.ymm = _mm256_setzero_si256();
+    __m256i current_chunk_i64x4 = _mm256_setzero_si256();
+    __m256i data_i8x32;
+nk_reduce_min_e3m2_haswell_cycle_:
+    if (count < 32) {
+        nk_b256_vec_t data_vec;
+        nk_partial_load_b8x32_serial_(data, &data_vec, count);
+        __m256i indices_i8x32 = _mm256_setr_epi8(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19,
+                                                 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31);
+        __m256i tail_mask_i8x32 = _mm256_cmpgt_epi8(indices_i8x32, _mm256_set1_epi8((char)(count - 1)));
+        // Pad tail with 0x1F (most positive fp6 raw → comparable 0x3F, never becomes min)
+        data_i8x32 = _mm256_blendv_epi8(data_vec.ymm, _mm256_set1_epi8(0x1F), tail_mask_i8x32);
+        count = 0;
+    }
+    else {
+        data_i8x32 = _mm256_loadu_si256((__m256i const *)data);
+        data += 32, count -= 32;
+    }
+    __m256i data_cmp_u8x32 = nk_fp6x32_to_u8x32_comparable_haswell_(data_i8x32);
+    __m256i new_min_cmp_u8x32 = _mm256_min_epu8(min_vec.ymm, data_cmp_u8x32);
+    __m256i changed_i8x32 = _mm256_xor_si256(_mm256_cmpeq_epi8(new_min_cmp_u8x32, min_vec.ymm),
+                                             _mm256_set1_epi8((char)0xFF));
+    int changed_bits = _mm256_movemask_epi8(changed_i8x32);
+    nk_u32_t changed_bytes_u32 = (nk_u32_t)changed_bits;
+    changed_bytes_u32 |= changed_bytes_u32 >> 1;
+    changed_bytes_u32 |= changed_bytes_u32 >> 2;
+    changed_bytes_u32 |= changed_bytes_u32 >> 4;
+    nk_u32_t mask4 = _pext_u32(changed_bytes_u32, 0x01010101);
+    __m256i mask_broadcast_i64x4 = _mm256_set1_epi64x((nk_i64_t)mask4);
+    __m256i chunk_updated_i64x4 = _mm256_cmpeq_epi64(_mm256_and_si256(mask_broadcast_i64x4, bit_isolate_i64x4),
+                                                     bit_isolate_i64x4);
+    argmin_vec.ymm = _mm256_blendv_epi8(argmin_vec.ymm, current_chunk_i64x4, chunk_updated_i64x4);
+    min_vec.ymm = new_min_cmp_u8x32;
+    current_chunk_i64x4 = _mm256_add_epi64(current_chunk_i64x4, one_i64x4);
+    if (count) goto nk_reduce_min_e3m2_haswell_cycle_;
+
+    nk_size_t first_lane = nk_argmin_u8x32_haswell_(min_vec.ymm);
+    nk_size_t chunk_idx = (nk_size_t)argmin_vec.i64s[first_lane / 8];
+    *min_index = chunk_idx * 32 + (first_lane % 32);
+    min_vec.ymm = nk_u8x32_comparable_to_fp6x32_haswell_(min_vec.ymm);
+    *min_value = min_vec.e3m2s[first_lane];
+}
+
+NK_PUBLIC void nk_reduce_min_e3m2_haswell(                          //
+    nk_e3m2_t const *data, nk_size_t count, nk_size_t stride_bytes, //
+    nk_e3m2_t *min_value, nk_size_t *min_index) {
+    if (count == 0) *(nk_u8_t *)min_value = 0, *min_index = count;
+    else if (stride_bytes == sizeof(nk_e3m2_t))
+        nk_reduce_min_e3m2_haswell_contiguous_(data, count, min_value, min_index);
+    else nk_reduce_min_e3m2_serial(data, count, stride_bytes, min_value, min_index);
+}
+
+NK_INTERNAL void nk_reduce_max_e3m2_haswell_contiguous_( //
+    nk_e3m2_t const *data, nk_size_t count,              //
+    nk_e3m2_t *max_value, nk_size_t *max_index) {
+    __m256i one_i64x4 = _mm256_set1_epi64x(1);
+    __m256i bit_isolate_i64x4 = _mm256_setr_epi64x(1, 2, 4, 8);
+    nk_b256_vec_t max_vec, argmax_vec;
+    max_vec.ymm = _mm256_setzero_si256();
+    argmax_vec.ymm = _mm256_setzero_si256();
+    __m256i current_chunk_i64x4 = _mm256_setzero_si256();
+    __m256i data_i8x32;
+nk_reduce_max_e3m2_haswell_cycle_:
+    if (count < 32) {
+        nk_b256_vec_t data_vec;
+        nk_partial_load_b8x32_serial_(data, &data_vec, count);
+        __m256i indices_i8x32 = _mm256_setr_epi8(0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19,
+                                                 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31);
+        __m256i tail_mask_i8x32 = _mm256_cmpgt_epi8(indices_i8x32, _mm256_set1_epi8((char)(count - 1)));
+        // Pad tail with 0x3F (most negative fp6 raw → comparable 0x00, never becomes max)
+        data_i8x32 = _mm256_blendv_epi8(data_vec.ymm, _mm256_set1_epi8(0x3F), tail_mask_i8x32);
+        count = 0;
+    }
+    else {
+        data_i8x32 = _mm256_loadu_si256((__m256i const *)data);
+        data += 32, count -= 32;
+    }
+    __m256i data_cmp_u8x32 = nk_fp6x32_to_u8x32_comparable_haswell_(data_i8x32);
+    __m256i new_max_cmp_u8x32 = _mm256_max_epu8(max_vec.ymm, data_cmp_u8x32);
+    __m256i changed_i8x32 = _mm256_xor_si256(_mm256_cmpeq_epi8(new_max_cmp_u8x32, max_vec.ymm),
+                                             _mm256_set1_epi8((char)0xFF));
+    int changed_bits = _mm256_movemask_epi8(changed_i8x32);
+    nk_u32_t changed_bytes_u32 = (nk_u32_t)changed_bits;
+    changed_bytes_u32 |= changed_bytes_u32 >> 1;
+    changed_bytes_u32 |= changed_bytes_u32 >> 2;
+    changed_bytes_u32 |= changed_bytes_u32 >> 4;
+    nk_u32_t mask4 = _pext_u32(changed_bytes_u32, 0x01010101);
+    __m256i mask_broadcast_i64x4 = _mm256_set1_epi64x((nk_i64_t)mask4);
+    __m256i chunk_updated_i64x4 = _mm256_cmpeq_epi64(_mm256_and_si256(mask_broadcast_i64x4, bit_isolate_i64x4),
+                                                     bit_isolate_i64x4);
+    argmax_vec.ymm = _mm256_blendv_epi8(argmax_vec.ymm, current_chunk_i64x4, chunk_updated_i64x4);
+    max_vec.ymm = new_max_cmp_u8x32;
+    current_chunk_i64x4 = _mm256_add_epi64(current_chunk_i64x4, one_i64x4);
+    if (count) goto nk_reduce_max_e3m2_haswell_cycle_;
+
+    nk_size_t first_lane = nk_argmax_u8x32_haswell_(max_vec.ymm);
+    nk_size_t chunk_idx = (nk_size_t)argmax_vec.i64s[first_lane / 8];
+    *max_index = chunk_idx * 32 + (first_lane % 32);
+    max_vec.ymm = nk_u8x32_comparable_to_fp6x32_haswell_(max_vec.ymm);
+    *max_value = max_vec.e3m2s[first_lane];
+}
+
+NK_PUBLIC void nk_reduce_max_e3m2_haswell(                          //
+    nk_e3m2_t const *data, nk_size_t count, nk_size_t stride_bytes, //
+    nk_e3m2_t *max_value, nk_size_t *max_index) {
+    if (count == 0) *(nk_u8_t *)max_value = 0, *max_index = count;
+    else if (stride_bytes == sizeof(nk_e3m2_t))
+        nk_reduce_max_e3m2_haswell_contiguous_(data, count, max_value, max_index);
+    else nk_reduce_max_e3m2_serial(data, count, stride_bytes, max_value, max_index);
+}
+
+NK_INTERNAL void nk_reduce_add_i4_haswell_contiguous_( //
+    nk_i4x2_t const *data, nk_size_t count, nk_i64_t *result) {
+    __m256i sum_low_u64x4 = _mm256_setzero_si256();
+    __m256i sum_high_u64x4 = _mm256_setzero_si256();
+    __m256i mask_0f_i8x32 = _mm256_set1_epi8(0x0F);
+    __m256i zero_i8x32 = _mm256_setzero_si256();
+    nk_size_t bytes = nk_size_divide_round_up_(count, 2);
+    nk_size_t idx = 0;
+    for (; idx + 32 <= bytes; idx += 32) {
+        __m256i raw_i8x32 = _mm256_loadu_si256((__m256i const *)((unsigned char const *)data + idx));
+        __m256i low_i8x32 = _mm256_and_si256(raw_i8x32, mask_0f_i8x32);
+        __m256i high_i8x32 = _mm256_and_si256(_mm256_srli_epi16(raw_i8x32, 4), mask_0f_i8x32);
+        // Accumulate unsigned nibbles [0..15] via SAD; correct for sign bias at end
+        sum_low_u64x4 = _mm256_add_epi64(sum_low_u64x4, _mm256_sad_epu8(low_i8x32, zero_i8x32));
+        sum_high_u64x4 = _mm256_add_epi64(sum_high_u64x4, _mm256_sad_epu8(high_i8x32, zero_i8x32));
+    }
+    // Combine accumulators with one vector add, then a single horizontal reduce
+    nk_i64_t sum = nk_reduce_add_i64x4_haswell_(_mm256_add_epi64(sum_low_u64x4, sum_high_u64x4));
+    // Scalar tail — processes all remaining bytes including the partial byte
+    for (; idx < bytes; idx++) {
+        nk_u8_t byte_val = ((unsigned char const *)data)[idx];
+        sum += (byte_val & 0x0F) + ((byte_val >> 4) & 0x0F);
+    }
+    // If odd count, the partial byte's high nibble was accumulated but shouldn't be
+    if (count & 1) sum -= (((unsigned char const *)data)[bytes - 1] >> 4) & 0x0F;
+    // Each nibble was accumulated as unsigned [0..15]; signed value = unsigned - 8
+    sum -= (nk_i64_t)8 * count;
+    *result = sum;
+}
+
+NK_PUBLIC void nk_reduce_add_i4_haswell(                            //
+    nk_i4x2_t const *data, nk_size_t count, nk_size_t stride_bytes, //
+    nk_i64_t *result) {
+    if (stride_bytes == 1) nk_reduce_add_i4_haswell_contiguous_(data, count, result);
+    else nk_reduce_add_i4_serial(data, count, stride_bytes, result);
+}
+
+NK_INTERNAL void nk_reduce_add_u4_haswell_contiguous_( //
+    nk_u4x2_t const *data, nk_size_t count, nk_u64_t *result) {
+    __m256i sum_u64x4 = _mm256_setzero_si256();
+    __m256i mask_0f_i8x32 = _mm256_set1_epi8(0x0F);
+    nk_size_t bytes = count / 2;
+    nk_size_t idx = 0;
+    for (; idx + 32 <= bytes; idx += 32) {
+        __m256i raw_i8x32 = _mm256_loadu_si256((__m256i const *)((unsigned char const *)data + idx));
+        __m256i low_i8x32 = _mm256_and_si256(raw_i8x32, mask_0f_i8x32);
+        __m256i high_i8x32 = _mm256_and_si256(_mm256_srli_epi16(raw_i8x32, 4), mask_0f_i8x32);
+        __m256i pair_sum_i8x32 = _mm256_add_epi8(low_i8x32, high_i8x32);
+        sum_u64x4 = _mm256_add_epi64(sum_u64x4, _mm256_sad_epu8(pair_sum_i8x32, _mm256_setzero_si256()));
+    }
+    nk_u64_t sum = (nk_u64_t)nk_reduce_add_i64x4_haswell_(sum_u64x4);
+    for (; idx < bytes; idx++) {
+        nk_u8_t byte_val = ((unsigned char const *)data)[idx];
+        sum += (byte_val & 0x0F) + ((byte_val >> 4) & 0x0F);
+    }
+    if (count & 1) {
+        nk_u8_t byte_val = ((unsigned char const *)data)[bytes];
+        sum += byte_val & 0x0F;
+    }
+    *result = sum;
+}
+
+NK_PUBLIC void nk_reduce_add_u4_haswell(                            //
+    nk_u4x2_t const *data, nk_size_t count, nk_size_t stride_bytes, //
+    nk_u64_t *result) {
+    if (stride_bytes == 1) nk_reduce_add_u4_haswell_contiguous_(data, count, result);
+    else nk_reduce_add_u4_serial(data, count, stride_bytes, result);
+}
+
+NK_INTERNAL void nk_reduce_min_i4_haswell_contiguous_( //
+    nk_i4x2_t const *data, nk_size_t count,            //
+    nk_i8_t *min_value, nk_size_t *min_index) {
+    __m256i min_u8x32 = _mm256_set1_epi8((char)0xFF);
+    __m256i mask_0f_i8x32 = _mm256_set1_epi8(0x0F);
+    nk_size_t bytes = count / 2;
+    nk_size_t idx = 0;
+    for (; idx + 32 <= bytes; idx += 32) {
+        __m256i raw_i8x32 = _mm256_loadu_si256((__m256i const *)((unsigned char const *)data + idx));
+        __m256i low_i8x32 = _mm256_and_si256(raw_i8x32, mask_0f_i8x32);
+        __m256i high_i8x32 = _mm256_and_si256(_mm256_srli_epi16(raw_i8x32, 4), mask_0f_i8x32);
+        min_u8x32 = _mm256_min_epu8(min_u8x32, low_i8x32);
+        min_u8x32 = _mm256_min_epu8(min_u8x32, high_i8x32);
+    }
+    nk_u8_t min_nibble = nk_reduce_min_u8x32_haswell_(min_u8x32);
+    for (; idx < bytes; idx++) {
+        nk_u8_t byte_val = ((unsigned char const *)data)[idx];
+        nk_u8_t low_val = byte_val & 0x0F, high_val = (byte_val >> 4) & 0x0F;
+        if (low_val < min_nibble) min_nibble = low_val;
+        if (high_val < min_nibble) min_nibble = high_val;
+    }
+    if (count & 1) {
+        nk_u8_t low_val = ((unsigned char const *)data)[bytes] & 0x0F;
+        if (low_val < min_nibble) min_nibble = low_val;
+    }
+    *min_value = (nk_i8_t)((min_nibble ^ 8) - 8);
+    // Vectorized search for the first occurrence of min_nibble
+    __m256i target_i8x32 = _mm256_set1_epi8((char)min_nibble);
+    for (nk_size_t search_idx = 0; search_idx + 32 <= bytes; search_idx += 32) {
+        __m256i raw_i8x32 = _mm256_loadu_si256((__m256i const *)((unsigned char const *)data + search_idx));
+        __m256i low_i8x32 = _mm256_and_si256(raw_i8x32, mask_0f_i8x32);
+        __m256i high_i8x32 = _mm256_and_si256(_mm256_srli_epi16(raw_i8x32, 4), mask_0f_i8x32);
+        int low_match = _mm256_movemask_epi8(_mm256_cmpeq_epi8(low_i8x32, target_i8x32));
+        int high_match = _mm256_movemask_epi8(_mm256_cmpeq_epi8(high_i8x32, target_i8x32));
+        int or_match = low_match | high_match;
+        if (or_match) {
+            nk_size_t first_byte = (nk_size_t)_tzcnt_u32((nk_u32_t)or_match);
+            nk_size_t is_high = !((low_match >> first_byte) & 1);
+            *min_index = search_idx * 2 + 2 * first_byte + is_high;
+            return;
+        }
+    }
+    // Scalar tail for remaining < 32 bytes
+    for (nk_size_t i = (bytes / 32) * 32 * 2; i < count; ++i) {
+        nk_u8_t byte_val = ((unsigned char const *)data)[i / 2];
+        nk_u8_t nibble = (i % 2 == 0) ? (byte_val & 0x0F) : ((byte_val >> 4) & 0x0F);
+        if (nibble == min_nibble) {
+            *min_index = i;
+            return;
+        }
+    }
+    *min_index = 0;
+}
+
+NK_PUBLIC void nk_reduce_min_i4_haswell(                            //
+    nk_i4x2_t const *data, nk_size_t count, nk_size_t stride_bytes, //
+    nk_i8_t *min_value, nk_size_t *min_index) {
+    if (count == 0) *min_value = 7, *min_index = count;
+    else if (stride_bytes == 1) nk_reduce_min_i4_haswell_contiguous_(data, count, min_value, min_index);
+    else nk_reduce_min_i4_serial(data, count, stride_bytes, min_value, min_index);
+}
+
+NK_INTERNAL void nk_reduce_max_i4_haswell_contiguous_( //
+    nk_i4x2_t const *data, nk_size_t count,            //
+    nk_i8_t *max_value, nk_size_t *max_index) {
+    __m256i max_u8x32 = _mm256_setzero_si256();
+    __m256i mask_0f_i8x32 = _mm256_set1_epi8(0x0F);
+    nk_size_t bytes = count / 2;
+    nk_size_t idx = 0;
+    for (; idx + 32 <= bytes; idx += 32) {
+        __m256i raw_i8x32 = _mm256_loadu_si256((__m256i const *)((unsigned char const *)data + idx));
+        __m256i low_i8x32 = _mm256_and_si256(raw_i8x32, mask_0f_i8x32);
+        __m256i high_i8x32 = _mm256_and_si256(_mm256_srli_epi16(raw_i8x32, 4), mask_0f_i8x32);
+        max_u8x32 = _mm256_max_epu8(max_u8x32, low_i8x32);
+        max_u8x32 = _mm256_max_epu8(max_u8x32, high_i8x32);
+    }
+    nk_u8_t max_nibble = nk_reduce_max_u8x32_haswell_(max_u8x32);
+    for (; idx < bytes; idx++) {
+        nk_u8_t byte_val = ((unsigned char const *)data)[idx];
+        nk_u8_t low_val = byte_val & 0x0F, high_val = (byte_val >> 4) & 0x0F;
+        if (low_val > max_nibble) max_nibble = low_val;
+        if (high_val > max_nibble) max_nibble = high_val;
+    }
+    if (count & 1) {
+        nk_u8_t low_val = ((unsigned char const *)data)[bytes] & 0x0F;
+        if (low_val > max_nibble) max_nibble = low_val;
+    }
+    *max_value = (nk_i8_t)((max_nibble ^ 8) - 8);
+    // Vectorized search for the first occurrence of max_nibble
+    __m256i target_i8x32 = _mm256_set1_epi8((char)max_nibble);
+    for (nk_size_t search_idx = 0; search_idx + 32 <= bytes; search_idx += 32) {
+        __m256i raw_i8x32 = _mm256_loadu_si256((__m256i const *)((unsigned char const *)data + search_idx));
+        __m256i low_i8x32 = _mm256_and_si256(raw_i8x32, mask_0f_i8x32);
+        __m256i high_i8x32 = _mm256_and_si256(_mm256_srli_epi16(raw_i8x32, 4), mask_0f_i8x32);
+        int low_match = _mm256_movemask_epi8(_mm256_cmpeq_epi8(low_i8x32, target_i8x32));
+        int high_match = _mm256_movemask_epi8(_mm256_cmpeq_epi8(high_i8x32, target_i8x32));
+        int or_match = low_match | high_match;
+        if (or_match) {
+            nk_size_t first_byte = (nk_size_t)_tzcnt_u32((nk_u32_t)or_match);
+            nk_size_t is_high = !((low_match >> first_byte) & 1);
+            *max_index = search_idx * 2 + 2 * first_byte + is_high;
+            return;
+        }
+    }
+    // Scalar tail for remaining < 32 bytes
+    for (nk_size_t i = (bytes / 32) * 32 * 2; i < count; ++i) {
+        nk_u8_t byte_val = ((unsigned char const *)data)[i / 2];
+        nk_u8_t nibble = (i % 2 == 0) ? (byte_val & 0x0F) : ((byte_val >> 4) & 0x0F);
+        if (nibble == max_nibble) {
+            *max_index = i;
+            return;
+        }
+    }
+    *max_index = 0;
+}
+
+NK_PUBLIC void nk_reduce_max_i4_haswell(                            //
+    nk_i4x2_t const *data, nk_size_t count, nk_size_t stride_bytes, //
+    nk_i8_t *max_value, nk_size_t *max_index) {
+    if (count == 0) *max_value = -8, *max_index = count;
+    else if (stride_bytes == 1) nk_reduce_max_i4_haswell_contiguous_(data, count, max_value, max_index);
+    else nk_reduce_max_i4_serial(data, count, stride_bytes, max_value, max_index);
+}
+
+NK_INTERNAL void nk_reduce_min_u4_haswell_contiguous_( //
+    nk_u4x2_t const *data, nk_size_t count,            //
+    nk_u8_t *min_value, nk_size_t *min_index) {
+    __m256i min_u8x32 = _mm256_set1_epi8(0x0F);
+    __m256i mask_0f_i8x32 = _mm256_set1_epi8(0x0F);
+    nk_size_t bytes = count / 2;
+    nk_size_t idx = 0;
+    for (; idx + 32 <= bytes; idx += 32) {
+        __m256i raw_i8x32 = _mm256_loadu_si256((__m256i const *)((unsigned char const *)data + idx));
+        __m256i low_i8x32 = _mm256_and_si256(raw_i8x32, mask_0f_i8x32);
+        __m256i high_i8x32 = _mm256_and_si256(_mm256_srli_epi16(raw_i8x32, 4), mask_0f_i8x32);
+        min_u8x32 = _mm256_min_epu8(min_u8x32, low_i8x32);
+        min_u8x32 = _mm256_min_epu8(min_u8x32, high_i8x32);
+    }
+    nk_u8_t min_val = nk_reduce_min_u8x32_haswell_(min_u8x32);
+    for (; idx < bytes; idx++) {
+        nk_u8_t byte_val = ((unsigned char const *)data)[idx];
+        nk_u8_t low_val = byte_val & 0x0F, high_val = (byte_val >> 4) & 0x0F;
+        if (low_val < min_val) min_val = low_val;
+        if (high_val < min_val) min_val = high_val;
+    }
+    if (count & 1) {
+        nk_u8_t low_val = ((unsigned char const *)data)[bytes] & 0x0F;
+        if (low_val < min_val) min_val = low_val;
+    }
+    *min_value = min_val;
+    // Vectorized search for the first occurrence of min_val
+    __m256i target_i8x32 = _mm256_set1_epi8((char)min_val);
+    for (nk_size_t search_idx = 0; search_idx + 32 <= bytes; search_idx += 32) {
+        __m256i raw_i8x32 = _mm256_loadu_si256((__m256i const *)((unsigned char const *)data + search_idx));
+        __m256i low_i8x32 = _mm256_and_si256(raw_i8x32, mask_0f_i8x32);
+        __m256i high_i8x32 = _mm256_and_si256(_mm256_srli_epi16(raw_i8x32, 4), mask_0f_i8x32);
+        int low_match = _mm256_movemask_epi8(_mm256_cmpeq_epi8(low_i8x32, target_i8x32));
+        int high_match = _mm256_movemask_epi8(_mm256_cmpeq_epi8(high_i8x32, target_i8x32));
+        int or_match = low_match | high_match;
+        if (or_match) {
+            nk_size_t first_byte = (nk_size_t)_tzcnt_u32((nk_u32_t)or_match);
+            nk_size_t is_high = !((low_match >> first_byte) & 1);
+            *min_index = search_idx * 2 + 2 * first_byte + is_high;
+            return;
+        }
+    }
+    // Scalar tail for remaining < 32 bytes
+    for (nk_size_t i = (bytes / 32) * 32 * 2; i < count; ++i) {
+        nk_u8_t byte_val = ((unsigned char const *)data)[i / 2];
+        nk_u8_t nibble = (i % 2 == 0) ? (byte_val & 0x0F) : ((byte_val >> 4) & 0x0F);
+        if (nibble == min_val) {
+            *min_index = i;
+            return;
+        }
+    }
+    *min_index = 0;
+}
+
+NK_PUBLIC void nk_reduce_min_u4_haswell(                            //
+    nk_u4x2_t const *data, nk_size_t count, nk_size_t stride_bytes, //
+    nk_u8_t *min_value, nk_size_t *min_index) {
+    if (count == 0) *min_value = 15, *min_index = count;
+    else if (stride_bytes == 1) nk_reduce_min_u4_haswell_contiguous_(data, count, min_value, min_index);
+    else nk_reduce_min_u4_serial(data, count, stride_bytes, min_value, min_index);
+}
+
+NK_INTERNAL void nk_reduce_max_u4_haswell_contiguous_( //
+    nk_u4x2_t const *data, nk_size_t count,            //
+    nk_u8_t *max_value, nk_size_t *max_index) {
+    __m256i max_u8x32 = _mm256_setzero_si256();
+    __m256i mask_0f_i8x32 = _mm256_set1_epi8(0x0F);
+    nk_size_t bytes = count / 2;
+    nk_size_t idx = 0;
+    for (; idx + 32 <= bytes; idx += 32) {
+        __m256i raw_i8x32 = _mm256_loadu_si256((__m256i const *)((unsigned char const *)data + idx));
+        __m256i low_i8x32 = _mm256_and_si256(raw_i8x32, mask_0f_i8x32);
+        __m256i high_i8x32 = _mm256_and_si256(_mm256_srli_epi16(raw_i8x32, 4), mask_0f_i8x32);
+        max_u8x32 = _mm256_max_epu8(max_u8x32, low_i8x32);
+        max_u8x32 = _mm256_max_epu8(max_u8x32, high_i8x32);
+    }
+    nk_u8_t max_val = nk_reduce_max_u8x32_haswell_(max_u8x32);
+    for (; idx < bytes; idx++) {
+        nk_u8_t byte_val = ((unsigned char const *)data)[idx];
+        nk_u8_t low_val = byte_val & 0x0F, high_val = (byte_val >> 4) & 0x0F;
+        if (low_val > max_val) max_val = low_val;
+        if (high_val > max_val) max_val = high_val;
+    }
+    if (count & 1) {
+        nk_u8_t low_val = ((unsigned char const *)data)[bytes] & 0x0F;
+        if (low_val > max_val) max_val = low_val;
+    }
+    *max_value = max_val;
+    // Vectorized search for the first occurrence of max_val
+    __m256i target_i8x32 = _mm256_set1_epi8((char)max_val);
+    for (nk_size_t search_idx = 0; search_idx + 32 <= bytes; search_idx += 32) {
+        __m256i raw_i8x32 = _mm256_loadu_si256((__m256i const *)((unsigned char const *)data + search_idx));
+        __m256i low_i8x32 = _mm256_and_si256(raw_i8x32, mask_0f_i8x32);
+        __m256i high_i8x32 = _mm256_and_si256(_mm256_srli_epi16(raw_i8x32, 4), mask_0f_i8x32);
+        int low_match = _mm256_movemask_epi8(_mm256_cmpeq_epi8(low_i8x32, target_i8x32));
+        int high_match = _mm256_movemask_epi8(_mm256_cmpeq_epi8(high_i8x32, target_i8x32));
+        int or_match = low_match | high_match;
+        if (or_match) {
+            nk_size_t first_byte = (nk_size_t)_tzcnt_u32((nk_u32_t)or_match);
+            nk_size_t is_high = !((low_match >> first_byte) & 1);
+            *max_index = search_idx * 2 + 2 * first_byte + is_high;
+            return;
+        }
+    }
+    // Scalar tail for remaining < 32 bytes
+    for (nk_size_t i = (bytes / 32) * 32 * 2; i < count; ++i) {
+        nk_u8_t byte_val = ((unsigned char const *)data)[i / 2];
+        nk_u8_t nibble = (i % 2 == 0) ? (byte_val & 0x0F) : ((byte_val >> 4) & 0x0F);
+        if (nibble == max_val) {
+            *max_index = i;
+            return;
+        }
+    }
+    *max_index = 0;
+}
+
+NK_PUBLIC void nk_reduce_max_u4_haswell(                            //
+    nk_u4x2_t const *data, nk_size_t count, nk_size_t stride_bytes, //
+    nk_u8_t *max_value, nk_size_t *max_index) {
+    if (count == 0) *max_value = 0, *max_index = count;
+    else if (stride_bytes == 1) nk_reduce_max_u4_haswell_contiguous_(data, count, max_value, max_index);
+    else nk_reduce_max_u4_serial(data, count, stride_bytes, max_value, max_index);
+}
+
+NK_INTERNAL void nk_reduce_add_u1_haswell_contiguous_( //
+    nk_u1x8_t const *data, nk_size_t count, nk_u64_t *result) {
+    __m256i lut_i8x32 = _mm256_setr_epi8(0, 1, 1, 2, 1, 2, 2, 3, 1, 2, 2, 3, 2, 3, 3, 4, 0, 1, 1, 2, 1, 2, 2, 3, 1, 2,
+                                         2, 3, 2, 3, 3, 4);
+    __m256i mask_0f_i8x32 = _mm256_set1_epi8(0x0F);
+    __m256i sum_u64x4 = _mm256_setzero_si256();
+    nk_size_t bytes = (count + 7) / 8;
+    nk_size_t idx = 0;
+    for (; idx + 32 <= bytes; idx += 32) {
+        __m256i raw_i8x32 = _mm256_loadu_si256((__m256i const *)((unsigned char const *)data + idx));
+        __m256i low_i8x32 = _mm256_and_si256(raw_i8x32, mask_0f_i8x32);
+        __m256i high_i8x32 = _mm256_and_si256(_mm256_srli_epi16(raw_i8x32, 4), mask_0f_i8x32);
+        __m256i popcnt_i8x32 = _mm256_add_epi8(_mm256_shuffle_epi8(lut_i8x32, low_i8x32),
+                                               _mm256_shuffle_epi8(lut_i8x32, high_i8x32));
+        sum_u64x4 = _mm256_add_epi64(sum_u64x4, _mm256_sad_epu8(popcnt_i8x32, _mm256_setzero_si256()));
+    }
+    nk_u64_t sum = (nk_u64_t)nk_reduce_add_i64x4_haswell_(sum_u64x4);
+    for (; idx < bytes; idx++) {
+        nk_u8_t byte_val = ((unsigned char const *)data)[idx];
+        sum += nk_u64_popcount_((nk_u64_t)byte_val);
+    }
+    nk_size_t tail_bits = count % 8;
+    if (tail_bits && bytes > 0) {
+        nk_u8_t last_byte = ((unsigned char const *)data)[bytes - 1];
+        nk_u8_t extra_mask = (nk_u8_t)(0xFF << tail_bits);
+        sum -= nk_u64_popcount_((nk_u64_t)(last_byte & extra_mask));
+    }
+    *result = sum;
+}
+
+NK_PUBLIC void nk_reduce_add_u1_haswell(                            //
+    nk_u1x8_t const *data, nk_size_t count, nk_size_t stride_bytes, //
+    nk_u64_t *result) {
+    if (stride_bytes == 1) nk_reduce_add_u1_haswell_contiguous_(data, count, result);
+    else nk_reduce_add_u1_serial(data, count, stride_bytes, result);
+}
+
+NK_INTERNAL void nk_reduce_min_u1_haswell_contiguous_( //
+    nk_u1x8_t const *data, nk_size_t count,            //
+    nk_u8_t *min_value, nk_size_t *min_index) {
+    unsigned char const *ptr = (unsigned char const *)data;
+    nk_size_t bytes = (count + 7) / 8;
+    nk_size_t idx = 0;
+    for (; idx + 32 <= bytes; idx += 32) {
+        __m256i raw_i8x32 = _mm256_loadu_si256((__m256i const *)(ptr + idx));
+        __m256i inv = _mm256_xor_si256(raw_i8x32, _mm256_set1_epi8((char)0xFF));
+        int mask = _mm256_movemask_epi8(_mm256_cmpgt_epi8(inv, _mm256_setzero_si256()));
+        if (mask) {
+            nk_size_t byte_off = idx + (nk_size_t)_tzcnt_u32((nk_u32_t)mask);
+            nk_u8_t byte_val = ptr[byte_off];
+            nk_u8_t inv_byte = (nk_u8_t)~byte_val;
+            nk_size_t bit = (nk_size_t)_tzcnt_u32((nk_u32_t)inv_byte);
+            nk_size_t pos = byte_off * 8 + bit;
+            if (pos < count) {
+                *min_value = 0;
+                *min_index = pos;
+                return;
+            }
+        }
+    }
+    for (; idx < bytes; idx++) {
+        nk_u8_t byte_val = ptr[idx];
+        if (byte_val != 0xFF) {
+            nk_u8_t inv_byte = (nk_u8_t)~byte_val;
+            nk_size_t bit = (nk_size_t)_tzcnt_u32((nk_u32_t)inv_byte);
+            nk_size_t pos = idx * 8 + bit;
+            if (pos < count) {
+                *min_value = 0;
+                *min_index = pos;
+                return;
+            }
+        }
+    }
+    *min_value = count ? 1 : 0;
+    *min_index = 0;
+}
+
+NK_PUBLIC void nk_reduce_min_u1_haswell(                            //
+    nk_u1x8_t const *data, nk_size_t count, nk_size_t stride_bytes, //
+    nk_u8_t *min_value, nk_size_t *min_index) {
+    if (count == 0) *min_value = 0, *min_index = count;
+    else if (stride_bytes == 1) nk_reduce_min_u1_haswell_contiguous_(data, count, min_value, min_index);
+    else nk_reduce_min_u1_serial(data, count, stride_bytes, min_value, min_index);
+}
+
+NK_INTERNAL void nk_reduce_max_u1_haswell_contiguous_( //
+    nk_u1x8_t const *data, nk_size_t count,            //
+    nk_u8_t *max_value, nk_size_t *max_index) {
+    unsigned char const *ptr = (unsigned char const *)data;
+    nk_size_t bytes = (count + 7) / 8;
+    nk_size_t idx = 0;
+    for (; idx + 32 <= bytes; idx += 32) {
+        __m256i raw_i8x32 = _mm256_loadu_si256((__m256i const *)(ptr + idx));
+        int mask = _mm256_movemask_epi8(_mm256_cmpgt_epi8(raw_i8x32, _mm256_setzero_si256()));
+        if (mask) {
+            nk_size_t byte_off = idx + (nk_size_t)_tzcnt_u32((nk_u32_t)mask);
+            nk_u8_t byte_val = ptr[byte_off];
+            nk_size_t bit = (nk_size_t)_tzcnt_u32((nk_u32_t)byte_val);
+            nk_size_t pos = byte_off * 8 + bit;
+            if (pos < count) {
+                *max_value = 1;
+                *max_index = pos;
+                return;
+            }
+        }
+    }
+    for (; idx < bytes; idx++) {
+        nk_u8_t byte_val = ptr[idx];
+        if (byte_val != 0) {
+            nk_size_t bit = (nk_size_t)_tzcnt_u32((nk_u32_t)byte_val);
+            nk_size_t pos = idx * 8 + bit;
+            if (pos < count) {
+                *max_value = 1;
+                *max_index = pos;
+                return;
+            }
+        }
+    }
+    *max_value = 0;
+    *max_index = 0;
+}
+
+NK_PUBLIC void nk_reduce_max_u1_haswell(                            //
+    nk_u1x8_t const *data, nk_size_t count, nk_size_t stride_bytes, //
+    nk_u8_t *max_value, nk_size_t *max_index) {
+    if (count == 0) *max_value = 0, *max_index = count;
+    else if (stride_bytes == 1) nk_reduce_max_u1_haswell_contiguous_(data, count, max_value, max_index);
+    else nk_reduce_max_u1_serial(data, count, stride_bytes, max_value, max_index);
 }
 
 #if defined(__clang__)

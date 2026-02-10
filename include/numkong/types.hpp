@@ -2172,9 +2172,9 @@ struct e2m3_t {
     constexpr uint_t to_bits() const noexcept { return raw_; }
 
     // E2M3FN range: [-7.5, +7.5], no Inf/NaN
-    static constexpr e2m3_t finite_max() noexcept { return from_bits(0x1F); }   // +7.5
-    static constexpr e2m3_t finite_min() noexcept { return from_bits(0x3F); }   // -7.5
-    static constexpr e2m3_t positive_min() noexcept { return from_bits(0x08); } // Smallest positive normal (2⁰ = 1.0)
+    static constexpr e2m3_t finite_max() noexcept { return from_bits(0x1F); }    // +7.5
+    static constexpr e2m3_t finite_min() noexcept { return from_bits(0x3F); }    // -7.5
+    static constexpr e2m3_t positive_min() noexcept { return from_bits(0x08); }  // Smallest positive normal (2⁰ = 1.0)
     static constexpr e2m3_t subnormal_min() noexcept { return from_bits(0x01); } // Smallest positive subnormal
 
     // Mathematical constants
@@ -2329,9 +2329,9 @@ struct e3m2_t {
     constexpr uint_t to_bits() const noexcept { return raw_; }
 
     // E3M2FN range: [-28, +28], no Inf/NaN
-    static constexpr e3m2_t finite_max() noexcept { return from_bits(0x1F); }   // +28.0
-    static constexpr e3m2_t finite_min() noexcept { return from_bits(0x3F); }   // -28.0
-    static constexpr e3m2_t positive_min() noexcept { return from_bits(0x0C); } // Smallest positive normal (2⁰ = 1.0)
+    static constexpr e3m2_t finite_max() noexcept { return from_bits(0x1F); }    // +28.0
+    static constexpr e3m2_t finite_min() noexcept { return from_bits(0x3F); }    // -28.0
+    static constexpr e3m2_t positive_min() noexcept { return from_bits(0x0C); }  // Smallest positive normal (2⁰ = 1.0)
     static constexpr e3m2_t subnormal_min() noexcept { return from_bits(0x01); } // Smallest positive subnormal
 
     // Mathematical constants
@@ -3306,6 +3306,8 @@ struct i8_t {
     using sqeuclidean_result_t = u32_t; // `nk_sqeuclidean_i8` output (widened)
 
     using dot_kernel_t = void (*)(raw_t const *, raw_t const *, nk_size_t, nk_i32_t *);
+    using reduce_add_kernel_t = void (*)(raw_t const *, nk_size_t, nk_size_t, nk_i64_t *);
+    using reduce_extremum_kernel_t = void (*)(raw_t const *, nk_size_t, nk_size_t, raw_t *, nk_size_t *);
     using dots_symmetric_kernel_t = void (*)(raw_t const *, nk_size_t, nk_size_t, nk_size_t, nk_i32_t *, nk_size_t,
                                              nk_size_t, nk_size_t);
     using dots_packed_size_kernel_t = nk_size_t (*)(nk_size_t, nk_size_t);
@@ -3451,9 +3453,11 @@ struct u8_t {
     using sqeuclidean_result_t = u32_t; // `nk_sqeuclidean_u8` output (widened)
     using hamming_result_t = u32_t;     // `nk_hamming_u8` output
 
+    using dot_kernel_t = void (*)(raw_t const *, raw_t const *, nk_size_t, nk_u32_t *);
+    using reduce_add_kernel_t = void (*)(raw_t const *, nk_size_t, nk_size_t, nk_u64_t *);
+    using reduce_extremum_kernel_t = void (*)(raw_t const *, nk_size_t, nk_size_t, raw_t *, nk_size_t *);
     using dots_symmetric_kernel_t = void (*)(raw_t const *, nk_size_t, nk_size_t, nk_size_t, nk_u32_t *, nk_size_t,
                                              nk_size_t, nk_size_t);
-    using dot_kernel_t = void (*)(raw_t const *, raw_t const *, nk_size_t, nk_u32_t *);
     using dots_packed_size_kernel_t = nk_size_t (*)(nk_size_t, nk_size_t);
     using dots_pack_kernel_t = void (*)(raw_t const *, nk_size_t, nk_size_t, nk_size_t, void *);
     using dots_packed_kernel_t = void (*)(raw_t const *, void const *, nk_u32_t *, nk_size_t, nk_size_t, nk_size_t,
@@ -3720,6 +3724,8 @@ struct u32_t {
     using reduce_add_result_t = u64_t; // `nk_reduce_add_u32` widened output
     using jaccard_result_t = f32_t;    // `nk_jaccard_u32` output
 
+    using reduce_add_kernel_t = void (*)(raw_t const *, nk_size_t, nk_size_t, nk_u64_t *);
+    using reduce_extremum_kernel_t = void (*)(raw_t const *, nk_size_t, nk_size_t, raw_t *, nk_size_t *);
     using sparse_intersect_kernel_t = void (*)(raw_t const *, raw_t const *, nk_size_t, nk_size_t, raw_t *,
                                                nk_size_t *);
 
@@ -3839,6 +3845,9 @@ struct i64_t {
     using unsigned_t = nk_u64_t;
 
     using reduce_add_result_t = i64_t; // `nk_reduce_add_i64` (no widening, already max)
+
+    using reduce_add_kernel_t = void (*)(raw_t const *, nk_size_t, nk_size_t, nk_i64_t *);
+    using reduce_extremum_kernel_t = void (*)(raw_t const *, nk_size_t, nk_size_t, raw_t *, nk_size_t *);
 
     static constexpr nk_dtype_t dtype() noexcept { return nk_i64_k; }
     static constexpr char const *dtype_name() noexcept { return "i64"; }
@@ -3976,6 +3985,8 @@ struct u64_t {
 
     using reduce_add_result_t = u64_t; // `nk_reduce_add_u64` (no widening, already max)
 
+    using reduce_add_kernel_t = void (*)(raw_t const *, nk_size_t, nk_size_t, nk_u64_t *);
+    using reduce_extremum_kernel_t = void (*)(raw_t const *, nk_size_t, nk_size_t, raw_t *, nk_size_t *);
     using sparse_intersect_kernel_t = void (*)(raw_t const *, raw_t const *, nk_size_t, nk_size_t, raw_t *,
                                                nk_size_t *);
 
@@ -4096,6 +4107,9 @@ struct i16_t {
     using unsigned_t = nk_u16_t;
 
     using reduce_add_result_t = i64_t; // `nk_reduce_add_i16` widened output
+
+    using reduce_add_kernel_t = void (*)(raw_t const *, nk_size_t, nk_size_t, nk_i64_t *);
+    using reduce_extremum_kernel_t = void (*)(raw_t const *, nk_size_t, nk_size_t, raw_t *, nk_size_t *);
 
     static constexpr nk_dtype_t dtype() noexcept { return nk_i16_k; }
     static constexpr char const *dtype_name() noexcept { return "i16"; }
@@ -4228,6 +4242,8 @@ struct u16_t {
     using reduce_add_result_t = u64_t; // `nk_reduce_add_u16` widened output
     using jaccard_result_t = f32_t;    // `nk_jaccard_u16` output
 
+    using reduce_add_kernel_t = void (*)(raw_t const *, nk_size_t, nk_size_t, nk_u64_t *);
+    using reduce_extremum_kernel_t = void (*)(raw_t const *, nk_size_t, nk_size_t, raw_t *, nk_size_t *);
     using sparse_intersect_kernel_t = void (*)(raw_t const *, raw_t const *, nk_size_t, nk_size_t, raw_t *,
                                                nk_size_t *);
 
@@ -4348,6 +4364,9 @@ struct u1x8_t {
     using dot_result_t = u32_t;
     using hamming_result_t = u32_t;
     using jaccard_result_t = f32_t;
+    using reduce_add_result_t = u64_t;
+    using reduce_add_kernel_t = void (*)(raw_t const *, nk_size_t, nk_size_t, nk_u64_t *);
+    using reduce_extremum_kernel_t = void (*)(raw_t const *, nk_size_t, nk_size_t, nk_u8_t *, nk_size_t *);
 
     // Kernel function pointer types (note: n is in bits, not bytes)
     using dots_symmetric_kernel_t = void (*)(raw_t const *, nk_size_t, nk_size_t, nk_size_t, nk_u32_t *, nk_size_t,
@@ -4443,6 +4462,9 @@ struct i4x2_t {
     using dot_result_t = i32_t;
     using sqeuclidean_result_t = u32_t;
     using angular_result_t = f32_t;
+    using reduce_add_result_t = i64_t;
+    using reduce_add_kernel_t = void (*)(raw_t const *, nk_size_t, nk_size_t, nk_i64_t *);
+    using reduce_extremum_kernel_t = void (*)(raw_t const *, nk_size_t, nk_size_t, nk_i8_t *, nk_size_t *);
 
     using dots_symmetric_kernel_t = void (*)(raw_t const *, nk_size_t, nk_size_t, nk_size_t, nk_i32_t *, nk_size_t,
                                              nk_size_t, nk_size_t);
@@ -4546,6 +4568,9 @@ struct u4x2_t {
     using dot_result_t = u32_t;
     using sqeuclidean_result_t = u32_t;
     using angular_result_t = f32_t;
+    using reduce_add_result_t = u64_t;
+    using reduce_add_kernel_t = void (*)(raw_t const *, nk_size_t, nk_size_t, nk_u64_t *);
+    using reduce_extremum_kernel_t = void (*)(raw_t const *, nk_size_t, nk_size_t, nk_u8_t *, nk_size_t *);
     using dots_symmetric_kernel_t = void (*)(raw_t const *, nk_size_t, nk_size_t, nk_size_t, nk_u32_t *, nk_size_t,
                                              nk_size_t, nk_size_t);
 
