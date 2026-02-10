@@ -37,6 +37,8 @@ void bench_cross_sme() {
                          nk_dots_packed_e4m3_sme);
     dots_<e5m2_k, f32_k>("dots_packed_e5m2_sme", nk_dots_packed_size_e5m2_sme, nk_dots_pack_e5m2_sme,
                          nk_dots_packed_e5m2_sme);
+    dots_<i4_k, i32_k>("dots_packed_i4_sme", nk_dots_packed_size_i4_sme, nk_dots_pack_i4_sme, nk_dots_packed_i4_sme);
+    dots_<u4_k, u32_k>("dots_packed_u4_sme", nk_dots_packed_size_u4_sme, nk_dots_pack_u4_sme, nk_dots_packed_u4_sme);
     dots_symmetric_<bf16_k, f32_k>("dots_symmetric_bf16_sme", nk_dots_symmetric_bf16_sme);
     dots_symmetric_<f16_k, f32_k>("dots_symmetric_f16_sme", nk_dots_symmetric_f16_sme);
     dots_symmetric_<i8_k, i32_k>("dots_symmetric_i8_sme", nk_dots_symmetric_i8_sme);

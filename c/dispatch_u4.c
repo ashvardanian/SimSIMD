@@ -14,6 +14,9 @@ void nk_dispatch_u4_find_(nk_capability_t v, nk_kernel_kind_t k, nk_kernel_punne
     typedef nk_kernel_punned_t m_t;
 #if NK_TARGET_SME
     if (v & nk_cap_sme_k) switch (k) {
+        case nk_kernel_dots_packed_size_k: *m = (m_t)&nk_dots_packed_size_u4_sme, *c = nk_cap_sme_k; return;
+        case nk_kernel_dots_pack_k: *m = (m_t)&nk_dots_pack_u4_sme, *c = nk_cap_sme_k; return;
+        case nk_kernel_dots_packed_k: *m = (m_t)&nk_dots_packed_u4_sme, *c = nk_cap_sme_k; return;
         case nk_kernel_dots_symmetric_k: *m = (m_t)&nk_dots_symmetric_u4_sme, *c = nk_cap_sme_k; return;
         default: break;
         }
