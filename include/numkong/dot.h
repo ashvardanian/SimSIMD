@@ -257,6 +257,7 @@ NK_PUBLIC void nk_dot_f16_neonhalf(nk_f16_t const *a, nk_f16_t const *b, nk_size
 NK_PUBLIC void nk_dot_f16c_neonhalf(nk_f16c_t const *a, nk_f16c_t const *b, nk_size_t n, nk_f32c_t *result);
 /** @copydoc nk_vdot_f16c */
 NK_PUBLIC void nk_vdot_f16c_neonhalf(nk_f16c_t const *a, nk_f16c_t const *b, nk_size_t n, nk_f32c_t *result);
+#endif // NK_TARGET_NEONHALF
 
 #if NK_TARGET_NEONFHM
 /** @copydoc nk_dot_f16 */
@@ -270,7 +271,6 @@ NK_PUBLIC void nk_dot_e2m3_neonfhm(nk_e2m3_t const *a, nk_e2m3_t const *b, nk_si
 /** @copydoc nk_dot_e3m2 */
 NK_PUBLIC void nk_dot_e3m2_neonfhm(nk_e3m2_t const *a, nk_e3m2_t const *b, nk_size_t n, nk_f32_t *result);
 #endif // NK_TARGET_NEONFHM
-#endif // NK_TARGET_NEONHALF
 
 #if NK_TARGET_NEONSDOT
 /** @copydoc nk_dot_i8 */
@@ -413,6 +413,13 @@ NK_PUBLIC void nk_dot_e4m3_genoa(nk_e4m3_t const *a, nk_e4m3_t const *b, nk_size
 NK_PUBLIC void nk_dot_e5m2_genoa(nk_e5m2_t const *a, nk_e5m2_t const *b, nk_size_t n, nk_f32_t *result);
 #endif // NK_TARGET_GENOA
 
+#if NK_TARGET_SAPPHIRE
+/** @copydoc nk_dot_e2m3 */
+NK_PUBLIC void nk_dot_e2m3_sapphire(nk_e2m3_t const *a, nk_e2m3_t const *b, nk_size_t n, nk_f32_t *result);
+/** @copydoc nk_dot_e3m2 */
+NK_PUBLIC void nk_dot_e3m2_sapphire(nk_e3m2_t const *a, nk_e3m2_t const *b, nk_size_t n, nk_f32_t *result);
+#endif // NK_TARGET_SAPPHIRE
+
 #if NK_TARGET_SIERRA
 /** @copydoc nk_dot_i8 */
 NK_PUBLIC void nk_dot_i8_sierra(nk_i8_t const *a, nk_i8_t const *b, nk_size_t n, nk_i32_t *result);
@@ -470,6 +477,7 @@ NK_INTERNAL nk_dtype_t nk_dot_output_dtype(nk_dtype_t dtype) {
 #include "numkong/dot/skylake.h"
 #include "numkong/dot/icelake.h"
 #include "numkong/dot/genoa.h"
+#include "numkong/dot/sapphire.h"
 #include "numkong/dot/sierra.h"
 #include "numkong/dot/rvv.h"
 #include "numkong/dot/rvvhalf.h"
@@ -617,7 +625,9 @@ NK_PUBLIC void nk_dot_e5m2(nk_e5m2_t const *a, nk_e5m2_t const *b, nk_size_t n, 
 #endif
 }
 NK_PUBLIC void nk_dot_e2m3(nk_e2m3_t const *a, nk_e2m3_t const *b, nk_size_t n, nk_f32_t *result) {
-#if NK_TARGET_GENOA
+#if NK_TARGET_SAPPHIRE
+    nk_dot_e2m3_sapphire(a, b, n, result);
+#elif NK_TARGET_GENOA
     nk_dot_e2m3_genoa(a, b, n, result);
 #elif NK_TARGET_RVVHALF
     nk_dot_e2m3_rvvhalf(a, b, n, result);
@@ -638,7 +648,9 @@ NK_PUBLIC void nk_dot_e2m3(nk_e2m3_t const *a, nk_e2m3_t const *b, nk_size_t n, 
 #endif
 }
 NK_PUBLIC void nk_dot_e3m2(nk_e3m2_t const *a, nk_e3m2_t const *b, nk_size_t n, nk_f32_t *result) {
-#if NK_TARGET_GENOA
+#if NK_TARGET_SAPPHIRE
+    nk_dot_e3m2_sapphire(a, b, n, result);
+#elif NK_TARGET_GENOA
     nk_dot_e3m2_genoa(a, b, n, result);
 #elif NK_TARGET_RVVHALF
     nk_dot_e3m2_rvvhalf(a, b, n, result);

@@ -178,6 +178,11 @@ void test_dot() {
     run_if_matches("dot_e3m2_genoa", test_dot<e3m2_t>, nk_dot_e3m2_genoa);
 #endif // NK_TARGET_GENOA
 
+#if NK_TARGET_SAPPHIRE
+    run_if_matches("dot_e2m3_sapphire", test_dot<e2m3_t>, nk_dot_e2m3_sapphire);
+    run_if_matches("dot_e3m2_sapphire", test_dot<e3m2_t>, nk_dot_e3m2_sapphire);
+#endif // NK_TARGET_SAPPHIRE
+
 #if NK_TARGET_RVV
     run_if_matches("dot_i8_rvv", test_dot<i8_t>, nk_dot_i8_rvv);
     run_if_matches("dot_u8_rvv", test_dot<u8_t>, nk_dot_u8_rvv);

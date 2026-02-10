@@ -196,6 +196,11 @@ void bench_dot() {
     dense_<e3m2_k, f32_k>("dot_e3m2_genoa", nk_dot_e3m2_genoa);
 #endif
 
+#if NK_TARGET_SAPPHIRE
+    dense_<e2m3_k, f32_k>("dot_e2m3_sapphire", nk_dot_e2m3_sapphire);
+    dense_<e3m2_k, f32_k>("dot_e3m2_sapphire", nk_dot_e3m2_sapphire);
+#endif
+
 #if NK_TARGET_RVV
     dense_<i8_k, i32_k>("dot_i8_rvv", nk_dot_i8_rvv);
     dense_<u8_k, u32_k>("dot_u8_rvv", nk_dot_u8_rvv);
