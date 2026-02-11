@@ -2106,6 +2106,7 @@ struct e2m3_t {
     using dot_result_t = f32_t;
     using reduce_add_result_t = f32_t;
     using sqeuclidean_result_t = f32_t;
+    using angular_result_t = f32_t;
     using scale_t = nk_f32_t;
 
     using dot_kernel_t = void (*)(raw_t const *, raw_t const *, nk_size_t, nk_f32_t *);
@@ -2266,6 +2267,7 @@ struct e3m2_t {
     using dot_result_t = f32_t;
     using reduce_add_result_t = f32_t;
     using sqeuclidean_result_t = f32_t;
+    using angular_result_t = f32_t;
     using scale_t = nk_f32_t;
 
     using dot_kernel_t = void (*)(raw_t const *, raw_t const *, nk_size_t, nk_f32_t *);

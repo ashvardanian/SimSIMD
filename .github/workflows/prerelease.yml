@@ -150,7 +150,7 @@ jobs:
       - name: Build WASM
         run: |
           source ~/emsdk/emsdk_env.sh
-          cmake -B build-wasm -DCMAKE_TOOLCHAIN_FILE=cmake/toolchain-wasm.cmake
+          cmake -B build-wasm -DCMAKE_TOOLCHAIN_FILE=cmake/toolchain-wasm.cmake -DNK_BUILD_SHARED=ON
           cmake --build build-wasm
 
       - name: Set up Node.js
@@ -210,7 +210,7 @@ jobs:
       - name: Build WASM
         run: |
           source ~/emsdk/emsdk_env.sh
-          cmake -B build-wasm -DCMAKE_TOOLCHAIN_FILE=cmake/toolchain-wasm.cmake
+          cmake -B build-wasm -DCMAKE_TOOLCHAIN_FILE=cmake/toolchain-wasm.cmake -DNK_BUILD_SHARED=ON
           cmake --build build-wasm
 
       - name: Set up Node.js

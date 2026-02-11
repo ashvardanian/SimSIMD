@@ -1186,7 +1186,8 @@ static PyObject *implement_sparse_metric( //
     }
 
     nk_fmax_t distance;
-    metric(a_parsed.start, b_parsed.start, a_parsed.dimensions, b_parsed.dimensions, &distance);
+    nk_size_t count = 0;
+    metric(a_parsed.start, b_parsed.start, a_parsed.dimensions, b_parsed.dimensions, &distance, &count);
     return_obj = PyFloat_FromDouble(distance);
 
 cleanup:
@@ -2189,10 +2190,10 @@ static PyObject *api_add(PyObject *self, PyObject *const *args, Py_ssize_t const
     }
 
     // Find sum kernel
-    nk_kernel_sum_punned_t sum_kernel = NULL;
+    nk_each_sum_punned_t sum_kernel = NULL;
     nk_capability_t capability = nk_cap_serial_k;
-    nk_find_kernel_punned(nk_kernel_sum_k, dtype, static_capabilities, nk_cap_any_k, (nk_kernel_punned_t *)&sum_kernel,
-                          &capability);
+    nk_find_kernel_punned(nk_kernel_each_sum_k, dtype, static_capabilities, nk_cap_any_k,
+                          (nk_kernel_punned_t *)&sum_kernel, &capability);
     if (!sum_kernel) {
         PyErr_Format(PyExc_LookupError, "No sum kernel for dtype '%s'", dtype_to_string(dtype));
         goto cleanup;
@@ -2409,10 +2410,10 @@ static PyObject *api_multiply(PyObject *self, PyObject *const *args, Py_ssize_t 
     }
 
     // Find fma kernel
-    nk_kernel_fma_punned_t fma_kernel = NULL;
+    nk_each_fma_punned_t fma_kernel = NULL;
     nk_capability_t capability = nk_cap_serial_k;
-    nk_find_kernel_punned(nk_kernel_fma_k, dtype, static_capabilities, nk_cap_any_k, (nk_kernel_punned_t *)&fma_kernel,
-                          &capability);
+    nk_find_kernel_punned(nk_kernel_each_fma_k, dtype, static_capabilities, nk_cap_any_k,
+                          (nk_kernel_punned_t *)&fma_kernel, &capability);
     if (!fma_kernel) {
         PyErr_Format(PyExc_LookupError, "No fma kernel for dtype '%s'", dtype_to_string(dtype));
         goto cleanup;
@@ -2599,17 +2600,17 @@ cleanup:
 
 static PyObject *api_sin(PyObject *self, PyObject *const *args, Py_ssize_t const positional_args_count,
                          PyObject *args_names_tuple) {
-    return implement_trigonometry(nk_kernel_sin_k, args, positional_args_count, args_names_tuple);
+    return implement_trigonometry(nk_kernel_each_sin_k, args, positional_args_count, args_names_tuple);
 }
 
 static PyObject *api_cos(PyObject *self, PyObject *const *args, Py_ssize_t const positional_args_count,
                          PyObject *args_names_tuple) {
-    return implement_trigonometry(nk_kernel_cos_k, args, positional_args_count, args_names_tuple);
+    return implement_trigonometry(nk_kernel_each_cos_k, args, positional_args_count, args_names_tuple);
 }
 
 static PyObject *api_atan(PyObject *self, PyObject *const *args, Py_ssize_t const positional_args_count,
                           PyObject *args_names_tuple) {
-    return implement_trigonometry(nk_kernel_atan_k, args, positional_args_count, args_names_tuple);
+    return implement_trigonometry(nk_kernel_each_atan_k, args, positional_args_count, args_names_tuple);
 }
 
 // Mesh alignment functions (Kabsch, Umeyama, RMSD)

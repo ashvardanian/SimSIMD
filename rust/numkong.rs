@@ -109,6 +109,7 @@ pub use numerics::{
 pub use numerics::{cast, CastDtype};
 
 // Re-export capabilities module
+pub use numerics::cap;
 pub use numerics::capabilities;
 
 // Re-export tensor types
