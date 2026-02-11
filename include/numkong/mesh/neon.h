@@ -210,15 +210,14 @@ NK_INTERNAL nk_f32_t nk_transformed_ssd_f32_neon_(nk_f32_t const *a, nk_f32_t co
 }
 
 /*  Compute sum of squared distances for f64 after applying rotation (and optional scale).
- *  Note: rotation matrix r is f32 (from SVD), scale and data are f64.
  *
  *  Optimization: 2x loop unrolling with multiple accumulators hides FMA latency (3-7 cycles).
  */
-NK_INTERNAL nk_f64_t nk_transformed_ssd_f64_neon_(nk_f64_t const *a, nk_f64_t const *b, nk_size_t n, nk_f32_t const *r,
+NK_INTERNAL nk_f64_t nk_transformed_ssd_f64_neon_(nk_f64_t const *a, nk_f64_t const *b, nk_size_t n, nk_f64_t const *r,
                                                   nk_f64_t scale, nk_f64_t centroid_a_x, nk_f64_t centroid_a_y,
                                                   nk_f64_t centroid_a_z, nk_f64_t centroid_b_x, nk_f64_t centroid_b_y,
                                                   nk_f64_t centroid_b_z) {
-    // Broadcast scaled rotation matrix elements (cast from f32)
+    // Broadcast scaled rotation matrix elements
     float64x2_t sr0_f64x2 = vdupq_n_f64(scale * r[0]), sr1_f64x2 = vdupq_n_f64(scale * r[1]),
                 sr2_f64x2 = vdupq_n_f64(scale * r[2]);
     float64x2_t sr3_f64x2 = vdupq_n_f64(scale * r[3]), sr4_f64x2 = vdupq_n_f64(scale * r[4]),
@@ -403,12 +402,8 @@ NK_PUBLIC void nk_rmsd_f32_neon(nk_f32_t const *a, nk_f32_t const *b, nk_size_t 
     for (; i < n; ++i) {
         nk_f32_t ax = a[i * 3 + 0], ay = a[i * 3 + 1], az = a[i * 3 + 2];
         nk_f32_t bx = b[i * 3 + 0], by = b[i * 3 + 1], bz = b[i * 3 + 2];
-        total_ax += ax;
-        total_ay += ay;
-        total_az += az;
-        total_bx += bx;
-        total_by += by;
-        total_bz += bz;
+        total_ax += ax, total_ay += ay, total_az += az;
+        total_bx += bx, total_by += by, total_bz += bz;
         nk_f32_t delta_x = ax - bx, delta_y = ay - by, delta_z = az - bz;
         total_squared_x += delta_x * delta_x;
         total_squared_y += delta_y * delta_y;
@@ -417,23 +412,10 @@ NK_PUBLIC void nk_rmsd_f32_neon(nk_f32_t const *a, nk_f32_t const *b, nk_size_t 
 
     // Compute centroids
     nk_f32_t inv_n = 1.0f / (nk_f32_t)n;
-    nk_f32_t centroid_a_x = total_ax * inv_n;
-    nk_f32_t centroid_a_y = total_ay * inv_n;
-    nk_f32_t centroid_a_z = total_az * inv_n;
-    nk_f32_t centroid_b_x = total_bx * inv_n;
-    nk_f32_t centroid_b_y = total_by * inv_n;
-    nk_f32_t centroid_b_z = total_bz * inv_n;
-
-    if (a_centroid) {
-        a_centroid[0] = centroid_a_x;
-        a_centroid[1] = centroid_a_y;
-        a_centroid[2] = centroid_a_z;
-    }
-    if (b_centroid) {
-        b_centroid[0] = centroid_b_x;
-        b_centroid[1] = centroid_b_y;
-        b_centroid[2] = centroid_b_z;
-    }
+    nk_f32_t centroid_a_x = total_ax * inv_n, centroid_a_y = total_ay * inv_n, centroid_a_z = total_az * inv_n;
+    nk_f32_t centroid_b_x = total_bx * inv_n, centroid_b_y = total_by * inv_n, centroid_b_z = total_bz * inv_n;
+    if (a_centroid) a_centroid[0] = centroid_a_x, a_centroid[1] = centroid_a_y, a_centroid[2] = centroid_a_z;
+    if (b_centroid) b_centroid[0] = centroid_b_x, b_centroid[1] = centroid_b_y, b_centroid[2] = centroid_b_z;
 
     // Compute RMSD
     nk_f32_t mean_diff_x = centroid_a_x - centroid_b_x;
@@ -515,23 +497,10 @@ NK_PUBLIC void nk_rmsd_f64_neon(nk_f64_t const *a, nk_f64_t const *b, nk_size_t 
 
     // Compute centroids
     nk_f64_t inv_n = 1.0 / (nk_f64_t)n;
-    nk_f64_t centroid_a_x = total_ax * inv_n;
-    nk_f64_t centroid_a_y = total_ay * inv_n;
-    nk_f64_t centroid_a_z = total_az * inv_n;
-    nk_f64_t centroid_b_x = total_bx * inv_n;
-    nk_f64_t centroid_b_y = total_by * inv_n;
-    nk_f64_t centroid_b_z = total_bz * inv_n;
-
-    if (a_centroid) {
-        a_centroid[0] = centroid_a_x;
-        a_centroid[1] = centroid_a_y;
-        a_centroid[2] = centroid_a_z;
-    }
-    if (b_centroid) {
-        b_centroid[0] = centroid_b_x;
-        b_centroid[1] = centroid_b_y;
-        b_centroid[2] = centroid_b_z;
-    }
+    nk_f64_t centroid_a_x = total_ax * inv_n, centroid_a_y = total_ay * inv_n, centroid_a_z = total_az * inv_n;
+    nk_f64_t centroid_b_x = total_bx * inv_n, centroid_b_y = total_by * inv_n, centroid_b_z = total_bz * inv_n;
+    if (a_centroid) a_centroid[0] = centroid_a_x, a_centroid[1] = centroid_a_y, a_centroid[2] = centroid_a_z;
+    if (b_centroid) b_centroid[0] = centroid_b_x, b_centroid[1] = centroid_b_y, b_centroid[2] = centroid_b_z;
 
     // Compute RMSD
     nk_f64_t mean_diff_x = centroid_a_x - centroid_b_x;
@@ -665,42 +634,19 @@ NK_PUBLIC void nk_kabsch_f32_neon(nk_f32_t const *a, nk_f32_t const *b, nk_size_
     for (; i < n; ++i) {
         nk_f32_t ax = a[i * 3 + 0], ay = a[i * 3 + 1], az = a[i * 3 + 2];
         nk_f32_t bx = b[i * 3 + 0], by = b[i * 3 + 1], bz = b[i * 3 + 2];
-        sum_a_x += ax;
-        sum_a_y += ay;
-        sum_a_z += az;
-        sum_b_x += bx;
-        sum_b_y += by;
-        sum_b_z += bz;
-        h00 += ax * bx;
-        h01 += ax * by;
-        h02 += ax * bz;
-        h10 += ay * bx;
-        h11 += ay * by;
-        h12 += ay * bz;
-        h20 += az * bx;
-        h21 += az * by;
-        h22 += az * bz;
+        sum_a_x += ax, sum_a_y += ay, sum_a_z += az;
+        sum_b_x += bx, sum_b_y += by, sum_b_z += bz;
+        h00 += ax * bx, h01 += ax * by, h02 += ax * bz;
+        h10 += ay * bx, h11 += ay * by, h12 += ay * bz;
+        h20 += az * bx, h21 += az * by, h22 += az * bz;
     }
 
     // Compute centroids
     nk_f32_t inv_n = 1.0f / (nk_f32_t)n;
-    nk_f32_t centroid_a_x = sum_a_x * inv_n;
-    nk_f32_t centroid_a_y = sum_a_y * inv_n;
-    nk_f32_t centroid_a_z = sum_a_z * inv_n;
-    nk_f32_t centroid_b_x = sum_b_x * inv_n;
-    nk_f32_t centroid_b_y = sum_b_y * inv_n;
-    nk_f32_t centroid_b_z = sum_b_z * inv_n;
-
-    if (a_centroid) {
-        a_centroid[0] = centroid_a_x;
-        a_centroid[1] = centroid_a_y;
-        a_centroid[2] = centroid_a_z;
-    }
-    if (b_centroid) {
-        b_centroid[0] = centroid_b_x;
-        b_centroid[1] = centroid_b_y;
-        b_centroid[2] = centroid_b_z;
-    }
+    nk_f32_t centroid_a_x = sum_a_x * inv_n, centroid_a_y = sum_a_y * inv_n, centroid_a_z = sum_a_z * inv_n;
+    nk_f32_t centroid_b_x = sum_b_x * inv_n, centroid_b_y = sum_b_y * inv_n, centroid_b_z = sum_b_z * inv_n;
+    if (a_centroid) a_centroid[0] = centroid_a_x, a_centroid[1] = centroid_a_y, a_centroid[2] = centroid_a_z;
+    if (b_centroid) b_centroid[0] = centroid_b_x, b_centroid[1] = centroid_b_y, b_centroid[2] = centroid_b_z;
 
     // Apply centering correction: H_centered = H - n * centroid_a * centroid_bᵀ
     h00 -= n * centroid_a_x * centroid_b_x;
@@ -715,7 +661,7 @@ NK_PUBLIC void nk_kabsch_f32_neon(nk_f32_t const *a, nk_f32_t const *b, nk_size_
 
     // Compute SVD and optimal rotation
     nk_f32_t cross_covariance[9] = {h00, h01, h02, h10, h11, h12, h20, h21, h22};
-    nk_f32_t svd_u[9], svd_s[3], svd_v[9];
+    nk_f32_t svd_u[9], svd_s[9], svd_v[9];
     nk_svd3x3_f32_(cross_covariance, svd_u, svd_s, svd_v);
 
     // R = V * Uᵀ
@@ -880,42 +826,19 @@ NK_PUBLIC void nk_kabsch_f64_neon(nk_f64_t const *a, nk_f64_t const *b, nk_size_
     for (; i < n; ++i) {
         nk_f64_t ax = a[i * 3 + 0], ay = a[i * 3 + 1], az = a[i * 3 + 2];
         nk_f64_t bx = b[i * 3 + 0], by = b[i * 3 + 1], bz = b[i * 3 + 2];
-        sum_a_x += ax;
-        sum_a_y += ay;
-        sum_a_z += az;
-        sum_b_x += bx;
-        sum_b_y += by;
-        sum_b_z += bz;
-        h00 += ax * bx;
-        h01 += ax * by;
-        h02 += ax * bz;
-        h10 += ay * bx;
-        h11 += ay * by;
-        h12 += ay * bz;
-        h20 += az * bx;
-        h21 += az * by;
-        h22 += az * bz;
+        sum_a_x += ax, sum_a_y += ay, sum_a_z += az;
+        sum_b_x += bx, sum_b_y += by, sum_b_z += bz;
+        h00 += ax * bx, h01 += ax * by, h02 += ax * bz;
+        h10 += ay * bx, h11 += ay * by, h12 += ay * bz;
+        h20 += az * bx, h21 += az * by, h22 += az * bz;
     }
 
     // Compute centroids
     nk_f64_t inv_n = 1.0 / (nk_f64_t)n;
-    nk_f64_t centroid_a_x = sum_a_x * inv_n;
-    nk_f64_t centroid_a_y = sum_a_y * inv_n;
-    nk_f64_t centroid_a_z = sum_a_z * inv_n;
-    nk_f64_t centroid_b_x = sum_b_x * inv_n;
-    nk_f64_t centroid_b_y = sum_b_y * inv_n;
-    nk_f64_t centroid_b_z = sum_b_z * inv_n;
-
-    if (a_centroid) {
-        a_centroid[0] = centroid_a_x;
-        a_centroid[1] = centroid_a_y;
-        a_centroid[2] = centroid_a_z;
-    }
-    if (b_centroid) {
-        b_centroid[0] = centroid_b_x;
-        b_centroid[1] = centroid_b_y;
-        b_centroid[2] = centroid_b_z;
-    }
+    nk_f64_t centroid_a_x = sum_a_x * inv_n, centroid_a_y = sum_a_y * inv_n, centroid_a_z = sum_a_z * inv_n;
+    nk_f64_t centroid_b_x = sum_b_x * inv_n, centroid_b_y = sum_b_y * inv_n, centroid_b_z = sum_b_z * inv_n;
+    if (a_centroid) a_centroid[0] = centroid_a_x, a_centroid[1] = centroid_a_y, a_centroid[2] = centroid_a_z;
+    if (b_centroid) b_centroid[0] = centroid_b_x, b_centroid[1] = centroid_b_y, b_centroid[2] = centroid_b_z;
 
     // Apply centering correction: H_centered = H - n * centroid_a * centroid_bᵀ
     h00 -= n * centroid_a_x * centroid_b_x;
@@ -928,14 +851,13 @@ NK_PUBLIC void nk_kabsch_f64_neon(nk_f64_t const *a, nk_f64_t const *b, nk_size_
     h21 -= n * centroid_a_z * centroid_b_y;
     h22 -= n * centroid_a_z * centroid_b_z;
 
-    // Compute SVD and optimal rotation (using f32 SVD for performance)
-    nk_f32_t cross_covariance[9] = {(nk_f32_t)h00, (nk_f32_t)h01, (nk_f32_t)h02, (nk_f32_t)h10, (nk_f32_t)h11,
-                                    (nk_f32_t)h12, (nk_f32_t)h20, (nk_f32_t)h21, (nk_f32_t)h22};
-    nk_f32_t svd_u[9], svd_s[3], svd_v[9];
-    nk_svd3x3_f32_(cross_covariance, svd_u, svd_s, svd_v);
+    // Compute SVD and optimal rotation
+    nk_f64_t cross_covariance[9] = {h00, h01, h02, h10, h11, h12, h20, h21, h22};
+    nk_f64_t svd_u[9], svd_s[9], svd_v[9];
+    nk_svd3x3_f64_(cross_covariance, svd_u, svd_s, svd_v);
 
     // R = V * Uᵀ
-    nk_f32_t r[9];
+    nk_f64_t r[9];
     r[0] = svd_v[0] * svd_u[0] + svd_v[1] * svd_u[1] + svd_v[2] * svd_u[2];
     r[1] = svd_v[0] * svd_u[3] + svd_v[1] * svd_u[4] + svd_v[2] * svd_u[5];
     r[2] = svd_v[0] * svd_u[6] + svd_v[1] * svd_u[7] + svd_v[2] * svd_u[8];
@@ -947,7 +869,7 @@ NK_PUBLIC void nk_kabsch_f64_neon(nk_f64_t const *a, nk_f64_t const *b, nk_size_
     r[8] = svd_v[6] * svd_u[6] + svd_v[7] * svd_u[7] + svd_v[8] * svd_u[8];
 
     // Handle reflection: if det(R) < 0, negate third column of V and recompute R
-    if (nk_det3x3_f32_(r) < 0) {
+    if (nk_det3x3_f64_(r) < 0) {
         svd_v[2] = -svd_v[2];
         svd_v[5] = -svd_v[5];
         svd_v[8] = -svd_v[8];
@@ -963,9 +885,9 @@ NK_PUBLIC void nk_kabsch_f64_neon(nk_f64_t const *a, nk_f64_t const *b, nk_size_
     }
 
     /* Output rotation matrix and scale=1.0 */
-    if (rotation) {
-        for (int j = 0; j < 9; ++j) rotation[j] = (nk_f64_t)r[j];
-    }
+    if (rotation)
+        for (int j = 0; j < 9; ++j) rotation[j] = r[j];
+
     if (scale) *scale = 1.0;
 
     // Compute RMSD after optimal rotation
@@ -1108,43 +1030,20 @@ NK_PUBLIC void nk_umeyama_f32_neon(nk_f32_t const *a, nk_f32_t const *b, nk_size
     for (; i < n; ++i) {
         nk_f32_t ax = a[i * 3 + 0], ay = a[i * 3 + 1], az = a[i * 3 + 2];
         nk_f32_t bx = b[i * 3 + 0], by = b[i * 3 + 1], bz = b[i * 3 + 2];
-        sum_a_x += ax;
-        sum_a_y += ay;
-        sum_a_z += az;
-        sum_b_x += bx;
-        sum_b_y += by;
-        sum_b_z += bz;
-        h00 += ax * bx;
-        h01 += ax * by;
-        h02 += ax * bz;
-        h10 += ay * bx;
-        h11 += ay * by;
-        h12 += ay * bz;
-        h20 += az * bx;
-        h21 += az * by;
-        h22 += az * bz;
+        sum_a_x += ax, sum_a_y += ay, sum_a_z += az;
+        sum_b_x += bx, sum_b_y += by, sum_b_z += bz;
+        h00 += ax * bx, h01 += ax * by, h02 += ax * bz;
+        h10 += ay * bx, h11 += ay * by, h12 += ay * bz;
+        h20 += az * bx, h21 += az * by, h22 += az * bz;
         sum_sq_a += ax * ax + ay * ay + az * az;
     }
 
     // Compute centroids
     nk_f32_t inv_n = 1.0f / (nk_f32_t)n;
-    nk_f32_t centroid_a_x = sum_a_x * inv_n;
-    nk_f32_t centroid_a_y = sum_a_y * inv_n;
-    nk_f32_t centroid_a_z = sum_a_z * inv_n;
-    nk_f32_t centroid_b_x = sum_b_x * inv_n;
-    nk_f32_t centroid_b_y = sum_b_y * inv_n;
-    nk_f32_t centroid_b_z = sum_b_z * inv_n;
-
-    if (a_centroid) {
-        a_centroid[0] = centroid_a_x;
-        a_centroid[1] = centroid_a_y;
-        a_centroid[2] = centroid_a_z;
-    }
-    if (b_centroid) {
-        b_centroid[0] = centroid_b_x;
-        b_centroid[1] = centroid_b_y;
-        b_centroid[2] = centroid_b_z;
-    }
+    nk_f32_t centroid_a_x = sum_a_x * inv_n, centroid_a_y = sum_a_y * inv_n, centroid_a_z = sum_a_z * inv_n;
+    nk_f32_t centroid_b_x = sum_b_x * inv_n, centroid_b_y = sum_b_y * inv_n, centroid_b_z = sum_b_z * inv_n;
+    if (a_centroid) a_centroid[0] = centroid_a_x, a_centroid[1] = centroid_a_y, a_centroid[2] = centroid_a_z;
+    if (b_centroid) b_centroid[0] = centroid_b_x, b_centroid[1] = centroid_b_y, b_centroid[2] = centroid_b_z;
 
     // Compute variance of A (centered)
     nk_f32_t centroid_sq = centroid_a_x * centroid_a_x + centroid_a_y * centroid_a_y + centroid_a_z * centroid_a_z;
@@ -1163,7 +1062,7 @@ NK_PUBLIC void nk_umeyama_f32_neon(nk_f32_t const *a, nk_f32_t const *b, nk_size
 
     // Compute SVD
     nk_f32_t cross_covariance[9] = {h00, h01, h02, h10, h11, h12, h20, h21, h22};
-    nk_f32_t svd_u[9], svd_s[3], svd_v[9];
+    nk_f32_t svd_u[9], svd_s[9], svd_v[9];
     nk_svd3x3_f32_(cross_covariance, svd_u, svd_s, svd_v);
 
     // R = V * Uᵀ
@@ -1180,7 +1079,7 @@ NK_PUBLIC void nk_umeyama_f32_neon(nk_f32_t const *a, nk_f32_t const *b, nk_size
 
     // Handle reflection and compute scale
     nk_f32_t det = nk_det3x3_f32_(r);
-    nk_f32_t trace_d_s = svd_s[0] + svd_s[1] + (det < 0 ? -svd_s[2] : svd_s[2]);
+    nk_f32_t trace_d_s = svd_s[0] + svd_s[4] + (det < 0 ? -svd_s[8] : svd_s[8]);
     nk_f32_t computed_scale = trace_d_s / (n * var_a);
 
     if (det < 0) {
@@ -1198,9 +1097,8 @@ NK_PUBLIC void nk_umeyama_f32_neon(nk_f32_t const *a, nk_f32_t const *b, nk_size
         r[8] = svd_v[6] * svd_u[6] + svd_v[7] * svd_u[7] + svd_v[8] * svd_u[8];
     }
 
-    if (rotation) {
+    if (rotation)
         for (int j = 0; j < 9; ++j) rotation[j] = r[j];
-    }
     if (scale) *scale = computed_scale;
 
     // Compute RMSD after transformation
@@ -1343,43 +1241,20 @@ NK_PUBLIC void nk_umeyama_f64_neon(nk_f64_t const *a, nk_f64_t const *b, nk_size
     for (; i < n; ++i) {
         nk_f64_t ax = a[i * 3 + 0], ay = a[i * 3 + 1], az = a[i * 3 + 2];
         nk_f64_t bx = b[i * 3 + 0], by = b[i * 3 + 1], bz = b[i * 3 + 2];
-        sum_a_x += ax;
-        sum_a_y += ay;
-        sum_a_z += az;
-        sum_b_x += bx;
-        sum_b_y += by;
-        sum_b_z += bz;
-        h00 += ax * bx;
-        h01 += ax * by;
-        h02 += ax * bz;
-        h10 += ay * bx;
-        h11 += ay * by;
-        h12 += ay * bz;
-        h20 += az * bx;
-        h21 += az * by;
-        h22 += az * bz;
+        sum_a_x += ax, sum_a_y += ay, sum_a_z += az;
+        sum_b_x += bx, sum_b_y += by, sum_b_z += bz;
+        h00 += ax * bx, h01 += ax * by, h02 += ax * bz;
+        h10 += ay * bx, h11 += ay * by, h12 += ay * bz;
+        h20 += az * bx, h21 += az * by, h22 += az * bz;
         sum_sq_a += ax * ax + ay * ay + az * az;
     }
 
     // Compute centroids
     nk_f64_t inv_n = 1.0 / (nk_f64_t)n;
-    nk_f64_t centroid_a_x = sum_a_x * inv_n;
-    nk_f64_t centroid_a_y = sum_a_y * inv_n;
-    nk_f64_t centroid_a_z = sum_a_z * inv_n;
-    nk_f64_t centroid_b_x = sum_b_x * inv_n;
-    nk_f64_t centroid_b_y = sum_b_y * inv_n;
-    nk_f64_t centroid_b_z = sum_b_z * inv_n;
-
-    if (a_centroid) {
-        a_centroid[0] = centroid_a_x;
-        a_centroid[1] = centroid_a_y;
-        a_centroid[2] = centroid_a_z;
-    }
-    if (b_centroid) {
-        b_centroid[0] = centroid_b_x;
-        b_centroid[1] = centroid_b_y;
-        b_centroid[2] = centroid_b_z;
-    }
+    nk_f64_t centroid_a_x = sum_a_x * inv_n, centroid_a_y = sum_a_y * inv_n, centroid_a_z = sum_a_z * inv_n;
+    nk_f64_t centroid_b_x = sum_b_x * inv_n, centroid_b_y = sum_b_y * inv_n, centroid_b_z = sum_b_z * inv_n;
+    if (a_centroid) a_centroid[0] = centroid_a_x, a_centroid[1] = centroid_a_y, a_centroid[2] = centroid_a_z;
+    if (b_centroid) b_centroid[0] = centroid_b_x, b_centroid[1] = centroid_b_y, b_centroid[2] = centroid_b_z;
 
     // Compute variance of A (centered)
     nk_f64_t centroid_sq = centroid_a_x * centroid_a_x + centroid_a_y * centroid_a_y + centroid_a_z * centroid_a_z;
@@ -1396,14 +1271,13 @@ NK_PUBLIC void nk_umeyama_f64_neon(nk_f64_t const *a, nk_f64_t const *b, nk_size
     h21 -= n * centroid_a_z * centroid_b_y;
     h22 -= n * centroid_a_z * centroid_b_z;
 
-    // Compute SVD (using f32 SVD for performance)
-    nk_f32_t cross_covariance[9] = {(nk_f32_t)h00, (nk_f32_t)h01, (nk_f32_t)h02, (nk_f32_t)h10, (nk_f32_t)h11,
-                                    (nk_f32_t)h12, (nk_f32_t)h20, (nk_f32_t)h21, (nk_f32_t)h22};
-    nk_f32_t svd_u[9], svd_s[3], svd_v[9];
-    nk_svd3x3_f32_(cross_covariance, svd_u, svd_s, svd_v);
+    // Compute SVD
+    nk_f64_t cross_covariance[9] = {h00, h01, h02, h10, h11, h12, h20, h21, h22};
+    nk_f64_t svd_u[9], svd_s[9], svd_v[9];
+    nk_svd3x3_f64_(cross_covariance, svd_u, svd_s, svd_v);
 
     // R = V * Uᵀ
-    nk_f32_t r[9];
+    nk_f64_t r[9];
     r[0] = svd_v[0] * svd_u[0] + svd_v[1] * svd_u[1] + svd_v[2] * svd_u[2];
     r[1] = svd_v[0] * svd_u[3] + svd_v[1] * svd_u[4] + svd_v[2] * svd_u[5];
     r[2] = svd_v[0] * svd_u[6] + svd_v[1] * svd_u[7] + svd_v[2] * svd_u[8];
@@ -1415,8 +1289,8 @@ NK_PUBLIC void nk_umeyama_f64_neon(nk_f64_t const *a, nk_f64_t const *b, nk_size
     r[8] = svd_v[6] * svd_u[6] + svd_v[7] * svd_u[7] + svd_v[8] * svd_u[8];
 
     // Handle reflection and compute scale
-    nk_f32_t det = nk_det3x3_f32_(r);
-    nk_f64_t trace_d_s = svd_s[0] + svd_s[1] + (det < 0 ? -svd_s[2] : svd_s[2]);
+    nk_f64_t det = nk_det3x3_f64_(r);
+    nk_f64_t trace_d_s = svd_s[0] + svd_s[4] + (det < 0 ? -svd_s[8] : svd_s[8]);
     nk_f64_t computed_scale = trace_d_s / (n * var_a);
 
     if (det < 0) {
@@ -1434,9 +1308,8 @@ NK_PUBLIC void nk_umeyama_f64_neon(nk_f64_t const *a, nk_f64_t const *b, nk_size
         r[8] = svd_v[6] * svd_u[6] + svd_v[7] * svd_u[7] + svd_v[8] * svd_u[8];
     }
 
-    if (rotation) {
-        for (int j = 0; j < 9; ++j) rotation[j] = (nk_f64_t)r[j];
-    }
+    if (rotation)
+        for (int j = 0; j < 9; ++j) rotation[j] = r[j];
     if (scale) *scale = computed_scale;
 
     // Compute RMSD after transformation
