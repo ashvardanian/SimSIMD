@@ -1582,7 +1582,7 @@ NK_PUBLIC void nk_each_fma_u8(nk_u8_t const *a, nk_u8_t const *b, nk_u8_t const 
 #if NK_TARGET_SAPPHIRE
     nk_each_fma_u8_sapphire(a, b, c, n, alpha, beta, r);
 #elif NK_TARGET_SKYLAKE
-    nk_each_fma_i8_skylake(a, b, c, n, alpha, beta, r);
+    nk_each_fma_u8_skylake(a, b, c, n, alpha, beta, r);
 #elif NK_TARGET_HASWELL
     nk_each_fma_u8_haswell(a, b, c, n, alpha, beta, r);
 #elif NK_TARGET_NEONHALF

@@ -1335,7 +1335,9 @@ NK_PUBLIC void nk_reduce_max_u64(nk_u64_t const *data, nk_size_t count, nk_size_
 }
 
 NK_PUBLIC void nk_reduce_add_e4m3(nk_e4m3_t const *data, nk_size_t count, nk_size_t stride_bytes, nk_f32_t *result) {
-#if NK_TARGET_HASWELL
+#if NK_TARGET_SKYLAKE
+    nk_reduce_add_e4m3_skylake(data, count, stride_bytes, result);
+#elif NK_TARGET_HASWELL
     nk_reduce_add_e4m3_haswell(data, count, stride_bytes, result);
 #elif NK_TARGET_NEONFHM
     nk_reduce_add_e4m3_neonfhm(data, count, stride_bytes, result);
@@ -1347,7 +1349,9 @@ NK_PUBLIC void nk_reduce_add_e4m3(nk_e4m3_t const *data, nk_size_t count, nk_siz
 }
 
 NK_PUBLIC void nk_reduce_add_e5m2(nk_e5m2_t const *data, nk_size_t count, nk_size_t stride_bytes, nk_f32_t *result) {
-#if NK_TARGET_HASWELL
+#if NK_TARGET_SKYLAKE
+    nk_reduce_add_e5m2_skylake(data, count, stride_bytes, result);
+#elif NK_TARGET_HASWELL
     nk_reduce_add_e5m2_haswell(data, count, stride_bytes, result);
 #elif NK_TARGET_NEONFHM
     nk_reduce_add_e5m2_neonfhm(data, count, stride_bytes, result);
