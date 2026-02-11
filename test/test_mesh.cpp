@@ -123,6 +123,18 @@ void test_mesh() {
     run_if_matches("umeyama_f32_neon", test_umeyama<f32_t>, nk_umeyama_f32_neon);
 #endif // NK_TARGET_NEON
 
+#if NK_TARGET_SME
+    run_if_matches("rmsd_f32_sme", test_rmsd<f32_t>, nk_rmsd_f32_sme);
+    run_if_matches("kabsch_f32_sme", test_kabsch<f32_t>, nk_kabsch_f32_sme);
+    run_if_matches("umeyama_f32_sme", test_umeyama<f32_t>, nk_umeyama_f32_sme);
+#endif // NK_TARGET_SME
+
+#if NK_TARGET_SMEF64
+    run_if_matches("rmsd_f64_smef64", test_rmsd<f64_t>, nk_rmsd_f64_smef64);
+    run_if_matches("kabsch_f64_smef64", test_kabsch<f64_t>, nk_kabsch_f64_smef64);
+    run_if_matches("umeyama_f64_smef64", test_umeyama<f64_t>, nk_umeyama_f64_smef64);
+#endif // NK_TARGET_SMEF64
+
 #if NK_TARGET_HASWELL
     run_if_matches("rmsd_f64_haswell", test_rmsd<f64_t>, nk_rmsd_f64_haswell);
     run_if_matches("rmsd_f32_haswell", test_rmsd<f32_t>, nk_rmsd_f32_haswell);
