@@ -38,11 +38,20 @@ def is_64bit_x86() -> bool:
 
 def is_64bit_arm() -> bool:
     """Detect ARM64 architecture with environment override support."""
-    override = os.environ.get("NK_TARGET_ARM_64")
+    override = os.environ.get("NK_TARGET_ARM_")
     if override is not None:
         return override == "1"
     arch = platform.machine().lower()
     return (arch in ("arm64", "aarch64")) and (sys.maxsize > 2**32)
+
+
+def is_64bit_riscv() -> bool:
+    """Detect RISC-V 64-bit architecture with environment override support."""
+    override = os.environ.get("NK_TARGET_RISCV_")
+    if override is not None:
+        return override == "1"
+    arch = platform.machine().lower()
+    return (arch in ("riscv64",)) and (sys.maxsize > 2**32)
 
 
 def linux_settings() -> Tuple[List[str], List[str], List[Tuple[str, str]]]:

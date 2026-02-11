@@ -570,3 +570,30 @@ jobs:
           CIBW_ENABLE: cpython-freethreading # No-GIL 3.13t builds
           CIBW_PLATFORM: linux
           CIBW_ARCHS: ppc64le s390x i686 #! `armv7l` not worth the trouble
+
+  build_wheels_linux_riscv:
+    name: Build Python Wheels (Linux RISC-V)
+    runs-on: ubuntu-22.04
+    strategy:
+      matrix:
+        python-version:
+          ["39", "310", "311", "312", "313", "313t", "314", "314t"]
+    needs: [test_python]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+      - name: Install Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+      - name: Setup QEMU
+        uses: docker/setup-qemu-action@v3
+      - name: Install Toolchain
+        run: |
+          python -m pip install cibuildwheel
+          cibuildwheel --output-dir wheelhouse
+        env:
+          CIBW_BUILD: cp${{ matrix.python-version }}-*
+          CIBW_ENABLE: cpython-freethreading
+          CIBW_PLATFORM: linux
+          CIBW_ARCHS: riscv64

@@ -1,6 +1,6 @@
 # This file configures wheels compilation for `cibuilwheel` for NumKong CPython bindings.
 # On a good day it will produce:
-#   - `manylinux` and `musllinux` vectorized wheels for Linux on x86_64, aarch64;
+#   - `manylinux` and `musllinux` vectorized wheels for Linux on x86_64, aarch64, riscv64;
 #   - `manylinux` and `musllinux` wheels for Linux on i686, ppc64le, s390x;
 #   - `macos` wheels for x86_64, arm64;
 #   - `windows` wheels for AMD64, ARM64.
@@ -70,6 +70,8 @@ manylinux-x86_64-image = "manylinux_2_28"
 manylinux-aarch64-image = "manylinux_2_28"
 musllinux-x86_64-image = "musllinux_1_2"
 musllinux-aarch64-image = "musllinux_1_2"
+manylinux-riscv64-image = "manylinux_2_39"
+musllinux-riscv64-image = "musllinux_1_2"
 
 # On CentOS we have to use `yum`.
 # The healthy version would be: `apt-get update && apt-get install -y libc6-dev wget python3-dev`.
@@ -113,50 +115,67 @@ test-command = """
 select = "*-win_amd64"
 inherit.environment = "append"
 environment.NK_TARGET_X86_ = "1"
-environment.NK_TARGET_ARM_64 = "0"
+environment.NK_TARGET_ARM_ = "0"
 
 [[tool.cibuildwheel.overrides]]
 select = "*-manylinux*_x86_64"
 inherit.environment = "append"
 environment.NK_TARGET_X86_ = "1"
-environment.NK_TARGET_ARM_64 = "0"
+environment.NK_TARGET_ARM_ = "0"
 
 [[tool.cibuildwheel.overrides]]
 select = "*-musllinux*_x86_64"
 inherit.environment = "append"
 environment.NK_TARGET_X86_ = "1"
-environment.NK_TARGET_ARM_64 = "0"
+environment.NK_TARGET_ARM_ = "0"
 
 [[tool.cibuildwheel.overrides]]
 select = "*-macos*_x86_64"
 inherit.environment = "append"
 environment.NK_TARGET_X86_ = "1"
-environment.NK_TARGET_ARM_64 = "0"
+environment.NK_TARGET_ARM_ = "0"
 
 # ARM64 builds
 [[tool.cibuildwheel.overrides]]
 select = "*-win_arm64"
 inherit.environment = "append"
 environment.NK_TARGET_X86_ = "0"
-environment.NK_TARGET_ARM_64 = "1"
+environment.NK_TARGET_ARM_ = "1"
 
 [[tool.cibuildwheel.overrides]]
 select = "*-manylinux*_aarch64"
 inherit.environment = "append"
 environment.NK_TARGET_X86_ = "0"
-environment.NK_TARGET_ARM_64 = "1"
+environment.NK_TARGET_ARM_ = "1"
 
 [[tool.cibuildwheel.overrides]]
 select = "*-musllinux*_aarch64"
 inherit.environment = "append"
 environment.NK_TARGET_X86_ = "0"
-environment.NK_TARGET_ARM_64 = "1"
+environment.NK_TARGET_ARM_ = "1"
 
 [[tool.cibuildwheel.overrides]]
 select = "*-macos*_arm64"
 inherit.environment = "append"
 environment.NK_TARGET_X86_ = "0"
-environment.NK_TARGET_ARM_64 = "1"
+environment.NK_TARGET_ARM_ = "1"
+
+# RISC-V 64-bit builds
+# The `manylinux_2_39` riscv64 image is Fedora-based and uses `dnf` instead of `yum`.
+[[tool.cibuildwheel.overrides]]
+select = "*-manylinux*_riscv64"
+before-all = "dnf update -y && dnf install -y glibc-devel wget python3-devel"
+inherit.environment = "append"
+environment.NK_TARGET_X86_ = "0"
+environment.NK_TARGET_ARM_ = "0"
+environment.NK_TARGET_RISCV_ = "1"
+
+[[tool.cibuildwheel.overrides]]
+select = "*-musllinux*_riscv64"
+inherit.environment = "append"
+environment.NK_TARGET_X86_ = "0"
+environment.NK_TARGET_ARM_ = "0"
+environment.NK_TARGET_RISCV_ = "1"
 
 # Configuration options for the Black formatter:
 # https://black.readthedocs.io/en/latest/usage_and_configuration/the_basics.html#where-black-looks-for-the-file

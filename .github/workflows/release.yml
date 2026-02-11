@@ -301,6 +301,40 @@ jobs:
           path: wheelhouse/*.whl
           overwrite: true
 
+  build_wheels_linux_riscv:
+    name: Build Python Wheels (Linux RISC-V)
+    runs-on: ubuntu-22.04
+    needs: versioning
+    strategy:
+      matrix:
+        python-version:
+          ["39", "310", "311", "312", "313", "313t", "314", "314t"]
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: "main"
+      - name: Install Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+      - name: Setup QEMU
+        uses: docker/setup-qemu-action@v3
+      - name: Install cibuildwheel
+        run: |
+          python -m pip install cibuildwheel
+          cibuildwheel --output-dir wheelhouse
+        env:
+          CIBW_BUILD: cp${{ matrix.python-version }}-*
+          CIBW_ENABLE: cpython-freethreading
+          CIBW_PLATFORM: linux
+          CIBW_ARCHS: riscv64
+      - name: Upload wheels
+        uses: actions/upload-artifact@v6
+        with:
+          name: cibw-wheels-linux-riscv-cp${{ matrix.python-version }}
+          path: wheelhouse/*.whl
+          overwrite: true
+
   build_sdist:
     name: Build Python Source Distribution
     runs-on: ubuntu-latest
@@ -328,6 +362,7 @@ jobs:
     needs:
       - build_wheels_linux_x86
       - build_wheels_linux_arm
+      - build_wheels_linux_riscv
       - build_wheels_macos_x86
       - build_wheels_macos_arm
       - build_wheels_windows
