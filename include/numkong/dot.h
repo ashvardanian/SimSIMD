@@ -439,14 +439,13 @@ NK_PUBLIC void nk_dot_e2m3_genoa(nk_e2m3_t const *a, nk_e2m3_t const *b, nk_size
 NK_PUBLIC void nk_dot_e3m2_genoa(nk_e3m2_t const *a, nk_e3m2_t const *b, nk_size_t n, nk_f32_t *result);
 #endif // NK_TARGET_GENOA
 
-#if NK_TARGET_SAPPHIRE
-/** @copydoc nk_dot_e3m2 */
-NK_PUBLIC void nk_dot_e3m2_sapphire(nk_e3m2_t const *a, nk_e3m2_t const *b, nk_size_t n, nk_f32_t *result);
-#endif // NK_TARGET_SAPPHIRE
-
 #if NK_TARGET_SIERRA
 /** @copydoc nk_dot_i8 */
 NK_PUBLIC void nk_dot_i8_sierra(nk_i8_t const *a, nk_i8_t const *b, nk_size_t n, nk_i32_t *result);
+/** @copydoc nk_dot_u8 */
+NK_PUBLIC void nk_dot_u8_sierra(nk_u8_t const *a, nk_u8_t const *b, nk_size_t n, nk_u32_t *result);
+/** @copydoc nk_dot_e2m3 */
+NK_PUBLIC void nk_dot_e2m3_sierra(nk_e2m3_t const *a, nk_e2m3_t const *b, nk_size_t n, nk_f32_t *result);
 #endif // NK_TARGET_SIERRA
 
 #if NK_TARGET_RVV
@@ -483,8 +482,6 @@ NK_PUBLIC void nk_dot_f16_rvvhalf(nk_f16_t const *a, nk_f16_t const *b, nk_size_
 NK_PUBLIC void nk_dot_e4m3_rvvhalf(nk_e4m3_t const *a, nk_e4m3_t const *b, nk_size_t n, nk_f32_t *result);
 /** @copydoc nk_dot_e5m2 */
 NK_PUBLIC void nk_dot_e5m2_rvvhalf(nk_e5m2_t const *a, nk_e5m2_t const *b, nk_size_t n, nk_f32_t *result);
-/** @copydoc nk_dot_e3m2 */
-NK_PUBLIC void nk_dot_e3m2_rvvhalf(nk_e3m2_t const *a, nk_e3m2_t const *b, nk_size_t n, nk_f32_t *result);
 #endif // NK_TARGET_RVVHALF
 
 #if NK_TARGET_RVVBF16
@@ -494,8 +491,6 @@ NK_PUBLIC void nk_dot_bf16_rvvbf16(nk_bf16_t const *a, nk_bf16_t const *b, nk_si
 NK_PUBLIC void nk_dot_e4m3_rvvbf16(nk_e4m3_t const *a, nk_e4m3_t const *b, nk_size_t n, nk_f32_t *result);
 /** @copydoc nk_dot_e5m2 */
 NK_PUBLIC void nk_dot_e5m2_rvvbf16(nk_e5m2_t const *a, nk_e5m2_t const *b, nk_size_t n, nk_f32_t *result);
-/** @copydoc nk_dot_e3m2 */
-NK_PUBLIC void nk_dot_e3m2_rvvbf16(nk_e3m2_t const *a, nk_e3m2_t const *b, nk_size_t n, nk_f32_t *result);
 #endif // NK_TARGET_RVVBF16
 
 #if NK_TARGET_V128RELAXED
@@ -710,6 +705,8 @@ NK_PUBLIC void nk_dot_e2m3(nk_e2m3_t const *a, nk_e2m3_t const *b, nk_size_t n, 
     nk_dot_e2m3_icelake(a, b, n, result);
 #elif NK_TARGET_GENOA
     nk_dot_e2m3_genoa(a, b, n, result);
+#elif NK_TARGET_SIERRA
+    nk_dot_e2m3_sierra(a, b, n, result);
 #elif NK_TARGET_RVV
     nk_dot_e2m3_rvv(a, b, n, result);
 #elif NK_TARGET_SKYLAKE
@@ -731,18 +728,12 @@ NK_PUBLIC void nk_dot_e2m3(nk_e2m3_t const *a, nk_e2m3_t const *b, nk_size_t n, 
 NK_PUBLIC void nk_dot_e3m2(nk_e3m2_t const *a, nk_e3m2_t const *b, nk_size_t n, nk_f32_t *result) {
 #if NK_TARGET_ICELAKE
     nk_dot_e3m2_icelake(a, b, n, result);
-#elif NK_TARGET_SAPPHIRE
-    nk_dot_e3m2_sapphire(a, b, n, result);
 #elif NK_TARGET_GENOA
     nk_dot_e3m2_genoa(a, b, n, result);
 #elif NK_TARGET_NEONSDOT
     nk_dot_e3m2_neonsdot(a, b, n, result);
 #elif NK_TARGET_V128RELAXED
     nk_dot_e3m2_v128relaxed(a, b, n, result);
-#elif NK_TARGET_RVVHALF
-    nk_dot_e3m2_rvvhalf(a, b, n, result);
-#elif NK_TARGET_RVVBF16
-    nk_dot_e3m2_rvvbf16(a, b, n, result);
 #elif NK_TARGET_RVV
     nk_dot_e3m2_rvv(a, b, n, result);
 #elif NK_TARGET_SKYLAKE

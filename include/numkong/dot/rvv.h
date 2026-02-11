@@ -242,24 +242,50 @@ NK_PUBLIC void nk_dot_e2m3_rvv(nk_e2m3_t const *a_scalars, nk_e2m3_t const *b_sc
 
 NK_PUBLIC void nk_dot_e3m2_rvv(nk_e3m2_t const *a_scalars, nk_e3m2_t const *b_scalars, nk_size_t count_scalars,
                                nk_f32_t *result) {
+    // Integer dot product for e3m2 using i16 gather LUT + widening multiply.
+    // Every e3m2 value × 16 is an exact integer, but magnitudes reach 448, requiring i16.
+    // Result = i32_dot / 256.0f (exact, no rounding error).
+    static nk_u16_t const lut_magnitude[32] = {0,  1,  2,  3,  4,  5,  6,  7,   8,   10,  12,  14,  16,  20,  24,  28,
+                                               32, 40, 48, 56, 64, 80, 96, 112, 128, 160, 192, 224, 256, 320, 384, 448};
+
     nk_size_t vlmax = __riscv_vsetvlmax_e32m4();
-    vfloat32m4_t sum_f32m4 = __riscv_vfmv_v_f_f32m4(0.0f, vlmax);
+    vint32m4_t sum_i32m4 = __riscv_vmv_v_x_i32m4(0, vlmax);
     for (nk_size_t vector_length; count_scalars > 0;
          count_scalars -= vector_length, a_scalars += vector_length, b_scalars += vector_length) {
         vector_length = __riscv_vsetvl_e8m1(count_scalars);
+        vuint8m1_t a_e3m2_u8m1 = __riscv_vle8_v_u8m1((nk_u8_t const *)a_scalars, vector_length);
+        vuint8m1_t b_e3m2_u8m1 = __riscv_vle8_v_u8m1((nk_u8_t const *)b_scalars, vector_length);
 
-        // Load e3m2 as u8 and convert to f32 via helper
-        vuint8m1_t a_u8m1 = __riscv_vle8_v_u8m1((nk_u8_t const *)a_scalars, vector_length);
-        vuint8m1_t b_u8m1 = __riscv_vle8_v_u8m1((nk_u8_t const *)b_scalars, vector_length);
-        vfloat32m4_t a_f32m4 = nk_e3m2m1_to_f32m4_rvv_(a_u8m1, vector_length);
-        vfloat32m4_t b_f32m4 = nk_e3m2m1_to_f32m4_rvv_(b_u8m1, vector_length);
+        // Magnitude extraction: lower 5 bits as u16 byte offsets for gather
+        vuint8m1_t a_mag_u8m1 = __riscv_vand_vx_u8m1(a_e3m2_u8m1, 0x1F, vector_length);
+        vuint8m1_t b_mag_u8m1 = __riscv_vand_vx_u8m1(b_e3m2_u8m1, 0x1F, vector_length);
+        vuint16m2_t a_idx_u16m2 = __riscv_vzext_vf2_u16m2(a_mag_u8m1, vector_length);
+        vuint16m2_t b_idx_u16m2 = __riscv_vzext_vf2_u16m2(b_mag_u8m1, vector_length);
 
-        // Per-lane FMA accumulation
-        sum_f32m4 = __riscv_vfmacc_vv_f32m4(sum_f32m4, a_f32m4, b_f32m4, vector_length);
+        // Gather from i16 LUT: byte offsets = index × 2
+        vuint16m2_t a_byte_offsets_u16m2 = __riscv_vsll_vx_u16m2(a_idx_u16m2, 1, vector_length);
+        vuint16m2_t b_byte_offsets_u16m2 = __riscv_vsll_vx_u16m2(b_idx_u16m2, 1, vector_length);
+        vuint16m2_t a_unsigned_u16m2 = __riscv_vluxei16_v_u16m2(lut_magnitude, a_byte_offsets_u16m2, vector_length);
+        vuint16m2_t b_unsigned_u16m2 = __riscv_vluxei16_v_u16m2(lut_magnitude, b_byte_offsets_u16m2, vector_length);
+
+        // Extract sign bits and apply conditional negate
+        vuint8m1_t a_sign_u8m1 = __riscv_vand_vx_u8m1(a_e3m2_u8m1, 0x20, vector_length);
+        vuint8m1_t b_sign_u8m1 = __riscv_vand_vx_u8m1(b_e3m2_u8m1, 0x20, vector_length);
+        vbool8_t a_negate = __riscv_vmsne_vx_u8m1_b8(a_sign_u8m1, 0, vector_length);
+        vbool8_t b_negate = __riscv_vmsne_vx_u8m1_b8(b_sign_u8m1, 0, vector_length);
+
+        vint16m2_t a_signed_i16m2 = __riscv_vreinterpret_v_u16m2_i16m2(a_unsigned_u16m2);
+        a_signed_i16m2 = __riscv_vneg_v_i16m2_mu(a_negate, a_signed_i16m2, a_signed_i16m2, vector_length);
+
+        vint16m2_t b_signed_i16m2 = __riscv_vreinterpret_v_u16m2_i16m2(b_unsigned_u16m2);
+        b_signed_i16m2 = __riscv_vneg_v_i16m2_mu(b_negate, b_signed_i16m2, b_signed_i16m2, vector_length);
+
+        // Widening multiply-accumulate: i16×i16 → i32
+        sum_i32m4 = __riscv_vwmacc_vv_i32m4(sum_i32m4, a_signed_i16m2, b_signed_i16m2, vector_length);
     }
-    // Single horizontal reduction at the end
-    vfloat32m1_t zero_f32m1 = __riscv_vfmv_v_f_f32m1(0.0f, vlmax);
-    *result = __riscv_vfmv_f_s_f32m1_f32(__riscv_vfredusum_vs_f32m4_f32m1(sum_f32m4, zero_f32m1, vlmax));
+    vint32m1_t zero_i32m1 = __riscv_vmv_v_x_i32m1(0, vlmax);
+    nk_i32_t sum = __riscv_vmv_x_s_i32m1_i32(__riscv_vredsum_vs_i32m4_i32m1(sum_i32m4, zero_i32m1, vlmax));
+    *result = (nk_f32_t)sum / 256.0f;
 }
 
 NK_PUBLIC void nk_dot_i4_rvv(nk_i4x2_t const *a_scalars, nk_i4x2_t const *b_scalars, nk_size_t count_dimensions,

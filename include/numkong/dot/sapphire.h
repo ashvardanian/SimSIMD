@@ -126,49 +126,6 @@ NK_INTERNAL __m512 nk_flush_f16_to_f32_sapphire_(__m512h acc_f16x32, __m512 sum_
     return sum_f32x16;
 }
 
-NK_PUBLIC void nk_dot_e3m2_sapphire(nk_e3m2_t const *a_scalars, nk_e3m2_t const *b_scalars, nk_size_t count_scalars,
-                                    nk_f32_t *result) {
-    __m512 sum_f32x16 = _mm512_setzero_ps();
-
-    // Main loop: 4-way unrolled, processes 128 elements per iteration with no branches
-    while (count_scalars >= 128) {
-        __m512h acc_f16x32 = _mm512_setzero_ph();
-        __m512h a_f16x32, b_f16x32;
-        // Iteration 1
-        a_f16x32 = nk_e3m2x32_to_f16x32_sapphire_(_mm256_loadu_epi8(a_scalars));
-        b_f16x32 = nk_e3m2x32_to_f16x32_sapphire_(_mm256_loadu_epi8(b_scalars));
-        acc_f16x32 = _mm512_fmadd_ph(a_f16x32, b_f16x32, acc_f16x32);
-        // Iteration 2
-        a_f16x32 = nk_e3m2x32_to_f16x32_sapphire_(_mm256_loadu_epi8(a_scalars + 32));
-        b_f16x32 = nk_e3m2x32_to_f16x32_sapphire_(_mm256_loadu_epi8(b_scalars + 32));
-        acc_f16x32 = _mm512_fmadd_ph(a_f16x32, b_f16x32, acc_f16x32);
-        // Iteration 3
-        a_f16x32 = nk_e3m2x32_to_f16x32_sapphire_(_mm256_loadu_epi8(a_scalars + 64));
-        b_f16x32 = nk_e3m2x32_to_f16x32_sapphire_(_mm256_loadu_epi8(b_scalars + 64));
-        acc_f16x32 = _mm512_fmadd_ph(a_f16x32, b_f16x32, acc_f16x32);
-        // Iteration 4
-        a_f16x32 = nk_e3m2x32_to_f16x32_sapphire_(_mm256_loadu_epi8(a_scalars + 96));
-        b_f16x32 = nk_e3m2x32_to_f16x32_sapphire_(_mm256_loadu_epi8(b_scalars + 96));
-        acc_f16x32 = _mm512_fmadd_ph(a_f16x32, b_f16x32, acc_f16x32);
-        // Flush to F32
-        sum_f32x16 = nk_flush_f16_to_f32_sapphire_(acc_f16x32, sum_f32x16);
-        a_scalars += 128, b_scalars += 128, count_scalars -= 128;
-    }
-
-    // Tail: remaining 0–127 elements, 32 at a time via masked loads
-    __m512h acc_f16x32 = _mm512_setzero_ph();
-    for (; count_scalars > 0; a_scalars += 32, b_scalars += 32, count_scalars -= 32) {
-        nk_size_t const n = count_scalars < 32 ? count_scalars : 32;
-        __mmask32 const mask = (__mmask32)_bzhi_u32(0xFFFFFFFF, n);
-        __m512h a_f16x32 = nk_e3m2x32_to_f16x32_sapphire_(_mm256_maskz_loadu_epi8(mask, a_scalars));
-        __m512h b_f16x32 = nk_e3m2x32_to_f16x32_sapphire_(_mm256_maskz_loadu_epi8(mask, b_scalars));
-        acc_f16x32 = _mm512_fmadd_ph(a_f16x32, b_f16x32, acc_f16x32);
-    }
-    sum_f32x16 = nk_flush_f16_to_f32_sapphire_(acc_f16x32, sum_f32x16);
-
-    *result = nk_reduce_add_f32x16_skylake_(sum_f32x16);
-}
-
 #if defined(__clang__)
 #pragma clang attribute pop
 #elif defined(__GNUC__)

@@ -174,6 +174,12 @@ void test_dot() {
     run_if_matches("dot_e3m2_icelake", test_dot<e3m2_t>, nk_dot_e3m2_icelake);
 #endif // NK_TARGET_ICELAKE
 
+#if NK_TARGET_SIERRA
+    run_if_matches("dot_i8_sierra", test_dot<i8_t>, nk_dot_i8_sierra);
+    run_if_matches("dot_u8_sierra", test_dot<u8_t>, nk_dot_u8_sierra);
+    run_if_matches("dot_e2m3_sierra", test_dot<e2m3_t>, nk_dot_e2m3_sierra);
+#endif // NK_TARGET_SIERRA
+
 #if NK_TARGET_GENOA
     run_if_matches("dot_bf16_genoa", test_dot<bf16_t>, nk_dot_bf16_genoa);
     run_if_matches("dot_e4m3_genoa", test_dot<e4m3_t>, nk_dot_e4m3_genoa);
@@ -181,10 +187,6 @@ void test_dot() {
     run_if_matches("dot_e2m3_genoa", test_dot<e2m3_t>, nk_dot_e2m3_genoa);
     run_if_matches("dot_e3m2_genoa", test_dot<e3m2_t>, nk_dot_e3m2_genoa);
 #endif // NK_TARGET_GENOA
-
-#if NK_TARGET_SAPPHIRE
-    run_if_matches("dot_e3m2_sapphire", test_dot<e3m2_t>, nk_dot_e3m2_sapphire);
-#endif // NK_TARGET_SAPPHIRE
 
 #if NK_TARGET_RVV
     run_if_matches("dot_i8_rvv", test_dot<i8_t>, nk_dot_i8_rvv);
@@ -214,14 +216,12 @@ void test_dot() {
 
 #if NK_TARGET_RVVHALF
     run_if_matches("dot_f16_rvvhalf", test_dot<f16_t>, nk_dot_f16_rvvhalf);
-    run_if_matches("dot_e3m2_rvvhalf", test_dot<e3m2_t>, nk_dot_e3m2_rvvhalf);
     run_if_matches("dot_e4m3_rvvhalf", test_dot<e4m3_t>, nk_dot_e4m3_rvvhalf);
     run_if_matches("dot_e5m2_rvvhalf", test_dot<e5m2_t>, nk_dot_e5m2_rvvhalf);
 #endif // NK_TARGET_RVVHALF
 
 #if NK_TARGET_RVVBF16
     run_if_matches("dot_bf16_rvvbf16", test_dot<bf16_t>, nk_dot_bf16_rvvbf16);
-    run_if_matches("dot_e3m2_rvvbf16", test_dot<e3m2_t>, nk_dot_e3m2_rvvbf16);
     run_if_matches("dot_e4m3_rvvbf16", test_dot<e4m3_t>, nk_dot_e4m3_rvvbf16);
     run_if_matches("dot_e5m2_rvvbf16", test_dot<e5m2_t>, nk_dot_e5m2_rvvbf16);
 #endif // NK_TARGET_RVVBF16

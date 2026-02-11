@@ -841,6 +841,68 @@ nk_dot_e2m3_icelake_cycle:
     *result = (nk_f32_t)_mm512_reduce_add_epi32(sum_i32x16) / 256.0f;
 }
 
+NK_PUBLIC void nk_dot_e3m2_icelake(nk_e3m2_t const *a_scalars, nk_e3m2_t const *b_scalars, nk_size_t count_scalars,
+                                   nk_f32_t *result) {
+    // Integer dot product for e3m2 using VPERMW (i16 LUT) + VPMADDWD (i16×i16→i32).
+    // Every e3m2 value × 16 is an exact integer, but magnitudes reach 448, requiring i16.
+    // Result = i32_dot / 256.0f (exact, no rounding error).
+    //
+    // 32-entry i16 LUT for magnitude × 16:
+    //   exp=0 (sub): mant,            exp=1: 4+mant
+    //   exp=2:       8+2*mant,        exp=3: 16+4*mant
+    //   exp=4:       32+8*mant,       exp=5: 64+16*mant
+    //   exp=6:       128+32*mant,     exp=7: 256+64*mant
+    //
+    // VPERMW uses bits [4:0] of the index (mod 32), so 32 entries fit exactly in one ZMM.
+    // _mm512_set_epi16 lists words HIGH→LOW: word31, word30, ..., word0
+    __m512i const lut_magnitude_i16x32 = _mm512_set_epi16(                       //
+        448, 384, 320, 256, 224, 192, 160, 128, 112, 96, 80, 64, 56, 48, 40, 32, //
+        28, 24, 20, 16, 14, 12, 10, 8, 7, 6, 5, 4, 3, 2, 1, 0);
+    __m512i const magnitude_mask_i16x32 = _mm512_set1_epi16(0x1F);
+    __m512i const sign_mask_i16x32 = _mm512_set1_epi16(0x20);
+    __m512i sum_i32x16 = _mm512_setzero_si512();
+    __m256i a_e3m2_u8x32, b_e3m2_u8x32;
+
+nk_dot_e3m2_icelake_cycle:
+    if (count_scalars < 32) {
+        __mmask32 mask = (__mmask32)_bzhi_u32(0xFFFFFFFF, (unsigned int)count_scalars);
+        a_e3m2_u8x32 = _mm256_maskz_loadu_epi8(mask, a_scalars);
+        b_e3m2_u8x32 = _mm256_maskz_loadu_epi8(mask, b_scalars);
+        count_scalars = 0;
+    }
+    else {
+        a_e3m2_u8x32 = _mm256_loadu_si256((__m256i const *)a_scalars);
+        b_e3m2_u8x32 = _mm256_loadu_si256((__m256i const *)b_scalars);
+        a_scalars += 32, b_scalars += 32, count_scalars -= 32;
+    }
+
+    // Zero-extend u8x32 → u16x32
+    __m512i a_u16x32 = _mm512_cvtepu8_epi16(a_e3m2_u8x32);
+    __m512i b_u16x32 = _mm512_cvtepu8_epi16(b_e3m2_u8x32);
+
+    // Extract 5-bit magnitude indices
+    __m512i a_magnitude_u16x32 = _mm512_and_si512(a_u16x32, magnitude_mask_i16x32);
+    __m512i b_magnitude_u16x32 = _mm512_and_si512(b_u16x32, magnitude_mask_i16x32);
+
+    // VPERMW LUT lookup: unsigned magnitudes × 16
+    __m512i a_unsigned_i16x32 = _mm512_permutexvar_epi16(a_magnitude_u16x32, lut_magnitude_i16x32);
+    __m512i b_unsigned_i16x32 = _mm512_permutexvar_epi16(b_magnitude_u16x32, lut_magnitude_i16x32);
+
+    // Apply signs: negate if bit 5 is set
+    __mmask32 a_negate = _mm512_test_epi16_mask(a_u16x32, sign_mask_i16x32);
+    __mmask32 b_negate = _mm512_test_epi16_mask(b_u16x32, sign_mask_i16x32);
+    __m512i a_signed_i16x32 = _mm512_mask_sub_epi16(a_unsigned_i16x32, a_negate, _mm512_setzero_si512(),
+                                                    a_unsigned_i16x32);
+    __m512i b_signed_i16x32 = _mm512_mask_sub_epi16(b_unsigned_i16x32, b_negate, _mm512_setzero_si512(),
+                                                    b_unsigned_i16x32);
+
+    // VPMADDWD: i16×i16→i32, multiplies adjacent pairs and adds
+    sum_i32x16 = _mm512_add_epi32(sum_i32x16, _mm512_madd_epi16(a_signed_i16x32, b_signed_i16x32));
+
+    if (count_scalars) goto nk_dot_e3m2_icelake_cycle;
+    *result = (nk_f32_t)_mm512_reduce_add_epi32(sum_i32x16) / 256.0f;
+}
+
 #if defined(__clang__)
 #pragma clang attribute pop
 #elif defined(__GNUC__)

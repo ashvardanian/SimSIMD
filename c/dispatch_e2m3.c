@@ -20,6 +20,28 @@ void nk_dispatch_e2m3_find_(nk_capability_t v, nk_kernel_kind_t k, nk_kernel_pun
         default: break;
         }
 #endif
+#if NK_TARGET_SAPPHIREAMX
+    if (v & nk_cap_sapphireamx_k) switch (k) {
+        case nk_kernel_dots_packed_size_k:
+            *m = (m_t)&nk_dots_packed_size_e2m3_sapphireamx, *c = nk_cap_sapphireamx_k;
+            return;
+        case nk_kernel_dots_pack_k: *m = (m_t)&nk_dots_pack_e2m3_sapphireamx, *c = nk_cap_sapphireamx_k; return;
+        case nk_kernel_dots_packed_k: *m = (m_t)&nk_dots_packed_e2m3_sapphireamx, *c = nk_cap_sapphireamx_k; return;
+        case nk_kernel_dots_symmetric_k:
+            *m = (m_t)&nk_dots_symmetric_e2m3_sapphireamx, *c = nk_cap_sapphireamx_k;
+            return;
+        default: break;
+        }
+#endif
+#if NK_TARGET_SME
+    if (v & nk_cap_sme_k) switch (k) {
+        case nk_kernel_dots_packed_size_k: *m = (m_t)&nk_dots_packed_size_e2m3_sme, *c = nk_cap_sme_k; return;
+        case nk_kernel_dots_pack_k: *m = (m_t)&nk_dots_pack_e2m3_sme, *c = nk_cap_sme_k; return;
+        case nk_kernel_dots_packed_k: *m = (m_t)&nk_dots_packed_e2m3_sme, *c = nk_cap_sme_k; return;
+        case nk_kernel_dots_symmetric_k: *m = (m_t)&nk_dots_symmetric_e2m3_sme, *c = nk_cap_sme_k; return;
+        default: break;
+        }
+#endif
 #if NK_TARGET_GENOA
     if (v & nk_cap_genoa_k) switch (k) {
         case nk_kernel_euclidean_k: *m = (m_t)&nk_euclidean_e2m3_genoa, *c = nk_cap_genoa_k; return;
@@ -35,6 +57,16 @@ void nk_dispatch_e2m3_find_(nk_capability_t v, nk_kernel_kind_t k, nk_kernel_pun
 #if NK_TARGET_ICELAKE
     if (v & nk_cap_icelake_k) switch (k) {
         case nk_kernel_dot_k: *m = (m_t)&nk_dot_e2m3_icelake, *c = nk_cap_icelake_k; return;
+        default: break;
+        }
+#endif
+#if NK_TARGET_SIERRA
+    if (v & nk_cap_sierra_k) switch (k) {
+        case nk_kernel_dot_k: *m = (m_t)&nk_dot_e2m3_sierra, *c = nk_cap_sierra_k; return;
+        case nk_kernel_dots_packed_size_k: *m = (m_t)&nk_dots_packed_size_e2m3_sierra, *c = nk_cap_sierra_k; return;
+        case nk_kernel_dots_pack_k: *m = (m_t)&nk_dots_pack_e2m3_sierra, *c = nk_cap_sierra_k; return;
+        case nk_kernel_dots_packed_k: *m = (m_t)&nk_dots_packed_e2m3_sierra, *c = nk_cap_sierra_k; return;
+        case nk_kernel_dots_symmetric_k: *m = (m_t)&nk_dots_symmetric_e2m3_sierra, *c = nk_cap_sierra_k; return;
         default: break;
         }
 #endif

@@ -199,6 +199,12 @@ void bench_dot() {
     dense_<e3m2_k, f32_k>("dot_e3m2_icelake", nk_dot_e3m2_icelake);
 #endif
 
+#if NK_TARGET_SIERRA
+    dense_<i8_k, i32_k>("dot_i8_sierra", nk_dot_i8_sierra);
+    dense_<u8_k, u32_k>("dot_u8_sierra", nk_dot_u8_sierra);
+    dense_<e2m3_k, f32_k>("dot_e2m3_sierra", nk_dot_e2m3_sierra);
+#endif
+
 #if NK_TARGET_GENOA
     dense_<bf16_k, f32_k>("dot_bf16_genoa", nk_dot_bf16_genoa);
     dense_<bf16c_k, f32c_k>("dot_bf16c_genoa", nk_dot_bf16c_genoa);
@@ -207,10 +213,6 @@ void bench_dot() {
     dense_<e5m2_k, f32_k>("dot_e5m2_genoa", nk_dot_e5m2_genoa);
     dense_<e2m3_k, f32_k>("dot_e2m3_genoa", nk_dot_e2m3_genoa);
     dense_<e3m2_k, f32_k>("dot_e3m2_genoa", nk_dot_e3m2_genoa);
-#endif
-
-#if NK_TARGET_SAPPHIRE
-    dense_<e3m2_k, f32_k>("dot_e3m2_sapphire", nk_dot_e3m2_sapphire);
 #endif
 
 #if NK_TARGET_RVV

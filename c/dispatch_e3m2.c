@@ -14,7 +14,6 @@ void nk_dispatch_e3m2_find_(nk_capability_t v, nk_kernel_kind_t k, nk_kernel_pun
     typedef nk_kernel_punned_t m_t;
 #if NK_TARGET_SAPPHIRE
     if (v & nk_cap_sapphire_k) switch (k) {
-        case nk_kernel_dot_k: *m = (m_t)&nk_dot_e3m2_sapphire, *c = nk_cap_sapphire_k; return;
         case nk_kernel_euclidean_k: *m = (m_t)&nk_euclidean_e3m2_sapphire, *c = nk_cap_sapphire_k; return;
         case nk_kernel_sqeuclidean_k: *m = (m_t)&nk_sqeuclidean_e3m2_sapphire, *c = nk_cap_sapphire_k; return;
         case nk_kernel_angular_k: *m = (m_t)&nk_angular_e3m2_sapphire, *c = nk_cap_sapphire_k; return;
@@ -36,18 +35,6 @@ void nk_dispatch_e3m2_find_(nk_capability_t v, nk_kernel_kind_t k, nk_kernel_pun
 #if NK_TARGET_ICELAKE
     if (v & nk_cap_icelake_k) switch (k) {
         case nk_kernel_dot_k: *m = (m_t)&nk_dot_e3m2_icelake, *c = nk_cap_icelake_k; return;
-        default: break;
-        }
-#endif
-#if NK_TARGET_RVVHALF
-    if (v & nk_cap_rvvhalf_k) switch (k) {
-        case nk_kernel_dot_k: *m = (m_t)&nk_dot_e3m2_rvvhalf, *c = nk_cap_rvvhalf_k; return;
-        default: break;
-        }
-#endif
-#if NK_TARGET_RVVBF16
-    if (v & nk_cap_rvvbf16_k) switch (k) {
-        case nk_kernel_dot_k: *m = (m_t)&nk_dot_e3m2_rvvbf16, *c = nk_cap_rvvbf16_k; return;
         default: break;
         }
 #endif
