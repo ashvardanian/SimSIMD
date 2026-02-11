@@ -63,7 +63,11 @@ static PyObject *NkBFloat16Scalar_int(NkBFloat16ScalarObject *self) {
 static Py_hash_t NkBFloat16Scalar_hash(NkBFloat16ScalarObject *self) {
     nk_f32_t f32_val;
     nk_bf16_to_f32(&self->value, &f32_val);
+#if PY_VERSION_HEX >= 0x030A00F0
     return _Py_HashDouble(NULL, (double)f32_val);
+#else
+    return _Py_HashDouble((double)f32_val);
+#endif
 }
 
 static PyObject *NkBFloat16Scalar_richcompare(PyObject *self, PyObject *other, int op) {
@@ -289,7 +293,11 @@ static PyObject *NkFloat8E4M3Scalar_int(NkFloat8E4M3ScalarObject *self) {
 static Py_hash_t NkFloat8E4M3Scalar_hash(NkFloat8E4M3ScalarObject *self) {
     nk_f32_t f32_val;
     nk_e4m3_to_f32(&self->value, &f32_val);
+#if PY_VERSION_HEX >= 0x030A00F0
     return _Py_HashDouble(NULL, (double)f32_val);
+#else
+    return _Py_HashDouble((double)f32_val);
+#endif
 }
 
 static PyObject *NkFloat8E4M3Scalar_richcompare(PyObject *self, PyObject *other, int op) {
@@ -515,7 +523,11 @@ static PyObject *NkFloat8E5M2Scalar_int(NkFloat8E5M2ScalarObject *self) {
 static Py_hash_t NkFloat8E5M2Scalar_hash(NkFloat8E5M2ScalarObject *self) {
     nk_f32_t f32_val;
     nk_e5m2_to_f32(&self->value, &f32_val);
+#if PY_VERSION_HEX >= 0x030A00F0
     return _Py_HashDouble(NULL, (double)f32_val);
+#else
+    return _Py_HashDouble((double)f32_val);
+#endif
 }
 
 static PyObject *NkFloat8E5M2Scalar_richcompare(PyObject *self, PyObject *other, int op) {
