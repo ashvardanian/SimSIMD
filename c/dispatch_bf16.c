@@ -75,6 +75,8 @@ void nk_dispatch_bf16_find_(nk_capability_t v, nk_kernel_kind_t k, nk_kernel_pun
         case nk_kernel_each_scale_k: *m = (m_t)&nk_each_scale_bf16_neonbfdot, *c = nk_cap_neonbfdot_k; return;
         case nk_kernel_each_sum_k: *m = (m_t)&nk_each_sum_bf16_neonbfdot, *c = nk_cap_neonbfdot_k; return;
         case nk_kernel_reduce_add_k: *m = (m_t)&nk_reduce_add_bf16_neonbfdot, *c = nk_cap_neonbfdot_k; return;
+        case nk_kernel_reduce_min_k: *m = (m_t)&nk_reduce_min_bf16_neonbfdot, *c = nk_cap_neonbfdot_k; return;
+        case nk_kernel_reduce_max_k: *m = (m_t)&nk_reduce_max_bf16_neonbfdot, *c = nk_cap_neonbfdot_k; return;
         case nk_kernel_dots_packed_size_k:
             *m = (m_t)&nk_dots_packed_size_bf16_neonbfdot, *c = nk_cap_neonbfdot_k;
             return;
@@ -135,6 +137,8 @@ void nk_dispatch_bf16_find_(nk_capability_t v, nk_kernel_kind_t k, nk_kernel_pun
         case nk_kernel_dots_pack_k: *m = (m_t)&nk_dots_pack_bf16_haswell, *c = nk_cap_haswell_k; return;
         case nk_kernel_dots_packed_k: *m = (m_t)&nk_dots_packed_bf16_haswell, *c = nk_cap_haswell_k; return;
         case nk_kernel_dots_symmetric_k: *m = (m_t)&nk_dots_symmetric_bf16_haswell, *c = nk_cap_haswell_k; return;
+        case nk_kernel_reduce_min_k: *m = (m_t)&nk_reduce_min_bf16_haswell, *c = nk_cap_haswell_k; return;
+        case nk_kernel_reduce_max_k: *m = (m_t)&nk_reduce_max_bf16_haswell, *c = nk_cap_haswell_k; return;
         default: break;
         }
 #endif

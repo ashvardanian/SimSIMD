@@ -75,6 +75,10 @@ void nk_dispatch_e5m2_find_(nk_capability_t v, nk_kernel_kind_t k, nk_kernel_pun
 #if NK_TARGET_NEON
     if (v & nk_cap_neon_k) switch (k) {
         case nk_kernel_dot_k: *m = (m_t)&nk_dot_e5m2_neon, *c = nk_cap_neon_k; return;
+        case nk_kernel_each_sum_k: *m = (m_t)&nk_each_sum_e5m2_neon, *c = nk_cap_neon_k; return;
+        case nk_kernel_each_scale_k: *m = (m_t)&nk_each_scale_e5m2_neon, *c = nk_cap_neon_k; return;
+        case nk_kernel_each_blend_k: *m = (m_t)&nk_each_blend_e5m2_neon, *c = nk_cap_neon_k; return;
+        case nk_kernel_each_fma_k: *m = (m_t)&nk_each_fma_e5m2_neon, *c = nk_cap_neon_k; return;
         default: break;
         }
 #endif

@@ -124,6 +124,7 @@ void test_dot() {
     run_if_matches("dot_i4_neonsdot", test_dot<i4x2_t>, nk_dot_i4_neonsdot);
     run_if_matches("dot_u4_neonsdot", test_dot<u4x2_t>, nk_dot_u4_neonsdot);
     run_if_matches("dot_e2m3_neonsdot", test_dot<e2m3_t>, nk_dot_e2m3_neonsdot);
+    run_if_matches("dot_e3m2_neonsdot", test_dot<e3m2_t>, nk_dot_e3m2_neonsdot);
 #endif // NK_TARGET_NEONSDOT
 
 #if NK_TARGET_HASWELL
@@ -170,6 +171,7 @@ void test_dot() {
     run_if_matches("dot_i4_icelake", test_dot<i4x2_t>, nk_dot_i4_icelake);
     run_if_matches("dot_u4_icelake", test_dot<u4x2_t>, nk_dot_u4_icelake);
     run_if_matches("dot_e2m3_icelake", test_dot<e2m3_t>, nk_dot_e2m3_icelake);
+    run_if_matches("dot_e3m2_icelake", test_dot<e3m2_t>, nk_dot_e3m2_icelake);
 #endif // NK_TARGET_ICELAKE
 
 #if NK_TARGET_GENOA
@@ -207,6 +209,7 @@ void test_dot() {
     run_if_matches("dot_i8_v128relaxed", test_dot<i8_t>, nk_dot_i8_v128relaxed);
     run_if_matches("dot_u8_v128relaxed", test_dot<u8_t>, nk_dot_u8_v128relaxed);
     run_if_matches("dot_e2m3_v128relaxed", test_dot<e2m3_t>, nk_dot_e2m3_v128relaxed);
+    run_if_matches("dot_e3m2_v128relaxed", test_dot<e3m2_t>, nk_dot_e3m2_v128relaxed);
 #endif // NK_TARGET_V128RELAXED
 
 #if NK_TARGET_RVVHALF

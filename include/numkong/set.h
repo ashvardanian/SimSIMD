@@ -277,6 +277,19 @@ NK_PUBLIC void nk_hamming_u1_rvvbb(nk_u1x8_t const *a, nk_u1x8_t const *b, nk_si
 NK_PUBLIC void nk_jaccard_u1_rvvbb(nk_u1x8_t const *a, nk_u1x8_t const *b, nk_size_t n, nk_f32_t *result);
 #endif // NK_TARGET_RVVBB
 
+#if NK_TARGET_RVV
+/** @copydoc nk_hamming_u1 */
+NK_PUBLIC void nk_hamming_u1_rvv(nk_u1x8_t const *a, nk_u1x8_t const *b, nk_size_t n, nk_u32_t *result);
+/** @copydoc nk_hamming_u8 */
+NK_PUBLIC void nk_hamming_u8_rvv(nk_u8_t const *a, nk_u8_t const *b, nk_size_t n, nk_u32_t *result);
+/** @copydoc nk_jaccard_u1 */
+NK_PUBLIC void nk_jaccard_u1_rvv(nk_u1x8_t const *a, nk_u1x8_t const *b, nk_size_t n, nk_f32_t *result);
+/** @copydoc nk_jaccard_u16 */
+NK_PUBLIC void nk_jaccard_u16_rvv(nk_u16_t const *a, nk_u16_t const *b, nk_size_t n, nk_f32_t *result);
+/** @copydoc nk_jaccard_u32 */
+NK_PUBLIC void nk_jaccard_u32_rvv(nk_u32_t const *a, nk_u32_t const *b, nk_size_t n, nk_f32_t *result);
+#endif // NK_TARGET_RVV
+
 #if NK_TARGET_V128RELAXED
 /** @copydoc nk_hamming_u1 */
 NK_PUBLIC void nk_hamming_u1_v128relaxed(nk_u1x8_t const *a, nk_u1x8_t const *b, nk_size_t n, nk_u32_t *result);

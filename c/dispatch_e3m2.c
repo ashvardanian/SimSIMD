@@ -33,6 +33,12 @@ void nk_dispatch_e3m2_find_(nk_capability_t v, nk_kernel_kind_t k, nk_kernel_pun
         default: break;
         }
 #endif
+#if NK_TARGET_ICELAKE
+    if (v & nk_cap_icelake_k) switch (k) {
+        case nk_kernel_dot_k: *m = (m_t)&nk_dot_e3m2_icelake, *c = nk_cap_icelake_k; return;
+        default: break;
+        }
+#endif
 #if NK_TARGET_RVVHALF
     if (v & nk_cap_rvvhalf_k) switch (k) {
         case nk_kernel_dot_k: *m = (m_t)&nk_dot_e3m2_rvvhalf, *c = nk_cap_rvvhalf_k; return;
@@ -61,6 +67,12 @@ void nk_dispatch_e3m2_find_(nk_capability_t v, nk_kernel_kind_t k, nk_kernel_pun
         case nk_kernel_dots_pack_k: *m = (m_t)&nk_dots_pack_e3m2_neonfhm, *c = nk_cap_neonfhm_k; return;
         case nk_kernel_dots_packed_k: *m = (m_t)&nk_dots_packed_e3m2_neonfhm, *c = nk_cap_neonfhm_k; return;
         case nk_kernel_dots_symmetric_k: *m = (m_t)&nk_dots_symmetric_e3m2_neonfhm, *c = nk_cap_neonfhm_k; return;
+        default: break;
+        }
+#endif
+#if NK_TARGET_NEONSDOT
+    if (v & nk_cap_neonsdot_k) switch (k) {
+        case nk_kernel_dot_k: *m = (m_t)&nk_dot_e3m2_neonsdot, *c = nk_cap_neonsdot_k; return;
         default: break;
         }
 #endif
@@ -99,6 +111,12 @@ void nk_dispatch_e3m2_find_(nk_capability_t v, nk_kernel_kind_t k, nk_kernel_pun
         case nk_kernel_euclidean_k: *m = (m_t)&nk_euclidean_e3m2_neon, *c = nk_cap_neon_k; return;
         case nk_kernel_sqeuclidean_k: *m = (m_t)&nk_sqeuclidean_e3m2_neon, *c = nk_cap_neon_k; return;
         case nk_kernel_angular_k: *m = (m_t)&nk_angular_e3m2_neon, *c = nk_cap_neon_k; return;
+        default: break;
+        }
+#endif
+#if NK_TARGET_V128RELAXED
+    if (v & nk_cap_v128relaxed_k) switch (k) {
+        case nk_kernel_dot_k: *m = (m_t)&nk_dot_e3m2_v128relaxed, *c = nk_cap_v128relaxed_k; return;
         default: break;
         }
 #endif

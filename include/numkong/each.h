@@ -532,6 +532,29 @@ NK_PUBLIC void nk_each_blend_f64_neon(nk_f64_t const *a, nk_f64_t const *b, nk_s
 /** @copydoc nk_each_fma_f64 */
 NK_PUBLIC void nk_each_fma_f64_neon(nk_f64_t const *a, nk_f64_t const *b, nk_f64_t const *c, nk_size_t n,
                                     nk_f64_t const *alpha, nk_f64_t const *beta, nk_f64_t *result);
+
+/** @copydoc nk_each_sum_e4m3 */
+NK_PUBLIC void nk_each_sum_e4m3_neon(nk_e4m3_t const *a, nk_e4m3_t const *b, nk_size_t n, nk_e4m3_t *result);
+/** @copydoc nk_each_sum_e5m2 */
+NK_PUBLIC void nk_each_sum_e5m2_neon(nk_e5m2_t const *a, nk_e5m2_t const *b, nk_size_t n, nk_e5m2_t *result);
+/** @copydoc nk_each_scale_e4m3 */
+NK_PUBLIC void nk_each_scale_e4m3_neon(nk_e4m3_t const *a, nk_size_t n, nk_f32_t const *alpha, nk_f32_t const *beta,
+                                       nk_e4m3_t *result);
+/** @copydoc nk_each_scale_e5m2 */
+NK_PUBLIC void nk_each_scale_e5m2_neon(nk_e5m2_t const *a, nk_size_t n, nk_f32_t const *alpha, nk_f32_t const *beta,
+                                       nk_e5m2_t *result);
+/** @copydoc nk_each_blend_e4m3 */
+NK_PUBLIC void nk_each_blend_e4m3_neon(nk_e4m3_t const *a, nk_e4m3_t const *b, nk_size_t n, nk_f32_t const *alpha,
+                                       nk_f32_t const *beta, nk_e4m3_t *result);
+/** @copydoc nk_each_blend_e5m2 */
+NK_PUBLIC void nk_each_blend_e5m2_neon(nk_e5m2_t const *a, nk_e5m2_t const *b, nk_size_t n, nk_f32_t const *alpha,
+                                       nk_f32_t const *beta, nk_e5m2_t *result);
+/** @copydoc nk_each_fma_e4m3 */
+NK_PUBLIC void nk_each_fma_e4m3_neon(nk_e4m3_t const *a, nk_e4m3_t const *b, nk_e4m3_t const *c, nk_size_t n,
+                                     nk_f32_t const *alpha, nk_f32_t const *beta, nk_e4m3_t *result);
+/** @copydoc nk_each_fma_e5m2 */
+NK_PUBLIC void nk_each_fma_e5m2_neon(nk_e5m2_t const *a, nk_e5m2_t const *b, nk_e5m2_t const *c, nk_size_t n,
+                                     nk_f32_t const *alpha, nk_f32_t const *beta, nk_e5m2_t *result);
 #endif // NK_TARGET_NEON
 
 #if NK_TARGET_NEONBFDOT
