@@ -27,7 +27,6 @@ void bench_cross_serial() {
     constexpr nk_dtype_t e2m3_k = nk_e2m3_k;
     constexpr nk_dtype_t e3m2_k = nk_e3m2_k;
 
-    // Serial fallbacks
     dots_<bf16_k, f32_k>("dots_packed_bf16_serial", nk_dots_packed_size_bf16_serial, nk_dots_pack_bf16_serial,
                          nk_dots_packed_bf16_serial);
     dots_<i8_k, i32_k>("dots_packed_i8_serial", nk_dots_packed_size_i8_serial, nk_dots_pack_i8_serial,
