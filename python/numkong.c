@@ -92,10 +92,17 @@
 #endif
 #endif
 
-#include <numkong/numkong.h>
-
 #define PY_SSIZE_T_CLEAN
 #include <Python.h>
+
+#include <numkong/numkong.h>
+
+#include "numkong.h"
+#include "numerics.h"
+#include "tensor.h"
+#include "scalars.h"
+
+nk_capability_t static_capabilities = 0;
 
 /**
  *  @brief  Get the kernel's native output dtype for a given metric and input dtype.
@@ -111,14 +118,45 @@ static nk_dtype_t metric_kernel_output_dtype(nk_kernel_kind_t kind, nk_dtype_t i
     }
 }
 
-// Module headers
-#include "numkong.h"
-#include "numerics.h"
-#include "tensor.h"
-#include "scalars.h"
+/**
+ *  @brief  Extract a double value from a scalar buffer given its dtype.
+ */
+static double nk_scalar_buffer_get_f64(nk_scalar_buffer_t const *buf, nk_dtype_t dtype) {
+    switch (dtype) {
+    case nk_f64_k: return buf->f64;
+    case nk_f32_k: return (double)buf->f32;
+    case nk_f64c_k: return buf->f64c.real;
+    case nk_f32c_k: return (double)buf->f32c.real;
+    case nk_i64_k: return (double)buf->i64;
+    case nk_u64_k: return (double)buf->u64;
+    case nk_i32_k: return (double)buf->i32;
+    case nk_u32_k: return (double)buf->u32;
+    case nk_i16_k: return (double)buf->i16;
+    case nk_u16_k: return (double)buf->u16;
+    case nk_i8_k: return (double)buf->i8;
+    case nk_u8_k: return (double)buf->u8;
+    default: return 0.0;
+    }
+}
 
-// Global capabilities variable
-nk_capability_t static_capabilities = 0;
+/**
+ *  @brief  Store a double value into a scalar buffer given its dtype.
+ */
+static void nk_scalar_buffer_set_f64(nk_scalar_buffer_t *buf, double value, nk_dtype_t dtype) {
+    switch (dtype) {
+    case nk_f64_k: buf->f64 = value; break;
+    case nk_f32_k: buf->f32 = (float)value; break;
+    case nk_i64_k: buf->i64 = (nk_i64_t)value; break;
+    case nk_u64_k: buf->u64 = (nk_u64_t)value; break;
+    case nk_i32_k: buf->i32 = (nk_i32_t)value; break;
+    case nk_u32_k: buf->u32 = (nk_u32_t)value; break;
+    case nk_i16_k: buf->i16 = (nk_i16_t)value; break;
+    case nk_u16_k: buf->u16 = (nk_u16_t)value; break;
+    case nk_i8_k: buf->i8 = (nk_i8_t)value; break;
+    case nk_u8_k: buf->u8 = (nk_u8_t)value; break;
+    default: break;
+    }
+}
 
 #pragma region Datatype Metadata Table
 
@@ -225,7 +263,7 @@ nk_dtype_t python_string_to_dtype(char const *name) {
              same_string(name, "<i2") || same_string(name, "h") || same_string(name, "<h"))
         return nk_i16_k;
 
-        // Platform-specific integer formats (Windows vs Unix):
+    // Platform-specific integer formats (Windows vs Unix):
 #if defined(_MSC_VER) || defined(__i386__)
     else if (same_string(name, "int32") || same_string(name, "i4") || same_string(name, "|i4") ||
              same_string(name, "<i4") || same_string(name, "l") || same_string(name, "<l"))
@@ -1747,9 +1785,9 @@ static PyObject *api_fma(PyObject *self, PyObject *const *args, Py_ssize_t const
     if (dtype == nk_dtype_unknown_k) dtype = a_parsed.dtype;
 
     // Look up the metric and the capability
-    nk_kernel_fma_punned_t metric = NULL;
+    nk_each_fma_punned_t metric = NULL;
     nk_capability_t capability = nk_cap_serial_k;
-    nk_kernel_kind_t const metric_kind = nk_kernel_fma_k;
+    nk_kernel_kind_t const metric_kind = nk_kernel_each_fma_k;
     nk_find_kernel_punned(metric_kind, dtype, static_capabilities, nk_cap_any_k, (nk_kernel_punned_t *)&metric,
                           &capability);
     if (!metric) {
@@ -1911,9 +1949,9 @@ static PyObject *api_wsum(PyObject *self, PyObject *const *args, Py_ssize_t cons
     if (dtype == nk_dtype_unknown_k) dtype = a_parsed.dtype;
 
     // Look up the metric and the capability
-    nk_kernel_wsum_punned_t metric = NULL;
+    nk_each_blend_punned_t metric = NULL;
     nk_capability_t capability = nk_cap_serial_k;
-    nk_kernel_kind_t const metric_kind = nk_kernel_wsum_k;
+    nk_kernel_kind_t const metric_kind = nk_kernel_each_blend_k;
     nk_find_kernel_punned(metric_kind, dtype, static_capabilities, nk_cap_any_k, (nk_kernel_punned_t *)&metric,
                           &capability);
     if (!metric) {
@@ -2073,9 +2111,9 @@ static PyObject *api_add(PyObject *self, PyObject *const *args, Py_ssize_t const
         }
 
         // Find scale kernel
-        nk_kernel_scale_punned_t scale_kernel = NULL;
+        nk_each_scale_punned_t scale_kernel = NULL;
         nk_capability_t capability = nk_cap_serial_k;
-        nk_find_kernel_punned(nk_kernel_scale_k, dtype, static_capabilities, nk_cap_any_k,
+        nk_find_kernel_punned(nk_kernel_each_scale_k, dtype, static_capabilities, nk_cap_any_k,
                               (nk_kernel_punned_t *)&scale_kernel, &capability);
         if (!scale_kernel) {
             PyErr_Format(PyExc_LookupError, "No scale kernel for dtype '%s'", dtype_to_string(dtype));
@@ -2293,9 +2331,9 @@ static PyObject *api_multiply(PyObject *self, PyObject *const *args, Py_ssize_t 
         }
 
         // Find scale kernel
-        nk_kernel_scale_punned_t scale_kernel = NULL;
+        nk_each_scale_punned_t scale_kernel = NULL;
         nk_capability_t capability = nk_cap_serial_k;
-        nk_find_kernel_punned(nk_kernel_scale_k, dtype, static_capabilities, nk_cap_any_k,
+        nk_find_kernel_punned(nk_kernel_each_scale_k, dtype, static_capabilities, nk_cap_any_k,
                               (nk_kernel_punned_t *)&scale_kernel, &capability);
         if (!scale_kernel) {
             PyErr_Format(PyExc_LookupError, "No scale kernel for dtype '%s'", dtype_to_string(dtype));
