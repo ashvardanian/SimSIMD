@@ -1,15 +1,15 @@
 # CMake is the preferred way to compile the C shared libraries, tests, and benchmarks.
 # Use like:
 #
-#   cmake -B build_release -D CMAKE_BUILD_TYPE=Release -D NK_BUILD_TESTS=ON
+#   cmake -B build_release -D CMAKE_BUILD_TYPE=Release -D NK_BUILD_TEST=ON
 #   cmake --build build_release --config Release
 #   build_release/nk_test
 #
 # CMake options:
 #
 #   -D CMAKE_BUILD_TYPE=<Release|Debug|RelWithDebInfo>
-#   -D NK_BUILD_TESTS=<ON|OFF>          (default: OFF)
-#   -D NK_BUILD_BENCHMARKS=<ON|OFF>     (default: OFF)
+#   -D NK_BUILD_TEST=<ON|OFF>           (default: OFF)
+#   -D NK_BUILD_BENCH=<ON|OFF>          (default: OFF)
 #   -D NK_COMPARE_TO_BLAS=<ON|OFF>      (default: OFF)
 #   -D NK_COMPARE_TO_MKL=<ON|OFF>       (default: OFF)
 #   -D NK_BUILD_SHARED=<ON|OFF>         (default: OFF)
@@ -24,7 +24,7 @@
 #
 #     brew install llvm openblas ccache
 #     cmake -B build_release -D CMAKE_BUILD_TYPE=Release \
-#           -D NK_BUILD_TESTS=ON \
+#           -D NK_BUILD_TEST=ON \
 #           -D CMAKE_C_COMPILER="$(brew --prefix llvm)/bin/clang" \
 #           -D CMAKE_CXX_COMPILER="$(brew --prefix llvm)/bin/clang++" \
 #           -D CMAKE_CXX_STANDARD_INCLUDE_DIRECTORIES="$(brew --prefix openblas)/include"
@@ -33,12 +33,12 @@
 # To cross-compile for ARM64:
 #
 #     cmake -B build_arm64 -D CMAKE_TOOLCHAIN_FILE=cmake/aarch64-linux-gnu.cmake \
-#           -D NK_BUILD_TESTS=ON
+#           -D NK_BUILD_TEST=ON
 #
 # To cross-compile for RISC-V:
 #
 #     cmake -B build_riscv -D CMAKE_TOOLCHAIN_FILE=cmake/riscv64-linux-gnu.cmake \
-#           -D NK_BUILD_TESTS=ON
+#           -D NK_BUILD_TEST=ON
 #
 cmake_minimum_required(VERSION 3.14 FATAL_ERROR)
 

@@ -75,8 +75,8 @@ def linux_settings() -> Tuple[List[str], List[str], List[Tuple[str, str]]]:
         ("NK_TARGET_SAPPHIRE", "1" if is_64bit_x86() else "0"),
         ("NK_TARGET_TURIN", "1" if is_64bit_x86() else "0"),
         ("NK_TARGET_SIERRA", "0"),  # avx2vnni not supported by manylinux GCC
-        ("NK_TARGET_SAPPHIRE_AMX", "1" if is_64bit_x86() else "0"),
-        ("NK_TARGET_GRANITE_AMX", "1" if is_64bit_x86() else "0"),
+        ("NK_TARGET_SAPPHIREAMX", "1" if is_64bit_x86() else "0"),
+        ("NK_TARGET_GRANITEAMX", "1" if is_64bit_x86() else "0"),
         # ARM NEON targets
         ("NK_TARGET_NEON", "1" if is_64bit_arm() else "0"),
         ("NK_TARGET_NEONHALF", "1" if is_64bit_arm() else "0"),
@@ -87,6 +87,9 @@ def linux_settings() -> Tuple[List[str], List[str], List[Tuple[str, str]]]:
         ("NK_TARGET_SVE", "1" if is_64bit_arm() else "0"),
         ("NK_TARGET_SVEHALF", "1" if is_64bit_arm() else "0"),
         ("NK_TARGET_SVEBFDOT", "1" if is_64bit_arm() else "0"),
+        ("NK_TARGET_SVESDOT", "1" if is_64bit_arm() else "0"),
+        ("NK_TARGET_SVE2", "1" if is_64bit_arm() else "0"),
+        ("NK_TARGET_SVE2P1", "1" if is_64bit_arm() else "0"),
         # ARM SME targets
         ("NK_TARGET_SME", "1" if is_64bit_arm() else "0"),
         ("NK_TARGET_SME2", "1" if is_64bit_arm() else "0"),
@@ -94,8 +97,14 @@ def linux_settings() -> Tuple[List[str], List[str], List[Tuple[str, str]]]:
         ("NK_TARGET_SMEF64", "1" if is_64bit_arm() else "0"),
         ("NK_TARGET_SMEHALF", "1" if is_64bit_arm() else "0"),
         ("NK_TARGET_SMEBF16", "1" if is_64bit_arm() else "0"),
+        ("NK_TARGET_SMEBI32", "1" if is_64bit_arm() else "0"),
         ("NK_TARGET_SMELUT2", "1" if is_64bit_arm() else "0"),
         ("NK_TARGET_SMEFA64", "1" if is_64bit_arm() else "0"),
+        # RISC-V targets
+        ("NK_TARGET_RVV", "1" if is_64bit_riscv() else "0"),
+        ("NK_TARGET_RVVHALF", "1" if is_64bit_riscv() else "0"),
+        ("NK_TARGET_RVVBF16", "1" if is_64bit_riscv() else "0"),
+        ("NK_TARGET_RVVBB", "1" if is_64bit_riscv() else "0"),
     ]
     return compile_args, link_args, macros
 
@@ -122,8 +131,8 @@ def darwin_settings() -> Tuple[List[str], List[str], List[Tuple[str, str]]]:
         ("NK_TARGET_SAPPHIRE", "0"),
         ("NK_TARGET_TURIN", "0"),
         ("NK_TARGET_SIERRA", "0"),
-        ("NK_TARGET_SAPPHIRE_AMX", "0"),
-        ("NK_TARGET_GRANITE_AMX", "0"),
+        ("NK_TARGET_SAPPHIREAMX", "0"),
+        ("NK_TARGET_GRANITEAMX", "0"),
         # ARM NEON targets - NEON only, no SVE/SME on Apple Silicon
         ("NK_TARGET_NEON", "1" if is_64bit_arm() else "0"),
         ("NK_TARGET_NEONHALF", "1" if is_64bit_arm() else "0"),
@@ -134,6 +143,9 @@ def darwin_settings() -> Tuple[List[str], List[str], List[Tuple[str, str]]]:
         ("NK_TARGET_SVE", "0"),
         ("NK_TARGET_SVEHALF", "0"),
         ("NK_TARGET_SVEBFDOT", "0"),
+        ("NK_TARGET_SVESDOT", "0"),
+        ("NK_TARGET_SVE2", "0"),
+        ("NK_TARGET_SVE2P1", "0"),
         # ARM SME targets - not available on Apple Silicon
         ("NK_TARGET_SME", "0"),
         ("NK_TARGET_SME2", "0"),
@@ -141,8 +153,14 @@ def darwin_settings() -> Tuple[List[str], List[str], List[Tuple[str, str]]]:
         ("NK_TARGET_SMEF64", "0"),
         ("NK_TARGET_SMEHALF", "0"),
         ("NK_TARGET_SMEBF16", "0"),
+        ("NK_TARGET_SMEBI32", "0"),
         ("NK_TARGET_SMELUT2", "0"),
         ("NK_TARGET_SMEFA64", "0"),
+        # RISC-V targets - not available on macOS
+        ("NK_TARGET_RVV", "0"),
+        ("NK_TARGET_RVVHALF", "0"),
+        ("NK_TARGET_RVVBF16", "0"),
+        ("NK_TARGET_RVVBB", "0"),
     ]
     return compile_args, link_args, macros
 
@@ -172,8 +190,8 @@ def windows_settings() -> Tuple[List[str], List[str], List[Tuple[str, str]]]:
         ("NK_TARGET_SAPPHIRE", "0"),  # FP16 intrinsics broken in MSVC
         ("NK_TARGET_TURIN", "0"),  # `VP2INTERSECT` limited in MSVC
         ("NK_TARGET_SIERRA", "0"),  # AVX2 VNNI limits in MSVC
-        ("NK_TARGET_SAPPHIRE_AMX", "0"),  # AMX not well supported in MSVC
-        ("NK_TARGET_GRANITE_AMX", "0"),  # AMX not well supported in MSVC
+        ("NK_TARGET_SAPPHIREAMX", "0"),  # AMX not well supported in MSVC
+        ("NK_TARGET_GRANITEAMX", "0"),  # AMX not well supported in MSVC
         # ARM NEON targets
         ("NK_TARGET_NEON", "1" if is_64bit_arm() else "0"),
         ("NK_TARGET_NEONHALF", "0"),  # MSVC lacks `float16_t` intrinsics
@@ -184,6 +202,9 @@ def windows_settings() -> Tuple[List[str], List[str], List[Tuple[str, str]]]:
         ("NK_TARGET_SVE", "0"),
         ("NK_TARGET_SVEHALF", "0"),
         ("NK_TARGET_SVEBFDOT", "0"),
+        ("NK_TARGET_SVESDOT", "0"),
+        ("NK_TARGET_SVE2", "0"),
+        ("NK_TARGET_SVE2P1", "0"),
         # ARM SME targets - not supported on Windows
         ("NK_TARGET_SME", "0"),
         ("NK_TARGET_SME2", "0"),
@@ -191,8 +212,14 @@ def windows_settings() -> Tuple[List[str], List[str], List[Tuple[str, str]]]:
         ("NK_TARGET_SMEF64", "0"),
         ("NK_TARGET_SMEHALF", "0"),
         ("NK_TARGET_SMEBF16", "0"),
+        ("NK_TARGET_SMEBI32", "0"),
         ("NK_TARGET_SMELUT2", "0"),
         ("NK_TARGET_SMEFA64", "0"),
+        # RISC-V targets - not supported on Windows
+        ("NK_TARGET_RVV", "0"),
+        ("NK_TARGET_RVVHALF", "0"),
+        ("NK_TARGET_RVVBF16", "0"),
+        ("NK_TARGET_RVVBB", "0"),
     ]
     # MSVC requires architecture-specific macros for winnt.h
     if is_64bit_arm():

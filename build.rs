@@ -98,6 +98,7 @@ fn build_simsimd() -> HashMap<String, bool> {
             // SME family
             "NK_TARGET_SMELUT2",
             "NK_TARGET_SMEBF16",
+            "NK_TARGET_SMEBI32",
             "NK_TARGET_SMEHALF",
             "NK_TARGET_SMEFA64",
             "NK_TARGET_SMEF64",
@@ -105,6 +106,9 @@ fn build_simsimd() -> HashMap<String, bool> {
             "NK_TARGET_SME2",
             "NK_TARGET_SME",
             // SVE family
+            "NK_TARGET_SVE2P1",
+            "NK_TARGET_SVE2",
+            "NK_TARGET_SVESDOT",
             "NK_TARGET_SVEBFDOT",
             "NK_TARGET_SVEHALF",
             "NK_TARGET_SVE",
@@ -117,8 +121,8 @@ fn build_simsimd() -> HashMap<String, bool> {
         ],
         "x86_64" => vec![
             // Most advanced first
-            "NK_TARGET_GRANITE_AMX",
-            "NK_TARGET_SAPPHIRE_AMX",
+            "NK_TARGET_GRANITEAMX",
+            "NK_TARGET_SAPPHIREAMX",
             "NK_TARGET_SIERRA",
             "NK_TARGET_TURIN",
             "NK_TARGET_SAPPHIRE",
@@ -129,9 +133,14 @@ fn build_simsimd() -> HashMap<String, bool> {
         ],
         "riscv64" => vec![
             // Most advanced first
-            "NK_TARGET_XUANTIE",
-            "NK_TARGET_SIFIVE",
-            "NK_TARGET_SPACEMIT",
+            "NK_TARGET_RVVBB",
+            "NK_TARGET_RVVBF16",
+            "NK_TARGET_RVVHALF",
+            "NK_TARGET_RVV",
+        ],
+        "wasm32" | "wasm64" => vec![
+            //
+            "NK_TARGET_V128RELAXED",
         ],
         _ => vec![],
     };

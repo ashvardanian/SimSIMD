@@ -40,10 +40,11 @@ static void print_isa(char const *name, int compiled, nk_capability_t cap, nk_ca
 }
 
 // Definition of global variables declared extern in test.hpp
-std::size_t dense_dimensions = 1024; // For dot products, spatial metrics
+std::size_t dense_dimensions = 1536; // For dot products, spatial metrics
+std::size_t curved_dimensions = 64;  // For curved metrics (quadratic in dims)
 std::size_t sparse_dimensions = 256; // For sparse set intersection and sparse dot
-std::size_t mesh_points = 256;       // For RMSD, Kabsch (3D point clouds)
-std::size_t matrix_height = 64, matrix_width = 64, matrix_depth = 64;
+std::size_t mesh_points = 1000;      // For RMSD, Kabsch (3D point clouds)
+std::size_t matrix_height = 1024, matrix_width = 128, matrix_depth = 1536;
 
 test_config_t global_config;
 std::size_t global_failure_count = 0;
@@ -86,18 +87,34 @@ void test_fp8_conversions() {
 }
 
 int main(int argc, char **argv) {
-    (void)argc;
-    (void)argv;
 
+    // Parse CLI arguments
+    for (int i = 1; i < argc; ++i) {
+        if (std::strncmp(argv[i], "--filter=", 9) == 0) { global_config.filter = argv[i] + 9; }
+        else if (std::strcmp(argv[i], "--filter") == 0 && i + 1 < argc) { global_config.filter = argv[++i]; }
+        else if (std::strcmp(argv[i], "--assert") == 0) { global_config.assert_on_failure = true; }
+        else if (std::strcmp(argv[i], "--verbose") == 0) { global_config.verbose = true; }
+        else { std::fprintf(stderr, "Warning: unrecognized argument '%s'\n", argv[i]); }
+    }
+
+    if (std::getenv("NK_IN_QEMU")) global_config.running_in_qemu = true;
     if (char const *env = std::getenv("NK_TEST_ASSERT")) global_config.assert_on_failure = std::atoi(env) != 0;
     if (char const *env = std::getenv("NK_TEST_VERBOSE")) global_config.verbose = std::atoi(env) != 0;
-    if (char const *env = std::getenv("NK_TEST_ULP_THRESHOLD_F32")) global_config.ulp_threshold_f32 = std::atoll(env);
-    if (char const *env = std::getenv("NK_TEST_ULP_THRESHOLD_F16")) global_config.ulp_threshold_f16 = std::atoll(env);
-    if (char const *env = std::getenv("NK_TEST_ULP_THRESHOLD_BF16")) global_config.ulp_threshold_bf16 = std::atoll(env);
+    if (char const *env = std::getenv("NK_ULP_THRESHOLD_F32")) global_config.ulp_threshold_f32 = std::atoll(env);
+    else if (char const *env = std::getenv("NK_TEST_ULP_THRESHOLD_F32"))
+        global_config.ulp_threshold_f32 = std::atoll(env);
+    if (char const *env = std::getenv("NK_ULP_THRESHOLD_F16")) global_config.ulp_threshold_f16 = std::atoll(env);
+    else if (char const *env = std::getenv("NK_TEST_ULP_THRESHOLD_F16"))
+        global_config.ulp_threshold_f16 = std::atoll(env);
+    if (char const *env = std::getenv("NK_ULP_THRESHOLD_BF16")) global_config.ulp_threshold_bf16 = std::atoll(env);
+    else if (char const *env = std::getenv("NK_TEST_ULP_THRESHOLD_BF16"))
+        global_config.ulp_threshold_bf16 = std::atoll(env);
     if (char const *env = std::getenv("NK_TEST_TIME_BUDGET_MS")) global_config.time_budget_ms = std::atoll(env);
     if (char const *env = std::getenv("NK_SEED")) global_config.seed = std::atoll(env);
-    global_config.filter = std::getenv("NK_FILTER"); // e.g., "dot", "angular", "kld"
-    if (char const *env = std::getenv("NK_TEST_DISTRIBUTION")) {
+    if (!global_config.filter) global_config.filter = std::getenv("NK_FILTER"); // e.g., "dot", "angular", "kld"
+    char const *dist_env = std::getenv("NK_RANDOM_DISTRIBUTION");
+    if (!dist_env) dist_env = std::getenv("NK_TEST_DISTRIBUTION");
+    if (char const *env = dist_env) {
         if (std::strcmp(env, "uniform_k") == 0) global_config.distribution = random_distribution_kind_t::uniform_k;
         else if (std::strcmp(env, "cauchy_k") == 0) global_config.distribution = random_distribution_kind_t::cauchy_k;
         else if (std::strcmp(env, "lognormal_k") == 0)
@@ -108,6 +125,10 @@ int main(int argc, char **argv) {
     if (char const *env = std::getenv("NK_DENSE_DIMENSIONS")) {
         std::size_t val = static_cast<std::size_t>(std::atoll(env));
         if (val > 0) dense_dimensions = val;
+    }
+    if (char const *env = std::getenv("NK_CURVED_DIMENSIONS")) {
+        std::size_t val = static_cast<std::size_t>(std::atoll(env));
+        if (val > 0) curved_dimensions = val;
     }
     if (char const *env = std::getenv("NK_SPARSE_DIMENSIONS")) {
         std::size_t val = static_cast<std::size_t>(std::atoll(env));
@@ -194,8 +215,8 @@ int main(int argc, char **argv) {
     std::printf("\n");
 
     // Dimensions row
-    std::printf("  Dimensions: dense=%zu  sparse=%zu  mesh=%zu  matrix=%zux%zux%zu\n", dense_dimensions,
-                sparse_dimensions, mesh_points, matrix_height, matrix_width, matrix_depth);
+    std::printf("  Dimensions: dense=%zu  curved=%zu  sparse=%zu  mesh=%zu  matrix=%zux%zux%zu\n", dense_dimensions,
+                curved_dimensions, sparse_dimensions, mesh_points, matrix_height, matrix_width, matrix_depth);
 
     // ULP thresholds
     std::printf("  ULP: f32 \xe2\x89\xa4 %llu  f16 \xe2\x89\xa4 %llu  bf16 \xe2\x89\xa4 %llu\n",
@@ -204,9 +225,9 @@ int main(int argc, char **argv) {
                 (unsigned long long)global_config.ulp_threshold_bf16);
 
     // Test-specific config
-    std::printf("  Test: seed=%u  budget=%zums  distribution=%s  assert=%s\n", global_config.seed,
+    std::printf("  Test: seed=%u  budget=%zums  distribution=%s  assert=%s  qemu=%s\n", global_config.seed,
                 global_config.time_budget_ms, global_config.distribution_name(),
-                global_config.assert_on_failure ? "on" : "off");
+                global_config.assert_on_failure ? "on" : "off", global_config.running_in_qemu ? "yes" : "no");
     std::printf("\n");
 
     test_vector_types();

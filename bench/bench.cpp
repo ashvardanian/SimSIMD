@@ -8,7 +8,7 @@
  *  throughput performance. Run with:
  *
  *  ```bash
- *  cmake -B build_release -D NK_BUILD_BENCHMARKS=1
+ *  cmake -B build_release -D NK_BUILD_BENCH=1
  *  cmake --build build_release
  *  build_release/nk_bench
  *  ```
