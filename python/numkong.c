@@ -749,7 +749,7 @@ static PyObject *implement_dense_metric( //
     nk_capability_t capability = nk_cap_serial_k;
     nk_find_kernel_punned(metric_kind, dtype, static_capabilities, nk_cap_any_k, (nk_kernel_punned_t *)&metric,
                           &capability);
-    if (!metric) {
+    if (!metric || !capability) {
         PyErr_Format( //
             PyExc_LookupError,
             "Unsupported metric '%c' and dtype combination across vectors ('%s'/'%s' and '%s'/'%s') and " "`dtype` " "o" "v" "e" "r" "r" "i" "d" "e" " " "('%s'/" "'%s')",
@@ -956,7 +956,7 @@ static PyObject *implement_curved_metric( //
     nk_capability_t capability = nk_cap_serial_k;
     nk_find_kernel_punned(metric_kind, dtype, static_capabilities, nk_cap_any_k, (nk_kernel_punned_t *)&metric,
                           &capability);
-    if (!metric) {
+    if (!metric || !capability) {
         PyErr_Format( //
             PyExc_LookupError,
             "Unsupported metric '%c' and dtype combination across vectors ('%s'/'%s' and '%s'/'%s'), " "tensor " "('%s'" "/" "'" "%" "s" "'" ")" "," " " "a" "n" "d" " " "`dtype` " "override " "('%s'/'%s')",
@@ -1094,7 +1094,7 @@ static PyObject *implement_geospatial_metric( //
     nk_capability_t capability = nk_cap_serial_k;
     nk_find_kernel_punned(metric_kind, dtype, static_capabilities, nk_cap_any_k, (nk_kernel_punned_t *)&metric,
                           &capability);
-    if (!metric) {
+    if (!metric || !capability) {
         PyErr_Format(PyExc_LookupError, "Unsupported metric '%c' and dtype '%s'", metric_kind,
                      dtype_to_python_string(dtype));
         goto cleanup;
@@ -1176,7 +1176,7 @@ static PyObject *implement_sparse_metric( //
     nk_capability_t capability = nk_cap_serial_k;
     nk_find_kernel_punned(metric_kind, dtype, static_capabilities, nk_cap_any_k, (nk_kernel_punned_t *)&metric,
                           &capability);
-    if (!metric) {
+    if (!metric || !capability) {
         PyErr_Format( //
             PyExc_LookupError, "Unsupported metric '%c' and dtype combination ('%s'/'%s' and '%s'/'%s')",
             metric_kind,                                                                       //
@@ -1269,7 +1269,7 @@ static PyObject *implement_cdist(                        //
     nk_capability_t capability = nk_cap_serial_k;
     nk_find_kernel_punned(metric_kind, dtype, static_capabilities, nk_cap_any_k, (nk_kernel_punned_t *)&metric,
                           &capability);
-    if (!metric) {
+    if (!metric || !capability) {
         PyErr_Format( //
             PyExc_LookupError, "Unsupported metric '%c' and dtype combination ('%s'/'%s' and '%s'/'%s')",
             metric_kind,                                                                       //
@@ -1405,7 +1405,7 @@ static PyObject *implement_pointer_access(nk_kernel_kind_t metric_kind, PyObject
     nk_kernel_punned_t metric = NULL;
     nk_capability_t capability = nk_cap_serial_k;
     nk_find_kernel_punned(metric_kind, dtype, static_capabilities, nk_cap_any_k, &metric, &capability);
-    if (metric == NULL) {
+    if (!metric || !capability) {
         PyErr_SetString(PyExc_LookupError, "No such metric");
         return NULL;
     }
@@ -1791,7 +1791,7 @@ static PyObject *api_fma(PyObject *self, PyObject *const *args, Py_ssize_t const
     nk_kernel_kind_t const metric_kind = nk_kernel_each_fma_k;
     nk_find_kernel_punned(metric_kind, dtype, static_capabilities, nk_cap_any_k, (nk_kernel_punned_t *)&metric,
                           &capability);
-    if (!metric) {
+    if (!metric || !capability) {
         PyErr_Format( //
             PyExc_LookupError,
             "Unsupported metric '%c' and dtype combination across vectors ('%s'/'%s') and " "`dtype` override " "('%s'/" "'%s')",
@@ -1955,7 +1955,7 @@ static PyObject *api_wsum(PyObject *self, PyObject *const *args, Py_ssize_t cons
     nk_kernel_kind_t const metric_kind = nk_kernel_each_blend_k;
     nk_find_kernel_punned(metric_kind, dtype, static_capabilities, nk_cap_any_k, (nk_kernel_punned_t *)&metric,
                           &capability);
-    if (!metric) {
+    if (!metric || !capability) {
         PyErr_Format( //
             PyExc_LookupError,
             "Unsupported metric '%c' and dtype combination across vectors ('%s'/'%s') and " "`dtype` override " "('%s'/" "'%s')",
@@ -2116,7 +2116,7 @@ static PyObject *api_add(PyObject *self, PyObject *const *args, Py_ssize_t const
         nk_capability_t capability = nk_cap_serial_k;
         nk_find_kernel_punned(nk_kernel_each_scale_k, dtype, static_capabilities, nk_cap_any_k,
                               (nk_kernel_punned_t *)&scale_kernel, &capability);
-        if (!scale_kernel) {
+        if (!scale_kernel || !capability) {
             PyErr_Format(PyExc_LookupError, "No scale kernel for dtype '%s'", dtype_to_string(dtype));
             goto cleanup;
         }
@@ -2194,7 +2194,7 @@ static PyObject *api_add(PyObject *self, PyObject *const *args, Py_ssize_t const
     nk_capability_t capability = nk_cap_serial_k;
     nk_find_kernel_punned(nk_kernel_each_sum_k, dtype, static_capabilities, nk_cap_any_k,
                           (nk_kernel_punned_t *)&sum_kernel, &capability);
-    if (!sum_kernel) {
+    if (!sum_kernel || !capability) {
         PyErr_Format(PyExc_LookupError, "No sum kernel for dtype '%s'", dtype_to_string(dtype));
         goto cleanup;
     }
@@ -2336,7 +2336,7 @@ static PyObject *api_multiply(PyObject *self, PyObject *const *args, Py_ssize_t 
         nk_capability_t capability = nk_cap_serial_k;
         nk_find_kernel_punned(nk_kernel_each_scale_k, dtype, static_capabilities, nk_cap_any_k,
                               (nk_kernel_punned_t *)&scale_kernel, &capability);
-        if (!scale_kernel) {
+        if (!scale_kernel || !capability) {
             PyErr_Format(PyExc_LookupError, "No scale kernel for dtype '%s'", dtype_to_string(dtype));
             goto cleanup;
         }
@@ -2414,7 +2414,7 @@ static PyObject *api_multiply(PyObject *self, PyObject *const *args, Py_ssize_t 
     nk_capability_t capability = nk_cap_serial_k;
     nk_find_kernel_punned(nk_kernel_each_fma_k, dtype, static_capabilities, nk_cap_any_k,
                           (nk_kernel_punned_t *)&fma_kernel, &capability);
-    if (!fma_kernel) {
+    if (!fma_kernel || !capability) {
         PyErr_Format(PyExc_LookupError, "No fma kernel for dtype '%s'", dtype_to_string(dtype));
         goto cleanup;
     }
@@ -2554,7 +2554,7 @@ static PyObject *implement_trigonometry(nk_kernel_kind_t metric_kind, PyObject *
     nk_capability_t capability = nk_cap_serial_k;
     nk_find_kernel_punned(metric_kind, dtype, static_capabilities, nk_cap_any_k, (nk_kernel_punned_t *)&kernel,
                           &capability);
-    if (!kernel) {
+    if (!kernel || !capability) {
         PyErr_Format( //
             PyExc_LookupError,
             "Unsupported metric '%c' and dtype combination ('%s'/'%s') and `dtype` override ('%s'/'%s')",
@@ -2719,7 +2719,7 @@ static PyObject *implement_mesh_alignment(nk_kernel_kind_t metric_kind, PyObject
     nk_capability_t capability = nk_cap_serial_k;
     nk_find_kernel_punned(metric_kind, dtype, static_capabilities, nk_cap_any_k, (nk_kernel_punned_t *)&kernel,
                           &capability);
-    if (!kernel) {
+    if (!kernel || !capability) {
         PyErr_SetString(PyExc_RuntimeError, "No suitable mesh kernel found for this data type");
         goto cleanup;
     }
