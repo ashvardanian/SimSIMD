@@ -232,64 +232,15 @@ cargo msrv find --ignore-lockfile
 
 ## JavaScript
 
-### NodeJS
+See [javascript/README.md](javascript/README.md) for JavaScript/TypeScript development, WASM support, and API documentation.
 
-If you don't have the environment configured, here are the [installation options](https://github.com/nvm-sh/nvm?tab=readme-ov-file#install--update-script) with different tools:
-
-```sh
-wget -qO- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.1/install.sh | bash # Linux
-curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.1/install.sh | bash  # macOS
-```
-
-Install dependencies:
+Quick reference:
 
 ```sh
-nvm install 20
-npm install -g typescript           # Install the TypeScript compiler globally
-npm install --save-dev @types/node  # Install the Node.js type definitions as a dev dependency
+npm run build-js        # Build TypeScript
+npm test                # Run tests
+npm run bench           # Run benchmarks
 ```
-
-Testing and benchmarking:
-
-```sh
-npm run build-js                    # Build the JavaScript code using TypeScript configurations
-npm test                            # Run the test suite
-npm run bench                       # Run the benchmark script
-```
-
-### Deno
-
-If you don't have the environment configured, here are [installation options](https://docs.deno.com/runtime/getting_started/installation/) with different tools:
-
-```sh
-wget -qO- https://deno.land/x/install/install.sh | sh # Linux
-curl -fsSL https://deno.land/install.sh | sh          # macOS
-irm https://deno.land/install.ps1 | iex               # Windows
-```
-
-Testing:
-
-```sh
-deno test -A
-```
-
-### Bun
-
-If you don't have the environment configured, here are the [installation options](https://bun.sh/docs/installation) with different tools:
-
-```sh
-wget -qO- https://bun.sh/install | bash   # for Linux
-curl -fsSL https://bun.sh/install | bash  # for macOS and WSL
-```
-
-Testing:
-
-```sh
-bun install
-bun test ./scripts/test.mjs
-```
-
-... wouldn't work for now.
 
 ## Swift
 

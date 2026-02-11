@@ -21,7 +21,7 @@
  * // Custom types with explicit dtype
  * const c = new Float16Array([1, 2, 3]);
  * const d = new Float16Array([4, 5, 6]);
- * dot(c, d, 'f16'); // 32
+ * dot(c, d, DType.F16); // 32
  * ```
  */
 
@@ -29,7 +29,7 @@ import build from "node-gyp-build";
 import * as path from "node:path";
 import { existsSync } from "node:fs";
 import { getFileName, getRoot } from "bindings";
-import { setConversionFunctions, Float16Array, BFloat16Array, E4M3Array, E5M2Array, BinaryArray } from "./dtypes.js";
+import { setConversionFunctions, Float16Array, BFloat16Array, E4M3Array, E5M2Array, BinaryArray, TensorBase, VectorBase, VectorView, Vector, MatrixBase, DType, dtypeToString } from "./dtypes.js";
 
 let compiled: any;
 
@@ -101,7 +101,7 @@ export const Capability = {
 
 /* #region Custom Numeric Types */
 
-export { Float16Array, BFloat16Array, E4M3Array, E5M2Array, BinaryArray };
+export { Float16Array, BFloat16Array, E4M3Array, E5M2Array, BinaryArray, TensorBase, VectorBase, VectorView, Vector, MatrixBase };
 
 /* #endregion Custom Numeric Types */
 
@@ -130,10 +130,7 @@ export const cast = compiled.cast;
 
 /* #region Types */
 
-/**
- * @brief Data type enum for explicit dtype specification
- */
-export type DType = 'f64' | 'f32' | 'f16' | 'bf16' | 'e4m3' | 'e5m2' | 'e2m3' | 'e3m2' | 'i8' | 'u8' | 'u1';
+export { DType };
 
 /**
  * @brief Numeric arrays supported by distance metrics with auto-detected dtype.
@@ -166,6 +163,23 @@ export type NumKongArray =
   | BinaryArray;
 
 /* #endregion Types */
+
+/**
+ * @brief Extract a TypedArray from a TensorBase for the N-API backend.
+ *
+ * The native backend doesn't benefit from zero-copy TensorBase (Node.js TypedArrays
+ * already share process memory), but accepting TensorBase keeps the API uniform.
+ */
+function unwrapTensor(input: TensorBase): { arr: DistanceArray; dtype: DType } {
+  switch (input.dtype) {
+    case DType.F64: return { arr: new Float64Array(input.buffer, input.byteOffset, input.length), dtype: input.dtype };
+    case DType.F32: return { arr: new Float32Array(input.buffer, input.byteOffset, input.length), dtype: input.dtype };
+    case DType.F16: case DType.BF16: return { arr: new Uint16Array(input.buffer, input.byteOffset, input.length), dtype: input.dtype };
+    case DType.I8: return { arr: new Int8Array(input.buffer, input.byteOffset, input.length), dtype: input.dtype };
+    case DType.U8: case DType.U1: return { arr: new Uint8Array(input.buffer, input.byteOffset, input.length), dtype: input.dtype };
+    default: return { arr: new Uint8Array(input.buffer, input.byteOffset, input.length), dtype: input.dtype };
+  }
+}
 
 /* #region Distance Metrics and Similarity Functions */
 
@@ -229,8 +243,10 @@ export const hasCapability = (cap: bigint): boolean => {
  */
 export function sqeuclidean(a: NumericArray, b: NumericArray): number;
 export function sqeuclidean(a: DistanceArray, b: DistanceArray, dtype: DType): number;
-export function sqeuclidean(a: DistanceArray, b: DistanceArray, dtype?: DType): number {
-  return dtype ? compiled.sqeuclidean(a, b, dtype) : compiled.sqeuclidean(a, b);
+export function sqeuclidean(a: TensorBase, b: TensorBase): number;
+export function sqeuclidean(a: DistanceArray | TensorBase, b: DistanceArray | TensorBase, dtype?: DType): number {
+  if (a instanceof TensorBase) { const u = unwrapTensor(a), v = unwrapTensor(b as TensorBase); return compiled.sqeuclidean(u.arr, v.arr, dtypeToString(u.dtype)); }
+  return dtype !== undefined ? compiled.sqeuclidean(a, b, dtypeToString(dtype)) : compiled.sqeuclidean(a, b);
 }
 
 /**
@@ -242,8 +258,10 @@ export function sqeuclidean(a: DistanceArray, b: DistanceArray, dtype?: DType): 
  */
 export function euclidean(a: NumericArray, b: NumericArray): number;
 export function euclidean(a: DistanceArray, b: DistanceArray, dtype: DType): number;
-export function euclidean(a: DistanceArray, b: DistanceArray, dtype?: DType): number {
-  return dtype ? compiled.euclidean(a, b, dtype) : compiled.euclidean(a, b);
+export function euclidean(a: TensorBase, b: TensorBase): number;
+export function euclidean(a: DistanceArray | TensorBase, b: DistanceArray | TensorBase, dtype?: DType): number {
+  if (a instanceof TensorBase) { const u = unwrapTensor(a), v = unwrapTensor(b as TensorBase); return compiled.euclidean(u.arr, v.arr, dtypeToString(u.dtype)); }
+  return dtype !== undefined ? compiled.euclidean(a, b, dtypeToString(dtype)) : compiled.euclidean(a, b);
 }
 
 /**
@@ -255,8 +273,10 @@ export function euclidean(a: DistanceArray, b: DistanceArray, dtype?: DType): nu
  */
 export function angular(a: NumericArray, b: NumericArray): number;
 export function angular(a: DistanceArray, b: DistanceArray, dtype: DType): number;
-export function angular(a: DistanceArray, b: DistanceArray, dtype?: DType): number {
-  return dtype ? compiled.angular(a, b, dtype) : compiled.angular(a, b);
+export function angular(a: TensorBase, b: TensorBase): number;
+export function angular(a: DistanceArray | TensorBase, b: DistanceArray | TensorBase, dtype?: DType): number {
+  if (a instanceof TensorBase) { const u = unwrapTensor(a), v = unwrapTensor(b as TensorBase); return compiled.angular(u.arr, v.arr, dtypeToString(u.dtype)); }
+  return dtype !== undefined ? compiled.angular(a, b, dtypeToString(dtype)) : compiled.angular(a, b);
 }
 
 /**
@@ -268,8 +288,10 @@ export function angular(a: DistanceArray, b: DistanceArray, dtype?: DType): numb
  */
 export function inner(a: NumericArray, b: NumericArray): number;
 export function inner(a: DistanceArray, b: DistanceArray, dtype: DType): number;
-export function inner(a: DistanceArray, b: DistanceArray, dtype?: DType): number {
-  return dtype ? compiled.inner(a, b, dtype) : compiled.inner(a, b);
+export function inner(a: TensorBase, b: TensorBase): number;
+export function inner(a: DistanceArray | TensorBase, b: DistanceArray | TensorBase, dtype?: DType): number {
+  if (a instanceof TensorBase) { const u = unwrapTensor(a), v = unwrapTensor(b as TensorBase); return compiled.inner(u.arr, v.arr, dtypeToString(u.dtype)); }
+  return dtype !== undefined ? compiled.inner(a, b, dtypeToString(dtype)) : compiled.inner(a, b);
 }
 
 /**
@@ -281,8 +303,10 @@ export function inner(a: DistanceArray, b: DistanceArray, dtype?: DType): number
  */
 export function dot(a: NumericArray, b: NumericArray): number;
 export function dot(a: DistanceArray, b: DistanceArray, dtype: DType): number;
-export function dot(a: DistanceArray, b: DistanceArray, dtype?: DType): number {
-  return dtype ? compiled.dot(a, b, dtype) : compiled.dot(a, b);
+export function dot(a: TensorBase, b: TensorBase): number;
+export function dot(a: DistanceArray | TensorBase, b: DistanceArray | TensorBase, dtype?: DType): number {
+  if (a instanceof TensorBase) { const u = unwrapTensor(a), v = unwrapTensor(b as TensorBase); return compiled.dot(u.arr, v.arr, dtypeToString(u.dtype)); }
+  return dtype !== undefined ? compiled.dot(a, b, dtypeToString(dtype)) : compiled.dot(a, b);
 }
 
 /**
@@ -295,7 +319,8 @@ export function dot(a: DistanceArray, b: DistanceArray, dtype?: DType): number {
  * @param {Uint8Array | BinaryArray} b - The second bit-packed vector.
  * @returns {number} The Hamming distance (number of differing bits) between vectors a and b.
  */
-export const hamming = (a: Uint8Array | BinaryArray, b: Uint8Array | BinaryArray): number => {
+export const hamming = (a: Uint8Array | BinaryArray | TensorBase, b: Uint8Array | BinaryArray | TensorBase): number => {
+  if (a instanceof TensorBase) { const u = unwrapTensor(a), v = unwrapTensor(b as TensorBase); return compiled.hamming(u.arr, v.arr); }
   return compiled.hamming(a, b);
 };
 
@@ -309,7 +334,8 @@ export const hamming = (a: Uint8Array | BinaryArray, b: Uint8Array | BinaryArray
  * @param {Uint8Array | BinaryArray} b - The second bit-packed vector.
  * @returns {number} The Jaccard distance (1 - Jaccard similarity) between vectors a and b.
  */
-export const jaccard = (a: Uint8Array | BinaryArray, b: Uint8Array | BinaryArray): number => {
+export const jaccard = (a: Uint8Array | BinaryArray | TensorBase, b: Uint8Array | BinaryArray | TensorBase): number => {
+  if (a instanceof TensorBase) { const u = unwrapTensor(a), v = unwrapTensor(b as TensorBase); return compiled.jaccard(u.arr, v.arr); }
   return compiled.jaccard(a, b);
 };
 
@@ -326,8 +352,10 @@ export const jaccard = (a: Uint8Array | BinaryArray, b: Uint8Array | BinaryArray
  */
 export function kullbackleibler(a: Float64Array | Float32Array, b: Float64Array | Float32Array): number;
 export function kullbackleibler(a: Float64Array | Float32Array | Uint16Array, b: Float64Array | Float32Array | Uint16Array, dtype: DType): number;
-export function kullbackleibler(a: Float64Array | Float32Array | Uint16Array, b: Float64Array | Float32Array | Uint16Array, dtype?: DType): number {
-  return dtype ? compiled.kullbackleibler(a, b, dtype) : compiled.kullbackleibler(a, b);
+export function kullbackleibler(a: TensorBase, b: TensorBase): number;
+export function kullbackleibler(a: Float64Array | Float32Array | Uint16Array | TensorBase, b: Float64Array | Float32Array | Uint16Array | TensorBase, dtype?: DType): number {
+  if (a instanceof TensorBase) { const u = unwrapTensor(a), v = unwrapTensor(b as TensorBase); return compiled.kullbackleibler(u.arr, v.arr, dtypeToString(u.dtype)); }
+  return dtype !== undefined ? compiled.kullbackleibler(a, b, dtypeToString(dtype)) : compiled.kullbackleibler(a, b);
 }
 
 /**
@@ -344,8 +372,10 @@ export function kullbackleibler(a: Float64Array | Float32Array | Uint16Array, b:
  */
 export function jensenshannon(a: Float64Array | Float32Array, b: Float64Array | Float32Array): number;
 export function jensenshannon(a: Float64Array | Float32Array | Uint16Array, b: Float64Array | Float32Array | Uint16Array, dtype: DType): number;
-export function jensenshannon(a: Float64Array | Float32Array | Uint16Array, b: Float64Array | Float32Array | Uint16Array, dtype?: DType): number {
-  return dtype ? compiled.jensenshannon(a, b, dtype) : compiled.jensenshannon(a, b);
+export function jensenshannon(a: TensorBase, b: TensorBase): number;
+export function jensenshannon(a: Float64Array | Float32Array | Uint16Array | TensorBase, b: Float64Array | Float32Array | Uint16Array | TensorBase, dtype?: DType): number {
+  if (a instanceof TensorBase) { const u = unwrapTensor(a), v = unwrapTensor(b as TensorBase); return compiled.jensenshannon(u.arr, v.arr, dtypeToString(u.dtype)); }
+  return dtype !== undefined ? compiled.jensenshannon(a, b, dtypeToString(dtype)) : compiled.jensenshannon(a, b);
 }
 
 /**
@@ -403,6 +433,11 @@ export default {
   E4M3Array,
   E5M2Array,
   BinaryArray,
+  TensorBase,
+  VectorBase,
+  VectorView,
+  Vector,
+  MatrixBase,
   castF16ToF32,
   castF32ToF16,
   castBF16ToF32,

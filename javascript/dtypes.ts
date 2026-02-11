@@ -28,7 +28,182 @@ export function setConversionFunctions(fns: typeof conversionFunctions) {
 }
 
 // Type alias for any TypedArray
-type TypedArray = Float64Array | Float32Array | Int8Array | Uint8Array | Uint16Array | Uint32Array;
+export type TypedArray = Float64Array | Float32Array | Int8Array | Uint8Array | Uint16Array | Uint32Array;
+
+/** @brief Numeric data type enum — integer switch, compiles to jump table. */
+export enum DType {
+  F64 = 0,
+  F32 = 1,
+  F16 = 2,
+  BF16 = 3,
+  E4M3 = 4,
+  E5M2 = 5,
+  E2M3 = 6,
+  E3M2 = 7,
+  I8 = 8,
+  U8 = 9,
+  U1 = 10,
+}
+
+/** @brief O(1) array lookup for DType → string conversion (needed at N-API/WASM boundaries). */
+export const DTYPE_STRINGS: readonly string[] = [
+  'f64', 'f32', 'f16', 'bf16', 'e4m3', 'e5m2', 'e2m3', 'e3m2', 'i8', 'u8', 'u1',
+];
+
+/** @brief Convert a DType enum value to its string representation. */
+export function dtypeToString(d: DType): string { return DTYPE_STRINGS[d]; }
+
+/** @brief Infer the DType from a TypedArray instance. */
+function inferDtype(arr: TypedArray): DType {
+  if (arr instanceof Float64Array) return DType.F64;
+  if (arr instanceof Float32Array) return DType.F32;
+  if (arr instanceof Int8Array) return DType.I8;
+  if (arr instanceof Uint8Array) return DType.U8;
+  if (arr instanceof Uint16Array) return DType.F16;
+  if (arr instanceof Uint32Array) return DType.F32;
+  throw new Error(`Cannot infer dtype from ${(arr as any).constructor.name}`);
+}
+
+/**
+ * @brief Abstract base class for all tensor types.
+ *
+ * All fields are embedded — zero dynamic allocation. DType is a numeric enum
+ * (integer switch). Mirrors the C++ pattern: buffer + byteOffset + dtype.
+ */
+export abstract class TensorBase {
+  readonly buffer: ArrayBuffer;
+  readonly byteOffset: number;
+  readonly dtype: DType;
+
+  protected constructor(buffer: ArrayBuffer, byteOffset: number, dtype: DType) {
+    this.buffer = buffer;
+    this.byteOffset = byteOffset;
+    this.dtype = dtype;
+  }
+
+  abstract get length(): number;
+  abstract get rank(): number;
+
+  /** @brief Bytes per element for this tensor's dtype (compiles to jump table). */
+  get bytesPerElement(): number {
+    switch (this.dtype) {
+      case DType.F64: return 8;
+      case DType.F32: return 4;
+      case DType.F16: case DType.BF16: return 2;
+      default: return 1;
+    }
+  }
+
+  /** @brief Total byte length of the tensor data. */
+  get byteLength(): number { return this.length * this.bytesPerElement; }
+}
+
+/**
+ * @brief Abstract rank-1 tensor base class.
+ */
+export abstract class VectorBase extends TensorBase {
+  readonly length: number;
+
+  protected constructor(buffer: ArrayBuffer, byteOffset: number, length: number, dtype: DType) {
+    super(buffer, byteOffset, dtype);
+    this.length = length;
+  }
+
+  get rank(): 1 { return 1; }
+}
+
+/**
+ * @brief Non-owning rank-1 tensor view (like std::span<T>).
+ *
+ * Zero-copy wrapper for existing memory. Ideal for cross-module WASM interop
+ * where data already lives on the WASM heap.
+ */
+export class VectorView extends VectorBase {
+  constructor(buffer: ArrayBuffer, byteOffset: number, length: number, dtype: DType) {
+    super(buffer, byteOffset, length, dtype);
+  }
+
+  /** @brief Create a VectorView from any TypedArray, inferring or accepting dtype. */
+  static from(arr: TypedArray, dtype?: DType): VectorView {
+    const d = dtype ?? inferDtype(arr);
+    return new VectorView(arr.buffer as ArrayBuffer, arr.byteOffset, arr.length, d);
+  }
+}
+
+/**
+ * @brief Owning rank-1 tensor (like std::vector<T>).
+ *
+ * Allocates its own ArrayBuffer. Use for storing results or when you need
+ * independent ownership of the data.
+ */
+export class Vector extends VectorBase {
+  constructor(length: number, dtype: DType);
+  constructor(buffer: ArrayBuffer, length: number, dtype: DType);
+  constructor(lengthOrBuffer: number | ArrayBuffer, dtypeOrLength: DType | number, dtype?: DType) {
+    if (typeof lengthOrBuffer === 'number') {
+      const length = lengthOrBuffer;
+      const dt = dtypeOrLength as DType;
+      let bpe: number;
+      switch (dt) {
+        case DType.F64: bpe = 8; break;
+        case DType.F32: bpe = 4; break;
+        case DType.F16: case DType.BF16: bpe = 2; break;
+        default: bpe = 1; break;
+      }
+      super(new ArrayBuffer(length * bpe), 0, length, dt);
+    } else {
+      super(lengthOrBuffer, 0, dtypeOrLength as number, dtype!);
+    }
+  }
+
+  /** @brief Create an owning Vector by copying data from a TypedArray. */
+  static fromTypedArray(arr: TypedArray, dtype?: DType): Vector {
+    const d = dtype ?? inferDtype(arr);
+    return new Vector((arr.buffer as ArrayBuffer).slice(arr.byteOffset, arr.byteOffset + arr.byteLength), arr.length, d);
+  }
+
+  /** @brief Create an owning Vector by copying data from any TensorBase. */
+  static fromView(view: TensorBase): Vector {
+    return new Vector(view.buffer.slice(view.byteOffset, view.byteOffset + view.byteLength), view.length, view.dtype);
+  }
+
+  /** @brief Return a TypedArray view over this Vector's owned buffer (zero-copy). */
+  toTypedArray(): TypedArray {
+    switch (this.dtype) {
+      case DType.F64: return new Float64Array(this.buffer, 0, this.length);
+      case DType.F32: return new Float32Array(this.buffer, 0, this.length);
+      case DType.F16: case DType.BF16: return new Uint16Array(this.buffer, 0, this.length);
+      case DType.I8: return new Int8Array(this.buffer, 0, this.length);
+      default: return new Uint8Array(this.buffer, 0, this.length);
+    }
+  }
+}
+
+/**
+ * @brief Abstract rank-2 tensor base class (stub for future matmul/convolutions).
+ *
+ * All 4 dimension fields are embedded — no dynamic allocation.
+ */
+export abstract class MatrixBase extends TensorBase {
+  readonly rows: number;
+  readonly cols: number;
+  readonly rowStride: number;
+  readonly colStride: number;
+
+  protected constructor(
+    buffer: ArrayBuffer, byteOffset: number, dtype: DType,
+    rows: number, cols: number, rowStride: number, colStride: number,
+  ) {
+    super(buffer, byteOffset, dtype);
+    this.rows = rows;
+    this.cols = cols;
+    this.rowStride = rowStride;
+    this.colStride = colStride;
+  }
+
+  get length(): number { return this.rows * this.cols; }
+  get rank(): 2 { return 2; }
+}
 
 /**
  * @brief IEEE 754 Half Precision Float (f16)
