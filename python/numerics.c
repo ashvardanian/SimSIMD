@@ -347,7 +347,7 @@ static void reduce_max_recursive_(TensorView const *view, size_t dim, char *ptr,
 
 int impl_reduce_min(TensorView const *view, double *value_f, int64_t *value_i, size_t *index) {
     *index = 0;
-    if (value_f) *value_f = NK_F64_INF;
+    if (value_f) *value_f = NK_F64_MAX;
     if (value_i) *value_i = NK_I64_MAX;
     if (view->rank == 0) {
         switch (view->dtype) {
@@ -370,7 +370,7 @@ int impl_reduce_min(TensorView const *view, double *value_f, int64_t *value_i, s
 
 int impl_reduce_max(TensorView const *view, double *value_f, int64_t *value_i, size_t *index) {
     *index = 0;
-    if (value_f) *value_f = -NK_F64_INF;
+    if (value_f) *value_f = NK_F64_MIN;
     if (value_i) *value_i = NK_I64_MIN;
     if (view->rank == 0) {
         switch (view->dtype) {

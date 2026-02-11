@@ -33,7 +33,7 @@ extern "C" {
 
 NK_INTERNAL __m512i nk_substract_bf16x32_genoa_(__m512i a_i16, __m512i b_i16) {
 
-    nk_b512_vec_t d_odd, d_even, d, a_f32_even, b_f32_even, d_f32_even, a_f32_odd, b_f32_odd, d_f32_odd, a, b;
+    nk_b512_vec_t d, a_f32_even, b_f32_even, d_f32_even, a_f32_odd, b_f32_odd, d_f32_odd, a, b;
     a.zmm = a_i16;
     b.zmm = b_i16;
 

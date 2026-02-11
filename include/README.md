@@ -200,7 +200,7 @@ To explicitly disable half-precision support, define the following macro before 
 > This flag does just that and is used to produce the `numkong.so` shared library, as well as the Python and other bindings.
 
 For Arm: `NK_TARGET_NEON`, `NK_TARGET_SVE`, `NK_TARGET_SVE2`, `NK_TARGET_NEONHALF`, `NK_TARGET_SVEHALF`, `NK_TARGET_NEONBFDOT`, `NK_TARGET_SVEBFDOT`.
-For x86: `NK_TARGET_HASWELL`, `NK_TARGET_SKYLAKE`, `NK_TARGET_ICE`, `NK_TARGET_GENOA`, `NK_TARGET_SAPPHIRE`, `NK_TARGET_TURIN`, `NK_TARGET_SIERRA`.
+For x86: `NK_TARGET_HASWELL`, `NK_TARGET_SKYLAKE`, `NK_TARGET_ICELAKE`, `NK_TARGET_GENOA`, `NK_TARGET_SAPPHIRE`, `NK_TARGET_TURIN`, `NK_TARGET_SIERRA`.
 
 > By default, NumKong automatically infers the target architecture and pre-compiles as many kernels as possible.
 > In some cases, you may want to explicitly disable some of the kernels.

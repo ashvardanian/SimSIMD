@@ -265,7 +265,6 @@ NK_PUBLIC void nk_dot_f64c_serial(nk_f64c_t const *a_pairs, nk_f64c_t const *b_p
 NK_PUBLIC void nk_vdot_f64c_serial(nk_f64c_t const *a_pairs, nk_f64c_t const *b_pairs, nk_size_t count_pairs,
                                    nk_f64c_t *result) {
     nk_f64_t sum_real = 0, sum_imag = 0, compensation_real = 0, compensation_imag = 0;
-    nk_f64_t ar, br, ai, bi;
     for (nk_size_t i = 0; i != count_pairs; ++i) {
         nk_f64_t ar = a_pairs[i].real, br = b_pairs[i].real, ai = a_pairs[i].imag, bi = b_pairs[i].imag;
         nk_f64_t term_real = ar * br + ai * bi, t_real = sum_real + term_real;

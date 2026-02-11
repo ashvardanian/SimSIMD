@@ -21,22 +21,22 @@ public protocol NumKongAngular {
 }
 
 /// Protocol for types supporting squared Euclidean distance computation.
-public protocol NumKongL2sq {
+public protocol NumKongSqeuclidean {
     associatedtype L2sqOutput
     static func sqeuclidean<A, B>(_ a: A, _ b: B) -> L2sqOutput?
     where A: Sequence, B: Sequence, A.Element == Self, B.Element == Self
 }
 
 /// Protocol for types supporting Euclidean distance computation.
-public protocol NumKongL2 {
+public protocol NumKongEuclidean {
     associatedtype L2Output
     static func euclidean<A, B>(_ a: A, _ b: B) -> L2Output?
     where A: Sequence, B: Sequence, A.Element == Self, B.Element == Self
 }
 
 /// Combined protocol for spatial similarity operations.
-public typealias NumKongSpatial = NumKongDot & NumKongAngular & NumKongL2
-    & NumKongL2sq
+public typealias NumKongSpatial = NumKongDot & NumKongAngular & NumKongEuclidean
+    & NumKongSqeuclidean
 
 // MARK: - Float64 Implementation
 
@@ -86,7 +86,7 @@ extension Float64: NumKongAngular {
     }
 }
 
-extension Float64: NumKongL2 {
+extension Float64: NumKongEuclidean {
     @inlinable @inline(__always)
     public static func euclidean<A, B>(_ a: A, _ b: B) -> Float64?
     where A: Sequence, B: Sequence, A.Element == Float64, B.Element == Float64 {
@@ -108,7 +108,7 @@ extension Float64: NumKongL2 {
     }
 }
 
-extension Float64: NumKongL2sq {
+extension Float64: NumKongSqeuclidean {
     @inlinable @inline(__always)
     public static func sqeuclidean<A, B>(_ a: A, _ b: B) -> Float64?
     where A: Sequence, B: Sequence, A.Element == Float64, B.Element == Float64 {
@@ -178,7 +178,7 @@ extension Float32: NumKongAngular {
     }
 }
 
-extension Float32: NumKongL2 {
+extension Float32: NumKongEuclidean {
     @inlinable @inline(__always)
     public static func euclidean<A, B>(_ a: A, _ b: B) -> Float32?
     where A: Sequence, B: Sequence, A.Element == Float32, B.Element == Float32 {
@@ -200,7 +200,7 @@ extension Float32: NumKongL2 {
     }
 }
 
-extension Float32: NumKongL2sq {
+extension Float32: NumKongSqeuclidean {
     @inlinable @inline(__always)
     public static func sqeuclidean<A, B>(_ a: A, _ b: B) -> Float32?
     where A: Sequence, B: Sequence, A.Element == Float32, B.Element == Float32 {
@@ -282,7 +282,7 @@ extension Float32: NumKongL2sq {
     }
 
     @available(macOS 11.0, iOS 14.0, tvOS 14.0, watchOS 7.0, *)
-    extension Float16: NumKongL2 {
+    extension Float16: NumKongEuclidean {
         @inlinable @inline(__always)
         public static func euclidean<A, B>(_ a: A, _ b: B) -> Float32?
         where
@@ -309,7 +309,7 @@ extension Float32: NumKongL2sq {
     }
 
     @available(macOS 11.0, iOS 14.0, tvOS 14.0, watchOS 7.0, *)
-    extension Float16: NumKongL2sq {
+    extension Float16: NumKongSqeuclidean {
         @inlinable @inline(__always)
         public static func sqeuclidean<A, B>(_ a: A, _ b: B) -> Float32?
         where
@@ -386,7 +386,7 @@ extension Int8: NumKongAngular {
     }
 }
 
-extension Int8: NumKongL2 {
+extension Int8: NumKongEuclidean {
     public typealias L2Output = Float32
 
     @inlinable @inline(__always)
@@ -410,7 +410,7 @@ extension Int8: NumKongL2 {
     }
 }
 
-extension Int8: NumKongL2sq {
+extension Int8: NumKongSqeuclidean {
     public typealias L2sqOutput = UInt32
 
     @inlinable @inline(__always)
@@ -452,7 +452,7 @@ extension RandomAccessCollection where Element: NumKongAngular {
     }
 }
 
-extension RandomAccessCollection where Element: NumKongL2 {
+extension RandomAccessCollection where Element: NumKongEuclidean {
     @inlinable @inline(__always)
     public func euclidean<B>(_ b: B) -> Element.L2Output?
     where B: Sequence, B.Element == Element {
@@ -460,7 +460,7 @@ extension RandomAccessCollection where Element: NumKongL2 {
     }
 }
 
-extension RandomAccessCollection where Element: NumKongL2sq {
+extension RandomAccessCollection where Element: NumKongSqeuclidean {
     @inlinable @inline(__always)
     public func sqeuclidean<B>(_ b: B) -> Element.L2sqOutput?
     where B: Sequence, B.Element == Element {

@@ -16,6 +16,11 @@ bun.lockb
 .cache/
 tmp/
 
+# Playwright and test artifacts
+playwright-report/
+test-results/
+.pytest_cache/
+
 # for Google Benchmark
 compare.py
 gbench/
