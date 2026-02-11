@@ -170,7 +170,7 @@ static napi_value dense(napi_env env, napi_callback_info info, nk_kernel_kind_t 
     nk_capability_t capability = nk_cap_serial_k;
     nk_find_kernel_punned(kernel_kind, dtype, static_capabilities, nk_cap_any_k, (nk_kernel_punned_t *)&metric,
                           &capability);
-    if (metric == NULL) {
+    if (!metric || !capability) {
         napi_throw_error(env, NULL, "Unsupported dtype for given metric");
         return NULL;
     }
