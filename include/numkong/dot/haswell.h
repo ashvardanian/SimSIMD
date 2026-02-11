@@ -664,25 +664,72 @@ nk_dot_e5m2_haswell_cycle:
 
 NK_PUBLIC void nk_dot_e2m3_haswell(nk_e2m3_t const *a_scalars, nk_e2m3_t const *b_scalars, nk_size_t count_scalars,
                                    nk_f32_t *result) {
-    __m256 a_f32x8, b_f32x8;
-    __m256 sum_f32x8 = _mm256_setzero_ps();
+    // Integer dot product for e2m3 using dual-VPSHUFB (LUT) + VPMADDUBSW (unsigned×signed).
+    // Every e2m3 value × 16 is an exact integer in [-120, +120].
+    // Result = i32_dot / 256.0f (exact, no rounding error).
+    //
+    // 32-entry LUT split into two 16-entry halves for VPSHUFB (which indexes 0-15):
+    //   lut_lower[0..15]: {0,2,4,6,8,10,12,14, 16,18,20,22,24,26,28,30}
+    //   lut_upper[0..15]: {32,36,40,44,48,52,56,60, 64,72,80,88,96,104,112,120}
+    //
+    __m256i const lut_lower_u8x32 = _mm256_set_epi8(30, 28, 26, 24, 22, 20, 18, 16, 14, 12, 10, 8, 6, 4, 2, 0, 30, 28,
+                                                    26, 24, 22, 20, 18, 16, 14, 12, 10, 8, 6, 4, 2, 0);
+    __m256i const lut_upper_u8x32 = _mm256_set_epi8(120, 112, 104, 96, 88, 80, 72, 64, 60, 56, 52, 48, 44, 40, 36, 32,
+                                                    120, 112, 104, 96, 88, 80, 72, 64, 60, 56, 52, 48, 44, 40, 36, 32);
+    __m256i const nibble_mask_u8x32 = _mm256_set1_epi8(0x0F);
+    __m256i const magnitude_mask_u8x32 = _mm256_set1_epi8(0x1F);
+    __m256i const half_select_u8x32 = _mm256_set1_epi8(0x10);
+    __m256i const sign_mask_u8x32 = _mm256_set1_epi8(0x20);
+    __m256i const ones_i16x16 = _mm256_set1_epi16(1);
+    __m256i sum_i32x8 = _mm256_setzero_si256();
+    __m256i a_e2m3_u8x32, b_e2m3_u8x32;
+
 nk_dot_e2m3_haswell_cycle:
-    if (count_scalars < 8) {
+    if (count_scalars < 32) {
         nk_b256_vec_t a_vec, b_vec;
-        nk_partial_load_e2m3x8_to_f32x8_haswell_(a_scalars, &a_vec, count_scalars);
-        nk_partial_load_e2m3x8_to_f32x8_haswell_(b_scalars, &b_vec, count_scalars);
-        a_f32x8 = a_vec.ymm_ps;
-        b_f32x8 = b_vec.ymm_ps;
+        nk_partial_load_b8x32_serial_(a_scalars, &a_vec, count_scalars);
+        nk_partial_load_b8x32_serial_(b_scalars, &b_vec, count_scalars);
+        a_e2m3_u8x32 = a_vec.ymm;
+        b_e2m3_u8x32 = b_vec.ymm;
         count_scalars = 0;
     }
     else {
-        a_f32x8 = nk_e2m3x8_to_f32x8_haswell_(_mm_loadl_epi64((__m128i const *)a_scalars));
-        b_f32x8 = nk_e2m3x8_to_f32x8_haswell_(_mm_loadl_epi64((__m128i const *)b_scalars));
-        a_scalars += 8, b_scalars += 8, count_scalars -= 8;
+        a_e2m3_u8x32 = _mm256_loadu_si256((__m256i const *)a_scalars);
+        b_e2m3_u8x32 = _mm256_loadu_si256((__m256i const *)b_scalars);
+        a_scalars += 32, b_scalars += 32, count_scalars -= 32;
     }
-    sum_f32x8 = _mm256_fmadd_ps(a_f32x8, b_f32x8, sum_f32x8);
+
+    // Extract 5-bit magnitude, then split into low 4 bits (VPSHUFB index) and bit 4 (hi/lo select)
+    __m256i a_magnitude_u8x32 = _mm256_and_si256(a_e2m3_u8x32, magnitude_mask_u8x32);
+    __m256i b_magnitude_u8x32 = _mm256_and_si256(b_e2m3_u8x32, magnitude_mask_u8x32);
+    __m256i a_shuffle_index_u8x32 = _mm256_and_si256(a_magnitude_u8x32, nibble_mask_u8x32);
+    __m256i b_shuffle_index_u8x32 = _mm256_and_si256(b_magnitude_u8x32, nibble_mask_u8x32);
+    __m256i a_upper_select_u8x32 = _mm256_cmpeq_epi8(_mm256_and_si256(a_magnitude_u8x32, half_select_u8x32),
+                                                     half_select_u8x32);
+    __m256i b_upper_select_u8x32 = _mm256_cmpeq_epi8(_mm256_and_si256(b_magnitude_u8x32, half_select_u8x32),
+                                                     half_select_u8x32);
+
+    // Dual VPSHUFB: lookup in both halves, blend based on bit 4
+    __m256i a_unsigned_u8x32 = _mm256_blendv_epi8(_mm256_shuffle_epi8(lut_lower_u8x32, a_shuffle_index_u8x32),
+                                                  _mm256_shuffle_epi8(lut_upper_u8x32, a_shuffle_index_u8x32),
+                                                  a_upper_select_u8x32);
+    __m256i b_unsigned_u8x32 = _mm256_blendv_epi8(_mm256_shuffle_epi8(lut_lower_u8x32, b_shuffle_index_u8x32),
+                                                  _mm256_shuffle_epi8(lut_upper_u8x32, b_shuffle_index_u8x32),
+                                                  b_upper_select_u8x32);
+
+    // Combined sign: (a ^ b) & 0x20, negate b where signs differ
+    __m256i sign_combined_u8x32 = _mm256_and_si256(_mm256_xor_si256(a_e2m3_u8x32, b_e2m3_u8x32), sign_mask_u8x32);
+    __m256i negate_mask_u8x32 = _mm256_cmpeq_epi8(sign_combined_u8x32, sign_mask_u8x32);
+    __m256i b_negated_u8x32 = _mm256_sub_epi8(_mm256_setzero_si256(), b_unsigned_u8x32);
+    __m256i b_signed_i8x32 = _mm256_blendv_epi8(b_unsigned_u8x32, b_negated_u8x32, negate_mask_u8x32);
+
+    // VPMADDUBSW: a_unsigned[unsigned] × b_signed[signed] → i16 pairs (max |120×120| = 14400 < 32767, safe)
+    __m256i products_i16x16 = _mm256_maddubs_epi16(a_unsigned_u8x32, b_signed_i8x32);
+    // VPMADDWD with ones: i16 pairs → i32
+    sum_i32x8 = _mm256_add_epi32(sum_i32x8, _mm256_madd_epi16(products_i16x16, ones_i16x16));
+
     if (count_scalars) goto nk_dot_e2m3_haswell_cycle;
-    *result = (nk_f32_t)nk_reduce_add_f32x8_haswell_(sum_f32x8);
+    *result = (nk_f32_t)nk_reduce_add_i32x8_haswell_(sum_i32x8) / 256.0f;
 }
 
 NK_PUBLIC void nk_dot_e3m2_haswell(nk_e3m2_t const *a_scalars, nk_e3m2_t const *b_scalars, nk_size_t count_scalars,

@@ -123,6 +123,7 @@ void test_dot() {
     run_if_matches("dot_u8_neonsdot", test_dot<u8_t>, nk_dot_u8_neonsdot);
     run_if_matches("dot_i4_neonsdot", test_dot<i4x2_t>, nk_dot_i4_neonsdot);
     run_if_matches("dot_u4_neonsdot", test_dot<u4x2_t>, nk_dot_u4_neonsdot);
+    run_if_matches("dot_e2m3_neonsdot", test_dot<e2m3_t>, nk_dot_e2m3_neonsdot);
 #endif // NK_TARGET_NEONSDOT
 
 #if NK_TARGET_HASWELL
@@ -168,6 +169,7 @@ void test_dot() {
     run_if_matches("dot_u8_icelake", test_dot<u8_t>, nk_dot_u8_icelake);
     run_if_matches("dot_i4_icelake", test_dot<i4x2_t>, nk_dot_i4_icelake);
     run_if_matches("dot_u4_icelake", test_dot<u4x2_t>, nk_dot_u4_icelake);
+    run_if_matches("dot_e2m3_icelake", test_dot<e2m3_t>, nk_dot_e2m3_icelake);
 #endif // NK_TARGET_ICELAKE
 
 #if NK_TARGET_GENOA
@@ -179,7 +181,6 @@ void test_dot() {
 #endif // NK_TARGET_GENOA
 
 #if NK_TARGET_SAPPHIRE
-    run_if_matches("dot_e2m3_sapphire", test_dot<e2m3_t>, nk_dot_e2m3_sapphire);
     run_if_matches("dot_e3m2_sapphire", test_dot<e3m2_t>, nk_dot_e3m2_sapphire);
 #endif // NK_TARGET_SAPPHIRE
 
@@ -205,11 +206,11 @@ void test_dot() {
     run_if_matches("dot_bf16_v128relaxed", test_dot<bf16_t>, nk_dot_bf16_v128relaxed);
     run_if_matches("dot_i8_v128relaxed", test_dot<i8_t>, nk_dot_i8_v128relaxed);
     run_if_matches("dot_u8_v128relaxed", test_dot<u8_t>, nk_dot_u8_v128relaxed);
+    run_if_matches("dot_e2m3_v128relaxed", test_dot<e2m3_t>, nk_dot_e2m3_v128relaxed);
 #endif // NK_TARGET_V128RELAXED
 
 #if NK_TARGET_RVVHALF
     run_if_matches("dot_f16_rvvhalf", test_dot<f16_t>, nk_dot_f16_rvvhalf);
-    run_if_matches("dot_e2m3_rvvhalf", test_dot<e2m3_t>, nk_dot_e2m3_rvvhalf);
     run_if_matches("dot_e3m2_rvvhalf", test_dot<e3m2_t>, nk_dot_e3m2_rvvhalf);
     run_if_matches("dot_e4m3_rvvhalf", test_dot<e4m3_t>, nk_dot_e4m3_rvvhalf);
     run_if_matches("dot_e5m2_rvvhalf", test_dot<e5m2_t>, nk_dot_e5m2_rvvhalf);
@@ -217,7 +218,6 @@ void test_dot() {
 
 #if NK_TARGET_RVVBF16
     run_if_matches("dot_bf16_rvvbf16", test_dot<bf16_t>, nk_dot_bf16_rvvbf16);
-    run_if_matches("dot_e2m3_rvvbf16", test_dot<e2m3_t>, nk_dot_e2m3_rvvbf16);
     run_if_matches("dot_e3m2_rvvbf16", test_dot<e3m2_t>, nk_dot_e3m2_rvvbf16);
     run_if_matches("dot_e4m3_rvvbf16", test_dot<e4m3_t>, nk_dot_e4m3_rvvbf16);
     run_if_matches("dot_e5m2_rvvbf16", test_dot<e5m2_t>, nk_dot_e5m2_rvvbf16);

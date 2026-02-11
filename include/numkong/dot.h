@@ -283,6 +283,8 @@ NK_PUBLIC void nk_dot_e3m2_neonfhm(nk_e3m2_t const *a, nk_e3m2_t const *b, nk_si
 NK_PUBLIC void nk_dot_i8_neonsdot(nk_i8_t const *a, nk_i8_t const *b, nk_size_t n, nk_i32_t *result);
 /** @copydoc nk_dot_u8 */
 NK_PUBLIC void nk_dot_u8_neonsdot(nk_u8_t const *a, nk_u8_t const *b, nk_size_t n, nk_u32_t *result);
+/** @copydoc nk_dot_e2m3 */
+NK_PUBLIC void nk_dot_e2m3_neonsdot(nk_e2m3_t const *a, nk_e2m3_t const *b, nk_size_t n, nk_f32_t *result);
 #endif // NK_TARGET_NEONSDOT
 
 #if NK_TARGET_NEONBFDOT
@@ -444,6 +446,8 @@ NK_PUBLIC void nk_dot_bf16_v128relaxed(nk_bf16_t const *a, nk_bf16_t const *b, n
 NK_PUBLIC void nk_dot_i8_v128relaxed(nk_i8_t const *a, nk_i8_t const *b, nk_size_t n, nk_i32_t *result);
 /** @copydoc nk_dot_u8 */
 NK_PUBLIC void nk_dot_u8_v128relaxed(nk_u8_t const *a, nk_u8_t const *b, nk_size_t n, nk_u32_t *result);
+/** @copydoc nk_dot_e2m3 */
+NK_PUBLIC void nk_dot_e2m3_v128relaxed(nk_e2m3_t const *a, nk_e2m3_t const *b, nk_size_t n, nk_f32_t *result);
 #endif // NK_TARGET_V128RELAXED
 
 /**
@@ -633,24 +637,24 @@ NK_PUBLIC void nk_dot_e5m2(nk_e5m2_t const *a, nk_e5m2_t const *b, nk_size_t n, 
 #endif
 }
 NK_PUBLIC void nk_dot_e2m3(nk_e2m3_t const *a, nk_e2m3_t const *b, nk_size_t n, nk_f32_t *result) {
-#if NK_TARGET_SAPPHIRE
-    nk_dot_e2m3_sapphire(a, b, n, result);
+#if NK_TARGET_ICELAKE
+    nk_dot_e2m3_icelake(a, b, n, result);
 #elif NK_TARGET_GENOA
     nk_dot_e2m3_genoa(a, b, n, result);
-#elif NK_TARGET_RVVHALF
-    nk_dot_e2m3_rvvhalf(a, b, n, result);
-#elif NK_TARGET_RVVBF16
-    nk_dot_e2m3_rvvbf16(a, b, n, result);
 #elif NK_TARGET_RVV
     nk_dot_e2m3_rvv(a, b, n, result);
 #elif NK_TARGET_SKYLAKE
     nk_dot_e2m3_skylake(a, b, n, result);
 #elif NK_TARGET_HASWELL
     nk_dot_e2m3_haswell(a, b, n, result);
+#elif NK_TARGET_NEONSDOT
+    nk_dot_e2m3_neonsdot(a, b, n, result);
 #elif NK_TARGET_NEONFHM
     nk_dot_e2m3_neonfhm(a, b, n, result);
 #elif NK_TARGET_NEON
     nk_dot_e2m3_neon(a, b, n, result);
+#elif NK_TARGET_V128RELAXED
+    nk_dot_e2m3_v128relaxed(a, b, n, result);
 #else
     nk_dot_e2m3_serial(a, b, n, result);
 #endif

@@ -354,8 +354,8 @@
 #endif // !defined(NK_TARGET_SKYLAKE) || ...
 
 #if !defined(NK_TARGET_ICELAKE) || (NK_TARGET_ICELAKE && !NK_TARGET_X86_)
-#if defined(__AVX512VNNI__) && defined(__AVX512IFMA__) && defined(__AVX512BITALG__) && defined(__AVX512VBMI2__) && \
-    defined(__AVX512VPOPCNTDQ__)
+#if defined(__AVX512VNNI__) && defined(__AVX512IFMA__) && defined(__AVX512BITALG__) && defined(__AVX512VBMI__) && \
+    defined(__AVX512VBMI2__) && defined(__AVX512VPOPCNTDQ__)
 #define NK_TARGET_ICELAKE 1
 #else
 #undef NK_TARGET_ICELAKE

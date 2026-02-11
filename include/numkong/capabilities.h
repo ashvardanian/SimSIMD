@@ -389,6 +389,7 @@ NK_PUBLIC nk_capability_t nk_capabilities_x86_(void) {
     unsigned supports_avx512vnni = (info7.named.ecx & 0x00000800) != 0;
     unsigned supports_avx512ifma = (info7.named.ebx & 0x00200000) != 0;
     unsigned supports_avx512bitalg = (info7.named.ecx & 0x00001000) != 0;
+    unsigned supports_avx512vbmi = (info7.named.ecx & 0x00000002) != 0;
     unsigned supports_avx512vbmi2 = (info7.named.ecx & 0x00000040) != 0;
     unsigned supports_avx512vpopcntdq = (info7.named.ecx & 0x00004000) != 0;
     unsigned supports_avx512bf16 = (info7sub1.named.eax & 0x00000020) != 0;
@@ -402,7 +403,7 @@ NK_PUBLIC nk_capability_t nk_capabilities_x86_(void) {
     unsigned supports_haswell = supports_avx2 && supports_f16c && supports_fma;
     unsigned supports_skylake = supports_avx512f;
     unsigned supports_icelake = supports_avx512vnni && supports_avx512ifma && supports_avx512bitalg &&
-                                supports_avx512vbmi2 && supports_avx512vpopcntdq;
+                                supports_avx512vbmi && supports_avx512vbmi2 && supports_avx512vpopcntdq;
     unsigned supports_genoa = supports_avx512bf16;
     unsigned supports_sapphire = supports_avx512fp16;
     unsigned supports_turin = supports_avx512vp2intersect && supports_avx512bf16;

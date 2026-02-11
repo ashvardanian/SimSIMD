@@ -202,24 +202,42 @@ NK_PUBLIC void nk_dot_e5m2_rvv(nk_e5m2_t const *a_scalars, nk_e5m2_t const *b_sc
 
 NK_PUBLIC void nk_dot_e2m3_rvv(nk_e2m3_t const *a_scalars, nk_e2m3_t const *b_scalars, nk_size_t count_scalars,
                                nk_f32_t *result) {
+    // Integer dot product for e2m3 using byte gather LUT + widening multiply.
+    // Every e2m3 value × 16 is an exact integer in [-120, +120].
+    // Result = i32_dot / 256.0f (exact, no rounding error).
+    static nk_u8_t const lut_magnitude[32] = {0,  2,  4,  6,  8,  10, 12, 14, 16, 18, 20, 22, 24, 26,  28,  30,
+                                              32, 36, 40, 44, 48, 52, 56, 60, 64, 72, 80, 88, 96, 104, 112, 120};
+
     nk_size_t vlmax = __riscv_vsetvlmax_e32m4();
-    vfloat32m4_t sum_f32m4 = __riscv_vfmv_v_f_f32m4(0.0f, vlmax);
+    vint32m4_t sum_i32m4 = __riscv_vmv_v_x_i32m4(0, vlmax);
     for (nk_size_t vector_length; count_scalars > 0;
          count_scalars -= vector_length, a_scalars += vector_length, b_scalars += vector_length) {
         vector_length = __riscv_vsetvl_e8m1(count_scalars);
+        vuint8m1_t a_e2m3_u8m1 = __riscv_vle8_v_u8m1((nk_u8_t const *)a_scalars, vector_length);
+        vuint8m1_t b_e2m3_u8m1 = __riscv_vle8_v_u8m1((nk_u8_t const *)b_scalars, vector_length);
 
-        // Load e2m3 as u8 and convert to f32 via helper
-        vuint8m1_t a_u8m1 = __riscv_vle8_v_u8m1((nk_u8_t const *)a_scalars, vector_length);
-        vuint8m1_t b_u8m1 = __riscv_vle8_v_u8m1((nk_u8_t const *)b_scalars, vector_length);
-        vfloat32m4_t a_f32m4 = nk_e2m3m1_to_f32m4_rvv_(a_u8m1, vector_length);
-        vfloat32m4_t b_f32m4 = nk_e2m3m1_to_f32m4_rvv_(b_u8m1, vector_length);
+        // Magnitude extraction + byte gather LUT
+        vuint8m1_t a_magnitude_u8m1 = __riscv_vand_vx_u8m1(a_e2m3_u8m1, 0x1F, vector_length);
+        vuint8m1_t b_magnitude_u8m1 = __riscv_vand_vx_u8m1(b_e2m3_u8m1, 0x1F, vector_length);
+        vuint8m1_t a_unsigned_u8m1 = __riscv_vluxei8_v_u8m1(lut_magnitude, a_magnitude_u8m1, vector_length);
+        vuint8m1_t b_unsigned_u8m1 = __riscv_vluxei8_v_u8m1(lut_magnitude, b_magnitude_u8m1, vector_length);
 
-        // Per-lane FMA accumulation
-        sum_f32m4 = __riscv_vfmacc_vv_f32m4(sum_f32m4, a_f32m4, b_f32m4, vector_length);
+        // Combined sign + conditional negate
+        vuint8m1_t sign_combined_u8m1 = __riscv_vand_vx_u8m1(
+            __riscv_vxor_vv_u8m1(a_e2m3_u8m1, b_e2m3_u8m1, vector_length), 0x20, vector_length);
+        vbool8_t negate_mask = __riscv_vmsne_vx_u8m1_b8(sign_combined_u8m1, 0, vector_length);
+        vint8m1_t b_positive_i8m1 = __riscv_vreinterpret_v_u8m1_i8m1(b_unsigned_u8m1);
+        vint8m1_t b_negated_i8m1 = __riscv_vneg_v_i8m1(b_positive_i8m1, vector_length);
+        vint8m1_t b_signed_i8m1 = __riscv_vmerge_vvm_i8m1(b_positive_i8m1, b_negated_i8m1, negate_mask, vector_length);
+
+        // Widening multiply: i8×i8 → i16, then accumulate: i32 += i16
+        vint8m1_t a_signed_i8m1 = __riscv_vreinterpret_v_u8m1_i8m1(a_unsigned_u8m1);
+        vint16m2_t products_i16m2 = __riscv_vwmul_vv_i16m2(a_signed_i8m1, b_signed_i8m1, vector_length);
+        sum_i32m4 = __riscv_vwadd_wv_i32m4(sum_i32m4, products_i16m2, vector_length);
     }
-    // Single horizontal reduction at the end
-    vfloat32m1_t zero_f32m1 = __riscv_vfmv_v_f_f32m1(0.0f, vlmax);
-    *result = __riscv_vfmv_f_s_f32m1_f32(__riscv_vfredusum_vs_f32m4_f32m1(sum_f32m4, zero_f32m1, vlmax));
+    vint32m1_t zero_i32m1 = __riscv_vmv_v_x_i32m1(0, vlmax);
+    nk_i32_t sum = __riscv_vmv_x_s_i32m1_i32(__riscv_vredsum_vs_i32m4_i32m1(sum_i32m4, zero_i32m1, vlmax));
+    *result = (nk_f32_t)sum / 256.0f;
 }
 
 NK_PUBLIC void nk_dot_e3m2_rvv(nk_e3m2_t const *a_scalars, nk_e3m2_t const *b_scalars, nk_size_t count_scalars,

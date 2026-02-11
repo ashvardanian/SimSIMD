@@ -86,12 +86,13 @@ extern "C" {
 #endif
 
 #if defined(__clang__)
-#pragma clang attribute push(                                                                        \
-    __attribute__((target("avx2,avx512f,avx512vl,avx512bw,avx512dq,avx512vnni,f16c,fma,bmi,bmi2"))), \
+#pragma clang attribute push(                                                                                   \
+    __attribute__((target("avx2,avx512f,avx512vl,avx512bw,avx512dq,avx512vnni,avx512vbmi,f16c,fma,bmi,bmi2"))), \
     apply_to = function)
 #elif defined(__GNUC__)
 #pragma GCC push_options
-#pragma GCC target("avx2", "avx512f", "avx512vl", "avx512bw", "avx512dq", "avx512vnni", "f16c", "fma", "bmi", "bmi2")
+#pragma GCC target("avx2", "avx512f", "avx512vl", "avx512bw", "avx512dq", "avx512vnni", "avx512vbmi", "f16c", "fma", \
+                   "bmi", "bmi2")
 #endif
 
 NK_PUBLIC void nk_dot_i8_icelake(nk_i8_t const *a_scalars, nk_i8_t const *b_scalars, nk_size_t count_scalars,
@@ -779,6 +780,65 @@ NK_INTERNAL void nk_dot_u4x128_finalize_icelake(                                
 
     __m128i final_i32x4 = _mm_add_epi32(_mm_add_epi32(sum_lane0, sum_lane1), _mm_add_epi32(sum_lane2, sum_lane3));
     result->xmm = final_i32x4;
+}
+
+NK_PUBLIC void nk_dot_e2m3_icelake(nk_e2m3_t const *a_scalars, nk_e2m3_t const *b_scalars, nk_size_t count_scalars,
+                                   nk_f32_t *result) {
+    // Integer dot product for e2m3 using VPERMB (LUT) + VPDPBUSD (unsigned×signed multiply-add).
+    // Every e2m3 value × 16 is an exact integer in [-120, +120].
+    // Result = i32_dot / 256.0f (exact, no rounding error).
+    //
+    // LUT maps 5-bit unsigned magnitude to (value × 16):
+    //   exp=0 (sub): 2*mant,         exp=1: 16+2*mant
+    //   exp=2:       32+4*mant,       exp=3: 64+8*mant
+    //
+    // VPERMB uses bits [5:0] of the index, so we need a 64-byte LUT with entries 0-31
+    // replicated in the upper 32 bytes (VPERMB indexes mod 64, our indices are 0-31).
+    // _mm512_set_epi8 lists bytes HIGH→LOW: byte63, byte62, ..., byte0
+    __m512i const lut_magnitude_u8x64 = _mm512_set_epi8(120, 112, 104, 96, 88, 80, 72, 64, 60, 56, 52, 48, 44, 40, 36,
+                                                        32, 30, 28, 26, 24, 22, 20, 18, 16, 14, 12, 10, 8, 6, 4, 2, 0,
+                                                        120, 112, 104, 96, 88, 80, 72, 64, 60, 56, 52, 48, 44, 40, 36,
+                                                        32, 30, 28, 26, 24, 22, 20, 18, 16, 14, 12, 10, 8, 6, 4, 2, 0);
+    __m512i const magnitude_mask_u8x64 = _mm512_set1_epi8(0x1F);
+    __m512i const sign_mask_u8x64 = _mm512_set1_epi8(0x20);
+    __m512i sum_i32x16 = _mm512_setzero_si512();
+    __m512i a_e2m3_u8x64, b_e2m3_u8x64;
+
+nk_dot_e2m3_icelake_cycle:
+    if (count_scalars < 64) {
+        __mmask64 mask = (__mmask64)_bzhi_u64(0xFFFFFFFFFFFFFFFF, count_scalars);
+        a_e2m3_u8x64 = _mm512_maskz_loadu_epi8(mask, a_scalars);
+        b_e2m3_u8x64 = _mm512_maskz_loadu_epi8(mask, b_scalars);
+        count_scalars = 0;
+    }
+    else {
+        a_e2m3_u8x64 = _mm512_loadu_si512(a_scalars);
+        b_e2m3_u8x64 = _mm512_loadu_si512(b_scalars);
+        a_scalars += 64, b_scalars += 64, count_scalars -= 64;
+    }
+
+    // Extract 5-bit magnitude indices
+    __m512i a_magnitude_u8x64 = _mm512_and_si512(a_e2m3_u8x64, magnitude_mask_u8x64);
+    __m512i b_magnitude_u8x64 = _mm512_and_si512(b_e2m3_u8x64, magnitude_mask_u8x64);
+
+    // VPERMB LUT lookup: unsigned magnitudes × 16
+    __m512i a_unsigned_u8x64 = _mm512_permutexvar_epi8(a_magnitude_u8x64, lut_magnitude_u8x64);
+    __m512i b_unsigned_u8x64 = _mm512_permutexvar_epi8(b_magnitude_u8x64, lut_magnitude_u8x64);
+
+    // Combined sign: (a ^ b) & 0x20 — nonzero means negative product
+    __m512i sign_combined_u8x64 = _mm512_and_si512(_mm512_xor_si512(a_e2m3_u8x64, b_e2m3_u8x64), sign_mask_u8x64);
+    __mmask64 negate_mask = _mm512_test_epi8_mask(sign_combined_u8x64, sign_combined_u8x64);
+
+    // Negate b where signs differ: b_signed = negate_mask ? (0 - b_unsigned) : b_unsigned
+    // For VPDPBUSD: a=unsigned [0,120], b=signed [-120,+120]
+    __m512i b_signed_i8x64 = _mm512_mask_sub_epi8(b_unsigned_u8x64, negate_mask, _mm512_setzero_si512(),
+                                                  b_unsigned_u8x64);
+
+    // VPDPBUSD: a_unsigned[unsigned] × b_signed[signed], 4 bytes → i32
+    sum_i32x16 = _mm512_dpbusd_epi32(sum_i32x16, a_unsigned_u8x64, b_signed_i8x64);
+
+    if (count_scalars) goto nk_dot_e2m3_icelake_cycle;
+    *result = (nk_f32_t)_mm512_reduce_add_epi32(sum_i32x16) / 256.0f;
 }
 
 #if defined(__clang__)
