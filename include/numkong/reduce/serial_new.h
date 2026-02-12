@@ -35,8 +35,7 @@ NK_PUBLIC void nk_reduce_moments_f32_serial(                       //
 
         nk_f64_t squared_value = val * val;
         nk_f64_t tentative_sumsq = running_sumsq + squared_value;
-        if (nk_f64_abs_(running_sumsq) >= nk_f64_abs_(squared_value))
-            sumsq_compensation += (running_sumsq - tentative_sumsq) + squared_value;
+        if (running_sumsq >= squared_value) sumsq_compensation += (running_sumsq - tentative_sumsq) + squared_value;
         else sumsq_compensation += (squared_value - tentative_sumsq) + running_sumsq;
         running_sumsq = tentative_sumsq;
     }
@@ -59,8 +58,7 @@ NK_PUBLIC void nk_reduce_moments_f64_serial(                       //
 
         nk_f64_t squared_value = val * val;
         nk_f64_t tentative_sumsq = running_sumsq + squared_value;
-        if (nk_f64_abs_(running_sumsq) >= nk_f64_abs_(squared_value))
-            sumsq_compensation += (running_sumsq - tentative_sumsq) + squared_value;
+        if (running_sumsq >= squared_value) sumsq_compensation += (running_sumsq - tentative_sumsq) + squared_value;
         else sumsq_compensation += (squared_value - tentative_sumsq) + running_sumsq;
         running_sumsq = tentative_sumsq;
     }
@@ -198,10 +196,7 @@ NK_PUBLIC void nk_reduce_moments_f16_serial(                       //
 
         nk_f32_t squared_value = val * val;
         nk_f32_t tentative_sumsq = running_sumsq + squared_value;
-        nk_f32_t abs_running_sumsq = nk_f32_abs_(running_sumsq);
-        nk_f32_t abs_squared_value = nk_f32_abs_(squared_value);
-        if (abs_running_sumsq >= abs_squared_value)
-            sumsq_compensation += (running_sumsq - tentative_sumsq) + squared_value;
+        if (running_sumsq >= squared_value) sumsq_compensation += (running_sumsq - tentative_sumsq) + squared_value;
         else sumsq_compensation += (squared_value - tentative_sumsq) + running_sumsq;
         running_sumsq = tentative_sumsq;
     }
@@ -227,10 +222,7 @@ NK_PUBLIC void nk_reduce_moments_bf16_serial(                       //
 
         nk_f32_t squared_value = val * val;
         nk_f32_t tentative_sumsq = running_sumsq + squared_value;
-        nk_f32_t abs_running_sumsq = nk_f32_abs_(running_sumsq);
-        nk_f32_t abs_squared_value = nk_f32_abs_(squared_value);
-        if (abs_running_sumsq >= abs_squared_value)
-            sumsq_compensation += (running_sumsq - tentative_sumsq) + squared_value;
+        if (running_sumsq >= squared_value) sumsq_compensation += (running_sumsq - tentative_sumsq) + squared_value;
         else sumsq_compensation += (squared_value - tentative_sumsq) + running_sumsq;
         running_sumsq = tentative_sumsq;
     }
@@ -256,10 +248,7 @@ NK_PUBLIC void nk_reduce_moments_e4m3_serial(                       //
 
         nk_f32_t squared_value = val * val;
         nk_f32_t tentative_sumsq = running_sumsq + squared_value;
-        nk_f32_t abs_running_sumsq = nk_f32_abs_(running_sumsq);
-        nk_f32_t abs_squared_value = nk_f32_abs_(squared_value);
-        if (abs_running_sumsq >= abs_squared_value)
-            sumsq_compensation += (running_sumsq - tentative_sumsq) + squared_value;
+        if (running_sumsq >= squared_value) sumsq_compensation += (running_sumsq - tentative_sumsq) + squared_value;
         else sumsq_compensation += (squared_value - tentative_sumsq) + running_sumsq;
         running_sumsq = tentative_sumsq;
     }
@@ -285,10 +274,7 @@ NK_PUBLIC void nk_reduce_moments_e5m2_serial(                       //
 
         nk_f32_t squared_value = val * val;
         nk_f32_t tentative_sumsq = running_sumsq + squared_value;
-        nk_f32_t abs_running_sumsq = nk_f32_abs_(running_sumsq);
-        nk_f32_t abs_squared_value = nk_f32_abs_(squared_value);
-        if (abs_running_sumsq >= abs_squared_value)
-            sumsq_compensation += (running_sumsq - tentative_sumsq) + squared_value;
+        if (running_sumsq >= squared_value) sumsq_compensation += (running_sumsq - tentative_sumsq) + squared_value;
         else sumsq_compensation += (squared_value - tentative_sumsq) + running_sumsq;
         running_sumsq = tentative_sumsq;
     }
@@ -314,10 +300,7 @@ NK_PUBLIC void nk_reduce_moments_e2m3_serial(                       //
 
         nk_f32_t squared_value = val * val;
         nk_f32_t tentative_sumsq = running_sumsq + squared_value;
-        nk_f32_t abs_running_sumsq = nk_f32_abs_(running_sumsq);
-        nk_f32_t abs_squared_value = nk_f32_abs_(squared_value);
-        if (abs_running_sumsq >= abs_squared_value)
-            sumsq_compensation += (running_sumsq - tentative_sumsq) + squared_value;
+        if (running_sumsq >= squared_value) sumsq_compensation += (running_sumsq - tentative_sumsq) + squared_value;
         else sumsq_compensation += (squared_value - tentative_sumsq) + running_sumsq;
         running_sumsq = tentative_sumsq;
     }
@@ -343,10 +326,7 @@ NK_PUBLIC void nk_reduce_moments_e3m2_serial(                       //
 
         nk_f32_t squared_value = val * val;
         nk_f32_t tentative_sumsq = running_sumsq + squared_value;
-        nk_f32_t abs_running_sumsq = nk_f32_abs_(running_sumsq);
-        nk_f32_t abs_squared_value = nk_f32_abs_(squared_value);
-        if (abs_running_sumsq >= abs_squared_value)
-            sumsq_compensation += (running_sumsq - tentative_sumsq) + squared_value;
+        if (running_sumsq >= squared_value) sumsq_compensation += (running_sumsq - tentative_sumsq) + squared_value;
         else sumsq_compensation += (squared_value - tentative_sumsq) + running_sumsq;
         running_sumsq = tentative_sumsq;
     }
