@@ -109,6 +109,7 @@ struct f32_t {
     using dot_result_t = f32_t;         // `nk_dot_f32` output
     using reduce_add_result_t = f64_t;  // `nk_reduce_add_f32` output
     using sqeuclidean_result_t = f32_t; // `nk_sqeuclidean_f32` output
+    using euclidean_result_t = f32_t;   // `nk_euclidean_f32` output
     using angular_result_t = f32_t;     // `nk_angular_f32` output
     using curved_result_t = f32_t;      // bilinear, mahalanobis
     using geospatial_result_t = f32_t;  // haversine, vincenty
@@ -138,6 +139,7 @@ struct f32_t {
 
     using dot_kernel_t = void (*)(raw_t const *, raw_t const *, nk_size_t, nk_f32_t *);
     using sqeuclidean_kernel_t = void (*)(raw_t const *, raw_t const *, nk_size_t, nk_f32_t *);
+    using euclidean_kernel_t = void (*)(raw_t const *, raw_t const *, nk_size_t, nk_f32_t *);
     using angular_kernel_t = void (*)(raw_t const *, raw_t const *, nk_size_t, nk_f32_t *);
     using kld_kernel_t = void (*)(raw_t const *, raw_t const *, nk_size_t, nk_f32_t *);
     using jsd_kernel_t = void (*)(raw_t const *, raw_t const *, nk_size_t, nk_f32_t *);
@@ -358,6 +360,7 @@ struct f64_t {
     using dot_result_t = f64_t;         // `nk_dot_f64` output
     using reduce_add_result_t = f64_t;  // `nk_reduce_add_f64` output
     using sqeuclidean_result_t = f64_t; // `nk_sqeuclidean_f64` output
+    using euclidean_result_t = f64_t;   // `nk_euclidean_f64` output
     using angular_result_t = f64_t;     // `nk_angular_f64` output
     using curved_result_t = f64_t;      // bilinear, mahalanobis
     using probability_result_t = f64_t; // kld, jsd
@@ -386,6 +389,7 @@ struct f64_t {
 
     using dot_kernel_t = void (*)(raw_t const *, raw_t const *, nk_size_t, nk_f64_t *);
     using sqeuclidean_kernel_t = void (*)(raw_t const *, raw_t const *, nk_size_t, nk_f64_t *);
+    using euclidean_kernel_t = void (*)(raw_t const *, raw_t const *, nk_size_t, nk_f64_t *);
     using angular_kernel_t = void (*)(raw_t const *, raw_t const *, nk_size_t, nk_f64_t *);
     using kld_kernel_t = void (*)(raw_t const *, raw_t const *, nk_size_t, nk_f64_t *);
     using jsd_kernel_t = void (*)(raw_t const *, raw_t const *, nk_size_t, nk_f64_t *);
@@ -1072,12 +1076,14 @@ struct f16_t {
     using reduce_add_result_t = f32_t;  // `nk_reduce_add_f16` output
     using sqeuclidean_result_t = f32_t; // `nk_sqeuclidean_f16` output
     using angular_result_t = f32_t;     // `nk_angular_f16` output
+    using euclidean_result_t = f32_t;   // `nk_euclidean_f16` output
     using mesh_result_t = f32_t;        // `nk_rmsd_f16` output
     using curved_result_t = f32_t;      // `nk_bilinear_f16` output
     using scale_t = nk_f32_t;
 
     using dot_kernel_t = void (*)(raw_t const *, raw_t const *, nk_size_t, nk_f32_t *);
     using sqeuclidean_kernel_t = void (*)(raw_t const *, raw_t const *, nk_size_t, nk_f32_t *);
+    using euclidean_kernel_t = void (*)(raw_t const *, raw_t const *, nk_size_t, nk_f32_t *);
     using angular_kernel_t = void (*)(raw_t const *, raw_t const *, nk_size_t, nk_f32_t *);
     using trig_kernel_t = void (*)(raw_t const *, nk_size_t, raw_t *);
     using dots_packed_size_kernel_t = nk_size_t (*)(nk_size_t, nk_size_t);
@@ -1188,21 +1194,15 @@ struct f16_t {
     inline f16_t &operator*=(f16_t o) noexcept { return *this = *this * o; }
     inline f16_t &operator/=(f16_t o) noexcept { return *this = *this / o; }
 
-    inline bool operator==(f16_t o) const noexcept { return to_f32() == o.to_f32(); }
-    inline bool operator!=(f16_t o) const noexcept { return to_f32() != o.to_f32(); }
-    inline bool operator<(f16_t o) const noexcept { return to_f32() < o.to_f32(); }
-    inline bool operator>(f16_t o) const noexcept { return to_f32() > o.to_f32(); }
-    inline bool operator<=(f16_t o) const noexcept { return to_f32() <= o.to_f32(); }
-    inline bool operator>=(f16_t o) const noexcept { return to_f32() >= o.to_f32(); }
+    inline bool operator==(f16_t o) const noexcept { return nk_f16_compare_(raw_, o.raw_) == 0; }
+    inline bool operator!=(f16_t o) const noexcept { return nk_f16_compare_(raw_, o.raw_) != 0; }
+    inline bool operator<(f16_t o) const noexcept { return nk_f16_compare_(raw_, o.raw_) < 0; }
+    inline bool operator>(f16_t o) const noexcept { return nk_f16_compare_(raw_, o.raw_) > 0; }
+    inline bool operator<=(f16_t o) const noexcept { return nk_f16_compare_(raw_, o.raw_) <= 0; }
+    inline bool operator>=(f16_t o) const noexcept { return nk_f16_compare_(raw_, o.raw_) >= 0; }
 
     /** @brief Total ordering comparison (Rust-style). */
-    inline int total_cmp(f16_t o) const noexcept {
-        std::int16_t a = std::bit_cast<std::int16_t>(raw_);
-        std::int16_t b = std::bit_cast<std::int16_t>(o.raw_);
-        if (a < 0) a = std::int16_t(0x8000) - a;
-        if (b < 0) b = std::int16_t(0x8000) - b;
-        return (a > b) - (a < b);
-    }
+    inline int total_cmp(f16_t o) const noexcept { return nk_f16_compare_(raw_, o.raw_); }
 
     constexpr f16_t abs() const noexcept { return from_bits(to_bits() & 0x7FFF); }
     constexpr f16_t copysign(f16_t sign) const noexcept {
@@ -1285,12 +1285,14 @@ struct bf16_t {
     using reduce_add_result_t = f32_t;  // `nk_reduce_add_bf16` output
     using sqeuclidean_result_t = f32_t; // `nk_sqeuclidean_bf16` output
     using angular_result_t = f32_t;     // `nk_angular_bf16` output
+    using euclidean_result_t = f32_t;   // `nk_euclidean_bf16` output
     using mesh_result_t = f32_t;        // `nk_rmsd_bf16` output
     using curved_result_t = f32_t;      // `nk_bilinear_bf16` output
     using scale_t = nk_f32_t;
 
     using dot_kernel_t = void (*)(raw_t const *, raw_t const *, nk_size_t, nk_f32_t *);
     using sqeuclidean_kernel_t = void (*)(raw_t const *, raw_t const *, nk_size_t, nk_f32_t *);
+    using euclidean_kernel_t = void (*)(raw_t const *, raw_t const *, nk_size_t, nk_f32_t *);
     using angular_kernel_t = void (*)(raw_t const *, raw_t const *, nk_size_t, nk_f32_t *);
     using dots_packed_size_kernel_t = nk_size_t (*)(nk_size_t, nk_size_t);
     using dots_pack_kernel_t = void (*)(raw_t const *, nk_size_t, nk_size_t, nk_size_t, void *);
@@ -1401,21 +1403,15 @@ struct bf16_t {
     inline bf16_t &operator*=(bf16_t o) noexcept { return *this = *this * o; }
     inline bf16_t &operator/=(bf16_t o) noexcept { return *this = *this / o; }
 
-    inline bool operator==(bf16_t o) const noexcept { return to_f32() == o.to_f32(); }
-    inline bool operator!=(bf16_t o) const noexcept { return to_f32() != o.to_f32(); }
-    inline bool operator<(bf16_t o) const noexcept { return to_f32() < o.to_f32(); }
-    inline bool operator>(bf16_t o) const noexcept { return to_f32() > o.to_f32(); }
-    inline bool operator<=(bf16_t o) const noexcept { return to_f32() <= o.to_f32(); }
-    inline bool operator>=(bf16_t o) const noexcept { return to_f32() >= o.to_f32(); }
+    inline bool operator==(bf16_t o) const noexcept { return nk_bf16_compare_(raw_, o.raw_) == 0; }
+    inline bool operator!=(bf16_t o) const noexcept { return nk_bf16_compare_(raw_, o.raw_) != 0; }
+    inline bool operator<(bf16_t o) const noexcept { return nk_bf16_compare_(raw_, o.raw_) < 0; }
+    inline bool operator>(bf16_t o) const noexcept { return nk_bf16_compare_(raw_, o.raw_) > 0; }
+    inline bool operator<=(bf16_t o) const noexcept { return nk_bf16_compare_(raw_, o.raw_) <= 0; }
+    inline bool operator>=(bf16_t o) const noexcept { return nk_bf16_compare_(raw_, o.raw_) >= 0; }
 
     /** @brief Total ordering comparison (Rust-style). */
-    inline int total_cmp(bf16_t o) const noexcept {
-        std::int16_t a = std::bit_cast<std::int16_t>(raw_);
-        std::int16_t b = std::bit_cast<std::int16_t>(o.raw_);
-        if (a < 0) a = std::int16_t(0x8000) - a;
-        if (b < 0) b = std::int16_t(0x8000) - b;
-        return (a > b) - (a < b);
-    }
+    inline int total_cmp(bf16_t o) const noexcept { return nk_bf16_compare_(raw_, o.raw_); }
 
     constexpr bf16_t abs() const noexcept { return from_bits(to_bits() & 0x7FFF); }
     constexpr bf16_t copysign(bf16_t sign) const noexcept {
@@ -1807,21 +1803,15 @@ struct e4m3_t {
     inline e4m3_t &operator*=(e4m3_t o) noexcept { return *this = *this * o; }
     inline e4m3_t &operator/=(e4m3_t o) noexcept { return *this = *this / o; }
 
-    inline bool operator==(e4m3_t o) const noexcept { return to_f32() == o.to_f32(); }
-    inline bool operator!=(e4m3_t o) const noexcept { return to_f32() != o.to_f32(); }
-    inline bool operator<(e4m3_t o) const noexcept { return to_f32() < o.to_f32(); }
-    inline bool operator>(e4m3_t o) const noexcept { return to_f32() > o.to_f32(); }
-    inline bool operator<=(e4m3_t o) const noexcept { return to_f32() <= o.to_f32(); }
-    inline bool operator>=(e4m3_t o) const noexcept { return to_f32() >= o.to_f32(); }
+    inline bool operator==(e4m3_t o) const noexcept { return nk_e4m3_compare_(raw_, o.raw_) == 0; }
+    inline bool operator!=(e4m3_t o) const noexcept { return nk_e4m3_compare_(raw_, o.raw_) != 0; }
+    inline bool operator<(e4m3_t o) const noexcept { return nk_e4m3_compare_(raw_, o.raw_) < 0; }
+    inline bool operator>(e4m3_t o) const noexcept { return nk_e4m3_compare_(raw_, o.raw_) > 0; }
+    inline bool operator<=(e4m3_t o) const noexcept { return nk_e4m3_compare_(raw_, o.raw_) <= 0; }
+    inline bool operator>=(e4m3_t o) const noexcept { return nk_e4m3_compare_(raw_, o.raw_) >= 0; }
 
     /** @brief Total ordering comparison (Rust-style). */
-    inline int total_cmp(e4m3_t o) const noexcept {
-        std::int8_t a = std::bit_cast<std::int8_t>(raw_);
-        std::int8_t b = std::bit_cast<std::int8_t>(o.raw_);
-        if (a < 0) a = std::int8_t(0x80) - a;
-        if (b < 0) b = std::int8_t(0x80) - b;
-        return (a > b) - (a < b);
-    }
+    inline int total_cmp(e4m3_t o) const noexcept { return nk_e4m3_compare_(raw_, o.raw_); }
 
     constexpr e4m3_t abs() const noexcept { return from_bits(raw_ & 0x7F); }
     constexpr e4m3_t copysign(e4m3_t sign) const noexcept { return from_bits((raw_ & 0x7F) | (sign.raw_ & 0x80)); }
@@ -2013,21 +2003,15 @@ struct e5m2_t {
     inline e5m2_t &operator*=(e5m2_t o) noexcept { return *this = *this * o; }
     inline e5m2_t &operator/=(e5m2_t o) noexcept { return *this = *this / o; }
 
-    inline bool operator==(e5m2_t o) const noexcept { return to_f32() == o.to_f32(); }
-    inline bool operator!=(e5m2_t o) const noexcept { return to_f32() != o.to_f32(); }
-    inline bool operator<(e5m2_t o) const noexcept { return to_f32() < o.to_f32(); }
-    inline bool operator>(e5m2_t o) const noexcept { return to_f32() > o.to_f32(); }
-    inline bool operator<=(e5m2_t o) const noexcept { return to_f32() <= o.to_f32(); }
-    inline bool operator>=(e5m2_t o) const noexcept { return to_f32() >= o.to_f32(); }
+    inline bool operator==(e5m2_t o) const noexcept { return nk_e5m2_compare_(raw_, o.raw_) == 0; }
+    inline bool operator!=(e5m2_t o) const noexcept { return nk_e5m2_compare_(raw_, o.raw_) != 0; }
+    inline bool operator<(e5m2_t o) const noexcept { return nk_e5m2_compare_(raw_, o.raw_) < 0; }
+    inline bool operator>(e5m2_t o) const noexcept { return nk_e5m2_compare_(raw_, o.raw_) > 0; }
+    inline bool operator<=(e5m2_t o) const noexcept { return nk_e5m2_compare_(raw_, o.raw_) <= 0; }
+    inline bool operator>=(e5m2_t o) const noexcept { return nk_e5m2_compare_(raw_, o.raw_) >= 0; }
 
     /** @brief Total ordering comparison (Rust-style). */
-    inline int total_cmp(e5m2_t o) const noexcept {
-        std::int8_t a = std::bit_cast<std::int8_t>(raw_);
-        std::int8_t b = std::bit_cast<std::int8_t>(o.raw_);
-        if (a < 0) a = std::int8_t(0x80) - a;
-        if (b < 0) b = std::int8_t(0x80) - b;
-        return (a > b) - (a < b);
-    }
+    inline int total_cmp(e5m2_t o) const noexcept { return nk_e5m2_compare_(raw_, o.raw_); }
 
     constexpr e5m2_t abs() const noexcept { return from_bits(raw_ & 0x7F); }
     constexpr e5m2_t copysign(e5m2_t sign) const noexcept { return from_bits((raw_ & 0x7F) | (sign.raw_ & 0x80)); }
@@ -2217,12 +2201,15 @@ struct e2m3_t {
     inline e2m3_t &operator*=(e2m3_t o) noexcept { return *this = *this * o; }
     inline e2m3_t &operator/=(e2m3_t o) noexcept { return *this = *this / o; }
 
-    inline bool operator==(e2m3_t o) const noexcept { return to_f32() == o.to_f32(); }
-    inline bool operator!=(e2m3_t o) const noexcept { return to_f32() != o.to_f32(); }
-    inline bool operator<(e2m3_t o) const noexcept { return to_f32() < o.to_f32(); }
-    inline bool operator>(e2m3_t o) const noexcept { return to_f32() > o.to_f32(); }
-    inline bool operator<=(e2m3_t o) const noexcept { return to_f32() <= o.to_f32(); }
-    inline bool operator>=(e2m3_t o) const noexcept { return to_f32() >= o.to_f32(); }
+    inline bool operator==(e2m3_t o) const noexcept { return nk_e2m3_compare_(raw_, o.raw_) == 0; }
+    inline bool operator!=(e2m3_t o) const noexcept { return nk_e2m3_compare_(raw_, o.raw_) != 0; }
+    inline bool operator<(e2m3_t o) const noexcept { return nk_e2m3_compare_(raw_, o.raw_) < 0; }
+    inline bool operator>(e2m3_t o) const noexcept { return nk_e2m3_compare_(raw_, o.raw_) > 0; }
+    inline bool operator<=(e2m3_t o) const noexcept { return nk_e2m3_compare_(raw_, o.raw_) <= 0; }
+    inline bool operator>=(e2m3_t o) const noexcept { return nk_e2m3_compare_(raw_, o.raw_) >= 0; }
+
+    /** @brief Total ordering comparison (Rust-style). */
+    inline int total_cmp(e2m3_t o) const noexcept { return nk_e2m3_compare_(raw_, o.raw_); }
 
     constexpr e2m3_t abs() const noexcept { return from_bits(raw_ & 0x1F); }
     constexpr e2m3_t copysign(e2m3_t sign) const noexcept { return from_bits((raw_ & 0x1F) | (sign.raw_ & 0x20)); }
@@ -2378,12 +2365,15 @@ struct e3m2_t {
     inline e3m2_t &operator*=(e3m2_t o) noexcept { return *this = *this * o; }
     inline e3m2_t &operator/=(e3m2_t o) noexcept { return *this = *this / o; }
 
-    inline bool operator==(e3m2_t o) const noexcept { return to_f32() == o.to_f32(); }
-    inline bool operator!=(e3m2_t o) const noexcept { return to_f32() != o.to_f32(); }
-    inline bool operator<(e3m2_t o) const noexcept { return to_f32() < o.to_f32(); }
-    inline bool operator>(e3m2_t o) const noexcept { return to_f32() > o.to_f32(); }
-    inline bool operator<=(e3m2_t o) const noexcept { return to_f32() <= o.to_f32(); }
-    inline bool operator>=(e3m2_t o) const noexcept { return to_f32() >= o.to_f32(); }
+    inline bool operator==(e3m2_t o) const noexcept { return nk_e3m2_compare_(raw_, o.raw_) == 0; }
+    inline bool operator!=(e3m2_t o) const noexcept { return nk_e3m2_compare_(raw_, o.raw_) != 0; }
+    inline bool operator<(e3m2_t o) const noexcept { return nk_e3m2_compare_(raw_, o.raw_) < 0; }
+    inline bool operator>(e3m2_t o) const noexcept { return nk_e3m2_compare_(raw_, o.raw_) > 0; }
+    inline bool operator<=(e3m2_t o) const noexcept { return nk_e3m2_compare_(raw_, o.raw_) <= 0; }
+    inline bool operator>=(e3m2_t o) const noexcept { return nk_e3m2_compare_(raw_, o.raw_) >= 0; }
+
+    /** @brief Total ordering comparison (Rust-style). */
+    inline int total_cmp(e3m2_t o) const noexcept { return nk_e3m2_compare_(raw_, o.raw_); }
 
     constexpr e3m2_t abs() const noexcept { return from_bits(raw_ & 0x1F); }
     constexpr e3m2_t copysign(e3m2_t sign) const noexcept { return from_bits((raw_ & 0x1F) | (sign.raw_ & 0x20)); }

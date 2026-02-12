@@ -826,6 +826,7 @@ typedef union {
     nk_u16_t u;
     nk_i16_t i;
     nk_f16_t f;
+    nk_bf16_t bf;
 } nk_fui16_t;
 
 /** @brief  Convenience type for single-precision floating-point bit manipulation. */
@@ -1277,6 +1278,46 @@ NK_INTERNAL nk_i64_t nk_i64_abs_(nk_i64_t x) { return x < 0 ? -x : x; }
 NK_INTERNAL nk_u64_t nk_u64_abs_(nk_u64_t x) { return x; }
 NK_INTERNAL nk_i64_t nk_i32_abs_(nk_i32_t x) { return x < 0 ? -x : x; }
 NK_INTERNAL nk_u32_t nk_u32_abs_(nk_u32_t x) { return x; }
+
+/** @brief Branchless sign-magnitude compare for FP8 (sign in bit 7).
+ *  Uses: mask = -sign, ordered = value ^ mask. The constant offset cancels in subtraction.
+ *  Returns negative if a < b, 0 if equal, positive if a > b. NaN compares high. */
+NK_INTERNAL int nk_e4m3_compare_(nk_e4m3_t a, nk_e4m3_t b) {
+    int sign_a = a >> 7, sign_b = b >> 7;
+    return (a ^ -sign_a) - (b ^ -sign_b);
+}
+NK_INTERNAL int nk_e5m2_compare_(nk_e5m2_t a, nk_e5m2_t b) {
+    int sign_a = a >> 7, sign_b = b >> 7;
+    return (a ^ -sign_a) - (b ^ -sign_b);
+}
+
+/** @brief Branchless sign-magnitude compare for FP6 (sign in bit 5, 6-bit). */
+NK_INTERNAL int nk_e2m3_compare_(nk_e2m3_t a, nk_e2m3_t b) {
+    int value_a = a & 0x3F, value_b = b & 0x3F;
+    int sign_a = value_a >> 5, sign_b = value_b >> 5;
+    return (value_a ^ -sign_a) - (value_b ^ -sign_b);
+}
+NK_INTERNAL int nk_e3m2_compare_(nk_e3m2_t a, nk_e3m2_t b) {
+    int value_a = a & 0x3F, value_b = b & 0x3F;
+    int sign_a = value_a >> 5, sign_b = value_b >> 5;
+    return (value_a ^ -sign_a) - (value_b ^ -sign_b);
+}
+
+/** @brief Branchless sign-magnitude compare for bf16 (sign in bit 15). */
+NK_INTERNAL int nk_bf16_compare_(nk_bf16_t a, nk_bf16_t b) {
+    nk_fui16_t a_fui, b_fui;
+    a_fui.bf = a, b_fui.bf = b;
+    int sign_a = a_fui.u >> 15, sign_b = b_fui.u >> 15;
+    return ((int)a_fui.u ^ -sign_a) - ((int)b_fui.u ^ -sign_b);
+}
+
+/** @brief Branchless sign-magnitude compare for f16 (sign in bit 15). */
+NK_INTERNAL int nk_f16_compare_(nk_f16_t a, nk_f16_t b) {
+    nk_fui16_t a_fui, b_fui;
+    a_fui.f = a, b_fui.f = b;
+    int sign_a = a_fui.u >> 15, sign_b = b_fui.u >> 15;
+    return ((int)a_fui.u ^ -sign_a) - ((int)b_fui.u ^ -sign_b);
+}
 
 #if NK_DYNAMIC_DISPATCH
 NK_DYNAMIC void nk_f16_to_f32(nk_f16_t const *src, nk_f32_t *dest);
