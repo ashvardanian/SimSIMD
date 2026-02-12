@@ -623,34 +623,34 @@ NK_PUBLIC void nk_reduce_max_u1_haswell(nk_u1x8_t const *data, nk_size_t count, 
                                         nk_u8_t *max_value, nk_size_t *max_index);
 /** @copydoc nk_reduce_min_f16 */
 NK_PUBLIC void nk_reduce_min_f16_haswell(nk_f16_t const *data, nk_size_t count, nk_size_t stride_bytes,
-                                         nk_f16_t *min_value, nk_size_t *min_index);
+                                         nk_f32_t *min_value, nk_size_t *min_index);
 /** @copydoc nk_reduce_max_f16 */
 NK_PUBLIC void nk_reduce_max_f16_haswell(nk_f16_t const *data, nk_size_t count, nk_size_t stride_bytes,
-                                         nk_f16_t *max_value, nk_size_t *max_index);
+                                         nk_f32_t *max_value, nk_size_t *max_index);
 /** @copydoc nk_reduce_min_bf16 */
 NK_PUBLIC void nk_reduce_min_bf16_haswell(nk_bf16_t const *data, nk_size_t count, nk_size_t stride_bytes,
-                                          nk_bf16_t *min_value, nk_size_t *min_index);
+                                          nk_f32_t *min_value, nk_size_t *min_index);
 /** @copydoc nk_reduce_max_bf16 */
 NK_PUBLIC void nk_reduce_max_bf16_haswell(nk_bf16_t const *data, nk_size_t count, nk_size_t stride_bytes,
-                                          nk_bf16_t *max_value, nk_size_t *max_index);
+                                          nk_f32_t *max_value, nk_size_t *max_index);
 /** @copydoc nk_reduce_add_e4m3 */
 NK_PUBLIC void nk_reduce_add_e4m3_haswell(nk_e4m3_t const *data, nk_size_t count, nk_size_t stride_bytes,
                                           nk_f32_t *result);
 /** @copydoc nk_reduce_min_e4m3 */
 NK_PUBLIC void nk_reduce_min_e4m3_haswell(nk_e4m3_t const *data, nk_size_t count, nk_size_t stride_bytes,
-                                          nk_e4m3_t *min_value, nk_size_t *min_index);
+                                          nk_f32_t *min_value, nk_size_t *min_index);
 /** @copydoc nk_reduce_max_e4m3 */
 NK_PUBLIC void nk_reduce_max_e4m3_haswell(nk_e4m3_t const *data, nk_size_t count, nk_size_t stride_bytes,
-                                          nk_e4m3_t *max_value, nk_size_t *max_index);
+                                          nk_f32_t *max_value, nk_size_t *max_index);
 /** @copydoc nk_reduce_add_e5m2 */
 NK_PUBLIC void nk_reduce_add_e5m2_haswell(nk_e5m2_t const *data, nk_size_t count, nk_size_t stride_bytes,
                                           nk_f32_t *result);
 /** @copydoc nk_reduce_min_e5m2 */
 NK_PUBLIC void nk_reduce_min_e5m2_haswell(nk_e5m2_t const *data, nk_size_t count, nk_size_t stride_bytes,
-                                          nk_e5m2_t *min_value, nk_size_t *min_index);
+                                          nk_f32_t *min_value, nk_size_t *min_index);
 /** @copydoc nk_reduce_max_e5m2 */
 NK_PUBLIC void nk_reduce_max_e5m2_haswell(nk_e5m2_t const *data, nk_size_t count, nk_size_t stride_bytes,
-                                          nk_e5m2_t *max_value, nk_size_t *max_index);
+                                          nk_f32_t *max_value, nk_size_t *max_index);
 #endif // NK_TARGET_HASWELL
 
 #if NK_TARGET_SKYLAKE
