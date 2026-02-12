@@ -1272,12 +1272,43 @@ NK_INTERNAL nk_size_t nk_size_round_up_to_multiple_(nk_size_t number, nk_size_t 
     return nk_size_divide_round_up_(number, divisor) * divisor;
 }
 
-NK_INTERNAL nk_f64_t nk_f32_abs_(nk_f64_t x) { return x < 0 ? -x : x; }
+NK_INTERNAL nk_f32_t nk_f32_abs_(nk_f32_t x) { return x < 0 ? -x : x; }
 NK_INTERNAL nk_f64_t nk_f64_abs_(nk_f64_t x) { return x < 0 ? -x : x; }
 NK_INTERNAL nk_i64_t nk_i64_abs_(nk_i64_t x) { return x < 0 ? -x : x; }
 NK_INTERNAL nk_u64_t nk_u64_abs_(nk_u64_t x) { return x; }
 NK_INTERNAL nk_i64_t nk_i32_abs_(nk_i32_t x) { return x < 0 ? -x : x; }
 NK_INTERNAL nk_u32_t nk_u32_abs_(nk_u32_t x) { return x; }
+
+/** @brief Extract low (bits 0-3) unsigned nibble from packed u4x2 byte. */
+NK_INTERNAL nk_u8_t nk_u4x2_low_(nk_u4x2_t byte_val) { return byte_val & 0x0F; }
+/** @brief Extract high (bits 4-7) unsigned nibble from packed u4x2 byte. */
+NK_INTERNAL nk_u8_t nk_u4x2_high_(nk_u4x2_t byte_val) { return (byte_val >> 4) & 0x0F; }
+
+/** @brief Extract low (bits 0-3) signed nibble from packed i4x2 byte as i8. */
+NK_INTERNAL nk_i8_t nk_i4x2_low_(nk_i4x2_t byte_val) { return (nk_i8_t)(((byte_val & 0x0F) ^ 8) - 8); }
+/** @brief Extract high (bits 4-7) signed nibble from packed i4x2 byte as i8. */
+NK_INTERNAL nk_i8_t nk_i4x2_high_(nk_i4x2_t byte_val) { return (nk_i8_t)((((byte_val >> 4) & 0x0F) ^ 8) - 8); }
+
+/** @brief Extract n-th nibble (n=0: low, n=1: high) — branchless. */
+NK_INTERNAL nk_u8_t nk_u4x2_get_(nk_u4x2_t byte_val, int n) { return (byte_val >> ((n & 1) * 4)) & 0x0F; }
+NK_INTERNAL nk_i8_t nk_i4x2_get_(nk_i4x2_t byte_val, int n) {
+    nk_u8_t nibble = (byte_val >> ((n & 1) * 4)) & 0x0F;
+    return (nk_i8_t)((nibble ^ 8) - 8);
+}
+
+/** @brief Extract bit at position n (0-7) from packed u1x8 byte. */
+NK_INTERNAL nk_u8_t nk_u1x8_get_(nk_u1x8_t byte_val, int n) { return (byte_val >> (n & 7)) & 1; }
+
+NK_INTERNAL nk_f16_t nk_f16_from_u16_(nk_u16_t bits) {
+    nk_fui16_t c;
+    c.u = bits;
+    return c.f;
+}
+NK_INTERNAL nk_bf16_t nk_bf16_from_u16_(nk_u16_t bits) {
+    nk_fui16_t c;
+    c.u = bits;
+    return c.bf;
+}
 
 /** @brief Branchless sign-magnitude compare for FP8 (sign in bit 7).
  *  Uses: mask = -sign, ordered = value ^ mask. The constant offset cancels in subtraction.

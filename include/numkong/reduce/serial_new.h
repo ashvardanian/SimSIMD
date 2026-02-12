@@ -190,16 +190,16 @@ NK_PUBLIC void nk_reduce_moments_f16_serial(                       //
         nk_f32_t val;
         nk_f16_to_f32_serial((nk_f16_t const *)ptr, &val);
         nk_f32_t tentative_sum = running_sum + val;
-        nk_f32_t abs_running_sum = (running_sum < 0 ? -running_sum : running_sum);
-        nk_f32_t abs_val = (val < 0 ? -val : val);
+        nk_f32_t abs_running_sum = nk_f32_abs_(running_sum);
+        nk_f32_t abs_val = nk_f32_abs_(val);
         if (abs_running_sum >= abs_val) sum_compensation += (running_sum - tentative_sum) + val;
         else sum_compensation += (val - tentative_sum) + running_sum;
         running_sum = tentative_sum;
 
         nk_f32_t squared_value = val * val;
         nk_f32_t tentative_sumsq = running_sumsq + squared_value;
-        nk_f32_t abs_running_sumsq = (running_sumsq < 0 ? -running_sumsq : running_sumsq);
-        nk_f32_t abs_squared_value = (squared_value < 0 ? -squared_value : squared_value);
+        nk_f32_t abs_running_sumsq = nk_f32_abs_(running_sumsq);
+        nk_f32_t abs_squared_value = nk_f32_abs_(squared_value);
         if (abs_running_sumsq >= abs_squared_value)
             sumsq_compensation += (running_sumsq - tentative_sumsq) + squared_value;
         else sumsq_compensation += (squared_value - tentative_sumsq) + running_sumsq;
@@ -219,16 +219,16 @@ NK_PUBLIC void nk_reduce_moments_bf16_serial(                       //
         nk_f32_t val;
         nk_bf16_to_f32_serial((nk_bf16_t const *)ptr, &val);
         nk_f32_t tentative_sum = running_sum + val;
-        nk_f32_t abs_running_sum = (running_sum < 0 ? -running_sum : running_sum);
-        nk_f32_t abs_val = (val < 0 ? -val : val);
+        nk_f32_t abs_running_sum = nk_f32_abs_(running_sum);
+        nk_f32_t abs_val = nk_f32_abs_(val);
         if (abs_running_sum >= abs_val) sum_compensation += (running_sum - tentative_sum) + val;
         else sum_compensation += (val - tentative_sum) + running_sum;
         running_sum = tentative_sum;
 
         nk_f32_t squared_value = val * val;
         nk_f32_t tentative_sumsq = running_sumsq + squared_value;
-        nk_f32_t abs_running_sumsq = (running_sumsq < 0 ? -running_sumsq : running_sumsq);
-        nk_f32_t abs_squared_value = (squared_value < 0 ? -squared_value : squared_value);
+        nk_f32_t abs_running_sumsq = nk_f32_abs_(running_sumsq);
+        nk_f32_t abs_squared_value = nk_f32_abs_(squared_value);
         if (abs_running_sumsq >= abs_squared_value)
             sumsq_compensation += (running_sumsq - tentative_sumsq) + squared_value;
         else sumsq_compensation += (squared_value - tentative_sumsq) + running_sumsq;
@@ -248,16 +248,16 @@ NK_PUBLIC void nk_reduce_moments_e4m3_serial(                       //
         nk_f32_t val;
         nk_e4m3_to_f32_serial((nk_e4m3_t const *)ptr, &val);
         nk_f32_t tentative_sum = running_sum + val;
-        nk_f32_t abs_running_sum = (running_sum < 0 ? -running_sum : running_sum);
-        nk_f32_t abs_val = (val < 0 ? -val : val);
+        nk_f32_t abs_running_sum = nk_f32_abs_(running_sum);
+        nk_f32_t abs_val = nk_f32_abs_(val);
         if (abs_running_sum >= abs_val) sum_compensation += (running_sum - tentative_sum) + val;
         else sum_compensation += (val - tentative_sum) + running_sum;
         running_sum = tentative_sum;
 
         nk_f32_t squared_value = val * val;
         nk_f32_t tentative_sumsq = running_sumsq + squared_value;
-        nk_f32_t abs_running_sumsq = (running_sumsq < 0 ? -running_sumsq : running_sumsq);
-        nk_f32_t abs_squared_value = (squared_value < 0 ? -squared_value : squared_value);
+        nk_f32_t abs_running_sumsq = nk_f32_abs_(running_sumsq);
+        nk_f32_t abs_squared_value = nk_f32_abs_(squared_value);
         if (abs_running_sumsq >= abs_squared_value)
             sumsq_compensation += (running_sumsq - tentative_sumsq) + squared_value;
         else sumsq_compensation += (squared_value - tentative_sumsq) + running_sumsq;
@@ -277,16 +277,16 @@ NK_PUBLIC void nk_reduce_moments_e5m2_serial(                       //
         nk_f32_t val;
         nk_e5m2_to_f32_serial((nk_e5m2_t const *)ptr, &val);
         nk_f32_t tentative_sum = running_sum + val;
-        nk_f32_t abs_running_sum = (running_sum < 0 ? -running_sum : running_sum);
-        nk_f32_t abs_val = (val < 0 ? -val : val);
+        nk_f32_t abs_running_sum = nk_f32_abs_(running_sum);
+        nk_f32_t abs_val = nk_f32_abs_(val);
         if (abs_running_sum >= abs_val) sum_compensation += (running_sum - tentative_sum) + val;
         else sum_compensation += (val - tentative_sum) + running_sum;
         running_sum = tentative_sum;
 
         nk_f32_t squared_value = val * val;
         nk_f32_t tentative_sumsq = running_sumsq + squared_value;
-        nk_f32_t abs_running_sumsq = (running_sumsq < 0 ? -running_sumsq : running_sumsq);
-        nk_f32_t abs_squared_value = (squared_value < 0 ? -squared_value : squared_value);
+        nk_f32_t abs_running_sumsq = nk_f32_abs_(running_sumsq);
+        nk_f32_t abs_squared_value = nk_f32_abs_(squared_value);
         if (abs_running_sumsq >= abs_squared_value)
             sumsq_compensation += (running_sumsq - tentative_sumsq) + squared_value;
         else sumsq_compensation += (squared_value - tentative_sumsq) + running_sumsq;
@@ -306,16 +306,16 @@ NK_PUBLIC void nk_reduce_moments_e2m3_serial(                       //
         nk_f32_t val;
         nk_e2m3_to_f32_serial((nk_e2m3_t const *)ptr, &val);
         nk_f32_t tentative_sum = running_sum + val;
-        nk_f32_t abs_running_sum = (running_sum < 0 ? -running_sum : running_sum);
-        nk_f32_t abs_val = (val < 0 ? -val : val);
+        nk_f32_t abs_running_sum = nk_f32_abs_(running_sum);
+        nk_f32_t abs_val = nk_f32_abs_(val);
         if (abs_running_sum >= abs_val) sum_compensation += (running_sum - tentative_sum) + val;
         else sum_compensation += (val - tentative_sum) + running_sum;
         running_sum = tentative_sum;
 
         nk_f32_t squared_value = val * val;
         nk_f32_t tentative_sumsq = running_sumsq + squared_value;
-        nk_f32_t abs_running_sumsq = (running_sumsq < 0 ? -running_sumsq : running_sumsq);
-        nk_f32_t abs_squared_value = (squared_value < 0 ? -squared_value : squared_value);
+        nk_f32_t abs_running_sumsq = nk_f32_abs_(running_sumsq);
+        nk_f32_t abs_squared_value = nk_f32_abs_(squared_value);
         if (abs_running_sumsq >= abs_squared_value)
             sumsq_compensation += (running_sumsq - tentative_sumsq) + squared_value;
         else sumsq_compensation += (squared_value - tentative_sumsq) + running_sumsq;
@@ -335,16 +335,16 @@ NK_PUBLIC void nk_reduce_moments_e3m2_serial(                       //
         nk_f32_t val;
         nk_e3m2_to_f32_serial((nk_e3m2_t const *)ptr, &val);
         nk_f32_t tentative_sum = running_sum + val;
-        nk_f32_t abs_running_sum = (running_sum < 0 ? -running_sum : running_sum);
-        nk_f32_t abs_val = (val < 0 ? -val : val);
+        nk_f32_t abs_running_sum = nk_f32_abs_(running_sum);
+        nk_f32_t abs_val = nk_f32_abs_(val);
         if (abs_running_sum >= abs_val) sum_compensation += (running_sum - tentative_sum) + val;
         else sum_compensation += (val - tentative_sum) + running_sum;
         running_sum = tentative_sum;
 
         nk_f32_t squared_value = val * val;
         nk_f32_t tentative_sumsq = running_sumsq + squared_value;
-        nk_f32_t abs_running_sumsq = (running_sumsq < 0 ? -running_sumsq : running_sumsq);
-        nk_f32_t abs_squared_value = (squared_value < 0 ? -squared_value : squared_value);
+        nk_f32_t abs_running_sumsq = nk_f32_abs_(running_sumsq);
+        nk_f32_t abs_squared_value = nk_f32_abs_(squared_value);
         if (abs_running_sumsq >= abs_squared_value)
             sumsq_compensation += (running_sumsq - tentative_sumsq) + squared_value;
         else sumsq_compensation += (squared_value - tentative_sumsq) + running_sumsq;
@@ -359,13 +359,17 @@ NK_PUBLIC void nk_reduce_moments_i4_serial(                         //
     nk_i64_t *sum, nk_i64_t *sumsq) {
     nk_i64_t s = 0, sq = 0;
     unsigned char const *ptr = (unsigned char const *)data;
-    for (nk_size_t i = 0; i < count; ++i) {
-        nk_size_t byte_idx = i / 2;
-        unsigned char byte_val = ptr[byte_idx * stride_bytes];
-        unsigned char nibble = (i % 2 == 0) ? (byte_val & 0x0F) : ((byte_val >> 4) & 0x0F);
-        nk_i64_t val = (nk_i64_t)((nk_i8_t)((nibble ^ 8) - 8));
-        s += val;
-        sq += val * val;
+    nk_size_t i = 0;
+    for (; i + 2 <= count; i += 2) {
+        unsigned char byte_val = ptr[(i / 2) * stride_bytes];
+        nk_i64_t low = (nk_i64_t)nk_i4x2_low_(byte_val);
+        nk_i64_t high = (nk_i64_t)nk_i4x2_high_(byte_val);
+        s += low + high, sq += low * low + high * high;
+    }
+    if (i < count) {
+        unsigned char byte_val = ptr[(i / 2) * stride_bytes];
+        nk_i64_t val = (nk_i64_t)nk_i4x2_low_(byte_val);
+        s += val, sq += val * val;
     }
     *sum = s;
     *sumsq = sq;
@@ -376,12 +380,17 @@ NK_PUBLIC void nk_reduce_moments_u4_serial(                         //
     nk_u64_t *sum, nk_u64_t *sumsq) {
     nk_u64_t s = 0, sq = 0;
     unsigned char const *ptr = (unsigned char const *)data;
-    for (nk_size_t i = 0; i < count; ++i) {
-        nk_size_t byte_idx = i / 2;
-        unsigned char byte_val = ptr[byte_idx * stride_bytes];
-        nk_u64_t nibble = (i % 2 == 0) ? (byte_val & 0x0F) : ((byte_val >> 4) & 0x0F);
-        s += nibble;
-        sq += nibble * nibble;
+    nk_size_t i = 0;
+    for (; i + 2 <= count; i += 2) {
+        unsigned char byte_val = ptr[(i / 2) * stride_bytes];
+        nk_u64_t low = nk_u4x2_low_(byte_val);
+        nk_u64_t high = nk_u4x2_high_(byte_val);
+        s += low + high, sq += low * low + high * high;
+    }
+    if (i < count) {
+        unsigned char byte_val = ptr[(i / 2) * stride_bytes];
+        nk_u64_t nibble = nk_u4x2_low_(byte_val);
+        s += nibble, sq += nibble * nibble;
     }
     *sum = s;
     *sumsq = sq;
@@ -392,11 +401,15 @@ NK_PUBLIC void nk_reduce_moments_u1_serial(                         //
     nk_u64_t *sum, nk_u64_t *sumsq) {
     nk_u64_t s = 0;
     unsigned char const *ptr = (unsigned char const *)data;
-    for (nk_size_t i = 0; i < count; ++i) {
-        nk_size_t byte_idx = i / 8;
-        unsigned char byte_val = ptr[byte_idx * stride_bytes];
-        nk_u64_t bit = (byte_val >> (i % 8)) & 1;
-        s += bit;
+    nk_size_t i = 0;
+    for (; i + 8 <= count; i += 8) {
+        unsigned char byte_val = ptr[(i / 8) * stride_bytes];
+        s += nk_u64_popcount_(byte_val);
+    }
+    if (i < count) {
+        unsigned char byte_val = ptr[(i / 8) * stride_bytes];
+        unsigned char mask = (unsigned char)((1u << (count - i)) - 1u);
+        s += nk_u64_popcount_(byte_val & mask);
     }
     *sum = s;
     *sumsq = s; // 0^2 = 0, 1^2 = 1, so sumsq == sum
@@ -587,21 +600,16 @@ NK_PUBLIC void nk_reduce_minmax_f16_serial(                        //
     nk_f16_t *min_value, nk_size_t *min_index,                     //
     nk_f16_t *max_value, nk_size_t *max_index) {
     unsigned char const *ptr = (unsigned char const *)data;
-    nk_f32_t best_min_as_f32 = NK_F32_MAX, best_max_as_f32 = NK_F32_MIN;
-    nk_f16_t best_min_raw = 0, best_max_raw = 0;
+    nk_f16_t best_min = nk_f16_from_u16_(NK_F16_MAX), best_max = nk_f16_from_u16_(NK_F16_MIN);
     nk_size_t best_min_index = 0, best_max_index = 0;
     for (nk_size_t i = 0; i < count; ++i, ptr += stride_bytes) {
         nk_f16_t raw_value = *(nk_f16_t const *)ptr;
-        nk_f32_t converted_value;
-        nk_f16_to_f32_serial(&raw_value, &converted_value);
-        if (converted_value < best_min_as_f32)
-            best_min_as_f32 = converted_value, best_min_raw = raw_value, best_min_index = i;
-        if (converted_value > best_max_as_f32)
-            best_max_as_f32 = converted_value, best_max_raw = raw_value, best_max_index = i;
+        if (nk_f16_compare_(raw_value, best_min) < 0) best_min = raw_value, best_min_index = i;
+        if (nk_f16_compare_(raw_value, best_max) > 0) best_max = raw_value, best_max_index = i;
     }
-    *min_value = best_min_raw;
+    *min_value = best_min;
     *min_index = best_min_index;
-    *max_value = best_max_raw;
+    *max_value = best_max;
     *max_index = best_max_index;
 }
 
@@ -610,21 +618,16 @@ NK_PUBLIC void nk_reduce_minmax_bf16_serial(                        //
     nk_bf16_t *min_value, nk_size_t *min_index,                     //
     nk_bf16_t *max_value, nk_size_t *max_index) {
     unsigned char const *ptr = (unsigned char const *)data;
-    nk_f32_t best_min_as_f32 = NK_F32_MAX, best_max_as_f32 = NK_F32_MIN;
-    nk_bf16_t best_min_raw = 0, best_max_raw = 0;
+    nk_bf16_t best_min = nk_bf16_from_u16_(NK_BF16_MAX), best_max = nk_bf16_from_u16_(NK_BF16_MIN);
     nk_size_t best_min_index = 0, best_max_index = 0;
     for (nk_size_t i = 0; i < count; ++i, ptr += stride_bytes) {
         nk_bf16_t raw_value = *(nk_bf16_t const *)ptr;
-        nk_f32_t converted_value;
-        nk_bf16_to_f32_serial(&raw_value, &converted_value);
-        if (converted_value < best_min_as_f32)
-            best_min_as_f32 = converted_value, best_min_raw = raw_value, best_min_index = i;
-        if (converted_value > best_max_as_f32)
-            best_max_as_f32 = converted_value, best_max_raw = raw_value, best_max_index = i;
+        if (nk_bf16_compare_(raw_value, best_min) < 0) best_min = raw_value, best_min_index = i;
+        if (nk_bf16_compare_(raw_value, best_max) > 0) best_max = raw_value, best_max_index = i;
     }
-    *min_value = best_min_raw;
+    *min_value = best_min;
     *min_index = best_min_index;
-    *max_value = best_max_raw;
+    *max_value = best_max;
     *max_index = best_max_index;
 }
 
@@ -633,21 +636,16 @@ NK_PUBLIC void nk_reduce_minmax_e4m3_serial(                        //
     nk_e4m3_t *min_value, nk_size_t *min_index,                     //
     nk_e4m3_t *max_value, nk_size_t *max_index) {
     unsigned char const *ptr = (unsigned char const *)data;
-    nk_f32_t best_min_as_f32 = NK_F32_MAX, best_max_as_f32 = NK_F32_MIN;
-    nk_e4m3_t best_min_raw = 0, best_max_raw = 0;
+    nk_e4m3_t best_min = NK_E4M3_MAX, best_max = NK_E4M3_MIN;
     nk_size_t best_min_index = 0, best_max_index = 0;
     for (nk_size_t i = 0; i < count; ++i, ptr += stride_bytes) {
         nk_e4m3_t raw_value = *(nk_e4m3_t const *)ptr;
-        nk_f32_t converted_value;
-        nk_e4m3_to_f32_serial(&raw_value, &converted_value);
-        if (converted_value < best_min_as_f32)
-            best_min_as_f32 = converted_value, best_min_raw = raw_value, best_min_index = i;
-        if (converted_value > best_max_as_f32)
-            best_max_as_f32 = converted_value, best_max_raw = raw_value, best_max_index = i;
+        if (nk_e4m3_compare_(raw_value, best_min) < 0) best_min = raw_value, best_min_index = i;
+        if (nk_e4m3_compare_(raw_value, best_max) > 0) best_max = raw_value, best_max_index = i;
     }
-    *min_value = best_min_raw;
+    *min_value = best_min;
     *min_index = best_min_index;
-    *max_value = best_max_raw;
+    *max_value = best_max;
     *max_index = best_max_index;
 }
 
@@ -656,21 +654,16 @@ NK_PUBLIC void nk_reduce_minmax_e5m2_serial(                        //
     nk_e5m2_t *min_value, nk_size_t *min_index,                     //
     nk_e5m2_t *max_value, nk_size_t *max_index) {
     unsigned char const *ptr = (unsigned char const *)data;
-    nk_f32_t best_min_as_f32 = NK_F32_MAX, best_max_as_f32 = NK_F32_MIN;
-    nk_e5m2_t best_min_raw = 0, best_max_raw = 0;
+    nk_e5m2_t best_min = NK_E5M2_MAX, best_max = NK_E5M2_MIN;
     nk_size_t best_min_index = 0, best_max_index = 0;
     for (nk_size_t i = 0; i < count; ++i, ptr += stride_bytes) {
         nk_e5m2_t raw_value = *(nk_e5m2_t const *)ptr;
-        nk_f32_t converted_value;
-        nk_e5m2_to_f32_serial(&raw_value, &converted_value);
-        if (converted_value < best_min_as_f32)
-            best_min_as_f32 = converted_value, best_min_raw = raw_value, best_min_index = i;
-        if (converted_value > best_max_as_f32)
-            best_max_as_f32 = converted_value, best_max_raw = raw_value, best_max_index = i;
+        if (nk_e5m2_compare_(raw_value, best_min) < 0) best_min = raw_value, best_min_index = i;
+        if (nk_e5m2_compare_(raw_value, best_max) > 0) best_max = raw_value, best_max_index = i;
     }
-    *min_value = best_min_raw;
+    *min_value = best_min;
     *min_index = best_min_index;
-    *max_value = best_max_raw;
+    *max_value = best_max;
     *max_index = best_max_index;
 }
 
@@ -679,21 +672,16 @@ NK_PUBLIC void nk_reduce_minmax_e2m3_serial(                        //
     nk_e2m3_t *min_value, nk_size_t *min_index,                     //
     nk_e2m3_t *max_value, nk_size_t *max_index) {
     unsigned char const *ptr = (unsigned char const *)data;
-    nk_f32_t best_min_as_f32 = NK_F32_MAX, best_max_as_f32 = NK_F32_MIN;
-    nk_e2m3_t best_min_raw = 0, best_max_raw = 0;
+    nk_e2m3_t best_min = NK_E2M3_MAX, best_max = NK_E2M3_MIN;
     nk_size_t best_min_index = 0, best_max_index = 0;
     for (nk_size_t i = 0; i < count; ++i, ptr += stride_bytes) {
         nk_e2m3_t raw_value = *(nk_e2m3_t const *)ptr;
-        nk_f32_t converted_value;
-        nk_e2m3_to_f32_serial(&raw_value, &converted_value);
-        if (converted_value < best_min_as_f32)
-            best_min_as_f32 = converted_value, best_min_raw = raw_value, best_min_index = i;
-        if (converted_value > best_max_as_f32)
-            best_max_as_f32 = converted_value, best_max_raw = raw_value, best_max_index = i;
+        if (nk_e2m3_compare_(raw_value, best_min) < 0) best_min = raw_value, best_min_index = i;
+        if (nk_e2m3_compare_(raw_value, best_max) > 0) best_max = raw_value, best_max_index = i;
     }
-    *min_value = best_min_raw;
+    *min_value = best_min;
     *min_index = best_min_index;
-    *max_value = best_max_raw;
+    *max_value = best_max;
     *max_index = best_max_index;
 }
 
@@ -702,21 +690,16 @@ NK_PUBLIC void nk_reduce_minmax_e3m2_serial(                        //
     nk_e3m2_t *min_value, nk_size_t *min_index,                     //
     nk_e3m2_t *max_value, nk_size_t *max_index) {
     unsigned char const *ptr = (unsigned char const *)data;
-    nk_f32_t best_min_as_f32 = NK_F32_MAX, best_max_as_f32 = NK_F32_MIN;
-    nk_e3m2_t best_min_raw = 0, best_max_raw = 0;
+    nk_e3m2_t best_min = NK_E3M2_MAX, best_max = NK_E3M2_MIN;
     nk_size_t best_min_index = 0, best_max_index = 0;
     for (nk_size_t i = 0; i < count; ++i, ptr += stride_bytes) {
         nk_e3m2_t raw_value = *(nk_e3m2_t const *)ptr;
-        nk_f32_t converted_value;
-        nk_e3m2_to_f32_serial(&raw_value, &converted_value);
-        if (converted_value < best_min_as_f32)
-            best_min_as_f32 = converted_value, best_min_raw = raw_value, best_min_index = i;
-        if (converted_value > best_max_as_f32)
-            best_max_as_f32 = converted_value, best_max_raw = raw_value, best_max_index = i;
+        if (nk_e3m2_compare_(raw_value, best_min) < 0) best_min = raw_value, best_min_index = i;
+        if (nk_e3m2_compare_(raw_value, best_max) > 0) best_max = raw_value, best_max_index = i;
     }
-    *min_value = best_min_raw;
+    *min_value = best_min;
     *min_index = best_min_index;
-    *max_value = best_max_raw;
+    *max_value = best_max;
     *max_index = best_max_index;
 }
 
@@ -730,8 +713,7 @@ NK_PUBLIC void nk_reduce_minmax_i4_serial(                          //
     for (nk_size_t i = 0; i < count; ++i) {
         nk_size_t byte_idx = i / 2;
         unsigned char byte_val = ptr[byte_idx * stride_bytes];
-        unsigned char nibble = (i % 2 == 0) ? (byte_val & 0x0F) : ((byte_val >> 4) & 0x0F);
-        nk_i8_t val = (nk_i8_t)((nibble ^ 8) - 8);
+        nk_i8_t val = nk_i4x2_get_(byte_val, (int)(i & 1));
         if (val < best_min) best_min = val, best_min_idx = i;
         if (val > best_max) best_max = val, best_max_idx = i;
     }
@@ -751,7 +733,7 @@ NK_PUBLIC void nk_reduce_minmax_u4_serial(                          //
     for (nk_size_t i = 0; i < count; ++i) {
         nk_size_t byte_idx = i / 2;
         unsigned char byte_val = ptr[byte_idx * stride_bytes];
-        nk_u8_t nibble = (i % 2 == 0) ? (byte_val & 0x0F) : ((byte_val >> 4) & 0x0F);
+        nk_u8_t nibble = nk_u4x2_get_(byte_val, (int)(i & 1));
         if (nibble < best_min) best_min = nibble, best_min_idx = i;
         if (nibble > best_max) best_max = nibble, best_max_idx = i;
     }
