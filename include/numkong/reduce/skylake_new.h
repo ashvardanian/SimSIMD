@@ -1797,6 +1797,144 @@ NK_PUBLIC void nk_reduce_moments_e5m2_skylake(                      //
     else nk_reduce_moments_e5m2_serial(data, count, stride_bytes, sum, sumsq);
 }
 
+NK_INTERNAL void nk_reduce_moments_e2m3_skylake_contiguous_( //
+    nk_e2m3_t const *data, nk_size_t count,                  //
+    nk_f32_t *sum, nk_f32_t *sumsq) {
+    __m512 sum_f32x16 = _mm512_setzero_ps();
+    __m512 sumsq_f32x16 = _mm512_setzero_ps();
+    nk_size_t idx = 0;
+    for (; idx + 16 <= count; idx += 16) {
+        __m512 data_f32x16 = nk_e2m3x16_to_f32x16_skylake_(_mm_loadu_si128((__m128i const *)(data + idx)));
+        sum_f32x16 = _mm512_add_ps(sum_f32x16, data_f32x16);
+        sumsq_f32x16 = _mm512_fmadd_ps(data_f32x16, data_f32x16, sumsq_f32x16);
+    }
+    nk_size_t remaining = count - idx;
+    if (remaining > 0) {
+        nk_b512_vec_t vec;
+        nk_partial_load_e2m3x16_to_f32x16_skylake_(data + idx, &vec, remaining);
+        sum_f32x16 = _mm512_add_ps(sum_f32x16, vec.zmm_ps);
+        sumsq_f32x16 = _mm512_fmadd_ps(vec.zmm_ps, vec.zmm_ps, sumsq_f32x16);
+    }
+    *sum = nk_reduce_add_f32x16_skylake_(sum_f32x16);
+    *sumsq = nk_reduce_add_f32x16_skylake_(sumsq_f32x16);
+}
+
+NK_INTERNAL void nk_reduce_moments_e2m3_skylake_strided_(              //
+    nk_e2m3_t const *data, nk_size_t count, nk_size_t stride_elements, //
+    nk_f32_t *sum, nk_f32_t *sumsq) {
+    __mmask16 stride_mask_m16 = (__mmask16)nk_stride_mask_u1x64_(stride_elements);
+    __m512 sum_f32x16 = _mm512_setzero_ps();
+    __m512 sumsq_f32x16 = _mm512_setzero_ps();
+    nk_size_t idx_scalars = 0;
+    nk_size_t total_scalars = count * stride_elements;
+    for (; idx_scalars + 16 <= total_scalars; idx_scalars += 16) {
+        __m128i data_e2m3x16 = _mm_maskz_loadu_epi8(stride_mask_m16, data + idx_scalars);
+        __m512 data_f32x16 = nk_e2m3x16_to_f32x16_skylake_(data_e2m3x16);
+        sum_f32x16 = _mm512_add_ps(sum_f32x16, data_f32x16);
+        sumsq_f32x16 = _mm512_fmadd_ps(data_f32x16, data_f32x16, sumsq_f32x16);
+    }
+    nk_size_t remaining_bytes = total_scalars - idx_scalars;
+    if (remaining_bytes > 0) {
+        __mmask16 tail_mask = stride_mask_m16 & (__mmask16)_bzhi_u32(0xFFFF, (unsigned int)remaining_bytes);
+        __m128i data_e2m3x16 = _mm_maskz_loadu_epi8(tail_mask, data + idx_scalars);
+        __m512 data_f32x16 = nk_e2m3x16_to_f32x16_skylake_(data_e2m3x16);
+        sum_f32x16 = _mm512_add_ps(sum_f32x16, data_f32x16);
+        sumsq_f32x16 = _mm512_fmadd_ps(data_f32x16, data_f32x16, sumsq_f32x16);
+    }
+    *sum = nk_reduce_add_f32x16_skylake_(sum_f32x16);
+    *sumsq = nk_reduce_add_f32x16_skylake_(sumsq_f32x16);
+}
+
+NK_PUBLIC void nk_reduce_moments_e2m3_skylake(                      //
+    nk_e2m3_t const *data, nk_size_t count, nk_size_t stride_bytes, //
+    nk_f32_t *sum, nk_f32_t *sumsq) {
+    nk_size_t stride_elements = stride_bytes / sizeof(nk_e2m3_t);
+    int aligned = (stride_bytes % sizeof(nk_e2m3_t) == 0);
+    if (count == 0) *sum = 0, *sumsq = 0;
+    else if (!aligned) nk_reduce_moments_e2m3_serial(data, count, stride_bytes, sum, sumsq);
+    else if (count > (nk_size_t)(NK_U16_MAX + 1) * 64) {
+        nk_size_t left_count = count / 2;
+        nk_f32_t left_sum, left_sumsq, right_sum, right_sumsq;
+        nk_reduce_moments_e2m3_skylake(data, left_count, stride_bytes, &left_sum, &left_sumsq);
+        nk_reduce_moments_e2m3_skylake(data + left_count * stride_elements, count - left_count, stride_bytes,
+                                       &right_sum, &right_sumsq);
+        *sum = left_sum + right_sum, *sumsq = left_sumsq + right_sumsq;
+    }
+    else if (stride_elements == 1) nk_reduce_moments_e2m3_skylake_contiguous_(data, count, sum, sumsq);
+    else if (stride_elements >= 2 && stride_elements <= 16)
+        nk_reduce_moments_e2m3_skylake_strided_(data, count, stride_elements, sum, sumsq);
+    else nk_reduce_moments_e2m3_serial(data, count, stride_bytes, sum, sumsq);
+}
+
+NK_INTERNAL void nk_reduce_moments_e3m2_skylake_contiguous_( //
+    nk_e3m2_t const *data, nk_size_t count,                  //
+    nk_f32_t *sum, nk_f32_t *sumsq) {
+    __m512 sum_f32x16 = _mm512_setzero_ps();
+    __m512 sumsq_f32x16 = _mm512_setzero_ps();
+    nk_size_t idx = 0;
+    for (; idx + 16 <= count; idx += 16) {
+        __m512 data_f32x16 = nk_e3m2x16_to_f32x16_skylake_(_mm_loadu_si128((__m128i const *)(data + idx)));
+        sum_f32x16 = _mm512_add_ps(sum_f32x16, data_f32x16);
+        sumsq_f32x16 = _mm512_fmadd_ps(data_f32x16, data_f32x16, sumsq_f32x16);
+    }
+    nk_size_t remaining = count - idx;
+    if (remaining > 0) {
+        nk_b512_vec_t vec;
+        nk_partial_load_e3m2x16_to_f32x16_skylake_(data + idx, &vec, remaining);
+        sum_f32x16 = _mm512_add_ps(sum_f32x16, vec.zmm_ps);
+        sumsq_f32x16 = _mm512_fmadd_ps(vec.zmm_ps, vec.zmm_ps, sumsq_f32x16);
+    }
+    *sum = nk_reduce_add_f32x16_skylake_(sum_f32x16);
+    *sumsq = nk_reduce_add_f32x16_skylake_(sumsq_f32x16);
+}
+
+NK_INTERNAL void nk_reduce_moments_e3m2_skylake_strided_(              //
+    nk_e3m2_t const *data, nk_size_t count, nk_size_t stride_elements, //
+    nk_f32_t *sum, nk_f32_t *sumsq) {
+    __mmask16 stride_mask_m16 = (__mmask16)nk_stride_mask_u1x64_(stride_elements);
+    __m512 sum_f32x16 = _mm512_setzero_ps();
+    __m512 sumsq_f32x16 = _mm512_setzero_ps();
+    nk_size_t idx_scalars = 0;
+    nk_size_t total_scalars = count * stride_elements;
+    for (; idx_scalars + 16 <= total_scalars; idx_scalars += 16) {
+        __m128i data_e3m2x16 = _mm_maskz_loadu_epi8(stride_mask_m16, data + idx_scalars);
+        __m512 data_f32x16 = nk_e3m2x16_to_f32x16_skylake_(data_e3m2x16);
+        sum_f32x16 = _mm512_add_ps(sum_f32x16, data_f32x16);
+        sumsq_f32x16 = _mm512_fmadd_ps(data_f32x16, data_f32x16, sumsq_f32x16);
+    }
+    nk_size_t remaining_bytes = total_scalars - idx_scalars;
+    if (remaining_bytes > 0) {
+        __mmask16 tail_mask = stride_mask_m16 & (__mmask16)_bzhi_u32(0xFFFF, (unsigned int)remaining_bytes);
+        __m128i data_e3m2x16 = _mm_maskz_loadu_epi8(tail_mask, data + idx_scalars);
+        __m512 data_f32x16 = nk_e3m2x16_to_f32x16_skylake_(data_e3m2x16);
+        sum_f32x16 = _mm512_add_ps(sum_f32x16, data_f32x16);
+        sumsq_f32x16 = _mm512_fmadd_ps(data_f32x16, data_f32x16, sumsq_f32x16);
+    }
+    *sum = nk_reduce_add_f32x16_skylake_(sum_f32x16);
+    *sumsq = nk_reduce_add_f32x16_skylake_(sumsq_f32x16);
+}
+
+NK_PUBLIC void nk_reduce_moments_e3m2_skylake(                      //
+    nk_e3m2_t const *data, nk_size_t count, nk_size_t stride_bytes, //
+    nk_f32_t *sum, nk_f32_t *sumsq) {
+    nk_size_t stride_elements = stride_bytes / sizeof(nk_e3m2_t);
+    int aligned = (stride_bytes % sizeof(nk_e3m2_t) == 0);
+    if (count == 0) *sum = 0, *sumsq = 0;
+    else if (!aligned) nk_reduce_moments_e3m2_serial(data, count, stride_bytes, sum, sumsq);
+    else if (count > (nk_size_t)(NK_U16_MAX + 1) * 64) {
+        nk_size_t left_count = count / 2;
+        nk_f32_t left_sum, left_sumsq, right_sum, right_sumsq;
+        nk_reduce_moments_e3m2_skylake(data, left_count, stride_bytes, &left_sum, &left_sumsq);
+        nk_reduce_moments_e3m2_skylake(data + left_count * stride_elements, count - left_count, stride_bytes,
+                                       &right_sum, &right_sumsq);
+        *sum = left_sum + right_sum, *sumsq = left_sumsq + right_sumsq;
+    }
+    else if (stride_elements == 1) nk_reduce_moments_e3m2_skylake_contiguous_(data, count, sum, sumsq);
+    else if (stride_elements >= 2 && stride_elements <= 16)
+        nk_reduce_moments_e3m2_skylake_strided_(data, count, stride_elements, sum, sumsq);
+    else nk_reduce_moments_e3m2_serial(data, count, stride_bytes, sum, sumsq);
+}
+
 NK_INTERNAL void nk_reduce_minmax_e5m2_skylake_contiguous_( //
     nk_e5m2_t const *data, nk_size_t count,                 //
     nk_e5m2_t *min_value, nk_size_t *min_index,             //
