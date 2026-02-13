@@ -38,8 +38,12 @@ NK_INTERNAL nk_f64_t nk_f64_fma_(nk_f64_t a, nk_f64_t b, nk_f64_t c) {
     // Compute error in multiplication
     nk_f64_t error = ((a_hi * b_hi - product) + a_hi * b_lo + a_lo * b_hi) + a_lo * b_lo;
 
-    // Add c and compensate for error
-    return (product + c) + error;
+    // Add c with Knuth TwoSum (branchless) to compensate for addition error
+    nk_f64_t sum = product + c;
+    nk_f64_t c_virtual = sum - product;
+    nk_f64_t product_virtual = sum - c_virtual;
+    nk_f64_t add_error = (product - product_virtual) + (c - c_virtual);
+    return sum + (error + add_error);
 }
 
 /**
@@ -61,7 +65,12 @@ NK_INTERNAL nk_f32_t nk_f32_fma_(nk_f32_t a, nk_f32_t b, nk_f32_t c) {
 
     nk_f32_t error = ((a_hi * b_hi - product) + a_hi * b_lo + a_lo * b_hi) + a_lo * b_lo;
 
-    return (product + c) + error;
+    // Add c with Knuth TwoSum (branchless) to compensate for addition error
+    nk_f32_t sum = product + c;
+    nk_f32_t c_virtual = sum - product;
+    nk_f32_t product_virtual = sum - c_virtual;
+    nk_f32_t add_error = (product - product_virtual) + (c - c_virtual);
+    return sum + (error + add_error);
 }
 
 /**
