@@ -333,9 +333,9 @@ NK_INTERNAL __m256i nk_fp8x32_to_u8x32_comparable_haswell_(__m256i raw_i8x32) {
  *  @note Port usage: 1× VPCMPGTB (p01), 1× VPBLENDVB (p015×2), 1× VPXOR (p015) = ~4 uops
  */
 NK_INTERNAL __m256i nk_u8x32_comparable_to_fp8x32_haswell_(__m256i cmp_i8x32) {
-    // Values < 0x80 were negative FP8, values >= 0x80 were positive
-    __m256i threshold_i8x32 = _mm256_set1_epi8((char)0x80);
-    __m256i was_neg_i8x32 = _mm256_cmpgt_epi8(threshold_i8x32, cmp_i8x32);
+    // Values < 0x80 were negative FP8 (sign bit clear in comparable form), values >= 0x80 were positive
+    __m256i sign_bit_i8x32 = _mm256_set1_epi8((char)0x80);
+    __m256i was_neg_i8x32 = _mm256_cmpeq_epi8(_mm256_and_si256(cmp_i8x32, sign_bit_i8x32), _mm256_setzero_si256());
     __m256i neg_xor_i8x32 = _mm256_set1_epi8((char)0xFF);
     __m256i pos_xor_i8x32 = _mm256_set1_epi8((char)0x80);
     __m256i xor_i8x32 = _mm256_blendv_epi8(pos_xor_i8x32, neg_xor_i8x32, was_neg_i8x32);

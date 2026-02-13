@@ -36,7 +36,7 @@ extern "C" {
 
 NK_INTERNAL void nk_reduce_moments_i8_icelake_contiguous_( //
     nk_i8_t const *data, nk_size_t count,                  //
-    nk_i64_t *sum, nk_i64_t *sumsq) {
+    nk_i64_t *sum, nk_u64_t *sumsq) {
     __m512i bias_i8x64 = _mm512_set1_epi8((char)0x80);
     __m512i zero_i8x64 = _mm512_setzero_si512();
     __m512i sum_u64x8 = _mm512_setzero_si512();
@@ -67,12 +67,12 @@ NK_INTERNAL void nk_reduce_moments_i8_icelake_contiguous_( //
     __m512i sumsq_i64x8 = _mm512_cvtepi32_epi64(_mm512_castsi512_si256(sumsq_low_i32x16));
     sumsq_i64x8 = _mm512_add_epi64(sumsq_i64x8, _mm512_cvtepi32_epi64(_mm512_extracti64x4_epi64(sumsq_low_i32x16, 1)));
     *sum = (nk_i64_t)nk_reduce_add_u64x8_skylake_(sum_u64x8) - (nk_i64_t)128 * (nk_i64_t)count;
-    *sumsq = nk_reduce_add_i64x8_skylake_(sumsq_i64x8);
+    *sumsq = (nk_u64_t)nk_reduce_add_i64x8_skylake_(sumsq_i64x8);
 }
 
 NK_INTERNAL void nk_reduce_moments_i8_icelake_strided_(              //
     nk_i8_t const *data, nk_size_t count, nk_size_t stride_elements, //
-    nk_i64_t *sum, nk_i64_t *sumsq) {
+    nk_i64_t *sum, nk_u64_t *sumsq) {
     __mmask64 stride_mask_m64 = nk_stride_mask_u1x64_(stride_elements);
     __m512i masked_bias_i8x64 = _mm512_maskz_mov_epi8(stride_mask_m64, _mm512_set1_epi8((char)0x80));
     __m512i zero_i8x64 = _mm512_setzero_si512();
@@ -106,24 +106,25 @@ NK_INTERNAL void nk_reduce_moments_i8_icelake_strided_(              //
     __m512i sumsq_i64x8 = _mm512_cvtepi32_epi64(_mm512_castsi512_si256(sumsq_low_i32x16));
     sumsq_i64x8 = _mm512_add_epi64(sumsq_i64x8, _mm512_cvtepi32_epi64(_mm512_extracti64x4_epi64(sumsq_low_i32x16, 1)));
     *sum = (nk_i64_t)nk_reduce_add_u64x8_skylake_(sum_u64x8) - (nk_i64_t)128 * (nk_i64_t)count;
-    *sumsq = nk_reduce_add_i64x8_skylake_(sumsq_i64x8);
+    *sumsq = (nk_u64_t)nk_reduce_add_i64x8_skylake_(sumsq_i64x8);
 }
 
 NK_PUBLIC void nk_reduce_moments_i8_icelake(                      //
     nk_i8_t const *data, nk_size_t count, nk_size_t stride_bytes, //
-    nk_i64_t *sum, nk_i64_t *sumsq) {
+    nk_i64_t *sum, nk_u64_t *sumsq) {
     nk_size_t stride_elements = stride_bytes / sizeof(nk_i8_t);
     int aligned = (stride_bytes % sizeof(nk_i8_t) == 0);
     if (count == 0) *sum = 0, *sumsq = 0;
     else if (!aligned) nk_reduce_moments_i8_serial(data, count, stride_bytes, sum, sumsq);
     else if (count > (nk_size_t)(NK_U16_MAX + 1) * 64) {
         nk_size_t left_count = count / 2;
-        nk_i64_t left_sum, left_sumsq, right_sum, right_sumsq;
+        nk_i64_t left_sum, right_sum;
+        nk_u64_t left_sumsq, right_sumsq;
         nk_reduce_moments_i8_icelake(data, left_count, stride_bytes, &left_sum, &left_sumsq);
         nk_reduce_moments_i8_icelake(data + left_count * stride_elements, count - left_count, stride_bytes, &right_sum,
                                      &right_sumsq);
         nk_i64_sadd_(&left_sum, &right_sum, sum);
-        nk_i64_sadd_(&left_sumsq, &right_sumsq, sumsq);
+        nk_u64_sadd_(&left_sumsq, &right_sumsq, sumsq);
     }
     else if (stride_elements == 1) nk_reduce_moments_i8_icelake_contiguous_(data, count, sum, sumsq);
     else if (stride_elements <= 32) nk_reduce_moments_i8_icelake_strided_(data, count, stride_elements, sum, sumsq);
@@ -221,7 +222,7 @@ NK_PUBLIC void nk_reduce_moments_u8_icelake(                      //
 
 NK_INTERNAL void nk_reduce_moments_i16_icelake_contiguous_( //
     nk_i16_t const *data, nk_size_t count,                  //
-    nk_i64_t *sum, nk_i64_t *sumsq) {
+    nk_i64_t *sum, nk_u64_t *sumsq) {
     // Sum: VPDPWSSD(acc, data, ones) accumulates in i32 — safe for (NK_I16_MAX+1)*32 elements.
     // Sumsq: VPDPWSSD(zero, data, data) → fresh i32, widen to i64 each iteration.
     __m512i ones_i16x32 = _mm512_set1_epi16(1);
@@ -248,12 +249,12 @@ NK_INTERNAL void nk_reduce_moments_i16_icelake_contiguous_( //
         _mm512_cvtepi32_epi64(_mm512_castsi512_si256(sum_i32x16)),        //
         _mm512_cvtepi32_epi64(_mm512_extracti64x4_epi64(sum_i32x16, 1))); //
     *sum = nk_reduce_add_i64x8_skylake_(sum_i64x8);
-    *sumsq = nk_reduce_add_i64x8_skylake_(sumsq_i64x8);
+    *sumsq = (nk_u64_t)nk_reduce_add_i64x8_skylake_(sumsq_i64x8);
 }
 
 NK_INTERNAL void nk_reduce_moments_i16_icelake_strided_(              //
     nk_i16_t const *data, nk_size_t count, nk_size_t stride_elements, //
-    nk_i64_t *sum, nk_i64_t *sumsq) {
+    nk_i64_t *sum, nk_u64_t *sumsq) {
     __mmask32 stride_mask_m32 = nk_stride_mask_b16x32_(stride_elements);
     __m512i ones_i16x32 = _mm512_set1_epi16(1);
     __m512i sum_i32x16 = _mm512_setzero_si512();
@@ -280,24 +281,25 @@ NK_INTERNAL void nk_reduce_moments_i16_icelake_strided_(              //
         _mm512_cvtepi32_epi64(_mm512_castsi512_si256(sum_i32x16)),        //
         _mm512_cvtepi32_epi64(_mm512_extracti64x4_epi64(sum_i32x16, 1))); //
     *sum = nk_reduce_add_i64x8_skylake_(sum_i64x8);
-    *sumsq = nk_reduce_add_i64x8_skylake_(sumsq_i64x8);
+    *sumsq = (nk_u64_t)nk_reduce_add_i64x8_skylake_(sumsq_i64x8);
 }
 
 NK_PUBLIC void nk_reduce_moments_i16_icelake(                      //
     nk_i16_t const *data, nk_size_t count, nk_size_t stride_bytes, //
-    nk_i64_t *sum, nk_i64_t *sumsq) {
+    nk_i64_t *sum, nk_u64_t *sumsq) {
     nk_size_t stride_elements = stride_bytes / sizeof(nk_i16_t);
     int aligned = (stride_bytes % sizeof(nk_i16_t) == 0);
     if (count == 0) *sum = 0, *sumsq = 0;
     else if (!aligned) nk_reduce_moments_i16_serial(data, count, stride_bytes, sum, sumsq);
     else if (count > (nk_size_t)(NK_I16_MAX + 1) * 32) {
         nk_size_t left_count = count / 2;
-        nk_i64_t left_sum, left_sumsq, right_sum, right_sumsq;
+        nk_i64_t left_sum, right_sum;
+        nk_u64_t left_sumsq, right_sumsq;
         nk_reduce_moments_i16_icelake(data, left_count, stride_bytes, &left_sum, &left_sumsq);
         nk_reduce_moments_i16_icelake(data + left_count * stride_elements, count - left_count, stride_bytes, &right_sum,
                                       &right_sumsq);
         nk_i64_sadd_(&left_sum, &right_sum, sum);
-        nk_i64_sadd_(&left_sumsq, &right_sumsq, sumsq);
+        nk_u64_sadd_(&left_sumsq, &right_sumsq, sumsq);
     }
     else if (stride_elements == 1) nk_reduce_moments_i16_icelake_contiguous_(data, count, sum, sumsq);
     else if (stride_elements <= 16) nk_reduce_moments_i16_icelake_strided_(data, count, stride_elements, sum, sumsq);
