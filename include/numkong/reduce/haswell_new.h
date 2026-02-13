@@ -5,6 +5,24 @@
  *  @date February 12, 2026
  *
  *  @sa include/numkong/reduce.h
+ *
+ *  @section reduce_block_caps Block-Cap Overflow Thresholds
+ *
+ *  Dispatch functions use pairwise recursion when `count` exceeds a block cap.
+ *  The cap is sized so the iteration counter in the contiguous kernel never wraps.
+ *
+ *  Iteration counters start at 0 (initial load) and increment by 1 per SIMD chunk.
+ *  A u8 counter holds 0..255 → 256 iterations → processes 256 × lanes elements.
+ *  A u16 counter holds 0..65535 → 65536 iterations → processes 65536 × lanes elements.
+ *  A u32 counter holds 0..4294967295 → ~4.3 billion iterations.
+ *
+ *  Threshold formula: count > (COUNTER_MAX + 1) × lanes_per_chunk
+ *    - u8 minmax:  (NK_U8_MAX  + 1) × lanes   (e.g. 256 × 32 = 8192 for i8x32)
+ *    - u16 minmax: (NK_U16_MAX + 1) × lanes   (e.g. 65536 × 16 = 1048576 for i16x16)
+ *    - u32 minmax: NK_U32_MAX × lanes          (no +1: NK_U32_MAX + 1 overflows unsigned)
+ *
+ *  Moments block caps are sized for accumulator overflow, not counter overflow.
+ *  See individual dispatch functions for type-specific derivations.
  */
 #ifndef NK_REDUCE_HASWELL_NEW_H
 #define NK_REDUCE_HASWELL_NEW_H
@@ -101,21 +119,21 @@ NK_INTERNAL void nk_reduce_moments_f32_haswell_strided_(              //
     nk_f32_t const *data, nk_size_t count, nk_size_t stride_elements, //
     nk_f64_t *sum, nk_f64_t *sumsq) {
     __m256i blend_mask_i32x8 = nk_stride_blend_b32x8_(stride_elements);
-    __m128 blend_lo_f32x4 = _mm_castsi128_ps(_mm256_castsi256_si128(blend_mask_i32x8));
-    __m128 blend_hi_f32x4 = _mm_castsi128_ps(_mm256_extracti128_si256(blend_mask_i32x8, 1));
+    __m128 blend_low_f32x4 = _mm_castsi128_ps(_mm256_castsi256_si128(blend_mask_i32x8));
+    __m128 blend_high_f32x4 = _mm_castsi128_ps(_mm256_extracti128_si256(blend_mask_i32x8, 1));
     __m128 zero_f32x4 = _mm_setzero_ps();
     __m256d sum_low_f64x4 = _mm256_setzero_pd(), sum_high_f64x4 = _mm256_setzero_pd();
     __m256d sumsq_low_f64x4 = _mm256_setzero_pd(), sumsq_high_f64x4 = _mm256_setzero_pd();
     nk_size_t idx = 0, total = count * stride_elements;
     for (; idx + 8 <= total; idx += 8) {
-        __m128 lo_f32x4 = _mm_blendv_ps(zero_f32x4, _mm_loadu_ps(data + idx), blend_lo_f32x4);
-        __m128 hi_f32x4 = _mm_blendv_ps(zero_f32x4, _mm_loadu_ps(data + idx + 4), blend_hi_f32x4);
-        __m256d lo_f64x4 = _mm256_cvtps_pd(lo_f32x4);
-        __m256d hi_f64x4 = _mm256_cvtps_pd(hi_f32x4);
-        sum_low_f64x4 = _mm256_add_pd(sum_low_f64x4, lo_f64x4);
-        sum_high_f64x4 = _mm256_add_pd(sum_high_f64x4, hi_f64x4);
-        sumsq_low_f64x4 = _mm256_fmadd_pd(lo_f64x4, lo_f64x4, sumsq_low_f64x4);
-        sumsq_high_f64x4 = _mm256_fmadd_pd(hi_f64x4, hi_f64x4, sumsq_high_f64x4);
+        __m128 low_f32x4 = _mm_blendv_ps(zero_f32x4, _mm_loadu_ps(data + idx), blend_low_f32x4);
+        __m128 high_f32x4 = _mm_blendv_ps(zero_f32x4, _mm_loadu_ps(data + idx + 4), blend_high_f32x4);
+        __m256d low_f64x4 = _mm256_cvtps_pd(low_f32x4);
+        __m256d high_f64x4 = _mm256_cvtps_pd(high_f32x4);
+        sum_low_f64x4 = _mm256_add_pd(sum_low_f64x4, low_f64x4);
+        sum_high_f64x4 = _mm256_add_pd(sum_high_f64x4, high_f64x4);
+        sumsq_low_f64x4 = _mm256_fmadd_pd(low_f64x4, low_f64x4, sumsq_low_f64x4);
+        sumsq_high_f64x4 = _mm256_fmadd_pd(high_f64x4, high_f64x4, sumsq_high_f64x4);
     }
     __m256d sum_f64x4 = _mm256_add_pd(sum_low_f64x4, sum_high_f64x4);
     __m256d sumsq_f64x4 = _mm256_add_pd(sumsq_low_f64x4, sumsq_high_f64x4);
@@ -143,12 +161,12 @@ NK_INTERNAL void nk_reduce_moments_f32_haswell_gather_(            //
     nk_size_t idx = 0;
     for (; idx + 8 <= count; idx += 8) {
         __m256 gathered_f32x8 = _mm256_i32gather_ps(data + idx * stride_elements, indices_i32x8, sizeof(nk_f32_t));
-        __m256d lo_f64x4 = _mm256_cvtps_pd(_mm256_castps256_ps128(gathered_f32x8));
-        __m256d hi_f64x4 = _mm256_cvtps_pd(_mm256_extractf128_ps(gathered_f32x8, 1));
-        sum_f64x4 = _mm256_add_pd(sum_f64x4, lo_f64x4);
-        sum_f64x4 = _mm256_add_pd(sum_f64x4, hi_f64x4);
-        sumsq_f64x4 = _mm256_fmadd_pd(lo_f64x4, lo_f64x4, sumsq_f64x4);
-        sumsq_f64x4 = _mm256_fmadd_pd(hi_f64x4, hi_f64x4, sumsq_f64x4);
+        __m256d low_f64x4 = _mm256_cvtps_pd(_mm256_castps256_ps128(gathered_f32x8));
+        __m256d high_f64x4 = _mm256_cvtps_pd(_mm256_extractf128_ps(gathered_f32x8, 1));
+        sum_f64x4 = _mm256_add_pd(sum_f64x4, low_f64x4);
+        sum_f64x4 = _mm256_add_pd(sum_f64x4, high_f64x4);
+        sumsq_f64x4 = _mm256_fmadd_pd(low_f64x4, low_f64x4, sumsq_f64x4);
+        sumsq_f64x4 = _mm256_fmadd_pd(high_f64x4, high_f64x4, sumsq_f64x4);
     }
     nk_f64_t s = nk_reduce_add_f64x4_haswell_(sum_f64x4);
     nk_f64_t sq = nk_reduce_add_f64x4_haswell_(sumsq_f64x4);
@@ -186,23 +204,25 @@ NK_INTERNAL void nk_reduce_minmax_f32_haswell_contiguous_( //
     nk_f32_t const *data, nk_size_t count,                 //
     nk_f32_t *min_value, nk_size_t *min_index,             //
     nk_f32_t *max_value, nk_size_t *max_index) {
-    __m256 min_f32x8 = _mm256_loadu_ps(data);
-    __m256 max_f32x8 = min_f32x8;
-    __m256i min_iter_u32x8 = _mm256_setzero_si256();
-    __m256i max_iter_u32x8 = _mm256_setzero_si256();
-    __m256i iter_u32x8 = _mm256_set1_epi32(1);
+    __m256 min_f32x8 = _mm256_set1_ps(NK_F32_MAX);
+    __m256 max_f32x8 = _mm256_set1_ps(NK_F32_MIN);
+    __m256i min_loop_cycle_u32x8 = _mm256_setzero_si256();
+    __m256i max_loop_cycle_u32x8 = _mm256_setzero_si256();
+    __m256i current_loop_cycle_u32x8 = _mm256_setzero_si256();
     __m256i one_u32x8 = _mm256_set1_epi32(1);
 
-    nk_size_t idx = 8;
+    nk_size_t idx = 0;
     for (; idx + 8 <= count; idx += 8) {
         __m256 data_f32x8 = _mm256_loadu_ps(data + idx);
         __m256 less_b32x8 = _mm256_cmp_ps(data_f32x8, min_f32x8, _CMP_LT_OQ);
         __m256 greater_b32x8 = _mm256_cmp_ps(data_f32x8, max_f32x8, _CMP_GT_OQ);
         min_f32x8 = _mm256_blendv_ps(min_f32x8, data_f32x8, less_b32x8);
         max_f32x8 = _mm256_blendv_ps(max_f32x8, data_f32x8, greater_b32x8);
-        min_iter_u32x8 = _mm256_blendv_epi8(min_iter_u32x8, iter_u32x8, _mm256_castps_si256(less_b32x8));
-        max_iter_u32x8 = _mm256_blendv_epi8(max_iter_u32x8, iter_u32x8, _mm256_castps_si256(greater_b32x8));
-        iter_u32x8 = _mm256_add_epi32(iter_u32x8, one_u32x8);
+        min_loop_cycle_u32x8 = _mm256_blendv_epi8(min_loop_cycle_u32x8, current_loop_cycle_u32x8,
+                                                  _mm256_castps_si256(less_b32x8));
+        max_loop_cycle_u32x8 = _mm256_blendv_epi8(max_loop_cycle_u32x8, current_loop_cycle_u32x8,
+                                                  _mm256_castps_si256(greater_b32x8));
+        current_loop_cycle_u32x8 = _mm256_add_epi32(current_loop_cycle_u32x8, one_u32x8);
     }
 
     // Scalar tail
@@ -210,18 +230,26 @@ NK_INTERNAL void nk_reduce_minmax_f32_haswell_contiguous_( //
     nk_f32_t max_scalar = nk_reduce_max_f32x8_haswell_(max_f32x8);
     nk_size_t min_idx = 0, max_idx = 0;
     {
-        __m256 min_eq_b32x8 = _mm256_cmp_ps(min_f32x8, _mm256_set1_ps(min_scalar), _CMP_EQ_OQ);
-        unsigned int min_lane = _tzcnt_u32((unsigned int)_mm256_movemask_ps(min_eq_b32x8));
-        nk_b256_vec_t iter_vec;
-        iter_vec.ymm = min_iter_u32x8;
-        min_idx = (nk_size_t)iter_vec.u32s[min_lane] * 8 + min_lane;
+        __m256 value_match_b32x8 = _mm256_cmp_ps(min_f32x8, _mm256_set1_ps(min_scalar), _CMP_EQ_OQ);
+        __m256i masked_cycle_u32x8 = _mm256_blendv_epi8(_mm256_set1_epi32((int)NK_U32_MAX), min_loop_cycle_u32x8,
+                                                        _mm256_castps_si256(value_match_b32x8));
+        nk_u32_t earliest_loop_cycle = nk_reduce_min_u32x8_haswell_(masked_cycle_u32x8);
+        __m256i cycle_match_b32x8 = _mm256_cmpeq_epi32(masked_cycle_u32x8, _mm256_set1_epi32((int)earliest_loop_cycle));
+        unsigned int min_lane = _tzcnt_u32((unsigned int)_mm256_movemask_ps(_mm256_castsi256_ps(cycle_match_b32x8)));
+        nk_b256_vec_t loop_cycle_vec;
+        loop_cycle_vec.ymm = min_loop_cycle_u32x8;
+        min_idx = (nk_size_t)loop_cycle_vec.u32s[min_lane] * 8 + min_lane;
     }
     {
-        __m256 max_eq_b32x8 = _mm256_cmp_ps(max_f32x8, _mm256_set1_ps(max_scalar), _CMP_EQ_OQ);
-        unsigned int max_lane = _tzcnt_u32((unsigned int)_mm256_movemask_ps(max_eq_b32x8));
-        nk_b256_vec_t iter_vec;
-        iter_vec.ymm = max_iter_u32x8;
-        max_idx = (nk_size_t)iter_vec.u32s[max_lane] * 8 + max_lane;
+        __m256 value_match_b32x8 = _mm256_cmp_ps(max_f32x8, _mm256_set1_ps(max_scalar), _CMP_EQ_OQ);
+        __m256i masked_cycle_u32x8 = _mm256_blendv_epi8(_mm256_set1_epi32((int)NK_U32_MAX), max_loop_cycle_u32x8,
+                                                        _mm256_castps_si256(value_match_b32x8));
+        nk_u32_t earliest_loop_cycle = nk_reduce_min_u32x8_haswell_(masked_cycle_u32x8);
+        __m256i cycle_match_b32x8 = _mm256_cmpeq_epi32(masked_cycle_u32x8, _mm256_set1_epi32((int)earliest_loop_cycle));
+        unsigned int max_lane = _tzcnt_u32((unsigned int)_mm256_movemask_ps(_mm256_castsi256_ps(cycle_match_b32x8)));
+        nk_b256_vec_t loop_cycle_vec;
+        loop_cycle_vec.ymm = max_loop_cycle_u32x8;
+        max_idx = (nk_size_t)loop_cycle_vec.u32s[max_lane] * 8 + max_lane;
     }
     for (; idx < count; ++idx) {
         nk_f32_t val = data[idx];
@@ -374,23 +402,25 @@ NK_INTERNAL void nk_reduce_minmax_f64_haswell_contiguous_( //
     nk_f64_t const *data, nk_size_t count,                 //
     nk_f64_t *min_value, nk_size_t *min_index,             //
     nk_f64_t *max_value, nk_size_t *max_index) {
-    __m256d min_f64x4 = _mm256_loadu_pd(data);
-    __m256d max_f64x4 = min_f64x4;
-    __m256i min_iter_u64x4 = _mm256_setzero_si256();
-    __m256i max_iter_u64x4 = _mm256_setzero_si256();
-    __m256i iter_u64x4 = _mm256_set1_epi64x(1);
+    __m256d min_f64x4 = _mm256_set1_pd(NK_F64_MAX);
+    __m256d max_f64x4 = _mm256_set1_pd(NK_F64_MIN);
+    __m256i min_loop_cycle_u64x4 = _mm256_setzero_si256();
+    __m256i max_loop_cycle_u64x4 = _mm256_setzero_si256();
+    __m256i current_loop_cycle_u64x4 = _mm256_setzero_si256();
     __m256i one_u64x4 = _mm256_set1_epi64x(1);
 
-    nk_size_t idx = 4;
+    nk_size_t idx = 0;
     for (; idx + 4 <= count; idx += 4) {
         __m256d data_f64x4 = _mm256_loadu_pd(data + idx);
         __m256d less_b64x4 = _mm256_cmp_pd(data_f64x4, min_f64x4, _CMP_LT_OQ);
         __m256d greater_b64x4 = _mm256_cmp_pd(data_f64x4, max_f64x4, _CMP_GT_OQ);
         min_f64x4 = _mm256_blendv_pd(min_f64x4, data_f64x4, less_b64x4);
         max_f64x4 = _mm256_blendv_pd(max_f64x4, data_f64x4, greater_b64x4);
-        min_iter_u64x4 = _mm256_blendv_epi8(min_iter_u64x4, iter_u64x4, _mm256_castpd_si256(less_b64x4));
-        max_iter_u64x4 = _mm256_blendv_epi8(max_iter_u64x4, iter_u64x4, _mm256_castpd_si256(greater_b64x4));
-        iter_u64x4 = _mm256_add_epi64(iter_u64x4, one_u64x4);
+        min_loop_cycle_u64x4 = _mm256_blendv_epi8(min_loop_cycle_u64x4, current_loop_cycle_u64x4,
+                                                  _mm256_castpd_si256(less_b64x4));
+        max_loop_cycle_u64x4 = _mm256_blendv_epi8(max_loop_cycle_u64x4, current_loop_cycle_u64x4,
+                                                  _mm256_castpd_si256(greater_b64x4));
+        current_loop_cycle_u64x4 = _mm256_add_epi64(current_loop_cycle_u64x4, one_u64x4);
     }
 
     nk_size_t remaining = count - idx;
@@ -407,27 +437,39 @@ NK_INTERNAL void nk_reduce_minmax_f64_haswell_contiguous_( //
         __m256d greater_b64x4 = _mm256_cmp_pd(data_f64x4, max_f64x4, _CMP_GT_OQ);
         min_f64x4 = _mm256_blendv_pd(min_f64x4, data_f64x4, less_b64x4);
         max_f64x4 = _mm256_blendv_pd(max_f64x4, data_f64x4, greater_b64x4);
-        min_iter_u64x4 = _mm256_blendv_epi8(min_iter_u64x4, iter_u64x4, _mm256_castpd_si256(less_b64x4));
-        max_iter_u64x4 = _mm256_blendv_epi8(max_iter_u64x4, iter_u64x4, _mm256_castpd_si256(greater_b64x4));
+        min_loop_cycle_u64x4 = _mm256_blendv_epi8(min_loop_cycle_u64x4, current_loop_cycle_u64x4,
+                                                  _mm256_castpd_si256(less_b64x4));
+        max_loop_cycle_u64x4 = _mm256_blendv_epi8(max_loop_cycle_u64x4, current_loop_cycle_u64x4,
+                                                  _mm256_castpd_si256(greater_b64x4));
     }
 
     nk_f64_t min_scalar = nk_reduce_min_f64x4_haswell_(min_f64x4);
     nk_f64_t max_scalar = nk_reduce_max_f64x4_haswell_(max_f64x4);
     {
-        __m256d min_eq_b64x4 = _mm256_cmp_pd(min_f64x4, _mm256_set1_pd(min_scalar), _CMP_EQ_OQ);
-        unsigned int min_lane = _tzcnt_u32((unsigned int)_mm256_movemask_pd(min_eq_b64x4));
-        nk_b256_vec_t iter_vec;
-        iter_vec.ymm = min_iter_u64x4;
+        __m256d value_match_b64x4 = _mm256_cmp_pd(min_f64x4, _mm256_set1_pd(min_scalar), _CMP_EQ_OQ);
+        __m256i masked_cycle_u64x4 = _mm256_blendv_epi8(_mm256_set1_epi64x((nk_i64_t)NK_U64_MAX), min_loop_cycle_u64x4,
+                                                        _mm256_castpd_si256(value_match_b64x4));
+        nk_u64_t earliest_loop_cycle = nk_reduce_min_u64x4_haswell_(masked_cycle_u64x4);
+        __m256i cycle_match_b64x4 = _mm256_cmpeq_epi64(masked_cycle_u64x4,
+                                                       _mm256_set1_epi64x((nk_i64_t)earliest_loop_cycle));
+        unsigned int min_lane = _tzcnt_u32((unsigned int)_mm256_movemask_pd(_mm256_castsi256_pd(cycle_match_b64x4)));
+        nk_b256_vec_t loop_cycle_vec;
+        loop_cycle_vec.ymm = min_loop_cycle_u64x4;
         *min_value = min_scalar;
-        *min_index = (nk_size_t)iter_vec.u64s[min_lane] * 4 + min_lane;
+        *min_index = (nk_size_t)loop_cycle_vec.u64s[min_lane] * 4 + min_lane;
     }
     {
-        __m256d max_eq_b64x4 = _mm256_cmp_pd(max_f64x4, _mm256_set1_pd(max_scalar), _CMP_EQ_OQ);
-        unsigned int max_lane = _tzcnt_u32((unsigned int)_mm256_movemask_pd(max_eq_b64x4));
-        nk_b256_vec_t iter_vec;
-        iter_vec.ymm = max_iter_u64x4;
+        __m256d value_match_b64x4 = _mm256_cmp_pd(max_f64x4, _mm256_set1_pd(max_scalar), _CMP_EQ_OQ);
+        __m256i masked_cycle_u64x4 = _mm256_blendv_epi8(_mm256_set1_epi64x((nk_i64_t)NK_U64_MAX), max_loop_cycle_u64x4,
+                                                        _mm256_castpd_si256(value_match_b64x4));
+        nk_u64_t earliest_loop_cycle = nk_reduce_min_u64x4_haswell_(masked_cycle_u64x4);
+        __m256i cycle_match_b64x4 = _mm256_cmpeq_epi64(masked_cycle_u64x4,
+                                                       _mm256_set1_epi64x((nk_i64_t)earliest_loop_cycle));
+        unsigned int max_lane = _tzcnt_u32((unsigned int)_mm256_movemask_pd(_mm256_castsi256_pd(cycle_match_b64x4)));
+        nk_b256_vec_t loop_cycle_vec;
+        loop_cycle_vec.ymm = max_loop_cycle_u64x4;
         *max_value = max_scalar;
-        *max_index = (nk_size_t)iter_vec.u64s[max_lane] * 4 + max_lane;
+        *max_index = (nk_size_t)loop_cycle_vec.u64s[max_lane] * 4 + max_lane;
     }
 }
 
@@ -452,17 +494,17 @@ NK_INTERNAL void nk_reduce_moments_i8_haswell_contiguous_( //
     __m256i bias_i8x32 = _mm256_set1_epi8((char)0x80);
     __m256i zero_i8x32 = _mm256_setzero_si256();
     __m256i sum_u64x4 = _mm256_setzero_si256();
-    __m256i sumsq_lo_i32x8 = _mm256_setzero_si256();
-    __m256i sumsq_hi_i32x8 = _mm256_setzero_si256();
+    __m256i sumsq_low_i32x8 = _mm256_setzero_si256();
+    __m256i sumsq_high_i32x8 = _mm256_setzero_si256();
     nk_size_t idx = 0;
     for (; idx + 32 <= count; idx += 32) {
         __m256i data_i8x32 = _mm256_loadu_si256((__m256i const *)(data + idx));
         __m256i unsigned_u8x32 = _mm256_xor_si256(data_i8x32, bias_i8x32);
         sum_u64x4 = _mm256_add_epi64(sum_u64x4, _mm256_sad_epu8(unsigned_u8x32, zero_i8x32));
-        __m256i lo_i16x16 = _mm256_cvtepi8_epi16(_mm256_castsi256_si128(data_i8x32));
-        __m256i hi_i16x16 = _mm256_cvtepi8_epi16(_mm256_extracti128_si256(data_i8x32, 1));
-        sumsq_lo_i32x8 = _mm256_add_epi32(sumsq_lo_i32x8, _mm256_madd_epi16(lo_i16x16, lo_i16x16));
-        sumsq_hi_i32x8 = _mm256_add_epi32(sumsq_hi_i32x8, _mm256_madd_epi16(hi_i16x16, hi_i16x16));
+        __m256i low_i16x16 = _mm256_cvtepi8_epi16(_mm256_castsi256_si128(data_i8x32));
+        __m256i high_i16x16 = _mm256_cvtepi8_epi16(_mm256_extracti128_si256(data_i8x32, 1));
+        sumsq_low_i32x8 = _mm256_add_epi32(sumsq_low_i32x8, _mm256_madd_epi16(low_i16x16, low_i16x16));
+        sumsq_high_i32x8 = _mm256_add_epi32(sumsq_high_i32x8, _mm256_madd_epi16(high_i16x16, high_i16x16));
     }
     nk_size_t remaining = count - idx;
     if (remaining > 0) {
@@ -476,14 +518,14 @@ NK_INTERNAL void nk_reduce_moments_i8_haswell_contiguous_( //
         __m256i masked_bias_i8x32 = _mm256_and_si256(bias_i8x32, mask_vec.ymm);
         __m256i unsigned_u8x32 = _mm256_xor_si256(data_i8x32, masked_bias_i8x32);
         sum_u64x4 = _mm256_add_epi64(sum_u64x4, _mm256_sad_epu8(unsigned_u8x32, zero_i8x32));
-        __m256i lo_i16x16 = _mm256_cvtepi8_epi16(_mm256_castsi256_si128(data_i8x32));
-        __m256i hi_i16x16 = _mm256_cvtepi8_epi16(_mm256_extracti128_si256(data_i8x32, 1));
-        sumsq_lo_i32x8 = _mm256_add_epi32(sumsq_lo_i32x8, _mm256_madd_epi16(lo_i16x16, lo_i16x16));
-        sumsq_hi_i32x8 = _mm256_add_epi32(sumsq_hi_i32x8, _mm256_madd_epi16(hi_i16x16, hi_i16x16));
+        __m256i low_i16x16 = _mm256_cvtepi8_epi16(_mm256_castsi256_si128(data_i8x32));
+        __m256i high_i16x16 = _mm256_cvtepi8_epi16(_mm256_extracti128_si256(data_i8x32, 1));
+        sumsq_low_i32x8 = _mm256_add_epi32(sumsq_low_i32x8, _mm256_madd_epi16(low_i16x16, low_i16x16));
+        sumsq_high_i32x8 = _mm256_add_epi32(sumsq_high_i32x8, _mm256_madd_epi16(high_i16x16, high_i16x16));
     }
-    sumsq_lo_i32x8 = _mm256_add_epi32(sumsq_lo_i32x8, sumsq_hi_i32x8);
-    __m256i sumsq_i64x4 = _mm256_cvtepi32_epi64(_mm256_castsi256_si128(sumsq_lo_i32x8));
-    sumsq_i64x4 = _mm256_add_epi64(sumsq_i64x4, _mm256_cvtepi32_epi64(_mm256_extracti128_si256(sumsq_lo_i32x8, 1)));
+    sumsq_low_i32x8 = _mm256_add_epi32(sumsq_low_i32x8, sumsq_high_i32x8);
+    __m256i sumsq_i64x4 = _mm256_cvtepi32_epi64(_mm256_castsi256_si128(sumsq_low_i32x8));
+    sumsq_i64x4 = _mm256_add_epi64(sumsq_i64x4, _mm256_cvtepi32_epi64(_mm256_extracti128_si256(sumsq_low_i32x8, 1)));
     nk_i64_t s = (nk_i64_t)(nk_u64_t)nk_reduce_add_i64x4_haswell_(sum_u64x4);
     s -= (nk_i64_t)128 * (nk_i64_t)count;
     nk_u64_t sq = (nk_u64_t)nk_reduce_add_i64x4_haswell_(sumsq_i64x4);
@@ -498,8 +540,8 @@ NK_INTERNAL void nk_reduce_moments_i8_haswell_strided_(              //
     __m256i masked_bias_i8x32 = _mm256_and_si256(_mm256_set1_epi8((char)0x80), stride_mask_i8x32);
     __m256i zero_i8x32 = _mm256_setzero_si256();
     __m256i sum_u64x4 = _mm256_setzero_si256();
-    __m256i sumsq_lo_i32x8 = _mm256_setzero_si256();
-    __m256i sumsq_hi_i32x8 = _mm256_setzero_si256();
+    __m256i sumsq_low_i32x8 = _mm256_setzero_si256();
+    __m256i sumsq_high_i32x8 = _mm256_setzero_si256();
     nk_size_t idx_scalars = 0;
     nk_size_t total_scalars = count * stride_elements;
     nk_size_t elements_per_vector = 32 / stride_elements;
@@ -509,15 +551,15 @@ NK_INTERNAL void nk_reduce_moments_i8_haswell_strided_(              //
         data_i8x32 = _mm256_and_si256(data_i8x32, stride_mask_i8x32);
         __m256i unsigned_u8x32 = _mm256_xor_si256(data_i8x32, masked_bias_i8x32);
         sum_u64x4 = _mm256_add_epi64(sum_u64x4, _mm256_sad_epu8(unsigned_u8x32, zero_i8x32));
-        __m256i lo_i16x16 = _mm256_cvtepi8_epi16(_mm256_castsi256_si128(data_i8x32));
-        __m256i hi_i16x16 = _mm256_cvtepi8_epi16(_mm256_extracti128_si256(data_i8x32, 1));
-        sumsq_lo_i32x8 = _mm256_add_epi32(sumsq_lo_i32x8, _mm256_madd_epi16(lo_i16x16, lo_i16x16));
-        sumsq_hi_i32x8 = _mm256_add_epi32(sumsq_hi_i32x8, _mm256_madd_epi16(hi_i16x16, hi_i16x16));
+        __m256i low_i16x16 = _mm256_cvtepi8_epi16(_mm256_castsi256_si128(data_i8x32));
+        __m256i high_i16x16 = _mm256_cvtepi8_epi16(_mm256_extracti128_si256(data_i8x32, 1));
+        sumsq_low_i32x8 = _mm256_add_epi32(sumsq_low_i32x8, _mm256_madd_epi16(low_i16x16, low_i16x16));
+        sumsq_high_i32x8 = _mm256_add_epi32(sumsq_high_i32x8, _mm256_madd_epi16(high_i16x16, high_i16x16));
         vector_element_count += elements_per_vector;
     }
-    sumsq_lo_i32x8 = _mm256_add_epi32(sumsq_lo_i32x8, sumsq_hi_i32x8);
-    __m256i sumsq_i64x4 = _mm256_cvtepi32_epi64(_mm256_castsi256_si128(sumsq_lo_i32x8));
-    sumsq_i64x4 = _mm256_add_epi64(sumsq_i64x4, _mm256_cvtepi32_epi64(_mm256_extracti128_si256(sumsq_lo_i32x8, 1)));
+    sumsq_low_i32x8 = _mm256_add_epi32(sumsq_low_i32x8, sumsq_high_i32x8);
+    __m256i sumsq_i64x4 = _mm256_cvtepi32_epi64(_mm256_castsi256_si128(sumsq_low_i32x8));
+    sumsq_i64x4 = _mm256_add_epi64(sumsq_i64x4, _mm256_cvtepi32_epi64(_mm256_extracti128_si256(sumsq_low_i32x8, 1)));
     nk_i64_t s = (nk_i64_t)(nk_u64_t)nk_reduce_add_i64x4_haswell_(sum_u64x4);
     s -= (nk_i64_t)128 * (nk_i64_t)vector_element_count;
     nk_u64_t sq = (nk_u64_t)nk_reduce_add_i64x4_haswell_(sumsq_i64x4);
@@ -558,23 +600,23 @@ NK_INTERNAL void nk_reduce_minmax_i8_haswell_contiguous_( //
     nk_i8_t const *data, nk_size_t count,                 //
     nk_i8_t *min_value, nk_size_t *min_index,             //
     nk_i8_t *max_value, nk_size_t *max_index) {
-    __m256i min_i8x32 = _mm256_loadu_si256((__m256i const *)data);
-    __m256i max_i8x32 = min_i8x32;
-    __m256i min_iter_u8x32 = _mm256_setzero_si256();
-    __m256i max_iter_u8x32 = _mm256_setzero_si256();
-    __m256i iter_u8x32 = _mm256_set1_epi8(1);
+    __m256i min_i8x32 = _mm256_set1_epi8((char)NK_I8_MAX);
+    __m256i max_i8x32 = _mm256_set1_epi8(NK_I8_MIN);
+    __m256i min_loop_cycle_u8x32 = _mm256_setzero_si256();
+    __m256i max_loop_cycle_u8x32 = _mm256_setzero_si256();
+    __m256i current_loop_cycle_u8x32 = _mm256_setzero_si256();
     __m256i one_u8x32 = _mm256_set1_epi8(1);
 
-    nk_size_t idx = 32;
+    nk_size_t idx = 0;
     for (; idx + 32 <= count; idx += 32) {
         __m256i data_i8x32 = _mm256_loadu_si256((__m256i const *)(data + idx));
         __m256i less_b8x32 = _mm256_cmpgt_epi8(min_i8x32, data_i8x32);
         __m256i greater_b8x32 = _mm256_cmpgt_epi8(data_i8x32, max_i8x32);
         min_i8x32 = _mm256_blendv_epi8(min_i8x32, data_i8x32, less_b8x32);
         max_i8x32 = _mm256_blendv_epi8(max_i8x32, data_i8x32, greater_b8x32);
-        min_iter_u8x32 = _mm256_blendv_epi8(min_iter_u8x32, iter_u8x32, less_b8x32);
-        max_iter_u8x32 = _mm256_blendv_epi8(max_iter_u8x32, iter_u8x32, greater_b8x32);
-        iter_u8x32 = _mm256_add_epi8(iter_u8x32, one_u8x32);
+        min_loop_cycle_u8x32 = _mm256_blendv_epi8(min_loop_cycle_u8x32, current_loop_cycle_u8x32, less_b8x32);
+        max_loop_cycle_u8x32 = _mm256_blendv_epi8(max_loop_cycle_u8x32, current_loop_cycle_u8x32, greater_b8x32);
+        current_loop_cycle_u8x32 = _mm256_add_epi8(current_loop_cycle_u8x32, one_u8x32);
     }
 
     nk_size_t remaining = count - idx;
@@ -593,21 +635,34 @@ NK_INTERNAL void nk_reduce_minmax_i8_haswell_contiguous_( //
         __m256i greater_b8x32 = _mm256_cmpgt_epi8(data_max_i8x32, max_i8x32);
         min_i8x32 = _mm256_blendv_epi8(min_i8x32, data_i8x32, less_b8x32);
         max_i8x32 = _mm256_blendv_epi8(max_i8x32, data_max_i8x32, greater_b8x32);
-        min_iter_u8x32 = _mm256_blendv_epi8(min_iter_u8x32, iter_u8x32, less_b8x32);
-        max_iter_u8x32 = _mm256_blendv_epi8(max_iter_u8x32, iter_u8x32, greater_b8x32);
+        min_loop_cycle_u8x32 = _mm256_blendv_epi8(min_loop_cycle_u8x32, current_loop_cycle_u8x32, less_b8x32);
+        max_loop_cycle_u8x32 = _mm256_blendv_epi8(max_loop_cycle_u8x32, current_loop_cycle_u8x32, greater_b8x32);
     }
 
     nk_i8_t min_scalar = nk_reduce_min_i8x32_haswell_(min_i8x32);
     nk_i8_t max_scalar = nk_reduce_max_i8x32_haswell_(max_i8x32);
-    __m256i min_eq_b8x32 = _mm256_cmpeq_epi8(min_i8x32, _mm256_set1_epi8(min_scalar));
-    __m256i max_eq_b8x32 = _mm256_cmpeq_epi8(max_i8x32, _mm256_set1_epi8(max_scalar));
-    unsigned int min_lane = _tzcnt_u32((unsigned int)_mm256_movemask_epi8(min_eq_b8x32));
-    unsigned int max_lane = _tzcnt_u32((unsigned int)_mm256_movemask_epi8(max_eq_b8x32));
-    nk_b256_vec_t iter_vec;
-    iter_vec.ymm = min_iter_u8x32;
-    *min_value = min_scalar, *min_index = (nk_size_t)iter_vec.u8s[min_lane] * 32 + min_lane;
-    iter_vec.ymm = max_iter_u8x32;
-    *max_value = max_scalar, *max_index = (nk_size_t)iter_vec.u8s[max_lane] * 32 + max_lane;
+    unsigned int min_lane, max_lane;
+    {
+        __m256i value_match_b8x32 = _mm256_cmpeq_epi8(min_i8x32, _mm256_set1_epi8(min_scalar));
+        __m256i masked_cycle_u8x32 = _mm256_blendv_epi8(_mm256_set1_epi8((char)NK_U8_MAX), min_loop_cycle_u8x32,
+                                                        value_match_b8x32);
+        nk_u8_t earliest_loop_cycle = nk_reduce_min_u8x32_haswell_(masked_cycle_u8x32);
+        __m256i cycle_match_b8x32 = _mm256_cmpeq_epi8(masked_cycle_u8x32, _mm256_set1_epi8((char)earliest_loop_cycle));
+        min_lane = _tzcnt_u32((unsigned int)_mm256_movemask_epi8(cycle_match_b8x32));
+    }
+    {
+        __m256i value_match_b8x32 = _mm256_cmpeq_epi8(max_i8x32, _mm256_set1_epi8(max_scalar));
+        __m256i masked_cycle_u8x32 = _mm256_blendv_epi8(_mm256_set1_epi8((char)NK_U8_MAX), max_loop_cycle_u8x32,
+                                                        value_match_b8x32);
+        nk_u8_t earliest_loop_cycle = nk_reduce_min_u8x32_haswell_(masked_cycle_u8x32);
+        __m256i cycle_match_b8x32 = _mm256_cmpeq_epi8(masked_cycle_u8x32, _mm256_set1_epi8((char)earliest_loop_cycle));
+        max_lane = _tzcnt_u32((unsigned int)_mm256_movemask_epi8(cycle_match_b8x32));
+    }
+    nk_b256_vec_t loop_cycle_vec;
+    loop_cycle_vec.ymm = min_loop_cycle_u8x32;
+    *min_value = min_scalar, *min_index = (nk_size_t)loop_cycle_vec.u8s[min_lane] * 32 + min_lane;
+    loop_cycle_vec.ymm = max_loop_cycle_u8x32;
+    *max_value = max_scalar, *max_index = (nk_size_t)loop_cycle_vec.u8s[max_lane] * 32 + max_lane;
 }
 
 NK_PUBLIC void nk_reduce_minmax_i8_haswell(                       //
@@ -642,16 +697,16 @@ NK_INTERNAL void nk_reduce_moments_u8_haswell_contiguous_( //
     nk_u64_t *sum, nk_u64_t *sumsq) {
     __m256i zero_u8x32 = _mm256_setzero_si256();
     __m256i sum_u64x4 = _mm256_setzero_si256();
-    __m256i sumsq_lo_i32x8 = _mm256_setzero_si256();
-    __m256i sumsq_hi_i32x8 = _mm256_setzero_si256();
+    __m256i sumsq_low_i32x8 = _mm256_setzero_si256();
+    __m256i sumsq_high_i32x8 = _mm256_setzero_si256();
     nk_size_t idx = 0;
     for (; idx + 32 <= count; idx += 32) {
         __m256i data_u8x32 = _mm256_loadu_si256((__m256i const *)(data + idx));
         sum_u64x4 = _mm256_add_epi64(sum_u64x4, _mm256_sad_epu8(data_u8x32, zero_u8x32));
-        __m256i lo_i16x16 = _mm256_cvtepu8_epi16(_mm256_castsi256_si128(data_u8x32));
-        __m256i hi_i16x16 = _mm256_cvtepu8_epi16(_mm256_extracti128_si256(data_u8x32, 1));
-        sumsq_lo_i32x8 = _mm256_add_epi32(sumsq_lo_i32x8, _mm256_madd_epi16(lo_i16x16, lo_i16x16));
-        sumsq_hi_i32x8 = _mm256_add_epi32(sumsq_hi_i32x8, _mm256_madd_epi16(hi_i16x16, hi_i16x16));
+        __m256i low_i16x16 = _mm256_cvtepu8_epi16(_mm256_castsi256_si128(data_u8x32));
+        __m256i high_i16x16 = _mm256_cvtepu8_epi16(_mm256_extracti128_si256(data_u8x32, 1));
+        sumsq_low_i32x8 = _mm256_add_epi32(sumsq_low_i32x8, _mm256_madd_epi16(low_i16x16, low_i16x16));
+        sumsq_high_i32x8 = _mm256_add_epi32(sumsq_high_i32x8, _mm256_madd_epi16(high_i16x16, high_i16x16));
     }
     nk_size_t remaining = count - idx;
     if (remaining > 0) {
@@ -659,14 +714,14 @@ NK_INTERNAL void nk_reduce_moments_u8_haswell_contiguous_( //
         nk_partial_load_b8x32_serial_(data + idx, &tail_vec, remaining);
         __m256i data_u8x32 = tail_vec.ymm;
         sum_u64x4 = _mm256_add_epi64(sum_u64x4, _mm256_sad_epu8(data_u8x32, zero_u8x32));
-        __m256i lo_i16x16 = _mm256_cvtepu8_epi16(_mm256_castsi256_si128(data_u8x32));
-        __m256i hi_i16x16 = _mm256_cvtepu8_epi16(_mm256_extracti128_si256(data_u8x32, 1));
-        sumsq_lo_i32x8 = _mm256_add_epi32(sumsq_lo_i32x8, _mm256_madd_epi16(lo_i16x16, lo_i16x16));
-        sumsq_hi_i32x8 = _mm256_add_epi32(sumsq_hi_i32x8, _mm256_madd_epi16(hi_i16x16, hi_i16x16));
+        __m256i low_i16x16 = _mm256_cvtepu8_epi16(_mm256_castsi256_si128(data_u8x32));
+        __m256i high_i16x16 = _mm256_cvtepu8_epi16(_mm256_extracti128_si256(data_u8x32, 1));
+        sumsq_low_i32x8 = _mm256_add_epi32(sumsq_low_i32x8, _mm256_madd_epi16(low_i16x16, low_i16x16));
+        sumsq_high_i32x8 = _mm256_add_epi32(sumsq_high_i32x8, _mm256_madd_epi16(high_i16x16, high_i16x16));
     }
-    sumsq_lo_i32x8 = _mm256_add_epi32(sumsq_lo_i32x8, sumsq_hi_i32x8);
-    __m256i sumsq_u64x4 = _mm256_cvtepu32_epi64(_mm256_castsi256_si128(sumsq_lo_i32x8));
-    sumsq_u64x4 = _mm256_add_epi64(sumsq_u64x4, _mm256_cvtepu32_epi64(_mm256_extracti128_si256(sumsq_lo_i32x8, 1)));
+    sumsq_low_i32x8 = _mm256_add_epi32(sumsq_low_i32x8, sumsq_high_i32x8);
+    __m256i sumsq_u64x4 = _mm256_cvtepu32_epi64(_mm256_castsi256_si128(sumsq_low_i32x8));
+    sumsq_u64x4 = _mm256_add_epi64(sumsq_u64x4, _mm256_cvtepu32_epi64(_mm256_extracti128_si256(sumsq_low_i32x8, 1)));
     *sum = (nk_u64_t)nk_reduce_add_i64x4_haswell_(sum_u64x4);
     *sumsq = (nk_u64_t)nk_reduce_add_i64x4_haswell_(sumsq_u64x4);
 }
@@ -677,22 +732,22 @@ NK_INTERNAL void nk_reduce_moments_u8_haswell_strided_(              //
     __m256i stride_mask_u8x32 = nk_stride_blend_u1x32_(stride_elements);
     __m256i zero_u8x32 = _mm256_setzero_si256();
     __m256i sum_u64x4 = _mm256_setzero_si256();
-    __m256i sumsq_lo_i32x8 = _mm256_setzero_si256();
-    __m256i sumsq_hi_i32x8 = _mm256_setzero_si256();
+    __m256i sumsq_low_i32x8 = _mm256_setzero_si256();
+    __m256i sumsq_high_i32x8 = _mm256_setzero_si256();
     nk_size_t idx_scalars = 0;
     nk_size_t total_scalars = count * stride_elements;
     for (; idx_scalars + 32 <= total_scalars; idx_scalars += 32) {
         __m256i data_u8x32 = _mm256_loadu_si256((__m256i const *)(data + idx_scalars));
         data_u8x32 = _mm256_and_si256(data_u8x32, stride_mask_u8x32);
         sum_u64x4 = _mm256_add_epi64(sum_u64x4, _mm256_sad_epu8(data_u8x32, zero_u8x32));
-        __m256i lo_i16x16 = _mm256_cvtepu8_epi16(_mm256_castsi256_si128(data_u8x32));
-        __m256i hi_i16x16 = _mm256_cvtepu8_epi16(_mm256_extracti128_si256(data_u8x32, 1));
-        sumsq_lo_i32x8 = _mm256_add_epi32(sumsq_lo_i32x8, _mm256_madd_epi16(lo_i16x16, lo_i16x16));
-        sumsq_hi_i32x8 = _mm256_add_epi32(sumsq_hi_i32x8, _mm256_madd_epi16(hi_i16x16, hi_i16x16));
+        __m256i low_i16x16 = _mm256_cvtepu8_epi16(_mm256_castsi256_si128(data_u8x32));
+        __m256i high_i16x16 = _mm256_cvtepu8_epi16(_mm256_extracti128_si256(data_u8x32, 1));
+        sumsq_low_i32x8 = _mm256_add_epi32(sumsq_low_i32x8, _mm256_madd_epi16(low_i16x16, low_i16x16));
+        sumsq_high_i32x8 = _mm256_add_epi32(sumsq_high_i32x8, _mm256_madd_epi16(high_i16x16, high_i16x16));
     }
-    sumsq_lo_i32x8 = _mm256_add_epi32(sumsq_lo_i32x8, sumsq_hi_i32x8);
-    __m256i sumsq_u64x4 = _mm256_cvtepu32_epi64(_mm256_castsi256_si128(sumsq_lo_i32x8));
-    sumsq_u64x4 = _mm256_add_epi64(sumsq_u64x4, _mm256_cvtepu32_epi64(_mm256_extracti128_si256(sumsq_lo_i32x8, 1)));
+    sumsq_low_i32x8 = _mm256_add_epi32(sumsq_low_i32x8, sumsq_high_i32x8);
+    __m256i sumsq_u64x4 = _mm256_cvtepu32_epi64(_mm256_castsi256_si128(sumsq_low_i32x8));
+    sumsq_u64x4 = _mm256_add_epi64(sumsq_u64x4, _mm256_cvtepu32_epi64(_mm256_extracti128_si256(sumsq_low_i32x8, 1)));
     nk_u64_t s = (nk_u64_t)nk_reduce_add_i64x4_haswell_(sum_u64x4);
     nk_u64_t sq = (nk_u64_t)nk_reduce_add_i64x4_haswell_(sumsq_u64x4);
     nk_u8_t const *ptr = data + idx_scalars;
@@ -733,24 +788,23 @@ NK_INTERNAL void nk_reduce_minmax_u8_haswell_contiguous_( //
     nk_u8_t *max_value, nk_size_t *max_index) {
     // XOR-bias to signed domain for _mm256_cmpgt_epi8
     __m256i bias_u8x32 = _mm256_set1_epi8((char)0x80);
-    __m256i raw_u8x32 = _mm256_loadu_si256((__m256i const *)data);
-    __m256i min_biased_i8x32 = _mm256_xor_si256(raw_u8x32, bias_u8x32);
-    __m256i max_biased_i8x32 = min_biased_i8x32;
-    __m256i min_iter_u8x32 = _mm256_setzero_si256();
-    __m256i max_iter_u8x32 = _mm256_setzero_si256();
-    __m256i iter_u8x32 = _mm256_set1_epi8(1);
+    __m256i min_biased_i8x32 = _mm256_set1_epi8((char)NK_I8_MAX);
+    __m256i max_biased_i8x32 = _mm256_set1_epi8(NK_I8_MIN);
+    __m256i min_loop_cycle_u8x32 = _mm256_setzero_si256();
+    __m256i max_loop_cycle_u8x32 = _mm256_setzero_si256();
+    __m256i current_loop_cycle_u8x32 = _mm256_setzero_si256();
     __m256i one_u8x32 = _mm256_set1_epi8(1);
 
-    nk_size_t idx = 32;
+    nk_size_t idx = 0;
     for (; idx + 32 <= count; idx += 32) {
         __m256i data_biased_i8x32 = _mm256_xor_si256(_mm256_loadu_si256((__m256i const *)(data + idx)), bias_u8x32);
         __m256i less_b8x32 = _mm256_cmpgt_epi8(min_biased_i8x32, data_biased_i8x32);
         __m256i greater_b8x32 = _mm256_cmpgt_epi8(data_biased_i8x32, max_biased_i8x32);
         min_biased_i8x32 = _mm256_blendv_epi8(min_biased_i8x32, data_biased_i8x32, less_b8x32);
         max_biased_i8x32 = _mm256_blendv_epi8(max_biased_i8x32, data_biased_i8x32, greater_b8x32);
-        min_iter_u8x32 = _mm256_blendv_epi8(min_iter_u8x32, iter_u8x32, less_b8x32);
-        max_iter_u8x32 = _mm256_blendv_epi8(max_iter_u8x32, iter_u8x32, greater_b8x32);
-        iter_u8x32 = _mm256_add_epi8(iter_u8x32, one_u8x32);
+        min_loop_cycle_u8x32 = _mm256_blendv_epi8(min_loop_cycle_u8x32, current_loop_cycle_u8x32, less_b8x32);
+        max_loop_cycle_u8x32 = _mm256_blendv_epi8(max_loop_cycle_u8x32, current_loop_cycle_u8x32, greater_b8x32);
+        current_loop_cycle_u8x32 = _mm256_add_epi8(current_loop_cycle_u8x32, one_u8x32);
     }
 
     nk_size_t remaining = count - idx;
@@ -769,8 +823,8 @@ NK_INTERNAL void nk_reduce_minmax_u8_haswell_contiguous_( //
         __m256i greater_b8x32 = _mm256_cmpgt_epi8(data_max_i8x32, max_biased_i8x32);
         min_biased_i8x32 = _mm256_blendv_epi8(min_biased_i8x32, data_min_i8x32, less_b8x32);
         max_biased_i8x32 = _mm256_blendv_epi8(max_biased_i8x32, data_max_i8x32, greater_b8x32);
-        min_iter_u8x32 = _mm256_blendv_epi8(min_iter_u8x32, iter_u8x32, less_b8x32);
-        max_iter_u8x32 = _mm256_blendv_epi8(max_iter_u8x32, iter_u8x32, greater_b8x32);
+        min_loop_cycle_u8x32 = _mm256_blendv_epi8(min_loop_cycle_u8x32, current_loop_cycle_u8x32, less_b8x32);
+        max_loop_cycle_u8x32 = _mm256_blendv_epi8(max_loop_cycle_u8x32, current_loop_cycle_u8x32, greater_b8x32);
     }
 
     // Un-bias to get real u8 values
@@ -778,15 +832,28 @@ NK_INTERNAL void nk_reduce_minmax_u8_haswell_contiguous_( //
     __m256i max_u8x32 = _mm256_xor_si256(max_biased_i8x32, bias_u8x32);
     nk_u8_t min_scalar = nk_reduce_min_u8x32_haswell_(min_u8x32);
     nk_u8_t max_scalar = nk_reduce_max_u8x32_haswell_(max_u8x32);
-    __m256i min_eq_b8x32 = _mm256_cmpeq_epi8(min_u8x32, _mm256_set1_epi8((char)min_scalar));
-    __m256i max_eq_b8x32 = _mm256_cmpeq_epi8(max_u8x32, _mm256_set1_epi8((char)max_scalar));
-    unsigned int min_lane = _tzcnt_u32((unsigned int)_mm256_movemask_epi8(min_eq_b8x32));
-    unsigned int max_lane = _tzcnt_u32((unsigned int)_mm256_movemask_epi8(max_eq_b8x32));
-    nk_b256_vec_t iter_vec;
-    iter_vec.ymm = min_iter_u8x32;
-    *min_value = min_scalar, *min_index = (nk_size_t)iter_vec.u8s[min_lane] * 32 + min_lane;
-    iter_vec.ymm = max_iter_u8x32;
-    *max_value = max_scalar, *max_index = (nk_size_t)iter_vec.u8s[max_lane] * 32 + max_lane;
+    unsigned int min_lane, max_lane;
+    {
+        __m256i value_match_b8x32 = _mm256_cmpeq_epi8(min_u8x32, _mm256_set1_epi8((char)min_scalar));
+        __m256i masked_cycle_u8x32 = _mm256_blendv_epi8(_mm256_set1_epi8((char)NK_U8_MAX), min_loop_cycle_u8x32,
+                                                        value_match_b8x32);
+        nk_u8_t earliest_loop_cycle = nk_reduce_min_u8x32_haswell_(masked_cycle_u8x32);
+        __m256i cycle_match_b8x32 = _mm256_cmpeq_epi8(masked_cycle_u8x32, _mm256_set1_epi8((char)earliest_loop_cycle));
+        min_lane = _tzcnt_u32((unsigned int)_mm256_movemask_epi8(cycle_match_b8x32));
+    }
+    {
+        __m256i value_match_b8x32 = _mm256_cmpeq_epi8(max_u8x32, _mm256_set1_epi8((char)max_scalar));
+        __m256i masked_cycle_u8x32 = _mm256_blendv_epi8(_mm256_set1_epi8((char)NK_U8_MAX), max_loop_cycle_u8x32,
+                                                        value_match_b8x32);
+        nk_u8_t earliest_loop_cycle = nk_reduce_min_u8x32_haswell_(masked_cycle_u8x32);
+        __m256i cycle_match_b8x32 = _mm256_cmpeq_epi8(masked_cycle_u8x32, _mm256_set1_epi8((char)earliest_loop_cycle));
+        max_lane = _tzcnt_u32((unsigned int)_mm256_movemask_epi8(cycle_match_b8x32));
+    }
+    nk_b256_vec_t loop_cycle_vec;
+    loop_cycle_vec.ymm = min_loop_cycle_u8x32;
+    *min_value = min_scalar, *min_index = (nk_size_t)loop_cycle_vec.u8s[min_lane] * 32 + min_lane;
+    loop_cycle_vec.ymm = max_loop_cycle_u8x32;
+    *max_value = max_scalar, *max_index = (nk_size_t)loop_cycle_vec.u8s[max_lane] * 32 + max_lane;
 }
 
 NK_PUBLIC void nk_reduce_minmax_u8_haswell(                       //
@@ -906,23 +973,23 @@ NK_INTERNAL void nk_reduce_minmax_i16_haswell_contiguous_( //
     nk_i16_t const *data, nk_size_t count,                 //
     nk_i16_t *min_value, nk_size_t *min_index,             //
     nk_i16_t *max_value, nk_size_t *max_index) {
-    __m256i min_i16x16 = _mm256_loadu_si256((__m256i const *)data);
-    __m256i max_i16x16 = min_i16x16;
-    __m256i min_iter_u16x16 = _mm256_setzero_si256();
-    __m256i max_iter_u16x16 = _mm256_setzero_si256();
-    __m256i iter_u16x16 = _mm256_set1_epi16(1);
+    __m256i min_i16x16 = _mm256_set1_epi16((short)NK_I16_MAX);
+    __m256i max_i16x16 = _mm256_set1_epi16(NK_I16_MIN);
+    __m256i min_loop_cycle_u16x16 = _mm256_setzero_si256();
+    __m256i max_loop_cycle_u16x16 = _mm256_setzero_si256();
+    __m256i current_loop_cycle_u16x16 = _mm256_setzero_si256();
     __m256i one_u16x16 = _mm256_set1_epi16(1);
 
-    nk_size_t idx = 16;
+    nk_size_t idx = 0;
     for (; idx + 16 <= count; idx += 16) {
         __m256i data_i16x16 = _mm256_loadu_si256((__m256i const *)(data + idx));
         __m256i less_b16x16 = _mm256_cmpgt_epi16(min_i16x16, data_i16x16);
         __m256i greater_b16x16 = _mm256_cmpgt_epi16(data_i16x16, max_i16x16);
         min_i16x16 = _mm256_blendv_epi8(min_i16x16, data_i16x16, less_b16x16);
         max_i16x16 = _mm256_blendv_epi8(max_i16x16, data_i16x16, greater_b16x16);
-        min_iter_u16x16 = _mm256_blendv_epi8(min_iter_u16x16, iter_u16x16, less_b16x16);
-        max_iter_u16x16 = _mm256_blendv_epi8(max_iter_u16x16, iter_u16x16, greater_b16x16);
-        iter_u16x16 = _mm256_add_epi16(iter_u16x16, one_u16x16);
+        min_loop_cycle_u16x16 = _mm256_blendv_epi8(min_loop_cycle_u16x16, current_loop_cycle_u16x16, less_b16x16);
+        max_loop_cycle_u16x16 = _mm256_blendv_epi8(max_loop_cycle_u16x16, current_loop_cycle_u16x16, greater_b16x16);
+        current_loop_cycle_u16x16 = _mm256_add_epi16(current_loop_cycle_u16x16, one_u16x16);
     }
 
     nk_size_t remaining = count - idx;
@@ -940,24 +1007,36 @@ NK_INTERNAL void nk_reduce_minmax_i16_haswell_contiguous_( //
         __m256i greater_b16x16 = _mm256_cmpgt_epi16(data_max_i16x16, max_i16x16);
         min_i16x16 = _mm256_blendv_epi8(min_i16x16, data_min_i16x16, less_b16x16);
         max_i16x16 = _mm256_blendv_epi8(max_i16x16, data_max_i16x16, greater_b16x16);
-        min_iter_u16x16 = _mm256_blendv_epi8(min_iter_u16x16, iter_u16x16, less_b16x16);
-        max_iter_u16x16 = _mm256_blendv_epi8(max_iter_u16x16, iter_u16x16, greater_b16x16);
+        min_loop_cycle_u16x16 = _mm256_blendv_epi8(min_loop_cycle_u16x16, current_loop_cycle_u16x16, less_b16x16);
+        max_loop_cycle_u16x16 = _mm256_blendv_epi8(max_loop_cycle_u16x16, current_loop_cycle_u16x16, greater_b16x16);
     }
 
     nk_i16_t min_scalar = nk_reduce_min_i16x16_haswell_(min_i16x16);
     nk_i16_t max_scalar = nk_reduce_max_i16x16_haswell_(max_i16x16);
-    // movemask_epi8 gives 32 bits for 16 i16 lanes — take every other bit
-    __m256i min_eq_b16x16 = _mm256_cmpeq_epi16(min_i16x16, _mm256_set1_epi16(min_scalar));
-    __m256i max_eq_b16x16 = _mm256_cmpeq_epi16(max_i16x16, _mm256_set1_epi16(max_scalar));
-    unsigned int min_mask_bits = (unsigned int)_mm256_movemask_epi8(min_eq_b16x16);
-    unsigned int max_mask_bits = (unsigned int)_mm256_movemask_epi8(max_eq_b16x16);
-    unsigned int min_lane = _tzcnt_u32(min_mask_bits) / 2;
-    unsigned int max_lane = _tzcnt_u32(max_mask_bits) / 2;
-    nk_b256_vec_t iter_vec;
-    iter_vec.ymm = min_iter_u16x16;
-    *min_value = min_scalar, *min_index = (nk_size_t)iter_vec.u16s[min_lane] * 16 + min_lane;
-    iter_vec.ymm = max_iter_u16x16;
-    *max_value = max_scalar, *max_index = (nk_size_t)iter_vec.u16s[max_lane] * 16 + max_lane;
+    unsigned int min_lane, max_lane;
+    {
+        __m256i value_match_b16x16 = _mm256_cmpeq_epi16(min_i16x16, _mm256_set1_epi16(min_scalar));
+        __m256i masked_cycle_u16x16 = _mm256_blendv_epi8(_mm256_set1_epi16((short)NK_U16_MAX), min_loop_cycle_u16x16,
+                                                         value_match_b16x16);
+        nk_u16_t earliest_loop_cycle = nk_reduce_min_u16x16_haswell_(masked_cycle_u16x16);
+        __m256i cycle_match_b16x16 = _mm256_cmpeq_epi16(masked_cycle_u16x16,
+                                                        _mm256_set1_epi16((short)earliest_loop_cycle));
+        min_lane = _tzcnt_u32((unsigned int)_mm256_movemask_epi8(cycle_match_b16x16)) / 2;
+    }
+    {
+        __m256i value_match_b16x16 = _mm256_cmpeq_epi16(max_i16x16, _mm256_set1_epi16(max_scalar));
+        __m256i masked_cycle_u16x16 = _mm256_blendv_epi8(_mm256_set1_epi16((short)NK_U16_MAX), max_loop_cycle_u16x16,
+                                                         value_match_b16x16);
+        nk_u16_t earliest_loop_cycle = nk_reduce_min_u16x16_haswell_(masked_cycle_u16x16);
+        __m256i cycle_match_b16x16 = _mm256_cmpeq_epi16(masked_cycle_u16x16,
+                                                        _mm256_set1_epi16((short)earliest_loop_cycle));
+        max_lane = _tzcnt_u32((unsigned int)_mm256_movemask_epi8(cycle_match_b16x16)) / 2;
+    }
+    nk_b256_vec_t loop_cycle_vec;
+    loop_cycle_vec.ymm = min_loop_cycle_u16x16;
+    *min_value = min_scalar, *min_index = (nk_size_t)loop_cycle_vec.u16s[min_lane] * 16 + min_lane;
+    loop_cycle_vec.ymm = max_loop_cycle_u16x16;
+    *max_value = max_scalar, *max_index = (nk_size_t)loop_cycle_vec.u16s[max_lane] * 16 + max_lane;
 }
 
 NK_PUBLIC void nk_reduce_minmax_i16_haswell(                       //
@@ -1084,24 +1163,23 @@ NK_INTERNAL void nk_reduce_minmax_u16_haswell_contiguous_( //
     nk_u16_t *max_value, nk_size_t *max_index) {
     // XOR-bias to signed domain for _mm256_cmpgt_epi16
     __m256i bias_u16x16 = _mm256_set1_epi16((short)0x8000);
-    __m256i raw_u16x16 = _mm256_loadu_si256((__m256i const *)data);
-    __m256i min_biased_i16x16 = _mm256_xor_si256(raw_u16x16, bias_u16x16);
-    __m256i max_biased_i16x16 = min_biased_i16x16;
-    __m256i min_iter_u16x16 = _mm256_setzero_si256();
-    __m256i max_iter_u16x16 = _mm256_setzero_si256();
-    __m256i iter_u16x16 = _mm256_set1_epi16(1);
+    __m256i min_biased_i16x16 = _mm256_set1_epi16((short)NK_I16_MAX);
+    __m256i max_biased_i16x16 = _mm256_set1_epi16(NK_I16_MIN);
+    __m256i min_loop_cycle_u16x16 = _mm256_setzero_si256();
+    __m256i max_loop_cycle_u16x16 = _mm256_setzero_si256();
+    __m256i current_loop_cycle_u16x16 = _mm256_setzero_si256();
     __m256i one_u16x16 = _mm256_set1_epi16(1);
 
-    nk_size_t idx = 16;
+    nk_size_t idx = 0;
     for (; idx + 16 <= count; idx += 16) {
         __m256i data_biased_i16x16 = _mm256_xor_si256(_mm256_loadu_si256((__m256i const *)(data + idx)), bias_u16x16);
         __m256i less_b16x16 = _mm256_cmpgt_epi16(min_biased_i16x16, data_biased_i16x16);
         __m256i greater_b16x16 = _mm256_cmpgt_epi16(data_biased_i16x16, max_biased_i16x16);
         min_biased_i16x16 = _mm256_blendv_epi8(min_biased_i16x16, data_biased_i16x16, less_b16x16);
         max_biased_i16x16 = _mm256_blendv_epi8(max_biased_i16x16, data_biased_i16x16, greater_b16x16);
-        min_iter_u16x16 = _mm256_blendv_epi8(min_iter_u16x16, iter_u16x16, less_b16x16);
-        max_iter_u16x16 = _mm256_blendv_epi8(max_iter_u16x16, iter_u16x16, greater_b16x16);
-        iter_u16x16 = _mm256_add_epi16(iter_u16x16, one_u16x16);
+        min_loop_cycle_u16x16 = _mm256_blendv_epi8(min_loop_cycle_u16x16, current_loop_cycle_u16x16, less_b16x16);
+        max_loop_cycle_u16x16 = _mm256_blendv_epi8(max_loop_cycle_u16x16, current_loop_cycle_u16x16, greater_b16x16);
+        current_loop_cycle_u16x16 = _mm256_add_epi16(current_loop_cycle_u16x16, one_u16x16);
     }
 
     nk_size_t remaining = count - idx;
@@ -1121,25 +1199,38 @@ NK_INTERNAL void nk_reduce_minmax_u16_haswell_contiguous_( //
         __m256i greater_b16x16 = _mm256_cmpgt_epi16(data_max_i16x16, max_biased_i16x16);
         min_biased_i16x16 = _mm256_blendv_epi8(min_biased_i16x16, data_min_i16x16, less_b16x16);
         max_biased_i16x16 = _mm256_blendv_epi8(max_biased_i16x16, data_max_i16x16, greater_b16x16);
-        min_iter_u16x16 = _mm256_blendv_epi8(min_iter_u16x16, iter_u16x16, less_b16x16);
-        max_iter_u16x16 = _mm256_blendv_epi8(max_iter_u16x16, iter_u16x16, greater_b16x16);
+        min_loop_cycle_u16x16 = _mm256_blendv_epi8(min_loop_cycle_u16x16, current_loop_cycle_u16x16, less_b16x16);
+        max_loop_cycle_u16x16 = _mm256_blendv_epi8(max_loop_cycle_u16x16, current_loop_cycle_u16x16, greater_b16x16);
     }
 
     __m256i min_u16x16 = _mm256_xor_si256(min_biased_i16x16, bias_u16x16);
     __m256i max_u16x16 = _mm256_xor_si256(max_biased_i16x16, bias_u16x16);
     nk_u16_t min_scalar = nk_reduce_min_u16x16_haswell_(min_u16x16);
     nk_u16_t max_scalar = nk_reduce_max_u16x16_haswell_(max_u16x16);
-    __m256i min_eq_b16x16 = _mm256_cmpeq_epi16(min_u16x16, _mm256_set1_epi16((short)min_scalar));
-    __m256i max_eq_b16x16 = _mm256_cmpeq_epi16(max_u16x16, _mm256_set1_epi16((short)max_scalar));
-    unsigned int min_mask_bits = (unsigned int)_mm256_movemask_epi8(min_eq_b16x16);
-    unsigned int max_mask_bits = (unsigned int)_mm256_movemask_epi8(max_eq_b16x16);
-    unsigned int min_lane = _tzcnt_u32(min_mask_bits) / 2;
-    unsigned int max_lane = _tzcnt_u32(max_mask_bits) / 2;
-    nk_b256_vec_t iter_vec;
-    iter_vec.ymm = min_iter_u16x16;
-    *min_value = min_scalar, *min_index = (nk_size_t)iter_vec.u16s[min_lane] * 16 + min_lane;
-    iter_vec.ymm = max_iter_u16x16;
-    *max_value = max_scalar, *max_index = (nk_size_t)iter_vec.u16s[max_lane] * 16 + max_lane;
+    unsigned int min_lane, max_lane;
+    {
+        __m256i value_match_b16x16 = _mm256_cmpeq_epi16(min_u16x16, _mm256_set1_epi16((short)min_scalar));
+        __m256i masked_cycle_u16x16 = _mm256_blendv_epi8(_mm256_set1_epi16((short)NK_U16_MAX), min_loop_cycle_u16x16,
+                                                         value_match_b16x16);
+        nk_u16_t earliest_loop_cycle = nk_reduce_min_u16x16_haswell_(masked_cycle_u16x16);
+        __m256i cycle_match_b16x16 = _mm256_cmpeq_epi16(masked_cycle_u16x16,
+                                                        _mm256_set1_epi16((short)earliest_loop_cycle));
+        min_lane = _tzcnt_u32((unsigned int)_mm256_movemask_epi8(cycle_match_b16x16)) / 2;
+    }
+    {
+        __m256i value_match_b16x16 = _mm256_cmpeq_epi16(max_u16x16, _mm256_set1_epi16((short)max_scalar));
+        __m256i masked_cycle_u16x16 = _mm256_blendv_epi8(_mm256_set1_epi16((short)NK_U16_MAX), max_loop_cycle_u16x16,
+                                                         value_match_b16x16);
+        nk_u16_t earliest_loop_cycle = nk_reduce_min_u16x16_haswell_(masked_cycle_u16x16);
+        __m256i cycle_match_b16x16 = _mm256_cmpeq_epi16(masked_cycle_u16x16,
+                                                        _mm256_set1_epi16((short)earliest_loop_cycle));
+        max_lane = _tzcnt_u32((unsigned int)_mm256_movemask_epi8(cycle_match_b16x16)) / 2;
+    }
+    nk_b256_vec_t loop_cycle_vec;
+    loop_cycle_vec.ymm = min_loop_cycle_u16x16;
+    *min_value = min_scalar, *min_index = (nk_size_t)loop_cycle_vec.u16s[min_lane] * 16 + min_lane;
+    loop_cycle_vec.ymm = max_loop_cycle_u16x16;
+    *max_value = max_scalar, *max_index = (nk_size_t)loop_cycle_vec.u16s[max_lane] * 16 + max_lane;
 }
 
 NK_PUBLIC void nk_reduce_minmax_u16_haswell(                       //
@@ -1294,23 +1385,23 @@ NK_INTERNAL void nk_reduce_minmax_i32_haswell_contiguous_( //
     nk_i32_t const *data, nk_size_t count,                 //
     nk_i32_t *min_value, nk_size_t *min_index,             //
     nk_i32_t *max_value, nk_size_t *max_index) {
-    __m256i min_i32x8 = _mm256_loadu_si256((__m256i const *)data);
-    __m256i max_i32x8 = min_i32x8;
-    __m256i min_iter_u32x8 = _mm256_setzero_si256();
-    __m256i max_iter_u32x8 = _mm256_setzero_si256();
-    __m256i iter_u32x8 = _mm256_set1_epi32(1);
+    __m256i min_i32x8 = _mm256_set1_epi32(NK_I32_MAX);
+    __m256i max_i32x8 = _mm256_set1_epi32(NK_I32_MIN);
+    __m256i min_loop_cycle_u32x8 = _mm256_setzero_si256();
+    __m256i max_loop_cycle_u32x8 = _mm256_setzero_si256();
+    __m256i current_loop_cycle_u32x8 = _mm256_setzero_si256();
     __m256i one_u32x8 = _mm256_set1_epi32(1);
 
-    nk_size_t idx = 8;
+    nk_size_t idx = 0;
     for (; idx + 8 <= count; idx += 8) {
         __m256i data_i32x8 = _mm256_loadu_si256((__m256i const *)(data + idx));
         __m256i less_b32x8 = _mm256_cmpgt_epi32(min_i32x8, data_i32x8);
         __m256i greater_b32x8 = _mm256_cmpgt_epi32(data_i32x8, max_i32x8);
         min_i32x8 = _mm256_blendv_epi8(min_i32x8, data_i32x8, less_b32x8);
         max_i32x8 = _mm256_blendv_epi8(max_i32x8, data_i32x8, greater_b32x8);
-        min_iter_u32x8 = _mm256_blendv_epi8(min_iter_u32x8, iter_u32x8, less_b32x8);
-        max_iter_u32x8 = _mm256_blendv_epi8(max_iter_u32x8, iter_u32x8, greater_b32x8);
-        iter_u32x8 = _mm256_add_epi32(iter_u32x8, one_u32x8);
+        min_loop_cycle_u32x8 = _mm256_blendv_epi8(min_loop_cycle_u32x8, current_loop_cycle_u32x8, less_b32x8);
+        max_loop_cycle_u32x8 = _mm256_blendv_epi8(max_loop_cycle_u32x8, current_loop_cycle_u32x8, greater_b32x8);
+        current_loop_cycle_u32x8 = _mm256_add_epi32(current_loop_cycle_u32x8, one_u32x8);
     }
 
     nk_size_t remaining = count - idx;
@@ -1327,21 +1418,34 @@ NK_INTERNAL void nk_reduce_minmax_i32_haswell_contiguous_( //
         __m256i greater_b32x8 = _mm256_cmpgt_epi32(data_max_i32x8, max_i32x8);
         min_i32x8 = _mm256_blendv_epi8(min_i32x8, data_min_i32x8, less_b32x8);
         max_i32x8 = _mm256_blendv_epi8(max_i32x8, data_max_i32x8, greater_b32x8);
-        min_iter_u32x8 = _mm256_blendv_epi8(min_iter_u32x8, iter_u32x8, less_b32x8);
-        max_iter_u32x8 = _mm256_blendv_epi8(max_iter_u32x8, iter_u32x8, greater_b32x8);
+        min_loop_cycle_u32x8 = _mm256_blendv_epi8(min_loop_cycle_u32x8, current_loop_cycle_u32x8, less_b32x8);
+        max_loop_cycle_u32x8 = _mm256_blendv_epi8(max_loop_cycle_u32x8, current_loop_cycle_u32x8, greater_b32x8);
     }
 
     nk_i32_t min_scalar = nk_reduce_min_i32x8_haswell_(min_i32x8);
     nk_i32_t max_scalar = nk_reduce_max_i32x8_haswell_(max_i32x8);
-    __m256i min_eq_b32x8 = _mm256_cmpeq_epi32(min_i32x8, _mm256_set1_epi32(min_scalar));
-    __m256i max_eq_b32x8 = _mm256_cmpeq_epi32(max_i32x8, _mm256_set1_epi32(max_scalar));
-    unsigned int min_lane = _tzcnt_u32((unsigned int)_mm256_movemask_ps(_mm256_castsi256_ps(min_eq_b32x8)));
-    unsigned int max_lane = _tzcnt_u32((unsigned int)_mm256_movemask_ps(_mm256_castsi256_ps(max_eq_b32x8)));
-    nk_b256_vec_t iter_vec;
-    iter_vec.ymm = min_iter_u32x8;
-    *min_value = min_scalar, *min_index = (nk_size_t)iter_vec.u32s[min_lane] * 8 + min_lane;
-    iter_vec.ymm = max_iter_u32x8;
-    *max_value = max_scalar, *max_index = (nk_size_t)iter_vec.u32s[max_lane] * 8 + max_lane;
+    unsigned int min_lane, max_lane;
+    {
+        __m256i value_match_b32x8 = _mm256_cmpeq_epi32(min_i32x8, _mm256_set1_epi32(min_scalar));
+        __m256i masked_cycle_u32x8 = _mm256_blendv_epi8(_mm256_set1_epi32((int)NK_U32_MAX), min_loop_cycle_u32x8,
+                                                        value_match_b32x8);
+        nk_u32_t earliest_loop_cycle = nk_reduce_min_u32x8_haswell_(masked_cycle_u32x8);
+        __m256i cycle_match_b32x8 = _mm256_cmpeq_epi32(masked_cycle_u32x8, _mm256_set1_epi32((int)earliest_loop_cycle));
+        min_lane = _tzcnt_u32((unsigned int)_mm256_movemask_ps(_mm256_castsi256_ps(cycle_match_b32x8)));
+    }
+    {
+        __m256i value_match_b32x8 = _mm256_cmpeq_epi32(max_i32x8, _mm256_set1_epi32(max_scalar));
+        __m256i masked_cycle_u32x8 = _mm256_blendv_epi8(_mm256_set1_epi32((int)NK_U32_MAX), max_loop_cycle_u32x8,
+                                                        value_match_b32x8);
+        nk_u32_t earliest_loop_cycle = nk_reduce_min_u32x8_haswell_(masked_cycle_u32x8);
+        __m256i cycle_match_b32x8 = _mm256_cmpeq_epi32(masked_cycle_u32x8, _mm256_set1_epi32((int)earliest_loop_cycle));
+        max_lane = _tzcnt_u32((unsigned int)_mm256_movemask_ps(_mm256_castsi256_ps(cycle_match_b32x8)));
+    }
+    nk_b256_vec_t loop_cycle_vec;
+    loop_cycle_vec.ymm = min_loop_cycle_u32x8;
+    *min_value = min_scalar, *min_index = (nk_size_t)loop_cycle_vec.u32s[min_lane] * 8 + min_lane;
+    loop_cycle_vec.ymm = max_loop_cycle_u32x8;
+    *max_value = max_scalar, *max_index = (nk_size_t)loop_cycle_vec.u32s[max_lane] * 8 + max_lane;
 }
 
 NK_PUBLIC void nk_reduce_minmax_i32_haswell(                       //
@@ -1431,24 +1535,23 @@ NK_INTERNAL void nk_reduce_minmax_u32_haswell_contiguous_( //
     nk_u32_t *max_value, nk_size_t *max_index) {
     // XOR-bias to signed domain for _mm256_cmpgt_epi32
     __m256i bias_u32x8 = _mm256_set1_epi32((nk_i32_t)0x80000000);
-    __m256i raw_u32x8 = _mm256_loadu_si256((__m256i const *)data);
-    __m256i min_biased_i32x8 = _mm256_xor_si256(raw_u32x8, bias_u32x8);
-    __m256i max_biased_i32x8 = min_biased_i32x8;
-    __m256i min_iter_u32x8 = _mm256_setzero_si256();
-    __m256i max_iter_u32x8 = _mm256_setzero_si256();
-    __m256i iter_u32x8 = _mm256_set1_epi32(1);
+    __m256i min_biased_i32x8 = _mm256_set1_epi32(NK_I32_MAX);
+    __m256i max_biased_i32x8 = _mm256_set1_epi32(NK_I32_MIN);
+    __m256i min_loop_cycle_u32x8 = _mm256_setzero_si256();
+    __m256i max_loop_cycle_u32x8 = _mm256_setzero_si256();
+    __m256i current_loop_cycle_u32x8 = _mm256_setzero_si256();
     __m256i one_u32x8 = _mm256_set1_epi32(1);
 
-    nk_size_t idx = 8;
+    nk_size_t idx = 0;
     for (; idx + 8 <= count; idx += 8) {
         __m256i data_biased_i32x8 = _mm256_xor_si256(_mm256_loadu_si256((__m256i const *)(data + idx)), bias_u32x8);
         __m256i less_b32x8 = _mm256_cmpgt_epi32(min_biased_i32x8, data_biased_i32x8);
         __m256i greater_b32x8 = _mm256_cmpgt_epi32(data_biased_i32x8, max_biased_i32x8);
         min_biased_i32x8 = _mm256_blendv_epi8(min_biased_i32x8, data_biased_i32x8, less_b32x8);
         max_biased_i32x8 = _mm256_blendv_epi8(max_biased_i32x8, data_biased_i32x8, greater_b32x8);
-        min_iter_u32x8 = _mm256_blendv_epi8(min_iter_u32x8, iter_u32x8, less_b32x8);
-        max_iter_u32x8 = _mm256_blendv_epi8(max_iter_u32x8, iter_u32x8, greater_b32x8);
-        iter_u32x8 = _mm256_add_epi32(iter_u32x8, one_u32x8);
+        min_loop_cycle_u32x8 = _mm256_blendv_epi8(min_loop_cycle_u32x8, current_loop_cycle_u32x8, less_b32x8);
+        max_loop_cycle_u32x8 = _mm256_blendv_epi8(max_loop_cycle_u32x8, current_loop_cycle_u32x8, greater_b32x8);
+        current_loop_cycle_u32x8 = _mm256_add_epi32(current_loop_cycle_u32x8, one_u32x8);
     }
 
     nk_size_t remaining = count - idx;
@@ -1468,23 +1571,36 @@ NK_INTERNAL void nk_reduce_minmax_u32_haswell_contiguous_( //
         __m256i greater_b32x8 = _mm256_cmpgt_epi32(data_max_i32x8, max_biased_i32x8);
         min_biased_i32x8 = _mm256_blendv_epi8(min_biased_i32x8, data_min_i32x8, less_b32x8);
         max_biased_i32x8 = _mm256_blendv_epi8(max_biased_i32x8, data_max_i32x8, greater_b32x8);
-        min_iter_u32x8 = _mm256_blendv_epi8(min_iter_u32x8, iter_u32x8, less_b32x8);
-        max_iter_u32x8 = _mm256_blendv_epi8(max_iter_u32x8, iter_u32x8, greater_b32x8);
+        min_loop_cycle_u32x8 = _mm256_blendv_epi8(min_loop_cycle_u32x8, current_loop_cycle_u32x8, less_b32x8);
+        max_loop_cycle_u32x8 = _mm256_blendv_epi8(max_loop_cycle_u32x8, current_loop_cycle_u32x8, greater_b32x8);
     }
 
     __m256i min_u32x8 = _mm256_xor_si256(min_biased_i32x8, bias_u32x8);
     __m256i max_u32x8 = _mm256_xor_si256(max_biased_i32x8, bias_u32x8);
     nk_u32_t min_scalar = nk_reduce_min_u32x8_haswell_(min_u32x8);
     nk_u32_t max_scalar = nk_reduce_max_u32x8_haswell_(max_u32x8);
-    __m256i min_eq_b32x8 = _mm256_cmpeq_epi32(min_u32x8, _mm256_set1_epi32((nk_i32_t)min_scalar));
-    __m256i max_eq_b32x8 = _mm256_cmpeq_epi32(max_u32x8, _mm256_set1_epi32((nk_i32_t)max_scalar));
-    unsigned int min_lane = _tzcnt_u32((unsigned int)_mm256_movemask_ps(_mm256_castsi256_ps(min_eq_b32x8)));
-    unsigned int max_lane = _tzcnt_u32((unsigned int)_mm256_movemask_ps(_mm256_castsi256_ps(max_eq_b32x8)));
-    nk_b256_vec_t iter_vec;
-    iter_vec.ymm = min_iter_u32x8;
-    *min_value = min_scalar, *min_index = (nk_size_t)iter_vec.u32s[min_lane] * 8 + min_lane;
-    iter_vec.ymm = max_iter_u32x8;
-    *max_value = max_scalar, *max_index = (nk_size_t)iter_vec.u32s[max_lane] * 8 + max_lane;
+    unsigned int min_lane, max_lane;
+    {
+        __m256i value_match_b32x8 = _mm256_cmpeq_epi32(min_u32x8, _mm256_set1_epi32((nk_i32_t)min_scalar));
+        __m256i masked_cycle_u32x8 = _mm256_blendv_epi8(_mm256_set1_epi32((int)NK_U32_MAX), min_loop_cycle_u32x8,
+                                                        value_match_b32x8);
+        nk_u32_t earliest_loop_cycle = nk_reduce_min_u32x8_haswell_(masked_cycle_u32x8);
+        __m256i cycle_match_b32x8 = _mm256_cmpeq_epi32(masked_cycle_u32x8, _mm256_set1_epi32((int)earliest_loop_cycle));
+        min_lane = _tzcnt_u32((unsigned int)_mm256_movemask_ps(_mm256_castsi256_ps(cycle_match_b32x8)));
+    }
+    {
+        __m256i value_match_b32x8 = _mm256_cmpeq_epi32(max_u32x8, _mm256_set1_epi32((nk_i32_t)max_scalar));
+        __m256i masked_cycle_u32x8 = _mm256_blendv_epi8(_mm256_set1_epi32((int)NK_U32_MAX), max_loop_cycle_u32x8,
+                                                        value_match_b32x8);
+        nk_u32_t earliest_loop_cycle = nk_reduce_min_u32x8_haswell_(masked_cycle_u32x8);
+        __m256i cycle_match_b32x8 = _mm256_cmpeq_epi32(masked_cycle_u32x8, _mm256_set1_epi32((int)earliest_loop_cycle));
+        max_lane = _tzcnt_u32((unsigned int)_mm256_movemask_ps(_mm256_castsi256_ps(cycle_match_b32x8)));
+    }
+    nk_b256_vec_t loop_cycle_vec;
+    loop_cycle_vec.ymm = min_loop_cycle_u32x8;
+    *min_value = min_scalar, *min_index = (nk_size_t)loop_cycle_vec.u32s[min_lane] * 8 + min_lane;
+    loop_cycle_vec.ymm = max_loop_cycle_u32x8;
+    *max_value = max_scalar, *max_index = (nk_size_t)loop_cycle_vec.u32s[max_lane] * 8 + max_lane;
 }
 
 NK_PUBLIC void nk_reduce_minmax_u32_haswell(                       //
@@ -1578,23 +1694,23 @@ NK_INTERNAL void nk_reduce_minmax_i64_haswell_contiguous_( //
     nk_i64_t const *data, nk_size_t count,                 //
     nk_i64_t *min_value, nk_size_t *min_index,             //
     nk_i64_t *max_value, nk_size_t *max_index) {
-    __m256i min_i64x4 = _mm256_loadu_si256((__m256i const *)data);
-    __m256i max_i64x4 = min_i64x4;
-    __m256i min_iter_u64x4 = _mm256_setzero_si256();
-    __m256i max_iter_u64x4 = _mm256_setzero_si256();
-    __m256i iter_u64x4 = _mm256_set1_epi64x(1);
+    __m256i min_i64x4 = _mm256_set1_epi64x(NK_I64_MAX);
+    __m256i max_i64x4 = _mm256_set1_epi64x(NK_I64_MIN);
+    __m256i min_loop_cycle_u64x4 = _mm256_setzero_si256();
+    __m256i max_loop_cycle_u64x4 = _mm256_setzero_si256();
+    __m256i current_loop_cycle_u64x4 = _mm256_setzero_si256();
     __m256i one_u64x4 = _mm256_set1_epi64x(1);
 
-    nk_size_t idx = 4;
+    nk_size_t idx = 0;
     for (; idx + 4 <= count; idx += 4) {
         __m256i data_i64x4 = _mm256_loadu_si256((__m256i const *)(data + idx));
         __m256i less_b64x4 = _mm256_cmpgt_epi64(min_i64x4, data_i64x4);
         __m256i greater_b64x4 = _mm256_cmpgt_epi64(data_i64x4, max_i64x4);
         min_i64x4 = _mm256_blendv_epi8(min_i64x4, data_i64x4, less_b64x4);
         max_i64x4 = _mm256_blendv_epi8(max_i64x4, data_i64x4, greater_b64x4);
-        min_iter_u64x4 = _mm256_blendv_epi8(min_iter_u64x4, iter_u64x4, less_b64x4);
-        max_iter_u64x4 = _mm256_blendv_epi8(max_iter_u64x4, iter_u64x4, greater_b64x4);
-        iter_u64x4 = _mm256_add_epi64(iter_u64x4, one_u64x4);
+        min_loop_cycle_u64x4 = _mm256_blendv_epi8(min_loop_cycle_u64x4, current_loop_cycle_u64x4, less_b64x4);
+        max_loop_cycle_u64x4 = _mm256_blendv_epi8(max_loop_cycle_u64x4, current_loop_cycle_u64x4, greater_b64x4);
+        current_loop_cycle_u64x4 = _mm256_add_epi64(current_loop_cycle_u64x4, one_u64x4);
     }
 
     nk_size_t remaining = count - idx;
@@ -1611,21 +1727,36 @@ NK_INTERNAL void nk_reduce_minmax_i64_haswell_contiguous_( //
         __m256i greater_b64x4 = _mm256_cmpgt_epi64(data_max_i64x4, max_i64x4);
         min_i64x4 = _mm256_blendv_epi8(min_i64x4, data_min_i64x4, less_b64x4);
         max_i64x4 = _mm256_blendv_epi8(max_i64x4, data_max_i64x4, greater_b64x4);
-        min_iter_u64x4 = _mm256_blendv_epi8(min_iter_u64x4, iter_u64x4, less_b64x4);
-        max_iter_u64x4 = _mm256_blendv_epi8(max_iter_u64x4, iter_u64x4, greater_b64x4);
+        min_loop_cycle_u64x4 = _mm256_blendv_epi8(min_loop_cycle_u64x4, current_loop_cycle_u64x4, less_b64x4);
+        max_loop_cycle_u64x4 = _mm256_blendv_epi8(max_loop_cycle_u64x4, current_loop_cycle_u64x4, greater_b64x4);
     }
 
     nk_i64_t min_scalar = nk_reduce_min_i64x4_haswell_(min_i64x4);
     nk_i64_t max_scalar = nk_reduce_max_i64x4_haswell_(max_i64x4);
-    __m256i min_eq_b64x4 = _mm256_cmpeq_epi64(min_i64x4, _mm256_set1_epi64x(min_scalar));
-    __m256i max_eq_b64x4 = _mm256_cmpeq_epi64(max_i64x4, _mm256_set1_epi64x(max_scalar));
-    unsigned int min_lane = _tzcnt_u32((unsigned int)_mm256_movemask_pd(_mm256_castsi256_pd(min_eq_b64x4)));
-    unsigned int max_lane = _tzcnt_u32((unsigned int)_mm256_movemask_pd(_mm256_castsi256_pd(max_eq_b64x4)));
-    nk_b256_vec_t iter_vec;
-    iter_vec.ymm = min_iter_u64x4;
-    *min_value = min_scalar, *min_index = (nk_size_t)iter_vec.u64s[min_lane] * 4 + min_lane;
-    iter_vec.ymm = max_iter_u64x4;
-    *max_value = max_scalar, *max_index = (nk_size_t)iter_vec.u64s[max_lane] * 4 + max_lane;
+    unsigned int min_lane, max_lane;
+    {
+        __m256i value_match_b64x4 = _mm256_cmpeq_epi64(min_i64x4, _mm256_set1_epi64x(min_scalar));
+        __m256i masked_cycle_u64x4 = _mm256_blendv_epi8(_mm256_set1_epi64x((nk_i64_t)NK_U64_MAX), min_loop_cycle_u64x4,
+                                                        value_match_b64x4);
+        nk_u64_t earliest_loop_cycle = nk_reduce_min_u64x4_haswell_(masked_cycle_u64x4);
+        __m256i cycle_match_b64x4 = _mm256_cmpeq_epi64(masked_cycle_u64x4,
+                                                       _mm256_set1_epi64x((nk_i64_t)earliest_loop_cycle));
+        min_lane = _tzcnt_u32((unsigned int)_mm256_movemask_pd(_mm256_castsi256_pd(cycle_match_b64x4)));
+    }
+    {
+        __m256i value_match_b64x4 = _mm256_cmpeq_epi64(max_i64x4, _mm256_set1_epi64x(max_scalar));
+        __m256i masked_cycle_u64x4 = _mm256_blendv_epi8(_mm256_set1_epi64x((nk_i64_t)NK_U64_MAX), max_loop_cycle_u64x4,
+                                                        value_match_b64x4);
+        nk_u64_t earliest_loop_cycle = nk_reduce_min_u64x4_haswell_(masked_cycle_u64x4);
+        __m256i cycle_match_b64x4 = _mm256_cmpeq_epi64(masked_cycle_u64x4,
+                                                       _mm256_set1_epi64x((nk_i64_t)earliest_loop_cycle));
+        max_lane = _tzcnt_u32((unsigned int)_mm256_movemask_pd(_mm256_castsi256_pd(cycle_match_b64x4)));
+    }
+    nk_b256_vec_t loop_cycle_vec;
+    loop_cycle_vec.ymm = min_loop_cycle_u64x4;
+    *min_value = min_scalar, *min_index = (nk_size_t)loop_cycle_vec.u64s[min_lane] * 4 + min_lane;
+    loop_cycle_vec.ymm = max_loop_cycle_u64x4;
+    *max_value = max_scalar, *max_index = (nk_size_t)loop_cycle_vec.u64s[max_lane] * 4 + max_lane;
 }
 
 NK_PUBLIC void nk_reduce_minmax_i64_haswell(                       //
@@ -1685,24 +1816,23 @@ NK_INTERNAL void nk_reduce_minmax_u64_haswell_contiguous_( //
     nk_u64_t *max_value, nk_size_t *max_index) {
     // XOR-bias to signed domain for _mm256_cmpgt_epi64
     __m256i bias_u64x4 = _mm256_set1_epi64x((nk_i64_t)0x8000000000000000ull);
-    __m256i raw_u64x4 = _mm256_loadu_si256((__m256i const *)data);
-    __m256i min_biased_i64x4 = _mm256_xor_si256(raw_u64x4, bias_u64x4);
-    __m256i max_biased_i64x4 = min_biased_i64x4;
-    __m256i min_iter_u64x4 = _mm256_setzero_si256();
-    __m256i max_iter_u64x4 = _mm256_setzero_si256();
-    __m256i iter_u64x4 = _mm256_set1_epi64x(1);
+    __m256i min_biased_i64x4 = _mm256_set1_epi64x(NK_I64_MAX);
+    __m256i max_biased_i64x4 = _mm256_set1_epi64x(NK_I64_MIN);
+    __m256i min_loop_cycle_u64x4 = _mm256_setzero_si256();
+    __m256i max_loop_cycle_u64x4 = _mm256_setzero_si256();
+    __m256i current_loop_cycle_u64x4 = _mm256_setzero_si256();
     __m256i one_u64x4 = _mm256_set1_epi64x(1);
 
-    nk_size_t idx = 4;
+    nk_size_t idx = 0;
     for (; idx + 4 <= count; idx += 4) {
         __m256i data_biased_i64x4 = _mm256_xor_si256(_mm256_loadu_si256((__m256i const *)(data + idx)), bias_u64x4);
         __m256i less_b64x4 = _mm256_cmpgt_epi64(min_biased_i64x4, data_biased_i64x4);
         __m256i greater_b64x4 = _mm256_cmpgt_epi64(data_biased_i64x4, max_biased_i64x4);
         min_biased_i64x4 = _mm256_blendv_epi8(min_biased_i64x4, data_biased_i64x4, less_b64x4);
         max_biased_i64x4 = _mm256_blendv_epi8(max_biased_i64x4, data_biased_i64x4, greater_b64x4);
-        min_iter_u64x4 = _mm256_blendv_epi8(min_iter_u64x4, iter_u64x4, less_b64x4);
-        max_iter_u64x4 = _mm256_blendv_epi8(max_iter_u64x4, iter_u64x4, greater_b64x4);
-        iter_u64x4 = _mm256_add_epi64(iter_u64x4, one_u64x4);
+        min_loop_cycle_u64x4 = _mm256_blendv_epi8(min_loop_cycle_u64x4, current_loop_cycle_u64x4, less_b64x4);
+        max_loop_cycle_u64x4 = _mm256_blendv_epi8(max_loop_cycle_u64x4, current_loop_cycle_u64x4, greater_b64x4);
+        current_loop_cycle_u64x4 = _mm256_add_epi64(current_loop_cycle_u64x4, one_u64x4);
     }
 
     nk_size_t remaining = count - idx;
@@ -1721,23 +1851,38 @@ NK_INTERNAL void nk_reduce_minmax_u64_haswell_contiguous_( //
         __m256i greater_b64x4 = _mm256_cmpgt_epi64(data_max_i64x4, max_biased_i64x4);
         min_biased_i64x4 = _mm256_blendv_epi8(min_biased_i64x4, data_min_i64x4, less_b64x4);
         max_biased_i64x4 = _mm256_blendv_epi8(max_biased_i64x4, data_max_i64x4, greater_b64x4);
-        min_iter_u64x4 = _mm256_blendv_epi8(min_iter_u64x4, iter_u64x4, less_b64x4);
-        max_iter_u64x4 = _mm256_blendv_epi8(max_iter_u64x4, iter_u64x4, greater_b64x4);
+        min_loop_cycle_u64x4 = _mm256_blendv_epi8(min_loop_cycle_u64x4, current_loop_cycle_u64x4, less_b64x4);
+        max_loop_cycle_u64x4 = _mm256_blendv_epi8(max_loop_cycle_u64x4, current_loop_cycle_u64x4, greater_b64x4);
     }
 
     __m256i min_u64x4 = _mm256_xor_si256(min_biased_i64x4, bias_u64x4);
     __m256i max_u64x4 = _mm256_xor_si256(max_biased_i64x4, bias_u64x4);
     nk_u64_t min_scalar = nk_reduce_min_u64x4_haswell_(min_u64x4);
     nk_u64_t max_scalar = nk_reduce_max_u64x4_haswell_(max_u64x4);
-    __m256i min_eq_b64x4 = _mm256_cmpeq_epi64(min_u64x4, _mm256_set1_epi64x((nk_i64_t)min_scalar));
-    __m256i max_eq_b64x4 = _mm256_cmpeq_epi64(max_u64x4, _mm256_set1_epi64x((nk_i64_t)max_scalar));
-    unsigned int min_lane = _tzcnt_u32((unsigned int)_mm256_movemask_pd(_mm256_castsi256_pd(min_eq_b64x4)));
-    unsigned int max_lane = _tzcnt_u32((unsigned int)_mm256_movemask_pd(_mm256_castsi256_pd(max_eq_b64x4)));
-    nk_b256_vec_t iter_vec;
-    iter_vec.ymm = min_iter_u64x4;
-    *min_value = min_scalar, *min_index = (nk_size_t)iter_vec.u64s[min_lane] * 4 + min_lane;
-    iter_vec.ymm = max_iter_u64x4;
-    *max_value = max_scalar, *max_index = (nk_size_t)iter_vec.u64s[max_lane] * 4 + max_lane;
+    unsigned int min_lane, max_lane;
+    {
+        __m256i value_match_b64x4 = _mm256_cmpeq_epi64(min_u64x4, _mm256_set1_epi64x((nk_i64_t)min_scalar));
+        __m256i masked_cycle_u64x4 = _mm256_blendv_epi8(_mm256_set1_epi64x((nk_i64_t)NK_U64_MAX), min_loop_cycle_u64x4,
+                                                        value_match_b64x4);
+        nk_u64_t earliest_loop_cycle = nk_reduce_min_u64x4_haswell_(masked_cycle_u64x4);
+        __m256i cycle_match_b64x4 = _mm256_cmpeq_epi64(masked_cycle_u64x4,
+                                                       _mm256_set1_epi64x((nk_i64_t)earliest_loop_cycle));
+        min_lane = _tzcnt_u32((unsigned int)_mm256_movemask_pd(_mm256_castsi256_pd(cycle_match_b64x4)));
+    }
+    {
+        __m256i value_match_b64x4 = _mm256_cmpeq_epi64(max_u64x4, _mm256_set1_epi64x((nk_i64_t)max_scalar));
+        __m256i masked_cycle_u64x4 = _mm256_blendv_epi8(_mm256_set1_epi64x((nk_i64_t)NK_U64_MAX), max_loop_cycle_u64x4,
+                                                        value_match_b64x4);
+        nk_u64_t earliest_loop_cycle = nk_reduce_min_u64x4_haswell_(masked_cycle_u64x4);
+        __m256i cycle_match_b64x4 = _mm256_cmpeq_epi64(masked_cycle_u64x4,
+                                                       _mm256_set1_epi64x((nk_i64_t)earliest_loop_cycle));
+        max_lane = _tzcnt_u32((unsigned int)_mm256_movemask_pd(_mm256_castsi256_pd(cycle_match_b64x4)));
+    }
+    nk_b256_vec_t loop_cycle_vec;
+    loop_cycle_vec.ymm = min_loop_cycle_u64x4;
+    *min_value = min_scalar, *min_index = (nk_size_t)loop_cycle_vec.u64s[min_lane] * 4 + min_lane;
+    loop_cycle_vec.ymm = max_loop_cycle_u64x4;
+    *max_value = max_scalar, *max_index = (nk_size_t)loop_cycle_vec.u64s[max_lane] * 4 + max_lane;
 }
 
 NK_PUBLIC void nk_reduce_minmax_u64_haswell(                       //
@@ -1833,17 +1978,15 @@ NK_INTERNAL void nk_reduce_minmax_e4m3_haswell_contiguous_( //
     nk_e4m3_t *min_value, nk_size_t *min_index,             //
     nk_e4m3_t *max_value, nk_size_t *max_index) {
     __m256i nan_cmp_u8x32 = _mm256_set1_epi8((char)0xFF);
-    __m256i first_i8x32 = _mm256_loadu_si256((__m256i const *)data);
-    __m256i first_cmp = nk_fp8x32_to_u8x32_comparable_haswell_(first_i8x32);
     nk_b256_vec_t min_vec, max_vec;
-    min_vec.ymm = first_cmp;
-    max_vec.ymm = first_cmp;
-    __m256i min_iter_u8x32 = _mm256_setzero_si256();
-    __m256i max_iter_u8x32 = _mm256_setzero_si256();
-    __m256i iter_u8x32 = _mm256_set1_epi8(1);
+    min_vec.ymm = nan_cmp_u8x32;
+    max_vec.ymm = _mm256_setzero_si256();
+    __m256i min_loop_cycle_u8x32 = _mm256_setzero_si256();
+    __m256i max_loop_cycle_u8x32 = _mm256_setzero_si256();
+    __m256i current_loop_cycle_u8x32 = _mm256_setzero_si256();
     __m256i one_u8x32 = _mm256_set1_epi8(1);
 
-    nk_size_t idx = 32;
+    nk_size_t idx = 0;
     for (; idx + 32 <= count; idx += 32) {
         __m256i data_i8x32 = _mm256_loadu_si256((__m256i const *)(data + idx));
         __m256i data_cmp_u8x32 = nk_fp8x32_to_u8x32_comparable_haswell_(data_i8x32);
@@ -1852,14 +1995,14 @@ NK_INTERNAL void nk_reduce_minmax_e4m3_haswell_contiguous_( //
         __m256i min_changed_i8x32 = _mm256_xor_si256(_mm256_cmpeq_epi8(new_min, min_vec.ymm),
                                                      _mm256_set1_epi8((char)0xFF));
         min_vec.ymm = new_min;
-        min_iter_u8x32 = _mm256_blendv_epi8(min_iter_u8x32, iter_u8x32, min_changed_i8x32);
+        min_loop_cycle_u8x32 = _mm256_blendv_epi8(min_loop_cycle_u8x32, current_loop_cycle_u8x32, min_changed_i8x32);
         __m256i max_mask_i8x32 = nk_max_mask_e4m3x32_haswell_(max_vec.ymm, data_cmp_u8x32, nan_cmp_u8x32);
         __m256i new_max = _mm256_blendv_epi8(data_cmp_u8x32, max_vec.ymm, max_mask_i8x32);
         __m256i max_changed_i8x32 = _mm256_xor_si256(_mm256_cmpeq_epi8(new_max, max_vec.ymm),
                                                      _mm256_set1_epi8((char)0xFF));
         max_vec.ymm = new_max;
-        max_iter_u8x32 = _mm256_blendv_epi8(max_iter_u8x32, iter_u8x32, max_changed_i8x32);
-        iter_u8x32 = _mm256_add_epi8(iter_u8x32, one_u8x32);
+        max_loop_cycle_u8x32 = _mm256_blendv_epi8(max_loop_cycle_u8x32, current_loop_cycle_u8x32, max_changed_i8x32);
+        current_loop_cycle_u8x32 = _mm256_add_epi8(current_loop_cycle_u8x32, one_u8x32);
     }
 
     nk_size_t remaining = count - idx;
@@ -1880,22 +2023,39 @@ NK_INTERNAL void nk_reduce_minmax_e4m3_haswell_contiguous_( //
         __m256i min_changed_i8x32 = _mm256_xor_si256(_mm256_cmpeq_epi8(new_min, min_vec.ymm),
                                                      _mm256_set1_epi8((char)0xFF));
         min_vec.ymm = new_min;
-        min_iter_u8x32 = _mm256_blendv_epi8(min_iter_u8x32, iter_u8x32, min_changed_i8x32);
+        min_loop_cycle_u8x32 = _mm256_blendv_epi8(min_loop_cycle_u8x32, current_loop_cycle_u8x32, min_changed_i8x32);
         __m256i max_mask_i8x32 = nk_max_mask_e4m3x32_haswell_(max_vec.ymm, data_cmp_u8x32, nan_cmp_u8x32);
         __m256i new_max = _mm256_blendv_epi8(data_cmp_u8x32, max_vec.ymm, max_mask_i8x32);
         __m256i max_changed_i8x32 = _mm256_xor_si256(_mm256_cmpeq_epi8(new_max, max_vec.ymm),
                                                      _mm256_set1_epi8((char)0xFF));
         max_vec.ymm = new_max;
-        max_iter_u8x32 = _mm256_blendv_epi8(max_iter_u8x32, iter_u8x32, max_changed_i8x32);
+        max_loop_cycle_u8x32 = _mm256_blendv_epi8(max_loop_cycle_u8x32, current_loop_cycle_u8x32, max_changed_i8x32);
     }
 
-    nk_size_t min_lane = nk_argmin_u8x32_haswell_(min_vec.ymm);
-    nk_size_t max_lane = nk_argmax_u8x32_haswell_(max_vec.ymm);
-    nk_b256_vec_t iter_vec;
-    iter_vec.ymm = min_iter_u8x32;
-    *min_index = (nk_size_t)iter_vec.u8s[min_lane] * 32 + min_lane;
-    iter_vec.ymm = max_iter_u8x32;
-    *max_index = (nk_size_t)iter_vec.u8s[max_lane] * 32 + max_lane;
+    nk_u8_t min_scalar_cmp = nk_reduce_min_u8x32_haswell_(min_vec.ymm);
+    nk_u8_t max_scalar_cmp = nk_reduce_max_u8x32_haswell_(max_vec.ymm);
+    unsigned int min_lane, max_lane;
+    {
+        __m256i value_match_b8x32 = _mm256_cmpeq_epi8(min_vec.ymm, _mm256_set1_epi8((char)min_scalar_cmp));
+        __m256i masked_cycle_u8x32 = _mm256_blendv_epi8(_mm256_set1_epi8((char)NK_U8_MAX), min_loop_cycle_u8x32,
+                                                        value_match_b8x32);
+        nk_u8_t earliest_loop_cycle = nk_reduce_min_u8x32_haswell_(masked_cycle_u8x32);
+        __m256i cycle_match_b8x32 = _mm256_cmpeq_epi8(masked_cycle_u8x32, _mm256_set1_epi8((char)earliest_loop_cycle));
+        min_lane = _tzcnt_u32((unsigned int)_mm256_movemask_epi8(cycle_match_b8x32));
+    }
+    {
+        __m256i value_match_b8x32 = _mm256_cmpeq_epi8(max_vec.ymm, _mm256_set1_epi8((char)max_scalar_cmp));
+        __m256i masked_cycle_u8x32 = _mm256_blendv_epi8(_mm256_set1_epi8((char)NK_U8_MAX), max_loop_cycle_u8x32,
+                                                        value_match_b8x32);
+        nk_u8_t earliest_loop_cycle = nk_reduce_min_u8x32_haswell_(masked_cycle_u8x32);
+        __m256i cycle_match_b8x32 = _mm256_cmpeq_epi8(masked_cycle_u8x32, _mm256_set1_epi8((char)earliest_loop_cycle));
+        max_lane = _tzcnt_u32((unsigned int)_mm256_movemask_epi8(cycle_match_b8x32));
+    }
+    nk_b256_vec_t loop_cycle_vec;
+    loop_cycle_vec.ymm = min_loop_cycle_u8x32;
+    *min_index = (nk_size_t)loop_cycle_vec.u8s[min_lane] * 32 + min_lane;
+    loop_cycle_vec.ymm = max_loop_cycle_u8x32;
+    *max_index = (nk_size_t)loop_cycle_vec.u8s[max_lane] * 32 + max_lane;
     min_vec.ymm = nk_u8x32_comparable_to_fp8x32_haswell_(min_vec.ymm);
     max_vec.ymm = nk_u8x32_comparable_to_fp8x32_haswell_(max_vec.ymm);
     *min_value = min_vec.e4m3s[min_lane];
@@ -2009,17 +2169,15 @@ NK_INTERNAL void nk_reduce_minmax_e5m2_haswell_contiguous_( //
     nk_e5m2_t *max_value, nk_size_t *max_index) {
     // E5M2 NaN threshold in comparable form: values at/above this are NaN
     __m256i nan_threshold_cmp_u8x32 = _mm256_set1_epi8((char)0xFD);
-    __m256i first_i8x32 = _mm256_loadu_si256((__m256i const *)data);
-    __m256i first_cmp = nk_fp8x32_to_u8x32_comparable_haswell_(first_i8x32);
     nk_b256_vec_t min_vec, max_vec;
-    min_vec.ymm = first_cmp;
-    max_vec.ymm = first_cmp;
-    __m256i min_iter_u8x32 = _mm256_setzero_si256();
-    __m256i max_iter_u8x32 = _mm256_setzero_si256();
-    __m256i iter_u8x32 = _mm256_set1_epi8(1);
+    min_vec.ymm = _mm256_set1_epi8((char)0xFF);
+    max_vec.ymm = _mm256_setzero_si256();
+    __m256i min_loop_cycle_u8x32 = _mm256_setzero_si256();
+    __m256i max_loop_cycle_u8x32 = _mm256_setzero_si256();
+    __m256i current_loop_cycle_u8x32 = _mm256_setzero_si256();
     __m256i one_u8x32 = _mm256_set1_epi8(1);
 
-    nk_size_t idx = 32;
+    nk_size_t idx = 0;
     for (; idx + 32 <= count; idx += 32) {
         __m256i data_i8x32 = _mm256_loadu_si256((__m256i const *)(data + idx));
         __m256i data_cmp_u8x32 = nk_fp8x32_to_u8x32_comparable_haswell_(data_i8x32);
@@ -2028,14 +2186,14 @@ NK_INTERNAL void nk_reduce_minmax_e5m2_haswell_contiguous_( //
         __m256i min_changed_i8x32 = _mm256_xor_si256(_mm256_cmpeq_epi8(new_min, min_vec.ymm),
                                                      _mm256_set1_epi8((char)0xFF));
         min_vec.ymm = new_min;
-        min_iter_u8x32 = _mm256_blendv_epi8(min_iter_u8x32, iter_u8x32, min_changed_i8x32);
+        min_loop_cycle_u8x32 = _mm256_blendv_epi8(min_loop_cycle_u8x32, current_loop_cycle_u8x32, min_changed_i8x32);
         __m256i max_mask_i8x32 = nk_max_mask_e5m2x32_haswell_(max_vec.ymm, data_cmp_u8x32, nan_threshold_cmp_u8x32);
         __m256i new_max = _mm256_blendv_epi8(data_cmp_u8x32, max_vec.ymm, max_mask_i8x32);
         __m256i max_changed_i8x32 = _mm256_xor_si256(_mm256_cmpeq_epi8(new_max, max_vec.ymm),
                                                      _mm256_set1_epi8((char)0xFF));
         max_vec.ymm = new_max;
-        max_iter_u8x32 = _mm256_blendv_epi8(max_iter_u8x32, iter_u8x32, max_changed_i8x32);
-        iter_u8x32 = _mm256_add_epi8(iter_u8x32, one_u8x32);
+        max_loop_cycle_u8x32 = _mm256_blendv_epi8(max_loop_cycle_u8x32, current_loop_cycle_u8x32, max_changed_i8x32);
+        current_loop_cycle_u8x32 = _mm256_add_epi8(current_loop_cycle_u8x32, one_u8x32);
     }
 
     nk_size_t remaining = count - idx;
@@ -2054,22 +2212,39 @@ NK_INTERNAL void nk_reduce_minmax_e5m2_haswell_contiguous_( //
         __m256i min_changed_i8x32 = _mm256_xor_si256(_mm256_cmpeq_epi8(new_min, min_vec.ymm),
                                                      _mm256_set1_epi8((char)0xFF));
         min_vec.ymm = new_min;
-        min_iter_u8x32 = _mm256_blendv_epi8(min_iter_u8x32, iter_u8x32, min_changed_i8x32);
+        min_loop_cycle_u8x32 = _mm256_blendv_epi8(min_loop_cycle_u8x32, current_loop_cycle_u8x32, min_changed_i8x32);
         __m256i max_mask_i8x32 = nk_max_mask_e5m2x32_haswell_(max_vec.ymm, data_cmp_u8x32, nan_threshold_cmp_u8x32);
         __m256i new_max = _mm256_blendv_epi8(data_cmp_u8x32, max_vec.ymm, max_mask_i8x32);
         __m256i max_changed_i8x32 = _mm256_xor_si256(_mm256_cmpeq_epi8(new_max, max_vec.ymm),
                                                      _mm256_set1_epi8((char)0xFF));
         max_vec.ymm = new_max;
-        max_iter_u8x32 = _mm256_blendv_epi8(max_iter_u8x32, iter_u8x32, max_changed_i8x32);
+        max_loop_cycle_u8x32 = _mm256_blendv_epi8(max_loop_cycle_u8x32, current_loop_cycle_u8x32, max_changed_i8x32);
     }
 
-    nk_size_t min_lane = nk_argmin_u8x32_haswell_(min_vec.ymm);
-    nk_size_t max_lane = nk_argmax_u8x32_haswell_(max_vec.ymm);
-    nk_b256_vec_t iter_vec;
-    iter_vec.ymm = min_iter_u8x32;
-    *min_index = (nk_size_t)iter_vec.u8s[min_lane] * 32 + min_lane;
-    iter_vec.ymm = max_iter_u8x32;
-    *max_index = (nk_size_t)iter_vec.u8s[max_lane] * 32 + max_lane;
+    nk_u8_t min_scalar_cmp = nk_reduce_min_u8x32_haswell_(min_vec.ymm);
+    nk_u8_t max_scalar_cmp = nk_reduce_max_u8x32_haswell_(max_vec.ymm);
+    unsigned int min_lane, max_lane;
+    {
+        __m256i value_match_b8x32 = _mm256_cmpeq_epi8(min_vec.ymm, _mm256_set1_epi8((char)min_scalar_cmp));
+        __m256i masked_cycle_u8x32 = _mm256_blendv_epi8(_mm256_set1_epi8((char)NK_U8_MAX), min_loop_cycle_u8x32,
+                                                        value_match_b8x32);
+        nk_u8_t earliest_loop_cycle = nk_reduce_min_u8x32_haswell_(masked_cycle_u8x32);
+        __m256i cycle_match_b8x32 = _mm256_cmpeq_epi8(masked_cycle_u8x32, _mm256_set1_epi8((char)earliest_loop_cycle));
+        min_lane = _tzcnt_u32((unsigned int)_mm256_movemask_epi8(cycle_match_b8x32));
+    }
+    {
+        __m256i value_match_b8x32 = _mm256_cmpeq_epi8(max_vec.ymm, _mm256_set1_epi8((char)max_scalar_cmp));
+        __m256i masked_cycle_u8x32 = _mm256_blendv_epi8(_mm256_set1_epi8((char)NK_U8_MAX), max_loop_cycle_u8x32,
+                                                        value_match_b8x32);
+        nk_u8_t earliest_loop_cycle = nk_reduce_min_u8x32_haswell_(masked_cycle_u8x32);
+        __m256i cycle_match_b8x32 = _mm256_cmpeq_epi8(masked_cycle_u8x32, _mm256_set1_epi8((char)earliest_loop_cycle));
+        max_lane = _tzcnt_u32((unsigned int)_mm256_movemask_epi8(cycle_match_b8x32));
+    }
+    nk_b256_vec_t loop_cycle_vec;
+    loop_cycle_vec.ymm = min_loop_cycle_u8x32;
+    *min_index = (nk_size_t)loop_cycle_vec.u8s[min_lane] * 32 + min_lane;
+    loop_cycle_vec.ymm = max_loop_cycle_u8x32;
+    *max_index = (nk_size_t)loop_cycle_vec.u8s[max_lane] * 32 + max_lane;
     min_vec.ymm = nk_u8x32_comparable_to_fp8x32_haswell_(min_vec.ymm);
     max_vec.ymm = nk_u8x32_comparable_to_fp8x32_haswell_(max_vec.ymm);
     *min_value = min_vec.e5m2s[min_lane];
@@ -2181,17 +2356,15 @@ NK_INTERNAL void nk_reduce_minmax_e2m3_haswell_contiguous_( //
     nk_e2m3_t *min_value, nk_size_t *min_index,             //
     nk_e2m3_t *max_value, nk_size_t *max_index) {
     // FP6 has no NaN — use simple unsigned min/max on comparable form
-    __m256i first_i8x32 = _mm256_loadu_si256((__m256i const *)data);
-    __m256i first_cmp = nk_fp6x32_to_u8x32_comparable_haswell_(first_i8x32);
     nk_b256_vec_t min_vec, max_vec;
-    min_vec.ymm = first_cmp;
-    max_vec.ymm = first_cmp;
-    __m256i min_iter_u8x32 = _mm256_setzero_si256();
-    __m256i max_iter_u8x32 = _mm256_setzero_si256();
-    __m256i iter_u8x32 = _mm256_set1_epi8(1);
+    min_vec.ymm = _mm256_set1_epi8((char)0xFF);
+    max_vec.ymm = _mm256_setzero_si256();
+    __m256i min_loop_cycle_u8x32 = _mm256_setzero_si256();
+    __m256i max_loop_cycle_u8x32 = _mm256_setzero_si256();
+    __m256i current_loop_cycle_u8x32 = _mm256_setzero_si256();
     __m256i one_u8x32 = _mm256_set1_epi8(1);
 
-    nk_size_t idx = 32;
+    nk_size_t idx = 0;
     for (; idx + 32 <= count; idx += 32) {
         __m256i data_i8x32 = _mm256_loadu_si256((__m256i const *)(data + idx));
         __m256i data_cmp_u8x32 = nk_fp6x32_to_u8x32_comparable_haswell_(data_i8x32);
@@ -2199,13 +2372,13 @@ NK_INTERNAL void nk_reduce_minmax_e2m3_haswell_contiguous_( //
         __m256i min_changed_i8x32 = _mm256_xor_si256(_mm256_cmpeq_epi8(new_min, min_vec.ymm),
                                                      _mm256_set1_epi8((char)0xFF));
         min_vec.ymm = new_min;
-        min_iter_u8x32 = _mm256_blendv_epi8(min_iter_u8x32, iter_u8x32, min_changed_i8x32);
+        min_loop_cycle_u8x32 = _mm256_blendv_epi8(min_loop_cycle_u8x32, current_loop_cycle_u8x32, min_changed_i8x32);
         __m256i new_max = _mm256_max_epu8(max_vec.ymm, data_cmp_u8x32);
         __m256i max_changed_i8x32 = _mm256_xor_si256(_mm256_cmpeq_epi8(new_max, max_vec.ymm),
                                                      _mm256_set1_epi8((char)0xFF));
         max_vec.ymm = new_max;
-        max_iter_u8x32 = _mm256_blendv_epi8(max_iter_u8x32, iter_u8x32, max_changed_i8x32);
-        iter_u8x32 = _mm256_add_epi8(iter_u8x32, one_u8x32);
+        max_loop_cycle_u8x32 = _mm256_blendv_epi8(max_loop_cycle_u8x32, current_loop_cycle_u8x32, max_changed_i8x32);
+        current_loop_cycle_u8x32 = _mm256_add_epi8(current_loop_cycle_u8x32, one_u8x32);
     }
 
     nk_size_t remaining = count - idx;
@@ -2224,21 +2397,38 @@ NK_INTERNAL void nk_reduce_minmax_e2m3_haswell_contiguous_( //
         __m256i min_changed_i8x32 = _mm256_xor_si256(_mm256_cmpeq_epi8(new_min, min_vec.ymm),
                                                      _mm256_set1_epi8((char)0xFF));
         min_vec.ymm = new_min;
-        min_iter_u8x32 = _mm256_blendv_epi8(min_iter_u8x32, iter_u8x32, min_changed_i8x32);
+        min_loop_cycle_u8x32 = _mm256_blendv_epi8(min_loop_cycle_u8x32, current_loop_cycle_u8x32, min_changed_i8x32);
         __m256i new_max = _mm256_max_epu8(max_vec.ymm, data_max_u8x32);
         __m256i max_changed_i8x32 = _mm256_xor_si256(_mm256_cmpeq_epi8(new_max, max_vec.ymm),
                                                      _mm256_set1_epi8((char)0xFF));
         max_vec.ymm = new_max;
-        max_iter_u8x32 = _mm256_blendv_epi8(max_iter_u8x32, iter_u8x32, max_changed_i8x32);
+        max_loop_cycle_u8x32 = _mm256_blendv_epi8(max_loop_cycle_u8x32, current_loop_cycle_u8x32, max_changed_i8x32);
     }
 
-    nk_size_t min_lane = nk_argmin_u8x32_haswell_(min_vec.ymm);
-    nk_size_t max_lane = nk_argmax_u8x32_haswell_(max_vec.ymm);
-    nk_b256_vec_t iter_vec;
-    iter_vec.ymm = min_iter_u8x32;
-    *min_index = (nk_size_t)iter_vec.u8s[min_lane] * 32 + min_lane;
-    iter_vec.ymm = max_iter_u8x32;
-    *max_index = (nk_size_t)iter_vec.u8s[max_lane] * 32 + max_lane;
+    nk_u8_t min_scalar_cmp = nk_reduce_min_u8x32_haswell_(min_vec.ymm);
+    nk_u8_t max_scalar_cmp = nk_reduce_max_u8x32_haswell_(max_vec.ymm);
+    unsigned int min_lane, max_lane;
+    {
+        __m256i value_match_b8x32 = _mm256_cmpeq_epi8(min_vec.ymm, _mm256_set1_epi8((char)min_scalar_cmp));
+        __m256i masked_cycle_u8x32 = _mm256_blendv_epi8(_mm256_set1_epi8((char)NK_U8_MAX), min_loop_cycle_u8x32,
+                                                        value_match_b8x32);
+        nk_u8_t earliest_loop_cycle = nk_reduce_min_u8x32_haswell_(masked_cycle_u8x32);
+        __m256i cycle_match_b8x32 = _mm256_cmpeq_epi8(masked_cycle_u8x32, _mm256_set1_epi8((char)earliest_loop_cycle));
+        min_lane = _tzcnt_u32((unsigned int)_mm256_movemask_epi8(cycle_match_b8x32));
+    }
+    {
+        __m256i value_match_b8x32 = _mm256_cmpeq_epi8(max_vec.ymm, _mm256_set1_epi8((char)max_scalar_cmp));
+        __m256i masked_cycle_u8x32 = _mm256_blendv_epi8(_mm256_set1_epi8((char)NK_U8_MAX), max_loop_cycle_u8x32,
+                                                        value_match_b8x32);
+        nk_u8_t earliest_loop_cycle = nk_reduce_min_u8x32_haswell_(masked_cycle_u8x32);
+        __m256i cycle_match_b8x32 = _mm256_cmpeq_epi8(masked_cycle_u8x32, _mm256_set1_epi8((char)earliest_loop_cycle));
+        max_lane = _tzcnt_u32((unsigned int)_mm256_movemask_epi8(cycle_match_b8x32));
+    }
+    nk_b256_vec_t loop_cycle_vec;
+    loop_cycle_vec.ymm = min_loop_cycle_u8x32;
+    *min_index = (nk_size_t)loop_cycle_vec.u8s[min_lane] * 32 + min_lane;
+    loop_cycle_vec.ymm = max_loop_cycle_u8x32;
+    *max_index = (nk_size_t)loop_cycle_vec.u8s[max_lane] * 32 + max_lane;
     min_vec.ymm = nk_u8x32_comparable_to_fp6x32_haswell_(min_vec.ymm);
     max_vec.ymm = nk_u8x32_comparable_to_fp6x32_haswell_(max_vec.ymm);
     *min_value = min_vec.e2m3s[min_lane];
@@ -2349,17 +2539,15 @@ NK_INTERNAL void nk_reduce_minmax_e3m2_haswell_contiguous_( //
     nk_e3m2_t const *data, nk_size_t count,                 //
     nk_e3m2_t *min_value, nk_size_t *min_index,             //
     nk_e3m2_t *max_value, nk_size_t *max_index) {
-    __m256i first_i8x32 = _mm256_loadu_si256((__m256i const *)data);
-    __m256i first_cmp = nk_fp6x32_to_u8x32_comparable_haswell_(first_i8x32);
     nk_b256_vec_t min_vec, max_vec;
-    min_vec.ymm = first_cmp;
-    max_vec.ymm = first_cmp;
-    __m256i min_iter_u8x32 = _mm256_setzero_si256();
-    __m256i max_iter_u8x32 = _mm256_setzero_si256();
-    __m256i iter_u8x32 = _mm256_set1_epi8(1);
+    min_vec.ymm = _mm256_set1_epi8((char)0xFF);
+    max_vec.ymm = _mm256_setzero_si256();
+    __m256i min_loop_cycle_u8x32 = _mm256_setzero_si256();
+    __m256i max_loop_cycle_u8x32 = _mm256_setzero_si256();
+    __m256i current_loop_cycle_u8x32 = _mm256_setzero_si256();
     __m256i one_u8x32 = _mm256_set1_epi8(1);
 
-    nk_size_t idx = 32;
+    nk_size_t idx = 0;
     for (; idx + 32 <= count; idx += 32) {
         __m256i data_i8x32 = _mm256_loadu_si256((__m256i const *)(data + idx));
         __m256i data_cmp_u8x32 = nk_fp6x32_to_u8x32_comparable_haswell_(data_i8x32);
@@ -2367,13 +2555,13 @@ NK_INTERNAL void nk_reduce_minmax_e3m2_haswell_contiguous_( //
         __m256i min_changed_i8x32 = _mm256_xor_si256(_mm256_cmpeq_epi8(new_min, min_vec.ymm),
                                                      _mm256_set1_epi8((char)0xFF));
         min_vec.ymm = new_min;
-        min_iter_u8x32 = _mm256_blendv_epi8(min_iter_u8x32, iter_u8x32, min_changed_i8x32);
+        min_loop_cycle_u8x32 = _mm256_blendv_epi8(min_loop_cycle_u8x32, current_loop_cycle_u8x32, min_changed_i8x32);
         __m256i new_max = _mm256_max_epu8(max_vec.ymm, data_cmp_u8x32);
         __m256i max_changed_i8x32 = _mm256_xor_si256(_mm256_cmpeq_epi8(new_max, max_vec.ymm),
                                                      _mm256_set1_epi8((char)0xFF));
         max_vec.ymm = new_max;
-        max_iter_u8x32 = _mm256_blendv_epi8(max_iter_u8x32, iter_u8x32, max_changed_i8x32);
-        iter_u8x32 = _mm256_add_epi8(iter_u8x32, one_u8x32);
+        max_loop_cycle_u8x32 = _mm256_blendv_epi8(max_loop_cycle_u8x32, current_loop_cycle_u8x32, max_changed_i8x32);
+        current_loop_cycle_u8x32 = _mm256_add_epi8(current_loop_cycle_u8x32, one_u8x32);
     }
 
     nk_size_t remaining = count - idx;
@@ -2391,21 +2579,38 @@ NK_INTERNAL void nk_reduce_minmax_e3m2_haswell_contiguous_( //
         __m256i min_changed_i8x32 = _mm256_xor_si256(_mm256_cmpeq_epi8(new_min, min_vec.ymm),
                                                      _mm256_set1_epi8((char)0xFF));
         min_vec.ymm = new_min;
-        min_iter_u8x32 = _mm256_blendv_epi8(min_iter_u8x32, iter_u8x32, min_changed_i8x32);
+        min_loop_cycle_u8x32 = _mm256_blendv_epi8(min_loop_cycle_u8x32, current_loop_cycle_u8x32, min_changed_i8x32);
         __m256i new_max = _mm256_max_epu8(max_vec.ymm, data_max_u8x32);
         __m256i max_changed_i8x32 = _mm256_xor_si256(_mm256_cmpeq_epi8(new_max, max_vec.ymm),
                                                      _mm256_set1_epi8((char)0xFF));
         max_vec.ymm = new_max;
-        max_iter_u8x32 = _mm256_blendv_epi8(max_iter_u8x32, iter_u8x32, max_changed_i8x32);
+        max_loop_cycle_u8x32 = _mm256_blendv_epi8(max_loop_cycle_u8x32, current_loop_cycle_u8x32, max_changed_i8x32);
     }
 
-    nk_size_t min_lane = nk_argmin_u8x32_haswell_(min_vec.ymm);
-    nk_size_t max_lane = nk_argmax_u8x32_haswell_(max_vec.ymm);
-    nk_b256_vec_t iter_vec;
-    iter_vec.ymm = min_iter_u8x32;
-    *min_index = (nk_size_t)iter_vec.u8s[min_lane] * 32 + min_lane;
-    iter_vec.ymm = max_iter_u8x32;
-    *max_index = (nk_size_t)iter_vec.u8s[max_lane] * 32 + max_lane;
+    nk_u8_t min_scalar_cmp = nk_reduce_min_u8x32_haswell_(min_vec.ymm);
+    nk_u8_t max_scalar_cmp = nk_reduce_max_u8x32_haswell_(max_vec.ymm);
+    unsigned int min_lane, max_lane;
+    {
+        __m256i value_match_b8x32 = _mm256_cmpeq_epi8(min_vec.ymm, _mm256_set1_epi8((char)min_scalar_cmp));
+        __m256i masked_cycle_u8x32 = _mm256_blendv_epi8(_mm256_set1_epi8((char)NK_U8_MAX), min_loop_cycle_u8x32,
+                                                        value_match_b8x32);
+        nk_u8_t earliest_loop_cycle = nk_reduce_min_u8x32_haswell_(masked_cycle_u8x32);
+        __m256i cycle_match_b8x32 = _mm256_cmpeq_epi8(masked_cycle_u8x32, _mm256_set1_epi8((char)earliest_loop_cycle));
+        min_lane = _tzcnt_u32((unsigned int)_mm256_movemask_epi8(cycle_match_b8x32));
+    }
+    {
+        __m256i value_match_b8x32 = _mm256_cmpeq_epi8(max_vec.ymm, _mm256_set1_epi8((char)max_scalar_cmp));
+        __m256i masked_cycle_u8x32 = _mm256_blendv_epi8(_mm256_set1_epi8((char)NK_U8_MAX), max_loop_cycle_u8x32,
+                                                        value_match_b8x32);
+        nk_u8_t earliest_loop_cycle = nk_reduce_min_u8x32_haswell_(masked_cycle_u8x32);
+        __m256i cycle_match_b8x32 = _mm256_cmpeq_epi8(masked_cycle_u8x32, _mm256_set1_epi8((char)earliest_loop_cycle));
+        max_lane = _tzcnt_u32((unsigned int)_mm256_movemask_epi8(cycle_match_b8x32));
+    }
+    nk_b256_vec_t loop_cycle_vec;
+    loop_cycle_vec.ymm = min_loop_cycle_u8x32;
+    *min_index = (nk_size_t)loop_cycle_vec.u8s[min_lane] * 32 + min_lane;
+    loop_cycle_vec.ymm = max_loop_cycle_u8x32;
+    *max_index = (nk_size_t)loop_cycle_vec.u8s[max_lane] * 32 + max_lane;
     min_vec.ymm = nk_u8x32_comparable_to_fp6x32_haswell_(min_vec.ymm);
     max_vec.ymm = nk_u8x32_comparable_to_fp6x32_haswell_(max_vec.ymm);
     *min_value = min_vec.e3m2s[min_lane];
@@ -2505,9 +2710,9 @@ NK_INTERNAL void nk_reduce_minmax_bf16_haswell_contiguous_( //
     __m256i all_ones_i16x16 = _mm256_set1_epi8((char)0xFF);
     __m256i min_cmp_i16x16 = _mm256_set1_epi16((short)0x7FFF);
     __m256i max_cmp_i16x16 = _mm256_set1_epi16((short)0x8000);
-    __m256i min_iter_u16x16 = _mm256_setzero_si256();
-    __m256i max_iter_u16x16 = _mm256_setzero_si256();
-    __m256i iter_u16x16 = _mm256_setzero_si256();
+    __m256i min_loop_cycle_u16x16 = _mm256_setzero_si256();
+    __m256i max_loop_cycle_u16x16 = _mm256_setzero_si256();
+    __m256i current_loop_cycle_u16x16 = _mm256_setzero_si256();
     __m256i one_u16x16 = _mm256_set1_epi16(1);
 
     nk_size_t idx = 0;
@@ -2520,12 +2725,14 @@ NK_INTERNAL void nk_reduce_minmax_bf16_haswell_contiguous_( //
         __m256i less_i16x16 = _mm256_cmpgt_epi16(min_cmp_i16x16, data_cmp_i16x16);
         __m256i min_changed_i16x16 = _mm256_and_si256(less_i16x16, not_nan_i16x16);
         min_cmp_i16x16 = _mm256_blendv_epi8(min_cmp_i16x16, data_cmp_i16x16, min_changed_i16x16);
-        min_iter_u16x16 = _mm256_blendv_epi8(min_iter_u16x16, iter_u16x16, min_changed_i16x16);
+        min_loop_cycle_u16x16 = _mm256_blendv_epi8(min_loop_cycle_u16x16, current_loop_cycle_u16x16,
+                                                   min_changed_i16x16);
         __m256i greater_i16x16 = _mm256_cmpgt_epi16(data_cmp_i16x16, max_cmp_i16x16);
         __m256i max_changed_i16x16 = _mm256_and_si256(greater_i16x16, not_nan_i16x16);
         max_cmp_i16x16 = _mm256_blendv_epi8(max_cmp_i16x16, data_cmp_i16x16, max_changed_i16x16);
-        max_iter_u16x16 = _mm256_blendv_epi8(max_iter_u16x16, iter_u16x16, max_changed_i16x16);
-        iter_u16x16 = _mm256_add_epi16(iter_u16x16, one_u16x16);
+        max_loop_cycle_u16x16 = _mm256_blendv_epi8(max_loop_cycle_u16x16, current_loop_cycle_u16x16,
+                                                   max_changed_i16x16);
+        current_loop_cycle_u16x16 = _mm256_add_epi16(current_loop_cycle_u16x16, one_u16x16);
     }
 
     nk_size_t remaining = count - idx;
@@ -2544,24 +2751,41 @@ NK_INTERNAL void nk_reduce_minmax_bf16_haswell_contiguous_( //
         __m256i less_i16x16 = _mm256_cmpgt_epi16(min_cmp_i16x16, data_cmp_i16x16);
         __m256i min_changed_i16x16 = _mm256_and_si256(less_i16x16, not_nan_valid_i16x16);
         min_cmp_i16x16 = _mm256_blendv_epi8(min_cmp_i16x16, data_cmp_i16x16, min_changed_i16x16);
-        min_iter_u16x16 = _mm256_blendv_epi8(min_iter_u16x16, iter_u16x16, min_changed_i16x16);
+        min_loop_cycle_u16x16 = _mm256_blendv_epi8(min_loop_cycle_u16x16, current_loop_cycle_u16x16,
+                                                   min_changed_i16x16);
         __m256i greater_i16x16 = _mm256_cmpgt_epi16(data_cmp_i16x16, max_cmp_i16x16);
         __m256i max_changed_i16x16 = _mm256_and_si256(greater_i16x16, not_nan_valid_i16x16);
         max_cmp_i16x16 = _mm256_blendv_epi8(max_cmp_i16x16, data_cmp_i16x16, max_changed_i16x16);
-        max_iter_u16x16 = _mm256_blendv_epi8(max_iter_u16x16, iter_u16x16, max_changed_i16x16);
+        max_loop_cycle_u16x16 = _mm256_blendv_epi8(max_loop_cycle_u16x16, current_loop_cycle_u16x16,
+                                                   max_changed_i16x16);
     }
 
     nk_i16_t min_scalar_cmp = nk_reduce_min_i16x16_haswell_(min_cmp_i16x16);
     nk_i16_t max_scalar_cmp = nk_reduce_max_i16x16_haswell_(max_cmp_i16x16);
-    __m256i min_eq_i16x16 = _mm256_cmpeq_epi16(min_cmp_i16x16, _mm256_set1_epi16(min_scalar_cmp));
-    __m256i max_eq_i16x16 = _mm256_cmpeq_epi16(max_cmp_i16x16, _mm256_set1_epi16(max_scalar_cmp));
-    unsigned int min_lane = _tzcnt_u32((unsigned int)_mm256_movemask_epi8(min_eq_i16x16)) / 2;
-    unsigned int max_lane = _tzcnt_u32((unsigned int)_mm256_movemask_epi8(max_eq_i16x16)) / 2;
-    nk_b256_vec_t iter_vec;
-    iter_vec.ymm = min_iter_u16x16;
-    *min_index = (nk_size_t)iter_vec.u16s[min_lane] * 16 + min_lane;
-    iter_vec.ymm = max_iter_u16x16;
-    *max_index = (nk_size_t)iter_vec.u16s[max_lane] * 16 + max_lane;
+    unsigned int min_lane, max_lane;
+    {
+        __m256i value_match_b16x16 = _mm256_cmpeq_epi16(min_cmp_i16x16, _mm256_set1_epi16(min_scalar_cmp));
+        __m256i masked_cycle_u16x16 = _mm256_blendv_epi8(_mm256_set1_epi16((short)NK_U16_MAX), min_loop_cycle_u16x16,
+                                                         value_match_b16x16);
+        nk_u16_t earliest_loop_cycle = nk_reduce_min_u16x16_haswell_(masked_cycle_u16x16);
+        __m256i cycle_match_b16x16 = _mm256_cmpeq_epi16(masked_cycle_u16x16,
+                                                        _mm256_set1_epi16((short)earliest_loop_cycle));
+        min_lane = _tzcnt_u32((unsigned int)_mm256_movemask_epi8(cycle_match_b16x16)) / 2;
+    }
+    {
+        __m256i value_match_b16x16 = _mm256_cmpeq_epi16(max_cmp_i16x16, _mm256_set1_epi16(max_scalar_cmp));
+        __m256i masked_cycle_u16x16 = _mm256_blendv_epi8(_mm256_set1_epi16((short)NK_U16_MAX), max_loop_cycle_u16x16,
+                                                         value_match_b16x16);
+        nk_u16_t earliest_loop_cycle = nk_reduce_min_u16x16_haswell_(masked_cycle_u16x16);
+        __m256i cycle_match_b16x16 = _mm256_cmpeq_epi16(masked_cycle_u16x16,
+                                                        _mm256_set1_epi16((short)earliest_loop_cycle));
+        max_lane = _tzcnt_u32((unsigned int)_mm256_movemask_epi8(cycle_match_b16x16)) / 2;
+    }
+    nk_b256_vec_t loop_cycle_vec;
+    loop_cycle_vec.ymm = min_loop_cycle_u16x16;
+    *min_index = (nk_size_t)loop_cycle_vec.u16s[min_lane] * 16 + min_lane;
+    loop_cycle_vec.ymm = max_loop_cycle_u16x16;
+    *max_index = (nk_size_t)loop_cycle_vec.u16s[max_lane] * 16 + max_lane;
     nk_i16_t min_sign = min_scalar_cmp >> 15;
     *min_value = (nk_bf16_t)((nk_u16_t)min_scalar_cmp ^ ((nk_u16_t)min_sign >> 1));
     nk_i16_t max_sign = max_scalar_cmp >> 15;
@@ -2658,9 +2882,9 @@ NK_INTERNAL void nk_reduce_minmax_f16_haswell_contiguous_( //
     __m256i all_ones_i16x16 = _mm256_set1_epi8((char)0xFF);
     __m256i min_cmp_i16x16 = _mm256_set1_epi16((short)0x7FFF);
     __m256i max_cmp_i16x16 = _mm256_set1_epi16((short)0x8000);
-    __m256i min_iter_u16x16 = _mm256_setzero_si256();
-    __m256i max_iter_u16x16 = _mm256_setzero_si256();
-    __m256i iter_u16x16 = _mm256_setzero_si256();
+    __m256i min_loop_cycle_u16x16 = _mm256_setzero_si256();
+    __m256i max_loop_cycle_u16x16 = _mm256_setzero_si256();
+    __m256i current_loop_cycle_u16x16 = _mm256_setzero_si256();
     __m256i one_u16x16 = _mm256_set1_epi16(1);
 
     nk_size_t idx = 0;
@@ -2673,12 +2897,14 @@ NK_INTERNAL void nk_reduce_minmax_f16_haswell_contiguous_( //
         __m256i less_i16x16 = _mm256_cmpgt_epi16(min_cmp_i16x16, data_cmp_i16x16);
         __m256i min_changed_i16x16 = _mm256_and_si256(less_i16x16, not_nan_i16x16);
         min_cmp_i16x16 = _mm256_blendv_epi8(min_cmp_i16x16, data_cmp_i16x16, min_changed_i16x16);
-        min_iter_u16x16 = _mm256_blendv_epi8(min_iter_u16x16, iter_u16x16, min_changed_i16x16);
+        min_loop_cycle_u16x16 = _mm256_blendv_epi8(min_loop_cycle_u16x16, current_loop_cycle_u16x16,
+                                                   min_changed_i16x16);
         __m256i greater_i16x16 = _mm256_cmpgt_epi16(data_cmp_i16x16, max_cmp_i16x16);
         __m256i max_changed_i16x16 = _mm256_and_si256(greater_i16x16, not_nan_i16x16);
         max_cmp_i16x16 = _mm256_blendv_epi8(max_cmp_i16x16, data_cmp_i16x16, max_changed_i16x16);
-        max_iter_u16x16 = _mm256_blendv_epi8(max_iter_u16x16, iter_u16x16, max_changed_i16x16);
-        iter_u16x16 = _mm256_add_epi16(iter_u16x16, one_u16x16);
+        max_loop_cycle_u16x16 = _mm256_blendv_epi8(max_loop_cycle_u16x16, current_loop_cycle_u16x16,
+                                                   max_changed_i16x16);
+        current_loop_cycle_u16x16 = _mm256_add_epi16(current_loop_cycle_u16x16, one_u16x16);
     }
 
     nk_size_t remaining = count - idx;
@@ -2697,24 +2923,41 @@ NK_INTERNAL void nk_reduce_minmax_f16_haswell_contiguous_( //
         __m256i less_i16x16 = _mm256_cmpgt_epi16(min_cmp_i16x16, data_cmp_i16x16);
         __m256i min_changed_i16x16 = _mm256_and_si256(less_i16x16, not_nan_valid_i16x16);
         min_cmp_i16x16 = _mm256_blendv_epi8(min_cmp_i16x16, data_cmp_i16x16, min_changed_i16x16);
-        min_iter_u16x16 = _mm256_blendv_epi8(min_iter_u16x16, iter_u16x16, min_changed_i16x16);
+        min_loop_cycle_u16x16 = _mm256_blendv_epi8(min_loop_cycle_u16x16, current_loop_cycle_u16x16,
+                                                   min_changed_i16x16);
         __m256i greater_i16x16 = _mm256_cmpgt_epi16(data_cmp_i16x16, max_cmp_i16x16);
         __m256i max_changed_i16x16 = _mm256_and_si256(greater_i16x16, not_nan_valid_i16x16);
         max_cmp_i16x16 = _mm256_blendv_epi8(max_cmp_i16x16, data_cmp_i16x16, max_changed_i16x16);
-        max_iter_u16x16 = _mm256_blendv_epi8(max_iter_u16x16, iter_u16x16, max_changed_i16x16);
+        max_loop_cycle_u16x16 = _mm256_blendv_epi8(max_loop_cycle_u16x16, current_loop_cycle_u16x16,
+                                                   max_changed_i16x16);
     }
 
     nk_i16_t min_scalar_cmp = nk_reduce_min_i16x16_haswell_(min_cmp_i16x16);
     nk_i16_t max_scalar_cmp = nk_reduce_max_i16x16_haswell_(max_cmp_i16x16);
-    __m256i min_eq_i16x16 = _mm256_cmpeq_epi16(min_cmp_i16x16, _mm256_set1_epi16(min_scalar_cmp));
-    __m256i max_eq_i16x16 = _mm256_cmpeq_epi16(max_cmp_i16x16, _mm256_set1_epi16(max_scalar_cmp));
-    unsigned int min_lane = _tzcnt_u32((unsigned int)_mm256_movemask_epi8(min_eq_i16x16)) / 2;
-    unsigned int max_lane = _tzcnt_u32((unsigned int)_mm256_movemask_epi8(max_eq_i16x16)) / 2;
-    nk_b256_vec_t iter_vec;
-    iter_vec.ymm = min_iter_u16x16;
-    *min_index = (nk_size_t)iter_vec.u16s[min_lane] * 16 + min_lane;
-    iter_vec.ymm = max_iter_u16x16;
-    *max_index = (nk_size_t)iter_vec.u16s[max_lane] * 16 + max_lane;
+    unsigned int min_lane, max_lane;
+    {
+        __m256i value_match_b16x16 = _mm256_cmpeq_epi16(min_cmp_i16x16, _mm256_set1_epi16(min_scalar_cmp));
+        __m256i masked_cycle_u16x16 = _mm256_blendv_epi8(_mm256_set1_epi16((short)NK_U16_MAX), min_loop_cycle_u16x16,
+                                                         value_match_b16x16);
+        nk_u16_t earliest_loop_cycle = nk_reduce_min_u16x16_haswell_(masked_cycle_u16x16);
+        __m256i cycle_match_b16x16 = _mm256_cmpeq_epi16(masked_cycle_u16x16,
+                                                        _mm256_set1_epi16((short)earliest_loop_cycle));
+        min_lane = _tzcnt_u32((unsigned int)_mm256_movemask_epi8(cycle_match_b16x16)) / 2;
+    }
+    {
+        __m256i value_match_b16x16 = _mm256_cmpeq_epi16(max_cmp_i16x16, _mm256_set1_epi16(max_scalar_cmp));
+        __m256i masked_cycle_u16x16 = _mm256_blendv_epi8(_mm256_set1_epi16((short)NK_U16_MAX), max_loop_cycle_u16x16,
+                                                         value_match_b16x16);
+        nk_u16_t earliest_loop_cycle = nk_reduce_min_u16x16_haswell_(masked_cycle_u16x16);
+        __m256i cycle_match_b16x16 = _mm256_cmpeq_epi16(masked_cycle_u16x16,
+                                                        _mm256_set1_epi16((short)earliest_loop_cycle));
+        max_lane = _tzcnt_u32((unsigned int)_mm256_movemask_epi8(cycle_match_b16x16)) / 2;
+    }
+    nk_b256_vec_t loop_cycle_vec;
+    loop_cycle_vec.ymm = min_loop_cycle_u16x16;
+    *min_index = (nk_size_t)loop_cycle_vec.u16s[min_lane] * 16 + min_lane;
+    loop_cycle_vec.ymm = max_loop_cycle_u16x16;
+    *max_index = (nk_size_t)loop_cycle_vec.u16s[max_lane] * 16 + max_lane;
     nk_i16_t min_sign = min_scalar_cmp >> 15;
     *min_value = (nk_f16_t)((nk_u16_t)min_scalar_cmp ^ ((nk_u16_t)min_sign >> 1));
     nk_i16_t max_sign = max_scalar_cmp >> 15;
