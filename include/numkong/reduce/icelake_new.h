@@ -510,7 +510,7 @@ NK_PUBLIC void nk_reduce_moments_e3m2_icelake(                      //
     int aligned = (stride_bytes % sizeof(nk_e3m2_t) == 0);
     if (count == 0) *sum = 0, *sumsq = 0;
     else if (!aligned) nk_reduce_moments_e3m2_serial(data, count, stride_bytes, sum, sumsq);
-    else if (count > (nk_size_t)5000 * 32) {
+    else if (count > (nk_size_t)2048 * 64) {
         nk_size_t left_count = count / 2;
         nk_f32_t left_sum, left_sumsq, right_sum, right_sumsq;
         nk_reduce_moments_e3m2_icelake(data, left_count, stride_bytes, &left_sum, &left_sumsq);
