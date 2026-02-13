@@ -950,7 +950,10 @@ NK_PUBLIC void nk_reduce_max_e3m2_rvv(nk_e3m2_t const *data, nk_size_t count, nk
 #include "numkong/reduce/rvv.h"
 
 #include "numkong/reduce/serial_new.h"
+#include "numkong/reduce/haswell_new.h"
 #include "numkong/reduce/skylake_new.h"
+#include "numkong/reduce/icelake_new.h"
+#include "numkong/reduce/genoa_new.h"
 
 #ifdef __cplusplus
 extern "C" {

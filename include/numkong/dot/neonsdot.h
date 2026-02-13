@@ -432,7 +432,7 @@ NK_PUBLIC void nk_dot_e3m2_neonsdot(nk_e3m2_t const *a_scalars, nk_e3m2_t const 
     // The 32-entry magnitude LUT low bytes are looked up via vqtbl2q_u8.
     // High byte is 1 only for indices 28-31 (values 256-448), replaced by a >= 28 comparison.
     static nk_u8_t const lut_data[32] = {0,  1,  2,  3,  4,  5,  6,  7,   8,   10,  12,  14,  16, 20, 24,  28,
-                                            32, 40, 48, 56, 64, 80, 96, 112, 128, 160, 192, 224, 0,  64, 128, 192};
+                                         32, 40, 48, 56, 64, 80, 96, 112, 128, 160, 192, 224, 0,  64, 128, 192};
     uint8x16x2_t lut = vld1q_u8_x2(lut_data);
     uint8x16_t high_threshold_u8x16 = vdupq_n_u8(28);
     uint8x16_t magnitude_mask_u8x16 = vdupq_n_u8(0x1F);
