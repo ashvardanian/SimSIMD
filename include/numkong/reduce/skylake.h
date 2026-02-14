@@ -1,6 +1,6 @@
 /**
  *  @brief AVX-512 implementations for the redesigned reduction API (moments + minmax).
- *  @file include/numkong/reduce/skylake_new.h
+ *  @file include/numkong/reduce/skylake.h
  *  @author Ash Vardanian
  *  @date February 11, 2026
  *
@@ -2716,8 +2716,8 @@ NK_PUBLIC void nk_reduce_minmax_e4m3_skylake(                           //
         nk_size_t left_min_index, right_min_index, left_max_index, right_max_index;
         nk_reduce_minmax_e4m3_skylake(data_ptr, left_count, stride_bytes, &left_min, &left_min_index, &left_max,
                                       &left_max_index);
-        nk_reduce_minmax_e4m3_skylake(data_ptr + left_count, count - left_count, stride_bytes, &right_min, &right_min_index,
-                                      &right_max, &right_max_index);
+        nk_reduce_minmax_e4m3_skylake(data_ptr + left_count, count - left_count, stride_bytes, &right_min,
+                                      &right_min_index, &right_max, &right_max_index);
         if (nk_e4m3_compare_(right_min, left_min) < 0)
             *min_value_ptr = right_min, *min_index_ptr = left_count + right_min_index;
         else *min_value_ptr = left_min, *min_index_ptr = left_min_index;
@@ -3029,8 +3029,8 @@ NK_PUBLIC void nk_reduce_minmax_e5m2_skylake(                           //
         nk_size_t left_min_index, right_min_index, left_max_index, right_max_index;
         nk_reduce_minmax_e5m2_skylake(data_ptr, left_count, stride_bytes, &left_min, &left_min_index, &left_max,
                                       &left_max_index);
-        nk_reduce_minmax_e5m2_skylake(data_ptr + left_count, count - left_count, stride_bytes, &right_min, &right_min_index,
-                                      &right_max, &right_max_index);
+        nk_reduce_minmax_e5m2_skylake(data_ptr + left_count, count - left_count, stride_bytes, &right_min,
+                                      &right_min_index, &right_max, &right_max_index);
         if (nk_e5m2_compare_(right_min, left_min) < 0)
             *min_value_ptr = right_min, *min_index_ptr = left_count + right_min_index;
         else *min_value_ptr = left_min, *min_index_ptr = left_min_index;
@@ -3130,8 +3130,8 @@ NK_PUBLIC void nk_reduce_minmax_e2m3_skylake(                           //
         nk_size_t left_min_index, right_min_index, left_max_index, right_max_index;
         nk_reduce_minmax_e2m3_skylake(data_ptr, left_count, stride_bytes, &left_min, &left_min_index, &left_max,
                                       &left_max_index);
-        nk_reduce_minmax_e2m3_skylake(data_ptr + left_count, count - left_count, stride_bytes, &right_min, &right_min_index,
-                                      &right_max, &right_max_index);
+        nk_reduce_minmax_e2m3_skylake(data_ptr + left_count, count - left_count, stride_bytes, &right_min,
+                                      &right_min_index, &right_max, &right_max_index);
         if (nk_e2m3_compare_(right_min, left_min) < 0)
             *min_value_ptr = right_min, *min_index_ptr = left_count + right_min_index;
         else *min_value_ptr = left_min, *min_index_ptr = left_min_index;
@@ -3231,8 +3231,8 @@ NK_PUBLIC void nk_reduce_minmax_e3m2_skylake(                           //
         nk_size_t left_min_index, right_min_index, left_max_index, right_max_index;
         nk_reduce_minmax_e3m2_skylake(data_ptr, left_count, stride_bytes, &left_min, &left_min_index, &left_max,
                                       &left_max_index);
-        nk_reduce_minmax_e3m2_skylake(data_ptr + left_count, count - left_count, stride_bytes, &right_min, &right_min_index,
-                                      &right_max, &right_max_index);
+        nk_reduce_minmax_e3m2_skylake(data_ptr + left_count, count - left_count, stride_bytes, &right_min,
+                                      &right_min_index, &right_max, &right_max_index);
         if (nk_e3m2_compare_(right_min, left_min) < 0)
             *min_value_ptr = right_min, *min_index_ptr = left_count + right_min_index;
         else *min_value_ptr = left_min, *min_index_ptr = left_min_index;
@@ -3593,8 +3593,8 @@ NK_PUBLIC void nk_reduce_minmax_bf16_skylake(                           //
         nk_size_t left_min_index, right_min_index, left_max_index, right_max_index;
         nk_reduce_minmax_bf16_skylake(data_ptr, left_count, stride_bytes, &left_min, &left_min_index, &left_max,
                                       &left_max_index);
-        nk_reduce_minmax_bf16_skylake(data_ptr + left_count, count - left_count, stride_bytes, &right_min, &right_min_index,
-                                      &right_max, &right_max_index);
+        nk_reduce_minmax_bf16_skylake(data_ptr + left_count, count - left_count, stride_bytes, &right_min,
+                                      &right_min_index, &right_max, &right_max_index);
         if (nk_bf16_compare_(right_min, left_min) < 0)
             *min_value_ptr = right_min, *min_index_ptr = left_count + right_min_index;
         else *min_value_ptr = left_min, *min_index_ptr = left_min_index;
@@ -3769,8 +3769,8 @@ NK_PUBLIC void nk_reduce_minmax_f16_skylake(                           //
         nk_size_t left_min_index, right_min_index, left_max_index, right_max_index;
         nk_reduce_minmax_f16_skylake(data_ptr, left_count, stride_bytes, &left_min, &left_min_index, &left_max,
                                      &left_max_index);
-        nk_reduce_minmax_f16_skylake(data_ptr + left_count, count - left_count, stride_bytes, &right_min, &right_min_index,
-                                     &right_max, &right_max_index);
+        nk_reduce_minmax_f16_skylake(data_ptr + left_count, count - left_count, stride_bytes, &right_min,
+                                     &right_min_index, &right_max, &right_max_index);
         if (nk_f16_compare_(right_min, left_min) < 0)
             *min_value_ptr = right_min, *min_index_ptr = left_count + right_min_index;
         else *min_value_ptr = left_min, *min_index_ptr = left_min_index;

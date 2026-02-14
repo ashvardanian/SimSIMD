@@ -1,5 +1,5 @@
 /**
- *  @brief SIMD-accelerated Geographic Distances for WASM Relaxed SIMD.
+ *  @brief SIMD-accelerated Geospatial Distances for WASM.
  *  @file include/numkong/geospatial/v128relaxed.h
  *  @author Ash Vardanian
  *  @date February 6, 2026

@@ -1,6 +1,6 @@
 /**
- *  @brief RISC-V Vector implementations for the redesigned reduction API (moments + minmax).
- *  @file include/numkong/reduce/rvv_new.h
+ *  @brief SIMD-accelerated Reductions for RISC-V.
+ *  @file include/numkong/reduce/rvv.h
  *  @author Ash Vardanian
  *  @date February 13, 2026
  *

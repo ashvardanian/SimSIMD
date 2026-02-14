@@ -1,6 +1,6 @@
 /**
  *  @brief ARMv8.4-FHM implementations for the redesigned reduction API (moments + minmax).
- *  @file include/numkong/reduce/neonfhm_new.h
+ *  @file include/numkong/reduce/neonfhm.h
  *  @author Ash Vardanian
  *  @date February 13, 2026
  *

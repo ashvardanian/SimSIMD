@@ -1,5 +1,5 @@
 /**
- *  @brief SIMD-accelerated Geographic Distances for Haswell.
+ *  @brief SIMD-accelerated Geospatial Distances for Haswell.
  *  @file include/numkong/geospatial/haswell.h
  *  @author Ash Vardanian
  *  @date February 6, 2026

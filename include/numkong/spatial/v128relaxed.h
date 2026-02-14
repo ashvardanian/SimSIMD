@@ -1,8 +1,8 @@
 /**
- *  @file v128relaxed.h
- *  @brief      WASM SIMD (Relaxed SIMD) spatial distance kernels.
- *  @author     Ash Vardanian
- *  @date       February 2, 2026
+ *  @brief SIMD-accelerated Spatial Similarity Measures for WASM.
+ *  @file include/numkong/spatial/v128relaxed.h
+ *  @author Ash Vardanian
+ *  @date February 2, 2026
  *
  *  Contains:
  *  - Euclidean (L2) distance

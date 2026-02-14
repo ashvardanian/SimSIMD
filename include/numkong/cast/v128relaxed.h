@@ -1,8 +1,8 @@
 /**
- *  @file v128relaxed.h
- *  @brief      WASM SIMD (v128) type conversion helpers for BF16/F16 to F32.
- *  @author     Ash Vardanian
- *  @date       January 31, 2026
+ *  @brief SIMD-accelerated Type Conversions for WASM.
+ *  @file include/numkong/cast/v128relaxed.h
+ *  @author Ash Vardanian
+ *  @date January 31, 2026
  *
  *  @section cast_wasm_instructions Key WASM SIMD Instructions
  *

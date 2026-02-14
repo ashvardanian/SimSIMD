@@ -1,6 +1,6 @@
 /**
  *  @brief AVX2 implementations for the redesigned reduction API (moments + minmax).
- *  @file include/numkong/reduce/haswell_new.h
+ *  @file include/numkong/reduce/haswell.h
  *  @author Ash Vardanian
  *  @date February 12, 2026
  *

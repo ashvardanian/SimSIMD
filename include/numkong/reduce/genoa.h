@@ -1,6 +1,6 @@
 /**
  *  @brief AVX-512 BF16 implementations for the redesigned reduction API (moments).
- *  @file include/numkong/reduce/genoa_new.h
+ *  @file include/numkong/reduce/genoa.h
  *  @author Ash Vardanian
  *  @date February 12, 2026
  *

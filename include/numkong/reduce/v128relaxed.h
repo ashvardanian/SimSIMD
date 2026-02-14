@@ -1,6 +1,6 @@
 /**
- *  @brief WASM Relaxed SIMD implementations for the redesigned reduction API (moments + minmax).
- *  @file include/numkong/reduce/v128relaxed_new.h
+ *  @brief SIMD-accelerated Reductions for WASM.
+ *  @file include/numkong/reduce/v128relaxed.h
  *  @author Ash Vardanian
  *  @date February 13, 2026
  *
@@ -12,9 +12,8 @@
 #if NK_TARGET_V128RELAXED
 
 #include "numkong/types.h"
-#include "numkong/cast/v128relaxed.h" // nk_bf16x4_to_f32x4_v128relaxed_, nk_f16x4_to_f32x4_v128relaxed_
 #include "numkong/reduce/serial.h"
-// Helper functions previously from v128relaxed.h are now defined inline below.
+#include "numkong/cast/v128relaxed.h" // `nk_bf16x4_to_f32x4_v128relaxed_`
 
 #if defined(__cplusplus)
 extern "C" {

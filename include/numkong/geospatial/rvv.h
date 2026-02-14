@@ -68,9 +68,9 @@ extern "C" {
  *
  *  where R = NK_EARTH_MEDIATORIAL_RADIUS.
  */
-NK_INTERNAL void nk_haversine_f64_rvv_kernel_(                //
-    nk_f64_t const *a_lats, nk_f64_t const *a_lons,           //
-    nk_f64_t const *b_lats, nk_f64_t const *b_lons,           //
+NK_INTERNAL void nk_haversine_f64_rvv_kernel_(      //
+    nk_f64_t const *a_lats, nk_f64_t const *a_lons, //
+    nk_f64_t const *b_lats, nk_f64_t const *b_lons, //
     nk_size_t vl, nk_f64_t *results) {
 
     vfloat64m4_t lat1 = __riscv_vle64_v_f64m4(a_lats, vl);
@@ -117,9 +117,9 @@ NK_INTERNAL void nk_haversine_f64_rvv_kernel_(                //
     __riscv_vse64_v_f64m4(results, distances, vl);
 }
 
-NK_PUBLIC void nk_haversine_f64_rvv(                           //
-    nk_f64_t const *a_lats, nk_f64_t const *a_lons,           //
-    nk_f64_t const *b_lats, nk_f64_t const *b_lons,           //
+NK_PUBLIC void nk_haversine_f64_rvv(                //
+    nk_f64_t const *a_lats, nk_f64_t const *a_lons, //
+    nk_f64_t const *b_lats, nk_f64_t const *b_lons, //
     nk_size_t n, nk_f64_t *results) {
 
     for (nk_size_t vl; n > 0; n -= vl, a_lats += vl, a_lons += vl, b_lats += vl, b_lons += vl, results += vl) {
@@ -131,9 +131,9 @@ NK_PUBLIC void nk_haversine_f64_rvv(                           //
 /**
  *  @brief  RVV internal kernel for Haversine distance on vl f32 point pairs.
  */
-NK_INTERNAL void nk_haversine_f32_rvv_kernel_(                //
-    nk_f32_t const *a_lats, nk_f32_t const *a_lons,           //
-    nk_f32_t const *b_lats, nk_f32_t const *b_lons,           //
+NK_INTERNAL void nk_haversine_f32_rvv_kernel_(      //
+    nk_f32_t const *a_lats, nk_f32_t const *a_lons, //
+    nk_f32_t const *b_lats, nk_f32_t const *b_lons, //
     nk_size_t vl, nk_f32_t *results) {
 
     vfloat32m4_t lat1 = __riscv_vle32_v_f32m4(a_lats, vl);
@@ -180,9 +180,9 @@ NK_INTERNAL void nk_haversine_f32_rvv_kernel_(                //
     __riscv_vse32_v_f32m4(results, distances, vl);
 }
 
-NK_PUBLIC void nk_haversine_f32_rvv(                           //
-    nk_f32_t const *a_lats, nk_f32_t const *a_lons,           //
-    nk_f32_t const *b_lats, nk_f32_t const *b_lons,           //
+NK_PUBLIC void nk_haversine_f32_rvv(                //
+    nk_f32_t const *a_lats, nk_f32_t const *a_lons, //
+    nk_f32_t const *b_lats, nk_f32_t const *b_lons, //
     nk_size_t n, nk_f32_t *results) {
 
     for (nk_size_t vl; n > 0; n -= vl, a_lats += vl, a_lons += vl, b_lats += vl, b_lons += vl, results += vl) {
@@ -203,9 +203,9 @@ NK_PUBLIC void nk_haversine_f32_rvv(                           //
  *  Each SIMD lane tracks its own convergence state via mask registers. The loop terminates
  *  when all lanes have converged (vcpop == vl) or after NK_VINCENTY_MAX_ITERATIONS.
  */
-NK_INTERNAL void nk_vincenty_f64_rvv_kernel_(                  //
-    nk_f64_t const *a_lats, nk_f64_t const *a_lons,           //
-    nk_f64_t const *b_lats, nk_f64_t const *b_lons,           //
+NK_INTERNAL void nk_vincenty_f64_rvv_kernel_(       //
+    nk_f64_t const *a_lats, nk_f64_t const *a_lons, //
+    nk_f64_t const *b_lats, nk_f64_t const *b_lons, //
     nk_size_t vl, nk_f64_t *results) {
 
     vfloat64m4_t lat1 = __riscv_vle64_v_f64m4(a_lats, vl);
@@ -324,8 +324,7 @@ NK_INTERNAL void nk_vincenty_f64_rvv_kernel_(                  //
         correction_factor = __riscv_vfmul_vv_f64m4(correction_factor, outer_c, vl);
 
         // lambda' = L + (1-C)*f*sin(a)*(s + C*sin(s)*(cos(2sm) + C*cos(s)*(-1 + 2*cos^2(2sm))))
-        vfloat64m4_t cos_2sm_sq = __riscv_vfmul_vv_f64m4(cos_double_angular_midpoint,
-                                                           cos_double_angular_midpoint, vl);
+        vfloat64m4_t cos_2sm_sq = __riscv_vfmul_vv_f64m4(cos_double_angular_midpoint, cos_double_angular_midpoint, vl);
         // innermost = -1 + 2*cos^2(2sm)
         vfloat64m4_t innermost = __riscv_vfmadd_vv_f64m4(v_two, cos_2sm_sq, v_neg_one, vl);
         // middle = cos(2sm) + C*cos(s)*innermost
@@ -378,9 +377,9 @@ NK_INTERNAL void nk_vincenty_f64_rvv_kernel_(                  //
     vfloat64m4_t u_sq_over_1024 = __riscv_vfmul_vf_f64m4(u_squared, 1.0 / 1024.0, vl);
     series_b = __riscv_vfmul_vv_f64m4(u_sq_over_1024, series_b, vl);
 
-    // Delta-sigma = B*sin(s)*(cos(2sm) + B/4*(cos(s)*(-1+2*cos^2(2sm)) - B/6*cos(2sm)*(-3+4*sin^2(s))*(-3+4*cos^2(2sm))))
-    vfloat64m4_t cos_2sm_sq = __riscv_vfmul_vv_f64m4(cos_double_angular_midpoint,
-                                                       cos_double_angular_midpoint, vl);
+    // Delta-sigma = B*sin(s)*(cos(2sm) + B/4*(cos(s)*(-1+2*cos^2(2sm)) -
+    // B/6*cos(2sm)*(-3+4*sin^2(s))*(-3+4*cos^2(2sm))))
+    vfloat64m4_t cos_2sm_sq = __riscv_vfmul_vv_f64m4(cos_double_angular_midpoint, cos_double_angular_midpoint, vl);
     vfloat64m4_t sin_sq = __riscv_vfmul_vv_f64m4(sin_angular_distance, sin_angular_distance, vl);
 
     // term1 = cos(s) * (-1 + 2*cos^2(2sm))
@@ -419,9 +418,9 @@ NK_INTERNAL void nk_vincenty_f64_rvv_kernel_(                  //
     __riscv_vse64_v_f64m4(results, distances, vl);
 }
 
-NK_PUBLIC void nk_vincenty_f64_rvv(                            //
-    nk_f64_t const *a_lats, nk_f64_t const *a_lons,           //
-    nk_f64_t const *b_lats, nk_f64_t const *b_lons,           //
+NK_PUBLIC void nk_vincenty_f64_rvv(                 //
+    nk_f64_t const *a_lats, nk_f64_t const *a_lons, //
+    nk_f64_t const *b_lats, nk_f64_t const *b_lons, //
     nk_size_t n, nk_f64_t *results) {
 
     for (nk_size_t vl; n > 0; n -= vl, a_lats += vl, a_lons += vl, b_lats += vl, b_lons += vl, results += vl) {
@@ -434,9 +433,9 @@ NK_PUBLIC void nk_vincenty_f64_rvv(                            //
  *  @brief  RVV internal kernel for Vincenty's geodesic distance on vl f32 point pairs.
  *  @note   This is a true SIMD implementation using masked convergence tracking via vmerge.
  */
-NK_INTERNAL void nk_vincenty_f32_rvv_kernel_(                  //
-    nk_f32_t const *a_lats, nk_f32_t const *a_lons,           //
-    nk_f32_t const *b_lats, nk_f32_t const *b_lons,           //
+NK_INTERNAL void nk_vincenty_f32_rvv_kernel_(       //
+    nk_f32_t const *a_lats, nk_f32_t const *a_lons, //
+    nk_f32_t const *b_lats, nk_f32_t const *b_lons, //
     nk_size_t vl, nk_f32_t *results) {
 
     vfloat32m4_t lat1 = __riscv_vle32_v_f32m4(a_lats, vl);
@@ -552,8 +551,7 @@ NK_INTERNAL void nk_vincenty_f32_rvv_kernel_(                  //
         correction_factor = __riscv_vfmul_vv_f32m4(correction_factor, outer_c, vl);
 
         // lambda' = L + (1-C)*f*sin(a)*(s + C*sin(s)*(cos(2sm) + C*cos(s)*(-1 + 2*cos^2(2sm))))
-        vfloat32m4_t cos_2sm_sq = __riscv_vfmul_vv_f32m4(cos_double_angular_midpoint,
-                                                           cos_double_angular_midpoint, vl);
+        vfloat32m4_t cos_2sm_sq = __riscv_vfmul_vv_f32m4(cos_double_angular_midpoint, cos_double_angular_midpoint, vl);
         vfloat32m4_t innermost = __riscv_vfmadd_vv_f32m4(v_two, cos_2sm_sq, v_neg_one, vl);
         vfloat32m4_t c_cos_s = __riscv_vfmul_vv_f32m4(correction_factor, cos_angular_distance, vl);
         vfloat32m4_t middle = __riscv_vfmadd_vv_f32m4(c_cos_s, innermost, cos_double_angular_midpoint, vl);
@@ -602,8 +600,7 @@ NK_INTERNAL void nk_vincenty_f32_rvv_kernel_(                  //
     series_b = __riscv_vfmul_vv_f32m4(u_sq_over_1024, series_b, vl);
 
     // Delta-sigma calculation
-    vfloat32m4_t cos_2sm_sq = __riscv_vfmul_vv_f32m4(cos_double_angular_midpoint,
-                                                       cos_double_angular_midpoint, vl);
+    vfloat32m4_t cos_2sm_sq = __riscv_vfmul_vv_f32m4(cos_double_angular_midpoint, cos_double_angular_midpoint, vl);
     vfloat32m4_t sin_sq = __riscv_vfmul_vv_f32m4(sin_angular_distance, sin_angular_distance, vl);
 
     // term1 = cos(s) * (-1 + 2*cos^2(2sm))
@@ -642,9 +639,9 @@ NK_INTERNAL void nk_vincenty_f32_rvv_kernel_(                  //
     __riscv_vse32_v_f32m4(results, distances, vl);
 }
 
-NK_PUBLIC void nk_vincenty_f32_rvv(                            //
-    nk_f32_t const *a_lats, nk_f32_t const *a_lons,           //
-    nk_f32_t const *b_lats, nk_f32_t const *b_lons,           //
+NK_PUBLIC void nk_vincenty_f32_rvv(                 //
+    nk_f32_t const *a_lats, nk_f32_t const *a_lons, //
+    nk_f32_t const *b_lats, nk_f32_t const *b_lons, //
     nk_size_t n, nk_f32_t *results) {
 
     for (nk_size_t vl; n > 0; n -= vl, a_lats += vl, a_lons += vl, b_lats += vl, b_lons += vl, results += vl) {

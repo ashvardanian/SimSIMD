@@ -1,6 +1,6 @@
 /**
  *  @brief NEON FP16 implementations for the redesigned reduction API (moments + minmax).
- *  @file include/numkong/reduce/neonhalf_new.h
+ *  @file include/numkong/reduce/neonhalf.h
  *  @author Ash Vardanian
  *  @date February 13, 2026
  *

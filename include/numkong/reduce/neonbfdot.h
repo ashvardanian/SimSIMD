@@ -1,6 +1,6 @@
 /**
  *  @brief ARMv8.6-BF16 implementations for the redesigned reduction API (moments + minmax).
- *  @file include/numkong/reduce/neonbfdot_new.h
+ *  @file include/numkong/reduce/neonbfdot.h
  *  @author Ash Vardanian
  *  @date February 13, 2026
  *

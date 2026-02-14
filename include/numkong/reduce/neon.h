@@ -1,6 +1,6 @@
 /**
  *  @brief Base NEON (ARMv8-A) implementations for the redesigned reduction API (moments + minmax).
- *  @file include/numkong/reduce/neon_new.h
+ *  @file include/numkong/reduce/neon.h
  *  @author Ash Vardanian
  *  @date February 13, 2026
  *

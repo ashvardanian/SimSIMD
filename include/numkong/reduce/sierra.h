@@ -1,6 +1,6 @@
 /**
  *  @brief Sierra Forest (AVX2+VNNI) implementations for the redesigned reduction API (moments).
- *  @file include/numkong/reduce/sierra_new.h
+ *  @file include/numkong/reduce/sierra.h
  *  @author Ash Vardanian
  *  @date February 13, 2026
  *

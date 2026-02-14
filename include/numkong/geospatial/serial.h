@@ -1,5 +1,5 @@
 /**
- *  @brief Serial Geographic Distances.
+ *  @brief Serial Geospatial Distances.
  *  @file include/numkong/geospatial/serial.h
  *  @author Ash Vardanian
  *  @date February 6, 2026

@@ -1,5 +1,5 @@
 /**
- *  @brief SIMD-accelerated batched binary set computations for ARM SME.
+ *  @brief SIMD-accelerated Batched Set Distances for SME.
  *  @file include/numkong/sets/smebi32.h
  *  @author Ash Vardanian
  *  @date February 6, 2026

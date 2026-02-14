@@ -1,8 +1,8 @@
 /**
- *  @file v128relaxed.h
- *  @brief      WASM SIMD (Relaxed SIMD) dot product kernels.
- *  @author     Ash Vardanian
- *  @date       January 31, 2026
+ *  @brief SIMD-accelerated Dot Products for WASM.
+ *  @file include/numkong/dot/v128relaxed.h
+ *  @author Ash Vardanian
+ *  @date January 31, 2026
  *
  *  Requires Emscripten 3.1.27+ with `-msimd128 -mrelaxed-simd` flags.
  *

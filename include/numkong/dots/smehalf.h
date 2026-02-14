@@ -1,5 +1,5 @@
 /**
- *  @brief SME-accelerated dot products with FP16 intermediate accumulation for FP6 types.
+ *  @brief SIMD-accelerated Batched Dot Products for SME FP16.
  *  @file include/numkong/dots/smehalf.h
  *  @author Ash Vardanian
  *  @date February 6, 2026
