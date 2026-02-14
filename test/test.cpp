@@ -94,7 +94,10 @@ int main(int argc, char **argv) {
         else if (std::strcmp(argv[i], "--filter") == 0 && i + 1 < argc) { global_config.filter = argv[++i]; }
         else if (std::strcmp(argv[i], "--assert") == 0) { global_config.assert_on_failure = true; }
         else if (std::strcmp(argv[i], "--verbose") == 0) { global_config.verbose = true; }
-        else { std::fprintf(stderr, "Warning: unrecognized argument '%s'\n", argv[i]); }
+        else {
+            std::fprintf(stderr, "Error: unrecognized argument '%s'\n", argv[i]);
+            return 1;
+        }
     }
 
     if (std::getenv("NK_IN_QEMU")) global_config.running_in_qemu = true;
