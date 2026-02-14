@@ -38,8 +38,8 @@ extern "C" {
 #endif
 
 NK_INTERNAL void nk_reduce_moments_bf16_genoa_contiguous_( //
-    nk_bf16_t const *data, nk_size_t count,                //
-    nk_f32_t *sum, nk_f32_t *sumsq) {
+    nk_bf16_t const *data_ptr, nk_size_t count,            //
+    nk_f32_t *sum_ptr, nk_f32_t *sumsq_ptr) {
 
     // bf16(1.0) = 0x3F80. Pack 32 of them as __m512bh.
     __m512bh ones_bf16x32 = (__m512bh)_mm512_set1_epi16(0x3F80);
@@ -48,7 +48,7 @@ NK_INTERNAL void nk_reduce_moments_bf16_genoa_contiguous_( //
     nk_size_t idx = 0;
 
     for (; idx + 32 <= count; idx += 32) {
-        __m512bh data_bf16x32 = (__m512bh)_mm512_loadu_si512(data + idx);
+        __m512bh data_bf16x32 = (__m512bh)_mm512_loadu_si512(data_ptr + idx);
         sum_f32x16 = _mm512_dpbf16_ps(sum_f32x16, data_bf16x32, ones_bf16x32);
         sumsq_f32x16 = _mm512_dpbf16_ps(sumsq_f32x16, data_bf16x32, data_bf16x32);
     }
@@ -57,38 +57,38 @@ NK_INTERNAL void nk_reduce_moments_bf16_genoa_contiguous_( //
     nk_size_t remaining = count - idx;
     if (remaining > 0) {
         __mmask32 tail_mask = (__mmask32)_bzhi_u32(0xFFFFFFFF, (unsigned int)remaining);
-        __m512bh data_bf16x32 = (__m512bh)_mm512_maskz_loadu_epi16(tail_mask, data + idx);
+        __m512bh data_bf16x32 = (__m512bh)_mm512_maskz_loadu_epi16(tail_mask, data_ptr + idx);
         sum_f32x16 = _mm512_dpbf16_ps(sum_f32x16, data_bf16x32, ones_bf16x32);
         sumsq_f32x16 = _mm512_dpbf16_ps(sumsq_f32x16, data_bf16x32, data_bf16x32);
     }
 
-    *sum = nk_reduce_add_f32x16_skylake_(sum_f32x16);
-    *sumsq = nk_reduce_add_f32x16_skylake_(sumsq_f32x16);
+    *sum_ptr = nk_reduce_add_f32x16_skylake_(sum_f32x16);
+    *sumsq_ptr = nk_reduce_add_f32x16_skylake_(sumsq_f32x16);
 }
 
-NK_PUBLIC void nk_reduce_moments_bf16_genoa(                        //
-    nk_bf16_t const *data, nk_size_t count, nk_size_t stride_bytes, //
-    nk_f32_t *sum, nk_f32_t *sumsq) {
+NK_PUBLIC void nk_reduce_moments_bf16_genoa(                            //
+    nk_bf16_t const *data_ptr, nk_size_t count, nk_size_t stride_bytes, //
+    nk_f32_t *sum_ptr, nk_f32_t *sumsq_ptr) {
     nk_size_t stride_elements = stride_bytes / sizeof(nk_bf16_t);
     int aligned = (stride_bytes % sizeof(nk_bf16_t) == 0);
-    if (count == 0) *sum = 0, *sumsq = 0;
-    else if (!aligned) nk_reduce_moments_bf16_serial(data, count, stride_bytes, sum, sumsq);
+    if (count == 0) *sum_ptr = 0, *sumsq_ptr = 0;
+    else if (!aligned) nk_reduce_moments_bf16_serial(data_ptr, count, stride_bytes, sum_ptr, sumsq_ptr);
     else if (count > (nk_size_t)(NK_U16_MAX + 1) * 32) {
         nk_size_t left_count = count / 2;
         nk_f32_t left_sum, left_sumsq, right_sum, right_sumsq;
-        nk_reduce_moments_bf16_genoa(data, left_count, stride_bytes, &left_sum, &left_sumsq);
-        nk_reduce_moments_bf16_genoa(data + left_count * stride_elements, count - left_count, stride_bytes, &right_sum,
-                                     &right_sumsq);
-        *sum = left_sum + right_sum;
-        *sumsq = left_sumsq + right_sumsq;
+        nk_reduce_moments_bf16_genoa(data_ptr, left_count, stride_bytes, &left_sum, &left_sumsq);
+        nk_reduce_moments_bf16_genoa(data_ptr + left_count * stride_elements, count - left_count, stride_bytes,
+                                     &right_sum, &right_sumsq);
+        *sum_ptr = left_sum + right_sum;
+        *sumsq_ptr = left_sumsq + right_sumsq;
     }
-    else if (stride_elements == 1) nk_reduce_moments_bf16_genoa_contiguous_(data, count, sum, sumsq);
-    else nk_reduce_moments_bf16_serial(data, count, stride_bytes, sum, sumsq);
+    else if (stride_elements == 1) nk_reduce_moments_bf16_genoa_contiguous_(data_ptr, count, sum_ptr, sumsq_ptr);
+    else nk_reduce_moments_bf16_serial(data_ptr, count, stride_bytes, sum_ptr, sumsq_ptr);
 }
 
 NK_INTERNAL void nk_reduce_moments_e4m3_genoa_contiguous_( //
-    nk_e4m3_t const *data, nk_size_t count,                //
-    nk_f32_t *sum, nk_f32_t *sumsq) {
+    nk_e4m3_t const *data_ptr, nk_size_t count,            //
+    nk_f32_t *sum_ptr, nk_f32_t *sumsq_ptr) {
 
     __m512bh ones_bf16x32 = (__m512bh)_mm512_set1_epi16(0x3F80); // bf16(1.0)
     __m512 sum_f32x16 = _mm512_setzero_ps();
@@ -96,7 +96,7 @@ NK_INTERNAL void nk_reduce_moments_e4m3_genoa_contiguous_( //
     nk_size_t idx = 0;
 
     for (; idx + 32 <= count; idx += 32) {
-        __m256i raw_u8x32 = _mm256_loadu_si256((__m256i const *)(data + idx));
+        __m256i raw_u8x32 = _mm256_loadu_si256((__m256i const *)(data_ptr + idx));
         __m512bh data_bf16x32 = (__m512bh)nk_e4m3x32_to_bf16x32_icelake_(raw_u8x32);
         sum_f32x16 = _mm512_dpbf16_ps(sum_f32x16, data_bf16x32, ones_bf16x32);
         sumsq_f32x16 = _mm512_dpbf16_ps(sumsq_f32x16, data_bf16x32, data_bf16x32);
@@ -106,39 +106,39 @@ NK_INTERNAL void nk_reduce_moments_e4m3_genoa_contiguous_( //
     nk_size_t remaining = count - idx;
     if (remaining > 0) {
         __mmask32 tail_mask = (__mmask32)_bzhi_u32(0xFFFFFFFF, (unsigned int)remaining);
-        __m256i raw_u8x32 = _mm256_maskz_loadu_epi8(tail_mask, data + idx);
+        __m256i raw_u8x32 = _mm256_maskz_loadu_epi8(tail_mask, data_ptr + idx);
         __m512bh data_bf16x32 = (__m512bh)nk_e4m3x32_to_bf16x32_icelake_(raw_u8x32);
         sum_f32x16 = _mm512_dpbf16_ps(sum_f32x16, data_bf16x32, ones_bf16x32);
         sumsq_f32x16 = _mm512_dpbf16_ps(sumsq_f32x16, data_bf16x32, data_bf16x32);
     }
 
-    *sum = nk_reduce_add_f32x16_skylake_(sum_f32x16);
-    *sumsq = nk_reduce_add_f32x16_skylake_(sumsq_f32x16);
+    *sum_ptr = nk_reduce_add_f32x16_skylake_(sum_f32x16);
+    *sumsq_ptr = nk_reduce_add_f32x16_skylake_(sumsq_f32x16);
 }
 
-NK_PUBLIC void nk_reduce_moments_e4m3_genoa(                        //
-    nk_e4m3_t const *data, nk_size_t count, nk_size_t stride_bytes, //
-    nk_f32_t *sum, nk_f32_t *sumsq) {
+NK_PUBLIC void nk_reduce_moments_e4m3_genoa(                            //
+    nk_e4m3_t const *data_ptr, nk_size_t count, nk_size_t stride_bytes, //
+    nk_f32_t *sum_ptr, nk_f32_t *sumsq_ptr) {
     nk_size_t stride_elements = stride_bytes / sizeof(nk_e4m3_t);
     int aligned = (stride_bytes % sizeof(nk_e4m3_t) == 0);
-    if (count == 0) *sum = 0, *sumsq = 0;
-    else if (!aligned) nk_reduce_moments_e4m3_serial(data, count, stride_bytes, sum, sumsq);
+    if (count == 0) *sum_ptr = 0, *sumsq_ptr = 0;
+    else if (!aligned) nk_reduce_moments_e4m3_serial(data_ptr, count, stride_bytes, sum_ptr, sumsq_ptr);
     else if (count > (nk_size_t)(NK_U16_MAX + 1) * 32) {
         nk_size_t left_count = count / 2;
         nk_f32_t left_sum, left_sumsq, right_sum, right_sumsq;
-        nk_reduce_moments_e4m3_genoa(data, left_count, stride_bytes, &left_sum, &left_sumsq);
-        nk_reduce_moments_e4m3_genoa(data + left_count * stride_elements, count - left_count, stride_bytes, &right_sum,
-                                     &right_sumsq);
-        *sum = left_sum + right_sum;
-        *sumsq = left_sumsq + right_sumsq;
+        nk_reduce_moments_e4m3_genoa(data_ptr, left_count, stride_bytes, &left_sum, &left_sumsq);
+        nk_reduce_moments_e4m3_genoa(data_ptr + left_count * stride_elements, count - left_count, stride_bytes,
+                                     &right_sum, &right_sumsq);
+        *sum_ptr = left_sum + right_sum;
+        *sumsq_ptr = left_sumsq + right_sumsq;
     }
-    else if (stride_elements == 1) nk_reduce_moments_e4m3_genoa_contiguous_(data, count, sum, sumsq);
-    else nk_reduce_moments_e4m3_serial(data, count, stride_bytes, sum, sumsq);
+    else if (stride_elements == 1) nk_reduce_moments_e4m3_genoa_contiguous_(data_ptr, count, sum_ptr, sumsq_ptr);
+    else nk_reduce_moments_e4m3_serial(data_ptr, count, stride_bytes, sum_ptr, sumsq_ptr);
 }
 
 NK_INTERNAL void nk_reduce_moments_e5m2_genoa_contiguous_( //
-    nk_e5m2_t const *data, nk_size_t count,                //
-    nk_f32_t *sum, nk_f32_t *sumsq) {
+    nk_e5m2_t const *data_ptr, nk_size_t count,            //
+    nk_f32_t *sum_ptr, nk_f32_t *sumsq_ptr) {
 
     __m512bh ones_bf16x32 = (__m512bh)_mm512_set1_epi16(0x3F80); // bf16(1.0)
     __m512 sum_f32x16 = _mm512_setzero_ps();
@@ -146,7 +146,7 @@ NK_INTERNAL void nk_reduce_moments_e5m2_genoa_contiguous_( //
     nk_size_t idx = 0;
 
     for (; idx + 32 <= count; idx += 32) {
-        __m256i raw_u8x32 = _mm256_loadu_si256((__m256i const *)(data + idx));
+        __m256i raw_u8x32 = _mm256_loadu_si256((__m256i const *)(data_ptr + idx));
         __m512bh data_bf16x32 = (__m512bh)nk_e5m2x32_to_bf16x32_icelake_(raw_u8x32);
         sum_f32x16 = _mm512_dpbf16_ps(sum_f32x16, data_bf16x32, ones_bf16x32);
         sumsq_f32x16 = _mm512_dpbf16_ps(sumsq_f32x16, data_bf16x32, data_bf16x32);
@@ -156,39 +156,39 @@ NK_INTERNAL void nk_reduce_moments_e5m2_genoa_contiguous_( //
     nk_size_t remaining = count - idx;
     if (remaining > 0) {
         __mmask32 tail_mask = (__mmask32)_bzhi_u32(0xFFFFFFFF, (unsigned int)remaining);
-        __m256i raw_u8x32 = _mm256_maskz_loadu_epi8(tail_mask, data + idx);
+        __m256i raw_u8x32 = _mm256_maskz_loadu_epi8(tail_mask, data_ptr + idx);
         __m512bh data_bf16x32 = (__m512bh)nk_e5m2x32_to_bf16x32_icelake_(raw_u8x32);
         sum_f32x16 = _mm512_dpbf16_ps(sum_f32x16, data_bf16x32, ones_bf16x32);
         sumsq_f32x16 = _mm512_dpbf16_ps(sumsq_f32x16, data_bf16x32, data_bf16x32);
     }
 
-    *sum = nk_reduce_add_f32x16_skylake_(sum_f32x16);
-    *sumsq = nk_reduce_add_f32x16_skylake_(sumsq_f32x16);
+    *sum_ptr = nk_reduce_add_f32x16_skylake_(sum_f32x16);
+    *sumsq_ptr = nk_reduce_add_f32x16_skylake_(sumsq_f32x16);
 }
 
-NK_PUBLIC void nk_reduce_moments_e5m2_genoa(                        //
-    nk_e5m2_t const *data, nk_size_t count, nk_size_t stride_bytes, //
-    nk_f32_t *sum, nk_f32_t *sumsq) {
+NK_PUBLIC void nk_reduce_moments_e5m2_genoa(                            //
+    nk_e5m2_t const *data_ptr, nk_size_t count, nk_size_t stride_bytes, //
+    nk_f32_t *sum_ptr, nk_f32_t *sumsq_ptr) {
     nk_size_t stride_elements = stride_bytes / sizeof(nk_e5m2_t);
     int aligned = (stride_bytes % sizeof(nk_e5m2_t) == 0);
-    if (count == 0) *sum = 0, *sumsq = 0;
-    else if (!aligned) nk_reduce_moments_e5m2_serial(data, count, stride_bytes, sum, sumsq);
+    if (count == 0) *sum_ptr = 0, *sumsq_ptr = 0;
+    else if (!aligned) nk_reduce_moments_e5m2_serial(data_ptr, count, stride_bytes, sum_ptr, sumsq_ptr);
     else if (count > (nk_size_t)(NK_U16_MAX + 1) * 32) {
         nk_size_t left_count = count / 2;
         nk_f32_t left_sum, left_sumsq, right_sum, right_sumsq;
-        nk_reduce_moments_e5m2_genoa(data, left_count, stride_bytes, &left_sum, &left_sumsq);
-        nk_reduce_moments_e5m2_genoa(data + left_count * stride_elements, count - left_count, stride_bytes, &right_sum,
-                                     &right_sumsq);
-        *sum = left_sum + right_sum;
-        *sumsq = left_sumsq + right_sumsq;
+        nk_reduce_moments_e5m2_genoa(data_ptr, left_count, stride_bytes, &left_sum, &left_sumsq);
+        nk_reduce_moments_e5m2_genoa(data_ptr + left_count * stride_elements, count - left_count, stride_bytes,
+                                     &right_sum, &right_sumsq);
+        *sum_ptr = left_sum + right_sum;
+        *sumsq_ptr = left_sumsq + right_sumsq;
     }
-    else if (stride_elements == 1) nk_reduce_moments_e5m2_genoa_contiguous_(data, count, sum, sumsq);
-    else nk_reduce_moments_e5m2_serial(data, count, stride_bytes, sum, sumsq);
+    else if (stride_elements == 1) nk_reduce_moments_e5m2_genoa_contiguous_(data_ptr, count, sum_ptr, sumsq_ptr);
+    else nk_reduce_moments_e5m2_serial(data_ptr, count, stride_bytes, sum_ptr, sumsq_ptr);
 }
 
 NK_INTERNAL void nk_reduce_moments_e2m3_genoa_contiguous_( //
-    nk_e2m3_t const *data, nk_size_t count,                //
-    nk_f32_t *sum, nk_f32_t *sumsq) {
+    nk_e2m3_t const *data_ptr, nk_size_t count,            //
+    nk_f32_t *sum_ptr, nk_f32_t *sumsq_ptr) {
 
     __m512bh ones_bf16x32 = (__m512bh)_mm512_set1_epi16(0x3F80); // bf16(1.0)
     __m512 sum_f32x16 = _mm512_setzero_ps();
@@ -196,7 +196,7 @@ NK_INTERNAL void nk_reduce_moments_e2m3_genoa_contiguous_( //
     nk_size_t idx = 0;
 
     for (; idx + 32 <= count; idx += 32) {
-        __m256i raw_u8x32 = _mm256_loadu_si256((__m256i const *)(data + idx));
+        __m256i raw_u8x32 = _mm256_loadu_si256((__m256i const *)(data_ptr + idx));
         __m512bh data_bf16x32 = (__m512bh)nk_e2m3x32_to_bf16x32_icelake_(raw_u8x32);
         sum_f32x16 = _mm512_dpbf16_ps(sum_f32x16, data_bf16x32, ones_bf16x32);
         sumsq_f32x16 = _mm512_dpbf16_ps(sumsq_f32x16, data_bf16x32, data_bf16x32);
@@ -206,39 +206,39 @@ NK_INTERNAL void nk_reduce_moments_e2m3_genoa_contiguous_( //
     nk_size_t remaining = count - idx;
     if (remaining > 0) {
         __mmask32 tail_mask = (__mmask32)_bzhi_u32(0xFFFFFFFF, (unsigned int)remaining);
-        __m256i raw_u8x32 = _mm256_maskz_loadu_epi8(tail_mask, data + idx);
+        __m256i raw_u8x32 = _mm256_maskz_loadu_epi8(tail_mask, data_ptr + idx);
         __m512bh data_bf16x32 = (__m512bh)nk_e2m3x32_to_bf16x32_icelake_(raw_u8x32);
         sum_f32x16 = _mm512_dpbf16_ps(sum_f32x16, data_bf16x32, ones_bf16x32);
         sumsq_f32x16 = _mm512_dpbf16_ps(sumsq_f32x16, data_bf16x32, data_bf16x32);
     }
 
-    *sum = nk_reduce_add_f32x16_skylake_(sum_f32x16);
-    *sumsq = nk_reduce_add_f32x16_skylake_(sumsq_f32x16);
+    *sum_ptr = nk_reduce_add_f32x16_skylake_(sum_f32x16);
+    *sumsq_ptr = nk_reduce_add_f32x16_skylake_(sumsq_f32x16);
 }
 
-NK_PUBLIC void nk_reduce_moments_e2m3_genoa(                        //
-    nk_e2m3_t const *data, nk_size_t count, nk_size_t stride_bytes, //
-    nk_f32_t *sum, nk_f32_t *sumsq) {
+NK_PUBLIC void nk_reduce_moments_e2m3_genoa(                            //
+    nk_e2m3_t const *data_ptr, nk_size_t count, nk_size_t stride_bytes, //
+    nk_f32_t *sum_ptr, nk_f32_t *sumsq_ptr) {
     nk_size_t stride_elements = stride_bytes / sizeof(nk_e2m3_t);
     int aligned = (stride_bytes % sizeof(nk_e2m3_t) == 0);
-    if (count == 0) *sum = 0, *sumsq = 0;
-    else if (!aligned) nk_reduce_moments_e2m3_serial(data, count, stride_bytes, sum, sumsq);
+    if (count == 0) *sum_ptr = 0, *sumsq_ptr = 0;
+    else if (!aligned) nk_reduce_moments_e2m3_serial(data_ptr, count, stride_bytes, sum_ptr, sumsq_ptr);
     else if (count > (nk_size_t)(NK_U16_MAX + 1) * 32) {
         nk_size_t left_count = count / 2;
         nk_f32_t left_sum, left_sumsq, right_sum, right_sumsq;
-        nk_reduce_moments_e2m3_genoa(data, left_count, stride_bytes, &left_sum, &left_sumsq);
-        nk_reduce_moments_e2m3_genoa(data + left_count * stride_elements, count - left_count, stride_bytes, &right_sum,
-                                     &right_sumsq);
-        *sum = left_sum + right_sum;
-        *sumsq = left_sumsq + right_sumsq;
+        nk_reduce_moments_e2m3_genoa(data_ptr, left_count, stride_bytes, &left_sum, &left_sumsq);
+        nk_reduce_moments_e2m3_genoa(data_ptr + left_count * stride_elements, count - left_count, stride_bytes,
+                                     &right_sum, &right_sumsq);
+        *sum_ptr = left_sum + right_sum;
+        *sumsq_ptr = left_sumsq + right_sumsq;
     }
-    else if (stride_elements == 1) nk_reduce_moments_e2m3_genoa_contiguous_(data, count, sum, sumsq);
-    else nk_reduce_moments_e2m3_serial(data, count, stride_bytes, sum, sumsq);
+    else if (stride_elements == 1) nk_reduce_moments_e2m3_genoa_contiguous_(data_ptr, count, sum_ptr, sumsq_ptr);
+    else nk_reduce_moments_e2m3_serial(data_ptr, count, stride_bytes, sum_ptr, sumsq_ptr);
 }
 
 NK_INTERNAL void nk_reduce_moments_e3m2_genoa_contiguous_( //
-    nk_e3m2_t const *data, nk_size_t count,                //
-    nk_f32_t *sum, nk_f32_t *sumsq) {
+    nk_e3m2_t const *data_ptr, nk_size_t count,            //
+    nk_f32_t *sum_ptr, nk_f32_t *sumsq_ptr) {
 
     __m512bh ones_bf16x32 = (__m512bh)_mm512_set1_epi16(0x3F80); // bf16(1.0)
     __m512 sum_f32x16 = _mm512_setzero_ps();
@@ -246,7 +246,7 @@ NK_INTERNAL void nk_reduce_moments_e3m2_genoa_contiguous_( //
     nk_size_t idx = 0;
 
     for (; idx + 32 <= count; idx += 32) {
-        __m256i raw_u8x32 = _mm256_loadu_si256((__m256i const *)(data + idx));
+        __m256i raw_u8x32 = _mm256_loadu_si256((__m256i const *)(data_ptr + idx));
         __m512bh data_bf16x32 = (__m512bh)nk_e3m2x32_to_bf16x32_icelake_(raw_u8x32);
         sum_f32x16 = _mm512_dpbf16_ps(sum_f32x16, data_bf16x32, ones_bf16x32);
         sumsq_f32x16 = _mm512_dpbf16_ps(sumsq_f32x16, data_bf16x32, data_bf16x32);
@@ -256,34 +256,34 @@ NK_INTERNAL void nk_reduce_moments_e3m2_genoa_contiguous_( //
     nk_size_t remaining = count - idx;
     if (remaining > 0) {
         __mmask32 tail_mask = (__mmask32)_bzhi_u32(0xFFFFFFFF, (unsigned int)remaining);
-        __m256i raw_u8x32 = _mm256_maskz_loadu_epi8(tail_mask, data + idx);
+        __m256i raw_u8x32 = _mm256_maskz_loadu_epi8(tail_mask, data_ptr + idx);
         __m512bh data_bf16x32 = (__m512bh)nk_e3m2x32_to_bf16x32_icelake_(raw_u8x32);
         sum_f32x16 = _mm512_dpbf16_ps(sum_f32x16, data_bf16x32, ones_bf16x32);
         sumsq_f32x16 = _mm512_dpbf16_ps(sumsq_f32x16, data_bf16x32, data_bf16x32);
     }
 
-    *sum = nk_reduce_add_f32x16_skylake_(sum_f32x16);
-    *sumsq = nk_reduce_add_f32x16_skylake_(sumsq_f32x16);
+    *sum_ptr = nk_reduce_add_f32x16_skylake_(sum_f32x16);
+    *sumsq_ptr = nk_reduce_add_f32x16_skylake_(sumsq_f32x16);
 }
 
-NK_PUBLIC void nk_reduce_moments_e3m2_genoa(                        //
-    nk_e3m2_t const *data, nk_size_t count, nk_size_t stride_bytes, //
-    nk_f32_t *sum, nk_f32_t *sumsq) {
+NK_PUBLIC void nk_reduce_moments_e3m2_genoa(                            //
+    nk_e3m2_t const *data_ptr, nk_size_t count, nk_size_t stride_bytes, //
+    nk_f32_t *sum_ptr, nk_f32_t *sumsq_ptr) {
     nk_size_t stride_elements = stride_bytes / sizeof(nk_e3m2_t);
     int aligned = (stride_bytes % sizeof(nk_e3m2_t) == 0);
-    if (count == 0) *sum = 0, *sumsq = 0;
-    else if (!aligned) nk_reduce_moments_e3m2_serial(data, count, stride_bytes, sum, sumsq);
+    if (count == 0) *sum_ptr = 0, *sumsq_ptr = 0;
+    else if (!aligned) nk_reduce_moments_e3m2_serial(data_ptr, count, stride_bytes, sum_ptr, sumsq_ptr);
     else if (count > (nk_size_t)(NK_U16_MAX + 1) * 32) {
         nk_size_t left_count = count / 2;
         nk_f32_t left_sum, left_sumsq, right_sum, right_sumsq;
-        nk_reduce_moments_e3m2_genoa(data, left_count, stride_bytes, &left_sum, &left_sumsq);
-        nk_reduce_moments_e3m2_genoa(data + left_count * stride_elements, count - left_count, stride_bytes, &right_sum,
-                                     &right_sumsq);
-        *sum = left_sum + right_sum;
-        *sumsq = left_sumsq + right_sumsq;
+        nk_reduce_moments_e3m2_genoa(data_ptr, left_count, stride_bytes, &left_sum, &left_sumsq);
+        nk_reduce_moments_e3m2_genoa(data_ptr + left_count * stride_elements, count - left_count, stride_bytes,
+                                     &right_sum, &right_sumsq);
+        *sum_ptr = left_sum + right_sum;
+        *sumsq_ptr = left_sumsq + right_sumsq;
     }
-    else if (stride_elements == 1) nk_reduce_moments_e3m2_genoa_contiguous_(data, count, sum, sumsq);
-    else nk_reduce_moments_e3m2_serial(data, count, stride_bytes, sum, sumsq);
+    else if (stride_elements == 1) nk_reduce_moments_e3m2_genoa_contiguous_(data_ptr, count, sum_ptr, sumsq_ptr);
+    else nk_reduce_moments_e3m2_serial(data_ptr, count, stride_bytes, sum_ptr, sumsq_ptr);
 }
 
 #if defined(__clang__)
