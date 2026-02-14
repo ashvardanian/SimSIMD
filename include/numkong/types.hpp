@@ -96,7 +96,7 @@ struct f118_t;
  *  - Arithmetic operators and Rust-style methods (total_cmp, signum, mul_add)
  *  - Classification: is_nan, is_finite, is_normal, is_subnormal
  *  - Bit manipulation: to_bits, from_bits, copysign (constexpr)
- *  - Type aliases for NumKong kernel signatures (dot_result_t, reduce_add_result_t, etc.)
+ *  - Type aliases for NumKong kernel signatures (dot_result_t, reduce_moments_sum_t, etc.)
  *
  *  @note Only bit-manipulation and pure-arithmetic functions are constexpr.
  *        STL cmath functions become constexpr in C++26.
@@ -106,15 +106,17 @@ struct f32_t {
     using raw_t = nk_f32_t;
     using uint_t = nk_u32_t;
 
-    using dot_result_t = f32_t;         // `nk_dot_f32` output
-    using reduce_add_result_t = f64_t;  // `nk_reduce_add_f32` output
-    using sqeuclidean_result_t = f32_t; // `nk_sqeuclidean_f32` output
-    using euclidean_result_t = f32_t;   // `nk_euclidean_f32` output
-    using angular_result_t = f32_t;     // `nk_angular_f32` output
-    using curved_result_t = f32_t;      // bilinear, mahalanobis
-    using geospatial_result_t = f32_t;  // haversine, vincenty
-    using probability_result_t = f32_t; // kld, jsd
-    using mesh_result_t = f32_t;        // `nk_rmsd_f32` output
+    using dot_result_t = f32_t;           // `nk_dot_f32` output
+    using reduce_moments_sum_t = f64_t;   // `nk_reduce_moments_f32` sum output
+    using reduce_moments_sumsq_t = f64_t; // `nk_reduce_moments_f32` sumsq output
+    using reduce_minmax_value_t = f32_t;  // `nk_reduce_minmax_f32` value output
+    using sqeuclidean_result_t = f32_t;   // `nk_sqeuclidean_f32` output
+    using euclidean_result_t = f32_t;     // `nk_euclidean_f32` output
+    using angular_result_t = f32_t;       // `nk_angular_f32` output
+    using curved_result_t = f32_t;        // bilinear, mahalanobis
+    using geospatial_result_t = f32_t;    // haversine, vincenty
+    using probability_result_t = f32_t;   // kld, jsd
+    using mesh_result_t = f32_t;          // `nk_rmsd_f32` output
     using scale_t = nk_f32_t;
 
     static constexpr nk_dtype_t dtype() noexcept { return nk_f32_k; }
@@ -357,14 +359,16 @@ struct f64_t {
     using raw_t = nk_f64_t;
     using uint_t = nk_u64_t;
 
-    using dot_result_t = f64_t;         // `nk_dot_f64` output
-    using reduce_add_result_t = f64_t;  // `nk_reduce_add_f64` output
-    using sqeuclidean_result_t = f64_t; // `nk_sqeuclidean_f64` output
-    using euclidean_result_t = f64_t;   // `nk_euclidean_f64` output
-    using angular_result_t = f64_t;     // `nk_angular_f64` output
-    using curved_result_t = f64_t;      // bilinear, mahalanobis
-    using probability_result_t = f64_t; // kld, jsd
-    using mesh_result_t = f64_t;        // `nk_rmsd_f64` output
+    using dot_result_t = f64_t;           // `nk_dot_f64` output
+    using reduce_moments_sum_t = f64_t;   // `nk_reduce_moments_f64` sum output
+    using reduce_moments_sumsq_t = f64_t; // `nk_reduce_moments_f64` sumsq output
+    using reduce_minmax_value_t = f64_t;  // `nk_reduce_minmax_f64` value output
+    using sqeuclidean_result_t = f64_t;   // `nk_sqeuclidean_f64` output
+    using euclidean_result_t = f64_t;     // `nk_euclidean_f64` output
+    using angular_result_t = f64_t;       // `nk_angular_f64` output
+    using curved_result_t = f64_t;        // bilinear, mahalanobis
+    using probability_result_t = f64_t;   // kld, jsd
+    using mesh_result_t = f64_t;          // `nk_rmsd_f64` output
     using scale_t = nk_f64_t;
 
     static constexpr nk_dtype_t dtype() noexcept { return nk_f64_k; }
@@ -1072,13 +1076,15 @@ struct f16_t {
     using raw_t = nk_f16_t;
     using uint_t = nk_u16_t;
 
-    using dot_result_t = f32_t;         // `nk_dot_f16` output
-    using reduce_add_result_t = f32_t;  // `nk_reduce_add_f16` output
-    using sqeuclidean_result_t = f32_t; // `nk_sqeuclidean_f16` output
-    using angular_result_t = f32_t;     // `nk_angular_f16` output
-    using euclidean_result_t = f32_t;   // `nk_euclidean_f16` output
-    using mesh_result_t = f32_t;        // `nk_rmsd_f16` output
-    using curved_result_t = f32_t;      // `nk_bilinear_f16` output
+    using dot_result_t = f32_t;           // `nk_dot_f16` output
+    using reduce_moments_sum_t = f32_t;   // `nk_reduce_moments_f16` sum output
+    using reduce_moments_sumsq_t = f32_t; // `nk_reduce_moments_f16` sumsq output
+    using reduce_minmax_value_t = f16_t;  // `nk_reduce_minmax_f16` value output
+    using sqeuclidean_result_t = f32_t;   // `nk_sqeuclidean_f16` output
+    using angular_result_t = f32_t;       // `nk_angular_f16` output
+    using euclidean_result_t = f32_t;     // `nk_euclidean_f16` output
+    using mesh_result_t = f32_t;          // `nk_rmsd_f16` output
+    using curved_result_t = f32_t;        // `nk_bilinear_f16` output
     using scale_t = nk_f32_t;
 
     using dot_kernel_t = void (*)(raw_t const *, raw_t const *, nk_size_t, nk_f32_t *);
@@ -1281,13 +1287,15 @@ struct bf16_t {
     using raw_t = nk_bf16_t;
     using uint_t = nk_u16_t;
 
-    using dot_result_t = f32_t;         // `nk_dot_bf16` output
-    using reduce_add_result_t = f32_t;  // `nk_reduce_add_bf16` output
-    using sqeuclidean_result_t = f32_t; // `nk_sqeuclidean_bf16` output
-    using angular_result_t = f32_t;     // `nk_angular_bf16` output
-    using euclidean_result_t = f32_t;   // `nk_euclidean_bf16` output
-    using mesh_result_t = f32_t;        // `nk_rmsd_bf16` output
-    using curved_result_t = f32_t;      // `nk_bilinear_bf16` output
+    using dot_result_t = f32_t;           // `nk_dot_bf16` output
+    using reduce_moments_sum_t = f32_t;   // `nk_reduce_moments_bf16` sum output
+    using reduce_moments_sumsq_t = f32_t; // `nk_reduce_moments_bf16` sumsq output
+    using reduce_minmax_value_t = bf16_t; // `nk_reduce_minmax_bf16` value output
+    using sqeuclidean_result_t = f32_t;   // `nk_sqeuclidean_bf16` output
+    using angular_result_t = f32_t;       // `nk_angular_bf16` output
+    using euclidean_result_t = f32_t;     // `nk_euclidean_bf16` output
+    using mesh_result_t = f32_t;          // `nk_rmsd_bf16` output
+    using curved_result_t = f32_t;        // `nk_bilinear_bf16` output
     using scale_t = nk_f32_t;
 
     using dot_kernel_t = void (*)(raw_t const *, raw_t const *, nk_size_t, nk_f32_t *);
@@ -1692,9 +1700,11 @@ struct e4m3_t {
     using raw_t = nk_e4m3_t;
     using uint_t = nk_u8_t;
 
-    using dot_result_t = f32_t;         // `nk_dot_e4m3` output
-    using reduce_add_result_t = f32_t;  // `nk_reduce_add_e4m3` output
-    using sqeuclidean_result_t = f32_t; // `nk_sqeuclidean_e4m3` output
+    using dot_result_t = f32_t;           // `nk_dot_e4m3` output
+    using reduce_moments_sum_t = f32_t;   // `nk_reduce_moments_e4m3` sum output
+    using reduce_moments_sumsq_t = f32_t; // `nk_reduce_moments_e4m3` sumsq output
+    using reduce_minmax_value_t = e4m3_t; // `nk_reduce_minmax_e4m3` value output
+    using sqeuclidean_result_t = f32_t;   // `nk_sqeuclidean_e4m3` output
     using scale_t = nk_f32_t;
 
     using dot_kernel_t = void (*)(raw_t const *, raw_t const *, nk_size_t, nk_f32_t *);
@@ -1890,9 +1900,11 @@ struct e5m2_t {
     using raw_t = nk_e5m2_t;
     using uint_t = nk_u8_t;
 
-    using dot_result_t = f32_t;         // `nk_dot_e5m2` output
-    using reduce_add_result_t = f32_t;  // `nk_reduce_add_e5m2` output
-    using sqeuclidean_result_t = f32_t; // `nk_sqeuclidean_e5m2` output
+    using dot_result_t = f32_t;           // `nk_dot_e5m2` output
+    using reduce_moments_sum_t = f32_t;   // `nk_reduce_moments_e5m2` sum output
+    using reduce_moments_sumsq_t = f32_t; // `nk_reduce_moments_e5m2` sumsq output
+    using reduce_minmax_value_t = e5m2_t; // `nk_reduce_minmax_e5m2` value output
+    using sqeuclidean_result_t = f32_t;   // `nk_sqeuclidean_e5m2` output
     using scale_t = nk_f32_t;
 
     using dot_kernel_t = void (*)(raw_t const *, raw_t const *, nk_size_t, nk_f32_t *);
@@ -2088,7 +2100,9 @@ struct e2m3_t {
     using uint_t = nk_u8_t;
 
     using dot_result_t = f32_t;
-    using reduce_add_result_t = f32_t;
+    using reduce_moments_sum_t = f32_t;   // `nk_reduce_moments_e2m3` sum output
+    using reduce_moments_sumsq_t = f32_t; // `nk_reduce_moments_e2m3` sumsq output
+    using reduce_minmax_value_t = e2m3_t; // `nk_reduce_minmax_e2m3` value output (not widened)
     using sqeuclidean_result_t = f32_t;
     using angular_result_t = f32_t;
     using scale_t = nk_f32_t;
@@ -2252,7 +2266,9 @@ struct e3m2_t {
     using uint_t = nk_u8_t;
 
     using dot_result_t = f32_t;
-    using reduce_add_result_t = f32_t;
+    using reduce_moments_sum_t = f32_t;   // `nk_reduce_moments_e3m2` sum output
+    using reduce_moments_sumsq_t = f32_t; // `nk_reduce_moments_e3m2` sumsq output
+    using reduce_minmax_value_t = e3m2_t; // `nk_reduce_minmax_e3m2` value output (not widened)
     using sqeuclidean_result_t = f32_t;
     using angular_result_t = f32_t;
     using scale_t = nk_f32_t;
@@ -3303,9 +3319,11 @@ struct i8_t {
     using raw_t = nk_i8_t;
     using unsigned_t = nk_u8_t;
 
-    using dot_result_t = i32_t;         // `nk_dot_i8` output
-    using reduce_add_result_t = i64_t;  // `nk_reduce_add_i8` output
-    using sqeuclidean_result_t = u32_t; // `nk_sqeuclidean_i8` output
+    using dot_result_t = i32_t;           // `nk_dot_i8` output
+    using reduce_moments_sum_t = i64_t;   // `nk_reduce_moments_i8` sum output
+    using reduce_moments_sumsq_t = u64_t; // `nk_reduce_moments_i8` sumsq output (unsigned)
+    using reduce_minmax_value_t = i8_t;   // `nk_reduce_minmax_i8` value output
+    using sqeuclidean_result_t = u32_t;   // `nk_sqeuclidean_i8` output
 
     using dot_kernel_t = void (*)(raw_t const *, raw_t const *, nk_size_t, nk_i32_t *);
     using reduce_add_kernel_t = void (*)(raw_t const *, nk_size_t, nk_size_t, nk_i64_t *);
@@ -3450,10 +3468,12 @@ struct u8_t {
     using raw_t = nk_u8_t;
     using signed_t = nk_i8_t;
 
-    using dot_result_t = u32_t;         // `nk_dot_u8` output
-    using reduce_add_result_t = u64_t;  // `nk_reduce_add_u8` output
-    using sqeuclidean_result_t = u32_t; // `nk_sqeuclidean_u8` output
-    using hamming_result_t = u32_t;     // `nk_hamming_u8` output
+    using dot_result_t = u32_t;           // `nk_dot_u8` output
+    using reduce_moments_sum_t = u64_t;   // `nk_reduce_moments_u8` sum output
+    using reduce_moments_sumsq_t = u64_t; // `nk_reduce_moments_u8` sumsq output
+    using reduce_minmax_value_t = u8_t;   // `nk_reduce_minmax_u8` value output
+    using sqeuclidean_result_t = u32_t;   // `nk_sqeuclidean_u8` output
+    using hamming_result_t = u32_t;       // `nk_hamming_u8` output
 
     using dot_kernel_t = void (*)(raw_t const *, raw_t const *, nk_size_t, nk_u32_t *);
     using reduce_add_kernel_t = void (*)(raw_t const *, nk_size_t, nk_size_t, nk_u64_t *);
@@ -3586,7 +3606,9 @@ struct i32_t {
     using raw_t = nk_i32_t;
     using unsigned_t = nk_u32_t;
 
-    using reduce_add_result_t = i64_t; // `nk_reduce_add_i32` output
+    using reduce_moments_sum_t = i64_t;   // `nk_reduce_moments_i32` sum output
+    using reduce_moments_sumsq_t = u64_t; // `nk_reduce_moments_i32` sumsq output (unsigned)
+    using reduce_minmax_value_t = i32_t;  // `nk_reduce_minmax_i32` value output
     using reduce_add_kernel_t = void (*)(raw_t const *, nk_size_t, nk_size_t, nk_i64_t *);
     using reduce_extremum_kernel_t = void (*)(raw_t const *, nk_size_t, nk_size_t, raw_t *, nk_size_t *);
 
@@ -3723,8 +3745,10 @@ struct u32_t {
     using raw_t = nk_u32_t;
     using signed_t = nk_i32_t;
 
-    using reduce_add_result_t = u64_t; // `nk_reduce_add_u32` output
-    using jaccard_result_t = f32_t;    // `nk_jaccard_u32` output
+    using reduce_moments_sum_t = u64_t;   // `nk_reduce_moments_u32` sum output
+    using reduce_moments_sumsq_t = u64_t; // `nk_reduce_moments_u32` sumsq output
+    using reduce_minmax_value_t = u32_t;  // `nk_reduce_minmax_u32` value output
+    using jaccard_result_t = f32_t;       // `nk_jaccard_u32` output
 
     using reduce_add_kernel_t = void (*)(raw_t const *, nk_size_t, nk_size_t, nk_u64_t *);
     using reduce_extremum_kernel_t = void (*)(raw_t const *, nk_size_t, nk_size_t, raw_t *, nk_size_t *);
@@ -3846,7 +3870,9 @@ struct i64_t {
     using raw_t = nk_i64_t;
     using unsigned_t = nk_u64_t;
 
-    using reduce_add_result_t = i64_t; // `nk_reduce_add_i64` (no widening, already max)
+    using reduce_moments_sum_t = i64_t;   // `nk_reduce_moments_i64` sum output
+    using reduce_moments_sumsq_t = u64_t; // `nk_reduce_moments_i64` sumsq output (unsigned)
+    using reduce_minmax_value_t = i64_t;  // `nk_reduce_minmax_i64` value output
 
     using reduce_add_kernel_t = void (*)(raw_t const *, nk_size_t, nk_size_t, nk_i64_t *);
     using reduce_extremum_kernel_t = void (*)(raw_t const *, nk_size_t, nk_size_t, raw_t *, nk_size_t *);
@@ -3985,7 +4011,9 @@ struct u64_t {
     using raw_t = nk_u64_t;
     using signed_t = nk_i64_t;
 
-    using reduce_add_result_t = u64_t; // `nk_reduce_add_u64` (no widening, already max)
+    using reduce_moments_sum_t = u64_t;   // `nk_reduce_moments_u64` sum output
+    using reduce_moments_sumsq_t = u64_t; // `nk_reduce_moments_u64` sumsq output
+    using reduce_minmax_value_t = u64_t;  // `nk_reduce_minmax_u64` value output
 
     using reduce_add_kernel_t = void (*)(raw_t const *, nk_size_t, nk_size_t, nk_u64_t *);
     using reduce_extremum_kernel_t = void (*)(raw_t const *, nk_size_t, nk_size_t, raw_t *, nk_size_t *);
@@ -4108,7 +4136,9 @@ struct i16_t {
     using raw_t = nk_i16_t;
     using unsigned_t = nk_u16_t;
 
-    using reduce_add_result_t = i64_t; // `nk_reduce_add_i16` output
+    using reduce_moments_sum_t = i64_t;   // `nk_reduce_moments_i16` sum output
+    using reduce_moments_sumsq_t = u64_t; // `nk_reduce_moments_i16` sumsq output (unsigned)
+    using reduce_minmax_value_t = i16_t;  // `nk_reduce_minmax_i16` value output
 
     using reduce_add_kernel_t = void (*)(raw_t const *, nk_size_t, nk_size_t, nk_i64_t *);
     using reduce_extremum_kernel_t = void (*)(raw_t const *, nk_size_t, nk_size_t, raw_t *, nk_size_t *);
@@ -4241,8 +4271,10 @@ struct u16_t {
     using raw_t = nk_u16_t;
     using signed_t = nk_i16_t;
 
-    using reduce_add_result_t = u64_t; // `nk_reduce_add_u16` output
-    using jaccard_result_t = f32_t;    // `nk_jaccard_u16` output
+    using reduce_moments_sum_t = u64_t;   // `nk_reduce_moments_u16` sum output
+    using reduce_moments_sumsq_t = u64_t; // `nk_reduce_moments_u16` sumsq output
+    using reduce_minmax_value_t = u16_t;  // `nk_reduce_minmax_u16` value output
+    using jaccard_result_t = f32_t;       // `nk_jaccard_u16` output
 
     using reduce_add_kernel_t = void (*)(raw_t const *, nk_size_t, nk_size_t, nk_u64_t *);
     using reduce_extremum_kernel_t = void (*)(raw_t const *, nk_size_t, nk_size_t, raw_t *, nk_size_t *);
@@ -4366,7 +4398,9 @@ struct u1x8_t {
     using dot_result_t = u32_t;
     using hamming_result_t = u32_t;
     using jaccard_result_t = f32_t;
-    using reduce_add_result_t = u64_t;
+    using reduce_moments_sum_t = u64_t;   // `nk_reduce_moments_u1` sum output
+    using reduce_moments_sumsq_t = u64_t; // `nk_reduce_moments_u1` sumsq output
+    using reduce_minmax_value_t = u8_t;   // `nk_reduce_minmax_u1` value output (widened to u8)
     using reduce_add_kernel_t = void (*)(raw_t const *, nk_size_t, nk_size_t, nk_u64_t *);
     using reduce_extremum_kernel_t = void (*)(raw_t const *, nk_size_t, nk_size_t, nk_u8_t *, nk_size_t *);
 
@@ -4464,7 +4498,9 @@ struct i4x2_t {
     using dot_result_t = i32_t;
     using sqeuclidean_result_t = u32_t;
     using angular_result_t = f32_t;
-    using reduce_add_result_t = i64_t;
+    using reduce_moments_sum_t = i64_t;   // `nk_reduce_moments_i4` sum output
+    using reduce_moments_sumsq_t = u64_t; // `nk_reduce_moments_i4` sumsq output (unsigned)
+    using reduce_minmax_value_t = i8_t;   // `nk_reduce_minmax_i4` value output (widened to i8)
     using reduce_add_kernel_t = void (*)(raw_t const *, nk_size_t, nk_size_t, nk_i64_t *);
     using reduce_extremum_kernel_t = void (*)(raw_t const *, nk_size_t, nk_size_t, nk_i8_t *, nk_size_t *);
 
@@ -4570,7 +4606,9 @@ struct u4x2_t {
     using dot_result_t = u32_t;
     using sqeuclidean_result_t = u32_t;
     using angular_result_t = f32_t;
-    using reduce_add_result_t = u64_t;
+    using reduce_moments_sum_t = u64_t;   // `nk_reduce_moments_u4` sum output
+    using reduce_moments_sumsq_t = u64_t; // `nk_reduce_moments_u4` sumsq output
+    using reduce_minmax_value_t = u8_t;   // `nk_reduce_minmax_u4` value output (widened to u8)
     using reduce_add_kernel_t = void (*)(raw_t const *, nk_size_t, nk_size_t, nk_u64_t *);
     using reduce_extremum_kernel_t = void (*)(raw_t const *, nk_size_t, nk_size_t, nk_u8_t *, nk_size_t *);
     using dots_symmetric_kernel_t = void (*)(raw_t const *, nk_size_t, nk_size_t, nk_size_t, nk_u32_t *, nk_size_t,

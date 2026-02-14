@@ -2909,11 +2909,8 @@ static PyMethodDef nk_methods[] = {
     {"full", (PyCFunction)api_full, METH_FASTCALL | METH_KEYWORDS, doc_full},
 
     // Tensor reductions
-    {"sum", (PyCFunction)api_sum, METH_FASTCALL | METH_KEYWORDS, doc_reduce_sum},
-    {"min", (PyCFunction)api_min, METH_FASTCALL | METH_KEYWORDS, doc_reduce_min},
-    {"max", (PyCFunction)api_max, METH_FASTCALL | METH_KEYWORDS, doc_reduce_max},
-    {"argmin", (PyCFunction)api_argmin, METH_FASTCALL | METH_KEYWORDS, doc_reduce_argmin},
-    {"argmax", (PyCFunction)api_argmax, METH_FASTCALL | METH_KEYWORDS, doc_reduce_argmax},
+    {"moments", (PyCFunction)api_moments, METH_FASTCALL | METH_KEYWORDS, doc_reduce_moments},
+    {"minmax", (PyCFunction)api_minmax, METH_FASTCALL | METH_KEYWORDS, doc_reduce_minmax},
 
     // Vectorized operations
     {"fma", (PyCFunction)api_fma, METH_FASTCALL | METH_KEYWORDS, doc_fma},

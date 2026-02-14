@@ -8,7 +8,7 @@
 //! - **Complex products**: [`ComplexDot`], [`ComplexVDot`]
 //! - **Elementwise operations**: [`EachScale`], [`EachSum`], [`EachBlend`], [`EachFMA`]
 //! - **Trigonometry**: [`EachSin`], [`EachCos`], [`EachATan`]
-//! - **Reductions**: [`ReduceAdd`], [`ReduceMin`], [`ReduceMax`]
+//! - **Reductions**: [`ReduceMoments`], [`ReduceMinMax`]
 //! - **Geospatial**: [`Haversine`], [`Vincenty`]
 //! - **Mesh alignment**: [`MeshAlignment`]
 //! - **Sparse sets**: [`SparseIntersect`], [`SparseDot`]
@@ -385,158 +385,168 @@ extern "C" {
         result: *mut u8,
     );
 
-    // Reductions
-    fn nk_reduce_add_f64(data: *const f64, count: u64size, stride_bytes: u64size, result: *mut f64);
-    fn nk_reduce_add_f32(data: *const f32, count: u64size, stride_bytes: u64size, result: *mut f64);
-    fn nk_reduce_add_i8(data: *const i8, count: u64size, stride_bytes: u64size, result: *mut i64);
-    fn nk_reduce_add_u8(data: *const u8, count: u64size, stride_bytes: u64size, result: *mut u64);
-    fn nk_reduce_add_i16(data: *const i16, count: u64size, stride_bytes: u64size, result: *mut i64);
-    fn nk_reduce_add_u16(data: *const u16, count: u64size, stride_bytes: u64size, result: *mut u64);
-    fn nk_reduce_add_i32(data: *const i32, count: u64size, stride_bytes: u64size, result: *mut i64);
-    fn nk_reduce_add_u32(data: *const u32, count: u64size, stride_bytes: u64size, result: *mut u64);
-    fn nk_reduce_add_i64(data: *const i64, count: u64size, stride_bytes: u64size, result: *mut i64);
-    fn nk_reduce_add_u64(data: *const u64, count: u64size, stride_bytes: u64size, result: *mut u64);
-
-    fn nk_reduce_min_f64(
+    // Reductions: moments (sum + sum-of-squares)
+    fn nk_reduce_moments_f64(
         data: *const f64,
         count: u64size,
         stride_bytes: u64size,
-        min_value: *mut f64,
-        min_index: *mut u64size,
+        sum: *mut f64,
+        sumsq: *mut f64,
     );
-    fn nk_reduce_min_f32(
+    fn nk_reduce_moments_f32(
         data: *const f32,
         count: u64size,
         stride_bytes: u64size,
-        min_value: *mut f32,
-        min_index: *mut u64size,
+        sum: *mut f64,
+        sumsq: *mut f64,
     );
-    fn nk_reduce_min_i8(
+    fn nk_reduce_moments_i8(
         data: *const i8,
         count: u64size,
         stride_bytes: u64size,
-        min_value: *mut i8,
-        min_index: *mut u64size,
+        sum: *mut i64,
+        sumsq: *mut u64,
     );
-    fn nk_reduce_min_u8(
+    fn nk_reduce_moments_u8(
         data: *const u8,
         count: u64size,
         stride_bytes: u64size,
-        min_value: *mut u8,
-        min_index: *mut u64size,
+        sum: *mut u64,
+        sumsq: *mut u64,
     );
-    fn nk_reduce_min_i16(
+    fn nk_reduce_moments_i16(
         data: *const i16,
         count: u64size,
         stride_bytes: u64size,
-        min_value: *mut i16,
-        min_index: *mut u64size,
+        sum: *mut i64,
+        sumsq: *mut u64,
     );
-    fn nk_reduce_min_u16(
+    fn nk_reduce_moments_u16(
         data: *const u16,
         count: u64size,
         stride_bytes: u64size,
-        min_value: *mut u16,
-        min_index: *mut u64size,
+        sum: *mut u64,
+        sumsq: *mut u64,
     );
-    fn nk_reduce_min_i32(
+    fn nk_reduce_moments_i32(
         data: *const i32,
         count: u64size,
         stride_bytes: u64size,
-        min_value: *mut i32,
-        min_index: *mut u64size,
+        sum: *mut i64,
+        sumsq: *mut u64,
     );
-    fn nk_reduce_min_u32(
+    fn nk_reduce_moments_u32(
         data: *const u32,
         count: u64size,
         stride_bytes: u64size,
-        min_value: *mut u32,
-        min_index: *mut u64size,
+        sum: *mut u64,
+        sumsq: *mut u64,
     );
-    fn nk_reduce_min_i64(
+    fn nk_reduce_moments_i64(
         data: *const i64,
         count: u64size,
         stride_bytes: u64size,
-        min_value: *mut i64,
-        min_index: *mut u64size,
+        sum: *mut i64,
+        sumsq: *mut u64,
     );
-    fn nk_reduce_min_u64(
+    fn nk_reduce_moments_u64(
         data: *const u64,
         count: u64size,
         stride_bytes: u64size,
-        min_value: *mut u64,
-        min_index: *mut u64size,
+        sum: *mut u64,
+        sumsq: *mut u64,
     );
 
-    fn nk_reduce_max_f64(
+    // Reductions: minmax (min + max + argmin + argmax)
+    fn nk_reduce_minmax_f64(
         data: *const f64,
         count: u64size,
         stride_bytes: u64size,
-        max_value: *mut f64,
-        max_index: *mut u64size,
+        min_val: *mut f64,
+        min_idx: *mut u64size,
+        max_val: *mut f64,
+        max_idx: *mut u64size,
     );
-    fn nk_reduce_max_f32(
+    fn nk_reduce_minmax_f32(
         data: *const f32,
         count: u64size,
         stride_bytes: u64size,
-        max_value: *mut f32,
-        max_index: *mut u64size,
+        min_val: *mut f32,
+        min_idx: *mut u64size,
+        max_val: *mut f32,
+        max_idx: *mut u64size,
     );
-    fn nk_reduce_max_i8(
+    fn nk_reduce_minmax_i8(
         data: *const i8,
         count: u64size,
         stride_bytes: u64size,
-        max_value: *mut i8,
-        max_index: *mut u64size,
+        min_val: *mut i8,
+        min_idx: *mut u64size,
+        max_val: *mut i8,
+        max_idx: *mut u64size,
     );
-    fn nk_reduce_max_u8(
+    fn nk_reduce_minmax_u8(
         data: *const u8,
         count: u64size,
         stride_bytes: u64size,
-        max_value: *mut u8,
-        max_index: *mut u64size,
+        min_val: *mut u8,
+        min_idx: *mut u64size,
+        max_val: *mut u8,
+        max_idx: *mut u64size,
     );
-    fn nk_reduce_max_i16(
+    fn nk_reduce_minmax_i16(
         data: *const i16,
         count: u64size,
         stride_bytes: u64size,
-        max_value: *mut i16,
-        max_index: *mut u64size,
+        min_val: *mut i16,
+        min_idx: *mut u64size,
+        max_val: *mut i16,
+        max_idx: *mut u64size,
     );
-    fn nk_reduce_max_u16(
+    fn nk_reduce_minmax_u16(
         data: *const u16,
         count: u64size,
         stride_bytes: u64size,
-        max_value: *mut u16,
-        max_index: *mut u64size,
+        min_val: *mut u16,
+        min_idx: *mut u64size,
+        max_val: *mut u16,
+        max_idx: *mut u64size,
     );
-    fn nk_reduce_max_i32(
+    fn nk_reduce_minmax_i32(
         data: *const i32,
         count: u64size,
         stride_bytes: u64size,
-        max_value: *mut i32,
-        max_index: *mut u64size,
+        min_val: *mut i32,
+        min_idx: *mut u64size,
+        max_val: *mut i32,
+        max_idx: *mut u64size,
     );
-    fn nk_reduce_max_u32(
+    fn nk_reduce_minmax_u32(
         data: *const u32,
         count: u64size,
         stride_bytes: u64size,
-        max_value: *mut u32,
-        max_index: *mut u64size,
+        min_val: *mut u32,
+        min_idx: *mut u64size,
+        max_val: *mut u32,
+        max_idx: *mut u64size,
     );
-    fn nk_reduce_max_i64(
+    fn nk_reduce_minmax_i64(
         data: *const i64,
         count: u64size,
         stride_bytes: u64size,
-        max_value: *mut i64,
-        max_index: *mut u64size,
+        min_val: *mut i64,
+        min_idx: *mut u64size,
+        max_val: *mut i64,
+        max_idx: *mut u64size,
     );
-    fn nk_reduce_max_u64(
+    fn nk_reduce_minmax_u64(
         data: *const u64,
         count: u64size,
         stride_bytes: u64size,
-        max_value: *mut u64,
-        max_index: *mut u64size,
+        min_val: *mut u64,
+        min_idx: *mut u64size,
+        max_val: *mut u64,
+        max_idx: *mut u64size,
     );
 
     // Mesh superposition metrics
@@ -834,75 +844,72 @@ extern "C" {
         r: *mut u64,
     );
 
-    // Half-precision ReduceAdd (output to f32)
-    fn nk_reduce_add_f16(data: *const u16, count: u64size, stride_bytes: u64size, result: *mut f32);
-    fn nk_reduce_add_bf16(
+    // Half-precision ReduceMoments (output to f32)
+    fn nk_reduce_moments_f16(
         data: *const u16,
         count: u64size,
         stride_bytes: u64size,
-        result: *mut f32,
+        sum: *mut f32,
+        sumsq: *mut f32,
     );
-    fn nk_reduce_add_e4m3(data: *const u8, count: u64size, stride_bytes: u64size, result: *mut f32);
-    fn nk_reduce_add_e5m2(data: *const u8, count: u64size, stride_bytes: u64size, result: *mut f32);
-
-    // Half-precision ReduceMin (output to f32)
-    fn nk_reduce_min_f16(
+    fn nk_reduce_moments_bf16(
         data: *const u16,
         count: u64size,
         stride_bytes: u64size,
-        min_value: *mut f32,
-        min_index: *mut u64size,
+        sum: *mut f32,
+        sumsq: *mut f32,
     );
-    fn nk_reduce_min_bf16(
-        data: *const u16,
-        count: u64size,
-        stride_bytes: u64size,
-        min_value: *mut f32,
-        min_index: *mut u64size,
-    );
-    fn nk_reduce_min_e4m3(
+    fn nk_reduce_moments_e4m3(
         data: *const u8,
         count: u64size,
         stride_bytes: u64size,
-        min_value: *mut f32,
-        min_index: *mut u64size,
+        sum: *mut f32,
+        sumsq: *mut f32,
     );
-    fn nk_reduce_min_e5m2(
+    fn nk_reduce_moments_e5m2(
         data: *const u8,
         count: u64size,
         stride_bytes: u64size,
-        min_value: *mut f32,
-        min_index: *mut u64size,
+        sum: *mut f32,
+        sumsq: *mut f32,
     );
 
-    // Half-precision ReduceMax (output to f32)
-    fn nk_reduce_max_f16(
+    // Half-precision ReduceMinMax (output widened to f32 for f16/bf16/e4m3/e5m2)
+    fn nk_reduce_minmax_f16(
         data: *const u16,
         count: u64size,
         stride_bytes: u64size,
-        max_value: *mut f32,
-        max_index: *mut u64size,
+        min_val: *mut f32,
+        min_idx: *mut u64size,
+        max_val: *mut f32,
+        max_idx: *mut u64size,
     );
-    fn nk_reduce_max_bf16(
+    fn nk_reduce_minmax_bf16(
         data: *const u16,
         count: u64size,
         stride_bytes: u64size,
-        max_value: *mut f32,
-        max_index: *mut u64size,
+        min_val: *mut f32,
+        min_idx: *mut u64size,
+        max_val: *mut f32,
+        max_idx: *mut u64size,
     );
-    fn nk_reduce_max_e4m3(
+    fn nk_reduce_minmax_e4m3(
         data: *const u8,
         count: u64size,
         stride_bytes: u64size,
-        max_value: *mut f32,
-        max_index: *mut u64size,
+        min_val: *mut f32,
+        min_idx: *mut u64size,
+        max_val: *mut f32,
+        max_idx: *mut u64size,
     );
-    fn nk_reduce_max_e5m2(
+    fn nk_reduce_minmax_e5m2(
         data: *const u8,
         count: u64size,
         stride_bytes: u64size,
-        max_value: *mut f32,
-        max_index: *mut u64size,
+        min_val: *mut f32,
+        min_idx: *mut u64size,
+        max_val: *mut f32,
+        max_idx: *mut u64size,
     );
 }
 
@@ -4093,758 +4100,647 @@ impl EachFMA for u64 {
 
 // region: Reductions
 
-/// Horizontal sum reduction with stride support.
+/// Compute first and second moments (sum and sum-of-squares) with stride support.
 ///
-/// Computes the sum of all elements in a slice, with optional striding.
-/// The `Output` type may be wider than the input to avoid overflow.
-pub trait ReduceAdd: Sized {
-    type Output;
-    /// Sum all elements in `data` with the given stride (in bytes).
+/// Returns `(sum, sum_of_squares)` for all elements in a slice, with optional striding.
+/// The output types may be wider than the input to avoid overflow.
+pub trait ReduceMoments: Sized {
+    /// Type for the sum output.
+    type SumOutput;
+    /// Type for the sum-of-squares output.
+    type SumSqOutput;
+    /// Compute `(sum, sum_of_squares)` for `data` with the given stride (in bytes).
     /// Use `stride_bytes = size_of::<Self>()` for contiguous data.
-    fn reduce_add(data: &[Self], stride_bytes: usize) -> Self::Output;
+    fn reduce_moments(data: &[Self], stride_bytes: usize) -> (Self::SumOutput, Self::SumSqOutput);
 }
 
-impl ReduceAdd for f64 {
-    type Output = f64;
-    fn reduce_add(data: &[Self], stride_bytes: usize) -> Self::Output {
-        let mut result: f64 = 0.0;
+impl ReduceMoments for f64 {
+    type SumOutput = f64;
+    type SumSqOutput = f64;
+    fn reduce_moments(data: &[Self], stride_bytes: usize) -> (Self::SumOutput, Self::SumSqOutput) {
+        let mut sum: f64 = 0.0;
+        let mut sumsq: f64 = 0.0;
         unsafe {
-            nk_reduce_add_f64(
+            nk_reduce_moments_f64(
                 data.as_ptr(),
                 data.len() as u64size,
                 stride_bytes as u64size,
-                &mut result,
+                &mut sum,
+                &mut sumsq,
             );
         }
-        result
+        (sum, sumsq)
     }
 }
 
-impl ReduceAdd for f32 {
-    type Output = f64;
-    fn reduce_add(data: &[Self], stride_bytes: usize) -> Self::Output {
-        let mut result: f64 = 0.0;
+impl ReduceMoments for f32 {
+    type SumOutput = f64;
+    type SumSqOutput = f64;
+    fn reduce_moments(data: &[Self], stride_bytes: usize) -> (Self::SumOutput, Self::SumSqOutput) {
+        let mut sum: f64 = 0.0;
+        let mut sumsq: f64 = 0.0;
         unsafe {
-            nk_reduce_add_f32(
+            nk_reduce_moments_f32(
                 data.as_ptr(),
                 data.len() as u64size,
                 stride_bytes as u64size,
-                &mut result,
+                &mut sum,
+                &mut sumsq,
             );
         }
-        result
+        (sum, sumsq)
     }
 }
 
-impl ReduceAdd for i8 {
-    type Output = i64;
-    fn reduce_add(data: &[Self], stride_bytes: usize) -> Self::Output {
-        let mut result: i64 = 0;
+impl ReduceMoments for i8 {
+    type SumOutput = i64;
+    type SumSqOutput = u64;
+    fn reduce_moments(data: &[Self], stride_bytes: usize) -> (Self::SumOutput, Self::SumSqOutput) {
+        let mut sum: i64 = 0;
+        let mut sumsq: u64 = 0;
         unsafe {
-            nk_reduce_add_i8(
+            nk_reduce_moments_i8(
                 data.as_ptr(),
                 data.len() as u64size,
                 stride_bytes as u64size,
-                &mut result,
+                &mut sum,
+                &mut sumsq,
             );
         }
-        result
+        (sum, sumsq)
     }
 }
 
-impl ReduceAdd for u8 {
-    type Output = u64;
-    fn reduce_add(data: &[Self], stride_bytes: usize) -> Self::Output {
-        let mut result: u64 = 0;
+impl ReduceMoments for u8 {
+    type SumOutput = u64;
+    type SumSqOutput = u64;
+    fn reduce_moments(data: &[Self], stride_bytes: usize) -> (Self::SumOutput, Self::SumSqOutput) {
+        let mut sum: u64 = 0;
+        let mut sumsq: u64 = 0;
         unsafe {
-            nk_reduce_add_u8(
+            nk_reduce_moments_u8(
                 data.as_ptr(),
                 data.len() as u64size,
                 stride_bytes as u64size,
-                &mut result,
+                &mut sum,
+                &mut sumsq,
             );
         }
-        result
+        (sum, sumsq)
     }
 }
 
-impl ReduceAdd for i16 {
-    type Output = i64;
-    fn reduce_add(data: &[Self], stride_bytes: usize) -> Self::Output {
-        let mut result: i64 = 0;
+impl ReduceMoments for i16 {
+    type SumOutput = i64;
+    type SumSqOutput = u64;
+    fn reduce_moments(data: &[Self], stride_bytes: usize) -> (Self::SumOutput, Self::SumSqOutput) {
+        let mut sum: i64 = 0;
+        let mut sumsq: u64 = 0;
         unsafe {
-            nk_reduce_add_i16(
+            nk_reduce_moments_i16(
                 data.as_ptr(),
                 data.len() as u64size,
                 stride_bytes as u64size,
-                &mut result,
+                &mut sum,
+                &mut sumsq,
             );
         }
-        result
+        (sum, sumsq)
     }
 }
 
-impl ReduceAdd for u16 {
-    type Output = u64;
-    fn reduce_add(data: &[Self], stride_bytes: usize) -> Self::Output {
-        let mut result: u64 = 0;
+impl ReduceMoments for u16 {
+    type SumOutput = u64;
+    type SumSqOutput = u64;
+    fn reduce_moments(data: &[Self], stride_bytes: usize) -> (Self::SumOutput, Self::SumSqOutput) {
+        let mut sum: u64 = 0;
+        let mut sumsq: u64 = 0;
         unsafe {
-            nk_reduce_add_u16(
+            nk_reduce_moments_u16(
                 data.as_ptr(),
                 data.len() as u64size,
                 stride_bytes as u64size,
-                &mut result,
+                &mut sum,
+                &mut sumsq,
             );
         }
-        result
+        (sum, sumsq)
     }
 }
 
-impl ReduceAdd for i32 {
-    type Output = i64;
-    fn reduce_add(data: &[Self], stride_bytes: usize) -> Self::Output {
-        let mut result: i64 = 0;
+impl ReduceMoments for i32 {
+    type SumOutput = i64;
+    type SumSqOutput = u64;
+    fn reduce_moments(data: &[Self], stride_bytes: usize) -> (Self::SumOutput, Self::SumSqOutput) {
+        let mut sum: i64 = 0;
+        let mut sumsq: u64 = 0;
         unsafe {
-            nk_reduce_add_i32(
+            nk_reduce_moments_i32(
                 data.as_ptr(),
                 data.len() as u64size,
                 stride_bytes as u64size,
-                &mut result,
+                &mut sum,
+                &mut sumsq,
             );
         }
-        result
+        (sum, sumsq)
     }
 }
 
-impl ReduceAdd for u32 {
-    type Output = u64;
-    fn reduce_add(data: &[Self], stride_bytes: usize) -> Self::Output {
-        let mut result: u64 = 0;
+impl ReduceMoments for u32 {
+    type SumOutput = u64;
+    type SumSqOutput = u64;
+    fn reduce_moments(data: &[Self], stride_bytes: usize) -> (Self::SumOutput, Self::SumSqOutput) {
+        let mut sum: u64 = 0;
+        let mut sumsq: u64 = 0;
         unsafe {
-            nk_reduce_add_u32(
+            nk_reduce_moments_u32(
                 data.as_ptr(),
                 data.len() as u64size,
                 stride_bytes as u64size,
-                &mut result,
+                &mut sum,
+                &mut sumsq,
             );
         }
-        result
+        (sum, sumsq)
     }
 }
 
-impl ReduceAdd for i64 {
-    type Output = i64;
-    fn reduce_add(data: &[Self], stride_bytes: usize) -> Self::Output {
-        let mut result: i64 = 0;
+impl ReduceMoments for i64 {
+    type SumOutput = i64;
+    type SumSqOutput = u64;
+    fn reduce_moments(data: &[Self], stride_bytes: usize) -> (Self::SumOutput, Self::SumSqOutput) {
+        let mut sum: i64 = 0;
+        let mut sumsq: u64 = 0;
         unsafe {
-            nk_reduce_add_i64(
+            nk_reduce_moments_i64(
                 data.as_ptr(),
                 data.len() as u64size,
                 stride_bytes as u64size,
-                &mut result,
+                &mut sum,
+                &mut sumsq,
             );
         }
-        result
+        (sum, sumsq)
     }
 }
 
-impl ReduceAdd for u64 {
-    type Output = u64;
-    fn reduce_add(data: &[Self], stride_bytes: usize) -> Self::Output {
-        let mut result: u64 = 0;
+impl ReduceMoments for u64 {
+    type SumOutput = u64;
+    type SumSqOutput = u64;
+    fn reduce_moments(data: &[Self], stride_bytes: usize) -> (Self::SumOutput, Self::SumSqOutput) {
+        let mut sum: u64 = 0;
+        let mut sumsq: u64 = 0;
         unsafe {
-            nk_reduce_add_u64(
+            nk_reduce_moments_u64(
                 data.as_ptr(),
                 data.len() as u64size,
                 stride_bytes as u64size,
-                &mut result,
+                &mut sum,
+                &mut sumsq,
             );
         }
-        result
+        (sum, sumsq)
     }
 }
 
-impl ReduceAdd for f16 {
-    type Output = f32;
-    fn reduce_add(data: &[Self], stride_bytes: usize) -> Self::Output {
-        let mut result: f32 = 0.0;
+impl ReduceMoments for f16 {
+    type SumOutput = f32;
+    type SumSqOutput = f32;
+    fn reduce_moments(data: &[Self], stride_bytes: usize) -> (Self::SumOutput, Self::SumSqOutput) {
+        let mut sum: f32 = 0.0;
+        let mut sumsq: f32 = 0.0;
         unsafe {
-            nk_reduce_add_f16(
+            nk_reduce_moments_f16(
                 data.as_ptr() as *const u16,
                 data.len() as u64size,
                 stride_bytes as u64size,
-                &mut result,
+                &mut sum,
+                &mut sumsq,
             );
         }
-        result
+        (sum, sumsq)
     }
 }
 
-impl ReduceAdd for bf16 {
-    type Output = f32;
-    fn reduce_add(data: &[Self], stride_bytes: usize) -> Self::Output {
-        let mut result: f32 = 0.0;
+impl ReduceMoments for bf16 {
+    type SumOutput = f32;
+    type SumSqOutput = f32;
+    fn reduce_moments(data: &[Self], stride_bytes: usize) -> (Self::SumOutput, Self::SumSqOutput) {
+        let mut sum: f32 = 0.0;
+        let mut sumsq: f32 = 0.0;
         unsafe {
-            nk_reduce_add_bf16(
+            nk_reduce_moments_bf16(
                 data.as_ptr() as *const u16,
                 data.len() as u64size,
                 stride_bytes as u64size,
-                &mut result,
+                &mut sum,
+                &mut sumsq,
             );
         }
-        result
+        (sum, sumsq)
     }
 }
 
-impl ReduceAdd for e4m3 {
-    type Output = f32;
-    fn reduce_add(data: &[Self], stride_bytes: usize) -> Self::Output {
-        let mut result: f32 = 0.0;
+impl ReduceMoments for e4m3 {
+    type SumOutput = f32;
+    type SumSqOutput = f32;
+    fn reduce_moments(data: &[Self], stride_bytes: usize) -> (Self::SumOutput, Self::SumSqOutput) {
+        let mut sum: f32 = 0.0;
+        let mut sumsq: f32 = 0.0;
         unsafe {
-            nk_reduce_add_e4m3(
+            nk_reduce_moments_e4m3(
                 data.as_ptr() as *const u8,
                 data.len() as u64size,
                 stride_bytes as u64size,
-                &mut result,
+                &mut sum,
+                &mut sumsq,
             );
         }
-        result
+        (sum, sumsq)
     }
 }
 
-impl ReduceAdd for e5m2 {
-    type Output = f32;
-    fn reduce_add(data: &[Self], stride_bytes: usize) -> Self::Output {
-        let mut result: f32 = 0.0;
+impl ReduceMoments for e5m2 {
+    type SumOutput = f32;
+    type SumSqOutput = f32;
+    fn reduce_moments(data: &[Self], stride_bytes: usize) -> (Self::SumOutput, Self::SumSqOutput) {
+        let mut sum: f32 = 0.0;
+        let mut sumsq: f32 = 0.0;
         unsafe {
-            nk_reduce_add_e5m2(
+            nk_reduce_moments_e5m2(
                 data.as_ptr() as *const u8,
                 data.len() as u64size,
                 stride_bytes as u64size,
-                &mut result,
+                &mut sum,
+                &mut sumsq,
             );
         }
-        result
+        (sum, sumsq)
     }
 }
 
-/// Find minimum value and its index with stride support.
-pub trait ReduceMin: Sized {
-    /// Output type for the minimum value. Usually Self, but f32 for half-precision types.
+/// Find minimum and maximum values with their indices, with stride support.
+///
+/// Returns `(min_value, min_index, max_value, max_index)` for all elements in a slice.
+/// The value output type may be widened for half-precision types.
+pub trait ReduceMinMax: Sized {
+    /// Output type for the min/max values. Usually Self, but f32 for half-precision types.
     type Output;
-    /// Returns (min_value, min_index) for the given data with the specified stride.
-    fn reduce_min(data: &[Self], stride_bytes: usize) -> (Self::Output, usize);
+    /// Returns `(min_value, min_index, max_value, max_index)` for the given data with the specified stride.
+    fn reduce_minmax(
+        data: &[Self],
+        stride_bytes: usize,
+    ) -> (Self::Output, usize, Self::Output, usize);
 }
 
-impl ReduceMin for f64 {
+impl ReduceMinMax for f64 {
     type Output = f64;
-    fn reduce_min(data: &[Self], stride_bytes: usize) -> (Self::Output, usize) {
-        let mut min_value: f64 = 0.0;
-        let mut min_index: u64size = 0;
+    fn reduce_minmax(
+        data: &[Self],
+        stride_bytes: usize,
+    ) -> (Self::Output, usize, Self::Output, usize) {
+        let mut min_val: f64 = 0.0;
+        let mut min_idx: u64size = 0;
+        let mut max_val: f64 = 0.0;
+        let mut max_idx: u64size = 0;
         unsafe {
-            nk_reduce_min_f64(
+            nk_reduce_minmax_f64(
                 data.as_ptr(),
                 data.len() as u64size,
                 stride_bytes as u64size,
-                &mut min_value,
-                &mut min_index,
+                &mut min_val,
+                &mut min_idx,
+                &mut max_val,
+                &mut max_idx,
             );
         }
-        (min_value, min_index as usize)
+        (min_val, min_idx as usize, max_val, max_idx as usize)
     }
 }
 
-impl ReduceMin for f32 {
+impl ReduceMinMax for f32 {
     type Output = f32;
-    fn reduce_min(data: &[Self], stride_bytes: usize) -> (Self::Output, usize) {
-        let mut min_value: f32 = 0.0;
-        let mut min_index: u64size = 0;
+    fn reduce_minmax(
+        data: &[Self],
+        stride_bytes: usize,
+    ) -> (Self::Output, usize, Self::Output, usize) {
+        let mut min_val: f32 = 0.0;
+        let mut min_idx: u64size = 0;
+        let mut max_val: f32 = 0.0;
+        let mut max_idx: u64size = 0;
         unsafe {
-            nk_reduce_min_f32(
+            nk_reduce_minmax_f32(
                 data.as_ptr(),
                 data.len() as u64size,
                 stride_bytes as u64size,
-                &mut min_value,
-                &mut min_index,
+                &mut min_val,
+                &mut min_idx,
+                &mut max_val,
+                &mut max_idx,
             );
         }
-        (min_value, min_index as usize)
+        (min_val, min_idx as usize, max_val, max_idx as usize)
     }
 }
 
-impl ReduceMin for i8 {
+impl ReduceMinMax for i8 {
     type Output = i8;
-    fn reduce_min(data: &[Self], stride_bytes: usize) -> (Self::Output, usize) {
-        let mut min_value: i8 = 0;
-        let mut min_index: u64size = 0;
+    fn reduce_minmax(
+        data: &[Self],
+        stride_bytes: usize,
+    ) -> (Self::Output, usize, Self::Output, usize) {
+        let mut min_val: i8 = 0;
+        let mut min_idx: u64size = 0;
+        let mut max_val: i8 = 0;
+        let mut max_idx: u64size = 0;
         unsafe {
-            nk_reduce_min_i8(
+            nk_reduce_minmax_i8(
                 data.as_ptr(),
                 data.len() as u64size,
                 stride_bytes as u64size,
-                &mut min_value,
-                &mut min_index,
+                &mut min_val,
+                &mut min_idx,
+                &mut max_val,
+                &mut max_idx,
             );
         }
-        (min_value, min_index as usize)
+        (min_val, min_idx as usize, max_val, max_idx as usize)
     }
 }
 
-impl ReduceMin for u8 {
+impl ReduceMinMax for u8 {
     type Output = u8;
-    fn reduce_min(data: &[Self], stride_bytes: usize) -> (Self::Output, usize) {
-        let mut min_value: u8 = 0;
-        let mut min_index: u64size = 0;
+    fn reduce_minmax(
+        data: &[Self],
+        stride_bytes: usize,
+    ) -> (Self::Output, usize, Self::Output, usize) {
+        let mut min_val: u8 = 0;
+        let mut min_idx: u64size = 0;
+        let mut max_val: u8 = 0;
+        let mut max_idx: u64size = 0;
         unsafe {
-            nk_reduce_min_u8(
+            nk_reduce_minmax_u8(
                 data.as_ptr(),
                 data.len() as u64size,
                 stride_bytes as u64size,
-                &mut min_value,
-                &mut min_index,
+                &mut min_val,
+                &mut min_idx,
+                &mut max_val,
+                &mut max_idx,
             );
         }
-        (min_value, min_index as usize)
+        (min_val, min_idx as usize, max_val, max_idx as usize)
     }
 }
 
-impl ReduceMin for i16 {
+impl ReduceMinMax for i16 {
     type Output = i16;
-    fn reduce_min(data: &[Self], stride_bytes: usize) -> (Self::Output, usize) {
-        let mut min_value: i16 = 0;
-        let mut min_index: u64size = 0;
+    fn reduce_minmax(
+        data: &[Self],
+        stride_bytes: usize,
+    ) -> (Self::Output, usize, Self::Output, usize) {
+        let mut min_val: i16 = 0;
+        let mut min_idx: u64size = 0;
+        let mut max_val: i16 = 0;
+        let mut max_idx: u64size = 0;
         unsafe {
-            nk_reduce_min_i16(
+            nk_reduce_minmax_i16(
                 data.as_ptr(),
                 data.len() as u64size,
                 stride_bytes as u64size,
-                &mut min_value,
-                &mut min_index,
+                &mut min_val,
+                &mut min_idx,
+                &mut max_val,
+                &mut max_idx,
             );
         }
-        (min_value, min_index as usize)
+        (min_val, min_idx as usize, max_val, max_idx as usize)
     }
 }
 
-impl ReduceMin for u16 {
+impl ReduceMinMax for u16 {
     type Output = u16;
-    fn reduce_min(data: &[Self], stride_bytes: usize) -> (Self::Output, usize) {
-        let mut min_value: u16 = 0;
-        let mut min_index: u64size = 0;
+    fn reduce_minmax(
+        data: &[Self],
+        stride_bytes: usize,
+    ) -> (Self::Output, usize, Self::Output, usize) {
+        let mut min_val: u16 = 0;
+        let mut min_idx: u64size = 0;
+        let mut max_val: u16 = 0;
+        let mut max_idx: u64size = 0;
         unsafe {
-            nk_reduce_min_u16(
+            nk_reduce_minmax_u16(
                 data.as_ptr(),
                 data.len() as u64size,
                 stride_bytes as u64size,
-                &mut min_value,
-                &mut min_index,
+                &mut min_val,
+                &mut min_idx,
+                &mut max_val,
+                &mut max_idx,
             );
         }
-        (min_value, min_index as usize)
+        (min_val, min_idx as usize, max_val, max_idx as usize)
     }
 }
 
-impl ReduceMin for i32 {
+impl ReduceMinMax for i32 {
     type Output = i32;
-    fn reduce_min(data: &[Self], stride_bytes: usize) -> (Self::Output, usize) {
-        let mut min_value: i32 = 0;
-        let mut min_index: u64size = 0;
+    fn reduce_minmax(
+        data: &[Self],
+        stride_bytes: usize,
+    ) -> (Self::Output, usize, Self::Output, usize) {
+        let mut min_val: i32 = 0;
+        let mut min_idx: u64size = 0;
+        let mut max_val: i32 = 0;
+        let mut max_idx: u64size = 0;
         unsafe {
-            nk_reduce_min_i32(
+            nk_reduce_minmax_i32(
                 data.as_ptr(),
                 data.len() as u64size,
                 stride_bytes as u64size,
-                &mut min_value,
-                &mut min_index,
+                &mut min_val,
+                &mut min_idx,
+                &mut max_val,
+                &mut max_idx,
             );
         }
-        (min_value, min_index as usize)
+        (min_val, min_idx as usize, max_val, max_idx as usize)
     }
 }
 
-impl ReduceMin for u32 {
+impl ReduceMinMax for u32 {
     type Output = u32;
-    fn reduce_min(data: &[Self], stride_bytes: usize) -> (Self::Output, usize) {
-        let mut min_value: u32 = 0;
-        let mut min_index: u64size = 0;
+    fn reduce_minmax(
+        data: &[Self],
+        stride_bytes: usize,
+    ) -> (Self::Output, usize, Self::Output, usize) {
+        let mut min_val: u32 = 0;
+        let mut min_idx: u64size = 0;
+        let mut max_val: u32 = 0;
+        let mut max_idx: u64size = 0;
         unsafe {
-            nk_reduce_min_u32(
+            nk_reduce_minmax_u32(
                 data.as_ptr(),
                 data.len() as u64size,
                 stride_bytes as u64size,
-                &mut min_value,
-                &mut min_index,
+                &mut min_val,
+                &mut min_idx,
+                &mut max_val,
+                &mut max_idx,
             );
         }
-        (min_value, min_index as usize)
+        (min_val, min_idx as usize, max_val, max_idx as usize)
     }
 }
 
-impl ReduceMin for i64 {
+impl ReduceMinMax for i64 {
     type Output = i64;
-    fn reduce_min(data: &[Self], stride_bytes: usize) -> (Self::Output, usize) {
-        let mut min_value: i64 = 0;
-        let mut min_index: u64size = 0;
+    fn reduce_minmax(
+        data: &[Self],
+        stride_bytes: usize,
+    ) -> (Self::Output, usize, Self::Output, usize) {
+        let mut min_val: i64 = 0;
+        let mut min_idx: u64size = 0;
+        let mut max_val: i64 = 0;
+        let mut max_idx: u64size = 0;
         unsafe {
-            nk_reduce_min_i64(
+            nk_reduce_minmax_i64(
                 data.as_ptr(),
                 data.len() as u64size,
                 stride_bytes as u64size,
-                &mut min_value,
-                &mut min_index,
+                &mut min_val,
+                &mut min_idx,
+                &mut max_val,
+                &mut max_idx,
             );
         }
-        (min_value, min_index as usize)
+        (min_val, min_idx as usize, max_val, max_idx as usize)
     }
 }
 
-impl ReduceMin for u64 {
+impl ReduceMinMax for u64 {
     type Output = u64;
-    fn reduce_min(data: &[Self], stride_bytes: usize) -> (Self::Output, usize) {
-        let mut min_value: u64 = 0;
-        let mut min_index: u64size = 0;
+    fn reduce_minmax(
+        data: &[Self],
+        stride_bytes: usize,
+    ) -> (Self::Output, usize, Self::Output, usize) {
+        let mut min_val: u64 = 0;
+        let mut min_idx: u64size = 0;
+        let mut max_val: u64 = 0;
+        let mut max_idx: u64size = 0;
         unsafe {
-            nk_reduce_min_u64(
+            nk_reduce_minmax_u64(
                 data.as_ptr(),
                 data.len() as u64size,
                 stride_bytes as u64size,
-                &mut min_value,
-                &mut min_index,
+                &mut min_val,
+                &mut min_idx,
+                &mut max_val,
+                &mut max_idx,
             );
         }
-        (min_value, min_index as usize)
+        (min_val, min_idx as usize, max_val, max_idx as usize)
     }
 }
 
-impl ReduceMin for f16 {
+impl ReduceMinMax for f16 {
     type Output = f32;
-    fn reduce_min(data: &[Self], stride_bytes: usize) -> (Self::Output, usize) {
-        let mut min_value: f32 = 0.0;
-        let mut min_index: u64size = 0;
+    fn reduce_minmax(
+        data: &[Self],
+        stride_bytes: usize,
+    ) -> (Self::Output, usize, Self::Output, usize) {
+        let mut min_val: f32 = 0.0;
+        let mut min_idx: u64size = 0;
+        let mut max_val: f32 = 0.0;
+        let mut max_idx: u64size = 0;
         unsafe {
-            nk_reduce_min_f16(
+            nk_reduce_minmax_f16(
                 data.as_ptr() as *const u16,
                 data.len() as u64size,
                 stride_bytes as u64size,
-                &mut min_value,
-                &mut min_index,
+                &mut min_val,
+                &mut min_idx,
+                &mut max_val,
+                &mut max_idx,
             );
         }
-        (min_value, min_index as usize)
+        (min_val, min_idx as usize, max_val, max_idx as usize)
     }
 }
 
-impl ReduceMin for bf16 {
+impl ReduceMinMax for bf16 {
     type Output = f32;
-    fn reduce_min(data: &[Self], stride_bytes: usize) -> (Self::Output, usize) {
-        let mut min_value: f32 = 0.0;
-        let mut min_index: u64size = 0;
+    fn reduce_minmax(
+        data: &[Self],
+        stride_bytes: usize,
+    ) -> (Self::Output, usize, Self::Output, usize) {
+        let mut min_val: f32 = 0.0;
+        let mut min_idx: u64size = 0;
+        let mut max_val: f32 = 0.0;
+        let mut max_idx: u64size = 0;
         unsafe {
-            nk_reduce_min_bf16(
+            nk_reduce_minmax_bf16(
                 data.as_ptr() as *const u16,
                 data.len() as u64size,
                 stride_bytes as u64size,
-                &mut min_value,
-                &mut min_index,
+                &mut min_val,
+                &mut min_idx,
+                &mut max_val,
+                &mut max_idx,
             );
         }
-        (min_value, min_index as usize)
+        (min_val, min_idx as usize, max_val, max_idx as usize)
     }
 }
 
-impl ReduceMin for e4m3 {
+impl ReduceMinMax for e4m3 {
     type Output = f32;
-    fn reduce_min(data: &[Self], stride_bytes: usize) -> (Self::Output, usize) {
-        let mut min_value: f32 = 0.0;
-        let mut min_index: u64size = 0;
+    fn reduce_minmax(
+        data: &[Self],
+        stride_bytes: usize,
+    ) -> (Self::Output, usize, Self::Output, usize) {
+        let mut min_val: f32 = 0.0;
+        let mut min_idx: u64size = 0;
+        let mut max_val: f32 = 0.0;
+        let mut max_idx: u64size = 0;
         unsafe {
-            nk_reduce_min_e4m3(
+            nk_reduce_minmax_e4m3(
                 data.as_ptr() as *const u8,
                 data.len() as u64size,
                 stride_bytes as u64size,
-                &mut min_value,
-                &mut min_index,
+                &mut min_val,
+                &mut min_idx,
+                &mut max_val,
+                &mut max_idx,
             );
         }
-        (min_value, min_index as usize)
+        (min_val, min_idx as usize, max_val, max_idx as usize)
     }
 }
 
-impl ReduceMin for e5m2 {
+impl ReduceMinMax for e5m2 {
     type Output = f32;
-    fn reduce_min(data: &[Self], stride_bytes: usize) -> (Self::Output, usize) {
-        let mut min_value: f32 = 0.0;
-        let mut min_index: u64size = 0;
+    fn reduce_minmax(
+        data: &[Self],
+        stride_bytes: usize,
+    ) -> (Self::Output, usize, Self::Output, usize) {
+        let mut min_val: f32 = 0.0;
+        let mut min_idx: u64size = 0;
+        let mut max_val: f32 = 0.0;
+        let mut max_idx: u64size = 0;
         unsafe {
-            nk_reduce_min_e5m2(
+            nk_reduce_minmax_e5m2(
                 data.as_ptr() as *const u8,
                 data.len() as u64size,
                 stride_bytes as u64size,
-                &mut min_value,
-                &mut min_index,
+                &mut min_val,
+                &mut min_idx,
+                &mut max_val,
+                &mut max_idx,
             );
         }
-        (min_value, min_index as usize)
-    }
-}
-
-/// Find maximum value and its index with stride support.
-pub trait ReduceMax: Sized {
-    /// Output type for the maximum value. Usually Self, but f32 for half-precision types.
-    type Output;
-    /// Returns (max_value, max_index) for the given data with the specified stride.
-    fn reduce_max(data: &[Self], stride_bytes: usize) -> (Self::Output, usize);
-}
-
-impl ReduceMax for f64 {
-    type Output = f64;
-    fn reduce_max(data: &[Self], stride_bytes: usize) -> (Self::Output, usize) {
-        let mut max_value: f64 = 0.0;
-        let mut max_index: u64size = 0;
-        unsafe {
-            nk_reduce_max_f64(
-                data.as_ptr(),
-                data.len() as u64size,
-                stride_bytes as u64size,
-                &mut max_value,
-                &mut max_index,
-            );
-        }
-        (max_value, max_index as usize)
-    }
-}
-
-impl ReduceMax for f32 {
-    type Output = f32;
-    fn reduce_max(data: &[Self], stride_bytes: usize) -> (Self::Output, usize) {
-        let mut max_value: f32 = 0.0;
-        let mut max_index: u64size = 0;
-        unsafe {
-            nk_reduce_max_f32(
-                data.as_ptr(),
-                data.len() as u64size,
-                stride_bytes as u64size,
-                &mut max_value,
-                &mut max_index,
-            );
-        }
-        (max_value, max_index as usize)
-    }
-}
-
-impl ReduceMax for i8 {
-    type Output = i8;
-    fn reduce_max(data: &[Self], stride_bytes: usize) -> (Self::Output, usize) {
-        let mut max_value: i8 = 0;
-        let mut max_index: u64size = 0;
-        unsafe {
-            nk_reduce_max_i8(
-                data.as_ptr(),
-                data.len() as u64size,
-                stride_bytes as u64size,
-                &mut max_value,
-                &mut max_index,
-            );
-        }
-        (max_value, max_index as usize)
-    }
-}
-
-impl ReduceMax for u8 {
-    type Output = u8;
-    fn reduce_max(data: &[Self], stride_bytes: usize) -> (Self::Output, usize) {
-        let mut max_value: u8 = 0;
-        let mut max_index: u64size = 0;
-        unsafe {
-            nk_reduce_max_u8(
-                data.as_ptr(),
-                data.len() as u64size,
-                stride_bytes as u64size,
-                &mut max_value,
-                &mut max_index,
-            );
-        }
-        (max_value, max_index as usize)
-    }
-}
-
-impl ReduceMax for i16 {
-    type Output = i16;
-    fn reduce_max(data: &[Self], stride_bytes: usize) -> (Self::Output, usize) {
-        let mut max_value: i16 = 0;
-        let mut max_index: u64size = 0;
-        unsafe {
-            nk_reduce_max_i16(
-                data.as_ptr(),
-                data.len() as u64size,
-                stride_bytes as u64size,
-                &mut max_value,
-                &mut max_index,
-            );
-        }
-        (max_value, max_index as usize)
-    }
-}
-
-impl ReduceMax for u16 {
-    type Output = u16;
-    fn reduce_max(data: &[Self], stride_bytes: usize) -> (Self::Output, usize) {
-        let mut max_value: u16 = 0;
-        let mut max_index: u64size = 0;
-        unsafe {
-            nk_reduce_max_u16(
-                data.as_ptr(),
-                data.len() as u64size,
-                stride_bytes as u64size,
-                &mut max_value,
-                &mut max_index,
-            );
-        }
-        (max_value, max_index as usize)
-    }
-}
-
-impl ReduceMax for i32 {
-    type Output = i32;
-    fn reduce_max(data: &[Self], stride_bytes: usize) -> (Self::Output, usize) {
-        let mut max_value: i32 = 0;
-        let mut max_index: u64size = 0;
-        unsafe {
-            nk_reduce_max_i32(
-                data.as_ptr(),
-                data.len() as u64size,
-                stride_bytes as u64size,
-                &mut max_value,
-                &mut max_index,
-            );
-        }
-        (max_value, max_index as usize)
-    }
-}
-
-impl ReduceMax for u32 {
-    type Output = u32;
-    fn reduce_max(data: &[Self], stride_bytes: usize) -> (Self::Output, usize) {
-        let mut max_value: u32 = 0;
-        let mut max_index: u64size = 0;
-        unsafe {
-            nk_reduce_max_u32(
-                data.as_ptr(),
-                data.len() as u64size,
-                stride_bytes as u64size,
-                &mut max_value,
-                &mut max_index,
-            );
-        }
-        (max_value, max_index as usize)
-    }
-}
-
-impl ReduceMax for i64 {
-    type Output = i64;
-    fn reduce_max(data: &[Self], stride_bytes: usize) -> (Self::Output, usize) {
-        let mut max_value: i64 = 0;
-        let mut max_index: u64size = 0;
-        unsafe {
-            nk_reduce_max_i64(
-                data.as_ptr(),
-                data.len() as u64size,
-                stride_bytes as u64size,
-                &mut max_value,
-                &mut max_index,
-            );
-        }
-        (max_value, max_index as usize)
-    }
-}
-
-impl ReduceMax for u64 {
-    type Output = u64;
-    fn reduce_max(data: &[Self], stride_bytes: usize) -> (Self::Output, usize) {
-        let mut max_value: u64 = 0;
-        let mut max_index: u64size = 0;
-        unsafe {
-            nk_reduce_max_u64(
-                data.as_ptr(),
-                data.len() as u64size,
-                stride_bytes as u64size,
-                &mut max_value,
-                &mut max_index,
-            );
-        }
-        (max_value, max_index as usize)
-    }
-}
-
-impl ReduceMax for f16 {
-    type Output = f32;
-    fn reduce_max(data: &[Self], stride_bytes: usize) -> (Self::Output, usize) {
-        let mut max_value: f32 = 0.0;
-        let mut max_index: u64size = 0;
-        unsafe {
-            nk_reduce_max_f16(
-                data.as_ptr() as *const u16,
-                data.len() as u64size,
-                stride_bytes as u64size,
-                &mut max_value,
-                &mut max_index,
-            );
-        }
-        (max_value, max_index as usize)
-    }
-}
-
-impl ReduceMax for bf16 {
-    type Output = f32;
-    fn reduce_max(data: &[Self], stride_bytes: usize) -> (Self::Output, usize) {
-        let mut max_value: f32 = 0.0;
-        let mut max_index: u64size = 0;
-        unsafe {
-            nk_reduce_max_bf16(
-                data.as_ptr() as *const u16,
-                data.len() as u64size,
-                stride_bytes as u64size,
-                &mut max_value,
-                &mut max_index,
-            );
-        }
-        (max_value, max_index as usize)
-    }
-}
-
-impl ReduceMax for e4m3 {
-    type Output = f32;
-    fn reduce_max(data: &[Self], stride_bytes: usize) -> (Self::Output, usize) {
-        let mut max_value: f32 = 0.0;
-        let mut max_index: u64size = 0;
-        unsafe {
-            nk_reduce_max_e4m3(
-                data.as_ptr() as *const u8,
-                data.len() as u64size,
-                stride_bytes as u64size,
-                &mut max_value,
-                &mut max_index,
-            );
-        }
-        (max_value, max_index as usize)
-    }
-}
-
-impl ReduceMax for e5m2 {
-    type Output = f32;
-    fn reduce_max(data: &[Self], stride_bytes: usize) -> (Self::Output, usize) {
-        let mut max_value: f32 = 0.0;
-        let mut max_index: u64size = 0;
-        unsafe {
-            nk_reduce_max_e5m2(
-                data.as_ptr() as *const u8,
-                data.len() as u64size,
-                stride_bytes as u64size,
-                &mut max_value,
-                &mut max_index,
-            );
-        }
-        (max_value, max_index as usize)
+        (min_val, min_idx as usize, max_val, max_idx as usize)
     }
 }
 
@@ -5502,9 +5398,9 @@ impl<T: EachScale + EachSum + EachBlend + EachFMA> Elementwise for T {}
 pub trait Trigonometry: EachSin + EachCos + EachATan {}
 impl<T: EachSin + EachCos + EachATan> Trigonometry for T {}
 
-/// `Reductions` bundles reduction operations: ReduceAdd, ReduceMin, and ReduceMax.
-pub trait Reductions: ReduceAdd + ReduceMin + ReduceMax {}
-impl<T: ReduceAdd + ReduceMin + ReduceMax> Reductions for T {}
+/// `Reductions` bundles reduction operations: ReduceMoments and ReduceMinMax.
+pub trait Reductions: ReduceMoments + ReduceMinMax {}
+impl<T: ReduceMoments + ReduceMinMax> Reductions for T {}
 
 // endregion: Convenience Trait Aliases
 

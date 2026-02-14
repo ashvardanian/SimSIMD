@@ -7,84 +7,52 @@
 
 #include "test.hpp"
 #include "numkong/reduce.hpp"
+#include "numkong/reduce/serial.h"
 
-/**
- *  @brief Unified reduce_add test for float types.
- *  Works with f32_t, f64_t, e4m3_t, e5m2_t wrapper types.
- */
-template <typename scalar_type_>
-error_stats_t test_reduce_add(typename scalar_type_::reduce_add_kernel_t kernel) {
-    using scalar_t = scalar_type_;
-    using raw_t = typename scalar_t::raw_t;
-    using result_t = typename scalar_t::reduce_add_result_t;
-
+template <typename input_t_, typename sum_acc_t_, typename sumsq_acc_t_ = sum_acc_t_>
+error_stats_t test_reduce_moments_(void (*kernel)(typename input_t_::raw_t const *, nk_size_t, nk_size_t,
+                                                  typename sum_acc_t_::raw_t *, typename sumsq_acc_t_::raw_t *),
+                                   void (*reference)(typename input_t_::raw_t const *, nk_size_t, nk_size_t,
+                                                     typename sum_acc_t_::raw_t *, typename sumsq_acc_t_::raw_t *)) {
     error_stats_t stats;
     std::mt19937 generator(global_config.seed);
-    auto buffer = make_vector<scalar_t>(dense_dimensions);
-
+    auto buffer = make_vector<input_t_>(dense_dimensions);
     for (auto start = test_start_time(); within_time_budget(start);) {
         fill_random(generator, buffer);
-
-        result_t result;
-        kernel(buffer.raw_values_data(), dense_dimensions, sizeof(raw_t), &result.raw_);
-
-        f118_t reference;
-        nk::reduce_add<scalar_t, f118_t, nk::no_simd_k>(buffer.values_data(), dense_dimensions, sizeof(raw_t),
-                                                        &reference);
-
-        stats.accumulate(result, reference);
+        typename sum_acc_t_::raw_t sum;
+        typename sumsq_acc_t_::raw_t sumsq;
+        kernel(buffer.raw_values_data(), dense_dimensions, sizeof(typename input_t_::raw_t), &sum, &sumsq);
+        typename sum_acc_t_::raw_t ref_sum;
+        typename sumsq_acc_t_::raw_t ref_sumsq;
+        reference(buffer.raw_values_data(), dense_dimensions, sizeof(typename input_t_::raw_t), &ref_sum, &ref_sumsq);
+        stats.accumulate(sum_acc_t_::from_raw(sum), sum_acc_t_::from_raw(ref_sum));
+        stats.accumulate(sumsq_acc_t_::from_raw(sumsq), sumsq_acc_t_::from_raw(ref_sumsq));
     }
     return stats;
 }
 
-template <typename scalar_type_>
-error_stats_t test_reduce_min(typename scalar_type_::reduce_extremum_kernel_t kernel) {
-    using scalar_t = scalar_type_;
-    using raw_t = typename scalar_t::raw_t;
-
+template <typename input_t_, typename output_t_>
+error_stats_t test_reduce_minmax_(void (*kernel)(typename input_t_::raw_t const *, nk_size_t, nk_size_t,
+                                                 typename output_t_::raw_t *, nk_size_t *, typename output_t_::raw_t *,
+                                                 nk_size_t *),
+                                  void (*reference)(typename input_t_::raw_t const *, nk_size_t, nk_size_t,
+                                                    typename output_t_::raw_t *, nk_size_t *,
+                                                    typename output_t_::raw_t *, nk_size_t *)) {
     error_stats_t stats;
     std::mt19937 generator(global_config.seed);
-    auto buffer = make_vector<scalar_t>(dense_dimensions);
-
+    auto buffer = make_vector<input_t_>(dense_dimensions);
     for (auto start = test_start_time(); within_time_budget(start);) {
         fill_random(generator, buffer);
-
-        scalar_t min_val;
-        nk_size_t min_idx;
-        kernel(buffer.raw_values_data(), dense_dimensions, sizeof(raw_t), &min_val.raw_, &min_idx);
-
-        scalar_t ref_val;
-        std::size_t ref_idx;
-        nk::reduce_min<scalar_t, nk::no_simd_k>(buffer.values_data(), dense_dimensions, sizeof(raw_t), &ref_val,
-                                                &ref_idx);
-
-        stats.accumulate(min_val, ref_val);
-    }
-    return stats;
-}
-
-template <typename scalar_type_>
-error_stats_t test_reduce_max(typename scalar_type_::reduce_extremum_kernel_t kernel) {
-    using scalar_t = scalar_type_;
-    using raw_t = typename scalar_t::raw_t;
-
-    error_stats_t stats;
-    std::mt19937 generator(global_config.seed);
-    auto buffer = make_vector<scalar_t>(dense_dimensions);
-
-    for (auto start = test_start_time(); within_time_budget(start);) {
-        fill_random(generator, buffer);
-
-        scalar_t max_val;
-        nk_size_t max_idx;
-        kernel(buffer.raw_values_data(), dense_dimensions, sizeof(raw_t), &max_val.raw_, &max_idx);
-
-        scalar_t ref_val;
-        std::size_t ref_idx;
-        nk::reduce_max<scalar_t, scalar_t, nk::no_simd_k>(buffer.values_data(), dense_dimensions, sizeof(raw_t),
-                                                          &ref_val, &ref_idx);
-
-        stats.accumulate(max_val, ref_val);
+        typename output_t_::raw_t min_val, max_val;
+        nk_size_t min_idx, max_idx;
+        kernel(buffer.raw_values_data(), dense_dimensions, sizeof(typename input_t_::raw_t), &min_val, &min_idx,
+               &max_val, &max_idx);
+        typename output_t_::raw_t ref_min, ref_max;
+        nk_size_t ref_min_idx, ref_max_idx;
+        reference(buffer.raw_values_data(), dense_dimensions, sizeof(typename input_t_::raw_t), &ref_min, &ref_min_idx,
+                  &ref_max, &ref_max_idx);
+        stats.accumulate(output_t_::from_raw(min_val), output_t_::from_raw(ref_min));
+        stats.accumulate(output_t_::from_raw(max_val), output_t_::from_raw(ref_max));
     }
     return stats;
 }
@@ -94,170 +62,325 @@ void test_reduce() {
     std::printf("Reductions:\n");
 
 #if NK_DYNAMIC_DISPATCH
-    run_if_matches("reduce_add_f32", test_reduce_add<f32_t>, nk_reduce_add_f32);
-    run_if_matches("reduce_add_f64", test_reduce_add<f64_t>, nk_reduce_add_f64);
-    run_if_matches("reduce_add_i32", test_reduce_add<i32_t>, nk_reduce_add_i32);
-    run_if_matches("reduce_add_e4m3", test_reduce_add<e4m3_t>, nk_reduce_add_e4m3);
-    run_if_matches("reduce_add_e5m2", test_reduce_add<e5m2_t>, nk_reduce_add_e5m2);
-    run_if_matches("reduce_add_e2m3", test_reduce_add<e2m3_t>, nk_reduce_add_e2m3);
-    run_if_matches("reduce_add_e3m2", test_reduce_add<e3m2_t>, nk_reduce_add_e3m2);
 
-    run_if_matches("reduce_min_f32", test_reduce_min<f32_t>, nk_reduce_min_f32);
-    run_if_matches("reduce_min_f64", test_reduce_min<f64_t>, nk_reduce_min_f64);
-    run_if_matches("reduce_min_i8", test_reduce_min<i8_t>, nk_reduce_min_i8);
-    run_if_matches("reduce_min_u8", test_reduce_min<u8_t>, nk_reduce_min_u8);
-    run_if_matches("reduce_min_i16", test_reduce_min<i16_t>, nk_reduce_min_i16);
-    run_if_matches("reduce_min_u16", test_reduce_min<u16_t>, nk_reduce_min_u16);
-    run_if_matches("reduce_min_i32", test_reduce_min<i32_t>, nk_reduce_min_i32);
-    run_if_matches("reduce_min_u32", test_reduce_min<u32_t>, nk_reduce_min_u32);
-    run_if_matches("reduce_min_i64", test_reduce_min<i64_t>, nk_reduce_min_i64);
-    run_if_matches("reduce_min_u64", test_reduce_min<u64_t>, nk_reduce_min_u64);
-    run_if_matches("reduce_min_e2m3", test_reduce_min<e2m3_t>, nk_reduce_min_e2m3);
-    run_if_matches("reduce_min_e3m2", test_reduce_min<e3m2_t>, nk_reduce_min_e3m2);
-
-    run_if_matches("reduce_max_f32", test_reduce_max<f32_t>, nk_reduce_max_f32);
-    run_if_matches("reduce_max_f64", test_reduce_max<f64_t>, nk_reduce_max_f64);
-    run_if_matches("reduce_max_i8", test_reduce_max<i8_t>, nk_reduce_max_i8);
-    run_if_matches("reduce_max_u8", test_reduce_max<u8_t>, nk_reduce_max_u8);
-    run_if_matches("reduce_max_i16", test_reduce_max<i16_t>, nk_reduce_max_i16);
-    run_if_matches("reduce_max_u16", test_reduce_max<u16_t>, nk_reduce_max_u16);
-    run_if_matches("reduce_max_i32", test_reduce_max<i32_t>, nk_reduce_max_i32);
-    run_if_matches("reduce_max_u32", test_reduce_max<u32_t>, nk_reduce_max_u32);
-    run_if_matches("reduce_max_i64", test_reduce_max<i64_t>, nk_reduce_max_i64);
-    run_if_matches("reduce_max_u64", test_reduce_max<u64_t>, nk_reduce_max_u64);
-    run_if_matches("reduce_max_e2m3", test_reduce_max<e2m3_t>, nk_reduce_max_e2m3);
-    run_if_matches("reduce_max_e3m2", test_reduce_max<e3m2_t>, nk_reduce_max_e3m2);
 #else
 #if NK_TARGET_NEON
-    run_if_matches("reduce_add_f32_neon", test_reduce_add<f32_t>, nk_reduce_add_f32_neon);
-    run_if_matches("reduce_add_f64_neon", test_reduce_add<f64_t>, nk_reduce_add_f64_neon);
-    run_if_matches("reduce_add_i32_neon", test_reduce_add<i32_t>, nk_reduce_add_i32_neon);
-    run_if_matches("reduce_min_f32_neon", test_reduce_min<f32_t>, nk_reduce_min_f32_neon);
-    run_if_matches("reduce_min_f64_neon", test_reduce_min<f64_t>, nk_reduce_min_f64_neon);
-    run_if_matches("reduce_min_i8_neon", test_reduce_min<i8_t>, nk_reduce_min_i8_neon);
-    run_if_matches("reduce_min_u8_neon", test_reduce_min<u8_t>, nk_reduce_min_u8_neon);
-    run_if_matches("reduce_min_i16_neon", test_reduce_min<i16_t>, nk_reduce_min_i16_neon);
-    run_if_matches("reduce_min_u16_neon", test_reduce_min<u16_t>, nk_reduce_min_u16_neon);
-    run_if_matches("reduce_max_f32_neon", test_reduce_max<f32_t>, nk_reduce_max_f32_neon);
-    run_if_matches("reduce_max_f64_neon", test_reduce_max<f64_t>, nk_reduce_max_f64_neon);
-    run_if_matches("reduce_max_i8_neon", test_reduce_max<i8_t>, nk_reduce_max_i8_neon);
-    run_if_matches("reduce_max_u8_neon", test_reduce_max<u8_t>, nk_reduce_max_u8_neon);
-    run_if_matches("reduce_max_i16_neon", test_reduce_max<i16_t>, nk_reduce_max_i16_neon);
-    run_if_matches("reduce_max_u16_neon", test_reduce_max<u16_t>, nk_reduce_max_u16_neon);
-#endif
-#if NK_TARGET_NEONFHM
-    run_if_matches("reduce_add_e4m3_neonfhm", test_reduce_add<e4m3_t>, nk_reduce_add_e4m3_neonfhm);
-    run_if_matches("reduce_add_e5m2_neonfhm", test_reduce_add<e5m2_t>, nk_reduce_add_e5m2_neonfhm);
 #endif
 #if NK_TARGET_HASWELL
-    run_if_matches("reduce_add_f32_haswell", test_reduce_add<f32_t>, nk_reduce_add_f32_haswell);
-    run_if_matches("reduce_add_f64_haswell", test_reduce_add<f64_t>, nk_reduce_add_f64_haswell);
-    run_if_matches("reduce_add_i32_haswell", test_reduce_add<i32_t>, nk_reduce_add_i32_haswell);
-    run_if_matches("reduce_add_e4m3_haswell", test_reduce_add<e4m3_t>, nk_reduce_add_e4m3_haswell);
-    run_if_matches("reduce_add_e5m2_haswell", test_reduce_add<e5m2_t>, nk_reduce_add_e5m2_haswell);
-    run_if_matches("reduce_add_e2m3_haswell", test_reduce_add<e2m3_t>, nk_reduce_add_e2m3_haswell);
-    run_if_matches("reduce_add_e3m2_haswell", test_reduce_add<e3m2_t>, nk_reduce_add_e3m2_haswell);
-    run_if_matches("reduce_min_f32_haswell", test_reduce_min<f32_t>, nk_reduce_min_f32_haswell);
-    run_if_matches("reduce_min_f64_haswell", test_reduce_min<f64_t>, nk_reduce_min_f64_haswell);
-    run_if_matches("reduce_min_i8_haswell", test_reduce_min<i8_t>, nk_reduce_min_i8_haswell);
-    run_if_matches("reduce_min_u8_haswell", test_reduce_min<u8_t>, nk_reduce_min_u8_haswell);
-    run_if_matches("reduce_min_i16_haswell", test_reduce_min<i16_t>, nk_reduce_min_i16_haswell);
-    run_if_matches("reduce_min_u16_haswell", test_reduce_min<u16_t>, nk_reduce_min_u16_haswell);
-    run_if_matches("reduce_min_i32_haswell", test_reduce_min<i32_t>, nk_reduce_min_i32_haswell);
-    run_if_matches("reduce_min_u32_haswell", test_reduce_min<u32_t>, nk_reduce_min_u32_haswell);
-    run_if_matches("reduce_min_i64_haswell", test_reduce_min<i64_t>, nk_reduce_min_i64_haswell);
-    run_if_matches("reduce_min_u64_haswell", test_reduce_min<u64_t>, nk_reduce_min_u64_haswell);
-    run_if_matches("reduce_min_e2m3_haswell", test_reduce_min<e2m3_t>, nk_reduce_min_e2m3_haswell);
-    run_if_matches("reduce_min_e3m2_haswell", test_reduce_min<e3m2_t>, nk_reduce_min_e3m2_haswell);
-    run_if_matches("reduce_max_f32_haswell", test_reduce_max<f32_t>, nk_reduce_max_f32_haswell);
-    run_if_matches("reduce_max_f64_haswell", test_reduce_max<f64_t>, nk_reduce_max_f64_haswell);
-    run_if_matches("reduce_max_i8_haswell", test_reduce_max<i8_t>, nk_reduce_max_i8_haswell);
-    run_if_matches("reduce_max_u8_haswell", test_reduce_max<u8_t>, nk_reduce_max_u8_haswell);
-    run_if_matches("reduce_max_i16_haswell", test_reduce_max<i16_t>, nk_reduce_max_i16_haswell);
-    run_if_matches("reduce_max_u16_haswell", test_reduce_max<u16_t>, nk_reduce_max_u16_haswell);
-    run_if_matches("reduce_max_i32_haswell", test_reduce_max<i32_t>, nk_reduce_max_i32_haswell);
-    run_if_matches("reduce_max_u32_haswell", test_reduce_max<u32_t>, nk_reduce_max_u32_haswell);
-    run_if_matches("reduce_max_i64_haswell", test_reduce_max<i64_t>, nk_reduce_max_i64_haswell);
-    run_if_matches("reduce_max_u64_haswell", test_reduce_max<u64_t>, nk_reduce_max_u64_haswell);
-    run_if_matches("reduce_max_e2m3_haswell", test_reduce_max<e2m3_t>, nk_reduce_max_e2m3_haswell);
-    run_if_matches("reduce_max_e3m2_haswell", test_reduce_max<e3m2_t>, nk_reduce_max_e3m2_haswell);
+    run_if_matches("reduce_moments_f32_haswell", test_reduce_moments_<f32_t, f64_t>, nk_reduce_moments_f32_haswell,
+                   nk_reduce_moments_f32_serial);
+    run_if_matches("reduce_moments_f64_haswell", test_reduce_moments_<f64_t, f64_t>, nk_reduce_moments_f64_haswell,
+                   nk_reduce_moments_f64_serial);
+    run_if_matches("reduce_moments_i8_haswell", test_reduce_moments_<i8_t, i64_t, u64_t>, nk_reduce_moments_i8_haswell,
+                   nk_reduce_moments_i8_serial);
+    run_if_matches("reduce_moments_u8_haswell", test_reduce_moments_<u8_t, u64_t>, nk_reduce_moments_u8_haswell,
+                   nk_reduce_moments_u8_serial);
+    run_if_matches("reduce_moments_i16_haswell", test_reduce_moments_<i16_t, i64_t, u64_t>,
+                   nk_reduce_moments_i16_haswell, nk_reduce_moments_i16_serial);
+    run_if_matches("reduce_moments_u16_haswell", test_reduce_moments_<u16_t, u64_t>, nk_reduce_moments_u16_haswell,
+                   nk_reduce_moments_u16_serial);
+    run_if_matches("reduce_moments_i32_haswell", test_reduce_moments_<i32_t, i64_t, u64_t>,
+                   nk_reduce_moments_i32_haswell, nk_reduce_moments_i32_serial);
+    run_if_matches("reduce_moments_u32_haswell", test_reduce_moments_<u32_t, u64_t>, nk_reduce_moments_u32_haswell,
+                   nk_reduce_moments_u32_serial);
+    run_if_matches("reduce_moments_i64_haswell", test_reduce_moments_<i64_t, i64_t, u64_t>,
+                   nk_reduce_moments_i64_haswell, nk_reduce_moments_i64_serial);
+    run_if_matches("reduce_moments_u64_haswell", test_reduce_moments_<u64_t, u64_t>, nk_reduce_moments_u64_haswell,
+                   nk_reduce_moments_u64_serial);
+    run_if_matches("reduce_moments_e4m3_haswell", test_reduce_moments_<e4m3_t, f32_t>, nk_reduce_moments_e4m3_haswell,
+                   nk_reduce_moments_e4m3_serial);
+    run_if_matches("reduce_moments_e5m2_haswell", test_reduce_moments_<e5m2_t, f32_t>, nk_reduce_moments_e5m2_haswell,
+                   nk_reduce_moments_e5m2_serial);
+    run_if_matches("reduce_moments_e2m3_haswell", test_reduce_moments_<e2m3_t, f32_t>, nk_reduce_moments_e2m3_haswell,
+                   nk_reduce_moments_e2m3_serial);
+    run_if_matches("reduce_moments_e3m2_haswell", test_reduce_moments_<e3m2_t, f32_t>, nk_reduce_moments_e3m2_haswell,
+                   nk_reduce_moments_e3m2_serial);
+    run_if_matches("reduce_moments_i4_haswell", test_reduce_moments_<i4x2_t, i64_t, u64_t>,
+                   nk_reduce_moments_i4_haswell, nk_reduce_moments_i4_serial);
+    run_if_matches("reduce_moments_u4_haswell", test_reduce_moments_<u4x2_t, u64_t>, nk_reduce_moments_u4_haswell,
+                   nk_reduce_moments_u4_serial);
+    run_if_matches("reduce_moments_u1_haswell", test_reduce_moments_<u1x8_t, u64_t>, nk_reduce_moments_u1_haswell,
+                   nk_reduce_moments_u1_serial);
+    run_if_matches("reduce_moments_bf16_haswell", test_reduce_moments_<bf16_t, f32_t>, nk_reduce_moments_bf16_haswell,
+                   nk_reduce_moments_bf16_serial);
+    run_if_matches("reduce_moments_f16_haswell", test_reduce_moments_<f16_t, f32_t>, nk_reduce_moments_f16_haswell,
+                   nk_reduce_moments_f16_serial);
+    run_if_matches("reduce_minmax_f32_haswell", test_reduce_minmax_<f32_t, f32_t>, nk_reduce_minmax_f32_haswell,
+                   nk_reduce_minmax_f32_serial);
+    run_if_matches("reduce_minmax_f64_haswell", test_reduce_minmax_<f64_t, f64_t>, nk_reduce_minmax_f64_haswell,
+                   nk_reduce_minmax_f64_serial);
+    run_if_matches("reduce_minmax_i8_haswell", test_reduce_minmax_<i8_t, i8_t>, nk_reduce_minmax_i8_haswell,
+                   nk_reduce_minmax_i8_serial);
+    run_if_matches("reduce_minmax_u8_haswell", test_reduce_minmax_<u8_t, u8_t>, nk_reduce_minmax_u8_haswell,
+                   nk_reduce_minmax_u8_serial);
+    run_if_matches("reduce_minmax_i16_haswell", test_reduce_minmax_<i16_t, i16_t>, nk_reduce_minmax_i16_haswell,
+                   nk_reduce_minmax_i16_serial);
+    run_if_matches("reduce_minmax_u16_haswell", test_reduce_minmax_<u16_t, u16_t>, nk_reduce_minmax_u16_haswell,
+                   nk_reduce_minmax_u16_serial);
+    run_if_matches("reduce_minmax_i32_haswell", test_reduce_minmax_<i32_t, i32_t>, nk_reduce_minmax_i32_haswell,
+                   nk_reduce_minmax_i32_serial);
+    run_if_matches("reduce_minmax_u32_haswell", test_reduce_minmax_<u32_t, u32_t>, nk_reduce_minmax_u32_haswell,
+                   nk_reduce_minmax_u32_serial);
+    run_if_matches("reduce_minmax_i64_haswell", test_reduce_minmax_<i64_t, i64_t>, nk_reduce_minmax_i64_haswell,
+                   nk_reduce_minmax_i64_serial);
+    run_if_matches("reduce_minmax_u64_haswell", test_reduce_minmax_<u64_t, u64_t>, nk_reduce_minmax_u64_haswell,
+                   nk_reduce_minmax_u64_serial);
+    run_if_matches("reduce_minmax_e4m3_haswell", test_reduce_minmax_<e4m3_t, e4m3_t>, nk_reduce_minmax_e4m3_haswell,
+                   nk_reduce_minmax_e4m3_serial);
+    run_if_matches("reduce_minmax_e5m2_haswell", test_reduce_minmax_<e5m2_t, e5m2_t>, nk_reduce_minmax_e5m2_haswell,
+                   nk_reduce_minmax_e5m2_serial);
+    run_if_matches("reduce_minmax_e2m3_haswell", test_reduce_minmax_<e2m3_t, e2m3_t>, nk_reduce_minmax_e2m3_haswell,
+                   nk_reduce_minmax_e2m3_serial);
+    run_if_matches("reduce_minmax_e3m2_haswell", test_reduce_minmax_<e3m2_t, e3m2_t>, nk_reduce_minmax_e3m2_haswell,
+                   nk_reduce_minmax_e3m2_serial);
+    run_if_matches("reduce_minmax_bf16_haswell", test_reduce_minmax_<bf16_t, bf16_t>, nk_reduce_minmax_bf16_haswell,
+                   nk_reduce_minmax_bf16_serial);
+    run_if_matches("reduce_minmax_f16_haswell", test_reduce_minmax_<f16_t, f16_t>, nk_reduce_minmax_f16_haswell,
+                   nk_reduce_minmax_f16_serial);
 #endif
 #if NK_TARGET_SKYLAKE
-    run_if_matches("reduce_add_f32_skylake", test_reduce_add<f32_t>, nk_reduce_add_f32_skylake);
-    run_if_matches("reduce_add_f64_skylake", test_reduce_add<f64_t>, nk_reduce_add_f64_skylake);
-    run_if_matches("reduce_add_i32_skylake", test_reduce_add<i32_t>, nk_reduce_add_i32_skylake);
-    run_if_matches("reduce_min_f32_skylake", test_reduce_min<f32_t>, nk_reduce_min_f32_skylake);
-    run_if_matches("reduce_min_f64_skylake", test_reduce_min<f64_t>, nk_reduce_min_f64_skylake);
-    run_if_matches("reduce_min_i8_skylake", test_reduce_min<i8_t>, nk_reduce_min_i8_skylake);
-    run_if_matches("reduce_min_u8_skylake", test_reduce_min<u8_t>, nk_reduce_min_u8_skylake);
-    run_if_matches("reduce_min_i16_skylake", test_reduce_min<i16_t>, nk_reduce_min_i16_skylake);
-    run_if_matches("reduce_min_u16_skylake", test_reduce_min<u16_t>, nk_reduce_min_u16_skylake);
-    run_if_matches("reduce_min_i32_skylake", test_reduce_min<i32_t>, nk_reduce_min_i32_skylake);
-    run_if_matches("reduce_min_u32_skylake", test_reduce_min<u32_t>, nk_reduce_min_u32_skylake);
-    run_if_matches("reduce_min_i64_skylake", test_reduce_min<i64_t>, nk_reduce_min_i64_skylake);
-    run_if_matches("reduce_min_u64_skylake", test_reduce_min<u64_t>, nk_reduce_min_u64_skylake);
-    run_if_matches("reduce_min_e2m3_skylake", test_reduce_min<e2m3_t>, nk_reduce_min_e2m3_skylake);
-    run_if_matches("reduce_min_e3m2_skylake", test_reduce_min<e3m2_t>, nk_reduce_min_e3m2_skylake);
-    run_if_matches("reduce_max_f32_skylake", test_reduce_max<f32_t>, nk_reduce_max_f32_skylake);
-    run_if_matches("reduce_max_f64_skylake", test_reduce_max<f64_t>, nk_reduce_max_f64_skylake);
-    run_if_matches("reduce_max_i8_skylake", test_reduce_max<i8_t>, nk_reduce_max_i8_skylake);
-    run_if_matches("reduce_max_u8_skylake", test_reduce_max<u8_t>, nk_reduce_max_u8_skylake);
-    run_if_matches("reduce_max_i16_skylake", test_reduce_max<i16_t>, nk_reduce_max_i16_skylake);
-    run_if_matches("reduce_max_u16_skylake", test_reduce_max<u16_t>, nk_reduce_max_u16_skylake);
-    run_if_matches("reduce_max_i32_skylake", test_reduce_max<i32_t>, nk_reduce_max_i32_skylake);
-    run_if_matches("reduce_max_u32_skylake", test_reduce_max<u32_t>, nk_reduce_max_u32_skylake);
-    run_if_matches("reduce_max_i64_skylake", test_reduce_max<i64_t>, nk_reduce_max_i64_skylake);
-    run_if_matches("reduce_max_u64_skylake", test_reduce_max<u64_t>, nk_reduce_max_u64_skylake);
-    run_if_matches("reduce_max_e2m3_skylake", test_reduce_max<e2m3_t>, nk_reduce_max_e2m3_skylake);
-    run_if_matches("reduce_max_e3m2_skylake", test_reduce_max<e3m2_t>, nk_reduce_max_e3m2_skylake);
+    run_if_matches("reduce_moments_f32_skylake", test_reduce_moments_<f32_t, f64_t>, nk_reduce_moments_f32_skylake,
+                   nk_reduce_moments_f32_serial);
+    run_if_matches("reduce_moments_f64_skylake", test_reduce_moments_<f64_t, f64_t>, nk_reduce_moments_f64_skylake,
+                   nk_reduce_moments_f64_serial);
+    run_if_matches("reduce_moments_i8_skylake", test_reduce_moments_<i8_t, i64_t, u64_t>, nk_reduce_moments_i8_skylake,
+                   nk_reduce_moments_i8_serial);
+    run_if_matches("reduce_moments_u8_skylake", test_reduce_moments_<u8_t, u64_t>, nk_reduce_moments_u8_skylake,
+                   nk_reduce_moments_u8_serial);
+    run_if_matches("reduce_moments_i16_skylake", test_reduce_moments_<i16_t, i64_t, u64_t>,
+                   nk_reduce_moments_i16_skylake, nk_reduce_moments_i16_serial);
+    run_if_matches("reduce_moments_u16_skylake", test_reduce_moments_<u16_t, u64_t>, nk_reduce_moments_u16_skylake,
+                   nk_reduce_moments_u16_serial);
+    run_if_matches("reduce_moments_i32_skylake", test_reduce_moments_<i32_t, i64_t, u64_t>,
+                   nk_reduce_moments_i32_skylake, nk_reduce_moments_i32_serial);
+    run_if_matches("reduce_moments_u32_skylake", test_reduce_moments_<u32_t, u64_t>, nk_reduce_moments_u32_skylake,
+                   nk_reduce_moments_u32_serial);
+    run_if_matches("reduce_moments_i64_skylake", test_reduce_moments_<i64_t, i64_t, u64_t>,
+                   nk_reduce_moments_i64_skylake, nk_reduce_moments_i64_serial);
+    run_if_matches("reduce_moments_u64_skylake", test_reduce_moments_<u64_t, u64_t>, nk_reduce_moments_u64_skylake,
+                   nk_reduce_moments_u64_serial);
+    run_if_matches("reduce_moments_e4m3_skylake", test_reduce_moments_<e4m3_t, f32_t>, nk_reduce_moments_e4m3_skylake,
+                   nk_reduce_moments_e4m3_serial);
+    run_if_matches("reduce_moments_e5m2_skylake", test_reduce_moments_<e5m2_t, f32_t>, nk_reduce_moments_e5m2_skylake,
+                   nk_reduce_moments_e5m2_serial);
+    run_if_matches("reduce_moments_e2m3_skylake", test_reduce_moments_<e2m3_t, f32_t>, nk_reduce_moments_e2m3_skylake,
+                   nk_reduce_moments_e2m3_serial);
+    run_if_matches("reduce_moments_e3m2_skylake", test_reduce_moments_<e3m2_t, f32_t>, nk_reduce_moments_e3m2_skylake,
+                   nk_reduce_moments_e3m2_serial);
+    run_if_matches("reduce_moments_i4_skylake", test_reduce_moments_<i4x2_t, i64_t, u64_t>,
+                   nk_reduce_moments_i4_skylake, nk_reduce_moments_i4_serial);
+    run_if_matches("reduce_moments_u4_skylake", test_reduce_moments_<u4x2_t, u64_t>, nk_reduce_moments_u4_skylake,
+                   nk_reduce_moments_u4_serial);
+    run_if_matches("reduce_moments_u1_skylake", test_reduce_moments_<u1x8_t, u64_t>, nk_reduce_moments_u1_skylake,
+                   nk_reduce_moments_u1_serial);
+    run_if_matches("reduce_minmax_f32_skylake", test_reduce_minmax_<f32_t, f32_t>, nk_reduce_minmax_f32_skylake,
+                   nk_reduce_minmax_f32_serial);
+    run_if_matches("reduce_minmax_f64_skylake", test_reduce_minmax_<f64_t, f64_t>, nk_reduce_minmax_f64_skylake,
+                   nk_reduce_minmax_f64_serial);
+    run_if_matches("reduce_minmax_i8_skylake", test_reduce_minmax_<i8_t, i8_t>, nk_reduce_minmax_i8_skylake,
+                   nk_reduce_minmax_i8_serial);
+    run_if_matches("reduce_minmax_u8_skylake", test_reduce_minmax_<u8_t, u8_t>, nk_reduce_minmax_u8_skylake,
+                   nk_reduce_minmax_u8_serial);
+    run_if_matches("reduce_minmax_i16_skylake", test_reduce_minmax_<i16_t, i16_t>, nk_reduce_minmax_i16_skylake,
+                   nk_reduce_minmax_i16_serial);
+    run_if_matches("reduce_minmax_u16_skylake", test_reduce_minmax_<u16_t, u16_t>, nk_reduce_minmax_u16_skylake,
+                   nk_reduce_minmax_u16_serial);
+    run_if_matches("reduce_minmax_i32_skylake", test_reduce_minmax_<i32_t, i32_t>, nk_reduce_minmax_i32_skylake,
+                   nk_reduce_minmax_i32_serial);
+    run_if_matches("reduce_minmax_u32_skylake", test_reduce_minmax_<u32_t, u32_t>, nk_reduce_minmax_u32_skylake,
+                   nk_reduce_minmax_u32_serial);
+    run_if_matches("reduce_minmax_i64_skylake", test_reduce_minmax_<i64_t, i64_t>, nk_reduce_minmax_i64_skylake,
+                   nk_reduce_minmax_i64_serial);
+    run_if_matches("reduce_minmax_u64_skylake", test_reduce_minmax_<u64_t, u64_t>, nk_reduce_minmax_u64_skylake,
+                   nk_reduce_minmax_u64_serial);
+    run_if_matches("reduce_minmax_e4m3_skylake", test_reduce_minmax_<e4m3_t, e4m3_t>, nk_reduce_minmax_e4m3_skylake,
+                   nk_reduce_minmax_e4m3_serial);
+    run_if_matches("reduce_minmax_e5m2_skylake", test_reduce_minmax_<e5m2_t, e5m2_t>, nk_reduce_minmax_e5m2_skylake,
+                   nk_reduce_minmax_e5m2_serial);
+    run_if_matches("reduce_minmax_e2m3_skylake", test_reduce_minmax_<e2m3_t, e2m3_t>, nk_reduce_minmax_e2m3_skylake,
+                   nk_reduce_minmax_e2m3_serial);
+    run_if_matches("reduce_minmax_e3m2_skylake", test_reduce_minmax_<e3m2_t, e3m2_t>, nk_reduce_minmax_e3m2_skylake,
+                   nk_reduce_minmax_e3m2_serial);
+    run_if_matches("reduce_moments_bf16_skylake", test_reduce_moments_<bf16_t, f32_t>, nk_reduce_moments_bf16_skylake,
+                   nk_reduce_moments_bf16_serial);
+    run_if_matches("reduce_minmax_bf16_skylake", test_reduce_minmax_<bf16_t, bf16_t>, nk_reduce_minmax_bf16_skylake,
+                   nk_reduce_minmax_bf16_serial);
+    run_if_matches("reduce_moments_f16_skylake", test_reduce_moments_<f16_t, f32_t>, nk_reduce_moments_f16_skylake,
+                   nk_reduce_moments_f16_serial);
+    run_if_matches("reduce_minmax_f16_skylake", test_reduce_minmax_<f16_t, f16_t>, nk_reduce_minmax_f16_skylake,
+                   nk_reduce_minmax_f16_serial);
+#endif
+#if NK_TARGET_ICELAKE
+    run_if_matches("reduce_moments_i8_icelake", test_reduce_moments_<i8_t, i64_t, u64_t>, nk_reduce_moments_i8_icelake,
+                   nk_reduce_moments_i8_serial);
+    run_if_matches("reduce_moments_u8_icelake", test_reduce_moments_<u8_t, u64_t>, nk_reduce_moments_u8_icelake,
+                   nk_reduce_moments_u8_serial);
+    run_if_matches("reduce_moments_i16_icelake", test_reduce_moments_<i16_t, i64_t, u64_t>,
+                   nk_reduce_moments_i16_icelake, nk_reduce_moments_i16_serial);
+    run_if_matches("reduce_moments_e2m3_icelake", test_reduce_moments_<e2m3_t, f32_t>, nk_reduce_moments_e2m3_icelake,
+                   nk_reduce_moments_e2m3_serial);
+    run_if_matches("reduce_moments_e3m2_icelake", test_reduce_moments_<e3m2_t, f32_t>, nk_reduce_moments_e3m2_icelake,
+                   nk_reduce_moments_e3m2_serial);
+#endif
+#if NK_TARGET_GENOA
+    run_if_matches("reduce_moments_bf16_genoa", test_reduce_moments_<bf16_t, f32_t>, nk_reduce_moments_bf16_genoa,
+                   nk_reduce_moments_bf16_serial);
+    run_if_matches("reduce_moments_e4m3_genoa", test_reduce_moments_<e4m3_t, f32_t>, nk_reduce_moments_e4m3_genoa,
+                   nk_reduce_moments_e4m3_serial);
+    run_if_matches("reduce_moments_e5m2_genoa", test_reduce_moments_<e5m2_t, f32_t>, nk_reduce_moments_e5m2_genoa,
+                   nk_reduce_moments_e5m2_serial);
+    run_if_matches("reduce_moments_e2m3_genoa", test_reduce_moments_<e2m3_t, f32_t>, nk_reduce_moments_e2m3_genoa,
+                   nk_reduce_moments_e2m3_serial);
+    run_if_matches("reduce_moments_e3m2_genoa", test_reduce_moments_<e3m2_t, f32_t>, nk_reduce_moments_e3m2_genoa,
+                   nk_reduce_moments_e3m2_serial);
+#endif
+#if NK_TARGET_SIERRA
+    run_if_matches("reduce_moments_e2m3_sierra", test_reduce_moments_<e2m3_t, f32_t>, nk_reduce_moments_e2m3_sierra,
+                   nk_reduce_moments_e2m3_serial);
+    run_if_matches("reduce_moments_e3m2_sierra", test_reduce_moments_<e3m2_t, f32_t>, nk_reduce_moments_e3m2_sierra,
+                   nk_reduce_moments_e3m2_serial);
 #endif
 #if NK_TARGET_RVV
-    run_if_matches("reduce_add_f32_rvv", test_reduce_add<f32_t>, nk_reduce_add_f32_rvv);
-    run_if_matches("reduce_add_f64_rvv", test_reduce_add<f64_t>, nk_reduce_add_f64_rvv);
-    run_if_matches("reduce_add_i32_rvv", test_reduce_add<i32_t>, nk_reduce_add_i32_rvv);
-    run_if_matches("reduce_add_e4m3_rvv", test_reduce_add<e4m3_t>, nk_reduce_add_e4m3_rvv);
-    run_if_matches("reduce_add_e5m2_rvv", test_reduce_add<e5m2_t>, nk_reduce_add_e5m2_rvv);
-    run_if_matches("reduce_add_e2m3_rvv", test_reduce_add<e2m3_t>, nk_reduce_add_e2m3_rvv);
-    run_if_matches("reduce_add_e3m2_rvv", test_reduce_add<e3m2_t>, nk_reduce_add_e3m2_rvv);
-    run_if_matches("reduce_min_f32_rvv", test_reduce_min<f32_t>, nk_reduce_min_f32_rvv);
-    run_if_matches("reduce_min_f64_rvv", test_reduce_min<f64_t>, nk_reduce_min_f64_rvv);
-    run_if_matches("reduce_min_i8_rvv", test_reduce_min<i8_t>, nk_reduce_min_i8_rvv);
-    run_if_matches("reduce_min_u8_rvv", test_reduce_min<u8_t>, nk_reduce_min_u8_rvv);
-    run_if_matches("reduce_max_f32_rvv", test_reduce_max<f32_t>, nk_reduce_max_f32_rvv);
-    run_if_matches("reduce_max_f64_rvv", test_reduce_max<f64_t>, nk_reduce_max_f64_rvv);
-    run_if_matches("reduce_max_i8_rvv", test_reduce_max<i8_t>, nk_reduce_max_i8_rvv);
-    run_if_matches("reduce_max_u8_rvv", test_reduce_max<u8_t>, nk_reduce_max_u8_rvv);
+    run_if_matches("reduce_moments_f32_rvv", test_reduce_moments_<f32_t, f64_t>, nk_reduce_moments_f32_rvv,
+                   nk_reduce_moments_f32_serial);
+    run_if_matches("reduce_moments_f64_rvv", test_reduce_moments_<f64_t, f64_t>, nk_reduce_moments_f64_rvv,
+                   nk_reduce_moments_f64_serial);
+    run_if_matches("reduce_moments_i8_rvv", test_reduce_moments_<i8_t, i64_t, u64_t>, nk_reduce_moments_i8_rvv,
+                   nk_reduce_moments_i8_serial);
+    run_if_matches("reduce_moments_u8_rvv", test_reduce_moments_<u8_t, u64_t>, nk_reduce_moments_u8_rvv,
+                   nk_reduce_moments_u8_serial);
+    run_if_matches("reduce_moments_i16_rvv", test_reduce_moments_<i16_t, i64_t, u64_t>, nk_reduce_moments_i16_rvv,
+                   nk_reduce_moments_i16_serial);
+    run_if_matches("reduce_moments_u16_rvv", test_reduce_moments_<u16_t, u64_t>, nk_reduce_moments_u16_rvv,
+                   nk_reduce_moments_u16_serial);
+    run_if_matches("reduce_moments_i32_rvv", test_reduce_moments_<i32_t, i64_t, u64_t>, nk_reduce_moments_i32_rvv,
+                   nk_reduce_moments_i32_serial);
+    run_if_matches("reduce_moments_u32_rvv", test_reduce_moments_<u32_t, u64_t>, nk_reduce_moments_u32_rvv,
+                   nk_reduce_moments_u32_serial);
+    run_if_matches("reduce_moments_i64_rvv", test_reduce_moments_<i64_t, i64_t, u64_t>, nk_reduce_moments_i64_rvv,
+                   nk_reduce_moments_i64_serial);
+    run_if_matches("reduce_moments_u64_rvv", test_reduce_moments_<u64_t, u64_t>, nk_reduce_moments_u64_rvv,
+                   nk_reduce_moments_u64_serial);
+    run_if_matches("reduce_moments_bf16_rvv", test_reduce_moments_<bf16_t, f32_t>, nk_reduce_moments_bf16_rvv,
+                   nk_reduce_moments_bf16_serial);
+    run_if_matches("reduce_moments_f16_rvv", test_reduce_moments_<f16_t, f32_t>, nk_reduce_moments_f16_rvv,
+                   nk_reduce_moments_f16_serial);
+    run_if_matches("reduce_moments_e4m3_rvv", test_reduce_moments_<e4m3_t, f32_t>, nk_reduce_moments_e4m3_rvv,
+                   nk_reduce_moments_e4m3_serial);
+    run_if_matches("reduce_moments_e5m2_rvv", test_reduce_moments_<e5m2_t, f32_t>, nk_reduce_moments_e5m2_rvv,
+                   nk_reduce_moments_e5m2_serial);
+    run_if_matches("reduce_moments_e2m3_rvv", test_reduce_moments_<e2m3_t, f32_t>, nk_reduce_moments_e2m3_rvv,
+                   nk_reduce_moments_e2m3_serial);
+    run_if_matches("reduce_moments_e3m2_rvv", test_reduce_moments_<e3m2_t, f32_t>, nk_reduce_moments_e3m2_rvv,
+                   nk_reduce_moments_e3m2_serial);
+    run_if_matches("reduce_minmax_f32_rvv", test_reduce_minmax_<f32_t, f32_t>, nk_reduce_minmax_f32_rvv,
+                   nk_reduce_minmax_f32_serial);
+    run_if_matches("reduce_minmax_f64_rvv", test_reduce_minmax_<f64_t, f64_t>, nk_reduce_minmax_f64_rvv,
+                   nk_reduce_minmax_f64_serial);
+    run_if_matches("reduce_minmax_i8_rvv", test_reduce_minmax_<i8_t, i8_t>, nk_reduce_minmax_i8_rvv,
+                   nk_reduce_minmax_i8_serial);
+    run_if_matches("reduce_minmax_u8_rvv", test_reduce_minmax_<u8_t, u8_t>, nk_reduce_minmax_u8_rvv,
+                   nk_reduce_minmax_u8_serial);
+    run_if_matches("reduce_minmax_i16_rvv", test_reduce_minmax_<i16_t, i16_t>, nk_reduce_minmax_i16_rvv,
+                   nk_reduce_minmax_i16_serial);
+    run_if_matches("reduce_minmax_u16_rvv", test_reduce_minmax_<u16_t, u16_t>, nk_reduce_minmax_u16_rvv,
+                   nk_reduce_minmax_u16_serial);
+    run_if_matches("reduce_minmax_i32_rvv", test_reduce_minmax_<i32_t, i32_t>, nk_reduce_minmax_i32_rvv,
+                   nk_reduce_minmax_i32_serial);
+    run_if_matches("reduce_minmax_u32_rvv", test_reduce_minmax_<u32_t, u32_t>, nk_reduce_minmax_u32_rvv,
+                   nk_reduce_minmax_u32_serial);
+    run_if_matches("reduce_minmax_i64_rvv", test_reduce_minmax_<i64_t, i64_t>, nk_reduce_minmax_i64_rvv,
+                   nk_reduce_minmax_i64_serial);
+    run_if_matches("reduce_minmax_u64_rvv", test_reduce_minmax_<u64_t, u64_t>, nk_reduce_minmax_u64_rvv,
+                   nk_reduce_minmax_u64_serial);
+    run_if_matches("reduce_minmax_bf16_rvv", test_reduce_minmax_<bf16_t, bf16_t>, nk_reduce_minmax_bf16_rvv,
+                   nk_reduce_minmax_bf16_serial);
+    run_if_matches("reduce_minmax_f16_rvv", test_reduce_minmax_<f16_t, f16_t>, nk_reduce_minmax_f16_rvv,
+                   nk_reduce_minmax_f16_serial);
+    run_if_matches("reduce_minmax_e4m3_rvv", test_reduce_minmax_<e4m3_t, e4m3_t>, nk_reduce_minmax_e4m3_rvv,
+                   nk_reduce_minmax_e4m3_serial);
+    run_if_matches("reduce_minmax_e5m2_rvv", test_reduce_minmax_<e5m2_t, e5m2_t>, nk_reduce_minmax_e5m2_rvv,
+                   nk_reduce_minmax_e5m2_serial);
+    run_if_matches("reduce_minmax_e2m3_rvv", test_reduce_minmax_<e2m3_t, e2m3_t>, nk_reduce_minmax_e2m3_rvv,
+                   nk_reduce_minmax_e2m3_serial);
+    run_if_matches("reduce_minmax_e3m2_rvv", test_reduce_minmax_<e3m2_t, e3m2_t>, nk_reduce_minmax_e3m2_rvv,
+                   nk_reduce_minmax_e3m2_serial);
 #endif
-    run_if_matches("reduce_add_f32_serial", test_reduce_add<f32_t>, nk_reduce_add_f32_serial);
-    run_if_matches("reduce_add_f64_serial", test_reduce_add<f64_t>, nk_reduce_add_f64_serial);
-    run_if_matches("reduce_add_i32_serial", test_reduce_add<i32_t>, nk_reduce_add_i32_serial);
-    run_if_matches("reduce_add_e4m3_serial", test_reduce_add<e4m3_t>, nk_reduce_add_e4m3_serial);
-    run_if_matches("reduce_add_e5m2_serial", test_reduce_add<e5m2_t>, nk_reduce_add_e5m2_serial);
-    run_if_matches("reduce_add_e2m3_serial", test_reduce_add<e2m3_t>, nk_reduce_add_e2m3_serial);
-    run_if_matches("reduce_add_e3m2_serial", test_reduce_add<e3m2_t>, nk_reduce_add_e3m2_serial);
-    run_if_matches("reduce_min_f32_serial", test_reduce_min<f32_t>, nk_reduce_min_f32_serial);
-    run_if_matches("reduce_min_f64_serial", test_reduce_min<f64_t>, nk_reduce_min_f64_serial);
-    run_if_matches("reduce_min_i8_serial", test_reduce_min<i8_t>, nk_reduce_min_i8_serial);
-    run_if_matches("reduce_min_u8_serial", test_reduce_min<u8_t>, nk_reduce_min_u8_serial);
-    run_if_matches("reduce_min_i16_serial", test_reduce_min<i16_t>, nk_reduce_min_i16_serial);
-    run_if_matches("reduce_min_u16_serial", test_reduce_min<u16_t>, nk_reduce_min_u16_serial);
-    run_if_matches("reduce_min_i32_serial", test_reduce_min<i32_t>, nk_reduce_min_i32_serial);
-    run_if_matches("reduce_min_u32_serial", test_reduce_min<u32_t>, nk_reduce_min_u32_serial);
-    run_if_matches("reduce_min_i64_serial", test_reduce_min<i64_t>, nk_reduce_min_i64_serial);
-    run_if_matches("reduce_min_u64_serial", test_reduce_min<u64_t>, nk_reduce_min_u64_serial);
-    run_if_matches("reduce_min_e2m3_serial", test_reduce_min<e2m3_t>, nk_reduce_min_e2m3_serial);
-    run_if_matches("reduce_min_e3m2_serial", test_reduce_min<e3m2_t>, nk_reduce_min_e3m2_serial);
-    run_if_matches("reduce_max_f32_serial", test_reduce_max<f32_t>, nk_reduce_max_f32_serial);
-    run_if_matches("reduce_max_f64_serial", test_reduce_max<f64_t>, nk_reduce_max_f64_serial);
-    run_if_matches("reduce_max_i8_serial", test_reduce_max<i8_t>, nk_reduce_max_i8_serial);
-    run_if_matches("reduce_max_u8_serial", test_reduce_max<u8_t>, nk_reduce_max_u8_serial);
-    run_if_matches("reduce_max_i16_serial", test_reduce_max<i16_t>, nk_reduce_max_i16_serial);
-    run_if_matches("reduce_max_u16_serial", test_reduce_max<u16_t>, nk_reduce_max_u16_serial);
-    run_if_matches("reduce_max_i32_serial", test_reduce_max<i32_t>, nk_reduce_max_i32_serial);
-    run_if_matches("reduce_max_u32_serial", test_reduce_max<u32_t>, nk_reduce_max_u32_serial);
-    run_if_matches("reduce_max_i64_serial", test_reduce_max<i64_t>, nk_reduce_max_i64_serial);
-    run_if_matches("reduce_max_u64_serial", test_reduce_max<u64_t>, nk_reduce_max_u64_serial);
-    run_if_matches("reduce_max_e2m3_serial", test_reduce_max<e2m3_t>, nk_reduce_max_e2m3_serial);
-    run_if_matches("reduce_max_e3m2_serial", test_reduce_max<e3m2_t>, nk_reduce_max_e3m2_serial);
+    run_if_matches("reduce_moments_f32_serial", test_reduce_moments_<f32_t, f64_t>, nk_reduce_moments_f32_serial,
+                   nk_reduce_moments_f32_serial);
+    run_if_matches("reduce_moments_f64_serial", test_reduce_moments_<f64_t, f64_t>, nk_reduce_moments_f64_serial,
+                   nk_reduce_moments_f64_serial);
+    run_if_matches("reduce_moments_i8_serial", test_reduce_moments_<i8_t, i64_t, u64_t>, nk_reduce_moments_i8_serial,
+                   nk_reduce_moments_i8_serial);
+    run_if_matches("reduce_moments_u8_serial", test_reduce_moments_<u8_t, u64_t>, nk_reduce_moments_u8_serial,
+                   nk_reduce_moments_u8_serial);
+    run_if_matches("reduce_moments_i16_serial", test_reduce_moments_<i16_t, i64_t, u64_t>, nk_reduce_moments_i16_serial,
+                   nk_reduce_moments_i16_serial);
+    run_if_matches("reduce_moments_u16_serial", test_reduce_moments_<u16_t, u64_t>, nk_reduce_moments_u16_serial,
+                   nk_reduce_moments_u16_serial);
+    run_if_matches("reduce_moments_i32_serial", test_reduce_moments_<i32_t, i64_t, u64_t>, nk_reduce_moments_i32_serial,
+                   nk_reduce_moments_i32_serial);
+    run_if_matches("reduce_moments_u32_serial", test_reduce_moments_<u32_t, u64_t>, nk_reduce_moments_u32_serial,
+                   nk_reduce_moments_u32_serial);
+    run_if_matches("reduce_moments_i64_serial", test_reduce_moments_<i64_t, i64_t, u64_t>, nk_reduce_moments_i64_serial,
+                   nk_reduce_moments_i64_serial);
+    run_if_matches("reduce_moments_u64_serial", test_reduce_moments_<u64_t, u64_t>, nk_reduce_moments_u64_serial,
+                   nk_reduce_moments_u64_serial);
+    run_if_matches("reduce_moments_f16_serial", test_reduce_moments_<f16_t, f32_t>, nk_reduce_moments_f16_serial,
+                   nk_reduce_moments_f16_serial);
+    run_if_matches("reduce_moments_bf16_serial", test_reduce_moments_<bf16_t, f32_t>, nk_reduce_moments_bf16_serial,
+                   nk_reduce_moments_bf16_serial);
+    run_if_matches("reduce_moments_e4m3_serial", test_reduce_moments_<e4m3_t, f32_t>, nk_reduce_moments_e4m3_serial,
+                   nk_reduce_moments_e4m3_serial);
+    run_if_matches("reduce_moments_e5m2_serial", test_reduce_moments_<e5m2_t, f32_t>, nk_reduce_moments_e5m2_serial,
+                   nk_reduce_moments_e5m2_serial);
+    run_if_matches("reduce_moments_e2m3_serial", test_reduce_moments_<e2m3_t, f32_t>, nk_reduce_moments_e2m3_serial,
+                   nk_reduce_moments_e2m3_serial);
+    run_if_matches("reduce_moments_e3m2_serial", test_reduce_moments_<e3m2_t, f32_t>, nk_reduce_moments_e3m2_serial,
+                   nk_reduce_moments_e3m2_serial);
+    run_if_matches("reduce_moments_i4_serial", test_reduce_moments_<i4x2_t, i64_t, u64_t>, nk_reduce_moments_i4_serial,
+                   nk_reduce_moments_i4_serial);
+    run_if_matches("reduce_moments_u4_serial", test_reduce_moments_<u4x2_t, u64_t>, nk_reduce_moments_u4_serial,
+                   nk_reduce_moments_u4_serial);
+    run_if_matches("reduce_moments_u1_serial", test_reduce_moments_<u1x8_t, u64_t>, nk_reduce_moments_u1_serial,
+                   nk_reduce_moments_u1_serial);
+    run_if_matches("reduce_minmax_f32_serial", test_reduce_minmax_<f32_t, f32_t>, nk_reduce_minmax_f32_serial,
+                   nk_reduce_minmax_f32_serial);
+    run_if_matches("reduce_minmax_f64_serial", test_reduce_minmax_<f64_t, f64_t>, nk_reduce_minmax_f64_serial,
+                   nk_reduce_minmax_f64_serial);
+    run_if_matches("reduce_minmax_i8_serial", test_reduce_minmax_<i8_t, i8_t>, nk_reduce_minmax_i8_serial,
+                   nk_reduce_minmax_i8_serial);
+    run_if_matches("reduce_minmax_u8_serial", test_reduce_minmax_<u8_t, u8_t>, nk_reduce_minmax_u8_serial,
+                   nk_reduce_minmax_u8_serial);
+    run_if_matches("reduce_minmax_i16_serial", test_reduce_minmax_<i16_t, i16_t>, nk_reduce_minmax_i16_serial,
+                   nk_reduce_minmax_i16_serial);
+    run_if_matches("reduce_minmax_u16_serial", test_reduce_minmax_<u16_t, u16_t>, nk_reduce_minmax_u16_serial,
+                   nk_reduce_minmax_u16_serial);
+    run_if_matches("reduce_minmax_i32_serial", test_reduce_minmax_<i32_t, i32_t>, nk_reduce_minmax_i32_serial,
+                   nk_reduce_minmax_i32_serial);
+    run_if_matches("reduce_minmax_u32_serial", test_reduce_minmax_<u32_t, u32_t>, nk_reduce_minmax_u32_serial,
+                   nk_reduce_minmax_u32_serial);
+    run_if_matches("reduce_minmax_i64_serial", test_reduce_minmax_<i64_t, i64_t>, nk_reduce_minmax_i64_serial,
+                   nk_reduce_minmax_i64_serial);
+    run_if_matches("reduce_minmax_u64_serial", test_reduce_minmax_<u64_t, u64_t>, nk_reduce_minmax_u64_serial,
+                   nk_reduce_minmax_u64_serial);
+    run_if_matches("reduce_minmax_f16_serial", test_reduce_minmax_<f16_t, f16_t>, nk_reduce_minmax_f16_serial,
+                   nk_reduce_minmax_f16_serial);
+    run_if_matches("reduce_minmax_bf16_serial", test_reduce_minmax_<bf16_t, bf16_t>, nk_reduce_minmax_bf16_serial,
+                   nk_reduce_minmax_bf16_serial);
+    run_if_matches("reduce_minmax_e4m3_serial", test_reduce_minmax_<e4m3_t, e4m3_t>, nk_reduce_minmax_e4m3_serial,
+                   nk_reduce_minmax_e4m3_serial);
+    run_if_matches("reduce_minmax_e5m2_serial", test_reduce_minmax_<e5m2_t, e5m2_t>, nk_reduce_minmax_e5m2_serial,
+                   nk_reduce_minmax_e5m2_serial);
+    run_if_matches("reduce_minmax_e2m3_serial", test_reduce_minmax_<e2m3_t, e2m3_t>, nk_reduce_minmax_e2m3_serial,
+                   nk_reduce_minmax_e2m3_serial);
+    run_if_matches("reduce_minmax_e3m2_serial", test_reduce_minmax_<e3m2_t, e3m2_t>, nk_reduce_minmax_e3m2_serial,
+                   nk_reduce_minmax_e3m2_serial);
+    run_if_matches("reduce_minmax_i4_serial", test_reduce_minmax_<i4x2_t, i8_t>, nk_reduce_minmax_i4_serial,
+                   nk_reduce_minmax_i4_serial);
+    run_if_matches("reduce_minmax_u4_serial", test_reduce_minmax_<u4x2_t, u8_t>, nk_reduce_minmax_u4_serial,
+                   nk_reduce_minmax_u4_serial);
+    run_if_matches("reduce_minmax_u1_serial", test_reduce_minmax_<u1x8_t, u8_t>, nk_reduce_minmax_u1_serial,
+                   nk_reduce_minmax_u1_serial);
 #endif
 }

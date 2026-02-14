@@ -122,20 +122,11 @@ PyObject *Tensor_copy(PyObject *self, PyObject *args);
 /**  @brief Reshape the tensor (returns view if possible).  */
 PyObject *Tensor_reshape(PyObject *self, PyObject *args);
 
-/**  @brief Sum all elements.  */
-PyObject *Tensor_sum(PyObject *self, PyObject *args);
+/**  @brief Compute moments (sum, sum-of-squares). Returns (sum, sumsq) tuple.  */
+PyObject *Tensor_moments(PyObject *self, PyObject *args);
 
-/**  @brief Find minimum element.  */
-PyObject *Tensor_min(PyObject *self, PyObject *args);
-
-/**  @brief Find maximum element.  */
-PyObject *Tensor_max(PyObject *self, PyObject *args);
-
-/**  @brief Find index of minimum element.  */
-PyObject *Tensor_argmin(PyObject *self, PyObject *args);
-
-/**  @brief Find index of maximum element.  */
-PyObject *Tensor_argmax(PyObject *self, PyObject *args);
+/**  @brief Find min and max with indices. Returns (min_val, min_idx, max_val, max_idx) tuple.  */
+PyObject *Tensor_minmax(PyObject *self, PyObject *args);
 
 #pragma endregion // Tensor Methods
 
@@ -148,11 +139,8 @@ PyObject *api_ones(PyObject *self, PyObject *const *args, Py_ssize_t nargs, PyOb
 PyObject *api_full(PyObject *self, PyObject *const *args, Py_ssize_t nargs, PyObject *kwnames);
 
 // Reductions
-PyObject *api_sum(PyObject *self, PyObject *const *args, Py_ssize_t nargs, PyObject *kwnames);
-PyObject *api_min(PyObject *self, PyObject *const *args, Py_ssize_t nargs, PyObject *kwnames);
-PyObject *api_max(PyObject *self, PyObject *const *args, Py_ssize_t nargs, PyObject *kwnames);
-PyObject *api_argmin(PyObject *self, PyObject *const *args, Py_ssize_t nargs, PyObject *kwnames);
-PyObject *api_argmax(PyObject *self, PyObject *const *args, Py_ssize_t nargs, PyObject *kwnames);
+PyObject *api_moments(PyObject *self, PyObject *const *args, Py_ssize_t nargs, PyObject *kwnames);
+PyObject *api_minmax(PyObject *self, PyObject *const *args, Py_ssize_t nargs, PyObject *kwnames);
 
 // Matrix operations
 PyObject *api_pack_matrix(PyObject *self, PyObject *const *args, Py_ssize_t nargs, PyObject *kwnames);
@@ -167,11 +155,8 @@ extern char const doc_empty[];
 extern char const doc_zeros[];
 extern char const doc_ones[];
 extern char const doc_full[];
-extern char const doc_reduce_sum[];
-extern char const doc_reduce_min[];
-extern char const doc_reduce_max[];
-extern char const doc_reduce_argmin[];
-extern char const doc_reduce_argmax[];
+extern char const doc_reduce_moments[];
+extern char const doc_reduce_minmax[];
 extern char const doc_pack_matrix[];
 extern char const doc_pack_matmul_argument[];
 extern char const doc_matmul[];

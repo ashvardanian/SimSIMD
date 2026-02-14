@@ -770,7 +770,7 @@ PyObject *Tensor_reshape(PyObject *self, PyObject *args) {
     return (PyObject *)result;
 }
 
-PyObject *Tensor_sum(PyObject *self, PyObject *args) {
+PyObject *Tensor_moments(PyObject *self, PyObject *args) {
     (void)args;
     Tensor *tensor = (Tensor *)self;
 
@@ -782,20 +782,20 @@ PyObject *Tensor_sum(PyObject *self, PyObject *args) {
         .data = tensor->data,
     };
 
-    double result_f = 0;
-    int64_t result_i = 0;
-    impl_reduce_sum(&view, &result_f, &result_i);
+    double sum_f = 0, sumsq_f = 0;
+    int64_t sum_i = 0, sumsq_i = 0;
+    impl_reduce_moments(&view, &sum_f, &sum_i, &sumsq_f, &sumsq_i);
 
     switch (tensor->dtype) {
     case nk_f64_k:
     case nk_f32_k:
     case nk_f16_k:
-    case nk_bf16_k: return PyFloat_FromDouble(result_f);
-    default: return PyLong_FromLongLong(result_i);
+    case nk_bf16_k: return Py_BuildValue("(dd)", sum_f, sumsq_f);
+    default: return Py_BuildValue("(LL)", (long long)sum_i, (long long)sumsq_i);
     }
 }
 
-PyObject *Tensor_min(PyObject *self, PyObject *args) {
+PyObject *Tensor_minmax(PyObject *self, PyObject *args) {
     (void)args;
     Tensor *tensor = (Tensor *)self;
 
@@ -807,94 +807,27 @@ PyObject *Tensor_min(PyObject *self, PyObject *args) {
         .data = tensor->data,
     };
 
-    double value_f = 0;
-    int64_t value_i = 0;
-    size_t index = 0;
-    impl_reduce_min(&view, &value_f, &value_i, &index);
+    double min_f = 0, max_f = 0;
+    int64_t min_i = 0, max_i = 0;
+    size_t min_index = 0, max_index = 0;
+    impl_reduce_minmax(&view, &min_f, &min_i, &min_index, &max_f, &max_i, &max_index);
 
     switch (tensor->dtype) {
     case nk_f64_k:
     case nk_f32_k:
     case nk_f16_k:
-    case nk_bf16_k: return PyFloat_FromDouble(value_f);
-    default: return PyLong_FromLongLong(value_i);
+    case nk_bf16_k: return Py_BuildValue("(dndn)", min_f, (Py_ssize_t)min_index, max_f, (Py_ssize_t)max_index);
+    default:
+        return Py_BuildValue("(LnLn)", (long long)min_i, (Py_ssize_t)min_index, (long long)max_i,
+                             (Py_ssize_t)max_index);
     }
-}
-
-PyObject *Tensor_max(PyObject *self, PyObject *args) {
-    (void)args;
-    Tensor *tensor = (Tensor *)self;
-
-    TensorView view = {
-        .dtype = tensor->dtype,
-        .rank = tensor->rank,
-        .shape = tensor->shape,
-        .strides = tensor->strides,
-        .data = tensor->data,
-    };
-
-    double value_f = 0;
-    int64_t value_i = 0;
-    size_t index = 0;
-    impl_reduce_max(&view, &value_f, &value_i, &index);
-
-    switch (tensor->dtype) {
-    case nk_f64_k:
-    case nk_f32_k:
-    case nk_f16_k:
-    case nk_bf16_k: return PyFloat_FromDouble(value_f);
-    default: return PyLong_FromLongLong(value_i);
-    }
-}
-
-PyObject *Tensor_argmin(PyObject *self, PyObject *args) {
-    (void)args;
-    Tensor *tensor = (Tensor *)self;
-
-    TensorView view = {
-        .dtype = tensor->dtype,
-        .rank = tensor->rank,
-        .shape = tensor->shape,
-        .strides = tensor->strides,
-        .data = tensor->data,
-    };
-
-    double value_f = 0;
-    int64_t value_i = 0;
-    size_t index = 0;
-    impl_reduce_min(&view, &value_f, &value_i, &index);
-
-    return PyLong_FromSize_t(index);
-}
-
-PyObject *Tensor_argmax(PyObject *self, PyObject *args) {
-    (void)args;
-    Tensor *tensor = (Tensor *)self;
-
-    TensorView view = {
-        .dtype = tensor->dtype,
-        .rank = tensor->rank,
-        .shape = tensor->shape,
-        .strides = tensor->strides,
-        .data = tensor->data,
-    };
-
-    double value_f = 0;
-    int64_t value_i = 0;
-    size_t index = 0;
-    impl_reduce_max(&view, &value_f, &value_i, &index);
-
-    return PyLong_FromSize_t(index);
 }
 
 static PyMethodDef Tensor_methods[] = {
     {"copy", Tensor_copy, METH_NOARGS, "Return a deep copy of the tensor"},
     {"reshape", Tensor_reshape, METH_VARARGS, "Return tensor reshaped to given dimensions"},
-    {"sum", Tensor_sum, METH_NOARGS, "Sum of all elements"},
-    {"min", Tensor_min, METH_NOARGS, "Minimum element"},
-    {"max", Tensor_max, METH_NOARGS, "Maximum element"},
-    {"argmin", Tensor_argmin, METH_NOARGS, "Index of minimum element"},
-    {"argmax", Tensor_argmax, METH_NOARGS, "Index of maximum element"},
+    {"moments", Tensor_moments, METH_NOARGS, "Returns (sum, sum_of_squares) tuple"},
+    {"minmax", Tensor_minmax, METH_NOARGS, "Returns (min_val, min_idx, max_val, max_idx) tuple"},
     {NULL, NULL, 0, NULL},
 };
 
@@ -1701,78 +1634,36 @@ PyObject *api_full(PyObject *self, PyObject *const *args, Py_ssize_t const nargs
     return (PyObject *)result;
 }
 
-char const doc_reduce_sum[] =
-    "Sum of all elements in an array.\n\n" "Parameters:\n" "    a: Input array.\n\n" "Returns:\n" "    Scalar " "sum " "of " "all " "elements.";
+char const doc_reduce_moments[] =
+    "Compute sum and sum-of-squares (moments) of all elements in an array.\n\n" "Parameters:\n" "    a: Input " "array."
+                                                                                                                "\n\n" "Returns:" "\n" "    " "tupl" "e: " "(sum" ", " "sum_" "of_" "squa" "res)" " for" " all" " ele" "ment" "s.";
 
-PyObject *api_sum(PyObject *self, PyObject *const *args, Py_ssize_t const nargs, PyObject *kwnames) {
+PyObject *api_moments(PyObject *self, PyObject *const *args, Py_ssize_t const nargs, PyObject *kwnames) {
     (void)self;
     if (nargs != 1 || (kwnames && PyTuple_Size(kwnames) > 0)) {
-        PyErr_SetString(PyExc_TypeError, "sum(a) takes exactly 1 positional argument");
+        PyErr_SetString(PyExc_TypeError, "moments(a) takes exactly 1 positional argument");
         return NULL;
     }
     PyObject *a_obj = args[0];
-    if (PyObject_TypeCheck(a_obj, &TensorType)) { return Tensor_sum(a_obj, NULL); }
-    PyErr_SetString(PyExc_TypeError, "sum() argument must be a Tensor");
+    if (PyObject_TypeCheck(a_obj, &TensorType)) { return Tensor_moments(a_obj, NULL); }
+    PyErr_SetString(PyExc_TypeError, "moments() argument must be a Tensor");
     return NULL;
 }
 
-char const doc_reduce_min[] =
-    "Minimum element in an array.\n\n" "Parameters:\n" "    a: Input array.\n\n" "Returns:\n" "    Minimum element.";
+char const
+    doc_reduce_minmax[] =
+        "Find minimum and maximum elements with their indices in an array.\n\n" "Parameters:\n" "    a: Input " "array."
+                                                                                                                "\n\n" "Returns:" "\n" "    " "tupl" "e: " "(min" "_val" ", " "min_" "inde" "x, " "max_" "val," " max" "_ind" "ex)" ".";
 
-PyObject *api_min(PyObject *self, PyObject *const *args, Py_ssize_t const nargs, PyObject *kwnames) {
+PyObject *api_minmax(PyObject *self, PyObject *const *args, Py_ssize_t const nargs, PyObject *kwnames) {
     (void)self;
     if (nargs != 1 || (kwnames && PyTuple_Size(kwnames) > 0)) {
-        PyErr_SetString(PyExc_TypeError, "min(a) takes exactly 1 positional argument");
+        PyErr_SetString(PyExc_TypeError, "minmax(a) takes exactly 1 positional argument");
         return NULL;
     }
     PyObject *a_obj = args[0];
-    if (PyObject_TypeCheck(a_obj, &TensorType)) { return Tensor_min(a_obj, NULL); }
-    PyErr_SetString(PyExc_TypeError, "min() argument must be a Tensor");
-    return NULL;
-}
-
-char const doc_reduce_max[] =
-    "Maximum element in an array.\n\n" "Parameters:\n" "    a: Input array.\n\n" "Returns:\n" "    Maximum element.";
-
-PyObject *api_max(PyObject *self, PyObject *const *args, Py_ssize_t const nargs, PyObject *kwnames) {
-    (void)self;
-    if (nargs != 1 || (kwnames && PyTuple_Size(kwnames) > 0)) {
-        PyErr_SetString(PyExc_TypeError, "max(a) takes exactly 1 positional argument");
-        return NULL;
-    }
-    PyObject *a_obj = args[0];
-    if (PyObject_TypeCheck(a_obj, &TensorType)) { return Tensor_max(a_obj, NULL); }
-    PyErr_SetString(PyExc_TypeError, "max() argument must be a Tensor");
-    return NULL;
-}
-
-char const doc_reduce_argmin[] =
-    "Index of minimum element in an array.\n\n" "Parameters:\n" "    a: Input array.\n\n" "Returns:\n" "    int: " "Fla" "t " "in" "de" "x " "of" " " "minimum " "element.";
-
-PyObject *api_argmin(PyObject *self, PyObject *const *args, Py_ssize_t const nargs, PyObject *kwnames) {
-    (void)self;
-    if (nargs != 1 || (kwnames && PyTuple_Size(kwnames) > 0)) {
-        PyErr_SetString(PyExc_TypeError, "argmin(a) takes exactly 1 positional argument");
-        return NULL;
-    }
-    PyObject *a_obj = args[0];
-    if (PyObject_TypeCheck(a_obj, &TensorType)) { return Tensor_argmin(a_obj, NULL); }
-    PyErr_SetString(PyExc_TypeError, "argmin() argument must be a Tensor");
-    return NULL;
-}
-
-char const doc_reduce_argmax[] =
-    "Index of maximum element in an array.\n\n" "Parameters:\n" "    a: Input array.\n\n" "Returns:\n" "    int: " "Fla" "t " "in" "de" "x " "of" " " "maximum " "element.";
-
-PyObject *api_argmax(PyObject *self, PyObject *const *args, Py_ssize_t const nargs, PyObject *kwnames) {
-    (void)self;
-    if (nargs != 1 || (kwnames && PyTuple_Size(kwnames) > 0)) {
-        PyErr_SetString(PyExc_TypeError, "argmax(a) takes exactly 1 positional argument");
-        return NULL;
-    }
-    PyObject *a_obj = args[0];
-    if (PyObject_TypeCheck(a_obj, &TensorType)) { return Tensor_argmax(a_obj, NULL); }
-    PyErr_SetString(PyExc_TypeError, "argmax() argument must be a Tensor");
+    if (PyObject_TypeCheck(a_obj, &TensorType)) { return Tensor_minmax(a_obj, NULL); }
+    PyErr_SetString(PyExc_TypeError, "minmax() argument must be a Tensor");
     return NULL;
 }
 
@@ -1783,15 +1674,10 @@ char const
 char const doc_pack_matrix[] =
     "pack_matrix(b, dtype='bf16') -> TransposedMatrixMultiplier\n\n" "Deprecated alias for pack_matmul_argument().\n";
 
-char const doc_matmul[] =
-    "matmul(a, b, *, out=None) -> Tensor\n\n" "Compute matrix multiplication C = A @ B with a pre-packed B " "matrix."
-                                                                                                             "\n\n" "Pa"
-                                                                                                                    "ra"
-                                                                                                                    "me"
-                                                                                                                    "te"
-                                                                                                                    "rs"
-                                                                                                                    ":"
-                                                                                                                    "\n" "    a : array_like\n" "        " "The (m, k) " "query/" "input " "matrix.\n" "    b : TransposedMatrixMultiplier\n" "        Pre-packed (n, k) matrix from pack_matmul_argument().\n" "    out : Tensor, optional\n" "        Pre-allocated output tensor. Must have correct shape (m, n),\n" "        correct dtype for the operation, and be C-contiguous.\n" "        If provided, no memory allocation is performed.\n\n" "Returns:\n" "    Tensor : (m, n) result matrix. If out is provided, returns out.\n\n" "Note:\n" "    The kernel computes C[i,j] = dot(a[i], b[j]) for all i,j.\n" "    This is equivalent to A @ B.T where B is the original unpacked matrix.\n\n" "    Output dtype depends on packed dtype:\n" "    - bf16, f16 -> float32\n" "    - f32 -> float32\n" "    - f64 -> float64\n" "    - i8 -> int32\n" "    - u8 -> uint32\n\n" "Example:\n" "    >>> database = np.random.randn(1000, 768).astype(np.float32)\n" "    >>> packed = nk.pack_matmul_argument(database, dtype='bf16')\n" "    >>> queries = np.random.randn(10, 768).astype(np.float32)\n" "    >>> result = nk.matmul(queries, packed)  # (10, 1000)\n" "    >>>\n" "    >>> # Reuse output buffer for zero-allocation inference:\n" "    >>> out = nk.empty((10, 1000), dtype='float32')\n" "    >>> nk.matmul(queries, packed, out=out)\n";
+char const
+    doc_matmul[] = "matmul(a, b, *, out=None) -> Tensor\n\n" "Compute matrix multiplication C = A @ B with a "
+                                                             "pre-packed B " "m" "a" "t" "r" "i" "x" "." "\n\n" "Pa" "r"
+                                                                                                                     "a" "me" "te" "rs" ":" "\n" "    a : array_like\n" "        " "The (m, k) " "query/" "input " "matrix.\n" "    b : TransposedMatrixMultiplier\n" "        Pre-packed (n, k) matrix from pack_matmul_argument().\n" "    out : Tensor, optional\n" "        Pre-allocated output tensor. Must have correct shape (m, n),\n" "        correct dtype for the operation, and be C-contiguous.\n" "        If provided, no memory allocation is performed.\n\n" "Returns:\n" "    Tensor : (m, n) result matrix. If out is provided, returns out.\n\n" "Note:\n" "    The kernel computes C[i,j] = dot(a[i], b[j]) for all i,j.\n" "    This is equivalent to A @ B.T where B is the original unpacked matrix.\n\n" "    Output dtype depends on packed dtype:\n" "    - bf16, f16 -> float32\n" "    - f32 -> float32\n" "    - f64 -> float64\n" "    - i8 -> int32\n" "    - u8 -> uint32\n\n" "Example:\n" "    >>> database = np.random.randn(1000, 768).astype(np.float32)\n" "    >>> packed = nk.pack_matmul_argument(database, dtype='bf16')\n" "    >>> queries = np.random.randn(10, 768).astype(np.float32)\n" "    >>> result = nk.matmul(queries, packed)  # (10, 1000)\n" "    >>>\n" "    >>> # Reuse output buffer for zero-allocation inference:\n" "    >>> out = nk.empty((10, 1000), dtype='float32')\n" "    >>> nk.matmul(queries, packed, out=out)\n";
 
 PyObject *api_pack_matmul_argument(PyObject *self, PyObject *const *args, Py_ssize_t nargs, PyObject *kwnames) {
     (void)self;

@@ -69,33 +69,37 @@ int impl_elementwise_scale(char *a, char *out, size_t n, nk_dtype_t dtype, doubl
                            Py_ssize_t stride_a, Py_ssize_t stride_out);
 
 /**
- *  @brief Stride-aware reduction: ∑ᵢ xᵢ (sum all elements).
+ *  @brief Stride-aware reduction: compute sum and sum-of-squares (moments).
  *
  *  Traverses an N-dimensional tensor with arbitrary strides.
- *  Returns floating-point result for float types, integer for int types.
+ *  Returns floating-point results for float types, integer for int types.
  *
  *  @param[in] view TensorView describing the tensor.
- *  @param[out] result_f Output for floating-point result (may be NULL for int types).
- *  @param[out] result_i Output for integer result (may be NULL for float types).
+ *  @param[out] sum_f Output for floating-point sum (may be NULL for int types).
+ *  @param[out] sum_i Output for integer sum (may be NULL for float types).
+ *  @param[out] sumsq_f Output for floating-point sum of squares (may be NULL for int types).
+ *  @param[out] sumsq_i Output for integer sum of squares (may be NULL for float types).
  *  @return 0 on success, -1 if dtype not supported.
  */
-int impl_reduce_sum(TensorView const *view, double *result_f, int64_t *result_i);
+int impl_reduce_moments(TensorView const *view, double *sum_f, int64_t *sum_i, double *sumsq_f, int64_t *sumsq_i);
 
 /**
- *  @brief Stride-aware reduction: find minimum and its index.
+ *  @brief Stride-aware reduction: find minimum and maximum with their indices.
+ *
+ *  Traverses an N-dimensional tensor with arbitrary strides.
+ *  Returns both min and max values along with their flat indices.
+ *
  *  @param[in] view TensorView describing the tensor.
- *  @param[out] value_f Output for minimum value (float types).
- *  @param[out] value_i Output for minimum value (int types).
- *  @param[out] index Output for flat index of minimum element.
+ *  @param[out] min_f Output for minimum value (float types, may be NULL for int types).
+ *  @param[out] min_i Output for minimum value (int types, may be NULL for float types).
+ *  @param[out] min_index Output for flat index of minimum element.
+ *  @param[out] max_f Output for maximum value (float types, may be NULL for int types).
+ *  @param[out] max_i Output for maximum value (int types, may be NULL for float types).
+ *  @param[out] max_index Output for flat index of maximum element.
  *  @return 0 on success, -1 if dtype not supported.
  */
-int impl_reduce_min(TensorView const *view, double *value_f, int64_t *value_i, size_t *index);
-
-/**
- *  @brief Stride-aware reduction: find maximum and its index.
- *  @see impl_reduce_min for parameter details.
- */
-int impl_reduce_max(TensorView const *view, double *value_f, int64_t *value_i, size_t *index);
+int impl_reduce_minmax(TensorView const *view, double *min_f, int64_t *min_i, size_t *min_index, double *max_f,
+                       int64_t *max_i, size_t *max_index);
 
 #pragma endregion // Shared Implementations
 

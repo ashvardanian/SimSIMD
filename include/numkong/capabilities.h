@@ -202,9 +202,8 @@ typedef enum {
     nk_kernel_each_atan_k = 'A', ///< Element-wise arctangent
 
     // Horizontal reductions:
-    nk_kernel_reduce_add_k = 'R', ///< Horizontal sum reduction
-    nk_kernel_reduce_min_k = '<', ///< Horizontal min reduction with argmin
-    nk_kernel_reduce_max_k = '>', ///< Horizontal max reduction with argmax
+    nk_kernel_reduce_moments_k = 'R', ///< Horizontal moments reduction (sum + sum-of-squares)
+    nk_kernel_reduce_minmax_k = 'X',  ///< Horizontal minmax reduction (min + argmin + max + argmax)
 
     // Matrix multiplication (GEMM):
     nk_kernel_dots_packed_size_k = 'P', ///< GEMM packed buffer size
@@ -296,10 +295,12 @@ typedef void (*nk_kernel_trigonometry_punned_t)(void const *x, nk_size_t n, void
 typedef void (*nk_metric_mesh_punned_t)(void const *a, void const *b, nk_size_t n, void *a_centroid, void *b_centroid,
                                         void *rotation, void *scale, void *d);
 
-typedef void (*nk_kernel_reduce_add_punned_t)(void const *data, nk_size_t count, nk_size_t stride_bytes, void *result);
+typedef void (*nk_kernel_reduce_moments_punned_t)(void const *data, nk_size_t count, nk_size_t stride_bytes,
+                                                  void *sum_ptr, void *sumsq_ptr);
 
-typedef void (*nk_kernel_reduce_minmax_punned_t)(void const *data, nk_size_t count, nk_size_t stride_bytes, void *value,
-                                                 nk_size_t *index);
+typedef void (*nk_kernel_reduce_minmax_punned_t)(void const *data, nk_size_t count, nk_size_t stride_bytes,
+                                                 void *min_value, nk_size_t *min_index, void *max_value,
+                                                 nk_size_t *max_index);
 
 typedef nk_size_t (*nk_dots_packed_size_punned_t)(nk_size_t n, nk_size_t k);
 
