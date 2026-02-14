@@ -465,49 +465,66 @@ NK_INTERNAL void nk_reduce_minmax_bf16_v128relaxed_contiguous_( //
     nk_bf16_t const *data, nk_size_t count,                     //
     nk_bf16_t *min_value_ptr, nk_size_t *min_index_ptr,         //
     nk_bf16_t *max_value_ptr, nk_size_t *max_index_ptr) {
-    v128_t min_f32x4 = wasm_f32x4_splat(NK_F32_MAX), max_f32x4 = wasm_f32x4_splat(NK_F32_MIN);
-    v128_t min_iter_u32x4 = wasm_i32x4_splat(0), max_iter_u32x4 = wasm_i32x4_splat(0);
-    v128_t iter_u32x4 = wasm_i32x4_splat(0), one_u32x4 = wasm_i32x4_splat(1);
+    v128_t abs_mask_u16x8 = wasm_i16x8_splat(0x7FFF);
+    v128_t nan_threshold_u16x8 = wasm_i16x8_splat((short)0x7F80);
+    v128_t min_cmp_i16x8 = wasm_i16x8_splat(0x7F80);        // +inf comparable
+    v128_t max_cmp_i16x8 = wasm_i16x8_splat((short)0x807F); // -inf comparable
+    v128_t min_iter_u16x8 = wasm_i16x8_splat(0), max_iter_u16x8 = wasm_i16x8_splat(0);
+    v128_t iter_u16x8 = wasm_i16x8_splat(0), one_u16x8 = wasm_i16x8_splat(1);
     nk_size_t idx = 0;
-    for (; idx + 4 <= count; idx += 4) {
-        nk_b64_vec_t raw;
-        raw.u64 = *(nk_u64_t const *)(data + idx);
-        v128_t data_f32x4 = nk_bf16x4_to_f32x4_v128relaxed_(raw).v128;
-        v128_t less_b32x4 = wasm_f32x4_lt(data_f32x4, min_f32x4);
-        v128_t greater_b32x4 = wasm_f32x4_gt(data_f32x4, max_f32x4);
-        min_f32x4 = wasm_v128_bitselect(data_f32x4, min_f32x4, less_b32x4);
-        max_f32x4 = wasm_v128_bitselect(data_f32x4, max_f32x4, greater_b32x4);
-        min_iter_u32x4 = wasm_v128_bitselect(iter_u32x4, min_iter_u32x4, less_b32x4);
-        max_iter_u32x4 = wasm_v128_bitselect(iter_u32x4, max_iter_u32x4, greater_b32x4);
-        iter_u32x4 = wasm_i32x4_add(iter_u32x4, one_u32x4);
+    for (; idx + 8 <= count; idx += 8) {
+        v128_t raw_u16x8 = wasm_v128_load(data + idx);
+        // Convert to comparable i16: sign = srai(raw, 15), flip = srli(sign, 1), cmp = raw ^ flip
+        v128_t sign_i16x8 = wasm_i16x8_shr(raw_u16x8, 15);
+        v128_t flip_u16x8 = wasm_u16x8_shr(sign_i16x8, 1);
+        v128_t cmp_i16x8 = wasm_v128_xor(raw_u16x8, flip_u16x8);
+        // Filter NaN: (raw & 0x7FFF) <= 0x7F80 (both sides non-negative, so signed LE works)
+        v128_t abs_u16x8 = wasm_v128_and(raw_u16x8, abs_mask_u16x8);
+        v128_t not_nan_i16x8 = wasm_i16x8_le(abs_u16x8, nan_threshold_u16x8);
+        // Compare as signed i16, masked by not-NaN
+        v128_t less_i16x8 = wasm_v128_and(wasm_i16x8_lt(cmp_i16x8, min_cmp_i16x8), not_nan_i16x8);
+        v128_t greater_i16x8 = wasm_v128_and(wasm_i16x8_gt(cmp_i16x8, max_cmp_i16x8), not_nan_i16x8);
+        min_cmp_i16x8 = wasm_v128_bitselect(cmp_i16x8, min_cmp_i16x8, less_i16x8);
+        max_cmp_i16x8 = wasm_v128_bitselect(cmp_i16x8, max_cmp_i16x8, greater_i16x8);
+        min_iter_u16x8 = wasm_v128_bitselect(iter_u16x8, min_iter_u16x8, less_i16x8);
+        max_iter_u16x8 = wasm_v128_bitselect(iter_u16x8, max_iter_u16x8, greater_i16x8);
+        iter_u16x8 = wasm_i16x8_add(iter_u16x8, one_u16x8);
     }
-    nk_b128_vec_t min_values_vec, max_values_vec, min_iters_vec, max_iters_vec;
-    min_values_vec.v128 = min_f32x4;
-    max_values_vec.v128 = max_f32x4;
-    min_iters_vec.v128 = min_iter_u32x4;
-    max_iters_vec.v128 = max_iter_u32x4;
-    nk_f32_t min_value_f32 = min_values_vec.f32s[0];
-    nk_size_t min_idx = (nk_size_t)min_iters_vec.u32s[0] * 4;
-    for (int i = 1; i < 4; ++i) {
-        nk_size_t abs_idx = (nk_size_t)min_iters_vec.u32s[i] * 4 + (nk_size_t)i;
-        if (min_values_vec.f32s[i] < min_value_f32 || (min_values_vec.f32s[i] == min_value_f32 && abs_idx < min_idx))
-            min_value_f32 = min_values_vec.f32s[i], min_idx = abs_idx;
+    // Horizontal reduction over 8 lanes
+    nk_b128_vec_t min_cmp_vec, max_cmp_vec, min_iters_vec, max_iters_vec;
+    min_cmp_vec.v128 = min_cmp_i16x8;
+    max_cmp_vec.v128 = max_cmp_i16x8;
+    min_iters_vec.v128 = min_iter_u16x8;
+    max_iters_vec.v128 = max_iter_u16x8;
+    nk_i16_t min_comparable = min_cmp_vec.i16s[0];
+    nk_size_t min_idx = (nk_size_t)min_iters_vec.u16s[0] * 8;
+    for (int i = 1; i < 8; ++i) {
+        nk_size_t abs_idx = (nk_size_t)min_iters_vec.u16s[i] * 8 + (nk_size_t)i;
+        if (min_cmp_vec.i16s[i] < min_comparable || (min_cmp_vec.i16s[i] == min_comparable && abs_idx < min_idx))
+            min_comparable = min_cmp_vec.i16s[i], min_idx = abs_idx;
     }
-    nk_f32_t max_value_f32 = max_values_vec.f32s[0];
-    nk_size_t max_idx = (nk_size_t)max_iters_vec.u32s[0] * 4;
-    for (int i = 1; i < 4; ++i) {
-        nk_size_t abs_idx = (nk_size_t)max_iters_vec.u32s[i] * 4 + (nk_size_t)i;
-        if (max_values_vec.f32s[i] > max_value_f32 || (max_values_vec.f32s[i] == max_value_f32 && abs_idx < max_idx))
-            max_value_f32 = max_values_vec.f32s[i], max_idx = abs_idx;
+    nk_i16_t max_comparable = max_cmp_vec.i16s[0];
+    nk_size_t max_idx = (nk_size_t)max_iters_vec.u16s[0] * 8;
+    for (int i = 1; i < 8; ++i) {
+        nk_size_t abs_idx = (nk_size_t)max_iters_vec.u16s[i] * 8 + (nk_size_t)i;
+        if (max_cmp_vec.i16s[i] > max_comparable || (max_cmp_vec.i16s[i] == max_comparable && abs_idx < max_idx))
+            max_comparable = max_cmp_vec.i16s[i], max_idx = abs_idx;
     }
+    // Scalar tail
     for (; idx < count; ++idx) {
-        nk_f32_t val;
-        nk_bf16_to_f32_serial(data + idx, &val);
-        if (val < min_value_f32) min_value_f32 = val, min_idx = idx;
-        if (val > max_value_f32) max_value_f32 = val, max_idx = idx;
+        nk_u16_t raw = *(nk_u16_t const *)(data + idx);
+        if ((raw & 0x7FFF) > 0x7F80) continue; // skip NaN
+        nk_i16_t comparable = (raw & 0x8000) ? (nk_i16_t)(raw ^ 0x7FFF) : (nk_i16_t)raw;
+        if (comparable < min_comparable) min_comparable = comparable, min_idx = idx;
+        if (comparable > max_comparable) max_comparable = comparable, max_idx = idx;
     }
-    *min_value_ptr = data[min_idx], *min_index_ptr = min_idx;
-    *max_value_ptr = data[max_idx], *max_index_ptr = max_idx;
+    // Convert comparable back to raw bf16
+    nk_i16_t min_sign = min_comparable >> 15;
+    nk_u16_t min_raw = (nk_u16_t)min_comparable ^ ((nk_u16_t)min_sign >> 1);
+    *(nk_u16_t *)min_value_ptr = min_raw, *min_index_ptr = min_idx;
+    nk_i16_t max_sign = max_comparable >> 15;
+    nk_u16_t max_raw = (nk_u16_t)max_comparable ^ ((nk_u16_t)max_sign >> 1);
+    *(nk_u16_t *)max_value_ptr = max_raw, *max_index_ptr = max_idx;
 }
 
 NK_PUBLIC void nk_reduce_minmax_bf16_v128relaxed(                   //
@@ -522,7 +539,7 @@ NK_PUBLIC void nk_reduce_minmax_bf16_v128relaxed(                   //
     else if (!aligned)
         nk_reduce_minmax_bf16_serial(data, count, stride_bytes, min_value_ptr, min_index_ptr, max_value_ptr,
                                      max_index_ptr);
-    else if (count > (nk_size_t)NK_U32_MAX * 4) {
+    else if (count > (nk_size_t)(NK_U16_MAX + 1) * 8) {
         nk_size_t left_count = count / 2;
         nk_bf16_t left_min_value, right_min_value, left_max_value, right_max_value;
         nk_size_t left_min_index, right_min_index, left_max_index, right_max_index;
