@@ -94,8 +94,52 @@ int main(int argc, char **argv) {
         else if (std::strcmp(argv[i], "--filter") == 0 && i + 1 < argc) { global_config.filter = argv[++i]; }
         else if (std::strcmp(argv[i], "--assert") == 0) { global_config.assert_on_failure = true; }
         else if (std::strcmp(argv[i], "--verbose") == 0) { global_config.verbose = true; }
+        else if (std::strncmp(argv[i], "--gtest_filter=", 15) == 0) {
+            global_config.filter = argv[i] + 15;
+            std::fprintf( //
+                stderr,
+                "Note: Mapped --gtest_filter to internal filter. " //
+                "Prefer: NK_FILTER='%s' ./nk_test\n",
+                global_config.filter);
+        }
+        else if (std::strncmp(argv[i], "--gtest_", 8) == 0) {
+            std::fprintf( //
+                stderr,
+                "Note: GTest flag '%s' is not supported. Ignoring.\n"                    //
+                "  Supported env vars: NK_FILTER, NK_SEED, NK_IN_QEMU,\n"                //
+                "  NK_TEST_ASSERT, NK_TEST_VERBOSE, NK_TEST_TIME_BUDGET_MS,\n"           //
+                "  NK_ULP_THRESHOLD_F32, NK_ULP_THRESHOLD_F16, NK_ULP_THRESHOLD_BF16,\n" //
+                "  NK_RANDOM_DISTRIBUTION, NK_DENSE_DIMENSIONS, NK_CURVED_DIMENSIONS\n", //
+                argv[i]);
+        }
+        else if (std::strcmp(argv[i], "--help") == 0 || std::strcmp(argv[i], "-h") == 0) {
+            std::fprintf( //
+                stdout,
+                "Usage: nk_test [--filter=<regex>] [--assert] [--verbose] [--help]\n" //
+                "\n"                                                                  //
+                "Arguments:\n"                                                        //
+                "  --filter=<regex>   Filter tests by name (regex or substring)\n"    //
+                "  --assert           Abort on first failure\n"                       //
+                "  --verbose          Verbose output\n"                               //
+                "\n"                                                                  //
+                "Environment Variables:\n"                                            //
+                "  NK_FILTER=<regex>         Same as --filter\n"                      //
+                "  NK_SEED=<int>             Random seed\n"                           //
+                "  NK_IN_QEMU=1              Skip unreliable half-precision tests\n"  //
+                "  NK_TEST_ASSERT=1          Same as --assert\n"                      //
+                "  NK_TEST_VERBOSE=1         Same as --verbose\n"                     //
+                "  NK_TEST_TIME_BUDGET_MS=N  Time budget per test\n"                  //
+                "  NK_ULP_THRESHOLD_F32=N    ULP tolerance for f32\n"                 //
+                "  NK_ULP_THRESHOLD_F16=N    ULP tolerance for f16\n"                 //
+                "  NK_ULP_THRESHOLD_BF16=N   ULP tolerance for bf16\n"                //
+                "  NK_RANDOM_DISTRIBUTION=X  uniform_k, cauchy_k, lognormal_k\n"      //
+                "  NK_DENSE_DIMENSIONS=N     Override dense vector dimensions\n"      //
+                "  NK_CURVED_DIMENSIONS=N    Override curved vector dimensions\n"     //
+                "  NK_SPARSE_DIMENSIONS=N    Override sparse vector dimensions\n");   //
+            return 0;
+        }
         else {
-            std::fprintf(stderr, "Error: unrecognized argument '%s'\n", argv[i]);
+            std::fprintf(stderr, "Error: unrecognized argument '%s'. Try --help.\n", argv[i]);
             return 1;
         }
     }

@@ -29,8 +29,9 @@
  *    NK_SPARSE_INTERSECTION=F      - Intersection share 0.0-1.0 (default: 0.5)
  */
 
-#include <cstdio>  // std::printf
-#include <cstdlib> // std::getenv, std::atoll, std::atof
+#include <cstdio>  // `std::printf`, `std::fprintf`
+#include <cstdlib> // `std::getenv`, `std::atoll`
+#include <cstring> // `std::strcmp`
 #if !defined(_WIN32)
 #include <unistd.h>
 #endif
@@ -193,6 +194,33 @@ int main(int argc, char **argv) {
     // Bench-specific config
     std::printf("  Bench: seed=%u\n", random_seed);
     std::printf("\n");
+
+    // Handle --help/-h: print NK-specific options, then let Google Benchmark print its own
+    for (int i = 1; i < argc; ++i) {
+        if (std::strcmp(argv[i], "--help") == 0 || std::strcmp(argv[i], "-h") == 0) {
+            std::fprintf( //
+                stdout,
+                "Usage: nk_bench [--benchmark_filter=<regex>] [--help]\n"                    //
+                "\n"                                                                         //
+                "NumKong Environment Variables:\n"                                           //
+                "  NK_FILTER=<regex>              Same as --benchmark_filter\n"              //
+                "  NK_SEED=<int>                  Random seed\n"                             //
+                "  NK_DENSE_DIMENSIONS=N          Dense vector dimensions (default: 1536)\n" //
+                "  NK_CURVED_DIMENSIONS=N         Curved vector dimensions (default: 64)\n"  //
+                "  NK_MESH_POINTS=N               Mesh point count (default: 1000)\n"        //
+                "  NK_MATRIX_HEIGHT=N             Matrix height\n"                           //
+                "  NK_MATRIX_WIDTH=N              Matrix width\n"                            //
+                "  NK_MATRIX_DEPTH=N              Matrix depth\n"                            //
+                "  NK_SPARSE_FIRST_LENGTH=N       First sparse vector length\n"              //
+                "  NK_SPARSE_SECOND_LENGTH=N      Second sparse vector length\n"             //
+                "  NK_SPARSE_INTERSECTION=F       Intersection share [0.0, 1.0]\n"           //
+                "  NO_COLOR=1                     Disable colored output\n"                  //
+                "  FORCE_COLOR=1                  Force colored output\n"                    //
+                "\n"                                                                         //
+                "Google Benchmark flags (passed through):\n");                               //
+            break; // Let bm::Initialize handle --help too
+        }
+    }
 
     // Handle NK_FILTER environment variable by injecting --benchmark_filter argument
     std::vector<char *> modified_argv(argv, argv + argc);
