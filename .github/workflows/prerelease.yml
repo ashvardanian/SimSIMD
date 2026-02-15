@@ -78,8 +78,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-22.04, macos-15, windows-2022]
-        python-version: ["3.13", "3.8"]
+        os: [ubuntu-24.04, macos-15, windows-2022]
+        python-version: ["3.13", "3.9"]
         architecture: [x64, arm64]
 
     steps:
@@ -108,16 +108,13 @@ jobs:
       - name: Build locally on Ubuntu
         run: |
           sudo apt-get update
-          sudo apt-get install gcc-12 -y
-          sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-12 12
-          sudo update-alternatives --config gcc
           gcc --version
           python -m pip install .
-        if: ${{ matrix.os == 'ubuntu-22.04' }}
+        if: ${{ matrix.os == 'ubuntu-24.04' }}
 
       - name: Build locally on other OS
         run: python -m pip install .
-        if: ${{ matrix.os != 'ubuntu-22.04' }}
+        if: ${{ matrix.os != 'ubuntu-24.04' }}
 
       - name: Test with PyTest
         run: |
@@ -128,8 +125,8 @@ jobs:
     name: Test Node.js
     runs-on: ubuntu-24.04
     env:
-      CC: gcc-12
-      CXX: g++-12
+      CC: gcc-14
+      CXX: g++-14
 
     steps:
       - name: Checkout
@@ -147,7 +144,7 @@ jobs:
       - name: Update compilers
         run: |
           sudo apt update
-          sudo apt install -y cmake build-essential libjemalloc-dev libomp-dev gcc-12 g++-12
+          sudo apt install -y cmake build-essential libjemalloc-dev libomp-dev
 
       - name: Set up Node.js
         uses: actions/setup-node@v6
@@ -281,11 +278,11 @@ jobs:
         run: npx playwright install --with-deps chromium
 
       - name: Test Browser runtime
-        run: npx playwright test
+        run: npx playwright test --config test/playwright.config.ts
 
       - name: Upload test report
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: playwright-report
           path: playwright-report/
@@ -317,7 +314,7 @@ jobs:
       - name: Build WASI
         run: |
           export WASI_SDK_PATH=~/wasi-sdk
-          cmake -B build-wasi -DCMAKE_TOOLCHAIN_FILE=cmake/toolchain-wasi.cmake -DNK_BUILD_TEST=ON
+          cmake -B build-wasi -DCMAKE_TOOLCHAIN_FILE=cmake/toolchain-wasi.cmake -DNK_BUILD_TEST=ON -DNK_WASI_STANDALONE=ON
           cmake --build build-wasi
 
       - name: Install Wasmer
@@ -357,7 +354,7 @@ jobs:
       - name: Build WASI
         run: |
           export WASI_SDK_PATH=~/wasi-sdk
-          cmake -B build-wasi -DCMAKE_TOOLCHAIN_FILE=cmake/toolchain-wasi.cmake -DNK_BUILD_TEST=ON
+          cmake -B build-wasi -DCMAKE_TOOLCHAIN_FILE=cmake/toolchain-wasi.cmake -DNK_BUILD_TEST=ON -DNK_WASI_STANDALONE=ON
           cmake --build build-wasi
 
       - name: Test Wasmtime runtime
@@ -367,8 +364,8 @@ jobs:
     name: Test Deno
     runs-on: ubuntu-24.04
     env:
-      CC: gcc-12
-      CXX: g++-12
+      CC: gcc-14
+      CXX: g++-14
       # `node-gyp-build` will look at this first; setting it prevents an
       # unintended rebuild and lets Deno just `dlopen` the prebuilt `.node`.
       PREBUILDS_ONLY: "1"
@@ -389,7 +386,7 @@ jobs:
       - name: Update compilers
         run: |
           sudo apt update
-          sudo apt install -y cmake build-essential libjemalloc-dev libomp-dev gcc-12 g++-12
+          sudo apt install -y cmake build-essential libjemalloc-dev libomp-dev
 
       - name: Set up Node.js
         uses: actions/setup-node@v6
@@ -480,11 +477,11 @@ jobs:
   # Available Linux images: https://cibuildwheel.pypa.io/en/stable/options/#linux-image
   build_wheels_linux_x86:
     name: Build Python Wheels (Linux x86)
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     strategy:
       matrix:
         python-version:
-          ["38", "39", "310", "311", "312", "313", "313t", "314", "314t"]
+          ["39", "310", "311", "312", "313", "313t", "314", "314t"]
     needs: [test_python]
     steps:
       - name: Checkout
@@ -498,7 +495,7 @@ jobs:
           python -m pip install cibuildwheel
           cibuildwheel --output-dir wheelhouse
         env:
-          # Matches: `cp37-manylinux_x86_64` and `cp38-musllinux_x86_64`
+          # Matches: `cp39-manylinux_x86_64` and `cp39-musllinux_x86_64`
           CIBW_BUILD: cp${{ matrix.python-version }}-*
           CIBW_ENABLE: cpython-freethreading # No-GIL 3.13t builds
           CIBW_PLATFORM: linux
@@ -512,7 +509,7 @@ jobs:
     strategy:
       matrix:
         python-version:
-          ["38", "39", "310", "311", "312", "313", "313t", "314", "314t"]
+          ["39", "310", "311", "312", "313", "313t", "314", "314t"]
     needs: [test_python]
     steps:
       - name: Checkout
@@ -538,7 +535,7 @@ jobs:
           python -m pip install cibuildwheel
           cibuildwheel --output-dir wheelhouse
         env:
-          # Matches: `cp37-manylinux_aarch64` and `cp38-musllinux_aarch64`
+          # Matches: `cp39-manylinux_aarch64` and `cp39-musllinux_aarch64`
           CIBW_BUILD: cp${{ matrix.python-version }}-*
           CIBW_ENABLE: cpython-freethreading # No-GIL 3.13t builds
           CIBW_PLATFORM: linux
@@ -550,7 +547,7 @@ jobs:
     strategy:
       matrix:
         python-version:
-          ["38", "39", "310", "311", "312", "313", "313t", "314", "314t"]
+          ["39", "310", "311", "312", "313", "313t", "314", "314t"]
     needs: [test_python]
     steps:
       - name: Checkout
@@ -575,7 +572,7 @@ jobs:
     strategy:
       matrix:
         python-version:
-          ["38", "39", "310", "311", "312", "313", "313t", "314", "314t"]
+          ["39", "310", "311", "312", "313", "313t", "314", "314t"]
     needs: [test_python]
     steps:
       - name: Checkout
@@ -600,9 +597,8 @@ jobs:
     strategy:
       matrix:
         python-version:
-          ["38", "39", "310", "311", "312", "313", "313t", "314", "314t"]
+          ["39", "310", "311", "312", "313", "313t", "314", "314t"]
         architecture: [AMD64] # List ARM64 separately and avoid 32-bit
-        #! ARM64 isn't supported for Python 3.8
         include:
           - python-version: "39"
             architecture: ARM64
@@ -643,11 +639,11 @@ jobs:
 
   build_wheels_other:
     name: Build Python Wheels (Other Platforms)
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     strategy:
       matrix:
         python-version:
-          ["38", "39", "310", "311", "312", "313", "313t", "314", "314t"]
+          ["39", "310", "311", "312", "313", "313t", "314", "314t"]
     needs: [test_python]
     steps:
       - name: Checkout
@@ -671,7 +667,7 @@ jobs:
 
   build_wheels_linux_riscv:
     name: Build Python Wheels (Linux RISC-V)
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     strategy:
       matrix:
         python-version:
