@@ -173,6 +173,8 @@ void nk_dispatch_f32_find_(nk_capability_t v, nk_kernel_kind_t k, nk_kernel_punn
         case nk_kernel_dots_pack_k: *m = (m_t)&nk_dots_pack_f32_haswell, *c = nk_cap_haswell_k; return;
         case nk_kernel_dots_packed_k: *m = (m_t)&nk_dots_packed_f32_haswell, *c = nk_cap_haswell_k; return;
         case nk_kernel_dots_symmetric_k: *m = (m_t)&nk_dots_symmetric_f32_haswell, *c = nk_cap_haswell_k; return;
+        case nk_kernel_bilinear_k: *m = (m_t)&nk_bilinear_f32_haswell, *c = nk_cap_haswell_k; return;
+        case nk_kernel_mahalanobis_k: *m = (m_t)&nk_mahalanobis_f32_haswell, *c = nk_cap_haswell_k; return;
         default: break;
         }
 #endif

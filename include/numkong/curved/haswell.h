@@ -29,6 +29,74 @@ extern "C" {
 #pragma GCC target("avx2", "f16c", "fma", "bmi", "bmi2")
 #endif
 
+NK_PUBLIC void nk_bilinear_f32_haswell(nk_f32_t const *a, nk_f32_t const *b, nk_f32_t const *c, nk_size_t n,
+                                       nk_f32_t *result) {
+    nk_size_t const tail_length = n % 4;
+    nk_size_t const tail_start = n - tail_length;
+    __m256d sum_f64x4 = _mm256_setzero_pd();
+
+    for (nk_size_t i = 0; i != n; ++i) {
+        __m256d a_f64x4 = _mm256_set1_pd((nk_f64_t)a[i]);
+        __m256d cb_j_f64x4 = _mm256_setzero_pd();
+        for (nk_size_t j = 0; j + 4 <= n; j += 4) {
+            __m256d b_f64x4 = _mm256_cvtps_pd(_mm_loadu_ps(b + j));
+            __m256d c_f64x4 = _mm256_cvtps_pd(_mm_loadu_ps(c + i * n + j));
+            cb_j_f64x4 = _mm256_fmadd_pd(b_f64x4, c_f64x4, cb_j_f64x4);
+        }
+        sum_f64x4 = _mm256_fmadd_pd(a_f64x4, cb_j_f64x4, sum_f64x4);
+    }
+
+    nk_f64_t sum = nk_reduce_add_f64x4_haswell_(sum_f64x4);
+    if (tail_length) {
+        for (nk_size_t i = 0; i != n; ++i) {
+            nk_f64_t a_i = (nk_f64_t)a[i];
+            nk_b128_vec_t b_vec, c_vec;
+            nk_partial_load_b32x4_serial_(b + tail_start, &b_vec, tail_length);
+            nk_partial_load_b32x4_serial_(c + i * n + tail_start, &c_vec, tail_length);
+            __m256d b_f64x4 = _mm256_cvtps_pd(b_vec.xmm_ps);
+            __m256d c_f64x4 = _mm256_cvtps_pd(c_vec.xmm_ps);
+            sum += a_i * nk_reduce_add_f64x4_haswell_(_mm256_mul_pd(b_f64x4, c_f64x4));
+        }
+    }
+
+    *result = (nk_f32_t)sum;
+}
+
+NK_PUBLIC void nk_mahalanobis_f32_haswell(nk_f32_t const *a, nk_f32_t const *b, nk_f32_t const *c, nk_size_t n,
+                                          nk_f32_t *result) {
+    nk_size_t const tail_length = n % 4;
+    nk_size_t const tail_start = n - tail_length;
+    __m256d sum_f64x4 = _mm256_setzero_pd();
+
+    for (nk_size_t i = 0; i != n; ++i) {
+        __m256d diff_i_f64x4 = _mm256_set1_pd((nk_f64_t)(a[i] - b[i]));
+        __m256d cdiff_j_f64x4 = _mm256_setzero_pd();
+        for (nk_size_t j = 0; j + 4 <= n; j += 4) {
+            __m256d diff_j_f64x4 = _mm256_sub_pd( //
+                _mm256_cvtps_pd(_mm_loadu_ps(a + j)), _mm256_cvtps_pd(_mm_loadu_ps(b + j)));
+            __m256d c_f64x4 = _mm256_cvtps_pd(_mm_loadu_ps(c + i * n + j));
+            cdiff_j_f64x4 = _mm256_fmadd_pd(diff_j_f64x4, c_f64x4, cdiff_j_f64x4);
+        }
+        sum_f64x4 = _mm256_fmadd_pd(diff_i_f64x4, cdiff_j_f64x4, sum_f64x4);
+    }
+
+    nk_f64_t sum = nk_reduce_add_f64x4_haswell_(sum_f64x4);
+    if (tail_length) {
+        for (nk_size_t i = 0; i != n; ++i) {
+            nk_f64_t diff_i = (nk_f64_t)(a[i] - b[i]);
+            nk_b128_vec_t a_vec, b_vec, c_vec;
+            nk_partial_load_b32x4_serial_(a + tail_start, &a_vec, tail_length);
+            nk_partial_load_b32x4_serial_(b + tail_start, &b_vec, tail_length);
+            nk_partial_load_b32x4_serial_(c + i * n + tail_start, &c_vec, tail_length);
+            __m256d diff_j_f64x4 = _mm256_sub_pd(_mm256_cvtps_pd(a_vec.xmm_ps), _mm256_cvtps_pd(b_vec.xmm_ps));
+            __m256d c_f64x4 = _mm256_cvtps_pd(c_vec.xmm_ps);
+            sum += diff_i * nk_reduce_add_f64x4_haswell_(_mm256_mul_pd(diff_j_f64x4, c_f64x4));
+        }
+    }
+
+    *result = (nk_f32_t)nk_f64_sqrt_haswell(sum);
+}
+
 NK_PUBLIC void nk_bilinear_f16_haswell(nk_f16_t const *a, nk_f16_t const *b, nk_f16_t const *c, nk_size_t n,
                                        nk_f32_t *result) {
     __m256 sum_f32x8 = _mm256_setzero_ps();

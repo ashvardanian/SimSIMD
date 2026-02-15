@@ -210,6 +210,12 @@ NK_PUBLIC void nk_mahalanobis_f32_smef64(nk_f32_t const *a, nk_f32_t const *b, n
 #endif // NK_TARGET_SMEF64
 
 #if NK_TARGET_HASWELL
+/** @copydoc nk_bilinear_f32 */
+NK_PUBLIC void nk_bilinear_f32_haswell(nk_f32_t const *a, nk_f32_t const *b, nk_f32_t const *c, nk_size_t n,
+                                       nk_f32_t *result);
+/** @copydoc nk_mahalanobis_f32 */
+NK_PUBLIC void nk_mahalanobis_f32_haswell(nk_f32_t const *a, nk_f32_t const *b, nk_f32_t const *c, nk_size_t n,
+                                          nk_f32_t *result);
 /** @copydoc nk_bilinear_f16 */
 NK_PUBLIC void nk_bilinear_f16_haswell(nk_f16_t const *a, nk_f16_t const *b, nk_f16_t const *c, nk_size_t n,
                                        nk_f32_t *result);
@@ -330,6 +336,8 @@ NK_PUBLIC void nk_bilinear_f64(nk_f64_t const *a, nk_f64_t const *b, nk_f64_t co
 NK_PUBLIC void nk_bilinear_f32(nk_f32_t const *a, nk_f32_t const *b, nk_f32_t const *c, nk_size_t n, nk_f32_t *result) {
 #if NK_TARGET_SKYLAKE
     nk_bilinear_f32_skylake(a, b, c, n, result);
+#elif NK_TARGET_HASWELL
+    nk_bilinear_f32_haswell(a, b, c, n, result);
 #elif NK_TARGET_NEON
     nk_bilinear_f32_neon(a, b, c, n, result);
 #elif NK_TARGET_RVV
@@ -425,6 +433,8 @@ NK_PUBLIC void nk_mahalanobis_f32(nk_f32_t const *a, nk_f32_t const *b, nk_f32_t
                                   nk_f32_t *result) {
 #if NK_TARGET_SKYLAKE
     nk_mahalanobis_f32_skylake(a, b, c, n, result);
+#elif NK_TARGET_HASWELL
+    nk_mahalanobis_f32_haswell(a, b, c, n, result);
 #elif NK_TARGET_NEON
     nk_mahalanobis_f32_neon(a, b, c, n, result);
 #elif NK_TARGET_RVV
