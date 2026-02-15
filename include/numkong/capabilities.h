@@ -613,7 +613,8 @@ NK_PUBLIC nk_capability_t nk_capabilities_riscv_(void) {
 #if defined(__EMSCRIPTEN__)
 extern int nk_detect_v128_(void);
 extern int nk_detect_relaxed_(void);
-#elif defined(__wasi__)
+#elif defined(__wasi__) && !defined(NK_WASI_STANDALONE)
+// When hosted (e.g. Node.js WASI polyfill), the host provides capability probes.
 __attribute__((__import_module__("env"), __import_name__("nk_has_v128"))) extern int nk_has_v128(void);
 __attribute__((__import_module__("env"), __import_name__("nk_has_relaxed"))) extern int nk_has_relaxed(void);
 #endif
@@ -622,9 +623,15 @@ NK_PUBLIC nk_capability_t nk_capabilities_v128relaxed_(void) {
 #if defined(__EMSCRIPTEN__)
     int has_relaxed = nk_detect_relaxed_();
     return has_relaxed ? nk_cap_v128relaxed_k : nk_cap_serial_k;
-#elif defined(__wasi__)
+#elif defined(__wasi__) && !defined(NK_WASI_STANDALONE)
     int has_relaxed = nk_has_relaxed();
     return has_relaxed ? nk_cap_v128relaxed_k : nk_cap_serial_k;
+#elif defined(__wasm_relaxed_simd__)
+    // Standalone WASI: the module contains relaxed-SIMD instructions.
+    // If the runtime instantiated us, it supports relaxed SIMD.
+    return nk_cap_v128relaxed_k;
+#elif defined(__wasm_simd128__)
+    return nk_cap_v128relaxed_k;
 #else
     return nk_cap_serial_k;
 #endif

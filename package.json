@@ -63,6 +63,7 @@
     "node-gyp": "^11.5.0",
     "playwright": "^1.58.0",
     "prebuildify": "^6.0.1",
+    "http-server": "^14.1.1",
     "typescript": "^5.9.3"
   },
   "optionalDependencies": {

@@ -72,6 +72,14 @@ jobs:
       - name: Test
         run: build_release/nk_test
 
+      - name: Build shared library test
+        run: |
+          cmake -D CMAKE_BUILD_TYPE=Release -D NK_BUILD_SHARED=1 -D NK_BUILD_SHARED_TEST=1 -B build_shared
+          cmake --build build_shared --config Release --target nk_shared_test
+
+      - name: Test shared library
+        run: LD_LIBRARY_PATH=build_shared build_shared/nk_shared_test
+
   test_python:
     name: Test Python ${{ matrix.python-version }} on ${{ matrix.architecture }} ${{ matrix.os }}
     runs-on: ${{ matrix.os }}

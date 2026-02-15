@@ -28,8 +28,8 @@ async function loadNumKong(runtime) {
             return wasmWrapper;
 
         case 'wasi-node':
-            // Load WASI via Node.js WASI polyfill
-            // Provides capability detection imports for standalone WASM
+            // Load WASI via Node.js built-in WASI support (node:wasi)
+            // Host provides capability detection imports (nk_has_v128, nk_has_relaxed)
             const wasi = new WASI({
                 version: 'preview1',
                 args: [],
@@ -57,7 +57,7 @@ async function loadNumKong(runtime) {
             const { instance } = await WebAssembly.instantiate(wasmBytes, {
                 wasi_snapshot_preview1: wasi.wasiImport,
                 env: {
-                    // Provide capability detection imports (called from WASI C code)
+                    // Host-side capability probes imported by the WASM module
                     nk_has_v128: () => {
                         try {
                             return WebAssembly.validate(simd128Test) ? 1 : 0;

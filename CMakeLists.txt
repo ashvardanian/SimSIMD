@@ -13,6 +13,8 @@
 #   -D NK_COMPARE_TO_BLAS=<ON|OFF>      (default: OFF)
 #   -D NK_COMPARE_TO_MKL=<ON|OFF>       (default: OFF)
 #   -D NK_BUILD_SHARED=<ON|OFF>         (default: OFF)
+#   -D NK_BUILD_SHARED_TEST=<ON|OFF>    (default: OFF, requires NK_BUILD_SHARED)
+#   -D NK_WASI_STANDALONE=<ON|OFF>      (default: OFF, no host imports)
 #
 # Different SIMD ISA extensions reqiore different compiler versions:
 #
@@ -85,8 +87,10 @@ if(CMAKE_SYSTEM_NAME STREQUAL "WASI")
 endif()
 
 option(NK_BUILD_SHARED "Compile a dynamic library" ${NK_IS_MAIN_PROJECT})
+option(NK_BUILD_SHARED_TEST "Compile shared-library tests (requires NK_BUILD_SHARED)" OFF)
 option(NK_BUILD_TEST "Compile precision tests with ULP-based error analysis" OFF)
 option(NK_BUILD_BENCH "Compile micro-benchmarks for current ISA" OFF)
+option(NK_WASI_STANDALONE "Build for standalone WASI runtimes (no host imports)" OFF)
 
 # BLAS/MKL options: ON (require), OFF (disable), AUTO (detect if available)
 set(NK_COMPARE_TO_BLAS "AUTO" CACHE STRING "Include BLAS (OpenBLAS/Accelerate) in tests and benchmarks")
@@ -419,13 +423,14 @@ if(NK_BUILD_TEST)
 
     # WASI-specific configuration
     if(NK_IS_WASI_PROJECT)
-        target_compile_definitions(nk_test PRIVATE
-            NK_WASI_BUILD=1
-            NK_DYNAMIC_DISPATCH=1)
+        target_compile_definitions(nk_test PRIVATE NK_WASI_BUILD=1)
+
+        if(NK_WASI_STANDALONE)
+            target_compile_definitions(nk_test PRIVATE NK_WASI_STANDALONE=1)
+        endif()
+
         set_target_properties(nk_test PROPERTIES OUTPUT_NAME "test.wasm")
-        target_link_options(nk_test PRIVATE
-            -Wl,--export=main
-            -Wl,--export=_start)
+        target_link_options(nk_test PRIVATE -Wl,--export=main -Wl,--export=_start)
         message(STATUS "NumKong: Building tests for WASI (output: test.wasm)")
     endif()
 
@@ -507,6 +512,48 @@ if(NK_BUILD_SHARED)
         RESOURCE
         RUNTIME
     )
+endif()
+
+# Shared-library test (tests dynamic dispatch path)
+if(NK_BUILD_SHARED_TEST)
+    if(NOT NK_BUILD_SHARED)
+        message(FATAL_ERROR "NK_BUILD_SHARED_TEST requires NK_BUILD_SHARED=ON")
+    endif()
+
+    add_executable(nk_shared_test
+        test/test.cpp
+        test/test_dot.cpp
+        test/test_spatial.cpp
+        test/test_set.cpp
+        test/test_curved.cpp
+        test/test_probability.cpp
+        test/test_each.cpp
+        test/test_trigonometry.cpp
+        test/test_geospatial.cpp
+        test/test_mesh.cpp
+        test/test_cast.cpp
+        test/test_reduce.cpp
+        test/test_sparse.cpp
+        test/test_cross_serial.cpp
+        test/test_cross_x86.cpp
+        test/test_cross_amx.cpp
+        test/test_cross_arm.cpp
+        test/test_cross_sme.cpp
+        test/test_cross_blas.cpp
+        test/test_cross_rvv.cpp
+        test/test_tensor.cpp
+    )
+    target_include_directories(nk_shared_test PRIVATE "${PROJECT_SOURCE_DIR}/include")
+    target_compile_definitions(nk_shared_test PRIVATE NK_DYNAMIC_DISPATCH=1)
+    target_link_libraries(nk_shared_test nk_shared m)
+
+    if(OpenMP_FOUND)
+        target_compile_options(nk_shared_test PRIVATE ${OpenMP_CXX_FLAGS})
+        target_link_libraries(nk_shared_test OpenMP::OpenMP_CXX)
+        target_compile_definitions(nk_shared_test PRIVATE NK_TEST_USE_OPENMP=1)
+    endif()
+
+    add_test(NAME nk_shared_test COMMAND nk_shared_test)
 endif()
 
 install(DIRECTORY include/ DESTINATION include)
