@@ -1297,7 +1297,6 @@ mod tests {
 mod wasm_runtime_tests {
     use std::fs;
     use wasmtime::*;
-    use wasmtime_wasi::p1::WasiP1Ctx;
     use wasmtime_wasi::WasiCtx;
 
     /// Test that WASI WASM module can be loaded and executed with Wasmtime

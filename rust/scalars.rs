@@ -1150,6 +1150,7 @@ mod tests {
     use super::*;
 
     // Test-only trait for type-specific tolerance values
+    #[allow(dead_code)]
     trait TestableScalar: Sized {
         const ABSOLUTE_TOLERANCE: f32;
         const RELATIVE_TOLERANCE: f32;
