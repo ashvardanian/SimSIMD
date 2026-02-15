@@ -4,10 +4,10 @@
 #   - `manylinux` and `musllinux` wheels for Linux on i686, ppc64le, s390x;
 #   - `macos` wheels for x86_64, arm64;
 #   - `windows` wheels for AMD64, ARM64.
-#   * for 7 Python versions from 3.8 to 3.14.
+#   * for 6 Python versions from 3.9 to 3.14.
 #   * for 2 free-threading Python versions from 3.13 to 3.14.
 #   * running thousands of fuzzy tests on each wheel.
-#   = meaning 12 platforms * 9 Python versions = 108 builds.
+#   = meaning 12 platforms * 8 Python versions = 96 builds.
 [build-system]
 requires = ["setuptools>=42"]
 build-backend = "setuptools.build_meta"
@@ -162,9 +162,13 @@ environment.NK_TARGET_ARM_ = "1"
 
 # RISC-V 64-bit builds
 # The `manylinux_2_39` riscv64 image is Fedora-based and uses `dnf` instead of `yum`.
+# We install binutils 2.43+ from Fedora 41 repos for zvfh/zvfbfwma/zvbb support.
 [[tool.cibuildwheel.overrides]]
 select = "*-manylinux*_riscv64"
-before-all = "dnf update -y && dnf install -y glibc-devel wget python3-devel"
+before-all = """dnf update -y && dnf install -y glibc-devel wget python3-devel && \
+dnf install -y --releasever=41 \
+  --repofrompath=fedora-updates,https://download.fedoraproject.org/pub/fedora/linux/updates/41/Everything/riscv64/ \
+  --repo=fedora-updates --nogpgcheck binutils"""
 inherit.environment = "append"
 environment.NK_TARGET_X86_ = "0"
 environment.NK_TARGET_ARM_ = "0"

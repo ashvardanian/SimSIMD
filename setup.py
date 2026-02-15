@@ -66,6 +66,13 @@ def linux_settings() -> Tuple[List[str], List[str], List[Tuple[str, str]]]:
         "-w",  # Hush warnings
         "-fopenmp",  # Enable OpenMP for parallelization
     ]
+    # On RISC-V, GCC needs `-march` with V extension for vector types to be
+    # available at translation-unit scope (`#pragma GCC target` only affects
+    # codegen, not type declarations).
+    # We install binutils 2.43+ from Fedora 41 repos in the manylinux_2_39
+    # container, enabling zvfh, zvfbfwma, and zvbb extensions.
+    if is_64bit_riscv():
+        compile_args.append("-march=rv64gcv_zvfh_zvfbfwma_zvbb")
     link_args = [
         "-shared",
         "-fopenmp",  # Link against OpenMP
@@ -83,7 +90,7 @@ def linux_settings() -> Tuple[List[str], List[str], List[Tuple[str, str]]]:
         ("NK_TARGET_GENOA", "1" if is_64bit_x86() else "0"),
         ("NK_TARGET_SAPPHIRE", "1" if is_64bit_x86() else "0"),
         ("NK_TARGET_TURIN", "1" if is_64bit_x86() else "0"),
-        ("NK_TARGET_SIERRA", "0"),  # avx2vnni not supported by manylinux GCC
+        ("NK_TARGET_SIERRA", "1" if is_64bit_x86() else "0"),
         ("NK_TARGET_SAPPHIREAMX", "1" if is_64bit_x86() else "0"),
         ("NK_TARGET_GRANITEAMX", "1" if is_64bit_x86() else "0"),
         # ARM NEON targets
@@ -110,6 +117,7 @@ def linux_settings() -> Tuple[List[str], List[str], List[Tuple[str, str]]]:
         ("NK_TARGET_SMELUT2", "1" if is_64bit_arm() else "0"),
         ("NK_TARGET_SMEFA64", "1" if is_64bit_arm() else "0"),
         # RISC-V targets
+        # Binutils 2.43+ installed from Fedora 41 repos enables zvfh, zvfbfwma, zvbb.
         ("NK_TARGET_RVV", "1" if is_64bit_riscv() else "0"),
         ("NK_TARGET_RVVHALF", "1" if is_64bit_riscv() else "0"),
         ("NK_TARGET_RVVBF16", "1" if is_64bit_riscv() else "0"),
@@ -330,6 +338,7 @@ setup(
         "Topic :: Scientific/Engineering :: Chemistry",
         "Topic :: Scientific/Engineering :: Artificial Intelligence",
     ],
+    python_requires=">=3.9",
     ext_modules=ext_modules,
     zip_safe=False,
     include_package_data=True,
