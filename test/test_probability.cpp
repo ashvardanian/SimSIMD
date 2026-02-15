@@ -1,0 +1,101 @@
+/**
+ *  @brief KL-divergence and Jensen-Shannon tests.
+ *  @file test/test_probability.cpp
+ *  @author Ash Vardanian
+ *  @date December 28, 2025
+ */
+
+#include "test.hpp"
+#include "numkong/probability.hpp" // `nk::kld`
+
+/**
+ *  @brief Template for KL divergence test.
+ *  KLD requires probability distributions: all values > 0, sum to 1.
+ */
+template <typename scalar_type_>
+error_stats_t test_kld(typename scalar_type_::kld_kernel_t kernel) {
+    using scalar_t = scalar_type_;
+    using raw_t = typename scalar_t::raw_t;
+    using result_t = typename scalar_t::probability_result_t;
+
+    error_stats_t stats;
+    std::mt19937 generator(global_config.seed);
+    auto p = make_vector<scalar_t>(dense_dimensions), q = make_vector<scalar_t>(dense_dimensions);
+
+    for (auto start = test_start_time(); within_time_budget(start);) {
+        nk::fill_probability(generator, p.values_data(), dense_dimensions);
+        nk::fill_probability(generator, q.values_data(), dense_dimensions);
+
+        result_t result;
+        kernel(p.raw_values_data(), q.raw_values_data(), dense_dimensions, &result.raw_);
+
+        f118_t reference;
+        nk::kld<scalar_t, f118_t, nk::no_simd_k>(p.values_data(), q.values_data(), dense_dimensions, &reference);
+
+        stats.accumulate(result, reference);
+    }
+
+    return stats;
+}
+
+/**
+ *  @brief Template for Jensen-Shannon divergence test.
+ *  JSD requires probability distributions: all values > 0, sum to 1.
+ */
+template <typename scalar_type_>
+error_stats_t test_jsd(typename scalar_type_::jsd_kernel_t kernel) {
+    using scalar_t = scalar_type_;
+    using raw_t = typename scalar_t::raw_t;
+    using result_t = typename scalar_t::probability_result_t;
+
+    error_stats_t stats;
+    std::mt19937 generator(global_config.seed);
+    auto p = make_vector<scalar_t>(dense_dimensions), q = make_vector<scalar_t>(dense_dimensions);
+
+    for (auto start = test_start_time(); within_time_budget(start);) {
+        nk::fill_probability(generator, p.values_data(), dense_dimensions);
+        nk::fill_probability(generator, q.values_data(), dense_dimensions);
+
+        result_t result;
+        kernel(p.raw_values_data(), q.raw_values_data(), dense_dimensions, &result.raw_);
+
+        f118_t reference;
+        nk::jsd<scalar_t, f118_t, nk::no_simd_k>(p.values_data(), q.values_data(), dense_dimensions, &reference);
+
+        stats.accumulate(result, reference);
+    }
+
+    return stats;
+}
+
+void test_probability() {
+    std::puts("");
+    std::printf("Probability Divergences:\n");
+
+#if NK_DYNAMIC_DISPATCH
+    run_if_matches("kld_f32", test_kld<f32_t>, nk_kld_f32);
+    run_if_matches("kld_f64", test_kld<f64_t>, nk_kld_f64);
+    run_if_matches("jsd_f32", test_jsd<f32_t>, nk_jsd_f32);
+    run_if_matches("jsd_f64", test_jsd<f64_t>, nk_jsd_f64);
+#else
+
+#if NK_TARGET_NEON
+    run_if_matches("kld_f32_neon", test_kld<f32_t>, nk_kld_f32_neon);
+    run_if_matches("jsd_f32_neon", test_jsd<f32_t>, nk_jsd_f32_neon);
+#endif // NK_TARGET_NEON
+
+#if NK_TARGET_SKYLAKE
+    run_if_matches("kld_f32_skylake", test_kld<f32_t>, nk_kld_f32_skylake);
+    run_if_matches("kld_f64_skylake", test_kld<f64_t>, nk_kld_f64_skylake);
+    run_if_matches("jsd_f32_skylake", test_jsd<f32_t>, nk_jsd_f32_skylake);
+    run_if_matches("jsd_f64_skylake", test_jsd<f64_t>, nk_jsd_f64_skylake);
+#endif // NK_TARGET_SKYLAKE
+
+    // Serial always runs - baseline test
+    run_if_matches("kld_f32_serial", test_kld<f32_t>, nk_kld_f32_serial);
+    run_if_matches("kld_f64_serial", test_kld<f64_t>, nk_kld_f64_serial);
+    run_if_matches("jsd_f32_serial", test_jsd<f32_t>, nk_jsd_f32_serial);
+    run_if_matches("jsd_f64_serial", test_jsd<f64_t>, nk_jsd_f64_serial);
+
+#endif // NK_DYNAMIC_DISPATCH
+}

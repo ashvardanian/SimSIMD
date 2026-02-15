@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 """
-SimSIMD build configuration.
+NumKong build configuration.
 
-This file configures wheels compilation for SimSIMD CPython bindings.
+This file configures wheels compilation for NumKong CPython bindings.
 The architecture detection uses environment variable overrides (set via cibuildwheel)
 to support cross-compilation scenarios like building ARM64 wheels on x64 hosts.
 """
@@ -11,32 +11,25 @@ from __future__ import annotations
 import os
 import sys
 import platform
+import glob
 from pathlib import Path
 from typing import List, Tuple
 
 from setuptools import setup, Extension
 
-__lib_name__ = "simsimd"
+__lib_name__ = "numkong"
 __version__ = Path("VERSION").read_text().strip()
 
-# --------------------------------------------------------------------------- #
-# macOS developer-tools sanity check                                          #
-# --------------------------------------------------------------------------- #
 if sys.platform == "darwin":
     _bad_dev_dir = os.environ.get("DEVELOPER_DIR")
     if _bad_dev_dir and (_bad_dev_dir == "public" or not Path(_bad_dev_dir).exists()):
-        print(f"[SimSIMD] Ignoring invalid DEVELOPER_DIR={_bad_dev_dir!r}")
+        print(f"[NumKong] Ignoring invalid DEVELOPER_DIR={_bad_dev_dir!r}")
         os.environ.pop("DEVELOPER_DIR", None)
-
-
-# --------------------------------------------------------------------------- #
-# Architecture detection with environment override support                     #
-# --------------------------------------------------------------------------- #
 
 
 def is_64bit_x86() -> bool:
     """Detect x86-64 architecture with environment override support."""
-    override = os.environ.get("SIMSIMD_TARGET_X86")
+    override = os.environ.get("NK_TARGET_X86_")
     if override is not None:
         return override == "1"
     arch = platform.machine().lower()
@@ -45,16 +38,20 @@ def is_64bit_x86() -> bool:
 
 def is_64bit_arm() -> bool:
     """Detect ARM64 architecture with environment override support."""
-    override = os.environ.get("SIMSIMD_TARGET_ARM64")
+    override = os.environ.get("NK_TARGET_ARM_")
     if override is not None:
         return override == "1"
     arch = platform.machine().lower()
     return (arch in ("arm64", "aarch64")) and (sys.maxsize > 2**32)
 
 
-# --------------------------------------------------------------------------- #
-# Per-platform build settings                                                 #
-# --------------------------------------------------------------------------- #
+def is_64bit_riscv() -> bool:
+    """Detect RISC-V 64-bit architecture with environment override support."""
+    override = os.environ.get("NK_TARGET_RISCV_")
+    if override is not None:
+        return override == "1"
+    arch = platform.machine().lower()
+    return (arch in ("riscv64",)) and (sys.maxsize > 2**32)
 
 
 def linux_settings() -> Tuple[List[str], List[str], List[Tuple[str, str]]]:
@@ -69,6 +66,13 @@ def linux_settings() -> Tuple[List[str], List[str], List[Tuple[str, str]]]:
         "-w",  # Hush warnings
         "-fopenmp",  # Enable OpenMP for parallelization
     ]
+    # On RISC-V, GCC needs `-march` with V extension for vector types to be
+    # available at translation-unit scope (`#pragma GCC target` only affects
+    # codegen, not type declarations).
+    # We install binutils 2.43+ from Fedora 41 repos in the manylinux_2_39
+    # container, enabling zvfh, zvfbfwma, and zvbb extensions.
+    if is_64bit_riscv():
+        compile_args.append("-march=rv64gcv_zvfh_zvfbfwma_zvbb")
     link_args = [
         "-shared",
         "-fopenmp",  # Link against OpenMP
@@ -76,27 +80,48 @@ def linux_settings() -> Tuple[List[str], List[str], List[Tuple[str, str]]]:
     ]
     # On Linux with GCC, enable all SIMD targets for the detected architecture
     macros = [
-        ("SIMSIMD_DYNAMIC_DISPATCH", "1"),
-        ("SIMSIMD_NATIVE_F16", "0"),
-        ("SIMSIMD_NATIVE_BF16", "0"),
+        ("NK_DYNAMIC_DISPATCH", "1"),
+        ("NK_NATIVE_F16", "0"),
+        ("NK_NATIVE_BF16", "0"),
         # x86 targets
-        ("SIMSIMD_TARGET_HASWELL", "1" if is_64bit_x86() else "0"),
-        ("SIMSIMD_TARGET_SKYLAKE", "1" if is_64bit_x86() else "0"),
-        ("SIMSIMD_TARGET_ICE", "1" if is_64bit_x86() else "0"),
-        ("SIMSIMD_TARGET_GENOA", "1" if is_64bit_x86() else "0"),
-        ("SIMSIMD_TARGET_SAPPHIRE", "1" if is_64bit_x86() else "0"),
-        ("SIMSIMD_TARGET_TURIN", "1" if is_64bit_x86() else "0"),
-        ("SIMSIMD_TARGET_SIERRA", "0"),  # avx2vnni not supported by manylinux GCC
-        # ARM targets
-        ("SIMSIMD_TARGET_NEON", "1" if is_64bit_arm() else "0"),
-        ("SIMSIMD_TARGET_NEON_I8", "1" if is_64bit_arm() else "0"),
-        ("SIMSIMD_TARGET_NEON_F16", "1" if is_64bit_arm() else "0"),
-        ("SIMSIMD_TARGET_NEON_BF16", "1" if is_64bit_arm() else "0"),
-        ("SIMSIMD_TARGET_SVE", "1" if is_64bit_arm() else "0"),
-        ("SIMSIMD_TARGET_SVE_I8", "1" if is_64bit_arm() else "0"),
-        ("SIMSIMD_TARGET_SVE_F16", "1" if is_64bit_arm() else "0"),
-        ("SIMSIMD_TARGET_SVE_BF16", "1" if is_64bit_arm() else "0"),
-        ("SIMSIMD_TARGET_SVE2", "1" if is_64bit_arm() else "0"),
+        ("NK_TARGET_HASWELL", "1" if is_64bit_x86() else "0"),
+        ("NK_TARGET_SKYLAKE", "1" if is_64bit_x86() else "0"),
+        ("NK_TARGET_ICELAKE", "1" if is_64bit_x86() else "0"),
+        ("NK_TARGET_GENOA", "1" if is_64bit_x86() else "0"),
+        ("NK_TARGET_SAPPHIRE", "1" if is_64bit_x86() else "0"),
+        ("NK_TARGET_TURIN", "1" if is_64bit_x86() else "0"),
+        ("NK_TARGET_SIERRA", "1" if is_64bit_x86() else "0"),
+        ("NK_TARGET_SAPPHIREAMX", "1" if is_64bit_x86() else "0"),
+        ("NK_TARGET_GRANITEAMX", "1" if is_64bit_x86() else "0"),
+        # ARM NEON targets
+        ("NK_TARGET_NEON", "1" if is_64bit_arm() else "0"),
+        ("NK_TARGET_NEONHALF", "1" if is_64bit_arm() else "0"),
+        ("NK_TARGET_NEONSDOT", "1" if is_64bit_arm() else "0"),
+        ("NK_TARGET_NEONBFDOT", "1" if is_64bit_arm() else "0"),
+        ("NK_TARGET_NEONFHM", "1" if is_64bit_arm() else "0"),
+        # ARM SVE targets
+        ("NK_TARGET_SVE", "1" if is_64bit_arm() else "0"),
+        ("NK_TARGET_SVEHALF", "1" if is_64bit_arm() else "0"),
+        ("NK_TARGET_SVEBFDOT", "1" if is_64bit_arm() else "0"),
+        ("NK_TARGET_SVESDOT", "1" if is_64bit_arm() else "0"),
+        ("NK_TARGET_SVE2", "1" if is_64bit_arm() else "0"),
+        ("NK_TARGET_SVE2P1", "1" if is_64bit_arm() else "0"),
+        # ARM SME targets
+        ("NK_TARGET_SME", "1" if is_64bit_arm() else "0"),
+        ("NK_TARGET_SME2", "1" if is_64bit_arm() else "0"),
+        ("NK_TARGET_SME2P1", "1" if is_64bit_arm() else "0"),
+        ("NK_TARGET_SMEF64", "1" if is_64bit_arm() else "0"),
+        ("NK_TARGET_SMEHALF", "1" if is_64bit_arm() else "0"),
+        ("NK_TARGET_SMEBF16", "1" if is_64bit_arm() else "0"),
+        ("NK_TARGET_SMEBI32", "1" if is_64bit_arm() else "0"),
+        ("NK_TARGET_SMELUT2", "1" if is_64bit_arm() else "0"),
+        ("NK_TARGET_SMEFA64", "1" if is_64bit_arm() else "0"),
+        # RISC-V targets
+        # Binutils 2.43+ installed from Fedora 41 repos enables zvfh, zvfbfwma, zvbb.
+        ("NK_TARGET_RVV", "1" if is_64bit_riscv() else "0"),
+        ("NK_TARGET_RVVHALF", "1" if is_64bit_riscv() else "0"),
+        ("NK_TARGET_RVVBF16", "1" if is_64bit_riscv() else "0"),
+        ("NK_TARGET_RVVBB", "1" if is_64bit_riscv() else "0"),
     ]
     return compile_args, link_args, macros
 
@@ -110,29 +135,49 @@ def darwin_settings() -> Tuple[List[str], List[str], List[Tuple[str, str]]]:
         "-w",  # Hush warnings
     ]
     link_args: List[str] = []
-    # macOS: no SVE, conservative AVX-512 (not widely available)
+    # macOS: no SVE/SME, conservative AVX-512 (not widely available)
     macros = [
-        ("SIMSIMD_DYNAMIC_DISPATCH", "1"),
-        ("SIMSIMD_NATIVE_F16", "0"),
-        ("SIMSIMD_NATIVE_BF16", "0"),
+        ("NK_DYNAMIC_DISPATCH", "1"),
+        ("NK_NATIVE_F16", "0"),
+        ("NK_NATIVE_BF16", "0"),
         # x86 targets - conservative for macOS compatibility
-        ("SIMSIMD_TARGET_HASWELL", "1" if is_64bit_x86() else "0"),
-        ("SIMSIMD_TARGET_SKYLAKE", "0"),  # AVX-512 not common on Mac
-        ("SIMSIMD_TARGET_ICE", "0"),
-        ("SIMSIMD_TARGET_GENOA", "0"),
-        ("SIMSIMD_TARGET_SAPPHIRE", "0"),
-        ("SIMSIMD_TARGET_TURIN", "0"),
-        ("SIMSIMD_TARGET_SIERRA", "0"),
-        # ARM targets - NEON only, no SVE on Apple Silicon
-        ("SIMSIMD_TARGET_NEON", "1" if is_64bit_arm() else "0"),
-        ("SIMSIMD_TARGET_NEON_I8", "1" if is_64bit_arm() else "0"),
-        ("SIMSIMD_TARGET_NEON_F16", "1" if is_64bit_arm() else "0"),
-        ("SIMSIMD_TARGET_NEON_BF16", "1" if is_64bit_arm() else "0"),
-        ("SIMSIMD_TARGET_SVE", "0"),
-        ("SIMSIMD_TARGET_SVE_I8", "0"),
-        ("SIMSIMD_TARGET_SVE_F16", "0"),
-        ("SIMSIMD_TARGET_SVE_BF16", "0"),
-        ("SIMSIMD_TARGET_SVE2", "0"),
+        ("NK_TARGET_HASWELL", "1" if is_64bit_x86() else "0"),
+        ("NK_TARGET_SKYLAKE", "0"),  # AVX-512 not common on Mac
+        ("NK_TARGET_ICELAKE", "0"),
+        ("NK_TARGET_GENOA", "0"),
+        ("NK_TARGET_SAPPHIRE", "0"),
+        ("NK_TARGET_TURIN", "0"),
+        ("NK_TARGET_SIERRA", "0"),
+        ("NK_TARGET_SAPPHIREAMX", "0"),
+        ("NK_TARGET_GRANITEAMX", "0"),
+        # ARM NEON targets - NEON only, no SVE/SME on Apple Silicon
+        ("NK_TARGET_NEON", "1" if is_64bit_arm() else "0"),
+        ("NK_TARGET_NEONHALF", "1" if is_64bit_arm() else "0"),
+        ("NK_TARGET_NEONSDOT", "1" if is_64bit_arm() else "0"),
+        ("NK_TARGET_NEONBFDOT", "1" if is_64bit_arm() else "0"),
+        ("NK_TARGET_NEONFHM", "1" if is_64bit_arm() else "0"),
+        # ARM SVE targets - not available on Apple Silicon
+        ("NK_TARGET_SVE", "0"),
+        ("NK_TARGET_SVEHALF", "0"),
+        ("NK_TARGET_SVEBFDOT", "0"),
+        ("NK_TARGET_SVESDOT", "0"),
+        ("NK_TARGET_SVE2", "0"),
+        ("NK_TARGET_SVE2P1", "0"),
+        # ARM SME targets - not available on Apple Silicon
+        ("NK_TARGET_SME", "0"),
+        ("NK_TARGET_SME2", "0"),
+        ("NK_TARGET_SME2P1", "0"),
+        ("NK_TARGET_SMEF64", "0"),
+        ("NK_TARGET_SMEHALF", "0"),
+        ("NK_TARGET_SMEBF16", "0"),
+        ("NK_TARGET_SMEBI32", "0"),
+        ("NK_TARGET_SMELUT2", "0"),
+        ("NK_TARGET_SMEFA64", "0"),
+        # RISC-V targets - not available on macOS
+        ("NK_TARGET_RVV", "0"),
+        ("NK_TARGET_RVVHALF", "0"),
+        ("NK_TARGET_RVVBF16", "0"),
+        ("NK_TARGET_RVVBB", "0"),
     ]
     return compile_args, link_args, macros
 
@@ -149,28 +194,49 @@ def windows_settings() -> Tuple[List[str], List[str], List[Tuple[str, str]]]:
         "/w",
     ]
     link_args: List[str] = []
-    # Windows: no SVE, conservative x86 SIMD, as MSVC lacks BF16/FP16 intrinsics support
+    # Windows: no SVE/SME, conservative x86 SIMD, as MSVC lacks BF16/FP16 intrinsics support
     macros = [
-        ("SIMSIMD_DYNAMIC_DISPATCH", "1"),
-        ("SIMSIMD_NATIVE_F16", "0"),
-        ("SIMSIMD_NATIVE_BF16", "0"),
+        ("NK_DYNAMIC_DISPATCH", "1"),
+        ("NK_NATIVE_F16", "0"),
+        ("NK_NATIVE_BF16", "0"),
         # x86 targets - conservative for MSVC compatibility
-        ("SIMSIMD_TARGET_HASWELL", "1" if is_64bit_x86() else "0"),
-        ("SIMSIMD_TARGET_SKYLAKE", "1" if is_64bit_x86() else "0"),
-        ("SIMSIMD_TARGET_ICE", "1" if is_64bit_x86() else "0"),
-        ("SIMSIMD_TARGET_GENOA", "0"),  # BF16 intrinsics broken in MSVC
-        ("SIMSIMD_TARGET_SAPPHIRE", "0"),  # FP16 intrinsics broken in MSVC
-        ("SIMSIMD_TARGET_TURIN", "0"),  # `VP2INTERSECT` limited in MSVC
-        ("SIMSIMD_TARGET_SIERRA", "0"),  # AVX2 VNNI limits in MSVC
-        ("SIMSIMD_TARGET_NEON", "1" if is_64bit_arm() else "0"),
-        ("SIMSIMD_TARGET_NEON_I8", "1" if is_64bit_arm() else "0"),
-        ("SIMSIMD_TARGET_NEON_F16", "0"),  # MSVC lacks `float16_t` intrinsics
-        ("SIMSIMD_TARGET_NEON_BF16", "0"),  # MSVC lacks `bfloat16x8_t` intrinsics
-        ("SIMSIMD_TARGET_SVE", "0"),
-        ("SIMSIMD_TARGET_SVE_I8", "0"),
-        ("SIMSIMD_TARGET_SVE_F16", "0"),
-        ("SIMSIMD_TARGET_SVE_BF16", "0"),
-        ("SIMSIMD_TARGET_SVE2", "0"),
+        ("NK_TARGET_HASWELL", "1" if is_64bit_x86() else "0"),
+        ("NK_TARGET_SKYLAKE", "1" if is_64bit_x86() else "0"),
+        ("NK_TARGET_ICELAKE", "1" if is_64bit_x86() else "0"),
+        ("NK_TARGET_GENOA", "0"),  # BF16 intrinsics broken in MSVC
+        ("NK_TARGET_SAPPHIRE", "0"),  # FP16 intrinsics broken in MSVC
+        ("NK_TARGET_TURIN", "0"),  # `VP2INTERSECT` limited in MSVC
+        ("NK_TARGET_SIERRA", "0"),  # AVX2 VNNI limits in MSVC
+        ("NK_TARGET_SAPPHIREAMX", "0"),  # AMX not well supported in MSVC
+        ("NK_TARGET_GRANITEAMX", "0"),  # AMX not well supported in MSVC
+        # ARM NEON targets
+        ("NK_TARGET_NEON", "1" if is_64bit_arm() else "0"),
+        ("NK_TARGET_NEONHALF", "0"),  # MSVC lacks `float16_t` intrinsics
+        ("NK_TARGET_NEONSDOT", "1" if is_64bit_arm() else "0"),
+        ("NK_TARGET_NEONBFDOT", "0"),  # MSVC lacks `bfloat16x8_t` intrinsics
+        ("NK_TARGET_NEONFHM", "0"),  # MSVC lacks FHM intrinsics
+        # ARM SVE targets - not supported on Windows
+        ("NK_TARGET_SVE", "0"),
+        ("NK_TARGET_SVEHALF", "0"),
+        ("NK_TARGET_SVEBFDOT", "0"),
+        ("NK_TARGET_SVESDOT", "0"),
+        ("NK_TARGET_SVE2", "0"),
+        ("NK_TARGET_SVE2P1", "0"),
+        # ARM SME targets - not supported on Windows
+        ("NK_TARGET_SME", "0"),
+        ("NK_TARGET_SME2", "0"),
+        ("NK_TARGET_SME2P1", "0"),
+        ("NK_TARGET_SMEF64", "0"),
+        ("NK_TARGET_SMEHALF", "0"),
+        ("NK_TARGET_SMEBF16", "0"),
+        ("NK_TARGET_SMEBI32", "0"),
+        ("NK_TARGET_SMELUT2", "0"),
+        ("NK_TARGET_SMEFA64", "0"),
+        # RISC-V targets - not supported on Windows
+        ("NK_TARGET_RVV", "0"),
+        ("NK_TARGET_RVVHALF", "0"),
+        ("NK_TARGET_RVVBF16", "0"),
+        ("NK_TARGET_RVVBB", "0"),
     ]
     # MSVC requires architecture-specific macros for winnt.h
     if is_64bit_arm():
@@ -181,10 +247,6 @@ def windows_settings() -> Tuple[List[str], List[str], List[Tuple[str, str]]]:
     return compile_args, link_args, macros
 
 
-# --------------------------------------------------------------------------- #
-# Platform dispatch                                                           #
-# --------------------------------------------------------------------------- #
-
 if sys.platform == "linux":
     compile_args, link_args, macros = linux_settings()
 elif sys.platform == "darwin":
@@ -193,11 +255,6 @@ elif sys.platform == "win32":
     compile_args, link_args, macros = windows_settings()
 else:
     compile_args, link_args, macros = [], [], []
-
-
-# --------------------------------------------------------------------------- #
-# Editable install detection                                                  #
-# --------------------------------------------------------------------------- #
 
 
 def _is_editable_install() -> bool:
@@ -211,27 +268,34 @@ def _is_editable_install() -> bool:
 
 SETUP_KWARGS = (
     {
-        "packages": ["simsimd"],
-        "package_dir": {"simsimd": "python/annotations"},
-        "package_data": {"simsimd": ["__init__.pyi", "py.typed"]},
+        "packages": ["numkong"],
+        "package_dir": {"numkong": "python/annotations"},
+        "package_data": {"numkong": ["__init__.pyi", "py.typed"]},
     }
     if not _is_editable_install()
     else {}
 )
 
 if _is_editable_install():
-    print("[SimSIMD] Editable install detected - skipping bundled type stubs.")
+    print("[NumKong] Editable install detected - skipping bundled type stubs.")
 
 
-# --------------------------------------------------------------------------- #
-# Extension module                                                            #
-# --------------------------------------------------------------------------- #
+# Use glob to find all dispatch files
+base_sources = [
+    "python/numkong.c",
+    "python/numerics.c",
+    "python/tensor.c",
+    "python/scalars.c",
+    "c/numkong.c",
+]
+
+dispatch_sources = sorted(glob.glob("c/dispatch_*.c"))
 
 ext_modules = [
     Extension(
-        "simsimd",
-        sources=["python/lib.c", "c/lib.c"],
-        include_dirs=["include"],
+        "numkong",
+        sources=base_sources + dispatch_sources,
+        include_dirs=["include", "python"],
         language="c",
         extra_compile_args=compile_args,
         extra_link_args=link_args,
@@ -239,16 +303,12 @@ ext_modules = [
     )
 ]
 
-# --------------------------------------------------------------------------- #
-# Setup                                                                       #
-# --------------------------------------------------------------------------- #
-
 setup(
     name=__lib_name__,
     version=__version__,
     author="Ash Vardanian",
     author_email="1983160+ashvardanian@users.noreply.github.com",
-    url="https://github.com/ashvardanian/simsimd",
+    url="https://github.com/ashvardanian/numkong",
     description="Portable mixed-precision BLAS-like vector math library for x86 and ARM",
     long_description=Path("README.md").read_text(encoding="utf8"),
     long_description_content_type="text/markdown",
@@ -278,6 +338,7 @@ setup(
         "Topic :: Scientific/Engineering :: Chemistry",
         "Topic :: Scientific/Engineering :: Artificial Intelligence",
     ],
+    python_requires=">=3.9",
     ext_modules=ext_modules,
     zip_safe=False,
     include_package_data=True,

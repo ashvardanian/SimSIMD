@@ -1,0 +1,781 @@
+/**
+ *  @brief Dynamic dispatch library for NumKong.
+ *  @file c/numkong.c
+ *  @author Ash Vardanian
+ *  @date March 13, 2024
+ */
+#include "dispatch.h"
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+// WASM capability detection for Emscripten
+#if defined(__EMSCRIPTEN__)
+#include <emscripten.h>
+
+EM_JS(int, nk_detect_v128_, (), {
+    var test = new Uint8Array([
+        0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x05, 0x01, 0x60, 0x00, 0x01, 0x7b, 0x03,
+        0x02, 0x01, 0x00, 0x0a, 0x09, 0x01, 0x07, 0x00, 0xfd, 0x0c, 0x00, 0x00, 0x00, 0x00, 0x0b
+    ]);
+    try {
+        return WebAssembly.validate(test) ? 1 : 0;
+    }
+    catch (e) {
+        return 0;
+    }
+});
+
+EM_JS(int, nk_detect_relaxed_, (), {
+    var test = new Uint8Array([
+        0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00, 0x01, 0x08, 0x01, 0x60, 0x03,
+        0x7b, 0x7b, 0x7b, 0x01, 0x7b, 0x03, 0x02, 0x01, 0x00, 0x0a, 0x09, 0x01, 0x07,
+        0x00, 0x20, 0x00, 0x20, 0x01, 0x20, 0x02, 0xfd, 0xaf, 0x01, 0x0b
+    ]);
+    try {
+        return WebAssembly.validate(test) ? 1 : 0;
+    }
+    catch (e) {
+        return 0;
+    }
+});
+#endif // defined(__EMSCRIPTEN__)
+
+/**
+ *  @brief Fill memory with 0xFF - produces NaN for floats, -1/MAX for integers.
+ *  Avoids libc dependency on memset.
+ */
+NK_INTERNAL void nk_fill_error_(void *ptr, nk_size_t bytes) {
+    nk_u8_t *p = (nk_u8_t *)ptr;
+    while (bytes--) *p++ = 0xFF;
+}
+
+void nk_error_dense_(void const *a, void const *b, nk_size_t n, void *d) {
+    (void)a;
+    (void)b;
+    (void)n;
+    nk_fill_error_(d, sizeof(nk_fmax_t));
+}
+
+void nk_error_sparse_intersect_(void const *a, void const *b, nk_size_t a_length, nk_size_t b_length, void *result,
+                                nk_size_t *count) {
+    (void)a;
+    (void)b;
+    (void)a_length;
+    (void)b_length;
+    (void)result;
+    if (count) *count = 0;
+}
+
+void nk_error_sparse_dot_(void const *a, void const *b, void const *a_weights, void const *b_weights,
+                          nk_size_t a_length, nk_size_t b_length, void *product) {
+    (void)a;
+    (void)b;
+    (void)a_weights;
+    (void)b_weights;
+    (void)a_length;
+    (void)b_length;
+    nk_fill_error_(product, sizeof(nk_fmax_t));
+}
+
+void nk_error_curved_(void const *a, void const *b, void const *c, nk_size_t n, void *result) {
+    (void)a;
+    (void)b;
+    (void)c;
+    (void)n;
+    nk_fill_error_(result, sizeof(nk_fmax_t));
+}
+
+void nk_error_geospatial_(void const *a_lats, void const *a_lons, void const *b_lats, void const *b_lons, nk_size_t n,
+                          void *results) {
+    (void)a_lats;
+    (void)a_lons;
+    (void)b_lats;
+    (void)b_lons;
+    (void)n;
+    nk_fill_error_(results, sizeof(nk_fmax_t));
+}
+
+void nk_error_each_fma_(void const *a, void const *b, void const *c, nk_size_t n, void const *alpha, void const *beta,
+                        void *result) {
+    (void)a;
+    (void)b;
+    (void)c;
+    (void)alpha;
+    (void)beta;
+    nk_fill_error_(result, n * sizeof(nk_fmax_t));
+}
+
+void nk_error_each_blend_(void const *a, void const *b, nk_size_t n, void const *alpha, void const *beta,
+                          void *result) {
+    (void)a;
+    (void)b;
+    (void)alpha;
+    (void)beta;
+    nk_fill_error_(result, n * sizeof(nk_fmax_t));
+}
+
+void nk_error_each_scale_(void const *a, nk_size_t n, void const *alpha, void const *beta, void *result) {
+    (void)a;
+    (void)alpha;
+    (void)beta;
+    nk_fill_error_(result, n * sizeof(nk_fmax_t));
+}
+
+void nk_error_each_sum_(void const *a, void const *b, nk_size_t n, void *y) {
+    (void)a;
+    (void)b;
+    nk_fill_error_(y, n * sizeof(nk_fmax_t));
+}
+
+void nk_error_trigonometry_(void const *x, nk_size_t n, void *y) {
+    (void)x;
+    nk_fill_error_(y, n * sizeof(nk_fmax_t));
+}
+
+void nk_error_mesh_(void const *a, void const *b, nk_size_t n, void *a_centroid, void *b_centroid, void *rotation,
+                    void *scale, void *result) {
+    (void)a;
+    (void)b;
+    (void)n;
+    if (a_centroid) nk_fill_error_(a_centroid, 3 * sizeof(nk_fmax_t));
+    if (b_centroid) nk_fill_error_(b_centroid, 3 * sizeof(nk_fmax_t));
+    if (rotation) nk_fill_error_(rotation, 9 * sizeof(nk_fmax_t));
+    if (scale) nk_fill_error_(scale, sizeof(nk_fmax_t));
+    nk_fill_error_(result, sizeof(nk_fmax_t));
+}
+
+void nk_error_reduce_moments_(void const *data, nk_size_t count, nk_size_t stride_bytes, void *sum_ptr,
+                              void *sumsq_ptr) {
+    (void)data, (void)count, (void)stride_bytes, (void)sum_ptr, (void)sumsq_ptr;
+    nk_fill_error_(sum_ptr, sizeof(nk_fmax_t));
+    nk_fill_error_(sumsq_ptr, sizeof(nk_fmax_t));
+}
+
+void nk_error_reduce_minmax_(void const *data, nk_size_t count, nk_size_t stride_bytes, void *min_value,
+                             nk_size_t *min_index, void *max_value, nk_size_t *max_index) {
+    (void)data, (void)count, (void)stride_bytes, (void)min_value, (void)min_index, (void)max_value, (void)max_index;
+    nk_fill_error_(min_value, sizeof(nk_fmax_t));
+    nk_fill_error_(min_index, sizeof(nk_size_t));
+    nk_fill_error_(max_value, sizeof(nk_fmax_t));
+    nk_fill_error_(max_index, sizeof(nk_size_t));
+}
+
+nk_size_t nk_error_packed_size_(nk_size_t n, nk_size_t k) {
+    (void)n;
+    (void)k;
+    return 0;
+}
+
+void nk_error_pack_(void const *b, nk_size_t n, nk_size_t k, nk_size_t b_stride, void *b_packed) {
+    (void)b;
+    (void)n;
+    (void)k;
+    (void)b_stride;
+    (void)b_packed;
+}
+
+void nk_error_dots_(void const *a, void const *b_packed, void *c, nk_size_t m, nk_size_t n, nk_size_t k,
+                    nk_size_t a_stride, nk_size_t c_stride) {
+    (void)a;
+    (void)b_packed;
+    (void)k;
+    (void)a_stride;
+    for (nk_size_t row = 0; row < m; ++row) nk_fill_error_((nk_u8_t *)c + row * c_stride, n * sizeof(nk_fmax_t));
+}
+
+void nk_error_dots_symmetric_(void const *vectors, nk_size_t n_vectors, nk_size_t depth, nk_size_t stride, void *result,
+                              nk_size_t result_stride, nk_size_t row_start, nk_size_t row_count) {
+    (void)vectors;
+    (void)depth;
+    (void)stride;
+    (void)row_start;
+    (void)row_count;
+    for (nk_size_t row = 0; row < n_vectors; ++row)
+        nk_fill_error_((nk_u8_t *)result + row * result_stride, n_vectors * sizeof(nk_fmax_t));
+}
+
+// Global dispatch table - 64-byte aligned for cache performance
+// Type defined in dispatch.h, made non-static for access from dtype files
+NK_ALIGN64 nk_implementations_t nk_dispatch_table;
+
+// Direct dispatch macros using central dispatch table (no lazy initialization)
+#define nk_dispatch_dense_(name, extension, input_type, output_type)                                                 \
+    NK_DYNAMIC void nk_##name##_##extension(nk_##input_type##_t const *a, nk_##input_type##_t const *b, nk_size_t n, \
+                                            nk_##output_type##_t *results) {                                         \
+        nk_dispatch_table.name##_##extension(a, b, n, (void *)results);                                              \
+    }
+
+#define nk_dispatch_sparse_(name, extension, type)                                                              \
+    NK_DYNAMIC void nk_##name##_##extension(nk_##type##_t const *a, nk_##type##_t const *b, nk_size_t a_length, \
+                                            nk_size_t b_length, nk_##type##_t *result, nk_size_t *count) {      \
+        nk_dispatch_table.name##_##extension(a, b, a_length, b_length, (void *)result, count);                  \
+    }
+
+#define nk_dispatch_sparse_dot_(name, index_type, weight_type, output_type)                                           \
+    NK_DYNAMIC void nk_##name##_##index_type##weight_type(nk_##index_type##_t const *a, nk_##index_type##_t const *b, \
+                                                          nk_##weight_type##_t const *a_weights,                      \
+                                                          nk_##weight_type##_t const *b_weights, nk_size_t a_length,  \
+                                                          nk_size_t b_length, nk_##output_type##_t *product) {        \
+        nk_dispatch_table.name##_##index_type##weight_type(a, b, a_weights, b_weights, a_length, b_length,            \
+                                                           (void *)product);                                          \
+    }
+
+#define nk_dispatch_curved_(name, extension, output_type)                                                             \
+    NK_DYNAMIC void nk_##name##_##extension(nk_##extension##_t const *a, nk_##extension##_t const *b,                 \
+                                            nk_##extension##_t const *c, nk_size_t n, nk_##output_type##_t *result) { \
+        nk_dispatch_table.name##_##extension(a, b, c, n, (void *)result);                                             \
+    }
+
+#define nk_dispatch_geospatial_(name, extension, output_type)                                                   \
+    NK_DYNAMIC void nk_##name##_##extension(nk_##extension##_t const *a_lats, nk_##extension##_t const *a_lons, \
+                                            nk_##extension##_t const *b_lats, nk_##extension##_t const *b_lons, \
+                                            nk_size_t n, nk_##output_type##_t *results) {                       \
+        nk_dispatch_table.name##_##extension(a_lats, a_lons, b_lats, b_lons, n, (void *)results);               \
+    }
+
+#define nk_dispatch_each_fma_(extension, scalar_type)                                                        \
+    NK_DYNAMIC void nk_each_fma_##extension(                                                                 \
+        nk_##extension##_t const *a, nk_##extension##_t const *b, nk_##extension##_t const *c, nk_size_t n,  \
+        nk_##scalar_type##_t const *alpha, nk_##scalar_type##_t const *beta, nk_##extension##_t *result) {   \
+        nk_dispatch_table.each_fma_##extension(a, b, c, n, (void const *)alpha, (void const *)beta, result); \
+    }
+
+#define nk_dispatch_each_blend_(extension, scalar_type)                                                              \
+    NK_DYNAMIC void nk_each_blend_##extension(nk_##extension##_t const *a, nk_##extension##_t const *b, nk_size_t n, \
+                                              nk_##scalar_type##_t const *alpha, nk_##scalar_type##_t const *beta,   \
+                                              nk_##extension##_t *result) {                                          \
+        nk_dispatch_table.each_blend_##extension(a, b, n, (void const *)alpha, (void const *)beta, result);          \
+    }
+
+#define nk_dispatch_each_scale_(extension, scalar_type)                                                            \
+    NK_DYNAMIC void nk_each_scale_##extension(nk_##extension##_t const *a, nk_size_t n,                            \
+                                              nk_##scalar_type##_t const *alpha, nk_##scalar_type##_t const *beta, \
+                                              nk_##extension##_t *result) {                                        \
+        nk_dispatch_table.each_scale_##extension(a, n, (void const *)alpha, (void const *)beta, result);           \
+    }
+
+#define nk_dispatch_each_sum_(extension)                                                                           \
+    NK_DYNAMIC void nk_each_sum_##extension(nk_##extension##_t const *a, nk_##extension##_t const *b, nk_size_t n, \
+                                            nk_##extension##_t *result) {                                          \
+        nk_dispatch_table.each_sum_##extension(a, b, n, result);                                                   \
+    }
+
+#define nk_dispatch_trigonometry_(name, extension)                                              \
+    NK_DYNAMIC void nk_each_##name##_##extension(nk_##extension##_t const *inputs, nk_size_t n, \
+                                                 nk_##extension##_t *outputs) {                 \
+        nk_dispatch_table.each_##name##_##extension(inputs, n, outputs);                        \
+    }
+
+#define nk_dispatch_mesh_(name, extension, mesh_type)                                                              \
+    NK_DYNAMIC void nk_##name##_##extension(nk_##extension##_t const *a, nk_##extension##_t const *b, nk_size_t n, \
+                                            nk_##mesh_type##_t *a_centroid, nk_##mesh_type##_t *b_centroid,        \
+                                            nk_##mesh_type##_t *rotation, nk_##mesh_type##_t *scale,               \
+                                            nk_##mesh_type##_t *result) {                                          \
+        nk_dispatch_table.name##_##extension(a, b, n, (void *)a_centroid, (void *)b_centroid, (void *)rotation,    \
+                                             (void *)scale, (void *)result);                                       \
+    }
+
+#define nk_dispatch_reduce_moments_(extension, data_type, sum_type, sumsq_type)                                      \
+    NK_DYNAMIC void nk_reduce_moments_##extension(data_type const *data, nk_size_t count, nk_size_t stride_bytes,    \
+                                                  sum_type *sum_ptr, sumsq_type *sumsq_ptr) {                        \
+        ((nk_kernel_reduce_moments_punned_t)nk_dispatch_table.reduce_moments_##extension)(data, count, stride_bytes, \
+                                                                                          sum_ptr, sumsq_ptr);       \
+    }
+
+#define nk_dispatch_reduce_minmax_(extension, data_type, minmax_type)                                                  \
+    NK_DYNAMIC void nk_reduce_minmax_##extension(data_type const *data, nk_size_t count, nk_size_t stride_bytes,       \
+                                                 minmax_type *min_value, nk_size_t *min_index, minmax_type *max_value, \
+                                                 nk_size_t *max_index) {                                               \
+        ((nk_kernel_reduce_minmax_punned_t)nk_dispatch_table.reduce_minmax_##extension)(                               \
+            data, count, stride_bytes, min_value, min_index, max_value, max_index);                                    \
+    }
+
+#define nk_dispatch_cross_packed_size_(api_name, name, input_type, accum_type)          \
+    NK_DYNAMIC nk_size_t nk_##api_name##_packed_size_##name(nk_size_t n, nk_size_t k) { \
+        return nk_dispatch_table.api_name##_packed_size_##name(n, k);                   \
+    }
+
+#define nk_dispatch_cross_pack_(api_name, name, input_type, accum_type)                                 \
+    NK_DYNAMIC void nk_##api_name##_pack_##name(nk_##input_type##_t const *b, nk_size_t n, nk_size_t k, \
+                                                nk_size_t b_stride, void *b_packed) {                   \
+        nk_dispatch_table.api_name##_pack_##name(b, n, k, b_stride, b_packed);                          \
+    }
+
+#define nk_dispatch_cross_packed_(api_name, name, input_type, accum_type, output_type)                            \
+    NK_DYNAMIC void nk_##api_name##_packed_##name(nk_##input_type##_t const *a, void const *b_packed,             \
+                                                  nk_##output_type##_t *c, nk_size_t m, nk_size_t n, nk_size_t k, \
+                                                  nk_size_t a_stride, nk_size_t c_stride) {                       \
+        nk_dispatch_table.api_name##_packed_##name(a, b_packed, c, m, n, k, a_stride, c_stride);                  \
+    }
+
+#define nk_dispatch_cross_symmetric_(api_name, name, input_type, output_type)                                   \
+    NK_DYNAMIC void nk_##api_name##_symmetric_##name(                                                           \
+        nk_##input_type##_t const *vectors, nk_size_t n_vectors, nk_size_t depth, nk_size_t stride,             \
+        nk_##output_type##_t *result, nk_size_t result_stride, nk_size_t row_start, nk_size_t row_count) {      \
+        nk_dispatch_table.api_name##_symmetric_##name(vectors, n_vectors, depth, stride, result, result_stride, \
+                                                      row_start, row_count);                                    \
+    }
+
+// Dot products
+nk_dispatch_dense_(dot, i8, i8, i32)
+nk_dispatch_dense_(dot, u8, u8, u32)
+nk_dispatch_dense_(dot, i4, i4x2, i32)
+nk_dispatch_dense_(dot, u4, u4x2, u32)
+nk_dispatch_dense_(dot, f16, f16, f32)
+nk_dispatch_dense_(dot, bf16, bf16, f32)
+nk_dispatch_dense_(dot, f32, f32, f32)
+nk_dispatch_dense_(dot, f64, f64, f64)
+nk_dispatch_dense_(dot, f16c, f16c, f32c)
+nk_dispatch_dense_(dot, bf16c, bf16c, f32c)
+nk_dispatch_dense_(dot, f32c, f32c, f32c)
+nk_dispatch_dense_(dot, f64c, f64c, f64c)
+nk_dispatch_dense_(dot, e4m3, e4m3, f32)
+nk_dispatch_dense_(dot, e5m2, e5m2, f32)
+nk_dispatch_dense_(dot, e2m3, e2m3, f32)
+nk_dispatch_dense_(dot, e3m2, e3m2, f32)
+nk_dispatch_dense_(vdot, f16c, f16c, f32c)
+nk_dispatch_dense_(vdot, bf16c, bf16c, f32c)
+nk_dispatch_dense_(vdot, f32c, f32c, f32c)
+nk_dispatch_dense_(vdot, f64c, f64c, f64c)
+
+// Spatial distances
+nk_dispatch_dense_(angular, i8, i8, f32)
+nk_dispatch_dense_(angular, u8, u8, f32)
+nk_dispatch_dense_(angular, i4, i4x2, f32)
+nk_dispatch_dense_(angular, u4, u4x2, f32)
+nk_dispatch_dense_(angular, f16, f16, f32)
+nk_dispatch_dense_(angular, bf16, bf16, f32)
+nk_dispatch_dense_(angular, f32, f32, f32)
+nk_dispatch_dense_(angular, f64, f64, f64)
+nk_dispatch_dense_(angular, e4m3, e4m3, f32)
+nk_dispatch_dense_(angular, e5m2, e5m2, f32)
+nk_dispatch_dense_(angular, e2m3, e2m3, f32)
+nk_dispatch_dense_(angular, e3m2, e3m2, f32)
+nk_dispatch_dense_(sqeuclidean, i8, i8, u32)
+nk_dispatch_dense_(sqeuclidean, u8, u8, u32)
+nk_dispatch_dense_(sqeuclidean, i4, i4x2, u32)
+nk_dispatch_dense_(sqeuclidean, u4, u4x2, u32)
+nk_dispatch_dense_(sqeuclidean, f16, f16, f32)
+nk_dispatch_dense_(sqeuclidean, bf16, bf16, f32)
+nk_dispatch_dense_(sqeuclidean, f32, f32, f32)
+nk_dispatch_dense_(sqeuclidean, f64, f64, f64)
+nk_dispatch_dense_(sqeuclidean, e4m3, e4m3, f32)
+nk_dispatch_dense_(sqeuclidean, e5m2, e5m2, f32)
+nk_dispatch_dense_(sqeuclidean, e2m3, e2m3, f32)
+nk_dispatch_dense_(sqeuclidean, e3m2, e3m2, f32)
+nk_dispatch_dense_(euclidean, i8, i8, f32)
+nk_dispatch_dense_(euclidean, u8, u8, f32)
+nk_dispatch_dense_(euclidean, i4, i4x2, f32)
+nk_dispatch_dense_(euclidean, u4, u4x2, f32)
+nk_dispatch_dense_(euclidean, f16, f16, f32)
+nk_dispatch_dense_(euclidean, bf16, bf16, f32)
+nk_dispatch_dense_(euclidean, f32, f32, f32)
+nk_dispatch_dense_(euclidean, f64, f64, f64)
+nk_dispatch_dense_(euclidean, e4m3, e4m3, f32)
+nk_dispatch_dense_(euclidean, e5m2, e5m2, f32)
+nk_dispatch_dense_(euclidean, e2m3, e2m3, f32)
+nk_dispatch_dense_(euclidean, e3m2, e3m2, f32)
+
+// Geospatial distances
+nk_dispatch_geospatial_(haversine, f64, f64)
+nk_dispatch_geospatial_(haversine, f32, f32)
+nk_dispatch_geospatial_(vincenty, f64, f64)
+nk_dispatch_geospatial_(vincenty, f32, f32)
+
+// Binary distances
+nk_dispatch_dense_(hamming, u1, u1x8, u32)
+nk_dispatch_dense_(jaccard, u1, u1x8, f32)
+nk_dispatch_dense_(jaccard, u32, u32, f32)
+nk_dispatch_dense_(hamming, u8, u8, u32)
+nk_dispatch_dense_(jaccard, u16, u16, f32)
+
+// Probability distributions
+nk_dispatch_dense_(kld, f16, f16, f32)
+nk_dispatch_dense_(kld, bf16, bf16, f32)
+nk_dispatch_dense_(kld, f32, f32, f32)
+nk_dispatch_dense_(kld, f64, f64, f64)
+nk_dispatch_dense_(jsd, f16, f16, f32)
+nk_dispatch_dense_(jsd, bf16, bf16, f32)
+nk_dispatch_dense_(jsd, f32, f32, f32)
+nk_dispatch_dense_(jsd, f64, f64, f64)
+
+// Sparse sets
+nk_dispatch_sparse_(sparse_intersect, u16, u16)
+nk_dispatch_sparse_(sparse_intersect, u32, u32)
+nk_dispatch_sparse_(sparse_intersect, u64, u64)
+nk_dispatch_sparse_dot_(sparse_dot, u16, bf16, f32)
+nk_dispatch_sparse_dot_(sparse_dot, u32, f32, f32)
+
+// Curved spaces
+nk_dispatch_curved_(bilinear, f64, f64)
+nk_dispatch_curved_(bilinear, f64c, f64c)
+nk_dispatch_curved_(mahalanobis, f64, f64)
+nk_dispatch_curved_(bilinear, f32, f32)
+nk_dispatch_curved_(bilinear, f32c, f32c)
+nk_dispatch_curved_(mahalanobis, f32, f32)
+nk_dispatch_curved_(bilinear, f16, f32)
+nk_dispatch_curved_(bilinear, f16c, f32c)
+nk_dispatch_curved_(mahalanobis, f16, f32)
+nk_dispatch_curved_(bilinear, bf16, f32)
+nk_dispatch_curved_(bilinear, bf16c, f32c)
+nk_dispatch_curved_(mahalanobis, bf16, f32)
+
+// Element-wise operations
+nk_dispatch_each_fma_(f32, f32)
+nk_dispatch_each_fma_(f16, f32)
+nk_dispatch_each_fma_(f64, f64)
+nk_dispatch_each_fma_(bf16, f32)
+nk_dispatch_each_fma_(i8, f32)
+nk_dispatch_each_fma_(u8, f32)
+nk_dispatch_each_fma_(e4m3, f32)
+nk_dispatch_each_fma_(e5m2, f32)
+nk_dispatch_each_fma_(e2m3, f32)
+nk_dispatch_each_fma_(e3m2, f32)
+nk_dispatch_each_blend_(f64, f64)
+nk_dispatch_each_blend_(f32, f32)
+nk_dispatch_each_blend_(f16, f32)
+nk_dispatch_each_blend_(bf16, f32)
+nk_dispatch_each_blend_(i8, f32)
+nk_dispatch_each_blend_(u8, f32)
+nk_dispatch_each_blend_(e4m3, f32)
+nk_dispatch_each_blend_(e5m2, f32)
+nk_dispatch_each_blend_(e2m3, f32)
+nk_dispatch_each_blend_(e3m2, f32)
+nk_dispatch_each_fma_(i16, f32)
+nk_dispatch_each_fma_(u16, f32)
+nk_dispatch_each_fma_(i32, f64)
+nk_dispatch_each_fma_(u32, f64)
+nk_dispatch_each_fma_(i64, f64)
+nk_dispatch_each_fma_(u64, f64)
+nk_dispatch_each_blend_(i16, f32)
+nk_dispatch_each_blend_(u16, f32)
+nk_dispatch_each_blend_(i32, f64)
+nk_dispatch_each_blend_(u32, f64)
+nk_dispatch_each_blend_(i64, f64)
+nk_dispatch_each_blend_(u64, f64)
+nk_dispatch_each_scale_(f64, f64)
+nk_dispatch_each_scale_(f32, f32)
+nk_dispatch_each_scale_(f16, f32)
+nk_dispatch_each_scale_(bf16, f32)
+nk_dispatch_each_scale_(i8, f32)
+nk_dispatch_each_scale_(u8, f32)
+nk_dispatch_each_scale_(i16, f32)
+nk_dispatch_each_scale_(u16, f32)
+nk_dispatch_each_scale_(i32, f64)
+nk_dispatch_each_scale_(u32, f64)
+nk_dispatch_each_scale_(i64, f64)
+nk_dispatch_each_scale_(u64, f64)
+nk_dispatch_each_scale_(e4m3, f32)
+nk_dispatch_each_scale_(e5m2, f32)
+nk_dispatch_each_scale_(e2m3, f32)
+nk_dispatch_each_scale_(e3m2, f32)
+nk_dispatch_each_sum_(f64)
+nk_dispatch_each_sum_(f32)
+nk_dispatch_each_sum_(f16)
+nk_dispatch_each_sum_(bf16)
+nk_dispatch_each_sum_(i8)
+nk_dispatch_each_sum_(u8)
+nk_dispatch_each_sum_(i16)
+nk_dispatch_each_sum_(u16)
+nk_dispatch_each_sum_(i32)
+nk_dispatch_each_sum_(u32)
+nk_dispatch_each_sum_(i64)
+nk_dispatch_each_sum_(u64)
+nk_dispatch_each_sum_(e4m3)
+nk_dispatch_each_sum_(e5m2)
+nk_dispatch_each_sum_(e2m3)
+nk_dispatch_each_sum_(e3m2)
+
+// Trigonometry functions
+nk_dispatch_trigonometry_(sin, f32)
+nk_dispatch_trigonometry_(sin, f64)
+nk_dispatch_trigonometry_(cos, f32)
+nk_dispatch_trigonometry_(cos, f64)
+nk_dispatch_trigonometry_(atan, f32)
+nk_dispatch_trigonometry_(atan, f64)
+
+// Mesh alignment (RMSD, Kabsch, Umeyama)
+nk_dispatch_mesh_(rmsd, f32, f32)
+nk_dispatch_mesh_(rmsd, f64, f64)
+nk_dispatch_mesh_(kabsch, f32, f32)
+nk_dispatch_mesh_(kabsch, f64, f64)
+nk_dispatch_mesh_(umeyama, f32, f32)
+nk_dispatch_mesh_(umeyama, f64, f64)
+
+// Horizontal reductions: moments (sum + sum-of-squares)
+nk_dispatch_reduce_moments_(f32, nk_f32_t, nk_f64_t, nk_f64_t)
+nk_dispatch_reduce_moments_(f64, nk_f64_t, nk_f64_t, nk_f64_t)
+nk_dispatch_reduce_moments_(i8, nk_i8_t, nk_i64_t, nk_u64_t)
+nk_dispatch_reduce_moments_(u8, nk_u8_t, nk_u64_t, nk_u64_t)
+nk_dispatch_reduce_moments_(i16, nk_i16_t, nk_i64_t, nk_u64_t)
+nk_dispatch_reduce_moments_(u16, nk_u16_t, nk_u64_t, nk_u64_t)
+nk_dispatch_reduce_moments_(i32, nk_i32_t, nk_i64_t, nk_u64_t)
+nk_dispatch_reduce_moments_(u32, nk_u32_t, nk_u64_t, nk_u64_t)
+nk_dispatch_reduce_moments_(i64, nk_i64_t, nk_i64_t, nk_u64_t)
+nk_dispatch_reduce_moments_(u64, nk_u64_t, nk_u64_t, nk_u64_t)
+nk_dispatch_reduce_moments_(f16, nk_f16_t, nk_f32_t, nk_f32_t)
+nk_dispatch_reduce_moments_(bf16, nk_bf16_t, nk_f32_t, nk_f32_t)
+nk_dispatch_reduce_moments_(e4m3, nk_e4m3_t, nk_f32_t, nk_f32_t)
+nk_dispatch_reduce_moments_(e5m2, nk_e5m2_t, nk_f32_t, nk_f32_t)
+nk_dispatch_reduce_moments_(e2m3, nk_e2m3_t, nk_f32_t, nk_f32_t)
+nk_dispatch_reduce_moments_(e3m2, nk_e3m2_t, nk_f32_t, nk_f32_t)
+nk_dispatch_reduce_moments_(i4, nk_i4x2_t, nk_i64_t, nk_u64_t)
+nk_dispatch_reduce_moments_(u4, nk_u4x2_t, nk_u64_t, nk_u64_t)
+nk_dispatch_reduce_moments_(u1, nk_u1x8_t, nk_u64_t, nk_u64_t)
+
+// Horizontal reductions: minmax (min + max with indices)
+nk_dispatch_reduce_minmax_(f32, nk_f32_t, nk_f32_t)
+nk_dispatch_reduce_minmax_(f64, nk_f64_t, nk_f64_t)
+nk_dispatch_reduce_minmax_(i8, nk_i8_t, nk_i8_t)
+nk_dispatch_reduce_minmax_(u8, nk_u8_t, nk_u8_t)
+nk_dispatch_reduce_minmax_(i16, nk_i16_t, nk_i16_t)
+nk_dispatch_reduce_minmax_(u16, nk_u16_t, nk_u16_t)
+nk_dispatch_reduce_minmax_(i32, nk_i32_t, nk_i32_t)
+nk_dispatch_reduce_minmax_(u32, nk_u32_t, nk_u32_t)
+nk_dispatch_reduce_minmax_(i64, nk_i64_t, nk_i64_t)
+nk_dispatch_reduce_minmax_(u64, nk_u64_t, nk_u64_t)
+nk_dispatch_reduce_minmax_(f16, nk_f16_t, nk_f16_t)
+nk_dispatch_reduce_minmax_(bf16, nk_bf16_t, nk_bf16_t)
+nk_dispatch_reduce_minmax_(e4m3, nk_e4m3_t, nk_e4m3_t)
+nk_dispatch_reduce_minmax_(e5m2, nk_e5m2_t, nk_e5m2_t)
+nk_dispatch_reduce_minmax_(e2m3, nk_e2m3_t, nk_e2m3_t)
+nk_dispatch_reduce_minmax_(e3m2, nk_e3m2_t, nk_e3m2_t)
+nk_dispatch_reduce_minmax_(i4, nk_i4x2_t, nk_i8_t)
+nk_dispatch_reduce_minmax_(u4, nk_u4x2_t, nk_u8_t)
+nk_dispatch_reduce_minmax_(u1, nk_u1x8_t, nk_u8_t)
+
+// Matrix multiplications (GEMM with packed B)
+nk_dispatch_cross_packed_size_(dots, f32, f32, f32)
+nk_dispatch_cross_packed_size_(dots, f64, f64, f64)
+nk_dispatch_cross_packed_size_(dots, f16, f16, f32)
+nk_dispatch_cross_packed_size_(dots, bf16, bf16, f32)
+nk_dispatch_cross_packed_size_(dots, i8, i8, i32)
+nk_dispatch_cross_packed_size_(dots, u8, u8, u32)
+nk_dispatch_cross_packed_size_(dots, e4m3, e4m3, f32)
+nk_dispatch_cross_packed_size_(dots, e5m2, e5m2, f32)
+nk_dispatch_cross_packed_size_(dots, e2m3, e2m3, f32)
+nk_dispatch_cross_packed_size_(dots, e3m2, e3m2, f32)
+nk_dispatch_cross_packed_size_(dots, u1, u1x8, u32)
+nk_dispatch_cross_packed_size_(dots, u4, u4x2, u32)
+nk_dispatch_cross_packed_size_(dots, i4, i4x2, i32)
+
+nk_dispatch_cross_pack_(dots, f32, f32, f32)
+nk_dispatch_cross_pack_(dots, f64, f64, f64)
+nk_dispatch_cross_pack_(dots, f16, f16, f32)
+nk_dispatch_cross_pack_(dots, bf16, bf16, f32)
+nk_dispatch_cross_pack_(dots, i8, i8, i32)
+nk_dispatch_cross_pack_(dots, u8, u8, u32)
+nk_dispatch_cross_pack_(dots, e4m3, e4m3, f32)
+nk_dispatch_cross_pack_(dots, e5m2, e5m2, f32)
+nk_dispatch_cross_pack_(dots, e2m3, e2m3, f32)
+nk_dispatch_cross_pack_(dots, e3m2, e3m2, f32)
+nk_dispatch_cross_pack_(dots, u1, u1x8, u32)
+nk_dispatch_cross_pack_(dots, u4, u4x2, u32)
+nk_dispatch_cross_pack_(dots, i4, i4x2, i32)
+
+nk_dispatch_cross_packed_(dots, f32, f32, f32, f32)
+nk_dispatch_cross_packed_(dots, f64, f64, f64, f64)
+nk_dispatch_cross_packed_(dots, f16, f16, f32, f32)
+nk_dispatch_cross_packed_(dots, bf16, bf16, f32, f32)
+nk_dispatch_cross_packed_(dots, i8, i8, i32, i32)
+nk_dispatch_cross_packed_(dots, u8, u8, u32, u32)
+nk_dispatch_cross_packed_(dots, e4m3, e4m3, f32, f32)
+nk_dispatch_cross_packed_(dots, e5m2, e5m2, f32, f32)
+nk_dispatch_cross_packed_(dots, e2m3, e2m3, f32, f32)
+nk_dispatch_cross_packed_(dots, e3m2, e3m2, f32, f32)
+nk_dispatch_cross_packed_(dots, u1, u1x8, u32, u32)
+nk_dispatch_cross_packed_(dots, u4, u4x2, u32, u32)
+nk_dispatch_cross_packed_(dots, i4, i4x2, i32, i32)
+
+// Symmetric Gram matrix (A × Aᵀ)
+nk_dispatch_cross_symmetric_(dots, f32, f32, f32)
+nk_dispatch_cross_symmetric_(dots, f64, f64, f64)
+nk_dispatch_cross_symmetric_(dots, f16, f16, f32)
+nk_dispatch_cross_symmetric_(dots, bf16, bf16, f32)
+nk_dispatch_cross_symmetric_(dots, i8, i8, i32)
+nk_dispatch_cross_symmetric_(dots, u8, u8, u32)
+nk_dispatch_cross_symmetric_(dots, e4m3, e4m3, f32)
+nk_dispatch_cross_symmetric_(dots, e5m2, e5m2, f32)
+nk_dispatch_cross_symmetric_(dots, e2m3, e2m3, f32)
+nk_dispatch_cross_symmetric_(dots, e3m2, e3m2, f32)
+nk_dispatch_cross_symmetric_(dots, u4, u4x2, u32)
+nk_dispatch_cross_symmetric_(dots, i4, i4x2, i32)
+
+// Hamming distances (batched binary set computations)
+nk_dispatch_cross_packed_size_(hammings, u1, u1x8, u32)
+nk_dispatch_cross_pack_(hammings, u1, u1x8, u32)
+nk_dispatch_cross_packed_(hammings, u1, u1x8, u32, u32)
+nk_dispatch_cross_symmetric_(hammings, u1, u1x8, u32)
+
+NK_DYNAMIC int nk_uses_dynamic_dispatch(void) { return 1; }
+NK_DYNAMIC int nk_configure_thread(nk_capability_t c) { return nk_configure_thread_(c); }
+
+NK_DYNAMIC void nk_cast(void const *from, nk_dtype_t from_type, nk_size_t n, void *to, nk_dtype_t to_type) {
+    nk_dispatch_table.cast(from, from_type, n, to, to_type);
+}
+
+// Forward declarations for dtype-specific dispatch initialization functions
+void nk_dispatch_f64_init_(nk_capability_t caps);
+void nk_dispatch_f32_init_(nk_capability_t caps);
+void nk_dispatch_f16_init_(nk_capability_t caps);
+void nk_dispatch_bf16_init_(nk_capability_t caps);
+void nk_dispatch_i8_init_(nk_capability_t caps);
+void nk_dispatch_u8_init_(nk_capability_t caps);
+void nk_dispatch_i4_init_(nk_capability_t caps);
+void nk_dispatch_u4_init_(nk_capability_t caps);
+void nk_dispatch_e4m3_init_(nk_capability_t caps);
+void nk_dispatch_e5m2_init_(nk_capability_t caps);
+void nk_dispatch_e2m3_init_(nk_capability_t caps);
+void nk_dispatch_e3m2_init_(nk_capability_t caps);
+void nk_dispatch_u1_init_(nk_capability_t caps);
+void nk_dispatch_f64c_init_(nk_capability_t caps);
+void nk_dispatch_f32c_init_(nk_capability_t caps);
+void nk_dispatch_f16c_init_(nk_capability_t caps);
+void nk_dispatch_bf16c_init_(nk_capability_t caps);
+void nk_dispatch_i16_init_(nk_capability_t caps);
+void nk_dispatch_u16_init_(nk_capability_t caps);
+void nk_dispatch_i32_init_(nk_capability_t caps);
+void nk_dispatch_u32_init_(nk_capability_t caps);
+void nk_dispatch_i64_init_(nk_capability_t caps);
+void nk_dispatch_u64_init_(nk_capability_t caps);
+void nk_dispatch_cast_init_(nk_capability_t caps);
+
+NK_INTERNAL void nk_dispatch_table_update_implementation_(nk_capability_t caps) {
+    nk_dispatch_f64_init_(caps);
+    nk_dispatch_f32_init_(caps);
+    nk_dispatch_f16_init_(caps);
+    nk_dispatch_bf16_init_(caps);
+    nk_dispatch_i8_init_(caps);
+    nk_dispatch_u8_init_(caps);
+    nk_dispatch_i4_init_(caps);
+    nk_dispatch_u4_init_(caps);
+    nk_dispatch_e4m3_init_(caps);
+    nk_dispatch_e5m2_init_(caps);
+    nk_dispatch_e2m3_init_(caps);
+    nk_dispatch_e3m2_init_(caps);
+    nk_dispatch_u1_init_(caps);
+    nk_dispatch_f64c_init_(caps);
+    nk_dispatch_f32c_init_(caps);
+    nk_dispatch_f16c_init_(caps);
+    nk_dispatch_bf16c_init_(caps);
+    nk_dispatch_i16_init_(caps);
+    nk_dispatch_u16_init_(caps);
+    nk_dispatch_i32_init_(caps);
+    nk_dispatch_u32_init_(caps);
+    nk_dispatch_i64_init_(caps);
+    nk_dispatch_u64_init_(caps);
+    nk_dispatch_cast_init_(caps);
+}
+
+NK_INTERNAL void nk_dispatch_table_init(void) { nk_dispatch_table_update_implementation_(nk_capabilities()); }
+
+NK_DYNAMIC void nk_dispatch_table_update(nk_capability_t caps) { nk_dispatch_table_update_implementation_(caps); }
+NK_DYNAMIC nk_capability_t nk_capabilities(void) {
+    //! The latency of the CPUID instruction can be over 100 cycles, so we cache the result.
+    static nk_capability_t static_capabilities = nk_cap_any_k;
+    if (static_capabilities != nk_cap_any_k) return static_capabilities;
+
+    static_capabilities = nk_capabilities_();
+
+    // Initialize the central dispatch table with the detected capabilities
+    nk_dispatch_table_init();
+
+    return static_capabilities;
+}
+
+NK_DYNAMIC void nk_find_kernel_punned( //
+    nk_kernel_kind_t kind,             //
+    nk_dtype_t dtype,                  //
+    nk_capability_t supported,         //
+    nk_capability_t allowed,           //
+    nk_kernel_punned_t *kernel_output, //
+    nk_capability_t *capability_output) {
+
+    // Modern compilers abso-freaking-lutely love optimizing-out my logic!
+    // Just marking the variables as `volatile` is not enough, so we have
+    // to add inline assembly to further discourage them!
+#if defined(_MSC_VER)
+    _ReadWriteBarrier();
+#else
+    __asm__ __volatile__("" ::: "memory");
+#endif
+
+    nk_kernel_punned_t *m = kernel_output;
+    nk_capability_t *c = capability_output;
+    nk_capability_t viable = (nk_capability_t)(supported & allowed);
+
+    switch (dtype) {
+
+    case nk_f64_k: nk_dispatch_f64_find_(viable, kind, m, c); return;
+    case nk_f32_k: nk_dispatch_f32_find_(viable, kind, m, c); return;
+    case nk_f16_k: nk_dispatch_f16_find_(viable, kind, m, c); return;
+    case nk_bf16_k: nk_dispatch_bf16_find_(viable, kind, m, c); return;
+    case nk_e4m3_k: nk_dispatch_e4m3_find_(viable, kind, m, c); return;
+    case nk_e5m2_k: nk_dispatch_e5m2_find_(viable, kind, m, c); return;
+    case nk_e2m3_k: nk_dispatch_e2m3_find_(viable, kind, m, c); return;
+    case nk_e3m2_k: nk_dispatch_e3m2_find_(viable, kind, m, c); return;
+
+    case nk_f64c_k: nk_dispatch_f64c_find_(viable, kind, m, c); return;
+    case nk_f32c_k: nk_dispatch_f32c_find_(viable, kind, m, c); return;
+    case nk_f16c_k: nk_dispatch_f16c_find_(viable, kind, m, c); return;
+    case nk_bf16c_k: nk_dispatch_bf16c_find_(viable, kind, m, c); return;
+
+    case nk_i64_k: nk_dispatch_i64_find_(viable, kind, m, c); return;
+    case nk_i32_k: nk_dispatch_i32_find_(viable, kind, m, c); return;
+    case nk_i16_k: nk_dispatch_i16_find_(viable, kind, m, c); return;
+    case nk_i8_k: nk_dispatch_i8_find_(viable, kind, m, c); return;
+    case nk_i4_k: nk_dispatch_i4_find_(viable, kind, m, c); return;
+
+    case nk_u64_k: nk_dispatch_u64_find_(viable, kind, m, c); return;
+    case nk_u32_k: nk_dispatch_u32_find_(viable, kind, m, c); return;
+    case nk_u16_k: nk_dispatch_u16_find_(viable, kind, m, c); return;
+    case nk_u8_k: nk_dispatch_u8_find_(viable, kind, m, c); return;
+    case nk_u4_k: nk_dispatch_u4_find_(viable, kind, m, c); return;
+    case nk_u1_k: nk_dispatch_u1_find_(viable, kind, m, c); return;
+
+    case nk_dtype_unknown_k: nk_dispatch_cast_find_(viable, kind, m, c); return;
+    default: break;
+    }
+
+    // Replace with zeros if no suitable implementation was found
+    *m = (nk_kernel_punned_t)0;
+    *c = (nk_capability_t)0;
+
+    // Modern compilers abso-freaking-lutely love optimizing-out my logic!
+    // Just marking the variables as `volatile` is not enough, so we have
+    // to add inline assembly to further discourage them!
+#if defined(_MSC_VER)
+    _ReadWriteBarrier();
+#else
+    __asm__ __volatile__("" ::: "memory");
+#endif
+}
+
+// Auto-initialization for dynamic libraries - ensures dispatch table is populated on library load
+#if defined(__GNUC__) || defined(__clang__)
+__attribute__((constructor)) static void nk_auto_init(void) {
+    nk_capabilities(); // Triggers dispatch table initialization
+}
+#elif defined(_MSC_VER)
+static void nk_auto_init(void);
+#pragma section(".CRT$XCU", read)
+__declspec(allocate(".CRT$XCU")) static void (*nk_auto_init_ptr)(void) = nk_auto_init;
+static void nk_auto_init(void) {
+    nk_capabilities(); // Triggers dispatch table initialization
+}
+#ifdef _WIN32
+#include <windows.h>
+BOOL WINAPI DllMain(HINSTANCE hinstDLL, DWORD fdwReason, LPVOID lpReserved) {
+    (void)hinstDLL;
+    (void)lpReserved;
+    if (fdwReason == DLL_PROCESS_ATTACH) nk_auto_init();
+    return TRUE;
+}
+#endif
+#endif
+
+#ifdef __cplusplus
+}
+#endif

@@ -1,8 +1,6 @@
-build_release
-build_debug
-build
+/build*
 _deps
-simsimd.egg-info
+*.egg-info
 CMakeFiles
 __pycache__
 wheelhouse/
@@ -15,6 +13,13 @@ javascript/dist
 bun.lockb
 .build/
 .venv/
+.cache/
+tmp/
+
+# Playwright and test artifacts
+playwright-report/
+test-results/
+.pytest_cache/
 
 # for Google Benchmark
 compare.py

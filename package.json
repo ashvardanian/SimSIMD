@@ -1,8 +1,8 @@
 {
-  "name": "simsimd",
+  "name": "numkong",
   "version": "6.5.12",
   "description": "Portable mixed-precision BLAS-like vector math library for x86 and ARM",
-  "homepage": "https://github.com/ashvardanian/simsimd",
+  "homepage": "https://github.com/ashvardanian/numkong",
   "author": "Ash Vardanian",
   "license": "Apache 2.0",
   "keywords": [
@@ -27,35 +27,48 @@
     "prebuild-arm64": "prebuildify --arch arm64 --napi --strip --target=10.4.0",
     "prebuild-darwin-x64+arm64": "prebuildify --arch arm64+x64 --napi --strip --target=10.4.0",
     "build-js": "rm -fr javascript/dist/* && tsc -p javascript/tsconfig-esm.json && tsc -p javascript/tsconfig-cjs.json && cp javascript/dist-package-esm.json javascript/dist/esm/package.json && cp javascript/dist-package-cjs.json javascript/dist/cjs/package.json",
-    "test": "node --test ./scripts/test.mjs",
-    "bench": "node ./scripts/bench.js"
+    "test": "node --test ./test/test.mjs",
+    "test:wasm:emscripten": "NK_RUNTIME=emscripten node --test test/test-wasm.mjs",
+    "test:wasm:wasi": "NK_RUNTIME=wasi-node node --test test/test-wasm.mjs",
+    "test:wasm:browser": "npx playwright test",
+    "test:wasm:all": "npm run test:wasm:emscripten && npm run test:wasm:wasi && npm run test:wasm:browser",
+    "bench": "node bench/bench.mjs",
+    "bench:native": "NK_RUNTIME=native node bench/bench.mjs",
+    "bench:emscripten": "NK_RUNTIME=emscripten node bench/bench.mjs",
+    "bench:wasi": "NK_RUNTIME=wasi node bench/bench.mjs",
+    "bench:browser": "node bench/bench.mjs --browser",
+    "bench:all": "npm run bench:native && npm run bench:emscripten && npm run bench:wasi && npm run bench:browser",
+    "bench:report": "node bench/bench.mjs --report"
   },
-  "main": "javascript/dist/cjs/simsimd.js",
-  "module": "javascript/dist/esm/simsimd.js",
+  "main": "javascript/dist/cjs/numkong.js",
+  "module": "javascript/dist/esm/numkong.js",
   "exports": {
     ".": {
-      "import": "./javascript/dist/esm/simsimd.js",
-      "require": "./javascript/dist/cjs/simsimd.js"
+      "import": "./javascript/dist/esm/numkong.js",
+      "require": "./javascript/dist/cjs/numkong.js"
     }
   },
   "engines": {
-    "node": "~10 >=10.20 || >=12.17"
+    "node": ">=18.0.0"
   },
   "dependencies": {
     "bindings": "^1.5.0",
-    "node-addon-api": "^8.4.0",
+    "node-addon-api": "^8.5.0",
     "node-gyp-build": "^4.8.4"
   },
   "devDependencies": {
+    "@playwright/test": "^1.58.0",
     "@types/bindings": "^1.5.5",
-    "@types/node": "^24.0.10",
-    "node-gyp": "^11.2.0",
+    "@types/node": "^24.10.0",
+    "node-gyp": "^11.5.0",
+    "playwright": "^1.58.0",
     "prebuildify": "^6.0.1",
-    "typescript": "^5.8.3"
+    "http-server": "^14.1.1",
+    "typescript": "^5.9.3"
   },
   "optionalDependencies": {
     "benchmark": "^2.1.4",
-    "mathjs": "^14.5.3",
-    "usearch": "^2.17.1"
+    "mathjs": "^14.9.0",
+    "usearch": "^2.21.0"
   }
 }

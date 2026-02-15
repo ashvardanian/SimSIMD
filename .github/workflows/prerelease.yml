@@ -36,11 +36,11 @@ jobs:
             package.json:"version": "(\d+\.\d+\.\d+)"
             CMakeLists.txt:VERSION (\d+\.\d+\.\d+)
           update-major-version-in: |
-            include/simsimd/simsimd.h:^#define SIMSIMD_VERSION_MAJOR (\d+)
+            include/numkong/capabilities.h:^#define NK_VERSION_MAJOR (\d+)
           update-minor-version-in: |
-            include/simsimd/simsimd.h:^#define SIMSIMD_VERSION_MINOR (\d+)
+            include/numkong/capabilities.h:^#define NK_VERSION_MINOR (\d+)
           update-patch-version-in: |
-            include/simsimd/simsimd.h:^#define SIMSIMD_VERSION_PATCH (\d+)
+            include/numkong/capabilities.h:^#define NK_VERSION_PATCH (\d+)
           dry-run: "true"
 
   test_c:
@@ -50,6 +50,15 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v6
 
+      - name: Print machine specs
+        shell: bash
+        run: |
+          echo "::group::Machine Information"
+          uname -a || true
+          cat /proc/cpuinfo 2>/dev/null | head -30 || sysctl -a machdep.cpu 2>/dev/null | head -30 || wmic cpu get Name,NumberOfCores,MaxClockSpeed 2>/dev/null || true
+          free -h 2>/dev/null || vm_stat 2>/dev/null || systeminfo 2>/dev/null | head -20 || true
+          echo "::endgroup::"
+
       - name: Install dependencies
         run: |
           sudo apt update
@@ -57,11 +66,19 @@ jobs:
 
       - name: Build locally
         run: |
-          cmake -D CMAKE_BUILD_TYPE=Release -D SIMSIMD_BUILD_TESTS=1 -D SIMSIMD_BUILD_BENCHMARKS=1 -D SIMSIMD_BUILD_BENCHMARKS_WITH_CBLAS=1 -B build_release
+          cmake -D CMAKE_BUILD_TYPE=Release -D NK_BUILD_TEST=1 -D NK_BUILD_BENCH=1 -D NK_COMPARE_TO_BLAS=1 -B build_release
           cmake --build build_release --config Release
 
       - name: Test
-        run: build_release/simsimd_test_run_time
+        run: build_release/nk_test
+
+      - name: Build shared library test
+        run: |
+          cmake -D CMAKE_BUILD_TYPE=Release -D NK_BUILD_SHARED=1 -D NK_BUILD_SHARED_TEST=1 -B build_shared
+          cmake --build build_shared --config Release --target nk_shared_test
+
+      - name: Test shared library
+        run: LD_LIBRARY_PATH=build_shared build_shared/nk_shared_test
 
   test_python:
     name: Test Python ${{ matrix.python-version }} on ${{ matrix.architecture }} ${{ matrix.os }}
@@ -69,8 +86,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-22.04, macos-15, windows-2022]
-        python-version: ["3.13", "3.8"]
+        os: [ubuntu-24.04, macos-15, windows-2022]
+        python-version: ["3.13", "3.9"]
         architecture: [x64, arm64]
 
     steps:
@@ -81,6 +98,15 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
 
+      - name: Print machine specs
+        shell: bash
+        run: |
+          echo "::group::Machine Information"
+          uname -a || true
+          cat /proc/cpuinfo 2>/dev/null | head -30 || sysctl -a machdep.cpu 2>/dev/null | head -30 || wmic cpu get Name,NumberOfCores,MaxClockSpeed 2>/dev/null || true
+          free -h 2>/dev/null || vm_stat 2>/dev/null || systeminfo 2>/dev/null | head -20 || true
+          echo "::endgroup::"
+
       - name: Install dependencies
         run: |
           python -m pip install --no-cache-dir --upgrade pip
@@ -90,37 +116,43 @@ jobs:
       - name: Build locally on Ubuntu
         run: |
           sudo apt-get update
-          sudo apt-get install gcc-12 -y
-          sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-12 12
-          sudo update-alternatives --config gcc
           gcc --version
           python -m pip install .
-        if: ${{ matrix.os == 'ubuntu-22.04' }}
+        if: ${{ matrix.os == 'ubuntu-24.04' }}
 
       - name: Build locally on other OS
         run: python -m pip install .
-        if: ${{ matrix.os != 'ubuntu-22.04' }}
+        if: ${{ matrix.os != 'ubuntu-24.04' }}
 
       - name: Test with PyTest
         run: |
-          python -c "import simsimd; print(simsimd.get_capabilities())"
-          pytest scripts/test.py -s -x -Wd -v
+          python -c "import numkong; print(numkong.get_capabilities())"
+          pytest test/test.py -s -x -Wd -v
 
   test_nodejs:
     name: Test Node.js
     runs-on: ubuntu-24.04
     env:
-      CC: gcc-12
-      CXX: g++-12
+      CC: gcc-14
+      CXX: g++-14
 
     steps:
       - name: Checkout
         uses: actions/checkout@v6
 
+      - name: Print machine specs
+        shell: bash
+        run: |
+          echo "::group::Machine Information"
+          uname -a || true
+          cat /proc/cpuinfo 2>/dev/null | head -30 || sysctl -a machdep.cpu 2>/dev/null | head -30 || wmic cpu get Name,NumberOfCores,MaxClockSpeed 2>/dev/null || true
+          free -h 2>/dev/null || vm_stat 2>/dev/null || systeminfo 2>/dev/null | head -20 || true
+          echo "::endgroup::"
+
       - name: Update compilers
         run: |
           sudo apt update
-          sudo apt install -y cmake build-essential libjemalloc-dev libomp-dev gcc-12 g++-12
+          sudo apt install -y cmake build-essential libjemalloc-dev libomp-dev
 
       - name: Set up Node.js
         uses: actions/setup-node@v6
@@ -134,12 +166,214 @@ jobs:
           npm run build-js
           npm test
 
+  test_wasm_emscripten:
+    name: Test WASM via Emscripten
+    runs-on: ubuntu-24.04
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Print machine specs
+        shell: bash
+        run: |
+          echo "::group::Machine Information"
+          uname -a || true
+          cat /proc/cpuinfo 2>/dev/null | head -30 || sysctl -a machdep.cpu 2>/dev/null | head -30 || wmic cpu get Name,NumberOfCores,MaxClockSpeed 2>/dev/null || true
+          free -h 2>/dev/null || vm_stat 2>/dev/null || systeminfo 2>/dev/null | head -20 || true
+          echo "::endgroup::"
+
+      - name: Install Emscripten
+        run: |
+          git clone --depth 1 https://github.com/emscripten-core/emsdk.git ~/emsdk
+          (cd ~/emsdk && ./emsdk install latest && ./emsdk activate latest)
+
+      - name: Build WASM
+        run: |
+          source ~/emsdk/emsdk_env.sh
+          cmake -B build-wasm -DCMAKE_TOOLCHAIN_FILE=cmake/toolchain-wasm.cmake -DNK_BUILD_SHARED=ON
+          cmake --build build-wasm
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 20
+
+      - name: Build JavaScript bindings
+        run: |
+          npm ci --ignore-scripts
+          npm run build-js
+
+      - name: Test Emscripten runtime
+        run: NK_RUNTIME=emscripten node --test test/test-wasm.mjs
+
+  test_wasm_wasi:
+    name: Test WASM via WASI Node.js
+    runs-on: ubuntu-24.04
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Print machine specs
+        shell: bash
+        run: |
+          echo "::group::Machine Information"
+          uname -a || true
+          cat /proc/cpuinfo 2>/dev/null | head -30 || sysctl -a machdep.cpu 2>/dev/null | head -30 || wmic cpu get Name,NumberOfCores,MaxClockSpeed 2>/dev/null || true
+          free -h 2>/dev/null || vm_stat 2>/dev/null || systeminfo 2>/dev/null | head -20 || true
+          echo "::endgroup::"
+
+      - name: Install WASI-SDK
+        run: |
+          wget -q https://github.com/WebAssembly/wasi-sdk/releases/download/wasi-sdk-24/wasi-sdk-24.0-x86_64-linux.tar.gz
+          tar xzf wasi-sdk-24.0-x86_64-linux.tar.gz -C ~
+          mv ~/wasi-sdk-* ~/wasi-sdk
+
+      - name: Build WASI
+        run: |
+          export WASI_SDK_PATH=~/wasi-sdk
+          cmake -B build-wasi -DCMAKE_TOOLCHAIN_FILE=cmake/toolchain-wasi.cmake -DNK_BUILD_TEST=ON
+          cmake --build build-wasi
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 20
+
+      - name: Test WASI runtime
+        run: NK_RUNTIME=wasi-node node --test test/test-wasm.mjs
+
+  test_wasm_browser:
+    name: Test WASM via Browser
+    runs-on: ubuntu-24.04
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Print machine specs
+        shell: bash
+        run: |
+          echo "::group::Machine Information"
+          uname -a || true
+          cat /proc/cpuinfo 2>/dev/null | head -30 || sysctl -a machdep.cpu 2>/dev/null | head -30 || wmic cpu get Name,NumberOfCores,MaxClockSpeed 2>/dev/null || true
+          free -h 2>/dev/null || vm_stat 2>/dev/null || systeminfo 2>/dev/null | head -20 || true
+          echo "::endgroup::"
+
+      - name: Install Emscripten
+        run: |
+          git clone --depth 1 https://github.com/emscripten-core/emsdk.git ~/emsdk
+          (cd ~/emsdk && ./emsdk install latest && ./emsdk activate latest)
+
+      - name: Build WASM
+        run: |
+          source ~/emsdk/emsdk_env.sh
+          cmake -B build-wasm -DCMAKE_TOOLCHAIN_FILE=cmake/toolchain-wasm.cmake -DNK_BUILD_SHARED=ON
+          cmake --build build-wasm
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 20
+
+      - name: Build JavaScript bindings
+        run: |
+          npm ci --ignore-scripts
+          npm run build-js
+
+      - name: Install Playwright
+        run: npx playwright install --with-deps chromium
+
+      - name: Test Browser runtime
+        run: npx playwright test --config test/playwright.config.ts
+
+      - name: Upload test report
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: playwright-report
+          path: playwright-report/
+          retention-days: 7
+
+  test_wasm_wasmer:
+    name: Test WASM via Wasmer
+    runs-on: ubuntu-24.04
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Print machine specs
+        shell: bash
+        run: |
+          echo "::group::Machine Information"
+          uname -a || true
+          cat /proc/cpuinfo 2>/dev/null | head -30 || sysctl -a machdep.cpu 2>/dev/null | head -30 || wmic cpu get Name,NumberOfCores,MaxClockSpeed 2>/dev/null || true
+          free -h 2>/dev/null || vm_stat 2>/dev/null || systeminfo 2>/dev/null | head -20 || true
+          echo "::endgroup::"
+
+      - name: Install WASI-SDK
+        run: |
+          wget -q https://github.com/WebAssembly/wasi-sdk/releases/download/wasi-sdk-24/wasi-sdk-24.0-x86_64-linux.tar.gz
+          tar xzf wasi-sdk-24.0-x86_64-linux.tar.gz -C ~
+          mv ~/wasi-sdk-* ~/wasi-sdk
+
+      - name: Build WASI
+        run: |
+          export WASI_SDK_PATH=~/wasi-sdk
+          cmake -B build-wasi -DCMAKE_TOOLCHAIN_FILE=cmake/toolchain-wasi.cmake -DNK_BUILD_TEST=ON -DNK_WASI_STANDALONE=ON
+          cmake --build build-wasi
+
+      - name: Install Wasmer
+        run: |
+          curl https://get.wasmer.io -sSfL | sh
+          echo "$HOME/.wasmer/bin" >> $GITHUB_PATH
+
+      - name: Test Wasmer runtime
+        run: ~/.wasmer/bin/wasmer run build-wasi/test.wasm
+
+  test_wasm_wasmtime:
+    name: Test WASM via Wasmtime
+    runs-on: ubuntu-24.04
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Print machine specs
+        shell: bash
+        run: |
+          echo "::group::Machine Information"
+          uname -a || true
+          cat /proc/cpuinfo 2>/dev/null | head -30 || sysctl -a machdep.cpu 2>/dev/null | head -30 || wmic cpu get Name,NumberOfCores,MaxClockSpeed 2>/dev/null || true
+          free -h 2>/dev/null || vm_stat 2>/dev/null || systeminfo 2>/dev/null | head -20 || true
+          echo "::endgroup::"
+
+      - name: Install Rust toolchain
+        uses: moonrepo/setup-rust@v1
+
+      - name: Install WASI-SDK
+        run: |
+          wget -q https://github.com/WebAssembly/wasi-sdk/releases/download/wasi-sdk-24/wasi-sdk-24.0-x86_64-linux.tar.gz
+          tar xzf wasi-sdk-24.0-x86_64-linux.tar.gz -C ~
+          mv ~/wasi-sdk-* ~/wasi-sdk
+
+      - name: Build WASI
+        run: |
+          export WASI_SDK_PATH=~/wasi-sdk
+          cmake -B build-wasi -DCMAKE_TOOLCHAIN_FILE=cmake/toolchain-wasi.cmake -DNK_BUILD_TEST=ON -DNK_WASI_STANDALONE=ON
+          cmake --build build-wasi
+
+      - name: Test Wasmtime runtime
+        run: cargo test --features wasm-runtime wasm_runtime
+
   test_deno:
     name: Test Deno
     runs-on: ubuntu-24.04
     env:
-      CC: gcc-12
-      CXX: g++-12
+      CC: gcc-14
+      CXX: g++-14
       # `node-gyp-build` will look at this first; setting it prevents an
       # unintended rebuild and lets Deno just `dlopen` the prebuilt `.node`.
       PREBUILDS_ONLY: "1"
@@ -148,10 +382,19 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v6
 
+      - name: Print machine specs
+        shell: bash
+        run: |
+          echo "::group::Machine Information"
+          uname -a || true
+          cat /proc/cpuinfo 2>/dev/null | head -30 || sysctl -a machdep.cpu 2>/dev/null | head -30 || wmic cpu get Name,NumberOfCores,MaxClockSpeed 2>/dev/null || true
+          free -h 2>/dev/null || vm_stat 2>/dev/null || systeminfo 2>/dev/null | head -20 || true
+          echo "::endgroup::"
+
       - name: Update compilers
         run: |
           sudo apt update
-          sudo apt install -y cmake build-essential libjemalloc-dev libomp-dev gcc-12 g++-12
+          sudo apt install -y cmake build-essential libjemalloc-dev libomp-dev
 
       - name: Set up Node.js
         uses: actions/setup-node@v6
@@ -180,6 +423,15 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v6
+
+      - name: Print machine specs
+        shell: bash
+        run: |
+          echo "::group::Machine Information"
+          uname -a || true
+          cat /proc/cpuinfo 2>/dev/null | head -30 || sysctl -a machdep.cpu 2>/dev/null | head -30 || wmic cpu get Name,NumberOfCores,MaxClockSpeed 2>/dev/null || true
+          free -h 2>/dev/null || vm_stat 2>/dev/null || systeminfo 2>/dev/null | head -20 || true
+          echo "::endgroup::"
 
       - name: Install Rust toolchain
         uses: moonrepo/setup-rust@v1
@@ -215,6 +467,14 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v6
+      - name: Print machine specs
+        shell: bash
+        run: |
+          echo "::group::Machine Information"
+          uname -a || true
+          cat /proc/cpuinfo 2>/dev/null | head -30 || sysctl -a machdep.cpu 2>/dev/null | head -30 || wmic cpu get Name,NumberOfCores,MaxClockSpeed 2>/dev/null || true
+          free -h 2>/dev/null || vm_stat 2>/dev/null || systeminfo 2>/dev/null | head -20 || true
+          echo "::endgroup::"
       - name: Test Swift
         run: swift test
 
@@ -225,11 +485,11 @@ jobs:
   # Available Linux images: https://cibuildwheel.pypa.io/en/stable/options/#linux-image
   build_wheels_linux_x86:
     name: Build Python Wheels (Linux x86)
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     strategy:
       matrix:
         python-version:
-          ["38", "39", "310", "311", "312", "313", "313t", "314", "314t"]
+          ["39", "310", "311", "312", "313", "313t", "314", "314t"]
     needs: [test_python]
     steps:
       - name: Checkout
@@ -243,7 +503,7 @@ jobs:
           python -m pip install cibuildwheel
           cibuildwheel --output-dir wheelhouse
         env:
-          # Matches: `cp37-manylinux_x86_64` and `cp38-musllinux_x86_64`
+          # Matches: `cp39-manylinux_x86_64` and `cp39-musllinux_x86_64`
           CIBW_BUILD: cp${{ matrix.python-version }}-*
           CIBW_ENABLE: cpython-freethreading # No-GIL 3.13t builds
           CIBW_PLATFORM: linux
@@ -257,7 +517,7 @@ jobs:
     strategy:
       matrix:
         python-version:
-          ["38", "39", "310", "311", "312", "313", "313t", "314", "314t"]
+          ["39", "310", "311", "312", "313", "313t", "314", "314t"]
     needs: [test_python]
     steps:
       - name: Checkout
@@ -283,7 +543,7 @@ jobs:
           python -m pip install cibuildwheel
           cibuildwheel --output-dir wheelhouse
         env:
-          # Matches: `cp37-manylinux_aarch64` and `cp38-musllinux_aarch64`
+          # Matches: `cp39-manylinux_aarch64` and `cp39-musllinux_aarch64`
           CIBW_BUILD: cp${{ matrix.python-version }}-*
           CIBW_ENABLE: cpython-freethreading # No-GIL 3.13t builds
           CIBW_PLATFORM: linux
@@ -295,7 +555,7 @@ jobs:
     strategy:
       matrix:
         python-version:
-          ["38", "39", "310", "311", "312", "313", "313t", "314", "314t"]
+          ["39", "310", "311", "312", "313", "313t", "314", "314t"]
     needs: [test_python]
     steps:
       - name: Checkout
@@ -320,7 +580,7 @@ jobs:
     strategy:
       matrix:
         python-version:
-          ["38", "39", "310", "311", "312", "313", "313t", "314", "314t"]
+          ["39", "310", "311", "312", "313", "313t", "314", "314t"]
     needs: [test_python]
     steps:
       - name: Checkout
@@ -345,9 +605,8 @@ jobs:
     strategy:
       matrix:
         python-version:
-          ["38", "39", "310", "311", "312", "313", "313t", "314", "314t"]
+          ["39", "310", "311", "312", "313", "313t", "314", "314t"]
         architecture: [AMD64] # List ARM64 separately and avoid 32-bit
-        #! ARM64 isn't supported for Python 3.8
         include:
           - python-version: "39"
             architecture: ARM64
@@ -388,11 +647,11 @@ jobs:
 
   build_wheels_other:
     name: Build Python Wheels (Other Platforms)
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     strategy:
       matrix:
         python-version:
-          ["38", "39", "310", "311", "312", "313", "313t", "314", "314t"]
+          ["39", "310", "311", "312", "313", "313t", "314", "314t"]
     needs: [test_python]
     steps:
       - name: Checkout
@@ -413,3 +672,30 @@ jobs:
           CIBW_ENABLE: cpython-freethreading # No-GIL 3.13t builds
           CIBW_PLATFORM: linux
           CIBW_ARCHS: ppc64le s390x i686 #! `armv7l` not worth the trouble
+
+  build_wheels_linux_riscv:
+    name: Build Python Wheels (Linux RISC-V)
+    runs-on: ubuntu-24.04
+    strategy:
+      matrix:
+        python-version:
+          ["39", "310", "311", "312", "313", "313t", "314", "314t"]
+    needs: [test_python]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+      - name: Install Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+      - name: Setup QEMU
+        uses: docker/setup-qemu-action@v3
+      - name: Install Toolchain
+        run: |
+          python -m pip install cibuildwheel
+          cibuildwheel --output-dir wheelhouse
+        env:
+          CIBW_BUILD: cp${{ matrix.python-version }}-*
+          CIBW_ENABLE: cpython-freethreading
+          CIBW_PLATFORM: linux
+          CIBW_ARCHS: riscv64
