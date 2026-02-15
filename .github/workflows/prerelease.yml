@@ -242,7 +242,10 @@ jobs:
           node-version: 20
 
       - name: Test WASI runtime
-        run: NK_RUNTIME=wasi-node node --test test/test-wasm.mjs
+        env:
+          NK_RUNTIME: wasi-node
+          NODE_OPTIONS: "--experimental-wasm-relaxed-simd"
+        run: node --test test/test-wasm.mjs
 
   test_wasm_browser:
     name: Test WASM via Browser
