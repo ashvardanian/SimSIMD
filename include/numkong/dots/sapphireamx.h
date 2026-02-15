@@ -953,7 +953,7 @@ NK_PUBLIC void nk_dots_packed_bf16_sapphireamx(            //
     nk_size_t const full_cols = column_tiles_count * 16;
 
     // Block counts (32 × 32 output blocks = 2 × 2 tiles)
-    nk_size_t const row_blocks_count = (rows_count + 31) / 32;
+    nk_size_t const row_blocks_count = nk_size_divide_round_up_(rows_count, 32);
     nk_size_t const col_blocks_count = column_tiles_count / 2;
 
     if (depth_tiles_count == 0) return;
@@ -1291,8 +1291,8 @@ NK_PUBLIC void nk_dots_symmetric_bf16_sapphireamx(                  //
                                   : (row_start + row_count < n_vectors ? row_start + row_count : n_vectors);
 
     // Round depth up to multiple of 96 (3 tiles × 32 elements)
-    nk_size_t const depth_tiles = (depth + 31) / 32;
-    nk_size_t const depth_tile_groups = (depth_tiles + 2) / 3;
+    nk_size_t const depth_tiles = nk_size_divide_round_up_(depth, 32);
+    nk_size_t const depth_tile_groups = nk_size_divide_round_up_(depth_tiles, 3);
 
     nk_dots_bf16_a16x32_sapphireamx_t a_tiles[3];
     nk_dots_bf16_a16x32_sapphireamx_t b_src_tiles[3];
@@ -1468,7 +1468,7 @@ NK_PUBLIC void nk_dots_packed_i8_sapphireamx(            //
     nk_size_t const full_cols = column_tiles_count * 16;
 
     // Block counts (32 × 32 output blocks = 2 × 2 tiles)
-    nk_size_t const row_blocks_count = (rows_count + 31) / 32;
+    nk_size_t const row_blocks_count = nk_size_divide_round_up_(rows_count, 32);
     nk_size_t const col_blocks_count = column_tiles_count / 2;
 
     if (depth_tiles_count == 0) return;
@@ -1867,8 +1867,8 @@ NK_PUBLIC void nk_dots_symmetric_i8_sapphireamx(                  //
                                   : (row_start + row_count < n_vectors ? row_start + row_count : n_vectors);
 
     // Round depth up to multiple of 192 (3 tiles × 64 elements)
-    nk_size_t const depth_tiles = (depth + 63) / 64;
-    nk_size_t const depth_tile_groups = (depth_tiles + 2) / 3;
+    nk_size_t const depth_tiles = nk_size_divide_round_up_(depth, 64);
+    nk_size_t const depth_tile_groups = nk_size_divide_round_up_(depth_tiles, 3);
 
     nk_dots_i8_a16x64_sapphireamx_t a_tiles[3];
     nk_dots_i8_a16x64_sapphireamx_t b_src_tiles[3];
@@ -2015,7 +2015,7 @@ NK_PUBLIC void nk_dots_packed_u8_sapphireamx(            //
     nk_size_t const full_cols = column_tiles_count * 16;
 
     // Block counts (32 × 32 output blocks = 2 × 2 tiles)
-    nk_size_t const row_blocks_count = (rows_count + 31) / 32;
+    nk_size_t const row_blocks_count = nk_size_divide_round_up_(rows_count, 32);
     nk_size_t const col_blocks_count = column_tiles_count / 2;
 
     if (depth_tiles_count == 0) return;
@@ -2399,7 +2399,7 @@ NK_PUBLIC void nk_dots_packed_e4m3_sapphireamx(            //
     nk_size_t const tile_size = 512;
     nk_size_t const full_cols = column_tiles_count * 16;
 
-    nk_size_t const row_blocks_count = (rows_count + 31) / 32;
+    nk_size_t const row_blocks_count = nk_size_divide_round_up_(rows_count, 32);
     nk_size_t const col_blocks_count = column_tiles_count / 2;
 
     if (depth_tiles_count == 0) return;
@@ -2671,7 +2671,7 @@ NK_PUBLIC void nk_dots_packed_e5m2_sapphireamx(            //
     nk_size_t const tile_size = 512;
     nk_size_t const full_cols = column_tiles_count * 16;
 
-    nk_size_t const row_blocks_count = (rows_count + 31) / 32;
+    nk_size_t const row_blocks_count = nk_size_divide_round_up_(rows_count, 32);
     nk_size_t const col_blocks_count = column_tiles_count / 2;
 
     if (depth_tiles_count == 0) return;
@@ -3033,7 +3033,7 @@ NK_PUBLIC void nk_dots_packed_e2m3_sapphireamx(            //
     nk_size_t const tile_size = 1024;
     nk_size_t const full_cols = column_tiles_count * 16;
 
-    nk_size_t const row_blocks_count = (rows_count + 31) / 32;
+    nk_size_t const row_blocks_count = nk_size_divide_round_up_(rows_count, 32);
     nk_size_t const col_blocks_count = column_tiles_count / 2;
 
     if (depth_tiles_count == 0) return;
@@ -3228,8 +3228,8 @@ NK_PUBLIC void nk_dots_symmetric_e2m3_sapphireamx(                  //
                                   : (row_start + row_count < n_vectors ? row_start + row_count : n_vectors);
 
     // Round depth up to multiple of 192 (3 tiles x 64 elements)
-    nk_size_t const depth_tiles = (depth + 63) / 64;
-    nk_size_t const depth_tile_groups = (depth_tiles + 2) / 3;
+    nk_size_t const depth_tiles = nk_size_divide_round_up_(depth, 64);
+    nk_size_t const depth_tile_groups = nk_size_divide_round_up_(depth_tiles, 3);
 
     nk_dots_i8_a16x64_sapphireamx_t a_tiles[3];
     nk_dots_i8_a16x64_sapphireamx_t b_src_tiles[3];
@@ -3396,7 +3396,7 @@ NK_PUBLIC void nk_dots_packed_e3m2_sapphireamx(            //
     nk_size_t const tile_size = 512;
     nk_size_t const full_cols = column_tiles_count * 16;
 
-    nk_size_t const row_blocks_count = (rows_count + 31) / 32;
+    nk_size_t const row_blocks_count = nk_size_divide_round_up_(rows_count, 32);
     nk_size_t const col_blocks_count = column_tiles_count / 2;
 
     if (depth_tiles_count == 0) return;
@@ -3588,8 +3588,8 @@ NK_PUBLIC void nk_dots_symmetric_e3m2_sapphireamx(                  //
                                   : (row_start + row_count < n_vectors ? row_start + row_count : n_vectors);
 
     // Round depth up to multiple of 96 (3 tiles x 32 bf16 elements)
-    nk_size_t const depth_tiles = (depth + 31) / 32;
-    nk_size_t const depth_tile_groups = (depth_tiles + 2) / 3;
+    nk_size_t const depth_tiles = nk_size_divide_round_up_(depth, 32);
+    nk_size_t const depth_tile_groups = nk_size_divide_round_up_(depth_tiles, 3);
 
     nk_dots_bf16_a16x32_sapphireamx_t a_tiles[3];
     nk_dots_bf16_a16x32_sapphireamx_t b_src_tiles[3];

@@ -678,12 +678,12 @@ typedef struct {
                                                                                                                        \
         /* Compute aligned/remainder depth for partial loads (correct for sub-byte types) */                           \
         nk_size_t const depth_dimensions_aligned = (depth / depth_simd_dimensions) * depth_simd_dimensions;            \
-        nk_size_t const aligned_depth = (depth_dimensions_aligned + dimensions_per_value - 1) / dimensions_per_value;  \
-        nk_size_t const depth_in_values = (depth + dimensions_per_value - 1) / dimensions_per_value;                   \
+        nk_size_t const aligned_depth = nk_size_divide_round_up_(depth_dimensions_aligned, dimensions_per_value);      \
+        nk_size_t const depth_in_values = nk_size_divide_round_up_(depth, dimensions_per_value);                       \
         nk_size_t const remainder_depth = depth_in_values - aligned_depth;                                             \
         nk_size_t const remainder_dimensions = depth - depth_dimensions_aligned;                                       \
         /* Calculate step size in storage values for loop increment */                                                 \
-        nk_size_t const depth_step_values = (depth_simd_dimensions + dimensions_per_value - 1) / dimensions_per_value; \
+        nk_size_t const depth_step_values = nk_size_divide_round_up_(depth_simd_dimensions, dimensions_per_value);     \
                                                                                                                        \
         /* Loop 1: L3 cache blocking over columns */                                                                   \
         nk_##packed_value_type##_t const *packed_data =                                                                \
