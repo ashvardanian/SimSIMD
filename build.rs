@@ -279,8 +279,6 @@ fn build_simsimd() -> HashMap<String, bool> {
     println!("cargo:rerun-if-changed=include/numkong/mesh/neonhalf.h");
     println!("cargo:rerun-if-changed=include/numkong/mesh/neonbfdot.h");
     println!("cargo:rerun-if-changed=include/numkong/mesh/neonsdot.h");
-    println!("cargo:rerun-if-changed=include/numkong/mesh/sve.h");
-    println!("cargo:rerun-if-changed=include/numkong/mesh/svehalf.h");
     // reduce/
     println!("cargo:rerun-if-changed=include/numkong/reduce/serial.h");
     println!("cargo:rerun-if-changed=include/numkong/reduce/haswell.h");
@@ -292,8 +290,6 @@ fn build_simsimd() -> HashMap<String, bool> {
     println!("cargo:rerun-if-changed=include/numkong/reduce/neonhalf.h");
     println!("cargo:rerun-if-changed=include/numkong/reduce/neonbfdot.h");
     println!("cargo:rerun-if-changed=include/numkong/reduce/neonsdot.h");
-    println!("cargo:rerun-if-changed=include/numkong/reduce/sve.h");
-    println!("cargo:rerun-if-changed=include/numkong/reduce/svehalf.h");
     // spatial/
     println!("cargo:rerun-if-changed=include/numkong/spatial/serial.h");
     println!("cargo:rerun-if-changed=include/numkong/spatial/haswell.h");
@@ -324,8 +320,6 @@ fn build_simsimd() -> HashMap<String, bool> {
     println!("cargo:rerun-if-changed=include/numkong/trigonometry/neonhalf.h");
     println!("cargo:rerun-if-changed=include/numkong/trigonometry/neonbfdot.h");
     println!("cargo:rerun-if-changed=include/numkong/trigonometry/neonsdot.h");
-    println!("cargo:rerun-if-changed=include/numkong/trigonometry/sve.h");
-    println!("cargo:rerun-if-changed=include/numkong/trigonometry/svehalf.h");
 
     // Rerun if environment variables change
     for flag in flags_to_try.iter() {
