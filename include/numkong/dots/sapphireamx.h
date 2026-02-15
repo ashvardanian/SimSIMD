@@ -80,14 +80,14 @@ extern "C" {
 #endif
 
 #if defined(__clang__)
-#pragma clang attribute push(                                                                                        \
-    __attribute__((                                                                                                  \
-        target("avx2,avx512f,avx512vl,avx512bw,avx512dq,avx512fp16,f16c,fma,bmi,bmi2,amx-tile,amx-bf16,amx-int8"))), \
+#pragma clang attribute push(                                                                                            \
+    __attribute__((target(                                                                                               \
+        "avx2,avx512f,avx512vl,avx512bw,avx512dq,avx512fp16,avx512vbmi,f16c,fma,bmi,bmi2,amx-tile,amx-bf16,amx-int8"))), \
     apply_to = function)
 #elif defined(__GNUC__)
 #pragma GCC push_options
-#pragma GCC target("avx2", "avx512f", "avx512vl", "avx512bw", "avx512dq", "avx512fp16", "f16c", "fma", "bmi", "bmi2", \
-                   "amx-tile", "amx-bf16", "amx-int8")
+#pragma GCC target("avx2", "avx512f", "avx512vl", "avx512bw", "avx512dq", "avx512fp16", "avx512vbmi", "f16c", "fma", \
+                   "bmi", "bmi2", "amx-tile", "amx-bf16", "amx-int8")
 #endif
 
 /*  AMX-specific packed buffer header (64-byte aligned).

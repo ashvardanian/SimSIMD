@@ -409,7 +409,7 @@
 #endif // !defined(NK_TARGET_TURIN) || ...
 
 #if !defined(NK_TARGET_SIERRA) || (NK_TARGET_SIERRA && !NK_TARGET_X86_)
-#if defined(__AVX2_VNNI__)
+#if defined(__AVXVNNIINT8__)
 #define NK_TARGET_SIERRA 1
 #else
 #undef NK_TARGET_SIERRA

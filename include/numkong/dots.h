@@ -1400,8 +1400,6 @@ NK_INTERNAL nk_dtype_t nk_dots_packed_output_dtype(nk_dtype_t dtype) {
 #include "numkong/dots/neonhalf.h"
 #include "numkong/dots/neonfhm.h"
 #include "numkong/dots/neonbfdot.h"
-#include "numkong/dots/sve.h"
-#include "numkong/dots/svehalf.h"
 #include "numkong/dots/sme.h"
 #include "numkong/dots/smef64.h"
 #include "numkong/dots/rvv.h"

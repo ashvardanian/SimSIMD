@@ -142,8 +142,8 @@ NK_INTERNAL void nk_reduce_moments_f32_v128relaxed_contiguous_( //
     nk_size_t idx = 0;
     for (; idx + 4 <= count; idx += 4) {
         v128_t data_f32x4 = wasm_v128_load(data + idx);
-        v128_t low_f64x2 = wasm_f64x2_convert_low_f32x4(data_f32x4);
-        v128_t high_f64x2 = wasm_f64x2_convert_low_f32x4(wasm_i32x4_shuffle(data_f32x4, data_f32x4, 2, 3, 0, 1));
+        v128_t low_f64x2 = wasm_f64x2_promote_low_f32x4(data_f32x4);
+        v128_t high_f64x2 = wasm_f64x2_promote_low_f32x4(wasm_i32x4_shuffle(data_f32x4, data_f32x4, 2, 3, 0, 1));
         sum_f64x2 = wasm_f64x2_add(wasm_f64x2_add(sum_f64x2, low_f64x2), high_f64x2);
         sumsq_f64x2 = wasm_f64x2_relaxed_madd(low_f64x2, low_f64x2, sumsq_f64x2);
         sumsq_f64x2 = wasm_f64x2_relaxed_madd(high_f64x2, high_f64x2, sumsq_f64x2);
@@ -267,8 +267,7 @@ NK_PUBLIC void nk_reduce_moments_bf16_v128relaxed(                  //
         nk_reduce_moments_bf16_v128relaxed(data, left_count, stride_bytes, &left_sum, &left_sumsq);
         nk_reduce_moments_bf16_v128relaxed(data + left_count * stride_elements, count - left_count, stride_bytes,
                                            &right_sum, &right_sumsq);
-        *sum = left_sum + right_sum;
-        *sumsq = left_sumsq + right_sumsq;
+        *sum = left_sum + right_sum, *sumsq = left_sumsq + right_sumsq;
     }
     else if (stride_elements == 1) nk_reduce_moments_bf16_v128relaxed_contiguous_(data, count, sum, sumsq);
     else nk_reduce_moments_bf16_serial(data, count, stride_bytes, sum, sumsq);
@@ -310,8 +309,7 @@ NK_PUBLIC void nk_reduce_moments_f16_v128relaxed(                  //
         nk_reduce_moments_f16_v128relaxed(data, left_count, stride_bytes, &left_sum, &left_sumsq);
         nk_reduce_moments_f16_v128relaxed(data + left_count * stride_elements, count - left_count, stride_bytes,
                                           &right_sum, &right_sumsq);
-        *sum = left_sum + right_sum;
-        *sumsq = left_sumsq + right_sumsq;
+        *sum = left_sum + right_sum, *sumsq = left_sumsq + right_sumsq;
     }
     else if (stride_elements == 1) nk_reduce_moments_f16_v128relaxed_contiguous_(data, count, sum, sumsq);
     else nk_reduce_moments_f16_serial(data, count, stride_bytes, sum, sumsq);
@@ -881,26 +879,24 @@ NK_INTERNAL void nk_reduce_moments_i32_v128relaxed_contiguous_( //
     nk_b128_vec_t lower_vec, upper_vec;
     lower_vec.v128 = sum_lower_u64x2;
     upper_vec.v128 = sum_upper_i64x2;
-    nk_u64_t s_lower = 0;
-    nk_i64_t s_upper = 0;
-    for (int i = 0; i < 2; i++) {
-        nk_u64_t before = s_lower;
-        s_lower += lower_vec.u64s[i];
-        if (s_lower < before) s_upper++;
-        s_upper += upper_vec.i64s[i];
-    }
+    nk_u64_t sum_lower = 0;
+    nk_i64_t sum_upper = 0;
+    nk_u64_t sum_before = sum_lower;
+    sum_lower += lower_vec.u64s[0], sum_upper += (sum_lower < sum_before) + upper_vec.i64s[0];
+    sum_before = sum_lower;
+    sum_lower += lower_vec.u64s[1], sum_upper += (sum_lower < sum_before) + upper_vec.i64s[1];
     for (; idx < count; ++idx) {
         nk_i64_t val = (nk_i64_t)data[idx];
-        nk_u64_t before = s_lower;
-        s_lower += (nk_u64_t)val;
-        if (s_lower < before) s_upper++;
-        s_upper += (val >> 63);
+        sum_before = sum_lower;
+        sum_lower += (nk_u64_t)val;
+        if (sum_lower < sum_before) sum_upper++;
+        sum_upper += (val >> 63);
         nk_u64_t product = (nk_u64_t)(val * val);
         nk_u64_sadd_(&sumsq, &product, &sumsq);
     }
-    nk_i64_t s_lower_signed = (nk_i64_t)s_lower;
-    if (s_upper == (s_lower_signed >> 63)) *sum_ptr = s_lower_signed;
-    else if (s_upper >= 0) *sum_ptr = NK_I64_MAX;
+    nk_i64_t sum_lower_signed = (nk_i64_t)sum_lower;
+    if (sum_upper == (sum_lower_signed >> 63)) *sum_ptr = sum_lower_signed;
+    else if (sum_upper >= 0) *sum_ptr = NK_I64_MAX;
     else *sum_ptr = NK_I64_MIN;
     *sumsq_ptr = sumsq;
 }
@@ -989,13 +985,13 @@ NK_INTERNAL void nk_reduce_moments_i64_v128relaxed_contiguous_( //
     int sumsq_overflow = (int)(wasm_i64x2_extract_lane(sumsq_overflow_u64x2, 0) |
                                wasm_i64x2_extract_lane(sumsq_overflow_u64x2, 1));
     nk_u64_t sumsq = sumsq_overflow ? NK_U64_MAX : nk_reduce_sadd_u64x2_v128relaxed_(sumsq_u64x2);
-    nk_u64_t s_lower = (nk_u64_t)wasm_i64x2_extract_lane(sum_lower_u64x2, 0);
-    nk_i64_t s_upper = wasm_i64x2_extract_lane(sum_upper_i64x2, 0);
+    nk_u64_t sum_lower = (nk_u64_t)wasm_i64x2_extract_lane(sum_lower_u64x2, 0);
+    nk_i64_t sum_upper = wasm_i64x2_extract_lane(sum_upper_i64x2, 0);
     {
-        nk_u64_t before = s_lower;
-        s_lower += (nk_u64_t)wasm_i64x2_extract_lane(sum_lower_u64x2, 1);
-        if (s_lower < before) s_upper++;
-        s_upper += wasm_i64x2_extract_lane(sum_upper_i64x2, 1);
+        nk_u64_t sum_before = sum_lower;
+        sum_lower += (nk_u64_t)wasm_i64x2_extract_lane(sum_lower_u64x2, 1);
+        if (sum_lower < sum_before) sum_upper++;
+        sum_upper += wasm_i64x2_extract_lane(sum_upper_i64x2, 1);
     }
     for (; idx < count; ++idx) {
         nk_i64_t val = data[idx];
@@ -1003,14 +999,14 @@ NK_INTERNAL void nk_reduce_moments_i64_v128relaxed_contiguous_( //
         nk_i64_smul_(&val, &val, &product);
         nk_u64_t unsigned_product = (nk_u64_t)product;
         nk_u64_sadd_(&sumsq, &unsigned_product, &sumsq);
-        nk_u64_t before = s_lower;
-        s_lower += (nk_u64_t)val;
-        if (s_lower < before) s_upper++;
-        s_upper += (val >> 63);
+        nk_u64_t sum_before = sum_lower;
+        sum_lower += (nk_u64_t)val;
+        if (sum_lower < sum_before) sum_upper++;
+        sum_upper += (val >> 63);
     }
-    nk_i64_t s_lower_signed = (nk_i64_t)s_lower;
-    if (s_upper == (s_lower_signed >> 63)) *sum_ptr = s_lower_signed;
-    else if (s_upper >= 0) *sum_ptr = NK_I64_MAX;
+    nk_i64_t sum_lower_signed = (nk_i64_t)sum_lower;
+    if (sum_upper == (sum_lower_signed >> 63)) *sum_ptr = sum_lower_signed;
+    else if (sum_upper >= 0) *sum_ptr = NK_I64_MAX;
     else *sum_ptr = NK_I64_MIN;
     *sumsq_ptr = sumsq;
 }

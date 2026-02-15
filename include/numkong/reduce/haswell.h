@@ -1885,17 +1885,17 @@ NK_INTERNAL void nk_reduce_moments_i32_haswell_contiguous_( //
     nk_b256_vec_t lower_vec, upper_vec;
     lower_vec.ymm = sum_lower_i64x4;
     upper_vec.ymm = sum_upper_i64x4;
-    nk_u64_t s_lower = 0;
-    nk_i64_t s_upper = 0;
+    nk_u64_t sum_lower = 0;
+    nk_i64_t sum_upper = 0;
     for (int i = 0; i < 4; i++) {
-        nk_u64_t before = s_lower;
-        s_lower += lower_vec.u64s[i];
-        if (s_lower < before) s_upper++;
-        s_upper += upper_vec.i64s[i];
+        nk_u64_t sum_before = sum_lower;
+        sum_lower += lower_vec.u64s[i];
+        if (sum_lower < sum_before) sum_upper++;
+        sum_upper += upper_vec.i64s[i];
     }
-    nk_i64_t s_lower_signed = (nk_i64_t)s_lower;
-    if (s_upper == (s_lower_signed >> 63)) *sum_ptr = s_lower_signed;
-    else if (s_upper >= 0) *sum_ptr = NK_I64_MAX;
+    nk_i64_t sum_lower_signed = (nk_i64_t)sum_lower;
+    if (sum_upper == (sum_lower_signed >> 63)) *sum_ptr = sum_lower_signed;
+    else if (sum_upper >= 0) *sum_ptr = NK_I64_MAX;
     else *sum_ptr = NK_I64_MIN, *sumsq_ptr = sq;
 }
 

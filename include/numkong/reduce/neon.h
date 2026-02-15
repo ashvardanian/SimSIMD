@@ -293,7 +293,7 @@ NK_INTERNAL void nk_reduce_minmax_f32_neon_strided_(                      //
     nk_u32_t max_lane_offset = vminvq_u32(max_masked_lanes_u32x4);
     nk_size_t max_idx = (nk_size_t)earliest_max_cycle * 4 + (nk_size_t)max_lane_offset;
     for (; idx < count; ++idx) {
-        nk_f32_t val = *(data + idx * stride_elements);
+        nk_f32_t val = *(data_ptr + idx * stride_elements);
         if (val < min_value) min_value = val, min_idx = idx;
         if (val > max_value) max_value = val, max_idx = idx;
     }
@@ -319,7 +319,7 @@ NK_PUBLIC void nk_reduce_minmax_f32_neon(                              //
         nk_size_t left_min_index, right_min_index, left_max_index, right_max_index;
         nk_reduce_minmax_f32_neon(data_ptr, left_count, stride_bytes, &left_min_value, &left_min_index, &left_max_value,
                                   &left_max_index);
-        nk_reduce_minmax_f32_neon(data + left_count * stride_elements, count - left_count, stride_bytes,
+        nk_reduce_minmax_f32_neon(data_ptr + left_count * stride_elements, count - left_count, stride_bytes,
                                   &right_min_value, &right_min_index, &right_max_value, &right_max_index);
         if (right_min_value < left_min_value)
             *min_value_ptr = right_min_value, *min_index_ptr = left_count + right_min_index;
@@ -552,7 +552,7 @@ NK_PUBLIC void nk_reduce_moments_i8_neon(                             //
         nk_i64_t left_sum, right_sum;
         nk_u64_t left_sumsq, right_sumsq;
         nk_reduce_moments_i8_neon(data_ptr, left_count, stride_bytes, &left_sum, &left_sumsq);
-        nk_reduce_moments_i8_neon(data + left_count * stride_elements, count - left_count, stride_bytes, &right_sum,
+        nk_reduce_moments_i8_neon(data_ptr + left_count * stride_elements, count - left_count, stride_bytes, &right_sum,
                                   &right_sumsq);
         nk_i64_sadd_(&left_sum, &right_sum, sum_ptr);
         nk_u64_sadd_(&left_sumsq, &right_sumsq, sumsq_ptr);
@@ -567,7 +567,7 @@ NK_INTERNAL void nk_reduce_minmax_i8_neon_contiguous_( //
     nk_i8_t const *data_ptr, nk_size_t count,          //
     nk_i8_t *min_value_ptr, nk_size_t *min_index_ptr,  //
     nk_i8_t *max_value_ptr, nk_size_t *max_index_ptr) {
-    int8x16_t min_i8x16 = vld1q_s8(data), max_i8x16 = min_i8x16;
+    int8x16_t min_i8x16 = vld1q_s8(data_ptr), max_i8x16 = min_i8x16;
     uint8x16_t min_iter_u8x16 = vdupq_n_u8(0), max_iter_u8x16 = vdupq_n_u8(0);
     uint8x16_t iter_u8x16 = vdupq_n_u8(1), one_u8x16 = vdupq_n_u8(1);
     nk_size_t idx = 16;
@@ -584,7 +584,7 @@ NK_INTERNAL void nk_reduce_minmax_i8_neon_contiguous_( //
     nk_size_t remaining = count - idx;
     if (remaining > 0) {
         nk_b128_vec_t tail_vec;
-        nk_partial_load_b8x16_serial_(data + idx, &tail_vec, remaining);
+        nk_partial_load_b8x16_serial_(data_ptr + idx, &tail_vec, remaining);
         uint8x16_t lane_indices_u8x16 = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15};
         uint8x16_t valid_u8x16 = vcltq_u8(lane_indices_u8x16, vdupq_n_u8((uint8_t)remaining));
         int8x16_t data_for_min_i8x16 = vbslq_s8(valid_u8x16, tail_vec.i8x16, vdupq_n_s8(NK_I8_MAX));
@@ -684,7 +684,7 @@ NK_INTERNAL void nk_reduce_minmax_i8_neon_strided_(                      //
     nk_u8_t max_lane_offset = vminvq_u8(max_masked_lanes_u8x16);
     nk_size_t max_idx = (nk_size_t)earliest_max_cycle * 16 + (nk_size_t)max_lane_offset;
     for (; idx < count; ++idx) {
-        nk_i8_t val = *(data + idx * stride_elements);
+        nk_i8_t val = *(data_ptr + idx * stride_elements);
         if (val < min_value) min_value = val, min_idx = idx;
         if (val > max_value) max_value = val, max_idx = idx;
     }
@@ -710,7 +710,7 @@ NK_PUBLIC void nk_reduce_minmax_i8_neon(                              //
         nk_size_t left_min_index, right_min_index, left_max_index, right_max_index;
         nk_reduce_minmax_i8_neon(data_ptr, left_count, stride_bytes, &left_min_value, &left_min_index, &left_max_value,
                                  &left_max_index);
-        nk_reduce_minmax_i8_neon(data + left_count * stride_elements, count - left_count, stride_bytes,
+        nk_reduce_minmax_i8_neon(data_ptr + left_count * stride_elements, count - left_count, stride_bytes,
                                  &right_min_value, &right_min_index, &right_max_value, &right_max_index);
         if (right_min_value < left_min_value)
             *min_value_ptr = right_min_value, *min_index_ptr = left_count + right_min_index;
@@ -818,7 +818,7 @@ NK_PUBLIC void nk_reduce_moments_u8_neon(                             //
         nk_size_t left_count = count / 2;
         nk_u64_t left_sum, left_sumsq, right_sum, right_sumsq;
         nk_reduce_moments_u8_neon(data_ptr, left_count, stride_bytes, &left_sum, &left_sumsq);
-        nk_reduce_moments_u8_neon(data + left_count * stride_elements, count - left_count, stride_bytes, &right_sum,
+        nk_reduce_moments_u8_neon(data_ptr + left_count * stride_elements, count - left_count, stride_bytes, &right_sum,
                                   &right_sumsq);
         nk_u64_sadd_(&left_sum, &right_sum, sum_ptr);
         nk_u64_sadd_(&left_sumsq, &right_sumsq, sumsq_ptr);
@@ -833,7 +833,7 @@ NK_INTERNAL void nk_reduce_minmax_u8_neon_contiguous_( //
     nk_u8_t const *data_ptr, nk_size_t count,          //
     nk_u8_t *min_value_ptr, nk_size_t *min_index_ptr,  //
     nk_u8_t *max_value_ptr, nk_size_t *max_index_ptr) {
-    uint8x16_t min_u8x16 = vld1q_u8(data), max_u8x16 = min_u8x16;
+    uint8x16_t min_u8x16 = vld1q_u8(data_ptr), max_u8x16 = min_u8x16;
     uint8x16_t min_iter_u8x16 = vdupq_n_u8(0), max_iter_u8x16 = vdupq_n_u8(0);
     uint8x16_t iter_u8x16 = vdupq_n_u8(1), one_u8x16 = vdupq_n_u8(1);
     nk_size_t idx = 16;
@@ -850,7 +850,7 @@ NK_INTERNAL void nk_reduce_minmax_u8_neon_contiguous_( //
     nk_size_t remaining = count - idx;
     if (remaining > 0) {
         nk_b128_vec_t tail_vec;
-        nk_partial_load_b8x16_serial_(data + idx, &tail_vec, remaining);
+        nk_partial_load_b8x16_serial_(data_ptr + idx, &tail_vec, remaining);
         uint8x16_t lane_indices_u8x16 = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15};
         uint8x16_t valid_u8x16 = vcltq_u8(lane_indices_u8x16, vdupq_n_u8((uint8_t)remaining));
         uint8x16_t data_for_min_u8x16 = vbslq_u8(valid_u8x16, tail_vec.u8x16, vdupq_n_u8(NK_U8_MAX));
@@ -894,7 +894,7 @@ NK_INTERNAL void nk_reduce_minmax_u8_neon_strided_(                      //
     nk_size_t idx = 0;
     if (stride_elements == 2) {
         for (; idx + 16 <= count; idx += 16) {
-            uint8x16x2_t loaded_u8x16x2 = vld2q_u8((nk_u8_t const *)data + idx * 2);
+            uint8x16x2_t loaded_u8x16x2 = vld2q_u8((nk_u8_t const *)data_ptr + idx * 2);
             uint8x16_t data_u8x16 = loaded_u8x16x2.val[0];
             uint8x16_t less_u8x16 = vcltq_u8(data_u8x16, min_u8x16);
             uint8x16_t greater_u8x16 = vcgtq_u8(data_u8x16, max_u8x16);
@@ -907,7 +907,7 @@ NK_INTERNAL void nk_reduce_minmax_u8_neon_strided_(                      //
     }
     else if (stride_elements == 3) {
         for (; idx + 16 <= count; idx += 16) {
-            uint8x16x3_t loaded_u8x16x3 = vld3q_u8((nk_u8_t const *)data + idx * 3);
+            uint8x16x3_t loaded_u8x16x3 = vld3q_u8((nk_u8_t const *)data_ptr + idx * 3);
             uint8x16_t data_u8x16 = loaded_u8x16x3.val[0];
             uint8x16_t less_u8x16 = vcltq_u8(data_u8x16, min_u8x16);
             uint8x16_t greater_u8x16 = vcgtq_u8(data_u8x16, max_u8x16);
@@ -920,7 +920,7 @@ NK_INTERNAL void nk_reduce_minmax_u8_neon_strided_(                      //
     }
     else {
         for (; idx + 16 <= count; idx += 16) {
-            uint8x16x4_t loaded_u8x16x4 = vld4q_u8((nk_u8_t const *)data + idx * 4);
+            uint8x16x4_t loaded_u8x16x4 = vld4q_u8((nk_u8_t const *)data_ptr + idx * 4);
             uint8x16_t data_u8x16 = loaded_u8x16x4.val[0];
             uint8x16_t less_u8x16 = vcltq_u8(data_u8x16, min_u8x16);
             uint8x16_t greater_u8x16 = vcgtq_u8(data_u8x16, max_u8x16);
@@ -950,7 +950,7 @@ NK_INTERNAL void nk_reduce_minmax_u8_neon_strided_(                      //
     nk_u8_t max_lane_offset = vminvq_u8(max_masked_lanes_u8x16);
     nk_size_t max_idx = (nk_size_t)earliest_max_cycle * 16 + (nk_size_t)max_lane_offset;
     for (; idx < count; ++idx) {
-        nk_u8_t val = *(data + idx * stride_elements);
+        nk_u8_t val = *(data_ptr + idx * stride_elements);
         if (val < min_value) min_value = val, min_idx = idx;
         if (val > max_value) max_value = val, max_idx = idx;
     }
@@ -975,7 +975,7 @@ NK_PUBLIC void nk_reduce_minmax_u8_neon(                              //
         nk_size_t left_min_index, right_min_index, left_max_index, right_max_index;
         nk_reduce_minmax_u8_neon(data_ptr, left_count, stride_bytes, &left_min_value, &left_min_index, &left_max_value,
                                  &left_max_index);
-        nk_reduce_minmax_u8_neon(data + left_count * stride_elements, count - left_count, stride_bytes,
+        nk_reduce_minmax_u8_neon(data_ptr + left_count * stride_elements, count - left_count, stride_bytes,
                                  &right_min_value, &right_min_index, &right_max_value, &right_max_index);
         if (right_min_value < left_min_value)
             *min_value_ptr = right_min_value, *min_index_ptr = left_count + right_min_index;
@@ -1085,8 +1085,8 @@ NK_PUBLIC void nk_reduce_moments_i16_neon(                             //
         nk_i64_t left_sum, right_sum;
         nk_u64_t left_sumsq, right_sumsq;
         nk_reduce_moments_i16_neon(data_ptr, left_count, stride_bytes, &left_sum, &left_sumsq);
-        nk_reduce_moments_i16_neon(data + left_count * stride_elements, count - left_count, stride_bytes, &right_sum,
-                                   &right_sumsq);
+        nk_reduce_moments_i16_neon(data_ptr + left_count * stride_elements, count - left_count, stride_bytes,
+                                   &right_sum, &right_sumsq);
         nk_i64_sadd_(&left_sum, &right_sum, sum_ptr);
         nk_u64_sadd_(&left_sumsq, &right_sumsq, sumsq_ptr);
     }
@@ -1100,7 +1100,7 @@ NK_INTERNAL void nk_reduce_minmax_i16_neon_contiguous_( //
     nk_i16_t const *data_ptr, nk_size_t count,          //
     nk_i16_t *min_value_ptr, nk_size_t *min_index_ptr,  //
     nk_i16_t *max_value_ptr, nk_size_t *max_index_ptr) {
-    int16x8_t min_i16x8 = vld1q_s16(data), max_i16x8 = min_i16x8;
+    int16x8_t min_i16x8 = vld1q_s16(data_ptr), max_i16x8 = min_i16x8;
     uint16x8_t min_iter_u16x8 = vdupq_n_u16(0), max_iter_u16x8 = vdupq_n_u16(0);
     uint16x8_t iter_u16x8 = vdupq_n_u16(1), one_u16x8 = vdupq_n_u16(1);
     nk_size_t idx = 8;
@@ -1117,7 +1117,7 @@ NK_INTERNAL void nk_reduce_minmax_i16_neon_contiguous_( //
     nk_size_t remaining = count - idx;
     if (remaining > 0) {
         nk_b128_vec_t tail_vec;
-        nk_partial_load_b16x8_serial_(data + idx, &tail_vec, remaining);
+        nk_partial_load_b16x8_serial_(data_ptr + idx, &tail_vec, remaining);
         uint16x8_t lane_indices_u16x8 = {0, 1, 2, 3, 4, 5, 6, 7};
         uint16x8_t valid_u16x8 = vcltq_u16(lane_indices_u16x8, vdupq_n_u16((uint16_t)remaining));
         int16x8_t data_for_min_i16x8 = vbslq_s16(valid_u16x8, tail_vec.i16x8, vdupq_n_s16(NK_I16_MAX));
@@ -1217,7 +1217,7 @@ NK_INTERNAL void nk_reduce_minmax_i16_neon_strided_(                      //
     nk_u16_t max_lane_offset = vminvq_u16(max_masked_lanes_u16x8);
     nk_size_t max_idx = (nk_size_t)earliest_max_cycle * 8 + (nk_size_t)max_lane_offset;
     for (; idx < count; ++idx) {
-        nk_i16_t val = *(data + idx * stride_elements);
+        nk_i16_t val = *(data_ptr + idx * stride_elements);
         if (val < min_value) min_value = val, min_idx = idx;
         if (val > max_value) max_value = val, max_idx = idx;
     }
@@ -1243,7 +1243,7 @@ NK_PUBLIC void nk_reduce_minmax_i16_neon(                              //
         nk_size_t left_min_index, right_min_index, left_max_index, right_max_index;
         nk_reduce_minmax_i16_neon(data_ptr, left_count, stride_bytes, &left_min_value, &left_min_index, &left_max_value,
                                   &left_max_index);
-        nk_reduce_minmax_i16_neon(data + left_count * stride_elements, count - left_count, stride_bytes,
+        nk_reduce_minmax_i16_neon(data_ptr + left_count * stride_elements, count - left_count, stride_bytes,
                                   &right_min_value, &right_min_index, &right_max_value, &right_max_index);
         if (right_min_value < left_min_value)
             *min_value_ptr = right_min_value, *min_index_ptr = left_count + right_min_index;
@@ -1351,8 +1351,8 @@ NK_PUBLIC void nk_reduce_moments_u16_neon(                             //
         nk_size_t left_count = count / 2;
         nk_u64_t left_sum, left_sumsq, right_sum, right_sumsq;
         nk_reduce_moments_u16_neon(data_ptr, left_count, stride_bytes, &left_sum, &left_sumsq);
-        nk_reduce_moments_u16_neon(data + left_count * stride_elements, count - left_count, stride_bytes, &right_sum,
-                                   &right_sumsq);
+        nk_reduce_moments_u16_neon(data_ptr + left_count * stride_elements, count - left_count, stride_bytes,
+                                   &right_sum, &right_sumsq);
         nk_u64_sadd_(&left_sum, &right_sum, sum_ptr);
         nk_u64_sadd_(&left_sumsq, &right_sumsq, sumsq_ptr);
     }
@@ -1366,7 +1366,7 @@ NK_INTERNAL void nk_reduce_minmax_u16_neon_contiguous_( //
     nk_u16_t const *data_ptr, nk_size_t count,          //
     nk_u16_t *min_value_ptr, nk_size_t *min_index_ptr,  //
     nk_u16_t *max_value_ptr, nk_size_t *max_index_ptr) {
-    uint16x8_t min_u16x8 = vld1q_u16(data), max_u16x8 = min_u16x8;
+    uint16x8_t min_u16x8 = vld1q_u16(data_ptr), max_u16x8 = min_u16x8;
     uint16x8_t min_iter_u16x8 = vdupq_n_u16(0), max_iter_u16x8 = vdupq_n_u16(0);
     uint16x8_t iter_u16x8 = vdupq_n_u16(1), one_u16x8 = vdupq_n_u16(1);
     nk_size_t idx = 8;
@@ -1383,7 +1383,7 @@ NK_INTERNAL void nk_reduce_minmax_u16_neon_contiguous_( //
     nk_size_t remaining = count - idx;
     if (remaining > 0) {
         nk_b128_vec_t tail_vec;
-        nk_partial_load_b16x8_serial_(data + idx, &tail_vec, remaining);
+        nk_partial_load_b16x8_serial_(data_ptr + idx, &tail_vec, remaining);
         uint16x8_t lane_indices_u16x8 = {0, 1, 2, 3, 4, 5, 6, 7};
         uint16x8_t valid_u16x8 = vcltq_u16(lane_indices_u16x8, vdupq_n_u16((uint16_t)remaining));
         uint16x8_t data_for_min_u16x8 = vbslq_u16(valid_u16x8, tail_vec.u16x8, vdupq_n_u16(NK_U16_MAX));
@@ -1427,7 +1427,7 @@ NK_INTERNAL void nk_reduce_minmax_u16_neon_strided_(                      //
     nk_size_t idx = 0;
     if (stride_elements == 2) {
         for (; idx + 8 <= count; idx += 8) {
-            uint16x8x2_t loaded_u16x8x2 = vld2q_u16((nk_u16_t const *)data + idx * 2);
+            uint16x8x2_t loaded_u16x8x2 = vld2q_u16((nk_u16_t const *)data_ptr + idx * 2);
             uint16x8_t data_u16x8 = loaded_u16x8x2.val[0];
             uint16x8_t less_u16x8 = vcltq_u16(data_u16x8, min_u16x8);
             uint16x8_t greater_u16x8 = vcgtq_u16(data_u16x8, max_u16x8);
@@ -1440,7 +1440,7 @@ NK_INTERNAL void nk_reduce_minmax_u16_neon_strided_(                      //
     }
     else if (stride_elements == 3) {
         for (; idx + 8 <= count; idx += 8) {
-            uint16x8x3_t loaded_u16x8x3 = vld3q_u16((nk_u16_t const *)data + idx * 3);
+            uint16x8x3_t loaded_u16x8x3 = vld3q_u16((nk_u16_t const *)data_ptr + idx * 3);
             uint16x8_t data_u16x8 = loaded_u16x8x3.val[0];
             uint16x8_t less_u16x8 = vcltq_u16(data_u16x8, min_u16x8);
             uint16x8_t greater_u16x8 = vcgtq_u16(data_u16x8, max_u16x8);
@@ -1453,7 +1453,7 @@ NK_INTERNAL void nk_reduce_minmax_u16_neon_strided_(                      //
     }
     else {
         for (; idx + 8 <= count; idx += 8) {
-            uint16x8x4_t loaded_u16x8x4 = vld4q_u16((nk_u16_t const *)data + idx * 4);
+            uint16x8x4_t loaded_u16x8x4 = vld4q_u16((nk_u16_t const *)data_ptr + idx * 4);
             uint16x8_t data_u16x8 = loaded_u16x8x4.val[0];
             uint16x8_t less_u16x8 = vcltq_u16(data_u16x8, min_u16x8);
             uint16x8_t greater_u16x8 = vcgtq_u16(data_u16x8, max_u16x8);
@@ -1483,7 +1483,7 @@ NK_INTERNAL void nk_reduce_minmax_u16_neon_strided_(                      //
     nk_u16_t max_lane_offset = vminvq_u16(max_masked_lanes_u16x8);
     nk_size_t max_idx = (nk_size_t)earliest_max_cycle * 8 + (nk_size_t)max_lane_offset;
     for (; idx < count; ++idx) {
-        nk_u16_t val = *(data + idx * stride_elements);
+        nk_u16_t val = *(data_ptr + idx * stride_elements);
         if (val < min_value) min_value = val, min_idx = idx;
         if (val > max_value) max_value = val, max_idx = idx;
     }
@@ -1508,7 +1508,7 @@ NK_PUBLIC void nk_reduce_minmax_u16_neon(                              //
         nk_size_t left_min_index, right_min_index, left_max_index, right_max_index;
         nk_reduce_minmax_u16_neon(data_ptr, left_count, stride_bytes, &left_min_value, &left_min_index, &left_max_value,
                                   &left_max_index);
-        nk_reduce_minmax_u16_neon(data + left_count * stride_elements, count - left_count, stride_bytes,
+        nk_reduce_minmax_u16_neon(data_ptr + left_count * stride_elements, count - left_count, stride_bytes,
                                   &right_min_value, &right_min_index, &right_max_value, &right_max_index);
         if (right_min_value < left_min_value)
             *min_value_ptr = right_min_value, *min_index_ptr = left_count + right_min_index;
@@ -1584,32 +1584,30 @@ NK_INTERNAL void nk_reduce_moments_i32_neon_contiguous_( //
     nk_b128_vec_t lower_vec, upper_vec;
     lower_vec.u64x2 = sum_lower_u64x2;
     upper_vec.i64x2 = sum_upper_i64x2;
-    nk_u64_t s_lower = 0;
-    nk_i64_t s_upper = 0;
-    for (int i = 0; i < 2; i++) {
-        nk_u64_t before = s_lower;
-        s_lower += lower_vec.u64s[i];
-        if (s_lower < before) s_upper++;
-        s_upper += upper_vec.i64s[i];
-    }
+    nk_u64_t sum_lower = 0;
+    nk_i64_t sum_upper = 0;
+    nk_u64_t sum_before = sum_lower;
+    sum_lower += lower_vec.u64s[0], sum_upper += (sum_lower < sum_before) + upper_vec.i64s[0];
+    sum_before = sum_lower;
+    sum_lower += lower_vec.u64s[1], sum_upper += (sum_lower < sum_before) + upper_vec.i64s[1];
     // Scalar tail
     for (; idx < count; ++idx) {
         nk_i64_t value_i64 = (nk_i64_t)data_ptr[idx];
-        nk_u64_t before = s_lower;
-        s_lower += (nk_u64_t)val;
-        if (s_lower < before) s_upper++;
-        s_upper += (val >> 63);
+        sum_before = sum_lower;
+        sum_lower += (nk_u64_t)value_i64;
+        if (sum_lower < sum_before) sum_upper++;
+        sum_upper += (value_i64 >> 63);
         nk_i64_t product;
-        nk_i64_smul_(&val, &val, &product);
+        nk_i64_smul_(&value_i64, &value_i64, &product);
         nk_u64_t unsigned_product = (nk_u64_t)product;
         nk_u64_sadd_(&sq, &unsigned_product, &sq);
     }
     // Clamp 128-bit sum to i64 range
-    nk_i64_t s_lower_signed = (nk_i64_t)s_lower;
-    if (s_upper == (s_lower_signed >> 63)) *sum = s_lower_signed;
-    else if (s_upper >= 0) *sum = NK_I64_MAX;
-    else *sum = NK_I64_MIN;
-    *sumsq_ptr = sumsq;
+    nk_i64_t sum_lower_signed = (nk_i64_t)sum_lower;
+    if (sum_upper == (sum_lower_signed >> 63)) *sum_ptr = sum_lower_signed;
+    else if (sum_upper >= 0) *sum_ptr = NK_I64_MAX;
+    else *sum_ptr = NK_I64_MIN;
+    *sumsq_ptr = sq;
 }
 
 NK_INTERNAL void nk_reduce_moments_i32_neon_strided_(                     //
@@ -1735,30 +1733,28 @@ NK_INTERNAL void nk_reduce_moments_i32_neon_strided_(                     //
     nk_b128_vec_t lower_vec, upper_vec;
     lower_vec.u64x2 = sum_lower_u64x2;
     upper_vec.i64x2 = sum_upper_i64x2;
-    nk_u64_t s_lower = 0;
-    nk_i64_t s_upper = 0;
-    for (int i = 0; i < 2; i++) {
-        nk_u64_t before = s_lower;
-        s_lower += lower_vec.u64s[i];
-        if (s_lower < before) s_upper++;
-        s_upper += upper_vec.i64s[i];
-    }
+    nk_u64_t sum_lower = 0;
+    nk_i64_t sum_upper = 0;
+    nk_u64_t sum_before = sum_lower;
+    sum_lower += lower_vec.u64s[0], sum_upper += (sum_lower < sum_before) + upper_vec.i64s[0];
+    sum_before = sum_lower;
+    sum_lower += lower_vec.u64s[1], sum_upper += (sum_lower < sum_before) + upper_vec.i64s[1];
     for (; idx < count; ++idx) {
-        nk_i64_t val = (nk_i64_t) * (data + idx * stride_elements);
-        nk_u64_t before = s_lower;
-        s_lower += (nk_u64_t)val;
-        if (s_lower < before) s_upper++;
-        s_upper += (val >> 63);
+        nk_i64_t val = (nk_i64_t) * (data_ptr + idx * stride_elements);
+        sum_before = sum_lower;
+        sum_lower += (nk_u64_t)val;
+        if (sum_lower < sum_before) sum_upper++;
+        sum_upper += (val >> 63);
         nk_i64_t product;
         nk_i64_smul_(&val, &val, &product);
         nk_u64_t unsigned_product = (nk_u64_t)product;
         nk_u64_sadd_(&sq, &unsigned_product, &sq);
     }
-    nk_i64_t s_lower_signed = (nk_i64_t)s_lower;
-    if (s_upper == (s_lower_signed >> 63)) *sum = s_lower_signed;
-    else if (s_upper >= 0) *sum = NK_I64_MAX;
-    else *sum = NK_I64_MIN;
-    *sumsq_ptr = sumsq;
+    nk_i64_t sum_lower_signed = (nk_i64_t)sum_lower;
+    if (sum_upper == (sum_lower_signed >> 63)) *sum_ptr = sum_lower_signed;
+    else if (sum_upper >= 0) *sum_ptr = NK_I64_MAX;
+    else *sum_ptr = NK_I64_MIN;
+    *sumsq_ptr = sq;
 }
 
 NK_PUBLIC void nk_reduce_moments_i32_neon(                             //
@@ -1778,7 +1774,7 @@ NK_INTERNAL void nk_reduce_minmax_i32_neon_contiguous_( //
     nk_i32_t const *data_ptr, nk_size_t count,          //
     nk_i32_t *min_value_ptr, nk_size_t *min_index_ptr,  //
     nk_i32_t *max_value_ptr, nk_size_t *max_index_ptr) {
-    int32x4_t min_i32x4 = vld1q_s32(data), max_i32x4 = min_i32x4;
+    int32x4_t min_i32x4 = vld1q_s32(data_ptr), max_i32x4 = min_i32x4;
     uint32x4_t min_iter_u32x4 = vdupq_n_u32(0), max_iter_u32x4 = vdupq_n_u32(0);
     uint32x4_t iter_u32x4 = vdupq_n_u32(1), one_u32x4 = vdupq_n_u32(1);
     nk_size_t idx = 4;
@@ -1895,7 +1891,7 @@ NK_INTERNAL void nk_reduce_minmax_i32_neon_strided_(                      //
     nk_u32_t max_lane_offset = vminvq_u32(max_masked_lanes_u32x4);
     nk_size_t max_idx = (nk_size_t)earliest_max_cycle * 4 + (nk_size_t)max_lane_offset;
     for (; idx < count; ++idx) {
-        nk_i32_t val = *(data + idx * stride_elements);
+        nk_i32_t val = *(data_ptr + idx * stride_elements);
         if (val < min_value) min_value = val, min_idx = idx;
         if (val > max_value) max_value = val, max_idx = idx;
     }
@@ -1921,7 +1917,7 @@ NK_PUBLIC void nk_reduce_minmax_i32_neon(                              //
         nk_size_t left_min_index, right_min_index, left_max_index, right_max_index;
         nk_reduce_minmax_i32_neon(data_ptr, left_count, stride_bytes, &left_min_value, &left_min_index, &left_max_value,
                                   &left_max_index);
-        nk_reduce_minmax_i32_neon(data + left_count * stride_elements, count - left_count, stride_bytes,
+        nk_reduce_minmax_i32_neon(data_ptr + left_count * stride_elements, count - left_count, stride_bytes,
                                   &right_min_value, &right_min_index, &right_max_value, &right_max_index);
         if (right_min_value < left_min_value)
             *min_value_ptr = right_min_value, *min_index_ptr = left_count + right_min_index;
@@ -1964,7 +1960,7 @@ NK_INTERNAL void nk_reduce_moments_u32_neon_contiguous_( //
         nk_u64_t value = (nk_u64_t)data_ptr[idx];
         sum += value;
         nk_u64_t product = value * value;
-        nk_u64_sadd_(&sq, &product, &sq);
+        nk_u64_sadd_(&sumsq, &product, &sumsq);
     }
     *sum_ptr = sum, *sumsq_ptr = sumsq;
 }
@@ -2014,10 +2010,10 @@ NK_INTERNAL void nk_reduce_moments_u32_neon_strided_(                     //
     nk_u64_t sum = vgetq_lane_u64(sum_u64x2, 0) + vgetq_lane_u64(sum_u64x2, 1);
     nk_u64_t sumsq = nk_reduce_sadd_u64x2_neon_(sumsq_u64x2);
     for (; idx < count; ++idx) {
-        nk_u64_t val = (nk_u64_t) * (data + idx * stride_elements);
-        sum += value;
-        nk_u64_t product = value * value;
-        nk_u64_sadd_(&sq, &product, &sq);
+        nk_u64_t val = (nk_u64_t) * (data_ptr + idx * stride_elements);
+        sum += val;
+        nk_u64_t product = val * val;
+        nk_u64_sadd_(&sumsq, &product, &sumsq);
     }
     *sum_ptr = sum, *sumsq_ptr = sumsq;
 }
@@ -2033,8 +2029,8 @@ NK_PUBLIC void nk_reduce_moments_u32_neon(                             //
         nk_size_t left_count = count / 2;
         nk_u64_t left_sum, left_sumsq, right_sum, right_sumsq;
         nk_reduce_moments_u32_neon(data_ptr, left_count, stride_bytes, &left_sum, &left_sumsq);
-        nk_reduce_moments_u32_neon(data + left_count * stride_elements, count - left_count, stride_bytes, &right_sum,
-                                   &right_sumsq);
+        nk_reduce_moments_u32_neon(data_ptr + left_count * stride_elements, count - left_count, stride_bytes,
+                                   &right_sum, &right_sumsq);
         nk_u64_sadd_(&left_sum, &right_sum, sum_ptr);
         nk_u64_sadd_(&left_sumsq, &right_sumsq, sumsq_ptr);
     }
@@ -2048,7 +2044,7 @@ NK_INTERNAL void nk_reduce_minmax_u32_neon_contiguous_( //
     nk_u32_t const *data_ptr, nk_size_t count,          //
     nk_u32_t *min_value_ptr, nk_size_t *min_index_ptr,  //
     nk_u32_t *max_value_ptr, nk_size_t *max_index_ptr) {
-    uint32x4_t min_u32x4 = vld1q_u32(data), max_u32x4 = min_u32x4;
+    uint32x4_t min_u32x4 = vld1q_u32(data_ptr), max_u32x4 = min_u32x4;
     uint32x4_t min_iter_u32x4 = vdupq_n_u32(0), max_iter_u32x4 = vdupq_n_u32(0);
     uint32x4_t iter_u32x4 = vdupq_n_u32(1), one_u32x4 = vdupq_n_u32(1);
     nk_size_t idx = 4;
@@ -2165,7 +2161,7 @@ NK_INTERNAL void nk_reduce_minmax_u32_neon_strided_(                      //
     nk_u32_t max_lane_offset = vminvq_u32(max_masked_lanes_u32x4);
     nk_size_t max_idx = (nk_size_t)earliest_max_cycle * 4 + (nk_size_t)max_lane_offset;
     for (; idx < count; ++idx) {
-        nk_u32_t val = *(data + idx * stride_elements);
+        nk_u32_t val = *(data_ptr + idx * stride_elements);
         if (val < min_value) min_value = val, min_idx = idx;
         if (val > max_value) max_value = val, max_idx = idx;
     }
@@ -2190,7 +2186,7 @@ NK_PUBLIC void nk_reduce_minmax_u32_neon(                              //
         nk_size_t left_min_index, right_min_index, left_max_index, right_max_index;
         nk_reduce_minmax_u32_neon(data_ptr, left_count, stride_bytes, &left_min_value, &left_min_index, &left_max_value,
                                   &left_max_index);
-        nk_reduce_minmax_u32_neon(data + left_count * stride_elements, count - left_count, stride_bytes,
+        nk_reduce_minmax_u32_neon(data_ptr + left_count * stride_elements, count - left_count, stride_bytes,
                                   &right_min_value, &right_min_index, &right_max_value, &right_max_index);
         if (right_min_value < left_min_value)
             *min_value_ptr = right_min_value, *min_index_ptr = left_count + right_min_index;
@@ -2496,7 +2492,8 @@ NK_INTERNAL void nk_reduce_moments_e2m3_neon_contiguous_( //
     nk_i64_t sum = vaddlvq_s32(sum_i32x4);
     nk_u64_t sumsq = vgetq_lane_u64(sumsq_u64x2, 0) + vgetq_lane_u64(sumsq_u64x2, 1);
     for (; idx < count; ++idx) {
-        nk_f32_t value_f32 = nk_e2m3_to_f32(data_ptr[idx]);
+        nk_f32_t value_f32;
+        nk_e2m3_to_f32_serial(&data_ptr[idx], &value_f32);
         sum += (nk_i64_t)(value_f32 * 16.0f), sumsq += (nk_u64_t)(nk_i64_t)(value_f32 * value_f32 * 256.0f);
     }
     *sum_ptr = (nk_f32_t)sum / 16.0f, *sumsq_ptr = (nk_f32_t)sumsq / 256.0f;
@@ -2569,7 +2566,8 @@ NK_INTERNAL void nk_reduce_moments_e2m3_neon_strided_(                     //
     nk_i64_t sum = vaddlvq_s32(sum_i32x4);
     nk_u64_t sumsq = vgetq_lane_u64(sumsq_u64x2, 0) + vgetq_lane_u64(sumsq_u64x2, 1);
     for (; idx < count; ++idx) {
-        nk_f32_t val = nk_e2m3_to_f32(*(nk_e2m3_t const *)(data_ptr + idx * stride_elements));
+        nk_f32_t val;
+        nk_e2m3_to_f32_serial((nk_e2m3_t const *)(data_ptr + idx * stride_elements), &val);
         sum += (nk_i64_t)(val * 16.0f), sumsq += (nk_u64_t)(nk_i64_t)(val * val * 256.0f);
     }
     *sum_ptr = (nk_f32_t)sum / 16.0f, *sumsq_ptr = (nk_f32_t)sumsq / 256.0f;
@@ -2586,9 +2584,9 @@ NK_PUBLIC void nk_reduce_moments_e2m3_neon(                             //
         nk_size_t left_count = count / 2;
         nk_f32_t left_sum, left_sumsq, right_sum, right_sumsq;
         nk_reduce_moments_e2m3_neon(data_ptr, left_count, stride_bytes, &left_sum, &left_sumsq);
-        nk_reduce_moments_e2m3_neon(data + left_count * stride_elements, count - left_count, stride_bytes, &right_sum,
-                                    &right_sumsq);
-        *sum = left_sum + right_sum, *sumsq = left_sumsq + right_sumsq;
+        nk_reduce_moments_e2m3_neon(data_ptr + left_count * stride_elements, count - left_count, stride_bytes,
+                                    &right_sum, &right_sumsq);
+        *sum_ptr = left_sum + right_sum, *sumsq_ptr = left_sumsq + right_sumsq;
     }
     else if (stride_elements == 1) nk_reduce_moments_e2m3_neon_contiguous_(data_ptr, count, sum_ptr, sumsq_ptr);
     else if (stride_elements <= 4)
@@ -2620,7 +2618,7 @@ NK_INTERNAL void nk_reduce_minmax_e2m3_neon_contiguous_( //
     nk_size_t remaining = count - idx;
     if (remaining > 0) {
         nk_b128_vec_t tail_vec;
-        nk_partial_load_b8x16_serial_(data + idx, &tail_vec, remaining);
+        nk_partial_load_b8x16_serial_(data_ptr + idx, &tail_vec, remaining);
         uint8x16_t comparable_u8x16 = nk_fp6x16_to_comparable_neon_(tail_vec.u8x16);
         uint8x16_t lane_indices_u8x16 = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15};
         uint8x16_t valid_u8x16 = vcltq_u8(lane_indices_u8x16, vdupq_n_u8((uint8_t)remaining));
@@ -2721,7 +2719,7 @@ NK_INTERNAL void nk_reduce_minmax_e2m3_neon_strided_(                      //
     nk_u8_t max_lane_offset = vminvq_u8(max_masked_lanes_u8x16);
     nk_size_t max_idx = (nk_size_t)earliest_max_cycle * 16 + (nk_size_t)max_lane_offset;
     for (; idx < count; ++idx) {
-        nk_u8_t raw = *(nk_u8_t const *)(data + idx * stride_elements);
+        nk_u8_t raw = *(nk_u8_t const *)(data_ptr + idx * stride_elements);
         nk_u8_t magnitude = raw & 0x1F;
         nk_u8_t comparable = (raw & 0x20) ? (0x1F - magnitude) : (magnitude | 0x20);
         if (comparable < min_comparable) min_comparable = comparable, min_idx = idx;
@@ -2749,12 +2747,12 @@ NK_PUBLIC void nk_reduce_minmax_e2m3_neon(                              //
         nk_size_t left_min_index, right_min_index, left_max_index, right_max_index;
         nk_reduce_minmax_e2m3_neon(data_ptr, left_count, stride_bytes, &left_min_value, &left_min_index,
                                    &left_max_value, &left_max_index);
-        nk_reduce_minmax_e2m3_neon(data + left_count * stride_elements, count - left_count, stride_bytes,
+        nk_reduce_minmax_e2m3_neon(data_ptr + left_count * stride_elements, count - left_count, stride_bytes,
                                    &right_min_value, &right_min_index, &right_max_value, &right_max_index);
-        if (nk_e2m3_compare_(&right_min_value, &left_min_value) < 0)
+        if (nk_e2m3_compare_(right_min_value, left_min_value) < 0)
             *min_value_ptr = right_min_value, *min_index_ptr = left_count + right_min_index;
         else *min_value_ptr = left_min_value, *min_index_ptr = left_min_index;
-        if (nk_e2m3_compare_(&right_max_value, &left_max_value) > 0)
+        if (nk_e2m3_compare_(right_max_value, left_max_value) > 0)
             *max_value_ptr = right_max_value, *max_index_ptr = left_count + right_max_index;
         else *max_value_ptr = left_max_value, *max_index_ptr = left_max_index;
     }
@@ -2815,7 +2813,8 @@ NK_INTERNAL void nk_reduce_moments_e3m2_neon_contiguous_( //
     nk_i64_t sum = vaddlvq_s32(sum_i32x4);
     nk_u64_t sumsq = vgetq_lane_u64(sumsq_u64x2, 0) + vgetq_lane_u64(sumsq_u64x2, 1);
     for (; idx < count; ++idx) {
-        nk_f32_t value_f32 = nk_e3m2_to_f32(data_ptr[idx]);
+        nk_f32_t value_f32;
+        nk_e3m2_to_f32_serial(&data_ptr[idx], &value_f32);
         sum += (nk_i64_t)(value_f32 * 16.0f), sumsq += (nk_u64_t)(nk_i64_t)(value_f32 * value_f32 * 256.0f);
     }
     *sum_ptr = (nk_f32_t)sum / 16.0f, *sumsq_ptr = (nk_f32_t)sumsq / 256.0f;
@@ -2930,7 +2929,8 @@ NK_INTERNAL void nk_reduce_moments_e3m2_neon_strided_(                     //
     nk_i64_t sum = vaddlvq_s32(sum_i32x4);
     nk_u64_t sumsq = vgetq_lane_u64(sumsq_u64x2, 0) + vgetq_lane_u64(sumsq_u64x2, 1);
     for (; idx < count; ++idx) {
-        nk_f32_t val = nk_e3m2_to_f32(*(nk_e3m2_t const *)(data_ptr + idx * stride_elements));
+        nk_f32_t val;
+        nk_e3m2_to_f32_serial((nk_e3m2_t const *)(data_ptr + idx * stride_elements), &val);
         sum += (nk_i64_t)(val * 16.0f), sumsq += (nk_u64_t)(nk_i64_t)(val * val * 256.0f);
     }
     *sum_ptr = (nk_f32_t)sum / 16.0f, *sumsq_ptr = (nk_f32_t)sumsq / 256.0f;
@@ -2947,9 +2947,9 @@ NK_PUBLIC void nk_reduce_moments_e3m2_neon(                             //
         nk_size_t left_count = count / 2;
         nk_f32_t left_sum, left_sumsq, right_sum, right_sumsq;
         nk_reduce_moments_e3m2_neon(data_ptr, left_count, stride_bytes, &left_sum, &left_sumsq);
-        nk_reduce_moments_e3m2_neon(data + left_count * stride_elements, count - left_count, stride_bytes, &right_sum,
-                                    &right_sumsq);
-        *sum = left_sum + right_sum, *sumsq = left_sumsq + right_sumsq;
+        nk_reduce_moments_e3m2_neon(data_ptr + left_count * stride_elements, count - left_count, stride_bytes,
+                                    &right_sum, &right_sumsq);
+        *sum_ptr = left_sum + right_sum, *sumsq_ptr = left_sumsq + right_sumsq;
     }
     else if (stride_elements == 1) nk_reduce_moments_e3m2_neon_contiguous_(data_ptr, count, sum_ptr, sumsq_ptr);
     else if (stride_elements <= 4)
@@ -2981,7 +2981,7 @@ NK_INTERNAL void nk_reduce_minmax_e3m2_neon_contiguous_( //
     nk_size_t remaining = count - idx;
     if (remaining > 0) {
         nk_b128_vec_t tail_vec;
-        nk_partial_load_b8x16_serial_(data + idx, &tail_vec, remaining);
+        nk_partial_load_b8x16_serial_(data_ptr + idx, &tail_vec, remaining);
         uint8x16_t comparable_u8x16 = nk_fp6x16_to_comparable_neon_(tail_vec.u8x16);
         uint8x16_t lane_indices_u8x16 = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15};
         uint8x16_t valid_u8x16 = vcltq_u8(lane_indices_u8x16, vdupq_n_u8((uint8_t)remaining));
@@ -3082,7 +3082,7 @@ NK_INTERNAL void nk_reduce_minmax_e3m2_neon_strided_(                      //
     nk_u8_t max_lane_offset = vminvq_u8(max_masked_lanes_u8x16);
     nk_size_t max_idx = (nk_size_t)earliest_max_cycle * 16 + (nk_size_t)max_lane_offset;
     for (; idx < count; ++idx) {
-        nk_u8_t raw = *(nk_u8_t const *)(data + idx * stride_elements);
+        nk_u8_t raw = *(nk_u8_t const *)(data_ptr + idx * stride_elements);
         nk_u8_t magnitude = raw & 0x1F;
         nk_u8_t comparable = (raw & 0x20) ? (0x1F - magnitude) : (magnitude | 0x20);
         if (comparable < min_comparable) min_comparable = comparable, min_idx = idx;
@@ -3110,12 +3110,12 @@ NK_PUBLIC void nk_reduce_minmax_e3m2_neon(                              //
         nk_size_t left_min_index, right_min_index, left_max_index, right_max_index;
         nk_reduce_minmax_e3m2_neon(data_ptr, left_count, stride_bytes, &left_min_value, &left_min_index,
                                    &left_max_value, &left_max_index);
-        nk_reduce_minmax_e3m2_neon(data + left_count * stride_elements, count - left_count, stride_bytes,
+        nk_reduce_minmax_e3m2_neon(data_ptr + left_count * stride_elements, count - left_count, stride_bytes,
                                    &right_min_value, &right_min_index, &right_max_value, &right_max_index);
-        if (nk_e3m2_compare_(&right_min_value, &left_min_value) < 0)
+        if (nk_e3m2_compare_(right_min_value, left_min_value) < 0)
             *min_value_ptr = right_min_value, *min_index_ptr = left_count + right_min_index;
         else *min_value_ptr = left_min_value, *min_index_ptr = left_min_index;
-        if (nk_e3m2_compare_(&right_max_value, &left_max_value) > 0)
+        if (nk_e3m2_compare_(right_max_value, left_max_value) > 0)
             *max_value_ptr = right_max_value, *max_index_ptr = left_count + right_max_index;
         else *max_value_ptr = left_max_value, *max_index_ptr = left_max_index;
     }
@@ -3152,7 +3152,8 @@ NK_INTERNAL void nk_reduce_moments_e4m3_neon_contiguous_( //
     }
     nk_f32_t sum = vaddvq_f32(sum_f32x4), sumsq = vaddvq_f32(sumsq_f32x4);
     for (; idx < count; ++idx) {
-        nk_f32_t value_f32 = nk_e4m3_to_f32(data_ptr[idx]);
+        nk_f32_t value_f32;
+        nk_e4m3_to_f32_serial(&data_ptr[idx], &value_f32);
         sum += value_f32, sumsq += value_f32 * value_f32;
     }
     *sum_ptr = sum, *sumsq_ptr = sumsq;
@@ -3216,7 +3217,8 @@ NK_INTERNAL void nk_reduce_moments_e4m3_neon_strided_(                     //
     }
     nk_f32_t sum = vaddvq_f32(sum_f32x4), sumsq = vaddvq_f32(sumsq_f32x4);
     for (; idx < count; ++idx) {
-        nk_f32_t val = nk_e4m3_to_f32(*(nk_e4m3_t const *)(data_ptr + idx * stride_elements));
+        nk_f32_t val;
+        nk_e4m3_to_f32_serial((nk_e4m3_t const *)(data_ptr + idx * stride_elements), &val);
         sum += val, sumsq += val * val;
     }
     *sum_ptr = sum, *sumsq_ptr = sumsq;
@@ -3233,9 +3235,9 @@ NK_PUBLIC void nk_reduce_moments_e4m3_neon(                             //
         nk_size_t left_count = count / 2;
         nk_f32_t left_sum, left_sumsq, right_sum, right_sumsq;
         nk_reduce_moments_e4m3_neon(data_ptr, left_count, stride_bytes, &left_sum, &left_sumsq);
-        nk_reduce_moments_e4m3_neon(data + left_count * stride_elements, count - left_count, stride_bytes, &right_sum,
-                                    &right_sumsq);
-        *sum = left_sum + right_sum, *sumsq = left_sumsq + right_sumsq;
+        nk_reduce_moments_e4m3_neon(data_ptr + left_count * stride_elements, count - left_count, stride_bytes,
+                                    &right_sum, &right_sumsq);
+        *sum_ptr = left_sum + right_sum, *sumsq_ptr = left_sumsq + right_sumsq;
     }
     else if (stride_elements == 1) nk_reduce_moments_e4m3_neon_contiguous_(data_ptr, count, sum_ptr, sumsq_ptr);
     else if (stride_elements <= 4)
@@ -3267,7 +3269,7 @@ NK_INTERNAL void nk_reduce_minmax_e4m3_neon_contiguous_( //
     nk_size_t remaining = count - idx;
     if (remaining > 0) {
         nk_b128_vec_t tail_vec;
-        nk_partial_load_b8x16_serial_(data + idx, &tail_vec, remaining);
+        nk_partial_load_b8x16_serial_(data_ptr + idx, &tail_vec, remaining);
         uint8x16_t comparable_u8x16 = nk_fp8x16_to_comparable_neon_(tail_vec.u8x16);
         uint8x16_t lane_indices_u8x16 = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15};
         uint8x16_t valid_u8x16 = vcltq_u8(lane_indices_u8x16, vdupq_n_u8((uint8_t)remaining));
@@ -3368,7 +3370,7 @@ NK_INTERNAL void nk_reduce_minmax_e4m3_neon_strided_(                      //
     nk_u8_t max_lane_offset = vminvq_u8(max_masked_lanes_u8x16);
     nk_size_t max_idx = (nk_size_t)earliest_max_cycle * 16 + (nk_size_t)max_lane_offset;
     for (; idx < count; ++idx) {
-        nk_u8_t raw = *(nk_u8_t const *)(data + idx * stride_elements);
+        nk_u8_t raw = *(nk_u8_t const *)(data_ptr + idx * stride_elements);
         nk_u8_t comparable = (raw & 0x80) ? (nk_u8_t)(~raw) : (raw ^ 0x80);
         if (comparable < min_comparable) min_comparable = comparable, min_idx = idx;
         if (comparable > max_comparable) max_comparable = comparable, max_idx = idx;
@@ -3395,12 +3397,12 @@ NK_PUBLIC void nk_reduce_minmax_e4m3_neon(                              //
         nk_size_t left_min_index, right_min_index, left_max_index, right_max_index;
         nk_reduce_minmax_e4m3_neon(data_ptr, left_count, stride_bytes, &left_min_value, &left_min_index,
                                    &left_max_value, &left_max_index);
-        nk_reduce_minmax_e4m3_neon(data + left_count * stride_elements, count - left_count, stride_bytes,
+        nk_reduce_minmax_e4m3_neon(data_ptr + left_count * stride_elements, count - left_count, stride_bytes,
                                    &right_min_value, &right_min_index, &right_max_value, &right_max_index);
-        if (nk_e4m3_compare_(&right_min_value, &left_min_value) < 0)
+        if (nk_e4m3_compare_(right_min_value, left_min_value) < 0)
             *min_value_ptr = right_min_value, *min_index_ptr = left_count + right_min_index;
         else *min_value_ptr = left_min_value, *min_index_ptr = left_min_index;
-        if (nk_e4m3_compare_(&right_max_value, &left_max_value) > 0)
+        if (nk_e4m3_compare_(right_max_value, left_max_value) > 0)
             *max_value_ptr = right_max_value, *max_index_ptr = left_count + right_max_index;
         else *max_value_ptr = left_max_value, *max_index_ptr = left_max_index;
     }
@@ -3421,7 +3423,7 @@ NK_INTERNAL void nk_reduce_moments_e5m2_neon_contiguous_( //
     float32x4_t sum_f32x4 = vdupq_n_f32(0), sumsq_f32x4 = vdupq_n_f32(0);
     nk_size_t idx = 0;
     for (; idx + 8 <= count; idx += 8) {
-        uint8x8_t raw_u8x8 = vld1_u8((nk_u8_t const *)(data + idx));
+        uint8x8_t raw_u8x8 = vld1_u8((nk_u8_t const *)(data_ptr + idx));
         float16x8_t half_f16x8 = nk_e5m2x8_to_f16x8_neon_(raw_u8x8);
         float32x4_t lo_f32x4 = vcvt_f32_f16(vget_low_f16(half_f16x8));
         float32x4_t hi_f32x4 = vcvt_high_f32_f16(half_f16x8);
@@ -3430,7 +3432,8 @@ NK_INTERNAL void nk_reduce_moments_e5m2_neon_contiguous_( //
     }
     nk_f32_t sum = vaddvq_f32(sum_f32x4), sumsq = vaddvq_f32(sumsq_f32x4);
     for (; idx < count; ++idx) {
-        nk_f32_t value_f32 = nk_e5m2_to_f32(data_ptr[idx]);
+        nk_f32_t value_f32;
+        nk_e5m2_to_f32_serial(&data_ptr[idx], &value_f32);
         sum += value_f32, sumsq += value_f32 * value_f32;
     }
     *sum_ptr = sum, *sumsq_ptr = sumsq;
@@ -3443,7 +3446,7 @@ NK_INTERNAL void nk_reduce_moments_e5m2_neon_strided_(                     //
     nk_size_t idx = 0;
     if (stride_elements == 2) {
         for (; idx + 8 <= count; idx += 8) {
-            uint8x8x2_t loaded_u8x8x2 = vld2_u8((nk_u8_t const *)(data + idx * 2));
+            uint8x8x2_t loaded_u8x8x2 = vld2_u8((nk_u8_t const *)(data_ptr + idx * 2));
             float16x8_t half_f16x8 = nk_e5m2x8_to_f16x8_neon_(loaded_u8x8x2.val[0]);
             float32x4_t lo_f32x4 = vcvt_f32_f16(vget_low_f16(half_f16x8));
             float32x4_t hi_f32x4 = vcvt_high_f32_f16(half_f16x8);
@@ -3453,7 +3456,7 @@ NK_INTERNAL void nk_reduce_moments_e5m2_neon_strided_(                     //
     }
     else if (stride_elements == 3) {
         for (; idx + 8 <= count; idx += 8) {
-            uint8x8x3_t loaded_u8x8x3 = vld3_u8((nk_u8_t const *)(data + idx * 3));
+            uint8x8x3_t loaded_u8x8x3 = vld3_u8((nk_u8_t const *)(data_ptr + idx * 3));
             float16x8_t half_f16x8 = nk_e5m2x8_to_f16x8_neon_(loaded_u8x8x3.val[0]);
             float32x4_t lo_f32x4 = vcvt_f32_f16(vget_low_f16(half_f16x8));
             float32x4_t hi_f32x4 = vcvt_high_f32_f16(half_f16x8);
@@ -3463,7 +3466,7 @@ NK_INTERNAL void nk_reduce_moments_e5m2_neon_strided_(                     //
     }
     else {
         for (; idx + 8 <= count; idx += 8) {
-            uint8x8x4_t loaded_u8x8x4 = vld4_u8((nk_u8_t const *)(data + idx * 4));
+            uint8x8x4_t loaded_u8x8x4 = vld4_u8((nk_u8_t const *)(data_ptr + idx * 4));
             float16x8_t half_f16x8 = nk_e5m2x8_to_f16x8_neon_(loaded_u8x8x4.val[0]);
             float32x4_t lo_f32x4 = vcvt_f32_f16(vget_low_f16(half_f16x8));
             float32x4_t hi_f32x4 = vcvt_high_f32_f16(half_f16x8);
@@ -3473,7 +3476,8 @@ NK_INTERNAL void nk_reduce_moments_e5m2_neon_strided_(                     //
     }
     nk_f32_t sum = vaddvq_f32(sum_f32x4), sumsq = vaddvq_f32(sumsq_f32x4);
     for (; idx < count; ++idx) {
-        nk_f32_t val = nk_e5m2_to_f32(*(nk_e5m2_t const *)(data_ptr + idx * stride_elements));
+        nk_f32_t val;
+        nk_e5m2_to_f32_serial((nk_e5m2_t const *)(data_ptr + idx * stride_elements), &val);
         sum += val, sumsq += val * val;
     }
     *sum_ptr = sum, *sumsq_ptr = sumsq;
@@ -3490,9 +3494,9 @@ NK_PUBLIC void nk_reduce_moments_e5m2_neon(                             //
         nk_size_t left_count = count / 2;
         nk_f32_t left_sum, left_sumsq, right_sum, right_sumsq;
         nk_reduce_moments_e5m2_neon(data_ptr, left_count, stride_bytes, &left_sum, &left_sumsq);
-        nk_reduce_moments_e5m2_neon(data + left_count * stride_elements, count - left_count, stride_bytes, &right_sum,
-                                    &right_sumsq);
-        *sum = left_sum + right_sum, *sumsq = left_sumsq + right_sumsq;
+        nk_reduce_moments_e5m2_neon(data_ptr + left_count * stride_elements, count - left_count, stride_bytes,
+                                    &right_sum, &right_sumsq);
+        *sum_ptr = left_sum + right_sum, *sumsq_ptr = left_sumsq + right_sumsq;
     }
     else if (stride_elements == 1) nk_reduce_moments_e5m2_neon_contiguous_(data_ptr, count, sum_ptr, sumsq_ptr);
     else if (stride_elements <= 4)
@@ -3524,7 +3528,7 @@ NK_INTERNAL void nk_reduce_minmax_e5m2_neon_contiguous_( //
     nk_size_t remaining = count - idx;
     if (remaining > 0) {
         nk_b128_vec_t tail_vec;
-        nk_partial_load_b8x16_serial_(data + idx, &tail_vec, remaining);
+        nk_partial_load_b8x16_serial_(data_ptr + idx, &tail_vec, remaining);
         uint8x16_t comparable_u8x16 = nk_fp8x16_to_comparable_neon_(tail_vec.u8x16);
         uint8x16_t lane_indices_u8x16 = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15};
         uint8x16_t valid_u8x16 = vcltq_u8(lane_indices_u8x16, vdupq_n_u8((uint8_t)remaining));
@@ -3625,7 +3629,7 @@ NK_INTERNAL void nk_reduce_minmax_e5m2_neon_strided_(                      //
     nk_u8_t max_lane_offset = vminvq_u8(max_masked_lanes_u8x16);
     nk_size_t max_idx = (nk_size_t)earliest_max_cycle * 16 + (nk_size_t)max_lane_offset;
     for (; idx < count; ++idx) {
-        nk_u8_t raw = *(nk_u8_t const *)(data + idx * stride_elements);
+        nk_u8_t raw = *(nk_u8_t const *)(data_ptr + idx * stride_elements);
         nk_u8_t comparable = (raw & 0x80) ? (nk_u8_t)(~raw) : (raw ^ 0x80);
         if (comparable < min_comparable) min_comparable = comparable, min_idx = idx;
         if (comparable > max_comparable) max_comparable = comparable, max_idx = idx;
@@ -3652,12 +3656,12 @@ NK_PUBLIC void nk_reduce_minmax_e5m2_neon(                              //
         nk_size_t left_min_index, right_min_index, left_max_index, right_max_index;
         nk_reduce_minmax_e5m2_neon(data_ptr, left_count, stride_bytes, &left_min_value, &left_min_index,
                                    &left_max_value, &left_max_index);
-        nk_reduce_minmax_e5m2_neon(data + left_count * stride_elements, count - left_count, stride_bytes,
+        nk_reduce_minmax_e5m2_neon(data_ptr + left_count * stride_elements, count - left_count, stride_bytes,
                                    &right_min_value, &right_min_index, &right_max_value, &right_max_index);
-        if (nk_e5m2_compare_(&right_min_value, &left_min_value) < 0)
+        if (nk_e5m2_compare_(right_min_value, left_min_value) < 0)
             *min_value_ptr = right_min_value, *min_index_ptr = left_count + right_min_index;
         else *min_value_ptr = left_min_value, *min_index_ptr = left_min_index;
-        if (nk_e5m2_compare_(&right_max_value, &left_max_value) > 0)
+        if (nk_e5m2_compare_(right_max_value, left_max_value) > 0)
             *max_value_ptr = right_max_value, *max_index_ptr = left_count + right_max_index;
         else *max_value_ptr = left_max_value, *max_index_ptr = left_max_index;
     }
