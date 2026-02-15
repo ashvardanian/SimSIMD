@@ -403,3 +403,4 @@ void bench_cross_amx();
 void bench_cross_arm();
 void bench_cross_sme();
 void bench_cross_blas();
+void bench_cross_rvv();

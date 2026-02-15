@@ -346,6 +346,7 @@ if(NK_BUILD_BENCH)
         bench/bench_cross_arm.cpp
         bench/bench_cross_sme.cpp
         bench/bench_cross_blas.cpp
+        bench/bench_cross_rvv.cpp
     )
     target_link_libraries(nk_bench numkong Threads::Threads benchmark)
 
@@ -411,6 +412,7 @@ if(NK_BUILD_TEST)
         test/test_cross_arm.cpp
         test/test_cross_sme.cpp
         test/test_cross_blas.cpp
+        test/test_cross_rvv.cpp
         test/test_tensor.cpp
     )
     target_link_libraries(nk_test numkong m)

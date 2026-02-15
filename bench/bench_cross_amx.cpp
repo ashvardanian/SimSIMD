@@ -35,5 +35,7 @@ void bench_cross_amx() {
     dots_<e3m2_k, f32_k>("dots_packed_e3m2_sapphireamx", nk_dots_packed_size_e3m2_sapphireamx,
                          nk_dots_pack_e3m2_sapphireamx, nk_dots_packed_e3m2_sapphireamx);
     dots_symmetric_<e3m2_k, f32_k>("dots_symmetric_e3m2_sapphireamx", nk_dots_symmetric_e3m2_sapphireamx);
+    dots_symmetric_<bf16_k, f32_k>("dots_symmetric_bf16_sapphireamx", nk_dots_symmetric_bf16_sapphireamx);
+    dots_symmetric_<i8_k, i32_k>("dots_symmetric_i8_sapphireamx", nk_dots_symmetric_i8_sapphireamx);
 #endif
 }

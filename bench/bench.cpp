@@ -230,6 +230,7 @@ int main(int argc, char **argv) {
     bench_cross_arm();
     bench_cross_sme();
     bench_cross_blas();
+    bench_cross_rvv();
 
     bm::RunSpecifiedBenchmarks();
     bm::Shutdown();

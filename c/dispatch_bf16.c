@@ -26,6 +26,10 @@ void nk_dispatch_bf16_find_(nk_capability_t v, nk_kernel_kind_t k, nk_kernel_pun
         case nk_kernel_angular_k: *m = (m_t)&nk_angular_bf16_rvv, *c = nk_cap_rvv_k; return;
         case nk_kernel_reduce_moments_k: *m = (m_t)&nk_reduce_moments_bf16_rvv, *c = nk_cap_rvv_k; return;
         case nk_kernel_reduce_minmax_k: *m = (m_t)&nk_reduce_minmax_bf16_rvv, *c = nk_cap_rvv_k; return;
+        case nk_kernel_dots_packed_size_k: *m = (m_t)&nk_dots_packed_size_bf16_rvv, *c = nk_cap_rvv_k; return;
+        case nk_kernel_dots_pack_k: *m = (m_t)&nk_dots_pack_bf16_rvv, *c = nk_cap_rvv_k; return;
+        case nk_kernel_dots_packed_k: *m = (m_t)&nk_dots_packed_bf16_rvv, *c = nk_cap_rvv_k; return;
+        case nk_kernel_dots_symmetric_k: *m = (m_t)&nk_dots_symmetric_bf16_rvv, *c = nk_cap_rvv_k; return;
         default: break;
         }
 #endif

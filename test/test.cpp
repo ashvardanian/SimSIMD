@@ -262,6 +262,7 @@ int main(int argc, char **argv) {
     test_cross_arm();
     test_cross_sme();
     test_cross_blas();
+    test_cross_rvv();
 
     if (global_failure_count > 0) {
         std::puts("");

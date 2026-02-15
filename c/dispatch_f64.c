@@ -45,6 +45,10 @@ void nk_dispatch_f64_find_(nk_capability_t v, nk_kernel_kind_t k, nk_kernel_punn
         case nk_kernel_vincenty_k: *m = (m_t)&nk_vincenty_f64_rvv, *c = nk_cap_rvv_k; return;
         case nk_kernel_reduce_moments_k: *m = (m_t)&nk_reduce_moments_f64_rvv, *c = nk_cap_rvv_k; return;
         case nk_kernel_reduce_minmax_k: *m = (m_t)&nk_reduce_minmax_f64_rvv, *c = nk_cap_rvv_k; return;
+        case nk_kernel_dots_packed_size_k: *m = (m_t)&nk_dots_packed_size_f64_rvv, *c = nk_cap_rvv_k; return;
+        case nk_kernel_dots_pack_k: *m = (m_t)&nk_dots_pack_f64_rvv, *c = nk_cap_rvv_k; return;
+        case nk_kernel_dots_packed_k: *m = (m_t)&nk_dots_packed_f64_rvv, *c = nk_cap_rvv_k; return;
+        case nk_kernel_dots_symmetric_k: *m = (m_t)&nk_dots_symmetric_f64_rvv, *c = nk_cap_rvv_k; return;
         default: break;
         }
 #endif

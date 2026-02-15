@@ -37,6 +37,10 @@ void nk_dispatch_e4m3_find_(nk_capability_t v, nk_kernel_kind_t k, nk_kernel_pun
         case nk_kernel_angular_k: *m = (m_t)&nk_angular_e4m3_rvv, *c = nk_cap_rvv_k; return;
         case nk_kernel_reduce_moments_k: *m = (m_t)&nk_reduce_moments_e4m3_rvv, *c = nk_cap_rvv_k; return;
         case nk_kernel_reduce_minmax_k: *m = (m_t)&nk_reduce_minmax_e4m3_rvv, *c = nk_cap_rvv_k; return;
+        case nk_kernel_dots_packed_size_k: *m = (m_t)&nk_dots_packed_size_e4m3_rvv, *c = nk_cap_rvv_k; return;
+        case nk_kernel_dots_pack_k: *m = (m_t)&nk_dots_pack_e4m3_rvv, *c = nk_cap_rvv_k; return;
+        case nk_kernel_dots_packed_k: *m = (m_t)&nk_dots_packed_e4m3_rvv, *c = nk_cap_rvv_k; return;
+        case nk_kernel_dots_symmetric_k: *m = (m_t)&nk_dots_symmetric_e4m3_rvv, *c = nk_cap_rvv_k; return;
         default: break;
         }
 #endif
