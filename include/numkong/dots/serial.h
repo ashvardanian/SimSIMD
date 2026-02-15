@@ -969,45 +969,46 @@ typedef struct {
                                                                                                                        \
         /* Tile-first architecture: Process 32×32 macro-tile as 4×4 register tiles (depth innermost) */                \
         for (nk_size_t tile_row_start = 0; tile_row_start < macro_size; tile_row_start += 4) {                         \
-            for (nk_size_t tile_col_start = tile_row_start; tile_col_start < macro_size; tile_col_start += 4) {        \
+            for (nk_size_t tile_column_start = tile_row_start; tile_column_start < macro_size;                         \
+                 tile_column_start += 4) {                                                                             \
                                                                                                                        \
                 nk_size_t tile_rows = (tile_row_start + 4 <= macro_size) ? 4 : (macro_size - tile_row_start);          \
-                nk_size_t tile_cols = (tile_col_start + 4 <= macro_size) ? 4 : (macro_size - tile_col_start);          \
-                int is_diagonal_tile = (tile_row_start == tile_col_start);                                             \
+                nk_size_t tile_columns = (tile_column_start + 4 <= macro_size) ? 4 : (macro_size - tile_column_start); \
+                int is_diagonal_tile = (tile_row_start == tile_column_start);                                          \
                                                                                                                        \
                 /* Initialize 4×4 register-resident accumulators */                                                    \
                 NK_ALIGN64 state_type accumulators[4][4];                                                              \
                 for (nk_size_t row = 0; row < tile_rows; row++) {                                                      \
-                    nk_size_t col_start = is_diagonal_tile ? row : 0;                                                  \
-                    for (nk_size_t col = col_start; col < tile_cols; col++) {                                          \
-                        init_accumulator_fn(&accumulators[row][col]);                                                  \
+                    nk_size_t column_start = is_diagonal_tile ? row : 0;                                               \
+                    for (nk_size_t column = column_start; column < tile_columns; column++) {                           \
+                        init_accumulator_fn(&accumulators[row][column]);                                               \
                     }                                                                                                  \
                 }                                                                                                      \
                                                                                                                        \
                 /* Setup pointers (hoist outside depth loop) - always safe even for partial tiles */                   \
                 nk_##input_value_type##_t const *row_ptrs[4];                                                          \
-                nk_##input_value_type##_t const *col_ptrs[4];                                                          \
+                nk_##input_value_type##_t const *column_ptrs[4];                                                       \
                 row_ptrs[0] = vector_base_ptrs[tile_row_start + 0];                                                    \
                 row_ptrs[1] = (tile_rows > 1) ? vector_base_ptrs[tile_row_start + 1] : row_ptrs[0];                    \
                 row_ptrs[2] = (tile_rows > 2) ? vector_base_ptrs[tile_row_start + 2] : row_ptrs[0];                    \
                 row_ptrs[3] = (tile_rows > 3) ? vector_base_ptrs[tile_row_start + 3] : row_ptrs[0];                    \
                                                                                                                        \
                 if (is_diagonal_tile) {                                                                                \
-                    col_ptrs[0] = row_ptrs[0];                                                                         \
-                    col_ptrs[1] = row_ptrs[1];                                                                         \
-                    col_ptrs[2] = row_ptrs[2];                                                                         \
-                    col_ptrs[3] = row_ptrs[3];                                                                         \
+                    column_ptrs[0] = row_ptrs[0];                                                                      \
+                    column_ptrs[1] = row_ptrs[1];                                                                      \
+                    column_ptrs[2] = row_ptrs[2];                                                                      \
+                    column_ptrs[3] = row_ptrs[3];                                                                      \
                 }                                                                                                      \
                 else {                                                                                                 \
-                    col_ptrs[0] = vector_base_ptrs[tile_col_start + 0];                                                \
-                    col_ptrs[1] = (tile_cols > 1) ? vector_base_ptrs[tile_col_start + 1] : col_ptrs[0];                \
-                    col_ptrs[2] = (tile_cols > 2) ? vector_base_ptrs[tile_col_start + 2] : col_ptrs[0];                \
-                    col_ptrs[3] = (tile_cols > 3) ? vector_base_ptrs[tile_col_start + 3] : col_ptrs[0];                \
+                    column_ptrs[0] = vector_base_ptrs[tile_column_start + 0];                                          \
+                    column_ptrs[1] = (tile_columns > 1) ? vector_base_ptrs[tile_column_start + 1] : column_ptrs[0];    \
+                    column_ptrs[2] = (tile_columns > 2) ? vector_base_ptrs[tile_column_start + 2] : column_ptrs[0];    \
+                    column_ptrs[3] = (tile_columns > 3) ? vector_base_ptrs[tile_column_start + 3] : column_ptrs[0];    \
                 }                                                                                                      \
                                                                                                                        \
                 /* Depth loop is now innermost - key optimization */                                                   \
                 vec_type row_vecs[4];                                                                                  \
-                vec_type col_vecs[4];                                                                                  \
+                vec_type column_vecs[4];                                                                               \
                                                                                                                        \
                 for (nk_size_t depth_offset = 0; depth_offset < aligned_depth; depth_offset += depth_step_values) {    \
                     /* Always load all 4 vectors - aliasing is cheaper than branches */                                \
@@ -1017,81 +1018,81 @@ typedef struct {
                     load_vec_fn(row_ptrs[3] + depth_offset, &row_vecs[3]);                                             \
                                                                                                                        \
                     /* For diagonal tiles, column vectors alias row vectors (same memory) */                           \
-                    load_vec_fn(col_ptrs[0] + depth_offset, &col_vecs[0]);                                             \
-                    load_vec_fn(col_ptrs[1] + depth_offset, &col_vecs[1]);                                             \
-                    load_vec_fn(col_ptrs[2] + depth_offset, &col_vecs[2]);                                             \
-                    load_vec_fn(col_ptrs[3] + depth_offset, &col_vecs[3]);                                             \
+                    load_vec_fn(column_ptrs[0] + depth_offset, &column_vecs[0]);                                       \
+                    load_vec_fn(column_ptrs[1] + depth_offset, &column_vecs[1]);                                       \
+                    load_vec_fn(column_ptrs[2] + depth_offset, &column_vecs[2]);                                       \
+                    load_vec_fn(column_ptrs[3] + depth_offset, &column_vecs[3]);                                       \
                                                                                                                        \
                     nk_size_t vector_offset = depth_offset * dimensions_per_value;                                     \
                                                                                                                        \
                     /* Compute: always unroll for full 4×4, use loops only for partial tiles */                        \
-                    if (tile_rows == 4 && tile_cols == 4) {                                                            \
+                    if (tile_rows == 4 && tile_columns == 4) {                                                         \
                         if (is_diagonal_tile) {                                                                        \
                             /* Full 4×4 diagonal tile - upper triangle only (10 FMAs) */                               \
-                            inner_product_fn(&accumulators[0][0], row_vecs[0], col_vecs[0], vector_offset,             \
+                            inner_product_fn(&accumulators[0][0], row_vecs[0], column_vecs[0], vector_offset,          \
                                              depth_simd_dimensions);                                                   \
-                            inner_product_fn(&accumulators[0][1], row_vecs[0], col_vecs[1], vector_offset,             \
+                            inner_product_fn(&accumulators[0][1], row_vecs[0], column_vecs[1], vector_offset,          \
                                              depth_simd_dimensions);                                                   \
-                            inner_product_fn(&accumulators[0][2], row_vecs[0], col_vecs[2], vector_offset,             \
+                            inner_product_fn(&accumulators[0][2], row_vecs[0], column_vecs[2], vector_offset,          \
                                              depth_simd_dimensions);                                                   \
-                            inner_product_fn(&accumulators[0][3], row_vecs[0], col_vecs[3], vector_offset,             \
+                            inner_product_fn(&accumulators[0][3], row_vecs[0], column_vecs[3], vector_offset,          \
                                              depth_simd_dimensions);                                                   \
-                            inner_product_fn(&accumulators[1][1], row_vecs[1], col_vecs[1], vector_offset,             \
+                            inner_product_fn(&accumulators[1][1], row_vecs[1], column_vecs[1], vector_offset,          \
                                              depth_simd_dimensions);                                                   \
-                            inner_product_fn(&accumulators[1][2], row_vecs[1], col_vecs[2], vector_offset,             \
+                            inner_product_fn(&accumulators[1][2], row_vecs[1], column_vecs[2], vector_offset,          \
                                              depth_simd_dimensions);                                                   \
-                            inner_product_fn(&accumulators[1][3], row_vecs[1], col_vecs[3], vector_offset,             \
+                            inner_product_fn(&accumulators[1][3], row_vecs[1], column_vecs[3], vector_offset,          \
                                              depth_simd_dimensions);                                                   \
-                            inner_product_fn(&accumulators[2][2], row_vecs[2], col_vecs[2], vector_offset,             \
+                            inner_product_fn(&accumulators[2][2], row_vecs[2], column_vecs[2], vector_offset,          \
                                              depth_simd_dimensions);                                                   \
-                            inner_product_fn(&accumulators[2][3], row_vecs[2], col_vecs[3], vector_offset,             \
+                            inner_product_fn(&accumulators[2][3], row_vecs[2], column_vecs[3], vector_offset,          \
                                              depth_simd_dimensions);                                                   \
-                            inner_product_fn(&accumulators[3][3], row_vecs[3], col_vecs[3], vector_offset,             \
+                            inner_product_fn(&accumulators[3][3], row_vecs[3], column_vecs[3], vector_offset,          \
                                              depth_simd_dimensions);                                                   \
                         }                                                                                              \
                         else {                                                                                         \
                             /* Full 4×4 off-diagonal tile (16 FMAs) */                                                 \
-                            inner_product_fn(&accumulators[0][0], row_vecs[0], col_vecs[0], vector_offset,             \
+                            inner_product_fn(&accumulators[0][0], row_vecs[0], column_vecs[0], vector_offset,          \
                                              depth_simd_dimensions);                                                   \
-                            inner_product_fn(&accumulators[0][1], row_vecs[0], col_vecs[1], vector_offset,             \
+                            inner_product_fn(&accumulators[0][1], row_vecs[0], column_vecs[1], vector_offset,          \
                                              depth_simd_dimensions);                                                   \
-                            inner_product_fn(&accumulators[0][2], row_vecs[0], col_vecs[2], vector_offset,             \
+                            inner_product_fn(&accumulators[0][2], row_vecs[0], column_vecs[2], vector_offset,          \
                                              depth_simd_dimensions);                                                   \
-                            inner_product_fn(&accumulators[0][3], row_vecs[0], col_vecs[3], vector_offset,             \
+                            inner_product_fn(&accumulators[0][3], row_vecs[0], column_vecs[3], vector_offset,          \
                                              depth_simd_dimensions);                                                   \
-                            inner_product_fn(&accumulators[1][0], row_vecs[1], col_vecs[0], vector_offset,             \
+                            inner_product_fn(&accumulators[1][0], row_vecs[1], column_vecs[0], vector_offset,          \
                                              depth_simd_dimensions);                                                   \
-                            inner_product_fn(&accumulators[1][1], row_vecs[1], col_vecs[1], vector_offset,             \
+                            inner_product_fn(&accumulators[1][1], row_vecs[1], column_vecs[1], vector_offset,          \
                                              depth_simd_dimensions);                                                   \
-                            inner_product_fn(&accumulators[1][2], row_vecs[1], col_vecs[2], vector_offset,             \
+                            inner_product_fn(&accumulators[1][2], row_vecs[1], column_vecs[2], vector_offset,          \
                                              depth_simd_dimensions);                                                   \
-                            inner_product_fn(&accumulators[1][3], row_vecs[1], col_vecs[3], vector_offset,             \
+                            inner_product_fn(&accumulators[1][3], row_vecs[1], column_vecs[3], vector_offset,          \
                                              depth_simd_dimensions);                                                   \
-                            inner_product_fn(&accumulators[2][0], row_vecs[2], col_vecs[0], vector_offset,             \
+                            inner_product_fn(&accumulators[2][0], row_vecs[2], column_vecs[0], vector_offset,          \
                                              depth_simd_dimensions);                                                   \
-                            inner_product_fn(&accumulators[2][1], row_vecs[2], col_vecs[1], vector_offset,             \
+                            inner_product_fn(&accumulators[2][1], row_vecs[2], column_vecs[1], vector_offset,          \
                                              depth_simd_dimensions);                                                   \
-                            inner_product_fn(&accumulators[2][2], row_vecs[2], col_vecs[2], vector_offset,             \
+                            inner_product_fn(&accumulators[2][2], row_vecs[2], column_vecs[2], vector_offset,          \
                                              depth_simd_dimensions);                                                   \
-                            inner_product_fn(&accumulators[2][3], row_vecs[2], col_vecs[3], vector_offset,             \
+                            inner_product_fn(&accumulators[2][3], row_vecs[2], column_vecs[3], vector_offset,          \
                                              depth_simd_dimensions);                                                   \
-                            inner_product_fn(&accumulators[3][0], row_vecs[3], col_vecs[0], vector_offset,             \
+                            inner_product_fn(&accumulators[3][0], row_vecs[3], column_vecs[0], vector_offset,          \
                                              depth_simd_dimensions);                                                   \
-                            inner_product_fn(&accumulators[3][1], row_vecs[3], col_vecs[1], vector_offset,             \
+                            inner_product_fn(&accumulators[3][1], row_vecs[3], column_vecs[1], vector_offset,          \
                                              depth_simd_dimensions);                                                   \
-                            inner_product_fn(&accumulators[3][2], row_vecs[3], col_vecs[2], vector_offset,             \
+                            inner_product_fn(&accumulators[3][2], row_vecs[3], column_vecs[2], vector_offset,          \
                                              depth_simd_dimensions);                                                   \
-                            inner_product_fn(&accumulators[3][3], row_vecs[3], col_vecs[3], vector_offset,             \
+                            inner_product_fn(&accumulators[3][3], row_vecs[3], column_vecs[3], vector_offset,          \
                                              depth_simd_dimensions);                                                   \
                         }                                                                                              \
                     }                                                                                                  \
                     else {                                                                                             \
                         /* Partial tile - use loops (rare edge case) */                                                \
                         for (nk_size_t row = 0; row < tile_rows; row++) {                                              \
-                            nk_size_t col_start = is_diagonal_tile ? row : 0;                                          \
-                            for (nk_size_t col = col_start; col < tile_cols; col++) {                                  \
-                                inner_product_fn(&accumulators[row][col], row_vecs[row], col_vecs[col], vector_offset, \
-                                                 depth_simd_dimensions);                                               \
+                            nk_size_t column_start = is_diagonal_tile ? row : 0;                                       \
+                            for (nk_size_t column = column_start; column < tile_columns; column++) {                   \
+                                inner_product_fn(&accumulators[row][column], row_vecs[row], column_vecs[column],       \
+                                                 vector_offset, depth_simd_dimensions);                                \
                             }                                                                                          \
                         }                                                                                              \
                     }                                                                                                  \
@@ -1103,36 +1104,36 @@ typedef struct {
                     partial_load_vec_fn(row_ptrs[1] + aligned_depth, &row_vecs[1], remainder_dimensions);              \
                     partial_load_vec_fn(row_ptrs[2] + aligned_depth, &row_vecs[2], remainder_dimensions);              \
                     partial_load_vec_fn(row_ptrs[3] + aligned_depth, &row_vecs[3], remainder_dimensions);              \
-                    partial_load_vec_fn(col_ptrs[0] + aligned_depth, &col_vecs[0], remainder_dimensions);              \
-                    partial_load_vec_fn(col_ptrs[1] + aligned_depth, &col_vecs[1], remainder_dimensions);              \
-                    partial_load_vec_fn(col_ptrs[2] + aligned_depth, &col_vecs[2], remainder_dimensions);              \
-                    partial_load_vec_fn(col_ptrs[3] + aligned_depth, &col_vecs[3], remainder_dimensions);              \
+                    partial_load_vec_fn(column_ptrs[0] + aligned_depth, &column_vecs[0], remainder_dimensions);        \
+                    partial_load_vec_fn(column_ptrs[1] + aligned_depth, &column_vecs[1], remainder_dimensions);        \
+                    partial_load_vec_fn(column_ptrs[2] + aligned_depth, &column_vecs[2], remainder_dimensions);        \
+                    partial_load_vec_fn(column_ptrs[3] + aligned_depth, &column_vecs[3], remainder_dimensions);        \
                                                                                                                        \
                     nk_size_t vector_offset = aligned_depth * dimensions_per_value;                                    \
                     for (nk_size_t row = 0; row < tile_rows; row++) {                                                  \
-                        nk_size_t col_start = is_diagonal_tile ? row : 0;                                              \
-                        for (nk_size_t col = col_start; col < tile_cols; col++) {                                      \
-                            inner_product_fn(&accumulators[row][col], row_vecs[row], col_vecs[col], vector_offset,     \
-                                             remainder_dimensions);                                                    \
+                        nk_size_t column_start = is_diagonal_tile ? row : 0;                                           \
+                        for (nk_size_t column = column_start; column < tile_columns; column++) {                       \
+                            inner_product_fn(&accumulators[row][column], row_vecs[row], column_vecs[column],           \
+                                             vector_offset, remainder_dimensions);                                     \
                         }                                                                                              \
                     }                                                                                                  \
                 }                                                                                                      \
                                                                                                                        \
                 /* Direct finalization and store (no intermediate buffer) */                                           \
                 for (nk_size_t row = 0; row < tile_rows; row++) {                                                      \
-                    nk_size_t col_start = is_diagonal_tile ? row : 0;                                                  \
-                    nk_size_t cols_remaining = tile_cols - col_start;                                                  \
+                    nk_size_t column_start = is_diagonal_tile ? row : 0;                                               \
+                    nk_size_t columns_remaining = tile_columns - column_start;                                         \
                     result_vec_type result_vec;                                                                        \
                                                                                                                        \
                     /* Always reduce 4 accumulators (partial_store handles actual count) */                            \
-                    reduce_accumulators_fn(&accumulators[row][col_start], &accumulators[row][col_start + 1],           \
-                                           &accumulators[row][col_start + 2], &accumulators[row][col_start + 3],       \
+                    reduce_accumulators_fn(&accumulators[row][column_start], &accumulators[row][column_start + 1],     \
+                                           &accumulators[row][column_start + 2], &accumulators[row][column_start + 3], \
                                            depth, &result_vec);                                                        \
                                                                                                                        \
                     nk_##result_value_type##_t *output_ptr =                                                           \
                         &result[(i_macro + tile_row_start + row) * result_stride_values +                              \
-                                (i_macro + tile_col_start + col_start)];                                               \
-                    partial_store_fn(&result_vec, output_ptr, cols_remaining);                                         \
+                                (i_macro + tile_column_start + column_start)];                                         \
+                    partial_store_fn(&result_vec, output_ptr, columns_remaining);                                      \
                 }                                                                                                      \
             }                                                                                                          \
         }                                                                                                              \
@@ -1146,32 +1147,35 @@ typedef struct {
                                                                                                                        \
         /* Tile-first architecture: Process 32×32 macro-tile as 4×4 register tiles (depth innermost) */                \
         for (nk_size_t tile_row_start = 0; tile_row_start < macro_i_size; tile_row_start += 4) {                       \
-            for (nk_size_t tile_col_start = 0; tile_col_start < macro_j_size; tile_col_start += 4) {                   \
+            for (nk_size_t tile_column_start = 0; tile_column_start < macro_j_size; tile_column_start += 4) {          \
                                                                                                                        \
                 nk_size_t tile_rows = (tile_row_start + 4 <= macro_i_size) ? 4 : (macro_i_size - tile_row_start);      \
-                nk_size_t tile_cols = (tile_col_start + 4 <= macro_j_size) ? 4 : (macro_j_size - tile_col_start);      \
+                nk_size_t tile_columns = (tile_column_start + 4 <= macro_j_size) ? 4                                   \
+                                                                                 : (macro_j_size - tile_column_start); \
                                                                                                                        \
                 /* Initialize 4×4 register-resident accumulators (full rectangle for off-diagonal) */                  \
                 NK_ALIGN64 state_type accumulators[4][4];                                                              \
                 for (nk_size_t row = 0; row < tile_rows; row++) {                                                      \
-                    for (nk_size_t col = 0; col < tile_cols; col++) { init_accumulator_fn(&accumulators[row][col]); }  \
+                    for (nk_size_t column = 0; column < tile_columns; column++) {                                      \
+                        init_accumulator_fn(&accumulators[row][column]);                                               \
+                    }                                                                                                  \
                 }                                                                                                      \
                                                                                                                        \
                 /* Setup pointers (hoist outside depth loop) - always safe even for partial tiles */                   \
                 nk_##input_value_type##_t const *row_ptrs[4];                                                          \
-                nk_##input_value_type##_t const *col_ptrs[4];                                                          \
+                nk_##input_value_type##_t const *column_ptrs[4];                                                       \
                 row_ptrs[0] = vector_base_ptrs_i[tile_row_start + 0];                                                  \
                 row_ptrs[1] = (tile_rows > 1) ? vector_base_ptrs_i[tile_row_start + 1] : row_ptrs[0];                  \
                 row_ptrs[2] = (tile_rows > 2) ? vector_base_ptrs_i[tile_row_start + 2] : row_ptrs[0];                  \
                 row_ptrs[3] = (tile_rows > 3) ? vector_base_ptrs_i[tile_row_start + 3] : row_ptrs[0];                  \
-                col_ptrs[0] = vector_base_ptrs_j[tile_col_start + 0];                                                  \
-                col_ptrs[1] = (tile_cols > 1) ? vector_base_ptrs_j[tile_col_start + 1] : col_ptrs[0];                  \
-                col_ptrs[2] = (tile_cols > 2) ? vector_base_ptrs_j[tile_col_start + 2] : col_ptrs[0];                  \
-                col_ptrs[3] = (tile_cols > 3) ? vector_base_ptrs_j[tile_col_start + 3] : col_ptrs[0];                  \
+                column_ptrs[0] = vector_base_ptrs_j[tile_column_start + 0];                                            \
+                column_ptrs[1] = (tile_columns > 1) ? vector_base_ptrs_j[tile_column_start + 1] : column_ptrs[0];      \
+                column_ptrs[2] = (tile_columns > 2) ? vector_base_ptrs_j[tile_column_start + 2] : column_ptrs[0];      \
+                column_ptrs[3] = (tile_columns > 3) ? vector_base_ptrs_j[tile_column_start + 3] : column_ptrs[0];      \
                                                                                                                        \
                 /* Depth loop is now innermost - key optimization */                                                   \
                 vec_type row_vecs[4];                                                                                  \
-                vec_type col_vecs[4];                                                                                  \
+                vec_type column_vecs[4];                                                                               \
                                                                                                                        \
                 for (nk_size_t depth_offset = 0; depth_offset < aligned_depth; depth_offset += depth_step_values) {    \
                     /* Always load all 8 vectors - aliasing is cheaper than branches */                                \
@@ -1179,55 +1183,55 @@ typedef struct {
                     load_vec_fn(row_ptrs[1] + depth_offset, &row_vecs[1]);                                             \
                     load_vec_fn(row_ptrs[2] + depth_offset, &row_vecs[2]);                                             \
                     load_vec_fn(row_ptrs[3] + depth_offset, &row_vecs[3]);                                             \
-                    load_vec_fn(col_ptrs[0] + depth_offset, &col_vecs[0]);                                             \
-                    load_vec_fn(col_ptrs[1] + depth_offset, &col_vecs[1]);                                             \
-                    load_vec_fn(col_ptrs[2] + depth_offset, &col_vecs[2]);                                             \
-                    load_vec_fn(col_ptrs[3] + depth_offset, &col_vecs[3]);                                             \
+                    load_vec_fn(column_ptrs[0] + depth_offset, &column_vecs[0]);                                       \
+                    load_vec_fn(column_ptrs[1] + depth_offset, &column_vecs[1]);                                       \
+                    load_vec_fn(column_ptrs[2] + depth_offset, &column_vecs[2]);                                       \
+                    load_vec_fn(column_ptrs[3] + depth_offset, &column_vecs[3]);                                       \
                                                                                                                        \
                     nk_size_t vector_offset = depth_offset * dimensions_per_value;                                     \
                                                                                                                        \
                     /* Compute: always unroll for full 4×4, use loops only for partial tiles */                        \
-                    if (tile_rows == 4 && tile_cols == 4) {                                                            \
+                    if (tile_rows == 4 && tile_columns == 4) {                                                         \
                         /* Full 4×4 off-diagonal tile (16 FMAs) */                                                     \
-                        inner_product_fn(&accumulators[0][0], row_vecs[0], col_vecs[0], vector_offset,                 \
+                        inner_product_fn(&accumulators[0][0], row_vecs[0], column_vecs[0], vector_offset,              \
                                          depth_simd_dimensions);                                                       \
-                        inner_product_fn(&accumulators[0][1], row_vecs[0], col_vecs[1], vector_offset,                 \
+                        inner_product_fn(&accumulators[0][1], row_vecs[0], column_vecs[1], vector_offset,              \
                                          depth_simd_dimensions);                                                       \
-                        inner_product_fn(&accumulators[0][2], row_vecs[0], col_vecs[2], vector_offset,                 \
+                        inner_product_fn(&accumulators[0][2], row_vecs[0], column_vecs[2], vector_offset,              \
                                          depth_simd_dimensions);                                                       \
-                        inner_product_fn(&accumulators[0][3], row_vecs[0], col_vecs[3], vector_offset,                 \
+                        inner_product_fn(&accumulators[0][3], row_vecs[0], column_vecs[3], vector_offset,              \
                                          depth_simd_dimensions);                                                       \
-                        inner_product_fn(&accumulators[1][0], row_vecs[1], col_vecs[0], vector_offset,                 \
+                        inner_product_fn(&accumulators[1][0], row_vecs[1], column_vecs[0], vector_offset,              \
                                          depth_simd_dimensions);                                                       \
-                        inner_product_fn(&accumulators[1][1], row_vecs[1], col_vecs[1], vector_offset,                 \
+                        inner_product_fn(&accumulators[1][1], row_vecs[1], column_vecs[1], vector_offset,              \
                                          depth_simd_dimensions);                                                       \
-                        inner_product_fn(&accumulators[1][2], row_vecs[1], col_vecs[2], vector_offset,                 \
+                        inner_product_fn(&accumulators[1][2], row_vecs[1], column_vecs[2], vector_offset,              \
                                          depth_simd_dimensions);                                                       \
-                        inner_product_fn(&accumulators[1][3], row_vecs[1], col_vecs[3], vector_offset,                 \
+                        inner_product_fn(&accumulators[1][3], row_vecs[1], column_vecs[3], vector_offset,              \
                                          depth_simd_dimensions);                                                       \
-                        inner_product_fn(&accumulators[2][0], row_vecs[2], col_vecs[0], vector_offset,                 \
+                        inner_product_fn(&accumulators[2][0], row_vecs[2], column_vecs[0], vector_offset,              \
                                          depth_simd_dimensions);                                                       \
-                        inner_product_fn(&accumulators[2][1], row_vecs[2], col_vecs[1], vector_offset,                 \
+                        inner_product_fn(&accumulators[2][1], row_vecs[2], column_vecs[1], vector_offset,              \
                                          depth_simd_dimensions);                                                       \
-                        inner_product_fn(&accumulators[2][2], row_vecs[2], col_vecs[2], vector_offset,                 \
+                        inner_product_fn(&accumulators[2][2], row_vecs[2], column_vecs[2], vector_offset,              \
                                          depth_simd_dimensions);                                                       \
-                        inner_product_fn(&accumulators[2][3], row_vecs[2], col_vecs[3], vector_offset,                 \
+                        inner_product_fn(&accumulators[2][3], row_vecs[2], column_vecs[3], vector_offset,              \
                                          depth_simd_dimensions);                                                       \
-                        inner_product_fn(&accumulators[3][0], row_vecs[3], col_vecs[0], vector_offset,                 \
+                        inner_product_fn(&accumulators[3][0], row_vecs[3], column_vecs[0], vector_offset,              \
                                          depth_simd_dimensions);                                                       \
-                        inner_product_fn(&accumulators[3][1], row_vecs[3], col_vecs[1], vector_offset,                 \
+                        inner_product_fn(&accumulators[3][1], row_vecs[3], column_vecs[1], vector_offset,              \
                                          depth_simd_dimensions);                                                       \
-                        inner_product_fn(&accumulators[3][2], row_vecs[3], col_vecs[2], vector_offset,                 \
+                        inner_product_fn(&accumulators[3][2], row_vecs[3], column_vecs[2], vector_offset,              \
                                          depth_simd_dimensions);                                                       \
-                        inner_product_fn(&accumulators[3][3], row_vecs[3], col_vecs[3], vector_offset,                 \
+                        inner_product_fn(&accumulators[3][3], row_vecs[3], column_vecs[3], vector_offset,              \
                                          depth_simd_dimensions);                                                       \
                     }                                                                                                  \
                     else {                                                                                             \
                         /* Partial tile - use loops (rare edge case) */                                                \
                         for (nk_size_t row = 0; row < tile_rows; row++) {                                              \
-                            for (nk_size_t col = 0; col < tile_cols; col++) {                                          \
-                                inner_product_fn(&accumulators[row][col], row_vecs[row], col_vecs[col], vector_offset, \
-                                                 depth_simd_dimensions);                                               \
+                            for (nk_size_t column = 0; column < tile_columns; column++) {                              \
+                                inner_product_fn(&accumulators[row][column], row_vecs[row], column_vecs[column],       \
+                                                 vector_offset, depth_simd_dimensions);                                \
                             }                                                                                          \
                         }                                                                                              \
                     }                                                                                                  \
@@ -1239,16 +1243,16 @@ typedef struct {
                     partial_load_vec_fn(row_ptrs[1] + aligned_depth, &row_vecs[1], remainder_dimensions);              \
                     partial_load_vec_fn(row_ptrs[2] + aligned_depth, &row_vecs[2], remainder_dimensions);              \
                     partial_load_vec_fn(row_ptrs[3] + aligned_depth, &row_vecs[3], remainder_dimensions);              \
-                    partial_load_vec_fn(col_ptrs[0] + aligned_depth, &col_vecs[0], remainder_dimensions);              \
-                    partial_load_vec_fn(col_ptrs[1] + aligned_depth, &col_vecs[1], remainder_dimensions);              \
-                    partial_load_vec_fn(col_ptrs[2] + aligned_depth, &col_vecs[2], remainder_dimensions);              \
-                    partial_load_vec_fn(col_ptrs[3] + aligned_depth, &col_vecs[3], remainder_dimensions);              \
+                    partial_load_vec_fn(column_ptrs[0] + aligned_depth, &column_vecs[0], remainder_dimensions);        \
+                    partial_load_vec_fn(column_ptrs[1] + aligned_depth, &column_vecs[1], remainder_dimensions);        \
+                    partial_load_vec_fn(column_ptrs[2] + aligned_depth, &column_vecs[2], remainder_dimensions);        \
+                    partial_load_vec_fn(column_ptrs[3] + aligned_depth, &column_vecs[3], remainder_dimensions);        \
                                                                                                                        \
                     nk_size_t vector_offset = aligned_depth * dimensions_per_value;                                    \
                     for (nk_size_t row = 0; row < tile_rows; row++) {                                                  \
-                        for (nk_size_t col = 0; col < tile_cols; col++) {                                              \
-                            inner_product_fn(&accumulators[row][col], row_vecs[row], col_vecs[col], vector_offset,     \
-                                             remainder_dimensions);                                                    \
+                        for (nk_size_t column = 0; column < tile_columns; column++) {                                  \
+                            inner_product_fn(&accumulators[row][column], row_vecs[row], column_vecs[column],           \
+                                             vector_offset, remainder_dimensions);                                     \
                         }                                                                                              \
                     }                                                                                                  \
                 }                                                                                                      \
@@ -1262,8 +1266,9 @@ typedef struct {
                                            &accumulators[row][3], depth, &result_vec);                                 \
                                                                                                                        \
                     nk_##result_value_type##_t *output_ptr =                                                           \
-                        &result[(i_macro + tile_row_start + row) * result_stride_values + (j_macro + tile_col_start)]; \
-                    partial_store_fn(&result_vec, output_ptr, tile_cols);                                              \
+                        &result[(i_macro + tile_row_start + row) * result_stride_values +                              \
+                                (j_macro + tile_column_start)];                                                        \
+                    partial_store_fn(&result_vec, output_ptr, tile_columns);                                           \
                 }                                                                                                      \
             }                                                                                                          \
         }                                                                                                              \

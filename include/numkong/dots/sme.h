@@ -152,14 +152,14 @@ NK_PUBLIC void nk_dots_pack_f16_sme(             //
 
     // Pack in interleaved format for FMOPA:
     // For each column tile and depth step, produce one SVE vector where:
-    //   packed_vec[expansion * d + k] = B[col_tile*tile_dim + d, depth_step*expansion + k]
+    //   packed_vec[expansion * d + k] = B[column_tile*tile_dim + d, depth_step*expansion + k]
     // d = 0..tile_dim-1 (B row within column tile), k = 0..expansion-1 (depth sub-element)
-    for (nk_size_t col_tile = 0; col_tile < column_tile_count; col_tile++) {
+    for (nk_size_t column_tile = 0; column_tile < column_tile_count; column_tile++) {
         for (nk_size_t depth_step = 0; depth_step < depth_step_count; depth_step++) {
-            nk_size_t const vec_index = col_tile * depth_step_count + depth_step;
+            nk_size_t const vec_index = column_tile * depth_step_count + depth_step;
             nk_f16_t *vec_output = tiles_ptr + vec_index * vector_elements;
 
-            nk_size_t const b_row_start = col_tile * tile_dimension;
+            nk_size_t const b_row_start = column_tile * tile_dimension;
             nk_size_t const depth_base = depth_step * expansion;
             nk_size_t const rows_to_pack = (b_row_start + tile_dimension <= n) ? tile_dimension : (n - b_row_start);
 
@@ -200,13 +200,13 @@ NK_PUBLIC void nk_dots_pack_bf16_sme(             //
 
     for (nk_size_t i = 0; i < total_vectors * vector_elements; i++) { tiles_ptr[i] = 0; }
 
-    // Interleaved packing: packed_vec[expansion * d + k] = B[col_tile*tile_dim + d, depth_step*expansion + k]
-    for (nk_size_t col_tile = 0; col_tile < column_tile_count; col_tile++) {
+    // Interleaved packing: packed_vec[expansion * d + k] = B[column_tile*tile_dim + d, depth_step*expansion + k]
+    for (nk_size_t column_tile = 0; column_tile < column_tile_count; column_tile++) {
         for (nk_size_t depth_step = 0; depth_step < depth_step_count; depth_step++) {
-            nk_size_t const vec_index = col_tile * depth_step_count + depth_step;
+            nk_size_t const vec_index = column_tile * depth_step_count + depth_step;
             nk_bf16_t *vec_output = tiles_ptr + vec_index * vector_elements;
 
-            nk_size_t const b_row_start = col_tile * tile_dimension;
+            nk_size_t const b_row_start = column_tile * tile_dimension;
             nk_size_t const depth_base = depth_step * expansion;
             nk_size_t const rows_to_pack = (b_row_start + tile_dimension <= n) ? tile_dimension : (n - b_row_start);
 
@@ -231,7 +231,7 @@ NK_PUBLIC void nk_dots_pack_bf16_sme(             //
  *
  *  For correct GEMM C[i][j] = Σ_k A[i][k]*B[j][k]:
  *  - Zn[2*s+k] = A[row_start+s, depth_base+k]  (gather 2 depth elements per A row)
- *  - Zm[2*d+k] = B[col_start+d, depth_base+k]   (pre-packed interleaved)
+ *  - Zm[2*d+k] = B[column_start+d, depth_base+k]   (pre-packed interleaved)
  *  - Loop over depth in steps of 2 (expansion factor)
  */
 __arm_locally_streaming __arm_new("za") static void nk_dots_packed_f16_sme_kernel_( //
@@ -248,7 +248,7 @@ __arm_locally_streaming __arm_new("za") static void nk_dots_packed_f16_sme_kerne
     nk_size_t const vector_elements = svcnth();             // 32: f16 elements per SVE vector
     nk_size_t const depth_steps_per_batch = tile_dimension; // 16 depth steps per ZA0 load
 
-    nk_f16_t const *b_vecs = (nk_f16_t const *)((char const *)b_packed + sizeof(nk_dots_sme_packed_header_t));
+    nk_f16_t const *b_packed_base = (nk_f16_t const *)((char const *)b_packed + sizeof(nk_dots_sme_packed_header_t));
 
     svbool_t const full_predicate_b16 = svptrue_b16();
     svbool_t const full_predicate_b32 = svptrue_b32();
@@ -282,35 +282,40 @@ __arm_locally_streaming __arm_new("za") static void nk_dots_packed_f16_sme_kerne
 
                 // Load A rows into ZA0.S horizontally (f32 words = 2 packed f16 each)
                 svbool_t const batch_predicate_b32 = svwhilelt_b32((uint32_t)0, (uint32_t)batch_size);
-                for (nk_size_t row_within_tile = 0; row_within_tile < rows_remaining; row_within_tile++) {
-                    nk_size_t const a_row = row_start + row_within_tile;
+                for (nk_size_t row_in_tile = 0; row_in_tile < rows_remaining; row_in_tile++) {
+                    nk_size_t const a_row = row_start + row_in_tile;
                     nk_f32_t const *a_row_ptr = (nk_f32_t const *)(a + a_row * a_stride_elements +
                                                                    depth_batch_start * expansion);
-                    svld1_hor_za32(0, row_within_tile, batch_predicate_b32, a_row_ptr);
+                    svld1_hor_za32(0, row_in_tile, batch_predicate_b32, a_row_ptr);
                 }
 
                 // For each depth step in batch: vertical read = transpose = perfect interleaving
-                for (nk_size_t step_within_batch = 0; step_within_batch < batch_size; step_within_batch++) {
-                    nk_size_t const ds = depth_batch_start + step_within_batch;
-                    svfloat32_t a_column_f32 = svread_ver_za32_f32_m(svdup_f32(0.0f), row_predicate_b32, 0,
-                                                                     step_within_batch);
+                for (nk_size_t depth_step = 0; depth_step < batch_size; depth_step++) {
+
+                    svfloat32_t a_column_f32 = svread_ver_za32_f32_m(svdup_f32(0.0f), row_predicate_b32, 0, depth_step);
                     svfloat16_t a_interleaved_vector_f16 = svreinterpret_f16_f32(a_column_f32);
 
                     // Load B vectors for 3 column tiles
-                    nk_f16_t const *bv0 = b_vecs + ((column_tile_index + 0) * depth_step_count + ds) * vector_elements;
-                    nk_f16_t const *bv1 = b_vecs + ((column_tile_index + 1) * depth_step_count + ds) * vector_elements;
-                    nk_f16_t const *bv2 = b_vecs + ((column_tile_index + 2) * depth_step_count + ds) * vector_elements;
-                    svfloat16_t b_packed_vector_f16_0 = svld1_f16(full_predicate_b16, (float16_t const *)bv0);
-                    svfloat16_t b_packed_vector_f16_1 = svld1_f16(full_predicate_b16, (float16_t const *)bv1);
-                    svfloat16_t b_packed_vector_f16_2 = svld1_f16(full_predicate_b16, (float16_t const *)bv2);
+                    nk_f16_t const *b_packed_ptr_0 = b_packed_base + ((column_tile_index + 0) * depth_step_count +
+                                                                      depth_batch_start + depth_step) *
+                                                                         vector_elements;
+                    nk_f16_t const *b_packed_ptr_1 = b_packed_base + ((column_tile_index + 1) * depth_step_count +
+                                                                      depth_batch_start + depth_step) *
+                                                                         vector_elements;
+                    nk_f16_t const *b_packed_ptr_2 = b_packed_base + ((column_tile_index + 2) * depth_step_count +
+                                                                      depth_batch_start + depth_step) *
+                                                                         vector_elements;
+                    svfloat16_t b_packed_vector_0 = svld1_f16(full_predicate_b16, (float16_t const *)b_packed_ptr_0);
+                    svfloat16_t b_packed_vector_1 = svld1_f16(full_predicate_b16, (float16_t const *)b_packed_ptr_1);
+                    svfloat16_t b_packed_vector_2 = svld1_f16(full_predicate_b16, (float16_t const *)b_packed_ptr_2);
 
                     // 3 MOPA calls into ZA1, ZA2, ZA3
                     svmopa_za32_f16_m(1, row_predicate_b16, full_predicate_b16, a_interleaved_vector_f16,
-                                      b_packed_vector_f16_0);
+                                      b_packed_vector_0);
                     svmopa_za32_f16_m(2, row_predicate_b16, full_predicate_b16, a_interleaved_vector_f16,
-                                      b_packed_vector_f16_1);
+                                      b_packed_vector_1);
                     svmopa_za32_f16_m(3, row_predicate_b16, full_predicate_b16, a_interleaved_vector_f16,
-                                      b_packed_vector_f16_2);
+                                      b_packed_vector_2);
                 }
             }
 
@@ -327,9 +332,9 @@ __arm_locally_streaming __arm_new("za") static void nk_dots_packed_f16_sme_kerne
 
         // Remainder: 1 column tile at a time using ZA1 only
         for (; column_tile_index < column_tile_count; column_tile_index++) {
-            nk_size_t const col_start = column_tile_index * tile_dimension;
-            nk_size_t const cols_remaining = (col_start + tile_dimension <= columns) ? tile_dimension
-                                                                                     : (columns - col_start);
+            nk_size_t const column_start = column_tile_index * tile_dimension;
+            nk_size_t const cols_remaining = (column_start + tile_dimension <= columns) ? tile_dimension
+                                                                                        : (columns - column_start);
             svbool_t const column_predicate_b32 = svwhilelt_b32((uint32_t)0, (uint32_t)cols_remaining);
             svbool_t const column_predicate_b16 = svwhilelt_b16((uint32_t)0, (uint32_t)(cols_remaining * expansion));
 
@@ -345,29 +350,30 @@ __arm_locally_streaming __arm_new("za") static void nk_dots_packed_f16_sme_kerne
                 svzero_mask_za(nk_sme_zero_za32_tile_0_); // clear staging ZA0
 
                 svbool_t const batch_predicate_b32 = svwhilelt_b32((uint32_t)0, (uint32_t)batch_size);
-                for (nk_size_t row_within_tile = 0; row_within_tile < rows_remaining; row_within_tile++) {
-                    nk_size_t const a_row = row_start + row_within_tile;
+                for (nk_size_t row_in_tile = 0; row_in_tile < rows_remaining; row_in_tile++) {
+                    nk_size_t const a_row = row_start + row_in_tile;
                     nk_f32_t const *a_row_ptr = (nk_f32_t const *)(a + a_row * a_stride_elements +
                                                                    depth_batch_start * expansion);
-                    svld1_hor_za32(0, row_within_tile, batch_predicate_b32, a_row_ptr);
+                    svld1_hor_za32(0, row_in_tile, batch_predicate_b32, a_row_ptr);
                 }
 
-                for (nk_size_t step_within_batch = 0; step_within_batch < batch_size; step_within_batch++) {
-                    nk_size_t const ds = depth_batch_start + step_within_batch;
-                    svfloat32_t a_column_f32 = svread_ver_za32_f32_m(svdup_f32(0.0f), row_predicate_b32, 0,
-                                                                     step_within_batch);
+                for (nk_size_t depth_step = 0; depth_step < batch_size; depth_step++) {
+
+                    svfloat32_t a_column_f32 = svread_ver_za32_f32_m(svdup_f32(0.0f), row_predicate_b32, 0, depth_step);
                     svfloat16_t a_interleaved_vector_f16 = svreinterpret_f16_f32(a_column_f32);
 
-                    nk_f16_t const *bv = b_vecs + (column_tile_index * depth_step_count + ds) * vector_elements;
-                    svfloat16_t b_packed_vector_f16 = svld1_f16(column_predicate_b16, (float16_t const *)bv);
+                    nk_f16_t const *b_packed_ptr = b_packed_base + (column_tile_index * depth_step_count +
+                                                                    depth_batch_start + depth_step) *
+                                                                       vector_elements;
+                    svfloat16_t b_packed_vector = svld1_f16(column_predicate_b16, (float16_t const *)b_packed_ptr);
 
                     svmopa_za32_f16_m(1, row_predicate_b16, column_predicate_b16, a_interleaved_vector_f16,
-                                      b_packed_vector_f16);
+                                      b_packed_vector);
                 }
             }
 
             for (nk_size_t row = 0; row < rows_remaining; row++) {
-                svst1_hor_za32(1, row, column_predicate_b32, c + (row_start + row) * c_stride_elements + col_start);
+                svst1_hor_za32(1, row, column_predicate_b32, c + (row_start + row) * c_stride_elements + column_start);
             }
         }
     }
@@ -391,7 +397,7 @@ __arm_locally_streaming __arm_new("za") static void nk_dots_packed_bf16_sme_kern
     nk_size_t const vector_elements = svcnth();
     nk_size_t const depth_steps_per_batch = tile_dimension;
 
-    nk_bf16_t const *b_vecs = (nk_bf16_t const *)((char const *)b_packed + sizeof(nk_dots_sme_packed_header_t));
+    nk_bf16_t const *b_packed_base = (nk_bf16_t const *)((char const *)b_packed + sizeof(nk_dots_sme_packed_header_t));
 
     svbool_t const full_predicate_b16 = svptrue_b16();
     svbool_t const full_predicate_b32 = svptrue_b32();
@@ -420,32 +426,37 @@ __arm_locally_streaming __arm_new("za") static void nk_dots_packed_bf16_sme_kern
                 svzero_mask_za(nk_sme_zero_za32_tile_0_);
 
                 svbool_t const batch_predicate_b32 = svwhilelt_b32((uint32_t)0, (uint32_t)batch_size);
-                for (nk_size_t row_within_tile = 0; row_within_tile < rows_remaining; row_within_tile++) {
-                    nk_size_t const a_row = row_start + row_within_tile;
+                for (nk_size_t row_in_tile = 0; row_in_tile < rows_remaining; row_in_tile++) {
+                    nk_size_t const a_row = row_start + row_in_tile;
                     nk_f32_t const *a_row_ptr = (nk_f32_t const *)(a + a_row * a_stride_elements +
                                                                    depth_batch_start * expansion);
-                    svld1_hor_za32(0, row_within_tile, batch_predicate_b32, a_row_ptr);
+                    svld1_hor_za32(0, row_in_tile, batch_predicate_b32, a_row_ptr);
                 }
 
-                for (nk_size_t step_within_batch = 0; step_within_batch < batch_size; step_within_batch++) {
-                    nk_size_t const ds = depth_batch_start + step_within_batch;
-                    svfloat32_t a_column_f32 = svread_ver_za32_f32_m(svdup_f32(0.0f), row_predicate_b32, 0,
-                                                                     step_within_batch);
+                for (nk_size_t depth_step = 0; depth_step < batch_size; depth_step++) {
+
+                    svfloat32_t a_column_f32 = svread_ver_za32_f32_m(svdup_f32(0.0f), row_predicate_b32, 0, depth_step);
                     svbfloat16_t a_interleaved_vector_bf16 = svreinterpret_bf16_f32(a_column_f32);
 
-                    nk_bf16_t const *bv0 = b_vecs + ((column_tile_index + 0) * depth_step_count + ds) * vector_elements;
-                    nk_bf16_t const *bv1 = b_vecs + ((column_tile_index + 1) * depth_step_count + ds) * vector_elements;
-                    nk_bf16_t const *bv2 = b_vecs + ((column_tile_index + 2) * depth_step_count + ds) * vector_elements;
-                    svbfloat16_t b_packed_vector_bf16_0 = svld1_bf16(full_predicate_b16, (bfloat16_t const *)bv0);
-                    svbfloat16_t b_packed_vector_bf16_1 = svld1_bf16(full_predicate_b16, (bfloat16_t const *)bv1);
-                    svbfloat16_t b_packed_vector_bf16_2 = svld1_bf16(full_predicate_b16, (bfloat16_t const *)bv2);
+                    nk_bf16_t const *b_packed_ptr_0 = b_packed_base + ((column_tile_index + 0) * depth_step_count +
+                                                                       depth_batch_start + depth_step) *
+                                                                          vector_elements;
+                    nk_bf16_t const *b_packed_ptr_1 = b_packed_base + ((column_tile_index + 1) * depth_step_count +
+                                                                       depth_batch_start + depth_step) *
+                                                                          vector_elements;
+                    nk_bf16_t const *b_packed_ptr_2 = b_packed_base + ((column_tile_index + 2) * depth_step_count +
+                                                                       depth_batch_start + depth_step) *
+                                                                          vector_elements;
+                    svbfloat16_t b_packed_vector_0 = svld1_bf16(full_predicate_b16, (bfloat16_t const *)b_packed_ptr_0);
+                    svbfloat16_t b_packed_vector_1 = svld1_bf16(full_predicate_b16, (bfloat16_t const *)b_packed_ptr_1);
+                    svbfloat16_t b_packed_vector_2 = svld1_bf16(full_predicate_b16, (bfloat16_t const *)b_packed_ptr_2);
 
                     svmopa_za32_bf16_m(1, row_predicate_b16, full_predicate_b16, a_interleaved_vector_bf16,
-                                       b_packed_vector_bf16_0);
+                                       b_packed_vector_0);
                     svmopa_za32_bf16_m(2, row_predicate_b16, full_predicate_b16, a_interleaved_vector_bf16,
-                                       b_packed_vector_bf16_1);
+                                       b_packed_vector_1);
                     svmopa_za32_bf16_m(3, row_predicate_b16, full_predicate_b16, a_interleaved_vector_bf16,
-                                       b_packed_vector_bf16_2);
+                                       b_packed_vector_2);
                 }
             }
 
@@ -461,9 +472,9 @@ __arm_locally_streaming __arm_new("za") static void nk_dots_packed_bf16_sme_kern
 
         // Remainder: 1 column tile using ZA1
         for (; column_tile_index < column_tile_count; column_tile_index++) {
-            nk_size_t const col_start = column_tile_index * tile_dimension;
-            nk_size_t const cols_remaining = (col_start + tile_dimension <= columns) ? tile_dimension
-                                                                                     : (columns - col_start);
+            nk_size_t const column_start = column_tile_index * tile_dimension;
+            nk_size_t const cols_remaining = (column_start + tile_dimension <= columns) ? tile_dimension
+                                                                                        : (columns - column_start);
             svbool_t const column_predicate_b32 = svwhilelt_b32((uint32_t)0, (uint32_t)cols_remaining);
             svbool_t const column_predicate_b16 = svwhilelt_b16((uint32_t)0, (uint32_t)(cols_remaining * expansion));
 
@@ -479,29 +490,30 @@ __arm_locally_streaming __arm_new("za") static void nk_dots_packed_bf16_sme_kern
                 svzero_mask_za(nk_sme_zero_za32_tile_0_);
 
                 svbool_t const batch_predicate_b32 = svwhilelt_b32((uint32_t)0, (uint32_t)batch_size);
-                for (nk_size_t row_within_tile = 0; row_within_tile < rows_remaining; row_within_tile++) {
-                    nk_size_t const a_row = row_start + row_within_tile;
+                for (nk_size_t row_in_tile = 0; row_in_tile < rows_remaining; row_in_tile++) {
+                    nk_size_t const a_row = row_start + row_in_tile;
                     nk_f32_t const *a_row_ptr = (nk_f32_t const *)(a + a_row * a_stride_elements +
                                                                    depth_batch_start * expansion);
-                    svld1_hor_za32(0, row_within_tile, batch_predicate_b32, a_row_ptr);
+                    svld1_hor_za32(0, row_in_tile, batch_predicate_b32, a_row_ptr);
                 }
 
-                for (nk_size_t step_within_batch = 0; step_within_batch < batch_size; step_within_batch++) {
-                    nk_size_t const ds = depth_batch_start + step_within_batch;
-                    svfloat32_t a_column_f32 = svread_ver_za32_f32_m(svdup_f32(0.0f), row_predicate_b32, 0,
-                                                                     step_within_batch);
+                for (nk_size_t depth_step = 0; depth_step < batch_size; depth_step++) {
+
+                    svfloat32_t a_column_f32 = svread_ver_za32_f32_m(svdup_f32(0.0f), row_predicate_b32, 0, depth_step);
                     svbfloat16_t a_interleaved_vector_bf16 = svreinterpret_bf16_f32(a_column_f32);
 
-                    nk_bf16_t const *bv = b_vecs + (column_tile_index * depth_step_count + ds) * vector_elements;
-                    svbfloat16_t b_packed_vector_bf16 = svld1_bf16(column_predicate_b16, (bfloat16_t const *)bv);
+                    nk_bf16_t const *b_packed_ptr = b_packed_base + (column_tile_index * depth_step_count +
+                                                                     depth_batch_start + depth_step) *
+                                                                        vector_elements;
+                    svbfloat16_t b_packed_vector = svld1_bf16(column_predicate_b16, (bfloat16_t const *)b_packed_ptr);
 
                     svmopa_za32_bf16_m(1, row_predicate_b16, column_predicate_b16, a_interleaved_vector_bf16,
-                                       b_packed_vector_bf16);
+                                       b_packed_vector);
                 }
             }
 
             for (nk_size_t row = 0; row < rows_remaining; row++) {
-                svst1_hor_za32(1, row, column_predicate_b32, c + (row_start + row) * c_stride_elements + col_start);
+                svst1_hor_za32(1, row, column_predicate_b32, c + (row_start + row) * c_stride_elements + column_start);
             }
         }
     }
@@ -591,52 +603,58 @@ __arm_locally_streaming __arm_new("za") static void nk_dots_symmetric_f16_sme_ke
 
                 // Load B column tile 0 into ZA0, vertical read + FMOPA into ZA1
                 svzero_mask_za(nk_sme_zero_za32_tile_0_);
-                for (nk_size_t col = 0; col < tile_dimension; col++) {
-                    nk_size_t const col_abs = (column_tile_index + 0) * tile_dimension + col;
-                    if (col_abs < n_vectors) {
-                        nk_f32_t const *b_row = (nk_f32_t const *)(vectors + col_abs * stride_elements +
+                for (nk_size_t column = 0; column < tile_dimension; column++) {
+                    nk_size_t const column_abs = (column_tile_index + 0) * tile_dimension + column;
+                    if (column_abs < n_vectors) {
+                        nk_f32_t const *b_row = (nk_f32_t const *)(vectors + column_abs * stride_elements +
                                                                    depth_batch_start * expansion);
-                        svld1_hor_za32(0, col, batch_predicate_b32, b_row);
+                        svld1_hor_za32(0, column, batch_predicate_b32, b_row);
                     }
                 }
-                for (nk_size_t step = 0; step < batch_size; step++) {
-                    svfloat16_t a_interleaved = svreinterpret_f16_f32(svld1_f32(full_predicate_b32, a_buffer[step]));
-                    svfloat32_t b_col_f32 = svread_ver_za32_f32_m(svdup_f32(0.0f), full_predicate_b32, 0, step);
-                    svfloat16_t b_interleaved = svreinterpret_f16_f32(b_col_f32);
+                for (nk_size_t depth_step = 0; depth_step < batch_size; depth_step++) {
+                    svfloat16_t a_interleaved = svreinterpret_f16_f32(
+                        svld1_f32(full_predicate_b32, a_buffer[depth_step]));
+                    svfloat32_t b_column_f32 = svread_ver_za32_f32_m(svdup_f32(0.0f), full_predicate_b32, 0,
+                                                                     depth_step);
+                    svfloat16_t b_interleaved = svreinterpret_f16_f32(b_column_f32);
                     svmopa_za32_f16_m(1, row_predicate_b16, full_predicate_b16, a_interleaved, b_interleaved);
                 }
 
                 // Load B column tile 1 into ZA0, vertical read + FMOPA into ZA2
                 svzero_mask_za(nk_sme_zero_za32_tile_0_);
-                for (nk_size_t col = 0; col < tile_dimension; col++) {
-                    nk_size_t const col_abs = (column_tile_index + 1) * tile_dimension + col;
-                    if (col_abs < n_vectors) {
-                        nk_f32_t const *b_row = (nk_f32_t const *)(vectors + col_abs * stride_elements +
+                for (nk_size_t column = 0; column < tile_dimension; column++) {
+                    nk_size_t const column_abs = (column_tile_index + 1) * tile_dimension + column;
+                    if (column_abs < n_vectors) {
+                        nk_f32_t const *b_row = (nk_f32_t const *)(vectors + column_abs * stride_elements +
                                                                    depth_batch_start * expansion);
-                        svld1_hor_za32(0, col, batch_predicate_b32, b_row);
+                        svld1_hor_za32(0, column, batch_predicate_b32, b_row);
                     }
                 }
-                for (nk_size_t step = 0; step < batch_size; step++) {
-                    svfloat16_t a_interleaved = svreinterpret_f16_f32(svld1_f32(full_predicate_b32, a_buffer[step]));
-                    svfloat32_t b_col_f32 = svread_ver_za32_f32_m(svdup_f32(0.0f), full_predicate_b32, 0, step);
-                    svfloat16_t b_interleaved = svreinterpret_f16_f32(b_col_f32);
+                for (nk_size_t depth_step = 0; depth_step < batch_size; depth_step++) {
+                    svfloat16_t a_interleaved = svreinterpret_f16_f32(
+                        svld1_f32(full_predicate_b32, a_buffer[depth_step]));
+                    svfloat32_t b_column_f32 = svread_ver_za32_f32_m(svdup_f32(0.0f), full_predicate_b32, 0,
+                                                                     depth_step);
+                    svfloat16_t b_interleaved = svreinterpret_f16_f32(b_column_f32);
                     svmopa_za32_f16_m(2, row_predicate_b16, full_predicate_b16, a_interleaved, b_interleaved);
                 }
 
                 // Load B column tile 2 into ZA0, vertical read + FMOPA into ZA3
                 svzero_mask_za(nk_sme_zero_za32_tile_0_);
-                for (nk_size_t col = 0; col < tile_dimension; col++) {
-                    nk_size_t const col_abs = (column_tile_index + 2) * tile_dimension + col;
-                    if (col_abs < n_vectors) {
-                        nk_f32_t const *b_row = (nk_f32_t const *)(vectors + col_abs * stride_elements +
+                for (nk_size_t column = 0; column < tile_dimension; column++) {
+                    nk_size_t const column_abs = (column_tile_index + 2) * tile_dimension + column;
+                    if (column_abs < n_vectors) {
+                        nk_f32_t const *b_row = (nk_f32_t const *)(vectors + column_abs * stride_elements +
                                                                    depth_batch_start * expansion);
-                        svld1_hor_za32(0, col, batch_predicate_b32, b_row);
+                        svld1_hor_za32(0, column, batch_predicate_b32, b_row);
                     }
                 }
-                for (nk_size_t step = 0; step < batch_size; step++) {
-                    svfloat16_t a_interleaved = svreinterpret_f16_f32(svld1_f32(full_predicate_b32, a_buffer[step]));
-                    svfloat32_t b_col_f32 = svread_ver_za32_f32_m(svdup_f32(0.0f), full_predicate_b32, 0, step);
-                    svfloat16_t b_interleaved = svreinterpret_f16_f32(b_col_f32);
+                for (nk_size_t depth_step = 0; depth_step < batch_size; depth_step++) {
+                    svfloat16_t a_interleaved = svreinterpret_f16_f32(
+                        svld1_f32(full_predicate_b32, a_buffer[depth_step]));
+                    svfloat32_t b_column_f32 = svread_ver_za32_f32_m(svdup_f32(0.0f), full_predicate_b32, 0,
+                                                                     depth_step);
+                    svfloat16_t b_interleaved = svreinterpret_f16_f32(b_column_f32);
                     svmopa_za32_f16_m(3, row_predicate_b16, full_predicate_b16, a_interleaved, b_interleaved);
                 }
             }
@@ -653,10 +671,10 @@ __arm_locally_streaming __arm_new("za") static void nk_dots_symmetric_f16_sme_ke
 
         // Remainder: 1 column tile at a time
         for (; column_tile_index < column_tile_count; column_tile_index++) {
-            nk_size_t const col_tile_start = column_tile_index * tile_dimension;
-            nk_size_t const cols_remaining = (col_tile_start + tile_dimension <= n_vectors)
+            nk_size_t const column_tile_start = column_tile_index * tile_dimension;
+            nk_size_t const cols_remaining = (column_tile_start + tile_dimension <= n_vectors)
                                                  ? tile_dimension
-                                                 : (n_vectors - col_tile_start);
+                                                 : (n_vectors - column_tile_start);
             svbool_t const column_predicate_b32 = svwhilelt_b32((uint32_t)0, (uint32_t)cols_remaining);
             svbool_t const column_predicate_b16 = svwhilelt_b16((uint32_t)0, (uint32_t)(cols_remaining * expansion));
 
@@ -685,18 +703,20 @@ __arm_locally_streaming __arm_new("za") static void nk_dots_symmetric_f16_sme_ke
 
                 // Load B column tile into ZA0, vertical read + FMOPA into ZA1
                 svzero_mask_za(nk_sme_zero_za32_tile_0_);
-                for (nk_size_t col = 0; col < tile_dimension; col++) {
-                    nk_size_t const col_abs = col_tile_start + col;
-                    if (col_abs < n_vectors) {
-                        nk_f32_t const *b_row = (nk_f32_t const *)(vectors + col_abs * stride_elements +
+                for (nk_size_t column = 0; column < tile_dimension; column++) {
+                    nk_size_t const column_abs = column_tile_start + column;
+                    if (column_abs < n_vectors) {
+                        nk_f32_t const *b_row = (nk_f32_t const *)(vectors + column_abs * stride_elements +
                                                                    depth_batch_start * expansion);
-                        svld1_hor_za32(0, col, batch_predicate_b32, b_row);
+                        svld1_hor_za32(0, column, batch_predicate_b32, b_row);
                     }
                 }
-                for (nk_size_t step = 0; step < batch_size; step++) {
-                    svfloat16_t a_interleaved = svreinterpret_f16_f32(svld1_f32(full_predicate_b32, a_buffer[step]));
-                    svfloat32_t b_col_f32 = svread_ver_za32_f32_m(svdup_f32(0.0f), column_predicate_b32, 0, step);
-                    svfloat16_t b_interleaved = svreinterpret_f16_f32(b_col_f32);
+                for (nk_size_t depth_step = 0; depth_step < batch_size; depth_step++) {
+                    svfloat16_t a_interleaved = svreinterpret_f16_f32(
+                        svld1_f32(full_predicate_b32, a_buffer[depth_step]));
+                    svfloat32_t b_column_f32 = svread_ver_za32_f32_m(svdup_f32(0.0f), column_predicate_b32, 0,
+                                                                     depth_step);
+                    svfloat16_t b_interleaved = svreinterpret_f16_f32(b_column_f32);
                     svmopa_za32_f16_m(1, row_predicate_b16, column_predicate_b16, a_interleaved, b_interleaved);
                 }
             }
@@ -704,7 +724,7 @@ __arm_locally_streaming __arm_new("za") static void nk_dots_symmetric_f16_sme_ke
             for (nk_size_t row = 0; row < rows_clamped; row++) {
                 nk_size_t const row_abs = row_tile_start + row;
                 svst1_hor_za32(1, row, column_predicate_b32,
-                               result + row_abs * result_stride_elements + col_tile_start);
+                               result + row_abs * result_stride_elements + column_tile_start);
             }
         }
 
@@ -780,50 +800,56 @@ __arm_locally_streaming __arm_new("za") static void nk_dots_symmetric_bf16_sme_k
                               svread_ver_za32_f32_m(svdup_f32(0), row_predicate_b32, 0, s));
 
                 svzero_mask_za(nk_sme_zero_za32_tile_0_);
-                for (nk_size_t col = 0; col < tile_dimension; col++) {
-                    nk_size_t const col_abs = (column_tile_index + 0) * tile_dimension + col;
-                    if (col_abs < n_vectors) {
-                        nk_f32_t const *b_row = (nk_f32_t const *)(vectors + col_abs * stride_elements +
+                for (nk_size_t column = 0; column < tile_dimension; column++) {
+                    nk_size_t const column_abs = (column_tile_index + 0) * tile_dimension + column;
+                    if (column_abs < n_vectors) {
+                        nk_f32_t const *b_row = (nk_f32_t const *)(vectors + column_abs * stride_elements +
                                                                    depth_batch_start * expansion);
-                        svld1_hor_za32(0, col, batch_predicate_b32, b_row);
+                        svld1_hor_za32(0, column, batch_predicate_b32, b_row);
                     }
                 }
-                for (nk_size_t step = 0; step < batch_size; step++) {
-                    svbfloat16_t a_interleaved = svreinterpret_bf16_f32(svld1_f32(full_predicate_b32, a_buffer[step]));
-                    svfloat32_t b_col_f32 = svread_ver_za32_f32_m(svdup_f32(0.0f), full_predicate_b32, 0, step);
-                    svbfloat16_t b_interleaved = svreinterpret_bf16_f32(b_col_f32);
+                for (nk_size_t depth_step = 0; depth_step < batch_size; depth_step++) {
+                    svbfloat16_t a_interleaved = svreinterpret_bf16_f32(
+                        svld1_f32(full_predicate_b32, a_buffer[depth_step]));
+                    svfloat32_t b_column_f32 = svread_ver_za32_f32_m(svdup_f32(0.0f), full_predicate_b32, 0,
+                                                                     depth_step);
+                    svbfloat16_t b_interleaved = svreinterpret_bf16_f32(b_column_f32);
                     svmopa_za32_bf16_m(1, row_predicate_b16, full_predicate_b16, a_interleaved, b_interleaved);
                 }
 
                 svzero_mask_za(nk_sme_zero_za32_tile_0_);
-                for (nk_size_t col = 0; col < tile_dimension; col++) {
-                    nk_size_t const col_abs = (column_tile_index + 1) * tile_dimension + col;
-                    if (col_abs < n_vectors) {
-                        nk_f32_t const *b_row = (nk_f32_t const *)(vectors + col_abs * stride_elements +
+                for (nk_size_t column = 0; column < tile_dimension; column++) {
+                    nk_size_t const column_abs = (column_tile_index + 1) * tile_dimension + column;
+                    if (column_abs < n_vectors) {
+                        nk_f32_t const *b_row = (nk_f32_t const *)(vectors + column_abs * stride_elements +
                                                                    depth_batch_start * expansion);
-                        svld1_hor_za32(0, col, batch_predicate_b32, b_row);
+                        svld1_hor_za32(0, column, batch_predicate_b32, b_row);
                     }
                 }
-                for (nk_size_t step = 0; step < batch_size; step++) {
-                    svbfloat16_t a_interleaved = svreinterpret_bf16_f32(svld1_f32(full_predicate_b32, a_buffer[step]));
-                    svfloat32_t b_col_f32 = svread_ver_za32_f32_m(svdup_f32(0.0f), full_predicate_b32, 0, step);
-                    svbfloat16_t b_interleaved = svreinterpret_bf16_f32(b_col_f32);
+                for (nk_size_t depth_step = 0; depth_step < batch_size; depth_step++) {
+                    svbfloat16_t a_interleaved = svreinterpret_bf16_f32(
+                        svld1_f32(full_predicate_b32, a_buffer[depth_step]));
+                    svfloat32_t b_column_f32 = svread_ver_za32_f32_m(svdup_f32(0.0f), full_predicate_b32, 0,
+                                                                     depth_step);
+                    svbfloat16_t b_interleaved = svreinterpret_bf16_f32(b_column_f32);
                     svmopa_za32_bf16_m(2, row_predicate_b16, full_predicate_b16, a_interleaved, b_interleaved);
                 }
 
                 svzero_mask_za(nk_sme_zero_za32_tile_0_);
-                for (nk_size_t col = 0; col < tile_dimension; col++) {
-                    nk_size_t const col_abs = (column_tile_index + 2) * tile_dimension + col;
-                    if (col_abs < n_vectors) {
-                        nk_f32_t const *b_row = (nk_f32_t const *)(vectors + col_abs * stride_elements +
+                for (nk_size_t column = 0; column < tile_dimension; column++) {
+                    nk_size_t const column_abs = (column_tile_index + 2) * tile_dimension + column;
+                    if (column_abs < n_vectors) {
+                        nk_f32_t const *b_row = (nk_f32_t const *)(vectors + column_abs * stride_elements +
                                                                    depth_batch_start * expansion);
-                        svld1_hor_za32(0, col, batch_predicate_b32, b_row);
+                        svld1_hor_za32(0, column, batch_predicate_b32, b_row);
                     }
                 }
-                for (nk_size_t step = 0; step < batch_size; step++) {
-                    svbfloat16_t a_interleaved = svreinterpret_bf16_f32(svld1_f32(full_predicate_b32, a_buffer[step]));
-                    svfloat32_t b_col_f32 = svread_ver_za32_f32_m(svdup_f32(0.0f), full_predicate_b32, 0, step);
-                    svbfloat16_t b_interleaved = svreinterpret_bf16_f32(b_col_f32);
+                for (nk_size_t depth_step = 0; depth_step < batch_size; depth_step++) {
+                    svbfloat16_t a_interleaved = svreinterpret_bf16_f32(
+                        svld1_f32(full_predicate_b32, a_buffer[depth_step]));
+                    svfloat32_t b_column_f32 = svread_ver_za32_f32_m(svdup_f32(0.0f), full_predicate_b32, 0,
+                                                                     depth_step);
+                    svbfloat16_t b_interleaved = svreinterpret_bf16_f32(b_column_f32);
                     svmopa_za32_bf16_m(3, row_predicate_b16, full_predicate_b16, a_interleaved, b_interleaved);
                 }
             }
@@ -838,10 +864,10 @@ __arm_locally_streaming __arm_new("za") static void nk_dots_symmetric_bf16_sme_k
         }
 
         for (; column_tile_index < column_tile_count; column_tile_index++) {
-            nk_size_t const col_tile_start = column_tile_index * tile_dimension;
-            nk_size_t const cols_remaining = (col_tile_start + tile_dimension <= n_vectors)
+            nk_size_t const column_tile_start = column_tile_index * tile_dimension;
+            nk_size_t const cols_remaining = (column_tile_start + tile_dimension <= n_vectors)
                                                  ? tile_dimension
-                                                 : (n_vectors - col_tile_start);
+                                                 : (n_vectors - column_tile_start);
             svbool_t const column_predicate_b32 = svwhilelt_b32((uint32_t)0, (uint32_t)cols_remaining);
             svbool_t const column_predicate_b16 = svwhilelt_b16((uint32_t)0, (uint32_t)(cols_remaining * expansion));
 
@@ -868,18 +894,20 @@ __arm_locally_streaming __arm_new("za") static void nk_dots_symmetric_bf16_sme_k
                               svread_ver_za32_f32_m(svdup_f32(0), row_predicate_b32, 0, s));
 
                 svzero_mask_za(nk_sme_zero_za32_tile_0_);
-                for (nk_size_t col = 0; col < tile_dimension; col++) {
-                    nk_size_t const col_abs = col_tile_start + col;
-                    if (col_abs < n_vectors) {
-                        nk_f32_t const *b_row = (nk_f32_t const *)(vectors + col_abs * stride_elements +
+                for (nk_size_t column = 0; column < tile_dimension; column++) {
+                    nk_size_t const column_abs = column_tile_start + column;
+                    if (column_abs < n_vectors) {
+                        nk_f32_t const *b_row = (nk_f32_t const *)(vectors + column_abs * stride_elements +
                                                                    depth_batch_start * expansion);
-                        svld1_hor_za32(0, col, batch_predicate_b32, b_row);
+                        svld1_hor_za32(0, column, batch_predicate_b32, b_row);
                     }
                 }
-                for (nk_size_t step = 0; step < batch_size; step++) {
-                    svbfloat16_t a_interleaved = svreinterpret_bf16_f32(svld1_f32(full_predicate_b32, a_buffer[step]));
-                    svfloat32_t b_col_f32 = svread_ver_za32_f32_m(svdup_f32(0.0f), column_predicate_b32, 0, step);
-                    svbfloat16_t b_interleaved = svreinterpret_bf16_f32(b_col_f32);
+                for (nk_size_t depth_step = 0; depth_step < batch_size; depth_step++) {
+                    svbfloat16_t a_interleaved = svreinterpret_bf16_f32(
+                        svld1_f32(full_predicate_b32, a_buffer[depth_step]));
+                    svfloat32_t b_column_f32 = svread_ver_za32_f32_m(svdup_f32(0.0f), column_predicate_b32, 0,
+                                                                     depth_step);
+                    svbfloat16_t b_interleaved = svreinterpret_bf16_f32(b_column_f32);
                     svmopa_za32_bf16_m(1, row_predicate_b16, column_predicate_b16, a_interleaved, b_interleaved);
                 }
             }
@@ -887,7 +915,7 @@ __arm_locally_streaming __arm_new("za") static void nk_dots_symmetric_bf16_sme_k
             for (nk_size_t row = 0; row < rows_clamped; row++) {
                 nk_size_t const row_abs = row_tile_start + row;
                 svst1_hor_za32(1, row, column_predicate_b32,
-                               result + row_abs * result_stride_elements + col_tile_start);
+                               result + row_abs * result_stride_elements + column_tile_start);
             }
         }
 
@@ -964,13 +992,13 @@ NK_PUBLIC void nk_dots_pack_i8_sme(             //
 
     for (nk_size_t i = 0; i < total_vectors * vector_elements; i++) { tiles_ptr[i] = 0; }
 
-    // Interleaved packing: packed_vec[expansion * d + k] = B[col_tile*tile_dim + d, depth_step*expansion + k]
-    for (nk_size_t col_tile = 0; col_tile < column_tile_count; col_tile++) {
+    // Interleaved packing: packed_vec[expansion * d + k] = B[column_tile*tile_dim + d, depth_step*expansion + k]
+    for (nk_size_t column_tile = 0; column_tile < column_tile_count; column_tile++) {
         for (nk_size_t depth_step = 0; depth_step < depth_step_count; depth_step++) {
-            nk_size_t const vec_index = col_tile * depth_step_count + depth_step;
+            nk_size_t const vec_index = column_tile * depth_step_count + depth_step;
             nk_i8_t *vec_output = tiles_ptr + vec_index * vector_elements;
 
-            nk_size_t const b_row_start = col_tile * tile_dimension;
+            nk_size_t const b_row_start = column_tile * tile_dimension;
             nk_size_t const depth_base = depth_step * expansion;
             nk_size_t const rows_to_pack = (b_row_start + tile_dimension <= n) ? tile_dimension : (n - b_row_start);
 
@@ -995,7 +1023,7 @@ NK_PUBLIC void nk_dots_pack_i8_sme(             //
  *
  *  For correct GEMM C[i][j] = Σ_k A[i][k]*B[j][k]:
  *  - Zn[4*s+k] = A[row_start+s, depth_base+k]  (gather 4 depth elements per A row)
- *  - Zm[4*d+k] = B[col_start+d, depth_base+k]   (pre-packed interleaved)
+ *  - Zm[4*d+k] = B[column_start+d, depth_base+k]   (pre-packed interleaved)
  *  - Loop over depth in steps of 4 (expansion factor)
  */
 __arm_locally_streaming __arm_new("za") static void nk_dots_packed_i8_sme_kernel_( //
@@ -1012,7 +1040,7 @@ __arm_locally_streaming __arm_new("za") static void nk_dots_packed_i8_sme_kernel
     nk_size_t const vector_elements = svcntb();             // 64: i8 elements per SVE vector
     nk_size_t const depth_steps_per_batch = tile_dimension; // 16 steps = 64 depth elements per ZA0 load
 
-    nk_i8_t const *b_vecs = (nk_i8_t const *)((char const *)b_packed + sizeof(nk_dots_sme_packed_header_t));
+    nk_i8_t const *b_packed_base = (nk_i8_t const *)((char const *)b_packed + sizeof(nk_dots_sme_packed_header_t));
 
     svbool_t const full_predicate_b8 = svptrue_b8();
     svbool_t const full_predicate_b32 = svptrue_b32();
@@ -1042,33 +1070,38 @@ __arm_locally_streaming __arm_new("za") static void nk_dots_packed_i8_sme_kernel
 
                 // Load A rows into ZA0.S (each f32 word = 4 packed i8 bytes)
                 svbool_t const batch_predicate_b32 = svwhilelt_b32((uint32_t)0, (uint32_t)batch_size);
-                for (nk_size_t row_within_tile = 0; row_within_tile < rows_remaining; row_within_tile++) {
-                    nk_size_t const a_row = row_start + row_within_tile;
+                for (nk_size_t row_in_tile = 0; row_in_tile < rows_remaining; row_in_tile++) {
+                    nk_size_t const a_row = row_start + row_in_tile;
                     nk_f32_t const *a_row_ptr = (nk_f32_t const *)(a + a_row * a_stride_elements +
                                                                    depth_batch_start * expansion);
-                    svld1_hor_za32(0, row_within_tile, batch_predicate_b32, a_row_ptr);
+                    svld1_hor_za32(0, row_in_tile, batch_predicate_b32, a_row_ptr);
                 }
 
-                for (nk_size_t step_within_batch = 0; step_within_batch < batch_size; step_within_batch++) {
-                    nk_size_t const ds = depth_batch_start + step_within_batch;
+                for (nk_size_t depth_step = 0; depth_step < batch_size; depth_step++) {
+
                     // Vertical read at f32 granularity produces [row0_k0..k3, row1_k0..k3, ...]
-                    svint32_t a_column_i32 = svread_ver_za32_s32_m(svdup_s32(0), row_predicate_b32, 0,
-                                                                   step_within_batch);
+                    svint32_t a_column_i32 = svread_ver_za32_s32_m(svdup_s32(0), row_predicate_b32, 0, depth_step);
                     svint8_t a_interleaved_vector_i8 = svreinterpret_s8_s32(a_column_i32);
 
-                    nk_i8_t const *bv0 = b_vecs + ((column_tile_index + 0) * depth_step_count + ds) * vector_elements;
-                    nk_i8_t const *bv1 = b_vecs + ((column_tile_index + 1) * depth_step_count + ds) * vector_elements;
-                    nk_i8_t const *bv2 = b_vecs + ((column_tile_index + 2) * depth_step_count + ds) * vector_elements;
-                    svint8_t b_packed_vector_i8_0 = svld1_s8(full_predicate_b8, bv0);
-                    svint8_t b_packed_vector_i8_1 = svld1_s8(full_predicate_b8, bv1);
-                    svint8_t b_packed_vector_i8_2 = svld1_s8(full_predicate_b8, bv2);
+                    nk_i8_t const *b_packed_ptr_0 = b_packed_base + ((column_tile_index + 0) * depth_step_count +
+                                                                     depth_batch_start + depth_step) *
+                                                                        vector_elements;
+                    nk_i8_t const *b_packed_ptr_1 = b_packed_base + ((column_tile_index + 1) * depth_step_count +
+                                                                     depth_batch_start + depth_step) *
+                                                                        vector_elements;
+                    nk_i8_t const *b_packed_ptr_2 = b_packed_base + ((column_tile_index + 2) * depth_step_count +
+                                                                     depth_batch_start + depth_step) *
+                                                                        vector_elements;
+                    svint8_t b_packed_vector_0 = svld1_s8(full_predicate_b8, b_packed_ptr_0);
+                    svint8_t b_packed_vector_1 = svld1_s8(full_predicate_b8, b_packed_ptr_1);
+                    svint8_t b_packed_vector_2 = svld1_s8(full_predicate_b8, b_packed_ptr_2);
 
                     svmopa_za32_s8_m(1, row_predicate_b8, full_predicate_b8, a_interleaved_vector_i8,
-                                     b_packed_vector_i8_0);
+                                     b_packed_vector_0);
                     svmopa_za32_s8_m(2, row_predicate_b8, full_predicate_b8, a_interleaved_vector_i8,
-                                     b_packed_vector_i8_1);
+                                     b_packed_vector_1);
                     svmopa_za32_s8_m(3, row_predicate_b8, full_predicate_b8, a_interleaved_vector_i8,
-                                     b_packed_vector_i8_2);
+                                     b_packed_vector_2);
                 }
             }
 
@@ -1084,9 +1117,9 @@ __arm_locally_streaming __arm_new("za") static void nk_dots_packed_i8_sme_kernel
 
         // Remainder: 1 column tile using ZA1
         for (; column_tile_index < column_tile_count; column_tile_index++) {
-            nk_size_t const col_start = column_tile_index * tile_dimension;
-            nk_size_t const cols_remaining = (col_start + tile_dimension <= columns) ? tile_dimension
-                                                                                     : (columns - col_start);
+            nk_size_t const column_start = column_tile_index * tile_dimension;
+            nk_size_t const cols_remaining = (column_start + tile_dimension <= columns) ? tile_dimension
+                                                                                        : (columns - column_start);
             svbool_t const column_predicate_b32 = svwhilelt_b32((uint32_t)0, (uint32_t)cols_remaining);
             svbool_t const column_predicate_b8 = svwhilelt_b8((uint32_t)0, (uint32_t)(cols_remaining * expansion));
 
@@ -1102,29 +1135,30 @@ __arm_locally_streaming __arm_new("za") static void nk_dots_packed_i8_sme_kernel
                 svzero_mask_za(nk_sme_zero_za32_tile_0_);
 
                 svbool_t const batch_predicate_b32 = svwhilelt_b32((uint32_t)0, (uint32_t)batch_size);
-                for (nk_size_t row_within_tile = 0; row_within_tile < rows_remaining; row_within_tile++) {
-                    nk_size_t const a_row = row_start + row_within_tile;
+                for (nk_size_t row_in_tile = 0; row_in_tile < rows_remaining; row_in_tile++) {
+                    nk_size_t const a_row = row_start + row_in_tile;
                     nk_f32_t const *a_row_ptr = (nk_f32_t const *)(a + a_row * a_stride_elements +
                                                                    depth_batch_start * expansion);
-                    svld1_hor_za32(0, row_within_tile, batch_predicate_b32, a_row_ptr);
+                    svld1_hor_za32(0, row_in_tile, batch_predicate_b32, a_row_ptr);
                 }
 
-                for (nk_size_t step_within_batch = 0; step_within_batch < batch_size; step_within_batch++) {
-                    nk_size_t const ds = depth_batch_start + step_within_batch;
-                    svint32_t a_column_i32 = svread_ver_za32_s32_m(svdup_s32(0), row_predicate_b32, 0,
-                                                                   step_within_batch);
+                for (nk_size_t depth_step = 0; depth_step < batch_size; depth_step++) {
+
+                    svint32_t a_column_i32 = svread_ver_za32_s32_m(svdup_s32(0), row_predicate_b32, 0, depth_step);
                     svint8_t a_interleaved_vector_i8 = svreinterpret_s8_s32(a_column_i32);
 
-                    nk_i8_t const *bv = b_vecs + (column_tile_index * depth_step_count + ds) * vector_elements;
-                    svint8_t b_packed_vector_i8 = svld1_s8(column_predicate_b8, bv);
+                    nk_i8_t const *b_packed_ptr = b_packed_base + (column_tile_index * depth_step_count +
+                                                                   depth_batch_start + depth_step) *
+                                                                      vector_elements;
+                    svint8_t b_packed_vector = svld1_s8(column_predicate_b8, b_packed_ptr);
 
                     svmopa_za32_s8_m(1, row_predicate_b8, column_predicate_b8, a_interleaved_vector_i8,
-                                     b_packed_vector_i8);
+                                     b_packed_vector);
                 }
             }
 
             for (nk_size_t row = 0; row < rows_remaining; row++) {
-                svst1_hor_za32(1, row, column_predicate_b32, c + (row_start + row) * c_stride_elements + col_start);
+                svst1_hor_za32(1, row, column_predicate_b32, c + (row_start + row) * c_stride_elements + column_start);
             }
         }
     }
@@ -1194,50 +1228,50 @@ __arm_locally_streaming __arm_new("za") static void nk_dots_symmetric_i8_sme_ker
                               svread_ver_za32_s32_m(svdup_s32(0), row_predicate_b32, 0, s));
 
                 svzero_mask_za(nk_sme_zero_za32_tile_0_);
-                for (nk_size_t col = 0; col < tile_dimension; col++) {
-                    nk_size_t const col_abs = (column_tile_index + 0) * tile_dimension + col;
-                    if (col_abs < n_vectors) {
-                        nk_f32_t const *b_row = (nk_f32_t const *)(vectors + col_abs * stride_elements +
+                for (nk_size_t column = 0; column < tile_dimension; column++) {
+                    nk_size_t const column_abs = (column_tile_index + 0) * tile_dimension + column;
+                    if (column_abs < n_vectors) {
+                        nk_f32_t const *b_row = (nk_f32_t const *)(vectors + column_abs * stride_elements +
                                                                    depth_batch_start * expansion);
-                        svld1_hor_za32(0, col, batch_predicate_b32, b_row);
+                        svld1_hor_za32(0, column, batch_predicate_b32, b_row);
                     }
                 }
-                for (nk_size_t step = 0; step < batch_size; step++) {
-                    svint8_t a_interleaved = svreinterpret_s8_s32(svld1_s32(full_predicate_b32, a_buffer[step]));
-                    svint32_t b_col_i32 = svread_ver_za32_s32_m(svdup_s32(0), full_predicate_b32, 0, step);
-                    svint8_t b_interleaved = svreinterpret_s8_s32(b_col_i32);
+                for (nk_size_t depth_step = 0; depth_step < batch_size; depth_step++) {
+                    svint8_t a_interleaved = svreinterpret_s8_s32(svld1_s32(full_predicate_b32, a_buffer[depth_step]));
+                    svint32_t b_column_i32 = svread_ver_za32_s32_m(svdup_s32(0), full_predicate_b32, 0, depth_step);
+                    svint8_t b_interleaved = svreinterpret_s8_s32(b_column_i32);
                     svmopa_za32_s8_m(1, row_predicate_b8, full_predicate_b8, a_interleaved, b_interleaved);
                 }
 
                 svzero_mask_za(nk_sme_zero_za32_tile_0_);
-                for (nk_size_t col = 0; col < tile_dimension; col++) {
-                    nk_size_t const col_abs = (column_tile_index + 1) * tile_dimension + col;
-                    if (col_abs < n_vectors) {
-                        nk_f32_t const *b_row = (nk_f32_t const *)(vectors + col_abs * stride_elements +
+                for (nk_size_t column = 0; column < tile_dimension; column++) {
+                    nk_size_t const column_abs = (column_tile_index + 1) * tile_dimension + column;
+                    if (column_abs < n_vectors) {
+                        nk_f32_t const *b_row = (nk_f32_t const *)(vectors + column_abs * stride_elements +
                                                                    depth_batch_start * expansion);
-                        svld1_hor_za32(0, col, batch_predicate_b32, b_row);
+                        svld1_hor_za32(0, column, batch_predicate_b32, b_row);
                     }
                 }
-                for (nk_size_t step = 0; step < batch_size; step++) {
-                    svint8_t a_interleaved = svreinterpret_s8_s32(svld1_s32(full_predicate_b32, a_buffer[step]));
-                    svint32_t b_col_i32 = svread_ver_za32_s32_m(svdup_s32(0), full_predicate_b32, 0, step);
-                    svint8_t b_interleaved = svreinterpret_s8_s32(b_col_i32);
+                for (nk_size_t depth_step = 0; depth_step < batch_size; depth_step++) {
+                    svint8_t a_interleaved = svreinterpret_s8_s32(svld1_s32(full_predicate_b32, a_buffer[depth_step]));
+                    svint32_t b_column_i32 = svread_ver_za32_s32_m(svdup_s32(0), full_predicate_b32, 0, depth_step);
+                    svint8_t b_interleaved = svreinterpret_s8_s32(b_column_i32);
                     svmopa_za32_s8_m(2, row_predicate_b8, full_predicate_b8, a_interleaved, b_interleaved);
                 }
 
                 svzero_mask_za(nk_sme_zero_za32_tile_0_);
-                for (nk_size_t col = 0; col < tile_dimension; col++) {
-                    nk_size_t const col_abs = (column_tile_index + 2) * tile_dimension + col;
-                    if (col_abs < n_vectors) {
-                        nk_f32_t const *b_row = (nk_f32_t const *)(vectors + col_abs * stride_elements +
+                for (nk_size_t column = 0; column < tile_dimension; column++) {
+                    nk_size_t const column_abs = (column_tile_index + 2) * tile_dimension + column;
+                    if (column_abs < n_vectors) {
+                        nk_f32_t const *b_row = (nk_f32_t const *)(vectors + column_abs * stride_elements +
                                                                    depth_batch_start * expansion);
-                        svld1_hor_za32(0, col, batch_predicate_b32, b_row);
+                        svld1_hor_za32(0, column, batch_predicate_b32, b_row);
                     }
                 }
-                for (nk_size_t step = 0; step < batch_size; step++) {
-                    svint8_t a_interleaved = svreinterpret_s8_s32(svld1_s32(full_predicate_b32, a_buffer[step]));
-                    svint32_t b_col_i32 = svread_ver_za32_s32_m(svdup_s32(0), full_predicate_b32, 0, step);
-                    svint8_t b_interleaved = svreinterpret_s8_s32(b_col_i32);
+                for (nk_size_t depth_step = 0; depth_step < batch_size; depth_step++) {
+                    svint8_t a_interleaved = svreinterpret_s8_s32(svld1_s32(full_predicate_b32, a_buffer[depth_step]));
+                    svint32_t b_column_i32 = svread_ver_za32_s32_m(svdup_s32(0), full_predicate_b32, 0, depth_step);
+                    svint8_t b_interleaved = svreinterpret_s8_s32(b_column_i32);
                     svmopa_za32_s8_m(3, row_predicate_b8, full_predicate_b8, a_interleaved, b_interleaved);
                 }
             }
@@ -1252,10 +1286,10 @@ __arm_locally_streaming __arm_new("za") static void nk_dots_symmetric_i8_sme_ker
         }
 
         for (; column_tile_index < column_tile_count; column_tile_index++) {
-            nk_size_t const col_tile_start = column_tile_index * tile_dimension;
-            nk_size_t const cols_remaining = (col_tile_start + tile_dimension <= n_vectors)
+            nk_size_t const column_tile_start = column_tile_index * tile_dimension;
+            nk_size_t const cols_remaining = (column_tile_start + tile_dimension <= n_vectors)
                                                  ? tile_dimension
-                                                 : (n_vectors - col_tile_start);
+                                                 : (n_vectors - column_tile_start);
             svbool_t const column_predicate_b32 = svwhilelt_b32((uint32_t)0, (uint32_t)cols_remaining);
             svbool_t const column_predicate_b8 = svwhilelt_b8((uint32_t)0, (uint32_t)(cols_remaining * expansion));
 
@@ -1282,18 +1316,18 @@ __arm_locally_streaming __arm_new("za") static void nk_dots_symmetric_i8_sme_ker
                               svread_ver_za32_s32_m(svdup_s32(0), row_predicate_b32, 0, s));
 
                 svzero_mask_za(nk_sme_zero_za32_tile_0_);
-                for (nk_size_t col = 0; col < tile_dimension; col++) {
-                    nk_size_t const col_abs = col_tile_start + col;
-                    if (col_abs < n_vectors) {
-                        nk_f32_t const *b_row = (nk_f32_t const *)(vectors + col_abs * stride_elements +
+                for (nk_size_t column = 0; column < tile_dimension; column++) {
+                    nk_size_t const column_abs = column_tile_start + column;
+                    if (column_abs < n_vectors) {
+                        nk_f32_t const *b_row = (nk_f32_t const *)(vectors + column_abs * stride_elements +
                                                                    depth_batch_start * expansion);
-                        svld1_hor_za32(0, col, batch_predicate_b32, b_row);
+                        svld1_hor_za32(0, column, batch_predicate_b32, b_row);
                     }
                 }
-                for (nk_size_t step = 0; step < batch_size; step++) {
-                    svint8_t a_interleaved = svreinterpret_s8_s32(svld1_s32(full_predicate_b32, a_buffer[step]));
-                    svint32_t b_col_i32 = svread_ver_za32_s32_m(svdup_s32(0), column_predicate_b32, 0, step);
-                    svint8_t b_interleaved = svreinterpret_s8_s32(b_col_i32);
+                for (nk_size_t depth_step = 0; depth_step < batch_size; depth_step++) {
+                    svint8_t a_interleaved = svreinterpret_s8_s32(svld1_s32(full_predicate_b32, a_buffer[depth_step]));
+                    svint32_t b_column_i32 = svread_ver_za32_s32_m(svdup_s32(0), column_predicate_b32, 0, depth_step);
+                    svint8_t b_interleaved = svreinterpret_s8_s32(b_column_i32);
                     svmopa_za32_s8_m(1, row_predicate_b8, column_predicate_b8, a_interleaved, b_interleaved);
                 }
             }
@@ -1301,7 +1335,7 @@ __arm_locally_streaming __arm_new("za") static void nk_dots_symmetric_i8_sme_ker
             for (nk_size_t row = 0; row < rows_clamped; row++) {
                 nk_size_t const row_abs = row_tile_start + row;
                 svst1_hor_za32(1, row, column_predicate_b32,
-                               (nk_f32_t *)(result + row_abs * result_stride_elements) + col_tile_start);
+                               (nk_f32_t *)(result + row_abs * result_stride_elements) + column_tile_start);
             }
         }
 
@@ -1411,7 +1445,7 @@ __arm_locally_streaming __arm_new("za") __attribute__((noinline)) static void nk
     nk_size_t const vector_elements = svcnth();
     nk_size_t const depth_steps_per_batch = tile_dimension;
 
-    nk_f16_t const *b_vecs = (nk_f16_t const *)((char const *)b_packed + sizeof(nk_dots_sme_packed_header_t));
+    nk_f16_t const *b_packed_base = (nk_f16_t const *)((char const *)b_packed + sizeof(nk_dots_sme_packed_header_t));
 
     svbool_t const full_predicate_b16 = svptrue_b16();
     svbool_t const full_predicate_b8 = svptrue_b8();
@@ -1445,37 +1479,42 @@ __arm_locally_streaming __arm_new("za") __attribute__((noinline)) static void nk
                 svzero_mask_za(nk_sme_zero_za32_tile_0_);
 
                 svbool_t const batch_predicate_b32 = svwhilelt_b32((uint32_t)0, (uint32_t)batch_size);
-                for (nk_size_t row_within_tile = 0; row_within_tile < rows_remaining; row_within_tile++) {
-                    nk_size_t const a_row = row_start + row_within_tile;
+                for (nk_size_t row_in_tile = 0; row_in_tile < rows_remaining; row_in_tile++) {
+                    nk_size_t const a_row = row_start + row_in_tile;
                     // Load raw e4m3 bytes and convert to f16 using vectorized conversion
                     nk_e4m3_t const *a_src = a + a_row * a_stride_elements + depth_batch_start * expansion;
                     svuint8_t raw_bytes = svld1_u8(full_predicate_b8, (uint8_t const *)a_src);
                     svfloat16_t converted_f16 = nk_e4m3x_to_f16x_ssve_(full_predicate_b16, raw_bytes);
-                    svst1_f16(full_predicate_b16, (float16_t *)a_converted_f16x32[row_within_tile], converted_f16);
+                    svst1_f16(full_predicate_b16, (float16_t *)a_converted_f16x32[row_in_tile], converted_f16);
                     // Load converted f16 row into ZA0 as f32 words
-                    svld1_hor_za32(0, row_within_tile, batch_predicate_b32,
-                                   (nk_f32_t const *)a_converted_f16x32[row_within_tile]);
+                    svld1_hor_za32(0, row_in_tile, batch_predicate_b32,
+                                   (nk_f32_t const *)a_converted_f16x32[row_in_tile]);
                 }
 
-                for (nk_size_t step_within_batch = 0; step_within_batch < batch_size; step_within_batch++) {
-                    nk_size_t const ds = depth_batch_start + step_within_batch;
-                    svfloat32_t a_column_f32 = svread_ver_za32_f32_m(svdup_f32(0.0f), row_predicate_b32, 0,
-                                                                     step_within_batch);
+                for (nk_size_t depth_step = 0; depth_step < batch_size; depth_step++) {
+
+                    svfloat32_t a_column_f32 = svread_ver_za32_f32_m(svdup_f32(0.0f), row_predicate_b32, 0, depth_step);
                     svfloat16_t a_interleaved_vector_f16 = svreinterpret_f16_f32(a_column_f32);
 
-                    nk_f16_t const *bv0 = b_vecs + ((column_tile_index + 0) * depth_step_count + ds) * vector_elements;
-                    nk_f16_t const *bv1 = b_vecs + ((column_tile_index + 1) * depth_step_count + ds) * vector_elements;
-                    nk_f16_t const *bv2 = b_vecs + ((column_tile_index + 2) * depth_step_count + ds) * vector_elements;
-                    svfloat16_t b_packed_vector_f16_0 = svld1_f16(full_predicate_b16, (float16_t const *)bv0);
-                    svfloat16_t b_packed_vector_f16_1 = svld1_f16(full_predicate_b16, (float16_t const *)bv1);
-                    svfloat16_t b_packed_vector_f16_2 = svld1_f16(full_predicate_b16, (float16_t const *)bv2);
+                    nk_f16_t const *b_packed_ptr_0 = b_packed_base + ((column_tile_index + 0) * depth_step_count +
+                                                                      depth_batch_start + depth_step) *
+                                                                         vector_elements;
+                    nk_f16_t const *b_packed_ptr_1 = b_packed_base + ((column_tile_index + 1) * depth_step_count +
+                                                                      depth_batch_start + depth_step) *
+                                                                         vector_elements;
+                    nk_f16_t const *b_packed_ptr_2 = b_packed_base + ((column_tile_index + 2) * depth_step_count +
+                                                                      depth_batch_start + depth_step) *
+                                                                         vector_elements;
+                    svfloat16_t b_packed_vector_0 = svld1_f16(full_predicate_b16, (float16_t const *)b_packed_ptr_0);
+                    svfloat16_t b_packed_vector_1 = svld1_f16(full_predicate_b16, (float16_t const *)b_packed_ptr_1);
+                    svfloat16_t b_packed_vector_2 = svld1_f16(full_predicate_b16, (float16_t const *)b_packed_ptr_2);
 
                     svmopa_za32_f16_m(1, row_predicate_b16, full_predicate_b16, a_interleaved_vector_f16,
-                                      b_packed_vector_f16_0);
+                                      b_packed_vector_0);
                     svmopa_za32_f16_m(2, row_predicate_b16, full_predicate_b16, a_interleaved_vector_f16,
-                                      b_packed_vector_f16_1);
+                                      b_packed_vector_1);
                     svmopa_za32_f16_m(3, row_predicate_b16, full_predicate_b16, a_interleaved_vector_f16,
-                                      b_packed_vector_f16_2);
+                                      b_packed_vector_2);
                 }
             }
 
@@ -1491,9 +1530,9 @@ __arm_locally_streaming __arm_new("za") __attribute__((noinline)) static void nk
 
         // Remainder: 1 column tile using ZA1
         for (; column_tile_index < column_tile_count; column_tile_index++) {
-            nk_size_t const col_start = column_tile_index * tile_dimension;
-            nk_size_t const cols_remaining = (col_start + tile_dimension <= columns) ? tile_dimension
-                                                                                     : (columns - col_start);
+            nk_size_t const column_start = column_tile_index * tile_dimension;
+            nk_size_t const cols_remaining = (column_start + tile_dimension <= columns) ? tile_dimension
+                                                                                        : (columns - column_start);
             svbool_t const column_predicate_b32 = svwhilelt_b32((uint32_t)0, (uint32_t)cols_remaining);
             svbool_t const column_predicate_b16 = svwhilelt_b16((uint32_t)0, (uint32_t)(cols_remaining * expansion));
 
@@ -1509,32 +1548,33 @@ __arm_locally_streaming __arm_new("za") __attribute__((noinline)) static void nk
                 svzero_mask_za(nk_sme_zero_za32_tile_0_);
 
                 svbool_t const batch_predicate_b32 = svwhilelt_b32((uint32_t)0, (uint32_t)batch_size);
-                for (nk_size_t row_within_tile = 0; row_within_tile < rows_remaining; row_within_tile++) {
-                    nk_size_t const a_row = row_start + row_within_tile;
+                for (nk_size_t row_in_tile = 0; row_in_tile < rows_remaining; row_in_tile++) {
+                    nk_size_t const a_row = row_start + row_in_tile;
                     nk_e4m3_t const *a_src = a + a_row * a_stride_elements + depth_batch_start * expansion;
                     svuint8_t raw_bytes = svld1_u8(full_predicate_b8, (uint8_t const *)a_src);
                     svfloat16_t converted_f16 = nk_e4m3x_to_f16x_ssve_(full_predicate_b16, raw_bytes);
-                    svst1_f16(full_predicate_b16, (float16_t *)a_converted_f16x32[row_within_tile], converted_f16);
-                    svld1_hor_za32(0, row_within_tile, batch_predicate_b32,
-                                   (nk_f32_t const *)a_converted_f16x32[row_within_tile]);
+                    svst1_f16(full_predicate_b16, (float16_t *)a_converted_f16x32[row_in_tile], converted_f16);
+                    svld1_hor_za32(0, row_in_tile, batch_predicate_b32,
+                                   (nk_f32_t const *)a_converted_f16x32[row_in_tile]);
                 }
 
-                for (nk_size_t step_within_batch = 0; step_within_batch < batch_size; step_within_batch++) {
-                    nk_size_t const ds = depth_batch_start + step_within_batch;
-                    svfloat32_t a_column_f32 = svread_ver_za32_f32_m(svdup_f32(0.0f), row_predicate_b32, 0,
-                                                                     step_within_batch);
+                for (nk_size_t depth_step = 0; depth_step < batch_size; depth_step++) {
+
+                    svfloat32_t a_column_f32 = svread_ver_za32_f32_m(svdup_f32(0.0f), row_predicate_b32, 0, depth_step);
                     svfloat16_t a_interleaved_vector_f16 = svreinterpret_f16_f32(a_column_f32);
 
-                    nk_f16_t const *bv = b_vecs + (column_tile_index * depth_step_count + ds) * vector_elements;
-                    svfloat16_t b_packed_vector_f16 = svld1_f16(column_predicate_b16, (float16_t const *)bv);
+                    nk_f16_t const *b_packed_ptr = b_packed_base + (column_tile_index * depth_step_count +
+                                                                    depth_batch_start + depth_step) *
+                                                                       vector_elements;
+                    svfloat16_t b_packed_vector = svld1_f16(column_predicate_b16, (float16_t const *)b_packed_ptr);
 
                     svmopa_za32_f16_m(1, row_predicate_b16, column_predicate_b16, a_interleaved_vector_f16,
-                                      b_packed_vector_f16);
+                                      b_packed_vector);
                 }
             }
 
             for (nk_size_t row = 0; row < rows_remaining; row++) {
-                svst1_hor_za32(1, row, column_predicate_b32, c + (row_start + row) * c_stride_elements + col_start);
+                svst1_hor_za32(1, row, column_predicate_b32, c + (row_start + row) * c_stride_elements + column_start);
             }
         }
     }
@@ -1570,12 +1610,12 @@ NK_PUBLIC void nk_dots_pack_e4m3_sme(             //
     for (nk_size_t i = 0; i < total_vectors * vector_elements; i++) tiles_ptr[i] = 0;
 
     // Interleaved packing with e4m3 → f16 conversion
-    for (nk_size_t col_tile = 0; col_tile < column_tile_count; col_tile++) {
+    for (nk_size_t column_tile = 0; column_tile < column_tile_count; column_tile++) {
         for (nk_size_t depth_step = 0; depth_step < depth_step_count; depth_step++) {
-            nk_size_t const vec_index = col_tile * depth_step_count + depth_step;
+            nk_size_t const vec_index = column_tile * depth_step_count + depth_step;
             nk_f16_t *vec_output = tiles_ptr + vec_index * vector_elements;
 
-            nk_size_t const b_row_start = col_tile * tile_dimension;
+            nk_size_t const b_row_start = column_tile * tile_dimension;
             nk_size_t const depth_base = depth_step * expansion;
             nk_size_t const rows_to_pack = (b_row_start + tile_dimension <= n) ? tile_dimension : (n - b_row_start);
 
@@ -1673,58 +1713,64 @@ __arm_locally_streaming __arm_new("za") static void nk_dots_symmetric_e4m3_sme_k
 
                 // Load B column tile 0 into ZA0, vertical read + FMOPA into ZA1
                 svzero_mask_za(nk_sme_zero_za32_tile_0_);
-                for (nk_size_t col = 0; col < tile_dimension; col++) {
-                    nk_size_t const col_abs = (column_tile_index + 0) * tile_dimension + col;
-                    if (col_abs < n_vectors) {
-                        nk_e4m3_t const *src = &vectors[col_abs * stride_elements + depth_batch_start * expansion];
+                for (nk_size_t column = 0; column < tile_dimension; column++) {
+                    nk_size_t const column_abs = (column_tile_index + 0) * tile_dimension + column;
+                    if (column_abs < n_vectors) {
+                        nk_e4m3_t const *src = &vectors[column_abs * stride_elements + depth_batch_start * expansion];
                         svuint8_t raw = svld1_u8(depth_predicate_b8, (uint8_t const *)src);
-                        svfloat16_t cvt = nk_e4m3x_to_f16x_ssve_(depth_predicate_b16, raw);
-                        svst1_f16(depth_predicate_b16, (float16_t *)b_bounce_f16x32, cvt);
-                        svld1_hor_za32(0, col, batch_predicate_b32, (nk_f32_t const *)b_bounce_f16x32);
+                        svfloat16_t converted_f16 = nk_e4m3x_to_f16x_ssve_(depth_predicate_b16, raw);
+                        svst1_f16(depth_predicate_b16, (float16_t *)b_bounce_f16x32, converted_f16);
+                        svld1_hor_za32(0, column, batch_predicate_b32, (nk_f32_t const *)b_bounce_f16x32);
                     }
                 }
-                for (nk_size_t step = 0; step < batch_size; step++) {
-                    svfloat16_t a_interleaved = svreinterpret_f16_f32(svld1_f32(full_predicate_b32, a_buffer[step]));
-                    svfloat32_t b_col_f32 = svread_ver_za32_f32_m(svdup_f32(0.0f), full_predicate_b32, 0, step);
-                    svfloat16_t b_interleaved = svreinterpret_f16_f32(b_col_f32);
+                for (nk_size_t depth_step = 0; depth_step < batch_size; depth_step++) {
+                    svfloat16_t a_interleaved = svreinterpret_f16_f32(
+                        svld1_f32(full_predicate_b32, a_buffer[depth_step]));
+                    svfloat32_t b_column_f32 = svread_ver_za32_f32_m(svdup_f32(0.0f), full_predicate_b32, 0,
+                                                                     depth_step);
+                    svfloat16_t b_interleaved = svreinterpret_f16_f32(b_column_f32);
                     svmopa_za32_f16_m(1, row_predicate_b16, full_predicate_b16, a_interleaved, b_interleaved);
                 }
 
                 // Load B column tile 1 into ZA0, vertical read + FMOPA into ZA2
                 svzero_mask_za(nk_sme_zero_za32_tile_0_);
-                for (nk_size_t col = 0; col < tile_dimension; col++) {
-                    nk_size_t const col_abs = (column_tile_index + 1) * tile_dimension + col;
-                    if (col_abs < n_vectors) {
-                        nk_e4m3_t const *src = &vectors[col_abs * stride_elements + depth_batch_start * expansion];
+                for (nk_size_t column = 0; column < tile_dimension; column++) {
+                    nk_size_t const column_abs = (column_tile_index + 1) * tile_dimension + column;
+                    if (column_abs < n_vectors) {
+                        nk_e4m3_t const *src = &vectors[column_abs * stride_elements + depth_batch_start * expansion];
                         svuint8_t raw = svld1_u8(depth_predicate_b8, (uint8_t const *)src);
-                        svfloat16_t cvt = nk_e4m3x_to_f16x_ssve_(depth_predicate_b16, raw);
-                        svst1_f16(depth_predicate_b16, (float16_t *)b_bounce_f16x32, cvt);
-                        svld1_hor_za32(0, col, batch_predicate_b32, (nk_f32_t const *)b_bounce_f16x32);
+                        svfloat16_t converted_f16 = nk_e4m3x_to_f16x_ssve_(depth_predicate_b16, raw);
+                        svst1_f16(depth_predicate_b16, (float16_t *)b_bounce_f16x32, converted_f16);
+                        svld1_hor_za32(0, column, batch_predicate_b32, (nk_f32_t const *)b_bounce_f16x32);
                     }
                 }
-                for (nk_size_t step = 0; step < batch_size; step++) {
-                    svfloat16_t a_interleaved = svreinterpret_f16_f32(svld1_f32(full_predicate_b32, a_buffer[step]));
-                    svfloat32_t b_col_f32 = svread_ver_za32_f32_m(svdup_f32(0.0f), full_predicate_b32, 0, step);
-                    svfloat16_t b_interleaved = svreinterpret_f16_f32(b_col_f32);
+                for (nk_size_t depth_step = 0; depth_step < batch_size; depth_step++) {
+                    svfloat16_t a_interleaved = svreinterpret_f16_f32(
+                        svld1_f32(full_predicate_b32, a_buffer[depth_step]));
+                    svfloat32_t b_column_f32 = svread_ver_za32_f32_m(svdup_f32(0.0f), full_predicate_b32, 0,
+                                                                     depth_step);
+                    svfloat16_t b_interleaved = svreinterpret_f16_f32(b_column_f32);
                     svmopa_za32_f16_m(2, row_predicate_b16, full_predicate_b16, a_interleaved, b_interleaved);
                 }
 
                 // Load B column tile 2 into ZA0, vertical read + FMOPA into ZA3
                 svzero_mask_za(nk_sme_zero_za32_tile_0_);
-                for (nk_size_t col = 0; col < tile_dimension; col++) {
-                    nk_size_t const col_abs = (column_tile_index + 2) * tile_dimension + col;
-                    if (col_abs < n_vectors) {
-                        nk_e4m3_t const *src = &vectors[col_abs * stride_elements + depth_batch_start * expansion];
+                for (nk_size_t column = 0; column < tile_dimension; column++) {
+                    nk_size_t const column_abs = (column_tile_index + 2) * tile_dimension + column;
+                    if (column_abs < n_vectors) {
+                        nk_e4m3_t const *src = &vectors[column_abs * stride_elements + depth_batch_start * expansion];
                         svuint8_t raw = svld1_u8(depth_predicate_b8, (uint8_t const *)src);
-                        svfloat16_t cvt = nk_e4m3x_to_f16x_ssve_(depth_predicate_b16, raw);
-                        svst1_f16(depth_predicate_b16, (float16_t *)b_bounce_f16x32, cvt);
-                        svld1_hor_za32(0, col, batch_predicate_b32, (nk_f32_t const *)b_bounce_f16x32);
+                        svfloat16_t converted_f16 = nk_e4m3x_to_f16x_ssve_(depth_predicate_b16, raw);
+                        svst1_f16(depth_predicate_b16, (float16_t *)b_bounce_f16x32, converted_f16);
+                        svld1_hor_za32(0, column, batch_predicate_b32, (nk_f32_t const *)b_bounce_f16x32);
                     }
                 }
-                for (nk_size_t step = 0; step < batch_size; step++) {
-                    svfloat16_t a_interleaved = svreinterpret_f16_f32(svld1_f32(full_predicate_b32, a_buffer[step]));
-                    svfloat32_t b_col_f32 = svread_ver_za32_f32_m(svdup_f32(0.0f), full_predicate_b32, 0, step);
-                    svfloat16_t b_interleaved = svreinterpret_f16_f32(b_col_f32);
+                for (nk_size_t depth_step = 0; depth_step < batch_size; depth_step++) {
+                    svfloat16_t a_interleaved = svreinterpret_f16_f32(
+                        svld1_f32(full_predicate_b32, a_buffer[depth_step]));
+                    svfloat32_t b_column_f32 = svread_ver_za32_f32_m(svdup_f32(0.0f), full_predicate_b32, 0,
+                                                                     depth_step);
+                    svfloat16_t b_interleaved = svreinterpret_f16_f32(b_column_f32);
                     svmopa_za32_f16_m(3, row_predicate_b16, full_predicate_b16, a_interleaved, b_interleaved);
                 }
             }
@@ -1739,10 +1785,10 @@ __arm_locally_streaming __arm_new("za") static void nk_dots_symmetric_e4m3_sme_k
         }
 
         for (; column_tile_index < column_tile_count; column_tile_index++) {
-            nk_size_t const col_tile_start = column_tile_index * tile_dimension;
-            nk_size_t const cols_remaining = (col_tile_start + tile_dimension <= n_vectors)
+            nk_size_t const column_tile_start = column_tile_index * tile_dimension;
+            nk_size_t const cols_remaining = (column_tile_start + tile_dimension <= n_vectors)
                                                  ? tile_dimension
-                                                 : (n_vectors - col_tile_start);
+                                                 : (n_vectors - column_tile_start);
             svbool_t const column_predicate_b32 = svwhilelt_b32((uint32_t)0, (uint32_t)cols_remaining);
             svbool_t const column_predicate_b16 = svwhilelt_b16((uint32_t)0, (uint32_t)(cols_remaining * expansion));
 
@@ -1777,20 +1823,22 @@ __arm_locally_streaming __arm_new("za") static void nk_dots_symmetric_e4m3_sme_k
 
                 // Load B column tile into ZA0, vertical read + FMOPA into ZA1
                 svzero_mask_za(nk_sme_zero_za32_tile_0_);
-                for (nk_size_t col = 0; col < tile_dimension; col++) {
-                    nk_size_t const col_abs = col_tile_start + col;
-                    if (col_abs < n_vectors) {
-                        nk_e4m3_t const *src = &vectors[col_abs * stride_elements + depth_batch_start * expansion];
+                for (nk_size_t column = 0; column < tile_dimension; column++) {
+                    nk_size_t const column_abs = column_tile_start + column;
+                    if (column_abs < n_vectors) {
+                        nk_e4m3_t const *src = &vectors[column_abs * stride_elements + depth_batch_start * expansion];
                         svuint8_t raw = svld1_u8(depth_predicate_b8, (uint8_t const *)src);
-                        svfloat16_t cvt = nk_e4m3x_to_f16x_ssve_(depth_predicate_b16, raw);
-                        svst1_f16(depth_predicate_b16, (float16_t *)b_bounce_f16x32, cvt);
-                        svld1_hor_za32(0, col, batch_predicate_b32, (nk_f32_t const *)b_bounce_f16x32);
+                        svfloat16_t converted_f16 = nk_e4m3x_to_f16x_ssve_(depth_predicate_b16, raw);
+                        svst1_f16(depth_predicate_b16, (float16_t *)b_bounce_f16x32, converted_f16);
+                        svld1_hor_za32(0, column, batch_predicate_b32, (nk_f32_t const *)b_bounce_f16x32);
                     }
                 }
-                for (nk_size_t step = 0; step < batch_size; step++) {
-                    svfloat16_t a_interleaved = svreinterpret_f16_f32(svld1_f32(full_predicate_b32, a_buffer[step]));
-                    svfloat32_t b_col_f32 = svread_ver_za32_f32_m(svdup_f32(0.0f), column_predicate_b32, 0, step);
-                    svfloat16_t b_interleaved = svreinterpret_f16_f32(b_col_f32);
+                for (nk_size_t depth_step = 0; depth_step < batch_size; depth_step++) {
+                    svfloat16_t a_interleaved = svreinterpret_f16_f32(
+                        svld1_f32(full_predicate_b32, a_buffer[depth_step]));
+                    svfloat32_t b_column_f32 = svread_ver_za32_f32_m(svdup_f32(0.0f), column_predicate_b32, 0,
+                                                                     depth_step);
+                    svfloat16_t b_interleaved = svreinterpret_f16_f32(b_column_f32);
                     svmopa_za32_f16_m(1, row_predicate_b16, column_predicate_b16, a_interleaved, b_interleaved);
                 }
             }
@@ -1798,7 +1846,7 @@ __arm_locally_streaming __arm_new("za") static void nk_dots_symmetric_e4m3_sme_k
             for (nk_size_t row = 0; row < rows_actual; row++) {
                 nk_size_t const row_abs = row_tile_start + row;
                 svst1_hor_za32(1, row, column_predicate_b32,
-                               result + row_abs * result_stride_elements + col_tile_start);
+                               result + row_abs * result_stride_elements + column_tile_start);
             }
         }
 
@@ -1850,7 +1898,7 @@ __arm_locally_streaming __arm_new("za") __attribute__((noinline)) static void nk
     nk_size_t const vector_elements = svcnth();
     nk_size_t const depth_steps_per_batch = tile_dimension;
 
-    nk_f16_t const *b_vecs = (nk_f16_t const *)((char const *)b_packed + sizeof(nk_dots_sme_packed_header_t));
+    nk_f16_t const *b_packed_base = (nk_f16_t const *)((char const *)b_packed + sizeof(nk_dots_sme_packed_header_t));
 
     svbool_t const full_predicate_b16 = svptrue_b16();
     svbool_t const full_predicate_b8 = svptrue_b8();
@@ -1882,36 +1930,41 @@ __arm_locally_streaming __arm_new("za") __attribute__((noinline)) static void nk
                 svzero_mask_za(nk_sme_zero_za32_tile_0_);
 
                 svbool_t const batch_predicate_b32 = svwhilelt_b32((uint32_t)0, (uint32_t)batch_size);
-                for (nk_size_t row_within_tile = 0; row_within_tile < rows_remaining; row_within_tile++) {
-                    nk_size_t const a_row = row_start + row_within_tile;
+                for (nk_size_t row_in_tile = 0; row_in_tile < rows_remaining; row_in_tile++) {
+                    nk_size_t const a_row = row_start + row_in_tile;
                     // Vectorized e5m2 -> f16 conversion (2 instructions)
                     nk_e5m2_t const *a_src = a + a_row * a_stride_elements + depth_batch_start * expansion;
                     svuint8_t raw_bytes = svld1_u8(full_predicate_b8, (uint8_t const *)a_src);
                     svfloat16_t converted_f16 = nk_e5m2x_to_f16x_ssve_(full_predicate_b16, raw_bytes);
-                    svst1_f16(full_predicate_b16, (float16_t *)a_converted_f16x32[row_within_tile], converted_f16);
-                    svld1_hor_za32(0, row_within_tile, batch_predicate_b32,
-                                   (nk_f32_t const *)a_converted_f16x32[row_within_tile]);
+                    svst1_f16(full_predicate_b16, (float16_t *)a_converted_f16x32[row_in_tile], converted_f16);
+                    svld1_hor_za32(0, row_in_tile, batch_predicate_b32,
+                                   (nk_f32_t const *)a_converted_f16x32[row_in_tile]);
                 }
 
-                for (nk_size_t step_within_batch = 0; step_within_batch < batch_size; step_within_batch++) {
-                    nk_size_t const ds = depth_batch_start + step_within_batch;
-                    svfloat32_t a_column_f32 = svread_ver_za32_f32_m(svdup_f32(0.0f), row_predicate_b32, 0,
-                                                                     step_within_batch);
+                for (nk_size_t depth_step = 0; depth_step < batch_size; depth_step++) {
+
+                    svfloat32_t a_column_f32 = svread_ver_za32_f32_m(svdup_f32(0.0f), row_predicate_b32, 0, depth_step);
                     svfloat16_t a_interleaved_vector_f16 = svreinterpret_f16_f32(a_column_f32);
 
-                    nk_f16_t const *bv0 = b_vecs + ((column_tile_index + 0) * depth_step_count + ds) * vector_elements;
-                    nk_f16_t const *bv1 = b_vecs + ((column_tile_index + 1) * depth_step_count + ds) * vector_elements;
-                    nk_f16_t const *bv2 = b_vecs + ((column_tile_index + 2) * depth_step_count + ds) * vector_elements;
-                    svfloat16_t b_packed_vector_f16_0 = svld1_f16(full_predicate_b16, (float16_t const *)bv0);
-                    svfloat16_t b_packed_vector_f16_1 = svld1_f16(full_predicate_b16, (float16_t const *)bv1);
-                    svfloat16_t b_packed_vector_f16_2 = svld1_f16(full_predicate_b16, (float16_t const *)bv2);
+                    nk_f16_t const *b_packed_ptr_0 = b_packed_base + ((column_tile_index + 0) * depth_step_count +
+                                                                      depth_batch_start + depth_step) *
+                                                                         vector_elements;
+                    nk_f16_t const *b_packed_ptr_1 = b_packed_base + ((column_tile_index + 1) * depth_step_count +
+                                                                      depth_batch_start + depth_step) *
+                                                                         vector_elements;
+                    nk_f16_t const *b_packed_ptr_2 = b_packed_base + ((column_tile_index + 2) * depth_step_count +
+                                                                      depth_batch_start + depth_step) *
+                                                                         vector_elements;
+                    svfloat16_t b_packed_vector_0 = svld1_f16(full_predicate_b16, (float16_t const *)b_packed_ptr_0);
+                    svfloat16_t b_packed_vector_1 = svld1_f16(full_predicate_b16, (float16_t const *)b_packed_ptr_1);
+                    svfloat16_t b_packed_vector_2 = svld1_f16(full_predicate_b16, (float16_t const *)b_packed_ptr_2);
 
                     svmopa_za32_f16_m(1, row_predicate_b16, full_predicate_b16, a_interleaved_vector_f16,
-                                      b_packed_vector_f16_0);
+                                      b_packed_vector_0);
                     svmopa_za32_f16_m(2, row_predicate_b16, full_predicate_b16, a_interleaved_vector_f16,
-                                      b_packed_vector_f16_1);
+                                      b_packed_vector_1);
                     svmopa_za32_f16_m(3, row_predicate_b16, full_predicate_b16, a_interleaved_vector_f16,
-                                      b_packed_vector_f16_2);
+                                      b_packed_vector_2);
                 }
             }
 
@@ -1927,9 +1980,9 @@ __arm_locally_streaming __arm_new("za") __attribute__((noinline)) static void nk
 
         // Remainder: 1 column tile using ZA1
         for (; column_tile_index < column_tile_count; column_tile_index++) {
-            nk_size_t const col_start = column_tile_index * tile_dimension;
-            nk_size_t const cols_remaining = (col_start + tile_dimension <= columns) ? tile_dimension
-                                                                                     : (columns - col_start);
+            nk_size_t const column_start = column_tile_index * tile_dimension;
+            nk_size_t const cols_remaining = (column_start + tile_dimension <= columns) ? tile_dimension
+                                                                                        : (columns - column_start);
             svbool_t const column_predicate_b32 = svwhilelt_b32((uint32_t)0, (uint32_t)cols_remaining);
             svbool_t const column_predicate_b16 = svwhilelt_b16((uint32_t)0, (uint32_t)(cols_remaining * expansion));
 
@@ -1945,32 +1998,33 @@ __arm_locally_streaming __arm_new("za") __attribute__((noinline)) static void nk
                 svzero_mask_za(nk_sme_zero_za32_tile_0_);
 
                 svbool_t const batch_predicate_b32 = svwhilelt_b32((uint32_t)0, (uint32_t)batch_size);
-                for (nk_size_t row_within_tile = 0; row_within_tile < rows_remaining; row_within_tile++) {
-                    nk_size_t const a_row = row_start + row_within_tile;
+                for (nk_size_t row_in_tile = 0; row_in_tile < rows_remaining; row_in_tile++) {
+                    nk_size_t const a_row = row_start + row_in_tile;
                     nk_e5m2_t const *a_src = a + a_row * a_stride_elements + depth_batch_start * expansion;
                     svuint8_t raw_bytes = svld1_u8(full_predicate_b8, (uint8_t const *)a_src);
                     svfloat16_t converted_f16 = nk_e5m2x_to_f16x_ssve_(full_predicate_b16, raw_bytes);
-                    svst1_f16(full_predicate_b16, (float16_t *)a_converted_f16x32[row_within_tile], converted_f16);
-                    svld1_hor_za32(0, row_within_tile, batch_predicate_b32,
-                                   (nk_f32_t const *)a_converted_f16x32[row_within_tile]);
+                    svst1_f16(full_predicate_b16, (float16_t *)a_converted_f16x32[row_in_tile], converted_f16);
+                    svld1_hor_za32(0, row_in_tile, batch_predicate_b32,
+                                   (nk_f32_t const *)a_converted_f16x32[row_in_tile]);
                 }
 
-                for (nk_size_t step_within_batch = 0; step_within_batch < batch_size; step_within_batch++) {
-                    nk_size_t const ds = depth_batch_start + step_within_batch;
-                    svfloat32_t a_column_f32 = svread_ver_za32_f32_m(svdup_f32(0.0f), row_predicate_b32, 0,
-                                                                     step_within_batch);
+                for (nk_size_t depth_step = 0; depth_step < batch_size; depth_step++) {
+
+                    svfloat32_t a_column_f32 = svread_ver_za32_f32_m(svdup_f32(0.0f), row_predicate_b32, 0, depth_step);
                     svfloat16_t a_interleaved_vector_f16 = svreinterpret_f16_f32(a_column_f32);
 
-                    nk_f16_t const *bv = b_vecs + (column_tile_index * depth_step_count + ds) * vector_elements;
-                    svfloat16_t b_packed_vector_f16 = svld1_f16(column_predicate_b16, (float16_t const *)bv);
+                    nk_f16_t const *b_packed_ptr = b_packed_base + (column_tile_index * depth_step_count +
+                                                                    depth_batch_start + depth_step) *
+                                                                       vector_elements;
+                    svfloat16_t b_packed_vector = svld1_f16(column_predicate_b16, (float16_t const *)b_packed_ptr);
 
                     svmopa_za32_f16_m(1, row_predicate_b16, column_predicate_b16, a_interleaved_vector_f16,
-                                      b_packed_vector_f16);
+                                      b_packed_vector);
                 }
             }
 
             for (nk_size_t row = 0; row < rows_remaining; row++) {
-                svst1_hor_za32(1, row, column_predicate_b32, c + (row_start + row) * c_stride_elements + col_start);
+                svst1_hor_za32(1, row, column_predicate_b32, c + (row_start + row) * c_stride_elements + column_start);
             }
         }
     }
@@ -2001,12 +2055,12 @@ NK_PUBLIC void nk_dots_pack_e5m2_sme(nk_e5m2_t const *b, nk_size_t n, nk_size_t 
     for (nk_size_t i = 0; i < total_vectors * vector_elements; i++) tiles_ptr[i] = 0;
 
     // Interleaved packing with e5m2 → f16 conversion
-    for (nk_size_t col_tile = 0; col_tile < column_tile_count; col_tile++) {
+    for (nk_size_t column_tile = 0; column_tile < column_tile_count; column_tile++) {
         for (nk_size_t depth_step = 0; depth_step < depth_step_count; depth_step++) {
-            nk_size_t const vec_index = col_tile * depth_step_count + depth_step;
+            nk_size_t const vec_index = column_tile * depth_step_count + depth_step;
             nk_f16_t *vec_output = tiles_ptr + vec_index * vector_elements;
 
-            nk_size_t const b_row_start = col_tile * tile_dimension;
+            nk_size_t const b_row_start = column_tile * tile_dimension;
             nk_size_t const depth_base = depth_step * expansion;
             nk_size_t const rows_to_pack = (b_row_start + tile_dimension <= n) ? tile_dimension : (n - b_row_start);
 
@@ -2107,58 +2161,64 @@ __arm_locally_streaming __arm_new("za") static void nk_dots_symmetric_e5m2_sme_k
 
                 // Load B column tile 0 into ZA0, vertical read + FMOPA into ZA1
                 svzero_mask_za(nk_sme_zero_za32_tile_0_);
-                for (nk_size_t col = 0; col < tile_dimension; col++) {
-                    nk_size_t const col_abs = (column_tile_index + 0) * tile_dimension + col;
-                    if (col_abs < n_vectors) {
-                        nk_e5m2_t const *src = &vectors[col_abs * stride_elements + depth_batch_start * expansion];
+                for (nk_size_t column = 0; column < tile_dimension; column++) {
+                    nk_size_t const column_abs = (column_tile_index + 0) * tile_dimension + column;
+                    if (column_abs < n_vectors) {
+                        nk_e5m2_t const *src = &vectors[column_abs * stride_elements + depth_batch_start * expansion];
                         svuint8_t raw = svld1_u8(depth_predicate_b8, (uint8_t const *)src);
-                        svfloat16_t cvt = nk_e5m2x_to_f16x_ssve_(depth_predicate_b16, raw);
-                        svst1_f16(depth_predicate_b16, (float16_t *)b_bounce_f16x32, cvt);
-                        svld1_hor_za32(0, col, batch_predicate_b32, (nk_f32_t const *)b_bounce_f16x32);
+                        svfloat16_t converted_f16 = nk_e5m2x_to_f16x_ssve_(depth_predicate_b16, raw);
+                        svst1_f16(depth_predicate_b16, (float16_t *)b_bounce_f16x32, converted_f16);
+                        svld1_hor_za32(0, column, batch_predicate_b32, (nk_f32_t const *)b_bounce_f16x32);
                     }
                 }
-                for (nk_size_t step = 0; step < batch_size; step++) {
-                    svfloat16_t a_interleaved = svreinterpret_f16_f32(svld1_f32(full_predicate_b32, a_buffer[step]));
-                    svfloat32_t b_col_f32 = svread_ver_za32_f32_m(svdup_f32(0.0f), full_predicate_b32, 0, step);
-                    svfloat16_t b_interleaved = svreinterpret_f16_f32(b_col_f32);
+                for (nk_size_t depth_step = 0; depth_step < batch_size; depth_step++) {
+                    svfloat16_t a_interleaved = svreinterpret_f16_f32(
+                        svld1_f32(full_predicate_b32, a_buffer[depth_step]));
+                    svfloat32_t b_column_f32 = svread_ver_za32_f32_m(svdup_f32(0.0f), full_predicate_b32, 0,
+                                                                     depth_step);
+                    svfloat16_t b_interleaved = svreinterpret_f16_f32(b_column_f32);
                     svmopa_za32_f16_m(1, row_predicate_b16, full_predicate_b16, a_interleaved, b_interleaved);
                 }
 
                 // Load B column tile 1 into ZA0, vertical read + FMOPA into ZA2
                 svzero_mask_za(nk_sme_zero_za32_tile_0_);
-                for (nk_size_t col = 0; col < tile_dimension; col++) {
-                    nk_size_t const col_abs = (column_tile_index + 1) * tile_dimension + col;
-                    if (col_abs < n_vectors) {
-                        nk_e5m2_t const *src = &vectors[col_abs * stride_elements + depth_batch_start * expansion];
+                for (nk_size_t column = 0; column < tile_dimension; column++) {
+                    nk_size_t const column_abs = (column_tile_index + 1) * tile_dimension + column;
+                    if (column_abs < n_vectors) {
+                        nk_e5m2_t const *src = &vectors[column_abs * stride_elements + depth_batch_start * expansion];
                         svuint8_t raw = svld1_u8(depth_predicate_b8, (uint8_t const *)src);
-                        svfloat16_t cvt = nk_e5m2x_to_f16x_ssve_(depth_predicate_b16, raw);
-                        svst1_f16(depth_predicate_b16, (float16_t *)b_bounce_f16x32, cvt);
-                        svld1_hor_za32(0, col, batch_predicate_b32, (nk_f32_t const *)b_bounce_f16x32);
+                        svfloat16_t converted_f16 = nk_e5m2x_to_f16x_ssve_(depth_predicate_b16, raw);
+                        svst1_f16(depth_predicate_b16, (float16_t *)b_bounce_f16x32, converted_f16);
+                        svld1_hor_za32(0, column, batch_predicate_b32, (nk_f32_t const *)b_bounce_f16x32);
                     }
                 }
-                for (nk_size_t step = 0; step < batch_size; step++) {
-                    svfloat16_t a_interleaved = svreinterpret_f16_f32(svld1_f32(full_predicate_b32, a_buffer[step]));
-                    svfloat32_t b_col_f32 = svread_ver_za32_f32_m(svdup_f32(0.0f), full_predicate_b32, 0, step);
-                    svfloat16_t b_interleaved = svreinterpret_f16_f32(b_col_f32);
+                for (nk_size_t depth_step = 0; depth_step < batch_size; depth_step++) {
+                    svfloat16_t a_interleaved = svreinterpret_f16_f32(
+                        svld1_f32(full_predicate_b32, a_buffer[depth_step]));
+                    svfloat32_t b_column_f32 = svread_ver_za32_f32_m(svdup_f32(0.0f), full_predicate_b32, 0,
+                                                                     depth_step);
+                    svfloat16_t b_interleaved = svreinterpret_f16_f32(b_column_f32);
                     svmopa_za32_f16_m(2, row_predicate_b16, full_predicate_b16, a_interleaved, b_interleaved);
                 }
 
                 // Load B column tile 2 into ZA0, vertical read + FMOPA into ZA3
                 svzero_mask_za(nk_sme_zero_za32_tile_0_);
-                for (nk_size_t col = 0; col < tile_dimension; col++) {
-                    nk_size_t const col_abs = (column_tile_index + 2) * tile_dimension + col;
-                    if (col_abs < n_vectors) {
-                        nk_e5m2_t const *src = &vectors[col_abs * stride_elements + depth_batch_start * expansion];
+                for (nk_size_t column = 0; column < tile_dimension; column++) {
+                    nk_size_t const column_abs = (column_tile_index + 2) * tile_dimension + column;
+                    if (column_abs < n_vectors) {
+                        nk_e5m2_t const *src = &vectors[column_abs * stride_elements + depth_batch_start * expansion];
                         svuint8_t raw = svld1_u8(depth_predicate_b8, (uint8_t const *)src);
-                        svfloat16_t cvt = nk_e5m2x_to_f16x_ssve_(depth_predicate_b16, raw);
-                        svst1_f16(depth_predicate_b16, (float16_t *)b_bounce_f16x32, cvt);
-                        svld1_hor_za32(0, col, batch_predicate_b32, (nk_f32_t const *)b_bounce_f16x32);
+                        svfloat16_t converted_f16 = nk_e5m2x_to_f16x_ssve_(depth_predicate_b16, raw);
+                        svst1_f16(depth_predicate_b16, (float16_t *)b_bounce_f16x32, converted_f16);
+                        svld1_hor_za32(0, column, batch_predicate_b32, (nk_f32_t const *)b_bounce_f16x32);
                     }
                 }
-                for (nk_size_t step = 0; step < batch_size; step++) {
-                    svfloat16_t a_interleaved = svreinterpret_f16_f32(svld1_f32(full_predicate_b32, a_buffer[step]));
-                    svfloat32_t b_col_f32 = svread_ver_za32_f32_m(svdup_f32(0.0f), full_predicate_b32, 0, step);
-                    svfloat16_t b_interleaved = svreinterpret_f16_f32(b_col_f32);
+                for (nk_size_t depth_step = 0; depth_step < batch_size; depth_step++) {
+                    svfloat16_t a_interleaved = svreinterpret_f16_f32(
+                        svld1_f32(full_predicate_b32, a_buffer[depth_step]));
+                    svfloat32_t b_column_f32 = svread_ver_za32_f32_m(svdup_f32(0.0f), full_predicate_b32, 0,
+                                                                     depth_step);
+                    svfloat16_t b_interleaved = svreinterpret_f16_f32(b_column_f32);
                     svmopa_za32_f16_m(3, row_predicate_b16, full_predicate_b16, a_interleaved, b_interleaved);
                 }
             }
@@ -2173,10 +2233,10 @@ __arm_locally_streaming __arm_new("za") static void nk_dots_symmetric_e5m2_sme_k
         }
 
         for (; column_tile_index < column_tile_count; column_tile_index++) {
-            nk_size_t const col_tile_start = column_tile_index * tile_dimension;
-            nk_size_t const cols_remaining = (col_tile_start + tile_dimension <= n_vectors)
+            nk_size_t const column_tile_start = column_tile_index * tile_dimension;
+            nk_size_t const cols_remaining = (column_tile_start + tile_dimension <= n_vectors)
                                                  ? tile_dimension
-                                                 : (n_vectors - col_tile_start);
+                                                 : (n_vectors - column_tile_start);
             svbool_t const column_predicate_b32 = svwhilelt_b32((uint32_t)0, (uint32_t)cols_remaining);
             svbool_t const column_predicate_b16 = svwhilelt_b16((uint32_t)0, (uint32_t)(cols_remaining * expansion));
 
@@ -2211,20 +2271,22 @@ __arm_locally_streaming __arm_new("za") static void nk_dots_symmetric_e5m2_sme_k
 
                 // Load B column tile into ZA0, vertical read + FMOPA into ZA1
                 svzero_mask_za(nk_sme_zero_za32_tile_0_);
-                for (nk_size_t col = 0; col < tile_dimension; col++) {
-                    nk_size_t const col_abs = col_tile_start + col;
-                    if (col_abs < n_vectors) {
-                        nk_e5m2_t const *src = &vectors[col_abs * stride_elements + depth_batch_start * expansion];
+                for (nk_size_t column = 0; column < tile_dimension; column++) {
+                    nk_size_t const column_abs = column_tile_start + column;
+                    if (column_abs < n_vectors) {
+                        nk_e5m2_t const *src = &vectors[column_abs * stride_elements + depth_batch_start * expansion];
                         svuint8_t raw = svld1_u8(depth_predicate_b8, (uint8_t const *)src);
-                        svfloat16_t cvt = nk_e5m2x_to_f16x_ssve_(depth_predicate_b16, raw);
-                        svst1_f16(depth_predicate_b16, (float16_t *)b_bounce_f16x32, cvt);
-                        svld1_hor_za32(0, col, batch_predicate_b32, (nk_f32_t const *)b_bounce_f16x32);
+                        svfloat16_t converted_f16 = nk_e5m2x_to_f16x_ssve_(depth_predicate_b16, raw);
+                        svst1_f16(depth_predicate_b16, (float16_t *)b_bounce_f16x32, converted_f16);
+                        svld1_hor_za32(0, column, batch_predicate_b32, (nk_f32_t const *)b_bounce_f16x32);
                     }
                 }
-                for (nk_size_t step = 0; step < batch_size; step++) {
-                    svfloat16_t a_interleaved = svreinterpret_f16_f32(svld1_f32(full_predicate_b32, a_buffer[step]));
-                    svfloat32_t b_col_f32 = svread_ver_za32_f32_m(svdup_f32(0.0f), column_predicate_b32, 0, step);
-                    svfloat16_t b_interleaved = svreinterpret_f16_f32(b_col_f32);
+                for (nk_size_t depth_step = 0; depth_step < batch_size; depth_step++) {
+                    svfloat16_t a_interleaved = svreinterpret_f16_f32(
+                        svld1_f32(full_predicate_b32, a_buffer[depth_step]));
+                    svfloat32_t b_column_f32 = svread_ver_za32_f32_m(svdup_f32(0.0f), column_predicate_b32, 0,
+                                                                     depth_step);
+                    svfloat16_t b_interleaved = svreinterpret_f16_f32(b_column_f32);
                     svmopa_za32_f16_m(1, row_predicate_b16, column_predicate_b16, a_interleaved, b_interleaved);
                 }
             }
@@ -2232,7 +2294,7 @@ __arm_locally_streaming __arm_new("za") static void nk_dots_symmetric_e5m2_sme_k
             for (nk_size_t row = 0; row < rows_actual; row++) {
                 nk_size_t const row_abs = row_tile_start + row;
                 svst1_hor_za32(1, row, column_predicate_b32,
-                               result + row_abs * result_stride_elements + col_tile_start);
+                               result + row_abs * result_stride_elements + column_tile_start);
             }
         }
 
@@ -2321,7 +2383,7 @@ __arm_locally_streaming __arm_new("za") __attribute__((noinline)) static void nk
     nk_size_t const vector_elements = svcntb(); // 64: i8 elements per SVE vector
     nk_size_t const depth_steps_per_batch = tile_dimension;
 
-    nk_i8_t const *b_vecs = (nk_i8_t const *)((char const *)b_packed + sizeof(nk_dots_sme_packed_header_t));
+    nk_i8_t const *b_packed_base = (nk_i8_t const *)((char const *)b_packed + sizeof(nk_dots_sme_packed_header_t));
 
     svbool_t const full_predicate_b8 = svptrue_b8();
     svbool_t const full_predicate_b32 = svptrue_b32();
@@ -2354,38 +2416,43 @@ __arm_locally_streaming __arm_new("za") __attribute__((noinline)) static void nk
                 svzero_mask_za(nk_sme_zero_za32_tile_0_);
 
                 svbool_t const batch_predicate_b32 = svwhilelt_b32((uint32_t)0, (uint32_t)batch_size);
-                for (nk_size_t row_within_tile = 0; row_within_tile < rows_remaining; row_within_tile++) {
-                    nk_size_t const a_row = row_start + row_within_tile;
+                for (nk_size_t row_in_tile = 0; row_in_tile < rows_remaining; row_in_tile++) {
+                    nk_size_t const a_row = row_start + row_in_tile;
                     // Load raw e2m3 bytes and convert to i8 using vectorized conversion
                     nk_e2m3_t const *a_src = a + a_row * a_stride_elements + depth_batch_start * expansion;
                     svuint8_t raw_bytes = svld1_u8(full_predicate_b8, (uint8_t const *)a_src);
                     svint8_t converted_i8 = nk_e2m3x_to_i8x_ssve_(full_predicate_b8, raw_bytes);
-                    svst1_s8(full_predicate_b8, a_converted_i8x64[row_within_tile], converted_i8);
+                    svst1_s8(full_predicate_b8, a_converted_i8x64[row_in_tile], converted_i8);
                     // Load converted i8 row into ZA0 as f32 words (each f32 word = 4 packed i8 bytes)
-                    svld1_hor_za32(0, row_within_tile, batch_predicate_b32,
-                                   (nk_f32_t const *)a_converted_i8x64[row_within_tile]);
+                    svld1_hor_za32(0, row_in_tile, batch_predicate_b32,
+                                   (nk_f32_t const *)a_converted_i8x64[row_in_tile]);
                 }
 
-                for (nk_size_t step_within_batch = 0; step_within_batch < batch_size; step_within_batch++) {
-                    nk_size_t const ds = depth_batch_start + step_within_batch;
+                for (nk_size_t depth_step = 0; depth_step < batch_size; depth_step++) {
+
                     // Vertical read at f32 granularity produces [row0_k0..k3, row1_k0..k3, ...]
-                    svint32_t a_column_i32 = svread_ver_za32_s32_m(svdup_s32(0), row_predicate_b32, 0,
-                                                                   step_within_batch);
+                    svint32_t a_column_i32 = svread_ver_za32_s32_m(svdup_s32(0), row_predicate_b32, 0, depth_step);
                     svint8_t a_interleaved_vector_i8 = svreinterpret_s8_s32(a_column_i32);
 
-                    nk_i8_t const *bv0 = b_vecs + ((column_tile_index + 0) * depth_step_count + ds) * vector_elements;
-                    nk_i8_t const *bv1 = b_vecs + ((column_tile_index + 1) * depth_step_count + ds) * vector_elements;
-                    nk_i8_t const *bv2 = b_vecs + ((column_tile_index + 2) * depth_step_count + ds) * vector_elements;
-                    svint8_t b_packed_vector_i8_0 = svld1_s8(full_predicate_b8, bv0);
-                    svint8_t b_packed_vector_i8_1 = svld1_s8(full_predicate_b8, bv1);
-                    svint8_t b_packed_vector_i8_2 = svld1_s8(full_predicate_b8, bv2);
+                    nk_i8_t const *b_packed_ptr_0 = b_packed_base + ((column_tile_index + 0) * depth_step_count +
+                                                                     depth_batch_start + depth_step) *
+                                                                        vector_elements;
+                    nk_i8_t const *b_packed_ptr_1 = b_packed_base + ((column_tile_index + 1) * depth_step_count +
+                                                                     depth_batch_start + depth_step) *
+                                                                        vector_elements;
+                    nk_i8_t const *b_packed_ptr_2 = b_packed_base + ((column_tile_index + 2) * depth_step_count +
+                                                                     depth_batch_start + depth_step) *
+                                                                        vector_elements;
+                    svint8_t b_packed_vector_0 = svld1_s8(full_predicate_b8, b_packed_ptr_0);
+                    svint8_t b_packed_vector_1 = svld1_s8(full_predicate_b8, b_packed_ptr_1);
+                    svint8_t b_packed_vector_2 = svld1_s8(full_predicate_b8, b_packed_ptr_2);
 
                     svmopa_za32_s8_m(1, row_predicate_b8, full_predicate_b8, a_interleaved_vector_i8,
-                                     b_packed_vector_i8_0);
+                                     b_packed_vector_0);
                     svmopa_za32_s8_m(2, row_predicate_b8, full_predicate_b8, a_interleaved_vector_i8,
-                                     b_packed_vector_i8_1);
+                                     b_packed_vector_1);
                     svmopa_za32_s8_m(3, row_predicate_b8, full_predicate_b8, a_interleaved_vector_i8,
-                                     b_packed_vector_i8_2);
+                                     b_packed_vector_2);
                 }
             }
 
@@ -2413,9 +2480,9 @@ __arm_locally_streaming __arm_new("za") __attribute__((noinline)) static void nk
 
         // Remainder: 1 column tile using ZA1
         for (; column_tile_index < column_tile_count; column_tile_index++) {
-            nk_size_t const col_start = column_tile_index * tile_dimension;
-            nk_size_t const cols_remaining = (col_start + tile_dimension <= columns) ? tile_dimension
-                                                                                     : (columns - col_start);
+            nk_size_t const column_start = column_tile_index * tile_dimension;
+            nk_size_t const cols_remaining = (column_start + tile_dimension <= columns) ? tile_dimension
+                                                                                        : (columns - column_start);
             svbool_t const column_predicate_b32 = svwhilelt_b32((uint32_t)0, (uint32_t)cols_remaining);
             svbool_t const column_predicate_b8 = svwhilelt_b8((uint32_t)0, (uint32_t)(cols_remaining * expansion));
 
@@ -2431,27 +2498,28 @@ __arm_locally_streaming __arm_new("za") __attribute__((noinline)) static void nk
                 svzero_mask_za(nk_sme_zero_za32_tile_0_);
 
                 svbool_t const batch_predicate_b32 = svwhilelt_b32((uint32_t)0, (uint32_t)batch_size);
-                for (nk_size_t row_within_tile = 0; row_within_tile < rows_remaining; row_within_tile++) {
-                    nk_size_t const a_row = row_start + row_within_tile;
+                for (nk_size_t row_in_tile = 0; row_in_tile < rows_remaining; row_in_tile++) {
+                    nk_size_t const a_row = row_start + row_in_tile;
                     nk_e2m3_t const *a_src = a + a_row * a_stride_elements + depth_batch_start * expansion;
                     svuint8_t raw_bytes = svld1_u8(full_predicate_b8, (uint8_t const *)a_src);
                     svint8_t converted_i8 = nk_e2m3x_to_i8x_ssve_(full_predicate_b8, raw_bytes);
-                    svst1_s8(full_predicate_b8, a_converted_i8x64[row_within_tile], converted_i8);
-                    svld1_hor_za32(0, row_within_tile, batch_predicate_b32,
-                                   (nk_f32_t const *)a_converted_i8x64[row_within_tile]);
+                    svst1_s8(full_predicate_b8, a_converted_i8x64[row_in_tile], converted_i8);
+                    svld1_hor_za32(0, row_in_tile, batch_predicate_b32,
+                                   (nk_f32_t const *)a_converted_i8x64[row_in_tile]);
                 }
 
-                for (nk_size_t step_within_batch = 0; step_within_batch < batch_size; step_within_batch++) {
-                    nk_size_t const ds = depth_batch_start + step_within_batch;
-                    svint32_t a_column_i32 = svread_ver_za32_s32_m(svdup_s32(0), row_predicate_b32, 0,
-                                                                   step_within_batch);
+                for (nk_size_t depth_step = 0; depth_step < batch_size; depth_step++) {
+
+                    svint32_t a_column_i32 = svread_ver_za32_s32_m(svdup_s32(0), row_predicate_b32, 0, depth_step);
                     svint8_t a_interleaved_vector_i8 = svreinterpret_s8_s32(a_column_i32);
 
-                    nk_i8_t const *bv = b_vecs + (column_tile_index * depth_step_count + ds) * vector_elements;
-                    svint8_t b_packed_vector_i8 = svld1_s8(column_predicate_b8, bv);
+                    nk_i8_t const *b_packed_ptr = b_packed_base + (column_tile_index * depth_step_count +
+                                                                   depth_batch_start + depth_step) *
+                                                                      vector_elements;
+                    svint8_t b_packed_vector = svld1_s8(column_predicate_b8, b_packed_ptr);
 
                     svmopa_za32_s8_m(1, row_predicate_b8, column_predicate_b8, a_interleaved_vector_i8,
-                                     b_packed_vector_i8);
+                                     b_packed_vector);
                 }
             }
 
@@ -2460,7 +2528,7 @@ __arm_locally_streaming __arm_new("za") __attribute__((noinline)) static void nk
                 svint32_t row_i32 = svread_hor_za32_s32_m(svdup_s32(0), column_predicate_b32, 1, row);
                 svfloat32_t row_f32 = svmul_n_f32_x(column_predicate_b32,
                                                     svcvt_f32_s32_x(column_predicate_b32, row_i32), 1.0f / 256.0f);
-                svst1_f32(column_predicate_b32, c + (row_start + row) * c_stride_elements + col_start, row_f32);
+                svst1_f32(column_predicate_b32, c + (row_start + row) * c_stride_elements + column_start, row_f32);
             }
         }
     }
@@ -2500,12 +2568,12 @@ NK_PUBLIC void nk_dots_pack_e2m3_sme(             //
                                               48, 52, 56, 60, 64, 72, 80, 88, 96, 104, 112, 120, 0,  0,  0,  0};
 
     // Interleaved packing with e2m3 → i8 conversion
-    for (nk_size_t col_tile = 0; col_tile < column_tile_count; col_tile++) {
+    for (nk_size_t column_tile = 0; column_tile < column_tile_count; column_tile++) {
         for (nk_size_t depth_step = 0; depth_step < depth_step_count; depth_step++) {
-            nk_size_t const vec_index = col_tile * depth_step_count + depth_step;
+            nk_size_t const vec_index = column_tile * depth_step_count + depth_step;
             nk_i8_t *vec_output = tiles_ptr + vec_index * vector_elements;
 
-            nk_size_t const b_row_start = col_tile * tile_dimension;
+            nk_size_t const b_row_start = column_tile * tile_dimension;
             nk_size_t const depth_base = depth_step * expansion;
             nk_size_t const rows_to_pack = (b_row_start + tile_dimension <= n) ? tile_dimension : (n - b_row_start);
 
@@ -2604,58 +2672,58 @@ __arm_locally_streaming __arm_new("za") static void nk_dots_symmetric_e2m3_sme_k
 
                 // Load B column tile 0 into ZA0, vertical read + SMOPA into ZA1
                 svzero_mask_za(nk_sme_zero_za32_tile_0_);
-                for (nk_size_t col = 0; col < tile_dimension; col++) {
-                    nk_size_t const col_abs = (column_tile_index + 0) * tile_dimension + col;
-                    if (col_abs < n_vectors) {
-                        nk_e2m3_t const *src = &vectors[col_abs * stride_elements + depth_batch_start * expansion];
+                for (nk_size_t column = 0; column < tile_dimension; column++) {
+                    nk_size_t const column_abs = (column_tile_index + 0) * tile_dimension + column;
+                    if (column_abs < n_vectors) {
+                        nk_e2m3_t const *src = &vectors[column_abs * stride_elements + depth_batch_start * expansion];
                         svuint8_t raw = svld1_u8(depth_predicate_b8, (uint8_t const *)src);
-                        svint8_t cvt = nk_e2m3x_to_i8x_ssve_(depth_predicate_b8, raw);
-                        svst1_s8(depth_predicate_b8, b_bounce_i8x64, cvt);
-                        svld1_hor_za32(0, col, batch_predicate_b32, (nk_f32_t const *)b_bounce_i8x64);
+                        svint8_t converted_i8 = nk_e2m3x_to_i8x_ssve_(depth_predicate_b8, raw);
+                        svst1_s8(depth_predicate_b8, b_bounce_i8x64, converted_i8);
+                        svld1_hor_za32(0, column, batch_predicate_b32, (nk_f32_t const *)b_bounce_i8x64);
                     }
                 }
-                for (nk_size_t step = 0; step < batch_size; step++) {
-                    svint8_t a_interleaved = svreinterpret_s8_s32(svld1_s32(full_predicate_b32, a_buffer[step]));
-                    svint32_t b_col_i32 = svread_ver_za32_s32_m(svdup_s32(0), full_predicate_b32, 0, step);
-                    svint8_t b_interleaved = svreinterpret_s8_s32(b_col_i32);
+                for (nk_size_t depth_step = 0; depth_step < batch_size; depth_step++) {
+                    svint8_t a_interleaved = svreinterpret_s8_s32(svld1_s32(full_predicate_b32, a_buffer[depth_step]));
+                    svint32_t b_column_i32 = svread_ver_za32_s32_m(svdup_s32(0), full_predicate_b32, 0, depth_step);
+                    svint8_t b_interleaved = svreinterpret_s8_s32(b_column_i32);
                     svmopa_za32_s8_m(1, row_predicate_b8, full_predicate_b8, a_interleaved, b_interleaved);
                 }
 
                 // Load B column tile 1 into ZA0, vertical read + SMOPA into ZA2
                 svzero_mask_za(nk_sme_zero_za32_tile_0_);
-                for (nk_size_t col = 0; col < tile_dimension; col++) {
-                    nk_size_t const col_abs = (column_tile_index + 1) * tile_dimension + col;
-                    if (col_abs < n_vectors) {
-                        nk_e2m3_t const *src = &vectors[col_abs * stride_elements + depth_batch_start * expansion];
+                for (nk_size_t column = 0; column < tile_dimension; column++) {
+                    nk_size_t const column_abs = (column_tile_index + 1) * tile_dimension + column;
+                    if (column_abs < n_vectors) {
+                        nk_e2m3_t const *src = &vectors[column_abs * stride_elements + depth_batch_start * expansion];
                         svuint8_t raw = svld1_u8(depth_predicate_b8, (uint8_t const *)src);
-                        svint8_t cvt = nk_e2m3x_to_i8x_ssve_(depth_predicate_b8, raw);
-                        svst1_s8(depth_predicate_b8, b_bounce_i8x64, cvt);
-                        svld1_hor_za32(0, col, batch_predicate_b32, (nk_f32_t const *)b_bounce_i8x64);
+                        svint8_t converted_i8 = nk_e2m3x_to_i8x_ssve_(depth_predicate_b8, raw);
+                        svst1_s8(depth_predicate_b8, b_bounce_i8x64, converted_i8);
+                        svld1_hor_za32(0, column, batch_predicate_b32, (nk_f32_t const *)b_bounce_i8x64);
                     }
                 }
-                for (nk_size_t step = 0; step < batch_size; step++) {
-                    svint8_t a_interleaved = svreinterpret_s8_s32(svld1_s32(full_predicate_b32, a_buffer[step]));
-                    svint32_t b_col_i32 = svread_ver_za32_s32_m(svdup_s32(0), full_predicate_b32, 0, step);
-                    svint8_t b_interleaved = svreinterpret_s8_s32(b_col_i32);
+                for (nk_size_t depth_step = 0; depth_step < batch_size; depth_step++) {
+                    svint8_t a_interleaved = svreinterpret_s8_s32(svld1_s32(full_predicate_b32, a_buffer[depth_step]));
+                    svint32_t b_column_i32 = svread_ver_za32_s32_m(svdup_s32(0), full_predicate_b32, 0, depth_step);
+                    svint8_t b_interleaved = svreinterpret_s8_s32(b_column_i32);
                     svmopa_za32_s8_m(2, row_predicate_b8, full_predicate_b8, a_interleaved, b_interleaved);
                 }
 
                 // Load B column tile 2 into ZA0, vertical read + SMOPA into ZA3
                 svzero_mask_za(nk_sme_zero_za32_tile_0_);
-                for (nk_size_t col = 0; col < tile_dimension; col++) {
-                    nk_size_t const col_abs = (column_tile_index + 2) * tile_dimension + col;
-                    if (col_abs < n_vectors) {
-                        nk_e2m3_t const *src = &vectors[col_abs * stride_elements + depth_batch_start * expansion];
+                for (nk_size_t column = 0; column < tile_dimension; column++) {
+                    nk_size_t const column_abs = (column_tile_index + 2) * tile_dimension + column;
+                    if (column_abs < n_vectors) {
+                        nk_e2m3_t const *src = &vectors[column_abs * stride_elements + depth_batch_start * expansion];
                         svuint8_t raw = svld1_u8(depth_predicate_b8, (uint8_t const *)src);
-                        svint8_t cvt = nk_e2m3x_to_i8x_ssve_(depth_predicate_b8, raw);
-                        svst1_s8(depth_predicate_b8, b_bounce_i8x64, cvt);
-                        svld1_hor_za32(0, col, batch_predicate_b32, (nk_f32_t const *)b_bounce_i8x64);
+                        svint8_t converted_i8 = nk_e2m3x_to_i8x_ssve_(depth_predicate_b8, raw);
+                        svst1_s8(depth_predicate_b8, b_bounce_i8x64, converted_i8);
+                        svld1_hor_za32(0, column, batch_predicate_b32, (nk_f32_t const *)b_bounce_i8x64);
                     }
                 }
-                for (nk_size_t step = 0; step < batch_size; step++) {
-                    svint8_t a_interleaved = svreinterpret_s8_s32(svld1_s32(full_predicate_b32, a_buffer[step]));
-                    svint32_t b_col_i32 = svread_ver_za32_s32_m(svdup_s32(0), full_predicate_b32, 0, step);
-                    svint8_t b_interleaved = svreinterpret_s8_s32(b_col_i32);
+                for (nk_size_t depth_step = 0; depth_step < batch_size; depth_step++) {
+                    svint8_t a_interleaved = svreinterpret_s8_s32(svld1_s32(full_predicate_b32, a_buffer[depth_step]));
+                    svint32_t b_column_i32 = svread_ver_za32_s32_m(svdup_s32(0), full_predicate_b32, 0, depth_step);
+                    svint8_t b_interleaved = svreinterpret_s8_s32(b_column_i32);
                     svmopa_za32_s8_m(3, row_predicate_b8, full_predicate_b8, a_interleaved, b_interleaved);
                 }
             }
@@ -2681,10 +2749,10 @@ __arm_locally_streaming __arm_new("za") static void nk_dots_symmetric_e2m3_sme_k
         }
 
         for (; column_tile_index < column_tile_count; column_tile_index++) {
-            nk_size_t const col_tile_start = column_tile_index * tile_dimension;
-            nk_size_t const cols_remaining = (col_tile_start + tile_dimension <= n_vectors)
+            nk_size_t const column_tile_start = column_tile_index * tile_dimension;
+            nk_size_t const cols_remaining = (column_tile_start + tile_dimension <= n_vectors)
                                                  ? tile_dimension
-                                                 : (n_vectors - col_tile_start);
+                                                 : (n_vectors - column_tile_start);
             svbool_t const column_predicate_b32 = svwhilelt_b32((uint32_t)0, (uint32_t)cols_remaining);
             svbool_t const column_predicate_b8 = svwhilelt_b8((uint32_t)0, (uint32_t)(cols_remaining * expansion));
 
@@ -2718,20 +2786,20 @@ __arm_locally_streaming __arm_new("za") static void nk_dots_symmetric_e2m3_sme_k
 
                 // Load B column tile into ZA0, vertical read + SMOPA into ZA1
                 svzero_mask_za(nk_sme_zero_za32_tile_0_);
-                for (nk_size_t col = 0; col < tile_dimension; col++) {
-                    nk_size_t const col_abs = col_tile_start + col;
-                    if (col_abs < n_vectors) {
-                        nk_e2m3_t const *src = &vectors[col_abs * stride_elements + depth_batch_start * expansion];
+                for (nk_size_t column = 0; column < tile_dimension; column++) {
+                    nk_size_t const column_abs = column_tile_start + column;
+                    if (column_abs < n_vectors) {
+                        nk_e2m3_t const *src = &vectors[column_abs * stride_elements + depth_batch_start * expansion];
                         svuint8_t raw = svld1_u8(depth_predicate_b8, (uint8_t const *)src);
-                        svint8_t cvt = nk_e2m3x_to_i8x_ssve_(depth_predicate_b8, raw);
-                        svst1_s8(depth_predicate_b8, b_bounce_i8x64, cvt);
-                        svld1_hor_za32(0, col, batch_predicate_b32, (nk_f32_t const *)b_bounce_i8x64);
+                        svint8_t converted_i8 = nk_e2m3x_to_i8x_ssve_(depth_predicate_b8, raw);
+                        svst1_s8(depth_predicate_b8, b_bounce_i8x64, converted_i8);
+                        svld1_hor_za32(0, column, batch_predicate_b32, (nk_f32_t const *)b_bounce_i8x64);
                     }
                 }
-                for (nk_size_t step = 0; step < batch_size; step++) {
-                    svint8_t a_interleaved = svreinterpret_s8_s32(svld1_s32(full_predicate_b32, a_buffer[step]));
-                    svint32_t b_col_i32 = svread_ver_za32_s32_m(svdup_s32(0), column_predicate_b32, 0, step);
-                    svint8_t b_interleaved = svreinterpret_s8_s32(b_col_i32);
+                for (nk_size_t depth_step = 0; depth_step < batch_size; depth_step++) {
+                    svint8_t a_interleaved = svreinterpret_s8_s32(svld1_s32(full_predicate_b32, a_buffer[depth_step]));
+                    svint32_t b_column_i32 = svread_ver_za32_s32_m(svdup_s32(0), column_predicate_b32, 0, depth_step);
+                    svint8_t b_interleaved = svreinterpret_s8_s32(b_column_i32);
                     svmopa_za32_s8_m(1, row_predicate_b8, column_predicate_b8, a_interleaved, b_interleaved);
                 }
             }
@@ -2742,7 +2810,7 @@ __arm_locally_streaming __arm_new("za") static void nk_dots_symmetric_e2m3_sme_k
                 svint32_t row_i32 = svread_hor_za32_s32_m(svdup_s32(0), column_predicate_b32, 1, row);
                 svfloat32_t row_f32 = svmul_n_f32_x(column_predicate_b32,
                                                     svcvt_f32_s32_x(column_predicate_b32, row_i32), 1.0f / 256.0f);
-                svst1_f32(column_predicate_b32, result + row_abs * result_stride_elements + col_tile_start, row_f32);
+                svst1_f32(column_predicate_b32, result + row_abs * result_stride_elements + column_tile_start, row_f32);
             }
         }
 
@@ -2836,7 +2904,7 @@ __arm_locally_streaming __arm_new("za") __attribute__((noinline)) static void nk
     nk_size_t const vector_elements = svcnth();
     nk_size_t const depth_steps_per_batch = tile_dimension;
 
-    nk_f16_t const *b_vecs = (nk_f16_t const *)((char const *)b_packed + sizeof(nk_dots_sme_packed_header_t));
+    nk_f16_t const *b_packed_base = (nk_f16_t const *)((char const *)b_packed + sizeof(nk_dots_sme_packed_header_t));
 
     svbool_t const full_predicate_b16 = svptrue_b16();
     svbool_t const full_predicate_b8 = svptrue_b8();
@@ -2868,36 +2936,41 @@ __arm_locally_streaming __arm_new("za") __attribute__((noinline)) static void nk
                 svzero_mask_za(nk_sme_zero_za32_tile_0_);
 
                 svbool_t const batch_predicate_b32 = svwhilelt_b32((uint32_t)0, (uint32_t)batch_size);
-                for (nk_size_t row_within_tile = 0; row_within_tile < rows_remaining; row_within_tile++) {
-                    nk_size_t const a_row = row_start + row_within_tile;
+                for (nk_size_t row_in_tile = 0; row_in_tile < rows_remaining; row_in_tile++) {
+                    nk_size_t const a_row = row_start + row_in_tile;
                     // Vectorized e3m2 -> f16 conversion
                     nk_e3m2_t const *a_src = a + a_row * a_stride_elements + depth_batch_start * expansion;
                     svuint8_t raw_bytes = svld1_u8(full_predicate_b8, (uint8_t const *)a_src);
                     svfloat16_t converted_f16 = nk_e3m2x_to_f16x_ssve_(full_predicate_b16, raw_bytes);
-                    svst1_f16(full_predicate_b16, (float16_t *)a_converted_f16x32[row_within_tile], converted_f16);
-                    svld1_hor_za32(0, row_within_tile, batch_predicate_b32,
-                                   (nk_f32_t const *)a_converted_f16x32[row_within_tile]);
+                    svst1_f16(full_predicate_b16, (float16_t *)a_converted_f16x32[row_in_tile], converted_f16);
+                    svld1_hor_za32(0, row_in_tile, batch_predicate_b32,
+                                   (nk_f32_t const *)a_converted_f16x32[row_in_tile]);
                 }
 
-                for (nk_size_t step_within_batch = 0; step_within_batch < batch_size; step_within_batch++) {
-                    nk_size_t const ds = depth_batch_start + step_within_batch;
-                    svfloat32_t a_column_f32 = svread_ver_za32_f32_m(svdup_f32(0.0f), row_predicate_b32, 0,
-                                                                     step_within_batch);
+                for (nk_size_t depth_step = 0; depth_step < batch_size; depth_step++) {
+
+                    svfloat32_t a_column_f32 = svread_ver_za32_f32_m(svdup_f32(0.0f), row_predicate_b32, 0, depth_step);
                     svfloat16_t a_interleaved_vector_f16 = svreinterpret_f16_f32(a_column_f32);
 
-                    nk_f16_t const *bv0 = b_vecs + ((column_tile_index + 0) * depth_step_count + ds) * vector_elements;
-                    nk_f16_t const *bv1 = b_vecs + ((column_tile_index + 1) * depth_step_count + ds) * vector_elements;
-                    nk_f16_t const *bv2 = b_vecs + ((column_tile_index + 2) * depth_step_count + ds) * vector_elements;
-                    svfloat16_t b_packed_vector_f16_0 = svld1_f16(full_predicate_b16, (float16_t const *)bv0);
-                    svfloat16_t b_packed_vector_f16_1 = svld1_f16(full_predicate_b16, (float16_t const *)bv1);
-                    svfloat16_t b_packed_vector_f16_2 = svld1_f16(full_predicate_b16, (float16_t const *)bv2);
+                    nk_f16_t const *b_packed_ptr_0 = b_packed_base + ((column_tile_index + 0) * depth_step_count +
+                                                                      depth_batch_start + depth_step) *
+                                                                         vector_elements;
+                    nk_f16_t const *b_packed_ptr_1 = b_packed_base + ((column_tile_index + 1) * depth_step_count +
+                                                                      depth_batch_start + depth_step) *
+                                                                         vector_elements;
+                    nk_f16_t const *b_packed_ptr_2 = b_packed_base + ((column_tile_index + 2) * depth_step_count +
+                                                                      depth_batch_start + depth_step) *
+                                                                         vector_elements;
+                    svfloat16_t b_packed_vector_0 = svld1_f16(full_predicate_b16, (float16_t const *)b_packed_ptr_0);
+                    svfloat16_t b_packed_vector_1 = svld1_f16(full_predicate_b16, (float16_t const *)b_packed_ptr_1);
+                    svfloat16_t b_packed_vector_2 = svld1_f16(full_predicate_b16, (float16_t const *)b_packed_ptr_2);
 
                     svmopa_za32_f16_m(1, row_predicate_b16, full_predicate_b16, a_interleaved_vector_f16,
-                                      b_packed_vector_f16_0);
+                                      b_packed_vector_0);
                     svmopa_za32_f16_m(2, row_predicate_b16, full_predicate_b16, a_interleaved_vector_f16,
-                                      b_packed_vector_f16_1);
+                                      b_packed_vector_1);
                     svmopa_za32_f16_m(3, row_predicate_b16, full_predicate_b16, a_interleaved_vector_f16,
-                                      b_packed_vector_f16_2);
+                                      b_packed_vector_2);
                 }
             }
 
@@ -2913,9 +2986,9 @@ __arm_locally_streaming __arm_new("za") __attribute__((noinline)) static void nk
 
         // Remainder: 1 column tile using ZA1
         for (; column_tile_index < column_tile_count; column_tile_index++) {
-            nk_size_t const col_start = column_tile_index * tile_dimension;
-            nk_size_t const cols_remaining = (col_start + tile_dimension <= columns) ? tile_dimension
-                                                                                     : (columns - col_start);
+            nk_size_t const column_start = column_tile_index * tile_dimension;
+            nk_size_t const cols_remaining = (column_start + tile_dimension <= columns) ? tile_dimension
+                                                                                        : (columns - column_start);
             svbool_t const column_predicate_b32 = svwhilelt_b32((uint32_t)0, (uint32_t)cols_remaining);
             svbool_t const column_predicate_b16 = svwhilelt_b16((uint32_t)0, (uint32_t)(cols_remaining * expansion));
 
@@ -2931,32 +3004,33 @@ __arm_locally_streaming __arm_new("za") __attribute__((noinline)) static void nk
                 svzero_mask_za(nk_sme_zero_za32_tile_0_);
 
                 svbool_t const batch_predicate_b32 = svwhilelt_b32((uint32_t)0, (uint32_t)batch_size);
-                for (nk_size_t row_within_tile = 0; row_within_tile < rows_remaining; row_within_tile++) {
-                    nk_size_t const a_row = row_start + row_within_tile;
+                for (nk_size_t row_in_tile = 0; row_in_tile < rows_remaining; row_in_tile++) {
+                    nk_size_t const a_row = row_start + row_in_tile;
                     nk_e3m2_t const *a_src = a + a_row * a_stride_elements + depth_batch_start * expansion;
                     svuint8_t raw_bytes = svld1_u8(full_predicate_b8, (uint8_t const *)a_src);
                     svfloat16_t converted_f16 = nk_e3m2x_to_f16x_ssve_(full_predicate_b16, raw_bytes);
-                    svst1_f16(full_predicate_b16, (float16_t *)a_converted_f16x32[row_within_tile], converted_f16);
-                    svld1_hor_za32(0, row_within_tile, batch_predicate_b32,
-                                   (nk_f32_t const *)a_converted_f16x32[row_within_tile]);
+                    svst1_f16(full_predicate_b16, (float16_t *)a_converted_f16x32[row_in_tile], converted_f16);
+                    svld1_hor_za32(0, row_in_tile, batch_predicate_b32,
+                                   (nk_f32_t const *)a_converted_f16x32[row_in_tile]);
                 }
 
-                for (nk_size_t step_within_batch = 0; step_within_batch < batch_size; step_within_batch++) {
-                    nk_size_t const ds = depth_batch_start + step_within_batch;
-                    svfloat32_t a_column_f32 = svread_ver_za32_f32_m(svdup_f32(0.0f), row_predicate_b32, 0,
-                                                                     step_within_batch);
+                for (nk_size_t depth_step = 0; depth_step < batch_size; depth_step++) {
+
+                    svfloat32_t a_column_f32 = svread_ver_za32_f32_m(svdup_f32(0.0f), row_predicate_b32, 0, depth_step);
                     svfloat16_t a_interleaved_vector_f16 = svreinterpret_f16_f32(a_column_f32);
 
-                    nk_f16_t const *bv = b_vecs + (column_tile_index * depth_step_count + ds) * vector_elements;
-                    svfloat16_t b_packed_vector_f16 = svld1_f16(column_predicate_b16, (float16_t const *)bv);
+                    nk_f16_t const *b_packed_ptr = b_packed_base + (column_tile_index * depth_step_count +
+                                                                    depth_batch_start + depth_step) *
+                                                                       vector_elements;
+                    svfloat16_t b_packed_vector = svld1_f16(column_predicate_b16, (float16_t const *)b_packed_ptr);
 
                     svmopa_za32_f16_m(1, row_predicate_b16, column_predicate_b16, a_interleaved_vector_f16,
-                                      b_packed_vector_f16);
+                                      b_packed_vector);
                 }
             }
 
             for (nk_size_t row = 0; row < rows_remaining; row++) {
-                svst1_hor_za32(1, row, column_predicate_b32, c + (row_start + row) * c_stride_elements + col_start);
+                svst1_hor_za32(1, row, column_predicate_b32, c + (row_start + row) * c_stride_elements + column_start);
             }
         }
     }
@@ -2987,12 +3061,12 @@ NK_PUBLIC void nk_dots_pack_e3m2_sme(nk_e3m2_t const *b, nk_size_t n, nk_size_t 
     for (nk_size_t i = 0; i < total_vectors * vector_elements; i++) tiles_ptr[i] = 0;
 
     // Interleaved packing with e3m2 → f16 conversion (via f32 intermediate)
-    for (nk_size_t col_tile = 0; col_tile < column_tile_count; col_tile++) {
+    for (nk_size_t column_tile = 0; column_tile < column_tile_count; column_tile++) {
         for (nk_size_t depth_step = 0; depth_step < depth_step_count; depth_step++) {
-            nk_size_t const vec_index = col_tile * depth_step_count + depth_step;
+            nk_size_t const vec_index = column_tile * depth_step_count + depth_step;
             nk_f16_t *vec_output = tiles_ptr + vec_index * vector_elements;
 
-            nk_size_t const b_row_start = col_tile * tile_dimension;
+            nk_size_t const b_row_start = column_tile * tile_dimension;
             nk_size_t const depth_base = depth_step * expansion;
             nk_size_t const rows_to_pack = (b_row_start + tile_dimension <= n) ? tile_dimension : (n - b_row_start);
 
@@ -3095,58 +3169,64 @@ __arm_locally_streaming __arm_new("za") static void nk_dots_symmetric_e3m2_sme_k
 
                 // Load B column tile 0 into ZA0, vertical read + FMOPA into ZA1
                 svzero_mask_za(nk_sme_zero_za32_tile_0_);
-                for (nk_size_t col = 0; col < tile_dimension; col++) {
-                    nk_size_t const col_abs = (column_tile_index + 0) * tile_dimension + col;
-                    if (col_abs < n_vectors) {
-                        nk_e3m2_t const *src = &vectors[col_abs * stride_elements + depth_batch_start * expansion];
+                for (nk_size_t column = 0; column < tile_dimension; column++) {
+                    nk_size_t const column_abs = (column_tile_index + 0) * tile_dimension + column;
+                    if (column_abs < n_vectors) {
+                        nk_e3m2_t const *src = &vectors[column_abs * stride_elements + depth_batch_start * expansion];
                         svuint8_t raw = svld1_u8(depth_predicate_b8, (uint8_t const *)src);
-                        svfloat16_t cvt = nk_e3m2x_to_f16x_ssve_(depth_predicate_b16, raw);
-                        svst1_f16(depth_predicate_b16, (float16_t *)b_bounce_f16x32, cvt);
-                        svld1_hor_za32(0, col, batch_predicate_b32, (nk_f32_t const *)b_bounce_f16x32);
+                        svfloat16_t converted_f16 = nk_e3m2x_to_f16x_ssve_(depth_predicate_b16, raw);
+                        svst1_f16(depth_predicate_b16, (float16_t *)b_bounce_f16x32, converted_f16);
+                        svld1_hor_za32(0, column, batch_predicate_b32, (nk_f32_t const *)b_bounce_f16x32);
                     }
                 }
-                for (nk_size_t step = 0; step < batch_size; step++) {
-                    svfloat16_t a_interleaved = svreinterpret_f16_f32(svld1_f32(full_predicate_b32, a_buffer[step]));
-                    svfloat32_t b_col_f32 = svread_ver_za32_f32_m(svdup_f32(0.0f), full_predicate_b32, 0, step);
-                    svfloat16_t b_interleaved = svreinterpret_f16_f32(b_col_f32);
+                for (nk_size_t depth_step = 0; depth_step < batch_size; depth_step++) {
+                    svfloat16_t a_interleaved = svreinterpret_f16_f32(
+                        svld1_f32(full_predicate_b32, a_buffer[depth_step]));
+                    svfloat32_t b_column_f32 = svread_ver_za32_f32_m(svdup_f32(0.0f), full_predicate_b32, 0,
+                                                                     depth_step);
+                    svfloat16_t b_interleaved = svreinterpret_f16_f32(b_column_f32);
                     svmopa_za32_f16_m(1, row_predicate_b16, full_predicate_b16, a_interleaved, b_interleaved);
                 }
 
                 // Load B column tile 1 into ZA0, vertical read + FMOPA into ZA2
                 svzero_mask_za(nk_sme_zero_za32_tile_0_);
-                for (nk_size_t col = 0; col < tile_dimension; col++) {
-                    nk_size_t const col_abs = (column_tile_index + 1) * tile_dimension + col;
-                    if (col_abs < n_vectors) {
-                        nk_e3m2_t const *src = &vectors[col_abs * stride_elements + depth_batch_start * expansion];
+                for (nk_size_t column = 0; column < tile_dimension; column++) {
+                    nk_size_t const column_abs = (column_tile_index + 1) * tile_dimension + column;
+                    if (column_abs < n_vectors) {
+                        nk_e3m2_t const *src = &vectors[column_abs * stride_elements + depth_batch_start * expansion];
                         svuint8_t raw = svld1_u8(depth_predicate_b8, (uint8_t const *)src);
-                        svfloat16_t cvt = nk_e3m2x_to_f16x_ssve_(depth_predicate_b16, raw);
-                        svst1_f16(depth_predicate_b16, (float16_t *)b_bounce_f16x32, cvt);
-                        svld1_hor_za32(0, col, batch_predicate_b32, (nk_f32_t const *)b_bounce_f16x32);
+                        svfloat16_t converted_f16 = nk_e3m2x_to_f16x_ssve_(depth_predicate_b16, raw);
+                        svst1_f16(depth_predicate_b16, (float16_t *)b_bounce_f16x32, converted_f16);
+                        svld1_hor_za32(0, column, batch_predicate_b32, (nk_f32_t const *)b_bounce_f16x32);
                     }
                 }
-                for (nk_size_t step = 0; step < batch_size; step++) {
-                    svfloat16_t a_interleaved = svreinterpret_f16_f32(svld1_f32(full_predicate_b32, a_buffer[step]));
-                    svfloat32_t b_col_f32 = svread_ver_za32_f32_m(svdup_f32(0.0f), full_predicate_b32, 0, step);
-                    svfloat16_t b_interleaved = svreinterpret_f16_f32(b_col_f32);
+                for (nk_size_t depth_step = 0; depth_step < batch_size; depth_step++) {
+                    svfloat16_t a_interleaved = svreinterpret_f16_f32(
+                        svld1_f32(full_predicate_b32, a_buffer[depth_step]));
+                    svfloat32_t b_column_f32 = svread_ver_za32_f32_m(svdup_f32(0.0f), full_predicate_b32, 0,
+                                                                     depth_step);
+                    svfloat16_t b_interleaved = svreinterpret_f16_f32(b_column_f32);
                     svmopa_za32_f16_m(2, row_predicate_b16, full_predicate_b16, a_interleaved, b_interleaved);
                 }
 
                 // Load B column tile 2 into ZA0, vertical read + FMOPA into ZA3
                 svzero_mask_za(nk_sme_zero_za32_tile_0_);
-                for (nk_size_t col = 0; col < tile_dimension; col++) {
-                    nk_size_t const col_abs = (column_tile_index + 2) * tile_dimension + col;
-                    if (col_abs < n_vectors) {
-                        nk_e3m2_t const *src = &vectors[col_abs * stride_elements + depth_batch_start * expansion];
+                for (nk_size_t column = 0; column < tile_dimension; column++) {
+                    nk_size_t const column_abs = (column_tile_index + 2) * tile_dimension + column;
+                    if (column_abs < n_vectors) {
+                        nk_e3m2_t const *src = &vectors[column_abs * stride_elements + depth_batch_start * expansion];
                         svuint8_t raw = svld1_u8(depth_predicate_b8, (uint8_t const *)src);
-                        svfloat16_t cvt = nk_e3m2x_to_f16x_ssve_(depth_predicate_b16, raw);
-                        svst1_f16(depth_predicate_b16, (float16_t *)b_bounce_f16x32, cvt);
-                        svld1_hor_za32(0, col, batch_predicate_b32, (nk_f32_t const *)b_bounce_f16x32);
+                        svfloat16_t converted_f16 = nk_e3m2x_to_f16x_ssve_(depth_predicate_b16, raw);
+                        svst1_f16(depth_predicate_b16, (float16_t *)b_bounce_f16x32, converted_f16);
+                        svld1_hor_za32(0, column, batch_predicate_b32, (nk_f32_t const *)b_bounce_f16x32);
                     }
                 }
-                for (nk_size_t step = 0; step < batch_size; step++) {
-                    svfloat16_t a_interleaved = svreinterpret_f16_f32(svld1_f32(full_predicate_b32, a_buffer[step]));
-                    svfloat32_t b_col_f32 = svread_ver_za32_f32_m(svdup_f32(0.0f), full_predicate_b32, 0, step);
-                    svfloat16_t b_interleaved = svreinterpret_f16_f32(b_col_f32);
+                for (nk_size_t depth_step = 0; depth_step < batch_size; depth_step++) {
+                    svfloat16_t a_interleaved = svreinterpret_f16_f32(
+                        svld1_f32(full_predicate_b32, a_buffer[depth_step]));
+                    svfloat32_t b_column_f32 = svread_ver_za32_f32_m(svdup_f32(0.0f), full_predicate_b32, 0,
+                                                                     depth_step);
+                    svfloat16_t b_interleaved = svreinterpret_f16_f32(b_column_f32);
                     svmopa_za32_f16_m(3, row_predicate_b16, full_predicate_b16, a_interleaved, b_interleaved);
                 }
             }
@@ -3161,10 +3241,10 @@ __arm_locally_streaming __arm_new("za") static void nk_dots_symmetric_e3m2_sme_k
         }
 
         for (; column_tile_index < column_tile_count; column_tile_index++) {
-            nk_size_t const col_tile_start = column_tile_index * tile_dimension;
-            nk_size_t const cols_remaining = (col_tile_start + tile_dimension <= n_vectors)
+            nk_size_t const column_tile_start = column_tile_index * tile_dimension;
+            nk_size_t const cols_remaining = (column_tile_start + tile_dimension <= n_vectors)
                                                  ? tile_dimension
-                                                 : (n_vectors - col_tile_start);
+                                                 : (n_vectors - column_tile_start);
             svbool_t const column_predicate_b32 = svwhilelt_b32((uint32_t)0, (uint32_t)cols_remaining);
             svbool_t const column_predicate_b16 = svwhilelt_b16((uint32_t)0, (uint32_t)(cols_remaining * expansion));
 
@@ -3199,20 +3279,22 @@ __arm_locally_streaming __arm_new("za") static void nk_dots_symmetric_e3m2_sme_k
 
                 // Load B column tile into ZA0, vertical read + FMOPA into ZA1
                 svzero_mask_za(nk_sme_zero_za32_tile_0_);
-                for (nk_size_t col = 0; col < tile_dimension; col++) {
-                    nk_size_t const col_abs = col_tile_start + col;
-                    if (col_abs < n_vectors) {
-                        nk_e3m2_t const *src = &vectors[col_abs * stride_elements + depth_batch_start * expansion];
+                for (nk_size_t column = 0; column < tile_dimension; column++) {
+                    nk_size_t const column_abs = column_tile_start + column;
+                    if (column_abs < n_vectors) {
+                        nk_e3m2_t const *src = &vectors[column_abs * stride_elements + depth_batch_start * expansion];
                         svuint8_t raw = svld1_u8(depth_predicate_b8, (uint8_t const *)src);
-                        svfloat16_t cvt = nk_e3m2x_to_f16x_ssve_(depth_predicate_b16, raw);
-                        svst1_f16(depth_predicate_b16, (float16_t *)b_bounce_f16x32, cvt);
-                        svld1_hor_za32(0, col, batch_predicate_b32, (nk_f32_t const *)b_bounce_f16x32);
+                        svfloat16_t converted_f16 = nk_e3m2x_to_f16x_ssve_(depth_predicate_b16, raw);
+                        svst1_f16(depth_predicate_b16, (float16_t *)b_bounce_f16x32, converted_f16);
+                        svld1_hor_za32(0, column, batch_predicate_b32, (nk_f32_t const *)b_bounce_f16x32);
                     }
                 }
-                for (nk_size_t step = 0; step < batch_size; step++) {
-                    svfloat16_t a_interleaved = svreinterpret_f16_f32(svld1_f32(full_predicate_b32, a_buffer[step]));
-                    svfloat32_t b_col_f32 = svread_ver_za32_f32_m(svdup_f32(0.0f), column_predicate_b32, 0, step);
-                    svfloat16_t b_interleaved = svreinterpret_f16_f32(b_col_f32);
+                for (nk_size_t depth_step = 0; depth_step < batch_size; depth_step++) {
+                    svfloat16_t a_interleaved = svreinterpret_f16_f32(
+                        svld1_f32(full_predicate_b32, a_buffer[depth_step]));
+                    svfloat32_t b_column_f32 = svread_ver_za32_f32_m(svdup_f32(0.0f), column_predicate_b32, 0,
+                                                                     depth_step);
+                    svfloat16_t b_interleaved = svreinterpret_f16_f32(b_column_f32);
                     svmopa_za32_f16_m(1, row_predicate_b16, column_predicate_b16, a_interleaved, b_interleaved);
                 }
             }
@@ -3220,7 +3302,7 @@ __arm_locally_streaming __arm_new("za") static void nk_dots_symmetric_e3m2_sme_k
             for (nk_size_t row = 0; row < rows_actual; row++) {
                 nk_size_t const row_abs = row_tile_start + row;
                 svst1_hor_za32(1, row, column_predicate_b32,
-                               result + row_abs * result_stride_elements + col_tile_start);
+                               result + row_abs * result_stride_elements + column_tile_start);
             }
         }
 
@@ -3284,13 +3366,13 @@ NK_PUBLIC void nk_dots_pack_u8_sme(             //
 
     for (nk_size_t i = 0; i < total_vectors * vector_elements; i++) tiles_ptr[i] = 0;
 
-    // Interleaved packing: packed_vec[expansion * d + k] = B[col_tile*tile_dim + d, depth_step*expansion + k]
-    for (nk_size_t col_tile = 0; col_tile < column_tile_count; col_tile++) {
+    // Interleaved packing: packed_vec[expansion * d + k] = B[column_tile*tile_dim + d, depth_step*expansion + k]
+    for (nk_size_t column_tile = 0; column_tile < column_tile_count; column_tile++) {
         for (nk_size_t depth_step = 0; depth_step < depth_step_count; depth_step++) {
-            nk_size_t const vec_index = col_tile * depth_step_count + depth_step;
+            nk_size_t const vec_index = column_tile * depth_step_count + depth_step;
             nk_u8_t *vec_output = tiles_ptr + vec_index * vector_elements;
 
-            nk_size_t const b_row_start = col_tile * tile_dimension;
+            nk_size_t const b_row_start = column_tile * tile_dimension;
             nk_size_t const depth_base = depth_step * expansion;
             nk_size_t const rows_to_pack = (b_row_start + tile_dimension <= n) ? tile_dimension : (n - b_row_start);
 
@@ -3325,7 +3407,7 @@ __arm_locally_streaming __arm_new("za") static void nk_dots_packed_u8_sme_kernel
     nk_size_t const vector_elements = svcntb();
     nk_size_t const depth_steps_per_batch = tile_dimension;
 
-    nk_u8_t const *b_vecs = (nk_u8_t const *)((char const *)b_packed + sizeof(nk_dots_sme_packed_header_t));
+    nk_u8_t const *b_packed_base = (nk_u8_t const *)((char const *)b_packed + sizeof(nk_dots_sme_packed_header_t));
 
     svbool_t const full_predicate_b8 = svptrue_b8();
     svbool_t const full_predicate_b32 = svptrue_b32();
@@ -3354,32 +3436,37 @@ __arm_locally_streaming __arm_new("za") static void nk_dots_packed_u8_sme_kernel
                 svzero_mask_za(nk_sme_zero_za32_tile_0_);
 
                 svbool_t const batch_predicate_b32 = svwhilelt_b32((uint32_t)0, (uint32_t)batch_size);
-                for (nk_size_t row_within_tile = 0; row_within_tile < rows_remaining; row_within_tile++) {
-                    nk_size_t const a_row = row_start + row_within_tile;
+                for (nk_size_t row_in_tile = 0; row_in_tile < rows_remaining; row_in_tile++) {
+                    nk_size_t const a_row = row_start + row_in_tile;
                     nk_f32_t const *a_row_ptr = (nk_f32_t const *)(a + a_row * a_stride_elements +
                                                                    depth_batch_start * expansion);
-                    svld1_hor_za32(0, row_within_tile, batch_predicate_b32, a_row_ptr);
+                    svld1_hor_za32(0, row_in_tile, batch_predicate_b32, a_row_ptr);
                 }
 
-                for (nk_size_t step_within_batch = 0; step_within_batch < batch_size; step_within_batch++) {
-                    nk_size_t const ds = depth_batch_start + step_within_batch;
-                    svuint32_t a_column_u32 = svread_ver_za32_u32_m(svdup_u32(0), row_predicate_b32, 0,
-                                                                    step_within_batch);
+                for (nk_size_t depth_step = 0; depth_step < batch_size; depth_step++) {
+
+                    svuint32_t a_column_u32 = svread_ver_za32_u32_m(svdup_u32(0), row_predicate_b32, 0, depth_step);
                     svuint8_t a_interleaved_vector_u8 = svreinterpret_u8_u32(a_column_u32);
 
-                    nk_u8_t const *bv0 = b_vecs + ((column_tile_index + 0) * depth_step_count + ds) * vector_elements;
-                    nk_u8_t const *bv1 = b_vecs + ((column_tile_index + 1) * depth_step_count + ds) * vector_elements;
-                    nk_u8_t const *bv2 = b_vecs + ((column_tile_index + 2) * depth_step_count + ds) * vector_elements;
-                    svuint8_t b_packed_vector_u8_0 = svld1_u8(full_predicate_b8, bv0);
-                    svuint8_t b_packed_vector_u8_1 = svld1_u8(full_predicate_b8, bv1);
-                    svuint8_t b_packed_vector_u8_2 = svld1_u8(full_predicate_b8, bv2);
+                    nk_u8_t const *b_packed_ptr_0 = b_packed_base + ((column_tile_index + 0) * depth_step_count +
+                                                                     depth_batch_start + depth_step) *
+                                                                        vector_elements;
+                    nk_u8_t const *b_packed_ptr_1 = b_packed_base + ((column_tile_index + 1) * depth_step_count +
+                                                                     depth_batch_start + depth_step) *
+                                                                        vector_elements;
+                    nk_u8_t const *b_packed_ptr_2 = b_packed_base + ((column_tile_index + 2) * depth_step_count +
+                                                                     depth_batch_start + depth_step) *
+                                                                        vector_elements;
+                    svuint8_t b_packed_vector_0 = svld1_u8(full_predicate_b8, b_packed_ptr_0);
+                    svuint8_t b_packed_vector_1 = svld1_u8(full_predicate_b8, b_packed_ptr_1);
+                    svuint8_t b_packed_vector_2 = svld1_u8(full_predicate_b8, b_packed_ptr_2);
 
                     svmopa_za32_u8_m(1, row_predicate_b8, full_predicate_b8, a_interleaved_vector_u8,
-                                     b_packed_vector_u8_0);
+                                     b_packed_vector_0);
                     svmopa_za32_u8_m(2, row_predicate_b8, full_predicate_b8, a_interleaved_vector_u8,
-                                     b_packed_vector_u8_1);
+                                     b_packed_vector_1);
                     svmopa_za32_u8_m(3, row_predicate_b8, full_predicate_b8, a_interleaved_vector_u8,
-                                     b_packed_vector_u8_2);
+                                     b_packed_vector_2);
                 }
             }
 
@@ -3398,9 +3485,9 @@ __arm_locally_streaming __arm_new("za") static void nk_dots_packed_u8_sme_kernel
 
         // Remainder: 1 column tile using ZA1
         for (; column_tile_index < column_tile_count; column_tile_index++) {
-            nk_size_t const col_start = column_tile_index * tile_dimension;
-            nk_size_t const cols_remaining = (col_start + tile_dimension <= columns) ? tile_dimension
-                                                                                     : (columns - col_start);
+            nk_size_t const column_start = column_tile_index * tile_dimension;
+            nk_size_t const cols_remaining = (column_start + tile_dimension <= columns) ? tile_dimension
+                                                                                        : (columns - column_start);
             svbool_t const column_predicate_b32 = svwhilelt_b32((uint32_t)0, (uint32_t)cols_remaining);
             svbool_t const column_predicate_b8 = svwhilelt_b8((uint32_t)0, (uint32_t)(cols_remaining * expansion));
 
@@ -3416,30 +3503,31 @@ __arm_locally_streaming __arm_new("za") static void nk_dots_packed_u8_sme_kernel
                 svzero_mask_za(nk_sme_zero_za32_tile_0_);
 
                 svbool_t const batch_predicate_b32 = svwhilelt_b32((uint32_t)0, (uint32_t)batch_size);
-                for (nk_size_t row_within_tile = 0; row_within_tile < rows_remaining; row_within_tile++) {
-                    nk_size_t const a_row = row_start + row_within_tile;
+                for (nk_size_t row_in_tile = 0; row_in_tile < rows_remaining; row_in_tile++) {
+                    nk_size_t const a_row = row_start + row_in_tile;
                     nk_f32_t const *a_row_ptr = (nk_f32_t const *)(a + a_row * a_stride_elements +
                                                                    depth_batch_start * expansion);
-                    svld1_hor_za32(0, row_within_tile, batch_predicate_b32, a_row_ptr);
+                    svld1_hor_za32(0, row_in_tile, batch_predicate_b32, a_row_ptr);
                 }
 
-                for (nk_size_t step_within_batch = 0; step_within_batch < batch_size; step_within_batch++) {
-                    nk_size_t const ds = depth_batch_start + step_within_batch;
-                    svuint32_t a_column_u32 = svread_ver_za32_u32_m(svdup_u32(0), row_predicate_b32, 0,
-                                                                    step_within_batch);
+                for (nk_size_t depth_step = 0; depth_step < batch_size; depth_step++) {
+
+                    svuint32_t a_column_u32 = svread_ver_za32_u32_m(svdup_u32(0), row_predicate_b32, 0, depth_step);
                     svuint8_t a_interleaved_vector_u8 = svreinterpret_u8_u32(a_column_u32);
 
-                    nk_u8_t const *bv = b_vecs + (column_tile_index * depth_step_count + ds) * vector_elements;
-                    svuint8_t b_packed_vector_u8 = svld1_u8(column_predicate_b8, bv);
+                    nk_u8_t const *b_packed_ptr = b_packed_base + (column_tile_index * depth_step_count +
+                                                                   depth_batch_start + depth_step) *
+                                                                      vector_elements;
+                    svuint8_t b_packed_vector = svld1_u8(column_predicate_b8, b_packed_ptr);
 
                     svmopa_za32_u8_m(1, row_predicate_b8, column_predicate_b8, a_interleaved_vector_u8,
-                                     b_packed_vector_u8);
+                                     b_packed_vector);
                 }
             }
 
             for (nk_size_t row = 0; row < rows_remaining; row++) {
                 svst1_hor_za32(1, row, column_predicate_b32,
-                               (nk_i32_t *)(c + (row_start + row) * c_stride_elements + col_start));
+                               (nk_i32_t *)(c + (row_start + row) * c_stride_elements + column_start));
             }
         }
     }
@@ -3509,50 +3597,50 @@ __arm_locally_streaming __arm_new("za") static void nk_dots_symmetric_u8_sme_ker
                               svread_ver_za32_u32_m(svdup_u32(0), row_predicate_b32, 0, s));
 
                 svzero_mask_za(nk_sme_zero_za32_tile_0_);
-                for (nk_size_t col = 0; col < tile_dimension; col++) {
-                    nk_size_t const col_abs = (column_tile_index + 0) * tile_dimension + col;
-                    if (col_abs < n_vectors) {
-                        nk_f32_t const *b_row = (nk_f32_t const *)(vectors + col_abs * stride_elements +
+                for (nk_size_t column = 0; column < tile_dimension; column++) {
+                    nk_size_t const column_abs = (column_tile_index + 0) * tile_dimension + column;
+                    if (column_abs < n_vectors) {
+                        nk_f32_t const *b_row = (nk_f32_t const *)(vectors + column_abs * stride_elements +
                                                                    depth_batch_start * expansion);
-                        svld1_hor_za32(0, col, batch_predicate_b32, b_row);
+                        svld1_hor_za32(0, column, batch_predicate_b32, b_row);
                     }
                 }
-                for (nk_size_t step = 0; step < batch_size; step++) {
-                    svuint8_t a_interleaved = svreinterpret_u8_u32(svld1_u32(full_predicate_b32, a_buffer[step]));
-                    svuint32_t b_col_u32 = svread_ver_za32_u32_m(svdup_u32(0), full_predicate_b32, 0, step);
-                    svuint8_t b_interleaved = svreinterpret_u8_u32(b_col_u32);
+                for (nk_size_t depth_step = 0; depth_step < batch_size; depth_step++) {
+                    svuint8_t a_interleaved = svreinterpret_u8_u32(svld1_u32(full_predicate_b32, a_buffer[depth_step]));
+                    svuint32_t b_column_u32 = svread_ver_za32_u32_m(svdup_u32(0), full_predicate_b32, 0, depth_step);
+                    svuint8_t b_interleaved = svreinterpret_u8_u32(b_column_u32);
                     svmopa_za32_u8_m(1, row_predicate_b8, full_predicate_b8, a_interleaved, b_interleaved);
                 }
 
                 svzero_mask_za(nk_sme_zero_za32_tile_0_);
-                for (nk_size_t col = 0; col < tile_dimension; col++) {
-                    nk_size_t const col_abs = (column_tile_index + 1) * tile_dimension + col;
-                    if (col_abs < n_vectors) {
-                        nk_f32_t const *b_row = (nk_f32_t const *)(vectors + col_abs * stride_elements +
+                for (nk_size_t column = 0; column < tile_dimension; column++) {
+                    nk_size_t const column_abs = (column_tile_index + 1) * tile_dimension + column;
+                    if (column_abs < n_vectors) {
+                        nk_f32_t const *b_row = (nk_f32_t const *)(vectors + column_abs * stride_elements +
                                                                    depth_batch_start * expansion);
-                        svld1_hor_za32(0, col, batch_predicate_b32, b_row);
+                        svld1_hor_za32(0, column, batch_predicate_b32, b_row);
                     }
                 }
-                for (nk_size_t step = 0; step < batch_size; step++) {
-                    svuint8_t a_interleaved = svreinterpret_u8_u32(svld1_u32(full_predicate_b32, a_buffer[step]));
-                    svuint32_t b_col_u32 = svread_ver_za32_u32_m(svdup_u32(0), full_predicate_b32, 0, step);
-                    svuint8_t b_interleaved = svreinterpret_u8_u32(b_col_u32);
+                for (nk_size_t depth_step = 0; depth_step < batch_size; depth_step++) {
+                    svuint8_t a_interleaved = svreinterpret_u8_u32(svld1_u32(full_predicate_b32, a_buffer[depth_step]));
+                    svuint32_t b_column_u32 = svread_ver_za32_u32_m(svdup_u32(0), full_predicate_b32, 0, depth_step);
+                    svuint8_t b_interleaved = svreinterpret_u8_u32(b_column_u32);
                     svmopa_za32_u8_m(2, row_predicate_b8, full_predicate_b8, a_interleaved, b_interleaved);
                 }
 
                 svzero_mask_za(nk_sme_zero_za32_tile_0_);
-                for (nk_size_t col = 0; col < tile_dimension; col++) {
-                    nk_size_t const col_abs = (column_tile_index + 2) * tile_dimension + col;
-                    if (col_abs < n_vectors) {
-                        nk_f32_t const *b_row = (nk_f32_t const *)(vectors + col_abs * stride_elements +
+                for (nk_size_t column = 0; column < tile_dimension; column++) {
+                    nk_size_t const column_abs = (column_tile_index + 2) * tile_dimension + column;
+                    if (column_abs < n_vectors) {
+                        nk_f32_t const *b_row = (nk_f32_t const *)(vectors + column_abs * stride_elements +
                                                                    depth_batch_start * expansion);
-                        svld1_hor_za32(0, col, batch_predicate_b32, b_row);
+                        svld1_hor_za32(0, column, batch_predicate_b32, b_row);
                     }
                 }
-                for (nk_size_t step = 0; step < batch_size; step++) {
-                    svuint8_t a_interleaved = svreinterpret_u8_u32(svld1_u32(full_predicate_b32, a_buffer[step]));
-                    svuint32_t b_col_u32 = svread_ver_za32_u32_m(svdup_u32(0), full_predicate_b32, 0, step);
-                    svuint8_t b_interleaved = svreinterpret_u8_u32(b_col_u32);
+                for (nk_size_t depth_step = 0; depth_step < batch_size; depth_step++) {
+                    svuint8_t a_interleaved = svreinterpret_u8_u32(svld1_u32(full_predicate_b32, a_buffer[depth_step]));
+                    svuint32_t b_column_u32 = svread_ver_za32_u32_m(svdup_u32(0), full_predicate_b32, 0, depth_step);
+                    svuint8_t b_interleaved = svreinterpret_u8_u32(b_column_u32);
                     svmopa_za32_u8_m(3, row_predicate_b8, full_predicate_b8, a_interleaved, b_interleaved);
                 }
             }
@@ -3567,10 +3655,10 @@ __arm_locally_streaming __arm_new("za") static void nk_dots_symmetric_u8_sme_ker
         }
 
         for (; column_tile_index < column_tile_count; column_tile_index++) {
-            nk_size_t const col_tile_start = column_tile_index * tile_dimension;
-            nk_size_t const cols_remaining = (col_tile_start + tile_dimension <= n_vectors)
+            nk_size_t const column_tile_start = column_tile_index * tile_dimension;
+            nk_size_t const cols_remaining = (column_tile_start + tile_dimension <= n_vectors)
                                                  ? tile_dimension
-                                                 : (n_vectors - col_tile_start);
+                                                 : (n_vectors - column_tile_start);
             svbool_t const column_predicate_b32 = svwhilelt_b32((uint32_t)0, (uint32_t)cols_remaining);
             svbool_t const column_predicate_b8 = svwhilelt_b8((uint32_t)0, (uint32_t)(cols_remaining * expansion));
 
@@ -3597,18 +3685,18 @@ __arm_locally_streaming __arm_new("za") static void nk_dots_symmetric_u8_sme_ker
                               svread_ver_za32_u32_m(svdup_u32(0), row_predicate_b32, 0, s));
 
                 svzero_mask_za(nk_sme_zero_za32_tile_0_);
-                for (nk_size_t col = 0; col < tile_dimension; col++) {
-                    nk_size_t const col_abs = col_tile_start + col;
-                    if (col_abs < n_vectors) {
-                        nk_f32_t const *b_row = (nk_f32_t const *)(vectors + col_abs * stride_elements +
+                for (nk_size_t column = 0; column < tile_dimension; column++) {
+                    nk_size_t const column_abs = column_tile_start + column;
+                    if (column_abs < n_vectors) {
+                        nk_f32_t const *b_row = (nk_f32_t const *)(vectors + column_abs * stride_elements +
                                                                    depth_batch_start * expansion);
-                        svld1_hor_za32(0, col, batch_predicate_b32, b_row);
+                        svld1_hor_za32(0, column, batch_predicate_b32, b_row);
                     }
                 }
-                for (nk_size_t step = 0; step < batch_size; step++) {
-                    svuint8_t a_interleaved = svreinterpret_u8_u32(svld1_u32(full_predicate_b32, a_buffer[step]));
-                    svuint32_t b_col_u32 = svread_ver_za32_u32_m(svdup_u32(0), column_predicate_b32, 0, step);
-                    svuint8_t b_interleaved = svreinterpret_u8_u32(b_col_u32);
+                for (nk_size_t depth_step = 0; depth_step < batch_size; depth_step++) {
+                    svuint8_t a_interleaved = svreinterpret_u8_u32(svld1_u32(full_predicate_b32, a_buffer[depth_step]));
+                    svuint32_t b_column_u32 = svread_ver_za32_u32_m(svdup_u32(0), column_predicate_b32, 0, depth_step);
+                    svuint8_t b_interleaved = svreinterpret_u8_u32(b_column_u32);
                     svmopa_za32_u8_m(1, row_predicate_b8, column_predicate_b8, a_interleaved, b_interleaved);
                 }
             }
@@ -3616,7 +3704,7 @@ __arm_locally_streaming __arm_new("za") static void nk_dots_symmetric_u8_sme_ker
             for (nk_size_t row = 0; row < rows_clamped; row++) {
                 nk_size_t const row_abs = row_tile_start + row;
                 svst1_hor_za32(1, row, column_predicate_b32,
-                               (nk_f32_t *)(result + row_abs * result_stride_elements) + col_tile_start);
+                               (nk_f32_t *)(result + row_abs * result_stride_elements) + column_tile_start);
             }
         }
 
@@ -3695,13 +3783,13 @@ NK_PUBLIC void nk_dots_pack_u4_sme(               //
 
     for (nk_size_t i = 0; i < total_vectors * vector_pair_stride; i++) tiles_ptr[i] = 0;
 
-    for (nk_size_t col_tile = 0; col_tile < column_tile_count; col_tile++) {
+    for (nk_size_t column_tile = 0; column_tile < column_tile_count; column_tile++) {
         for (nk_size_t depth_step = 0; depth_step < depth_step_count; depth_step++) {
-            nk_size_t const vec_index = col_tile * depth_step_count + depth_step;
+            nk_size_t const vec_index = column_tile * depth_step_count + depth_step;
             nk_u8_t *vec_low = tiles_ptr + vec_index * vector_pair_stride;
             nk_u8_t *vec_high = vec_low + vector_elements;
 
-            nk_size_t const b_row_start = col_tile * tile_dimension;
+            nk_size_t const b_row_start = column_tile * tile_dimension;
             nk_size_t const depth_byte_base = depth_step * 4;
             nk_size_t const rows_to_pack = (b_row_start + tile_dimension <= n) ? tile_dimension : (n - b_row_start);
 
@@ -3746,7 +3834,7 @@ __arm_locally_streaming __arm_new("za") static void nk_dots_packed_u4_sme_kernel
     nk_size_t const depth_steps_per_batch = tile_dimension;
     nk_size_t const packed_depth = nk_size_divide_round_up_(depth, 2);
 
-    nk_u8_t const *b_vectors = (nk_u8_t const *)((char const *)b_packed + sizeof(nk_dots_sme_packed_header_t));
+    nk_u8_t const *b_packed_base = (nk_u8_t const *)((char const *)b_packed + sizeof(nk_dots_sme_packed_header_t));
 
     svbool_t const full_predicate_b8 = svptrue_b8();
     svbool_t const full_predicate_b32 = svptrue_b32();
@@ -3776,10 +3864,10 @@ __arm_locally_streaming __arm_new("za") static void nk_dots_packed_u4_sme_kernel
                 svbool_t const batch_predicate_b32 = svwhilelt_b32((uint32_t)0, (uint32_t)batch_size);
                 nk_size_t const byte_offset = depth_batch_start * 4;
 
-                for (nk_size_t row_within_tile = 0; row_within_tile < rows_remaining; row_within_tile++) {
-                    nk_size_t const a_row = row_start + row_within_tile;
+                for (nk_size_t row_in_tile = 0; row_in_tile < rows_remaining; row_in_tile++) {
+                    nk_size_t const a_row = row_start + row_in_tile;
                     nk_u8_t const *src = (nk_u8_t const *)(a + a_row * a_stride_elements) + byte_offset;
-                    svld1_hor_za32(0, row_within_tile, batch_predicate_b32, (nk_f32_t const *)src);
+                    svld1_hor_za32(0, row_in_tile, batch_predicate_b32, (nk_f32_t const *)src);
                 }
 
                 // Last-step ZA0 fixup: mask invalid bytes and odd-depth high nibble
@@ -3793,28 +3881,30 @@ __arm_locally_streaming __arm_new("za") static void nk_dots_packed_u4_sme_kernel
                             nk_u32_t nibble_clear = ~((nk_u32_t)0xF0 << ((valid_bytes - 1) * 8));
                             mask &= nibble_clear;
                         }
-                        for (nk_size_t row_within_tile = 0; row_within_tile < rows_remaining; row_within_tile++) {
-                            svuint32_t col = svread_ver_za32_u32_m(svdup_u32(0), row_predicate_b32, 0, last_step);
-                            col = svand_n_u32_x(row_predicate_b32, col, mask);
-                            svwrite_ver_za32_u32_m(0, last_step, row_predicate_b32, col);
+                        for (nk_size_t row_in_tile = 0; row_in_tile < rows_remaining; row_in_tile++) {
+                            svuint32_t column = svread_ver_za32_u32_m(svdup_u32(0), row_predicate_b32, 0, last_step);
+                            column = svand_n_u32_x(row_predicate_b32, column, mask);
+                            svwrite_ver_za32_u32_m(0, last_step, row_predicate_b32, column);
                         }
                     }
                 }
 
-                for (nk_size_t step_within_batch = 0; step_within_batch < batch_size; step_within_batch++) {
-                    nk_size_t const depth_step = depth_batch_start + step_within_batch;
-                    svuint32_t a_column_u32 = svread_ver_za32_u32_m(svdup_u32(0), row_predicate_b32, 0,
-                                                                    step_within_batch);
+                for (nk_size_t depth_step = 0; depth_step < batch_size; depth_step++) {
+
+                    svuint32_t a_column_u32 = svread_ver_za32_u32_m(svdup_u32(0), row_predicate_b32, 0, depth_step);
                     svuint8_t a_packed_nibbles_u8 = svreinterpret_u8_u32(a_column_u32);
                     svuint8_t a_low_nibbles = svand_n_u8_x(full_predicate_b8, a_packed_nibbles_u8, 0x0F);
                     svuint8_t a_high_nibbles = svlsr_n_u8_x(full_predicate_b8, a_packed_nibbles_u8, 4);
 
-                    nk_u8_t const *b_column_pair_0 =
-                        b_vectors + ((column_tile_index + 0) * depth_step_count + depth_step) * vector_pair_stride;
-                    nk_u8_t const *b_column_pair_1 =
-                        b_vectors + ((column_tile_index + 1) * depth_step_count + depth_step) * vector_pair_stride;
-                    nk_u8_t const *b_column_pair_2 =
-                        b_vectors + ((column_tile_index + 2) * depth_step_count + depth_step) * vector_pair_stride;
+                    nk_u8_t const *b_column_pair_0 = b_packed_base + ((column_tile_index + 0) * depth_step_count +
+                                                                      depth_batch_start + depth_step) *
+                                                                         vector_pair_stride;
+                    nk_u8_t const *b_column_pair_1 = b_packed_base + ((column_tile_index + 1) * depth_step_count +
+                                                                      depth_batch_start + depth_step) *
+                                                                         vector_pair_stride;
+                    nk_u8_t const *b_column_pair_2 = b_packed_base + ((column_tile_index + 2) * depth_step_count +
+                                                                      depth_batch_start + depth_step) *
+                                                                         vector_pair_stride;
 
                     svuint8_t b_low_nibbles_0 = svld1_u8(full_predicate_b8, b_column_pair_0);
                     svuint8_t b_high_nibbles_0 = svld1_u8(full_predicate_b8, b_column_pair_0 + vector_elements);
@@ -3844,9 +3934,9 @@ __arm_locally_streaming __arm_new("za") static void nk_dots_packed_u4_sme_kernel
         }
 
         for (; column_tile_index < column_tile_count; column_tile_index++) {
-            nk_size_t const col_start = column_tile_index * tile_dimension;
-            nk_size_t const cols_remaining = (col_start + tile_dimension <= columns) ? tile_dimension
-                                                                                     : (columns - col_start);
+            nk_size_t const column_start = column_tile_index * tile_dimension;
+            nk_size_t const cols_remaining = (column_start + tile_dimension <= columns) ? tile_dimension
+                                                                                        : (columns - column_start);
             svbool_t const column_predicate_b32 = svwhilelt_b32((uint32_t)0, (uint32_t)cols_remaining);
             svbool_t const column_predicate_b8 = svwhilelt_b8((uint32_t)0, (uint32_t)(cols_remaining * expansion));
 
@@ -3864,10 +3954,10 @@ __arm_locally_streaming __arm_new("za") static void nk_dots_packed_u4_sme_kernel
                 svbool_t const batch_predicate_b32 = svwhilelt_b32((uint32_t)0, (uint32_t)batch_size);
                 nk_size_t const byte_offset = depth_batch_start * 4;
 
-                for (nk_size_t row_within_tile = 0; row_within_tile < rows_remaining; row_within_tile++) {
-                    nk_size_t const a_row = row_start + row_within_tile;
+                for (nk_size_t row_in_tile = 0; row_in_tile < rows_remaining; row_in_tile++) {
+                    nk_size_t const a_row = row_start + row_in_tile;
                     nk_u8_t const *src = (nk_u8_t const *)(a + a_row * a_stride_elements) + byte_offset;
-                    svld1_hor_za32(0, row_within_tile, batch_predicate_b32, (nk_f32_t const *)src);
+                    svld1_hor_za32(0, row_in_tile, batch_predicate_b32, (nk_f32_t const *)src);
                 }
 
                 // Last-step ZA0 fixup
@@ -3881,24 +3971,24 @@ __arm_locally_streaming __arm_new("za") static void nk_dots_packed_u4_sme_kernel
                             nk_u32_t nibble_clear = ~((nk_u32_t)0xF0 << ((valid_bytes - 1) * 8));
                             mask &= nibble_clear;
                         }
-                        for (nk_size_t row_within_tile = 0; row_within_tile < rows_remaining; row_within_tile++) {
-                            svuint32_t col = svread_ver_za32_u32_m(svdup_u32(0), row_predicate_b32, 0, last_step);
-                            col = svand_n_u32_x(row_predicate_b32, col, mask);
-                            svwrite_ver_za32_u32_m(0, last_step, row_predicate_b32, col);
+                        for (nk_size_t row_in_tile = 0; row_in_tile < rows_remaining; row_in_tile++) {
+                            svuint32_t column = svread_ver_za32_u32_m(svdup_u32(0), row_predicate_b32, 0, last_step);
+                            column = svand_n_u32_x(row_predicate_b32, column, mask);
+                            svwrite_ver_za32_u32_m(0, last_step, row_predicate_b32, column);
                         }
                     }
                 }
 
-                for (nk_size_t step_within_batch = 0; step_within_batch < batch_size; step_within_batch++) {
-                    nk_size_t const depth_step = depth_batch_start + step_within_batch;
-                    svuint32_t a_column_u32 = svread_ver_za32_u32_m(svdup_u32(0), row_predicate_b32, 0,
-                                                                    step_within_batch);
+                for (nk_size_t depth_step = 0; depth_step < batch_size; depth_step++) {
+
+                    svuint32_t a_column_u32 = svread_ver_za32_u32_m(svdup_u32(0), row_predicate_b32, 0, depth_step);
                     svuint8_t a_packed_nibbles_u8 = svreinterpret_u8_u32(a_column_u32);
                     svuint8_t a_low_nibbles = svand_n_u8_x(full_predicate_b8, a_packed_nibbles_u8, 0x0F);
                     svuint8_t a_high_nibbles = svlsr_n_u8_x(full_predicate_b8, a_packed_nibbles_u8, 4);
 
-                    nk_u8_t const *b_column_pair = b_vectors + (column_tile_index * depth_step_count + depth_step) *
-                                                                   vector_pair_stride;
+                    nk_u8_t const *b_column_pair = b_packed_base + (column_tile_index * depth_step_count +
+                                                                    depth_batch_start + depth_step) *
+                                                                       vector_pair_stride;
                     svuint8_t b_low_nibbles = svld1_u8(column_predicate_b8, b_column_pair);
                     svuint8_t b_high_nibbles = svld1_u8(column_predicate_b8, b_column_pair + vector_elements);
 
@@ -3909,7 +3999,7 @@ __arm_locally_streaming __arm_new("za") static void nk_dots_packed_u4_sme_kernel
 
             for (nk_size_t row = 0; row < rows_remaining; row++) {
                 svst1_hor_za32(1, row, column_predicate_b32,
-                               (nk_f32_t *)(c + (row_start + row) * c_stride_elements + col_start));
+                               (nk_f32_t *)(c + (row_start + row) * c_stride_elements + column_start));
             }
         }
     }
@@ -3961,13 +4051,13 @@ NK_PUBLIC void nk_dots_pack_i4_sme(               //
 
     for (nk_size_t i = 0; i < total_vectors * vector_pair_stride; i++) tiles_ptr[i] = 0;
 
-    for (nk_size_t col_tile = 0; col_tile < column_tile_count; col_tile++) {
+    for (nk_size_t column_tile = 0; column_tile < column_tile_count; column_tile++) {
         for (nk_size_t depth_step = 0; depth_step < depth_step_count; depth_step++) {
-            nk_size_t const vec_index = col_tile * depth_step_count + depth_step;
+            nk_size_t const vec_index = column_tile * depth_step_count + depth_step;
             nk_u8_t *vec_low = tiles_ptr + vec_index * vector_pair_stride;
             nk_u8_t *vec_high = vec_low + vector_elements;
 
-            nk_size_t const b_row_start = col_tile * tile_dimension;
+            nk_size_t const b_row_start = column_tile * tile_dimension;
             nk_size_t const depth_byte_base = depth_step * 4;
             nk_size_t const rows_to_pack = (b_row_start + tile_dimension <= n) ? tile_dimension : (n - b_row_start);
 
@@ -4015,7 +4105,7 @@ __arm_locally_streaming __arm_new("za") static void nk_dots_packed_i4_sme_kernel
     nk_size_t const depth_steps_per_batch = tile_dimension;
     nk_size_t const packed_depth = nk_size_divide_round_up_(depth, 2);
 
-    nk_u8_t const *b_vectors = (nk_u8_t const *)((char const *)b_packed + sizeof(nk_dots_sme_packed_header_t));
+    nk_u8_t const *b_packed_base = (nk_u8_t const *)((char const *)b_packed + sizeof(nk_dots_sme_packed_header_t));
 
     svbool_t const full_predicate_b8 = svptrue_b8();
     svbool_t const full_predicate_b32 = svptrue_b32();
@@ -4045,10 +4135,10 @@ __arm_locally_streaming __arm_new("za") static void nk_dots_packed_i4_sme_kernel
                 svbool_t const batch_predicate_b32 = svwhilelt_b32((uint32_t)0, (uint32_t)batch_size);
                 nk_size_t const byte_offset = depth_batch_start * 4;
 
-                for (nk_size_t row_within_tile = 0; row_within_tile < rows_remaining; row_within_tile++) {
-                    nk_size_t const a_row = row_start + row_within_tile;
+                for (nk_size_t row_in_tile = 0; row_in_tile < rows_remaining; row_in_tile++) {
+                    nk_size_t const a_row = row_start + row_in_tile;
                     nk_u8_t const *src = (nk_u8_t const *)(a + a_row * a_stride_elements) + byte_offset;
-                    svld1_hor_za32(0, row_within_tile, batch_predicate_b32, (nk_f32_t const *)src);
+                    svld1_hor_za32(0, row_in_tile, batch_predicate_b32, (nk_f32_t const *)src);
                 }
 
                 // Last-step ZA0 fixup: mask invalid bytes and odd-depth high nibble
@@ -4062,32 +4152,34 @@ __arm_locally_streaming __arm_new("za") static void nk_dots_packed_i4_sme_kernel
                             nk_u32_t nibble_clear = ~((nk_u32_t)0xF0 << ((valid_bytes - 1) * 8));
                             mask &= nibble_clear;
                         }
-                        for (nk_size_t row_within_tile = 0; row_within_tile < rows_remaining; row_within_tile++) {
-                            svuint32_t col = svread_ver_za32_u32_m(svdup_u32(0), row_predicate_b32, 0, last_step);
-                            col = svand_n_u32_x(row_predicate_b32, col, mask);
-                            svwrite_ver_za32_u32_m(0, last_step, row_predicate_b32, col);
+                        for (nk_size_t row_in_tile = 0; row_in_tile < rows_remaining; row_in_tile++) {
+                            svuint32_t column = svread_ver_za32_u32_m(svdup_u32(0), row_predicate_b32, 0, last_step);
+                            column = svand_n_u32_x(row_predicate_b32, column, mask);
+                            svwrite_ver_za32_u32_m(0, last_step, row_predicate_b32, column);
                         }
                     }
                 }
 
-                for (nk_size_t step_within_batch = 0; step_within_batch < batch_size; step_within_batch++) {
-                    nk_size_t const depth_step = depth_batch_start + step_within_batch;
-                    svint32_t a_column_i32 = svread_ver_za32_s32_m(svdup_s32(0), row_predicate_b32, 0,
-                                                                   step_within_batch);
+                for (nk_size_t depth_step = 0; depth_step < batch_size; depth_step++) {
+
+                    svint32_t a_column_i32 = svread_ver_za32_s32_m(svdup_s32(0), row_predicate_b32, 0, depth_step);
                     svint8_t a_packed_nibbles_s8 = svreinterpret_s8_s32(a_column_i32);
                     svint8_t a_low_nibbles = svasr_n_s8_x(full_predicate_b8,
                                                           svlsl_n_s8_x(full_predicate_b8, a_packed_nibbles_s8, 4), 4);
                     svint8_t a_high_nibbles = svasr_n_s8_x(full_predicate_b8, a_packed_nibbles_s8, 4);
 
-                    nk_i8_t const *b_column_pair_0 =
-                        (nk_i8_t const *)(b_vectors + ((column_tile_index + 0) * depth_step_count + depth_step) *
-                                                          vector_pair_stride);
-                    nk_i8_t const *b_column_pair_1 =
-                        (nk_i8_t const *)(b_vectors + ((column_tile_index + 1) * depth_step_count + depth_step) *
-                                                          vector_pair_stride);
-                    nk_i8_t const *b_column_pair_2 =
-                        (nk_i8_t const *)(b_vectors + ((column_tile_index + 2) * depth_step_count + depth_step) *
-                                                          vector_pair_stride);
+                    nk_i8_t const *b_column_pair_0 = (nk_i8_t const *)(b_packed_base +
+                                                                       ((column_tile_index + 0) * depth_step_count +
+                                                                        depth_batch_start + depth_step) *
+                                                                           vector_pair_stride);
+                    nk_i8_t const *b_column_pair_1 = (nk_i8_t const *)(b_packed_base +
+                                                                       ((column_tile_index + 1) * depth_step_count +
+                                                                        depth_batch_start + depth_step) *
+                                                                           vector_pair_stride);
+                    nk_i8_t const *b_column_pair_2 = (nk_i8_t const *)(b_packed_base +
+                                                                       ((column_tile_index + 2) * depth_step_count +
+                                                                        depth_batch_start + depth_step) *
+                                                                           vector_pair_stride);
 
                     svint8_t b_low_nibbles_0 = svld1_s8(full_predicate_b8, b_column_pair_0);
                     svint8_t b_high_nibbles_0 = svld1_s8(full_predicate_b8, b_column_pair_0 + vector_elements);
@@ -4117,9 +4209,9 @@ __arm_locally_streaming __arm_new("za") static void nk_dots_packed_i4_sme_kernel
         }
 
         for (; column_tile_index < column_tile_count; column_tile_index++) {
-            nk_size_t const col_start = column_tile_index * tile_dimension;
-            nk_size_t const cols_remaining = (col_start + tile_dimension <= columns) ? tile_dimension
-                                                                                     : (columns - col_start);
+            nk_size_t const column_start = column_tile_index * tile_dimension;
+            nk_size_t const cols_remaining = (column_start + tile_dimension <= columns) ? tile_dimension
+                                                                                        : (columns - column_start);
             svbool_t const column_predicate_b32 = svwhilelt_b32((uint32_t)0, (uint32_t)cols_remaining);
             svbool_t const column_predicate_b8 = svwhilelt_b8((uint32_t)0, (uint32_t)(cols_remaining * expansion));
 
@@ -4137,10 +4229,10 @@ __arm_locally_streaming __arm_new("za") static void nk_dots_packed_i4_sme_kernel
                 svbool_t const batch_predicate_b32 = svwhilelt_b32((uint32_t)0, (uint32_t)batch_size);
                 nk_size_t const byte_offset = depth_batch_start * 4;
 
-                for (nk_size_t row_within_tile = 0; row_within_tile < rows_remaining; row_within_tile++) {
-                    nk_size_t const a_row = row_start + row_within_tile;
+                for (nk_size_t row_in_tile = 0; row_in_tile < rows_remaining; row_in_tile++) {
+                    nk_size_t const a_row = row_start + row_in_tile;
                     nk_u8_t const *src = (nk_u8_t const *)(a + a_row * a_stride_elements) + byte_offset;
-                    svld1_hor_za32(0, row_within_tile, batch_predicate_b32, (nk_f32_t const *)src);
+                    svld1_hor_za32(0, row_in_tile, batch_predicate_b32, (nk_f32_t const *)src);
                 }
 
                 // Last-step ZA0 fixup
@@ -4154,26 +4246,26 @@ __arm_locally_streaming __arm_new("za") static void nk_dots_packed_i4_sme_kernel
                             nk_u32_t nibble_clear = ~((nk_u32_t)0xF0 << ((valid_bytes - 1) * 8));
                             mask &= nibble_clear;
                         }
-                        for (nk_size_t row_within_tile = 0; row_within_tile < rows_remaining; row_within_tile++) {
-                            svuint32_t col = svread_ver_za32_u32_m(svdup_u32(0), row_predicate_b32, 0, last_step);
-                            col = svand_n_u32_x(row_predicate_b32, col, mask);
-                            svwrite_ver_za32_u32_m(0, last_step, row_predicate_b32, col);
+                        for (nk_size_t row_in_tile = 0; row_in_tile < rows_remaining; row_in_tile++) {
+                            svuint32_t column = svread_ver_za32_u32_m(svdup_u32(0), row_predicate_b32, 0, last_step);
+                            column = svand_n_u32_x(row_predicate_b32, column, mask);
+                            svwrite_ver_za32_u32_m(0, last_step, row_predicate_b32, column);
                         }
                     }
                 }
 
-                for (nk_size_t step_within_batch = 0; step_within_batch < batch_size; step_within_batch++) {
-                    nk_size_t const depth_step = depth_batch_start + step_within_batch;
-                    svint32_t a_column_i32 = svread_ver_za32_s32_m(svdup_s32(0), row_predicate_b32, 0,
-                                                                   step_within_batch);
+                for (nk_size_t depth_step = 0; depth_step < batch_size; depth_step++) {
+
+                    svint32_t a_column_i32 = svread_ver_za32_s32_m(svdup_s32(0), row_predicate_b32, 0, depth_step);
                     svint8_t a_packed_nibbles_s8 = svreinterpret_s8_s32(a_column_i32);
                     svint8_t a_low_nibbles = svasr_n_s8_x(full_predicate_b8,
                                                           svlsl_n_s8_x(full_predicate_b8, a_packed_nibbles_s8, 4), 4);
                     svint8_t a_high_nibbles = svasr_n_s8_x(full_predicate_b8, a_packed_nibbles_s8, 4);
 
                     nk_i8_t const *b_column_pair =
-                        (nk_i8_t const *)(b_vectors +
-                                          (column_tile_index * depth_step_count + depth_step) * vector_pair_stride);
+                        (nk_i8_t const *)(b_packed_base +
+                                          (column_tile_index * depth_step_count + depth_batch_start + depth_step) *
+                                              vector_pair_stride);
                     svint8_t b_low_nibbles = svld1_s8(column_predicate_b8, b_column_pair);
                     svint8_t b_high_nibbles = svld1_s8(column_predicate_b8, b_column_pair + vector_elements);
 
@@ -4184,7 +4276,7 @@ __arm_locally_streaming __arm_new("za") static void nk_dots_packed_i4_sme_kernel
 
             for (nk_size_t row = 0; row < rows_remaining; row++) {
                 svst1_hor_za32(1, row, column_predicate_b32,
-                               (nk_f32_t *)(c + (row_start + row) * c_stride_elements + col_start));
+                               (nk_f32_t *)(c + (row_start + row) * c_stride_elements + column_start));
             }
         }
     }
@@ -4267,9 +4359,9 @@ __arm_locally_streaming __arm_new("za") static void nk_dots_symmetric_u4_sme_ker
                             mask &= nibble_clear;
                         }
                         for (nk_size_t row_in_tile = 0; row_in_tile < rows_clamped; row_in_tile++) {
-                            svuint32_t col = svread_ver_za32_u32_m(svdup_u32(0), row_predicate_b32, 0, last_step);
-                            col = svand_n_u32_x(row_predicate_b32, col, mask);
-                            svwrite_ver_za32_u32_m(0, last_step, row_predicate_b32, col);
+                            svuint32_t column = svread_ver_za32_u32_m(svdup_u32(0), row_predicate_b32, 0, last_step);
+                            column = svand_n_u32_x(row_predicate_b32, column, mask);
+                            svwrite_ver_za32_u32_m(0, last_step, row_predicate_b32, column);
                         }
                     }
                 }
@@ -4281,11 +4373,11 @@ __arm_locally_streaming __arm_new("za") static void nk_dots_symmetric_u4_sme_ker
 
                 // B column tile 0
                 svzero_mask_za(nk_sme_zero_za32_tile_0_);
-                for (nk_size_t col = 0; col < tile_dimension; col++) {
-                    nk_size_t const col_abs = (column_tile_index + 0) * tile_dimension + col;
-                    if (col_abs < n_vectors) {
-                        nk_u8_t const *src = (nk_u8_t const *)(vectors + col_abs * stride_elements) + byte_offset;
-                        svld1_hor_za32(0, col, batch_predicate_b32, (nk_f32_t const *)src);
+                for (nk_size_t column = 0; column < tile_dimension; column++) {
+                    nk_size_t const column_abs = (column_tile_index + 0) * tile_dimension + column;
+                    if (column_abs < n_vectors) {
+                        nk_u8_t const *src = (nk_u8_t const *)(vectors + column_abs * stride_elements) + byte_offset;
+                        svld1_hor_za32(0, column, batch_predicate_b32, (nk_f32_t const *)src);
                     }
                 }
                 if (depth_batch_start + batch_size >= depth_step_count) {
@@ -4298,15 +4390,15 @@ __arm_locally_streaming __arm_new("za") static void nk_dots_symmetric_u4_sme_ker
                             nk_u32_t nibble_clear = ~((nk_u32_t)0xF0 << ((valid_bytes - 1) * 8));
                             mask &= nibble_clear;
                         }
-                        svuint32_t col = svread_ver_za32_u32_m(svdup_u32(0), full_predicate_b32, 0, last_step);
-                        col = svand_n_u32_x(full_predicate_b32, col, mask);
-                        svwrite_ver_za32_u32_m(0, last_step, full_predicate_b32, col);
+                        svuint32_t column = svread_ver_za32_u32_m(svdup_u32(0), full_predicate_b32, 0, last_step);
+                        column = svand_n_u32_x(full_predicate_b32, column, mask);
+                        svwrite_ver_za32_u32_m(0, last_step, full_predicate_b32, column);
                     }
                 }
-                for (nk_size_t step = 0; step < batch_size; step++) {
-                    svuint8_t a_u8 = svreinterpret_u8_u32(svld1_u32(full_predicate_b32, a_buffer[step]));
-                    svuint32_t b_col_u32 = svread_ver_za32_u32_m(svdup_u32(0), full_predicate_b32, 0, step);
-                    svuint8_t b_u8 = svreinterpret_u8_u32(b_col_u32);
+                for (nk_size_t depth_step = 0; depth_step < batch_size; depth_step++) {
+                    svuint8_t a_u8 = svreinterpret_u8_u32(svld1_u32(full_predicate_b32, a_buffer[depth_step]));
+                    svuint32_t b_column_u32 = svread_ver_za32_u32_m(svdup_u32(0), full_predicate_b32, 0, depth_step);
+                    svuint8_t b_u8 = svreinterpret_u8_u32(b_column_u32);
                     svuint8_t a_low = svand_n_u8_x(full_predicate_b8, a_u8, 0x0F);
                     svuint8_t a_high = svlsr_n_u8_x(full_predicate_b8, a_u8, 4);
                     svuint8_t b_low = svand_n_u8_x(full_predicate_b8, b_u8, 0x0F);
@@ -4317,11 +4409,11 @@ __arm_locally_streaming __arm_new("za") static void nk_dots_symmetric_u4_sme_ker
 
                 // B column tile 1
                 svzero_mask_za(nk_sme_zero_za32_tile_0_);
-                for (nk_size_t col = 0; col < tile_dimension; col++) {
-                    nk_size_t const col_abs = (column_tile_index + 1) * tile_dimension + col;
-                    if (col_abs < n_vectors) {
-                        nk_u8_t const *src = (nk_u8_t const *)(vectors + col_abs * stride_elements) + byte_offset;
-                        svld1_hor_za32(0, col, batch_predicate_b32, (nk_f32_t const *)src);
+                for (nk_size_t column = 0; column < tile_dimension; column++) {
+                    nk_size_t const column_abs = (column_tile_index + 1) * tile_dimension + column;
+                    if (column_abs < n_vectors) {
+                        nk_u8_t const *src = (nk_u8_t const *)(vectors + column_abs * stride_elements) + byte_offset;
+                        svld1_hor_za32(0, column, batch_predicate_b32, (nk_f32_t const *)src);
                     }
                 }
                 if (depth_batch_start + batch_size >= depth_step_count) {
@@ -4334,15 +4426,15 @@ __arm_locally_streaming __arm_new("za") static void nk_dots_symmetric_u4_sme_ker
                             nk_u32_t nibble_clear = ~((nk_u32_t)0xF0 << ((valid_bytes - 1) * 8));
                             mask &= nibble_clear;
                         }
-                        svuint32_t col = svread_ver_za32_u32_m(svdup_u32(0), full_predicate_b32, 0, last_step);
-                        col = svand_n_u32_x(full_predicate_b32, col, mask);
-                        svwrite_ver_za32_u32_m(0, last_step, full_predicate_b32, col);
+                        svuint32_t column = svread_ver_za32_u32_m(svdup_u32(0), full_predicate_b32, 0, last_step);
+                        column = svand_n_u32_x(full_predicate_b32, column, mask);
+                        svwrite_ver_za32_u32_m(0, last_step, full_predicate_b32, column);
                     }
                 }
-                for (nk_size_t step = 0; step < batch_size; step++) {
-                    svuint8_t a_u8 = svreinterpret_u8_u32(svld1_u32(full_predicate_b32, a_buffer[step]));
-                    svuint32_t b_col_u32 = svread_ver_za32_u32_m(svdup_u32(0), full_predicate_b32, 0, step);
-                    svuint8_t b_u8 = svreinterpret_u8_u32(b_col_u32);
+                for (nk_size_t depth_step = 0; depth_step < batch_size; depth_step++) {
+                    svuint8_t a_u8 = svreinterpret_u8_u32(svld1_u32(full_predicate_b32, a_buffer[depth_step]));
+                    svuint32_t b_column_u32 = svread_ver_za32_u32_m(svdup_u32(0), full_predicate_b32, 0, depth_step);
+                    svuint8_t b_u8 = svreinterpret_u8_u32(b_column_u32);
                     svuint8_t a_low = svand_n_u8_x(full_predicate_b8, a_u8, 0x0F);
                     svuint8_t a_high = svlsr_n_u8_x(full_predicate_b8, a_u8, 4);
                     svuint8_t b_low = svand_n_u8_x(full_predicate_b8, b_u8, 0x0F);
@@ -4353,11 +4445,11 @@ __arm_locally_streaming __arm_new("za") static void nk_dots_symmetric_u4_sme_ker
 
                 // B column tile 2
                 svzero_mask_za(nk_sme_zero_za32_tile_0_);
-                for (nk_size_t col = 0; col < tile_dimension; col++) {
-                    nk_size_t const col_abs = (column_tile_index + 2) * tile_dimension + col;
-                    if (col_abs < n_vectors) {
-                        nk_u8_t const *src = (nk_u8_t const *)(vectors + col_abs * stride_elements) + byte_offset;
-                        svld1_hor_za32(0, col, batch_predicate_b32, (nk_f32_t const *)src);
+                for (nk_size_t column = 0; column < tile_dimension; column++) {
+                    nk_size_t const column_abs = (column_tile_index + 2) * tile_dimension + column;
+                    if (column_abs < n_vectors) {
+                        nk_u8_t const *src = (nk_u8_t const *)(vectors + column_abs * stride_elements) + byte_offset;
+                        svld1_hor_za32(0, column, batch_predicate_b32, (nk_f32_t const *)src);
                     }
                 }
                 if (depth_batch_start + batch_size >= depth_step_count) {
@@ -4370,15 +4462,15 @@ __arm_locally_streaming __arm_new("za") static void nk_dots_symmetric_u4_sme_ker
                             nk_u32_t nibble_clear = ~((nk_u32_t)0xF0 << ((valid_bytes - 1) * 8));
                             mask &= nibble_clear;
                         }
-                        svuint32_t col = svread_ver_za32_u32_m(svdup_u32(0), full_predicate_b32, 0, last_step);
-                        col = svand_n_u32_x(full_predicate_b32, col, mask);
-                        svwrite_ver_za32_u32_m(0, last_step, full_predicate_b32, col);
+                        svuint32_t column = svread_ver_za32_u32_m(svdup_u32(0), full_predicate_b32, 0, last_step);
+                        column = svand_n_u32_x(full_predicate_b32, column, mask);
+                        svwrite_ver_za32_u32_m(0, last_step, full_predicate_b32, column);
                     }
                 }
-                for (nk_size_t step = 0; step < batch_size; step++) {
-                    svuint8_t a_u8 = svreinterpret_u8_u32(svld1_u32(full_predicate_b32, a_buffer[step]));
-                    svuint32_t b_col_u32 = svread_ver_za32_u32_m(svdup_u32(0), full_predicate_b32, 0, step);
-                    svuint8_t b_u8 = svreinterpret_u8_u32(b_col_u32);
+                for (nk_size_t depth_step = 0; depth_step < batch_size; depth_step++) {
+                    svuint8_t a_u8 = svreinterpret_u8_u32(svld1_u32(full_predicate_b32, a_buffer[depth_step]));
+                    svuint32_t b_column_u32 = svread_ver_za32_u32_m(svdup_u32(0), full_predicate_b32, 0, depth_step);
+                    svuint8_t b_u8 = svreinterpret_u8_u32(b_column_u32);
                     svuint8_t a_low = svand_n_u8_x(full_predicate_b8, a_u8, 0x0F);
                     svuint8_t a_high = svlsr_n_u8_x(full_predicate_b8, a_u8, 4);
                     svuint8_t b_low = svand_n_u8_x(full_predicate_b8, b_u8, 0x0F);
@@ -4398,10 +4490,10 @@ __arm_locally_streaming __arm_new("za") static void nk_dots_symmetric_u4_sme_ker
         }
 
         for (; column_tile_index < column_tile_count; column_tile_index++) {
-            nk_size_t const col_tile_start = column_tile_index * tile_dimension;
-            nk_size_t const cols_remaining = (col_tile_start + tile_dimension <= n_vectors)
+            nk_size_t const column_tile_start = column_tile_index * tile_dimension;
+            nk_size_t const cols_remaining = (column_tile_start + tile_dimension <= n_vectors)
                                                  ? tile_dimension
-                                                 : (n_vectors - col_tile_start);
+                                                 : (n_vectors - column_tile_start);
             svbool_t const column_predicate_b32 = svwhilelt_b32((uint32_t)0, (uint32_t)cols_remaining);
             svbool_t const column_predicate_b8 = svwhilelt_b8((uint32_t)0, (uint32_t)(cols_remaining * expansion));
 
@@ -4436,9 +4528,9 @@ __arm_locally_streaming __arm_new("za") static void nk_dots_symmetric_u4_sme_ker
                             mask &= nibble_clear;
                         }
                         for (nk_size_t row_in_tile = 0; row_in_tile < rows_clamped; row_in_tile++) {
-                            svuint32_t col = svread_ver_za32_u32_m(svdup_u32(0), row_predicate_b32, 0, last_step);
-                            col = svand_n_u32_x(row_predicate_b32, col, mask);
-                            svwrite_ver_za32_u32_m(0, last_step, row_predicate_b32, col);
+                            svuint32_t column = svread_ver_za32_u32_m(svdup_u32(0), row_predicate_b32, 0, last_step);
+                            column = svand_n_u32_x(row_predicate_b32, column, mask);
+                            svwrite_ver_za32_u32_m(0, last_step, row_predicate_b32, column);
                         }
                     }
                 }
@@ -4448,11 +4540,11 @@ __arm_locally_streaming __arm_new("za") static void nk_dots_symmetric_u4_sme_ker
                               svread_ver_za32_u32_m(svdup_u32(0), row_predicate_b32, 0, s));
 
                 svzero_mask_za(nk_sme_zero_za32_tile_0_);
-                for (nk_size_t col = 0; col < tile_dimension; col++) {
-                    nk_size_t const col_abs = col_tile_start + col;
-                    if (col_abs < n_vectors) {
-                        nk_u8_t const *src = (nk_u8_t const *)(vectors + col_abs * stride_elements) + byte_offset;
-                        svld1_hor_za32(0, col, batch_predicate_b32, (nk_f32_t const *)src);
+                for (nk_size_t column = 0; column < tile_dimension; column++) {
+                    nk_size_t const column_abs = column_tile_start + column;
+                    if (column_abs < n_vectors) {
+                        nk_u8_t const *src = (nk_u8_t const *)(vectors + column_abs * stride_elements) + byte_offset;
+                        svld1_hor_za32(0, column, batch_predicate_b32, (nk_f32_t const *)src);
                     }
                 }
                 // Last-step ZA0 fixup for B
@@ -4466,15 +4558,15 @@ __arm_locally_streaming __arm_new("za") static void nk_dots_symmetric_u4_sme_ker
                             nk_u32_t nibble_clear = ~((nk_u32_t)0xF0 << ((valid_bytes - 1) * 8));
                             mask &= nibble_clear;
                         }
-                        svuint32_t col = svread_ver_za32_u32_m(svdup_u32(0), column_predicate_b32, 0, last_step);
-                        col = svand_n_u32_x(column_predicate_b32, col, mask);
-                        svwrite_ver_za32_u32_m(0, last_step, column_predicate_b32, col);
+                        svuint32_t column = svread_ver_za32_u32_m(svdup_u32(0), column_predicate_b32, 0, last_step);
+                        column = svand_n_u32_x(column_predicate_b32, column, mask);
+                        svwrite_ver_za32_u32_m(0, last_step, column_predicate_b32, column);
                     }
                 }
-                for (nk_size_t step = 0; step < batch_size; step++) {
-                    svuint8_t a_u8 = svreinterpret_u8_u32(svld1_u32(full_predicate_b32, a_buffer[step]));
-                    svuint32_t b_col_u32 = svread_ver_za32_u32_m(svdup_u32(0), column_predicate_b32, 0, step);
-                    svuint8_t b_u8 = svreinterpret_u8_u32(b_col_u32);
+                for (nk_size_t depth_step = 0; depth_step < batch_size; depth_step++) {
+                    svuint8_t a_u8 = svreinterpret_u8_u32(svld1_u32(full_predicate_b32, a_buffer[depth_step]));
+                    svuint32_t b_column_u32 = svread_ver_za32_u32_m(svdup_u32(0), column_predicate_b32, 0, depth_step);
+                    svuint8_t b_u8 = svreinterpret_u8_u32(b_column_u32);
                     svuint8_t a_low = svand_n_u8_x(full_predicate_b8, a_u8, 0x0F);
                     svuint8_t a_high = svlsr_n_u8_x(full_predicate_b8, a_u8, 4);
                     svuint8_t b_low = svand_n_u8_x(full_predicate_b8, b_u8, 0x0F);
@@ -4487,7 +4579,7 @@ __arm_locally_streaming __arm_new("za") static void nk_dots_symmetric_u4_sme_ker
             for (nk_size_t row = 0; row < rows_clamped; row++) {
                 nk_size_t const row_abs = row_tile_start + row;
                 svst1_hor_za32(1, row, column_predicate_b32,
-                               (nk_f32_t *)(result + row_abs * result_stride_elements) + col_tile_start);
+                               (nk_f32_t *)(result + row_abs * result_stride_elements) + column_tile_start);
             }
         }
 
@@ -4577,9 +4669,9 @@ __arm_locally_streaming __arm_new("za") static void nk_dots_symmetric_i4_sme_ker
                             mask &= nibble_clear;
                         }
                         for (nk_size_t row_in_tile = 0; row_in_tile < rows_clamped; row_in_tile++) {
-                            svuint32_t col = svread_ver_za32_u32_m(svdup_u32(0), row_predicate_b32, 0, last_step);
-                            col = svand_n_u32_x(row_predicate_b32, col, mask);
-                            svwrite_ver_za32_u32_m(0, last_step, row_predicate_b32, col);
+                            svuint32_t column = svread_ver_za32_u32_m(svdup_u32(0), row_predicate_b32, 0, last_step);
+                            column = svand_n_u32_x(row_predicate_b32, column, mask);
+                            svwrite_ver_za32_u32_m(0, last_step, row_predicate_b32, column);
                         }
                     }
                 }
@@ -4591,11 +4683,11 @@ __arm_locally_streaming __arm_new("za") static void nk_dots_symmetric_i4_sme_ker
 
                 // B column tile 0
                 svzero_mask_za(nk_sme_zero_za32_tile_0_);
-                for (nk_size_t col = 0; col < tile_dimension; col++) {
-                    nk_size_t const col_abs = (column_tile_index + 0) * tile_dimension + col;
-                    if (col_abs < n_vectors) {
-                        nk_u8_t const *src = (nk_u8_t const *)(vectors + col_abs * stride_elements) + byte_offset;
-                        svld1_hor_za32(0, col, batch_predicate_b32, (nk_f32_t const *)src);
+                for (nk_size_t column = 0; column < tile_dimension; column++) {
+                    nk_size_t const column_abs = (column_tile_index + 0) * tile_dimension + column;
+                    if (column_abs < n_vectors) {
+                        nk_u8_t const *src = (nk_u8_t const *)(vectors + column_abs * stride_elements) + byte_offset;
+                        svld1_hor_za32(0, column, batch_predicate_b32, (nk_f32_t const *)src);
                     }
                 }
                 if (depth_batch_start + batch_size >= depth_step_count) {
@@ -4608,15 +4700,15 @@ __arm_locally_streaming __arm_new("za") static void nk_dots_symmetric_i4_sme_ker
                             nk_u32_t nibble_clear = ~((nk_u32_t)0xF0 << ((valid_bytes - 1) * 8));
                             mask &= nibble_clear;
                         }
-                        svuint32_t col = svread_ver_za32_u32_m(svdup_u32(0), full_predicate_b32, 0, last_step);
-                        col = svand_n_u32_x(full_predicate_b32, col, mask);
-                        svwrite_ver_za32_u32_m(0, last_step, full_predicate_b32, col);
+                        svuint32_t column = svread_ver_za32_u32_m(svdup_u32(0), full_predicate_b32, 0, last_step);
+                        column = svand_n_u32_x(full_predicate_b32, column, mask);
+                        svwrite_ver_za32_u32_m(0, last_step, full_predicate_b32, column);
                     }
                 }
-                for (nk_size_t step = 0; step < batch_size; step++) {
-                    svint8_t a_s8 = svreinterpret_s8_u32(svld1_u32(full_predicate_b32, a_buffer[step]));
-                    svint32_t b_col_i32 = svread_ver_za32_s32_m(svdup_s32(0), full_predicate_b32, 0, step);
-                    svint8_t b_s8 = svreinterpret_s8_s32(b_col_i32);
+                for (nk_size_t depth_step = 0; depth_step < batch_size; depth_step++) {
+                    svint8_t a_s8 = svreinterpret_s8_u32(svld1_u32(full_predicate_b32, a_buffer[depth_step]));
+                    svint32_t b_column_i32 = svread_ver_za32_s32_m(svdup_s32(0), full_predicate_b32, 0, depth_step);
+                    svint8_t b_s8 = svreinterpret_s8_s32(b_column_i32);
                     svint8_t a_low = svasr_n_s8_x(full_predicate_b8, svlsl_n_s8_x(full_predicate_b8, a_s8, 4), 4);
                     svint8_t a_high = svasr_n_s8_x(full_predicate_b8, a_s8, 4);
                     svint8_t b_low = svasr_n_s8_x(full_predicate_b8, svlsl_n_s8_x(full_predicate_b8, b_s8, 4), 4);
@@ -4627,11 +4719,11 @@ __arm_locally_streaming __arm_new("za") static void nk_dots_symmetric_i4_sme_ker
 
                 // B column tile 1
                 svzero_mask_za(nk_sme_zero_za32_tile_0_);
-                for (nk_size_t col = 0; col < tile_dimension; col++) {
-                    nk_size_t const col_abs = (column_tile_index + 1) * tile_dimension + col;
-                    if (col_abs < n_vectors) {
-                        nk_u8_t const *src = (nk_u8_t const *)(vectors + col_abs * stride_elements) + byte_offset;
-                        svld1_hor_za32(0, col, batch_predicate_b32, (nk_f32_t const *)src);
+                for (nk_size_t column = 0; column < tile_dimension; column++) {
+                    nk_size_t const column_abs = (column_tile_index + 1) * tile_dimension + column;
+                    if (column_abs < n_vectors) {
+                        nk_u8_t const *src = (nk_u8_t const *)(vectors + column_abs * stride_elements) + byte_offset;
+                        svld1_hor_za32(0, column, batch_predicate_b32, (nk_f32_t const *)src);
                     }
                 }
                 if (depth_batch_start + batch_size >= depth_step_count) {
@@ -4644,15 +4736,15 @@ __arm_locally_streaming __arm_new("za") static void nk_dots_symmetric_i4_sme_ker
                             nk_u32_t nibble_clear = ~((nk_u32_t)0xF0 << ((valid_bytes - 1) * 8));
                             mask &= nibble_clear;
                         }
-                        svuint32_t col = svread_ver_za32_u32_m(svdup_u32(0), full_predicate_b32, 0, last_step);
-                        col = svand_n_u32_x(full_predicate_b32, col, mask);
-                        svwrite_ver_za32_u32_m(0, last_step, full_predicate_b32, col);
+                        svuint32_t column = svread_ver_za32_u32_m(svdup_u32(0), full_predicate_b32, 0, last_step);
+                        column = svand_n_u32_x(full_predicate_b32, column, mask);
+                        svwrite_ver_za32_u32_m(0, last_step, full_predicate_b32, column);
                     }
                 }
-                for (nk_size_t step = 0; step < batch_size; step++) {
-                    svint8_t a_s8 = svreinterpret_s8_u32(svld1_u32(full_predicate_b32, a_buffer[step]));
-                    svint32_t b_col_i32 = svread_ver_za32_s32_m(svdup_s32(0), full_predicate_b32, 0, step);
-                    svint8_t b_s8 = svreinterpret_s8_s32(b_col_i32);
+                for (nk_size_t depth_step = 0; depth_step < batch_size; depth_step++) {
+                    svint8_t a_s8 = svreinterpret_s8_u32(svld1_u32(full_predicate_b32, a_buffer[depth_step]));
+                    svint32_t b_column_i32 = svread_ver_za32_s32_m(svdup_s32(0), full_predicate_b32, 0, depth_step);
+                    svint8_t b_s8 = svreinterpret_s8_s32(b_column_i32);
                     svint8_t a_low = svasr_n_s8_x(full_predicate_b8, svlsl_n_s8_x(full_predicate_b8, a_s8, 4), 4);
                     svint8_t a_high = svasr_n_s8_x(full_predicate_b8, a_s8, 4);
                     svint8_t b_low = svasr_n_s8_x(full_predicate_b8, svlsl_n_s8_x(full_predicate_b8, b_s8, 4), 4);
@@ -4663,11 +4755,11 @@ __arm_locally_streaming __arm_new("za") static void nk_dots_symmetric_i4_sme_ker
 
                 // B column tile 2
                 svzero_mask_za(nk_sme_zero_za32_tile_0_);
-                for (nk_size_t col = 0; col < tile_dimension; col++) {
-                    nk_size_t const col_abs = (column_tile_index + 2) * tile_dimension + col;
-                    if (col_abs < n_vectors) {
-                        nk_u8_t const *src = (nk_u8_t const *)(vectors + col_abs * stride_elements) + byte_offset;
-                        svld1_hor_za32(0, col, batch_predicate_b32, (nk_f32_t const *)src);
+                for (nk_size_t column = 0; column < tile_dimension; column++) {
+                    nk_size_t const column_abs = (column_tile_index + 2) * tile_dimension + column;
+                    if (column_abs < n_vectors) {
+                        nk_u8_t const *src = (nk_u8_t const *)(vectors + column_abs * stride_elements) + byte_offset;
+                        svld1_hor_za32(0, column, batch_predicate_b32, (nk_f32_t const *)src);
                     }
                 }
                 if (depth_batch_start + batch_size >= depth_step_count) {
@@ -4680,15 +4772,15 @@ __arm_locally_streaming __arm_new("za") static void nk_dots_symmetric_i4_sme_ker
                             nk_u32_t nibble_clear = ~((nk_u32_t)0xF0 << ((valid_bytes - 1) * 8));
                             mask &= nibble_clear;
                         }
-                        svuint32_t col = svread_ver_za32_u32_m(svdup_u32(0), full_predicate_b32, 0, last_step);
-                        col = svand_n_u32_x(full_predicate_b32, col, mask);
-                        svwrite_ver_za32_u32_m(0, last_step, full_predicate_b32, col);
+                        svuint32_t column = svread_ver_za32_u32_m(svdup_u32(0), full_predicate_b32, 0, last_step);
+                        column = svand_n_u32_x(full_predicate_b32, column, mask);
+                        svwrite_ver_za32_u32_m(0, last_step, full_predicate_b32, column);
                     }
                 }
-                for (nk_size_t step = 0; step < batch_size; step++) {
-                    svint8_t a_s8 = svreinterpret_s8_u32(svld1_u32(full_predicate_b32, a_buffer[step]));
-                    svint32_t b_col_i32 = svread_ver_za32_s32_m(svdup_s32(0), full_predicate_b32, 0, step);
-                    svint8_t b_s8 = svreinterpret_s8_s32(b_col_i32);
+                for (nk_size_t depth_step = 0; depth_step < batch_size; depth_step++) {
+                    svint8_t a_s8 = svreinterpret_s8_u32(svld1_u32(full_predicate_b32, a_buffer[depth_step]));
+                    svint32_t b_column_i32 = svread_ver_za32_s32_m(svdup_s32(0), full_predicate_b32, 0, depth_step);
+                    svint8_t b_s8 = svreinterpret_s8_s32(b_column_i32);
                     svint8_t a_low = svasr_n_s8_x(full_predicate_b8, svlsl_n_s8_x(full_predicate_b8, a_s8, 4), 4);
                     svint8_t a_high = svasr_n_s8_x(full_predicate_b8, a_s8, 4);
                     svint8_t b_low = svasr_n_s8_x(full_predicate_b8, svlsl_n_s8_x(full_predicate_b8, b_s8, 4), 4);
@@ -4708,10 +4800,10 @@ __arm_locally_streaming __arm_new("za") static void nk_dots_symmetric_i4_sme_ker
         }
 
         for (; column_tile_index < column_tile_count; column_tile_index++) {
-            nk_size_t const col_tile_start = column_tile_index * tile_dimension;
-            nk_size_t const cols_remaining = (col_tile_start + tile_dimension <= n_vectors)
+            nk_size_t const column_tile_start = column_tile_index * tile_dimension;
+            nk_size_t const cols_remaining = (column_tile_start + tile_dimension <= n_vectors)
                                                  ? tile_dimension
-                                                 : (n_vectors - col_tile_start);
+                                                 : (n_vectors - column_tile_start);
             svbool_t const column_predicate_b32 = svwhilelt_b32((uint32_t)0, (uint32_t)cols_remaining);
             svbool_t const column_predicate_b8 = svwhilelt_b8((uint32_t)0, (uint32_t)(cols_remaining * expansion));
 
@@ -4746,9 +4838,9 @@ __arm_locally_streaming __arm_new("za") static void nk_dots_symmetric_i4_sme_ker
                             mask &= nibble_clear;
                         }
                         for (nk_size_t row_in_tile = 0; row_in_tile < rows_clamped; row_in_tile++) {
-                            svuint32_t col = svread_ver_za32_u32_m(svdup_u32(0), row_predicate_b32, 0, last_step);
-                            col = svand_n_u32_x(row_predicate_b32, col, mask);
-                            svwrite_ver_za32_u32_m(0, last_step, row_predicate_b32, col);
+                            svuint32_t column = svread_ver_za32_u32_m(svdup_u32(0), row_predicate_b32, 0, last_step);
+                            column = svand_n_u32_x(row_predicate_b32, column, mask);
+                            svwrite_ver_za32_u32_m(0, last_step, row_predicate_b32, column);
                         }
                     }
                 }
@@ -4758,11 +4850,11 @@ __arm_locally_streaming __arm_new("za") static void nk_dots_symmetric_i4_sme_ker
                               svread_ver_za32_u32_m(svdup_u32(0), row_predicate_b32, 0, s));
 
                 svzero_mask_za(nk_sme_zero_za32_tile_0_);
-                for (nk_size_t col = 0; col < tile_dimension; col++) {
-                    nk_size_t const col_abs = col_tile_start + col;
-                    if (col_abs < n_vectors) {
-                        nk_u8_t const *src = (nk_u8_t const *)(vectors + col_abs * stride_elements) + byte_offset;
-                        svld1_hor_za32(0, col, batch_predicate_b32, (nk_f32_t const *)src);
+                for (nk_size_t column = 0; column < tile_dimension; column++) {
+                    nk_size_t const column_abs = column_tile_start + column;
+                    if (column_abs < n_vectors) {
+                        nk_u8_t const *src = (nk_u8_t const *)(vectors + column_abs * stride_elements) + byte_offset;
+                        svld1_hor_za32(0, column, batch_predicate_b32, (nk_f32_t const *)src);
                     }
                 }
                 // Last-step ZA0 fixup for B
@@ -4776,15 +4868,15 @@ __arm_locally_streaming __arm_new("za") static void nk_dots_symmetric_i4_sme_ker
                             nk_u32_t nibble_clear = ~((nk_u32_t)0xF0 << ((valid_bytes - 1) * 8));
                             mask &= nibble_clear;
                         }
-                        svuint32_t col = svread_ver_za32_u32_m(svdup_u32(0), column_predicate_b32, 0, last_step);
-                        col = svand_n_u32_x(column_predicate_b32, col, mask);
-                        svwrite_ver_za32_u32_m(0, last_step, column_predicate_b32, col);
+                        svuint32_t column = svread_ver_za32_u32_m(svdup_u32(0), column_predicate_b32, 0, last_step);
+                        column = svand_n_u32_x(column_predicate_b32, column, mask);
+                        svwrite_ver_za32_u32_m(0, last_step, column_predicate_b32, column);
                     }
                 }
-                for (nk_size_t step = 0; step < batch_size; step++) {
-                    svint8_t a_s8 = svreinterpret_s8_u32(svld1_u32(full_predicate_b32, a_buffer[step]));
-                    svint32_t b_col_i32 = svread_ver_za32_s32_m(svdup_s32(0), column_predicate_b32, 0, step);
-                    svint8_t b_s8 = svreinterpret_s8_s32(b_col_i32);
+                for (nk_size_t depth_step = 0; depth_step < batch_size; depth_step++) {
+                    svint8_t a_s8 = svreinterpret_s8_u32(svld1_u32(full_predicate_b32, a_buffer[depth_step]));
+                    svint32_t b_column_i32 = svread_ver_za32_s32_m(svdup_s32(0), column_predicate_b32, 0, depth_step);
+                    svint8_t b_s8 = svreinterpret_s8_s32(b_column_i32);
                     svint8_t a_low = svasr_n_s8_x(full_predicate_b8, svlsl_n_s8_x(full_predicate_b8, a_s8, 4), 4);
                     svint8_t a_high = svasr_n_s8_x(full_predicate_b8, a_s8, 4);
                     svint8_t b_low = svasr_n_s8_x(full_predicate_b8, svlsl_n_s8_x(full_predicate_b8, b_s8, 4), 4);
@@ -4797,7 +4889,7 @@ __arm_locally_streaming __arm_new("za") static void nk_dots_symmetric_i4_sme_ker
             for (nk_size_t row = 0; row < rows_clamped; row++) {
                 nk_size_t const row_abs = row_tile_start + row;
                 svst1_hor_za32(1, row, column_predicate_b32,
-                               (nk_f32_t *)(result + row_abs * result_stride_elements) + col_tile_start);
+                               (nk_f32_t *)(result + row_abs * result_stride_elements) + column_tile_start);
             }
         }
 
