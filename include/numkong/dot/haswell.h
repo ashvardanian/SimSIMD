@@ -664,48 +664,160 @@ nk_dot_e5m2_haswell_cycle:
 
 NK_PUBLIC void nk_dot_e2m3_haswell(nk_e2m3_t const *a_scalars, nk_e2m3_t const *b_scalars, nk_size_t count_scalars,
                                    nk_f32_t *result) {
-    __m256 a_f32x8, b_f32x8;
-    __m256 sum_f32x8 = _mm256_setzero_ps();
+    // Integer dot product for e2m3 using dual-VPSHUFB (LUT) + VPMADDUBSW (unsigned×signed).
+    // Every e2m3 value × 16 is an exact integer in [-120, +120].
+    // Result = i32_dot / 256.0f (exact, no rounding error).
+    //
+    // 32-entry LUT split into two 16-entry halves for VPSHUFB (which indexes 0-15):
+    //   lut_lower[0..15]: {0,2,4,6,8,10,12,14, 16,18,20,22,24,26,28,30}
+    //   lut_upper[0..15]: {32,36,40,44,48,52,56,60, 64,72,80,88,96,104,112,120}
+    //
+    __m256i const lut_lower_u8x32 = _mm256_set_epi8(30, 28, 26, 24, 22, 20, 18, 16, 14, 12, 10, 8, 6, 4, 2, 0, 30, 28,
+                                                    26, 24, 22, 20, 18, 16, 14, 12, 10, 8, 6, 4, 2, 0);
+    __m256i const lut_upper_u8x32 = _mm256_set_epi8(120, 112, 104, 96, 88, 80, 72, 64, 60, 56, 52, 48, 44, 40, 36, 32,
+                                                    120, 112, 104, 96, 88, 80, 72, 64, 60, 56, 52, 48, 44, 40, 36, 32);
+    __m256i const nibble_mask_u8x32 = _mm256_set1_epi8(0x0F);
+    __m256i const magnitude_mask_u8x32 = _mm256_set1_epi8(0x1F);
+    __m256i const half_select_u8x32 = _mm256_set1_epi8(0x10);
+    __m256i const sign_mask_u8x32 = _mm256_set1_epi8(0x20);
+    __m256i const ones_i16x16 = _mm256_set1_epi16(1);
+    __m256i sum_i32x8 = _mm256_setzero_si256();
+    __m256i a_e2m3_u8x32, b_e2m3_u8x32;
+
 nk_dot_e2m3_haswell_cycle:
-    if (count_scalars < 8) {
+    if (count_scalars < 32) {
         nk_b256_vec_t a_vec, b_vec;
-        nk_partial_load_e2m3x8_to_f32x8_haswell_(a_scalars, &a_vec, count_scalars);
-        nk_partial_load_e2m3x8_to_f32x8_haswell_(b_scalars, &b_vec, count_scalars);
-        a_f32x8 = a_vec.ymm_ps;
-        b_f32x8 = b_vec.ymm_ps;
+        nk_partial_load_b8x32_serial_(a_scalars, &a_vec, count_scalars);
+        nk_partial_load_b8x32_serial_(b_scalars, &b_vec, count_scalars);
+        a_e2m3_u8x32 = a_vec.ymm;
+        b_e2m3_u8x32 = b_vec.ymm;
         count_scalars = 0;
     }
     else {
-        a_f32x8 = nk_e2m3x8_to_f32x8_haswell_(_mm_loadl_epi64((__m128i const *)a_scalars));
-        b_f32x8 = nk_e2m3x8_to_f32x8_haswell_(_mm_loadl_epi64((__m128i const *)b_scalars));
-        a_scalars += 8, b_scalars += 8, count_scalars -= 8;
+        a_e2m3_u8x32 = _mm256_loadu_si256((__m256i const *)a_scalars);
+        b_e2m3_u8x32 = _mm256_loadu_si256((__m256i const *)b_scalars);
+        a_scalars += 32, b_scalars += 32, count_scalars -= 32;
     }
-    sum_f32x8 = _mm256_fmadd_ps(a_f32x8, b_f32x8, sum_f32x8);
+
+    // Extract 5-bit magnitude, then split into low 4 bits (VPSHUFB index) and bit 4 (hi/lo select)
+    __m256i a_magnitude_u8x32 = _mm256_and_si256(a_e2m3_u8x32, magnitude_mask_u8x32);
+    __m256i b_magnitude_u8x32 = _mm256_and_si256(b_e2m3_u8x32, magnitude_mask_u8x32);
+    __m256i a_shuffle_index_u8x32 = _mm256_and_si256(a_magnitude_u8x32, nibble_mask_u8x32);
+    __m256i b_shuffle_index_u8x32 = _mm256_and_si256(b_magnitude_u8x32, nibble_mask_u8x32);
+    __m256i a_upper_select_u8x32 = _mm256_cmpeq_epi8(_mm256_and_si256(a_magnitude_u8x32, half_select_u8x32),
+                                                     half_select_u8x32);
+    __m256i b_upper_select_u8x32 = _mm256_cmpeq_epi8(_mm256_and_si256(b_magnitude_u8x32, half_select_u8x32),
+                                                     half_select_u8x32);
+
+    // Dual VPSHUFB: lookup in both halves, blend based on bit 4
+    __m256i a_unsigned_u8x32 = _mm256_blendv_epi8(_mm256_shuffle_epi8(lut_lower_u8x32, a_shuffle_index_u8x32),
+                                                  _mm256_shuffle_epi8(lut_upper_u8x32, a_shuffle_index_u8x32),
+                                                  a_upper_select_u8x32);
+    __m256i b_unsigned_u8x32 = _mm256_blendv_epi8(_mm256_shuffle_epi8(lut_lower_u8x32, b_shuffle_index_u8x32),
+                                                  _mm256_shuffle_epi8(lut_upper_u8x32, b_shuffle_index_u8x32),
+                                                  b_upper_select_u8x32);
+
+    // Combined sign: (a ^ b) & 0x20, negate b where signs differ
+    __m256i sign_combined_u8x32 = _mm256_and_si256(_mm256_xor_si256(a_e2m3_u8x32, b_e2m3_u8x32), sign_mask_u8x32);
+    __m256i negate_mask_u8x32 = _mm256_cmpeq_epi8(sign_combined_u8x32, sign_mask_u8x32);
+    __m256i b_negated_u8x32 = _mm256_sub_epi8(_mm256_setzero_si256(), b_unsigned_u8x32);
+    __m256i b_signed_i8x32 = _mm256_blendv_epi8(b_unsigned_u8x32, b_negated_u8x32, negate_mask_u8x32);
+
+    // VPMADDUBSW: a_unsigned[unsigned] × b_signed[signed] → i16 pairs (max |120×120| = 14400 < 32767, safe)
+    __m256i products_i16x16 = _mm256_maddubs_epi16(a_unsigned_u8x32, b_signed_i8x32);
+    // VPMADDWD with ones: i16 pairs → i32
+    sum_i32x8 = _mm256_add_epi32(sum_i32x8, _mm256_madd_epi16(products_i16x16, ones_i16x16));
+
     if (count_scalars) goto nk_dot_e2m3_haswell_cycle;
-    *result = (nk_f32_t)nk_reduce_add_f32x8_haswell_(sum_f32x8);
+    *result = (nk_f32_t)nk_reduce_add_i32x8_haswell_(sum_i32x8) / 256.0f;
 }
 
 NK_PUBLIC void nk_dot_e3m2_haswell(nk_e3m2_t const *a_scalars, nk_e3m2_t const *b_scalars, nk_size_t count_scalars,
                                    nk_f32_t *result) {
-    __m256 a_f32x8, b_f32x8;
-    __m256 sum_f32x8 = _mm256_setzero_ps();
+    // Integer dot product for e3m2 using dual-VPSHUFB (low-byte LUT) + VPMADDWD (i16×i16→i32).
+    // Every e3m2 value × 16 is an exact integer, but magnitudes reach 448, requiring i16.
+    // Result = i32_dot / 256.0f (exact, no rounding error).
+    //
+    // 32-entry magnitude LUT split into low bytes for dual VPSHUFB:
+    //   lut_lower[0..15]: low bytes of {0,1,2,3,4,5,6,7,8,10,12,14,16,20,24,28}
+    //   lut_upper[0..15]: low bytes of {32,40,48,56,64,80,96,112,128,160,192,224,256,320,384,448}
+    // High byte is 1 iff magnitude index >= 28 (values 256-448), else 0.
+    //
+    __m256i const lut_lo_lower_u8x32 = _mm256_set_epi8(        //
+        28, 24, 20, 16, 14, 12, 10, 8, 7, 6, 5, 4, 3, 2, 1, 0, //
+        28, 24, 20, 16, 14, 12, 10, 8, 7, 6, 5, 4, 3, 2, 1, 0);
+    __m256i const lut_lo_upper_u8x32 = _mm256_set_epi8(                                                           //
+        (char)192, (char)128, 64, 0, (char)224, (char)192, (char)160, (char)128, 112, 96, 80, 64, 56, 48, 40, 32, //
+        (char)192, (char)128, 64, 0, (char)224, (char)192, (char)160, (char)128, 112, 96, 80, 64, 56, 48, 40, 32);
+    __m256i const nibble_mask_u8x32 = _mm256_set1_epi8(0x0F);
+    __m256i const magnitude_mask_u8x32 = _mm256_set1_epi8(0x1F);
+    __m256i const half_select_u8x32 = _mm256_set1_epi8(0x10);
+    __m256i const sign_mask_u8x32 = _mm256_set1_epi8(0x20);
+    __m256i const high_threshold_u8x32 = _mm256_set1_epi8(27);
+    __m256i const ones_u8x32 = _mm256_set1_epi8(1);
+    __m256i const ones_i16x16 = _mm256_set1_epi16(1);
+    __m256i sum_i32x8 = _mm256_setzero_si256();
+    __m256i a_e3m2_u8x32, b_e3m2_u8x32;
+
 nk_dot_e3m2_haswell_cycle:
-    if (count_scalars < 8) {
+    if (count_scalars < 32) {
         nk_b256_vec_t a_vec, b_vec;
-        nk_partial_load_e3m2x8_to_f32x8_haswell_(a_scalars, &a_vec, count_scalars);
-        nk_partial_load_e3m2x8_to_f32x8_haswell_(b_scalars, &b_vec, count_scalars);
-        a_f32x8 = a_vec.ymm_ps;
-        b_f32x8 = b_vec.ymm_ps;
+        nk_partial_load_b8x32_serial_(a_scalars, &a_vec, count_scalars);
+        nk_partial_load_b8x32_serial_(b_scalars, &b_vec, count_scalars);
+        a_e3m2_u8x32 = a_vec.ymm;
+        b_e3m2_u8x32 = b_vec.ymm;
         count_scalars = 0;
     }
     else {
-        a_f32x8 = nk_e3m2x8_to_f32x8_haswell_(_mm_loadl_epi64((__m128i const *)a_scalars));
-        b_f32x8 = nk_e3m2x8_to_f32x8_haswell_(_mm_loadl_epi64((__m128i const *)b_scalars));
-        a_scalars += 8, b_scalars += 8, count_scalars -= 8;
+        a_e3m2_u8x32 = _mm256_loadu_si256((__m256i const *)a_scalars);
+        b_e3m2_u8x32 = _mm256_loadu_si256((__m256i const *)b_scalars);
+        a_scalars += 32, b_scalars += 32, count_scalars -= 32;
     }
-    sum_f32x8 = _mm256_fmadd_ps(a_f32x8, b_f32x8, sum_f32x8);
+
+    // Extract 5-bit magnitude, split into low 4 bits and bit 4
+    __m256i a_magnitude_u8x32 = _mm256_and_si256(a_e3m2_u8x32, magnitude_mask_u8x32);
+    __m256i b_magnitude_u8x32 = _mm256_and_si256(b_e3m2_u8x32, magnitude_mask_u8x32);
+    __m256i a_shuffle_index_u8x32 = _mm256_and_si256(a_magnitude_u8x32, nibble_mask_u8x32);
+    __m256i b_shuffle_index_u8x32 = _mm256_and_si256(b_magnitude_u8x32, nibble_mask_u8x32);
+    __m256i a_upper_select_u8x32 = _mm256_cmpeq_epi8(_mm256_and_si256(a_magnitude_u8x32, half_select_u8x32),
+                                                     half_select_u8x32);
+    __m256i b_upper_select_u8x32 = _mm256_cmpeq_epi8(_mm256_and_si256(b_magnitude_u8x32, half_select_u8x32),
+                                                     half_select_u8x32);
+
+    // Dual VPSHUFB: lookup low bytes in both halves, blend based on bit 4
+    __m256i a_lo_bytes_u8x32 = _mm256_blendv_epi8(_mm256_shuffle_epi8(lut_lo_lower_u8x32, a_shuffle_index_u8x32),
+                                                  _mm256_shuffle_epi8(lut_lo_upper_u8x32, a_shuffle_index_u8x32),
+                                                  a_upper_select_u8x32);
+    __m256i b_lo_bytes_u8x32 = _mm256_blendv_epi8(_mm256_shuffle_epi8(lut_lo_lower_u8x32, b_shuffle_index_u8x32),
+                                                  _mm256_shuffle_epi8(lut_lo_upper_u8x32, b_shuffle_index_u8x32),
+                                                  b_upper_select_u8x32);
+
+    // High byte: 1 iff magnitude >= 28 (signed compare safe: 27 < 128)
+    __m256i a_hi_bytes_u8x32 = _mm256_and_si256(_mm256_cmpgt_epi8(a_magnitude_u8x32, high_threshold_u8x32), ones_u8x32);
+    __m256i b_hi_bytes_u8x32 = _mm256_and_si256(_mm256_cmpgt_epi8(b_magnitude_u8x32, high_threshold_u8x32), ones_u8x32);
+
+    // Interleave low and high bytes into i16 (little-endian: low byte first)
+    __m256i a_lo_i16x16 = _mm256_unpacklo_epi8(a_lo_bytes_u8x32, a_hi_bytes_u8x32);
+    __m256i a_hi_i16x16 = _mm256_unpackhi_epi8(a_lo_bytes_u8x32, a_hi_bytes_u8x32);
+    __m256i b_lo_i16x16 = _mm256_unpacklo_epi8(b_lo_bytes_u8x32, b_hi_bytes_u8x32);
+    __m256i b_hi_i16x16 = _mm256_unpackhi_epi8(b_lo_bytes_u8x32, b_hi_bytes_u8x32);
+
+    // Combined sign: (a ^ b) & 0x20, widen to i16 via unpack, create +1/-1 sign vector
+    __m256i sign_combined_u8x32 = _mm256_and_si256(_mm256_xor_si256(a_e3m2_u8x32, b_e3m2_u8x32), sign_mask_u8x32);
+    __m256i negate_mask_u8x32 = _mm256_cmpeq_epi8(sign_combined_u8x32, sign_mask_u8x32);
+    __m256i negate_lo_i16x16 = _mm256_unpacklo_epi8(negate_mask_u8x32, negate_mask_u8x32);
+    __m256i negate_hi_i16x16 = _mm256_unpackhi_epi8(negate_mask_u8x32, negate_mask_u8x32);
+    __m256i sign_lo_i16x16 = _mm256_or_si256(negate_lo_i16x16, ones_i16x16);
+    __m256i sign_hi_i16x16 = _mm256_or_si256(negate_hi_i16x16, ones_i16x16);
+    __m256i b_signed_lo_i16x16 = _mm256_sign_epi16(b_lo_i16x16, sign_lo_i16x16);
+    __m256i b_signed_hi_i16x16 = _mm256_sign_epi16(b_hi_i16x16, sign_hi_i16x16);
+
+    // VPMADDWD: a_unsigned_i16 × b_signed_i16 → i32 accumulator
+    sum_i32x8 = _mm256_add_epi32(sum_i32x8, _mm256_madd_epi16(a_lo_i16x16, b_signed_lo_i16x16));
+    sum_i32x8 = _mm256_add_epi32(sum_i32x8, _mm256_madd_epi16(a_hi_i16x16, b_signed_hi_i16x16));
+
     if (count_scalars) goto nk_dot_e3m2_haswell_cycle;
-    *result = (nk_f32_t)nk_reduce_add_f32x8_haswell_(sum_f32x8);
+    *result = (nk_f32_t)nk_reduce_add_i32x8_haswell_(sum_i32x8) / 256.0f;
 }
 
 /**
@@ -810,6 +922,207 @@ typedef struct nk_dot_through_f32_state_haswell_t_ nk_dot_e2m3x16_state_haswell_
  *  @note Alias of nk_dot_through_f32_state_haswell_t_
  */
 typedef struct nk_dot_through_f32_state_haswell_t_ nk_dot_e3m2x16_state_haswell_t;
+
+/**
+ *  @brief Integer LUT batch state for e2m3 dot-products on Haswell (AVX2).
+ *  Uses VPMADDUBSW (u8×i8→i16) + VPMADDWD (i16→i32) instead of Sierra's VPDPBUSD.
+ */
+typedef struct nk_dot_e2m3x32_state_haswell_t {
+    __m256i sum_i32x8;
+} nk_dot_e2m3x32_state_haswell_t;
+
+NK_INTERNAL void nk_dot_e2m3x32_init_haswell(nk_dot_e2m3x32_state_haswell_t *state) {
+    state->sum_i32x8 = _mm256_setzero_si256();
+}
+
+NK_INTERNAL void nk_dot_e2m3x32_update_haswell(nk_dot_e2m3x32_state_haswell_t *state, nk_b256_vec_t a, nk_b256_vec_t b,
+                                               nk_size_t depth_offset, nk_size_t active_dimensions) {
+    nk_unused_(depth_offset);
+    nk_unused_(active_dimensions);
+    __m256i const lut_lower_u8x32 = _mm256_set_epi8(               //
+        30, 28, 26, 24, 22, 20, 18, 16, 14, 12, 10, 8, 6, 4, 2, 0, //
+        30, 28, 26, 24, 22, 20, 18, 16, 14, 12, 10, 8, 6, 4, 2, 0);
+    __m256i const lut_upper_u8x32 = _mm256_set_epi8(                       //
+        120, 112, 104, 96, 88, 80, 72, 64, 60, 56, 52, 48, 44, 40, 36, 32, //
+        120, 112, 104, 96, 88, 80, 72, 64, 60, 56, 52, 48, 44, 40, 36, 32);
+    __m256i const nibble_mask_u8x32 = _mm256_set1_epi8(0x0F);
+    __m256i const magnitude_mask_u8x32 = _mm256_set1_epi8(0x1F);
+    __m256i const half_select_u8x32 = _mm256_set1_epi8(0x10);
+    __m256i const sign_mask_u8x32 = _mm256_set1_epi8(0x20);
+    __m256i const ones_i16x16 = _mm256_set1_epi16(1);
+
+    __m256i a_e2m3_u8x32 = a.ymm;
+    __m256i b_e2m3_u8x32 = b.ymm;
+
+    // Extract 5-bit magnitude, split into low 4 bits and bit 4
+    __m256i a_magnitude_u8x32 = _mm256_and_si256(a_e2m3_u8x32, magnitude_mask_u8x32);
+    __m256i b_magnitude_u8x32 = _mm256_and_si256(b_e2m3_u8x32, magnitude_mask_u8x32);
+    __m256i a_shuffle_index_u8x32 = _mm256_and_si256(a_magnitude_u8x32, nibble_mask_u8x32);
+    __m256i b_shuffle_index_u8x32 = _mm256_and_si256(b_magnitude_u8x32, nibble_mask_u8x32);
+    __m256i a_upper_select_u8x32 = _mm256_cmpeq_epi8(_mm256_and_si256(a_magnitude_u8x32, half_select_u8x32),
+                                                     half_select_u8x32);
+    __m256i b_upper_select_u8x32 = _mm256_cmpeq_epi8(_mm256_and_si256(b_magnitude_u8x32, half_select_u8x32),
+                                                     half_select_u8x32);
+
+    // Dual VPSHUFB + blend
+    __m256i a_unsigned_u8x32 = _mm256_blendv_epi8(_mm256_shuffle_epi8(lut_lower_u8x32, a_shuffle_index_u8x32),
+                                                  _mm256_shuffle_epi8(lut_upper_u8x32, a_shuffle_index_u8x32),
+                                                  a_upper_select_u8x32);
+    __m256i b_unsigned_u8x32 = _mm256_blendv_epi8(_mm256_shuffle_epi8(lut_lower_u8x32, b_shuffle_index_u8x32),
+                                                  _mm256_shuffle_epi8(lut_upper_u8x32, b_shuffle_index_u8x32),
+                                                  b_upper_select_u8x32);
+
+    // Combined sign + conditional negate
+    __m256i sign_combined_u8x32 = _mm256_and_si256(_mm256_xor_si256(a_e2m3_u8x32, b_e2m3_u8x32), sign_mask_u8x32);
+    __m256i negate_mask_u8x32 = _mm256_cmpeq_epi8(sign_combined_u8x32, sign_mask_u8x32);
+    __m256i b_negated_u8x32 = _mm256_sub_epi8(_mm256_setzero_si256(), b_unsigned_u8x32);
+    __m256i b_signed_i8x32 = _mm256_blendv_epi8(b_unsigned_u8x32, b_negated_u8x32, negate_mask_u8x32);
+
+    // VPMADDUBSW + VPMADDWD: u8×i8→i16→i32
+    __m256i products_i16x16 = _mm256_maddubs_epi16(a_unsigned_u8x32, b_signed_i8x32);
+    __m256i products_i32x8 = _mm256_madd_epi16(products_i16x16, ones_i16x16);
+    state->sum_i32x8 = _mm256_add_epi32(state->sum_i32x8, products_i32x8);
+}
+
+NK_INTERNAL void nk_dot_e2m3x32_finalize_haswell(                                                 //
+    nk_dot_e2m3x32_state_haswell_t const *state_a, nk_dot_e2m3x32_state_haswell_t const *state_b, //
+    nk_dot_e2m3x32_state_haswell_t const *state_c, nk_dot_e2m3x32_state_haswell_t const *state_d, //
+    nk_size_t total_dimensions, nk_b128_vec_t *results) {
+    nk_unused_(total_dimensions);
+
+    // ILP-optimized 4-way horizontal reduction: i32x8 → scalar i32, then → f32 with ÷256
+    __m128i sum_a_i32x4 = _mm_add_epi32(_mm256_castsi256_si128(state_a->sum_i32x8),
+                                        _mm256_extracti128_si256(state_a->sum_i32x8, 1));
+    __m128i sum_b_i32x4 = _mm_add_epi32(_mm256_castsi256_si128(state_b->sum_i32x8),
+                                        _mm256_extracti128_si256(state_b->sum_i32x8, 1));
+    __m128i sum_c_i32x4 = _mm_add_epi32(_mm256_castsi256_si128(state_c->sum_i32x8),
+                                        _mm256_extracti128_si256(state_c->sum_i32x8, 1));
+    __m128i sum_d_i32x4 = _mm_add_epi32(_mm256_castsi256_si128(state_d->sum_i32x8),
+                                        _mm256_extracti128_si256(state_d->sum_i32x8, 1));
+
+    // Transpose for SIMD reduction
+    __m128i transpose_ab_low_i32x4 = _mm_unpacklo_epi32(sum_a_i32x4, sum_b_i32x4);
+    __m128i transpose_cd_low_i32x4 = _mm_unpacklo_epi32(sum_c_i32x4, sum_d_i32x4);
+    __m128i transpose_ab_high_i32x4 = _mm_unpackhi_epi32(sum_a_i32x4, sum_b_i32x4);
+    __m128i transpose_cd_high_i32x4 = _mm_unpackhi_epi32(sum_c_i32x4, sum_d_i32x4);
+    __m128i lane0_i32x4 = _mm_unpacklo_epi64(transpose_ab_low_i32x4, transpose_cd_low_i32x4);
+    __m128i lane1_i32x4 = _mm_unpackhi_epi64(transpose_ab_low_i32x4, transpose_cd_low_i32x4);
+    __m128i lane2_i32x4 = _mm_unpacklo_epi64(transpose_ab_high_i32x4, transpose_cd_high_i32x4);
+    __m128i lane3_i32x4 = _mm_unpackhi_epi64(transpose_ab_high_i32x4, transpose_cd_high_i32x4);
+    __m128i sum_i32x4 = _mm_add_epi32(_mm_add_epi32(lane0_i32x4, lane1_i32x4), _mm_add_epi32(lane2_i32x4, lane3_i32x4));
+
+    // Convert i32 → f32 and scale by 1/256
+    __m128 sum_f32x4 = _mm_mul_ps(_mm_cvtepi32_ps(sum_i32x4), _mm_set1_ps(1.0f / 256.0f));
+    results->xmm = _mm_castps_si128(sum_f32x4);
+}
+
+/**
+ *  @brief Integer LUT batch state for e3m2 dot-products on Haswell (AVX2).
+ *  Uses i16 widening via VPMADDWD (i16×i16→i32) with two accumulators for lo/hi halves.
+ */
+typedef struct nk_dot_e3m2x32_state_haswell_t {
+    __m256i sum_a_i32x8;
+    __m256i sum_b_i32x8;
+} nk_dot_e3m2x32_state_haswell_t;
+
+NK_INTERNAL void nk_dot_e3m2x32_init_haswell(nk_dot_e3m2x32_state_haswell_t *state) {
+    state->sum_a_i32x8 = _mm256_setzero_si256();
+    state->sum_b_i32x8 = _mm256_setzero_si256();
+}
+
+NK_INTERNAL void nk_dot_e3m2x32_update_haswell(nk_dot_e3m2x32_state_haswell_t *state, nk_b256_vec_t a, nk_b256_vec_t b,
+                                               nk_size_t depth_offset, nk_size_t active_dimensions) {
+    nk_unused_(depth_offset);
+    nk_unused_(active_dimensions);
+    __m256i const lut_lo_lower_u8x32 = _mm256_set_epi8( //
+        28, 24, 20, 16, 14, 12, 10, 8, 7, 6, 5, 4, 3, 2, 1, 0, 28, 24, 20, 16, 14, 12, 10, 8, 7, 6, 5, 4, 3, 2, 1, 0);
+    __m256i const lut_lo_upper_u8x32 = _mm256_set_epi8(                                                           //
+        (char)192, (char)128, 64, 0, (char)224, (char)192, (char)160, (char)128, 112, 96, 80, 64, 56, 48, 40, 32, //
+        (char)192, (char)128, 64, 0, (char)224, (char)192, (char)160, (char)128, 112, 96, 80, 64, 56, 48, 40, 32);
+    __m256i const nibble_mask_u8x32 = _mm256_set1_epi8(0x0F);
+    __m256i const magnitude_mask_u8x32 = _mm256_set1_epi8(0x1F);
+    __m256i const half_select_u8x32 = _mm256_set1_epi8(0x10);
+    __m256i const sign_mask_u8x32 = _mm256_set1_epi8(0x20);
+    __m256i const high_threshold_u8x32 = _mm256_set1_epi8(27);
+    __m256i const ones_u8x32 = _mm256_set1_epi8(1);
+    __m256i const ones_i16x16 = _mm256_set1_epi16(1);
+
+    __m256i a_e3m2_u8x32 = a.ymm;
+    __m256i b_e3m2_u8x32 = b.ymm;
+
+    // Extract 5-bit magnitude, split into low 4 bits and bit 4
+    __m256i a_magnitude_u8x32 = _mm256_and_si256(a_e3m2_u8x32, magnitude_mask_u8x32);
+    __m256i b_magnitude_u8x32 = _mm256_and_si256(b_e3m2_u8x32, magnitude_mask_u8x32);
+    __m256i a_shuffle_index_u8x32 = _mm256_and_si256(a_magnitude_u8x32, nibble_mask_u8x32);
+    __m256i b_shuffle_index_u8x32 = _mm256_and_si256(b_magnitude_u8x32, nibble_mask_u8x32);
+    __m256i a_upper_select_u8x32 = _mm256_cmpeq_epi8(_mm256_and_si256(a_magnitude_u8x32, half_select_u8x32),
+                                                     half_select_u8x32);
+    __m256i b_upper_select_u8x32 = _mm256_cmpeq_epi8(_mm256_and_si256(b_magnitude_u8x32, half_select_u8x32),
+                                                     half_select_u8x32);
+
+    // Dual VPSHUFB for low bytes
+    __m256i a_lo_bytes_u8x32 = _mm256_blendv_epi8(_mm256_shuffle_epi8(lut_lo_lower_u8x32, a_shuffle_index_u8x32),
+                                                  _mm256_shuffle_epi8(lut_lo_upper_u8x32, a_shuffle_index_u8x32),
+                                                  a_upper_select_u8x32);
+    __m256i b_lo_bytes_u8x32 = _mm256_blendv_epi8(_mm256_shuffle_epi8(lut_lo_lower_u8x32, b_shuffle_index_u8x32),
+                                                  _mm256_shuffle_epi8(lut_lo_upper_u8x32, b_shuffle_index_u8x32),
+                                                  b_upper_select_u8x32);
+
+    // High byte: 1 iff magnitude >= 28
+    __m256i a_hi_bytes_u8x32 = _mm256_and_si256(_mm256_cmpgt_epi8(a_magnitude_u8x32, high_threshold_u8x32), ones_u8x32);
+    __m256i b_hi_bytes_u8x32 = _mm256_and_si256(_mm256_cmpgt_epi8(b_magnitude_u8x32, high_threshold_u8x32), ones_u8x32);
+
+    // Interleave low and high bytes into i16
+    __m256i a_lo_i16x16 = _mm256_unpacklo_epi8(a_lo_bytes_u8x32, a_hi_bytes_u8x32);
+    __m256i a_hi_i16x16 = _mm256_unpackhi_epi8(a_lo_bytes_u8x32, a_hi_bytes_u8x32);
+    __m256i b_lo_i16x16 = _mm256_unpacklo_epi8(b_lo_bytes_u8x32, b_hi_bytes_u8x32);
+    __m256i b_hi_i16x16 = _mm256_unpackhi_epi8(b_lo_bytes_u8x32, b_hi_bytes_u8x32);
+
+    // Combined sign: (a ^ b) & 0x20, widen to i16, create +1/-1 sign vector via VPSIGNW
+    __m256i sign_combined_u8x32 = _mm256_and_si256(_mm256_xor_si256(a_e3m2_u8x32, b_e3m2_u8x32), sign_mask_u8x32);
+    __m256i negate_mask_u8x32 = _mm256_cmpeq_epi8(sign_combined_u8x32, sign_mask_u8x32);
+    __m256i negate_lo_i16x16 = _mm256_unpacklo_epi8(negate_mask_u8x32, negate_mask_u8x32);
+    __m256i negate_hi_i16x16 = _mm256_unpackhi_epi8(negate_mask_u8x32, negate_mask_u8x32);
+    __m256i sign_lo_i16x16 = _mm256_or_si256(negate_lo_i16x16, ones_i16x16);
+    __m256i sign_hi_i16x16 = _mm256_or_si256(negate_hi_i16x16, ones_i16x16);
+    __m256i b_signed_lo_i16x16 = _mm256_sign_epi16(b_lo_i16x16, sign_lo_i16x16);
+    __m256i b_signed_hi_i16x16 = _mm256_sign_epi16(b_hi_i16x16, sign_hi_i16x16);
+
+    // VPMADDWD: a_unsigned_i16 × b_signed_i16 → i32 (two halves → two accumulators)
+    state->sum_a_i32x8 = _mm256_add_epi32(state->sum_a_i32x8, _mm256_madd_epi16(a_lo_i16x16, b_signed_lo_i16x16));
+    state->sum_b_i32x8 = _mm256_add_epi32(state->sum_b_i32x8, _mm256_madd_epi16(a_hi_i16x16, b_signed_hi_i16x16));
+}
+
+NK_INTERNAL void nk_dot_e3m2x32_finalize_haswell(                                                 //
+    nk_dot_e3m2x32_state_haswell_t const *state_a, nk_dot_e3m2x32_state_haswell_t const *state_b, //
+    nk_dot_e3m2x32_state_haswell_t const *state_c, nk_dot_e3m2x32_state_haswell_t const *state_d, //
+    nk_size_t total_dimensions, nk_b128_vec_t *results) {
+    nk_unused_(total_dimensions);
+
+    // Merge two accumulators per state, then same 4-way transpose-reduce as Sierra
+    __m256i merged_a = _mm256_add_epi32(state_a->sum_a_i32x8, state_a->sum_b_i32x8);
+    __m256i merged_b = _mm256_add_epi32(state_b->sum_a_i32x8, state_b->sum_b_i32x8);
+    __m256i merged_c = _mm256_add_epi32(state_c->sum_a_i32x8, state_c->sum_b_i32x8);
+    __m256i merged_d = _mm256_add_epi32(state_d->sum_a_i32x8, state_d->sum_b_i32x8);
+
+    __m128i sum_a_i32x4 = _mm_add_epi32(_mm256_castsi256_si128(merged_a), _mm256_extracti128_si256(merged_a, 1));
+    __m128i sum_b_i32x4 = _mm_add_epi32(_mm256_castsi256_si128(merged_b), _mm256_extracti128_si256(merged_b, 1));
+    __m128i sum_c_i32x4 = _mm_add_epi32(_mm256_castsi256_si128(merged_c), _mm256_extracti128_si256(merged_c, 1));
+    __m128i sum_d_i32x4 = _mm_add_epi32(_mm256_castsi256_si128(merged_d), _mm256_extracti128_si256(merged_d, 1));
+
+    __m128i transpose_ab_low_i32x4 = _mm_unpacklo_epi32(sum_a_i32x4, sum_b_i32x4);
+    __m128i transpose_cd_low_i32x4 = _mm_unpacklo_epi32(sum_c_i32x4, sum_d_i32x4);
+    __m128i transpose_ab_high_i32x4 = _mm_unpackhi_epi32(sum_a_i32x4, sum_b_i32x4);
+    __m128i transpose_cd_high_i32x4 = _mm_unpackhi_epi32(sum_c_i32x4, sum_d_i32x4);
+    __m128i lane0_i32x4 = _mm_unpacklo_epi64(transpose_ab_low_i32x4, transpose_cd_low_i32x4);
+    __m128i lane1_i32x4 = _mm_unpackhi_epi64(transpose_ab_low_i32x4, transpose_cd_low_i32x4);
+    __m128i lane2_i32x4 = _mm_unpacklo_epi64(transpose_ab_high_i32x4, transpose_cd_high_i32x4);
+    __m128i lane3_i32x4 = _mm_unpackhi_epi64(transpose_ab_high_i32x4, transpose_cd_high_i32x4);
+    __m128i sum_i32x4 = _mm_add_epi32(_mm_add_epi32(lane0_i32x4, lane1_i32x4), _mm_add_epi32(lane2_i32x4, lane3_i32x4));
+
+    __m128 sum_f32x4 = _mm_mul_ps(_mm_cvtepi32_ps(sum_i32x4), _mm_set1_ps(1.0f / 256.0f));
+    results->xmm = _mm_castps_si128(sum_f32x4);
+}
 
 #pragma endregion - Smaller Floats
 

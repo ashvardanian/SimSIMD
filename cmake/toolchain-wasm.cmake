@@ -37,6 +37,7 @@ set(CMAKE_CXX_FLAGS_DEBUG "-O0 -g -s ASSERTIONS=2")
 # Linker flags for Node.js execution
 set(CMAKE_EXE_LINKER_FLAGS_INIT
     "-s ALLOW_MEMORY_GROWTH=1 \
+     -s IMPORTED_MEMORY=1 \
      -s INITIAL_MEMORY=64MB \
      -s MAXIMUM_MEMORY=2GB \
      -s STACK_SIZE=5MB \

@@ -354,8 +354,8 @@
 #endif // !defined(NK_TARGET_SKYLAKE) || ...
 
 #if !defined(NK_TARGET_ICELAKE) || (NK_TARGET_ICELAKE && !NK_TARGET_X86_)
-#if defined(__AVX512VNNI__) && defined(__AVX512IFMA__) && defined(__AVX512BITALG__) && defined(__AVX512VBMI2__) && \
-    defined(__AVX512VPOPCNTDQ__)
+#if defined(__AVX512VNNI__) && defined(__AVX512IFMA__) && defined(__AVX512BITALG__) && defined(__AVX512VBMI__) && \
+    defined(__AVX512VBMI2__) && defined(__AVX512VPOPCNTDQ__)
 #define NK_TARGET_ICELAKE 1
 #else
 #undef NK_TARGET_ICELAKE
@@ -541,6 +541,8 @@ typedef double nk_f64_t;
 typedef nk_u64_t nk_size_t;
 typedef nk_i64_t nk_ssize_t;
 typedef nk_f64_t nk_fmax_t;
+
+#define NK_SIZE_MAX ((nk_size_t)-1)
 
 #define NK_F64_MAX 1.7976931348623157e+308
 #define NK_F64_MIN (-1.7976931348623157e+308)
@@ -826,6 +828,7 @@ typedef union {
     nk_u16_t u;
     nk_i16_t i;
     nk_f16_t f;
+    nk_bf16_t bf;
 } nk_fui16_t;
 
 /** @brief  Convenience type for single-precision floating-point bit manipulation. */
@@ -1271,12 +1274,83 @@ NK_INTERNAL nk_size_t nk_size_round_up_to_multiple_(nk_size_t number, nk_size_t 
     return nk_size_divide_round_up_(number, divisor) * divisor;
 }
 
-NK_INTERNAL nk_f64_t nk_f32_abs_(nk_f64_t x) { return x < 0 ? -x : x; }
+NK_INTERNAL nk_f32_t nk_f32_abs_(nk_f32_t x) { return x < 0 ? -x : x; }
 NK_INTERNAL nk_f64_t nk_f64_abs_(nk_f64_t x) { return x < 0 ? -x : x; }
 NK_INTERNAL nk_i64_t nk_i64_abs_(nk_i64_t x) { return x < 0 ? -x : x; }
 NK_INTERNAL nk_u64_t nk_u64_abs_(nk_u64_t x) { return x; }
 NK_INTERNAL nk_i64_t nk_i32_abs_(nk_i32_t x) { return x < 0 ? -x : x; }
 NK_INTERNAL nk_u32_t nk_u32_abs_(nk_u32_t x) { return x; }
+
+/** @brief Extract low (bits 0-3) unsigned nibble from packed u4x2 byte. */
+NK_INTERNAL nk_u8_t nk_u4x2_low_(nk_u4x2_t byte_val) { return byte_val & 0x0F; }
+/** @brief Extract high (bits 4-7) unsigned nibble from packed u4x2 byte. */
+NK_INTERNAL nk_u8_t nk_u4x2_high_(nk_u4x2_t byte_val) { return (byte_val >> 4) & 0x0F; }
+
+/** @brief Extract low (bits 0-3) signed nibble from packed i4x2 byte as i8. */
+NK_INTERNAL nk_i8_t nk_i4x2_low_(nk_i4x2_t byte_val) { return (nk_i8_t)(((byte_val & 0x0F) ^ 8) - 8); }
+/** @brief Extract high (bits 4-7) signed nibble from packed i4x2 byte as i8. */
+NK_INTERNAL nk_i8_t nk_i4x2_high_(nk_i4x2_t byte_val) { return (nk_i8_t)((((byte_val >> 4) & 0x0F) ^ 8) - 8); }
+
+/** @brief Extract n-th nibble (n=0: low, n=1: high) — branchless. */
+NK_INTERNAL nk_u8_t nk_u4x2_get_(nk_u4x2_t byte_val, int n) { return (byte_val >> ((n & 1) * 4)) & 0x0F; }
+NK_INTERNAL nk_i8_t nk_i4x2_get_(nk_i4x2_t byte_val, int n) {
+    nk_u8_t nibble = (byte_val >> ((n & 1) * 4)) & 0x0F;
+    return (nk_i8_t)((nibble ^ 8) - 8);
+}
+
+/** @brief Extract bit at position n (0-7) from packed u1x8 byte. */
+NK_INTERNAL nk_u8_t nk_u1x8_get_(nk_u1x8_t byte_val, int n) { return (byte_val >> (n & 7)) & 1; }
+
+NK_INTERNAL nk_f16_t nk_f16_from_u16_(nk_u16_t bits) {
+    nk_fui16_t c;
+    c.u = bits;
+    return c.f;
+}
+NK_INTERNAL nk_bf16_t nk_bf16_from_u16_(nk_u16_t bits) {
+    nk_fui16_t c;
+    c.u = bits;
+    return c.bf;
+}
+
+/** @brief Branchless sign-magnitude compare for FP8 (sign in bit 7).
+ *  Uses: mask = -sign, ordered = value ^ mask. The constant offset cancels in subtraction.
+ *  Returns negative if a < b, 0 if equal, positive if a > b. NaN compares high. */
+NK_INTERNAL int nk_e4m3_compare_(nk_e4m3_t a, nk_e4m3_t b) {
+    int sign_a = a >> 7, sign_b = b >> 7;
+    return (a ^ -sign_a) - (b ^ -sign_b);
+}
+NK_INTERNAL int nk_e5m2_compare_(nk_e5m2_t a, nk_e5m2_t b) {
+    int sign_a = a >> 7, sign_b = b >> 7;
+    return (a ^ -sign_a) - (b ^ -sign_b);
+}
+
+/** @brief Branchless sign-magnitude compare for FP6 (sign in bit 5, 6-bit). */
+NK_INTERNAL int nk_e2m3_compare_(nk_e2m3_t a, nk_e2m3_t b) {
+    int value_a = a & 0x3F, value_b = b & 0x3F;
+    int sign_a = value_a >> 5, sign_b = value_b >> 5;
+    return (value_a ^ -sign_a) - (value_b ^ -sign_b);
+}
+NK_INTERNAL int nk_e3m2_compare_(nk_e3m2_t a, nk_e3m2_t b) {
+    int value_a = a & 0x3F, value_b = b & 0x3F;
+    int sign_a = value_a >> 5, sign_b = value_b >> 5;
+    return (value_a ^ -sign_a) - (value_b ^ -sign_b);
+}
+
+/** @brief Branchless sign-magnitude compare for bf16 (sign in bit 15). */
+NK_INTERNAL int nk_bf16_compare_(nk_bf16_t a, nk_bf16_t b) {
+    nk_fui16_t a_fui, b_fui;
+    a_fui.bf = a, b_fui.bf = b;
+    int sign_a = a_fui.u >> 15, sign_b = b_fui.u >> 15;
+    return ((int)a_fui.u ^ -sign_a) - ((int)b_fui.u ^ -sign_b);
+}
+
+/** @brief Branchless sign-magnitude compare for f16 (sign in bit 15). */
+NK_INTERNAL int nk_f16_compare_(nk_f16_t a, nk_f16_t b) {
+    nk_fui16_t a_fui, b_fui;
+    a_fui.f = a, b_fui.f = b;
+    int sign_a = a_fui.u >> 15, sign_b = b_fui.u >> 15;
+    return ((int)a_fui.u ^ -sign_a) - ((int)b_fui.u ^ -sign_b);
+}
 
 #if NK_DYNAMIC_DISPATCH
 NK_DYNAMIC void nk_f16_to_f32(nk_f16_t const *src, nk_f32_t *dest);

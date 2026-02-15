@@ -3208,6 +3208,61 @@ mod tests {
     fn init_thread() {
         INIT.call_once(|| {
             crate::capabilities::configure_thread();
+            let caps = crate::capabilities::available();
+            eprintln!("NumKong Rust Test Suite v{}", env!("CARGO_PKG_VERSION"));
+            eprintln!(
+                "  Dynamic dispatch: {}",
+                crate::capabilities::uses_dynamic_dispatch()
+            );
+            eprintln!("ISA:");
+            let isas: &[(&str, u64)] = &[
+                // x86
+                ("Haswell", crate::cap::HASWELL),
+                ("Skylake", crate::cap::SKYLAKE),
+                ("Ice Lake", crate::cap::ICELAKE),
+                ("Genoa", crate::cap::GENOA),
+                ("Sapphire", crate::cap::SAPPHIRE),
+                ("Sapphire AMX", crate::cap::SAPPHIREAMX),
+                ("Granite AMX", crate::cap::GRANITEAMX),
+                ("Turin", crate::cap::TURIN),
+                ("Sierra", crate::cap::SIERRA),
+                // Arm
+                ("NEON", crate::cap::NEON),
+                ("NEON F16", crate::cap::NEONHALF),
+                ("NEON BF16", crate::cap::NEONBFDOT),
+                ("NEON I8", crate::cap::NEONSDOT),
+                ("NEON FHM", crate::cap::NEONFHM),
+                ("SVE", crate::cap::SVE),
+                ("SVE F16", crate::cap::SVEHALF),
+                ("SVE BF16", crate::cap::SVEBFDOT),
+                ("SVE I8", crate::cap::SVESDOT),
+                ("SVE2", crate::cap::SVE2),
+                ("SVE2P1", crate::cap::SVE2P1),
+                ("SME", crate::cap::SME),
+                ("SME2", crate::cap::SME2),
+                ("SME2P1", crate::cap::SME2P1),
+                ("SME F64", crate::cap::SMEF64),
+                ("SME F16", crate::cap::SMEHALF),
+                ("SME BF16", crate::cap::SMEBF16),
+                ("SME FA64", crate::cap::SMEFA64),
+                ("SME LUT2", crate::cap::SMELUT2),
+                // RISC-V
+                ("RVV", crate::cap::RVV),
+                ("RVV HALF", crate::cap::RVVHALF),
+                ("RVV BF16", crate::cap::RVVBF16),
+                ("RVV BB", crate::cap::RVVBB),
+                // WASM
+                ("V128 Relaxed", crate::cap::V128RELAXED),
+            ];
+            for &(name, cap) in isas {
+                let indicator = if caps & cap != 0 {
+                    "\u{25CF}"
+                } else {
+                    "\u{25CB}"
+                };
+                eprintln!("- {} {}", name, indicator);
+            }
+            eprintln!();
         });
     }
 

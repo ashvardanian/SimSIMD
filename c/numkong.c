@@ -146,19 +146,20 @@ void nk_error_mesh_(void const *a, void const *b, nk_size_t n, void *a_centroid,
     nk_fill_error_(result, sizeof(nk_fmax_t));
 }
 
-void nk_error_reduce_add_(void const *data, nk_size_t count, nk_size_t stride_bytes, void *result) {
-    (void)data;
-    (void)count;
-    (void)stride_bytes;
-    nk_fill_error_(result, sizeof(nk_fmax_t));
+void nk_error_reduce_moments_(void const *data, nk_size_t count, nk_size_t stride_bytes, void *sum_ptr,
+                              void *sumsq_ptr) {
+    (void)data, (void)count, (void)stride_bytes, (void)sum_ptr, (void)sumsq_ptr;
+    nk_fill_error_(sum_ptr, sizeof(nk_fmax_t));
+    nk_fill_error_(sumsq_ptr, sizeof(nk_fmax_t));
 }
 
-void nk_error_reduce_minmax_(void const *data, nk_size_t count, nk_size_t stride_bytes, void *value, nk_size_t *index) {
-    (void)data;
-    (void)count;
-    (void)stride_bytes;
-    nk_fill_error_(value, sizeof(nk_fmax_t));
-    nk_fill_error_(index, sizeof(nk_size_t));
+void nk_error_reduce_minmax_(void const *data, nk_size_t count, nk_size_t stride_bytes, void *min_value,
+                             nk_size_t *min_index, void *max_value, nk_size_t *max_index) {
+    (void)data, (void)count, (void)stride_bytes, (void)min_value, (void)min_index, (void)max_value, (void)max_index;
+    nk_fill_error_(min_value, sizeof(nk_fmax_t));
+    nk_fill_error_(min_index, sizeof(nk_size_t));
+    nk_fill_error_(max_value, sizeof(nk_fmax_t));
+    nk_fill_error_(max_index, sizeof(nk_size_t));
 }
 
 nk_size_t nk_error_packed_size_(nk_size_t n, nk_size_t k) {
@@ -276,17 +277,19 @@ NK_ALIGN64 nk_implementations_t nk_dispatch_table;
                                              (void *)scale, (void *)result);                                       \
     }
 
-#define nk_dispatch_reduce_add_(extension, output_type)                                                                \
-    NK_DYNAMIC void nk_reduce_add_##extension(nk_##extension##_t const *data, nk_size_t count, nk_size_t stride_bytes, \
-                                              nk_##output_type##_t *result) {                                          \
-        nk_dispatch_table.reduce_add_##extension(data, count, stride_bytes, result);                                   \
+#define nk_dispatch_reduce_moments_(extension, data_type, sum_type, sumsq_type)                                      \
+    NK_DYNAMIC void nk_reduce_moments_##extension(data_type const *data, nk_size_t count, nk_size_t stride_bytes,    \
+                                                  sum_type *sum_ptr, sumsq_type *sumsq_ptr) {                        \
+        ((nk_kernel_reduce_moments_punned_t)nk_dispatch_table.reduce_moments_##extension)(data, count, stride_bytes, \
+                                                                                          sum_ptr, sumsq_ptr);       \
     }
 
-#define nk_dispatch_reduce_minmax_(name, extension, output_type)                                        \
-    NK_DYNAMIC void nk_reduce_##name##_##extension(nk_##extension##_t const *data, nk_size_t count,     \
-                                                   nk_size_t stride_bytes, nk_##output_type##_t *value, \
-                                                   nk_size_t *index) {                                  \
-        nk_dispatch_table.reduce_##name##_##extension(data, count, stride_bytes, value, index);         \
+#define nk_dispatch_reduce_minmax_(extension, data_type, minmax_type)                                                  \
+    NK_DYNAMIC void nk_reduce_minmax_##extension(data_type const *data, nk_size_t count, nk_size_t stride_bytes,       \
+                                                 minmax_type *min_value, nk_size_t *min_index, minmax_type *max_value, \
+                                                 nk_size_t *max_index) {                                               \
+        ((nk_kernel_reduce_minmax_punned_t)nk_dispatch_table.reduce_minmax_##extension)(                               \
+            data, count, stride_bytes, min_value, min_index, max_value, max_index);                                    \
     }
 
 #define nk_dispatch_cross_packed_size_(api_name, name, input_type, accum_type)          \
@@ -501,55 +504,47 @@ nk_dispatch_mesh_(kabsch, f64, f64)
 nk_dispatch_mesh_(umeyama, f32, f32)
 nk_dispatch_mesh_(umeyama, f64, f64)
 
-// Horizontal reductions
-nk_dispatch_reduce_add_(f32, f64)
-nk_dispatch_reduce_add_(f64, f64)
-nk_dispatch_reduce_minmax_(min, f32, f32)
-nk_dispatch_reduce_minmax_(max, f32, f32)
-nk_dispatch_reduce_minmax_(min, f64, f64)
-nk_dispatch_reduce_minmax_(max, f64, f64)
-nk_dispatch_reduce_add_(i8, i64)
-nk_dispatch_reduce_add_(u8, u64)
-nk_dispatch_reduce_add_(i16, i64)
-nk_dispatch_reduce_add_(u16, u64)
-nk_dispatch_reduce_add_(i32, i64)
-nk_dispatch_reduce_add_(u32, u64)
-nk_dispatch_reduce_add_(i64, i64)
-nk_dispatch_reduce_add_(u64, u64)
-nk_dispatch_reduce_minmax_(min, i8, i8)
-nk_dispatch_reduce_minmax_(max, i8, i8)
-nk_dispatch_reduce_minmax_(min, u8, u8)
-nk_dispatch_reduce_minmax_(max, u8, u8)
-nk_dispatch_reduce_minmax_(min, i16, i16)
-nk_dispatch_reduce_minmax_(max, i16, i16)
-nk_dispatch_reduce_minmax_(min, u16, u16)
-nk_dispatch_reduce_minmax_(max, u16, u16)
-nk_dispatch_reduce_minmax_(min, i32, i32)
-nk_dispatch_reduce_minmax_(max, i32, i32)
-nk_dispatch_reduce_minmax_(min, u32, u32)
-nk_dispatch_reduce_minmax_(max, u32, u32)
-nk_dispatch_reduce_minmax_(min, i64, i64)
-nk_dispatch_reduce_minmax_(max, i64, i64)
-nk_dispatch_reduce_minmax_(min, u64, u64)
-nk_dispatch_reduce_minmax_(max, u64, u64)
-nk_dispatch_reduce_add_(f16, f32)
-nk_dispatch_reduce_add_(bf16, f32)
-nk_dispatch_reduce_add_(e4m3, f32)
-nk_dispatch_reduce_add_(e5m2, f32)
-nk_dispatch_reduce_add_(e2m3, f32)
-nk_dispatch_reduce_add_(e3m2, f32)
-nk_dispatch_reduce_minmax_(min, f16, f32)
-nk_dispatch_reduce_minmax_(max, f16, f32)
-nk_dispatch_reduce_minmax_(min, bf16, f32)
-nk_dispatch_reduce_minmax_(max, bf16, f32)
-nk_dispatch_reduce_minmax_(min, e4m3, f32)
-nk_dispatch_reduce_minmax_(max, e4m3, f32)
-nk_dispatch_reduce_minmax_(min, e5m2, f32)
-nk_dispatch_reduce_minmax_(max, e5m2, f32)
-nk_dispatch_reduce_minmax_(min, e2m3, e2m3)
-nk_dispatch_reduce_minmax_(max, e2m3, e2m3)
-nk_dispatch_reduce_minmax_(min, e3m2, e3m2)
-nk_dispatch_reduce_minmax_(max, e3m2, e3m2)
+// Horizontal reductions: moments (sum + sum-of-squares)
+nk_dispatch_reduce_moments_(f32, nk_f32_t, nk_f64_t, nk_f64_t)
+nk_dispatch_reduce_moments_(f64, nk_f64_t, nk_f64_t, nk_f64_t)
+nk_dispatch_reduce_moments_(i8, nk_i8_t, nk_i64_t, nk_u64_t)
+nk_dispatch_reduce_moments_(u8, nk_u8_t, nk_u64_t, nk_u64_t)
+nk_dispatch_reduce_moments_(i16, nk_i16_t, nk_i64_t, nk_u64_t)
+nk_dispatch_reduce_moments_(u16, nk_u16_t, nk_u64_t, nk_u64_t)
+nk_dispatch_reduce_moments_(i32, nk_i32_t, nk_i64_t, nk_u64_t)
+nk_dispatch_reduce_moments_(u32, nk_u32_t, nk_u64_t, nk_u64_t)
+nk_dispatch_reduce_moments_(i64, nk_i64_t, nk_i64_t, nk_u64_t)
+nk_dispatch_reduce_moments_(u64, nk_u64_t, nk_u64_t, nk_u64_t)
+nk_dispatch_reduce_moments_(f16, nk_f16_t, nk_f32_t, nk_f32_t)
+nk_dispatch_reduce_moments_(bf16, nk_bf16_t, nk_f32_t, nk_f32_t)
+nk_dispatch_reduce_moments_(e4m3, nk_e4m3_t, nk_f32_t, nk_f32_t)
+nk_dispatch_reduce_moments_(e5m2, nk_e5m2_t, nk_f32_t, nk_f32_t)
+nk_dispatch_reduce_moments_(e2m3, nk_e2m3_t, nk_f32_t, nk_f32_t)
+nk_dispatch_reduce_moments_(e3m2, nk_e3m2_t, nk_f32_t, nk_f32_t)
+nk_dispatch_reduce_moments_(i4, nk_i4x2_t, nk_i64_t, nk_u64_t)
+nk_dispatch_reduce_moments_(u4, nk_u4x2_t, nk_u64_t, nk_u64_t)
+nk_dispatch_reduce_moments_(u1, nk_u1x8_t, nk_u64_t, nk_u64_t)
+
+// Horizontal reductions: minmax (min + max with indices)
+nk_dispatch_reduce_minmax_(f32, nk_f32_t, nk_f32_t)
+nk_dispatch_reduce_minmax_(f64, nk_f64_t, nk_f64_t)
+nk_dispatch_reduce_minmax_(i8, nk_i8_t, nk_i8_t)
+nk_dispatch_reduce_minmax_(u8, nk_u8_t, nk_u8_t)
+nk_dispatch_reduce_minmax_(i16, nk_i16_t, nk_i16_t)
+nk_dispatch_reduce_minmax_(u16, nk_u16_t, nk_u16_t)
+nk_dispatch_reduce_minmax_(i32, nk_i32_t, nk_i32_t)
+nk_dispatch_reduce_minmax_(u32, nk_u32_t, nk_u32_t)
+nk_dispatch_reduce_minmax_(i64, nk_i64_t, nk_i64_t)
+nk_dispatch_reduce_minmax_(u64, nk_u64_t, nk_u64_t)
+nk_dispatch_reduce_minmax_(f16, nk_f16_t, nk_f16_t)
+nk_dispatch_reduce_minmax_(bf16, nk_bf16_t, nk_bf16_t)
+nk_dispatch_reduce_minmax_(e4m3, nk_e4m3_t, nk_e4m3_t)
+nk_dispatch_reduce_minmax_(e5m2, nk_e5m2_t, nk_e5m2_t)
+nk_dispatch_reduce_minmax_(e2m3, nk_e2m3_t, nk_e2m3_t)
+nk_dispatch_reduce_minmax_(e3m2, nk_e3m2_t, nk_e3m2_t)
+nk_dispatch_reduce_minmax_(i4, nk_i4x2_t, nk_i8_t)
+nk_dispatch_reduce_minmax_(u4, nk_u4x2_t, nk_u8_t)
+nk_dispatch_reduce_minmax_(u1, nk_u1x8_t, nk_u8_t)
 
 // Matrix multiplications (GEMM with packed B)
 nk_dispatch_cross_packed_size_(dots, f32, f32, f32)

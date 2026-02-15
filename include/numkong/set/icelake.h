@@ -326,10 +326,28 @@ NK_INTERNAL void nk_hamming_u1x512_finalize_icelake( //
     nk_hamming_u1x512_state_icelake_t const *state_c, nk_hamming_u1x512_state_icelake_t const *state_d,
     nk_size_t total_dimensions, nk_b128_vec_t *result) {
     nk_unused_(total_dimensions);
-    result->u32s[0] = (nk_u32_t)_mm512_reduce_add_epi64(state_a->intersection_count_i64x8);
-    result->u32s[1] = (nk_u32_t)_mm512_reduce_add_epi64(state_b->intersection_count_i64x8);
-    result->u32s[2] = (nk_u32_t)_mm512_reduce_add_epi64(state_c->intersection_count_i64x8);
-    result->u32s[3] = (nk_u32_t)_mm512_reduce_add_epi64(state_d->intersection_count_i64x8);
+
+    // Port-optimized 4-way horizontal reduction, matching the Jaccard finalizer pattern.
+    // Truncate i64 → i32 early so we can use `VPHADDD` (p01) instead of shuffle-heavy i64 reductions (p5).
+
+    // Step 1: Truncate 8×i64 → 8×i32 per state via VPMOVQD (p01, 4cy, 0.5/cy)
+    __m256i a_i32x8 = _mm512_cvtepi64_epi32(state_a->intersection_count_i64x8);
+    __m256i b_i32x8 = _mm512_cvtepi64_epi32(state_b->intersection_count_i64x8);
+    __m256i c_i32x8 = _mm512_cvtepi64_epi32(state_c->intersection_count_i64x8);
+    __m256i d_i32x8 = _mm512_cvtepi64_epi32(state_d->intersection_count_i64x8);
+
+    // Step 2: Fold 8×i32 → 4×i32 (add high 128-bit lane to low)
+    __m128i a_i32x4 = _mm_add_epi32(_mm256_castsi256_si128(a_i32x8), _mm256_extracti128_si256(a_i32x8, 1));
+    __m128i b_i32x4 = _mm_add_epi32(_mm256_castsi256_si128(b_i32x8), _mm256_extracti128_si256(b_i32x8, 1));
+    __m128i c_i32x4 = _mm_add_epi32(_mm256_castsi256_si128(c_i32x8), _mm256_extracti128_si256(c_i32x8, 1));
+    __m128i d_i32x4 = _mm_add_epi32(_mm256_castsi256_si128(d_i32x8), _mm256_extracti128_si256(d_i32x8, 1));
+
+    // Step 3: Interleaved horizontal adds — 4×i32 → 2×i32 via VPHADDD (p01, 3cy, 0.5/cy)
+    __m128i ab_i32x4 = _mm_hadd_epi32(a_i32x4, b_i32x4); // [a01, a23, b01, b23]
+    __m128i cd_i32x4 = _mm_hadd_epi32(c_i32x4, d_i32x4); // [c01, c23, d01, d23]
+
+    // Step 4: Final horizontal add — 2×i32 → 1×i32 per state
+    result->xmm = _mm_hadd_epi32(ab_i32x4, cd_i32x4); // [sum_a, sum_b, sum_c, sum_d]
 }
 
 typedef struct nk_jaccard_u1x512_state_icelake_t {

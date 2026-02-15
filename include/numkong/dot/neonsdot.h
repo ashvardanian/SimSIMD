@@ -372,6 +372,125 @@ NK_INTERNAL void nk_dot_u4x32_finalize_neonsdot(                                
     result->u32s[3] = vaddvq_u32(state_d->product_sum_u32x4);
 }
 
+NK_PUBLIC void nk_dot_e2m3_neonsdot(nk_e2m3_t const *a_scalars, nk_e2m3_t const *b_scalars, nk_size_t count_scalars,
+                                    nk_f32_t *result) {
+    // Integer dot product for e2m3 using SDOT (signed×signed i8 → i32).
+    // Every e2m3 value × 16 is an exact integer in [-120, +120], fits signed i8.
+    // Result = i32_dot / 256.0f (exact, no rounding error).
+    //
+    // 32-entry LUT via vqtbl2q_u8 (handles 0-31 indices in one instruction).
+    static nk_u8_t const lut_data[32] = {0,  2,  4,  6,  8,  10, 12, 14, 16, 18, 20, 22, 24, 26,  28,  30,
+                                         32, 36, 40, 44, 48, 52, 56, 60, 64, 72, 80, 88, 96, 104, 112, 120};
+    uint8x16x2_t lut_magnitude_u8x16x2 = vld1q_u8_x2(lut_data);
+    uint8x16_t magnitude_mask_u8x16 = vdupq_n_u8(0x1F);
+    uint8x16_t sign_mask_u8x16 = vdupq_n_u8(0x20);
+    int32x4_t sum_i32x4 = vdupq_n_s32(0);
+    uint8x16_t a_e2m3_u8x16, b_e2m3_u8x16;
+
+nk_dot_e2m3_neonsdot_cycle:
+    if (count_scalars < 16) {
+        nk_b128_vec_t a_vec, b_vec;
+        nk_partial_load_b8x16_serial_(a_scalars, &a_vec, count_scalars);
+        nk_partial_load_b8x16_serial_(b_scalars, &b_vec, count_scalars);
+        a_e2m3_u8x16 = a_vec.u8x16;
+        b_e2m3_u8x16 = b_vec.u8x16;
+        count_scalars = 0;
+    }
+    else {
+        a_e2m3_u8x16 = vld1q_u8((nk_u8_t const *)a_scalars);
+        b_e2m3_u8x16 = vld1q_u8((nk_u8_t const *)b_scalars);
+        a_scalars += 16, b_scalars += 16, count_scalars -= 16;
+    }
+
+    // Extract 5-bit magnitude indices and LUT lookup
+    uint8x16_t a_magnitude_u8x16 = vandq_u8(a_e2m3_u8x16, magnitude_mask_u8x16);
+    uint8x16_t b_magnitude_u8x16 = vandq_u8(b_e2m3_u8x16, magnitude_mask_u8x16);
+    uint8x16_t a_unsigned_u8x16 = vqtbl2q_u8(lut_magnitude_u8x16x2, a_magnitude_u8x16);
+    uint8x16_t b_unsigned_u8x16 = vqtbl2q_u8(lut_magnitude_u8x16x2, b_magnitude_u8x16);
+
+    // Combined sign: (a ^ b) & 0x20 — nonzero means negative product
+    uint8x16_t sign_combined_u8x16 = vandq_u8(veorq_u8(a_e2m3_u8x16, b_e2m3_u8x16), sign_mask_u8x16);
+    uint8x16_t negate_mask_u8x16 = vceqq_u8(sign_combined_u8x16, sign_mask_u8x16);
+
+    // Negate b where signs differ, keep positive otherwise
+    int8x16_t b_signed_i8x16 = vbslq_s8(negate_mask_u8x16, vnegq_s8(vreinterpretq_s8_u8(b_unsigned_u8x16)),
+                                        vreinterpretq_s8_u8(b_unsigned_u8x16));
+
+    // SDOT: signed×signed, 4 bytes → i32
+    sum_i32x4 = vdotq_s32(sum_i32x4, vreinterpretq_s8_u8(a_unsigned_u8x16), b_signed_i8x16);
+
+    if (count_scalars) goto nk_dot_e2m3_neonsdot_cycle;
+    *result = (nk_f32_t)vaddvq_s32(sum_i32x4) / 256.0f;
+}
+
+NK_PUBLIC void nk_dot_e3m2_neonsdot(nk_e3m2_t const *a_scalars, nk_e3m2_t const *b_scalars, nk_size_t count_scalars,
+                                    nk_f32_t *result) {
+    // Integer dot product for e3m2 using i16 LUT via vqtbl2q_u8 (low bytes) + comparison (high byte) + SMLAL.
+    // Every e3m2 value × 16 is an exact integer, but magnitudes reach 448, requiring i16.
+    // Result = i32_dot / 256.0f (exact, no rounding error).
+    //
+    // The 32-entry magnitude LUT low bytes are looked up via vqtbl2q_u8.
+    // High byte is 1 only for indices 28-31 (values 256-448), replaced by a >= 28 comparison.
+    static nk_u8_t const lut_data[32] = {0,  1,  2,  3,  4,  5,  6,  7,   8,   10,  12,  14,  16, 20, 24,  28,
+                                         32, 40, 48, 56, 64, 80, 96, 112, 128, 160, 192, 224, 0,  64, 128, 192};
+    uint8x16x2_t lut = vld1q_u8_x2(lut_data);
+    uint8x16_t high_threshold_u8x16 = vdupq_n_u8(28);
+    uint8x16_t magnitude_mask_u8x16 = vdupq_n_u8(0x1F);
+    uint8x16_t sign_mask_u8x16 = vdupq_n_u8(0x20);
+    int32x4_t sum0_i32x4 = vdupq_n_s32(0);
+    int32x4_t sum1_i32x4 = vdupq_n_s32(0);
+    uint8x16_t a_e3m2_u8x16, b_e3m2_u8x16;
+
+nk_dot_e3m2_neonsdot_cycle:
+    if (count_scalars < 16) {
+        nk_b128_vec_t a_vec, b_vec;
+        nk_partial_load_b8x16_serial_(a_scalars, &a_vec, count_scalars);
+        nk_partial_load_b8x16_serial_(b_scalars, &b_vec, count_scalars);
+        a_e3m2_u8x16 = a_vec.u8x16;
+        b_e3m2_u8x16 = b_vec.u8x16;
+        count_scalars = 0;
+    }
+    else {
+        a_e3m2_u8x16 = vld1q_u8((nk_u8_t const *)a_scalars);
+        b_e3m2_u8x16 = vld1q_u8((nk_u8_t const *)b_scalars);
+        a_scalars += 16, b_scalars += 16, count_scalars -= 16;
+    }
+
+    // Extract 5-bit magnitude indices
+    uint8x16_t a_mag_u8x16 = vandq_u8(a_e3m2_u8x16, magnitude_mask_u8x16);
+    uint8x16_t b_mag_u8x16 = vandq_u8(b_e3m2_u8x16, magnitude_mask_u8x16);
+
+    // LUT lookup for low bytes; high byte via comparison (1 iff index >= 28)
+    uint8x16_t a_lo_u8x16 = vqtbl2q_u8(lut, a_mag_u8x16);
+    uint8x16_t b_lo_u8x16 = vqtbl2q_u8(lut, b_mag_u8x16);
+    uint8x16_t a_hi_u8x16 = vandq_u8(vcgeq_u8(a_mag_u8x16, high_threshold_u8x16), vdupq_n_u8(1));
+    uint8x16_t b_hi_u8x16 = vandq_u8(vcgeq_u8(b_mag_u8x16, high_threshold_u8x16), vdupq_n_u8(1));
+
+    // Combine low and high bytes into i16 via byte interleave (little-endian: low byte first)
+    int16x8_t a_unsigned_low_i16x8 = vreinterpretq_s16_u8(vzip1q_u8(a_lo_u8x16, a_hi_u8x16));
+    int16x8_t a_unsigned_high_i16x8 = vreinterpretq_s16_u8(vzip2q_u8(a_lo_u8x16, a_hi_u8x16));
+    int16x8_t b_unsigned_low_i16x8 = vreinterpretq_s16_u8(vzip1q_u8(b_lo_u8x16, b_hi_u8x16));
+    int16x8_t b_unsigned_high_i16x8 = vreinterpretq_s16_u8(vzip2q_u8(b_lo_u8x16, b_hi_u8x16));
+
+    // Combined sign: XOR sign bits, negate only b (saves ~15 ops vs independent negation)
+    uint8x16_t sign_combined_u8x16 = vandq_u8(veorq_u8(a_e3m2_u8x16, b_e3m2_u8x16), sign_mask_u8x16);
+    uint8x16_t negate_mask_u8x16 = vceqq_u8(sign_combined_u8x16, sign_mask_u8x16);
+    uint16x8_t negate_low_u16x8 = vreinterpretq_u16_u8(vzip1q_u8(negate_mask_u8x16, negate_mask_u8x16));
+    uint16x8_t negate_high_u16x8 = vreinterpretq_u16_u8(vzip2q_u8(negate_mask_u8x16, negate_mask_u8x16));
+    b_unsigned_low_i16x8 = vbslq_s16(negate_low_u16x8, vnegq_s16(b_unsigned_low_i16x8), b_unsigned_low_i16x8);
+    b_unsigned_high_i16x8 = vbslq_s16(negate_high_u16x8, vnegq_s16(b_unsigned_high_i16x8), b_unsigned_high_i16x8);
+
+    // Widening multiply-accumulate: i16×i16 → i32
+    sum0_i32x4 = vmlal_s16(sum0_i32x4, vget_low_s16(a_unsigned_low_i16x8), vget_low_s16(b_unsigned_low_i16x8));
+    sum0_i32x4 = vmlal_high_s16(sum0_i32x4, a_unsigned_low_i16x8, b_unsigned_low_i16x8);
+    sum1_i32x4 = vmlal_s16(sum1_i32x4, vget_low_s16(a_unsigned_high_i16x8), vget_low_s16(b_unsigned_high_i16x8));
+    sum1_i32x4 = vmlal_high_s16(sum1_i32x4, a_unsigned_high_i16x8, b_unsigned_high_i16x8);
+
+    if (count_scalars) goto nk_dot_e3m2_neonsdot_cycle;
+    int32x4_t total_i32x4 = vaddq_s32(sum0_i32x4, sum1_i32x4);
+    *result = (nk_f32_t)vaddvq_s32(total_i32x4) / 256.0f;
+}
+
 #if defined(__clang__)
 #pragma clang attribute pop
 #elif defined(__GNUC__)

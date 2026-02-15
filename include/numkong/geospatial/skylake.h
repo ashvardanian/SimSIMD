@@ -1,5 +1,5 @@
 /**
- *  @brief SIMD-accelerated Geographic Distances for Skylake.
+ *  @brief SIMD-accelerated Geospatial Distances for Skylake.
  *  @file include/numkong/geospatial/skylake.h
  *  @author Ash Vardanian
  *  @date February 6, 2026

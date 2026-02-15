@@ -21,6 +21,10 @@ void test_cross_sme() {
                    nk_dots_packed_e4m3_sme);
     run_if_matches("dots_packed_e5m2_sme", test_dots<e5m2_t>, nk_dots_packed_size_e5m2_sme, nk_dots_pack_e5m2_sme,
                    nk_dots_packed_e5m2_sme);
+    run_if_matches("dots_packed_e2m3_sme", test_dots<e2m3_t>, nk_dots_packed_size_e2m3_sme, nk_dots_pack_e2m3_sme,
+                   nk_dots_packed_e2m3_sme);
+    run_if_matches("dots_packed_e3m2_sme", test_dots<e3m2_t>, nk_dots_packed_size_e3m2_sme, nk_dots_pack_e3m2_sme,
+                   nk_dots_packed_e3m2_sme);
     run_if_matches("dots_packed_i4_sme", test_dots<i4x2_t>, nk_dots_packed_size_i4_sme, nk_dots_pack_i4_sme,
                    nk_dots_packed_i4_sme);
     run_if_matches("dots_packed_u4_sme", test_dots<u4x2_t>, nk_dots_packed_size_u4_sme, nk_dots_pack_u4_sme,
@@ -34,6 +38,8 @@ void test_cross_sme() {
     run_if_matches("dots_symmetric_u4_sme", test_dots_symmetric<u4x2_t>, nk_dots_symmetric_u4_sme);
     run_if_matches("dots_symmetric_e4m3_sme", test_dots_symmetric<e4m3_t>, nk_dots_symmetric_e4m3_sme);
     run_if_matches("dots_symmetric_e5m2_sme", test_dots_symmetric<e5m2_t>, nk_dots_symmetric_e5m2_sme);
+    run_if_matches("dots_symmetric_e2m3_sme", test_dots_symmetric<e2m3_t>, nk_dots_symmetric_e2m3_sme);
+    run_if_matches("dots_symmetric_e3m2_sme", test_dots_symmetric<e3m2_t>, nk_dots_symmetric_e3m2_sme);
 #endif
 
 #if NK_TARGET_SMEBI32

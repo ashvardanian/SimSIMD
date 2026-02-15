@@ -9,22 +9,24 @@
  *
  *  Environment Variables:
  *    NK_FILTER=<pattern>           - Filter tests by name RegEx (default: run all)
- *    NK_SEED=N                     - RNG seed (default: 12345)
+ *    NK_SEED=N                     - RNG seed (default: 42)
  *
- *    NK_DENSE_DIMENSIONS=N         - Vector dimension for dot/spatial tests (default: 1024)
+ *    NK_DENSE_DIMENSIONS=N         - Vector dimension for dot/spatial tests (default: 1536)
+ *    NK_CURVED_DIMENSIONS=N        - Vector dimension for curved tests (default: 64)
  *    NK_SPARSE_DIMENSIONS=N        - Vector dimension for sparse tests (default: 256)
- *    NK_MESH_POINTS=N              - Point count for mesh tests (default: 256)
- *    NK_MATRIX_HEIGHT=N            - GEMM M dimension (default: 64)
- *    NK_MATRIX_WIDTH=N             - GEMM N dimension (default: 64)
- *    NK_MATRIX_DEPTH=N             - GEMM K dimension (default: 64)
+ *    NK_MESH_POINTS=N              - Point count for mesh tests (default: 1000)
+ *    NK_MATRIX_HEIGHT=N            - GEMM M dimension (default: 1024)
+ *    NK_MATRIX_WIDTH=N             - GEMM N dimension (default: 128)
+ *    NK_MATRIX_DEPTH=N             - GEMM K dimension (default: 1536)
  *
+ *    NK_IN_QEMU                    - Set when running under QEMU (relaxes accuracy thresholds)
  *    NK_TEST_ASSERT=1              - Assert on ULP threshold violations (default: 0)
  *    NK_TEST_VERBOSE=1             - Show per-dimension ULP breakdown (default: 0)
- *    NK_TEST_ULP_THRESHOLD_F32=N   - Max allowed ULP for f32 (default: 4)
- *    NK_TEST_ULP_THRESHOLD_F16=N   - Max allowed ULP for f16 (default: 32)
- *    NK_TEST_ULP_THRESHOLD_BF16=N  - Max allowed ULP for bf16 (default: 256)
+ *    NK_ULP_THRESHOLD_F32=N        - Max allowed ULP for f32 (default: 4)
+ *    NK_ULP_THRESHOLD_F16=N        - Max allowed ULP for f16 (default: 32)
+ *    NK_ULP_THRESHOLD_BF16=N       - Max allowed ULP for bf16 (default: 256)
  *    NK_TEST_TIME_BUDGET_MS=N      - Time budget per kernel in ms (default: 1000)
- *    NK_TEST_DISTRIBUTION=<type>   - Random distribution: uniform_k|lognormal_k|cauchy_k (default: lognormal_k)
+ *    NK_RANDOM_DISTRIBUTION=<type> - Random distribution: uniform_k|lognormal_k|cauchy_k (default: lognormal_k)
  */
 
 #pragma once
@@ -115,6 +117,7 @@ template class nk::vector<nk::f64c_t>;
 template class nk::vector<std::complex<float>>;
 
 extern std::size_t dense_dimensions;  // For dot products, spatial metrics
+extern std::size_t curved_dimensions; // For curved metrics (quadratic in dims)
 extern std::size_t sparse_dimensions; // For sparse set intersection and sparse dot
 extern std::size_t mesh_points;       // For RMSD, Kabsch (3D point clouds)
 extern std::size_t matrix_height, matrix_width, matrix_depth;
@@ -123,12 +126,13 @@ enum class random_distribution_kind_t { uniform_k, lognormal_k, cauchy_k };
 
 struct test_config_t {
     bool assert_on_failure = false;
-    bool verbose = false; // Show per-dimension stats
+    bool verbose = false;         // Show per-dimension stats
+    bool running_in_qemu = false; // Relaxed accuracy for emulated SIMD
     std::uint64_t ulp_threshold_f32 = 4;
     std::uint64_t ulp_threshold_f16 = 32;
     std::uint64_t ulp_threshold_bf16 = 256;
     std::size_t time_budget_ms = 1000; // Time budget per kernel in milliseconds
-    std::uint32_t seed = 12345;
+    std::uint32_t seed = 42;
     char const *filter = nullptr; // Filter tests by name (substring match)
     random_distribution_kind_t distribution = random_distribution_kind_t::lognormal_k; // Default: moderate heavy tails
 
@@ -426,5 +430,6 @@ void test_cross_amx();
 void test_cross_arm();
 void test_cross_sme();
 void test_cross_blas();
+void test_cross_rvv();
 
 #endif // NK_TEST_HPP

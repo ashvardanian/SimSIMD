@@ -202,9 +202,8 @@ typedef enum {
     nk_kernel_each_atan_k = 'A', ///< Element-wise arctangent
 
     // Horizontal reductions:
-    nk_kernel_reduce_add_k = 'R', ///< Horizontal sum reduction
-    nk_kernel_reduce_min_k = '<', ///< Horizontal min reduction with argmin
-    nk_kernel_reduce_max_k = '>', ///< Horizontal max reduction with argmax
+    nk_kernel_reduce_moments_k = 'R', ///< Horizontal moments reduction (sum + sum-of-squares)
+    nk_kernel_reduce_minmax_k = 'X',  ///< Horizontal minmax reduction (min + argmin + max + argmax)
 
     // Matrix multiplication (GEMM):
     nk_kernel_dots_packed_size_k = 'P', ///< GEMM packed buffer size
@@ -296,10 +295,12 @@ typedef void (*nk_kernel_trigonometry_punned_t)(void const *x, nk_size_t n, void
 typedef void (*nk_metric_mesh_punned_t)(void const *a, void const *b, nk_size_t n, void *a_centroid, void *b_centroid,
                                         void *rotation, void *scale, void *d);
 
-typedef void (*nk_kernel_reduce_add_punned_t)(void const *data, nk_size_t count, nk_size_t stride_bytes, void *result);
+typedef void (*nk_kernel_reduce_moments_punned_t)(void const *data, nk_size_t count, nk_size_t stride_bytes,
+                                                  void *sum_ptr, void *sumsq_ptr);
 
-typedef void (*nk_kernel_reduce_minmax_punned_t)(void const *data, nk_size_t count, nk_size_t stride_bytes, void *value,
-                                                 nk_size_t *index);
+typedef void (*nk_kernel_reduce_minmax_punned_t)(void const *data, nk_size_t count, nk_size_t stride_bytes,
+                                                 void *min_value, nk_size_t *min_index, void *max_value,
+                                                 nk_size_t *max_index);
 
 typedef nk_size_t (*nk_dots_packed_size_punned_t)(nk_size_t n, nk_size_t k);
 
@@ -389,6 +390,7 @@ NK_PUBLIC nk_capability_t nk_capabilities_x86_(void) {
     unsigned supports_avx512vnni = (info7.named.ecx & 0x00000800) != 0;
     unsigned supports_avx512ifma = (info7.named.ebx & 0x00200000) != 0;
     unsigned supports_avx512bitalg = (info7.named.ecx & 0x00001000) != 0;
+    unsigned supports_avx512vbmi = (info7.named.ecx & 0x00000002) != 0;
     unsigned supports_avx512vbmi2 = (info7.named.ecx & 0x00000040) != 0;
     unsigned supports_avx512vpopcntdq = (info7.named.ecx & 0x00004000) != 0;
     unsigned supports_avx512bf16 = (info7sub1.named.eax & 0x00000020) != 0;
@@ -402,7 +404,7 @@ NK_PUBLIC nk_capability_t nk_capabilities_x86_(void) {
     unsigned supports_haswell = supports_avx2 && supports_f16c && supports_fma;
     unsigned supports_skylake = supports_avx512f;
     unsigned supports_icelake = supports_avx512vnni && supports_avx512ifma && supports_avx512bitalg &&
-                                supports_avx512vbmi2 && supports_avx512vpopcntdq;
+                                supports_avx512vbmi && supports_avx512vbmi2 && supports_avx512vpopcntdq;
     unsigned supports_genoa = supports_avx512bf16;
     unsigned supports_sapphire = supports_avx512fp16;
     unsigned supports_turin = supports_avx512vp2intersect && supports_avx512bf16;

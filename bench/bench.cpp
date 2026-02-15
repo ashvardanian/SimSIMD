@@ -8,7 +8,7 @@
  *  throughput performance. Run with:
  *
  *  ```bash
- *  cmake -B build_release -D NK_BUILD_BENCHMARKS=1
+ *  cmake -B build_release -D NK_BUILD_BENCH=1
  *  cmake --build build_release
  *  build_release/nk_bench
  *  ```
@@ -230,6 +230,7 @@ int main(int argc, char **argv) {
     bench_cross_arm();
     bench_cross_sme();
     bench_cross_blas();
+    bench_cross_rvv();
 
     bm::RunSpecifiedBenchmarks();
     bm::Shutdown();

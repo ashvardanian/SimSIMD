@@ -1,5 +1,5 @@
 /**
- *  @brief SIMD-accelerated Geographic Distances.
+ *  @brief SIMD-accelerated Geospatial Distances.
  *  @file include/numkong/geospatial.h
  *  @author Ash Vardanian
  *  @date July 1, 2023
@@ -295,6 +295,29 @@ NK_PUBLIC void nk_vincenty_f32_v128relaxed(         //
     nk_f32_t const *b_lats, nk_f32_t const *b_lons, //
     nk_size_t n, nk_f32_t *results);
 #endif // NK_TARGET_V128RELAXED
+
+#if NK_TARGET_RVV
+/** @copydoc nk_haversine_f64 */
+NK_PUBLIC void nk_haversine_f64_rvv(                //
+    nk_f64_t const *a_lats, nk_f64_t const *a_lons, //
+    nk_f64_t const *b_lats, nk_f64_t const *b_lons, //
+    nk_size_t n, nk_f64_t *results);
+/** @copydoc nk_vincenty_f64 */
+NK_PUBLIC void nk_vincenty_f64_rvv(                 //
+    nk_f64_t const *a_lats, nk_f64_t const *a_lons, //
+    nk_f64_t const *b_lats, nk_f64_t const *b_lons, //
+    nk_size_t n, nk_f64_t *results);
+/** @copydoc nk_haversine_f32 */
+NK_PUBLIC void nk_haversine_f32_rvv(                //
+    nk_f32_t const *a_lats, nk_f32_t const *a_lons, //
+    nk_f32_t const *b_lats, nk_f32_t const *b_lons, //
+    nk_size_t n, nk_f32_t *results);
+/** @copydoc nk_vincenty_f32 */
+NK_PUBLIC void nk_vincenty_f32_rvv(                 //
+    nk_f32_t const *a_lats, nk_f32_t const *a_lons, //
+    nk_f32_t const *b_lats, nk_f32_t const *b_lons, //
+    nk_size_t n, nk_f32_t *results);
+#endif // NK_TARGET_RVV
 
 /**
  *  @brief  Returns the output dtype for Haversine distance.

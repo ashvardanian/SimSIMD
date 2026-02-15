@@ -295,8 +295,8 @@ void measure_hammings_packed(                                                   
     nk_size_t b_stride_bytes = values_per_row * sizeof(typename input_t::raw_t);
 
     // Allocate matrices
-    auto matrix_a = make_vector<input_t>(m * values_per_row);
-    auto matrix_b = make_vector<input_t>(n * values_per_row);
+    auto matrix_a = make_vector<input_t>(m * k);
+    auto matrix_b = make_vector<input_t>(n * k);
     nk_size_t packed_bytes = packed_size_fn(n, k);
     std::vector<char> matrix_b_packed(packed_bytes, 0);
     auto matrix_c = make_vector<output_t>(m * n);
@@ -340,7 +340,7 @@ void measure_hammings_symmetric(                                                
     nk_size_t output_stride_bytes = n * sizeof(raw_output_t);
 
     // Allocate matrix A (n vectors x k bits) and result matrix C (n x n)
-    auto matrix_a = make_vector<input_t>(n * input_values_per_row);
+    auto matrix_a = make_vector<input_t>(n * k);
     auto matrix_c = make_vector<output_t>(n * n);
 
     // Initialize with random values
@@ -403,3 +403,4 @@ void bench_cross_amx();
 void bench_cross_arm();
 void bench_cross_sme();
 void bench_cross_blas();
+void bench_cross_rvv();

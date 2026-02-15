@@ -1,8 +1,8 @@
 /**
- *  @file v128relaxed.h
- *  @brief      WASM SIMD (v128) type conversion helpers for BF16/F16 to F32.
- *  @author     Ash Vardanian
- *  @date       January 31, 2026
+ *  @brief SIMD-accelerated Type Conversions for WASM.
+ *  @file include/numkong/cast/v128relaxed.h
+ *  @author Ash Vardanian
+ *  @date January 31, 2026
  *
  *  @section cast_wasm_instructions Key WASM SIMD Instructions
  *
@@ -118,6 +118,43 @@ NK_INTERNAL nk_b128_vec_t nk_f16x4_to_f32x4_v128relaxed_(nk_b64_vec_t f16_vec) {
 
     nk_b128_vec_t result;
     result.v128 = result_u32x4;
+    return result;
+}
+
+NK_INTERNAL nk_b128_vec_t nk_e4m3x4_to_f32x4_v128relaxed_(nk_b32_vec_t e4m3_vec) {
+    v128_t e4m3_u32x4 = wasm_u32x4_extend_low_u16x8(wasm_u16x8_extend_low_u8x16(wasm_v128_load32_zero(&e4m3_vec.u32)));
+    v128_t exp_u32x4 = wasm_v128_and(wasm_u32x4_shr(e4m3_u32x4, 3), wasm_i32x4_splat(0x0F));
+    v128_t mant_u32x4 = wasm_v128_and(e4m3_u32x4, wasm_i32x4_splat(0x07));
+    v128_t sign_u32x4 = wasm_i32x4_shl(wasm_u32x4_shr(e4m3_u32x4, 7), 31);
+    v128_t f32_exp_u32x4 = wasm_i32x4_shl(wasm_i32x4_add(exp_u32x4, wasm_i32x4_splat(120)), 23);
+    v128_t f32_mant_u32x4 = wasm_i32x4_shl(mant_u32x4, 20);
+    v128_t normal_bits_u32x4 = wasm_v128_or(sign_u32x4, wasm_v128_or(f32_exp_u32x4, f32_mant_u32x4));
+    v128_t subnorm_abs_f32x4 = wasm_f32x4_mul(wasm_f32x4_convert_u32x4(mant_u32x4), wasm_f32x4_splat(1.0f / 512.0f));
+    v128_t subnorm_f32x4 = wasm_v128_or(subnorm_abs_f32x4, sign_u32x4);
+    v128_t exp_zero_mask = wasm_i32x4_eq(exp_u32x4, wasm_i32x4_splat(0));
+    v128_t result_u32x4 = wasm_i32x4_relaxed_laneselect(subnorm_f32x4, normal_bits_u32x4, exp_zero_mask);
+    v128_t is_nan_mask = wasm_v128_and(wasm_i32x4_eq(exp_u32x4, wasm_i32x4_splat(15)),
+                                       wasm_i32x4_eq(mant_u32x4, wasm_i32x4_splat(7)));
+    v128_t nan_bits = wasm_v128_or(sign_u32x4, wasm_i32x4_splat(0x7FC00000));
+    result_u32x4 = wasm_i32x4_relaxed_laneselect(nan_bits, result_u32x4, is_nan_mask);
+    nk_b128_vec_t result;
+    result.v128 = result_u32x4;
+    return result;
+}
+
+NK_INTERNAL nk_b128_vec_t nk_e5m2x4_to_f32x4_v128relaxed_(nk_b32_vec_t e5m2_vec) {
+    v128_t e5m2_u32x4 = wasm_u32x4_extend_low_u16x8(wasm_u16x8_extend_low_u8x16(wasm_v128_load32_zero(&e5m2_vec.u32)));
+    v128_t exp_u32x4 = wasm_v128_and(wasm_u32x4_shr(e5m2_u32x4, 2), wasm_i32x4_splat(0x1F));
+    v128_t mant_u32x4 = wasm_v128_and(e5m2_u32x4, wasm_i32x4_splat(0x03));
+    v128_t sign_u32x4 = wasm_i32x4_shl(wasm_u32x4_shr(e5m2_u32x4, 7), 31);
+    v128_t f32_exp_u32x4 = wasm_i32x4_shl(wasm_i32x4_add(exp_u32x4, wasm_i32x4_splat(112)), 23);
+    v128_t f32_mant_u32x4 = wasm_i32x4_shl(mant_u32x4, 21);
+    v128_t normal_bits_u32x4 = wasm_v128_or(sign_u32x4, wasm_v128_or(f32_exp_u32x4, f32_mant_u32x4));
+    v128_t subnorm_abs_f32x4 = wasm_f32x4_mul(wasm_f32x4_convert_u32x4(mant_u32x4), wasm_f32x4_splat(1.0f / 65536.0f));
+    v128_t subnorm_f32x4 = wasm_v128_or(subnorm_abs_f32x4, sign_u32x4);
+    v128_t exp_zero_mask = wasm_i32x4_eq(exp_u32x4, wasm_i32x4_splat(0));
+    nk_b128_vec_t result;
+    result.v128 = wasm_i32x4_relaxed_laneselect(subnorm_f32x4, normal_bits_u32x4, exp_zero_mask);
     return result;
 }
 

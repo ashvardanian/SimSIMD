@@ -148,56 +148,99 @@ int impl_elementwise_scale(char *a, char *out, size_t n, nk_dtype_t dtype, doubl
 
 #pragma region Reductions
 
-/**  @brief Recursive helper for impl_reduce_sum.  */
-static void reduce_sum_recursive(TensorView const *view, size_t dim, char *ptr, double *result_f, int64_t *result_i) {
+/**  @brief Recursive helper for impl_reduce_moments.  */
+static void reduce_moments_recursive(TensorView const *view, size_t dim, char *ptr, double *sum_f, int64_t *sum_i,
+                                     double *sumsq_f, int64_t *sumsq_i) {
     if (dim == view->rank - 1) {
         // Base case: innermost dimension
         size_t const n = (size_t)view->shape[dim];
         Py_ssize_t const stride = view->strides[dim];
         switch (view->dtype) {
         case nk_f64_k:
-            for (size_t i = 0; i < n; i++) *result_f += *(nk_f64_t *)(ptr + i * stride);
+            for (size_t i = 0; i < n; i++) {
+                nk_f64_t v = *(nk_f64_t *)(ptr + i * stride);
+                *sum_f += v;
+                *sumsq_f += v * v;
+            }
             break;
         case nk_f32_k:
-            for (size_t i = 0; i < n; i++) *result_f += *(nk_f32_t *)(ptr + i * stride);
+            for (size_t i = 0; i < n; i++) {
+                nk_f32_t v = *(nk_f32_t *)(ptr + i * stride);
+                *sum_f += v;
+                *sumsq_f += (double)v * v;
+            }
             break;
         case nk_f16_k: {
             nk_f32_t tmp;
             for (size_t i = 0; i < n; i++) {
                 nk_f16_to_f32((nk_f16_t *)(ptr + i * stride), &tmp);
-                *result_f += tmp;
+                *sum_f += tmp;
+                *sumsq_f += (double)tmp * tmp;
             }
         } break;
         case nk_bf16_k: {
             nk_f32_t tmp;
             for (size_t i = 0; i < n; i++) {
                 nk_bf16_to_f32((nk_bf16_t *)(ptr + i * stride), &tmp);
-                *result_f += tmp;
+                *sum_f += tmp;
+                *sumsq_f += (double)tmp * tmp;
             }
         } break;
         case nk_i8_k:
-            for (size_t i = 0; i < n; i++) *result_i += *(nk_i8_t *)(ptr + i * stride);
+            for (size_t i = 0; i < n; i++) {
+                nk_i8_t v = *(nk_i8_t *)(ptr + i * stride);
+                *sum_i += v;
+                *sumsq_i += (int64_t)v * v;
+            }
             break;
         case nk_u8_k:
-            for (size_t i = 0; i < n; i++) *result_i += *(nk_u8_t *)(ptr + i * stride);
+            for (size_t i = 0; i < n; i++) {
+                nk_u8_t v = *(nk_u8_t *)(ptr + i * stride);
+                *sum_i += v;
+                *sumsq_i += (int64_t)v * v;
+            }
             break;
         case nk_i16_k:
-            for (size_t i = 0; i < n; i++) *result_i += *(nk_i16_t *)(ptr + i * stride);
+            for (size_t i = 0; i < n; i++) {
+                nk_i16_t v = *(nk_i16_t *)(ptr + i * stride);
+                *sum_i += v;
+                *sumsq_i += (int64_t)v * v;
+            }
             break;
         case nk_u16_k:
-            for (size_t i = 0; i < n; i++) *result_i += *(nk_u16_t *)(ptr + i * stride);
+            for (size_t i = 0; i < n; i++) {
+                nk_u16_t v = *(nk_u16_t *)(ptr + i * stride);
+                *sum_i += v;
+                *sumsq_i += (int64_t)v * v;
+            }
             break;
         case nk_i32_k:
-            for (size_t i = 0; i < n; i++) *result_i += *(nk_i32_t *)(ptr + i * stride);
+            for (size_t i = 0; i < n; i++) {
+                nk_i32_t v = *(nk_i32_t *)(ptr + i * stride);
+                *sum_i += v;
+                *sumsq_i += (int64_t)v * v;
+            }
             break;
         case nk_u32_k:
-            for (size_t i = 0; i < n; i++) *result_i += *(nk_u32_t *)(ptr + i * stride);
+            for (size_t i = 0; i < n; i++) {
+                nk_u32_t v = *(nk_u32_t *)(ptr + i * stride);
+                *sum_i += v;
+                *sumsq_i += (int64_t)v * v;
+            }
             break;
         case nk_i64_k:
-            for (size_t i = 0; i < n; i++) *result_i += *(nk_i64_t *)(ptr + i * stride);
+            for (size_t i = 0; i < n; i++) {
+                nk_i64_t v = *(nk_i64_t *)(ptr + i * stride);
+                *sum_i += v;
+                *sumsq_i += v * v;
+            }
             break;
         case nk_u64_k:
-            for (size_t i = 0; i < n; i++) *result_i += (int64_t)*(nk_u64_t *)(ptr + i * stride);
+            for (size_t i = 0; i < n; i++) {
+                nk_u64_t v = *(nk_u64_t *)(ptr + i * stride);
+                *sum_i += (int64_t)v;
+                *sumsq_i += (int64_t)(v * v);
+            }
             break;
         default: break;
         }
@@ -206,188 +249,239 @@ static void reduce_sum_recursive(TensorView const *view, size_t dim, char *ptr, 
         // Recursive case: iterate outer dimension
         size_t const n = (size_t)view->shape[dim];
         Py_ssize_t const stride = view->strides[dim];
-        for (size_t i = 0; i < n; i++) { reduce_sum_recursive(view, dim + 1, ptr + i * stride, result_f, result_i); }
+        for (size_t i = 0; i < n; i++) {
+            reduce_moments_recursive(view, dim + 1, ptr + i * stride, sum_f, sum_i, sumsq_f, sumsq_i);
+        }
     }
 }
 
-int impl_reduce_sum(TensorView const *view, double *result_f, int64_t *result_i) {
-    if (result_f) *result_f = 0;
-    if (result_i) *result_i = 0;
+int impl_reduce_moments(TensorView const *view, double *sum_f, int64_t *sum_i, double *sumsq_f, int64_t *sumsq_i) {
+    if (sum_f) *sum_f = 0;
+    if (sum_i) *sum_i = 0;
+    if (sumsq_f) *sumsq_f = 0;
+    if (sumsq_i) *sumsq_i = 0;
     if (view->rank == 0) {
         // Scalar case
         switch (view->dtype) {
-        case nk_f64_k: *result_f = *(nk_f64_t *)view->data; return 0;
-        case nk_f32_k: *result_f = *(nk_f32_t *)view->data; return 0;
-        case nk_i64_k: *result_i = *(nk_i64_t *)view->data; return 0;
-        case nk_i32_k: *result_i = *(nk_i32_t *)view->data; return 0;
+        case nk_f64_k: {
+            double v = *(nk_f64_t *)view->data;
+            *sum_f = v;
+            *sumsq_f = v * v;
+            return 0;
+        }
+        case nk_f32_k: {
+            double v = *(nk_f32_t *)view->data;
+            *sum_f = v;
+            *sumsq_f = v * v;
+            return 0;
+        }
+        case nk_i64_k: {
+            int64_t v = *(nk_i64_t *)view->data;
+            *sum_i = v;
+            *sumsq_i = v * v;
+            return 0;
+        }
+        case nk_i32_k: {
+            int64_t v = *(nk_i32_t *)view->data;
+            *sum_i = v;
+            *sumsq_i = v * v;
+            return 0;
+        }
         default: return -1;
         }
     }
-    reduce_sum_recursive(view, 0, view->data, result_f, result_i);
+    reduce_moments_recursive(view, 0, view->data, sum_f, sum_i, sumsq_f, sumsq_i);
     return 0;
 }
 
-/// Macro for min/max reduction over all supported types.
-/// @param cmp_op_  Comparison operator (< for min, > for max).
-/// @param result_  Pointer to result variable (*global_min_f or *global_max_i).
-#define reduce_extremum_(cmp_op_, result_)                                                             \
-    do {                                                                                               \
-        size_t const n = (size_t)view->shape[dim];                                                     \
-        Py_ssize_t const stride = view->strides[dim];                                                  \
-        switch (view->dtype) {                                                                         \
-        case nk_f64_k:                                                                                 \
-            for (size_t i = 0; i < n; i++) {                                                           \
-                nk_f64_t v = *(nk_f64_t *)(ptr + i * stride);                                          \
-                if (v cmp_op_ * global_f) *global_f = v, *global_idx = base_idx + i;                   \
-            }                                                                                          \
-            break;                                                                                     \
-        case nk_f32_k:                                                                                 \
-            for (size_t i = 0; i < n; i++) {                                                           \
-                nk_f32_t v = *(nk_f32_t *)(ptr + i * stride);                                          \
-                if (v cmp_op_ * global_f) *global_f = v, *global_idx = base_idx + i;                   \
-            }                                                                                          \
-            break;                                                                                     \
-        case nk_f16_k:                                                                                 \
-            for (size_t i = 0; i < n; i++) {                                                           \
-                nk_f32_t v;                                                                            \
-                nk_f16_to_f32((nk_f16_t *)(ptr + i * stride), &v);                                     \
-                if (v cmp_op_ * global_f) *global_f = v, *global_idx = base_idx + i;                   \
-            }                                                                                          \
-            break;                                                                                     \
-        case nk_bf16_k:                                                                                \
-            for (size_t i = 0; i < n; i++) {                                                           \
-                nk_f32_t v;                                                                            \
-                nk_bf16_to_f32((nk_bf16_t *)(ptr + i * stride), &v);                                   \
-                if (v cmp_op_ * global_f) *global_f = v, *global_idx = base_idx + i;                   \
-            }                                                                                          \
-            break;                                                                                     \
-        case nk_i64_k:                                                                                 \
-            for (size_t i = 0; i < n; i++) {                                                           \
-                nk_i64_t v = *(nk_i64_t *)(ptr + i * stride);                                          \
-                if (v cmp_op_ * global_i) *global_i = v, *global_idx = base_idx + i;                   \
-            }                                                                                          \
-            break;                                                                                     \
-        case nk_i32_k:                                                                                 \
-            for (size_t i = 0; i < n; i++) {                                                           \
-                nk_i32_t v = *(nk_i32_t *)(ptr + i * stride);                                          \
-                if (v cmp_op_ * global_i) *global_i = v, *global_idx = base_idx + i;                   \
-            }                                                                                          \
-            break;                                                                                     \
-        case nk_i16_k:                                                                                 \
-            for (size_t i = 0; i < n; i++) {                                                           \
-                nk_i16_t v = *(nk_i16_t *)(ptr + i * stride);                                          \
-                if (v cmp_op_ * global_i) *global_i = v, *global_idx = base_idx + i;                   \
-            }                                                                                          \
-            break;                                                                                     \
-        case nk_i8_k:                                                                                  \
-            for (size_t i = 0; i < n; i++) {                                                           \
-                nk_i8_t v = *(nk_i8_t *)(ptr + i * stride);                                            \
-                if (v cmp_op_ * global_i) *global_i = v, *global_idx = base_idx + i;                   \
-            }                                                                                          \
-            break;                                                                                     \
-        case nk_u64_k:                                                                                 \
-            for (size_t i = 0; i < n; i++) {                                                           \
-                nk_u64_t v = *(nk_u64_t *)(ptr + i * stride);                                          \
-                if ((int64_t)v cmp_op_ * global_i) *global_i = (int64_t)v, *global_idx = base_idx + i; \
-            }                                                                                          \
-            break;                                                                                     \
-        case nk_u32_k:                                                                                 \
-            for (size_t i = 0; i < n; i++) {                                                           \
-                nk_u32_t v = *(nk_u32_t *)(ptr + i * stride);                                          \
-                if (v cmp_op_ * global_i) *global_i = v, *global_idx = base_idx + i;                   \
-            }                                                                                          \
-            break;                                                                                     \
-        case nk_u16_k:                                                                                 \
-            for (size_t i = 0; i < n; i++) {                                                           \
-                nk_u16_t v = *(nk_u16_t *)(ptr + i * stride);                                          \
-                if (v cmp_op_ * global_i) *global_i = v, *global_idx = base_idx + i;                   \
-            }                                                                                          \
-            break;                                                                                     \
-        case nk_u8_k:                                                                                  \
-            for (size_t i = 0; i < n; i++) {                                                           \
-                nk_u8_t v = *(nk_u8_t *)(ptr + i * stride);                                            \
-                if (v cmp_op_ * global_i) *global_i = v, *global_idx = base_idx + i;                   \
-            }                                                                                          \
-            break;                                                                                     \
-        default: break;                                                                                \
-        }                                                                                              \
+/// Macro for simultaneous min/max reduction over all supported types.
+/// Updates both min and max trackers in a single pass.
+#define reduce_minmax_(min_f_, min_i_, min_idx_, max_f_, max_i_, max_idx_)                \
+    do {                                                                                  \
+        size_t const n = (size_t)view->shape[dim];                                        \
+        Py_ssize_t const stride = view->strides[dim];                                     \
+        switch (view->dtype) {                                                            \
+        case nk_f64_k:                                                                    \
+            for (size_t i = 0; i < n; i++) {                                              \
+                nk_f64_t v = *(nk_f64_t *)(ptr + i * stride);                             \
+                if (v < *min_f_) *min_f_ = v, *min_idx_ = base_idx + i;                   \
+                if (v > *max_f_) *max_f_ = v, *max_idx_ = base_idx + i;                   \
+            }                                                                             \
+            break;                                                                        \
+        case nk_f32_k:                                                                    \
+            for (size_t i = 0; i < n; i++) {                                              \
+                nk_f32_t v = *(nk_f32_t *)(ptr + i * stride);                             \
+                if (v < *min_f_) *min_f_ = v, *min_idx_ = base_idx + i;                   \
+                if (v > *max_f_) *max_f_ = v, *max_idx_ = base_idx + i;                   \
+            }                                                                             \
+            break;                                                                        \
+        case nk_f16_k:                                                                    \
+            for (size_t i = 0; i < n; i++) {                                              \
+                nk_f32_t v;                                                               \
+                nk_f16_to_f32((nk_f16_t *)(ptr + i * stride), &v);                        \
+                if (v < *min_f_) *min_f_ = v, *min_idx_ = base_idx + i;                   \
+                if (v > *max_f_) *max_f_ = v, *max_idx_ = base_idx + i;                   \
+            }                                                                             \
+            break;                                                                        \
+        case nk_bf16_k:                                                                   \
+            for (size_t i = 0; i < n; i++) {                                              \
+                nk_f32_t v;                                                               \
+                nk_bf16_to_f32((nk_bf16_t *)(ptr + i * stride), &v);                      \
+                if (v < *min_f_) *min_f_ = v, *min_idx_ = base_idx + i;                   \
+                if (v > *max_f_) *max_f_ = v, *max_idx_ = base_idx + i;                   \
+            }                                                                             \
+            break;                                                                        \
+        case nk_i64_k:                                                                    \
+            for (size_t i = 0; i < n; i++) {                                              \
+                nk_i64_t v = *(nk_i64_t *)(ptr + i * stride);                             \
+                if (v < *min_i_) *min_i_ = v, *min_idx_ = base_idx + i;                   \
+                if (v > *max_i_) *max_i_ = v, *max_idx_ = base_idx + i;                   \
+            }                                                                             \
+            break;                                                                        \
+        case nk_i32_k:                                                                    \
+            for (size_t i = 0; i < n; i++) {                                              \
+                nk_i32_t v = *(nk_i32_t *)(ptr + i * stride);                             \
+                if (v < *min_i_) *min_i_ = v, *min_idx_ = base_idx + i;                   \
+                if (v > *max_i_) *max_i_ = v, *max_idx_ = base_idx + i;                   \
+            }                                                                             \
+            break;                                                                        \
+        case nk_i16_k:                                                                    \
+            for (size_t i = 0; i < n; i++) {                                              \
+                nk_i16_t v = *(nk_i16_t *)(ptr + i * stride);                             \
+                if (v < *min_i_) *min_i_ = v, *min_idx_ = base_idx + i;                   \
+                if (v > *max_i_) *max_i_ = v, *max_idx_ = base_idx + i;                   \
+            }                                                                             \
+            break;                                                                        \
+        case nk_i8_k:                                                                     \
+            for (size_t i = 0; i < n; i++) {                                              \
+                nk_i8_t v = *(nk_i8_t *)(ptr + i * stride);                               \
+                if (v < *min_i_) *min_i_ = v, *min_idx_ = base_idx + i;                   \
+                if (v > *max_i_) *max_i_ = v, *max_idx_ = base_idx + i;                   \
+            }                                                                             \
+            break;                                                                        \
+        case nk_u64_k:                                                                    \
+            for (size_t i = 0; i < n; i++) {                                              \
+                nk_u64_t v = *(nk_u64_t *)(ptr + i * stride);                             \
+                if ((int64_t)v < *min_i_) *min_i_ = (int64_t)v, *min_idx_ = base_idx + i; \
+                if ((int64_t)v > *max_i_) *max_i_ = (int64_t)v, *max_idx_ = base_idx + i; \
+            }                                                                             \
+            break;                                                                        \
+        case nk_u32_k:                                                                    \
+            for (size_t i = 0; i < n; i++) {                                              \
+                nk_u32_t v = *(nk_u32_t *)(ptr + i * stride);                             \
+                if (v < (nk_u32_t) * min_i_) *min_i_ = v, *min_idx_ = base_idx + i;       \
+                if (v > (nk_u32_t) * max_i_) *max_i_ = v, *max_idx_ = base_idx + i;       \
+            }                                                                             \
+            break;                                                                        \
+        case nk_u16_k:                                                                    \
+            for (size_t i = 0; i < n; i++) {                                              \
+                nk_u16_t v = *(nk_u16_t *)(ptr + i * stride);                             \
+                if (v < (nk_u16_t) * min_i_) *min_i_ = v, *min_idx_ = base_idx + i;       \
+                if (v > (nk_u16_t) * max_i_) *max_i_ = v, *max_idx_ = base_idx + i;       \
+            }                                                                             \
+            break;                                                                        \
+        case nk_u8_k:                                                                     \
+            for (size_t i = 0; i < n; i++) {                                              \
+                nk_u8_t v = *(nk_u8_t *)(ptr + i * stride);                               \
+                if (v < (nk_u8_t) * min_i_) *min_i_ = v, *min_idx_ = base_idx + i;        \
+                if (v > (nk_u8_t) * max_i_) *max_i_ = v, *max_idx_ = base_idx + i;        \
+            }                                                                             \
+            break;                                                                        \
+        default: break;                                                                   \
+        }                                                                                 \
     } while (0)
 
-/**  @brief Recursive helper for impl_reduce_min.  */
-static void reduce_min_recursive_(TensorView const *view, size_t dim, char *ptr, size_t base_idx, double *global_f,
-                                  int64_t *global_i, size_t *global_idx) {
-    if (dim == view->rank - 1) { reduce_extremum_(<, *global_f); }
+/**  @brief Recursive helper for impl_reduce_minmax.  */
+static void reduce_minmax_recursive_(TensorView const *view, size_t dim, char *ptr, size_t base_idx, double *min_f,
+                                     int64_t *min_i, size_t *min_idx, double *max_f, int64_t *max_i, size_t *max_idx) {
+    if (dim == view->rank - 1) { reduce_minmax_(min_f, min_i, min_idx, max_f, max_i, max_idx); }
     else {
         size_t const n = (size_t)view->shape[dim];
         Py_ssize_t const stride = view->strides[dim];
         size_t inner_size = 1;
         for (size_t d = dim + 1; d < view->rank; d++) inner_size *= (size_t)view->shape[d];
         for (size_t i = 0; i < n; i++)
-            reduce_min_recursive_(view, dim + 1, ptr + i * stride, base_idx + i * inner_size, global_f, global_i,
-                                  global_idx);
+            reduce_minmax_recursive_(view, dim + 1, ptr + i * stride, base_idx + i * inner_size, min_f, min_i, min_idx,
+                                     max_f, max_i, max_idx);
     }
 }
 
-/**  @brief Recursive helper for impl_reduce_max.  */
-static void reduce_max_recursive_(TensorView const *view, size_t dim, char *ptr, size_t base_idx, double *global_f,
-                                  int64_t *global_i, size_t *global_idx) {
-    if (dim == view->rank - 1) { reduce_extremum_(>, *global_f); }
-    else {
-        size_t const n = (size_t)view->shape[dim];
-        Py_ssize_t const stride = view->strides[dim];
-        size_t inner_size = 1;
-        for (size_t d = dim + 1; d < view->rank; d++) inner_size *= (size_t)view->shape[d];
-        for (size_t i = 0; i < n; i++)
-            reduce_max_recursive_(view, dim + 1, ptr + i * stride, base_idx + i * inner_size, global_f, global_i,
-                                  global_idx);
-    }
-}
+#undef reduce_minmax_
 
-#undef reduce_extremum_
-
-int impl_reduce_min(TensorView const *view, double *value_f, int64_t *value_i, size_t *index) {
-    *index = 0;
-    if (value_f) *value_f = NK_F64_MAX;
-    if (value_i) *value_i = NK_I64_MAX;
+int impl_reduce_minmax(TensorView const *view, double *min_f, int64_t *min_i, size_t *min_index, double *max_f,
+                       int64_t *max_i, size_t *max_index) {
+    *min_index = 0;
+    *max_index = 0;
+    if (min_f) *min_f = NK_F64_MAX;
+    if (min_i) *min_i = NK_I64_MAX;
+    if (max_f) *max_f = NK_F64_MIN;
+    if (max_i) *max_i = NK_I64_MIN;
     if (view->rank == 0) {
         switch (view->dtype) {
-        case nk_f64_k: *value_f = *(nk_f64_t *)view->data; return 0;
-        case nk_f32_k: *value_f = *(nk_f32_t *)view->data; return 0;
-        case nk_i64_k: *value_i = *(nk_i64_t *)view->data; return 0;
-        case nk_i32_k: *value_i = *(nk_i32_t *)view->data; return 0;
-        case nk_i16_k: *value_i = *(nk_i16_t *)view->data; return 0;
-        case nk_i8_k: *value_i = *(nk_i8_t *)view->data; return 0;
-        case nk_u64_k: *value_i = (int64_t)*(nk_u64_t *)view->data; return 0;
-        case nk_u32_k: *value_i = *(nk_u32_t *)view->data; return 0;
-        case nk_u16_k: *value_i = *(nk_u16_t *)view->data; return 0;
-        case nk_u8_k: *value_i = *(nk_u8_t *)view->data; return 0;
+        case nk_f64_k: {
+            double v = *(nk_f64_t *)view->data;
+            *min_f = v;
+            *max_f = v;
+            return 0;
+        }
+        case nk_f32_k: {
+            double v = *(nk_f32_t *)view->data;
+            *min_f = v;
+            *max_f = v;
+            return 0;
+        }
+        case nk_i64_k: {
+            int64_t v = *(nk_i64_t *)view->data;
+            *min_i = v;
+            *max_i = v;
+            return 0;
+        }
+        case nk_i32_k: {
+            int64_t v = *(nk_i32_t *)view->data;
+            *min_i = v;
+            *max_i = v;
+            return 0;
+        }
+        case nk_i16_k: {
+            int64_t v = *(nk_i16_t *)view->data;
+            *min_i = v;
+            *max_i = v;
+            return 0;
+        }
+        case nk_i8_k: {
+            int64_t v = *(nk_i8_t *)view->data;
+            *min_i = v;
+            *max_i = v;
+            return 0;
+        }
+        case nk_u64_k: {
+            int64_t v = (int64_t)*(nk_u64_t *)view->data;
+            *min_i = v;
+            *max_i = v;
+            return 0;
+        }
+        case nk_u32_k: {
+            int64_t v = *(nk_u32_t *)view->data;
+            *min_i = v;
+            *max_i = v;
+            return 0;
+        }
+        case nk_u16_k: {
+            int64_t v = *(nk_u16_t *)view->data;
+            *min_i = v;
+            *max_i = v;
+            return 0;
+        }
+        case nk_u8_k: {
+            int64_t v = *(nk_u8_t *)view->data;
+            *min_i = v;
+            *max_i = v;
+            return 0;
+        }
         default: return -1;
         }
     }
-    reduce_min_recursive_(view, 0, view->data, 0, value_f, value_i, index);
-    return 0;
-}
-
-int impl_reduce_max(TensorView const *view, double *value_f, int64_t *value_i, size_t *index) {
-    *index = 0;
-    if (value_f) *value_f = NK_F64_MIN;
-    if (value_i) *value_i = NK_I64_MIN;
-    if (view->rank == 0) {
-        switch (view->dtype) {
-        case nk_f64_k: *value_f = *(nk_f64_t *)view->data; return 0;
-        case nk_f32_k: *value_f = *(nk_f32_t *)view->data; return 0;
-        case nk_i64_k: *value_i = *(nk_i64_t *)view->data; return 0;
-        case nk_i32_k: *value_i = *(nk_i32_t *)view->data; return 0;
-        case nk_i16_k: *value_i = *(nk_i16_t *)view->data; return 0;
-        case nk_i8_k: *value_i = *(nk_i8_t *)view->data; return 0;
-        case nk_u64_k: *value_i = (int64_t)*(nk_u64_t *)view->data; return 0;
-        case nk_u32_k: *value_i = *(nk_u32_t *)view->data; return 0;
-        case nk_u16_k: *value_i = *(nk_u16_t *)view->data; return 0;
-        case nk_u8_k: *value_i = *(nk_u8_t *)view->data; return 0;
-        default: return -1;
-        }
-    }
-    reduce_max_recursive_(view, 0, view->data, 0, value_f, value_i, index);
+    reduce_minmax_recursive_(view, 0, view->data, 0, min_f, min_i, min_index, max_f, max_i, max_index);
     return 0;
 }
 

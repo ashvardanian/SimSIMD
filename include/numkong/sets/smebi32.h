@@ -1,5 +1,5 @@
 /**
- *  @brief SIMD-accelerated batched binary set computations for ARM SME.
+ *  @brief SIMD-accelerated Batched Set Distances for SME.
  *  @file include/numkong/sets/smebi32.h
  *  @author Ash Vardanian
  *  @date February 6, 2026
@@ -218,11 +218,11 @@ __arm_locally_streaming __arm_new("za") static void nk_hammings_packed_u1_smebi3
                 svbool_t const batch_predicate_b32 = svwhilelt_b32((nk_u32_t)0, (nk_u32_t)u32s_this_tile);
 
                 // Load A rows into ZA0.S horizontally as u32 words
-                for (nk_size_t row_within_tile = 0; row_within_tile < rows_a_remaining; row_within_tile++) {
-                    nk_u32_t const *a_row_u32 = (nk_u32_t const *)((char const *)a + (row_start_a + row_within_tile) *
-                                                                                         a_stride_in_bytes) +
+                for (nk_size_t row_in_tile = 0; row_in_tile < rows_a_remaining; row_in_tile++) {
+                    nk_u32_t const *a_row_u32 = (nk_u32_t const *)((char const *)a +
+                                                                   (row_start_a + row_in_tile) * a_stride_in_bytes) +
                                                 d_start_u32;
-                    svld1_hor_za32(0, row_within_tile, batch_predicate_b32, a_row_u32);
+                    svld1_hor_za32(0, row_in_tile, batch_predicate_b32, a_row_u32);
                 }
 
                 // B tile pointers for 3 column tiles
@@ -282,11 +282,11 @@ __arm_locally_streaming __arm_new("za") static void nk_hammings_packed_u1_smebi3
                 svbool_t const batch_predicate_b32 = svwhilelt_b32((nk_u32_t)0, (nk_u32_t)u32s_this_tile);
 
                 // Load A rows into ZA0.S horizontally
-                for (nk_size_t row_within_tile = 0; row_within_tile < rows_a_remaining; row_within_tile++) {
-                    nk_u32_t const *a_row_u32 = (nk_u32_t const *)((char const *)a + (row_start_a + row_within_tile) *
-                                                                                         a_stride_in_bytes) +
+                for (nk_size_t row_in_tile = 0; row_in_tile < rows_a_remaining; row_in_tile++) {
+                    nk_u32_t const *a_row_u32 = (nk_u32_t const *)((char const *)a +
+                                                                   (row_start_a + row_in_tile) * a_stride_in_bytes) +
                                                 d_start_u32;
-                    svld1_hor_za32(0, row_within_tile, batch_predicate_b32, a_row_u32);
+                    svld1_hor_za32(0, row_in_tile, batch_predicate_b32, a_row_u32);
                 }
 
                 nk_u32_t const *b_tile = b_tiles + (row_tile_b * depth_tile_count + d_tile) * tile_elements;

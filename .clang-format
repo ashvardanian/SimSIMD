@@ -131,7 +131,7 @@ StatementMacros:
   - nk_dispatch_each_sum_
   - nk_dispatch_trigonometry_
   - nk_dispatch_mesh_
-  - nk_dispatch_reduce_add_
+  - nk_dispatch_reduce_moments_
   - nk_dispatch_reduce_minmax_
   - nk_dispatch_cross_packed_size_
   - nk_dispatch_cross_pack_

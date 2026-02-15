@@ -5,11 +5,13 @@
  *
  * This module wraps the Emscripten-compiled WASM module to provide the same
  * TypeScript API as the native N-API bindings. It handles:
- * - Memory management (malloc/free) with zero-copy when possible
+ * - Zero-copy TensorBase interop for cross-module WASM sharing
  * - TypedArray type detection and dispatch
  * - Result extraction from WASM heap
  * - Error handling
  */
+
+import { TensorBase, DType, dtypeToString } from './dtypes.js';
 
 /* #region Emscripten Interface */
 
@@ -113,61 +115,6 @@ export function initWasm(wasmModule: EmscriptenModule): void {
   resultPtr = wasmModule._malloc(8);
 }
 
-/**
- * Bytes per element for each dtype string.
- */
-function bytesPerElement(dtype: string): number {
-  switch (dtype) {
-    case 'f64': return 8;
-    case 'f32': case 'i32': case 'u32': return 4;
-    case 'f16': case 'bf16': return 2;
-    case 'i8': case 'u8': case 'u1': return 1;
-    default: throw new Error(`Unknown dtype: ${dtype}`);
-  }
-}
-
-/**
- * Returns a TypedArray view into WASM memory at the given pointer.
- */
-function heapView(dtype: string, ptr: number, length: number): any {
-  if (!Module) throw new Error('WASM module not initialized');
-  const buf = Module.wasmMemory.buffer;
-  switch (dtype) {
-    case 'f64': return new Float64Array(buf, ptr, length);
-    case 'f32': return new Float32Array(buf, ptr, length);
-    case 'i8': return new Int8Array(buf, ptr, length);
-    case 'u8': case 'u1': return new Uint8Array(buf, ptr, length);
-    case 'f16': case 'bf16': return new Uint16Array(buf, ptr, length);
-    default: throw new Error(`Unsupported dtype for heapView: ${dtype}`);
-  }
-}
-
-/**
- * Allocates a TypedArray on the WASM heap. The returned view is backed by WASM memory,
- * so distance calls using it avoid any copy overhead (zero-copy path).
- *
- * **Warning**: The returned view may be invalidated by WASM memory growth. Do not cache
- * it across calls that might trigger growth (e.g. other `wasmAlloc` calls or WASM functions
- * that allocate memory internally).
- */
-export function wasmAlloc(dtype: string, length: number): any {
-  if (!Module) throw new Error('WASM module not initialized');
-  const bpe = bytesPerElement(dtype);
-  const ptr = Module._malloc(length * bpe);
-  return heapView(dtype, ptr, length);
-}
-
-/**
- * Frees a TypedArray that was previously allocated with `wasmAlloc`.
- * Throws if the array does not reside on the WASM heap.
- */
-export function wasmFree(arr: any): void {
-  if (!Module) throw new Error('WASM module not initialized');
-  if (arr.buffer !== Module.wasmMemory.buffer)
-    throw new Error('Array not allocated on WASM heap');
-  Module._free(arr.byteOffset);
-}
-
 /* #endregion Heap Management */
 
 /* #region Type Detection */
@@ -176,7 +123,7 @@ export function wasmFree(arr: any): void {
  * Type information for dispatching
  */
 interface TypeInfo {
-  dtype: string;
+  dtype: DType;
   bytesPerElement: number;
   heapView: 'HEAP8' | 'HEAP16' | 'HEAP32' | 'HEAPU8' | 'HEAPU16' | 'HEAPU32' | 'HEAPF32' | 'HEAPF64';
   resultType: 'f32' | 'f64' | 'i32' | 'u32';
@@ -187,31 +134,79 @@ interface TypeInfo {
  */
 function detectType(arr: any): TypeInfo {
   if (arr instanceof Float64Array) {
-    return { dtype: 'f64', bytesPerElement: 8, heapView: 'HEAPF64', resultType: 'f64' };
+    return { dtype: DType.F64, bytesPerElement: 8, heapView: 'HEAPF64', resultType: 'f64' };
   } else if (arr instanceof Float32Array) {
-    return { dtype: 'f32', bytesPerElement: 4, heapView: 'HEAPF32', resultType: 'f32' };
+    return { dtype: DType.F32, bytesPerElement: 4, heapView: 'HEAPF32', resultType: 'f32' };
   } else if (arr instanceof Int8Array) {
-    return { dtype: 'i8', bytesPerElement: 1, heapView: 'HEAP8', resultType: 'i32' };
+    return { dtype: DType.I8, bytesPerElement: 1, heapView: 'HEAP8', resultType: 'i32' };
   } else if (arr instanceof Uint8Array) {
-    return { dtype: 'u8', bytesPerElement: 1, heapView: 'HEAPU8', resultType: 'u32' };
+    return { dtype: DType.U8, bytesPerElement: 1, heapView: 'HEAPU8', resultType: 'u32' };
   }
 
   // Check for custom typed arrays from dtypes.ts
   const constructorName = arr.constructor.name;
 
   if (constructorName === 'Float16Array') {
-    return { dtype: 'f16', bytesPerElement: 2, heapView: 'HEAPU16', resultType: 'f32' };
+    return { dtype: DType.F16, bytesPerElement: 2, heapView: 'HEAPU16', resultType: 'f32' };
   } else if (constructorName === 'BFloat16Array') {
-    return { dtype: 'bf16', bytesPerElement: 2, heapView: 'HEAPU16', resultType: 'f32' };
+    return { dtype: DType.BF16, bytesPerElement: 2, heapView: 'HEAPU16', resultType: 'f32' };
   } else if (constructorName === 'E4M3Array') {
     throw new Error('E4M3 not yet supported in WASM backend');
   } else if (constructorName === 'E5M2Array') {
     throw new Error('E5M2 not yet supported in WASM backend');
   } else if (constructorName === 'BinaryArray') {
-    return { dtype: 'u1', bytesPerElement: 1, heapView: 'HEAPU8', resultType: 'u32' };
+    return { dtype: DType.U1, bytesPerElement: 1, heapView: 'HEAPU8', resultType: 'u32' };
   }
 
   throw new Error(`Unsupported array type: ${constructorName}`);
+}
+
+/**
+ * Get TypeInfo from a DType enum value.
+ */
+function typeInfoFromDtype(dtype: DType): TypeInfo {
+  switch (dtype) {
+    case DType.F64: return { dtype, bytesPerElement: 8, heapView: 'HEAPF64', resultType: 'f64' };
+    case DType.F32: return { dtype, bytesPerElement: 4, heapView: 'HEAPF32', resultType: 'f32' };
+    case DType.F16: return { dtype, bytesPerElement: 2, heapView: 'HEAPU16', resultType: 'f32' };
+    case DType.BF16: return { dtype, bytesPerElement: 2, heapView: 'HEAPU16', resultType: 'f32' };
+    case DType.I8: return { dtype, bytesPerElement: 1, heapView: 'HEAP8', resultType: 'i32' };
+    case DType.U8: return { dtype, bytesPerElement: 1, heapView: 'HEAPU8', resultType: 'u32' };
+    case DType.U1: return { dtype, bytesPerElement: 1, heapView: 'HEAPU8', resultType: 'u32' };
+    default: throw new Error(`Unsupported dtype: ${dtype}`);
+  }
+}
+
+/**
+ * Flat struct carrying the fields needed for distance dispatch,
+ * avoiding the VectorView constructor chain for raw TypedArrays.
+ */
+interface ResolvedInput {
+  buffer: ArrayBuffer;
+  byteOffset: number;
+  length: number;
+  byteLength: number;
+  typeInfo: TypeInfo;
+}
+
+/**
+ * Resolve an input that may be a TensorBase or a TypedArray into a uniform
+ * ResolvedInput for distance dispatch.
+ */
+function resolveInput(a: TensorBase | any): ResolvedInput {
+  if (a instanceof TensorBase) {
+    return {
+      buffer: a.buffer, byteOffset: a.byteOffset,
+      length: a.length, byteLength: a.byteLength,
+      typeInfo: typeInfoFromDtype(a.dtype),
+    };
+  }
+  const typeInfo = detectType(a);
+  return {
+    buffer: a.buffer, byteOffset: a.byteOffset,
+    length: a.length, byteLength: a.length * typeInfo.bytesPerElement,
+    typeInfo,
+  };
 }
 
 /* #endregion Type Detection */
@@ -250,6 +245,17 @@ function allocAndCopy(arr: any, typeInfo: TypeInfo): number {
 }
 
 /**
+ * Allocate WASM memory and copy data into it. Returns the pointer.
+ */
+function allocAndCopyResolved(buffer: ArrayBuffer, byteOffset: number, byteLength: number): number {
+  if (!Module) throw new Error('WASM module not initialized');
+  const ptr = Module._malloc(byteLength);
+  const src = new Uint8Array(buffer, byteOffset, byteLength);
+  HEAPU8.set(src, ptr);
+  return ptr;
+}
+
+/**
  * Read result from WASM heap
  */
 function readResult(ptr: number, resultType: 'f32' | 'f64' | 'i32' | 'u32'): number {
@@ -275,27 +281,29 @@ function readResult(ptr: number, resultType: 'f32' | 'f64' | 'i32' | 'u32'): num
  * Generic distance function wrapper.
  * Uses zero-copy when arrays already live on the WASM heap.
  */
-function distance(metric: string, a: any, b: any): number {
+function distance(metric: string, a: TensorBase | any, b: TensorBase | any): number {
   if (!Module) {
     throw new Error('WASM module not initialized. Call initWasm() first.');
   }
 
-  if (a.length !== b.length) {
-    throw new Error(`Array length mismatch: ${a.length} !== ${b.length}`);
+  const ra = resolveInput(a);
+  const rb = resolveInput(b);
+
+  if (ra.length !== rb.length) {
+    throw new Error(`Array length mismatch: ${ra.length} !== ${rb.length}`);
   }
 
-  const typeInfo = detectType(a);
-  const n = a.length;
+  const n = ra.length;
 
-  // Zero-copy: if the array's buffer IS the WASM memory, its byteOffset is the pointer
-  const onHeapA = a.buffer === Module.wasmMemory.buffer;
-  const onHeapB = b.buffer === Module.wasmMemory.buffer;
-  const aPtr = onHeapA ? a.byteOffset : allocAndCopy(a, typeInfo);
-  const bPtr = onHeapB ? b.byteOffset : allocAndCopy(b, typeInfo);
+  // Zero-copy: if the buffer IS the WASM memory, byteOffset is the pointer
+  const onHeapA = ra.buffer === Module.wasmMemory.buffer;
+  const onHeapB = rb.buffer === Module.wasmMemory.buffer;
+  const aPtr = onHeapA ? ra.byteOffset : allocAndCopyResolved(ra.buffer, ra.byteOffset, ra.byteLength);
+  const bPtr = onHeapB ? rb.byteOffset : allocAndCopyResolved(rb.buffer, rb.byteOffset, rb.byteLength);
 
   try {
     // Call C function
-    const fnName = `_nk_${metric}_${typeInfo.dtype}` as keyof EmscriptenModule;
+    const fnName = `_nk_${metric}_${dtypeToString(ra.typeInfo.dtype)}` as keyof EmscriptenModule;
     const fn = Module[fnName] as any;
 
     if (!fn || typeof fn !== 'function') {
@@ -306,7 +314,7 @@ function distance(metric: string, a: any, b: any): number {
     fn(aPtr, bPtr, BigInt(n), resultPtr);
 
     // Read result
-    return readResult(resultPtr, typeInfo.resultType);
+    return readResult(resultPtr, ra.typeInfo.resultType);
   } finally {
     // Only free memory that we allocated (not zero-copy pointers)
     if (!onHeapA) Module._free(aPtr);
@@ -317,28 +325,28 @@ function distance(metric: string, a: any, b: any): number {
 /**
  * @brief Computes the squared Euclidean distance between two vectors.
  */
-export function sqeuclidean(a: any, b: any): number {
+export function sqeuclidean(a: TensorBase | any, b: TensorBase | any): number {
   return distance('sqeuclidean', a, b);
 }
 
 /**
  * @brief Computes the Euclidean distance between two vectors.
  */
-export function euclidean(a: any, b: any): number {
+export function euclidean(a: TensorBase | any, b: TensorBase | any): number {
   return distance('euclidean', a, b);
 }
 
 /**
  * @brief Computes the angular distance between two vectors.
  */
-export function angular(a: any, b: any): number {
+export function angular(a: TensorBase | any, b: TensorBase | any): number {
   return distance('angular', a, b);
 }
 
 /**
  * @brief Computes the dot product of two vectors.
  */
-export function dot(a: any, b: any): number {
+export function dot(a: TensorBase | any, b: TensorBase | any): number {
   return distance('dot', a, b);
 }
 
@@ -353,25 +361,25 @@ export const inner = dot;
  * Note: Following N-API behavior, always treats input as u1 (binary/bit-packed),
  * even if passed as Uint8Array. Each byte represents 8 bits.
  */
-export function hamming(a: Uint8Array | any, b: Uint8Array | any): number {
+export function hamming(a: TensorBase | Uint8Array | any, b: TensorBase | Uint8Array | any): number {
   if (!Module) {
     throw new Error('WASM module not initialized');
   }
 
-  if (a.length !== b.length) {
-    throw new Error(`Array length mismatch: ${a.length} !== ${b.length}`);
+  // Extract flat fields; for raw TypedArrays treat as u1 (binary/bit-packed)
+  const bufA = a.buffer as ArrayBuffer, offA = a.byteOffset as number, lenA = a.length as number;
+  const bufB = b.buffer as ArrayBuffer, offB = b.byteOffset as number, lenB = b.length as number;
+  const blA = a instanceof TensorBase ? a.byteLength : lenA;
+  const blB = b instanceof TensorBase ? b.byteLength : lenB;
+
+  if (lenA !== lenB) {
+    throw new Error(`Array length mismatch: ${lenA} !== ${lenB}`);
   }
 
-  // Always use u1 (binary) dtype to match N-API behavior
-  const dtype = 'u1';
-  const n = a.length;
-  const bpe = 1;
-  const typeInfo: TypeInfo = { dtype, bytesPerElement: bpe, heapView: 'HEAPU8', resultType: 'u32' };
-
-  const onHeapA = a.buffer === Module.wasmMemory.buffer;
-  const onHeapB = b.buffer === Module.wasmMemory.buffer;
-  const aPtr = onHeapA ? a.byteOffset : allocAndCopy(a, typeInfo);
-  const bPtr = onHeapB ? b.byteOffset : allocAndCopy(b, typeInfo);
+  const onHeapA = bufA === Module.wasmMemory.buffer;
+  const onHeapB = bufB === Module.wasmMemory.buffer;
+  const aPtr = onHeapA ? offA : allocAndCopyResolved(bufA, offA, blA);
+  const bPtr = onHeapB ? offB : allocAndCopyResolved(bufB, offB, blB);
 
   try {
     const fn = Module._nk_hamming_u1 as any;
@@ -381,7 +389,7 @@ export function hamming(a: Uint8Array | any, b: Uint8Array | any): number {
     }
 
     // WASM expects BigInt for size_t (64-bit)
-    fn(aPtr, bPtr, BigInt(n), resultPtr);
+    fn(aPtr, bPtr, BigInt(lenA), resultPtr);
 
     return readResult(resultPtr, 'u32');
   } finally {
@@ -396,25 +404,25 @@ export function hamming(a: Uint8Array | any, b: Uint8Array | any): number {
  * Note: Following N-API behavior, always treats input as u1 (binary/bit-packed),
  * even if passed as Uint8Array. Each byte represents 8 bits.
  */
-export function jaccard(a: Uint8Array | any, b: Uint8Array | any): number {
+export function jaccard(a: TensorBase | Uint8Array | any, b: TensorBase | Uint8Array | any): number {
   if (!Module) {
     throw new Error('WASM module not initialized');
   }
 
-  if (a.length !== b.length) {
-    throw new Error(`Array length mismatch: ${a.length} !== ${b.length}`);
+  // Extract flat fields; for raw TypedArrays treat as u1 (binary/bit-packed)
+  const bufA = a.buffer as ArrayBuffer, offA = a.byteOffset as number, lenA = a.length as number;
+  const bufB = b.buffer as ArrayBuffer, offB = b.byteOffset as number, lenB = b.length as number;
+  const blA = a instanceof TensorBase ? a.byteLength : lenA;
+  const blB = b instanceof TensorBase ? b.byteLength : lenB;
+
+  if (lenA !== lenB) {
+    throw new Error(`Array length mismatch: ${lenA} !== ${lenB}`);
   }
 
-  // Always use u1 (binary) dtype to match N-API behavior
-  const dtype = 'u1';
-  const n = a.length;
-  const bpe = 1;
-  const typeInfo: TypeInfo = { dtype, bytesPerElement: bpe, heapView: 'HEAPU8', resultType: 'f32' };
-
-  const onHeapA = a.buffer === Module.wasmMemory.buffer;
-  const onHeapB = b.buffer === Module.wasmMemory.buffer;
-  const aPtr = onHeapA ? a.byteOffset : allocAndCopy(a, typeInfo);
-  const bPtr = onHeapB ? b.byteOffset : allocAndCopy(b, typeInfo);
+  const onHeapA = bufA === Module.wasmMemory.buffer;
+  const onHeapB = bufB === Module.wasmMemory.buffer;
+  const aPtr = onHeapA ? offA : allocAndCopyResolved(bufA, offA, blA);
+  const bPtr = onHeapB ? offB : allocAndCopyResolved(bufB, offB, blB);
 
   try {
     const fn = Module._nk_jaccard_u1 as any;
@@ -424,7 +432,7 @@ export function jaccard(a: Uint8Array | any, b: Uint8Array | any): number {
     }
 
     // WASM expects BigInt for size_t (64-bit)
-    fn(aPtr, bPtr, BigInt(n), resultPtr);
+    fn(aPtr, bPtr, BigInt(lenA), resultPtr);
 
     return readResult(resultPtr, 'f32');
   } finally {
@@ -436,30 +444,26 @@ export function jaccard(a: Uint8Array | any, b: Uint8Array | any): number {
 /**
  * @brief Computes the Kullback-Leibler divergence between two vectors.
  */
-export function kullbackleibler(a: Float64Array | Float32Array, b: Float64Array | Float32Array): number {
+export function kullbackleibler(a: TensorBase | Float64Array | Float32Array, b: TensorBase | Float64Array | Float32Array): number {
   if (!Module) {
     throw new Error('WASM module not initialized');
   }
 
-  if (a.length !== b.length) {
-    throw new Error(`Array length mismatch: ${a.length} !== ${b.length}`);
+  const ra = resolveInput(a);
+  const rb = resolveInput(b);
+
+  if (ra.length !== rb.length) {
+    throw new Error(`Array length mismatch: ${ra.length} !== ${rb.length}`);
   }
 
-  const isF64 = a instanceof Float64Array;
-  const dtype = isF64 ? 'f64' : 'f32';
-  const bpe = isF64 ? 8 : 4;
-  const heapView = isF64 ? 'HEAPF64' : 'HEAPF32';
-  const resultType = isF64 ? 'f64' : 'f32';
-  const typeInfo: TypeInfo = { dtype, bytesPerElement: bpe, heapView: heapView as any, resultType };
-
-  const n = a.length;
-  const onHeapA = a.buffer === Module.wasmMemory.buffer;
-  const onHeapB = b.buffer === Module.wasmMemory.buffer;
-  const aPtr = onHeapA ? a.byteOffset : allocAndCopy(a, typeInfo);
-  const bPtr = onHeapB ? b.byteOffset : allocAndCopy(b, typeInfo);
+  const n = ra.length;
+  const onHeapA = ra.buffer === Module.wasmMemory.buffer;
+  const onHeapB = rb.buffer === Module.wasmMemory.buffer;
+  const aPtr = onHeapA ? ra.byteOffset : allocAndCopyResolved(ra.buffer, ra.byteOffset, ra.byteLength);
+  const bPtr = onHeapB ? rb.byteOffset : allocAndCopyResolved(rb.buffer, rb.byteOffset, rb.byteLength);
 
   try {
-    const fnName = `_nk_kld_${dtype}` as keyof EmscriptenModule;
+    const fnName = `_nk_kld_${dtypeToString(ra.typeInfo.dtype)}` as keyof EmscriptenModule;
     const fn = Module[fnName] as any;
 
     if (!fn || typeof fn !== 'function') {
@@ -469,7 +473,7 @@ export function kullbackleibler(a: Float64Array | Float32Array, b: Float64Array 
     // WASM expects BigInt for size_t (64-bit)
     fn(aPtr, bPtr, BigInt(n), resultPtr);
 
-    return readResult(resultPtr, resultType);
+    return readResult(resultPtr, ra.typeInfo.resultType);
   } finally {
     if (!onHeapA) Module._free(aPtr);
     if (!onHeapB) Module._free(bPtr);
@@ -479,30 +483,26 @@ export function kullbackleibler(a: Float64Array | Float32Array, b: Float64Array 
 /**
  * @brief Computes the Jensen-Shannon divergence between two vectors.
  */
-export function jensenshannon(a: Float64Array | Float32Array, b: Float64Array | Float32Array): number {
+export function jensenshannon(a: TensorBase | Float64Array | Float32Array, b: TensorBase | Float64Array | Float32Array): number {
   if (!Module) {
     throw new Error('WASM module not initialized');
   }
 
-  if (a.length !== b.length) {
-    throw new Error(`Array length mismatch: ${a.length} !== ${b.length}`);
+  const ra = resolveInput(a);
+  const rb = resolveInput(b);
+
+  if (ra.length !== rb.length) {
+    throw new Error(`Array length mismatch: ${ra.length} !== ${rb.length}`);
   }
 
-  const isF64 = a instanceof Float64Array;
-  const dtype = isF64 ? 'f64' : 'f32';
-  const bpe = isF64 ? 8 : 4;
-  const heapView = isF64 ? 'HEAPF64' : 'HEAPF32';
-  const resultType = isF64 ? 'f64' : 'f32';
-  const typeInfo: TypeInfo = { dtype, bytesPerElement: bpe, heapView: heapView as any, resultType };
-
-  const n = a.length;
-  const onHeapA = a.buffer === Module.wasmMemory.buffer;
-  const onHeapB = b.buffer === Module.wasmMemory.buffer;
-  const aPtr = onHeapA ? a.byteOffset : allocAndCopy(a, typeInfo);
-  const bPtr = onHeapB ? b.byteOffset : allocAndCopy(b, typeInfo);
+  const n = ra.length;
+  const onHeapA = ra.buffer === Module.wasmMemory.buffer;
+  const onHeapB = rb.buffer === Module.wasmMemory.buffer;
+  const aPtr = onHeapA ? ra.byteOffset : allocAndCopyResolved(ra.buffer, ra.byteOffset, ra.byteLength);
+  const bPtr = onHeapB ? rb.byteOffset : allocAndCopyResolved(rb.buffer, rb.byteOffset, rb.byteLength);
 
   try {
-    const fnName = `_nk_jsd_${dtype}` as keyof EmscriptenModule;
+    const fnName = `_nk_jsd_${dtypeToString(ra.typeInfo.dtype)}` as keyof EmscriptenModule;
     const fn = Module[fnName] as any;
 
     if (!fn || typeof fn !== 'function') {
@@ -512,7 +512,7 @@ export function jensenshannon(a: Float64Array | Float32Array, b: Float64Array | 
     // WASM expects BigInt for size_t (64-bit)
     fn(aPtr, bPtr, BigInt(n), resultPtr);
 
-    return readResult(resultPtr, resultType);
+    return readResult(resultPtr, ra.typeInfo.resultType);
   } finally {
     if (!onHeapA) Module._free(aPtr);
     if (!onHeapB) Module._free(bPtr);

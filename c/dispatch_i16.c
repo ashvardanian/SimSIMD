@@ -8,20 +8,42 @@
 
 void nk_dispatch_i16_find_(nk_capability_t v, nk_kernel_kind_t k, nk_kernel_punned_t *m, nk_capability_t *c) {
     typedef nk_kernel_punned_t m_t;
+#if NK_TARGET_V128RELAXED
+    if (v & nk_cap_v128relaxed_k) switch (k) {
+        case nk_kernel_reduce_moments_k:
+            *m = (m_t)&nk_reduce_moments_i16_v128relaxed, *c = nk_cap_v128relaxed_k;
+            return;
+        case nk_kernel_reduce_minmax_k: *m = (m_t)&nk_reduce_minmax_i16_v128relaxed, *c = nk_cap_v128relaxed_k; return;
+        default: break;
+        }
+#endif
+#if NK_TARGET_RVV
+    if (v & nk_cap_rvv_k) switch (k) {
+        case nk_kernel_reduce_moments_k: *m = (m_t)&nk_reduce_moments_i16_rvv, *c = nk_cap_rvv_k; return;
+        case nk_kernel_reduce_minmax_k: *m = (m_t)&nk_reduce_minmax_i16_rvv, *c = nk_cap_rvv_k; return;
+        default: break;
+        }
+#endif
 #if NK_TARGET_NEON
     if (v & nk_cap_neon_k) switch (k) {
         case nk_kernel_each_fma_k: *m = (m_t)&nk_each_fma_i16_neon, *c = nk_cap_neon_k; return;
         case nk_kernel_each_scale_k: *m = (m_t)&nk_each_scale_i16_neon, *c = nk_cap_neon_k; return;
         case nk_kernel_each_sum_k: *m = (m_t)&nk_each_sum_i16_neon, *c = nk_cap_neon_k; return;
-        case nk_kernel_reduce_add_k: *m = (m_t)&nk_reduce_add_i16_neon, *c = nk_cap_neon_k; return;
-        case nk_kernel_reduce_min_k: *m = (m_t)&nk_reduce_min_i16_neon, *c = nk_cap_neon_k; return;
-        case nk_kernel_reduce_max_k: *m = (m_t)&nk_reduce_max_i16_neon, *c = nk_cap_neon_k; return;
+        case nk_kernel_reduce_moments_k: *m = (m_t)&nk_reduce_moments_i16_neon, *c = nk_cap_neon_k; return;
+        case nk_kernel_reduce_minmax_k: *m = (m_t)&nk_reduce_minmax_i16_neon, *c = nk_cap_neon_k; return;
         default: break;
         }
 #endif
 #if NK_TARGET_ICELAKE
     if (v & nk_cap_icelake_k) switch (k) {
         case nk_kernel_each_sum_k: *m = (m_t)&nk_each_sum_i16_icelake, *c = nk_cap_icelake_k; return;
+        case nk_kernel_reduce_moments_k: *m = (m_t)&nk_reduce_moments_i16_icelake, *c = nk_cap_icelake_k; return;
+        default: break;
+        }
+#endif
+#if NK_TARGET_SIERRA
+    if (v & nk_cap_sierra_k) switch (k) {
+        case nk_kernel_reduce_moments_k: *m = (m_t)&nk_reduce_moments_i16_sierra, *c = nk_cap_sierra_k; return;
         default: break;
         }
 #endif
@@ -29,9 +51,8 @@ void nk_dispatch_i16_find_(nk_capability_t v, nk_kernel_kind_t k, nk_kernel_punn
     if (v & nk_cap_skylake_k) switch (k) {
         case nk_kernel_each_fma_k: *m = (m_t)&nk_each_fma_i16_skylake, *c = nk_cap_skylake_k; return;
         case nk_kernel_each_scale_k: *m = (m_t)&nk_each_scale_i16_skylake, *c = nk_cap_skylake_k; return;
-        case nk_kernel_reduce_add_k: *m = (m_t)&nk_reduce_add_i16_skylake, *c = nk_cap_skylake_k; return;
-        case nk_kernel_reduce_min_k: *m = (m_t)&nk_reduce_min_i16_skylake, *c = nk_cap_skylake_k; return;
-        case nk_kernel_reduce_max_k: *m = (m_t)&nk_reduce_max_i16_skylake, *c = nk_cap_skylake_k; return;
+        case nk_kernel_reduce_moments_k: *m = (m_t)&nk_reduce_moments_i16_skylake, *c = nk_cap_skylake_k; return;
+        case nk_kernel_reduce_minmax_k: *m = (m_t)&nk_reduce_minmax_i16_skylake, *c = nk_cap_skylake_k; return;
         default: break;
         }
 #endif
@@ -40,9 +61,8 @@ void nk_dispatch_i16_find_(nk_capability_t v, nk_kernel_kind_t k, nk_kernel_punn
         case nk_kernel_each_fma_k: *m = (m_t)&nk_each_fma_i16_haswell, *c = nk_cap_haswell_k; return;
         case nk_kernel_each_scale_k: *m = (m_t)&nk_each_scale_i16_haswell, *c = nk_cap_haswell_k; return;
         case nk_kernel_each_sum_k: *m = (m_t)&nk_each_sum_i16_haswell, *c = nk_cap_haswell_k; return;
-        case nk_kernel_reduce_add_k: *m = (m_t)&nk_reduce_add_i16_haswell, *c = nk_cap_haswell_k; return;
-        case nk_kernel_reduce_min_k: *m = (m_t)&nk_reduce_min_i16_haswell, *c = nk_cap_haswell_k; return;
-        case nk_kernel_reduce_max_k: *m = (m_t)&nk_reduce_max_i16_haswell, *c = nk_cap_haswell_k; return;
+        case nk_kernel_reduce_moments_k: *m = (m_t)&nk_reduce_moments_i16_haswell, *c = nk_cap_haswell_k; return;
+        case nk_kernel_reduce_minmax_k: *m = (m_t)&nk_reduce_minmax_i16_haswell, *c = nk_cap_haswell_k; return;
         default: break;
         }
 #endif
@@ -51,9 +71,8 @@ void nk_dispatch_i16_find_(nk_capability_t v, nk_kernel_kind_t k, nk_kernel_punn
         case nk_kernel_each_scale_k: *m = (m_t)&nk_each_scale_i16_serial, *c = nk_cap_serial_k; return;
         case nk_kernel_each_sum_k: *m = (m_t)&nk_each_sum_i16_serial, *c = nk_cap_serial_k; return;
         case nk_kernel_each_blend_k: *m = (m_t)&nk_each_blend_i16_serial, *c = nk_cap_serial_k; return;
-        case nk_kernel_reduce_add_k: *m = (m_t)&nk_reduce_add_i16_serial, *c = nk_cap_serial_k; return;
-        case nk_kernel_reduce_min_k: *m = (m_t)&nk_reduce_min_i16_serial, *c = nk_cap_serial_k; return;
-        case nk_kernel_reduce_max_k: *m = (m_t)&nk_reduce_max_i16_serial, *c = nk_cap_serial_k; return;
+        case nk_kernel_reduce_moments_k: *m = (m_t)&nk_reduce_moments_i16_serial, *c = nk_cap_serial_k; return;
+        case nk_kernel_reduce_minmax_k: *m = (m_t)&nk_reduce_minmax_i16_serial, *c = nk_cap_serial_k; return;
         default: break;
         }
 
@@ -69,7 +88,6 @@ void nk_dispatch_i16_init_(nk_capability_t caps) {
     nk_dispatch_i16_find_(caps, nk_kernel_each_blend_k, (nk_kernel_punned_t *)&t->each_blend_i16, &used);
     nk_dispatch_i16_find_(caps, nk_kernel_each_scale_k, (nk_kernel_punned_t *)&t->each_scale_i16, &used);
     nk_dispatch_i16_find_(caps, nk_kernel_each_sum_k, (nk_kernel_punned_t *)&t->each_sum_i16, &used);
-    nk_dispatch_i16_find_(caps, nk_kernel_reduce_add_k, (nk_kernel_punned_t *)&t->reduce_add_i16, &used);
-    nk_dispatch_i16_find_(caps, nk_kernel_reduce_min_k, (nk_kernel_punned_t *)&t->reduce_min_i16, &used);
-    nk_dispatch_i16_find_(caps, nk_kernel_reduce_max_k, (nk_kernel_punned_t *)&t->reduce_max_i16, &used);
+    nk_dispatch_i16_find_(caps, nk_kernel_reduce_moments_k, (nk_kernel_punned_t *)&t->reduce_moments_i16, &used);
+    nk_dispatch_i16_find_(caps, nk_kernel_reduce_minmax_k, (nk_kernel_punned_t *)&t->reduce_minmax_i16, &used);
 }

@@ -279,6 +279,8 @@ extern "C" {
 NK_PUBLIC void nk_kld_f16(nk_f16_t const *a, nk_f16_t const *b, nk_size_t n, nk_f32_t *result) {
 #if NK_TARGET_NEONHALF
     nk_kld_f16_neonhalf(a, b, n, result);
+#elif NK_TARGET_SAPPHIRE
+    nk_kld_f16_sapphire(a, b, n, result);
 #elif NK_TARGET_HASWELL
     nk_kld_f16_haswell(a, b, n, result);
 #elif NK_TARGET_RVV
@@ -323,6 +325,8 @@ NK_PUBLIC void nk_kld_f64(nk_f64_t const *a, nk_f64_t const *b, nk_size_t n, nk_
 NK_PUBLIC void nk_jsd_f16(nk_f16_t const *a, nk_f16_t const *b, nk_size_t n, nk_f32_t *result) {
 #if NK_TARGET_NEONHALF
     nk_jsd_f16_neonhalf(a, b, n, result);
+#elif NK_TARGET_SAPPHIRE
+    nk_jsd_f16_sapphire(a, b, n, result);
 #elif NK_TARGET_HASWELL
     nk_jsd_f16_haswell(a, b, n, result);
 #elif NK_TARGET_RVV

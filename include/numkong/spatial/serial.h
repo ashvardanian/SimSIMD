@@ -108,12 +108,12 @@ extern "C" {
 
 /**
  *  @brief  Computes `1/√x` using the trick from Quake 3,
- *          with two Newton-Raphson iterations for improved accuracy.
+ *          with three Newton-Raphson iterations for full f32 accuracy.
  *
  *  The initial guess uses bit manipulation exploiting IEEE 754 float representation.
  *  The magic constant `0x5F375A86` is an improved version of Lomont's constant.
- *  Two Newton-Raphson refinement steps reduce the maximum relative error to ~0.0005%,
- *  roughly 140x more accurate than a single iteration.
+ *  Three Newton-Raphson refinement steps yield ~34.9 correct bits, exceeding the
+ *  23-bit f32 mantissa for near-correctly-rounded results.
  *
  *  Subsequent additions by hardware manufacturers have made this algorithm redundant for the most part.
  *  For example, on x86, Intel introduced the SSE instruction `rsqrtss` in 1999. In a 2009 benchmark on
@@ -131,6 +131,7 @@ NK_INTERNAL nk_f32_t nk_f32_rsqrt_serial(nk_f32_t number) {
     nk_f32_t y = conv.f;
     y = y * (1.5f - 0.5f * number * y * y);
     y = y * (1.5f - 0.5f * number * y * y);
+    y = y * (1.5f - 0.5f * number * y * y);
     return y;
 }
 
@@ -146,13 +147,13 @@ NK_INTERNAL nk_f32_t nk_f32_sqrt_serial(nk_f32_t number) { return number * nk_f3
 
 /**
  *  @brief  Computes `1/√x` for double precision using the Quake 3 trick,
- *          with three Newton-Raphson iterations for full f64 accuracy.
+ *          with four Newton-Raphson iterations for full f64 accuracy.
  *
  *  The initial guess uses bit manipulation exploiting IEEE 754 double representation.
  *  The magic constant `0x5FE6EB50C7B537A9` is the 64-bit analog of Lomont's constant,
  *  derived using the same methodology but adjusted for the 11-bit exponent and 52-bit
- *  mantissa of doubles. Three Newton-Raphson iterations are required to achieve
- *  near-full precision (~0.00000001% max relative error).
+ *  mantissa of doubles. Four Newton-Raphson iterations yield ~69.3 correct bits,
+ *  exceeding the 52-bit f64 mantissa for near-correctly-rounded results.
  *
  *  For modern x86, the `sqrtsd` instruction followed by division, or `_mm_cvtsd_f64(_mm_rsqrt14_sd(...))`
  *  with AVX-512, may be preferable for production use.
@@ -162,6 +163,7 @@ NK_INTERNAL nk_f64_t nk_f64_rsqrt_serial(nk_f64_t number) {
     conv.f = number;
     conv.u = 0x5FE6EB50C7B537A9ULL - (conv.u >> 1);
     nk_f64_t y = conv.f;
+    y = y * (1.5 - 0.5 * number * y * y);
     y = y * (1.5 - 0.5 * number * y * y);
     y = y * (1.5 - 0.5 * number * y * y);
     y = y * (1.5 - 0.5 * number * y * y);

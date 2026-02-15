@@ -31,12 +31,13 @@ extern "C" {
 #endif
 
 #if defined(__clang__)
-#pragma clang attribute push(                                                                        \
-    __attribute__((target("avx2,avx512f,avx512vl,avx512bw,avx512dq,avx512vnni,f16c,fma,bmi,bmi2"))), \
+#pragma clang attribute push(                                                                                   \
+    __attribute__((target("avx2,avx512f,avx512vl,avx512bw,avx512dq,avx512vnni,avx512vbmi,f16c,fma,bmi,bmi2"))), \
     apply_to = function)
 #elif defined(__GNUC__)
 #pragma GCC push_options
-#pragma GCC target("avx2", "avx512f", "avx512vl", "avx512bw", "avx512dq", "avx512vnni", "f16c", "fma", "bmi", "bmi2")
+#pragma GCC target("avx2", "avx512f", "avx512vl", "avx512bw", "avx512dq", "avx512vnni", "avx512vbmi", "f16c", "fma", \
+                   "bmi", "bmi2")
 #endif
 
 /* I8 GEMM: depth_simd_dimensions=64 (64 i8s = 64 bytes = 1 cache line) */
@@ -45,7 +46,7 @@ nk_define_cross_pack_(dots, i8, icelake, i8, i8, nk_assign_from_to_, /*depth_sim
                       /*dimensions_per_value=*/1)
 nk_define_cross_symmetric_(dots, i8, icelake, i8, i32, nk_b512_vec_t, nk_dot_i8x64_state_icelake_t, nk_b128_vec_t,
                            nk_dot_i8x64_init_icelake, nk_load_b512_skylake_, nk_partial_load_b8x64_skylake_,
-                           nk_dot_i8x64_update_icelake, nk_dot_i8x64_finalize_icelake, nk_partial_store_b32x4_serial_,
+                           nk_dot_i8x64_update_icelake, nk_dot_i8x64_finalize_icelake, nk_partial_store_b32x4_skylake_,
                            /*depth_simd_dimensions=*/64, /*dimensions_per_value=*/1)
 nk_define_cross_packed_(dots, i8, icelake, i8, i8, i32, nk_b512_vec_t, nk_dot_i8x64_state_icelake_t, nk_b128_vec_t,
                         nk_dot_i8x64_init_icelake, nk_load_b512_skylake_, nk_partial_load_b8x64_skylake_,

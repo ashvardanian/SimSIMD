@@ -1,5 +1,5 @@
 /**
- *  @brief SIMD-accelerated Geographic Distances for NEON.
+ *  @brief SIMD-accelerated Geospatial Distances for NEON.
  *  @file include/numkong/geospatial/neon.h
  *  @author Ash Vardanian
  *  @date February 6, 2026

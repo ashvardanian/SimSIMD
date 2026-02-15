@@ -1,6 +1,6 @@
 /**
- *  @brief WASM SIMD (Relaxed SIMD) bit-level set similarity kernels.
- *  @file v128relaxed.h
+ *  @brief SIMD-accelerated Set Similarity Measures for WASM.
+ *  @file include/numkong/set/v128relaxed.h
  *  @author Ash Vardanian
  *  @date February 1, 2026
  *

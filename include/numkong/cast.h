@@ -57,11 +57,15 @@ NK_PUBLIC void nk_cast_serial(void const *from, nk_dtype_t from_type, nk_size_t 
 #if NK_TARGET_NEON
 /** @copydoc nk_cast */
 NK_PUBLIC void nk_cast_neon(void const *from, nk_dtype_t from_type, nk_size_t n, void *to, nk_dtype_t to_type);
+NK_PUBLIC void nk_f16_to_f32_neon(nk_f16_t const *src, nk_f32_t *dest);
+NK_PUBLIC void nk_f32_to_f16_neon(nk_f32_t const *src, nk_f16_t *dest);
 #endif // NK_TARGET_NEON
 
 #if NK_TARGET_HASWELL
 /** @copydoc nk_cast */
 NK_PUBLIC void nk_cast_haswell(void const *from, nk_dtype_t from_type, nk_size_t n, void *to, nk_dtype_t to_type);
+NK_PUBLIC void nk_f16_to_f32_haswell(nk_f16_t const *src, nk_f32_t *dest);
+NK_PUBLIC void nk_f32_to_f16_haswell(nk_f32_t const *src, nk_f16_t *dest);
 #endif // NK_TARGET_HASWELL
 
 #if NK_TARGET_SKYLAKE
@@ -77,6 +81,8 @@ NK_PUBLIC void nk_cast_icelake(void const *from, nk_dtype_t from_type, nk_size_t
 #if NK_TARGET_SAPPHIRE
 /** @copydoc nk_cast */
 NK_PUBLIC void nk_cast_sapphire(void const *from, nk_dtype_t from_type, nk_size_t n, void *to, nk_dtype_t to_type);
+NK_PUBLIC void nk_f16_to_f32_sapphire(nk_f16_t const *src, nk_f32_t *dest);
+NK_PUBLIC void nk_f32_to_f16_sapphire(nk_f32_t const *src, nk_f16_t *dest);
 #endif // NK_TARGET_SAPPHIRE
 
 #if NK_TARGET_RVV

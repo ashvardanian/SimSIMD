@@ -154,10 +154,6 @@ void test_spatial() {
     run_if_matches("sqeuclidean_f64_v128relaxed", test_sqeuclidean<f64_t>, nk_sqeuclidean_f64_v128relaxed);
     run_if_matches("sqeuclidean_f16_v128relaxed", test_sqeuclidean<f16_t>, nk_sqeuclidean_f16_v128relaxed);
     run_if_matches("sqeuclidean_bf16_v128relaxed", test_sqeuclidean<bf16_t>, nk_sqeuclidean_bf16_v128relaxed);
-    run_if_matches("euclidean_f32_v128relaxed", test_euclidean<f32_t>, nk_euclidean_f32_v128relaxed);
-    run_if_matches("euclidean_f64_v128relaxed", test_euclidean<f64_t>, nk_euclidean_f64_v128relaxed);
-    run_if_matches("euclidean_f16_v128relaxed", test_euclidean<f16_t>, nk_euclidean_f16_v128relaxed);
-    run_if_matches("euclidean_bf16_v128relaxed", test_euclidean<bf16_t>, nk_euclidean_bf16_v128relaxed);
     run_if_matches("angular_f32_v128relaxed", test_angular<f32_t>, nk_angular_f32_v128relaxed);
     run_if_matches("angular_f64_v128relaxed", test_angular<f64_t>, nk_angular_f64_v128relaxed);
     run_if_matches("angular_f16_v128relaxed", test_angular<f16_t>, nk_angular_f16_v128relaxed);

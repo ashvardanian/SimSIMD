@@ -1,5 +1,5 @@
 /**
- *  @brief SIMD-accelerated Trigonometric Functions for WASM Relaxed SIMD.
+ *  @brief SIMD-accelerated Trigonometric Functions for WASM.
  *  @file include/numkong/trigonometry/v128relaxed.h
  *  @author Ash Vardanian
  *  @date February 6, 2026

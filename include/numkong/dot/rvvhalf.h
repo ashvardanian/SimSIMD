@@ -79,40 +79,6 @@ NK_INTERNAL vfloat16m2_t nk_e5m2m1_to_f16m2_rvvhalf_(vuint8m1_t raw_u8m1, nk_siz
     return __riscv_vreinterpret_v_u16m2_f16m2(result_u16m2);
 }
 
-NK_PUBLIC void nk_dot_e2m3_rvvhalf(nk_e2m3_t const *a_scalars, nk_e2m3_t const *b_scalars, nk_size_t count_scalars,
-                                   nk_f32_t *result) {
-    nk_size_t vlmax = __riscv_vsetvlmax_e32m4();
-    vfloat32m4_t sum_f32m4 = __riscv_vfmv_v_f_f32m4(0.0f, vlmax);
-    for (nk_size_t vector_length; count_scalars > 0;
-         count_scalars -= vector_length, a_scalars += vector_length, b_scalars += vector_length) {
-        vector_length = __riscv_vsetvl_e8m1(count_scalars);
-        vuint8m1_t a_u8m1 = __riscv_vle8_v_u8m1((nk_u8_t const *)a_scalars, vector_length);
-        vuint8m1_t b_u8m1 = __riscv_vle8_v_u8m1((nk_u8_t const *)b_scalars, vector_length);
-        vfloat16m2_t a_f16m2 = nk_e2m3m1_to_f16m2_rvvhalf_(a_u8m1, vector_length);
-        vfloat16m2_t b_f16m2 = nk_e2m3m1_to_f16m2_rvvhalf_(b_u8m1, vector_length);
-        sum_f32m4 = __riscv_vfwmacc_vv_f32m4(sum_f32m4, a_f16m2, b_f16m2, vector_length);
-    }
-    vfloat32m1_t zero_f32m1 = __riscv_vfmv_v_f_f32m1(0.0f, vlmax);
-    *result = __riscv_vfmv_f_s_f32m1_f32(__riscv_vfredusum_vs_f32m4_f32m1(sum_f32m4, zero_f32m1, vlmax));
-}
-
-NK_PUBLIC void nk_dot_e3m2_rvvhalf(nk_e3m2_t const *a_scalars, nk_e3m2_t const *b_scalars, nk_size_t count_scalars,
-                                   nk_f32_t *result) {
-    nk_size_t vlmax = __riscv_vsetvlmax_e32m4();
-    vfloat32m4_t sum_f32m4 = __riscv_vfmv_v_f_f32m4(0.0f, vlmax);
-    for (nk_size_t vector_length; count_scalars > 0;
-         count_scalars -= vector_length, a_scalars += vector_length, b_scalars += vector_length) {
-        vector_length = __riscv_vsetvl_e8m1(count_scalars);
-        vuint8m1_t a_u8m1 = __riscv_vle8_v_u8m1((nk_u8_t const *)a_scalars, vector_length);
-        vuint8m1_t b_u8m1 = __riscv_vle8_v_u8m1((nk_u8_t const *)b_scalars, vector_length);
-        vfloat16m2_t a_f16m2 = nk_e3m2m1_to_f16m2_rvvhalf_(a_u8m1, vector_length);
-        vfloat16m2_t b_f16m2 = nk_e3m2m1_to_f16m2_rvvhalf_(b_u8m1, vector_length);
-        sum_f32m4 = __riscv_vfwmacc_vv_f32m4(sum_f32m4, a_f16m2, b_f16m2, vector_length);
-    }
-    vfloat32m1_t zero_f32m1 = __riscv_vfmv_v_f_f32m1(0.0f, vlmax);
-    *result = __riscv_vfmv_f_s_f32m1_f32(__riscv_vfredusum_vs_f32m4_f32m1(sum_f32m4, zero_f32m1, vlmax));
-}
-
 NK_PUBLIC void nk_dot_e4m3_rvvhalf(nk_e4m3_t const *a_scalars, nk_e4m3_t const *b_scalars, nk_size_t count_scalars,
                                    nk_f32_t *result) {
     nk_size_t vlmax = __riscv_vsetvlmax_e32m4();
