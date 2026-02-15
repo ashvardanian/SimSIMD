@@ -12,6 +12,28 @@ extern "C" {
 
 void nk_dispatch_e3m2_find_(nk_capability_t v, nk_kernel_kind_t k, nk_kernel_punned_t *m, nk_capability_t *c) {
     typedef nk_kernel_punned_t m_t;
+#if NK_TARGET_SME
+    if (v & nk_cap_sme_k) switch (k) {
+        case nk_kernel_dots_packed_size_k: *m = (m_t)&nk_dots_packed_size_e3m2_sme, *c = nk_cap_sme_k; return;
+        case nk_kernel_dots_pack_k: *m = (m_t)&nk_dots_pack_e3m2_sme, *c = nk_cap_sme_k; return;
+        case nk_kernel_dots_packed_k: *m = (m_t)&nk_dots_packed_e3m2_sme, *c = nk_cap_sme_k; return;
+        case nk_kernel_dots_symmetric_k: *m = (m_t)&nk_dots_symmetric_e3m2_sme, *c = nk_cap_sme_k; return;
+        default: break;
+        }
+#endif
+#if NK_TARGET_SAPPHIREAMX
+    if (v & nk_cap_sapphireamx_k) switch (k) {
+        case nk_kernel_dots_packed_size_k:
+            *m = (m_t)&nk_dots_packed_size_e3m2_sapphireamx, *c = nk_cap_sapphireamx_k;
+            return;
+        case nk_kernel_dots_pack_k: *m = (m_t)&nk_dots_pack_e3m2_sapphireamx, *c = nk_cap_sapphireamx_k; return;
+        case nk_kernel_dots_packed_k: *m = (m_t)&nk_dots_packed_e3m2_sapphireamx, *c = nk_cap_sapphireamx_k; return;
+        case nk_kernel_dots_symmetric_k:
+            *m = (m_t)&nk_dots_symmetric_e3m2_sapphireamx, *c = nk_cap_sapphireamx_k;
+            return;
+        default: break;
+        }
+#endif
 #if NK_TARGET_SAPPHIRE
     if (v & nk_cap_sapphire_k) switch (k) {
         case nk_kernel_euclidean_k: *m = (m_t)&nk_euclidean_e3m2_sapphire, *c = nk_cap_sapphire_k; return;

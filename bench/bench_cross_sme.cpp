@@ -25,6 +25,8 @@ void bench_cross_sme() {
     constexpr nk_dtype_t bf16_k = nk_bf16_k;
     constexpr nk_dtype_t e4m3_k = nk_e4m3_k;
     constexpr nk_dtype_t e5m2_k = nk_e5m2_k;
+    constexpr nk_dtype_t e2m3_k = nk_e2m3_k;
+    constexpr nk_dtype_t e3m2_k = nk_e3m2_k;
 
 #if NK_TARGET_SME
     dots_<f16_k, f32_k>("dots_packed_f16_sme", nk_dots_packed_size_f16_sme, nk_dots_pack_f16_sme,
@@ -37,6 +39,8 @@ void bench_cross_sme() {
                          nk_dots_packed_e4m3_sme);
     dots_<e5m2_k, f32_k>("dots_packed_e5m2_sme", nk_dots_packed_size_e5m2_sme, nk_dots_pack_e5m2_sme,
                          nk_dots_packed_e5m2_sme);
+    dots_<e2m3_k, f32_k>("dots_packed_e2m3_sme", nk_dots_packed_size_e2m3_sme, nk_dots_pack_e2m3_sme,
+                         nk_dots_packed_e2m3_sme);
     dots_<i4_k, i32_k>("dots_packed_i4_sme", nk_dots_packed_size_i4_sme, nk_dots_pack_i4_sme, nk_dots_packed_i4_sme);
     dots_<u4_k, u32_k>("dots_packed_u4_sme", nk_dots_packed_size_u4_sme, nk_dots_pack_u4_sme, nk_dots_packed_u4_sme);
     dots_symmetric_<bf16_k, f32_k>("dots_symmetric_bf16_sme", nk_dots_symmetric_bf16_sme);
@@ -45,6 +49,10 @@ void bench_cross_sme() {
     dots_symmetric_<u8_k, u32_k>("dots_symmetric_u8_sme", nk_dots_symmetric_u8_sme);
     dots_symmetric_<e4m3_k, f32_k>("dots_symmetric_e4m3_sme", nk_dots_symmetric_e4m3_sme);
     dots_symmetric_<e5m2_k, f32_k>("dots_symmetric_e5m2_sme", nk_dots_symmetric_e5m2_sme);
+    dots_symmetric_<e2m3_k, f32_k>("dots_symmetric_e2m3_sme", nk_dots_symmetric_e2m3_sme);
+    dots_<e3m2_k, f32_k>("dots_packed_e3m2_sme", nk_dots_packed_size_e3m2_sme, nk_dots_pack_e3m2_sme,
+                         nk_dots_packed_e3m2_sme);
+    dots_symmetric_<e3m2_k, f32_k>("dots_symmetric_e3m2_sme", nk_dots_symmetric_e3m2_sme);
     dots_symmetric_<i4_k, i32_k>("dots_symmetric_i4_sme", nk_dots_symmetric_i4_sme);
     dots_symmetric_<u4_k, u32_k>("dots_symmetric_u4_sme", nk_dots_symmetric_u4_sme);
 #endif
