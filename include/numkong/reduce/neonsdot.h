@@ -235,7 +235,8 @@ NK_INTERNAL void nk_reduce_moments_e2m3_neonsdot_contiguous_( //
     uint64x2_t sumsq_u64x2 = vpaddlq_u32(vreinterpretq_u32_s32(sumsq_i32x4));
     nk_u64_t sumsq = vgetq_lane_u64(sumsq_u64x2, 0) + vgetq_lane_u64(sumsq_u64x2, 1);
     for (; idx < count; ++idx) {
-        nk_f32_t value = nk_e2m3_to_f32(data_ptr[idx]);
+        nk_f32_t value;
+        nk_e2m3_to_f32_serial(&data_ptr[idx], &value);
         sum += (nk_i64_t)(value * 16.0f), sumsq += (nk_u64_t)(nk_i64_t)(value * value * 256.0f);
     }
     *sum_ptr = (nk_f32_t)sum / 16.0f, *sumsq_ptr = (nk_f32_t)sumsq / 256.0f;
@@ -299,7 +300,8 @@ NK_INTERNAL void nk_reduce_moments_e2m3_neonsdot_strided_(                 //
     uint64x2_t sumsq_u64x2 = vpaddlq_u32(vreinterpretq_u32_s32(sumsq_i32x4));
     nk_u64_t sumsq = vgetq_lane_u64(sumsq_u64x2, 0) + vgetq_lane_u64(sumsq_u64x2, 1);
     for (; idx < count; ++idx) {
-        nk_f32_t value = nk_e2m3_to_f32(*(nk_e2m3_t const *)(data_ptr + idx * stride_elements));
+        nk_f32_t value;
+        nk_e2m3_to_f32_serial(data_ptr + idx * stride_elements, &value);
         sum += (nk_i64_t)(value * 16.0f), sumsq += (nk_u64_t)(nk_i64_t)(value * value * 256.0f);
     }
     *sum_ptr = (nk_f32_t)sum / 16.0f, *sumsq_ptr = (nk_f32_t)sumsq / 256.0f;
