@@ -43,7 +43,7 @@ NK_INTERNAL void nk_store_b32_serial_(nk_b32_vec_t const *src, void *dst) { *(nk
  *  https://gist.github.com/milhidaka/95863906fe828198f47991c813dbe233
  *  https://github.com/OpenCyphal/libcanard/blob/636795f4bc395f56af8d2c61d3757b5e762bb9e5/canard.c#L811-L834
  */
-NK_INTERNAL void nk_f16_to_f32_serial(nk_f16_t const *src, nk_f32_t *dest) {
+NK_PUBLIC void nk_f16_to_f32_serial(nk_f16_t const *src, nk_f32_t *dest) {
 #if NK_NATIVE_F16
     *dest = (nk_f32_t)(*src);
 #else
@@ -104,7 +104,7 @@ NK_INTERNAL void nk_f16_to_f32_serial(nk_f16_t const *src, nk_f32_t *dest) {
  *  https://gist.github.com/milhidaka/95863906fe828198f47991c813dbe233
  *  https://github.com/OpenCyphal/libcanard/blob/636795f4bc395f56af8d2c61d3757b5e762bb9e5/canard.c#L811-L834
  */
-NK_INTERNAL void nk_f32_to_f16_serial(nk_f32_t const *src, nk_f16_t *dest) {
+NK_PUBLIC void nk_f32_to_f16_serial(nk_f32_t const *src, nk_f16_t *dest) {
 #if NK_NATIVE_F16
     *dest = (nk_f16_t)(*src);
 #else
@@ -185,7 +185,7 @@ NK_INTERNAL void nk_f32_to_f16_serial(nk_f32_t const *src, nk_f16_t *dest) {
  *  https://stackoverflow.com/questions/55253233/convert-fp32-to-bfloat16-in-c/55254307#55254307
  *  https://cloud.google.com/blog/products/ai-machine-learning/bfloat16-the-secret-to-high-performance-on-cloud-tpus
  */
-NK_INTERNAL void nk_bf16_to_f32_serial(nk_bf16_t const *src, nk_f32_t *dest) {
+NK_PUBLIC void nk_bf16_to_f32_serial(nk_bf16_t const *src, nk_f32_t *dest) {
 #if NK_NATIVE_BF16
     *dest = (nk_f32_t)(*src);
 #else
@@ -203,7 +203,7 @@ NK_INTERNAL void nk_bf16_to_f32_serial(nk_bf16_t const *src, nk_f32_t *dest) {
  *  https://stackoverflow.com/questions/55253233/convert-fp32-to-bfloat16-in-c/55254307#55254307
  *  https://cloud.google.com/blog/products/ai-machine-learning/bfloat16-the-secret-to-high-performance-on-cloud-tpus
  */
-NK_INTERNAL void nk_f32_to_bf16_serial(nk_f32_t const *src, nk_bf16_t *dest) {
+NK_PUBLIC void nk_f32_to_bf16_serial(nk_f32_t const *src, nk_bf16_t *dest) {
 #if NK_NATIVE_BF16
     *dest = (nk_bf16_t)(*src);
 #else
@@ -245,7 +245,7 @@ NK_INTERNAL void nk_f32_to_bf16_serial(nk_f32_t const *src, nk_bf16_t *dest) {
  *      https://www.opencompute.org/documents/ocp-8-bit-floating-point-specification-ofp8-revision-1-0-2023-12-01-pdf-1
  *      https://onnx.ai/onnx/technical/float8.html
  */
-NK_INTERNAL void nk_e4m3_to_f32_serial(nk_e4m3_t const *src, nk_f32_t *dest) {
+NK_PUBLIC void nk_e4m3_to_f32_serial(nk_e4m3_t const *src, nk_f32_t *dest) {
     nk_u8_t raw = *src;
     nk_u32_t sign = (nk_u32_t)(raw & 0x80) << 24;
     nk_u32_t exponent = (raw >> 3) & 0x0Fu;
@@ -301,7 +301,7 @@ NK_INTERNAL void nk_e4m3_to_f32_serial(nk_e4m3_t const *src, nk_f32_t *dest) {
  *      https://www.opencompute.org/documents/ocp-8-bit-floating-point-specification-ofp8-revision-1-0-2023-12-01-pdf-1
  *      https://onnx.ai/onnx/technical/float8.html
  */
-NK_INTERNAL void nk_f32_to_e4m3_serial(nk_f32_t const *src, nk_e4m3_t *dest) {
+NK_PUBLIC void nk_f32_to_e4m3_serial(nk_f32_t const *src, nk_e4m3_t *dest) {
     nk_f32_t x = *src;
     nk_fui32_t conv;
     conv.f = x;
@@ -446,7 +446,7 @@ NK_INTERNAL void nk_e4m3_to_f16_serial(nk_e4m3_t const *src, nk_f16_t *dest) {
  *      https://www.opencompute.org/documents/ocp-8-bit-floating-point-specification-ofp8-revision-1-0-2023-12-01-pdf-1
  *      https://onnx.ai/onnx/technical/float8.html
  */
-NK_INTERNAL void nk_e5m2_to_f32_serial(nk_e5m2_t const *src, nk_f32_t *dest) {
+NK_PUBLIC void nk_e5m2_to_f32_serial(nk_e5m2_t const *src, nk_f32_t *dest) {
     nk_u8_t raw = *src;
     nk_u32_t sign = (nk_u32_t)(raw & 0x80) << 24;
     nk_u32_t exponent = (raw >> 2) & 0x1Fu;
@@ -501,7 +501,7 @@ NK_INTERNAL void nk_e5m2_to_f32_serial(nk_e5m2_t const *src, nk_f32_t *dest) {
  *      https://www.opencompute.org/documents/ocp-8-bit-floating-point-specification-ofp8-revision-1-0-2023-12-01-pdf-1
  *      https://onnx.ai/onnx/technical/float8.html
  */
-NK_INTERNAL void nk_f32_to_e5m2_serial(nk_f32_t const *src, nk_e5m2_t *dest) {
+NK_PUBLIC void nk_f32_to_e5m2_serial(nk_f32_t const *src, nk_e5m2_t *dest) {
     nk_f32_t x = *src;
     nk_fui32_t conv;
     conv.f = x;
@@ -636,7 +636,7 @@ NK_INTERNAL void nk_e5m2_to_f16_serial(nk_e5m2_t const *src, nk_f16_t *dest) {
  *      https://www.opencompute.org/documents/ocp-microscaling-formats-mx-v1-0-spec-final-pdf
  *      https://arxiv.org/abs/2401.14112 (FP6-LLM)
  */
-NK_INTERNAL void nk_e2m3_to_f32_serial(nk_e2m3_t const *src, nk_f32_t *dest) {
+NK_PUBLIC void nk_e2m3_to_f32_serial(nk_e2m3_t const *src, nk_f32_t *dest) {
     nk_u8_t raw = *src;
     nk_u32_t sign = (nk_u32_t)((raw >> 5) & 0x01u) << 31;
     nk_u32_t exponent = (raw >> 3) & 0x03u;
@@ -675,7 +675,7 @@ NK_INTERNAL void nk_e2m3_to_f32_serial(nk_e2m3_t const *src, nk_f32_t *dest) {
  *  Rounding: RNE (Round to Nearest Even) per IEEE 754.
  *  Subnormal threshold: values with |x| < 0.5 use subnormal encoding.
  */
-NK_INTERNAL void nk_f32_to_e2m3_serial(nk_f32_t const *src, nk_e2m3_t *dest) {
+NK_PUBLIC void nk_f32_to_e2m3_serial(nk_f32_t const *src, nk_e2m3_t *dest) {
     nk_f32_t x = *src;
     nk_fui32_t conv;
     conv.f = x;
@@ -759,7 +759,7 @@ NK_INTERNAL void nk_f32_to_e2m3_serial(nk_f32_t const *src, nk_e2m3_t *dest) {
  *  E3M2FN (FP6) format: 1 sign bit, 3 exponent bits (bias=3), 2 mantissa bits.
  *  Range: [-28, +28], no infinity or NaN (OCP Microscaling FN format).
  */
-NK_INTERNAL void nk_e3m2_to_f32_serial(nk_e3m2_t const *src, nk_f32_t *dest) {
+NK_PUBLIC void nk_e3m2_to_f32_serial(nk_e3m2_t const *src, nk_f32_t *dest) {
     nk_u8_t raw = *src;
     nk_u32_t sign = (nk_u32_t)((raw >> 5) & 0x01u) << 31;
     nk_u32_t exponent = (raw >> 2) & 0x07u;
@@ -798,7 +798,7 @@ NK_INTERNAL void nk_e3m2_to_f32_serial(nk_e3m2_t const *src, nk_f32_t *dest) {
  *  Rounding: RNE (Round to Nearest Even) per IEEE 754.
  *  Subnormal threshold: values with |x| < 0.25 use subnormal encoding.
  */
-NK_INTERNAL void nk_f32_to_e3m2_serial(nk_f32_t const *src, nk_e3m2_t *dest) {
+NK_PUBLIC void nk_f32_to_e3m2_serial(nk_f32_t const *src, nk_e3m2_t *dest) {
     nk_f32_t x = *src;
     nk_fui32_t conv;
     conv.f = x;
