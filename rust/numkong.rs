@@ -101,8 +101,8 @@ pub use numerics::{
     Angular, Bilinear, BinarySimilarity, ComplexDot, ComplexProducts, ComplexVDot, Dot, EachATan,
     EachBlend, EachCos, EachFMA, EachScale, EachSin, EachSum, Elementwise, Euclidean, Hamming,
     Haversine, Jaccard, JensenShannon, KullbackLeibler, Mahalanobis, MeshAlignment,
-    MeshAlignmentResult, ProbabilitySimilarity, ReduceAdd, ReduceMax, ReduceMin, Reductions,
-    SparseDot, SparseIntersect, SpatialSimilarity, Trigonometry, Vincenty,
+    MeshAlignmentResult, ProbabilitySimilarity, ReduceMinMax, ReduceMoments, Reductions, SparseDot,
+    SparseIntersect, SpatialSimilarity, Trigonometry, Vincenty,
 };
 
 // Re-export cast operations
@@ -1297,7 +1297,8 @@ mod tests {
 mod wasm_runtime_tests {
     use std::fs;
     use wasmtime::*;
-    use wasmtime_wasi::WasiCtxBuilder;
+    use wasmtime_wasi::p1::WasiP1Ctx;
+    use wasmtime_wasi::WasiCtx;
 
     /// Test that WASI WASM module can be loaded and executed with Wasmtime
     /// This validates the dual-path capability detection (EM_ASM vs WASI imports)
@@ -1320,14 +1321,11 @@ mod wasm_runtime_tests {
         let mut linker = Linker::new(&engine);
 
         // Create WASI context (Wasmtime 41+ API)
-        let wasi = wasmtime_wasi::WasiCtxBuilder::new()
-            .inherit_stdio()
-            .inherit_args()?
-            .build();
+        let wasi = WasiCtx::builder().inherit_stdio().inherit_args().build_p1();
         let mut store = Store::new(&engine, wasi);
 
-        // Add WASI support (Wasmtime 41+ requires type parameter)
-        wasmtime_wasi::add_to_linker(&mut linker, |s| s)?;
+        // Add WASI support (Wasmtime 41+ requires p1 module)
+        wasmtime_wasi::p1::add_to_linker_sync(&mut linker, |s| s)?;
 
         // Provide capability detection imports (required for WASI build)
         // These functions are called from nk_capabilities_v128relaxed_() in C code
