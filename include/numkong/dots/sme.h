@@ -1338,36 +1338,53 @@ NK_PUBLIC void nk_dots_symmetric_i8_sme(nk_i8_t const *vectors, nk_size_t n_vect
 #pragma region Quarter Precision E4M3
 
 /**
+ *  E4M3 subnormal → F16 lookup table (8 entries).
+ *  Index by 3-bit mantissa (0..7) to get the F16 bit pattern for mant/512.
+ *  For indices >= 8 (normal values), SVE TBL returns 0 which is ignored by SEL.
+ */
+static nk_u16_t const nk_e4m3_subnorm_f16_lut_[8] = {
+    0x0000, // mant=0: 0.0
+    0x1800, // mant=1: 1/512
+    0x1C00, // mant=2: 2/512
+    0x1E00, // mant=3: 3/512
+    0x2000, // mant=4: 4/512
+    0x2100, // mant=5: 5/512
+    0x2200, // mant=6: 6/512
+    0x2300, // mant=7: 7/512
+};
+
+/**
  *  Inline `e4m3` → `f16` conversion returning `svfloat16_t` for direct use in GEMM.
  *  This avoids memory round-trip when used inside a streaming kernel.
  *
- *  @param pg16   Predicate for 16-bit elements: use `svptrue_b16()`
- *  @param bytes  Pre-loaded 64 bytes: `svuint8_t` from `svld1_u8`
- *  @return       32 `f16` values as `svfloat16_t`: from lower 32 bytes
+ *  Uses an 8-entry TBL lookup for subnormals instead of UCVTF+FMUL, saving 3 instructions
+ *  (18 → 15). The `subnorm_lut` parameter should be loaded once per kernel entry via:
+ *    svuint16_t subnorm_lut = svld1_u16(svwhilelt_b16(0u, 8u), nk_e4m3_subnorm_f16_lut_);
+ *
+ *  @param pg16 Predicate for 16-bit elements: use `svptrue_b16()`
+ *  @param bytes Pre-loaded 64 bytes: `svuint8_t` from `svld1_u8`
+ *  @param subnorm_lut Pre-loaded 8-entry subnormal LUT as `svuint16_t`
+ *  @return 32 `f16` values as `svfloat16_t`: from lower 32 bytes
  */
-NK_INTERNAL svfloat16_t nk_e4m3x_to_f16x_ssve_(svbool_t pg16, svuint8_t bytes) {
-    svuint16_t vals = svunpklo_u16(bytes);
+NK_INTERNAL svfloat16_t nk_e4m3x_to_f16x_ssve_(svbool_t pg16, svuint8_t bytes, svuint16_t subnorm_lut) {
+    svuint16_t vals = svunpklo_u16(bytes); // 1: UUNPKLO
 
-    svuint16_t sign = svlsl_n_u16_x(pg16, svand_n_u16_x(pg16, vals, 0x80), 8);
-    svuint16_t mag = svand_n_u16_x(pg16, vals, 0x7F);
-    svuint16_t mant = svand_n_u16_x(pg16, vals, 0x07);
+    svuint16_t sign = svlsl_n_u16_x(pg16, svand_n_u16_x(pg16, vals, 0x80), 8); // 2-3: AND+LSL
+    svuint16_t mag = svand_n_u16_x(pg16, vals, 0x7F);                          // 4: AND
 
-    // Normal path: F16 = sign | ((mag << 7) + 0x2000)
-    svuint16_t normal = svadd_n_u16_x(pg16, svlsl_n_u16_x(pg16, mag, 7), 0x2000);
-    normal = svorr_u16_x(pg16, normal, sign);
+    // Normal path: sign | ((mag << 7) + 0x2000)
+    svuint16_t normal = svadd_n_u16_x(pg16, svlsl_n_u16_x(pg16, mag, 7), 0x2000); // 5-6: LSL+ADD
+    normal = svorr_u16_x(pg16, normal, sign);                                     // 7: ORR
 
-    // Subnormal path: `mant` × (1/512) where 1/512 = 0x1800 in `f16`
-    svfloat16_t mant_f16 = svcvt_f16_u16_x(pg16, mant);
-    svfloat16_t scale = svreinterpret_f16_u16(svdup_n_u16(0x1800));
-    svfloat16_t subnorm_abs = svmul_f16_x(pg16, mant_f16, scale);
-    svuint16_t subnorm = svorr_u16_x(pg16, svreinterpret_u16_f16(subnorm_abs), sign);
+    // Subnormal path: 8-entry TBL (mag 0..7 for subnorms; mag>7 → TBL returns 0, ignored by SEL)
+    svuint16_t subnorm = svorr_u16_x(pg16, svtbl_u16(subnorm_lut, mag), sign); // 8-9: TBL+ORR
 
-    svbool_t is_subnorm = svcmpeq_n_u16(pg16, svand_n_u16_x(pg16, vals, 0x78), 0);
-    svbool_t is_nan = svcmpeq_n_u16(pg16, mag, 0x7F);
-    svuint16_t nan_val = svorr_n_u16_x(pg16, sign, 0x7E00);
-
-    svuint16_t result = svsel_u16(is_subnorm, subnorm, normal);
-    result = svsel_u16(is_nan, nan_val, result);
+    svbool_t is_subnorm = svcmpeq_n_u16(pg16, svand_n_u16_x(pg16, vals, 0x78), 0); // 10-11: AND+CMPEQ
+    // NaN path: mag == 0x7F → f16 NaN
+    svbool_t is_nan = svcmpeq_n_u16(pg16, mag, 0x7F);           // 12: CMPEQ
+    svuint16_t nan_val = svorr_n_u16_x(pg16, sign, 0x7E00);     // 13: ORR
+    svuint16_t result = svsel_u16(is_subnorm, subnorm, normal); // 14: SEL
+    result = svsel_u16(is_nan, nan_val, result);                // 15: SEL
 
     return svreinterpret_f16_u16(result);
 }
@@ -1382,9 +1399,9 @@ NK_INTERNAL svfloat16_t nk_e4m3x_to_f16x_ssve_(svbool_t pg16, svuint8_t bytes) {
  *  Since E5M2 and F16 share the same exponent bias (15), normal values convert
  *  by simply shifting the magnitude left by 8 bits.
  *
- *  @param pg16   Predicate for 16-bit elements (use svptrue_b16())
- *  @param bytes  Pre-loaded 64 bytes (svuint8_t from svld1_u8)
- *  @return       32 F16 values as svfloat16_t (from lower 32 bytes)
+ *  @param pg16 Predicate for 16-bit elements (use svptrue_b16())
+ *  @param bytes Pre-loaded 64 bytes (svuint8_t from svld1_u8)
+ *  @return 32 F16 values as svfloat16_t (from lower 32 bytes)
  */
 NK_INTERNAL svfloat16_t nk_e5m2x_to_f16x_ssve_(svbool_t pg16, svuint8_t bytes) {
     // E5M2 and F16 share the same exponent bias (15), sign position, exponent width,
@@ -1416,6 +1433,9 @@ __arm_locally_streaming __arm_new("za") __attribute__((noinline)) static void nk
     svbool_t const full_predicate_b16 = svptrue_b16();
     svbool_t const full_predicate_b8 = svptrue_b8();
     svbool_t const full_predicate_b32 = svptrue_b32();
+
+    // Load e4m3 subnormal LUT once for all conversions in this kernel
+    svuint16_t const subnorm_lut = svld1_u16(svwhilelt_b16(0u, 8u), nk_e4m3_subnorm_f16_lut_);
 
     // Stack buffer for e4m3 -> f16 conversion (32 f16 per row, up to 16 rows)
     NK_ALIGN64 nk_f16_t a_converted_f16x32[16][32];
@@ -1450,7 +1470,7 @@ __arm_locally_streaming __arm_new("za") __attribute__((noinline)) static void nk
                     // Load raw e4m3 bytes and convert to f16 using vectorized conversion
                     nk_e4m3_t const *a_src = a + a_row * a_stride_elements + depth_batch_start * expansion;
                     svuint8_t raw_bytes = svld1_u8(full_predicate_b8, (uint8_t const *)a_src);
-                    svfloat16_t converted_f16 = nk_e4m3x_to_f16x_ssve_(full_predicate_b16, raw_bytes);
+                    svfloat16_t converted_f16 = nk_e4m3x_to_f16x_ssve_(full_predicate_b16, raw_bytes, subnorm_lut);
                     svst1_f16(full_predicate_b16, (float16_t *)a_converted_f16x32[row_within_tile], converted_f16);
                     // Load converted f16 row into ZA0 as f32 words
                     svld1_hor_za32(0, row_within_tile, batch_predicate_b32,
@@ -1513,7 +1533,7 @@ __arm_locally_streaming __arm_new("za") __attribute__((noinline)) static void nk
                     nk_size_t const a_row = row_start + row_within_tile;
                     nk_e4m3_t const *a_src = a + a_row * a_stride_elements + depth_batch_start * expansion;
                     svuint8_t raw_bytes = svld1_u8(full_predicate_b8, (uint8_t const *)a_src);
-                    svfloat16_t converted_f16 = nk_e4m3x_to_f16x_ssve_(full_predicate_b16, raw_bytes);
+                    svfloat16_t converted_f16 = nk_e4m3x_to_f16x_ssve_(full_predicate_b16, raw_bytes, subnorm_lut);
                     svst1_f16(full_predicate_b16, (float16_t *)a_converted_f16x32[row_within_tile], converted_f16);
                     svld1_hor_za32(0, row_within_tile, batch_predicate_b32,
                                    (nk_f32_t const *)a_converted_f16x32[row_within_tile]);
@@ -1622,6 +1642,9 @@ __arm_locally_streaming __arm_new("za") static void nk_dots_symmetric_e4m3_sme_k
     svbool_t const full_predicate_b8 = svptrue_b8();
     svbool_t const full_predicate_b32 = svptrue_b32();
 
+    // Load e4m3 subnormal LUT once for all conversions in this kernel
+    svuint16_t const subnorm_lut = svld1_u16(svwhilelt_b16(0u, 8u), nk_e4m3_subnorm_f16_lut_);
+
     NK_ALIGN64 nk_f16_t a_converted_f16x32[16][32];
     NK_ALIGN64 nk_f16_t b_bounce_f16x32[32];
     NK_ALIGN64 nk_f32_t a_buffer[16][16];
@@ -1657,7 +1680,7 @@ __arm_locally_streaming __arm_new("za") static void nk_dots_symmetric_e4m3_sme_k
                     nk_size_t const row_abs = row_tile_start + row_in_tile;
                     nk_e4m3_t const *a_src = vectors + row_abs * stride_elements + depth_batch_start * expansion;
                     svuint8_t raw_bytes = svld1_u8(full_predicate_b8, (uint8_t const *)a_src);
-                    svfloat16_t converted_f16 = nk_e4m3x_to_f16x_ssve_(full_predicate_b16, raw_bytes);
+                    svfloat16_t converted_f16 = nk_e4m3x_to_f16x_ssve_(full_predicate_b16, raw_bytes, subnorm_lut);
                     svst1_f16(full_predicate_b16, (float16_t *)a_converted_f16x32[row_in_tile], converted_f16);
                     svld1_hor_za32(0, row_in_tile, batch_predicate_b32,
                                    (nk_f32_t const *)a_converted_f16x32[row_in_tile]);
@@ -1678,7 +1701,7 @@ __arm_locally_streaming __arm_new("za") static void nk_dots_symmetric_e4m3_sme_k
                     if (col_abs < n_vectors) {
                         nk_e4m3_t const *src = &vectors[col_abs * stride_elements + depth_batch_start * expansion];
                         svuint8_t raw = svld1_u8(depth_predicate_b8, (uint8_t const *)src);
-                        svfloat16_t cvt = nk_e4m3x_to_f16x_ssve_(depth_predicate_b16, raw);
+                        svfloat16_t cvt = nk_e4m3x_to_f16x_ssve_(depth_predicate_b16, raw, subnorm_lut);
                         svst1_f16(depth_predicate_b16, (float16_t *)b_bounce_f16x32, cvt);
                         svld1_hor_za32(0, col, batch_predicate_b32, (nk_f32_t const *)b_bounce_f16x32);
                     }
@@ -1697,7 +1720,7 @@ __arm_locally_streaming __arm_new("za") static void nk_dots_symmetric_e4m3_sme_k
                     if (col_abs < n_vectors) {
                         nk_e4m3_t const *src = &vectors[col_abs * stride_elements + depth_batch_start * expansion];
                         svuint8_t raw = svld1_u8(depth_predicate_b8, (uint8_t const *)src);
-                        svfloat16_t cvt = nk_e4m3x_to_f16x_ssve_(depth_predicate_b16, raw);
+                        svfloat16_t cvt = nk_e4m3x_to_f16x_ssve_(depth_predicate_b16, raw, subnorm_lut);
                         svst1_f16(depth_predicate_b16, (float16_t *)b_bounce_f16x32, cvt);
                         svld1_hor_za32(0, col, batch_predicate_b32, (nk_f32_t const *)b_bounce_f16x32);
                     }
@@ -1716,7 +1739,7 @@ __arm_locally_streaming __arm_new("za") static void nk_dots_symmetric_e4m3_sme_k
                     if (col_abs < n_vectors) {
                         nk_e4m3_t const *src = &vectors[col_abs * stride_elements + depth_batch_start * expansion];
                         svuint8_t raw = svld1_u8(depth_predicate_b8, (uint8_t const *)src);
-                        svfloat16_t cvt = nk_e4m3x_to_f16x_ssve_(depth_predicate_b16, raw);
+                        svfloat16_t cvt = nk_e4m3x_to_f16x_ssve_(depth_predicate_b16, raw, subnorm_lut);
                         svst1_f16(depth_predicate_b16, (float16_t *)b_bounce_f16x32, cvt);
                         svld1_hor_za32(0, col, batch_predicate_b32, (nk_f32_t const *)b_bounce_f16x32);
                     }
@@ -1761,7 +1784,7 @@ __arm_locally_streaming __arm_new("za") static void nk_dots_symmetric_e4m3_sme_k
                     nk_size_t const row_abs = row_tile_start + row_in_tile;
                     nk_e4m3_t const *a_src = vectors + row_abs * stride_elements + depth_batch_start * expansion;
                     svuint8_t raw_bytes = svld1_u8(full_predicate_b8, (uint8_t const *)a_src);
-                    svfloat16_t converted_f16 = nk_e4m3x_to_f16x_ssve_(full_predicate_b16, raw_bytes);
+                    svfloat16_t converted_f16 = nk_e4m3x_to_f16x_ssve_(full_predicate_b16, raw_bytes, subnorm_lut);
                     svst1_f16(full_predicate_b16, (float16_t *)a_converted_f16x32[row_in_tile], converted_f16);
                     svld1_hor_za32(0, row_in_tile, batch_predicate_b32,
                                    (nk_f32_t const *)a_converted_f16x32[row_in_tile]);
@@ -1782,7 +1805,7 @@ __arm_locally_streaming __arm_new("za") static void nk_dots_symmetric_e4m3_sme_k
                     if (col_abs < n_vectors) {
                         nk_e4m3_t const *src = &vectors[col_abs * stride_elements + depth_batch_start * expansion];
                         svuint8_t raw = svld1_u8(depth_predicate_b8, (uint8_t const *)src);
-                        svfloat16_t cvt = nk_e4m3x_to_f16x_ssve_(depth_predicate_b16, raw);
+                        svfloat16_t cvt = nk_e4m3x_to_f16x_ssve_(depth_predicate_b16, raw, subnorm_lut);
                         svst1_f16(depth_predicate_b16, (float16_t *)b_bounce_f16x32, cvt);
                         svld1_hor_za32(0, col, batch_predicate_b32, (nk_f32_t const *)b_bounce_f16x32);
                     }
