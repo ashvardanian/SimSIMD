@@ -42,11 +42,11 @@ NK_PUBLIC void nk_bilinear_f32_rvv(nk_f32_t const *a, nk_f32_t const *b, nk_f32_
         vfloat64m4_t inner_f64m4 = __riscv_vfmv_v_f_f64m4(0.0, vlmax);
         nk_f32_t const *c_row = c + i * n;
         nk_size_t remaining = n;
-        for (nk_size_t vl; remaining > 0; remaining -= vl, c_row += vl) {
-            vl = __riscv_vsetvl_e32m2(remaining);
-            vfloat32m2_t c_f32m2 = __riscv_vle32_v_f32m2(c_row, vl);
-            vfloat32m2_t b_f32m2 = __riscv_vle32_v_f32m2(b + (n - remaining), vl);
-            inner_f64m4 = __riscv_vfwmacc_vv_f64m4(inner_f64m4, c_f32m2, b_f32m2, vl);
+        for (nk_size_t vector_length; remaining > 0; remaining -= vector_length, c_row += vector_length) {
+            vector_length = __riscv_vsetvl_e32m2(remaining);
+            vfloat32m2_t c_f32m2 = __riscv_vle32_v_f32m2(c_row, vector_length);
+            vfloat32m2_t b_f32m2 = __riscv_vle32_v_f32m2(b + (n - remaining), vector_length);
+            inner_f64m4 = __riscv_vfwmacc_vv_f64m4_tu(inner_f64m4, c_f32m2, b_f32m2, vector_length);
         }
         vfloat64m1_t zero_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, 1);
         nk_f64_t inner_val = __riscv_vfmv_f_s_f64m1_f64(
@@ -64,11 +64,11 @@ NK_PUBLIC void nk_bilinear_f64_rvv(nk_f64_t const *a, nk_f64_t const *b, nk_f64_
         vfloat64m4_t inner_f64m4 = __riscv_vfmv_v_f_f64m4(0.0, vlmax);
         nk_f64_t const *c_row = c + i * n;
         nk_size_t remaining = n;
-        for (nk_size_t vl; remaining > 0; remaining -= vl, c_row += vl) {
-            vl = __riscv_vsetvl_e64m4(remaining);
-            vfloat64m4_t vc_f64m4 = __riscv_vle64_v_f64m4(c_row, vl);
-            vfloat64m4_t vb_f64m4 = __riscv_vle64_v_f64m4(b + (n - remaining), vl);
-            inner_f64m4 = __riscv_vfmacc_vv_f64m4(inner_f64m4, vc_f64m4, vb_f64m4, vl);
+        for (nk_size_t vector_length; remaining > 0; remaining -= vector_length, c_row += vector_length) {
+            vector_length = __riscv_vsetvl_e64m4(remaining);
+            vfloat64m4_t vc_f64m4 = __riscv_vle64_v_f64m4(c_row, vector_length);
+            vfloat64m4_t vb_f64m4 = __riscv_vle64_v_f64m4(b + (n - remaining), vector_length);
+            inner_f64m4 = __riscv_vfmacc_vv_f64m4_tu(inner_f64m4, vc_f64m4, vb_f64m4, vector_length);
         }
         vfloat64m1_t zero_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, 1);
         nk_f64_t inner_val = __riscv_vfmv_f_s_f64m1_f64(
@@ -90,14 +90,14 @@ NK_PUBLIC void nk_bilinear_f16_rvv(nk_f16_t const *a, nk_f16_t const *b, nk_f16_
         vfloat32m2_t inner_f32m2 = __riscv_vfmv_v_f_f32m2(0.0f, vlmax);
         nk_f16_t const *c_row = c + i * n;
         nk_size_t remaining = n;
-        for (nk_size_t vl; remaining > 0; remaining -= vl, c_row += vl) {
-            vl = __riscv_vsetvl_e16m1(remaining);
+        for (nk_size_t vector_length; remaining > 0; remaining -= vector_length, c_row += vector_length) {
+            vector_length = __riscv_vsetvl_e16m1(remaining);
             // Load f16 as u16 bits and convert to f32
-            vuint16m1_t vc_u16m1 = __riscv_vle16_v_u16m1((nk_u16_t const *)c_row, vl);
-            vuint16m1_t vb_u16m1 = __riscv_vle16_v_u16m1((nk_u16_t const *)(b + (n - remaining)), vl);
-            vfloat32m2_t vc_f32m2 = nk_f16m1_to_f32m2_rvv_(vc_u16m1, vl);
-            vfloat32m2_t vb_f32m2 = nk_f16m1_to_f32m2_rvv_(vb_u16m1, vl);
-            inner_f32m2 = __riscv_vfmacc_vv_f32m2(inner_f32m2, vc_f32m2, vb_f32m2, vl);
+            vuint16m1_t vc_u16m1 = __riscv_vle16_v_u16m1((nk_u16_t const *)c_row, vector_length);
+            vuint16m1_t vb_u16m1 = __riscv_vle16_v_u16m1((nk_u16_t const *)(b + (n - remaining)), vector_length);
+            vfloat32m2_t vc_f32m2 = nk_f16m1_to_f32m2_rvv_(vc_u16m1, vector_length);
+            vfloat32m2_t vb_f32m2 = nk_f16m1_to_f32m2_rvv_(vb_u16m1, vector_length);
+            inner_f32m2 = __riscv_vfmacc_vv_f32m2_tu(inner_f32m2, vc_f32m2, vb_f32m2, vector_length);
         }
         vfloat32m1_t zero_f32m1 = __riscv_vfmv_v_f_f32m1(0.0f, 1);
         nk_f32_t inner_val = __riscv_vfmv_f_s_f32m1_f32(
@@ -119,14 +119,14 @@ NK_PUBLIC void nk_bilinear_bf16_rvv(nk_bf16_t const *a, nk_bf16_t const *b, nk_b
         vfloat32m2_t inner_f32m2 = __riscv_vfmv_v_f_f32m2(0.0f, vlmax);
         nk_bf16_t const *c_row = c + i * n;
         nk_size_t remaining = n;
-        for (nk_size_t vl; remaining > 0; remaining -= vl, c_row += vl) {
-            vl = __riscv_vsetvl_e16m1(remaining);
+        for (nk_size_t vector_length; remaining > 0; remaining -= vector_length, c_row += vector_length) {
+            vector_length = __riscv_vsetvl_e16m1(remaining);
             // Load bf16 as u16 bits and convert to f32
-            vuint16m1_t vc_u16m1 = __riscv_vle16_v_u16m1((nk_u16_t const *)c_row, vl);
-            vuint16m1_t vb_u16m1 = __riscv_vle16_v_u16m1((nk_u16_t const *)(b + (n - remaining)), vl);
-            vfloat32m2_t vc_f32m2 = nk_bf16m1_to_f32m2_rvv_(vc_u16m1, vl);
-            vfloat32m2_t vb_f32m2 = nk_bf16m1_to_f32m2_rvv_(vb_u16m1, vl);
-            inner_f32m2 = __riscv_vfmacc_vv_f32m2(inner_f32m2, vc_f32m2, vb_f32m2, vl);
+            vuint16m1_t vc_u16m1 = __riscv_vle16_v_u16m1((nk_u16_t const *)c_row, vector_length);
+            vuint16m1_t vb_u16m1 = __riscv_vle16_v_u16m1((nk_u16_t const *)(b + (n - remaining)), vector_length);
+            vfloat32m2_t vc_f32m2 = nk_bf16m1_to_f32m2_rvv_(vc_u16m1, vector_length);
+            vfloat32m2_t vb_f32m2 = nk_bf16m1_to_f32m2_rvv_(vb_u16m1, vector_length);
+            inner_f32m2 = __riscv_vfmacc_vv_f32m2_tu(inner_f32m2, vc_f32m2, vb_f32m2, vector_length);
         }
         vfloat32m1_t zero_f32m1 = __riscv_vfmv_v_f_f32m1(0.0f, 1);
         nk_f32_t inner_val = __riscv_vfmv_f_s_f32m1_f32(
@@ -145,14 +145,14 @@ NK_PUBLIC void nk_mahalanobis_f32_rvv(nk_f32_t const *a, nk_f32_t const *b, nk_f
         vfloat64m4_t inner_f64m4 = __riscv_vfmv_v_f_f64m4(0.0, vlmax);
         nk_f32_t const *c_row = c + i * n;
         nk_size_t remaining = n;
-        for (nk_size_t vl; remaining > 0; remaining -= vl, c_row += vl) {
-            vl = __riscv_vsetvl_e32m2(remaining);
+        for (nk_size_t vector_length; remaining > 0; remaining -= vector_length, c_row += vector_length) {
+            vector_length = __riscv_vsetvl_e32m2(remaining);
             nk_size_t j = n - remaining;
-            vfloat32m2_t c_f32m2 = __riscv_vle32_v_f32m2(c_row, vl);
-            vfloat32m2_t a_f32m2 = __riscv_vle32_v_f32m2(a + j, vl);
-            vfloat32m2_t b_f32m2 = __riscv_vle32_v_f32m2(b + j, vl);
-            vfloat32m2_t diff_f32m2 = __riscv_vfsub_vv_f32m2(a_f32m2, b_f32m2, vl);
-            inner_f64m4 = __riscv_vfwmacc_vv_f64m4(inner_f64m4, c_f32m2, diff_f32m2, vl);
+            vfloat32m2_t c_f32m2 = __riscv_vle32_v_f32m2(c_row, vector_length);
+            vfloat32m2_t a_f32m2 = __riscv_vle32_v_f32m2(a + j, vector_length);
+            vfloat32m2_t b_f32m2 = __riscv_vle32_v_f32m2(b + j, vector_length);
+            vfloat32m2_t diff_f32m2 = __riscv_vfsub_vv_f32m2(a_f32m2, b_f32m2, vector_length);
+            inner_f64m4 = __riscv_vfwmacc_vv_f64m4_tu(inner_f64m4, c_f32m2, diff_f32m2, vector_length);
         }
         vfloat64m1_t zero_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, 1);
         nk_f64_t inner_val = __riscv_vfmv_f_s_f64m1_f64(
@@ -171,14 +171,14 @@ NK_PUBLIC void nk_mahalanobis_f64_rvv(nk_f64_t const *a, nk_f64_t const *b, nk_f
         vfloat64m4_t inner_f64m4 = __riscv_vfmv_v_f_f64m4(0.0, vlmax);
         nk_f64_t const *c_row = c + i * n;
         nk_size_t remaining = n;
-        for (nk_size_t vl; remaining > 0; remaining -= vl, c_row += vl) {
-            vl = __riscv_vsetvl_e64m4(remaining);
+        for (nk_size_t vector_length; remaining > 0; remaining -= vector_length, c_row += vector_length) {
+            vector_length = __riscv_vsetvl_e64m4(remaining);
             nk_size_t j = n - remaining;
-            vfloat64m4_t vc_f64m4 = __riscv_vle64_v_f64m4(c_row, vl);
-            vfloat64m4_t va_f64m4 = __riscv_vle64_v_f64m4(a + j, vl);
-            vfloat64m4_t vb_f64m4 = __riscv_vle64_v_f64m4(b + j, vl);
-            vfloat64m4_t diff_j_f64m4 = __riscv_vfsub_vv_f64m4(va_f64m4, vb_f64m4, vl);
-            inner_f64m4 = __riscv_vfmacc_vv_f64m4(inner_f64m4, vc_f64m4, diff_j_f64m4, vl);
+            vfloat64m4_t vc_f64m4 = __riscv_vle64_v_f64m4(c_row, vector_length);
+            vfloat64m4_t va_f64m4 = __riscv_vle64_v_f64m4(a + j, vector_length);
+            vfloat64m4_t vb_f64m4 = __riscv_vle64_v_f64m4(b + j, vector_length);
+            vfloat64m4_t diff_j_f64m4 = __riscv_vfsub_vv_f64m4(va_f64m4, vb_f64m4, vector_length);
+            inner_f64m4 = __riscv_vfmacc_vv_f64m4_tu(inner_f64m4, vc_f64m4, diff_j_f64m4, vector_length);
         }
         vfloat64m1_t zero_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, 1);
         nk_f64_t inner_val = __riscv_vfmv_f_s_f64m1_f64(
@@ -201,17 +201,17 @@ NK_PUBLIC void nk_mahalanobis_f16_rvv(nk_f16_t const *a, nk_f16_t const *b, nk_f
         vfloat32m2_t inner_f32m2 = __riscv_vfmv_v_f_f32m2(0.0f, vlmax);
         nk_f16_t const *c_row = c + i * n;
         nk_size_t remaining = n;
-        for (nk_size_t vl; remaining > 0; remaining -= vl, c_row += vl) {
-            vl = __riscv_vsetvl_e16m1(remaining);
+        for (nk_size_t vector_length; remaining > 0; remaining -= vector_length, c_row += vector_length) {
+            vector_length = __riscv_vsetvl_e16m1(remaining);
             nk_size_t j = n - remaining;
-            vuint16m1_t vc_u16m1 = __riscv_vle16_v_u16m1((nk_u16_t const *)c_row, vl);
-            vuint16m1_t va_u16m1 = __riscv_vle16_v_u16m1((nk_u16_t const *)(a + j), vl);
-            vuint16m1_t vb_u16m1 = __riscv_vle16_v_u16m1((nk_u16_t const *)(b + j), vl);
-            vfloat32m2_t vc_f32m2 = nk_f16m1_to_f32m2_rvv_(vc_u16m1, vl);
-            vfloat32m2_t va_f32m2 = nk_f16m1_to_f32m2_rvv_(va_u16m1, vl);
-            vfloat32m2_t vb_f32m2 = nk_f16m1_to_f32m2_rvv_(vb_u16m1, vl);
-            vfloat32m2_t diff_j_f32m2 = __riscv_vfsub_vv_f32m2(va_f32m2, vb_f32m2, vl);
-            inner_f32m2 = __riscv_vfmacc_vv_f32m2(inner_f32m2, vc_f32m2, diff_j_f32m2, vl);
+            vuint16m1_t vc_u16m1 = __riscv_vle16_v_u16m1((nk_u16_t const *)c_row, vector_length);
+            vuint16m1_t va_u16m1 = __riscv_vle16_v_u16m1((nk_u16_t const *)(a + j), vector_length);
+            vuint16m1_t vb_u16m1 = __riscv_vle16_v_u16m1((nk_u16_t const *)(b + j), vector_length);
+            vfloat32m2_t vc_f32m2 = nk_f16m1_to_f32m2_rvv_(vc_u16m1, vector_length);
+            vfloat32m2_t va_f32m2 = nk_f16m1_to_f32m2_rvv_(va_u16m1, vector_length);
+            vfloat32m2_t vb_f32m2 = nk_f16m1_to_f32m2_rvv_(vb_u16m1, vector_length);
+            vfloat32m2_t diff_j_f32m2 = __riscv_vfsub_vv_f32m2(va_f32m2, vb_f32m2, vector_length);
+            inner_f32m2 = __riscv_vfmacc_vv_f32m2_tu(inner_f32m2, vc_f32m2, diff_j_f32m2, vector_length);
         }
         vfloat32m1_t zero_f32m1 = __riscv_vfmv_v_f_f32m1(0.0f, 1);
         nk_f32_t inner_val = __riscv_vfmv_f_s_f32m1_f32(
@@ -234,17 +234,17 @@ NK_PUBLIC void nk_mahalanobis_bf16_rvv(nk_bf16_t const *a, nk_bf16_t const *b, n
         vfloat32m2_t inner_f32m2 = __riscv_vfmv_v_f_f32m2(0.0f, vlmax);
         nk_bf16_t const *c_row = c + i * n;
         nk_size_t remaining = n;
-        for (nk_size_t vl; remaining > 0; remaining -= vl, c_row += vl) {
-            vl = __riscv_vsetvl_e16m1(remaining);
+        for (nk_size_t vector_length; remaining > 0; remaining -= vector_length, c_row += vector_length) {
+            vector_length = __riscv_vsetvl_e16m1(remaining);
             nk_size_t j = n - remaining;
-            vuint16m1_t vc_u16m1 = __riscv_vle16_v_u16m1((nk_u16_t const *)c_row, vl);
-            vuint16m1_t va_u16m1 = __riscv_vle16_v_u16m1((nk_u16_t const *)(a + j), vl);
-            vuint16m1_t vb_u16m1 = __riscv_vle16_v_u16m1((nk_u16_t const *)(b + j), vl);
-            vfloat32m2_t vc_f32m2 = nk_bf16m1_to_f32m2_rvv_(vc_u16m1, vl);
-            vfloat32m2_t va_f32m2 = nk_bf16m1_to_f32m2_rvv_(va_u16m1, vl);
-            vfloat32m2_t vb_f32m2 = nk_bf16m1_to_f32m2_rvv_(vb_u16m1, vl);
-            vfloat32m2_t diff_j_f32m2 = __riscv_vfsub_vv_f32m2(va_f32m2, vb_f32m2, vl);
-            inner_f32m2 = __riscv_vfmacc_vv_f32m2(inner_f32m2, vc_f32m2, diff_j_f32m2, vl);
+            vuint16m1_t vc_u16m1 = __riscv_vle16_v_u16m1((nk_u16_t const *)c_row, vector_length);
+            vuint16m1_t va_u16m1 = __riscv_vle16_v_u16m1((nk_u16_t const *)(a + j), vector_length);
+            vuint16m1_t vb_u16m1 = __riscv_vle16_v_u16m1((nk_u16_t const *)(b + j), vector_length);
+            vfloat32m2_t vc_f32m2 = nk_bf16m1_to_f32m2_rvv_(vc_u16m1, vector_length);
+            vfloat32m2_t va_f32m2 = nk_bf16m1_to_f32m2_rvv_(va_u16m1, vector_length);
+            vfloat32m2_t vb_f32m2 = nk_bf16m1_to_f32m2_rvv_(vb_u16m1, vector_length);
+            vfloat32m2_t diff_j_f32m2 = __riscv_vfsub_vv_f32m2(va_f32m2, vb_f32m2, vector_length);
+            inner_f32m2 = __riscv_vfmacc_vv_f32m2_tu(inner_f32m2, vc_f32m2, diff_j_f32m2, vector_length);
         }
         vfloat32m1_t zero_f32m1 = __riscv_vfmv_v_f_f32m1(0.0f, 1);
         nk_f32_t inner_val = __riscv_vfmv_f_s_f32m1_f32(

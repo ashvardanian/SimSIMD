@@ -30,7 +30,7 @@ set(CMAKE_FIND_ROOT_PATH "${WASI_SDK_PATH}")
 # WASM SIMD flags (same as Emscripten for consistency)
 set(WASM_SIMD_FLAGS "-msimd128 -mrelaxed-simd")
 set(CMAKE_C_FLAGS_INIT "${WASM_SIMD_FLAGS} --target=wasm32-wasi")
-set(CMAKE_CXX_FLAGS_INIT "${WASM_SIMD_FLAGS} --target=wasm32-wasi")
+set(CMAKE_CXX_FLAGS_INIT "${WASM_SIMD_FLAGS} --target=wasm32-wasi -fno-exceptions")
 
 # Optimization flags
 set(CMAKE_C_FLAGS_RELEASE "-O3 -DNDEBUG")

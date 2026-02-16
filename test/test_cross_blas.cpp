@@ -52,6 +52,44 @@ error_stats_t test_dots_unpacked(kernel_type_ dots_fn) {
     return stats;
 }
 
+/**
+ *  @brief Like test_dots_unpacked, but uses conjugated reference (C = A × B^H).
+ *
+ *  For complex GEMM, BLAS computes the Hermitian inner product when called with
+ *  CblasConjTrans. The reference must also conjugate B to match.
+ */
+template <typename scalar_type_, typename accumulator_type_, typename reference_type_ = f118_t, typename kernel_type_>
+error_stats_t test_dots_unpacked_conjugated(kernel_type_ dots_fn) {
+    using scalar_t = scalar_type_;
+    using raw_t = typename scalar_t::raw_t;
+    using result_t = accumulator_type_;
+    using reference_t = reference_type_;
+
+    error_stats_t stats;
+    std::mt19937 generator(global_config.seed);
+
+    std::size_t m = matrix_height, n = matrix_width, k = matrix_depth;
+    std::size_t a_stride = k * sizeof(raw_t);
+    std::size_t b_stride = k * sizeof(raw_t);
+    std::size_t c_stride = n * sizeof(typename result_t::raw_t);
+
+    auto a_buf = make_vector<scalar_t>(m * k), b_buf = make_vector<scalar_t>(n * k);
+    auto c = make_vector<result_t>(m * n);
+    auto c_ref = make_vector<reference_t>(m * n);
+    for (auto start = test_start_time(); within_time_budget(start);) {
+        fill_random(generator, a_buf);
+        fill_random(generator, b_buf);
+
+        nk::dots_unpacked_conjugated<scalar_t, reference_t>(a_buf.values_data(), b_buf.values_data(),
+                                                            c_ref.values_data(), m, n, k, a_stride, b_stride,
+                                                            n * sizeof(reference_t));
+        dots_fn(a_buf.values_data(), b_buf.values_data(), c.values_data(), m, n, k, a_stride, c_stride);
+
+        for (std::size_t i = 0; i < m * n; i++) stats.accumulate(c[i], c_ref[i]);
+    }
+    return stats;
+}
+
 void dot_f32_with_blas(nk_f32_t const *a, nk_f32_t const *b, nk_size_t n, nk_f32_t *result) {
     *result = cblas_sdot(static_cast<int>(n), a, 1, b, 1);
 }
@@ -123,16 +161,16 @@ void dots_f32c_with_blas(f32c_t const *a, f32c_t const *b, f32c_t *c, nk_size_t 
     (void)c_stride;
     nk_f32c_t alpha = {1.0f, 0.0f}, beta = {0.0f, 0.0f};
 #if NK_COMPARE_TO_ACCELERATE
-    cblas_cgemm(CblasRowMajor, CblasNoTrans, CblasTrans, static_cast<int>(m), static_cast<int>(n), static_cast<int>(k),
-                reinterpret_cast<__LAPACK_float_complex const *>(&alpha),
+    cblas_cgemm(CblasRowMajor, CblasNoTrans, CblasConjTrans, static_cast<int>(m), static_cast<int>(n),
+                static_cast<int>(k), reinterpret_cast<__LAPACK_float_complex const *>(&alpha),
                 reinterpret_cast<__LAPACK_float_complex const *>(&a->raw_), static_cast<int>(k),
                 reinterpret_cast<__LAPACK_float_complex const *>(&b->raw_), static_cast<int>(k),
                 reinterpret_cast<__LAPACK_float_complex const *>(&beta),
                 reinterpret_cast<__LAPACK_float_complex *>(&c->raw_), static_cast<int>(n));
 #else
-    cblas_cgemm(CblasRowMajor, CblasNoTrans, CblasTrans, static_cast<int>(m), static_cast<int>(n), static_cast<int>(k),
-                &alpha, &a->raw_, static_cast<int>(k), &b->raw_, static_cast<int>(k), &beta, &c->raw_,
-                static_cast<int>(n));
+    cblas_cgemm(CblasRowMajor, CblasNoTrans, CblasConjTrans, static_cast<int>(m), static_cast<int>(n),
+                static_cast<int>(k), &alpha, &a->raw_, static_cast<int>(k), &b->raw_, static_cast<int>(k), &beta,
+                &c->raw_, static_cast<int>(n));
 #endif
 }
 
@@ -142,16 +180,16 @@ void dots_f64c_with_blas(f64c_t const *a, f64c_t const *b, f64c_t *c, nk_size_t 
     (void)c_stride;
     nk_f64c_t alpha = {1.0, 0.0}, beta = {0.0, 0.0};
 #if NK_COMPARE_TO_ACCELERATE
-    cblas_zgemm(CblasRowMajor, CblasNoTrans, CblasTrans, static_cast<int>(m), static_cast<int>(n), static_cast<int>(k),
-                reinterpret_cast<__LAPACK_double_complex const *>(&alpha),
+    cblas_zgemm(CblasRowMajor, CblasNoTrans, CblasConjTrans, static_cast<int>(m), static_cast<int>(n),
+                static_cast<int>(k), reinterpret_cast<__LAPACK_double_complex const *>(&alpha),
                 reinterpret_cast<__LAPACK_double_complex const *>(&a->raw_), static_cast<int>(k),
                 reinterpret_cast<__LAPACK_double_complex const *>(&b->raw_), static_cast<int>(k),
                 reinterpret_cast<__LAPACK_double_complex const *>(&beta),
                 reinterpret_cast<__LAPACK_double_complex *>(&c->raw_), static_cast<int>(n));
 #else
-    cblas_zgemm(CblasRowMajor, CblasNoTrans, CblasTrans, static_cast<int>(m), static_cast<int>(n), static_cast<int>(k),
-                &alpha, &a->raw_, static_cast<int>(k), &b->raw_, static_cast<int>(k), &beta, &c->raw_,
-                static_cast<int>(n));
+    cblas_zgemm(CblasRowMajor, CblasNoTrans, CblasConjTrans, static_cast<int>(m), static_cast<int>(n),
+                static_cast<int>(k), &alpha, &a->raw_, static_cast<int>(k), &b->raw_, static_cast<int>(k), &beta,
+                &c->raw_, static_cast<int>(n));
 #endif
 }
 
@@ -259,9 +297,11 @@ void test_cross_blas() {
                    dots_f32_with_blas);
     run_if_matches("dots_with_blas_f64", test_dots_unpacked<f64_t, f64_t, f118_t, decltype(&dots_f64_with_blas)>,
                    dots_f64_with_blas);
-    run_if_matches("dots_with_blas_f32c", test_dots_unpacked<f32c_t, f32c_t, f118c_t, decltype(&dots_f32c_with_blas)>,
+    run_if_matches("dots_with_blas_f32c",
+                   test_dots_unpacked_conjugated<f32c_t, f32c_t, f118c_t, decltype(&dots_f32c_with_blas)>,
                    dots_f32c_with_blas);
-    run_if_matches("dots_with_blas_f64c", test_dots_unpacked<f64c_t, f64c_t, f118c_t, decltype(&dots_f64c_with_blas)>,
+    run_if_matches("dots_with_blas_f64c",
+                   test_dots_unpacked_conjugated<f64c_t, f64c_t, f118c_t, decltype(&dots_f64c_with_blas)>,
                    dots_f64c_with_blas);
 #endif
 

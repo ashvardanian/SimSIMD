@@ -40,9 +40,9 @@ extern "C" {
  *  Replaces the 11-instruction SWAR approach in nk_popcount_u8m4_rvv_.
  */
 NK_INTERNAL vuint8m4_t nk_popcount_u8m4_rvvbb_(vuint8m4_t v_u8m4) {
-    vuint8m4_t result;
-    __asm__ volatile("vcpop.v %0, %1" : "=vr"(result) : "vr"(v_u8m4));
-    return result;
+    vuint8m4_t result_u8m4;
+    __asm__ volatile("vcpop.v %0, %1" : "=vr"(result_u8m4) : "vr"(v_u8m4));
+    return result_u8m4;
 }
 
 NK_PUBLIC void nk_hamming_u1_rvvbb(nk_u1x8_t const *a, nk_u1x8_t const *b, nk_size_t n, nk_u32_t *result) {

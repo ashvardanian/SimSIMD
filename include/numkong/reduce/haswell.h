@@ -1878,9 +1878,9 @@ NK_INTERNAL void nk_reduce_moments_i32_haswell_contiguous_( //
             _mm256_castsi256_pd(_mm256_cmpgt_epi64(sq_before_biased_u64x4, sq_result_biased_u64x4)));
     }
     // Sumsq: horizontal unsigned saturating reduction
-    nk_u64_t sq;
-    if (sumsq_overflow_mask) sq = NK_U64_MAX;
-    else sq = nk_reduce_sadd_u64x4_haswell_(sumsq_u64x4);
+    nk_u64_t sumsq;
+    if (sumsq_overflow_mask) sumsq = NK_U64_MAX;
+    else sumsq = nk_reduce_sadd_u64x4_haswell_(sumsq_u64x4);
     // Sum: horizontal 128-bit reduction (4 lanes → scalar)
     nk_b256_vec_t lower_vec, upper_vec;
     lower_vec.ymm = sum_lower_i64x4;
@@ -1893,10 +1893,11 @@ NK_INTERNAL void nk_reduce_moments_i32_haswell_contiguous_( //
         if (sum_lower < sum_before) sum_upper++;
         sum_upper += upper_vec.i64s[i];
     }
+    *sumsq_ptr = sumsq;
     nk_i64_t sum_lower_signed = (nk_i64_t)sum_lower;
     if (sum_upper == (sum_lower_signed >> 63)) *sum_ptr = sum_lower_signed;
     else if (sum_upper >= 0) *sum_ptr = NK_I64_MAX;
-    else *sum_ptr = NK_I64_MIN, *sumsq_ptr = sq;
+    else *sum_ptr = NK_I64_MIN;
 }
 
 NK_PUBLIC void nk_reduce_moments_i32_haswell(                          //
@@ -2213,24 +2214,25 @@ NK_INTERNAL void nk_reduce_moments_i64_haswell_contiguous_( //
         if (sum_lower < before) sum_upper++;
         sum_upper += upper_vec.i64s[i];
     }
-    nk_u64_t sq;
-    if (sumsq_overflow_mask) sq = NK_U64_MAX;
-    else sq = nk_reduce_sadd_u64x4_haswell_(sumsq_u64x4);
+    nk_u64_t sumsq;
+    if (sumsq_overflow_mask) sumsq = NK_U64_MAX;
+    else sumsq = nk_reduce_sadd_u64x4_haswell_(sumsq_u64x4);
     for (; idx < count; ++idx) {
         nk_i64_t val = data_ptr[idx];
         nk_i64_t product;
         nk_i64_smul_(&val, &val, &product);
         nk_u64_t unsigned_product = (nk_u64_t)product;
-        nk_u64_sadd_(&sq, &unsigned_product, &sq);
+        nk_u64_sadd_(&sumsq, &unsigned_product, &sumsq);
         nk_u64_t before = sum_lower;
         sum_lower += (nk_u64_t)val;
         if (sum_lower < before) sum_upper++;
         sum_upper += (val >> 63);
     }
+    *sumsq_ptr = sumsq;
     nk_i64_t sum_lower_signed = (nk_i64_t)sum_lower;
     if (sum_upper == (sum_lower_signed >> 63)) *sum_ptr = sum_lower_signed;
     else if (sum_upper >= 0) *sum_ptr = NK_I64_MAX;
-    else *sum_ptr = NK_I64_MIN, *sumsq_ptr = sq;
+    else *sum_ptr = NK_I64_MIN;
 }
 
 NK_PUBLIC void nk_reduce_moments_i64_haswell(                          //

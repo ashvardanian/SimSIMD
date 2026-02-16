@@ -114,8 +114,7 @@ NK_INTERNAL vfloat32m4_t nk_f32m4_cos_rvv_(vfloat32m4_t angles, nk_size_t vl) {
     // If rounded is even, flip the sign
     vuint32m4_t parity_u32m4 = __riscv_vand_vx_u32m4(__riscv_vreinterpret_v_i32m4_u32m4(rounded_i32m4), 1, vl);
     vbool8_t even_mask_b8 = __riscv_vmseq_vx_u32m4_b8(parity_u32m4, 0, vl);
-    vfloat32m4_t negated_f32m4 = __riscv_vfneg_v_f32m4(result_f32m4, vl);
-    result_f32m4 = __riscv_vmerge_vvm_f32m4(result_f32m4, negated_f32m4, even_mask_b8, vl);
+    result_f32m4 = __riscv_vfneg_v_f32m4_mu(even_mask_b8, result_f32m4, result_f32m4, vl);
     return result_f32m4;
 }
 
@@ -157,12 +156,10 @@ NK_INTERNAL vfloat32m4_t nk_f32m4_atan_rvv_(vfloat32m4_t inputs, nk_size_t vl) {
     vfloat32m4_t result_f32m4 = __riscv_vfmacc_vv_f32m4(values_f32m4, cubed_f32m4, poly_f32m4, vl);
 
     // Adjust for reciprocal: result = pi/2 - result
-    vfloat32m4_t adjusted_f32m4 = __riscv_vfrsub_vf_f32m4(result_f32m4, 1.5707963267948966f, vl);
-    result_f32m4 = __riscv_vmerge_vvm_f32m4(result_f32m4, adjusted_f32m4, reciprocal_mask_b8, vl);
+    result_f32m4 = __riscv_vfrsub_vf_f32m4_mu(reciprocal_mask_b8, result_f32m4, result_f32m4, 1.5707963267948966f, vl);
 
     // Adjust for negative: result = -result
-    vfloat32m4_t negated_f32m4 = __riscv_vfneg_v_f32m4(result_f32m4, vl);
-    result_f32m4 = __riscv_vmerge_vvm_f32m4(result_f32m4, negated_f32m4, negative_mask_b8, vl);
+    result_f32m4 = __riscv_vfneg_v_f32m4_mu(negative_mask_b8, result_f32m4, result_f32m4, vl);
     return result_f32m4;
 }
 
@@ -184,10 +181,9 @@ NK_INTERNAL vfloat32m4_t nk_f32m4_atan2_rvv_(vfloat32m4_t ys_inputs, vfloat32m4_
 
     // Ensure proper fraction where numerator < denominator
     vbool8_t swap_mask_b8 = __riscv_vmfgt_vv_f32m4_b8(ys_f32m4, xs_f32m4, vl);
-    vfloat32m4_t temps_f32m4 = xs_f32m4;
+    vfloat32m4_t saved_xs_f32m4 = xs_f32m4;
     xs_f32m4 = __riscv_vmerge_vvm_f32m4(xs_f32m4, ys_f32m4, swap_mask_b8, vl);
-    vfloat32m4_t neg_temps_f32m4 = __riscv_vfneg_v_f32m4(temps_f32m4, vl);
-    ys_f32m4 = __riscv_vmerge_vvm_f32m4(ys_f32m4, neg_temps_f32m4, swap_mask_b8, vl);
+    ys_f32m4 = __riscv_vfneg_v_f32m4_mu(swap_mask_b8, ys_f32m4, saved_xs_f32m4, vl);
 
     // Compute ratio and powers
     vfloat32m4_t ratio_f32m4 = __riscv_vfmul_vv_f32m4(ys_f32m4, nk_f32m4_reciprocal_rvv_(xs_f32m4, vl), vl);
@@ -263,8 +259,7 @@ NK_INTERNAL vfloat64m4_t nk_f64m4_sin_rvv_(vfloat64m4_t angles_radians, nk_size_
     // If rounded is odd, negate the angle
     vuint64m4_t parity_u64m4 = __riscv_vand_vx_u64m4(__riscv_vreinterpret_v_i64m4_u64m4(rounded_i64m4), 1, vl);
     vbool16_t odd_mask_b16 = __riscv_vmsne_vx_u64m4_b16(parity_u64m4, 0, vl);
-    vfloat64m4_t negated_angles_f64m4 = __riscv_vfneg_v_f64m4(angles_f64m4, vl);
-    angles_f64m4 = __riscv_vmerge_vvm_f64m4(angles_f64m4, negated_angles_f64m4, odd_mask_b16, vl);
+    angles_f64m4 = __riscv_vfneg_v_f64m4_mu(odd_mask_b16, angles_f64m4, angles_f64m4, vl);
 
     vfloat64m4_t squared_f64m4 = __riscv_vfmul_vv_f64m4(angles_f64m4, angles_f64m4, vl);
     vfloat64m4_t cubed_f64m4 = __riscv_vfmul_vv_f64m4(angles_f64m4, squared_f64m4, vl);
@@ -335,8 +330,7 @@ NK_INTERNAL vfloat64m4_t nk_f64m4_cos_rvv_(vfloat64m4_t angles_radians, nk_size_
     vint64m4_t quotients_i64m4 = __riscv_vfcvt_x_f_v_i64m4(rounded_quotients_f64m4, vl);
     vuint64m4_t bit2_u64m4 = __riscv_vand_vx_u64m4(__riscv_vreinterpret_v_i64m4_u64m4(quotients_i64m4), 2, vl);
     vbool16_t flip_mask_b16 = __riscv_vmseq_vx_u64m4_b16(bit2_u64m4, 0, vl);
-    vfloat64m4_t negated_angles_f64m4 = __riscv_vfneg_v_f64m4(angles_f64m4, vl);
-    angles_f64m4 = __riscv_vmerge_vvm_f64m4(angles_f64m4, negated_angles_f64m4, flip_mask_b16, vl);
+    angles_f64m4 = __riscv_vfneg_v_f64m4_mu(flip_mask_b16, angles_f64m4, angles_f64m4, vl);
 
     vfloat64m4_t squared_f64m4 = __riscv_vfmul_vv_f64m4(angles_f64m4, angles_f64m4, vl);
     vfloat64m4_t cubed_f64m4 = __riscv_vfmul_vv_f64m4(angles_f64m4, squared_f64m4, vl);
@@ -418,12 +412,10 @@ NK_INTERNAL vfloat64m4_t nk_f64m4_atan_rvv_(vfloat64m4_t inputs, nk_size_t vl) {
     vfloat64m4_t result_f64m4 = __riscv_vfmacc_vv_f64m4(values_f64m4, cubed_f64m4, poly_f64m4, vl);
 
     // Adjust for reciprocal: result = pi/2 - result
-    vfloat64m4_t adjusted_f64m4 = __riscv_vfrsub_vf_f64m4(result_f64m4, 1.5707963267948966, vl);
-    result_f64m4 = __riscv_vmerge_vvm_f64m4(result_f64m4, adjusted_f64m4, reciprocal_mask_b16, vl);
+    result_f64m4 = __riscv_vfrsub_vf_f64m4_mu(reciprocal_mask_b16, result_f64m4, result_f64m4, 1.5707963267948966, vl);
 
     // Adjust for negative: result = -result
-    vfloat64m4_t negated_f64m4 = __riscv_vfneg_v_f64m4(result_f64m4, vl);
-    result_f64m4 = __riscv_vmerge_vvm_f64m4(result_f64m4, negated_f64m4, negative_mask_b16, vl);
+    result_f64m4 = __riscv_vfneg_v_f64m4_mu(negative_mask_b16, result_f64m4, result_f64m4, vl);
     return result_f64m4;
 }
 
@@ -456,10 +448,9 @@ NK_INTERNAL vfloat64m4_t nk_f64m4_atan2_rvv_(vfloat64m4_t ys_inputs, vfloat64m4_
 
     // Ensure proper fraction where numerator < denominator
     vbool16_t swap_mask_b16 = __riscv_vmfgt_vv_f64m4_b16(ys_f64m4, xs_f64m4, vl);
-    vfloat64m4_t temps_f64m4 = xs_f64m4;
+    vfloat64m4_t saved_xs_f64m4 = xs_f64m4;
     xs_f64m4 = __riscv_vmerge_vvm_f64m4(xs_f64m4, ys_f64m4, swap_mask_b16, vl);
-    vfloat64m4_t neg_temps_f64m4 = __riscv_vfneg_v_f64m4(temps_f64m4, vl);
-    ys_f64m4 = __riscv_vmerge_vvm_f64m4(ys_f64m4, neg_temps_f64m4, swap_mask_b16, vl);
+    ys_f64m4 = __riscv_vfneg_v_f64m4_mu(swap_mask_b16, ys_f64m4, saved_xs_f64m4, vl);
 
     // Compute ratio and powers
     vfloat64m4_t ratio_f64m4 = __riscv_vfmul_vv_f64m4(ys_f64m4, nk_f64m4_reciprocal_rvv_(xs_f64m4, vl), vl);
@@ -565,8 +556,7 @@ NK_INTERNAL vfloat32m2_t nk_f32m2_cos_rvv_(vfloat32m2_t angles, nk_size_t vl) {
 
     vuint32m2_t parity_u32m2 = __riscv_vand_vx_u32m2(__riscv_vreinterpret_v_i32m2_u32m2(rounded_i32m2), 1, vl);
     vbool16_t even_mask_b16 = __riscv_vmseq_vx_u32m2_b16(parity_u32m2, 0, vl);
-    vfloat32m2_t negated_f32m2 = __riscv_vfneg_v_f32m2(result_f32m2, vl);
-    result_f32m2 = __riscv_vmerge_vvm_f32m2(result_f32m2, negated_f32m2, even_mask_b16, vl);
+    result_f32m2 = __riscv_vfneg_v_f32m2_mu(even_mask_b16, result_f32m2, result_f32m2, vl);
     return result_f32m2;
 }
 
@@ -601,11 +591,9 @@ NK_INTERNAL vfloat32m2_t nk_f32m2_atan_rvv_(vfloat32m2_t inputs, nk_size_t vl) {
 
     vfloat32m2_t result_f32m2 = __riscv_vfmacc_vv_f32m2(values_f32m2, cubed_f32m2, poly_f32m2, vl);
 
-    vfloat32m2_t adjusted_f32m2 = __riscv_vfrsub_vf_f32m2(result_f32m2, 1.5707963267948966f, vl);
-    result_f32m2 = __riscv_vmerge_vvm_f32m2(result_f32m2, adjusted_f32m2, reciprocal_mask_b16, vl);
+    result_f32m2 = __riscv_vfrsub_vf_f32m2_mu(reciprocal_mask_b16, result_f32m2, result_f32m2, 1.5707963267948966f, vl);
 
-    vfloat32m2_t negated_f32m2 = __riscv_vfneg_v_f32m2(result_f32m2, vl);
-    result_f32m2 = __riscv_vmerge_vvm_f32m2(result_f32m2, negated_f32m2, negative_mask_b16, vl);
+    result_f32m2 = __riscv_vfneg_v_f32m2_mu(negative_mask_b16, result_f32m2, result_f32m2, vl);
     return result_f32m2;
 }
 

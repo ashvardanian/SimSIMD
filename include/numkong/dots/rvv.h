@@ -158,21 +158,21 @@ NK_INTERNAL void nk_dots_packed_f32_rvv_aligned_(nk_f32_t const *a_matrix, void 
 
             nk_size_t remaining = depth;
             nk_size_t k = 0;
-            for (nk_size_t vl = 0; remaining > 0; remaining -= vl, k += vl) {
-                vl = __riscv_vsetvl_e32m2(remaining);
-                vfloat32m2_t b_vector_f32m2 = __riscv_vle32_v_f32m2(b_column + k, vl);
-                vfloat32m2_t a_vector_0_f32m2 = __riscv_vle32_v_f32m2(a_row_0 + k, vl);
-                vfloat32m2_t a_vector_1_f32m2 = __riscv_vle32_v_f32m2(a_row_1 + k, vl);
-                vfloat32m2_t a_vector_2_f32m2 = __riscv_vle32_v_f32m2(a_row_2 + k, vl);
-                vfloat32m2_t a_vector_3_f32m2 = __riscv_vle32_v_f32m2(a_row_3 + k, vl);
-                accumulator_0_f64m4 = __riscv_vfwmacc_vv_f64m4(accumulator_0_f64m4, a_vector_0_f32m2, b_vector_f32m2,
-                                                               vl);
-                accumulator_1_f64m4 = __riscv_vfwmacc_vv_f64m4(accumulator_1_f64m4, a_vector_1_f32m2, b_vector_f32m2,
-                                                               vl);
-                accumulator_2_f64m4 = __riscv_vfwmacc_vv_f64m4(accumulator_2_f64m4, a_vector_2_f32m2, b_vector_f32m2,
-                                                               vl);
-                accumulator_3_f64m4 = __riscv_vfwmacc_vv_f64m4(accumulator_3_f64m4, a_vector_3_f32m2, b_vector_f32m2,
-                                                               vl);
+            for (nk_size_t vector_length = 0; remaining > 0; remaining -= vector_length, k += vector_length) {
+                vector_length = __riscv_vsetvl_e32m2(remaining);
+                vfloat32m2_t b_vector_f32m2 = __riscv_vle32_v_f32m2(b_column + k, vector_length);
+                vfloat32m2_t a_vector_0_f32m2 = __riscv_vle32_v_f32m2(a_row_0 + k, vector_length);
+                vfloat32m2_t a_vector_1_f32m2 = __riscv_vle32_v_f32m2(a_row_1 + k, vector_length);
+                vfloat32m2_t a_vector_2_f32m2 = __riscv_vle32_v_f32m2(a_row_2 + k, vector_length);
+                vfloat32m2_t a_vector_3_f32m2 = __riscv_vle32_v_f32m2(a_row_3 + k, vector_length);
+                accumulator_0_f64m4 = __riscv_vfwmacc_vv_f64m4_tu(accumulator_0_f64m4, a_vector_0_f32m2, b_vector_f32m2,
+                                                                  vector_length);
+                accumulator_1_f64m4 = __riscv_vfwmacc_vv_f64m4_tu(accumulator_1_f64m4, a_vector_1_f32m2, b_vector_f32m2,
+                                                                  vector_length);
+                accumulator_2_f64m4 = __riscv_vfwmacc_vv_f64m4_tu(accumulator_2_f64m4, a_vector_2_f32m2, b_vector_f32m2,
+                                                                  vector_length);
+                accumulator_3_f64m4 = __riscv_vfwmacc_vv_f64m4_tu(accumulator_3_f64m4, a_vector_3_f32m2, b_vector_f32m2,
+                                                                  vector_length);
             }
 
             // Horizontal reduce and narrow to f32
@@ -197,11 +197,12 @@ NK_INTERNAL void nk_dots_packed_f32_rvv_aligned_(nk_f32_t const *a_matrix, void 
             vfloat64m4_t accumulator_f64m4 = __riscv_vfmv_v_f_f64m4(0.0, vlmax);
             nk_size_t remaining = depth;
             nk_size_t k = 0;
-            for (nk_size_t vl = 0; remaining > 0; remaining -= vl, k += vl) {
-                vl = __riscv_vsetvl_e32m2(remaining);
-                vfloat32m2_t b_vector_f32m2 = __riscv_vle32_v_f32m2(b_column + k, vl);
-                vfloat32m2_t a_vector_f32m2 = __riscv_vle32_v_f32m2(a_row + k, vl);
-                accumulator_f64m4 = __riscv_vfwmacc_vv_f64m4(accumulator_f64m4, a_vector_f32m2, b_vector_f32m2, vl);
+            for (nk_size_t vector_length = 0; remaining > 0; remaining -= vector_length, k += vector_length) {
+                vector_length = __riscv_vsetvl_e32m2(remaining);
+                vfloat32m2_t b_vector_f32m2 = __riscv_vle32_v_f32m2(b_column + k, vector_length);
+                vfloat32m2_t a_vector_f32m2 = __riscv_vle32_v_f32m2(a_row + k, vector_length);
+                accumulator_f64m4 = __riscv_vfwmacc_vv_f64m4_tu(accumulator_f64m4, a_vector_f32m2, b_vector_f32m2,
+                                                                vector_length);
             }
             vfloat64m1_t zero_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, 1);
             c_row[column] = (nk_f32_t)__riscv_vfmv_f_s_f64m1_f64(
@@ -242,11 +243,12 @@ NK_PUBLIC void nk_dots_symmetric_f32_rvv(nk_f32_t const *vectors, nk_size_t n_ve
             vfloat64m4_t accumulator_f64m4 = __riscv_vfmv_v_f_f64m4(0.0, vlmax);
             nk_size_t remaining = depth;
             nk_size_t k = 0;
-            for (nk_size_t vl = 0; remaining > 0; remaining -= vl, k += vl) {
-                vl = __riscv_vsetvl_e32m2(remaining);
-                vfloat32m2_t a_vector_f32m2 = __riscv_vle32_v_f32m2(a_i + k, vl);
-                vfloat32m2_t b_vector_f32m2 = __riscv_vle32_v_f32m2(a_j + k, vl);
-                accumulator_f64m4 = __riscv_vfwmacc_vv_f64m4(accumulator_f64m4, a_vector_f32m2, b_vector_f32m2, vl);
+            for (nk_size_t vector_length = 0; remaining > 0; remaining -= vector_length, k += vector_length) {
+                vector_length = __riscv_vsetvl_e32m2(remaining);
+                vfloat32m2_t a_vector_f32m2 = __riscv_vle32_v_f32m2(a_i + k, vector_length);
+                vfloat32m2_t b_vector_f32m2 = __riscv_vle32_v_f32m2(a_j + k, vector_length);
+                accumulator_f64m4 = __riscv_vfwmacc_vv_f64m4_tu(accumulator_f64m4, a_vector_f32m2, b_vector_f32m2,
+                                                                vector_length);
             }
             vfloat64m1_t zero_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, 1);
             nk_f32_t dot = (nk_f32_t)__riscv_vfmv_f_s_f64m1_f64(
@@ -332,27 +334,36 @@ NK_INTERNAL void nk_dots_packed_f64_rvv_aligned_(nk_f64_t const *a_matrix, void 
 
             nk_size_t remaining = depth;
             nk_size_t k = 0;
-            for (nk_size_t vl = 0; remaining > 0; remaining -= vl, k += vl) {
-                vl = __riscv_vsetvl_e64m4(remaining);
-                vfloat64m4_t b_vector_f64m4 = __riscv_vle64_v_f64m4(b_column + k, vl);
-                vfloat64m4_t a_vector_0_f64m4 = __riscv_vle64_v_f64m4(a_row_0 + k, vl);
-                vfloat64m4_t a_vector_1_f64m4 = __riscv_vle64_v_f64m4(a_row_1 + k, vl);
+            for (nk_size_t vector_length = 0; remaining > 0; remaining -= vector_length, k += vector_length) {
+                vector_length = __riscv_vsetvl_e64m4(remaining);
+                vfloat64m4_t b_vector_f64m4 = __riscv_vle64_v_f64m4(b_column + k, vector_length);
+                vfloat64m4_t a_vector_0_f64m4 = __riscv_vle64_v_f64m4(a_row_0 + k, vector_length);
+                vfloat64m4_t a_vector_1_f64m4 = __riscv_vle64_v_f64m4(a_row_1 + k, vector_length);
 
-                // Kahan step for row 0: product = a*b; y = product - comp; t = acc + y; comp = (t - acc) - y; acc = t
-                vfloat64m4_t product_0_f64m4 = __riscv_vfmul_vv_f64m4(a_vector_0_f64m4, b_vector_f64m4, vl);
-                vfloat64m4_t y_0_f64m4 = __riscv_vfsub_vv_f64m4(product_0_f64m4, compensation_0_f64m4, vlmax);
-                vfloat64m4_t t_0_f64m4 = __riscv_vfadd_vv_f64m4(accumulator_0_f64m4, y_0_f64m4, vlmax);
-                compensation_0_f64m4 = __riscv_vfsub_vv_f64m4(
-                    __riscv_vfsub_vv_f64m4(t_0_f64m4, accumulator_0_f64m4, vlmax), y_0_f64m4, vlmax);
-                accumulator_0_f64m4 = t_0_f64m4;
+                // Kahan step for row 0: product = a*b; corrected = product - comp; running = acc + corrected; comp =
+                // (running - acc) - corrected; acc = running
+                vfloat64m4_t product_0_f64m4 = __riscv_vfmul_vv_f64m4(a_vector_0_f64m4, b_vector_f64m4, vector_length);
+                vfloat64m4_t corrected_term_0_f64m4 = __riscv_vfsub_vv_f64m4(product_0_f64m4, compensation_0_f64m4,
+                                                                             vector_length);
+                vfloat64m4_t running_sum_0_f64m4 = __riscv_vfadd_vv_f64m4_tu(accumulator_0_f64m4, accumulator_0_f64m4,
+                                                                             corrected_term_0_f64m4, vector_length);
+                compensation_0_f64m4 = __riscv_vfsub_vv_f64m4_tu(
+                    compensation_0_f64m4,
+                    __riscv_vfsub_vv_f64m4(running_sum_0_f64m4, accumulator_0_f64m4, vector_length),
+                    corrected_term_0_f64m4, vector_length);
+                accumulator_0_f64m4 = running_sum_0_f64m4;
 
                 // Kahan step for row 1
-                vfloat64m4_t product_1_f64m4 = __riscv_vfmul_vv_f64m4(a_vector_1_f64m4, b_vector_f64m4, vl);
-                vfloat64m4_t y_1_f64m4 = __riscv_vfsub_vv_f64m4(product_1_f64m4, compensation_1_f64m4, vlmax);
-                vfloat64m4_t t_1_f64m4 = __riscv_vfadd_vv_f64m4(accumulator_1_f64m4, y_1_f64m4, vlmax);
-                compensation_1_f64m4 = __riscv_vfsub_vv_f64m4(
-                    __riscv_vfsub_vv_f64m4(t_1_f64m4, accumulator_1_f64m4, vlmax), y_1_f64m4, vlmax);
-                accumulator_1_f64m4 = t_1_f64m4;
+                vfloat64m4_t product_1_f64m4 = __riscv_vfmul_vv_f64m4(a_vector_1_f64m4, b_vector_f64m4, vector_length);
+                vfloat64m4_t corrected_term_1_f64m4 = __riscv_vfsub_vv_f64m4(product_1_f64m4, compensation_1_f64m4,
+                                                                             vector_length);
+                vfloat64m4_t running_sum_1_f64m4 = __riscv_vfadd_vv_f64m4_tu(accumulator_1_f64m4, accumulator_1_f64m4,
+                                                                             corrected_term_1_f64m4, vector_length);
+                compensation_1_f64m4 = __riscv_vfsub_vv_f64m4_tu(
+                    compensation_1_f64m4,
+                    __riscv_vfsub_vv_f64m4(running_sum_1_f64m4, accumulator_1_f64m4, vector_length),
+                    corrected_term_1_f64m4, vector_length);
+                accumulator_1_f64m4 = running_sum_1_f64m4;
             }
 
             // Horizontal reduce
@@ -375,17 +386,20 @@ NK_INTERNAL void nk_dots_packed_f64_rvv_aligned_(nk_f64_t const *a_matrix, void 
 
             nk_size_t remaining = depth;
             nk_size_t k = 0;
-            for (nk_size_t vl = 0; remaining > 0; remaining -= vl, k += vl) {
-                vl = __riscv_vsetvl_e64m4(remaining);
-                vfloat64m4_t b_vector_f64m4 = __riscv_vle64_v_f64m4(b_column + k, vl);
-                vfloat64m4_t a_vector_f64m4 = __riscv_vle64_v_f64m4(a_row + k, vl);
+            for (nk_size_t vector_length = 0; remaining > 0; remaining -= vector_length, k += vector_length) {
+                vector_length = __riscv_vsetvl_e64m4(remaining);
+                vfloat64m4_t b_vector_f64m4 = __riscv_vle64_v_f64m4(b_column + k, vector_length);
+                vfloat64m4_t a_vector_f64m4 = __riscv_vle64_v_f64m4(a_row + k, vector_length);
 
-                vfloat64m4_t product_f64m4 = __riscv_vfmul_vv_f64m4(a_vector_f64m4, b_vector_f64m4, vl);
-                vfloat64m4_t y_f64m4 = __riscv_vfsub_vv_f64m4(product_f64m4, compensation_f64m4, vlmax);
-                vfloat64m4_t t_f64m4 = __riscv_vfadd_vv_f64m4(accumulator_f64m4, y_f64m4, vlmax);
-                compensation_f64m4 = __riscv_vfsub_vv_f64m4(
-                    __riscv_vfsub_vv_f64m4(t_f64m4, accumulator_f64m4, vlmax), y_f64m4, vlmax);
-                accumulator_f64m4 = t_f64m4;
+                vfloat64m4_t product_f64m4 = __riscv_vfmul_vv_f64m4(a_vector_f64m4, b_vector_f64m4, vector_length);
+                vfloat64m4_t corrected_term_f64m4 = __riscv_vfsub_vv_f64m4(product_f64m4, compensation_f64m4,
+                                                                           vector_length);
+                vfloat64m4_t running_sum_f64m4 = __riscv_vfadd_vv_f64m4_tu(accumulator_f64m4, accumulator_f64m4,
+                                                                           corrected_term_f64m4, vector_length);
+                compensation_f64m4 = __riscv_vfsub_vv_f64m4_tu(
+                    compensation_f64m4, __riscv_vfsub_vv_f64m4(running_sum_f64m4, accumulator_f64m4, vector_length),
+                    corrected_term_f64m4, vector_length);
+                accumulator_f64m4 = running_sum_f64m4;
             }
 
             vfloat64m1_t zero_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, 1);
@@ -426,17 +440,20 @@ NK_PUBLIC void nk_dots_symmetric_f64_rvv(nk_f64_t const *vectors, nk_size_t n_ve
 
             nk_size_t remaining = depth;
             nk_size_t k = 0;
-            for (nk_size_t vl = 0; remaining > 0; remaining -= vl, k += vl) {
-                vl = __riscv_vsetvl_e64m4(remaining);
-                vfloat64m4_t a_vector_f64m4 = __riscv_vle64_v_f64m4(a_i + k, vl);
-                vfloat64m4_t b_vector_f64m4 = __riscv_vle64_v_f64m4(a_j + k, vl);
+            for (nk_size_t vector_length = 0; remaining > 0; remaining -= vector_length, k += vector_length) {
+                vector_length = __riscv_vsetvl_e64m4(remaining);
+                vfloat64m4_t a_vector_f64m4 = __riscv_vle64_v_f64m4(a_i + k, vector_length);
+                vfloat64m4_t b_vector_f64m4 = __riscv_vle64_v_f64m4(a_j + k, vector_length);
 
-                vfloat64m4_t product_f64m4 = __riscv_vfmul_vv_f64m4(a_vector_f64m4, b_vector_f64m4, vl);
-                vfloat64m4_t y_f64m4 = __riscv_vfsub_vv_f64m4(product_f64m4, compensation_f64m4, vlmax);
-                vfloat64m4_t t_f64m4 = __riscv_vfadd_vv_f64m4(accumulator_f64m4, y_f64m4, vlmax);
-                compensation_f64m4 = __riscv_vfsub_vv_f64m4(
-                    __riscv_vfsub_vv_f64m4(t_f64m4, accumulator_f64m4, vlmax), y_f64m4, vlmax);
-                accumulator_f64m4 = t_f64m4;
+                vfloat64m4_t product_f64m4 = __riscv_vfmul_vv_f64m4(a_vector_f64m4, b_vector_f64m4, vector_length);
+                vfloat64m4_t corrected_term_f64m4 = __riscv_vfsub_vv_f64m4(product_f64m4, compensation_f64m4,
+                                                                           vector_length);
+                vfloat64m4_t running_sum_f64m4 = __riscv_vfadd_vv_f64m4_tu(accumulator_f64m4, accumulator_f64m4,
+                                                                           corrected_term_f64m4, vector_length);
+                compensation_f64m4 = __riscv_vfsub_vv_f64m4_tu(
+                    compensation_f64m4, __riscv_vfsub_vv_f64m4(running_sum_f64m4, accumulator_f64m4, vector_length),
+                    corrected_term_f64m4, vector_length);
+                accumulator_f64m4 = running_sum_f64m4;
             }
 
             vfloat64m1_t zero_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, 1);
@@ -553,55 +570,63 @@ NK_INTERNAL void nk_dots_packed_e2m3_rvv_aligned_(nk_e2m3_t const *a_matrix, voi
 
             nk_size_t remaining = depth;
             nk_size_t k = 0;
-            for (nk_size_t vl = 0; remaining > 0; remaining -= vl, k += vl) {
-                vl = __riscv_vsetvl_e8m1(remaining);
+            for (nk_size_t vector_length = 0; remaining > 0; remaining -= vector_length, k += vector_length) {
+                vector_length = __riscv_vsetvl_e8m1(remaining);
 
                 // Load pre-packed i8 B values
-                vint8m1_t b_vector_i8m1 = __riscv_vle8_v_i8m1(b_column + k, vl);
+                vint8m1_t b_vector_i8m1 = __riscv_vle8_v_i8m1(b_column + k, vector_length);
 
                 // Load raw e2m3 bytes from each A row and convert via LUT
-                vuint8m1_t raw0_u8m1 = __riscv_vle8_v_u8m1(a_row_0 + k, vl);
-                vuint8m1_t raw1_u8m1 = __riscv_vle8_v_u8m1(a_row_1 + k, vl);
-                vuint8m1_t raw2_u8m1 = __riscv_vle8_v_u8m1(a_row_2 + k, vl);
-                vuint8m1_t raw3_u8m1 = __riscv_vle8_v_u8m1(a_row_3 + k, vl);
+                vuint8m1_t raw0_u8m1 = __riscv_vle8_v_u8m1(a_row_0 + k, vector_length);
+                vuint8m1_t raw1_u8m1 = __riscv_vle8_v_u8m1(a_row_1 + k, vector_length);
+                vuint8m1_t raw2_u8m1 = __riscv_vle8_v_u8m1(a_row_2 + k, vector_length);
+                vuint8m1_t raw3_u8m1 = __riscv_vle8_v_u8m1(a_row_3 + k, vector_length);
 
                 // Extract magnitudes and gather from LUT
-                vuint8m1_t mag0_u8m1 = __riscv_vand_vx_u8m1(raw0_u8m1, 0x1F, vl);
-                vuint8m1_t mag1_u8m1 = __riscv_vand_vx_u8m1(raw1_u8m1, 0x1F, vl);
-                vuint8m1_t mag2_u8m1 = __riscv_vand_vx_u8m1(raw2_u8m1, 0x1F, vl);
-                vuint8m1_t mag3_u8m1 = __riscv_vand_vx_u8m1(raw3_u8m1, 0x1F, vl);
-                vuint8m1_t uval0_u8m1 = __riscv_vluxei8_v_u8m1(nk_e2m3_magnitude_lut_rvv_, mag0_u8m1, vl);
-                vuint8m1_t uval1_u8m1 = __riscv_vluxei8_v_u8m1(nk_e2m3_magnitude_lut_rvv_, mag1_u8m1, vl);
-                vuint8m1_t uval2_u8m1 = __riscv_vluxei8_v_u8m1(nk_e2m3_magnitude_lut_rvv_, mag2_u8m1, vl);
-                vuint8m1_t uval3_u8m1 = __riscv_vluxei8_v_u8m1(nk_e2m3_magnitude_lut_rvv_, mag3_u8m1, vl);
+                vuint8m1_t mag0_u8m1 = __riscv_vand_vx_u8m1(raw0_u8m1, 0x1F, vector_length);
+                vuint8m1_t mag1_u8m1 = __riscv_vand_vx_u8m1(raw1_u8m1, 0x1F, vector_length);
+                vuint8m1_t mag2_u8m1 = __riscv_vand_vx_u8m1(raw2_u8m1, 0x1F, vector_length);
+                vuint8m1_t mag3_u8m1 = __riscv_vand_vx_u8m1(raw3_u8m1, 0x1F, vector_length);
+                vuint8m1_t uval0_u8m1 = __riscv_vluxei8_v_u8m1(nk_e2m3_magnitude_lut_rvv_, mag0_u8m1, vector_length);
+                vuint8m1_t uval1_u8m1 = __riscv_vluxei8_v_u8m1(nk_e2m3_magnitude_lut_rvv_, mag1_u8m1, vector_length);
+                vuint8m1_t uval2_u8m1 = __riscv_vluxei8_v_u8m1(nk_e2m3_magnitude_lut_rvv_, mag2_u8m1, vector_length);
+                vuint8m1_t uval3_u8m1 = __riscv_vluxei8_v_u8m1(nk_e2m3_magnitude_lut_rvv_, mag3_u8m1, vector_length);
 
                 // Apply sign to A: negate where bit 5 is set.
                 // B is already signed from packing, so A sign completes the product sign.
                 vint8m1_t a_vector_0_i8m1 = __riscv_vreinterpret_v_u8m1_i8m1(uval0_u8m1);
-                vbool8_t neg0 = __riscv_vmsne_vx_u8m1_b8(__riscv_vand_vx_u8m1(raw0_u8m1, 0x20, vl), 0, vl);
-                a_vector_0_i8m1 = __riscv_vneg_v_i8m1_mu(neg0, a_vector_0_i8m1, a_vector_0_i8m1, vl);
+                vbool8_t negated_0_b8 = __riscv_vmsne_vx_u8m1_b8(__riscv_vand_vx_u8m1(raw0_u8m1, 0x20, vector_length),
+                                                                 0, vector_length);
+                a_vector_0_i8m1 = __riscv_vneg_v_i8m1_mu(negated_0_b8, a_vector_0_i8m1, a_vector_0_i8m1, vector_length);
 
                 vint8m1_t a_vector_1_i8m1 = __riscv_vreinterpret_v_u8m1_i8m1(uval1_u8m1);
-                vbool8_t neg1 = __riscv_vmsne_vx_u8m1_b8(__riscv_vand_vx_u8m1(raw1_u8m1, 0x20, vl), 0, vl);
-                a_vector_1_i8m1 = __riscv_vneg_v_i8m1_mu(neg1, a_vector_1_i8m1, a_vector_1_i8m1, vl);
+                vbool8_t negated_1_b8 = __riscv_vmsne_vx_u8m1_b8(__riscv_vand_vx_u8m1(raw1_u8m1, 0x20, vector_length),
+                                                                 0, vector_length);
+                a_vector_1_i8m1 = __riscv_vneg_v_i8m1_mu(negated_1_b8, a_vector_1_i8m1, a_vector_1_i8m1, vector_length);
 
                 vint8m1_t a_vector_2_i8m1 = __riscv_vreinterpret_v_u8m1_i8m1(uval2_u8m1);
-                vbool8_t neg2 = __riscv_vmsne_vx_u8m1_b8(__riscv_vand_vx_u8m1(raw2_u8m1, 0x20, vl), 0, vl);
-                a_vector_2_i8m1 = __riscv_vneg_v_i8m1_mu(neg2, a_vector_2_i8m1, a_vector_2_i8m1, vl);
+                vbool8_t negated_2_b8 = __riscv_vmsne_vx_u8m1_b8(__riscv_vand_vx_u8m1(raw2_u8m1, 0x20, vector_length),
+                                                                 0, vector_length);
+                a_vector_2_i8m1 = __riscv_vneg_v_i8m1_mu(negated_2_b8, a_vector_2_i8m1, a_vector_2_i8m1, vector_length);
 
                 vint8m1_t a_vector_3_i8m1 = __riscv_vreinterpret_v_u8m1_i8m1(uval3_u8m1);
-                vbool8_t neg3 = __riscv_vmsne_vx_u8m1_b8(__riscv_vand_vx_u8m1(raw3_u8m1, 0x20, vl), 0, vl);
-                a_vector_3_i8m1 = __riscv_vneg_v_i8m1_mu(neg3, a_vector_3_i8m1, a_vector_3_i8m1, vl);
+                vbool8_t negated_3_b8 = __riscv_vmsne_vx_u8m1_b8(__riscv_vand_vx_u8m1(raw3_u8m1, 0x20, vector_length),
+                                                                 0, vector_length);
+                a_vector_3_i8m1 = __riscv_vneg_v_i8m1_mu(negated_3_b8, a_vector_3_i8m1, a_vector_3_i8m1, vector_length);
 
                 // Widening multiply: i8×i8 → i16, then accumulate: i32 += i16
-                vint16m2_t product_0_i16m2 = __riscv_vwmul_vv_i16m2(a_vector_0_i8m1, b_vector_i8m1, vl);
-                vint16m2_t product_1_i16m2 = __riscv_vwmul_vv_i16m2(a_vector_1_i8m1, b_vector_i8m1, vl);
-                vint16m2_t product_2_i16m2 = __riscv_vwmul_vv_i16m2(a_vector_2_i8m1, b_vector_i8m1, vl);
-                vint16m2_t product_3_i16m2 = __riscv_vwmul_vv_i16m2(a_vector_3_i8m1, b_vector_i8m1, vl);
-                accumulator_0_i32m4 = __riscv_vwadd_wv_i32m4(accumulator_0_i32m4, product_0_i16m2, vl);
-                accumulator_1_i32m4 = __riscv_vwadd_wv_i32m4(accumulator_1_i32m4, product_1_i16m2, vl);
-                accumulator_2_i32m4 = __riscv_vwadd_wv_i32m4(accumulator_2_i32m4, product_2_i16m2, vl);
-                accumulator_3_i32m4 = __riscv_vwadd_wv_i32m4(accumulator_3_i32m4, product_3_i16m2, vl);
+                vint16m2_t product_0_i16m2 = __riscv_vwmul_vv_i16m2(a_vector_0_i8m1, b_vector_i8m1, vector_length);
+                vint16m2_t product_1_i16m2 = __riscv_vwmul_vv_i16m2(a_vector_1_i8m1, b_vector_i8m1, vector_length);
+                vint16m2_t product_2_i16m2 = __riscv_vwmul_vv_i16m2(a_vector_2_i8m1, b_vector_i8m1, vector_length);
+                vint16m2_t product_3_i16m2 = __riscv_vwmul_vv_i16m2(a_vector_3_i8m1, b_vector_i8m1, vector_length);
+                accumulator_0_i32m4 = __riscv_vwadd_wv_i32m4_tu(accumulator_0_i32m4, accumulator_0_i32m4,
+                                                                product_0_i16m2, vector_length);
+                accumulator_1_i32m4 = __riscv_vwadd_wv_i32m4_tu(accumulator_1_i32m4, accumulator_1_i32m4,
+                                                                product_1_i16m2, vector_length);
+                accumulator_2_i32m4 = __riscv_vwadd_wv_i32m4_tu(accumulator_2_i32m4, accumulator_2_i32m4,
+                                                                product_2_i16m2, vector_length);
+                accumulator_3_i32m4 = __riscv_vwadd_wv_i32m4_tu(accumulator_3_i32m4, accumulator_3_i32m4,
+                                                                product_3_i16m2, vector_length);
             }
 
             // Horizontal reduce and convert to f32 with scaling
@@ -630,17 +655,19 @@ NK_INTERNAL void nk_dots_packed_e2m3_rvv_aligned_(nk_e2m3_t const *a_matrix, voi
             vint32m4_t accumulator_i32m4 = __riscv_vmv_v_x_i32m4(0, vlmax);
             nk_size_t remaining = depth;
             nk_size_t k = 0;
-            for (nk_size_t vl = 0; remaining > 0; remaining -= vl, k += vl) {
-                vl = __riscv_vsetvl_e8m1(remaining);
-                vint8m1_t b_vector_i8m1 = __riscv_vle8_v_i8m1(b_column + k, vl);
-                vuint8m1_t raw_a_u8m1 = __riscv_vle8_v_u8m1(a_row + k, vl);
-                vuint8m1_t mag_a_u8m1 = __riscv_vand_vx_u8m1(raw_a_u8m1, 0x1F, vl);
-                vuint8m1_t uval_a_u8m1 = __riscv_vluxei8_v_u8m1(nk_e2m3_magnitude_lut_rvv_, mag_a_u8m1, vl);
+            for (nk_size_t vector_length = 0; remaining > 0; remaining -= vector_length, k += vector_length) {
+                vector_length = __riscv_vsetvl_e8m1(remaining);
+                vint8m1_t b_vector_i8m1 = __riscv_vle8_v_i8m1(b_column + k, vector_length);
+                vuint8m1_t raw_a_u8m1 = __riscv_vle8_v_u8m1(a_row + k, vector_length);
+                vuint8m1_t mag_a_u8m1 = __riscv_vand_vx_u8m1(raw_a_u8m1, 0x1F, vector_length);
+                vuint8m1_t uval_a_u8m1 = __riscv_vluxei8_v_u8m1(nk_e2m3_magnitude_lut_rvv_, mag_a_u8m1, vector_length);
                 vint8m1_t a_vector_i8m1 = __riscv_vreinterpret_v_u8m1_i8m1(uval_a_u8m1);
-                vbool8_t neg_a = __riscv_vmsne_vx_u8m1_b8(__riscv_vand_vx_u8m1(raw_a_u8m1, 0x20, vl), 0, vl);
-                a_vector_i8m1 = __riscv_vneg_v_i8m1_mu(neg_a, a_vector_i8m1, a_vector_i8m1, vl);
-                vint16m2_t product_i16m2 = __riscv_vwmul_vv_i16m2(a_vector_i8m1, b_vector_i8m1, vl);
-                accumulator_i32m4 = __riscv_vwadd_wv_i32m4(accumulator_i32m4, product_i16m2, vl);
+                vbool8_t negated_a_b8 = __riscv_vmsne_vx_u8m1_b8(__riscv_vand_vx_u8m1(raw_a_u8m1, 0x20, vector_length),
+                                                                 0, vector_length);
+                a_vector_i8m1 = __riscv_vneg_v_i8m1_mu(negated_a_b8, a_vector_i8m1, a_vector_i8m1, vector_length);
+                vint16m2_t product_i16m2 = __riscv_vwmul_vv_i16m2(a_vector_i8m1, b_vector_i8m1, vector_length);
+                accumulator_i32m4 = __riscv_vwadd_wv_i32m4_tu(accumulator_i32m4, accumulator_i32m4, product_i16m2,
+                                                              vector_length);
             }
             vint32m1_t zero_i32m1 = __riscv_vmv_v_x_i32m1(0, 1);
             c_row[column] = (nk_f32_t)__riscv_vmv_x_s_i32m1_i32(
@@ -680,29 +707,29 @@ NK_PUBLIC void nk_dots_symmetric_e2m3_rvv(nk_e2m3_t const *vectors, nk_size_t n_
             vint32m4_t accumulator_i32m4 = __riscv_vmv_v_x_i32m4(0, vlmax);
             nk_size_t remaining = depth;
             nk_size_t k = 0;
-            for (nk_size_t vl = 0; remaining > 0; remaining -= vl, k += vl) {
-                vl = __riscv_vsetvl_e8m1(remaining);
-                vuint8m1_t raw_i_u8m1 = __riscv_vle8_v_u8m1(a_i + k, vl);
-                vuint8m1_t raw_j_u8m1 = __riscv_vle8_v_u8m1(a_j + k, vl);
+            for (nk_size_t vector_length = 0; remaining > 0; remaining -= vector_length, k += vector_length) {
+                vector_length = __riscv_vsetvl_e8m1(remaining);
+                vuint8m1_t raw_i_u8m1 = __riscv_vle8_v_u8m1(a_i + k, vector_length);
+                vuint8m1_t raw_j_u8m1 = __riscv_vle8_v_u8m1(a_j + k, vector_length);
 
                 // Extract magnitudes and gather from LUT
-                vuint8m1_t mag_i_u8m1 = __riscv_vand_vx_u8m1(raw_i_u8m1, 0x1F, vl);
-                vuint8m1_t mag_j_u8m1 = __riscv_vand_vx_u8m1(raw_j_u8m1, 0x1F, vl);
-                vuint8m1_t uval_i_u8m1 = __riscv_vluxei8_v_u8m1(nk_e2m3_magnitude_lut_rvv_, mag_i_u8m1, vl);
-                vuint8m1_t uval_j_u8m1 = __riscv_vluxei8_v_u8m1(nk_e2m3_magnitude_lut_rvv_, mag_j_u8m1, vl);
+                vuint8m1_t mag_i_u8m1 = __riscv_vand_vx_u8m1(raw_i_u8m1, 0x1F, vector_length);
+                vuint8m1_t mag_j_u8m1 = __riscv_vand_vx_u8m1(raw_j_u8m1, 0x1F, vector_length);
+                vuint8m1_t uval_i_u8m1 = __riscv_vluxei8_v_u8m1(nk_e2m3_magnitude_lut_rvv_, mag_i_u8m1, vector_length);
+                vuint8m1_t uval_j_u8m1 = __riscv_vluxei8_v_u8m1(nk_e2m3_magnitude_lut_rvv_, mag_j_u8m1, vector_length);
 
                 // Combined sign: XOR sign bits → conditional negate on B side
-                vuint8m1_t sign_xor_u8m1 = __riscv_vand_vx_u8m1(__riscv_vxor_vv_u8m1(raw_i_u8m1, raw_j_u8m1, vl), 0x20,
-                                                                vl);
-                vbool8_t negate = __riscv_vmsne_vx_u8m1_b8(sign_xor_u8m1, 0, vl);
+                vuint8m1_t sign_xor_u8m1 = __riscv_vand_vx_u8m1(
+                    __riscv_vxor_vv_u8m1(raw_i_u8m1, raw_j_u8m1, vector_length), 0x20, vector_length);
+                vbool8_t negate_b8 = __riscv_vmsne_vx_u8m1_b8(sign_xor_u8m1, 0, vector_length);
                 vint8m1_t val_i_i8m1 = __riscv_vreinterpret_v_u8m1_i8m1(uval_i_u8m1);
                 vint8m1_t val_j_i8m1 = __riscv_vreinterpret_v_u8m1_i8m1(uval_j_u8m1);
-                vint8m1_t val_j_neg_i8m1 = __riscv_vneg_v_i8m1(val_j_i8m1, vl);
-                val_j_i8m1 = __riscv_vmerge_vvm_i8m1(val_j_i8m1, val_j_neg_i8m1, negate, vl);
+                val_j_i8m1 = __riscv_vneg_v_i8m1_mu(negate_b8, val_j_i8m1, val_j_i8m1, vector_length);
 
                 // Widening multiply: i8×i8 → i16, then accumulate: i32 += i16
-                vint16m2_t product_i16m2 = __riscv_vwmul_vv_i16m2(val_i_i8m1, val_j_i8m1, vl);
-                accumulator_i32m4 = __riscv_vwadd_wv_i32m4(accumulator_i32m4, product_i16m2, vl);
+                vint16m2_t product_i16m2 = __riscv_vwmul_vv_i16m2(val_i_i8m1, val_j_i8m1, vector_length);
+                accumulator_i32m4 = __riscv_vwadd_wv_i32m4_tu(accumulator_i32m4, accumulator_i32m4, product_i16m2,
+                                                              vector_length);
             }
             vint32m1_t zero_i32m1 = __riscv_vmv_v_x_i32m1(0, 1);
             nk_f32_t dot = (nk_f32_t)__riscv_vmv_x_s_i32m1_i32(
@@ -812,44 +839,49 @@ NK_INTERNAL void nk_dots_packed_e3m2_rvv_aligned_(nk_e3m2_t const *a_matrix, voi
 
             nk_size_t remaining = depth;
             nk_size_t k = 0;
-            for (nk_size_t vl = 0; remaining > 0; remaining -= vl, k += vl) {
-                vl = __riscv_vsetvl_e16m2(remaining);
+            for (nk_size_t vector_length = 0; remaining > 0; remaining -= vector_length, k += vector_length) {
+                vector_length = __riscv_vsetvl_e16m2(remaining);
 
                 // Load pre-packed i16 B values
-                vint16m2_t b_vector_i16m2 = __riscv_vle16_v_i16m2(b_column + k, vl);
+                vint16m2_t b_vector_i16m2 = __riscv_vle16_v_i16m2(b_column + k, vector_length);
 
                 // Load raw e3m2 bytes from each A row
-                vuint8m1_t raw0_u8m1 = __riscv_vle8_v_u8m1(a_row_0 + k, vl);
-                vuint8m1_t raw1_u8m1 = __riscv_vle8_v_u8m1(a_row_1 + k, vl);
+                vuint8m1_t raw0_u8m1 = __riscv_vle8_v_u8m1(a_row_0 + k, vector_length);
+                vuint8m1_t raw1_u8m1 = __riscv_vle8_v_u8m1(a_row_1 + k, vector_length);
 
                 // Extract magnitudes, zero-extend to u16, compute byte offsets for i16 LUT gather
-                vuint8m1_t mag0_u8m1 = __riscv_vand_vx_u8m1(raw0_u8m1, 0x1F, vl);
-                vuint8m1_t mag1_u8m1 = __riscv_vand_vx_u8m1(raw1_u8m1, 0x1F, vl);
-                vuint16m2_t idx0_u16m2 = __riscv_vzext_vf2_u16m2(mag0_u8m1, vl);
-                vuint16m2_t idx1_u16m2 = __riscv_vzext_vf2_u16m2(mag1_u8m1, vl);
-                vuint16m2_t off0_u16m2 = __riscv_vsll_vx_u16m2(idx0_u16m2, 1, vl); // byte offsets = index × 2
-                vuint16m2_t off1_u16m2 = __riscv_vsll_vx_u16m2(idx1_u16m2, 1, vl);
+                vuint8m1_t mag0_u8m1 = __riscv_vand_vx_u8m1(raw0_u8m1, 0x1F, vector_length);
+                vuint8m1_t mag1_u8m1 = __riscv_vand_vx_u8m1(raw1_u8m1, 0x1F, vector_length);
+                vuint16m2_t idx0_u16m2 = __riscv_vzext_vf2_u16m2(mag0_u8m1, vector_length);
+                vuint16m2_t idx1_u16m2 = __riscv_vzext_vf2_u16m2(mag1_u8m1, vector_length);
+                vuint16m2_t off0_u16m2 = __riscv_vsll_vx_u16m2(idx0_u16m2, 1,
+                                                               vector_length); // byte offsets = index × 2
+                vuint16m2_t off1_u16m2 = __riscv_vsll_vx_u16m2(idx1_u16m2, 1, vector_length);
 
                 // Gather unsigned magnitudes from i16 LUT
-                vuint16m2_t uval0_u16m2 = __riscv_vluxei16_v_u16m2(nk_e3m2_magnitude_lut_rvv_, off0_u16m2, vl);
-                vuint16m2_t uval1_u16m2 = __riscv_vluxei16_v_u16m2(nk_e3m2_magnitude_lut_rvv_, off1_u16m2, vl);
+                vuint16m2_t uval0_u16m2 = __riscv_vluxei16_v_u16m2(nk_e3m2_magnitude_lut_rvv_, off0_u16m2,
+                                                                   vector_length);
+                vuint16m2_t uval1_u16m2 = __riscv_vluxei16_v_u16m2(nk_e3m2_magnitude_lut_rvv_, off1_u16m2,
+                                                                   vector_length);
 
                 // Apply sign: negate where bit 5 is set
-                vuint8m1_t sign0_u8m1 = __riscv_vand_vx_u8m1(raw0_u8m1, 0x20, vl);
-                vuint8m1_t sign1_u8m1 = __riscv_vand_vx_u8m1(raw1_u8m1, 0x20, vl);
-                vbool8_t neg0 = __riscv_vmsne_vx_u8m1_b8(sign0_u8m1, 0, vl);
-                vbool8_t neg1 = __riscv_vmsne_vx_u8m1_b8(sign1_u8m1, 0, vl);
+                vuint8m1_t sign0_u8m1 = __riscv_vand_vx_u8m1(raw0_u8m1, 0x20, vector_length);
+                vuint8m1_t sign1_u8m1 = __riscv_vand_vx_u8m1(raw1_u8m1, 0x20, vector_length);
+                vbool8_t negated_0_b8 = __riscv_vmsne_vx_u8m1_b8(sign0_u8m1, 0, vector_length);
+                vbool8_t negated_1_b8 = __riscv_vmsne_vx_u8m1_b8(sign1_u8m1, 0, vector_length);
 
                 vint16m2_t a_vector_0_i16m2 = __riscv_vreinterpret_v_u16m2_i16m2(uval0_u16m2);
-                a_vector_0_i16m2 = __riscv_vneg_v_i16m2_mu(neg0, a_vector_0_i16m2, a_vector_0_i16m2, vl);
+                a_vector_0_i16m2 = __riscv_vneg_v_i16m2_mu(negated_0_b8, a_vector_0_i16m2, a_vector_0_i16m2,
+                                                           vector_length);
                 vint16m2_t a_vector_1_i16m2 = __riscv_vreinterpret_v_u16m2_i16m2(uval1_u16m2);
-                a_vector_1_i16m2 = __riscv_vneg_v_i16m2_mu(neg1, a_vector_1_i16m2, a_vector_1_i16m2, vl);
+                a_vector_1_i16m2 = __riscv_vneg_v_i16m2_mu(negated_1_b8, a_vector_1_i16m2, a_vector_1_i16m2,
+                                                           vector_length);
 
                 // Widening multiply-accumulate: i16×i16 → i32
-                accumulator_0_i32m4 = __riscv_vwmacc_vv_i32m4(accumulator_0_i32m4, a_vector_0_i16m2, b_vector_i16m2,
-                                                              vl);
-                accumulator_1_i32m4 = __riscv_vwmacc_vv_i32m4(accumulator_1_i32m4, a_vector_1_i16m2, b_vector_i16m2,
-                                                              vl);
+                accumulator_0_i32m4 = __riscv_vwmacc_vv_i32m4_tu(accumulator_0_i32m4, a_vector_0_i16m2, b_vector_i16m2,
+                                                                 vector_length);
+                accumulator_1_i32m4 = __riscv_vwmacc_vv_i32m4_tu(accumulator_1_i32m4, a_vector_1_i16m2, b_vector_i16m2,
+                                                                 vector_length);
             }
 
             // Horizontal reduce and convert to f32 with scaling
@@ -872,18 +904,21 @@ NK_INTERNAL void nk_dots_packed_e3m2_rvv_aligned_(nk_e3m2_t const *a_matrix, voi
             vint32m4_t accumulator_i32m4 = __riscv_vmv_v_x_i32m4(0, vlmax);
             nk_size_t remaining = depth;
             nk_size_t k = 0;
-            for (nk_size_t vl = 0; remaining > 0; remaining -= vl, k += vl) {
-                vl = __riscv_vsetvl_e16m2(remaining);
-                vint16m2_t b_vector_i16m2 = __riscv_vle16_v_i16m2(b_column + k, vl);
-                vuint8m1_t raw_a_u8m1 = __riscv_vle8_v_u8m1(a_row + k, vl);
-                vuint8m1_t mag_a_u8m1 = __riscv_vand_vx_u8m1(raw_a_u8m1, 0x1F, vl);
-                vuint16m2_t idx_a_u16m2 = __riscv_vzext_vf2_u16m2(mag_a_u8m1, vl);
-                vuint16m2_t off_a_u16m2 = __riscv_vsll_vx_u16m2(idx_a_u16m2, 1, vl);
-                vuint16m2_t uval_a_u16m2 = __riscv_vluxei16_v_u16m2(nk_e3m2_magnitude_lut_rvv_, off_a_u16m2, vl);
+            for (nk_size_t vector_length = 0; remaining > 0; remaining -= vector_length, k += vector_length) {
+                vector_length = __riscv_vsetvl_e16m2(remaining);
+                vint16m2_t b_vector_i16m2 = __riscv_vle16_v_i16m2(b_column + k, vector_length);
+                vuint8m1_t raw_a_u8m1 = __riscv_vle8_v_u8m1(a_row + k, vector_length);
+                vuint8m1_t mag_a_u8m1 = __riscv_vand_vx_u8m1(raw_a_u8m1, 0x1F, vector_length);
+                vuint16m2_t idx_a_u16m2 = __riscv_vzext_vf2_u16m2(mag_a_u8m1, vector_length);
+                vuint16m2_t off_a_u16m2 = __riscv_vsll_vx_u16m2(idx_a_u16m2, 1, vector_length);
+                vuint16m2_t uval_a_u16m2 = __riscv_vluxei16_v_u16m2(nk_e3m2_magnitude_lut_rvv_, off_a_u16m2,
+                                                                    vector_length);
                 vint16m2_t a_vector_i16m2 = __riscv_vreinterpret_v_u16m2_i16m2(uval_a_u16m2);
-                vbool8_t neg_a = __riscv_vmsne_vx_u8m1_b8(__riscv_vand_vx_u8m1(raw_a_u8m1, 0x20, vl), 0, vl);
-                a_vector_i16m2 = __riscv_vneg_v_i16m2_mu(neg_a, a_vector_i16m2, a_vector_i16m2, vl);
-                accumulator_i32m4 = __riscv_vwmacc_vv_i32m4(accumulator_i32m4, a_vector_i16m2, b_vector_i16m2, vl);
+                vbool8_t negated_a_b8 = __riscv_vmsne_vx_u8m1_b8(__riscv_vand_vx_u8m1(raw_a_u8m1, 0x20, vector_length),
+                                                                 0, vector_length);
+                a_vector_i16m2 = __riscv_vneg_v_i16m2_mu(negated_a_b8, a_vector_i16m2, a_vector_i16m2, vector_length);
+                accumulator_i32m4 = __riscv_vwmacc_vv_i32m4_tu(accumulator_i32m4, a_vector_i16m2, b_vector_i16m2,
+                                                               vector_length);
             }
             vint32m1_t zero_i32m1 = __riscv_vmv_v_x_i32m1(0, 1);
             c_row[column] = (nk_f32_t)__riscv_vmv_x_s_i32m1_i32(
@@ -923,36 +958,39 @@ NK_PUBLIC void nk_dots_symmetric_e3m2_rvv(nk_e3m2_t const *vectors, nk_size_t n_
             vint32m4_t accumulator_i32m4 = __riscv_vmv_v_x_i32m4(0, vlmax);
             nk_size_t remaining = depth;
             nk_size_t k = 0;
-            for (nk_size_t vl = 0; remaining > 0; remaining -= vl, k += vl) {
-                vl = __riscv_vsetvl_e16m2(remaining);
-                vuint8m1_t raw_i_u8m1 = __riscv_vle8_v_u8m1(a_i + k, vl);
-                vuint8m1_t raw_j_u8m1 = __riscv_vle8_v_u8m1(a_j + k, vl);
+            for (nk_size_t vector_length = 0; remaining > 0; remaining -= vector_length, k += vector_length) {
+                vector_length = __riscv_vsetvl_e16m2(remaining);
+                vuint8m1_t raw_i_u8m1 = __riscv_vle8_v_u8m1(a_i + k, vector_length);
+                vuint8m1_t raw_j_u8m1 = __riscv_vle8_v_u8m1(a_j + k, vector_length);
 
                 // Extract magnitudes, zero-extend to u16, compute byte offsets
-                vuint8m1_t mag_i_u8m1 = __riscv_vand_vx_u8m1(raw_i_u8m1, 0x1F, vl);
-                vuint8m1_t mag_j_u8m1 = __riscv_vand_vx_u8m1(raw_j_u8m1, 0x1F, vl);
-                vuint16m2_t idx_i_u16m2 = __riscv_vzext_vf2_u16m2(mag_i_u8m1, vl);
-                vuint16m2_t idx_j_u16m2 = __riscv_vzext_vf2_u16m2(mag_j_u8m1, vl);
-                vuint16m2_t off_i_u16m2 = __riscv_vsll_vx_u16m2(idx_i_u16m2, 1, vl);
-                vuint16m2_t off_j_u16m2 = __riscv_vsll_vx_u16m2(idx_j_u16m2, 1, vl);
+                vuint8m1_t mag_i_u8m1 = __riscv_vand_vx_u8m1(raw_i_u8m1, 0x1F, vector_length);
+                vuint8m1_t mag_j_u8m1 = __riscv_vand_vx_u8m1(raw_j_u8m1, 0x1F, vector_length);
+                vuint16m2_t idx_i_u16m2 = __riscv_vzext_vf2_u16m2(mag_i_u8m1, vector_length);
+                vuint16m2_t idx_j_u16m2 = __riscv_vzext_vf2_u16m2(mag_j_u8m1, vector_length);
+                vuint16m2_t off_i_u16m2 = __riscv_vsll_vx_u16m2(idx_i_u16m2, 1, vector_length);
+                vuint16m2_t off_j_u16m2 = __riscv_vsll_vx_u16m2(idx_j_u16m2, 1, vector_length);
 
                 // Gather unsigned magnitudes
-                vuint16m2_t uval_i_u16m2 = __riscv_vluxei16_v_u16m2(nk_e3m2_magnitude_lut_rvv_, off_i_u16m2, vl);
-                vuint16m2_t uval_j_u16m2 = __riscv_vluxei16_v_u16m2(nk_e3m2_magnitude_lut_rvv_, off_j_u16m2, vl);
+                vuint16m2_t uval_i_u16m2 = __riscv_vluxei16_v_u16m2(nk_e3m2_magnitude_lut_rvv_, off_i_u16m2,
+                                                                    vector_length);
+                vuint16m2_t uval_j_u16m2 = __riscv_vluxei16_v_u16m2(nk_e3m2_magnitude_lut_rvv_, off_j_u16m2,
+                                                                    vector_length);
 
                 // Apply individual signs
-                vuint8m1_t sign_i_u8m1 = __riscv_vand_vx_u8m1(raw_i_u8m1, 0x20, vl);
-                vuint8m1_t sign_j_u8m1 = __riscv_vand_vx_u8m1(raw_j_u8m1, 0x20, vl);
-                vbool8_t neg_i = __riscv_vmsne_vx_u8m1_b8(sign_i_u8m1, 0, vl);
-                vbool8_t neg_j = __riscv_vmsne_vx_u8m1_b8(sign_j_u8m1, 0, vl);
+                vuint8m1_t sign_i_u8m1 = __riscv_vand_vx_u8m1(raw_i_u8m1, 0x20, vector_length);
+                vuint8m1_t sign_j_u8m1 = __riscv_vand_vx_u8m1(raw_j_u8m1, 0x20, vector_length);
+                vbool8_t negated_i_b8 = __riscv_vmsne_vx_u8m1_b8(sign_i_u8m1, 0, vector_length);
+                vbool8_t negated_j_b8 = __riscv_vmsne_vx_u8m1_b8(sign_j_u8m1, 0, vector_length);
 
                 vint16m2_t val_i_i16m2 = __riscv_vreinterpret_v_u16m2_i16m2(uval_i_u16m2);
-                val_i_i16m2 = __riscv_vneg_v_i16m2_mu(neg_i, val_i_i16m2, val_i_i16m2, vl);
+                val_i_i16m2 = __riscv_vneg_v_i16m2_mu(negated_i_b8, val_i_i16m2, val_i_i16m2, vector_length);
                 vint16m2_t val_j_i16m2 = __riscv_vreinterpret_v_u16m2_i16m2(uval_j_u16m2);
-                val_j_i16m2 = __riscv_vneg_v_i16m2_mu(neg_j, val_j_i16m2, val_j_i16m2, vl);
+                val_j_i16m2 = __riscv_vneg_v_i16m2_mu(negated_j_b8, val_j_i16m2, val_j_i16m2, vector_length);
 
                 // Widening multiply-accumulate: i16×i16 → i32
-                accumulator_i32m4 = __riscv_vwmacc_vv_i32m4(accumulator_i32m4, val_i_i16m2, val_j_i16m2, vl);
+                accumulator_i32m4 = __riscv_vwmacc_vv_i32m4_tu(accumulator_i32m4, val_i_i16m2, val_j_i16m2,
+                                                               vector_length);
             }
             vint32m1_t zero_i32m1 = __riscv_vmv_v_x_i32m1(0, 1);
             nk_f32_t dot = (nk_f32_t)__riscv_vmv_x_s_i32m1_i32(
@@ -1067,26 +1105,26 @@ NK_INTERNAL void nk_dots_packed_bf16_rvv_aligned_(nk_bf16_t const *a_matrix, voi
 
             nk_size_t remaining = depth;
             nk_size_t k = 0;
-            for (nk_size_t vl = 0; remaining > 0; remaining -= vl, k += vl) {
-                vl = __riscv_vsetvl_e32m2(remaining);
-                vfloat32m2_t b_vector_f32m2 = __riscv_vle32_v_f32m2(b_column + k, vl);
+            for (nk_size_t vector_length = 0; remaining > 0; remaining -= vector_length, k += vector_length) {
+                vector_length = __riscv_vsetvl_e32m2(remaining);
+                vfloat32m2_t b_vector_f32m2 = __riscv_vle32_v_f32m2(b_column + k, vector_length);
                 // Load A as u16m1 and convert to f32m2
-                vuint16m1_t a_raw_0_u16m1 = __riscv_vle16_v_u16m1(a_row_0 + k, vl);
-                vfloat32m2_t a_vector_0_f32m2 = nk_bf16m1_to_f32m2_rvv_(a_raw_0_u16m1, vl);
-                vuint16m1_t a_raw_1_u16m1 = __riscv_vle16_v_u16m1(a_row_1 + k, vl);
-                vfloat32m2_t a_vector_1_f32m2 = nk_bf16m1_to_f32m2_rvv_(a_raw_1_u16m1, vl);
-                vuint16m1_t a_raw_2_u16m1 = __riscv_vle16_v_u16m1(a_row_2 + k, vl);
-                vfloat32m2_t a_vector_2_f32m2 = nk_bf16m1_to_f32m2_rvv_(a_raw_2_u16m1, vl);
-                vuint16m1_t a_raw_3_u16m1 = __riscv_vle16_v_u16m1(a_row_3 + k, vl);
-                vfloat32m2_t a_vector_3_f32m2 = nk_bf16m1_to_f32m2_rvv_(a_raw_3_u16m1, vl);
-                accumulator_0_f64m4 = __riscv_vfwmacc_vv_f64m4(accumulator_0_f64m4, a_vector_0_f32m2, b_vector_f32m2,
-                                                               vl);
-                accumulator_1_f64m4 = __riscv_vfwmacc_vv_f64m4(accumulator_1_f64m4, a_vector_1_f32m2, b_vector_f32m2,
-                                                               vl);
-                accumulator_2_f64m4 = __riscv_vfwmacc_vv_f64m4(accumulator_2_f64m4, a_vector_2_f32m2, b_vector_f32m2,
-                                                               vl);
-                accumulator_3_f64m4 = __riscv_vfwmacc_vv_f64m4(accumulator_3_f64m4, a_vector_3_f32m2, b_vector_f32m2,
-                                                               vl);
+                vuint16m1_t a_raw_0_u16m1 = __riscv_vle16_v_u16m1(a_row_0 + k, vector_length);
+                vfloat32m2_t a_vector_0_f32m2 = nk_bf16m1_to_f32m2_rvv_(a_raw_0_u16m1, vector_length);
+                vuint16m1_t a_raw_1_u16m1 = __riscv_vle16_v_u16m1(a_row_1 + k, vector_length);
+                vfloat32m2_t a_vector_1_f32m2 = nk_bf16m1_to_f32m2_rvv_(a_raw_1_u16m1, vector_length);
+                vuint16m1_t a_raw_2_u16m1 = __riscv_vle16_v_u16m1(a_row_2 + k, vector_length);
+                vfloat32m2_t a_vector_2_f32m2 = nk_bf16m1_to_f32m2_rvv_(a_raw_2_u16m1, vector_length);
+                vuint16m1_t a_raw_3_u16m1 = __riscv_vle16_v_u16m1(a_row_3 + k, vector_length);
+                vfloat32m2_t a_vector_3_f32m2 = nk_bf16m1_to_f32m2_rvv_(a_raw_3_u16m1, vector_length);
+                accumulator_0_f64m4 = __riscv_vfwmacc_vv_f64m4_tu(accumulator_0_f64m4, a_vector_0_f32m2, b_vector_f32m2,
+                                                                  vector_length);
+                accumulator_1_f64m4 = __riscv_vfwmacc_vv_f64m4_tu(accumulator_1_f64m4, a_vector_1_f32m2, b_vector_f32m2,
+                                                                  vector_length);
+                accumulator_2_f64m4 = __riscv_vfwmacc_vv_f64m4_tu(accumulator_2_f64m4, a_vector_2_f32m2, b_vector_f32m2,
+                                                                  vector_length);
+                accumulator_3_f64m4 = __riscv_vfwmacc_vv_f64m4_tu(accumulator_3_f64m4, a_vector_3_f32m2, b_vector_f32m2,
+                                                                  vector_length);
             }
 
             // Horizontal reduce and narrow to f32
@@ -1111,12 +1149,13 @@ NK_INTERNAL void nk_dots_packed_bf16_rvv_aligned_(nk_bf16_t const *a_matrix, voi
             vfloat64m4_t accumulator_f64m4 = __riscv_vfmv_v_f_f64m4(0.0, vlmax);
             nk_size_t remaining = depth;
             nk_size_t k = 0;
-            for (nk_size_t vl = 0; remaining > 0; remaining -= vl, k += vl) {
-                vl = __riscv_vsetvl_e32m2(remaining);
-                vfloat32m2_t b_vector_f32m2 = __riscv_vle32_v_f32m2(b_column + k, vl);
-                vuint16m1_t a_raw_u16m1 = __riscv_vle16_v_u16m1(a_row + k, vl);
-                vfloat32m2_t a_vector_f32m2 = nk_bf16m1_to_f32m2_rvv_(a_raw_u16m1, vl);
-                accumulator_f64m4 = __riscv_vfwmacc_vv_f64m4(accumulator_f64m4, a_vector_f32m2, b_vector_f32m2, vl);
+            for (nk_size_t vector_length = 0; remaining > 0; remaining -= vector_length, k += vector_length) {
+                vector_length = __riscv_vsetvl_e32m2(remaining);
+                vfloat32m2_t b_vector_f32m2 = __riscv_vle32_v_f32m2(b_column + k, vector_length);
+                vuint16m1_t a_raw_u16m1 = __riscv_vle16_v_u16m1(a_row + k, vector_length);
+                vfloat32m2_t a_vector_f32m2 = nk_bf16m1_to_f32m2_rvv_(a_raw_u16m1, vector_length);
+                accumulator_f64m4 = __riscv_vfwmacc_vv_f64m4_tu(accumulator_f64m4, a_vector_f32m2, b_vector_f32m2,
+                                                                vector_length);
             }
             vfloat64m1_t zero_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, 1);
             c_row[column] = (nk_f32_t)__riscv_vfmv_f_s_f64m1_f64(
@@ -1158,13 +1197,14 @@ NK_PUBLIC void nk_dots_symmetric_bf16_rvv(nk_bf16_t const *vectors, nk_size_t n_
             vfloat64m4_t accumulator_f64m4 = __riscv_vfmv_v_f_f64m4(0.0, vlmax);
             nk_size_t remaining = depth;
             nk_size_t k = 0;
-            for (nk_size_t vl = 0; remaining > 0; remaining -= vl, k += vl) {
-                vl = __riscv_vsetvl_e32m2(remaining);
-                vuint16m1_t a_raw_u16m1 = __riscv_vle16_v_u16m1(a_i + k, vl);
-                vfloat32m2_t a_vector_f32m2 = nk_bf16m1_to_f32m2_rvv_(a_raw_u16m1, vl);
-                vuint16m1_t b_raw_u16m1 = __riscv_vle16_v_u16m1(a_j + k, vl);
-                vfloat32m2_t b_vector_f32m2 = nk_bf16m1_to_f32m2_rvv_(b_raw_u16m1, vl);
-                accumulator_f64m4 = __riscv_vfwmacc_vv_f64m4(accumulator_f64m4, a_vector_f32m2, b_vector_f32m2, vl);
+            for (nk_size_t vector_length = 0; remaining > 0; remaining -= vector_length, k += vector_length) {
+                vector_length = __riscv_vsetvl_e32m2(remaining);
+                vuint16m1_t a_raw_u16m1 = __riscv_vle16_v_u16m1(a_i + k, vector_length);
+                vfloat32m2_t a_vector_f32m2 = nk_bf16m1_to_f32m2_rvv_(a_raw_u16m1, vector_length);
+                vuint16m1_t b_raw_u16m1 = __riscv_vle16_v_u16m1(a_j + k, vector_length);
+                vfloat32m2_t b_vector_f32m2 = nk_bf16m1_to_f32m2_rvv_(b_raw_u16m1, vector_length);
+                accumulator_f64m4 = __riscv_vfwmacc_vv_f64m4_tu(accumulator_f64m4, a_vector_f32m2, b_vector_f32m2,
+                                                                vector_length);
             }
             vfloat64m1_t zero_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, 1);
             nk_f32_t dot = (nk_f32_t)__riscv_vfmv_f_s_f64m1_f64(
@@ -1271,26 +1311,26 @@ NK_INTERNAL void nk_dots_packed_f16_rvv_aligned_(nk_f16_t const *a_matrix, void 
 
             nk_size_t remaining = depth;
             nk_size_t k = 0;
-            for (nk_size_t vl = 0; remaining > 0; remaining -= vl, k += vl) {
-                vl = __riscv_vsetvl_e32m2(remaining);
-                vfloat32m2_t b_vector_f32m2 = __riscv_vle32_v_f32m2(b_column + k, vl);
+            for (nk_size_t vector_length = 0; remaining > 0; remaining -= vector_length, k += vector_length) {
+                vector_length = __riscv_vsetvl_e32m2(remaining);
+                vfloat32m2_t b_vector_f32m2 = __riscv_vle32_v_f32m2(b_column + k, vector_length);
                 // Load A as u16m1 and convert to f32m2
-                vuint16m1_t a_raw_0_u16m1 = __riscv_vle16_v_u16m1(a_row_0 + k, vl);
-                vfloat32m2_t a_vector_0_f32m2 = nk_f16m1_to_f32m2_rvv_(a_raw_0_u16m1, vl);
-                vuint16m1_t a_raw_1_u16m1 = __riscv_vle16_v_u16m1(a_row_1 + k, vl);
-                vfloat32m2_t a_vector_1_f32m2 = nk_f16m1_to_f32m2_rvv_(a_raw_1_u16m1, vl);
-                vuint16m1_t a_raw_2_u16m1 = __riscv_vle16_v_u16m1(a_row_2 + k, vl);
-                vfloat32m2_t a_vector_2_f32m2 = nk_f16m1_to_f32m2_rvv_(a_raw_2_u16m1, vl);
-                vuint16m1_t a_raw_3_u16m1 = __riscv_vle16_v_u16m1(a_row_3 + k, vl);
-                vfloat32m2_t a_vector_3_f32m2 = nk_f16m1_to_f32m2_rvv_(a_raw_3_u16m1, vl);
-                accumulator_0_f64m4 = __riscv_vfwmacc_vv_f64m4(accumulator_0_f64m4, a_vector_0_f32m2, b_vector_f32m2,
-                                                               vl);
-                accumulator_1_f64m4 = __riscv_vfwmacc_vv_f64m4(accumulator_1_f64m4, a_vector_1_f32m2, b_vector_f32m2,
-                                                               vl);
-                accumulator_2_f64m4 = __riscv_vfwmacc_vv_f64m4(accumulator_2_f64m4, a_vector_2_f32m2, b_vector_f32m2,
-                                                               vl);
-                accumulator_3_f64m4 = __riscv_vfwmacc_vv_f64m4(accumulator_3_f64m4, a_vector_3_f32m2, b_vector_f32m2,
-                                                               vl);
+                vuint16m1_t a_raw_0_u16m1 = __riscv_vle16_v_u16m1(a_row_0 + k, vector_length);
+                vfloat32m2_t a_vector_0_f32m2 = nk_f16m1_to_f32m2_rvv_(a_raw_0_u16m1, vector_length);
+                vuint16m1_t a_raw_1_u16m1 = __riscv_vle16_v_u16m1(a_row_1 + k, vector_length);
+                vfloat32m2_t a_vector_1_f32m2 = nk_f16m1_to_f32m2_rvv_(a_raw_1_u16m1, vector_length);
+                vuint16m1_t a_raw_2_u16m1 = __riscv_vle16_v_u16m1(a_row_2 + k, vector_length);
+                vfloat32m2_t a_vector_2_f32m2 = nk_f16m1_to_f32m2_rvv_(a_raw_2_u16m1, vector_length);
+                vuint16m1_t a_raw_3_u16m1 = __riscv_vle16_v_u16m1(a_row_3 + k, vector_length);
+                vfloat32m2_t a_vector_3_f32m2 = nk_f16m1_to_f32m2_rvv_(a_raw_3_u16m1, vector_length);
+                accumulator_0_f64m4 = __riscv_vfwmacc_vv_f64m4_tu(accumulator_0_f64m4, a_vector_0_f32m2, b_vector_f32m2,
+                                                                  vector_length);
+                accumulator_1_f64m4 = __riscv_vfwmacc_vv_f64m4_tu(accumulator_1_f64m4, a_vector_1_f32m2, b_vector_f32m2,
+                                                                  vector_length);
+                accumulator_2_f64m4 = __riscv_vfwmacc_vv_f64m4_tu(accumulator_2_f64m4, a_vector_2_f32m2, b_vector_f32m2,
+                                                                  vector_length);
+                accumulator_3_f64m4 = __riscv_vfwmacc_vv_f64m4_tu(accumulator_3_f64m4, a_vector_3_f32m2, b_vector_f32m2,
+                                                                  vector_length);
             }
 
             // Horizontal reduce and narrow to f32
@@ -1315,12 +1355,13 @@ NK_INTERNAL void nk_dots_packed_f16_rvv_aligned_(nk_f16_t const *a_matrix, void 
             vfloat64m4_t accumulator_f64m4 = __riscv_vfmv_v_f_f64m4(0.0, vlmax);
             nk_size_t remaining = depth;
             nk_size_t k = 0;
-            for (nk_size_t vl = 0; remaining > 0; remaining -= vl, k += vl) {
-                vl = __riscv_vsetvl_e32m2(remaining);
-                vfloat32m2_t b_vector_f32m2 = __riscv_vle32_v_f32m2(b_column + k, vl);
-                vuint16m1_t a_raw_u16m1 = __riscv_vle16_v_u16m1(a_row + k, vl);
-                vfloat32m2_t a_vector_f32m2 = nk_f16m1_to_f32m2_rvv_(a_raw_u16m1, vl);
-                accumulator_f64m4 = __riscv_vfwmacc_vv_f64m4(accumulator_f64m4, a_vector_f32m2, b_vector_f32m2, vl);
+            for (nk_size_t vector_length = 0; remaining > 0; remaining -= vector_length, k += vector_length) {
+                vector_length = __riscv_vsetvl_e32m2(remaining);
+                vfloat32m2_t b_vector_f32m2 = __riscv_vle32_v_f32m2(b_column + k, vector_length);
+                vuint16m1_t a_raw_u16m1 = __riscv_vle16_v_u16m1(a_row + k, vector_length);
+                vfloat32m2_t a_vector_f32m2 = nk_f16m1_to_f32m2_rvv_(a_raw_u16m1, vector_length);
+                accumulator_f64m4 = __riscv_vfwmacc_vv_f64m4_tu(accumulator_f64m4, a_vector_f32m2, b_vector_f32m2,
+                                                                vector_length);
             }
             vfloat64m1_t zero_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, 1);
             c_row[column] = (nk_f32_t)__riscv_vfmv_f_s_f64m1_f64(
@@ -1362,13 +1403,14 @@ NK_PUBLIC void nk_dots_symmetric_f16_rvv(nk_f16_t const *vectors, nk_size_t n_ve
             vfloat64m4_t accumulator_f64m4 = __riscv_vfmv_v_f_f64m4(0.0, vlmax);
             nk_size_t remaining = depth;
             nk_size_t k = 0;
-            for (nk_size_t vl = 0; remaining > 0; remaining -= vl, k += vl) {
-                vl = __riscv_vsetvl_e32m2(remaining);
-                vuint16m1_t a_raw_u16m1 = __riscv_vle16_v_u16m1(a_i + k, vl);
-                vfloat32m2_t a_vector_f32m2 = nk_f16m1_to_f32m2_rvv_(a_raw_u16m1, vl);
-                vuint16m1_t b_raw_u16m1 = __riscv_vle16_v_u16m1(a_j + k, vl);
-                vfloat32m2_t b_vector_f32m2 = nk_f16m1_to_f32m2_rvv_(b_raw_u16m1, vl);
-                accumulator_f64m4 = __riscv_vfwmacc_vv_f64m4(accumulator_f64m4, a_vector_f32m2, b_vector_f32m2, vl);
+            for (nk_size_t vector_length = 0; remaining > 0; remaining -= vector_length, k += vector_length) {
+                vector_length = __riscv_vsetvl_e32m2(remaining);
+                vuint16m1_t a_raw_u16m1 = __riscv_vle16_v_u16m1(a_i + k, vector_length);
+                vfloat32m2_t a_vector_f32m2 = nk_f16m1_to_f32m2_rvv_(a_raw_u16m1, vector_length);
+                vuint16m1_t b_raw_u16m1 = __riscv_vle16_v_u16m1(a_j + k, vector_length);
+                vfloat32m2_t b_vector_f32m2 = nk_f16m1_to_f32m2_rvv_(b_raw_u16m1, vector_length);
+                accumulator_f64m4 = __riscv_vfwmacc_vv_f64m4_tu(accumulator_f64m4, a_vector_f32m2, b_vector_f32m2,
+                                                                vector_length);
             }
             vfloat64m1_t zero_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, 1);
             nk_f32_t dot = (nk_f32_t)__riscv_vfmv_f_s_f64m1_f64(
@@ -1476,21 +1518,25 @@ NK_INTERNAL void nk_dots_packed_i8_rvv_aligned_(nk_i8_t const *a_matrix, void co
 
             nk_size_t remaining = depth;
             nk_size_t k = 0;
-            for (nk_size_t vl = 0; remaining > 0; remaining -= vl, k += vl) {
-                vl = __riscv_vsetvl_e8m1(remaining);
-                vint8m1_t b_vector_i8m1 = __riscv_vle8_v_i8m1(b_column + k, vl);
-                vint8m1_t a_vector_0_i8m1 = __riscv_vle8_v_i8m1(a_row_0 + k, vl);
-                vint8m1_t a_vector_1_i8m1 = __riscv_vle8_v_i8m1(a_row_1 + k, vl);
-                vint8m1_t a_vector_2_i8m1 = __riscv_vle8_v_i8m1(a_row_2 + k, vl);
-                vint8m1_t a_vector_3_i8m1 = __riscv_vle8_v_i8m1(a_row_3 + k, vl);
-                vint16m2_t product_0_i16m2 = __riscv_vwmul_vv_i16m2(a_vector_0_i8m1, b_vector_i8m1, vl);
-                vint16m2_t product_1_i16m2 = __riscv_vwmul_vv_i16m2(a_vector_1_i8m1, b_vector_i8m1, vl);
-                vint16m2_t product_2_i16m2 = __riscv_vwmul_vv_i16m2(a_vector_2_i8m1, b_vector_i8m1, vl);
-                vint16m2_t product_3_i16m2 = __riscv_vwmul_vv_i16m2(a_vector_3_i8m1, b_vector_i8m1, vl);
-                accumulator_0_i32m4 = __riscv_vwadd_wv_i32m4(accumulator_0_i32m4, product_0_i16m2, vl);
-                accumulator_1_i32m4 = __riscv_vwadd_wv_i32m4(accumulator_1_i32m4, product_1_i16m2, vl);
-                accumulator_2_i32m4 = __riscv_vwadd_wv_i32m4(accumulator_2_i32m4, product_2_i16m2, vl);
-                accumulator_3_i32m4 = __riscv_vwadd_wv_i32m4(accumulator_3_i32m4, product_3_i16m2, vl);
+            for (nk_size_t vector_length = 0; remaining > 0; remaining -= vector_length, k += vector_length) {
+                vector_length = __riscv_vsetvl_e8m1(remaining);
+                vint8m1_t b_vector_i8m1 = __riscv_vle8_v_i8m1(b_column + k, vector_length);
+                vint8m1_t a_vector_0_i8m1 = __riscv_vle8_v_i8m1(a_row_0 + k, vector_length);
+                vint8m1_t a_vector_1_i8m1 = __riscv_vle8_v_i8m1(a_row_1 + k, vector_length);
+                vint8m1_t a_vector_2_i8m1 = __riscv_vle8_v_i8m1(a_row_2 + k, vector_length);
+                vint8m1_t a_vector_3_i8m1 = __riscv_vle8_v_i8m1(a_row_3 + k, vector_length);
+                vint16m2_t product_0_i16m2 = __riscv_vwmul_vv_i16m2(a_vector_0_i8m1, b_vector_i8m1, vector_length);
+                vint16m2_t product_1_i16m2 = __riscv_vwmul_vv_i16m2(a_vector_1_i8m1, b_vector_i8m1, vector_length);
+                vint16m2_t product_2_i16m2 = __riscv_vwmul_vv_i16m2(a_vector_2_i8m1, b_vector_i8m1, vector_length);
+                vint16m2_t product_3_i16m2 = __riscv_vwmul_vv_i16m2(a_vector_3_i8m1, b_vector_i8m1, vector_length);
+                accumulator_0_i32m4 = __riscv_vwadd_wv_i32m4_tu(accumulator_0_i32m4, accumulator_0_i32m4,
+                                                                product_0_i16m2, vector_length);
+                accumulator_1_i32m4 = __riscv_vwadd_wv_i32m4_tu(accumulator_1_i32m4, accumulator_1_i32m4,
+                                                                product_1_i16m2, vector_length);
+                accumulator_2_i32m4 = __riscv_vwadd_wv_i32m4_tu(accumulator_2_i32m4, accumulator_2_i32m4,
+                                                                product_2_i16m2, vector_length);
+                accumulator_3_i32m4 = __riscv_vwadd_wv_i32m4_tu(accumulator_3_i32m4, accumulator_3_i32m4,
+                                                                product_3_i16m2, vector_length);
             }
 
             // Horizontal reduce
@@ -1515,12 +1561,13 @@ NK_INTERNAL void nk_dots_packed_i8_rvv_aligned_(nk_i8_t const *a_matrix, void co
             vint32m4_t accumulator_i32m4 = __riscv_vmv_v_x_i32m4(0, vlmax);
             nk_size_t remaining = depth;
             nk_size_t k = 0;
-            for (nk_size_t vl = 0; remaining > 0; remaining -= vl, k += vl) {
-                vl = __riscv_vsetvl_e8m1(remaining);
-                vint8m1_t b_vector_i8m1 = __riscv_vle8_v_i8m1(b_column + k, vl);
-                vint8m1_t a_vector_i8m1 = __riscv_vle8_v_i8m1(a_row + k, vl);
-                vint16m2_t product_i16m2 = __riscv_vwmul_vv_i16m2(a_vector_i8m1, b_vector_i8m1, vl);
-                accumulator_i32m4 = __riscv_vwadd_wv_i32m4(accumulator_i32m4, product_i16m2, vl);
+            for (nk_size_t vector_length = 0; remaining > 0; remaining -= vector_length, k += vector_length) {
+                vector_length = __riscv_vsetvl_e8m1(remaining);
+                vint8m1_t b_vector_i8m1 = __riscv_vle8_v_i8m1(b_column + k, vector_length);
+                vint8m1_t a_vector_i8m1 = __riscv_vle8_v_i8m1(a_row + k, vector_length);
+                vint16m2_t product_i16m2 = __riscv_vwmul_vv_i16m2(a_vector_i8m1, b_vector_i8m1, vector_length);
+                accumulator_i32m4 = __riscv_vwadd_wv_i32m4_tu(accumulator_i32m4, accumulator_i32m4, product_i16m2,
+                                                              vector_length);
             }
             vint32m1_t zero_i32m1 = __riscv_vmv_v_x_i32m1(0, 1);
             c_row[column] = (nk_i32_t)__riscv_vmv_x_s_i32m1_i32(
@@ -1562,12 +1609,13 @@ NK_PUBLIC void nk_dots_symmetric_i8_rvv(nk_i8_t const *vectors, nk_size_t n_vect
             vint32m4_t accumulator_i32m4 = __riscv_vmv_v_x_i32m4(0, vlmax);
             nk_size_t remaining = depth;
             nk_size_t k = 0;
-            for (nk_size_t vl = 0; remaining > 0; remaining -= vl, k += vl) {
-                vl = __riscv_vsetvl_e8m1(remaining);
-                vint8m1_t a_vector_i8m1 = __riscv_vle8_v_i8m1(a_i + k, vl);
-                vint8m1_t b_vector_i8m1 = __riscv_vle8_v_i8m1(a_j + k, vl);
-                vint16m2_t product_i16m2 = __riscv_vwmul_vv_i16m2(a_vector_i8m1, b_vector_i8m1, vl);
-                accumulator_i32m4 = __riscv_vwadd_wv_i32m4(accumulator_i32m4, product_i16m2, vl);
+            for (nk_size_t vector_length = 0; remaining > 0; remaining -= vector_length, k += vector_length) {
+                vector_length = __riscv_vsetvl_e8m1(remaining);
+                vint8m1_t a_vector_i8m1 = __riscv_vle8_v_i8m1(a_i + k, vector_length);
+                vint8m1_t b_vector_i8m1 = __riscv_vle8_v_i8m1(a_j + k, vector_length);
+                vint16m2_t product_i16m2 = __riscv_vwmul_vv_i16m2(a_vector_i8m1, b_vector_i8m1, vector_length);
+                accumulator_i32m4 = __riscv_vwadd_wv_i32m4_tu(accumulator_i32m4, accumulator_i32m4, product_i16m2,
+                                                              vector_length);
             }
             vint32m1_t zero_i32m1 = __riscv_vmv_v_x_i32m1(0, 1);
             nk_i32_t dot = (nk_i32_t)__riscv_vmv_x_s_i32m1_i32(
@@ -1675,21 +1723,25 @@ NK_INTERNAL void nk_dots_packed_u8_rvv_aligned_(nk_u8_t const *a_matrix, void co
 
             nk_size_t remaining = depth;
             nk_size_t k = 0;
-            for (nk_size_t vl = 0; remaining > 0; remaining -= vl, k += vl) {
-                vl = __riscv_vsetvl_e8m1(remaining);
-                vuint8m1_t b_vector_u8m1 = __riscv_vle8_v_u8m1(b_column + k, vl);
-                vuint8m1_t a_vector_0_u8m1 = __riscv_vle8_v_u8m1(a_row_0 + k, vl);
-                vuint8m1_t a_vector_1_u8m1 = __riscv_vle8_v_u8m1(a_row_1 + k, vl);
-                vuint8m1_t a_vector_2_u8m1 = __riscv_vle8_v_u8m1(a_row_2 + k, vl);
-                vuint8m1_t a_vector_3_u8m1 = __riscv_vle8_v_u8m1(a_row_3 + k, vl);
-                vuint16m2_t product_0_u16m2 = __riscv_vwmulu_vv_u16m2(a_vector_0_u8m1, b_vector_u8m1, vl);
-                vuint16m2_t product_1_u16m2 = __riscv_vwmulu_vv_u16m2(a_vector_1_u8m1, b_vector_u8m1, vl);
-                vuint16m2_t product_2_u16m2 = __riscv_vwmulu_vv_u16m2(a_vector_2_u8m1, b_vector_u8m1, vl);
-                vuint16m2_t product_3_u16m2 = __riscv_vwmulu_vv_u16m2(a_vector_3_u8m1, b_vector_u8m1, vl);
-                accumulator_0_u32m4 = __riscv_vwaddu_wv_u32m4(accumulator_0_u32m4, product_0_u16m2, vl);
-                accumulator_1_u32m4 = __riscv_vwaddu_wv_u32m4(accumulator_1_u32m4, product_1_u16m2, vl);
-                accumulator_2_u32m4 = __riscv_vwaddu_wv_u32m4(accumulator_2_u32m4, product_2_u16m2, vl);
-                accumulator_3_u32m4 = __riscv_vwaddu_wv_u32m4(accumulator_3_u32m4, product_3_u16m2, vl);
+            for (nk_size_t vector_length = 0; remaining > 0; remaining -= vector_length, k += vector_length) {
+                vector_length = __riscv_vsetvl_e8m1(remaining);
+                vuint8m1_t b_vector_u8m1 = __riscv_vle8_v_u8m1(b_column + k, vector_length);
+                vuint8m1_t a_vector_0_u8m1 = __riscv_vle8_v_u8m1(a_row_0 + k, vector_length);
+                vuint8m1_t a_vector_1_u8m1 = __riscv_vle8_v_u8m1(a_row_1 + k, vector_length);
+                vuint8m1_t a_vector_2_u8m1 = __riscv_vle8_v_u8m1(a_row_2 + k, vector_length);
+                vuint8m1_t a_vector_3_u8m1 = __riscv_vle8_v_u8m1(a_row_3 + k, vector_length);
+                vuint16m2_t product_0_u16m2 = __riscv_vwmulu_vv_u16m2(a_vector_0_u8m1, b_vector_u8m1, vector_length);
+                vuint16m2_t product_1_u16m2 = __riscv_vwmulu_vv_u16m2(a_vector_1_u8m1, b_vector_u8m1, vector_length);
+                vuint16m2_t product_2_u16m2 = __riscv_vwmulu_vv_u16m2(a_vector_2_u8m1, b_vector_u8m1, vector_length);
+                vuint16m2_t product_3_u16m2 = __riscv_vwmulu_vv_u16m2(a_vector_3_u8m1, b_vector_u8m1, vector_length);
+                accumulator_0_u32m4 = __riscv_vwaddu_wv_u32m4_tu(accumulator_0_u32m4, accumulator_0_u32m4,
+                                                                 product_0_u16m2, vector_length);
+                accumulator_1_u32m4 = __riscv_vwaddu_wv_u32m4_tu(accumulator_1_u32m4, accumulator_1_u32m4,
+                                                                 product_1_u16m2, vector_length);
+                accumulator_2_u32m4 = __riscv_vwaddu_wv_u32m4_tu(accumulator_2_u32m4, accumulator_2_u32m4,
+                                                                 product_2_u16m2, vector_length);
+                accumulator_3_u32m4 = __riscv_vwaddu_wv_u32m4_tu(accumulator_3_u32m4, accumulator_3_u32m4,
+                                                                 product_3_u16m2, vector_length);
             }
 
             // Horizontal reduce
@@ -1714,12 +1766,13 @@ NK_INTERNAL void nk_dots_packed_u8_rvv_aligned_(nk_u8_t const *a_matrix, void co
             vuint32m4_t accumulator_u32m4 = __riscv_vmv_v_x_u32m4(0, vlmax);
             nk_size_t remaining = depth;
             nk_size_t k = 0;
-            for (nk_size_t vl = 0; remaining > 0; remaining -= vl, k += vl) {
-                vl = __riscv_vsetvl_e8m1(remaining);
-                vuint8m1_t b_vector_u8m1 = __riscv_vle8_v_u8m1(b_column + k, vl);
-                vuint8m1_t a_vector_u8m1 = __riscv_vle8_v_u8m1(a_row + k, vl);
-                vuint16m2_t product_u16m2 = __riscv_vwmulu_vv_u16m2(a_vector_u8m1, b_vector_u8m1, vl);
-                accumulator_u32m4 = __riscv_vwaddu_wv_u32m4(accumulator_u32m4, product_u16m2, vl);
+            for (nk_size_t vector_length = 0; remaining > 0; remaining -= vector_length, k += vector_length) {
+                vector_length = __riscv_vsetvl_e8m1(remaining);
+                vuint8m1_t b_vector_u8m1 = __riscv_vle8_v_u8m1(b_column + k, vector_length);
+                vuint8m1_t a_vector_u8m1 = __riscv_vle8_v_u8m1(a_row + k, vector_length);
+                vuint16m2_t product_u16m2 = __riscv_vwmulu_vv_u16m2(a_vector_u8m1, b_vector_u8m1, vector_length);
+                accumulator_u32m4 = __riscv_vwaddu_wv_u32m4_tu(accumulator_u32m4, accumulator_u32m4, product_u16m2,
+                                                               vector_length);
             }
             vuint32m1_t zero_u32m1 = __riscv_vmv_v_x_u32m1(0, 1);
             c_row[column] = (nk_u32_t)__riscv_vmv_x_s_u32m1_u32(
@@ -1761,12 +1814,13 @@ NK_PUBLIC void nk_dots_symmetric_u8_rvv(nk_u8_t const *vectors, nk_size_t n_vect
             vuint32m4_t accumulator_u32m4 = __riscv_vmv_v_x_u32m4(0, vlmax);
             nk_size_t remaining = depth;
             nk_size_t k = 0;
-            for (nk_size_t vl = 0; remaining > 0; remaining -= vl, k += vl) {
-                vl = __riscv_vsetvl_e8m1(remaining);
-                vuint8m1_t a_vector_u8m1 = __riscv_vle8_v_u8m1(a_i + k, vl);
-                vuint8m1_t b_vector_u8m1 = __riscv_vle8_v_u8m1(a_j + k, vl);
-                vuint16m2_t product_u16m2 = __riscv_vwmulu_vv_u16m2(a_vector_u8m1, b_vector_u8m1, vl);
-                accumulator_u32m4 = __riscv_vwaddu_wv_u32m4(accumulator_u32m4, product_u16m2, vl);
+            for (nk_size_t vector_length = 0; remaining > 0; remaining -= vector_length, k += vector_length) {
+                vector_length = __riscv_vsetvl_e8m1(remaining);
+                vuint8m1_t a_vector_u8m1 = __riscv_vle8_v_u8m1(a_i + k, vector_length);
+                vuint8m1_t b_vector_u8m1 = __riscv_vle8_v_u8m1(a_j + k, vector_length);
+                vuint16m2_t product_u16m2 = __riscv_vwmulu_vv_u16m2(a_vector_u8m1, b_vector_u8m1, vector_length);
+                accumulator_u32m4 = __riscv_vwaddu_wv_u32m4_tu(accumulator_u32m4, accumulator_u32m4, product_u16m2,
+                                                               vector_length);
             }
             vuint32m1_t zero_u32m1 = __riscv_vmv_v_x_u32m1(0, 1);
             nk_u32_t dot = (nk_u32_t)__riscv_vmv_x_s_u32m1_u32(
@@ -1902,45 +1956,50 @@ NK_INTERNAL void nk_dots_packed_e4m3_rvv_aligned_(nk_e4m3_t const *a_matrix, voi
 
             nk_size_t remaining = depth;
             nk_size_t k = 0;
-            for (nk_size_t vl = 0; remaining > 0; remaining -= vl, k += vl) {
-                vl = __riscv_vsetvl_e32m2(remaining);
+            for (nk_size_t vector_length = 0; remaining > 0; remaining -= vector_length, k += vector_length) {
+                vector_length = __riscv_vsetvl_e32m2(remaining);
 
                 // Load pre-packed f32 B values
-                vfloat32m2_t b_vector_f32m2 = __riscv_vle32_v_f32m2(b_column + k, vl);
+                vfloat32m2_t b_vector_f32m2 = __riscv_vle32_v_f32m2(b_column + k, vector_length);
 
                 // Load raw e4m3 bytes from each A row
-                vuint8m1_t raw0_u8m1 = __riscv_vle8_v_u8m1(a_row_0 + k, vl);
-                vuint8m1_t raw1_u8m1 = __riscv_vle8_v_u8m1(a_row_1 + k, vl);
+                vuint8mf2_t raw0_u8mf2 = __riscv_vle8_v_u8mf2(a_row_0 + k, vector_length);
+                vuint8mf2_t raw1_u8mf2 = __riscv_vle8_v_u8mf2(a_row_1 + k, vector_length);
 
                 // Extract 7-bit magnitudes, zero-extend to u32, compute byte offsets for f32 LUT
-                vuint8m1_t mag0_u8m1 = __riscv_vand_vx_u8m1(raw0_u8m1, 0x7F, vl);
-                vuint8m1_t mag1_u8m1 = __riscv_vand_vx_u8m1(raw1_u8m1, 0x7F, vl);
-                vuint32m2_t idx0_u32m2 = __riscv_vzext_vf4_u32m2(mag0_u8m1, vl);
-                vuint32m2_t idx1_u32m2 = __riscv_vzext_vf4_u32m2(mag1_u8m1, vl);
-                vuint32m2_t off0_u32m2 = __riscv_vsll_vx_u32m2(idx0_u32m2, 2, vl); // byte offsets = index * 4
-                vuint32m2_t off1_u32m2 = __riscv_vsll_vx_u32m2(idx1_u32m2, 2, vl);
+                vuint8mf2_t mag0_u8mf2 = __riscv_vand_vx_u8mf2(raw0_u8mf2, 0x7F, vector_length);
+                vuint8mf2_t mag1_u8mf2 = __riscv_vand_vx_u8mf2(raw1_u8mf2, 0x7F, vector_length);
+                vuint32m2_t idx0_u32m2 = __riscv_vzext_vf4_u32m2(mag0_u8mf2, vector_length);
+                vuint32m2_t idx1_u32m2 = __riscv_vzext_vf4_u32m2(mag1_u8mf2, vector_length);
+                vuint32m2_t off0_u32m2 = __riscv_vsll_vx_u32m2(idx0_u32m2, 2,
+                                                               vector_length); // byte offsets = index * 4
+                vuint32m2_t off1_u32m2 = __riscv_vsll_vx_u32m2(idx1_u32m2, 2, vector_length);
 
                 // Gather f32 bit patterns from magnitude LUT
-                vuint32m2_t bits0_u32m2 = __riscv_vluxei32_v_u32m2(nk_e4m3_magnitude_lut_rvv_, off0_u32m2, vl);
-                vuint32m2_t bits1_u32m2 = __riscv_vluxei32_v_u32m2(nk_e4m3_magnitude_lut_rvv_, off1_u32m2, vl);
+                vuint32m2_t bits0_u32m2 = __riscv_vluxei32_v_u32m2(nk_e4m3_magnitude_lut_rvv_, off0_u32m2,
+                                                                   vector_length);
+                vuint32m2_t bits1_u32m2 = __riscv_vluxei32_v_u32m2(nk_e4m3_magnitude_lut_rvv_, off1_u32m2,
+                                                                   vector_length);
 
                 // Extract sign bit 7, shift to f32 sign position (bit 31)
-                vuint8m1_t sign0_u8m1 = __riscv_vand_vx_u8m1(raw0_u8m1, 0x80, vl);
-                vuint8m1_t sign1_u8m1 = __riscv_vand_vx_u8m1(raw1_u8m1, 0x80, vl);
-                vuint32m2_t sign0_u32m2 = __riscv_vsll_vx_u32m2(__riscv_vzext_vf4_u32m2(sign0_u8m1, vl), 24, vl);
-                vuint32m2_t sign1_u32m2 = __riscv_vsll_vx_u32m2(__riscv_vzext_vf4_u32m2(sign1_u8m1, vl), 24, vl);
+                vuint8mf2_t sign0_u8mf2 = __riscv_vand_vx_u8mf2(raw0_u8mf2, 0x80, vector_length);
+                vuint8mf2_t sign1_u8mf2 = __riscv_vand_vx_u8mf2(raw1_u8mf2, 0x80, vector_length);
+                vuint32m2_t sign0_u32m2 = __riscv_vsll_vx_u32m2(__riscv_vzext_vf4_u32m2(sign0_u8mf2, vector_length), 24,
+                                                                vector_length);
+                vuint32m2_t sign1_u32m2 = __riscv_vsll_vx_u32m2(__riscv_vzext_vf4_u32m2(sign1_u8mf2, vector_length), 24,
+                                                                vector_length);
 
                 // Apply sign and reinterpret as f32
                 vfloat32m2_t a_vector_0_f32m2 = __riscv_vreinterpret_v_u32m2_f32m2(
-                    __riscv_vor_vv_u32m2(bits0_u32m2, sign0_u32m2, vl));
+                    __riscv_vor_vv_u32m2(bits0_u32m2, sign0_u32m2, vector_length));
                 vfloat32m2_t a_vector_1_f32m2 = __riscv_vreinterpret_v_u32m2_f32m2(
-                    __riscv_vor_vv_u32m2(bits1_u32m2, sign1_u32m2, vl));
+                    __riscv_vor_vv_u32m2(bits1_u32m2, sign1_u32m2, vector_length));
 
                 // Widening FMA: f32xf32 -> f64
-                accumulator_0_f64m4 = __riscv_vfwmacc_vv_f64m4(accumulator_0_f64m4, a_vector_0_f32m2, b_vector_f32m2,
-                                                               vl);
-                accumulator_1_f64m4 = __riscv_vfwmacc_vv_f64m4(accumulator_1_f64m4, a_vector_1_f32m2, b_vector_f32m2,
-                                                               vl);
+                accumulator_0_f64m4 = __riscv_vfwmacc_vv_f64m4_tu(accumulator_0_f64m4, a_vector_0_f32m2, b_vector_f32m2,
+                                                                  vector_length);
+                accumulator_1_f64m4 = __riscv_vfwmacc_vv_f64m4_tu(accumulator_1_f64m4, a_vector_1_f32m2, b_vector_f32m2,
+                                                                  vector_length);
             }
 
             // Horizontal reduce and narrow to f32
@@ -1961,19 +2020,22 @@ NK_INTERNAL void nk_dots_packed_e4m3_rvv_aligned_(nk_e4m3_t const *a_matrix, voi
             vfloat64m4_t accumulator_f64m4 = __riscv_vfmv_v_f_f64m4(0.0, vlmax);
             nk_size_t remaining = depth;
             nk_size_t k = 0;
-            for (nk_size_t vl = 0; remaining > 0; remaining -= vl, k += vl) {
-                vl = __riscv_vsetvl_e32m2(remaining);
-                vfloat32m2_t b_vector_f32m2 = __riscv_vle32_v_f32m2(b_column + k, vl);
-                vuint8m1_t raw_a_u8m1 = __riscv_vle8_v_u8m1(a_row + k, vl);
-                vuint8m1_t mag_a_u8m1 = __riscv_vand_vx_u8m1(raw_a_u8m1, 0x7F, vl);
-                vuint32m2_t idx_a_u32m2 = __riscv_vzext_vf4_u32m2(mag_a_u8m1, vl);
-                vuint32m2_t off_a_u32m2 = __riscv_vsll_vx_u32m2(idx_a_u32m2, 2, vl);
-                vuint32m2_t bits_a_u32m2 = __riscv_vluxei32_v_u32m2(nk_e4m3_magnitude_lut_rvv_, off_a_u32m2, vl);
-                vuint8m1_t sign_a_u8m1 = __riscv_vand_vx_u8m1(raw_a_u8m1, 0x80, vl);
-                vuint32m2_t sign_a_u32m2 = __riscv_vsll_vx_u32m2(__riscv_vzext_vf4_u32m2(sign_a_u8m1, vl), 24, vl);
+            for (nk_size_t vector_length = 0; remaining > 0; remaining -= vector_length, k += vector_length) {
+                vector_length = __riscv_vsetvl_e32m2(remaining);
+                vfloat32m2_t b_vector_f32m2 = __riscv_vle32_v_f32m2(b_column + k, vector_length);
+                vuint8mf2_t raw_a_u8mf2 = __riscv_vle8_v_u8mf2(a_row + k, vector_length);
+                vuint8mf2_t mag_a_u8mf2 = __riscv_vand_vx_u8mf2(raw_a_u8mf2, 0x7F, vector_length);
+                vuint32m2_t idx_a_u32m2 = __riscv_vzext_vf4_u32m2(mag_a_u8mf2, vector_length);
+                vuint32m2_t off_a_u32m2 = __riscv_vsll_vx_u32m2(idx_a_u32m2, 2, vector_length);
+                vuint32m2_t bits_a_u32m2 = __riscv_vluxei32_v_u32m2(nk_e4m3_magnitude_lut_rvv_, off_a_u32m2,
+                                                                    vector_length);
+                vuint8mf2_t sign_a_u8mf2 = __riscv_vand_vx_u8mf2(raw_a_u8mf2, 0x80, vector_length);
+                vuint32m2_t sign_a_u32m2 = __riscv_vsll_vx_u32m2(__riscv_vzext_vf4_u32m2(sign_a_u8mf2, vector_length),
+                                                                 24, vector_length);
                 vfloat32m2_t a_vector_f32m2 = __riscv_vreinterpret_v_u32m2_f32m2(
-                    __riscv_vor_vv_u32m2(bits_a_u32m2, sign_a_u32m2, vl));
-                accumulator_f64m4 = __riscv_vfwmacc_vv_f64m4(accumulator_f64m4, a_vector_f32m2, b_vector_f32m2, vl);
+                    __riscv_vor_vv_u32m2(bits_a_u32m2, sign_a_u32m2, vector_length));
+                accumulator_f64m4 = __riscv_vfwmacc_vv_f64m4_tu(accumulator_f64m4, a_vector_f32m2, b_vector_f32m2,
+                                                                vector_length);
             }
             vfloat64m1_t zero_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, 1);
             c_row[column] = (nk_f32_t)__riscv_vfmv_f_s_f64m1_f64(
@@ -2011,33 +2073,38 @@ NK_PUBLIC void nk_dots_symmetric_e4m3_rvv(nk_e4m3_t const *vectors, nk_size_t n_
             vfloat64m4_t accumulator_f64m4 = __riscv_vfmv_v_f_f64m4(0.0, vlmax);
             nk_size_t remaining = depth;
             nk_size_t k = 0;
-            for (nk_size_t vl = 0; remaining > 0; remaining -= vl, k += vl) {
-                vl = __riscv_vsetvl_e32m2(remaining);
-                vuint8m1_t raw_i_u8m1 = __riscv_vle8_v_u8m1(a_i + k, vl);
-                vuint8m1_t raw_j_u8m1 = __riscv_vle8_v_u8m1(a_j + k, vl);
+            for (nk_size_t vector_length = 0; remaining > 0; remaining -= vector_length, k += vector_length) {
+                vector_length = __riscv_vsetvl_e32m2(remaining);
+                vuint8mf2_t raw_i_u8mf2 = __riscv_vle8_v_u8mf2(a_i + k, vector_length);
+                vuint8mf2_t raw_j_u8mf2 = __riscv_vle8_v_u8mf2(a_j + k, vector_length);
 
                 // Convert i-vector via LUT gather
-                vuint8m1_t mag_i_u8m1 = __riscv_vand_vx_u8m1(raw_i_u8m1, 0x7F, vl);
-                vuint32m2_t idx_i_u32m2 = __riscv_vzext_vf4_u32m2(mag_i_u8m1, vl);
-                vuint32m2_t off_i_u32m2 = __riscv_vsll_vx_u32m2(idx_i_u32m2, 2, vl);
-                vuint32m2_t bits_i_u32m2 = __riscv_vluxei32_v_u32m2(nk_e4m3_magnitude_lut_rvv_, off_i_u32m2, vl);
-                vuint8m1_t sign_i_u8m1 = __riscv_vand_vx_u8m1(raw_i_u8m1, 0x80, vl);
-                vuint32m2_t sign_i_u32m2 = __riscv_vsll_vx_u32m2(__riscv_vzext_vf4_u32m2(sign_i_u8m1, vl), 24, vl);
+                vuint8mf2_t mag_i_u8mf2 = __riscv_vand_vx_u8mf2(raw_i_u8mf2, 0x7F, vector_length);
+                vuint32m2_t idx_i_u32m2 = __riscv_vzext_vf4_u32m2(mag_i_u8mf2, vector_length);
+                vuint32m2_t off_i_u32m2 = __riscv_vsll_vx_u32m2(idx_i_u32m2, 2, vector_length);
+                vuint32m2_t bits_i_u32m2 = __riscv_vluxei32_v_u32m2(nk_e4m3_magnitude_lut_rvv_, off_i_u32m2,
+                                                                    vector_length);
+                vuint8mf2_t sign_i_u8mf2 = __riscv_vand_vx_u8mf2(raw_i_u8mf2, 0x80, vector_length);
+                vuint32m2_t sign_i_u32m2 = __riscv_vsll_vx_u32m2(__riscv_vzext_vf4_u32m2(sign_i_u8mf2, vector_length),
+                                                                 24, vector_length);
                 vfloat32m2_t val_i_f32m2 = __riscv_vreinterpret_v_u32m2_f32m2(
-                    __riscv_vor_vv_u32m2(bits_i_u32m2, sign_i_u32m2, vl));
+                    __riscv_vor_vv_u32m2(bits_i_u32m2, sign_i_u32m2, vector_length));
 
                 // Convert j-vector via LUT gather
-                vuint8m1_t mag_j_u8m1 = __riscv_vand_vx_u8m1(raw_j_u8m1, 0x7F, vl);
-                vuint32m2_t idx_j_u32m2 = __riscv_vzext_vf4_u32m2(mag_j_u8m1, vl);
-                vuint32m2_t off_j_u32m2 = __riscv_vsll_vx_u32m2(idx_j_u32m2, 2, vl);
-                vuint32m2_t bits_j_u32m2 = __riscv_vluxei32_v_u32m2(nk_e4m3_magnitude_lut_rvv_, off_j_u32m2, vl);
-                vuint8m1_t sign_j_u8m1 = __riscv_vand_vx_u8m1(raw_j_u8m1, 0x80, vl);
-                vuint32m2_t sign_j_u32m2 = __riscv_vsll_vx_u32m2(__riscv_vzext_vf4_u32m2(sign_j_u8m1, vl), 24, vl);
+                vuint8mf2_t mag_j_u8mf2 = __riscv_vand_vx_u8mf2(raw_j_u8mf2, 0x7F, vector_length);
+                vuint32m2_t idx_j_u32m2 = __riscv_vzext_vf4_u32m2(mag_j_u8mf2, vector_length);
+                vuint32m2_t off_j_u32m2 = __riscv_vsll_vx_u32m2(idx_j_u32m2, 2, vector_length);
+                vuint32m2_t bits_j_u32m2 = __riscv_vluxei32_v_u32m2(nk_e4m3_magnitude_lut_rvv_, off_j_u32m2,
+                                                                    vector_length);
+                vuint8mf2_t sign_j_u8mf2 = __riscv_vand_vx_u8mf2(raw_j_u8mf2, 0x80, vector_length);
+                vuint32m2_t sign_j_u32m2 = __riscv_vsll_vx_u32m2(__riscv_vzext_vf4_u32m2(sign_j_u8mf2, vector_length),
+                                                                 24, vector_length);
                 vfloat32m2_t val_j_f32m2 = __riscv_vreinterpret_v_u32m2_f32m2(
-                    __riscv_vor_vv_u32m2(bits_j_u32m2, sign_j_u32m2, vl));
+                    __riscv_vor_vv_u32m2(bits_j_u32m2, sign_j_u32m2, vector_length));
 
                 // Widening FMA: f32xf32 -> f64
-                accumulator_f64m4 = __riscv_vfwmacc_vv_f64m4(accumulator_f64m4, val_i_f32m2, val_j_f32m2, vl);
+                accumulator_f64m4 = __riscv_vfwmacc_vv_f64m4_tu(accumulator_f64m4, val_i_f32m2, val_j_f32m2,
+                                                                vector_length);
             }
             vfloat64m1_t zero_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, 1);
             nk_f32_t dot = (nk_f32_t)__riscv_vfmv_f_s_f64m1_f64(
@@ -2173,45 +2240,50 @@ NK_INTERNAL void nk_dots_packed_e5m2_rvv_aligned_(nk_e5m2_t const *a_matrix, voi
 
             nk_size_t remaining = depth;
             nk_size_t k = 0;
-            for (nk_size_t vl = 0; remaining > 0; remaining -= vl, k += vl) {
-                vl = __riscv_vsetvl_e32m2(remaining);
+            for (nk_size_t vector_length = 0; remaining > 0; remaining -= vector_length, k += vector_length) {
+                vector_length = __riscv_vsetvl_e32m2(remaining);
 
                 // Load pre-packed f32 B values
-                vfloat32m2_t b_vector_f32m2 = __riscv_vle32_v_f32m2(b_column + k, vl);
+                vfloat32m2_t b_vector_f32m2 = __riscv_vle32_v_f32m2(b_column + k, vector_length);
 
                 // Load raw e5m2 bytes from each A row
-                vuint8m1_t raw0_u8m1 = __riscv_vle8_v_u8m1(a_row_0 + k, vl);
-                vuint8m1_t raw1_u8m1 = __riscv_vle8_v_u8m1(a_row_1 + k, vl);
+                vuint8mf2_t raw0_u8mf2 = __riscv_vle8_v_u8mf2(a_row_0 + k, vector_length);
+                vuint8mf2_t raw1_u8mf2 = __riscv_vle8_v_u8mf2(a_row_1 + k, vector_length);
 
                 // Extract 7-bit magnitudes, zero-extend to u32, compute byte offsets for f32 LUT
-                vuint8m1_t mag0_u8m1 = __riscv_vand_vx_u8m1(raw0_u8m1, 0x7F, vl);
-                vuint8m1_t mag1_u8m1 = __riscv_vand_vx_u8m1(raw1_u8m1, 0x7F, vl);
-                vuint32m2_t idx0_u32m2 = __riscv_vzext_vf4_u32m2(mag0_u8m1, vl);
-                vuint32m2_t idx1_u32m2 = __riscv_vzext_vf4_u32m2(mag1_u8m1, vl);
-                vuint32m2_t off0_u32m2 = __riscv_vsll_vx_u32m2(idx0_u32m2, 2, vl); // byte offsets = index * 4
-                vuint32m2_t off1_u32m2 = __riscv_vsll_vx_u32m2(idx1_u32m2, 2, vl);
+                vuint8mf2_t mag0_u8mf2 = __riscv_vand_vx_u8mf2(raw0_u8mf2, 0x7F, vector_length);
+                vuint8mf2_t mag1_u8mf2 = __riscv_vand_vx_u8mf2(raw1_u8mf2, 0x7F, vector_length);
+                vuint32m2_t idx0_u32m2 = __riscv_vzext_vf4_u32m2(mag0_u8mf2, vector_length);
+                vuint32m2_t idx1_u32m2 = __riscv_vzext_vf4_u32m2(mag1_u8mf2, vector_length);
+                vuint32m2_t off0_u32m2 = __riscv_vsll_vx_u32m2(idx0_u32m2, 2,
+                                                               vector_length); // byte offsets = index * 4
+                vuint32m2_t off1_u32m2 = __riscv_vsll_vx_u32m2(idx1_u32m2, 2, vector_length);
 
                 // Gather f32 bit patterns from magnitude LUT
-                vuint32m2_t bits0_u32m2 = __riscv_vluxei32_v_u32m2(nk_e5m2_magnitude_lut_rvv_, off0_u32m2, vl);
-                vuint32m2_t bits1_u32m2 = __riscv_vluxei32_v_u32m2(nk_e5m2_magnitude_lut_rvv_, off1_u32m2, vl);
+                vuint32m2_t bits0_u32m2 = __riscv_vluxei32_v_u32m2(nk_e5m2_magnitude_lut_rvv_, off0_u32m2,
+                                                                   vector_length);
+                vuint32m2_t bits1_u32m2 = __riscv_vluxei32_v_u32m2(nk_e5m2_magnitude_lut_rvv_, off1_u32m2,
+                                                                   vector_length);
 
                 // Extract sign bit 7, shift to f32 sign position (bit 31)
-                vuint8m1_t sign0_u8m1 = __riscv_vand_vx_u8m1(raw0_u8m1, 0x80, vl);
-                vuint8m1_t sign1_u8m1 = __riscv_vand_vx_u8m1(raw1_u8m1, 0x80, vl);
-                vuint32m2_t sign0_u32m2 = __riscv_vsll_vx_u32m2(__riscv_vzext_vf4_u32m2(sign0_u8m1, vl), 24, vl);
-                vuint32m2_t sign1_u32m2 = __riscv_vsll_vx_u32m2(__riscv_vzext_vf4_u32m2(sign1_u8m1, vl), 24, vl);
+                vuint8mf2_t sign0_u8mf2 = __riscv_vand_vx_u8mf2(raw0_u8mf2, 0x80, vector_length);
+                vuint8mf2_t sign1_u8mf2 = __riscv_vand_vx_u8mf2(raw1_u8mf2, 0x80, vector_length);
+                vuint32m2_t sign0_u32m2 = __riscv_vsll_vx_u32m2(__riscv_vzext_vf4_u32m2(sign0_u8mf2, vector_length), 24,
+                                                                vector_length);
+                vuint32m2_t sign1_u32m2 = __riscv_vsll_vx_u32m2(__riscv_vzext_vf4_u32m2(sign1_u8mf2, vector_length), 24,
+                                                                vector_length);
 
                 // Apply sign and reinterpret as f32
                 vfloat32m2_t a_vector_0_f32m2 = __riscv_vreinterpret_v_u32m2_f32m2(
-                    __riscv_vor_vv_u32m2(bits0_u32m2, sign0_u32m2, vl));
+                    __riscv_vor_vv_u32m2(bits0_u32m2, sign0_u32m2, vector_length));
                 vfloat32m2_t a_vector_1_f32m2 = __riscv_vreinterpret_v_u32m2_f32m2(
-                    __riscv_vor_vv_u32m2(bits1_u32m2, sign1_u32m2, vl));
+                    __riscv_vor_vv_u32m2(bits1_u32m2, sign1_u32m2, vector_length));
 
                 // Widening FMA: f32xf32 -> f64
-                accumulator_0_f64m4 = __riscv_vfwmacc_vv_f64m4(accumulator_0_f64m4, a_vector_0_f32m2, b_vector_f32m2,
-                                                               vl);
-                accumulator_1_f64m4 = __riscv_vfwmacc_vv_f64m4(accumulator_1_f64m4, a_vector_1_f32m2, b_vector_f32m2,
-                                                               vl);
+                accumulator_0_f64m4 = __riscv_vfwmacc_vv_f64m4_tu(accumulator_0_f64m4, a_vector_0_f32m2, b_vector_f32m2,
+                                                                  vector_length);
+                accumulator_1_f64m4 = __riscv_vfwmacc_vv_f64m4_tu(accumulator_1_f64m4, a_vector_1_f32m2, b_vector_f32m2,
+                                                                  vector_length);
             }
 
             // Horizontal reduce and narrow to f32
@@ -2232,19 +2304,22 @@ NK_INTERNAL void nk_dots_packed_e5m2_rvv_aligned_(nk_e5m2_t const *a_matrix, voi
             vfloat64m4_t accumulator_f64m4 = __riscv_vfmv_v_f_f64m4(0.0, vlmax);
             nk_size_t remaining = depth;
             nk_size_t k = 0;
-            for (nk_size_t vl = 0; remaining > 0; remaining -= vl, k += vl) {
-                vl = __riscv_vsetvl_e32m2(remaining);
-                vfloat32m2_t b_vector_f32m2 = __riscv_vle32_v_f32m2(b_column + k, vl);
-                vuint8m1_t raw_a_u8m1 = __riscv_vle8_v_u8m1(a_row + k, vl);
-                vuint8m1_t mag_a_u8m1 = __riscv_vand_vx_u8m1(raw_a_u8m1, 0x7F, vl);
-                vuint32m2_t idx_a_u32m2 = __riscv_vzext_vf4_u32m2(mag_a_u8m1, vl);
-                vuint32m2_t off_a_u32m2 = __riscv_vsll_vx_u32m2(idx_a_u32m2, 2, vl);
-                vuint32m2_t bits_a_u32m2 = __riscv_vluxei32_v_u32m2(nk_e5m2_magnitude_lut_rvv_, off_a_u32m2, vl);
-                vuint8m1_t sign_a_u8m1 = __riscv_vand_vx_u8m1(raw_a_u8m1, 0x80, vl);
-                vuint32m2_t sign_a_u32m2 = __riscv_vsll_vx_u32m2(__riscv_vzext_vf4_u32m2(sign_a_u8m1, vl), 24, vl);
+            for (nk_size_t vector_length = 0; remaining > 0; remaining -= vector_length, k += vector_length) {
+                vector_length = __riscv_vsetvl_e32m2(remaining);
+                vfloat32m2_t b_vector_f32m2 = __riscv_vle32_v_f32m2(b_column + k, vector_length);
+                vuint8mf2_t raw_a_u8mf2 = __riscv_vle8_v_u8mf2(a_row + k, vector_length);
+                vuint8mf2_t mag_a_u8mf2 = __riscv_vand_vx_u8mf2(raw_a_u8mf2, 0x7F, vector_length);
+                vuint32m2_t idx_a_u32m2 = __riscv_vzext_vf4_u32m2(mag_a_u8mf2, vector_length);
+                vuint32m2_t off_a_u32m2 = __riscv_vsll_vx_u32m2(idx_a_u32m2, 2, vector_length);
+                vuint32m2_t bits_a_u32m2 = __riscv_vluxei32_v_u32m2(nk_e5m2_magnitude_lut_rvv_, off_a_u32m2,
+                                                                    vector_length);
+                vuint8mf2_t sign_a_u8mf2 = __riscv_vand_vx_u8mf2(raw_a_u8mf2, 0x80, vector_length);
+                vuint32m2_t sign_a_u32m2 = __riscv_vsll_vx_u32m2(__riscv_vzext_vf4_u32m2(sign_a_u8mf2, vector_length),
+                                                                 24, vector_length);
                 vfloat32m2_t a_vector_f32m2 = __riscv_vreinterpret_v_u32m2_f32m2(
-                    __riscv_vor_vv_u32m2(bits_a_u32m2, sign_a_u32m2, vl));
-                accumulator_f64m4 = __riscv_vfwmacc_vv_f64m4(accumulator_f64m4, a_vector_f32m2, b_vector_f32m2, vl);
+                    __riscv_vor_vv_u32m2(bits_a_u32m2, sign_a_u32m2, vector_length));
+                accumulator_f64m4 = __riscv_vfwmacc_vv_f64m4_tu(accumulator_f64m4, a_vector_f32m2, b_vector_f32m2,
+                                                                vector_length);
             }
             vfloat64m1_t zero_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, 1);
             c_row[column] = (nk_f32_t)__riscv_vfmv_f_s_f64m1_f64(
@@ -2282,33 +2357,38 @@ NK_PUBLIC void nk_dots_symmetric_e5m2_rvv(nk_e5m2_t const *vectors, nk_size_t n_
             vfloat64m4_t accumulator_f64m4 = __riscv_vfmv_v_f_f64m4(0.0, vlmax);
             nk_size_t remaining = depth;
             nk_size_t k = 0;
-            for (nk_size_t vl = 0; remaining > 0; remaining -= vl, k += vl) {
-                vl = __riscv_vsetvl_e32m2(remaining);
-                vuint8m1_t raw_i_u8m1 = __riscv_vle8_v_u8m1(a_i + k, vl);
-                vuint8m1_t raw_j_u8m1 = __riscv_vle8_v_u8m1(a_j + k, vl);
+            for (nk_size_t vector_length = 0; remaining > 0; remaining -= vector_length, k += vector_length) {
+                vector_length = __riscv_vsetvl_e32m2(remaining);
+                vuint8mf2_t raw_i_u8mf2 = __riscv_vle8_v_u8mf2(a_i + k, vector_length);
+                vuint8mf2_t raw_j_u8mf2 = __riscv_vle8_v_u8mf2(a_j + k, vector_length);
 
                 // Convert i-vector via LUT gather
-                vuint8m1_t mag_i_u8m1 = __riscv_vand_vx_u8m1(raw_i_u8m1, 0x7F, vl);
-                vuint32m2_t idx_i_u32m2 = __riscv_vzext_vf4_u32m2(mag_i_u8m1, vl);
-                vuint32m2_t off_i_u32m2 = __riscv_vsll_vx_u32m2(idx_i_u32m2, 2, vl);
-                vuint32m2_t bits_i_u32m2 = __riscv_vluxei32_v_u32m2(nk_e5m2_magnitude_lut_rvv_, off_i_u32m2, vl);
-                vuint8m1_t sign_i_u8m1 = __riscv_vand_vx_u8m1(raw_i_u8m1, 0x80, vl);
-                vuint32m2_t sign_i_u32m2 = __riscv_vsll_vx_u32m2(__riscv_vzext_vf4_u32m2(sign_i_u8m1, vl), 24, vl);
+                vuint8mf2_t mag_i_u8mf2 = __riscv_vand_vx_u8mf2(raw_i_u8mf2, 0x7F, vector_length);
+                vuint32m2_t idx_i_u32m2 = __riscv_vzext_vf4_u32m2(mag_i_u8mf2, vector_length);
+                vuint32m2_t off_i_u32m2 = __riscv_vsll_vx_u32m2(idx_i_u32m2, 2, vector_length);
+                vuint32m2_t bits_i_u32m2 = __riscv_vluxei32_v_u32m2(nk_e5m2_magnitude_lut_rvv_, off_i_u32m2,
+                                                                    vector_length);
+                vuint8mf2_t sign_i_u8mf2 = __riscv_vand_vx_u8mf2(raw_i_u8mf2, 0x80, vector_length);
+                vuint32m2_t sign_i_u32m2 = __riscv_vsll_vx_u32m2(__riscv_vzext_vf4_u32m2(sign_i_u8mf2, vector_length),
+                                                                 24, vector_length);
                 vfloat32m2_t val_i_f32m2 = __riscv_vreinterpret_v_u32m2_f32m2(
-                    __riscv_vor_vv_u32m2(bits_i_u32m2, sign_i_u32m2, vl));
+                    __riscv_vor_vv_u32m2(bits_i_u32m2, sign_i_u32m2, vector_length));
 
                 // Convert j-vector via LUT gather
-                vuint8m1_t mag_j_u8m1 = __riscv_vand_vx_u8m1(raw_j_u8m1, 0x7F, vl);
-                vuint32m2_t idx_j_u32m2 = __riscv_vzext_vf4_u32m2(mag_j_u8m1, vl);
-                vuint32m2_t off_j_u32m2 = __riscv_vsll_vx_u32m2(idx_j_u32m2, 2, vl);
-                vuint32m2_t bits_j_u32m2 = __riscv_vluxei32_v_u32m2(nk_e5m2_magnitude_lut_rvv_, off_j_u32m2, vl);
-                vuint8m1_t sign_j_u8m1 = __riscv_vand_vx_u8m1(raw_j_u8m1, 0x80, vl);
-                vuint32m2_t sign_j_u32m2 = __riscv_vsll_vx_u32m2(__riscv_vzext_vf4_u32m2(sign_j_u8m1, vl), 24, vl);
+                vuint8mf2_t mag_j_u8mf2 = __riscv_vand_vx_u8mf2(raw_j_u8mf2, 0x7F, vector_length);
+                vuint32m2_t idx_j_u32m2 = __riscv_vzext_vf4_u32m2(mag_j_u8mf2, vector_length);
+                vuint32m2_t off_j_u32m2 = __riscv_vsll_vx_u32m2(idx_j_u32m2, 2, vector_length);
+                vuint32m2_t bits_j_u32m2 = __riscv_vluxei32_v_u32m2(nk_e5m2_magnitude_lut_rvv_, off_j_u32m2,
+                                                                    vector_length);
+                vuint8mf2_t sign_j_u8mf2 = __riscv_vand_vx_u8mf2(raw_j_u8mf2, 0x80, vector_length);
+                vuint32m2_t sign_j_u32m2 = __riscv_vsll_vx_u32m2(__riscv_vzext_vf4_u32m2(sign_j_u8mf2, vector_length),
+                                                                 24, vector_length);
                 vfloat32m2_t val_j_f32m2 = __riscv_vreinterpret_v_u32m2_f32m2(
-                    __riscv_vor_vv_u32m2(bits_j_u32m2, sign_j_u32m2, vl));
+                    __riscv_vor_vv_u32m2(bits_j_u32m2, sign_j_u32m2, vector_length));
 
                 // Widening FMA: f32xf32 -> f64
-                accumulator_f64m4 = __riscv_vfwmacc_vv_f64m4(accumulator_f64m4, val_i_f32m2, val_j_f32m2, vl);
+                accumulator_f64m4 = __riscv_vfwmacc_vv_f64m4_tu(accumulator_f64m4, val_i_f32m2, val_j_f32m2,
+                                                                vector_length);
             }
             vfloat64m1_t zero_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, 1);
             nk_f32_t dot = (nk_f32_t)__riscv_vfmv_f_s_f64m1_f64(

@@ -1861,9 +1861,9 @@ NK_INTERNAL void nk_reduce_moments_i32_skylake_contiguous_( //
         sumsq_overflow_mask |= _mm512_cmp_epu64_mask(sumsq_u64x8, odd_sq_u64x8, _MM_CMPINT_LT);
     }
     // Sumsq: horizontal unsigned saturating reduction
-    nk_u64_t sq;
-    if (sumsq_overflow_mask) sq = NK_U64_MAX;
-    else sq = nk_reduce_sadd_u64x8_skylake_(sumsq_u64x8);
+    nk_u64_t sumsq;
+    if (sumsq_overflow_mask) sumsq = NK_U64_MAX;
+    else sumsq = nk_reduce_sadd_u64x8_skylake_(sumsq_u64x8);
     // Sum: horizontal 128-bit tree reduction, same as i64 skylake
     { // 8→4
         __m512i fold_lower_i64x8 = _mm512_shuffle_i64x2(sum_lower_i64x8, sum_lower_i64x8, _MM_SHUFFLE(1, 0, 3, 2));
@@ -1897,7 +1897,7 @@ NK_INTERNAL void nk_reduce_moments_i32_skylake_contiguous_( //
     if (sum_upper == (sum_lower >> 63)) *sum_ptr = sum_lower;
     else if (sum_upper >= 0) *sum_ptr = NK_I64_MAX;
     else *sum_ptr = NK_I64_MIN;
-    *sumsq_ptr = sq;
+    *sumsq_ptr = sumsq;
 }
 
 NK_PUBLIC void nk_reduce_moments_i32_skylake(                          //
@@ -2211,9 +2211,9 @@ NK_INTERNAL void nk_reduce_moments_i64_skylake_contiguous_( //
         sum_upper_i64x8 = _mm512_mask_add_epi64(sum_upper_i64x8, carry, sum_upper_i64x8, one_i64x8);
     }
     // Sumsq: horizontal unsigned saturating reduction
-    nk_u64_t sq;
-    if (sumsq_overflow_mask) sq = NK_U64_MAX;
-    else sq = nk_reduce_sadd_u64x8_skylake_(sumsq_u64x8);
+    nk_u64_t sumsq;
+    if (sumsq_overflow_mask) sumsq = NK_U64_MAX;
+    else sumsq = nk_reduce_sadd_u64x8_skylake_(sumsq_u64x8);
     // Sum: horizontal 128-bit tree reduction (8→4→2→1), then clamp to i64
     { // 8→4: fold high 256 bits into low 256 bits
         __m512i fold_lower_i64x8 = _mm512_shuffle_i64x2(sum_lower_i64x8, sum_lower_i64x8, _MM_SHUFFLE(1, 0, 3, 2));
@@ -2248,7 +2248,7 @@ NK_INTERNAL void nk_reduce_moments_i64_skylake_contiguous_( //
     if (sum_upper == (sum_lower >> 63)) *sum_ptr = sum_lower;
     else if (sum_upper >= 0) *sum_ptr = NK_I64_MAX;
     else *sum_ptr = NK_I64_MIN;
-    *sumsq_ptr = sq;
+    *sumsq_ptr = sumsq;
 }
 
 NK_PUBLIC void nk_reduce_moments_i64_skylake(                          //
