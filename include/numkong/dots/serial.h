@@ -976,11 +976,13 @@ typedef struct {
                 nk_size_t tile_columns = (tile_column_start + 4 <= macro_size) ? 4 : (macro_size - tile_column_start); \
                 int is_diagonal_tile = (tile_row_start == tile_column_start);                                          \
                                                                                                                        \
-                /* Initialize 4×4 register-resident accumulators */                                                    \
-                NK_ALIGN64 state_type accumulators[4][4];                                                              \
+                /* Initialize register-resident accumulators — padded to [4][7] so that the reduce call  */            \
+                /* (which always reads 4 consecutive entries starting at column_start) stays in bounds */              \
+                NK_ALIGN64 state_type accumulators[4][7];                                                              \
                 for (nk_size_t row = 0; row < tile_rows; row++) {                                                      \
-                    nk_size_t column_start = is_diagonal_tile ? row : 0;                                               \
-                    for (nk_size_t column = column_start; column < tile_columns; column++) {                           \
+                    nk_size_t init_start = is_diagonal_tile ? row : 0;                                                 \
+                    nk_size_t init_end = is_diagonal_tile ? (row + 4) : tile_columns;                                  \
+                    for (nk_size_t column = init_start; column < init_end; column++) {                                 \
                         init_accumulator_fn(&accumulators[row][column]);                                               \
                     }                                                                                                  \
                 }                                                                                                      \
