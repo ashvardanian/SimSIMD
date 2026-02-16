@@ -525,6 +525,10 @@ NK_INTERNAL nk_dtype_t nk_dot_output_dtype(nk_dtype_t dtype) {
     case nk_e5m2_k: return nk_f32_k;
     case nk_e2m3_k: return nk_f32_k;
     case nk_e3m2_k: return nk_f32_k;
+    case nk_f64c_k: return nk_f64c_k;
+    case nk_f32c_k: return nk_f32c_k;
+    case nk_f16c_k: return nk_f32c_k;
+    case nk_bf16c_k: return nk_f32c_k;
     case nk_i8_k: return nk_i32_k;
     case nk_u8_k: return nk_u32_k;
     case nk_i4_k: return nk_i32_k;

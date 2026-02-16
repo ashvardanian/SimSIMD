@@ -33,6 +33,7 @@ void nk_dispatch_f64c_find_(nk_capability_t v, nk_kernel_kind_t k, nk_kernel_pun
     if (v & nk_cap_serial_k) switch (k) {
         case nk_kernel_dot_k: *m = (m_t)&nk_dot_f64c_serial, *c = nk_cap_serial_k; return;
         case nk_kernel_vdot_k: *m = (m_t)&nk_vdot_f64c_serial, *c = nk_cap_serial_k; return;
+        case nk_kernel_bilinear_k: *m = (m_t)&nk_bilinear_f64c_serial, *c = nk_cap_serial_k; return;
         default: break;
         }
 
