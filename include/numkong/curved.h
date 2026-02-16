@@ -302,6 +302,36 @@ NK_PUBLIC void nk_mahalanobis_bf16_rvv(nk_bf16_t const *a, nk_bf16_t const *b, n
                                        nk_f32_t *result);
 #endif // NK_TARGET_RVV
 
+/**
+ *  @brief  Returns the output dtype for bilinear forms.
+ */
+NK_INTERNAL nk_dtype_t nk_bilinear_output_dtype(nk_dtype_t dtype) {
+    switch (dtype) {
+    case nk_f64_k: return nk_f64_k;
+    case nk_f32_k: return nk_f32_k;
+    case nk_f16_k: return nk_f32_k;
+    case nk_bf16_k: return nk_f32_k;
+    case nk_f64c_k: return nk_f64c_k;
+    case nk_f32c_k: return nk_f32c_k;
+    case nk_f16c_k: return nk_f32c_k;
+    case nk_bf16c_k: return nk_f32c_k;
+    default: return nk_dtype_unknown_k;
+    }
+}
+
+/**
+ *  @brief  Returns the output dtype for Mahalanobis metrics.
+ */
+NK_INTERNAL nk_dtype_t nk_mahalanobis_output_dtype(nk_dtype_t dtype) {
+    switch (dtype) {
+    case nk_f64_k: return nk_f64_k;
+    case nk_f32_k: return nk_f32_k;
+    case nk_f16_k: return nk_f32_k;
+    case nk_bf16_k: return nk_f32_k;
+    default: return nk_dtype_unknown_k;
+    }
+}
+
 #if defined(__cplusplus)
 } // extern "C"
 #endif
