@@ -140,6 +140,35 @@ void dots_unpacked(in_type_ const *a, in_type_ const *b, result_type_ *c, size_t
 }
 
 /**
+ *  @brief Conjugated unpacked dot products: C = A × B^H (Hermitian inner product, row-major)
+ *
+ *  Same as `dots_unpacked`, but conjugates elements of B before multiplication.
+ *  For real types this is identical to `dots_unpacked`. For complex types this
+ *  computes the standard Hermitian inner product matching `cblas_{c,z}gemm` with
+ *  `CblasConjTrans`.
+ */
+template <typename in_type_, typename result_type_ = typename in_type_::dot_result_t>
+void dots_unpacked_conjugated(in_type_ const *a, in_type_ const *b, result_type_ *c, size_t row_count,
+                              size_t column_count, size_t depth, size_t a_stride_in_bytes, size_t b_stride_in_bytes,
+                              size_t c_stride_in_bytes) noexcept {
+    char const *a_bytes = reinterpret_cast<char const *>(a);
+    char const *b_bytes = reinterpret_cast<char const *>(b);
+    char *c_bytes = reinterpret_cast<char *>(c);
+    std::size_t const depth_values = divide_round_up(depth, dimensions_per_value<in_type_>());
+
+    for (size_t i = 0; i < row_count; i++) {
+        in_type_ const *a_row = reinterpret_cast<in_type_ const *>(a_bytes + i * a_stride_in_bytes);
+        result_type_ *c_row = reinterpret_cast<result_type_ *>(c_bytes + i * c_stride_in_bytes);
+        for (size_t j = 0; j < column_count; j++) {
+            in_type_ const *b_row = reinterpret_cast<in_type_ const *>(b_bytes + j * b_stride_in_bytes);
+            result_type_ sum {};
+            for (size_t l = 0; l < depth_values; l++) sum = fused_conjugate_multiply_add(sum, b_row[l], a_row[l]);
+            c_row[j] = sum;
+        }
+    }
+}
+
+/**
  *  @brief Packed dot products (batch matrix multiply): C = A × B (row-major)
  *  @param[in] a Matrix A [m x k]
  *  @param[in] b_packed Packed matrix B [k x n] with stride metadata appended
