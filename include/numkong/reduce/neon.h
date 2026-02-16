@@ -1577,9 +1577,9 @@ NK_INTERNAL void nk_reduce_moments_i32_neon_contiguous_( //
                            vgetq_lane_s64(vcgtq_s64(before_biased, result_biased), 1));
     }
     // Sumsq horizontal saturating reduction
-    nk_u64_t sq;
-    if (sumsq_overflow) sq = NK_U64_MAX;
-    else sq = nk_reduce_sadd_u64x2_neon_(sumsq_u64x2);
+    nk_u64_t sumsq;
+    if (sumsq_overflow) sumsq = NK_U64_MAX;
+    else sumsq = nk_reduce_sadd_u64x2_neon_(sumsq_u64x2);
     // Sum: horizontal 128-bit reduction (2 lanes -> scalar)
     nk_b128_vec_t lower_vec, upper_vec;
     lower_vec.u64x2 = sum_lower_u64x2;
@@ -1600,14 +1600,14 @@ NK_INTERNAL void nk_reduce_moments_i32_neon_contiguous_( //
         nk_i64_t product;
         nk_i64_smul_(&value_i64, &value_i64, &product);
         nk_u64_t unsigned_product = (nk_u64_t)product;
-        nk_u64_sadd_(&sq, &unsigned_product, &sq);
+        nk_u64_sadd_(&sumsq, &unsigned_product, &sumsq);
     }
     // Clamp 128-bit sum to i64 range
     nk_i64_t sum_lower_signed = (nk_i64_t)sum_lower;
     if (sum_upper == (sum_lower_signed >> 63)) *sum_ptr = sum_lower_signed;
     else if (sum_upper >= 0) *sum_ptr = NK_I64_MAX;
     else *sum_ptr = NK_I64_MIN;
-    *sumsq_ptr = sq;
+    *sumsq_ptr = sumsq;
 }
 
 NK_INTERNAL void nk_reduce_moments_i32_neon_strided_(                     //
@@ -1727,9 +1727,9 @@ NK_INTERNAL void nk_reduce_moments_i32_neon_strided_(                     //
                                vgetq_lane_s64(vcgtq_s64(before_biased_i64x2, result_biased_i64x2), 1));
         }
     }
-    nk_u64_t sq;
-    if (sumsq_overflow) sq = NK_U64_MAX;
-    else sq = nk_reduce_sadd_u64x2_neon_(sumsq_u64x2);
+    nk_u64_t sumsq;
+    if (sumsq_overflow) sumsq = NK_U64_MAX;
+    else sumsq = nk_reduce_sadd_u64x2_neon_(sumsq_u64x2);
     nk_b128_vec_t lower_vec, upper_vec;
     lower_vec.u64x2 = sum_lower_u64x2;
     upper_vec.i64x2 = sum_upper_i64x2;
@@ -1748,13 +1748,13 @@ NK_INTERNAL void nk_reduce_moments_i32_neon_strided_(                     //
         nk_i64_t product;
         nk_i64_smul_(&val, &val, &product);
         nk_u64_t unsigned_product = (nk_u64_t)product;
-        nk_u64_sadd_(&sq, &unsigned_product, &sq);
+        nk_u64_sadd_(&sumsq, &unsigned_product, &sumsq);
     }
     nk_i64_t sum_lower_signed = (nk_i64_t)sum_lower;
     if (sum_upper == (sum_lower_signed >> 63)) *sum_ptr = sum_lower_signed;
     else if (sum_upper >= 0) *sum_ptr = NK_I64_MAX;
     else *sum_ptr = NK_I64_MIN;
-    *sumsq_ptr = sq;
+    *sumsq_ptr = sumsq;
 }
 
 NK_PUBLIC void nk_reduce_moments_i32_neon(                             //
