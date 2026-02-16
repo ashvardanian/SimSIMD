@@ -51,7 +51,7 @@ NK_PUBLIC void nk_dot_i8_rvv(nk_i8_t const *a_scalars, nk_i8_t const *b_scalars,
         // Widening multiply: i8 ⨯ i8 → i16
         vint16m2_t ab_i16m2 = __riscv_vwmul_vv_i16m2(a_i8m1, b_i8m1, vector_length);
         // Per-lane widening accumulate: i32 += i16
-        sum_i32m4 = __riscv_vwadd_wv_i32m4(sum_i32m4, ab_i16m2, vector_length);
+        sum_i32m4 = __riscv_vwadd_wv_i32m4_tu(sum_i32m4, sum_i32m4, ab_i16m2, vector_length);
     }
     // Single horizontal reduction at the end
     vint32m1_t zero_i32m1 = __riscv_vmv_v_x_i32m1(0, vlmax);
@@ -70,7 +70,7 @@ NK_PUBLIC void nk_dot_u8_rvv(nk_u8_t const *a_scalars, nk_u8_t const *b_scalars,
         // Widening multiply: u8 ⨯ u8 → u16
         vuint16m2_t ab_u16m2 = __riscv_vwmulu_vv_u16m2(a_u8m1, b_u8m1, vector_length);
         // Per-lane widening accumulate: u32 += u16
-        sum_u32m4 = __riscv_vwaddu_wv_u32m4(sum_u32m4, ab_u16m2, vector_length);
+        sum_u32m4 = __riscv_vwaddu_wv_u32m4_tu(sum_u32m4, sum_u32m4, ab_u16m2, vector_length);
     }
     // Single horizontal reduction at the end
     vuint32m1_t zero_u32m1 = __riscv_vmv_v_x_u32m1(0, vlmax);
@@ -87,7 +87,7 @@ NK_PUBLIC void nk_dot_f32_rvv(nk_f32_t const *a_scalars, nk_f32_t const *b_scala
         vfloat32m1_t a_f32m1 = __riscv_vle32_v_f32m1(a_scalars, vector_length);
         vfloat32m1_t b_f32m1 = __riscv_vle32_v_f32m1(b_scalars, vector_length);
         // Widening FMA: f64 += f32 ⨯ f32, per-lane accumulation
-        sum_f64m2 = __riscv_vfwmacc_vv_f64m2(sum_f64m2, a_f32m1, b_f32m1, vector_length);
+        sum_f64m2 = __riscv_vfwmacc_vv_f64m2_tu(sum_f64m2, a_f32m1, b_f32m1, vector_length);
     }
     // Single horizontal reduction at the end
     vfloat64m1_t zero_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, vlmax);
@@ -105,7 +105,7 @@ NK_PUBLIC void nk_dot_f64_rvv(nk_f64_t const *a_scalars, nk_f64_t const *b_scala
         vfloat64m1_t a_f64m1 = __riscv_vle64_v_f64m1(a_scalars, vector_length);
         vfloat64m1_t b_f64m1 = __riscv_vle64_v_f64m1(b_scalars, vector_length);
         // Accumulate a ⨯ b into vector lanes
-        sum_f64m1 = __riscv_vfmacc_vv_f64m1(sum_f64m1, a_f64m1, b_f64m1, vector_length);
+        sum_f64m1 = __riscv_vfmacc_vv_f64m1_tu(sum_f64m1, a_f64m1, b_f64m1, vector_length);
     }
     // Single horizontal reduction at the end with VLMAX
     vfloat64m1_t zero_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, vlmax);
@@ -127,7 +127,7 @@ NK_PUBLIC void nk_dot_f16_rvv(nk_f16_t const *a_scalars, nk_f16_t const *b_scala
         vfloat32m2_t b_f32m2 = nk_f16m1_to_f32m2_rvv_(b_u16m1, vector_length);
 
         // Per-lane FMA accumulation
-        sum_f32m2 = __riscv_vfmacc_vv_f32m2(sum_f32m2, a_f32m2, b_f32m2, vector_length);
+        sum_f32m2 = __riscv_vfmacc_vv_f32m2_tu(sum_f32m2, a_f32m2, b_f32m2, vector_length);
     }
     // Single horizontal reduction at the end
     vfloat32m1_t zero_f32m1 = __riscv_vfmv_v_f_f32m1(0.0f, vlmax);
@@ -149,7 +149,7 @@ NK_PUBLIC void nk_dot_bf16_rvv(nk_bf16_t const *a_scalars, nk_bf16_t const *b_sc
         vfloat32m2_t b_f32m2 = nk_bf16m1_to_f32m2_rvv_(b_u16m1, vector_length);
 
         // Per-lane FMA accumulation
-        sum_f32m2 = __riscv_vfmacc_vv_f32m2(sum_f32m2, a_f32m2, b_f32m2, vector_length);
+        sum_f32m2 = __riscv_vfmacc_vv_f32m2_tu(sum_f32m2, a_f32m2, b_f32m2, vector_length);
     }
     // Single horizontal reduction at the end
     vfloat32m1_t zero_f32m1 = __riscv_vfmv_v_f_f32m1(0.0f, vlmax);
@@ -171,7 +171,7 @@ NK_PUBLIC void nk_dot_e4m3_rvv(nk_e4m3_t const *a_scalars, nk_e4m3_t const *b_sc
         vfloat32m4_t b_f32m4 = nk_e4m3m1_to_f32m4_rvv_(b_u8m1, vector_length);
 
         // Per-lane FMA accumulation
-        sum_f32m4 = __riscv_vfmacc_vv_f32m4(sum_f32m4, a_f32m4, b_f32m4, vector_length);
+        sum_f32m4 = __riscv_vfmacc_vv_f32m4_tu(sum_f32m4, a_f32m4, b_f32m4, vector_length);
     }
     // Single horizontal reduction at the end
     vfloat32m1_t zero_f32m1 = __riscv_vfmv_v_f_f32m1(0.0f, vlmax);
@@ -193,7 +193,7 @@ NK_PUBLIC void nk_dot_e5m2_rvv(nk_e5m2_t const *a_scalars, nk_e5m2_t const *b_sc
         vfloat32m4_t b_f32m4 = nk_e5m2m1_to_f32m4_rvv_(b_u8m1, vector_length);
 
         // Per-lane FMA accumulation
-        sum_f32m4 = __riscv_vfmacc_vv_f32m4(sum_f32m4, a_f32m4, b_f32m4, vector_length);
+        sum_f32m4 = __riscv_vfmacc_vv_f32m4_tu(sum_f32m4, a_f32m4, b_f32m4, vector_length);
     }
     // Single horizontal reduction at the end
     vfloat32m1_t zero_f32m1 = __riscv_vfmv_v_f_f32m1(0.0f, vlmax);
@@ -225,15 +225,16 @@ NK_PUBLIC void nk_dot_e2m3_rvv(nk_e2m3_t const *a_scalars, nk_e2m3_t const *b_sc
         // Combined sign + conditional negate
         vuint8m1_t sign_combined_u8m1 = __riscv_vand_vx_u8m1(
             __riscv_vxor_vv_u8m1(a_e2m3_u8m1, b_e2m3_u8m1, vector_length), 0x20, vector_length);
-        vbool8_t negate_mask = __riscv_vmsne_vx_u8m1_b8(sign_combined_u8m1, 0, vector_length);
+        vbool8_t negate_mask_b8 = __riscv_vmsne_vx_u8m1_b8(sign_combined_u8m1, 0, vector_length);
         vint8m1_t b_positive_i8m1 = __riscv_vreinterpret_v_u8m1_i8m1(b_unsigned_u8m1);
         vint8m1_t b_negated_i8m1 = __riscv_vneg_v_i8m1(b_positive_i8m1, vector_length);
-        vint8m1_t b_signed_i8m1 = __riscv_vmerge_vvm_i8m1(b_positive_i8m1, b_negated_i8m1, negate_mask, vector_length);
+        vint8m1_t b_signed_i8m1 = __riscv_vmerge_vvm_i8m1(b_positive_i8m1, b_negated_i8m1, negate_mask_b8,
+                                                          vector_length);
 
         // Widening multiply: i8×i8 → i16, then accumulate: i32 += i16
         vint8m1_t a_signed_i8m1 = __riscv_vreinterpret_v_u8m1_i8m1(a_unsigned_u8m1);
         vint16m2_t products_i16m2 = __riscv_vwmul_vv_i16m2(a_signed_i8m1, b_signed_i8m1, vector_length);
-        sum_i32m4 = __riscv_vwadd_wv_i32m4(sum_i32m4, products_i16m2, vector_length);
+        sum_i32m4 = __riscv_vwadd_wv_i32m4_tu(sum_i32m4, sum_i32m4, products_i16m2, vector_length);
     }
     vint32m1_t zero_i32m1 = __riscv_vmv_v_x_i32m1(0, vlmax);
     nk_i32_t sum = __riscv_vmv_x_s_i32m1_i32(__riscv_vredsum_vs_i32m4_i32m1(sum_i32m4, zero_i32m1, vlmax));
@@ -271,17 +272,17 @@ NK_PUBLIC void nk_dot_e3m2_rvv(nk_e3m2_t const *a_scalars, nk_e3m2_t const *b_sc
         // Extract sign bits and apply conditional negate
         vuint8m1_t a_sign_u8m1 = __riscv_vand_vx_u8m1(a_e3m2_u8m1, 0x20, vector_length);
         vuint8m1_t b_sign_u8m1 = __riscv_vand_vx_u8m1(b_e3m2_u8m1, 0x20, vector_length);
-        vbool8_t a_negate = __riscv_vmsne_vx_u8m1_b8(a_sign_u8m1, 0, vector_length);
-        vbool8_t b_negate = __riscv_vmsne_vx_u8m1_b8(b_sign_u8m1, 0, vector_length);
+        vbool8_t a_negate_b8 = __riscv_vmsne_vx_u8m1_b8(a_sign_u8m1, 0, vector_length);
+        vbool8_t b_negate_b8 = __riscv_vmsne_vx_u8m1_b8(b_sign_u8m1, 0, vector_length);
 
         vint16m2_t a_signed_i16m2 = __riscv_vreinterpret_v_u16m2_i16m2(a_unsigned_u16m2);
-        a_signed_i16m2 = __riscv_vneg_v_i16m2_mu(a_negate, a_signed_i16m2, a_signed_i16m2, vector_length);
+        a_signed_i16m2 = __riscv_vneg_v_i16m2_mu(a_negate_b8, a_signed_i16m2, a_signed_i16m2, vector_length);
 
         vint16m2_t b_signed_i16m2 = __riscv_vreinterpret_v_u16m2_i16m2(b_unsigned_u16m2);
-        b_signed_i16m2 = __riscv_vneg_v_i16m2_mu(b_negate, b_signed_i16m2, b_signed_i16m2, vector_length);
+        b_signed_i16m2 = __riscv_vneg_v_i16m2_mu(b_negate_b8, b_signed_i16m2, b_signed_i16m2, vector_length);
 
         // Widening multiply-accumulate: i16×i16 → i32
-        sum_i32m4 = __riscv_vwmacc_vv_i32m4(sum_i32m4, a_signed_i16m2, b_signed_i16m2, vector_length);
+        sum_i32m4 = __riscv_vwmacc_vv_i32m4_tu(sum_i32m4, a_signed_i16m2, b_signed_i16m2, vector_length);
     }
     vint32m1_t zero_i32m1 = __riscv_vmv_v_x_i32m1(0, vlmax);
     nk_i32_t sum = __riscv_vmv_x_s_i32m1_i32(__riscv_vredsum_vs_i32m4_i32m1(sum_i32m4, zero_i32m1, vlmax));
@@ -331,8 +332,8 @@ NK_PUBLIC void nk_dot_i4_rvv(nk_i4x2_t const *a_scalars, nk_i4x2_t const *b_scal
         vint16m2_t ab_low_i16m2 = __riscv_vwmul_vv_i16m2(a_low_i8m1, b_low_i8m1, vector_length);
 
         // Per-lane widening accumulate: i32 += i16
-        sum_i32m4 = __riscv_vwadd_wv_i32m4(sum_i32m4, ab_high_i16m2, vector_length);
-        sum_i32m4 = __riscv_vwadd_wv_i32m4(sum_i32m4, ab_low_i16m2, vector_length);
+        sum_i32m4 = __riscv_vwadd_wv_i32m4_tu(sum_i32m4, sum_i32m4, ab_high_i16m2, vector_length);
+        sum_i32m4 = __riscv_vwadd_wv_i32m4_tu(sum_i32m4, sum_i32m4, ab_low_i16m2, vector_length);
     }
     // Single horizontal reduction at the end
     vint32m1_t zero_i32m1 = __riscv_vmv_v_x_i32m1(0, vlmax);
@@ -373,8 +374,8 @@ NK_PUBLIC void nk_dot_u4_rvv(nk_u4x2_t const *a_scalars, nk_u4x2_t const *b_scal
         vuint16m2_t ab_low_u16m2 = __riscv_vwmulu_vv_u16m2(a_low_u8m1, b_low_u8m1, vector_length);
 
         // Per-lane widening accumulate: u32 += u16
-        sum_u32m4 = __riscv_vwaddu_wv_u32m4(sum_u32m4, ab_high_u16m2, vector_length);
-        sum_u32m4 = __riscv_vwaddu_wv_u32m4(sum_u32m4, ab_low_u16m2, vector_length);
+        sum_u32m4 = __riscv_vwaddu_wv_u32m4_tu(sum_u32m4, sum_u32m4, ab_high_u16m2, vector_length);
+        sum_u32m4 = __riscv_vwaddu_wv_u32m4_tu(sum_u32m4, sum_u32m4, ab_low_u16m2, vector_length);
     }
     // Single horizontal reduction at the end
     vuint32m1_t zero_u32m1 = __riscv_vmv_v_x_u32m1(0, vlmax);

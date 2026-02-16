@@ -41,17 +41,18 @@ NK_PUBLIC void nk_sqeuclidean_bf16_rvvbf16(nk_bf16_t const *a_scalars, nk_bf16_t
     vfloat32m2_t sq_sum_f32m2 = __riscv_vfmv_v_f_f32m2(0.0f, vlmax); // a² + b²
     vfloat32m2_t ab_sum_f32m2 = __riscv_vfmv_v_f_f32m2(0.0f, vlmax); // a × b
 
-    for (nk_size_t vl; count_scalars > 0; count_scalars -= vl, a_scalars += vl, b_scalars += vl) {
-        vl = __riscv_vsetvl_e16m1(count_scalars);
-        vuint16m1_t a_u16m1 = __riscv_vle16_v_u16m1((unsigned short const *)a_scalars, vl);
-        vuint16m1_t b_u16m1 = __riscv_vle16_v_u16m1((unsigned short const *)b_scalars, vl);
+    for (nk_size_t vector_length; count_scalars > 0;
+         count_scalars -= vector_length, a_scalars += vector_length, b_scalars += vector_length) {
+        vector_length = __riscv_vsetvl_e16m1(count_scalars);
+        vuint16m1_t a_u16m1 = __riscv_vle16_v_u16m1((unsigned short const *)a_scalars, vector_length);
+        vuint16m1_t b_u16m1 = __riscv_vle16_v_u16m1((unsigned short const *)b_scalars, vector_length);
         vbfloat16m1_t a_bf16m1 = __riscv_vreinterpret_v_u16m1_bf16m1(a_u16m1);
         vbfloat16m1_t b_bf16m1 = __riscv_vreinterpret_v_u16m1_bf16m1(b_u16m1);
 
         // Accumulate a², b², and a×b per-lane (no per-iteration reduction)
-        sq_sum_f32m2 = __riscv_vfwmaccbf16_vv_f32m2(sq_sum_f32m2, a_bf16m1, a_bf16m1, vl);
-        sq_sum_f32m2 = __riscv_vfwmaccbf16_vv_f32m2(sq_sum_f32m2, b_bf16m1, b_bf16m1, vl);
-        ab_sum_f32m2 = __riscv_vfwmaccbf16_vv_f32m2(ab_sum_f32m2, a_bf16m1, b_bf16m1, vl);
+        sq_sum_f32m2 = __riscv_vfwmaccbf16_vv_f32m2_tu(sq_sum_f32m2, a_bf16m1, a_bf16m1, vector_length);
+        sq_sum_f32m2 = __riscv_vfwmaccbf16_vv_f32m2_tu(sq_sum_f32m2, b_bf16m1, b_bf16m1, vector_length);
+        ab_sum_f32m2 = __riscv_vfwmaccbf16_vv_f32m2_tu(ab_sum_f32m2, a_bf16m1, b_bf16m1, vector_length);
     }
 
     // Single horizontal reduction after the loop
@@ -76,19 +77,20 @@ NK_PUBLIC void nk_angular_bf16_rvvbf16(nk_bf16_t const *a_scalars, nk_bf16_t con
     vfloat32m2_t a_sq_f32m2 = __riscv_vfmv_v_f_f32m2(0.0f, vlmax);
     vfloat32m2_t b_sq_f32m2 = __riscv_vfmv_v_f_f32m2(0.0f, vlmax);
 
-    for (nk_size_t vl; count_scalars > 0; count_scalars -= vl, a_scalars += vl, b_scalars += vl) {
-        vl = __riscv_vsetvl_e16m1(count_scalars);
-        vuint16m1_t a_u16m1 = __riscv_vle16_v_u16m1((unsigned short const *)a_scalars, vl);
-        vuint16m1_t b_u16m1 = __riscv_vle16_v_u16m1((unsigned short const *)b_scalars, vl);
+    for (nk_size_t vector_length; count_scalars > 0;
+         count_scalars -= vector_length, a_scalars += vector_length, b_scalars += vector_length) {
+        vector_length = __riscv_vsetvl_e16m1(count_scalars);
+        vuint16m1_t a_u16m1 = __riscv_vle16_v_u16m1((unsigned short const *)a_scalars, vector_length);
+        vuint16m1_t b_u16m1 = __riscv_vle16_v_u16m1((unsigned short const *)b_scalars, vector_length);
         vbfloat16m1_t a_bf16m1 = __riscv_vreinterpret_v_u16m1_bf16m1(a_u16m1);
         vbfloat16m1_t b_bf16m1 = __riscv_vreinterpret_v_u16m1_bf16m1(b_u16m1);
 
         // dot += a × b
-        dot_f32m2 = __riscv_vfwmaccbf16_vv_f32m2(dot_f32m2, a_bf16m1, b_bf16m1, vl);
+        dot_f32m2 = __riscv_vfwmaccbf16_vv_f32m2_tu(dot_f32m2, a_bf16m1, b_bf16m1, vector_length);
         // a_sq += a × a
-        a_sq_f32m2 = __riscv_vfwmaccbf16_vv_f32m2(a_sq_f32m2, a_bf16m1, a_bf16m1, vl);
+        a_sq_f32m2 = __riscv_vfwmaccbf16_vv_f32m2_tu(a_sq_f32m2, a_bf16m1, a_bf16m1, vector_length);
         // b_sq += b × b
-        b_sq_f32m2 = __riscv_vfwmaccbf16_vv_f32m2(b_sq_f32m2, b_bf16m1, b_bf16m1, vl);
+        b_sq_f32m2 = __riscv_vfwmaccbf16_vv_f32m2_tu(b_sq_f32m2, b_bf16m1, b_bf16m1, vector_length);
     }
 
     // Single horizontal reduction after the loop

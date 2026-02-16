@@ -76,16 +76,23 @@ NK_INTERNAL void nk_bicentroid_f32_rvv_(               //
     vfloat64m2_t sum_b_z_f64m2 = __riscv_vfmv_v_f_f64m2(0.0, vlmax);
     nk_f32_t const *a_ptr = a, *b_ptr = b;
     nk_size_t remaining = n;
-    for (nk_size_t vl; remaining > 0; remaining -= vl, a_ptr += vl * 3, b_ptr += vl * 3) {
-        vl = __riscv_vsetvl_e32m1(remaining);
-        vfloat32m1x3_t a_f32m1x3 = __riscv_vlseg3e32_v_f32m1x3(a_ptr, vl);
-        sum_a_x_f64m2 = __riscv_vfwadd_wv_f64m2(sum_a_x_f64m2, __riscv_vget_v_f32m1x3_f32m1(a_f32m1x3, 0), vl);
-        sum_a_y_f64m2 = __riscv_vfwadd_wv_f64m2(sum_a_y_f64m2, __riscv_vget_v_f32m1x3_f32m1(a_f32m1x3, 1), vl);
-        sum_a_z_f64m2 = __riscv_vfwadd_wv_f64m2(sum_a_z_f64m2, __riscv_vget_v_f32m1x3_f32m1(a_f32m1x3, 2), vl);
-        vfloat32m1x3_t b_f32m1x3 = __riscv_vlseg3e32_v_f32m1x3(b_ptr, vl);
-        sum_b_x_f64m2 = __riscv_vfwadd_wv_f64m2(sum_b_x_f64m2, __riscv_vget_v_f32m1x3_f32m1(b_f32m1x3, 0), vl);
-        sum_b_y_f64m2 = __riscv_vfwadd_wv_f64m2(sum_b_y_f64m2, __riscv_vget_v_f32m1x3_f32m1(b_f32m1x3, 1), vl);
-        sum_b_z_f64m2 = __riscv_vfwadd_wv_f64m2(sum_b_z_f64m2, __riscv_vget_v_f32m1x3_f32m1(b_f32m1x3, 2), vl);
+    for (nk_size_t vector_length; remaining > 0;
+         remaining -= vector_length, a_ptr += vector_length * 3, b_ptr += vector_length * 3) {
+        vector_length = __riscv_vsetvl_e32m1(remaining);
+        vfloat32m1x3_t a_f32m1x3 = __riscv_vlseg3e32_v_f32m1x3(a_ptr, vector_length);
+        sum_a_x_f64m2 = __riscv_vfwadd_wv_f64m2_tu(sum_a_x_f64m2, sum_a_x_f64m2,
+                                                   __riscv_vget_v_f32m1x3_f32m1(a_f32m1x3, 0), vector_length);
+        sum_a_y_f64m2 = __riscv_vfwadd_wv_f64m2_tu(sum_a_y_f64m2, sum_a_y_f64m2,
+                                                   __riscv_vget_v_f32m1x3_f32m1(a_f32m1x3, 1), vector_length);
+        sum_a_z_f64m2 = __riscv_vfwadd_wv_f64m2_tu(sum_a_z_f64m2, sum_a_z_f64m2,
+                                                   __riscv_vget_v_f32m1x3_f32m1(a_f32m1x3, 2), vector_length);
+        vfloat32m1x3_t b_f32m1x3 = __riscv_vlseg3e32_v_f32m1x3(b_ptr, vector_length);
+        sum_b_x_f64m2 = __riscv_vfwadd_wv_f64m2_tu(sum_b_x_f64m2, sum_b_x_f64m2,
+                                                   __riscv_vget_v_f32m1x3_f32m1(b_f32m1x3, 0), vector_length);
+        sum_b_y_f64m2 = __riscv_vfwadd_wv_f64m2_tu(sum_b_y_f64m2, sum_b_y_f64m2,
+                                                   __riscv_vget_v_f32m1x3_f32m1(b_f32m1x3, 1), vector_length);
+        sum_b_z_f64m2 = __riscv_vfwadd_wv_f64m2_tu(sum_b_z_f64m2, sum_b_z_f64m2,
+                                                   __riscv_vget_v_f32m1x3_f32m1(b_f32m1x3, 2), vector_length);
     }
     vfloat64m1_t zero_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, 1);
     nk_f64_t inv_n = 1.0 / (nk_f64_t)n;
@@ -114,16 +121,23 @@ NK_INTERNAL void nk_bicentroid_f64_rvv_(               //
     vfloat64m1_t sum_b_z_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, vlmax);
     nk_f64_t const *a_ptr = a, *b_ptr = b;
     nk_size_t remaining = n;
-    for (nk_size_t vl; remaining > 0; remaining -= vl, a_ptr += vl * 3, b_ptr += vl * 3) {
-        vl = __riscv_vsetvl_e64m1(remaining);
-        vfloat64m1x3_t a_f64m1x3 = __riscv_vlseg3e64_v_f64m1x3(a_ptr, vl);
-        sum_a_x_f64m1 = __riscv_vfadd_vv_f64m1(sum_a_x_f64m1, __riscv_vget_v_f64m1x3_f64m1(a_f64m1x3, 0), vl);
-        sum_a_y_f64m1 = __riscv_vfadd_vv_f64m1(sum_a_y_f64m1, __riscv_vget_v_f64m1x3_f64m1(a_f64m1x3, 1), vl);
-        sum_a_z_f64m1 = __riscv_vfadd_vv_f64m1(sum_a_z_f64m1, __riscv_vget_v_f64m1x3_f64m1(a_f64m1x3, 2), vl);
-        vfloat64m1x3_t b_f64m1x3 = __riscv_vlseg3e64_v_f64m1x3(b_ptr, vl);
-        sum_b_x_f64m1 = __riscv_vfadd_vv_f64m1(sum_b_x_f64m1, __riscv_vget_v_f64m1x3_f64m1(b_f64m1x3, 0), vl);
-        sum_b_y_f64m1 = __riscv_vfadd_vv_f64m1(sum_b_y_f64m1, __riscv_vget_v_f64m1x3_f64m1(b_f64m1x3, 1), vl);
-        sum_b_z_f64m1 = __riscv_vfadd_vv_f64m1(sum_b_z_f64m1, __riscv_vget_v_f64m1x3_f64m1(b_f64m1x3, 2), vl);
+    for (nk_size_t vector_length; remaining > 0;
+         remaining -= vector_length, a_ptr += vector_length * 3, b_ptr += vector_length * 3) {
+        vector_length = __riscv_vsetvl_e64m1(remaining);
+        vfloat64m1x3_t a_f64m1x3 = __riscv_vlseg3e64_v_f64m1x3(a_ptr, vector_length);
+        sum_a_x_f64m1 = __riscv_vfadd_vv_f64m1_tu(sum_a_x_f64m1, sum_a_x_f64m1,
+                                                  __riscv_vget_v_f64m1x3_f64m1(a_f64m1x3, 0), vector_length);
+        sum_a_y_f64m1 = __riscv_vfadd_vv_f64m1_tu(sum_a_y_f64m1, sum_a_y_f64m1,
+                                                  __riscv_vget_v_f64m1x3_f64m1(a_f64m1x3, 1), vector_length);
+        sum_a_z_f64m1 = __riscv_vfadd_vv_f64m1_tu(sum_a_z_f64m1, sum_a_z_f64m1,
+                                                  __riscv_vget_v_f64m1x3_f64m1(a_f64m1x3, 2), vector_length);
+        vfloat64m1x3_t b_f64m1x3 = __riscv_vlseg3e64_v_f64m1x3(b_ptr, vector_length);
+        sum_b_x_f64m1 = __riscv_vfadd_vv_f64m1_tu(sum_b_x_f64m1, sum_b_x_f64m1,
+                                                  __riscv_vget_v_f64m1x3_f64m1(b_f64m1x3, 0), vector_length);
+        sum_b_y_f64m1 = __riscv_vfadd_vv_f64m1_tu(sum_b_y_f64m1, sum_b_y_f64m1,
+                                                  __riscv_vget_v_f64m1x3_f64m1(b_f64m1x3, 1), vector_length);
+        sum_b_z_f64m1 = __riscv_vfadd_vv_f64m1_tu(sum_b_z_f64m1, sum_b_z_f64m1,
+                                                  __riscv_vget_v_f64m1x3_f64m1(b_f64m1x3, 2), vector_length);
     }
     vfloat64m1_t zero_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, 1);
     nk_f64_t inv_n = 1.0 / (nk_f64_t)n;
@@ -158,40 +172,51 @@ NK_INTERNAL void nk_centroid_and_cross_covariance_f32_rvv_( //
     vfloat64m1_t sum_b_z_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, 1);
     // 9 raw cross-product accumulators: Σ a[i]*b[j]
     nk_size_t vlmax = __riscv_vsetvlmax_e64m2();
-    vfloat64m2_t cross_00_f64m2 = __riscv_vfmv_v_f_f64m2(0.0, vlmax), cross_01_f64m2 = __riscv_vfmv_v_f_f64m2(0.0, vlmax);
-    vfloat64m2_t cross_02_f64m2 = __riscv_vfmv_v_f_f64m2(0.0, vlmax), cross_10_f64m2 = __riscv_vfmv_v_f_f64m2(0.0, vlmax);
-    vfloat64m2_t cross_11_f64m2 = __riscv_vfmv_v_f_f64m2(0.0, vlmax), cross_12_f64m2 = __riscv_vfmv_v_f_f64m2(0.0, vlmax);
-    vfloat64m2_t cross_20_f64m2 = __riscv_vfmv_v_f_f64m2(0.0, vlmax), cross_21_f64m2 = __riscv_vfmv_v_f_f64m2(0.0, vlmax);
+    vfloat64m2_t cross_00_f64m2 = __riscv_vfmv_v_f_f64m2(0.0, vlmax),
+                 cross_01_f64m2 = __riscv_vfmv_v_f_f64m2(0.0, vlmax);
+    vfloat64m2_t cross_02_f64m2 = __riscv_vfmv_v_f_f64m2(0.0, vlmax),
+                 cross_10_f64m2 = __riscv_vfmv_v_f_f64m2(0.0, vlmax);
+    vfloat64m2_t cross_11_f64m2 = __riscv_vfmv_v_f_f64m2(0.0, vlmax),
+                 cross_12_f64m2 = __riscv_vfmv_v_f_f64m2(0.0, vlmax);
+    vfloat64m2_t cross_20_f64m2 = __riscv_vfmv_v_f_f64m2(0.0, vlmax),
+                 cross_21_f64m2 = __riscv_vfmv_v_f_f64m2(0.0, vlmax);
     vfloat64m2_t cross_22_f64m2 = __riscv_vfmv_v_f_f64m2(0.0, vlmax);
     nk_f32_t const *a_ptr = a, *b_ptr = b;
     nk_size_t remaining = n;
-    for (nk_size_t vl; remaining > 0; remaining -= vl, a_ptr += vl * 3, b_ptr += vl * 3) {
-        vl = __riscv_vsetvl_e32m1(remaining);
-        vfloat32m1x3_t a_f32m1x3 = __riscv_vlseg3e32_v_f32m1x3(a_ptr, vl);
+    for (nk_size_t vector_length; remaining > 0;
+         remaining -= vector_length, a_ptr += vector_length * 3, b_ptr += vector_length * 3) {
+        vector_length = __riscv_vsetvl_e32m1(remaining);
+        vfloat32m1x3_t a_f32m1x3 = __riscv_vlseg3e32_v_f32m1x3(a_ptr, vector_length);
         vfloat32m1_t a_x_f32m1 = __riscv_vget_v_f32m1x3_f32m1(a_f32m1x3, 0);
         vfloat32m1_t a_y_f32m1 = __riscv_vget_v_f32m1x3_f32m1(a_f32m1x3, 1);
         vfloat32m1_t a_z_f32m1 = __riscv_vget_v_f32m1x3_f32m1(a_f32m1x3, 2);
-        vfloat32m1x3_t b_f32m1x3 = __riscv_vlseg3e32_v_f32m1x3(b_ptr, vl);
+        vfloat32m1x3_t b_f32m1x3 = __riscv_vlseg3e32_v_f32m1x3(b_ptr, vector_length);
         vfloat32m1_t b_x_f32m1 = __riscv_vget_v_f32m1x3_f32m1(b_f32m1x3, 0);
         vfloat32m1_t b_y_f32m1 = __riscv_vget_v_f32m1x3_f32m1(b_f32m1x3, 1);
         vfloat32m1_t b_z_f32m1 = __riscv_vget_v_f32m1x3_f32m1(b_f32m1x3, 2);
         // Centroid sums (widened to f64)
-        sum_a_x_f64m1 = __riscv_vfredusum_vs_f64m2_f64m1(__riscv_vfwcvt_f_f_v_f64m2(a_x_f32m1, vl), sum_a_x_f64m1, vl);
-        sum_a_y_f64m1 = __riscv_vfredusum_vs_f64m2_f64m1(__riscv_vfwcvt_f_f_v_f64m2(a_y_f32m1, vl), sum_a_y_f64m1, vl);
-        sum_a_z_f64m1 = __riscv_vfredusum_vs_f64m2_f64m1(__riscv_vfwcvt_f_f_v_f64m2(a_z_f32m1, vl), sum_a_z_f64m1, vl);
-        sum_b_x_f64m1 = __riscv_vfredusum_vs_f64m2_f64m1(__riscv_vfwcvt_f_f_v_f64m2(b_x_f32m1, vl), sum_b_x_f64m1, vl);
-        sum_b_y_f64m1 = __riscv_vfredusum_vs_f64m2_f64m1(__riscv_vfwcvt_f_f_v_f64m2(b_y_f32m1, vl), sum_b_y_f64m1, vl);
-        sum_b_z_f64m1 = __riscv_vfredusum_vs_f64m2_f64m1(__riscv_vfwcvt_f_f_v_f64m2(b_z_f32m1, vl), sum_b_z_f64m1, vl);
+        sum_a_x_f64m1 = __riscv_vfredusum_vs_f64m2_f64m1(__riscv_vfwcvt_f_f_v_f64m2(a_x_f32m1, vector_length),
+                                                         sum_a_x_f64m1, vector_length);
+        sum_a_y_f64m1 = __riscv_vfredusum_vs_f64m2_f64m1(__riscv_vfwcvt_f_f_v_f64m2(a_y_f32m1, vector_length),
+                                                         sum_a_y_f64m1, vector_length);
+        sum_a_z_f64m1 = __riscv_vfredusum_vs_f64m2_f64m1(__riscv_vfwcvt_f_f_v_f64m2(a_z_f32m1, vector_length),
+                                                         sum_a_z_f64m1, vector_length);
+        sum_b_x_f64m1 = __riscv_vfredusum_vs_f64m2_f64m1(__riscv_vfwcvt_f_f_v_f64m2(b_x_f32m1, vector_length),
+                                                         sum_b_x_f64m1, vector_length);
+        sum_b_y_f64m1 = __riscv_vfredusum_vs_f64m2_f64m1(__riscv_vfwcvt_f_f_v_f64m2(b_y_f32m1, vector_length),
+                                                         sum_b_y_f64m1, vector_length);
+        sum_b_z_f64m1 = __riscv_vfredusum_vs_f64m2_f64m1(__riscv_vfwcvt_f_f_v_f64m2(b_z_f32m1, vector_length),
+                                                         sum_b_z_f64m1, vector_length);
         // Raw cross-products: Σ a[i]*b[j], widened to f64
-        cross_00_f64m2 = __riscv_vfwmacc_vv_f64m2(cross_00_f64m2, a_x_f32m1, b_x_f32m1, vl);
-        cross_01_f64m2 = __riscv_vfwmacc_vv_f64m2(cross_01_f64m2, a_x_f32m1, b_y_f32m1, vl);
-        cross_02_f64m2 = __riscv_vfwmacc_vv_f64m2(cross_02_f64m2, a_x_f32m1, b_z_f32m1, vl);
-        cross_10_f64m2 = __riscv_vfwmacc_vv_f64m2(cross_10_f64m2, a_y_f32m1, b_x_f32m1, vl);
-        cross_11_f64m2 = __riscv_vfwmacc_vv_f64m2(cross_11_f64m2, a_y_f32m1, b_y_f32m1, vl);
-        cross_12_f64m2 = __riscv_vfwmacc_vv_f64m2(cross_12_f64m2, a_y_f32m1, b_z_f32m1, vl);
-        cross_20_f64m2 = __riscv_vfwmacc_vv_f64m2(cross_20_f64m2, a_z_f32m1, b_x_f32m1, vl);
-        cross_21_f64m2 = __riscv_vfwmacc_vv_f64m2(cross_21_f64m2, a_z_f32m1, b_y_f32m1, vl);
-        cross_22_f64m2 = __riscv_vfwmacc_vv_f64m2(cross_22_f64m2, a_z_f32m1, b_z_f32m1, vl);
+        cross_00_f64m2 = __riscv_vfwmacc_vv_f64m2_tu(cross_00_f64m2, a_x_f32m1, b_x_f32m1, vector_length);
+        cross_01_f64m2 = __riscv_vfwmacc_vv_f64m2_tu(cross_01_f64m2, a_x_f32m1, b_y_f32m1, vector_length);
+        cross_02_f64m2 = __riscv_vfwmacc_vv_f64m2_tu(cross_02_f64m2, a_x_f32m1, b_z_f32m1, vector_length);
+        cross_10_f64m2 = __riscv_vfwmacc_vv_f64m2_tu(cross_10_f64m2, a_y_f32m1, b_x_f32m1, vector_length);
+        cross_11_f64m2 = __riscv_vfwmacc_vv_f64m2_tu(cross_11_f64m2, a_y_f32m1, b_y_f32m1, vector_length);
+        cross_12_f64m2 = __riscv_vfwmacc_vv_f64m2_tu(cross_12_f64m2, a_y_f32m1, b_z_f32m1, vector_length);
+        cross_20_f64m2 = __riscv_vfwmacc_vv_f64m2_tu(cross_20_f64m2, a_z_f32m1, b_x_f32m1, vector_length);
+        cross_21_f64m2 = __riscv_vfwmacc_vv_f64m2_tu(cross_21_f64m2, a_z_f32m1, b_y_f32m1, vector_length);
+        cross_22_f64m2 = __riscv_vfwmacc_vv_f64m2_tu(cross_22_f64m2, a_z_f32m1, b_z_f32m1, vector_length);
     }
     // Compute centroids
     nk_f64_t inv_n = 1.0 / (nk_f64_t)n;
@@ -210,15 +235,24 @@ NK_INTERNAL void nk_centroid_and_cross_covariance_f32_rvv_( //
     // Fix up: H[i][j] = raw[i][j] - n * ca[i] * cb[j]
     vfloat64m1_t zero_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, 1);
     nk_f64_t n_f64 = (nk_f64_t)n;
-    h[0] = __riscv_vfmv_f_s_f64m1_f64(__riscv_vfredusum_vs_f64m2_f64m1(cross_00_f64m2, zero_f64m1, vlmax)) - n_f64 * ca_x_ * cb_x_;
-    h[1] = __riscv_vfmv_f_s_f64m1_f64(__riscv_vfredusum_vs_f64m2_f64m1(cross_01_f64m2, zero_f64m1, vlmax)) - n_f64 * ca_x_ * cb_y_;
-    h[2] = __riscv_vfmv_f_s_f64m1_f64(__riscv_vfredusum_vs_f64m2_f64m1(cross_02_f64m2, zero_f64m1, vlmax)) - n_f64 * ca_x_ * cb_z_;
-    h[3] = __riscv_vfmv_f_s_f64m1_f64(__riscv_vfredusum_vs_f64m2_f64m1(cross_10_f64m2, zero_f64m1, vlmax)) - n_f64 * ca_y_ * cb_x_;
-    h[4] = __riscv_vfmv_f_s_f64m1_f64(__riscv_vfredusum_vs_f64m2_f64m1(cross_11_f64m2, zero_f64m1, vlmax)) - n_f64 * ca_y_ * cb_y_;
-    h[5] = __riscv_vfmv_f_s_f64m1_f64(__riscv_vfredusum_vs_f64m2_f64m1(cross_12_f64m2, zero_f64m1, vlmax)) - n_f64 * ca_y_ * cb_z_;
-    h[6] = __riscv_vfmv_f_s_f64m1_f64(__riscv_vfredusum_vs_f64m2_f64m1(cross_20_f64m2, zero_f64m1, vlmax)) - n_f64 * ca_z_ * cb_x_;
-    h[7] = __riscv_vfmv_f_s_f64m1_f64(__riscv_vfredusum_vs_f64m2_f64m1(cross_21_f64m2, zero_f64m1, vlmax)) - n_f64 * ca_z_ * cb_y_;
-    h[8] = __riscv_vfmv_f_s_f64m1_f64(__riscv_vfredusum_vs_f64m2_f64m1(cross_22_f64m2, zero_f64m1, vlmax)) - n_f64 * ca_z_ * cb_z_;
+    h[0] = __riscv_vfmv_f_s_f64m1_f64(__riscv_vfredusum_vs_f64m2_f64m1(cross_00_f64m2, zero_f64m1, vlmax)) -
+           n_f64 * ca_x_ * cb_x_;
+    h[1] = __riscv_vfmv_f_s_f64m1_f64(__riscv_vfredusum_vs_f64m2_f64m1(cross_01_f64m2, zero_f64m1, vlmax)) -
+           n_f64 * ca_x_ * cb_y_;
+    h[2] = __riscv_vfmv_f_s_f64m1_f64(__riscv_vfredusum_vs_f64m2_f64m1(cross_02_f64m2, zero_f64m1, vlmax)) -
+           n_f64 * ca_x_ * cb_z_;
+    h[3] = __riscv_vfmv_f_s_f64m1_f64(__riscv_vfredusum_vs_f64m2_f64m1(cross_10_f64m2, zero_f64m1, vlmax)) -
+           n_f64 * ca_y_ * cb_x_;
+    h[4] = __riscv_vfmv_f_s_f64m1_f64(__riscv_vfredusum_vs_f64m2_f64m1(cross_11_f64m2, zero_f64m1, vlmax)) -
+           n_f64 * ca_y_ * cb_y_;
+    h[5] = __riscv_vfmv_f_s_f64m1_f64(__riscv_vfredusum_vs_f64m2_f64m1(cross_12_f64m2, zero_f64m1, vlmax)) -
+           n_f64 * ca_y_ * cb_z_;
+    h[6] = __riscv_vfmv_f_s_f64m1_f64(__riscv_vfredusum_vs_f64m2_f64m1(cross_20_f64m2, zero_f64m1, vlmax)) -
+           n_f64 * ca_z_ * cb_x_;
+    h[7] = __riscv_vfmv_f_s_f64m1_f64(__riscv_vfredusum_vs_f64m2_f64m1(cross_21_f64m2, zero_f64m1, vlmax)) -
+           n_f64 * ca_z_ * cb_y_;
+    h[8] = __riscv_vfmv_f_s_f64m1_f64(__riscv_vfredusum_vs_f64m2_f64m1(cross_22_f64m2, zero_f64m1, vlmax)) -
+           n_f64 * ca_z_ * cb_z_;
 }
 
 /**
@@ -237,48 +271,59 @@ NK_INTERNAL void nk_centroid_and_cross_covariance_f64_rvv_( //
     vfloat64m1_t sum_a_z_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, vlmax);
     vfloat64m1_t sum_b_x_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, vlmax), sum_b_y_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, vlmax);
     vfloat64m1_t sum_b_z_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, vlmax);
-    vfloat64m1_t cross_00_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, vlmax), cross_01_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, vlmax);
-    vfloat64m1_t cross_02_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, vlmax), cross_10_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, vlmax);
-    vfloat64m1_t cross_11_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, vlmax), cross_12_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, vlmax);
-    vfloat64m1_t cross_20_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, vlmax), cross_21_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, vlmax);
+    vfloat64m1_t cross_00_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, vlmax),
+                 cross_01_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, vlmax);
+    vfloat64m1_t cross_02_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, vlmax),
+                 cross_10_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, vlmax);
+    vfloat64m1_t cross_11_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, vlmax),
+                 cross_12_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, vlmax);
+    vfloat64m1_t cross_20_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, vlmax),
+                 cross_21_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, vlmax);
     vfloat64m1_t cross_22_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, vlmax);
     nk_f64_t const *a_ptr = a, *b_ptr = b;
     nk_size_t remaining = n;
-    for (nk_size_t vl; remaining > 0; remaining -= vl, a_ptr += vl * 3, b_ptr += vl * 3) {
-        vl = __riscv_vsetvl_e64m1(remaining);
-        vfloat64m1x3_t a_f64m1x3 = __riscv_vlseg3e64_v_f64m1x3(a_ptr, vl);
+    for (nk_size_t vector_length; remaining > 0;
+         remaining -= vector_length, a_ptr += vector_length * 3, b_ptr += vector_length * 3) {
+        vector_length = __riscv_vsetvl_e64m1(remaining);
+        vfloat64m1x3_t a_f64m1x3 = __riscv_vlseg3e64_v_f64m1x3(a_ptr, vector_length);
         vfloat64m1_t a_x_f64m1 = __riscv_vget_v_f64m1x3_f64m1(a_f64m1x3, 0);
         vfloat64m1_t a_y_f64m1 = __riscv_vget_v_f64m1x3_f64m1(a_f64m1x3, 1);
         vfloat64m1_t a_z_f64m1 = __riscv_vget_v_f64m1x3_f64m1(a_f64m1x3, 2);
-        vfloat64m1x3_t b_f64m1x3 = __riscv_vlseg3e64_v_f64m1x3(b_ptr, vl);
+        vfloat64m1x3_t b_f64m1x3 = __riscv_vlseg3e64_v_f64m1x3(b_ptr, vector_length);
         vfloat64m1_t b_x_f64m1 = __riscv_vget_v_f64m1x3_f64m1(b_f64m1x3, 0);
         vfloat64m1_t b_y_f64m1 = __riscv_vget_v_f64m1x3_f64m1(b_f64m1x3, 1);
         vfloat64m1_t b_z_f64m1 = __riscv_vget_v_f64m1x3_f64m1(b_f64m1x3, 2);
-        sum_a_x_f64m1 = __riscv_vfadd_vv_f64m1(sum_a_x_f64m1, a_x_f64m1, vl);
-        sum_a_y_f64m1 = __riscv_vfadd_vv_f64m1(sum_a_y_f64m1, a_y_f64m1, vl);
-        sum_a_z_f64m1 = __riscv_vfadd_vv_f64m1(sum_a_z_f64m1, a_z_f64m1, vl);
-        sum_b_x_f64m1 = __riscv_vfadd_vv_f64m1(sum_b_x_f64m1, b_x_f64m1, vl);
-        sum_b_y_f64m1 = __riscv_vfadd_vv_f64m1(sum_b_y_f64m1, b_y_f64m1, vl);
-        sum_b_z_f64m1 = __riscv_vfadd_vv_f64m1(sum_b_z_f64m1, b_z_f64m1, vl);
-        cross_00_f64m1 = __riscv_vfmacc_vv_f64m1(cross_00_f64m1, a_x_f64m1, b_x_f64m1, vl);
-        cross_01_f64m1 = __riscv_vfmacc_vv_f64m1(cross_01_f64m1, a_x_f64m1, b_y_f64m1, vl);
-        cross_02_f64m1 = __riscv_vfmacc_vv_f64m1(cross_02_f64m1, a_x_f64m1, b_z_f64m1, vl);
-        cross_10_f64m1 = __riscv_vfmacc_vv_f64m1(cross_10_f64m1, a_y_f64m1, b_x_f64m1, vl);
-        cross_11_f64m1 = __riscv_vfmacc_vv_f64m1(cross_11_f64m1, a_y_f64m1, b_y_f64m1, vl);
-        cross_12_f64m1 = __riscv_vfmacc_vv_f64m1(cross_12_f64m1, a_y_f64m1, b_z_f64m1, vl);
-        cross_20_f64m1 = __riscv_vfmacc_vv_f64m1(cross_20_f64m1, a_z_f64m1, b_x_f64m1, vl);
-        cross_21_f64m1 = __riscv_vfmacc_vv_f64m1(cross_21_f64m1, a_z_f64m1, b_y_f64m1, vl);
-        cross_22_f64m1 = __riscv_vfmacc_vv_f64m1(cross_22_f64m1, a_z_f64m1, b_z_f64m1, vl);
+        sum_a_x_f64m1 = __riscv_vfadd_vv_f64m1_tu(sum_a_x_f64m1, sum_a_x_f64m1, a_x_f64m1, vector_length);
+        sum_a_y_f64m1 = __riscv_vfadd_vv_f64m1_tu(sum_a_y_f64m1, sum_a_y_f64m1, a_y_f64m1, vector_length);
+        sum_a_z_f64m1 = __riscv_vfadd_vv_f64m1_tu(sum_a_z_f64m1, sum_a_z_f64m1, a_z_f64m1, vector_length);
+        sum_b_x_f64m1 = __riscv_vfadd_vv_f64m1_tu(sum_b_x_f64m1, sum_b_x_f64m1, b_x_f64m1, vector_length);
+        sum_b_y_f64m1 = __riscv_vfadd_vv_f64m1_tu(sum_b_y_f64m1, sum_b_y_f64m1, b_y_f64m1, vector_length);
+        sum_b_z_f64m1 = __riscv_vfadd_vv_f64m1_tu(sum_b_z_f64m1, sum_b_z_f64m1, b_z_f64m1, vector_length);
+        cross_00_f64m1 = __riscv_vfmacc_vv_f64m1_tu(cross_00_f64m1, a_x_f64m1, b_x_f64m1, vector_length);
+        cross_01_f64m1 = __riscv_vfmacc_vv_f64m1_tu(cross_01_f64m1, a_x_f64m1, b_y_f64m1, vector_length);
+        cross_02_f64m1 = __riscv_vfmacc_vv_f64m1_tu(cross_02_f64m1, a_x_f64m1, b_z_f64m1, vector_length);
+        cross_10_f64m1 = __riscv_vfmacc_vv_f64m1_tu(cross_10_f64m1, a_y_f64m1, b_x_f64m1, vector_length);
+        cross_11_f64m1 = __riscv_vfmacc_vv_f64m1_tu(cross_11_f64m1, a_y_f64m1, b_y_f64m1, vector_length);
+        cross_12_f64m1 = __riscv_vfmacc_vv_f64m1_tu(cross_12_f64m1, a_y_f64m1, b_z_f64m1, vector_length);
+        cross_20_f64m1 = __riscv_vfmacc_vv_f64m1_tu(cross_20_f64m1, a_z_f64m1, b_x_f64m1, vector_length);
+        cross_21_f64m1 = __riscv_vfmacc_vv_f64m1_tu(cross_21_f64m1, a_z_f64m1, b_y_f64m1, vector_length);
+        cross_22_f64m1 = __riscv_vfmacc_vv_f64m1_tu(cross_22_f64m1, a_z_f64m1, b_z_f64m1, vector_length);
     }
     // Compute centroids
     vfloat64m1_t zero_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, 1);
     nk_f64_t inv_n = 1.0 / (nk_f64_t)n;
-    nk_f64_t ca_x_ = __riscv_vfmv_f_s_f64m1_f64(__riscv_vfredusum_vs_f64m1_f64m1(sum_a_x_f64m1, zero_f64m1, vlmax)) * inv_n;
-    nk_f64_t ca_y_ = __riscv_vfmv_f_s_f64m1_f64(__riscv_vfredusum_vs_f64m1_f64m1(sum_a_y_f64m1, zero_f64m1, vlmax)) * inv_n;
-    nk_f64_t ca_z_ = __riscv_vfmv_f_s_f64m1_f64(__riscv_vfredusum_vs_f64m1_f64m1(sum_a_z_f64m1, zero_f64m1, vlmax)) * inv_n;
-    nk_f64_t cb_x_ = __riscv_vfmv_f_s_f64m1_f64(__riscv_vfredusum_vs_f64m1_f64m1(sum_b_x_f64m1, zero_f64m1, vlmax)) * inv_n;
-    nk_f64_t cb_y_ = __riscv_vfmv_f_s_f64m1_f64(__riscv_vfredusum_vs_f64m1_f64m1(sum_b_y_f64m1, zero_f64m1, vlmax)) * inv_n;
-    nk_f64_t cb_z_ = __riscv_vfmv_f_s_f64m1_f64(__riscv_vfredusum_vs_f64m1_f64m1(sum_b_z_f64m1, zero_f64m1, vlmax)) * inv_n;
+    nk_f64_t ca_x_ = __riscv_vfmv_f_s_f64m1_f64(__riscv_vfredusum_vs_f64m1_f64m1(sum_a_x_f64m1, zero_f64m1, vlmax)) *
+                     inv_n;
+    nk_f64_t ca_y_ = __riscv_vfmv_f_s_f64m1_f64(__riscv_vfredusum_vs_f64m1_f64m1(sum_a_y_f64m1, zero_f64m1, vlmax)) *
+                     inv_n;
+    nk_f64_t ca_z_ = __riscv_vfmv_f_s_f64m1_f64(__riscv_vfredusum_vs_f64m1_f64m1(sum_a_z_f64m1, zero_f64m1, vlmax)) *
+                     inv_n;
+    nk_f64_t cb_x_ = __riscv_vfmv_f_s_f64m1_f64(__riscv_vfredusum_vs_f64m1_f64m1(sum_b_x_f64m1, zero_f64m1, vlmax)) *
+                     inv_n;
+    nk_f64_t cb_y_ = __riscv_vfmv_f_s_f64m1_f64(__riscv_vfredusum_vs_f64m1_f64m1(sum_b_y_f64m1, zero_f64m1, vlmax)) *
+                     inv_n;
+    nk_f64_t cb_z_ = __riscv_vfmv_f_s_f64m1_f64(__riscv_vfredusum_vs_f64m1_f64m1(sum_b_z_f64m1, zero_f64m1, vlmax)) *
+                     inv_n;
     *ca_x = ca_x_;
     *ca_y = ca_y_;
     *ca_z = ca_z_;
@@ -286,15 +331,24 @@ NK_INTERNAL void nk_centroid_and_cross_covariance_f64_rvv_( //
     *cb_y = cb_y_;
     *cb_z = cb_z_;
     nk_f64_t n_f64 = (nk_f64_t)n;
-    h[0] = __riscv_vfmv_f_s_f64m1_f64(__riscv_vfredusum_vs_f64m1_f64m1(cross_00_f64m1, zero_f64m1, vlmax)) - n_f64 * ca_x_ * cb_x_;
-    h[1] = __riscv_vfmv_f_s_f64m1_f64(__riscv_vfredusum_vs_f64m1_f64m1(cross_01_f64m1, zero_f64m1, vlmax)) - n_f64 * ca_x_ * cb_y_;
-    h[2] = __riscv_vfmv_f_s_f64m1_f64(__riscv_vfredusum_vs_f64m1_f64m1(cross_02_f64m1, zero_f64m1, vlmax)) - n_f64 * ca_x_ * cb_z_;
-    h[3] = __riscv_vfmv_f_s_f64m1_f64(__riscv_vfredusum_vs_f64m1_f64m1(cross_10_f64m1, zero_f64m1, vlmax)) - n_f64 * ca_y_ * cb_x_;
-    h[4] = __riscv_vfmv_f_s_f64m1_f64(__riscv_vfredusum_vs_f64m1_f64m1(cross_11_f64m1, zero_f64m1, vlmax)) - n_f64 * ca_y_ * cb_y_;
-    h[5] = __riscv_vfmv_f_s_f64m1_f64(__riscv_vfredusum_vs_f64m1_f64m1(cross_12_f64m1, zero_f64m1, vlmax)) - n_f64 * ca_y_ * cb_z_;
-    h[6] = __riscv_vfmv_f_s_f64m1_f64(__riscv_vfredusum_vs_f64m1_f64m1(cross_20_f64m1, zero_f64m1, vlmax)) - n_f64 * ca_z_ * cb_x_;
-    h[7] = __riscv_vfmv_f_s_f64m1_f64(__riscv_vfredusum_vs_f64m1_f64m1(cross_21_f64m1, zero_f64m1, vlmax)) - n_f64 * ca_z_ * cb_y_;
-    h[8] = __riscv_vfmv_f_s_f64m1_f64(__riscv_vfredusum_vs_f64m1_f64m1(cross_22_f64m1, zero_f64m1, vlmax)) - n_f64 * ca_z_ * cb_z_;
+    h[0] = __riscv_vfmv_f_s_f64m1_f64(__riscv_vfredusum_vs_f64m1_f64m1(cross_00_f64m1, zero_f64m1, vlmax)) -
+           n_f64 * ca_x_ * cb_x_;
+    h[1] = __riscv_vfmv_f_s_f64m1_f64(__riscv_vfredusum_vs_f64m1_f64m1(cross_01_f64m1, zero_f64m1, vlmax)) -
+           n_f64 * ca_x_ * cb_y_;
+    h[2] = __riscv_vfmv_f_s_f64m1_f64(__riscv_vfredusum_vs_f64m1_f64m1(cross_02_f64m1, zero_f64m1, vlmax)) -
+           n_f64 * ca_x_ * cb_z_;
+    h[3] = __riscv_vfmv_f_s_f64m1_f64(__riscv_vfredusum_vs_f64m1_f64m1(cross_10_f64m1, zero_f64m1, vlmax)) -
+           n_f64 * ca_y_ * cb_x_;
+    h[4] = __riscv_vfmv_f_s_f64m1_f64(__riscv_vfredusum_vs_f64m1_f64m1(cross_11_f64m1, zero_f64m1, vlmax)) -
+           n_f64 * ca_y_ * cb_y_;
+    h[5] = __riscv_vfmv_f_s_f64m1_f64(__riscv_vfredusum_vs_f64m1_f64m1(cross_12_f64m1, zero_f64m1, vlmax)) -
+           n_f64 * ca_y_ * cb_z_;
+    h[6] = __riscv_vfmv_f_s_f64m1_f64(__riscv_vfredusum_vs_f64m1_f64m1(cross_20_f64m1, zero_f64m1, vlmax)) -
+           n_f64 * ca_z_ * cb_x_;
+    h[7] = __riscv_vfmv_f_s_f64m1_f64(__riscv_vfredusum_vs_f64m1_f64m1(cross_21_f64m1, zero_f64m1, vlmax)) -
+           n_f64 * ca_z_ * cb_y_;
+    h[8] = __riscv_vfmv_f_s_f64m1_f64(__riscv_vfredusum_vs_f64m1_f64m1(cross_22_f64m1, zero_f64m1, vlmax)) -
+           n_f64 * ca_z_ * cb_z_;
 }
 
 /**
@@ -317,44 +371,56 @@ NK_INTERNAL void nk_centroid_and_cross_covariance_and_variance_f32_rvv_( //
     vfloat64m1_t sum_b_x_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, 1), sum_b_y_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, 1);
     vfloat64m1_t sum_b_z_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, 1);
     nk_size_t vlmax = __riscv_vsetvlmax_e64m2();
-    vfloat64m2_t cross_00_f64m2 = __riscv_vfmv_v_f_f64m2(0.0, vlmax), cross_01_f64m2 = __riscv_vfmv_v_f_f64m2(0.0, vlmax);
-    vfloat64m2_t cross_02_f64m2 = __riscv_vfmv_v_f_f64m2(0.0, vlmax), cross_10_f64m2 = __riscv_vfmv_v_f_f64m2(0.0, vlmax);
-    vfloat64m2_t cross_11_f64m2 = __riscv_vfmv_v_f_f64m2(0.0, vlmax), cross_12_f64m2 = __riscv_vfmv_v_f_f64m2(0.0, vlmax);
-    vfloat64m2_t cross_20_f64m2 = __riscv_vfmv_v_f_f64m2(0.0, vlmax), cross_21_f64m2 = __riscv_vfmv_v_f_f64m2(0.0, vlmax);
+    vfloat64m2_t cross_00_f64m2 = __riscv_vfmv_v_f_f64m2(0.0, vlmax),
+                 cross_01_f64m2 = __riscv_vfmv_v_f_f64m2(0.0, vlmax);
+    vfloat64m2_t cross_02_f64m2 = __riscv_vfmv_v_f_f64m2(0.0, vlmax),
+                 cross_10_f64m2 = __riscv_vfmv_v_f_f64m2(0.0, vlmax);
+    vfloat64m2_t cross_11_f64m2 = __riscv_vfmv_v_f_f64m2(0.0, vlmax),
+                 cross_12_f64m2 = __riscv_vfmv_v_f_f64m2(0.0, vlmax);
+    vfloat64m2_t cross_20_f64m2 = __riscv_vfmv_v_f_f64m2(0.0, vlmax),
+                 cross_21_f64m2 = __riscv_vfmv_v_f_f64m2(0.0, vlmax);
     vfloat64m2_t cross_22_f64m2 = __riscv_vfmv_v_f_f64m2(0.0, vlmax);
     vfloat64m1_t sum_norm_squared_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, 1); // Σ ||a[i]||²
     nk_f32_t const *a_ptr = a, *b_ptr = b;
     nk_size_t remaining = n;
-    for (nk_size_t vl; remaining > 0; remaining -= vl, a_ptr += vl * 3, b_ptr += vl * 3) {
-        vl = __riscv_vsetvl_e32m1(remaining);
-        vfloat32m1x3_t a_f32m1x3 = __riscv_vlseg3e32_v_f32m1x3(a_ptr, vl);
+    for (nk_size_t vector_length; remaining > 0;
+         remaining -= vector_length, a_ptr += vector_length * 3, b_ptr += vector_length * 3) {
+        vector_length = __riscv_vsetvl_e32m1(remaining);
+        vfloat32m1x3_t a_f32m1x3 = __riscv_vlseg3e32_v_f32m1x3(a_ptr, vector_length);
         vfloat32m1_t a_x_f32m1 = __riscv_vget_v_f32m1x3_f32m1(a_f32m1x3, 0);
         vfloat32m1_t a_y_f32m1 = __riscv_vget_v_f32m1x3_f32m1(a_f32m1x3, 1);
         vfloat32m1_t a_z_f32m1 = __riscv_vget_v_f32m1x3_f32m1(a_f32m1x3, 2);
-        vfloat32m1x3_t b_f32m1x3 = __riscv_vlseg3e32_v_f32m1x3(b_ptr, vl);
+        vfloat32m1x3_t b_f32m1x3 = __riscv_vlseg3e32_v_f32m1x3(b_ptr, vector_length);
         vfloat32m1_t b_x_f32m1 = __riscv_vget_v_f32m1x3_f32m1(b_f32m1x3, 0);
         vfloat32m1_t b_y_f32m1 = __riscv_vget_v_f32m1x3_f32m1(b_f32m1x3, 1);
         vfloat32m1_t b_z_f32m1 = __riscv_vget_v_f32m1x3_f32m1(b_f32m1x3, 2);
-        sum_a_x_f64m1 = __riscv_vfredusum_vs_f64m2_f64m1(__riscv_vfwcvt_f_f_v_f64m2(a_x_f32m1, vl), sum_a_x_f64m1, vl);
-        sum_a_y_f64m1 = __riscv_vfredusum_vs_f64m2_f64m1(__riscv_vfwcvt_f_f_v_f64m2(a_y_f32m1, vl), sum_a_y_f64m1, vl);
-        sum_a_z_f64m1 = __riscv_vfredusum_vs_f64m2_f64m1(__riscv_vfwcvt_f_f_v_f64m2(a_z_f32m1, vl), sum_a_z_f64m1, vl);
-        sum_b_x_f64m1 = __riscv_vfredusum_vs_f64m2_f64m1(__riscv_vfwcvt_f_f_v_f64m2(b_x_f32m1, vl), sum_b_x_f64m1, vl);
-        sum_b_y_f64m1 = __riscv_vfredusum_vs_f64m2_f64m1(__riscv_vfwcvt_f_f_v_f64m2(b_y_f32m1, vl), sum_b_y_f64m1, vl);
-        sum_b_z_f64m1 = __riscv_vfredusum_vs_f64m2_f64m1(__riscv_vfwcvt_f_f_v_f64m2(b_z_f32m1, vl), sum_b_z_f64m1, vl);
-        cross_00_f64m2 = __riscv_vfwmacc_vv_f64m2(cross_00_f64m2, a_x_f32m1, b_x_f32m1, vl);
-        cross_01_f64m2 = __riscv_vfwmacc_vv_f64m2(cross_01_f64m2, a_x_f32m1, b_y_f32m1, vl);
-        cross_02_f64m2 = __riscv_vfwmacc_vv_f64m2(cross_02_f64m2, a_x_f32m1, b_z_f32m1, vl);
-        cross_10_f64m2 = __riscv_vfwmacc_vv_f64m2(cross_10_f64m2, a_y_f32m1, b_x_f32m1, vl);
-        cross_11_f64m2 = __riscv_vfwmacc_vv_f64m2(cross_11_f64m2, a_y_f32m1, b_y_f32m1, vl);
-        cross_12_f64m2 = __riscv_vfwmacc_vv_f64m2(cross_12_f64m2, a_y_f32m1, b_z_f32m1, vl);
-        cross_20_f64m2 = __riscv_vfwmacc_vv_f64m2(cross_20_f64m2, a_z_f32m1, b_x_f32m1, vl);
-        cross_21_f64m2 = __riscv_vfwmacc_vv_f64m2(cross_21_f64m2, a_z_f32m1, b_y_f32m1, vl);
-        cross_22_f64m2 = __riscv_vfwmacc_vv_f64m2(cross_22_f64m2, a_z_f32m1, b_z_f32m1, vl);
+        sum_a_x_f64m1 = __riscv_vfredusum_vs_f64m2_f64m1(__riscv_vfwcvt_f_f_v_f64m2(a_x_f32m1, vector_length),
+                                                         sum_a_x_f64m1, vector_length);
+        sum_a_y_f64m1 = __riscv_vfredusum_vs_f64m2_f64m1(__riscv_vfwcvt_f_f_v_f64m2(a_y_f32m1, vector_length),
+                                                         sum_a_y_f64m1, vector_length);
+        sum_a_z_f64m1 = __riscv_vfredusum_vs_f64m2_f64m1(__riscv_vfwcvt_f_f_v_f64m2(a_z_f32m1, vector_length),
+                                                         sum_a_z_f64m1, vector_length);
+        sum_b_x_f64m1 = __riscv_vfredusum_vs_f64m2_f64m1(__riscv_vfwcvt_f_f_v_f64m2(b_x_f32m1, vector_length),
+                                                         sum_b_x_f64m1, vector_length);
+        sum_b_y_f64m1 = __riscv_vfredusum_vs_f64m2_f64m1(__riscv_vfwcvt_f_f_v_f64m2(b_y_f32m1, vector_length),
+                                                         sum_b_y_f64m1, vector_length);
+        sum_b_z_f64m1 = __riscv_vfredusum_vs_f64m2_f64m1(__riscv_vfwcvt_f_f_v_f64m2(b_z_f32m1, vector_length),
+                                                         sum_b_z_f64m1, vector_length);
+        cross_00_f64m2 = __riscv_vfwmacc_vv_f64m2_tu(cross_00_f64m2, a_x_f32m1, b_x_f32m1, vector_length);
+        cross_01_f64m2 = __riscv_vfwmacc_vv_f64m2_tu(cross_01_f64m2, a_x_f32m1, b_y_f32m1, vector_length);
+        cross_02_f64m2 = __riscv_vfwmacc_vv_f64m2_tu(cross_02_f64m2, a_x_f32m1, b_z_f32m1, vector_length);
+        cross_10_f64m2 = __riscv_vfwmacc_vv_f64m2_tu(cross_10_f64m2, a_y_f32m1, b_x_f32m1, vector_length);
+        cross_11_f64m2 = __riscv_vfwmacc_vv_f64m2_tu(cross_11_f64m2, a_y_f32m1, b_y_f32m1, vector_length);
+        cross_12_f64m2 = __riscv_vfwmacc_vv_f64m2_tu(cross_12_f64m2, a_y_f32m1, b_z_f32m1, vector_length);
+        cross_20_f64m2 = __riscv_vfwmacc_vv_f64m2_tu(cross_20_f64m2, a_z_f32m1, b_x_f32m1, vector_length);
+        cross_21_f64m2 = __riscv_vfwmacc_vv_f64m2_tu(cross_21_f64m2, a_z_f32m1, b_y_f32m1, vector_length);
+        cross_22_f64m2 = __riscv_vfwmacc_vv_f64m2_tu(cross_22_f64m2, a_z_f32m1, b_z_f32m1, vector_length);
         // Variance: Σ (a_x² + a_y² + a_z²) — raw, not centered
-        vfloat64m2_t norm_squared_f64m2 = __riscv_vfwmul_vv_f64m2(a_x_f32m1, a_x_f32m1, vl);
-        norm_squared_f64m2 = __riscv_vfwmacc_vv_f64m2(norm_squared_f64m2, a_y_f32m1, a_y_f32m1, vl);
-        norm_squared_f64m2 = __riscv_vfwmacc_vv_f64m2(norm_squared_f64m2, a_z_f32m1, a_z_f32m1, vl);
-        sum_norm_squared_f64m1 = __riscv_vfredusum_vs_f64m2_f64m1(norm_squared_f64m2, sum_norm_squared_f64m1, vl);
+        vfloat64m2_t norm_squared_f64m2 = __riscv_vfwmul_vv_f64m2(a_x_f32m1, a_x_f32m1, vector_length);
+        norm_squared_f64m2 = __riscv_vfwmacc_vv_f64m2(norm_squared_f64m2, a_y_f32m1, a_y_f32m1, vector_length);
+        norm_squared_f64m2 = __riscv_vfwmacc_vv_f64m2(norm_squared_f64m2, a_z_f32m1, a_z_f32m1, vector_length);
+        sum_norm_squared_f64m1 = __riscv_vfredusum_vs_f64m2_f64m1(norm_squared_f64m2, sum_norm_squared_f64m1,
+                                                                  vector_length);
     }
     nk_f64_t inv_n = 1.0 / (nk_f64_t)n;
     nk_f64_t ca_x_ = __riscv_vfmv_f_s_f64m1_f64(sum_a_x_f64m1) * inv_n;
@@ -371,15 +437,24 @@ NK_INTERNAL void nk_centroid_and_cross_covariance_and_variance_f32_rvv_( //
     *cb_z = cb_z_;
     vfloat64m1_t zero_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, 1);
     nk_f64_t n_f64 = (nk_f64_t)n;
-    h[0] = __riscv_vfmv_f_s_f64m1_f64(__riscv_vfredusum_vs_f64m2_f64m1(cross_00_f64m2, zero_f64m1, vlmax)) - n_f64 * ca_x_ * cb_x_;
-    h[1] = __riscv_vfmv_f_s_f64m1_f64(__riscv_vfredusum_vs_f64m2_f64m1(cross_01_f64m2, zero_f64m1, vlmax)) - n_f64 * ca_x_ * cb_y_;
-    h[2] = __riscv_vfmv_f_s_f64m1_f64(__riscv_vfredusum_vs_f64m2_f64m1(cross_02_f64m2, zero_f64m1, vlmax)) - n_f64 * ca_x_ * cb_z_;
-    h[3] = __riscv_vfmv_f_s_f64m1_f64(__riscv_vfredusum_vs_f64m2_f64m1(cross_10_f64m2, zero_f64m1, vlmax)) - n_f64 * ca_y_ * cb_x_;
-    h[4] = __riscv_vfmv_f_s_f64m1_f64(__riscv_vfredusum_vs_f64m2_f64m1(cross_11_f64m2, zero_f64m1, vlmax)) - n_f64 * ca_y_ * cb_y_;
-    h[5] = __riscv_vfmv_f_s_f64m1_f64(__riscv_vfredusum_vs_f64m2_f64m1(cross_12_f64m2, zero_f64m1, vlmax)) - n_f64 * ca_y_ * cb_z_;
-    h[6] = __riscv_vfmv_f_s_f64m1_f64(__riscv_vfredusum_vs_f64m2_f64m1(cross_20_f64m2, zero_f64m1, vlmax)) - n_f64 * ca_z_ * cb_x_;
-    h[7] = __riscv_vfmv_f_s_f64m1_f64(__riscv_vfredusum_vs_f64m2_f64m1(cross_21_f64m2, zero_f64m1, vlmax)) - n_f64 * ca_z_ * cb_y_;
-    h[8] = __riscv_vfmv_f_s_f64m1_f64(__riscv_vfredusum_vs_f64m2_f64m1(cross_22_f64m2, zero_f64m1, vlmax)) - n_f64 * ca_z_ * cb_z_;
+    h[0] = __riscv_vfmv_f_s_f64m1_f64(__riscv_vfredusum_vs_f64m2_f64m1(cross_00_f64m2, zero_f64m1, vlmax)) -
+           n_f64 * ca_x_ * cb_x_;
+    h[1] = __riscv_vfmv_f_s_f64m1_f64(__riscv_vfredusum_vs_f64m2_f64m1(cross_01_f64m2, zero_f64m1, vlmax)) -
+           n_f64 * ca_x_ * cb_y_;
+    h[2] = __riscv_vfmv_f_s_f64m1_f64(__riscv_vfredusum_vs_f64m2_f64m1(cross_02_f64m2, zero_f64m1, vlmax)) -
+           n_f64 * ca_x_ * cb_z_;
+    h[3] = __riscv_vfmv_f_s_f64m1_f64(__riscv_vfredusum_vs_f64m2_f64m1(cross_10_f64m2, zero_f64m1, vlmax)) -
+           n_f64 * ca_y_ * cb_x_;
+    h[4] = __riscv_vfmv_f_s_f64m1_f64(__riscv_vfredusum_vs_f64m2_f64m1(cross_11_f64m2, zero_f64m1, vlmax)) -
+           n_f64 * ca_y_ * cb_y_;
+    h[5] = __riscv_vfmv_f_s_f64m1_f64(__riscv_vfredusum_vs_f64m2_f64m1(cross_12_f64m2, zero_f64m1, vlmax)) -
+           n_f64 * ca_y_ * cb_z_;
+    h[6] = __riscv_vfmv_f_s_f64m1_f64(__riscv_vfredusum_vs_f64m2_f64m1(cross_20_f64m2, zero_f64m1, vlmax)) -
+           n_f64 * ca_z_ * cb_x_;
+    h[7] = __riscv_vfmv_f_s_f64m1_f64(__riscv_vfredusum_vs_f64m2_f64m1(cross_21_f64m2, zero_f64m1, vlmax)) -
+           n_f64 * ca_z_ * cb_y_;
+    h[8] = __riscv_vfmv_f_s_f64m1_f64(__riscv_vfredusum_vs_f64m2_f64m1(cross_22_f64m2, zero_f64m1, vlmax)) -
+           n_f64 * ca_z_ * cb_z_;
     // variance_a = (1/n) * (Σ ||a[i]||² - n * ||ca||²)
     *variance_a = __riscv_vfmv_f_s_f64m1_f64(sum_norm_squared_f64m1) * inv_n -
                   (ca_x_ * ca_x_ + ca_y_ * ca_y_ + ca_z_ * ca_z_);
@@ -401,52 +476,64 @@ NK_INTERNAL void nk_centroid_and_cross_covariance_and_variance_f64_rvv_( //
     vfloat64m1_t sum_a_z_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, vlmax);
     vfloat64m1_t sum_b_x_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, vlmax), sum_b_y_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, vlmax);
     vfloat64m1_t sum_b_z_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, vlmax);
-    vfloat64m1_t cross_00_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, vlmax), cross_01_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, vlmax);
-    vfloat64m1_t cross_02_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, vlmax), cross_10_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, vlmax);
-    vfloat64m1_t cross_11_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, vlmax), cross_12_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, vlmax);
-    vfloat64m1_t cross_20_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, vlmax), cross_21_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, vlmax);
+    vfloat64m1_t cross_00_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, vlmax),
+                 cross_01_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, vlmax);
+    vfloat64m1_t cross_02_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, vlmax),
+                 cross_10_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, vlmax);
+    vfloat64m1_t cross_11_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, vlmax),
+                 cross_12_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, vlmax);
+    vfloat64m1_t cross_20_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, vlmax),
+                 cross_21_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, vlmax);
     vfloat64m1_t cross_22_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, vlmax);
     vfloat64m1_t sum_norm_squared_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, vlmax);
     nk_f64_t const *a_ptr = a, *b_ptr = b;
     nk_size_t remaining = n;
-    for (nk_size_t vl; remaining > 0; remaining -= vl, a_ptr += vl * 3, b_ptr += vl * 3) {
-        vl = __riscv_vsetvl_e64m1(remaining);
-        vfloat64m1x3_t a_f64m1x3 = __riscv_vlseg3e64_v_f64m1x3(a_ptr, vl);
+    for (nk_size_t vector_length; remaining > 0;
+         remaining -= vector_length, a_ptr += vector_length * 3, b_ptr += vector_length * 3) {
+        vector_length = __riscv_vsetvl_e64m1(remaining);
+        vfloat64m1x3_t a_f64m1x3 = __riscv_vlseg3e64_v_f64m1x3(a_ptr, vector_length);
         vfloat64m1_t a_x_f64m1 = __riscv_vget_v_f64m1x3_f64m1(a_f64m1x3, 0);
         vfloat64m1_t a_y_f64m1 = __riscv_vget_v_f64m1x3_f64m1(a_f64m1x3, 1);
         vfloat64m1_t a_z_f64m1 = __riscv_vget_v_f64m1x3_f64m1(a_f64m1x3, 2);
-        vfloat64m1x3_t b_f64m1x3 = __riscv_vlseg3e64_v_f64m1x3(b_ptr, vl);
+        vfloat64m1x3_t b_f64m1x3 = __riscv_vlseg3e64_v_f64m1x3(b_ptr, vector_length);
         vfloat64m1_t b_x_f64m1 = __riscv_vget_v_f64m1x3_f64m1(b_f64m1x3, 0);
         vfloat64m1_t b_y_f64m1 = __riscv_vget_v_f64m1x3_f64m1(b_f64m1x3, 1);
         vfloat64m1_t b_z_f64m1 = __riscv_vget_v_f64m1x3_f64m1(b_f64m1x3, 2);
-        sum_a_x_f64m1 = __riscv_vfadd_vv_f64m1(sum_a_x_f64m1, a_x_f64m1, vl);
-        sum_a_y_f64m1 = __riscv_vfadd_vv_f64m1(sum_a_y_f64m1, a_y_f64m1, vl);
-        sum_a_z_f64m1 = __riscv_vfadd_vv_f64m1(sum_a_z_f64m1, a_z_f64m1, vl);
-        sum_b_x_f64m1 = __riscv_vfadd_vv_f64m1(sum_b_x_f64m1, b_x_f64m1, vl);
-        sum_b_y_f64m1 = __riscv_vfadd_vv_f64m1(sum_b_y_f64m1, b_y_f64m1, vl);
-        sum_b_z_f64m1 = __riscv_vfadd_vv_f64m1(sum_b_z_f64m1, b_z_f64m1, vl);
-        cross_00_f64m1 = __riscv_vfmacc_vv_f64m1(cross_00_f64m1, a_x_f64m1, b_x_f64m1, vl);
-        cross_01_f64m1 = __riscv_vfmacc_vv_f64m1(cross_01_f64m1, a_x_f64m1, b_y_f64m1, vl);
-        cross_02_f64m1 = __riscv_vfmacc_vv_f64m1(cross_02_f64m1, a_x_f64m1, b_z_f64m1, vl);
-        cross_10_f64m1 = __riscv_vfmacc_vv_f64m1(cross_10_f64m1, a_y_f64m1, b_x_f64m1, vl);
-        cross_11_f64m1 = __riscv_vfmacc_vv_f64m1(cross_11_f64m1, a_y_f64m1, b_y_f64m1, vl);
-        cross_12_f64m1 = __riscv_vfmacc_vv_f64m1(cross_12_f64m1, a_y_f64m1, b_z_f64m1, vl);
-        cross_20_f64m1 = __riscv_vfmacc_vv_f64m1(cross_20_f64m1, a_z_f64m1, b_x_f64m1, vl);
-        cross_21_f64m1 = __riscv_vfmacc_vv_f64m1(cross_21_f64m1, a_z_f64m1, b_y_f64m1, vl);
-        cross_22_f64m1 = __riscv_vfmacc_vv_f64m1(cross_22_f64m1, a_z_f64m1, b_z_f64m1, vl);
-        vfloat64m1_t norm_squared_f64m1 = __riscv_vfmul_vv_f64m1(a_x_f64m1, a_x_f64m1, vl);
-        norm_squared_f64m1 = __riscv_vfmacc_vv_f64m1(norm_squared_f64m1, a_y_f64m1, a_y_f64m1, vl);
-        norm_squared_f64m1 = __riscv_vfmacc_vv_f64m1(norm_squared_f64m1, a_z_f64m1, a_z_f64m1, vl);
-        sum_norm_squared_f64m1 = __riscv_vfadd_vv_f64m1(sum_norm_squared_f64m1, norm_squared_f64m1, vl);
+        sum_a_x_f64m1 = __riscv_vfadd_vv_f64m1_tu(sum_a_x_f64m1, sum_a_x_f64m1, a_x_f64m1, vector_length);
+        sum_a_y_f64m1 = __riscv_vfadd_vv_f64m1_tu(sum_a_y_f64m1, sum_a_y_f64m1, a_y_f64m1, vector_length);
+        sum_a_z_f64m1 = __riscv_vfadd_vv_f64m1_tu(sum_a_z_f64m1, sum_a_z_f64m1, a_z_f64m1, vector_length);
+        sum_b_x_f64m1 = __riscv_vfadd_vv_f64m1_tu(sum_b_x_f64m1, sum_b_x_f64m1, b_x_f64m1, vector_length);
+        sum_b_y_f64m1 = __riscv_vfadd_vv_f64m1_tu(sum_b_y_f64m1, sum_b_y_f64m1, b_y_f64m1, vector_length);
+        sum_b_z_f64m1 = __riscv_vfadd_vv_f64m1_tu(sum_b_z_f64m1, sum_b_z_f64m1, b_z_f64m1, vector_length);
+        cross_00_f64m1 = __riscv_vfmacc_vv_f64m1_tu(cross_00_f64m1, a_x_f64m1, b_x_f64m1, vector_length);
+        cross_01_f64m1 = __riscv_vfmacc_vv_f64m1_tu(cross_01_f64m1, a_x_f64m1, b_y_f64m1, vector_length);
+        cross_02_f64m1 = __riscv_vfmacc_vv_f64m1_tu(cross_02_f64m1, a_x_f64m1, b_z_f64m1, vector_length);
+        cross_10_f64m1 = __riscv_vfmacc_vv_f64m1_tu(cross_10_f64m1, a_y_f64m1, b_x_f64m1, vector_length);
+        cross_11_f64m1 = __riscv_vfmacc_vv_f64m1_tu(cross_11_f64m1, a_y_f64m1, b_y_f64m1, vector_length);
+        cross_12_f64m1 = __riscv_vfmacc_vv_f64m1_tu(cross_12_f64m1, a_y_f64m1, b_z_f64m1, vector_length);
+        cross_20_f64m1 = __riscv_vfmacc_vv_f64m1_tu(cross_20_f64m1, a_z_f64m1, b_x_f64m1, vector_length);
+        cross_21_f64m1 = __riscv_vfmacc_vv_f64m1_tu(cross_21_f64m1, a_z_f64m1, b_y_f64m1, vector_length);
+        cross_22_f64m1 = __riscv_vfmacc_vv_f64m1_tu(cross_22_f64m1, a_z_f64m1, b_z_f64m1, vector_length);
+        vfloat64m1_t norm_squared_f64m1 = __riscv_vfmul_vv_f64m1(a_x_f64m1, a_x_f64m1, vector_length);
+        norm_squared_f64m1 = __riscv_vfmacc_vv_f64m1(norm_squared_f64m1, a_y_f64m1, a_y_f64m1, vector_length);
+        norm_squared_f64m1 = __riscv_vfmacc_vv_f64m1(norm_squared_f64m1, a_z_f64m1, a_z_f64m1, vector_length);
+        sum_norm_squared_f64m1 = __riscv_vfadd_vv_f64m1_tu(sum_norm_squared_f64m1, sum_norm_squared_f64m1,
+                                                           norm_squared_f64m1, vector_length);
     }
     vfloat64m1_t zero_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, 1);
     nk_f64_t inv_n = 1.0 / (nk_f64_t)n;
-    nk_f64_t ca_x_ = __riscv_vfmv_f_s_f64m1_f64(__riscv_vfredusum_vs_f64m1_f64m1(sum_a_x_f64m1, zero_f64m1, vlmax)) * inv_n;
-    nk_f64_t ca_y_ = __riscv_vfmv_f_s_f64m1_f64(__riscv_vfredusum_vs_f64m1_f64m1(sum_a_y_f64m1, zero_f64m1, vlmax)) * inv_n;
-    nk_f64_t ca_z_ = __riscv_vfmv_f_s_f64m1_f64(__riscv_vfredusum_vs_f64m1_f64m1(sum_a_z_f64m1, zero_f64m1, vlmax)) * inv_n;
-    nk_f64_t cb_x_ = __riscv_vfmv_f_s_f64m1_f64(__riscv_vfredusum_vs_f64m1_f64m1(sum_b_x_f64m1, zero_f64m1, vlmax)) * inv_n;
-    nk_f64_t cb_y_ = __riscv_vfmv_f_s_f64m1_f64(__riscv_vfredusum_vs_f64m1_f64m1(sum_b_y_f64m1, zero_f64m1, vlmax)) * inv_n;
-    nk_f64_t cb_z_ = __riscv_vfmv_f_s_f64m1_f64(__riscv_vfredusum_vs_f64m1_f64m1(sum_b_z_f64m1, zero_f64m1, vlmax)) * inv_n;
+    nk_f64_t ca_x_ = __riscv_vfmv_f_s_f64m1_f64(__riscv_vfredusum_vs_f64m1_f64m1(sum_a_x_f64m1, zero_f64m1, vlmax)) *
+                     inv_n;
+    nk_f64_t ca_y_ = __riscv_vfmv_f_s_f64m1_f64(__riscv_vfredusum_vs_f64m1_f64m1(sum_a_y_f64m1, zero_f64m1, vlmax)) *
+                     inv_n;
+    nk_f64_t ca_z_ = __riscv_vfmv_f_s_f64m1_f64(__riscv_vfredusum_vs_f64m1_f64m1(sum_a_z_f64m1, zero_f64m1, vlmax)) *
+                     inv_n;
+    nk_f64_t cb_x_ = __riscv_vfmv_f_s_f64m1_f64(__riscv_vfredusum_vs_f64m1_f64m1(sum_b_x_f64m1, zero_f64m1, vlmax)) *
+                     inv_n;
+    nk_f64_t cb_y_ = __riscv_vfmv_f_s_f64m1_f64(__riscv_vfredusum_vs_f64m1_f64m1(sum_b_y_f64m1, zero_f64m1, vlmax)) *
+                     inv_n;
+    nk_f64_t cb_z_ = __riscv_vfmv_f_s_f64m1_f64(__riscv_vfredusum_vs_f64m1_f64m1(sum_b_z_f64m1, zero_f64m1, vlmax)) *
+                     inv_n;
     *ca_x = ca_x_;
     *ca_y = ca_y_;
     *ca_z = ca_z_;
@@ -454,16 +541,27 @@ NK_INTERNAL void nk_centroid_and_cross_covariance_and_variance_f64_rvv_( //
     *cb_y = cb_y_;
     *cb_z = cb_z_;
     nk_f64_t n_f64 = (nk_f64_t)n;
-    h[0] = __riscv_vfmv_f_s_f64m1_f64(__riscv_vfredusum_vs_f64m1_f64m1(cross_00_f64m1, zero_f64m1, vlmax)) - n_f64 * ca_x_ * cb_x_;
-    h[1] = __riscv_vfmv_f_s_f64m1_f64(__riscv_vfredusum_vs_f64m1_f64m1(cross_01_f64m1, zero_f64m1, vlmax)) - n_f64 * ca_x_ * cb_y_;
-    h[2] = __riscv_vfmv_f_s_f64m1_f64(__riscv_vfredusum_vs_f64m1_f64m1(cross_02_f64m1, zero_f64m1, vlmax)) - n_f64 * ca_x_ * cb_z_;
-    h[3] = __riscv_vfmv_f_s_f64m1_f64(__riscv_vfredusum_vs_f64m1_f64m1(cross_10_f64m1, zero_f64m1, vlmax)) - n_f64 * ca_y_ * cb_x_;
-    h[4] = __riscv_vfmv_f_s_f64m1_f64(__riscv_vfredusum_vs_f64m1_f64m1(cross_11_f64m1, zero_f64m1, vlmax)) - n_f64 * ca_y_ * cb_y_;
-    h[5] = __riscv_vfmv_f_s_f64m1_f64(__riscv_vfredusum_vs_f64m1_f64m1(cross_12_f64m1, zero_f64m1, vlmax)) - n_f64 * ca_y_ * cb_z_;
-    h[6] = __riscv_vfmv_f_s_f64m1_f64(__riscv_vfredusum_vs_f64m1_f64m1(cross_20_f64m1, zero_f64m1, vlmax)) - n_f64 * ca_z_ * cb_x_;
-    h[7] = __riscv_vfmv_f_s_f64m1_f64(__riscv_vfredusum_vs_f64m1_f64m1(cross_21_f64m1, zero_f64m1, vlmax)) - n_f64 * ca_z_ * cb_y_;
-    h[8] = __riscv_vfmv_f_s_f64m1_f64(__riscv_vfredusum_vs_f64m1_f64m1(cross_22_f64m1, zero_f64m1, vlmax)) - n_f64 * ca_z_ * cb_z_;
-    *variance_a = __riscv_vfmv_f_s_f64m1_f64(__riscv_vfredusum_vs_f64m1_f64m1(sum_norm_squared_f64m1, zero_f64m1, vlmax)) * inv_n -
+    h[0] = __riscv_vfmv_f_s_f64m1_f64(__riscv_vfredusum_vs_f64m1_f64m1(cross_00_f64m1, zero_f64m1, vlmax)) -
+           n_f64 * ca_x_ * cb_x_;
+    h[1] = __riscv_vfmv_f_s_f64m1_f64(__riscv_vfredusum_vs_f64m1_f64m1(cross_01_f64m1, zero_f64m1, vlmax)) -
+           n_f64 * ca_x_ * cb_y_;
+    h[2] = __riscv_vfmv_f_s_f64m1_f64(__riscv_vfredusum_vs_f64m1_f64m1(cross_02_f64m1, zero_f64m1, vlmax)) -
+           n_f64 * ca_x_ * cb_z_;
+    h[3] = __riscv_vfmv_f_s_f64m1_f64(__riscv_vfredusum_vs_f64m1_f64m1(cross_10_f64m1, zero_f64m1, vlmax)) -
+           n_f64 * ca_y_ * cb_x_;
+    h[4] = __riscv_vfmv_f_s_f64m1_f64(__riscv_vfredusum_vs_f64m1_f64m1(cross_11_f64m1, zero_f64m1, vlmax)) -
+           n_f64 * ca_y_ * cb_y_;
+    h[5] = __riscv_vfmv_f_s_f64m1_f64(__riscv_vfredusum_vs_f64m1_f64m1(cross_12_f64m1, zero_f64m1, vlmax)) -
+           n_f64 * ca_y_ * cb_z_;
+    h[6] = __riscv_vfmv_f_s_f64m1_f64(__riscv_vfredusum_vs_f64m1_f64m1(cross_20_f64m1, zero_f64m1, vlmax)) -
+           n_f64 * ca_z_ * cb_x_;
+    h[7] = __riscv_vfmv_f_s_f64m1_f64(__riscv_vfredusum_vs_f64m1_f64m1(cross_21_f64m1, zero_f64m1, vlmax)) -
+           n_f64 * ca_z_ * cb_y_;
+    h[8] = __riscv_vfmv_f_s_f64m1_f64(__riscv_vfredusum_vs_f64m1_f64m1(cross_22_f64m1, zero_f64m1, vlmax)) -
+           n_f64 * ca_z_ * cb_z_;
+    *variance_a = __riscv_vfmv_f_s_f64m1_f64(
+                      __riscv_vfredusum_vs_f64m1_f64m1(sum_norm_squared_f64m1, zero_f64m1, vlmax)) *
+                      inv_n -
                   (ca_x_ * ca_x_ + ca_y_ * ca_y_ + ca_z_ * ca_z_);
 }
 
@@ -478,33 +576,42 @@ NK_INTERNAL nk_f64_t nk_transformed_ssd_f32_rvv_(      //
     vfloat64m1_t sum_distance_squared_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, 1);
     nk_f32_t const *a_ptr = a, *b_ptr = b;
     nk_size_t remaining = n;
-    for (nk_size_t vl; remaining > 0; remaining -= vl, a_ptr += vl * 3, b_ptr += vl * 3) {
-        vl = __riscv_vsetvl_e32m1(remaining);
-        vfloat32m1x3_t a_f32m1x3 = __riscv_vlseg3e32_v_f32m1x3(a_ptr, vl);
-        vfloat32m1_t centered_a_x_f32m1 = __riscv_vfsub_vf_f32m1(__riscv_vget_v_f32m1x3_f32m1(a_f32m1x3, 0), ca_x, vl);
-        vfloat32m1_t centered_a_y_f32m1 = __riscv_vfsub_vf_f32m1(__riscv_vget_v_f32m1x3_f32m1(a_f32m1x3, 1), ca_y, vl);
-        vfloat32m1_t centered_a_z_f32m1 = __riscv_vfsub_vf_f32m1(__riscv_vget_v_f32m1x3_f32m1(a_f32m1x3, 2), ca_z, vl);
-        vfloat32m1_t rotated_a_x_f32m1 = __riscv_vfmul_vf_f32m1(centered_a_x_f32m1, sr0, vl);
-        rotated_a_x_f32m1 = __riscv_vfmacc_vf_f32m1(rotated_a_x_f32m1, sr1, centered_a_y_f32m1, vl);
-        rotated_a_x_f32m1 = __riscv_vfmacc_vf_f32m1(rotated_a_x_f32m1, sr2, centered_a_z_f32m1, vl);
-        vfloat32m1_t rotated_a_y_f32m1 = __riscv_vfmul_vf_f32m1(centered_a_x_f32m1, sr3, vl);
-        rotated_a_y_f32m1 = __riscv_vfmacc_vf_f32m1(rotated_a_y_f32m1, sr4, centered_a_y_f32m1, vl);
-        rotated_a_y_f32m1 = __riscv_vfmacc_vf_f32m1(rotated_a_y_f32m1, sr5, centered_a_z_f32m1, vl);
-        vfloat32m1_t rotated_a_z_f32m1 = __riscv_vfmul_vf_f32m1(centered_a_x_f32m1, sr6, vl);
-        rotated_a_z_f32m1 = __riscv_vfmacc_vf_f32m1(rotated_a_z_f32m1, sr7, centered_a_y_f32m1, vl);
-        rotated_a_z_f32m1 = __riscv_vfmacc_vf_f32m1(rotated_a_z_f32m1, sr8, centered_a_z_f32m1, vl);
-        vfloat32m1x3_t b_f32m1x3 = __riscv_vlseg3e32_v_f32m1x3(b_ptr, vl);
-        vfloat32m1_t centered_b_x_f32m1 = __riscv_vfsub_vf_f32m1(__riscv_vget_v_f32m1x3_f32m1(b_f32m1x3, 0), cb_x, vl);
-        vfloat32m1_t centered_b_y_f32m1 = __riscv_vfsub_vf_f32m1(__riscv_vget_v_f32m1x3_f32m1(b_f32m1x3, 1), cb_y, vl);
-        vfloat32m1_t centered_b_z_f32m1 = __riscv_vfsub_vf_f32m1(__riscv_vget_v_f32m1x3_f32m1(b_f32m1x3, 2), cb_z, vl);
-        vfloat32m1_t delta_x_f32m1 = __riscv_vfsub_vv_f32m1(rotated_a_x_f32m1, centered_b_x_f32m1, vl);
-        vfloat32m1_t delta_y_f32m1 = __riscv_vfsub_vv_f32m1(rotated_a_y_f32m1, centered_b_y_f32m1, vl);
-        vfloat32m1_t delta_z_f32m1 = __riscv_vfsub_vv_f32m1(rotated_a_z_f32m1, centered_b_z_f32m1, vl);
-        vfloat64m2_t distance_squared_f64m2 = __riscv_vfwmul_vv_f64m2(delta_x_f32m1, delta_x_f32m1, vl);
-        distance_squared_f64m2 = __riscv_vfwmacc_vv_f64m2(distance_squared_f64m2, delta_y_f32m1, delta_y_f32m1, vl);
-        distance_squared_f64m2 = __riscv_vfwmacc_vv_f64m2(distance_squared_f64m2, delta_z_f32m1, delta_z_f32m1, vl);
+    for (nk_size_t vector_length; remaining > 0;
+         remaining -= vector_length, a_ptr += vector_length * 3, b_ptr += vector_length * 3) {
+        vector_length = __riscv_vsetvl_e32m1(remaining);
+        vfloat32m1x3_t a_f32m1x3 = __riscv_vlseg3e32_v_f32m1x3(a_ptr, vector_length);
+        vfloat32m1_t centered_a_x_f32m1 = __riscv_vfsub_vf_f32m1(__riscv_vget_v_f32m1x3_f32m1(a_f32m1x3, 0), ca_x,
+                                                                 vector_length);
+        vfloat32m1_t centered_a_y_f32m1 = __riscv_vfsub_vf_f32m1(__riscv_vget_v_f32m1x3_f32m1(a_f32m1x3, 1), ca_y,
+                                                                 vector_length);
+        vfloat32m1_t centered_a_z_f32m1 = __riscv_vfsub_vf_f32m1(__riscv_vget_v_f32m1x3_f32m1(a_f32m1x3, 2), ca_z,
+                                                                 vector_length);
+        vfloat32m1_t rotated_a_x_f32m1 = __riscv_vfmul_vf_f32m1(centered_a_x_f32m1, sr0, vector_length);
+        rotated_a_x_f32m1 = __riscv_vfmacc_vf_f32m1(rotated_a_x_f32m1, sr1, centered_a_y_f32m1, vector_length);
+        rotated_a_x_f32m1 = __riscv_vfmacc_vf_f32m1(rotated_a_x_f32m1, sr2, centered_a_z_f32m1, vector_length);
+        vfloat32m1_t rotated_a_y_f32m1 = __riscv_vfmul_vf_f32m1(centered_a_x_f32m1, sr3, vector_length);
+        rotated_a_y_f32m1 = __riscv_vfmacc_vf_f32m1(rotated_a_y_f32m1, sr4, centered_a_y_f32m1, vector_length);
+        rotated_a_y_f32m1 = __riscv_vfmacc_vf_f32m1(rotated_a_y_f32m1, sr5, centered_a_z_f32m1, vector_length);
+        vfloat32m1_t rotated_a_z_f32m1 = __riscv_vfmul_vf_f32m1(centered_a_x_f32m1, sr6, vector_length);
+        rotated_a_z_f32m1 = __riscv_vfmacc_vf_f32m1(rotated_a_z_f32m1, sr7, centered_a_y_f32m1, vector_length);
+        rotated_a_z_f32m1 = __riscv_vfmacc_vf_f32m1(rotated_a_z_f32m1, sr8, centered_a_z_f32m1, vector_length);
+        vfloat32m1x3_t b_f32m1x3 = __riscv_vlseg3e32_v_f32m1x3(b_ptr, vector_length);
+        vfloat32m1_t centered_b_x_f32m1 = __riscv_vfsub_vf_f32m1(__riscv_vget_v_f32m1x3_f32m1(b_f32m1x3, 0), cb_x,
+                                                                 vector_length);
+        vfloat32m1_t centered_b_y_f32m1 = __riscv_vfsub_vf_f32m1(__riscv_vget_v_f32m1x3_f32m1(b_f32m1x3, 1), cb_y,
+                                                                 vector_length);
+        vfloat32m1_t centered_b_z_f32m1 = __riscv_vfsub_vf_f32m1(__riscv_vget_v_f32m1x3_f32m1(b_f32m1x3, 2), cb_z,
+                                                                 vector_length);
+        vfloat32m1_t delta_x_f32m1 = __riscv_vfsub_vv_f32m1(rotated_a_x_f32m1, centered_b_x_f32m1, vector_length);
+        vfloat32m1_t delta_y_f32m1 = __riscv_vfsub_vv_f32m1(rotated_a_y_f32m1, centered_b_y_f32m1, vector_length);
+        vfloat32m1_t delta_z_f32m1 = __riscv_vfsub_vv_f32m1(rotated_a_z_f32m1, centered_b_z_f32m1, vector_length);
+        vfloat64m2_t distance_squared_f64m2 = __riscv_vfwmul_vv_f64m2(delta_x_f32m1, delta_x_f32m1, vector_length);
+        distance_squared_f64m2 = __riscv_vfwmacc_vv_f64m2(distance_squared_f64m2, delta_y_f32m1, delta_y_f32m1,
+                                                          vector_length);
+        distance_squared_f64m2 = __riscv_vfwmacc_vv_f64m2(distance_squared_f64m2, delta_z_f32m1, delta_z_f32m1,
+                                                          vector_length);
         sum_distance_squared_f64m1 = __riscv_vfredusum_vs_f64m2_f64m1(distance_squared_f64m2,
-                                                                      sum_distance_squared_f64m1, vl);
+                                                                      sum_distance_squared_f64m1, vector_length);
     }
     return __riscv_vfmv_f_s_f64m1_f64(sum_distance_squared_f64m1);
 }
@@ -520,33 +627,42 @@ NK_INTERNAL nk_f64_t nk_transformed_ssd_f64_rvv_(      //
     vfloat64m1_t sum_distance_squared_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, 1);
     nk_f64_t const *a_ptr = a, *b_ptr = b;
     nk_size_t remaining = n;
-    for (nk_size_t vl; remaining > 0; remaining -= vl, a_ptr += vl * 3, b_ptr += vl * 3) {
-        vl = __riscv_vsetvl_e64m1(remaining);
-        vfloat64m1x3_t a_f64m1x3 = __riscv_vlseg3e64_v_f64m1x3(a_ptr, vl);
-        vfloat64m1_t centered_a_x_f64m1 = __riscv_vfsub_vf_f64m1(__riscv_vget_v_f64m1x3_f64m1(a_f64m1x3, 0), ca_x, vl);
-        vfloat64m1_t centered_a_y_f64m1 = __riscv_vfsub_vf_f64m1(__riscv_vget_v_f64m1x3_f64m1(a_f64m1x3, 1), ca_y, vl);
-        vfloat64m1_t centered_a_z_f64m1 = __riscv_vfsub_vf_f64m1(__riscv_vget_v_f64m1x3_f64m1(a_f64m1x3, 2), ca_z, vl);
-        vfloat64m1_t rotated_a_x_f64m1 = __riscv_vfmul_vf_f64m1(centered_a_x_f64m1, sr0, vl);
-        rotated_a_x_f64m1 = __riscv_vfmacc_vf_f64m1(rotated_a_x_f64m1, sr1, centered_a_y_f64m1, vl);
-        rotated_a_x_f64m1 = __riscv_vfmacc_vf_f64m1(rotated_a_x_f64m1, sr2, centered_a_z_f64m1, vl);
-        vfloat64m1_t rotated_a_y_f64m1 = __riscv_vfmul_vf_f64m1(centered_a_x_f64m1, sr3, vl);
-        rotated_a_y_f64m1 = __riscv_vfmacc_vf_f64m1(rotated_a_y_f64m1, sr4, centered_a_y_f64m1, vl);
-        rotated_a_y_f64m1 = __riscv_vfmacc_vf_f64m1(rotated_a_y_f64m1, sr5, centered_a_z_f64m1, vl);
-        vfloat64m1_t rotated_a_z_f64m1 = __riscv_vfmul_vf_f64m1(centered_a_x_f64m1, sr6, vl);
-        rotated_a_z_f64m1 = __riscv_vfmacc_vf_f64m1(rotated_a_z_f64m1, sr7, centered_a_y_f64m1, vl);
-        rotated_a_z_f64m1 = __riscv_vfmacc_vf_f64m1(rotated_a_z_f64m1, sr8, centered_a_z_f64m1, vl);
-        vfloat64m1x3_t b_f64m1x3 = __riscv_vlseg3e64_v_f64m1x3(b_ptr, vl);
-        vfloat64m1_t centered_b_x_f64m1 = __riscv_vfsub_vf_f64m1(__riscv_vget_v_f64m1x3_f64m1(b_f64m1x3, 0), cb_x, vl);
-        vfloat64m1_t centered_b_y_f64m1 = __riscv_vfsub_vf_f64m1(__riscv_vget_v_f64m1x3_f64m1(b_f64m1x3, 1), cb_y, vl);
-        vfloat64m1_t centered_b_z_f64m1 = __riscv_vfsub_vf_f64m1(__riscv_vget_v_f64m1x3_f64m1(b_f64m1x3, 2), cb_z, vl);
-        vfloat64m1_t delta_x_f64m1 = __riscv_vfsub_vv_f64m1(rotated_a_x_f64m1, centered_b_x_f64m1, vl);
-        vfloat64m1_t delta_y_f64m1 = __riscv_vfsub_vv_f64m1(rotated_a_y_f64m1, centered_b_y_f64m1, vl);
-        vfloat64m1_t delta_z_f64m1 = __riscv_vfsub_vv_f64m1(rotated_a_z_f64m1, centered_b_z_f64m1, vl);
-        vfloat64m1_t distance_squared_f64m1 = __riscv_vfmul_vv_f64m1(delta_x_f64m1, delta_x_f64m1, vl);
-        distance_squared_f64m1 = __riscv_vfmacc_vv_f64m1(distance_squared_f64m1, delta_y_f64m1, delta_y_f64m1, vl);
-        distance_squared_f64m1 = __riscv_vfmacc_vv_f64m1(distance_squared_f64m1, delta_z_f64m1, delta_z_f64m1, vl);
+    for (nk_size_t vector_length; remaining > 0;
+         remaining -= vector_length, a_ptr += vector_length * 3, b_ptr += vector_length * 3) {
+        vector_length = __riscv_vsetvl_e64m1(remaining);
+        vfloat64m1x3_t a_f64m1x3 = __riscv_vlseg3e64_v_f64m1x3(a_ptr, vector_length);
+        vfloat64m1_t centered_a_x_f64m1 = __riscv_vfsub_vf_f64m1(__riscv_vget_v_f64m1x3_f64m1(a_f64m1x3, 0), ca_x,
+                                                                 vector_length);
+        vfloat64m1_t centered_a_y_f64m1 = __riscv_vfsub_vf_f64m1(__riscv_vget_v_f64m1x3_f64m1(a_f64m1x3, 1), ca_y,
+                                                                 vector_length);
+        vfloat64m1_t centered_a_z_f64m1 = __riscv_vfsub_vf_f64m1(__riscv_vget_v_f64m1x3_f64m1(a_f64m1x3, 2), ca_z,
+                                                                 vector_length);
+        vfloat64m1_t rotated_a_x_f64m1 = __riscv_vfmul_vf_f64m1(centered_a_x_f64m1, sr0, vector_length);
+        rotated_a_x_f64m1 = __riscv_vfmacc_vf_f64m1(rotated_a_x_f64m1, sr1, centered_a_y_f64m1, vector_length);
+        rotated_a_x_f64m1 = __riscv_vfmacc_vf_f64m1(rotated_a_x_f64m1, sr2, centered_a_z_f64m1, vector_length);
+        vfloat64m1_t rotated_a_y_f64m1 = __riscv_vfmul_vf_f64m1(centered_a_x_f64m1, sr3, vector_length);
+        rotated_a_y_f64m1 = __riscv_vfmacc_vf_f64m1(rotated_a_y_f64m1, sr4, centered_a_y_f64m1, vector_length);
+        rotated_a_y_f64m1 = __riscv_vfmacc_vf_f64m1(rotated_a_y_f64m1, sr5, centered_a_z_f64m1, vector_length);
+        vfloat64m1_t rotated_a_z_f64m1 = __riscv_vfmul_vf_f64m1(centered_a_x_f64m1, sr6, vector_length);
+        rotated_a_z_f64m1 = __riscv_vfmacc_vf_f64m1(rotated_a_z_f64m1, sr7, centered_a_y_f64m1, vector_length);
+        rotated_a_z_f64m1 = __riscv_vfmacc_vf_f64m1(rotated_a_z_f64m1, sr8, centered_a_z_f64m1, vector_length);
+        vfloat64m1x3_t b_f64m1x3 = __riscv_vlseg3e64_v_f64m1x3(b_ptr, vector_length);
+        vfloat64m1_t centered_b_x_f64m1 = __riscv_vfsub_vf_f64m1(__riscv_vget_v_f64m1x3_f64m1(b_f64m1x3, 0), cb_x,
+                                                                 vector_length);
+        vfloat64m1_t centered_b_y_f64m1 = __riscv_vfsub_vf_f64m1(__riscv_vget_v_f64m1x3_f64m1(b_f64m1x3, 1), cb_y,
+                                                                 vector_length);
+        vfloat64m1_t centered_b_z_f64m1 = __riscv_vfsub_vf_f64m1(__riscv_vget_v_f64m1x3_f64m1(b_f64m1x3, 2), cb_z,
+                                                                 vector_length);
+        vfloat64m1_t delta_x_f64m1 = __riscv_vfsub_vv_f64m1(rotated_a_x_f64m1, centered_b_x_f64m1, vector_length);
+        vfloat64m1_t delta_y_f64m1 = __riscv_vfsub_vv_f64m1(rotated_a_y_f64m1, centered_b_y_f64m1, vector_length);
+        vfloat64m1_t delta_z_f64m1 = __riscv_vfsub_vv_f64m1(rotated_a_z_f64m1, centered_b_z_f64m1, vector_length);
+        vfloat64m1_t distance_squared_f64m1 = __riscv_vfmul_vv_f64m1(delta_x_f64m1, delta_x_f64m1, vector_length);
+        distance_squared_f64m1 = __riscv_vfmacc_vv_f64m1(distance_squared_f64m1, delta_y_f64m1, delta_y_f64m1,
+                                                         vector_length);
+        distance_squared_f64m1 = __riscv_vfmacc_vv_f64m1(distance_squared_f64m1, delta_z_f64m1, delta_z_f64m1,
+                                                         vector_length);
         sum_distance_squared_f64m1 = __riscv_vfredusum_vs_f64m1_f64m1(distance_squared_f64m1,
-                                                                      sum_distance_squared_f64m1, vl);
+                                                                      sum_distance_squared_f64m1, vector_length);
     }
     return __riscv_vfmv_f_s_f64m1_f64(sum_distance_squared_f64m1);
 }
@@ -637,10 +753,10 @@ NK_PUBLIC void nk_kabsch_f32_rvv(nk_f32_t const *a, nk_f32_t const *b, nk_size_t
     if (a_centroid) a_centroid[0] = (nk_f32_t)ca_x, a_centroid[1] = (nk_f32_t)ca_y, a_centroid[2] = (nk_f32_t)ca_z;
     if (b_centroid) b_centroid[0] = (nk_f32_t)cb_x, b_centroid[1] = (nk_f32_t)cb_y, b_centroid[2] = (nk_f32_t)cb_z;
     nk_f32_t hf[9];
-    for (nk_size_t i = 0, vl; i < 9; i += vl) {
-        vl = __riscv_vsetvl_e64m2(9 - i);
-        vfloat64m2_t covariance_f64m2 = __riscv_vle64_v_f64m2(h + i, vl);
-        __riscv_vse32_v_f32m1(hf + i, __riscv_vfncvt_f_f_w_f32m1(covariance_f64m2, vl), vl);
+    for (nk_size_t i = 0, vector_length; i < 9; i += vector_length) {
+        vector_length = __riscv_vsetvl_e64m2(9 - i);
+        vfloat64m2_t covariance_f64m2 = __riscv_vle64_v_f64m2(h + i, vector_length);
+        __riscv_vse32_v_f32m1(hf + i, __riscv_vfncvt_f_f_w_f32m1(covariance_f64m2, vector_length), vector_length);
     }
     nk_f32_t svd_u[9], svd_s[9], svd_v[9];
     nk_svd3x3_f32_(hf, svd_u, svd_s, svd_v);
@@ -688,10 +804,10 @@ NK_PUBLIC void nk_umeyama_f32_rvv(nk_f32_t const *a, nk_f32_t const *b, nk_size_
     if (a_centroid) a_centroid[0] = (nk_f32_t)ca_x, a_centroid[1] = (nk_f32_t)ca_y, a_centroid[2] = (nk_f32_t)ca_z;
     if (b_centroid) b_centroid[0] = (nk_f32_t)cb_x, b_centroid[1] = (nk_f32_t)cb_y, b_centroid[2] = (nk_f32_t)cb_z;
     nk_f32_t hf[9];
-    for (nk_size_t i = 0, vl; i < 9; i += vl) {
-        vl = __riscv_vsetvl_e64m2(9 - i);
-        vfloat64m2_t covariance_f64m2 = __riscv_vle64_v_f64m2(h + i, vl);
-        __riscv_vse32_v_f32m1(hf + i, __riscv_vfncvt_f_f_w_f32m1(covariance_f64m2, vl), vl);
+    for (nk_size_t i = 0, vector_length; i < 9; i += vector_length) {
+        vector_length = __riscv_vsetvl_e64m2(9 - i);
+        vfloat64m2_t covariance_f64m2 = __riscv_vle64_v_f64m2(h + i, vector_length);
+        __riscv_vse32_v_f32m1(hf + i, __riscv_vfncvt_f_f_w_f32m1(covariance_f64m2, vector_length), vector_length);
     }
     nk_f32_t svd_u[9], svd_s[9], svd_v[9];
     nk_svd3x3_f32_(hf, svd_u, svd_s, svd_v);
