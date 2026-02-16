@@ -528,6 +528,16 @@ SIMSIMD_PUBLIC simsimd_capability_t _simsimd_capabilities_arm(void) {
     unsigned supports_integer_dot_products = !!(hwcap & HWCAP_ASIMDDP);
     unsigned supports_sve = !!(hwcap & HWCAP_SVE);
 
+    // On CPUs where SVE vector length equals NEON's 128 bits, SVE base kernels (sve_k,
+    // sve_f16_k, sve_bf16_k, sve_i8_k) add predication overhead with no width benefit.
+    // Suppress them so SimSIMD dispatches the faster NEON equivalents instead.
+    // SVE2/SVE2P1 are kept — they have unique instructions (histogram, match) with no NEON equivalent.
+    unsigned sve_vl_bytes = 0;
+    if (supports_sve) {
+        __asm__ __volatile__("rdvl %0, #1" : "=r"(sve_vl_bytes));
+    }
+    unsigned sve_wider_than_neon = (sve_vl_bytes > 16);
+
 #ifdef HWCAP2_BF16
     unsigned supports_bf16 = !!(hwcap2 & HWCAP2_BF16);
 #else
@@ -557,10 +567,10 @@ SIMSIMD_PUBLIC simsimd_capability_t _simsimd_capabilities_arm(void) {
         (simsimd_cap_neon_f16_k * (supports_neon && supports_fp16)) |                                 //
         (simsimd_cap_neon_bf16_k * (supports_neon && supports_bf16)) |                                //
         (simsimd_cap_neon_i8_k * (supports_neon && supports_i8mm && supports_integer_dot_products)) | //
-        (simsimd_cap_sve_k * (supports_sve)) |                                                        //
-        (simsimd_cap_sve_f16_k * (supports_sve && supports_fp16)) |                                   //
-        (simsimd_cap_sve_bf16_k * (supports_sve_bf16)) |                                              //
-        (simsimd_cap_sve_i8_k * (supports_sve_i8mm)) |                                                //
+        (simsimd_cap_sve_k * (supports_sve && sve_wider_than_neon)) |                                   //
+        (simsimd_cap_sve_f16_k * (supports_sve && sve_wider_than_neon && supports_fp16)) |            //
+        (simsimd_cap_sve_bf16_k * (supports_sve_bf16 && sve_wider_than_neon)) |                       //
+        (simsimd_cap_sve_i8_k * (supports_sve_i8mm && sve_wider_than_neon)) |                         //
         (simsimd_cap_sve2_k * (supports_sve2)) |                                                      //
         (simsimd_cap_sve2p1_k * (supports_sve2p1)) |                                                  //
         (simsimd_cap_serial_k));
