@@ -53,6 +53,15 @@ extern "C" {
  *  - f32 load predicates: b32 (f32 input granularity)
  *  - 4-tile path: ZA0-ZA3 process 4 column tiles simultaneously
  *  - Output: f64 results converted back to f32 via svcvt_f32_f64
+ *
+ *  Non-widening alternative (FEAT_SME_F32F32, `svmopa_za32_f32_m`): ZA32 tiles are 16×16
+ *  (4× area vs ZA64 8×8) with no f32↔f64 conversion, offering ~3-4× raw throughput. However,
+ *  ZA32 and ZA64 tiles alias physically (ZA0.S overlaps ZA0.D+ZA1.D), so a periodic flush to
+ *  f64 stack accumulators would be needed for precision above f32 — erasing most speedup.
+ *  Pure f32 accumulation (no flush) provides only f32 precision, which is already served by
+ *  the f16 → f32 GEMM path for reduced-precision workloads. This f64 path exists specifically
+ *  for higher-than-f32 accumulation precision; replacing it with f32 FMOPA would be
+ *  counterproductive. Apple M4 has `hw.optional.arm.SME_F32F32: 1` but we don't use it here.
  */
 #pragma region Single Precision Floats
 

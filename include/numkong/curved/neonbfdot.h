@@ -133,6 +133,8 @@ NK_PUBLIC void nk_mahalanobis_bf16_neonbfdot(nk_bf16_t const *a, nk_bf16_t const
 
 NK_PUBLIC void nk_bilinear_bf16c_neonbfdot(nk_bf16c_t const *a_pairs, nk_bf16c_t const *b_pairs,
                                            nk_bf16c_t const *c_pairs, nk_size_t n, nk_f32c_t *result) {
+    // ARMv8.3-A FCMLA was benchmarked for this complex multiply pattern.
+    // The deinterleave+4FMA approach is 2.3x faster on Apple M4 — see `dot/neon.h` comment.
     nk_f32_t outer_sum_real = 0;
     nk_f32_t outer_sum_imag = 0;
 

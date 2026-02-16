@@ -130,6 +130,8 @@ NK_PUBLIC void nk_mahalanobis_f32_neon(nk_f32_t const *a, nk_f32_t const *b, nk_
 
 NK_PUBLIC void nk_bilinear_f32c_neon(nk_f32c_t const *a_pairs, nk_f32c_t const *b_pairs, nk_f32c_t const *c_pairs,
                                      nk_size_t n, nk_f32c_t *results) {
+    // ARMv8.3-A FCMLA (`vcmlaq_f32`) was benchmarked for this complex inner loop.
+    // The deinterleave+4FMA pattern is 2.3x faster on Apple M4 — see `dot/neon.h` comment.
     nk_f64_t outer_sum_real_f64 = 0;
     nk_f64_t outer_sum_imag_f64 = 0;
 

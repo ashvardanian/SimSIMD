@@ -125,6 +125,12 @@ NK_PUBLIC void nk_dot_f32c_neon(nk_f32c_t const *a_pairs, nk_f32c_t const *b_pai
     float64x2_t sum_real_f64x2 = vdupq_n_f64(0);
     float64x2_t sum_imag_f64x2 = vdupq_n_f64(0);
     nk_size_t idx_pairs = 0;
+    // ARMv8.3-A FCMLA (`vcmlaq_rot0/rot90_f32`) was benchmarked as an alternative to the
+    // deinterleave+4FMA pattern below. FCMLA processes only 2 complex pairs per iteration
+    // (interleaved 128-bit operands, 2x `vcmlaq`), while `vld2_f32` deinterleaves 2 pairs
+    // with 4 independent FMA instructions that fully utilize M4's 4 SIMD pipes. Result on
+    // Apple M4 at n=4096: manual f32 39.7 GiB/s, FCMLA 17.1 GiB/s (2.3x slower).
+    // The f64 upcast here trades throughput for precision — FCMLA offers neither advantage.
     for (; idx_pairs + 2 <= count_pairs; idx_pairs += 2) {
         // Unpack 2 complex pairs into real and imaginary parts:
         float32x2x2_t a_f32x2x2 = vld2_f32((nk_f32_t const *)(a_pairs + idx_pairs));

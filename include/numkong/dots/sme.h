@@ -2863,8 +2863,15 @@ NK_PUBLIC void nk_dots_symmetric_e2m3_sme(nk_e2m3_t const *vectors, nk_size_t n_
  *  Pipeline: e3m2 bytes → extract sign/exp/mant → rebuild f16 → FMOPA → f32
  *  - Same tile layout as e5m2 (both convert to f16 before FMOPA)
  *  - E3M2 has 3-bit exponent (bias=3), 2-bit mantissa; requires rebiasing to f16
- *  - Handles subnormals (exp=0, mant!=0) via integer→float conversion + scaling
+ *  - Handles subnormals (exp=0, mant!=0) via integer → float conversion + scaling
  *  - No infinity or NaN in E3M2FN format
+ *
+ *  SME I16I32 alternative - the `svmopa_za32_s16_m` (SMOPA 2-way i16×i16 → i32) was considered for
+ *  e3m2 GEMM via an integer LUT (e3m2 → i16, max magnitude 448). Same ZA32 tile geometry (16×16)
+ *  and same 2-way expansion as the f16 → f32 path used here — no throughput benefit. Worse, i32
+ *  accumulation overflows at depth ~10,698 elements (max product per MOPA = 2 × 448² = 401,408,
+ *  i32 max = 2,147,483,647). The f16 → f32 path has no such depth constraint (f32 range ~3.4e38).
+ *  Apple M4 has `hw.optional.arm.SME_I16I32: 1` but the feature offers no advantage here.
  */
 #pragma region Quarter Precision E3M2
 
