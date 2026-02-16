@@ -5,8 +5,10 @@
  *  @date December 28, 2025
  */
 
+#if defined(_WIN32)
 #include <regex>
-#if !defined(_WIN32)
+#else
+#include <regex.h>
 #include <unistd.h>
 #endif
 
@@ -51,6 +53,7 @@ std::size_t global_failure_count = 0;
 
 bool test_config_t::should_run(char const *test_name) const {
     if (!filter) return true;
+#if defined(_WIN32)
     try {
         std::regex pattern(filter);
         return std::regex_search(test_name, pattern);
@@ -58,6 +61,14 @@ bool test_config_t::should_run(char const *test_name) const {
     catch (std::regex_error const &) {
         return std::strstr(test_name, filter) != nullptr;
     }
+#else
+    regex_t pattern;
+    int rc = regcomp(&pattern, filter, REG_EXTENDED | REG_NOSUB);
+    if (rc != 0) return std::strstr(test_name, filter) != nullptr;
+    rc = regexec(&pattern, test_name, 0, nullptr, 0);
+    regfree(&pattern);
+    return rc == 0;
+#endif
 }
 
 /**
