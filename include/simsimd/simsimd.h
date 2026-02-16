@@ -118,15 +118,11 @@
 #include <sys/sysctl.h> // `sysctlbyname`
 #endif
 
-// Detect POSIX extensions availability for signal handling.
-// POSIX extensions provide `sigaction`, `sigjmp_buf`, and `sigsetjmp` for safe signal handling.
-// These are needed on Linux ARM for safely testing `mrs` instruction availability.
-#if defined(_SIMSIMD_DEFINED_LINUX) && defined(_POSIX_VERSION)
-#include <setjmp.h> // `sigjmp_buf`, `sigsetjmp`, `siglongjmp`
-#include <signal.h> // `sigaction`, `SIGILL`
-#define _SIMSIMD_HAS_POSIX_EXTENSIONS 1
-#else
-#define _SIMSIMD_HAS_POSIX_EXTENSIONS 0
+// On Linux, `getauxval` provides hardware capability detection without requiring
+// POSIX signal handling or elevated privileges. Available since glibc 2.16.
+#if defined(_SIMSIMD_DEFINED_LINUX) && _SIMSIMD_TARGET_ARM
+#include <sys/auxv.h>  // `getauxval`, `AT_HWCAP`, `AT_HWCAP2`
+#include <asm/hwcap.h> // `HWCAP_*`, `HWCAP2_*`
 #endif
 
 // On Windows ARM, we use IsProcessorFeaturePresent API for capability detection
@@ -464,22 +460,12 @@ SIMSIMD_PUBLIC simsimd_capability_t _simsimd_capabilities_x86(void) {
 
 #if _SIMSIMD_TARGET_ARM
 
-/*  Compiling the next section one may get: selected processor does not support system register name 'id_aa64zfr0_el1'.
- *  Suppressing assembler errors is very complicated, so when dealing with older ARM CPUs it's simpler to compile this
- *  function targeting newer ones.
+/*  Target a newer ARM architecture so the assembler recognizes system register names like 'fpcr'
+ *  used in `_simsimd_flush_denormals_arm`.
  */
 #pragma GCC push_options
 #pragma GCC target("arch=armv8.5-a+sve")
 #pragma clang attribute push(__attribute__((target("arch=armv8.5-a+sve"))), apply_to = function)
-
-#if _SIMSIMD_HAS_POSIX_EXTENSIONS
-/** @brief SIGILL handler for `mrs` instruction testing on Linux ARM */
-static sigjmp_buf _simsimd_mrs_test_jump_buffer;
-static void _simsimd_mrs_test_sigill_handler(int sig) {
-    (void)sig; // Unused parameter
-    siglongjmp(_simsimd_mrs_test_jump_buffer, 1);
-}
-#endif
 
 /**
  *  @brief  Function to flush denormalized numbers to zero on Arm CPUs.
@@ -531,80 +517,40 @@ SIMSIMD_PUBLIC simsimd_capability_t _simsimd_capabilities_arm(void) {
 
 #elif defined(_SIMSIMD_DEFINED_LINUX)
 
-    // Depending on the environment, reading system registers may cause SIGILL.
-    // One option to avoid the crash is to use `getauxval(AT_HWCAP)` and `getauxval(AT_HWCAP2)`,
-    // Linux APIs, but those aren't as informative as reading the registers directly.
-    // So before reading the ID registers, we set up a signal handler to catch SIGILL
-    // and probe one of the registers, reverting back to the old signal handler afterwards.
-    //
-    // This issue was originally observed in: https://github.com/ashvardanian/SimSIMD/issues/279
-#if _SIMSIMD_HAS_POSIX_EXTENSIONS
-    struct sigaction action_new, action_old;
-    action_new.sa_handler = _simsimd_mrs_test_sigill_handler;
-    sigemptyset(&action_new.sa_mask);
-    action_new.sa_flags = 0;
+    // Use `getauxval(AT_HWCAP)` to detect ARM capabilities. This works in any C standard
+    // mode (c99, c11, c23) without requiring POSIX signal handling or GNU extensions.
+    // Available since glibc 2.16 (2012).
+    unsigned long hwcap = getauxval(AT_HWCAP);
+    unsigned long hwcap2 = getauxval(AT_HWCAP2);
 
-    int mrs_works = 0;
-    if (sigaction(SIGILL, &action_new, &action_old) == 0) {
-        if (sigsetjmp(_simsimd_mrs_test_jump_buffer, 1) == 0) {
-            unsigned long midr_value;
-            __asm__ __volatile__("mrs %0, MIDR_EL1" : "=r"(midr_value));
-            mrs_works = 1;
-        }
-        sigaction(SIGILL, &action_old, NULL);
-    }
+    unsigned supports_neon = !!(hwcap & HWCAP_ASIMD);
+    unsigned supports_fp16 = !!(hwcap & HWCAP_ASIMDHP);
+    unsigned supports_integer_dot_products = !!(hwcap & HWCAP_ASIMDDP);
+    unsigned supports_sve = !!(hwcap & HWCAP_SVE);
 
-    // Early exit if `mrs` doesn't work - return conservative NEON-only capabilities
-    if (!mrs_works) return (simsimd_capability_t)(simsimd_cap_neon_k | simsimd_cap_serial_k);
-#else  // _SIMSIMD_HAS_POSIX_EXTENSIONS
-    // Without POSIX signal handlers, fall back to conservative NEON capabilities.
-    return (simsimd_capability_t)(simsimd_cap_neon_k | simsimd_cap_serial_k);
-#endif // _SIMSIMD_HAS_POSIX_EXTENSIONS
-
-    // Read CPUID registers directly
-    unsigned long id_aa64isar0_el1 = 0, id_aa64isar1_el1 = 0, id_aa64pfr0_el1 = 0, id_aa64zfr0_el1 = 0;
-
-    // Now let's unpack the status flags from ID_AA64ISAR0_EL1
-    // https://developer.arm.com/documentation/ddi0601/2024-03/AArch64-Registers/ID-AA64ISAR0-EL1--AArch64-Instruction-Set-Attribute-Register-0?lang=en
-    __asm__ __volatile__("mrs %0, ID_AA64ISAR0_EL1" : "=r"(id_aa64isar0_el1));
-    // DP, bits [47:44] of ID_AA64ISAR0_EL1
-    unsigned supports_integer_dot_products = ((id_aa64isar0_el1 >> 44) & 0xF) >= 1;
-    // Now let's unpack the status flags from ID_AA64ISAR1_EL1
-    // https://developer.arm.com/documentation/ddi0601/2024-03/AArch64-Registers/ID-AA64ISAR1-EL1--AArch64-Instruction-Set-Attribute-Register-1?lang=en
-    __asm__ __volatile__("mrs %0, ID_AA64ISAR1_EL1" : "=r"(id_aa64isar1_el1));
-    // I8MM, bits [55:52] of ID_AA64ISAR1_EL1
-    unsigned supports_i8mm = ((id_aa64isar1_el1 >> 52) & 0xF) >= 1;
-    // BF16, bits [47:44] of ID_AA64ISAR1_EL1
-    unsigned supports_bf16 = ((id_aa64isar1_el1 >> 44) & 0xF) >= 1;
-
-    // Now let's unpack the status flags from ID_AA64PFR0_EL1
-    // https://developer.arm.com/documentation/ddi0601/2024-03/AArch64-Registers/ID-AA64PFR0-EL1--AArch64-Processor-Feature-Register-0?lang=en
-    __asm__ __volatile__("mrs %0, ID_AA64PFR0_EL1" : "=r"(id_aa64pfr0_el1));
-    // SVE, bits [35:32] of ID_AA64PFR0_EL1
-    unsigned supports_sve = ((id_aa64pfr0_el1 >> 32) & 0xF) >= 1;
-    // AdvSIMD, bits [23:20] of ID_AA64PFR0_EL1 can be used to check for `fp16` support
-    //  - 0b0000: integers, single, double precision arithmetic
-    //  - 0b0001: includes support for half-precision floating-point arithmetic
-    //  - 0b1111: NEON is not supported?!
-    // That's a really weird way to encode lack of NEON support, but it's important to
-    // check in case we are running on R-profile CPUs.
-    unsigned supports_fp16 = ((id_aa64pfr0_el1 >> 20) & 0xF) == 0x1;
-    unsigned supports_neon = ((id_aa64pfr0_el1 >> 20) & 0xF) != 0xF;
-
-    // Now let's unpack the status flags from ID_AA64ZFR0_EL1
-    // https://developer.arm.com/documentation/ddi0601/2024-03/AArch64-Registers/ID-AA64ZFR0-EL1--SVE-Feature-ID-Register-0?lang=en
-    if (supports_sve) __asm__ __volatile__("mrs %0, ID_AA64ZFR0_EL1" : "=r"(id_aa64zfr0_el1));
-    // I8MM, bits [47:44] of ID_AA64ZFR0_EL1
-    unsigned supports_sve_i8mm = ((id_aa64zfr0_el1 >> 44) & 0xF) >= 1;
-    // BF16, bits [23:20] of ID_AA64ZFR0_EL1
-    unsigned supports_sve_bf16 = ((id_aa64zfr0_el1 >> 20) & 0xF) >= 1;
-    // SVEver, bits [3:0] can be used to check for capability levels:
-    //  - 0b0000: SVE is implemented
-    //  - 0b0001: SVE2 is implemented
-    //  - 0b0010: SVE2.1 is implemented
-    // This value must match the existing indicator obtained from ID_AA64PFR0_EL1:
-    unsigned supports_sve2 = ((id_aa64zfr0_el1) & 0xF) >= 1;
-    unsigned supports_sve2p1 = ((id_aa64zfr0_el1) & 0xF) >= 2;
+#ifdef HWCAP2_BF16
+    unsigned supports_bf16 = !!(hwcap2 & HWCAP2_BF16);
+#else
+    unsigned supports_bf16 = 0;
+#endif
+#ifdef HWCAP2_I8MM
+    unsigned supports_i8mm = !!(hwcap2 & HWCAP2_I8MM);
+#else
+    unsigned supports_i8mm = 0;
+#endif
+#ifdef HWCAP2_SVE2
+    unsigned supports_sve2 = !!(hwcap2 & HWCAP2_SVE2);
+#else
+    unsigned supports_sve2 = 0;
+#endif
+#ifdef HWCAP2_SVE2P1
+    unsigned supports_sve2p1 = !!(hwcap2 & HWCAP2_SVE2P1);
+#else
+    unsigned supports_sve2p1 = 0;
+#endif
+    // SVE-specific BF16/I8MM are implied by the base BF16/I8MM flags when SVE is present.
+    unsigned supports_sve_bf16 = supports_sve && supports_bf16;
+    unsigned supports_sve_i8mm = supports_sve && supports_i8mm;
 
     return (simsimd_capability_t)(                                                                    //
         (simsimd_cap_neon_k * (supports_neon)) |                                                      //
@@ -613,8 +559,8 @@ SIMSIMD_PUBLIC simsimd_capability_t _simsimd_capabilities_arm(void) {
         (simsimd_cap_neon_i8_k * (supports_neon && supports_i8mm && supports_integer_dot_products)) | //
         (simsimd_cap_sve_k * (supports_sve)) |                                                        //
         (simsimd_cap_sve_f16_k * (supports_sve && supports_fp16)) |                                   //
-        (simsimd_cap_sve_bf16_k * (supports_sve && supports_sve_bf16)) |                              //
-        (simsimd_cap_sve_i8_k * (supports_sve && supports_sve_i8mm)) |                                //
+        (simsimd_cap_sve_bf16_k * (supports_sve_bf16)) |                                              //
+        (simsimd_cap_sve_i8_k * (supports_sve_i8mm)) |                                                //
         (simsimd_cap_sve2_k * (supports_sve2)) |                                                      //
         (simsimd_cap_sve2p1_k * (supports_sve2p1)) |                                                  //
         (simsimd_cap_serial_k));
