@@ -815,6 +815,16 @@ static PyObject *implement_dense_metric( //
     }
     if (dtype == nk_dtype_unknown_k) dtype = a_parsed.dtype;
 
+    // When a dtype override reinterprets a buffer as a sub-byte packed type (e.g. uint8 → bin8),
+    // rescale dimensions from buffer-element count to logical-element count (bytes → bits).
+    {
+        nk_size_t to_bits = nk_dtype_bits(dtype);
+        if (to_bits && to_bits < NK_BITS_PER_BYTE) {
+            a_parsed.dimensions = a_parsed.dimensions * NK_BITS_PER_BYTE / to_bits;
+            b_parsed.dimensions = b_parsed.dimensions * NK_BITS_PER_BYTE / to_bits;
+        }
+    }
+
     // Inference order for the output type:
     // 1. `out_dtype` named argument, if defined
     // 2. `out.dtype` attribute, if `out` is passed
@@ -1322,6 +1332,16 @@ static PyObject *implement_cdist(                        //
         goto cleanup;
     }
     if (dtype == nk_dtype_unknown_k) dtype = a_parsed.dtype;
+
+    // When a dtype override reinterprets a buffer as a sub-byte packed type (e.g. uint8 → bin8),
+    // rescale dimensions from buffer-element count to logical-element count (bytes → bits).
+    {
+        nk_size_t to_bits = nk_dtype_bits(dtype);
+        if (to_bits && to_bits < NK_BITS_PER_BYTE) {
+            a_parsed.dimensions = a_parsed.dimensions * NK_BITS_PER_BYTE / to_bits;
+            b_parsed.dimensions = b_parsed.dimensions * NK_BITS_PER_BYTE / to_bits;
+        }
+    }
 
     // Inference order for the output type:
     // 1. `out_dtype` named argument, if defined
