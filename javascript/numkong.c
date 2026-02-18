@@ -11,12 +11,12 @@
 #include <string.h>          // `strcmp` function
 #include <node_api.h>        // `napi_*` functions
 
-/** @brief  Global variable that caches the CPU capabilities, and is computed just once, when the module is loaded. */
+/** @brief Global variable that caches the CPU capabilities, and is computed just once, when the module is loaded. */
 nk_capability_t static_capabilities = nk_cap_serial_k;
 
 #pragma region Helpers
 
-/** @brief  Parses a dtype string (e.g. "f32", "f16", "bf16") into a nk_dtype_t enum value. */
+/** @brief Parses a dtype string (e.g. "f32", "f16", "bf16") into a nk_dtype_t enum value. */
 static nk_dtype_t parse_dtype_string(const char *str) {
     if (strcmp(str, "f64") == 0) return nk_f64_k;
     else if (strcmp(str, "f32") == 0) return nk_f32_k;
@@ -28,11 +28,15 @@ static nk_dtype_t parse_dtype_string(const char *str) {
     else if (strcmp(str, "e3m2") == 0) return nk_e3m2_k;
     else if (strcmp(str, "i8") == 0) return nk_i8_k;
     else if (strcmp(str, "u8") == 0) return nk_u8_k;
+    else if (strcmp(str, "i16") == 0) return nk_i16_k;
+    else if (strcmp(str, "u16") == 0) return nk_u16_k;
+    else if (strcmp(str, "i64") == 0) return nk_i64_k;
+    else if (strcmp(str, "u64") == 0) return nk_u64_k;
     else if (strcmp(str, "u1") == 0) return nk_u1_k;
     return nk_dtype_unknown_k;
 }
 
-/** @brief  Validates that the N-API TypedArray type is compatible with the claimed dtype. */
+/** @brief Validates that the N-API TypedArray type is compatible with the claimed dtype. */
 static int is_compatible_napi_type(napi_typedarray_type napi_type, nk_dtype_t dtype) {
     switch (dtype) {
     case nk_f64_k: return napi_type == napi_float64_array;
@@ -46,31 +50,31 @@ static int is_compatible_napi_type(napi_typedarray_type napi_type, nk_dtype_t dt
     case nk_u8_k:
     case nk_u1_k: return napi_type == napi_uint8_array;
     case nk_i8_k: return napi_type == napi_int8_array;
+    case nk_i16_k: return napi_type == napi_int16_array;
+    case nk_u16_k: return napi_type == napi_uint16_array;
     default: return 0;
     }
 }
 
-/** @brief  Returns the output dtype for a given metric kind and input dtype. */
-static nk_dtype_t kernel_output_dtype(nk_kernel_kind_t kind, nk_dtype_t input) {
-    switch (kind) {
-    case nk_kernel_dot_k: return nk_dot_output_dtype(input);
-    case nk_kernel_angular_k: return nk_angular_output_dtype(input);
-    case nk_kernel_sqeuclidean_k: return nk_sqeuclidean_output_dtype(input);
-    case nk_kernel_euclidean_k: return nk_euclidean_output_dtype(input);
-    case nk_kernel_kld_k: return nk_probability_output_dtype(input);
-    case nk_kernel_jsd_k: return nk_probability_output_dtype(input);
-    default: return nk_dtype_unknown_k;
-    }
-}
-
 /**
- *  @brief  Converts an nk_scalar_buffer_t result to a JavaScript number.
- *  @param  env       N-API environment.
- *  @param  result    The scalar buffer containing the result.
- *  @param  out_dtype The dtype of the value stored in the buffer.
+ *  @brief Converts an nk_scalar_buffer_t result to a JavaScript number.
+ *  @param env N-API environment.
+ *  @param result The scalar buffer containing the result.
+ *  @param out_dtype The dtype of the value stored in the buffer.
  *  @return napi_value containing the result as a JavaScript Number, or NULL on error.
  */
 static napi_value scalar_to_js_number(napi_env env, nk_scalar_buffer_t const *result, nk_dtype_t out_dtype) {
+    // i64/u64 must return BigInt since they may exceed Number.MAX_SAFE_INTEGER
+    if (out_dtype == nk_i64_k) {
+        napi_value js_result;
+        if (napi_create_bigint_int64(env, result->i64, &js_result) != napi_ok) return NULL;
+        return js_result;
+    }
+    if (out_dtype == nk_u64_k) {
+        napi_value js_result;
+        if (napi_create_bigint_uint64(env, result->u64, &js_result) != napi_ok) return NULL;
+        return js_result;
+    }
     double result_f64;
     switch (out_dtype) {
     case nk_f64_k: result_f64 = (double)result->f64; break;
@@ -89,6 +93,8 @@ static napi_value scalar_to_js_number(napi_env env, nk_scalar_buffer_t const *re
     }
     case nk_i8_k: result_f64 = (double)result->i8; break;
     case nk_u8_k: result_f64 = (double)result->u8; break;
+    case nk_i16_k: result_f64 = (double)result->i16; break;
+    case nk_u16_k: result_f64 = (double)result->u16; break;
     case nk_i32_k: result_f64 = (double)result->i32; break;
     case nk_u32_k: result_f64 = (double)result->u32; break;
     default: napi_throw_error(env, NULL, "Unexpected output dtype in result conversion"); return NULL;
@@ -102,7 +108,7 @@ static napi_value scalar_to_js_number(napi_env env, nk_scalar_buffer_t const *re
 
 #pragma region Distance API
 
-/** @brief  Core distance computation — resolves dtype, dispatches kernel, converts result. */
+/** @brief Core distance computation — resolves dtype, dispatches kernel, converts result. */
 static napi_value dense(napi_env env, napi_callback_info info, nk_kernel_kind_t kernel_kind, nk_dtype_t dtype) {
     size_t argc = 3;
     napi_value args[3];
@@ -175,7 +181,7 @@ static napi_value dense(napi_env env, napi_callback_info info, nk_kernel_kind_t 
         return NULL;
     }
 
-    nk_dtype_t out_dtype = kernel_output_dtype(kernel_kind, dtype);
+    nk_dtype_t out_dtype = nk_kernel_output_dtype(kernel_kind, dtype);
     if (out_dtype == nk_dtype_unknown_k) {
         napi_throw_error(env, NULL, "Unsupported output dtype for given metric/input combination");
         return NULL;
@@ -187,33 +193,33 @@ static napi_value dense(napi_env env, napi_callback_info info, nk_kernel_kind_t 
     return scalar_to_js_number(env, &result, out_dtype);
 }
 
-/** @brief  N-API entry for inner product (dot).  */
+/** @brief N-API entry for inner product (dot).  */
 napi_value api_ip(napi_env env, napi_callback_info info) {
     return dense(env, info, nk_kernel_dot_k, nk_dtype_unknown_k);
 }
-/** @brief  N-API entry for angular distance.  */
+/** @brief N-API entry for angular distance.  */
 napi_value api_angular(napi_env env, napi_callback_info info) {
     return dense(env, info, nk_kernel_angular_k, nk_dtype_unknown_k);
 }
-/** @brief  N-API entry for squared Euclidean distance.  */
+/** @brief N-API entry for squared Euclidean distance.  */
 napi_value api_sqeuclidean(napi_env env, napi_callback_info info) {
     return dense(env, info, nk_kernel_sqeuclidean_k, nk_dtype_unknown_k);
 }
-/** @brief  N-API entry for Euclidean distance.  */
+/** @brief N-API entry for Euclidean distance.  */
 napi_value api_euclidean(napi_env env, napi_callback_info info) {
     return dense(env, info, nk_kernel_euclidean_k, nk_dtype_unknown_k);
 }
-/** @brief  N-API entry for Kullback-Leibler divergence.  */
+/** @brief N-API entry for Kullback-Leibler divergence.  */
 napi_value api_kld(napi_env env, napi_callback_info info) {
     return dense(env, info, nk_kernel_kld_k, nk_dtype_unknown_k);
 }
-/** @brief  N-API entry for Jensen-Shannon divergence.  */
+/** @brief N-API entry for Jensen-Shannon divergence.  */
 napi_value api_jsd(napi_env env, napi_callback_info info) {
     return dense(env, info, nk_kernel_jsd_k, nk_dtype_unknown_k);
 }
-/** @brief  N-API entry for Hamming distance.  */
+/** @brief N-API entry for Hamming distance.  */
 napi_value api_hamming(napi_env env, napi_callback_info info) { return dense(env, info, nk_kernel_hamming_k, nk_u1_k); }
-/** @brief  N-API entry for Jaccard distance.  */
+/** @brief N-API entry for Jaccard distance.  */
 napi_value api_jaccard(napi_env env, napi_callback_info info) { return dense(env, info, nk_kernel_jaccard_k, nk_u1_k); }
 
 #pragma endregion Distance API
@@ -221,7 +227,7 @@ napi_value api_jaccard(napi_env env, napi_callback_info info) { return dense(env
 #pragma region Capabilities API
 
 /**
- *  @brief  Returns the runtime-detected SIMD capabilities as a bitmask.
+ *  @brief Returns the runtime-detected SIMD capabilities as a bitmask.
  *  @return BigInt bitmask of nk_capability_t flags (33 flags from NEON to SME2P1)
  *
  *  This function exposes the cached capability bitmask to JavaScript users,
@@ -239,7 +245,7 @@ napi_value api_get_capabilities(napi_env env, napi_callback_info info) {
 
 #pragma region Cast API
 
-/** @brief  Converts a single value from a narrow type to f32. Reads uint32 bits, returns double. */
+/** @brief Converts a single value from a narrow type to f32. Reads uint32 bits, returns double. */
 static napi_value cast_to_f32(napi_env env, napi_callback_info info, nk_dtype_t src_dtype) {
     size_t argc = 1;
     napi_value args[1];
@@ -263,7 +269,7 @@ static napi_value cast_to_f32(napi_env env, napi_callback_info info, nk_dtype_t 
     return result;
 }
 
-/** @brief  Converts a single f32 value to a narrow type. Reads double, returns uint32 bits. */
+/** @brief Converts a single f32 value to a narrow type. Reads double, returns uint32 bits. */
 static napi_value cast_from_f32(napi_env env, napi_callback_info info, nk_dtype_t dst_dtype) {
     size_t argc = 1;
     napi_value args[1];
@@ -288,22 +294,22 @@ static napi_value cast_from_f32(napi_env env, napi_callback_info info, nk_dtype_
     return result;
 }
 
-/** @brief  N-API entry for scalar f16-to-f32 conversion.  */
-napi_value api_cast_f16_to_f32(napi_env e, napi_callback_info i) { return cast_to_f32(e, i, nk_f16_k); }
-/** @brief  N-API entry for scalar f32-to-f16 conversion.  */
-napi_value api_cast_f32_to_f16(napi_env e, napi_callback_info i) { return cast_from_f32(e, i, nk_f16_k); }
-/** @brief  N-API entry for scalar bf16-to-f32 conversion.  */
-napi_value api_cast_bf16_to_f32(napi_env e, napi_callback_info i) { return cast_to_f32(e, i, nk_bf16_k); }
-/** @brief  N-API entry for scalar f32-to-bf16 conversion.  */
-napi_value api_cast_f32_to_bf16(napi_env e, napi_callback_info i) { return cast_from_f32(e, i, nk_bf16_k); }
-/** @brief  N-API entry for scalar e4m3-to-f32 conversion.  */
-napi_value api_cast_e4m3_to_f32(napi_env e, napi_callback_info i) { return cast_to_f32(e, i, nk_e4m3_k); }
-/** @brief  N-API entry for scalar f32-to-e4m3 conversion.  */
-napi_value api_cast_f32_to_e4m3(napi_env e, napi_callback_info i) { return cast_from_f32(e, i, nk_e4m3_k); }
-/** @brief  N-API entry for scalar e5m2-to-f32 conversion.  */
-napi_value api_cast_e5m2_to_f32(napi_env e, napi_callback_info i) { return cast_to_f32(e, i, nk_e5m2_k); }
-/** @brief  N-API entry for scalar f32-to-e5m2 conversion.  */
-napi_value api_cast_f32_to_e5m2(napi_env e, napi_callback_info i) { return cast_from_f32(e, i, nk_e5m2_k); }
+/** @brief N-API entry for scalar f16-to-f32 conversion.  */
+napi_value api_cast_f16_to_f32(napi_env env, napi_callback_info info) { return cast_to_f32(env, info, nk_f16_k); }
+/** @brief N-API entry for scalar f32-to-f16 conversion.  */
+napi_value api_cast_f32_to_f16(napi_env env, napi_callback_info info) { return cast_from_f32(env, info, nk_f16_k); }
+/** @brief N-API entry for scalar bf16-to-f32 conversion.  */
+napi_value api_cast_bf16_to_f32(napi_env env, napi_callback_info info) { return cast_to_f32(env, info, nk_bf16_k); }
+/** @brief N-API entry for scalar f32-to-bf16 conversion.  */
+napi_value api_cast_f32_to_bf16(napi_env env, napi_callback_info info) { return cast_from_f32(env, info, nk_bf16_k); }
+/** @brief N-API entry for scalar e4m3-to-f32 conversion.  */
+napi_value api_cast_e4m3_to_f32(napi_env env, napi_callback_info info) { return cast_to_f32(env, info, nk_e4m3_k); }
+/** @brief N-API entry for scalar f32-to-e4m3 conversion.  */
+napi_value api_cast_f32_to_e4m3(napi_env env, napi_callback_info info) { return cast_from_f32(env, info, nk_e4m3_k); }
+/** @brief N-API entry for scalar e5m2-to-f32 conversion.  */
+napi_value api_cast_e5m2_to_f32(napi_env env, napi_callback_info info) { return cast_to_f32(env, info, nk_e5m2_k); }
+/** @brief N-API entry for scalar f32-to-e5m2 conversion.  */
+napi_value api_cast_f32_to_e5m2(napi_env env, napi_callback_info info) { return cast_from_f32(env, info, nk_e5m2_k); }
 
 /**
  *  @brief Buffer casting function using nk_cast.
@@ -358,7 +364,7 @@ napi_value api_cast(napi_env env, napi_callback_info info) {
 
 #pragma region Module Init
 
-/** @brief  Registers a C function as a named JavaScript export. */
+/** @brief Registers a C function as a named JavaScript export. */
 static napi_status export_function(napi_env env, napi_value exports, char const *name, napi_callback func) {
     napi_value fn;
     napi_status status = napi_create_function(env, name, NAPI_AUTO_LENGTH, func, NULL, &fn);
@@ -366,7 +372,7 @@ static napi_status export_function(napi_env env, napi_value exports, char const 
     return napi_set_named_property(env, exports, name, fn);
 }
 
-/** @brief  Module initialization — exports all functions, detects CPU capabilities.  */
+/** @brief Module initialization — exports all functions, detects CPU capabilities.  */
 napi_value Init(napi_env env, napi_value exports) {
     if (export_function(env, exports, "dot", api_ip) != napi_ok ||
         export_function(env, exports, "inner", api_ip) != napi_ok ||
