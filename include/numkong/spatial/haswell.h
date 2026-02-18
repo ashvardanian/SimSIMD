@@ -261,26 +261,57 @@ nk_angular_bf16_haswell_cycle:
 #pragma region - Small Integers
 
 NK_PUBLIC void nk_sqeuclidean_i8_haswell(nk_i8_t const *a, nk_i8_t const *b, nk_size_t n, nk_u32_t *result) {
+    // Optimized i8 L2-squared using saturating subtract + VPMADDWD
+    //
+    // Approach:
+    //   - XOR with 0x80 to reinterpret signed i8 as unsigned u8
+    //   - Compute |a-b| using unsigned saturating subtraction: diff = (a ⊖ b) | (b ⊖ a)
+    //   - Zero-extend u8→u16 using unpacking (1cy latency @ p5)
+    //   - Square using vpmaddwd on u16 values (32 elements/iteration)
+    //
+    // The XOR bias is needed because subs_epu8 (unsigned) saturates to 0 when the result
+    // would be negative, so OR-ing both directions gives the true |a-b|.
+    // A naive subs_epi8 (signed) would saturate to -128, corrupting the OR trick.
+    //
+    // Correctness: For squared distance, |a-b|² = (a-b)², so unsigned absolute differences are valid.
+    //              The XOR preserves distances: |a-b| = |(a^0x80) - (b^0x80)|.
+    //
+    __m256i distance_sq_low_i32x8 = _mm256_setzero_si256();
+    __m256i distance_sq_high_i32x8 = _mm256_setzero_si256();
+    __m256i const zeros_i8x32 = _mm256_setzero_si256();
+    __m256i const bias_i8x32 = _mm256_set1_epi8((char)0x80);
+    __m256i diff_low_i16x16, diff_high_i16x16;
+    __m256i a_i8x32, b_i8x32, diff_u8x32;
 
-    __m256i distance_sq_i32x8 = _mm256_setzero_si256();
-
-    // Process 16 elements per iteration with direct 128-bit loads (no extract needed)
+    // Process 32 elements per iteration with 256-bit loads
     nk_size_t i = 0;
-    for (; i + 16 <= n; i += 16) {
-        __m128i a_i8x16 = _mm_loadu_si128((__m128i const *)(a + i));
-        __m128i b_i8x16 = _mm_loadu_si128((__m128i const *)(b + i));
+    for (; i + 32 <= n; i += 32) {
+        a_i8x32 = _mm256_loadu_si256((__m256i const *)(a + i));
+        b_i8x32 = _mm256_loadu_si256((__m256i const *)(b + i));
 
-        // Sign extend i8 → i16 directly (128-bit → 256-bit, no port 5 pressure)
-        __m256i a_i16x16 = _mm256_cvtepi8_epi16(a_i8x16);
-        __m256i b_i16x16 = _mm256_cvtepi8_epi16(b_i8x16);
+        // Reinterpret signed i8 as unsigned u8 by flipping the sign bit
+        a_i8x32 = _mm256_xor_si256(a_i8x32, bias_i8x32);
+        b_i8x32 = _mm256_xor_si256(b_i8x32, bias_i8x32);
 
-        // Subtract and square
-        __m256i diff_i16x16 = _mm256_sub_epi16(a_i16x16, b_i16x16);
-        distance_sq_i32x8 = _mm256_add_epi32(distance_sq_i32x8, _mm256_madd_epi16(diff_i16x16, diff_i16x16));
+        // Compute |a-b| using unsigned saturating subtraction
+        // subs_epu8 saturates to 0 if result would be negative
+        // OR-ing both directions gives absolute difference as unsigned
+        diff_u8x32 = _mm256_or_si256(_mm256_subs_epu8(a_i8x32, b_i8x32), _mm256_subs_epu8(b_i8x32, a_i8x32));
+
+        // Zero-extend to i16 using unpack (1cy @ p5, much faster than cvtepi8_epi16)
+        diff_low_i16x16 = _mm256_unpacklo_epi8(diff_u8x32, zeros_i8x32);
+        diff_high_i16x16 = _mm256_unpackhi_epi8(diff_u8x32, zeros_i8x32);
+
+        // Multiply and accumulate at i16 level, accumulate at i32 level
+        distance_sq_low_i32x8 = _mm256_add_epi32(distance_sq_low_i32x8,
+                                                 _mm256_madd_epi16(diff_low_i16x16, diff_low_i16x16));
+        distance_sq_high_i32x8 = _mm256_add_epi32(distance_sq_high_i32x8,
+                                                  _mm256_madd_epi16(diff_high_i16x16, diff_high_i16x16));
     }
 
     // Reduce to scalar
-    nk_i32_t distance_sq_i32 = nk_reduce_add_i32x8_haswell_(distance_sq_i32x8);
+    nk_i32_t distance_sq_i32 = nk_reduce_add_i32x8_haswell_(
+        _mm256_add_epi32(distance_sq_low_i32x8, distance_sq_high_i32x8));
 
     // Take care of the tail:
     for (; i < n; ++i) {
