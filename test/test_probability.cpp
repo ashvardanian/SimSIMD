@@ -13,7 +13,7 @@
  *  KLD requires probability distributions: all values > 0, sum to 1.
  */
 template <typename scalar_type_>
-error_stats_t test_kld(typename scalar_type_::kld_kernel_t kernel) {
+error_stats_t test_kld(typename scalar_type_::probability_kernel_t kernel) {
     using scalar_t = scalar_type_;
     using raw_t = typename scalar_t::raw_t;
     using result_t = typename scalar_t::probability_result_t;
@@ -43,7 +43,7 @@ error_stats_t test_kld(typename scalar_type_::kld_kernel_t kernel) {
  *  JSD requires probability distributions: all values > 0, sum to 1.
  */
 template <typename scalar_type_>
-error_stats_t test_jsd(typename scalar_type_::jsd_kernel_t kernel) {
+error_stats_t test_jsd(typename scalar_type_::probability_kernel_t kernel) {
     using scalar_t = scalar_type_;
     using raw_t = typename scalar_t::raw_t;
     using result_t = typename scalar_t::probability_result_t;

@@ -1413,8 +1413,8 @@ def test_dot_complex(ndim, dtype, capability, stats_fixture):
 @pytest.mark.parametrize("capability", possible_capabilities)
 def test_dot_complex_explicit(ndim, capability):
     """Compares the nk.dot() and nk.vdot() against NumPy for complex numbers."""
-    a = np.random.randn(ndim).astype(dtype=np.float32)
-    b = np.random.randn(ndim).astype(dtype=np.float32)
+    a = np.random.randn(ndim * 2).astype(dtype=np.float32)
+    b = np.random.randn(ndim * 2).astype(dtype=np.float32)
 
     keep_one_capability(capability)
     expected = np.dot(a.view(np.complex64), b.view(np.complex64))

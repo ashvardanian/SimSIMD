@@ -459,7 +459,22 @@ int kernel_is_commutative(nk_kernel_kind_t kind) {
 
 #pragma region Buffer Protocol Helpers
 
-int is_scalar(PyObject *obj) { return PyFloat_Check(obj) || PyLong_Check(obj); }
+int is_scalar(PyObject *obj) {
+    if (PyFloat_Check(obj) || PyLong_Check(obj)) return 1;
+    // Check for NumPy scalar types (0D arrays or numpy.generic subclasses)
+    if (PyNumber_Check(obj)) {
+        // 0D numpy arrays and numpy scalars (e.g. np.int8(-11)) support the buffer protocol
+        // but have ndim == 0. Check if the object has ndim attribute == 0.
+        PyObject *ndim_obj = PyObject_GetAttrString(obj, "ndim");
+        if (ndim_obj) {
+            long ndim = PyLong_AsLong(ndim_obj);
+            Py_DECREF(ndim_obj);
+            if (ndim == 0) return 1;
+        }
+        else { PyErr_Clear(); }
+    }
+    return 0;
+}
 
 int get_scalar_value(PyObject *obj, double *value) {
     if (PyFloat_Check(obj)) {
@@ -470,6 +485,14 @@ int get_scalar_value(PyObject *obj, double *value) {
         *value = PyLong_AsDouble(obj);
         return !PyErr_Occurred();
     }
+    // Handle NumPy scalars and 0D arrays via PyNumber_Float
+    PyObject *as_float = PyNumber_Float(obj);
+    if (as_float) {
+        *value = PyFloat_AsDouble(as_float);
+        Py_DECREF(as_float);
+        return !PyErr_Occurred();
+    }
+    PyErr_Clear();
     return 0;
 }
 
@@ -515,6 +538,192 @@ int parse_tensor(PyObject *tensor, Py_buffer *buffer, TensorArgument *parsed) {
     }
 
     return 1;
+}
+
+/**
+ *  @brief Compute the number of contiguous elements from the innermost dimension outward.
+ *
+ *  Walks the strides of a `Py_buffer` from the last dimension toward the first,
+ *  merging dimensions whose strides are tightly packed. Returns the number of
+ *  elements in the longest contiguous inner slice.
+ *
+ *  For a fully C-contiguous buffer this equals the total element count.
+ *  For a strided 2D view like `a[::2, :]` it equals the column count.
+ */
+static size_t contiguous_inner_elements(Py_buffer const *buffer) {
+    if (buffer->ndim == 0) return 1;
+    size_t contiguous_elements = 1;
+    Py_ssize_t expected_stride = buffer->itemsize;
+    for (int dimension = buffer->ndim - 1; dimension >= 0; --dimension) {
+        if (buffer->strides[dimension] != expected_stride) break;
+        contiguous_elements *= (size_t)buffer->shape[dimension];
+        expected_stride = buffer->strides[dimension] * buffer->shape[dimension];
+    }
+    return contiguous_elements;
+}
+
+/**
+ *  @brief Validate that two buffers have identical shapes (element-wise compatibility).
+ *  @return 1 if shapes match, 0 otherwise (with Python exception set).
+ */
+static int buffers_shapes_match(Py_buffer const *first, Py_buffer const *second) {
+    if (first->ndim != second->ndim) {
+        PyErr_SetString(PyExc_ValueError, "Input tensor ranks don't match");
+        return 0;
+    }
+    for (int dimension = 0; dimension < first->ndim; ++dimension) {
+        if (first->shape[dimension] != second->shape[dimension]) {
+            PyErr_SetString(PyExc_ValueError, "Input tensor shapes don't match");
+            return 0;
+        }
+    }
+    return 1;
+}
+
+/**
+ *  @brief Compute the number of trailing contiguous dimensions shared across
+ *         multiple buffers.
+ *
+ *  Starting from the innermost dimension, checks that all buffers have packed
+ *  strides. Stops at the first dimension where any buffer is non-contiguous.
+ */
+static int shared_contiguous_tail_dimensions(Py_buffer const *buffers[], int num_buffers, int num_dims) {
+    int num_contiguous_dims = 0;
+    for (int dimension = num_dims - 1; dimension >= 0; --dimension) {
+        // Compute the expected stride for this dimension if it were packed
+        int all_packed = 1;
+        for (int buffer_idx = 0; buffer_idx < num_buffers; ++buffer_idx) {
+            Py_ssize_t expected_stride = buffers[buffer_idx]->itemsize;
+            for (int inner_dim = num_dims - 1; inner_dim > dimension; --inner_dim)
+                expected_stride *= buffers[buffer_idx]->shape[inner_dim];
+            if (buffers[buffer_idx]->strides[dimension] != expected_stride) {
+                all_packed = 0;
+                break;
+            }
+        }
+        if (!all_packed) break;
+        ++num_contiguous_dims;
+    }
+    return num_contiguous_dims;
+}
+
+/**
+ *  @brief Recursively apply a binary elementwise kernel to N-D tensors.
+ *
+ *  Descends through outer (non-contiguous) dimensions and calls the kernel on
+ *  the longest contiguous inner slices, minimizing the number of kernel invocations.
+ *
+ *  @param kernel               The elementwise kernel: `void (*)(void const *, void const *, size_t, void *)`.
+ *  @param a_data               Pointer into input tensor A at the current outer position.
+ *  @param b_data               Pointer into input tensor B at the current outer position.
+ *  @param result_data          Pointer into the result tensor at the current outer position.
+ *  @param shape                Shape array (borrowed from Py_buffer).
+ *  @param a_strides            Stride array for A in bytes.
+ *  @param b_strides            Stride array for B in bytes.
+ *  @param result_strides       Stride array for result in bytes.
+ *  @param remaining_dims       Number of dimensions still to traverse.
+ *  @param contiguous_tail_dims Number of trailing dimensions that are contiguous across
+ *                              all three tensors (precomputed).
+ */
+static void each_sum_recursive(                                    //
+    nk_each_sum_punned_t kernel,                                   //
+    char const *a_data, char const *b_data, char *result_data,     //
+    Py_ssize_t const *shape, Py_ssize_t const *a_strides,          //
+    Py_ssize_t const *b_strides, Py_ssize_t const *result_strides, //
+    int remaining_dims, int contiguous_tail_dims) {
+
+    // Base case: all remaining dimensions are contiguous — one kernel call
+    if (remaining_dims <= contiguous_tail_dims) {
+        size_t contiguous_elements = 1;
+        for (int dimension = 0; dimension < remaining_dims; ++dimension)
+            contiguous_elements *= (size_t)shape[dimension];
+        kernel(a_data, b_data, contiguous_elements, result_data);
+        return;
+    }
+
+    // Iterate over the outermost non-contiguous dimension, then recurse
+    size_t const dim_extent = (size_t)shape[0];
+    for (size_t position = 0; position < dim_extent; ++position) {
+        each_sum_recursive(kernel,                                     //
+                           a_data + position * a_strides[0],           //
+                           b_data + position * b_strides[0],           //
+                           result_data + position * result_strides[0], //
+                           shape + 1, a_strides + 1,                   //
+                           b_strides + 1, result_strides + 1,          //
+                           remaining_dims - 1, contiguous_tail_dims);
+    }
+}
+
+/**
+ *  @brief Recursively apply a unary elementwise scale kernel to an N-D tensor.
+ *
+ *  Same pattern as @ref each_sum_recursive but for scale:
+ *  `void (*)(void const *, size_t, void const *, void const *, void *)`.
+ */
+static void each_scale_recursive(                                    //
+    nk_each_scale_punned_t kernel,                                   //
+    char const *a_data, char *result_data,                           //
+    nk_scalar_buffer_t const *alpha, nk_scalar_buffer_t const *beta, //
+    Py_ssize_t const *shape, Py_ssize_t const *a_strides,            //
+    Py_ssize_t const *result_strides,                                //
+    int remaining_dims, int contiguous_tail_dims) {
+
+    if (remaining_dims <= contiguous_tail_dims) {
+        size_t contiguous_elements = 1;
+        for (int dimension = 0; dimension < remaining_dims; ++dimension)
+            contiguous_elements *= (size_t)shape[dimension];
+        kernel(a_data, contiguous_elements, alpha, beta, result_data);
+        return;
+    }
+
+    size_t const dim_extent = (size_t)shape[0];
+    for (size_t position = 0; position < dim_extent; ++position) {
+        each_scale_recursive(kernel,                                     //
+                             a_data + position * a_strides[0],           //
+                             result_data + position * result_strides[0], //
+                             alpha, beta,                                //
+                             shape + 1, a_strides + 1,                   //
+                             result_strides + 1,                         //
+                             remaining_dims - 1, contiguous_tail_dims);
+    }
+}
+
+/**
+ *  @brief Recursively apply a ternary fused-multiply-add kernel to N-D tensors.
+ *
+ *  Same pattern as @ref each_sum_recursive but for fma:
+ *  `void (*)(void const *a, void const *b, void const *c, size_t n, void const *alpha, void const *beta, void *y)`.
+ */
+static void each_fma_recursive(                                                    //
+    nk_each_fma_punned_t kernel,                                                   //
+    char const *a_data, char const *b_data, char const *c_data, char *result_data, //
+    nk_scalar_buffer_t const *alpha, nk_scalar_buffer_t const *beta,               //
+    Py_ssize_t const *shape, Py_ssize_t const *a_strides,                          //
+    Py_ssize_t const *b_strides, Py_ssize_t const *c_strides,                      //
+    Py_ssize_t const *result_strides,                                              //
+    int remaining_dims, int contiguous_tail_dims) {
+
+    if (remaining_dims <= contiguous_tail_dims) {
+        size_t contiguous_elements = 1;
+        for (int dimension = 0; dimension < remaining_dims; ++dimension)
+            contiguous_elements *= (size_t)shape[dimension];
+        kernel(a_data, b_data, c_data, contiguous_elements, alpha, beta, result_data);
+        return;
+    }
+
+    size_t const dim_extent = (size_t)shape[0];
+    for (size_t position = 0; position < dim_extent; ++position) {
+        each_fma_recursive(kernel,                                     //
+                           a_data + position * a_strides[0],           //
+                           b_data + position * b_strides[0],           //
+                           c_data + position * c_strides[0],           //
+                           result_data + position * result_strides[0], //
+                           alpha, beta,                                //
+                           shape + 1, a_strides + 1,                   //
+                           b_strides + 1, c_strides + 1,               //
+                           result_strides + 1,                         //
+                           remaining_dims - 1, contiguous_tail_dims);
+    }
 }
 
 #pragma endregion // Buffer Protocol Helpers
@@ -815,13 +1024,16 @@ static PyObject *implement_dense_metric( //
     }
     if (dtype == nk_dtype_unknown_k) dtype = a_parsed.dtype;
 
-    // When a dtype override reinterprets a buffer as a sub-byte packed type (e.g. uint8 → bin8),
-    // rescale dimensions from buffer-element count to logical-element count (bytes → bits).
+    // When a dtype override (or a sub-byte buffer type like bool) reinterprets
+    // elements at a different width than the buffer protocol reports, rescale
+    // dimensions so the SIMD kernel receives logical element counts.
+    // Examples: uint8 → bin8 (×8), bool → bin8 (×8), float32 → complex64 (÷2).
     {
+        nk_size_t from_bits = (nk_size_t)a_buffer.itemsize * NK_BITS_PER_BYTE;
         nk_size_t to_bits = nk_dtype_bits(dtype);
-        if (to_bits && to_bits < NK_BITS_PER_BYTE) {
-            a_parsed.dimensions = a_parsed.dimensions * NK_BITS_PER_BYTE / to_bits;
-            b_parsed.dimensions = b_parsed.dimensions * NK_BITS_PER_BYTE / to_bits;
+        if (from_bits && to_bits && from_bits != to_bits) {
+            a_parsed.dimensions = a_parsed.dimensions * from_bits / to_bits;
+            b_parsed.dimensions = b_parsed.dimensions * from_bits / to_bits;
         }
     }
 
@@ -924,6 +1136,7 @@ static PyObject *implement_dense_metric( //
         //? Logic suggests to return `None` in in-place mode...
         //? SciPy decided differently.
         return_obj = Py_None;
+        Py_INCREF(Py_None);
     }
 
     // Now let's release the GIL for the parallel part using the underlying mechanism of `Py_BEGIN_ALLOW_THREADS`.
@@ -1224,6 +1437,7 @@ static PyObject *implement_geospatial_metric( //
         }
         distances_start = out_parsed.start;
         return_obj = Py_None;
+        Py_INCREF(Py_None);
     }
 
     // Call the kernel
@@ -1281,10 +1495,9 @@ static PyObject *implement_sparse_metric( //
         goto cleanup;
     }
 
-    nk_f64_t distance;
     nk_size_t count = 0;
-    metric(a_parsed.start, b_parsed.start, a_parsed.dimensions, b_parsed.dimensions, &distance, &count);
-    return_obj = PyFloat_FromDouble(distance);
+    metric(a_parsed.start, b_parsed.start, a_parsed.dimensions, b_parsed.dimensions, NULL, &count);
+    return_obj = PyLong_FromSize_t(count);
 
 cleanup:
     PyBuffer_Release(&a_buffer);
@@ -1333,13 +1546,16 @@ static PyObject *implement_cdist(                        //
     }
     if (dtype == nk_dtype_unknown_k) dtype = a_parsed.dtype;
 
-    // When a dtype override reinterprets a buffer as a sub-byte packed type (e.g. uint8 → bin8),
-    // rescale dimensions from buffer-element count to logical-element count (bytes → bits).
+    // When a dtype override (or a sub-byte buffer type like bool) reinterprets
+    // elements at a different width than the buffer protocol reports, rescale
+    // dimensions so the SIMD kernel receives logical element counts.
+    // Examples: uint8 → bin8 (×8), bool → bin8 (×8), float32 → complex64 (÷2).
     {
+        nk_size_t from_bits = (nk_size_t)a_buffer.itemsize * NK_BITS_PER_BYTE;
         nk_size_t to_bits = nk_dtype_bits(dtype);
-        if (to_bits && to_bits < NK_BITS_PER_BYTE) {
-            a_parsed.dimensions = a_parsed.dimensions * NK_BITS_PER_BYTE / to_bits;
-            b_parsed.dimensions = b_parsed.dimensions * NK_BITS_PER_BYTE / to_bits;
+        if (from_bits && to_bits && from_bits != to_bits) {
+            a_parsed.dimensions = a_parsed.dimensions * from_bits / to_bits;
+            b_parsed.dimensions = b_parsed.dimensions * from_bits / to_bits;
         }
     }
 
@@ -1443,6 +1659,7 @@ static PyObject *implement_cdist(                        //
         //? Logic suggests to return `None` in in-place mode...
         //? SciPy decided differently.
         return_obj = Py_None;
+        Py_INCREF(Py_None);
     }
 
     // Now let's release the GIL for the parallel part using the underlying mechanism of `Py_BEGIN_ALLOW_THREADS`.
@@ -1935,10 +2152,10 @@ static char const doc_intersect[] =                              //
     "    a (Tensor): First sorted integer array.\n"              //
     "    b (Tensor): Second sorted integer array.\n\n"           //
     "Returns:\n"                                                 //
-    "    float: The number of intersecting elements.\n\n"        //
+    "    int: The number of intersecting elements.\n\n"          //
     "Similar to: `numpy.intersect1d`.\n"                         //
     "Signature:\n"                                               //
-    "    >>> def intersect(a, b, /) -> float: ...";
+    "    >>> def intersect(a, b, /) -> int: ...";
 
 static PyObject *api_intersect(PyObject *self, PyObject *const *args, Py_ssize_t nargs) {
     return implement_sparse_metric(nk_kernel_sparse_intersect_k, args, nargs);
@@ -2063,10 +2280,15 @@ static PyObject *api_fma(PyObject *self, PyObject *const *args, Py_ssize_t const
     // Convert `alpha_obj` to `alpha_buf` and `beta_obj` to `beta_buf`
     nk_scalar_buffer_t alpha_buf, beta_buf;
     {
-        static PyObject *py_one = NULL;
-        if (!py_one) py_one = PyFloat_FromDouble(1.0);
-        if (!py_number_to_scalar_buffer(alpha_obj ? alpha_obj : py_one, &alpha_buf, dtype)) goto cleanup;
-        if (!py_number_to_scalar_buffer(beta_obj ? beta_obj : py_one, &beta_buf, dtype)) goto cleanup;
+        nk_dtype_t scalar_dtype = nk_each_scale_input_dtype(dtype);
+        if (alpha_obj) {
+            if (!py_number_to_scalar_buffer(alpha_obj, &alpha_buf, scalar_dtype)) goto cleanup;
+        }
+        else nk_scalar_buffer_set_f64(&alpha_buf, 1.0, scalar_dtype);
+        if (beta_obj) {
+            if (!py_number_to_scalar_buffer(beta_obj, &beta_buf, scalar_dtype)) goto cleanup;
+        }
+        else nk_scalar_buffer_set_f64(&beta_buf, 1.0, scalar_dtype);
     }
 
     // Look up the metric and the capability
@@ -2115,6 +2337,7 @@ static PyObject *api_fma(PyObject *self, PyObject *const *args, Py_ssize_t const
         //? Logic suggests to return `None` in in-place mode...
         //? SciPy decided differently.
         return_obj = Py_None;
+        Py_INCREF(Py_None);
     }
 
     metric(a_parsed.start, b_parsed.start, c_parsed.start, a_parsed.dimensions, &alpha_buf, &beta_buf, distances_start);
@@ -2237,10 +2460,15 @@ static PyObject *api_wsum(PyObject *self, PyObject *const *args, Py_ssize_t cons
     // Convert `alpha_obj` to `alpha_buf` and `beta_obj` to `beta_buf`
     nk_scalar_buffer_t alpha_buf, beta_buf;
     {
-        static PyObject *py_one = NULL;
-        if (!py_one) py_one = PyFloat_FromDouble(1.0);
-        if (!py_number_to_scalar_buffer(alpha_obj ? alpha_obj : py_one, &alpha_buf, dtype)) goto cleanup;
-        if (!py_number_to_scalar_buffer(beta_obj ? beta_obj : py_one, &beta_buf, dtype)) goto cleanup;
+        nk_dtype_t scalar_dtype = nk_each_scale_input_dtype(dtype);
+        if (alpha_obj) {
+            if (!py_number_to_scalar_buffer(alpha_obj, &alpha_buf, scalar_dtype)) goto cleanup;
+        }
+        else nk_scalar_buffer_set_f64(&alpha_buf, 1.0, scalar_dtype);
+        if (beta_obj) {
+            if (!py_number_to_scalar_buffer(beta_obj, &beta_buf, scalar_dtype)) goto cleanup;
+        }
+        else nk_scalar_buffer_set_f64(&beta_buf, 1.0, scalar_dtype);
     }
 
     // Look up the metric and the capability
@@ -2289,6 +2517,7 @@ static PyObject *api_wsum(PyObject *self, PyObject *const *args, Py_ssize_t cons
         //? Logic suggests to return `None` in in-place mode...
         //? SciPy decided differently.
         return_obj = Py_None;
+        Py_INCREF(Py_None);
     }
 
     metric(a_parsed.start, b_parsed.start, a_parsed.dimensions, &alpha_buf, &beta_buf, distances_start);
@@ -2408,11 +2637,15 @@ static PyObject *api_scale(PyObject *self, PyObject *const *args, Py_ssize_t con
     // Convert `alpha_obj` to `alpha_buf` and `beta_obj` to `beta_buf`
     nk_scalar_buffer_t alpha_buf, beta_buf;
     {
-        static PyObject *py_one = NULL, *py_zero = NULL;
-        if (!py_one) py_one = PyFloat_FromDouble(1.0);
-        if (!py_zero) py_zero = PyFloat_FromDouble(0.0);
-        if (!py_number_to_scalar_buffer(alpha_obj ? alpha_obj : py_one, &alpha_buf, dtype)) goto cleanup;
-        if (!py_number_to_scalar_buffer(beta_obj ? beta_obj : py_zero, &beta_buf, dtype)) goto cleanup;
+        nk_dtype_t scalar_dtype = nk_each_scale_input_dtype(dtype);
+        if (alpha_obj) {
+            if (!py_number_to_scalar_buffer(alpha_obj, &alpha_buf, scalar_dtype)) goto cleanup;
+        }
+        else nk_scalar_buffer_set_f64(&alpha_buf, 1.0, scalar_dtype);
+        if (beta_obj) {
+            if (!py_number_to_scalar_buffer(beta_obj, &beta_buf, scalar_dtype)) goto cleanup;
+        }
+        else nk_scalar_buffer_set_f64(&beta_buf, 0.0, scalar_dtype);
     }
 
     // Look up the metric and the capability
@@ -2461,6 +2694,7 @@ static PyObject *api_scale(PyObject *self, PyObject *const *args, Py_ssize_t con
         //? Logic suggests to return `None` in in-place mode...
         //? SciPy decided differently.
         return_obj = Py_None;
+        Py_INCREF(Py_None);
     }
 
     metric(a_parsed.start, a_parsed.dimensions, &alpha_buf, &beta_buf, distances_start);
@@ -2502,7 +2736,6 @@ static PyObject *api_add(PyObject *self, PyObject *const *args, Py_ssize_t const
     nk_dtype_t dtype = nk_dtype_unknown_k;
 
     Py_buffer a_buffer, b_buffer, out_buffer;
-    TensorArgument a_parsed, b_parsed, out_parsed;
     memset(&a_buffer, 0, sizeof(Py_buffer));
     memset(&b_buffer, 0, sizeof(Py_buffer));
     memset(&out_buffer, 0, sizeof(Py_buffer));
@@ -2551,27 +2784,17 @@ static PyObject *api_add(PyObject *self, PyObject *const *args, Py_ssize_t const
         PyObject *array_obj = a_is_scalar ? b_obj : a_obj;
         PyObject *scalar_obj = a_is_scalar ? a_obj : b_obj;
 
-        if (!parse_tensor(array_obj, &a_buffer, &a_parsed)) return NULL;
-        if (out_obj && !parse_tensor(out_obj, &out_buffer, &out_parsed)) goto cleanup;
-
-        // Validate dimensions
-        if (a_parsed.rank != 1 || (out_obj && out_parsed.rank != 1)) {
-            PyErr_SetString(PyExc_ValueError, "Tensors must be 1D vectors");
-            goto cleanup;
-        }
-        if (out_obj && a_parsed.dimensions != out_parsed.dimensions) {
-            PyErr_SetString(PyExc_ValueError, "Output dimensions don't match input");
-            goto cleanup;
-        }
+        if (PyObject_GetBuffer(array_obj, &a_buffer, PyBUF_STRIDES | PyBUF_FORMAT) != 0) return NULL;
+        if (out_obj && PyObject_GetBuffer(out_obj, &out_buffer, PyBUF_STRIDES | PyBUF_FORMAT) != 0) goto cleanup;
+        if (out_obj && !buffers_shapes_match(&a_buffer, &out_buffer)) goto cleanup;
 
         // Determine dtype
+        dtype = python_string_to_dtype(a_buffer.format);
         if (out_dtype_obj) {
             char const *dtype_str = PyUnicode_AsUTF8(out_dtype_obj);
             if (!dtype_str) { goto cleanup; }
             dtype = python_string_to_dtype(dtype_str);
         }
-        else { dtype = a_parsed.dtype; }
-
         if (dtype == nk_dtype_unknown_k) {
             PyErr_SetString(PyExc_ValueError, "Unsupported dtype");
             goto cleanup;
@@ -2587,73 +2810,94 @@ static PyObject *api_add(PyObject *self, PyObject *const *args, Py_ssize_t const
             goto cleanup;
         }
 
-        char *result_start = NULL;
+        // Prepare scalar coefficients: alpha=1, beta=scalar → 1*a + scalar
+        nk_scalar_buffer_t alpha_buf, beta_buf;
+        {
+            nk_dtype_t scalar_dtype = nk_each_scale_input_dtype(dtype);
+            nk_scalar_buffer_set_f64(&alpha_buf, 1.0, scalar_dtype);
+            if (!py_number_to_scalar_buffer(scalar_obj, &beta_buf, scalar_dtype)) goto cleanup;
+        }
+
+        // Allocate contiguous output tensor matching input shape
+        size_t const element_size = bytes_per_dtype(dtype);
+        size_t total_elements = 1;
+        for (int dimension = 0; dimension < a_buffer.ndim; ++dimension)
+            total_elements *= (size_t)a_buffer.shape[dimension];
+
+        char *result_data = NULL;
+        Py_ssize_t result_strides[NK_TENSOR_MAX_RANK];
         if (!out_obj) {
-            Tensor *result_obj = PyObject_NewVar(Tensor, &TensorType, a_parsed.dimensions * bytes_per_dtype(dtype));
-            if (!result_obj) {
+            Tensor *result_tensor = PyObject_NewVar(Tensor, &TensorType, total_elements * element_size);
+            if (!result_tensor) {
                 PyErr_NoMemory();
                 goto cleanup;
             }
-            result_obj->dtype = dtype;
-            result_obj->rank = 1;
-            result_obj->shape[0] = a_parsed.dimensions;
-            result_obj->shape[1] = 0;
-            result_obj->strides[0] = bytes_per_dtype(dtype);
-            result_obj->strides[1] = 0;
-            result_obj->parent = NULL;
-            result_obj->data = result_obj->start;
-            return_obj = (PyObject *)result_obj;
-            result_start = result_obj->data;
+            result_tensor->dtype = dtype;
+            result_tensor->rank = a_buffer.ndim;
+            // Fill shape and compute C-contiguous strides (innermost first)
+            result_strides[a_buffer.ndim - 1] = (Py_ssize_t)element_size;
+            for (int dimension = a_buffer.ndim - 2; dimension >= 0; --dimension)
+                result_strides[dimension] = result_strides[dimension + 1] * a_buffer.shape[dimension + 1];
+            for (int dimension = 0; dimension < a_buffer.ndim; ++dimension) {
+                result_tensor->shape[dimension] = a_buffer.shape[dimension];
+                result_tensor->strides[dimension] = result_strides[dimension];
+            }
+            for (size_t dimension = a_buffer.ndim; dimension < NK_TENSOR_MAX_RANK; ++dimension)
+                result_tensor->shape[dimension] = 0, result_tensor->strides[dimension] = 0;
+            result_tensor->parent = NULL;
+            result_tensor->data = result_tensor->start;
+            return_obj = (PyObject *)result_tensor;
+            result_data = result_tensor->data;
         }
         else {
-            result_start = out_parsed.start;
+            result_data = out_buffer.buf;
+            for (int dimension = 0; dimension < a_buffer.ndim; ++dimension)
+                result_strides[dimension] = out_buffer.strides[dimension];
             return_obj = Py_None;
+            Py_INCREF(Py_None);
         }
 
-        // scale(a, n, alpha=1, beta=scalar) -> 1*a + scalar
-        nk_scalar_buffer_t alpha_buf, beta_buf;
-        {
-            static PyObject *py_one = NULL;
-            if (!py_one) py_one = PyFloat_FromDouble(1.0);
-            if (!py_number_to_scalar_buffer(py_one, &alpha_buf, dtype)) goto cleanup;
-            if (!py_number_to_scalar_buffer(scalar_obj, &beta_buf, dtype)) goto cleanup;
+        // Compute shared contiguous tail and dispatch recursively
+        Py_buffer const *scale_buffers[] = {&a_buffer, &out_buffer};
+        int num_scale_buffers = out_obj ? 2 : 1;
+        int contiguous_tail = shared_contiguous_tail_dimensions(scale_buffers, num_scale_buffers, a_buffer.ndim);
+        // Output is always contiguous when freshly allocated, so use at least that
+        if (!out_obj && contiguous_tail < a_buffer.ndim) {
+            Py_buffer const *input_only[] = {&a_buffer};
+            contiguous_tail = shared_contiguous_tail_dimensions(input_only, 1, a_buffer.ndim);
         }
-        scale_kernel(a_parsed.start, a_parsed.dimensions, &alpha_buf, &beta_buf, result_start);
+        each_scale_recursive(scale_kernel, a_buffer.buf, result_data, &alpha_buf, &beta_buf, //
+                             a_buffer.shape, a_buffer.strides, result_strides,               //
+                             a_buffer.ndim, contiguous_tail);
         goto cleanup;
     }
 
     // Handle array + array case using sum kernel
-    if (!parse_tensor(a_obj, &a_buffer, &a_parsed) || !parse_tensor(b_obj, &b_buffer, &b_parsed)) return NULL;
-    if (out_obj && !parse_tensor(out_obj, &out_buffer, &out_parsed)) goto cleanup;
+    if (PyObject_GetBuffer(a_obj, &a_buffer, PyBUF_STRIDES | PyBUF_FORMAT) != 0) return NULL;
+    if (PyObject_GetBuffer(b_obj, &b_buffer, PyBUF_STRIDES | PyBUF_FORMAT) != 0) goto cleanup;
+    if (out_obj && PyObject_GetBuffer(out_obj, &out_buffer, PyBUF_STRIDES | PyBUF_FORMAT) != 0) goto cleanup;
 
-    // Validate dimensions
-    if (a_parsed.rank != 1 || b_parsed.rank != 1 || (out_obj && out_parsed.rank != 1)) {
-        PyErr_SetString(PyExc_ValueError, "All tensors must be 1D vectors");
-        goto cleanup;
-    }
-    if (a_parsed.dimensions != b_parsed.dimensions) {
-        PyErr_SetString(PyExc_ValueError, "Vector dimensions don't match");
-        goto cleanup;
-    }
-    if (out_obj && a_parsed.dimensions != out_parsed.dimensions) {
-        PyErr_SetString(PyExc_ValueError, "Output dimensions don't match input");
-        goto cleanup;
-    }
+    // Validate shapes match
+    if (!buffers_shapes_match(&a_buffer, &b_buffer)) goto cleanup;
+    if (out_obj && !buffers_shapes_match(&a_buffer, &out_buffer)) goto cleanup;
 
-    // Check dtypes match
-    if (a_parsed.dtype != b_parsed.dtype) {
-        PyErr_SetString(PyExc_TypeError, "Input arrays must have matching dtypes");
-        goto cleanup;
+    // Check dtypes
+    {
+        nk_dtype_t a_dtype = python_string_to_dtype(a_buffer.format);
+        nk_dtype_t b_dtype = python_string_to_dtype(b_buffer.format);
+        if (a_dtype != b_dtype || a_dtype == nk_dtype_unknown_k) {
+            PyErr_SetString(PyExc_TypeError, "Input arrays must have matching and supported dtypes");
+            goto cleanup;
+        }
+        dtype = a_dtype;
     }
 
-    // Determine output dtype
+    // Override output dtype if requested
     if (out_dtype_obj) {
         char const *dtype_str = PyUnicode_AsUTF8(out_dtype_obj);
         if (!dtype_str) { goto cleanup; }
         dtype = python_string_to_dtype(dtype_str);
     }
-    else { dtype = a_parsed.dtype; }
-
     if (dtype == nk_dtype_unknown_k) {
         PyErr_SetString(PyExc_ValueError, "Unsupported dtype");
         goto cleanup;
@@ -2661,38 +2905,71 @@ static PyObject *api_add(PyObject *self, PyObject *const *args, Py_ssize_t const
 
     // Find sum kernel
     nk_each_sum_punned_t sum_kernel = NULL;
-    nk_capability_t capability = nk_cap_serial_k;
-    nk_find_kernel_punned(nk_kernel_each_sum_k, dtype, static_capabilities, nk_cap_any_k,
-                          (nk_kernel_punned_t *)&sum_kernel, &capability);
-    if (!sum_kernel || !capability) {
-        PyErr_Format(PyExc_LookupError, "No sum kernel for dtype '%s'", dtype_to_string(dtype));
-        goto cleanup;
-    }
-
-    char *result_start = NULL;
-    if (!out_obj) {
-        Tensor *result_obj = PyObject_NewVar(Tensor, &TensorType, a_parsed.dimensions * bytes_per_dtype(dtype));
-        if (!result_obj) {
-            PyErr_NoMemory();
+    {
+        nk_capability_t capability = nk_cap_serial_k;
+        nk_find_kernel_punned(nk_kernel_each_sum_k, dtype, static_capabilities, nk_cap_any_k,
+                              (nk_kernel_punned_t *)&sum_kernel, &capability);
+        if (!sum_kernel || !capability) {
+            PyErr_Format(PyExc_LookupError, "No sum kernel for dtype '%s'", dtype_to_string(dtype));
             goto cleanup;
         }
-        result_obj->dtype = dtype;
-        result_obj->rank = 1;
-        result_obj->shape[0] = a_parsed.dimensions;
-        result_obj->shape[1] = 0;
-        result_obj->strides[0] = bytes_per_dtype(dtype);
-        result_obj->strides[1] = 0;
-        result_obj->parent = NULL;
-        result_obj->data = result_obj->start;
-        return_obj = (PyObject *)result_obj;
-        result_start = result_obj->data;
-    }
-    else {
-        result_start = out_parsed.start;
-        return_obj = Py_None;
     }
 
-    sum_kernel(a_parsed.start, b_parsed.start, a_parsed.dimensions, result_start);
+    // Allocate contiguous output tensor matching input shape, or use provided output
+    {
+        size_t const element_size = bytes_per_dtype(dtype);
+        int const num_dims = a_buffer.ndim;
+        size_t total_elements = 1;
+        for (int dimension = 0; dimension < num_dims; ++dimension) total_elements *= (size_t)a_buffer.shape[dimension];
+
+        char *result_data = NULL;
+        Py_ssize_t result_strides[NK_TENSOR_MAX_RANK];
+        if (!out_obj) {
+            Tensor *result_tensor = PyObject_NewVar(Tensor, &TensorType, total_elements * element_size);
+            if (!result_tensor) {
+                PyErr_NoMemory();
+                goto cleanup;
+            }
+            result_tensor->dtype = dtype;
+            result_tensor->rank = num_dims;
+            // Compute C-contiguous strides
+            result_strides[num_dims - 1] = (Py_ssize_t)element_size;
+            for (int dimension = num_dims - 2; dimension >= 0; --dimension)
+                result_strides[dimension] = result_strides[dimension + 1] * a_buffer.shape[dimension + 1];
+            for (int dimension = 0; dimension < num_dims; ++dimension) {
+                result_tensor->shape[dimension] = a_buffer.shape[dimension];
+                result_tensor->strides[dimension] = result_strides[dimension];
+            }
+            for (int dimension = num_dims; dimension < NK_TENSOR_MAX_RANK; ++dimension)
+                result_tensor->shape[dimension] = 0, result_tensor->strides[dimension] = 0;
+            result_tensor->parent = NULL;
+            result_tensor->data = result_tensor->start;
+            return_obj = (PyObject *)result_tensor;
+            result_data = result_tensor->data;
+        }
+        else {
+            result_data = out_buffer.buf;
+            for (int dimension = 0; dimension < num_dims; ++dimension)
+                result_strides[dimension] = out_buffer.strides[dimension];
+            return_obj = Py_None;
+            Py_INCREF(Py_None);
+        }
+
+        // Compute how many trailing dimensions are contiguous across all tensors
+        Py_buffer const *all_buffers[] = {&a_buffer, &b_buffer};
+        int contiguous_tail = shared_contiguous_tail_dimensions(all_buffers, 2, num_dims);
+        // If output is freshly allocated (always contiguous), only input contiguity limits us
+        // If output is user-provided, include it in the check
+        if (out_obj) {
+            Py_buffer const *all_three[] = {&a_buffer, &b_buffer, &out_buffer};
+            contiguous_tail = shared_contiguous_tail_dimensions(all_three, 3, num_dims);
+        }
+
+        each_sum_recursive(sum_kernel, a_buffer.buf, b_buffer.buf, result_data, //
+                           a_buffer.shape, a_buffer.strides,                    //
+                           b_buffer.strides, result_strides,                    //
+                           num_dims, contiguous_tail);
+    }
 
 cleanup:
     PyBuffer_Release(&a_buffer);
@@ -2733,7 +3010,6 @@ static PyObject *api_multiply(PyObject *self, PyObject *const *args, Py_ssize_t 
     nk_dtype_t dtype = nk_dtype_unknown_k;
 
     Py_buffer a_buffer, b_buffer, out_buffer;
-    TensorArgument a_parsed, b_parsed, out_parsed;
     memset(&a_buffer, 0, sizeof(Py_buffer));
     memset(&b_buffer, 0, sizeof(Py_buffer));
     memset(&out_buffer, 0, sizeof(Py_buffer));
@@ -2782,27 +3058,17 @@ static PyObject *api_multiply(PyObject *self, PyObject *const *args, Py_ssize_t 
         PyObject *array_obj = a_is_scalar ? b_obj : a_obj;
         PyObject *scalar_obj = a_is_scalar ? a_obj : b_obj;
 
-        if (!parse_tensor(array_obj, &a_buffer, &a_parsed)) return NULL;
-        if (out_obj && !parse_tensor(out_obj, &out_buffer, &out_parsed)) goto cleanup;
-
-        // Validate dimensions
-        if (a_parsed.rank != 1 || (out_obj && out_parsed.rank != 1)) {
-            PyErr_SetString(PyExc_ValueError, "Tensors must be 1D vectors");
-            goto cleanup;
-        }
-        if (out_obj && a_parsed.dimensions != out_parsed.dimensions) {
-            PyErr_SetString(PyExc_ValueError, "Output dimensions don't match input");
-            goto cleanup;
-        }
+        if (PyObject_GetBuffer(array_obj, &a_buffer, PyBUF_STRIDES | PyBUF_FORMAT) != 0) return NULL;
+        if (out_obj && PyObject_GetBuffer(out_obj, &out_buffer, PyBUF_STRIDES | PyBUF_FORMAT) != 0) goto cleanup;
+        if (out_obj && !buffers_shapes_match(&a_buffer, &out_buffer)) goto cleanup;
 
         // Determine dtype
+        dtype = python_string_to_dtype(a_buffer.format);
         if (out_dtype_obj) {
             char const *dtype_str = PyUnicode_AsUTF8(out_dtype_obj);
             if (!dtype_str) { goto cleanup; }
             dtype = python_string_to_dtype(dtype_str);
         }
-        else { dtype = a_parsed.dtype; }
-
         if (dtype == nk_dtype_unknown_k) {
             PyErr_SetString(PyExc_ValueError, "Unsupported dtype");
             goto cleanup;
@@ -2818,73 +3084,93 @@ static PyObject *api_multiply(PyObject *self, PyObject *const *args, Py_ssize_t 
             goto cleanup;
         }
 
-        char *result_start = NULL;
+        // Prepare scalar coefficients: alpha=scalar, beta=0 -> scalar*a + 0
+        nk_scalar_buffer_t alpha_buf, beta_buf;
+        {
+            nk_dtype_t scalar_dtype = nk_each_scale_input_dtype(dtype);
+            if (!py_number_to_scalar_buffer(scalar_obj, &alpha_buf, scalar_dtype)) goto cleanup;
+            nk_scalar_buffer_set_f64(&beta_buf, 0.0, scalar_dtype);
+        }
+
+        // Allocate contiguous output tensor matching input shape
+        size_t const element_size = bytes_per_dtype(dtype);
+        size_t total_elements = 1;
+        for (int dimension = 0; dimension < a_buffer.ndim; ++dimension)
+            total_elements *= (size_t)a_buffer.shape[dimension];
+
+        char *result_data = NULL;
+        Py_ssize_t result_strides[NK_TENSOR_MAX_RANK];
         if (!out_obj) {
-            Tensor *result_obj = PyObject_NewVar(Tensor, &TensorType, a_parsed.dimensions * bytes_per_dtype(dtype));
-            if (!result_obj) {
+            Tensor *result_tensor = PyObject_NewVar(Tensor, &TensorType, total_elements * element_size);
+            if (!result_tensor) {
                 PyErr_NoMemory();
                 goto cleanup;
             }
-            result_obj->dtype = dtype;
-            result_obj->rank = 1;
-            result_obj->shape[0] = a_parsed.dimensions;
-            result_obj->shape[1] = 0;
-            result_obj->strides[0] = bytes_per_dtype(dtype);
-            result_obj->strides[1] = 0;
-            result_obj->parent = NULL;
-            result_obj->data = result_obj->start;
-            return_obj = (PyObject *)result_obj;
-            result_start = result_obj->data;
+            result_tensor->dtype = dtype;
+            result_tensor->rank = a_buffer.ndim;
+            // Fill shape and compute C-contiguous strides (innermost first)
+            result_strides[a_buffer.ndim - 1] = (Py_ssize_t)element_size;
+            for (int dimension = a_buffer.ndim - 2; dimension >= 0; --dimension)
+                result_strides[dimension] = result_strides[dimension + 1] * a_buffer.shape[dimension + 1];
+            for (int dimension = 0; dimension < a_buffer.ndim; ++dimension) {
+                result_tensor->shape[dimension] = a_buffer.shape[dimension];
+                result_tensor->strides[dimension] = result_strides[dimension];
+            }
+            for (size_t dimension = a_buffer.ndim; dimension < NK_TENSOR_MAX_RANK; ++dimension)
+                result_tensor->shape[dimension] = 0, result_tensor->strides[dimension] = 0;
+            result_tensor->parent = NULL;
+            result_tensor->data = result_tensor->start;
+            return_obj = (PyObject *)result_tensor;
+            result_data = result_tensor->data;
         }
         else {
-            result_start = out_parsed.start;
+            result_data = out_buffer.buf;
+            for (int dimension = 0; dimension < a_buffer.ndim; ++dimension)
+                result_strides[dimension] = out_buffer.strides[dimension];
             return_obj = Py_None;
+            Py_INCREF(Py_None);
         }
 
-        // scale(a, n, alpha=scalar, beta=0) -> scalar*a + 0
-        nk_scalar_buffer_t alpha_buf, beta_buf;
-        {
-            static PyObject *py_zero = NULL;
-            if (!py_zero) py_zero = PyFloat_FromDouble(0.0);
-            if (!py_number_to_scalar_buffer(scalar_obj, &alpha_buf, dtype)) goto cleanup;
-            if (!py_number_to_scalar_buffer(py_zero, &beta_buf, dtype)) goto cleanup;
+        // Compute shared contiguous tail and dispatch recursively
+        Py_buffer const *scale_buffers[] = {&a_buffer, &out_buffer};
+        int num_scale_buffers = out_obj ? 2 : 1;
+        int contiguous_tail = shared_contiguous_tail_dimensions(scale_buffers, num_scale_buffers, a_buffer.ndim);
+        if (!out_obj && contiguous_tail < a_buffer.ndim) {
+            Py_buffer const *input_only[] = {&a_buffer};
+            contiguous_tail = shared_contiguous_tail_dimensions(input_only, 1, a_buffer.ndim);
         }
-        scale_kernel(a_parsed.start, a_parsed.dimensions, &alpha_buf, &beta_buf, result_start);
+        each_scale_recursive(scale_kernel, a_buffer.buf, result_data, &alpha_buf, &beta_buf, //
+                             a_buffer.shape, a_buffer.strides, result_strides,               //
+                             a_buffer.ndim, contiguous_tail);
         goto cleanup;
     }
 
     // Handle array * array case using fma kernel: fma(a, b, dummy, n, alpha=1, beta=0) -> 1*a*b + 0
-    if (!parse_tensor(a_obj, &a_buffer, &a_parsed) || !parse_tensor(b_obj, &b_buffer, &b_parsed)) return NULL;
-    if (out_obj && !parse_tensor(out_obj, &out_buffer, &out_parsed)) goto cleanup;
+    if (PyObject_GetBuffer(a_obj, &a_buffer, PyBUF_STRIDES | PyBUF_FORMAT) != 0) return NULL;
+    if (PyObject_GetBuffer(b_obj, &b_buffer, PyBUF_STRIDES | PyBUF_FORMAT) != 0) goto cleanup;
+    if (out_obj && PyObject_GetBuffer(out_obj, &out_buffer, PyBUF_STRIDES | PyBUF_FORMAT) != 0) goto cleanup;
 
-    // Validate dimensions
-    if (a_parsed.rank != 1 || b_parsed.rank != 1 || (out_obj && out_parsed.rank != 1)) {
-        PyErr_SetString(PyExc_ValueError, "All tensors must be 1D vectors");
-        goto cleanup;
-    }
-    if (a_parsed.dimensions != b_parsed.dimensions) {
-        PyErr_SetString(PyExc_ValueError, "Vector dimensions don't match");
-        goto cleanup;
-    }
-    if (out_obj && a_parsed.dimensions != out_parsed.dimensions) {
-        PyErr_SetString(PyExc_ValueError, "Output dimensions don't match input");
-        goto cleanup;
-    }
+    // Validate shapes match
+    if (!buffers_shapes_match(&a_buffer, &b_buffer)) goto cleanup;
+    if (out_obj && !buffers_shapes_match(&a_buffer, &out_buffer)) goto cleanup;
 
-    // Check dtypes match
-    if (a_parsed.dtype != b_parsed.dtype) {
-        PyErr_SetString(PyExc_TypeError, "Input arrays must have matching dtypes");
-        goto cleanup;
+    // Check dtypes
+    {
+        nk_dtype_t a_dtype = python_string_to_dtype(a_buffer.format);
+        nk_dtype_t b_dtype = python_string_to_dtype(b_buffer.format);
+        if (a_dtype != b_dtype || a_dtype == nk_dtype_unknown_k) {
+            PyErr_SetString(PyExc_TypeError, "Input arrays must have matching and supported dtypes");
+            goto cleanup;
+        }
+        dtype = a_dtype;
     }
 
-    // Determine output dtype
+    // Override output dtype if requested
     if (out_dtype_obj) {
         char const *dtype_str = PyUnicode_AsUTF8(out_dtype_obj);
         if (!dtype_str) { goto cleanup; }
         dtype = python_string_to_dtype(dtype_str);
     }
-    else { dtype = a_parsed.dtype; }
-
     if (dtype == nk_dtype_unknown_k) {
         PyErr_SetString(PyExc_ValueError, "Unsupported dtype");
         goto cleanup;
@@ -2892,48 +3178,78 @@ static PyObject *api_multiply(PyObject *self, PyObject *const *args, Py_ssize_t 
 
     // Find fma kernel
     nk_each_fma_punned_t fma_kernel = NULL;
-    nk_capability_t capability = nk_cap_serial_k;
-    nk_find_kernel_punned(nk_kernel_each_fma_k, dtype, static_capabilities, nk_cap_any_k,
-                          (nk_kernel_punned_t *)&fma_kernel, &capability);
-    if (!fma_kernel || !capability) {
-        PyErr_Format(PyExc_LookupError, "No fma kernel for dtype '%s'", dtype_to_string(dtype));
-        goto cleanup;
-    }
-
-    char *result_start = NULL;
-    if (!out_obj) {
-        Tensor *result_obj = PyObject_NewVar(Tensor, &TensorType, a_parsed.dimensions * bytes_per_dtype(dtype));
-        if (!result_obj) {
-            PyErr_NoMemory();
+    {
+        nk_capability_t capability = nk_cap_serial_k;
+        nk_find_kernel_punned(nk_kernel_each_fma_k, dtype, static_capabilities, nk_cap_any_k,
+                              (nk_kernel_punned_t *)&fma_kernel, &capability);
+        if (!fma_kernel || !capability) {
+            PyErr_Format(PyExc_LookupError, "No fma kernel for dtype '%s'", dtype_to_string(dtype));
             goto cleanup;
         }
-        result_obj->dtype = dtype;
-        result_obj->rank = 1;
-        result_obj->shape[0] = a_parsed.dimensions;
-        result_obj->shape[1] = 0;
-        result_obj->strides[0] = bytes_per_dtype(dtype);
-        result_obj->strides[1] = 0;
-        result_obj->parent = NULL;
-        result_obj->data = result_obj->start;
-        return_obj = (PyObject *)result_obj;
-        result_start = result_obj->data;
-    }
-    else {
-        result_start = out_parsed.start;
-        return_obj = Py_None;
     }
 
     // fma(a, b, c, n, alpha=1, beta=0) -> 1*a*b + 0*c
-    // For multiply, we use result_start as c (ignored since beta=0)
     nk_scalar_buffer_t alpha_buf, beta_buf;
     {
-        static PyObject *py_one = NULL, *py_zero = NULL;
-        if (!py_one) py_one = PyFloat_FromDouble(1.0);
-        if (!py_zero) py_zero = PyFloat_FromDouble(0.0);
-        if (!py_number_to_scalar_buffer(py_one, &alpha_buf, dtype)) goto cleanup;
-        if (!py_number_to_scalar_buffer(py_zero, &beta_buf, dtype)) goto cleanup;
+        nk_dtype_t scalar_dtype = nk_each_scale_input_dtype(dtype);
+        nk_scalar_buffer_set_f64(&alpha_buf, 1.0, scalar_dtype);
+        nk_scalar_buffer_set_f64(&beta_buf, 0.0, scalar_dtype);
     }
-    fma_kernel(a_parsed.start, b_parsed.start, result_start, a_parsed.dimensions, &alpha_buf, &beta_buf, result_start);
+
+    // Allocate contiguous output tensor matching input shape, or use provided output
+    {
+        size_t const element_size = bytes_per_dtype(dtype);
+        int const num_dims = a_buffer.ndim;
+        size_t total_elements = 1;
+        for (int dimension = 0; dimension < num_dims; ++dimension) total_elements *= (size_t)a_buffer.shape[dimension];
+
+        char *result_data = NULL;
+        Py_ssize_t result_strides[NK_TENSOR_MAX_RANK];
+        if (!out_obj) {
+            Tensor *result_tensor = PyObject_NewVar(Tensor, &TensorType, total_elements * element_size);
+            if (!result_tensor) {
+                PyErr_NoMemory();
+                goto cleanup;
+            }
+            result_tensor->dtype = dtype;
+            result_tensor->rank = num_dims;
+            // Compute C-contiguous strides
+            result_strides[num_dims - 1] = (Py_ssize_t)element_size;
+            for (int dimension = num_dims - 2; dimension >= 0; --dimension)
+                result_strides[dimension] = result_strides[dimension + 1] * a_buffer.shape[dimension + 1];
+            for (int dimension = 0; dimension < num_dims; ++dimension) {
+                result_tensor->shape[dimension] = a_buffer.shape[dimension];
+                result_tensor->strides[dimension] = result_strides[dimension];
+            }
+            for (int dimension = num_dims; dimension < NK_TENSOR_MAX_RANK; ++dimension)
+                result_tensor->shape[dimension] = 0, result_tensor->strides[dimension] = 0;
+            result_tensor->parent = NULL;
+            result_tensor->data = result_tensor->start;
+            return_obj = (PyObject *)result_tensor;
+            result_data = result_tensor->data;
+        }
+        else {
+            result_data = out_buffer.buf;
+            for (int dimension = 0; dimension < num_dims; ++dimension)
+                result_strides[dimension] = out_buffer.strides[dimension];
+            return_obj = Py_None;
+            Py_INCREF(Py_None);
+        }
+
+        // Compute how many trailing dimensions are contiguous across all tensors
+        Py_buffer const *all_buffers[] = {&a_buffer, &b_buffer};
+        int contiguous_tail = shared_contiguous_tail_dimensions(all_buffers, 2, num_dims);
+        if (out_obj) {
+            Py_buffer const *all_three[] = {&a_buffer, &b_buffer, &out_buffer};
+            contiguous_tail = shared_contiguous_tail_dimensions(all_three, 3, num_dims);
+        }
+
+        each_fma_recursive(fma_kernel, a_buffer.buf, b_buffer.buf, result_data, result_data, //
+                           &alpha_buf, &beta_buf,                                            //
+                           a_buffer.shape, a_buffer.strides,                                 //
+                           b_buffer.strides, result_strides, result_strides,                 //
+                           num_dims, contiguous_tail);
+    }
 
 cleanup:
     PyBuffer_Release(&a_buffer);
@@ -3102,6 +3418,7 @@ static PyObject *implement_trigonometry(nk_kernel_kind_t metric_kind, PyObject *
     else {
         output_start = out_parsed.start;
         return_obj = Py_None;
+        Py_INCREF(Py_None);
     }
 
     kernel(a_parsed.start, a_parsed.dimensions, output_start);
