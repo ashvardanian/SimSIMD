@@ -9,14 +9,14 @@
 #   * running thousands of fuzzy tests on each wheel.
 #   = meaning 12 platforms * 8 Python versions = 96 builds.
 [build-system]
-requires = ["setuptools>=42"]
 build-backend = "setuptools.build_meta"
+requires = ["setuptools>=42"]
 
 [tool.pytest.ini_options]
-minversion = "6.0"
 addopts = ["-ra", "--showlocals", "--strict-markers", "--strict-config"]
-xfail_strict = true
 filterwarnings = ["error"]
+minversion = "6.0"
+xfail_strict = true
 
 [tool.cibuildwheel]
 build-verbosity = 0
@@ -48,11 +48,21 @@ archs = ["all"]
 # Add "pp*" to skip PyPy builds, but they should work fine these days :)
 # https://cibuildwheel.readthedocs.io/en/stable/options/#build-skip
 # https://cibuildwheel.readthedocs.io/en/stable/#what-does-it-do
-skip = [] # we also don't use any SIMD on: ["*s390x*", "*ppc64le*"]
 enable = [] # don't enable PyPy
+skip = [] # we also don't use any SIMD on: ["*s390x*", "*ppc64le*"]
 
 # Testing half-precision math in QEMU is unreliable!
-environment-pass = ["NK_IN_QEMU"]
+environment-pass = [
+  "NK_IN_QEMU",
+  "NK_SEED",
+  "NK_REPETITIONS",
+  "NK_DENSE_DIMENSIONS",
+  "NK_CURVED_DIMENSIONS",
+  "NK_SPARSE_DIMENSIONS",
+  "NK_MATRIX_HEIGHT",
+  "NK_MATRIX_WIDTH",
+  "NK_MATRIX_DEPTH",
+]
 
 [tool.cibuildwheel.environment]
 NK_IN_QEMU = "1"
@@ -66,12 +76,12 @@ repair-wheel-command = "auditwheel repair -w {dest_dir} {wheel}"
 # You can keep track of the most recent images on Quay:
 # - for `manylinux`: https://quay.io/search?q=manylinux
 # - for `musllinux`: https://quay.io/search?q=musllinux
-manylinux-x86_64-image = "manylinux_2_28"
 manylinux-aarch64-image = "manylinux_2_28"
-musllinux-x86_64-image = "musllinux_1_2"
-musllinux-aarch64-image = "musllinux_1_2"
 manylinux-riscv64-image = "manylinux_2_39"
+manylinux-x86_64-image = "manylinux_2_28"
+musllinux-aarch64-image = "musllinux_1_2"
 musllinux-riscv64-image = "musllinux_1_2"
+musllinux-x86_64-image = "musllinux_1_2"
 
 # On CentOS we have to use `yum`.
 # The healthy version would be: `apt-get update && apt-get install -y libc6-dev wget python3-dev`.
@@ -83,8 +93,8 @@ before-all = ["yum update -y --disablerepo=extras && yum install -y --disablerep
 # This may also be handy for using custom dependencies for different Python versions:
 # https://cibuildwheel.readthedocs.io/en/stable/options/#overrides
 [[tool.cibuildwheel.overrides]]
-select = "*-musllinux*"
 before-all = "apk add --update wget python3-dev"
+select = "*-musllinux*"
 
 [tool.cibuildwheel.macos]
 before-build = ["rm -rf {project}/build"]
@@ -112,74 +122,74 @@ test-command = """
 
 # x86-64 builds
 [[tool.cibuildwheel.overrides]]
+environment.NK_TARGET_ARM_ = "0"
+environment.NK_TARGET_X86_ = "1"
+inherit.environment = "append"
 select = "*-win_amd64"
-inherit.environment = "append"
-environment.NK_TARGET_X86_ = "1"
-environment.NK_TARGET_ARM_ = "0"
 
 [[tool.cibuildwheel.overrides]]
+environment.NK_TARGET_ARM_ = "0"
+environment.NK_TARGET_X86_ = "1"
+inherit.environment = "append"
 select = "*-manylinux*_x86_64"
-inherit.environment = "append"
-environment.NK_TARGET_X86_ = "1"
-environment.NK_TARGET_ARM_ = "0"
 
 [[tool.cibuildwheel.overrides]]
+environment.NK_TARGET_ARM_ = "0"
+environment.NK_TARGET_X86_ = "1"
+inherit.environment = "append"
 select = "*-musllinux*_x86_64"
-inherit.environment = "append"
-environment.NK_TARGET_X86_ = "1"
-environment.NK_TARGET_ARM_ = "0"
 
 [[tool.cibuildwheel.overrides]]
-select = "*-macos*_x86_64"
-inherit.environment = "append"
-environment.NK_TARGET_X86_ = "1"
 environment.NK_TARGET_ARM_ = "0"
+environment.NK_TARGET_X86_ = "1"
+inherit.environment = "append"
+select = "*-macos*_x86_64"
 
 # ARM64 builds
 [[tool.cibuildwheel.overrides]]
+environment.NK_TARGET_ARM_ = "1"
+environment.NK_TARGET_X86_ = "0"
+inherit.environment = "append"
 select = "*-win_arm64"
-inherit.environment = "append"
-environment.NK_TARGET_X86_ = "0"
-environment.NK_TARGET_ARM_ = "1"
 
 [[tool.cibuildwheel.overrides]]
+environment.NK_TARGET_ARM_ = "1"
+environment.NK_TARGET_X86_ = "0"
+inherit.environment = "append"
 select = "*-manylinux*_aarch64"
-inherit.environment = "append"
-environment.NK_TARGET_X86_ = "0"
-environment.NK_TARGET_ARM_ = "1"
 
 [[tool.cibuildwheel.overrides]]
+environment.NK_TARGET_ARM_ = "1"
+environment.NK_TARGET_X86_ = "0"
+inherit.environment = "append"
 select = "*-musllinux*_aarch64"
-inherit.environment = "append"
-environment.NK_TARGET_X86_ = "0"
-environment.NK_TARGET_ARM_ = "1"
 
 [[tool.cibuildwheel.overrides]]
-select = "*-macos*_arm64"
-inherit.environment = "append"
-environment.NK_TARGET_X86_ = "0"
 environment.NK_TARGET_ARM_ = "1"
+environment.NK_TARGET_X86_ = "0"
+inherit.environment = "append"
+select = "*-macos*_arm64"
 
 # RISC-V 64-bit builds
 # The `manylinux_2_39` riscv64 image is Fedora-based and uses `dnf` instead of `yum`.
 # We install binutils 2.43+ from Fedora 41 repos for zvfh/zvfbfwma/zvbb support.
 [[tool.cibuildwheel.overrides]]
-select = "*-manylinux*_riscv64"
 before-all = """dnf update -y && dnf install -y glibc-devel wget python3-devel && \
 dnf install -y --releasever=41 \
   --repofrompath=fedora-updates,https://download.fedoraproject.org/pub/fedora/linux/updates/41/Everything/riscv64/ \
   --repo=fedora-updates --nogpgcheck binutils"""
-inherit.environment = "append"
-environment.NK_TARGET_X86_ = "0"
 environment.NK_TARGET_ARM_ = "0"
 environment.NK_TARGET_RISCV_ = "1"
+environment.NK_TARGET_X86_ = "0"
+inherit.environment = "append"
+select = "*-manylinux*_riscv64"
 
 [[tool.cibuildwheel.overrides]]
-select = "*-musllinux*_riscv64"
-inherit.environment = "append"
-environment.NK_TARGET_X86_ = "0"
 environment.NK_TARGET_ARM_ = "0"
 environment.NK_TARGET_RISCV_ = "1"
+environment.NK_TARGET_X86_ = "0"
+inherit.environment = "append"
+select = "*-musllinux*_riscv64"
 
 # Configuration options for the Black formatter:
 # https://black.readthedocs.io/en/latest/usage_and_configuration/the_basics.html#where-black-looks-for-the-file
