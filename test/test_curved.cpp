@@ -12,7 +12,7 @@
  *  @brief Template for bilinear form test: a^T * M * b
  */
 template <typename scalar_type_>
-error_stats_t test_bilinear(typename scalar_type_::bilinear_kernel_t kernel) {
+error_stats_t test_bilinear(typename scalar_type_::curved_kernel_t kernel) {
     using scalar_t = scalar_type_;
     using raw_t = typename scalar_t::raw_t;
     using result_t = typename scalar_t::curved_result_t;
@@ -45,7 +45,7 @@ error_stats_t test_bilinear(typename scalar_type_::bilinear_kernel_t kernel) {
  *  @brief Template for Mahalanobis distance test: sqrt((a-b)^T * M * (a-b))
  */
 template <typename scalar_type_>
-error_stats_t test_mahalanobis(typename scalar_type_::bilinear_kernel_t kernel) {
+error_stats_t test_mahalanobis(typename scalar_type_::curved_kernel_t kernel) {
     using scalar_t = scalar_type_;
     using raw_t = typename scalar_t::raw_t;
     using result_t = typename scalar_t::curved_result_t;
