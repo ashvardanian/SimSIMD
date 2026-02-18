@@ -104,6 +104,7 @@ nk_sqeuclidean_i8_icelake_cycle:
 
     *result = _mm512_reduce_add_epi32(_mm512_add_epi32(distance_sq_low_i32x16, distance_sq_high_i32x16));
 }
+
 NK_PUBLIC void nk_euclidean_i8_icelake(nk_i8_t const *a, nk_i8_t const *b, nk_size_t n, nk_f32_t *result) {
     nk_u32_t d2;
     nk_sqeuclidean_i8_icelake(a, b, n, &d2);

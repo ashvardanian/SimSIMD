@@ -37,6 +37,7 @@
 
 #include "numkong/types.h"
 #include "numkong/spatial/neon.h" // `nk_f32_sqrt_neon`
+#include "numkong/dot/sve.h"      // `nk_dot_stable_sum_f64_sve_`
 
 #if defined(__cplusplus)
 extern "C" {
@@ -122,8 +123,7 @@ NK_PUBLIC void nk_sqeuclidean_f64_sve(nk_f64_t const *a, nk_f64_t const *b, nk_s
         sum_vec = t_vec;
         i += svcntd();
     } while (i < n);
-    nk_f64_t d2 = svaddv_f64(pg_true, svadd_f64_x(pg_true, sum_vec, compensation_vec));
-    *result = d2;
+    *result = nk_dot_stable_sum_f64_sve_(pg_true, sum_vec, compensation_vec);
 }
 
 NK_PUBLIC void nk_euclidean_f64_sve(nk_f64_t const *a, nk_f64_t const *b, nk_size_t n, nk_f64_t *result) {
@@ -147,13 +147,13 @@ NK_PUBLIC void nk_angular_f64_sve(nk_f64_t const *a, nk_f64_t const *b, nk_size_
         // TwoProd for ab: product = a*b, error = fma(a,b,-product) = -(product - a*b)
         svfloat64_t product_vec = svmul_f64_x(pg_vec, a_vec, b_vec);
         svfloat64_t product_error_vec = svneg_f64_x(pg_vec, svnmls_f64_x(pg_vec, product_vec, a_vec, b_vec));
-        // TwoSum: (t, q) = TwoSum(sum, product)
-        svfloat64_t t_vec = svadd_f64_x(pg_vec, ab_sum_vec, product_vec);
-        svfloat64_t z_vec = svsub_f64_x(pg_vec, t_vec, ab_sum_vec);
+        // TwoSum: (tentative_sum, sum_error) = TwoSum(sum, product)
+        svfloat64_t tentative_sum_vec = svadd_f64_x(pg_vec, ab_sum_vec, product_vec);
+        svfloat64_t virtual_addend_vec = svsub_f64_x(pg_vec, tentative_sum_vec, ab_sum_vec);
         svfloat64_t sum_error_vec = svadd_f64_x(pg_vec,
-                                                svsub_f64_x(pg_vec, ab_sum_vec, svsub_f64_x(pg_vec, t_vec, z_vec)),
-                                                svsub_f64_x(pg_vec, product_vec, z_vec));
-        ab_sum_vec = t_vec;
+            svsub_f64_x(pg_vec, ab_sum_vec, svsub_f64_x(pg_vec, tentative_sum_vec, virtual_addend_vec)),
+            svsub_f64_x(pg_vec, product_vec, virtual_addend_vec));
+        ab_sum_vec = tentative_sum_vec;
         ab_compensation_vec = svadd_f64_x(pg_vec, ab_compensation_vec,
                                           svadd_f64_x(pg_vec, sum_error_vec, product_error_vec));
         // Simple FMA for self-products (no cancellation)
@@ -162,7 +162,7 @@ NK_PUBLIC void nk_angular_f64_sve(nk_f64_t const *a, nk_f64_t const *b, nk_size_
         i += svcntd();
     } while (i < n);
 
-    nk_f64_t ab = svaddv_f64(pg_true, svadd_f64_x(pg_true, ab_sum_vec, ab_compensation_vec));
+    nk_f64_t ab = nk_dot_stable_sum_f64_sve_(pg_true, ab_sum_vec, ab_compensation_vec);
     nk_f64_t a2 = svaddv_f64(pg_true, a2_vec);
     nk_f64_t b2 = svaddv_f64(pg_true, b2_vec);
     *result = nk_angular_normalize_f64_neon_(ab, a2, b2);

@@ -99,6 +99,25 @@ extern "C" {
 #pragma GCC target("arch=armv8-a+simd")
 #endif
 
+/** @brief Compensated horizontal sum of 2 f64 lanes via TwoSum. */
+NK_INTERNAL nk_f64_t nk_dot_stable_sum_f64x2_neon_(float64x2_t sum_f64x2, float64x2_t compensation_f64x2) {
+    // TwoSum merge of sum + compensation (2-wide)
+    float64x2_t tentative_sum_f64x2 = vaddq_f64(sum_f64x2, compensation_f64x2);
+    float64x2_t virtual_addend_f64x2 = vsubq_f64(tentative_sum_f64x2, sum_f64x2);
+    float64x2_t rounding_error_f64x2 = vaddq_f64(
+        vsubq_f64(sum_f64x2, vsubq_f64(tentative_sum_f64x2, virtual_addend_f64x2)),
+        vsubq_f64(compensation_f64x2, virtual_addend_f64x2));
+    // Scalar TwoSum 2→1
+    nk_f64_t lower_sum = vgetq_lane_f64(tentative_sum_f64x2, 0);
+    nk_f64_t upper_sum = vgetq_lane_f64(tentative_sum_f64x2, 1);
+    nk_f64_t lower_error = vgetq_lane_f64(rounding_error_f64x2, 0);
+    nk_f64_t upper_error = vgetq_lane_f64(rounding_error_f64x2, 1);
+    nk_f64_t tentative_sum = lower_sum + upper_sum;
+    nk_f64_t virtual_addend = tentative_sum - lower_sum;
+    nk_f64_t rounding_error = (lower_sum - (tentative_sum - virtual_addend)) + (upper_sum - virtual_addend);
+    return tentative_sum + (lower_error + upper_error + rounding_error);
+}
+
 #pragma region - Traditional Floats
 
 NK_PUBLIC void nk_dot_f32_neon(nk_f32_t const *a_scalars, nk_f32_t const *b_scalars, nk_size_t count_scalars,
@@ -236,27 +255,38 @@ NK_PUBLIC void nk_dot_f64_neon(nk_f64_t const *a_scalars, nk_f64_t const *b_scal
     // Dot2 algorithm (Ogita-Rump-Oishi 2005) for compensated dot product
     float64x2_t sum_f64x2 = vdupq_n_f64(0);
     float64x2_t compensation_f64x2 = vdupq_n_f64(0);
-    nk_size_t idx_scalars = 0;
-    for (; idx_scalars + 2 <= count_scalars; idx_scalars += 2) {
-        float64x2_t a_f64x2 = vld1q_f64(a_scalars + idx_scalars);
-        float64x2_t b_f64x2 = vld1q_f64(b_scalars + idx_scalars);
-        // TwoProd: h = a × b, r = fma(a, b, -h) captures the rounding error
-        float64x2_t product_f64x2 = vmulq_f64(a_f64x2, b_f64x2);
-        float64x2_t product_error_f64x2 = vfmsq_f64(product_f64x2, a_f64x2, b_f64x2);
-        product_error_f64x2 = vnegq_f64(product_error_f64x2);
-        // TwoSum: (t, q) = TwoSum(sum, h) where t = sum + h rounded, q = error
-        float64x2_t t_f64x2 = vaddq_f64(sum_f64x2, product_f64x2);
-        float64x2_t z_f64x2 = vsubq_f64(t_f64x2, sum_f64x2);
-        float64x2_t sum_error_f64x2 = vaddq_f64(vsubq_f64(sum_f64x2, vsubq_f64(t_f64x2, z_f64x2)),
-                                                vsubq_f64(product_f64x2, z_f64x2));
-        // Update: sum = t, compensation += q + r
-        sum_f64x2 = t_f64x2;
-        compensation_f64x2 = vaddq_f64(compensation_f64x2, vaddq_f64(sum_error_f64x2, product_error_f64x2));
+    float64x2_t a_f64x2, b_f64x2;
+
+nk_dot_f64_neon_cycle:
+    if (count_scalars < 2) {
+        nk_b128_vec_t a_tail, b_tail;
+        nk_partial_load_b64x2_serial_(a_scalars, &a_tail, count_scalars);
+        nk_partial_load_b64x2_serial_(b_scalars, &b_tail, count_scalars);
+        a_f64x2 = a_tail.f64x2;
+        b_f64x2 = b_tail.f64x2;
+        count_scalars = 0;
     }
-    // Reduce and combine sum + compensation
-    nk_f64_t sum = vaddvq_f64(vaddq_f64(sum_f64x2, compensation_f64x2));
-    for (; idx_scalars < count_scalars; ++idx_scalars) sum += a_scalars[idx_scalars] * b_scalars[idx_scalars];
-    *result = sum;
+    else {
+        a_f64x2 = vld1q_f64(a_scalars);
+        b_f64x2 = vld1q_f64(b_scalars);
+        a_scalars += 2, b_scalars += 2, count_scalars -= 2;
+    }
+
+    // TwoProd: h = a × b, r = fma(a, b, -h) captures the rounding error
+    float64x2_t product_f64x2 = vmulq_f64(a_f64x2, b_f64x2);
+    float64x2_t product_error_f64x2 = vnegq_f64(vfmsq_f64(product_f64x2, a_f64x2, b_f64x2));
+    // TwoSum: (t, q) = TwoSum(sum, h) where t = sum + h rounded, q = error
+    float64x2_t tentative_sum_f64x2 = vaddq_f64(sum_f64x2, product_f64x2);
+    float64x2_t virtual_addend_f64x2 = vsubq_f64(tentative_sum_f64x2, sum_f64x2);
+    float64x2_t sum_error_f64x2 = vaddq_f64(vsubq_f64(sum_f64x2, vsubq_f64(tentative_sum_f64x2, virtual_addend_f64x2)),
+                                            vsubq_f64(product_f64x2, virtual_addend_f64x2));
+    // Update: sum = t, compensation += q + r
+    sum_f64x2 = tentative_sum_f64x2;
+    compensation_f64x2 = vaddq_f64(compensation_f64x2, vaddq_f64(sum_error_f64x2, product_error_f64x2));
+
+    if (count_scalars) goto nk_dot_f64_neon_cycle;
+    // Compensated horizontal reduction preserving Dot2 error tracking
+    *result = nk_dot_stable_sum_f64x2_neon_(sum_f64x2, compensation_f64x2);
 }
 
 NK_PUBLIC void nk_dot_f64c_neon(nk_f64c_t const *a_pairs, nk_f64c_t const *b_pairs, nk_size_t count_pairs,
@@ -266,70 +296,78 @@ NK_PUBLIC void nk_dot_f64c_neon(nk_f64c_t const *a_pairs, nk_f64c_t const *b_pai
     float64x2_t sum_imag_f64x2 = vdupq_n_f64(0);
     float64x2_t compensation_real_f64x2 = vdupq_n_f64(0);
     float64x2_t compensation_imag_f64x2 = vdupq_n_f64(0);
-    nk_size_t idx_pairs = 0;
-    for (; idx_pairs + 2 <= count_pairs; idx_pairs += 2) {
-        // Unpack the input arrays into real and imaginary parts:
-        float64x2x2_t a_f64x2x2 = vld2q_f64((nk_f64_t const *)(a_pairs + idx_pairs));
-        float64x2x2_t b_f64x2x2 = vld2q_f64((nk_f64_t const *)(b_pairs + idx_pairs));
-        float64x2_t a_real_f64x2 = a_f64x2x2.val[0];
-        float64x2_t a_imag_f64x2 = a_f64x2x2.val[1];
-        float64x2_t b_real_f64x2 = b_f64x2x2.val[0];
-        float64x2_t b_imag_f64x2 = b_f64x2x2.val[1];
+    float64x2_t a_real_f64x2, a_imag_f64x2, b_real_f64x2, b_imag_f64x2;
 
-        // Real part: aᵣ × bᵣ - aᵢ × bᵢ (using TwoProd and TwoSum)
-        // First term: aᵣ × bᵣ
-        float64x2_t prod_rr_f64x2 = vmulq_f64(a_real_f64x2, b_real_f64x2);
-        float64x2_t err_rr_f64x2 = vnegq_f64(vfmsq_f64(prod_rr_f64x2, a_real_f64x2, b_real_f64x2));
-        float64x2_t t_real_f64x2 = vaddq_f64(sum_real_f64x2, prod_rr_f64x2);
-        float64x2_t z_real_f64x2 = vsubq_f64(t_real_f64x2, sum_real_f64x2);
-        float64x2_t err_sum_real_f64x2 = vaddq_f64(vsubq_f64(sum_real_f64x2, vsubq_f64(t_real_f64x2, z_real_f64x2)),
-                                                   vsubq_f64(prod_rr_f64x2, z_real_f64x2));
-        sum_real_f64x2 = t_real_f64x2;
-        compensation_real_f64x2 = vaddq_f64(compensation_real_f64x2, vaddq_f64(err_sum_real_f64x2, err_rr_f64x2));
-        // Second term: -aᵢ × bᵢ
-        float64x2_t prod_ii_f64x2 = vmulq_f64(a_imag_f64x2, b_imag_f64x2);
-        float64x2_t err_ii_f64x2 = vnegq_f64(vfmsq_f64(prod_ii_f64x2, a_imag_f64x2, b_imag_f64x2));
-        t_real_f64x2 = vsubq_f64(sum_real_f64x2, prod_ii_f64x2);
-        z_real_f64x2 = vsubq_f64(sum_real_f64x2, t_real_f64x2);
-        err_sum_real_f64x2 = vaddq_f64(vsubq_f64(z_real_f64x2, prod_ii_f64x2),
-                                       vsubq_f64(sum_real_f64x2, vaddq_f64(t_real_f64x2, z_real_f64x2)));
-        sum_real_f64x2 = t_real_f64x2;
-        compensation_real_f64x2 = vsubq_f64(compensation_real_f64x2, vaddq_f64(err_sum_real_f64x2, err_ii_f64x2));
-
-        // Imag part: aᵣ × bᵢ + aᵢ × bᵣ (using TwoProd and TwoSum)
-        // First term: aᵣ × bᵢ
-        float64x2_t prod_ri_f64x2 = vmulq_f64(a_real_f64x2, b_imag_f64x2);
-        float64x2_t err_ri_f64x2 = vnegq_f64(vfmsq_f64(prod_ri_f64x2, a_real_f64x2, b_imag_f64x2));
-        float64x2_t t_imag_f64x2 = vaddq_f64(sum_imag_f64x2, prod_ri_f64x2);
-        float64x2_t z_imag_f64x2 = vsubq_f64(t_imag_f64x2, sum_imag_f64x2);
-        float64x2_t err_sum_imag_f64x2 = vaddq_f64(vsubq_f64(sum_imag_f64x2, vsubq_f64(t_imag_f64x2, z_imag_f64x2)),
-                                                   vsubq_f64(prod_ri_f64x2, z_imag_f64x2));
-        sum_imag_f64x2 = t_imag_f64x2;
-        compensation_imag_f64x2 = vaddq_f64(compensation_imag_f64x2, vaddq_f64(err_sum_imag_f64x2, err_ri_f64x2));
-        // Second term: aᵢ × bᵣ
-        float64x2_t prod_ir_f64x2 = vmulq_f64(a_imag_f64x2, b_real_f64x2);
-        float64x2_t err_ir_f64x2 = vnegq_f64(vfmsq_f64(prod_ir_f64x2, a_imag_f64x2, b_real_f64x2));
-        t_imag_f64x2 = vaddq_f64(sum_imag_f64x2, prod_ir_f64x2);
-        z_imag_f64x2 = vsubq_f64(t_imag_f64x2, sum_imag_f64x2);
-        err_sum_imag_f64x2 = vaddq_f64(vsubq_f64(sum_imag_f64x2, vsubq_f64(t_imag_f64x2, z_imag_f64x2)),
-                                       vsubq_f64(prod_ir_f64x2, z_imag_f64x2));
-        sum_imag_f64x2 = t_imag_f64x2;
-        compensation_imag_f64x2 = vaddq_f64(compensation_imag_f64x2, vaddq_f64(err_sum_imag_f64x2, err_ir_f64x2));
+nk_dot_f64c_neon_cycle:
+    if (count_pairs < 2) {
+        nk_b128_vec_t a_tail, b_tail;
+        nk_partial_load_b64x2_serial_(a_pairs, &a_tail, count_pairs * 2);
+        nk_partial_load_b64x2_serial_(b_pairs, &b_tail, count_pairs * 2);
+        float64x2_t zeros = vdupq_n_f64(0);
+        a_real_f64x2 = vzip1q_f64(a_tail.f64x2, zeros);
+        a_imag_f64x2 = vzip2q_f64(a_tail.f64x2, zeros);
+        b_real_f64x2 = vzip1q_f64(b_tail.f64x2, zeros);
+        b_imag_f64x2 = vzip2q_f64(b_tail.f64x2, zeros);
+        count_pairs = 0;
+    }
+    else {
+        float64x2x2_t a_f64x2x2 = vld2q_f64((nk_f64_t const *)a_pairs);
+        float64x2x2_t b_f64x2x2 = vld2q_f64((nk_f64_t const *)b_pairs);
+        a_real_f64x2 = a_f64x2x2.val[0];
+        a_imag_f64x2 = a_f64x2x2.val[1];
+        b_real_f64x2 = b_f64x2x2.val[0];
+        b_imag_f64x2 = b_f64x2x2.val[1];
+        a_pairs += 2, b_pairs += 2, count_pairs -= 2;
     }
 
-    // Reduce and combine sum + compensation
-    nk_f64_t sum_real = vaddvq_f64(vaddq_f64(sum_real_f64x2, compensation_real_f64x2));
-    nk_f64_t sum_imag = vaddvq_f64(vaddq_f64(sum_imag_f64x2, compensation_imag_f64x2));
+    // Real part: aᵣ × bᵣ - aᵢ × bᵢ (using TwoProd and TwoSum)
+    // First term: aᵣ × bᵣ
+    float64x2_t prod_rr_f64x2 = vmulq_f64(a_real_f64x2, b_real_f64x2);
+    float64x2_t err_rr_f64x2 = vnegq_f64(vfmsq_f64(prod_rr_f64x2, a_real_f64x2, b_real_f64x2));
+    float64x2_t tentative_sum_real_f64x2 = vaddq_f64(sum_real_f64x2, prod_rr_f64x2);
+    float64x2_t virtual_addend_real_f64x2 = vsubq_f64(tentative_sum_real_f64x2, sum_real_f64x2);
+    float64x2_t err_sum_real_f64x2 = vaddq_f64(
+        vsubq_f64(sum_real_f64x2, vsubq_f64(tentative_sum_real_f64x2, virtual_addend_real_f64x2)),
+        vsubq_f64(prod_rr_f64x2, virtual_addend_real_f64x2));
+    sum_real_f64x2 = tentative_sum_real_f64x2;
+    compensation_real_f64x2 = vaddq_f64(compensation_real_f64x2, vaddq_f64(err_sum_real_f64x2, err_rr_f64x2));
+    // Second term: -aᵢ × bᵢ
+    float64x2_t prod_ii_f64x2 = vmulq_f64(a_imag_f64x2, b_imag_f64x2);
+    float64x2_t err_ii_f64x2 = vnegq_f64(vfmsq_f64(prod_ii_f64x2, a_imag_f64x2, b_imag_f64x2));
+    tentative_sum_real_f64x2 = vsubq_f64(sum_real_f64x2, prod_ii_f64x2);
+    virtual_addend_real_f64x2 = vsubq_f64(sum_real_f64x2, tentative_sum_real_f64x2);
+    err_sum_real_f64x2 = vaddq_f64(
+        vsubq_f64(virtual_addend_real_f64x2, prod_ii_f64x2),
+        vsubq_f64(sum_real_f64x2, vaddq_f64(tentative_sum_real_f64x2, virtual_addend_real_f64x2)));
+    sum_real_f64x2 = tentative_sum_real_f64x2;
+    compensation_real_f64x2 = vsubq_f64(compensation_real_f64x2, vaddq_f64(err_sum_real_f64x2, err_ii_f64x2));
 
-    // Handle the tail:
-    for (; idx_pairs != count_pairs; ++idx_pairs) {
-        nk_f64c_t a_pair = a_pairs[idx_pairs], b_pair = b_pairs[idx_pairs];
-        nk_f64_t ar = a_pair.real, ai = a_pair.imag, br = b_pair.real, bi = b_pair.imag;
-        sum_real += ar * br - ai * bi;
-        sum_imag += ar * bi + ai * br;
-    }
-    result->real = sum_real;
-    result->imag = sum_imag;
+    // Imag part: aᵣ × bᵢ + aᵢ × bᵣ (using TwoProd and TwoSum)
+    // First term: aᵣ × bᵢ
+    float64x2_t prod_ri_f64x2 = vmulq_f64(a_real_f64x2, b_imag_f64x2);
+    float64x2_t err_ri_f64x2 = vnegq_f64(vfmsq_f64(prod_ri_f64x2, a_real_f64x2, b_imag_f64x2));
+    float64x2_t tentative_sum_imag_f64x2 = vaddq_f64(sum_imag_f64x2, prod_ri_f64x2);
+    float64x2_t virtual_addend_imag_f64x2 = vsubq_f64(tentative_sum_imag_f64x2, sum_imag_f64x2);
+    float64x2_t err_sum_imag_f64x2 = vaddq_f64(
+        vsubq_f64(sum_imag_f64x2, vsubq_f64(tentative_sum_imag_f64x2, virtual_addend_imag_f64x2)),
+        vsubq_f64(prod_ri_f64x2, virtual_addend_imag_f64x2));
+    sum_imag_f64x2 = tentative_sum_imag_f64x2;
+    compensation_imag_f64x2 = vaddq_f64(compensation_imag_f64x2, vaddq_f64(err_sum_imag_f64x2, err_ri_f64x2));
+    // Second term: aᵢ × bᵣ
+    float64x2_t prod_ir_f64x2 = vmulq_f64(a_imag_f64x2, b_real_f64x2);
+    float64x2_t err_ir_f64x2 = vnegq_f64(vfmsq_f64(prod_ir_f64x2, a_imag_f64x2, b_real_f64x2));
+    tentative_sum_imag_f64x2 = vaddq_f64(sum_imag_f64x2, prod_ir_f64x2);
+    virtual_addend_imag_f64x2 = vsubq_f64(tentative_sum_imag_f64x2, sum_imag_f64x2);
+    err_sum_imag_f64x2 = vaddq_f64(
+        vsubq_f64(sum_imag_f64x2, vsubq_f64(tentative_sum_imag_f64x2, virtual_addend_imag_f64x2)),
+        vsubq_f64(prod_ir_f64x2, virtual_addend_imag_f64x2));
+    sum_imag_f64x2 = tentative_sum_imag_f64x2;
+    compensation_imag_f64x2 = vaddq_f64(compensation_imag_f64x2, vaddq_f64(err_sum_imag_f64x2, err_ir_f64x2));
+
+    if (count_pairs) goto nk_dot_f64c_neon_cycle;
+    // Compensated horizontal reduction preserving Dot2 error tracking
+    result->real = nk_dot_stable_sum_f64x2_neon_(sum_real_f64x2, compensation_real_f64x2);
+    result->imag = nk_dot_stable_sum_f64x2_neon_(sum_imag_f64x2, compensation_imag_f64x2);
 }
 
 NK_PUBLIC void nk_vdot_f64c_neon(nk_f64c_t const *a_pairs, nk_f64c_t const *b_pairs, nk_size_t count_pairs,
@@ -339,70 +377,78 @@ NK_PUBLIC void nk_vdot_f64c_neon(nk_f64c_t const *a_pairs, nk_f64c_t const *b_pa
     float64x2_t sum_imag_f64x2 = vdupq_n_f64(0);
     float64x2_t compensation_real_f64x2 = vdupq_n_f64(0);
     float64x2_t compensation_imag_f64x2 = vdupq_n_f64(0);
-    nk_size_t idx_pairs = 0;
-    for (; idx_pairs + 2 <= count_pairs; idx_pairs += 2) {
-        // Unpack the input arrays into real and imaginary parts:
-        float64x2x2_t a_f64x2x2 = vld2q_f64((nk_f64_t const *)(a_pairs + idx_pairs));
-        float64x2x2_t b_f64x2x2 = vld2q_f64((nk_f64_t const *)(b_pairs + idx_pairs));
-        float64x2_t a_real_f64x2 = a_f64x2x2.val[0];
-        float64x2_t a_imag_f64x2 = a_f64x2x2.val[1];
-        float64x2_t b_real_f64x2 = b_f64x2x2.val[0];
-        float64x2_t b_imag_f64x2 = b_f64x2x2.val[1];
+    float64x2_t a_real_f64x2, a_imag_f64x2, b_real_f64x2, b_imag_f64x2;
 
-        // Real part: aᵣ × bᵣ + aᵢ × bᵢ (using TwoProd and TwoSum)
-        // First term: aᵣ × bᵣ
-        float64x2_t prod_rr_f64x2 = vmulq_f64(a_real_f64x2, b_real_f64x2);
-        float64x2_t err_rr_f64x2 = vnegq_f64(vfmsq_f64(prod_rr_f64x2, a_real_f64x2, b_real_f64x2));
-        float64x2_t t_real_f64x2 = vaddq_f64(sum_real_f64x2, prod_rr_f64x2);
-        float64x2_t z_real_f64x2 = vsubq_f64(t_real_f64x2, sum_real_f64x2);
-        float64x2_t err_sum_real_f64x2 = vaddq_f64(vsubq_f64(sum_real_f64x2, vsubq_f64(t_real_f64x2, z_real_f64x2)),
-                                                   vsubq_f64(prod_rr_f64x2, z_real_f64x2));
-        sum_real_f64x2 = t_real_f64x2;
-        compensation_real_f64x2 = vaddq_f64(compensation_real_f64x2, vaddq_f64(err_sum_real_f64x2, err_rr_f64x2));
-        // Second term: +aᵢ × bᵢ (note: + instead of - for conjugate)
-        float64x2_t prod_ii_f64x2 = vmulq_f64(a_imag_f64x2, b_imag_f64x2);
-        float64x2_t err_ii_f64x2 = vnegq_f64(vfmsq_f64(prod_ii_f64x2, a_imag_f64x2, b_imag_f64x2));
-        t_real_f64x2 = vaddq_f64(sum_real_f64x2, prod_ii_f64x2);
-        z_real_f64x2 = vsubq_f64(t_real_f64x2, sum_real_f64x2);
-        err_sum_real_f64x2 = vaddq_f64(vsubq_f64(sum_real_f64x2, vsubq_f64(t_real_f64x2, z_real_f64x2)),
-                                       vsubq_f64(prod_ii_f64x2, z_real_f64x2));
-        sum_real_f64x2 = t_real_f64x2;
-        compensation_real_f64x2 = vaddq_f64(compensation_real_f64x2, vaddq_f64(err_sum_real_f64x2, err_ii_f64x2));
-
-        // Imag part: aᵣ × bᵢ - aᵢ × bᵣ (using TwoProd and TwoSum)
-        // First term: aᵣ × bᵢ
-        float64x2_t prod_ri_f64x2 = vmulq_f64(a_real_f64x2, b_imag_f64x2);
-        float64x2_t err_ri_f64x2 = vnegq_f64(vfmsq_f64(prod_ri_f64x2, a_real_f64x2, b_imag_f64x2));
-        float64x2_t t_imag_f64x2 = vaddq_f64(sum_imag_f64x2, prod_ri_f64x2);
-        float64x2_t z_imag_f64x2 = vsubq_f64(t_imag_f64x2, sum_imag_f64x2);
-        float64x2_t err_sum_imag_f64x2 = vaddq_f64(vsubq_f64(sum_imag_f64x2, vsubq_f64(t_imag_f64x2, z_imag_f64x2)),
-                                                   vsubq_f64(prod_ri_f64x2, z_imag_f64x2));
-        sum_imag_f64x2 = t_imag_f64x2;
-        compensation_imag_f64x2 = vaddq_f64(compensation_imag_f64x2, vaddq_f64(err_sum_imag_f64x2, err_ri_f64x2));
-        // Second term: -aᵢ × bᵣ (note: - instead of + for conjugate)
-        float64x2_t prod_ir_f64x2 = vmulq_f64(a_imag_f64x2, b_real_f64x2);
-        float64x2_t err_ir_f64x2 = vnegq_f64(vfmsq_f64(prod_ir_f64x2, a_imag_f64x2, b_real_f64x2));
-        t_imag_f64x2 = vsubq_f64(sum_imag_f64x2, prod_ir_f64x2);
-        z_imag_f64x2 = vsubq_f64(sum_imag_f64x2, t_imag_f64x2);
-        err_sum_imag_f64x2 = vaddq_f64(vsubq_f64(z_imag_f64x2, prod_ir_f64x2),
-                                       vsubq_f64(sum_imag_f64x2, vaddq_f64(t_imag_f64x2, z_imag_f64x2)));
-        sum_imag_f64x2 = t_imag_f64x2;
-        compensation_imag_f64x2 = vsubq_f64(compensation_imag_f64x2, vaddq_f64(err_sum_imag_f64x2, err_ir_f64x2));
+nk_vdot_f64c_neon_cycle:
+    if (count_pairs < 2) {
+        nk_b128_vec_t a_tail, b_tail;
+        nk_partial_load_b64x2_serial_(a_pairs, &a_tail, count_pairs * 2);
+        nk_partial_load_b64x2_serial_(b_pairs, &b_tail, count_pairs * 2);
+        float64x2_t zeros = vdupq_n_f64(0);
+        a_real_f64x2 = vzip1q_f64(a_tail.f64x2, zeros);
+        a_imag_f64x2 = vzip2q_f64(a_tail.f64x2, zeros);
+        b_real_f64x2 = vzip1q_f64(b_tail.f64x2, zeros);
+        b_imag_f64x2 = vzip2q_f64(b_tail.f64x2, zeros);
+        count_pairs = 0;
+    }
+    else {
+        float64x2x2_t a_f64x2x2 = vld2q_f64((nk_f64_t const *)a_pairs);
+        float64x2x2_t b_f64x2x2 = vld2q_f64((nk_f64_t const *)b_pairs);
+        a_real_f64x2 = a_f64x2x2.val[0];
+        a_imag_f64x2 = a_f64x2x2.val[1];
+        b_real_f64x2 = b_f64x2x2.val[0];
+        b_imag_f64x2 = b_f64x2x2.val[1];
+        a_pairs += 2, b_pairs += 2, count_pairs -= 2;
     }
 
-    // Reduce and combine sum + compensation
-    nk_f64_t sum_real = vaddvq_f64(vaddq_f64(sum_real_f64x2, compensation_real_f64x2));
-    nk_f64_t sum_imag = vaddvq_f64(vaddq_f64(sum_imag_f64x2, compensation_imag_f64x2));
+    // Real part: aᵣ × bᵣ + aᵢ × bᵢ (using TwoProd and TwoSum)
+    // First term: aᵣ × bᵣ
+    float64x2_t prod_rr_f64x2 = vmulq_f64(a_real_f64x2, b_real_f64x2);
+    float64x2_t err_rr_f64x2 = vnegq_f64(vfmsq_f64(prod_rr_f64x2, a_real_f64x2, b_real_f64x2));
+    float64x2_t tentative_sum_real_f64x2 = vaddq_f64(sum_real_f64x2, prod_rr_f64x2);
+    float64x2_t virtual_addend_real_f64x2 = vsubq_f64(tentative_sum_real_f64x2, sum_real_f64x2);
+    float64x2_t err_sum_real_f64x2 = vaddq_f64(
+        vsubq_f64(sum_real_f64x2, vsubq_f64(tentative_sum_real_f64x2, virtual_addend_real_f64x2)),
+        vsubq_f64(prod_rr_f64x2, virtual_addend_real_f64x2));
+    sum_real_f64x2 = tentative_sum_real_f64x2;
+    compensation_real_f64x2 = vaddq_f64(compensation_real_f64x2, vaddq_f64(err_sum_real_f64x2, err_rr_f64x2));
+    // Second term: +aᵢ × bᵢ (note: + instead of - for conjugate)
+    float64x2_t prod_ii_f64x2 = vmulq_f64(a_imag_f64x2, b_imag_f64x2);
+    float64x2_t err_ii_f64x2 = vnegq_f64(vfmsq_f64(prod_ii_f64x2, a_imag_f64x2, b_imag_f64x2));
+    tentative_sum_real_f64x2 = vaddq_f64(sum_real_f64x2, prod_ii_f64x2);
+    virtual_addend_real_f64x2 = vsubq_f64(tentative_sum_real_f64x2, sum_real_f64x2);
+    err_sum_real_f64x2 = vaddq_f64(
+        vsubq_f64(sum_real_f64x2, vsubq_f64(tentative_sum_real_f64x2, virtual_addend_real_f64x2)),
+        vsubq_f64(prod_ii_f64x2, virtual_addend_real_f64x2));
+    sum_real_f64x2 = tentative_sum_real_f64x2;
+    compensation_real_f64x2 = vaddq_f64(compensation_real_f64x2, vaddq_f64(err_sum_real_f64x2, err_ii_f64x2));
 
-    // Handle the tail:
-    for (; idx_pairs != count_pairs; ++idx_pairs) {
-        nk_f64c_t a_pair = a_pairs[idx_pairs], b_pair = b_pairs[idx_pairs];
-        nk_f64_t ar = a_pair.real, ai = a_pair.imag, br = b_pair.real, bi = b_pair.imag;
-        sum_real += ar * br + ai * bi;
-        sum_imag += ar * bi - ai * br;
-    }
-    result->real = sum_real;
-    result->imag = sum_imag;
+    // Imag part: aᵣ × bᵢ - aᵢ × bᵣ (using TwoProd and TwoSum)
+    // First term: aᵣ × bᵢ
+    float64x2_t prod_ri_f64x2 = vmulq_f64(a_real_f64x2, b_imag_f64x2);
+    float64x2_t err_ri_f64x2 = vnegq_f64(vfmsq_f64(prod_ri_f64x2, a_real_f64x2, b_imag_f64x2));
+    float64x2_t tentative_sum_imag_f64x2 = vaddq_f64(sum_imag_f64x2, prod_ri_f64x2);
+    float64x2_t virtual_addend_imag_f64x2 = vsubq_f64(tentative_sum_imag_f64x2, sum_imag_f64x2);
+    float64x2_t err_sum_imag_f64x2 = vaddq_f64(
+        vsubq_f64(sum_imag_f64x2, vsubq_f64(tentative_sum_imag_f64x2, virtual_addend_imag_f64x2)),
+        vsubq_f64(prod_ri_f64x2, virtual_addend_imag_f64x2));
+    sum_imag_f64x2 = tentative_sum_imag_f64x2;
+    compensation_imag_f64x2 = vaddq_f64(compensation_imag_f64x2, vaddq_f64(err_sum_imag_f64x2, err_ri_f64x2));
+    // Second term: -aᵢ × bᵣ (note: - instead of + for conjugate)
+    float64x2_t prod_ir_f64x2 = vmulq_f64(a_imag_f64x2, b_real_f64x2);
+    float64x2_t err_ir_f64x2 = vnegq_f64(vfmsq_f64(prod_ir_f64x2, a_imag_f64x2, b_real_f64x2));
+    tentative_sum_imag_f64x2 = vsubq_f64(sum_imag_f64x2, prod_ir_f64x2);
+    virtual_addend_imag_f64x2 = vsubq_f64(sum_imag_f64x2, tentative_sum_imag_f64x2);
+    err_sum_imag_f64x2 = vaddq_f64(
+        vsubq_f64(virtual_addend_imag_f64x2, prod_ir_f64x2),
+        vsubq_f64(sum_imag_f64x2, vaddq_f64(tentative_sum_imag_f64x2, virtual_addend_imag_f64x2)));
+    sum_imag_f64x2 = tentative_sum_imag_f64x2;
+    compensation_imag_f64x2 = vsubq_f64(compensation_imag_f64x2, vaddq_f64(err_sum_imag_f64x2, err_ir_f64x2));
+
+    if (count_pairs) goto nk_vdot_f64c_neon_cycle;
+    // Compensated horizontal reduction preserving Dot2 error tracking
+    result->real = nk_dot_stable_sum_f64x2_neon_(sum_real_f64x2, compensation_real_f64x2);
+    result->imag = nk_dot_stable_sum_f64x2_neon_(sum_imag_f64x2, compensation_imag_f64x2);
 }
 
 /**
@@ -434,13 +480,13 @@ NK_INTERNAL void nk_dot_f64x2_update_neon(nk_dot_f64x2_state_neon_t *state, nk_b
     float64x2_t product_error_f64x2 = vnegq_f64(vfmsq_f64(product_f64x2, a_f64x2, b_f64x2));
 
     // TwoSum: (t, q) = TwoSum(sum, h) where t = sum + h rounded, q = error
-    float64x2_t t_f64x2 = vaddq_f64(sum_f64x2, product_f64x2);
-    float64x2_t z_f64x2 = vsubq_f64(t_f64x2, sum_f64x2);
-    float64x2_t sum_error_f64x2 = vaddq_f64(vsubq_f64(sum_f64x2, vsubq_f64(t_f64x2, z_f64x2)),
-                                            vsubq_f64(product_f64x2, z_f64x2));
+    float64x2_t tentative_sum_f64x2 = vaddq_f64(sum_f64x2, product_f64x2);
+    float64x2_t virtual_addend_f64x2 = vsubq_f64(tentative_sum_f64x2, sum_f64x2);
+    float64x2_t sum_error_f64x2 = vaddq_f64(vsubq_f64(sum_f64x2, vsubq_f64(tentative_sum_f64x2, virtual_addend_f64x2)),
+                                            vsubq_f64(product_f64x2, virtual_addend_f64x2));
 
     // Update: sum = t, compensation += q + r
-    state->sum_f64x2 = t_f64x2;
+    state->sum_f64x2 = tentative_sum_f64x2;
     state->compensation_f64x2 = vaddq_f64(compensation_f64x2, vaddq_f64(sum_error_f64x2, product_error_f64x2));
 }
 
@@ -449,11 +495,11 @@ NK_INTERNAL void nk_dot_f64x2_finalize_neon(                                    
     nk_dot_f64x2_state_neon_t const *state_c, nk_dot_f64x2_state_neon_t const *state_d, //
     nk_size_t total_dimensions, nk_b256_vec_t *result) {
     nk_unused_(total_dimensions);
-    // Combine sum + compensation before horizontal reduction
-    result->f64s[0] = vaddvq_f64(vaddq_f64(state_a->sum_f64x2, state_a->compensation_f64x2));
-    result->f64s[1] = vaddvq_f64(vaddq_f64(state_b->sum_f64x2, state_b->compensation_f64x2));
-    result->f64s[2] = vaddvq_f64(vaddq_f64(state_c->sum_f64x2, state_c->compensation_f64x2));
-    result->f64s[3] = vaddvq_f64(vaddq_f64(state_d->sum_f64x2, state_d->compensation_f64x2));
+    // Compensated horizontal reduction preserving Dot2 error tracking per state
+    result->f64s[0] = nk_dot_stable_sum_f64x2_neon_(state_a->sum_f64x2, state_a->compensation_f64x2);
+    result->f64s[1] = nk_dot_stable_sum_f64x2_neon_(state_b->sum_f64x2, state_b->compensation_f64x2);
+    result->f64s[2] = nk_dot_stable_sum_f64x2_neon_(state_c->sum_f64x2, state_c->compensation_f64x2);
+    result->f64s[3] = nk_dot_stable_sum_f64x2_neon_(state_d->sum_f64x2, state_d->compensation_f64x2);
 }
 
 #pragma endregion - Traditional Floats

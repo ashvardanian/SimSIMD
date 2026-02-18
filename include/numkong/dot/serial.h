@@ -316,10 +316,10 @@ NK_INTERNAL void nk_dot_f64x2_finalize_serial(                                  
     nk_dot_f64x2_state_serial_t const *state_c, nk_dot_f64x2_state_serial_t const *state_d, //
     nk_size_t total_dimensions, nk_b256_vec_t *result) {
     nk_unused_(total_dimensions);
-    result->f64s[0] = (state_a->sums[0] + state_a->compensations[0]) + (state_a->sums[1] + state_a->compensations[1]);
-    result->f64s[1] = (state_b->sums[0] + state_b->compensations[0]) + (state_b->sums[1] + state_b->compensations[1]);
-    result->f64s[2] = (state_c->sums[0] + state_c->compensations[0]) + (state_c->sums[1] + state_c->compensations[1]);
-    result->f64s[3] = (state_d->sums[0] + state_d->compensations[0]) + (state_d->sums[1] + state_d->compensations[1]);
+    result->f64s[0] = nk_reduce_sum_f64_serial_(state_a->sums, state_a->compensations, 2);
+    result->f64s[1] = nk_reduce_sum_f64_serial_(state_b->sums, state_b->compensations, 2);
+    result->f64s[2] = nk_reduce_sum_f64_serial_(state_c->sums, state_c->compensations, 2);
+    result->f64s[3] = nk_reduce_sum_f64_serial_(state_d->sums, state_d->compensations, 2);
 }
 
 typedef struct nk_dot_f32x4_state_serial_t {

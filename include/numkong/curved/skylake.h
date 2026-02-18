@@ -195,11 +195,12 @@ NK_PUBLIC void nk_bilinear_f64_skylake(nk_f64_t const *a, nk_f64_t const *b, nk_
             __m512d product_f64x8 = _mm512_mul_pd(b_f64x8, c_f64x8);
             __m512d product_error_f64x8 = _mm512_fmsub_pd(b_f64x8, c_f64x8, product_f64x8);
             // TwoSum: t = cb_j + product
-            __m512d t_f64x8 = _mm512_add_pd(cb_j_f64x8, product_f64x8);
-            __m512d z_f64x8 = _mm512_sub_pd(t_f64x8, cb_j_f64x8);
-            __m512d sum_error_f64x8 = _mm512_add_pd(_mm512_sub_pd(cb_j_f64x8, _mm512_sub_pd(t_f64x8, z_f64x8)),
-                                                    _mm512_sub_pd(product_f64x8, z_f64x8));
-            cb_j_f64x8 = t_f64x8;
+            __m512d tentative_sum_f64x8 = _mm512_add_pd(cb_j_f64x8, product_f64x8);
+            __m512d virtual_addend_f64x8 = _mm512_sub_pd(tentative_sum_f64x8, cb_j_f64x8);
+            __m512d sum_error_f64x8 = _mm512_add_pd(
+                _mm512_sub_pd(cb_j_f64x8, _mm512_sub_pd(tentative_sum_f64x8, virtual_addend_f64x8)),
+                _mm512_sub_pd(product_f64x8, virtual_addend_f64x8));
+            cb_j_f64x8 = tentative_sum_f64x8;
             inner_compensation_f64x8 = _mm512_add_pd(inner_compensation_f64x8,
                                                      _mm512_add_pd(sum_error_f64x8, product_error_f64x8));
         }
@@ -215,11 +216,12 @@ NK_PUBLIC void nk_bilinear_f64_skylake(nk_f64_t const *a, nk_f64_t const *b, nk_
             __m512d product_f64x8 = _mm512_mul_pd(a_f64x8, cb_j_f64x8);
             __m512d product_error_f64x8 = _mm512_fmsub_pd(a_f64x8, cb_j_f64x8, product_f64x8);
             // TwoSum: t = sum + product
-            __m512d t_f64x8 = _mm512_add_pd(sum_f64x8, product_f64x8);
-            __m512d z_f64x8 = _mm512_sub_pd(t_f64x8, sum_f64x8);
-            __m512d sum_error_f64x8 = _mm512_add_pd(_mm512_sub_pd(sum_f64x8, _mm512_sub_pd(t_f64x8, z_f64x8)),
-                                                    _mm512_sub_pd(product_f64x8, z_f64x8));
-            sum_f64x8 = t_f64x8;
+            __m512d tentative_sum_f64x8 = _mm512_add_pd(sum_f64x8, product_f64x8);
+            __m512d virtual_addend_f64x8 = _mm512_sub_pd(tentative_sum_f64x8, sum_f64x8);
+            __m512d sum_error_f64x8 = _mm512_add_pd(
+                _mm512_sub_pd(sum_f64x8, _mm512_sub_pd(tentative_sum_f64x8, virtual_addend_f64x8)),
+                _mm512_sub_pd(product_f64x8, virtual_addend_f64x8));
+            sum_f64x8 = tentative_sum_f64x8;
             compensation_f64x8 = _mm512_add_pd(compensation_f64x8, _mm512_add_pd(sum_error_f64x8, product_error_f64x8));
         }
     }
@@ -264,11 +266,12 @@ NK_PUBLIC void nk_mahalanobis_f64_skylake(nk_f64_t const *a, nk_f64_t const *b, 
             __m512d product_f64x8 = _mm512_mul_pd(diff_j_f64x8, c_f64x8);
             __m512d product_error_f64x8 = _mm512_fmsub_pd(diff_j_f64x8, c_f64x8, product_f64x8);
             // TwoSum: t = cdiff_j + product
-            __m512d t_f64x8 = _mm512_add_pd(cdiff_j_f64x8, product_f64x8);
-            __m512d z_f64x8 = _mm512_sub_pd(t_f64x8, cdiff_j_f64x8);
-            __m512d sum_error_f64x8 = _mm512_add_pd(_mm512_sub_pd(cdiff_j_f64x8, _mm512_sub_pd(t_f64x8, z_f64x8)),
-                                                    _mm512_sub_pd(product_f64x8, z_f64x8));
-            cdiff_j_f64x8 = t_f64x8;
+            __m512d tentative_sum_f64x8 = _mm512_add_pd(cdiff_j_f64x8, product_f64x8);
+            __m512d virtual_addend_f64x8 = _mm512_sub_pd(tentative_sum_f64x8, cdiff_j_f64x8);
+            __m512d sum_error_f64x8 = _mm512_add_pd(
+                _mm512_sub_pd(cdiff_j_f64x8, _mm512_sub_pd(tentative_sum_f64x8, virtual_addend_f64x8)),
+                _mm512_sub_pd(product_f64x8, virtual_addend_f64x8));
+            cdiff_j_f64x8 = tentative_sum_f64x8;
             inner_compensation_f64x8 = _mm512_add_pd(inner_compensation_f64x8,
                                                      _mm512_add_pd(sum_error_f64x8, product_error_f64x8));
         }
@@ -284,11 +287,12 @@ NK_PUBLIC void nk_mahalanobis_f64_skylake(nk_f64_t const *a, nk_f64_t const *b, 
             __m512d product_f64x8 = _mm512_mul_pd(diff_i_f64x8, cdiff_j_f64x8);
             __m512d product_error_f64x8 = _mm512_fmsub_pd(diff_i_f64x8, cdiff_j_f64x8, product_f64x8);
             // TwoSum: t = sum + product
-            __m512d t_f64x8 = _mm512_add_pd(sum_f64x8, product_f64x8);
-            __m512d z_f64x8 = _mm512_sub_pd(t_f64x8, sum_f64x8);
-            __m512d sum_error_f64x8 = _mm512_add_pd(_mm512_sub_pd(sum_f64x8, _mm512_sub_pd(t_f64x8, z_f64x8)),
-                                                    _mm512_sub_pd(product_f64x8, z_f64x8));
-            sum_f64x8 = t_f64x8;
+            __m512d tentative_sum_f64x8 = _mm512_add_pd(sum_f64x8, product_f64x8);
+            __m512d virtual_addend_f64x8 = _mm512_sub_pd(tentative_sum_f64x8, sum_f64x8);
+            __m512d sum_error_f64x8 = _mm512_add_pd(
+                _mm512_sub_pd(sum_f64x8, _mm512_sub_pd(tentative_sum_f64x8, virtual_addend_f64x8)),
+                _mm512_sub_pd(product_f64x8, virtual_addend_f64x8));
+            sum_f64x8 = tentative_sum_f64x8;
             compensation_f64x8 = _mm512_add_pd(compensation_f64x8, _mm512_add_pd(sum_error_f64x8, product_error_f64x8));
         }
     }
@@ -345,11 +349,12 @@ NK_PUBLIC void nk_bilinear_f64c_skylake(nk_f64c_t const *a, nk_f64c_t const *b, 
         {
             __m512d product_f64x8 = _mm512_mul_pd(c_f64x8, b_f64x8);
             __m512d product_error_f64x8 = _mm512_fmsub_pd(c_f64x8, b_f64x8, product_f64x8);
-            __m512d t_f64x8 = _mm512_add_pd(cb_j_real_f64x8, product_f64x8);
-            __m512d z_f64x8 = _mm512_sub_pd(t_f64x8, cb_j_real_f64x8);
-            __m512d sum_error_f64x8 = _mm512_add_pd(_mm512_sub_pd(cb_j_real_f64x8, _mm512_sub_pd(t_f64x8, z_f64x8)),
-                                                    _mm512_sub_pd(product_f64x8, z_f64x8));
-            cb_j_real_f64x8 = t_f64x8;
+            __m512d tentative_sum_f64x8 = _mm512_add_pd(cb_j_real_f64x8, product_f64x8);
+            __m512d virtual_addend_f64x8 = _mm512_sub_pd(tentative_sum_f64x8, cb_j_real_f64x8);
+            __m512d sum_error_f64x8 = _mm512_add_pd(
+                _mm512_sub_pd(cb_j_real_f64x8, _mm512_sub_pd(tentative_sum_f64x8, virtual_addend_f64x8)),
+                _mm512_sub_pd(product_f64x8, virtual_addend_f64x8));
+            cb_j_real_f64x8 = tentative_sum_f64x8;
             compensation_real_f64x8 = _mm512_add_pd(compensation_real_f64x8,
                                                     _mm512_add_pd(sum_error_f64x8, product_error_f64x8));
         }
@@ -360,11 +365,12 @@ NK_PUBLIC void nk_bilinear_f64c_skylake(nk_f64c_t const *a, nk_f64c_t const *b, 
         {
             __m512d product_f64x8 = _mm512_mul_pd(c_f64x8, b_f64x8);
             __m512d product_error_f64x8 = _mm512_fmsub_pd(c_f64x8, b_f64x8, product_f64x8);
-            __m512d t_f64x8 = _mm512_add_pd(cb_j_imag_f64x8, product_f64x8);
-            __m512d z_f64x8 = _mm512_sub_pd(t_f64x8, cb_j_imag_f64x8);
-            __m512d sum_error_f64x8 = _mm512_add_pd(_mm512_sub_pd(cb_j_imag_f64x8, _mm512_sub_pd(t_f64x8, z_f64x8)),
-                                                    _mm512_sub_pd(product_f64x8, z_f64x8));
-            cb_j_imag_f64x8 = t_f64x8;
+            __m512d tentative_sum_f64x8 = _mm512_add_pd(cb_j_imag_f64x8, product_f64x8);
+            __m512d virtual_addend_f64x8 = _mm512_sub_pd(tentative_sum_f64x8, cb_j_imag_f64x8);
+            __m512d sum_error_f64x8 = _mm512_add_pd(
+                _mm512_sub_pd(cb_j_imag_f64x8, _mm512_sub_pd(tentative_sum_f64x8, virtual_addend_f64x8)),
+                _mm512_sub_pd(product_f64x8, virtual_addend_f64x8));
+            cb_j_imag_f64x8 = tentative_sum_f64x8;
             compensation_imag_f64x8 = _mm512_add_pd(compensation_imag_f64x8,
                                                     _mm512_add_pd(sum_error_f64x8, product_error_f64x8));
         }

@@ -20,6 +20,23 @@
 extern "C" {
 #endif
 
+NK_INTERNAL nk_f64_t nk_reduce_sum_f64_serial_(nk_f64_t const *values, nk_f64_t const *compensations, int count) {
+    nk_f64_t running_sum = 0, accumulated_error = 0;
+    for (int i = 0; i < count; i++) {
+        // TwoSum: fold in values[i]
+        nk_f64_t tentative_sum = running_sum + values[i];
+        nk_f64_t virtual_addend = tentative_sum - running_sum;
+        accumulated_error += (running_sum - (tentative_sum - virtual_addend)) + (values[i] - virtual_addend);
+        running_sum = tentative_sum;
+        // TwoSum: fold in compensations[i]
+        tentative_sum = running_sum + compensations[i];
+        virtual_addend = tentative_sum - running_sum;
+        accumulated_error += (running_sum - (tentative_sum - virtual_addend)) + (compensations[i] - virtual_addend);
+        running_sum = tentative_sum;
+    }
+    return running_sum + accumulated_error;
+}
+
 NK_PUBLIC void nk_reduce_moments_f32_serial(                       //
     nk_f32_t const *data, nk_size_t count, nk_size_t stride_bytes, //
     nk_f64_t *sum_ptr, nk_f64_t *sumsq_ptr) {

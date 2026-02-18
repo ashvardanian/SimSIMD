@@ -536,17 +536,19 @@ __arm_locally_streaming NK_PUBLIC void nk_bilinear_f64c_smef64(nk_f64c_t const *
 
             // Kahan compensation for real part
             svfloat64_t y_real_f64 = svsub_f64_x(predicate_tail_b64, prod_real_f64, inner_comp_real_f64);
-            svfloat64_t t_real_f64 = svadd_f64_x(predicate_tail_b64, inner_sum_real_f64, y_real_f64);
+            svfloat64_t tentative_sum_real_f64 = svadd_f64_x(predicate_tail_b64, inner_sum_real_f64, y_real_f64);
             inner_comp_real_f64 = svsub_f64_x(
-                predicate_tail_b64, svsub_f64_x(predicate_tail_b64, t_real_f64, inner_sum_real_f64), y_real_f64);
-            inner_sum_real_f64 = t_real_f64;
+                predicate_tail_b64, svsub_f64_x(predicate_tail_b64, tentative_sum_real_f64, inner_sum_real_f64),
+                y_real_f64);
+            inner_sum_real_f64 = tentative_sum_real_f64;
 
             // Kahan compensation for imaginary part
             svfloat64_t y_imag_f64 = svsub_f64_x(predicate_tail_b64, prod_imag_f64, inner_comp_imag_f64);
-            svfloat64_t t_imag_f64 = svadd_f64_x(predicate_tail_b64, inner_sum_imag_f64, y_imag_f64);
+            svfloat64_t tentative_sum_imag_f64 = svadd_f64_x(predicate_tail_b64, inner_sum_imag_f64, y_imag_f64);
             inner_comp_imag_f64 = svsub_f64_x(
-                predicate_tail_b64, svsub_f64_x(predicate_tail_b64, t_imag_f64, inner_sum_imag_f64), y_imag_f64);
-            inner_sum_imag_f64 = t_imag_f64;
+                predicate_tail_b64, svsub_f64_x(predicate_tail_b64, tentative_sum_imag_f64, inner_sum_imag_f64),
+                y_imag_f64);
+            inner_sum_imag_f64 = tentative_sum_imag_f64;
 
             j += svcntd();
             predicate_tail_b64 = svwhilelt_b64(j, n);
@@ -564,14 +566,14 @@ __arm_locally_streaming NK_PUBLIC void nk_bilinear_f64c_smef64(nk_f64c_t const *
 
         // Kahan compensation for outer loop
         nk_f64_t y_real_f64 = outer_prod_real_f64 - outer_comp_real_f64;
-        nk_f64_t t_real_f64 = outer_sum_real_f64 + y_real_f64;
-        outer_comp_real_f64 = (t_real_f64 - outer_sum_real_f64) - y_real_f64;
-        outer_sum_real_f64 = t_real_f64;
+        nk_f64_t tentative_sum_real_f64 = outer_sum_real_f64 + y_real_f64;
+        outer_comp_real_f64 = (tentative_sum_real_f64 - outer_sum_real_f64) - y_real_f64;
+        outer_sum_real_f64 = tentative_sum_real_f64;
 
         nk_f64_t y_imag_f64 = outer_prod_imag_f64 - outer_comp_imag_f64;
-        nk_f64_t t_imag_f64 = outer_sum_imag_f64 + y_imag_f64;
-        outer_comp_imag_f64 = (t_imag_f64 - outer_sum_imag_f64) - y_imag_f64;
-        outer_sum_imag_f64 = t_imag_f64;
+        nk_f64_t tentative_sum_imag_f64 = outer_sum_imag_f64 + y_imag_f64;
+        outer_comp_imag_f64 = (tentative_sum_imag_f64 - outer_sum_imag_f64) - y_imag_f64;
+        outer_sum_imag_f64 = tentative_sum_imag_f64;
     }
 
     results->real = outer_sum_real_f64 - outer_comp_real_f64;

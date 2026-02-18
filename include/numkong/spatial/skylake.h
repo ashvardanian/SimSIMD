@@ -186,23 +186,23 @@ nk_angular_f64_skylake_cycle:
     __m512d x_f64x8 = _mm512_mul_pd(a_f64x8, b_f64x8);
     __m512d product_error_f64x8 = _mm512_fmsub_pd(a_f64x8, b_f64x8, x_f64x8);
     // Neumaier TwoSum: t = sum + x, with masked error recovery
-    __m512d t_f64x8 = _mm512_add_pd(dot_sum_f64x8, x_f64x8);
+    __m512d tentative_sum_f64x8 = _mm512_add_pd(dot_sum_f64x8, x_f64x8);
     __m512d abs_sum_f64x8 = _mm512_abs_pd(dot_sum_f64x8);
     __m512d abs_x_f64x8 = _mm512_abs_pd(x_f64x8);
     __mmask8 sum_ge_x = _mm512_cmp_pd_mask(abs_sum_f64x8, abs_x_f64x8, _CMP_GE_OQ);
     // z = t - larger, error = smaller - z
-    __m512d z_f64x8 = _mm512_sub_pd(t_f64x8, x_f64x8);
-    z_f64x8 = _mm512_mask_sub_pd(z_f64x8, sum_ge_x, t_f64x8, dot_sum_f64x8);
-    __m512d sum_error_f64x8 = _mm512_sub_pd(dot_sum_f64x8, z_f64x8);
-    sum_error_f64x8 = _mm512_mask_sub_pd(sum_error_f64x8, sum_ge_x, x_f64x8, z_f64x8);
-    dot_sum_f64x8 = t_f64x8;
+    __m512d virtual_addend_f64x8 = _mm512_sub_pd(tentative_sum_f64x8, x_f64x8);
+    virtual_addend_f64x8 = _mm512_mask_sub_pd(virtual_addend_f64x8, sum_ge_x, tentative_sum_f64x8, dot_sum_f64x8);
+    __m512d sum_error_f64x8 = _mm512_sub_pd(dot_sum_f64x8, virtual_addend_f64x8);
+    sum_error_f64x8 = _mm512_mask_sub_pd(sum_error_f64x8, sum_ge_x, x_f64x8, virtual_addend_f64x8);
+    dot_sum_f64x8 = tentative_sum_f64x8;
     dot_compensation_f64x8 = _mm512_add_pd(dot_compensation_f64x8, _mm512_add_pd(sum_error_f64x8, product_error_f64x8));
     // Simple FMA for self-products (no cancellation possible)
     a_norm_sq_f64x8 = _mm512_fmadd_pd(a_f64x8, a_f64x8, a_norm_sq_f64x8);
     b_norm_sq_f64x8 = _mm512_fmadd_pd(b_f64x8, b_f64x8, b_norm_sq_f64x8);
     if (n) goto nk_angular_f64_skylake_cycle;
 
-    nk_f64_t dot_product_f64 = _mm512_reduce_add_pd(_mm512_add_pd(dot_sum_f64x8, dot_compensation_f64x8));
+    nk_f64_t dot_product_f64 = nk_dot_stable_sum_f64x8_skylake_(dot_sum_f64x8, dot_compensation_f64x8);
     nk_f64_t a_norm_sq_f64 = _mm512_reduce_add_pd(a_norm_sq_f64x8);
     nk_f64_t b_norm_sq_f64 = _mm512_reduce_add_pd(b_norm_sq_f64x8);
     *result = nk_angular_normalize_f64_skylake_(dot_product_f64, a_norm_sq_f64, b_norm_sq_f64);
