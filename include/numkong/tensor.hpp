@@ -88,76 +88,6 @@ struct aligned_allocator {
 
 #pragma endregion - Aligned Allocator
 
-#pragma region - Sub-byte Proxy References
-
-/**
- *  @brief Proxy reference for sub-byte scalar access in packed vectors.
- *  @tparam dtype_ One of nk_u1_k, nk_i4_k, nk_u4_k.
- */
-template <nk_dtype_t dtype_>
-struct sub_byte_ref;
-
-/** @brief Single-bit access for u1x8_t vectors (8 bits packed per byte). */
-template <>
-struct sub_byte_ref<nk_u1_k> {
-    std::uint8_t *byte_;
-    std::uint8_t mask_;
-
-    constexpr sub_byte_ref(std::uint8_t *data, std::size_t scalar_index) noexcept
-        : byte_(data + scalar_index / 8), mask_(static_cast<std::uint8_t>(1u << (scalar_index & 7))) {}
-
-    constexpr operator bool() const noexcept { return (*byte_ & mask_) != 0; }
-
-    constexpr sub_byte_ref &operator=(bool value) noexcept {
-        if (value) *byte_ |= mask_;
-        else *byte_ &= static_cast<std::uint8_t>(~mask_);
-        return *this;
-    }
-
-    constexpr void flip() noexcept { *byte_ ^= mask_; }
-};
-
-/** @brief Signed 4-bit access for i4x2_t vectors (2 nibbles packed per byte). */
-template <>
-struct sub_byte_ref<nk_i4_k> {
-    std::uint8_t *byte_;
-    bool high_;
-
-    constexpr sub_byte_ref(std::uint8_t *data, std::size_t scalar_index) noexcept
-        : byte_(data + scalar_index / 2), high_((scalar_index & 1) != 0) {}
-
-    constexpr operator std::int8_t() const noexcept {
-        std::uint8_t nibble = high_ ? (*byte_ >> 4) : (*byte_ & 0x0F);
-        return (nibble & 0x08) ? static_cast<std::int8_t>(nibble | 0xF0) : static_cast<std::int8_t>(nibble);
-    }
-
-    constexpr sub_byte_ref &operator=(std::int8_t value) noexcept {
-        if (high_) *byte_ = static_cast<std::uint8_t>((*byte_ & 0x0F) | ((value & 0x0F) << 4));
-        else *byte_ = static_cast<std::uint8_t>((*byte_ & 0xF0) | (value & 0x0F));
-        return *this;
-    }
-};
-
-/** @brief Unsigned 4-bit access for u4x2_t vectors (2 nibbles packed per byte). */
-template <>
-struct sub_byte_ref<nk_u4_k> {
-    std::uint8_t *byte_;
-    bool high_;
-
-    constexpr sub_byte_ref(std::uint8_t *data, std::size_t scalar_index) noexcept
-        : byte_(data + scalar_index / 2), high_((scalar_index & 1) != 0) {}
-
-    constexpr operator std::uint8_t() const noexcept { return high_ ? (*byte_ >> 4) : (*byte_ & 0x0F); }
-
-    constexpr sub_byte_ref &operator=(std::uint8_t value) noexcept {
-        if (high_) *byte_ = static_cast<std::uint8_t>((*byte_ & 0x0F) | ((value & 0x0F) << 4));
-        else *byte_ = static_cast<std::uint8_t>((*byte_ & 0xF0) | (value & 0x0F));
-        return *this;
-    }
-};
-
-#pragma endregion - Sub - byte Proxy References
-
 #pragma region - Vector
 
 template <typename value_type_, typename allocator_type_>
@@ -421,29 +351,14 @@ struct vector {
      *  @retval For normal types, returns direct reference.
      */
     decltype(auto) operator[](size_type i) noexcept {
-        if constexpr (std::is_same_v<value_type, u1x8_t>)
-            return sub_byte_ref<nk_u1_k>(reinterpret_cast<std::uint8_t *>(data_), i);
-        else if constexpr (std::is_same_v<value_type, i4x2_t>)
-            return sub_byte_ref<nk_i4_k>(reinterpret_cast<std::uint8_t *>(data_), i);
-        else if constexpr (std::is_same_v<value_type, u4x2_t>)
-            return sub_byte_ref<nk_u4_k>(reinterpret_cast<std::uint8_t *>(data_), i);
+        if constexpr (dimensions_per_value<value_type>() > 1)
+            return sub_byte_ref<value_type>(reinterpret_cast<raw_value_type *>(data_), i);
         else return data_[i];
     }
 
     decltype(auto) operator[](size_type i) const noexcept {
-        if constexpr (std::is_same_v<value_type, u1x8_t>) {
-            std::uint8_t const *byte = reinterpret_cast<std::uint8_t const *>(data_) + i / 8;
-            return (*byte & (1u << (i & 7))) != 0;
-        }
-        else if constexpr (std::is_same_v<value_type, i4x2_t>) {
-            std::uint8_t const *byte = reinterpret_cast<std::uint8_t const *>(data_) + i / 2;
-            std::uint8_t nibble = (i & 1) ? (*byte >> 4) : (*byte & 0x0F);
-            return (nibble & 0x08) ? static_cast<std::int8_t>(nibble | 0xF0) : static_cast<std::int8_t>(nibble);
-        }
-        else if constexpr (std::is_same_v<value_type, u4x2_t>) {
-            std::uint8_t const *byte = reinterpret_cast<std::uint8_t const *>(data_) + i / 2;
-            return static_cast<std::uint8_t>((i & 1) ? (*byte >> 4) : (*byte & 0x0F));
-        }
+        if constexpr (dimensions_per_value<value_type>() > 1)
+            return sub_byte_ref<value_type>(reinterpret_cast<raw_value_type *>(data_), i).get();
         else return data_[i];
     }
 

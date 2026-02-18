@@ -105,10 +105,11 @@ struct f32_t {
     // Core type aliases
     using raw_t = nk_f32_t;
     using uint_t = nk_u32_t;
+    using component_t = f32_t;
+
+    // Type aliases for mixed precision operations
     using scale_t = nk_f32_t;
     using sparse_dot_index_t = u32_t;
-
-    // Result types for mixed precision operations
     using dot_result_t = f32_t;           // `nk_dot_f32` output
     using sqeuclidean_result_t = f32_t;   // `nk_sqeuclidean_f32` output
     using euclidean_result_t = f32_t;     // `nk_euclidean_f32` output
@@ -362,9 +363,10 @@ struct f64_t {
     // Core type aliases
     using raw_t = nk_f64_t;
     using uint_t = nk_u64_t;
-    using scale_t = nk_f64_t;
+    using component_t = f64_t;
 
-    // Result types for mixed precision operations
+    // Type aliases for mixed precision operations
+    using scale_t = nk_f64_t;
     using dot_result_t = f64_t;           // `nk_dot_f64` output
     using sqeuclidean_result_t = f64_t;   // `nk_sqeuclidean_f64` output
     using euclidean_result_t = f64_t;     // `nk_euclidean_f64` output
@@ -618,7 +620,7 @@ struct f32c_t {
     using component_t = f32_t;
     using raw_t = nk_f32c_t;
 
-    // Result types for mixed precision operations
+    // Type aliases for mixed precision operations
     using dot_result_t = f32c_t;    // `nk_dot_f32c` output
     using vdot_result_t = f32c_t;   // `nk_vdot_f32c` output
     using curved_result_t = f32c_t; // `nk_bilinear_f32c` output
@@ -855,7 +857,7 @@ struct f64c_t {
     using component_t = f64_t;
     using raw_t = nk_f64c_t;
 
-    // Result types for mixed precision operations
+    // Type aliases for mixed precision operations
     using dot_result_t = f64c_t;    // `nk_dot_f64c` output
     using vdot_result_t = f64c_t;   // `nk_vdot_f64c` output
     using curved_result_t = f64c_t; // `nk_bilinear_f64c` output
@@ -1092,9 +1094,10 @@ struct f16_t {
     // Core type aliases
     using raw_t = nk_f16_t;
     using uint_t = nk_u16_t;
-    using scale_t = nk_f32_t;
+    using component_t = f16_t;
 
-    // Result types for mixed precision operations
+    // Type aliases for mixed precision operations
+    using scale_t = nk_f32_t;
     using dot_result_t = f32_t;           // `nk_dot_f16` output
     using sqeuclidean_result_t = f32_t;   // `nk_sqeuclidean_f16` output
     using euclidean_result_t = f32_t;     // `nk_euclidean_f16` output
@@ -1309,10 +1312,11 @@ struct bf16_t {
     // Core type aliases
     using raw_t = nk_bf16_t;
     using uint_t = nk_u16_t;
+    using component_t = bf16_t;
+
+    // Type aliases for mixed precision operations
     using scale_t = nk_f32_t;
     using sparse_dot_index_t = u16_t;
-
-    // Result types for mixed precision operations
     using dot_result_t = f32_t;           // `nk_dot_bf16` output
     using sqeuclidean_result_t = f32_t;   // `nk_sqeuclidean_bf16` output
     using euclidean_result_t = f32_t;     // `nk_euclidean_bf16` output
@@ -1526,7 +1530,7 @@ struct f16c_t {
     using component_t = f16_t;
     using raw_t = nk_f16c_t;
 
-    // Result types for mixed precision operations
+    // Type aliases for mixed precision operations
     using dot_result_t = f32c_t;    // `nk_dot_f16c` output
     using vdot_result_t = f32c_t;   // `nk_vdot_f16c` output
     using curved_result_t = f32c_t; // `nk_bilinear_f16c` output
@@ -1630,7 +1634,7 @@ struct bf16c_t {
     using component_t = bf16_t;
     using raw_t = nk_bf16c_t;
 
-    // Result types for mixed precision operations
+    // Type aliases for mixed precision operations
     using dot_result_t = f32c_t;    // `nk_dot_bf16c` output
     using vdot_result_t = f32c_t;   // `nk_vdot_bf16c` output
     using curved_result_t = f32c_t; // `nk_bilinear_bf16c` output
@@ -1734,9 +1738,10 @@ struct e4m3_t {
     // Core type aliases
     using raw_t = nk_e4m3_t;
     using uint_t = nk_u8_t;
-    using scale_t = nk_f32_t;
+    using component_t = e4m3_t;
 
-    // Result types for mixed precision operations
+    // Type aliases for mixed precision operations
+    using scale_t = nk_f32_t;
     using dot_result_t = f32_t;           // `nk_dot_e4m3` output
     using sqeuclidean_result_t = f32_t;   // `nk_sqeuclidean_e4m3` output
     using reduce_moments_sum_t = f32_t;   // `nk_reduce_moments_e4m3` sum output
@@ -1938,9 +1943,10 @@ struct e5m2_t {
     // Core type aliases
     using raw_t = nk_e5m2_t;
     using uint_t = nk_u8_t;
-    using scale_t = nk_f32_t;
+    using component_t = e5m2_t;
 
-    // Result types for mixed precision operations
+    // Type aliases for mixed precision operations
+    using scale_t = nk_f32_t;
     using dot_result_t = f32_t;           // `nk_dot_e5m2` output
     using sqeuclidean_result_t = f32_t;   // `nk_sqeuclidean_e5m2` output
     using reduce_moments_sum_t = f32_t;   // `nk_reduce_moments_e5m2` sum output
@@ -2141,9 +2147,10 @@ struct e2m3_t {
     // Core type aliases
     using raw_t = nk_e2m3_t;
     using uint_t = nk_u8_t;
-    using scale_t = nk_f32_t;
+    using component_t = e2m3_t;
 
-    // Result types for mixed precision operations
+    // Type aliases for mixed precision operations
+    using scale_t = nk_f32_t;
     using dot_result_t = f32_t;           // `nk_dot_e2m3` output
     using sqeuclidean_result_t = f32_t;   // `nk_sqeuclidean_e2m3` output
     using euclidean_result_t = f32_t;     // `nk_euclidean_e2m3` output
@@ -2312,9 +2319,10 @@ struct e3m2_t {
     // Core type aliases
     using raw_t = nk_e3m2_t;
     using uint_t = nk_u8_t;
-    using scale_t = nk_f32_t;
+    using component_t = e3m2_t;
 
-    // Result types for mixed precision operations
+    // Type aliases for mixed precision operations
+    using scale_t = nk_f32_t;
     using dot_result_t = f32_t;           // `nk_dot_e3m2` output
     using sqeuclidean_result_t = f32_t;   // `nk_sqeuclidean_e3m2` output
     using euclidean_result_t = f32_t;     // `nk_euclidean_e3m2` output
@@ -2503,6 +2511,9 @@ struct e3m2_t {
  *      pow         1.0e-30       ~99 bits    Via exp(y·log(x))
  */
 struct f118_t {
+    // Core type aliases
+    using component_t = f118_t;
+
     double high_, low_;
 
     static constexpr nk_dtype_t dtype() noexcept { return nk_dtype_unknown_k; }
@@ -3371,8 +3382,9 @@ struct i8_t {
     // Core type aliases
     using raw_t = nk_i8_t;
     using unsigned_t = nk_u8_t;
+    using component_t = i8_t;
 
-    // Result types for mixed precision operations
+    // Type aliases for mixed precision operations
     using dot_result_t = i32_t;           // `nk_dot_i8` output
     using sqeuclidean_result_t = u32_t;   // `nk_sqeuclidean_i8` output
     using reduce_moments_sum_t = i64_t;   // `nk_reduce_moments_i8` sum output
@@ -3524,8 +3536,9 @@ struct u8_t {
     // Core type aliases
     using raw_t = nk_u8_t;
     using signed_t = nk_i8_t;
+    using component_t = u8_t;
 
-    // Result types for mixed precision operations
+    // Type aliases for mixed precision operations
     using dot_result_t = u32_t;           // `nk_dot_u8` output
     using sqeuclidean_result_t = u32_t;   // `nk_sqeuclidean_u8` output
     using hamming_result_t = u32_t;       // `nk_hamming_u8` output
@@ -3666,8 +3679,9 @@ struct i32_t {
     // Core type aliases
     using raw_t = nk_i32_t;
     using unsigned_t = nk_u32_t;
+    using component_t = i32_t;
 
-    // Result types for mixed precision operations
+    // Type aliases for mixed precision operations
     using reduce_moments_sum_t = i64_t;   // `nk_reduce_moments_i32` sum output
     using reduce_moments_sumsq_t = u64_t; // `nk_reduce_moments_i32` sumsq output
     using reduce_minmax_value_t = i32_t;  // `nk_reduce_minmax_i32` value output
@@ -3810,8 +3824,9 @@ struct u32_t {
     // Core type aliases
     using raw_t = nk_u32_t;
     using signed_t = nk_i32_t;
+    using component_t = u32_t;
 
-    // Result types for mixed precision operations
+    // Type aliases for mixed precision operations
     using jaccard_result_t = f32_t;       // `nk_jaccard_u32` output
     using reduce_moments_sum_t = u64_t;   // `nk_reduce_moments_u32` sum output
     using reduce_moments_sumsq_t = u64_t; // `nk_reduce_moments_u32` sumsq output
@@ -3939,8 +3954,9 @@ struct i64_t {
     // Core type aliases
     using raw_t = nk_i64_t;
     using unsigned_t = nk_u64_t;
+    using component_t = i64_t;
 
-    // Result types for mixed precision operations
+    // Type aliases for mixed precision operations
     using reduce_moments_sum_t = i64_t;   // `nk_reduce_moments_i64` sum output
     using reduce_moments_sumsq_t = u64_t; // `nk_reduce_moments_i64` sumsq output
     using reduce_minmax_value_t = i64_t;  // `nk_reduce_minmax_i64` value output
@@ -4084,8 +4100,9 @@ struct u64_t {
     // Core type aliases
     using raw_t = nk_u64_t;
     using signed_t = nk_i64_t;
+    using component_t = u64_t;
 
-    // Result types for mixed precision operations
+    // Type aliases for mixed precision operations
     using reduce_moments_sum_t = u64_t;   // `nk_reduce_moments_u64` sum output
     using reduce_moments_sumsq_t = u64_t; // `nk_reduce_moments_u64` sumsq output
     using reduce_minmax_value_t = u64_t;  // `nk_reduce_minmax_u64` value output
@@ -4213,8 +4230,9 @@ struct i16_t {
     // Core type aliases
     using raw_t = nk_i16_t;
     using unsigned_t = nk_u16_t;
+    using component_t = i16_t;
 
-    // Result types for mixed precision operations
+    // Type aliases for mixed precision operations
     using reduce_moments_sum_t = i64_t;   // `nk_reduce_moments_i16` sum output
     using reduce_moments_sumsq_t = u64_t; // `nk_reduce_moments_i16` sumsq output
     using reduce_minmax_value_t = i16_t;  // `nk_reduce_minmax_i16` value output
@@ -4352,8 +4370,9 @@ struct u16_t {
     // Core type aliases
     using raw_t = nk_u16_t;
     using signed_t = nk_i16_t;
+    using component_t = u16_t;
 
-    // Result types for mixed precision operations
+    // Type aliases for mixed precision operations
     using jaccard_result_t = f32_t;       // `nk_jaccard_u16` output
     using reduce_moments_sum_t = u64_t;   // `nk_reduce_moments_u16` sum output
     using reduce_moments_sumsq_t = u64_t; // `nk_reduce_moments_u16` sumsq output
@@ -4485,7 +4504,8 @@ struct sub_byte_ref<u1x8_t> {
     constexpr sub_byte_ref(nk_u1x8_t *data, std::size_t scalar_index) noexcept
         : raw_ptr_(data + scalar_index / 8), bit_mask_(static_cast<nk_u1x8_t>(1u << (scalar_index & 7))) {}
 
-    constexpr operator bool() const noexcept { return (*raw_ptr_ & bit_mask_) != 0; }
+    constexpr bool get() const noexcept { return (*raw_ptr_ & bit_mask_) != 0; }
+    constexpr operator bool() const noexcept { return get(); }
 
     constexpr sub_byte_ref &operator=(bool value) noexcept {
         if (value) *raw_ptr_ |= bit_mask_;
@@ -4505,10 +4525,11 @@ struct sub_byte_ref<i4x2_t> {
     constexpr sub_byte_ref(nk_i4x2_t *data, std::size_t scalar_index) noexcept
         : raw_ptr_(data + scalar_index / 2), high_nibble_((scalar_index & 1) != 0) {}
 
-    constexpr operator std::int8_t() const noexcept {
+    constexpr std::int8_t get() const noexcept {
         nk_i4x2_t nibble = high_nibble_ ? (*raw_ptr_ >> 4) : (*raw_ptr_ & 0x0F);
         return (nibble & 0x08) ? static_cast<std::int8_t>(nibble | 0xF0) : static_cast<std::int8_t>(nibble);
     }
+    constexpr operator std::int8_t() const noexcept { return get(); }
 
     constexpr sub_byte_ref &operator=(std::int8_t value) noexcept {
         if (high_nibble_) *raw_ptr_ = static_cast<nk_i4x2_t>((*raw_ptr_ & 0x0F) | ((value & 0x0F) << 4));
@@ -4526,7 +4547,8 @@ struct sub_byte_ref<u4x2_t> {
     constexpr sub_byte_ref(nk_u4x2_t *data, std::size_t scalar_index) noexcept
         : raw_ptr_(data + scalar_index / 2), high_nibble_((scalar_index & 1) != 0) {}
 
-    constexpr operator std::uint8_t() const noexcept { return high_nibble_ ? (*raw_ptr_ >> 4) : (*raw_ptr_ & 0x0F); }
+    constexpr std::uint8_t get() const noexcept { return high_nibble_ ? (*raw_ptr_ >> 4) : (*raw_ptr_ & 0x0F); }
+    constexpr operator std::uint8_t() const noexcept { return get(); }
 
     constexpr sub_byte_ref &operator=(std::uint8_t value) noexcept {
         if (high_nibble_) *raw_ptr_ = static_cast<nk_u4x2_t>((*raw_ptr_ & 0x0F) | ((value & 0x0F) << 4));
@@ -4550,10 +4572,10 @@ struct sub_byte_ref<u4x2_t> {
 struct u1x8_t {
     // Core type aliases
     using raw_t = nk_u1x8_t;
-    using element_t = bool;
+    using component_t = u8_t;
     using sub_byte_ref_t = sub_byte_ref<u1x8_t>;
 
-    // Result types for mixed precision operations
+    // Type aliases for mixed precision operations
     using dot_result_t = u32_t;           // `nk_dot_u1` output
     using hamming_result_t = u32_t;       // `nk_hamming_u1` output
     using jaccard_result_t = f32_t;       // `nk_jaccard_u1` output
@@ -4592,6 +4614,9 @@ struct u1x8_t {
     static constexpr bool is_exact() noexcept { return true; }
     static constexpr bool has_infinity() noexcept { return false; }
     static constexpr bool has_nan() noexcept { return false; }
+
+    static constexpr component_t component_min() noexcept { return component_t(0); }
+    static constexpr component_t component_max() noexcept { return component_t(1); }
 
     raw_t raw_;
 
@@ -4656,10 +4681,10 @@ struct u1x8_t {
 struct i4x2_t {
     // Core type aliases
     using raw_t = nk_i4x2_t;
-    using element_t = nk_i8_t;
+    using component_t = i8_t;
     using sub_byte_ref_t = sub_byte_ref<i4x2_t>;
 
-    // Result types for mixed precision operations
+    // Type aliases for mixed precision operations
     using dot_result_t = i32_t;           // `nk_dot_i4` output
     using sqeuclidean_result_t = u32_t;   // `nk_sqeuclidean_i4` output
     using angular_result_t = f32_t;       // `nk_angular_i4` output
@@ -4695,65 +4720,65 @@ struct i4x2_t {
     static constexpr bool has_infinity() noexcept { return false; }
     static constexpr bool has_nan() noexcept { return false; }
 
-    static constexpr element_t element_min() noexcept { return -8; }
-    static constexpr element_t element_max() noexcept { return 7; }
+    static constexpr component_t component_min() noexcept { return component_t(-8); }
+    static constexpr component_t component_max() noexcept { return component_t(7); }
 
     raw_t raw_;
 
-    static constexpr element_t sign_extend(nk_u8_t nibble) noexcept {
-        return static_cast<element_t>(static_cast<nk_i8_t>((nibble ^ 8) - 8));
+    static constexpr component_t sign_extend(nk_u8_t nibble) noexcept {
+        return component_t(static_cast<nk_i8_t>((nibble ^ 8) - 8));
     }
 
     constexpr i4x2_t() noexcept : raw_(0) {}
     constexpr explicit i4x2_t(raw_t v) noexcept : raw_(v) {}
-    constexpr i4x2_t(element_t low, element_t high) noexcept
-        : raw_(static_cast<raw_t>(((high & 0x0F) << 4) | (low & 0x0F))) {}
+    constexpr i4x2_t(component_t low, component_t high) noexcept
+        : raw_(static_cast<raw_t>(((high.raw() & 0x0F) << 4) | (low.raw() & 0x0F))) {}
     constexpr raw_t raw() const noexcept { return raw_; }
     static constexpr i4x2_t from_raw(raw_t r) noexcept { return i4x2_t {r}; }
 
     static constexpr i4x2_t zero() noexcept { return i4x2_t {}; }
-    static constexpr i4x2_t finite_max() noexcept { return i4x2_t {7, 7}; }
-    static constexpr i4x2_t finite_min() noexcept { return i4x2_t {-8, -8}; }
+    static constexpr i4x2_t finite_max() noexcept { return i4x2_t {component_t(7), component_t(7)}; }
+    static constexpr i4x2_t finite_min() noexcept { return i4x2_t {component_t(-8), component_t(-8)}; }
 
-    constexpr element_t low() const noexcept { return sign_extend(raw_ & 0x0F); }
-    constexpr element_t high() const noexcept { return sign_extend((raw_ >> 4) & 0x0F); }
-    constexpr element_t nibble(unsigned i) const noexcept { return i ? high() : low(); }
-    constexpr element_t operator[](unsigned i) const & noexcept { return nibble(i); }
+    constexpr component_t low() const noexcept { return sign_extend(raw_ & 0x0F); }
+    constexpr component_t high() const noexcept { return sign_extend((raw_ >> 4) & 0x0F); }
+    constexpr component_t nibble(unsigned i) const noexcept { return i ? high() : low(); }
+    constexpr component_t operator[](unsigned i) const & noexcept { return nibble(i); }
     constexpr sub_byte_ref_t operator[](unsigned i) & noexcept { return {&raw_, i}; }
 
-    constexpr std::pair<element_t, element_t> widening_add(i4x2_t o) const noexcept {
-        return {static_cast<element_t>(low() + o.low()), static_cast<element_t>(high() + o.high())};
+    constexpr std::pair<component_t, component_t> widening_add(i4x2_t o) const noexcept {
+        return {low() + o.low(), high() + o.high()};
     }
 
-    constexpr std::pair<element_t, element_t> widening_sub(i4x2_t o) const noexcept {
-        return {static_cast<element_t>(low() - o.low()), static_cast<element_t>(high() - o.high())};
+    constexpr std::pair<component_t, component_t> widening_sub(i4x2_t o) const noexcept {
+        return {low() - o.low(), high() - o.high()};
     }
 
-    constexpr std::pair<element_t, element_t> widening_mul(i4x2_t o) const noexcept {
-        return {static_cast<element_t>(low() * o.low()), static_cast<element_t>(high() * o.high())};
+    constexpr std::pair<component_t, component_t> widening_mul(i4x2_t o) const noexcept {
+        return {low() * o.low(), high() * o.high()};
     }
 
     constexpr i4x2_t saturating_add(i4x2_t o) const noexcept {
-        auto clamp = [](int v) -> element_t {
-            if (v < -8) return -8;
-            if (v > 7) return 7;
-            return static_cast<element_t>(v);
+        auto clamp = [](int v) -> component_t {
+            if (v < -8) return component_t(-8);
+            if (v > 7) return component_t(7);
+            return component_t(v);
         };
         return i4x2_t {clamp(low() + o.low()), clamp(high() + o.high())};
     }
 
     constexpr i4x2_t saturating_sub(i4x2_t o) const noexcept {
-        auto clamp = [](int v) -> element_t {
-            if (v < -8) return -8;
-            if (v > 7) return 7;
-            return static_cast<element_t>(v);
+        auto clamp = [](int v) -> component_t {
+            if (v < -8) return component_t(-8);
+            if (v > 7) return component_t(7);
+            return component_t(v);
         };
         return i4x2_t {clamp(low() - o.low()), clamp(high() - o.high())};
     }
 
     constexpr i4x2_t wrapping_add(i4x2_t o) const noexcept {
-        return i4x2_t {static_cast<element_t>((low() + o.low()) & 0x0F),
-                       static_cast<element_t>((high() + o.high()) & 0x0F)};
+        return i4x2_t {component_t(static_cast<nk_i8_t>((low() + o.low()).raw() & 0x0F)),
+                       component_t(static_cast<nk_i8_t>((high() + o.high()).raw() & 0x0F))};
     }
 
     constexpr auto operator<=>(i4x2_t const &o) const noexcept = default;
@@ -4773,10 +4798,10 @@ struct i4x2_t {
 struct u4x2_t {
     // Core type aliases
     using raw_t = nk_u4x2_t;
-    using element_t = nk_u8_t;
+    using component_t = u8_t;
     using sub_byte_ref_t = sub_byte_ref<u4x2_t>;
 
-    // Result types for mixed precision operations
+    // Type aliases for mixed precision operations
     using dot_result_t = u32_t;
     using sqeuclidean_result_t = u32_t;
     using angular_result_t = f32_t;
@@ -4812,54 +4837,54 @@ struct u4x2_t {
     static constexpr bool has_infinity() noexcept { return false; }
     static constexpr bool has_nan() noexcept { return false; }
 
-    static constexpr element_t element_min() noexcept { return 0; }
-    static constexpr element_t element_max() noexcept { return 15; }
+    static constexpr component_t component_min() noexcept { return component_t(0); }
+    static constexpr component_t component_max() noexcept { return component_t(15); }
 
     raw_t raw_;
 
     constexpr u4x2_t() noexcept : raw_(0) {}
     constexpr explicit u4x2_t(raw_t v) noexcept : raw_(v) {}
-    constexpr u4x2_t(element_t low, element_t high) noexcept
-        : raw_(static_cast<raw_t>(((high & 0x0F) << 4) | (low & 0x0F))) {}
+    constexpr u4x2_t(component_t low, component_t high) noexcept
+        : raw_(static_cast<raw_t>(((high.raw() & 0x0F) << 4) | (low.raw() & 0x0F))) {}
     constexpr raw_t raw() const noexcept { return raw_; }
     static constexpr u4x2_t from_raw(raw_t r) noexcept { return u4x2_t {r}; }
 
     static constexpr u4x2_t zero() noexcept { return u4x2_t {}; }
-    static constexpr u4x2_t finite_max() noexcept { return u4x2_t {15, 15}; }
+    static constexpr u4x2_t finite_max() noexcept { return u4x2_t {component_t(15), component_t(15)}; }
     static constexpr u4x2_t finite_min() noexcept { return u4x2_t {}; }
 
-    constexpr element_t low() const noexcept { return raw_ & 0x0F; }
-    constexpr element_t high() const noexcept { return (raw_ >> 4) & 0x0F; }
-    constexpr element_t nibble(unsigned i) const noexcept { return i ? high() : low(); }
-    constexpr element_t operator[](unsigned i) const & noexcept { return nibble(i); }
+    constexpr component_t low() const noexcept { return component_t(static_cast<nk_u8_t>(raw_ & 0x0F)); }
+    constexpr component_t high() const noexcept { return component_t(static_cast<nk_u8_t>((raw_ >> 4) & 0x0F)); }
+    constexpr component_t nibble(unsigned i) const noexcept { return i ? high() : low(); }
+    constexpr component_t operator[](unsigned i) const & noexcept { return nibble(i); }
     constexpr sub_byte_ref_t operator[](unsigned i) & noexcept { return {&raw_, i}; }
 
-    constexpr std::pair<element_t, element_t> widening_add(u4x2_t o) const noexcept {
-        return {static_cast<element_t>(low() + o.low()), static_cast<element_t>(high() + o.high())};
+    constexpr std::pair<component_t, component_t> widening_add(u4x2_t o) const noexcept {
+        return {low() + o.low(), high() + o.high()};
     }
 
     constexpr std::pair<nk_i8_t, nk_i8_t> widening_sub(u4x2_t o) const noexcept {
-        return {static_cast<nk_i8_t>(low() - o.low()), static_cast<nk_i8_t>(high() - o.high())};
+        return {static_cast<nk_i8_t>(low().raw() - o.low().raw()), static_cast<nk_i8_t>(high().raw() - o.high().raw())};
     }
 
-    constexpr std::pair<element_t, element_t> widening_mul(u4x2_t o) const noexcept {
-        return {static_cast<element_t>(low() * o.low()), static_cast<element_t>(high() * o.high())};
+    constexpr std::pair<component_t, component_t> widening_mul(u4x2_t o) const noexcept {
+        return {low() * o.low(), high() * o.high()};
     }
 
     constexpr u4x2_t saturating_add(u4x2_t o) const noexcept {
-        auto clamp = [](unsigned v) -> element_t { return v > 15 ? 15 : static_cast<element_t>(v); };
+        auto clamp = [](unsigned v) -> component_t { return v > 15 ? component_t(15) : component_t(v); };
         return u4x2_t {clamp(low() + o.low()), clamp(high() + o.high())};
     }
 
     constexpr u4x2_t saturating_sub(u4x2_t o) const noexcept {
-        auto clamp = [](int v) -> element_t { return v < 0 ? 0 : static_cast<element_t>(v); };
-        return u4x2_t {clamp(static_cast<int>(low()) - static_cast<int>(o.low())),
-                       clamp(static_cast<int>(high()) - static_cast<int>(o.high()))};
+        auto clamp = [](int v) -> component_t { return v < 0 ? component_t(0) : component_t(v); };
+        return u4x2_t {clamp(static_cast<int>(low().raw()) - static_cast<int>(o.low().raw())),
+                       clamp(static_cast<int>(high().raw()) - static_cast<int>(o.high().raw()))};
     }
 
     constexpr u4x2_t wrapping_add(u4x2_t o) const noexcept {
-        return u4x2_t {static_cast<element_t>((low() + o.low()) & 0x0F),
-                       static_cast<element_t>((high() + o.high()) & 0x0F)};
+        return u4x2_t {component_t(static_cast<nk_u8_t>((low() + o.low()).raw() & 0x0F)),
+                       component_t(static_cast<nk_u8_t>((high() + o.high()).raw() & 0x0F))};
     }
 
     constexpr auto operator<=>(u4x2_t const &o) const noexcept = default;
@@ -4991,7 +5016,7 @@ struct word_type {
 };
 
 template <typename value_type_>
-struct word_type<value_type_, std::void_t<typename value_type_::component_t>> {
+struct word_type<value_type_, std::enable_if_t<value_type_::is_complex()>> {
     using type = typename value_type_::component_t;
 };
 
