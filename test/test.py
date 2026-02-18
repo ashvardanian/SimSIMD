@@ -547,6 +547,16 @@ def stats_fixture():
             print(f"- {count}x times: {warning}")
 
 
+@pytest.fixture(autouse=True)
+def _seed_rng(__pytest_repeat_step_number):
+    """Auto-seed NumPy RNG before every test. When NK_SEED is set, each
+    @pytest.mark.repeat() step gets a unique derived seed."""
+    step = __pytest_repeat_step_number or 0
+    if nk_seed is not None:
+        np.random.seed(nk_seed + step)
+    # When nk_seed is None, NumPy uses OS entropy by default.
+
+
 @pytest.hookimpl(tryfirst=True)
 def pytest_runtest_makereport(item, call):
     """Custom hook to ensure that the error aggregator runs even for failed tests."""
@@ -648,14 +658,21 @@ elif sys.platform == "win32":
         possible_capabilities = possible_arm_capabilities
 
 
+_current_capability: str | None = None
+
+
 def keep_one_capability(cap: str):
+    global _current_capability
     assert cap in possible_capabilities or cap == "serial", f"Capability {cap} is not available on this platform."
+    if cap == _current_capability:
+        return
     for c in possible_capabilities:
         if c != cap:
             nk.disable_capability(c)
     # Serial is always enabled, can't toggle it
     if cap != "serial":
         nk.enable_capability(cap)
+    _current_capability = cap
 
 
 # Precision for Decimal arithmetic. 120 decimal digits provides ample margin
@@ -681,9 +698,7 @@ def precise_sqeuclidean(a, b):
     with decimal.localcontext() as ctx:
         ctx.prec = _DECIMAL_PRECISION
         D = decimal.Decimal
-        da = [D.from_float(float(x)) for x in a]
-        db = [D.from_float(float(x)) for x in b]
-        return float(sum((x - y) ** 2 for x, y in zip(da, db)))
+        return float(sum((D.from_float(float(x)) - D.from_float(float(y))) ** 2 for x, y in zip(a, b)))
 
 
 def precise_euclidean(a, b):
@@ -695,10 +710,13 @@ def precise_angular(a, b):
     with decimal.localcontext() as ctx:
         ctx.prec = _DECIMAL_PRECISION
         D = decimal.Decimal
-        da = [D.from_float(float(x)) for x in a]
-        db = [D.from_float(float(x)) for x in b]
-        ab = sum(x * y for x, y in zip(da, db))
-        aa, bb = sum(x * x for x in da), sum(x * x for x in db)
+        ab, aa, bb = D(0), D(0), D(0)
+        for x, y in zip(a, b):
+            dx = D.from_float(float(x))
+            dy = D.from_float(float(y))
+            ab += dx * dy
+            aa += dx * dx
+            bb += dy * dy
         return float(1 - ab / (aa * bb).sqrt())
 
 
@@ -966,7 +984,6 @@ def test_dense(ndim, dtype, metric, capability, stats_fixture):
     if dtype == "float16" and is_running_under_qemu():
         pytest.skip("Testing low-precision math isn't reliable in QEMU")
 
-    np.random.seed(nk_seed)
     a = np.random.randn(ndim).astype(dtype)
     b = np.random.randn(ndim).astype(dtype)
 
@@ -1006,8 +1023,6 @@ def test_curved(ndim, dtypes, metric, capability, stats_fixture):
     dtype, compute_dtype = dtypes
     if dtype == "float16" and is_running_under_qemu():
         pytest.skip("Testing low-precision math isn't reliable in QEMU")
-
-    np.random.seed(nk_seed)
 
     # Let's generate some non-negative probability distributions
     a = np.abs(np.random.randn(ndim).astype(dtype))
@@ -1053,7 +1068,6 @@ def test_curved_complex(ndim, dtype, capability, stats_fixture):
     with their NumPy or baseline counterparts, testing accuracy for complex IEEE standard floating-point types."""
 
     # Let's generate some uniform complex numbers
-    np.random.seed(nk_seed)
     a = (np.random.randn(ndim) + 1.0j * np.random.randn(ndim)).astype(dtype)
     b = (np.random.randn(ndim) + 1.0j * np.random.randn(ndim)).astype(dtype)
     c = (np.random.randn(ndim, ndim) + 1.0j * np.random.randn(ndim, ndim)).astype(dtype)
@@ -1086,7 +1100,6 @@ def test_dense_bf16(ndim, metric, capability, stats_fixture):
     """Compares various SIMD kernels (like Dot-products, squared Euclidean, and Cosine distances)
     with their NumPy or baseline counterparts, testing accuracy for the Brain-float format not
     natively supported by NumPy."""
-    np.random.seed(nk_seed)
     a = np.random.randn(ndim).astype(np.float32)
     b = np.random.randn(ndim).astype(np.float32)
 
@@ -1126,8 +1139,6 @@ def test_curved_bf16(ndim, metric, capability, stats_fixture):
     """Compares various SIMD kernels (like Bilinear Forms and Mahalanobis distances) for curved spaces
     with their NumPy or baseline counterparts, testing accuracy for the Brain-float format not
     natively supported by NumPy."""
-
-    np.random.seed(nk_seed)
 
     # Let's generate some non-negative probability distributions
     a = np.abs(np.random.randn(ndim).astype(np.float32))
@@ -1187,7 +1198,6 @@ def test_dense_i8(ndim, dtype, metric, capability, stats_fixture):
     with their NumPy or baseline counterparts, testing accuracy for small integer types, that can't
     be directly processed with other tools without overflowing."""
 
-    np.random.seed(nk_seed)
     if dtype == "int8":
         a = np.random.randint(-128, 127, size=(ndim), dtype=np.int8)
         b = np.random.randint(-128, 127, size=(ndim), dtype=np.int8)
@@ -1230,7 +1240,6 @@ def test_dense_i8(ndim, dtype, metric, capability, stats_fixture):
 def test_dense_bits(ndim, metric, capability, stats_fixture):
     """Compares various SIMD kernels (like Hamming and Jaccard/Tanimoto distances) for dense bit arrays
     with their NumPy or baseline counterparts, even though, they can't process sub-byte-sized scalars."""
-    np.random.seed(nk_seed)
     a = np.random.randint(2, size=ndim).astype(np.uint8)
     b = np.random.randint(2, size=ndim).astype(np.uint8)
 
@@ -1260,7 +1269,6 @@ def test_dense_bits(ndim, metric, capability, stats_fixture):
 def test_jensen_shannon(ndim, dtype, capability, stats_fixture):
     """Compares the nk.jensenshannon() function with scipy.spatial.distance.jensenshannon(), measuring the accuracy error for f16, and f32 types."""
 
-    np.random.seed(nk_seed)
     if dtype == "float16" and is_running_under_qemu():
         pytest.skip("Testing low-precision math isn't reliable in QEMU")
 
@@ -1315,7 +1323,6 @@ def test_angular_zero_vector(ndim, dtype, capability):
 def test_overflow(ndim, dtype, metric, capability):
     """Tests if the floating-point kernels are capable of detecting overflow yield the same ±inf result."""
 
-    np.random.seed(nk_seed)
     a = np.random.randn(ndim)
     b = np.random.randn(ndim)
 
@@ -1351,7 +1358,6 @@ def test_overflow_i8(ndim, metric, capability):
     same is true for 2^17 elements with "i32(i15(i8))*i32(i15(i8))" products.
     """
 
-    np.random.seed(nk_seed)
     a = np.full(ndim, fill_value=-128, dtype=np.int8)
     b = np.full(ndim, fill_value=-128, dtype=np.int8)
 
@@ -1377,7 +1383,6 @@ def test_overflow_i8(ndim, metric, capability):
 @pytest.mark.parametrize("capability", possible_capabilities)
 def test_dot_complex(ndim, dtype, capability, stats_fixture):
     """Compares the nk.dot() and nk.vdot() against NumPy for complex numbers."""
-    np.random.seed(nk_seed)
     a = (np.random.randn(ndim) + 1.0j * np.random.randn(ndim)).astype(dtype)
     b = (np.random.randn(ndim) + 1.0j * np.random.randn(ndim)).astype(dtype)
 
@@ -1408,7 +1413,6 @@ def test_dot_complex(ndim, dtype, capability, stats_fixture):
 @pytest.mark.parametrize("capability", possible_capabilities)
 def test_dot_complex_explicit(ndim, capability):
     """Compares the nk.dot() and nk.vdot() against NumPy for complex numbers."""
-    np.random.seed(nk_seed)
     a = np.random.randn(ndim).astype(dtype=np.float32)
     b = np.random.randn(ndim).astype(dtype=np.float32)
 
@@ -1435,8 +1439,6 @@ def test_intersect(dtype, first_length_bound, second_length_bound, capability):
 
     if is_running_under_qemu() and (platform.machine() == "aarch64" or platform.machine() == "arm64"):
         pytest.skip("In QEMU `aarch64` emulation on `x86_64` the `intersect` function is not reliable")
-
-    np.random.seed(nk_seed)
 
     a_length = np.random.randint(1, first_length_bound)
     b_length = np.random.randint(1, second_length_bound)
@@ -1509,7 +1511,6 @@ def test_scale(ndim, dtype, kernel, capability, stats_fixture):
     if dtype == "float16" and is_running_under_qemu():
         pytest.skip("Testing low-precision math isn't reliable in QEMU")
 
-    np.random.seed(nk_seed)
     if np.issubdtype(np.dtype(dtype), np.integer):
         dtype_info = np.iinfo(np.dtype(dtype))
         a = np.random.randint(dtype_info.min, dtype_info.max, size=ndim, dtype=dtype)
@@ -1564,7 +1565,6 @@ def test_add(ndim, dtype, kernel, capability, stats_fixture):
     if dtype == "float16" and is_running_under_qemu():
         pytest.skip("Testing low-precision math isn't reliable in QEMU")
 
-    np.random.seed(nk_seed)
     if np.issubdtype(np.dtype(dtype), np.integer):
         dtype_info = np.iinfo(np.dtype(dtype))
         a = np.random.randint(dtype_info.min, dtype_info.max, size=ndim, dtype=dtype)
@@ -1616,7 +1616,6 @@ def test_wsum(ndim, dtype, kernel, capability, stats_fixture):
     if dtype == "float16" and is_running_under_qemu():
         pytest.skip("Testing low-precision math isn't reliable in QEMU")
 
-    np.random.seed(nk_seed)
     if np.issubdtype(np.dtype(dtype), np.integer):
         dtype_info = np.iinfo(np.dtype(dtype))
         a = np.random.randint(dtype_info.min, dtype_info.max, size=ndim, dtype=dtype)
@@ -1674,7 +1673,6 @@ def test_fma(ndim, dtype, kernel, capability, stats_fixture):
     if dtype == "float16" and is_running_under_qemu():
         pytest.skip("Testing low-precision math isn't reliable in QEMU")
 
-    np.random.seed(nk_seed)
     if np.issubdtype(np.dtype(dtype), np.integer):
         dtype_info = np.iinfo(np.dtype(dtype))
         a = np.random.randint(dtype_info.min, dtype_info.max, size=ndim, dtype=dtype)
@@ -1734,7 +1732,6 @@ def test_batch(ndim, dtype, capability):
     if dtype == "float16" and is_running_under_qemu():
         pytest.skip("Testing low-precision math isn't reliable in QEMU")
 
-    np.random.seed(nk_seed)
     keep_one_capability(capability)
 
     # Distance between matrixes A (N x D scalars) and B (N x D scalars) is an array with N floats.
@@ -1821,7 +1818,6 @@ def test_cdist(ndim, input_dtype, out_dtype, metric, capability):
     if input_dtype == "float16" and is_running_under_qemu():
         pytest.skip("Testing low-precision math isn't reliable in QEMU")
 
-    np.random.seed(nk_seed)
     keep_one_capability(capability)
 
     # We will work with random matrices A (M x D) and B (N x D).
@@ -1879,8 +1875,6 @@ def test_cdist_itself(ndim, input_dtype, out_dtype, metric):
     if input_dtype == "float16" and is_running_under_qemu():
         pytest.skip("Testing low-precision math isn't reliable in QEMU")
 
-    np.random.seed(nk_seed)
-
     # Check if we need to round before casting to integer (to match NumKong's lround behavior)
     is_integer_output = out_dtype in ("int32", "int64", "int16", "int8", "uint32", "uint64", "uint16", "uint8")
     scipy_metric = scipy_metric_name(metric)
@@ -1912,7 +1906,6 @@ def test_cdist_complex(ndim, input_dtype, out_dtype, metric, capability):
     The goal is to make sure that addressing multi-component numbers is done properly in both real and imaginary parts.
     """
 
-    np.random.seed(nk_seed)
     keep_one_capability(capability)
 
     # We will work with random matrices A (M x D) and B (N x D).
@@ -1959,7 +1952,6 @@ def test_cdist_complex(ndim, input_dtype, out_dtype, metric, capability):
 def test_cdist_hamming(ndim, out_dtype, capability):
     """Compares various SIMD kernels (like Hamming and Jaccard/Tanimoto distances) for dense bit arrays
     with their NumPy or baseline counterparts, even though, they can't process sub-byte-sized scalars."""
-    np.random.seed(nk_seed)
     keep_one_capability(capability)
 
     # Create random matrices A (M x D) and B (N x D).
@@ -2014,7 +2006,6 @@ def test_cdist_hamming(ndim, out_dtype, capability):
 def test_elementwise(dtype, kernel, capability, stats_fixture):
     """Tests NumPy-like compatibility interfaces on all kinds of non-contiguous arrays."""
 
-    np.random.seed(nk_seed)
     keep_one_capability(capability)
     baseline_kernel, simd_kernel, _ = name_to_kernels(kernel)
     first_dtype, second_dtype, output_dtype = dtype
@@ -2197,7 +2188,6 @@ def test_scale_edge_cases(ndim, dtype, kernel, capability, stats_fixture):
     if dtype == "float16" and is_running_under_qemu():
         pytest.skip("Testing low-precision math isn't reliable in QEMU")
 
-    np.random.seed(nk_seed)
     keep_one_capability(capability)
     baseline_kernel, simd_kernel, _ = name_to_kernels(kernel)
 
@@ -2246,7 +2236,6 @@ def test_add_edge_cases(ndim, dtype, kernel, capability, stats_fixture):
     if dtype == "float16" and is_running_under_qemu():
         pytest.skip("Testing low-precision math isn't reliable in QEMU")
 
-    np.random.seed(nk_seed)
     keep_one_capability(capability)
     baseline_kernel, simd_kernel, _ = name_to_kernels(kernel)
 
@@ -2299,7 +2288,6 @@ def test_elementwise_broadcast(ndim, dtype, kernel, capability, stats_fixture):
     if (first_dtype == "float16" or second_dtype == "float16") and is_running_under_qemu():
         pytest.skip("Testing low-precision math isn't reliable in QEMU")
 
-    np.random.seed(nk_seed)
     keep_one_capability(capability)
     baseline_kernel, simd_kernel, _ = name_to_kernels(kernel)
 
@@ -2427,7 +2415,6 @@ def test_haversine(ndim, dtype, capability, stats_fixture):
     if dtype == "float32" and is_running_under_qemu():
         pytest.skip("Testing low-precision math isn't reliable in QEMU")
 
-    np.random.seed(nk_seed)
     keep_one_capability(capability)
 
     # Generate random coordinates in radians
@@ -2485,7 +2472,6 @@ def test_vincenty(ndim, dtype, capability, stats_fixture):
     if dtype == "float32" and is_running_under_qemu():
         pytest.skip("Testing low-precision math isn't reliable in QEMU")
 
-    np.random.seed(nk_seed)
     keep_one_capability(capability)
 
     # Generate random coordinates in radians
@@ -2561,7 +2547,6 @@ def test_geospatial_out_parameter():
     """Tests that the 'out' parameter works for geospatial functions."""
 
     count = 10
-    np.random.seed(nk_seed)
     first_latitudes = np.random.rand(count).astype(np.float64) * np.pi - np.pi / 2
     first_longitudes = np.random.rand(count).astype(np.float64) * 2 * np.pi - np.pi
     second_latitudes = np.random.rand(count).astype(np.float64) * np.pi - np.pi / 2
@@ -2581,7 +2566,6 @@ def test_geospatial_out_parameter():
 @pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
 def test_distances_tensor_properties():
     """Tests that Tensor properties work correctly for various shapes."""
-    np.random.seed(nk_seed)
 
     # Test with pairwise distances (2D result)
     a = np.random.rand(5, 128).astype(np.float64)
@@ -2611,7 +2595,6 @@ def test_distances_tensor_properties():
 @pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
 def test_distances_tensor_properties_1d():
     """Tests Tensor properties for 1D results."""
-    np.random.seed(nk_seed)
 
     # Test with row-wise distances (1D result)
     a = np.random.rand(10, 128).astype(np.float64)
@@ -2627,7 +2610,6 @@ def test_distances_tensor_properties_1d():
 @pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
 def test_distances_tensor_len():
     """Tests that __len__() works correctly for Tensor."""
-    np.random.seed(nk_seed)
 
     # 2D tensor
     a = np.random.rand(5, 128).astype(np.float64)
@@ -2645,7 +2627,6 @@ def test_distances_tensor_len():
 @pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
 def test_distances_tensor_repr():
     """Tests that __repr__() returns proper format."""
-    np.random.seed(nk_seed)
 
     # 2D tensor
     a = np.random.rand(5, 128).astype(np.float64)
@@ -2663,7 +2644,6 @@ def test_distances_tensor_repr():
 @pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
 def test_distances_tensor_indexing():
     """Tests that __getitem__() works for various index types."""
-    np.random.seed(nk_seed)
 
     # Create 2D result
     a = np.random.rand(5, 128).astype(np.float64)
@@ -2704,7 +2684,6 @@ def test_distances_tensor_indexing():
 @pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
 def test_distances_tensor_iteration():
     """Tests that __iter__() works correctly."""
-    np.random.seed(nk_seed)
 
     # 2D tensor - iterates over rows
     a = np.random.rand(5, 128).astype(np.float64)
@@ -2736,7 +2715,6 @@ def test_distances_tensor_iteration():
 @pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
 def test_distances_tensor_numpy_interop():
     """Tests NumPy interoperability via buffer protocol."""
-    np.random.seed(nk_seed)
 
     # Create tensor
     a = np.random.rand(5, 128).astype(np.float64)
@@ -2765,7 +2743,6 @@ def test_distances_tensor_numpy_interop():
 @pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
 def test_distances_tensor_scalar_conversion():
     """Tests float() and int() conversion for scalar results."""
-    np.random.seed(nk_seed)
 
     # Single-vector sqeuclidean returns a Python float directly, not a tensor
     a = np.random.rand(128).astype(np.float64)
@@ -2787,7 +2764,6 @@ def test_distances_tensor_scalar_conversion():
 @pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
 def test_distances_tensor_dtype_consistency():
     """Tests that dtype property matches actual data type."""
-    np.random.seed(nk_seed)
 
     # Test various input types - result should always be float64
     for input_dtype in [np.float32, np.float64]:
@@ -2803,7 +2779,6 @@ def test_distances_tensor_dtype_consistency():
 @pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
 def test_distances_tensor_strides():
     """Tests that strides are correctly computed and usable."""
-    np.random.seed(nk_seed)
 
     a = np.random.rand(5, 128).astype(np.float64)
     b = np.random.rand(7, 128).astype(np.float64)
@@ -2825,7 +2800,6 @@ def test_distances_tensor_strides():
 @pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
 def test_distances_tensor_array_interface():
     """Tests __array_interface__ property for legacy NumPy interop."""
-    np.random.seed(nk_seed)
 
     a = np.random.rand(5, 128).astype(np.float64)
     b = np.random.rand(7, 128).astype(np.float64)
@@ -2851,7 +2825,6 @@ def test_distances_tensor_array_interface():
 @pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
 def test_distances_tensor_transpose():
     """Tests .T property for tensor transpose."""
-    np.random.seed(nk_seed)
 
     a = np.random.rand(5, 128).astype(np.float64)
     b = np.random.rand(7, 128).astype(np.float64)
@@ -2877,7 +2850,6 @@ def test_distances_tensor_transpose():
 @pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
 def test_distances_tensor_str():
     """Tests __str__() pretty-print representation."""
-    np.random.seed(nk_seed)
 
     a = np.random.rand(3, 128).astype(np.float64)
     b = np.random.rand(4, 128).astype(np.float64)
@@ -2894,7 +2866,6 @@ def test_distances_tensor_str():
 @pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
 def test_distances_tensor_equality():
     """Tests __eq__ and __ne__ comparison operators."""
-    np.random.seed(nk_seed)
 
     a = np.random.rand(5, 128).astype(np.float64)
     b = np.random.rand(7, 128).astype(np.float64)
@@ -2921,7 +2892,6 @@ def test_distances_tensor_equality():
 @pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
 def test_distances_tensor_copy():
     """Tests .copy() method for deep copying."""
-    np.random.seed(nk_seed)
 
     a = np.random.rand(5, 128).astype(np.float64)
     b = np.random.rand(7, 128).astype(np.float64)
@@ -2942,7 +2912,6 @@ def test_distances_tensor_copy():
 @pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
 def test_distances_tensor_reshape():
     """Tests .reshape() method."""
-    np.random.seed(nk_seed)
 
     a = np.random.rand(5, 128).astype(np.float64)
     b = np.random.rand(7, 128).astype(np.float64)
@@ -2969,7 +2938,6 @@ def test_distances_tensor_reshape():
 @pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
 def test_distances_tensor_slicing():
     """Tests slicing support with tensor[start:stop:step]."""
-    np.random.seed(nk_seed)
 
     a = np.random.rand(10, 128).astype(np.float64)
     b = np.random.rand(8, 128).astype(np.float64)
@@ -2999,7 +2967,6 @@ def test_distances_tensor_slicing():
 
 def test_distances_tensor_zero_copy_views():
     """Tests that slicing, transpose, reshape, and iteration return zero-copy views."""
-    np.random.seed(nk_seed)
 
     a = np.random.rand(5, 64).astype(np.float64)
     b = np.random.rand(4, 64).astype(np.float64)
@@ -3205,7 +3172,6 @@ def test_ndarray_empty(dtype, shape):
 )
 def test_ndarray_sum_method(dtype, shape):
     """Test NDArray.sum() method."""
-    np.random.seed(nk_seed)
 
     # Create NumPy array and numkong array
     if dtype.startswith("float"):
@@ -3246,7 +3212,6 @@ def test_ndarray_sum_method(dtype, shape):
 )
 def test_ndarray_min_max_methods(dtype, shape):
     """Test NDArray.min() and NDArray.max() methods."""
-    np.random.seed(nk_seed)
 
     if dtype.startswith("float"):
         np_arr = np.random.randn(*shape).astype(dtype)
@@ -3293,7 +3258,6 @@ def test_ndarray_min_max_methods(dtype, shape):
 )
 def test_ndarray_argmin_argmax_methods(dtype, shape):
     """Test NDArray.argmin() and NDArray.argmax() methods."""
-    np.random.seed(nk_seed)
 
     if dtype.startswith("float"):
         np_arr = np.random.randn(*shape).astype(dtype)
@@ -3331,7 +3295,6 @@ def test_ndarray_argmin_argmax_methods(dtype, shape):
 )
 def test_module_level_reductions(dtype):
     """Test nk.sum(), nk.min(), nk.max(), nk.argmin(), nk.argmax() module functions."""
-    np.random.seed(nk_seed)
     shape = (50,)
     np_arr = np.random.randn(*shape).astype(dtype)
 
@@ -3371,7 +3334,6 @@ def test_module_level_reductions(dtype):
 )
 def test_ndarray_add_operator(dtype):
     """Test NDArray + operator."""
-    np.random.seed(nk_seed)
     shape = (20,)
 
     if dtype.startswith("float"):
@@ -3409,7 +3371,6 @@ def test_ndarray_add_operator(dtype):
 )
 def test_ndarray_subtract_operator(dtype):
     """Test NDArray - operator."""
-    np.random.seed(nk_seed)
     shape = (20,)
 
     if dtype.startswith("float"):
@@ -3446,7 +3407,6 @@ def test_ndarray_subtract_operator(dtype):
 )
 def test_ndarray_multiply_operator(dtype):
     """Test NDArray * operator."""
-    np.random.seed(nk_seed)
     shape = (20,)
 
     if dtype.startswith("float"):
@@ -3483,7 +3443,6 @@ def test_ndarray_multiply_operator(dtype):
 )
 def test_ndarray_unary_operators(dtype):
     """Test NDArray unary - and + operators."""
-    np.random.seed(nk_seed)
     shape = (20,)
 
     if dtype.startswith("float"):
@@ -3525,7 +3484,6 @@ def test_ndarray_unary_operators(dtype):
 )
 def test_reduction_on_strided_array(dtype):
     """Test reductions on non-contiguous (strided) arrays."""
-    np.random.seed(nk_seed)
 
     # Create a 2D array and take a strided slice
     np_arr = np.random.randn(10, 10).astype(dtype)
@@ -3556,7 +3514,6 @@ def test_reduction_on_strided_array(dtype):
 )
 def test_reduction_on_transposed_array(dtype):
     """Test reductions on transposed (non-contiguous) arrays."""
-    np.random.seed(nk_seed)
 
     np_arr = np.random.randn(5, 8).astype(dtype)
     nk_arr = nk.zeros((5, 8), dtype=dtype)
@@ -3586,7 +3543,6 @@ def test_reduction_on_transposed_array(dtype):
 )
 def test_reduction_on_subview(dtype):
     """Test reductions on subviews (sliced arrays)."""
-    np.random.seed(nk_seed)
 
     np_arr = np.random.randn(20, 20).astype(dtype)
     nk_arr = nk.zeros((20, 20), dtype=dtype)
@@ -3623,7 +3579,6 @@ def test_reduction_on_subview(dtype):
 )
 def test_add_with_numpy_arrays(dtype):
     """Test nk.add() with NumPy arrays via buffer protocol."""
-    np.random.seed(nk_seed)
     shape = (50,)
     a = np.random.randn(*shape).astype(dtype)
     b = np.random.randn(*shape).astype(dtype)
@@ -3645,7 +3600,6 @@ def test_add_with_numpy_arrays(dtype):
 )
 def test_multiply_with_numpy_arrays(dtype):
     """Test nk.multiply() with NumPy arrays via buffer protocol."""
-    np.random.seed(nk_seed)
     shape = (50,)
     a = np.random.randn(*shape).astype(dtype)
     b = np.random.randn(*shape).astype(dtype)
@@ -3667,7 +3621,6 @@ def test_multiply_with_numpy_arrays(dtype):
 )
 def test_wsum_with_numpy_arrays(dtype):
     """Test nk.wsum() with NumPy arrays via buffer protocol."""
-    np.random.seed(nk_seed)
     shape = (50,)
     a = np.random.randn(*shape).astype(dtype)
     b = np.random.randn(*shape).astype(dtype)
