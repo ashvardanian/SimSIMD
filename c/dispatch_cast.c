@@ -8,6 +8,12 @@
 
 void nk_dispatch_cast_find_(nk_capability_t v, nk_kernel_kind_t k, nk_kernel_punned_t *m, nk_capability_t *c) {
     typedef nk_kernel_punned_t m_t;
+#if NK_TARGET_NEON
+    if (v & nk_cap_neon_k) switch (k) {
+        case nk_kernel_cast_k: *m = (m_t)&nk_cast_neon, *c = nk_cap_neon_k; return;
+        default: break;
+        }
+#endif
 #if NK_TARGET_SAPPHIRE
     if (v & nk_cap_sapphire_k) switch (k) {
         case nk_kernel_cast_k: *m = (m_t)&nk_cast_sapphire, *c = nk_cap_sapphire_k; return;
@@ -38,12 +44,6 @@ void nk_dispatch_cast_find_(nk_capability_t v, nk_kernel_kind_t k, nk_kernel_pun
         default: break;
         }
 #endif
-#if NK_TARGET_NEON
-    if (v & nk_cap_neon_k) switch (k) {
-        case nk_kernel_cast_k: *m = (m_t)&nk_cast_neon, *c = nk_cap_neon_k; return;
-        default: break;
-        }
-#endif
     if (v & nk_cap_serial_k) switch (k) {
         case nk_kernel_cast_k: *m = (m_t)&nk_cast_serial, *c = nk_cap_serial_k; return;
         default: break;
@@ -60,32 +60,27 @@ void nk_dispatch_cast_init_(nk_capability_t caps) {
     // Type casting (buffer-to-buffer)
     nk_dispatch_cast_find_(caps, nk_kernel_cast_k, (nk_kernel_punned_t *)&t->cast, &used);
 
-    // Scalar conversions: f16 <-> f32
+    // Scalar conversions: f16 ↔ f32 (last match wins, ascending capability)
+    t->f16_to_f32 = &nk_f16_to_f32_serial;
+    t->f32_to_f16 = &nk_f32_to_f16_serial;
+#if NK_TARGET_HASWELL
+    if (caps & nk_cap_haswell_k) {
+        t->f16_to_f32 = &nk_f16_to_f32_haswell;
+        t->f32_to_f16 = &nk_f32_to_f16_haswell;
+    }
+#endif
 #if NK_TARGET_SAPPHIRE
     if (caps & nk_cap_sapphire_k) {
         t->f16_to_f32 = &nk_f16_to_f32_sapphire;
         t->f32_to_f16 = &nk_f32_to_f16_sapphire;
     }
-    else
-#endif
-#if NK_TARGET_HASWELL
-        if (caps & nk_cap_haswell_k) {
-        t->f16_to_f32 = &nk_f16_to_f32_haswell;
-        t->f32_to_f16 = &nk_f32_to_f16_haswell;
-    }
-    else
 #endif
 #if NK_TARGET_NEON
-        if (caps & nk_cap_neon_k) {
+    if (caps & nk_cap_neon_k) {
         t->f16_to_f32 = &nk_f16_to_f32_neon;
         t->f32_to_f16 = &nk_f32_to_f16_neon;
     }
-    else
 #endif
-    {
-        t->f16_to_f32 = &nk_f16_to_f32_serial;
-        t->f32_to_f16 = &nk_f32_to_f16_serial;
-    }
 
     // Scalar conversions: bf16, e4m3, e5m2, e2m3, e3m2 (serial only)
     t->bf16_to_f32 = &nk_bf16_to_f32_serial;
