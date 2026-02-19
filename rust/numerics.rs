@@ -719,6 +719,16 @@ extern "C" {
     fn nk_bilinear_f32(a: *const f32, b: *const f32, c: *const f32, n: u64size, result: *mut f32);
     fn nk_bilinear_f16(a: *const u16, b: *const u16, c: *const u16, n: u64size, result: *mut f32);
     fn nk_bilinear_bf16(a: *const u16, b: *const u16, c: *const u16, n: u64size, result: *mut f32);
+    fn nk_bilinear_f64c(a: *const f64, b: *const f64, c: *const f64, n: u64size, results: *mut f64);
+    fn nk_bilinear_f32c(a: *const f32, b: *const f32, c: *const f32, n: u64size, results: *mut f32);
+    fn nk_bilinear_f16c(a: *const u16, b: *const u16, c: *const u16, n: u64size, results: *mut f32);
+    fn nk_bilinear_bf16c(
+        a: *const u16,
+        b: *const u16,
+        c: *const u16,
+        n: u64size,
+        results: *mut f32,
+    );
 
     // Mahalanobis distance
     fn nk_mahalanobis_f64(
@@ -5259,6 +5269,107 @@ impl Bilinear for bf16 {
 }
 
 // endregion: Bilinear Form
+
+// region: Complex Bilinear Form
+
+/// Complex bilinear form computation: aᴴ × C × b where inputs are interleaved complex vectors.
+///
+/// Input data is interleaved `[real, imag, real, imag, ...]`. Returns `(real, imag)`.
+/// The `n` parameter to the C function is the number of complex elements (half the slice length).
+pub trait ComplexBilinear: Sized {
+    type Output;
+    fn complex_bilinear(a: &[Self], b: &[Self], c: &[Self]) -> Option<Self::Output>;
+}
+
+impl ComplexBilinear for f64 {
+    type Output = ComplexProductF64;
+
+    fn complex_bilinear(a: &[Self], b: &[Self], c: &[Self]) -> Option<Self::Output> {
+        let n = a.len();
+        if n == 0 || n != b.len() || n % 2 != 0 || c.len() != (n / 2) * (n / 2) * 2 {
+            return None;
+        }
+        let mut result: [f64; 2] = [0.0, 0.0];
+        unsafe {
+            nk_bilinear_f64c(
+                a.as_ptr(),
+                b.as_ptr(),
+                c.as_ptr(),
+                (n / 2) as u64size,
+                result.as_mut_ptr(),
+            );
+        }
+        Some((result[0], result[1]))
+    }
+}
+
+impl ComplexBilinear for f32 {
+    type Output = ComplexProductF32;
+
+    fn complex_bilinear(a: &[Self], b: &[Self], c: &[Self]) -> Option<Self::Output> {
+        let n = a.len();
+        if n == 0 || n != b.len() || n % 2 != 0 || c.len() != (n / 2) * (n / 2) * 2 {
+            return None;
+        }
+        let mut result: [f32; 2] = [0.0, 0.0];
+        unsafe {
+            nk_bilinear_f32c(
+                a.as_ptr(),
+                b.as_ptr(),
+                c.as_ptr(),
+                (n / 2) as u64size,
+                result.as_mut_ptr(),
+            );
+        }
+        Some((result[0], result[1]))
+    }
+}
+
+impl ComplexBilinear for f16 {
+    type Output = ComplexProductF32;
+
+    fn complex_bilinear(a: &[Self], b: &[Self], c: &[Self]) -> Option<Self::Output> {
+        let n = a.len();
+        if n == 0 || n != b.len() || n % 2 != 0 || c.len() != (n / 2) * (n / 2) * 2 {
+            return None;
+        }
+        let mut result: [f32; 2] = [0.0, 0.0];
+        unsafe {
+            nk_bilinear_f16c(
+                a.as_ptr() as *const u16,
+                b.as_ptr() as *const u16,
+                c.as_ptr() as *const u16,
+                (n / 2) as u64size,
+                result.as_mut_ptr(),
+            );
+        }
+        Some((result[0], result[1]))
+    }
+}
+
+impl ComplexBilinear for bf16 {
+    type Output = ComplexProductF32;
+
+    fn complex_bilinear(a: &[Self], b: &[Self], c: &[Self]) -> Option<Self::Output> {
+        let n = a.len();
+        if n == 0 || n != b.len() || n % 2 != 0 || c.len() != (n / 2) * (n / 2) * 2 {
+            return None;
+        }
+        let mut result: [f32; 2] = [0.0, 0.0];
+        unsafe {
+            nk_bilinear_bf16c(
+                a.as_ptr() as *const u16,
+                b.as_ptr() as *const u16,
+                c.as_ptr() as *const u16,
+                (n / 2) as u64size,
+                result.as_mut_ptr(),
+            );
+        }
+        Some((result[0], result[1]))
+    }
+}
+
+// endregion: Complex Bilinear Form
 
 // region: Mahalanobis Distance
 
