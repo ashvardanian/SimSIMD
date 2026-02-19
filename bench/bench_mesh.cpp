@@ -74,17 +74,6 @@ void bench_mesh() {
     mesh_<f64_k, f64_k>("umeyama_f64_neon", nk_umeyama_f64_neon);
 #endif
 
-#if NK_TARGET_SME
-    mesh_<f32_k, f32_k>("rmsd_f32_sme", nk_rmsd_f32_sme);
-    mesh_<f32_k, f32_k>("kabsch_f32_sme", nk_kabsch_f32_sme);
-    mesh_<f32_k, f32_k>("umeyama_f32_sme", nk_umeyama_f32_sme);
-#endif
-
-#if NK_TARGET_SMEF64
-    mesh_<f64_k, f64_k>("rmsd_f64_smef64", nk_rmsd_f64_smef64);
-    mesh_<f64_k, f64_k>("kabsch_f64_smef64", nk_kabsch_f64_smef64);
-    mesh_<f64_k, f64_k>("umeyama_f64_smef64", nk_umeyama_f64_smef64);
-#endif
 
 #if NK_TARGET_HASWELL
     mesh_<f32_k, f32_k>("rmsd_f32_haswell", nk_rmsd_f32_haswell);
