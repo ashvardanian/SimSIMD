@@ -638,36 +638,58 @@ NK_ATOL = 0.1
 
 # We will run all the tests many times using different instruction sets under the hood.
 available_capabilities: dict[str, str] = nk.get_capabilities()
-possible_x86_capabilities: list[str] = ["haswell", "icelake", "skylake", "sapphire", "turin", "genoa", "sierra"]
-possible_arm_capabilities: list[str] = [
-    "neon",
-    "neonhalf",
-    "neonbfdot",
-    "neonsdot",
-    "sve",
-    "svehalf",
-    "svebfdot",
-    "svesdot",
+# fmt: off
+possible_x86_capabilities: list[str] = [
+    "haswell", "skylake", "icelake", "genoa", "sapphire", "sapphireamx", "graniteamx", "turin", "sierra",
 ]
-possible_x86_capabilities: list[str] = [c for c in possible_x86_capabilities if available_capabilities[c]]
-possible_arm_capabilities: list[str] = [c for c in possible_arm_capabilities if available_capabilities[c]]
-possible_capabilities: list[str] = []
+possible_arm_capabilities: list[str] = [
+    "neon", "neonhalf", "neonfhm", "neonbfdot", "neonsdot",
+    "sve", "svehalf", "svebfdot", "svesdot", "sve2", "sve2p1",
+    "sme", "sme2", "sme2p1", "smef64", "smehalf", "smebf16", "smelut2", "smefa64",
+]
+possible_rvv_capabilities: list[str] = ["rvv", "rvvhalf", "rvvbf16", "rvvbb"]
+possible_wasm_capabilities: list[str] = ["v128relaxed"]
+# fmt: on
+possible_x86_capabilities = [c for c in possible_x86_capabilities if available_capabilities[c]]
+possible_arm_capabilities = [c for c in possible_arm_capabilities if available_capabilities[c]]
+possible_rvv_capabilities = [c for c in possible_rvv_capabilities if available_capabilities[c]]
+possible_wasm_capabilities = [c for c in possible_wasm_capabilities if available_capabilities[c]]
+hardware_capabilities: list[str] = []
+_machine = platform.machine()
 
 if sys.platform == "linux":
-    if platform.machine() == "x86_64":
-        possible_capabilities = possible_x86_capabilities
-    elif platform.machine() == "aarch64":
-        possible_capabilities = possible_arm_capabilities
+    # platform.machine() returns uname -m: "x86_64", "aarch64", "riscv64"
+    if _machine == "x86_64":
+        hardware_capabilities = possible_x86_capabilities
+    elif _machine == "aarch64":
+        hardware_capabilities = possible_arm_capabilities
+    elif _machine == "riscv64":
+        hardware_capabilities = possible_rvv_capabilities
 elif sys.platform == "darwin":
-    if platform.machine() == "x86_64":
-        possible_capabilities = possible_x86_capabilities
-    elif platform.machine() == "arm64":
-        possible_capabilities = possible_arm_capabilities
+    # platform.machine() returns "x86_64" or "arm64" (Apple Silicon)
+    if _machine == "x86_64":
+        hardware_capabilities = possible_x86_capabilities
+    elif _machine == "arm64":
+        hardware_capabilities = possible_arm_capabilities
 elif sys.platform == "win32":
-    if platform.machine() == "AMD64":
-        possible_capabilities = possible_x86_capabilities
-    elif platform.machine() == "ARM64":
-        possible_capabilities = possible_arm_capabilities
+    # platform.machine() returns WMI names: "AMD64", "ARM64" (uppercase)
+    if _machine == "AMD64":
+        hardware_capabilities = possible_x86_capabilities
+    elif _machine == "ARM64":
+        hardware_capabilities = possible_arm_capabilities
+elif sys.platform.startswith("freebsd"):
+    # FreeBSD uname -m: "amd64" (not "x86_64"), "arm64" (not "aarch64")
+    # sys.platform is "freebsd" since Python 3.14, "freebsd14" etc. before
+    if _machine == "amd64":
+        hardware_capabilities = possible_x86_capabilities
+    elif _machine == "arm64":
+        hardware_capabilities = possible_arm_capabilities
+elif sys.platform in ("emscripten", "wasi"):
+    # Emscripten: Pyodide, browser, Node.js (sys.platform == "emscripten")
+    # WASI: Wasmtime, Wasmer, WasmEdge (sys.platform == "wasi")
+    hardware_capabilities = possible_wasm_capabilities
+
+possible_capabilities: list[str] = ["serial"] + hardware_capabilities
 
 
 _current_capability: str | None = None
@@ -675,11 +697,11 @@ _current_capability: str | None = None
 
 def keep_one_capability(cap: str):
     global _current_capability
-    assert cap in possible_capabilities or cap == "serial", f"Capability {cap} is not available on this platform."
+    assert cap in possible_capabilities, f"Capability {cap} is not available on this platform."
     if cap == _current_capability:
         return
     for c in possible_capabilities:
-        if c != cap:
+        if c != cap and c != "serial":
             nk.disable_capability(c)
     # Serial is always enabled, can't toggle it
     if cap != "serial":
@@ -1445,7 +1467,7 @@ def test_dot_complex_explicit(ndim, capability):
 @pytest.mark.parametrize("dtype", ["uint16", "uint32"])
 @pytest.mark.parametrize("first_length_bound", [10, 100, 1000])
 @pytest.mark.parametrize("second_length_bound", [10, 100, 1000])
-@pytest.mark.parametrize("capability", ["serial"] + possible_capabilities)
+@pytest.mark.parametrize("capability", possible_capabilities)
 def test_intersect(dtype, first_length_bound, second_length_bound, capability):
     """Compares the nk.intersect() function with numpy.intersect1d."""
 
@@ -1471,7 +1493,7 @@ def test_intersect(dtype, first_length_bound, second_length_bound, capability):
 @pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
 @pytest.mark.skipif(not scipy_available, reason="SciPy is not installed")
 @pytest.mark.parametrize("dtype", ["float64", "float32"])
-@pytest.mark.parametrize("capability", ["serial"] + possible_capabilities)
+@pytest.mark.parametrize("capability", possible_capabilities)
 def test_mesh_kabsch(dtype, capability):
     """Kabsch on identical points vs SciPy procrustes: expects near-zero disparity."""
     point_cloud = np.array([[0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [0.0, 2.0, 0.0], [0.0, 0.0, 3.0]], dtype=dtype)
@@ -1487,7 +1509,7 @@ def test_mesh_kabsch(dtype, capability):
 
 @pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
 @pytest.mark.parametrize("dtype", ["float64", "float32"])
-@pytest.mark.parametrize("capability", ["serial"] + possible_capabilities)
+@pytest.mark.parametrize("capability", possible_capabilities)
 def test_mesh_umeyama(dtype, capability):
     """Umeyama on 2x-scaled points: expects scale~2."""
     point_cloud = np.array([[0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [0.0, 2.0, 0.0], [0.0, 0.0, 3.0]], dtype=dtype)
@@ -1498,7 +1520,7 @@ def test_mesh_umeyama(dtype, capability):
 
 @pytest.mark.skipif(not numpy_available, reason="NumPy is not installed")
 @pytest.mark.parametrize("dtype", ["float64", "float32"])
-@pytest.mark.parametrize("capability", ["serial"] + possible_capabilities)
+@pytest.mark.parametrize("capability", possible_capabilities)
 def test_mesh_rmsd(dtype, capability):
     """RMSD on identical points: expects RMSD~0, scale=1."""
     point_cloud = np.array([[0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [0.0, 2.0, 0.0], [0.0, 0.0, 3.0]], dtype=dtype)
@@ -1516,7 +1538,7 @@ def test_mesh_rmsd(dtype, capability):
 @pytest.mark.parametrize("ndim", dense_dimensions)
 @pytest.mark.parametrize("dtype", ["float64", "float32", "float16", "int8", "uint8"])
 @pytest.mark.parametrize("kernel", ["scale"])
-@pytest.mark.parametrize("capability", ["serial"] + possible_capabilities)
+@pytest.mark.parametrize("capability", possible_capabilities)
 def test_scale(ndim, dtype, kernel, capability, stats_fixture):
     """"""
 
@@ -1570,7 +1592,7 @@ def test_scale(ndim, dtype, kernel, capability, stats_fixture):
 @pytest.mark.parametrize("ndim", dense_dimensions)
 @pytest.mark.parametrize("dtype", ["float64", "float32", "float16", "int8", "uint8"])
 @pytest.mark.parametrize("kernel", ["add"])
-@pytest.mark.parametrize("capability", ["serial"] + possible_capabilities)
+@pytest.mark.parametrize("capability", possible_capabilities)
 def test_add(ndim, dtype, kernel, capability, stats_fixture):
     """"""
 
@@ -1621,7 +1643,7 @@ def test_add(ndim, dtype, kernel, capability, stats_fixture):
 @pytest.mark.parametrize("ndim", dense_dimensions)
 @pytest.mark.parametrize("dtype", ["float64", "float32", "float16", "int8", "uint8"])
 @pytest.mark.parametrize("kernel", ["wsum"])
-@pytest.mark.parametrize("capability", ["serial"] + possible_capabilities)
+@pytest.mark.parametrize("capability", possible_capabilities)
 def test_wsum(ndim, dtype, kernel, capability, stats_fixture):
     """"""
 
@@ -1678,7 +1700,7 @@ def test_wsum(ndim, dtype, kernel, capability, stats_fixture):
 @pytest.mark.parametrize("ndim", dense_dimensions)
 @pytest.mark.parametrize("dtype", ["float64", "float32", "float16", "int8", "uint8"])
 @pytest.mark.parametrize("kernel", ["fma"])
-@pytest.mark.parametrize("capability", ["serial"] + possible_capabilities)
+@pytest.mark.parametrize("capability", possible_capabilities)
 def test_fma(ndim, dtype, kernel, capability, stats_fixture):
     """"""
 
@@ -2014,7 +2036,7 @@ def test_cdist_hamming(ndim, out_dtype, capability):
         "multiply",
     ],
 )
-@pytest.mark.parametrize("capability", ["serial"] + possible_capabilities)
+@pytest.mark.parametrize("capability", possible_capabilities)
 def test_elementwise(dtype, kernel, capability, stats_fixture):
     """Tests NumPy-like compatibility interfaces on all kinds of non-contiguous arrays."""
 
@@ -2192,7 +2214,7 @@ def test_elementwise(dtype, kernel, capability, stats_fixture):
 @pytest.mark.parametrize("ndim", dense_dimensions)
 @pytest.mark.parametrize("dtype", ["float64", "float32", "float16"])
 @pytest.mark.parametrize("kernel", ["scale"])
-@pytest.mark.parametrize("capability", ["serial"] + possible_capabilities)
+@pytest.mark.parametrize("capability", possible_capabilities)
 def test_scale_edge_cases(ndim, dtype, kernel, capability, stats_fixture):
     """Edge-case tests for scale() function with various dtypes and alpha/beta parameters.
     Tests the formula: result = alpha * x + beta
@@ -2240,7 +2262,7 @@ def test_scale_edge_cases(ndim, dtype, kernel, capability, stats_fixture):
 @pytest.mark.parametrize("ndim", dense_dimensions)
 @pytest.mark.parametrize("dtype", ["float64", "float32", "float16"])
 @pytest.mark.parametrize("kernel", ["add"])
-@pytest.mark.parametrize("capability", ["serial"] + possible_capabilities)
+@pytest.mark.parametrize("capability", possible_capabilities)
 def test_add_edge_cases(ndim, dtype, kernel, capability, stats_fixture):
     """Edge-case tests for add() function with various dtypes.
     Tests element-wise addition: result = x + y
@@ -2293,7 +2315,7 @@ def test_add_edge_cases(ndim, dtype, kernel, capability, stats_fixture):
     ],
 )
 @pytest.mark.parametrize("kernel", ["add", "multiply"])
-@pytest.mark.parametrize("capability", ["serial"] + possible_capabilities)
+@pytest.mark.parametrize("capability", possible_capabilities)
 def test_elementwise_broadcast(ndim, dtype, kernel, capability, stats_fixture):
     """Tests element-wise add/multiply with broadcasting and mixed dtypes."""
     first_dtype, second_dtype, output_dtype = dtype
@@ -2420,7 +2442,7 @@ def test_gil_free_threading():
 @pytest.mark.repeat(randomized_repetitions_count)
 @pytest.mark.parametrize("ndim", dense_dimensions)
 @pytest.mark.parametrize("dtype", ["float64", "float32"])
-@pytest.mark.parametrize("capability", ["serial"] + possible_capabilities)
+@pytest.mark.parametrize("capability", possible_capabilities)
 def test_haversine(ndim, dtype, capability, stats_fixture):
     """Tests Haversine (great-circle) distance computation for geospatial coordinates."""
 
@@ -2477,7 +2499,7 @@ def test_haversine(ndim, dtype, capability, stats_fixture):
 @pytest.mark.repeat(randomized_repetitions_count)
 @pytest.mark.parametrize("ndim", dense_dimensions)
 @pytest.mark.parametrize("dtype", ["float64", "float32"])
-@pytest.mark.parametrize("capability", ["serial"] + possible_capabilities)
+@pytest.mark.parametrize("capability", possible_capabilities)
 def test_vincenty(ndim, dtype, capability, stats_fixture):
     """Tests Vincenty (ellipsoidal geodesic) distance computation for geospatial coordinates."""
 
