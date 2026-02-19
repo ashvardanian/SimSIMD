@@ -98,11 +98,11 @@ pub use numerics::{ComplexProductF32, ComplexProductF64};
 
 // Re-export all numeric traits
 pub use numerics::{
-    Angular, Bilinear, BinarySimilarity, ComplexDot, ComplexProducts, ComplexVDot, Dot, EachATan,
-    EachBlend, EachCos, EachFMA, EachScale, EachSin, EachSum, Elementwise, Euclidean, Hamming,
-    Haversine, Jaccard, JensenShannon, KullbackLeibler, Mahalanobis, MeshAlignment,
-    MeshAlignmentResult, ProbabilitySimilarity, ReduceMinMax, ReduceMoments, Reductions, SparseDot,
-    SparseIntersect, SpatialSimilarity, Trigonometry, Vincenty,
+    Angular, Bilinear, BinarySimilarity, ComplexBilinear, ComplexDot, ComplexProducts, ComplexVDot,
+    Dot, EachATan, EachBlend, EachCos, EachFMA, EachScale, EachSin, EachSum, Elementwise,
+    Euclidean, Hamming, Haversine, Jaccard, JensenShannon, KullbackLeibler, Mahalanobis,
+    MeshAlignment, MeshAlignmentResult, ProbabilitySimilarity, ReduceMinMax, ReduceMoments,
+    Reductions, SparseDot, SparseIntersect, SpatialSimilarity, Trigonometry, Vincenty,
 };
 
 // Re-export cast operations
@@ -114,9 +114,9 @@ pub use numerics::capabilities;
 
 // Re-export tensor types
 pub use tensor::{
-    Allocator, Dots, DotsSymmetric, Global, Matrix, MatrixView, MatrixViewMut, ShapeDescriptor,
-    SliceRange, Tensor, TensorError, TensorView, TensorViewMut, TransposedMatrixMultiplier,
-    DEFAULT_MAX_RANK, SIMD_ALIGNMENT,
+    Allocator, Dots, DotsSymmetric, Global, Hammings, Matrix, MatrixView, MatrixViewMut,
+    ShapeDescriptor, SliceRange, Tensor, TensorError, TensorView, TensorViewMut,
+    TransposedMatrixMultiplier, DEFAULT_MAX_RANK, SIMD_ALIGNMENT,
 };
 
 // region: Tests
