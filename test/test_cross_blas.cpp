@@ -193,6 +193,22 @@ void dots_f64c_with_blas(f64c_t const *a, f64c_t const *b, f64c_t *c, nk_size_t 
 #endif
 }
 
+void dots_symmetric_f32_with_blas(nk_f32_t const *a, nk_size_t n, nk_size_t k, nk_size_t a_stride, nk_f32_t *c,
+                                  nk_size_t c_stride, nk_size_t row_start, nk_size_t row_count) {
+    (void)row_start;
+    (void)row_count;
+    cblas_ssyrk(CblasRowMajor, CblasUpper, CblasNoTrans, static_cast<int>(n), static_cast<int>(k), 1.0f, a,
+                static_cast<int>(a_stride / sizeof(nk_f32_t)), 0.0f, c, static_cast<int>(c_stride / sizeof(nk_f32_t)));
+}
+
+void dots_symmetric_f64_with_blas(nk_f64_t const *a, nk_size_t n, nk_size_t k, nk_size_t a_stride, nk_f64_t *c,
+                                  nk_size_t c_stride, nk_size_t row_start, nk_size_t row_count) {
+    (void)row_start;
+    (void)row_count;
+    cblas_dsyrk(CblasRowMajor, CblasUpper, CblasNoTrans, static_cast<int>(n), static_cast<int>(k), 1.0, a,
+                static_cast<int>(a_stride / sizeof(nk_f64_t)), 0.0, c, static_cast<int>(c_stride / sizeof(nk_f64_t)));
+}
+
 #endif // NK_COMPARE_TO_BLAS || NK_COMPARE_TO_MKL || NK_COMPARE_TO_ACCELERATE
 
 #if NK_COMPARE_TO_MKL
@@ -303,6 +319,10 @@ void test_cross_blas() {
     run_if_matches("dots_with_blas_f64c",
                    test_dots_unpacked_conjugated<f64c_t, f64c_t, f118c_t, decltype(&dots_f64c_with_blas)>,
                    dots_f64c_with_blas);
+
+    // BLAS SYRK precision comparison (symmetric A x A^T)
+    run_if_matches("dots_symmetric_with_blas_f32", test_dots_symmetric<f32_t>, dots_symmetric_f32_with_blas);
+    run_if_matches("dots_symmetric_with_blas_f64", test_dots_symmetric<f64_t>, dots_symmetric_f64_with_blas);
 #endif
 
 #if NK_COMPARE_TO_MKL
