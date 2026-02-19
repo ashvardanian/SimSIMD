@@ -422,6 +422,7 @@ def stats_fixture():
     results["relative_baseline_error"] = []
     results["absolute_nk_error"] = []
     results["relative_nk_error"] = []
+    results["accurate_duration"] = []
     results["baseline_duration"] = []
     results["nk_duration"] = []
     results["warnings"] = []
@@ -434,6 +435,7 @@ def stats_fixture():
             "relative_baseline_error": [],
             "absolute_nk_error": [],
             "relative_nk_error": [],
+            "accurate_duration": [],
             "baseline_duration": [],
             "nk_duration": [],
         }
@@ -446,6 +448,7 @@ def stats_fixture():
         relative_baseline_error,
         absolute_nk_error,
         relative_nk_error,
+        accurate_duration,
         baseline_duration,
         nk_duration,
     ) in zip(
@@ -456,6 +459,7 @@ def stats_fixture():
         results["relative_baseline_error"],
         results["absolute_nk_error"],
         results["relative_nk_error"],
+        results["accurate_duration"],
         results["baseline_duration"],
         results["nk_duration"],
     ):
@@ -464,6 +468,7 @@ def stats_fixture():
         grouped_errors[key]["relative_baseline_error"].append(relative_baseline_error)
         grouped_errors[key]["absolute_nk_error"].append(absolute_nk_error)
         grouped_errors[key]["relative_nk_error"].append(relative_nk_error)
+        grouped_errors[key]["accurate_duration"].append(accurate_duration)
         grouped_errors[key]["baseline_duration"].append(baseline_duration)
         grouped_errors[key]["nk_duration"].append(nk_duration)
 
@@ -486,12 +491,16 @@ def stats_fixture():
         nk_error_formatted = f"{nk_mean:.2e} ± {nk_std:.2e}"
 
         # Log durations
+        accurate_durations = errors["accurate_duration"]
         baseline_durations = errors["baseline_duration"]
         nk_durations = errors["nk_duration"]
+        accurate_mean_duration = sum(accurate_durations) / n
         baseline_mean_duration = sum(baseline_durations) / n
         nk_mean_duration = sum(nk_durations) / n
+        accurate_std_duration = math.sqrt(sum((x - accurate_mean_duration) ** 2 for x in accurate_durations) / n)
         baseline_std_duration = math.sqrt(sum((x - baseline_mean_duration) ** 2 for x in baseline_durations) / n)
         nk_std_duration = math.sqrt(sum((x - nk_mean_duration) ** 2 for x in nk_durations) / n)
+        accurate_duration = f"{accurate_mean_duration:.2e} ± {accurate_std_duration:.2e}"
         baseline_duration = f"{baseline_mean_duration:.2e} ± {baseline_std_duration:.2e}"
         nk_duration = f"{nk_mean_duration:.2e} ± {nk_std_duration:.2e}"
 
@@ -512,6 +521,7 @@ def stats_fixture():
                 *key,
                 baseline_error_formatted,
                 nk_error_formatted,
+                accurate_duration,
                 baseline_duration,
                 nk_duration,
                 nk_speedup,
@@ -530,6 +540,7 @@ def stats_fixture():
         "DType",
         "Baseline Error",  # Printed as mean ± std deviation
         "NumKong Error",  # Printed as mean ± std deviation
+        "Accurate Duration",  # Printed as mean ± std deviation
         "Baseline Duration",  # Printed as mean ± std deviation
         "NumKong Duration",  # Printed as mean ± std deviation
         "NumKong Speedup",
@@ -582,8 +593,8 @@ def collect_errors(
 
     -   How much NumKong implementation is more/less accurate than baseline,
         when compared against the accurate result?
-    -   TODO: How much faster is NumKong than the baseline kernel?
     """
+    accurate_result = np.asarray(accurate_result)
     eps = np.finfo(accurate_result.dtype).resolution
     absolute_baseline_error = np.max(np.abs(baseline_result - accurate_result))
     relative_baseline_error = np.max(np.abs(baseline_result - accurate_result) / (np.abs(accurate_result) + eps))
@@ -597,6 +608,7 @@ def collect_errors(
     stats["relative_baseline_error"].append(relative_baseline_error)
     stats["absolute_nk_error"].append(absolute_nk_error)
     stats["relative_nk_error"].append(relative_nk_error)
+    stats["accurate_duration"].append(accurate_duration)
     stats["baseline_duration"].append(baseline_duration)
     stats["nk_duration"].append(nk_duration)
 
