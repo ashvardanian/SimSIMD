@@ -727,14 +727,6 @@ __arm_locally_streaming __arm_new("za") static void nk_dots_symmetric_f16_sme_ke
                                result + row_abs * result_stride_elements + column_tile_start);
             }
         }
-
-        // Mirror: result[j][i] = result[i][j] for j in [row_tile_start, row_tile_start + rows_clamped)
-        for (nk_size_t row = 0; row < rows_clamped; row++) {
-            nk_size_t const i = row_tile_start + row;
-            for (nk_size_t j = 0; j < i && j < n_vectors; j++) {
-                result[j * result_stride_elements + i] = result[i * result_stride_elements + j];
-            }
-        }
     }
 }
 
@@ -916,13 +908,6 @@ __arm_locally_streaming __arm_new("za") static void nk_dots_symmetric_bf16_sme_k
                 nk_size_t const row_abs = row_tile_start + row;
                 svst1_hor_za32(1, row, column_predicate_b32,
                                result + row_abs * result_stride_elements + column_tile_start);
-            }
-        }
-
-        for (nk_size_t row = 0; row < rows_clamped; row++) {
-            nk_size_t const i = row_tile_start + row;
-            for (nk_size_t j = 0; j < i && j < n_vectors; j++) {
-                result[j * result_stride_elements + i] = result[i * result_stride_elements + j];
             }
         }
     }
@@ -1336,13 +1321,6 @@ __arm_locally_streaming __arm_new("za") static void nk_dots_symmetric_i8_sme_ker
                 nk_size_t const row_abs = row_tile_start + row;
                 svst1_hor_za32(1, row, column_predicate_b32,
                                (nk_f32_t *)(result + row_abs * result_stride_elements) + column_tile_start);
-            }
-        }
-
-        for (nk_size_t row = 0; row < rows_clamped; row++) {
-            nk_size_t const i = row_tile_start + row;
-            for (nk_size_t j = 0; j < i && j < n_vectors; j++) {
-                result[j * result_stride_elements + i] = result[i * result_stride_elements + j];
             }
         }
     }
@@ -1872,12 +1850,6 @@ __arm_locally_streaming __arm_new("za") static void nk_dots_symmetric_e4m3_sme_k
                                result + row_abs * result_stride_elements + column_tile_start);
             }
         }
-
-        for (nk_size_t row = 0; row < rows_actual; row++) {
-            nk_size_t const i = row_tile_start + row;
-            for (nk_size_t j = 0; j < i && j < n_vectors; j++)
-                result[j * result_stride_elements + i] = result[i * result_stride_elements + j];
-        }
     }
 }
 
@@ -2319,12 +2291,6 @@ __arm_locally_streaming __arm_new("za") static void nk_dots_symmetric_e5m2_sme_k
                 svst1_hor_za32(1, row, column_predicate_b32,
                                result + row_abs * result_stride_elements + column_tile_start);
             }
-        }
-
-        for (nk_size_t row = 0; row < rows_actual; row++) {
-            nk_size_t const i = row_tile_start + row;
-            for (nk_size_t j = 0; j < i && j < n_vectors; j++)
-                result[j * result_stride_elements + i] = result[i * result_stride_elements + j];
         }
     }
 }
@@ -2836,12 +2802,6 @@ __arm_locally_streaming __arm_new("za") static void nk_dots_symmetric_e2m3_sme_k
                 svst1_f32(column_predicate_b32, result + row_abs * result_stride_elements + column_tile_start, row_f32);
             }
         }
-
-        for (nk_size_t row = 0; row < rows_actual; row++) {
-            nk_size_t const i = row_tile_start + row;
-            for (nk_size_t j = 0; j < i && j < n_vectors; j++)
-                result[j * result_stride_elements + i] = result[i * result_stride_elements + j];
-        }
     }
 }
 
@@ -3335,12 +3295,6 @@ __arm_locally_streaming __arm_new("za") static void nk_dots_symmetric_e3m2_sme_k
                                result + row_abs * result_stride_elements + column_tile_start);
             }
         }
-
-        for (nk_size_t row = 0; row < rows_actual; row++) {
-            nk_size_t const i = row_tile_start + row;
-            for (nk_size_t j = 0; j < i && j < n_vectors; j++)
-                result[j * result_stride_elements + i] = result[i * result_stride_elements + j];
-        }
     }
 }
 
@@ -3735,13 +3689,6 @@ __arm_locally_streaming __arm_new("za") static void nk_dots_symmetric_u8_sme_ker
                 nk_size_t const row_abs = row_tile_start + row;
                 svst1_hor_za32(1, row, column_predicate_b32,
                                (nk_f32_t *)(result + row_abs * result_stride_elements) + column_tile_start);
-            }
-        }
-
-        for (nk_size_t row = 0; row < rows_clamped; row++) {
-            nk_size_t const i = row_tile_start + row;
-            for (nk_size_t j = 0; j < i && j < n_vectors; j++) {
-                result[j * result_stride_elements + i] = result[i * result_stride_elements + j];
             }
         }
     }
@@ -4612,13 +4559,6 @@ __arm_locally_streaming __arm_new("za") static void nk_dots_symmetric_u4_sme_ker
                                (nk_f32_t *)(result + row_abs * result_stride_elements) + column_tile_start);
             }
         }
-
-        for (nk_size_t row = 0; row < rows_clamped; row++) {
-            nk_size_t const i = row_tile_start + row;
-            for (nk_size_t j = 0; j < i && j < n_vectors; j++) {
-                result[j * result_stride_elements + i] = result[i * result_stride_elements + j];
-            }
-        }
     }
 }
 
@@ -4920,13 +4860,6 @@ __arm_locally_streaming __arm_new("za") static void nk_dots_symmetric_i4_sme_ker
                 nk_size_t const row_abs = row_tile_start + row;
                 svst1_hor_za32(1, row, column_predicate_b32,
                                (nk_f32_t *)(result + row_abs * result_stride_elements) + column_tile_start);
-            }
-        }
-
-        for (nk_size_t row = 0; row < rows_clamped; row++) {
-            nk_size_t const i = row_tile_start + row;
-            for (nk_size_t j = 0; j < i && j < n_vectors; j++) {
-                result[j * result_stride_elements + i] = result[i * result_stride_elements + j];
             }
         }
     }

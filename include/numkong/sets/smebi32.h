@@ -524,16 +524,6 @@ __arm_locally_streaming __arm_new("za")
                 svst1_u32(column_predicate_b32, c_row + col_tile_start, hamming);
             }
         }
-
-        // Mirror symmetry: result[j][i] = result[i][j]
-        for (nk_size_t row = 0; row < rows_clamped; row++) {
-            nk_size_t const i = row_tile_start + row;
-            for (nk_size_t j = 0; j < i && j < n_vectors; j++) {
-                nk_u32_t *row_i = (nk_u32_t *)((char *)result + i * result_stride);
-                nk_u32_t *row_j = (nk_u32_t *)((char *)result + j * result_stride);
-                row_j[i] = row_i[j];
-            }
-        }
     }
 }
 

@@ -773,13 +773,6 @@ __arm_locally_streaming __arm_new("za") static void nk_dots_symmetric_f32_smef64
                           za_packed);
             }
         }
-
-        // Mirror: result[j][i] = result[i][j]
-        for (nk_size_t row = 0; row < rows_actual; row++) {
-            nk_size_t const i = row_tile_start + row;
-            for (nk_size_t j = 0; j < i && j < n_vectors; j++)
-                result[j * result_stride_elements + i] = result[i * result_stride_elements + j];
-        }
     }
 }
 
@@ -1346,12 +1339,6 @@ __arm_locally_streaming __arm_new("za") static void nk_dots_symmetric_f64_smef64
                 svst1_hor_za64(1, row, column_predicate_b64,
                                result + row_abs * result_stride_elements + column_tile_start);
             }
-        }
-
-        for (nk_size_t row = 0; row < rows_clamped; row++) {
-            nk_size_t const i = row_tile_start + row;
-            for (nk_size_t j = 0; j < i && j < n_vectors; j++)
-                result[j * result_stride_elements + i] = result[i * result_stride_elements + j];
         }
     }
 }

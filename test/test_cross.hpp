@@ -179,8 +179,9 @@ error_stats_t test_hammings_symmetric(typename scalar_type_::hammings_symmetric_
         nk::hammings_symmetric<scalar_t, result_t, nk::no_simd_k>(a.values_data(), n, k, a_stride, c_ref.values_data(),
                                                                   n * sizeof(result_t));
 
-        // Hamming distances are exact integers
-        for (std::size_t i = 0; i < n * n; i++) stats.accumulate(c[i], c_ref[i]);
+        // Hamming distances are exact integers — check upper triangle only
+        for (std::size_t i = 0; i < n; i++)
+            for (std::size_t j = i; j < n; j++) stats.accumulate(c[i * n + j], c_ref[i * n + j]);
     }
     return stats;
 }
