@@ -153,9 +153,6 @@ __arm_locally_streaming __arm_new("za") static void nk_dots_packed_f32_smef64_ke
     svbool_t const full_predicate_b64 = svptrue_b64();
 
     // ZA0.D = staging, ZA1-7.D = accumulation (7-tile fast path)
-    // Stack buffers for f32↔f64 conversion
-    NK_ALIGN64 nk_f64_t za_extract_buffer_f64x8[8];
-
     for (nk_size_t row_tile_index = 0; row_tile_index < nk_size_divide_round_up_(rows, tile_dimension);
          row_tile_index++) {
         nk_size_t const row_start = row_tile_index * tile_dimension;
@@ -282,51 +279,44 @@ __arm_locally_streaming __arm_new("za") static void nk_dots_packed_f32_smef64_ke
             for (nk_size_t row_idx = 0; row_idx < rows_remaining; row_idx++) {
                 nk_f32_t *c_row = c + (row_start + row_idx) * c_stride_elements;
 
-                // Narrowing f64→f32 recipe: svcvt writes to even f32 positions, svuzp1 packs them consecutively
-                svst1_hor_za64(1, row_idx, full_predicate_b64, za_extract_buffer_f64x8);
-                svfloat64_t za_row_f64 = svld1_f64(full_predicate_b64, za_extract_buffer_f64x8);
+                // Narrowing f64→f32 recipe: MOVA ZA→Z (no bounce buffer), svcvt, svuzp1 packs consecutively
+                svfloat64_t za_row_f64 = svread_hor_za64_f64_m(svdup_f64(0), full_predicate_b64, 1, row_idx);
                 svfloat32_t za_row_narrowed_f32 = svcvt_f32_f64_x(full_predicate_b64, za_row_f64);
                 svfloat32_t za_row_packed_f32 = svreinterpret_f32_u32(
                     svuzp1_u32(svreinterpret_u32_f32(za_row_narrowed_f32), svreinterpret_u32_f32(za_row_narrowed_f32)));
                 svst1_f32(predicate_tile_b32, c_row + (column_tile_index + 0) * tile_dimension, za_row_packed_f32);
 
-                svst1_hor_za64(2, row_idx, full_predicate_b64, za_extract_buffer_f64x8);
-                za_row_f64 = svld1_f64(full_predicate_b64, za_extract_buffer_f64x8);
+                za_row_f64 = svread_hor_za64_f64_m(svdup_f64(0), full_predicate_b64, 2, row_idx);
                 za_row_narrowed_f32 = svcvt_f32_f64_x(full_predicate_b64, za_row_f64);
                 za_row_packed_f32 = svreinterpret_f32_u32(
                     svuzp1_u32(svreinterpret_u32_f32(za_row_narrowed_f32), svreinterpret_u32_f32(za_row_narrowed_f32)));
                 svst1_f32(predicate_tile_b32, c_row + (column_tile_index + 1) * tile_dimension, za_row_packed_f32);
 
-                svst1_hor_za64(3, row_idx, full_predicate_b64, za_extract_buffer_f64x8);
-                za_row_f64 = svld1_f64(full_predicate_b64, za_extract_buffer_f64x8);
+                za_row_f64 = svread_hor_za64_f64_m(svdup_f64(0), full_predicate_b64, 3, row_idx);
                 za_row_narrowed_f32 = svcvt_f32_f64_x(full_predicate_b64, za_row_f64);
                 za_row_packed_f32 = svreinterpret_f32_u32(
                     svuzp1_u32(svreinterpret_u32_f32(za_row_narrowed_f32), svreinterpret_u32_f32(za_row_narrowed_f32)));
                 svst1_f32(predicate_tile_b32, c_row + (column_tile_index + 2) * tile_dimension, za_row_packed_f32);
 
-                svst1_hor_za64(4, row_idx, full_predicate_b64, za_extract_buffer_f64x8);
-                za_row_f64 = svld1_f64(full_predicate_b64, za_extract_buffer_f64x8);
+                za_row_f64 = svread_hor_za64_f64_m(svdup_f64(0), full_predicate_b64, 4, row_idx);
                 za_row_narrowed_f32 = svcvt_f32_f64_x(full_predicate_b64, za_row_f64);
                 za_row_packed_f32 = svreinterpret_f32_u32(
                     svuzp1_u32(svreinterpret_u32_f32(za_row_narrowed_f32), svreinterpret_u32_f32(za_row_narrowed_f32)));
                 svst1_f32(predicate_tile_b32, c_row + (column_tile_index + 3) * tile_dimension, za_row_packed_f32);
 
-                svst1_hor_za64(5, row_idx, full_predicate_b64, za_extract_buffer_f64x8);
-                za_row_f64 = svld1_f64(full_predicate_b64, za_extract_buffer_f64x8);
+                za_row_f64 = svread_hor_za64_f64_m(svdup_f64(0), full_predicate_b64, 5, row_idx);
                 za_row_narrowed_f32 = svcvt_f32_f64_x(full_predicate_b64, za_row_f64);
                 za_row_packed_f32 = svreinterpret_f32_u32(
                     svuzp1_u32(svreinterpret_u32_f32(za_row_narrowed_f32), svreinterpret_u32_f32(za_row_narrowed_f32)));
                 svst1_f32(predicate_tile_b32, c_row + (column_tile_index + 4) * tile_dimension, za_row_packed_f32);
 
-                svst1_hor_za64(6, row_idx, full_predicate_b64, za_extract_buffer_f64x8);
-                za_row_f64 = svld1_f64(full_predicate_b64, za_extract_buffer_f64x8);
+                za_row_f64 = svread_hor_za64_f64_m(svdup_f64(0), full_predicate_b64, 6, row_idx);
                 za_row_narrowed_f32 = svcvt_f32_f64_x(full_predicate_b64, za_row_f64);
                 za_row_packed_f32 = svreinterpret_f32_u32(
                     svuzp1_u32(svreinterpret_u32_f32(za_row_narrowed_f32), svreinterpret_u32_f32(za_row_narrowed_f32)));
                 svst1_f32(predicate_tile_b32, c_row + (column_tile_index + 5) * tile_dimension, za_row_packed_f32);
 
-                svst1_hor_za64(7, row_idx, full_predicate_b64, za_extract_buffer_f64x8);
-                za_row_f64 = svld1_f64(full_predicate_b64, za_extract_buffer_f64x8);
+                za_row_f64 = svread_hor_za64_f64_m(svdup_f64(0), full_predicate_b64, 7, row_idx);
                 za_row_narrowed_f32 = svcvt_f32_f64_x(full_predicate_b64, za_row_f64);
                 za_row_packed_f32 = svreinterpret_f32_u32(
                     svuzp1_u32(svreinterpret_u32_f32(za_row_narrowed_f32), svreinterpret_u32_f32(za_row_narrowed_f32)));
@@ -393,8 +383,7 @@ __arm_locally_streaming __arm_new("za") static void nk_dots_packed_f32_smef64_ke
             // Narrowing f64→f32 with svuzp1_u32 packing recipe
             svbool_t const column_predicate_b32 = svwhilelt_b32((uint32_t)0, (uint32_t)columns_remaining);
             for (nk_size_t row_idx = 0; row_idx < rows_remaining; row_idx++) {
-                svst1_hor_za64(1, row_idx, full_predicate_b64, za_extract_buffer_f64x8);
-                svfloat64_t za_row = svld1_f64(full_predicate_b64, za_extract_buffer_f64x8);
+                svfloat64_t za_row = svread_hor_za64_f64_m(svdup_f64(0), full_predicate_b64, 1, row_idx);
                 svfloat32_t za_row_narrowed = svcvt_f32_f64_x(full_predicate_b64, za_row);
                 svfloat32_t za_row_packed = svreinterpret_f32_u32(
                     svuzp1_u32(svreinterpret_u32_f32(za_row_narrowed), svreinterpret_u32_f32(za_row_narrowed)));
@@ -430,7 +419,6 @@ __arm_locally_streaming __arm_new("za") static void nk_dots_symmetric_f32_smef64
 
     svbool_t const full_predicate_b64 = svptrue_b64();
 
-    NK_ALIGN64 nk_f64_t za_extract_buffer_f64x8[8];
     NK_ALIGN64 nk_f64_t a_buffer[8][8];
 
     nk_size_t const row_end = row_start + row_count;
@@ -632,50 +620,43 @@ __arm_locally_streaming __arm_new("za") static void nk_dots_symmetric_f32_smef64
                 nk_size_t const row_abs = row_tile_start + row;
                 nk_f32_t *result_row = result + row_abs * result_stride_elements;
 
-                svst1_hor_za64(1, row, full_predicate_b64, za_extract_buffer_f64x8);
-                svfloat64_t za_row_f64 = svld1_f64(full_predicate_b64, za_extract_buffer_f64x8);
+                svfloat64_t za_row_f64 = svread_hor_za64_f64_m(svdup_f64(0), full_predicate_b64, 1, row);
                 svfloat32_t za_row_narrowed_f32 = svcvt_f32_f64_x(full_predicate_b64, za_row_f64);
                 svfloat32_t za_row_packed_f32 = svreinterpret_f32_u32(
                     svuzp1_u32(svreinterpret_u32_f32(za_row_narrowed_f32), svreinterpret_u32_f32(za_row_narrowed_f32)));
                 svst1_f32(predicate_tile_b32, result_row + (column_tile_index + 0) * tile_dimension, za_row_packed_f32);
 
-                svst1_hor_za64(2, row, full_predicate_b64, za_extract_buffer_f64x8);
-                za_row_f64 = svld1_f64(full_predicate_b64, za_extract_buffer_f64x8);
+                za_row_f64 = svread_hor_za64_f64_m(svdup_f64(0), full_predicate_b64, 2, row);
                 za_row_narrowed_f32 = svcvt_f32_f64_x(full_predicate_b64, za_row_f64);
                 za_row_packed_f32 = svreinterpret_f32_u32(
                     svuzp1_u32(svreinterpret_u32_f32(za_row_narrowed_f32), svreinterpret_u32_f32(za_row_narrowed_f32)));
                 svst1_f32(predicate_tile_b32, result_row + (column_tile_index + 1) * tile_dimension, za_row_packed_f32);
 
-                svst1_hor_za64(3, row, full_predicate_b64, za_extract_buffer_f64x8);
-                za_row_f64 = svld1_f64(full_predicate_b64, za_extract_buffer_f64x8);
+                za_row_f64 = svread_hor_za64_f64_m(svdup_f64(0), full_predicate_b64, 3, row);
                 za_row_narrowed_f32 = svcvt_f32_f64_x(full_predicate_b64, za_row_f64);
                 za_row_packed_f32 = svreinterpret_f32_u32(
                     svuzp1_u32(svreinterpret_u32_f32(za_row_narrowed_f32), svreinterpret_u32_f32(za_row_narrowed_f32)));
                 svst1_f32(predicate_tile_b32, result_row + (column_tile_index + 2) * tile_dimension, za_row_packed_f32);
 
-                svst1_hor_za64(4, row, full_predicate_b64, za_extract_buffer_f64x8);
-                za_row_f64 = svld1_f64(full_predicate_b64, za_extract_buffer_f64x8);
+                za_row_f64 = svread_hor_za64_f64_m(svdup_f64(0), full_predicate_b64, 4, row);
                 za_row_narrowed_f32 = svcvt_f32_f64_x(full_predicate_b64, za_row_f64);
                 za_row_packed_f32 = svreinterpret_f32_u32(
                     svuzp1_u32(svreinterpret_u32_f32(za_row_narrowed_f32), svreinterpret_u32_f32(za_row_narrowed_f32)));
                 svst1_f32(predicate_tile_b32, result_row + (column_tile_index + 3) * tile_dimension, za_row_packed_f32);
 
-                svst1_hor_za64(5, row, full_predicate_b64, za_extract_buffer_f64x8);
-                za_row_f64 = svld1_f64(full_predicate_b64, za_extract_buffer_f64x8);
+                za_row_f64 = svread_hor_za64_f64_m(svdup_f64(0), full_predicate_b64, 5, row);
                 za_row_narrowed_f32 = svcvt_f32_f64_x(full_predicate_b64, za_row_f64);
                 za_row_packed_f32 = svreinterpret_f32_u32(
                     svuzp1_u32(svreinterpret_u32_f32(za_row_narrowed_f32), svreinterpret_u32_f32(za_row_narrowed_f32)));
                 svst1_f32(predicate_tile_b32, result_row + (column_tile_index + 4) * tile_dimension, za_row_packed_f32);
 
-                svst1_hor_za64(6, row, full_predicate_b64, za_extract_buffer_f64x8);
-                za_row_f64 = svld1_f64(full_predicate_b64, za_extract_buffer_f64x8);
+                za_row_f64 = svread_hor_za64_f64_m(svdup_f64(0), full_predicate_b64, 6, row);
                 za_row_narrowed_f32 = svcvt_f32_f64_x(full_predicate_b64, za_row_f64);
                 za_row_packed_f32 = svreinterpret_f32_u32(
                     svuzp1_u32(svreinterpret_u32_f32(za_row_narrowed_f32), svreinterpret_u32_f32(za_row_narrowed_f32)));
                 svst1_f32(predicate_tile_b32, result_row + (column_tile_index + 5) * tile_dimension, za_row_packed_f32);
 
-                svst1_hor_za64(7, row, full_predicate_b64, za_extract_buffer_f64x8);
-                za_row_f64 = svld1_f64(full_predicate_b64, za_extract_buffer_f64x8);
+                za_row_f64 = svread_hor_za64_f64_m(svdup_f64(0), full_predicate_b64, 7, row);
                 za_row_narrowed_f32 = svcvt_f32_f64_x(full_predicate_b64, za_row_f64);
                 za_row_packed_f32 = svreinterpret_f32_u32(
                     svuzp1_u32(svreinterpret_u32_f32(za_row_narrowed_f32), svreinterpret_u32_f32(za_row_narrowed_f32)));
@@ -751,8 +732,7 @@ __arm_locally_streaming __arm_new("za") static void nk_dots_symmetric_f32_smef64
             svbool_t const column_predicate_b32 = svwhilelt_b32((uint32_t)0, (uint32_t)columns_remaining);
             for (nk_size_t row = 0; row < rows_actual; row++) {
                 nk_size_t const row_abs = row_tile_start + row;
-                svst1_hor_za64(1, row, full_predicate_b64, za_extract_buffer_f64x8);
-                svfloat64_t za_row = svld1_f64(full_predicate_b64, za_extract_buffer_f64x8);
+                svfloat64_t za_row = svread_hor_za64_f64_m(svdup_f64(0), full_predicate_b64, 1, row);
                 svfloat32_t za_narrowed = svcvt_f32_f64_x(full_predicate_b64, za_row);
                 svfloat32_t za_packed = svreinterpret_f32_u32(
                     svuzp1_u32(svreinterpret_u32_f32(za_narrowed), svreinterpret_u32_f32(za_narrowed)));

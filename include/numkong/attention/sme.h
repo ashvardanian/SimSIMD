@@ -295,100 +295,56 @@ __arm_locally_streaming __arm_new("za") static void nk_attention_bf16_sme_kernel
     svfloat32_t zero_v = svdup_f32(0.0f);
     for (nk_size_t i = 0; i < 16 * head_dim_padded; i += svcntw()) { svst1_f32(ptrue_s, o_acc + i, zero_v); }
 
-    // Temporary for scores - stored in ZA tile 0
-    NK_ALIGN64 nk_f32_t scores[16][16];
-
     // Process KV in blocks of Bc=16
     for (nk_size_t kv_start = 0; kv_start < kv_len; kv_start += Bc) {
         nk_size_t const valid_kv = ((kv_start + Bc) <= kv_len) ? Bc : (kv_len - kv_start);
 
-        // Q×Kᵀ using FMLA with 8× ki unroll.
-        // Reuses Q row across 8 ki values, reducing Q load overhead
-        // For Bc=16, this gives exactly 2 iterations per qi
-        for (nk_size_t qi = 0; qi < valid_q; qi++) {
-            nk_size_t ki = 0;
+        // Q×Kᵀ using BFMOPA with ZA staging transpose.
+        // ZA0 = Q staging, ZA1 = K staging, ZA2 = score accumulator.
+        //
+        // BFMOPA maps vector positions to ZA rows/columns:
+        //   ZA.S[i][j] += zn.h[2i]*zm.h[2j] + zn.h[2i+1]*zm.h[2j+1]
+        //
+        // Stage Q and K rows into ZA0/ZA1 horizontally (bf16 pairs as f32 words),
+        // read columns vertically for correctly interleaved BFMOPA inputs.
+        svzero_za();
 
-            // Unrolled loop: process 8 ki at a time
-            for (; ki + 8 <= valid_kv; ki += 8) {
-                svfloat32_t dot0 = svdup_f32(0.0f), dot1 = svdup_f32(0.0f);
-                svfloat32_t dot2 = svdup_f32(0.0f), dot3 = svdup_f32(0.0f);
-                svfloat32_t dot4 = svdup_f32(0.0f), dot5 = svdup_f32(0.0f);
-                svfloat32_t dot6 = svdup_f32(0.0f), dot7 = svdup_f32(0.0f);
+        svbool_t const full_predicate_b32 = ptrue_s;
+        svbool_t const batch_predicate_b32 = svwhilelt_b32(0u, 16u); // 16 depth steps per batch
 
-                for (nk_size_t d = 0; d < head_dim; d += svcntw()) {
-                    svbool_t pg = svwhilelt_b32((nk_u32_t)d, (nk_u32_t)head_dim);
-
-                    // Load Q once, convert to f32
-                    svbfloat16_t q_bf16 = svld1_bf16(pg, (bfloat16_t const *)(q + qi * head_dim + d));
-                    svfloat32_t q_f32 = nk_bf16_to_f32_sve_(pg, q_bf16);
-
-                    // Load 8 K rows and accumulate
-                    svbfloat16_t k0 = svld1_bf16(pg,
-                                                 (bfloat16_t const *)(k + (kv_start + ki + 0) * head_dim_padded + d));
-                    svbfloat16_t k1 = svld1_bf16(pg,
-                                                 (bfloat16_t const *)(k + (kv_start + ki + 1) * head_dim_padded + d));
-                    svbfloat16_t k2 = svld1_bf16(pg,
-                                                 (bfloat16_t const *)(k + (kv_start + ki + 2) * head_dim_padded + d));
-                    svbfloat16_t k3 = svld1_bf16(pg,
-                                                 (bfloat16_t const *)(k + (kv_start + ki + 3) * head_dim_padded + d));
-                    svbfloat16_t k4 = svld1_bf16(pg,
-                                                 (bfloat16_t const *)(k + (kv_start + ki + 4) * head_dim_padded + d));
-                    svbfloat16_t k5 = svld1_bf16(pg,
-                                                 (bfloat16_t const *)(k + (kv_start + ki + 5) * head_dim_padded + d));
-                    svbfloat16_t k6 = svld1_bf16(pg,
-                                                 (bfloat16_t const *)(k + (kv_start + ki + 6) * head_dim_padded + d));
-                    svbfloat16_t k7 = svld1_bf16(pg,
-                                                 (bfloat16_t const *)(k + (kv_start + ki + 7) * head_dim_padded + d));
-
-                    dot0 = svmla_f32_x(pg, dot0, q_f32, nk_bf16_to_f32_sve_(pg, k0));
-                    dot1 = svmla_f32_x(pg, dot1, q_f32, nk_bf16_to_f32_sve_(pg, k1));
-                    dot2 = svmla_f32_x(pg, dot2, q_f32, nk_bf16_to_f32_sve_(pg, k2));
-                    dot3 = svmla_f32_x(pg, dot3, q_f32, nk_bf16_to_f32_sve_(pg, k3));
-                    dot4 = svmla_f32_x(pg, dot4, q_f32, nk_bf16_to_f32_sve_(pg, k4));
-                    dot5 = svmla_f32_x(pg, dot5, q_f32, nk_bf16_to_f32_sve_(pg, k5));
-                    dot6 = svmla_f32_x(pg, dot6, q_f32, nk_bf16_to_f32_sve_(pg, k6));
-                    dot7 = svmla_f32_x(pg, dot7, q_f32, nk_bf16_to_f32_sve_(pg, k7));
-                }
-
-                // Reduce all 8, scale, and batch store using SVE
-                NK_ALIGN64 nk_f32_t temp_scores[8];
-                temp_scores[0] = svaddv_f32(ptrue_s, dot0);
-                temp_scores[1] = svaddv_f32(ptrue_s, dot1);
-                temp_scores[2] = svaddv_f32(ptrue_s, dot2);
-                temp_scores[3] = svaddv_f32(ptrue_s, dot3);
-                temp_scores[4] = svaddv_f32(ptrue_s, dot4);
-                temp_scores[5] = svaddv_f32(ptrue_s, dot5);
-                temp_scores[6] = svaddv_f32(ptrue_s, dot6);
-                temp_scores[7] = svaddv_f32(ptrue_s, dot7);
-
-                // Vectorized scale and store (8 elements = partial SVE vector for SVL=512)
-                svbool_t pg8 = svwhilelt_b32((nk_u32_t)0, (nk_u32_t)8);
-                svfloat32_t scores_vec = svld1_f32(pg8, temp_scores);
-                scores_vec = svmul_f32_x(pg8, scores_vec, svdup_f32(scale));
-                svst1_f32(pg8, &scores[qi][ki], scores_vec);
+        for (nk_size_t depth_batch_start = 0; depth_batch_start < head_dim_padded; depth_batch_start += 32) {
+            // Stage Q[0..valid_q-1] into ZA0
+            svzero_mask_za(nk_sme_zero_za32_tile_0_);
+            for (nk_size_t query_row = 0; query_row < valid_q; query_row++) {
+                svld1_hor_za32(0, query_row, batch_predicate_b32,
+                               (nk_f32_t const *)(q + query_row * head_dim + depth_batch_start));
             }
 
-            // Handle remaining ki values (0-7 remaining)
-            for (; ki < valid_kv; ki++) {
-                svfloat32_t dot = svdup_f32(0.0f);
-                for (nk_size_t d = 0; d < head_dim; d += svcntw()) {
-                    svbool_t pg = svwhilelt_b32((nk_u32_t)d, (nk_u32_t)head_dim);
-                    svbfloat16_t q_bf16 = svld1_bf16(pg, (bfloat16_t const *)(q + qi * head_dim + d));
-                    svbfloat16_t k_bf16 = svld1_bf16(pg,
-                                                     (bfloat16_t const *)(k + (kv_start + ki) * head_dim_padded + d));
-                    svfloat32_t q_f32 = nk_bf16_to_f32_sve_(pg, q_bf16);
-                    svfloat32_t k_f32 = nk_bf16_to_f32_sve_(pg, k_bf16);
-                    dot = svmla_f32_x(pg, dot, q_f32, k_f32);
-                }
-                scores[qi][ki] = svaddv_f32(ptrue_s, dot) * scale;
+            // Stage K[0..valid_kv-1] into ZA1
+            svzero_mask_za(nk_sme_zero_za32_tile_1_);
+            for (nk_size_t key_row = 0; key_row < valid_kv; key_row++) {
+                svld1_hor_za32(1, key_row, batch_predicate_b32,
+                               (nk_f32_t const *)(k + (kv_start + key_row) * head_dim_padded + depth_batch_start));
+            }
+
+            // For each depth step: read transposed columns, BFMOPA into ZA2
+            for (nk_size_t depth_step = 0; depth_step < 16; depth_step++) {
+                svbfloat16_t query_interleaved_bf16 = svreinterpret_bf16_f32(
+                    svread_ver_za32_f32_m(svdup_f32(0), full_predicate_b32, 0, depth_step));
+                svbfloat16_t key_interleaved_bf16 = svreinterpret_bf16_f32(
+                    svread_ver_za32_f32_m(svdup_f32(0), full_predicate_b32, 1, depth_step));
+                svmopa_za32_bf16_m(2, full_predicate_b32, full_predicate_b32, query_interleaved_bf16,
+                                   key_interleaved_bf16);
             }
         }
+        // ZA2[query_row][key_row] = sum_d Q[query_row,d] * K[key_row,d]
 
-        // Compute block maxes for all rows at once.
+        // Extract scores from ZA2 via MOVA, compute block maxes
         NK_ALIGN64 nk_f32_t block_max_arr[16];
         for (nk_size_t qi = 0; qi < valid_q; qi++) {
-            svfloat32_t row_scores = svld1_f32(ptrue_s, scores[qi]);
-            block_max_arr[qi] = svmaxv_f32(ptrue_s, row_scores);
+            svfloat32_t s_vec = svmul_f32_x(ptrue_s, svread_hor_za32_f32_m(svdup_f32(0), ptrue_s, 2, qi),
+                                            svdup_f32(scale));
+            block_max_arr[qi] = svmaxv_f32(ptrue_s, s_vec);
         }
         svfloat32_t block_max_v = svld1_f32(ptrue_s, block_max_arr);
 
@@ -425,7 +381,8 @@ __arm_locally_streaming __arm_new("za") static void nk_attention_bf16_sme_kernel
         NK_ALIGN64 nk_f32_t row_sum_deltas[16];
 
         for (nk_size_t qi = 0; qi < valid_q; qi++) {
-            svfloat32_t row_scores = svld1_f32(ptrue_s, scores[qi]);
+            svfloat32_t row_scores = svmul_f32_x(ptrue_s, svread_hor_za32_f32_m(svdup_f32(0), ptrue_s, 2, qi),
+                                                 svdup_f32(scale));
             svfloat32_t max_broadcast = svdup_f32(new_max_arr[qi]);
             svfloat32_t weights = nk_exp_f32_sve_(ptrue_s, svsub_f32_x(ptrue_s, row_scores, max_broadcast));
 
@@ -552,7 +509,6 @@ __arm_locally_streaming __arm_new("za") static void nk_attention_f16_sme_kernel_
     nk_size_t head_dim, nk_size_t head_dim_padded, nk_f32_t scale) {
 
     svbool_t const ptrue_s = svptrue_b32();
-    svbool_t const ptrue_h = svptrue_b16();
     nk_size_t const Bc = 16;
     nk_size_t const valid_q = (query_len < 16) ? query_len : 16;
 
@@ -573,35 +529,50 @@ __arm_locally_streaming __arm_new("za") static void nk_attention_f16_sme_kernel_
     for (nk_size_t kv_start = 0; kv_start < kv_len; kv_start += Bc) {
         nk_size_t const valid_kv = ((kv_start + Bc) <= kv_len) ? Bc : (kv_len - kv_start);
 
-        // Phase 1: Q×Kᵀ using SME outer products.
-        // Compute scores[16, 16] = Q[16, d] × K[16, d]ᵀ into ZA tile 0
+        // Phase 1: Q×Kᵀ using SME outer products with ZA staging transpose.
+        // ZA0 = Q staging, ZA1 = K staging, ZA2 = score accumulator.
+        //
+        // FMOPA maps vector positions to ZA rows/columns:
+        //   ZA.S[i][j] += zn.h[2i]*zm.h[2j] + zn.h[2i+1]*zm.h[2j+1]
+        //
+        // To make ZA2[query_row][key_row] = dot(Q[query_row], K[key_row]),
+        // we stage Q and K rows into ZA0/ZA1 horizontally (as packed f16 pairs
+        // in f32 words), then read columns vertically to produce correctly
+        // interleaved vectors for FMOPA.
         svzero_za();
 
-        // Accumulate over depth dimension in chunks of 32 (f16 vector width)
-        for (nk_size_t d = 0; d < head_dim_padded; d += 32) {
-            // For each query row, load Q slice and corresponding K slice, do outer product
-            for (nk_size_t qi = 0; qi < valid_q; qi++) {
-                // Load Q[qi, d:d+32] as f16 vector
-                svfloat16_t q_vec = svld1_f16(ptrue_h, (float16_t const *)(q + qi * head_dim + d));
+        svbool_t const full_predicate_b32 = ptrue_s;
+        svbool_t const batch_predicate_b32 = svwhilelt_b32(0u, 16u); // 16 depth steps per batch
 
-                // For this depth slice, accumulate outer products with all K rows in block
-                for (nk_size_t ki = 0; ki < valid_kv; ki++) {
-                    // Load K[kv_start+ki, d:d+32] as f16 vector
-                    svfloat16_t k_vec = svld1_f16(ptrue_h,
-                                                  (float16_t const *)(k + (kv_start + ki) * head_dim_padded + d));
+        for (nk_size_t depth_batch_start = 0; depth_batch_start < head_dim_padded; depth_batch_start += 32) {
+            // Stage Q[0..valid_q-1] into ZA0: load each query row as f32 (packing 2 f16 per word)
+            svzero_mask_za(nk_sme_zero_za32_tile_0_);
+            for (nk_size_t query_row = 0; query_row < valid_q; query_row++) {
+                svld1_hor_za32(0, query_row, batch_predicate_b32,
+                               (nk_f32_t const *)(q + query_row * head_dim + depth_batch_start));
+            }
 
-                    // Outer product accumulate: ZA[qi, ki] += dot(q_vec, k_vec)
-                    // Note: svmopa does 2-way widening, so we use it row-by-row
-                    svmopa_za32_f16_m(0, ptrue_s, ptrue_s, q_vec, k_vec);
-                }
+            // Stage K[0..valid_kv-1] into ZA1
+            svzero_mask_za(nk_sme_zero_za32_tile_1_);
+            for (nk_size_t key_row = 0; key_row < valid_kv; key_row++) {
+                svld1_hor_za32(1, key_row, batch_predicate_b32,
+                               (nk_f32_t const *)(k + (kv_start + key_row) * head_dim_padded + depth_batch_start));
+            }
+
+            // For each depth step: read transposed columns, FMOPA into ZA2
+            for (nk_size_t depth_step = 0; depth_step < 16; depth_step++) {
+                svfloat16_t query_interleaved_f16 = svreinterpret_f16_f32(
+                    svread_ver_za32_f32_m(svdup_f32(0), full_predicate_b32, 0, depth_step));
+                svfloat16_t key_interleaved_f16 = svreinterpret_f16_f32(
+                    svread_ver_za32_f32_m(svdup_f32(0), full_predicate_b32, 1, depth_step));
+                svmopa_za32_f16_m(2, full_predicate_b32, full_predicate_b32, query_interleaved_f16,
+                                  key_interleaved_f16);
             }
         }
+        // ZA2[query_row][key_row] = sum_d Q[query_row,d] * K[key_row,d]
 
         // Phase 2: Extract scores, apply online softmax, accumulate P×V.
         // Process each query row: extract score row, compute softmax weights, multiply by V
-        NK_ALIGN64 nk_f32_t score_row[16];
-        NK_ALIGN64 nk_f32_t weights_f32[16];
-
         // Temporary arrays to collect per-row updates for batch application
         NK_ALIGN64 nk_f32_t block_maxes[16];
         NK_ALIGN64 nk_f32_t new_maxes[16];
@@ -610,12 +581,9 @@ __arm_locally_streaming __arm_new("za") static void nk_attention_f16_sme_kernel_
         NK_ALIGN64 nk_f32_t all_weights[16][16];
 
         for (nk_size_t qi = 0; qi < valid_q; qi++) {
-            // Extract score row from ZA tile
-            svst1_hor_za32(0, (nk_u32_t)qi, ptrue_s, score_row);
-
-            // Scale scores and find row max (vectorized)
-            svfloat32_t s_vec = svmul_f32_x(ptrue_s, svld1_f32(ptrue_s, score_row), svdup_f32(scale));
-            svst1_f32(ptrue_s, score_row, s_vec); // Store scaled scores
+            // Extract score row from ZA tile 2 via MOVA (no bounce buffer)
+            svfloat32_t s_vec = svmul_f32_x(ptrue_s, svread_hor_za32_f32_m(svdup_f32(0), ptrue_s, 2, qi),
+                                            svdup_f32(scale));
             block_maxes[qi] = svmaxv_f32(ptrue_s, s_vec);
         }
 
@@ -647,9 +615,9 @@ __arm_locally_streaming __arm_new("za") static void nk_attention_f16_sme_kernel_
                 svst1_f32(pg, o_acc + qi * head_dim_padded + d, o);
             }
 
-            // Re-extract score row and compute softmax weights
-            svst1_hor_za32(0, (nk_u32_t)qi, ptrue_s, score_row);
-            svfloat32_t s_vec = svmul_f32_x(ptrue_s, svld1_f32(ptrue_s, score_row), svdup_f32(scale));
+            // Re-extract score row from ZA2 via MOVA, scale, and compute softmax weights
+            svfloat32_t s_vec = svmul_f32_x(ptrue_s, svread_hor_za32_f32_m(svdup_f32(0), ptrue_s, 2, qi),
+                                            svdup_f32(scale));
             svfloat32_t p_vec = nk_exp_f32_sve_(ptrue_s, svsub_f32_x(ptrue_s, s_vec, svdup_f32(new_max)));
 
             // Collect sum delta for later batch update

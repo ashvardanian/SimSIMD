@@ -270,12 +270,12 @@ __arm_locally_streaming NK_PUBLIC void nk_bilinear_f64_smef64(nk_f64_t const *a,
             nk_f64_t inner_result_f64 = svaddv_f64(predicate_body_b64, r == 0 ? cb_j0_f64 : cb_j1_f64) +
                                         svaddv_f64(predicate_body_b64, r == 0 ? cb_j0_comp_f64 : cb_j1_comp_f64);
             nk_f64_t outer_product_f64 = a_row_f64 * inner_result_f64;
-            nk_f64_t outer_product_error_f64 = a_row_f64 * inner_result_f64 - outer_product_f64;
-            nk_f64_t t_f64 = outer_sum_f64 + outer_product_f64;
-            nk_f64_t z_f64 = t_f64 - outer_sum_f64;
-            nk_f64_t sum_error_f64 = (outer_sum_f64 - (t_f64 - z_f64)) + (outer_product_f64 - z_f64);
-            outer_sum_f64 = t_f64;
-            outer_comp_f64 += sum_error_f64 + outer_product_error_f64;
+            nk_f64_t preliminary_sum_f64 = outer_sum_f64 + outer_product_f64;
+            nk_f64_t recovered_addend_f64 = preliminary_sum_f64 - outer_sum_f64;
+            nk_f64_t sum_error_f64 = (outer_sum_f64 - (preliminary_sum_f64 - recovered_addend_f64)) +
+                                     (outer_product_f64 - recovered_addend_f64);
+            outer_sum_f64 = preliminary_sum_f64;
+            outer_comp_f64 += sum_error_f64;
         }
     }
 
@@ -293,13 +293,14 @@ __arm_locally_streaming NK_PUBLIC void nk_bilinear_f64_smef64(nk_f64_t const *a,
             svfloat64_t product_f64 = svmul_f64_x(predicate_tail_b64, c_f64, b_f64);
             svfloat64_t product_error_f64 = svneg_f64_x(predicate_tail_b64,
                                                         svnmls_f64_x(predicate_tail_b64, product_f64, c_f64, b_f64));
-            svfloat64_t t_f64 = svadd_f64_x(predicate_tail_b64, inner_sum_f64, product_f64);
-            svfloat64_t z_f64 = svsub_f64_x(predicate_tail_b64, t_f64, inner_sum_f64);
+            svfloat64_t preliminary_sum_f64 = svadd_f64_x(predicate_tail_b64, inner_sum_f64, product_f64);
+            svfloat64_t recovered_addend_f64 = svsub_f64_x(predicate_tail_b64, preliminary_sum_f64, inner_sum_f64);
             svfloat64_t sum_error_f64 = svadd_f64_x(
                 predicate_tail_b64,
-                svsub_f64_x(predicate_tail_b64, inner_sum_f64, svsub_f64_x(predicate_tail_b64, t_f64, z_f64)),
-                svsub_f64_x(predicate_tail_b64, product_f64, z_f64));
-            inner_sum_f64 = t_f64;
+                svsub_f64_x(predicate_tail_b64, inner_sum_f64,
+                            svsub_f64_x(predicate_tail_b64, preliminary_sum_f64, recovered_addend_f64)),
+                svsub_f64_x(predicate_tail_b64, product_f64, recovered_addend_f64));
+            inner_sum_f64 = preliminary_sum_f64;
             inner_comp_f64 = svadd_f64_x(predicate_tail_b64, inner_comp_f64,
                                          svadd_f64_x(predicate_tail_b64, sum_error_f64, product_error_f64));
             j += svcntd();
@@ -309,12 +310,12 @@ __arm_locally_streaming NK_PUBLIC void nk_bilinear_f64_smef64(nk_f64_t const *a,
         nk_f64_t inner_result_f64 = svaddv_f64(predicate_body_b64, inner_sum_f64) +
                                     svaddv_f64(predicate_body_b64, inner_comp_f64);
         nk_f64_t outer_product_f64 = a_row_f64 * inner_result_f64;
-        nk_f64_t outer_product_error_f64 = a_row_f64 * inner_result_f64 - outer_product_f64;
-        nk_f64_t t_f64 = outer_sum_f64 + outer_product_f64;
-        nk_f64_t z_f64 = t_f64 - outer_sum_f64;
-        nk_f64_t sum_error_f64 = (outer_sum_f64 - (t_f64 - z_f64)) + (outer_product_f64 - z_f64);
-        outer_sum_f64 = t_f64;
-        outer_comp_f64 += sum_error_f64 + outer_product_error_f64;
+        nk_f64_t preliminary_sum_f64 = outer_sum_f64 + outer_product_f64;
+        nk_f64_t recovered_addend_f64 = preliminary_sum_f64 - outer_sum_f64;
+        nk_f64_t sum_error_f64 = (outer_sum_f64 - (preliminary_sum_f64 - recovered_addend_f64)) +
+                                 (outer_product_f64 - recovered_addend_f64);
+        outer_sum_f64 = preliminary_sum_f64;
+        outer_comp_f64 += sum_error_f64;
     }
 
     *result = outer_sum_f64 + outer_comp_f64;
@@ -350,13 +351,14 @@ __arm_locally_streaming static inline nk_f64_t nk_mahalanobis_f64_smef64_kernel_
             svfloat64_t product0_f64 = svmul_f64_x(predicate_tail_b64, c0_f64, diff_col_f64);
             svfloat64_t prod_error0_f64 = svneg_f64_x(
                 predicate_tail_b64, svnmls_f64_x(predicate_tail_b64, product0_f64, c0_f64, diff_col_f64));
-            svfloat64_t t0_f64 = svadd_f64_x(predicate_tail_b64, cdiff_j0_f64, product0_f64);
-            svfloat64_t z0_f64 = svsub_f64_x(predicate_tail_b64, t0_f64, cdiff_j0_f64);
+            svfloat64_t preliminary_sum0_f64 = svadd_f64_x(predicate_tail_b64, cdiff_j0_f64, product0_f64);
+            svfloat64_t recovered_addend0_f64 = svsub_f64_x(predicate_tail_b64, preliminary_sum0_f64, cdiff_j0_f64);
             svfloat64_t sum_error0_f64 = svadd_f64_x(
                 predicate_tail_b64,
-                svsub_f64_x(predicate_tail_b64, cdiff_j0_f64, svsub_f64_x(predicate_tail_b64, t0_f64, z0_f64)),
-                svsub_f64_x(predicate_tail_b64, product0_f64, z0_f64));
-            cdiff_j0_f64 = t0_f64;
+                svsub_f64_x(predicate_tail_b64, cdiff_j0_f64,
+                            svsub_f64_x(predicate_tail_b64, preliminary_sum0_f64, recovered_addend0_f64)),
+                svsub_f64_x(predicate_tail_b64, product0_f64, recovered_addend0_f64));
+            cdiff_j0_f64 = preliminary_sum0_f64;
             cdiff_j0_comp_f64 = svadd_f64_x(predicate_tail_b64, cdiff_j0_comp_f64,
                                             svadd_f64_x(predicate_tail_b64, sum_error0_f64, prod_error0_f64));
 
@@ -364,13 +366,14 @@ __arm_locally_streaming static inline nk_f64_t nk_mahalanobis_f64_smef64_kernel_
             svfloat64_t product1_f64 = svmul_f64_x(predicate_tail_b64, c1_f64, diff_col_f64);
             svfloat64_t prod_error1_f64 = svneg_f64_x(
                 predicate_tail_b64, svnmls_f64_x(predicate_tail_b64, product1_f64, c1_f64, diff_col_f64));
-            svfloat64_t t1_f64 = svadd_f64_x(predicate_tail_b64, cdiff_j1_f64, product1_f64);
-            svfloat64_t z1_f64 = svsub_f64_x(predicate_tail_b64, t1_f64, cdiff_j1_f64);
+            svfloat64_t preliminary_sum1_f64 = svadd_f64_x(predicate_tail_b64, cdiff_j1_f64, product1_f64);
+            svfloat64_t recovered_addend1_f64 = svsub_f64_x(predicate_tail_b64, preliminary_sum1_f64, cdiff_j1_f64);
             svfloat64_t sum_error1_f64 = svadd_f64_x(
                 predicate_tail_b64,
-                svsub_f64_x(predicate_tail_b64, cdiff_j1_f64, svsub_f64_x(predicate_tail_b64, t1_f64, z1_f64)),
-                svsub_f64_x(predicate_tail_b64, product1_f64, z1_f64));
-            cdiff_j1_f64 = t1_f64;
+                svsub_f64_x(predicate_tail_b64, cdiff_j1_f64,
+                            svsub_f64_x(predicate_tail_b64, preliminary_sum1_f64, recovered_addend1_f64)),
+                svsub_f64_x(predicate_tail_b64, product1_f64, recovered_addend1_f64));
+            cdiff_j1_f64 = preliminary_sum1_f64;
             cdiff_j1_comp_f64 = svadd_f64_x(predicate_tail_b64, cdiff_j1_comp_f64,
                                             svadd_f64_x(predicate_tail_b64, sum_error1_f64, prod_error1_f64));
 
@@ -384,12 +387,12 @@ __arm_locally_streaming static inline nk_f64_t nk_mahalanobis_f64_smef64_kernel_
             nk_f64_t inner_result_f64 = svaddv_f64(predicate_body_b64, r == 0 ? cdiff_j0_f64 : cdiff_j1_f64) +
                                         svaddv_f64(predicate_body_b64, r == 0 ? cdiff_j0_comp_f64 : cdiff_j1_comp_f64);
             nk_f64_t outer_product_f64 = diff_f64 * inner_result_f64;
-            nk_f64_t outer_product_error_f64 = diff_f64 * inner_result_f64 - outer_product_f64;
-            nk_f64_t t_f64 = outer_sum_f64 + outer_product_f64;
-            nk_f64_t z_f64 = t_f64 - outer_sum_f64;
-            nk_f64_t sum_error_f64 = (outer_sum_f64 - (t_f64 - z_f64)) + (outer_product_f64 - z_f64);
-            outer_sum_f64 = t_f64;
-            outer_comp_f64 += sum_error_f64 + outer_product_error_f64;
+            nk_f64_t preliminary_sum_f64 = outer_sum_f64 + outer_product_f64;
+            nk_f64_t recovered_addend_f64 = preliminary_sum_f64 - outer_sum_f64;
+            nk_f64_t sum_error_f64 = (outer_sum_f64 - (preliminary_sum_f64 - recovered_addend_f64)) +
+                                     (outer_product_f64 - recovered_addend_f64);
+            outer_sum_f64 = preliminary_sum_f64;
+            outer_comp_f64 += sum_error_f64;
         }
     }
 
@@ -409,13 +412,14 @@ __arm_locally_streaming static inline nk_f64_t nk_mahalanobis_f64_smef64_kernel_
             svfloat64_t product_f64 = svmul_f64_x(predicate_tail_b64, c_f64, diff_col_f64);
             svfloat64_t product_error_f64 = svneg_f64_x(
                 predicate_tail_b64, svnmls_f64_x(predicate_tail_b64, product_f64, c_f64, diff_col_f64));
-            svfloat64_t t_f64 = svadd_f64_x(predicate_tail_b64, inner_sum_f64, product_f64);
-            svfloat64_t z_f64 = svsub_f64_x(predicate_tail_b64, t_f64, inner_sum_f64);
+            svfloat64_t preliminary_sum_f64 = svadd_f64_x(predicate_tail_b64, inner_sum_f64, product_f64);
+            svfloat64_t recovered_addend_f64 = svsub_f64_x(predicate_tail_b64, preliminary_sum_f64, inner_sum_f64);
             svfloat64_t sum_error_f64 = svadd_f64_x(
                 predicate_tail_b64,
-                svsub_f64_x(predicate_tail_b64, inner_sum_f64, svsub_f64_x(predicate_tail_b64, t_f64, z_f64)),
-                svsub_f64_x(predicate_tail_b64, product_f64, z_f64));
-            inner_sum_f64 = t_f64;
+                svsub_f64_x(predicate_tail_b64, inner_sum_f64,
+                            svsub_f64_x(predicate_tail_b64, preliminary_sum_f64, recovered_addend_f64)),
+                svsub_f64_x(predicate_tail_b64, product_f64, recovered_addend_f64));
+            inner_sum_f64 = preliminary_sum_f64;
             inner_comp_f64 = svadd_f64_x(predicate_tail_b64, inner_comp_f64,
                                          svadd_f64_x(predicate_tail_b64, sum_error_f64, product_error_f64));
             j += svcntd();
@@ -425,12 +429,12 @@ __arm_locally_streaming static inline nk_f64_t nk_mahalanobis_f64_smef64_kernel_
         nk_f64_t inner_result_f64 = svaddv_f64(predicate_body_b64, inner_sum_f64) +
                                     svaddv_f64(predicate_body_b64, inner_comp_f64);
         nk_f64_t outer_product_f64 = diff_row_f64 * inner_result_f64;
-        nk_f64_t outer_product_error_f64 = diff_row_f64 * inner_result_f64 - outer_product_f64;
-        nk_f64_t t_f64 = outer_sum_f64 + outer_product_f64;
-        nk_f64_t z_f64 = t_f64 - outer_sum_f64;
-        nk_f64_t sum_error_f64 = (outer_sum_f64 - (t_f64 - z_f64)) + (outer_product_f64 - z_f64);
-        outer_sum_f64 = t_f64;
-        outer_comp_f64 += sum_error_f64 + outer_product_error_f64;
+        nk_f64_t preliminary_sum_f64 = outer_sum_f64 + outer_product_f64;
+        nk_f64_t recovered_addend_f64 = preliminary_sum_f64 - outer_sum_f64;
+        nk_f64_t sum_error_f64 = (outer_sum_f64 - (preliminary_sum_f64 - recovered_addend_f64)) +
+                                 (outer_product_f64 - recovered_addend_f64);
+        outer_sum_f64 = preliminary_sum_f64;
+        outer_comp_f64 += sum_error_f64;
     }
 
     return outer_sum_f64 + outer_comp_f64;
