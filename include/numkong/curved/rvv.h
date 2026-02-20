@@ -60,22 +60,38 @@ NK_PUBLIC void nk_bilinear_f64_rvv(nk_f64_t const *a, nk_f64_t const *b, nk_f64_
                                    nk_f64_t *result) {
     nk_size_t vlmax = __riscv_vsetvlmax_e64m4();
     vfloat64m1_t sum_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, 1);
+    nk_f64_t outer_compensation = 0;
     for (nk_size_t i = 0; i < n; ++i) {
         vfloat64m4_t inner_f64m4 = __riscv_vfmv_v_f_f64m4(0.0, vlmax);
+        vfloat64m4_t compensation_f64m4 = __riscv_vfmv_v_f_f64m4(0.0, vlmax);
         nk_f64_t const *c_row = c + i * n;
         nk_size_t remaining = n;
         for (nk_size_t vector_length; remaining > 0; remaining -= vector_length, c_row += vector_length) {
             vector_length = __riscv_vsetvl_e64m4(remaining);
             vfloat64m4_t vc_f64m4 = __riscv_vle64_v_f64m4(c_row, vector_length);
             vfloat64m4_t vb_f64m4 = __riscv_vle64_v_f64m4(b + (n - remaining), vector_length);
-            inner_f64m4 = __riscv_vfmacc_vv_f64m4_tu(inner_f64m4, vc_f64m4, vb_f64m4, vector_length);
+            vfloat64m4_t product_f64m4 = __riscv_vfmul_vv_f64m4(vc_f64m4, vb_f64m4, vector_length);
+            vfloat64m4_t corrected_term_f64m4 = __riscv_vfsub_vv_f64m4(product_f64m4, compensation_f64m4,
+                                                                       vector_length);
+            vfloat64m4_t running_sum_f64m4 = __riscv_vfadd_vv_f64m4_tu(inner_f64m4, inner_f64m4, corrected_term_f64m4,
+                                                                       vector_length);
+            compensation_f64m4 = __riscv_vfsub_vv_f64m4_tu(
+                compensation_f64m4, __riscv_vfsub_vv_f64m4(running_sum_f64m4, inner_f64m4, vector_length),
+                corrected_term_f64m4, vector_length);
+            inner_f64m4 = running_sum_f64m4;
         }
         vfloat64m1_t zero_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, 1);
         nk_f64_t inner_val = __riscv_vfmv_f_s_f64m1_f64(
             __riscv_vfredusum_vs_f64m4_f64m1(inner_f64m4, zero_f64m1, vlmax));
-        sum_f64m1 = __riscv_vfmv_v_f_f64m1(__riscv_vfmv_f_s_f64m1_f64(sum_f64m1) + a[i] * inner_val, 1);
+        nk_f64_t product_outer = a[i] * inner_val;
+        nk_f64_t old_sum = __riscv_vfmv_f_s_f64m1_f64(sum_f64m1);
+        nk_f64_t new_sum = old_sum + product_outer;
+        if (nk_f64_abs_(old_sum) >= nk_f64_abs_(product_outer))
+            outer_compensation += (old_sum - new_sum) + product_outer;
+        else outer_compensation += (product_outer - new_sum) + old_sum;
+        sum_f64m1 = __riscv_vfmv_v_f_f64m1(new_sum, 1);
     }
-    *result = __riscv_vfmv_f_s_f64m1_f64(sum_f64m1);
+    *result = __riscv_vfmv_f_s_f64m1_f64(sum_f64m1) + outer_compensation;
 }
 
 NK_PUBLIC void nk_bilinear_f16_rvv(nk_f16_t const *a, nk_f16_t const *b, nk_f16_t const *c, nk_size_t n,
@@ -151,8 +167,9 @@ NK_PUBLIC void nk_mahalanobis_f32_rvv(nk_f32_t const *a, nk_f32_t const *b, nk_f
             vfloat32m2_t c_f32m2 = __riscv_vle32_v_f32m2(c_row, vector_length);
             vfloat32m2_t a_f32m2 = __riscv_vle32_v_f32m2(a + j, vector_length);
             vfloat32m2_t b_f32m2 = __riscv_vle32_v_f32m2(b + j, vector_length);
-            vfloat32m2_t diff_f32m2 = __riscv_vfsub_vv_f32m2(a_f32m2, b_f32m2, vector_length);
-            inner_f64m4 = __riscv_vfwmacc_vv_f64m4_tu(inner_f64m4, c_f32m2, diff_f32m2, vector_length);
+            vfloat64m4_t diff_f64m4 = __riscv_vfwsub_vv_f64m4(a_f32m2, b_f32m2, vector_length);
+            vfloat64m4_t c_f64m4 = __riscv_vfwcvt_f_f_v_f64m4(c_f32m2, vector_length);
+            inner_f64m4 = __riscv_vfmacc_vv_f64m4_tu(inner_f64m4, c_f64m4, diff_f64m4, vector_length);
         }
         vfloat64m1_t zero_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, 1);
         nk_f64_t inner_val = __riscv_vfmv_f_s_f64m1_f64(
@@ -166,9 +183,11 @@ NK_PUBLIC void nk_mahalanobis_f64_rvv(nk_f64_t const *a, nk_f64_t const *b, nk_f
                                       nk_f64_t *result) {
     nk_size_t vlmax = __riscv_vsetvlmax_e64m4();
     vfloat64m1_t sum_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, 1);
+    nk_f64_t outer_compensation = 0;
     for (nk_size_t i = 0; i < n; ++i) {
         nk_f64_t diff_i = a[i] - b[i];
         vfloat64m4_t inner_f64m4 = __riscv_vfmv_v_f_f64m4(0.0, vlmax);
+        vfloat64m4_t compensation_f64m4 = __riscv_vfmv_v_f_f64m4(0.0, vlmax);
         nk_f64_t const *c_row = c + i * n;
         nk_size_t remaining = n;
         for (nk_size_t vector_length; remaining > 0; remaining -= vector_length, c_row += vector_length) {
@@ -178,12 +197,26 @@ NK_PUBLIC void nk_mahalanobis_f64_rvv(nk_f64_t const *a, nk_f64_t const *b, nk_f
             vfloat64m4_t va_f64m4 = __riscv_vle64_v_f64m4(a + j, vector_length);
             vfloat64m4_t vb_f64m4 = __riscv_vle64_v_f64m4(b + j, vector_length);
             vfloat64m4_t diff_j_f64m4 = __riscv_vfsub_vv_f64m4(va_f64m4, vb_f64m4, vector_length);
-            inner_f64m4 = __riscv_vfmacc_vv_f64m4_tu(inner_f64m4, vc_f64m4, diff_j_f64m4, vector_length);
+            vfloat64m4_t product_f64m4 = __riscv_vfmul_vv_f64m4(vc_f64m4, diff_j_f64m4, vector_length);
+            vfloat64m4_t corrected_term_f64m4 = __riscv_vfsub_vv_f64m4(product_f64m4, compensation_f64m4,
+                                                                       vector_length);
+            vfloat64m4_t running_sum_f64m4 = __riscv_vfadd_vv_f64m4_tu(inner_f64m4, inner_f64m4, corrected_term_f64m4,
+                                                                       vector_length);
+            compensation_f64m4 = __riscv_vfsub_vv_f64m4_tu(
+                compensation_f64m4, __riscv_vfsub_vv_f64m4(running_sum_f64m4, inner_f64m4, vector_length),
+                corrected_term_f64m4, vector_length);
+            inner_f64m4 = running_sum_f64m4;
         }
         vfloat64m1_t zero_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, 1);
         nk_f64_t inner_val = __riscv_vfmv_f_s_f64m1_f64(
             __riscv_vfredusum_vs_f64m4_f64m1(inner_f64m4, zero_f64m1, vlmax));
-        sum_f64m1 = __riscv_vfmv_v_f_f64m1(__riscv_vfmv_f_s_f64m1_f64(sum_f64m1) + diff_i * inner_val, 1);
+        nk_f64_t product_outer = diff_i * inner_val;
+        nk_f64_t old_sum = __riscv_vfmv_f_s_f64m1_f64(sum_f64m1);
+        nk_f64_t new_sum = old_sum + product_outer;
+        if (nk_f64_abs_(old_sum) >= nk_f64_abs_(product_outer))
+            outer_compensation += (old_sum - new_sum) + product_outer;
+        else outer_compensation += (product_outer - new_sum) + old_sum;
+        sum_f64m1 = __riscv_vfmv_v_f_f64m1(new_sum, 1);
     }
     nk_f64_t quadratic = __riscv_vfmv_f_s_f64m1_f64(sum_f64m1) + outer_compensation;
     *result = nk_f64_sqrt_rvv(quadratic > 0 ? quadratic : 0);
