@@ -179,6 +179,8 @@ void bench_curved() {
     curved_<f32c_k, f32c_k>("bilinear_f32c_skylake", nk_bilinear_f32c_skylake);
     curved_<f64_k, f64_k>("bilinear_f64_skylake", nk_bilinear_f64_skylake);
     curved_<f64c_k, f64c_k>("bilinear_f64c_skylake", nk_bilinear_f64c_skylake);
+    curved_<f32_k, f32_k>("mahalanobis_f32_skylake", nk_mahalanobis_f32_skylake);
+    curved_<f64_k, f64_k>("mahalanobis_f64_skylake", nk_mahalanobis_f64_skylake);
 #endif
 
 #if NK_TARGET_GENOA

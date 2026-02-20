@@ -84,12 +84,14 @@ NK_DYNAMIC void nk_bilinear_bf16(nk_bf16_t const *a, nk_bf16_t const *b, nk_bf16
  *
  *  @param[in] a The first vector.
  *  @param[in] b The second vector.
- *  @param[in] c The metric tensor or covariance matrix, stored row-major as an n×n matrix.
+ *  @param[in] c The Positive Semi-Definite (PSD) matrix, stored row-major as an n×n matrix.
  *  @param[in] n The number of dimensions in the vectors.
  *  @param[out] result The output distance value.
  *
- *  @note The output value is non-negative.
+ *  @note The output value is non-negative when C is PSD.
  *  @note The output value is zero if and only if the two vectors are identical.
+ *  @note The matrix C must be positive semi-definite. If C is not PSD, the quadratic form
+ *        (a-b)ᵀ C (a-b) may be negative, and the square root will produce NaN.
  */
 NK_DYNAMIC void nk_mahalanobis_f64(nk_f64_t const *a, nk_f64_t const *b, nk_f64_t const *c, nk_size_t n,
                                    nk_f64_t *result);

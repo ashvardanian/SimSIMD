@@ -114,8 +114,8 @@ void test_curved() {
 #endif // NK_TARGET_SKYLAKE
 
 #if NK_TARGET_SMEF64
-    run_if_matches("bilinear_smef64_f32", test_bilinear<f32_t>, nk_bilinear_f32_smef64);
-    run_if_matches("bilinear_smef64_f32c", test_bilinear<f32c_t>, nk_bilinear_f32c_smef64);
+    run_if_matches("bilinear_f32_smef64", test_bilinear<f32_t>, nk_bilinear_f32_smef64);
+    run_if_matches("bilinear_f32c_smef64", test_bilinear<f32c_t>, nk_bilinear_f32c_smef64);
     run_if_matches("mahalanobis_f32_smef64", test_mahalanobis<f32_t>, nk_mahalanobis_f32_smef64);
     run_if_matches("bilinear_f64_smef64", test_bilinear<f64_t>, nk_bilinear_f64_smef64);
     run_if_matches("bilinear_f64c_smef64", test_bilinear<f64c_t>, nk_bilinear_f64c_smef64);
