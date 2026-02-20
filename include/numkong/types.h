@@ -83,6 +83,13 @@
 #define NK_DYNAMIC NK_PUBLIC
 #endif // NK_DYNAMIC_DISPATCH
 
+// Allow SIMD kernels to redirect small inputs to serial implementations.
+// Enabled by default for production use. Tests and benchmarks may disable
+// this to isolate SIMD path behavior on small inputs.
+#if !defined(NK_ALLOW_ISA_REDIRECT)
+#define NK_ALLOW_ISA_REDIRECT 1
+#endif
+
 // Compiling for Arm: NK_TARGET_ARM_
 #if !defined(NK_TARGET_ARM_)
 #if defined(__aarch64__) || defined(_M_ARM64)

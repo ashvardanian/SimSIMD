@@ -141,11 +141,13 @@ NK_PUBLIC void nk_sparse_intersect_u16_icelake( //
     nk_size_t a_length, nk_size_t b_length,     //
     nk_u16_t *result, nk_size_t *count) {
 
+#if NK_ALLOW_ISA_REDIRECT
     // The baseline implementation for very small arrays (2 registers or less) can be quite simple:
     if (a_length < 64 && b_length < 64) {
         nk_sparse_intersect_u16_serial(a, b, a_length, b_length, result, count);
         return;
     }
+#endif
 
     nk_u16_t const *const a_end = a + a_length;
     nk_u16_t const *const b_end = b + b_length;
@@ -202,11 +204,13 @@ NK_PUBLIC void nk_sparse_intersect_u32_icelake( //
     nk_size_t a_length, nk_size_t b_length,     //
     nk_u32_t *result, nk_size_t *count) {
 
+#if NK_ALLOW_ISA_REDIRECT
     // The baseline implementation for very small arrays (2 registers or less) can be quite simple:
     if (a_length < 32 && b_length < 32) {
         nk_sparse_intersect_u32_serial(a, b, a_length, b_length, result, count);
         return;
     }
+#endif
 
     nk_u32_t const *const a_end = a + a_length;
     nk_u32_t const *const b_end = b + b_length;
@@ -299,11 +303,13 @@ NK_PUBLIC void nk_sparse_intersect_u64_icelake( //
     nk_size_t a_length, nk_size_t b_length,     //
     nk_u64_t *result, nk_size_t *count) {
 
+#if NK_ALLOW_ISA_REDIRECT
     // The baseline implementation for very small arrays (2 registers or less) can be quite simple:
     if (a_length < 16 && b_length < 16) {
         nk_sparse_intersect_u64_serial(a, b, a_length, b_length, result, count);
         return;
     }
+#endif
 
     nk_u64_t const *const a_end = a + a_length;
     nk_u64_t const *const b_end = b + b_length;
@@ -360,11 +366,13 @@ NK_PUBLIC void nk_sparse_dot_u32f32_icelake(              //
     nk_f32_t const *a_weights, nk_f32_t const *b_weights, //
     nk_size_t a_length, nk_size_t b_length, nk_f32_t *product) {
 
+#if NK_ALLOW_ISA_REDIRECT
     // The baseline implementation for very small arrays (2 registers or less) can be quite simple:
     if (a_length < 32 && b_length < 32) {
         nk_sparse_dot_u32f32_serial(a, b, a_weights, b_weights, a_length, b_length, product);
         return;
     }
+#endif
 
     nk_u32_t const *const a_end = a + a_length;
     nk_u32_t const *const b_end = b + b_length;

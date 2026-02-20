@@ -19,6 +19,10 @@
 
 #include <benchmark/benchmark.h>
 
+#if !defined(NK_ALLOW_ISA_REDIRECT)
+#define NK_ALLOW_ISA_REDIRECT 0
+#endif
+
 #if !defined(NK_COMPARE_TO_MKL)
 #define NK_COMPARE_TO_MKL 0
 #endif

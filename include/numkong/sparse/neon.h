@@ -70,11 +70,13 @@ NK_PUBLIC void nk_sparse_intersect_u16_neon( //
         return;
     }
 
+#if NK_ALLOW_ISA_REDIRECT
     // The baseline implementation for very small arrays (2 registers or less) can be quite simple:
     if (a_length < 32 && b_length < 32) {
         nk_sparse_intersect_u16_serial(a, b, a_length, b_length, result, count);
         return;
     }
+#endif
 
     nk_u16_t const *const a_end = a + a_length;
     nk_u16_t const *const b_end = b + b_length;
@@ -139,11 +141,13 @@ NK_PUBLIC void nk_sparse_intersect_u32_neon( //
         return;
     }
 
+#if NK_ALLOW_ISA_REDIRECT
     // The baseline implementation for very small arrays (2 registers or less) can be quite simple:
     if (a_length < 32 && b_length < 32) {
         nk_sparse_intersect_u32_serial(a, b, a_length, b_length, result, count);
         return;
     }
+#endif
 
     nk_u32_t const *const a_end = a + a_length;
     nk_u32_t const *const b_end = b + b_length;
@@ -212,11 +216,13 @@ NK_PUBLIC void nk_sparse_intersect_u64_neon( //
         return;
     }
 
+#if NK_ALLOW_ISA_REDIRECT
     // The baseline implementation for very small arrays (2 registers or less) can be quite simple:
     if (a_length < 8 && b_length < 8) {
         nk_sparse_intersect_u64_serial(a, b, a_length, b_length, result, count);
         return;
     }
+#endif
 
     nk_u64_t const *const a_end = a + a_length;
     nk_u64_t const *const b_end = b + b_length;

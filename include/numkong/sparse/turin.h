@@ -153,11 +153,13 @@ NK_PUBLIC void nk_sparse_dot_u16bf16_turin(                 //
     nk_size_t a_length, nk_size_t b_length,                 //
     nk_f32_t *product) {
 
+#if NK_ALLOW_ISA_REDIRECT
     // The baseline implementation for very small arrays (2 registers or less) can be quite simple:
     if (a_length < 64 && b_length < 64) {
         nk_sparse_dot_u16bf16_serial(a, b, a_weights, b_weights, a_length, b_length, product);
         return;
     }
+#endif
 
     //! There is no such thing as `_mm512_2intersect_epi16`, only the 32-bit variant!
     //! So instead of jumping through 32 entries at a time, like on Ice Lake, we will
@@ -229,11 +231,13 @@ NK_PUBLIC void nk_sparse_dot_u32f32_turin(                //
     nk_size_t a_length, nk_size_t b_length,               //
     nk_f32_t *product) {
 
+#if NK_ALLOW_ISA_REDIRECT
     // The baseline implementation for very small arrays (2 registers or less) can be quite simple:
     if (a_length < 32 && b_length < 32) {
         nk_sparse_dot_u32f32_serial(a, b, a_weights, b_weights, a_length, b_length, product);
         return;
     }
+#endif
 
     // Native VP2INTERSECTD works directly on u32 - no conversion needed!
     nk_u32_t const *const a_end = a + a_length;

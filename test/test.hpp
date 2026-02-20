@@ -47,6 +47,10 @@
 #include <omp.h>
 #endif
 
+#ifndef NK_ALLOW_ISA_REDIRECT
+#define NK_ALLOW_ISA_REDIRECT 0
+#endif
+
 // Optional BLAS/MKL integration for precision comparison
 #ifndef NK_COMPARE_TO_BLAS
 #define NK_COMPARE_TO_BLAS 0
