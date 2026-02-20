@@ -31,7 +31,7 @@ error_stats_t test_dots_unpacked(kernel_type_ dots_fn) {
     error_stats_t stats;
     std::mt19937 generator(global_config.seed);
 
-    std::size_t m = matrix_height, n = matrix_width, k = matrix_depth;
+    std::size_t m = global_config.matrix_height, n = global_config.matrix_width, k = global_config.matrix_depth;
     std::size_t a_stride = k * sizeof(raw_t);
     std::size_t b_stride = k * sizeof(raw_t);
     std::size_t c_stride = n * sizeof(typename result_t::raw_t);
@@ -68,7 +68,7 @@ error_stats_t test_dots_unpacked_conjugated(kernel_type_ dots_fn) {
     error_stats_t stats;
     std::mt19937 generator(global_config.seed);
 
-    std::size_t m = matrix_height, n = matrix_width, k = matrix_depth;
+    std::size_t m = global_config.matrix_height, n = global_config.matrix_width, k = global_config.matrix_depth;
     std::size_t a_stride = k * sizeof(raw_t);
     std::size_t b_stride = k * sizeof(raw_t);
     std::size_t c_stride = n * sizeof(typename result_t::raw_t);
@@ -254,17 +254,19 @@ error_stats_t test_dot_blas(typename scalar_type_::dot_kernel_t kernel) {
 
     error_stats_t stats;
     std::mt19937 generator(global_config.seed);
-    auto a = make_vector<scalar_t>(dense_dimensions), b = make_vector<scalar_t>(dense_dimensions);
+    auto a = make_vector<scalar_t>(global_config.dense_dimensions),
+         b = make_vector<scalar_t>(global_config.dense_dimensions);
 
     for (auto start = test_start_time(); within_time_budget(start);) {
         fill_random(generator, a);
         fill_random(generator, b);
 
         result_t result;
-        kernel(a.raw_values_data(), b.raw_values_data(), dense_dimensions, &result.raw_);
+        kernel(a.raw_values_data(), b.raw_values_data(), global_config.dense_dimensions, &result.raw_);
 
         reference_t reference;
-        nk::dot<scalar_t, reference_t, nk::no_simd_k>(a.values_data(), b.values_data(), dense_dimensions, &reference);
+        nk::dot<scalar_t, reference_t, nk::no_simd_k>(a.values_data(), b.values_data(), global_config.dense_dimensions,
+                                                      &reference);
 
         stats.accumulate(result, reference);
     }
@@ -281,17 +283,19 @@ error_stats_t test_vdot_blas(typename scalar_type_::vdot_kernel_t kernel) {
 
     error_stats_t stats;
     std::mt19937 generator(global_config.seed);
-    auto a = make_vector<scalar_t>(dense_dimensions), b = make_vector<scalar_t>(dense_dimensions);
+    auto a = make_vector<scalar_t>(global_config.dense_dimensions),
+         b = make_vector<scalar_t>(global_config.dense_dimensions);
 
     for (auto start = test_start_time(); within_time_budget(start);) {
         fill_random(generator, a);
         fill_random(generator, b);
 
         result_t result;
-        kernel(a.raw_values_data(), b.raw_values_data(), dense_dimensions, &result.raw_);
+        kernel(a.raw_values_data(), b.raw_values_data(), global_config.dense_dimensions, &result.raw_);
 
         f118c_t reference;
-        nk::vdot<scalar_t, f118c_t, nk::no_simd_k>(a.values_data(), b.values_data(), dense_dimensions, &reference);
+        nk::vdot<scalar_t, f118c_t, nk::no_simd_k>(a.values_data(), b.values_data(), global_config.dense_dimensions,
+                                                   &reference);
 
         stats.accumulate(result, reference);
     }

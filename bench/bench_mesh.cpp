@@ -52,9 +52,9 @@ void measure_mesh(bm::State &state, kernel_type_ kernel, std::size_t points_coun
 
 template <nk_dtype_t input_dtype_, nk_dtype_t output_dtype_, typename kernel_type_ = void>
 void mesh_(std::string name, kernel_type_ *kernel) {
-    std::string bench_name = name + "<" + std::to_string(mesh_points) + "pts>";
+    std::string bench_name = name + "<" + std::to_string(bench_config.mesh_points) + "pts>";
     bm::RegisterBenchmark(bench_name.c_str(), measure_mesh<input_dtype_, output_dtype_, kernel_type_ *>, kernel,
-                          mesh_points);
+                          bench_config.mesh_points);
 }
 
 void bench_mesh() {
@@ -71,7 +71,6 @@ void bench_mesh() {
     mesh_<f64_k, f64_k>("kabsch_f64_neon", nk_kabsch_f64_neon);
     mesh_<f64_k, f64_k>("umeyama_f64_neon", nk_umeyama_f64_neon);
 #endif
-
 
 #if NK_TARGET_HASWELL
     mesh_<f32_k, f32_k>("rmsd_f32_haswell", nk_rmsd_f32_haswell);

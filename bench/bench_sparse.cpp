@@ -96,13 +96,14 @@ void measure_sparse(bm::State &state, kernel_type_ kernel, std::size_t first_siz
 
 template <nk_dtype_t input_dtype_, nk_dtype_t output_dtype_, typename kernel_type_ = void>
 void sparse_(std::string name, kernel_type_ *kernel) {
-    std::size_t intersection_size = static_cast<std::size_t>(std::min(sparse_first_length, sparse_second_length) *
-                                                             sparse_intersection_share);
-    std::string bench_name = name + "<|A|=" + std::to_string(sparse_first_length) +
-                             ",|B|=" + std::to_string(sparse_second_length) +
+    std::size_t intersection_size = static_cast<std::size_t>(
+        std::min(bench_config.sparse_first_length, bench_config.sparse_second_length) *
+        bench_config.sparse_intersection_share);
+    std::string bench_name = name + "<|A|=" + std::to_string(bench_config.sparse_first_length) +
+                             ",|B|=" + std::to_string(bench_config.sparse_second_length) +
                              ",|A^B|=" + std::to_string(intersection_size) + ">";
     bm::RegisterBenchmark(bench_name.c_str(), measure_sparse<input_dtype_, output_dtype_, kernel_type_ *>, kernel,
-                          sparse_first_length, sparse_second_length, intersection_size);
+                          bench_config.sparse_first_length, bench_config.sparse_second_length, intersection_size);
 }
 
 void bench_sparse() {

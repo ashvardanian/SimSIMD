@@ -19,19 +19,20 @@ error_stats_t test_cast(cast_t kernel) {
     error_stats_t stats;
     std::mt19937 generator(global_config.seed);
 
-    auto src = make_vector<from_type_>(dense_dimensions);
-    auto dst_simd = make_vector<to_type_>(dense_dimensions);
-    auto dst_serial = make_vector<to_type_>(dense_dimensions);
+    auto src = make_vector<from_type_>(global_config.dense_dimensions);
+    auto dst_simd = make_vector<to_type_>(global_config.dense_dimensions);
+    auto dst_serial = make_vector<to_type_>(global_config.dense_dimensions);
 
     for (auto start = test_start_time(); within_time_budget(start);) {
         fill_random(generator, src);
 
-        nk_cast_serial(src.raw_values_data(), from_type_::dtype(), dense_dimensions, dst_serial.raw_values_data(),
-                       to_type_::dtype());
-        kernel(src.raw_values_data(), from_type_::dtype(), dense_dimensions, dst_simd.raw_values_data(),
+        nk_cast_serial(src.raw_values_data(), from_type_::dtype(), global_config.dense_dimensions,
+                       dst_serial.raw_values_data(), to_type_::dtype());
+        kernel(src.raw_values_data(), from_type_::dtype(), global_config.dense_dimensions, dst_simd.raw_values_data(),
                to_type_::dtype());
 
-        for (std::size_t i = 0; i < dense_dimensions; ++i) stats.accumulate(dst_simd[i].raw_, dst_serial[i].raw_);
+        for (std::size_t i = 0; i < global_config.dense_dimensions; ++i)
+            stats.accumulate(dst_simd[i].raw_, dst_serial[i].raw_);
     }
     return stats;
 }

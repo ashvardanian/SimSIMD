@@ -18,17 +18,20 @@ error_stats_t test_sum(typename scalar_type_::sum_kernel_t kernel) {
 
     error_stats_t stats;
     std::mt19937 generator(global_config.seed);
-    auto a = make_vector<scalar_t>(dense_dimensions), b = make_vector<scalar_t>(dense_dimensions);
-    auto result = make_vector<scalar_t>(dense_dimensions), reference = make_vector<scalar_t>(dense_dimensions);
+    auto a = make_vector<scalar_t>(global_config.dense_dimensions),
+         b = make_vector<scalar_t>(global_config.dense_dimensions);
+    auto result = make_vector<scalar_t>(global_config.dense_dimensions),
+         reference = make_vector<scalar_t>(global_config.dense_dimensions);
 
     for (auto start = test_start_time(); within_time_budget(start);) {
         fill_random(generator, a);
         fill_random(generator, b);
 
-        kernel(a.raw_values_data(), b.raw_values_data(), dense_dimensions, result.raw_values_data());
-        nk::sum<scalar_t, nk::no_simd_k>(a.values_data(), b.values_data(), dense_dimensions, reference.values_data());
+        kernel(a.raw_values_data(), b.raw_values_data(), global_config.dense_dimensions, result.raw_values_data());
+        nk::sum<scalar_t, nk::no_simd_k>(a.values_data(), b.values_data(), global_config.dense_dimensions,
+                                         reference.values_data());
 
-        for (std::size_t i = 0; i < dense_dimensions; i++) stats.accumulate(result[i], reference[i]);
+        for (std::size_t i = 0; i < global_config.dense_dimensions; i++) stats.accumulate(result[i], reference[i]);
     }
     return stats;
 }
@@ -44,8 +47,9 @@ error_stats_t test_scale(typename scalar_type_::scale_kernel_t kernel) {
 
     error_stats_t stats;
     std::mt19937 generator(global_config.seed);
-    auto input = make_vector<scalar_t>(dense_dimensions);
-    auto result = make_vector<scalar_t>(dense_dimensions), reference = make_vector<scalar_t>(dense_dimensions);
+    auto input = make_vector<scalar_t>(global_config.dense_dimensions);
+    auto result = make_vector<scalar_t>(global_config.dense_dimensions),
+         reference = make_vector<scalar_t>(global_config.dense_dimensions);
     std::uniform_real_distribution<scale_t> coef_dist(scale_t(-2.0), scale_t(2.0));
 
     for (auto start = test_start_time(); within_time_budget(start);) {
@@ -54,11 +58,11 @@ error_stats_t test_scale(typename scalar_type_::scale_kernel_t kernel) {
         scale_t alpha = coef_dist(generator);
         scale_t beta = coef_dist(generator);
 
-        kernel(input.raw_values_data(), dense_dimensions, &alpha, &beta, result.raw_values_data());
-        nk::scale<scalar_t, f118_t, nk::no_simd_k>(input.values_data(), dense_dimensions, &alpha, &beta,
+        kernel(input.raw_values_data(), global_config.dense_dimensions, &alpha, &beta, result.raw_values_data());
+        nk::scale<scalar_t, f118_t, nk::no_simd_k>(input.values_data(), global_config.dense_dimensions, &alpha, &beta,
                                                    reference.values_data());
 
-        for (std::size_t i = 0; i < dense_dimensions; i++) stats.accumulate(result[i], reference[i]);
+        for (std::size_t i = 0; i < global_config.dense_dimensions; i++) stats.accumulate(result[i], reference[i]);
     }
     return stats;
 }
@@ -74,8 +78,10 @@ error_stats_t test_wsum(typename scalar_type_::wsum_kernel_t kernel) {
 
     error_stats_t stats;
     std::mt19937 generator(global_config.seed);
-    auto a = make_vector<scalar_t>(dense_dimensions), b = make_vector<scalar_t>(dense_dimensions);
-    auto result = make_vector<scalar_t>(dense_dimensions), reference = make_vector<scalar_t>(dense_dimensions);
+    auto a = make_vector<scalar_t>(global_config.dense_dimensions),
+         b = make_vector<scalar_t>(global_config.dense_dimensions);
+    auto result = make_vector<scalar_t>(global_config.dense_dimensions),
+         reference = make_vector<scalar_t>(global_config.dense_dimensions);
     std::uniform_real_distribution<scale_t> coef_dist(scale_t(-2.0), scale_t(2.0));
 
     for (auto start = test_start_time(); within_time_budget(start);) {
@@ -85,11 +91,12 @@ error_stats_t test_wsum(typename scalar_type_::wsum_kernel_t kernel) {
         scale_t alpha = coef_dist(generator);
         scale_t beta = coef_dist(generator);
 
-        kernel(a.raw_values_data(), b.raw_values_data(), dense_dimensions, &alpha, &beta, result.raw_values_data());
-        nk::wsum<scalar_t, f118_t, nk::no_simd_k>(a.values_data(), b.values_data(), dense_dimensions, &alpha, &beta,
-                                                  reference.values_data());
+        kernel(a.raw_values_data(), b.raw_values_data(), global_config.dense_dimensions, &alpha, &beta,
+               result.raw_values_data());
+        nk::wsum<scalar_t, f118_t, nk::no_simd_k>(a.values_data(), b.values_data(), global_config.dense_dimensions,
+                                                  &alpha, &beta, reference.values_data());
 
-        for (std::size_t i = 0; i < dense_dimensions; i++) stats.accumulate(result[i], reference[i]);
+        for (std::size_t i = 0; i < global_config.dense_dimensions; i++) stats.accumulate(result[i], reference[i]);
     }
     return stats;
 }
@@ -105,9 +112,11 @@ error_stats_t test_fma(typename scalar_type_::fma_kernel_t kernel) {
 
     error_stats_t stats;
     std::mt19937 generator(global_config.seed);
-    auto a = make_vector<scalar_t>(dense_dimensions), b = make_vector<scalar_t>(dense_dimensions);
-    auto c = make_vector<scalar_t>(dense_dimensions);
-    auto result = make_vector<scalar_t>(dense_dimensions), reference = make_vector<scalar_t>(dense_dimensions);
+    auto a = make_vector<scalar_t>(global_config.dense_dimensions),
+         b = make_vector<scalar_t>(global_config.dense_dimensions);
+    auto c = make_vector<scalar_t>(global_config.dense_dimensions);
+    auto result = make_vector<scalar_t>(global_config.dense_dimensions),
+         reference = make_vector<scalar_t>(global_config.dense_dimensions);
     std::uniform_real_distribution<scale_t> coef_dist(scale_t(-2.0), scale_t(2.0));
 
     for (auto start = test_start_time(); within_time_budget(start);) {
@@ -118,12 +127,12 @@ error_stats_t test_fma(typename scalar_type_::fma_kernel_t kernel) {
         scale_t alpha = coef_dist(generator);
         scale_t beta = coef_dist(generator);
 
-        kernel(a.raw_values_data(), b.raw_values_data(), c.raw_values_data(), dense_dimensions, &alpha, &beta,
-               result.raw_values_data());
-        nk::fma<scalar_t, f118_t, nk::no_simd_k>(a.values_data(), b.values_data(), dense_dimensions, c.values_data(),
-                                                 &alpha, &beta, reference.values_data());
+        kernel(a.raw_values_data(), b.raw_values_data(), c.raw_values_data(), global_config.dense_dimensions, &alpha,
+               &beta, result.raw_values_data());
+        nk::fma<scalar_t, f118_t, nk::no_simd_k>(a.values_data(), b.values_data(), global_config.dense_dimensions,
+                                                 c.values_data(), &alpha, &beta, reference.values_data());
 
-        for (std::size_t i = 0; i < dense_dimensions; i++) stats.accumulate(result[i], reference[i]);
+        for (std::size_t i = 0; i < global_config.dense_dimensions; i++) stats.accumulate(result[i], reference[i]);
     }
     return stats;
 }

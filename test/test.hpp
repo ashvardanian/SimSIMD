@@ -116,25 +116,46 @@ template class nk::vector<nk::i4x2_t>;
 template class nk::vector<nk::f64c_t>;
 template class nk::vector<std::complex<float>>;
 
-extern std::size_t dense_dimensions;  // For dot products, spatial metrics
-extern std::size_t curved_dimensions; // For curved metrics (quadratic in dims)
-extern std::size_t sparse_dimensions; // For sparse set intersection and sparse dot
-extern std::size_t mesh_points;       // For RMSD, Kabsch (3D point clouds)
-extern std::size_t matrix_height, matrix_width, matrix_depth;
-
 enum class random_distribution_kind_t { uniform_k, lognormal_k, cauchy_k };
 
 struct test_config_t {
+    /** Assert on ULP threshold violations. Override: `NK_TEST_ASSERT=1`. */
     bool assert_on_failure = false;
-    bool verbose = false;         // Show per-dimension stats
-    bool running_in_qemu = false; // Relaxed accuracy for emulated SIMD
+    /** Show per-dimension ULP breakdown. Override: `NK_TEST_VERBOSE=1`. */
+    bool verbose = false;
+    /** Relaxed accuracy for emulated SIMD. Override: `NK_IN_QEMU`. */
+    bool running_in_qemu = false;
+    /** Max allowed ULP for f32. Override: `NK_ULP_THRESHOLD_F32`. */
     std::uint64_t ulp_threshold_f32 = 4;
+    /** Max allowed ULP for f16. Override: `NK_ULP_THRESHOLD_F16`. */
     std::uint64_t ulp_threshold_f16 = 32;
+    /** Max allowed ULP for bf16. Override: `NK_ULP_THRESHOLD_BF16`. */
     std::uint64_t ulp_threshold_bf16 = 256;
-    std::size_t time_budget_ms = 1000; // Time budget per kernel in milliseconds
+    /** Time budget per kernel in milliseconds. Override: `NK_BUDGET_SECS`. */
+    std::size_t time_budget_ms = 1000;
+    /** Random seed for reproducible tests. Override: `NK_SEED`. */
     std::uint32_t seed = 42;
-    char const *filter = nullptr; // Filter tests by name (substring match)
-    random_distribution_kind_t distribution = random_distribution_kind_t::lognormal_k; // Default: moderate heavy tails
+    /** Filter tests by name (regex or substring). Override: `NK_FILTER`. */
+    char const *filter = nullptr;
+    /** Random distribution for test inputs. Override: `NK_RANDOM_DISTRIBUTION`. */
+    random_distribution_kind_t distribution = random_distribution_kind_t::lognormal_k;
+
+    /** For dot products, spatial metrics. Override: `NK_DENSE_DIMENSIONS`. */
+    std::size_t dense_dimensions = 1536;
+    /** For curved metrics (quadratic in dims). Override: `NK_CURVED_DIMENSIONS`. */
+    std::size_t curved_dimensions = 64;
+    /** For sparse set intersection and sparse dot. Override: `NK_SPARSE_DIMENSIONS`. */
+    std::size_t sparse_dimensions = 256;
+    /** Number of 3D points for RMSD, Kabsch. Override: `NK_MESH_POINTS`. */
+    std::size_t mesh_points = 1000;
+    /** GEMM M dimension. Override: `NK_MATRIX_HEIGHT`. */
+    std::size_t matrix_height = 1024;
+    /** GEMM N dimension. Override: `NK_MATRIX_WIDTH`. */
+    std::size_t matrix_width = 128;
+    /** GEMM K dimension. Override: `NK_MATRIX_DEPTH`. */
+    std::size_t matrix_depth = 1536;
+    /** Count of kernels that exceeded ULP thresholds. */
+    std::size_t failure_count = 0;
 
     bool should_run(char const *test_name) const;
 
@@ -155,7 +176,6 @@ struct test_config_t {
 };
 
 extern test_config_t global_config;
-extern std::size_t global_failure_count;
 
 /**
  *  @brief Run a test only if its kernel name matches the filter.
@@ -169,7 +189,7 @@ void run_if_matches(char const *kernel_name, test_function_type_ test_fn, args_t
     auto stats = test_fn(std::forward<args_types_>(args)...);
     stats.report(kernel_name);
     if (global_config.assert_on_failure && stats.max_ulp > global_config.ulp_threshold_for(kernel_name))
-        ++global_failure_count;
+        ++global_config.failure_count;
 }
 
 inline time_point test_start_time() { return steady_clock::now(); }

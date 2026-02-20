@@ -55,32 +55,34 @@ extern "C" void openblas_set_num_threads(int) __attribute__((weak));
 namespace bm = benchmark;
 namespace nk = ashvardanian::numkong;
 
-/// Vector dimension for dot products and spatial metrics
-/// Can be overridden at runtime via `NK_DENSE_DIMENSIONS` environment variable
-extern std::size_t dense_dimensions;
-/// Has quadratic impact on the number of operations
-/// Can be overridden at runtime via `NK_CURVED_DIMENSIONS` environment variable
-extern std::size_t curved_dimensions;
-/// Number of 3D points for mesh metrics (RMSD, Kabsch)
-/// Can be overridden at runtime via `NK_MESH_POINTS` environment variable
-extern std::size_t mesh_points;
-/// Matrix multiplication benchmark globals
-/// Can be overridden at runtime via `NK_MATRIX_HEIGHT/WIDTH/DEPTH` environment variables
-extern std::size_t matrix_height, matrix_width, matrix_depth;
-/// Random seed for reproducible benchmarks
-/// Can be overridden at runtime via `NK_SEED` environment variable
-extern std::uint32_t random_seed;
-/// Sparse set intersection benchmark globals
-/// Can be overridden at runtime via `NK_SPARSE_*` environment variables
-extern std::size_t sparse_first_length;
-extern std::size_t sparse_second_length;
-extern double sparse_intersection_share;
-/// Memory budget in bytes for pre-allocated benchmark inputs.
-/// Each measurement function computes `floor_pow2(budget / bytes_per_set)` input sets,
-/// clamped to [1, 1024]. Can be overridden at runtime via `NK_BUDGET_MB` (in megabytes, default 1024).
-extern std::size_t bench_budget;
+struct bench_config_t {
+    /** Vector dimension for dot products and spatial metrics. Override: `NK_DENSE_DIMENSIONS`. */
+    std::size_t dense_dimensions = 1536;
+    /** Curved metric dimensions (quadratic impact). Override: `NK_CURVED_DIMENSIONS`. */
+    std::size_t curved_dimensions = 64;
+    /** Number of 3D points for mesh metrics (RMSD, Kabsch). Override: `NK_MESH_POINTS`. */
+    std::size_t mesh_points = 1000;
+    /** GEMM M dimension. Override: `NK_MATRIX_HEIGHT`. */
+    std::size_t matrix_height = 1024;
+    /** GEMM N dimension. Override: `NK_MATRIX_WIDTH`. */
+    std::size_t matrix_width = 128;
+    /** GEMM K dimension. Override: `NK_MATRIX_DEPTH`. */
+    std::size_t matrix_depth = 1536;
+    /** Random seed for reproducible benchmarks. Override: `NK_SEED`. */
+    std::uint32_t seed = 42;
+    /** First sparse set size. Override: `NK_SPARSE_FIRST_LENGTH`. */
+    std::size_t sparse_first_length = 1024;
+    /** Second sparse set size. Override: `NK_SPARSE_SECOND_LENGTH`. */
+    std::size_t sparse_second_length = 8192;
+    /** Sparse intersection share [0.0, 1.0]. Override: `NK_SPARSE_INTERSECTION`. */
+    double sparse_intersection_share = 0.5;
+    /** Memory budget in bytes for pre-allocated inputs. Override: `NK_BUDGET_MB`. */
+    std::size_t budget_bytes = std::size_t(1024) * 1024 * 1024;
+};
 
-inline std::mt19937 make_random_engine() { return std::mt19937(random_seed); }
+extern bench_config_t bench_config;
+
+inline std::mt19937 make_random_engine() { return std::mt19937(bench_config.seed); }
 
 /**
  *  @brief Compute byte count for `count` elements of `dtype`, handling sub-byte and complex types.
@@ -98,7 +100,7 @@ inline std::size_t bench_dtype_bytes(nk_dtype_t dtype, std::size_t count) {
  *  `iterations & (count - 1)` as a fast modulo for input cycling.
  */
 inline std::size_t bench_input_count(std::size_t bytes_per_set) {
-    std::size_t count = bench_budget / std::max(bytes_per_set, std::size_t(1));
+    std::size_t count = bench_config.budget_bytes / std::max(bytes_per_set, std::size_t(1));
     count = std::min(count, std::size_t(1024));
     count = std::max(std::bit_floor(count), std::size_t(1));
     return count;
@@ -183,9 +185,9 @@ void measure_dense(bm::State &state, kernel_type_ kernel, std::size_t dimensions
 
 template <nk_dtype_t input_dtype_, nk_dtype_t output_dtype_, typename kernel_type_ = void>
 void dense_(std::string name, kernel_type_ *kernel) {
-    std::string bench_name = name + "<" + std::to_string(dense_dimensions) + "d>";
+    std::string bench_name = name + "<" + std::to_string(bench_config.dense_dimensions) + "d>";
     bm::RegisterBenchmark(bench_name.c_str(), measure_dense<input_dtype_, output_dtype_, kernel_type_ *>, kernel,
-                          dense_dimensions);
+                          bench_config.dense_dimensions);
 }
 
 //  Batched dot products measurement for packed B matrix API
@@ -248,10 +250,11 @@ void dots_(std::string name, //
            typename nk::type_for<input_dtype_>::type::dots_packed_size_kernel_t packed_size_fn,
            typename nk::type_for<input_dtype_>::type::dots_pack_kernel_t pack_fn,
            typename nk::type_for<input_dtype_>::type::dots_packed_kernel_t kernel) {
-    std::string bench_name = name + "<" + std::to_string(matrix_height) + "x" + std::to_string(matrix_width) + "x" +
-                             std::to_string(matrix_depth) + ">";
+    std::string bench_name = name + "<" + std::to_string(bench_config.matrix_height) + "x" +
+                             std::to_string(bench_config.matrix_width) + "x" +
+                             std::to_string(bench_config.matrix_depth) + ">";
     bm::RegisterBenchmark(bench_name.c_str(), measure_dots_packed<input_dtype_, output_dtype_>, packed_size_fn, pack_fn,
-                          kernel, matrix_height, matrix_width, matrix_depth);
+                          kernel, bench_config.matrix_height, bench_config.matrix_width, bench_config.matrix_depth);
 }
 
 template <nk_dtype_t input_dtype_, nk_dtype_t output_dtype_>
@@ -301,9 +304,10 @@ void measure_dots_symmetric(                                                   /
 template <nk_dtype_t input_dtype_, nk_dtype_t output_dtype_>
 void dots_symmetric_(std::string name, //
                      typename nk::type_for<input_dtype_>::type::dots_symmetric_kernel_t kernel) {
-    std::string bench_name = name + "<" + std::to_string(matrix_height) + "x" + std::to_string(matrix_depth) + ">";
+    std::string bench_name = name + "<" + std::to_string(bench_config.matrix_height) + "x" +
+                             std::to_string(bench_config.matrix_depth) + ">";
     bm::RegisterBenchmark(bench_name.c_str(), measure_dots_symmetric<input_dtype_, output_dtype_>, //
-                          kernel, matrix_height, matrix_depth);
+                          kernel, bench_config.matrix_height, bench_config.matrix_depth);
 }
 
 /**
@@ -415,18 +419,21 @@ void hammings_(std::string name, //
                typename nk::type_for<input_dtype_>::type::hammings_packed_size_kernel_t packed_size_fn,
                typename nk::type_for<input_dtype_>::type::hammings_pack_kernel_t pack_fn,
                typename nk::type_for<input_dtype_>::type::hammings_packed_kernel_t kernel) {
-    std::string bench_name = name + "<" + std::to_string(matrix_height) + "x" + std::to_string(matrix_width) + "x" +
-                             std::to_string(matrix_depth) + ">";
+    std::string bench_name = name + "<" + std::to_string(bench_config.matrix_height) + "x" +
+                             std::to_string(bench_config.matrix_width) + "x" +
+                             std::to_string(bench_config.matrix_depth) + ">";
     bm::RegisterBenchmark(bench_name.c_str(), measure_hammings_packed<input_dtype_, output_dtype_>, packed_size_fn,
-                          pack_fn, kernel, matrix_height, matrix_width, matrix_depth);
+                          pack_fn, kernel, bench_config.matrix_height, bench_config.matrix_width,
+                          bench_config.matrix_depth);
 }
 
 template <nk_dtype_t input_dtype_, nk_dtype_t output_dtype_>
 void hammings_symmetric_(std::string name, //
                          typename nk::type_for<input_dtype_>::type::hammings_symmetric_kernel_t kernel) {
-    std::string bench_name = name + "<" + std::to_string(matrix_height) + "x" + std::to_string(matrix_depth) + ">";
+    std::string bench_name = name + "<" + std::to_string(bench_config.matrix_height) + "x" +
+                             std::to_string(bench_config.matrix_depth) + ">";
     bm::RegisterBenchmark(bench_name.c_str(), measure_hammings_symmetric<input_dtype_, output_dtype_>, //
-                          kernel, matrix_height, matrix_depth);
+                          kernel, bench_config.matrix_height, bench_config.matrix_depth);
 }
 
 // Forward declarations for benchmark registration functions (defined in separate files)

@@ -20,17 +20,19 @@ error_stats_t test_kld(typename scalar_type_::kld_kernel_t kernel) {
 
     error_stats_t stats;
     std::mt19937 generator(global_config.seed);
-    auto p = make_vector<scalar_t>(dense_dimensions), q = make_vector<scalar_t>(dense_dimensions);
+    auto p = make_vector<scalar_t>(global_config.dense_dimensions),
+         q = make_vector<scalar_t>(global_config.dense_dimensions);
 
     for (auto start = test_start_time(); within_time_budget(start);) {
-        nk::fill_probability(generator, p.values_data(), dense_dimensions);
-        nk::fill_probability(generator, q.values_data(), dense_dimensions);
+        nk::fill_probability(generator, p.values_data(), global_config.dense_dimensions);
+        nk::fill_probability(generator, q.values_data(), global_config.dense_dimensions);
 
         result_t result;
-        kernel(p.raw_values_data(), q.raw_values_data(), dense_dimensions, &result.raw_);
+        kernel(p.raw_values_data(), q.raw_values_data(), global_config.dense_dimensions, &result.raw_);
 
         f118_t reference;
-        nk::kld<scalar_t, f118_t, nk::no_simd_k>(p.values_data(), q.values_data(), dense_dimensions, &reference);
+        nk::kld<scalar_t, f118_t, nk::no_simd_k>(p.values_data(), q.values_data(), global_config.dense_dimensions,
+                                                 &reference);
 
         stats.accumulate(result, reference);
     }
@@ -50,17 +52,19 @@ error_stats_t test_jsd(typename scalar_type_::jsd_kernel_t kernel) {
 
     error_stats_t stats;
     std::mt19937 generator(global_config.seed);
-    auto p = make_vector<scalar_t>(dense_dimensions), q = make_vector<scalar_t>(dense_dimensions);
+    auto p = make_vector<scalar_t>(global_config.dense_dimensions),
+         q = make_vector<scalar_t>(global_config.dense_dimensions);
 
     for (auto start = test_start_time(); within_time_budget(start);) {
-        nk::fill_probability(generator, p.values_data(), dense_dimensions);
-        nk::fill_probability(generator, q.values_data(), dense_dimensions);
+        nk::fill_probability(generator, p.values_data(), global_config.dense_dimensions);
+        nk::fill_probability(generator, q.values_data(), global_config.dense_dimensions);
 
         result_t result;
-        kernel(p.raw_values_data(), q.raw_values_data(), dense_dimensions, &result.raw_);
+        kernel(p.raw_values_data(), q.raw_values_data(), global_config.dense_dimensions, &result.raw_);
 
         f118_t reference;
-        nk::jsd<scalar_t, f118_t, nk::no_simd_k>(p.values_data(), q.values_data(), dense_dimensions, &reference);
+        nk::jsd<scalar_t, f118_t, nk::no_simd_k>(p.values_data(), q.values_data(), global_config.dense_dimensions,
+                                                 &reference);
 
         stats.accumulate(result, reference);
     }

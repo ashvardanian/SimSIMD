@@ -19,7 +19,7 @@ error_stats_t test_rmsd(typename scalar_type_::mesh_kernel_t kernel) {
     error_stats_t stats;
     std::mt19937 generator(global_config.seed);
 
-    std::size_t n = mesh_points;
+    std::size_t n = global_config.mesh_points;
     auto a = make_vector<scalar_t>(n * 3), b = make_vector<scalar_t>(n * 3);
 
     for (auto start = test_start_time(); within_time_budget(start);) {
@@ -50,7 +50,7 @@ error_stats_t test_kabsch(typename scalar_type_::mesh_kernel_t kernel) {
     error_stats_t stats;
     std::mt19937 generator(global_config.seed);
 
-    std::size_t n = mesh_points;
+    std::size_t n = global_config.mesh_points;
     auto a = make_vector<scalar_t>(n * 3), b = make_vector<scalar_t>(n * 3);
 
     for (auto start = test_start_time(); within_time_budget(start);) {
@@ -81,7 +81,7 @@ error_stats_t test_umeyama(typename scalar_type_::mesh_kernel_t kernel) {
     error_stats_t stats;
     std::mt19937 generator(global_config.seed);
 
-    std::size_t n = mesh_points;
+    std::size_t n = global_config.mesh_points;
     auto a = make_vector<scalar_t>(n * 3), b = make_vector<scalar_t>(n * 3);
 
     for (auto start = test_start_time(); within_time_budget(start);) {

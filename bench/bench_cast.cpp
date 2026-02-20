@@ -45,8 +45,9 @@ void measure_cast(bm::State &state, cast_kernel_t kernel, std::size_t count) {
 
 template <nk_dtype_t input_dtype_, nk_dtype_t output_dtype_>
 void cast_(std::string name, cast_kernel_t kernel) {
-    std::string bench_name = name + "<" + std::to_string(dense_dimensions) + "d>";
-    bm::RegisterBenchmark(bench_name.c_str(), measure_cast<input_dtype_, output_dtype_>, kernel, dense_dimensions);
+    std::string bench_name = name + "<" + std::to_string(bench_config.dense_dimensions) + "d>";
+    bm::RegisterBenchmark(bench_name.c_str(), measure_cast<input_dtype_, output_dtype_>, kernel,
+                          bench_config.dense_dimensions);
 }
 
 void bench_cast() {

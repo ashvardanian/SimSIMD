@@ -18,20 +18,24 @@ error_stats_t test_haversine(typename scalar_type_::haversine_kernel_t kernel) {
 
     error_stats_t stats;
     std::mt19937 generator(global_config.seed);
-    auto a_lats = make_vector<scalar_t>(dense_dimensions), a_lons = make_vector<scalar_t>(dense_dimensions);
-    auto b_lats = make_vector<scalar_t>(dense_dimensions), b_lons = make_vector<scalar_t>(dense_dimensions);
-    auto results = make_vector<scalar_t>(dense_dimensions), reference = make_vector<scalar_t>(dense_dimensions);
+    auto a_lats = make_vector<scalar_t>(global_config.dense_dimensions),
+         a_lons = make_vector<scalar_t>(global_config.dense_dimensions);
+    auto b_lats = make_vector<scalar_t>(global_config.dense_dimensions),
+         b_lons = make_vector<scalar_t>(global_config.dense_dimensions);
+    auto results = make_vector<scalar_t>(global_config.dense_dimensions),
+         reference = make_vector<scalar_t>(global_config.dense_dimensions);
 
     for (auto start = test_start_time(); within_time_budget(start);) {
-        nk::fill_coordinates(generator, a_lats.values_data(), a_lons.values_data(), dense_dimensions);
-        nk::fill_coordinates(generator, b_lats.values_data(), b_lons.values_data(), dense_dimensions);
+        nk::fill_coordinates(generator, a_lats.values_data(), a_lons.values_data(), global_config.dense_dimensions);
+        nk::fill_coordinates(generator, b_lats.values_data(), b_lons.values_data(), global_config.dense_dimensions);
 
         kernel(a_lats.raw_values_data(), a_lons.raw_values_data(), b_lats.raw_values_data(), b_lons.raw_values_data(),
-               dense_dimensions, results.raw_values_data());
+               global_config.dense_dimensions, results.raw_values_data());
         nk::haversine<scalar_t, f118_t, nk::no_simd_k>(a_lats.values_data(), a_lons.values_data(), b_lats.values_data(),
-                                                       b_lons.values_data(), dense_dimensions, reference.values_data());
+                                                       b_lons.values_data(), global_config.dense_dimensions,
+                                                       reference.values_data());
 
-        for (std::size_t i = 0; i < dense_dimensions; i++) stats.accumulate(results[i], reference[i]);
+        for (std::size_t i = 0; i < global_config.dense_dimensions; i++) stats.accumulate(results[i], reference[i]);
     }
     return stats;
 }
@@ -46,20 +50,24 @@ error_stats_t test_vincenty(typename scalar_type_::haversine_kernel_t kernel) {
 
     error_stats_t stats;
     std::mt19937 generator(global_config.seed);
-    auto a_lats = make_vector<scalar_t>(dense_dimensions), a_lons = make_vector<scalar_t>(dense_dimensions);
-    auto b_lats = make_vector<scalar_t>(dense_dimensions), b_lons = make_vector<scalar_t>(dense_dimensions);
-    auto results = make_vector<scalar_t>(dense_dimensions), reference = make_vector<scalar_t>(dense_dimensions);
+    auto a_lats = make_vector<scalar_t>(global_config.dense_dimensions),
+         a_lons = make_vector<scalar_t>(global_config.dense_dimensions);
+    auto b_lats = make_vector<scalar_t>(global_config.dense_dimensions),
+         b_lons = make_vector<scalar_t>(global_config.dense_dimensions);
+    auto results = make_vector<scalar_t>(global_config.dense_dimensions),
+         reference = make_vector<scalar_t>(global_config.dense_dimensions);
 
     for (auto start = test_start_time(); within_time_budget(start);) {
-        nk::fill_coordinates(generator, a_lats.values_data(), a_lons.values_data(), dense_dimensions);
-        nk::fill_coordinates(generator, b_lats.values_data(), b_lons.values_data(), dense_dimensions);
+        nk::fill_coordinates(generator, a_lats.values_data(), a_lons.values_data(), global_config.dense_dimensions);
+        nk::fill_coordinates(generator, b_lats.values_data(), b_lons.values_data(), global_config.dense_dimensions);
 
         kernel(a_lats.raw_values_data(), a_lons.raw_values_data(), b_lats.raw_values_data(), b_lons.raw_values_data(),
-               dense_dimensions, results.raw_values_data());
+               global_config.dense_dimensions, results.raw_values_data());
         nk::vincenty<scalar_t, f118_t, nk::no_simd_k>(a_lats.values_data(), a_lons.values_data(), b_lats.values_data(),
-                                                      b_lons.values_data(), dense_dimensions, reference.values_data());
+                                                      b_lons.values_data(), global_config.dense_dimensions,
+                                                      reference.values_data());
 
-        for (std::size_t i = 0; i < dense_dimensions; i++) stats.accumulate(results[i], reference[i]);
+        for (std::size_t i = 0; i < global_config.dense_dimensions; i++) stats.accumulate(results[i], reference[i]);
     }
     return stats;
 }

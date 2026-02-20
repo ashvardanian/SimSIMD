@@ -17,17 +17,18 @@ error_stats_t test_hamming(u1x8_t::hamming_kernel_t kernel) {
     error_stats_t stats;
     std::mt19937 generator(global_config.seed);
 
-    auto a = make_vector<scalar_t>(dense_dimensions), b = make_vector<scalar_t>(dense_dimensions);
+    auto a = make_vector<scalar_t>(global_config.dense_dimensions),
+         b = make_vector<scalar_t>(global_config.dense_dimensions);
 
     for (auto start = test_start_time(); within_time_budget(start);) {
         fill_random(generator, a);
         fill_random(generator, b);
 
         u32_t result;
-        kernel(a.raw_values_data(), b.raw_values_data(), dense_dimensions, &result.raw_);
+        kernel(a.raw_values_data(), b.raw_values_data(), global_config.dense_dimensions, &result.raw_);
 
         u32_t reference;
-        nk::hamming(a.values_data(), b.values_data(), dense_dimensions, &reference);
+        nk::hamming(a.values_data(), b.values_data(), global_config.dense_dimensions, &reference);
 
         stats.accumulate(result, reference);
     }
@@ -44,17 +45,18 @@ error_stats_t test_jaccard(u1x8_t::jaccard_kernel_t kernel) {
     error_stats_t stats;
     std::mt19937 generator(global_config.seed);
 
-    auto a = make_vector<scalar_t>(dense_dimensions), b = make_vector<scalar_t>(dense_dimensions);
+    auto a = make_vector<scalar_t>(global_config.dense_dimensions),
+         b = make_vector<scalar_t>(global_config.dense_dimensions);
 
     for (auto start = test_start_time(); within_time_budget(start);) {
         fill_random(generator, a);
         fill_random(generator, b);
 
         f32_t result;
-        kernel(a.raw_values_data(), b.raw_values_data(), dense_dimensions, &result.raw_);
+        kernel(a.raw_values_data(), b.raw_values_data(), global_config.dense_dimensions, &result.raw_);
 
         f32_t reference;
-        nk::jaccard(a.values_data(), b.values_data(), dense_dimensions, &reference);
+        nk::jaccard(a.values_data(), b.values_data(), global_config.dense_dimensions, &reference);
 
         stats.accumulate(result, reference);
     }

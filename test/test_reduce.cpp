@@ -16,15 +16,17 @@ error_stats_t test_reduce_moments_(void (*kernel)(typename input_t_::raw_t const
                                                      typename sum_acc_t_::raw_t *, typename sumsq_acc_t_::raw_t *)) {
     error_stats_t stats;
     std::mt19937 generator(global_config.seed);
-    auto buffer = make_vector<input_t_>(dense_dimensions);
+    auto buffer = make_vector<input_t_>(global_config.dense_dimensions);
     for (auto start = test_start_time(); within_time_budget(start);) {
         fill_random(generator, buffer);
         typename sum_acc_t_::raw_t sum;
         typename sumsq_acc_t_::raw_t sumsq;
-        kernel(buffer.raw_values_data(), dense_dimensions, sizeof(typename input_t_::raw_t), &sum, &sumsq);
+        kernel(buffer.raw_values_data(), global_config.dense_dimensions, sizeof(typename input_t_::raw_t), &sum,
+               &sumsq);
         typename sum_acc_t_::raw_t ref_sum;
         typename sumsq_acc_t_::raw_t ref_sumsq;
-        reference(buffer.raw_values_data(), dense_dimensions, sizeof(typename input_t_::raw_t), &ref_sum, &ref_sumsq);
+        reference(buffer.raw_values_data(), global_config.dense_dimensions, sizeof(typename input_t_::raw_t), &ref_sum,
+                  &ref_sumsq);
         stats.accumulate(sum_acc_t_::from_raw(sum), sum_acc_t_::from_raw(ref_sum));
         stats.accumulate(sumsq_acc_t_::from_raw(sumsq), sumsq_acc_t_::from_raw(ref_sumsq));
     }
@@ -40,17 +42,17 @@ error_stats_t test_reduce_minmax_(void (*kernel)(typename input_t_::raw_t const 
                                                     typename output_t_::raw_t *, nk_size_t *)) {
     error_stats_t stats;
     std::mt19937 generator(global_config.seed);
-    auto buffer = make_vector<input_t_>(dense_dimensions);
+    auto buffer = make_vector<input_t_>(global_config.dense_dimensions);
     for (auto start = test_start_time(); within_time_budget(start);) {
         fill_random(generator, buffer);
         typename output_t_::raw_t min_val, max_val;
         nk_size_t min_idx, max_idx;
-        kernel(buffer.raw_values_data(), dense_dimensions, sizeof(typename input_t_::raw_t), &min_val, &min_idx,
-               &max_val, &max_idx);
+        kernel(buffer.raw_values_data(), global_config.dense_dimensions, sizeof(typename input_t_::raw_t), &min_val,
+               &min_idx, &max_val, &max_idx);
         typename output_t_::raw_t ref_min, ref_max;
         nk_size_t ref_min_idx, ref_max_idx;
-        reference(buffer.raw_values_data(), dense_dimensions, sizeof(typename input_t_::raw_t), &ref_min, &ref_min_idx,
-                  &ref_max, &ref_max_idx);
+        reference(buffer.raw_values_data(), global_config.dense_dimensions, sizeof(typename input_t_::raw_t), &ref_min,
+                  &ref_min_idx, &ref_max, &ref_max_idx);
         stats.accumulate(output_t_::from_raw(min_val), output_t_::from_raw(ref_min));
         stats.accumulate(output_t_::from_raw(max_val), output_t_::from_raw(ref_max));
     }

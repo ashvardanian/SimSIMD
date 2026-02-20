@@ -28,7 +28,7 @@ error_stats_t test_dots(typename scalar_type_::dots_packed_size_kernel_t packed_
     error_stats_t stats;
     std::mt19937 generator(global_config.seed);
 
-    std::size_t m = matrix_height, n = matrix_width, k = matrix_depth;
+    std::size_t m = global_config.matrix_height, n = global_config.matrix_width, k = global_config.matrix_depth;
     std::size_t k_values = nk::divide_round_up(k, nk::dimensions_per_value<scalar_t>());
     std::size_t a_stride = k_values * sizeof(scalar_t);
     std::size_t b_stride = k_values * sizeof(scalar_t);
@@ -74,7 +74,7 @@ error_stats_t test_dots_symmetric(typename scalar_type_::dots_symmetric_kernel_t
     error_stats_t stats;
     std::mt19937 generator(global_config.seed);
 
-    std::size_t n = matrix_height, k = matrix_depth;
+    std::size_t n = global_config.matrix_height, k = global_config.matrix_depth;
     std::size_t k_values = nk::divide_round_up(k, nk::dimensions_per_value<scalar_t>());
     std::size_t a_stride = k_values * sizeof(scalar_t);
     std::size_t c_stride = n * sizeof(result_t);
@@ -113,7 +113,7 @@ error_stats_t test_hammings(typename scalar_type_::hammings_packed_size_kernel_t
     error_stats_t stats;
     std::mt19937 generator(global_config.seed);
 
-    std::size_t m = matrix_height, n = matrix_width, k = dense_dimensions;
+    std::size_t m = global_config.matrix_height, n = global_config.matrix_width, k = global_config.dense_dimensions;
     std::size_t k_bytes = nk::divide_round_up(k, 8);
     std::size_t a_stride = k_bytes * sizeof(scalar_t);
     std::size_t b_stride = k_bytes * sizeof(scalar_t);
@@ -160,7 +160,7 @@ error_stats_t test_hammings_symmetric(typename scalar_type_::hammings_symmetric_
     error_stats_t stats;
     std::mt19937 generator(global_config.seed);
 
-    std::size_t n = matrix_height, k = dense_dimensions;
+    std::size_t n = global_config.matrix_height, k = global_config.dense_dimensions;
     std::size_t k_bytes = nk::divide_round_up(k, 8);
     std::size_t a_stride = k_bytes * sizeof(scalar_t);
     std::size_t c_stride = n * sizeof(result_t);

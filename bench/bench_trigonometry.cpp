@@ -68,10 +68,10 @@ void measure_trigonometry(bm::State &state, kernel_type_ kernel, std::size_t dim
 template <nk_dtype_t input_dtype_, nk_kernel_kind_t kernel_kind_ = nk_kernel_unknown_k,
           nk_dtype_t alpha_dtype_ = nk_dtype_unknown_k, typename kernel_type_ = void>
 void trigonometry_(std::string name, kernel_type_ *kernel) {
-    std::string bench_name = name + "<" + std::to_string(dense_dimensions) + "d>";
+    std::string bench_name = name + "<" + std::to_string(bench_config.dense_dimensions) + "d>";
     bm::RegisterBenchmark(bench_name.c_str(),
                           measure_trigonometry<input_dtype_, kernel_kind_, alpha_dtype_, kernel_type_ *>, kernel,
-                          dense_dimensions);
+                          bench_config.dense_dimensions);
 }
 
 void bench_trigonometry() {

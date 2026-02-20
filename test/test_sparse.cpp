@@ -41,7 +41,7 @@ error_stats_t test_intersect(typename index_type_::sparse_intersect_kernel_t ker
     using index_t = index_type_;
     error_stats_t stats;
     std::mt19937 generator(global_config.seed);
-    std::size_t dim = sparse_dimensions;
+    std::size_t dim = global_config.sparse_dimensions;
     auto a = make_vector<index_t>(dim), b = make_vector<index_t>(dim);
 
     for (auto start = test_start_time(); within_time_budget(start);) {
@@ -72,7 +72,7 @@ error_stats_t test_sparse_dot(typename weight_type_::sparse_dot_kernel_t kernel)
 
     error_stats_t stats;
     std::mt19937 generator(global_config.seed);
-    std::size_t dim = sparse_dimensions;
+    std::size_t dim = global_config.sparse_dimensions;
     auto a_idx = make_vector<index_t>(dim), b_idx = make_vector<index_t>(dim);
     auto a_weights = make_vector<weight_t>(dim), b_weights = make_vector<weight_t>(dim);
 

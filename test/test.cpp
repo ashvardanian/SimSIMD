@@ -41,15 +41,7 @@ static void print_isa(char const *name, int compiled, nk_capability_t cap, nk_ca
     print_indicator((runtime & cap) != 0);
 }
 
-// Definition of global variables declared extern in test.hpp
-std::size_t dense_dimensions = 1536; // For dot products, spatial metrics
-std::size_t curved_dimensions = 64;  // For curved metrics (quadratic in dims)
-std::size_t sparse_dimensions = 256; // For sparse set intersection and sparse dot
-std::size_t mesh_points = 1000;      // For RMSD, Kabsch (3D point clouds)
-std::size_t matrix_height = 1024, matrix_width = 128, matrix_depth = 1536;
-
 test_config_t global_config;
-std::size_t global_failure_count = 0;
 
 bool test_config_t::should_run(char const *test_name) const {
     if (!filter) return true;
@@ -196,31 +188,31 @@ int main(int argc, char **argv) {
     // Parse dimension overrides from environment variables
     if (char const *env = std::getenv("NK_DENSE_DIMENSIONS")) {
         std::size_t val = static_cast<std::size_t>(std::atoll(env));
-        if (val > 0) dense_dimensions = val;
+        if (val > 0) global_config.dense_dimensions = val;
     }
     if (char const *env = std::getenv("NK_CURVED_DIMENSIONS")) {
         std::size_t val = static_cast<std::size_t>(std::atoll(env));
-        if (val > 0) curved_dimensions = val;
+        if (val > 0) global_config.curved_dimensions = val;
     }
     if (char const *env = std::getenv("NK_SPARSE_DIMENSIONS")) {
         std::size_t val = static_cast<std::size_t>(std::atoll(env));
-        if (val > 0) sparse_dimensions = val;
+        if (val > 0) global_config.sparse_dimensions = val;
     }
     if (char const *env = std::getenv("NK_MESH_POINTS")) {
         std::size_t val = static_cast<std::size_t>(std::atoll(env));
-        if (val > 0) mesh_points = val;
+        if (val > 0) global_config.mesh_points = val;
     }
     if (char const *env = std::getenv("NK_MATRIX_HEIGHT")) {
         std::size_t val = static_cast<std::size_t>(std::atoll(env));
-        if (val > 0) matrix_height = val;
+        if (val > 0) global_config.matrix_height = val;
     }
     if (char const *env = std::getenv("NK_MATRIX_WIDTH")) {
         std::size_t val = static_cast<std::size_t>(std::atoll(env));
-        if (val > 0) matrix_width = val;
+        if (val > 0) global_config.matrix_width = val;
     }
     if (char const *env = std::getenv("NK_MATRIX_DEPTH")) {
         std::size_t val = static_cast<std::size_t>(std::atoll(env));
-        if (val > 0) matrix_depth = val;
+        if (val > 0) global_config.matrix_depth = val;
     }
 
     nk_capability_t runtime_caps = nk_capabilities();
@@ -287,8 +279,10 @@ int main(int argc, char **argv) {
     std::printf("\n");
 
     // Dimensions row
-    std::printf("  Dimensions: dense=%zu  curved=%zu  sparse=%zu  mesh=%zu  matrix=%zux%zux%zu\n", dense_dimensions,
-                curved_dimensions, sparse_dimensions, mesh_points, matrix_height, matrix_width, matrix_depth);
+    std::printf("  Dimensions: dense=%zu  curved=%zu  sparse=%zu  mesh=%zu  matrix=%zux%zux%zu\n",
+                global_config.dense_dimensions, global_config.curved_dimensions, global_config.sparse_dimensions,
+                global_config.mesh_points, global_config.matrix_height, global_config.matrix_width,
+                global_config.matrix_depth);
 
     // ULP thresholds
     std::printf("  ULP: f32 \xe2\x89\xa4 %llu  f16 \xe2\x89\xa4 %llu  bf16 \xe2\x89\xa4 %llu\n",
@@ -333,9 +327,9 @@ int main(int argc, char **argv) {
     test_cross_blas();
     test_cross_rvv();
 
-    if (global_failure_count > 0) {
+    if (global_config.failure_count > 0) {
         std::puts("");
-        std::printf("%zu kernel(s) exceeded ULP thresholds.\n", global_failure_count);
+        std::printf("%zu kernel(s) exceeded ULP thresholds.\n", global_config.failure_count);
         return 1;
     }
     std::puts("");

@@ -21,17 +21,19 @@ error_stats_t test_dot(typename scalar_type_::dot_kernel_t kernel) {
 
     error_stats_t stats;
     std::mt19937 generator(global_config.seed);
-    auto a = make_vector<scalar_t>(dense_dimensions), b = make_vector<scalar_t>(dense_dimensions);
+    auto a = make_vector<scalar_t>(global_config.dense_dimensions),
+         b = make_vector<scalar_t>(global_config.dense_dimensions);
 
     for (auto start = test_start_time(); within_time_budget(start);) {
         fill_random(generator, a);
         fill_random(generator, b);
 
         result_t result;
-        kernel(a.raw_values_data(), b.raw_values_data(), dense_dimensions, &result.raw_);
+        kernel(a.raw_values_data(), b.raw_values_data(), global_config.dense_dimensions, &result.raw_);
 
         reference_t reference;
-        nk::dot<scalar_t, reference_t, nk::no_simd_k>(a.values_data(), b.values_data(), dense_dimensions, &reference);
+        nk::dot<scalar_t, reference_t, nk::no_simd_k>(a.values_data(), b.values_data(), global_config.dense_dimensions,
+                                                      &reference);
 
         stats.accumulate(result, reference);
     }
@@ -49,17 +51,19 @@ error_stats_t test_vdot(typename scalar_type_::vdot_kernel_t kernel) {
 
     error_stats_t stats;
     std::mt19937 generator(global_config.seed);
-    auto a = make_vector<scalar_t>(dense_dimensions), b = make_vector<scalar_t>(dense_dimensions);
+    auto a = make_vector<scalar_t>(global_config.dense_dimensions),
+         b = make_vector<scalar_t>(global_config.dense_dimensions);
 
     for (auto start = test_start_time(); within_time_budget(start);) {
         fill_random(generator, a);
         fill_random(generator, b);
 
         result_t result;
-        kernel(a.raw_values_data(), b.raw_values_data(), dense_dimensions, &result.raw_);
+        kernel(a.raw_values_data(), b.raw_values_data(), global_config.dense_dimensions, &result.raw_);
 
         f118c_t reference;
-        nk::vdot<scalar_t, f118c_t, nk::no_simd_k>(a.values_data(), b.values_data(), dense_dimensions, &reference);
+        nk::vdot<scalar_t, f118c_t, nk::no_simd_k>(a.values_data(), b.values_data(), global_config.dense_dimensions,
+                                                   &reference);
 
         stats.accumulate(result, reference);
     }

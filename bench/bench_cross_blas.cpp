@@ -204,39 +204,40 @@ void measure_dots_i16i16i32_with_mkl(bm::State &state, std::size_t m, std::size_
 
 void bench_cross_blas() {
 
-    std::string syrk_dims = std::to_string(matrix_height) + "x" + std::to_string(matrix_depth);
-    std::string gemm_dims = std::to_string(matrix_height) + "x" + std::to_string(matrix_width) + "x" +
-                            std::to_string(matrix_depth);
+    std::string syrk_dims = std::to_string(bench_config.matrix_height) + "x" +
+                            std::to_string(bench_config.matrix_depth);
+    std::string gemm_dims = std::to_string(bench_config.matrix_height) + "x" +
+                            std::to_string(bench_config.matrix_width) + "x" + std::to_string(bench_config.matrix_depth);
 
     nk_unused_(syrk_dims);
     nk_unused_(gemm_dims);
 
 #if NK_COMPARE_TO_BLAS || NK_COMPARE_TO_MKL || NK_COMPARE_TO_ACCELERATE
     // BLAS GEMM baselines for matmul comparison (same layout as NumKong: A x B^T)
-    bm::RegisterBenchmark(("dots_f32_with_blas<" + gemm_dims + ">").c_str(), measure_dots_f32_with_blas, matrix_height,
-                          matrix_width, matrix_depth);
-    bm::RegisterBenchmark(("dots_f64_with_blas<" + gemm_dims + ">").c_str(), measure_dots_f64_with_blas, matrix_height,
-                          matrix_width, matrix_depth);
+    bm::RegisterBenchmark(("dots_f32_with_blas<" + gemm_dims + ">").c_str(), measure_dots_f32_with_blas,
+                          bench_config.matrix_height, bench_config.matrix_width, bench_config.matrix_depth);
+    bm::RegisterBenchmark(("dots_f64_with_blas<" + gemm_dims + ">").c_str(), measure_dots_f64_with_blas,
+                          bench_config.matrix_height, bench_config.matrix_width, bench_config.matrix_depth);
 
     // BLAS SYRK baselines for symmetric operations (correct operation for dots_symmetric: A x A^T)
     bm::RegisterBenchmark(("dots_symmetric_f32_with_blas<" + syrk_dims + ">").c_str(),
-                          measure_dots_symmetric_f32_with_blas, matrix_height, matrix_depth);
+                          measure_dots_symmetric_f32_with_blas, bench_config.matrix_height, bench_config.matrix_depth);
     bm::RegisterBenchmark(("dots_symmetric_f64_with_blas<" + syrk_dims + ">").c_str(),
-                          measure_dots_symmetric_f64_with_blas, matrix_height, matrix_depth);
+                          measure_dots_symmetric_f64_with_blas, bench_config.matrix_height, bench_config.matrix_depth);
 #endif
 
 #if NK_COMPARE_TO_MKL
-    bm::RegisterBenchmark(("dots_f32_with_mkl<" + gemm_dims + ">").c_str(), measure_dots_f32_with_mkl, matrix_height,
-                          matrix_width, matrix_depth);
-    bm::RegisterBenchmark(("dots_bf16_with_mkl<" + gemm_dims + ">").c_str(), measure_dots_bf16_with_mkl, matrix_height,
-                          matrix_width, matrix_depth);
-    bm::RegisterBenchmark(("dots_f16_with_mkl<" + gemm_dims + ">").c_str(), measure_dots_f16_with_mkl, matrix_height,
-                          matrix_width, matrix_depth);
-    bm::RegisterBenchmark(("dots_f64_with_mkl<" + gemm_dims + ">").c_str(), measure_dots_f64_with_mkl, matrix_height,
-                          matrix_width, matrix_depth);
+    bm::RegisterBenchmark(("dots_f32_with_mkl<" + gemm_dims + ">").c_str(), measure_dots_f32_with_mkl,
+                          bench_config.matrix_height, bench_config.matrix_width, bench_config.matrix_depth);
+    bm::RegisterBenchmark(("dots_bf16_with_mkl<" + gemm_dims + ">").c_str(), measure_dots_bf16_with_mkl,
+                          bench_config.matrix_height, bench_config.matrix_width, bench_config.matrix_depth);
+    bm::RegisterBenchmark(("dots_f16_with_mkl<" + gemm_dims + ">").c_str(), measure_dots_f16_with_mkl,
+                          bench_config.matrix_height, bench_config.matrix_width, bench_config.matrix_depth);
+    bm::RegisterBenchmark(("dots_f64_with_mkl<" + gemm_dims + ">").c_str(), measure_dots_f64_with_mkl,
+                          bench_config.matrix_height, bench_config.matrix_width, bench_config.matrix_depth);
     bm::RegisterBenchmark(("dots_u8i8i32_with_mkl<" + gemm_dims + ">").c_str(), measure_dots_u8i8i32_with_mkl,
-                          matrix_height, matrix_width, matrix_depth);
+                          bench_config.matrix_height, bench_config.matrix_width, bench_config.matrix_depth);
     bm::RegisterBenchmark(("dots_i16i16i32_with_mkl<" + gemm_dims + ">").c_str(), measure_dots_i16i16i32_with_mkl,
-                          matrix_height, matrix_width, matrix_depth);
+                          bench_config.matrix_height, bench_config.matrix_width, bench_config.matrix_depth);
 #endif
 }

@@ -60,9 +60,9 @@ void measure_geospatial(bm::State &state, kernel_type_ kernel, std::size_t coord
 
 template <nk_dtype_t input_dtype_, nk_dtype_t output_dtype_, typename kernel_type_ = void>
 void geospatial_(std::string name, kernel_type_ *kernel) {
-    std::string bench_name = name + "<" + std::to_string(dense_dimensions) + "d>";
+    std::string bench_name = name + "<" + std::to_string(bench_config.dense_dimensions) + "d>";
     bm::RegisterBenchmark(bench_name.c_str(), measure_geospatial<input_dtype_, output_dtype_, kernel_type_ *>, kernel,
-                          dense_dimensions);
+                          bench_config.dense_dimensions);
 }
 
 void bench_geospatial() {

@@ -118,9 +118,9 @@ void measure_curved(bm::State &state, kernel_type_ kernel, std::size_t dimension
 
 template <nk_dtype_t input_dtype_, nk_dtype_t output_dtype_, typename kernel_type_ = void>
 void curved_(std::string name, kernel_type_ *kernel) {
-    std::string bench_name = name + "<" + std::to_string(curved_dimensions) + "d>";
+    std::string bench_name = name + "<" + std::to_string(bench_config.curved_dimensions) + "d>";
     bm::RegisterBenchmark(bench_name.c_str(), measure_curved<input_dtype_, output_dtype_, kernel_type_ *>, kernel,
-                          curved_dimensions);
+                          bench_config.curved_dimensions);
 }
 
 void bench_curved() {

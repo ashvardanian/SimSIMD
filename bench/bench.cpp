@@ -66,16 +66,7 @@ static void print_isa(char const *name, int compiled, nk_capability_t cap, nk_ca
     print_indicator((runtime & cap) != 0);
 }
 
-// Global variable definitions
-std::size_t dense_dimensions = 1536;
-std::size_t curved_dimensions = 64;
-std::size_t mesh_points = 1000;
-std::size_t matrix_height = 1024, matrix_width = 128, matrix_depth = 1536;
-std::uint32_t random_seed = 42;
-std::size_t sparse_first_length = 1024;
-std::size_t sparse_second_length = 8192;
-double sparse_intersection_share = 0.5;
-std::size_t bench_budget = std::size_t(1024) * 1024 * 1024; // 1024 MB default
+bench_config_t bench_config;
 
 int main(int argc, char **argv) {
     nk_capability_t runtime_caps = nk_capabilities();
@@ -90,47 +81,47 @@ int main(int argc, char **argv) {
     // Override dimensions from environment variables if provided
     if (char const *env_dense = std::getenv("NK_DENSE_DIMENSIONS")) {
         std::size_t parsed_dense = static_cast<std::size_t>(std::atoll(env_dense));
-        if (parsed_dense > 0) dense_dimensions = parsed_dense;
+        if (parsed_dense > 0) bench_config.dense_dimensions = parsed_dense;
     }
     if (char const *env_curved = std::getenv("NK_CURVED_DIMENSIONS")) {
         std::size_t parsed_curved = static_cast<std::size_t>(std::atoll(env_curved));
-        if (parsed_curved > 0) curved_dimensions = parsed_curved;
+        if (parsed_curved > 0) bench_config.curved_dimensions = parsed_curved;
     }
     if (char const *env_mesh = std::getenv("NK_MESH_POINTS")) {
         std::size_t parsed_mesh = static_cast<std::size_t>(std::atoll(env_mesh));
-        if (parsed_mesh > 0) mesh_points = parsed_mesh;
+        if (parsed_mesh > 0) bench_config.mesh_points = parsed_mesh;
     }
     if (char const *env_matrix_height = std::getenv("NK_MATRIX_HEIGHT")) {
         std::size_t parsed = static_cast<std::size_t>(std::atoll(env_matrix_height));
-        if (parsed > 0) matrix_height = parsed;
+        if (parsed > 0) bench_config.matrix_height = parsed;
     }
     if (char const *env_matrix_width = std::getenv("NK_MATRIX_WIDTH")) {
         std::size_t parsed = static_cast<std::size_t>(std::atoll(env_matrix_width));
-        if (parsed > 0) matrix_width = parsed;
+        if (parsed > 0) bench_config.matrix_width = parsed;
     }
     if (char const *env_matrix_depth = std::getenv("NK_MATRIX_DEPTH")) {
         std::size_t parsed = static_cast<std::size_t>(std::atoll(env_matrix_depth));
-        if (parsed > 0) matrix_depth = parsed;
+        if (parsed > 0) bench_config.matrix_depth = parsed;
     }
     if (char const *env_seed = std::getenv("NK_SEED")) {
         std::uint32_t parsed = static_cast<std::uint32_t>(std::atoll(env_seed));
-        random_seed = parsed;
+        bench_config.seed = parsed;
     }
     if (char const *env_sparse_first = std::getenv("NK_SPARSE_FIRST_LENGTH")) {
         std::size_t parsed = static_cast<std::size_t>(std::atoll(env_sparse_first));
-        if (parsed > 0) sparse_first_length = parsed;
+        if (parsed > 0) bench_config.sparse_first_length = parsed;
     }
     if (char const *env_sparse_second = std::getenv("NK_SPARSE_SECOND_LENGTH")) {
         std::size_t parsed = static_cast<std::size_t>(std::atoll(env_sparse_second));
-        if (parsed > 0) sparse_second_length = parsed;
+        if (parsed > 0) bench_config.sparse_second_length = parsed;
     }
     if (char const *env_sparse_intersection = std::getenv("NK_SPARSE_INTERSECTION")) {
         double parsed = std::atof(env_sparse_intersection);
-        if (parsed >= 0.0 && parsed <= 1.0) sparse_intersection_share = parsed;
+        if (parsed >= 0.0 && parsed <= 1.0) bench_config.sparse_intersection_share = parsed;
     }
     if (char const *env_budget = std::getenv("NK_BUDGET_MB")) {
         std::size_t parsed_mb = static_cast<std::size_t>(std::atoll(env_budget));
-        if (parsed_mb > 0) bench_budget = parsed_mb * 1024 * 1024;
+        if (parsed_mb > 0) bench_config.budget_bytes = parsed_mb * 1024 * 1024;
     }
 
     std::printf(colors_enabled() ? "\033[1mNumKong Benchmarking Suite v%d.%d.%d\033[0m\n"
@@ -195,11 +186,13 @@ int main(int argc, char **argv) {
 
     // Dimensions row
     std::printf("  Dimensions: dense=%zu  curved=%zu  mesh=%zu  matrix=%zux%zux%zu  sparse=%zu/%zu@%.2f\n",
-                dense_dimensions, curved_dimensions, mesh_points, matrix_height, matrix_width, matrix_depth,
-                sparse_first_length, sparse_second_length, sparse_intersection_share);
+                bench_config.dense_dimensions, bench_config.curved_dimensions, bench_config.mesh_points,
+                bench_config.matrix_height, bench_config.matrix_width, bench_config.matrix_depth,
+                bench_config.sparse_first_length, bench_config.sparse_second_length,
+                bench_config.sparse_intersection_share);
 
     // Bench-specific config
-    std::printf("  Bench: seed=%u\n", random_seed);
+    std::printf("  Bench: seed=%u\n", bench_config.seed);
     std::printf("\n");
 
     // Build args for Google Benchmark: translate foreign flags, inject env var overrides.
