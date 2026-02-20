@@ -265,18 +265,6 @@ NK_PUBLIC void nk_mahalanobis_bf16_genoa(nk_bf16_t const *a, nk_bf16_t const *b,
                                          nk_f32_t *result);
 #endif // NK_TARGET_GENOA
 
-#if NK_TARGET_SAPPHIRE
-/** @copydoc nk_bilinear_f16 */
-NK_PUBLIC void nk_bilinear_f16_sapphire(nk_f16_t const *a, nk_f16_t const *b, nk_f16_t const *c, nk_size_t n,
-                                        nk_f32_t *result);
-/** @copydoc nk_bilinear_f16c */
-NK_PUBLIC void nk_bilinear_f16c_sapphire(nk_f16c_t const *a, nk_f16c_t const *b, nk_f16c_t const *c, nk_size_t n,
-                                         nk_f32c_t *results);
-/** @copydoc nk_mahalanobis_f16 */
-NK_PUBLIC void nk_mahalanobis_f16_sapphire(nk_f16_t const *a, nk_f16_t const *b, nk_f16_t const *c, nk_size_t n,
-                                           nk_f32_t *result);
-#endif // NK_TARGET_SAPPHIRE
-
 #if NK_TARGET_RVV
 /** @copydoc nk_bilinear_f64 */
 NK_PUBLIC void nk_bilinear_f64_rvv(nk_f64_t const *a, nk_f64_t const *b, nk_f64_t const *c, nk_size_t n,
@@ -346,7 +334,6 @@ NK_INTERNAL nk_dtype_t nk_mahalanobis_output_dtype(nk_dtype_t dtype) {
 #include "numkong/curved/haswell.h"
 #include "numkong/curved/skylake.h"
 #include "numkong/curved/genoa.h"
-#include "numkong/curved/sapphire.h"
 #include "numkong/curved/rvv.h"
 
 #if defined(__cplusplus)
@@ -380,9 +367,7 @@ NK_PUBLIC void nk_bilinear_f32(nk_f32_t const *a, nk_f32_t const *b, nk_f32_t co
 }
 
 NK_PUBLIC void nk_bilinear_f16(nk_f16_t const *a, nk_f16_t const *b, nk_f16_t const *c, nk_size_t n, nk_f32_t *result) {
-#if NK_TARGET_SAPPHIRE
-    nk_bilinear_f16_sapphire(a, b, c, n, result);
-#elif NK_TARGET_HASWELL
+#if NK_TARGET_HASWELL
     nk_bilinear_f16_haswell(a, b, c, n, result);
 #elif NK_TARGET_NEONHALF
     nk_bilinear_f16_neonhalf(a, b, c, n, result);
@@ -430,9 +415,7 @@ NK_PUBLIC void nk_bilinear_f32c(nk_f32c_t const *a, nk_f32c_t const *b, nk_f32c_
 
 NK_PUBLIC void nk_bilinear_f16c(nk_f16c_t const *a, nk_f16c_t const *b, nk_f16c_t const *c, nk_size_t n,
                                 nk_f32c_t *results) {
-#if NK_TARGET_SAPPHIRE
-    nk_bilinear_f16c_sapphire(a, b, c, n, results);
-#elif NK_TARGET_NEONHALF
+#if NK_TARGET_NEONHALF
     nk_bilinear_f16c_neonhalf(a, b, c, n, results);
 #else
     nk_bilinear_f16c_serial(a, b, c, n, results);
@@ -478,9 +461,7 @@ NK_PUBLIC void nk_mahalanobis_f32(nk_f32_t const *a, nk_f32_t const *b, nk_f32_t
 
 NK_PUBLIC void nk_mahalanobis_f16(nk_f16_t const *a, nk_f16_t const *b, nk_f16_t const *c, nk_size_t n,
                                   nk_f32_t *result) {
-#if NK_TARGET_SAPPHIRE
-    nk_mahalanobis_f16_sapphire(a, b, c, n, result);
-#elif NK_TARGET_HASWELL
+#if NK_TARGET_HASWELL
     nk_mahalanobis_f16_haswell(a, b, c, n, result);
 #elif NK_TARGET_NEONHALF
     nk_mahalanobis_f16_neonhalf(a, b, c, n, result);

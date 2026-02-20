@@ -87,8 +87,6 @@ void nk_dispatch_f16_find_(nk_capability_t v, nk_kernel_kind_t k, nk_kernel_punn
     if (v & nk_cap_sapphire_k) switch (k) {
         case nk_kernel_jsd_k: *m = (m_t)&nk_jsd_f16_sapphire, *c = nk_cap_sapphire_k; return;
         case nk_kernel_kld_k: *m = (m_t)&nk_kld_f16_sapphire, *c = nk_cap_sapphire_k; return;
-        case nk_kernel_bilinear_k: *m = (m_t)&nk_bilinear_f16_sapphire, *c = nk_cap_sapphire_k; return;
-        case nk_kernel_mahalanobis_k: *m = (m_t)&nk_mahalanobis_f16_sapphire, *c = nk_cap_sapphire_k; return;
         case nk_kernel_each_fma_k: *m = (m_t)&nk_each_fma_f16_sapphire, *c = nk_cap_sapphire_k; return;
         case nk_kernel_each_blend_k: *m = (m_t)&nk_each_blend_f16_sapphire, *c = nk_cap_sapphire_k; return;
         case nk_kernel_each_scale_k: *m = (m_t)&nk_each_scale_f16_sapphire, *c = nk_cap_sapphire_k; return;

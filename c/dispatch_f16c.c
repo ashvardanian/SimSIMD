@@ -30,12 +30,6 @@ void nk_dispatch_f16c_find_(nk_capability_t v, nk_kernel_kind_t k, nk_kernel_pun
         default: break;
         }
 #endif
-#if NK_TARGET_SAPPHIRE
-    if (v & nk_cap_sapphire_k) switch (k) {
-        case nk_kernel_bilinear_k: *m = (m_t)&nk_bilinear_f16c_sapphire, *c = nk_cap_sapphire_k; return;
-        default: break;
-        }
-#endif
 #if NK_TARGET_HASWELL
     if (v & nk_cap_haswell_k) switch (k) {
         case nk_kernel_dot_k: *m = (m_t)&nk_dot_f16c_haswell, *c = nk_cap_haswell_k; return;

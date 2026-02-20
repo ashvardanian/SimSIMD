@@ -189,12 +189,6 @@ void bench_curved() {
     curved_<bf16c_k, f32c_k>("bilinear_bf16c_genoa", nk_bilinear_bf16c_genoa);
 #endif
 
-#if NK_TARGET_SAPPHIRE
-    curved_<f16_k, f32_k>("bilinear_f16_sapphire", nk_bilinear_f16_sapphire);
-    curved_<f16_k, f32_k>("mahalanobis_f16_sapphire", nk_mahalanobis_f16_sapphire);
-    curved_<f16c_k, f32c_k>("bilinear_f16c_sapphire", nk_bilinear_f16c_sapphire);
-#endif
-
     // Serial fallbacks
     curved_<f64_k, f64_k>("bilinear_f64_serial", nk_bilinear_f64_serial);
     curved_<f64c_k, f64c_k>("bilinear_f64c_serial", nk_bilinear_f64c_serial);
