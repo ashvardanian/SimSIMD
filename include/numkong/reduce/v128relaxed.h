@@ -1666,7 +1666,7 @@ NK_INTERNAL void nk_reduce_moments_e4m3_v128relaxed_contiguous_( //
     nk_size_t idx = 0;
     for (; idx + 4 <= count; idx += 4) {
         nk_b32_vec_t raw;
-        __builtin_memcpy(&raw.u32, data_ptr + idx, 4);
+        nk_load_b32_serial_(data_ptr + idx, &raw);
         v128_t data_f32x4 = nk_e4m3x4_to_f32x4_v128relaxed_(raw).v128;
         sum_f32x4 = wasm_f32x4_add(sum_f32x4, data_f32x4);
         sumsq_f32x4 = wasm_f32x4_relaxed_madd(data_f32x4, data_f32x4, sumsq_f32x4);
@@ -1841,7 +1841,7 @@ NK_INTERNAL void nk_reduce_moments_e5m2_v128relaxed_contiguous_( //
     nk_size_t idx = 0;
     for (; idx + 4 <= count; idx += 4) {
         nk_b32_vec_t raw;
-        __builtin_memcpy(&raw.u32, data_ptr + idx, 4);
+        nk_load_b32_serial_(data_ptr + idx, &raw);
         v128_t data_f32x4 = nk_e5m2x4_to_f32x4_v128relaxed_(raw).v128;
         sum_f32x4 = wasm_f32x4_add(sum_f32x4, data_f32x4);
         sumsq_f32x4 = wasm_f32x4_relaxed_madd(data_f32x4, data_f32x4, sumsq_f32x4);
