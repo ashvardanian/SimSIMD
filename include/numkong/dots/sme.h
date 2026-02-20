@@ -95,9 +95,14 @@ typedef struct {
 enum {
     nk_sme_zero_za32_tile_0_ = 0x11,
     nk_sme_zero_za32_tile_1_ = 0x22,
+    nk_sme_zero_za32_tile_2_ = 0x44,
+    nk_sme_zero_za32_tile_3_ = 0x88,
     nk_sme_zero_za32_tiles_123_ = 0xEE, /* Accumulators only (preserves ZA0 staging) */
     nk_sme_zero_za64_tile_0_ = 0x01,
     nk_sme_zero_za64_tile_1_ = 0x02,
+    nk_sme_zero_za64_tile_2_ = 0x04,    /* ZA2.D only */
+    nk_sme_zero_za64_tiles_1_3_ = 0x0E, /* ZA1-3.D (Ozaki 1-col path) */
+    nk_sme_zero_za64_tiles_1_6_ = 0x7E, /* ZA1-6.D (Ozaki 2-col path) */
     nk_sme_zero_za64_tiles_1_7_ = 0xFE, /* Accumulators ZA1-7.D (preserves ZA0.D staging) */
 };
 
