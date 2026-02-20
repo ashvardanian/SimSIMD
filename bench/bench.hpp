@@ -11,11 +11,12 @@
 
 #pragma once
 
-#include <bit>         // `std::bit_floor`
-#include <cmath>       // `std::sqrt`
-#include <random>      // `std::uniform_int_distribution`
-#include <type_traits> // `std::conditional_t`
-#include <vector>      // `std::vector`
+#include <algorithm> // `std::min`, `std::max`
+#include <bit>       // `std::bit_floor`
+#include <random>    // `std::mt19937`
+#include <string>    // `std::string`, `std::to_string`
+#include <vector>    // `std::vector`
+
 #include <benchmark/benchmark.h>
 
 #if !defined(NK_COMPARE_TO_MKL)

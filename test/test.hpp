@@ -33,19 +33,15 @@
 #ifndef NK_TEST_HPP
 #define NK_TEST_HPP
 
-#include <algorithm>
-#include <cassert>
-#include <cfloat>
-#include <chrono>
-#include <cmath>
-#include <complex>
-#include <cstdint>
-#include <cstdio>
-#include <cstdlib>
-#include <cstring>
-#include <limits>
-#include <random>
-#include <vector>
+#include <cmath>   // `std::fabs`, `std::isnan`, `std::isinf`
+#include <cstdint> // `std::uint64_t`, `std::int32_t`, `std::int64_t`
+#include <cstdio>  // `std::printf`, `std::fflush`
+#include <cstring> // `std::memcpy`, `std::strstr`
+
+#include <algorithm> // `std::min`, `std::max`
+#include <chrono>    // `std::chrono::steady_clock`, `std::chrono::duration_cast`
+#include <complex>   // `std::complex`
+#include <limits>    // `std::numeric_limits`
 
 #if NK_TEST_USE_OPENMP
 #include <omp.h>
