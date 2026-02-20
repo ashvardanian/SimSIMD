@@ -542,7 +542,7 @@ typedef nk_u64_t nk_size_t;
 typedef nk_i64_t nk_ssize_t;
 typedef nk_f64_t nk_fmax_t;
 
-#define NK_SIZE_MAX ((nk_size_t)-1)
+#define NK_SIZE_MAX ((nk_size_t) - 1)
 
 #define NK_F64_MAX 1.7976931348623157e+308
 #define NK_F64_MIN (-1.7976931348623157e+308)
@@ -634,10 +634,10 @@ typedef enum {
     nk_dtype_family_complex_float_k,
     nk_dtype_family_int_k,
     nk_dtype_family_uint_k,
-} nk_dtype_family_k;
+} nk_dtype_family_t;
 
 /** @brief Classifies the family of the dtype. */
-NK_PUBLIC nk_dtype_family_k nk_dtype_family(nk_dtype_t dtype) {
+NK_PUBLIC nk_dtype_family_t nk_dtype_family(nk_dtype_t dtype) {
     switch (dtype) {
     case nk_f64_k: return nk_dtype_family_float_k;
     case nk_f32_k: return nk_dtype_family_float_k;

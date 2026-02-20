@@ -1934,8 +1934,8 @@ NK_PUBLIC void nk_cast_serial(void const *from, nk_dtype_t from_type, nk_size_t 
 
     nk_u8_t const *src = (nk_u8_t const *)from;
     nk_u8_t *dst = (nk_u8_t *)to;
-    nk_dtype_family_k from_family = nk_dtype_family(from_type);
-    nk_dtype_family_k to_family = nk_dtype_family(to_type);
+    nk_dtype_family_t from_family = nk_dtype_family(from_type);
+    nk_dtype_family_t to_family = nk_dtype_family(to_type);
 
     nk_size_t batches = n / NK_BITS_PER_BYTE;
     nk_size_t tail = n % NK_BITS_PER_BYTE;
