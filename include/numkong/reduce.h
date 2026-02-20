@@ -824,6 +824,80 @@ NK_PUBLIC void nk_reduce_minmax_e3m2_v128relaxed(nk_e3m2_t const *, nk_size_t, n
                                                  nk_e3m2_t *, nk_size_t *);
 #endif // NK_TARGET_V128RELAXED
 
+/**
+ *  @brief  Returns the accumulator dtype for the `sum` output of reduce_moments.
+ *
+ *  Float types accumulate into wider floats; signed ints into i64; unsigned ints into u64.
+ */
+NK_INTERNAL nk_dtype_t nk_reduce_moments_sum_dtype(nk_dtype_t dtype) {
+    switch (dtype) {
+    case nk_f64_k: return nk_f64_k;
+    case nk_f32_k: return nk_f64_k;
+    case nk_f16_k: return nk_f32_k;
+    case nk_bf16_k: return nk_f32_k;
+    case nk_e4m3_k: return nk_f32_k;
+    case nk_e5m2_k: return nk_f32_k;
+    case nk_e2m3_k: return nk_f32_k;
+    case nk_e3m2_k: return nk_f32_k;
+    case nk_i8_k: return nk_i64_k;
+    case nk_i16_k: return nk_i64_k;
+    case nk_i32_k: return nk_i64_k;
+    case nk_i64_k: return nk_i64_k;
+    case nk_i4_k: return nk_i64_k;
+    case nk_u8_k: return nk_u64_k;
+    case nk_u16_k: return nk_u64_k;
+    case nk_u32_k: return nk_u64_k;
+    case nk_u64_k: return nk_u64_k;
+    case nk_u4_k: return nk_u64_k;
+    case nk_u1_k: return nk_u64_k;
+    default: return nk_dtype_unknown_k;
+    }
+}
+
+/**
+ *  @brief  Returns the accumulator dtype for the `sumsq` output of reduce_moments.
+ *
+ *  Same as sum except all integers (signed and unsigned) accumulate into u64.
+ */
+NK_INTERNAL nk_dtype_t nk_reduce_moments_sumsq_dtype(nk_dtype_t dtype) {
+    switch (dtype) {
+    case nk_f64_k: return nk_f64_k;
+    case nk_f32_k: return nk_f64_k;
+    case nk_f16_k: return nk_f32_k;
+    case nk_bf16_k: return nk_f32_k;
+    case nk_e4m3_k: return nk_f32_k;
+    case nk_e5m2_k: return nk_f32_k;
+    case nk_e2m3_k: return nk_f32_k;
+    case nk_e3m2_k: return nk_f32_k;
+    case nk_i8_k: return nk_u64_k;
+    case nk_i16_k: return nk_u64_k;
+    case nk_i32_k: return nk_u64_k;
+    case nk_i64_k: return nk_u64_k;
+    case nk_i4_k: return nk_u64_k;
+    case nk_u8_k: return nk_u64_k;
+    case nk_u16_k: return nk_u64_k;
+    case nk_u32_k: return nk_u64_k;
+    case nk_u64_k: return nk_u64_k;
+    case nk_u4_k: return nk_u64_k;
+    case nk_u1_k: return nk_u64_k;
+    default: return nk_dtype_unknown_k;
+    }
+}
+
+/**
+ *  @brief  Returns the value dtype for reduce_minmax outputs.
+ *
+ *  Standard types return themselves. Sub-byte types widen: i4->i8, u4->u8, u1->u8.
+ */
+NK_INTERNAL nk_dtype_t nk_reduce_minmax_value_dtype(nk_dtype_t dtype) {
+    switch (dtype) {
+    case nk_i4_k: return nk_i8_k;
+    case nk_u4_k: return nk_u8_k;
+    case nk_u1_k: return nk_u8_k;
+    default: return dtype;
+    }
+}
+
 #ifdef __cplusplus
 } // extern "C"
 #endif
