@@ -150,7 +150,7 @@ int main(int argc, char **argv) {
                 "\n"                                                                                       //
                 "Environment Variables:\n"                                                                 //
                 "  NK_FILTER=<regex>          Same as --filter\n"                                          //
-                "  NK_TIME_BUDGET=<seconds>   Time budget per kernel (default: 1)\n"                       //
+                "  NK_BUDGET_SECS=<seconds>   Time budget per kernel (default: 1)\n"                       //
                 "  NK_SEED=<int>              Random seed\n"                                               //
                 "  NK_IN_QEMU=1               Skip unreliable half-precision tests\n"                      //
                 "  NK_TEST_ASSERT=1           Same as --assert\n"                                          //
@@ -180,7 +180,7 @@ int main(int argc, char **argv) {
     if (!global_config.filter) global_config.filter = std::getenv("NK_FILTER"); // e.g., "dot", "angular", "kld"
 
     if (global_config.time_budget_ms == 1000) {
-        if (char const *env = std::getenv("NK_TIME_BUDGET")) {
+        if (char const *env = std::getenv("NK_BUDGET_SECS")) {
             double seconds = std::atof(env);
             if (seconds > 0) global_config.time_budget_ms = static_cast<std::size_t>(seconds * 1000);
         }

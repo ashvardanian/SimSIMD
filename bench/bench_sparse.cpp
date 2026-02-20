@@ -30,7 +30,8 @@ void measure_sparse(bm::State &state, kernel_type_ kernel, std::size_t first_siz
     using scalar_t = typename input_t::raw_t;
 
     // Preallocate sorted unique set vectors
-    constexpr std::size_t vectors_count = 1024;
+    std::size_t bytes_per_set = bench_dtype_bytes(input_dtype_, first_size + second_size);
+    std::size_t const vectors_count = bench_input_count(bytes_per_set);
     std::vector<input_vector_t> first_vectors(vectors_count), second_vectors(vectors_count);
     auto generator = make_random_engine();
     std::uniform_int_distribution<scalar_t> distribution(0, std::numeric_limits<scalar_t>::max());

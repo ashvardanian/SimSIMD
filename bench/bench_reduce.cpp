@@ -20,7 +20,7 @@ void measure_reduce_moments(bm::State &state, kernel_type_ kernel, std::size_t d
     using output_t = typename nk::type_for<output_dtype_>::type;
     using sumsq_t = typename nk::type_for<sumsq_dtype_>::type;
 
-    constexpr std::size_t vectors_count = 1024;
+    std::size_t const vectors_count = bench_input_count(bench_dtype_bytes(input_dtype_, dimensions));
     std::vector<nk::vector<input_t>> vectors(vectors_count);
     auto generator = make_random_engine();
     for (auto &v : vectors) {
@@ -60,7 +60,7 @@ void measure_reduce_minmax(bm::State &state, kernel_type_ kernel, std::size_t di
     using input_t = typename nk::type_for<input_dtype_>::type;
     using output_t = typename nk::type_for<output_dtype_>::type;
 
-    constexpr std::size_t vectors_count = 1024;
+    std::size_t const vectors_count = bench_input_count(bench_dtype_bytes(input_dtype_, dimensions));
     std::vector<nk::vector<input_t>> vectors(vectors_count);
     auto generator = make_random_engine();
     for (auto &v : vectors) {

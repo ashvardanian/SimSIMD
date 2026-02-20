@@ -66,7 +66,8 @@ void measure_each(bm::State &state, kernel_type_ kernel, std::size_t dimensions)
     // - wsum: input_a, input_c + alpha, beta -> output
     // - fma: input_a, input_b, input_c + alpha, beta -> output
     // - scale: input_a + alpha, beta -> output
-    constexpr std::size_t vectors_count = 1024;
+    std::size_t bytes_per_set = bench_dtype_bytes(input_dtype_, 4 * dimensions);
+    std::size_t const vectors_count = bench_input_count(bytes_per_set);
     std::vector<input_vector_t> input_a(vectors_count), input_b(vectors_count);
     std::vector<input_vector_t> input_c(vectors_count), output(vectors_count);
     auto generator = make_random_engine();

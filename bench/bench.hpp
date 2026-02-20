@@ -11,6 +11,7 @@
 
 #pragma once
 
+#include <bit>         // `std::bit_floor`
 #include <cmath>       // `std::sqrt`
 #include <random>      // `std::uniform_int_distribution`
 #include <type_traits> // `std::conditional_t`
@@ -74,8 +75,34 @@ extern std::uint32_t random_seed;
 extern std::size_t sparse_first_length;
 extern std::size_t sparse_second_length;
 extern double sparse_intersection_share;
+/// Memory budget in bytes for pre-allocated benchmark inputs.
+/// Each measurement function computes `floor_pow2(budget / bytes_per_set)` input sets,
+/// clamped to [1, 1024]. Can be overridden at runtime via `NK_BUDGET_MB` (in megabytes, default 1024).
+extern std::size_t bench_budget;
 
 inline std::mt19937 make_random_engine() { return std::mt19937(random_seed); }
+
+/**
+ *  @brief Compute byte count for `count` elements of `dtype`, handling sub-byte and complex types.
+ *
+ *  Uses `nk_dtype_bits` to get the correct bits per element, then rounds up to whole bytes.
+ */
+inline std::size_t bench_dtype_bytes(nk_dtype_t dtype, std::size_t count) {
+    return nk::divide_round_up(count * nk_dtype_bits(dtype), std::size_t(NK_BITS_PER_BYTE));
+}
+
+/**
+ *  @brief Compute the number of pre-allocated input sets that fit within `bench_budget`.
+ *
+ *  Returns a power-of-two count in [1, 1024] so the benchmark loop can use
+ *  `iterations & (count - 1)` as a fast modulo for input cycling.
+ */
+inline std::size_t bench_input_count(std::size_t bytes_per_set) {
+    std::size_t count = bench_budget / std::max(bytes_per_set, std::size_t(1));
+    count = std::min(count, std::size_t(1024));
+    count = std::max(std::bit_floor(count), std::size_t(1));
+    return count;
+}
 
 /** @brief Factory function to allocate vectors, potentially raising bad-allocs. */
 template <typename type_>
@@ -128,8 +155,8 @@ void measure_dense(bm::State &state, kernel_type_ kernel, std::size_t dimensions
     using output_t = typename nk::type_for<output_dtype_>::type;
     using input_vector_t = nk::vector<input_t>;
 
-    // Preallocate inputs (1024 vector pairs to avoid cache effects)
-    constexpr std::size_t vectors_count = 1024;
+    // Preallocate inputs: enough vector pairs to fit within bench_budget
+    std::size_t const vectors_count = bench_input_count(2 * bench_dtype_bytes(input_dtype_, dimensions));
     std::vector<input_vector_t> first_vectors(vectors_count), second_vectors(vectors_count);
     auto generator = make_random_engine();
     for (std::size_t index = 0; index != vectors_count; ++index) {
@@ -180,26 +207,35 @@ void measure_dots_packed(                                                       
     nk_size_t values_per_row = nk::divide_round_up(k, nk::dimensions_per_value<input_t>());
     nk_size_t a_stride_bytes = values_per_row * sizeof(typename input_t::raw_t);
     nk_size_t b_stride_bytes = values_per_row * sizeof(typename input_t::raw_t); // B is n x k, so k columns per row
-
-    // Allocate matrices with correct sizes for sub-byte types
-    auto matrix_a = make_vector_for_matrix<input_dtype_>(m, k);
-    auto matrix_b = make_vector_for_matrix<input_dtype_>(n, k);
     nk_size_t packed_bytes = packed_size_fn(n, k);
-    std::vector<char> matrix_b_packed(packed_bytes, 0);
-    auto matrix_c = make_vector<output_t>(m * n);
 
-    // Initialize with random values
+    // Preallocate multiple input sets within bench_budget for input diversity
+    std::size_t bytes_per_set = m * a_stride_bytes + n * b_stride_bytes + packed_bytes +
+                                bench_dtype_bytes(output_dtype_, m * n);
+    std::size_t const sets_count = bench_input_count(bytes_per_set);
+
+    struct gemm_set_t {
+        nk::vector<input_t> a, b;
+        std::vector<char> b_packed;
+        nk::vector<output_t> c;
+    };
+    std::vector<gemm_set_t> sets(sets_count);
     auto generator = make_random_engine();
-    nk::fill_uniform(generator, matrix_a.values_data(), matrix_a.size_values());
-    nk::fill_uniform(generator, matrix_b.values_data(), matrix_b.size_values());
-
-    // Pack B matrix once (amortized cost for repeated inference) with correct stride
-    pack_fn(matrix_b.raw_values_data(), n, k, b_stride_bytes, matrix_b_packed.data());
+    for (auto &s : sets) {
+        s.a = make_vector_for_matrix<input_dtype_>(m, k);
+        s.b = make_vector_for_matrix<input_dtype_>(n, k);
+        s.b_packed.resize(packed_bytes, 0);
+        s.c = make_vector<output_t>(m * n);
+        nk::fill_uniform(generator, s.a.values_data(), s.a.size_values());
+        nk::fill_uniform(generator, s.b.values_data(), s.b.size_values());
+        pack_fn(s.b.raw_values_data(), n, k, b_stride_bytes, s.b_packed.data());
+    }
 
     std::size_t iterations = 0;
     for (auto _ : state) {
-        bm::DoNotOptimize(matrix_c.raw_values_data());
-        kernel(matrix_a.raw_values_data(), matrix_b_packed.data(), matrix_c.raw_values_data(), //
+        auto &s = sets[iterations & (sets_count - 1)];
+        bm::DoNotOptimize(s.c.raw_values_data());
+        kernel(s.a.raw_values_data(), s.b_packed.data(), s.c.raw_values_data(), //
                m, n, k, a_stride_bytes, n * sizeof(raw_output_t));
         ++iterations;
     }
@@ -234,24 +270,31 @@ void measure_dots_symmetric(                                                   /
     nk_size_t input_stride_bytes = input_values_per_row * sizeof(typename input_t::raw_t);
     nk_size_t output_stride_bytes = n * sizeof(raw_output_t);
 
-    // Allocate matrix A (n vectors x k dimensions) and result matrix C (n x n)
-    auto matrix_a = make_vector_for_matrix<input_dtype_>(n, k);
-    auto matrix_c = make_vector<output_t>(n * n);
+    // Preallocate multiple input sets within bench_budget
+    std::size_t bytes_per_set = n * input_stride_bytes + bench_dtype_bytes(output_dtype_, n * n);
+    std::size_t const sets_count = bench_input_count(bytes_per_set);
 
-    // Initialize with random values
+    struct syrk_set_t {
+        nk::vector<input_t> a;
+        nk::vector<output_t> c;
+    };
+    std::vector<syrk_set_t> sets(sets_count);
     auto generator = make_random_engine();
-    nk::fill_uniform(generator, matrix_a.values_data(), matrix_a.size_values());
+    for (auto &s : sets) {
+        s.a = make_vector_for_matrix<input_dtype_>(n, k);
+        s.c = make_vector<output_t>(n * n);
+        nk::fill_uniform(generator, s.a.values_data(), s.a.size_values());
+    }
 
     std::size_t iterations = 0;
     for (auto _ : state) {
-        bm::DoNotOptimize(matrix_c.raw_values_data());
-        kernel(matrix_a.raw_values_data(), n, k, input_stride_bytes, //
-               matrix_c.raw_values_data(), output_stride_bytes, 0, n);
+        auto &s = sets[iterations & (sets_count - 1)];
+        bm::DoNotOptimize(s.c.raw_values_data());
+        kernel(s.a.raw_values_data(), n, k, input_stride_bytes, //
+               s.c.raw_values_data(), output_stride_bytes, 0, n);
         ++iterations;
     }
 
-    // Symmetric operations compute upper triangle: N x (N+1)/2 dot products x K multiply-adds x 2 scalar-ops = N x
-    // (N+1) x K total scalar-ops
     state.counters["scalar-ops"] = bm::Counter(iterations * n * (n + 1) * k, bm::Counter::kIsRate);
 }
 
@@ -284,26 +327,35 @@ void measure_hammings_packed(                                                   
     nk_size_t values_per_row = nk::divide_round_up(k, 8);
     nk_size_t a_stride_bytes = values_per_row * sizeof(typename input_t::raw_t);
     nk_size_t b_stride_bytes = values_per_row * sizeof(typename input_t::raw_t);
-
-    // Allocate matrices
-    auto matrix_a = make_vector<input_t>(m * k);
-    auto matrix_b = make_vector<input_t>(n * k);
     nk_size_t packed_bytes = packed_size_fn(n, k);
-    std::vector<char> matrix_b_packed(packed_bytes, 0);
-    auto matrix_c = make_vector<output_t>(m * n);
 
-    // Initialize with random values
+    // Preallocate multiple input sets within bench_budget
+    std::size_t bytes_per_set = m * a_stride_bytes + n * b_stride_bytes + packed_bytes +
+                                bench_dtype_bytes(output_dtype_, m * n);
+    std::size_t const sets_count = bench_input_count(bytes_per_set);
+
+    struct hamming_set_t {
+        nk::vector<input_t> a, b;
+        std::vector<char> b_packed;
+        nk::vector<output_t> c;
+    };
+    std::vector<hamming_set_t> sets(sets_count);
     auto generator = make_random_engine();
-    nk::fill_uniform(generator, matrix_a.values_data(), matrix_a.size_values());
-    nk::fill_uniform(generator, matrix_b.values_data(), matrix_b.size_values());
-
-    // Pack B matrix once (amortized cost for repeated inference) with correct stride
-    pack_fn(matrix_b.raw_values_data(), n, k, b_stride_bytes, matrix_b_packed.data());
+    for (auto &s : sets) {
+        s.a = make_vector<input_t>(m * k);
+        s.b = make_vector<input_t>(n * k);
+        s.b_packed.resize(packed_bytes, 0);
+        s.c = make_vector<output_t>(m * n);
+        nk::fill_uniform(generator, s.a.values_data(), s.a.size_values());
+        nk::fill_uniform(generator, s.b.values_data(), s.b.size_values());
+        pack_fn(s.b.raw_values_data(), n, k, b_stride_bytes, s.b_packed.data());
+    }
 
     std::size_t iterations = 0;
     for (auto _ : state) {
-        bm::DoNotOptimize(matrix_c.raw_values_data());
-        kernel(matrix_a.raw_values_data(), matrix_b_packed.data(), matrix_c.raw_values_data(), //
+        auto &s = sets[iterations & (sets_count - 1)];
+        bm::DoNotOptimize(s.c.raw_values_data());
+        kernel(s.a.raw_values_data(), s.b_packed.data(), s.c.raw_values_data(), //
                m, n, k, a_stride_bytes, n * sizeof(raw_output_t));
         ++iterations;
     }
@@ -330,23 +382,31 @@ void measure_hammings_symmetric(                                                
     nk_size_t input_stride_bytes = input_values_per_row * sizeof(typename input_t::raw_t);
     nk_size_t output_stride_bytes = n * sizeof(raw_output_t);
 
-    // Allocate matrix A (n vectors x k bits) and result matrix C (n x n)
-    auto matrix_a = make_vector<input_t>(n * k);
-    auto matrix_c = make_vector<output_t>(n * n);
+    // Preallocate multiple input sets within bench_budget
+    std::size_t bytes_per_set = n * input_stride_bytes + bench_dtype_bytes(output_dtype_, n * n);
+    std::size_t const sets_count = bench_input_count(bytes_per_set);
 
-    // Initialize with random values
+    struct hamming_sym_set_t {
+        nk::vector<input_t> a;
+        nk::vector<output_t> c;
+    };
+    std::vector<hamming_sym_set_t> sets(sets_count);
     auto generator = make_random_engine();
-    nk::fill_uniform(generator, matrix_a.values_data(), matrix_a.size_values());
+    for (auto &s : sets) {
+        s.a = make_vector<input_t>(n * k);
+        s.c = make_vector<output_t>(n * n);
+        nk::fill_uniform(generator, s.a.values_data(), s.a.size_values());
+    }
 
     std::size_t iterations = 0;
     for (auto _ : state) {
-        bm::DoNotOptimize(matrix_c.raw_values_data());
-        kernel(matrix_a.raw_values_data(), n, k, input_stride_bytes, //
-               matrix_c.raw_values_data(), output_stride_bytes, 0, n);
+        auto &s = sets[iterations & (sets_count - 1)];
+        bm::DoNotOptimize(s.c.raw_values_data());
+        kernel(s.a.raw_values_data(), n, k, input_stride_bytes, //
+               s.c.raw_values_data(), output_stride_bytes, 0, n);
         ++iterations;
     }
 
-    // Symmetric operations compute upper triangle: N x (N+1)/2 comparisons x K bits
     state.counters["scalar-ops"] = bm::Counter(iterations * n * (n + 1) * k / 2, bm::Counter::kIsRate);
 }
 

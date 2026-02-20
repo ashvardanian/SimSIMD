@@ -88,7 +88,8 @@ void measure_curved(bm::State &state, kernel_type_ kernel, std::size_t dimension
     using input_vector_t = nk::vector<input_t>;
 
     // Preallocate inputs: pairs of vectors + metric tensors (dimensions x dimensions)
-    constexpr std::size_t vectors_count = 1024;
+    std::size_t bytes_per_set = bench_dtype_bytes(input_dtype_, 2 * dimensions + dimensions * dimensions);
+    std::size_t const vectors_count = bench_input_count(bytes_per_set);
     std::vector<input_vector_t> first_vectors(vectors_count), second_vectors(vectors_count), tensors(vectors_count);
     auto generator = make_random_engine();
     for (std::size_t index = 0; index != vectors_count; ++index) {

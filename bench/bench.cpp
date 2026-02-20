@@ -16,6 +16,8 @@
  *  Environment Variables:
  *    NK_FILTER=<pattern>           - Filter benchmarks by name regex (default: run all)
  *    NK_SEED=N                     - RNG seed (default: 42)
+ *    NK_BUDGET_SECS=<seconds>      - Min time per benchmark (default: 10)
+ *    NK_BUDGET_MB=N                - Memory budget in MB for inputs (default: 1024)
  *
  *    NK_DENSE_DIMENSIONS=N         - Vector dimension for dot/spatial benchmarks (default: 1536)
  *    NK_MESH_POINTS=N              - Point count for mesh benchmarks (default: 1000)
@@ -73,6 +75,7 @@ std::uint32_t random_seed = 42;
 std::size_t sparse_first_length = 1024;
 std::size_t sparse_second_length = 8192;
 double sparse_intersection_share = 0.5;
+std::size_t bench_budget = std::size_t(1024) * 1024 * 1024; // 1024 MB default
 
 int main(int argc, char **argv) {
     nk_capability_t runtime_caps = nk_capabilities();
@@ -124,6 +127,10 @@ int main(int argc, char **argv) {
     if (char const *env_sparse_intersection = std::getenv("NK_SPARSE_INTERSECTION")) {
         double parsed = std::atof(env_sparse_intersection);
         if (parsed >= 0.0 && parsed <= 1.0) sparse_intersection_share = parsed;
+    }
+    if (char const *env_budget = std::getenv("NK_BUDGET_MB")) {
+        std::size_t parsed_mb = static_cast<std::size_t>(std::atoll(env_budget));
+        if (parsed_mb > 0) bench_budget = parsed_mb * 1024 * 1024;
     }
 
     std::printf(colors_enabled() ? "\033[1mNumKong Benchmarking Suite v%d.%d.%d\033[0m\n"
@@ -244,7 +251,7 @@ int main(int argc, char **argv) {
         std::printf("Applying benchmark filter from NK_FILTER: %s\n\n", env_filter);
     }
     if (!user_set_min_time) {
-        if (char const *env_time = std::getenv("NK_TIME_BUDGET"))
+        if (char const *env_time = std::getenv("NK_BUDGET_SECS"))
             args.push_back(std::string("--benchmark_min_time=") + env_time + "s");
         else args.push_back("--benchmark_min_time=10s");
     }
@@ -262,7 +269,7 @@ int main(int argc, char **argv) {
             "\n"                                                                                  //
             "NumKong Environment Variables:\n"                                                    //
             "  NK_FILTER=<regex>              Same as --benchmark_filter\n"                       //
-            "  NK_TIME_BUDGET=<seconds>       Min time per benchmark (default: 10)\n"             //
+            "  NK_BUDGET_SECS=<seconds>       Min time per benchmark (default: 10)\n"             //
             "  NK_SEED=<int>                  Random seed\n"                                      //
             "  NK_DENSE_DIMENSIONS=N          Dense vector dimensions (default: 1536)\n"          //
             "  NK_CURVED_DIMENSIONS=N         Curved vector dimensions (default: 64)\n"           //
@@ -273,6 +280,7 @@ int main(int argc, char **argv) {
             "  NK_SPARSE_FIRST_LENGTH=N       First sparse vector length\n"                       //
             "  NK_SPARSE_SECOND_LENGTH=N      Second sparse vector length\n"                      //
             "  NK_SPARSE_INTERSECTION=F       Intersection share [0.0, 1.0]\n"                    //
+            "  NK_BUDGET_MB=N                 Memory budget in MB for inputs (default: 1024)\n"   //
             "  NO_COLOR=1                     Disable colored output\n"                           //
             "  FORCE_COLOR=1                  Force colored output\n"                             //
             "\n"                                                                                  //

@@ -25,7 +25,7 @@
  *    NK_ULP_THRESHOLD_F32=N        - Max allowed ULP for f32 (default: 4)
  *    NK_ULP_THRESHOLD_F16=N        - Max allowed ULP for f16 (default: 32)
  *    NK_ULP_THRESHOLD_BF16=N       - Max allowed ULP for bf16 (default: 256)
- *    NK_TIME_BUDGET=<seconds>      - Time budget per kernel in seconds (default: 1)
+ *    NK_BUDGET_SECS=<seconds>      - Time budget per kernel in seconds (default: 1)
  *    NK_RANDOM_DISTRIBUTION=<type> - Random distribution: uniform_k|lognormal_k|cauchy_k (default: lognormal_k)
  */
 

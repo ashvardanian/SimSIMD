@@ -41,8 +41,9 @@ void measure_trigonometry(bm::State &state, kernel_type_ kernel, std::size_t dim
     using input_t = typename nk::type_for<input_dtype_>::type;
     using input_vector_t = nk::vector<input_t>;
 
-    // Preallocate vectors for trigonometric kernels (unary operations)
-    constexpr std::size_t vectors_count = 1024;
+    // Preallocate vectors for trigonometric kernels (unary: input + output)
+    std::size_t bytes_per_set = bench_dtype_bytes(input_dtype_, 2 * dimensions);
+    std::size_t const vectors_count = bench_input_count(bytes_per_set);
     std::vector<input_vector_t> input_a(vectors_count), output(vectors_count);
     auto generator = make_random_engine();
     for (std::size_t index = 0; index != vectors_count; ++index) {

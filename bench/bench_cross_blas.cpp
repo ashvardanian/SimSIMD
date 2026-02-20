@@ -23,17 +23,31 @@ template <typename input_type_, typename input_b_type_ = input_type_, typename o
           typename init_first_type_ = identity_init, typename init_second_type_ = identity_init, typename kernel_type_>
 void measure_dots_unpacked(bm::State &state, std::size_t m, std::size_t n, std::size_t k, kernel_type_ kernel,
                            init_first_type_ init_first = {}, init_second_type_ init_second = {}) {
-    std::vector<input_type_> matrix_a(m * k);
-    std::vector<input_b_type_> matrix_b(n * k);
-    std::vector<output_type_> matrix_c(m * n);
+
+    std::size_t bytes_per_set = m * k * sizeof(input_type_) + n * k * sizeof(input_b_type_) +
+                                m * n * sizeof(output_type_);
+    std::size_t const sets_count = bench_input_count(bytes_per_set);
+
+    struct gemm_set_t {
+        std::vector<input_type_> a;
+        std::vector<input_b_type_> b;
+        std::vector<output_type_> c;
+    };
+    std::vector<gemm_set_t> sets(sets_count);
     auto generator = make_random_engine();
-    nk::fill_uniform(generator, matrix_a.data(), matrix_a.size());
-    nk::fill_uniform(generator, matrix_b.data(), matrix_b.size());
+    for (auto &s : sets) {
+        s.a.resize(m * k);
+        s.b.resize(n * k);
+        s.c.resize(m * n);
+        nk::fill_uniform(generator, s.a.data(), s.a.size());
+        nk::fill_uniform(generator, s.b.data(), s.b.size());
+    }
 
     std::size_t iterations = 0;
     for (auto _ : state) {
-        bm::DoNotOptimize(matrix_c.data());
-        kernel(matrix_a.data(), matrix_b.data(), matrix_c.data(), m, n, k);
+        auto &s = sets[iterations & (sets_count - 1)];
+        bm::DoNotOptimize(s.c.data());
+        kernel(s.a.data(), s.b.data(), s.c.data(), m, n, k);
         ++iterations;
     }
     state.counters["scalar-ops"] = bm::Counter(iterations * 2.0 * m * n * k, bm::Counter::kIsRate);
@@ -61,15 +75,26 @@ template <typename input_type_, typename output_type_ = input_type_, typename in
           typename kernel_type_>
 void measure_dots_symmetric_unpacked(bm::State &state, std::size_t n, std::size_t k, kernel_type_ kernel,
                                      init_type_ init = {}) {
-    std::vector<input_type_> matrix_a(n * k);
-    std::vector<output_type_> matrix_c(n * n);
+    std::size_t bytes_per_set = n * k * sizeof(input_type_) + n * n * sizeof(output_type_);
+    std::size_t const sets_count = bench_input_count(bytes_per_set);
+
+    struct syrk_set_t {
+        std::vector<input_type_> a;
+        std::vector<output_type_> c;
+    };
+    std::vector<syrk_set_t> sets(sets_count);
     auto generator = make_random_engine();
-    nk::fill_uniform(generator, matrix_a.data(), matrix_a.size());
+    for (auto &s : sets) {
+        s.a.resize(n * k);
+        s.c.resize(n * n);
+        nk::fill_uniform(generator, s.a.data(), s.a.size());
+    }
 
     std::size_t iterations = 0;
     for (auto _ : state) {
-        bm::DoNotOptimize(matrix_c.data());
-        kernel(matrix_a.data(), matrix_c.data(), n, k);
+        auto &s = sets[iterations & (sets_count - 1)];
+        bm::DoNotOptimize(s.c.data());
+        kernel(s.a.data(), s.c.data(), n, k);
         ++iterations;
     }
     state.counters["scalar-ops"] = bm::Counter(iterations * n * (n + 1) * k, bm::Counter::kIsRate);
