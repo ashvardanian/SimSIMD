@@ -812,19 +812,19 @@ NK_PUBLIC void nk_dots_symmetric_f32_smef64(nk_f32_t const *vectors, nk_size_t n
  *
  *  All slices fit in f32 (24-bit significand). Products: max 19+19 = 38 ≤ 53, exact in f64.
  */
-static nk_u64_t const nk_ozaki_mask_19_bits_ = 0xFFFFFFFC00000000ULL; // keep top 19 sig bits
-static nk_u64_t const nk_ozaki_mask_17_bits_ = 0xFFFFFFF000000000ULL; // keep top 17 sig bits
+NK_INTERNAL nk_u64_t nk_f64_smef64_ozaki_mask_19_bits_() { return 0xFFFFFFFC00000000ULL; } // keep top 19 sig bits
+NK_INTERNAL nk_u64_t nk_f64_smef64_ozaki_mask_17_bits_() { return 0xFFFFFFF000000000ULL; } // keep top 17 sig bits
 
 /*  Split a scalar f64 into 3 non-overlapping Ozaki slices (19+17+17 mantissa bits).
  *  Each slice fits in f32. Outputs stored via pointers. */
-NK_INTERNAL void nk_ozaki_split_f64_(nk_f64_t val, nk_f64_t *slice_0, nk_f64_t *slice_1, nk_f64_t *slice_2) {
+NK_INTERNAL void nk_f64_smef64_ozaki_split_f64_(nk_f64_t val, nk_f64_t *slice_0, nk_f64_t *slice_1, nk_f64_t *slice_2) {
     nk_fui64_t pun;
     pun.f = val;
-    pun.u &= nk_ozaki_mask_19_bits_;
+    pun.u &= nk_f64_smef64_ozaki_mask_19_bits_();
     *slice_0 = pun.f;
     nk_f64_t residual = val - *slice_0;
     pun.f = residual;
-    pun.u &= nk_ozaki_mask_17_bits_;
+    pun.u &= nk_f64_smef64_ozaki_mask_17_bits_();
     *slice_1 = pun.f;
     *slice_2 = residual - *slice_1;
 }
@@ -837,8 +837,8 @@ __arm_locally_streaming __arm_new("za") static void nk_dots_symmetric_f64_smef64
     nk_size_t const depth_steps_per_batch = tile_dimension;
 
     svbool_t const full_predicate_b64 = svptrue_b64();
-    svuint64_t const ozaki_mask_19 = svdup_u64(nk_ozaki_mask_19_bits_);
-    svuint64_t const ozaki_mask_17 = svdup_u64(nk_ozaki_mask_17_bits_);
+    svuint64_t const ozaki_mask_19 = svdup_u64(nk_f64_smef64_ozaki_mask_19_bits_());
+    svuint64_t const ozaki_mask_17 = svdup_u64(nk_f64_smef64_ozaki_mask_17_bits_());
 
     NK_ALIGN64 nk_f64_t a_buffer[8][8]; // save A columns before reusing ZA0 for B
 
@@ -916,12 +916,21 @@ __arm_locally_streaming __arm_new("za") static void nk_dots_symmetric_f64_smef64
                         svand_u64_x(full_predicate_b64, residual_b_bits, ozaki_mask_17));
                     svfloat64_t b_slice_2 = svsub_f64_x(full_predicate_b64, residual_b, b_slice_1);
 
+                    // 6 FMOPAs reordered to minimize WAW pipeline stalls on 3 tiles.
+                    // Same-tile accumulation order preserved (bit-identical output).
+                    // Tile schedule: ZA3(0), ZA2(1), ZA1(2), ZA3(4), ZA2(5), ZA3(8).
+                    // 9 cycles vs 15 original (3 unavoidable bubbles with only 3 tiles).
+                    svmopa_za64_f64_m(3, row_predicate_b64, column_predicate_b64, a_slice_0,
+                                      b_slice_2); // ZA3: i+j=2 (1/3)
+                    svmopa_za64_f64_m(2, row_predicate_b64, column_predicate_b64, a_slice_0,
+                                      b_slice_1); // ZA2: i+j=1 (1/2)
                     svmopa_za64_f64_m(1, row_predicate_b64, column_predicate_b64, a_slice_0, b_slice_0); // ZA1: i+j=0
-                    svmopa_za64_f64_m(2, row_predicate_b64, column_predicate_b64, a_slice_0, b_slice_1); // ZA2: i+j=1
-                    svmopa_za64_f64_m(2, row_predicate_b64, column_predicate_b64, a_slice_1, b_slice_0); // ZA2: i+j=1
-                    svmopa_za64_f64_m(3, row_predicate_b64, column_predicate_b64, a_slice_0, b_slice_2); // ZA3: i+j=2
-                    svmopa_za64_f64_m(3, row_predicate_b64, column_predicate_b64, a_slice_1, b_slice_1); // ZA3: i+j=2
-                    svmopa_za64_f64_m(3, row_predicate_b64, column_predicate_b64, a_slice_2, b_slice_0); // ZA3: i+j=2
+                    svmopa_za64_f64_m(3, row_predicate_b64, column_predicate_b64, a_slice_1,
+                                      b_slice_1); // ZA3: i+j=2 (2/3)
+                    svmopa_za64_f64_m(2, row_predicate_b64, column_predicate_b64, a_slice_1,
+                                      b_slice_0); // ZA2: i+j=1 (2/2)
+                    svmopa_za64_f64_m(3, row_predicate_b64, column_predicate_b64, a_slice_2,
+                                      b_slice_0); // ZA3: i+j=2 (3/3)
                 }
             }
 
@@ -1007,7 +1016,7 @@ NK_PUBLIC void nk_dots_pack_f64_smef64(nk_f64_t const *b, nk_size_t columns, nk_
                 for (nk_size_t depth_idx = 0; depth_idx < depth_to_pack; depth_idx++) {
                     nk_f64_t val = b[(column_start + column_idx) * b_stride_elements + k_start + depth_idx];
                     nk_f64_t slice_0, slice_1, slice_2;
-                    nk_ozaki_split_f64_(val, &slice_0, &slice_1, &slice_2);
+                    nk_f64_smef64_ozaki_split_f64_(val, &slice_0, &slice_1, &slice_2);
 
                     tile_output[depth_idx * interleaved_stride + 0 * tile_dimension + column_idx] = (nk_f32_t)slice_0;
                     tile_output[depth_idx * interleaved_stride + 1 * tile_dimension + column_idx] = (nk_f32_t)slice_1;
@@ -1039,8 +1048,8 @@ __arm_locally_streaming __arm_new("za") static void nk_dots_packed_f64_smef64_ke
     svbool_t const full_predicate_b64 = svptrue_b64();
 
     // Mantissa masks for in-register Ozaki splitting (19+17+17 bits)
-    svuint64_t const ozaki_mask_19 = svdup_u64(nk_ozaki_mask_19_bits_);
-    svuint64_t const ozaki_mask_17 = svdup_u64(nk_ozaki_mask_17_bits_);
+    svuint64_t const ozaki_mask_19 = svdup_u64(nk_f64_smef64_ozaki_mask_19_bits_());
+    svuint64_t const ozaki_mask_17 = svdup_u64(nk_f64_smef64_ozaki_mask_17_bits_());
 
     // ZA0.D = A staging
     // ZA1-3.D = col0 merged accumulators (i+j=0,1,2)
@@ -1114,8 +1123,9 @@ __arm_locally_streaming __arm_new("za") static void nk_dots_packed_f64_smef64_ke
                             svand_u64_x(full_predicate_b64, residual_bits, ozaki_mask_17));
                         svfloat64_t a_slice_2 = svsub_f64_x(full_predicate_b64, residual, a_slice_1);
 
-                        // Load 3 B slices for col tile 0 (contiguous in interleaved layout)
+                        // Load all 6 B slices upfront (3 per column tile) for pipeline interleaving
                         nk_size_t const b_tile_offset_0 = b_batch_offset_0 + step * interleaved_stride;
+                        nk_size_t const b_tile_offset_1 = b_batch_offset_1 + step * interleaved_stride;
                         svfloat64_t b_column_0_slice_0_f64 = svcvt_f64_f32_x(
                             full_predicate_b64,
                             svreinterpret_f32_u64(
@@ -1128,23 +1138,6 @@ __arm_locally_streaming __arm_new("za") static void nk_dots_packed_f64_smef64_ke
                             full_predicate_b64, svreinterpret_f32_u64(svld1uw_u64(
                                                     full_predicate_b64, (nk_u32_t const *)(b_tiles + b_tile_offset_0 +
                                                                                            2 * tile_dimension))));
-
-                        // 6 FMOPAs for col tile 0 (merged accumulators by index sum)
-                        svmopa_za64_f64_m(1, row_predicate_b64, column_predicate_b64_0, a_slice_0,
-                                          b_column_0_slice_0_f64); // ZA1: i+j=0
-                        svmopa_za64_f64_m(2, row_predicate_b64, column_predicate_b64_0, a_slice_0,
-                                          b_column_0_slice_1_f64); // ZA2: i+j=1
-                        svmopa_za64_f64_m(2, row_predicate_b64, column_predicate_b64_0, a_slice_1,
-                                          b_column_0_slice_0_f64); // ZA2: i+j=1
-                        svmopa_za64_f64_m(3, row_predicate_b64, column_predicate_b64_0, a_slice_0,
-                                          b_column_0_slice_2_f64); // ZA3: i+j=2
-                        svmopa_za64_f64_m(3, row_predicate_b64, column_predicate_b64_0, a_slice_1,
-                                          b_column_0_slice_1_f64); // ZA3: i+j=2
-                        svmopa_za64_f64_m(3, row_predicate_b64, column_predicate_b64_0, a_slice_2,
-                                          b_column_0_slice_0_f64); // ZA3: i+j=2
-
-                        // Load 3 B slices for col tile 1
-                        nk_size_t const b_tile_offset_1 = b_batch_offset_1 + step * interleaved_stride;
                         svfloat64_t b_column_1_slice_0_f64 = svcvt_f64_f32_x(
                             full_predicate_b64,
                             svreinterpret_f32_u64(
@@ -1158,19 +1151,34 @@ __arm_locally_streaming __arm_new("za") static void nk_dots_packed_f64_smef64_ke
                                                     full_predicate_b64, (nk_u32_t const *)(b_tiles + b_tile_offset_1 +
                                                                                            2 * tile_dimension))));
 
-                        // 6 FMOPAs for col tile 1 (merged accumulators by index sum)
+                        // 12 FMOPAs interleaved across 6 tiles to eliminate WAW pipeline stalls.
+                        // Same-tile accumulation order preserved (bit-identical output).
+                        // Tile gaps: ZA3 at 0,6,10 (6,4); ZA6 at 1,7,11 (6,4); ZA2 at 4,8 (4);
+                        //            ZA5 at 5,9 (4); ZA1 at 2; ZA4 at 3. All gaps >= 4-cycle latency.
+                        svmopa_za64_f64_m(3, row_predicate_b64, column_predicate_b64_0, a_slice_0,
+                                          b_column_0_slice_2_f64); // ZA3: i+j=2 (1/3)
+                        svmopa_za64_f64_m(6, row_predicate_b64, column_predicate_b64_1, a_slice_0,
+                                          b_column_1_slice_2_f64); // ZA6: i+j=2 (1/3)
+                        svmopa_za64_f64_m(1, row_predicate_b64, column_predicate_b64_0, a_slice_0,
+                                          b_column_0_slice_0_f64); // ZA1: i+j=0
                         svmopa_za64_f64_m(4, row_predicate_b64, column_predicate_b64_1, a_slice_0,
                                           b_column_1_slice_0_f64); // ZA4: i+j=0
+                        svmopa_za64_f64_m(2, row_predicate_b64, column_predicate_b64_0, a_slice_0,
+                                          b_column_0_slice_1_f64); // ZA2: i+j=1 (1/2)
                         svmopa_za64_f64_m(5, row_predicate_b64, column_predicate_b64_1, a_slice_0,
-                                          b_column_1_slice_1_f64); // ZA5: i+j=1
-                        svmopa_za64_f64_m(5, row_predicate_b64, column_predicate_b64_1, a_slice_1,
-                                          b_column_1_slice_0_f64); // ZA5: i+j=1
-                        svmopa_za64_f64_m(6, row_predicate_b64, column_predicate_b64_1, a_slice_0,
-                                          b_column_1_slice_2_f64); // ZA6: i+j=2
+                                          b_column_1_slice_1_f64); // ZA5: i+j=1 (1/2)
+                        svmopa_za64_f64_m(3, row_predicate_b64, column_predicate_b64_0, a_slice_1,
+                                          b_column_0_slice_1_f64); // ZA3: i+j=2 (2/3)
                         svmopa_za64_f64_m(6, row_predicate_b64, column_predicate_b64_1, a_slice_1,
-                                          b_column_1_slice_1_f64); // ZA6: i+j=2
+                                          b_column_1_slice_1_f64); // ZA6: i+j=2 (2/3)
+                        svmopa_za64_f64_m(2, row_predicate_b64, column_predicate_b64_0, a_slice_1,
+                                          b_column_0_slice_0_f64); // ZA2: i+j=1 (2/2)
+                        svmopa_za64_f64_m(5, row_predicate_b64, column_predicate_b64_1, a_slice_1,
+                                          b_column_1_slice_0_f64); // ZA5: i+j=1 (2/2)
+                        svmopa_za64_f64_m(3, row_predicate_b64, column_predicate_b64_0, a_slice_2,
+                                          b_column_0_slice_0_f64); // ZA3: i+j=2 (3/3)
                         svmopa_za64_f64_m(6, row_predicate_b64, column_predicate_b64_1, a_slice_2,
-                                          b_column_1_slice_0_f64); // ZA6: i+j=2
+                                          b_column_1_slice_0_f64); // ZA6: i+j=2 (3/3)
                     }
                 }
             }
@@ -1263,19 +1271,22 @@ __arm_locally_streaming __arm_new("za") static void nk_dots_packed_f64_smef64_ke
                             svreinterpret_f32_u64(svld1uw_u64(
                                 full_predicate_b64, (nk_u32_t const *)(b_tiles + b_tile_offset + 2 * tile_dimension))));
 
-                        // 6 FMOPAs (merged accumulators by index sum)
+                        // 6 FMOPAs reordered to minimize WAW pipeline stalls on 3 tiles.
+                        // Same-tile accumulation order preserved (bit-identical output).
+                        // Tile schedule: ZA3(0), ZA2(1), ZA1(2), ZA3(4), ZA2(5), ZA3(8).
+                        // 9 cycles vs 15 original (3 unavoidable bubbles with only 3 tiles).
+                        svmopa_za64_f64_m(3, row_predicate_b64, column_predicate_b64, a_slice_0,
+                                          b_slice_2_f64); // ZA3: i+j=2 (1/3)
+                        svmopa_za64_f64_m(2, row_predicate_b64, column_predicate_b64, a_slice_0,
+                                          b_slice_1_f64); // ZA2: i+j=1 (1/2)
                         svmopa_za64_f64_m(1, row_predicate_b64, column_predicate_b64, a_slice_0,
                                           b_slice_0_f64); // ZA1: i+j=0
-                        svmopa_za64_f64_m(2, row_predicate_b64, column_predicate_b64, a_slice_0,
-                                          b_slice_1_f64); // ZA2: i+j=1
-                        svmopa_za64_f64_m(2, row_predicate_b64, column_predicate_b64, a_slice_1,
-                                          b_slice_0_f64); // ZA2: i+j=1
-                        svmopa_za64_f64_m(3, row_predicate_b64, column_predicate_b64, a_slice_0,
-                                          b_slice_2_f64); // ZA3: i+j=2
                         svmopa_za64_f64_m(3, row_predicate_b64, column_predicate_b64, a_slice_1,
-                                          b_slice_1_f64); // ZA3: i+j=2
+                                          b_slice_1_f64); // ZA3: i+j=2 (2/3)
+                        svmopa_za64_f64_m(2, row_predicate_b64, column_predicate_b64, a_slice_1,
+                                          b_slice_0_f64); // ZA2: i+j=1 (2/2)
                         svmopa_za64_f64_m(3, row_predicate_b64, column_predicate_b64, a_slice_2,
-                                          b_slice_0_f64); // ZA3: i+j=2
+                                          b_slice_0_f64); // ZA3: i+j=2 (3/3)
                     }
                 }
             }
