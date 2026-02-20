@@ -9,6 +9,31 @@
 #include "numkong/curved.hpp" // `nk::bilinear`
 
 /**
+ *  @brief Makes a square matrix positive semi-definite in-place via symmetrization + diagonal dominance.
+ *
+ *  Uses Gershgorin's circle theorem: a symmetric matrix with each diagonal entry exceeding
+ *  the absolute row sum of its off-diagonal entries is positive definite. This ensures
+ *  `(a-b)^T M (a-b) >= 0`, preventing NaN from sqrt in Mahalanobis distance.
+ */
+template <typename scalar_type_>
+void make_psd(scalar_type_ *data, nk_size_t n) {
+    // Step 1: Symmetrize — m[i][j] = m[j][i] = average of original pair
+    for (nk_size_t i = 0; i < n; ++i)
+        for (nk_size_t j = i + 1; j < n; ++j) {
+            double avg = ((double)data[i * n + j] + (double)data[j * n + i]) * 0.5;
+            data[i * n + j] = scalar_type_(avg);
+            data[j * n + i] = scalar_type_(avg);
+        }
+    // Step 2: Strict diagonal dominance — set m[i][i] > sum_{j!=i} |m[i][j]|
+    for (nk_size_t i = 0; i < n; ++i) {
+        double row_sum = 0;
+        for (nk_size_t j = 0; j < n; ++j)
+            if (i != j) row_sum += std::abs((double)data[i * n + j]);
+        data[i * n + i] = scalar_type_(row_sum + 1.0);
+    }
+}
+
+/**
  *  @brief Template for bilinear form test: a^T * M * b
  */
 template <typename scalar_type_>
@@ -63,6 +88,7 @@ error_stats_t test_mahalanobis(typename scalar_type_::bilinear_kernel_t kernel) 
         fill_random(generator, a);
         fill_random(generator, b);
         fill_random(generator, m);
+        make_psd(m.values_data(), global_config.dense_dimensions);
 
         result_t result;
         kernel(a.raw_values_data(), b.raw_values_data(), m.raw_values_data(), global_config.dense_dimensions,
