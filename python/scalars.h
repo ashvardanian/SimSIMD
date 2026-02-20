@@ -26,6 +26,10 @@ extern "C" {
 // These are Python objects representing single values of our custom types.
 
 typedef struct {
+    PyObject_HEAD nk_f16_t value;
+} NkFloat16ScalarObject;
+
+typedef struct {
     PyObject_HEAD nk_bf16_t value;
 } NkBFloat16ScalarObject;
 
@@ -37,10 +41,21 @@ typedef struct {
     PyObject_HEAD nk_e5m2_t value;
 } NkFloat8E5M2ScalarObject;
 
+typedef struct {
+    PyObject_HEAD nk_e2m3_t value;
+} NkFloat6E2M3ScalarObject;
+
+typedef struct {
+    PyObject_HEAD nk_e3m2_t value;
+} NkFloat6E3M2ScalarObject;
+
 // Scalar type objects (defined in scalars.c)
+extern PyTypeObject NkFloat16Scalar_Type;
 extern PyTypeObject NkBFloat16Scalar_Type;
 extern PyTypeObject NkFloat8E4M3Scalar_Type;
 extern PyTypeObject NkFloat8E5M2Scalar_Type;
+extern PyTypeObject NkFloat6E2M3Scalar_Type;
+extern PyTypeObject NkFloat6E3M2Scalar_Type;
 
 /**
  *  @brief Register NumKong scalar types with Python.
@@ -48,7 +63,8 @@ extern PyTypeObject NkFloat8E5M2Scalar_Type;
  *  @return 0 on success, -1 on failure (with Python exception set).
  *
  *  This function should be called from PyInit_numkong().
- *  It adds bfloat16, float8_e4m3, and float8_e5m2 scalar types to the module.
+ *  It adds bfloat16, float16, float8_e4m3, float8_e5m2, float6_e2m3, and
+ *  float6_e3m2 scalar types to the module.
  */
 int nk_register_scalar_types(PyObject *module);
 
