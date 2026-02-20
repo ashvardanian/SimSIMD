@@ -101,9 +101,7 @@ void sparse_(std::string name, kernel_type_ *kernel) {
                              ",|B|=" + std::to_string(sparse_second_length) +
                              ",|A^B|=" + std::to_string(intersection_size) + ">";
     bm::RegisterBenchmark(bench_name.c_str(), measure_sparse<input_dtype_, output_dtype_, kernel_type_ *>, kernel,
-                          sparse_first_length, sparse_second_length, intersection_size)
-        ->MinTime(default_seconds)
-        ->Threads(default_threads);
+                          sparse_first_length, sparse_second_length, intersection_size);
 }
 
 void bench_sparse() {

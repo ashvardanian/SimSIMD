@@ -54,9 +54,6 @@ extern "C" void openblas_set_num_threads(int) __attribute__((weak));
 namespace bm = benchmark;
 namespace nk = ashvardanian::numkong;
 
-constexpr std::size_t default_seconds = 10;
-constexpr std::size_t default_threads = 1;
-
 /// Vector dimension for dot products and spatial metrics
 /// Can be overridden at runtime via `NK_DENSE_DIMENSIONS` environment variable
 extern std::size_t dense_dimensions;
@@ -161,9 +158,7 @@ template <nk_dtype_t input_dtype_, nk_dtype_t output_dtype_, typename kernel_typ
 void dense_(std::string name, kernel_type_ *kernel) {
     std::string bench_name = name + "<" + std::to_string(dense_dimensions) + "d>";
     bm::RegisterBenchmark(bench_name.c_str(), measure_dense<input_dtype_, output_dtype_, kernel_type_ *>, kernel,
-                          dense_dimensions)
-        ->MinTime(default_seconds)
-        ->Threads(default_threads);
+                          dense_dimensions);
 }
 
 //  Batched dot products measurement for packed B matrix API
@@ -220,9 +215,7 @@ void dots_(std::string name, //
     std::string bench_name = name + "<" + std::to_string(matrix_height) + "x" + std::to_string(matrix_width) + "x" +
                              std::to_string(matrix_depth) + ">";
     bm::RegisterBenchmark(bench_name.c_str(), measure_dots_packed<input_dtype_, output_dtype_>, packed_size_fn, pack_fn,
-                          kernel, matrix_height, matrix_width, matrix_depth)
-        ->MinTime(default_seconds)
-        ->Threads(1); // Single-threaded for packed matmul
+                          kernel, matrix_height, matrix_width, matrix_depth);
 }
 
 template <nk_dtype_t input_dtype_, nk_dtype_t output_dtype_>
@@ -267,9 +260,7 @@ void dots_symmetric_(std::string name, //
                      typename nk::type_for<input_dtype_>::type::dots_symmetric_kernel_t kernel) {
     std::string bench_name = name + "<" + std::to_string(matrix_height) + "x" + std::to_string(matrix_depth) + ">";
     bm::RegisterBenchmark(bench_name.c_str(), measure_dots_symmetric<input_dtype_, output_dtype_>, //
-                          kernel, matrix_height, matrix_depth)
-        ->MinTime(default_seconds)
-        ->Threads(1); // Single-threaded for symmetric matmul
+                          kernel, matrix_height, matrix_depth);
 }
 
 /**
@@ -367,9 +358,7 @@ void hammings_(std::string name, //
     std::string bench_name = name + "<" + std::to_string(matrix_height) + "x" + std::to_string(matrix_width) + "x" +
                              std::to_string(matrix_depth) + ">";
     bm::RegisterBenchmark(bench_name.c_str(), measure_hammings_packed<input_dtype_, output_dtype_>, packed_size_fn,
-                          pack_fn, kernel, matrix_height, matrix_width, matrix_depth)
-        ->MinTime(default_seconds)
-        ->Threads(1); // Single-threaded for packed Hamming distances
+                          pack_fn, kernel, matrix_height, matrix_width, matrix_depth);
 }
 
 template <nk_dtype_t input_dtype_, nk_dtype_t output_dtype_>
@@ -377,9 +366,7 @@ void hammings_symmetric_(std::string name, //
                          typename nk::type_for<input_dtype_>::type::hammings_symmetric_kernel_t kernel) {
     std::string bench_name = name + "<" + std::to_string(matrix_height) + "x" + std::to_string(matrix_depth) + ">";
     bm::RegisterBenchmark(bench_name.c_str(), measure_hammings_symmetric<input_dtype_, output_dtype_>, //
-                          kernel, matrix_height, matrix_depth)
-        ->MinTime(default_seconds)
-        ->Threads(1); // Single-threaded for symmetric Hamming distances
+                          kernel, matrix_height, matrix_depth);
 }
 
 // Forward declarations for benchmark registration functions (defined in separate files)

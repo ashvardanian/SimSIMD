@@ -54,9 +54,7 @@ template <nk_dtype_t input_dtype_, nk_dtype_t output_dtype_, typename kernel_typ
 void mesh_(std::string name, kernel_type_ *kernel) {
     std::string bench_name = name + "<" + std::to_string(mesh_points) + "pts>";
     bm::RegisterBenchmark(bench_name.c_str(), measure_mesh<input_dtype_, output_dtype_, kernel_type_ *>, kernel,
-                          mesh_points)
-        ->MinTime(default_seconds)
-        ->Threads(default_threads);
+                          mesh_points);
 }
 
 void bench_mesh() {

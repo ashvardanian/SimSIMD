@@ -120,9 +120,7 @@ template <nk_dtype_t input_dtype_, nk_kernel_kind_t kernel_kind_ = nk_kernel_unk
 void each_(std::string name, kernel_type_ *kernel) {
     std::string bench_name = name + "<" + std::to_string(dense_dimensions) + "d>";
     bm::RegisterBenchmark(bench_name.c_str(), measure_each<input_dtype_, kernel_kind_, alpha_dtype_, kernel_type_ *>,
-                          kernel, dense_dimensions)
-        ->MinTime(default_seconds)
-        ->Threads(default_threads);
+                          kernel, dense_dimensions);
 }
 
 void bench_each() {

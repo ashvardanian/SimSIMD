@@ -105,48 +105,63 @@ int main(int argc, char **argv) {
         else if (std::strcmp(argv[i], "--filter") == 0 && i + 1 < argc) { global_config.filter = argv[++i]; }
         else if (std::strcmp(argv[i], "--assert") == 0) { global_config.assert_on_failure = true; }
         else if (std::strcmp(argv[i], "--verbose") == 0) { global_config.verbose = true; }
+        else if (std::strncmp(argv[i], "--time-budget=", 14) == 0) {
+            global_config.time_budget_ms = static_cast<std::size_t>(std::atoll(argv[i] + 14));
+        }
+        else if (std::strcmp(argv[i], "--time-budget") == 0 && i + 1 < argc) {
+            global_config.time_budget_ms = static_cast<std::size_t>(std::atoll(argv[++i]));
+        }
+        // Foreign flags from GTest
         else if (std::strncmp(argv[i], "--gtest_filter=", 15) == 0) {
             global_config.filter = argv[i] + 15;
-            std::fprintf( //
-                stderr,
-                "Note: Mapped --gtest_filter to internal filter. " //
-                "Prefer: NK_FILTER='%s' ./nk_test\n",
-                global_config.filter);
+            std::fprintf(stderr, "Note: Mapped --gtest_filter to --filter. Prefer: --filter='%s'\n",
+                         global_config.filter);
         }
         else if (std::strncmp(argv[i], "--gtest_", 8) == 0) {
-            std::fprintf( //
-                stderr,
-                "Note: GTest flag '%s' is not supported. Ignoring.\n"                    //
-                "  Supported env vars: NK_FILTER, NK_SEED, NK_IN_QEMU,\n"                //
-                "  NK_TEST_ASSERT, NK_TEST_VERBOSE, NK_TEST_TIME_BUDGET_MS,\n"           //
-                "  NK_ULP_THRESHOLD_F32, NK_ULP_THRESHOLD_F16, NK_ULP_THRESHOLD_BF16,\n" //
-                "  NK_RANDOM_DISTRIBUTION, NK_DENSE_DIMENSIONS, NK_CURVED_DIMENSIONS\n", //
-                argv[i]);
+            std::fprintf(stderr, "Note: GTest flag '%s' is not supported in nk_test. Ignoring.\n", argv[i]);
+        }
+        // Foreign flags from Google Benchmark
+        else if (std::strncmp(argv[i], "--benchmark_filter=", 19) == 0) {
+            global_config.filter = argv[i] + 19;
+            std::fprintf(stderr, "Note: Mapped --benchmark_filter to --filter. Prefer: --filter='%s'\n",
+                         global_config.filter);
+        }
+        else if (std::strncmp(argv[i], "--benchmark_min_time=", 21) == 0) {
+            // Parse value, stripping trailing 's' if present (e.g., "10s" -> 10000 ms)
+            char const *val = argv[i] + 21;
+            double seconds = std::atof(val);
+            global_config.time_budget_ms = static_cast<std::size_t>(seconds * 1000);
+            std::fprintf(stderr, "Note: Mapped --benchmark_min_time to --time-budget. Prefer: --time-budget=%zu\n",
+                         global_config.time_budget_ms);
+        }
+        else if (std::strncmp(argv[i], "--benchmark_", 12) == 0) {
+            std::fprintf(stderr, "Note: Google Benchmark flag '%s' is not supported in nk_test. Ignoring.\n", argv[i]);
         }
         else if (std::strcmp(argv[i], "--help") == 0 || std::strcmp(argv[i], "-h") == 0) {
             std::fprintf( //
                 stdout,
-                "Usage: nk_test [--filter=<regex>] [--assert] [--verbose] [--help]\n" //
-                "\n"                                                                  //
-                "Arguments:\n"                                                        //
-                "  --filter=<regex>   Filter tests by name (regex or substring)\n"    //
-                "  --assert           Abort on first failure\n"                       //
-                "  --verbose          Verbose output\n"                               //
-                "\n"                                                                  //
-                "Environment Variables:\n"                                            //
-                "  NK_FILTER=<regex>         Same as --filter\n"                      //
-                "  NK_SEED=<int>             Random seed\n"                           //
-                "  NK_IN_QEMU=1              Skip unreliable half-precision tests\n"  //
-                "  NK_TEST_ASSERT=1          Same as --assert\n"                      //
-                "  NK_TEST_VERBOSE=1         Same as --verbose\n"                     //
-                "  NK_TEST_TIME_BUDGET_MS=N  Time budget per test\n"                  //
-                "  NK_ULP_THRESHOLD_F32=N    ULP tolerance for f32\n"                 //
-                "  NK_ULP_THRESHOLD_F16=N    ULP tolerance for f16\n"                 //
-                "  NK_ULP_THRESHOLD_BF16=N   ULP tolerance for bf16\n"                //
-                "  NK_RANDOM_DISTRIBUTION=X  uniform_k, cauchy_k, lognormal_k\n"      //
-                "  NK_DENSE_DIMENSIONS=N     Override dense vector dimensions\n"      //
-                "  NK_CURVED_DIMENSIONS=N    Override curved vector dimensions\n"     //
-                "  NK_SPARSE_DIMENSIONS=N    Override sparse vector dimensions\n");   //
+                "Usage: nk_test [--filter=<regex>] [--time-budget=<ms>] [--assert] [--verbose] [--help]\n" //
+                "\n"                                                                                       //
+                "Arguments:\n"                                                                             //
+                "  --filter=<regex>     Filter tests by name (regex or substring)\n"                       //
+                "  --time-budget=<ms>   Time budget per kernel in milliseconds (default: 1000)\n"          //
+                "  --assert             Abort on first failure\n"                                          //
+                "  --verbose            Verbose output\n"                                                  //
+                "\n"                                                                                       //
+                "Environment Variables:\n"                                                                 //
+                "  NK_FILTER=<regex>          Same as --filter\n"                                          //
+                "  NK_TIME_BUDGET=<seconds>   Time budget per kernel (default: 1)\n"                       //
+                "  NK_SEED=<int>              Random seed\n"                                               //
+                "  NK_IN_QEMU=1               Skip unreliable half-precision tests\n"                      //
+                "  NK_TEST_ASSERT=1           Same as --assert\n"                                          //
+                "  NK_TEST_VERBOSE=1          Same as --verbose\n"                                         //
+                "  NK_ULP_THRESHOLD_F32=N     ULP tolerance for f32\n"                                     //
+                "  NK_ULP_THRESHOLD_F16=N     ULP tolerance for f16\n"                                     //
+                "  NK_ULP_THRESHOLD_BF16=N    ULP tolerance for bf16\n"                                    //
+                "  NK_RANDOM_DISTRIBUTION=X   uniform_k, cauchy_k, lognormal_k\n"                          //
+                "  NK_DENSE_DIMENSIONS=N      Override dense vector dimensions\n"                          //
+                "  NK_CURVED_DIMENSIONS=N     Override curved vector dimensions\n"                         //
+                "  NK_SPARSE_DIMENSIONS=N     Override sparse vector dimensions\n");                       //
             return 0;
         }
         else {
@@ -159,20 +174,19 @@ int main(int argc, char **argv) {
     if (char const *env = std::getenv("NK_TEST_ASSERT")) global_config.assert_on_failure = std::atoi(env) != 0;
     if (char const *env = std::getenv("NK_TEST_VERBOSE")) global_config.verbose = std::atoi(env) != 0;
     if (char const *env = std::getenv("NK_ULP_THRESHOLD_F32")) global_config.ulp_threshold_f32 = std::atoll(env);
-    else if (char const *env = std::getenv("NK_TEST_ULP_THRESHOLD_F32"))
-        global_config.ulp_threshold_f32 = std::atoll(env);
     if (char const *env = std::getenv("NK_ULP_THRESHOLD_F16")) global_config.ulp_threshold_f16 = std::atoll(env);
-    else if (char const *env = std::getenv("NK_TEST_ULP_THRESHOLD_F16"))
-        global_config.ulp_threshold_f16 = std::atoll(env);
     if (char const *env = std::getenv("NK_ULP_THRESHOLD_BF16")) global_config.ulp_threshold_bf16 = std::atoll(env);
-    else if (char const *env = std::getenv("NK_TEST_ULP_THRESHOLD_BF16"))
-        global_config.ulp_threshold_bf16 = std::atoll(env);
-    if (char const *env = std::getenv("NK_TEST_TIME_BUDGET_MS")) global_config.time_budget_ms = std::atoll(env);
     if (char const *env = std::getenv("NK_SEED")) global_config.seed = std::atoll(env);
     if (!global_config.filter) global_config.filter = std::getenv("NK_FILTER"); // e.g., "dot", "angular", "kld"
-    char const *dist_env = std::getenv("NK_RANDOM_DISTRIBUTION");
-    if (!dist_env) dist_env = std::getenv("NK_TEST_DISTRIBUTION");
-    if (char const *env = dist_env) {
+
+    if (global_config.time_budget_ms == 1000) {
+        if (char const *env = std::getenv("NK_TIME_BUDGET")) {
+            double seconds = std::atof(env);
+            if (seconds > 0) global_config.time_budget_ms = static_cast<std::size_t>(seconds * 1000);
+        }
+    }
+
+    if (char const *env = std::getenv("NK_RANDOM_DISTRIBUTION")) {
         if (std::strcmp(env, "uniform_k") == 0) global_config.distribution = random_distribution_kind_t::uniform_k;
         else if (std::strcmp(env, "cauchy_k") == 0) global_config.distribution = random_distribution_kind_t::cauchy_k;
         else if (std::strcmp(env, "lognormal_k") == 0)

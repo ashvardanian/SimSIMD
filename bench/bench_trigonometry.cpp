@@ -70,9 +70,7 @@ void trigonometry_(std::string name, kernel_type_ *kernel) {
     std::string bench_name = name + "<" + std::to_string(dense_dimensions) + "d>";
     bm::RegisterBenchmark(bench_name.c_str(),
                           measure_trigonometry<input_dtype_, kernel_kind_, alpha_dtype_, kernel_type_ *>, kernel,
-                          dense_dimensions)
-        ->MinTime(default_seconds)
-        ->Threads(default_threads);
+                          dense_dimensions);
 }
 
 void bench_trigonometry() {

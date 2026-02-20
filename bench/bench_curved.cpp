@@ -119,9 +119,7 @@ template <nk_dtype_t input_dtype_, nk_dtype_t output_dtype_, typename kernel_typ
 void curved_(std::string name, kernel_type_ *kernel) {
     std::string bench_name = name + "<" + std::to_string(curved_dimensions) + "d>";
     bm::RegisterBenchmark(bench_name.c_str(), measure_curved<input_dtype_, output_dtype_, kernel_type_ *>, kernel,
-                          curved_dimensions)
-        ->MinTime(default_seconds)
-        ->Threads(default_threads);
+                          curved_dimensions);
 }
 
 void bench_curved() {

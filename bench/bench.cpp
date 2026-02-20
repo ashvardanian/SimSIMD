@@ -195,47 +195,92 @@ int main(int argc, char **argv) {
     std::printf("  Bench: seed=%u\n", random_seed);
     std::printf("\n");
 
-    // Handle --help/-h: print NK-specific options, then let Google Benchmark print its own
+    // Build args for Google Benchmark: translate foreign flags, inject env var overrides.
+    // A single vector<string> owns all argument storage; char* pointers are built at the end.
+    std::vector<std::string> args = {argv[0]};
+    bool user_set_min_time = false;
+    bool wants_help = false;
+
     for (int i = 1; i < argc; ++i) {
-        if (std::strcmp(argv[i], "--help") == 0 || std::strcmp(argv[i], "-h") == 0) {
-            std::fprintf( //
-                stdout,
-                "Usage: nk_bench [--benchmark_filter=<regex>] [--help]\n"                    //
-                "\n"                                                                         //
-                "NumKong Environment Variables:\n"                                           //
-                "  NK_FILTER=<regex>              Same as --benchmark_filter\n"              //
-                "  NK_SEED=<int>                  Random seed\n"                             //
-                "  NK_DENSE_DIMENSIONS=N          Dense vector dimensions (default: 1536)\n" //
-                "  NK_CURVED_DIMENSIONS=N         Curved vector dimensions (default: 64)\n"  //
-                "  NK_MESH_POINTS=N               Mesh point count (default: 1000)\n"        //
-                "  NK_MATRIX_HEIGHT=N             Matrix height\n"                           //
-                "  NK_MATRIX_WIDTH=N              Matrix width\n"                            //
-                "  NK_MATRIX_DEPTH=N              Matrix depth\n"                            //
-                "  NK_SPARSE_FIRST_LENGTH=N       First sparse vector length\n"              //
-                "  NK_SPARSE_SECOND_LENGTH=N      Second sparse vector length\n"             //
-                "  NK_SPARSE_INTERSECTION=F       Intersection share [0.0, 1.0]\n"           //
-                "  NO_COLOR=1                     Disable colored output\n"                  //
-                "  FORCE_COLOR=1                  Force colored output\n"                    //
-                "\n"                                                                         //
-                "Google Benchmark flags (passed through):\n");                               //
-            break; // Let bm::Initialize handle --help too
+        // Foreign flags from nk_test
+        if (std::strncmp(argv[i], "--filter=", 9) == 0) {
+            args.push_back(std::string("--benchmark_filter=") + (argv[i] + 9));
+            std::fprintf(stderr, "Note: Mapped --filter to --benchmark_filter. Prefer: --benchmark_filter='%s'\n",
+                         argv[i] + 9);
         }
+        else if (std::strcmp(argv[i], "--filter") == 0 && i + 1 < argc) {
+            args.push_back(std::string("--benchmark_filter=") + argv[++i]);
+            std::fprintf(stderr, "Note: Mapped --filter to --benchmark_filter. Prefer: --benchmark_filter='%s'\n",
+                         argv[i]);
+        }
+        else if (std::strcmp(argv[i], "--assert") == 0 || std::strcmp(argv[i], "--verbose") == 0) {
+            std::fprintf(stderr, "Note: '%s' is an nk_test flag, not supported in nk_bench. Ignoring.\n", argv[i]);
+        }
+        // Foreign flags from GTest
+        else if (std::strncmp(argv[i], "--gtest_filter=", 15) == 0) {
+            args.push_back(std::string("--benchmark_filter=") + (argv[i] + 15));
+            std::fprintf(stderr, "Note: Mapped --gtest_filter to --benchmark_filter. Prefer: --benchmark_filter='%s'\n",
+                         argv[i] + 15);
+        }
+        else if (std::strncmp(argv[i], "--gtest_", 8) == 0) {
+            std::fprintf(stderr, "Note: GTest flag '%s' is not supported in nk_bench. Ignoring.\n", argv[i]);
+        }
+        // Track user-provided --benchmark_min_time so we don't override it
+        else if (std::strncmp(argv[i], "--benchmark_min_time", 20) == 0) {
+            user_set_min_time = true;
+            args.push_back(argv[i]);
+        }
+        else if (std::strcmp(argv[i], "--help") == 0 || std::strcmp(argv[i], "-h") == 0) {
+            wants_help = true;
+            args.push_back(argv[i]);
+        }
+        // Everything else passes through to Google Benchmark
+        else { args.push_back(argv[i]); }
     }
 
-    // Handle NK_FILTER environment variable by injecting --benchmark_filter argument
-    std::vector<char *> modified_argv(argv, argv + argc);
-    std::string filter_arg;
+    // Inject from env vars
     if (char const *env_filter = std::getenv("NK_FILTER")) {
-        filter_arg = std::string("--benchmark_filter=") + env_filter;
-        modified_argv.push_back(const_cast<char *>(filter_arg.c_str()));
+        args.push_back(std::string("--benchmark_filter=") + env_filter);
         std::printf("Applying benchmark filter from NK_FILTER: %s\n\n", env_filter);
     }
-    int modified_argc = static_cast<int>(modified_argv.size());
-    char **modified_argv_ptr = modified_argv.data();
+    if (!user_set_min_time) {
+        if (char const *env_time = std::getenv("NK_TIME_BUDGET"))
+            args.push_back(std::string("--benchmark_min_time=") + env_time + "s");
+        else args.push_back("--benchmark_min_time=10s");
+    }
 
-    // Run the benchmarks
-    bm::Initialize(&modified_argc, modified_argv_ptr);
-    if (bm::ReportUnrecognizedArguments(modified_argc, modified_argv_ptr)) return 1;
+    // Build char* array for bm::Initialize (must not outlive `args`)
+    std::vector<char *> argv_ptrs;
+    for (auto &a : args) argv_ptrs.push_back(a.data());
+    int bench_argc = static_cast<int>(argv_ptrs.size());
+
+    // Print help if requested
+    if (wants_help) {
+        std::fprintf( //
+            stdout,
+            "Usage: nk_bench [--benchmark_filter=<regex>] [--benchmark_min_time=<N>s] [--help]\n" //
+            "\n"                                                                                  //
+            "NumKong Environment Variables:\n"                                                    //
+            "  NK_FILTER=<regex>              Same as --benchmark_filter\n"                       //
+            "  NK_TIME_BUDGET=<seconds>       Min time per benchmark (default: 10)\n"             //
+            "  NK_SEED=<int>                  Random seed\n"                                      //
+            "  NK_DENSE_DIMENSIONS=N          Dense vector dimensions (default: 1536)\n"          //
+            "  NK_CURVED_DIMENSIONS=N         Curved vector dimensions (default: 64)\n"           //
+            "  NK_MESH_POINTS=N               Mesh point count (default: 1000)\n"                 //
+            "  NK_MATRIX_HEIGHT=N             Matrix height\n"                                    //
+            "  NK_MATRIX_WIDTH=N              Matrix width\n"                                     //
+            "  NK_MATRIX_DEPTH=N              Matrix depth\n"                                     //
+            "  NK_SPARSE_FIRST_LENGTH=N       First sparse vector length\n"                       //
+            "  NK_SPARSE_SECOND_LENGTH=N      Second sparse vector length\n"                      //
+            "  NK_SPARSE_INTERSECTION=F       Intersection share [0.0, 1.0]\n"                    //
+            "  NO_COLOR=1                     Disable colored output\n"                           //
+            "  FORCE_COLOR=1                  Force colored output\n"                             //
+            "\n"                                                                                  //
+            "Google Benchmark flags (passed through):\n");                                        //
+    }
+
+    bm::Initialize(&bench_argc, argv_ptrs.data());
+    if (bm::ReportUnrecognizedArguments(bench_argc, argv_ptrs.data())) return 1;
 
     // Register all benchmarks from split files
     bench_dot();

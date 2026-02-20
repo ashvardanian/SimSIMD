@@ -49,9 +49,7 @@ void reduce_moments_(std::string name, kernel_type_ *kernel) {
     std::string bench_name = name + "<" + std::to_string(dense_dimensions) + "d>";
     bm::RegisterBenchmark(bench_name.c_str(),
                           measure_reduce_moments<input_dtype_, output_dtype_, sumsq_dtype_, kernel_type_ *>, kernel,
-                          dense_dimensions)
-        ->MinTime(default_seconds)
-        ->Threads(default_threads);
+                          dense_dimensions);
 }
 
 /**
@@ -90,9 +88,7 @@ template <nk_dtype_t input_dtype_, nk_dtype_t output_dtype_, typename kernel_typ
 void reduce_minmax_(std::string name, kernel_type_ *kernel) {
     std::string bench_name = name + "<" + std::to_string(dense_dimensions) + "d>";
     bm::RegisterBenchmark(bench_name.c_str(), measure_reduce_minmax<input_dtype_, output_dtype_, kernel_type_ *>,
-                          kernel, dense_dimensions)
-        ->MinTime(default_seconds)
-        ->Threads(default_threads);
+                          kernel, dense_dimensions);
 }
 
 void bench_reduce() {
