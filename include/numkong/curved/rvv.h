@@ -159,7 +159,7 @@ NK_PUBLIC void nk_mahalanobis_f32_rvv(nk_f32_t const *a, nk_f32_t const *b, nk_f
             __riscv_vfredusum_vs_f64m4_f64m1(inner_f64m4, zero_f64m1, vlmax));
         outer_sum += diff_i * inner_val;
     }
-    *result = nk_f32_sqrt_rvv((nk_f32_t)outer_sum);
+    *result = nk_f32_sqrt_rvv((nk_f32_t)(outer_sum > 0 ? outer_sum : 0));
 }
 
 NK_PUBLIC void nk_mahalanobis_f64_rvv(nk_f64_t const *a, nk_f64_t const *b, nk_f64_t const *c, nk_size_t n,
@@ -185,7 +185,8 @@ NK_PUBLIC void nk_mahalanobis_f64_rvv(nk_f64_t const *a, nk_f64_t const *b, nk_f
             __riscv_vfredusum_vs_f64m4_f64m1(inner_f64m4, zero_f64m1, vlmax));
         sum_f64m1 = __riscv_vfmv_v_f_f64m1(__riscv_vfmv_f_s_f64m1_f64(sum_f64m1) + diff_i * inner_val, 1);
     }
-    *result = nk_f64_sqrt_rvv(__riscv_vfmv_f_s_f64m1_f64(sum_f64m1));
+    nk_f64_t quadratic = __riscv_vfmv_f_s_f64m1_f64(sum_f64m1) + outer_compensation;
+    *result = nk_f64_sqrt_rvv(quadratic > 0 ? quadratic : 0);
 }
 
 NK_PUBLIC void nk_mahalanobis_f16_rvv(nk_f16_t const *a, nk_f16_t const *b, nk_f16_t const *c, nk_size_t n,
@@ -218,7 +219,8 @@ NK_PUBLIC void nk_mahalanobis_f16_rvv(nk_f16_t const *a, nk_f16_t const *b, nk_f
             __riscv_vfredusum_vs_f32m2_f32m1(inner_f32m2, zero_f32m1, vlmax));
         sum_f32m1 = __riscv_vfmv_v_f_f32m1(__riscv_vfmv_f_s_f32m1_f32(sum_f32m1) + diff_i * inner_val, 1);
     }
-    *result = nk_f32_sqrt_rvv(__riscv_vfmv_f_s_f32m1_f32(sum_f32m1));
+    nk_f32_t quadratic_f16 = __riscv_vfmv_f_s_f32m1_f32(sum_f32m1);
+    *result = nk_f32_sqrt_rvv(quadratic_f16 > 0 ? quadratic_f16 : 0);
 }
 
 NK_PUBLIC void nk_mahalanobis_bf16_rvv(nk_bf16_t const *a, nk_bf16_t const *b, nk_bf16_t const *c, nk_size_t n,
@@ -251,7 +253,8 @@ NK_PUBLIC void nk_mahalanobis_bf16_rvv(nk_bf16_t const *a, nk_bf16_t const *b, n
             __riscv_vfredusum_vs_f32m2_f32m1(inner_f32m2, zero_f32m1, vlmax));
         sum_f32m1 = __riscv_vfmv_v_f_f32m1(__riscv_vfmv_f_s_f32m1_f32(sum_f32m1) + diff_i * inner_val, 1);
     }
-    *result = nk_f32_sqrt_rvv(__riscv_vfmv_f_s_f32m1_f32(sum_f32m1));
+    nk_f32_t quadratic_bf16 = __riscv_vfmv_f_s_f32m1_f32(sum_f32m1);
+    *result = nk_f32_sqrt_rvv(quadratic_bf16 > 0 ? quadratic_bf16 : 0);
 }
 
 #if defined(__cplusplus)

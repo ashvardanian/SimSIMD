@@ -147,7 +147,7 @@ __arm_locally_streaming __arm_new("za") static inline nk_f64_t
 NK_PUBLIC void nk_mahalanobis_f32_smef64(nk_f32_t const *a, nk_f32_t const *b, nk_f32_t const *c, nk_size_t n,
                                          nk_f32_t *result) {
     nk_f64_t quadratic = nk_mahalanobis_f32_smef64_kernel_(a, b, c, n);
-    *result = nk_f32_sqrt_neon((nk_f32_t)quadratic);
+    *result = (nk_f32_t)nk_f64_sqrt_neon(quadratic > 0 ? quadratic : 0);
 }
 
 __arm_locally_streaming __arm_new("za")
@@ -276,7 +276,7 @@ __arm_locally_streaming __arm_new("za") static inline nk_f64_t
 NK_PUBLIC void nk_mahalanobis_f64_smef64(nk_f64_t const *a, nk_f64_t const *b, nk_f64_t const *c, nk_size_t n,
                                          nk_f64_t *result) {
     nk_f64_t quadratic = nk_mahalanobis_f64_smef64_kernel_(a, b, c, n);
-    *result = nk_f64_sqrt_neon(quadratic);
+    *result = nk_f64_sqrt_neon(quadratic > 0 ? quadratic : 0);
 }
 
 __arm_locally_streaming __arm_new("za")

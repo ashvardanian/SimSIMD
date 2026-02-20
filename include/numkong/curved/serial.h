@@ -183,7 +183,8 @@ extern "C" {
                                       : ((outer_product - outer_running) + outer_sum);                              \
             outer_sum = outer_running;                                                                              \
         }                                                                                                           \
-        *result = nk_##accumulator_type##_sqrt_serial(outer_sum + outer_compensation);                              \
+        nk_##accumulator_type##_t quadratic = outer_sum + outer_compensation;                                       \
+        *result = nk_##accumulator_type##_sqrt_serial(quadratic > 0 ? quadratic : 0);                               \
     }
 
 // f64 → f64: Native precision with Neumaier compensation

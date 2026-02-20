@@ -131,7 +131,8 @@ NK_PUBLIC void nk_mahalanobis_f16_neonhalf(nk_f16_t const *a, nk_f16_t const *b,
         outer_sum += diff_row * inner_sum;
     }
 
-    *result = nk_f32_sqrt_neon(outer_sum);
+    nk_f32_t quadratic = outer_sum;
+    *result = nk_f32_sqrt_neon(quadratic > 0 ? quadratic : 0);
 }
 
 NK_PUBLIC void nk_bilinear_f16c_neonhalf(nk_f16c_t const *a_pairs, nk_f16c_t const *b_pairs, nk_f16c_t const *c_pairs,
