@@ -123,8 +123,8 @@ NK_PUBLIC void nk_bilinear_bf16c_genoa(nk_bf16c_t const *a, nk_bf16c_t const *b,
     nk_size_t const tail_length = n % 16;
     nk_size_t const tail_start = n - tail_length;
     __mmask32 const tail_mask = (__mmask32)_bzhi_u32(0xFFFFFFFF, tail_length * 2);
-    nk_f64_t sum_real = 0;
-    nk_f64_t sum_imag = 0;
+    nk_f32_t sum_real = 0;
+    nk_f32_t sum_imag = 0;
 
     for (nk_size_t i = 0; i != n; ++i) {
         nk_f32_t const a_i_real = a[i].real;
@@ -154,8 +154,8 @@ NK_PUBLIC void nk_bilinear_bf16c_genoa(nk_bf16c_t const *a, nk_bf16c_t const *b,
         j += 16;
         if (j < n) goto nk_bilinear_bf16c_skylake_cycle;
         // Horizontal sums are the expensive part of the computation:
-        nk_f64_t const cb_j_real = nk_reduce_add_f32x16_skylake_(cb_j_real_f32x16);
-        nk_f64_t const cb_j_imag = nk_reduce_add_f32x16_skylake_(cb_j_imag_f32x16);
+        nk_f32_t const cb_j_real = nk_reduce_add_f32x16_skylake_(cb_j_real_f32x16);
+        nk_f32_t const cb_j_imag = nk_reduce_add_f32x16_skylake_(cb_j_imag_f32x16);
         sum_real += a_i_real * cb_j_real - a_i_imag * cb_j_imag;
         sum_imag += a_i_real * cb_j_imag + a_i_imag * cb_j_real;
     }
