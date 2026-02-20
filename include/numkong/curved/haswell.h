@@ -69,7 +69,7 @@ NK_PUBLIC void nk_mahalanobis_f32_haswell(nk_f32_t const *a, nk_f32_t const *b, 
     __m256d sum_f64x4 = _mm256_setzero_pd();
 
     for (nk_size_t i = 0; i != n; ++i) {
-        __m256d diff_i_f64x4 = _mm256_set1_pd((nk_f64_t)(a[i] - b[i]));
+        __m256d diff_i_f64x4 = _mm256_set1_pd((nk_f64_t)a[i] - (nk_f64_t)b[i]);
         __m256d cdiff_j_f64x4 = _mm256_setzero_pd();
         for (nk_size_t j = 0; j + 4 <= n; j += 4) {
             __m256d diff_j_f64x4 = _mm256_sub_pd( //
@@ -83,7 +83,7 @@ NK_PUBLIC void nk_mahalanobis_f32_haswell(nk_f32_t const *a, nk_f32_t const *b, 
     nk_f64_t sum = nk_reduce_add_f64x4_haswell_(sum_f64x4);
     if (tail_length) {
         for (nk_size_t i = 0; i != n; ++i) {
-            nk_f64_t diff_i = (nk_f64_t)(a[i] - b[i]);
+            nk_f64_t diff_i = (nk_f64_t)a[i] - (nk_f64_t)b[i];
             nk_b128_vec_t a_vec, b_vec, c_vec;
             nk_partial_load_b32x4_serial_(a + tail_start, &a_vec, tail_length);
             nk_partial_load_b32x4_serial_(b + tail_start, &b_vec, tail_length);

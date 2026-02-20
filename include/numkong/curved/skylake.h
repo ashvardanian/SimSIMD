@@ -73,7 +73,7 @@ NK_PUBLIC void nk_mahalanobis_f32_skylake(nk_f32_t const *a, nk_f32_t const *b, 
     __mmask8 const tail_mask = (__mmask8)_bzhi_u32(0xFFFFFFFF, tail_length);
 
     for (nk_size_t i = 0; i != n; ++i) {
-        __m512d diff_i_f64x8 = _mm512_set1_pd((nk_f64_t)(a[i] - b[i]));
+        __m512d diff_i_f64x8 = _mm512_set1_pd((nk_f64_t)a[i] - (nk_f64_t)b[i]);
         __m512d cdiff_j_f64x8 = _mm512_setzero_pd();
         __m256 a_j_f32x8, b_j_f32x8, c_f32x8;
         nk_size_t j = 0;
@@ -90,7 +90,7 @@ NK_PUBLIC void nk_mahalanobis_f32_skylake(nk_f32_t const *a, nk_f32_t const *b, 
             b_j_f32x8 = _mm256_maskz_loadu_ps(tail_mask, b + tail_start);
             c_f32x8 = _mm256_maskz_loadu_ps(tail_mask, c + i * n + tail_start);
         }
-        __m512d diff_j_f64x8 = _mm512_cvtps_pd(_mm256_sub_ps(a_j_f32x8, b_j_f32x8));
+        __m512d diff_j_f64x8 = _mm512_sub_pd(_mm512_cvtps_pd(a_j_f32x8), _mm512_cvtps_pd(b_j_f32x8));
         cdiff_j_f64x8 = _mm512_fmadd_pd(diff_j_f64x8, _mm512_cvtps_pd(c_f32x8), cdiff_j_f64x8);
         j += 8;
         if (j < n) goto nk_mahalanobis_f32_skylake_cycle;
