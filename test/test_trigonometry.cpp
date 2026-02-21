@@ -12,7 +12,7 @@
  *  @brief Test sine approximation kernel against `nk::sin<scalar_t, f118_t, nk::no_simd_k>`.
  */
 template <typename scalar_type_>
-error_stats_t test_sin(typename scalar_type_::trig_kernel_t kernel) {
+error_stats_t test_sin(typename scalar_type_::trigonometry_kernel_t kernel) {
     using scalar_t = scalar_type_;
     using raw_t = typename scalar_t::raw_t;
 
@@ -39,7 +39,7 @@ error_stats_t test_sin(typename scalar_type_::trig_kernel_t kernel) {
  *  @brief Test cosine approximation kernel against `nk::cos<scalar_t, f118_t, nk::no_simd_k>`.
  */
 template <typename scalar_type_>
-error_stats_t test_cos(typename scalar_type_::trig_kernel_t kernel) {
+error_stats_t test_cos(typename scalar_type_::trigonometry_kernel_t kernel) {
     using scalar_t = scalar_type_;
     using raw_t = typename scalar_t::raw_t;
 
@@ -66,7 +66,7 @@ error_stats_t test_cos(typename scalar_type_::trig_kernel_t kernel) {
  *  @brief Test atan approximation kernel against `nk::atan<scalar_t, f118_t, nk::no_simd_k>`.
  */
 template <typename scalar_type_>
-error_stats_t test_atan(typename scalar_type_::trig_kernel_t kernel) {
+error_stats_t test_atan(typename scalar_type_::trigonometry_kernel_t kernel) {
     using scalar_t = scalar_type_;
     using raw_t = typename scalar_t::raw_t;
 

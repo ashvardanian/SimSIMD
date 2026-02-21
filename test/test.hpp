@@ -212,15 +212,8 @@ inline bool within_time_budget(time_point start) {
 template <typename scalar_type_>
 std::uint64_t ulp_distance(scalar_type_ a, scalar_type_ b) noexcept {
     // Handle special cases - skip float checks for integer types
-    constexpr bool is_integer = []() {
-        if constexpr (std::is_integral_v<scalar_type_>) return true;
-        else if constexpr (std::is_class_v<scalar_type_>) return scalar_type_::is_integer();
-        else return false;
-    }();
-    if constexpr (!is_integer) {
+    if constexpr (!nk::is_integer<scalar_type_>()) {
         if (std::isnan(static_cast<double>(a)) || std::isnan(static_cast<double>(b)))
-            return std::numeric_limits<std::uint64_t>::max();
-        if (std::isinf(static_cast<double>(a)) || std::isinf(static_cast<double>(b)))
             return std::numeric_limits<std::uint64_t>::max();
     }
     if (a == b) return 0; // Also handles +0 == -0
@@ -289,15 +282,9 @@ struct error_stats_t {
 
     template <typename actual_type_, typename expected_type_>
     void accumulate(actual_type_ actual, expected_type_ expected) noexcept {
-        if constexpr (std::is_class_v<actual_type_>) {
-            // Check if it's a complex type
-            if constexpr (actual_type_::is_complex()) {
-                accumulate_scalar(actual.real(), expected.real());
-                accumulate_scalar(actual.imag(), expected.imag());
-            }
-            else { accumulate_scalar(actual, expected); }
-        }
-        else { accumulate_scalar(actual, expected); }
+        if constexpr (nk::is_complex<actual_type_>())
+            accumulate_scalar(actual.real(), expected.real()), accumulate_scalar(actual.imag(), expected.imag());
+        else accumulate_scalar(actual, expected);
     }
 
     template <typename actual_type_, typename expected_type_>
@@ -308,6 +295,9 @@ struct error_stats_t {
 
         // Compute ULP distance (handles both integers and floats)
         std::uint64_t ulps = ulp_distance(actual, expected_as_actual);
+
+        // Skip NaN/Inf pairs — sentinel value means the comparison is meaningless
+        if (ulps == std::numeric_limits<std::uint64_t>::max()) return;
 
         // Only compute floating-point error metrics for non-integer types
         if constexpr (!nk::is_integer<actual_type_>()) {
@@ -390,36 +380,16 @@ template <typename type_>
  */
 template <typename scalar_type_, typename generator_type_>
 void fill_random(generator_type_ &generator, nk::vector<scalar_type_> &vector) {
-    // Sub-byte, integer, and complex types only support uniform distribution
-    // (lognormal/cauchy have floating-point default args that don't convert properly)
-    constexpr bool is_uniform_only = std::is_same_v<scalar_type_, nk::u1x8_t> ||  //
-                                     std::is_same_v<scalar_type_, nk::i4x2_t> ||  //
-                                     std::is_same_v<scalar_type_, nk::u4x2_t> ||  //
-                                     std::is_same_v<scalar_type_, nk::i8_t> ||    //
-                                     std::is_same_v<scalar_type_, nk::u8_t> ||    //
-                                     std::is_same_v<scalar_type_, nk::i16_t> ||   //
-                                     std::is_same_v<scalar_type_, nk::u16_t> ||   //
-                                     std::is_same_v<scalar_type_, nk::i32_t> ||   //
-                                     std::is_same_v<scalar_type_, nk::u32_t> ||   //
-                                     std::is_same_v<scalar_type_, nk::i64_t> ||   //
-                                     std::is_same_v<scalar_type_, nk::u64_t> ||   //
-                                     std::is_same_v<scalar_type_, nk::f16c_t> ||  //
-                                     std::is_same_v<scalar_type_, nk::bf16c_t> || //
-                                     std::is_same_v<scalar_type_, nk::f32c_t> ||  //
-                                     std::is_same_v<scalar_type_, nk::f64c_t>;
-    if constexpr (is_uniform_only) { nk::fill_uniform(generator, vector.values_data(), vector.size_values()); }
-    else {
-        switch (global_config.distribution) {
-        case random_distribution_kind_t::uniform_k:
-            nk::fill_uniform(generator, vector.values_data(), vector.size_values());
-            break;
-        case random_distribution_kind_t::lognormal_k:
-            nk::fill_lognormal(generator, vector.values_data(), vector.size_values());
-            break;
-        case random_distribution_kind_t::cauchy_k:
-            nk::fill_cauchy(generator, vector.values_data(), vector.size_values());
-            break;
-        }
+    switch (global_config.distribution) {
+    case random_distribution_kind_t::uniform_k:
+        nk::fill_uniform(generator, vector.values_data(), vector.size_values());
+        break;
+    case random_distribution_kind_t::lognormal_k:
+        nk::fill_lognormal(generator, vector.values_data(), vector.size_values());
+        break;
+    case random_distribution_kind_t::cauchy_k:
+        nk::fill_cauchy(generator, vector.values_data(), vector.size_values());
+        break;
     }
 }
 

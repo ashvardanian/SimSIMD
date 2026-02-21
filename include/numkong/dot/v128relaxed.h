@@ -138,11 +138,12 @@ nk_dot_f64_v128relaxed_cycle:
     v128_t product_f64x2 = wasm_f64x2_mul(a_vec.v128, b_vec.v128);
     v128_t product_error_f64x2 = wasm_f64x2_sub(wasm_f64x2_relaxed_madd(a_vec.v128, b_vec.v128, wasm_f64x2_splat(0.0)),
                                                 product_f64x2);
-    v128_t t_f64x2 = wasm_f64x2_add(sum_f64x2, product_f64x2);
-    v128_t z_f64x2 = wasm_f64x2_sub(t_f64x2, sum_f64x2);
-    v128_t sum_error_f64x2 = wasm_f64x2_add(wasm_f64x2_sub(sum_f64x2, wasm_f64x2_sub(t_f64x2, z_f64x2)),
-                                            wasm_f64x2_sub(product_f64x2, z_f64x2));
-    sum_f64x2 = t_f64x2;
+    v128_t tentative_sum_f64x2 = wasm_f64x2_add(sum_f64x2, product_f64x2);
+    v128_t virtual_addend_f64x2 = wasm_f64x2_sub(tentative_sum_f64x2, sum_f64x2);
+    v128_t sum_error_f64x2 = wasm_f64x2_add(
+        wasm_f64x2_sub(sum_f64x2, wasm_f64x2_sub(tentative_sum_f64x2, virtual_addend_f64x2)),
+        wasm_f64x2_sub(product_f64x2, virtual_addend_f64x2));
+    sum_f64x2 = tentative_sum_f64x2;
     compensation_f64x2 = wasm_f64x2_add(compensation_f64x2, wasm_f64x2_add(sum_error_f64x2, product_error_f64x2));
     if (count_scalars) goto nk_dot_f64_v128relaxed_cycle;
 

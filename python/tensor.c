@@ -3,8 +3,7 @@
  *  @file python/tensor.c
  *
  *  This file implements the Tensor N-dimensional array type with NumPy-like
- *  interface, the TensorIter iterator, and the TransposedMatrixMultiplier type
- *  for optimized matrix multiplication.
+ *  interface and the TensorIter iterator.
  *
  *  Features:
  *  - Support for all NumKong dtypes (f32, f64, f16, bf16, i8, complex, etc.)
@@ -15,121 +14,183 @@
  *  - Reduction operations (sum, min, max, argmin, argmax)
  */
 #include "tensor.h"
-#include "numerics.h"
+#include "matrix.h"
 
 #include <float.h>
 #include <stdint.h>
 
-#include "numkong/dots.h"
+int buffers_shapes_match(Py_buffer const *first, Py_buffer const *second) {
+    if (first->ndim != second->ndim) {
+        PyErr_SetString(PyExc_ValueError, "Input tensor ranks don't match");
+        return 0;
+    }
+    for (int dimension = 0; dimension < first->ndim; ++dimension) {
+        if (first->shape[dimension] != second->shape[dimension]) {
+            PyErr_Format(
+                PyExc_ValueError,
+                "Input tensor shapes don't match at dimension %d (%zd vs %zd). " "NumKong does not support " "implicit " "shape " "broadcasting.",
+                dimension, first->shape[dimension], second->shape[dimension]);
+            return 0;
+        }
+    }
+    return 1;
+}
 
-static PyObject *tensor_read_scalar(Tensor *tensor, size_t byte_offset);
+size_t shared_contiguous_tail_dimensions(Py_buffer const *buffers[], size_t num_buffers, size_t num_dims) {
+    size_t num_contiguous_dims = 0;
+    for (size_t dimension = num_dims; dimension-- > 0;) {
+        // Compute the expected stride for this dimension if it were packed
+        int all_packed = 1;
+        for (size_t buffer_idx = 0; buffer_idx < num_buffers; ++buffer_idx) {
+            Py_ssize_t expected_stride = buffers[buffer_idx]->itemsize;
+            for (size_t inner_dim = num_dims - 1; inner_dim > dimension; --inner_dim)
+                expected_stride *= buffers[buffer_idx]->shape[inner_dim];
+            if (buffers[buffer_idx]->strides[dimension] != expected_stride) {
+                all_packed = 0;
+                break;
+            }
+        }
+        if (!all_packed) break;
+        ++num_contiguous_dims;
+    }
+    return num_contiguous_dims;
+}
+
+void each_sum_recursive(                                           //
+    nk_each_sum_punned_t kernel,                                   //
+    char const *a_data, char const *b_data, char *result_data,     //
+    Py_ssize_t const *shape, Py_ssize_t const *a_strides,          //
+    Py_ssize_t const *b_strides, Py_ssize_t const *result_strides, //
+    size_t remaining_dims, size_t contiguous_tail_dims) {
+
+    // Base case: all remaining dimensions are contiguous — one kernel call
+    if (remaining_dims <= contiguous_tail_dims) {
+        size_t contiguous_elements = 1;
+        for (size_t dimension = 0; dimension < remaining_dims; ++dimension)
+            contiguous_elements *= (size_t)shape[dimension];
+        kernel(a_data, b_data, contiguous_elements, result_data);
+        return;
+    }
+
+    // Iterate over the outermost non-contiguous dimension, then recurse
+    size_t const dim_extent = (size_t)shape[0];
+    for (size_t position = 0; position < dim_extent; ++position) {
+        each_sum_recursive(kernel,                                     //
+                           a_data + position * a_strides[0],           //
+                           b_data + position * b_strides[0],           //
+                           result_data + position * result_strides[0], //
+                           shape + 1, a_strides + 1,                   //
+                           b_strides + 1, result_strides + 1,          //
+                           remaining_dims - 1, contiguous_tail_dims);
+    }
+}
+
+void each_scale_recursive(                                           //
+    nk_each_scale_punned_t kernel,                                   //
+    char const *a_data, char *result_data,                           //
+    nk_scalar_buffer_t const *alpha, nk_scalar_buffer_t const *beta, //
+    Py_ssize_t const *shape, Py_ssize_t const *a_strides,            //
+    Py_ssize_t const *result_strides,                                //
+    size_t remaining_dims, size_t contiguous_tail_dims) {
+
+    if (remaining_dims <= contiguous_tail_dims) {
+        size_t contiguous_elements = 1;
+        for (size_t dimension = 0; dimension < remaining_dims; ++dimension)
+            contiguous_elements *= (size_t)shape[dimension];
+        kernel(a_data, contiguous_elements, alpha, beta, result_data);
+        return;
+    }
+
+    size_t const dim_extent = (size_t)shape[0];
+    for (size_t position = 0; position < dim_extent; ++position) {
+        each_scale_recursive(kernel,                                     //
+                             a_data + position * a_strides[0],           //
+                             result_data + position * result_strides[0], //
+                             alpha, beta,                                //
+                             shape + 1, a_strides + 1,                   //
+                             result_strides + 1,                         //
+                             remaining_dims - 1, contiguous_tail_dims);
+    }
+}
+
+void each_fma_recursive(                                                           //
+    nk_each_fma_punned_t kernel,                                                   //
+    char const *a_data, char const *b_data, char const *c_data, char *result_data, //
+    nk_scalar_buffer_t const *alpha, nk_scalar_buffer_t const *beta,               //
+    Py_ssize_t const *shape, Py_ssize_t const *a_strides,                          //
+    Py_ssize_t const *b_strides, Py_ssize_t const *c_strides,                      //
+    Py_ssize_t const *result_strides,                                              //
+    size_t remaining_dims, size_t contiguous_tail_dims) {
+
+    if (remaining_dims <= contiguous_tail_dims) {
+        size_t contiguous_elements = 1;
+        for (size_t dimension = 0; dimension < remaining_dims; ++dimension)
+            contiguous_elements *= (size_t)shape[dimension];
+        kernel(a_data, b_data, c_data, contiguous_elements, alpha, beta, result_data);
+        return;
+    }
+
+    size_t const dim_extent = (size_t)shape[0];
+    for (size_t position = 0; position < dim_extent; ++position) {
+        each_fma_recursive(kernel,                                     //
+                           a_data + position * a_strides[0],           //
+                           b_data + position * b_strides[0],           //
+                           c_data + position * c_strides[0],           //
+                           result_data + position * result_strides[0], //
+                           alpha, beta,                                //
+                           shape + 1, a_strides + 1,                   //
+                           b_strides + 1, c_strides + 1,               //
+                           result_strides + 1,                         //
+                           remaining_dims - 1, contiguous_tail_dims);
+    }
+}
+
+void each_blend_recursive(                                           //
+    nk_each_blend_punned_t kernel,                                   //
+    char const *a_data, char const *b_data, char *result_data,       //
+    nk_scalar_buffer_t const *alpha, nk_scalar_buffer_t const *beta, //
+    Py_ssize_t const *shape, Py_ssize_t const *a_strides,            //
+    Py_ssize_t const *b_strides, Py_ssize_t const *result_strides,   //
+    size_t remaining_dims, size_t contiguous_tail_dims) {
+
+    if (remaining_dims <= contiguous_tail_dims) {
+        size_t contiguous_elements = 1;
+        for (size_t dimension = 0; dimension < remaining_dims; ++dimension)
+            contiguous_elements *= (size_t)shape[dimension];
+        kernel(a_data, b_data, contiguous_elements, alpha, beta, result_data);
+        return;
+    }
+
+    size_t const dim_extent = (size_t)shape[0];
+    for (size_t position = 0; position < dim_extent; ++position) {
+        each_blend_recursive(kernel,                                     //
+                             a_data + position * a_strides[0],           //
+                             b_data + position * b_strides[0],           //
+                             result_data + position * result_strides[0], //
+                             alpha, beta,                                //
+                             shape + 1, a_strides + 1,                   //
+                             b_strides + 1, result_strides + 1,          //
+                             remaining_dims - 1, contiguous_tail_dims);
+    }
+}
+
 static int tensor_is_c_contig(Tensor *tensor, size_t item_size);
 static int tensor_is_f_contig(Tensor *tensor, size_t item_size);
 
-typedef enum {
-    tensor_scalar_kind_float,
-    tensor_scalar_kind_complex,
-    tensor_scalar_kind_int,
-    tensor_scalar_kind_uint,
-} tensor_scalar_kind_t;
-
-typedef struct {
-    tensor_scalar_kind_t kind;
-    double real;
-    double imag;
-    int64_t i64;
-    uint64_t u64;
-} tensor_scalar_value_t;
-
-/// @brief Read a scalar value from a tensor at a given byte offset.
-static int tensor_read_scalar_value(Tensor *tensor, size_t byte_offset, tensor_scalar_value_t *value) {
-    char *ptr = tensor->data + byte_offset;
-    switch (tensor->dtype) {
-    case nk_f64_k:
-        value->kind = tensor_scalar_kind_float;
-        value->real = *(nk_f64_t *)ptr;
-        return 1;
-    case nk_f32_k:
-        value->kind = tensor_scalar_kind_float;
-        value->real = *(nk_f32_t *)ptr;
-        return 1;
-    case nk_f16_k: {
-        nk_f32_t tmp;
-        nk_f16_to_f32((nk_f16_t *)ptr, &tmp);
-        value->kind = tensor_scalar_kind_float;
-        value->real = tmp;
-        return 1;
-    }
-    case nk_bf16_k: {
-        nk_f32_t tmp;
-        nk_bf16_to_f32((nk_bf16_t *)ptr, &tmp);
-        value->kind = tensor_scalar_kind_float;
-        value->real = tmp;
-        return 1;
-    }
-    case nk_f64c_k:
-        value->kind = tensor_scalar_kind_complex;
-        value->real = ((nk_f64_t *)ptr)[0];
-        value->imag = ((nk_f64_t *)ptr)[1];
-        return 1;
-    case nk_f32c_k:
-        value->kind = tensor_scalar_kind_complex;
-        value->real = ((nk_f32_t *)ptr)[0];
-        value->imag = ((nk_f32_t *)ptr)[1];
-        return 1;
-    case nk_i8_k:
-        value->kind = tensor_scalar_kind_int;
-        value->i64 = *(nk_i8_t *)ptr;
-        return 1;
-    case nk_u8_k:
-        value->kind = tensor_scalar_kind_uint;
-        value->u64 = *(nk_u8_t *)ptr;
-        return 1;
-    case nk_i16_k:
-        value->kind = tensor_scalar_kind_int;
-        value->i64 = *(nk_i16_t *)ptr;
-        return 1;
-    case nk_u16_k:
-        value->kind = tensor_scalar_kind_uint;
-        value->u64 = *(nk_u16_t *)ptr;
-        return 1;
-    case nk_i32_k:
-        value->kind = tensor_scalar_kind_int;
-        value->i64 = *(nk_i32_t *)ptr;
-        return 1;
-    case nk_u32_k:
-        value->kind = tensor_scalar_kind_uint;
-        value->u64 = *(nk_u32_t *)ptr;
-        return 1;
-    case nk_i64_k:
-        value->kind = tensor_scalar_kind_int;
-        value->i64 = *(nk_i64_t *)ptr;
-        return 1;
-    case nk_u64_k:
-        value->kind = tensor_scalar_kind_uint;
-        value->u64 = *(nk_u64_t *)ptr;
-        return 1;
-    default: return 0;
-    }
-}
-
-/// @brief Return a Python scalar from a tensor byte offset.
+/** @brief Return a Python scalar from a tensor byte offset using scalar_to_py_number. */
 static PyObject *tensor_read_scalar(Tensor *tensor, size_t byte_offset) {
-    tensor_scalar_value_t value;
-    if (!tensor_read_scalar_value(tensor, byte_offset, &value)) {
+    size_t elem_size = bytes_per_dtype(tensor->dtype);
+    if (!elem_size) {
         PyErr_SetString(PyExc_TypeError, "unsupported dtype for indexing");
         return NULL;
     }
-    switch (value.kind) {
-    case tensor_scalar_kind_float: return PyFloat_FromDouble(value.real);
-    case tensor_scalar_kind_complex: return PyComplex_FromDoubles(value.real, value.imag);
-    case tensor_scalar_kind_int: return PyLong_FromLongLong(value.i64);
-    case tensor_scalar_kind_uint: return PyLong_FromUnsignedLongLong(value.u64);
-    default: return NULL;
-    }
+    nk_scalar_buffer_t buf;
+    memset(&buf, 0, sizeof(buf));
+    memcpy(&buf, tensor->data + byte_offset, elem_size);
+    return scalar_to_py_number(&buf, tensor->dtype);
 }
 
-/// @brief Check if a tensor is C-contiguous (row-major).
+/** @brief Check if a tensor is C-contiguous (row-major). */
 static int tensor_is_c_contig(Tensor *tensor, size_t item_size) {
     if (tensor->rank == 0) return 1;
     Py_ssize_t expected = (Py_ssize_t)item_size;
@@ -140,7 +201,7 @@ static int tensor_is_c_contig(Tensor *tensor, size_t item_size) {
     return 1;
 }
 
-/// @brief Check if a tensor is Fortran-contiguous (column-major).
+/** @brief Check if a tensor is Fortran-contiguous (column-major). */
 static int tensor_is_f_contig(Tensor *tensor, size_t item_size) {
     if (tensor->rank == 0) return 1;
     Py_ssize_t expected = (Py_ssize_t)item_size;
@@ -165,7 +226,17 @@ Tensor *Tensor_new(nk_dtype_t dtype, size_t rank, Py_ssize_t const *shape) {
 
     size_t const item_size = bytes_per_dtype(dtype);
     size_t total_items = 1;
-    for (size_t i = 0; i < rank; i++) total_items *= (size_t)shape[i];
+    for (size_t i = 0; i < rank; i++) {
+        if (shape[i] > 0 && total_items > SIZE_MAX / (size_t)shape[i]) {
+            PyErr_SetString(PyExc_OverflowError, "Tensor shape too large");
+            return NULL;
+        }
+        total_items *= (size_t)shape[i];
+    }
+    if (item_size > 0 && total_items > SIZE_MAX / item_size) {
+        PyErr_SetString(PyExc_OverflowError, "Tensor allocation too large");
+        return NULL;
+    }
     size_t const total_bytes = total_items * item_size;
 
     Tensor *tensor = PyObject_NewVar(Tensor, &TensorType, total_bytes);
@@ -221,7 +292,7 @@ Tensor *Tensor_view(Tensor *parent, char *data_ptr, nk_dtype_t dtype, size_t ran
     return view;
 }
 
-/// @brief Create a 0D scalar tensor.
+/** @brief Create a 0D scalar tensor. */
 static Tensor *Tensor_scalar(nk_dtype_t dtype, void const *value) {
     size_t const item_size = bytes_per_dtype(dtype);
     Tensor *tensor = PyObject_NewVar(Tensor, &TensorType, item_size);
@@ -244,7 +315,7 @@ static Tensor *Tensor_scalar(nk_dtype_t dtype, void const *value) {
     return tensor;
 }
 
-/// @brief Convert a 0D Tensor to a Python float.
+/** @brief Convert a 0D Tensor to a Python float. */
 static PyObject *Tensor_float(PyObject *self) {
     Tensor *tensor = (Tensor *)self;
     if (tensor->rank != 0) {
@@ -258,7 +329,7 @@ static PyObject *Tensor_float(PyObject *self) {
     return result;
 }
 
-/// @brief Convert a 0D Tensor to a Python int.
+/** @brief Convert a 0D Tensor to a Python int. */
 static PyObject *Tensor_int(PyObject *self) {
     Tensor *tensor = (Tensor *)self;
     if (tensor->rank != 0) {
@@ -274,42 +345,142 @@ static PyObject *Tensor_int(PyObject *self) {
 
 static PyObject *Tensor_positive(PyObject *self) { return Tensor_copy(self, NULL); }
 
-static PyObject *Tensor_negative(PyObject *self) {
-    Tensor *t = (Tensor *)self;
-    Tensor *r = Tensor_new(t->dtype, t->rank, t->shape);
-    if (!r) return NULL;
+/** @brief Compute C-contiguous strides for a tensor shape. */
+void compute_contiguous_strides(size_t rank, Py_ssize_t const *shape, size_t item_size, Py_ssize_t *strides_out) {
+    if (rank == 0) return;
+    strides_out[rank - 1] = (Py_ssize_t)item_size;
+    for (size_t d = rank - 1; d > 0; --d) strides_out[d - 1] = strides_out[d] * shape[d];
+}
 
-    size_t n = 1;
-    for (size_t i = 0; i < t->rank; i++) n *= (size_t)t->shape[i];
+/**
+ *  @brief Recursive stride walker for linearize_cast_into.
+ *
+ *  Walks non-contiguous outer dimensions recursively. Once only contiguous tail
+ *  dimensions remain, processes the entire contiguous slice with memcpy or nk_cast.
+ */
+static void linearize_cast_recursive(                                         //
+    char const *src_data, nk_dtype_t src_dtype, char *dest_data,              //
+    nk_dtype_t dest_dtype, size_t src_element_size, size_t dest_element_size, //
+    Py_ssize_t const *shape, Py_ssize_t const *strides,                       //
+    size_t remaining_dims, size_t contiguous_tail_dims) {
 
-    switch (t->dtype) {
-    case nk_f64_k: {
-        nk_f64_t *s = (nk_f64_t *)t->data, *d = (nk_f64_t *)r->data;
-        for (size_t i = 0; i < n; i++) d[i] = -s[i];
-    } break;
-    case nk_f32_k: {
-        nk_f32_t *s = (nk_f32_t *)t->data, *d = (nk_f32_t *)r->data;
-        for (size_t i = 0; i < n; i++) d[i] = -s[i];
-    } break;
-    case nk_i8_k: {
-        nk_i8_t *s = (nk_i8_t *)t->data, *d = (nk_i8_t *)r->data;
-        for (size_t i = 0; i < n; i++) d[i] = -s[i];
-    } break;
-    case nk_i32_k: {
-        nk_i32_t *s = (nk_i32_t *)t->data, *d = (nk_i32_t *)r->data;
-        for (size_t i = 0; i < n; i++) d[i] = -s[i];
-    } break;
-    case nk_i64_k: {
-        nk_i64_t *s = (nk_i64_t *)t->data, *d = (nk_i64_t *)r->data;
-        for (size_t i = 0; i < n; i++) d[i] = -s[i];
-    } break;
-    default:
-        Py_DECREF(r);
-        PyErr_SetString(PyExc_NotImplementedError, "negation not implemented for this dtype");
+    // Base case: all remaining dimensions are contiguous — one operation
+    if (remaining_dims <= contiguous_tail_dims) {
+        size_t slice_elements = 1;
+        for (size_t dim = 0; dim < remaining_dims; ++dim) slice_elements *= (size_t)shape[dim];
+        if (src_dtype == dest_dtype) memcpy(dest_data, src_data, slice_elements * src_element_size);
+        else nk_cast(src_data, src_dtype, (nk_size_t)slice_elements, dest_data, dest_dtype);
+        return;
+    }
+
+    // Recursive case: iterate outermost non-contiguous dimension
+    size_t const dim_extent = (size_t)shape[0];
+    // Compute the contiguous dest stride for this level
+    size_t inner_elements = 1;
+    for (size_t dim = 1; dim < remaining_dims; ++dim) inner_elements *= (size_t)shape[dim];
+    size_t const dest_row_bytes = inner_elements * dest_element_size;
+
+    for (size_t position = 0; position < dim_extent; ++position) {
+        linearize_cast_recursive(                              //
+            src_data + position * strides[0], src_dtype,       //
+            dest_data + position * dest_row_bytes, dest_dtype, //
+            src_element_size, dest_element_size,               //
+            shape + 1, strides + 1,                            //
+            remaining_dims - 1, contiguous_tail_dims);
+    }
+}
+
+void linearize_cast_into(char const *src_data, nk_dtype_t src_dtype, char *dest_data, nk_dtype_t dest_dtype,
+                         size_t rank, Py_ssize_t const *shape, Py_ssize_t const *strides, size_t total_elements) {
+    (void)total_elements;
+    size_t src_element_size = bytes_per_dtype(src_dtype);
+    size_t dest_element_size = bytes_per_dtype(dest_dtype);
+
+    // Count how many trailing dims are contiguous in src
+    size_t contiguous_tail_dims = 0;
+    Py_ssize_t expected_stride = (Py_ssize_t)src_element_size;
+    for (size_t dim = rank; dim-- > 0;) {
+        if (strides[dim] != expected_stride) break;
+        expected_stride *= shape[dim];
+        contiguous_tail_dims++;
+    }
+
+    linearize_cast_recursive(src_data, src_dtype, dest_data, dest_dtype, src_element_size, dest_element_size, shape,
+                             strides, rank, contiguous_tail_dims);
+}
+
+char *ensure_contiguous_buffer(char const *src_data, nk_dtype_t src_dtype, nk_dtype_t target_dtype, size_t rank,
+                               Py_ssize_t const *shape, Py_ssize_t const *strides, size_t total_elements,
+                               int *needs_free) {
+    size_t src_element_size = bytes_per_dtype(src_dtype);
+    size_t dest_element_size = bytes_per_dtype(target_dtype);
+
+    // Check full contiguity
+    int is_contiguous = 1;
+    Py_ssize_t expected_stride = (Py_ssize_t)src_element_size;
+    for (size_t dim = rank; dim-- > 0;) {
+        if (strides[dim] != expected_stride) {
+            is_contiguous = 0;
+            break;
+        }
+        expected_stride *= shape[dim];
+    }
+
+    // Zero-copy: contiguous + same dtype
+    if (is_contiguous && src_dtype == target_dtype) {
+        *needs_free = 0;
+        return (char *)src_data;
+    }
+
+    // Single allocation, delegate
+    char *output = PyMem_Malloc(total_elements * dest_element_size);
+    if (!output) {
+        PyErr_NoMemory();
         return NULL;
     }
+    linearize_cast_into(src_data, src_dtype, output, target_dtype, rank, shape, strides, total_elements);
+    *needs_free = 1;
+    return output;
+}
+
+/** @brief Shared helper for tensor-scalar elementwise operations via scale kernel.
+ *  Computes: result = alpha * a + beta */
+static PyObject *tensor_elementwise_scalar(Tensor *a, double alpha_value, double beta_value) {
+    nk_each_scale_punned_t kernel = NULL;
+    nk_capability_t cap = nk_cap_serial_k;
+    nk_find_kernel_punned(nk_kernel_each_scale_k, a->dtype, static_capabilities, nk_cap_any_k,
+                          (nk_kernel_punned_t *)&kernel, &cap);
+    if (!kernel || !cap) {
+        PyErr_Format(PyExc_NotImplementedError, "scale not supported for dtype '%s'", dtype_to_python_string(a->dtype));
+        return NULL;
+    }
+
+    Tensor *r = Tensor_new(a->dtype, a->rank, a->shape);
+    if (!r) return NULL;
+
+    size_t item_size = bytes_per_dtype(a->dtype);
+    Py_ssize_t r_strides[NK_TENSOR_MAX_RANK];
+    compute_contiguous_strides(a->rank, a->shape, item_size, r_strides);
+
+    Py_buffer a_buf = {.ndim = (int)a->rank,
+                       .itemsize = (Py_ssize_t)item_size,
+                       .shape = a->shape,
+                       .strides = a->strides};
+    Py_buffer const *bufs[] = {&a_buf};
+    size_t contiguous_tail = shared_contiguous_tail_dimensions(bufs, 1, a->rank);
+
+    nk_scalar_buffer_t alpha_buf, beta_buf;
+    nk_dtype_t scalar_dtype = nk_each_scale_input_dtype(a->dtype);
+    nk_scalar_buffer_set_f64(&alpha_buf, alpha_value, scalar_dtype);
+    nk_scalar_buffer_set_f64(&beta_buf, beta_value, scalar_dtype);
+    PyThreadState *save = PyEval_SaveThread();
+    each_scale_recursive(kernel, a->data, r->data, &alpha_buf, &beta_buf, a->shape, a->strides, r_strides, a->rank,
+                         contiguous_tail);
+    PyEval_RestoreThread(save);
     return (PyObject *)r;
 }
+
+static PyObject *Tensor_negative(PyObject *self) { return tensor_elementwise_scalar((Tensor *)self, -1.0, 0.0); }
 
 static PyObject *Tensor_add(PyObject *self, PyObject *other) {
     if (!PyObject_TypeCheck(self, &TensorType)) { Py_RETURN_NOTIMPLEMENTED; }
@@ -327,36 +498,44 @@ static PyObject *Tensor_add(PyObject *self, PyObject *other) {
                 return NULL;
             }
 
+        nk_each_sum_punned_t kernel = NULL;
+        nk_capability_t cap = nk_cap_serial_k;
+        nk_find_kernel_punned(nk_kernel_each_sum_k, a->dtype, static_capabilities, nk_cap_any_k,
+                              (nk_kernel_punned_t *)&kernel, &cap);
+        if (!kernel || !cap) {
+            PyErr_Format(PyExc_NotImplementedError, "add not supported for dtype '%s'",
+                         dtype_to_python_string(a->dtype));
+            return NULL;
+        }
+
         Tensor *r = Tensor_new(a->dtype, a->rank, a->shape);
         if (!r) return NULL;
 
-        size_t n = 1;
-        for (size_t i = 0; i < a->rank; i++) n *= (size_t)a->shape[i];
-
         size_t item_size = bytes_per_dtype(a->dtype);
-        if (impl_elementwise_add(a->data, b->data, r->data, n, a->dtype, item_size, item_size, item_size) < 0) {
-            Py_DECREF(r);
-            PyErr_SetString(PyExc_NotImplementedError, "add not implemented for this dtype");
-            return NULL;
-        }
+        Py_ssize_t r_strides[NK_TENSOR_MAX_RANK];
+        compute_contiguous_strides(a->rank, a->shape, item_size, r_strides);
+
+        Py_buffer a_buf = {.ndim = (int)a->rank,
+                           .itemsize = (Py_ssize_t)item_size,
+                           .shape = a->shape,
+                           .strides = a->strides};
+        Py_buffer b_buf = {.ndim = (int)b->rank,
+                           .itemsize = (Py_ssize_t)item_size,
+                           .shape = b->shape,
+                           .strides = b->strides};
+        Py_buffer const *bufs[] = {&a_buf, &b_buf};
+        size_t contiguous_tail = shared_contiguous_tail_dimensions(bufs, 2, a->rank);
+
+        PyThreadState *save = PyEval_SaveThread();
+        each_sum_recursive(kernel, a->data, b->data, r->data, a->shape, a->strides, b->strides, r_strides, a->rank,
+                           contiguous_tail);
+        PyEval_RestoreThread(save);
         return (PyObject *)r;
     }
 
     if (PyFloat_Check(other) || PyLong_Check(other)) {
         double sc = PyFloat_Check(other) ? PyFloat_AsDouble(other) : (double)PyLong_AsLong(other);
-        Tensor *r = Tensor_new(a->dtype, a->rank, a->shape);
-        if (!r) return NULL;
-
-        size_t n = 1;
-        for (size_t i = 0; i < a->rank; i++) n *= (size_t)a->shape[i];
-
-        size_t item_size = bytes_per_dtype(a->dtype);
-        if (impl_elementwise_scale(a->data, r->data, n, a->dtype, 1.0, sc, item_size, item_size) < 0) {
-            Py_DECREF(r);
-            PyErr_SetString(PyExc_NotImplementedError, "add not implemented for this dtype");
-            return NULL;
-        }
-        return (PyObject *)r;
+        return tensor_elementwise_scalar(a, 1.0, sc);
     }
 
     Py_RETURN_NOTIMPLEMENTED;
@@ -378,37 +557,49 @@ static PyObject *Tensor_subtract(PyObject *self, PyObject *other) {
                 return NULL;
             }
 
+        // Single-pass subtract via blend: result = 1*a + (-1)*b
+        nk_each_blend_punned_t kernel = NULL;
+        nk_capability_t cap = nk_cap_serial_k;
+        nk_find_kernel_punned(nk_kernel_each_blend_k, a->dtype, static_capabilities, nk_cap_any_k,
+                              (nk_kernel_punned_t *)&kernel, &cap);
+        if (!kernel || !cap) {
+            PyErr_Format(PyExc_NotImplementedError, "subtract not supported for dtype '%s'",
+                         dtype_to_python_string(a->dtype));
+            return NULL;
+        }
+
         Tensor *r = Tensor_new(a->dtype, a->rank, a->shape);
         if (!r) return NULL;
 
-        size_t n = 1;
-        for (size_t i = 0; i < a->rank; i++) n *= (size_t)a->shape[i];
-
         size_t item_size = bytes_per_dtype(a->dtype);
-        if (impl_elementwise_wsum(a->data, b->data, r->data, n, a->dtype, 1.0, -1.0, item_size, item_size, item_size) <
-            0) {
-            Py_DECREF(r);
-            PyErr_SetString(PyExc_NotImplementedError, "subtract not implemented for this dtype");
-            return NULL;
-        }
+        Py_ssize_t r_strides[NK_TENSOR_MAX_RANK];
+        compute_contiguous_strides(a->rank, a->shape, item_size, r_strides);
+
+        Py_buffer a_buf = {.ndim = (int)a->rank,
+                           .itemsize = (Py_ssize_t)item_size,
+                           .shape = a->shape,
+                           .strides = a->strides};
+        Py_buffer b_buf = {.ndim = (int)b->rank,
+                           .itemsize = (Py_ssize_t)item_size,
+                           .shape = b->shape,
+                           .strides = b->strides};
+        Py_buffer const *bufs[] = {&a_buf, &b_buf};
+        size_t contiguous_tail = shared_contiguous_tail_dimensions(bufs, 2, a->rank);
+
+        nk_scalar_buffer_t alpha_buf, beta_buf;
+        nk_dtype_t scalar_dtype = nk_each_scale_input_dtype(a->dtype);
+        nk_scalar_buffer_set_f64(&alpha_buf, 1.0, scalar_dtype);
+        nk_scalar_buffer_set_f64(&beta_buf, -1.0, scalar_dtype);
+        PyThreadState *save = PyEval_SaveThread();
+        each_blend_recursive(kernel, a->data, b->data, r->data, &alpha_buf, &beta_buf, a->shape, a->strides, b->strides,
+                             r_strides, a->rank, contiguous_tail);
+        PyEval_RestoreThread(save);
         return (PyObject *)r;
     }
 
     if (PyFloat_Check(other) || PyLong_Check(other)) {
         double sc = PyFloat_Check(other) ? PyFloat_AsDouble(other) : (double)PyLong_AsLong(other);
-        Tensor *r = Tensor_new(a->dtype, a->rank, a->shape);
-        if (!r) return NULL;
-
-        size_t n = 1;
-        for (size_t i = 0; i < a->rank; i++) n *= (size_t)a->shape[i];
-
-        size_t item_size = bytes_per_dtype(a->dtype);
-        if (impl_elementwise_scale(a->data, r->data, n, a->dtype, 1.0, -sc, item_size, item_size) < 0) {
-            Py_DECREF(r);
-            PyErr_SetString(PyExc_NotImplementedError, "subtract not implemented for this dtype");
-            return NULL;
-        }
-        return (PyObject *)r;
+        return tensor_elementwise_scalar(a, 1.0, -sc);
     }
 
     Py_RETURN_NOTIMPLEMENTED;
@@ -430,43 +621,57 @@ static PyObject *Tensor_multiply(PyObject *self, PyObject *other) {
                 return NULL;
             }
 
+        nk_each_fma_punned_t kernel = NULL;
+        nk_capability_t cap = nk_cap_serial_k;
+        nk_find_kernel_punned(nk_kernel_each_fma_k, a->dtype, static_capabilities, nk_cap_any_k,
+                              (nk_kernel_punned_t *)&kernel, &cap);
+        if (!kernel || !cap) {
+            PyErr_Format(PyExc_NotImplementedError, "multiply not supported for dtype '%s'",
+                         dtype_to_python_string(a->dtype));
+            return NULL;
+        }
+
         Tensor *r = Tensor_new(a->dtype, a->rank, a->shape);
         if (!r) return NULL;
 
-        size_t n = 1;
-        for (size_t i = 0; i < a->rank; i++) n *= (size_t)a->shape[i];
-
         size_t item_size = bytes_per_dtype(a->dtype);
-        if (impl_elementwise_mul(a->data, b->data, r->data, n, a->dtype, item_size, item_size, item_size) < 0) {
-            Py_DECREF(r);
-            PyErr_SetString(PyExc_NotImplementedError, "multiply not implemented for this dtype");
-            return NULL;
-        }
+        size_t total_items = 1;
+        for (size_t i = 0; i < a->rank; i++) total_items *= (size_t)a->shape[i];
+        memset(r->data, 0, total_items * item_size); // prevent 0*NaN=NaN from uninitialized memory
+
+        Py_ssize_t r_strides[NK_TENSOR_MAX_RANK];
+        compute_contiguous_strides(a->rank, a->shape, item_size, r_strides);
+
+        Py_buffer a_buf = {.ndim = (int)a->rank,
+                           .itemsize = (Py_ssize_t)item_size,
+                           .shape = a->shape,
+                           .strides = a->strides};
+        Py_buffer b_buf = {.ndim = (int)b->rank,
+                           .itemsize = (Py_ssize_t)item_size,
+                           .shape = b->shape,
+                           .strides = b->strides};
+        Py_buffer const *bufs[] = {&a_buf, &b_buf};
+        size_t contiguous_tail = shared_contiguous_tail_dimensions(bufs, 2, a->rank);
+
+        // fma(a, b, dummy, n, alpha=1, beta=0) -> 1*a*b + 0*dummy
+        nk_scalar_buffer_t alpha_buf, beta_buf;
+        nk_dtype_t scalar_dtype = nk_each_scale_input_dtype(a->dtype);
+        nk_scalar_buffer_set_f64(&alpha_buf, 1.0, scalar_dtype);
+        nk_scalar_buffer_set_f64(&beta_buf, 0.0, scalar_dtype);
+        PyThreadState *save = PyEval_SaveThread();
+        each_fma_recursive(kernel, a->data, b->data, r->data, r->data, &alpha_buf, &beta_buf, a->shape, a->strides,
+                           b->strides, r_strides, r_strides, a->rank, contiguous_tail);
+        PyEval_RestoreThread(save);
         return (PyObject *)r;
     }
 
     if (PyFloat_Check(other) || PyLong_Check(other)) {
         double sc = PyFloat_Check(other) ? PyFloat_AsDouble(other) : (double)PyLong_AsLong(other);
-        Tensor *r = Tensor_new(a->dtype, a->rank, a->shape);
-        if (!r) return NULL;
-
-        size_t n = 1;
-        for (size_t i = 0; i < a->rank; i++) n *= (size_t)a->shape[i];
-
-        size_t item_size = bytes_per_dtype(a->dtype);
-        if (impl_elementwise_scale(a->data, r->data, n, a->dtype, sc, 0.0, item_size, item_size) < 0) {
-            Py_DECREF(r);
-            PyErr_SetString(PyExc_NotImplementedError, "multiply not implemented for this dtype");
-            return NULL;
-        }
-        return (PyObject *)r;
+        return tensor_elementwise_scalar(a, sc, 0.0);
     }
 
     Py_RETURN_NOTIMPLEMENTED;
 }
-
-// Forward declaration for Tensor_matmul (implemented after TransposedMatrixMultiplierType is defined)
-static PyObject *Tensor_matmul(PyObject *self, PyObject *other);
 
 static PyNumberMethods Tensor_as_number = {
     .nb_add = Tensor_add,
@@ -603,7 +808,13 @@ static PyObject *Tensor_get_array_interface(PyObject *self, void *closure) {
     PyDict_SetItemString(dict, "strides", strides);
     Py_DECREF(strides);
 
-    PyDict_SetItemString(dict, "version", PyLong_FromLong(3));
+    PyObject *version = PyLong_FromLong(3);
+    if (!version) {
+        Py_DECREF(dict);
+        return NULL;
+    }
+    PyDict_SetItemString(dict, "version", version);
+    Py_DECREF(version);
 
     return dict;
 }
@@ -624,55 +835,26 @@ static PyGetSetDef Tensor_getset[] = {
 PyObject *Tensor_copy(PyObject *self, PyObject *args) {
     (void)args;
     Tensor *tensor = (Tensor *)self;
-    size_t item_size = bytes_per_dtype(tensor->dtype);
 
-    Py_ssize_t total = 1;
-    for (size_t i = 0; i < tensor->rank; i++) total *= tensor->shape[i];
+    size_t total_elements = 1;
+    for (size_t i = 0; i < tensor->rank; i++) total_elements *= (size_t)tensor->shape[i];
 
-    Tensor *result = PyObject_NewVar(Tensor, &TensorType, total * item_size);
+    Tensor *result = Tensor_new(tensor->dtype, tensor->rank, tensor->shape);
     if (!result) return NULL;
 
-    result->dtype = tensor->dtype;
-    result->rank = tensor->rank;
-    result->parent = NULL;
-    result->data = result->start;
-
-    Py_ssize_t stride = item_size;
-    for (size_t i = tensor->rank; i > 0; i--) {
-        result->shape[i - 1] = tensor->shape[i - 1];
-        result->strides[i - 1] = stride;
-        stride *= tensor->shape[i - 1];
-    }
-    for (size_t i = tensor->rank; i < NK_TENSOR_MAX_RANK; i++) {
-        result->shape[i] = 0;
-        result->strides[i] = 0;
-    }
-
-    if (tensor_is_c_contig(tensor, item_size)) { memcpy(result->data, tensor->data, total * item_size); }
-    else {
-        for (Py_ssize_t flat = 0; flat < total; flat++) {
-            size_t src_off = 0, dst_off = flat * item_size;
-            Py_ssize_t tmp = flat;
-            for (size_t d = tensor->rank; d > 0; d--) {
-                Py_ssize_t idx = tmp % tensor->shape[d - 1];
-                tmp /= tensor->shape[d - 1];
-                src_off += idx * tensor->strides[d - 1];
-            }
-            memcpy(result->data + dst_off, tensor->data + src_off, item_size);
-        }
-    }
-
+    linearize_cast_into(tensor->data, tensor->dtype, result->data, tensor->dtype, tensor->rank, tensor->shape,
+                        tensor->strides, total_elements);
     return (PyObject *)result;
 }
 
-PyObject *Tensor_reshape(PyObject *self, PyObject *args) {
+PyObject *Tensor_reshape(PyObject *self, PyObject *const *args, Py_ssize_t nargs) {
     Tensor *tensor = (Tensor *)self;
 
     Py_ssize_t new_shape[NK_TENSOR_MAX_RANK];
     size_t new_rank = 0;
 
-    if (PyTuple_GET_SIZE(args) == 1 && PyTuple_Check(PyTuple_GET_ITEM(args, 0))) {
-        PyObject *shape_tuple = PyTuple_GET_ITEM(args, 0);
+    if (nargs == 1 && PyTuple_Check(args[0])) {
+        PyObject *shape_tuple = args[0];
         new_rank = PyTuple_GET_SIZE(shape_tuple);
         if (new_rank > NK_TENSOR_MAX_RANK) {
             PyErr_Format(PyExc_ValueError, "reshape: too many dimensions (%zu > %d)", new_rank, NK_TENSOR_MAX_RANK);
@@ -692,13 +874,13 @@ PyObject *Tensor_reshape(PyObject *self, PyObject *args) {
         }
     }
     else {
-        new_rank = PyTuple_GET_SIZE(args);
+        new_rank = (size_t)nargs;
         if (new_rank > NK_TENSOR_MAX_RANK) {
             PyErr_Format(PyExc_ValueError, "reshape: too many dimensions (%zu > %d)", new_rank, NK_TENSOR_MAX_RANK);
             return NULL;
         }
         for (size_t i = 0; i < new_rank; i++) {
-            PyObject *item = PyTuple_GET_ITEM(args, i);
+            PyObject *item = args[i];
             if (!PyLong_Check(item)) {
                 PyErr_SetString(PyExc_TypeError, "reshape: shape dimensions must be integers");
                 return NULL;
@@ -737,37 +919,195 @@ PyObject *Tensor_reshape(PyObject *self, PyObject *args) {
     }
 
     // Non-contiguous: must copy
-    Tensor *result = PyObject_NewVar(Tensor, &TensorType, new_total * item_size);
+    Tensor *result = Tensor_new(tensor->dtype, new_rank, new_shape);
     if (!result) return NULL;
 
-    result->dtype = tensor->dtype;
-    result->rank = new_rank;
-    result->parent = NULL;
-    result->data = result->start;
-
-    Py_ssize_t stride = item_size;
-    for (size_t i = new_rank; i > 0; i--) {
-        result->shape[i - 1] = new_shape[i - 1];
-        result->strides[i - 1] = stride;
-        stride *= new_shape[i - 1];
-    }
-    for (size_t i = new_rank; i < NK_TENSOR_MAX_RANK; i++) {
-        result->shape[i] = 0;
-        result->strides[i] = 0;
-    }
-
-    for (Py_ssize_t flat = 0; flat < old_total; flat++) {
-        size_t src_off = 0;
-        Py_ssize_t tmp = flat;
-        for (size_t d = tensor->rank; d > 0; d--) {
-            Py_ssize_t idx = tmp % tensor->shape[d - 1];
-            tmp /= tensor->shape[d - 1];
-            src_off += idx * tensor->strides[d - 1];
-        }
-        memcpy(result->data + flat * item_size, tensor->data + src_off, item_size);
-    }
-
+    linearize_cast_into(tensor->data, tensor->dtype, result->data, tensor->dtype, tensor->rank, tensor->shape,
+                        tensor->strides, (size_t)old_total);
     return (PyObject *)result;
+}
+
+/** @brief Add a partial sum value into a running accumulator, using the accumulator dtype. */
+static void accum_add(void *accum, void const *partial, nk_dtype_t accum_dtype) {
+    switch (accum_dtype) {
+    case nk_f64_k: *(nk_f64_t *)accum += *(nk_f64_t const *)partial; break;
+    case nk_f32_k: *(nk_f32_t *)accum += *(nk_f32_t const *)partial; break;
+    case nk_i64_k: nk_i64_sadd_((nk_i64_t const *)accum, (nk_i64_t const *)partial, (nk_i64_t *)accum); break;
+    case nk_u64_k: nk_u64_sadd_((nk_u64_t const *)accum, (nk_u64_t const *)partial, (nk_u64_t *)accum); break;
+    default: break;
+    }
+}
+
+/** @brief Recursively reduce moments over an N-D tensor using a SIMD kernel. */
+static void reduce_moments_recursive(                   //
+    nk_kernel_reduce_moments_punned_t kernel,           //
+    nk_dtype_t sum_dtype, nk_dtype_t sumsq_dtype,       //
+    char const *data, Py_ssize_t const *shape,          //
+    Py_ssize_t const *strides, size_t rank, size_t dim, //
+    nk_scalar_buffer_t *sum_accum, nk_scalar_buffer_t *sumsq_accum) {
+
+    if (dim == rank - 1) {
+        // Base case: call SIMD kernel on innermost dimension
+        nk_scalar_buffer_t partial_sum, partial_sumsq;
+        memset(&partial_sum, 0, sizeof(partial_sum));
+        memset(&partial_sumsq, 0, sizeof(partial_sumsq));
+        kernel(data, (nk_size_t)shape[dim], (nk_size_t)strides[dim], &partial_sum, &partial_sumsq);
+        accum_add(sum_accum, &partial_sum, sum_dtype);
+        accum_add(sumsq_accum, &partial_sumsq, sumsq_dtype);
+    }
+    else {
+        size_t const n = (size_t)shape[dim];
+        Py_ssize_t const stride = strides[dim];
+        for (size_t i = 0; i < n; i++)
+            reduce_moments_recursive(kernel, sum_dtype, sumsq_dtype, data + i * stride, shape, strides, rank, dim + 1,
+                                     sum_accum, sumsq_accum);
+    }
+}
+
+/** @brief Reduce moments over an N-D tensor, returning typed scalar buffers. */
+static int impl_reduce_moments(TensorView const *view, nk_scalar_buffer_t *sum_out, nk_dtype_t *sum_dtype_out,
+                               nk_scalar_buffer_t *sumsq_out, nk_dtype_t *sumsq_dtype_out) {
+
+    nk_kernel_reduce_moments_punned_t kernel = NULL;
+    nk_capability_t cap = nk_cap_serial_k;
+    nk_find_kernel_punned(nk_kernel_reduce_moments_k, view->dtype, static_capabilities, nk_cap_any_k,
+                          (nk_kernel_punned_t *)&kernel, &cap);
+    if (!kernel) return -1;
+
+    nk_dtype_t sum_dtype = nk_reduce_moments_sum_dtype(view->dtype);
+    nk_dtype_t sumsq_dtype = nk_reduce_moments_sumsq_dtype(view->dtype);
+
+    nk_scalar_buffer_t sum_buf, sumsq_buf;
+    memset(&sum_buf, 0, sizeof(sum_buf));
+    memset(&sumsq_buf, 0, sizeof(sumsq_buf));
+
+    if (view->rank == 0) {
+        // Rank-0: single element, count=1, stride doesn't matter
+        kernel(view->data, 1, 0, &sum_buf, &sumsq_buf);
+    }
+    else {
+        reduce_moments_recursive(kernel, sum_dtype, sumsq_dtype, view->data, view->shape, view->strides, view->rank, 0,
+                                 &sum_buf, &sumsq_buf);
+    }
+
+    *sum_out = sum_buf;
+    *sumsq_out = sumsq_buf;
+    *sum_dtype_out = sum_dtype;
+    *sumsq_dtype_out = sumsq_dtype;
+    return 0;
+}
+
+/** @brief Type-aware less-than comparison for scalar buffers.
+ *  Uses native comparisons for standard types and sign-magnitude comparators for mini-floats. */
+static int minmax_less_than(nk_scalar_buffer_t const *a, nk_scalar_buffer_t const *b, nk_dtype_t dtype) {
+    switch (dtype) {
+    case nk_f64_k: return a->f64 < b->f64;
+    case nk_f32_k: return a->f32 < b->f32;
+    case nk_i64_k: return a->i64 < b->i64;
+    case nk_u64_k: return a->u64 < b->u64;
+    case nk_i32_k: return a->i32 < b->i32;
+    case nk_u32_k: return a->u32 < b->u32;
+    case nk_i16_k: return a->i16 < b->i16;
+    case nk_u16_k: return a->u16 < b->u16;
+    case nk_i8_k: return a->i8 < b->i8;
+    case nk_u8_k: return a->u8 < b->u8;
+    case nk_f16_k: return nk_f16_compare_(a->f16, b->f16) < 0;
+    case nk_bf16_k: return nk_bf16_compare_(a->bf16, b->bf16) < 0;
+    case nk_e4m3_k: return nk_e4m3_compare_(a->u8, b->u8) < 0;
+    case nk_e5m2_k: return nk_e5m2_compare_(a->u8, b->u8) < 0;
+    case nk_e2m3_k: return nk_e2m3_compare_(a->u8, b->u8) < 0;
+    case nk_e3m2_k: return nk_e3m2_compare_(a->u8, b->u8) < 0;
+    default: return 0;
+    }
+}
+
+/** @brief Update minmax accumulators with partial results from a SIMD kernel call.
+ *  The SIMD kernel returns min/max values in the value dtype and indices relative to the slice.
+ *  We compare against the running accumulators and update if better. */
+static void minmax_update(nk_scalar_buffer_t *running_min, nk_size_t *running_min_idx, nk_scalar_buffer_t *running_max,
+                          nk_size_t *running_max_idx, nk_scalar_buffer_t const *partial_min, nk_size_t partial_min_idx,
+                          nk_scalar_buffer_t const *partial_max, nk_size_t partial_max_idx, nk_dtype_t value_dtype,
+                          size_t flat_offset) {
+    if (minmax_less_than(partial_min, running_min, value_dtype)) {
+        memcpy(running_min, partial_min, sizeof(*running_min));
+        *running_min_idx = flat_offset + partial_min_idx;
+    }
+    if (minmax_less_than(running_max, partial_max, value_dtype)) {
+        memcpy(running_max, partial_max, sizeof(*running_max));
+        *running_max_idx = flat_offset + partial_max_idx;
+    }
+}
+
+/** @brief Recursively reduce minmax over an N-D tensor using a SIMD kernel. */
+static void reduce_minmax_recursive(                         //
+    nk_kernel_reduce_minmax_punned_t kernel,                 //
+    nk_dtype_t value_dtype,                                  //
+    char const *data, Py_ssize_t const *shape,               //
+    Py_ssize_t const *strides, size_t rank, size_t dim,      //
+    size_t flat_offset,                                      //
+    nk_scalar_buffer_t *min_accum, nk_size_t *min_idx_accum, //
+    nk_scalar_buffer_t *max_accum, nk_size_t *max_idx_accum) {
+
+    if (dim == rank - 1) {
+        nk_scalar_buffer_t partial_min, partial_max;
+        memset(&partial_min, 0, sizeof(partial_min));
+        memset(&partial_max, 0, sizeof(partial_max));
+        nk_size_t partial_min_idx = 0, partial_max_idx = 0;
+        kernel(data, (nk_size_t)shape[dim], (nk_size_t)strides[dim], &partial_min, &partial_min_idx, &partial_max,
+               &partial_max_idx);
+        minmax_update(min_accum, min_idx_accum, max_accum, max_idx_accum, &partial_min, partial_min_idx, &partial_max,
+                      partial_max_idx, value_dtype, flat_offset);
+    }
+    else {
+        size_t const n = (size_t)shape[dim];
+        Py_ssize_t const stride = strides[dim];
+        size_t inner_size = 1;
+        for (size_t d = dim + 1; d < rank; d++) inner_size *= (size_t)shape[d];
+        for (size_t i = 0; i < n; i++)
+            reduce_minmax_recursive(kernel, value_dtype, data + i * stride, shape, strides, rank, dim + 1,
+                                    flat_offset + i * inner_size, min_accum, min_idx_accum, max_accum, max_idx_accum);
+    }
+}
+
+/** @brief Reduce minmax over an N-D tensor, returning typed scalar buffers. */
+static int impl_reduce_minmax(TensorView const *view, nk_scalar_buffer_t *min_out, nk_dtype_t *min_dtype_out,
+                              size_t *min_index_out, nk_scalar_buffer_t *max_out, nk_dtype_t *max_dtype_out,
+                              size_t *max_index_out) {
+
+    nk_kernel_reduce_minmax_punned_t kernel = NULL;
+    nk_capability_t cap = nk_cap_serial_k;
+    nk_find_kernel_punned(nk_kernel_reduce_minmax_k, view->dtype, static_capabilities, nk_cap_any_k,
+                          (nk_kernel_punned_t *)&kernel, &cap);
+    if (!kernel) return -1;
+
+    nk_dtype_t value_dtype = nk_reduce_minmax_value_dtype(view->dtype);
+
+    // For minmax, the SIMD kernel already initializes from the data it processes.
+    // For multi-dimensional tensors, we need extreme initial values for the running accumulators.
+    // Use the first element as initialization by calling the kernel on the first element,
+    // then let the full recursive traversal find the real min/max.
+    nk_scalar_buffer_t min_buf, max_buf;
+    memset(&min_buf, 0, sizeof(min_buf));
+    memset(&max_buf, 0, sizeof(max_buf));
+    nk_size_t min_idx = 0, max_idx = 0;
+
+    if (view->rank == 0) { kernel(view->data, 1, 0, &min_buf, &min_idx, &max_buf, &max_idx); }
+    else {
+        // Initialize accumulators from the first element
+        size_t elem_size = bytes_per_dtype(value_dtype);
+        kernel(view->data, 1, (nk_size_t)elem_size, &min_buf, &min_idx, &max_buf, &max_idx);
+        // Now do the full traversal (first element will be compared again, which is fine)
+        reduce_minmax_recursive(kernel, value_dtype, view->data, view->shape, view->strides, view->rank, 0, 0, &min_buf,
+                                &min_idx, &max_buf, &max_idx);
+    }
+
+    *min_out = min_buf;
+    *max_out = max_buf;
+    *min_dtype_out = value_dtype;
+    *max_dtype_out = value_dtype;
+    *min_index_out = (size_t)min_idx;
+    *max_index_out = (size_t)max_idx;
+    return 0;
 }
 
 PyObject *Tensor_moments(PyObject *self, PyObject *args) {
@@ -782,17 +1122,25 @@ PyObject *Tensor_moments(PyObject *self, PyObject *args) {
         .data = tensor->data,
     };
 
-    double sum_f = 0, sumsq_f = 0;
-    int64_t sum_i = 0, sumsq_i = 0;
-    impl_reduce_moments(&view, &sum_f, &sum_i, &sumsq_f, &sumsq_i);
-
-    switch (tensor->dtype) {
-    case nk_f64_k:
-    case nk_f32_k:
-    case nk_f16_k:
-    case nk_bf16_k: return Py_BuildValue("(dd)", sum_f, sumsq_f);
-    default: return Py_BuildValue("(LL)", (long long)sum_i, (long long)sumsq_i);
+    nk_scalar_buffer_t sum_buf, sumsq_buf;
+    nk_dtype_t sum_dtype, sumsq_dtype;
+    if (impl_reduce_moments(&view, &sum_buf, &sum_dtype, &sumsq_buf, &sumsq_dtype) < 0) {
+        PyErr_Format(PyExc_NotImplementedError, "moments not supported for dtype '%s'",
+                     dtype_to_python_string(tensor->dtype));
+        return NULL;
     }
+
+    PyObject *sum_obj = scalar_to_py_number(&sum_buf, sum_dtype);
+    if (!sum_obj) return NULL;
+    PyObject *sumsq_obj = scalar_to_py_number(&sumsq_buf, sumsq_dtype);
+    if (!sumsq_obj) {
+        Py_DECREF(sum_obj);
+        return NULL;
+    }
+    PyObject *tuple = PyTuple_Pack(2, sum_obj, sumsq_obj);
+    Py_DECREF(sum_obj);
+    Py_DECREF(sumsq_obj);
+    return tuple;
 }
 
 PyObject *Tensor_minmax(PyObject *self, PyObject *args) {
@@ -807,27 +1155,138 @@ PyObject *Tensor_minmax(PyObject *self, PyObject *args) {
         .data = tensor->data,
     };
 
-    double min_f = 0, max_f = 0;
-    int64_t min_i = 0, max_i = 0;
+    nk_scalar_buffer_t min_buf, max_buf;
+    nk_dtype_t min_dtype, max_dtype;
     size_t min_index = 0, max_index = 0;
-    impl_reduce_minmax(&view, &min_f, &min_i, &min_index, &max_f, &max_i, &max_index);
-
-    switch (tensor->dtype) {
-    case nk_f64_k:
-    case nk_f32_k:
-    case nk_f16_k:
-    case nk_bf16_k: return Py_BuildValue("(dndn)", min_f, (Py_ssize_t)min_index, max_f, (Py_ssize_t)max_index);
-    default:
-        return Py_BuildValue("(LnLn)", (long long)min_i, (Py_ssize_t)min_index, (long long)max_i,
-                             (Py_ssize_t)max_index);
+    if (impl_reduce_minmax(&view, &min_buf, &min_dtype, &min_index, &max_buf, &max_dtype, &max_index) < 0) {
+        PyErr_Format(PyExc_NotImplementedError, "minmax not supported for dtype '%s'",
+                     dtype_to_python_string(tensor->dtype));
+        return NULL;
     }
+
+    PyObject *min_obj = scalar_to_py_number(&min_buf, min_dtype);
+    if (!min_obj) return NULL;
+    PyObject *min_idx_obj = PyLong_FromSsize_t((Py_ssize_t)min_index);
+    if (!min_idx_obj) {
+        Py_DECREF(min_obj);
+        return NULL;
+    }
+    PyObject *max_obj = scalar_to_py_number(&max_buf, max_dtype);
+    if (!max_obj) {
+        Py_DECREF(min_obj);
+        Py_DECREF(min_idx_obj);
+        return NULL;
+    }
+    PyObject *max_idx_obj = PyLong_FromSsize_t((Py_ssize_t)max_index);
+    if (!max_idx_obj) {
+        Py_DECREF(min_obj);
+        Py_DECREF(min_idx_obj);
+        Py_DECREF(max_obj);
+        return NULL;
+    }
+    PyObject *tuple = PyTuple_Pack(4, min_obj, min_idx_obj, max_obj, max_idx_obj);
+    Py_DECREF(min_obj);
+    Py_DECREF(min_idx_obj);
+    Py_DECREF(max_obj);
+    Py_DECREF(max_idx_obj);
+    return tuple;
+}
+
+PyObject *Tensor_astype(PyObject *self, PyObject *dtype_arg) {
+    Tensor *tensor = (Tensor *)self;
+
+    // Parse target dtype from string argument
+    char const *dtype_str = PyUnicode_AsUTF8(dtype_arg);
+    if (!dtype_str) {
+        PyErr_SetString(PyExc_TypeError, "dtype must be a string");
+        return NULL;
+    }
+    nk_dtype_t target_dtype = python_string_to_dtype(dtype_str);
+    if (target_dtype == nk_dtype_unknown_k) {
+        PyErr_Format(PyExc_ValueError, "Unsupported dtype: '%s'", dtype_str);
+        return NULL;
+    }
+
+    // Same dtype -> return copy
+    if (target_dtype == tensor->dtype) return Tensor_copy(self, NULL);
+
+    // Compute total elements
+    Py_ssize_t total = 1;
+    for (size_t i = 0; i < tensor->rank; i++) total *= tensor->shape[i];
+
+    // Allocate result tensor
+    Tensor *result = Tensor_new(target_dtype, tensor->rank, tensor->shape);
+    if (!result) return NULL;
+
+    linearize_cast_into(tensor->data, tensor->dtype, result->data, target_dtype, tensor->rank, tensor->shape,
+                        tensor->strides, (size_t)total);
+    return (PyObject *)result;
+}
+
+static PyObject *Tensor___array__(PyObject *self_obj, PyObject *const *args, Py_ssize_t nargs, PyObject *kwnames) {
+    PyObject *dtype_arg = NULL;
+
+    Py_ssize_t nkw = kwnames ? PyTuple_Size(kwnames) : 0;
+    if (nargs > 1 || nargs + nkw > 2) {
+        PyErr_SetString(PyExc_TypeError, "__array__(dtype=None, copy=None)");
+        return NULL;
+    }
+    if (nargs >= 1) dtype_arg = args[0];
+    for (Py_ssize_t i = 0; i < nkw; i++) {
+        PyObject *name = PyTuple_GET_ITEM(kwnames, i);
+        PyObject *value = args[nargs + i];
+        if (PyUnicode_CompareWithASCIIString(name, "dtype") == 0) dtype_arg = value;
+        else if (PyUnicode_CompareWithASCIIString(name, "copy") == 0) { /* ignored */ }
+        else {
+            PyErr_Format(PyExc_TypeError, "__array__() unexpected keyword: %S", name);
+            return NULL;
+        }
+    }
+
+    Tensor *self = (Tensor *)self_obj;
+    nk_dtype_info_t const *info = dtype_info(self->dtype);
+    if (!info) {
+        PyErr_SetString(PyExc_TypeError, "Unknown dtype");
+        return NULL;
+    }
+    // Reject exotic dtypes that NumPy can't represent natively
+    char const *fmt = info->buffer_format;
+    if (same_string(fmt, "e2m3") || same_string(fmt, "e3m2") ||       //
+        same_string(fmt, "e4m3") || same_string(fmt, "e5m2") ||       //
+        same_string(fmt, "bf16") || same_string(fmt, "bcomplex32") || //
+        same_string(fmt, "Ze") || same_string(fmt, "i4") ||           //
+        same_string(fmt, "u4") || same_string(fmt, "?")) {
+        PyErr_Format(PyExc_TypeError,
+                     "Cannot convert NumKong tensor of dtype '%s' to NumPy array. " "Use .astype('float32') first.",
+                     info->name);
+        return NULL;
+    }
+
+    // Cache numpy.asarray to avoid repeated import overhead
+    static PyObject *cached_asarray = NULL;
+    if (!cached_asarray) {
+        PyObject *numpy = PyImport_ImportModule("numpy");
+        if (!numpy) return NULL;
+        cached_asarray = PyObject_GetAttrString(numpy, "asarray");
+        Py_DECREF(numpy);
+        if (!cached_asarray) return NULL;
+    }
+
+    PyObject *result;
+    if (dtype_arg && dtype_arg != Py_None)
+        result = PyObject_CallFunctionObjArgs(cached_asarray, self_obj, dtype_arg, NULL);
+    else result = PyObject_CallOneArg(cached_asarray, self_obj);
+    return result;
 }
 
 static PyMethodDef Tensor_methods[] = {
     {"copy", Tensor_copy, METH_NOARGS, "Return a deep copy of the tensor"},
-    {"reshape", Tensor_reshape, METH_VARARGS, "Return tensor reshaped to given dimensions"},
+    {"reshape", (PyCFunction)Tensor_reshape, METH_FASTCALL, "Return tensor reshaped to given dimensions"},
     {"moments", Tensor_moments, METH_NOARGS, "Returns (sum, sum_of_squares) tuple"},
     {"minmax", Tensor_minmax, METH_NOARGS, "Returns (min_val, min_idx, max_val, max_idx) tuple"},
+    {"astype", Tensor_astype, METH_O, "Cast tensor to a different dtype. Returns a new tensor."},
+    {"__array__", (PyCFunction)Tensor___array__, METH_FASTCALL | METH_KEYWORDS,
+     "Convert to NumPy array. Raises TypeError for exotic dtypes."},
     {NULL, NULL, 0, NULL},
 };
 
@@ -867,7 +1326,7 @@ static int Tensor_getbuffer(PyObject *export_from, Py_buffer *view, int flags) {
     else view->format = NULL;
 
     if ((flags & PyBUF_ND) == PyBUF_ND) {
-        view->ndim = (int)tensor->rank;
+        view->ndim = tensor->rank;
         view->shape = tensor->rank > 0 ? &tensor->shape[0] : NULL;
     }
     else {
@@ -1070,298 +1529,6 @@ PyTypeObject TensorType = {
     .tp_iter = Tensor_iter,
 };
 
-static void TransposedMatrixMultiplier_dealloc(PyObject *self) { Py_TYPE(self)->tp_free(self); }
-
-static size_t TransposedMatrixMultiplier_compute_packed_size(TransposedMatrixMultiplier *mm) {
-    switch (mm->dtype) {
-    case nk_bf16_k: return nk_dots_packed_size_bf16(mm->n, mm->k);
-    case nk_i8_k: return nk_dots_packed_size_i8(mm->n, mm->k);
-    case nk_f32_k: return nk_dots_packed_size_f32(mm->n, mm->k);
-    case nk_f64_k: return nk_dots_packed_size_f64(mm->n, mm->k);
-    case nk_f16_k: return nk_dots_packed_size_f16(mm->n, mm->k);
-    case nk_u8_k: return nk_dots_packed_size_u8(mm->n, mm->k);
-    default: return 0;
-    }
-}
-
-static PyObject *TransposedMatrixMultiplier_repr(PyObject *self) {
-    TransposedMatrixMultiplier *mm = (TransposedMatrixMultiplier *)self;
-    size_t packed_size = TransposedMatrixMultiplier_compute_packed_size(mm);
-    return PyUnicode_FromFormat("<TransposedMatrixMultiplier n=%zu k=%zu dtype='%s' nbytes=%zu>", (size_t)mm->n,
-                                (size_t)mm->k, dtype_to_string(mm->dtype), packed_size);
-}
-
-static PyObject *TransposedMatrixMultiplier_get_n(PyObject *self, void *closure) {
-    (void)closure;
-    return PyLong_FromSize_t(((TransposedMatrixMultiplier *)self)->n);
-}
-
-static PyObject *TransposedMatrixMultiplier_get_k(PyObject *self, void *closure) {
-    (void)closure;
-    return PyLong_FromSize_t(((TransposedMatrixMultiplier *)self)->k);
-}
-
-static PyObject *TransposedMatrixMultiplier_get_dtype(PyObject *self, void *closure) {
-    (void)closure;
-    return PyUnicode_FromString(dtype_to_string(((TransposedMatrixMultiplier *)self)->dtype));
-}
-
-static PyObject *TransposedMatrixMultiplier_get_nbytes(PyObject *self, void *closure) {
-    (void)closure;
-    return PyLong_FromSize_t(TransposedMatrixMultiplier_compute_packed_size((TransposedMatrixMultiplier *)self));
-}
-
-static PyGetSetDef TransposedMatrixMultiplier_getset[] = {
-    {"n", TransposedMatrixMultiplier_get_n, NULL, "Number of rows in the original matrix", NULL},
-    {"k", TransposedMatrixMultiplier_get_k, NULL, "Number of columns in the original matrix", NULL},
-    {"dtype", TransposedMatrixMultiplier_get_dtype, NULL, "Data type of the matrix elements (bf16 or i8)", NULL},
-    {"nbytes", TransposedMatrixMultiplier_get_nbytes, NULL, "Size of the packed buffer in bytes", NULL},
-    {NULL, NULL, NULL, NULL, NULL},
-};
-
-PyTypeObject TransposedMatrixMultiplierType = {
-    PyVarObject_HEAD_INIT(NULL, 0).tp_name = "numkong.TransposedMatrixMultiplier",
-    .tp_doc = "Pre-packed matrix optimized for matrix multiplication (AMX backend)",
-    .tp_basicsize = sizeof(TransposedMatrixMultiplier),
-    .tp_itemsize = sizeof(char),
-    .tp_dealloc = TransposedMatrixMultiplier_dealloc,
-    .tp_flags = Py_TPFLAGS_DEFAULT,
-    .tp_getset = TransposedMatrixMultiplier_getset,
-    .tp_repr = TransposedMatrixMultiplier_repr,
-};
-
-/// @brief Parse a Python buffer format string into a NumKong dtype.
-static int buffer_dtype(Py_buffer const *buffer, nk_dtype_t *dtype) {
-    char const *format = buffer->format ? buffer->format : NULL;
-    if (!format) {
-        PyErr_SetString(PyExc_TypeError, "Input buffer must expose a format string");
-        return 0;
-    }
-    *dtype = python_string_to_dtype(format);
-    if (*dtype == nk_dtype_unknown_k) {
-        PyErr_Format(PyExc_TypeError, "Unsupported buffer format '%s'", format);
-        return 0;
-    }
-    return 1;
-}
-
-/// @brief Convert a scalar at a byte address to float32.
-static int convert_scalar_to_f32(nk_dtype_t src_dtype, char const *src, nk_f32_t *value) {
-    switch (src_dtype) {
-    case nk_f64_k: *value = (nk_f32_t) * (nk_f64_t const *)src; return 1;
-    case nk_f32_k: *value = *(nk_f32_t const *)src; return 1;
-    case nk_f16_k: nk_f16_to_f32((nk_f16_t const *)src, value); return 1;
-    case nk_bf16_k: nk_bf16_to_f32((nk_bf16_t const *)src, value); return 1;
-    case nk_e4m3_k: nk_e4m3_to_f32((nk_e4m3_t const *)src, value); return 1;
-    case nk_e5m2_k: nk_e5m2_to_f32((nk_e5m2_t const *)src, value); return 1;
-    case nk_u1_k: *value = (nk_f32_t) * (nk_u1x8_t const *)src; return 1;
-    case nk_i8_k: *value = (nk_f32_t) * (nk_i8_t const *)src; return 1;
-    case nk_u8_k: *value = (nk_f32_t) * (nk_u8_t const *)src; return 1;
-    case nk_i16_k: *value = (nk_f32_t) * (nk_i16_t const *)src; return 1;
-    case nk_u16_k: *value = (nk_f32_t) * (nk_u16_t const *)src; return 1;
-    case nk_i32_k: *value = (nk_f32_t) * (nk_i32_t const *)src; return 1;
-    case nk_u32_k: *value = (nk_f32_t) * (nk_u32_t const *)src; return 1;
-    case nk_i64_k: *value = (nk_f32_t) * (nk_i64_t const *)src; return 1;
-    case nk_u64_k: *value = (nk_f32_t) * (nk_u64_t const *)src; return 1;
-    default: PyErr_SetString(PyExc_TypeError, "Unsupported dtype for matmul conversion"); return 0;
-    }
-}
-
-/// @brief Convert a strided row to bf16.
-static int convert_row_to_bf16(nk_dtype_t src_dtype, char const *row_start, nk_size_t count, nk_size_t element_stride,
-                               nk_bf16_t *dest_row) {
-    for (nk_size_t j = 0; j < count; j++) {
-        nk_f32_t value = 0;
-        char const *element_ptr = row_start + j * element_stride;
-        if (!convert_scalar_to_f32(src_dtype, element_ptr, &value)) return 0;
-        nk_f32_to_bf16(&value, &dest_row[j]);
-    }
-    return 1;
-}
-
-/// @brief Convert a strided row to i8 with clamping.
-static int convert_row_to_i8(nk_dtype_t src_dtype, char const *row_start, nk_size_t count, nk_size_t element_stride,
-                             nk_i8_t *dest_row) {
-    for (nk_size_t j = 0; j < count; j++) {
-        nk_f32_t value = 0;
-        char const *element_ptr = row_start + j * element_stride;
-        if (!convert_scalar_to_f32(src_dtype, element_ptr, &value)) return 0;
-        if (value < -128) value = -128;
-        if (value > 127) value = 127;
-        dest_row[j] = (nk_i8_t)lround((double)value);
-    }
-    return 1;
-}
-
-/// @brief Convert a strided row to f32.
-static int convert_row_to_f32(nk_dtype_t src_dtype, char const *row_start, nk_size_t count, nk_size_t element_stride,
-                              nk_f32_t *dest_row) {
-    for (nk_size_t j = 0; j < count; j++) {
-        char const *element_ptr = row_start + j * element_stride;
-        if (!convert_scalar_to_f32(src_dtype, element_ptr, &dest_row[j])) return 0;
-    }
-    return 1;
-}
-
-/// @brief Convert a strided row to f64.
-static int convert_row_to_f64(nk_dtype_t src_dtype, char const *row_start, nk_size_t count, nk_size_t element_stride,
-                              nk_f64_t *dest_row) {
-    for (nk_size_t j = 0; j < count; j++) {
-        nk_f32_t value = 0;
-        char const *element_ptr = row_start + j * element_stride;
-        if (!convert_scalar_to_f32(src_dtype, element_ptr, &value)) return 0;
-        dest_row[j] = (nk_f64_t)value;
-    }
-    return 1;
-}
-
-/// @brief Convert a strided row to f16.
-static int convert_row_to_f16(nk_dtype_t src_dtype, char const *row_start, nk_size_t count, nk_size_t element_stride,
-                              nk_f16_t *dest_row) {
-    for (nk_size_t j = 0; j < count; j++) {
-        nk_f32_t value = 0;
-        char const *element_ptr = row_start + j * element_stride;
-        if (!convert_scalar_to_f32(src_dtype, element_ptr, &value)) return 0;
-        nk_f32_to_f16(&value, &dest_row[j]);
-    }
-    return 1;
-}
-
-/// @brief Convert a strided row to u8 with clamping.
-static int convert_row_to_u8(nk_dtype_t src_dtype, char const *row_start, nk_size_t count, nk_size_t element_stride,
-                             nk_u8_t *dest_row) {
-    for (nk_size_t j = 0; j < count; j++) {
-        nk_f32_t value = 0;
-        char const *element_ptr = row_start + j * element_stride;
-        if (!convert_scalar_to_f32(src_dtype, element_ptr, &value)) return 0;
-        if (value < 0) value = 0;
-        if (value > 255) value = 255;
-        dest_row[j] = (nk_u8_t)lround((double)value);
-    }
-    return 1;
-}
-
-/// @brief Get the expected output dtype for a given packed matrix dtype.
-static nk_dtype_t matmul_output_dtype(nk_dtype_t packed_dtype) {
-    switch (packed_dtype) {
-    case nk_bf16_k: return nk_f32_k; // bf16 × bf16 → f32
-    case nk_f16_k: return nk_f32_k;  // f16 × f16 → f32
-    case nk_i8_k: return nk_i32_k;   // i8 × i8 → i32
-    case nk_u8_k: return nk_u32_k;   // u8 × u8 → u32
-    case nk_f32_k: return nk_f32_k;  // f32 × f32 → f32
-    case nk_f64_k: return nk_f64_k;  // f64 × f64 → f64
-    default: return nk_dtype_unknown_k;
-    }
-}
-
-/// @brief Matrix multiplication operator for Tensor @ TransposedMatrixMultiplier.
-static PyObject *Tensor_matmul(PyObject *self, PyObject *other) {
-    if (!PyObject_TypeCheck(self, &TensorType)) { Py_RETURN_NOTIMPLEMENTED; }
-    Tensor *a = (Tensor *)self;
-
-    // Only support Tensor @ TransposedMatrixMultiplier for now
-    if (!PyObject_TypeCheck(other, &TransposedMatrixMultiplierType)) {
-        PyErr_SetString(
-            PyExc_TypeError,
-            "matmul requires TransposedMatrixMultiplier as right operand " "(use nk.pack_matmul_argument() first)");
-        return NULL;
-    }
-
-    TransposedMatrixMultiplier *packed = (TransposedMatrixMultiplier *)other;
-
-    // Validate dimensions
-    if (a->rank != 2) {
-        PyErr_SetString(PyExc_ValueError, "matmul requires 2D array as left operand");
-        return NULL;
-    }
-
-    nk_size_t m = (nk_size_t)a->shape[0];
-    nk_size_t k_a = (nk_size_t)a->shape[1];
-
-    if (k_a != packed->k) {
-        PyErr_Format(PyExc_ValueError, "Dimension mismatch: array has k=%zu but packed matrix has k=%zu", k_a,
-                     packed->k);
-        return NULL;
-    }
-
-    if (is_complex(a->dtype)) {
-        PyErr_SetString(PyExc_TypeError, "complex matrices are not supported for matmul");
-        return NULL;
-    }
-
-    if (a->strides[0] < 0 || a->strides[1] < 0) {
-        PyErr_SetString(PyExc_ValueError, "matmul does not support negative strides");
-        return NULL;
-    }
-
-    nk_size_t n = packed->n;
-    nk_size_t k = packed->k;
-    nk_size_t row_stride = (nk_size_t)a->strides[0];
-    nk_size_t col_stride = (nk_size_t)a->strides[1];
-    nk_dtype_t src_dtype = a->dtype;
-
-    // Determine output dtype based on packed matrix dtype
-    nk_dtype_t out_dtype = matmul_output_dtype(packed->dtype);
-    if (out_dtype == nk_dtype_unknown_k) {
-        PyErr_SetString(PyExc_ValueError, "Unsupported packed matrix dtype");
-        return NULL;
-    }
-
-    // Allocate output tensor
-    Py_ssize_t out_shape[2] = {(Py_ssize_t)m, (Py_ssize_t)n};
-    Tensor *result = Tensor_new(out_dtype, 2, out_shape);
-    if (!result) return NULL;
-
-    nk_size_t c_stride = n * bytes_per_dtype(out_dtype);
-
-    // Macro to handle conversion and matmul for each dtype
-#define DO_TENSOR_MATMUL(NK_TYPE, C_TYPE, OUT_TYPE, CONVERT_FN, MATMUL_FN)                             \
-    do {                                                                                               \
-        C_TYPE const *a_ptr = NULL;                                                                    \
-        C_TYPE *temp_a = NULL;                                                                         \
-        nk_size_t a_stride = row_stride;                                                               \
-        if (src_dtype == NK_TYPE && col_stride == sizeof(C_TYPE)) { a_ptr = (C_TYPE const *)a->data; } \
-        else {                                                                                         \
-            temp_a = (C_TYPE *)PyMem_Malloc(m * k * sizeof(C_TYPE));                                   \
-            if (!temp_a) {                                                                             \
-                Py_DECREF(result);                                                                     \
-                PyErr_NoMemory();                                                                      \
-                return NULL;                                                                           \
-            }                                                                                          \
-            for (nk_size_t i = 0; i < m; i++) {                                                        \
-                char const *row = a->data + i * row_stride;                                            \
-                if (!CONVERT_FN(src_dtype, row, k, col_stride, temp_a + i * k)) {                      \
-                    PyMem_Free(temp_a);                                                                \
-                    Py_DECREF(result);                                                                 \
-                    return NULL;                                                                       \
-                }                                                                                      \
-            }                                                                                          \
-            a_ptr = temp_a;                                                                            \
-            a_stride = k * sizeof(C_TYPE);                                                             \
-        }                                                                                              \
-        MATMUL_FN(a_ptr, packed->start, (OUT_TYPE *)result->data, m, n, k, a_stride, c_stride);        \
-        if (temp_a) PyMem_Free(temp_a);                                                                \
-    } while (0)
-
-    // Dispatch based on packed dtype
-    switch (packed->dtype) {
-    case nk_bf16_k: DO_TENSOR_MATMUL(nk_bf16_k, nk_bf16_t, nk_f32_t, convert_row_to_bf16, nk_dots_packed_bf16); break;
-    case nk_i8_k: DO_TENSOR_MATMUL(nk_i8_k, nk_i8_t, nk_i32_t, convert_row_to_i8, nk_dots_packed_i8); break;
-    case nk_f32_k: DO_TENSOR_MATMUL(nk_f32_k, nk_f32_t, nk_f32_t, convert_row_to_f32, nk_dots_packed_f32); break;
-    case nk_f64_k: DO_TENSOR_MATMUL(nk_f64_k, nk_f64_t, nk_f64_t, convert_row_to_f64, nk_dots_packed_f64); break;
-    case nk_f16_k: DO_TENSOR_MATMUL(nk_f16_k, nk_f16_t, nk_f32_t, convert_row_to_f16, nk_dots_packed_f16); break;
-    case nk_u8_k: DO_TENSOR_MATMUL(nk_u8_k, nk_u8_t, nk_u32_t, convert_row_to_u8, nk_dots_packed_u8); break;
-    default:
-        Py_DECREF(result);
-        PyErr_SetString(PyExc_ValueError, "Unsupported packed matrix dtype");
-        return NULL;
-    }
-
-#undef DO_TENSOR_MATMUL
-
-    return (PyObject *)result;
-}
-
 static int parse_shape(PyObject *shape_obj, Py_ssize_t *shape, size_t *rank) {
     if (PyLong_Check(shape_obj)) {
         Py_ssize_t size = PyLong_AsSsize_t(shape_obj);
@@ -1399,8 +1566,13 @@ static int parse_shape(PyObject *shape_obj, Py_ssize_t *shape, size_t *rank) {
     return 1;
 }
 
-char const
-    doc_empty[] = "Create an uninitialized Tensor with the given shape.\n\n" "Parameters:\n" "    shape: Shape of the " "array." "\n" "  " "  " "dt" "yp" "e:" " " "Data type " "(default " "'float32')." "\n\n" "Returns" ":\n" " " " " " " " " "T" "e" "n" "s" "o" "r" ":" " " "U" "n" "i" "n" "i" "t" "i" "a" "l" "i" "z" "e" "d" " " "a" "r" "r" "a" "y" ".";
+char const doc_empty[] =                                       //
+    "Create an uninitialized Tensor with the given shape.\n\n" //
+    "Parameters:\n"                                            //
+    "    shape: Shape of the array.\n"                         //
+    "    dtype: Data type (default 'float32').\n\n"            //
+    "Returns:\n"                                               //
+    "    Tensor: Uninitialized array.";
 
 PyObject *api_empty(PyObject *self, PyObject *const *args, Py_ssize_t const nargs, PyObject *kwnames) {
     (void)self;
@@ -1440,8 +1612,13 @@ PyObject *api_empty(PyObject *self, PyObject *const *args, Py_ssize_t const narg
     return (PyObject *)Tensor_new(dtype, rank, shape);
 }
 
-char const doc_zeros[] =
-    "Create a Tensor filled with zeros.\n\n" "Parameters:\n" "    shape: Shape of the array.\n" "    dtype: " "Data " "type " "(default " "'float32')." "\n\n" "Returns" ":\n" " " " " " " " " "T" "e" "n" "s" "o" "r" ":" " " "A" "r" "r" "a" "y" " " "o" "f" " " "z" "e" "r" "o" "s" ".";
+char const doc_zeros[] =                            //
+    "Create a Tensor filled with zeros.\n\n"        //
+    "Parameters:\n"                                 //
+    "    shape: Shape of the array.\n"              //
+    "    dtype: Data type (default 'float32').\n\n" //
+    "Returns:\n"                                    //
+    "    Tensor: Array of zeros.";
 
 PyObject *api_zeros(PyObject *self, PyObject *const *args, Py_ssize_t const nargs, PyObject *kwnames) {
     (void)self;
@@ -1488,9 +1665,13 @@ PyObject *api_zeros(PyObject *self, PyObject *const *args, Py_ssize_t const narg
     return (PyObject *)result;
 }
 
-char const
-    doc_ones[] =
-        "Create a Tensor filled with ones.\n\n" "Parameters:\n" "    shape: Shape of the array.\n" "    dtype: " "Data " "t" "y" "p" "e" " " "(" "d" "e" "f" "a" "u" "l" "t" " " "'float32')." "\n\n" "Returns" ":\n" " " " " " " " " "T" "e" "n" "s" "o" "r" ":" " " "A" "r" "r" "a" "y" " " "o" "f" " " "o" "n" "e" "s" ".";
+char const doc_ones[] =                             //
+    "Create a Tensor filled with ones.\n\n"         //
+    "Parameters:\n"                                 //
+    "    shape: Shape of the array.\n"              //
+    "    dtype: Data type (default 'float32').\n\n" //
+    "Returns:\n"                                    //
+    "    Tensor: Array of ones.";
 
 PyObject *api_ones(PyObject *self, PyObject *const *args, Py_ssize_t const nargs, PyObject *kwnames) {
     (void)self;
@@ -1533,33 +1714,25 @@ PyObject *api_ones(PyObject *self, PyObject *const *args, Py_ssize_t const nargs
     size_t total = 1;
     for (size_t i = 0; i < rank; i++) total *= (size_t)shape[i];
 
-    switch (dtype) {
-    case nk_f64_k:
-        for (size_t i = 0; i < total; i++) ((nk_f64_t *)result->data)[i] = 1.0;
-        break;
-    case nk_f32_k:
-        for (size_t i = 0; i < total; i++) ((nk_f32_t *)result->data)[i] = 1.0f;
-        break;
-    case nk_i8_k:
-        for (size_t i = 0; i < total; i++) ((nk_i8_t *)result->data)[i] = 1;
-        break;
-    case nk_i32_k:
-        for (size_t i = 0; i < total; i++) ((nk_i32_t *)result->data)[i] = 1;
-        break;
-    case nk_i64_k:
-        for (size_t i = 0; i < total; i++) ((nk_i64_t *)result->data)[i] = 1;
-        break;
-    default:
-        Py_DECREF(result);
-        PyErr_SetString(PyExc_NotImplementedError, "ones() not implemented for this dtype");
-        return NULL;
+    {
+        size_t elem_size = bytes_per_dtype(dtype);
+        nk_scalar_buffer_t one;
+        memset(&one, 0, sizeof(one));
+        nk_scalar_buffer_set_f64(&one, 1.0, dtype);
+        for (size_t i = 0; i < total; i++) memcpy(result->data + i * elem_size, &one, elem_size);
     }
 
     return (PyObject *)result;
 }
 
-char const doc_full[] =
-    "Create a Tensor filled with a given value.\n\n" "Parameters:\n" "    shape: Shape of the " "array.\n" "    " "fill" "_val" "ue:" " " "Value " "to " "fill " "the array " "with.\n" "    " "dtyp" "e: " "Data" " typ" "e " "(def" "ault" " '" "floa" "t32'" ")." "\n\n" "Returns:\n" "    Tensor: Array filled with fill_value.";
+char const doc_full[] =                               //
+    "Create a Tensor filled with a given value.\n\n"  //
+    "Parameters:\n"                                   //
+    "    shape: Shape of the array.\n"                //
+    "    fill_value: Value to fill the array with.\n" //
+    "    dtype: Data type (default 'float32').\n\n"   //
+    "Returns:\n"                                      //
+    "    Tensor: Array filled with fill_value.";
 
 PyObject *api_full(PyObject *self, PyObject *const *args, Py_ssize_t const nargs, PyObject *kwnames) {
     (void)self;
@@ -1609,34 +1782,23 @@ PyObject *api_full(PyObject *self, PyObject *const *args, Py_ssize_t const nargs
     size_t total = 1;
     for (size_t i = 0; i < rank; i++) total *= (size_t)shape[i];
 
-    switch (dtype) {
-    case nk_f64_k:
-        for (size_t i = 0; i < total; i++) ((nk_f64_t *)result->data)[i] = fill_value;
-        break;
-    case nk_f32_k:
-        for (size_t i = 0; i < total; i++) ((nk_f32_t *)result->data)[i] = (nk_f32_t)fill_value;
-        break;
-    case nk_i8_k:
-        for (size_t i = 0; i < total; i++) ((nk_i8_t *)result->data)[i] = (nk_i8_t)fill_value;
-        break;
-    case nk_i32_k:
-        for (size_t i = 0; i < total; i++) ((nk_i32_t *)result->data)[i] = (nk_i32_t)fill_value;
-        break;
-    case nk_i64_k:
-        for (size_t i = 0; i < total; i++) ((nk_i64_t *)result->data)[i] = (nk_i64_t)fill_value;
-        break;
-    default:
-        Py_DECREF(result);
-        PyErr_SetString(PyExc_NotImplementedError, "full() not implemented for this dtype");
-        return NULL;
+    {
+        size_t elem_size = bytes_per_dtype(dtype);
+        nk_scalar_buffer_t val;
+        memset(&val, 0, sizeof(val));
+        nk_scalar_buffer_set_f64(&val, fill_value, dtype);
+        for (size_t i = 0; i < total; i++) memcpy(result->data + i * elem_size, &val, elem_size);
     }
 
     return (PyObject *)result;
 }
 
-char const doc_reduce_moments[] =
-    "Compute sum and sum-of-squares (moments) of all elements in an array.\n\n" "Parameters:\n" "    a: Input " "array."
-                                                                                                                "\n\n" "Returns:" "\n" "    " "tupl" "e: " "(sum" ", " "sum_" "of_" "squa" "res)" " for" " all" " ele" "ment" "s.";
+char const doc_reduce_moments[] =                                               //
+    "Compute sum and sum-of-squares (moments) of all elements in an array.\n\n" //
+    "Parameters:\n"                                                             //
+    "    a: Input array.\n\n"                                                   //
+    "Returns:\n"                                                                //
+    "    tuple: (sum, sum_of_squares) for all elements.";
 
 PyObject *api_moments(PyObject *self, PyObject *const *args, Py_ssize_t const nargs, PyObject *kwnames) {
     (void)self;
@@ -1650,10 +1812,12 @@ PyObject *api_moments(PyObject *self, PyObject *const *args, Py_ssize_t const na
     return NULL;
 }
 
-char const
-    doc_reduce_minmax[] =
-        "Find minimum and maximum elements with their indices in an array.\n\n" "Parameters:\n" "    a: Input " "array."
-                                                                                                                "\n\n" "Returns:" "\n" "    " "tupl" "e: " "(min" "_val" ", " "min_" "inde" "x, " "max_" "val," " max" "_ind" "ex)" ".";
+char const doc_reduce_minmax[] =                                            //
+    "Find minimum and maximum elements with their indices in an array.\n\n" //
+    "Parameters:\n"                                                         //
+    "    a: Input array.\n\n"                                               //
+    "Returns:\n"                                                            //
+    "    tuple: (min_val, min_index, max_val, max_index).";
 
 PyObject *api_minmax(PyObject *self, PyObject *const *args, Py_ssize_t const nargs, PyObject *kwnames) {
     (void)self;
@@ -1665,379 +1829,4 @@ PyObject *api_minmax(PyObject *self, PyObject *const *args, Py_ssize_t const nar
     if (PyObject_TypeCheck(a_obj, &TensorType)) { return Tensor_minmax(a_obj, NULL); }
     PyErr_SetString(PyExc_TypeError, "minmax() argument must be a Tensor");
     return NULL;
-}
-
-char const
-    doc_pack_matmul_argument[] =
-        "pack_matmul_argument(b, dtype='bf16') -> TransposedMatrixMultiplier\n\n" "Pack a matrix for repeated matrix " "multi" "plica" "tion." "\n\n" "The packed format " "is opaque and " "backend-specific, " "optimized for the " "available\n" "hardwa" "re " "(AMX " "on " "Intel," " NEON/" "SVE " "on " "ARM, " "etc.)." "\n" "U" "s" "e" " " "w" "i" "t" "h" " " "m" "a" "t" "m" "u" "l" "(" ")" " " "o" "r" " " "t" "h" "e" " " "@" " " "o" "p" "e" "r" "a" "t" "o" "r" " " "t" "o" " " "c" "o" "m" "p" "u" "t" "e" " " "C" " " "=" " " "A" " " "@" " " "B" "." "\n\n" "Parameters:\n" "    b : array_like\n" "        The (n, k) matrix to pack. This is typically the 'database' or 'weights' matrix\n" "        that will be multiplied against multiple 'query' matrices.\n" "    dtype : str, optional\n" "        Data type for packing. Supported types:\n" "        - 'bf16'/'bfloat16' (default): BF16 with F32 accumulation\n" "        - 'f16'/'float16': F16 with F32 accumulation\n" "        - 'f32'/'float32': Native F32\n" "        - 'f64'/'float64': Native F64\n" "        - 'i8'/'int8': I8 with I32 accumulation\n" "        - 'u8'/'uint8': U8 with U32 accumulation\n\n" "Returns:\n" "    TransposedMatrixMultiplier : Opaque packed matrix for use with matmul() or @.\n\n" "Example:\n" "    >>> database = np.random.randn(1000, 768).astype(np.float32)\n" "    >>> packed = nk.pack_matmul_argument(database, dtype='bf16')\n" "    >>> queries = nk.zeros((10, 768), dtype='float32')\n" "    >>> result = queries @ packed  # (10, 1000) dot products\n";
-
-char const doc_pack_matrix[] =
-    "pack_matrix(b, dtype='bf16') -> TransposedMatrixMultiplier\n\n" "Deprecated alias for pack_matmul_argument().\n";
-
-char const
-    doc_matmul[] = "matmul(a, b, *, out=None) -> Tensor\n\n" "Compute matrix multiplication C = A @ B with a "
-                                                             "pre-packed B " "m" "a" "t" "r" "i" "x" "." "\n\n" "Pa" "r"
-                                                                                                                     "a" "me" "te" "rs" ":" "\n" "    a : array_like\n" "        " "The (m, k) " "query/" "input " "matrix.\n" "    b : TransposedMatrixMultiplier\n" "        Pre-packed (n, k) matrix from pack_matmul_argument().\n" "    out : Tensor, optional\n" "        Pre-allocated output tensor. Must have correct shape (m, n),\n" "        correct dtype for the operation, and be C-contiguous.\n" "        If provided, no memory allocation is performed.\n\n" "Returns:\n" "    Tensor : (m, n) result matrix. If out is provided, returns out.\n\n" "Note:\n" "    The kernel computes C[i,j] = dot(a[i], b[j]) for all i,j.\n" "    This is equivalent to A @ B.T where B is the original unpacked matrix.\n\n" "    Output dtype depends on packed dtype:\n" "    - bf16, f16 -> float32\n" "    - f32 -> float32\n" "    - f64 -> float64\n" "    - i8 -> int32\n" "    - u8 -> uint32\n\n" "Example:\n" "    >>> database = np.random.randn(1000, 768).astype(np.float32)\n" "    >>> packed = nk.pack_matmul_argument(database, dtype='bf16')\n" "    >>> queries = np.random.randn(10, 768).astype(np.float32)\n" "    >>> result = nk.matmul(queries, packed)  # (10, 1000)\n" "    >>>\n" "    >>> # Reuse output buffer for zero-allocation inference:\n" "    >>> out = nk.empty((10, 1000), dtype='float32')\n" "    >>> nk.matmul(queries, packed, out=out)\n";
-
-PyObject *api_pack_matmul_argument(PyObject *self, PyObject *const *args, Py_ssize_t nargs, PyObject *kwnames) {
-    (void)self;
-
-    // Parse arguments
-    PyObject *b_obj = NULL;
-    char const *dtype_str = "bf16";
-
-    Py_ssize_t nkw = kwnames ? PyTuple_Size(kwnames) : 0;
-    Py_ssize_t total = nargs + nkw;
-
-    if (nargs < 1 || total > 2) {
-        PyErr_SetString(PyExc_TypeError, "pack_matmul_argument() requires 1-2 arguments: b, dtype='bf16'");
-        return NULL;
-    }
-
-    b_obj = args[0];
-
-    // Parse the optional dtype argument
-    for (Py_ssize_t i = 0; i < nkw; i++) {
-        PyObject *name = PyTuple_GET_ITEM(kwnames, i);
-        char const *name_str = PyUnicode_AsUTF8(name);
-        if (same_string(name_str, "dtype")) {
-            PyObject *val = args[nargs + i];
-            if (!PyUnicode_Check(val)) {
-                PyErr_SetString(PyExc_TypeError, "dtype must be a string");
-                return NULL;
-            }
-            dtype_str = PyUnicode_AsUTF8(val);
-        }
-    }
-    // Accept an optional second positional argument
-    if (nargs >= 2) {
-        if (!PyUnicode_Check(args[1])) {
-            PyErr_SetString(PyExc_TypeError, "dtype must be a string");
-            return NULL;
-        }
-        dtype_str = PyUnicode_AsUTF8(args[1]);
-    }
-
-    // Resolve the target packing dtype
-    nk_dtype_t target_dtype;
-    if (same_string(dtype_str, "bf16") || same_string(dtype_str, "bfloat16")) { target_dtype = nk_bf16_k; }
-    else if (same_string(dtype_str, "i8") || same_string(dtype_str, "int8")) { target_dtype = nk_i8_k; }
-    else if (same_string(dtype_str, "f32") || same_string(dtype_str, "float32")) { target_dtype = nk_f32_k; }
-    else if (same_string(dtype_str, "f64") || same_string(dtype_str, "float64")) { target_dtype = nk_f64_k; }
-    else if (same_string(dtype_str, "f16") || same_string(dtype_str, "float16")) { target_dtype = nk_f16_k; }
-    else if (same_string(dtype_str, "u8") || same_string(dtype_str, "uint8")) { target_dtype = nk_u8_k; }
-    else {
-        PyErr_Format(PyExc_ValueError, "Unsupported dtype '%s'. Use 'bf16', 'i8', 'f32', 'f64', 'f16', or 'u8'.",
-                     dtype_str);
-        return NULL;
-    }
-
-    // Get the input buffer
-    Py_buffer b_buffer;
-    if (PyObject_GetBuffer(b_obj, &b_buffer, PyBUF_STRIDES | PyBUF_FORMAT) != 0) {
-        PyErr_SetString(PyExc_TypeError, "b must support buffer protocol");
-        return NULL;
-    }
-
-    // Validate the input as a 2D matrix
-    if (b_buffer.ndim != 2) {
-        PyBuffer_Release(&b_buffer);
-        PyErr_SetString(PyExc_ValueError, "b must be a 2D matrix");
-        return NULL;
-    }
-
-    nk_dtype_t src_dtype;
-    if (!buffer_dtype(&b_buffer, &src_dtype)) {
-        PyBuffer_Release(&b_buffer);
-        return NULL;
-    }
-    if (is_complex(src_dtype)) {
-        PyBuffer_Release(&b_buffer);
-        PyErr_SetString(PyExc_TypeError, "complex matrices are not supported for matmul packing");
-        return NULL;
-    }
-    if (b_buffer.strides[0] < 0 || b_buffer.strides[1] < 0) {
-        PyBuffer_Release(&b_buffer);
-        PyErr_SetString(PyExc_ValueError, "matmul packing does not support negative strides");
-        return NULL;
-    }
-
-    nk_size_t n = (nk_size_t)b_buffer.shape[0];
-    nk_size_t k = (nk_size_t)b_buffer.shape[1];
-    nk_size_t row_stride = (nk_size_t)b_buffer.strides[0];
-    nk_size_t col_stride = (nk_size_t)b_buffer.strides[1];
-
-    // Calculate the packed size based on target dtype
-    nk_size_t packed_size;
-    switch (target_dtype) {
-    case nk_bf16_k: packed_size = nk_dots_packed_size_bf16(n, k); break;
-    case nk_i8_k: packed_size = nk_dots_packed_size_i8(n, k); break;
-    case nk_f32_k: packed_size = nk_dots_packed_size_f32(n, k); break;
-    case nk_f64_k: packed_size = nk_dots_packed_size_f64(n, k); break;
-    case nk_f16_k: packed_size = nk_dots_packed_size_f16(n, k); break;
-    case nk_u8_k: packed_size = nk_dots_packed_size_u8(n, k); break;
-    default:
-        PyBuffer_Release(&b_buffer);
-        PyErr_SetString(PyExc_ValueError, "Internal error: unsupported target dtype");
-        return NULL;
-    }
-
-    TransposedMatrixMultiplier *packed = PyObject_NewVar(TransposedMatrixMultiplier, &TransposedMatrixMultiplierType,
-                                                         packed_size);
-    if (!packed) {
-        PyBuffer_Release(&b_buffer);
-        PyErr_NoMemory();
-        return NULL;
-    }
-
-    packed->dtype = target_dtype;
-    packed->n = n;
-    packed->k = k;
-
-    // Macro to handle conversion and packing for each dtype
-#define PACK_MATRIX(NK_TYPE, C_TYPE, CONVERT_FN, PACK_FN)                                                   \
-    do {                                                                                                    \
-        C_TYPE const *b_ptr = NULL;                                                                         \
-        C_TYPE *temp = NULL;                                                                                \
-        nk_size_t b_stride = row_stride;                                                                    \
-        if (src_dtype == NK_TYPE && col_stride == sizeof(C_TYPE)) { b_ptr = (C_TYPE const *)b_buffer.buf; } \
-        else {                                                                                              \
-            temp = (C_TYPE *)PyMem_Malloc(n * k * sizeof(C_TYPE));                                          \
-            if (!temp) {                                                                                    \
-                Py_DECREF(packed);                                                                          \
-                PyBuffer_Release(&b_buffer);                                                                \
-                PyErr_NoMemory();                                                                           \
-                return NULL;                                                                                \
-            }                                                                                               \
-            for (nk_size_t i = 0; i < n; i++) {                                                             \
-                char const *row = (char const *)b_buffer.buf + i * row_stride;                              \
-                if (!CONVERT_FN(src_dtype, row, k, col_stride, temp + i * k)) {                             \
-                    PyMem_Free(temp);                                                                       \
-                    Py_DECREF(packed);                                                                      \
-                    PyBuffer_Release(&b_buffer);                                                            \
-                    return NULL;                                                                            \
-                }                                                                                           \
-            }                                                                                               \
-            b_ptr = temp;                                                                                   \
-            b_stride = k * sizeof(C_TYPE);                                                                  \
-        }                                                                                                   \
-        PACK_FN(b_ptr, n, k, b_stride, packed->start);                                                      \
-        if (temp) PyMem_Free(temp);                                                                         \
-    } while (0)
-
-    // Pack based on target dtype
-    switch (target_dtype) {
-    case nk_bf16_k: PACK_MATRIX(nk_bf16_k, nk_bf16_t, convert_row_to_bf16, nk_dots_pack_bf16); break;
-    case nk_i8_k: PACK_MATRIX(nk_i8_k, nk_i8_t, convert_row_to_i8, nk_dots_pack_i8); break;
-    case nk_f32_k: PACK_MATRIX(nk_f32_k, nk_f32_t, convert_row_to_f32, nk_dots_pack_f32); break;
-    case nk_f64_k: PACK_MATRIX(nk_f64_k, nk_f64_t, convert_row_to_f64, nk_dots_pack_f64); break;
-    case nk_f16_k: PACK_MATRIX(nk_f16_k, nk_f16_t, convert_row_to_f16, nk_dots_pack_f16); break;
-    case nk_u8_k: PACK_MATRIX(nk_u8_k, nk_u8_t, convert_row_to_u8, nk_dots_pack_u8); break;
-    default: break; // Already handled above
-    }
-
-#undef PACK_MATRIX
-
-    PyBuffer_Release(&b_buffer);
-    return (PyObject *)packed;
-}
-
-PyObject *api_pack_matrix(PyObject *self, PyObject *const *args, Py_ssize_t nargs, PyObject *kwnames) {
-    if (PyErr_WarnEx(PyExc_DeprecationWarning, "pack_matrix() is deprecated; use pack_matmul_argument() instead", 1) <
-        0)
-        return NULL;
-    return api_pack_matmul_argument(self, args, nargs, kwnames);
-}
-
-PyObject *api_matmul(PyObject *self, PyObject *const *args, Py_ssize_t nargs, PyObject *kwnames) {
-    (void)self;
-
-    // Parse arguments: matmul(a, b, *, out=None)
-    PyObject *a_obj = NULL;
-    PyObject *b_obj = NULL;
-    PyObject *out_obj = NULL;
-
-    Py_ssize_t nkw = kwnames ? PyTuple_Size(kwnames) : 0;
-    if (nargs < 2 || nargs > 2) {
-        PyErr_SetString(PyExc_TypeError, "matmul() requires exactly 2 positional arguments: a, b");
-        return NULL;
-    }
-
-    a_obj = args[0];
-    b_obj = args[1];
-
-    // Parse keyword arguments
-    for (Py_ssize_t i = 0; i < nkw; i++) {
-        PyObject *name = PyTuple_GET_ITEM(kwnames, i);
-        char const *name_str = PyUnicode_AsUTF8(name);
-        if (same_string(name_str, "out")) { out_obj = args[nargs + i]; }
-        else {
-            PyErr_Format(PyExc_TypeError, "matmul() got unexpected keyword argument '%s'", name_str);
-            return NULL;
-        }
-    }
-
-    // Verify that b is a TransposedMatrixMultiplier
-    if (!PyObject_TypeCheck(b_obj, &TransposedMatrixMultiplierType)) {
-        PyErr_SetString(PyExc_TypeError, "b must be a TransposedMatrixMultiplier (use pack_matmul_argument() first)");
-        return NULL;
-    }
-    TransposedMatrixMultiplier *packed = (TransposedMatrixMultiplier *)b_obj;
-
-    // Get the input buffer for a
-    Py_buffer a_buffer;
-    if (PyObject_GetBuffer(a_obj, &a_buffer, PyBUF_STRIDES | PyBUF_FORMAT) != 0) {
-        PyErr_SetString(PyExc_TypeError, "a must support buffer protocol");
-        return NULL;
-    }
-
-    // Validate dimensions
-    if (a_buffer.ndim != 2) {
-        PyBuffer_Release(&a_buffer);
-        PyErr_SetString(PyExc_ValueError, "a must be a 2D matrix");
-        return NULL;
-    }
-
-    nk_dtype_t src_dtype;
-    if (!buffer_dtype(&a_buffer, &src_dtype)) {
-        PyBuffer_Release(&a_buffer);
-        return NULL;
-    }
-    if (is_complex(src_dtype)) {
-        PyBuffer_Release(&a_buffer);
-        PyErr_SetString(PyExc_TypeError, "complex matrices are not supported for matmul");
-        return NULL;
-    }
-    if (a_buffer.strides[0] < 0 || a_buffer.strides[1] < 0) {
-        PyBuffer_Release(&a_buffer);
-        PyErr_SetString(PyExc_ValueError, "matmul does not support negative strides");
-        return NULL;
-    }
-
-    nk_size_t m = (nk_size_t)a_buffer.shape[0];
-    nk_size_t k_a = (nk_size_t)a_buffer.shape[1];
-    nk_size_t row_stride = (nk_size_t)a_buffer.strides[0];
-    nk_size_t col_stride = (nk_size_t)a_buffer.strides[1];
-
-    if (k_a != packed->k) {
-        PyBuffer_Release(&a_buffer);
-        PyErr_Format(PyExc_ValueError, "Dimension mismatch: a has k=%zu but packed matrix has k=%zu", k_a, packed->k);
-        return NULL;
-    }
-
-    nk_size_t n = packed->n;
-    nk_size_t k = packed->k;
-    nk_dtype_t out_dtype = matmul_output_dtype(packed->dtype);
-
-    // Handle output tensor
-    Tensor *result = NULL;
-    int owns_result = 0;
-    char *out_data = NULL;
-    nk_size_t c_stride;
-
-    if (out_obj && out_obj != Py_None) {
-        // Validate provided output tensor
-        if (!PyObject_TypeCheck(out_obj, &TensorType)) {
-            PyBuffer_Release(&a_buffer);
-            PyErr_SetString(PyExc_TypeError, "out must be a Tensor");
-            return NULL;
-        }
-        result = (Tensor *)out_obj;
-
-        // Check shape
-        if (result->rank != 2 || result->shape[0] != (Py_ssize_t)m || result->shape[1] != (Py_ssize_t)n) {
-            PyBuffer_Release(&a_buffer);
-            PyErr_Format(PyExc_ValueError, "out has wrong shape: expected (%zu, %zu), got (%zd, %zd)", m, n,
-                         result->shape[0], result->shape[1]);
-            return NULL;
-        }
-
-        // Check dtype
-        if (result->dtype != out_dtype) {
-            PyBuffer_Release(&a_buffer);
-            PyErr_Format(PyExc_ValueError, "out has wrong dtype: expected %s, got %s", dtype_to_string(out_dtype),
-                         dtype_to_string(result->dtype));
-            return NULL;
-        }
-
-        // Check contiguity (must be C-contiguous for matmul output)
-        size_t out_item_size = bytes_per_dtype(out_dtype);
-        if (result->strides[1] != (Py_ssize_t)out_item_size || result->strides[0] != (Py_ssize_t)(n * out_item_size)) {
-            PyBuffer_Release(&a_buffer);
-            PyErr_SetString(PyExc_ValueError, "out must be C-contiguous");
-            return NULL;
-        }
-
-        out_data = result->data;
-        c_stride = (nk_size_t)result->strides[0];
-        owns_result = 0;
-    }
-    else {
-        // Allocate new output tensor
-        Py_ssize_t out_shape[2] = {(Py_ssize_t)m, (Py_ssize_t)n};
-        result = Tensor_new(out_dtype, 2, out_shape);
-        if (!result) {
-            PyBuffer_Release(&a_buffer);
-            return NULL;
-        }
-        out_data = result->data;
-        c_stride = n * bytes_per_dtype(out_dtype);
-        owns_result = 1;
-    }
-
-    // Macro to handle conversion and matmul for each dtype
-#define DO_MATMUL(NK_TYPE, C_TYPE, OUT_TYPE, CONVERT_FN, MATMUL_FN)                                         \
-    do {                                                                                                    \
-        C_TYPE const *a_ptr = NULL;                                                                         \
-        C_TYPE *temp_a = NULL;                                                                              \
-        nk_size_t a_stride = row_stride;                                                                    \
-        if (src_dtype == NK_TYPE && col_stride == sizeof(C_TYPE)) { a_ptr = (C_TYPE const *)a_buffer.buf; } \
-        else {                                                                                              \
-            temp_a = (C_TYPE *)PyMem_Malloc(m * k * sizeof(C_TYPE));                                        \
-            if (!temp_a) {                                                                                  \
-                if (owns_result) Py_DECREF(result);                                                         \
-                PyBuffer_Release(&a_buffer);                                                                \
-                PyErr_NoMemory();                                                                           \
-                return NULL;                                                                                \
-            }                                                                                               \
-            for (nk_size_t i = 0; i < m; i++) {                                                             \
-                char const *row = (char const *)a_buffer.buf + i * row_stride;                              \
-                if (!CONVERT_FN(src_dtype, row, k, col_stride, temp_a + i * k)) {                           \
-                    PyMem_Free(temp_a);                                                                     \
-                    if (owns_result) Py_DECREF(result);                                                     \
-                    PyBuffer_Release(&a_buffer);                                                            \
-                    return NULL;                                                                            \
-                }                                                                                           \
-            }                                                                                               \
-            a_ptr = temp_a;                                                                                 \
-            a_stride = k * sizeof(C_TYPE);                                                                  \
-        }                                                                                                   \
-        MATMUL_FN(a_ptr, packed->start, (OUT_TYPE *)out_data, m, n, k, a_stride, c_stride);                 \
-        if (temp_a) PyMem_Free(temp_a);                                                                     \
-    } while (0)
-
-    // Dispatch based on packed dtype
-    switch (packed->dtype) {
-    case nk_bf16_k: DO_MATMUL(nk_bf16_k, nk_bf16_t, nk_f32_t, convert_row_to_bf16, nk_dots_packed_bf16); break;
-    case nk_i8_k: DO_MATMUL(nk_i8_k, nk_i8_t, nk_i32_t, convert_row_to_i8, nk_dots_packed_i8); break;
-    case nk_f32_k: DO_MATMUL(nk_f32_k, nk_f32_t, nk_f32_t, convert_row_to_f32, nk_dots_packed_f32); break;
-    case nk_f64_k: DO_MATMUL(nk_f64_k, nk_f64_t, nk_f64_t, convert_row_to_f64, nk_dots_packed_f64); break;
-    case nk_f16_k: DO_MATMUL(nk_f16_k, nk_f16_t, nk_f32_t, convert_row_to_f16, nk_dots_packed_f16); break;
-    case nk_u8_k: DO_MATMUL(nk_u8_k, nk_u8_t, nk_u32_t, convert_row_to_u8, nk_dots_packed_u8); break;
-    default:
-        if (owns_result) Py_DECREF(result);
-        PyBuffer_Release(&a_buffer);
-        PyErr_SetString(PyExc_ValueError, "Unsupported packed matrix dtype");
-        return NULL;
-    }
-
-#undef DO_MATMUL
-
-    PyBuffer_Release(&a_buffer);
-
-    if (owns_result) { return (PyObject *)result; }
-    else {
-        Py_INCREF(result);
-        return (PyObject *)result;
-    }
 }

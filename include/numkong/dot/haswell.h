@@ -103,6 +103,42 @@ extern "C" {
 #pragma GCC target("avx2", "f16c", "fma", "bmi", "bmi2")
 #endif
 
+/** @brief Compensated horizontal sum of 4 f64 lanes via TwoSum tree reduction.
+ *  @sa nk_reduce_sum_f64_serial_ for the serial equivalent
+ */
+NK_INTERNAL nk_f64_t nk_dot_stable_sum_f64x4_haswell_(__m256d sum_f64x4, __m256d compensation_f64x4) {
+    // Stage 0: TwoSum merge of sum + compensation (4-wide, parallel)
+    __m256d tentative_sum_f64x4 = _mm256_add_pd(sum_f64x4, compensation_f64x4);
+    __m256d virtual_addend_f64x4 = _mm256_sub_pd(tentative_sum_f64x4, sum_f64x4);
+    __m256d rounding_error_f64x4 = _mm256_add_pd(
+        _mm256_sub_pd(sum_f64x4, _mm256_sub_pd(tentative_sum_f64x4, virtual_addend_f64x4)),
+        _mm256_sub_pd(compensation_f64x4, virtual_addend_f64x4));
+
+    // Stage 1: TwoSum halving 4→2
+    __m128d lower_sum_f64x2 = _mm256_castpd256_pd128(tentative_sum_f64x4);
+    __m128d upper_sum_f64x2 = _mm256_extractf128_pd(tentative_sum_f64x4, 1);
+    __m128d tentative_sum_f64x2 = _mm_add_pd(lower_sum_f64x2, upper_sum_f64x2);
+    __m128d virtual_addend_f64x2 = _mm_sub_pd(tentative_sum_f64x2, lower_sum_f64x2);
+    __m128d rounding_error_f64x2 = _mm_add_pd(
+        _mm_sub_pd(lower_sum_f64x2, _mm_sub_pd(tentative_sum_f64x2, virtual_addend_f64x2)),
+        _mm_sub_pd(upper_sum_f64x2, virtual_addend_f64x2));
+    // Accumulate errors: stage 0 errors (halved) + stage 1 rounding error
+    __m128d lower_error_f64x2 = _mm256_castpd256_pd128(rounding_error_f64x4);
+    __m128d upper_error_f64x2 = _mm256_extractf128_pd(rounding_error_f64x4, 1);
+    __m128d accumulated_error_f64x2 = _mm_add_pd(_mm_add_pd(lower_error_f64x2, upper_error_f64x2),
+                                                 rounding_error_f64x2);
+
+    // Stage 2: Scalar TwoSum 2→1
+    nk_f64_t lower_sum = _mm_cvtsd_f64(tentative_sum_f64x2);
+    nk_f64_t upper_sum = _mm_cvtsd_f64(_mm_unpackhi_pd(tentative_sum_f64x2, tentative_sum_f64x2));
+    nk_f64_t lower_error = _mm_cvtsd_f64(accumulated_error_f64x2);
+    nk_f64_t upper_error = _mm_cvtsd_f64(_mm_unpackhi_pd(accumulated_error_f64x2, accumulated_error_f64x2));
+    nk_f64_t tentative_sum = lower_sum + upper_sum;
+    nk_f64_t virtual_addend = tentative_sum - lower_sum;
+    nk_f64_t rounding_error = (lower_sum - (tentative_sum - virtual_addend)) + (upper_sum - virtual_addend);
+    return tentative_sum + (lower_error + upper_error + rounding_error);
+}
+
 #pragma region - Traditional Floats
 
 NK_PUBLIC void nk_dot_f32_haswell(nk_f32_t const *a_scalars, nk_f32_t const *b_scalars, nk_size_t count_scalars,
@@ -183,26 +219,39 @@ NK_PUBLIC void nk_dot_f64_haswell(nk_f64_t const *a_scalars, nk_f64_t const *b_s
     // Dot2 algorithm (Ogita-Rump-Oishi 2005) for compensated dot product
     __m256d sum_f64x4 = _mm256_setzero_pd();
     __m256d compensation_f64x4 = _mm256_setzero_pd();
-    nk_size_t idx_scalars = 0;
-    for (; idx_scalars + 4 <= count_scalars; idx_scalars += 4) {
-        __m256d a_f64x4 = _mm256_loadu_pd(a_scalars + idx_scalars);
-        __m256d b_f64x4 = _mm256_loadu_pd(b_scalars + idx_scalars);
-        // TwoProd: h = a * b, r = fma(a, b, -h) captures the rounding error
-        __m256d product_f64x4 = _mm256_mul_pd(a_f64x4, b_f64x4);
-        __m256d product_error_f64x4 = _mm256_fmsub_pd(a_f64x4, b_f64x4, product_f64x4);
-        // TwoSum: (t, q) = TwoSum(sum, h) where t = sum + h rounded, q = error
-        __m256d t_f64x4 = _mm256_add_pd(sum_f64x4, product_f64x4);
-        __m256d z_f64x4 = _mm256_sub_pd(t_f64x4, sum_f64x4);
-        __m256d sum_error_f64x4 = _mm256_add_pd(_mm256_sub_pd(sum_f64x4, _mm256_sub_pd(t_f64x4, z_f64x4)),
-                                                _mm256_sub_pd(product_f64x4, z_f64x4));
-        // Update: sum = t, compensation += q + r
-        sum_f64x4 = t_f64x4;
-        compensation_f64x4 = _mm256_add_pd(compensation_f64x4, _mm256_add_pd(sum_error_f64x4, product_error_f64x4));
+    __m256d a_f64x4, b_f64x4;
+
+nk_dot_f64_haswell_cycle:
+    if (count_scalars < 4) {
+        nk_b256_vec_t a_tail, b_tail;
+        nk_partial_load_b64x4_serial_(a_scalars, &a_tail, count_scalars);
+        nk_partial_load_b64x4_serial_(b_scalars, &b_tail, count_scalars);
+        a_f64x4 = a_tail.ymm_pd;
+        b_f64x4 = b_tail.ymm_pd;
+        count_scalars = 0;
     }
-    // Reduce and combine sum + compensation
-    nk_f64_t sum = nk_reduce_add_f64x4_haswell_(_mm256_add_pd(sum_f64x4, compensation_f64x4));
-    for (; idx_scalars < count_scalars; ++idx_scalars) sum += a_scalars[idx_scalars] * b_scalars[idx_scalars];
-    *result = sum;
+    else {
+        a_f64x4 = _mm256_loadu_pd(a_scalars);
+        b_f64x4 = _mm256_loadu_pd(b_scalars);
+        a_scalars += 4, b_scalars += 4, count_scalars -= 4;
+    }
+
+    // TwoProd: h = a * b, r = fma(a, b, -h) captures the rounding error
+    __m256d product_f64x4 = _mm256_mul_pd(a_f64x4, b_f64x4);
+    __m256d product_error_f64x4 = _mm256_fmsub_pd(a_f64x4, b_f64x4, product_f64x4);
+    // TwoSum: (t, q) = TwoSum(sum, h) where t = sum + h rounded, q = error
+    __m256d tentative_sum_f64x4 = _mm256_add_pd(sum_f64x4, product_f64x4);
+    __m256d virtual_addend_f64x4 = _mm256_sub_pd(tentative_sum_f64x4, sum_f64x4);
+    __m256d sum_error_f64x4 = _mm256_add_pd(
+        _mm256_sub_pd(sum_f64x4, _mm256_sub_pd(tentative_sum_f64x4, virtual_addend_f64x4)),
+        _mm256_sub_pd(product_f64x4, virtual_addend_f64x4));
+    // Update: sum = t, compensation += q + r
+    sum_f64x4 = tentative_sum_f64x4;
+    compensation_f64x4 = _mm256_add_pd(compensation_f64x4, _mm256_add_pd(sum_error_f64x4, product_error_f64x4));
+
+    if (count_scalars) goto nk_dot_f64_haswell_cycle;
+    // Compensated horizontal reduction preserving Dot2 error tracking
+    *result = nk_dot_stable_sum_f64x4_haswell_(sum_f64x4, compensation_f64x4);
 }
 
 NK_PUBLIC void nk_dot_f64c_haswell(nk_f64c_t const *a_pairs, nk_f64c_t const *b_pairs, nk_size_t count_pairs,
@@ -213,52 +262,59 @@ NK_PUBLIC void nk_dot_f64c_haswell(nk_f64c_t const *a_pairs, nk_f64c_t const *b_
     __m256d compensation_real_f64x4 = _mm256_setzero_pd();
     __m256d compensation_imag_f64x4 = _mm256_setzero_pd();
     __m256i sign_flip_i64x4 = _mm256_set_epi64x(0x8000000000000000, 0, 0x8000000000000000, 0);
-    nk_size_t idx_pairs = 0;
-    for (; idx_pairs + 2 <= count_pairs; idx_pairs += 2) {
-        __m256d a_f64x4 = _mm256_loadu_pd((nk_f64_t const *)(a_pairs + idx_pairs));
-        __m256d b_f64x4 = _mm256_loadu_pd((nk_f64_t const *)(b_pairs + idx_pairs));
-        __m256d b_swapped_f64x4 = _mm256_permute_pd(b_f64x4, 0x5); // 0b0101: swap adjacent pairs
+    __m256d a_f64x4, b_f64x4;
 
-        // TwoProd for real part: a * b
-        __m256d product_real_f64x4 = _mm256_mul_pd(a_f64x4, b_f64x4);
-        __m256d product_real_error_f64x4 = _mm256_fmsub_pd(a_f64x4, b_f64x4, product_real_f64x4);
-        // TwoSum for real part
-        __m256d t_real_f64x4 = _mm256_add_pd(sum_real_f64x4, product_real_f64x4);
-        __m256d z_real_f64x4 = _mm256_sub_pd(t_real_f64x4, sum_real_f64x4);
-        __m256d sum_real_error_f64x4 = _mm256_add_pd(
-            _mm256_sub_pd(sum_real_f64x4, _mm256_sub_pd(t_real_f64x4, z_real_f64x4)),
-            _mm256_sub_pd(product_real_f64x4, z_real_f64x4));
-        sum_real_f64x4 = t_real_f64x4;
-        compensation_real_f64x4 = _mm256_add_pd(compensation_real_f64x4,
-                                                _mm256_add_pd(sum_real_error_f64x4, product_real_error_f64x4));
-
-        // TwoProd for imag part: a * b_swapped
-        __m256d product_imag_f64x4 = _mm256_mul_pd(a_f64x4, b_swapped_f64x4);
-        __m256d product_imag_error_f64x4 = _mm256_fmsub_pd(a_f64x4, b_swapped_f64x4, product_imag_f64x4);
-        // TwoSum for imag part
-        __m256d t_imag_f64x4 = _mm256_add_pd(sum_imag_f64x4, product_imag_f64x4);
-        __m256d z_imag_f64x4 = _mm256_sub_pd(t_imag_f64x4, sum_imag_f64x4);
-        __m256d sum_imag_error_f64x4 = _mm256_add_pd(
-            _mm256_sub_pd(sum_imag_f64x4, _mm256_sub_pd(t_imag_f64x4, z_imag_f64x4)),
-            _mm256_sub_pd(product_imag_f64x4, z_imag_f64x4));
-        sum_imag_f64x4 = t_imag_f64x4;
-        compensation_imag_f64x4 = _mm256_add_pd(compensation_imag_f64x4,
-                                                _mm256_add_pd(sum_imag_error_f64x4, product_imag_error_f64x4));
+nk_dot_f64c_haswell_cycle:
+    if (count_pairs < 2) {
+        nk_b256_vec_t a_tail, b_tail;
+        nk_partial_load_b64x4_serial_(a_pairs, &a_tail, count_pairs * 2);
+        nk_partial_load_b64x4_serial_(b_pairs, &b_tail, count_pairs * 2);
+        a_f64x4 = a_tail.ymm_pd;
+        b_f64x4 = b_tail.ymm_pd;
+        count_pairs = 0;
     }
+    else {
+        a_f64x4 = _mm256_loadu_pd((nk_f64_t const *)a_pairs);
+        b_f64x4 = _mm256_loadu_pd((nk_f64_t const *)b_pairs);
+        a_pairs += 2, b_pairs += 2, count_pairs -= 2;
+    }
+
+    __m256d b_swapped_f64x4 = _mm256_permute_pd(b_f64x4, 0x5); // 0b0101: swap adjacent pairs
+
+    // TwoProd for real part: a * b
+    __m256d product_real_f64x4 = _mm256_mul_pd(a_f64x4, b_f64x4);
+    __m256d product_real_error_f64x4 = _mm256_fmsub_pd(a_f64x4, b_f64x4, product_real_f64x4);
+    // TwoSum for real part
+    __m256d tentative_sum_real_f64x4 = _mm256_add_pd(sum_real_f64x4, product_real_f64x4);
+    __m256d virtual_addend_real_f64x4 = _mm256_sub_pd(tentative_sum_real_f64x4, sum_real_f64x4);
+    __m256d sum_real_error_f64x4 = _mm256_add_pd(
+        _mm256_sub_pd(sum_real_f64x4, _mm256_sub_pd(tentative_sum_real_f64x4, virtual_addend_real_f64x4)),
+        _mm256_sub_pd(product_real_f64x4, virtual_addend_real_f64x4));
+    sum_real_f64x4 = tentative_sum_real_f64x4;
+    compensation_real_f64x4 = _mm256_add_pd(compensation_real_f64x4,
+                                            _mm256_add_pd(sum_real_error_f64x4, product_real_error_f64x4));
+
+    // TwoProd for imag part: a * b_swapped
+    __m256d product_imag_f64x4 = _mm256_mul_pd(a_f64x4, b_swapped_f64x4);
+    __m256d product_imag_error_f64x4 = _mm256_fmsub_pd(a_f64x4, b_swapped_f64x4, product_imag_f64x4);
+    // TwoSum for imag part
+    __m256d tentative_sum_imag_f64x4 = _mm256_add_pd(sum_imag_f64x4, product_imag_f64x4);
+    __m256d virtual_addend_imag_f64x4 = _mm256_sub_pd(tentative_sum_imag_f64x4, sum_imag_f64x4);
+    __m256d sum_imag_error_f64x4 = _mm256_add_pd(
+        _mm256_sub_pd(sum_imag_f64x4, _mm256_sub_pd(tentative_sum_imag_f64x4, virtual_addend_imag_f64x4)),
+        _mm256_sub_pd(product_imag_f64x4, virtual_addend_imag_f64x4));
+    sum_imag_f64x4 = tentative_sum_imag_f64x4;
+    compensation_imag_f64x4 = _mm256_add_pd(compensation_imag_f64x4,
+                                            _mm256_add_pd(sum_imag_error_f64x4, product_imag_error_f64x4));
+
+    if (count_pairs) goto nk_dot_f64c_haswell_cycle;
     // Flip sign in every second f64 for real part (to get a_r*b_r - a_i*b_i)
     sum_real_f64x4 = _mm256_castsi256_pd(_mm256_xor_si256(_mm256_castpd_si256(sum_real_f64x4), sign_flip_i64x4));
     compensation_real_f64x4 = _mm256_castsi256_pd(
         _mm256_xor_si256(_mm256_castpd_si256(compensation_real_f64x4), sign_flip_i64x4));
-    // Reduce and combine: first vector-add sum+compensation, then horizontal reduce
-    nk_f64_t sum_real = nk_reduce_add_f64x4_haswell_(_mm256_add_pd(sum_real_f64x4, compensation_real_f64x4));
-    nk_f64_t sum_imag = nk_reduce_add_f64x4_haswell_(_mm256_add_pd(sum_imag_f64x4, compensation_imag_f64x4));
-    for (; idx_pairs != count_pairs; ++idx_pairs) {
-        nk_f64c_t a_pair = a_pairs[idx_pairs], b_pair = b_pairs[idx_pairs];
-        sum_real += a_pair.real * b_pair.real - a_pair.imag * b_pair.imag;
-        sum_imag += a_pair.real * b_pair.imag + a_pair.imag * b_pair.real;
-    }
-    result->real = sum_real;
-    result->imag = sum_imag;
+    // Compensated horizontal reduction preserving Dot2 error tracking
+    result->real = nk_dot_stable_sum_f64x4_haswell_(sum_real_f64x4, compensation_real_f64x4);
+    result->imag = nk_dot_stable_sum_f64x4_haswell_(sum_imag_f64x4, compensation_imag_f64x4);
 }
 
 NK_PUBLIC void nk_vdot_f64c_haswell(nk_f64c_t const *a_pairs, nk_f64c_t const *b_pairs, nk_size_t count_pairs,
@@ -269,52 +325,59 @@ NK_PUBLIC void nk_vdot_f64c_haswell(nk_f64c_t const *a_pairs, nk_f64c_t const *b
     __m256d compensation_real_f64x4 = _mm256_setzero_pd();
     __m256d compensation_imag_f64x4 = _mm256_setzero_pd();
     __m256i sign_flip_i64x4 = _mm256_set_epi64x(0x8000000000000000, 0, 0x8000000000000000, 0);
-    nk_size_t idx_pairs = 0;
-    for (; idx_pairs + 2 <= count_pairs; idx_pairs += 2) {
-        __m256d a_f64x4 = _mm256_loadu_pd((nk_f64_t const *)(a_pairs + idx_pairs));
-        __m256d b_f64x4 = _mm256_loadu_pd((nk_f64_t const *)(b_pairs + idx_pairs));
-        __m256d b_swapped_f64x4 = _mm256_permute_pd(b_f64x4, 0x5); // 0b0101: swap adjacent pairs
+    __m256d a_f64x4, b_f64x4;
 
-        // TwoProd for real part: a * b
-        __m256d product_real_f64x4 = _mm256_mul_pd(a_f64x4, b_f64x4);
-        __m256d product_real_error_f64x4 = _mm256_fmsub_pd(a_f64x4, b_f64x4, product_real_f64x4);
-        // TwoSum for real part
-        __m256d t_real_f64x4 = _mm256_add_pd(sum_real_f64x4, product_real_f64x4);
-        __m256d z_real_f64x4 = _mm256_sub_pd(t_real_f64x4, sum_real_f64x4);
-        __m256d sum_real_error_f64x4 = _mm256_add_pd(
-            _mm256_sub_pd(sum_real_f64x4, _mm256_sub_pd(t_real_f64x4, z_real_f64x4)),
-            _mm256_sub_pd(product_real_f64x4, z_real_f64x4));
-        sum_real_f64x4 = t_real_f64x4;
-        compensation_real_f64x4 = _mm256_add_pd(compensation_real_f64x4,
-                                                _mm256_add_pd(sum_real_error_f64x4, product_real_error_f64x4));
-
-        // TwoProd for imag part: a * b_swapped
-        __m256d product_imag_f64x4 = _mm256_mul_pd(a_f64x4, b_swapped_f64x4);
-        __m256d product_imag_error_f64x4 = _mm256_fmsub_pd(a_f64x4, b_swapped_f64x4, product_imag_f64x4);
-        // TwoSum for imag part
-        __m256d t_imag_f64x4 = _mm256_add_pd(sum_imag_f64x4, product_imag_f64x4);
-        __m256d z_imag_f64x4 = _mm256_sub_pd(t_imag_f64x4, sum_imag_f64x4);
-        __m256d sum_imag_error_f64x4 = _mm256_add_pd(
-            _mm256_sub_pd(sum_imag_f64x4, _mm256_sub_pd(t_imag_f64x4, z_imag_f64x4)),
-            _mm256_sub_pd(product_imag_f64x4, z_imag_f64x4));
-        sum_imag_f64x4 = t_imag_f64x4;
-        compensation_imag_f64x4 = _mm256_add_pd(compensation_imag_f64x4,
-                                                _mm256_add_pd(sum_imag_error_f64x4, product_imag_error_f64x4));
+nk_vdot_f64c_haswell_cycle:
+    if (count_pairs < 2) {
+        nk_b256_vec_t a_tail, b_tail;
+        nk_partial_load_b64x4_serial_(a_pairs, &a_tail, count_pairs * 2);
+        nk_partial_load_b64x4_serial_(b_pairs, &b_tail, count_pairs * 2);
+        a_f64x4 = a_tail.ymm_pd;
+        b_f64x4 = b_tail.ymm_pd;
+        count_pairs = 0;
     }
+    else {
+        a_f64x4 = _mm256_loadu_pd((nk_f64_t const *)a_pairs);
+        b_f64x4 = _mm256_loadu_pd((nk_f64_t const *)b_pairs);
+        a_pairs += 2, b_pairs += 2, count_pairs -= 2;
+    }
+
+    __m256d b_swapped_f64x4 = _mm256_permute_pd(b_f64x4, 0x5); // 0b0101: swap adjacent pairs
+
+    // TwoProd for real part: a * b
+    __m256d product_real_f64x4 = _mm256_mul_pd(a_f64x4, b_f64x4);
+    __m256d product_real_error_f64x4 = _mm256_fmsub_pd(a_f64x4, b_f64x4, product_real_f64x4);
+    // TwoSum for real part
+    __m256d tentative_sum_real_f64x4 = _mm256_add_pd(sum_real_f64x4, product_real_f64x4);
+    __m256d virtual_addend_real_f64x4 = _mm256_sub_pd(tentative_sum_real_f64x4, sum_real_f64x4);
+    __m256d sum_real_error_f64x4 = _mm256_add_pd(
+        _mm256_sub_pd(sum_real_f64x4, _mm256_sub_pd(tentative_sum_real_f64x4, virtual_addend_real_f64x4)),
+        _mm256_sub_pd(product_real_f64x4, virtual_addend_real_f64x4));
+    sum_real_f64x4 = tentative_sum_real_f64x4;
+    compensation_real_f64x4 = _mm256_add_pd(compensation_real_f64x4,
+                                            _mm256_add_pd(sum_real_error_f64x4, product_real_error_f64x4));
+
+    // TwoProd for imag part: a * b_swapped
+    __m256d product_imag_f64x4 = _mm256_mul_pd(a_f64x4, b_swapped_f64x4);
+    __m256d product_imag_error_f64x4 = _mm256_fmsub_pd(a_f64x4, b_swapped_f64x4, product_imag_f64x4);
+    // TwoSum for imag part
+    __m256d tentative_sum_imag_f64x4 = _mm256_add_pd(sum_imag_f64x4, product_imag_f64x4);
+    __m256d virtual_addend_imag_f64x4 = _mm256_sub_pd(tentative_sum_imag_f64x4, sum_imag_f64x4);
+    __m256d sum_imag_error_f64x4 = _mm256_add_pd(
+        _mm256_sub_pd(sum_imag_f64x4, _mm256_sub_pd(tentative_sum_imag_f64x4, virtual_addend_imag_f64x4)),
+        _mm256_sub_pd(product_imag_f64x4, virtual_addend_imag_f64x4));
+    sum_imag_f64x4 = tentative_sum_imag_f64x4;
+    compensation_imag_f64x4 = _mm256_add_pd(compensation_imag_f64x4,
+                                            _mm256_add_pd(sum_imag_error_f64x4, product_imag_error_f64x4));
+
+    if (count_pairs) goto nk_vdot_f64c_haswell_cycle;
     // Flip sign in every second f64 for imag part (to get a_r*b_i - a_i*b_r)
     sum_imag_f64x4 = _mm256_castsi256_pd(_mm256_xor_si256(_mm256_castpd_si256(sum_imag_f64x4), sign_flip_i64x4));
     compensation_imag_f64x4 = _mm256_castsi256_pd(
         _mm256_xor_si256(_mm256_castpd_si256(compensation_imag_f64x4), sign_flip_i64x4));
-    // Reduce and combine: first vector-add sum+compensation, then horizontal reduce
-    nk_f64_t sum_real = nk_reduce_add_f64x4_haswell_(_mm256_add_pd(sum_real_f64x4, compensation_real_f64x4));
-    nk_f64_t sum_imag = nk_reduce_add_f64x4_haswell_(_mm256_add_pd(sum_imag_f64x4, compensation_imag_f64x4));
-    for (; idx_pairs != count_pairs; ++idx_pairs) {
-        nk_f64c_t a_pair = a_pairs[idx_pairs], b_pair = b_pairs[idx_pairs];
-        sum_real += a_pair.real * b_pair.real + a_pair.imag * b_pair.imag;
-        sum_imag += a_pair.real * b_pair.imag - a_pair.imag * b_pair.real;
-    }
-    result->real = sum_real;
-    result->imag = sum_imag;
+    // Compensated horizontal reduction preserving Dot2 error tracking
+    result->real = nk_dot_stable_sum_f64x4_haswell_(sum_real_f64x4, compensation_real_f64x4);
+    result->imag = nk_dot_stable_sum_f64x4_haswell_(sum_imag_f64x4, compensation_imag_f64x4);
 }
 
 /**
@@ -346,13 +409,14 @@ NK_INTERNAL void nk_dot_f64x4_update_haswell(nk_dot_f64x4_state_haswell_t *state
     __m256d product_error_f64x4 = _mm256_fmsub_pd(a_f64x4, b_f64x4, product_f64x4);
 
     // TwoSum: (t, q) = TwoSum(sum, h) where t = sum + h rounded, q = error
-    __m256d t_f64x4 = _mm256_add_pd(sum_f64x4, product_f64x4);
-    __m256d z_f64x4 = _mm256_sub_pd(t_f64x4, sum_f64x4);
-    __m256d sum_error_f64x4 = _mm256_add_pd(_mm256_sub_pd(sum_f64x4, _mm256_sub_pd(t_f64x4, z_f64x4)),
-                                            _mm256_sub_pd(product_f64x4, z_f64x4));
+    __m256d tentative_sum_f64x4 = _mm256_add_pd(sum_f64x4, product_f64x4);
+    __m256d virtual_addend_f64x4 = _mm256_sub_pd(tentative_sum_f64x4, sum_f64x4);
+    __m256d sum_error_f64x4 = _mm256_add_pd(
+        _mm256_sub_pd(sum_f64x4, _mm256_sub_pd(tentative_sum_f64x4, virtual_addend_f64x4)),
+        _mm256_sub_pd(product_f64x4, virtual_addend_f64x4));
 
     // Update: sum = t, compensation += q + r
-    state->sum_f64x4 = t_f64x4;
+    state->sum_f64x4 = tentative_sum_f64x4;
     state->compensation_f64x4 = _mm256_add_pd(compensation_f64x4, _mm256_add_pd(sum_error_f64x4, product_error_f64x4));
 }
 
@@ -361,22 +425,11 @@ NK_INTERNAL void nk_dot_f64x4_finalize_haswell(                                 
     nk_dot_f64x4_state_haswell_t const *state_c, nk_dot_f64x4_state_haswell_t const *state_d, //
     nk_size_t total_dimensions, nk_b256_vec_t *result) {
     nk_unused_(total_dimensions);
-    // Combine sum + compensation before horizontal reduction
-    __m256d sum_a_f64x4 = _mm256_add_pd(state_a->sum_f64x4, state_a->compensation_f64x4);
-    __m256d sum_b_f64x4 = _mm256_add_pd(state_b->sum_f64x4, state_b->compensation_f64x4);
-    __m256d sum_c_f64x4 = _mm256_add_pd(state_c->sum_f64x4, state_c->compensation_f64x4);
-    __m256d sum_d_f64x4 = _mm256_add_pd(state_d->sum_f64x4, state_d->compensation_f64x4);
-
-    // ILP-optimized 4-way horizontal reduction for f64 in AVX2
-    __m128d sum_a_f64x2 = _mm_add_pd(_mm256_castpd256_pd128(sum_a_f64x4), _mm256_extractf128_pd(sum_a_f64x4, 1));
-    __m128d sum_b_f64x2 = _mm_add_pd(_mm256_castpd256_pd128(sum_b_f64x4), _mm256_extractf128_pd(sum_b_f64x4, 1));
-    __m128d sum_c_f64x2 = _mm_add_pd(_mm256_castpd256_pd128(sum_c_f64x4), _mm256_extractf128_pd(sum_c_f64x4, 1));
-    __m128d sum_d_f64x2 = _mm_add_pd(_mm256_castpd256_pd128(sum_d_f64x4), _mm256_extractf128_pd(sum_d_f64x4, 1));
-    // Horizontal add pairs: [a0+a1, b0+b1] and [c0+c1, d0+d1]
-    __m128d sum_ab_f64x2 = _mm_hadd_pd(sum_a_f64x2, sum_b_f64x2);
-    __m128d sum_cd_f64x2 = _mm_hadd_pd(sum_c_f64x2, sum_d_f64x2);
-    // Store results in ymm register
-    result->ymm_pd = _mm256_set_m128d(sum_cd_f64x2, sum_ab_f64x2);
+    // Compensated horizontal reduction preserving Dot2 error tracking per state
+    result->f64s[0] = nk_dot_stable_sum_f64x4_haswell_(state_a->sum_f64x4, state_a->compensation_f64x4);
+    result->f64s[1] = nk_dot_stable_sum_f64x4_haswell_(state_b->sum_f64x4, state_b->compensation_f64x4);
+    result->f64s[2] = nk_dot_stable_sum_f64x4_haswell_(state_c->sum_f64x4, state_c->compensation_f64x4);
+    result->f64s[3] = nk_dot_stable_sum_f64x4_haswell_(state_d->sum_f64x4, state_d->compensation_f64x4);
 }
 
 typedef struct nk_dot_f32x4_state_haswell_t {

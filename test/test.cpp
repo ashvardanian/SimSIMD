@@ -17,6 +17,28 @@
 #include "test.hpp"
 #include "test_cross.hpp"
 
+// Explicit instantiations to verify `random.hpp` compiles for all code paths:
+//  - f64_t:   scalar float path
+//  - i16_t:   scalar signed integer path
+//  - bf16c_t: complex path
+//  - i4x2_t:  packed sub-byte path
+template void nk::fill_uniform(std::mt19937 &, nk::f64_t *, std::size_t, nk::f64_t::component_t, nk::f64_t::component_t);
+template void nk::fill_uniform(std::mt19937 &, nk::i16_t *, std::size_t, nk::i16_t::component_t, nk::i16_t::component_t);
+template void nk::fill_uniform(std::mt19937 &, nk::bf16c_t *, std::size_t, nk::bf16c_t::component_t, nk::bf16c_t::component_t);
+template void nk::fill_uniform(std::mt19937 &, nk::i4x2_t *, std::size_t, nk::i4x2_t::component_t, nk::i4x2_t::component_t);
+template void nk::fill_uniform(std::mt19937 &, nk::f64_t *, std::size_t);
+template void nk::fill_uniform(std::mt19937 &, nk::i16_t *, std::size_t);
+template void nk::fill_uniform(std::mt19937 &, nk::bf16c_t *, std::size_t);
+template void nk::fill_uniform(std::mt19937 &, nk::i4x2_t *, std::size_t);
+template void nk::fill_lognormal(std::mt19937 &, nk::f64_t *, std::size_t, double, double);
+template void nk::fill_lognormal(std::mt19937 &, nk::i16_t *, std::size_t, double, double);
+template void nk::fill_lognormal(std::mt19937 &, nk::bf16c_t *, std::size_t, double, double);
+template void nk::fill_lognormal(std::mt19937 &, nk::i4x2_t *, std::size_t, double, double);
+template void nk::fill_cauchy(std::mt19937 &, nk::f64_t *, std::size_t, double, double);
+template void nk::fill_cauchy(std::mt19937 &, nk::i16_t *, std::size_t, double, double);
+template void nk::fill_cauchy(std::mt19937 &, nk::bf16c_t *, std::size_t, double, double);
+template void nk::fill_cauchy(std::mt19937 &, nk::i4x2_t *, std::size_t, double, double);
+
 static bool colors_enabled() {
     static bool const result = [] {
         if (std::getenv("NO_COLOR")) return false;

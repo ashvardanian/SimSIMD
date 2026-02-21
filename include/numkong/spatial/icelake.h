@@ -49,7 +49,8 @@ NK_PUBLIC void nk_sqeuclidean_i8_icelake(nk_i8_t const *a, nk_i8_t const *b, nk_
     //   - Bottleneck: cvtepi8_epi16 (3cy latency @ p5) limits throughput
     //
     // New approach (Ice Lake+):
-    //   - Compute |a-b| using saturating subtraction: diff = (a ⊖ b) | (b ⊖ a)
+    //   - XOR with 0x80 to reinterpret signed i8 as unsigned u8
+    //   - Compute |a-b| using unsigned saturating subtraction: diff = (a ⊖ b) | (b ⊖ a)
     //   - Zero-extend u8→u16 using unpacking (1cy latency @ p5)
     //   - Square using vpmaddwd on u16 values (64 elements/iteration)
     //   - Eliminates cvtepi8_epi16 bottleneck, doubles throughput
@@ -59,12 +60,14 @@ NK_PUBLIC void nk_sqeuclidean_i8_icelake(nk_i8_t const *a, nk_i8_t const *b, nk_
     //   - Faster zero-extension (unpack 1cy vs cvtepi8_epi16 3cy)
     //   - Correctness: |a-b|² = (a-b)², so unsigned absolute differences are valid
     //
-    // Correctness: For squared distance, |a-b|² = (a-b)², so working with
-    //              absolute differences as unsigned values is mathematically sound
+    // The XOR bias is needed because subs_epu8 (unsigned) saturates to 0 when
+    // the result would be negative, so OR-ing both directions gives the true |a-b|.
+    // A naive subs_epi8 (signed) saturates to -128, corrupting the OR trick.
     //
     __m512i distance_sq_low_i32x16 = _mm512_setzero_si512();
     __m512i distance_sq_high_i32x16 = _mm512_setzero_si512();
     __m512i const zeros_i8x64 = _mm512_setzero_si512();
+    __m512i const bias_i8x64 = _mm512_set1_epi8((char)0x80);
     __m512i diff_low_i16x32, diff_high_i16x32;
     __m512i a_i8x64, b_i8x64, diff_u8x64;
 
@@ -81,10 +84,14 @@ nk_sqeuclidean_i8_icelake_cycle:
         a += 64, b += 64, n -= 64;
     }
 
-    // Compute |a-b| using saturating subtraction (works for signed i8)
-    // subs_epi8 saturates to 0 if result would be negative
+    // Reinterpret signed i8 as unsigned u8 by flipping the sign bit
+    a_i8x64 = _mm512_xor_si512(a_i8x64, bias_i8x64);
+    b_i8x64 = _mm512_xor_si512(b_i8x64, bias_i8x64);
+
+    // Compute |a-b| using unsigned saturating subtraction
+    // subs_epu8 saturates to 0 if result would be negative
     // OR-ing both directions gives absolute difference as unsigned
-    diff_u8x64 = _mm512_or_si512(_mm512_subs_epi8(a_i8x64, b_i8x64), _mm512_subs_epi8(b_i8x64, a_i8x64));
+    diff_u8x64 = _mm512_or_si512(_mm512_subs_epu8(a_i8x64, b_i8x64), _mm512_subs_epu8(b_i8x64, a_i8x64));
 
     // Zero-extend to i16 using unpack (1cy @ p5, much faster than cvtepi8_epi16)
     diff_low_i16x32 = _mm512_unpacklo_epi8(diff_u8x64, zeros_i8x64);
@@ -97,6 +104,7 @@ nk_sqeuclidean_i8_icelake_cycle:
 
     *result = _mm512_reduce_add_epi32(_mm512_add_epi32(distance_sq_low_i32x16, distance_sq_high_i32x16));
 }
+
 NK_PUBLIC void nk_euclidean_i8_icelake(nk_i8_t const *a, nk_i8_t const *b, nk_size_t n, nk_f32_t *result) {
     nk_u32_t d2;
     nk_sqeuclidean_i8_icelake(a, b, n, &d2);

@@ -12,7 +12,7 @@
  *  @brief Test Haversine distance.
  */
 template <typename scalar_type_>
-error_stats_t test_haversine(typename scalar_type_::haversine_kernel_t kernel) {
+error_stats_t test_haversine(typename scalar_type_::geospatial_kernel_t kernel) {
     using scalar_t = scalar_type_;
     using raw_t = typename scalar_t::raw_t;
 
@@ -44,7 +44,7 @@ error_stats_t test_haversine(typename scalar_type_::haversine_kernel_t kernel) {
  *  @brief Test Vincenty distance.
  */
 template <typename scalar_type_>
-error_stats_t test_vincenty(typename scalar_type_::haversine_kernel_t kernel) {
+error_stats_t test_vincenty(typename scalar_type_::geospatial_kernel_t kernel) {
     using scalar_t = scalar_type_;
     using raw_t = typename scalar_t::raw_t;
 

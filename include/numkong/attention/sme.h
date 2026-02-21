@@ -1,5 +1,5 @@
 /**
- *  @brief FlashAttention-style kernels for ARM SME.
+ *  @brief FlashAttention-style kernels for SME.
  *  @file include/numkong/attention/sme.h
  *  @author Ash Vardanian
  *  @date January 11, 2026

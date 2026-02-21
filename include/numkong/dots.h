@@ -1364,26 +1364,6 @@ NK_PUBLIC void nk_dots_symmetric_e5m2_rvv(nk_e5m2_t const *vectors, nk_size_t n_
                                           nk_size_t row_start, nk_size_t row_count);
 #endif // NK_TARGET_RVV
 
-/**
- *  @brief  Returns the output dtype for dot products.
- */
-NK_INTERNAL nk_dtype_t nk_dots_packed_output_dtype(nk_dtype_t dtype) {
-    switch (dtype) {
-    case nk_f64_k: return nk_f64_k;
-    case nk_f32_k: return nk_f32_k;
-    case nk_f16_k: return nk_f32_k;
-    case nk_bf16_k: return nk_f32_k;
-    case nk_e4m3_k: return nk_f32_k;
-    case nk_e5m2_k: return nk_f32_k;
-    case nk_i8_k: return nk_i32_k;
-    case nk_u8_k: return nk_u32_k;
-    case nk_u1_k: return nk_u32_k;
-    case nk_u4_k: return nk_u32_k;
-    case nk_i4_k: return nk_i32_k;
-    default: return nk_dtype_unknown_k;
-    }
-}
-
 #if defined(__cplusplus)
 } // extern "C"
 #endif

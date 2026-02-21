@@ -165,19 +165,6 @@ extern "C" {
         c_stride: u64size,
     );
 
-    fn nk_dots_packed_size_u1(n: u64size, k: u64size) -> u64size;
-    fn nk_dots_pack_u1(b: *const u8, n: u64size, k: u64size, b_stride: u64size, packed: *mut u8);
-    fn nk_dots_packed_u1(
-        a: *const u8,
-        packed: *const u8,
-        c: *mut u32,
-        m: u64size,
-        n: u64size,
-        k: u64size,
-        a_stride: u64size,
-        c_stride: u64size,
-    );
-
     fn nk_dots_packed_size_u4(n: u64size, k: u64size) -> u64size;
     fn nk_dots_pack_u4(b: *const u8, n: u64size, k: u64size, b_stride: u64size, packed: *mut u8);
     fn nk_dots_packed_u4(
@@ -321,6 +308,36 @@ extern "C" {
         depth: u64size,
         stride: u64size,
         result: *mut i32,
+        result_stride: u64size,
+        row_start: u64size,
+        row_count: u64size,
+    );
+
+    // Batched Hamming distances
+    fn nk_hammings_packed_size_u1(n: u64size, d: u64size) -> u64size;
+    fn nk_hammings_pack_u1(
+        q: *const u8,
+        n: u64size,
+        d: u64size,
+        q_stride: u64size,
+        q_packed: *mut u8,
+    );
+    fn nk_hammings_packed_u1(
+        a: *const u8,
+        q_packed: *const u8,
+        result: *mut u32,
+        rows: u64size,
+        cols: u64size,
+        d: u64size,
+        v_stride: u64size,
+        r_stride: u64size,
+    );
+    fn nk_hammings_symmetric_u1(
+        vectors: *const u8,
+        n_vectors: u64size,
+        d: u64size,
+        stride: u64size,
+        result: *mut u32,
         result_stride: u64size,
         row_start: u64size,
         row_count: u64size,
@@ -517,6 +534,27 @@ pub trait Dots: Sized + Clone {
         a_stride: usize,
         c_stride: usize,
     );
+
+    /// Computes C = A × Aᵀ where C is symmetric.
+    ///
+    /// Given input matrix A of shape [n, k], computes the symmetric matrix of all pairwise
+    /// dot products. Only the upper triangle is computed, then mirrored to the lower triangle.
+    ///
+    /// # Safety
+    /// - `vectors` must point to valid memory for `n_vectors × depth` elements with given stride
+    /// - `result` must point to valid memory for `n_vectors × n_vectors` elements with given stride
+    /// - Strides are in bytes, not elements
+    /// - `row_start + row_count` must be <= `n_vectors`
+    unsafe fn dots_symmetric(
+        vectors: *const Self,
+        n_vectors: usize,
+        depth: usize,
+        stride: usize,
+        result: *mut Self::Accumulator,
+        result_stride: usize,
+        row_start: usize,
+        row_count: usize,
+    );
 }
 
 impl Dots for f32 {
@@ -551,6 +589,28 @@ impl Dots for f32 {
             c_stride as u64size,
         )
     }
+
+    unsafe fn dots_symmetric(
+        vectors: *const Self,
+        n_vectors: usize,
+        depth: usize,
+        stride: usize,
+        result: *mut Self::Accumulator,
+        result_stride: usize,
+        row_start: usize,
+        row_count: usize,
+    ) {
+        nk_dots_symmetric_f32(
+            vectors,
+            n_vectors as u64size,
+            depth as u64size,
+            stride as u64size,
+            result,
+            result_stride as u64size,
+            row_start as u64size,
+            row_count as u64size,
+        )
+    }
 }
 
 impl Dots for f64 {
@@ -583,6 +643,28 @@ impl Dots for f64 {
             k as u64size,
             a_stride as u64size,
             c_stride as u64size,
+        )
+    }
+
+    unsafe fn dots_symmetric(
+        vectors: *const Self,
+        n_vectors: usize,
+        depth: usize,
+        stride: usize,
+        result: *mut Self::Accumulator,
+        result_stride: usize,
+        row_start: usize,
+        row_count: usize,
+    ) {
+        nk_dots_symmetric_f64(
+            vectors,
+            n_vectors as u64size,
+            depth as u64size,
+            stride as u64size,
+            result,
+            result_stride as u64size,
+            row_start as u64size,
+            row_count as u64size,
         )
     }
 }
@@ -625,6 +707,28 @@ impl Dots for f16 {
             c_stride as u64size,
         )
     }
+
+    unsafe fn dots_symmetric(
+        vectors: *const Self,
+        n_vectors: usize,
+        depth: usize,
+        stride: usize,
+        result: *mut Self::Accumulator,
+        result_stride: usize,
+        row_start: usize,
+        row_count: usize,
+    ) {
+        nk_dots_symmetric_f16(
+            vectors as *const u16,
+            n_vectors as u64size,
+            depth as u64size,
+            stride as u64size,
+            result,
+            result_stride as u64size,
+            row_start as u64size,
+            row_count as u64size,
+        )
+    }
 }
 
 impl Dots for bf16 {
@@ -665,6 +769,28 @@ impl Dots for bf16 {
             c_stride as u64size,
         )
     }
+
+    unsafe fn dots_symmetric(
+        vectors: *const Self,
+        n_vectors: usize,
+        depth: usize,
+        stride: usize,
+        result: *mut Self::Accumulator,
+        result_stride: usize,
+        row_start: usize,
+        row_count: usize,
+    ) {
+        nk_dots_symmetric_bf16(
+            vectors as *const u16,
+            n_vectors as u64size,
+            depth as u64size,
+            stride as u64size,
+            result,
+            result_stride as u64size,
+            row_start as u64size,
+            row_count as u64size,
+        )
+    }
 }
 
 impl Dots for i8 {
@@ -699,6 +825,28 @@ impl Dots for i8 {
             c_stride as u64size,
         )
     }
+
+    unsafe fn dots_symmetric(
+        vectors: *const Self,
+        n_vectors: usize,
+        depth: usize,
+        stride: usize,
+        result: *mut Self::Accumulator,
+        result_stride: usize,
+        row_start: usize,
+        row_count: usize,
+    ) {
+        nk_dots_symmetric_i8(
+            vectors,
+            n_vectors as u64size,
+            depth as u64size,
+            stride as u64size,
+            result,
+            result_stride as u64size,
+            row_start as u64size,
+            row_count as u64size,
+        )
+    }
 }
 
 impl Dots for u8 {
@@ -731,6 +879,28 @@ impl Dots for u8 {
             k as u64size,
             a_stride as u64size,
             c_stride as u64size,
+        )
+    }
+
+    unsafe fn dots_symmetric(
+        vectors: *const Self,
+        n_vectors: usize,
+        depth: usize,
+        stride: usize,
+        result: *mut Self::Accumulator,
+        result_stride: usize,
+        row_start: usize,
+        row_count: usize,
+    ) {
+        nk_dots_symmetric_u8(
+            vectors,
+            n_vectors as u64size,
+            depth as u64size,
+            stride as u64size,
+            result,
+            result_stride as u64size,
+            row_start as u64size,
+            row_count as u64size,
         )
     }
 }
@@ -773,6 +943,28 @@ impl Dots for e4m3 {
             c_stride as u64size,
         )
     }
+
+    unsafe fn dots_symmetric(
+        vectors: *const Self,
+        n_vectors: usize,
+        depth: usize,
+        stride: usize,
+        result: *mut Self::Accumulator,
+        result_stride: usize,
+        row_start: usize,
+        row_count: usize,
+    ) {
+        nk_dots_symmetric_e4m3(
+            vectors as *const u8,
+            n_vectors as u64size,
+            depth as u64size,
+            stride as u64size,
+            result,
+            result_stride as u64size,
+            row_start as u64size,
+            row_count as u64size,
+        )
+    }
 }
 
 impl Dots for e5m2 {
@@ -811,6 +1003,28 @@ impl Dots for e5m2 {
             k as u64size,
             a_stride as u64size,
             c_stride as u64size,
+        )
+    }
+
+    unsafe fn dots_symmetric(
+        vectors: *const Self,
+        n_vectors: usize,
+        depth: usize,
+        stride: usize,
+        result: *mut Self::Accumulator,
+        result_stride: usize,
+        row_start: usize,
+        row_count: usize,
+    ) {
+        nk_dots_symmetric_e5m2(
+            vectors as *const u8,
+            n_vectors as u64size,
+            depth as u64size,
+            stride as u64size,
+            result,
+            result_stride as u64size,
+            row_start as u64size,
+            row_count as u64size,
         )
     }
 }
@@ -853,6 +1067,28 @@ impl Dots for e2m3 {
             c_stride as u64size,
         )
     }
+
+    unsafe fn dots_symmetric(
+        vectors: *const Self,
+        n_vectors: usize,
+        depth: usize,
+        stride: usize,
+        result: *mut Self::Accumulator,
+        result_stride: usize,
+        row_start: usize,
+        row_count: usize,
+    ) {
+        nk_dots_symmetric_e2m3(
+            vectors as *const u8,
+            n_vectors as u64size,
+            depth as u64size,
+            stride as u64size,
+            result,
+            result_stride as u64size,
+            row_start as u64size,
+            row_count as u64size,
+        )
+    }
 }
 
 impl Dots for e3m2 {
@@ -893,44 +1129,26 @@ impl Dots for e3m2 {
             c_stride as u64size,
         )
     }
-}
 
-impl Dots for u1x8 {
-    type Accumulator = u32;
-
-    fn dots_packed_size(n: usize, k: usize) -> usize {
-        unsafe { nk_dots_packed_size_u1(n as u64size, k as u64size) as usize }
-    }
-
-    unsafe fn dots_pack(b: *const Self, n: usize, k: usize, b_stride: usize, packed: *mut u8) {
-        nk_dots_pack_u1(
-            b as *const u8,
-            n as u64size,
-            k as u64size,
-            b_stride as u64size,
-            packed,
-        )
-    }
-
-    unsafe fn dots(
-        a: *const Self,
-        packed: *const u8,
-        c: *mut Self::Accumulator,
-        m: usize,
-        n: usize,
-        k: usize,
-        a_stride: usize,
-        c_stride: usize,
+    unsafe fn dots_symmetric(
+        vectors: *const Self,
+        n_vectors: usize,
+        depth: usize,
+        stride: usize,
+        result: *mut Self::Accumulator,
+        result_stride: usize,
+        row_start: usize,
+        row_count: usize,
     ) {
-        nk_dots_packed_u1(
-            a as *const u8,
-            packed,
-            c,
-            m as u64size,
-            n as u64size,
-            k as u64size,
-            a_stride as u64size,
-            c_stride as u64size,
+        nk_dots_symmetric_e3m2(
+            vectors as *const u8,
+            n_vectors as u64size,
+            depth as u64size,
+            stride as u64size,
+            result,
+            result_stride as u64size,
+            row_start as u64size,
+            row_count as u64size,
         )
     }
 }
@@ -973,6 +1191,28 @@ impl Dots for u4x2 {
             c_stride as u64size,
         )
     }
+
+    unsafe fn dots_symmetric(
+        vectors: *const Self,
+        n_vectors: usize,
+        depth: usize,
+        stride: usize,
+        result: *mut Self::Accumulator,
+        result_stride: usize,
+        row_start: usize,
+        row_count: usize,
+    ) {
+        nk_dots_symmetric_u4(
+            vectors as *const u8,
+            n_vectors as u64size,
+            depth as u64size,
+            stride as u64size,
+            result,
+            result_stride as u64size,
+            row_start as u64size,
+            row_count as u64size,
+        )
+    }
 }
 
 impl Dots for i4x2 {
@@ -1013,329 +1253,6 @@ impl Dots for i4x2 {
             c_stride as u64size,
         )
     }
-}
-
-/// Trait for symmetric Gram matrix computation (C = A × Aᵀ).
-///
-/// Computes the symmetric matrix of dot products between all pairs of row vectors.
-/// The result is an n×n symmetric matrix where result[i,j] = dot(row_i, row_j).
-///
-/// # Mathematical Operation
-/// Given input matrix A of shape [n, k]:
-/// - Computes C = A × Aᵀ
-/// - Result C is symmetric: C[i,j] = C[j,i]
-/// - Only upper triangle is computed, then mirrored to lower triangle
-pub trait DotsSymmetric: Sized + Clone {
-    /// Accumulator/output type for the multiplication
-    type Accumulator: Clone + Default;
-
-    /// Computes C = A × Aᵀ where C is symmetric
-    ///
-    /// # Safety
-    /// - `vectors` must point to valid memory for `n_vectors × depth` elements with given stride
-    /// - `result` must point to valid memory for `n_vectors × n_vectors` elements with given stride
-    /// - Strides are in bytes, not elements
-    /// - `row_start + row_count` must be <= `n_vectors`
-    unsafe fn dots_symmetric(
-        vectors: *const Self,
-        n_vectors: usize,
-        depth: usize,
-        stride: usize,
-        result: *mut Self::Accumulator,
-        result_stride: usize,
-        row_start: usize,
-        row_count: usize,
-    );
-}
-
-impl DotsSymmetric for f32 {
-    type Accumulator = f32;
-
-    unsafe fn dots_symmetric(
-        vectors: *const Self,
-        n_vectors: usize,
-        depth: usize,
-        stride: usize,
-        result: *mut Self::Accumulator,
-        result_stride: usize,
-        row_start: usize,
-        row_count: usize,
-    ) {
-        nk_dots_symmetric_f32(
-            vectors,
-            n_vectors as u64size,
-            depth as u64size,
-            stride as u64size,
-            result,
-            result_stride as u64size,
-            row_start as u64size,
-            row_count as u64size,
-        )
-    }
-}
-
-impl DotsSymmetric for f64 {
-    type Accumulator = f64;
-
-    unsafe fn dots_symmetric(
-        vectors: *const Self,
-        n_vectors: usize,
-        depth: usize,
-        stride: usize,
-        result: *mut Self::Accumulator,
-        result_stride: usize,
-        row_start: usize,
-        row_count: usize,
-    ) {
-        nk_dots_symmetric_f64(
-            vectors,
-            n_vectors as u64size,
-            depth as u64size,
-            stride as u64size,
-            result,
-            result_stride as u64size,
-            row_start as u64size,
-            row_count as u64size,
-        )
-    }
-}
-
-impl DotsSymmetric for f16 {
-    type Accumulator = f32;
-
-    unsafe fn dots_symmetric(
-        vectors: *const Self,
-        n_vectors: usize,
-        depth: usize,
-        stride: usize,
-        result: *mut Self::Accumulator,
-        result_stride: usize,
-        row_start: usize,
-        row_count: usize,
-    ) {
-        nk_dots_symmetric_f16(
-            vectors as *const u16,
-            n_vectors as u64size,
-            depth as u64size,
-            stride as u64size,
-            result,
-            result_stride as u64size,
-            row_start as u64size,
-            row_count as u64size,
-        )
-    }
-}
-
-impl DotsSymmetric for bf16 {
-    type Accumulator = f32;
-
-    unsafe fn dots_symmetric(
-        vectors: *const Self,
-        n_vectors: usize,
-        depth: usize,
-        stride: usize,
-        result: *mut Self::Accumulator,
-        result_stride: usize,
-        row_start: usize,
-        row_count: usize,
-    ) {
-        nk_dots_symmetric_bf16(
-            vectors as *const u16,
-            n_vectors as u64size,
-            depth as u64size,
-            stride as u64size,
-            result,
-            result_stride as u64size,
-            row_start as u64size,
-            row_count as u64size,
-        )
-    }
-}
-
-impl DotsSymmetric for i8 {
-    type Accumulator = i32;
-
-    unsafe fn dots_symmetric(
-        vectors: *const Self,
-        n_vectors: usize,
-        depth: usize,
-        stride: usize,
-        result: *mut Self::Accumulator,
-        result_stride: usize,
-        row_start: usize,
-        row_count: usize,
-    ) {
-        nk_dots_symmetric_i8(
-            vectors,
-            n_vectors as u64size,
-            depth as u64size,
-            stride as u64size,
-            result,
-            result_stride as u64size,
-            row_start as u64size,
-            row_count as u64size,
-        )
-    }
-}
-
-impl DotsSymmetric for u8 {
-    type Accumulator = u32;
-
-    unsafe fn dots_symmetric(
-        vectors: *const Self,
-        n_vectors: usize,
-        depth: usize,
-        stride: usize,
-        result: *mut Self::Accumulator,
-        result_stride: usize,
-        row_start: usize,
-        row_count: usize,
-    ) {
-        nk_dots_symmetric_u8(
-            vectors,
-            n_vectors as u64size,
-            depth as u64size,
-            stride as u64size,
-            result,
-            result_stride as u64size,
-            row_start as u64size,
-            row_count as u64size,
-        )
-    }
-}
-
-impl DotsSymmetric for e4m3 {
-    type Accumulator = f32;
-
-    unsafe fn dots_symmetric(
-        vectors: *const Self,
-        n_vectors: usize,
-        depth: usize,
-        stride: usize,
-        result: *mut Self::Accumulator,
-        result_stride: usize,
-        row_start: usize,
-        row_count: usize,
-    ) {
-        nk_dots_symmetric_e4m3(
-            vectors as *const u8,
-            n_vectors as u64size,
-            depth as u64size,
-            stride as u64size,
-            result,
-            result_stride as u64size,
-            row_start as u64size,
-            row_count as u64size,
-        )
-    }
-}
-
-impl DotsSymmetric for e5m2 {
-    type Accumulator = f32;
-
-    unsafe fn dots_symmetric(
-        vectors: *const Self,
-        n_vectors: usize,
-        depth: usize,
-        stride: usize,
-        result: *mut Self::Accumulator,
-        result_stride: usize,
-        row_start: usize,
-        row_count: usize,
-    ) {
-        nk_dots_symmetric_e5m2(
-            vectors as *const u8,
-            n_vectors as u64size,
-            depth as u64size,
-            stride as u64size,
-            result,
-            result_stride as u64size,
-            row_start as u64size,
-            row_count as u64size,
-        )
-    }
-}
-
-impl DotsSymmetric for e2m3 {
-    type Accumulator = f32;
-
-    unsafe fn dots_symmetric(
-        vectors: *const Self,
-        n_vectors: usize,
-        depth: usize,
-        stride: usize,
-        result: *mut Self::Accumulator,
-        result_stride: usize,
-        row_start: usize,
-        row_count: usize,
-    ) {
-        nk_dots_symmetric_e2m3(
-            vectors as *const u8,
-            n_vectors as u64size,
-            depth as u64size,
-            stride as u64size,
-            result,
-            result_stride as u64size,
-            row_start as u64size,
-            row_count as u64size,
-        )
-    }
-}
-
-impl DotsSymmetric for e3m2 {
-    type Accumulator = f32;
-
-    unsafe fn dots_symmetric(
-        vectors: *const Self,
-        n_vectors: usize,
-        depth: usize,
-        stride: usize,
-        result: *mut Self::Accumulator,
-        result_stride: usize,
-        row_start: usize,
-        row_count: usize,
-    ) {
-        nk_dots_symmetric_e3m2(
-            vectors as *const u8,
-            n_vectors as u64size,
-            depth as u64size,
-            stride as u64size,
-            result,
-            result_stride as u64size,
-            row_start as u64size,
-            row_count as u64size,
-        )
-    }
-}
-
-impl DotsSymmetric for u4x2 {
-    type Accumulator = u32;
-
-    unsafe fn dots_symmetric(
-        vectors: *const Self,
-        n_vectors: usize,
-        depth: usize,
-        stride: usize,
-        result: *mut Self::Accumulator,
-        result_stride: usize,
-        row_start: usize,
-        row_count: usize,
-    ) {
-        nk_dots_symmetric_u4(
-            vectors as *const u8,
-            n_vectors as u64size,
-            depth as u64size,
-            stride as u64size,
-            result,
-            result_stride as u64size,
-            row_start as u64size,
-            row_count as u64size,
-        )
-    }
-}
-
-impl DotsSymmetric for i4x2 {
-    type Accumulator = i32;
 
     unsafe fn dots_symmetric(
         vectors: *const Self,
@@ -1361,6 +1278,118 @@ impl DotsSymmetric for i4x2 {
 }
 
 // endregion: Dots Trait
+
+// region: Hammings Trait
+
+/// Low-level trait for batched Hamming distance operations.
+///
+/// Supports packed query computation and symmetric Gram matrices.
+pub trait Hammings: Sized + Clone {
+    /// Returns the size in bytes needed for packing the query matrix.
+    fn hammings_packed_size(n: usize, d: usize) -> usize;
+
+    /// Packs the query matrix for efficient Hamming distance computation.
+    ///
+    /// # Safety
+    /// - `q` must point to valid memory
+    /// - `packed` must point to a buffer of at least `hammings_packed_size(n, d)` bytes
+    unsafe fn hammings_pack(q: *const Self, n: usize, d: usize, q_stride: usize, packed: *mut u8);
+
+    /// Computes Hamming distances between values matrix rows and packed query rows.
+    ///
+    /// # Safety
+    /// - `a` must point to valid memory for the values matrix
+    /// - `q_packed` must be a buffer previously filled by `hammings_pack`
+    /// - `result` must point to valid memory for `rows * cols` u32 elements
+    unsafe fn hammings_packed(
+        a: *const Self,
+        q_packed: *const u8,
+        result: *mut u32,
+        rows: usize,
+        cols: usize,
+        d: usize,
+        v_stride: usize,
+        r_stride: usize,
+    );
+
+    /// Computes symmetric Gram matrix of Hamming distances: C = A × Aᵀ.
+    ///
+    /// # Safety
+    /// - `vectors` must point to valid memory for the input matrix
+    /// - `result` must point to valid memory for `n_vectors * n_vectors` u32 elements
+    unsafe fn hammings_symmetric(
+        vectors: *const Self,
+        n_vectors: usize,
+        d: usize,
+        stride: usize,
+        result: *mut u32,
+        result_stride: usize,
+        row_start: usize,
+        row_count: usize,
+    );
+}
+
+impl Hammings for u1x8 {
+    fn hammings_packed_size(n: usize, d: usize) -> usize {
+        unsafe { nk_hammings_packed_size_u1(n as u64size, d as u64size) as usize }
+    }
+
+    unsafe fn hammings_pack(q: *const Self, n: usize, d: usize, q_stride: usize, packed: *mut u8) {
+        nk_hammings_pack_u1(
+            q as *const u8,
+            n as u64size,
+            d as u64size,
+            q_stride as u64size,
+            packed,
+        )
+    }
+
+    unsafe fn hammings_packed(
+        a: *const Self,
+        q_packed: *const u8,
+        result: *mut u32,
+        rows: usize,
+        cols: usize,
+        d: usize,
+        v_stride: usize,
+        r_stride: usize,
+    ) {
+        nk_hammings_packed_u1(
+            a as *const u8,
+            q_packed,
+            result,
+            rows as u64size,
+            cols as u64size,
+            d as u64size,
+            v_stride as u64size,
+            r_stride as u64size,
+        )
+    }
+
+    unsafe fn hammings_symmetric(
+        vectors: *const Self,
+        n_vectors: usize,
+        d: usize,
+        stride: usize,
+        result: *mut u32,
+        result_stride: usize,
+        row_start: usize,
+        row_count: usize,
+    ) {
+        nk_hammings_symmetric_u1(
+            vectors as *const u8,
+            n_vectors as u64size,
+            d as u64size,
+            stride as u64size,
+            result,
+            result_stride as u64size,
+            row_start as u64size,
+            row_count as u64size,
+        )
+    }
+}
+
+// endregion: Hammings Trait
 
 // region: Tensor
 
@@ -1863,7 +1892,7 @@ impl<'a, T: Clone, const MAX_RANK: usize> TensorView<'a, T, MAX_RANK> {
     }
 }
 
-impl<'a, T: DotsSymmetric, const MAX_RANK: usize> TensorView<'a, T, MAX_RANK>
+impl<'a, T: Dots, const MAX_RANK: usize> TensorView<'a, T, MAX_RANK>
 where
     T::Accumulator: Clone + Default + 'static,
 {
@@ -2863,7 +2892,7 @@ fn compute_thread_rows(thread_idx: usize, num_threads: usize, n: usize) -> (usiz
 }
 
 #[cfg(feature = "parallel")]
-impl<T: DotsSymmetric + Clone + Send + Sync, A: Allocator + Clone, const MAX_RANK: usize>
+impl<T: Dots + Clone + Send + Sync, A: Allocator + Clone, const MAX_RANK: usize>
     Tensor<T, A, MAX_RANK>
 where
     T::Accumulator: Clone + Default + Send + Sync,

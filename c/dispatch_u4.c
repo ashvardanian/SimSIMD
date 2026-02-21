@@ -21,6 +21,16 @@ void nk_dispatch_u4_find_(nk_capability_t v, nk_kernel_kind_t k, nk_kernel_punne
         default: break;
         }
 #endif
+#if NK_TARGET_NEONSDOT
+    if (v & nk_cap_neonsdot_k) switch (k) {
+        case nk_kernel_dot_k: *m = (m_t)&nk_dot_u4_neonsdot, *c = nk_cap_neonsdot_k; return;
+        case nk_kernel_dots_packed_size_k: *m = (m_t)&nk_dots_packed_size_u4_neonsdot, *c = nk_cap_neonsdot_k; return;
+        case nk_kernel_dots_pack_k: *m = (m_t)&nk_dots_pack_u4_neonsdot, *c = nk_cap_neonsdot_k; return;
+        case nk_kernel_dots_packed_k: *m = (m_t)&nk_dots_packed_u4_neonsdot, *c = nk_cap_neonsdot_k; return;
+        case nk_kernel_dots_symmetric_k: *m = (m_t)&nk_dots_symmetric_u4_neonsdot, *c = nk_cap_neonsdot_k; return;
+        default: break;
+        }
+#endif
 #if NK_TARGET_ICELAKE
     if (v & nk_cap_icelake_k) switch (k) {
         case nk_kernel_dot_k: *m = (m_t)&nk_dot_u4_icelake, *c = nk_cap_icelake_k; return;
@@ -34,13 +44,20 @@ void nk_dispatch_u4_find_(nk_capability_t v, nk_kernel_kind_t k, nk_kernel_punne
         default: break;
         }
 #endif
-#if NK_TARGET_NEONSDOT
-    if (v & nk_cap_neonsdot_k) switch (k) {
-        case nk_kernel_dot_k: *m = (m_t)&nk_dot_u4_neonsdot, *c = nk_cap_neonsdot_k; return;
-        case nk_kernel_dots_packed_size_k: *m = (m_t)&nk_dots_packed_size_u4_neonsdot, *c = nk_cap_neonsdot_k; return;
-        case nk_kernel_dots_pack_k: *m = (m_t)&nk_dots_pack_u4_neonsdot, *c = nk_cap_neonsdot_k; return;
-        case nk_kernel_dots_packed_k: *m = (m_t)&nk_dots_packed_u4_neonsdot, *c = nk_cap_neonsdot_k; return;
-        case nk_kernel_dots_symmetric_k: *m = (m_t)&nk_dots_symmetric_u4_neonsdot, *c = nk_cap_neonsdot_k; return;
+#if NK_TARGET_SKYLAKE
+    if (v & nk_cap_skylake_k) switch (k) {
+        case nk_kernel_reduce_moments_k: *m = (m_t)&nk_reduce_moments_u4_skylake, *c = nk_cap_skylake_k; return;
+        default: break;
+        }
+#endif
+#if NK_TARGET_HASWELL
+    if (v & nk_cap_haswell_k) switch (k) {
+        case nk_kernel_dot_k: *m = (m_t)&nk_dot_u4_haswell, *c = nk_cap_haswell_k; return;
+        case nk_kernel_dots_packed_size_k: *m = (m_t)&nk_dots_packed_size_u4_haswell, *c = nk_cap_haswell_k; return;
+        case nk_kernel_dots_pack_k: *m = (m_t)&nk_dots_pack_u4_haswell, *c = nk_cap_haswell_k; return;
+        case nk_kernel_dots_packed_k: *m = (m_t)&nk_dots_packed_u4_haswell, *c = nk_cap_haswell_k; return;
+        case nk_kernel_dots_symmetric_k: *m = (m_t)&nk_dots_symmetric_u4_haswell, *c = nk_cap_haswell_k; return;
+        case nk_kernel_reduce_moments_k: *m = (m_t)&nk_reduce_moments_u4_haswell, *c = nk_cap_haswell_k; return;
         default: break;
         }
 #endif
@@ -53,16 +70,6 @@ void nk_dispatch_u4_find_(nk_capability_t v, nk_kernel_kind_t k, nk_kernel_punne
         default: break;
         }
 #endif
-#if NK_TARGET_HASWELL
-    if (v & nk_cap_haswell_k) switch (k) {
-        case nk_kernel_dot_k: *m = (m_t)&nk_dot_u4_haswell, *c = nk_cap_haswell_k; return;
-        case nk_kernel_dots_packed_size_k: *m = (m_t)&nk_dots_packed_size_u4_haswell, *c = nk_cap_haswell_k; return;
-        case nk_kernel_dots_pack_k: *m = (m_t)&nk_dots_pack_u4_haswell, *c = nk_cap_haswell_k; return;
-        case nk_kernel_dots_packed_k: *m = (m_t)&nk_dots_packed_u4_haswell, *c = nk_cap_haswell_k; return;
-        case nk_kernel_dots_symmetric_k: *m = (m_t)&nk_dots_symmetric_u4_haswell, *c = nk_cap_haswell_k; return;
-        default: break;
-        }
-#endif
     if (v & nk_cap_serial_k) switch (k) {
         case nk_kernel_dot_k: *m = (m_t)&nk_dot_u4_serial, *c = nk_cap_serial_k; return;
         case nk_kernel_angular_k: *m = (m_t)&nk_angular_u4_serial, *c = nk_cap_serial_k; return;
@@ -72,6 +79,8 @@ void nk_dispatch_u4_find_(nk_capability_t v, nk_kernel_kind_t k, nk_kernel_punne
         case nk_kernel_dots_pack_k: *m = (m_t)&nk_dots_pack_u4_serial, *c = nk_cap_serial_k; return;
         case nk_kernel_dots_packed_k: *m = (m_t)&nk_dots_packed_u4_serial, *c = nk_cap_serial_k; return;
         case nk_kernel_dots_symmetric_k: *m = (m_t)&nk_dots_symmetric_u4_serial, *c = nk_cap_serial_k; return;
+        case nk_kernel_reduce_moments_k: *m = (m_t)&nk_reduce_moments_u4_serial, *c = nk_cap_serial_k; return;
+        case nk_kernel_reduce_minmax_k: *m = (m_t)&nk_reduce_minmax_u4_serial, *c = nk_cap_serial_k; return;
         default: break;
         }
 
@@ -91,6 +100,8 @@ void nk_dispatch_u4_init_(nk_capability_t caps) {
     nk_dispatch_u4_find_(caps, nk_kernel_dots_pack_k, (nk_kernel_punned_t *)&t->dots_pack_u4, &used);
     nk_dispatch_u4_find_(caps, nk_kernel_dots_packed_k, (nk_kernel_punned_t *)&t->dots_packed_u4, &used);
     nk_dispatch_u4_find_(caps, nk_kernel_dots_symmetric_k, (nk_kernel_punned_t *)&t->dots_symmetric_u4, &used);
+    nk_dispatch_u4_find_(caps, nk_kernel_reduce_moments_k, (nk_kernel_punned_t *)&t->reduce_moments_u4, &used);
+    nk_dispatch_u4_find_(caps, nk_kernel_reduce_minmax_k, (nk_kernel_punned_t *)&t->reduce_minmax_u4, &used);
 }
 
 #ifdef __cplusplus

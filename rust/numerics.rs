@@ -265,6 +265,20 @@ extern "C" {
         beta: *const f32,
         result: *mut u8,
     );
+    fn nk_each_scale_e2m3(
+        a: *const u8,
+        n: u64size,
+        alpha: *const f32,
+        beta: *const f32,
+        result: *mut u8,
+    );
+    fn nk_each_scale_e3m2(
+        a: *const u8,
+        n: u64size,
+        alpha: *const f32,
+        beta: *const f32,
+        result: *mut u8,
+    );
 
     fn nk_each_sum_f64(a: *const f64, b: *const f64, n: u64size, result: *mut f64);
     fn nk_each_sum_f32(a: *const f32, b: *const f32, n: u64size, result: *mut f32);
@@ -280,6 +294,8 @@ extern "C" {
     fn nk_each_sum_u64(a: *const u64, b: *const u64, n: u64size, result: *mut u64);
     fn nk_each_sum_e4m3(a: *const u8, b: *const u8, n: u64size, result: *mut u8);
     fn nk_each_sum_e5m2(a: *const u8, b: *const u8, n: u64size, result: *mut u8);
+    fn nk_each_sum_e2m3(a: *const u8, b: *const u8, n: u64size, result: *mut u8);
+    fn nk_each_sum_e3m2(a: *const u8, b: *const u8, n: u64size, result: *mut u8);
 
     fn nk_each_blend_f64(
         a: *const f64,
@@ -719,6 +735,16 @@ extern "C" {
     fn nk_bilinear_f32(a: *const f32, b: *const f32, c: *const f32, n: u64size, result: *mut f32);
     fn nk_bilinear_f16(a: *const u16, b: *const u16, c: *const u16, n: u64size, result: *mut f32);
     fn nk_bilinear_bf16(a: *const u16, b: *const u16, c: *const u16, n: u64size, result: *mut f32);
+    fn nk_bilinear_f64c(a: *const f64, b: *const f64, c: *const f64, n: u64size, results: *mut f64);
+    fn nk_bilinear_f32c(a: *const f32, b: *const f32, c: *const f32, n: u64size, results: *mut f32);
+    fn nk_bilinear_f16c(a: *const u16, b: *const u16, c: *const u16, n: u64size, results: *mut f32);
+    fn nk_bilinear_bf16c(
+        a: *const u16,
+        b: *const u16,
+        c: *const u16,
+        n: u64size,
+        results: *mut f32,
+    );
 
     // Mahalanobis distance
     fn nk_mahalanobis_f64(
@@ -767,6 +793,22 @@ extern "C" {
         beta: *const f32,
         result: *mut u8,
     );
+    fn nk_each_blend_e2m3(
+        a: *const u8,
+        b: *const u8,
+        n: u64size,
+        alpha: *const f32,
+        beta: *const f32,
+        result: *mut u8,
+    );
+    fn nk_each_blend_e3m2(
+        a: *const u8,
+        b: *const u8,
+        n: u64size,
+        alpha: *const f32,
+        beta: *const f32,
+        result: *mut u8,
+    );
 
     // FP8 EachFMA
     fn nk_each_fma_e4m3(
@@ -779,6 +821,24 @@ extern "C" {
         result: *mut u8,
     );
     fn nk_each_fma_e5m2(
+        a: *const u8,
+        b: *const u8,
+        c: *const u8,
+        n: u64size,
+        alpha: *const f32,
+        beta: *const f32,
+        result: *mut u8,
+    );
+    fn nk_each_fma_e2m3(
+        a: *const u8,
+        b: *const u8,
+        c: *const u8,
+        n: u64size,
+        alpha: *const f32,
+        beta: *const f32,
+        result: *mut u8,
+    );
+    fn nk_each_fma_e3m2(
         a: *const u8,
         b: *const u8,
         c: *const u8,
@@ -873,6 +933,41 @@ extern "C" {
         sum: *mut f32,
         sumsq: *mut f32,
     );
+    fn nk_reduce_moments_e2m3(
+        data: *const u8,
+        count: u64size,
+        stride_bytes: u64size,
+        sum: *mut f32,
+        sumsq: *mut f32,
+    );
+    fn nk_reduce_moments_e3m2(
+        data: *const u8,
+        count: u64size,
+        stride_bytes: u64size,
+        sum: *mut f32,
+        sumsq: *mut f32,
+    );
+    fn nk_reduce_moments_i4(
+        data: *const u8,
+        count: u64size,
+        stride_bytes: u64size,
+        sum: *mut i64,
+        sumsq: *mut u64,
+    );
+    fn nk_reduce_moments_u4(
+        data: *const u8,
+        count: u64size,
+        stride_bytes: u64size,
+        sum: *mut u64,
+        sumsq: *mut u64,
+    );
+    fn nk_reduce_moments_u1(
+        data: *const u8,
+        count: u64size,
+        stride_bytes: u64size,
+        sum: *mut u64,
+        sumsq: *mut u64,
+    );
 
     // Half-precision ReduceMinMax (output widened to f32 for f16/bf16/e4m3/e5m2)
     fn nk_reduce_minmax_f16(
@@ -911,6 +1006,52 @@ extern "C" {
         max_val: *mut f32,
         max_idx: *mut u64size,
     );
+    fn nk_reduce_minmax_e2m3(
+        data: *const u8,
+        count: u64size,
+        stride_bytes: u64size,
+        min_val: *mut f32,
+        min_idx: *mut u64size,
+        max_val: *mut f32,
+        max_idx: *mut u64size,
+    );
+    fn nk_reduce_minmax_e3m2(
+        data: *const u8,
+        count: u64size,
+        stride_bytes: u64size,
+        min_val: *mut f32,
+        min_idx: *mut u64size,
+        max_val: *mut f32,
+        max_idx: *mut u64size,
+    );
+    fn nk_reduce_minmax_i4(
+        data: *const u8,
+        count: u64size,
+        stride_bytes: u64size,
+        min_val: *mut i8,
+        min_idx: *mut u64size,
+        max_val: *mut i8,
+        max_idx: *mut u64size,
+    );
+    fn nk_reduce_minmax_u4(
+        data: *const u8,
+        count: u64size,
+        stride_bytes: u64size,
+        min_val: *mut u8,
+        min_idx: *mut u64size,
+        max_val: *mut u8,
+        max_idx: *mut u64size,
+    );
+    fn nk_reduce_minmax_u1(
+        data: *const u8,
+        count: u64size,
+        stride_bytes: u64size,
+        min_val: *mut u8,
+        min_idx: *mut u64size,
+        max_val: *mut u8,
+        max_idx: *mut u64size,
+    );
+
 }
 
 // region: Capabilities
@@ -1001,6 +1142,8 @@ mod dtype {
     pub(crate) const BF16: u32 = 1 << 13;
     pub(crate) const E4M3: u32 = 1 << 14;
     pub(crate) const E5M2: u32 = 1 << 15;
+    pub(crate) const E2M3: u32 = 1 << 18;
+    pub(crate) const E3M2: u32 = 1 << 19;
     pub(crate) const I8: u32 = 1 << 2;
     pub(crate) const I16: u32 = 1 << 3;
     pub(crate) const I32: u32 = 1 << 4;
@@ -1020,6 +1163,8 @@ mod private {
     impl Sealed for super::bf16 {}
     impl Sealed for super::e4m3 {}
     impl Sealed for super::e5m2 {}
+    impl Sealed for super::e2m3 {}
+    impl Sealed for super::e3m2 {}
     impl Sealed for i8 {}
     impl Sealed for i16 {}
     impl Sealed for i32 {}
@@ -1066,6 +1211,16 @@ impl CastDtype for e4m3 {
 impl CastDtype for e5m2 {
     fn dtype_code() -> u32 {
         dtype::E5M2
+    }
+}
+impl CastDtype for e2m3 {
+    fn dtype_code() -> u32 {
+        dtype::E2M3
+    }
+}
+impl CastDtype for e3m2 {
+    fn dtype_code() -> u32 {
+        dtype::E3M2
     }
 }
 impl CastDtype for i8 {
@@ -3216,6 +3371,44 @@ impl EachScale for e5m2 {
     }
 }
 
+impl EachScale for e2m3 {
+    type Scalar = f32;
+    fn each_scale(a: &[Self], alpha: f32, beta: f32, result: &mut [Self]) -> Option<()> {
+        if a.len() != result.len() {
+            return None;
+        }
+        unsafe {
+            nk_each_scale_e2m3(
+                a.as_ptr() as *const u8,
+                a.len() as u64size,
+                &alpha,
+                &beta,
+                result.as_mut_ptr() as *mut u8,
+            )
+        };
+        Some(())
+    }
+}
+
+impl EachScale for e3m2 {
+    type Scalar = f32;
+    fn each_scale(a: &[Self], alpha: f32, beta: f32, result: &mut [Self]) -> Option<()> {
+        if a.len() != result.len() {
+            return None;
+        }
+        unsafe {
+            nk_each_scale_e3m2(
+                a.as_ptr() as *const u8,
+                a.len() as u64size,
+                &alpha,
+                &beta,
+                result.as_mut_ptr() as *mut u8,
+            )
+        };
+        Some(())
+    }
+}
+
 // endregion: Scale
 
 // region: Sum
@@ -3463,6 +3656,40 @@ impl EachSum for e5m2 {
     }
 }
 
+impl EachSum for e2m3 {
+    fn each_sum(a: &[Self], b: &[Self], result: &mut [Self]) -> Option<()> {
+        if a.len() != b.len() || a.len() != result.len() {
+            return None;
+        }
+        unsafe {
+            nk_each_sum_e2m3(
+                a.as_ptr() as *const u8,
+                b.as_ptr() as *const u8,
+                a.len() as u64size,
+                result.as_mut_ptr() as *mut u8,
+            )
+        };
+        Some(())
+    }
+}
+
+impl EachSum for e3m2 {
+    fn each_sum(a: &[Self], b: &[Self], result: &mut [Self]) -> Option<()> {
+        if a.len() != b.len() || a.len() != result.len() {
+            return None;
+        }
+        unsafe {
+            nk_each_sum_e3m2(
+                a.as_ptr() as *const u8,
+                b.as_ptr() as *const u8,
+                a.len() as u64size,
+                result.as_mut_ptr() as *mut u8,
+            )
+        };
+        Some(())
+    }
+}
+
 // endregion: Sum
 
 // region: WSum
@@ -3675,6 +3902,58 @@ impl EachBlend for e5m2 {
         }
         unsafe {
             nk_each_blend_e5m2(
+                a.as_ptr() as *const u8,
+                b.as_ptr() as *const u8,
+                a.len() as u64size,
+                &alpha,
+                &beta,
+                result.as_mut_ptr() as *mut u8,
+            )
+        };
+        Some(())
+    }
+}
+
+impl EachBlend for e2m3 {
+    type Scalar = f32;
+    fn each_blend(
+        a: &[Self],
+        b: &[Self],
+        alpha: f32,
+        beta: f32,
+        result: &mut [Self],
+    ) -> Option<()> {
+        if a.len() != b.len() || a.len() != result.len() {
+            return None;
+        }
+        unsafe {
+            nk_each_blend_e2m3(
+                a.as_ptr() as *const u8,
+                b.as_ptr() as *const u8,
+                a.len() as u64size,
+                &alpha,
+                &beta,
+                result.as_mut_ptr() as *mut u8,
+            )
+        };
+        Some(())
+    }
+}
+
+impl EachBlend for e3m2 {
+    type Scalar = f32;
+    fn each_blend(
+        a: &[Self],
+        b: &[Self],
+        alpha: f32,
+        beta: f32,
+        result: &mut [Self],
+    ) -> Option<()> {
+        if a.len() != b.len() || a.len() != result.len() {
+            return None;
+        }
+        unsafe {
+            nk_each_blend_e3m2(
                 a.as_ptr() as *const u8,
                 b.as_ptr() as *const u8,
                 a.len() as u64size,
@@ -3915,6 +4194,62 @@ impl EachFMA for e5m2 {
         }
         unsafe {
             nk_each_fma_e5m2(
+                a.as_ptr() as *const u8,
+                b.as_ptr() as *const u8,
+                c.as_ptr() as *const u8,
+                a.len() as u64size,
+                &alpha,
+                &beta,
+                result.as_mut_ptr() as *mut u8,
+            )
+        };
+        Some(())
+    }
+}
+
+impl EachFMA for e2m3 {
+    type Scalar = f32;
+    fn each_fma(
+        a: &[Self],
+        b: &[Self],
+        c: &[Self],
+        alpha: f32,
+        beta: f32,
+        result: &mut [Self],
+    ) -> Option<()> {
+        if a.len() != b.len() || b.len() != c.len() || a.len() != result.len() {
+            return None;
+        }
+        unsafe {
+            nk_each_fma_e2m3(
+                a.as_ptr() as *const u8,
+                b.as_ptr() as *const u8,
+                c.as_ptr() as *const u8,
+                a.len() as u64size,
+                &alpha,
+                &beta,
+                result.as_mut_ptr() as *mut u8,
+            )
+        };
+        Some(())
+    }
+}
+
+impl EachFMA for e3m2 {
+    type Scalar = f32;
+    fn each_fma(
+        a: &[Self],
+        b: &[Self],
+        c: &[Self],
+        alpha: f32,
+        beta: f32,
+        result: &mut [Self],
+    ) -> Option<()> {
+        if a.len() != b.len() || b.len() != c.len() || a.len() != result.len() {
+            return None;
+        }
+        unsafe {
+            nk_each_fma_e3m2(
                 a.as_ptr() as *const u8,
                 b.as_ptr() as *const u8,
                 c.as_ptr() as *const u8,
@@ -4380,6 +4715,101 @@ impl ReduceMoments for e5m2 {
     }
 }
 
+impl ReduceMoments for e2m3 {
+    type SumOutput = f32;
+    type SumSqOutput = f32;
+    fn reduce_moments(data: &[Self], stride_bytes: usize) -> (Self::SumOutput, Self::SumSqOutput) {
+        let mut sum: f32 = 0.0;
+        let mut sumsq: f32 = 0.0;
+        unsafe {
+            nk_reduce_moments_e2m3(
+                data.as_ptr() as *const u8,
+                data.len() as u64size,
+                stride_bytes as u64size,
+                &mut sum,
+                &mut sumsq,
+            );
+        }
+        (sum, sumsq)
+    }
+}
+
+impl ReduceMoments for e3m2 {
+    type SumOutput = f32;
+    type SumSqOutput = f32;
+    fn reduce_moments(data: &[Self], stride_bytes: usize) -> (Self::SumOutput, Self::SumSqOutput) {
+        let mut sum: f32 = 0.0;
+        let mut sumsq: f32 = 0.0;
+        unsafe {
+            nk_reduce_moments_e3m2(
+                data.as_ptr() as *const u8,
+                data.len() as u64size,
+                stride_bytes as u64size,
+                &mut sum,
+                &mut sumsq,
+            );
+        }
+        (sum, sumsq)
+    }
+}
+
+impl ReduceMoments for i4x2 {
+    type SumOutput = i64;
+    type SumSqOutput = u64;
+    fn reduce_moments(data: &[Self], stride_bytes: usize) -> (Self::SumOutput, Self::SumSqOutput) {
+        let mut sum: i64 = 0;
+        let mut sumsq: u64 = 0;
+        unsafe {
+            nk_reduce_moments_i4(
+                data.as_ptr() as *const u8,
+                (data.len() * 2) as u64size,
+                stride_bytes as u64size,
+                &mut sum,
+                &mut sumsq,
+            );
+        }
+        (sum, sumsq)
+    }
+}
+
+impl ReduceMoments for u4x2 {
+    type SumOutput = u64;
+    type SumSqOutput = u64;
+    fn reduce_moments(data: &[Self], stride_bytes: usize) -> (Self::SumOutput, Self::SumSqOutput) {
+        let mut sum: u64 = 0;
+        let mut sumsq: u64 = 0;
+        unsafe {
+            nk_reduce_moments_u4(
+                data.as_ptr() as *const u8,
+                (data.len() * 2) as u64size,
+                stride_bytes as u64size,
+                &mut sum,
+                &mut sumsq,
+            );
+        }
+        (sum, sumsq)
+    }
+}
+
+impl ReduceMoments for u1x8 {
+    type SumOutput = u64;
+    type SumSqOutput = u64;
+    fn reduce_moments(data: &[Self], stride_bytes: usize) -> (Self::SumOutput, Self::SumSqOutput) {
+        let mut sum: u64 = 0;
+        let mut sumsq: u64 = 0;
+        unsafe {
+            nk_reduce_moments_u1(
+                data.as_ptr() as *const u8,
+                (data.len() * 8) as u64size,
+                stride_bytes as u64size,
+                &mut sum,
+                &mut sumsq,
+            );
+        }
+        (sum, sumsq)
+    }
+}
+
 /// Find minimum and maximum values with their indices, with stride support.
 ///
 /// Returns `(min_value, min_index, max_value, max_index)` for all elements in a slice.
@@ -4733,6 +5163,131 @@ impl ReduceMinMax for e5m2 {
             nk_reduce_minmax_e5m2(
                 data.as_ptr() as *const u8,
                 data.len() as u64size,
+                stride_bytes as u64size,
+                &mut min_val,
+                &mut min_idx,
+                &mut max_val,
+                &mut max_idx,
+            );
+        }
+        (min_val, min_idx as usize, max_val, max_idx as usize)
+    }
+}
+
+impl ReduceMinMax for e2m3 {
+    type Output = f32;
+    fn reduce_minmax(
+        data: &[Self],
+        stride_bytes: usize,
+    ) -> (Self::Output, usize, Self::Output, usize) {
+        let mut min_val: f32 = 0.0;
+        let mut min_idx: u64size = 0;
+        let mut max_val: f32 = 0.0;
+        let mut max_idx: u64size = 0;
+        unsafe {
+            nk_reduce_minmax_e2m3(
+                data.as_ptr() as *const u8,
+                data.len() as u64size,
+                stride_bytes as u64size,
+                &mut min_val,
+                &mut min_idx,
+                &mut max_val,
+                &mut max_idx,
+            );
+        }
+        (min_val, min_idx as usize, max_val, max_idx as usize)
+    }
+}
+
+impl ReduceMinMax for e3m2 {
+    type Output = f32;
+    fn reduce_minmax(
+        data: &[Self],
+        stride_bytes: usize,
+    ) -> (Self::Output, usize, Self::Output, usize) {
+        let mut min_val: f32 = 0.0;
+        let mut min_idx: u64size = 0;
+        let mut max_val: f32 = 0.0;
+        let mut max_idx: u64size = 0;
+        unsafe {
+            nk_reduce_minmax_e3m2(
+                data.as_ptr() as *const u8,
+                data.len() as u64size,
+                stride_bytes as u64size,
+                &mut min_val,
+                &mut min_idx,
+                &mut max_val,
+                &mut max_idx,
+            );
+        }
+        (min_val, min_idx as usize, max_val, max_idx as usize)
+    }
+}
+
+impl ReduceMinMax for i4x2 {
+    type Output = i8;
+    fn reduce_minmax(
+        data: &[Self],
+        stride_bytes: usize,
+    ) -> (Self::Output, usize, Self::Output, usize) {
+        let mut min_val: i8 = 0;
+        let mut min_idx: u64size = 0;
+        let mut max_val: i8 = 0;
+        let mut max_idx: u64size = 0;
+        unsafe {
+            nk_reduce_minmax_i4(
+                data.as_ptr() as *const u8,
+                (data.len() * 2) as u64size,
+                stride_bytes as u64size,
+                &mut min_val,
+                &mut min_idx,
+                &mut max_val,
+                &mut max_idx,
+            );
+        }
+        (min_val, min_idx as usize, max_val, max_idx as usize)
+    }
+}
+
+impl ReduceMinMax for u4x2 {
+    type Output = u8;
+    fn reduce_minmax(
+        data: &[Self],
+        stride_bytes: usize,
+    ) -> (Self::Output, usize, Self::Output, usize) {
+        let mut min_val: u8 = 0;
+        let mut min_idx: u64size = 0;
+        let mut max_val: u8 = 0;
+        let mut max_idx: u64size = 0;
+        unsafe {
+            nk_reduce_minmax_u4(
+                data.as_ptr() as *const u8,
+                (data.len() * 2) as u64size,
+                stride_bytes as u64size,
+                &mut min_val,
+                &mut min_idx,
+                &mut max_val,
+                &mut max_idx,
+            );
+        }
+        (min_val, min_idx as usize, max_val, max_idx as usize)
+    }
+}
+
+impl ReduceMinMax for u1x8 {
+    type Output = u8;
+    fn reduce_minmax(
+        data: &[Self],
+        stride_bytes: usize,
+    ) -> (Self::Output, usize, Self::Output, usize) {
+        let mut min_val: u8 = 0;
+        let mut min_idx: u64size = 0;
+        let mut max_val: u8 = 0;
+        let mut max_idx: u64size = 0;
+        unsafe {
+            nk_reduce_minmax_u1(
+                data.as_ptr() as *const u8,
+                (data.len() * 8) as u64size,
                 stride_bytes as u64size,
                 &mut min_val,
                 &mut min_idx,
@@ -5259,6 +5814,107 @@ impl Bilinear for bf16 {
 }
 
 // endregion: Bilinear Form
+
+// region: Complex Bilinear Form
+
+/// Complex bilinear form computation: aᴴ × C × b where inputs are interleaved complex vectors.
+///
+/// Input data is interleaved `[real, imag, real, imag, ...]`. Returns `(real, imag)`.
+/// The `n` parameter to the C function is the number of complex elements (half the slice length).
+pub trait ComplexBilinear: Sized {
+    type Output;
+    fn complex_bilinear(a: &[Self], b: &[Self], c: &[Self]) -> Option<Self::Output>;
+}
+
+impl ComplexBilinear for f64 {
+    type Output = ComplexProductF64;
+
+    fn complex_bilinear(a: &[Self], b: &[Self], c: &[Self]) -> Option<Self::Output> {
+        let n = a.len();
+        if n == 0 || n != b.len() || n % 2 != 0 || c.len() != (n / 2) * (n / 2) * 2 {
+            return None;
+        }
+        let mut result: [f64; 2] = [0.0, 0.0];
+        unsafe {
+            nk_bilinear_f64c(
+                a.as_ptr(),
+                b.as_ptr(),
+                c.as_ptr(),
+                (n / 2) as u64size,
+                result.as_mut_ptr(),
+            );
+        }
+        Some((result[0], result[1]))
+    }
+}
+
+impl ComplexBilinear for f32 {
+    type Output = ComplexProductF32;
+
+    fn complex_bilinear(a: &[Self], b: &[Self], c: &[Self]) -> Option<Self::Output> {
+        let n = a.len();
+        if n == 0 || n != b.len() || n % 2 != 0 || c.len() != (n / 2) * (n / 2) * 2 {
+            return None;
+        }
+        let mut result: [f32; 2] = [0.0, 0.0];
+        unsafe {
+            nk_bilinear_f32c(
+                a.as_ptr(),
+                b.as_ptr(),
+                c.as_ptr(),
+                (n / 2) as u64size,
+                result.as_mut_ptr(),
+            );
+        }
+        Some((result[0], result[1]))
+    }
+}
+
+impl ComplexBilinear for f16 {
+    type Output = ComplexProductF32;
+
+    fn complex_bilinear(a: &[Self], b: &[Self], c: &[Self]) -> Option<Self::Output> {
+        let n = a.len();
+        if n == 0 || n != b.len() || n % 2 != 0 || c.len() != (n / 2) * (n / 2) * 2 {
+            return None;
+        }
+        let mut result: [f32; 2] = [0.0, 0.0];
+        unsafe {
+            nk_bilinear_f16c(
+                a.as_ptr() as *const u16,
+                b.as_ptr() as *const u16,
+                c.as_ptr() as *const u16,
+                (n / 2) as u64size,
+                result.as_mut_ptr(),
+            );
+        }
+        Some((result[0], result[1]))
+    }
+}
+
+impl ComplexBilinear for bf16 {
+    type Output = ComplexProductF32;
+
+    fn complex_bilinear(a: &[Self], b: &[Self], c: &[Self]) -> Option<Self::Output> {
+        let n = a.len();
+        if n == 0 || n != b.len() || n % 2 != 0 || c.len() != (n / 2) * (n / 2) * 2 {
+            return None;
+        }
+        let mut result: [f32; 2] = [0.0, 0.0];
+        unsafe {
+            nk_bilinear_bf16c(
+                a.as_ptr() as *const u16,
+                b.as_ptr() as *const u16,
+                c.as_ptr() as *const u16,
+                (n / 2) as u64size,
+                result.as_mut_ptr(),
+            );
+        }
+        Some((result[0], result[1]))
+    }
+}
+
+// endregion: Complex Bilinear Form
 
 // region: Mahalanobis Distance
 

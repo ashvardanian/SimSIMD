@@ -83,6 +83,7 @@
 
 #include "numkong/cast/skylake.h"   // `nk_bf16x16_to_f32x16_skylake_`
 #include "numkong/reduce/skylake.h" // `nk_reduce_add_f32x16_skylake_`
+#include "numkong/dot/haswell.h"    // `nk_dot_stable_sum_f64x4_haswell_`
 
 #if defined(__cplusplus)
 extern "C" {
@@ -95,6 +96,32 @@ extern "C" {
 #pragma GCC push_options
 #pragma GCC target("avx2", "avx512f", "avx512vl", "avx512bw", "avx512dq", "f16c", "fma", "bmi", "bmi2")
 #endif
+
+/** @brief Compensated horizontal sum of 8 f64 lanes via TwoSum tree reduction. */
+NK_INTERNAL nk_f64_t nk_dot_stable_sum_f64x8_skylake_(__m512d sum_f64x8, __m512d compensation_f64x8) {
+    // Stage 0: TwoSum merge of sum + compensation (8-wide)
+    __m512d tentative_sum_f64x8 = _mm512_add_pd(sum_f64x8, compensation_f64x8);
+    __m512d virtual_addend_f64x8 = _mm512_sub_pd(tentative_sum_f64x8, sum_f64x8);
+    __m512d rounding_error_f64x8 = _mm512_add_pd(
+        _mm512_sub_pd(sum_f64x8, _mm512_sub_pd(tentative_sum_f64x8, virtual_addend_f64x8)),
+        _mm512_sub_pd(compensation_f64x8, virtual_addend_f64x8));
+
+    // Stage 1: TwoSum halving 8→4
+    __m256d lower_sum_f64x4 = _mm512_castpd512_pd256(tentative_sum_f64x8);
+    __m256d upper_sum_f64x4 = _mm512_extractf64x4_pd(tentative_sum_f64x8, 1);
+    __m256d tentative_sum_f64x4 = _mm256_add_pd(lower_sum_f64x4, upper_sum_f64x4);
+    __m256d virtual_addend_f64x4 = _mm256_sub_pd(tentative_sum_f64x4, lower_sum_f64x4);
+    __m256d rounding_error_f64x4 = _mm256_add_pd(
+        _mm256_sub_pd(lower_sum_f64x4, _mm256_sub_pd(tentative_sum_f64x4, virtual_addend_f64x4)),
+        _mm256_sub_pd(upper_sum_f64x4, virtual_addend_f64x4));
+    __m256d lower_error_f64x4 = _mm512_castpd512_pd256(rounding_error_f64x8);
+    __m256d upper_error_f64x4 = _mm512_extractf64x4_pd(rounding_error_f64x8, 1);
+    __m256d accumulated_error_f64x4 = _mm256_add_pd(_mm256_add_pd(lower_error_f64x4, upper_error_f64x4),
+                                                    rounding_error_f64x4);
+
+    // Stages 2-3: Delegate to Haswell for 4→2→1 reduction
+    return nk_dot_stable_sum_f64x4_haswell_(tentative_sum_f64x4, accumulated_error_f64x4);
+}
 
 #pragma region - Traditional Floats
 
@@ -218,17 +245,18 @@ nk_dot_f64_skylake_cycle:
     __m512d product_f64x8 = _mm512_mul_pd(a_f64x8, b_f64x8);
     __m512d product_error_f64x8 = _mm512_fmsub_pd(a_f64x8, b_f64x8, product_f64x8);
     // TwoSum: (t, q) = TwoSum(sum, h) where t = sum + h rounded, q = error
-    __m512d t_f64x8 = _mm512_add_pd(sum_f64x8, product_f64x8);
-    __m512d z_f64x8 = _mm512_sub_pd(t_f64x8, sum_f64x8);
-    __m512d sum_error_f64x8 = _mm512_add_pd(_mm512_sub_pd(sum_f64x8, _mm512_sub_pd(t_f64x8, z_f64x8)),
-                                            _mm512_sub_pd(product_f64x8, z_f64x8));
+    __m512d tentative_sum_f64x8 = _mm512_add_pd(sum_f64x8, product_f64x8);
+    __m512d virtual_addend_f64x8 = _mm512_sub_pd(tentative_sum_f64x8, sum_f64x8);
+    __m512d sum_error_f64x8 = _mm512_add_pd(
+        _mm512_sub_pd(sum_f64x8, _mm512_sub_pd(tentative_sum_f64x8, virtual_addend_f64x8)),
+        _mm512_sub_pd(product_f64x8, virtual_addend_f64x8));
     // Update: sum = t, compensation += q + r
-    sum_f64x8 = t_f64x8;
+    sum_f64x8 = tentative_sum_f64x8;
     compensation_f64x8 = _mm512_add_pd(compensation_f64x8, _mm512_add_pd(sum_error_f64x8, product_error_f64x8));
     if (count_scalars) goto nk_dot_f64_skylake_cycle;
 
-    // Reduce and combine sum + compensation
-    *result = _mm512_reduce_add_pd(_mm512_add_pd(sum_f64x8, compensation_f64x8));
+    // Compensated horizontal reduction preserving Dot2 error tracking
+    *result = nk_dot_stable_sum_f64x8_skylake_(sum_f64x8, compensation_f64x8);
 }
 
 NK_PUBLIC void nk_dot_f32c_skylake(nk_f32c_t const *a_pairs, nk_f32c_t const *b_pairs, nk_size_t count_pairs,
@@ -347,12 +375,12 @@ nk_dot_f64c_skylake_cycle:
     __m512d product_real_f64x8 = _mm512_mul_pd(a_f64x8, b_f64x8);
     __m512d product_real_error_f64x8 = _mm512_fmsub_pd(a_f64x8, b_f64x8, product_real_f64x8);
     // TwoSum for real part
-    __m512d t_real_f64x8 = _mm512_add_pd(sum_real_f64x8, product_real_f64x8);
-    __m512d z_real_f64x8 = _mm512_sub_pd(t_real_f64x8, sum_real_f64x8);
+    __m512d tentative_sum_real_f64x8 = _mm512_add_pd(sum_real_f64x8, product_real_f64x8);
+    __m512d virtual_addend_real_f64x8 = _mm512_sub_pd(tentative_sum_real_f64x8, sum_real_f64x8);
     __m512d sum_real_error_f64x8 = _mm512_add_pd(
-        _mm512_sub_pd(sum_real_f64x8, _mm512_sub_pd(t_real_f64x8, z_real_f64x8)),
-        _mm512_sub_pd(product_real_f64x8, z_real_f64x8));
-    sum_real_f64x8 = t_real_f64x8;
+        _mm512_sub_pd(sum_real_f64x8, _mm512_sub_pd(tentative_sum_real_f64x8, virtual_addend_real_f64x8)),
+        _mm512_sub_pd(product_real_f64x8, virtual_addend_real_f64x8));
+    sum_real_f64x8 = tentative_sum_real_f64x8;
     compensation_real_f64x8 = _mm512_add_pd(compensation_real_f64x8,
                                             _mm512_add_pd(sum_real_error_f64x8, product_real_error_f64x8));
 
@@ -360,12 +388,12 @@ nk_dot_f64c_skylake_cycle:
     __m512d product_imag_f64x8 = _mm512_mul_pd(a_f64x8, b_swapped_f64x8);
     __m512d product_imag_error_f64x8 = _mm512_fmsub_pd(a_f64x8, b_swapped_f64x8, product_imag_f64x8);
     // TwoSum for imag part
-    __m512d t_imag_f64x8 = _mm512_add_pd(sum_imag_f64x8, product_imag_f64x8);
-    __m512d z_imag_f64x8 = _mm512_sub_pd(t_imag_f64x8, sum_imag_f64x8);
+    __m512d tentative_sum_imag_f64x8 = _mm512_add_pd(sum_imag_f64x8, product_imag_f64x8);
+    __m512d virtual_addend_imag_f64x8 = _mm512_sub_pd(tentative_sum_imag_f64x8, sum_imag_f64x8);
     __m512d sum_imag_error_f64x8 = _mm512_add_pd(
-        _mm512_sub_pd(sum_imag_f64x8, _mm512_sub_pd(t_imag_f64x8, z_imag_f64x8)),
-        _mm512_sub_pd(product_imag_f64x8, z_imag_f64x8));
-    sum_imag_f64x8 = t_imag_f64x8;
+        _mm512_sub_pd(sum_imag_f64x8, _mm512_sub_pd(tentative_sum_imag_f64x8, virtual_addend_imag_f64x8)),
+        _mm512_sub_pd(product_imag_f64x8, virtual_addend_imag_f64x8));
+    sum_imag_f64x8 = tentative_sum_imag_f64x8;
     compensation_imag_f64x8 = _mm512_add_pd(compensation_imag_f64x8,
                                             _mm512_add_pd(sum_imag_error_f64x8, product_imag_error_f64x8));
 
@@ -376,9 +404,9 @@ nk_dot_f64c_skylake_cycle:
     compensation_real_f64x8 = _mm512_castsi512_pd(
         _mm512_xor_si512(_mm512_castpd_si512(compensation_real_f64x8), sign_flip_f64x8));
 
-    // Reduce and combine: first vector-add sum+compensation, then horizontal reduce
-    result->real = _mm512_reduce_add_pd(_mm512_add_pd(sum_real_f64x8, compensation_real_f64x8));
-    result->imag = _mm512_reduce_add_pd(_mm512_add_pd(sum_imag_f64x8, compensation_imag_f64x8));
+    // Compensated horizontal reduction preserving Dot2 error tracking
+    result->real = nk_dot_stable_sum_f64x8_skylake_(sum_real_f64x8, compensation_real_f64x8);
+    result->imag = nk_dot_stable_sum_f64x8_skylake_(sum_imag_f64x8, compensation_imag_f64x8);
 }
 
 NK_PUBLIC void nk_vdot_f64c_skylake(nk_f64c_t const *a_pairs, nk_f64c_t const *b_pairs, nk_size_t count_pairs,
@@ -417,12 +445,12 @@ nk_vdot_f64c_skylake_cycle:
     __m512d product_real_f64x8 = _mm512_mul_pd(a_f64x8, b_f64x8);
     __m512d product_real_error_f64x8 = _mm512_fmsub_pd(a_f64x8, b_f64x8, product_real_f64x8);
     // TwoSum for real part
-    __m512d t_real_f64x8 = _mm512_add_pd(sum_real_f64x8, product_real_f64x8);
-    __m512d z_real_f64x8 = _mm512_sub_pd(t_real_f64x8, sum_real_f64x8);
+    __m512d tentative_sum_real_f64x8 = _mm512_add_pd(sum_real_f64x8, product_real_f64x8);
+    __m512d virtual_addend_real_f64x8 = _mm512_sub_pd(tentative_sum_real_f64x8, sum_real_f64x8);
     __m512d sum_real_error_f64x8 = _mm512_add_pd(
-        _mm512_sub_pd(sum_real_f64x8, _mm512_sub_pd(t_real_f64x8, z_real_f64x8)),
-        _mm512_sub_pd(product_real_f64x8, z_real_f64x8));
-    sum_real_f64x8 = t_real_f64x8;
+        _mm512_sub_pd(sum_real_f64x8, _mm512_sub_pd(tentative_sum_real_f64x8, virtual_addend_real_f64x8)),
+        _mm512_sub_pd(product_real_f64x8, virtual_addend_real_f64x8));
+    sum_real_f64x8 = tentative_sum_real_f64x8;
     compensation_real_f64x8 = _mm512_add_pd(compensation_real_f64x8,
                                             _mm512_add_pd(sum_real_error_f64x8, product_real_error_f64x8));
 
@@ -430,12 +458,12 @@ nk_vdot_f64c_skylake_cycle:
     __m512d product_imag_f64x8 = _mm512_mul_pd(a_f64x8, b_swapped_f64x8);
     __m512d product_imag_error_f64x8 = _mm512_fmsub_pd(a_f64x8, b_swapped_f64x8, product_imag_f64x8);
     // TwoSum for imag part
-    __m512d t_imag_f64x8 = _mm512_add_pd(sum_imag_f64x8, product_imag_f64x8);
-    __m512d z_imag_f64x8 = _mm512_sub_pd(t_imag_f64x8, sum_imag_f64x8);
+    __m512d tentative_sum_imag_f64x8 = _mm512_add_pd(sum_imag_f64x8, product_imag_f64x8);
+    __m512d virtual_addend_imag_f64x8 = _mm512_sub_pd(tentative_sum_imag_f64x8, sum_imag_f64x8);
     __m512d sum_imag_error_f64x8 = _mm512_add_pd(
-        _mm512_sub_pd(sum_imag_f64x8, _mm512_sub_pd(t_imag_f64x8, z_imag_f64x8)),
-        _mm512_sub_pd(product_imag_f64x8, z_imag_f64x8));
-    sum_imag_f64x8 = t_imag_f64x8;
+        _mm512_sub_pd(sum_imag_f64x8, _mm512_sub_pd(tentative_sum_imag_f64x8, virtual_addend_imag_f64x8)),
+        _mm512_sub_pd(product_imag_f64x8, virtual_addend_imag_f64x8));
+    sum_imag_f64x8 = tentative_sum_imag_f64x8;
     compensation_imag_f64x8 = _mm512_add_pd(compensation_imag_f64x8,
                                             _mm512_add_pd(sum_imag_error_f64x8, product_imag_error_f64x8));
 
@@ -446,9 +474,9 @@ nk_vdot_f64c_skylake_cycle:
     compensation_imag_f64x8 = _mm512_castsi512_pd(
         _mm512_xor_si512(_mm512_castpd_si512(compensation_imag_f64x8), sign_flip_f64x8));
 
-    // Reduce and combine: first vector-add sum+compensation, then horizontal reduce
-    result->real = _mm512_reduce_add_pd(_mm512_add_pd(sum_real_f64x8, compensation_real_f64x8));
-    result->imag = _mm512_reduce_add_pd(_mm512_add_pd(sum_imag_f64x8, compensation_imag_f64x8));
+    // Compensated horizontal reduction preserving Dot2 error tracking
+    result->real = nk_dot_stable_sum_f64x8_skylake_(sum_real_f64x8, compensation_real_f64x8);
+    result->imag = nk_dot_stable_sum_f64x8_skylake_(sum_imag_f64x8, compensation_imag_f64x8);
 }
 
 #pragma region - Smaller Floats
@@ -773,13 +801,14 @@ NK_INTERNAL void nk_dot_f64x8_update_skylake(nk_dot_f64x8_state_skylake_t *state
     __m512d product_error_f64x8 = _mm512_fmsub_pd(a_f64x8, b_f64x8, product_f64x8);
 
     // TwoSum: (t, q) = TwoSum(sum, h) where t = sum + h rounded, q = error
-    __m512d t_f64x8 = _mm512_add_pd(sum_f64x8, product_f64x8);
-    __m512d z_f64x8 = _mm512_sub_pd(t_f64x8, sum_f64x8);
-    __m512d sum_error_f64x8 = _mm512_add_pd(_mm512_sub_pd(sum_f64x8, _mm512_sub_pd(t_f64x8, z_f64x8)),
-                                            _mm512_sub_pd(product_f64x8, z_f64x8));
+    __m512d tentative_sum_f64x8 = _mm512_add_pd(sum_f64x8, product_f64x8);
+    __m512d virtual_addend_f64x8 = _mm512_sub_pd(tentative_sum_f64x8, sum_f64x8);
+    __m512d sum_error_f64x8 = _mm512_add_pd(
+        _mm512_sub_pd(sum_f64x8, _mm512_sub_pd(tentative_sum_f64x8, virtual_addend_f64x8)),
+        _mm512_sub_pd(product_f64x8, virtual_addend_f64x8));
 
     // Update: sum = t, compensation += q + r
-    state->sum_f64x8 = t_f64x8;
+    state->sum_f64x8 = tentative_sum_f64x8;
     state->compensation_f64x8 = _mm512_add_pd(compensation_f64x8, _mm512_add_pd(sum_error_f64x8, product_error_f64x8));
 }
 
@@ -788,28 +817,11 @@ NK_INTERNAL void nk_dot_f64x8_finalize_skylake(                                 
     nk_dot_f64x8_state_skylake_t const *state_c, nk_dot_f64x8_state_skylake_t const *state_d, //
     nk_size_t total_dimensions, nk_b256_vec_t *result) {
     nk_unused_(total_dimensions);
-    // Combine sum + compensation before horizontal reduction
-    __m512d sum_a_f64x8 = _mm512_add_pd(state_a->sum_f64x8, state_a->compensation_f64x8);
-    __m512d sum_b_f64x8 = _mm512_add_pd(state_b->sum_f64x8, state_b->compensation_f64x8);
-    __m512d sum_c_f64x8 = _mm512_add_pd(state_c->sum_f64x8, state_c->compensation_f64x8);
-    __m512d sum_d_f64x8 = _mm512_add_pd(state_d->sum_f64x8, state_d->compensation_f64x8);
-
-    // ILP-optimized 4-way horizontal reduction for f64
-    // Step 1: 8->4 for all 4 states (extract high 256-bit half and add to low half)
-    __m256d sum_a_f64x4 = _mm256_add_pd(_mm512_castpd512_pd256(sum_a_f64x8), _mm512_extractf64x4_pd(sum_a_f64x8, 1));
-    __m256d sum_b_f64x4 = _mm256_add_pd(_mm512_castpd512_pd256(sum_b_f64x8), _mm512_extractf64x4_pd(sum_b_f64x8, 1));
-    __m256d sum_c_f64x4 = _mm256_add_pd(_mm512_castpd512_pd256(sum_c_f64x8), _mm512_extractf64x4_pd(sum_c_f64x8, 1));
-    __m256d sum_d_f64x4 = _mm256_add_pd(_mm512_castpd512_pd256(sum_d_f64x8), _mm512_extractf64x4_pd(sum_d_f64x8, 1));
-    // Step 2: 4->2 for all 4 states (extract high 128-bit half and add to low half)
-    __m128d sum_a_f64x2 = _mm_add_pd(_mm256_castpd256_pd128(sum_a_f64x4), _mm256_extractf128_pd(sum_a_f64x4, 1));
-    __m128d sum_b_f64x2 = _mm_add_pd(_mm256_castpd256_pd128(sum_b_f64x4), _mm256_extractf128_pd(sum_b_f64x4, 1));
-    __m128d sum_c_f64x2 = _mm_add_pd(_mm256_castpd256_pd128(sum_c_f64x4), _mm256_extractf128_pd(sum_c_f64x4, 1));
-    __m128d sum_d_f64x2 = _mm_add_pd(_mm256_castpd256_pd128(sum_d_f64x4), _mm256_extractf128_pd(sum_d_f64x4, 1));
-    // Step 3: Horizontal add pairs: [a0+a1, b0+b1] and [c0+c1, d0+d1]
-    __m128d sum_ab_f64x2 = _mm_hadd_pd(sum_a_f64x2, sum_b_f64x2);
-    __m128d sum_cd_f64x2 = _mm_hadd_pd(sum_c_f64x2, sum_d_f64x2);
-    // Store results in ymm register
-    result->ymm_pd = _mm256_set_m128d(sum_cd_f64x2, sum_ab_f64x2);
+    // Compensated horizontal reduction preserving Dot2 error tracking per state
+    result->f64s[0] = nk_dot_stable_sum_f64x8_skylake_(state_a->sum_f64x8, state_a->compensation_f64x8);
+    result->f64s[1] = nk_dot_stable_sum_f64x8_skylake_(state_b->sum_f64x8, state_b->compensation_f64x8);
+    result->f64s[2] = nk_dot_stable_sum_f64x8_skylake_(state_c->sum_f64x8, state_c->compensation_f64x8);
+    result->f64s[3] = nk_dot_stable_sum_f64x8_skylake_(state_d->sum_f64x8, state_d->compensation_f64x8);
 }
 
 typedef struct nk_dot_f32x8_state_skylake_t {

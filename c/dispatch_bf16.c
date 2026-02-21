@@ -9,27 +9,16 @@
 void nk_dispatch_bf16_find_(nk_capability_t v, nk_kernel_kind_t k, nk_kernel_punned_t *m, nk_capability_t *c) {
     typedef nk_kernel_punned_t m_t;
 
-#if NK_TARGET_RVVBF16
-    if (v & nk_cap_rvvbf16_k) switch (k) {
-        case nk_kernel_dot_k: *m = (m_t)&nk_dot_bf16_rvvbf16, *c = nk_cap_rvvbf16_k; return;
-        case nk_kernel_angular_k: *m = (m_t)&nk_angular_bf16_rvvbf16, *c = nk_cap_rvvbf16_k; return;
-        case nk_kernel_sqeuclidean_k: *m = (m_t)&nk_sqeuclidean_bf16_rvvbf16, *c = nk_cap_rvvbf16_k; return;
-        case nk_kernel_euclidean_k: *m = (m_t)&nk_euclidean_bf16_rvvbf16, *c = nk_cap_rvvbf16_k; return;
-        default: break;
-        }
-#endif
-#if NK_TARGET_RVV
-    if (v & nk_cap_rvv_k) switch (k) {
-        case nk_kernel_dot_k: *m = (m_t)&nk_dot_bf16_rvv, *c = nk_cap_rvv_k; return;
-        case nk_kernel_sqeuclidean_k: *m = (m_t)&nk_sqeuclidean_bf16_rvv, *c = nk_cap_rvv_k; return;
-        case nk_kernel_euclidean_k: *m = (m_t)&nk_euclidean_bf16_rvv, *c = nk_cap_rvv_k; return;
-        case nk_kernel_angular_k: *m = (m_t)&nk_angular_bf16_rvv, *c = nk_cap_rvv_k; return;
-        case nk_kernel_reduce_moments_k: *m = (m_t)&nk_reduce_moments_bf16_rvv, *c = nk_cap_rvv_k; return;
-        case nk_kernel_reduce_minmax_k: *m = (m_t)&nk_reduce_minmax_bf16_rvv, *c = nk_cap_rvv_k; return;
-        case nk_kernel_dots_packed_size_k: *m = (m_t)&nk_dots_packed_size_bf16_rvv, *c = nk_cap_rvv_k; return;
-        case nk_kernel_dots_pack_k: *m = (m_t)&nk_dots_pack_bf16_rvv, *c = nk_cap_rvv_k; return;
-        case nk_kernel_dots_packed_k: *m = (m_t)&nk_dots_packed_bf16_rvv, *c = nk_cap_rvv_k; return;
-        case nk_kernel_dots_symmetric_k: *m = (m_t)&nk_dots_symmetric_bf16_rvv, *c = nk_cap_rvv_k; return;
+#if NK_TARGET_V128RELAXED
+    if (v & nk_cap_v128relaxed_k) switch (k) {
+        case nk_kernel_dot_k: *m = (m_t)&nk_dot_bf16_v128relaxed, *c = nk_cap_v128relaxed_k; return;
+        case nk_kernel_angular_k: *m = (m_t)&nk_angular_bf16_v128relaxed, *c = nk_cap_v128relaxed_k; return;
+        case nk_kernel_sqeuclidean_k: *m = (m_t)&nk_sqeuclidean_bf16_v128relaxed, *c = nk_cap_v128relaxed_k; return;
+        case nk_kernel_euclidean_k: *m = (m_t)&nk_euclidean_bf16_v128relaxed, *c = nk_cap_v128relaxed_k; return;
+        case nk_kernel_reduce_moments_k:
+            *m = (m_t)&nk_reduce_moments_bf16_v128relaxed, *c = nk_cap_v128relaxed_k;
+            return;
+        case nk_kernel_reduce_minmax_k: *m = (m_t)&nk_reduce_minmax_bf16_v128relaxed, *c = nk_cap_v128relaxed_k; return;
         default: break;
         }
 #endif
@@ -151,16 +140,27 @@ void nk_dispatch_bf16_find_(nk_capability_t v, nk_kernel_kind_t k, nk_kernel_pun
         default: break;
         }
 #endif
-#if NK_TARGET_V128RELAXED
-    if (v & nk_cap_v128relaxed_k) switch (k) {
-        case nk_kernel_dot_k: *m = (m_t)&nk_dot_bf16_v128relaxed, *c = nk_cap_v128relaxed_k; return;
-        case nk_kernel_angular_k: *m = (m_t)&nk_angular_bf16_v128relaxed, *c = nk_cap_v128relaxed_k; return;
-        case nk_kernel_sqeuclidean_k: *m = (m_t)&nk_sqeuclidean_bf16_v128relaxed, *c = nk_cap_v128relaxed_k; return;
-        case nk_kernel_euclidean_k: *m = (m_t)&nk_euclidean_bf16_v128relaxed, *c = nk_cap_v128relaxed_k; return;
-        case nk_kernel_reduce_moments_k:
-            *m = (m_t)&nk_reduce_moments_bf16_v128relaxed, *c = nk_cap_v128relaxed_k;
-            return;
-        case nk_kernel_reduce_minmax_k: *m = (m_t)&nk_reduce_minmax_bf16_v128relaxed, *c = nk_cap_v128relaxed_k; return;
+#if NK_TARGET_RVVBF16
+    if (v & nk_cap_rvvbf16_k) switch (k) {
+        case nk_kernel_dot_k: *m = (m_t)&nk_dot_bf16_rvvbf16, *c = nk_cap_rvvbf16_k; return;
+        case nk_kernel_angular_k: *m = (m_t)&nk_angular_bf16_rvvbf16, *c = nk_cap_rvvbf16_k; return;
+        case nk_kernel_sqeuclidean_k: *m = (m_t)&nk_sqeuclidean_bf16_rvvbf16, *c = nk_cap_rvvbf16_k; return;
+        case nk_kernel_euclidean_k: *m = (m_t)&nk_euclidean_bf16_rvvbf16, *c = nk_cap_rvvbf16_k; return;
+        default: break;
+        }
+#endif
+#if NK_TARGET_RVV
+    if (v & nk_cap_rvv_k) switch (k) {
+        case nk_kernel_dot_k: *m = (m_t)&nk_dot_bf16_rvv, *c = nk_cap_rvv_k; return;
+        case nk_kernel_sqeuclidean_k: *m = (m_t)&nk_sqeuclidean_bf16_rvv, *c = nk_cap_rvv_k; return;
+        case nk_kernel_euclidean_k: *m = (m_t)&nk_euclidean_bf16_rvv, *c = nk_cap_rvv_k; return;
+        case nk_kernel_angular_k: *m = (m_t)&nk_angular_bf16_rvv, *c = nk_cap_rvv_k; return;
+        case nk_kernel_reduce_moments_k: *m = (m_t)&nk_reduce_moments_bf16_rvv, *c = nk_cap_rvv_k; return;
+        case nk_kernel_reduce_minmax_k: *m = (m_t)&nk_reduce_minmax_bf16_rvv, *c = nk_cap_rvv_k; return;
+        case nk_kernel_dots_packed_size_k: *m = (m_t)&nk_dots_packed_size_bf16_rvv, *c = nk_cap_rvv_k; return;
+        case nk_kernel_dots_pack_k: *m = (m_t)&nk_dots_pack_bf16_rvv, *c = nk_cap_rvv_k; return;
+        case nk_kernel_dots_packed_k: *m = (m_t)&nk_dots_packed_bf16_rvv, *c = nk_cap_rvv_k; return;
+        case nk_kernel_dots_symmetric_k: *m = (m_t)&nk_dots_symmetric_bf16_rvv, *c = nk_cap_rvv_k; return;
         default: break;
         }
 #endif

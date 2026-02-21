@@ -261,26 +261,57 @@ nk_angular_bf16_haswell_cycle:
 #pragma region - Small Integers
 
 NK_PUBLIC void nk_sqeuclidean_i8_haswell(nk_i8_t const *a, nk_i8_t const *b, nk_size_t n, nk_u32_t *result) {
+    // Optimized i8 L2-squared using saturating subtract + VPMADDWD
+    //
+    // Approach:
+    //   - XOR with 0x80 to reinterpret signed i8 as unsigned u8
+    //   - Compute |a-b| using unsigned saturating subtraction: diff = (a ⊖ b) | (b ⊖ a)
+    //   - Zero-extend u8→u16 using unpacking (1cy latency @ p5)
+    //   - Square using vpmaddwd on u16 values (32 elements/iteration)
+    //
+    // The XOR bias is needed because subs_epu8 (unsigned) saturates to 0 when the result
+    // would be negative, so OR-ing both directions gives the true |a-b|.
+    // A naive subs_epi8 (signed) would saturate to -128, corrupting the OR trick.
+    //
+    // Correctness: For squared distance, |a-b|² = (a-b)², so unsigned absolute differences are valid.
+    //              The XOR preserves distances: |a-b| = |(a^0x80) - (b^0x80)|.
+    //
+    __m256i distance_sq_low_i32x8 = _mm256_setzero_si256();
+    __m256i distance_sq_high_i32x8 = _mm256_setzero_si256();
+    __m256i const zeros_i8x32 = _mm256_setzero_si256();
+    __m256i const bias_i8x32 = _mm256_set1_epi8((char)0x80);
+    __m256i diff_low_i16x16, diff_high_i16x16;
+    __m256i a_i8x32, b_i8x32, diff_u8x32;
 
-    __m256i distance_sq_i32x8 = _mm256_setzero_si256();
-
-    // Process 16 elements per iteration with direct 128-bit loads (no extract needed)
+    // Process 32 elements per iteration with 256-bit loads
     nk_size_t i = 0;
-    for (; i + 16 <= n; i += 16) {
-        __m128i a_i8x16 = _mm_loadu_si128((__m128i const *)(a + i));
-        __m128i b_i8x16 = _mm_loadu_si128((__m128i const *)(b + i));
+    for (; i + 32 <= n; i += 32) {
+        a_i8x32 = _mm256_loadu_si256((__m256i const *)(a + i));
+        b_i8x32 = _mm256_loadu_si256((__m256i const *)(b + i));
 
-        // Sign extend i8 → i16 directly (128-bit → 256-bit, no port 5 pressure)
-        __m256i a_i16x16 = _mm256_cvtepi8_epi16(a_i8x16);
-        __m256i b_i16x16 = _mm256_cvtepi8_epi16(b_i8x16);
+        // Reinterpret signed i8 as unsigned u8 by flipping the sign bit
+        a_i8x32 = _mm256_xor_si256(a_i8x32, bias_i8x32);
+        b_i8x32 = _mm256_xor_si256(b_i8x32, bias_i8x32);
 
-        // Subtract and square
-        __m256i diff_i16x16 = _mm256_sub_epi16(a_i16x16, b_i16x16);
-        distance_sq_i32x8 = _mm256_add_epi32(distance_sq_i32x8, _mm256_madd_epi16(diff_i16x16, diff_i16x16));
+        // Compute |a-b| using unsigned saturating subtraction
+        // subs_epu8 saturates to 0 if result would be negative
+        // OR-ing both directions gives absolute difference as unsigned
+        diff_u8x32 = _mm256_or_si256(_mm256_subs_epu8(a_i8x32, b_i8x32), _mm256_subs_epu8(b_i8x32, a_i8x32));
+
+        // Zero-extend to i16 using unpack (1cy @ p5, much faster than cvtepi8_epi16)
+        diff_low_i16x16 = _mm256_unpacklo_epi8(diff_u8x32, zeros_i8x32);
+        diff_high_i16x16 = _mm256_unpackhi_epi8(diff_u8x32, zeros_i8x32);
+
+        // Multiply and accumulate at i16 level, accumulate at i32 level
+        distance_sq_low_i32x8 = _mm256_add_epi32(distance_sq_low_i32x8,
+                                                 _mm256_madd_epi16(diff_low_i16x16, diff_low_i16x16));
+        distance_sq_high_i32x8 = _mm256_add_epi32(distance_sq_high_i32x8,
+                                                  _mm256_madd_epi16(diff_high_i16x16, diff_high_i16x16));
     }
 
     // Reduce to scalar
-    nk_i32_t distance_sq_i32 = nk_reduce_add_i32x8_haswell_(distance_sq_i32x8);
+    nk_i32_t distance_sq_i32 = nk_reduce_add_i32x8_haswell_(
+        _mm256_add_epi32(distance_sq_low_i32x8, distance_sq_high_i32x8));
 
     // Take care of the tail:
     for (; i < n; ++i) {
@@ -529,21 +560,27 @@ NK_PUBLIC void nk_angular_f32_haswell(nk_f32_t const *a, nk_f32_t const *b, nk_s
 
 NK_PUBLIC void nk_sqeuclidean_f64_haswell(nk_f64_t const *a, nk_f64_t const *b, nk_size_t n, nk_f64_t *result) {
     __m256d sum_f64x4 = _mm256_setzero_pd();
-    nk_size_t i = 0;
-    for (; i + 4 <= n; i += 4) {
-        __m256d a_f64x4 = _mm256_loadu_pd(a + i);
-        __m256d b_f64x4 = _mm256_loadu_pd(b + i);
-        __m256d diff_f64x4 = _mm256_sub_pd(a_f64x4, b_f64x4);
-        sum_f64x4 = _mm256_fmadd_pd(diff_f64x4, diff_f64x4, sum_f64x4);
-    }
+    __m256d a_f64x4, b_f64x4;
 
-    nk_f64_t sum_f64 = nk_reduce_add_f64x4_haswell_(sum_f64x4);
-    for (; i < n; ++i) {
-        nk_f64_t diff_f64 = a[i] - b[i];
-        sum_f64 += diff_f64 * diff_f64;
+nk_sqeuclidean_f64_haswell_cycle:
+    if (n < 4) {
+        nk_b256_vec_t a_tail, b_tail;
+        nk_partial_load_b64x4_serial_(a, &a_tail, n);
+        nk_partial_load_b64x4_serial_(b, &b_tail, n);
+        a_f64x4 = a_tail.ymm_pd;
+        b_f64x4 = b_tail.ymm_pd;
+        n = 0;
     }
+    else {
+        a_f64x4 = _mm256_loadu_pd(a);
+        b_f64x4 = _mm256_loadu_pd(b);
+        a += 4, b += 4, n -= 4;
+    }
+    __m256d diff_f64x4 = _mm256_sub_pd(a_f64x4, b_f64x4);
+    sum_f64x4 = _mm256_fmadd_pd(diff_f64x4, diff_f64x4, sum_f64x4);
+    if (n) goto nk_sqeuclidean_f64_haswell_cycle;
 
-    *result = sum_f64;
+    *result = nk_reduce_add_f64x4_haswell_(sum_f64x4);
 }
 
 NK_PUBLIC void nk_euclidean_f64_haswell(nk_f64_t const *a, nk_f64_t const *b, nk_size_t n, nk_f64_t *result) {
@@ -560,36 +597,41 @@ NK_PUBLIC void nk_angular_f64_haswell(nk_f64_t const *a, nk_f64_t const *b, nk_s
     __m256d dot_compensation_f64x4 = _mm256_setzero_pd();
     __m256d a_norm_sq_f64x4 = _mm256_setzero_pd();
     __m256d b_norm_sq_f64x4 = _mm256_setzero_pd();
-    nk_size_t i = 0;
-    for (; i + 4 <= n; i += 4) {
-        __m256d a_f64x4 = _mm256_loadu_pd(a + i);
-        __m256d b_f64x4 = _mm256_loadu_pd(b + i);
-        // TwoProd: product = a × b, error = fma(a, b, -product)
-        __m256d x_f64x4 = _mm256_mul_pd(a_f64x4, b_f64x4);
-        __m256d product_error_f64x4 = _mm256_fmsub_pd(a_f64x4, b_f64x4, x_f64x4);
-        // Knuth TwoSum: error = (sum - (t - z)) + (x - z) where z = t - sum
-        __m256d t_f64x4 = _mm256_add_pd(dot_sum_f64x4, x_f64x4);
-        __m256d z_f64x4 = _mm256_sub_pd(t_f64x4, dot_sum_f64x4);
-        __m256d sum_error_f64x4 = _mm256_add_pd(_mm256_sub_pd(dot_sum_f64x4, _mm256_sub_pd(t_f64x4, z_f64x4)),
-                                                _mm256_sub_pd(x_f64x4, z_f64x4));
-        dot_sum_f64x4 = t_f64x4;
-        dot_compensation_f64x4 = _mm256_add_pd(dot_compensation_f64x4,
-                                               _mm256_add_pd(sum_error_f64x4, product_error_f64x4));
-        // Simple FMA for self-products (no cancellation possible)
-        a_norm_sq_f64x4 = _mm256_fmadd_pd(a_f64x4, a_f64x4, a_norm_sq_f64x4);
-        b_norm_sq_f64x4 = _mm256_fmadd_pd(b_f64x4, b_f64x4, b_norm_sq_f64x4);
-    }
+    __m256d a_f64x4, b_f64x4;
 
-    nk_f64_t dot_product_f64 = nk_reduce_add_f64x4_haswell_(_mm256_add_pd(dot_sum_f64x4, dot_compensation_f64x4));
-    nk_f64_t a_norm_sq_f64 = nk_reduce_add_f64x4_haswell_(a_norm_sq_f64x4);
-    nk_f64_t b_norm_sq_f64 = nk_reduce_add_f64x4_haswell_(b_norm_sq_f64x4);
-    for (; i < n; ++i) {
-        nk_f64_t a_f64 = a[i], b_f64 = b[i];
-        dot_product_f64 += a_f64 * b_f64;
-        a_norm_sq_f64 += a_f64 * a_f64;
-        b_norm_sq_f64 += b_f64 * b_f64;
+nk_angular_f64_haswell_cycle:
+    if (n < 4) {
+        nk_b256_vec_t a_tail, b_tail;
+        nk_partial_load_b64x4_serial_(a, &a_tail, n);
+        nk_partial_load_b64x4_serial_(b, &b_tail, n);
+        a_f64x4 = a_tail.ymm_pd;
+        b_f64x4 = b_tail.ymm_pd;
+        n = 0;
     }
-    *result = nk_angular_normalize_f64_haswell_(dot_product_f64, a_norm_sq_f64, b_norm_sq_f64);
+    else {
+        a_f64x4 = _mm256_loadu_pd(a);
+        b_f64x4 = _mm256_loadu_pd(b);
+        a += 4, b += 4, n -= 4;
+    }
+    // TwoProd: product = a × b, error = fma(a, b, -product)
+    __m256d x_f64x4 = _mm256_mul_pd(a_f64x4, b_f64x4);
+    __m256d product_error_f64x4 = _mm256_fmsub_pd(a_f64x4, b_f64x4, x_f64x4);
+    // Knuth TwoSum: error = (sum - (t - z)) + (x - z) where z = t - sum
+    __m256d tentative_sum_f64x4 = _mm256_add_pd(dot_sum_f64x4, x_f64x4);
+    __m256d virtual_addend_f64x4 = _mm256_sub_pd(tentative_sum_f64x4, dot_sum_f64x4);
+    __m256d sum_error_f64x4 = _mm256_add_pd(
+        _mm256_sub_pd(dot_sum_f64x4, _mm256_sub_pd(tentative_sum_f64x4, virtual_addend_f64x4)),
+        _mm256_sub_pd(x_f64x4, virtual_addend_f64x4));
+    dot_sum_f64x4 = tentative_sum_f64x4;
+    dot_compensation_f64x4 = _mm256_add_pd(dot_compensation_f64x4, _mm256_add_pd(sum_error_f64x4, product_error_f64x4));
+    // Simple FMA for self-products (no cancellation possible)
+    a_norm_sq_f64x4 = _mm256_fmadd_pd(a_f64x4, a_f64x4, a_norm_sq_f64x4);
+    b_norm_sq_f64x4 = _mm256_fmadd_pd(b_f64x4, b_f64x4, b_norm_sq_f64x4);
+    if (n) goto nk_angular_f64_haswell_cycle;
+
+    *result = nk_angular_normalize_f64_haswell_( //
+        nk_dot_stable_sum_f64x4_haswell_(dot_sum_f64x4, dot_compensation_f64x4),
+        nk_reduce_add_f64x4_haswell_(a_norm_sq_f64x4), nk_reduce_add_f64x4_haswell_(b_norm_sq_f64x4));
 }
 
 #pragma endregion - Traditional Floats
@@ -950,10 +992,10 @@ NK_INTERNAL void nk_euclidean_f32x4_finalize_haswell(
     // Clamp negative to zero, then sqrt in f64
     __m256d zeros_f64x4 = _mm256_setzero_pd();
     __m256d clamped_f64x4 = _mm256_max_pd(dist_sq_f64x4, zeros_f64x4);
-    __m256d dist_f64x4 = _mm256_sqrt_pd(clamped_f64x4);
+    __m256d distentative_sum_f64x4 = _mm256_sqrt_pd(clamped_f64x4);
 
     // Convert f64x4 → f32x4 and store
-    __m128 dist_f32x4 = _mm256_cvtpd_ps(dist_f64x4);
+    __m128 dist_f32x4 = _mm256_cvtpd_ps(distentative_sum_f64x4);
     _mm_storeu_ps(results, dist_f32x4);
 }
 

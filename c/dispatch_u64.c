@@ -17,13 +17,6 @@ void nk_dispatch_u64_find_(nk_capability_t v, nk_kernel_kind_t k, nk_kernel_punn
         default: break;
         }
 #endif
-#if NK_TARGET_RVV
-    if (v & nk_cap_rvv_k) switch (k) {
-        case nk_kernel_reduce_moments_k: *m = (m_t)&nk_reduce_moments_u64_rvv, *c = nk_cap_rvv_k; return;
-        case nk_kernel_reduce_minmax_k: *m = (m_t)&nk_reduce_minmax_u64_rvv, *c = nk_cap_rvv_k; return;
-        default: break;
-        }
-#endif
 #if NK_TARGET_SVE2
     if (v & nk_cap_sve2_k) switch (k) {
         case nk_kernel_sparse_intersect_k: *m = (m_t)&nk_sparse_intersect_u64_sve2, *c = nk_cap_sve2_k; return;
@@ -67,6 +60,16 @@ void nk_dispatch_u64_find_(nk_capability_t v, nk_kernel_kind_t k, nk_kernel_punn
     if (v & nk_cap_haswell_k) switch (k) {
         case nk_kernel_reduce_moments_k: *m = (m_t)&nk_reduce_moments_u64_haswell, *c = nk_cap_haswell_k; return;
         case nk_kernel_reduce_minmax_k: *m = (m_t)&nk_reduce_minmax_u64_haswell, *c = nk_cap_haswell_k; return;
+        default: break;
+        }
+#endif
+#if NK_TARGET_RVV
+    if (v & nk_cap_rvv_k) switch (k) {
+        case nk_kernel_each_fma_k: *m = (m_t)&nk_each_fma_u64_rvv, *c = nk_cap_rvv_k; return;
+        case nk_kernel_each_scale_k: *m = (m_t)&nk_each_scale_u64_rvv, *c = nk_cap_rvv_k; return;
+        case nk_kernel_each_sum_k: *m = (m_t)&nk_each_sum_u64_rvv, *c = nk_cap_rvv_k; return;
+        case nk_kernel_reduce_moments_k: *m = (m_t)&nk_reduce_moments_u64_rvv, *c = nk_cap_rvv_k; return;
+        case nk_kernel_reduce_minmax_k: *m = (m_t)&nk_reduce_minmax_u64_rvv, *c = nk_cap_rvv_k; return;
         default: break;
         }
 #endif

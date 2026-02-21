@@ -641,10 +641,10 @@ typedef enum {
     nk_dtype_family_complex_float_k,
     nk_dtype_family_int_k,
     nk_dtype_family_uint_k,
-} nk_dtype_family_k;
+} nk_dtype_family_t;
 
 /** @brief Classifies the family of the dtype. */
-NK_PUBLIC nk_dtype_family_k nk_dtype_family(nk_dtype_t dtype) {
+NK_PUBLIC nk_dtype_family_t nk_dtype_family(nk_dtype_t dtype) {
     switch (dtype) {
     case nk_f64_k: return nk_dtype_family_float_k;
     case nk_f32_k: return nk_dtype_family_float_k;

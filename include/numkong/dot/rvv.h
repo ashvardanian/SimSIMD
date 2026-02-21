@@ -39,6 +39,42 @@
 extern "C" {
 #endif
 
+/** @brief Compensated horizontal sum of RVV f64m1 lanes via TwoSum tree reduction.
+ *
+ *  Uses vslidedown to extract the upper half at each tree level (same pattern as
+ *  nk_reduce_vsaddu_u64m1_rvv_ in reduce/rvv.h). Tail lanes beyond vlmax are zero
+ *  from the initial vfmv_v_f, so they are harmless in the reduction.
+ */
+NK_INTERNAL nk_f64_t nk_dot_stable_sum_f64m1_rvv_(vfloat64m1_t sum_f64m1, vfloat64m1_t compensation_f64m1) {
+    nk_size_t vlmax = __riscv_vsetvlmax_e64m1();
+    // Stage 0: TwoSum merge of sum + compensation
+    vfloat64m1_t tentative_sum_f64m1 = __riscv_vfadd_vv_f64m1(sum_f64m1, compensation_f64m1, vlmax);
+    vfloat64m1_t virtual_addend_f64m1 = __riscv_vfsub_vv_f64m1(tentative_sum_f64m1, sum_f64m1, vlmax);
+    vfloat64m1_t accumulated_error_f64m1 = __riscv_vfadd_vv_f64m1(
+        __riscv_vfsub_vv_f64m1(sum_f64m1, __riscv_vfsub_vv_f64m1(tentative_sum_f64m1, virtual_addend_f64m1, vlmax),
+                               vlmax),
+        __riscv_vfsub_vv_f64m1(compensation_f64m1, virtual_addend_f64m1, vlmax), vlmax);
+    // Tree reduction: TwoSum halving at each level
+    for (nk_size_t half = vlmax / 2; half > 0; half >>= 1) {
+        vfloat64m1_t upper_sum_f64m1 = __riscv_vslidedown_vx_f64m1(tentative_sum_f64m1, half, vlmax);
+        vfloat64m1_t upper_error_f64m1 = __riscv_vslidedown_vx_f64m1(accumulated_error_f64m1, half, vlmax);
+        vfloat64m1_t halved_tentative_sum_f64m1 =
+            __riscv_vfadd_vv_f64m1(tentative_sum_f64m1, upper_sum_f64m1, vlmax);
+        vfloat64m1_t halved_virtual_addend_f64m1 =
+            __riscv_vfsub_vv_f64m1(halved_tentative_sum_f64m1, tentative_sum_f64m1, vlmax);
+        vfloat64m1_t rounding_error_f64m1 = __riscv_vfadd_vv_f64m1(
+            __riscv_vfsub_vv_f64m1(
+                tentative_sum_f64m1,
+                __riscv_vfsub_vv_f64m1(halved_tentative_sum_f64m1, halved_virtual_addend_f64m1, vlmax), vlmax),
+            __riscv_vfsub_vv_f64m1(upper_sum_f64m1, halved_virtual_addend_f64m1, vlmax), vlmax);
+        tentative_sum_f64m1 = halved_tentative_sum_f64m1;
+        accumulated_error_f64m1 = __riscv_vfadd_vv_f64m1(
+            __riscv_vfadd_vv_f64m1(accumulated_error_f64m1, upper_error_f64m1, vlmax), rounding_error_f64m1, vlmax);
+    }
+    return __riscv_vfmv_f_s_f64m1_f64(tentative_sum_f64m1) +
+           __riscv_vfmv_f_s_f64m1_f64(accumulated_error_f64m1);
+}
+
 NK_PUBLIC void nk_dot_i8_rvv(nk_i8_t const *a_scalars, nk_i8_t const *b_scalars, nk_size_t count_scalars,
                              nk_i32_t *result) {
     nk_size_t vlmax = __riscv_vsetvlmax_e32m4();
@@ -96,20 +132,37 @@ NK_PUBLIC void nk_dot_f32_rvv(nk_f32_t const *a_scalars, nk_f32_t const *b_scala
 
 NK_PUBLIC void nk_dot_f64_rvv(nk_f64_t const *a_scalars, nk_f64_t const *b_scalars, nk_size_t count_scalars,
                               nk_f64_t *result) {
-    // Accumulate partial sums into vector lanes, then one final horizontal reduction
+    // Dot2 (Ogita-Rump-Oishi) compensated accumulation via TwoProd + TwoSum
     nk_size_t vlmax = __riscv_vsetvlmax_e64m1();
     vfloat64m1_t sum_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, vlmax);
+    vfloat64m1_t compensation_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, vlmax);
     for (nk_size_t vector_length; count_scalars > 0;
          count_scalars -= vector_length, a_scalars += vector_length, b_scalars += vector_length) {
         vector_length = __riscv_vsetvl_e64m1(count_scalars);
         vfloat64m1_t a_f64m1 = __riscv_vle64_v_f64m1(a_scalars, vector_length);
         vfloat64m1_t b_f64m1 = __riscv_vle64_v_f64m1(b_scalars, vector_length);
-        // Accumulate a ⨯ b into vector lanes
-        sum_f64m1 = __riscv_vfmacc_vv_f64m1_tu(sum_f64m1, a_f64m1, b_f64m1, vector_length);
+        // TwoProd: product = a*b, product_error = fma(a,b,-product)
+        vfloat64m1_t product_f64m1 = __riscv_vfmul_vv_f64m1(a_f64m1, b_f64m1, vector_length);
+        vfloat64m1_t product_error_f64m1 =
+            __riscv_vfmsac_vv_f64m1(product_f64m1, a_f64m1, b_f64m1, vector_length);
+        // TwoSum: tentative_sum = sum + product
+        vfloat64m1_t tentative_sum_f64m1 = __riscv_vfadd_vv_f64m1(sum_f64m1, product_f64m1, vector_length);
+        vfloat64m1_t virtual_addend_f64m1 =
+            __riscv_vfsub_vv_f64m1(tentative_sum_f64m1, sum_f64m1, vector_length);
+        vfloat64m1_t sum_error_f64m1 = __riscv_vfadd_vv_f64m1(
+            __riscv_vfsub_vv_f64m1(
+                sum_f64m1, __riscv_vfsub_vv_f64m1(tentative_sum_f64m1, virtual_addend_f64m1, vector_length),
+                vector_length),
+            __riscv_vfsub_vv_f64m1(product_f64m1, virtual_addend_f64m1, vector_length), vector_length);
+        // Tail-undisturbed updates: preserve zero tails across partial iterations
+        sum_f64m1 = __riscv_vslideup_vx_f64m1_tu(sum_f64m1, tentative_sum_f64m1, 0, vector_length);
+        vfloat64m1_t total_error_f64m1 =
+            __riscv_vfadd_vv_f64m1(sum_error_f64m1, product_error_f64m1, vector_length);
+        compensation_f64m1 =
+            __riscv_vfadd_vv_f64m1_tu(compensation_f64m1, compensation_f64m1, total_error_f64m1, vector_length);
     }
-    // Single horizontal reduction at the end with VLMAX
-    vfloat64m1_t zero_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, vlmax);
-    *result = __riscv_vfmv_f_s_f64m1_f64(__riscv_vfredusum_vs_f64m1_f64m1(sum_f64m1, zero_f64m1, vlmax));
+    // Compensated horizontal reduction
+    *result = nk_dot_stable_sum_f64m1_rvv_(sum_f64m1, compensation_f64m1);
 }
 
 NK_PUBLIC void nk_dot_f16_rvv(nk_f16_t const *a_scalars, nk_f16_t const *b_scalars, nk_size_t count_scalars,

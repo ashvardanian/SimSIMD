@@ -1045,7 +1045,7 @@ NK_PUBLIC void nk_each_fma_e5m2_rvv(nk_e5m2_t const *a, nk_e5m2_t const *b, nk_e
 /**
  *  @brief  Returns the scalar parameter dtype for elementwise scale/wsum/fma operations.
  */
-NK_INTERNAL nk_dtype_t nk_each_scale_output_dtype(nk_dtype_t dtype) {
+NK_INTERNAL nk_dtype_t nk_each_scale_input_dtype(nk_dtype_t dtype) {
     switch (dtype) {
     case nk_f64_k: return nk_f64_k;
     case nk_f32_k: return nk_f32_k;
@@ -1062,12 +1062,6 @@ NK_INTERNAL nk_dtype_t nk_each_scale_output_dtype(nk_dtype_t dtype) {
     default: return nk_dtype_unknown_k;
     }
 }
-
-/** @copydoc nk_each_scale_output_dtype */
-NK_INTERNAL nk_dtype_t nk_each_blend_output_dtype(nk_dtype_t dtype) { return nk_each_scale_output_dtype(dtype); }
-
-/** @copydoc nk_each_scale_output_dtype */
-NK_INTERNAL nk_dtype_t nk_each_fma_output_dtype(nk_dtype_t dtype) { return nk_each_scale_output_dtype(dtype); }
 
 #if defined(__cplusplus)
 } // extern "C"
