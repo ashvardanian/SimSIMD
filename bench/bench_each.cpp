@@ -129,6 +129,10 @@ void bench_each() {
     constexpr nk_dtype_t u8_k = nk_u8_k;
     constexpr nk_dtype_t i16_k = nk_i16_k;
     constexpr nk_dtype_t u16_k = nk_u16_k;
+    constexpr nk_dtype_t i32_k = nk_i32_k;
+    constexpr nk_dtype_t u32_k = nk_u32_k;
+    constexpr nk_dtype_t i64_k = nk_i64_k;
+    constexpr nk_dtype_t u64_k = nk_u64_k;
     constexpr nk_dtype_t f64_k = nk_f64_k;
     constexpr nk_dtype_t f32_k = nk_f32_k;
     constexpr nk_dtype_t f16_k = nk_f16_k;
@@ -201,11 +205,43 @@ void bench_each() {
     each_<bf16_k, wsum_k, f32_k>("each_wsum_bf16_skylake", nk_each_blend_bf16_skylake);
 #endif
 
+#if NK_TARGET_ICELAKE
+    each_<i8_k, sum_k, f32_k>("each_sum_i8_icelake", nk_each_sum_i8_icelake);
+    each_<u8_k, sum_k, f32_k>("each_sum_u8_icelake", nk_each_sum_u8_icelake);
+    each_<i16_k, sum_k, f32_k>("each_sum_i16_icelake", nk_each_sum_i16_icelake);
+    each_<u16_k, sum_k, f32_k>("each_sum_u16_icelake", nk_each_sum_u16_icelake);
+    each_<i32_k, sum_k, f32_k>("each_sum_i32_icelake", nk_each_sum_i32_icelake);
+    each_<u32_k, sum_k, f32_k>("each_sum_u32_icelake", nk_each_sum_u32_icelake);
+    each_<i64_k, sum_k, f64_k>("each_sum_i64_icelake", nk_each_sum_i64_icelake);
+    each_<u64_k, sum_k, f64_k>("each_sum_u64_icelake", nk_each_sum_u64_icelake);
+#endif
+
 #if NK_TARGET_SAPPHIRE
     each_<u8_k, fma_k, f32_k>("each_fma_u8_sapphire", nk_each_fma_u8_sapphire);
     each_<u8_k, wsum_k, f32_k>("each_wsum_u8_sapphire", nk_each_blend_u8_sapphire);
     each_<i8_k, fma_k, f32_k>("each_fma_i8_sapphire", nk_each_fma_i8_sapphire);
     each_<i8_k, wsum_k, f32_k>("each_wsum_i8_sapphire", nk_each_blend_i8_sapphire);
+#endif
+
+#if NK_TARGET_RVV
+    each_<f64_k, scale_k, f64_k>("each_scale_f64_rvv", nk_each_scale_f64_rvv);
+    each_<f64_k, fma_k, f64_k>("each_fma_f64_rvv", nk_each_fma_f64_rvv);
+    each_<f64_k, wsum_k, f64_k>("each_wsum_f64_rvv", nk_each_blend_f64_rvv);
+    each_<f32_k, scale_k, f32_k>("each_scale_f32_rvv", nk_each_scale_f32_rvv);
+    each_<f32_k, fma_k, f32_k>("each_fma_f32_rvv", nk_each_fma_f32_rvv);
+    each_<f32_k, wsum_k, f32_k>("each_wsum_f32_rvv", nk_each_blend_f32_rvv);
+    each_<f16_k, scale_k, f32_k>("each_scale_f16_rvv", nk_each_scale_f16_rvv);
+    each_<f16_k, fma_k, f32_k>("each_fma_f16_rvv", nk_each_fma_f16_rvv);
+    each_<f16_k, wsum_k, f32_k>("each_wsum_f16_rvv", nk_each_blend_f16_rvv);
+    each_<bf16_k, scale_k, f32_k>("each_scale_bf16_rvv", nk_each_scale_bf16_rvv);
+    each_<bf16_k, fma_k, f32_k>("each_fma_bf16_rvv", nk_each_fma_bf16_rvv);
+    each_<bf16_k, wsum_k, f32_k>("each_wsum_bf16_rvv", nk_each_blend_bf16_rvv);
+    each_<i8_k, scale_k, f32_k>("each_scale_i8_rvv", nk_each_scale_i8_rvv);
+    each_<i8_k, fma_k, f32_k>("each_fma_i8_rvv", nk_each_fma_i8_rvv);
+    each_<i8_k, wsum_k, f32_k>("each_wsum_i8_rvv", nk_each_blend_i8_rvv);
+    each_<u8_k, scale_k, f32_k>("each_scale_u8_rvv", nk_each_scale_u8_rvv);
+    each_<u8_k, fma_k, f32_k>("each_fma_u8_rvv", nk_each_fma_u8_rvv);
+    each_<u8_k, wsum_k, f32_k>("each_wsum_u8_rvv", nk_each_blend_u8_rvv);
 #endif
 
     // Serial fallbacks

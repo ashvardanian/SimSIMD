@@ -61,12 +61,159 @@ void test_reduce() {
     std::printf("Reductions:\n");
 
 #if NK_DYNAMIC_DISPATCH
-
+    run_if_matches("reduce_moments_f32", test_reduce_moments<f32_t>, nk_reduce_moments_f32,
+                   nk_reduce_moments_f32_serial);
+    run_if_matches("reduce_moments_f64", test_reduce_moments<f64_t>, nk_reduce_moments_f64,
+                   nk_reduce_moments_f64_serial);
+    run_if_matches("reduce_moments_i8", test_reduce_moments<i8_t>, nk_reduce_moments_i8, nk_reduce_moments_i8_serial);
+    run_if_matches("reduce_moments_u8", test_reduce_moments<u8_t>, nk_reduce_moments_u8, nk_reduce_moments_u8_serial);
+    run_if_matches("reduce_moments_i16", test_reduce_moments<i16_t>, nk_reduce_moments_i16,
+                   nk_reduce_moments_i16_serial);
+    run_if_matches("reduce_moments_u16", test_reduce_moments<u16_t>, nk_reduce_moments_u16,
+                   nk_reduce_moments_u16_serial);
+    run_if_matches("reduce_moments_i32", test_reduce_moments<i32_t>, nk_reduce_moments_i32,
+                   nk_reduce_moments_i32_serial);
+    run_if_matches("reduce_moments_u32", test_reduce_moments<u32_t>, nk_reduce_moments_u32,
+                   nk_reduce_moments_u32_serial);
+    run_if_matches("reduce_moments_i64", test_reduce_moments<i64_t>, nk_reduce_moments_i64,
+                   nk_reduce_moments_i64_serial);
+    run_if_matches("reduce_moments_u64", test_reduce_moments<u64_t>, nk_reduce_moments_u64,
+                   nk_reduce_moments_u64_serial);
+    run_if_matches("reduce_moments_f16", test_reduce_moments<f16_t>, nk_reduce_moments_f16,
+                   nk_reduce_moments_f16_serial);
+    run_if_matches("reduce_moments_bf16", test_reduce_moments<bf16_t>, nk_reduce_moments_bf16,
+                   nk_reduce_moments_bf16_serial);
+    run_if_matches("reduce_moments_e4m3", test_reduce_moments<e4m3_t>, nk_reduce_moments_e4m3,
+                   nk_reduce_moments_e4m3_serial);
+    run_if_matches("reduce_moments_e5m2", test_reduce_moments<e5m2_t>, nk_reduce_moments_e5m2,
+                   nk_reduce_moments_e5m2_serial);
+    run_if_matches("reduce_moments_e2m3", test_reduce_moments<e2m3_t>, nk_reduce_moments_e2m3,
+                   nk_reduce_moments_e2m3_serial);
+    run_if_matches("reduce_moments_e3m2", test_reduce_moments<e3m2_t>, nk_reduce_moments_e3m2,
+                   nk_reduce_moments_e3m2_serial);
+    run_if_matches("reduce_moments_i4", test_reduce_moments<i4x2_t>, nk_reduce_moments_i4, nk_reduce_moments_i4_serial);
+    run_if_matches("reduce_moments_u4", test_reduce_moments<u4x2_t>, nk_reduce_moments_u4, nk_reduce_moments_u4_serial);
+    run_if_matches("reduce_moments_u1", test_reduce_moments<u1x8_t>, nk_reduce_moments_u1, nk_reduce_moments_u1_serial);
+    run_if_matches("reduce_minmax_f32", test_reduce_minmax<f32_t>, nk_reduce_minmax_f32, nk_reduce_minmax_f32_serial);
+    run_if_matches("reduce_minmax_f64", test_reduce_minmax<f64_t>, nk_reduce_minmax_f64, nk_reduce_minmax_f64_serial);
+    run_if_matches("reduce_minmax_i8", test_reduce_minmax<i8_t>, nk_reduce_minmax_i8, nk_reduce_minmax_i8_serial);
+    run_if_matches("reduce_minmax_u8", test_reduce_minmax<u8_t>, nk_reduce_minmax_u8, nk_reduce_minmax_u8_serial);
+    run_if_matches("reduce_minmax_i16", test_reduce_minmax<i16_t>, nk_reduce_minmax_i16, nk_reduce_minmax_i16_serial);
+    run_if_matches("reduce_minmax_u16", test_reduce_minmax<u16_t>, nk_reduce_minmax_u16, nk_reduce_minmax_u16_serial);
+    run_if_matches("reduce_minmax_i32", test_reduce_minmax<i32_t>, nk_reduce_minmax_i32, nk_reduce_minmax_i32_serial);
+    run_if_matches("reduce_minmax_u32", test_reduce_minmax<u32_t>, nk_reduce_minmax_u32, nk_reduce_minmax_u32_serial);
+    run_if_matches("reduce_minmax_i64", test_reduce_minmax<i64_t>, nk_reduce_minmax_i64, nk_reduce_minmax_i64_serial);
+    run_if_matches("reduce_minmax_u64", test_reduce_minmax<u64_t>, nk_reduce_minmax_u64, nk_reduce_minmax_u64_serial);
+    run_if_matches("reduce_minmax_f16", test_reduce_minmax<f16_t>, nk_reduce_minmax_f16, nk_reduce_minmax_f16_serial);
+    run_if_matches("reduce_minmax_bf16", test_reduce_minmax<bf16_t>, nk_reduce_minmax_bf16,
+                   nk_reduce_minmax_bf16_serial);
+    run_if_matches("reduce_minmax_e4m3", test_reduce_minmax<e4m3_t>, nk_reduce_minmax_e4m3,
+                   nk_reduce_minmax_e4m3_serial);
+    run_if_matches("reduce_minmax_e5m2", test_reduce_minmax<e5m2_t>, nk_reduce_minmax_e5m2,
+                   nk_reduce_minmax_e5m2_serial);
+    run_if_matches("reduce_minmax_e2m3", test_reduce_minmax<e2m3_t>, nk_reduce_minmax_e2m3,
+                   nk_reduce_minmax_e2m3_serial);
+    run_if_matches("reduce_minmax_e3m2", test_reduce_minmax<e3m2_t>, nk_reduce_minmax_e3m2,
+                   nk_reduce_minmax_e3m2_serial);
+    run_if_matches("reduce_minmax_i4", test_reduce_minmax<i4x2_t>, nk_reduce_minmax_i4, nk_reduce_minmax_i4_serial);
+    run_if_matches("reduce_minmax_u4", test_reduce_minmax<u4x2_t>, nk_reduce_minmax_u4, nk_reduce_minmax_u4_serial);
+    run_if_matches("reduce_minmax_u1", test_reduce_minmax<u1x8_t>, nk_reduce_minmax_u1, nk_reduce_minmax_u1_serial);
 #else
 
 #if NK_TARGET_NEON
+    run_if_matches("reduce_moments_f32_neon", test_reduce_moments<f32_t>, nk_reduce_moments_f32_neon,
+                   nk_reduce_moments_f32_serial);
+    run_if_matches("reduce_moments_f64_neon", test_reduce_moments<f64_t>, nk_reduce_moments_f64_neon,
+                   nk_reduce_moments_f64_serial);
+    run_if_matches("reduce_moments_i8_neon", test_reduce_moments<i8_t>, nk_reduce_moments_i8_neon,
+                   nk_reduce_moments_i8_serial);
+    run_if_matches("reduce_moments_u8_neon", test_reduce_moments<u8_t>, nk_reduce_moments_u8_neon,
+                   nk_reduce_moments_u8_serial);
+    run_if_matches("reduce_moments_i16_neon", test_reduce_moments<i16_t>, nk_reduce_moments_i16_neon,
+                   nk_reduce_moments_i16_serial);
+    run_if_matches("reduce_moments_u16_neon", test_reduce_moments<u16_t>, nk_reduce_moments_u16_neon,
+                   nk_reduce_moments_u16_serial);
+    run_if_matches("reduce_moments_i32_neon", test_reduce_moments<i32_t>, nk_reduce_moments_i32_neon,
+                   nk_reduce_moments_i32_serial);
+    run_if_matches("reduce_moments_u32_neon", test_reduce_moments<u32_t>, nk_reduce_moments_u32_neon,
+                   nk_reduce_moments_u32_serial);
+    run_if_matches("reduce_moments_i64_neon", test_reduce_moments<i64_t>, nk_reduce_moments_i64_neon,
+                   nk_reduce_moments_i64_serial);
+    run_if_matches("reduce_moments_u64_neon", test_reduce_moments<u64_t>, nk_reduce_moments_u64_neon,
+                   nk_reduce_moments_u64_serial);
+    run_if_matches("reduce_moments_e4m3_neon", test_reduce_moments<e4m3_t>, nk_reduce_moments_e4m3_neon,
+                   nk_reduce_moments_e4m3_serial);
+    run_if_matches("reduce_moments_e5m2_neon", test_reduce_moments<e5m2_t>, nk_reduce_moments_e5m2_neon,
+                   nk_reduce_moments_e5m2_serial);
+    run_if_matches("reduce_moments_e2m3_neon", test_reduce_moments<e2m3_t>, nk_reduce_moments_e2m3_neon,
+                   nk_reduce_moments_e2m3_serial);
+    run_if_matches("reduce_moments_e3m2_neon", test_reduce_moments<e3m2_t>, nk_reduce_moments_e3m2_neon,
+                   nk_reduce_moments_e3m2_serial);
+    run_if_matches("reduce_minmax_f32_neon", test_reduce_minmax<f32_t>, nk_reduce_minmax_f32_neon,
+                   nk_reduce_minmax_f32_serial);
+    run_if_matches("reduce_minmax_f64_neon", test_reduce_minmax<f64_t>, nk_reduce_minmax_f64_neon,
+                   nk_reduce_minmax_f64_serial);
+    run_if_matches("reduce_minmax_i8_neon", test_reduce_minmax<i8_t>, nk_reduce_minmax_i8_neon,
+                   nk_reduce_minmax_i8_serial);
+    run_if_matches("reduce_minmax_u8_neon", test_reduce_minmax<u8_t>, nk_reduce_minmax_u8_neon,
+                   nk_reduce_minmax_u8_serial);
+    run_if_matches("reduce_minmax_i16_neon", test_reduce_minmax<i16_t>, nk_reduce_minmax_i16_neon,
+                   nk_reduce_minmax_i16_serial);
+    run_if_matches("reduce_minmax_u16_neon", test_reduce_minmax<u16_t>, nk_reduce_minmax_u16_neon,
+                   nk_reduce_minmax_u16_serial);
+    run_if_matches("reduce_minmax_i32_neon", test_reduce_minmax<i32_t>, nk_reduce_minmax_i32_neon,
+                   nk_reduce_minmax_i32_serial);
+    run_if_matches("reduce_minmax_u32_neon", test_reduce_minmax<u32_t>, nk_reduce_minmax_u32_neon,
+                   nk_reduce_minmax_u32_serial);
+    run_if_matches("reduce_minmax_i64_neon", test_reduce_minmax<i64_t>, nk_reduce_minmax_i64_neon,
+                   nk_reduce_minmax_i64_serial);
+    run_if_matches("reduce_minmax_u64_neon", test_reduce_minmax<u64_t>, nk_reduce_minmax_u64_neon,
+                   nk_reduce_minmax_u64_serial);
+    run_if_matches("reduce_minmax_e4m3_neon", test_reduce_minmax<e4m3_t>, nk_reduce_minmax_e4m3_neon,
+                   nk_reduce_minmax_e4m3_serial);
+    run_if_matches("reduce_minmax_e5m2_neon", test_reduce_minmax<e5m2_t>, nk_reduce_minmax_e5m2_neon,
+                   nk_reduce_minmax_e5m2_serial);
+    run_if_matches("reduce_minmax_e2m3_neon", test_reduce_minmax<e2m3_t>, nk_reduce_minmax_e2m3_neon,
+                   nk_reduce_minmax_e2m3_serial);
+    run_if_matches("reduce_minmax_e3m2_neon", test_reduce_minmax<e3m2_t>, nk_reduce_minmax_e3m2_neon,
+                   nk_reduce_minmax_e3m2_serial);
+#endif // NK_TARGET_NEON
 
-#endif
+#if NK_TARGET_NEONHALF
+    run_if_matches("reduce_moments_f16_neonhalf", test_reduce_moments<f16_t>, nk_reduce_moments_f16_neonhalf,
+                   nk_reduce_moments_f16_serial);
+    run_if_matches("reduce_minmax_f16_neonhalf", test_reduce_minmax<f16_t>, nk_reduce_minmax_f16_neonhalf,
+                   nk_reduce_minmax_f16_serial);
+#endif // NK_TARGET_NEONHALF
+
+#if NK_TARGET_NEONBFDOT
+    run_if_matches("reduce_moments_bf16_neonbfdot", test_reduce_moments<bf16_t>, nk_reduce_moments_bf16_neonbfdot,
+                   nk_reduce_moments_bf16_serial);
+    run_if_matches("reduce_minmax_bf16_neonbfdot", test_reduce_minmax<bf16_t>, nk_reduce_minmax_bf16_neonbfdot,
+                   nk_reduce_minmax_bf16_serial);
+#endif // NK_TARGET_NEONBFDOT
+
+#if NK_TARGET_NEONSDOT
+    run_if_matches("reduce_moments_i8_neonsdot", test_reduce_moments<i8_t>, nk_reduce_moments_i8_neonsdot,
+                   nk_reduce_moments_i8_serial);
+    run_if_matches("reduce_moments_u8_neonsdot", test_reduce_moments<u8_t>, nk_reduce_moments_u8_neonsdot,
+                   nk_reduce_moments_u8_serial);
+    run_if_matches("reduce_moments_e2m3_neonsdot", test_reduce_moments<e2m3_t>, nk_reduce_moments_e2m3_neonsdot,
+                   nk_reduce_moments_e2m3_serial);
+#endif // NK_TARGET_NEONSDOT
+
+#if NK_TARGET_NEONFHM
+    run_if_matches("reduce_moments_e4m3_neonfhm", test_reduce_moments<e4m3_t>, nk_reduce_moments_e4m3_neonfhm,
+                   nk_reduce_moments_e4m3_serial);
+    run_if_matches("reduce_moments_e5m2_neonfhm", test_reduce_moments<e5m2_t>, nk_reduce_moments_e5m2_neonfhm,
+                   nk_reduce_moments_e5m2_serial);
+    run_if_matches("reduce_moments_e3m2_neonfhm", test_reduce_moments<e3m2_t>, nk_reduce_moments_e3m2_neonfhm,
+                   nk_reduce_moments_e3m2_serial);
+    run_if_matches("reduce_minmax_e4m3_neonfhm", test_reduce_minmax<e4m3_t>, nk_reduce_minmax_e4m3_neonfhm,
+                   nk_reduce_minmax_e4m3_serial);
+    run_if_matches("reduce_minmax_e5m2_neonfhm", test_reduce_minmax<e5m2_t>, nk_reduce_minmax_e5m2_neonfhm,
+                   nk_reduce_minmax_e5m2_serial);
+#endif // NK_TARGET_NEONFHM
 
 #if NK_TARGET_HASWELL
     run_if_matches("reduce_moments_f32_haswell", test_reduce_moments<f32_t>, nk_reduce_moments_f32_haswell,
@@ -241,6 +388,14 @@ void test_reduce() {
 #endif
 
 #if NK_TARGET_SIERRA
+    run_if_matches("reduce_moments_i8_sierra", test_reduce_moments<i8_t>, nk_reduce_moments_i8_sierra,
+                   nk_reduce_moments_i8_serial);
+    run_if_matches("reduce_moments_u8_sierra", test_reduce_moments<u8_t>, nk_reduce_moments_u8_sierra,
+                   nk_reduce_moments_u8_serial);
+    run_if_matches("reduce_moments_i16_sierra", test_reduce_moments<i16_t>, nk_reduce_moments_i16_sierra,
+                   nk_reduce_moments_i16_serial);
+    run_if_matches("reduce_moments_u16_sierra", test_reduce_moments<u16_t>, nk_reduce_moments_u16_sierra,
+                   nk_reduce_moments_u16_serial);
     run_if_matches("reduce_moments_e2m3_sierra", test_reduce_moments<e2m3_t>, nk_reduce_moments_e2m3_sierra,
                    nk_reduce_moments_e2m3_serial);
     run_if_matches("reduce_moments_e3m2_sierra", test_reduce_moments<e3m2_t>, nk_reduce_moments_e3m2_sierra,
@@ -313,6 +468,74 @@ void test_reduce() {
     run_if_matches("reduce_minmax_e3m2_rvv", test_reduce_minmax<e3m2_t>, nk_reduce_minmax_e3m2_rvv,
                    nk_reduce_minmax_e3m2_serial);
 #endif
+
+#if NK_TARGET_V128RELAXED
+    run_if_matches("reduce_moments_f32_v128relaxed", test_reduce_moments<f32_t>, nk_reduce_moments_f32_v128relaxed,
+                   nk_reduce_moments_f32_serial);
+    run_if_matches("reduce_moments_f64_v128relaxed", test_reduce_moments<f64_t>, nk_reduce_moments_f64_v128relaxed,
+                   nk_reduce_moments_f64_serial);
+    run_if_matches("reduce_moments_i8_v128relaxed", test_reduce_moments<i8_t>, nk_reduce_moments_i8_v128relaxed,
+                   nk_reduce_moments_i8_serial);
+    run_if_matches("reduce_moments_u8_v128relaxed", test_reduce_moments<u8_t>, nk_reduce_moments_u8_v128relaxed,
+                   nk_reduce_moments_u8_serial);
+    run_if_matches("reduce_moments_i16_v128relaxed", test_reduce_moments<i16_t>, nk_reduce_moments_i16_v128relaxed,
+                   nk_reduce_moments_i16_serial);
+    run_if_matches("reduce_moments_u16_v128relaxed", test_reduce_moments<u16_t>, nk_reduce_moments_u16_v128relaxed,
+                   nk_reduce_moments_u16_serial);
+    run_if_matches("reduce_moments_i32_v128relaxed", test_reduce_moments<i32_t>, nk_reduce_moments_i32_v128relaxed,
+                   nk_reduce_moments_i32_serial);
+    run_if_matches("reduce_moments_u32_v128relaxed", test_reduce_moments<u32_t>, nk_reduce_moments_u32_v128relaxed,
+                   nk_reduce_moments_u32_serial);
+    run_if_matches("reduce_moments_i64_v128relaxed", test_reduce_moments<i64_t>, nk_reduce_moments_i64_v128relaxed,
+                   nk_reduce_moments_i64_serial);
+    run_if_matches("reduce_moments_u64_v128relaxed", test_reduce_moments<u64_t>, nk_reduce_moments_u64_v128relaxed,
+                   nk_reduce_moments_u64_serial);
+    run_if_matches("reduce_moments_e4m3_v128relaxed", test_reduce_moments<e4m3_t>, nk_reduce_moments_e4m3_v128relaxed,
+                   nk_reduce_moments_e4m3_serial);
+    run_if_matches("reduce_moments_e5m2_v128relaxed", test_reduce_moments<e5m2_t>, nk_reduce_moments_e5m2_v128relaxed,
+                   nk_reduce_moments_e5m2_serial);
+    run_if_matches("reduce_moments_e2m3_v128relaxed", test_reduce_moments<e2m3_t>, nk_reduce_moments_e2m3_v128relaxed,
+                   nk_reduce_moments_e2m3_serial);
+    run_if_matches("reduce_moments_e3m2_v128relaxed", test_reduce_moments<e3m2_t>, nk_reduce_moments_e3m2_v128relaxed,
+                   nk_reduce_moments_e3m2_serial);
+    run_if_matches("reduce_moments_bf16_v128relaxed", test_reduce_moments<bf16_t>, nk_reduce_moments_bf16_v128relaxed,
+                   nk_reduce_moments_bf16_serial);
+    run_if_matches("reduce_moments_f16_v128relaxed", test_reduce_moments<f16_t>, nk_reduce_moments_f16_v128relaxed,
+                   nk_reduce_moments_f16_serial);
+    run_if_matches("reduce_minmax_f32_v128relaxed", test_reduce_minmax<f32_t>, nk_reduce_minmax_f32_v128relaxed,
+                   nk_reduce_minmax_f32_serial);
+    run_if_matches("reduce_minmax_f64_v128relaxed", test_reduce_minmax<f64_t>, nk_reduce_minmax_f64_v128relaxed,
+                   nk_reduce_minmax_f64_serial);
+    run_if_matches("reduce_minmax_i8_v128relaxed", test_reduce_minmax<i8_t>, nk_reduce_minmax_i8_v128relaxed,
+                   nk_reduce_minmax_i8_serial);
+    run_if_matches("reduce_minmax_u8_v128relaxed", test_reduce_minmax<u8_t>, nk_reduce_minmax_u8_v128relaxed,
+                   nk_reduce_minmax_u8_serial);
+    run_if_matches("reduce_minmax_i16_v128relaxed", test_reduce_minmax<i16_t>, nk_reduce_minmax_i16_v128relaxed,
+                   nk_reduce_minmax_i16_serial);
+    run_if_matches("reduce_minmax_u16_v128relaxed", test_reduce_minmax<u16_t>, nk_reduce_minmax_u16_v128relaxed,
+                   nk_reduce_minmax_u16_serial);
+    run_if_matches("reduce_minmax_i32_v128relaxed", test_reduce_minmax<i32_t>, nk_reduce_minmax_i32_v128relaxed,
+                   nk_reduce_minmax_i32_serial);
+    run_if_matches("reduce_minmax_u32_v128relaxed", test_reduce_minmax<u32_t>, nk_reduce_minmax_u32_v128relaxed,
+                   nk_reduce_minmax_u32_serial);
+    run_if_matches("reduce_minmax_i64_v128relaxed", test_reduce_minmax<i64_t>, nk_reduce_minmax_i64_v128relaxed,
+                   nk_reduce_minmax_i64_serial);
+    run_if_matches("reduce_minmax_u64_v128relaxed", test_reduce_minmax<u64_t>, nk_reduce_minmax_u64_v128relaxed,
+                   nk_reduce_minmax_u64_serial);
+    run_if_matches("reduce_minmax_e4m3_v128relaxed", test_reduce_minmax<e4m3_t>, nk_reduce_minmax_e4m3_v128relaxed,
+                   nk_reduce_minmax_e4m3_serial);
+    run_if_matches("reduce_minmax_e5m2_v128relaxed", test_reduce_minmax<e5m2_t>, nk_reduce_minmax_e5m2_v128relaxed,
+                   nk_reduce_minmax_e5m2_serial);
+    run_if_matches("reduce_minmax_e2m3_v128relaxed", test_reduce_minmax<e2m3_t>, nk_reduce_minmax_e2m3_v128relaxed,
+                   nk_reduce_minmax_e2m3_serial);
+    run_if_matches("reduce_minmax_e3m2_v128relaxed", test_reduce_minmax<e3m2_t>, nk_reduce_minmax_e3m2_v128relaxed,
+                   nk_reduce_minmax_e3m2_serial);
+    run_if_matches("reduce_minmax_bf16_v128relaxed", test_reduce_minmax<bf16_t>, nk_reduce_minmax_bf16_v128relaxed,
+                   nk_reduce_minmax_bf16_serial);
+    run_if_matches("reduce_minmax_f16_v128relaxed", test_reduce_minmax<f16_t>, nk_reduce_minmax_f16_v128relaxed,
+                   nk_reduce_minmax_f16_serial);
+#endif
+
     run_if_matches("reduce_moments_f32_serial", test_reduce_moments<f32_t>, nk_reduce_moments_f32_serial,
                    nk_reduce_moments_f32_serial);
     run_if_matches("reduce_moments_f64_serial", test_reduce_moments<f64_t>, nk_reduce_moments_f64_serial,

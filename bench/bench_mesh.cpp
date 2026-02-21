@@ -72,6 +72,18 @@ void bench_mesh() {
     mesh_<f64_k, f64_k>("umeyama_f64_neon", nk_umeyama_f64_neon);
 #endif
 
+#if NK_TARGET_NEONHALF
+    mesh_<f16_k, f32_k>("rmsd_f16_neonhalf", nk_rmsd_f16_neonhalf);
+    mesh_<f16_k, f32_k>("kabsch_f16_neonhalf", nk_kabsch_f16_neonhalf);
+    mesh_<f16_k, f32_k>("umeyama_f16_neonhalf", nk_umeyama_f16_neonhalf);
+#endif
+
+#if NK_TARGET_NEONBFDOT
+    mesh_<bf16_k, f32_k>("rmsd_bf16_neonbfdot", nk_rmsd_bf16_neonbfdot);
+    mesh_<bf16_k, f32_k>("kabsch_bf16_neonbfdot", nk_kabsch_bf16_neonbfdot);
+    mesh_<bf16_k, f32_k>("umeyama_bf16_neonbfdot", nk_umeyama_bf16_neonbfdot);
+#endif
+
 #if NK_TARGET_HASWELL
     mesh_<f32_k, f32_k>("rmsd_f32_haswell", nk_rmsd_f32_haswell);
     mesh_<f32_k, f32_k>("kabsch_f32_haswell", nk_kabsch_f32_haswell);
@@ -90,6 +102,25 @@ void bench_mesh() {
 #if NK_TARGET_SKYLAKE
     mesh_<f32_k, f32_k>("rmsd_f32_skylake", nk_rmsd_f32_skylake);
     mesh_<f32_k, f32_k>("kabsch_f32_skylake", nk_kabsch_f32_skylake);
+    mesh_<f32_k, f32_k>("umeyama_f32_skylake", nk_umeyama_f32_skylake);
+    mesh_<f64_k, f64_k>("rmsd_f64_skylake", nk_rmsd_f64_skylake);
+    mesh_<f64_k, f64_k>("kabsch_f64_skylake", nk_kabsch_f64_skylake);
+    mesh_<f64_k, f64_k>("umeyama_f64_skylake", nk_umeyama_f64_skylake);
+#endif
+
+#if NK_TARGET_RVV
+    mesh_<f32_k, f32_k>("rmsd_f32_rvv", nk_rmsd_f32_rvv);
+    mesh_<f32_k, f32_k>("kabsch_f32_rvv", nk_kabsch_f32_rvv);
+    mesh_<f32_k, f32_k>("umeyama_f32_rvv", nk_umeyama_f32_rvv);
+    mesh_<f64_k, f64_k>("rmsd_f64_rvv", nk_rmsd_f64_rvv);
+    mesh_<f64_k, f64_k>("kabsch_f64_rvv", nk_kabsch_f64_rvv);
+    mesh_<f64_k, f64_k>("umeyama_f64_rvv", nk_umeyama_f64_rvv);
+    mesh_<f16_k, f32_k>("rmsd_f16_rvv", nk_rmsd_f16_rvv);
+    mesh_<f16_k, f32_k>("kabsch_f16_rvv", nk_kabsch_f16_rvv);
+    mesh_<f16_k, f32_k>("umeyama_f16_rvv", nk_umeyama_f16_rvv);
+    mesh_<bf16_k, f32_k>("rmsd_bf16_rvv", nk_rmsd_bf16_rvv);
+    mesh_<bf16_k, f32_k>("kabsch_bf16_rvv", nk_kabsch_bf16_rvv);
+    mesh_<bf16_k, f32_k>("umeyama_bf16_rvv", nk_umeyama_bf16_rvv);
 #endif
 
     // Serial fallbacks

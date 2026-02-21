@@ -123,6 +123,18 @@ void test_mesh() {
     run_if_matches("umeyama_f32_neon", test_umeyama<f32_t>, nk_umeyama_f32_neon);
 #endif // NK_TARGET_NEON
 
+#if NK_TARGET_NEONHALF
+    run_if_matches("rmsd_f16_neonhalf", test_rmsd<f16_t>, nk_rmsd_f16_neonhalf);
+    run_if_matches("kabsch_f16_neonhalf", test_kabsch<f16_t>, nk_kabsch_f16_neonhalf);
+    run_if_matches("umeyama_f16_neonhalf", test_umeyama<f16_t>, nk_umeyama_f16_neonhalf);
+#endif // NK_TARGET_NEONHALF
+
+#if NK_TARGET_NEONBFDOT
+    run_if_matches("rmsd_bf16_neonbfdot", test_rmsd<bf16_t>, nk_rmsd_bf16_neonbfdot);
+    run_if_matches("kabsch_bf16_neonbfdot", test_kabsch<bf16_t>, nk_kabsch_bf16_neonbfdot);
+    run_if_matches("umeyama_bf16_neonbfdot", test_umeyama<bf16_t>, nk_umeyama_bf16_neonbfdot);
+#endif // NK_TARGET_NEONBFDOT
+
 #if NK_TARGET_HASWELL
     run_if_matches("rmsd_f64_haswell", test_rmsd<f64_t>, nk_rmsd_f64_haswell);
     run_if_matches("rmsd_f32_haswell", test_rmsd<f32_t>, nk_rmsd_f32_haswell);
@@ -146,6 +158,21 @@ void test_mesh() {
     run_if_matches("umeyama_f64_skylake", test_umeyama<f64_t>, nk_umeyama_f64_skylake);
     run_if_matches("umeyama_f32_skylake", test_umeyama<f32_t>, nk_umeyama_f32_skylake);
 #endif // NK_TARGET_SKYLAKE
+
+#if NK_TARGET_RVV
+    run_if_matches("rmsd_f64_rvv", test_rmsd<f64_t>, nk_rmsd_f64_rvv);
+    run_if_matches("rmsd_f32_rvv", test_rmsd<f32_t>, nk_rmsd_f32_rvv);
+    run_if_matches("rmsd_f16_rvv", test_rmsd<f16_t>, nk_rmsd_f16_rvv);
+    run_if_matches("rmsd_bf16_rvv", test_rmsd<bf16_t>, nk_rmsd_bf16_rvv);
+    run_if_matches("kabsch_f64_rvv", test_kabsch<f64_t>, nk_kabsch_f64_rvv);
+    run_if_matches("kabsch_f32_rvv", test_kabsch<f32_t>, nk_kabsch_f32_rvv);
+    run_if_matches("kabsch_f16_rvv", test_kabsch<f16_t>, nk_kabsch_f16_rvv);
+    run_if_matches("kabsch_bf16_rvv", test_kabsch<bf16_t>, nk_kabsch_bf16_rvv);
+    run_if_matches("umeyama_f64_rvv", test_umeyama<f64_t>, nk_umeyama_f64_rvv);
+    run_if_matches("umeyama_f32_rvv", test_umeyama<f32_t>, nk_umeyama_f32_rvv);
+    run_if_matches("umeyama_f16_rvv", test_umeyama<f16_t>, nk_umeyama_f16_rvv);
+    run_if_matches("umeyama_bf16_rvv", test_umeyama<bf16_t>, nk_umeyama_bf16_rvv);
+#endif // NK_TARGET_RVV
 
     // Serial always runs - baseline test
     run_if_matches("rmsd_f64_serial", test_rmsd<f64_t>, nk_rmsd_f64_serial);

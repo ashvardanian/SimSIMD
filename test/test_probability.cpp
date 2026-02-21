@@ -88,12 +88,40 @@ void test_probability() {
     run_if_matches("jsd_f32_neon", test_jsd<f32_t>, nk_jsd_f32_neon);
 #endif // NK_TARGET_NEON
 
+#if NK_TARGET_NEONHALF
+    run_if_matches("kld_f16_neonhalf", test_kld<f16_t>, nk_kld_f16_neonhalf);
+    run_if_matches("jsd_f16_neonhalf", test_jsd<f16_t>, nk_jsd_f16_neonhalf);
+#endif // NK_TARGET_NEONHALF
+
+#if NK_TARGET_HASWELL
+    run_if_matches("kld_f16_haswell", test_kld<f16_t>, nk_kld_f16_haswell);
+    run_if_matches("kld_f64_haswell", test_kld<f64_t>, nk_kld_f64_haswell);
+    run_if_matches("jsd_f16_haswell", test_jsd<f16_t>, nk_jsd_f16_haswell);
+    run_if_matches("jsd_f64_haswell", test_jsd<f64_t>, nk_jsd_f64_haswell);
+#endif // NK_TARGET_HASWELL
+
 #if NK_TARGET_SKYLAKE
     run_if_matches("kld_f32_skylake", test_kld<f32_t>, nk_kld_f32_skylake);
     run_if_matches("kld_f64_skylake", test_kld<f64_t>, nk_kld_f64_skylake);
     run_if_matches("jsd_f32_skylake", test_jsd<f32_t>, nk_jsd_f32_skylake);
     run_if_matches("jsd_f64_skylake", test_jsd<f64_t>, nk_jsd_f64_skylake);
 #endif // NK_TARGET_SKYLAKE
+
+#if NK_TARGET_SAPPHIRE
+    run_if_matches("kld_f16_sapphire", test_kld<f16_t>, nk_kld_f16_sapphire);
+    run_if_matches("jsd_f16_sapphire", test_jsd<f16_t>, nk_jsd_f16_sapphire);
+#endif // NK_TARGET_SAPPHIRE
+
+#if NK_TARGET_RVV
+    run_if_matches("kld_f32_rvv", test_kld<f32_t>, nk_kld_f32_rvv);
+    run_if_matches("kld_f64_rvv", test_kld<f64_t>, nk_kld_f64_rvv);
+    run_if_matches("kld_f16_rvv", test_kld<f16_t>, nk_kld_f16_rvv);
+    run_if_matches("kld_bf16_rvv", test_kld<bf16_t>, nk_kld_bf16_rvv);
+    run_if_matches("jsd_f32_rvv", test_jsd<f32_t>, nk_jsd_f32_rvv);
+    run_if_matches("jsd_f64_rvv", test_jsd<f64_t>, nk_jsd_f64_rvv);
+    run_if_matches("jsd_f16_rvv", test_jsd<f16_t>, nk_jsd_f16_rvv);
+    run_if_matches("jsd_bf16_rvv", test_jsd<bf16_t>, nk_jsd_bf16_rvv);
+#endif // NK_TARGET_RVV
 
     // Serial always runs - baseline test
     run_if_matches("kld_f32_serial", test_kld<f32_t>, nk_kld_f32_serial);

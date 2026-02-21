@@ -13,6 +13,7 @@ void bench_probability() {
     constexpr nk_dtype_t f32_k = nk_f32_k;
     constexpr nk_dtype_t f16_k = nk_f16_k;
     constexpr nk_dtype_t bf16_k = nk_bf16_k;
+    constexpr nk_dtype_t f64_k = nk_f64_k;
 
 #if NK_TARGET_NEON
     dense_<f32_k, f32_k>("kld_f32_neon", nk_kld_f32_neon);
@@ -27,11 +28,15 @@ void bench_probability() {
 #if NK_TARGET_HASWELL
     dense_<f16_k, f32_k>("kld_f16_haswell", nk_kld_f16_haswell);
     dense_<f16_k, f32_k>("jsd_f16_haswell", nk_jsd_f16_haswell);
+    dense_<f64_k, f64_k>("kld_f64_haswell", nk_kld_f64_haswell);
+    dense_<f64_k, f64_k>("jsd_f64_haswell", nk_jsd_f64_haswell);
 #endif
 
 #if NK_TARGET_SKYLAKE
     dense_<f32_k, f32_k>("kld_f32_skylake", nk_kld_f32_skylake);
     dense_<f32_k, f32_k>("jsd_f32_skylake", nk_jsd_f32_skylake);
+    dense_<f64_k, f64_k>("kld_f64_skylake", nk_kld_f64_skylake);
+    dense_<f64_k, f64_k>("jsd_f64_skylake", nk_jsd_f64_skylake);
 #endif
 
 #if NK_TARGET_SAPPHIRE
@@ -39,6 +44,16 @@ void bench_probability() {
     dense_<f16_k, f32_k>("jsd_f16_sapphire", nk_jsd_f16_sapphire);
 #endif
 
+#if NK_TARGET_RVV
+    dense_<f32_k, f32_k>("kld_f32_rvv", nk_kld_f32_rvv);
+    dense_<f32_k, f32_k>("jsd_f32_rvv", nk_jsd_f32_rvv);
+    dense_<f64_k, f64_k>("kld_f64_rvv", nk_kld_f64_rvv);
+    dense_<f64_k, f64_k>("jsd_f64_rvv", nk_jsd_f64_rvv);
+    dense_<f16_k, f32_k>("kld_f16_rvv", nk_kld_f16_rvv);
+    dense_<f16_k, f32_k>("jsd_f16_rvv", nk_jsd_f16_rvv);
+    dense_<bf16_k, f32_k>("kld_bf16_rvv", nk_kld_bf16_rvv);
+    dense_<bf16_k, f32_k>("jsd_bf16_rvv", nk_jsd_bf16_rvv);
+#endif
     // Serial fallbacks
     dense_<bf16_k, f32_k>("kld_bf16_serial", nk_kld_bf16_serial);
     dense_<bf16_k, f32_k>("jsd_bf16_serial", nk_jsd_bf16_serial);
@@ -46,4 +61,6 @@ void bench_probability() {
     dense_<f16_k, f32_k>("jsd_f16_serial", nk_jsd_f16_serial);
     dense_<f32_k, f32_k>("kld_f32_serial", nk_kld_f32_serial);
     dense_<f32_k, f32_k>("jsd_f32_serial", nk_jsd_f32_serial);
+    dense_<f64_k, f64_k>("kld_f64_serial", nk_kld_f64_serial);
+    dense_<f64_k, f64_k>("jsd_f64_serial", nk_jsd_f64_serial);
 }
