@@ -4,7 +4,7 @@
  *  @author Ash Vardanian
  *  @date February 10, 2026
  *
- *  Computes MaxSim(Q, D) = Σ_i max_j dot(q_i, d_j) using ARM SME outer products.
+ *  Computes MaxSim(Q, D) = Σᵢ maxⱼ dot(qᵢ, dⱼ) using ARM SME outer products.
  *
  *  Both Q and D are pre-packed with `nk_dots_pack_bf16_sme` from `dots/sme.h`.
  *  This frees all 4 ZA tiles for accumulation (vs 3 with A-side staging).
@@ -68,9 +68,9 @@ extern "C" {
  *
  *  1-tile remainder: uses ZA0 only, with predicated loads for partial tiles.
  */
-__arm_locally_streaming __arm_new("za") static nk_f32_t nk_maxsim_packed_f16_kernel_( //
-    void const *q_packed, nk_size_t n_q,                                              //
-    void const *d_packed, nk_size_t n_d,                                              //
+__arm_locally_streaming __arm_new("za") static nk_f32_t nk_maxsim_packed_f16_streaming_( //
+    void const *q_packed, nk_size_t n_q,                                                 //
+    void const *d_packed, nk_size_t n_d,                                                 //
     nk_size_t depth) {
 
     nk_dots_sme_packed_header_t const *q_header = (nk_dots_sme_packed_header_t const *)q_packed;
@@ -197,7 +197,7 @@ NK_PUBLIC nk_f32_t nk_maxsim_packed_f16_sme( //
     void const *d_packed, nk_size_t n_d,     //
     nk_size_t depth) {
 
-    return nk_maxsim_packed_f16_kernel_(q_packed, n_q, d_packed, n_d, depth);
+    return nk_maxsim_packed_f16_streaming_(q_packed, n_q, d_packed, n_d, depth);
 }
 
 /**
@@ -209,9 +209,9 @@ NK_PUBLIC nk_f32_t nk_maxsim_packed_f16_sme( //
  *
  *  1-tile remainder: uses ZA0 only, with predicated loads for partial tiles.
  */
-__arm_locally_streaming __arm_new("za") static nk_f32_t nk_maxsim_packed_bf16_kernel_( //
-    void const *q_packed, nk_size_t n_q,                                               //
-    void const *d_packed, nk_size_t n_d,                                               //
+__arm_locally_streaming __arm_new("za") static nk_f32_t nk_maxsim_packed_bf16_streaming_( //
+    void const *q_packed, nk_size_t n_q,                                                  //
+    void const *d_packed, nk_size_t n_d,                                                  //
     nk_size_t depth) {
 
     nk_dots_sme_packed_header_t const *q_header = (nk_dots_sme_packed_header_t const *)q_packed;
@@ -338,7 +338,7 @@ NK_PUBLIC nk_f32_t nk_maxsim_packed_bf16_sme( //
     void const *d_packed, nk_size_t n_d,      //
     nk_size_t depth) {
 
-    return nk_maxsim_packed_bf16_kernel_(q_packed, n_q, d_packed, n_d, depth);
+    return nk_maxsim_packed_bf16_streaming_(q_packed, n_q, d_packed, n_d, depth);
 }
 
 #if defined(__clang__)
