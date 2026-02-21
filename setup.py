@@ -64,7 +64,6 @@ def linux_settings() -> Tuple[List[str], List[str], List[Tuple[str, str]]]:
         "-fvisibility=default",
         "-fPIC",
         "-w",  # Hush warnings
-        "-fopenmp",  # Enable OpenMP for parallelization
     ]
     # On RISC-V, GCC needs `-march` with V extension for vector types to be
     # available at translation-unit scope (`#pragma GCC target` only affects
@@ -75,7 +74,6 @@ def linux_settings() -> Tuple[List[str], List[str], List[Tuple[str, str]]]:
         compile_args.append("-march=rv64gcv_zvfh_zvfbfwma_zvbb")
     link_args = [
         "-shared",
-        "-fopenmp",  # Link against OpenMP
         "-lm",  # Add vectorized `logf` implementation from the `glibc`
     ]
     # On Linux with GCC, enable all SIMD targets for the detected architecture
@@ -283,9 +281,12 @@ if _is_editable_install():
 # Use glob to find all dispatch files
 base_sources = [
     "python/numkong.c",
-    "python/numerics.c",
     "python/tensor.c",
+    "python/matrix.c",
     "python/scalars.c",
+    "python/distance.c",
+    "python/each.c",
+    "python/mesh.c",
     "c/numkong.c",
 ]
 

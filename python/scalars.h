@@ -11,8 +11,8 @@
  *    nk.bfloat16(3.14) == 3.14   → comparison with other numbers
  *    nk.bfloat16(1.0) + nk.bfloat16(2.0)  → arithmetic
  */
-#ifndef NK_SCALARS_H
-#define NK_SCALARS_H
+#ifndef NK_PYTHON_SCALARS_H
+#define NK_PYTHON_SCALARS_H
 
 #define PY_SSIZE_T_CLEAN
 #include <Python.h>
@@ -23,33 +23,42 @@
 extern "C" {
 #endif
 
-// These are Python objects representing single values of our custom types.
-
 typedef struct {
-    PyObject_HEAD nk_f16_t value;
+    PyObject_HEAD
+    /** Stored value. */
+    nk_f16_t value;
 } NkFloat16ScalarObject;
 
 typedef struct {
-    PyObject_HEAD nk_bf16_t value;
+    PyObject_HEAD
+    /** Stored value. */
+    nk_bf16_t value;
 } NkBFloat16ScalarObject;
 
 typedef struct {
-    PyObject_HEAD nk_e4m3_t value;
+    PyObject_HEAD
+    /** Stored value. */
+    nk_e4m3_t value;
 } NkFloat8E4M3ScalarObject;
 
 typedef struct {
-    PyObject_HEAD nk_e5m2_t value;
+    PyObject_HEAD
+    /** Stored value. */
+    nk_e5m2_t value;
 } NkFloat8E5M2ScalarObject;
 
 typedef struct {
-    PyObject_HEAD nk_e2m3_t value;
+    PyObject_HEAD
+    /** Stored value. */
+    nk_e2m3_t value;
 } NkFloat6E2M3ScalarObject;
 
 typedef struct {
-    PyObject_HEAD nk_e3m2_t value;
+    PyObject_HEAD
+    /** Stored value. */
+    nk_e3m2_t value;
 } NkFloat6E3M2ScalarObject;
 
-// Scalar type objects (defined in scalars.c)
 extern PyTypeObject NkFloat16Scalar_Type;
 extern PyTypeObject NkBFloat16Scalar_Type;
 extern PyTypeObject NkFloat8E4M3Scalar_Type;
@@ -72,4 +81,4 @@ int nk_register_scalar_types(PyObject *module);
 }
 #endif
 
-#endif // NK_SCALARS_H
+#endif // NK_PYTHON_SCALARS_H

@@ -488,15 +488,20 @@ def multiply(
 
 # endregion Elementwise Arithmetic
 
-# region Packed Matmul
-# Packed matrix multiplication (AMX accelerated).
+# region Packed Matrix Operations
 
+# Packed matrix multiplication and Hamming distance (AMX/AVX-512 accelerated).
 class PackedMatrix:
-    """Opaque pre-packed matrix for repeated matrix multiplication.
+    """Opaque pre-packed matrix for repeated matrix multiplication or Hamming distance.
 
-    Created by pack_matmul_argument() and used with matmul().
-    Requires AMX support (Sapphire Rapids or newer CPU).
+    Created by dots_pack() or hammings_pack() and used with
+    dots_packed(), hammings_packed(), or the @ operator.
     """
+
+    @property
+    def kind(self) -> str:
+        """Kernel kind ('dots' or 'hammings')."""
+        ...
 
     @property
     def n(self) -> int:
@@ -518,22 +523,52 @@ class PackedMatrix:
         """Size of the packed buffer in bytes."""
         ...
 
+    @classmethod
+    def packed_size(
+        cls,
+        n: int,
+        k: int,
+        /,
+        dtype: Union[_IntegralType, _FloatType, _ComplexType] = "bf16",
+        kind: str = "dots",
+    ) -> int:
+        """Return the packed buffer size in bytes for given dimensions and dtype."""
+        ...
+
     def __repr__(self) -> str:
         """Return a string representation."""
         ...
 
-# Pack a matrix for repeated matmul.
-def pack_matmul_argument(
+# Pack a matrix for repeated dot-product matmul.
+def dots_pack(
     b: _BufferType,
     /,
     dtype: Optional[Union[_IntegralType, _FloatType, _ComplexType]] = None,
 ) -> PackedMatrix: ...
 
-# Matrix multiplication with pre-packed B matrix.
-def matmul(
+# Dot-product matrix multiplication with a pre-packed B matrix.
+def dots_packed(
     a: _BufferType,
     b: PackedMatrix,
     /,
+    *,
+    out: Optional[_BufferType] = None,
 ) -> Tensor: ...
 
-# endregion Packed Matmul
+# Pack a matrix for repeated Hamming distance computation.
+def hammings_pack(
+    b: _BufferType,
+    /,
+    dtype: Optional[Union[_IntegralType, _FloatType, _ComplexType]] = None,
+) -> PackedMatrix: ...
+
+# Hamming distance computation with a pre-packed B matrix.
+def hammings_packed(
+    a: _BufferType,
+    b: PackedMatrix,
+    /,
+    *,
+    out: Optional[_BufferType] = None,
+) -> Tensor: ...
+
+# endregion Packed Matrix Operations

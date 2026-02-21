@@ -22,22 +22,30 @@
 extern "C" {
 #endif
 
-#pragma region Tensor Argument Descriptor
-
 /**
- *  @brief Parsed tensor argument from Python buffer protocol.
+ *  @brief Parsed 1D/2D tensor argument from Python buffer protocol.
  *
  *  This structure holds the essential information extracted from a Python
  *  object that supports the buffer protocol (NumPy arrays, PyTorch tensors, etc.)
+ *  Only used for distance/metric APIs that expect 1D or 2D inputs.
  */
-typedef struct TensorArgument {
-    char *start;       ///< Pointer to the first element
-    size_t dimensions; ///< Vector size (1D) or column count (2D)
-    size_t count;      ///< Number of vectors (1 for 1D, num rows for 2D)
-    size_t stride;     ///< Stride between rows in bytes (0 for 1D)
-    int rank;          ///< Number of dimensions (1 or 2)
-    nk_dtype_t dtype;  ///< Logical dtype
-} TensorArgument;
+typedef struct MatrixOrVectorView {
+    /** Pointer to the first element. */
+    char *start;
+    /** Vector size (1D) or column count (2D). */
+    size_t dimensions;
+    /** Number of vectors (1 for 1D, num rows for 2D). */
+    size_t count;
+    /** Stride between rows in bytes (0 for 1D). */
+    size_t stride;
+    /** Number of dimensions (1 or 2). */
+    int rank;
+    /** Logical dtype. */
+    nk_dtype_t dtype;
+} MatrixOrVectorView;
+
+/** @brief Backward-compatible alias. */
+typedef MatrixOrVectorView TensorArgument;
 
 /**
  *  @brief Lightweight view for stride-aware operations.
@@ -46,34 +54,37 @@ typedef struct TensorArgument {
  *  with arbitrary strides.
  */
 typedef struct TensorView {
-    nk_dtype_t dtype;          ///< Logical dtype
-    size_t rank;               ///< Number of dimensions
-    Py_ssize_t const *shape;   ///< Shape array (borrowed pointer)
-    Py_ssize_t const *strides; ///< Strides array in bytes (borrowed pointer)
-    char *data;                ///< Data pointer
+    /** Logical dtype. */
+    nk_dtype_t dtype;
+    /** Number of dimensions. */
+    size_t rank;
+    /** Shape array (borrowed pointer). */
+    Py_ssize_t const *shape;
+    /** Strides array in bytes (borrowed pointer). */
+    Py_ssize_t const *strides;
+    /** Data pointer. */
+    char *data;
 } TensorView;
 
-#pragma endregion // Tensor Argument Descriptor
-
-#pragma region Datatype Metadata
-
-/**  @brief Metadata for a single dtype.  */
+/** @brief Metadata for a single dtype.  */
 typedef struct {
-    nk_dtype_t dtype;          ///< Logical dtype enum value
-    char const *name;          ///< Human-readable name (e.g., "float32")
-    char const *buffer_format; ///< Python buffer protocol format string
-    char const *array_typestr; ///< NumPy array interface typestr
-    size_t item_size;          ///< Size in bytes per element
-    int is_complex;            ///< 1 if complex type, 0 otherwise
+    /** Logical dtype enum value. */
+    nk_dtype_t dtype;
+    /** Human-readable name (e.g., "float32"). */
+    char const *name;
+    /** Python buffer protocol format string. */
+    char const *buffer_format;
+    /** NumPy array interface typestr. */
+    char const *array_typestr;
+    /** Size in bytes per element. */
+    size_t item_size;
+    /** 1 if complex type, 0 otherwise. */
+    int is_complex;
 } nk_dtype_info_t;
 
-/// Global dtype metadata table.
+/** @brief Global dtype metadata table. */
 extern nk_dtype_info_t const nk_dtype_table[];
 extern size_t const nk_dtype_table_size;
-
-#pragma endregion // Datatype Metadata
-
-#pragma region Datatype Utilities
 
 /**
  *  @brief Look up metadata for a dtype.
@@ -162,22 +173,63 @@ int cast_distance(nk_fmax_t distance, nk_dtype_t target_dtype, void *target_ptr,
  */
 int kernel_is_commutative(nk_kernel_kind_t kind);
 
-#pragma endregion // Datatype Utilities
-
-#pragma region Buffer Protocol Helpers
+/**
+ *  @brief Extract a double value from a scalar buffer given its dtype.
+ */
+double nk_scalar_buffer_get_f64(nk_scalar_buffer_t const *buf, nk_dtype_t dtype);
 
 /**
- *  @brief Parse a Python tensor object into TensorArgument.
+ *  @brief Store a double value into a scalar buffer given its dtype.
+ */
+void nk_scalar_buffer_set_f64(nk_scalar_buffer_t *buf, double value, nk_dtype_t dtype);
+
+/**
+ *  @brief Convert a scalar buffer to the appropriate Python number type.
+ */
+PyObject *scalar_to_py_number(nk_scalar_buffer_t const *buf, nk_dtype_t dtype);
+
+/**
+ *  @brief Store a Python number (float, int, or complex) into a scalar buffer.
+ *  @return 1 on success, 0 on error (with Python exception set).
+ */
+int py_number_to_scalar_buffer(PyObject *obj, nk_scalar_buffer_t *buf, nk_dtype_t dtype);
+
+/**
+ *  @brief Write a scalar buffer result (including complex) to a numpy output array element.
+ *  @return 1 on success, 0 on error.
+ */
+int cast_scalar_buffer(nk_scalar_buffer_t const *buf, nk_dtype_t src_dtype, nk_dtype_t dst_dtype, void *target);
+
+/**
+ *  @brief Determine the common dtype for mixed-type operations (NumPy-style promote_types).
+ *
+ *  Rules:
+ *  - Same type -> same type (no widening)
+ *  - Float + float -> wider (f16+f32 -> f32, f32+f64 -> f64, bf16+f32 -> f32)
+ *  - Exotic floats (e4m3, e5m2, bf16) -> promote through f32
+ *  - Int + int (same sign) -> wider (i8+i32 -> i32)
+ *  - Signed + unsigned -> next wider signed (i8+u8 -> i16, i16+u16 -> i32)
+ *  - Int + float -> float wide enough (i8+f32 -> f32, i32+f32 -> f64)
+ *  - Complex follows component rules
+ *
+ *  @param[in] a First dtype.
+ *  @param[in] b Second dtype.
+ *  @return Promoted dtype, or nk_dtype_unknown_k if promotion is not possible.
+ */
+nk_dtype_t promote_dtypes(nk_dtype_t a, nk_dtype_t b);
+
+/**
+ *  @brief Parse a Python tensor object into MatrixOrVectorView.
  *
  *  Extracts buffer information from any Python object supporting the buffer
  *  protocol. Validates that the tensor is 1D or 2D with contiguous rows.
  *
  *  @param[in] tensor Python object supporting buffer protocol.
  *  @param[out] buffer Output Py_buffer (caller must release with PyBuffer_Release).
- *  @param[out] parsed Output TensorArgument with extracted metadata.
+ *  @param[out] parsed Output MatrixOrVectorView with extracted metadata.
  *  @return 1 on success, 0 on failure (Python exception set).
  */
-int parse_tensor(PyObject *tensor, Py_buffer *buffer, TensorArgument *parsed);
+int parse_tensor(PyObject *tensor, Py_buffer *buffer, MatrixOrVectorView *parsed);
 
 /**
  *  @brief Check if a Python object is a numeric scalar.
@@ -194,9 +246,15 @@ int is_scalar(PyObject *obj);
  */
 int get_scalar_value(PyObject *obj, double *value);
 
-#pragma endregion // Buffer Protocol Helpers
+PyObject *api_enable_capability(PyObject *self, PyObject *cap_name_obj);
+PyObject *api_disable_capability(PyObject *self, PyObject *cap_name_obj);
+PyObject *api_get_capabilities(PyObject *self);
 
-/// CPU capabilities detected at module init time.
+extern char const doc_enable_capability[];
+extern char const doc_disable_capability[];
+extern char const doc_get_capabilities[];
+
+/** @brief CPU capabilities detected at module init time. */
 extern nk_capability_t static_capabilities;
 
 #ifdef __cplusplus
