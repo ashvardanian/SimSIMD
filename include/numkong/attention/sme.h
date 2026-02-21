@@ -1,5 +1,5 @@
 /**
- *  @brief FlashAttention-style kernels for ARM SME.
+ *  @brief FlashAttention-style kernels for SME.
  *  @file include/numkong/attention/sme.h
  *  @author Ash Vardanian
  *  @date January 11, 2026
@@ -157,7 +157,7 @@ NK_INTERNAL nk_f32_t nk_reduce_max_f32_sve_(svbool_t pg, svfloat32_t x) __arm_st
 NK_PUBLIC nk_size_t nk_attention_packed_kv_size_bf16_sme(nk_size_t num_kv_heads, nk_size_t head_dim,
                                                          nk_size_t max_seq_len) {
     // Pad head_dim to multiple of 32 for SME
-    nk_size_t head_dim_padded = (head_dim + 31) / 32 * 32;
+    nk_size_t head_dim_padded = nk_size_round_up_to_multiple_(head_dim, 32);
 
     // K and V each: [num_kv_heads, seq_len, head_dim_padded] in bf16
     nk_size_t kv_size = num_kv_heads * max_seq_len * head_dim_padded * sizeof(nk_bf16_t);
@@ -176,7 +176,7 @@ NK_PUBLIC void nk_attention_pack_kv_bf16_sme(nk_bf16_t const *k, nk_bf16_t const
                                              nk_size_t v_stride, void *kv_packed) {
 
     nk_attention_sme_kv_packed_header_t *header = (nk_attention_sme_kv_packed_header_t *)kv_packed;
-    nk_size_t head_dim_padded = (head_dim + 31) / 32 * 32;
+    nk_size_t head_dim_padded = nk_size_round_up_to_multiple_(head_dim, 32);
 
     // Initialize header
     header->num_kv_heads = (nk_u32_t)num_kv_heads;
@@ -223,7 +223,7 @@ NK_PUBLIC void nk_attention_pack_kv_f16_sme(nk_f16_t const *k, nk_f16_t const *v
                                             nk_size_t v_stride, void *kv_packed) {
 
     nk_attention_sme_kv_packed_header_t *header = (nk_attention_sme_kv_packed_header_t *)kv_packed;
-    nk_size_t head_dim_padded = (head_dim + 31) / 32 * 32;
+    nk_size_t head_dim_padded = nk_size_round_up_to_multiple_(head_dim, 32);
 
     header->num_kv_heads = (nk_u32_t)num_kv_heads;
     header->head_dim = (nk_u32_t)head_dim;

@@ -113,9 +113,6 @@ void nk_dispatch_u1_init_(nk_capability_t caps) {
 
     nk_dispatch_u1_find_(caps, nk_kernel_hamming_k, (nk_kernel_punned_t *)&t->hamming_u1, &used);
     nk_dispatch_u1_find_(caps, nk_kernel_jaccard_k, (nk_kernel_punned_t *)&t->jaccard_u1, &used);
-    nk_dispatch_u1_find_(caps, nk_kernel_dots_packed_size_k, (nk_kernel_punned_t *)&t->dots_packed_size_u1, &used);
-    nk_dispatch_u1_find_(caps, nk_kernel_dots_pack_k, (nk_kernel_punned_t *)&t->dots_pack_u1, &used);
-    nk_dispatch_u1_find_(caps, nk_kernel_dots_packed_k, (nk_kernel_punned_t *)&t->dots_packed_u1, &used);
     nk_dispatch_u1_find_(caps, nk_kernel_hammings_packed_size_k, (nk_kernel_punned_t *)&t->hammings_packed_size_u1,
                          &used);
     nk_dispatch_u1_find_(caps, nk_kernel_hammings_pack_k, (nk_kernel_punned_t *)&t->hammings_pack_u1, &used);

@@ -8,7 +8,7 @@
  *  is optimized for matrix-style operations where you compute distances between:
  *
  *  - All pairs of rows in a query matrix Q against rows in values matrix V
- *  - All pairs within a single matrix values matrix V (symmetric kernel)
+ *  - All pairs within a single values matrix V (symmetric kernel)
  *
  *  @section sets_use_cases Use Cases
  *
@@ -46,18 +46,6 @@ extern "C" {
  *  @return Required buffer size in bytes
  */
 NK_DYNAMIC nk_size_t nk_hammings_packed_size_u1(nk_size_t n, nk_size_t d);
-/** @copydoc nk_hammings_packed_size_u1 */
-NK_DYNAMIC nk_size_t nk_hammings_packed_size_u8(nk_size_t n, nk_size_t d);
-
-/**
- *  @brief Calculate buffer size needed for packing the query matrix for Jaccard distances.
- *  @param[in] n Number of rows in the query matrix
- *  @param[in] d Number of dimensions in each row vector
- *  @return Required buffer size in bytes
- */
-NK_DYNAMIC nk_size_t nk_jaccards_packed_size_u1(nk_size_t n, nk_size_t d);
-/** @copydoc nk_hammings_packed_size_u32 */
-NK_DYNAMIC nk_size_t nk_jaccards_packed_size_u32(nk_size_t n, nk_size_t d);
 
 /**
  *  @brief Pack the queries matrix for efficient Hamming distance computation.
@@ -68,20 +56,6 @@ NK_DYNAMIC nk_size_t nk_jaccards_packed_size_u32(nk_size_t n, nk_size_t d);
  *  @param[out] q_packed Output buffer
  */
 NK_DYNAMIC void nk_hammings_pack_u1(nk_u1x8_t const *q, nk_size_t n, nk_size_t d, nk_size_t q_stride, void *q_packed);
-/** @copydoc nk_hammings_pack_u1 */
-NK_DYNAMIC void nk_hammings_pack_u8(nk_u1x8_t const *q, nk_size_t n, nk_size_t d, nk_size_t q_stride, void *q_packed);
-
-/**
- *  @brief Pack the queries matrix for efficient Jaccard distance computation, precomputing vector magnitudes.
- *  @param[in] q Row major queries matrix with continuous rows, separated a given stride
- *  @param[in] n Number of rows in the queries matrix
- *  @param[in] d Number of bits per vector
- *  @param[in] q_stride Byte stride between rows of the query matrix
- *  @param[out] q_packed Output buffer
- */
-NK_DYNAMIC void nk_jaccards_pack_u1(nk_u1x8_t const *q, nk_size_t n, nk_size_t d, nk_size_t q_stride, void *q_packed);
-/** @copydoc nk_jaccards_pack_u1 */
-NK_DYNAMIC void nk_jaccards_pack_u32(nk_u1x8_t const *q, nk_size_t n, nk_size_t d, nk_size_t q_stride, void *q_packed);
 
 /**
  *  @brief Compute Hamming distances between V rows and packed Q rows.
@@ -94,32 +68,10 @@ NK_DYNAMIC void nk_jaccards_pack_u32(nk_u1x8_t const *q, nk_size_t n, nk_size_t 
  *  @param[in] v_stride_in_bytes Byte stride between rows of A
  *  @param[in] r_stride_in_bytes Byte stride between rows of C
  */
-NK_DYNAMIC void nk_hammings_packed_u1(nk_u1x8_t const *a, void const *q_packed, nk_u32_t *result, nk_size_t rows,
-                                      nk_size_t cols, nk_size_t d, nk_size_t v_stride_in_bytes,
-                                      nk_size_t r_stride_in_bytes);
-/** @copydoc nk_hammings_packed_u1 */
-NK_DYNAMIC void nk_hammings_packed_u8(nk_u8_t const *a, void const *q_packed, nk_u32_t *result, nk_size_t rows,
+NK_DYNAMIC void nk_hammings_packed_u1(nk_u1x8_t const *v, void const *q_packed, nk_u32_t *result, nk_size_t rows,
                                       nk_size_t cols, nk_size_t d, nk_size_t v_stride_in_bytes,
                                       nk_size_t r_stride_in_bytes);
 
-/**
- *  @brief Compute Jaccard distances between V rows and packed Q rows.
- *  @param[in] v Input values matrix
- *  @param[in] q_packed Packed queries matrix
- *  @param[out] result Row-major results matrix
- *  @param[in] rows Number of rows in the results matrix
- *  @param[in] cols Number of columns in the results matrix
- *  @param[in] d Number of dimensions (depth) per vector
- *  @param[in] v_stride_in_bytes Byte stride between rows of A
- *  @param[in] r_stride_in_bytes Byte stride between rows of C
- */
-NK_DYNAMIC void nk_jaccards_packed_u1(nk_u1x8_t const *a, void const *q_packed, nk_u32_t *result, nk_size_t rows,
-                                      nk_size_t cols, nk_size_t d, nk_size_t v_stride_in_bytes,
-                                      nk_size_t r_stride_in_bytes);
-/** @copydoc nk_jaccards_packed_u1 */
-NK_DYNAMIC void nk_jaccards_packed_u32(nk_u32_t const *a, void const *q_packed, nk_u32_t *result, nk_size_t rows,
-                                       nk_size_t cols, nk_size_t d, nk_size_t v_stride_in_bytes,
-                                       nk_size_t r_stride_in_bytes);
 /**
  *  @brief Computes C = A × Aᵀ symmetric Gram matrix of Hamming distances.
  *  @param[in] vectors Input matrix of row vectors in row-major order.
@@ -132,26 +84,8 @@ NK_DYNAMIC void nk_jaccards_packed_u32(nk_u32_t const *a, void const *q_packed, 
  *  @param[in] row_count Number of rows of results to compute (needed for parallelism).
  */
 NK_DYNAMIC void nk_hammings_symmetric_u1(nk_u1x8_t const *vectors, nk_size_t n_vectors, nk_size_t d, nk_size_t stride,
-                                         nk_u32_t *result, nk_size_t result_stride, nk_size_t row_start, nk_size_t n);
-/** @copydoc nk_hammings_packed_u1 */
-NK_DYNAMIC void nk_hammings_symmetric_u8(nk_u8_t const *vectors, nk_size_t n_vectors, nk_size_t d, nk_size_t stride,
-                                         nk_u32_t *result, nk_size_t result_stride, nk_size_t row_start, nk_size_t n);
-/**
- *  @brief Computes C = A × Aᵀ symmetric Gram matrix of Jaccard distances.
- *  @param[in] vectors Input matrix of row vectors in row-major order.
- *  @param[in] n_vectors Number of vectors (rows) in the input matrix.
- *  @param[in] d Dimension of each vector (columns).
- *  @param[in] stride Row stride in bytes for the input matrix.
- *  @param[out] result Output symmetric matrix (n_vectors × n_vectors).
- *  @param[in] result_stride Row stride in bytes for the result matrix.
- *  @param[in] row_start Starting row offset of results to compute (needed for parallelism).
- *  @param[in] row_count Number of rows of results to compute (needed for parallelism).
- */
-NK_DYNAMIC void nk_jaccards_symmetric_u1(nk_u1x8_t const *vectors, nk_size_t n_vectors, nk_size_t d, nk_size_t stride,
-                                         nk_u32_t *result, nk_size_t result_stride, nk_size_t row_start, nk_size_t n);
-/** @copydoc nk_jaccards_packed_u1 */
-NK_DYNAMIC void nk_hammings_symmetric_u32(nk_u32_t const *vectors, nk_size_t n_vectors, nk_size_t d, nk_size_t stride,
-                                          nk_u32_t *result, nk_size_t result_stride, nk_size_t row_start, nk_size_t n);
+                                         nk_u32_t *result, nk_size_t result_stride, nk_size_t row_start,
+                                         nk_size_t row_count);
 
 #if defined(__cplusplus)
 } // extern "C"
@@ -197,34 +131,35 @@ NK_PUBLIC void nk_hammings_pack_u1(nk_u1x8_t const *b, nk_size_t n, nk_size_t d,
 #endif
 }
 
-NK_PUBLIC void nk_hammings_packed_u1(nk_u1x8_t const *a, void const *q_packed, nk_u32_t *result, nk_size_t n,
-                                     nk_size_t column_count, nk_size_t d, nk_size_t v_stride_in_bytes,
+NK_PUBLIC void nk_hammings_packed_u1(nk_u1x8_t const *v, void const *q_packed, nk_u32_t *result, nk_size_t rows,
+                                     nk_size_t cols, nk_size_t d, nk_size_t v_stride_in_bytes,
                                      nk_size_t r_stride_in_bytes) {
 #if NK_TARGET_SMEBI32
-    nk_hammings_packed_u1_smebi32(a, q_packed, result, n, column_count, d, v_stride_in_bytes, r_stride_in_bytes);
+    nk_hammings_packed_u1_smebi32(v, q_packed, result, rows, cols, d, v_stride_in_bytes, r_stride_in_bytes);
 #elif NK_TARGET_NEON
-    nk_hammings_packed_u1_neon(a, q_packed, result, n, column_count, d, v_stride_in_bytes, r_stride_in_bytes);
+    nk_hammings_packed_u1_neon(v, q_packed, result, rows, cols, d, v_stride_in_bytes, r_stride_in_bytes);
 #elif NK_TARGET_ICELAKE
-    nk_hammings_packed_u1_icelake(a, q_packed, result, n, column_count, d, v_stride_in_bytes, r_stride_in_bytes);
+    nk_hammings_packed_u1_icelake(v, q_packed, result, rows, cols, d, v_stride_in_bytes, r_stride_in_bytes);
 #elif NK_TARGET_HASWELL
-    nk_hammings_packed_u1_haswell(a, q_packed, result, n, column_count, d, v_stride_in_bytes, r_stride_in_bytes);
+    nk_hammings_packed_u1_haswell(v, q_packed, result, rows, cols, d, v_stride_in_bytes, r_stride_in_bytes);
 #else
-    nk_hammings_packed_u1_serial(a, q_packed, result, n, column_count, d, v_stride_in_bytes, r_stride_in_bytes);
+    nk_hammings_packed_u1_serial(v, q_packed, result, rows, cols, d, v_stride_in_bytes, r_stride_in_bytes);
 #endif
 }
 
 NK_PUBLIC void nk_hammings_symmetric_u1(nk_u1x8_t const *vectors, nk_size_t n_vectors, nk_size_t d, nk_size_t stride,
-                                        nk_u32_t *result, nk_size_t result_stride, nk_size_t row_start, nk_size_t n) {
+                                        nk_u32_t *result, nk_size_t result_stride, nk_size_t row_start,
+                                        nk_size_t row_count) {
 #if NK_TARGET_SMEBI32
-    nk_hammings_symmetric_u1_smebi32(vectors, n_vectors, d, stride, result, result_stride, row_start, n);
+    nk_hammings_symmetric_u1_smebi32(vectors, n_vectors, d, stride, result, result_stride, row_start, row_count);
 #elif NK_TARGET_NEON
-    nk_hammings_symmetric_u1_neon(vectors, n_vectors, d, stride, result, result_stride, row_start, n);
+    nk_hammings_symmetric_u1_neon(vectors, n_vectors, d, stride, result, result_stride, row_start, row_count);
 #elif NK_TARGET_ICELAKE
-    nk_hammings_symmetric_u1_icelake(vectors, n_vectors, d, stride, result, result_stride, row_start, n);
+    nk_hammings_symmetric_u1_icelake(vectors, n_vectors, d, stride, result, result_stride, row_start, row_count);
 #elif NK_TARGET_HASWELL
-    nk_hammings_symmetric_u1_haswell(vectors, n_vectors, d, stride, result, result_stride, row_start, n);
+    nk_hammings_symmetric_u1_haswell(vectors, n_vectors, d, stride, result, result_stride, row_start, row_count);
 #else
-    nk_hammings_symmetric_u1_serial(vectors, n_vectors, d, stride, result, result_stride, row_start, n);
+    nk_hammings_symmetric_u1_serial(vectors, n_vectors, d, stride, result, result_stride, row_start, row_count);
 #endif
 }
 

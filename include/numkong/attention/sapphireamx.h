@@ -18,9 +18,9 @@
  *  - Causal masking: Optional masking for autoregressive generation
  *
  *  Target models (2025):
- *  - Kimi K2:       head_dim=112, 64 heads, MHA, 128K context
+ *  - Kimi K2: head_dim=112, 64 heads, MHA, 128K context
  *  - LLaMA 3.1 405B: head_dim=128, 128 heads, 16 KV heads (GQA 8:1), 128K context
- *  - Qwen 2.5 72B:  head_dim=128, 64 heads, 8 KV heads (GQA 8:1), 32K context
+ *  - Qwen 2.5 72B: head_dim=128, 64 heads, 8 KV heads (GQA 8:1), 32K context
  *
  *  Performance comparison with H100 FlashAttention-2:
  *  - H100 SXM5: ~335 TFLOPS (35% of 989 TFLOPS peak), 80GB HBM3
@@ -73,11 +73,13 @@ extern "C" {
 #endif
 
 #if defined(__clang__)
-#pragma clang attribute push(__attribute__((target("avx2,avx512f,avx512vl,avx512bw,avx512dq,avx512fp16,avx512bf16,f16c,fma,bmi,bmi2"))), \
-                             apply_to = function)
+#pragma clang attribute push(                                                                                   \
+    __attribute__((target("avx2,avx512f,avx512vl,avx512bw,avx512dq,avx512fp16,avx512bf16,f16c,fma,bmi,bmi2"))), \
+    apply_to = function)
 #elif defined(__GNUC__)
 #pragma GCC push_options
-#pragma GCC target("avx2", "avx512f", "avx512vl", "avx512bw", "avx512dq", "avx512fp16", "avx512bf16", "f16c", "fma", "bmi", "bmi2")
+#pragma GCC target("avx2", "avx512f", "avx512vl", "avx512bw", "avx512dq", "avx512fp16", "avx512bf16", "f16c", "fma", \
+                   "bmi", "bmi2")
 #endif
 
 /**
@@ -498,11 +500,11 @@ NK_PUBLIC nk_size_t nk_attention_kv_packed_size_sapphireamx(nk_size_t num_kv_hea
                                                             nk_size_t max_seq_len) {
 
     // Pad head_dim to multiple of 32 for AMX tiles
-    nk_size_t head_dim_padded = (head_dim + 31) / 32 * 32;
+    nk_size_t head_dim_padded = nk_size_round_up_to_multiple_(head_dim, 32);
 
     // Each head: seq_len × head_dim_padded BF16 values
     // Packed in AMX tile format: 16-row tiles with pair-interleaving
-    nk_size_t tiles_per_head_col = (max_seq_len + 15) / 16;
+    nk_size_t tiles_per_head_col = nk_size_divide_round_up_(max_seq_len, 16);
     nk_size_t tiles_per_head_depth = head_dim_padded / 32;
     nk_size_t bytes_per_head = tiles_per_head_col * tiles_per_head_depth * 1024; // 1KB per tile
 
@@ -520,7 +522,7 @@ NK_PUBLIC void nk_attention_pack_k_sapphireamx(nk_bf16_t const *k, void *kv_pack
     nk_attention_kv_packed_header_t *header = (nk_attention_kv_packed_header_t *)kv_packed;
 
     // Initialize header
-    nk_size_t head_dim_padded = (head_dim + 31) / 32 * 32;
+    nk_size_t head_dim_padded = nk_size_round_up_to_multiple_(head_dim, 32);
     header->num_kv_heads = (nk_u32_t)num_kv_heads;
     header->head_dim = (nk_u32_t)head_dim;
     header->head_dim_padded = (nk_u32_t)head_dim_padded;
@@ -533,7 +535,7 @@ NK_PUBLIC void nk_attention_pack_k_sapphireamx(nk_bf16_t const *k, void *kv_pack
     // K[h, s, d] → Kᵀ[h, d, s]
     // Pack Kᵀ into AMX B tile format with pair-interleaving
 
-    nk_size_t tiles_per_seq = (seq_len + 15) / 16;
+    nk_size_t tiles_per_seq = nk_size_divide_round_up_(seq_len, 16);
     nk_size_t tiles_per_depth = head_dim_padded / 32;
     nk_size_t tile_size = 512; // BF16 elements per tile
 
@@ -594,8 +596,8 @@ NK_PUBLIC void nk_attention_pack_v_sapphireamx(nk_bf16_t const *v, void *kv_pack
     // For P @ V, P is [query_len, seq_len], V is [seq_len, head_dim]
     // V acts as B matrix: pack with seq_len as "depth", head_dim as "columns"
 
-    nk_size_t tiles_per_seq = (seq_len + 31) / 32;          // seq_len is depth for V
-    nk_size_t tiles_per_head = (head_dim_padded + 15) / 16; // head_dim is columns
+    nk_size_t tiles_per_seq = nk_size_divide_round_up_(seq_len, 32);          // seq_len is depth for V
+    nk_size_t tiles_per_head = nk_size_divide_round_up_(head_dim_padded, 16); // head_dim is columns
     nk_size_t tile_size = 512;
 
     for (nk_size_t h = 0; h < num_kv_heads; h++) {
@@ -647,8 +649,8 @@ NK_INTERNAL void nk_attention_extract_k_block_(nk_bf16_t const *k_packed, nk_f32
                                                nk_size_t kv_len) {
 
     nk_size_t const Bc = 16;
-    nk_size_t head_dim_padded = (head_dim + 31) / 32 * 32;
-    nk_size_t tiles_per_seq = (kv_len + 15) / 16;
+    nk_size_t head_dim_padded = nk_size_round_up_to_multiple_(head_dim, 32);
+    nk_size_t tiles_per_seq = nk_size_divide_round_up_(kv_len, 16);
     nk_size_t tiles_per_depth = head_dim_padded / 32;
     nk_size_t tile_size = 512;
 
@@ -691,9 +693,9 @@ NK_INTERNAL void nk_attention_extract_v_block_(nk_bf16_t const *v_packed, nk_f32
                                                nk_size_t kv_block_start, nk_size_t valid_kv, nk_size_t head_dim,
                                                nk_size_t kv_len) {
 
-    nk_size_t head_dim_padded = (head_dim + 31) / 32 * 32;
-    nk_size_t tiles_per_seq = (kv_len + 31) / 32;
-    nk_size_t tiles_per_head = (head_dim_padded + 15) / 16;
+    nk_size_t head_dim_padded = nk_size_round_up_to_multiple_(head_dim, 32);
+    nk_size_t tiles_per_seq = nk_size_divide_round_up_(kv_len, 32);
+    nk_size_t tiles_per_head = nk_size_divide_round_up_(head_dim_padded, 16);
     nk_size_t tile_size = 512;
 
     // Get pointer to this head's V data
@@ -889,13 +891,13 @@ NK_PUBLIC void nk_attention_bf16_amx_bc32_sapphireamx(nk_bf16_t const *q, void c
     NK_ALIGN64 nk_f32_t o_tile[16][16];   // Output tile from AMX
 
     // K packing layout (16 seq positions per tile)
-    nk_size_t k_tiles_per_seq = (kv_len + 15) / 16;
+    nk_size_t k_tiles_per_seq = nk_size_divide_round_up_(kv_len, 16);
     nk_size_t tiles_per_depth = head_dim_padded / 32;
     nk_size_t tile_size = 512; // BF16 elements per tile
 
     // V packing layout (32 seq positions per tile)
-    nk_size_t v_tiles_per_seq = (kv_len + 31) / 32;
-    nk_size_t v_tiles_per_head = (head_dim_padded + 15) / 16;
+    nk_size_t v_tiles_per_seq = nk_size_divide_round_up_(kv_len, 32);
+    nk_size_t v_tiles_per_head = nk_size_divide_round_up_(head_dim_padded, 16);
 
     nk_bf16_t const *k_packed = (nk_bf16_t const *)((char const *)kv_packed + header->k_offset);
     nk_bf16_t const *v_packed = (nk_bf16_t const *)((char const *)kv_packed + header->v_offset);
@@ -1127,14 +1129,14 @@ NK_PUBLIC void nk_attention_bf16_amx_optimized_sapphireamx(nk_bf16_t const *q, v
 
     // Tile dimensions
     nk_size_t tiles_per_depth = head_dim_padded / 32;         // 4 for d=128
-    nk_size_t v_tiles_per_head = (head_dim_padded + 15) / 16; // 8 for d=128
+    nk_size_t v_tiles_per_head = nk_size_divide_round_up_(head_dim_padded, 16); // 8 for d=128
 
     // K packing layout (16 seq positions per tile)
-    nk_size_t k_tiles_per_seq = (kv_len + 15) / 16;
+    nk_size_t k_tiles_per_seq = nk_size_divide_round_up_(kv_len, 16);
     nk_size_t tile_size = 512;
 
     // V packing layout (32 seq positions per tile)
-    nk_size_t v_tiles_per_seq = (kv_len + 31) / 32;
+    nk_size_t v_tiles_per_seq = nk_size_divide_round_up_(kv_len, 32);
 
     nk_bf16_t const *k_packed = (nk_bf16_t const *)((char const *)kv_packed + header->k_offset);
     nk_bf16_t const *v_packed = (nk_bf16_t const *)((char const *)kv_packed + header->v_offset);
