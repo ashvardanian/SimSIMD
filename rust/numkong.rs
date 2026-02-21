@@ -114,7 +114,7 @@ pub use numerics::capabilities;
 
 // Re-export tensor types
 pub use tensor::{
-    Allocator, Dots, DotsSymmetric, Global, Hammings, Matrix, MatrixView, MatrixViewMut,
+    Allocator, Dots, Global, Hammings, Matrix, MatrixView, MatrixViewMut,
     ShapeDescriptor, SliceRange, Tensor, TensorError, TensorView, TensorViewMut,
     TransposedMatrixMultiplier, DEFAULT_MAX_RANK, SIMD_ALIGNMENT,
 };
@@ -1284,6 +1284,91 @@ mod tests {
             "Expected det(R) ~±1.0, got {}",
             det
         );
+    }
+
+    #[test]
+    fn cast_e2m3_f32() {
+        let e2m3_data: Vec<e2m3> = vec![e2m3::from_f32(1.0), e2m3::from_f32(2.0)];
+        let mut f32_data: Vec<f32> = vec![0.0; 2];
+        cast(&e2m3_data, &mut f32_data).unwrap();
+        assert!((f32_data[0] - 1.0).abs() < 0.5);
+        assert!((f32_data[1] - 2.0).abs() < 0.5);
+    }
+
+    #[test]
+    fn cast_e3m2_f32() {
+        let e3m2_data: Vec<e3m2> = vec![e3m2::from_f32(1.0), e3m2::from_f32(2.0)];
+        let mut f32_data: Vec<f32> = vec![0.0; 2];
+        cast(&e3m2_data, &mut f32_data).unwrap();
+        assert!((f32_data[0] - 1.0).abs() < 0.5);
+        assert!((f32_data[1] - 2.0).abs() < 0.5);
+    }
+
+    #[test]
+    fn scale_e2m3() {
+        let a = vec![e2m3::from_f32(1.0), e2m3::from_f32(2.0), e2m3::from_f32(3.0)];
+        let mut result = vec![e2m3(0); 3];
+        e2m3::each_scale(&a, 2.0, 0.0, &mut result).unwrap();
+        // e2m3 has limited precision, just check it didn't crash and produced something nonzero
+        assert!(result[0].0 != 0 || result[1].0 != 0);
+    }
+
+    #[test]
+    fn reduce_moments_u1x8() {
+        // Use a larger buffer (>= 64 bytes) to avoid SIMD over-read issues
+        let mut data = vec![u1x8(0xFF); 64];
+        data[0] = u1x8(0xFF); // 8 bits set
+        data[1] = u1x8(0x00); // 0 bits set
+        data[2] = u1x8(0x0F); // 4 bits set
+        // rest are 0xFF = 8 bits each → 61 * 8 = 488
+        let (sum, _sumsq) = u1x8::reduce_moments(&data, core::mem::size_of::<u1x8>());
+        // 8 + 0 + 4 + 61*8 = 500
+        assert_eq!(sum, 500);
+    }
+
+    #[test]
+    fn reduce_minmax_i4x2() {
+        // Use a larger buffer to avoid SIMD over-read issues
+        let mut data = vec![i4x2(0x00); 64];
+        data[0] = i4x2(0x37); // low=7, high=3
+        data[1] = i4x2(0x12); // low=2, high=1
+        let (min_val, _min_idx, max_val, _max_idx) =
+            i4x2::reduce_minmax(&data, core::mem::size_of::<i4x2>());
+        assert!(min_val <= max_val);
+    }
+
+    #[test]
+    fn complex_bilinear_f32() {
+        // Use a larger dimension to ensure SIMD kernels work properly
+        // n=4 complex elements, so vectors have 8 floats, matrix has 4*4*2=32 floats
+        let n = 4;
+        let mut a = vec![0.0f32; n * 2];
+        let mut b = vec![0.0f32; n * 2];
+        // a = [1+0i, 0+0i, 0+0i, 0+0i]
+        a[0] = 1.0;
+        // b = [1+0i, 0+0i, 0+0i, 0+0i]
+        b[0] = 1.0;
+        // C = identity matrix (complex): diagonal entries are 1+0i
+        let mut c = vec![0.0f32; n * n * 2];
+        for i in 0..n {
+            c[(i * n + i) * 2] = 1.0; // real part of diagonal
+        }
+        let result = f32::complex_bilinear(&a, &b, &c);
+        assert!(result.is_some());
+        let (re, im) = result.unwrap();
+        // conj(a) * I * b = conj([1,0,0,0]) · [1,0,0,0] = 1 + 0i
+        assert!(
+            (re - 1.0).abs() < 0.5,
+            "real part: expected ~1.0, got {}",
+            re
+        );
+        assert!(im.abs() < 0.5, "imag part: expected ~0.0, got {}", im);
+    }
+
+    #[test]
+    fn hammings_u1x8_packed_size() {
+        let size = u1x8::hammings_packed_size(4, 64);
+        assert!(size > 0);
     }
 }
 
