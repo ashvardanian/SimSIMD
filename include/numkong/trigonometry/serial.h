@@ -9,69 +9,13 @@
  */
 #ifndef NK_TRIGONOMETRY_SERIAL_H
 #define NK_TRIGONOMETRY_SERIAL_H
+
 #include "numkong/types.h"
 #include "numkong/cast/serial.h" // `nk_f16_to_f32_serial`
 
 #if defined(__cplusplus)
 extern "C" {
 #endif
-
-/**
- *  @brief Software FMA (Fused Multiply-Add) emulation for f64.
- *  Computes (a * b + c) with improved precision using Dekker's error compensation.
- */
-NK_INTERNAL nk_f64_t nk_f64_fma_(nk_f64_t a, nk_f64_t b, nk_f64_t c) {
-    // Software emulation using error-free transformation (Dekker/Knuth)
-    nk_f64_t product = a * b;
-
-    // Dekker's algorithm for exact multiplication
-    // Split a and b into high and low parts
-    nk_f64_t const split = 134217729.0; // 2^27 + 1 for double precision
-    nk_f64_t a_hi = split * a;
-    nk_f64_t a_lo = a - (a_hi - (a_hi - a));
-    a_hi = a_hi - (a_hi - a);
-
-    nk_f64_t b_hi = split * b;
-    nk_f64_t b_lo = b - (b_hi - (b_hi - b));
-    b_hi = b_hi - (b_hi - b);
-
-    // Compute error in multiplication
-    nk_f64_t error = ((a_hi * b_hi - product) + a_hi * b_lo + a_lo * b_hi) + a_lo * b_lo;
-
-    // Add c with Knuth TwoSum (branchless) to compensate for addition error
-    nk_f64_t sum = product + c;
-    nk_f64_t c_virtual = sum - product;
-    nk_f64_t product_virtual = sum - c_virtual;
-    nk_f64_t add_error = (product - product_virtual) + (c - c_virtual);
-    return sum + (error + add_error);
-}
-
-/**
- *  @brief Software FMA (Fused Multiply-Add) emulation for f32.
- *  Computes (a * b + c) with improved precision using Dekker's error compensation.
- */
-NK_INTERNAL nk_f32_t nk_f32_fma_(nk_f32_t a, nk_f32_t b, nk_f32_t c) {
-    // Software emulation
-    nk_f32_t product = a * b;
-
-    nk_f32_t const split = 4097.0f; // 2^12 + 1 for single precision
-    nk_f32_t a_hi = split * a;
-    nk_f32_t a_lo = a - (a_hi - (a_hi - a));
-    a_hi = a_hi - (a_hi - a);
-
-    nk_f32_t b_hi = split * b;
-    nk_f32_t b_lo = b - (b_hi - (b_hi - b));
-    b_hi = b_hi - (b_hi - b);
-
-    nk_f32_t error = ((a_hi * b_hi - product) + a_hi * b_lo + a_lo * b_hi) + a_lo * b_lo;
-
-    // Add c with Knuth TwoSum (branchless) to compensate for addition error
-    nk_f32_t sum = product + c;
-    nk_f32_t c_virtual = sum - product;
-    nk_f32_t product_virtual = sum - c_virtual;
-    nk_f32_t add_error = (product - product_virtual) + (c - c_virtual);
-    return sum + (error + add_error);
-}
 
 /**
  *  @brief Computes an approximate sine of the given angle in radians with @b 3-ULP error bound for [-2π, 2π].

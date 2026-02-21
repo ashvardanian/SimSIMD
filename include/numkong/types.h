@@ -549,7 +549,7 @@ typedef nk_u64_t nk_size_t;
 typedef nk_i64_t nk_ssize_t;
 typedef nk_f64_t nk_fmax_t;
 
-#define NK_SIZE_MAX ((nk_size_t)-1)
+#define NK_SIZE_MAX ((nk_size_t) - 1)
 
 #define NK_F64_MAX 1.7976931348623157e+308
 #define NK_F64_MIN (-1.7976931348623157e+308)
@@ -1357,6 +1357,75 @@ NK_INTERNAL int nk_f16_compare_(nk_f16_t a, nk_f16_t b) {
     a_fui.f = a, b_fui.f = b;
     int sign_a = a_fui.u >> 15, sign_b = b_fui.u >> 15;
     return ((int)a_fui.u ^ -sign_a) - ((int)b_fui.u ^ -sign_b);
+}
+
+/**
+ *  @brief Software FMA (Fused Multiply-Add) emulation for f64.
+ *  Computes (multiplicand × multiplier + addend) with improved precision
+ *  using Dekker's error-free multiplication and Knuth's TwoSum.
+ */
+NK_INTERNAL nk_f64_t nk_f64_fma_(nk_f64_t multiplicand, nk_f64_t multiplier, nk_f64_t addend) {
+    nk_f64_t product = multiplicand * multiplier;
+    // Dekker splitting: break each operand into non-overlapping high and low halves
+    nk_f64_t const dekker_split = 134217729.0; // 2^27 + 1 for double precision
+    nk_f64_t multiplicand_hi = dekker_split * multiplicand;
+    nk_f64_t multiplicand_lo = multiplicand - (multiplicand_hi - (multiplicand_hi - multiplicand));
+    multiplicand_hi = multiplicand_hi - (multiplicand_hi - multiplicand);
+    nk_f64_t multiplier_hi = dekker_split * multiplier;
+    nk_f64_t multiplier_lo = multiplier - (multiplier_hi - (multiplier_hi - multiplier));
+    multiplier_hi = multiplier_hi - (multiplier_hi - multiplier);
+    // Exact multiplication error from the four cross-products
+    nk_f64_t product_error = ((multiplicand_hi * multiplier_hi - product) + multiplicand_hi * multiplier_lo +
+                              multiplicand_lo * multiplier_hi) +
+                             multiplicand_lo * multiplier_lo;
+    // Knuth TwoSum: add the addend with error tracking
+    nk_f64_t result = product + addend;
+    nk_f64_t addend_recovered = result - product;
+    nk_f64_t product_recovered = result - addend_recovered;
+    nk_f64_t addition_error = (product - product_recovered) + (addend - addend_recovered);
+    return result + (product_error + addition_error);
+}
+
+/**
+ *  @brief Software FMA (Fused Multiply-Add) emulation for f32.
+ *  Computes (multiplicand × multiplier + addend) with improved precision
+ *  using Dekker's error-free multiplication and Knuth's TwoSum.
+ */
+NK_INTERNAL nk_f32_t nk_f32_fma_(nk_f32_t multiplicand, nk_f32_t multiplier, nk_f32_t addend) {
+    nk_f32_t product = multiplicand * multiplier;
+    // Dekker splitting: break each operand into non-overlapping high and low halves
+    nk_f32_t const dekker_split = 4097.0f; // 2^12 + 1 for single precision
+    nk_f32_t multiplicand_hi = dekker_split * multiplicand;
+    nk_f32_t multiplicand_lo = multiplicand - (multiplicand_hi - (multiplicand_hi - multiplicand));
+    multiplicand_hi = multiplicand_hi - (multiplicand_hi - multiplicand);
+    nk_f32_t multiplier_hi = dekker_split * multiplier;
+    nk_f32_t multiplier_lo = multiplier - (multiplier_hi - (multiplier_hi - multiplier));
+    multiplier_hi = multiplier_hi - (multiplier_hi - multiplier);
+    // Exact multiplication error from the four cross-products
+    nk_f32_t product_error = ((multiplicand_hi * multiplier_hi - product) + multiplicand_hi * multiplier_lo +
+                              multiplicand_lo * multiplier_hi) +
+                             multiplicand_lo * multiplier_lo;
+    // Knuth TwoSum: add the addend with error tracking
+    nk_f32_t result = product + addend;
+    nk_f32_t addend_recovered = result - product;
+    nk_f32_t product_recovered = result - addend_recovered;
+    nk_f32_t addition_error = (product - product_recovered) + (addend - addend_recovered);
+    return result + (product_error + addition_error);
+}
+
+/**
+ *  @brief Scalar Dot2 accumulator: sum += a × b with error compensation.
+ *  Uses TwoProd (via FMA) and TwoSum error-free transformations.
+ *  @see Ogita, T., Rump, S.M., Oishi, S. (2005). "Accurate Sum and Dot Product"
+ */
+NK_INTERNAL void nk_f64_dot2_(nk_f64_t *sum, nk_f64_t *compensation, nk_f64_t a, nk_f64_t b) {
+    nk_f64_t product = a * b;
+    nk_f64_t product_error = nk_f64_fma_(a, b, -product);
+    nk_f64_t running_sum = *sum + product;
+    nk_f64_t recovered_addend = running_sum - *sum;
+    nk_f64_t sum_error = (*sum - (running_sum - recovered_addend)) + (product - recovered_addend);
+    *sum = running_sum;
+    *compensation += sum_error + product_error;
 }
 
 #if NK_DYNAMIC_DISPATCH
