@@ -44,20 +44,20 @@ extern "C" {
 #endif
 
 nk_define_cross_pack_size_(hammings, u1, serial, u1x8, u32, /*depth_simd_dimensions=*/128,
-                           /*dimensions_per_value=*/128)
+                           /*dimensions_per_value=*/8)
 nk_define_cross_pack_(hammings, u1, serial, u1x8, u32, nk_assign_from_to_, /*depth_simd_dimensions=*/128,
-                      /*dimensions_per_value=*/128)
+                      /*dimensions_per_value=*/8)
 nk_define_cross_symmetric_(hammings, u1, serial, u1x8, u32, nk_b128_vec_t, nk_hamming_u1x128_state_serial_t,
                            nk_b128_vec_t, nk_hamming_u1x128_init_serial, nk_load_b128_serial_,
                            nk_partial_load_b32x4_serial_, nk_hamming_u1x128_update_serial,
                            nk_hamming_u1x128_finalize_serial, nk_partial_store_b32x4_serial_,
-                           /*depth_simd_dimensions=*/128, /*dimensions_per_value=*/128)
+                           /*depth_simd_dimensions=*/128, /*dimensions_per_value=*/8)
 nk_define_cross_packed_(hammings, u1, serial, u1x8, u32, u32, nk_b128_vec_t, nk_hamming_u1x128_state_serial_t,
                         nk_b128_vec_t, nk_hamming_u1x128_init_serial, nk_load_b128_serial_,
                         nk_partial_load_b32x4_serial_, nk_load_b128_serial_, nk_partial_load_b32x4_serial_,
                         nk_hamming_u1x128_update_serial, nk_hamming_u1x128_finalize_serial,
                         nk_partial_store_b32x4_serial_,
-                        /*depth_simd_dimensions=*/128, /*dimensions_per_value=*/128)
+                        /*depth_simd_dimensions=*/128, /*dimensions_per_value=*/8)
 
 #if defined(__cplusplus)
 } // extern "C"

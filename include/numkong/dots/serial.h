@@ -313,7 +313,7 @@ typedef struct {
  *  @param reduce_accumulators_fn Reduce 4 accumulators
  *  @param partial_store_fn Partial store for results
  *  @param depth_simd_dimensions SIMD vector width in logical dimensions (e.g., 8 for f32 on AVX2, 128 for u1 on serial)
- *  @param dimensions_per_value Packing ratio: dimensions per storage value (1 for f32, 128 for u1x8)
+ *  @param dimensions_per_value Packing ratio: dimensions per storage value (1 for f32, 2 for i4x2, 8 for u1x8)
  *
  *  @sa nk_define_cross_symmetric_ for symmetric C = A × Aᵀ computation (upper triangle only)
  *  @sa nk_define_cross_pack_size_ for calculating B_packed buffer size
@@ -949,7 +949,7 @@ typedef struct {
  *  @param reduce_accumulators_fn Reduce 4 accumulators
  *  @param partial_store_fn Partial store for results
  *  @param depth_simd_dimensions SIMD vector width in logical dimensions (e.g., 8 for f32 on AVX2, 128 for u1 on serial)
- *  @param dimensions_per_value Packing ratio: dimensions per storage value (1 for f32, 128 for u1x8)
+ *  @param dimensions_per_value Packing ratio: dimensions per storage value (1 for f32, 2 for i4x2, 8 for u1x8)
  *
  *  @sa nk_define_cross_packed_ for asymmetric C = A × Bᵀ computation
  *  @sa nk_define_cross_pack_size_ for calculating packed buffer size
