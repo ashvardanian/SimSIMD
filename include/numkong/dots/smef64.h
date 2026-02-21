@@ -143,7 +143,7 @@ NK_PUBLIC void nk_dots_pack_f32_smef64(nk_f32_t const *b, nk_size_t columns, nk_
     }
 }
 
-__arm_locally_streaming __arm_new("za") static void nk_dots_packed_f32_smef64_kernel_(
+__arm_locally_streaming __arm_new("za") static void nk_dots_packed_f32_smef64_streaming_(
     nk_f32_t const *a, void const *b_packed, nk_f32_t *c, nk_size_t rows, nk_size_t columns, nk_size_t depth,
     nk_size_t a_stride_elements, nk_size_t c_stride_elements) {
 
@@ -408,7 +408,7 @@ NK_PUBLIC void nk_dots_packed_f32_smef64(nk_f32_t const *a, void const *b_packed
     nk_size_t const a_stride_elements = a_stride / sizeof(nk_f32_t);
     nk_size_t const c_stride_elements = c_stride / sizeof(nk_f32_t);
 
-    nk_dots_packed_f32_smef64_kernel_(a, b_packed, c, rows, columns, depth, a_stride_elements, c_stride_elements);
+    nk_dots_packed_f32_smef64_streaming_(a, b_packed, c, rows, columns, depth, a_stride_elements, c_stride_elements);
 }
 
 /**
@@ -417,7 +417,7 @@ NK_PUBLIC void nk_dots_packed_f32_smef64(nk_f32_t const *a, void const *b_packed
  *  pre-reads A columns into Z registers, then reloads ZA0 with widened B data
  *  per column tile. Eliminates all scalar B-packing loops.
  */
-__arm_locally_streaming __arm_new("za") static void nk_dots_symmetric_f32_smef64_kernel_(
+__arm_locally_streaming __arm_new("za") static void nk_dots_symmetric_f32_smef64_streaming_(
     nk_f32_t const *vectors, nk_size_t n_vectors, nk_size_t depth, nk_size_t stride_elements, nk_f32_t *result,
     nk_size_t result_stride_elements, nk_size_t row_start, nk_size_t row_count) {
 
@@ -757,8 +757,8 @@ NK_PUBLIC void nk_dots_symmetric_f32_smef64(nk_f32_t const *vectors, nk_size_t n
 
     nk_size_t const stride_elements = stride / sizeof(nk_f32_t);
     nk_size_t const result_stride_elements = result_stride / sizeof(nk_f32_t);
-    nk_dots_symmetric_f32_smef64_kernel_(vectors, n_vectors, depth, stride_elements, result, result_stride_elements,
-                                         row_start, row_count);
+    nk_dots_symmetric_f32_smef64_streaming_(vectors, n_vectors, depth, stride_elements, result, result_stride_elements,
+                                            row_start, row_count);
 }
 
 #pragma endregion // Single Precision Floats
@@ -829,7 +829,7 @@ NK_INTERNAL void nk_f64_smef64_ozaki_split_f64_(nk_f64_t val, nk_f64_t *slice_0,
     *slice_2 = residual - *slice_1;
 }
 
-__arm_locally_streaming __arm_new("za") static void nk_dots_symmetric_f64_smef64_kernel_(
+__arm_locally_streaming __arm_new("za") static void nk_dots_symmetric_f64_smef64_streaming_(
     nk_f64_t const *vectors, nk_size_t n_vectors, nk_size_t depth, nk_size_t stride_elements, nk_f64_t *result,
     nk_size_t result_stride_elements, nk_size_t row_start, nk_size_t row_count) {
 
@@ -955,8 +955,8 @@ NK_PUBLIC void nk_dots_symmetric_f64_smef64(nk_f64_t const *vectors, nk_size_t n
 
     nk_size_t const stride_elements = stride / sizeof(nk_f64_t);
     nk_size_t const result_stride_elements = result_stride / sizeof(nk_f64_t);
-    nk_dots_symmetric_f64_smef64_kernel_(vectors, n_vectors, depth, stride_elements, result, result_stride_elements,
-                                         row_start, row_count);
+    nk_dots_symmetric_f64_smef64_streaming_(vectors, n_vectors, depth, stride_elements, result, result_stride_elements,
+                                            row_start, row_count);
 }
 
 NK_PUBLIC nk_size_t nk_dots_packed_size_f64_smef64(nk_size_t columns, nk_size_t depth) {
@@ -1027,7 +1027,7 @@ NK_PUBLIC void nk_dots_pack_f64_smef64(nk_f64_t const *b, nk_size_t columns, nk_
     }
 }
 
-__arm_locally_streaming __arm_new("za") static void nk_dots_packed_f64_smef64_kernel_(
+__arm_locally_streaming __arm_new("za") static void nk_dots_packed_f64_smef64_streaming_(
     nk_f64_t const *a, void const *b_packed, nk_f64_t *c, nk_size_t rows, nk_size_t columns, nk_size_t depth,
     nk_size_t a_stride_elements, nk_size_t c_stride_elements) {
 
@@ -1311,7 +1311,7 @@ NK_PUBLIC void nk_dots_packed_f64_smef64(nk_f64_t const *a, void const *b_packed
     nk_size_t const a_stride_elements = a_stride / sizeof(nk_f64_t);
     nk_size_t const c_stride_elements = c_stride / sizeof(nk_f64_t);
 
-    nk_dots_packed_f64_smef64_kernel_(a, b_packed, c, rows, columns, depth, a_stride_elements, c_stride_elements);
+    nk_dots_packed_f64_smef64_streaming_(a, b_packed, c, rows, columns, depth, a_stride_elements, c_stride_elements);
 }
 
 #pragma endregion // Double Precision Floats

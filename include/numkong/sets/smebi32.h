@@ -197,7 +197,7 @@ NK_PUBLIC void nk_hammings_pack_u1_smebi32(nk_u1x8_t const *b, nk_size_t row_cou
  *  Each ZA0.S batch covers 16 depth u32 steps (one full depth tile).
  *  BMOPA expansion=1 for u32: each u32 contributes 32 bits via XNOR+POPCNT.
  */
-__arm_locally_streaming __arm_new("za") static void nk_hammings_packed_u1_smebi32_kernel_(
+__arm_locally_streaming __arm_new("za") static void nk_hammings_packed_u1_smebi32_streaming_(
     nk_u1x8_t const *a, void const *b_packed, nk_u32_t *c, nk_size_t row_count_a, nk_size_t row_count_b,
     nk_size_t depth_bits, nk_size_t a_stride_in_bytes, nk_size_t c_stride_in_bytes) {
 
@@ -332,24 +332,22 @@ __arm_locally_streaming __arm_new("za") static void nk_hammings_packed_u1_smebi3
     }
 }
 
-__arm_locally_streaming __arm_new("za")
-    NK_PUBLIC void nk_hammings_packed_u1_smebi32(nk_u1x8_t const *a, void const *b_packed, nk_u32_t *c,
-                                                 nk_size_t row_count_a, nk_size_t row_count_b, nk_size_t depth_bits,
-                                                 nk_size_t a_stride_in_bytes, nk_size_t c_stride_in_bytes) {
-    nk_hammings_packed_u1_smebi32_kernel_(a, b_packed, c, row_count_a, row_count_b, depth_bits, a_stride_in_bytes,
-                                          c_stride_in_bytes);
+NK_PUBLIC void nk_hammings_packed_u1_smebi32(nk_u1x8_t const *a, void const *b_packed, nk_u32_t *c,
+                                             nk_size_t row_count_a, nk_size_t row_count_b, nk_size_t depth_bits,
+                                             nk_size_t a_stride_in_bytes, nk_size_t c_stride_in_bytes) {
+    nk_hammings_packed_u1_smebi32_streaming_(a, b_packed, c, row_count_a, row_count_b, depth_bits, a_stride_in_bytes,
+                                             c_stride_in_bytes);
 }
 
 /**
  *  Symmetric Hamming using ZA0 time-sharing + 3-tile fast path.
  *  ZA0.S = staging (A rows loaded horizontally, read vertically for BMOPA).
  *  ZA1-3.S = BMOPA accumulators (3 B column tiles in fast path).
- *  Mirrors the unpacked kernel nk_hammings_packed_u1_smebi32_kernel_ pattern.
+ *  Mirrors the unpacked kernel nk_hammings_packed_u1_smebi32_streaming_ pattern.
  */
-__arm_locally_streaming __arm_new("za")
-    NK_PUBLIC void nk_hammings_symmetric_u1_smebi32(nk_u1x8_t const *vectors, nk_size_t n_vectors, nk_size_t depth_bits,
-                                                    nk_size_t stride, nk_u32_t *result, nk_size_t result_stride,
-                                                    nk_size_t row_start, nk_size_t row_count) {
+__arm_locally_streaming __arm_new("za") static void nk_hammings_symmetric_u1_smebi32_streaming_(
+    nk_u1x8_t const *vectors, nk_size_t n_vectors, nk_size_t depth_bits, nk_size_t stride, nk_u32_t *result,
+    nk_size_t result_stride, nk_size_t row_start, nk_size_t row_count) {
 
     nk_size_t const tile_dim = svcntw();        // 16 for 512-bit SVL
     nk_size_t const depth_tile_size = svcntw(); // 16 u32 per depth tile
@@ -543,6 +541,13 @@ __arm_locally_streaming __arm_new("za")
  *  Packed format shares the Hamming tile layout for B operand, plus per-row norms.
  */
 
+NK_PUBLIC void nk_hammings_symmetric_u1_smebi32(nk_u1x8_t const *vectors, nk_size_t n_vectors, nk_size_t depth_bits,
+                                                nk_size_t stride, nk_u32_t *result, nk_size_t result_stride,
+                                                nk_size_t row_start, nk_size_t row_count) {
+    nk_hammings_symmetric_u1_smebi32_streaming_(vectors, n_vectors, depth_bits, stride, result, result_stride,
+                                                row_start, row_count);
+}
+
 #pragma region Jaccard Distance
 
 NK_PUBLIC nk_size_t nk_jaccards_packed_size_u1_smebi32(nk_size_t row_count, nk_size_t depth_bits) {
@@ -625,7 +630,7 @@ NK_PUBLIC void nk_jaccards_pack_u1_smebi32(nk_u1x8_t const *b, nk_size_t row_cou
 
 /**
  *  SME Jaccard kernel using BMOPA for matching-bit counts.
- *  Mirrors nk_hammings_packed_u1_smebi32_kernel_ exactly in structure,
+ *  Mirrors nk_hammings_packed_u1_smebi32_streaming_ exactly in structure,
  *  but derives intersection/union algebraically from the matching counts:
  *    matching      = popcount(XNOR(a,b))          (from BMOPA)
  *    hamming       = depth_bits - matching
@@ -633,7 +638,7 @@ NK_PUBLIC void nk_jaccards_pack_u1_smebi32(nk_u1x8_t const *b, nk_size_t row_cou
  *    union         = (norm_a + norm_b + hamming) / 2
  *    jaccard       = 1 - intersection / union      (1.0 when union == 0)
  */
-__arm_locally_streaming __arm_new("za") static void nk_jaccards_packed_u1_smebi32_kernel_(
+__arm_locally_streaming __arm_new("za") static void nk_jaccards_packed_u1_smebi32_streaming_(
     nk_u1x8_t const *a, void const *b_packed, nk_f32_t *c, nk_size_t row_count_a, nk_size_t row_count_b,
     nk_size_t depth_bits, nk_size_t a_stride_in_bytes, nk_size_t c_stride_in_bytes, nk_f32_t const *a_norms) {
 
@@ -841,8 +846,8 @@ NK_PUBLIC void nk_jaccards_packed_u1_smebi32(nk_u1x8_t const *a, void const *b_p
                                              nk_size_t row_count_a, nk_size_t row_count_b, nk_size_t depth_bits,
                                              nk_size_t a_stride_in_bytes, nk_size_t c_stride_in_bytes,
                                              nk_f32_t const *a_norms) {
-    nk_jaccards_packed_u1_smebi32_kernel_(a, b_packed, c, row_count_a, row_count_b, depth_bits, a_stride_in_bytes,
-                                          c_stride_in_bytes, a_norms);
+    nk_jaccards_packed_u1_smebi32_streaming_(a, b_packed, c, row_count_a, row_count_b, depth_bits, a_stride_in_bytes,
+                                             c_stride_in_bytes, a_norms);
 }
 
 /**
@@ -850,7 +855,7 @@ NK_PUBLIC void nk_jaccards_packed_u1_smebi32(nk_u1x8_t const *a, void const *b_p
  *  Fills upper triangle only (column_tile >= row_tile); caller sees result[i][j] for j >= i.
  *  Norms computed on-the-fly using streaming SVE popcount.
  */
-__arm_locally_streaming __arm_new("za") static void nk_jaccards_symmetric_u1_smebi32_kernel_(
+__arm_locally_streaming __arm_new("za") static void nk_jaccards_symmetric_u1_smebi32_streaming_(
     nk_u1x8_t const *vectors, nk_size_t n_vectors, nk_size_t depth_bits, nk_size_t stride, nk_f32_t *result,
     nk_size_t result_stride, nk_size_t row_start, nk_size_t row_count) {
 
@@ -1144,8 +1149,8 @@ __arm_locally_streaming __arm_new("za") static void nk_jaccards_symmetric_u1_sme
 NK_PUBLIC void nk_jaccards_symmetric_u1_smebi32(nk_u1x8_t const *vectors, nk_size_t n_vectors, nk_size_t depth_bits,
                                                 nk_size_t stride, nk_f32_t *result, nk_size_t result_stride,
                                                 nk_size_t row_start, nk_size_t row_count) {
-    nk_jaccards_symmetric_u1_smebi32_kernel_(vectors, n_vectors, depth_bits, stride, result, result_stride, row_start,
-                                             row_count);
+    nk_jaccards_symmetric_u1_smebi32_streaming_(vectors, n_vectors, depth_bits, stride, result, result_stride,
+                                                row_start, row_count);
 }
 
 #pragma endregion // Jaccard Distance
