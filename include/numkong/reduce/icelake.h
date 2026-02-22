@@ -81,7 +81,8 @@ NK_INTERNAL void nk_reduce_moments_i8_icelake_strided_(                  //
     __m512i sumsq_high_i32x16 = _mm512_setzero_si512();
     nk_size_t idx_scalars = 0;
     nk_size_t total_scalars = count * stride_elements;
-    for (; idx_scalars + 64 <= total_scalars; idx_scalars += 64) {
+    nk_size_t step = (nk_size_t)_mm_popcnt_u64((nk_u64_t)stride_mask_m64) * stride_elements;
+    for (; idx_scalars + step <= total_scalars; idx_scalars += step) {
         __m512i data_i8x64 = _mm512_maskz_loadu_epi8(stride_mask_m64, data_ptr + idx_scalars);
         __m512i unsigned_i8x64 = _mm512_xor_si512(data_i8x64, masked_bias_i8x64);
         sum_u64x8 = _mm512_add_epi64(sum_u64x8, _mm512_sad_epu8(unsigned_i8x64, zero_i8x64));
@@ -175,7 +176,8 @@ NK_INTERNAL void nk_reduce_moments_u8_icelake_strided_(                  //
     __m512i sumsq_high_i32x16 = _mm512_setzero_si512();
     nk_size_t idx_scalars = 0;
     nk_size_t total_scalars = count * stride_elements;
-    for (; idx_scalars + 64 <= total_scalars; idx_scalars += 64) {
+    nk_size_t step = (nk_size_t)_mm_popcnt_u64((nk_u64_t)stride_mask_m64) * stride_elements;
+    for (; idx_scalars + step <= total_scalars; idx_scalars += step) {
         __m512i data_u8x64 = _mm512_maskz_loadu_epi8(stride_mask_m64, data_ptr + idx_scalars);
         sum_u64x8 = _mm512_add_epi64(sum_u64x8, _mm512_sad_epu8(data_u8x64, zero_u8x64));
         __m512i low_i16x32 = _mm512_cvtepu8_epi16(_mm512_castsi512_si256(data_u8x64));
@@ -263,7 +265,8 @@ NK_INTERNAL void nk_reduce_moments_i16_icelake_strided_(                  //
     __m512i sumsq_i64x8 = _mm512_setzero_si512();
     nk_size_t idx_scalars = 0;
     nk_size_t total_scalars = count * stride_elements;
-    for (; idx_scalars + 32 <= total_scalars; idx_scalars += 32) {
+    nk_size_t step = (nk_size_t)_mm_popcnt_u64((nk_u64_t)stride_mask_m32) * stride_elements;
+    for (; idx_scalars + step <= total_scalars; idx_scalars += step) {
         __m512i data_i16x32 = _mm512_maskz_loadu_epi16(stride_mask_m32, data_ptr + idx_scalars);
         sum_i32x16 = _mm512_dpwssd_epi32(sum_i32x16, data_i16x32, ones_i16x32);
         __m512i sq_i32x16 = _mm512_dpwssd_epi32(_mm512_setzero_si512(), data_i16x32, data_i16x32);
@@ -370,7 +373,8 @@ NK_INTERNAL void nk_reduce_moments_e2m3_icelake_strided_(                  //
     __m512i sumsq_i32x16 = _mm512_setzero_si512();
     nk_size_t idx_scalars = 0;
     nk_size_t total_scalars = count * stride_elements;
-    for (; idx_scalars + 64 <= total_scalars; idx_scalars += 64) {
+    nk_size_t step = (nk_size_t)_mm_popcnt_u64((nk_u64_t)stride_mask_m64) * stride_elements;
+    for (; idx_scalars + step <= total_scalars; idx_scalars += step) {
         __m512i data_u8x64 = _mm512_maskz_loadu_epi8(stride_mask_m64, data_ptr + idx_scalars);
         __m512i magnitude_u8x64 = _mm512_and_si512(data_u8x64, magnitude_mask_u8x64);
         __m512i unsigned_mag_u8x64 = _mm512_permutexvar_epi8(magnitude_u8x64, lut_magnitude_u8x64);
@@ -479,7 +483,8 @@ NK_INTERNAL void nk_reduce_moments_e3m2_icelake_strided_(                  //
     __m512i sumsq_i32x16 = _mm512_setzero_si512();
     nk_size_t idx_scalars = 0;
     nk_size_t total_scalars = count * stride_elements;
-    for (; idx_scalars + 32 <= total_scalars; idx_scalars += 32) {
+    nk_size_t step = (nk_size_t)_mm_popcnt_u64((nk_u64_t)stride_mask_m32) * stride_elements;
+    for (; idx_scalars + step <= total_scalars; idx_scalars += step) {
         __m256i data_u8x32 = _mm256_maskz_loadu_epi8(stride_mask_m32, data_ptr + idx_scalars);
         __m512i data_u16x32 = _mm512_cvtepu8_epi16(data_u8x32);
         __m512i magnitude_u16x32 = _mm512_and_si512(data_u16x32, magnitude_mask_i16x32);

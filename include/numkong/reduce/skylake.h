@@ -164,19 +164,19 @@ NK_INTERNAL nk_i64_t nk_reduce_add_i64x8_skylake_(__m512i sum_i64x8) {
 NK_INTERNAL __mmask64 nk_stride_mask_u1x64_(nk_size_t stride) {
     switch (stride) {
     case 2: return (__mmask64)0x5555555555555555ull;  // 32 elems
-    case 3: return (__mmask64)0x1249249249249249ull;  // 21 elems
+    case 3: return (__mmask64)0x9249249249249249ull;  // 22 elems
     case 4: return (__mmask64)0x1111111111111111ull;  // 16 elems
-    case 5: return (__mmask64)0x1084210842108421ull;  // 12 elems
-    case 6: return (__mmask64)0x1041041041041041ull;  // 10 elems
-    case 7: return (__mmask64)0x0408102040810204ull;  // 9 elems
+    case 5: return (__mmask64)0x1084210842108421ull;  // 13 elems
+    case 6: return (__mmask64)0x1041041041041041ull;  // 11 elems
+    case 7: return (__mmask64)0x0102040810204081ull;  // 9 elems
     case 8: return (__mmask64)0x0101010101010101ull;  // 8 elems
-    case 9: return (__mmask64)0x0080200802008020ull;  // 7 elems
-    case 10: return (__mmask64)0x0040100401004010ull; // 6 elems
-    case 11: return (__mmask64)0x0020080200802008ull; // 5 elems
-    case 12: return (__mmask64)0x0010040100401004ull; // 5 elems
-    case 13: return (__mmask64)0x0008020080200802ull; // 4 elems
-    case 14: return (__mmask64)0x0004010040100401ull; // 4 elems
-    case 15: return (__mmask64)0x0002008020080200ull; // 4 elems
+    case 9: return (__mmask64)0x8040201008040201ull;  // 8 elems
+    case 10: return (__mmask64)0x1004010040100401ull; // 7 elems
+    case 11: return (__mmask64)0x0080100200400801ull; // 6 elems
+    case 12: return (__mmask64)0x1001001001001001ull; // 6 elems
+    case 13: return (__mmask64)0x0010008004002001ull; // 5 elems
+    case 14: return (__mmask64)0x0100040010004001ull; // 5 elems
+    case 15: return (__mmask64)0x1000200040008001ull; // 5 elems
     case 16: return (__mmask64)0x0001000100010001ull; // 4 elems
     default: return (__mmask64)0;
     }
@@ -191,13 +191,13 @@ NK_INTERNAL __mmask64 nk_stride_mask_u1x64_(nk_size_t stride) {
  */
 NK_INTERNAL __mmask16 nk_stride_mask_b32x16_(nk_size_t stride) {
     switch (stride) {
-    case 2: return (__mmask16)0x5555; // [1,0,1,0,1,0,1,0,1,0,1,0,1,0,1,0] → 8 elems
-    case 3: return (__mmask16)0x1249; // [1,0,0,1,0,0,1,0,0,1,0,0,1,0,0,0] → 5 elems
-    case 4: return (__mmask16)0x1111; // [1,0,0,0,1,0,0,0,1,0,0,0,1,0,0,0] → 4 elems
-    case 5: return (__mmask16)0x0421; // [1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,0] → 3 elems
-    case 6: return (__mmask16)0x0041; // [1,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0] → 2 elems
-    case 7: return (__mmask16)0x0081; // [1,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0] → 2 elems
-    case 8: return (__mmask16)0x0101; // [1,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0] → 2 elems
+    case 2: return (__mmask16)0x5555; // 8 elems
+    case 3: return (__mmask16)0x9249; // 6 elems
+    case 4: return (__mmask16)0x1111; // 4 elems
+    case 5: return (__mmask16)0x8421; // 4 elems
+    case 6: return (__mmask16)0x1041; // 3 elems
+    case 7: return (__mmask16)0x4081; // 3 elems
+    case 8: return (__mmask16)0x0101; // 2 elems
     default: return (__mmask16)0;     // Invalid stride - caller should use gather or serial
     }
 }
@@ -212,19 +212,19 @@ NK_INTERNAL __mmask16 nk_stride_mask_b32x16_(nk_size_t stride) {
 NK_INTERNAL __mmask32 nk_stride_mask_b16x32_(nk_size_t stride) {
     switch (stride) {
     case 2: return (__mmask32)0x55555555;  // 16 elems
-    case 3: return (__mmask32)0x09249249;  // 11 elems
+    case 3: return (__mmask32)0x49249249;  // 11 elems
     case 4: return (__mmask32)0x11111111;  // 8 elems
-    case 5: return (__mmask32)0x01084210;  // 6 elems
-    case 6: return (__mmask32)0x01041041;  // 5 elems
-    case 7: return (__mmask32)0x00408102;  // 4 elems
+    case 5: return (__mmask32)0x42108421;  // 7 elems
+    case 6: return (__mmask32)0x41041041;  // 6 elems
+    case 7: return (__mmask32)0x10204081;  // 5 elems
     case 8: return (__mmask32)0x01010101;  // 4 elems
-    case 9: return (__mmask32)0x00802008;  // 3 elems
-    case 10: return (__mmask32)0x00401004; // 3 elems
-    case 11: return (__mmask32)0x00200802; // 3 elems
-    case 12: return (__mmask32)0x00100401; // 2 elems
-    case 13: return (__mmask32)0x00080200; // 2 elems
-    case 14: return (__mmask32)0x00040100; // 2 elems
-    case 15: return (__mmask32)0x00020080; // 2 elems
+    case 9: return (__mmask32)0x08040201;  // 4 elems
+    case 10: return (__mmask32)0x40100401; // 4 elems
+    case 11: return (__mmask32)0x00400801; // 3 elems
+    case 12: return (__mmask32)0x01001001; // 3 elems
+    case 13: return (__mmask32)0x04002001; // 3 elems
+    case 14: return (__mmask32)0x10004001; // 3 elems
+    case 15: return (__mmask32)0x40008001; // 3 elems
     case 16: return (__mmask32)0x00010001; // 2 elems
     default: return (__mmask32)0;
     }
@@ -251,54 +251,16 @@ NK_INTERNAL __mmask8 nk_stride_mask_b64x8_(nk_size_t stride) {
 }
 
 /**
- *  @brief Returns initial logical index vector for 32-bit strided access (16-element register).
- *
- *  For min/max with index tracking: non-stride positions get 0 (don't matter, masked out).
- *  Stride positions get sequential logical indices: 0, 1, 2, ...
- */
-NK_INTERNAL __m512i nk_stride_logidx_i32x16_(nk_size_t stride) {
-    switch (stride) {
-    case 2: return _mm512_setr_epi32(0, 0, 1, 0, 2, 0, 3, 0, 4, 0, 5, 0, 6, 0, 7, 0); // 8 elems
-    case 3: return _mm512_setr_epi32(0, 0, 0, 1, 0, 0, 2, 0, 0, 3, 0, 0, 4, 0, 0, 0); // 5 elems
-    case 4: return _mm512_setr_epi32(0, 0, 0, 0, 1, 0, 0, 0, 2, 0, 0, 0, 3, 0, 0, 0); // 4 elems
-    case 5: return _mm512_setr_epi32(0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0); // 3 elems
-    case 6: return _mm512_setr_epi32(0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0); // 2 elems
-    case 7: return _mm512_setr_epi32(0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0); // 2 elems
-    case 8: return _mm512_setr_epi32(0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0); // 2 elems
-    default: return _mm512_setzero_si512();
-    }
-}
-
-/**
- *  @brief Returns initial logical index vector for 64-bit strided access (8-element register).
- *
- *  For min/max with index tracking: non-stride positions get 0 (don't matter, masked out).
- *  Stride positions get sequential logical indices: 0, 1, 2, ...
- */
-NK_INTERNAL __m512i nk_stride_logidx_i64x8_(nk_size_t stride) {
-    switch (stride) {
-    case 2: return _mm512_setr_epi64(0, 0, 1, 0, 2, 0, 3, 0); // 4 elems
-    case 3: return _mm512_setr_epi64(0, 0, 0, 1, 0, 0, 2, 0); // 3 elems
-    case 4: return _mm512_setr_epi64(0, 0, 0, 0, 1, 0, 0, 0); // 2 elems
-    case 5: return _mm512_setr_epi64(0, 0, 0, 0, 0, 1, 0, 0); // 2 elems
-    case 6: return _mm512_setr_epi64(0, 0, 0, 0, 0, 0, 1, 0); // 2 elems
-    case 7: return _mm512_setr_epi64(0, 0, 0, 0, 0, 0, 0, 0); // 1 elem
-    case 8: return _mm512_setr_epi64(0, 0, 0, 0, 0, 0, 0, 0); // 1 elem
-    default: return _mm512_setzero_si512();
-    }
-}
-
-/**
  *  @brief Returns number of logical elements per 16-scalar chunk for given stride.
  */
 NK_INTERNAL nk_size_t nk_stride_elems_b32x16_(nk_size_t stride) {
     switch (stride) {
     case 2: return 8;
-    case 3: return 5;
+    case 3: return 6;
     case 4: return 4;
-    case 5: return 3;
-    case 6: return 2;
-    case 7: return 2;
+    case 5: return 4;
+    case 6: return 3;
+    case 7: return 3;
     case 8: return 2;
     default: return 0;
     }
@@ -703,7 +665,8 @@ NK_INTERNAL void nk_reduce_moments_f32_skylake_strided_(                  //
     __mmask16 stride_mask = nk_stride_mask_b32x16_(stride_elements);
     __m512d sum_f64x8 = _mm512_setzero_pd(), sumsq_f64x8 = _mm512_setzero_pd();
     nk_size_t idx = 0, total = count * stride_elements;
-    for (; idx + 16 <= total; idx += 16) {
+    nk_size_t step = (nk_size_t)_mm_popcnt_u64((nk_u64_t)stride_mask) * stride_elements;
+    for (; idx + step <= total; idx += step) {
         __m512 data_f32x16 = _mm512_maskz_loadu_ps(stride_mask, data_ptr + idx);
         __m512d low_f64x8 = _mm512_cvtps_pd(_mm512_castps512_ps256(data_f32x16));
         __m512d high_f64x8 = _mm512_cvtps_pd(_mm512_extractf32x8_ps(data_f32x16, 1));
@@ -910,7 +873,8 @@ NK_INTERNAL void nk_reduce_moments_f64_skylake_strided_(                  //
     __m512d sumsq_f64x8 = _mm512_setzero_pd();
     __m512d sumsq_comp_f64x8 = _mm512_setzero_pd();
     nk_size_t idx = 0, total = count * stride_elements;
-    for (; idx + 8 <= total; idx += 8) {
+    nk_size_t step = (nk_size_t)_mm_popcnt_u64((nk_u64_t)stride_mask) * stride_elements;
+    for (; idx + step <= total; idx += step) {
         __m512d val_f64x8 = _mm512_maskz_loadu_pd(stride_mask, data_ptr + idx);
         // Knuth 2-SUM for sum
         __m512d tentative_f64x8 = _mm512_add_pd(sum_f64x8, val_f64x8);
@@ -1055,6 +1019,7 @@ NK_INTERNAL void nk_reduce_moments_i8_skylake_strided_(                  //
     nk_i8_t const *data_ptr, nk_size_t count, nk_size_t stride_elements, //
     nk_i64_t *sum_ptr, nk_u64_t *sumsq_ptr) {
     __mmask64 stride_mask_m64 = nk_stride_mask_u1x64_(stride_elements);
+    nk_size_t elements_per_vector = (nk_size_t)_mm_popcnt_u64((nk_u64_t)stride_mask_m64);
     __m512i masked_bias_i8x64 = _mm512_maskz_mov_epi8(stride_mask_m64, _mm512_set1_epi8((char)0x80));
     __m512i zero_i8x64 = _mm512_setzero_si512();
     __m512i sum_u64x8 = _mm512_setzero_si512();
@@ -1062,9 +1027,9 @@ NK_INTERNAL void nk_reduce_moments_i8_skylake_strided_(                  //
     __m512i sumsq_high_i32x16 = _mm512_setzero_si512();
     nk_size_t idx_scalars = 0;
     nk_size_t total_scalars = count * stride_elements;
-    nk_size_t elements_per_vector = 64 / stride_elements;
     nk_size_t vector_element_count = 0;
-    for (; idx_scalars + 64 <= total_scalars; idx_scalars += 64) {
+    nk_size_t step = elements_per_vector * stride_elements;
+    for (; idx_scalars + step <= total_scalars; idx_scalars += step) {
         __m512i data_i8x64 = _mm512_maskz_loadu_epi8(stride_mask_m64, data_ptr + idx_scalars);
         __m512i unsigned_i8x64 = _mm512_xor_si512(data_i8x64, masked_bias_i8x64);
         sum_u64x8 = _mm512_add_epi64(sum_u64x8, _mm512_sad_epu8(unsigned_i8x64, zero_i8x64));
@@ -1250,7 +1215,8 @@ NK_INTERNAL void nk_reduce_moments_u8_skylake_strided_(                  //
     __m512i sumsq_high_i32x16 = _mm512_setzero_si512();
     nk_size_t idx_scalars = 0;
     nk_size_t total_scalars = count * stride_elements;
-    for (; idx_scalars + 64 <= total_scalars; idx_scalars += 64) {
+    nk_size_t step = (nk_size_t)_mm_popcnt_u64((nk_u64_t)stride_mask_m64) * stride_elements;
+    for (; idx_scalars + step <= total_scalars; idx_scalars += step) {
         __m512i data_u8x64 = _mm512_maskz_loadu_epi8(stride_mask_m64, data_ptr + idx_scalars);
         sum_u64x8 = _mm512_add_epi64(sum_u64x8, _mm512_sad_epu8(data_u8x64, zero_u8x64));
         __m512i low_i16x32 = _mm512_cvtepu8_epi16(_mm512_castsi512_si256(data_u8x64));
@@ -1427,7 +1393,8 @@ NK_INTERNAL void nk_reduce_moments_i16_skylake_strided_(                  //
     __m512i sumsq_i64x8 = _mm512_setzero_si512();
     nk_size_t idx_scalars = 0;
     nk_size_t total_scalars = count * stride_elements;
-    for (; idx_scalars + 32 <= total_scalars; idx_scalars += 32) {
+    nk_size_t step = (nk_size_t)_mm_popcnt_u64((nk_u64_t)stride_mask_m32) * stride_elements;
+    for (; idx_scalars + step <= total_scalars; idx_scalars += step) {
         __m512i data_i16x32 = _mm512_maskz_loadu_epi16(stride_mask_m32, data_ptr + idx_scalars);
         sum_i32x16 = _mm512_add_epi32(sum_i32x16, _mm512_madd_epi16(data_i16x32, ones_i16x32));
         __m512i sq_i32x16 = _mm512_madd_epi16(data_i16x32, data_i16x32);
@@ -1611,7 +1578,8 @@ NK_INTERNAL void nk_reduce_moments_u16_skylake_strided_(                  //
     __m512i sumsq_u64x8 = _mm512_setzero_si512();
     nk_size_t idx_scalars = 0;
     nk_size_t total_scalars = count * stride_elements;
-    for (; idx_scalars + 32 <= total_scalars; idx_scalars += 32) {
+    nk_size_t step = (nk_size_t)_mm_popcnt_u64((nk_u64_t)stride_mask_m32) * stride_elements;
+    for (; idx_scalars + step <= total_scalars; idx_scalars += step) {
         __m512i data_u16x32 = _mm512_maskz_loadu_epi16(stride_mask_m32, data_ptr + idx_scalars);
         __m512i low_u32x16 = _mm512_unpacklo_epi16(data_u16x32, zero);
         __m512i high_u32x16 = _mm512_unpackhi_epi16(data_u16x32, zero);
@@ -2588,7 +2556,8 @@ NK_INTERNAL void nk_reduce_moments_e4m3_skylake_strided_(                  //
     __m512 sumsq_f32x16 = _mm512_setzero_ps();
     nk_size_t idx_scalars = 0;
     nk_size_t total_scalars = count * stride_elements;
-    for (; idx_scalars + 16 <= total_scalars; idx_scalars += 16) {
+    nk_size_t step = (nk_size_t)_mm_popcnt_u64((nk_u64_t)stride_mask_m16) * stride_elements;
+    for (; idx_scalars + step <= total_scalars; idx_scalars += step) {
         __m128i data_e4m3x16 = _mm_maskz_loadu_epi8(stride_mask_m16, data_ptr + idx_scalars);
         __m512 data_f32x16 = nk_e4m3x16_to_f32x16_skylake_(data_e4m3x16);
         sum_f32x16 = _mm512_add_ps(sum_f32x16, data_f32x16);
@@ -2763,7 +2732,8 @@ NK_INTERNAL void nk_reduce_moments_e5m2_skylake_strided_(                  //
     __m512 sumsq_f32x16 = _mm512_setzero_ps();
     nk_size_t idx_scalars = 0;
     nk_size_t total_scalars = count * stride_elements;
-    for (; idx_scalars + 16 <= total_scalars; idx_scalars += 16) {
+    nk_size_t step = (nk_size_t)_mm_popcnt_u64((nk_u64_t)stride_mask_m16) * stride_elements;
+    for (; idx_scalars + step <= total_scalars; idx_scalars += step) {
         __m128i data_e5m2x16 = _mm_maskz_loadu_epi8(stride_mask_m16, data_ptr + idx_scalars);
         __m512 data_f32x16 = nk_e5m2x16_to_f32x16_skylake_(data_e5m2x16);
         sum_f32x16 = _mm512_add_ps(sum_f32x16, data_f32x16);
@@ -2832,7 +2802,8 @@ NK_INTERNAL void nk_reduce_moments_e2m3_skylake_strided_(                  //
     __m512 sumsq_f32x16 = _mm512_setzero_ps();
     nk_size_t idx_scalars = 0;
     nk_size_t total_scalars = count * stride_elements;
-    for (; idx_scalars + 16 <= total_scalars; idx_scalars += 16) {
+    nk_size_t step = (nk_size_t)_mm_popcnt_u64((nk_u64_t)stride_mask_m16) * stride_elements;
+    for (; idx_scalars + step <= total_scalars; idx_scalars += step) {
         __m128i data_e2m3x16 = _mm_maskz_loadu_epi8(stride_mask_m16, data_ptr + idx_scalars);
         __m512 data_f32x16 = nk_e2m3x16_to_f32x16_skylake_(data_e2m3x16);
         sum_f32x16 = _mm512_add_ps(sum_f32x16, data_f32x16);
@@ -2901,7 +2872,8 @@ NK_INTERNAL void nk_reduce_moments_e3m2_skylake_strided_(                  //
     __m512 sumsq_f32x16 = _mm512_setzero_ps();
     nk_size_t idx_scalars = 0;
     nk_size_t total_scalars = count * stride_elements;
-    for (; idx_scalars + 16 <= total_scalars; idx_scalars += 16) {
+    nk_size_t step = (nk_size_t)_mm_popcnt_u64((nk_u64_t)stride_mask_m16) * stride_elements;
+    for (; idx_scalars + step <= total_scalars; idx_scalars += step) {
         __m128i data_e3m2x16 = _mm_maskz_loadu_epi8(stride_mask_m16, data_ptr + idx_scalars);
         __m512 data_f32x16 = nk_e3m2x16_to_f32x16_skylake_(data_e3m2x16);
         sum_f32x16 = _mm512_add_ps(sum_f32x16, data_f32x16);

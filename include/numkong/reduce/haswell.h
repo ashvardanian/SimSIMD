@@ -527,28 +527,6 @@ NK_INTERNAL __m256i nk_stride_blend_b64x4_(nk_size_t stride) {
     }
 }
 
-NK_INTERNAL __m256i nk_stride_logidx_i32x8_(nk_size_t stride) {
-    switch (stride) {
-    case 2: return _mm256_setr_epi32(0, 0, 1, 0, 2, 0, 3, 0); // 4 elems
-    case 3: return _mm256_setr_epi32(0, 0, 0, 1, 0, 0, 2, 0); // 3 elems (partial)
-    case 4: return _mm256_setr_epi32(0, 0, 0, 0, 1, 0, 0, 0); // 2 elems
-    case 5: return _mm256_setr_epi32(0, 0, 0, 0, 0, 1, 0, 0); // 2 elems (partial)
-    case 6: return _mm256_setr_epi32(0, 0, 0, 0, 0, 0, 1, 0); // 2 elems (partial)
-    case 7: return _mm256_setr_epi32(0, 0, 0, 0, 0, 0, 0, 1); // 2 elems (partial)
-    case 8: return _mm256_setr_epi32(0, 0, 0, 0, 0, 0, 0, 0); // 1 elem
-    default: return _mm256_setzero_si256();
-    }
-}
-
-NK_INTERNAL __m256i nk_stride_logidx_i64x4_(nk_size_t stride) {
-    switch (stride) {
-    case 2: return _mm256_setr_epi64x(0, 0, 1, 0);  // 2 elems
-    case 3: return _mm256_setr_epi64x(0, 0, 0, 1);  // 2 elems (wraps)
-    case 4: return _mm256_setr_epi64x(0, 0, 0, 0);  // 1 elem
-    default: return _mm256_setr_epi64x(0, 0, 0, 0); // 1 elem for stride 5+
-    }
-}
-
 NK_INTERNAL nk_size_t nk_stride_elems_b32x8_(nk_size_t stride) {
     switch (stride) {
     case 2: return 4;
@@ -608,7 +586,8 @@ NK_INTERNAL void nk_reduce_moments_f32_haswell_strided_(                  //
     __m256d sum_low_f64x4 = _mm256_setzero_pd(), sum_high_f64x4 = _mm256_setzero_pd();
     __m256d sumsq_low_f64x4 = _mm256_setzero_pd(), sumsq_high_f64x4 = _mm256_setzero_pd();
     nk_size_t idx = 0, total = count * stride_elements;
-    for (; idx + 8 <= total; idx += 8) {
+    nk_size_t step = nk_size_round_up_to_multiple_(8, stride_elements);
+    for (; idx + step <= total; idx += step) {
         __m128 low_f32x4 = _mm_blendv_ps(zero_f32x4, _mm_loadu_ps(data_ptr + idx), blend_low_f32x4);
         __m128 high_f32x4 = _mm_blendv_ps(zero_f32x4, _mm_loadu_ps(data_ptr + idx + 4), blend_high_f32x4);
         __m256d low_f64x4 = _mm256_cvtps_pd(low_f32x4);
@@ -839,7 +818,8 @@ NK_INTERNAL void nk_reduce_moments_f64_haswell_strided_(                  //
     __m256d sumsq_f64x4 = _mm256_setzero_pd();
     __m256d sumsq_comp_f64x4 = _mm256_setzero_pd();
     nk_size_t idx = 0, total = count * stride_elements;
-    for (; idx + 4 <= total; idx += 4) {
+    nk_size_t step = nk_size_round_up_to_multiple_(4, stride_elements);
+    for (; idx + step <= total; idx += step) {
         __m256d val_f64x4 = _mm256_blendv_pd(zero_f64x4, _mm256_loadu_pd(data_ptr + idx), blend_f64x4);
         __m256d tentative_f64x4 = _mm256_add_pd(sum_f64x4, val_f64x4);
         __m256d round_f64x4 = _mm256_sub_pd(tentative_f64x4, sum_f64x4);
@@ -1036,6 +1016,7 @@ NK_INTERNAL void nk_reduce_moments_i8_haswell_strided_(                  //
     nk_i64_t *sum_ptr, nk_u64_t *sumsq_ptr) {
 
     __m256i stride_mask_i8x32 = nk_stride_blend_u1x32_(stride_elements);
+    nk_size_t elements_per_vector = nk_size_divide_round_up_(32, stride_elements);
     __m256i masked_bias_i8x32 = _mm256_and_si256(_mm256_set1_epi8((char)0x80), stride_mask_i8x32);
     __m256i zero_i8x32 = _mm256_setzero_si256();
     __m256i sum_u64x4 = _mm256_setzero_si256();
@@ -1043,9 +1024,9 @@ NK_INTERNAL void nk_reduce_moments_i8_haswell_strided_(                  //
     __m256i sumsq_high_i32x8 = _mm256_setzero_si256();
     nk_size_t idx_scalars = 0;
     nk_size_t total_scalars = count * stride_elements;
-    nk_size_t elements_per_vector = 32 / stride_elements;
     nk_size_t vector_element_count = 0;
-    for (; idx_scalars + 32 <= total_scalars; idx_scalars += 32) {
+    nk_size_t step = elements_per_vector * stride_elements;
+    for (; idx_scalars + step <= total_scalars; idx_scalars += step) {
         __m256i data_i8x32 = _mm256_loadu_si256((__m256i const *)(data_ptr + idx_scalars));
         data_i8x32 = _mm256_and_si256(data_i8x32, stride_mask_i8x32);
         __m256i unsigned_u8x32 = _mm256_xor_si256(data_i8x32, masked_bias_i8x32);
@@ -1244,7 +1225,8 @@ NK_INTERNAL void nk_reduce_moments_u8_haswell_strided_(                  //
     __m256i sumsq_high_i32x8 = _mm256_setzero_si256();
     nk_size_t idx_scalars = 0;
     nk_size_t total_scalars = count * stride_elements;
-    for (; idx_scalars + 32 <= total_scalars; idx_scalars += 32) {
+    nk_size_t step = nk_size_round_up_to_multiple_(32, stride_elements);
+    for (; idx_scalars + step <= total_scalars; idx_scalars += step) {
         __m256i data_u8x32 = _mm256_loadu_si256((__m256i const *)(data_ptr + idx_scalars));
         data_u8x32 = _mm256_and_si256(data_u8x32, stride_mask_u8x32);
         sum_u64x4 = _mm256_add_epi64(sum_u64x4, _mm256_sad_epu8(data_u8x32, zero_u8x32));
@@ -1439,7 +1421,8 @@ NK_INTERNAL void nk_reduce_moments_i16_haswell_strided_(                  //
     __m256i sumsq_i64x4 = _mm256_setzero_si256();
     nk_size_t idx_scalars = 0;
     nk_size_t total_scalars = count * stride_elements;
-    for (; idx_scalars + 16 <= total_scalars; idx_scalars += 16) {
+    nk_size_t step = nk_size_round_up_to_multiple_(16, stride_elements);
+    for (; idx_scalars + step <= total_scalars; idx_scalars += step) {
         __m256i data_i16x16 = _mm256_loadu_si256((__m256i const *)(data_ptr + idx_scalars));
         data_i16x16 = _mm256_and_si256(data_i16x16, stride_mask_i16x16);
         sum_i32x8 = _mm256_add_epi32(sum_i32x8, _mm256_madd_epi16(data_i16x16, ones_i16x16));
@@ -1629,7 +1612,8 @@ NK_INTERNAL void nk_reduce_moments_u16_haswell_strided_(                  //
     __m256i sumsq_u64x4 = _mm256_setzero_si256();
     nk_size_t idx_scalars = 0;
     nk_size_t total_scalars = count * stride_elements;
-    for (; idx_scalars + 16 <= total_scalars; idx_scalars += 16) {
+    nk_size_t step = nk_size_round_up_to_multiple_(16, stride_elements);
+    for (; idx_scalars + step <= total_scalars; idx_scalars += step) {
         __m256i data_u16x16 = _mm256_loadu_si256((__m256i const *)(data_ptr + idx_scalars));
         data_u16x16 = _mm256_and_si256(data_u16x16, stride_mask_i16x16);
         __m256i lo_u32x8 = _mm256_cvtepu16_epi32(_mm256_castsi256_si128(data_u16x16));

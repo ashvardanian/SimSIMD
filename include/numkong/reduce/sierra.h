@@ -68,7 +68,8 @@ NK_INTERNAL void nk_reduce_moments_i8_sierra_strided_(               //
     __m256i sumsq_i32x8 = _mm256_setzero_si256();
     nk_size_t idx_scalars = 0;
     nk_size_t total_scalars = count * stride_elements;
-    for (; idx_scalars + 32 <= total_scalars; idx_scalars += 32) {
+    nk_size_t step = nk_size_round_up_to_multiple_(32, stride_elements);
+    for (; idx_scalars + step <= total_scalars; idx_scalars += step) {
         __m256i data_i8x32 = _mm256_loadu_si256((__m256i const *)(data + idx_scalars));
         data_i8x32 = _mm256_and_si256(data_i8x32, stride_mask_i8x32);
         sum_i32x8 = _mm256_dpbssd_epi32(sum_i32x8, data_i8x32, ones_i8x32);
@@ -155,7 +156,8 @@ NK_INTERNAL void nk_reduce_moments_u8_sierra_strided_(               //
     __m256i sumsq_high_i32x8 = _mm256_setzero_si256();
     nk_size_t idx_scalars = 0;
     nk_size_t total_scalars = count * stride_elements;
-    for (; idx_scalars + 32 <= total_scalars; idx_scalars += 32) {
+    nk_size_t step = nk_size_round_up_to_multiple_(32, stride_elements);
+    for (; idx_scalars + step <= total_scalars; idx_scalars += step) {
         __m256i data_u8x32 = _mm256_loadu_si256((__m256i const *)(data + idx_scalars));
         data_u8x32 = _mm256_and_si256(data_u8x32, stride_mask_u8x32);
         sum_u64x4 = _mm256_add_epi64(sum_u64x4, _mm256_sad_epu8(data_u8x32, zero_u8x32));
@@ -244,7 +246,8 @@ NK_INTERNAL void nk_reduce_moments_i16_sierra_strided_(               //
     __m256i sumsq_i64x4 = _mm256_setzero_si256();
     nk_size_t idx_scalars = 0;
     nk_size_t total_scalars = count * stride_elements;
-    for (; idx_scalars + 16 <= total_scalars; idx_scalars += 16) {
+    nk_size_t step = nk_size_round_up_to_multiple_(16, stride_elements);
+    for (; idx_scalars + step <= total_scalars; idx_scalars += step) {
         __m256i data_i16x16 = _mm256_loadu_si256((__m256i const *)(data + idx_scalars));
         data_i16x16 = _mm256_and_si256(data_i16x16, stride_mask_i16x16);
         __m256i sum_i32x8 = _mm256_dpwssd_epi32(_mm256_setzero_si256(), data_i16x16, ones_i16x16);
@@ -329,7 +332,8 @@ NK_INTERNAL void nk_reduce_moments_u16_sierra_strided_(               //
     __m256i sumsq_u64x4 = _mm256_setzero_si256();
     nk_size_t idx_scalars = 0;
     nk_size_t total_scalars = count * stride_elements;
-    for (; idx_scalars + 16 <= total_scalars; idx_scalars += 16) {
+    nk_size_t step = nk_size_round_up_to_multiple_(16, stride_elements);
+    for (; idx_scalars + step <= total_scalars; idx_scalars += step) {
         __m256i data_u16x16 = _mm256_loadu_si256((__m256i const *)(data + idx_scalars));
         data_u16x16 = _mm256_and_si256(data_u16x16, stride_mask_i16x16);
         __m256i low_u32x8 = _mm256_cvtepu16_epi32(_mm256_castsi256_si128(data_u16x16));
@@ -461,7 +465,8 @@ NK_INTERNAL void nk_reduce_moments_e2m3_sierra_strided_(               //
     __m256i sumsq_i32x8 = _mm256_setzero_si256();
     nk_size_t idx_scalars = 0;
     nk_size_t total_scalars = count * stride_elements;
-    for (; idx_scalars + 32 <= total_scalars; idx_scalars += 32) {
+    nk_size_t step = nk_size_round_up_to_multiple_(32, stride_elements);
+    for (; idx_scalars + step <= total_scalars; idx_scalars += step) {
         __m256i data_u8x32 = _mm256_loadu_si256((__m256i const *)(data + idx_scalars));
         data_u8x32 = _mm256_and_si256(data_u8x32, stride_mask_u8x32);
         __m256i magnitude_u8x32 = _mm256_and_si256(data_u8x32, magnitude_mask_u8x32);
@@ -622,7 +627,8 @@ NK_INTERNAL void nk_reduce_moments_e3m2_sierra_strided_(               //
     __m256i sumsq_i32x8 = _mm256_setzero_si256();
     nk_size_t idx_scalars = 0;
     nk_size_t total_scalars = count * stride_elements;
-    for (; idx_scalars + 32 <= total_scalars; idx_scalars += 32) {
+    nk_size_t step = nk_size_round_up_to_multiple_(32, stride_elements);
+    for (; idx_scalars + step <= total_scalars; idx_scalars += step) {
         __m256i data_u8x32 = _mm256_loadu_si256((__m256i const *)(data + idx_scalars));
         data_u8x32 = _mm256_and_si256(data_u8x32, stride_mask_u8x32);
         __m256i magnitude_u8x32 = _mm256_and_si256(data_u8x32, magnitude_mask_u8x32);
