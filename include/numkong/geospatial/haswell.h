@@ -196,7 +196,7 @@ NK_INTERNAL __m256d nk_vincenty_f64x4_haswell_(        //
     __m256d const equatorial_radius = _mm256_set1_pd(NK_EARTH_ELLIPSOID_EQUATORIAL_RADIUS);
     __m256d const polar_radius = _mm256_set1_pd(NK_EARTH_ELLIPSOID_POLAR_RADIUS);
     __m256d const flattening = _mm256_set1_pd(1.0 / NK_EARTH_ELLIPSOID_INVERSE_FLATTENING);
-    __m256d const convergence_threshold = _mm256_set1_pd(NK_VINCENTY_CONVERGENCE_THRESHOLD);
+    __m256d const convergence_threshold = _mm256_set1_pd(NK_VINCENTY_CONVERGENCE_THRESHOLD_F64);
     __m256d const one = _mm256_set1_pd(1.0);
     __m256d const two = _mm256_set1_pd(2.0);
     __m256d const three = _mm256_set1_pd(3.0);
@@ -393,7 +393,7 @@ NK_INTERNAL __m256 nk_vincenty_f32x8_haswell_(       //
     __m256 const equatorial_radius = _mm256_set1_ps((float)NK_EARTH_ELLIPSOID_EQUATORIAL_RADIUS);
     __m256 const polar_radius = _mm256_set1_ps((float)NK_EARTH_ELLIPSOID_POLAR_RADIUS);
     __m256 const flattening = _mm256_set1_ps(1.0f / (float)NK_EARTH_ELLIPSOID_INVERSE_FLATTENING);
-    __m256 const convergence_threshold = _mm256_set1_ps((float)NK_VINCENTY_CONVERGENCE_THRESHOLD);
+    __m256 const convergence_threshold = _mm256_set1_ps(NK_VINCENTY_CONVERGENCE_THRESHOLD_F32);
     __m256 const one = _mm256_set1_ps(1.0f);
     __m256 const two = _mm256_set1_ps(2.0f);
     __m256 const three = _mm256_set1_ps(3.0f);

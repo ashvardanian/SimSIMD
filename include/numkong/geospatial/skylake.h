@@ -120,7 +120,7 @@ NK_INTERNAL __m512d nk_vincenty_f64x8_skylake_(        //
     __m512d const equatorial_radius = _mm512_set1_pd(NK_EARTH_ELLIPSOID_EQUATORIAL_RADIUS);
     __m512d const polar_radius = _mm512_set1_pd(NK_EARTH_ELLIPSOID_POLAR_RADIUS);
     __m512d const flattening = _mm512_set1_pd(1.0 / NK_EARTH_ELLIPSOID_INVERSE_FLATTENING);
-    __m512d const convergence_threshold = _mm512_set1_pd(NK_VINCENTY_CONVERGENCE_THRESHOLD);
+    __m512d const convergence_threshold = _mm512_set1_pd(NK_VINCENTY_CONVERGENCE_THRESHOLD_F64);
     __m512d const one = _mm512_set1_pd(1.0);
     __m512d const two = _mm512_set1_pd(2.0);
     __m512d const three = _mm512_set1_pd(3.0);
@@ -380,7 +380,7 @@ NK_INTERNAL __m512 nk_vincenty_f32x16_skylake_(      //
     __m512 const equatorial_radius = _mm512_set1_ps((float)NK_EARTH_ELLIPSOID_EQUATORIAL_RADIUS);
     __m512 const polar_radius = _mm512_set1_ps((float)NK_EARTH_ELLIPSOID_POLAR_RADIUS);
     __m512 const flattening = _mm512_set1_ps(1.0f / (float)NK_EARTH_ELLIPSOID_INVERSE_FLATTENING);
-    __m512 const convergence_threshold = _mm512_set1_ps((float)NK_VINCENTY_CONVERGENCE_THRESHOLD);
+    __m512 const convergence_threshold = _mm512_set1_ps(NK_VINCENTY_CONVERGENCE_THRESHOLD_F32);
     __m512 const one = _mm512_set1_ps(1.0f);
     __m512 const two = _mm512_set1_ps(2.0f);
     __m512 const three = _mm512_set1_ps(3.0f);

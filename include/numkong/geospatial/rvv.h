@@ -223,7 +223,7 @@ NK_INTERNAL void nk_vincenty_f64_rvv_kernel_(       //
     vfloat64m4_t const v_polar_radius = __riscv_vfmv_v_f_f64m4(NK_EARTH_ELLIPSOID_POLAR_RADIUS, vector_length);
     nk_f64_t const flattening_scalar = 1.0 / NK_EARTH_ELLIPSOID_INVERSE_FLATTENING;
     vfloat64m4_t const v_flattening = __riscv_vfmv_v_f_f64m4(flattening_scalar, vector_length);
-    vfloat64m4_t const v_convergence = __riscv_vfmv_v_f_f64m4(NK_VINCENTY_CONVERGENCE_THRESHOLD, vector_length);
+    vfloat64m4_t const v_convergence = __riscv_vfmv_v_f_f64m4(NK_VINCENTY_CONVERGENCE_THRESHOLD_F64, vector_length);
     vfloat64m4_t const v_one = __riscv_vfmv_v_f_f64m4(1.0, vector_length);
     vfloat64m4_t const v_two = __riscv_vfmv_v_f_f64m4(2.0, vector_length);
     vfloat64m4_t const v_three = __riscv_vfmv_v_f_f64m4(3.0, vector_length);
@@ -468,8 +468,7 @@ NK_INTERNAL void nk_vincenty_f32_rvv_kernel_(       //
                                                                vector_length);
     nk_f32_t const flattening_scalar = 1.0f / (nk_f32_t)NK_EARTH_ELLIPSOID_INVERSE_FLATTENING;
     vfloat32m4_t const v_flattening = __riscv_vfmv_v_f_f32m4(flattening_scalar, vector_length);
-    vfloat32m4_t const v_convergence = __riscv_vfmv_v_f_f32m4((nk_f32_t)NK_VINCENTY_CONVERGENCE_THRESHOLD,
-                                                              vector_length);
+    vfloat32m4_t const v_convergence = __riscv_vfmv_v_f_f32m4(NK_VINCENTY_CONVERGENCE_THRESHOLD_F32, vector_length);
     vfloat32m4_t const v_one = __riscv_vfmv_v_f_f32m4(1.0f, vector_length);
     vfloat32m4_t const v_two = __riscv_vfmv_v_f_f32m4(2.0f, vector_length);
     vfloat32m4_t const v_three = __riscv_vfmv_v_f_f32m4(3.0f, vector_length);

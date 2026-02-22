@@ -171,7 +171,7 @@ NK_PUBLIC void nk_vincenty_f64_serial(              //
                                                                                          cos_double_angular_midpoint)));
 
             iteration++;
-        } while (nk_f64_abs_(lambda - lambda_previous) > NK_VINCENTY_CONVERGENCE_THRESHOLD &&
+        } while (nk_f64_abs_(lambda - lambda_previous) > NK_VINCENTY_CONVERGENCE_THRESHOLD_F64 &&
                  iteration < NK_VINCENTY_MAX_ITERATIONS);
 
         if (coincident) {
@@ -208,7 +208,7 @@ NK_PUBLIC void nk_vincenty_f32_serial(              //
     nk_f32_t const equatorial_radius = (nk_f32_t)NK_EARTH_ELLIPSOID_EQUATORIAL_RADIUS;
     nk_f32_t const polar_radius = (nk_f32_t)NK_EARTH_ELLIPSOID_POLAR_RADIUS;
     nk_f32_t const flattening = 1.0f / (nk_f32_t)NK_EARTH_ELLIPSOID_INVERSE_FLATTENING;
-    nk_f32_t const convergence_threshold = (nk_f32_t)NK_VINCENTY_CONVERGENCE_THRESHOLD;
+    nk_f32_t const convergence_threshold = 1e-7f;
 
     for (nk_size_t i = 0; i != n; ++i) {
         nk_f32_t first_latitude = a_lats[i];

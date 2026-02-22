@@ -206,7 +206,7 @@ NK_INTERNAL v128_t nk_vincenty_f64x2_v128relaxed_(   //
     v128_t const equatorial_radius = wasm_f64x2_splat(NK_EARTH_ELLIPSOID_EQUATORIAL_RADIUS);
     v128_t const polar_radius = wasm_f64x2_splat(NK_EARTH_ELLIPSOID_POLAR_RADIUS);
     v128_t const flattening = wasm_f64x2_splat(1.0 / NK_EARTH_ELLIPSOID_INVERSE_FLATTENING);
-    v128_t const convergence_threshold = wasm_f64x2_splat(NK_VINCENTY_CONVERGENCE_THRESHOLD);
+    v128_t const convergence_threshold = wasm_f64x2_splat(NK_VINCENTY_CONVERGENCE_THRESHOLD_F64);
     v128_t const one = wasm_f64x2_splat(1.0);
     v128_t const two = wasm_f64x2_splat(2.0);
     v128_t const three = wasm_f64x2_splat(3.0);
@@ -412,7 +412,7 @@ NK_INTERNAL v128_t nk_vincenty_f32x4_v128relaxed_(   //
     v128_t const equatorial_radius = wasm_f32x4_splat((float)NK_EARTH_ELLIPSOID_EQUATORIAL_RADIUS);
     v128_t const polar_radius = wasm_f32x4_splat((float)NK_EARTH_ELLIPSOID_POLAR_RADIUS);
     v128_t const flattening = wasm_f32x4_splat(1.0f / (float)NK_EARTH_ELLIPSOID_INVERSE_FLATTENING);
-    v128_t const convergence_threshold = wasm_f32x4_splat((float)NK_VINCENTY_CONVERGENCE_THRESHOLD);
+    v128_t const convergence_threshold = wasm_f32x4_splat(NK_VINCENTY_CONVERGENCE_THRESHOLD_F32);
     v128_t const one = wasm_f32x4_splat(1.0f);
     v128_t const two = wasm_f32x4_splat(2.0f);
     v128_t const three = wasm_f32x4_splat(3.0f);
