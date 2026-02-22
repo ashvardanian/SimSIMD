@@ -27,18 +27,17 @@
  *  - nk_dot_f64x4 state with Dot2 stable dot-products,
  *  - nk_dot_f32x4 state with double-precision numerics,
  *  - nk_dot_through_f32 state for 16-, 8-, and 6-bit float inputs with single-precision numerics,
- *  - nk_dot_i8x16 for 8-bit signed integer inputs,
- *  - nk_dot_u8x16 for 8-bit unsigned integer inputs,
+ *  - nk_dot_through_i32 state for 8-bit signed and unsigned integer inputs,
  *  - nk_dot_i4x32 for 4-bit signed integer products with 2 correction terms,
  *  - nk_dot_u4x32 for 4-bit unsigned integer products.
  *
  *  @code{c}
- *  nk_dot_i8x16_state_haswell_t state_first, state_second, state_third, state_fourth;
+ *  nk_dot_through_i32_state_haswell_t_ state_first, state_second, state_third, state_fourth;
  *  nk_b128_vec_t query_i8x16, target_first_i8x16, target_second_i8x16, target_third_i8x16, target_fourth_i8x16,
- *  nk_dot_i8x16_init_haswell(&state_first);
- *  nk_dot_i8x16_init_haswell(&state_second);
- *  nk_dot_i8x16_init_haswell(&state_third);
- *  nk_dot_i8x16_init_haswell(&state_fourth);
+ *  nk_dot_through_i32_init_haswell_(&state_first);
+ *  nk_dot_through_i32_init_haswell_(&state_second);
+ *  nk_dot_through_i32_init_haswell_(&state_third);
+ *  nk_dot_through_i32_init_haswell_(&state_fourth);
  *  for (nk_size_t idx = 0; idx + 16 <= depth; idx += 16) {
  *      query_i8x16.xmm = _mm_loadu_si128(query_ptr + idx);
  *      target_first_i8x16.xmm = _mm_loadu_si128(target_first_ptr + idx);
@@ -51,7 +50,7 @@
  *      nk_dot_i8x16_update_haswell(&state_fourth, query_i8x16, target_fourth_i8x16, idx, 16);
  *  }
  *  nk_b128_vec_t results_i32x4;
- *  nk_dot_i8x16_finalize_haswell(&state_first, &state_second, &state_third, &state_fourth, depth, &results_i32x4);
+ *  nk_dot_through_i32_finalize_haswell_(&state_first, &state_second, &state_third, &state_fourth, depth, &results_i32x4);
  *  @endcode
  *
  *  Not every numeric type has dedicated dot-product SIMD circuitry on each ISA. Smaller float types
@@ -1364,26 +1363,29 @@ nk_dot_u4_haswell_cycle:
     *result = (nk_u32_t)nk_reduce_add_i32x8_haswell_(sum_i32x8);
 }
 
-typedef struct nk_dot_i8x16_state_haswell_t {
+/**
+ *  @brief Internal helper state for dot-products of integer types, where 32-bit accumulation is enough.
+ *  @sa nk_dot_i8x16_state_haswell_t, nk_dot_u8x16_state_haswell_t
+ */
+typedef struct nk_dot_through_i32_state_haswell_t_ {
     __m256i sum_i32x8;
-} nk_dot_i8x16_state_haswell_t;
+} nk_dot_through_i32_state_haswell_t_;
 
-NK_INTERNAL void nk_dot_i8x16_init_haswell(nk_dot_i8x16_state_haswell_t *state) {
+/**
+ *  @brief Initializes 32-bit accumulators for integer dot-products.
+ *  @sa nk_dot_i8x16_update_haswell, nk_dot_u8x16_update_haswell
+ */
+NK_INTERNAL void nk_dot_through_i32_init_haswell_(nk_dot_through_i32_state_haswell_t_ *state) {
     state->sum_i32x8 = _mm256_setzero_si256();
 }
 
-NK_INTERNAL void nk_dot_i8x16_update_haswell(nk_dot_i8x16_state_haswell_t *state, nk_b128_vec_t a, nk_b128_vec_t b,
-                                             nk_size_t depth_offset, nk_size_t active_dimensions) {
-    nk_unused_(depth_offset);
-    nk_unused_(active_dimensions);
-    __m256i a_i16x16 = _mm256_cvtepi8_epi16(a.xmm);
-    __m256i b_i16x16 = _mm256_cvtepi8_epi16(b.xmm);
-    state->sum_i32x8 = _mm256_add_epi32(state->sum_i32x8, _mm256_madd_epi16(a_i16x16, b_i16x16));
-}
-
-NK_INTERNAL void nk_dot_i8x16_finalize_haswell(                                               //
-    nk_dot_i8x16_state_haswell_t const *state_a, nk_dot_i8x16_state_haswell_t const *state_b, //
-    nk_dot_i8x16_state_haswell_t const *state_c, nk_dot_i8x16_state_haswell_t const *state_d, //
+/**
+ *  @brief Finalizes 4x integer dot-products placing them into 4x consecutive 32-bit slots.
+ *  @sa nk_dot_i8x16_update_haswell, nk_dot_u8x16_update_haswell
+ */
+NK_INTERNAL void nk_dot_through_i32_finalize_haswell_(                                                      //
+    nk_dot_through_i32_state_haswell_t_ const *state_a, nk_dot_through_i32_state_haswell_t_ const *state_b, //
+    nk_dot_through_i32_state_haswell_t_ const *state_c, nk_dot_through_i32_state_haswell_t_ const *state_d, //
     nk_size_t total_dimensions, nk_b128_vec_t *result) {
     nk_unused_(total_dimensions);
     // ILP-optimized 4-way horizontal reduction for i32 in AVX2
@@ -1411,12 +1413,40 @@ NK_INTERNAL void nk_dot_i8x16_finalize_haswell(                                 
     result->xmm = sum_i32x4;
 }
 
-typedef struct nk_dot_u8x16_state_haswell_t {
-    __m256i sum_i32x8;
-} nk_dot_u8x16_state_haswell_t;
+/**
+ *  @brief Running state for 128-bit dot accumulation over i8 scalars on Haswell.
+ *  @note Alias of nk_dot_through_i32_state_haswell_t_
+ */
+typedef struct nk_dot_through_i32_state_haswell_t_ nk_dot_i8x16_state_haswell_t;
+
+NK_INTERNAL void nk_dot_i8x16_init_haswell(nk_dot_i8x16_state_haswell_t *state) {
+    nk_dot_through_i32_init_haswell_(state);
+}
+
+NK_INTERNAL void nk_dot_i8x16_update_haswell(nk_dot_i8x16_state_haswell_t *state, nk_b128_vec_t a, nk_b128_vec_t b,
+                                             nk_size_t depth_offset, nk_size_t active_dimensions) {
+    nk_unused_(depth_offset);
+    nk_unused_(active_dimensions);
+    __m256i a_i16x16 = _mm256_cvtepi8_epi16(a.xmm);
+    __m256i b_i16x16 = _mm256_cvtepi8_epi16(b.xmm);
+    state->sum_i32x8 = _mm256_add_epi32(state->sum_i32x8, _mm256_madd_epi16(a_i16x16, b_i16x16));
+}
+
+NK_INTERNAL void nk_dot_i8x16_finalize_haswell(                                               //
+    nk_dot_i8x16_state_haswell_t const *state_a, nk_dot_i8x16_state_haswell_t const *state_b, //
+    nk_dot_i8x16_state_haswell_t const *state_c, nk_dot_i8x16_state_haswell_t const *state_d, //
+    nk_size_t total_dimensions, nk_b128_vec_t *result) {
+    nk_dot_through_i32_finalize_haswell_(state_a, state_b, state_c, state_d, total_dimensions, result);
+}
+
+/**
+ *  @brief Running state for 128-bit dot accumulation over u8 scalars on Haswell.
+ *  @note Alias of nk_dot_through_i32_state_haswell_t_
+ */
+typedef struct nk_dot_through_i32_state_haswell_t_ nk_dot_u8x16_state_haswell_t;
 
 NK_INTERNAL void nk_dot_u8x16_init_haswell(nk_dot_u8x16_state_haswell_t *state) {
-    state->sum_i32x8 = _mm256_setzero_si256();
+    nk_dot_through_i32_init_haswell_(state);
 }
 
 NK_INTERNAL void nk_dot_u8x16_update_haswell(nk_dot_u8x16_state_haswell_t *state, nk_b128_vec_t a, nk_b128_vec_t b,
@@ -1432,10 +1462,7 @@ NK_INTERNAL void nk_dot_u8x16_finalize_haswell(                                 
     nk_dot_u8x16_state_haswell_t const *state_a, nk_dot_u8x16_state_haswell_t const *state_b, //
     nk_dot_u8x16_state_haswell_t const *state_c, nk_dot_u8x16_state_haswell_t const *state_d, //
     nk_size_t total_dimensions, nk_b128_vec_t *result) {
-    nk_dot_i8x16_finalize_haswell(                                                                    //
-        (nk_dot_i8x16_state_haswell_t const *)state_a, (nk_dot_i8x16_state_haswell_t const *)state_b, //
-        (nk_dot_i8x16_state_haswell_t const *)state_c, (nk_dot_i8x16_state_haswell_t const *)state_d, total_dimensions,
-        result);
+    nk_dot_through_i32_finalize_haswell_(state_a, state_b, state_c, state_d, total_dimensions, result);
 }
 
 /**
