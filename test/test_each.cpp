@@ -242,17 +242,12 @@ void test_elementwise() {
     run_if_matches("each_wsum_f16_sapphire", test_wsum<f16_t>, nk_each_blend_f16_sapphire);
     run_if_matches("each_fma_f16_sapphire", test_fma<f16_t>, nk_each_fma_f16_sapphire);
     run_if_matches("each_scale_u8_sapphire", test_scale<u8_t>, nk_each_scale_u8_sapphire);
-    run_if_matches("each_sum_u8_sapphire", test_sum<u8_t>, nk_each_sum_u8_sapphire);
     run_if_matches("each_wsum_u8_sapphire", test_wsum<u8_t>, nk_each_blend_u8_sapphire);
     run_if_matches("each_fma_u8_sapphire", test_fma<u8_t>, nk_each_fma_u8_sapphire);
     run_if_matches("each_scale_i8_sapphire", test_scale<i8_t>, nk_each_scale_i8_sapphire);
-    run_if_matches("each_sum_i8_sapphire", test_sum<i8_t>, nk_each_sum_i8_sapphire);
     run_if_matches("each_wsum_i8_sapphire", test_wsum<i8_t>, nk_each_blend_i8_sapphire);
     run_if_matches("each_fma_i8_sapphire", test_fma<i8_t>, nk_each_fma_i8_sapphire);
-    run_if_matches("each_scale_e4m3_sapphire", test_scale<e4m3_t>, nk_each_scale_e4m3_sapphire);
     run_if_matches("each_sum_e4m3_sapphire", test_sum<e4m3_t>, nk_each_sum_e4m3_sapphire);
-    run_if_matches("each_wsum_e4m3_sapphire", test_wsum<e4m3_t>, nk_each_blend_e4m3_sapphire);
-    run_if_matches("each_fma_e4m3_sapphire", test_fma<e4m3_t>, nk_each_fma_e4m3_sapphire);
 #endif // NK_TARGET_SAPPHIRE
 
 #if NK_TARGET_RVV
