@@ -16,51 +16,51 @@ void bench_probability() {
     constexpr nk_dtype_t f64_k = nk_f64_k;
 
 #if NK_TARGET_NEON
-    dense_<f32_k, f32_k>("kld_f32_neon", nk_kld_f32_neon);
-    dense_<f32_k, f32_k>("jsd_f32_neon", nk_jsd_f32_neon);
+    run_dense<f32_k, f32_k>("kld_f32_neon", nk_kld_f32_neon);
+    run_dense<f32_k, f32_k>("jsd_f32_neon", nk_jsd_f32_neon);
 #endif
 
 #if NK_TARGET_NEONHALF
-    dense_<f16_k, f32_k>("kld_f16_neonhalf", nk_kld_f16_neonhalf);
-    dense_<f16_k, f32_k>("jsd_f16_neonhalf", nk_jsd_f16_neonhalf);
+    run_dense<f16_k, f32_k>("kld_f16_neonhalf", nk_kld_f16_neonhalf);
+    run_dense<f16_k, f32_k>("jsd_f16_neonhalf", nk_jsd_f16_neonhalf);
 #endif
 
 #if NK_TARGET_HASWELL
-    dense_<f16_k, f32_k>("kld_f16_haswell", nk_kld_f16_haswell);
-    dense_<f16_k, f32_k>("jsd_f16_haswell", nk_jsd_f16_haswell);
-    dense_<f64_k, f64_k>("kld_f64_haswell", nk_kld_f64_haswell);
-    dense_<f64_k, f64_k>("jsd_f64_haswell", nk_jsd_f64_haswell);
+    run_dense<f16_k, f32_k>("kld_f16_haswell", nk_kld_f16_haswell);
+    run_dense<f16_k, f32_k>("jsd_f16_haswell", nk_jsd_f16_haswell);
+    run_dense<f64_k, f64_k>("kld_f64_haswell", nk_kld_f64_haswell);
+    run_dense<f64_k, f64_k>("jsd_f64_haswell", nk_jsd_f64_haswell);
 #endif
 
 #if NK_TARGET_SKYLAKE
-    dense_<f32_k, f32_k>("kld_f32_skylake", nk_kld_f32_skylake);
-    dense_<f32_k, f32_k>("jsd_f32_skylake", nk_jsd_f32_skylake);
-    dense_<f64_k, f64_k>("kld_f64_skylake", nk_kld_f64_skylake);
-    dense_<f64_k, f64_k>("jsd_f64_skylake", nk_jsd_f64_skylake);
+    run_dense<f32_k, f32_k>("kld_f32_skylake", nk_kld_f32_skylake);
+    run_dense<f32_k, f32_k>("jsd_f32_skylake", nk_jsd_f32_skylake);
+    run_dense<f64_k, f64_k>("kld_f64_skylake", nk_kld_f64_skylake);
+    run_dense<f64_k, f64_k>("jsd_f64_skylake", nk_jsd_f64_skylake);
 #endif
 
 #if NK_TARGET_SAPPHIRE
-    dense_<f16_k, f32_k>("kld_f16_sapphire", nk_kld_f16_sapphire);
-    dense_<f16_k, f32_k>("jsd_f16_sapphire", nk_jsd_f16_sapphire);
+    run_dense<f16_k, f32_k>("kld_f16_sapphire", nk_kld_f16_sapphire);
+    run_dense<f16_k, f32_k>("jsd_f16_sapphire", nk_jsd_f16_sapphire);
 #endif
 
 #if NK_TARGET_RVV
-    dense_<f32_k, f32_k>("kld_f32_rvv", nk_kld_f32_rvv);
-    dense_<f32_k, f32_k>("jsd_f32_rvv", nk_jsd_f32_rvv);
-    dense_<f64_k, f64_k>("kld_f64_rvv", nk_kld_f64_rvv);
-    dense_<f64_k, f64_k>("jsd_f64_rvv", nk_jsd_f64_rvv);
-    dense_<f16_k, f32_k>("kld_f16_rvv", nk_kld_f16_rvv);
-    dense_<f16_k, f32_k>("jsd_f16_rvv", nk_jsd_f16_rvv);
-    dense_<bf16_k, f32_k>("kld_bf16_rvv", nk_kld_bf16_rvv);
-    dense_<bf16_k, f32_k>("jsd_bf16_rvv", nk_jsd_bf16_rvv);
+    run_dense<f32_k, f32_k>("kld_f32_rvv", nk_kld_f32_rvv);
+    run_dense<f32_k, f32_k>("jsd_f32_rvv", nk_jsd_f32_rvv);
+    run_dense<f64_k, f64_k>("kld_f64_rvv", nk_kld_f64_rvv);
+    run_dense<f64_k, f64_k>("jsd_f64_rvv", nk_jsd_f64_rvv);
+    run_dense<f16_k, f32_k>("kld_f16_rvv", nk_kld_f16_rvv);
+    run_dense<f16_k, f32_k>("jsd_f16_rvv", nk_jsd_f16_rvv);
+    run_dense<bf16_k, f32_k>("kld_bf16_rvv", nk_kld_bf16_rvv);
+    run_dense<bf16_k, f32_k>("jsd_bf16_rvv", nk_jsd_bf16_rvv);
 #endif
     // Serial fallbacks
-    dense_<bf16_k, f32_k>("kld_bf16_serial", nk_kld_bf16_serial);
-    dense_<bf16_k, f32_k>("jsd_bf16_serial", nk_jsd_bf16_serial);
-    dense_<f16_k, f32_k>("kld_f16_serial", nk_kld_f16_serial);
-    dense_<f16_k, f32_k>("jsd_f16_serial", nk_jsd_f16_serial);
-    dense_<f32_k, f32_k>("kld_f32_serial", nk_kld_f32_serial);
-    dense_<f32_k, f32_k>("jsd_f32_serial", nk_jsd_f32_serial);
-    dense_<f64_k, f64_k>("kld_f64_serial", nk_kld_f64_serial);
-    dense_<f64_k, f64_k>("jsd_f64_serial", nk_jsd_f64_serial);
+    run_dense<bf16_k, f32_k>("kld_bf16_serial", nk_kld_bf16_serial);
+    run_dense<bf16_k, f32_k>("jsd_bf16_serial", nk_jsd_bf16_serial);
+    run_dense<f16_k, f32_k>("kld_f16_serial", nk_kld_f16_serial);
+    run_dense<f16_k, f32_k>("jsd_f16_serial", nk_jsd_f16_serial);
+    run_dense<f32_k, f32_k>("kld_f32_serial", nk_kld_f32_serial);
+    run_dense<f32_k, f32_k>("jsd_f32_serial", nk_jsd_f32_serial);
+    run_dense<f64_k, f64_k>("kld_f64_serial", nk_kld_f64_serial);
+    run_dense<f64_k, f64_k>("jsd_f64_serial", nk_jsd_f64_serial);
 }

@@ -89,169 +89,169 @@ void bench_dot() {
     constexpr nk_dtype_t bf16c_k = nk_bf16c_k;
 
 #if NK_COMPARE_TO_BLAS || NK_COMPARE_TO_MKL || NK_COMPARE_TO_ACCELERATE
-    dense_<f32_k, f32_k>("dot_f32_with_blas", dot_f32_with_blas);
-    dense_<f64_k, f64_k>("dot_f64_with_blas", dot_f64_with_blas);
-    dense_<f32c_k, f32c_k>("dot_f32c_with_blas", dot_f32c_with_blas);
-    dense_<f64c_k, f64c_k>("dot_f64c_with_blas", dot_f64c_with_blas);
-    dense_<f32c_k, f32c_k>("vdot_f32c_with_blas", vdot_f32c_with_blas);
-    dense_<f64c_k, f64c_k>("vdot_f64c_with_blas", vdot_f64c_with_blas);
+    run_dense<f32_k, f32_k>("dot_f32_with_blas", dot_f32_with_blas);
+    run_dense<f64_k, f64_k>("dot_f64_with_blas", dot_f64_with_blas);
+    run_dense<f32c_k, f32c_k>("dot_f32c_with_blas", dot_f32c_with_blas);
+    run_dense<f64c_k, f64c_k>("dot_f64c_with_blas", dot_f64c_with_blas);
+    run_dense<f32c_k, f32c_k>("vdot_f32c_with_blas", vdot_f32c_with_blas);
+    run_dense<f64c_k, f64c_k>("vdot_f64c_with_blas", vdot_f64c_with_blas);
 #endif
 
 #if NK_TARGET_NEON
-    dense_<f32_k, f32_k>("dot_f32_neon", nk_dot_f32_neon);
-    dense_<f32c_k, f32c_k>("dot_f32c_neon", nk_dot_f32c_neon);
-    dense_<f32c_k, f32c_k>("vdot_f32c_neon", nk_vdot_f32c_neon);
-    dense_<bf16_k, f32_k>("dot_bf16_neon", nk_dot_bf16_neon);
-    dense_<e4m3_k, f32_k>("dot_e4m3_neon", nk_dot_e4m3_neon);
-    dense_<e5m2_k, f32_k>("dot_e5m2_neon", nk_dot_e5m2_neon);
-    dense_<e2m3_k, f32_k>("dot_e2m3_neon", nk_dot_e2m3_neon);
-    dense_<e3m2_k, f32_k>("dot_e3m2_neon", nk_dot_e3m2_neon);
+    run_dense<f32_k, f32_k>("dot_f32_neon", nk_dot_f32_neon);
+    run_dense<f32c_k, f32c_k>("dot_f32c_neon", nk_dot_f32c_neon);
+    run_dense<f32c_k, f32c_k>("vdot_f32c_neon", nk_vdot_f32c_neon);
+    run_dense<bf16_k, f32_k>("dot_bf16_neon", nk_dot_bf16_neon);
+    run_dense<e4m3_k, f32_k>("dot_e4m3_neon", nk_dot_e4m3_neon);
+    run_dense<e5m2_k, f32_k>("dot_e5m2_neon", nk_dot_e5m2_neon);
+    run_dense<e2m3_k, f32_k>("dot_e2m3_neon", nk_dot_e2m3_neon);
+    run_dense<e3m2_k, f32_k>("dot_e3m2_neon", nk_dot_e3m2_neon);
 #endif
 
 #if NK_TARGET_NEONSDOT
-    dense_<i8_k, i32_k>("dot_i8_neonsdot", nk_dot_i8_neonsdot);
-    dense_<u8_k, u32_k>("dot_u8_neonsdot", nk_dot_u8_neonsdot);
-    dense_<i4_k, i32_k>("dot_i4_neonsdot", nk_dot_i4_neonsdot);
-    dense_<u4_k, u32_k>("dot_u4_neonsdot", nk_dot_u4_neonsdot);
-    dense_<e2m3_k, f32_k>("dot_e2m3_neonsdot", nk_dot_e2m3_neonsdot);
-    dense_<e3m2_k, f32_k>("dot_e3m2_neonsdot", nk_dot_e3m2_neonsdot);
+    run_dense<i8_k, i32_k>("dot_i8_neonsdot", nk_dot_i8_neonsdot);
+    run_dense<u8_k, u32_k>("dot_u8_neonsdot", nk_dot_u8_neonsdot);
+    run_dense<i4_k, i32_k>("dot_i4_neonsdot", nk_dot_i4_neonsdot);
+    run_dense<u4_k, u32_k>("dot_u4_neonsdot", nk_dot_u4_neonsdot);
+    run_dense<e2m3_k, f32_k>("dot_e2m3_neonsdot", nk_dot_e2m3_neonsdot);
+    run_dense<e3m2_k, f32_k>("dot_e3m2_neonsdot", nk_dot_e3m2_neonsdot);
 #endif
 
 #if NK_TARGET_NEONHALF
-    dense_<f16c_k, f32c_k>("dot_f16c_neonhalf", nk_dot_f16c_neonhalf);
-    dense_<f16c_k, f32c_k>("vdot_f16c_neonhalf", nk_vdot_f16c_neonhalf);
-    dense_<f16_k, f32_k>("dot_f16_neonhalf", nk_dot_f16_neonhalf);
+    run_dense<f16c_k, f32c_k>("dot_f16c_neonhalf", nk_dot_f16c_neonhalf);
+    run_dense<f16c_k, f32c_k>("vdot_f16c_neonhalf", nk_vdot_f16c_neonhalf);
+    run_dense<f16_k, f32_k>("dot_f16_neonhalf", nk_dot_f16_neonhalf);
 #endif
 
 #if NK_TARGET_NEONFHM
-    dense_<f16_k, f32_k>("dot_f16_neonfhm", nk_dot_f16_neonfhm);
-    dense_<e2m3_k, f32_k>("dot_e2m3_neonfhm", nk_dot_e2m3_neonfhm);
-    dense_<e3m2_k, f32_k>("dot_e3m2_neonfhm", nk_dot_e3m2_neonfhm);
-    dense_<e4m3_k, f32_k>("dot_e4m3_neonfhm", nk_dot_e4m3_neonfhm);
-    dense_<e5m2_k, f32_k>("dot_e5m2_neonfhm", nk_dot_e5m2_neonfhm);
+    run_dense<f16_k, f32_k>("dot_f16_neonfhm", nk_dot_f16_neonfhm);
+    run_dense<e2m3_k, f32_k>("dot_e2m3_neonfhm", nk_dot_e2m3_neonfhm);
+    run_dense<e3m2_k, f32_k>("dot_e3m2_neonfhm", nk_dot_e3m2_neonfhm);
+    run_dense<e4m3_k, f32_k>("dot_e4m3_neonfhm", nk_dot_e4m3_neonfhm);
+    run_dense<e5m2_k, f32_k>("dot_e5m2_neonfhm", nk_dot_e5m2_neonfhm);
 #endif
 
 #if NK_TARGET_NEONBFDOT
-    dense_<bf16c_k, f32c_k>("dot_bf16c_neonbfdot", nk_dot_bf16c_neonbfdot);
-    dense_<bf16c_k, f32c_k>("vdot_bf16c_neonbfdot", nk_vdot_bf16c_neonbfdot);
-    dense_<bf16_k, f32_k>("dot_bf16_neonbfdot", nk_dot_bf16_neonbfdot);
-    dense_<e4m3_k, f32_k>("dot_e4m3_neonbfdot", nk_dot_e4m3_neonbfdot);
-    dense_<e5m2_k, f32_k>("dot_e5m2_neonbfdot", nk_dot_e5m2_neonbfdot);
+    run_dense<bf16c_k, f32c_k>("dot_bf16c_neonbfdot", nk_dot_bf16c_neonbfdot);
+    run_dense<bf16c_k, f32c_k>("vdot_bf16c_neonbfdot", nk_vdot_bf16c_neonbfdot);
+    run_dense<bf16_k, f32_k>("dot_bf16_neonbfdot", nk_dot_bf16_neonbfdot);
+    run_dense<e4m3_k, f32_k>("dot_e4m3_neonbfdot", nk_dot_e4m3_neonbfdot);
+    run_dense<e5m2_k, f32_k>("dot_e5m2_neonbfdot", nk_dot_e5m2_neonbfdot);
 #endif
 
 #if NK_TARGET_SVE
-    dense_<f32_k, f32_k>("dot_f32_sve", nk_dot_f32_sve);
-    dense_<f64_k, f64_k>("dot_f64_sve", nk_dot_f64_sve);
-    dense_<f32c_k, f32c_k>("dot_f32c_sve", nk_dot_f32c_sve);
-    dense_<f32c_k, f32c_k>("vdot_f32c_sve", nk_vdot_f32c_sve);
-    dense_<f64c_k, f64c_k>("dot_f64c_sve", nk_dot_f64c_sve);
-    dense_<f64c_k, f64c_k>("vdot_f64c_sve", nk_vdot_f64c_sve);
+    run_dense<f32_k, f32_k>("dot_f32_sve", nk_dot_f32_sve);
+    run_dense<f64_k, f64_k>("dot_f64_sve", nk_dot_f64_sve);
+    run_dense<f32c_k, f32c_k>("dot_f32c_sve", nk_dot_f32c_sve);
+    run_dense<f32c_k, f32c_k>("vdot_f32c_sve", nk_vdot_f32c_sve);
+    run_dense<f64c_k, f64c_k>("dot_f64c_sve", nk_dot_f64c_sve);
+    run_dense<f64c_k, f64c_k>("vdot_f64c_sve", nk_vdot_f64c_sve);
 #endif
 
 #if NK_TARGET_SVEHALF
-    dense_<f16_k, f32_k>("dot_f16_svehalf", nk_dot_f16_svehalf);
-    dense_<f16c_k, f32c_k>("dot_f16c_svehalf", nk_dot_f16c_svehalf);
-    dense_<f16c_k, f32c_k>("vdot_f16c_svehalf", nk_vdot_f16c_svehalf);
+    run_dense<f16_k, f32_k>("dot_f16_svehalf", nk_dot_f16_svehalf);
+    run_dense<f16c_k, f32c_k>("dot_f16c_svehalf", nk_dot_f16c_svehalf);
+    run_dense<f16c_k, f32c_k>("vdot_f16c_svehalf", nk_vdot_f16c_svehalf);
 #endif
 
 #if NK_TARGET_HASWELL
-    dense_<f16_k, f32_k>("dot_f16_haswell", nk_dot_f16_haswell);
-    dense_<bf16_k, f32_k>("dot_bf16_haswell", nk_dot_bf16_haswell);
-    dense_<e4m3_k, f32_k>("dot_e4m3_haswell", nk_dot_e4m3_haswell);
-    dense_<e5m2_k, f32_k>("dot_e5m2_haswell", nk_dot_e5m2_haswell);
-    dense_<e2m3_k, f32_k>("dot_e2m3_haswell", nk_dot_e2m3_haswell);
-    dense_<e3m2_k, f32_k>("dot_e3m2_haswell", nk_dot_e3m2_haswell);
-    dense_<i8_k, i32_k>("dot_i8_haswell", nk_dot_i8_haswell);
-    dense_<u8_k, u32_k>("dot_u8_haswell", nk_dot_u8_haswell);
-    dense_<f16c_k, f32c_k>("dot_f16c_haswell", nk_dot_f16c_haswell);
-    dense_<f16c_k, f32c_k>("vdot_f16c_haswell", nk_vdot_f16c_haswell);
-    dense_<f32c_k, f32c_k>("dot_f32c_haswell", nk_dot_f32c_haswell);
-    dense_<f32c_k, f32c_k>("vdot_f32c_haswell", nk_vdot_f32c_haswell);
-    dense_<bf16c_k, f32c_k>("dot_bf16c_haswell", nk_dot_bf16c_haswell);
-    dense_<bf16c_k, f32c_k>("vdot_bf16c_haswell", nk_vdot_bf16c_haswell);
-    dense_<i4_k, i32_k>("dot_i4_haswell", nk_dot_i4_haswell);
-    dense_<u4_k, u32_k>("dot_u4_haswell", nk_dot_u4_haswell);
+    run_dense<f16_k, f32_k>("dot_f16_haswell", nk_dot_f16_haswell);
+    run_dense<bf16_k, f32_k>("dot_bf16_haswell", nk_dot_bf16_haswell);
+    run_dense<e4m3_k, f32_k>("dot_e4m3_haswell", nk_dot_e4m3_haswell);
+    run_dense<e5m2_k, f32_k>("dot_e5m2_haswell", nk_dot_e5m2_haswell);
+    run_dense<e2m3_k, f32_k>("dot_e2m3_haswell", nk_dot_e2m3_haswell);
+    run_dense<e3m2_k, f32_k>("dot_e3m2_haswell", nk_dot_e3m2_haswell);
+    run_dense<i8_k, i32_k>("dot_i8_haswell", nk_dot_i8_haswell);
+    run_dense<u8_k, u32_k>("dot_u8_haswell", nk_dot_u8_haswell);
+    run_dense<f16c_k, f32c_k>("dot_f16c_haswell", nk_dot_f16c_haswell);
+    run_dense<f16c_k, f32c_k>("vdot_f16c_haswell", nk_vdot_f16c_haswell);
+    run_dense<f32c_k, f32c_k>("dot_f32c_haswell", nk_dot_f32c_haswell);
+    run_dense<f32c_k, f32c_k>("vdot_f32c_haswell", nk_vdot_f32c_haswell);
+    run_dense<bf16c_k, f32c_k>("dot_bf16c_haswell", nk_dot_bf16c_haswell);
+    run_dense<bf16c_k, f32c_k>("vdot_bf16c_haswell", nk_vdot_bf16c_haswell);
+    run_dense<i4_k, i32_k>("dot_i4_haswell", nk_dot_i4_haswell);
+    run_dense<u4_k, u32_k>("dot_u4_haswell", nk_dot_u4_haswell);
 #endif
 
 #if NK_TARGET_SKYLAKE
-    dense_<f32_k, f32_k>("dot_f32_skylake", nk_dot_f32_skylake);
-    dense_<f64_k, f64_k>("dot_f64_skylake", nk_dot_f64_skylake);
-    dense_<bf16_k, f32_k>("dot_bf16_skylake", nk_dot_bf16_skylake);
-    dense_<f16_k, f32_k>("dot_f16_skylake", nk_dot_f16_skylake);
-    dense_<e4m3_k, f32_k>("dot_e4m3_skylake", nk_dot_e4m3_skylake);
-    dense_<e5m2_k, f32_k>("dot_e5m2_skylake", nk_dot_e5m2_skylake);
-    dense_<e2m3_k, f32_k>("dot_e2m3_skylake", nk_dot_e2m3_skylake);
-    dense_<e3m2_k, f32_k>("dot_e3m2_skylake", nk_dot_e3m2_skylake);
-    dense_<i8_k, i32_k>("dot_i8_skylake", nk_dot_i8_skylake);
-    dense_<u8_k, u32_k>("dot_u8_skylake", nk_dot_u8_skylake);
-    dense_<f32c_k, f32c_k>("dot_f32c_skylake", nk_dot_f32c_skylake);
-    dense_<f32c_k, f32c_k>("vdot_f32c_skylake", nk_vdot_f32c_skylake);
-    dense_<f64c_k, f64c_k>("dot_f64c_skylake", nk_dot_f64c_skylake);
-    dense_<f64c_k, f64c_k>("vdot_f64c_skylake", nk_vdot_f64c_skylake);
+    run_dense<f32_k, f32_k>("dot_f32_skylake", nk_dot_f32_skylake);
+    run_dense<f64_k, f64_k>("dot_f64_skylake", nk_dot_f64_skylake);
+    run_dense<bf16_k, f32_k>("dot_bf16_skylake", nk_dot_bf16_skylake);
+    run_dense<f16_k, f32_k>("dot_f16_skylake", nk_dot_f16_skylake);
+    run_dense<e4m3_k, f32_k>("dot_e4m3_skylake", nk_dot_e4m3_skylake);
+    run_dense<e5m2_k, f32_k>("dot_e5m2_skylake", nk_dot_e5m2_skylake);
+    run_dense<e2m3_k, f32_k>("dot_e2m3_skylake", nk_dot_e2m3_skylake);
+    run_dense<e3m2_k, f32_k>("dot_e3m2_skylake", nk_dot_e3m2_skylake);
+    run_dense<i8_k, i32_k>("dot_i8_skylake", nk_dot_i8_skylake);
+    run_dense<u8_k, u32_k>("dot_u8_skylake", nk_dot_u8_skylake);
+    run_dense<f32c_k, f32c_k>("dot_f32c_skylake", nk_dot_f32c_skylake);
+    run_dense<f32c_k, f32c_k>("vdot_f32c_skylake", nk_vdot_f32c_skylake);
+    run_dense<f64c_k, f64c_k>("dot_f64c_skylake", nk_dot_f64c_skylake);
+    run_dense<f64c_k, f64c_k>("vdot_f64c_skylake", nk_vdot_f64c_skylake);
 #endif
 
 #if NK_TARGET_ICELAKE
-    dense_<i8_k, i32_k>("dot_i8_icelake", nk_dot_i8_icelake);
-    dense_<u8_k, u32_k>("dot_u8_icelake", nk_dot_u8_icelake);
-    dense_<i4_k, i32_k>("dot_i4_icelake", nk_dot_i4_icelake);
-    dense_<u4_k, u32_k>("dot_u4_icelake", nk_dot_u4_icelake);
-    dense_<e2m3_k, f32_k>("dot_e2m3_icelake", nk_dot_e2m3_icelake);
-    dense_<e3m2_k, f32_k>("dot_e3m2_icelake", nk_dot_e3m2_icelake);
+    run_dense<i8_k, i32_k>("dot_i8_icelake", nk_dot_i8_icelake);
+    run_dense<u8_k, u32_k>("dot_u8_icelake", nk_dot_u8_icelake);
+    run_dense<i4_k, i32_k>("dot_i4_icelake", nk_dot_i4_icelake);
+    run_dense<u4_k, u32_k>("dot_u4_icelake", nk_dot_u4_icelake);
+    run_dense<e2m3_k, f32_k>("dot_e2m3_icelake", nk_dot_e2m3_icelake);
+    run_dense<e3m2_k, f32_k>("dot_e3m2_icelake", nk_dot_e3m2_icelake);
 #endif
 
 #if NK_TARGET_SIERRA
-    dense_<i8_k, i32_k>("dot_i8_sierra", nk_dot_i8_sierra);
-    dense_<u8_k, u32_k>("dot_u8_sierra", nk_dot_u8_sierra);
-    dense_<e2m3_k, f32_k>("dot_e2m3_sierra", nk_dot_e2m3_sierra);
+    run_dense<i8_k, i32_k>("dot_i8_sierra", nk_dot_i8_sierra);
+    run_dense<u8_k, u32_k>("dot_u8_sierra", nk_dot_u8_sierra);
+    run_dense<e2m3_k, f32_k>("dot_e2m3_sierra", nk_dot_e2m3_sierra);
 #endif
 
 #if NK_TARGET_GENOA
-    dense_<bf16_k, f32_k>("dot_bf16_genoa", nk_dot_bf16_genoa);
-    dense_<bf16c_k, f32c_k>("dot_bf16c_genoa", nk_dot_bf16c_genoa);
-    dense_<bf16c_k, f32c_k>("vdot_bf16c_genoa", nk_vdot_bf16c_genoa);
-    dense_<e4m3_k, f32_k>("dot_e4m3_genoa", nk_dot_e4m3_genoa);
-    dense_<e5m2_k, f32_k>("dot_e5m2_genoa", nk_dot_e5m2_genoa);
-    dense_<e2m3_k, f32_k>("dot_e2m3_genoa", nk_dot_e2m3_genoa);
-    dense_<e3m2_k, f32_k>("dot_e3m2_genoa", nk_dot_e3m2_genoa);
+    run_dense<bf16_k, f32_k>("dot_bf16_genoa", nk_dot_bf16_genoa);
+    run_dense<bf16c_k, f32c_k>("dot_bf16c_genoa", nk_dot_bf16c_genoa);
+    run_dense<bf16c_k, f32c_k>("vdot_bf16c_genoa", nk_vdot_bf16c_genoa);
+    run_dense<e4m3_k, f32_k>("dot_e4m3_genoa", nk_dot_e4m3_genoa);
+    run_dense<e5m2_k, f32_k>("dot_e5m2_genoa", nk_dot_e5m2_genoa);
+    run_dense<e2m3_k, f32_k>("dot_e2m3_genoa", nk_dot_e2m3_genoa);
+    run_dense<e3m2_k, f32_k>("dot_e3m2_genoa", nk_dot_e3m2_genoa);
 #endif
 
 #if NK_TARGET_RVV
-    dense_<i8_k, i32_k>("dot_i8_rvv", nk_dot_i8_rvv);
-    dense_<u8_k, u32_k>("dot_u8_rvv", nk_dot_u8_rvv);
-    dense_<f32_k, f32_k>("dot_f32_rvv", nk_dot_f32_rvv);
-    dense_<f64_k, f64_k>("dot_f64_rvv", nk_dot_f64_rvv);
+    run_dense<i8_k, i32_k>("dot_i8_rvv", nk_dot_i8_rvv);
+    run_dense<u8_k, u32_k>("dot_u8_rvv", nk_dot_u8_rvv);
+    run_dense<f32_k, f32_k>("dot_f32_rvv", nk_dot_f32_rvv);
+    run_dense<f64_k, f64_k>("dot_f64_rvv", nk_dot_f64_rvv);
 #endif
 
 #if NK_TARGET_V128RELAXED
-    dense_<f32_k, f32_k>("dot_f32_v128relaxed", nk_dot_f32_v128relaxed);
-    dense_<f64_k, f64_k>("dot_f64_v128relaxed", nk_dot_f64_v128relaxed);
-    dense_<f16_k, f32_k>("dot_f16_v128relaxed", nk_dot_f16_v128relaxed);
-    dense_<bf16_k, f32_k>("dot_bf16_v128relaxed", nk_dot_bf16_v128relaxed);
-    dense_<i8_k, i32_k>("dot_i8_v128relaxed", nk_dot_i8_v128relaxed);
-    dense_<u8_k, u32_k>("dot_u8_v128relaxed", nk_dot_u8_v128relaxed);
-    dense_<e2m3_k, f32_k>("dot_e2m3_v128relaxed", nk_dot_e2m3_v128relaxed);
-    dense_<e3m2_k, f32_k>("dot_e3m2_v128relaxed", nk_dot_e3m2_v128relaxed);
+    run_dense<f32_k, f32_k>("dot_f32_v128relaxed", nk_dot_f32_v128relaxed);
+    run_dense<f64_k, f64_k>("dot_f64_v128relaxed", nk_dot_f64_v128relaxed);
+    run_dense<f16_k, f32_k>("dot_f16_v128relaxed", nk_dot_f16_v128relaxed);
+    run_dense<bf16_k, f32_k>("dot_bf16_v128relaxed", nk_dot_bf16_v128relaxed);
+    run_dense<i8_k, i32_k>("dot_i8_v128relaxed", nk_dot_i8_v128relaxed);
+    run_dense<u8_k, u32_k>("dot_u8_v128relaxed", nk_dot_u8_v128relaxed);
+    run_dense<e2m3_k, f32_k>("dot_e2m3_v128relaxed", nk_dot_e2m3_v128relaxed);
+    run_dense<e3m2_k, f32_k>("dot_e3m2_v128relaxed", nk_dot_e3m2_v128relaxed);
 #endif
 
     // Serial fallbacks
-    dense_<bf16_k, f32_k>("dot_bf16_serial", nk_dot_bf16_serial);
-    dense_<e4m3_k, f32_k>("dot_e4m3_serial", nk_dot_e4m3_serial);
-    dense_<e5m2_k, f32_k>("dot_e5m2_serial", nk_dot_e5m2_serial);
-    dense_<e2m3_k, f32_k>("dot_e2m3_serial", nk_dot_e2m3_serial);
-    dense_<e3m2_k, f32_k>("dot_e3m2_serial", nk_dot_e3m2_serial);
-    dense_<f16_k, f32_k>("dot_f16_serial", nk_dot_f16_serial);
-    dense_<f32_k, f32_k>("dot_f32_serial", nk_dot_f32_serial);
-    dense_<f64_k, f64_k>("dot_f64_serial", nk_dot_f64_serial);
-    dense_<i8_k, i32_k>("dot_i8_serial", nk_dot_i8_serial);
-    dense_<u8_k, u32_k>("dot_u8_serial", nk_dot_u8_serial);
-    dense_<i4_k, i32_k>("dot_i4_serial", nk_dot_i4_serial);
-    dense_<u4_k, u32_k>("dot_u4_serial", nk_dot_u4_serial);
-    dense_<f64c_k, f64c_k>("dot_f64c_serial", nk_dot_f64c_serial);
-    dense_<f32c_k, f32c_k>("dot_f32c_serial", nk_dot_f32c_serial);
-    dense_<f16c_k, f32c_k>("dot_f16c_serial", nk_dot_f16c_serial);
-    dense_<bf16c_k, f32c_k>("dot_bf16c_serial", nk_dot_bf16c_serial);
-    dense_<f64c_k, f64c_k>("vdot_f64c_serial", nk_vdot_f64c_serial);
-    dense_<f32c_k, f32c_k>("vdot_f32c_serial", nk_vdot_f32c_serial);
-    dense_<f16c_k, f32c_k>("vdot_f16c_serial", nk_vdot_f16c_serial);
-    dense_<bf16c_k, f32c_k>("vdot_bf16c_serial", nk_vdot_bf16c_serial);
+    run_dense<bf16_k, f32_k>("dot_bf16_serial", nk_dot_bf16_serial);
+    run_dense<e4m3_k, f32_k>("dot_e4m3_serial", nk_dot_e4m3_serial);
+    run_dense<e5m2_k, f32_k>("dot_e5m2_serial", nk_dot_e5m2_serial);
+    run_dense<e2m3_k, f32_k>("dot_e2m3_serial", nk_dot_e2m3_serial);
+    run_dense<e3m2_k, f32_k>("dot_e3m2_serial", nk_dot_e3m2_serial);
+    run_dense<f16_k, f32_k>("dot_f16_serial", nk_dot_f16_serial);
+    run_dense<f32_k, f32_k>("dot_f32_serial", nk_dot_f32_serial);
+    run_dense<f64_k, f64_k>("dot_f64_serial", nk_dot_f64_serial);
+    run_dense<i8_k, i32_k>("dot_i8_serial", nk_dot_i8_serial);
+    run_dense<u8_k, u32_k>("dot_u8_serial", nk_dot_u8_serial);
+    run_dense<i4_k, i32_k>("dot_i4_serial", nk_dot_i4_serial);
+    run_dense<u4_k, u32_k>("dot_u4_serial", nk_dot_u4_serial);
+    run_dense<f64c_k, f64c_k>("dot_f64c_serial", nk_dot_f64c_serial);
+    run_dense<f32c_k, f32c_k>("dot_f32c_serial", nk_dot_f32c_serial);
+    run_dense<f16c_k, f32c_k>("dot_f16c_serial", nk_dot_f16c_serial);
+    run_dense<bf16c_k, f32c_k>("dot_bf16c_serial", nk_dot_bf16c_serial);
+    run_dense<f64c_k, f64c_k>("vdot_f64c_serial", nk_vdot_f64c_serial);
+    run_dense<f32c_k, f32c_k>("vdot_f32c_serial", nk_vdot_f32c_serial);
+    run_dense<f16c_k, f32c_k>("vdot_f16c_serial", nk_vdot_f16c_serial);
+    run_dense<bf16c_k, f32c_k>("vdot_bf16c_serial", nk_vdot_bf16c_serial);
 }

@@ -21,7 +21,7 @@
  *  @param second_size The number of elements in the second (larger) set.
  *  @param intersection_size The expected number of common elements between the sets.
  */
-template <nk_dtype_t input_dtype_, nk_dtype_t output_dtype_, typename kernel_type_ = void>
+template <nk_dtype_t input_dtype_, typename kernel_type_ = void>
 void measure_sparse(bm::State &state, kernel_type_ kernel, std::size_t first_size, std::size_t second_size,
                     std::size_t intersection_size) {
 
@@ -94,15 +94,15 @@ void measure_sparse(bm::State &state, kernel_type_ kernel, std::size_t first_siz
     state.counters["calls"] = bm::Counter(iterations, bm::Counter::kIsRate);
 }
 
-template <nk_dtype_t input_dtype_, nk_dtype_t output_dtype_, typename kernel_type_ = void>
-void sparse_(std::string name, kernel_type_ *kernel) {
+template <nk_dtype_t input_dtype_, typename kernel_type_ = void>
+void run_sparse(std::string name, kernel_type_ *kernel) {
     std::size_t intersection_size = static_cast<std::size_t>(
         std::min(bench_config.sparse_first_length, bench_config.sparse_second_length) *
         bench_config.sparse_intersection_share);
     std::string bench_name = name + "<|A|=" + std::to_string(bench_config.sparse_first_length) +
                              ",|B|=" + std::to_string(bench_config.sparse_second_length) +
                              ",|A^B|=" + std::to_string(intersection_size) + ">";
-    bm::RegisterBenchmark(bench_name.c_str(), measure_sparse<input_dtype_, output_dtype_, kernel_type_ *>, kernel,
+    bm::RegisterBenchmark(bench_name.c_str(), measure_sparse<input_dtype_, kernel_type_ *>, kernel,
                           bench_config.sparse_first_length, bench_config.sparse_second_length, intersection_size);
 }
 
@@ -112,31 +112,31 @@ void bench_sparse() {
     constexpr nk_dtype_t u64_k = nk_u64_k;
 
 #if NK_TARGET_NEON
-    sparse_<u16_k, u64_k>("sparse_intersect_u16_neon", nk_sparse_intersect_u16_neon);
-    sparse_<u32_k, u64_k>("sparse_intersect_u32_neon", nk_sparse_intersect_u32_neon);
-    sparse_<u64_k, u64_k>("sparse_intersect_u64_neon", nk_sparse_intersect_u64_neon);
+    run_sparse<u16_k>("sparse_intersect_u16_neon", nk_sparse_intersect_u16_neon);
+    run_sparse<u32_k>("sparse_intersect_u32_neon", nk_sparse_intersect_u32_neon);
+    run_sparse<u64_k>("sparse_intersect_u64_neon", nk_sparse_intersect_u64_neon);
 #endif
 
 #if NK_TARGET_SVE2
-    sparse_<u16_k, u32_k>("sparse_intersect_u16_sve2", nk_sparse_intersect_u16_sve2);
-    sparse_<u32_k, u32_k>("sparse_intersect_u32_sve2", nk_sparse_intersect_u32_sve2);
-    sparse_<u64_k, u64_k>("sparse_intersect_u64_sve2", nk_sparse_intersect_u64_sve2);
+    run_sparse<u16_k>("sparse_intersect_u16_sve2", nk_sparse_intersect_u16_sve2);
+    run_sparse<u32_k>("sparse_intersect_u32_sve2", nk_sparse_intersect_u32_sve2);
+    run_sparse<u64_k>("sparse_intersect_u64_sve2", nk_sparse_intersect_u64_sve2);
 #endif
 
 #if NK_TARGET_ICELAKE
-    sparse_<u16_k, u32_k>("sparse_intersect_u16_icelake", nk_sparse_intersect_u16_icelake);
-    sparse_<u32_k, u32_k>("sparse_intersect_u32_icelake", nk_sparse_intersect_u32_icelake);
-    sparse_<u64_k, u64_k>("sparse_intersect_u64_icelake", nk_sparse_intersect_u64_icelake);
+    run_sparse<u16_k>("sparse_intersect_u16_icelake", nk_sparse_intersect_u16_icelake);
+    run_sparse<u32_k>("sparse_intersect_u32_icelake", nk_sparse_intersect_u32_icelake);
+    run_sparse<u64_k>("sparse_intersect_u64_icelake", nk_sparse_intersect_u64_icelake);
 #endif
 
 #if NK_TARGET_TURIN
-    sparse_<u16_k, u32_k>("sparse_intersect_u16_turin", nk_sparse_intersect_u16_turin);
-    sparse_<u32_k, u32_k>("sparse_intersect_u32_turin", nk_sparse_intersect_u32_turin);
-    sparse_<u64_k, u64_k>("sparse_intersect_u64_turin", nk_sparse_intersect_u64_turin);
+    run_sparse<u16_k>("sparse_intersect_u16_turin", nk_sparse_intersect_u16_turin);
+    run_sparse<u32_k>("sparse_intersect_u32_turin", nk_sparse_intersect_u32_turin);
+    run_sparse<u64_k>("sparse_intersect_u64_turin", nk_sparse_intersect_u64_turin);
 #endif
 
     // Serial fallbacks
-    sparse_<u16_k, u32_k>("sparse_intersect_u16_serial", nk_sparse_intersect_u16_serial);
-    sparse_<u32_k, u32_k>("sparse_intersect_u32_serial", nk_sparse_intersect_u32_serial);
-    sparse_<u64_k, u64_k>("sparse_intersect_u64_serial", nk_sparse_intersect_u64_serial);
+    run_sparse<u16_k>("sparse_intersect_u16_serial", nk_sparse_intersect_u16_serial);
+    run_sparse<u32_k>("sparse_intersect_u32_serial", nk_sparse_intersect_u32_serial);
+    run_sparse<u64_k>("sparse_intersect_u64_serial", nk_sparse_intersect_u64_serial);
 }

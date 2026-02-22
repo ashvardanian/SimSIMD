@@ -82,17 +82,19 @@ error_stats_t test_euclidean(typename scalar_type_::euclidean_kernel_t kernel) {
 
     error_stats_t stats;
     std::mt19937 generator(global_config.seed);
-    auto a = make_vector<scalar_t>(dense_dimensions), b = make_vector<scalar_t>(dense_dimensions);
+    auto a = make_vector<scalar_t>(global_config.dense_dimensions),
+         b = make_vector<scalar_t>(global_config.dense_dimensions);
 
     for (auto start = test_start_time(); within_time_budget(start);) {
         fill_random(generator, a);
         fill_random(generator, b);
 
         result_t result;
-        kernel(a.raw_values_data(), b.raw_values_data(), dense_dimensions, &result.raw_);
+        kernel(a.raw_values_data(), b.raw_values_data(), global_config.dense_dimensions, &result.raw_);
 
         f118_t reference;
-        nk::euclidean<scalar_t, f118_t, nk::no_simd_k>(a.values_data(), b.values_data(), dense_dimensions, &reference);
+        nk::euclidean<scalar_t, f118_t, nk::no_simd_k>(a.values_data(), b.values_data(), global_config.dense_dimensions,
+                                                       &reference);
 
         stats.accumulate(result, reference);
     }

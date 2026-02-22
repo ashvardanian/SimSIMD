@@ -189,7 +189,7 @@ void measure_dense(bm::State &state, kernel_type_ kernel, std::size_t dimensions
 }
 
 template <nk_dtype_t input_dtype_, nk_dtype_t output_dtype_, typename kernel_type_ = void>
-void dense_(std::string name, kernel_type_ *kernel) {
+void run_dense(std::string name, kernel_type_ *kernel) {
     std::string bench_name = name + "<" + std::to_string(bench_config.dense_dimensions) + "d>";
     bm::RegisterBenchmark(bench_name.c_str(), measure_dense<input_dtype_, output_dtype_, kernel_type_ *>, kernel,
                           bench_config.dense_dimensions);
@@ -197,7 +197,7 @@ void dense_(std::string name, kernel_type_ *kernel) {
 
 //  Batched dot products measurement for packed B matrix API
 //  Used by: all bench_cross_*.cpp files
-template <nk_dtype_t input_dtype_, nk_dtype_t output_dtype_>
+template <nk_dtype_t input_dtype_>
 void measure_dots_packed(                                                                //
     bm::State &state,                                                                    //
     typename nk::type_for<input_dtype_>::type::dots_packed_size_kernel_t packed_size_fn, //
@@ -206,7 +206,7 @@ void measure_dots_packed(                                                       
     std::size_t m, std::size_t n, std::size_t k) {
 
     using input_t = typename nk::type_for<input_dtype_>::type;
-    using output_t = typename nk::type_for<output_dtype_>::type;
+    using output_t = typename input_t::dot_result_t;
     using raw_input_t = typename input_t::raw_t;
     using raw_output_t = typename output_t::raw_t;
 
@@ -217,8 +217,7 @@ void measure_dots_packed(                                                       
     nk_size_t packed_bytes = packed_size_fn(n, k);
 
     // Preallocate multiple input sets within bench_budget for input diversity
-    std::size_t bytes_per_set = m * a_stride_bytes + n * b_stride_bytes + packed_bytes +
-                                bench_dtype_bytes(output_dtype_, m * n);
+    std::size_t bytes_per_set = m * a_stride_bytes + n * b_stride_bytes + packed_bytes + m * n * sizeof(raw_output_t);
     std::size_t const sets_count = bench_input_count(bytes_per_set);
 
     struct gemm_set_t {
@@ -250,26 +249,26 @@ void measure_dots_packed(                                                       
     state.counters["scalar-ops"] = bm::Counter(iterations * 2.0 * m * n * k, bm::Counter::kIsRate);
 }
 
-template <nk_dtype_t input_dtype_, nk_dtype_t output_dtype_>
-void dots_(std::string name, //
-           typename nk::type_for<input_dtype_>::type::dots_packed_size_kernel_t packed_size_fn,
-           typename nk::type_for<input_dtype_>::type::dots_pack_kernel_t pack_fn,
-           typename nk::type_for<input_dtype_>::type::dots_packed_kernel_t kernel) {
+template <nk_dtype_t input_dtype_>
+void run_dots_packed(std::string name, //
+                     typename nk::type_for<input_dtype_>::type::dots_packed_size_kernel_t packed_size_fn,
+                     typename nk::type_for<input_dtype_>::type::dots_pack_kernel_t pack_fn,
+                     typename nk::type_for<input_dtype_>::type::dots_packed_kernel_t kernel) {
     std::string bench_name = name + "<" + std::to_string(bench_config.matrix_height) + "x" +
                              std::to_string(bench_config.matrix_width) + "x" +
                              std::to_string(bench_config.matrix_depth) + ">";
-    bm::RegisterBenchmark(bench_name.c_str(), measure_dots_packed<input_dtype_, output_dtype_>, packed_size_fn, pack_fn,
-                          kernel, bench_config.matrix_height, bench_config.matrix_width, bench_config.matrix_depth);
+    bm::RegisterBenchmark(bench_name.c_str(), measure_dots_packed<input_dtype_>, packed_size_fn, pack_fn, kernel,
+                          bench_config.matrix_height, bench_config.matrix_width, bench_config.matrix_depth);
 }
 
-template <nk_dtype_t input_dtype_, nk_dtype_t output_dtype_>
+template <nk_dtype_t input_dtype_>
 void measure_dots_symmetric(                                                   //
     bm::State &state,                                                          //
     typename nk::type_for<input_dtype_>::type::dots_symmetric_kernel_t kernel, //
     std::size_t n, std::size_t k) {
 
     using input_t = typename nk::type_for<input_dtype_>::type;
-    using output_t = typename nk::type_for<output_dtype_>::type;
+    using output_t = typename input_t::dot_result_t;
     using raw_input_t = typename input_t::raw_t;
     using raw_output_t = typename output_t::raw_t;
 
@@ -279,7 +278,7 @@ void measure_dots_symmetric(                                                   /
     nk_size_t output_stride_bytes = n * sizeof(raw_output_t);
 
     // Preallocate multiple input sets within bench_budget
-    std::size_t bytes_per_set = n * input_stride_bytes + bench_dtype_bytes(output_dtype_, n * n);
+    std::size_t bytes_per_set = n * input_stride_bytes + n * n * sizeof(raw_output_t);
     std::size_t const sets_count = bench_input_count(bytes_per_set);
 
     struct syrk_set_t {
@@ -306,12 +305,12 @@ void measure_dots_symmetric(                                                   /
     state.counters["scalar-ops"] = bm::Counter(iterations * n * (n + 1) * k, bm::Counter::kIsRate);
 }
 
-template <nk_dtype_t input_dtype_, nk_dtype_t output_dtype_>
-void dots_symmetric_(std::string name, //
-                     typename nk::type_for<input_dtype_>::type::dots_symmetric_kernel_t kernel) {
+template <nk_dtype_t input_dtype_>
+void run_dots_symmetric(std::string name, //
+                        typename nk::type_for<input_dtype_>::type::dots_symmetric_kernel_t kernel) {
     std::string bench_name = name + "<" + std::to_string(bench_config.matrix_height) + "x" +
                              std::to_string(bench_config.matrix_depth) + ">";
-    bm::RegisterBenchmark(bench_name.c_str(), measure_dots_symmetric<input_dtype_, output_dtype_>, //
+    bm::RegisterBenchmark(bench_name.c_str(), measure_dots_symmetric<input_dtype_>, //
                           kernel, bench_config.matrix_height, bench_config.matrix_depth);
 }
 
@@ -319,7 +318,7 @@ void dots_symmetric_(std::string name, //
  *  @brief Measure packed Hamming distance computation.
  *  Used by: all bench_cross_*.cpp files
  */
-template <nk_dtype_t input_dtype_, nk_dtype_t output_dtype_>
+template <nk_dtype_t input_dtype_>
 void measure_hammings_packed(                                                                //
     bm::State &state,                                                                        //
     typename nk::type_for<input_dtype_>::type::hammings_packed_size_kernel_t packed_size_fn, //
@@ -328,7 +327,7 @@ void measure_hammings_packed(                                                   
     std::size_t m, std::size_t n, std::size_t k) {
 
     using input_t = typename nk::type_for<input_dtype_>::type;
-    using output_t = typename nk::type_for<output_dtype_>::type;
+    using output_t = typename input_t::hamming_result_t;
     using raw_input_t = typename input_t::raw_t;
     using raw_output_t = typename output_t::raw_t;
 
@@ -339,8 +338,7 @@ void measure_hammings_packed(                                                   
     nk_size_t packed_bytes = packed_size_fn(n, k);
 
     // Preallocate multiple input sets within bench_budget
-    std::size_t bytes_per_set = m * a_stride_bytes + n * b_stride_bytes + packed_bytes +
-                                bench_dtype_bytes(output_dtype_, m * n);
+    std::size_t bytes_per_set = m * a_stride_bytes + n * b_stride_bytes + packed_bytes + m * n * sizeof(raw_output_t);
     std::size_t const sets_count = bench_input_count(bytes_per_set);
 
     struct hamming_set_t {
@@ -375,14 +373,14 @@ void measure_hammings_packed(                                                   
 /**
  *  @brief Measure symmetric Hamming distance matrix computation.
  */
-template <nk_dtype_t input_dtype_, nk_dtype_t output_dtype_>
+template <nk_dtype_t input_dtype_>
 void measure_hammings_symmetric(                                                   //
     bm::State &state,                                                              //
     typename nk::type_for<input_dtype_>::type::hammings_symmetric_kernel_t kernel, //
     std::size_t n, std::size_t k) {
 
     using input_t = typename nk::type_for<input_dtype_>::type;
-    using output_t = typename nk::type_for<output_dtype_>::type;
+    using output_t = typename input_t::hamming_result_t;
     using raw_input_t = typename input_t::raw_t;
     using raw_output_t = typename output_t::raw_t;
 
@@ -392,7 +390,7 @@ void measure_hammings_symmetric(                                                
     nk_size_t output_stride_bytes = n * sizeof(raw_output_t);
 
     // Preallocate multiple input sets within bench_budget
-    std::size_t bytes_per_set = n * input_stride_bytes + bench_dtype_bytes(output_dtype_, n * n);
+    std::size_t bytes_per_set = n * input_stride_bytes + n * n * sizeof(raw_output_t);
     std::size_t const sets_count = bench_input_count(bytes_per_set);
 
     struct hamming_sym_set_t {
@@ -419,25 +417,139 @@ void measure_hammings_symmetric(                                                
     state.counters["scalar-ops"] = bm::Counter(iterations * n * (n + 1) * k / 2, bm::Counter::kIsRate);
 }
 
-template <nk_dtype_t input_dtype_, nk_dtype_t output_dtype_>
-void hammings_(std::string name, //
-               typename nk::type_for<input_dtype_>::type::hammings_packed_size_kernel_t packed_size_fn,
-               typename nk::type_for<input_dtype_>::type::hammings_pack_kernel_t pack_fn,
-               typename nk::type_for<input_dtype_>::type::hammings_packed_kernel_t kernel) {
+template <nk_dtype_t input_dtype_>
+void run_hammings_packed(std::string name, //
+                         typename nk::type_for<input_dtype_>::type::hammings_packed_size_kernel_t packed_size_fn,
+                         typename nk::type_for<input_dtype_>::type::hammings_pack_kernel_t pack_fn,
+                         typename nk::type_for<input_dtype_>::type::hammings_packed_kernel_t kernel) {
     std::string bench_name = name + "<" + std::to_string(bench_config.matrix_height) + "x" +
                              std::to_string(bench_config.matrix_width) + "x" +
                              std::to_string(bench_config.matrix_depth) + ">";
-    bm::RegisterBenchmark(bench_name.c_str(), measure_hammings_packed<input_dtype_, output_dtype_>, packed_size_fn,
-                          pack_fn, kernel, bench_config.matrix_height, bench_config.matrix_width,
-                          bench_config.matrix_depth);
+    bm::RegisterBenchmark(bench_name.c_str(), measure_hammings_packed<input_dtype_>, packed_size_fn, pack_fn, kernel,
+                          bench_config.matrix_height, bench_config.matrix_width, bench_config.matrix_depth);
 }
 
-template <nk_dtype_t input_dtype_, nk_dtype_t output_dtype_>
-void hammings_symmetric_(std::string name, //
-                         typename nk::type_for<input_dtype_>::type::hammings_symmetric_kernel_t kernel) {
+template <nk_dtype_t input_dtype_>
+void run_hammings_symmetric(std::string name, //
+                            typename nk::type_for<input_dtype_>::type::hammings_symmetric_kernel_t kernel) {
     std::string bench_name = name + "<" + std::to_string(bench_config.matrix_height) + "x" +
                              std::to_string(bench_config.matrix_depth) + ">";
-    bm::RegisterBenchmark(bench_name.c_str(), measure_hammings_symmetric<input_dtype_, output_dtype_>, //
+    bm::RegisterBenchmark(bench_name.c_str(), measure_hammings_symmetric<input_dtype_>, //
+                          kernel, bench_config.matrix_height, bench_config.matrix_depth);
+}
+
+/**
+ *  @brief Measure packed Jaccard distance matrix computation.
+ */
+template <nk_dtype_t input_dtype_>
+void measure_jaccards_packed(                                                                //
+    bm::State &state,                                                                        //
+    typename nk::type_for<input_dtype_>::type::jaccards_packed_size_kernel_t packed_size_fn, //
+    typename nk::type_for<input_dtype_>::type::jaccards_pack_kernel_t pack_fn,               //
+    typename nk::type_for<input_dtype_>::type::jaccards_packed_kernel_t kernel,              //
+    std::size_t m, std::size_t n, std::size_t k) {
+
+    using input_t = typename nk::type_for<input_dtype_>::type;
+    using raw_input_t = typename input_t::raw_t;
+
+    nk_size_t values_per_row = nk::divide_round_up(k, 8);
+    nk_size_t a_stride_bytes = values_per_row * sizeof(typename input_t::raw_t);
+    nk_size_t b_stride_bytes = values_per_row * sizeof(typename input_t::raw_t);
+    nk_size_t packed_bytes = packed_size_fn(n, k);
+
+    std::size_t bytes_per_set = m * a_stride_bytes + n * b_stride_bytes + packed_bytes + m * n * sizeof(nk_f32_t);
+    std::size_t const sets_count = bench_input_count(bytes_per_set);
+
+    struct jaccards_set_t {
+        nk::vector<input_t> a, b;
+        std::vector<char> b_packed;
+        std::vector<nk_f32_t> c;
+    };
+    std::vector<jaccards_set_t> sets(sets_count);
+    auto generator = make_random_engine();
+    for (auto &s : sets) {
+        s.a = make_vector<input_t>(m * k);
+        s.b = make_vector<input_t>(n * k);
+        s.b_packed.resize(packed_bytes, 0);
+        s.c.resize(m * n, 0);
+        nk::fill_uniform(generator, s.a.values_data(), s.a.size_values());
+        nk::fill_uniform(generator, s.b.values_data(), s.b.size_values());
+        pack_fn(s.b.raw_values_data(), n, k, b_stride_bytes, s.b_packed.data());
+    }
+
+    std::size_t iterations = 0;
+    for (auto _ : state) {
+        auto &s = sets[iterations & (sets_count - 1)];
+        bm::DoNotOptimize(s.c.data());
+        kernel(s.a.raw_values_data(), s.b_packed.data(), s.c.data(), //
+               m, n, k, a_stride_bytes, n * sizeof(nk_f32_t));
+        ++iterations;
+    }
+
+    state.counters["scalar-ops"] = bm::Counter(iterations * m * n * k, bm::Counter::kIsRate);
+}
+
+/**
+ *  @brief Measure symmetric Jaccard distance matrix computation.
+ */
+template <nk_dtype_t input_dtype_>
+void measure_jaccards_symmetric(                                                   //
+    bm::State &state,                                                              //
+    typename nk::type_for<input_dtype_>::type::jaccards_symmetric_kernel_t kernel, //
+    std::size_t n, std::size_t k) {
+
+    using input_t = typename nk::type_for<input_dtype_>::type;
+    using raw_input_t = typename input_t::raw_t;
+
+    nk_size_t input_values_per_row = nk::divide_round_up(k, 8);
+    nk_size_t input_stride_bytes = input_values_per_row * sizeof(typename input_t::raw_t);
+    nk_size_t output_stride_bytes = n * sizeof(nk_f32_t);
+
+    std::size_t bytes_per_set = n * input_stride_bytes + n * n * sizeof(nk_f32_t);
+    std::size_t const sets_count = bench_input_count(bytes_per_set);
+
+    struct jaccards_sym_set_t {
+        nk::vector<input_t> a;
+        std::vector<nk_f32_t> c;
+    };
+    std::vector<jaccards_sym_set_t> sets(sets_count);
+    auto generator = make_random_engine();
+    for (auto &s : sets) {
+        s.a = make_vector<input_t>(n * k);
+        s.c.resize(n * n, 0);
+        nk::fill_uniform(generator, s.a.values_data(), s.a.size_values());
+    }
+
+    std::size_t iterations = 0;
+    for (auto _ : state) {
+        auto &s = sets[iterations & (sets_count - 1)];
+        bm::DoNotOptimize(s.c.data());
+        kernel(s.a.raw_values_data(), n, k, input_stride_bytes, //
+               s.c.data(), output_stride_bytes, 0, n);
+        ++iterations;
+    }
+
+    state.counters["scalar-ops"] = bm::Counter(iterations * n * (n + 1) * k / 2, bm::Counter::kIsRate);
+}
+
+template <nk_dtype_t input_dtype_>
+void run_jaccards_packed(std::string name, //
+                         typename nk::type_for<input_dtype_>::type::jaccards_packed_size_kernel_t packed_size_fn,
+                         typename nk::type_for<input_dtype_>::type::jaccards_pack_kernel_t pack_fn,
+                         typename nk::type_for<input_dtype_>::type::jaccards_packed_kernel_t kernel) {
+    std::string bench_name = name + "<" + std::to_string(bench_config.matrix_height) + "x" +
+                             std::to_string(bench_config.matrix_width) + "x" +
+                             std::to_string(bench_config.matrix_depth) + ">";
+    bm::RegisterBenchmark(bench_name.c_str(), measure_jaccards_packed<input_dtype_>, packed_size_fn, pack_fn, kernel,
+                          bench_config.matrix_height, bench_config.matrix_width, bench_config.matrix_depth);
+}
+
+template <nk_dtype_t input_dtype_>
+void run_jaccards_symmetric(std::string name, //
+                            typename nk::type_for<input_dtype_>::type::jaccards_symmetric_kernel_t kernel) {
+    std::string bench_name = name + "<" + std::to_string(bench_config.matrix_height) + "x" +
+                             std::to_string(bench_config.matrix_depth) + ">";
+    bm::RegisterBenchmark(bench_name.c_str(), measure_jaccards_symmetric<input_dtype_>, //
                           kernel, bench_config.matrix_height, bench_config.matrix_depth);
 }
 

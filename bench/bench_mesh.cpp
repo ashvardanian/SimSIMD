@@ -15,11 +15,11 @@
  *  @param kernel The kernel function to benchmark.
  *  @param points_count The number of 3D points in each point cloud.
  */
-template <nk_dtype_t input_dtype_, nk_dtype_t output_dtype_, typename kernel_type_ = void>
+template <nk_dtype_t input_dtype_, typename kernel_type_ = void>
 void measure_mesh(bm::State &state, kernel_type_ kernel, std::size_t points_count) {
 
     using input_t = typename nk::type_for<input_dtype_>::type;
-    using output_t = typename nk::type_for<output_dtype_>::type;
+    using output_t = typename input_t::mesh_result_t;
     using raw_output_t = typename output_t::raw_t;
     using input_vector_t = nk::vector<input_t>;
 
@@ -50,10 +50,10 @@ void measure_mesh(bm::State &state, kernel_type_ kernel, std::size_t points_coun
     state.counters["calls"] = bm::Counter(iterations, bm::Counter::kIsRate);
 }
 
-template <nk_dtype_t input_dtype_, nk_dtype_t output_dtype_, typename kernel_type_ = void>
-void mesh_(std::string name, kernel_type_ *kernel) {
+template <nk_dtype_t input_dtype_, typename kernel_type_ = void>
+void run_mesh(std::string name, kernel_type_ *kernel) {
     std::string bench_name = name + "<" + std::to_string(bench_config.mesh_points) + "pts>";
-    bm::RegisterBenchmark(bench_name.c_str(), measure_mesh<input_dtype_, output_dtype_, kernel_type_ *>, kernel,
+    bm::RegisterBenchmark(bench_name.c_str(), measure_mesh<input_dtype_, kernel_type_ *>, kernel,
                           bench_config.mesh_points);
 }
 
@@ -64,70 +64,70 @@ void bench_mesh() {
     constexpr nk_dtype_t bf16_k = nk_bf16_k;
 
 #if NK_TARGET_NEON
-    mesh_<f32_k, f32_k>("rmsd_f32_neon", nk_rmsd_f32_neon);
-    mesh_<f32_k, f32_k>("kabsch_f32_neon", nk_kabsch_f32_neon);
-    mesh_<f32_k, f32_k>("umeyama_f32_neon", nk_umeyama_f32_neon);
-    mesh_<f64_k, f64_k>("rmsd_f64_neon", nk_rmsd_f64_neon);
-    mesh_<f64_k, f64_k>("kabsch_f64_neon", nk_kabsch_f64_neon);
-    mesh_<f64_k, f64_k>("umeyama_f64_neon", nk_umeyama_f64_neon);
+    run_mesh<f32_k>("rmsd_f32_neon", nk_rmsd_f32_neon);
+    run_mesh<f32_k>("kabsch_f32_neon", nk_kabsch_f32_neon);
+    run_mesh<f32_k>("umeyama_f32_neon", nk_umeyama_f32_neon);
+    run_mesh<f64_k>("rmsd_f64_neon", nk_rmsd_f64_neon);
+    run_mesh<f64_k>("kabsch_f64_neon", nk_kabsch_f64_neon);
+    run_mesh<f64_k>("umeyama_f64_neon", nk_umeyama_f64_neon);
 #endif
 
 #if NK_TARGET_NEONHALF
-    mesh_<f16_k, f32_k>("rmsd_f16_neonhalf", nk_rmsd_f16_neonhalf);
-    mesh_<f16_k, f32_k>("kabsch_f16_neonhalf", nk_kabsch_f16_neonhalf);
-    mesh_<f16_k, f32_k>("umeyama_f16_neonhalf", nk_umeyama_f16_neonhalf);
+    run_mesh<f16_k>("rmsd_f16_neonhalf", nk_rmsd_f16_neonhalf);
+    run_mesh<f16_k>("kabsch_f16_neonhalf", nk_kabsch_f16_neonhalf);
+    run_mesh<f16_k>("umeyama_f16_neonhalf", nk_umeyama_f16_neonhalf);
 #endif
 
 #if NK_TARGET_NEONBFDOT
-    mesh_<bf16_k, f32_k>("rmsd_bf16_neonbfdot", nk_rmsd_bf16_neonbfdot);
-    mesh_<bf16_k, f32_k>("kabsch_bf16_neonbfdot", nk_kabsch_bf16_neonbfdot);
-    mesh_<bf16_k, f32_k>("umeyama_bf16_neonbfdot", nk_umeyama_bf16_neonbfdot);
+    run_mesh<bf16_k>("rmsd_bf16_neonbfdot", nk_rmsd_bf16_neonbfdot);
+    run_mesh<bf16_k>("kabsch_bf16_neonbfdot", nk_kabsch_bf16_neonbfdot);
+    run_mesh<bf16_k>("umeyama_bf16_neonbfdot", nk_umeyama_bf16_neonbfdot);
 #endif
 
 #if NK_TARGET_HASWELL
-    mesh_<f32_k, f32_k>("rmsd_f32_haswell", nk_rmsd_f32_haswell);
-    mesh_<f32_k, f32_k>("kabsch_f32_haswell", nk_kabsch_f32_haswell);
-    mesh_<f32_k, f32_k>("umeyama_f32_haswell", nk_umeyama_f32_haswell);
-    mesh_<f64_k, f64_k>("rmsd_f64_haswell", nk_rmsd_f64_haswell);
-    mesh_<f64_k, f64_k>("kabsch_f64_haswell", nk_kabsch_f64_haswell);
-    mesh_<f64_k, f64_k>("umeyama_f64_haswell", nk_umeyama_f64_haswell);
-    mesh_<f16_k, f32_k>("rmsd_f16_haswell", nk_rmsd_f16_haswell);
-    mesh_<f16_k, f32_k>("kabsch_f16_haswell", nk_kabsch_f16_haswell);
-    mesh_<f16_k, f32_k>("umeyama_f16_haswell", nk_umeyama_f16_haswell);
-    mesh_<bf16_k, f32_k>("rmsd_bf16_haswell", nk_rmsd_bf16_haswell);
-    mesh_<bf16_k, f32_k>("kabsch_bf16_haswell", nk_kabsch_bf16_haswell);
-    mesh_<bf16_k, f32_k>("umeyama_bf16_haswell", nk_umeyama_bf16_haswell);
+    run_mesh<f32_k>("rmsd_f32_haswell", nk_rmsd_f32_haswell);
+    run_mesh<f32_k>("kabsch_f32_haswell", nk_kabsch_f32_haswell);
+    run_mesh<f32_k>("umeyama_f32_haswell", nk_umeyama_f32_haswell);
+    run_mesh<f64_k>("rmsd_f64_haswell", nk_rmsd_f64_haswell);
+    run_mesh<f64_k>("kabsch_f64_haswell", nk_kabsch_f64_haswell);
+    run_mesh<f64_k>("umeyama_f64_haswell", nk_umeyama_f64_haswell);
+    run_mesh<f16_k>("rmsd_f16_haswell", nk_rmsd_f16_haswell);
+    run_mesh<f16_k>("kabsch_f16_haswell", nk_kabsch_f16_haswell);
+    run_mesh<f16_k>("umeyama_f16_haswell", nk_umeyama_f16_haswell);
+    run_mesh<bf16_k>("rmsd_bf16_haswell", nk_rmsd_bf16_haswell);
+    run_mesh<bf16_k>("kabsch_bf16_haswell", nk_kabsch_bf16_haswell);
+    run_mesh<bf16_k>("umeyama_bf16_haswell", nk_umeyama_bf16_haswell);
 #endif
 
 #if NK_TARGET_SKYLAKE
-    mesh_<f32_k, f32_k>("rmsd_f32_skylake", nk_rmsd_f32_skylake);
-    mesh_<f32_k, f32_k>("kabsch_f32_skylake", nk_kabsch_f32_skylake);
-    mesh_<f32_k, f32_k>("umeyama_f32_skylake", nk_umeyama_f32_skylake);
-    mesh_<f64_k, f64_k>("rmsd_f64_skylake", nk_rmsd_f64_skylake);
-    mesh_<f64_k, f64_k>("kabsch_f64_skylake", nk_kabsch_f64_skylake);
-    mesh_<f64_k, f64_k>("umeyama_f64_skylake", nk_umeyama_f64_skylake);
+    run_mesh<f32_k>("rmsd_f32_skylake", nk_rmsd_f32_skylake);
+    run_mesh<f32_k>("kabsch_f32_skylake", nk_kabsch_f32_skylake);
+    run_mesh<f32_k>("umeyama_f32_skylake", nk_umeyama_f32_skylake);
+    run_mesh<f64_k>("rmsd_f64_skylake", nk_rmsd_f64_skylake);
+    run_mesh<f64_k>("kabsch_f64_skylake", nk_kabsch_f64_skylake);
+    run_mesh<f64_k>("umeyama_f64_skylake", nk_umeyama_f64_skylake);
 #endif
 
 #if NK_TARGET_RVV
-    mesh_<f32_k, f32_k>("rmsd_f32_rvv", nk_rmsd_f32_rvv);
-    mesh_<f32_k, f32_k>("kabsch_f32_rvv", nk_kabsch_f32_rvv);
-    mesh_<f32_k, f32_k>("umeyama_f32_rvv", nk_umeyama_f32_rvv);
-    mesh_<f64_k, f64_k>("rmsd_f64_rvv", nk_rmsd_f64_rvv);
-    mesh_<f64_k, f64_k>("kabsch_f64_rvv", nk_kabsch_f64_rvv);
-    mesh_<f64_k, f64_k>("umeyama_f64_rvv", nk_umeyama_f64_rvv);
-    mesh_<f16_k, f32_k>("rmsd_f16_rvv", nk_rmsd_f16_rvv);
-    mesh_<f16_k, f32_k>("kabsch_f16_rvv", nk_kabsch_f16_rvv);
-    mesh_<f16_k, f32_k>("umeyama_f16_rvv", nk_umeyama_f16_rvv);
-    mesh_<bf16_k, f32_k>("rmsd_bf16_rvv", nk_rmsd_bf16_rvv);
-    mesh_<bf16_k, f32_k>("kabsch_bf16_rvv", nk_kabsch_bf16_rvv);
-    mesh_<bf16_k, f32_k>("umeyama_bf16_rvv", nk_umeyama_bf16_rvv);
+    run_mesh<f32_k>("rmsd_f32_rvv", nk_rmsd_f32_rvv);
+    run_mesh<f32_k>("kabsch_f32_rvv", nk_kabsch_f32_rvv);
+    run_mesh<f32_k>("umeyama_f32_rvv", nk_umeyama_f32_rvv);
+    run_mesh<f64_k>("rmsd_f64_rvv", nk_rmsd_f64_rvv);
+    run_mesh<f64_k>("kabsch_f64_rvv", nk_kabsch_f64_rvv);
+    run_mesh<f64_k>("umeyama_f64_rvv", nk_umeyama_f64_rvv);
+    run_mesh<f16_k>("rmsd_f16_rvv", nk_rmsd_f16_rvv);
+    run_mesh<f16_k>("kabsch_f16_rvv", nk_kabsch_f16_rvv);
+    run_mesh<f16_k>("umeyama_f16_rvv", nk_umeyama_f16_rvv);
+    run_mesh<bf16_k>("rmsd_bf16_rvv", nk_rmsd_bf16_rvv);
+    run_mesh<bf16_k>("kabsch_bf16_rvv", nk_kabsch_bf16_rvv);
+    run_mesh<bf16_k>("umeyama_bf16_rvv", nk_umeyama_bf16_rvv);
 #endif
 
     // Serial fallbacks
-    mesh_<f32_k, f32_k>("rmsd_f32_serial", nk_rmsd_f32_serial);
-    mesh_<f32_k, f32_k>("kabsch_f32_serial", nk_kabsch_f32_serial);
-    mesh_<f32_k, f32_k>("umeyama_f32_serial", nk_umeyama_f32_serial);
-    mesh_<f64_k, f64_k>("rmsd_f64_serial", nk_rmsd_f64_serial);
-    mesh_<f64_k, f64_k>("kabsch_f64_serial", nk_kabsch_f64_serial);
-    mesh_<f64_k, f64_k>("umeyama_f64_serial", nk_umeyama_f64_serial);
+    run_mesh<f32_k>("rmsd_f32_serial", nk_rmsd_f32_serial);
+    run_mesh<f32_k>("kabsch_f32_serial", nk_kabsch_f32_serial);
+    run_mesh<f32_k>("umeyama_f32_serial", nk_umeyama_f32_serial);
+    run_mesh<f64_k>("rmsd_f64_serial", nk_rmsd_f64_serial);
+    run_mesh<f64_k>("kabsch_f64_serial", nk_kabsch_f64_serial);
+    run_mesh<f64_k>("umeyama_f64_serial", nk_umeyama_f64_serial);
 }
