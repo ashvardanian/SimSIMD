@@ -119,7 +119,7 @@ error_stats_t test_hammings_packed(typename scalar_type_::hammings_packed_size_k
     std::size_t b_stride = k_bytes * sizeof(scalar_t);
     std::size_t c_stride = n * sizeof(result_t);
 
-    auto a = make_vector<scalar_t>(m * k_bytes), b = make_vector<scalar_t>(n * k_bytes);
+    auto a = make_vector<scalar_t>(m * k), b = make_vector<scalar_t>(n * k);
     auto c = make_vector<result_t>(m * n);
     auto c_ref = make_vector<result_t>(m * n);
 
@@ -165,7 +165,7 @@ error_stats_t test_hammings_symmetric(typename scalar_type_::hammings_symmetric_
     std::size_t a_stride = k_bytes * sizeof(scalar_t);
     std::size_t c_stride = n * sizeof(result_t);
 
-    auto a = make_vector<scalar_t>(n * k_bytes);
+    auto a = make_vector<scalar_t>(n * k);
     auto c = make_vector<result_t>(n * n);
     auto c_ref = make_vector<result_t>(n * n);
 
@@ -205,7 +205,7 @@ error_stats_t test_jaccards_packed(typename scalar_type_::jaccards_packed_size_k
     std::size_t b_stride = k_bytes * sizeof(scalar_t);
     std::size_t c_stride = n * sizeof(result_t);
 
-    auto a = make_vector<scalar_t>(m * k_bytes), b = make_vector<scalar_t>(n * k_bytes);
+    auto a = make_vector<scalar_t>(m * k), b = make_vector<scalar_t>(n * k);
     auto c = make_vector<result_t>(m * n);
     auto c_ref = make_vector<result_t>(m * n);
 

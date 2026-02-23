@@ -16,7 +16,7 @@ error_stats_t test_reduce_moments(typename input_type_::reduce_moments_kernel_t 
     using sumsq_type_ = typename input_type_::reduce_moments_sumsq_t;
     error_stats_t stats;
     std::mt19937 generator(global_config.seed);
-    auto buffer = make_vector<input_t_>(global_config.dense_dimensions);
+    auto buffer = make_vector<input_type_>(global_config.dense_dimensions);
     for (auto start = test_start_time(); within_time_budget(start);) {
         fill_random(generator, buffer);
         typename sum_type_::raw_t sum;

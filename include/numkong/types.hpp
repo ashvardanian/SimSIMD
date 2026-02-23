@@ -1232,6 +1232,19 @@ struct f16_t {
     inline f16_t &operator*=(f16_t o) noexcept { return *this = *this * o; }
     inline f16_t &operator/=(f16_t o) noexcept { return *this = *this / o; }
 
+    inline f16_t saturating_add(f16_t o) const noexcept {
+        float result = to_f32() + o.to_f32();
+        if (result >= finite_max().to_f32()) return finite_max();
+        if (result <= finite_min().to_f32()) return finite_min();
+        return from_f32(result);
+    }
+    inline f16_t saturating_sub(f16_t o) const noexcept {
+        float result = to_f32() - o.to_f32();
+        if (result >= finite_max().to_f32()) return finite_max();
+        if (result <= finite_min().to_f32()) return finite_min();
+        return from_f32(result);
+    }
+
     inline bool operator==(f16_t o) const noexcept { return nk_f16_compare_(raw_, o.raw_) == 0; }
     inline bool operator!=(f16_t o) const noexcept { return nk_f16_compare_(raw_, o.raw_) != 0; }
     inline bool operator<(f16_t o) const noexcept { return nk_f16_compare_(raw_, o.raw_) < 0; }
@@ -1454,6 +1467,19 @@ struct bf16_t {
     inline bf16_t &operator-=(bf16_t o) noexcept { return *this = *this - o; }
     inline bf16_t &operator*=(bf16_t o) noexcept { return *this = *this * o; }
     inline bf16_t &operator/=(bf16_t o) noexcept { return *this = *this / o; }
+
+    inline bf16_t saturating_add(bf16_t o) const noexcept {
+        float result = to_f32() + o.to_f32();
+        if (result >= finite_max().to_f32()) return finite_max();
+        if (result <= finite_min().to_f32()) return finite_min();
+        return from_f32(result);
+    }
+    inline bf16_t saturating_sub(bf16_t o) const noexcept {
+        float result = to_f32() - o.to_f32();
+        if (result >= finite_max().to_f32()) return finite_max();
+        if (result <= finite_min().to_f32()) return finite_min();
+        return from_f32(result);
+    }
 
     inline bool operator==(bf16_t o) const noexcept { return nk_bf16_compare_(raw_, o.raw_) == 0; }
     inline bool operator!=(bf16_t o) const noexcept { return nk_bf16_compare_(raw_, o.raw_) != 0; }
