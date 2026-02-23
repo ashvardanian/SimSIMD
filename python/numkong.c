@@ -890,6 +890,12 @@ static PyMethodDef nk_methods[] = {
     // Tensor reductions
     {"moments", (PyCFunction)api_moments, METH_FASTCALL | METH_KEYWORDS, doc_reduce_moments},
     {"minmax", (PyCFunction)api_minmax, METH_FASTCALL | METH_KEYWORDS, doc_reduce_minmax},
+    {"sum", (PyCFunction)api_sum, METH_FASTCALL | METH_KEYWORDS, doc_reduce_sum},
+    {"norm", (PyCFunction)api_norm, METH_FASTCALL | METH_KEYWORDS, doc_reduce_norm},
+    {"min", (PyCFunction)api_min, METH_FASTCALL | METH_KEYWORDS, doc_reduce_min},
+    {"max", (PyCFunction)api_max, METH_FASTCALL | METH_KEYWORDS, doc_reduce_max},
+    {"argmin", (PyCFunction)api_argmin, METH_FASTCALL | METH_KEYWORDS, doc_reduce_argmin},
+    {"argmax", (PyCFunction)api_argmax, METH_FASTCALL | METH_KEYWORDS, doc_reduce_argmax},
 
     // Vectorized operations
     {"fma", (PyCFunction)api_fma, METH_FASTCALL | METH_KEYWORDS, doc_fma},
@@ -1000,6 +1006,7 @@ PyMODINIT_FUNC PyInit_numkong(void) {
     }
 
     static_capabilities = nk_capabilities();
+    nk_configure_thread(static_capabilities);
 
     // Register scalar types (bfloat16, float8_e4m3, float8_e5m2)
     if (nk_register_scalar_types(m) < 0) {

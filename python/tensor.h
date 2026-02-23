@@ -191,6 +191,12 @@ PyObject *api_full(PyObject *self, PyObject *const *args, Py_ssize_t nargs, PyOb
 
 PyObject *api_moments(PyObject *self, PyObject *const *args, Py_ssize_t nargs, PyObject *kwnames);
 PyObject *api_minmax(PyObject *self, PyObject *const *args, Py_ssize_t nargs, PyObject *kwnames);
+PyObject *api_sum(PyObject *self, PyObject *const *args, Py_ssize_t nargs, PyObject *kwnames);
+PyObject *api_norm(PyObject *self, PyObject *const *args, Py_ssize_t nargs, PyObject *kwnames);
+PyObject *api_min(PyObject *self, PyObject *const *args, Py_ssize_t nargs, PyObject *kwnames);
+PyObject *api_max(PyObject *self, PyObject *const *args, Py_ssize_t nargs, PyObject *kwnames);
+PyObject *api_argmin(PyObject *self, PyObject *const *args, Py_ssize_t nargs, PyObject *kwnames);
+PyObject *api_argmax(PyObject *self, PyObject *const *args, Py_ssize_t nargs, PyObject *kwnames);
 
 extern char const doc_empty[];
 extern char const doc_zeros[];
@@ -198,6 +204,12 @@ extern char const doc_ones[];
 extern char const doc_full[];
 extern char const doc_reduce_moments[];
 extern char const doc_reduce_minmax[];
+extern char const doc_reduce_sum[];
+extern char const doc_reduce_norm[];
+extern char const doc_reduce_min[];
+extern char const doc_reduce_max[];
+extern char const doc_reduce_argmin[];
+extern char const doc_reduce_argmax[];
 
 #ifdef __cplusplus
 }

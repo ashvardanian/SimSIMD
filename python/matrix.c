@@ -751,7 +751,7 @@ PyObject *api_hammings_pack(PyObject *self, PyObject *const *args, Py_ssize_t na
                      dtype_to_python_string(src_dtype), dtype_to_python_string(target_dtype));
         return NULL;
     }
-    if (col_stride != (nk_size_t)bytes_per_dtype(target_dtype)) {
+    if (col_stride != (nk_size_t)b_buffer.itemsize) {
         PyBuffer_Release(&b_buffer);
         PyErr_SetString(PyExc_ValueError, "Input matrix must be row-contiguous");
         return NULL;
@@ -893,7 +893,7 @@ PyObject *api_hammings_packed(PyObject *self, PyObject *const *args, Py_ssize_t 
                      dtype_to_python_string(src_dtype), dtype_to_python_string(packed->dtype));
         return NULL;
     }
-    if (col_stride != (nk_size_t)bytes_per_dtype(packed->dtype)) {
+    if (col_stride != (nk_size_t)a_buffer.itemsize) {
         PyBuffer_Release(&a_buffer);
         PyErr_SetString(PyExc_ValueError, "hammings requires row-contiguous left operand");
         return NULL;
