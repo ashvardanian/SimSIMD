@@ -10,6 +10,7 @@ void nk_dispatch_u1_find_(nk_capability_t v, nk_kernel_kind_t k, nk_kernel_punne
     typedef nk_kernel_punned_t m_t;
 #if NK_TARGET_V128RELAXED
     if (v & nk_cap_v128relaxed_k) switch (k) {
+        case nk_kernel_dot_k: *m = (m_t)&nk_dot_u1_v128relaxed, *c = nk_cap_v128relaxed_k; return;
         case nk_kernel_hamming_k: *m = (m_t)&nk_hamming_u1_v128relaxed, *c = nk_cap_v128relaxed_k; return;
         case nk_kernel_jaccard_k: *m = (m_t)&nk_jaccard_u1_v128relaxed, *c = nk_cap_v128relaxed_k; return;
         default: break;
@@ -33,6 +34,7 @@ void nk_dispatch_u1_find_(nk_capability_t v, nk_kernel_kind_t k, nk_kernel_punne
 #endif
 #if NK_TARGET_NEON
     if (v & nk_cap_neon_k) switch (k) {
+        case nk_kernel_dot_k: *m = (m_t)&nk_dot_u1_neon, *c = nk_cap_neon_k; return;
         case nk_kernel_hamming_k: *m = (m_t)&nk_hamming_u1_neon, *c = nk_cap_neon_k; return;
         case nk_kernel_jaccard_k: *m = (m_t)&nk_jaccard_u1_neon, *c = nk_cap_neon_k; return;
         case nk_kernel_hammings_packed_size_k: *m = (m_t)&nk_hammings_packed_size_u1_neon, *c = nk_cap_neon_k; return;
@@ -44,6 +46,7 @@ void nk_dispatch_u1_find_(nk_capability_t v, nk_kernel_kind_t k, nk_kernel_punne
 #endif
 #if NK_TARGET_ICELAKE
     if (v & nk_cap_icelake_k) switch (k) {
+        case nk_kernel_dot_k: *m = (m_t)&nk_dot_u1_icelake, *c = nk_cap_icelake_k; return;
         case nk_kernel_hamming_k: *m = (m_t)&nk_hamming_u1_icelake, *c = nk_cap_icelake_k; return;
         case nk_kernel_jaccard_k: *m = (m_t)&nk_jaccard_u1_icelake, *c = nk_cap_icelake_k; return;
         case nk_kernel_hammings_packed_size_k:
@@ -63,6 +66,7 @@ void nk_dispatch_u1_find_(nk_capability_t v, nk_kernel_kind_t k, nk_kernel_punne
 #endif
 #if NK_TARGET_HASWELL
     if (v & nk_cap_haswell_k) switch (k) {
+        case nk_kernel_dot_k: *m = (m_t)&nk_dot_u1_haswell, *c = nk_cap_haswell_k; return;
         case nk_kernel_hamming_k: *m = (m_t)&nk_hamming_u1_haswell, *c = nk_cap_haswell_k; return;
         case nk_kernel_jaccard_k: *m = (m_t)&nk_jaccard_u1_haswell, *c = nk_cap_haswell_k; return;
         case nk_kernel_hammings_packed_size_k:
@@ -77,6 +81,7 @@ void nk_dispatch_u1_find_(nk_capability_t v, nk_kernel_kind_t k, nk_kernel_punne
 #endif
 #if NK_TARGET_RVVBB
     if (v & nk_cap_rvvbb_k) switch (k) {
+        case nk_kernel_dot_k: *m = (m_t)&nk_dot_u1_rvvbb, *c = nk_cap_rvvbb_k; return;
         case nk_kernel_hamming_k: *m = (m_t)&nk_hamming_u1_rvvbb, *c = nk_cap_rvvbb_k; return;
         case nk_kernel_jaccard_k: *m = (m_t)&nk_jaccard_u1_rvvbb, *c = nk_cap_rvvbb_k; return;
         default: break;
@@ -84,12 +89,14 @@ void nk_dispatch_u1_find_(nk_capability_t v, nk_kernel_kind_t k, nk_kernel_punne
 #endif
 #if NK_TARGET_RVV
     if (v & nk_cap_rvv_k) switch (k) {
+        case nk_kernel_dot_k: *m = (m_t)&nk_dot_u1_rvv, *c = nk_cap_rvv_k; return;
         case nk_kernel_hamming_k: *m = (m_t)&nk_hamming_u1_rvv, *c = nk_cap_rvv_k; return;
         case nk_kernel_jaccard_k: *m = (m_t)&nk_jaccard_u1_rvv, *c = nk_cap_rvv_k; return;
         default: break;
         }
 #endif
     if (v & nk_cap_serial_k) switch (k) {
+        case nk_kernel_dot_k: *m = (m_t)&nk_dot_u1_serial, *c = nk_cap_serial_k; return;
         case nk_kernel_hamming_k: *m = (m_t)&nk_hamming_u1_serial, *c = nk_cap_serial_k; return;
         case nk_kernel_jaccard_k: *m = (m_t)&nk_jaccard_u1_serial, *c = nk_cap_serial_k; return;
         case nk_kernel_hammings_packed_size_k:
@@ -111,6 +118,7 @@ void nk_dispatch_u1_init_(nk_capability_t caps) {
     nk_implementations_t *t = &nk_dispatch_table;
     nk_capability_t used;
 
+    nk_dispatch_u1_find_(caps, nk_kernel_dot_k, (nk_kernel_punned_t *)&t->dot_u1, &used);
     nk_dispatch_u1_find_(caps, nk_kernel_hamming_k, (nk_kernel_punned_t *)&t->hamming_u1, &used);
     nk_dispatch_u1_find_(caps, nk_kernel_jaccard_k, (nk_kernel_punned_t *)&t->jaccard_u1, &used);
     nk_dispatch_u1_find_(caps, nk_kernel_hammings_packed_size_k, (nk_kernel_punned_t *)&t->hammings_packed_size_u1,

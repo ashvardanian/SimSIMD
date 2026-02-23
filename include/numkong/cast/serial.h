@@ -21,6 +21,22 @@ NK_INTERNAL void nk_load_b32_serial_(void const *src, nk_b32_vec_t *dst) { dst->
 /** @brief Type-agnostic 32-bit full store (scalar). */
 NK_INTERNAL void nk_store_b32_serial_(nk_b32_vec_t const *src, void *dst) { *(nk_u32_t *)dst = src->u32; }
 
+/** @brief Type-agnostic 128-bit store (serial, word-by-word). */
+NK_INTERNAL void nk_store_b128_serial_(nk_b128_vec_t const *src, void *dst) {
+    nk_u64_t *d = (nk_u64_t *)dst;
+    d[0] = src->u64s[0];
+    d[1] = src->u64s[1];
+}
+
+/** @brief Type-agnostic 256-bit store (serial, word-by-word). */
+NK_INTERNAL void nk_store_b256_serial_(nk_b256_vec_t const *src, void *dst) {
+    nk_u64_t *d = (nk_u64_t *)dst;
+    d[0] = src->u64s[0];
+    d[1] = src->u64s[1];
+    d[2] = src->u64s[2];
+    d[3] = src->u64s[3];
+}
+
 #pragma endregion - Type Punned Loads and Stores
 
 /**
@@ -1383,6 +1399,14 @@ NK_INTERNAL void nk_partial_load_b4x32_serial_(void const *src, nk_b128_vec_t *d
     dst->u64s[0] = 0, dst->u64s[1] = 0;
     nk_u8_t const *s = (nk_u8_t const *)src;
     nk_size_t n_bytes = nk_size_divide_round_up_(n, 2);
+    for (nk_size_t i = 0; i < n_bytes && i < 16; i++) dst->u8s[i] = s[i];
+}
+
+/** @brief Partial load for 1-bit elements (128 max = 16 bytes) into 128-bit vector (zeros in remaining slots). */
+NK_INTERNAL void nk_partial_load_b1x128_serial_(void const *src, nk_b128_vec_t *dst, nk_size_t n_bits) {
+    dst->u64s[0] = 0, dst->u64s[1] = 0;
+    nk_u8_t const *s = (nk_u8_t const *)src;
+    nk_size_t n_bytes = nk_size_divide_round_up_(n_bits, 8);
     for (nk_size_t i = 0; i < n_bytes && i < 16; i++) dst->u8s[i] = s[i];
 }
 

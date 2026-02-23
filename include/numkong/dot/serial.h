@@ -790,6 +790,45 @@ NK_INTERNAL void nk_dot_i4x16_finalize_serial(nk_dot_i4x16_state_serial_t const 
 
 #pragma endregion - Small Integers
 
+#pragma region - Binary
+
+NK_PUBLIC void nk_dot_u1_serial(nk_u1x8_t const *a, nk_u1x8_t const *b, nk_size_t n_bits, nk_u32_t *result) {
+    nk_u32_t dot = 0;
+    nk_size_t bytes = nk_size_divide_round_up_(n_bits, NK_BITS_PER_BYTE);
+    for (nk_size_t i = 0; i < bytes; ++i) dot += nk_u1x8_popcount_(((nk_u8_t const *)a)[i] & ((nk_u8_t const *)b)[i]);
+    *result = dot;
+}
+
+typedef struct nk_dot_u1x128_state_serial_t {
+    nk_u32_t dot_count;
+} nk_dot_u1x128_state_serial_t;
+
+NK_INTERNAL void nk_dot_u1x128_init_serial(nk_dot_u1x128_state_serial_t *state) { state->dot_count = 0; }
+
+NK_INTERNAL void nk_dot_u1x128_update_serial(nk_dot_u1x128_state_serial_t *state, nk_b128_vec_t a, nk_b128_vec_t b,
+                                             nk_size_t depth_offset, nk_size_t active_dimensions) {
+    nk_unused_(depth_offset);
+    nk_unused_(active_dimensions);
+    nk_u64_t and_low = a.u64s[0] & b.u64s[0];
+    nk_u64_t and_high = a.u64s[1] & b.u64s[1];
+    state->dot_count += (nk_u32_t)nk_u64_popcount_(and_low);
+    state->dot_count += (nk_u32_t)nk_u64_popcount_(and_high);
+}
+
+NK_INTERNAL void nk_dot_u1x128_finalize_serial(nk_dot_u1x128_state_serial_t const *state_a,
+                                               nk_dot_u1x128_state_serial_t const *state_b,
+                                               nk_dot_u1x128_state_serial_t const *state_c,
+                                               nk_dot_u1x128_state_serial_t const *state_d, nk_size_t total_dimensions,
+                                               nk_b128_vec_t *result) {
+    nk_unused_(total_dimensions);
+    result->u32s[0] = state_a->dot_count;
+    result->u32s[1] = state_b->dot_count;
+    result->u32s[2] = state_c->dot_count;
+    result->u32s[3] = state_d->dot_count;
+}
+
+#pragma endregion - Binary
+
 #if defined(__cplusplus)
 } // extern "C"
 #endif

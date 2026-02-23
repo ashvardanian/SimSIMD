@@ -58,10 +58,11 @@ extern "C" {
 // Forward declaration of dispatch table type (same structure as in numkong.c)
 typedef struct {
     // Dot products
-    nk_metric_dense_punned_t dot_i8;
-    nk_metric_dense_punned_t dot_u8;
+    nk_metric_dense_punned_t dot_u1;
     nk_metric_dense_punned_t dot_i4;
     nk_metric_dense_punned_t dot_u4;
+    nk_metric_dense_punned_t dot_i8;
+    nk_metric_dense_punned_t dot_u8;
     nk_metric_dense_punned_t dot_f16;
     nk_metric_dense_punned_t dot_bf16;
     nk_metric_dense_punned_t dot_f32;

@@ -903,6 +903,73 @@ nk_dot_e3m2_icelake_cycle:
     *result = (nk_f32_t)_mm512_reduce_add_epi32(sum_i32x16) / 256.0f;
 }
 
+#pragma region - Binary
+
+NK_PUBLIC void nk_dot_u1_icelake(nk_u1x8_t const *a, nk_u1x8_t const *b, nk_size_t n_bits, nk_u32_t *result) {
+    nk_size_t n_bytes = nk_size_divide_round_up_(n_bits, NK_BITS_PER_BYTE);
+    __m512i and_popcount_u64x8 = _mm512_setzero_si512();
+    __m512i a_u8x64, b_u8x64;
+
+nk_dot_u1_icelake_cycle:
+    if (n_bytes < 64) {
+        __mmask64 mask = (__mmask64)_bzhi_u64(0xFFFFFFFFFFFFFFFF, n_bytes);
+        a_u8x64 = _mm512_maskz_loadu_epi8(mask, a);
+        b_u8x64 = _mm512_maskz_loadu_epi8(mask, b);
+        n_bytes = 0;
+    }
+    else {
+        a_u8x64 = _mm512_loadu_epi8(a);
+        b_u8x64 = _mm512_loadu_epi8(b);
+        a += 64, b += 64, n_bytes -= 64;
+    }
+    and_popcount_u64x8 = _mm512_add_epi64(and_popcount_u64x8, _mm512_popcnt_epi64(_mm512_and_si512(a_u8x64, b_u8x64)));
+    if (n_bytes) goto nk_dot_u1_icelake_cycle;
+
+    *result = (nk_u32_t)_mm512_reduce_add_epi64(and_popcount_u64x8);
+}
+
+typedef struct nk_dot_u1x512_state_icelake_t {
+    __m512i dot_count_i64x8;
+} nk_dot_u1x512_state_icelake_t;
+
+NK_INTERNAL void nk_dot_u1x512_init_icelake(nk_dot_u1x512_state_icelake_t *state) {
+    state->dot_count_i64x8 = _mm512_setzero_si512();
+}
+
+NK_INTERNAL void nk_dot_u1x512_update_icelake(nk_dot_u1x512_state_icelake_t *state, nk_b512_vec_t a, nk_b512_vec_t b,
+                                              nk_size_t depth_offset, nk_size_t active_dimensions) {
+    nk_unused_(depth_offset);
+    nk_unused_(active_dimensions);
+    state->dot_count_i64x8 = _mm512_add_epi64(state->dot_count_i64x8,
+                                              _mm512_popcnt_epi64(_mm512_and_si512(a.zmm, b.zmm)));
+}
+
+NK_INTERNAL void nk_dot_u1x512_finalize_icelake( //
+    nk_dot_u1x512_state_icelake_t const *state_a, nk_dot_u1x512_state_icelake_t const *state_b,
+    nk_dot_u1x512_state_icelake_t const *state_c, nk_dot_u1x512_state_icelake_t const *state_d,
+    nk_size_t total_dimensions, nk_b128_vec_t *result) {
+    nk_unused_(total_dimensions);
+
+    // VPMOVQD: truncate 8×i64 → 8×i32 per state
+    __m256i a_i32x8 = _mm512_cvtepi64_epi32(state_a->dot_count_i64x8);
+    __m256i b_i32x8 = _mm512_cvtepi64_epi32(state_b->dot_count_i64x8);
+    __m256i c_i32x8 = _mm512_cvtepi64_epi32(state_c->dot_count_i64x8);
+    __m256i d_i32x8 = _mm512_cvtepi64_epi32(state_d->dot_count_i64x8);
+
+    // Fold 8×i32 → 4×i32 (add high 128-bit lane to low)
+    __m128i a_i32x4 = _mm_add_epi32(_mm256_castsi256_si128(a_i32x8), _mm256_extracti128_si256(a_i32x8, 1));
+    __m128i b_i32x4 = _mm_add_epi32(_mm256_castsi256_si128(b_i32x8), _mm256_extracti128_si256(b_i32x8, 1));
+    __m128i c_i32x4 = _mm_add_epi32(_mm256_castsi256_si128(c_i32x8), _mm256_extracti128_si256(c_i32x8, 1));
+    __m128i d_i32x4 = _mm_add_epi32(_mm256_castsi256_si128(d_i32x8), _mm256_extracti128_si256(d_i32x8, 1));
+
+    // VPHADDD cascade: 4×i32 → 2×i32 → 1×i32 per state
+    __m128i ab_i32x4 = _mm_hadd_epi32(a_i32x4, b_i32x4);
+    __m128i cd_i32x4 = _mm_hadd_epi32(c_i32x4, d_i32x4);
+    result->xmm = _mm_hadd_epi32(ab_i32x4, cd_i32x4);
+}
+
+#pragma endregion - Binary
+
 #if defined(__clang__)
 #pragma clang attribute pop
 #elif defined(__GNUC__)
