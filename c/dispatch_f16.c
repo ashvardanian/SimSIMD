@@ -142,6 +142,9 @@ void nk_dispatch_f16_find_(nk_capability_t v, nk_kernel_kind_t k, nk_kernel_punn
         case nk_kernel_dots_pack_k: *m = (m_t)&nk_dots_pack_f16_rvv, *c = nk_cap_rvv_k; return;
         case nk_kernel_dots_packed_k: *m = (m_t)&nk_dots_packed_f16_rvv, *c = nk_cap_rvv_k; return;
         case nk_kernel_dots_symmetric_k: *m = (m_t)&nk_dots_symmetric_f16_rvv, *c = nk_cap_rvv_k; return;
+        case nk_kernel_each_sin_k: *m = (m_t)&nk_each_sin_f16_rvv, *c = nk_cap_rvv_k; return;
+        case nk_kernel_each_cos_k: *m = (m_t)&nk_each_cos_f16_rvv, *c = nk_cap_rvv_k; return;
+        case nk_kernel_each_atan_k: *m = (m_t)&nk_each_atan_f16_rvv, *c = nk_cap_rvv_k; return;
         default: break;
         }
 #endif
@@ -167,6 +170,9 @@ void nk_dispatch_f16_find_(nk_capability_t v, nk_kernel_kind_t k, nk_kernel_punn
         case nk_kernel_dots_pack_k: *m = (m_t)&nk_dots_pack_f16_serial, *c = nk_cap_serial_k; return;
         case nk_kernel_dots_packed_k: *m = (m_t)&nk_dots_packed_f16_serial, *c = nk_cap_serial_k; return;
         case nk_kernel_dots_symmetric_k: *m = (m_t)&nk_dots_symmetric_f16_serial, *c = nk_cap_serial_k; return;
+        case nk_kernel_each_sin_k: *m = (m_t)&nk_each_sin_f16_serial, *c = nk_cap_serial_k; return;
+        case nk_kernel_each_cos_k: *m = (m_t)&nk_each_cos_f16_serial, *c = nk_cap_serial_k; return;
+        case nk_kernel_each_atan_k: *m = (m_t)&nk_each_atan_f16_serial, *c = nk_cap_serial_k; return;
         default: break;
         }
 

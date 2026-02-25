@@ -232,6 +232,9 @@ typedef struct {
     nk_kernel_trigonometry_punned_t each_cos_f64;
     nk_kernel_trigonometry_punned_t each_atan_f32;
     nk_kernel_trigonometry_punned_t each_atan_f64;
+    nk_kernel_trigonometry_punned_t each_sin_f16;
+    nk_kernel_trigonometry_punned_t each_cos_f16;
+    nk_kernel_trigonometry_punned_t each_atan_f16;
     // Mesh alignment
     nk_metric_mesh_punned_t rmsd_f32;
     nk_metric_mesh_punned_t rmsd_f64;
