@@ -9,6 +9,44 @@
  *  - `nk_reduce_minmax_*` — min + max with argmin/argmax in one pass
  *  - Dynamic dispatch for runtime ISA selection
  *
+ *  For dtypes:
+ *
+ *  - f64: 64-bit IEEE floating point numbers
+ *  - f32: 32-bit IEEE floating point numbers
+ *  - f16: 16-bit IEEE floating point numbers
+ *  - bf16: 16-bit brain floating point numbers
+ *  - e4m3: 8-bit e4m3 floating point numbers
+ *  - e5m2: 8-bit e5m2 floating point numbers
+ *  - e2m3: 8-bit e2m3 floating point numbers (MX)
+ *  - e3m2: 8-bit e3m2 floating point numbers (MX)
+ *  - i8: 8-bit signed integers
+ *  - u8: 8-bit unsigned integers
+ *  - i16: 16-bit signed integers
+ *  - u16: 16-bit unsigned integers
+ *  - i32: 32-bit signed integers
+ *  - u32: 32-bit unsigned integers
+ *  - i64: 64-bit signed integers
+ *  - u64: 64-bit unsigned integers
+ *  - i4: 4-bit signed integers (packed pairs)
+ *  - u4: 4-bit unsigned integers (packed pairs)
+ *  - u1: 1-bit binary (packed octets)
+ *
+ *  For hardware architectures:
+ *
+ *  - Arm: NEON, NEON+F16, NEON+FHM, NEON+BF16, NEON+SDOT
+ *  - x86: Haswell, Skylake, Ice Lake, Genoa, Sierra Forest
+ *  - RISC-V: RVV
+ *  - WASM: V128Relaxed
+ *
+ *  @section numerical_stability Numerical Stability
+ *
+ *  reduce_moments f32: f64 accumulation for both sum and sumsq. f64: f64 with Neumaier.
+ *  i8/u8: i64/u64 accumulators. i32/u32: u64 with overflow-detecting saturating helpers.
+ *  f16/bf16/FP8: promoted to f32 for moments accumulation.
+ *  reduce_minmax: comparison-based, exact. NaN comparisons return false — if all values
+ *  are NaN, the initial sentinel (type max/min) is returned unchanged.
+ *  u1: popcount sum in u64, exact.
+ *
  *  @section reduction_strategy Reduction Strategy
  *
  *  The key insight is that `_mm512_reduce_add_ps()` and similar intrinsics are

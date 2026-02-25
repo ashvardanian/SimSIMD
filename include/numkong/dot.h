@@ -11,20 +11,47 @@
  *
  *  For dtypes:
  *
- *  - 64-bit IEEE floating point numbers → 64-bit floats
- *  - 32-bit IEEE floating point numbers → 32-bit floats
- *  - 16-bit IEEE floating point numbers → 32-bit floats
- *  - 16-bit brain floating point numbers → 32-bit floats
- *  - 8-bit e4m3 floating point numbers → 32-bit floats
- *  - 8-bit e5m2 floating point numbers → 32-bit floats
- *  - 8-bit unsigned integers → 32-bit unsigned integers
- *  - 8-bit signed integers → 32-bit signed integers
+ *  - f64: 64-bit IEEE floating point numbers → 64-bit floats
+ *  - f32: 32-bit IEEE floating point numbers → 32-bit floats
+ *  - f16: 16-bit IEEE floating point numbers → 32-bit floats
+ *  - bf16: 16-bit brain floating point numbers → 32-bit floats
+ *  - e4m3: 8-bit e4m3 floating point numbers → 32-bit floats
+ *  - e5m2: 8-bit e5m2 floating point numbers → 32-bit floats
+ *  - e2m3: 8-bit e2m3 floating point numbers (MX) → 32-bit floats
+ *  - e3m2: 8-bit e3m2 floating point numbers (MX) → 32-bit floats
+ *  - i8: 8-bit signed integers → 32-bit signed integers
+ *  - u8: 8-bit unsigned integers → 32-bit unsigned integers
+ *  - i4: 4-bit signed integers (packed pairs) → 32-bit signed integers
+ *  - u4: 4-bit unsigned integers (packed pairs) → 32-bit unsigned integers
+ *  - u1: 1-bit binary (packed octets) → 32-bit unsigned integers
+ *
+ *  Complex dot product variants:
+ *
+ *  - f64c: 64-bit complex pairs → 64-bit complex
+ *  - f32c: 32-bit complex pairs → 32-bit complex
+ *  - f16c: 16-bit complex pairs → 32-bit complex
+ *  - bf16c: 16-bit brain complex pairs → 32-bit complex
  *
  *  For hardware architectures:
  *
- *  - Arm: NEON, NEON+I8, NEON+F16, NEON+BF16, SVE, SVE+F16
- *  - x86: Haswell, Ice Lake, Skylake, Genoa, Sapphire Rapids, Sierra Forest
- *  - RISC-V: SpaceMIT, SiFive, XuanTie
+ *  - Arm: NEON, NEON+I8, NEON+F16, NEON+FHM, NEON+BF16, SVE, SVE+F16
+ *  - x86: Haswell, Skylake, Ice Lake, Genoa, Sapphire Rapids, Sierra Forest
+ *  - RISC-V: RVV, RVV+BF16, RVV+HALF, RVV+BB
+ *  - WASM: V128Relaxed
+ *
+ *  @section numerical_stability Numerical Stability
+ *
+ *  - f64: Neumaier compensated summation (serial). Dot2/Ogita-Rump-Oishi on Haswell/SVE.
+ *  - f32: Serial accumulates in f32 (naive). SIMD widens to f64 FMA — rounding-free.
+ *  - f16/bf16: Promoted to f32 accumulator.
+ *  - e4m3/e5m2: Promoted to f32. On Sapphire, e2m3/e3m2 use f16 intermediate with periodic
+ *    flush to f32 every 128 elements to avoid f16 overflow (max lane sum ~225 / ~3136).
+ *  - i8: i32 accumulator. Max product |(-128)²| = 16,384. Overflows at n > 2^31/16,384 ≈ 131K.
+ *  - u8: u32 accumulator. Max product 255² = 65,025. Overflows at n > 2^32/65,025 ≈ 66K.
+ *  - i4: i32 accumulator. Max product 8² = 64. Safe for n ≤ ~33M.
+ *  - u4: u32 accumulator. Max product 15² = 225. Safe for n ≤ ~19M.
+ *  - u1: Popcount of AND into u32. Safe for n_bits ≤ 2^32.
+ *  - Complex: Components accumulated independently; same guarantees as real counterpart.
  *
  *  @section streaming_api Streaming API
  *

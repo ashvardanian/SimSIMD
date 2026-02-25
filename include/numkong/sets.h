@@ -10,14 +10,29 @@
  *  - All pairs of rows in a query matrix Q against rows in values matrix V
  *  - All pairs within a single values matrix V (symmetric kernel)
  *
- *  @section sets_use_cases Use Cases
+ *  For dtypes:
+ *
+ *  - u1: 1-bit binary (packed octets) → u32 Hamming / f32 Jaccard
+ *
+ *  For hardware architectures:
+ *
+ *  - Arm: NEON, SME+BI32
+ *  - x86: Haswell, Ice Lake
+ *
+ *  @section numerical_stability Numerical Stability
+ *
+ *  Hamming u1: u32 popcount accumulator. Overflows at n_bits > 2^32.
+ *  Jaccard u1: u32 intersection count, f32 division. Popcount values above 2^24 lose
+ *  precision in f32 cast. Streaming variants use u64 accumulation internally.
+ *
+ *  @section use_cases Use Cases
  *
  *  - Binary similarity search: Find nearest neighbors in Hamming/Jaccard space
  *  - MinHash/SimHash: Compute Jaccard similarity for document fingerprints
  *  - Locality-sensitive hashing (LSH): Build similarity graphs
  *  - Binary neural network inference: Compute distances for BNN outputs
  *
- *  @section sets_math Mathematical Background
+ *  @section math Mathematical Background
  *
  *  Hamming distance: Number of positions where bits differ
  *    hamming(a, b) = popcount(a XOR b)

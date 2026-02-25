@@ -8,7 +8,7 @@
  *
  *  - Scale (Multiply) with shift: result[i] = alpha * a[i] + beta
  *  - Sum (Add): result[i] = a[i] + b[i]
- *  - Weighted Sum (WSum): result[i] = alpha * a[i] + beta * b[i]
+ *  - Blend: result[i] = alpha * a[i] + beta * b[i]
  *  - FMA (Fused Multiply-Add): result[i] = alpha * a[i] * b[i] + beta * c[i]
  *
  *  Beyond their obvious usecases, those can be reused for vector-scalar math and other operations:
@@ -20,20 +20,33 @@
  *
  *  For dtypes:
  *
- *  - 64-bit IEEE floating point numbers × 64-bit scales
- *  - 32-bit IEEE floating point numbers × 32-bit scales
- *  - 16-bit IEEE floating point numbers × 32-bit scales
- *  - 16-bit brain floating point numbers × 32-bit scales
- *  - 8-bit signed and unsigned integers × 32-bit scales
- *  - 16-bit signed and unsigned integers × 32-bit scales
- *  - 32-bit signed and unsigned integers × 64-bit scales
- *  - 64-bit signed and unsigned integers × 64-bit scales
+ *  - f64: 64-bit IEEE floating point numbers × 64-bit scales
+ *  - f32: 32-bit IEEE floating point numbers × 32-bit scales
+ *  - f16: 16-bit IEEE floating point numbers × 32-bit scales
+ *  - bf16: 16-bit brain floating point numbers × 32-bit scales
+ *  - e4m3: 8-bit e4m3 floating point numbers × 32-bit scales
+ *  - e5m2: 8-bit e5m2 floating point numbers × 32-bit scales
+ *  - e2m3: 8-bit e2m3 floating point numbers (MX) × 32-bit scales
+ *  - e3m2: 8-bit e3m2 floating point numbers (MX) × 32-bit scales
+ *  - i8/u8: 8-bit signed and unsigned integers × 32-bit scales
+ *  - i16/u16: 16-bit signed and unsigned integers × 32-bit scales
+ *  - i32/u32: 32-bit signed and unsigned integers × 64-bit scales
+ *  - i64/u64: 64-bit signed and unsigned integers × 64-bit scales
  *
  *  For hardware architectures:
  *
- *  - Arm: NEON, NEON+F16
+ *  - Arm: NEON, NEON+F16, NEON+BF16
  *  - x86: Haswell, Skylake, Ice Lake, Sapphire Rapids
+ *  - RISC-V: RVV
  *
+ *
+ *  @section numerical_stability Numerical Stability
+ *
+ *  Integer sum is elementwise a[i]+b[i] clamped to the type's range. Serial widens to
+ *  i64 then clamps on store. NEON uses hardware saturating adds (SQADD/UQADD).
+ *  f16/bf16/FP8 sum: promoted to f32, added, truncated back — double rounding possible.
+ *  Scale/blend/fma: float alpha/beta arithmetic, result rounded to nearest then clamped.
+ *  f32/f64 operations are native precision with no widening.
  *
  *  @section x86_instructions Relevant x86 Instructions
  *

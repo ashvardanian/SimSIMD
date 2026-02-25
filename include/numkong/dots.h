@@ -15,28 +15,47 @@
  *  - Embedding similarity matrices
  *  - k-means clustering, DBSCAN, hierarchical clustering
  *
- *  It implements seveal operations:
+ *  It implements several operations:
  *
  *  - "dots_packed" - computing dot-products where the B matrix is pre-packed into optimal form
- *  - "dots_packed_size" - which estimates the memory requrements for external `malloc`
- *  - "dots_pack" - to perform the pre-preocessing
+ *  - "dots_packed_size" - which estimates the memory requirements for external `malloc`
+ *  - "dots_pack" - to perform the pre-processing
  *  - "dots_compact" - optional helpers to normalize or downcast into original precision
  *  - "dots_symmetric" - for A × Aᵀ Gram matrix multiplication
  *
  *  If the original "dots_packed" is analogous to "GEMM" (General Matrix Multiplication) in BLAS,
  *  the "dots_symmetric" is similar to the "SYRK" (the Symmetric rank-k update of a matrix).
  *
- *  Following numeric types are prioritized:
+ *  For dtypes:
  *
- *  - `f32`: Float32 inputs accumulating to Float64, downcasting into Float32 in the end
- *  - `bf16`: BFloat16 inputs accumulating to Float32
- *  - `i8`: Int8 inputs accumulating to Int32
- *  - `e4m3` & `e5m2`: Float8 inputs often leverating BFloat16 products, accumulating to Float32
+ *  - f64: 64-bit IEEE floating point numbers → 64-bit floats
+ *  - f32: 32-bit IEEE floating point numbers → 32-bit floats
+ *  - f16: 16-bit IEEE floating point numbers → 32-bit floats
+ *  - bf16: 16-bit brain floating point numbers → 32-bit floats
+ *  - e4m3: 8-bit e4m3 floating point numbers → 32-bit floats
+ *  - e5m2: 8-bit e5m2 floating point numbers → 32-bit floats
+ *  - e2m3: 8-bit e2m3 floating point numbers (MX) → 32-bit floats
+ *  - e3m2: 8-bit e3m2 floating point numbers (MX) → 32-bit floats
+ *  - i8: 8-bit signed integers → 32-bit signed integers
+ *  - u8: 8-bit unsigned integers → 32-bit unsigned integers
+ *  - i4: 4-bit signed integers (packed pairs) → 32-bit signed integers
+ *  - u4: 4-bit unsigned integers (packed pairs) → 32-bit unsigned integers
+ *  - u1: 1-bit binary (packed octets) → 32-bit unsigned integers
  *
  *  For hardware architectures:
  *
- *  - x86: Haswell (AVX2), Genoa (AVX512-BF16), Sapphire Rapids (AMX)
- *  - Arm: NEON, SVE, SME
+ *  - Arm: NEON, NEON+HALF, NEON+FHM, NEON+BF16, NEON+SDOT, SVE, SME, SME+F64, SME+BI32
+ *  - x86: Haswell, Skylake, Ice Lake, Genoa, Sapphire Rapids (AMX), Sierra Forest
+ *  - RISC-V: RVV
+ *
+ *  @section numerical_stability Numerical Stability
+ *
+ *  - f64: Dot2 (Ogita-Rump-Oishi) on SVE/SME. f64 FMA on x86.
+ *  - f32: f64 FMA accumulation on Haswell/Skylake. AMX (Sapphire) accumulates bf16→f32 tiles.
+ *  - bf16/f16: f32 accumulation. VDPBF16PS on Genoa does bf16×bf16→f32 natively.
+ *  - e2m3/e3m2: f16 intermediate with flush to f32 every 128 elements (Sapphire).
+ *  - i8: i32 accumulation. AMX TDPBSSD gives i8×i8→i32 tiles. Overflows at k > ~131K.
+ *  - u1: Popcount, exact.
  *
  *  @section memory_layout Memory Layout and Transpose Semantics
  *

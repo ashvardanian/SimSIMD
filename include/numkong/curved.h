@@ -19,11 +19,11 @@
  *
  *  For hardware architectures:
  *
- *  - Serial: Pure C with Neumaier compensated summation
- *  - Arm: NEON, NEON-Half, NEON-BF16, SME
- *  - x86: Haswell, Skylake, Genoa, Sapphire
+ *  - Arm: NEON, NEON+F16, NEON+BF16, SME+F64
+ *  - x86: Haswell, Skylake, Genoa
+ *  - RISC-V: RVV
  *
- *  @section precision Precision Strategy
+ *  @section numerical_stability Numerical Stability
  *
  *  To minimize catastrophic cancellation in large-magnitude sums:
  *  - f32 kernels accumulate in f64 precision where possible
