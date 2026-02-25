@@ -54,7 +54,7 @@ NK_PUBLIC void nk_sqeuclidean_e4m3_sapphire(nk_e4m3_t const *a_scalars, nk_e4m3_
                                             nk_size_t count_scalars, nk_f32_t *result) {
     __m512 sum_f32x16 = _mm512_setzero_ps();
 
-    for (; count_scalars > 0; a_scalars += 16, b_scalars += 16, count_scalars -= 16) {
+    while (count_scalars > 0) {
         nk_size_t const n = count_scalars < 16 ? count_scalars : 16;
         __mmask16 const mask = (__mmask16)_bzhi_u32(0xFFFF, n);
         __m128i a_e4m3x16 = _mm_maskz_loadu_epi8(mask, a_scalars);
@@ -72,6 +72,7 @@ NK_PUBLIC void nk_sqeuclidean_e4m3_sapphire(nk_e4m3_t const *a_scalars, nk_e4m3_
 
         // Square and accumulate in F32
         sum_f32x16 = _mm512_fmadd_ps(diff_f32x16, diff_f32x16, sum_f32x16);
+        a_scalars += n, b_scalars += n, count_scalars -= n;
     }
 
     *result = _mm512_reduce_add_ps(sum_f32x16);
@@ -118,13 +119,14 @@ NK_PUBLIC void nk_sqeuclidean_e2m3_sapphire(nk_e2m3_t const *a_scalars, nk_e2m3_
 
     // Tail: remaining 0–127 elements, 32 at a time via masked loads
     __m512h acc_f16x32 = _mm512_setzero_ph();
-    for (; count_scalars > 0; a_scalars += 32, b_scalars += 32, count_scalars -= 32) {
+    while (count_scalars > 0) {
         nk_size_t const n = count_scalars < 32 ? count_scalars : 32;
         __mmask32 const mask = (__mmask32)_bzhi_u32(0xFFFFFFFF, n);
         __m512h a_f16x32 = nk_e2m3x32_to_f16x32_sapphire_(_mm256_maskz_loadu_epi8(mask, a_scalars));
         __m512h b_f16x32 = nk_e2m3x32_to_f16x32_sapphire_(_mm256_maskz_loadu_epi8(mask, b_scalars));
         __m512h diff_f16x32 = _mm512_sub_ph(a_f16x32, b_f16x32);
         acc_f16x32 = _mm512_fmadd_ph(diff_f16x32, diff_f16x32, acc_f16x32);
+        a_scalars += n, b_scalars += n, count_scalars -= n;
     }
     sum_f32x16 = nk_flush_f16_to_f32_sapphire_(acc_f16x32, sum_f32x16);
 
@@ -166,13 +168,14 @@ NK_PUBLIC void nk_sqeuclidean_e3m2_sapphire(nk_e3m2_t const *a_scalars, nk_e3m2_
 
     // Tail: remaining 0–127 elements, 32 at a time via masked loads
     __m512h acc_f16x32 = _mm512_setzero_ph();
-    for (; count_scalars > 0; a_scalars += 32, b_scalars += 32, count_scalars -= 32) {
+    while (count_scalars > 0) {
         nk_size_t const n = count_scalars < 32 ? count_scalars : 32;
         __mmask32 const mask = (__mmask32)_bzhi_u32(0xFFFFFFFF, n);
         __m512h a_f16x32 = nk_e3m2x32_to_f16x32_sapphire_(_mm256_maskz_loadu_epi8(mask, a_scalars));
         __m512h b_f16x32 = nk_e3m2x32_to_f16x32_sapphire_(_mm256_maskz_loadu_epi8(mask, b_scalars));
         __m512h diff_f16x32 = _mm512_sub_ph(a_f16x32, b_f16x32);
         acc_f16x32 = _mm512_fmadd_ph(diff_f16x32, diff_f16x32, acc_f16x32);
+        a_scalars += n, b_scalars += n, count_scalars -= n;
     }
     sum_f32x16 = nk_flush_f16_to_f32_sapphire_(acc_f16x32, sum_f32x16);
 
@@ -238,7 +241,7 @@ NK_PUBLIC void nk_angular_e2m3_sapphire(nk_e2m3_t const *a_scalars, nk_e2m3_t co
     __m512h dot_acc = _mm512_setzero_ph();
     __m512h a_norm_acc = _mm512_setzero_ph();
     __m512h b_norm_acc = _mm512_setzero_ph();
-    for (; count_scalars > 0; a_scalars += 32, b_scalars += 32, count_scalars -= 32) {
+    while (count_scalars > 0) {
         nk_size_t const n = count_scalars < 32 ? count_scalars : 32;
         __mmask32 const mask = (__mmask32)_bzhi_u32(0xFFFFFFFF, n);
         __m512h a_f16x32 = nk_e2m3x32_to_f16x32_sapphire_(_mm256_maskz_loadu_epi8(mask, a_scalars));
@@ -246,6 +249,7 @@ NK_PUBLIC void nk_angular_e2m3_sapphire(nk_e2m3_t const *a_scalars, nk_e2m3_t co
         dot_acc = _mm512_fmadd_ph(a_f16x32, b_f16x32, dot_acc);
         a_norm_acc = _mm512_fmadd_ph(a_f16x32, a_f16x32, a_norm_acc);
         b_norm_acc = _mm512_fmadd_ph(b_f16x32, b_f16x32, b_norm_acc);
+        a_scalars += n, b_scalars += n, count_scalars -= n;
     }
     sum_dot_f32x16 = nk_flush_f16_to_f32_sapphire_(dot_acc, sum_dot_f32x16);
     sum_a_f32x16 = nk_flush_f16_to_f32_sapphire_(a_norm_acc, sum_a_f32x16);
@@ -304,7 +308,7 @@ NK_PUBLIC void nk_angular_e3m2_sapphire(nk_e3m2_t const *a_scalars, nk_e3m2_t co
     __m512h dot_acc = _mm512_setzero_ph();
     __m512h a_norm_acc = _mm512_setzero_ph();
     __m512h b_norm_acc = _mm512_setzero_ph();
-    for (; count_scalars > 0; a_scalars += 32, b_scalars += 32, count_scalars -= 32) {
+    while (count_scalars > 0) {
         nk_size_t const n = count_scalars < 32 ? count_scalars : 32;
         __mmask32 const mask = (__mmask32)_bzhi_u32(0xFFFFFFFF, n);
         __m512h a_f16x32 = nk_e3m2x32_to_f16x32_sapphire_(_mm256_maskz_loadu_epi8(mask, a_scalars));
@@ -312,6 +316,7 @@ NK_PUBLIC void nk_angular_e3m2_sapphire(nk_e3m2_t const *a_scalars, nk_e3m2_t co
         dot_acc = _mm512_fmadd_ph(a_f16x32, b_f16x32, dot_acc);
         a_norm_acc = _mm512_fmadd_ph(a_f16x32, a_f16x32, a_norm_acc);
         b_norm_acc = _mm512_fmadd_ph(b_f16x32, b_f16x32, b_norm_acc);
+        a_scalars += n, b_scalars += n, count_scalars -= n;
     }
     sum_dot_f32x16 = nk_flush_f16_to_f32_sapphire_(dot_acc, sum_dot_f32x16);
     sum_a_f32x16 = nk_flush_f16_to_f32_sapphire_(a_norm_acc, sum_a_f32x16);
