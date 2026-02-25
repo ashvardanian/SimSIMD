@@ -48,20 +48,20 @@ extern "C" {
 NK_PUBLIC void nk_sqeuclidean_f16_svehalf(nk_f16_t const *a_enum, nk_f16_t const *b_enum, nk_size_t n,
                                           nk_f32_t *result) {
     nk_size_t i = 0;
-    svfloat32_t d2_vec = svdup_n_f32(0.0f);
+    svfloat32_t d2_f32x = svdup_n_f32(0.0f);
     nk_f16_for_arm_simd_t const *a = (nk_f16_for_arm_simd_t const *)(a_enum);
     nk_f16_for_arm_simd_t const *b = (nk_f16_for_arm_simd_t const *)(b_enum);
     do {
-        svbool_t pg_f32 = svwhilelt_b32((unsigned int)i, (unsigned int)n);
-        svfloat16_t a_f16 = svld1_f16(svwhilelt_b16((unsigned int)i, (unsigned int)n), a + i);
-        svfloat16_t b_f16 = svld1_f16(svwhilelt_b16((unsigned int)i, (unsigned int)n), b + i);
-        svfloat32_t a_f32 = svcvt_f32_f16_x(pg_f32, a_f16);
-        svfloat32_t b_f32 = svcvt_f32_f16_x(pg_f32, b_f16);
-        svfloat32_t diff_f32 = svsub_f32_x(pg_f32, a_f32, b_f32);
-        d2_vec = svmla_f32_x(pg_f32, d2_vec, diff_f32, diff_f32);
+        svbool_t predicate_f32x = svwhilelt_b32((unsigned int)i, (unsigned int)n);
+        svfloat16_t a_f16x = svld1_f16(svwhilelt_b16((unsigned int)i, (unsigned int)n), a + i);
+        svfloat16_t b_f16x = svld1_f16(svwhilelt_b16((unsigned int)i, (unsigned int)n), b + i);
+        svfloat32_t a_f32x = svcvt_f32_f16_x(predicate_f32x, a_f16x);
+        svfloat32_t b_f32x = svcvt_f32_f16_x(predicate_f32x, b_f16x);
+        svfloat32_t diff_f32x = svsub_f32_x(predicate_f32x, a_f32x, b_f32x);
+        d2_f32x = svmla_f32_x(predicate_f32x, d2_f32x, diff_f32x, diff_f32x);
         i += svcntw();
     } while (i < n);
-    *result = svaddv_f32(svptrue_b32(), d2_vec);
+    *result = svaddv_f32(svptrue_b32(), d2_f32x);
 }
 
 NK_PUBLIC void nk_euclidean_f16_svehalf(nk_f16_t const *a, nk_f16_t const *b, nk_size_t n, nk_f32_t *result) {
@@ -71,27 +71,27 @@ NK_PUBLIC void nk_euclidean_f16_svehalf(nk_f16_t const *a, nk_f16_t const *b, nk
 
 NK_PUBLIC void nk_angular_f16_svehalf(nk_f16_t const *a_enum, nk_f16_t const *b_enum, nk_size_t n, nk_f32_t *result) {
     nk_size_t i = 0;
-    svfloat32_t ab_vec = svdup_n_f32(0.0f);
-    svfloat32_t a2_vec = svdup_n_f32(0.0f);
-    svfloat32_t b2_vec = svdup_n_f32(0.0f);
+    svfloat32_t ab_f32x = svdup_n_f32(0.0f);
+    svfloat32_t a2_f32x = svdup_n_f32(0.0f);
+    svfloat32_t b2_f32x = svdup_n_f32(0.0f);
     nk_f16_for_arm_simd_t const *a = (nk_f16_for_arm_simd_t const *)(a_enum);
     nk_f16_for_arm_simd_t const *b = (nk_f16_for_arm_simd_t const *)(b_enum);
     do {
-        svbool_t pg_f32 = svwhilelt_b32((unsigned int)i, (unsigned int)n);
-        svfloat16_t a_f16 = svld1_f16(svwhilelt_b16((unsigned int)i, (unsigned int)n), a + i);
-        svfloat16_t b_f16 = svld1_f16(svwhilelt_b16((unsigned int)i, (unsigned int)n), b + i);
-        svfloat32_t a_f32 = svcvt_f32_f16_x(pg_f32, a_f16);
-        svfloat32_t b_f32 = svcvt_f32_f16_x(pg_f32, b_f16);
-        ab_vec = svmla_f32_x(pg_f32, ab_vec, a_f32, b_f32);
-        a2_vec = svmla_f32_x(pg_f32, a2_vec, a_f32, a_f32);
-        b2_vec = svmla_f32_x(pg_f32, b2_vec, b_f32, b_f32);
+        svbool_t predicate_f32x = svwhilelt_b32((unsigned int)i, (unsigned int)n);
+        svfloat16_t a_f16x = svld1_f16(svwhilelt_b16((unsigned int)i, (unsigned int)n), a + i);
+        svfloat16_t b_f16x = svld1_f16(svwhilelt_b16((unsigned int)i, (unsigned int)n), b + i);
+        svfloat32_t a_f32x = svcvt_f32_f16_x(predicate_f32x, a_f16x);
+        svfloat32_t b_f32x = svcvt_f32_f16_x(predicate_f32x, b_f16x);
+        ab_f32x = svmla_f32_x(predicate_f32x, ab_f32x, a_f32x, b_f32x);
+        a2_f32x = svmla_f32_x(predicate_f32x, a2_f32x, a_f32x, a_f32x);
+        b2_f32x = svmla_f32_x(predicate_f32x, b2_f32x, b_f32x, b_f32x);
         i += svcntw();
     } while (i < n);
 
-    nk_f32_t ab = svaddv_f32(svptrue_b32(), ab_vec);
-    nk_f32_t a2 = svaddv_f32(svptrue_b32(), a2_vec);
-    nk_f32_t b2 = svaddv_f32(svptrue_b32(), b2_vec);
-    *result = nk_angular_normalize_f32_neon_(ab, a2, b2);
+    nk_f32_t ab_f32 = svaddv_f32(svptrue_b32(), ab_f32x);
+    nk_f32_t a2_f32 = svaddv_f32(svptrue_b32(), a2_f32x);
+    nk_f32_t b2_f32 = svaddv_f32(svptrue_b32(), b2_f32x);
+    *result = nk_angular_normalize_f32_neon_(ab_f32, a2_f32, b2_f32);
 }
 
 #if defined(__clang__)
