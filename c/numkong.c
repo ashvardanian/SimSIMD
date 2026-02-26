@@ -605,6 +605,7 @@ nk_dispatch_cross_symmetric_(dots, e2m3, e2m3, f32)
 nk_dispatch_cross_symmetric_(dots, e3m2, e3m2, f32)
 nk_dispatch_cross_symmetric_(dots, u4, u4x2, u32)
 nk_dispatch_cross_symmetric_(dots, i4, i4x2, i32)
+nk_dispatch_cross_symmetric_(dots, u1, u1x8, u32)
 
 // Hamming distances (batched binary set computations)
 nk_dispatch_cross_packed_size_(hammings, u1, u1x8, u32)

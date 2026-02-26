@@ -197,6 +197,8 @@ NK_DYNAMIC nk_size_t nk_dots_packed_size_u8(nk_size_t n, nk_size_t k);
 NK_DYNAMIC nk_size_t nk_dots_packed_size_i4(nk_size_t n, nk_size_t k);
 /** @copydoc nk_dots_packed_size_bf16 */
 NK_DYNAMIC nk_size_t nk_dots_packed_size_u4(nk_size_t n, nk_size_t k);
+/** @copydoc nk_dots_packed_size_bf16 */
+NK_DYNAMIC nk_size_t nk_dots_packed_size_u1(nk_size_t n, nk_size_t k);
 
 /**
  *  @brief Packs the second multiplier (B) matrix into a backend-specific layout.
@@ -229,6 +231,8 @@ NK_DYNAMIC void nk_dots_pack_u8(nk_u8_t const *b, nk_size_t n, nk_size_t k, nk_s
 NK_DYNAMIC void nk_dots_pack_i4(nk_i4x2_t const *b, nk_size_t n, nk_size_t k, nk_size_t b_stride, void *b_packed);
 /** @copydoc nk_dots_pack_bf16 */
 NK_DYNAMIC void nk_dots_pack_u4(nk_u4x2_t const *b, nk_size_t n, nk_size_t k, nk_size_t b_stride, void *b_packed);
+/** @copydoc nk_dots_pack_bf16 */
+NK_DYNAMIC void nk_dots_pack_u1(nk_u1x8_t const *b, nk_size_t n, nk_size_t k, nk_size_t b_stride, void *b_packed);
 
 /**
  *  @brief Computes C = A × Bᵀ using packed second multiplier matrix (B), accumulating into C.
@@ -275,6 +279,9 @@ NK_DYNAMIC void nk_dots_packed_i4(nk_i4x2_t const *a, void const *b_packed, nk_i
                                   nk_size_t k, nk_size_t a_stride, nk_size_t c_stride);
 /** @copydoc nk_dots_packed_bf16 */
 NK_DYNAMIC void nk_dots_packed_u4(nk_u4x2_t const *a, void const *b_packed, nk_u32_t *c, nk_size_t m, nk_size_t n,
+                                  nk_size_t k, nk_size_t a_stride, nk_size_t c_stride);
+/** @copydoc nk_dots_packed_bf16 */
+NK_DYNAMIC void nk_dots_packed_u1(nk_u1x8_t const *a, void const *b_packed, nk_u32_t *c, nk_size_t m, nk_size_t n,
                                   nk_size_t k, nk_size_t a_stride, nk_size_t c_stride);
 
 /**
@@ -333,6 +340,10 @@ NK_DYNAMIC void nk_dots_symmetric_i4(nk_i4x2_t const *vectors, nk_size_t n_vecto
                                      nk_size_t row_count);
 /** @copydoc nk_dots_symmetric_bf16 */
 NK_DYNAMIC void nk_dots_symmetric_u4(nk_u4x2_t const *vectors, nk_size_t n_vectors, nk_size_t depth, nk_size_t stride,
+                                     nk_u32_t *result, nk_size_t result_stride, nk_size_t row_start,
+                                     nk_size_t row_count);
+/** @copydoc nk_dots_symmetric_bf16 */
+NK_DYNAMIC void nk_dots_symmetric_u1(nk_u1x8_t const *vectors, nk_size_t n_vectors, nk_size_t depth, nk_size_t stride,
                                      nk_u32_t *result, nk_size_t result_stride, nk_size_t row_start,
                                      nk_size_t row_count);
 
@@ -455,6 +466,18 @@ NK_PUBLIC void nk_dots_packed_u4_serial(nk_u4x2_t const *a, void const *b_packed
                                         nk_size_t k, nk_size_t a_stride, nk_size_t c_stride);
 /** @copydoc nk_dots_symmetric_u4 */
 NK_PUBLIC void nk_dots_symmetric_u4_serial(nk_u4x2_t const *vectors, nk_size_t n_vectors, nk_size_t depth,
+                                           nk_size_t stride, nk_u32_t *result, nk_size_t result_stride,
+                                           nk_size_t row_start, nk_size_t row_count);
+
+/** @copydoc nk_dots_packed_size_u1 */
+NK_PUBLIC nk_size_t nk_dots_packed_size_u1_serial(nk_size_t n, nk_size_t k);
+/** @copydoc nk_dots_pack_u1 */
+NK_PUBLIC void nk_dots_pack_u1_serial(nk_u1x8_t const *b, nk_size_t n, nk_size_t k, nk_size_t b_stride, void *b_packed);
+/** @copydoc nk_dots_packed_u1 */
+NK_PUBLIC void nk_dots_packed_u1_serial(nk_u1x8_t const *a, void const *b_packed, nk_u32_t *c, nk_size_t m, nk_size_t n,
+                                        nk_size_t k, nk_size_t a_stride, nk_size_t c_stride);
+/** @copydoc nk_dots_symmetric_u1 */
+NK_PUBLIC void nk_dots_symmetric_u1_serial(nk_u1x8_t const *vectors, nk_size_t n_vectors, nk_size_t depth,
                                            nk_size_t stride, nk_u32_t *result, nk_size_t result_stride,
                                            nk_size_t row_start, nk_size_t row_count);
 
@@ -940,6 +963,13 @@ NK_PUBLIC void nk_dots_packed_u8_haswell(nk_u8_t const *a, void const *b_packed,
 NK_PUBLIC void nk_dots_symmetric_u8_haswell(nk_u8_t const *vectors, nk_size_t n_vectors, nk_size_t depth,
                                             nk_size_t stride, nk_u32_t *result, nk_size_t result_stride,
                                             nk_size_t row_start, nk_size_t row_count);
+/** @copydoc nk_dots_packed_u1 */
+NK_PUBLIC void nk_dots_packed_u1_haswell(nk_u1x8_t const *a, void const *b_packed, nk_u32_t *c, nk_size_t m,
+                                         nk_size_t n, nk_size_t k, nk_size_t a_stride, nk_size_t c_stride);
+/** @copydoc nk_dots_symmetric_u1 */
+NK_PUBLIC void nk_dots_symmetric_u1_haswell(nk_u1x8_t const *vectors, nk_size_t n_vectors, nk_size_t depth,
+                                            nk_size_t stride, nk_u32_t *result, nk_size_t result_stride,
+                                            nk_size_t row_start, nk_size_t row_count);
 /** @copydoc nk_dots_packed_size_i4 */
 NK_PUBLIC nk_size_t nk_dots_packed_size_i4_haswell(nk_size_t n, nk_size_t k);
 /** @copydoc nk_dots_pack_i4 */
@@ -1118,6 +1148,13 @@ NK_PUBLIC void nk_dots_packed_u4_icelake(nk_u4x2_t const *a, void const *b_packe
 NK_PUBLIC void nk_dots_symmetric_u4_icelake(nk_u4x2_t const *vectors, nk_size_t n_vectors, nk_size_t depth,
                                             nk_size_t stride, nk_u32_t *result, nk_size_t result_stride,
                                             nk_size_t row_start, nk_size_t row_count);
+/** @copydoc nk_dots_packed_u1 */
+NK_PUBLIC void nk_dots_packed_u1_icelake(nk_u1x8_t const *a, void const *b_packed, nk_u32_t *c, nk_size_t m,
+                                         nk_size_t n, nk_size_t k, nk_size_t a_stride, nk_size_t c_stride);
+/** @copydoc nk_dots_symmetric_u1 */
+NK_PUBLIC void nk_dots_symmetric_u1_icelake(nk_u1x8_t const *vectors, nk_size_t n_vectors, nk_size_t depth,
+                                            nk_size_t stride, nk_u32_t *result, nk_size_t result_stride,
+                                            nk_size_t row_start, nk_size_t row_count);
 #endif // NK_TARGET_ICELAKE
 
 /*  Sierra backends using AVX10.2 with VMPSADBW.
@@ -1186,6 +1223,13 @@ NK_PUBLIC void nk_dots_packed_f64_neon(nk_f64_t const *a, void const *b_packed, 
 NK_PUBLIC void nk_dots_symmetric_f64_neon(nk_f64_t const *vectors, nk_size_t n_vectors, nk_size_t depth,
                                           nk_size_t stride, nk_f64_t *result, nk_size_t result_stride,
                                           nk_size_t row_start, nk_size_t row_count);
+/** @copydoc nk_dots_packed_u1 */
+NK_PUBLIC void nk_dots_packed_u1_neon(nk_u1x8_t const *a, void const *b_packed, nk_u32_t *c, nk_size_t m, nk_size_t n,
+                                      nk_size_t k, nk_size_t a_stride, nk_size_t c_stride);
+/** @copydoc nk_dots_symmetric_u1 */
+NK_PUBLIC void nk_dots_symmetric_u1_neon(nk_u1x8_t const *vectors, nk_size_t n_vectors, nk_size_t depth,
+                                         nk_size_t stride, nk_u32_t *result, nk_size_t result_stride,
+                                         nk_size_t row_start, nk_size_t row_count);
 #endif // NK_TARGET_NEON
 
 /*  ARM NEON with F16 arithmetic (ARMv8.2-A FP16).
@@ -1449,6 +1493,7 @@ NK_PUBLIC void nk_dots_symmetric_e5m2_rvv(nk_e5m2_t const *vectors, nk_size_t n_
 #include "numkong/dots/neonbfdot.h"
 #include "numkong/dots/sme.h"
 #include "numkong/dots/smef64.h"
+#include "numkong/dots/smebi32.h"
 #include "numkong/dots/rvv.h"
 
 #if defined(__cplusplus)
@@ -2105,6 +2150,37 @@ NK_PUBLIC void nk_dots_packed_u4(nk_u4x2_t const *a, void const *b_packed, nk_u3
 #endif
 }
 
+NK_PUBLIC nk_size_t nk_dots_packed_size_u1(nk_size_t n, nk_size_t k) {
+#if NK_TARGET_SMEBI32
+    return nk_dots_packed_size_u1_smebi32(n, k);
+#else
+    return nk_dots_packed_size_u1_serial(n, k);
+#endif
+}
+
+NK_PUBLIC void nk_dots_pack_u1(nk_u1x8_t const *b, nk_size_t n, nk_size_t k, nk_size_t b_stride, void *b_packed) {
+#if NK_TARGET_SMEBI32
+    nk_dots_pack_u1_smebi32(b, n, k, b_stride, b_packed);
+#else
+    nk_dots_pack_u1_serial(b, n, k, b_stride, b_packed);
+#endif
+}
+
+NK_PUBLIC void nk_dots_packed_u1(nk_u1x8_t const *a, void const *b_packed, nk_u32_t *c, nk_size_t m, nk_size_t n,
+                                 nk_size_t k, nk_size_t a_stride, nk_size_t c_stride) {
+#if NK_TARGET_SMEBI32
+    nk_dots_packed_u1_smebi32(a, b_packed, c, m, n, k, a_stride, c_stride);
+#elif NK_TARGET_ICELAKE
+    nk_dots_packed_u1_icelake(a, b_packed, c, m, n, k, a_stride, c_stride);
+#elif NK_TARGET_HASWELL
+    nk_dots_packed_u1_haswell(a, b_packed, c, m, n, k, a_stride, c_stride);
+#elif NK_TARGET_NEON
+    nk_dots_packed_u1_neon(a, b_packed, c, m, n, k, a_stride, c_stride);
+#else
+    nk_dots_packed_u1_serial(a, b_packed, c, m, n, k, a_stride, c_stride);
+#endif
+}
+
 NK_PUBLIC nk_size_t nk_dots_packed_size_i4(nk_size_t n, nk_size_t k) {
 #if NK_TARGET_SME
     return nk_dots_packed_size_i4_sme(n, k);
@@ -2331,6 +2407,22 @@ NK_PUBLIC void nk_dots_symmetric_u4(nk_u4x2_t const *vectors, nk_size_t n_vector
     nk_dots_symmetric_u4_haswell(vectors, n_vectors, depth, stride, result, result_stride, row_start, row_count);
 #else
     nk_dots_symmetric_u4_serial(vectors, n_vectors, depth, stride, result, result_stride, row_start, row_count);
+#endif
+}
+
+NK_PUBLIC void nk_dots_symmetric_u1(nk_u1x8_t const *vectors, nk_size_t n_vectors, nk_size_t depth, nk_size_t stride,
+                                    nk_u32_t *result, nk_size_t result_stride, nk_size_t row_start,
+                                    nk_size_t row_count) {
+#if NK_TARGET_SMEBI32
+    nk_dots_symmetric_u1_smebi32(vectors, n_vectors, depth, stride, result, result_stride, row_start, row_count);
+#elif NK_TARGET_ICELAKE
+    nk_dots_symmetric_u1_icelake(vectors, n_vectors, depth, stride, result, result_stride, row_start, row_count);
+#elif NK_TARGET_HASWELL
+    nk_dots_symmetric_u1_haswell(vectors, n_vectors, depth, stride, result, result_stride, row_start, row_count);
+#elif NK_TARGET_NEON
+    nk_dots_symmetric_u1_neon(vectors, n_vectors, depth, stride, result, result_stride, row_start, row_count);
+#else
+    nk_dots_symmetric_u1_serial(vectors, n_vectors, depth, stride, result, result_stride, row_start, row_count);
 #endif
 }
 
