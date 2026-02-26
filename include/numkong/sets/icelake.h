@@ -46,22 +46,22 @@ extern "C" {
 #endif
 
 // Four macro invocations for u1 - Ice Lake processes 512 bits at a time!
-nk_define_cross_pack_size_(hammings, u1, icelake, u1x8, u32,
+nk_define_cross_pack_size_(hammings, u1, icelake, u1x8, u1x8,
                            /*depth_simd_dimensions=*/512,
                            /*dimensions_per_value=*/8)
 
-nk_define_cross_pack_(hammings, u1, icelake, u1x8, u32, nk_assign_from_to_,
+nk_define_cross_pack_(hammings, u1, icelake, u1x8, u1x8, nk_assign_from_to_,
                       /*depth_simd_dimensions=*/512,
                       /*dimensions_per_value=*/8)
 
-nk_define_cross_symmetric_(hammings, u1, icelake, u1x8, u32, nk_b512_vec_t, nk_hamming_u1x512_state_icelake_t,
+nk_define_cross_symmetric_(hammings, u1, icelake, u1x8, u1x8, nk_b512_vec_t, nk_hamming_u1x512_state_icelake_t,
                            nk_b128_vec_t, nk_hamming_u1x512_init_icelake, nk_load_b512_skylake_,
                            nk_partial_load_b1x512_skylake_, nk_hamming_u1x512_update_icelake,
                            nk_hamming_u1x512_finalize_icelake, nk_partial_store_b32x4_skylake_,
                            /*depth_simd_dimensions=*/512,
                            /*dimensions_per_value=*/8)
 
-nk_define_cross_packed_(hammings, u1, icelake, u1x8, u32, u32, nk_b512_vec_t, nk_hamming_u1x512_state_icelake_t,
+nk_define_cross_packed_(hammings, u1, icelake, u1x8, u1x8, u32, nk_b512_vec_t, nk_hamming_u1x512_state_icelake_t,
                         nk_b128_vec_t, nk_hamming_u1x512_init_icelake, nk_load_b512_skylake_,
                         nk_partial_load_b1x512_skylake_, nk_load_b512_skylake_, nk_partial_load_b1x512_skylake_,
                         nk_hamming_u1x512_update_icelake, nk_hamming_u1x512_finalize_icelake,
