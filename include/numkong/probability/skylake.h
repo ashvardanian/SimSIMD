@@ -54,16 +54,17 @@ NK_PUBLIC void nk_kld_f32_skylake(nk_f32_t const *a, nk_f32_t const *b, nk_size_
 nk_kld_f32_skylake_cycle:
     if (n < 16) {
         __mmask16 mask = (__mmask16)_bzhi_u32(0xFFFFFFFF, n);
-        a_f32x16 = _mm512_add_ps(_mm512_maskz_loadu_ps(mask, a), epsilon_f32x16);
-        b_f32x16 = _mm512_add_ps(_mm512_maskz_loadu_ps(mask, b), epsilon_f32x16);
+        a_f32x16 = _mm512_maskz_loadu_ps(mask, a);
+        b_f32x16 = _mm512_maskz_loadu_ps(mask, b);
         n = 0;
     }
     else {
-        a_f32x16 = _mm512_add_ps(_mm512_loadu_ps(a), epsilon_f32x16);
-        b_f32x16 = _mm512_add_ps(_mm512_loadu_ps(b), epsilon_f32x16);
+        a_f32x16 = _mm512_loadu_ps(a);
+        b_f32x16 = _mm512_loadu_ps(b);
         a += 16, b += 16, n -= 16;
     }
-    __m512 ratio_f32x16 = _mm512_div_ps(a_f32x16, b_f32x16);
+    __m512 ratio_f32x16 = _mm512_div_ps(_mm512_add_ps(a_f32x16, epsilon_f32x16),
+                                        _mm512_add_ps(b_f32x16, epsilon_f32x16));
     __m512 log_ratio_f32x16 = nk_log2_f32x16_skylake_(ratio_f32x16);
     __m512 contribution_f32x16 = _mm512_mul_ps(a_f32x16, log_ratio_f32x16);
     sum_f32x16 = _mm512_add_ps(sum_f32x16, contribution_f32x16);
@@ -160,16 +161,16 @@ NK_PUBLIC void nk_kld_f64_skylake(nk_f64_t const *a, nk_f64_t const *b, nk_size_
 nk_kld_f64_skylake_cycle:
     if (n < 8) {
         __mmask8 mask = (__mmask8)_bzhi_u32(0xFF, n);
-        a_f64x8 = _mm512_add_pd(_mm512_maskz_loadu_pd(mask, a), epsilon_f64x8);
-        b_f64x8 = _mm512_add_pd(_mm512_maskz_loadu_pd(mask, b), epsilon_f64x8);
+        a_f64x8 = _mm512_maskz_loadu_pd(mask, a);
+        b_f64x8 = _mm512_maskz_loadu_pd(mask, b);
         n = 0;
     }
     else {
-        a_f64x8 = _mm512_add_pd(_mm512_loadu_pd(a), epsilon_f64x8);
-        b_f64x8 = _mm512_add_pd(_mm512_loadu_pd(b), epsilon_f64x8);
+        a_f64x8 = _mm512_loadu_pd(a);
+        b_f64x8 = _mm512_loadu_pd(b);
         a += 8, b += 8, n -= 8;
     }
-    __m512d ratio_f64x8 = _mm512_div_pd(a_f64x8, b_f64x8);
+    __m512d ratio_f64x8 = _mm512_div_pd(_mm512_add_pd(a_f64x8, epsilon_f64x8), _mm512_add_pd(b_f64x8, epsilon_f64x8));
     __m512d log_ratio_f64x8 = nk_log2_f64x8_skylake_(ratio_f64x8);
     __m512d contribution_f64x8 = _mm512_mul_pd(a_f64x8, log_ratio_f64x8);
     sum_f64x8 = _mm512_add_pd(sum_f64x8, contribution_f64x8);

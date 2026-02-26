@@ -76,9 +76,7 @@ nk_kld_f16_haswell_cycle:
         b_f32x8 = _mm256_cvtph_ps(_mm_loadu_si128((__m128i const *)b));
         n -= 8, a += 8, b += 8;
     }
-    a_f32x8 = _mm256_add_ps(a_f32x8, epsilon_f32x8);
-    b_f32x8 = _mm256_add_ps(b_f32x8, epsilon_f32x8);
-    __m256 ratio_f32x8 = _mm256_div_ps(a_f32x8, b_f32x8);
+    __m256 ratio_f32x8 = _mm256_div_ps(_mm256_add_ps(a_f32x8, epsilon_f32x8), _mm256_add_ps(b_f32x8, epsilon_f32x8));
     __m256 log_ratio_f32x8 = nk_log2_f32x8_haswell_(ratio_f32x8);
     __m256 contribution_f32x8 = _mm256_mul_ps(a_f32x8, log_ratio_f32x8);
     sum_f32x8 = _mm256_add_ps(sum_f32x8, contribution_f32x8);

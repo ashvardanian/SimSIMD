@@ -13,7 +13,7 @@
 #if NK_TARGET_SAPPHIRE
 
 #include "numkong/types.h"
-#include "numkong/spatial/haswell.h"  // `nk_f32_sqrt_haswell`
+#include "numkong/spatial/haswell.h" // `nk_f32_sqrt_haswell`
 #include "numkong/spatial/sapphire.h"
 
 #if defined(__cplusplus)
@@ -53,16 +53,17 @@ NK_PUBLIC void nk_kld_f16_sapphire(nk_f16_t const *a, nk_f16_t const *b, nk_size
 nk_kld_f16_sapphire_cycle:
     if (n < 32) {
         __mmask32 mask = (__mmask32)_bzhi_u32(0xFFFFFFFF, n);
-        a_f16x32 = _mm512_maskz_add_ph(mask, _mm512_castsi512_ph(_mm512_maskz_loadu_epi16(mask, a)), epsilon_f16x32);
-        b_f16x32 = _mm512_maskz_add_ph(mask, _mm512_castsi512_ph(_mm512_maskz_loadu_epi16(mask, b)), epsilon_f16x32);
+        a_f16x32 = _mm512_castsi512_ph(_mm512_maskz_loadu_epi16(mask, a));
+        b_f16x32 = _mm512_castsi512_ph(_mm512_maskz_loadu_epi16(mask, b));
         n = 0;
     }
     else {
-        a_f16x32 = _mm512_add_ph(_mm512_castsi512_ph(_mm512_loadu_epi16(a)), epsilon_f16x32);
-        b_f16x32 = _mm512_add_ph(_mm512_castsi512_ph(_mm512_loadu_epi16(b)), epsilon_f16x32);
+        a_f16x32 = _mm512_castsi512_ph(_mm512_loadu_epi16(a));
+        b_f16x32 = _mm512_castsi512_ph(_mm512_loadu_epi16(b));
         a += 32, b += 32, n -= 32;
     }
-    __m512h ratio_f16x32 = _mm512_div_ph(a_f16x32, b_f16x32);
+    __m512h ratio_f16x32 = _mm512_div_ph(_mm512_add_ph(a_f16x32, epsilon_f16x32),
+                                         _mm512_add_ph(b_f16x32, epsilon_f16x32));
     __m512h log_ratio_f16x32 = nk_log2_f16_sapphire_(ratio_f16x32);
     __m512h contribution_f16x32 = _mm512_mul_ph(a_f16x32, log_ratio_f16x32);
     sum_f16x32 = _mm512_add_ph(sum_f16x32, contribution_f16x32);

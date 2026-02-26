@@ -152,19 +152,19 @@ NK_PUBLIC void nk_kld_f32_rvv(nk_f32_t const *a, nk_f32_t const *b, nk_size_t n,
     vfloat32m4_t sum_f32m4 = __riscv_vfmv_v_f_f32m4(0.0f, vlmax);
     for (nk_size_t vector_length; n > 0; n -= vector_length, a += vector_length, b += vector_length) {
         vector_length = __riscv_vsetvl_e32m4(n);
-        vfloat32m4_t va = __riscv_vle32_v_f32m4(a, vector_length);
-        vfloat32m4_t vb = __riscv_vle32_v_f32m4(b, vector_length);
-        // Add epsilon to avoid log(0)
-        va = __riscv_vfadd_vf_f32m4(va, NK_F32_DIVISION_EPSILON, vector_length);
-        vb = __riscv_vfadd_vf_f32m4(vb, NK_F32_DIVISION_EPSILON, vector_length);
-        // ratio = a / b
-        vfloat32m4_t ratio = __riscv_vfmul_vv_f32m4(va, nk_f32m4_reciprocal_rvv_(vb, vector_length), vector_length);
+        vfloat32m4_t a_f32m4 = __riscv_vle32_v_f32m4(a, vector_length);
+        vfloat32m4_t b_f32m4 = __riscv_vle32_v_f32m4(b, vector_length);
+        // ratio = (a + ε) / (b + ε)
+        vfloat32m4_t a_eps_f32m4 = __riscv_vfadd_vf_f32m4(a_f32m4, NK_F32_DIVISION_EPSILON, vector_length);
+        vfloat32m4_t b_eps_f32m4 = __riscv_vfadd_vf_f32m4(b_f32m4, NK_F32_DIVISION_EPSILON, vector_length);
+        vfloat32m4_t ratio_f32m4 = __riscv_vfmul_vv_f32m4(
+            a_eps_f32m4, nk_f32m4_reciprocal_rvv_(b_eps_f32m4, vector_length), vector_length);
         // log2(ratio)
-        vfloat32m4_t log_ratio = nk_log2_f32m4_rvv_(ratio, vector_length);
+        vfloat32m4_t log_ratio_f32m4 = nk_log2_f32m4_rvv_(ratio_f32m4, vector_length);
         // contribution = a * log2(a / b)
-        vfloat32m4_t contrib = __riscv_vfmul_vv_f32m4(va, log_ratio, vector_length);
+        vfloat32m4_t contribution_f32m4 = __riscv_vfmul_vv_f32m4(a_f32m4, log_ratio_f32m4, vector_length);
         // Per-lane accumulation
-        sum_f32m4 = __riscv_vfadd_vv_f32m4_tu(sum_f32m4, sum_f32m4, contrib, vector_length);
+        sum_f32m4 = __riscv_vfadd_vv_f32m4_tu(sum_f32m4, sum_f32m4, contribution_f32m4, vector_length);
     }
     // Single horizontal reduction after loop
     vfloat32m1_t zero_f32m1 = __riscv_vfmv_v_f_f32m1(0.0f, 1);
@@ -177,19 +177,18 @@ NK_PUBLIC void nk_kld_f64_rvv(nk_f64_t const *a, nk_f64_t const *b, nk_size_t n,
     vfloat64m4_t sum_f64m4 = __riscv_vfmv_v_f_f64m4(0.0, vlmax);
     for (nk_size_t vector_length; n > 0; n -= vector_length, a += vector_length, b += vector_length) {
         vector_length = __riscv_vsetvl_e64m4(n);
-        vfloat64m4_t va = __riscv_vle64_v_f64m4(a, vector_length);
-        vfloat64m4_t vb = __riscv_vle64_v_f64m4(b, vector_length);
-        // Add epsilon to avoid log(0)
-        va = __riscv_vfadd_vf_f64m4(va, NK_F64_DIVISION_EPSILON, vector_length);
-        vb = __riscv_vfadd_vf_f64m4(vb, NK_F64_DIVISION_EPSILON, vector_length);
-        // ratio = a / b (full precision division)
-        vfloat64m4_t ratio = __riscv_vfdiv_vv_f64m4(va, vb, vector_length);
+        vfloat64m4_t a_f64m4 = __riscv_vle64_v_f64m4(a, vector_length);
+        vfloat64m4_t b_f64m4 = __riscv_vle64_v_f64m4(b, vector_length);
+        // ratio = (a + ε) / (b + ε) — full precision division
+        vfloat64m4_t a_eps_f64m4 = __riscv_vfadd_vf_f64m4(a_f64m4, NK_F64_DIVISION_EPSILON, vector_length);
+        vfloat64m4_t b_eps_f64m4 = __riscv_vfadd_vf_f64m4(b_f64m4, NK_F64_DIVISION_EPSILON, vector_length);
+        vfloat64m4_t ratio_f64m4 = __riscv_vfdiv_vv_f64m4(a_eps_f64m4, b_eps_f64m4, vector_length);
         // log2(ratio)
-        vfloat64m4_t log_ratio = nk_log2_f64m4_rvv_(ratio, vector_length);
+        vfloat64m4_t log_ratio_f64m4 = nk_log2_f64m4_rvv_(ratio_f64m4, vector_length);
         // contribution = a * log2(a / b)
-        vfloat64m4_t contrib = __riscv_vfmul_vv_f64m4(va, log_ratio, vector_length);
+        vfloat64m4_t contribution_f64m4 = __riscv_vfmul_vv_f64m4(a_f64m4, log_ratio_f64m4, vector_length);
         // Per-lane accumulation
-        sum_f64m4 = __riscv_vfadd_vv_f64m4_tu(sum_f64m4, sum_f64m4, contrib, vector_length);
+        sum_f64m4 = __riscv_vfadd_vv_f64m4_tu(sum_f64m4, sum_f64m4, contribution_f64m4, vector_length);
     }
     // Single horizontal reduction after loop
     vfloat64m1_t zero_f64m1 = __riscv_vfmv_v_f_f64m1(0.0, 1);
@@ -207,18 +206,18 @@ NK_PUBLIC void nk_kld_f16_rvv(nk_f16_t const *a, nk_f16_t const *b, nk_size_t n,
         vuint16m1_t a_u16m1 = __riscv_vle16_v_u16m1((nk_u16_t const *)a, vector_length);
         vuint16m1_t b_u16m1 = __riscv_vle16_v_u16m1((nk_u16_t const *)b, vector_length);
         // Convert f16 to f32 (m1 -> m2)
-        vfloat32m2_t va = nk_f16m1_to_f32m2_rvv_(a_u16m1, vector_length);
-        vfloat32m2_t vb = nk_f16m1_to_f32m2_rvv_(b_u16m1, vector_length);
-        // Add epsilon to avoid log(0)
-        va = __riscv_vfadd_vf_f32m2(va, NK_F32_DIVISION_EPSILON, vector_length);
-        vb = __riscv_vfadd_vf_f32m2(vb, NK_F32_DIVISION_EPSILON, vector_length);
-        // ratio = a / b
-        vfloat32m2_t ratio = __riscv_vfmul_vv_f32m2(va, nk_f32m2_reciprocal_rvv_(vb, vector_length), vector_length);
-        vfloat32m2_t log_ratio = nk_log2_f32m2_rvv_(ratio, vector_length);
+        vfloat32m2_t a_f32m2 = nk_f16m1_to_f32m2_rvv_(a_u16m1, vector_length);
+        vfloat32m2_t b_f32m2 = nk_f16m1_to_f32m2_rvv_(b_u16m1, vector_length);
+        // ratio = (a + ε) / (b + ε)
+        vfloat32m2_t a_eps_f32m2 = __riscv_vfadd_vf_f32m2(a_f32m2, NK_F32_DIVISION_EPSILON, vector_length);
+        vfloat32m2_t b_eps_f32m2 = __riscv_vfadd_vf_f32m2(b_f32m2, NK_F32_DIVISION_EPSILON, vector_length);
+        vfloat32m2_t ratio_f32m2 = __riscv_vfmul_vv_f32m2(
+            a_eps_f32m2, nk_f32m2_reciprocal_rvv_(b_eps_f32m2, vector_length), vector_length);
+        vfloat32m2_t log_ratio_f32m2 = nk_log2_f32m2_rvv_(ratio_f32m2, vector_length);
         // contribution = a * log2(a / b)
-        vfloat32m2_t contrib = __riscv_vfmul_vv_f32m2(va, log_ratio, vector_length);
+        vfloat32m2_t contribution_f32m2 = __riscv_vfmul_vv_f32m2(a_f32m2, log_ratio_f32m2, vector_length);
         // Per-lane accumulation
-        sum_f32m2 = __riscv_vfadd_vv_f32m2_tu(sum_f32m2, sum_f32m2, contrib, vector_length);
+        sum_f32m2 = __riscv_vfadd_vv_f32m2_tu(sum_f32m2, sum_f32m2, contribution_f32m2, vector_length);
     }
     // Single horizontal reduction after loop
     vfloat32m1_t zero_f32m1 = __riscv_vfmv_v_f_f32m1(0.0f, 1);
@@ -234,18 +233,18 @@ NK_PUBLIC void nk_kld_bf16_rvv(nk_bf16_t const *a, nk_bf16_t const *b, nk_size_t
         vuint16m1_t a_u16m1 = __riscv_vle16_v_u16m1((nk_u16_t const *)a, vector_length);
         vuint16m1_t b_u16m1 = __riscv_vle16_v_u16m1((nk_u16_t const *)b, vector_length);
         // Convert bf16 to f32 (m1 -> m2)
-        vfloat32m2_t va = nk_bf16m1_to_f32m2_rvv_(a_u16m1, vector_length);
-        vfloat32m2_t vb = nk_bf16m1_to_f32m2_rvv_(b_u16m1, vector_length);
-        // Add epsilon
-        va = __riscv_vfadd_vf_f32m2(va, NK_F32_DIVISION_EPSILON, vector_length);
-        vb = __riscv_vfadd_vf_f32m2(vb, NK_F32_DIVISION_EPSILON, vector_length);
-        // ratio = a / b
-        vfloat32m2_t ratio = __riscv_vfmul_vv_f32m2(va, nk_f32m2_reciprocal_rvv_(vb, vector_length), vector_length);
-        vfloat32m2_t log_ratio = nk_log2_f32m2_rvv_(ratio, vector_length);
+        vfloat32m2_t a_f32m2 = nk_bf16m1_to_f32m2_rvv_(a_u16m1, vector_length);
+        vfloat32m2_t b_f32m2 = nk_bf16m1_to_f32m2_rvv_(b_u16m1, vector_length);
+        // ratio = (a + ε) / (b + ε)
+        vfloat32m2_t a_eps_f32m2 = __riscv_vfadd_vf_f32m2(a_f32m2, NK_F32_DIVISION_EPSILON, vector_length);
+        vfloat32m2_t b_eps_f32m2 = __riscv_vfadd_vf_f32m2(b_f32m2, NK_F32_DIVISION_EPSILON, vector_length);
+        vfloat32m2_t ratio_f32m2 = __riscv_vfmul_vv_f32m2(
+            a_eps_f32m2, nk_f32m2_reciprocal_rvv_(b_eps_f32m2, vector_length), vector_length);
+        vfloat32m2_t log_ratio_f32m2 = nk_log2_f32m2_rvv_(ratio_f32m2, vector_length);
         // contribution = a * log2(a / b)
-        vfloat32m2_t contrib = __riscv_vfmul_vv_f32m2(va, log_ratio, vector_length);
+        vfloat32m2_t contribution_f32m2 = __riscv_vfmul_vv_f32m2(a_f32m2, log_ratio_f32m2, vector_length);
         // Per-lane accumulation
-        sum_f32m2 = __riscv_vfadd_vv_f32m2_tu(sum_f32m2, sum_f32m2, contrib, vector_length);
+        sum_f32m2 = __riscv_vfadd_vv_f32m2_tu(sum_f32m2, sum_f32m2, contribution_f32m2, vector_length);
     }
     // Single horizontal reduction after loop
     vfloat32m1_t zero_f32m1 = __riscv_vfmv_v_f_f32m1(0.0f, 1);
