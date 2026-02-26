@@ -1,16 +1,19 @@
-//! Half-precision and 8-bit floating point scalar types.
+//! Scalar types and conversion trait for mixed-precision computing.
 //!
-//! This module provides portable scalar types for mixed-precision computing:
+//! This module provides portable scalar types:
 //!
-//! - [`f16`]: IEEE 754 half-precision (16-bit) floating point
+//! - [`struct@f16`]: IEEE 754 half-precision (16-bit) floating point
 //! - [`bf16`]: Brain floating point (bfloat16) - truncated single precision
 //! - [`e4m3`]: 8-bit floating point with 4 exponent, 3 mantissa bits (OCP FP8)
 //! - [`e5m2`]: 8-bit floating point with 5 exponent, 2 mantissa bits (OCP FP8)
 //! - [`e2m3`]: 6-bit floating point with 2 exponent, 3 mantissa bits (padded to 8-bit)
 //! - [`e3m2`]: 6-bit floating point with 3 exponent, 2 mantissa bits (padded to 8-bit)
+//! - [`i4x2`]: Packed pair of signed 4-bit integers
+//! - [`u4x2`]: Packed pair of unsigned 4-bit integers
+//! - [`u1x8`]: Packed 8 binary values in a single byte
 //!
-//! All types support standard arithmetic operations via trait implementations
-//! and conversion to/from `f32`.
+//! All types support standard arithmetic operations and conversion to/from `f32`
+//! via the [`FloatLike`] trait.
 
 #![allow(non_camel_case_types)]
 
@@ -34,6 +37,34 @@ extern "C" {
 #[inline(always)]
 pub(crate) fn f32_abs_compat(x: f32) -> f32 {
     f32::from_bits(x.to_bits() & 0x7FFF_FFFF)
+}
+
+/// Compatibility function for pre 1.85 Rust versions lacking `f32::round`.
+#[inline(always)]
+pub(crate) fn f32_round_compat(x: f32) -> f32 {
+    let t = x as i32 as f32;
+    let d = x - t;
+    if d >= 0.5 {
+        t + 1.0
+    } else if d <= -0.5 {
+        t - 1.0
+    } else {
+        t
+    }
+}
+
+/// Compatibility function for pre 1.85 Rust versions lacking `f64::round`.
+#[inline(always)]
+pub(crate) fn f64_round_compat(x: f64) -> f64 {
+    let t = x as i64 as f64;
+    let d = x - t;
+    if d >= 0.5 {
+        t + 1.0
+    } else if d <= -0.5 {
+        t - 1.0
+    } else {
+        t
+    }
 }
 
 // region: f16 Type
@@ -70,6 +101,7 @@ impl f16 {
     /// Negative one.
     pub const NEG_ONE: Self = f16(0xBC00);
 
+    /// Converts an `f32` value to `f16`. Out-of-range values saturate.
     #[inline(always)]
     pub fn from_f32(value: f32) -> Self {
         let mut result: u16 = 0;
@@ -77,6 +109,7 @@ impl f16 {
         f16(result)
     }
 
+    /// Converts this value back to `f32`.
     #[inline(always)]
     pub fn to_f32(self) -> f32 {
         let mut result: f32 = 0.0;
@@ -84,38 +117,45 @@ impl f16 {
         result
     }
 
+    /// Returns true if this value is NaN.
     #[inline(always)]
     pub fn is_nan(self) -> bool {
         self.to_f32().is_nan()
     }
 
+    /// Returns true if this value is ±∞.
     #[inline(always)]
     pub fn is_infinite(self) -> bool {
         self.to_f32().is_infinite()
     }
 
+    /// Returns true if this number is neither infinite nor NaN.
     #[inline(always)]
     pub fn is_finite(self) -> bool {
         self.to_f32().is_finite()
     }
 
+    /// Returns |self|.
     #[inline(always)]
     pub fn abs(self) -> Self {
         Self::from_f32(f32_abs_compat(self.to_f32()))
     }
 
+    /// Returns ⌊self⌋. Requires `std`.
     #[cfg(feature = "std")]
     #[inline(always)]
     pub fn floor(self) -> Self {
         Self::from_f32(self.to_f32().floor())
     }
 
+    /// Returns ⌈self⌉. Requires `std`.
     #[cfg(feature = "std")]
     #[inline(always)]
     pub fn ceil(self) -> Self {
         Self::from_f32(self.to_f32().ceil())
     }
 
+    /// Rounds to the nearest integer; half-way cases go away from zero. Requires `std`.
     #[cfg(feature = "std")]
     #[inline(always)]
     pub fn round(self) -> Self {
@@ -209,6 +249,7 @@ impl bf16 {
     /// Negative one.
     pub const NEG_ONE: Self = bf16(0xBF80);
 
+    /// Converts an `f32` value to `bf16`. Out-of-range values saturate.
     #[inline(always)]
     pub fn from_f32(value: f32) -> Self {
         let mut result: u16 = 0;
@@ -216,6 +257,7 @@ impl bf16 {
         bf16(result)
     }
 
+    /// Converts this value back to `f32`.
     #[inline(always)]
     pub fn to_f32(self) -> f32 {
         let mut result: f32 = 0.0;
@@ -356,6 +398,7 @@ impl e4m3 {
     pub const ONE: Self = e4m3(0x38);
     pub const NEG_ONE: Self = e4m3(0xB8);
 
+    /// Converts an `f32` value to `e4m3`. Out-of-range values saturate.
     #[inline(always)]
     pub fn from_f32(value: f32) -> Self {
         let mut result: u8 = 0;
@@ -363,6 +406,7 @@ impl e4m3 {
         e4m3(result)
     }
 
+    /// Converts this value back to `f32`.
     #[inline(always)]
     pub fn to_f32(self) -> f32 {
         let mut result: f32 = 0.0;
@@ -370,9 +414,16 @@ impl e4m3 {
         result
     }
 
+    /// Returns true if this value is NaN.
     #[inline(always)]
     pub fn is_nan(self) -> bool {
         (self.0 & 0x7F) == 0x7F
+    }
+
+    /// Returns true if this value is ±∞. Always false for E4M3 (no infinities).
+    #[inline(always)]
+    pub fn is_infinite(self) -> bool {
+        false
     }
 
     /// Returns true if this number is neither infinite nor NaN.
@@ -1145,529 +1196,816 @@ impl From<i4x2> for (i8, i8) {
 
 // endregion: i4x2 Type
 
+// region: FloatLike Trait
+
+/// Trait for types that support conversion to/from f32 with classification and constants.
+///
+/// Provides a unified interface for all numeric types used in NumKong,
+/// including half-precision floats, mini-floats, integers, and packed types.
+pub trait FloatLike: Sized + Copy + Clone {
+    /// Convert from f32 to this type.
+    fn from_f32(v: f32) -> Self;
+    /// Convert from this type to f32.
+    fn to_f32(self) -> f32;
+    /// Convert from f64 to this type (default: via f32 roundtrip).
+    fn from_f64(v: f64) -> Self {
+        Self::from_f32(v as f32)
+    }
+    /// Convert from this type to f64 (default: via f32 roundtrip).
+    fn to_f64(self) -> f64 {
+        self.to_f32() as f64
+    }
+
+    fn abs(self) -> Self {
+        Self::from_f32(f32_abs_compat(self.to_f32()))
+    }
+    fn is_nan(self) -> bool {
+        self.to_f32().is_nan()
+    }
+    fn is_finite(self) -> bool {
+        self.to_f32().is_finite()
+    }
+    fn is_infinite(self) -> bool {
+        self.to_f32().is_infinite()
+    }
+    fn zero() -> Self {
+        Self::from_f32(0.0)
+    }
+    fn one() -> Self {
+        Self::from_f32(1.0)
+    }
+
+    fn has_infinity() -> bool {
+        false
+    }
+    fn has_nan() -> bool {
+        false
+    }
+    fn has_subnormals() -> bool {
+        false
+    }
+    fn max_value() -> f32 {
+        f32::MAX
+    }
+    fn min_positive() -> f32 {
+        f32::MIN_POSITIVE
+    }
+}
+
+impl FloatLike for f32 {
+    fn from_f32(v: f32) -> Self {
+        v
+    }
+    fn to_f32(self) -> f32 {
+        self
+    }
+    fn from_f64(v: f64) -> Self {
+        v as f32
+    }
+    fn to_f64(self) -> f64 {
+        self as f64
+    }
+    fn abs(self) -> Self {
+        f32_abs_compat(self)
+    }
+    fn is_nan(self) -> bool {
+        self != self
+    }
+    fn is_finite(self) -> bool {
+        (self != f32::INFINITY) && (self != f32::NEG_INFINITY) && !self.is_nan()
+    }
+    fn is_infinite(self) -> bool {
+        self == f32::INFINITY || self == f32::NEG_INFINITY
+    }
+    fn has_infinity() -> bool {
+        true
+    }
+    fn has_nan() -> bool {
+        true
+    }
+    fn has_subnormals() -> bool {
+        true
+    }
+    fn max_value() -> f32 {
+        f32::MAX
+    }
+    fn min_positive() -> f32 {
+        f32::MIN_POSITIVE
+    }
+}
+
+impl FloatLike for f64 {
+    fn from_f32(v: f32) -> Self {
+        v as f64
+    }
+    fn to_f32(self) -> f32 {
+        self as f32
+    }
+    fn from_f64(v: f64) -> Self {
+        v
+    }
+    fn to_f64(self) -> f64 {
+        self
+    }
+    fn abs(self) -> Self {
+        f64::from_bits(self.to_bits() & 0x7FFF_FFFF_FFFF_FFFF)
+    }
+    fn is_nan(self) -> bool {
+        self != self
+    }
+    fn is_finite(self) -> bool {
+        (self != f64::INFINITY) && (self != f64::NEG_INFINITY) && !self.is_nan()
+    }
+    fn is_infinite(self) -> bool {
+        self == f64::INFINITY || self == f64::NEG_INFINITY
+    }
+    fn has_infinity() -> bool {
+        true
+    }
+    fn has_nan() -> bool {
+        true
+    }
+    fn has_subnormals() -> bool {
+        true
+    }
+    fn max_value() -> f32 {
+        f32::MAX
+    }
+    fn min_positive() -> f32 {
+        f32::MIN_POSITIVE
+    }
+}
+
+impl FloatLike for f16 {
+    fn from_f32(v: f32) -> Self {
+        f16::from_f32(v)
+    }
+    fn to_f32(self) -> f32 {
+        self.to_f32()
+    }
+    fn abs(self) -> Self {
+        self.abs()
+    }
+    fn is_nan(self) -> bool {
+        self.is_nan()
+    }
+    fn is_finite(self) -> bool {
+        self.is_finite()
+    }
+    fn is_infinite(self) -> bool {
+        self.is_infinite()
+    }
+    fn has_infinity() -> bool {
+        true
+    }
+    fn has_nan() -> bool {
+        true
+    }
+    fn has_subnormals() -> bool {
+        true
+    }
+    fn max_value() -> f32 {
+        65504.0
+    }
+    fn min_positive() -> f32 {
+        6.1e-5
+    }
+}
+
+impl FloatLike for bf16 {
+    fn from_f32(v: f32) -> Self {
+        bf16::from_f32(v)
+    }
+    fn to_f32(self) -> f32 {
+        self.to_f32()
+    }
+    fn abs(self) -> Self {
+        self.abs()
+    }
+    fn is_nan(self) -> bool {
+        self.is_nan()
+    }
+    fn is_finite(self) -> bool {
+        self.is_finite()
+    }
+    fn is_infinite(self) -> bool {
+        self.is_infinite()
+    }
+    fn has_infinity() -> bool {
+        true
+    }
+    fn has_nan() -> bool {
+        true
+    }
+    fn has_subnormals() -> bool {
+        true
+    }
+    fn max_value() -> f32 {
+        3.4e38
+    }
+    fn min_positive() -> f32 {
+        1.2e-38
+    }
+}
+
+impl FloatLike for e4m3 {
+    fn from_f32(v: f32) -> Self {
+        e4m3::from_f32(v)
+    }
+    fn to_f32(self) -> f32 {
+        self.to_f32()
+    }
+    fn abs(self) -> Self {
+        self.abs()
+    }
+    fn is_nan(self) -> bool {
+        self.is_nan()
+    }
+    fn is_finite(self) -> bool {
+        self.is_finite()
+    }
+    fn is_infinite(self) -> bool {
+        self.is_infinite()
+    }
+    fn has_nan() -> bool {
+        true
+    }
+    fn has_subnormals() -> bool {
+        true
+    }
+    fn max_value() -> f32 {
+        448.0
+    }
+    fn min_positive() -> f32 {
+        0.001953125
+    }
+}
+
+impl FloatLike for e5m2 {
+    fn from_f32(v: f32) -> Self {
+        e5m2::from_f32(v)
+    }
+    fn to_f32(self) -> f32 {
+        self.to_f32()
+    }
+    fn abs(self) -> Self {
+        self.abs()
+    }
+    fn is_nan(self) -> bool {
+        self.is_nan()
+    }
+    fn is_finite(self) -> bool {
+        self.is_finite()
+    }
+    fn is_infinite(self) -> bool {
+        self.is_infinite()
+    }
+    fn has_infinity() -> bool {
+        true
+    }
+    fn has_nan() -> bool {
+        true
+    }
+    fn has_subnormals() -> bool {
+        true
+    }
+    fn max_value() -> f32 {
+        57344.0
+    }
+    fn min_positive() -> f32 {
+        0.00006103515625
+    }
+}
+
+impl FloatLike for e2m3 {
+    fn from_f32(v: f32) -> Self {
+        e2m3::from_f32(v)
+    }
+    fn to_f32(self) -> f32 {
+        self.to_f32()
+    }
+    fn abs(self) -> Self {
+        self.abs()
+    }
+    fn is_nan(self) -> bool {
+        self.is_nan()
+    }
+    fn is_finite(self) -> bool {
+        self.is_finite()
+    }
+    fn is_infinite(self) -> bool {
+        self.is_infinite()
+    }
+    fn has_subnormals() -> bool {
+        true
+    }
+    fn max_value() -> f32 {
+        7.5
+    }
+    fn min_positive() -> f32 {
+        0.0625
+    }
+}
+
+impl FloatLike for e3m2 {
+    fn from_f32(v: f32) -> Self {
+        e3m2::from_f32(v)
+    }
+    fn to_f32(self) -> f32 {
+        self.to_f32()
+    }
+    fn abs(self) -> Self {
+        self.abs()
+    }
+    fn is_nan(self) -> bool {
+        self.is_nan()
+    }
+    fn is_finite(self) -> bool {
+        self.is_finite()
+    }
+    fn is_infinite(self) -> bool {
+        self.is_infinite()
+    }
+    fn has_subnormals() -> bool {
+        true
+    }
+    fn max_value() -> f32 {
+        28.0
+    }
+    fn min_positive() -> f32 {
+        0.125
+    }
+}
+
+impl FloatLike for i8 {
+    fn from_f32(v: f32) -> Self {
+        f32_round_compat(v) as i8
+    }
+    fn to_f32(self) -> f32 {
+        self as f32
+    }
+    fn from_f64(v: f64) -> Self {
+        f64_round_compat(v) as i8
+    }
+    fn to_f64(self) -> f64 {
+        self as f64
+    }
+}
+
+impl FloatLike for u8 {
+    fn from_f32(v: f32) -> Self {
+        let r = f32_round_compat(v);
+        if r < 0.0 {
+            0
+        } else {
+            r as u8
+        }
+    }
+    fn to_f32(self) -> f32 {
+        self as f32
+    }
+    fn from_f64(v: f64) -> Self {
+        let r = f64_round_compat(v);
+        if r < 0.0 {
+            0
+        } else {
+            r as u8
+        }
+    }
+    fn to_f64(self) -> f64 {
+        self as f64
+    }
+}
+
+impl FloatLike for i32 {
+    fn from_f32(v: f32) -> Self {
+        f32_round_compat(v) as i32
+    }
+    fn to_f32(self) -> f32 {
+        self as f32
+    }
+    fn from_f64(v: f64) -> Self {
+        f64_round_compat(v) as i32
+    }
+    fn to_f64(self) -> f64 {
+        self as f64
+    }
+}
+
+impl FloatLike for u32 {
+    fn from_f32(v: f32) -> Self {
+        let r = f32_round_compat(v);
+        if r < 0.0 {
+            0
+        } else {
+            r as u32
+        }
+    }
+    fn to_f32(self) -> f32 {
+        self as f32
+    }
+    fn from_f64(v: f64) -> Self {
+        let r = f64_round_compat(v);
+        if r < 0.0 {
+            0
+        } else {
+            r as u32
+        }
+    }
+    fn to_f64(self) -> f64 {
+        self as f64
+    }
+}
+
+impl FloatLike for i4x2 {
+    fn from_f32(v: f32) -> Self {
+        let r = f32_round_compat(v) as i8;
+        i4x2::from((r, r))
+    }
+    fn to_f32(self) -> f32 {
+        let (a, _) = self.into();
+        a as f32
+    }
+    fn one() -> Self {
+        i4x2::from((1i8, 1i8))
+    }
+    fn zero() -> Self {
+        i4x2::from((0i8, 0i8))
+    }
+}
+
+impl FloatLike for u4x2 {
+    fn from_f32(v: f32) -> Self {
+        let r = f32_round_compat(v);
+        let r = if r < 0.0 { 0u8 } else { r as u8 };
+        u4x2::from((r, r))
+    }
+    fn to_f32(self) -> f32 {
+        let (a, _) = self.into();
+        a as f32
+    }
+    fn one() -> Self {
+        u4x2::from((1u8, 1u8))
+    }
+    fn zero() -> Self {
+        u4x2::from((0u8, 0u8))
+    }
+}
+
+impl FloatLike for u1x8 {
+    fn from_f32(v: f32) -> Self {
+        if v > 0.0 {
+            u1x8(0xFF)
+        } else {
+            u1x8(0x00)
+        }
+    }
+    fn to_f32(self) -> f32 {
+        self.0.count_ones() as f32
+    }
+    fn one() -> Self {
+        u1x8(0xFF)
+    }
+    fn zero() -> Self {
+        u1x8(0x00)
+    }
+}
+
+// endregion: FloatLike Trait
+
+// region: TestableType Trait (test-only)
+
+#[cfg(test)]
+pub(crate) trait TestableType: FloatLike {
+    /// Base absolute tolerance for this type.
+    fn atol() -> f64;
+    /// Base relative tolerance for this type.
+    fn rtol() -> f64;
+    fn dimensions_per_value() -> usize {
+        1
+    }
+}
+
+#[cfg(test)]
+pub(crate) fn assert_close(actual: f64, expected: f64, atol: f64, rtol: f64, msg: &str) {
+    let tol = atol + rtol * expected.abs();
+    assert!(
+        (actual - expected).abs() <= tol,
+        "{}: expected {} but got {} (atol={}, rtol={}, tol={})",
+        msg,
+        expected,
+        actual,
+        atol,
+        rtol,
+        tol
+    );
+}
+
+#[cfg(test)]
+impl TestableType for f32 {
+    fn atol() -> f64 {
+        1e-4
+    }
+    fn rtol() -> f64 {
+        1e-4
+    }
+}
+#[cfg(test)]
+impl TestableType for f64 {
+    fn atol() -> f64 {
+        1e-9
+    }
+    fn rtol() -> f64 {
+        1e-9
+    }
+}
+#[cfg(test)]
+impl TestableType for f16 {
+    fn atol() -> f64 {
+        0.05
+    }
+    fn rtol() -> f64 {
+        0.05
+    }
+}
+#[cfg(test)]
+impl TestableType for bf16 {
+    fn atol() -> f64 {
+        0.1
+    }
+    fn rtol() -> f64 {
+        0.1
+    }
+}
+#[cfg(test)]
+impl TestableType for e4m3 {
+    fn atol() -> f64 {
+        0.5
+    }
+    fn rtol() -> f64 {
+        0.1
+    }
+}
+#[cfg(test)]
+impl TestableType for e5m2 {
+    fn atol() -> f64 {
+        1.0
+    }
+    fn rtol() -> f64 {
+        0.1
+    }
+}
+#[cfg(test)]
+impl TestableType for e2m3 {
+    fn atol() -> f64 {
+        0.5
+    }
+    fn rtol() -> f64 {
+        0.1
+    }
+}
+#[cfg(test)]
+impl TestableType for e3m2 {
+    fn atol() -> f64 {
+        0.5
+    }
+    fn rtol() -> f64 {
+        0.1
+    }
+}
+#[cfg(test)]
+impl TestableType for i8 {
+    fn atol() -> f64 {
+        1.0
+    }
+    fn rtol() -> f64 {
+        0.0
+    }
+}
+#[cfg(test)]
+impl TestableType for u8 {
+    fn atol() -> f64 {
+        1.0
+    }
+    fn rtol() -> f64 {
+        0.0
+    }
+}
+#[cfg(test)]
+impl TestableType for i32 {
+    fn atol() -> f64 {
+        1.0
+    }
+    fn rtol() -> f64 {
+        0.0
+    }
+}
+#[cfg(test)]
+impl TestableType for u32 {
+    fn atol() -> f64 {
+        1.0
+    }
+    fn rtol() -> f64 {
+        0.0
+    }
+}
+#[cfg(test)]
+impl TestableType for i4x2 {
+    fn atol() -> f64 {
+        1.0
+    }
+    fn rtol() -> f64 {
+        0.0
+    }
+    fn dimensions_per_value() -> usize {
+        2
+    }
+}
+#[cfg(test)]
+impl TestableType for u4x2 {
+    fn atol() -> f64 {
+        1.0
+    }
+    fn rtol() -> f64 {
+        0.0
+    }
+    fn dimensions_per_value() -> usize {
+        2
+    }
+}
+#[cfg(test)]
+impl TestableType for u1x8 {
+    fn atol() -> f64 {
+        0.0
+    }
+    fn rtol() -> f64 {
+        0.0
+    }
+    fn dimensions_per_value() -> usize {
+        8
+    }
+}
+
+// endregion: TestableType Trait
+
 #[cfg(test)]
 mod tests {
     use super::*;
 
-    // Test-only trait for type-specific tolerance values
-    #[allow(dead_code)]
-    trait TestableScalar: Sized {
-        const ABSOLUTE_TOLERANCE: f32;
-        const RELATIVE_TOLERANCE: f32;
-        const MAX_VALUE: f32;
-        const MIN_VALUE: f32;
-        const HAS_INFINITY: bool;
-        const HAS_NAN: bool;
-        const HAS_SUBNORMALS: bool;
-
-        fn from_f32(v: f32) -> Self;
-        fn to_f32(self) -> f32;
-    }
-
-    // f16: 10 mantissa bits, epsilon = 2^-10 = 0.000977
-    impl TestableScalar for f16 {
-        const ABSOLUTE_TOLERANCE: f32 = 0.002; // 2^(1-10) * 2 = 0.001953
-        const RELATIVE_TOLERANCE: f32 = 0.001; // 2^(-10+1) * 2 = 0.000977 * 2
-        const MAX_VALUE: f32 = 65504.0;
-        const MIN_VALUE: f32 = 6.1e-5;
-        const HAS_INFINITY: bool = true;
-        const HAS_NAN: bool = true;
-        const HAS_SUBNORMALS: bool = true;
-
-        fn from_f32(v: f32) -> Self {
-            f16::from_f32(v)
-        }
-        fn to_f32(self) -> f32 {
-            self.to_f32()
-        }
-    }
-
-    // bf16: 7 mantissa bits, epsilon = 2^-7 = 0.0078125
-    impl TestableScalar for bf16 {
-        const ABSOLUTE_TOLERANCE: f32 = 0.016; // 2^(1-7) * 2 = 0.015625
-        const RELATIVE_TOLERANCE: f32 = 0.008; // 2^(-7+1) * 2 = 0.015625
-        const MAX_VALUE: f32 = 3.4e38;
-        const MIN_VALUE: f32 = 1.2e-38;
-        const HAS_INFINITY: bool = true;
-        const HAS_NAN: bool = true;
-        const HAS_SUBNORMALS: bool = true;
-
-        fn from_f32(v: f32) -> Self {
-            bf16::from_f32(v)
-        }
-        fn to_f32(self) -> f32 {
-            self.to_f32()
-        }
-    }
-
-    // e4m3: 3 mantissa bits, epsilon = 2^-3 = 0.125
-    impl TestableScalar for e4m3 {
-        const ABSOLUTE_TOLERANCE: f32 = 0.25; // 2^(1-3) * 2 = 0.25
-        const RELATIVE_TOLERANCE: f32 = 0.125; // 2^(-3+1) * 2 = 0.25
-        const MAX_VALUE: f32 = 448.0;
-        const MIN_VALUE: f32 = 0.001953125; // 2^-9
-        const HAS_INFINITY: bool = false;
-        const HAS_NAN: bool = true;
-        const HAS_SUBNORMALS: bool = true;
-
-        fn from_f32(v: f32) -> Self {
-            e4m3::from_f32(v)
-        }
-        fn to_f32(self) -> f32 {
-            self.to_f32()
-        }
-    }
-
-    // e5m2: 2 mantissa bits, epsilon = 2^-2 = 0.25
-    impl TestableScalar for e5m2 {
-        const ABSOLUTE_TOLERANCE: f32 = 0.5; // 2^(1-2) * 2 = 0.5
-        const RELATIVE_TOLERANCE: f32 = 0.25; // 2^(-2+1) * 2 = 0.5
-        const MAX_VALUE: f32 = 57344.0;
-        const MIN_VALUE: f32 = 0.00006103515625; // 2^-14
-        const HAS_INFINITY: bool = true;
-        const HAS_NAN: bool = true;
-        const HAS_SUBNORMALS: bool = true;
-
-        fn from_f32(v: f32) -> Self {
-            e5m2::from_f32(v)
-        }
-        fn to_f32(self) -> f32 {
-            self.to_f32()
-        }
-    }
-
-    // e2m3: 3 mantissa bits, epsilon = 2^-3 = 0.125
-    impl TestableScalar for e2m3 {
-        const ABSOLUTE_TOLERANCE: f32 = 0.25; // 2^(1-3) * 2 = 0.25
-        const RELATIVE_TOLERANCE: f32 = 0.125; // 2^(-3+1) * 2 = 0.25
-        const MAX_VALUE: f32 = 7.5;
-        const MIN_VALUE: f32 = 0.0625; // 2^-4
-        const HAS_INFINITY: bool = false;
-        const HAS_NAN: bool = false;
-        const HAS_SUBNORMALS: bool = true;
-
-        fn from_f32(v: f32) -> Self {
-            e2m3::from_f32(v)
-        }
-        fn to_f32(self) -> f32 {
-            self.to_f32()
-        }
-    }
-
-    // e3m2: 2 mantissa bits, epsilon = 2^-2 = 0.25
-    impl TestableScalar for e3m2 {
-        const ABSOLUTE_TOLERANCE: f32 = 0.5; // 2^(1-2) * 2 = 0.5
-        const RELATIVE_TOLERANCE: f32 = 0.25; // 2^(-2+1) * 2 = 0.5
-        const MAX_VALUE: f32 = 28.0;
-        const MIN_VALUE: f32 = 0.125; // 2^-3
-        const HAS_INFINITY: bool = false;
-        const HAS_NAN: bool = false;
-        const HAS_SUBNORMALS: bool = true;
-
-        fn from_f32(v: f32) -> Self {
-            e3m2::from_f32(v)
-        }
-        fn to_f32(self) -> f32 {
-            self.to_f32()
-        }
-    }
-
-    // Generic helper function for roundtrip testing
-    fn assert_scalar_roundtrip<T: TestableScalar>(original: f32) {
+    fn assert_scalar_roundtrip<T: FloatLike>(original: f32, abs_tol: f32, rel_tol: f32) {
         let converted = T::from_f32(original);
-        let roundtrip = converted.to_f32();
-
+        let roundtrip = FloatLike::to_f32(converted);
         if original == 0.0 {
             assert_eq!(roundtrip, 0.0, "Zero should roundtrip exactly");
             return;
         }
-
-        let abs_error = (roundtrip - original).abs();
-        let rel_error = abs_error / original.abs();
-
+        let abs_error = f32_abs_compat(roundtrip - original);
+        let rel_error = abs_error / f32_abs_compat(original);
         assert!(
-            abs_error <= T::ABSOLUTE_TOLERANCE || rel_error <= T::RELATIVE_TOLERANCE,
-            "Roundtrip failed for {}: got {} (abs_err={:.6}, rel_err={:.6}, abs_tol={:.6}, rel_tol={:.6})",
+            abs_error <= abs_tol || rel_error <= rel_tol,
+            "Roundtrip failed for {}: got {} (abs_err={:.6}, rel_err={:.6})",
             original,
             roundtrip,
             abs_error,
-            rel_error,
-            T::ABSOLUTE_TOLERANCE,
-            T::RELATIVE_TOLERANCE
+            rel_error
         );
     }
 
-    // Generic helper function for approximate equality testing
-    fn assert_scalar_almost_equal<T: TestableScalar>(actual: f32, expected: f32, context: &str) {
-        let abs_error = (actual - expected).abs();
+    fn assert_scalar_almost_equal<T: FloatLike>(
+        actual: f32,
+        expected: f32,
+        abs_tol: f32,
+        rel_tol: f32,
+        context: &str,
+    ) {
+        let abs_error = f32_abs_compat(actual - expected);
         let rel_error = if expected != 0.0 {
-            abs_error / expected.abs()
+            abs_error / f32_abs_compat(expected)
         } else {
             abs_error
         };
-
         assert!(
-            abs_error <= T::ABSOLUTE_TOLERANCE || rel_error <= T::RELATIVE_TOLERANCE,
-            "{}: expected {} but got {} (abs_err={:.6}, rel_err={:.6}, abs_tol={:.6}, rel_tol={:.6})",
+            abs_error <= abs_tol || rel_error <= rel_tol,
+            "{}: expected {} but got {} (abs_err={:.6}, rel_err={:.6})",
             context,
             expected,
             actual,
             abs_error,
-            rel_error,
-            T::ABSOLUTE_TOLERANCE,
-            T::RELATIVE_TOLERANCE
+            rel_error
         );
     }
 
-    #[test]
-    fn f16_arithmetic() {
-        let a = f16::from_f32(3.5);
-        let b = f16::from_f32(2.0);
-
-        assert_scalar_almost_equal::<f16>((a + b).to_f32(), 5.5, "addition");
-        assert_scalar_almost_equal::<f16>((a - b).to_f32(), 1.5, "subtraction");
-        assert_scalar_almost_equal::<f16>((a * b).to_f32(), 7.0, "multiplication");
-        assert_scalar_almost_equal::<f16>((a / b).to_f32(), 1.75, "division");
-        assert_scalar_almost_equal::<f16>((-a).to_f32(), -3.5, "negation");
-
-        assert_eq!(f16::ZERO.to_f32(), 0.0);
-        assert_scalar_almost_equal::<f16>(f16::ONE.to_f32(), 1.0, "ONE constant");
-        assert_scalar_almost_equal::<f16>(f16::NEG_ONE.to_f32(), -1.0, "NEG_ONE constant");
-
+    fn check_arithmetic<T>(a_val: f32, b_val: f32, abs_tol: f32, rel_tol: f32)
+    where
+        T: FloatLike
+            + PartialOrd
+            + PartialEq
+            + core::ops::Add<Output = T>
+            + core::ops::Sub<Output = T>
+            + core::ops::Mul<Output = T>
+            + core::ops::Div<Output = T>
+            + core::ops::Neg<Output = T>,
+    {
+        let a = T::from_f32(a_val);
+        let b = T::from_f32(b_val);
+        assert_scalar_almost_equal::<T>(
+            FloatLike::to_f32(a + b),
+            a_val + b_val,
+            abs_tol,
+            rel_tol,
+            "add",
+        );
+        assert_scalar_almost_equal::<T>(
+            FloatLike::to_f32(a - b),
+            a_val - b_val,
+            abs_tol,
+            rel_tol,
+            "sub",
+        );
+        assert_scalar_almost_equal::<T>(
+            FloatLike::to_f32(a * b),
+            a_val * b_val,
+            abs_tol,
+            rel_tol,
+            "mul",
+        );
+        assert_scalar_almost_equal::<T>(
+            FloatLike::to_f32(a / b),
+            a_val / b_val,
+            abs_tol,
+            rel_tol,
+            "div",
+        );
+        assert_scalar_almost_equal::<T>(FloatLike::to_f32(-a), -a_val, abs_tol, rel_tol, "neg");
+        assert_eq!(FloatLike::to_f32(T::zero()), 0.0);
+        assert_scalar_almost_equal::<T>(FloatLike::to_f32(T::one()), 1.0, abs_tol, rel_tol, "ONE");
+        assert_scalar_almost_equal::<T>(
+            FloatLike::to_f32(T::from_f32(-1.0)),
+            -1.0,
+            abs_tol,
+            rel_tol,
+            "NEG_ONE",
+        );
         assert!(a > b);
-        assert!(!(a < b));
         assert!(a == a);
-
-        assert_scalar_almost_equal::<f16>((-a).abs().to_f32(), 3.5, "abs");
-        assert!(a.is_finite());
-        assert!(!a.is_nan());
-        assert!(!a.is_infinite());
-    }
-
-    #[test]
-    fn f16_roundtrip() {
-        let test_values = [
-            0.0f32, 1.0, -1.0, 0.5, 2.0, 4.0, 8.0, 16.0, 100.0, 1000.0, 10000.0, 0.001, 0.0001,
-            0.00001, -100.0, -1000.0,
-        ];
-        for &val in &test_values {
-            assert_scalar_roundtrip::<f16>(val);
+        assert_scalar_almost_equal::<T>(
+            FloatLike::to_f32(FloatLike::abs(-a)),
+            a_val,
+            abs_tol,
+            rel_tol,
+            "abs",
+        );
+        assert!(FloatLike::is_finite(a));
+        assert!(!FloatLike::is_nan(a));
+        if T::has_infinity() {
+            assert!(!FloatLike::is_infinite(a));
         }
     }
 
-    #[test]
-    fn bf16_arithmetic() {
-        let a = bf16::from_f32(3.5);
-        let b = bf16::from_f32(2.0);
-
-        assert_scalar_almost_equal::<bf16>((a + b).to_f32(), 5.5, "addition");
-        assert_scalar_almost_equal::<bf16>((a - b).to_f32(), 1.5, "subtraction");
-        assert_scalar_almost_equal::<bf16>((a * b).to_f32(), 7.0, "multiplication");
-        assert_scalar_almost_equal::<bf16>((a / b).to_f32(), 1.75, "division");
-        assert_scalar_almost_equal::<bf16>((-a).to_f32(), -3.5, "negation");
-
-        assert_eq!(bf16::ZERO.to_f32(), 0.0);
-        assert_scalar_almost_equal::<bf16>(bf16::ONE.to_f32(), 1.0, "ONE constant");
-        assert_scalar_almost_equal::<bf16>(bf16::NEG_ONE.to_f32(), -1.0, "NEG_ONE constant");
-
-        assert!(a > b);
-        assert!(!(a < b));
-        assert!(a == a);
-
-        assert_scalar_almost_equal::<bf16>((-a).abs().to_f32(), 3.5, "abs");
-        assert!(a.is_finite());
-        assert!(!a.is_nan());
-        assert!(!a.is_infinite());
-    }
-
-    #[test]
-    fn bf16_roundtrip() {
-        let test_values = [
-            0.0f32, 1.0, -1.0, 0.5, 2.0, 10.0, 100.0, 1000.0, 1e6, 0.001, 1e-6, -100.0, -1000.0,
-        ];
-        for &val in &test_values {
-            assert_scalar_roundtrip::<bf16>(val);
+    fn check_roundtrip<T: FloatLike>(values: &[f32], abs_tol: f32, rel_tol: f32) {
+        for &v in values {
+            assert_scalar_roundtrip::<T>(v, abs_tol, rel_tol);
         }
     }
 
-    #[test]
-    fn e4m3_arithmetic() {
-        let a = e4m3::from_f32(2.0);
-        let b = e4m3::from_f32(1.5);
-
-        assert_scalar_almost_equal::<e4m3>((a + b).to_f32(), 3.5, "addition");
-        assert_scalar_almost_equal::<e4m3>((a - b).to_f32(), 0.5, "subtraction");
-        assert_scalar_almost_equal::<e4m3>((a * b).to_f32(), 3.0, "multiplication");
-        assert_scalar_almost_equal::<e4m3>((a / b).to_f32(), 1.333, "division");
-        assert_scalar_almost_equal::<e4m3>((-a).to_f32(), -2.0, "negation");
-
-        assert_eq!(e4m3::ZERO.to_f32(), 0.0);
-        assert_scalar_almost_equal::<e4m3>(e4m3::ONE.to_f32(), 1.0, "ONE constant");
-        assert_scalar_almost_equal::<e4m3>(e4m3::NEG_ONE.to_f32(), -1.0, "NEG_ONE constant");
-
-        assert!(a > b);
-        assert!(!(a < b));
-        assert!(a == a);
-
-        assert_scalar_almost_equal::<e4m3>((-a).abs().to_f32(), 2.0, "abs");
-        assert!(a.is_finite());
-        assert!(!a.is_nan());
-        // e4m3 has no infinities (no is_infinite() method available)
-    }
-
-    #[test]
-    fn e5m2_arithmetic() {
-        let a = e5m2::from_f32(2.0);
-        let b = e5m2::from_f32(1.5);
-
-        assert_scalar_almost_equal::<e5m2>((a + b).to_f32(), 3.5, "addition");
-        assert_scalar_almost_equal::<e5m2>((a - b).to_f32(), 0.5, "subtraction");
-        assert_scalar_almost_equal::<e5m2>((a * b).to_f32(), 3.0, "multiplication");
-        assert_scalar_almost_equal::<e5m2>((a / b).to_f32(), 1.333, "division");
-        assert_scalar_almost_equal::<e5m2>((-a).to_f32(), -2.0, "negation");
-
-        assert_eq!(e5m2::ZERO.to_f32(), 0.0);
-        assert_scalar_almost_equal::<e5m2>(e5m2::ONE.to_f32(), 1.0, "ONE constant");
-        assert_scalar_almost_equal::<e5m2>(e5m2::NEG_ONE.to_f32(), -1.0, "NEG_ONE constant");
-
-        assert!(a > b);
-        assert!(!(a < b));
-        assert!(a == a);
-
-        assert_scalar_almost_equal::<e5m2>((-a).abs().to_f32(), 2.0, "abs");
-        assert!(a.is_finite());
-        assert!(!a.is_nan());
-        assert!(!a.is_infinite());
-    }
-
-    #[test]
-    fn e4m3_roundtrip() {
-        let test_values = [
-            0.0f32, 1.0, -1.0, 0.5, 2.0, 4.0, 8.0, 16.0, 64.0, 128.0, 224.0,
-        ];
-        for &val in &test_values {
-            assert_scalar_roundtrip::<e4m3>(val);
+    fn check_edge_cases<T: FloatLike>() {
+        assert_eq!(FloatLike::to_f32(T::from_f32(0.0)), 0.0);
+        assert_eq!(FloatLike::to_f32(T::from_f32(-0.0)), 0.0);
+        if T::has_infinity() {
+            assert!(FloatLike::to_f32(T::from_f32(f32::INFINITY)).is_infinite());
+            assert!(FloatLike::to_f32(T::from_f32(f32::NEG_INFINITY)).is_infinite());
+        } else {
+            assert!(!FloatLike::to_f32(T::from_f32(f32::INFINITY)).is_infinite());
         }
-    }
-
-    #[test]
-    fn e5m2_roundtrip() {
-        let test_values = [
-            0.0f32, 1.0, -1.0, 0.5, 2.0, 4.0, 8.0, 16.0, 64.0, 256.0, 1024.0,
-        ];
-        for &val in &test_values {
-            assert_scalar_roundtrip::<e5m2>(val);
+        if T::has_nan() {
+            assert!(FloatLike::to_f32(T::from_f32(f32::NAN)).is_nan());
+        } else {
+            assert!(!FloatLike::to_f32(T::from_f32(f32::NAN)).is_nan());
         }
-    }
-
-    #[test]
-    fn e2m3_arithmetic() {
-        let a = e2m3::from_f32(2.0);
-        let b = e2m3::from_f32(1.5);
-
-        assert_scalar_almost_equal::<e2m3>((a + b).to_f32(), 3.5, "addition");
-        assert_scalar_almost_equal::<e2m3>((a - b).to_f32(), 0.5, "subtraction");
-        assert_scalar_almost_equal::<e2m3>((a * b).to_f32(), 3.0, "multiplication");
-        assert_scalar_almost_equal::<e2m3>((a / b).to_f32(), 1.333, "division");
-        assert_scalar_almost_equal::<e2m3>((-a).to_f32(), -2.0, "negation");
-
-        assert_eq!(e2m3::ZERO.to_f32(), 0.0);
-        assert_scalar_almost_equal::<e2m3>(e2m3::ONE.to_f32(), 1.0, "ONE constant");
-        assert_scalar_almost_equal::<e2m3>(e2m3::NEG_ONE.to_f32(), -1.0, "NEG_ONE constant");
-
-        assert!(a > b);
-        assert!(!(a < b));
-        assert!(a == a);
-
-        assert_scalar_almost_equal::<e2m3>((-a).abs().to_f32(), 2.0, "abs");
-        assert!(a.is_finite());
-        assert!(!a.is_nan());
-        assert!(!a.is_infinite());
-    }
-
-    #[test]
-    fn e3m2_arithmetic() {
-        let a = e3m2::from_f32(4.0);
-        let b = e3m2::from_f32(2.0);
-
-        assert_scalar_almost_equal::<e3m2>((a + b).to_f32(), 6.0, "addition");
-        assert_scalar_almost_equal::<e3m2>((a - b).to_f32(), 2.0, "subtraction");
-        assert_scalar_almost_equal::<e3m2>((a * b).to_f32(), 8.0, "multiplication");
-        assert_scalar_almost_equal::<e3m2>((a / b).to_f32(), 2.0, "division");
-        assert_scalar_almost_equal::<e3m2>((-a).to_f32(), -4.0, "negation");
-
-        assert_eq!(e3m2::ZERO.to_f32(), 0.0);
-        assert_scalar_almost_equal::<e3m2>(e3m2::ONE.to_f32(), 1.0, "ONE constant");
-        assert_scalar_almost_equal::<e3m2>(e3m2::NEG_ONE.to_f32(), -1.0, "NEG_ONE constant");
-
-        assert!(a > b);
-        assert!(!(a < b));
-        assert!(a == a);
-
-        assert_scalar_almost_equal::<e3m2>((-a).abs().to_f32(), 4.0, "abs");
-        assert!(a.is_finite());
-        assert!(!a.is_nan());
-        assert!(!a.is_infinite());
-    }
-
-    #[test]
-    fn e2m3_roundtrip() {
-        let test_values = [
-            0.0f32, 1.0, -1.0, 0.5, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 7.5, 0.25, -0.25, 0.125, -0.125,
-            -4.0, -6.0, -7.5,
-        ];
-        for &val in &test_values {
-            assert_scalar_roundtrip::<e2m3>(val);
-        }
-    }
-
-    #[test]
-    fn e3m2_roundtrip() {
-        let test_values = [
-            0.0f32, 1.0, -1.0, 0.5, 2.0, 4.0, 8.0, 16.0, 20.0, 24.0, 28.0, 0.25, -0.25, -20.0,
-            -28.0,
-        ];
-        for &val in &test_values {
-            assert_scalar_roundtrip::<e3m2>(val);
-        }
-    }
-
-    #[test]
-    fn f16_edge_cases() {
-        // Zero
-        assert_eq!(f16::from_f32(0.0).to_f32(), 0.0);
-        assert_eq!(f16::from_f32(-0.0).to_f32(), 0.0);
-
-        // Infinity
-        assert!(f16::from_f32(f32::INFINITY).to_f32().is_infinite());
-        assert!(f16::from_f32(f32::NEG_INFINITY).to_f32().is_infinite());
-
-        // NaN
-        assert!(f16::from_f32(f32::NAN).to_f32().is_nan());
-
-        // Overflow to infinity
-        let overflow = f16::from_f32(100000.0);
-        assert!(overflow.to_f32().is_infinite() || overflow.to_f32() >= 65504.0);
-    }
-
-    #[test]
-    fn bf16_edge_cases() {
-        // Zero
-        assert_eq!(bf16::from_f32(0.0).to_f32(), 0.0);
-        assert_eq!(bf16::from_f32(-0.0).to_f32(), 0.0);
-
-        // Infinity
-        assert!(bf16::from_f32(f32::INFINITY).to_f32().is_infinite());
-        assert!(bf16::from_f32(f32::NEG_INFINITY).to_f32().is_infinite());
-
-        // NaN
-        assert!(bf16::from_f32(f32::NAN).to_f32().is_nan());
-
-        // Overflow to infinity
-        let overflow = bf16::from_f32(f32::MAX);
-        assert!(overflow.to_f32().is_infinite());
-    }
-
-    #[test]
-    fn e4m3_edge_cases() {
-        // Zero
-        assert_eq!(e4m3::from_f32(0.0).to_f32(), 0.0);
-        assert_eq!(e4m3::from_f32(-0.0).to_f32(), 0.0);
-
-        // NaN (e4m3 has NaN but no infinities)
-        assert!(e4m3::from_f32(f32::NAN).to_f32().is_nan());
-
-        // Overflow saturates to max value, not infinity
-        let overflow = e4m3::from_f32(10000.0);
-        let overflow_val = overflow.to_f32();
-        assert!(!overflow_val.is_infinite());
-        assert!(overflow_val <= 448.0);
-
-        // Infinity input should not produce infinity output
-        assert!(!e4m3::from_f32(f32::INFINITY).to_f32().is_infinite());
-    }
-
-    #[test]
-    fn e5m2_edge_cases() {
-        // Zero
-        assert_eq!(e5m2::from_f32(0.0).to_f32(), 0.0);
-        assert_eq!(e5m2::from_f32(-0.0).to_f32(), 0.0);
-
-        // Infinity (e5m2 supports infinity)
-        assert!(e5m2::from_f32(f32::INFINITY).to_f32().is_infinite());
-        assert!(e5m2::from_f32(f32::NEG_INFINITY).to_f32().is_infinite());
-
-        // NaN
-        assert!(e5m2::from_f32(f32::NAN).to_f32().is_nan());
-
-        // Overflow to infinity
-        let overflow = e5m2::from_f32(1e10);
-        assert!(overflow.to_f32().is_infinite() || overflow.to_f32() >= 57344.0);
-    }
-
-    #[test]
-    fn e2m3_edge_cases() {
-        // Zero
-        assert_eq!(e2m3::from_f32(0.0).to_f32(), 0.0);
-        assert_eq!(e2m3::from_f32(-0.0).to_f32(), 0.0);
-
-        // e2m3 has no NaN or infinities, should saturate
-        let overflow_pos = e2m3::from_f32(100.0);
-        let overflow_val = overflow_pos.to_f32();
-        assert!(!overflow_val.is_infinite());
-        assert!(!overflow_val.is_nan());
-        assert!(overflow_val <= 7.5);
-
-        let overflow_neg = e2m3::from_f32(-100.0);
-        let overflow_val_neg = overflow_neg.to_f32();
-        assert!(!overflow_val_neg.is_infinite());
-        assert!(!overflow_val_neg.is_nan());
-        assert!(overflow_val_neg >= -7.5);
-
-        // Infinity and NaN inputs should not produce infinity/NaN outputs
-        assert!(!e2m3::from_f32(f32::INFINITY).to_f32().is_infinite());
-        assert!(!e2m3::from_f32(f32::NAN).to_f32().is_nan());
-    }
-
-    #[test]
-    fn e3m2_edge_cases() {
-        // Zero
-        assert_eq!(e3m2::from_f32(0.0).to_f32(), 0.0);
-        assert_eq!(e3m2::from_f32(-0.0).to_f32(), 0.0);
-
-        // e3m2 has no NaN or infinities, should saturate
-        let overflow_pos = e3m2::from_f32(1000.0);
-        let overflow_val = overflow_pos.to_f32();
-        assert!(!overflow_val.is_infinite());
-        assert!(!overflow_val.is_nan());
-        assert!(overflow_val <= 28.0);
-
-        let overflow_neg = e3m2::from_f32(-1000.0);
-        let overflow_val_neg = overflow_neg.to_f32();
-        assert!(!overflow_val_neg.is_infinite());
-        assert!(!overflow_val_neg.is_nan());
-        assert!(overflow_val_neg >= -28.0);
-
-        // Infinity and NaN inputs should not produce infinity/NaN outputs
-        assert!(!e3m2::from_f32(f32::INFINITY).to_f32().is_infinite());
-        assert!(!e3m2::from_f32(f32::NAN).to_f32().is_nan());
-    }
-
-    #[test]
-    fn f16_subnormals() {
-        // f16 normal minimum: ~6.1e-5
-        // f16 subnormal minimum: ~6.0e-8
-        // Test values in subnormal range
-        let subnormal_values = [1e-5f32, 1e-6, 1e-7, 5e-6, 5e-7];
-
-        for &val in &subnormal_values {
-            let converted = f16::from_f32(val);
-            let roundtrip = converted.to_f32();
-            // Should preserve small value or round to zero
-            // Subnormals should be non-negative and very small
+        let big = T::max_value() * 10.0;
+        let overflow = T::from_f32(big);
+        if T::has_infinity() {
             assert!(
-                roundtrip >= 0.0 && roundtrip < 1e-4,
-                "f16 subnormal test failed for {}: got {}",
+                FloatLike::to_f32(overflow).is_infinite()
+                    || FloatLike::to_f32(overflow) >= T::max_value()
+            );
+        } else {
+            let v = FloatLike::to_f32(overflow);
+            assert!(!v.is_infinite() && !v.is_nan());
+            assert!(v <= T::max_value());
+            let neg = FloatLike::to_f32(T::from_f32(-big));
+            assert!(!neg.is_infinite() && !neg.is_nan());
+            assert!(neg >= -T::max_value());
+        }
+    }
+
+    fn check_subnormals<T: FloatLike>(values: &[f32], upper_bound: f32) {
+        for &val in values {
+            let roundtrip = FloatLike::to_f32(T::from_f32(val));
+            assert!(
+                roundtrip >= 0.0 && roundtrip < upper_bound,
+                "{} subnormal test failed for {}: got {}",
+                core::any::type_name::<T>(),
                 val,
                 roundtrip
             );
@@ -1675,22 +2013,108 @@ mod tests {
     }
 
     #[test]
-    fn bf16_subnormals() {
-        // bf16 normal minimum: ~1.2e-38
-        // bf16 subnormal minimum: ~1.4e-45
-        // Test values in subnormal range
-        let subnormal_values = [1e-39f32, 1e-40, 1e-42];
+    fn arithmetic_ieee_halfs() {
+        check_arithmetic::<f16>(3.5, 2.0, 0.002, 0.001);
+        check_arithmetic::<bf16>(3.5, 2.0, 0.016, 0.008);
+    }
 
-        for &val in &subnormal_values {
-            let converted = bf16::from_f32(val);
-            let roundtrip = converted.to_f32();
-            // Should preserve small value or round to zero
-            // Subnormals should be non-negative and very small
+    #[test]
+    fn arithmetic_minifloats() {
+        check_arithmetic::<e4m3>(2.0, 1.5, 0.25, 0.125);
+        check_arithmetic::<e5m2>(2.0, 1.5, 0.5, 0.25);
+        check_arithmetic::<e2m3>(2.0, 1.5, 0.25, 0.125);
+        check_arithmetic::<e3m2>(4.0, 2.0, 0.5, 0.25);
+    }
+
+    #[test]
+    fn roundtrip() {
+        check_roundtrip::<f16>(
+            &[
+                0.0, 1.0, -1.0, 0.5, 2.0, 4.0, 8.0, 16.0, 100.0, 1000.0, 10000.0, 0.001, 0.0001,
+                0.00001, -100.0, -1000.0,
+            ],
+            0.002,
+            0.001,
+        );
+        check_roundtrip::<bf16>(
+            &[
+                0.0, 1.0, -1.0, 0.5, 2.0, 10.0, 100.0, 1000.0, 1e6, 0.001, 1e-6, -100.0, -1000.0,
+            ],
+            0.016,
+            0.008,
+        );
+        check_roundtrip::<e4m3>(
+            &[0.0, 1.0, -1.0, 0.5, 2.0, 4.0, 8.0, 16.0, 64.0, 128.0, 224.0],
+            0.25,
+            0.125,
+        );
+        check_roundtrip::<e5m2>(
+            &[
+                0.0, 1.0, -1.0, 0.5, 2.0, 4.0, 8.0, 16.0, 64.0, 256.0, 1024.0,
+            ],
+            0.5,
+            0.25,
+        );
+        check_roundtrip::<e2m3>(
+            &[
+                0.0, 1.0, -1.0, 0.5, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 7.5, 0.25, -0.25, 0.125, -0.125,
+                -4.0, -6.0, -7.5,
+            ],
+            0.25,
+            0.125,
+        );
+        check_roundtrip::<e3m2>(
+            &[
+                0.0, 1.0, -1.0, 0.5, 2.0, 4.0, 8.0, 16.0, 20.0, 24.0, 28.0, 0.25, -0.25, -20.0,
+                -28.0,
+            ],
+            0.5,
+            0.25,
+        );
+    }
+
+    #[test]
+    fn edge_cases() {
+        check_edge_cases::<f16>();
+        check_edge_cases::<bf16>();
+        check_edge_cases::<e4m3>();
+        check_edge_cases::<e5m2>();
+        check_edge_cases::<e2m3>();
+        check_edge_cases::<e3m2>();
+    }
+
+    #[test]
+    fn subnormals() {
+        check_subnormals::<f16>(&[1e-5, 1e-6, 1e-7, 5e-6, 5e-7], 1e-4);
+        check_subnormals::<bf16>(&[1e-39, 1e-40, 1e-42], 1e-37);
+        check_subnormals::<e4m3>(&[0.001, 0.0005], 0.002);
+        check_subnormals::<e5m2>(&[0.00005, 0.00003, 0.00001], 0.0001);
+        check_subnormals::<e2m3>(&[0.03, 0.015], 0.07);
+        check_subnormals::<e3m2>(&[0.0625, 0.03], 0.15);
+    }
+
+    #[test]
+    fn half_crate_interop() {
+        use half::bf16 as HalfBF16;
+        use half::f16 as HalfF16;
+
+        // f16: all 65536 bit patterns
+        for bits in 0u16..=u16::MAX {
+            let half_val = HalfF16::from_bits(bits).to_f32();
+            let nk_val = f16(bits).to_f32();
             assert!(
-                roundtrip >= 0.0 && roundtrip < 1e-37,
-                "bf16 subnormal test failed for {}: got {}",
-                val,
-                roundtrip
+                half_val.to_bits() == nk_val.to_bits() || (half_val.is_nan() && nk_val.is_nan()),
+                "f16 mismatch at bits 0x{bits:04X}: half={half_val}, numkong={nk_val}"
+            );
+        }
+
+        // bf16: all 65536 bit patterns
+        for bits in 0u16..=u16::MAX {
+            let half_val = HalfBF16::from_bits(bits).to_f32();
+            let nk_val = bf16(bits).to_f32();
+            assert!(
+                half_val.to_bits() == nk_val.to_bits() || (half_val.is_nan() && nk_val.is_nan()),
+                "bf16 mismatch at bits 0x{bits:04X}: half={half_val}, numkong={nk_val}"
             );
         }
     }

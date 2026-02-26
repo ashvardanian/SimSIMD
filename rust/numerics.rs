@@ -5,13 +5,16 @@
 //! - **Spatial similarity**: [`Dot`], [`Angular`], [`Euclidean`]
 //! - **Binary similarity**: [`Hamming`], [`Jaccard`]
 //! - **Probability divergence**: [`KullbackLeibler`], [`JensenShannon`]
-//! - **Complex products**: [`ComplexDot`], [`ComplexVDot`]
+//! - **Complex products**: [`ComplexDot`], [`ComplexVDot`], [`ComplexBilinear`]
+//! - **Curved metrics**: [`Bilinear`], [`Mahalanobis`]
 //! - **Elementwise operations**: [`EachScale`], [`EachSum`], [`EachBlend`], [`EachFMA`]
 //! - **Trigonometry**: [`EachSin`], [`EachCos`], [`EachATan`]
 //! - **Reductions**: [`ReduceMoments`], [`ReduceMinMax`]
 //! - **Geospatial**: [`Haversine`], [`Vincenty`]
 //! - **Mesh alignment**: [`MeshAlignment`]
 //! - **Sparse sets**: [`SparseIntersect`], [`SparseDot`]
+//! - **Type casting**: [`CastDtype`], [`cast`]
+//! - **Capabilities**: [`cap`] module for runtime SIMD feature detection
 
 use crate::scalars::{bf16, e2m3, e3m2, e4m3, e5m2, f16, i4x2, u1x8, u4x2};
 
@@ -1306,6 +1309,22 @@ pub fn cast<S: CastDtype, D: CastDtype>(source: &[S], dest: &mut [D]) -> Option<
 // region: Dot
 
 /// Computes the **dot product** (inner product) between two vectors.
+///
+/// d = ∑ᵢ aᵢ × bᵢ
+///
+/// Range: unbounded. Returns `None` if lengths differ.
+///
+/// Implemented for: `f64`, `f32`, `f16`, `bf16`, `i8`, `u8`,
+/// `e4m3`, `e5m2`, `e2m3`, `e3m2`, `i4x2`, `u4x2`.
+///
+/// # Example
+/// ```
+/// use numkong::Dot;
+/// let a = vec![1.0_f32, 2.0, 3.0];
+/// let b = vec![4.0_f32, 5.0, 6.0];
+/// let result = f32::dot(&a, &b).unwrap();
+/// assert!((result - 32.0).abs() < 1e-5);
+/// ```
 pub trait Dot: Sized {
     type Output;
     fn dot(a: &[Self], b: &[Self]) -> Option<Self::Output>;
@@ -1523,6 +1542,13 @@ impl Dot for u4x2 {
 // region: Angular
 
 /// Computes the **angular distance** (cosine distance) between two vectors.
+///
+/// d = 1 − (a · b) / (‖a‖ × ‖b‖)
+///
+/// Range: \[0, 2\]. Returns `None` if lengths differ.
+///
+/// Implemented for: `f64`, `f32`, `f16`, `bf16`, `i8`, `u8`,
+/// `e4m3`, `e5m2`, `e2m3`, `e3m2`, `i4x2`, `u4x2`.
 pub trait Angular: Sized {
     type Output;
     fn angular(a: &[Self], b: &[Self]) -> Option<Self::Output>;
@@ -1740,6 +1766,13 @@ impl Angular for u4x2 {
 // region: Euclidean
 
 /// Computes the **Euclidean distance** (L2) between two vectors.
+///
+/// d = √(∑ᵢ (aᵢ − bᵢ)²)
+///
+/// Range: \[0, ∞). Returns `None` if lengths differ.
+///
+/// Implemented for: `f64`, `f32`, `f16`, `bf16`, `i8`, `u8`,
+/// `e4m3`, `e5m2`, `e2m3`, `e3m2`, `i4x2`, `u4x2`.
 pub trait Euclidean: Sized {
     type SqEuclideanOutput;
     type EuclideanOutput;
@@ -2306,6 +2339,12 @@ impl Geospatial for f32 {}
 // region: Hamming
 
 /// Computes the **Hamming distance** between two binary vectors.
+///
+/// Counts differing bits (for `u1x8`) or differing bytes (for `u8`).
+///
+/// Range: \[0, n\]. Returns `None` if lengths differ.
+///
+/// Implemented for: `u1x8`, `u8`.
 pub trait Hamming: Sized {
     type Output;
     fn hamming(a: &[Self], b: &[Self]) -> Option<Self::Output>;
@@ -2347,7 +2386,13 @@ impl Hamming for u8 {
 
 // region: Jaccard
 
-/// Computes the **Jaccard distance** between two binary vectors.
+/// Computes the **Jaccard distance** between two sets represented as bit/integer vectors.
+///
+/// d = 1 − |A ∩ B| / |A ∪ B|
+///
+/// Range: \[0, 1\]. Returns `None` if lengths differ.
+///
+/// Implemented for: `u1x8`, `u16`, `u32`.
 pub trait Jaccard: Sized {
     type Output;
     fn jaccard(a: &[Self], b: &[Self]) -> Option<Self::Output>;
@@ -2402,6 +2447,12 @@ impl Jaccard for u32 {
 // region: KullbackLeibler
 
 /// Computes the **Kullback-Leibler divergence** between two probability distributions.
+///
+/// D_KL(P‖Q) = ∑ᵢ pᵢ × ln(pᵢ / qᵢ)
+///
+/// Range: \[0, ∞). Not symmetric. Returns `None` if lengths differ.
+///
+/// Implemented for: `f64`, `f32`, `f16`, `bf16`.
 pub trait KullbackLeibler: Sized {
     type Output;
     fn kullbackleibler(a: &[Self], b: &[Self]) -> Option<Self::Output>;
@@ -2479,6 +2530,12 @@ impl KullbackLeibler for bf16 {
 // region: JensenShannon
 
 /// Computes the **Jensen-Shannon divergence** between two probability distributions.
+///
+/// JS(P, Q) = ½(D_KL(P‖M) + D_KL(Q‖M)), where M = (P + Q) / 2
+///
+/// Range: \[0, ln2\]. Symmetric. Returns `None` if lengths differ.
+///
+/// Implemented for: `f64`, `f32`, `f16`, `bf16`.
 pub trait JensenShannon: Sized {
     type Output;
     fn jensenshannon(a: &[Self], b: &[Self]) -> Option<Self::Output>;
@@ -2556,6 +2613,13 @@ impl JensenShannon for bf16 {
 // region: ComplexDot
 
 /// Computes the **complex dot product** between two complex vectors.
+///
+/// z = ∑ᵢ aᵢ × bᵢ (complex multiplication, interleaved real/imag layout)
+///
+/// Input slices contain interleaved `[re₀, im₀, re₁, im₁, ...]` pairs.
+/// Returns `None` if lengths differ or are odd.
+///
+/// Implemented for: `f64`, `f32`, `f16`, `bf16`.
 pub trait ComplexDot: Sized {
     type Output;
     fn dot(a: &[Self], b: &[Self]) -> Option<Self::Output>;
@@ -2642,6 +2706,13 @@ impl ComplexDot for bf16 {
 // region: ComplexVDot
 
 /// Computes the **conjugate dot product** (Hermitian inner product) between complex vectors.
+///
+/// z = ∑ᵢ conj(aᵢ) × bᵢ (complex multiplication with conjugated first operand)
+///
+/// Input slices contain interleaved `[re₀, im₀, re₁, im₁, ...]` pairs.
+/// Returns `None` if lengths differ or are odd.
+///
+/// Implemented for: `f64`, `f32`, `f16`, `bf16`.
 pub trait ComplexVDot: Sized {
     type Output;
     fn vdot(a: &[Self], b: &[Self]) -> Option<Self::Output>;
@@ -3094,7 +3165,14 @@ impl EachATan for f16 {
 
 // region: Scale
 
-/// Computes **element-wise affine transform** (scale and shift).
+/// Applies an **element-wise affine transform** (scale and shift).
+///
+/// rᵢ = α × aᵢ + β
+///
+/// Returns `None` if `a` and `result` lengths differ.
+///
+/// Implemented for: `f64`, `f32`, `f16`, `bf16`, `i8`, `u8`,
+/// `i16`, `u16`, `i32`, `u32`, `i64`, `u64`, `e4m3`, `e5m2`, `e2m3`, `e3m2`.
 pub trait EachScale: Sized {
     type Scalar;
     fn each_scale(
@@ -3413,7 +3491,14 @@ impl EachScale for e3m2 {
 
 // region: Sum
 
-/// Computes **element-wise addition** of two vectors.
+/// Applies **element-wise addition** of two vectors.
+///
+/// rᵢ = aᵢ + bᵢ
+///
+/// Returns `None` if lengths differ.
+///
+/// Implemented for: `f64`, `f32`, `f16`, `bf16`, `i8`, `u8`,
+/// `i16`, `u16`, `i32`, `u32`, `i64`, `u64`, `e4m3`, `e5m2`, `e2m3`, `e3m2`.
 pub trait EachSum: Sized {
     fn each_sum(a: &[Self], b: &[Self], result: &mut [Self]) -> Option<()>;
 }
@@ -3694,7 +3779,14 @@ impl EachSum for e3m2 {
 
 // region: WSum
 
-/// Computes **element-wise weighted sum** of two vectors.
+/// Applies **element-wise weighted sum** (blend) of two vectors.
+///
+/// rᵢ = α × aᵢ + β × bᵢ
+///
+/// Returns `None` if lengths differ.
+///
+/// Implemented for: `f64`, `f32`, `f16`, `bf16`, `i8`, `u8`,
+/// `e4m3`, `e5m2`, `e2m3`, `e3m2`.
 pub trait EachBlend: Sized {
     type Scalar;
     fn each_blend(
@@ -3970,7 +4062,14 @@ impl EachBlend for e3m2 {
 
 // region: FMA
 
-/// Computes **fused multiply-add** across three vectors.
+/// Applies **fused multiply-add** element-wise across three vectors.
+///
+/// rᵢ = α × aᵢ × bᵢ + β × cᵢ
+///
+/// Returns `None` if lengths differ.
+///
+/// Implemented for: `f64`, `f32`, `f16`, `bf16`, `i8`, `u8`,
+/// `i16`, `u16`, `i32`, `u32`, `i64`, `u64`, `e4m3`, `e5m2`, `e2m3`, `e3m2`.
 pub trait EachFMA: Sized {
     type Scalar;
     fn each_fma(
@@ -5304,12 +5403,21 @@ impl ReduceMinMax for u1x8 {
 // region: MeshAlignment
 
 /// Result of mesh alignment operations (RMSD, Kabsch, Umeyama).
+///
+/// Contains the rigid-body transformation (rotation, scale, translation)
+/// that best aligns point cloud A onto point cloud B, along with the
+/// root-mean-square deviation of the aligned points.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct MeshAlignmentResult<T> {
+    /// 3×3 rotation matrix in row-major order.
     pub rotation_matrix: [T; 9],
+    /// Uniform scale factor (1.0 for Kabsch, free for Umeyama).
     pub scale: T,
+    /// Root-mean-square deviation after alignment.
     pub rmsd: T,
+    /// Centroid of point cloud A before alignment.
     pub a_centroid: [T; 3],
+    /// Centroid of point cloud B (target).
     pub b_centroid: [T; 3],
 }
 
@@ -6063,243 +6171,97 @@ impl<T: ReduceMoments + ReduceMinMax> Reductions for T {}
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::scalars::assert_close;
+
+    // region: Binary Distances
 
     #[test]
-    fn dot_f32() {
-        let a = vec![1.0f32, 2.0, 3.0];
-        let b = vec![4.0f32, 5.0, 6.0];
-        let result = <f32 as Dot>::dot(&a, &b).unwrap();
-        assert!((result - 32.0).abs() < 0.01);
-    }
-
-    #[test]
-    fn dot_i8() {
-        let a = vec![1i8, 2, 3];
-        let b = vec![4i8, 5, 6];
-        let result = i8::dot(&a, &b).unwrap();
-        assert_eq!(result, 32);
-    }
-
-    #[test]
-    fn euclidean_f32() {
-        let a = vec![1.0f32, 2.0, 3.0];
-        let b = vec![4.0f32, 5.0, 6.0];
-        let result = f32::sqeuclidean(&a, &b).unwrap();
-        assert!((result - 27.0).abs() < 0.01);
-    }
-
-    #[test]
-    fn euclidean_f64() {
-        let a = vec![1.0f64, 2.0, 3.0];
-        let b = vec![4.0f64, 5.0, 6.0];
-        let result = f64::sqeuclidean(&a, &b).unwrap();
-        assert!((result - 27.0).abs() < 0.01);
-    }
-
-    #[test]
-    fn euclidean_f16() {
-        let a: Vec<f16> = vec![1.0, 2.0, 3.0]
-            .iter()
-            .map(|&x| f16::from_f32(x))
-            .collect();
-        let b: Vec<f16> = vec![4.0, 5.0, 6.0]
-            .iter()
-            .map(|&x| f16::from_f32(x))
-            .collect();
-        let result = f16::sqeuclidean(&a, &b).unwrap();
-        assert!((result - 27.0).abs() < 1.0);
-    }
-
-    #[test]
-    fn hamming_u1x8() {
+    fn hamming() {
+        // u1x8
         let a = vec![u1x8(0b11110000), u1x8(0b10101010)];
         let b = vec![u1x8(0b00001111), u1x8(0b01010101)];
-        let result = u1x8::hamming(&a, &b).unwrap();
-        assert_eq!(result, 16);
-    }
+        assert_eq!(u1x8::hamming(&a, &b).unwrap(), 16);
 
-    #[test]
-    fn jaccard_u1x8() {
-        let a = vec![u1x8(0b11110000), u1x8(0b10101010)];
-        let b = vec![u1x8(0b11110000), u1x8(0b10101010)];
-        let result = u1x8::jaccard(&a, &b).unwrap();
-        assert!((result - 0.0).abs() < 0.01);
-    }
-
-    #[test]
-    fn js_f32() {
-        let a = vec![0.25f32, 0.25, 0.25, 0.25];
-        let b = vec![0.25f32, 0.25, 0.25, 0.25];
-        let result = f32::jensenshannon(&a, &b).unwrap();
-        assert!((result - 0.0).abs() < 0.01);
-    }
-
-    #[test]
-    fn kl_f32() {
-        let a = vec![0.25f32, 0.25, 0.25, 0.25];
-        let b = vec![0.25f32, 0.25, 0.25, 0.25];
-        let result = f32::kullbackleibler(&a, &b).unwrap();
-        assert!((result - 0.0).abs() < 0.01);
-    }
-
-    #[test]
-    fn scale_f32() {
-        let a = vec![1.0f32, 2.0, 3.0];
-        let mut result = vec![0.0f32; 3];
-        f32::each_scale(&a, 2.0, 1.0, &mut result).unwrap();
-        assert!((result[0] - 3.0).abs() < 0.01);
-        assert!((result[1] - 5.0).abs() < 0.01);
-        assert!((result[2] - 7.0).abs() < 0.01);
-    }
-
-    #[test]
-    fn scale_f64() {
-        let a = vec![1.0f64, 2.0, 3.0];
-        let mut result = vec![0.0f64; 3];
-        f64::each_scale(&a, 2.0, 1.0, &mut result).unwrap();
-        assert!((result[0] - 3.0).abs() < 0.01);
-        assert!((result[1] - 5.0).abs() < 0.01);
-        assert!((result[2] - 7.0).abs() < 0.01);
-    }
-
-    #[test]
-    fn wsum_f32() {
-        let a = vec![1.0f32, 2.0, 3.0];
-        let b = vec![4.0f32, 5.0, 6.0];
-        let mut result = vec![0.0f32; 3];
-        f32::each_blend(&a, &b, 0.5, 0.5, &mut result).unwrap();
-        assert!((result[0] - 2.5).abs() < 0.01);
-        assert!((result[1] - 3.5).abs() < 0.01);
-        assert!((result[2] - 4.5).abs() < 0.01);
-    }
-
-    #[test]
-    fn fma_f32() {
-        let a = vec![1.0f32, 2.0, 3.0];
-        let b = vec![2.0f32, 2.0, 2.0];
-        let c = vec![1.0f32, 1.0, 1.0];
-        let mut result = vec![0.0f32; 3];
-        f32::each_fma(&a, &b, &c, 1.0, 1.0, &mut result).unwrap();
-        assert!((result[0] - 3.0).abs() < 0.01);
-        assert!((result[1] - 5.0).abs() < 0.01);
-        assert!((result[2] - 7.0).abs() < 0.01);
-    }
-
-    #[test]
-    fn sin_f32_small() {
-        use core::f32::consts::PI;
-        let inputs: Vec<f32> = (0..11).map(|i| (i as f32) * PI / 10.0).collect();
-        let expected: Vec<f32> = inputs.iter().map(|x| x.sin()).collect();
-        let mut result = vec![0.0f32; inputs.len()];
-        <f32 as EachSin>::sin(&inputs, &mut result).unwrap();
-        for (r, e) in result.iter().zip(expected.iter()) {
-            assert!((r - e).abs() < 0.1, "sin mismatch: {} vs {}", r, e);
-        }
-    }
-
-    #[test]
-    fn cos_f32_test() {
-        use core::f32::consts::PI;
-        let inputs: Vec<f32> = (0..11).map(|i| (i as f32) * PI / 10.0).collect();
-        let expected: Vec<f32> = inputs.iter().map(|x| x.cos()).collect();
-        let mut result = vec![0.0f32; inputs.len()];
-        <f32 as EachCos>::cos(&inputs, &mut result).unwrap();
-        for (r, e) in result.iter().zip(expected.iter()) {
-            assert!((r - e).abs() < 0.1, "cos mismatch: {} vs {}", r, e);
-        }
-    }
-
-    #[test]
-    fn bf16_dot() {
-        let brain_a: Vec<bf16> = vec![1.0, 2.0, 3.0, 1.0, 2.0]
-            .iter()
-            .map(|&x| bf16::from_f32(x))
-            .collect();
-        let brain_b: Vec<bf16> = vec![4.0, 5.0, 6.0, 4.0, 5.0]
-            .iter()
-            .map(|&x| bf16::from_f32(x))
-            .collect();
-        if let Some(result) = <bf16 as Dot>::dot(&brain_a, &brain_b) {
-            assert_eq!(46.0, result);
-        }
-    }
-
-    #[test]
-    fn mesh_alignment_length_mismatch() {
-        let a: &[[f64; 3]] = &[[0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [0.0, 1.0, 0.0]];
-        let b: &[[f64; 3]] = &[[0.0, 0.0, 0.0], [1.0, 0.0, 0.0]];
-        assert!(f64::kabsch(a, b).is_none());
-    }
-
-    #[test]
-    fn mesh_alignment_too_few_points() {
-        let a: &[[f64; 3]] = &[[0.0, 0.0, 0.0], [1.0, 0.0, 0.0]];
-        let b: &[[f64; 3]] = &[[0.0, 0.0, 0.0], [1.0, 0.0, 0.0]];
-        assert!(f64::kabsch(a, b).is_none());
-    }
-
-    #[test]
-    fn hamming_u8() {
+        // u8
         let a: Vec<u8> = vec![0, 1, 2, 3, 4, 5, 6, 7];
         let b: Vec<u8> = vec![0, 1, 2, 3, 0, 0, 0, 0];
-        let result = u8::hamming(&a, &b).unwrap();
-        assert_eq!(result, 4);
+        assert_eq!(u8::hamming(&a, &b).unwrap(), 4);
     }
 
     #[test]
-    fn jaccard_u16() {
+    fn jaccard() {
+        // u1x8 — identical
+        let a = vec![u1x8(0b11110000), u1x8(0b10101010)];
+        let b = vec![u1x8(0b11110000), u1x8(0b10101010)];
+        assert_close(
+            u1x8::jaccard(&a, &b).unwrap() as f64,
+            0.0,
+            0.01,
+            0.0,
+            "jaccard_u1x8",
+        );
+
+        // u16 — identical
         let a: Vec<u16> = vec![1, 2, 3, 4];
         let b: Vec<u16> = vec![1, 2, 3, 4];
-        let result = u16::jaccard(&a, &b).unwrap();
-        assert!((result - 0.0).abs() < 0.01);
-
+        assert_close(
+            u16::jaccard(&a, &b).unwrap() as f64,
+            0.0,
+            0.01,
+            0.0,
+            "jaccard_u16 identical",
+        );
+        // u16 — disjoint
         let c: Vec<u16> = vec![5, 6, 7, 8];
-        let result2 = u16::jaccard(&a, &c).unwrap();
-        assert!((result2 - 1.0).abs() < 0.01);
-    }
+        assert_close(
+            u16::jaccard(&a, &c).unwrap() as f64,
+            1.0,
+            0.01,
+            0.0,
+            "jaccard_u16 disjoint",
+        );
 
-    #[test]
-    fn jaccard_u32() {
+        // u32 — partial overlap
         let a: Vec<u32> = vec![1, 2, 3, 4];
         let b: Vec<u32> = vec![1, 2, 5, 6];
-        let result = u32::jaccard(&a, &b).unwrap();
-        assert!((result - 0.5).abs() < 0.01);
+        assert_close(
+            u32::jaccard(&a, &b).unwrap() as f64,
+            0.5,
+            0.01,
+            0.0,
+            "jaccard_u32",
+        );
     }
 
-    #[test]
-    fn sparse_intersection_size_u16() {
-        let a: Vec<u16> = vec![1, 3, 5, 7, 9];
-        let b: Vec<u16> = vec![2, 3, 5, 8, 9];
-        let count = u16::sparse_intersection_size(&a, &b);
-        assert_eq!(count, 3);
-    }
+    // endregion
+
+    // region: Sparse Intersections
 
     #[test]
-    fn sparse_intersect_into_u16() {
+    fn sparse_intersection() {
+        // u16 — intersection size
         let a: Vec<u16> = vec![1, 3, 5, 7, 9];
         let b: Vec<u16> = vec![2, 3, 5, 8, 9];
+        assert_eq!(u16::sparse_intersection_size(&a, &b), 3);
+
+        // u16 — intersect into buffer
         let mut result: Vec<u16> = vec![0; 5];
         let count = u16::sparse_intersect_into(&a, &b, &mut result).unwrap();
         assert_eq!(count, 3);
         assert_eq!(&result[..count], &[3, 5, 9]);
-    }
 
-    #[test]
-    fn sparse_intersect_into_u32() {
+        // u32 — intersect into buffer
         let a: Vec<u32> = vec![10, 20, 30, 40];
         let b: Vec<u32> = vec![15, 20, 30, 45];
         let mut result: Vec<u32> = vec![0; 4];
         let count = u32::sparse_intersect_into(&a, &b, &mut result).unwrap();
         assert_eq!(count, 2);
         assert_eq!(&result[..count], &[20, 30]);
-    }
 
-    #[test]
-    fn sparse_intersection_size_u64() {
+        // u64 — intersection size
         let a: Vec<u64> = vec![100, 200, 300];
         let b: Vec<u64> = vec![200, 300, 400];
-        let count = u64::sparse_intersection_size(&a, &b);
-        assert_eq!(count, 2);
+        assert_eq!(u64::sparse_intersection_size(&a, &b), 2);
     }
 
     #[test]
@@ -6309,4 +6271,6 @@ mod tests {
         let mut result: Vec<u16> = vec![0; 2];
         assert!(u16::sparse_intersect_into(&a, &b, &mut result).is_none());
     }
+
+    // endregion
 }
