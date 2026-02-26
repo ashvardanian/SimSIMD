@@ -14,7 +14,6 @@
 
 #include "numkong/types.h"
 #include "numkong/reduce/haswell.h" // `nk_reduce_add_i32x8_haswell_`
-#include "numkong/dot/sierra.h"     // `nk_dot_i8x32_state_sierra_t`
 
 #if defined(__cplusplus)
 extern "C" {
@@ -56,49 +55,6 @@ NK_PUBLIC void nk_angular_i8_sierra(nk_i8_t const *a, nk_i8_t const *b, nk_size_
     }
 
     *result = nk_angular_normalize_f32_haswell_(dot_product_i32, a_norm_sq_i32, b_norm_sq_i32);
-}
-
-typedef nk_dot_i8x32_state_sierra_t nk_angular_i8x32_state_sierra_t;
-NK_INTERNAL void nk_angular_i8x32_init_sierra(nk_angular_i8x32_state_sierra_t *state) {
-    nk_dot_i8x32_init_sierra(state);
-}
-NK_INTERNAL void nk_angular_i8x32_update_sierra(nk_angular_i8x32_state_sierra_t *state, nk_b256_vec_t a,
-                                                nk_b256_vec_t b, nk_size_t depth_offset, nk_size_t active_dimensions) {
-    nk_dot_i8x32_update_sierra(state, a, b, depth_offset, active_dimensions);
-}
-NK_INTERNAL void nk_angular_i8x32_finalize_sierra(nk_angular_i8x32_state_sierra_t const *state_a,
-                                                  nk_angular_i8x32_state_sierra_t const *state_b,
-                                                  nk_angular_i8x32_state_sierra_t const *state_c,
-                                                  nk_angular_i8x32_state_sierra_t const *state_d, nk_f32_t query_norm,
-                                                  nk_f32_t target_norm_a, nk_f32_t target_norm_b,
-                                                  nk_f32_t target_norm_c, nk_f32_t target_norm_d,
-                                                  nk_size_t total_dimensions, nk_f32_t *results) {
-    nk_b128_vec_t dots_vec;
-    nk_dot_i8x32_finalize_sierra(state_a, state_b, state_c, state_d, total_dimensions, &dots_vec);
-    nk_angular_through_f32_finalize_haswell_(_mm_cvtepi32_ps(dots_vec.xmm), query_norm, target_norm_a, target_norm_b,
-                                             target_norm_c, target_norm_d, results);
-}
-
-typedef nk_dot_i8x32_state_sierra_t nk_euclidean_i8x32_state_sierra_t;
-NK_INTERNAL void nk_euclidean_i8x32_init_sierra(nk_euclidean_i8x32_state_sierra_t *state) {
-    nk_dot_i8x32_init_sierra(state);
-}
-NK_INTERNAL void nk_euclidean_i8x32_update_sierra(nk_euclidean_i8x32_state_sierra_t *state, nk_b256_vec_t a,
-                                                  nk_b256_vec_t b, nk_size_t depth_offset,
-                                                  nk_size_t active_dimensions) {
-    nk_dot_i8x32_update_sierra(state, a, b, depth_offset, active_dimensions);
-}
-NK_INTERNAL void nk_euclidean_i8x32_finalize_sierra(nk_euclidean_i8x32_state_sierra_t const *state_a,
-                                                    nk_euclidean_i8x32_state_sierra_t const *state_b,
-                                                    nk_euclidean_i8x32_state_sierra_t const *state_c,
-                                                    nk_euclidean_i8x32_state_sierra_t const *state_d,
-                                                    nk_f32_t query_norm, nk_f32_t target_norm_a, nk_f32_t target_norm_b,
-                                                    nk_f32_t target_norm_c, nk_f32_t target_norm_d,
-                                                    nk_size_t total_dimensions, nk_f32_t *results) {
-    nk_b128_vec_t dots_vec;
-    nk_dot_i8x32_finalize_sierra(state_a, state_b, state_c, state_d, total_dimensions, &dots_vec);
-    nk_euclidean_through_f32_finalize_haswell_(_mm_cvtepi32_ps(dots_vec.xmm), query_norm, target_norm_a, target_norm_b,
-                                               target_norm_c, target_norm_d, results);
 }
 
 #if defined(__clang__)

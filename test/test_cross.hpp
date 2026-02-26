@@ -11,7 +11,11 @@
 #ifndef NK_TEST_CROSS_HPP
 #define NK_TEST_CROSS_HPP
 
-#include "numkong/dots.hpp" // `nk::dots_packed_size`, `nk::dots_pack`, etc.
+#include "numkong/spatials.h" // `nk_angulars_packed_*`, `nk_euclideans_packed_*`, etc.
+
+#include "numkong/dots.hpp"   // `nk::dots_packed_size`, `nk::dots_pack`, etc.
+#include "numkong/reduce.hpp" // `nk::reduce_moments`
+
 #include "test.hpp"
 
 /**
@@ -251,7 +255,7 @@ error_stats_t test_jaccards_symmetric(typename scalar_type_::jaccards_symmetric_
     std::size_t a_stride = k_bytes * sizeof(scalar_t);
     std::size_t c_stride = n * sizeof(result_t);
 
-    auto a = make_vector<scalar_t>(n * k_bytes);
+    auto a = make_vector<scalar_t>(n * k);
     auto c = make_vector<result_t>(n * n);
     auto c_ref = make_vector<result_t>(n * n);
 
@@ -266,6 +270,251 @@ error_stats_t test_jaccards_symmetric(typename scalar_type_::jaccards_symmetric_
                                                                   n * sizeof(result_t));
 
         // Check upper triangle only
+        for (std::size_t i = 0; i < n; i++)
+            for (std::size_t j = i; j < n; j++) stats.accumulate(c[i * n + j], c_ref[i * n + j]);
+    }
+    return stats;
+}
+
+/**
+ *  @brief Test batched angular distance computation with packed B matrix.
+ *  Angular distance: 1 - dot(a,b) / sqrt(sumsq(a) * sumsq(b))
+ */
+template <typename scalar_type_>
+error_stats_t test_angulars_packed(typename scalar_type_::dots_packed_size_kernel_t packed_size_fn,
+                                   typename scalar_type_::dots_pack_kernel_t pack_fn,
+                                   typename scalar_type_::dots_packed_kernel_t angulars_fn) {
+    using scalar_t = scalar_type_;
+    using result_t = typename scalar_t::dot_result_t;
+
+    error_stats_t stats;
+    std::mt19937 generator(global_config.seed);
+
+    std::size_t m = global_config.matrix_height, n = global_config.matrix_width, k = global_config.matrix_depth;
+    std::size_t k_values = nk::divide_round_up(k, nk::dimensions_per_value<scalar_t>());
+    std::size_t a_stride = k_values * sizeof(scalar_t);
+    std::size_t b_stride = k_values * sizeof(scalar_t);
+    std::size_t c_stride = n * sizeof(result_t);
+
+    auto a = make_vector<scalar_t>(m * k), b = make_vector<scalar_t>(n * k);
+    auto c = make_vector<result_t>(m * n);
+    auto c_ref = make_vector<f118_t>(m * n);
+
+    nk_size_t packed_size = packed_size_fn(n, k);
+    auto b_packed = make_vector<char>(packed_size);
+
+    nk_size_t ref_packed_size = nk::dots_packed_size<scalar_t, nk::no_simd_k>(n, k);
+    auto b_packed_ref = make_vector<char>(ref_packed_size);
+    auto a_sumsqs = make_vector<f118_t>(m);
+    auto b_sumsqs = make_vector<f118_t>(n);
+
+    for (auto start = test_start_time(); within_time_budget(start);) {
+        fill_random(generator, a);
+        fill_random(generator, b);
+
+        // Run kernel being tested
+        pack_fn(b.raw_values_data(), n, k, b_stride, b_packed.raw_values_data());
+        angulars_fn(a.raw_values_data(), b_packed.raw_values_data(), c.raw_values_data(), m, n, k, a_stride, c_stride);
+
+        // Reference: compute dot products in f118_t precision
+        nk::dots_pack<scalar_t, nk::no_simd_k>(b.values_data(), n, k, b_stride, b_packed_ref.raw_values_data());
+        nk::dots_packed<scalar_t, f118_t, nk::no_simd_k>(a.values_data(), b_packed_ref.raw_values_data(),
+                                                         c_ref.raw_values_data(), m, n, k, a_stride,
+                                                         n * sizeof(f118_t));
+
+        // Compute sumsqs using reduce_moments
+        f118_t sum_unused;
+        for (std::size_t i = 0; i < m; ++i)
+            nk::reduce_moments<scalar_t, f118_t, f118_t, nk::no_simd_k>(
+                a.values_data() + i * k_values, k, sizeof(scalar_t), &sum_unused, a_sumsqs.values_data() + i);
+        for (std::size_t j = 0; j < n; ++j)
+            nk::reduce_moments<scalar_t, f118_t, f118_t, nk::no_simd_k>(
+                b.values_data() + j * k_values, k, sizeof(scalar_t), &sum_unused, b_sumsqs.values_data() + j);
+
+        // Convert dots to angular distances: 1 - dot / sqrt(sumsq_a * sumsq_b)
+        for (std::size_t i = 0; i < m; ++i)
+            for (std::size_t j = 0; j < n; ++j) {
+                f118_t ab_sumsq = a_sumsqs[i] * b_sumsqs[j];
+                f118_t &c_cell = c_ref[i * n + j];
+                c_cell = ab_sumsq > f118_t(0) ? (f118_t(1) - c_cell * ab_sumsq.rsqrt()) : f118_t(0);
+            }
+
+        for (std::size_t i = 0; i < m * n; i++) stats.accumulate(c[i], c_ref[i]);
+    }
+    return stats;
+}
+
+/**
+ *  @brief Test batched euclidean distance computation with packed B matrix.
+ *  Euclidean distance: sqrt(max(0, sumsq(a) + sumsq(b) - 2*dot(a,b)))
+ */
+template <typename scalar_type_>
+error_stats_t test_euclideans_packed(typename scalar_type_::dots_packed_size_kernel_t packed_size_fn,
+                                     typename scalar_type_::dots_pack_kernel_t pack_fn,
+                                     typename scalar_type_::dots_packed_kernel_t euclideans_fn) {
+    using scalar_t = scalar_type_;
+    using result_t = typename scalar_t::dot_result_t;
+
+    error_stats_t stats;
+    std::mt19937 generator(global_config.seed);
+
+    std::size_t m = global_config.matrix_height, n = global_config.matrix_width, k = global_config.matrix_depth;
+    std::size_t k_values = nk::divide_round_up(k, nk::dimensions_per_value<scalar_t>());
+    std::size_t a_stride = k_values * sizeof(scalar_t);
+    std::size_t b_stride = k_values * sizeof(scalar_t);
+    std::size_t c_stride = n * sizeof(result_t);
+
+    auto a = make_vector<scalar_t>(m * k), b = make_vector<scalar_t>(n * k);
+    auto c = make_vector<result_t>(m * n);
+    auto c_ref = make_vector<f118_t>(m * n);
+
+    nk_size_t packed_size = packed_size_fn(n, k);
+    auto b_packed = make_vector<char>(packed_size);
+
+    nk_size_t ref_packed_size = nk::dots_packed_size<scalar_t, nk::no_simd_k>(n, k);
+    auto b_packed_ref = make_vector<char>(ref_packed_size);
+    auto a_sumsqs = make_vector<f118_t>(m);
+    auto b_sumsqs = make_vector<f118_t>(n);
+
+    for (auto start = test_start_time(); within_time_budget(start);) {
+        fill_random(generator, a);
+        fill_random(generator, b);
+
+        // Run kernel being tested
+        pack_fn(b.raw_values_data(), n, k, b_stride, b_packed.raw_values_data());
+        euclideans_fn(a.raw_values_data(), b_packed.raw_values_data(), c.raw_values_data(), m, n, k, a_stride,
+                      c_stride);
+
+        // Reference: compute dot products in f118_t precision
+        nk::dots_pack<scalar_t, nk::no_simd_k>(b.values_data(), n, k, b_stride, b_packed_ref.raw_values_data());
+        nk::dots_packed<scalar_t, f118_t, nk::no_simd_k>(a.values_data(), b_packed_ref.raw_values_data(),
+                                                         c_ref.raw_values_data(), m, n, k, a_stride,
+                                                         n * sizeof(f118_t));
+
+        // Compute sumsqs using reduce_moments
+        f118_t sum_unused;
+        for (std::size_t i = 0; i < m; ++i)
+            nk::reduce_moments<scalar_t, f118_t, f118_t, nk::no_simd_k>(
+                a.values_data() + i * k_values, k, sizeof(scalar_t), &sum_unused, a_sumsqs.values_data() + i);
+        for (std::size_t j = 0; j < n; ++j)
+            nk::reduce_moments<scalar_t, f118_t, f118_t, nk::no_simd_k>(
+                b.values_data() + j * k_values, k, sizeof(scalar_t), &sum_unused, b_sumsqs.values_data() + j);
+
+        // Convert dots to euclidean distances: sqrt(max(0, sumsq_a + sumsq_b - 2*dot))
+        for (std::size_t i = 0; i < m; ++i)
+            for (std::size_t j = 0; j < n; ++j) {
+                f118_t &c_cell = c_ref[i * n + j];
+                f118_t diff = a_sumsqs[i] + b_sumsqs[j] - f118_t(2) * c_cell;
+                c_cell = diff > f118_t(0) ? diff.sqrt() : f118_t(0);
+            }
+
+        for (std::size_t i = 0; i < m * n; i++) stats.accumulate(c[i], c_ref[i]);
+    }
+    return stats;
+}
+
+/**
+ *  @brief Test symmetric angular distance matrix computation.
+ */
+template <typename scalar_type_>
+error_stats_t test_angulars_symmetric(typename scalar_type_::dots_symmetric_kernel_t kernel_fn) {
+    using scalar_t = scalar_type_;
+    using result_t = typename scalar_t::dot_result_t;
+
+    error_stats_t stats;
+    std::mt19937 generator(global_config.seed);
+
+    std::size_t n = global_config.matrix_height, k = global_config.matrix_depth;
+    std::size_t k_values = nk::divide_round_up(k, nk::dimensions_per_value<scalar_t>());
+    std::size_t a_stride = k_values * sizeof(scalar_t);
+    std::size_t c_stride = n * sizeof(result_t);
+
+    auto a = make_vector<scalar_t>(n * k);
+    auto c = make_vector<result_t>(n * n);
+    auto c_ref = make_vector<f118_t>(n * n);
+    auto sumsqs = make_vector<f118_t>(n);
+
+    for (auto start = test_start_time(); within_time_budget(start);) {
+        fill_random(generator, a);
+
+        // Run kernel being tested
+        kernel_fn(a.raw_values_data(), n, k, a_stride, c.raw_values_data(), c_stride, 0, n);
+
+        // Reference: compute dots symmetric in f118_t
+        nk::dots_symmetric<scalar_t, f118_t, nk::no_simd_k>(a.values_data(), n, k, a_stride, c_ref.raw_values_data(),
+                                                            n * sizeof(f118_t));
+
+        // Compute sumsqs using reduce_moments
+        f118_t sum_unused;
+        for (std::size_t i = 0; i < n; ++i)
+            nk::reduce_moments<scalar_t, f118_t, f118_t, nk::no_simd_k>(
+                a.values_data() + i * k_values, k, sizeof(scalar_t), &sum_unused, sumsqs.values_data() + i);
+
+        // Convert dots to angular distances: diagonal=0, upper triangle uses formula
+        for (std::size_t i = 0; i < n; ++i) {
+            c_ref[i * n + i] = f118_t(0);
+            for (std::size_t j = i + 1; j < n; ++j) {
+                f118_t ab_sumsq = sumsqs[i] * sumsqs[j];
+                f118_t &c_cell = c_ref[i * n + j];
+                c_cell = ab_sumsq > f118_t(0) ? (f118_t(1) - c_cell * ab_sumsq.rsqrt()) : f118_t(0);
+            }
+        }
+
+        // Only check upper triangle and diagonal
+        for (std::size_t i = 0; i < n; i++)
+            for (std::size_t j = i; j < n; j++) stats.accumulate(c[i * n + j], c_ref[i * n + j]);
+    }
+    return stats;
+}
+
+/**
+ *  @brief Test symmetric euclidean distance matrix computation.
+ */
+template <typename scalar_type_>
+error_stats_t test_euclideans_symmetric(typename scalar_type_::dots_symmetric_kernel_t kernel_fn) {
+    using scalar_t = scalar_type_;
+    using result_t = typename scalar_t::dot_result_t;
+
+    error_stats_t stats;
+    std::mt19937 generator(global_config.seed);
+
+    std::size_t n = global_config.matrix_height, k = global_config.matrix_depth;
+    std::size_t k_values = nk::divide_round_up(k, nk::dimensions_per_value<scalar_t>());
+    std::size_t a_stride = k_values * sizeof(scalar_t);
+    std::size_t c_stride = n * sizeof(result_t);
+
+    auto a = make_vector<scalar_t>(n * k);
+    auto c = make_vector<result_t>(n * n);
+    auto c_ref = make_vector<f118_t>(n * n);
+    auto sumsqs = make_vector<f118_t>(n);
+
+    for (auto start = test_start_time(); within_time_budget(start);) {
+        fill_random(generator, a);
+
+        // Run kernel being tested
+        kernel_fn(a.raw_values_data(), n, k, a_stride, c.raw_values_data(), c_stride, 0, n);
+
+        // Reference: compute dots symmetric in f118_t
+        nk::dots_symmetric<scalar_t, f118_t, nk::no_simd_k>(a.values_data(), n, k, a_stride, c_ref.raw_values_data(),
+                                                            n * sizeof(f118_t));
+
+        // Compute sumsqs using reduce_moments
+        f118_t sum_unused;
+        for (std::size_t i = 0; i < n; ++i)
+            nk::reduce_moments<scalar_t, f118_t, f118_t, nk::no_simd_k>(
+                a.values_data() + i * k_values, k, sizeof(scalar_t), &sum_unused, sumsqs.values_data() + i);
+
+        // Convert dots to euclidean distances: diagonal=0, upper triangle uses formula
+        for (std::size_t i = 0; i < n; ++i) {
+            c_ref[i * n + i] = f118_t(0);
+            for (std::size_t j = i + 1; j < n; ++j) {
+                f118_t &c_cell = c_ref[i * n + j];
+                f118_t diff = sumsqs[i] + sumsqs[j] - f118_t(2) * c_cell;
+                c_cell = diff > f118_t(0) ? diff.sqrt() : f118_t(0);
+            }
+        }
+
+        // Only check upper triangle and diagonal
         for (std::size_t i = 0; i < n; i++)
             for (std::size_t j = i; j < n; j++) stats.accumulate(c[i * n + j], c_ref[i * n + j]);
     }

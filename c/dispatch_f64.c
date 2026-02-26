@@ -32,9 +32,12 @@ void nk_dispatch_f64_find_(nk_capability_t v, nk_kernel_kind_t k, nk_kernel_punn
         case nk_kernel_dots_pack_k: *m = (m_t)&nk_dots_pack_f64_smef64, *c = nk_cap_smef64_k; return;
         case nk_kernel_dots_packed_k: *m = (m_t)&nk_dots_packed_f64_smef64, *c = nk_cap_smef64_k; return;
         case nk_kernel_dots_symmetric_k: *m = (m_t)&nk_dots_symmetric_f64_smef64, *c = nk_cap_smef64_k; return;
-        case nk_kernel_rmsd_k: *m = (m_t)&nk_rmsd_f64_smef64, *c = nk_cap_smef64_k; return;
-        case nk_kernel_kabsch_k: *m = (m_t)&nk_kabsch_f64_smef64, *c = nk_cap_smef64_k; return;
-        case nk_kernel_umeyama_k: *m = (m_t)&nk_umeyama_f64_smef64, *c = nk_cap_smef64_k; return;
+        case nk_kernel_angulars_packed_k: *m = (m_t)&nk_angulars_packed_f64_smef64, *c = nk_cap_smef64_k; return;
+        case nk_kernel_angulars_symmetric_k: *m = (m_t)&nk_angulars_symmetric_f64_smef64, *c = nk_cap_smef64_k; return;
+        case nk_kernel_euclideans_packed_k: *m = (m_t)&nk_euclideans_packed_f64_smef64, *c = nk_cap_smef64_k; return;
+        case nk_kernel_euclideans_symmetric_k:
+            *m = (m_t)&nk_euclideans_symmetric_f64_smef64, *c = nk_cap_smef64_k;
+            return;
         default: break;
         }
 #endif
@@ -71,6 +74,10 @@ void nk_dispatch_f64_find_(nk_capability_t v, nk_kernel_kind_t k, nk_kernel_punn
         case nk_kernel_dots_pack_k: *m = (m_t)&nk_dots_pack_f64_neon, *c = nk_cap_neon_k; return;
         case nk_kernel_dots_packed_k: *m = (m_t)&nk_dots_packed_f64_neon, *c = nk_cap_neon_k; return;
         case nk_kernel_dots_symmetric_k: *m = (m_t)&nk_dots_symmetric_f64_neon, *c = nk_cap_neon_k; return;
+        case nk_kernel_angulars_packed_k: *m = (m_t)&nk_angulars_packed_f64_neon, *c = nk_cap_neon_k; return;
+        case nk_kernel_angulars_symmetric_k: *m = (m_t)&nk_angulars_symmetric_f64_neon, *c = nk_cap_neon_k; return;
+        case nk_kernel_euclideans_packed_k: *m = (m_t)&nk_euclideans_packed_f64_neon, *c = nk_cap_neon_k; return;
+        case nk_kernel_euclideans_symmetric_k: *m = (m_t)&nk_euclideans_symmetric_f64_neon, *c = nk_cap_neon_k; return;
         default: break;
         }
 #endif
@@ -102,6 +109,14 @@ void nk_dispatch_f64_find_(nk_capability_t v, nk_kernel_kind_t k, nk_kernel_punn
         case nk_kernel_dots_pack_k: *m = (m_t)&nk_dots_pack_f64_skylake, *c = nk_cap_skylake_k; return;
         case nk_kernel_dots_packed_k: *m = (m_t)&nk_dots_packed_f64_skylake, *c = nk_cap_skylake_k; return;
         case nk_kernel_dots_symmetric_k: *m = (m_t)&nk_dots_symmetric_f64_skylake, *c = nk_cap_skylake_k; return;
+        case nk_kernel_angulars_packed_k: *m = (m_t)&nk_angulars_packed_f64_skylake, *c = nk_cap_skylake_k; return;
+        case nk_kernel_angulars_symmetric_k:
+            *m = (m_t)&nk_angulars_symmetric_f64_skylake, *c = nk_cap_skylake_k;
+            return;
+        case nk_kernel_euclideans_packed_k: *m = (m_t)&nk_euclideans_packed_f64_skylake, *c = nk_cap_skylake_k; return;
+        case nk_kernel_euclideans_symmetric_k:
+            *m = (m_t)&nk_euclideans_symmetric_f64_skylake, *c = nk_cap_skylake_k;
+            return;
         default: break;
         }
 #endif
@@ -148,6 +163,10 @@ void nk_dispatch_f64_find_(nk_capability_t v, nk_kernel_kind_t k, nk_kernel_punn
         case nk_kernel_dots_pack_k: *m = (m_t)&nk_dots_pack_f64_rvv, *c = nk_cap_rvv_k; return;
         case nk_kernel_dots_packed_k: *m = (m_t)&nk_dots_packed_f64_rvv, *c = nk_cap_rvv_k; return;
         case nk_kernel_dots_symmetric_k: *m = (m_t)&nk_dots_symmetric_f64_rvv, *c = nk_cap_rvv_k; return;
+        case nk_kernel_angulars_packed_k: *m = (m_t)&nk_angulars_packed_f64_rvv, *c = nk_cap_rvv_k; return;
+        case nk_kernel_angulars_symmetric_k: *m = (m_t)&nk_angulars_symmetric_f64_rvv, *c = nk_cap_rvv_k; return;
+        case nk_kernel_euclideans_packed_k: *m = (m_t)&nk_euclideans_packed_f64_rvv, *c = nk_cap_rvv_k; return;
+        case nk_kernel_euclideans_symmetric_k: *m = (m_t)&nk_euclideans_symmetric_f64_rvv, *c = nk_cap_rvv_k; return;
         default: break;
         }
 #endif
@@ -178,6 +197,12 @@ void nk_dispatch_f64_find_(nk_capability_t v, nk_kernel_kind_t k, nk_kernel_punn
         case nk_kernel_dots_pack_k: *m = (m_t)&nk_dots_pack_f64_serial, *c = nk_cap_serial_k; return;
         case nk_kernel_dots_packed_k: *m = (m_t)&nk_dots_packed_f64_serial, *c = nk_cap_serial_k; return;
         case nk_kernel_dots_symmetric_k: *m = (m_t)&nk_dots_symmetric_f64_serial, *c = nk_cap_serial_k; return;
+        case nk_kernel_angulars_packed_k: *m = (m_t)&nk_angulars_packed_f64_serial, *c = nk_cap_serial_k; return;
+        case nk_kernel_angulars_symmetric_k: *m = (m_t)&nk_angulars_symmetric_f64_serial, *c = nk_cap_serial_k; return;
+        case nk_kernel_euclideans_packed_k: *m = (m_t)&nk_euclideans_packed_f64_serial, *c = nk_cap_serial_k; return;
+        case nk_kernel_euclideans_symmetric_k:
+            *m = (m_t)&nk_euclideans_symmetric_f64_serial, *c = nk_cap_serial_k;
+            return;
         default: break;
         }
 
@@ -215,4 +240,10 @@ void nk_dispatch_f64_init_(nk_capability_t caps) {
     nk_dispatch_f64_find_(caps, nk_kernel_dots_pack_k, (nk_kernel_punned_t *)&t->dots_pack_f64, &used);
     nk_dispatch_f64_find_(caps, nk_kernel_dots_packed_k, (nk_kernel_punned_t *)&t->dots_packed_f64, &used);
     nk_dispatch_f64_find_(caps, nk_kernel_dots_symmetric_k, (nk_kernel_punned_t *)&t->dots_symmetric_f64, &used);
+    nk_dispatch_f64_find_(caps, nk_kernel_angulars_packed_k, (nk_kernel_punned_t *)&t->angulars_packed_f64, &used);
+    nk_dispatch_f64_find_(caps, nk_kernel_angulars_symmetric_k, (nk_kernel_punned_t *)&t->angulars_symmetric_f64,
+                          &used);
+    nk_dispatch_f64_find_(caps, nk_kernel_euclideans_packed_k, (nk_kernel_punned_t *)&t->euclideans_packed_f64, &used);
+    nk_dispatch_f64_find_(caps, nk_kernel_euclideans_symmetric_k, (nk_kernel_punned_t *)&t->euclideans_symmetric_f64,
+                          &used);
 }

@@ -286,6 +286,37 @@ NK_INTERNAL void nk_jaccard_u1x64_finalize_haswell( //
     result->xmm_ps = _mm_blendv_ps(jaccard_f32x4, one_f32x4, zero_union_mask);
 }
 
+/** @brief Hamming from_dot: computes pop_a + pop_b - 2*dot for 4 pairs (Haswell). */
+NK_INTERNAL void nk_hamming_u32x4_from_dot_haswell_(nk_b128_vec_t dots, nk_u32_t query_pop, nk_b128_vec_t target_pops,
+                                                    nk_b128_vec_t *results) {
+    __m128i dots_i32x4 = dots.xmm;
+    __m128i query_i32x4 = _mm_set1_epi32((int)query_pop);
+    __m128i target_i32x4 = target_pops.xmm;
+    results->xmm = _mm_sub_epi32(_mm_add_epi32(query_i32x4, target_i32x4), _mm_slli_epi32(dots_i32x4, 1));
+}
+
+/** @brief Jaccard from_dot: computes 1 - dot / (pop_a + pop_b - dot) for 4 pairs (Haswell). */
+NK_INTERNAL void nk_jaccard_f32x4_from_dot_haswell_(nk_b128_vec_t dots, nk_u32_t query_pop, nk_b128_vec_t target_pops,
+                                                    nk_b128_vec_t *results) {
+    __m128 dot_f32x4 = _mm_cvtepi32_ps(dots.xmm);
+    __m128 query_f32x4 = _mm_set1_ps((nk_f32_t)query_pop);
+    __m128 target_f32x4 = _mm_cvtepi32_ps(target_pops.xmm);
+    __m128 union_f32x4 = _mm_sub_ps(_mm_add_ps(query_f32x4, target_f32x4), dot_f32x4);
+
+    __m128 zero_union_mask = _mm_cmpeq_ps(union_f32x4, _mm_setzero_ps());
+    __m128 one_f32x4 = _mm_set1_ps(1.0f);
+    __m128 two_f32x4 = _mm_set1_ps(2.0f);
+    __m128 safe_union_f32x4 = _mm_blendv_ps(union_f32x4, one_f32x4, zero_union_mask);
+
+    __m128 union_reciprocal_f32x4 = _mm_rcp_ps(safe_union_f32x4);
+    __m128 nr_correction = _mm_sub_ps(two_f32x4, _mm_mul_ps(safe_union_f32x4, union_reciprocal_f32x4));
+    union_reciprocal_f32x4 = _mm_mul_ps(union_reciprocal_f32x4, nr_correction);
+
+    __m128 ratio_f32x4 = _mm_mul_ps(dot_f32x4, union_reciprocal_f32x4);
+    __m128 jaccard_f32x4 = _mm_sub_ps(one_f32x4, ratio_f32x4);
+    results->xmm_ps = _mm_blendv_ps(jaccard_f32x4, one_f32x4, zero_union_mask);
+}
+
 #pragma endregion - Stateful Streaming
 
 #if defined(__clang__)

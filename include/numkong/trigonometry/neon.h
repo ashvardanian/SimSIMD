@@ -54,7 +54,7 @@ extern "C" {
  *  These implement polynomial approximations using 128-bit NEON vectors.
  */
 
-NK_INTERNAL float32x4_t nk_f32x4_sin_neon_(float32x4_t const angles_radians) {
+NK_INTERNAL float32x4_t nk_sin_f32x4_neon_(float32x4_t const angles_radians) {
     // Constants for argument reduction
     float32x4_t const pi = vdupq_n_f32(3.14159265358979323846f);
     float32x4_t const pi_reciprocal = vdupq_n_f32(0.31830988618379067154f);
@@ -86,7 +86,7 @@ NK_INTERNAL float32x4_t nk_f32x4_sin_neon_(float32x4_t const angles_radians) {
     return results;
 }
 
-NK_INTERNAL float32x4_t nk_f32x4_cos_neon_(float32x4_t const angles_radians) {
+NK_INTERNAL float32x4_t nk_cos_f32x4_neon_(float32x4_t const angles_radians) {
     // Constants for argument reduction
     float32x4_t const pi = vdupq_n_f32(3.14159265358979323846f);
     float32x4_t const pi_half = vdupq_n_f32(1.57079632679489661923f);
@@ -120,7 +120,7 @@ NK_INTERNAL float32x4_t nk_f32x4_cos_neon_(float32x4_t const angles_radians) {
     return results;
 }
 
-NK_INTERNAL float32x4_t nk_f32x4_atan_neon_(float32x4_t const inputs) {
+NK_INTERNAL float32x4_t nk_atan_f32x4_neon_(float32x4_t const inputs) {
     // Polynomial coefficients for atan approximation (8 terms)
     float32x4_t const coeff_8 = vdupq_n_f32(-0.333331018686294555664062f);
     float32x4_t const coeff_7 = vdupq_n_f32(+0.199926957488059997558594f);
@@ -173,7 +173,7 @@ NK_INTERNAL float32x4_t nk_f32x4_atan_neon_(float32x4_t const inputs) {
     return result;
 }
 
-NK_INTERNAL float32x4_t nk_f32x4_atan2_neon_(float32x4_t const ys_inputs, float32x4_t const xs_inputs) {
+NK_INTERNAL float32x4_t nk_atan2_f32x4_neon_(float32x4_t const ys_inputs, float32x4_t const xs_inputs) {
     // Polynomial coefficients (same as atan)
     float32x4_t const coeff_8 = vdupq_n_f32(-0.333331018686294555664062f);
     float32x4_t const coeff_7 = vdupq_n_f32(+0.199926957488059997558594f);
@@ -242,7 +242,7 @@ NK_INTERNAL float32x4_t nk_f32x4_atan2_neon_(float32x4_t const ys_inputs, float3
     return results;
 }
 
-NK_INTERNAL float64x2_t nk_f64x2_sin_neon_(float64x2_t const angles_radians) {
+NK_INTERNAL float64x2_t nk_sin_f64x2_neon_(float64x2_t const angles_radians) {
     // Constants for argument reduction
     float64x2_t const pi_high = vdupq_n_f64(3.141592653589793116);
     float64x2_t const pi_low = vdupq_n_f64(1.2246467991473532072e-16);
@@ -300,7 +300,7 @@ NK_INTERNAL float64x2_t nk_f64x2_sin_neon_(float64x2_t const angles_radians) {
     return results;
 }
 
-NK_INTERNAL float64x2_t nk_f64x2_cos_neon_(float64x2_t const angles_radians) {
+NK_INTERNAL float64x2_t nk_cos_f64x2_neon_(float64x2_t const angles_radians) {
     // Constants for argument reduction
     float64x2_t const pi_high_half = vdupq_n_f64(3.141592653589793116 * 0.5);
     float64x2_t const pi_low_half = vdupq_n_f64(1.2246467991473532072e-16 * 0.5);
@@ -355,7 +355,7 @@ NK_INTERNAL float64x2_t nk_f64x2_cos_neon_(float64x2_t const angles_radians) {
     return results;
 }
 
-NK_INTERNAL float64x2_t nk_f64x2_atan_neon_(float64x2_t const inputs) {
+NK_INTERNAL float64x2_t nk_atan_f64x2_neon_(float64x2_t const inputs) {
     // Polynomial coefficients for atan approximation (19 terms)
     float64x2_t const coeff_19 = vdupq_n_f64(-1.88796008463073496563746e-05);
     float64x2_t const coeff_18 = vdupq_n_f64(+0.000209850076645816976906797);
@@ -426,7 +426,7 @@ NK_INTERNAL float64x2_t nk_f64x2_atan_neon_(float64x2_t const inputs) {
     return result;
 }
 
-NK_INTERNAL float64x2_t nk_f64x2_atan2_neon_(float64x2_t const ys_inputs, float64x2_t const xs_inputs) {
+NK_INTERNAL float64x2_t nk_atan2_f64x2_neon_(float64x2_t const ys_inputs, float64x2_t const xs_inputs) {
     // Polynomial coefficients (same as atan)
     float64x2_t const coeff_19 = vdupq_n_f64(-1.88796008463073496563746e-05);
     float64x2_t const coeff_18 = vdupq_n_f64(+0.000209850076645816976906797);
@@ -518,7 +518,7 @@ NK_PUBLIC void nk_each_sin_f32_neon(nk_f32_t const *ins, nk_size_t n, nk_f32_t *
     nk_size_t i = 0;
     for (; i + 4 <= n; i += 4) {
         float32x4_t angles = vld1q_f32(ins + i);
-        float32x4_t results = nk_f32x4_sin_neon_(angles);
+        float32x4_t results = nk_sin_f32x4_neon_(angles);
         vst1q_f32(outs + i, results);
     }
     if (i < n) {
@@ -526,7 +526,7 @@ NK_PUBLIC void nk_each_sin_f32_neon(nk_f32_t const *ins, nk_size_t n, nk_f32_t *
         nk_b128_vec_t angles_vec;
         nk_partial_load_b32x4_serial_(ins + i, &angles_vec, remaining);
         nk_b128_vec_t results_vec;
-        results_vec.f32x4 = nk_f32x4_sin_neon_(angles_vec.f32x4);
+        results_vec.f32x4 = nk_sin_f32x4_neon_(angles_vec.f32x4);
         nk_partial_store_b32x4_serial_(&results_vec, outs + i, remaining);
     }
 }
@@ -535,7 +535,7 @@ NK_PUBLIC void nk_each_cos_f32_neon(nk_f32_t const *ins, nk_size_t n, nk_f32_t *
     nk_size_t i = 0;
     for (; i + 4 <= n; i += 4) {
         float32x4_t angles = vld1q_f32(ins + i);
-        float32x4_t results = nk_f32x4_cos_neon_(angles);
+        float32x4_t results = nk_cos_f32x4_neon_(angles);
         vst1q_f32(outs + i, results);
     }
     if (i < n) {
@@ -543,7 +543,7 @@ NK_PUBLIC void nk_each_cos_f32_neon(nk_f32_t const *ins, nk_size_t n, nk_f32_t *
         nk_b128_vec_t angles_vec;
         nk_partial_load_b32x4_serial_(ins + i, &angles_vec, remaining);
         nk_b128_vec_t results_vec;
-        results_vec.f32x4 = nk_f32x4_cos_neon_(angles_vec.f32x4);
+        results_vec.f32x4 = nk_cos_f32x4_neon_(angles_vec.f32x4);
         nk_partial_store_b32x4_serial_(&results_vec, outs + i, remaining);
     }
 }
@@ -552,7 +552,7 @@ NK_PUBLIC void nk_each_atan_f32_neon(nk_f32_t const *ins, nk_size_t n, nk_f32_t 
     nk_size_t i = 0;
     for (; i + 4 <= n; i += 4) {
         float32x4_t values = vld1q_f32(ins + i);
-        float32x4_t results = nk_f32x4_atan_neon_(values);
+        float32x4_t results = nk_atan_f32x4_neon_(values);
         vst1q_f32(outs + i, results);
     }
     if (i < n) {
@@ -560,7 +560,7 @@ NK_PUBLIC void nk_each_atan_f32_neon(nk_f32_t const *ins, nk_size_t n, nk_f32_t 
         nk_b128_vec_t values_vec;
         nk_partial_load_b32x4_serial_(ins + i, &values_vec, remaining);
         nk_b128_vec_t results_vec;
-        results_vec.f32x4 = nk_f32x4_atan_neon_(values_vec.f32x4);
+        results_vec.f32x4 = nk_atan_f32x4_neon_(values_vec.f32x4);
         nk_partial_store_b32x4_serial_(&results_vec, outs + i, remaining);
     }
 }
@@ -569,7 +569,7 @@ NK_PUBLIC void nk_each_sin_f64_neon(nk_f64_t const *ins, nk_size_t n, nk_f64_t *
     nk_size_t i = 0;
     for (; i + 2 <= n; i += 2) {
         float64x2_t angles = vld1q_f64(ins + i);
-        float64x2_t results = nk_f64x2_sin_neon_(angles);
+        float64x2_t results = nk_sin_f64x2_neon_(angles);
         vst1q_f64(outs + i, results);
     }
     if (i < n) {
@@ -577,7 +577,7 @@ NK_PUBLIC void nk_each_sin_f64_neon(nk_f64_t const *ins, nk_size_t n, nk_f64_t *
         nk_b128_vec_t angles_vec;
         nk_partial_load_b64x2_serial_(ins + i, &angles_vec, remaining);
         nk_b128_vec_t results_vec;
-        results_vec.f64x2 = nk_f64x2_sin_neon_(angles_vec.f64x2);
+        results_vec.f64x2 = nk_sin_f64x2_neon_(angles_vec.f64x2);
         nk_partial_store_b64x2_serial_(&results_vec, outs + i, remaining);
     }
 }
@@ -586,7 +586,7 @@ NK_PUBLIC void nk_each_cos_f64_neon(nk_f64_t const *ins, nk_size_t n, nk_f64_t *
     nk_size_t i = 0;
     for (; i + 2 <= n; i += 2) {
         float64x2_t angles = vld1q_f64(ins + i);
-        float64x2_t results = nk_f64x2_cos_neon_(angles);
+        float64x2_t results = nk_cos_f64x2_neon_(angles);
         vst1q_f64(outs + i, results);
     }
     if (i < n) {
@@ -594,7 +594,7 @@ NK_PUBLIC void nk_each_cos_f64_neon(nk_f64_t const *ins, nk_size_t n, nk_f64_t *
         nk_b128_vec_t angles_vec;
         nk_partial_load_b64x2_serial_(ins + i, &angles_vec, remaining);
         nk_b128_vec_t results_vec;
-        results_vec.f64x2 = nk_f64x2_cos_neon_(angles_vec.f64x2);
+        results_vec.f64x2 = nk_cos_f64x2_neon_(angles_vec.f64x2);
         nk_partial_store_b64x2_serial_(&results_vec, outs + i, remaining);
     }
 }
@@ -603,7 +603,7 @@ NK_PUBLIC void nk_each_atan_f64_neon(nk_f64_t const *ins, nk_size_t n, nk_f64_t 
     nk_size_t i = 0;
     for (; i + 2 <= n; i += 2) {
         float64x2_t values = vld1q_f64(ins + i);
-        float64x2_t results = nk_f64x2_atan_neon_(values);
+        float64x2_t results = nk_atan_f64x2_neon_(values);
         vst1q_f64(outs + i, results);
     }
     if (i < n) {
@@ -611,7 +611,7 @@ NK_PUBLIC void nk_each_atan_f64_neon(nk_f64_t const *ins, nk_size_t n, nk_f64_t 
         nk_b128_vec_t values_vec;
         nk_partial_load_b64x2_serial_(ins + i, &values_vec, remaining);
         nk_b128_vec_t results_vec;
-        results_vec.f64x2 = nk_f64x2_atan_neon_(values_vec.f64x2);
+        results_vec.f64x2 = nk_atan_f64x2_neon_(values_vec.f64x2);
         nk_partial_store_b64x2_serial_(&results_vec, outs + i, remaining);
     }
 }

@@ -37,19 +37,6 @@ extern "C" {
 
 #pragma region - Binary Sets
 
-NK_INTERNAL unsigned char nk_u1x8_popcount_(nk_u1x8_t x) {
-    static unsigned char lookup_table[256] = {
-        0, 1, 1, 2, 1, 2, 2, 3, 1, 2, 2, 3, 2, 3, 3, 4, 1, 2, 2, 3, 2, 3, 3, 4, 2, 3, 3, 4, 3, 4, 4, 5, //
-        1, 2, 2, 3, 2, 3, 3, 4, 2, 3, 3, 4, 3, 4, 4, 5, 2, 3, 3, 4, 3, 4, 4, 5, 3, 4, 4, 5, 4, 5, 5, 6,
-        1, 2, 2, 3, 2, 3, 3, 4, 2, 3, 3, 4, 3, 4, 4, 5, 2, 3, 3, 4, 3, 4, 4, 5, 3, 4, 4, 5, 4, 5, 5, 6,
-        2, 3, 3, 4, 3, 4, 4, 5, 3, 4, 4, 5, 4, 5, 5, 6, 3, 4, 4, 5, 4, 5, 5, 6, 4, 5, 5, 6, 5, 6, 6, 7,
-        1, 2, 2, 3, 2, 3, 3, 4, 2, 3, 3, 4, 3, 4, 4, 5, 2, 3, 3, 4, 3, 4, 4, 5, 3, 4, 4, 5, 4, 5, 5, 6,
-        2, 3, 3, 4, 3, 4, 4, 5, 3, 4, 4, 5, 4, 5, 5, 6, 3, 4, 4, 5, 4, 5, 5, 6, 4, 5, 5, 6, 5, 6, 6, 7,
-        2, 3, 3, 4, 3, 4, 4, 5, 3, 4, 4, 5, 4, 5, 5, 6, 3, 4, 4, 5, 4, 5, 5, 6, 4, 5, 5, 6, 5, 6, 6, 7,
-        3, 4, 4, 5, 4, 5, 5, 6, 4, 5, 5, 6, 5, 6, 6, 7, 4, 5, 5, 6, 5, 6, 6, 7, 5, 6, 6, 7, 6, 7, 7, 8};
-    return lookup_table[x];
-}
-
 NK_PUBLIC void nk_hamming_u1_serial(nk_u1x8_t const *a, nk_u1x8_t const *b, nk_size_t n, nk_u32_t *result) {
     nk_size_t n_bytes = nk_size_divide_round_up_(n, NK_BITS_PER_BYTE);
     nk_u32_t differences = 0;
@@ -160,6 +147,22 @@ NK_INTERNAL void nk_hamming_u1x128_finalize_serial( //
     result->u32s[1] = (nk_u32_t)state_b->intersection_count;
     result->u32s[2] = (nk_u32_t)state_c->intersection_count;
     result->u32s[3] = (nk_u32_t)state_d->intersection_count;
+}
+
+/** @brief Hamming from_dot: computes pop_a + pop_b - 2*dot for 4 pairs (serial). */
+NK_INTERNAL void nk_hamming_u32x4_from_dot_serial_(nk_b128_vec_t dots, nk_u32_t query_pop, nk_b128_vec_t target_pops,
+                                                   nk_b128_vec_t *results) {
+    for (int i = 0; i < 4; ++i) results->u32s[i] = query_pop + target_pops.u32s[i] - 2 * dots.u32s[i];
+}
+
+/** @brief Jaccard from_dot: computes 1 - dot / (pop_a + pop_b - dot) for 4 pairs (serial). */
+NK_INTERNAL void nk_jaccard_f32x4_from_dot_serial_(nk_b128_vec_t dots, nk_u32_t query_pop, nk_b128_vec_t target_pops,
+                                                   nk_b128_vec_t *results) {
+    for (int i = 0; i < 4; ++i) {
+        nk_f32_t dot = (nk_f32_t)dots.u32s[i];
+        nk_f32_t union_val = (nk_f32_t)query_pop + (nk_f32_t)target_pops.u32s[i] - dot;
+        results->f32s[i] = (union_val != 0) ? 1.0f - dot / union_val : 1.0f;
+    }
 }
 
 #pragma endregion - Stateful Streaming

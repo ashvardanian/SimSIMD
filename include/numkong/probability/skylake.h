@@ -28,7 +28,7 @@ extern "C" {
 #pragma GCC target("avx2", "avx512f", "avx512vl", "avx512bw", "avx512dq", "f16c", "fma", "bmi", "bmi2")
 #endif
 
-NK_INTERNAL __m512 nk_log2_f32_skylake_(__m512 x) {
+NK_INTERNAL __m512 nk_log2_f32x16_skylake_(__m512 x) {
     // Extract the exponent and mantissa
     __m512 one_f32x16 = _mm512_set1_ps(1.0f);
     __m512 exponent_f32x16 = _mm512_getexp_ps(x);
@@ -64,7 +64,7 @@ nk_kld_f32_skylake_cycle:
         a += 16, b += 16, n -= 16;
     }
     __m512 ratio_f32x16 = _mm512_div_ps(a_f32x16, b_f32x16);
-    __m512 log_ratio_f32x16 = nk_log2_f32_skylake_(ratio_f32x16);
+    __m512 log_ratio_f32x16 = nk_log2_f32x16_skylake_(ratio_f32x16);
     __m512 contribution_f32x16 = _mm512_mul_ps(a_f32x16, log_ratio_f32x16);
     sum_f32x16 = _mm512_add_ps(sum_f32x16, contribution_f32x16);
     if (n) goto nk_kld_f32_skylake_cycle;
@@ -100,8 +100,8 @@ nk_jsd_f32_skylake_cycle:
     __m512 mean_recip_approx_f32x16 = _mm512_rcp14_ps(mean_with_epsilon_f32x16);
     __m512 ratio_a_f32x16 = _mm512_mul_ps(_mm512_add_ps(a_f32x16, epsilon_f32x16), mean_recip_approx_f32x16);
     __m512 ratio_b_f32x16 = _mm512_mul_ps(_mm512_add_ps(b_f32x16, epsilon_f32x16), mean_recip_approx_f32x16);
-    __m512 log_ratio_a_f32x16 = nk_log2_f32_skylake_(ratio_a_f32x16);
-    __m512 log_ratio_b_f32x16 = nk_log2_f32_skylake_(ratio_b_f32x16);
+    __m512 log_ratio_a_f32x16 = nk_log2_f32x16_skylake_(ratio_a_f32x16);
+    __m512 log_ratio_b_f32x16 = nk_log2_f32x16_skylake_(ratio_b_f32x16);
     sum_a_f32x16 = _mm512_mask3_fmadd_ps(a_f32x16, log_ratio_a_f32x16, sum_a_f32x16, nonzero_mask);
     sum_b_f32x16 = _mm512_mask3_fmadd_ps(b_f32x16, log_ratio_b_f32x16, sum_b_f32x16, nonzero_mask);
     if (n) goto nk_jsd_f32_skylake_cycle;
@@ -112,7 +112,7 @@ nk_jsd_f32_skylake_cycle:
     *result = sum > 0 ? nk_f32_sqrt_haswell(sum) : 0;
 }
 
-NK_INTERNAL __m512d nk_log2_f64_skylake_(__m512d x) {
+NK_INTERNAL __m512d nk_log2_f64x8_skylake_(__m512d x) {
     // Extract the exponent and mantissa: x = 2^exp × m, m ∈ [1, 2)
     __m512d one_f64x8 = _mm512_set1_pd(1.0);
     __m512d two_f64x8 = _mm512_set1_pd(2.0);
@@ -170,7 +170,7 @@ nk_kld_f64_skylake_cycle:
         a += 8, b += 8, n -= 8;
     }
     __m512d ratio_f64x8 = _mm512_div_pd(a_f64x8, b_f64x8);
-    __m512d log_ratio_f64x8 = nk_log2_f64_skylake_(ratio_f64x8);
+    __m512d log_ratio_f64x8 = nk_log2_f64x8_skylake_(ratio_f64x8);
     __m512d contribution_f64x8 = _mm512_mul_pd(a_f64x8, log_ratio_f64x8);
     sum_f64x8 = _mm512_add_pd(sum_f64x8, contribution_f64x8);
     if (n) goto nk_kld_f64_skylake_cycle;
@@ -206,8 +206,8 @@ nk_jsd_f64_skylake_cycle:
     // Use full precision division (not rcp14 approximate which only has 14 bits)
     __m512d ratio_a_f64x8 = _mm512_div_pd(_mm512_add_pd(a_f64x8, epsilon_f64x8), mean_with_epsilon_f64x8);
     __m512d ratio_b_f64x8 = _mm512_div_pd(_mm512_add_pd(b_f64x8, epsilon_f64x8), mean_with_epsilon_f64x8);
-    __m512d log_ratio_a_f64x8 = nk_log2_f64_skylake_(ratio_a_f64x8);
-    __m512d log_ratio_b_f64x8 = nk_log2_f64_skylake_(ratio_b_f64x8);
+    __m512d log_ratio_a_f64x8 = nk_log2_f64x8_skylake_(ratio_a_f64x8);
+    __m512d log_ratio_b_f64x8 = nk_log2_f64x8_skylake_(ratio_b_f64x8);
     sum_a_f64x8 = _mm512_mask3_fmadd_pd(a_f64x8, log_ratio_a_f64x8, sum_a_f64x8, nonzero_mask);
     sum_b_f64x8 = _mm512_mask3_fmadd_pd(b_f64x8, log_ratio_b_f64x8, sum_b_f64x8, nonzero_mask);
     if (n) goto nk_jsd_f64_skylake_cycle;

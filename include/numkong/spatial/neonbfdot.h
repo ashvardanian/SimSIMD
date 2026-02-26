@@ -33,10 +33,9 @@
 #if NK_TARGET_NEONBFDOT
 
 #include "numkong/types.h"
-#include "numkong/cast/serial.h"   // `nk_partial_load_b16x4_serial_`
-#include "numkong/reduce/neon.h"   // `nk_partial_load_b16x8_serial_`
-#include "numkong/spatial/neon.h"  // `nk_angular_through_f32_finalize_neon_`
-#include "numkong/dot/neonbfdot.h" // `nk_dot_bf16x8_state_neonbfdot_t`
+#include "numkong/cast/serial.h"  // `nk_partial_load_b16x4_serial_`
+#include "numkong/reduce/neon.h"  // `nk_partial_load_b16x8_serial_`
+#include "numkong/spatial/neon.h" // `nk_angular_normalize_f32_neon_`, `nk_f32_sqrt_neon`
 
 #if defined(__cplusplus)
 extern "C" {
@@ -149,46 +148,6 @@ nk_sqeuclidean_bf16_neonbfdot_cycle:
 NK_PUBLIC void nk_euclidean_bf16_neonbfdot(nk_bf16_t const *a, nk_bf16_t const *b, nk_size_t n, nk_f32_t *result) {
     nk_sqeuclidean_bf16_neonbfdot(a, b, n, result);
     *result = nk_f32_sqrt_neon(*result);
-}
-
-typedef nk_dot_bf16x8_state_neonbfdot_t nk_angular_bf16x8_state_neonbfdot_t;
-NK_INTERNAL void nk_angular_bf16x8_init_neonbfdot(nk_angular_bf16x8_state_neonbfdot_t *state) {
-    nk_dot_bf16x8_init_neonbfdot(state);
-}
-NK_INTERNAL void nk_angular_bf16x8_update_neonbfdot(nk_angular_bf16x8_state_neonbfdot_t *state, nk_b128_vec_t a,
-                                                    nk_b128_vec_t b, nk_size_t depth_offset,
-                                                    nk_size_t active_dimensions) {
-    nk_dot_bf16x8_update_neonbfdot(state, a, b, depth_offset, active_dimensions);
-}
-NK_INTERNAL void nk_angular_bf16x8_finalize_neonbfdot(
-    nk_angular_bf16x8_state_neonbfdot_t const *state_a, nk_angular_bf16x8_state_neonbfdot_t const *state_b,
-    nk_angular_bf16x8_state_neonbfdot_t const *state_c, nk_angular_bf16x8_state_neonbfdot_t const *state_d,
-    nk_f32_t query_norm, nk_f32_t target_norm_a, nk_f32_t target_norm_b, nk_f32_t target_norm_c, nk_f32_t target_norm_d,
-    nk_size_t total_dimensions, nk_f32_t *results) {
-    nk_b128_vec_t dots_vec;
-    nk_dot_bf16x8_finalize_neonbfdot(state_a, state_b, state_c, state_d, total_dimensions, &dots_vec);
-    nk_angular_through_f32_finalize_neon_(dots_vec.f32x4, query_norm, target_norm_a, target_norm_b, target_norm_c,
-                                          target_norm_d, results);
-}
-
-typedef nk_dot_bf16x8_state_neonbfdot_t nk_euclidean_bf16x8_state_neonbfdot_t;
-NK_INTERNAL void nk_euclidean_bf16x8_init_neonbfdot(nk_euclidean_bf16x8_state_neonbfdot_t *state) {
-    nk_dot_bf16x8_init_neonbfdot(state);
-}
-NK_INTERNAL void nk_euclidean_bf16x8_update_neonbfdot(nk_euclidean_bf16x8_state_neonbfdot_t *state, nk_b128_vec_t a,
-                                                      nk_b128_vec_t b, nk_size_t depth_offset,
-                                                      nk_size_t active_dimensions) {
-    nk_dot_bf16x8_update_neonbfdot(state, a, b, depth_offset, active_dimensions);
-}
-NK_INTERNAL void nk_euclidean_bf16x8_finalize_neonbfdot(
-    nk_euclidean_bf16x8_state_neonbfdot_t const *state_a, nk_euclidean_bf16x8_state_neonbfdot_t const *state_b,
-    nk_euclidean_bf16x8_state_neonbfdot_t const *state_c, nk_euclidean_bf16x8_state_neonbfdot_t const *state_d,
-    nk_f32_t query_norm, nk_f32_t target_norm_a, nk_f32_t target_norm_b, nk_f32_t target_norm_c, nk_f32_t target_norm_d,
-    nk_size_t total_dimensions, nk_f32_t *results) {
-    nk_b128_vec_t dots_vec;
-    nk_dot_bf16x8_finalize_neonbfdot(state_a, state_b, state_c, state_d, total_dimensions, &dots_vec);
-    nk_euclidean_through_f32_finalize_neon_(dots_vec.f32x4, query_norm, target_norm_a, target_norm_b, target_norm_c,
-                                            target_norm_d, results);
 }
 
 #if defined(__clang__)

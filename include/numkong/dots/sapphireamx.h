@@ -72,7 +72,7 @@
 #if NK_TARGET_X86_
 #if NK_TARGET_SAPPHIREAMX
 
-#include "numkong/types.h"
+#include "numkong/dot/sapphireamx.h"
 #include "numkong/cast/icelake.h" // For FP8 ↔ BF16 conversions
 
 #if defined(__cplusplus)
@@ -2851,7 +2851,7 @@ NK_PUBLIC void nk_dots_packed_e5m2_sapphireamx(            //
 
 #pragma endregion // Quarter Precision E5M2
 
-#pragma region Quarter Precision E2M3
+#pragma region Micro Precision E2M3
 
 /* Load E2M3 A tile with E2M3 to signed I8 conversion via VPERMB LUT.
  * Each E2M3 byte encodes: bit 5 = sign, bits 4:0 = magnitude (5-bit index).
@@ -3283,9 +3283,9 @@ NK_PUBLIC void nk_dots_symmetric_e2m3_sapphireamx(                  //
     }
 }
 
-#pragma endregion // Quarter Precision E2M3
+#pragma endregion // Micro Precision E2M3
 
-#pragma region Quarter Precision E3M2
+#pragma region Micro Precision E3M2
 
 /* Load E3M2 A tile with FP8 to BF16 conversion */
 NK_INTERNAL void nk_dots_e3m2_load_a_sapphireamx_( //
@@ -3643,7 +3643,7 @@ NK_PUBLIC void nk_dots_symmetric_e3m2_sapphireamx(                  //
     }
 }
 
-#pragma endregion // Quarter Precision E3M2
+#pragma endregion // Micro Precision E3M2
 
 #if defined(__clang__)
 #pragma clang attribute pop

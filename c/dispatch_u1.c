@@ -18,10 +18,14 @@ void nk_dispatch_u1_find_(nk_capability_t v, nk_kernel_kind_t k, nk_kernel_punne
 #endif
 #if NK_TARGET_SMEBI32
     if (v & nk_cap_sme_k) switch (k) {
-        case nk_kernel_hammings_packed_size_k: *m = (m_t)&nk_hammings_packed_size_u1_smebi32, *c = nk_cap_sme_k; return;
-        case nk_kernel_hammings_pack_k: *m = (m_t)&nk_hammings_pack_u1_smebi32, *c = nk_cap_sme_k; return;
+        case nk_kernel_dots_packed_size_k: *m = (m_t)&nk_dots_packed_size_u1_smebi32, *c = nk_cap_sme_k; return;
+        case nk_kernel_dots_pack_k: *m = (m_t)&nk_dots_pack_u1_smebi32, *c = nk_cap_sme_k; return;
+        case nk_kernel_dots_packed_k: *m = (m_t)&nk_dots_packed_u1_smebi32, *c = nk_cap_sme_k; return;
+        case nk_kernel_dots_symmetric_k: *m = (m_t)&nk_dots_symmetric_u1_smebi32, *c = nk_cap_sme_k; return;
         case nk_kernel_hammings_packed_k: *m = (m_t)&nk_hammings_packed_u1_smebi32, *c = nk_cap_sme_k; return;
         case nk_kernel_hammings_symmetric_k: *m = (m_t)&nk_hammings_symmetric_u1_smebi32, *c = nk_cap_sme_k; return;
+        case nk_kernel_jaccards_packed_k: *m = (m_t)&nk_jaccards_packed_u1_smebi32, *c = nk_cap_sme_k; return;
+        case nk_kernel_jaccards_symmetric_k: *m = (m_t)&nk_jaccards_symmetric_u1_smebi32, *c = nk_cap_sme_k; return;
         default: break;
         }
 #endif
@@ -37,10 +41,14 @@ void nk_dispatch_u1_find_(nk_capability_t v, nk_kernel_kind_t k, nk_kernel_punne
         case nk_kernel_dot_k: *m = (m_t)&nk_dot_u1_neon, *c = nk_cap_neon_k; return;
         case nk_kernel_hamming_k: *m = (m_t)&nk_hamming_u1_neon, *c = nk_cap_neon_k; return;
         case nk_kernel_jaccard_k: *m = (m_t)&nk_jaccard_u1_neon, *c = nk_cap_neon_k; return;
-        case nk_kernel_hammings_packed_size_k: *m = (m_t)&nk_hammings_packed_size_u1_neon, *c = nk_cap_neon_k; return;
-        case nk_kernel_hammings_pack_k: *m = (m_t)&nk_hammings_pack_u1_neon, *c = nk_cap_neon_k; return;
+        case nk_kernel_dots_packed_size_k: *m = (m_t)&nk_dots_packed_size_u1_serial, *c = nk_cap_neon_k; return;
+        case nk_kernel_dots_pack_k: *m = (m_t)&nk_dots_pack_u1_serial, *c = nk_cap_neon_k; return;
+        case nk_kernel_dots_packed_k: *m = (m_t)&nk_dots_packed_u1_neon, *c = nk_cap_neon_k; return;
+        case nk_kernel_dots_symmetric_k: *m = (m_t)&nk_dots_symmetric_u1_neon, *c = nk_cap_neon_k; return;
         case nk_kernel_hammings_packed_k: *m = (m_t)&nk_hammings_packed_u1_neon, *c = nk_cap_neon_k; return;
         case nk_kernel_hammings_symmetric_k: *m = (m_t)&nk_hammings_symmetric_u1_neon, *c = nk_cap_neon_k; return;
+        case nk_kernel_jaccards_packed_k: *m = (m_t)&nk_jaccards_packed_u1_neon, *c = nk_cap_neon_k; return;
+        case nk_kernel_jaccards_symmetric_k: *m = (m_t)&nk_jaccards_symmetric_u1_neon, *c = nk_cap_neon_k; return;
         default: break;
         }
 #endif
@@ -49,12 +57,14 @@ void nk_dispatch_u1_find_(nk_capability_t v, nk_kernel_kind_t k, nk_kernel_punne
         case nk_kernel_dot_k: *m = (m_t)&nk_dot_u1_icelake, *c = nk_cap_icelake_k; return;
         case nk_kernel_hamming_k: *m = (m_t)&nk_hamming_u1_icelake, *c = nk_cap_icelake_k; return;
         case nk_kernel_jaccard_k: *m = (m_t)&nk_jaccard_u1_icelake, *c = nk_cap_icelake_k; return;
-        case nk_kernel_hammings_packed_size_k:
-            *m = (m_t)&nk_hammings_packed_size_u1_icelake, *c = nk_cap_icelake_k;
-            return;
-        case nk_kernel_hammings_pack_k: *m = (m_t)&nk_hammings_pack_u1_icelake, *c = nk_cap_icelake_k; return;
+        case nk_kernel_dots_packed_size_k: *m = (m_t)&nk_dots_packed_size_u1_serial, *c = nk_cap_icelake_k; return;
+        case nk_kernel_dots_pack_k: *m = (m_t)&nk_dots_pack_u1_serial, *c = nk_cap_icelake_k; return;
+        case nk_kernel_dots_packed_k: *m = (m_t)&nk_dots_packed_u1_icelake, *c = nk_cap_icelake_k; return;
+        case nk_kernel_dots_symmetric_k: *m = (m_t)&nk_dots_symmetric_u1_icelake, *c = nk_cap_icelake_k; return;
         case nk_kernel_hammings_packed_k: *m = (m_t)&nk_hammings_packed_u1_icelake, *c = nk_cap_icelake_k; return;
         case nk_kernel_hammings_symmetric_k: *m = (m_t)&nk_hammings_symmetric_u1_icelake, *c = nk_cap_icelake_k; return;
+        case nk_kernel_jaccards_packed_k: *m = (m_t)&nk_jaccards_packed_u1_icelake, *c = nk_cap_icelake_k; return;
+        case nk_kernel_jaccards_symmetric_k: *m = (m_t)&nk_jaccards_symmetric_u1_icelake, *c = nk_cap_icelake_k; return;
         default: break;
         }
 #endif
@@ -69,12 +79,14 @@ void nk_dispatch_u1_find_(nk_capability_t v, nk_kernel_kind_t k, nk_kernel_punne
         case nk_kernel_dot_k: *m = (m_t)&nk_dot_u1_haswell, *c = nk_cap_haswell_k; return;
         case nk_kernel_hamming_k: *m = (m_t)&nk_hamming_u1_haswell, *c = nk_cap_haswell_k; return;
         case nk_kernel_jaccard_k: *m = (m_t)&nk_jaccard_u1_haswell, *c = nk_cap_haswell_k; return;
-        case nk_kernel_hammings_packed_size_k:
-            *m = (m_t)&nk_hammings_packed_size_u1_haswell, *c = nk_cap_haswell_k;
-            return;
-        case nk_kernel_hammings_pack_k: *m = (m_t)&nk_hammings_pack_u1_haswell, *c = nk_cap_haswell_k; return;
+        case nk_kernel_dots_packed_size_k: *m = (m_t)&nk_dots_packed_size_u1_serial, *c = nk_cap_haswell_k; return;
+        case nk_kernel_dots_pack_k: *m = (m_t)&nk_dots_pack_u1_serial, *c = nk_cap_haswell_k; return;
+        case nk_kernel_dots_packed_k: *m = (m_t)&nk_dots_packed_u1_haswell, *c = nk_cap_haswell_k; return;
+        case nk_kernel_dots_symmetric_k: *m = (m_t)&nk_dots_symmetric_u1_haswell, *c = nk_cap_haswell_k; return;
         case nk_kernel_hammings_packed_k: *m = (m_t)&nk_hammings_packed_u1_haswell, *c = nk_cap_haswell_k; return;
         case nk_kernel_hammings_symmetric_k: *m = (m_t)&nk_hammings_symmetric_u1_haswell, *c = nk_cap_haswell_k; return;
+        case nk_kernel_jaccards_packed_k: *m = (m_t)&nk_jaccards_packed_u1_haswell, *c = nk_cap_haswell_k; return;
+        case nk_kernel_jaccards_symmetric_k: *m = (m_t)&nk_jaccards_symmetric_u1_haswell, *c = nk_cap_haswell_k; return;
         case nk_kernel_reduce_moments_k: *m = (m_t)&nk_reduce_moments_u1_haswell, *c = nk_cap_haswell_k; return;
         default: break;
         }
@@ -99,12 +111,14 @@ void nk_dispatch_u1_find_(nk_capability_t v, nk_kernel_kind_t k, nk_kernel_punne
         case nk_kernel_dot_k: *m = (m_t)&nk_dot_u1_serial, *c = nk_cap_serial_k; return;
         case nk_kernel_hamming_k: *m = (m_t)&nk_hamming_u1_serial, *c = nk_cap_serial_k; return;
         case nk_kernel_jaccard_k: *m = (m_t)&nk_jaccard_u1_serial, *c = nk_cap_serial_k; return;
-        case nk_kernel_hammings_packed_size_k:
-            *m = (m_t)&nk_hammings_packed_size_u1_serial, *c = nk_cap_serial_k;
-            return;
-        case nk_kernel_hammings_pack_k: *m = (m_t)&nk_hammings_pack_u1_serial, *c = nk_cap_serial_k; return;
+        case nk_kernel_dots_packed_size_k: *m = (m_t)&nk_dots_packed_size_u1_serial, *c = nk_cap_serial_k; return;
+        case nk_kernel_dots_pack_k: *m = (m_t)&nk_dots_pack_u1_serial, *c = nk_cap_serial_k; return;
+        case nk_kernel_dots_packed_k: *m = (m_t)&nk_dots_packed_u1_serial, *c = nk_cap_serial_k; return;
+        case nk_kernel_dots_symmetric_k: *m = (m_t)&nk_dots_symmetric_u1_serial, *c = nk_cap_serial_k; return;
         case nk_kernel_hammings_packed_k: *m = (m_t)&nk_hammings_packed_u1_serial, *c = nk_cap_serial_k; return;
         case nk_kernel_hammings_symmetric_k: *m = (m_t)&nk_hammings_symmetric_u1_serial, *c = nk_cap_serial_k; return;
+        case nk_kernel_jaccards_packed_k: *m = (m_t)&nk_jaccards_packed_u1_serial, *c = nk_cap_serial_k; return;
+        case nk_kernel_jaccards_symmetric_k: *m = (m_t)&nk_jaccards_symmetric_u1_serial, *c = nk_cap_serial_k; return;
         case nk_kernel_reduce_moments_k: *m = (m_t)&nk_reduce_moments_u1_serial, *c = nk_cap_serial_k; return;
         case nk_kernel_reduce_minmax_k: *m = (m_t)&nk_reduce_minmax_u1_serial, *c = nk_cap_serial_k; return;
         default: break;
@@ -121,11 +135,14 @@ void nk_dispatch_u1_init_(nk_capability_t caps) {
     nk_dispatch_u1_find_(caps, nk_kernel_dot_k, (nk_kernel_punned_t *)&t->dot_u1, &used);
     nk_dispatch_u1_find_(caps, nk_kernel_hamming_k, (nk_kernel_punned_t *)&t->hamming_u1, &used);
     nk_dispatch_u1_find_(caps, nk_kernel_jaccard_k, (nk_kernel_punned_t *)&t->jaccard_u1, &used);
-    nk_dispatch_u1_find_(caps, nk_kernel_hammings_packed_size_k, (nk_kernel_punned_t *)&t->hammings_packed_size_u1,
-                         &used);
-    nk_dispatch_u1_find_(caps, nk_kernel_hammings_pack_k, (nk_kernel_punned_t *)&t->hammings_pack_u1, &used);
+    nk_dispatch_u1_find_(caps, nk_kernel_dots_packed_size_k, (nk_kernel_punned_t *)&t->dots_packed_size_u1, &used);
+    nk_dispatch_u1_find_(caps, nk_kernel_dots_pack_k, (nk_kernel_punned_t *)&t->dots_pack_u1, &used);
+    nk_dispatch_u1_find_(caps, nk_kernel_dots_packed_k, (nk_kernel_punned_t *)&t->dots_packed_u1, &used);
+    nk_dispatch_u1_find_(caps, nk_kernel_dots_symmetric_k, (nk_kernel_punned_t *)&t->dots_symmetric_u1, &used);
     nk_dispatch_u1_find_(caps, nk_kernel_hammings_packed_k, (nk_kernel_punned_t *)&t->hammings_packed_u1, &used);
     nk_dispatch_u1_find_(caps, nk_kernel_hammings_symmetric_k, (nk_kernel_punned_t *)&t->hammings_symmetric_u1, &used);
+    nk_dispatch_u1_find_(caps, nk_kernel_jaccards_packed_k, (nk_kernel_punned_t *)&t->jaccards_packed_u1, &used);
+    nk_dispatch_u1_find_(caps, nk_kernel_jaccards_symmetric_k, (nk_kernel_punned_t *)&t->jaccards_symmetric_u1, &used);
     nk_dispatch_u1_find_(caps, nk_kernel_reduce_moments_k, (nk_kernel_punned_t *)&t->reduce_moments_u1, &used);
     nk_dispatch_u1_find_(caps, nk_kernel_reduce_minmax_k, (nk_kernel_punned_t *)&t->reduce_minmax_u1, &used);
 }

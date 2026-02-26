@@ -41,6 +41,22 @@ extern "C" {
 #pragma GCC target("avx2", "avx512f", "avx512vl", "avx512bw", "avx512dq", "f16c", "fma", "bmi", "bmi2")
 #endif
 
+/** @brief Reciprocal square root of 16 floats with Newton-Raphson refinement (~28-bit precision). */
+NK_INTERNAL __m512 nk_rsqrt_f32x16_skylake_(__m512 x) {
+    __m512 rsqrt = _mm512_rsqrt14_ps(x);
+    __m512 nr = _mm512_mul_ps(_mm512_mul_ps(x, rsqrt), rsqrt);
+    nr = _mm512_sub_ps(_mm512_set1_ps(3.0f), nr);
+    return _mm512_mul_ps(_mm512_mul_ps(_mm512_set1_ps(0.5f), rsqrt), nr);
+}
+
+/** @brief Reciprocal square root of 8 doubles with Newton-Raphson refinement (~28-bit precision). */
+NK_INTERNAL __m512d nk_rsqrt_f64x8_skylake_(__m512d x) {
+    __m512d rsqrt = _mm512_rsqrt14_pd(x);
+    __m512d nr = _mm512_mul_pd(_mm512_mul_pd(x, rsqrt), rsqrt);
+    nr = _mm512_sub_pd(_mm512_set1_pd(3.0), nr);
+    return _mm512_mul_pd(_mm512_mul_pd(_mm512_set1_pd(0.5), rsqrt), nr);
+}
+
 #pragma region - Traditional Floats
 
 NK_PUBLIC void nk_sqeuclidean_f32_skylake(nk_f32_t const *a, nk_f32_t const *b, nk_size_t n, nk_f32_t *result) {
@@ -208,176 +224,62 @@ nk_angular_f64_skylake_cycle:
     *result = nk_angular_normalize_f64_skylake_(dot_product_f64, a_norm_sq_f64, b_norm_sq_f64);
 }
 
-typedef nk_dot_f64x8_state_skylake_t nk_angular_f64x8_state_skylake_t;
-
-NK_INTERNAL void nk_angular_f64x8_init_skylake(nk_angular_f64x8_state_skylake_t *state) {
-    nk_dot_f64x8_init_skylake(state);
-}
-
-NK_INTERNAL void nk_angular_f64x8_update_skylake(nk_angular_f64x8_state_skylake_t *state, nk_b512_vec_t a,
-                                                 nk_b512_vec_t b, nk_size_t depth_offset, nk_size_t active_dimensions) {
-    nk_dot_f64x8_update_skylake(state, a, b, depth_offset, active_dimensions);
-}
-
-NK_INTERNAL void nk_angular_f64x8_finalize_skylake(nk_angular_f64x8_state_skylake_t const *state_a,
-                                                   nk_angular_f64x8_state_skylake_t const *state_b,
-                                                   nk_angular_f64x8_state_skylake_t const *state_c,
-                                                   nk_angular_f64x8_state_skylake_t const *state_d, nk_f64_t query_norm,
-                                                   nk_f64_t target_norm_a, nk_f64_t target_norm_b,
-                                                   nk_f64_t target_norm_c, nk_f64_t target_norm_d,
-                                                   nk_size_t total_dimensions, nk_f64_t *results) {
-    // Extract all 4 dot products with single ILP-optimized call
-    nk_b256_vec_t dots_vec;
-    nk_dot_f64x8_finalize_skylake(state_a, state_b, state_c, state_d, total_dimensions, &dots_vec);
-
-    // Build 256-bit F64 vectors for parallel angular computation (use 4 F64 values = 256-bit)
-    __m256d dots_f64x4 = dots_vec.ymm_pd;
-    __m256d query_norm_f64x4 = _mm256_set1_pd(query_norm);
-    __m256d target_norms_f64x4 = _mm256_set_pd(target_norm_d, target_norm_c, target_norm_b, target_norm_a);
-
-    // Compute products = ‖query‖ × ‖target‖ for all 4
-    __m256d products_f64x4 = _mm256_mul_pd(query_norm_f64x4, target_norms_f64x4);
-
-    // Compute sqrt and normalize: 1 - dot / sqrt(product)
+/** @brief Angular from_dot for native f64: 1 − dot / √(query_sumsq × target_sumsq) for 4 pairs. */
+NK_INTERNAL void nk_angular_f64x4_from_dot_skylake_(nk_b256_vec_t dots, nk_f64_t query_sumsq,
+                                                    nk_b256_vec_t target_sumsqs, nk_b256_vec_t *results) {
+    __m256d dots_f64x4 = dots.ymm_pd;
+    __m256d query_sumsq_f64x4 = _mm256_set1_pd(query_sumsq);
+    __m256d products_f64x4 = _mm256_mul_pd(query_sumsq_f64x4, target_sumsqs.ymm_pd);
     __m256d sqrt_products_f64x4 = _mm256_sqrt_pd(products_f64x4);
     __m256d normalized_f64x4 = _mm256_div_pd(dots_f64x4, sqrt_products_f64x4);
     __m256d ones_f64x4 = _mm256_set1_pd(1.0);
     __m256d angular_f64x4 = _mm256_sub_pd(ones_f64x4, normalized_f64x4);
-
-    // Store results
-    _mm256_storeu_pd(results, angular_f64x4);
+    results->ymm_pd = _mm256_max_pd(angular_f64x4, _mm256_setzero_pd());
 }
 
-typedef nk_dot_f64x8_state_skylake_t nk_euclidean_f64x8_state_skylake_t;
-
-NK_INTERNAL void nk_euclidean_f64x8_init_skylake(nk_euclidean_f64x8_state_skylake_t *state) {
-    nk_dot_f64x8_init_skylake(state);
-}
-
-NK_INTERNAL void nk_euclidean_f64x8_update_skylake(nk_euclidean_f64x8_state_skylake_t *state, nk_b512_vec_t a,
-                                                   nk_b512_vec_t b, nk_size_t depth_offset,
-                                                   nk_size_t active_dimensions) {
-    nk_dot_f64x8_update_skylake(state, a, b, depth_offset, active_dimensions);
-}
-
-NK_INTERNAL void nk_euclidean_f64x8_finalize_skylake(
-    nk_euclidean_f64x8_state_skylake_t const *state_a, nk_euclidean_f64x8_state_skylake_t const *state_b,
-    nk_euclidean_f64x8_state_skylake_t const *state_c, nk_euclidean_f64x8_state_skylake_t const *state_d,
-    nk_f64_t query_norm, nk_f64_t target_norm_a, nk_f64_t target_norm_b, nk_f64_t target_norm_c, nk_f64_t target_norm_d,
-    nk_size_t total_dimensions, nk_f64_t *results) {
-    // Extract all 4 dot products with single ILP-optimized call
-    nk_b256_vec_t dots_vec;
-    nk_dot_f64x8_finalize_skylake(state_a, state_b, state_c, state_d, total_dimensions, &dots_vec);
-
-    // Build 256-bit F64 vectors for parallel L2 distance: √(q² + t² − 2 × dot)
-    __m256d dots_f64x4 = dots_vec.ymm_pd;
-    __m256d query_norm_f64x4 = _mm256_set1_pd(query_norm);
-    __m256d target_norms_f64x4 = _mm256_set_pd(target_norm_d, target_norm_c, target_norm_b, target_norm_a);
-
-    // Compute squared norms in parallel
-    __m256d query_sq_f64x4 = _mm256_mul_pd(query_norm_f64x4, query_norm_f64x4);
-    __m256d target_sq_f64x4 = _mm256_mul_pd(target_norms_f64x4, target_norms_f64x4);
-
-    // Compute distance squared: q² + t² - 2*dot using FMA
+/** @brief Euclidean from_dot for native f64: √(query_sumsq + target_sumsq − 2 × dot) for 4 pairs. */
+NK_INTERNAL void nk_euclidean_f64x4_from_dot_skylake_(nk_b256_vec_t dots, nk_f64_t query_sumsq,
+                                                      nk_b256_vec_t target_sumsqs, nk_b256_vec_t *results) {
+    __m256d dots_f64x4 = dots.ymm_pd;
+    __m256d query_sumsq_f64x4 = _mm256_set1_pd(query_sumsq);
     __m256d two_f64x4 = _mm256_set1_pd(2.0);
-    __m256d sum_sq_f64x4 = _mm256_add_pd(query_sq_f64x4, target_sq_f64x4);
+    __m256d sum_sq_f64x4 = _mm256_add_pd(query_sumsq_f64x4, target_sumsqs.ymm_pd);
     __m256d dist_sq_f64x4 = _mm256_fnmadd_pd(two_f64x4, dots_f64x4, sum_sq_f64x4);
-
-    // Clamp negative to zero, then sqrt
     __m256d zeros_f64x4 = _mm256_setzero_pd();
     __m256d clamped_f64x4 = _mm256_max_pd(dist_sq_f64x4, zeros_f64x4);
-    __m256d dist_f64x4 = _mm256_sqrt_pd(clamped_f64x4);
-
-    // Store results
-    _mm256_storeu_pd(results, dist_f64x4);
+    results->ymm_pd = _mm256_sqrt_pd(clamped_f64x4);
 }
 
-typedef nk_dot_f32x8_state_skylake_t nk_angular_f32x8_state_skylake_t;
-
-NK_INTERNAL void nk_angular_f32x8_init_skylake(nk_angular_f32x8_state_skylake_t *state) {
-    nk_dot_f32x8_init_skylake(state);
-}
-
-NK_INTERNAL void nk_angular_f32x8_update_skylake(nk_angular_f32x8_state_skylake_t *state, nk_b256_vec_t a,
-                                                 nk_b256_vec_t b, nk_size_t depth_offset, nk_size_t active_dimensions) {
-    nk_dot_f32x8_update_skylake(state, a, b, depth_offset, active_dimensions);
-}
-
-NK_INTERNAL void nk_angular_f32x8_finalize_skylake(nk_angular_f32x8_state_skylake_t const *state_a,
-                                                   nk_angular_f32x8_state_skylake_t const *state_b,
-                                                   nk_angular_f32x8_state_skylake_t const *state_c,
-                                                   nk_angular_f32x8_state_skylake_t const *state_d, //
-                                                   nk_f32_t query_norm, nk_f32_t target_norm_a, nk_f32_t target_norm_b,
-                                                   nk_f32_t target_norm_c, nk_f32_t target_norm_d,
-                                                   nk_size_t total_dimensions, nk_f32_t *results) {
-    // Extract all 4 dot products with single ILP-optimized call
-    nk_b128_vec_t dots_vec;
-    nk_dot_f32x8_finalize_skylake(state_a, state_b, state_c, state_d, total_dimensions, &dots_vec);
-
-    // Build 256-bit F64 vectors for higher precision angular computation
-    __m256d dots_f64x4 = _mm256_cvtps_pd(dots_vec.xmm_ps);
-    __m256d query_norm_f64x4 = _mm256_set1_pd((nk_f64_t)query_norm);
-    __m256d target_norms_f64x4 = _mm256_set_pd((nk_f64_t)target_norm_d, (nk_f64_t)target_norm_c,
-                                               (nk_f64_t)target_norm_b, (nk_f64_t)target_norm_a);
-
-    // Compute products = ‖query‖ × ‖target‖ for all 4
-    __m256d products_f64x4 = _mm256_mul_pd(query_norm_f64x4, target_norms_f64x4);
-
-    // Compute sqrt and normalize: 1 - dot / sqrt(product)
+/** @brief Angular from_dot: f32 dots upcast to f64 for precision. Output via nk_b128_vec_t (f32). */
+NK_INTERNAL void nk_angular_through_f64_from_dot_skylake_(nk_b128_vec_t dots, nk_f32_t query_sumsq,
+                                                          nk_b128_vec_t target_sumsqs, nk_b128_vec_t *results) {
+    __m128 dots_f32x4 = dots.xmm_ps;
+    __m256d dots_f64x4 = _mm256_cvtps_pd(dots_f32x4);
+    __m256d query_sumsq_f64x4 = _mm256_set1_pd((nk_f64_t)query_sumsq);
+    __m256d target_sumsqs_f64x4 = _mm256_cvtps_pd(target_sumsqs.xmm_ps);
+    __m256d products_f64x4 = _mm256_mul_pd(query_sumsq_f64x4, target_sumsqs_f64x4);
     __m256d sqrt_products_f64x4 = _mm256_sqrt_pd(products_f64x4);
     __m256d normalized_f64x4 = _mm256_div_pd(dots_f64x4, sqrt_products_f64x4);
     __m256d ones_f64x4 = _mm256_set1_pd(1.0);
     __m256d angular_f64x4 = _mm256_sub_pd(ones_f64x4, normalized_f64x4);
-
-    // Convert f64x4 → f32x4 and store
-    __m128 angular_f32x4 = _mm256_cvtpd_ps(angular_f64x4);
-    _mm_storeu_ps(results, angular_f32x4);
+    angular_f64x4 = _mm256_max_pd(angular_f64x4, _mm256_setzero_pd());
+    results->xmm_ps = _mm256_cvtpd_ps(angular_f64x4);
 }
 
-typedef nk_dot_f32x8_state_skylake_t nk_euclidean_f32x8_state_skylake_t;
-
-NK_INTERNAL void nk_euclidean_f32x8_init_skylake(nk_euclidean_f32x8_state_skylake_t *state) {
-    nk_dot_f32x8_init_skylake(state);
-}
-
-NK_INTERNAL void nk_euclidean_f32x8_update_skylake(nk_euclidean_f32x8_state_skylake_t *state, nk_b256_vec_t a,
-                                                   nk_b256_vec_t b, nk_size_t depth_offset,
-                                                   nk_size_t active_dimensions) {
-    nk_dot_f32x8_update_skylake(state, a, b, depth_offset, active_dimensions);
-}
-
-NK_INTERNAL void nk_euclidean_f32x8_finalize_skylake(
-    nk_euclidean_f32x8_state_skylake_t const *state_a, nk_euclidean_f32x8_state_skylake_t const *state_b,
-    nk_euclidean_f32x8_state_skylake_t const *state_c, nk_euclidean_f32x8_state_skylake_t const *state_d,
-    nk_f32_t query_norm, nk_f32_t target_norm_a, nk_f32_t target_norm_b, nk_f32_t target_norm_c, nk_f32_t target_norm_d,
-    nk_size_t total_dimensions, nk_f32_t *results) {
-    // Extract all 4 dot products with single ILP-optimized call
-    nk_b128_vec_t dots_vec;
-    nk_dot_f32x8_finalize_skylake(state_a, state_b, state_c, state_d, total_dimensions, &dots_vec);
-
-    // Build 256-bit F64 vectors for parallel L2 distance: √(q² + t² − 2 × dot)
-    __m256d dots_f64x4 = _mm256_cvtps_pd(dots_vec.xmm_ps);
-    __m256d query_norm_f64x4 = _mm256_set1_pd((nk_f64_t)query_norm);
-    __m256d target_norms_f64x4 = _mm256_set_pd((nk_f64_t)target_norm_d, (nk_f64_t)target_norm_c,
-                                               (nk_f64_t)target_norm_b, (nk_f64_t)target_norm_a);
-
-    // Compute squared norms in parallel
-    __m256d query_sq_f64x4 = _mm256_mul_pd(query_norm_f64x4, query_norm_f64x4);
-    __m256d target_sq_f64x4 = _mm256_mul_pd(target_norms_f64x4, target_norms_f64x4);
-
-    // Compute distance squared: q² + t² - 2*dot using FMA
+/** @brief Euclidean from_dot: f32 dots upcast to f64 for precision. Output via nk_b128_vec_t (f32). */
+NK_INTERNAL void nk_euclidean_through_f64_from_dot_skylake_(nk_b128_vec_t dots, nk_f32_t query_sumsq,
+                                                            nk_b128_vec_t target_sumsqs, nk_b128_vec_t *results) {
+    __m128 dots_f32x4 = dots.xmm_ps;
+    __m256d dots_f64x4 = _mm256_cvtps_pd(dots_f32x4);
+    __m256d query_sumsq_f64x4 = _mm256_set1_pd((nk_f64_t)query_sumsq);
+    __m256d target_sumsqs_f64x4 = _mm256_cvtps_pd(target_sumsqs.xmm_ps);
     __m256d two_f64x4 = _mm256_set1_pd(2.0);
-    __m256d sum_sq_f64x4 = _mm256_add_pd(query_sq_f64x4, target_sq_f64x4);
+    __m256d sum_sq_f64x4 = _mm256_add_pd(query_sumsq_f64x4, target_sumsqs_f64x4);
     __m256d dist_sq_f64x4 = _mm256_fnmadd_pd(two_f64x4, dots_f64x4, sum_sq_f64x4);
-
-    // Clamp negative to zero, then sqrt
     __m256d zeros_f64x4 = _mm256_setzero_pd();
     __m256d clamped_f64x4 = _mm256_max_pd(dist_sq_f64x4, zeros_f64x4);
     __m256d dist_f64x4 = _mm256_sqrt_pd(clamped_f64x4);
-
-    // Convert f64x4 → f32x4 and store
-    __m128 dist_f32x4 = _mm256_cvtpd_ps(dist_f64x4);
-    _mm_storeu_ps(results, dist_f32x4);
+    results->xmm_ps = _mm256_cvtpd_ps(dist_f64x4);
 }
 
 #pragma endregion - Traditional Floats

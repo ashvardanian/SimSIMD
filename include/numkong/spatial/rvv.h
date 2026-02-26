@@ -113,6 +113,42 @@ NK_INTERNAL nk_f64_t nk_f64_sqrt_rvv(nk_f64_t number) {
 }
 
 /**
+ *  @brief  Vectorized `1/√x` for f32 m1 register group using `vfrsqrt7` + 2 Newton-Raphson steps.
+ *
+ *  Achieves ~28 bits of precision, sufficient for f32's 23-bit mantissa.
+ *  Formula per iteration: y' = y × (3 − x × y²) × 0.5
+ */
+NK_INTERNAL vfloat32m1_t nk_rsqrt_f32m1_rvv_(vfloat32m1_t values_f32m1, size_t vector_length) {
+    vfloat32m1_t rsqrt_f32m1 = __riscv_vfrsqrt7_v_f32m1(values_f32m1, vector_length);
+    for (int step = 0; step < 2; step++) {
+        vfloat32m1_t rsqrt_sq_f32m1 = __riscv_vfmul_vv_f32m1(rsqrt_f32m1, rsqrt_f32m1, vector_length);
+        vfloat32m1_t residual_f32m1 = __riscv_vfrsub_vf_f32m1(
+            __riscv_vfmul_vv_f32m1(values_f32m1, rsqrt_sq_f32m1, vector_length), 3.0f, vector_length);
+        rsqrt_f32m1 = __riscv_vfmul_vf_f32m1(__riscv_vfmul_vv_f32m1(rsqrt_f32m1, residual_f32m1, vector_length), 0.5f,
+                                             vector_length);
+    }
+    return rsqrt_f32m1;
+}
+
+/**
+ *  @brief  Vectorized `1/√x` for f64 m1 register group using `vfrsqrt7` + 3 Newton-Raphson steps.
+ *
+ *  Achieves ~56 bits of precision, sufficient for f64's 52-bit mantissa.
+ *  Formula per iteration: y' = y × (3 − x × y²) × 0.5
+ */
+NK_INTERNAL vfloat64m1_t nk_rsqrt_f64m1_rvv_(vfloat64m1_t values_f64m1, size_t vector_length) {
+    vfloat64m1_t rsqrt_f64m1 = __riscv_vfrsqrt7_v_f64m1(values_f64m1, vector_length);
+    for (int step = 0; step < 3; step++) {
+        vfloat64m1_t rsqrt_sq_f64m1 = __riscv_vfmul_vv_f64m1(rsqrt_f64m1, rsqrt_f64m1, vector_length);
+        vfloat64m1_t residual_f64m1 = __riscv_vfrsub_vf_f64m1(
+            __riscv_vfmul_vv_f64m1(values_f64m1, rsqrt_sq_f64m1, vector_length), 3.0, vector_length);
+        rsqrt_f64m1 = __riscv_vfmul_vf_f64m1(__riscv_vfmul_vv_f64m1(rsqrt_f64m1, residual_f64m1, vector_length), 0.5,
+                                             vector_length);
+    }
+    return rsqrt_f64m1;
+}
+
+/**
  *  @brief Approximate reciprocal of f32 vector (m4) using vfrec7 + 2 Newton-Raphson steps.
  *  Achieves ~28-bit precision, sufficient for f32 (24-bit mantissa).
  */
@@ -411,22 +447,18 @@ NK_PUBLIC void nk_angular_f64_rvv(nk_f64_t const *a_scalars, nk_f64_t const *b_s
 
         // TwoProd: product = a*b, product_error = fma(a,b,-product)
         vfloat64m1_t product_f64m1 = __riscv_vfmul_vv_f64m1(a_f64m1, b_f64m1, vector_length);
-        vfloat64m1_t product_error_f64m1 =
-            __riscv_vfmsac_vv_f64m1(product_f64m1, a_f64m1, b_f64m1, vector_length);
+        vfloat64m1_t product_error_f64m1 = __riscv_vfmsac_vv_f64m1(product_f64m1, a_f64m1, b_f64m1, vector_length);
         // TwoSum: tentative_sum = sum + product
-        vfloat64m1_t tentative_sum_f64m1 =
-            __riscv_vfadd_vv_f64m1(dot_sum_f64m1, product_f64m1, vector_length);
-        vfloat64m1_t virtual_addend_f64m1 =
-            __riscv_vfsub_vv_f64m1(tentative_sum_f64m1, dot_sum_f64m1, vector_length);
+        vfloat64m1_t tentative_sum_f64m1 = __riscv_vfadd_vv_f64m1(dot_sum_f64m1, product_f64m1, vector_length);
+        vfloat64m1_t virtual_addend_f64m1 = __riscv_vfsub_vv_f64m1(tentative_sum_f64m1, dot_sum_f64m1, vector_length);
         vfloat64m1_t sum_error_f64m1 = __riscv_vfadd_vv_f64m1(
-            __riscv_vfsub_vv_f64m1(
-                dot_sum_f64m1,
-                __riscv_vfsub_vv_f64m1(tentative_sum_f64m1, virtual_addend_f64m1, vector_length), vector_length),
+            __riscv_vfsub_vv_f64m1(dot_sum_f64m1,
+                                   __riscv_vfsub_vv_f64m1(tentative_sum_f64m1, virtual_addend_f64m1, vector_length),
+                                   vector_length),
             __riscv_vfsub_vv_f64m1(product_f64m1, virtual_addend_f64m1, vector_length), vector_length);
         // Tail-undisturbed updates: preserve zero tails across partial iterations
         dot_sum_f64m1 = __riscv_vslideup_vx_f64m1_tu(dot_sum_f64m1, tentative_sum_f64m1, 0, vector_length);
-        vfloat64m1_t total_error_f64m1 =
-            __riscv_vfadd_vv_f64m1(sum_error_f64m1, product_error_f64m1, vector_length);
+        vfloat64m1_t total_error_f64m1 = __riscv_vfadd_vv_f64m1(sum_error_f64m1, product_error_f64m1, vector_length);
         dot_compensation_f64m1 = __riscv_vfadd_vv_f64m1_tu(dot_compensation_f64m1, dot_compensation_f64m1,
                                                            total_error_f64m1, vector_length);
         // Simple FMA for self-products (no cancellation possible)

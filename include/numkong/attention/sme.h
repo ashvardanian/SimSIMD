@@ -116,11 +116,11 @@ extern "C" {
  *  3. Shift left by 16 to place in f32 exponent+mantissa position
  *  4. Reinterpret as f32
  */
-NK_INTERNAL svfloat32_t nk_bf16_to_f32_sve_(svbool_t predicate_f32x, svbfloat16_t x) __arm_streaming {
-    svuint16_t u16 = svreinterpret_u16_bf16(x);
-    svuint32_t u32 = svunpklo_u32(u16);
-    u32 = svlsl_n_u32_x(predicate_f32x, u32, 16);
-    return svreinterpret_f32_u32(u32);
+NK_INTERNAL svfloat32_t nk_bf16_to_f32_sve_(svbool_t predicate_f32x, svbfloat16_t x_bf16x) __arm_streaming {
+    svuint16_t x_u16x = svreinterpret_u16_bf16(x_bf16x);
+    svuint32_t x_u32x = svunpklo_u32(x_u16x);
+    x_u32x = svlsl_n_u32_x(predicate_f32x, x_u32x, 16);
+    return svreinterpret_f32_u32(x_u32x);
 }
 
 /**
@@ -131,12 +131,12 @@ NK_INTERNAL svfloat32_t nk_bf16_to_f32_sve_(svbool_t predicate_f32x, svbfloat16_
  *  3. Shift right by 16
  *  4. Narrow to u16 and reinterpret as bf16
  */
-NK_INTERNAL svbfloat16_t nk_f32_to_bf16_sve_(svbool_t predicate_f32x, svfloat32_t x) __arm_streaming {
-    svuint32_t u32 = svreinterpret_u32_f32(x);
-    u32 = svadd_n_u32_x(predicate_f32x, u32, 0x8000); // Round to nearest
-    u32 = svlsr_n_u32_x(predicate_f32x, u32, 16);
-    svuint16_t u16 = svuzp1_u16(svreinterpret_u16_u32(u32), svreinterpret_u16_u32(u32));
-    return svreinterpret_bf16_u16(u16);
+NK_INTERNAL svbfloat16_t nk_f32_to_bf16_sve_(svbool_t predicate_f32x, svfloat32_t x_f32x) __arm_streaming {
+    svuint32_t x_u32x = svreinterpret_u32_f32(x_f32x);
+    x_u32x = svadd_n_u32_x(predicate_f32x, x_u32x, 0x8000); // Round to nearest
+    x_u32x = svlsr_n_u32_x(predicate_f32x, x_u32x, 16);
+    svuint16_t x_u16x = svuzp1_u16(svreinterpret_u16_u32(x_u32x), svreinterpret_u16_u32(x_u32x));
+    return svreinterpret_bf16_u16(x_u16x);
 }
 
 /**
@@ -166,7 +166,7 @@ typedef struct {
  *  @param x Input vector
  *  @return exp(x) approximation
  */
-NK_INTERNAL svfloat32_t nk_exp_f32_sve_(svbool_t predicate_f32x, svfloat32_t x) __arm_streaming {
+NK_INTERNAL svfloat32_t nk_exp_f32_sve_(svbool_t predicate_f32x, svfloat32_t x_f32x) __arm_streaming {
     // Constants for Cody-Waite range reduction
     svfloat32_t log2e_f32x = svdup_f32(1.4426950408889634f);
     svfloat32_t ln2_hi_f32x = svdup_f32(0.693145751953125f);
@@ -175,13 +175,13 @@ NK_INTERNAL svfloat32_t nk_exp_f32_sve_(svbool_t predicate_f32x, svfloat32_t x) 
     // Clamp to avoid overflow/underflow
     svfloat32_t max_x_f32x = svdup_f32(88.3762626647949f);
     svfloat32_t min_x_f32x = svdup_f32(-87.3365447504021f);
-    x = svmax_f32_m(predicate_f32x, svmin_f32_m(predicate_f32x, x, max_x_f32x), min_x_f32x);
+    x_f32x = svmax_f32_m(predicate_f32x, svmin_f32_m(predicate_f32x, x_f32x, max_x_f32x), min_x_f32x);
 
     // n = round(x / ln(2))
-    svfloat32_t n_f32x = svrintn_f32_m(svundef_f32(), predicate_f32x, svmul_f32_m(predicate_f32x, x, log2e_f32x));
+    svfloat32_t n_f32x = svrintn_f32_m(svundef_f32(), predicate_f32x, svmul_f32_m(predicate_f32x, x_f32x, log2e_f32x));
 
     // r = x - n × ln(2) using Cody-Waite for precision
-    svfloat32_t r_f32x = svmsb_f32_m(predicate_f32x, n_f32x, ln2_hi_f32x, x);
+    svfloat32_t r_f32x = svmsb_f32_m(predicate_f32x, n_f32x, ln2_hi_f32x, x_f32x);
     r_f32x = svmsb_f32_m(predicate_f32x, n_f32x, ln2_lo_f32x, r_f32x);
 
     // Polynomial approximation for exp(r): degree 4
@@ -194,10 +194,10 @@ NK_INTERNAL svfloat32_t nk_exp_f32_sve_(svbool_t predicate_f32x, svfloat32_t x) 
 
     // Reconstruct: exp(x) = 2ⁿ × exp(r)
     // 2ⁿ via IEEE 754 exponent manipulation
-    svint32_t ni = svcvt_s32_f32_m(svundef_s32(), predicate_f32x, n_f32x);
-    ni = svadd_s32_m(predicate_f32x, ni, svdup_s32(127));
-    ni = svlsl_n_s32_m(predicate_f32x, ni, 23);
-    svfloat32_t pow2n_f32x = svreinterpret_f32_s32(ni);
+    svint32_t n_i32x = svcvt_s32_f32_m(svundef_s32(), predicate_f32x, n_f32x);
+    n_i32x = svadd_s32_m(predicate_f32x, n_i32x, svdup_s32(127));
+    n_i32x = svlsl_n_s32_m(predicate_f32x, n_i32x, 23);
+    svfloat32_t pow2n_f32x = svreinterpret_f32_s32(n_i32x);
 
     return svmul_f32_m(predicate_f32x, p_f32x, pow2n_f32x);
 }
@@ -206,17 +206,17 @@ NK_INTERNAL svfloat32_t nk_exp_f32_sve_(svbool_t predicate_f32x, svfloat32_t x) 
  *  @brief Degree-3 fast exp approximation. Max relative error ~0.5%.
  *  Saves 1 FMA per call vs degree-4 nk_exp_f32_sve_.
  */
-NK_INTERNAL svfloat32_t nk_exp_fast_f32_sve_(svbool_t predicate_f32x, svfloat32_t x) __arm_streaming {
+NK_INTERNAL svfloat32_t nk_exp_fast_f32_sve_(svbool_t predicate_f32x, svfloat32_t x_f32x) __arm_streaming {
     svfloat32_t log2e_f32x = svdup_f32(1.4426950408889634f);
     svfloat32_t ln2_hi_f32x = svdup_f32(0.693145751953125f);
     svfloat32_t ln2_lo_f32x = svdup_f32(1.42860682030941723212e-6f);
 
     svfloat32_t max_x_f32x = svdup_f32(88.3762626647949f);
     svfloat32_t min_x_f32x = svdup_f32(-87.3365447504021f);
-    x = svmax_f32_m(predicate_f32x, svmin_f32_m(predicate_f32x, x, max_x_f32x), min_x_f32x);
+    x_f32x = svmax_f32_m(predicate_f32x, svmin_f32_m(predicate_f32x, x_f32x, max_x_f32x), min_x_f32x);
 
-    svfloat32_t n_f32x = svrintn_f32_m(svundef_f32(), predicate_f32x, svmul_f32_m(predicate_f32x, x, log2e_f32x));
-    svfloat32_t r_f32x = svmsb_f32_m(predicate_f32x, n_f32x, ln2_hi_f32x, x);
+    svfloat32_t n_f32x = svrintn_f32_m(svundef_f32(), predicate_f32x, svmul_f32_m(predicate_f32x, x_f32x, log2e_f32x));
+    svfloat32_t r_f32x = svmsb_f32_m(predicate_f32x, n_f32x, ln2_hi_f32x, x_f32x);
     r_f32x = svmsb_f32_m(predicate_f32x, n_f32x, ln2_lo_f32x, r_f32x);
 
     // Degree-3: exp(r) ~ 1 + r + r^2/2 + r^3/6 (drop 1/24 term)
@@ -225,10 +225,10 @@ NK_INTERNAL svfloat32_t nk_exp_fast_f32_sve_(svbool_t predicate_f32x, svfloat32_
     p_f32x = svmad_f32_m(predicate_f32x, p_f32x, r_f32x, svdup_f32(1.0f));             // 1
     p_f32x = svmad_f32_m(predicate_f32x, p_f32x, r_f32x, svdup_f32(1.0f));             // 1
 
-    svint32_t ni = svcvt_s32_f32_m(svundef_s32(), predicate_f32x, n_f32x);
-    ni = svadd_s32_m(predicate_f32x, ni, svdup_s32(127));
-    ni = svlsl_n_s32_m(predicate_f32x, ni, 23);
-    svfloat32_t pow2n_f32x = svreinterpret_f32_s32(ni);
+    svint32_t n_i32x = svcvt_s32_f32_m(svundef_s32(), predicate_f32x, n_f32x);
+    n_i32x = svadd_s32_m(predicate_f32x, n_i32x, svdup_s32(127));
+    n_i32x = svlsl_n_s32_m(predicate_f32x, n_i32x, 23);
+    svfloat32_t pow2n_f32x = svreinterpret_f32_s32(n_i32x);
 
     return svmul_f32_m(predicate_f32x, p_f32x, pow2n_f32x);
 }

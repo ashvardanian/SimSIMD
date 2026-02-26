@@ -144,7 +144,7 @@ extern "C" {
  *
  *  @note The output value can be negative.
  *  @note The output value is zero if and only if the two vectors are orthogonal.
- *  @note Defined only for floating-point and integer data types.
+ *  @note Defined for floating-point, integer, and binary data types.
  */
 NK_DYNAMIC void nk_dot_f32(nk_f32_t const *a, nk_f32_t const *b, nk_size_t n, nk_f32_t *result);
 /** @copydoc nk_dot_f32 */
@@ -178,9 +178,7 @@ NK_DYNAMIC void nk_dot_e3m2(nk_e3m2_t const *a, nk_e3m2_t const *b, nk_size_t n,
  *  @param[in] a_pairs The first complex vector.
  *  @param[in] b_pairs The second complex vector.
  *  @param[in] count_pairs The number of complex pairs in the vectors.
- *  @param[out] results The output complex value as {real, imag}.
- *
- *  @note The output value can be negative.
+ *  @param[out] result The output complex value as {real, imag}.
  */
 NK_DYNAMIC void nk_dot_f32c(nk_f32c_t const *a_pairs, nk_f32c_t const *b_pairs, nk_size_t count_pairs,
                             nk_f32c_t *result);
@@ -200,9 +198,7 @@ NK_DYNAMIC void nk_dot_bf16c(nk_bf16c_t const *a_pairs, nk_bf16c_t const *b_pair
  *  @param[in] a_pairs The first complex vector.
  *  @param[in] b_pairs The second complex vector.
  *  @param[in] count_pairs The number of complex pairs in the vectors.
- *  @param[out] results The output complex value as {real, imag}.
- *
- *  @note The output value can be negative.
+ *  @param[out] result The output complex value as {real, imag}.
  */
 NK_DYNAMIC void nk_vdot_f32c(nk_f32c_t const *a_pairs, nk_f32c_t const *b_pairs, nk_size_t count_pairs,
                              nk_f32c_t *result);
@@ -635,6 +631,7 @@ NK_PUBLIC void nk_dot_i8(nk_i8_t const *a, nk_i8_t const *b, nk_size_t n, nk_i32
     nk_dot_i8_serial(a, b, n, result);
 #endif
 }
+
 NK_PUBLIC void nk_dot_u8(nk_u8_t const *a, nk_u8_t const *b, nk_size_t n, nk_u32_t *result) {
 #if NK_TARGET_V128RELAXED
     nk_dot_u8_v128relaxed(a, b, n, result);
@@ -652,6 +649,7 @@ NK_PUBLIC void nk_dot_u8(nk_u8_t const *a, nk_u8_t const *b, nk_size_t n, nk_u32
     nk_dot_u8_serial(a, b, n, result);
 #endif
 }
+
 NK_PUBLIC void nk_dot_i4(nk_i4x2_t const *a, nk_i4x2_t const *b, nk_size_t n, nk_i32_t *result) {
 #if NK_TARGET_ICELAKE
     nk_dot_i4_icelake(a, b, n, result);
@@ -663,6 +661,7 @@ NK_PUBLIC void nk_dot_i4(nk_i4x2_t const *a, nk_i4x2_t const *b, nk_size_t n, nk
     nk_dot_i4_serial(a, b, n, result);
 #endif
 }
+
 NK_PUBLIC void nk_dot_u4(nk_u4x2_t const *a, nk_u4x2_t const *b, nk_size_t n, nk_u32_t *result) {
 #if NK_TARGET_ICELAKE
     nk_dot_u4_icelake(a, b, n, result);
@@ -674,6 +673,7 @@ NK_PUBLIC void nk_dot_u4(nk_u4x2_t const *a, nk_u4x2_t const *b, nk_size_t n, nk
     nk_dot_u4_serial(a, b, n, result);
 #endif
 }
+
 NK_PUBLIC void nk_dot_u1(nk_u1x8_t const *a, nk_u1x8_t const *b, nk_size_t n_bits, nk_u32_t *result) {
 #if NK_TARGET_ICELAKE
     nk_dot_u1_icelake(a, b, n_bits, result);
@@ -691,6 +691,7 @@ NK_PUBLIC void nk_dot_u1(nk_u1x8_t const *a, nk_u1x8_t const *b, nk_size_t n_bit
     nk_dot_u1_serial(a, b, n_bits, result);
 #endif
 }
+
 NK_PUBLIC void nk_dot_f16(nk_f16_t const *a, nk_f16_t const *b, nk_size_t n, nk_f32_t *result) {
 #if NK_TARGET_V128RELAXED
     nk_dot_f16_v128relaxed(a, b, n, result);
@@ -712,6 +713,7 @@ NK_PUBLIC void nk_dot_f16(nk_f16_t const *a, nk_f16_t const *b, nk_size_t n, nk_
     nk_dot_f16_serial(a, b, n, result);
 #endif
 }
+
 NK_PUBLIC void nk_dot_bf16(nk_bf16_t const *a, nk_bf16_t const *b, nk_size_t n, nk_f32_t *result) {
 #if NK_TARGET_V128RELAXED
     nk_dot_bf16_v128relaxed(a, b, n, result);
@@ -733,6 +735,7 @@ NK_PUBLIC void nk_dot_bf16(nk_bf16_t const *a, nk_bf16_t const *b, nk_size_t n, 
     nk_dot_bf16_serial(a, b, n, result);
 #endif
 }
+
 NK_PUBLIC void nk_dot_e4m3(nk_e4m3_t const *a, nk_e4m3_t const *b, nk_size_t n, nk_f32_t *result) {
 #if NK_TARGET_GENOA
     nk_dot_e4m3_genoa(a, b, n, result);
@@ -752,6 +755,7 @@ NK_PUBLIC void nk_dot_e4m3(nk_e4m3_t const *a, nk_e4m3_t const *b, nk_size_t n, 
     nk_dot_e4m3_serial(a, b, n, result);
 #endif
 }
+
 NK_PUBLIC void nk_dot_e5m2(nk_e5m2_t const *a, nk_e5m2_t const *b, nk_size_t n, nk_f32_t *result) {
 #if NK_TARGET_GENOA
     nk_dot_e5m2_genoa(a, b, n, result);
@@ -771,6 +775,7 @@ NK_PUBLIC void nk_dot_e5m2(nk_e5m2_t const *a, nk_e5m2_t const *b, nk_size_t n, 
     nk_dot_e5m2_serial(a, b, n, result);
 #endif
 }
+
 NK_PUBLIC void nk_dot_e2m3(nk_e2m3_t const *a, nk_e2m3_t const *b, nk_size_t n, nk_f32_t *result) {
 #if NK_TARGET_ICELAKE
     nk_dot_e2m3_icelake(a, b, n, result);
@@ -796,6 +801,7 @@ NK_PUBLIC void nk_dot_e2m3(nk_e2m3_t const *a, nk_e2m3_t const *b, nk_size_t n, 
     nk_dot_e2m3_serial(a, b, n, result);
 #endif
 }
+
 NK_PUBLIC void nk_dot_e3m2(nk_e3m2_t const *a, nk_e3m2_t const *b, nk_size_t n, nk_f32_t *result) {
 #if NK_TARGET_ICELAKE
     nk_dot_e3m2_icelake(a, b, n, result);
@@ -819,6 +825,7 @@ NK_PUBLIC void nk_dot_e3m2(nk_e3m2_t const *a, nk_e3m2_t const *b, nk_size_t n, 
     nk_dot_e3m2_serial(a, b, n, result);
 #endif
 }
+
 NK_PUBLIC void nk_dot_f32(nk_f32_t const *a, nk_f32_t const *b, nk_size_t n, nk_f32_t *result) {
 #if NK_TARGET_V128RELAXED
     nk_dot_f32_v128relaxed(a, b, n, result);
@@ -836,6 +843,7 @@ NK_PUBLIC void nk_dot_f32(nk_f32_t const *a, nk_f32_t const *b, nk_size_t n, nk_
     nk_dot_f32_serial(a, b, n, result);
 #endif
 }
+
 NK_PUBLIC void nk_dot_f64(nk_f64_t const *a, nk_f64_t const *b, nk_size_t n, nk_f64_t *result) {
 #if NK_TARGET_V128RELAXED
     nk_dot_f64_v128relaxed(a, b, n, result);
@@ -853,6 +861,7 @@ NK_PUBLIC void nk_dot_f64(nk_f64_t const *a, nk_f64_t const *b, nk_size_t n, nk_
     nk_dot_f64_serial(a, b, n, result);
 #endif
 }
+
 NK_PUBLIC void nk_dot_f16c(nk_f16c_t const *a, nk_f16c_t const *b, nk_size_t n, nk_f32c_t *result) {
 #if NK_TARGET_SVEHALF
     nk_dot_f16c_svehalf(a, b, n, result);
@@ -866,6 +875,7 @@ NK_PUBLIC void nk_dot_f16c(nk_f16c_t const *a, nk_f16c_t const *b, nk_size_t n, 
     nk_dot_f16c_serial(a, b, n, result);
 #endif
 }
+
 NK_PUBLIC void nk_dot_bf16c(nk_bf16c_t const *a, nk_bf16c_t const *b, nk_size_t n, nk_f32c_t *result) {
 #if NK_TARGET_GENOA
     nk_dot_bf16c_genoa(a, b, n, result);
@@ -877,6 +887,7 @@ NK_PUBLIC void nk_dot_bf16c(nk_bf16c_t const *a, nk_bf16c_t const *b, nk_size_t 
     nk_dot_bf16c_serial(a, b, n, result);
 #endif
 }
+
 NK_PUBLIC void nk_dot_f32c(nk_f32c_t const *a, nk_f32c_t const *b, nk_size_t n, nk_f32c_t *result) {
 #if NK_TARGET_SVE
     nk_dot_f32c_sve(a, b, n, result);
@@ -890,6 +901,7 @@ NK_PUBLIC void nk_dot_f32c(nk_f32c_t const *a, nk_f32c_t const *b, nk_size_t n, 
     nk_dot_f32c_serial(a, b, n, result);
 #endif
 }
+
 NK_PUBLIC void nk_dot_f64c(nk_f64c_t const *a, nk_f64c_t const *b, nk_size_t n, nk_f64c_t *result) {
 #if NK_TARGET_SVE
     nk_dot_f64c_sve(a, b, n, result);
@@ -901,6 +913,7 @@ NK_PUBLIC void nk_dot_f64c(nk_f64c_t const *a, nk_f64c_t const *b, nk_size_t n, 
     nk_dot_f64c_serial(a, b, n, result);
 #endif
 }
+
 NK_PUBLIC void nk_vdot_f16c(nk_f16c_t const *a, nk_f16c_t const *b, nk_size_t n, nk_f32c_t *result) {
 #if NK_TARGET_SVEHALF
     nk_vdot_f16c_svehalf(a, b, n, result);
@@ -914,6 +927,7 @@ NK_PUBLIC void nk_vdot_f16c(nk_f16c_t const *a, nk_f16c_t const *b, nk_size_t n,
     nk_vdot_f16c_serial(a, b, n, result);
 #endif
 }
+
 NK_PUBLIC void nk_vdot_bf16c(nk_bf16c_t const *a, nk_bf16c_t const *b, nk_size_t n, nk_f32c_t *result) {
 #if NK_TARGET_GENOA
     nk_vdot_bf16c_genoa(a, b, n, result);
@@ -925,6 +939,7 @@ NK_PUBLIC void nk_vdot_bf16c(nk_bf16c_t const *a, nk_bf16c_t const *b, nk_size_t
     nk_vdot_bf16c_serial(a, b, n, result);
 #endif
 }
+
 NK_PUBLIC void nk_vdot_f32c(nk_f32c_t const *a, nk_f32c_t const *b, nk_size_t n, nk_f32c_t *result) {
 #if NK_TARGET_SVE
     nk_vdot_f32c_sve(a, b, n, result);
@@ -938,6 +953,7 @@ NK_PUBLIC void nk_vdot_f32c(nk_f32c_t const *a, nk_f32c_t const *b, nk_size_t n,
     nk_vdot_f32c_serial(a, b, n, result);
 #endif
 }
+
 NK_PUBLIC void nk_vdot_f64c(nk_f64c_t const *a, nk_f64c_t const *b, nk_size_t n, nk_f64c_t *result) {
 #if NK_TARGET_SVE
     nk_vdot_f64c_sve(a, b, n, result);

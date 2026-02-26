@@ -25,6 +25,7 @@
 #include "numkong/sets.h"         // Hamming & Jaccard distances for binary sets
 #include "numkong/sparse.h"       // Set Intersections and Sparse Dot Products
 #include "numkong/spatial.h"      // Euclidean, Angular
+#include "numkong/spatials.h"     // Batched Angular & Euclidean distances
 #include "numkong/trigonometry.h" // Sin, Cos, Atan
 
 #if defined(__cplusplus)

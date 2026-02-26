@@ -58,10 +58,9 @@ NK_INTERNAL nk_f64_t nk_dot_stable_sum_f64m1_rvv_(vfloat64m1_t sum_f64m1, vfloat
     for (nk_size_t half = vlmax / 2; half > 0; half >>= 1) {
         vfloat64m1_t upper_sum_f64m1 = __riscv_vslidedown_vx_f64m1(tentative_sum_f64m1, half, vlmax);
         vfloat64m1_t upper_error_f64m1 = __riscv_vslidedown_vx_f64m1(accumulated_error_f64m1, half, vlmax);
-        vfloat64m1_t halved_tentative_sum_f64m1 =
-            __riscv_vfadd_vv_f64m1(tentative_sum_f64m1, upper_sum_f64m1, vlmax);
-        vfloat64m1_t halved_virtual_addend_f64m1 =
-            __riscv_vfsub_vv_f64m1(halved_tentative_sum_f64m1, tentative_sum_f64m1, vlmax);
+        vfloat64m1_t halved_tentative_sum_f64m1 = __riscv_vfadd_vv_f64m1(tentative_sum_f64m1, upper_sum_f64m1, vlmax);
+        vfloat64m1_t halved_virtual_addend_f64m1 = __riscv_vfsub_vv_f64m1(halved_tentative_sum_f64m1,
+                                                                          tentative_sum_f64m1, vlmax);
         vfloat64m1_t rounding_error_f64m1 = __riscv_vfadd_vv_f64m1(
             __riscv_vfsub_vv_f64m1(
                 tentative_sum_f64m1,
@@ -71,8 +70,7 @@ NK_INTERNAL nk_f64_t nk_dot_stable_sum_f64m1_rvv_(vfloat64m1_t sum_f64m1, vfloat
         accumulated_error_f64m1 = __riscv_vfadd_vv_f64m1(
             __riscv_vfadd_vv_f64m1(accumulated_error_f64m1, upper_error_f64m1, vlmax), rounding_error_f64m1, vlmax);
     }
-    return __riscv_vfmv_f_s_f64m1_f64(tentative_sum_f64m1) +
-           __riscv_vfmv_f_s_f64m1_f64(accumulated_error_f64m1);
+    return __riscv_vfmv_f_s_f64m1_f64(tentative_sum_f64m1) + __riscv_vfmv_f_s_f64m1_f64(accumulated_error_f64m1);
 }
 
 NK_PUBLIC void nk_dot_i8_rvv(nk_i8_t const *a_scalars, nk_i8_t const *b_scalars, nk_size_t count_scalars,
@@ -143,23 +141,20 @@ NK_PUBLIC void nk_dot_f64_rvv(nk_f64_t const *a_scalars, nk_f64_t const *b_scala
         vfloat64m1_t b_f64m1 = __riscv_vle64_v_f64m1(b_scalars, vector_length);
         // TwoProd: product = a*b, product_error = fma(a,b,-product)
         vfloat64m1_t product_f64m1 = __riscv_vfmul_vv_f64m1(a_f64m1, b_f64m1, vector_length);
-        vfloat64m1_t product_error_f64m1 =
-            __riscv_vfmsac_vv_f64m1(product_f64m1, a_f64m1, b_f64m1, vector_length);
+        vfloat64m1_t product_error_f64m1 = __riscv_vfmsac_vv_f64m1(product_f64m1, a_f64m1, b_f64m1, vector_length);
         // TwoSum: tentative_sum = sum + product
         vfloat64m1_t tentative_sum_f64m1 = __riscv_vfadd_vv_f64m1(sum_f64m1, product_f64m1, vector_length);
-        vfloat64m1_t virtual_addend_f64m1 =
-            __riscv_vfsub_vv_f64m1(tentative_sum_f64m1, sum_f64m1, vector_length);
+        vfloat64m1_t virtual_addend_f64m1 = __riscv_vfsub_vv_f64m1(tentative_sum_f64m1, sum_f64m1, vector_length);
         vfloat64m1_t sum_error_f64m1 = __riscv_vfadd_vv_f64m1(
-            __riscv_vfsub_vv_f64m1(
-                sum_f64m1, __riscv_vfsub_vv_f64m1(tentative_sum_f64m1, virtual_addend_f64m1, vector_length),
-                vector_length),
+            __riscv_vfsub_vv_f64m1(sum_f64m1,
+                                   __riscv_vfsub_vv_f64m1(tentative_sum_f64m1, virtual_addend_f64m1, vector_length),
+                                   vector_length),
             __riscv_vfsub_vv_f64m1(product_f64m1, virtual_addend_f64m1, vector_length), vector_length);
         // Tail-undisturbed updates: preserve zero tails across partial iterations
         sum_f64m1 = __riscv_vslideup_vx_f64m1_tu(sum_f64m1, tentative_sum_f64m1, 0, vector_length);
-        vfloat64m1_t total_error_f64m1 =
-            __riscv_vfadd_vv_f64m1(sum_error_f64m1, product_error_f64m1, vector_length);
-        compensation_f64m1 =
-            __riscv_vfadd_vv_f64m1_tu(compensation_f64m1, compensation_f64m1, total_error_f64m1, vector_length);
+        vfloat64m1_t total_error_f64m1 = __riscv_vfadd_vv_f64m1(sum_error_f64m1, product_error_f64m1, vector_length);
+        compensation_f64m1 = __riscv_vfadd_vv_f64m1_tu(compensation_f64m1, compensation_f64m1, total_error_f64m1,
+                                                       vector_length);
     }
     // Compensated horizontal reduction
     *result = nk_dot_stable_sum_f64m1_rvv_(sum_f64m1, compensation_f64m1);

@@ -50,7 +50,8 @@
  *      nk_dot_i8x16_update_haswell(&state_fourth, query_i8x16, target_fourth_i8x16, idx, 16);
  *  }
  *  nk_b128_vec_t results_i32x4;
- *  nk_dot_through_i32_finalize_haswell_(&state_first, &state_second, &state_third, &state_fourth, depth, &results_i32x4);
+ *  nk_dot_through_i32_finalize_haswell_(&state_first, &state_second, &state_third, &state_fourth,
+ *      depth, &results_i32x4);
  *  @endcode
  *
  *  Not every numeric type has dedicated dot-product SIMD circuitry on each ISA. Smaller float types

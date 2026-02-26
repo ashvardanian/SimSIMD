@@ -32,8 +32,7 @@
 
 #include "numkong/types.h"
 #include "numkong/cast/serial.h"  // `nk_partial_load_b16x4_serial_`
-#include "numkong/spatial/neon.h" // `nk_angular_through_f32_finalize_neon_`
-#include "numkong/dot/neonhalf.h" // `nk_dot_f16x4_state_neonhalf_t`
+#include "numkong/spatial/neon.h" // `nk_angular_normalize_f32_neon_`, `nk_f32_sqrt_neon`
 
 #if defined(__cplusplus)
 extern "C" {
@@ -102,47 +101,6 @@ nk_angular_f16_neonhalf_cycle:
     nk_f32_t a_norm_sq_f32 = vaddvq_f32(a_norm_sq_f32x4);
     nk_f32_t b_norm_sq_f32 = vaddvq_f32(b_norm_sq_f32x4);
     *result = nk_angular_normalize_f32_neon_(dot_product_f32, a_norm_sq_f32, b_norm_sq_f32);
-}
-
-typedef nk_dot_f16x4_state_neonhalf_t nk_angular_f16x4_state_neonhalf_t;
-NK_INTERNAL void nk_angular_f16x4_init_neonhalf(nk_angular_f16x4_state_neonhalf_t *state) {
-    nk_dot_f16x4_init_neonhalf(state);
-}
-NK_INTERNAL void nk_angular_f16x4_update_neonhalf(nk_angular_f16x4_state_neonhalf_t *state, nk_b64_vec_t a,
-                                                  nk_b64_vec_t b, nk_size_t depth_offset, nk_size_t active_dimensions) {
-    nk_dot_f16x4_update_neonhalf(state, a, b, depth_offset, active_dimensions);
-}
-NK_INTERNAL void nk_angular_f16x4_finalize_neonhalf(nk_angular_f16x4_state_neonhalf_t const *state_a,
-                                                    nk_angular_f16x4_state_neonhalf_t const *state_b,
-                                                    nk_angular_f16x4_state_neonhalf_t const *state_c,
-                                                    nk_angular_f16x4_state_neonhalf_t const *state_d,
-                                                    nk_f32_t query_norm, nk_f32_t target_norm_a, nk_f32_t target_norm_b,
-                                                    nk_f32_t target_norm_c, nk_f32_t target_norm_d,
-                                                    nk_size_t total_dimensions, nk_f32_t *results) {
-    nk_b128_vec_t dots_vec;
-    nk_dot_f16x4_finalize_neonhalf(state_a, state_b, state_c, state_d, total_dimensions, &dots_vec);
-    nk_angular_through_f32_finalize_neon_(dots_vec.f32x4, query_norm, target_norm_a, target_norm_b, target_norm_c,
-                                          target_norm_d, results);
-}
-
-typedef nk_dot_f16x4_state_neonhalf_t nk_euclidean_f16x4_state_neonhalf_t;
-NK_INTERNAL void nk_euclidean_f16x4_init_neonhalf(nk_euclidean_f16x4_state_neonhalf_t *state) {
-    nk_dot_f16x4_init_neonhalf(state);
-}
-NK_INTERNAL void nk_euclidean_f16x4_update_neonhalf(nk_euclidean_f16x4_state_neonhalf_t *state, nk_b64_vec_t a,
-                                                    nk_b64_vec_t b, nk_size_t depth_offset,
-                                                    nk_size_t active_dimensions) {
-    nk_dot_f16x4_update_neonhalf(state, a, b, depth_offset, active_dimensions);
-}
-NK_INTERNAL void nk_euclidean_f16x4_finalize_neonhalf(
-    nk_euclidean_f16x4_state_neonhalf_t const *state_a, nk_euclidean_f16x4_state_neonhalf_t const *state_b,
-    nk_euclidean_f16x4_state_neonhalf_t const *state_c, nk_euclidean_f16x4_state_neonhalf_t const *state_d,
-    nk_f32_t query_norm, nk_f32_t target_norm_a, nk_f32_t target_norm_b, nk_f32_t target_norm_c, nk_f32_t target_norm_d,
-    nk_size_t total_dimensions, nk_f32_t *results) {
-    nk_b128_vec_t dots_vec;
-    nk_dot_f16x4_finalize_neonhalf(state_a, state_b, state_c, state_d, total_dimensions, &dots_vec);
-    nk_euclidean_through_f32_finalize_neon_(dots_vec.f32x4, query_norm, target_norm_a, target_norm_b, target_norm_c,
-                                            target_norm_d, results);
 }
 
 #if defined(__clang__)

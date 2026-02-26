@@ -28,7 +28,7 @@ extern "C" {
 #pragma GCC target("avx2", "f16c", "fma", "bmi", "bmi2")
 #endif
 
-NK_INTERNAL __m256 nk_log2_f32_haswell_(__m256 x) {
+NK_INTERNAL __m256 nk_log2_f32x8_haswell_(__m256 x) {
     // Extracting the exponent
     __m256i bits_i32x8 = _mm256_castps_si256(x);
     __m256i exponent_i32x8 = _mm256_srli_epi32(_mm256_and_si256(bits_i32x8, _mm256_set1_epi32(0x7F800000)), 23);
@@ -79,7 +79,7 @@ nk_kld_f16_haswell_cycle:
     a_f32x8 = _mm256_add_ps(a_f32x8, epsilon_f32x8);
     b_f32x8 = _mm256_add_ps(b_f32x8, epsilon_f32x8);
     __m256 ratio_f32x8 = _mm256_div_ps(a_f32x8, b_f32x8);
-    __m256 log_ratio_f32x8 = nk_log2_f32_haswell_(ratio_f32x8);
+    __m256 log_ratio_f32x8 = nk_log2_f32x8_haswell_(ratio_f32x8);
     __m256 contribution_f32x8 = _mm256_mul_ps(a_f32x8, log_ratio_f32x8);
     sum_f32x8 = _mm256_add_ps(sum_f32x8, contribution_f32x8);
     if (n) goto nk_kld_f16_haswell_cycle;
@@ -115,8 +115,8 @@ nk_jsd_f16_haswell_cycle:
                                          _mm256_add_ps(mean_f32x8, epsilon_f32x8));
     __m256 ratio_b_f32x8 = _mm256_div_ps(_mm256_add_ps(b_f32x8, epsilon_f32x8),
                                          _mm256_add_ps(mean_f32x8, epsilon_f32x8));
-    __m256 log_ratio_a_f32x8 = nk_log2_f32_haswell_(ratio_a_f32x8);
-    __m256 log_ratio_b_f32x8 = nk_log2_f32_haswell_(ratio_b_f32x8);
+    __m256 log_ratio_a_f32x8 = nk_log2_f32x8_haswell_(ratio_a_f32x8);
+    __m256 log_ratio_b_f32x8 = nk_log2_f32x8_haswell_(ratio_b_f32x8);
     __m256 contribution_a_f32x8 = _mm256_mul_ps(a_f32x8, log_ratio_a_f32x8);
     __m256 contribution_b_f32x8 = _mm256_mul_ps(b_f32x8, log_ratio_b_f32x8);
     sum_f32x8 = _mm256_add_ps(sum_f32x8, contribution_a_f32x8);

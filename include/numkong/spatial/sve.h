@@ -50,6 +50,47 @@ extern "C" {
 #pragma GCC target("arch=armv8.2-a+sve")
 #endif
 
+/** @brief Reciprocal square root of an f32 SVE vector via estimate + 2 Newton-Raphson steps.
+ *
+ *  Computes 1/sqrt(x) for each active lane. The initial estimate from `svrsqrte_f32`
+ *  has ~8 bits of precision; each Newton-Raphson iteration via `svrsqrts_f32` roughly
+ *  doubles the mantissa bits, giving ~23 bits (~full f32 precision) after 2 steps.
+ *
+ *  Marked `__arm_streaming_compatible` so the helper is callable from both streaming
+ *  (SME) and non-streaming (SVE) contexts without mode transitions.
+ *
+ *  @param predicate Active-lane mask
+ *  @param x         Input vector (must be positive for meaningful results)
+ *  @return          Approximate 1/sqrt(x) with ~23-bit mantissa accuracy
+ */
+NK_INTERNAL svfloat32_t nk_rsqrt_f32x_sve_(svbool_t predicate, svfloat32_t x) __arm_streaming_compatible {
+    svfloat32_t r = svrsqrte_f32(x);
+    r = svmul_f32_x(predicate, r, svrsqrts_f32(svmul_f32_x(predicate, x, r), r));
+    r = svmul_f32_x(predicate, r, svrsqrts_f32(svmul_f32_x(predicate, x, r), r));
+    return r;
+}
+
+/** @brief Reciprocal square root of an f64 SVE vector via estimate + 3 Newton-Raphson steps.
+ *
+ *  Computes 1/sqrt(x) for each active lane. The initial estimate from `svrsqrte_f64`
+ *  has ~8 bits of precision; three Newton-Raphson iterations via `svrsqrts_f64` yield
+ *  ~52-bit mantissa accuracy (full f64 precision).
+ *
+ *  Marked `__arm_streaming_compatible` so the helper is callable from both streaming
+ *  (SME) and non-streaming (SVE) contexts without mode transitions.
+ *
+ *  @param predicate Active-lane mask
+ *  @param x         Input vector (must be positive for meaningful results)
+ *  @return          Approximate 1/sqrt(x) with ~52-bit mantissa accuracy
+ */
+NK_INTERNAL svfloat64_t nk_rsqrt_f64x_sve_(svbool_t predicate, svfloat64_t x) __arm_streaming_compatible {
+    svfloat64_t r = svrsqrte_f64(x);
+    r = svmul_f64_x(predicate, r, svrsqrts_f64(svmul_f64_x(predicate, x, r), r));
+    r = svmul_f64_x(predicate, r, svrsqrts_f64(svmul_f64_x(predicate, x, r), r));
+    r = svmul_f64_x(predicate, r, svrsqrts_f64(svmul_f64_x(predicate, x, r), r));
+    return r;
+}
+
 NK_PUBLIC void nk_sqeuclidean_f32_sve(nk_f32_t const *a, nk_f32_t const *b, nk_size_t n, nk_f32_t *result) {
     nk_size_t i = 0;
     svfloat64_t dist_sq_f64x = svdupq_n_f64(0.0, 0.0);

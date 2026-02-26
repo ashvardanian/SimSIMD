@@ -317,7 +317,7 @@ template <typename in_type_, allow_simd_t allow_simd_ = prefer_simd_k>
 NK_PUBLIC size_t hammings_packed_size(size_t row_count, size_t depth) {
     constexpr bool simd = allow_simd_ == prefer_simd_k;
 
-    if constexpr (std::is_same_v<in_type_, u1x8_t> && simd) return nk_hammings_packed_size_u1(row_count, depth);
+    if constexpr (std::is_same_v<in_type_, u1x8_t> && simd) return nk_dots_packed_size_u1(row_count, depth);
     else {
         // We need enough space for the pointer to the original B matrix and its stride
         return sizeof(void *) + sizeof(size_t);
@@ -342,7 +342,7 @@ NK_PUBLIC void hammings_pack(in_type_ const *b, size_t row_count, size_t depth, 
     constexpr bool simd = allow_simd_ == prefer_simd_k;
 
     if constexpr (std::is_same_v<in_type_, u1x8_t> && simd)
-        nk_hammings_pack_u1(reinterpret_cast<raw_t const *>(b), row_count, depth, b_stride_in_bytes, b_packed);
+        nk_dots_pack_u1(reinterpret_cast<raw_t const *>(b), row_count, depth, b_stride_in_bytes, b_packed);
     else {
         // Persist the pointer to the original B matrix and its stride
         char *b_packed_bytes = reinterpret_cast<char *>(b_packed);
@@ -369,16 +369,17 @@ NK_PUBLIC void hammings_pack(in_type_ const *b, size_t row_count, size_t depth, 
  *  @tparam result_type_ Output type (u32_t for Hamming distances)
  *  @tparam allow_simd_ Enable SIMD kernel dispatch when `prefer_simd_k`
  */
-template <typename in_type_, typename result_type_ = u32_t, allow_simd_t allow_simd_ = prefer_simd_k>
+template <typename in_type_, typename result_type_ = typename in_type_::hamming_result_t,
+          allow_simd_t allow_simd_ = prefer_simd_k>
 void hammings_symmetric(in_type_ const *a, std::size_t n_vectors, std::size_t depth, std::size_t a_stride_in_bytes,
                         result_type_ *c, std::size_t c_stride_in_bytes, std::size_t row_start = 0,
                         std::size_t row_count = std::numeric_limits<std::size_t>::max()) noexcept {
     if (row_count == std::numeric_limits<std::size_t>::max()) row_count = n_vectors;
     using raw_t = typename in_type_::raw_t;
-    constexpr bool dispatch = allow_simd_ == prefer_simd_k && std::is_same_v<in_type_, u1x8_t> &&
-                              std::is_same_v<result_type_, u32_t>;
+    constexpr bool dispatch = allow_simd_ == prefer_simd_k &&
+                              std::is_same_v<result_type_, typename in_type_::hamming_result_t>;
 
-    if constexpr (dispatch)
+    if constexpr (std::is_same_v<in_type_, u1x8_t> && dispatch)
         nk_hammings_symmetric_u1(&a->raw_, n_vectors, depth, a_stride_in_bytes, &c->raw_, c_stride_in_bytes, row_start,
                                  row_count);
     else {
@@ -422,7 +423,8 @@ void hammings_symmetric(in_type_ const *a, std::size_t n_vectors, std::size_t de
  *  @tparam result_type_ Output type (u32_t for Hamming distances)
  *  @tparam allow_simd_ Enable SIMD kernel dispatch when `prefer_simd_k`
  */
-template <typename in_type_, typename result_type_ = u32_t, allow_simd_t allow_simd_ = prefer_simd_k>
+template <typename in_type_, typename result_type_ = typename in_type_::hamming_result_t,
+          allow_simd_t allow_simd_ = prefer_simd_k>
 void hammings_packed(in_type_ const *a, void const *b_packed, result_type_ *c, std::size_t row_count,
                      std::size_t column_count, std::size_t depth, std::size_t a_stride_in_bytes = 0,
                      std::size_t c_stride_in_bytes = 0) noexcept {
@@ -430,13 +432,15 @@ void hammings_packed(in_type_ const *a, void const *b_packed, result_type_ *c, s
     if (!a_stride_in_bytes) a_stride_in_bytes = divide_round_up(depth, 8) * sizeof(in_type_);
     if (!c_stride_in_bytes) c_stride_in_bytes = column_count * sizeof(result_type_);
 
-    // SIMD dispatch for u1x8_t -> u32_t
-    if constexpr (allow_simd_ && std::is_same_v<in_type_, u1x8_t> && std::is_same_v<result_type_, u32_t>) {
+    using raw_t = typename in_type_::raw_t;
+    constexpr bool dispatch = allow_simd_ == prefer_simd_k &&
+                              std::is_same_v<result_type_, typename in_type_::hamming_result_t>;
+
+    if constexpr (std::is_same_v<in_type_, u1x8_t> && dispatch) {
         nk_hammings_packed_u1(reinterpret_cast<nk_u1x8_t const *>(a), b_packed, reinterpret_cast<nk_u32_t *>(c),
                               row_count, column_count, depth, a_stride_in_bytes, c_stride_in_bytes);
     }
     else {
-
         // Scalar fallback: extract pointer and stride from b_packed, then compute directly
         in_type_ const *b;
         size_t b_stride_in_bytes;
@@ -466,6 +470,127 @@ void hammings_packed(in_type_ const *a, void const *b_packed, result_type_ *c, s
                     distance += std::popcount(static_cast<unsigned>(xor_val));
                 }
                 c_row[j] = result_type_::from_raw(distance);
+            }
+        }
+    }
+}
+
+/**
+ *  @brief Estimates memory requirements for packed B matrix (Jaccard distances).
+ *  Includes space for per-column population counts (norms).
+ */
+template <typename in_type_, allow_simd_t allow_simd_ = prefer_simd_k>
+NK_PUBLIC size_t jaccards_packed_size(size_t row_count, size_t depth) {
+    constexpr bool simd = allow_simd_ == prefer_simd_k;
+
+    if constexpr (std::is_same_v<in_type_, u1x8_t> && simd) return nk_dots_packed_size_u1(row_count, depth);
+    else { return sizeof(void *) + sizeof(size_t); }
+}
+
+/**
+ *  @brief Packs matrix B for efficient Jaccard distance computation.
+ *  Appends per-column norms after packed data.
+ */
+template <typename in_type_, allow_simd_t allow_simd_ = prefer_simd_k>
+NK_PUBLIC void jaccards_pack(in_type_ const *b, size_t row_count, size_t depth, size_t b_stride_in_bytes,
+                             void *b_packed) {
+    using raw_t = typename in_type_::raw_t;
+    constexpr bool simd = allow_simd_ == prefer_simd_k;
+
+    if constexpr (std::is_same_v<in_type_, u1x8_t> && simd)
+        nk_dots_pack_u1(reinterpret_cast<raw_t const *>(b), row_count, depth, b_stride_in_bytes, b_packed);
+    else {
+        char *b_packed_bytes = reinterpret_cast<char *>(b_packed);
+        std::memcpy(b_packed_bytes, &b, sizeof(void *));
+        std::memcpy(b_packed_bytes + sizeof(void *), &b_stride_in_bytes, sizeof(size_t));
+    }
+}
+
+/**
+ *  @brief Symmetric Jaccard distance matrix: C[i,j] = jaccard(A[i], A[j])
+ */
+template <typename in_type_, typename result_type_ = typename in_type_::jaccard_result_t,
+          allow_simd_t allow_simd_ = prefer_simd_k>
+void jaccards_symmetric(in_type_ const *a, std::size_t n_vectors, std::size_t depth, std::size_t a_stride_in_bytes,
+                        result_type_ *c, std::size_t c_stride_in_bytes, std::size_t row_start = 0,
+                        std::size_t row_count = std::numeric_limits<std::size_t>::max()) noexcept {
+    if (row_count == std::numeric_limits<std::size_t>::max()) row_count = n_vectors;
+    using raw_t = typename in_type_::raw_t;
+    constexpr bool dispatch = allow_simd_ == prefer_simd_k &&
+                              std::is_same_v<result_type_, typename in_type_::jaccard_result_t>;
+
+    if constexpr (std::is_same_v<in_type_, u1x8_t> && dispatch)
+        nk_jaccards_symmetric_u1(&a->raw_, n_vectors, depth, a_stride_in_bytes, &c->raw_, c_stride_in_bytes, row_start,
+                                 row_count);
+    else {
+        std::size_t depth_bytes = divide_round_up(depth, 8);
+        char const *a_bytes = reinterpret_cast<char const *>(a);
+        char *c_bytes = reinterpret_cast<char *>(c);
+        std::size_t row_end = row_start + row_count < n_vectors ? row_start + row_count : n_vectors;
+
+        for (std::size_t i = row_start; i < row_end; i++) {
+            raw_t const *a_i = reinterpret_cast<raw_t const *>(a_bytes + i * a_stride_in_bytes);
+            result_type_ *c_row = reinterpret_cast<result_type_ *>(c_bytes + i * c_stride_in_bytes);
+
+            for (std::size_t j = 0; j < n_vectors; j++) {
+                raw_t const *a_j = reinterpret_cast<raw_t const *>(a_bytes + j * a_stride_in_bytes);
+                unsigned intersection = 0, union_ = 0;
+                for (std::size_t b = 0; b < depth_bytes; b++) {
+                    intersection += std::popcount(static_cast<unsigned>(a_i[b] & a_j[b]));
+                    union_ += std::popcount(static_cast<unsigned>(a_i[b] | a_j[b]));
+                }
+                c_row[j] = result_type_::from_raw(union_ ? 1.0f - static_cast<float>(intersection) / union_ : 0.0f);
+            }
+        }
+    }
+}
+
+/**
+ *  @brief Computes Jaccard distances between rows of A and columns of packed B.
+ */
+template <typename in_type_, typename result_type_ = typename in_type_::jaccard_result_t,
+          allow_simd_t allow_simd_ = prefer_simd_k>
+void jaccards_packed(in_type_ const *a, void const *b_packed, result_type_ *c, std::size_t row_count,
+                     std::size_t column_count, std::size_t depth, std::size_t a_stride_in_bytes = 0,
+                     std::size_t c_stride_in_bytes = 0) noexcept {
+    if (!a_stride_in_bytes) a_stride_in_bytes = divide_round_up(depth, 8) * sizeof(in_type_);
+    if (!c_stride_in_bytes) c_stride_in_bytes = column_count * sizeof(result_type_);
+
+    using raw_t = typename in_type_::raw_t;
+    constexpr bool dispatch = allow_simd_ == prefer_simd_k &&
+                              std::is_same_v<result_type_, typename in_type_::jaccard_result_t>;
+
+    if constexpr (std::is_same_v<in_type_, u1x8_t> && dispatch) {
+        nk_jaccards_packed_u1(reinterpret_cast<nk_u1x8_t const *>(a), b_packed, reinterpret_cast<nk_f32_t *>(c),
+                              row_count, column_count, depth, a_stride_in_bytes, c_stride_in_bytes);
+    }
+    else {
+        // Scalar fallback: extract pointer and stride from b_packed, then compute directly
+        in_type_ const *b;
+        size_t b_stride_in_bytes;
+        char const *b_packed_bytes = reinterpret_cast<char const *>(b_packed);
+        std::memcpy(&b, b_packed_bytes, sizeof(void *));
+        std::memcpy(&b_stride_in_bytes, b_packed_bytes + sizeof(void *), sizeof(size_t));
+
+        char const *a_bytes = reinterpret_cast<char const *>(a);
+        char const *b_bytes = reinterpret_cast<char const *>(b);
+        char *c_bytes = reinterpret_cast<char *>(c);
+        std::size_t depth_bytes = divide_round_up(depth, 8);
+
+        for (std::size_t i = 0; i < row_count; i++) {
+            typename in_type_::raw_t const *a_row = reinterpret_cast<typename in_type_::raw_t const *>(
+                a_bytes + i * a_stride_in_bytes);
+            result_type_ *c_row = reinterpret_cast<result_type_ *>(c_bytes + i * c_stride_in_bytes);
+
+            for (std::size_t j = 0; j < column_count; j++) {
+                typename in_type_::raw_t const *b_row = reinterpret_cast<typename in_type_::raw_t const *>(
+                    b_bytes + j * b_stride_in_bytes);
+                unsigned intersection = 0, union_ = 0;
+                for (std::size_t byte_idx = 0; byte_idx < depth_bytes; byte_idx++) {
+                    intersection += std::popcount(static_cast<unsigned>(a_row[byte_idx] & b_row[byte_idx]));
+                    union_ += std::popcount(static_cast<unsigned>(a_row[byte_idx] | b_row[byte_idx]));
+                }
+                c_row[j] = result_type_::from_raw(union_ ? 1.0f - static_cast<float>(intersection) / union_ : 0.0f);
             }
         }
     }
