@@ -268,24 +268,24 @@ int is_complex(nk_dtype_t dtype) {
 
 nk_dtype_t python_string_to_dtype(char const *name) {
     // Floating-point numbers:
-    if (same_string(name, "float32") || same_string(name, "f4") || same_string(name, "<f4") || same_string(name, "f") ||
-        same_string(name, "<f"))
+    if (same_string(name, "float32") || same_string(name, "f32") || same_string(name, "f4") ||
+        same_string(name, "<f4") || same_string(name, "f") || same_string(name, "<f"))
         return nk_f32_k;
-    else if (same_string(name, "float16") || same_string(name, "f2") || same_string(name, "<f2") ||
-             same_string(name, "e") || same_string(name, "<e"))
+    else if (same_string(name, "float16") || same_string(name, "f16") || same_string(name, "f2") ||
+             same_string(name, "<f2") || same_string(name, "e") || same_string(name, "<e"))
         return nk_f16_k;
-    else if (same_string(name, "float64") || same_string(name, "f8") || same_string(name, "<f8") ||
-             same_string(name, "d") || same_string(name, "<d"))
+    else if (same_string(name, "float64") || same_string(name, "f64") || same_string(name, "f8") ||
+             same_string(name, "<f8") || same_string(name, "d") || same_string(name, "<d"))
         return nk_f64_k;
     else if (same_string(name, "bfloat16") || same_string(name, "bf16")) return nk_bf16_k;
 
     // FP8 formats (ML-focused 8-bit floats):
-    else if (same_string(name, "e4m3")) return nk_e4m3_k;
-    else if (same_string(name, "e5m2")) return nk_e5m2_k;
+    else if (same_string(name, "e4m3") || same_string(name, "float8_e4m3")) return nk_e4m3_k;
+    else if (same_string(name, "e5m2") || same_string(name, "float8_e5m2")) return nk_e5m2_k;
 
     // FP6 formats (MX-focused 6-bit floats):
-    else if (same_string(name, "e2m3")) return nk_e2m3_k;
-    else if (same_string(name, "e3m2")) return nk_e3m2_k;
+    else if (same_string(name, "e2m3") || same_string(name, "float6_e2m3")) return nk_e2m3_k;
+    else if (same_string(name, "e3m2") || same_string(name, "float6_e3m2")) return nk_e3m2_k;
 
     // Sub-byte integers:
     else if (same_string(name, "int4")) return nk_i4_k;
@@ -390,6 +390,22 @@ int cast_distance(nk_f64_t distance, nk_dtype_t target_dtype, void *target_ptr, 
     case nk_bf16_k:
         f32_val = (nk_f32_t)distance;
         nk_f32_to_bf16(&f32_val, (nk_bf16_t *)target_ptr + offset);
+        return 1;
+    case nk_e4m3_k:
+        f32_val = (nk_f32_t)distance;
+        nk_f32_to_e4m3(&f32_val, (nk_e4m3_t *)target_ptr + offset);
+        return 1;
+    case nk_e5m2_k:
+        f32_val = (nk_f32_t)distance;
+        nk_f32_to_e5m2(&f32_val, (nk_e5m2_t *)target_ptr + offset);
+        return 1;
+    case nk_e2m3_k:
+        f32_val = (nk_f32_t)distance;
+        nk_f32_to_e2m3(&f32_val, (nk_e2m3_t *)target_ptr + offset);
+        return 1;
+    case nk_e3m2_k:
+        f32_val = (nk_f32_t)distance;
+        nk_f32_to_e3m2(&f32_val, (nk_e3m2_t *)target_ptr + offset);
         return 1;
     case nk_i8_k: ((nk_i8_t *)target_ptr)[offset] = (nk_i8_t)lround(distance); return 1;
     case nk_u8_k: ((nk_u8_t *)target_ptr)[offset] = (nk_u8_t)lround(distance); return 1;

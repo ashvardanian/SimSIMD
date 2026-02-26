@@ -343,17 +343,10 @@ PyObject *api_dots_pack(PyObject *self, PyObject *const *args, Py_ssize_t nargs,
         dtype_str = PyUnicode_AsUTF8(args[1]);
     }
 
-    // Resolve the target packing dtype (short aliases + full names)
-    nk_dtype_t target_dtype;
-    if (same_string(dtype_str, "bf16") || same_string(dtype_str, "bfloat16")) target_dtype = nk_bf16_k;
-    else if (same_string(dtype_str, "i8") || same_string(dtype_str, "int8")) target_dtype = nk_i8_k;
-    else if (same_string(dtype_str, "f32") || same_string(dtype_str, "float32")) target_dtype = nk_f32_k;
-    else if (same_string(dtype_str, "f64") || same_string(dtype_str, "float64")) target_dtype = nk_f64_k;
-    else if (same_string(dtype_str, "f16") || same_string(dtype_str, "float16")) target_dtype = nk_f16_k;
-    else if (same_string(dtype_str, "u8") || same_string(dtype_str, "uint8")) target_dtype = nk_u8_k;
-    else {
-        PyErr_Format(PyExc_ValueError, "Unsupported dtype '%s'. Use 'bf16', 'i8', 'f32', 'f64', 'f16', or 'u8'.",
-                     dtype_str);
+    // Resolve the target packing dtype
+    nk_dtype_t target_dtype = python_string_to_dtype(dtype_str);
+    if (target_dtype == nk_dtype_unknown_k) {
+        PyErr_Format(PyExc_ValueError, "Unsupported dtype '%s'", dtype_str);
         return NULL;
     }
 
