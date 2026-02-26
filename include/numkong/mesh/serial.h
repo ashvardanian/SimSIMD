@@ -365,7 +365,8 @@ nk_define_det3x3_(f64)
             nk_##accumulator_type##_t dz = (val_a_z - centroid_a_z) - (val_b_z - centroid_b_z);                    \
             sum_squared += dx * dx + dy * dy + dz * dz;                                                            \
         }                                                                                                          \
-        *result = compute_sqrt(sum_squared * inv_n);                                                               \
+        nk_##accumulator_type##_t msd = sum_squared * inv_n;                                                       \
+        *result = msd > 0 ? compute_sqrt(msd) : 0;                                                                 \
     }
 
 /*  Kabsch algorithm for optimal rigid body superposition.
