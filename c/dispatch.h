@@ -162,6 +162,8 @@ typedef struct {
     nk_each_fma_punned_t each_fma_f16;
     nk_each_fma_punned_t each_fma_f64;
     nk_each_fma_punned_t each_fma_bf16;
+    nk_each_fma_punned_t each_fma_f32c;
+    nk_each_fma_punned_t each_fma_f64c;
     nk_each_fma_punned_t each_fma_i8;
     nk_each_fma_punned_t each_fma_u8;
     nk_each_fma_punned_t each_fma_e4m3;
@@ -179,6 +181,8 @@ typedef struct {
     nk_each_blend_punned_t each_blend_f32;
     nk_each_blend_punned_t each_blend_f16;
     nk_each_blend_punned_t each_blend_bf16;
+    nk_each_blend_punned_t each_blend_f32c;
+    nk_each_blend_punned_t each_blend_f64c;
     nk_each_blend_punned_t each_blend_i8;
     nk_each_blend_punned_t each_blend_u8;
     nk_each_blend_punned_t each_blend_e4m3;
@@ -196,6 +200,8 @@ typedef struct {
     nk_each_scale_punned_t each_scale_f32;
     nk_each_scale_punned_t each_scale_f16;
     nk_each_scale_punned_t each_scale_bf16;
+    nk_each_scale_punned_t each_scale_f32c;
+    nk_each_scale_punned_t each_scale_f64c;
     nk_each_scale_punned_t each_scale_i8;
     nk_each_scale_punned_t each_scale_u8;
     nk_each_scale_punned_t each_scale_i16;
@@ -213,6 +219,8 @@ typedef struct {
     nk_each_sum_punned_t each_sum_f32;
     nk_each_sum_punned_t each_sum_f16;
     nk_each_sum_punned_t each_sum_bf16;
+    nk_each_sum_punned_t each_sum_f32c;
+    nk_each_sum_punned_t each_sum_f64c;
     nk_each_sum_punned_t each_sum_i8;
     nk_each_sum_punned_t each_sum_u8;
     nk_each_sum_punned_t each_sum_i16;

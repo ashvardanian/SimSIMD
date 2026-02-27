@@ -1477,6 +1477,205 @@ NK_PUBLIC void nk_each_fma_e5m2_haswell(nk_e5m2_t const *a, nk_e5m2_t const *b, 
     }
 }
 
+NK_PUBLIC void nk_each_scale_f32c_haswell(nk_f32c_t const *a, nk_size_t n, nk_f32c_t const *alpha,
+                                          nk_f32c_t const *beta, nk_f32c_t *result) {
+    nk_f32_t const *a_f32 = (nk_f32_t const *)a;
+    nk_f32_t *result_f32 = (nk_f32_t *)result;
+    __m256 alpha_real_f32x8 = _mm256_set1_ps(alpha->real);
+    __m256 alpha_imag_f32x8 = _mm256_set1_ps(alpha->imag);
+    __m256 beta_f32x8 = _mm256_setr_ps(beta->real, beta->imag, beta->real, beta->imag, beta->real, beta->imag,
+                                       beta->real, beta->imag);
+    nk_size_t i = 0;
+    for (; i + 4 <= n; i += 4) {
+        __m256 a_f32x8 = _mm256_loadu_ps(a_f32 + 2 * i);
+        __m256 a_swapped_f32x8 = _mm256_permute_ps(a_f32x8, 0xB1);
+        __m256 temp_f32x8 = _mm256_mul_ps(alpha_imag_f32x8, a_swapped_f32x8);
+        __m256 y_f32x8 = _mm256_fmaddsub_ps(alpha_real_f32x8, a_f32x8, temp_f32x8);
+        y_f32x8 = _mm256_add_ps(y_f32x8, beta_f32x8);
+        _mm256_storeu_ps(result_f32 + 2 * i, y_f32x8);
+    }
+    for (; i < n; i++) {
+        nk_f32_t a_real = a[i].real, a_imag = a[i].imag;
+        result[i].real = alpha->real * a_real - alpha->imag * a_imag + beta->real;
+        result[i].imag = alpha->real * a_imag + alpha->imag * a_real + beta->imag;
+    }
+}
+
+NK_PUBLIC void nk_each_scale_f64c_haswell(nk_f64c_t const *a, nk_size_t n, nk_f64c_t const *alpha,
+                                          nk_f64c_t const *beta, nk_f64c_t *result) {
+    nk_f64_t const *a_f64 = (nk_f64_t const *)a;
+    nk_f64_t *result_f64 = (nk_f64_t *)result;
+    __m256d alpha_real_f64x4 = _mm256_set1_pd(alpha->real);
+    __m256d alpha_imag_f64x4 = _mm256_set1_pd(alpha->imag);
+    __m256d beta_f64x4 = _mm256_setr_pd(beta->real, beta->imag, beta->real, beta->imag);
+    nk_size_t i = 0;
+    for (; i + 2 <= n; i += 2) {
+        __m256d a_f64x4 = _mm256_loadu_pd(a_f64 + 2 * i);
+        __m256d a_swapped_f64x4 = _mm256_permute_pd(a_f64x4, 0x5);
+        __m256d temp_f64x4 = _mm256_mul_pd(alpha_imag_f64x4, a_swapped_f64x4);
+        __m256d y_f64x4 = _mm256_fmaddsub_pd(alpha_real_f64x4, a_f64x4, temp_f64x4);
+        y_f64x4 = _mm256_add_pd(y_f64x4, beta_f64x4);
+        _mm256_storeu_pd(result_f64 + 2 * i, y_f64x4);
+    }
+    for (; i < n; i++) {
+        nk_f64_t a_real = a[i].real, a_imag = a[i].imag;
+        result[i].real = alpha->real * a_real - alpha->imag * a_imag + beta->real;
+        result[i].imag = alpha->real * a_imag + alpha->imag * a_real + beta->imag;
+    }
+}
+
+NK_PUBLIC void nk_each_blend_f32c_haswell(nk_f32c_t const *a, nk_f32c_t const *b, nk_size_t n, nk_f32c_t const *alpha,
+                                          nk_f32c_t const *beta, nk_f32c_t *result) {
+    nk_f32_t const *a_f32 = (nk_f32_t const *)a;
+    nk_f32_t const *b_f32 = (nk_f32_t const *)b;
+    nk_f32_t *result_f32 = (nk_f32_t *)result;
+    __m256 alpha_real_f32x8 = _mm256_set1_ps(alpha->real);
+    __m256 alpha_imag_f32x8 = _mm256_set1_ps(alpha->imag);
+    __m256 beta_real_f32x8 = _mm256_set1_ps(beta->real);
+    __m256 beta_imag_f32x8 = _mm256_set1_ps(beta->imag);
+    nk_size_t i = 0;
+    for (; i + 4 <= n; i += 4) {
+        __m256 a_f32x8 = _mm256_loadu_ps(a_f32 + 2 * i);
+        __m256 b_f32x8 = _mm256_loadu_ps(b_f32 + 2 * i);
+        __m256 a_swapped_f32x8 = _mm256_permute_ps(a_f32x8, 0xB1);
+        __m256 ta_f32x8 = _mm256_mul_ps(alpha_imag_f32x8, a_swapped_f32x8);
+        __m256 ya_f32x8 = _mm256_fmaddsub_ps(alpha_real_f32x8, a_f32x8, ta_f32x8);
+        __m256 b_swapped_f32x8 = _mm256_permute_ps(b_f32x8, 0xB1);
+        __m256 tb_f32x8 = _mm256_mul_ps(beta_imag_f32x8, b_swapped_f32x8);
+        __m256 yb_f32x8 = _mm256_fmaddsub_ps(beta_real_f32x8, b_f32x8, tb_f32x8);
+        _mm256_storeu_ps(result_f32 + 2 * i, _mm256_add_ps(ya_f32x8, yb_f32x8));
+    }
+    for (; i < n; i++) {
+        nk_f32_t a_real = a[i].real, a_imag = a[i].imag;
+        nk_f32_t b_real = b[i].real, b_imag = b[i].imag;
+        nk_f32_t ar = alpha->real * a_real - alpha->imag * a_imag;
+        nk_f32_t ai = alpha->real * a_imag + alpha->imag * a_real;
+        nk_f32_t br = beta->real * b_real - beta->imag * b_imag;
+        nk_f32_t bi = beta->real * b_imag + beta->imag * b_real;
+        result[i].real = ar + br;
+        result[i].imag = ai + bi;
+    }
+}
+
+NK_PUBLIC void nk_each_blend_f64c_haswell(nk_f64c_t const *a, nk_f64c_t const *b, nk_size_t n, nk_f64c_t const *alpha,
+                                          nk_f64c_t const *beta, nk_f64c_t *result) {
+    nk_f64_t const *a_f64 = (nk_f64_t const *)a;
+    nk_f64_t const *b_f64 = (nk_f64_t const *)b;
+    nk_f64_t *result_f64 = (nk_f64_t *)result;
+    __m256d alpha_real_f64x4 = _mm256_set1_pd(alpha->real);
+    __m256d alpha_imag_f64x4 = _mm256_set1_pd(alpha->imag);
+    __m256d beta_real_f64x4 = _mm256_set1_pd(beta->real);
+    __m256d beta_imag_f64x4 = _mm256_set1_pd(beta->imag);
+    nk_size_t i = 0;
+    for (; i + 2 <= n; i += 2) {
+        __m256d a_f64x4 = _mm256_loadu_pd(a_f64 + 2 * i);
+        __m256d b_f64x4 = _mm256_loadu_pd(b_f64 + 2 * i);
+        __m256d a_swapped_f64x4 = _mm256_permute_pd(a_f64x4, 0x5);
+        __m256d ta_f64x4 = _mm256_mul_pd(alpha_imag_f64x4, a_swapped_f64x4);
+        __m256d ya_f64x4 = _mm256_fmaddsub_pd(alpha_real_f64x4, a_f64x4, ta_f64x4);
+        __m256d b_swapped_f64x4 = _mm256_permute_pd(b_f64x4, 0x5);
+        __m256d tb_f64x4 = _mm256_mul_pd(beta_imag_f64x4, b_swapped_f64x4);
+        __m256d yb_f64x4 = _mm256_fmaddsub_pd(beta_real_f64x4, b_f64x4, tb_f64x4);
+        _mm256_storeu_pd(result_f64 + 2 * i, _mm256_add_pd(ya_f64x4, yb_f64x4));
+    }
+    for (; i < n; i++) {
+        nk_f64_t a_real = a[i].real, a_imag = a[i].imag;
+        nk_f64_t b_real = b[i].real, b_imag = b[i].imag;
+        nk_f64_t ar = alpha->real * a_real - alpha->imag * a_imag;
+        nk_f64_t ai = alpha->real * a_imag + alpha->imag * a_real;
+        nk_f64_t br = beta->real * b_real - beta->imag * b_imag;
+        nk_f64_t bi = beta->real * b_imag + beta->imag * b_real;
+        result[i].real = ar + br;
+        result[i].imag = ai + bi;
+    }
+}
+
+NK_PUBLIC void nk_each_fma_f32c_haswell(nk_f32c_t const *a, nk_f32c_t const *b, nk_f32c_t const *c, nk_size_t n,
+                                        nk_f32c_t const *alpha, nk_f32c_t const *beta, nk_f32c_t *result) {
+    nk_f32_t const *a_f32 = (nk_f32_t const *)a;
+    nk_f32_t const *b_f32 = (nk_f32_t const *)b;
+    nk_f32_t const *c_f32 = (nk_f32_t const *)c;
+    nk_f32_t *result_f32 = (nk_f32_t *)result;
+    __m256 alpha_real_f32x8 = _mm256_set1_ps(alpha->real);
+    __m256 alpha_imag_f32x8 = _mm256_set1_ps(alpha->imag);
+    __m256 beta_real_f32x8 = _mm256_set1_ps(beta->real);
+    __m256 beta_imag_f32x8 = _mm256_set1_ps(beta->imag);
+    nk_size_t i = 0;
+    for (; i + 4 <= n; i += 4) {
+        __m256 a_f32x8 = _mm256_loadu_ps(a_f32 + 2 * i);
+        __m256 b_f32x8 = _mm256_loadu_ps(b_f32 + 2 * i);
+        __m256 c_f32x8 = _mm256_loadu_ps(c_f32 + 2 * i);
+        __m256 b_swapped_f32x8 = _mm256_permute_ps(b_f32x8, 0xB1);
+        __m256 a_real_f32x8 = _mm256_moveldup_ps(a_f32x8);
+        __m256 a_imag_f32x8 = _mm256_movehdup_ps(a_f32x8);
+        __m256 tab_f32x8 = _mm256_mul_ps(a_imag_f32x8, b_swapped_f32x8);
+        __m256 ab_f32x8 = _mm256_fmaddsub_ps(a_real_f32x8, b_f32x8, tab_f32x8);
+        __m256 ab_swapped_f32x8 = _mm256_permute_ps(ab_f32x8, 0xB1);
+        __m256 taa_f32x8 = _mm256_mul_ps(alpha_imag_f32x8, ab_swapped_f32x8);
+        __m256 ya_f32x8 = _mm256_fmaddsub_ps(alpha_real_f32x8, ab_f32x8, taa_f32x8);
+        __m256 c_swapped_f32x8 = _mm256_permute_ps(c_f32x8, 0xB1);
+        __m256 tbc_f32x8 = _mm256_mul_ps(beta_imag_f32x8, c_swapped_f32x8);
+        __m256 yb_f32x8 = _mm256_fmaddsub_ps(beta_real_f32x8, c_f32x8, tbc_f32x8);
+        _mm256_storeu_ps(result_f32 + 2 * i, _mm256_add_ps(ya_f32x8, yb_f32x8));
+    }
+    for (; i < n; i++) {
+        nk_f32_t a_real = a[i].real, a_imag = a[i].imag;
+        nk_f32_t b_real = b[i].real, b_imag = b[i].imag;
+        nk_f32_t c_real = c[i].real, c_imag = c[i].imag;
+        nk_f32_t ab_real = a_real * b_real - a_imag * b_imag;
+        nk_f32_t ab_imag = a_real * b_imag + a_imag * b_real;
+        nk_f32_t aab_real = alpha->real * ab_real - alpha->imag * ab_imag;
+        nk_f32_t aab_imag = alpha->real * ab_imag + alpha->imag * ab_real;
+        nk_f32_t bc_real = beta->real * c_real - beta->imag * c_imag;
+        nk_f32_t bc_imag = beta->real * c_imag + beta->imag * c_real;
+        result[i].real = aab_real + bc_real;
+        result[i].imag = aab_imag + bc_imag;
+    }
+}
+
+NK_PUBLIC void nk_each_fma_f64c_haswell(nk_f64c_t const *a, nk_f64c_t const *b, nk_f64c_t const *c, nk_size_t n,
+                                        nk_f64c_t const *alpha, nk_f64c_t const *beta, nk_f64c_t *result) {
+    nk_f64_t const *a_f64 = (nk_f64_t const *)a;
+    nk_f64_t const *b_f64 = (nk_f64_t const *)b;
+    nk_f64_t const *c_f64 = (nk_f64_t const *)c;
+    nk_f64_t *result_f64 = (nk_f64_t *)result;
+    __m256d alpha_real_f64x4 = _mm256_set1_pd(alpha->real);
+    __m256d alpha_imag_f64x4 = _mm256_set1_pd(alpha->imag);
+    __m256d beta_real_f64x4 = _mm256_set1_pd(beta->real);
+    __m256d beta_imag_f64x4 = _mm256_set1_pd(beta->imag);
+    nk_size_t i = 0;
+    for (; i + 2 <= n; i += 2) {
+        __m256d a_f64x4 = _mm256_loadu_pd(a_f64 + 2 * i);
+        __m256d b_f64x4 = _mm256_loadu_pd(b_f64 + 2 * i);
+        __m256d c_f64x4 = _mm256_loadu_pd(c_f64 + 2 * i);
+        __m256d b_swapped_f64x4 = _mm256_permute_pd(b_f64x4, 0x5);
+        __m256d a_real_f64x4 = _mm256_movedup_pd(a_f64x4);
+        __m256d a_imag_f64x4 = _mm256_permute_pd(a_f64x4, 0xF);
+        __m256d tab_f64x4 = _mm256_mul_pd(a_imag_f64x4, b_swapped_f64x4);
+        __m256d ab_f64x4 = _mm256_fmaddsub_pd(a_real_f64x4, b_f64x4, tab_f64x4);
+        __m256d ab_swapped_f64x4 = _mm256_permute_pd(ab_f64x4, 0x5);
+        __m256d taa_f64x4 = _mm256_mul_pd(alpha_imag_f64x4, ab_swapped_f64x4);
+        __m256d ya_f64x4 = _mm256_fmaddsub_pd(alpha_real_f64x4, ab_f64x4, taa_f64x4);
+        __m256d c_swapped_f64x4 = _mm256_permute_pd(c_f64x4, 0x5);
+        __m256d tbc_f64x4 = _mm256_mul_pd(beta_imag_f64x4, c_swapped_f64x4);
+        __m256d yb_f64x4 = _mm256_fmaddsub_pd(beta_real_f64x4, c_f64x4, tbc_f64x4);
+        _mm256_storeu_pd(result_f64 + 2 * i, _mm256_add_pd(ya_f64x4, yb_f64x4));
+    }
+    for (; i < n; i++) {
+        nk_f64_t a_real = a[i].real, a_imag = a[i].imag;
+        nk_f64_t b_real = b[i].real, b_imag = b[i].imag;
+        nk_f64_t c_real = c[i].real, c_imag = c[i].imag;
+        nk_f64_t ab_real = a_real * b_real - a_imag * b_imag;
+        nk_f64_t ab_imag = a_real * b_imag + a_imag * b_real;
+        nk_f64_t aab_real = alpha->real * ab_real - alpha->imag * ab_imag;
+        nk_f64_t aab_imag = alpha->real * ab_imag + alpha->imag * ab_real;
+        nk_f64_t bc_real = beta->real * c_real - beta->imag * c_imag;
+        nk_f64_t bc_imag = beta->real * c_imag + beta->imag * c_real;
+        result[i].real = aab_real + bc_real;
+        result[i].imag = aab_imag + bc_imag;
+    }
+}
+
 #if defined(__clang__)
 #pragma clang attribute pop
 #elif defined(__GNUC__)

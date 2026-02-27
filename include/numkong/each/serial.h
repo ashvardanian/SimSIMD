@@ -149,6 +149,103 @@ nk_define_each_fma_(u64, f64, nk_assign_from_to_, nk_f64_to_u64_serial)      // 
 #undef nk_define_each_blend_
 #undef nk_define_each_fma_
 
+NK_PUBLIC void nk_each_sum_f32c_serial(nk_f32c_t const *a, nk_f32c_t const *b, nk_size_t n, nk_f32c_t *result) {
+    nk_each_sum_f32((nk_f32_t const *)a, (nk_f32_t const *)b, 2 * n, (nk_f32_t *)result);
+}
+
+NK_PUBLIC void nk_each_sum_f64c_serial(nk_f64c_t const *a, nk_f64c_t const *b, nk_size_t n, nk_f64c_t *result) {
+    nk_each_sum_f64((nk_f64_t const *)a, (nk_f64_t const *)b, 2 * n, (nk_f64_t *)result);
+}
+
+NK_PUBLIC void nk_each_scale_f32c_serial(nk_f32c_t const *a, nk_size_t n, nk_f32c_t const *alpha, nk_f32c_t const *beta,
+                                         nk_f32c_t *result) {
+    nk_f32_t alpha_real = alpha->real, alpha_imag = alpha->imag;
+    nk_f32_t beta_real = beta->real, beta_imag = beta->imag;
+    for (nk_size_t i = 0; i != n; ++i) {
+        nk_f32_t a_real = a[i].real, a_imag = a[i].imag;
+        result[i].real = alpha_real * a_real - alpha_imag * a_imag + beta_real;
+        result[i].imag = alpha_real * a_imag + alpha_imag * a_real + beta_imag;
+    }
+}
+NK_PUBLIC void nk_each_scale_f64c_serial(nk_f64c_t const *a, nk_size_t n, nk_f64c_t const *alpha, nk_f64c_t const *beta,
+                                         nk_f64c_t *result) {
+    nk_f64_t alpha_real = alpha->real, alpha_imag = alpha->imag;
+    nk_f64_t beta_real = beta->real, beta_imag = beta->imag;
+    for (nk_size_t i = 0; i != n; ++i) {
+        nk_f64_t a_real = a[i].real, a_imag = a[i].imag;
+        result[i].real = alpha_real * a_real - alpha_imag * a_imag + beta_real;
+        result[i].imag = alpha_real * a_imag + alpha_imag * a_real + beta_imag;
+    }
+}
+
+NK_PUBLIC void nk_each_blend_f32c_serial(nk_f32c_t const *a, nk_f32c_t const *b, nk_size_t n, nk_f32c_t const *alpha,
+                                         nk_f32c_t const *beta, nk_f32c_t *result) {
+    nk_f32_t alpha_real = alpha->real, alpha_imag = alpha->imag;
+    nk_f32_t beta_real = beta->real, beta_imag = beta->imag;
+    for (nk_size_t i = 0; i != n; ++i) {
+        nk_f32_t a_real = a[i].real, a_imag = a[i].imag;
+        nk_f32_t b_real = b[i].real, b_imag = b[i].imag;
+        nk_f32_t alpha_a_real = alpha_real * a_real - alpha_imag * a_imag;
+        nk_f32_t alpha_a_imag = alpha_real * a_imag + alpha_imag * a_real;
+        nk_f32_t beta_b_real = beta_real * b_real - beta_imag * b_imag;
+        nk_f32_t beta_b_imag = beta_real * b_imag + beta_imag * b_real;
+        result[i].real = alpha_a_real + beta_b_real;
+        result[i].imag = alpha_a_imag + beta_b_imag;
+    }
+}
+NK_PUBLIC void nk_each_blend_f64c_serial(nk_f64c_t const *a, nk_f64c_t const *b, nk_size_t n, nk_f64c_t const *alpha,
+                                         nk_f64c_t const *beta, nk_f64c_t *result) {
+    nk_f64_t alpha_real = alpha->real, alpha_imag = alpha->imag;
+    nk_f64_t beta_real = beta->real, beta_imag = beta->imag;
+    for (nk_size_t i = 0; i != n; ++i) {
+        nk_f64_t a_real = a[i].real, a_imag = a[i].imag;
+        nk_f64_t b_real = b[i].real, b_imag = b[i].imag;
+        nk_f64_t alpha_a_real = alpha_real * a_real - alpha_imag * a_imag;
+        nk_f64_t alpha_a_imag = alpha_real * a_imag + alpha_imag * a_real;
+        nk_f64_t beta_b_real = beta_real * b_real - beta_imag * b_imag;
+        nk_f64_t beta_b_imag = beta_real * b_imag + beta_imag * b_real;
+        result[i].real = alpha_a_real + beta_b_real;
+        result[i].imag = alpha_a_imag + beta_b_imag;
+    }
+}
+
+NK_PUBLIC void nk_each_fma_f32c_serial(nk_f32c_t const *a, nk_f32c_t const *b, nk_f32c_t const *c, nk_size_t n,
+                                       nk_f32c_t const *alpha, nk_f32c_t const *beta, nk_f32c_t *result) {
+    nk_f32_t alpha_real = alpha->real, alpha_imag = alpha->imag;
+    nk_f32_t beta_real = beta->real, beta_imag = beta->imag;
+    for (nk_size_t i = 0; i != n; ++i) {
+        nk_f32_t a_real = a[i].real, a_imag = a[i].imag;
+        nk_f32_t b_real = b[i].real, b_imag = b[i].imag;
+        nk_f32_t c_real = c[i].real, c_imag = c[i].imag;
+        nk_f32_t product_real = a_real * b_real - a_imag * b_imag;
+        nk_f32_t product_imag = a_real * b_imag + a_imag * b_real;
+        nk_f32_t alpha_product_real = alpha_real * product_real - alpha_imag * product_imag;
+        nk_f32_t alpha_product_imag = alpha_real * product_imag + alpha_imag * product_real;
+        nk_f32_t beta_c_real = beta_real * c_real - beta_imag * c_imag;
+        nk_f32_t beta_c_imag = beta_real * c_imag + beta_imag * c_real;
+        result[i].real = alpha_product_real + beta_c_real;
+        result[i].imag = alpha_product_imag + beta_c_imag;
+    }
+}
+NK_PUBLIC void nk_each_fma_f64c_serial(nk_f64c_t const *a, nk_f64c_t const *b, nk_f64c_t const *c, nk_size_t n,
+                                       nk_f64c_t const *alpha, nk_f64c_t const *beta, nk_f64c_t *result) {
+    nk_f64_t alpha_real = alpha->real, alpha_imag = alpha->imag;
+    nk_f64_t beta_real = beta->real, beta_imag = beta->imag;
+    for (nk_size_t i = 0; i != n; ++i) {
+        nk_f64_t a_real = a[i].real, a_imag = a[i].imag;
+        nk_f64_t b_real = b[i].real, b_imag = b[i].imag;
+        nk_f64_t c_real = c[i].real, c_imag = c[i].imag;
+        nk_f64_t product_real = a_real * b_real - a_imag * b_imag;
+        nk_f64_t product_imag = a_real * b_imag + a_imag * b_real;
+        nk_f64_t alpha_product_real = alpha_real * product_real - alpha_imag * product_imag;
+        nk_f64_t alpha_product_imag = alpha_real * product_imag + alpha_imag * product_real;
+        nk_f64_t beta_c_real = beta_real * c_real - beta_imag * c_imag;
+        nk_f64_t beta_c_imag = beta_real * c_imag + beta_imag * c_real;
+        result[i].real = alpha_product_real + beta_c_real;
+        result[i].imag = alpha_product_imag + beta_c_imag;
+    }
+}
+
 #if defined(__cplusplus)
 } // extern "C"
 #endif

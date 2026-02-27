@@ -162,11 +162,11 @@ NK_PUBLIC void nk_bilinear_bf16c_neonbfdot(nk_bf16c_t const *a_pairs, nk_bf16c_t
             float32x4_t c_real_f32x4 = vcvt_f32_bf16(vreinterpret_bf16_s16(c_i16x4x2.val[0]));
             float32x4_t c_imag_f32x4 = vcvt_f32_bf16(vreinterpret_bf16_s16(c_i16x4x2.val[1]));
 
-            // Complex multiply: c * b = (c_re*b_re - c_im*b_im) + (c_re*b_im + c_im*b_re)*i
-            // Real part: c_re*b_re - c_im*b_im
+            // Complex multiply: c * b = (c_real*b_real - c_imag*b_imag) + (c_real*b_imag + c_imag*b_real)*i
+            // Real part: c_real*b_real - c_imag*b_imag
             inner_sum_real_f32x4 = vfmaq_f32(inner_sum_real_f32x4, c_real_f32x4, b_real_f32x4);
             inner_sum_real_f32x4 = vfmsq_f32(inner_sum_real_f32x4, c_imag_f32x4, b_imag_f32x4);
-            // Imaginary part: c_re*b_im + c_im*b_re
+            // Imaginary part: c_real*b_imag + c_imag*b_real
             inner_sum_imag_f32x4 = vfmaq_f32(inner_sum_imag_f32x4, c_real_f32x4, b_imag_f32x4);
             inner_sum_imag_f32x4 = vfmaq_f32(inner_sum_imag_f32x4, c_imag_f32x4, b_real_f32x4);
         }
@@ -188,7 +188,8 @@ NK_PUBLIC void nk_bilinear_bf16c_neonbfdot(nk_bf16c_t const *a_pairs, nk_bf16c_t
         nk_f32_t inner_sum_real = vaddvq_f32(inner_sum_real_f32x4) + inner_sum_real_tail;
         nk_f32_t inner_sum_imag = vaddvq_f32(inner_sum_imag_f32x4) + inner_sum_imag_tail;
 
-        // Complex multiply: a * inner_sum = (a_re*inner_re - a_im*inner_im) + (a_re*inner_im + a_im*inner_re)*i
+        // Complex multiply: a * inner_sum = (a_real*inner_real - a_imag*inner_imag) + (a_real*inner_imag +
+        // a_imag*inner_real)*i
         outer_sum_real += a_real * inner_sum_real - a_imag * inner_sum_imag;
         outer_sum_imag += a_real * inner_sum_imag + a_imag * inner_sum_real;
     }

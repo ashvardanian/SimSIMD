@@ -41,6 +41,8 @@ void sum(in_type_ const *a, in_type_ const *b, std::size_t d, in_type_ *c) noexc
     else if constexpr (std::is_same_v<in_type_, u32_t> && simd) nk_sum_u32(&a->raw_, &b->raw_, d, &c->raw_);
     else if constexpr (std::is_same_v<in_type_, i64_t> && simd) nk_sum_i64(&a->raw_, &b->raw_, d, &c->raw_);
     else if constexpr (std::is_same_v<in_type_, u64_t> && simd) nk_sum_u64(&a->raw_, &b->raw_, d, &c->raw_);
+    else if constexpr (std::is_same_v<in_type_, f32c_t> && simd) nk_each_sum_f32c(&a->raw_, &b->raw_, d, &c->raw_);
+    else if constexpr (std::is_same_v<in_type_, f64c_t> && simd) nk_each_sum_f64c(&a->raw_, &b->raw_, d, &c->raw_);
     // Scalar fallback
     else {
         for (std::size_t i = 0; i < d; i++) c[i] = a[i].saturating_add(b[i]);
@@ -75,10 +77,13 @@ void scale(in_type_ const *a, std::size_t d, typename in_type_::scale_t const *a
     else if constexpr (std::is_same_v<in_type_, u32_t> && simd) nk_scale_u32(&a->raw_, d, alpha, beta, &c->raw_);
     else if constexpr (std::is_same_v<in_type_, i64_t> && simd) nk_scale_i64(&a->raw_, d, alpha, beta, &c->raw_);
     else if constexpr (std::is_same_v<in_type_, u64_t> && simd) nk_scale_u64(&a->raw_, d, alpha, beta, &c->raw_);
+    else if constexpr (std::is_same_v<in_type_, f32c_t> && simd) nk_each_scale_f32c(&a->raw_, d, alpha, beta, &c->raw_);
+    else if constexpr (std::is_same_v<in_type_, f64c_t> && simd) nk_each_scale_f64c(&a->raw_, d, alpha, beta, &c->raw_);
     // Scalar fallback with high-precision intermediates
     else {
         for (std::size_t i = 0; i < d; i++)
-            c[i] = (precision_type_(a[i]) * precision_type_(*alpha) + precision_type_(*beta)).template to<in_type_>();
+            c[i] = (precision_type_(a[i]) * precision_type_(in_type_(*alpha)) + precision_type_(in_type_(*beta)))
+                       .template to<in_type_>();
     }
 }
 
@@ -119,10 +124,15 @@ void wsum(in_type_ const *a, in_type_ const *b, std::size_t d, typename in_type_
         nk_wsum_i64(&a->raw_, &b->raw_, d, alpha, beta, &c->raw_);
     else if constexpr (std::is_same_v<in_type_, u64_t> && simd)
         nk_wsum_u64(&a->raw_, &b->raw_, d, alpha, beta, &c->raw_);
+    else if constexpr (std::is_same_v<in_type_, f32c_t> && simd)
+        nk_each_blend_f32c(&a->raw_, &b->raw_, d, alpha, beta, &c->raw_);
+    else if constexpr (std::is_same_v<in_type_, f64c_t> && simd)
+        nk_each_blend_f64c(&a->raw_, &b->raw_, d, alpha, beta, &c->raw_);
     // Scalar fallback with high-precision intermediates
     else {
         for (std::size_t i = 0; i < d; i++) {
-            c[i] = (precision_type_(a[i]) * precision_type_(*alpha) + precision_type_(b[i]) * precision_type_(*beta))
+            c[i] = (precision_type_(a[i]) * precision_type_(in_type_(*alpha)) +
+                    precision_type_(b[i]) * precision_type_(in_type_(*beta)))
                        .template to<in_type_>();
         }
     }
@@ -168,11 +178,15 @@ void fma(in_type_ const *a, in_type_ const *b, std::size_t d, in_type_ const *c,
         nk_fma_i64(&a->raw_, &b->raw_, &c->raw_, d, alpha, beta, &out->raw_);
     else if constexpr (std::is_same_v<in_type_, u64_t> && simd)
         nk_fma_u64(&a->raw_, &b->raw_, &c->raw_, d, alpha, beta, &out->raw_);
+    else if constexpr (std::is_same_v<in_type_, f32c_t> && simd)
+        nk_each_fma_f32c(&a->raw_, &b->raw_, &c->raw_, d, alpha, beta, &out->raw_);
+    else if constexpr (std::is_same_v<in_type_, f64c_t> && simd)
+        nk_each_fma_f64c(&a->raw_, &b->raw_, &c->raw_, d, alpha, beta, &out->raw_);
     // Scalar fallback with high-precision intermediates
     else {
         for (std::size_t i = 0; i < d; i++) {
-            out[i] = (precision_type_(a[i]) * precision_type_(b[i]) * precision_type_(*alpha) +
-                      precision_type_(c[i]) * precision_type_(*beta))
+            out[i] = (precision_type_(a[i]) * precision_type_(b[i]) * precision_type_(in_type_(*alpha)) +
+                      precision_type_(c[i]) * precision_type_(in_type_(*beta)))
                          .template to<in_type_>();
         }
     }

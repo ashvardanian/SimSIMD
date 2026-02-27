@@ -860,6 +860,200 @@ NK_PUBLIC void nk_each_fma_e5m2_neon(nk_e5m2_t const *a, nk_e5m2_t const *b, nk_
     }
 }
 
+NK_PUBLIC void nk_each_scale_f32c_neon(nk_f32c_t const *a, nk_size_t n, nk_f32c_t const *alpha, nk_f32c_t const *beta,
+                                       nk_f32c_t *result) {
+    float32x4_t alpha_real_f32x4 = vdupq_n_f32(alpha->real);
+    float32x4_t alpha_imag_f32x4 = vdupq_n_f32(alpha->imag);
+    float32x4_t beta_real_f32x4 = vdupq_n_f32(beta->real);
+    float32x4_t beta_imag_f32x4 = vdupq_n_f32(beta->imag);
+    nk_size_t i = 0;
+    for (; i + 4 <= n; i += 4) {
+        float32x4x2_t a_f32x4x2 = vld2q_f32((nk_f32_t const *)(a + i));
+        float32x4_t y_real_f32x4 = vfmaq_f32(beta_real_f32x4, alpha_real_f32x4, a_f32x4x2.val[0]);
+        y_real_f32x4 = vfmsq_f32(y_real_f32x4, alpha_imag_f32x4, a_f32x4x2.val[1]);
+        float32x4_t y_imag_f32x4 = vfmaq_f32(beta_imag_f32x4, alpha_real_f32x4, a_f32x4x2.val[1]);
+        y_imag_f32x4 = vfmaq_f32(y_imag_f32x4, alpha_imag_f32x4, a_f32x4x2.val[0]);
+        float32x4x2_t out = {y_real_f32x4, y_imag_f32x4};
+        vst2q_f32((nk_f32_t *)(result + i), out);
+    }
+    for (; i < n; i++) {
+        nk_f32_t a_real = a[i].real, a_imag = a[i].imag;
+        result[i].real = alpha->real * a_real - alpha->imag * a_imag + beta->real;
+        result[i].imag = alpha->real * a_imag + alpha->imag * a_real + beta->imag;
+    }
+}
+
+NK_PUBLIC void nk_each_scale_f64c_neon(nk_f64c_t const *a, nk_size_t n, nk_f64c_t const *alpha, nk_f64c_t const *beta,
+                                       nk_f64c_t *result) {
+    float64x2_t alpha_real_f64x2 = vdupq_n_f64(alpha->real);
+    float64x2_t alpha_imag_f64x2 = vdupq_n_f64(alpha->imag);
+    float64x2_t beta_real_f64x2 = vdupq_n_f64(beta->real);
+    float64x2_t beta_imag_f64x2 = vdupq_n_f64(beta->imag);
+    nk_size_t i = 0;
+    for (; i + 2 <= n; i += 2) {
+        float64x2x2_t a_f64x2x2 = vld2q_f64((nk_f64_t const *)(a + i));
+        float64x2_t y_real_f64x2 = vfmaq_f64(beta_real_f64x2, alpha_real_f64x2, a_f64x2x2.val[0]);
+        y_real_f64x2 = vfmsq_f64(y_real_f64x2, alpha_imag_f64x2, a_f64x2x2.val[1]);
+        float64x2_t y_imag_f64x2 = vfmaq_f64(beta_imag_f64x2, alpha_real_f64x2, a_f64x2x2.val[1]);
+        y_imag_f64x2 = vfmaq_f64(y_imag_f64x2, alpha_imag_f64x2, a_f64x2x2.val[0]);
+        float64x2x2_t out = {y_real_f64x2, y_imag_f64x2};
+        vst2q_f64((nk_f64_t *)(result + i), out);
+    }
+    for (; i < n; i++) {
+        nk_f64_t a_real = a[i].real, a_imag = a[i].imag;
+        result[i].real = alpha->real * a_real - alpha->imag * a_imag + beta->real;
+        result[i].imag = alpha->real * a_imag + alpha->imag * a_real + beta->imag;
+    }
+}
+
+NK_PUBLIC void nk_each_blend_f32c_neon(nk_f32c_t const *a, nk_f32c_t const *b, nk_size_t n, nk_f32c_t const *alpha,
+                                       nk_f32c_t const *beta, nk_f32c_t *result) {
+    float32x4_t alpha_real_f32x4 = vdupq_n_f32(alpha->real);
+    float32x4_t alpha_imag_f32x4 = vdupq_n_f32(alpha->imag);
+    float32x4_t beta_real_f32x4 = vdupq_n_f32(beta->real);
+    float32x4_t beta_imag_f32x4 = vdupq_n_f32(beta->imag);
+    nk_size_t i = 0;
+    for (; i + 4 <= n; i += 4) {
+        float32x4x2_t a_f32x4x2 = vld2q_f32((nk_f32_t const *)(a + i));
+        float32x4x2_t b_f32x4x2 = vld2q_f32((nk_f32_t const *)(b + i));
+        float32x4_t ya_real_f32x4 = vmulq_f32(alpha_real_f32x4, a_f32x4x2.val[0]);
+        ya_real_f32x4 = vfmsq_f32(ya_real_f32x4, alpha_imag_f32x4, a_f32x4x2.val[1]);
+        float32x4_t ya_imag_f32x4 = vmulq_f32(alpha_real_f32x4, a_f32x4x2.val[1]);
+        ya_imag_f32x4 = vfmaq_f32(ya_imag_f32x4, alpha_imag_f32x4, a_f32x4x2.val[0]);
+        float32x4_t y_real_f32x4 = vfmaq_f32(ya_real_f32x4, beta_real_f32x4, b_f32x4x2.val[0]);
+        y_real_f32x4 = vfmsq_f32(y_real_f32x4, beta_imag_f32x4, b_f32x4x2.val[1]);
+        float32x4_t y_imag_f32x4 = vfmaq_f32(ya_imag_f32x4, beta_real_f32x4, b_f32x4x2.val[1]);
+        y_imag_f32x4 = vfmaq_f32(y_imag_f32x4, beta_imag_f32x4, b_f32x4x2.val[0]);
+        float32x4x2_t out = {y_real_f32x4, y_imag_f32x4};
+        vst2q_f32((nk_f32_t *)(result + i), out);
+    }
+    for (; i < n; i++) {
+        nk_f32_t a_real = a[i].real, a_imag = a[i].imag;
+        nk_f32_t b_real = b[i].real, b_imag = b[i].imag;
+        nk_f32_t ar = alpha->real * a_real - alpha->imag * a_imag;
+        nk_f32_t ai = alpha->real * a_imag + alpha->imag * a_real;
+        nk_f32_t br = beta->real * b_real - beta->imag * b_imag;
+        nk_f32_t bi = beta->real * b_imag + beta->imag * b_real;
+        result[i].real = ar + br;
+        result[i].imag = ai + bi;
+    }
+}
+
+NK_PUBLIC void nk_each_blend_f64c_neon(nk_f64c_t const *a, nk_f64c_t const *b, nk_size_t n, nk_f64c_t const *alpha,
+                                       nk_f64c_t const *beta, nk_f64c_t *result) {
+    float64x2_t alpha_real_f64x2 = vdupq_n_f64(alpha->real);
+    float64x2_t alpha_imag_f64x2 = vdupq_n_f64(alpha->imag);
+    float64x2_t beta_real_f64x2 = vdupq_n_f64(beta->real);
+    float64x2_t beta_imag_f64x2 = vdupq_n_f64(beta->imag);
+    nk_size_t i = 0;
+    for (; i + 2 <= n; i += 2) {
+        float64x2x2_t a_f64x2x2 = vld2q_f64((nk_f64_t const *)(a + i));
+        float64x2x2_t b_f64x2x2 = vld2q_f64((nk_f64_t const *)(b + i));
+        float64x2_t ya_real_f64x2 = vmulq_f64(alpha_real_f64x2, a_f64x2x2.val[0]);
+        ya_real_f64x2 = vfmsq_f64(ya_real_f64x2, alpha_imag_f64x2, a_f64x2x2.val[1]);
+        float64x2_t ya_imag_f64x2 = vmulq_f64(alpha_real_f64x2, a_f64x2x2.val[1]);
+        ya_imag_f64x2 = vfmaq_f64(ya_imag_f64x2, alpha_imag_f64x2, a_f64x2x2.val[0]);
+        float64x2_t y_real_f64x2 = vfmaq_f64(ya_real_f64x2, beta_real_f64x2, b_f64x2x2.val[0]);
+        y_real_f64x2 = vfmsq_f64(y_real_f64x2, beta_imag_f64x2, b_f64x2x2.val[1]);
+        float64x2_t y_imag_f64x2 = vfmaq_f64(ya_imag_f64x2, beta_real_f64x2, b_f64x2x2.val[1]);
+        y_imag_f64x2 = vfmaq_f64(y_imag_f64x2, beta_imag_f64x2, b_f64x2x2.val[0]);
+        float64x2x2_t out = {y_real_f64x2, y_imag_f64x2};
+        vst2q_f64((nk_f64_t *)(result + i), out);
+    }
+    for (; i < n; i++) {
+        nk_f64_t a_real = a[i].real, a_imag = a[i].imag;
+        nk_f64_t b_real = b[i].real, b_imag = b[i].imag;
+        nk_f64_t ar = alpha->real * a_real - alpha->imag * a_imag;
+        nk_f64_t ai = alpha->real * a_imag + alpha->imag * a_real;
+        nk_f64_t br = beta->real * b_real - beta->imag * b_imag;
+        nk_f64_t bi = beta->real * b_imag + beta->imag * b_real;
+        result[i].real = ar + br;
+        result[i].imag = ai + bi;
+    }
+}
+
+NK_PUBLIC void nk_each_fma_f32c_neon(nk_f32c_t const *a, nk_f32c_t const *b, nk_f32c_t const *c, nk_size_t n,
+                                     nk_f32c_t const *alpha, nk_f32c_t const *beta, nk_f32c_t *result) {
+    float32x4_t alpha_real_f32x4 = vdupq_n_f32(alpha->real);
+    float32x4_t alpha_imag_f32x4 = vdupq_n_f32(alpha->imag);
+    float32x4_t beta_real_f32x4 = vdupq_n_f32(beta->real);
+    float32x4_t beta_imag_f32x4 = vdupq_n_f32(beta->imag);
+    nk_size_t i = 0;
+    for (; i + 4 <= n; i += 4) {
+        float32x4x2_t a_f32x4x2 = vld2q_f32((nk_f32_t const *)(a + i));
+        float32x4x2_t b_f32x4x2 = vld2q_f32((nk_f32_t const *)(b + i));
+        float32x4x2_t c_f32x4x2 = vld2q_f32((nk_f32_t const *)(c + i));
+        float32x4_t ab_real_f32x4 = vmulq_f32(a_f32x4x2.val[0], b_f32x4x2.val[0]);
+        ab_real_f32x4 = vfmsq_f32(ab_real_f32x4, a_f32x4x2.val[1], b_f32x4x2.val[1]);
+        float32x4_t ab_imag_f32x4 = vmulq_f32(a_f32x4x2.val[0], b_f32x4x2.val[1]);
+        ab_imag_f32x4 = vfmaq_f32(ab_imag_f32x4, a_f32x4x2.val[1], b_f32x4x2.val[0]);
+        float32x4_t y_real_f32x4 = vmulq_f32(alpha_real_f32x4, ab_real_f32x4);
+        y_real_f32x4 = vfmsq_f32(y_real_f32x4, alpha_imag_f32x4, ab_imag_f32x4);
+        float32x4_t y_imag_f32x4 = vmulq_f32(alpha_real_f32x4, ab_imag_f32x4);
+        y_imag_f32x4 = vfmaq_f32(y_imag_f32x4, alpha_imag_f32x4, ab_real_f32x4);
+        y_real_f32x4 = vfmaq_f32(y_real_f32x4, beta_real_f32x4, c_f32x4x2.val[0]);
+        y_real_f32x4 = vfmsq_f32(y_real_f32x4, beta_imag_f32x4, c_f32x4x2.val[1]);
+        y_imag_f32x4 = vfmaq_f32(y_imag_f32x4, beta_real_f32x4, c_f32x4x2.val[1]);
+        y_imag_f32x4 = vfmaq_f32(y_imag_f32x4, beta_imag_f32x4, c_f32x4x2.val[0]);
+        float32x4x2_t out = {y_real_f32x4, y_imag_f32x4};
+        vst2q_f32((nk_f32_t *)(result + i), out);
+    }
+    for (; i < n; i++) {
+        nk_f32_t a_real = a[i].real, a_imag = a[i].imag;
+        nk_f32_t b_real = b[i].real, b_imag = b[i].imag;
+        nk_f32_t c_real = c[i].real, c_imag = c[i].imag;
+        nk_f32_t ab_real = a_real * b_real - a_imag * b_imag;
+        nk_f32_t ab_imag = a_real * b_imag + a_imag * b_real;
+        nk_f32_t aab_real = alpha->real * ab_real - alpha->imag * ab_imag;
+        nk_f32_t aab_imag = alpha->real * ab_imag + alpha->imag * ab_real;
+        nk_f32_t bc_real = beta->real * c_real - beta->imag * c_imag;
+        nk_f32_t bc_imag = beta->real * c_imag + beta->imag * c_real;
+        result[i].real = aab_real + bc_real;
+        result[i].imag = aab_imag + bc_imag;
+    }
+}
+
+NK_PUBLIC void nk_each_fma_f64c_neon(nk_f64c_t const *a, nk_f64c_t const *b, nk_f64c_t const *c, nk_size_t n,
+                                     nk_f64c_t const *alpha, nk_f64c_t const *beta, nk_f64c_t *result) {
+    float64x2_t alpha_real_f64x2 = vdupq_n_f64(alpha->real);
+    float64x2_t alpha_imag_f64x2 = vdupq_n_f64(alpha->imag);
+    float64x2_t beta_real_f64x2 = vdupq_n_f64(beta->real);
+    float64x2_t beta_imag_f64x2 = vdupq_n_f64(beta->imag);
+    nk_size_t i = 0;
+    for (; i + 2 <= n; i += 2) {
+        float64x2x2_t a_f64x2x2 = vld2q_f64((nk_f64_t const *)(a + i));
+        float64x2x2_t b_f64x2x2 = vld2q_f64((nk_f64_t const *)(b + i));
+        float64x2x2_t c_f64x2x2 = vld2q_f64((nk_f64_t const *)(c + i));
+        float64x2_t ab_real_f64x2 = vmulq_f64(a_f64x2x2.val[0], b_f64x2x2.val[0]);
+        ab_real_f64x2 = vfmsq_f64(ab_real_f64x2, a_f64x2x2.val[1], b_f64x2x2.val[1]);
+        float64x2_t ab_imag_f64x2 = vmulq_f64(a_f64x2x2.val[0], b_f64x2x2.val[1]);
+        ab_imag_f64x2 = vfmaq_f64(ab_imag_f64x2, a_f64x2x2.val[1], b_f64x2x2.val[0]);
+        float64x2_t y_real_f64x2 = vmulq_f64(alpha_real_f64x2, ab_real_f64x2);
+        y_real_f64x2 = vfmsq_f64(y_real_f64x2, alpha_imag_f64x2, ab_imag_f64x2);
+        float64x2_t y_imag_f64x2 = vmulq_f64(alpha_real_f64x2, ab_imag_f64x2);
+        y_imag_f64x2 = vfmaq_f64(y_imag_f64x2, alpha_imag_f64x2, ab_real_f64x2);
+        y_real_f64x2 = vfmaq_f64(y_real_f64x2, beta_real_f64x2, c_f64x2x2.val[0]);
+        y_real_f64x2 = vfmsq_f64(y_real_f64x2, beta_imag_f64x2, c_f64x2x2.val[1]);
+        y_imag_f64x2 = vfmaq_f64(y_imag_f64x2, beta_real_f64x2, c_f64x2x2.val[1]);
+        y_imag_f64x2 = vfmaq_f64(y_imag_f64x2, beta_imag_f64x2, c_f64x2x2.val[0]);
+        float64x2x2_t out = {y_real_f64x2, y_imag_f64x2};
+        vst2q_f64((nk_f64_t *)(result + i), out);
+    }
+    for (; i < n; i++) {
+        nk_f64_t a_real = a[i].real, a_imag = a[i].imag;
+        nk_f64_t b_real = b[i].real, b_imag = b[i].imag;
+        nk_f64_t c_real = c[i].real, c_imag = c[i].imag;
+        nk_f64_t ab_real = a_real * b_real - a_imag * b_imag;
+        nk_f64_t ab_imag = a_real * b_imag + a_imag * b_real;
+        nk_f64_t aab_real = alpha->real * ab_real - alpha->imag * ab_imag;
+        nk_f64_t aab_imag = alpha->real * ab_imag + alpha->imag * ab_real;
+        nk_f64_t bc_real = beta->real * c_real - beta->imag * c_imag;
+        nk_f64_t bc_imag = beta->real * c_imag + beta->imag * c_real;
+        result[i].real = aab_real + bc_real;
+        result[i].imag = aab_imag + bc_imag;
+    }
+}
+
 #if defined(__clang__)
 #pragma clang attribute pop
 #elif defined(__GNUC__)

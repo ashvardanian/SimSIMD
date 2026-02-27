@@ -624,11 +624,17 @@ struct f32c_t {
     using dot_result_t = f32c_t;    // `nk_dot_f32c` output
     using vdot_result_t = f32c_t;   // `nk_vdot_f32c` output
     using curved_result_t = f32c_t; // `nk_bilinear_f32c` output
+    using scale_t = nk_f32c_t;
 
     // Kernel function pointer types
     using dot_kernel_t = void (*)(raw_t const *, raw_t const *, nk_size_t, nk_f32c_t *);
     using vdot_kernel_t = void (*)(raw_t const *, raw_t const *, nk_size_t, nk_f32c_t *);
     using curved_kernel_t = void (*)(raw_t const *, raw_t const *, raw_t const *, nk_size_t, raw_t *);
+    using sum_kernel_t = void (*)(raw_t const *, raw_t const *, nk_size_t, raw_t *);
+    using scale_kernel_t = void (*)(raw_t const *, nk_size_t, scale_t const *, scale_t const *, raw_t *);
+    using wsum_kernel_t = void (*)(raw_t const *, raw_t const *, nk_size_t, scale_t const *, scale_t const *, raw_t *);
+    using fma_kernel_t = void (*)(raw_t const *, raw_t const *, raw_t const *, nk_size_t, scale_t const *,
+                                  scale_t const *, raw_t *);
 
     static constexpr nk_dtype_t dtype() noexcept { return nk_f32c_k; }
     static constexpr char const *dtype_name() noexcept { return "f32c"; }
@@ -650,6 +656,7 @@ struct f32c_t {
     constexpr f32c_t(float r) noexcept : raw_ {r, 0} {}
     constexpr f32c_t(f32_t r, f32_t i) noexcept : raw_ {r.raw_, i.raw_} {}
     constexpr f32c_t(float r, float i) noexcept : raw_ {r, i} {}
+    constexpr f32c_t(raw_t r) noexcept : raw_(r) {}
 
     static constexpr f32c_t from_raw(raw_t r) noexcept { return f32c_t {r.real, r.imag}; }
 
@@ -703,6 +710,10 @@ struct f32c_t {
     }
     inline f32c_t &operator*=(f32c_t o) noexcept { return *this = *this * o; }
     inline f32c_t &operator/=(f32c_t o) noexcept { return *this = *this / o; }
+
+    constexpr f32c_t saturating_add(f32c_t o) const noexcept {
+        return f32c_t(real().saturating_add(o.real()), imag().saturating_add(o.imag()));
+    }
 
     constexpr f32c_t operator*(f32_t s) const noexcept { return f32c_t {raw_.real * s.raw_, raw_.imag * s.raw_}; }
     constexpr f32c_t operator/(f32_t s) const noexcept { return f32c_t {raw_.real / s.raw_, raw_.imag / s.raw_}; }
@@ -861,11 +872,17 @@ struct f64c_t {
     using dot_result_t = f64c_t;    // `nk_dot_f64c` output
     using vdot_result_t = f64c_t;   // `nk_vdot_f64c` output
     using curved_result_t = f64c_t; // `nk_bilinear_f64c` output
+    using scale_t = nk_f64c_t;
 
     // Kernel function pointer types
     using dot_kernel_t = void (*)(raw_t const *, raw_t const *, nk_size_t, nk_f64c_t *);
     using vdot_kernel_t = void (*)(raw_t const *, raw_t const *, nk_size_t, nk_f64c_t *);
     using curved_kernel_t = void (*)(raw_t const *, raw_t const *, raw_t const *, nk_size_t, raw_t *);
+    using sum_kernel_t = void (*)(raw_t const *, raw_t const *, nk_size_t, raw_t *);
+    using scale_kernel_t = void (*)(raw_t const *, nk_size_t, scale_t const *, scale_t const *, raw_t *);
+    using wsum_kernel_t = void (*)(raw_t const *, raw_t const *, nk_size_t, scale_t const *, scale_t const *, raw_t *);
+    using fma_kernel_t = void (*)(raw_t const *, raw_t const *, raw_t const *, nk_size_t, scale_t const *,
+                                  scale_t const *, raw_t *);
 
     static constexpr nk_dtype_t dtype() noexcept { return nk_f64c_k; }
     static constexpr char const *dtype_name() noexcept { return "f64c"; }
@@ -887,6 +904,7 @@ struct f64c_t {
     constexpr f64c_t(double r) noexcept : raw_ {r, 0} {}
     constexpr f64c_t(f64_t r, f64_t i) noexcept : raw_ {r.raw_, i.raw_} {}
     constexpr f64c_t(double r, double i) noexcept : raw_ {r, i} {}
+    constexpr f64c_t(raw_t r) noexcept : raw_(r) {}
 
     static constexpr f64c_t from_raw(raw_t r) noexcept { return f64c_t {r.real, r.imag}; }
 
@@ -942,6 +960,10 @@ struct f64c_t {
     }
     inline f64c_t &operator*=(f64c_t o) noexcept { return *this = *this * o; }
     inline f64c_t &operator/=(f64c_t o) noexcept { return *this = *this / o; }
+
+    constexpr f64c_t saturating_add(f64c_t o) const noexcept {
+        return f64c_t(real().saturating_add(o.real()), imag().saturating_add(o.imag()));
+    }
 
     constexpr f64c_t operator*(f64_t s) const noexcept { return f64c_t {raw_.real * s.raw_, raw_.imag * s.raw_}; }
     constexpr f64c_t operator/(f64_t s) const noexcept { return f64c_t {raw_.real / s.raw_, raw_.imag / s.raw_}; }
@@ -3400,6 +3422,13 @@ struct f118c_t {
     constexpr f64c_t to_f64c() const noexcept { return f64c_t(real_.high_, imag_.high_); }
     constexpr f32c_t to_f32c() const noexcept {
         return f32c_t(static_cast<float>(real_.high_), static_cast<float>(imag_.high_));
+    }
+
+    template <typename target_type_>
+    constexpr target_type_ to() const noexcept {
+        if constexpr (std::is_same_v<target_type_, f32c_t>) return to_f32c();
+        else if constexpr (std::is_same_v<target_type_, f64c_t>) return to_f64c();
+        else return target_type_(real_.high_, imag_.high_);
     }
 };
 
