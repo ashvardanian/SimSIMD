@@ -143,7 +143,9 @@ NK_INTERNAL nk_f32_t nk_f32_rsqrt_serial(nk_f32_t number) {
  *  This technique is useful where `sqrt` approximation is needed in performance-critical code,
  *  though modern hardware provides optimized alternatives like SSE `sqrtss`.
  */
-NK_INTERNAL nk_f32_t nk_f32_sqrt_serial(nk_f32_t number) { return number * nk_f32_rsqrt_serial(number); }
+NK_INTERNAL nk_f32_t nk_f32_sqrt_serial(nk_f32_t number) {
+    return number > 0 ? number * nk_f32_rsqrt_serial(number) : 0;
+}
 
 /**
  *  @brief  Computes `1/√x` for double precision using the Quake 3 trick,
@@ -176,7 +178,9 @@ NK_INTERNAL nk_f64_t nk_f64_rsqrt_serial(nk_f64_t number) {
  *  Leverages the fast inverse square root approximation and multiplies by `number`.
  *  Inherits near-full f64 precision from the underlying `rsqrt` implementation.
  */
-NK_INTERNAL nk_f64_t nk_f64_sqrt_serial(nk_f64_t number) { return number * nk_f64_rsqrt_serial(number); }
+NK_INTERNAL nk_f64_t nk_f64_sqrt_serial(nk_f64_t number) {
+    return number > 0 ? number * nk_f64_rsqrt_serial(number) : 0;
+}
 
 nk_define_angular_(f64, f64, f64, nk_assign_from_to_, nk_f64_rsqrt_serial)       // nk_angular_f64_serial
 nk_define_sqeuclidean_(f64, f64, f64, nk_assign_from_to_)                        // nk_sqeuclidean_f64_serial
