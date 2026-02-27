@@ -5698,6 +5698,8 @@ mod tests {
         check_dots_packed_transposed::<e3m2>();
         check_dots_packed_transposed::<i8>();
         check_dots_packed_transposed::<u8>();
+        check_dots_packed_transposed::<i4x2>();
+        check_dots_packed_transposed::<u4x2>();
     }
 
     #[test]
@@ -5740,6 +5742,123 @@ mod tests {
         check_angulars_packed_parallel::<f32>();
         check_euclideans_packed_parallel::<f32>();
     }
+    /// Sweeps DIMS, checks shape + all elements of symmetric dot gram matrix.
+    fn check_dots_symmetric<T: TestableType + Dots>()
+    where
+        T::Accumulator: Clone + Default + Copy + FloatLike + 'static,
+    {
+        init_thread();
+        for &(num_vectors, _num_targets, depth) in DIMS {
+            let vectors = Tensor::<T>::try_new(&[num_vectors, depth], T::one()).unwrap();
+            let gram_matrix = vectors.view().try_dots_symmetric().unwrap();
+            assert_eq!(
+                gram_matrix.shape(),
+                &[num_vectors, num_vectors],
+                "shape @ ({num_vectors},{depth})"
+            );
+            let expected = T::dimensions_per_value() as f64 * depth as f64;
+            let tolerance = T::atol() + T::rtol() * expected.abs();
+            // All-ones vectors: every entry = self-dot = expected
+            for (index, &value) in gram_matrix.as_slice().iter().enumerate() {
+                assert!(
+                    (value.to_f64() - expected).abs() <= tolerance,
+                    "({num_vectors},{depth})[{index}]: {} vs {expected}",
+                    value.to_f64()
+                );
+            }
+        }
+    }
+
+    /// For all-ones vectors: angular distance = 0 (symmetric).
+    fn check_angulars_symmetric<T: TestableType + Angulars>()
+    where
+        T::SpatialResult: Clone + Default + Copy + FloatLike + 'static,
+    {
+        init_thread();
+        let tolerance = T::atol();
+        for &(num_vectors, _num_targets, depth) in DIMS {
+            let vectors = Tensor::<T>::try_new(&[num_vectors, depth], T::one()).unwrap();
+            let gram_matrix = vectors.view().try_angulars_symmetric().unwrap();
+            assert_eq!(gram_matrix.shape(), &[num_vectors, num_vectors]);
+            for &value in gram_matrix.as_slice() {
+                assert!(
+                    value.to_f64().abs() <= tolerance,
+                    "angular symmetric: {}",
+                    value.to_f64()
+                );
+            }
+        }
+    }
+
+    /// For all-ones vectors: euclidean distance = 0 (symmetric).
+    fn check_euclideans_symmetric<T: TestableType + Euclideans>()
+    where
+        T::SpatialResult: Clone + Default + Copy + FloatLike + 'static,
+    {
+        init_thread();
+        let tolerance = T::atol();
+        for &(num_vectors, _num_targets, depth) in DIMS {
+            let vectors = Tensor::<T>::try_new(&[num_vectors, depth], T::one()).unwrap();
+            let gram_matrix = vectors.view().try_euclideans_symmetric().unwrap();
+            assert_eq!(gram_matrix.shape(), &[num_vectors, num_vectors]);
+            for &value in gram_matrix.as_slice() {
+                assert!(
+                    value.to_f64().abs() <= tolerance,
+                    "euclidean symmetric: {}",
+                    value.to_f64()
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn dots_symmetric() {
+        check_dots_symmetric::<f32>();
+        check_dots_symmetric::<f64>();
+        check_dots_symmetric::<f16>();
+        check_dots_symmetric::<bf16>();
+        check_dots_symmetric::<e4m3>();
+        check_dots_symmetric::<e5m2>();
+        check_dots_symmetric::<e2m3>();
+        check_dots_symmetric::<e3m2>();
+        check_dots_symmetric::<i8>();
+        check_dots_symmetric::<u8>();
+        check_dots_symmetric::<i4x2>();
+        check_dots_symmetric::<u4x2>();
+    }
+
+    #[test]
+    fn angulars_symmetric() {
+        check_angulars_symmetric::<f32>();
+        check_angulars_symmetric::<f64>();
+        check_angulars_symmetric::<f16>();
+        check_angulars_symmetric::<bf16>();
+        check_angulars_symmetric::<e4m3>();
+        check_angulars_symmetric::<e5m2>();
+        check_angulars_symmetric::<e2m3>();
+        check_angulars_symmetric::<e3m2>();
+        check_angulars_symmetric::<i8>();
+        check_angulars_symmetric::<u8>();
+        check_angulars_symmetric::<i4x2>();
+        check_angulars_symmetric::<u4x2>();
+    }
+
+    #[test]
+    fn euclideans_symmetric() {
+        check_euclideans_symmetric::<f32>();
+        check_euclideans_symmetric::<f64>();
+        check_euclideans_symmetric::<f16>();
+        check_euclideans_symmetric::<bf16>();
+        check_euclideans_symmetric::<e4m3>();
+        check_euclideans_symmetric::<e5m2>();
+        check_euclideans_symmetric::<e2m3>();
+        check_euclideans_symmetric::<e3m2>();
+        check_euclideans_symmetric::<i8>();
+        check_euclideans_symmetric::<u8>();
+        check_euclideans_symmetric::<i4x2>();
+        check_euclideans_symmetric::<u4x2>();
+    }
+
     #[test]
     fn binary_packed_u1() {
         init_thread();

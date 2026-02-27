@@ -1617,6 +1617,86 @@ impl FloatLike for u32 {
     }
 }
 
+impl FloatLike for i16 {
+    fn from_f32(v: f32) -> Self {
+        f32_round_compat(v) as i16
+    }
+    fn to_f32(self) -> f32 {
+        self as f32
+    }
+    fn from_f64(v: f64) -> Self {
+        f64_round_compat(v) as i16
+    }
+    fn to_f64(self) -> f64 {
+        self as f64
+    }
+}
+
+impl FloatLike for u16 {
+    fn from_f32(v: f32) -> Self {
+        let r = f32_round_compat(v);
+        if r < 0.0 {
+            0
+        } else {
+            r as u16
+        }
+    }
+    fn to_f32(self) -> f32 {
+        self as f32
+    }
+    fn from_f64(v: f64) -> Self {
+        let r = f64_round_compat(v);
+        if r < 0.0 {
+            0
+        } else {
+            r as u16
+        }
+    }
+    fn to_f64(self) -> f64 {
+        self as f64
+    }
+}
+
+impl FloatLike for i64 {
+    fn from_f32(v: f32) -> Self {
+        f32_round_compat(v) as i64
+    }
+    fn to_f32(self) -> f32 {
+        self as f32
+    }
+    fn from_f64(v: f64) -> Self {
+        f64_round_compat(v) as i64
+    }
+    fn to_f64(self) -> f64 {
+        self as f64
+    }
+}
+
+impl FloatLike for u64 {
+    fn from_f32(v: f32) -> Self {
+        let r = f32_round_compat(v);
+        if r < 0.0 {
+            0
+        } else {
+            r as u64
+        }
+    }
+    fn to_f32(self) -> f32 {
+        self as f32
+    }
+    fn from_f64(v: f64) -> Self {
+        let r = f64_round_compat(v);
+        if r < 0.0 {
+            0
+        } else {
+            r as u64
+        }
+    }
+    fn to_f64(self) -> f64 {
+        self as f64
+    }
+}
+
 impl FloatLike for i4x2 {
     fn from_f32(v: f32) -> Self {
         let r = f32_round_compat(v) as i8;
@@ -1802,6 +1882,42 @@ impl TestableType for i32 {
 }
 #[cfg(test)]
 impl TestableType for u32 {
+    fn atol() -> f64 {
+        1.0
+    }
+    fn rtol() -> f64 {
+        0.0
+    }
+}
+#[cfg(test)]
+impl TestableType for i16 {
+    fn atol() -> f64 {
+        1.0
+    }
+    fn rtol() -> f64 {
+        0.0
+    }
+}
+#[cfg(test)]
+impl TestableType for u16 {
+    fn atol() -> f64 {
+        1.0
+    }
+    fn rtol() -> f64 {
+        0.0
+    }
+}
+#[cfg(test)]
+impl TestableType for i64 {
+    fn atol() -> f64 {
+        1.0
+    }
+    fn rtol() -> f64 {
+        0.0
+    }
+}
+#[cfg(test)]
+impl TestableType for u64 {
     fn atol() -> f64 {
         1.0
     }
