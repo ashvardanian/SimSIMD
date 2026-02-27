@@ -179,19 +179,22 @@ NK_INTERNAL __m512d nk_vincenty_f64x8_skylake_(        //
         angular_distance = nk_atan2_f64x8_skylake_(sin_angular_distance, cos_angular_distance);
 
         // sin(azimuth) = cos(U₁) × cos(U₂) × sin(λ) / sin(angular_distance)
-        sin_azimuth = _mm512_div_pd(_mm512_mul_pd(_mm512_mul_pd(cos_reduced_first, cos_reduced_second), sin_lambda),
-                                    sin_angular_distance);
+        // Use masked divide: zero result for coincident lanes, avoids division by zero
+        sin_azimuth = _mm512_maskz_div_pd(
+            _knot_mask8(coincident_mask),
+            _mm512_mul_pd(_mm512_mul_pd(cos_reduced_first, cos_reduced_second), sin_lambda), sin_angular_distance);
         cos_squared_azimuth = _mm512_sub_pd(one, _mm512_mul_pd(sin_azimuth, sin_azimuth));
 
         // Handle equatorial case: cos²α = 0
         __mmask8 equatorial_mask = _mm512_cmp_pd_mask(cos_squared_azimuth, _mm512_set1_pd(1e-15), _CMP_LT_OS);
 
         // cos(2σₘ) = cos(σ) - 2 × sin(U₁) × sin(U₂) / cos²(α)
+        // Use masked divide: for equatorial lanes, quotient = cos_angular_distance (passthrough),
+        // so subtraction yields zero. Avoids division by zero.
         __m512d sin_product = _mm512_mul_pd(sin_reduced_first, sin_reduced_second);
-        cos_double_angular_midpoint = _mm512_sub_pd(
-            cos_angular_distance, _mm512_div_pd(_mm512_mul_pd(two, sin_product), cos_squared_azimuth));
-        cos_double_angular_midpoint = _mm512_mask_blend_pd(equatorial_mask, cos_double_angular_midpoint,
-                                                           _mm512_setzero_pd());
+        __m512d quotient = _mm512_mask_div_pd(cos_angular_distance, _knot_mask8(equatorial_mask),
+                                              _mm512_mul_pd(two, sin_product), cos_squared_azimuth);
+        cos_double_angular_midpoint = _mm512_sub_pd(cos_angular_distance, quotient);
 
         // C = f/16 * cos²α * (4 + f*(4 - 3*cos²α))
         __m512d correction_factor = _mm512_mul_pd(
@@ -439,19 +442,22 @@ NK_INTERNAL __m512 nk_vincenty_f32x16_skylake_(      //
         angular_distance = nk_atan2_f32x16_skylake_(sin_angular_distance, cos_angular_distance);
 
         // sin(azimuth) = cos(U₁) × cos(U₂) × sin(λ) / sin(angular_distance)
-        sin_azimuth = _mm512_div_ps(_mm512_mul_ps(_mm512_mul_ps(cos_reduced_first, cos_reduced_second), sin_lambda),
-                                    sin_angular_distance);
+        // Use masked divide: zero result for coincident lanes, avoids division by zero
+        sin_azimuth = _mm512_maskz_div_ps(
+            _knot_mask16(coincident_mask),
+            _mm512_mul_ps(_mm512_mul_ps(cos_reduced_first, cos_reduced_second), sin_lambda), sin_angular_distance);
         cos_squared_azimuth = _mm512_sub_ps(one, _mm512_mul_ps(sin_azimuth, sin_azimuth));
 
         // Handle equatorial case: cos²α = 0
         __mmask16 equatorial_mask = _mm512_cmp_ps_mask(cos_squared_azimuth, _mm512_set1_ps(1e-7f), _CMP_LT_OS);
 
         // cos(2σₘ) = cos(σ) - 2 × sin(U₁) × sin(U₂) / cos²(α)
+        // Use masked divide: for equatorial lanes, quotient = cos_angular_distance (passthrough),
+        // so subtraction yields zero. Avoids division by zero.
         __m512 sin_product = _mm512_mul_ps(sin_reduced_first, sin_reduced_second);
-        cos_double_angular_midpoint = _mm512_sub_ps(
-            cos_angular_distance, _mm512_div_ps(_mm512_mul_ps(two, sin_product), cos_squared_azimuth));
-        cos_double_angular_midpoint = _mm512_mask_blend_ps(equatorial_mask, cos_double_angular_midpoint,
-                                                           _mm512_setzero_ps());
+        __m512 quotient = _mm512_mask_div_ps(cos_angular_distance, _knot_mask16(equatorial_mask),
+                                             _mm512_mul_ps(two, sin_product), cos_squared_azimuth);
+        cos_double_angular_midpoint = _mm512_sub_ps(cos_angular_distance, quotient);
 
         // C = f/16 * cos²α * (4 + f*(4 - 3*cos²α))
         __m512 correction_factor = _mm512_mul_ps(
