@@ -259,6 +259,11 @@ char const *dtype_to_python_string(nk_dtype_t dtype) {
     return info ? info->buffer_format : "unknown";
 }
 
+nk_dtype_t dtype_from_buffer(Py_buffer const *buffer) {
+    if (buffer->obj && PyObject_TypeCheck(buffer->obj, &TensorType)) return ((Tensor *)buffer->obj)->dtype;
+    return buffer->format ? python_string_to_dtype(buffer->format) : nk_dtype_unknown_k;
+}
+
 int same_string(char const *a, char const *b) { return strcmp(a, b) == 0; }
 
 int is_complex(nk_dtype_t dtype) {
@@ -568,7 +573,10 @@ int parse_tensor(PyObject *tensor, Py_buffer *buffer, MatrixOrVectorView *parsed
     }
 
     parsed->start = buffer->buf;
-    parsed->dtype = python_string_to_dtype(buffer->format);
+    // If the source object is a Tensor, use its dtype directly —
+    // the PEP 3118 format string may be a placeholder for exotic types.
+    if (buffer->obj && PyObject_TypeCheck(buffer->obj, &TensorType)) parsed->dtype = ((Tensor *)buffer->obj)->dtype;
+    else parsed->dtype = python_string_to_dtype(buffer->format);
     if (parsed->dtype == nk_dtype_unknown_k) {
         PyErr_Format(PyExc_ValueError, "Unsupported '%s' dtype specifier", buffer->format);
         PyBuffer_Release(buffer);

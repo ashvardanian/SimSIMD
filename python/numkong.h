@@ -135,6 +135,12 @@ char const *dtype_to_python_string(nk_dtype_t dtype);
 nk_dtype_t python_string_to_dtype(char const *name);
 
 /**
+ *  @brief Resolve dtype from a Py_buffer, preferring the Tensor's dtype
+ *  over the PEP 3118 format string (which may be a placeholder for exotic types).
+ */
+nk_dtype_t dtype_from_buffer(Py_buffer const *buffer);
+
+/**
  *  @brief Convert metric name string to kernel kind.
  *  @param[in] name Metric name (e.g., "l2", "dot", "angular").
  *  @return Kernel kind, or nk_kernel_unknown_k if not recognized.

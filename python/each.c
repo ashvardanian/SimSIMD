@@ -544,7 +544,7 @@ static PyObject *add_scalar_array(PyObject *array_obj, PyObject *scalar_obj, PyO
     if (out_obj && PyObject_GetBuffer(out_obj, &out_buffer, PyBUF_STRIDES | PyBUF_FORMAT) != 0) goto cleanup;
     if (out_obj && !buffers_shapes_match(&a_buffer, &out_buffer)) goto cleanup;
 
-    nk_dtype_t dtype = python_string_to_dtype(a_buffer.format);
+    nk_dtype_t dtype = dtype_from_buffer(&a_buffer);
     if (out_dtype_obj) {
         char const *dtype_str = PyUnicode_AsUTF8(out_dtype_obj);
         if (!dtype_str) goto cleanup;
@@ -630,8 +630,8 @@ static PyObject *add_array_array(PyObject *a_obj, PyObject *b_obj, PyObject *out
     if (!buffers_shapes_match(&a_buffer, &b_buffer)) goto cleanup;
     if (out_obj && !buffers_shapes_match(&a_buffer, &out_buffer)) goto cleanup;
 
-    nk_dtype_t a_dtype = python_string_to_dtype(a_buffer.format);
-    nk_dtype_t b_dtype = python_string_to_dtype(b_buffer.format);
+    nk_dtype_t a_dtype = dtype_from_buffer(&a_buffer);
+    nk_dtype_t b_dtype = dtype_from_buffer(&b_buffer);
     if (a_dtype == nk_dtype_unknown_k || b_dtype == nk_dtype_unknown_k) {
         PyErr_SetString(PyExc_TypeError, "Unsupported input dtype");
         goto cleanup;
@@ -803,7 +803,7 @@ static PyObject *multiply_scalar_array(PyObject *array_obj, PyObject *scalar_obj
     if (out_obj && PyObject_GetBuffer(out_obj, &out_buffer, PyBUF_STRIDES | PyBUF_FORMAT) != 0) goto cleanup;
     if (out_obj && !buffers_shapes_match(&a_buffer, &out_buffer)) goto cleanup;
 
-    nk_dtype_t dtype = python_string_to_dtype(a_buffer.format);
+    nk_dtype_t dtype = dtype_from_buffer(&a_buffer);
     if (out_dtype_obj) {
         char const *dtype_str = PyUnicode_AsUTF8(out_dtype_obj);
         if (!dtype_str) goto cleanup;
@@ -889,8 +889,8 @@ static PyObject *multiply_array_array(PyObject *a_obj, PyObject *b_obj, PyObject
     if (!buffers_shapes_match(&a_buffer, &b_buffer)) goto cleanup;
     if (out_obj && !buffers_shapes_match(&a_buffer, &out_buffer)) goto cleanup;
 
-    nk_dtype_t a_dtype = python_string_to_dtype(a_buffer.format);
-    nk_dtype_t b_dtype = python_string_to_dtype(b_buffer.format);
+    nk_dtype_t a_dtype = dtype_from_buffer(&a_buffer);
+    nk_dtype_t b_dtype = dtype_from_buffer(&b_buffer);
     if (a_dtype == nk_dtype_unknown_k || b_dtype == nk_dtype_unknown_k) {
         PyErr_SetString(PyExc_TypeError, "Unsupported input dtype");
         goto cleanup;

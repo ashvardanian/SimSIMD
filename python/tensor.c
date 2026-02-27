@@ -1619,7 +1619,25 @@ static int Tensor_getbuffer(PyObject *export_from, Py_buffer *view, int flags) {
     view->readonly = 0;
     view->itemsize = (Py_ssize_t)item_size;
 
-    if ((flags & PyBUF_FORMAT) == PyBUF_FORMAT) view->format = (char *)dtype_to_python_string(tensor->dtype);
+    if ((flags & PyBUF_FORMAT) == PyBUF_FORMAT) {
+        // Exotic types that numpy can't represent via PEP 3118: emit a valid
+        // unsigned-integer format whose item size matches bytes_per_dtype.
+        // Internal callers needing the real dtype should check isinstance(obj, Tensor)
+        // and read .dtype directly.
+        switch (tensor->dtype) {
+        case nk_bf16_k: view->format = "H"; break;  // 2 bytes → uint16
+        case nk_e4m3_k: view->format = "B"; break;  // 1 byte  → uint8
+        case nk_e5m2_k: view->format = "B"; break;  // 1 byte  → uint8
+        case nk_e2m3_k: view->format = "B"; break;  // 1 byte  → uint8
+        case nk_e3m2_k: view->format = "B"; break;  // 1 byte  → uint8
+        case nk_i4_k: view->format = "B"; break;    // 1 byte  → uint8
+        case nk_u4_k: view->format = "B"; break;    // 1 byte  → uint8
+        case nk_u1_k: view->format = "B"; break;    // 1 byte  → uint8
+        case nk_bf16c_k: view->format = "I"; break; // 4 bytes → uint32
+        case nk_f16c_k: view->format = "I"; break;  // 4 bytes → uint32
+        default: view->format = (char *)dtype_to_python_string(tensor->dtype); break;
+        }
+    }
     else view->format = NULL;
 
     if ((flags & PyBUF_ND) == PyBUF_ND) {
