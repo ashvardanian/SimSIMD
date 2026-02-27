@@ -139,7 +139,7 @@ NK_PUBLIC void nk_jaccard_u1_rvv(nk_u1x8_t const *a, nk_u1x8_t const *b, nk_size
 
     nk_u32_t intersection_count_u32 = __riscv_vmv_x_s_u32m1_u32(intersection_sum_u32m1);
     nk_u32_t union_count_u32 = __riscv_vmv_x_s_u32m1_u32(union_sum_u32m1);
-    *result = (union_count_u32 != 0) ? 1.0f - (nk_f32_t)intersection_count_u32 / (nk_f32_t)union_count_u32 : 1.0f;
+    *result = (union_count_u32 != 0) ? 1.0f - (nk_f32_t)intersection_count_u32 / (nk_f32_t)union_count_u32 : 0.0f;
 }
 
 #pragma endregion - Binary Sets
@@ -186,7 +186,7 @@ NK_PUBLIC void nk_jaccard_u32_rvv(nk_u32_t const *a, nk_u32_t const *b, nk_size_
         match_count_u32 += __riscv_vcpop_m_b32(equal_mask_b32, vector_length);
     }
 
-    *result = (n != 0) ? 1.0f - (nk_f32_t)match_count_u32 / (nk_f32_t)n : 1.0f;
+    *result = (n != 0) ? 1.0f - (nk_f32_t)match_count_u32 / (nk_f32_t)n : 0.0f;
 }
 
 NK_PUBLIC void nk_jaccard_u16_rvv(nk_u16_t const *a, nk_u16_t const *b, nk_size_t n, nk_f32_t *result) {
@@ -206,7 +206,7 @@ NK_PUBLIC void nk_jaccard_u16_rvv(nk_u16_t const *a, nk_u16_t const *b, nk_size_
         match_count_u32 += __riscv_vcpop_m_b16(equal_mask_b16, vector_length);
     }
 
-    *result = (n != 0) ? 1.0f - (nk_f32_t)match_count_u32 / (nk_f32_t)n : 1.0f;
+    *result = (n != 0) ? 1.0f - (nk_f32_t)match_count_u32 / (nk_f32_t)n : 0.0f;
 }
 
 #pragma endregion - Integer Sets

@@ -49,7 +49,7 @@ NK_PUBLIC void nk_jaccard_u1_serial(nk_u1x8_t const *a, nk_u1x8_t const *b, nk_s
     nk_u32_t intersection_count = 0, union_count = 0;
     for (nk_size_t i = 0; i != n_bytes; ++i)
         intersection_count += nk_u1x8_popcount_(a[i] & b[i]), union_count += nk_u1x8_popcount_(a[i] | b[i]);
-    *result = (union_count != 0) ? 1.0f - (nk_f32_t)intersection_count / (nk_f32_t)union_count : 1.0f;
+    *result = (union_count != 0) ? 1.0f - (nk_f32_t)intersection_count / (nk_f32_t)union_count : 0.0f;
 }
 
 #pragma endregion - Binary Sets
@@ -59,7 +59,7 @@ NK_PUBLIC void nk_jaccard_u1_serial(nk_u1x8_t const *a, nk_u1x8_t const *b, nk_s
 NK_PUBLIC void nk_jaccard_u32_serial(nk_u32_t const *a, nk_u32_t const *b, nk_size_t n, nk_f32_t *result) {
     nk_u32_t intersection_count = 0;
     for (nk_size_t i = 0; i != n; ++i) intersection_count += (a[i] == b[i]);
-    *result = (n != 0) ? 1.0f - (nk_f32_t)intersection_count / (nk_f32_t)n : 1.0f;
+    *result = (n != 0) ? 1.0f - (nk_f32_t)intersection_count / (nk_f32_t)n : 0.0f;
 }
 
 NK_PUBLIC void nk_hamming_u8_serial(nk_u8_t const *a, nk_u8_t const *b, nk_size_t n, nk_u32_t *result) {
@@ -71,7 +71,7 @@ NK_PUBLIC void nk_hamming_u8_serial(nk_u8_t const *a, nk_u8_t const *b, nk_size_
 NK_PUBLIC void nk_jaccard_u16_serial(nk_u16_t const *a, nk_u16_t const *b, nk_size_t n, nk_f32_t *result) {
     nk_u32_t matches = 0;
     for (nk_size_t i = 0; i != n; ++i) matches += (a[i] == b[i]);
-    *result = (n != 0) ? 1.0f - (nk_f32_t)matches / (nk_f32_t)n : 1.0f;
+    *result = (n != 0) ? 1.0f - (nk_f32_t)matches / (nk_f32_t)n : 0.0f;
 }
 
 #pragma endregion - Integer Sets
@@ -113,10 +113,10 @@ NK_INTERNAL void nk_jaccard_u1x128_finalize_serial( //
     nk_f32_t union_c = query_popcount + target_popcount_c - intersection_c;
     nk_f32_t union_d = query_popcount + target_popcount_d - intersection_d;
 
-    result->f32s[0] = (union_a != 0) ? 1.0f - intersection_a / union_a : 1.0f;
-    result->f32s[1] = (union_b != 0) ? 1.0f - intersection_b / union_b : 1.0f;
-    result->f32s[2] = (union_c != 0) ? 1.0f - intersection_c / union_c : 1.0f;
-    result->f32s[3] = (union_d != 0) ? 1.0f - intersection_d / union_d : 1.0f;
+    result->f32s[0] = (union_a != 0) ? 1.0f - intersection_a / union_a : 0.0f;
+    result->f32s[1] = (union_b != 0) ? 1.0f - intersection_b / union_b : 0.0f;
+    result->f32s[2] = (union_c != 0) ? 1.0f - intersection_c / union_c : 0.0f;
+    result->f32s[3] = (union_d != 0) ? 1.0f - intersection_d / union_d : 0.0f;
 }
 
 typedef struct nk_hamming_u1x128_state_serial_t {
@@ -161,7 +161,7 @@ NK_INTERNAL void nk_jaccard_f32x4_from_dot_serial_(nk_b128_vec_t dots, nk_u32_t 
     for (int i = 0; i < 4; ++i) {
         nk_f32_t dot = (nk_f32_t)dots.u32s[i];
         nk_f32_t union_val = (nk_f32_t)query_pop + (nk_f32_t)target_pops.u32s[i] - dot;
-        results->f32s[i] = (union_val != 0) ? 1.0f - dot / union_val : 1.0f;
+        results->f32s[i] = (union_val != 0) ? 1.0f - dot / union_val : 0.0f;
     }
 }
 

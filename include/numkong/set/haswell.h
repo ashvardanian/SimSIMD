@@ -76,7 +76,7 @@ NK_PUBLIC void nk_jaccard_u1_haswell(nk_u1x8_t const *a, nk_u1x8_t const *b, nk_
             union_count += (nk_u32_t)_mm_popcnt_u64(*(nk_u64_t const *)a | *(nk_u64_t const *)b);
     for (; n_bytes; --n_bytes, ++a, ++b)
         intersection_count += nk_u1x8_popcount_(*a & *b), union_count += nk_u1x8_popcount_(*a | *b);
-    *result = (union_count != 0) ? 1.0f - (nk_f32_t)intersection_count / (nk_f32_t)union_count : 1.0f;
+    *result = (union_count != 0) ? 1.0f - (nk_f32_t)intersection_count / (nk_f32_t)union_count : 0.0f;
 }
 
 #pragma endregion - Binary Sets
@@ -94,7 +94,7 @@ NK_PUBLIC void nk_jaccard_u32_haswell(nk_u32_t const *a, nk_u32_t const *b, nk_s
         intersection_count += (nk_u32_t)_mm_popcnt_u32((unsigned int)equality_mask);
     }
     for (; n_remaining; --n_remaining, ++a, ++b) intersection_count += (*a == *b);
-    *result = (n != 0) ? 1.0f - (nk_f32_t)intersection_count / (nk_f32_t)n : 1.0f;
+    *result = (n != 0) ? 1.0f - (nk_f32_t)intersection_count / (nk_f32_t)n : 0.0f;
 }
 
 NK_PUBLIC void nk_hamming_u8_haswell(nk_u8_t const *a, nk_u8_t const *b, nk_size_t n, nk_u32_t *result) {
@@ -189,7 +189,7 @@ NK_PUBLIC void nk_jaccard_u16_haswell(nk_u16_t const *a, nk_u16_t const *b, nk_s
     // Handle remaining elements (0-15) with scalar code
     for (; n_remaining; --n_remaining, ++a, ++b) matches += (*a == *b);
 
-    *result = (n != 0) ? 1.0f - (nk_f32_t)matches / (nk_f32_t)n : 1.0f;
+    *result = (n != 0) ? 1.0f - (nk_f32_t)matches / (nk_f32_t)n : 0.0f;
 }
 
 #pragma endregion - Integer Sets
@@ -283,7 +283,7 @@ NK_INTERNAL void nk_jaccard_u1x64_finalize_haswell( //
 
     __m128 ratio_f32x4 = _mm_mul_ps(intersection_f32x4, union_reciprocal_f32x4);
     __m128 jaccard_f32x4 = _mm_sub_ps(one_f32x4, ratio_f32x4);
-    result->xmm_ps = _mm_blendv_ps(jaccard_f32x4, one_f32x4, zero_union_mask);
+    result->xmm_ps = _mm_blendv_ps(jaccard_f32x4, _mm_setzero_ps(), zero_union_mask);
 }
 
 /** @brief Hamming from_dot: computes pop_a + pop_b - 2*dot for 4 pairs (Haswell). */
@@ -314,7 +314,7 @@ NK_INTERNAL void nk_jaccard_f32x4_from_dot_haswell_(nk_b128_vec_t dots, nk_u32_t
 
     __m128 ratio_f32x4 = _mm_mul_ps(dot_f32x4, union_reciprocal_f32x4);
     __m128 jaccard_f32x4 = _mm_sub_ps(one_f32x4, ratio_f32x4);
-    results->xmm_ps = _mm_blendv_ps(jaccard_f32x4, one_f32x4, zero_union_mask);
+    results->xmm_ps = _mm_blendv_ps(jaccard_f32x4, _mm_setzero_ps(), zero_union_mask);
 }
 
 #pragma endregion - Stateful Streaming

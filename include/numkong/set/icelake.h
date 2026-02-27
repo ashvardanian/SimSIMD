@@ -236,7 +236,7 @@ NK_PUBLIC void nk_jaccard_u1_icelake(nk_u1x8_t const *a, nk_u1x8_t const *b, nk_
         intersection_count = _mm512_reduce_add_epi64(intersection_popcount_u64x8);
         union_count = _mm512_reduce_add_epi64(union_popcount_u64x8);
     }
-    *result = (union_count != 0) ? 1.0f - (nk_f32_t)intersection_count / (nk_f32_t)union_count : 1.0f;
+    *result = (union_count != 0) ? 1.0f - (nk_f32_t)intersection_count / (nk_f32_t)union_count : 0.0f;
 }
 
 #pragma endregion - Binary Sets
@@ -259,7 +259,7 @@ NK_PUBLIC void nk_jaccard_u32_icelake(nk_u32_t const *a, nk_u32_t const *b, nk_s
         __mmask16 equality_mask = _mm512_mask_cmpeq_epi32_mask(load_mask, a_u32x16, b_u32x16);
         intersection_count += _mm_popcnt_u32((unsigned int)equality_mask);
     }
-    *result = (n != 0) ? 1.0f - (nk_f32_t)intersection_count / (nk_f32_t)n : 1.0f;
+    *result = (n != 0) ? 1.0f - (nk_f32_t)intersection_count / (nk_f32_t)n : 0.0f;
 }
 
 NK_PUBLIC void nk_hamming_u8_icelake(nk_u8_t const *a, nk_u8_t const *b, nk_size_t n, nk_u32_t *result) {
@@ -297,7 +297,7 @@ NK_PUBLIC void nk_jaccard_u16_icelake(nk_u16_t const *a, nk_u16_t const *b, nk_s
         __mmask32 equality_mask = _mm512_mask_cmpeq_epi16_mask(load_mask, a_u16x32, b_u16x32);
         matches += _mm_popcnt_u32(equality_mask);
     }
-    *result = (n != 0) ? 1.0f - (nk_f32_t)matches / (nk_f32_t)n : 1.0f;
+    *result = (n != 0) ? 1.0f - (nk_f32_t)matches / (nk_f32_t)n : 0.0f;
 }
 
 #pragma endregion - Integer Sets
@@ -418,7 +418,7 @@ NK_INTERNAL void nk_jaccard_u1x512_finalize_icelake( //
     __m128 targets_f32x4 = _mm_setr_ps(target_popcount_a, target_popcount_b, target_popcount_c, target_popcount_d);
     __m128 union_f32x4 = _mm_sub_ps(_mm_add_ps(query_f32x4, targets_f32x4), intersection_f32x4);
 
-    // Handle zero-union edge case: if union == 0, result = 1.0
+    // Handle zero-union edge case: if union == 0, result = 0.0
     __m128 zero_union_mask = _mm_cmpeq_ps(union_f32x4, _mm_setzero_ps());
     __m128 one_f32x4 = _mm_set1_ps(1.0f);
     __m128 safe_union_f32x4 = _mm_blendv_ps(union_f32x4, one_f32x4, zero_union_mask);
@@ -435,7 +435,7 @@ NK_INTERNAL void nk_jaccard_u1x512_finalize_icelake( //
 
     __m128 ratio_f32x4 = _mm_mul_ps(intersection_f32x4, union_reciprocal_f32x4);
     __m128 jaccard_f32x4 = _mm_sub_ps(one_f32x4, ratio_f32x4);
-    result->xmm_ps = _mm_blendv_ps(jaccard_f32x4, one_f32x4, zero_union_mask);
+    result->xmm_ps = _mm_blendv_ps(jaccard_f32x4, _mm_setzero_ps(), zero_union_mask);
 }
 
 /** @brief Hamming from_dot: computes pop_a + pop_b - 2*dot for 4 pairs (IceLake). */
@@ -465,7 +465,7 @@ NK_INTERNAL void nk_jaccard_f32x4_from_dot_icelake_(nk_b128_vec_t dots, nk_u32_t
 
     __m128 ratio_f32x4 = _mm_mul_ps(dot_f32x4, union_reciprocal_f32x4);
     __m128 jaccard_f32x4 = _mm_sub_ps(one_f32x4, ratio_f32x4);
-    results->xmm_ps = _mm_blendv_ps(jaccard_f32x4, one_f32x4, zero_union_mask);
+    results->xmm_ps = _mm_blendv_ps(jaccard_f32x4, _mm_setzero_ps(), zero_union_mask);
 }
 
 #pragma endregion - Stateful Streaming

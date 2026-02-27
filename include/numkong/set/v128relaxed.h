@@ -201,7 +201,7 @@ nk_jaccard_u32_v128relaxed_cycle:
     // Reduce once at the end
     nk_u32_t intersection = nk_reduce_add_u32x4_v128relaxed_(intersection_u32x4);
     nk_u32_t union_count = nk_reduce_add_u32x4_v128relaxed_(union_count_u32x4);
-    *result = union_count > 0 ? 1.0f - (nk_f32_t)intersection / (nk_f32_t)union_count : 1.0f;
+    *result = union_count > 0 ? 1.0f - (nk_f32_t)intersection / (nk_f32_t)union_count : 0.0f;
 }
 
 NK_PUBLIC void nk_jaccard_u16_v128relaxed(nk_u16_t const *a, nk_u16_t const *b, nk_size_t n, nk_f32_t *result) {
@@ -253,7 +253,7 @@ nk_jaccard_u16_v128relaxed_cycle:
                             nk_reduce_add_u32x4_v128relaxed_(intersection_high_u32x4);
     nk_u32_t union_count = nk_reduce_add_u32x4_v128relaxed_(union_low_u32x4) +
                            nk_reduce_add_u32x4_v128relaxed_(union_high_u32x4);
-    *result = union_count > 0 ? 1.0f - (nk_f32_t)intersection / (nk_f32_t)union_count : 1.0f;
+    *result = union_count > 0 ? 1.0f - (nk_f32_t)intersection / (nk_f32_t)union_count : 0.0f;
 }
 
 #pragma endregion - Integer Sets

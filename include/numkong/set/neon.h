@@ -107,7 +107,7 @@ NK_PUBLIC void nk_jaccard_u1_neon(nk_u1x8_t const *a, nk_u1x8_t const *b, nk_siz
     // Handle the tail
     for (; i != n_bytes; ++i)
         intersection_count += nk_u1x8_popcount_(a[i] & b[i]), union_count += nk_u1x8_popcount_(a[i] | b[i]);
-    *result = (union_count != 0) ? 1.0f - (nk_f32_t)intersection_count / (nk_f32_t)union_count : 1.0f;
+    *result = (union_count != 0) ? 1.0f - (nk_f32_t)intersection_count / (nk_f32_t)union_count : 0.0f;
 }
 
 #pragma endregion - Binary Sets
@@ -126,7 +126,7 @@ NK_PUBLIC void nk_jaccard_u32_neon(nk_u32_t const *a, nk_u32_t const *b, nk_size
     }
     intersection_count += vaddvq_u32(intersection_count_u32x4);
     for (; i != n; ++i) intersection_count += (a[i] == b[i]);
-    *result = (n != 0) ? 1.0f - (nk_f32_t)intersection_count / (nk_f32_t)n : 1.0f;
+    *result = (n != 0) ? 1.0f - (nk_f32_t)intersection_count / (nk_f32_t)n : 0.0f;
 }
 
 NK_PUBLIC void nk_hamming_u8_neon(nk_u8_t const *a, nk_u8_t const *b, nk_size_t n, nk_u32_t *result) {
@@ -172,7 +172,7 @@ NK_PUBLIC void nk_jaccard_u16_neon(nk_u16_t const *a, nk_u16_t const *b, nk_size
     matches += vaddvq_u32(match_count_u32x4);
     // Handle tail elements
     for (; i != n; ++i) matches += (a[i] == b[i]);
-    *result = (n != 0) ? 1.0f - (nk_f32_t)matches / (nk_f32_t)n : 1.0f;
+    *result = (n != 0) ? 1.0f - (nk_f32_t)matches / (nk_f32_t)n : 0.0f;
 }
 
 #pragma endregion - Integer Sets

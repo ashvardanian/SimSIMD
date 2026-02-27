@@ -117,7 +117,7 @@ NK_PUBLIC void nk_jaccard_u1_sve(nk_u1x8_t const *a, nk_u1x8_t const *b, nk_size
         cycle = 0; // Reset the cycle counter.
     }
 
-    *result = (union_count != 0) ? 1.0f - (nk_f32_t)intersection_count / (nk_f32_t)union_count : 1.0f;
+    *result = (union_count != 0) ? 1.0f - (nk_f32_t)intersection_count / (nk_f32_t)union_count : 0.0f;
 }
 
 #pragma endregion - Binary Sets
@@ -136,7 +136,7 @@ NK_PUBLIC void nk_jaccard_u32_sve(nk_u32_t const *a, nk_u32_t const *b, nk_size_
         intersection_count += svcntp_b32(active_predicate, equality_predicate);
         i += words_per_register;
     }
-    *result = (n != 0) ? 1.0f - (nk_f32_t)intersection_count / (nk_f32_t)n : 1.0f;
+    *result = (n != 0) ? 1.0f - (nk_f32_t)intersection_count / (nk_f32_t)n : 0.0f;
 }
 
 NK_PUBLIC void nk_hamming_u8_sve(nk_u8_t const *a, nk_u8_t const *b, nk_size_t n, nk_u32_t *result) {
@@ -166,7 +166,7 @@ NK_PUBLIC void nk_jaccard_u16_sve(nk_u16_t const *a, nk_u16_t const *b, nk_size_
         intersection_count += svcntp_b16(active_predicate, equality_predicate);
         i += halfwords_per_register;
     }
-    *result = (n != 0) ? 1.0f - (nk_f32_t)intersection_count / (nk_f32_t)n : 1.0f;
+    *result = (n != 0) ? 1.0f - (nk_f32_t)intersection_count / (nk_f32_t)n : 0.0f;
 }
 
 #pragma endregion - Integer Sets
